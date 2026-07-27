@@ -83,7 +83,11 @@ football-franchise/
 │   ├── attributes/                # D3 — attribute derivation pipeline
 │   ├── calibration/               # D4 — data ingestion, batch sims, statistical validation
 │   ├── franchise/                 # D5 — calendar, roster, cap, market, draft, scouting
-│   └── narrative/                 # D6 — storyline engine
+│   ├── narrative/                 # D6 — storyline engine
+│   └── playbook/                  # CONTENT, not a domain — the play-card corpus (ADR-017).
+│                                  #   No agent owns it; Orchestrator-stewarded until Phase 4,
+│                                  #   when franchise takes it under ADR-006. Imports contracts
+│                                  #   and nothing else.
 ├── apps/
 │   └── game/                      # D7 — UI (browser)
 └── assets/                        # D8 — art pipeline output + style guide
@@ -180,6 +184,42 @@ The idea guy in the design room. Primary brief: **fantasy mode** — league play
 3. The Orchestrator (with the project owner) approves/rejects/modifies. Approved changes are versioned in `contracts`, logged as an ADR, and both domains adapt.
 4. Result: every overlap is a visible, versioned decision instead of silent entanglement.
 
+### 4.1 Working principle: prefer a compile error to a convention; prefer a loud failure to a silent default
+
+*(Amendment 8. Stated because it was already governing decisions; it should govern them
+deliberately.)*
+
+When a rule can be expressed in the type system, express it there. When a failure can be made
+loud, make it loud. A convention is a rule that holds until someone is in a hurry; a silent
+default is a defect that reports success.
+
+This is not style preference — it has repeatedly caught defects that review structurally could
+not:
+
+- **`playId?: never` over an optional field** (ADR-014 item 13, ADR-016). Making "not a play"
+  structural rather than a missing value immediately exposed three misclassified events — and
+  then, when they moved, a silent zeroing of every kicking and return statistic that no test
+  was watching for.
+- **Required `tunables` parameters over an optional one** (ADR-012, ADR-016). `tsc` found seven
+  module-load-time reads invisible at every call site, including `tierFor` at forty `CHECK`
+  construction sites. An optional parameter would have turned each into a silent default, and a
+  calibration batch would have reported clean statistics about a simulation half-run under the
+  wrong tunables.
+- **A roll is recorded exactly once** (ADR-004). A duplicated `RollDetail` inflates aggregates
+  silently; every individual number stays correct and only the total lies.
+- **Widen or add; never overload an existing event's meaning** (ADR-010). Adding leaves consumers
+  *loudly incomplete*; overloading makes them *silently wrong*.
+- **`Evidence<T, E>` with a checkpoint token** (calibration ingestion). The sacred-season rule
+  became impossible to violate rather than merely against policy.
+
+The common shape: a schema or signature that cannot express the wrong thing beats any amount of
+discipline about not writing it. When choosing between the two, the cost of the stricter option
+is paid once by the author; the cost of the looser one is paid repeatedly, by whoever is
+debugging a number that looks right.
+
+Corollary for sub-agents: if you find yourself writing a comment that asks a future reader to
+remember something, check first whether the type system can remember it for them.
+
 Known overlaps to expect (pre-approved as contract channels): stamina/morale/injury (franchise → engine inputs), narrative effects (narrative → franchise modifiers), perception queries (franchise perception ↔ UI display), event subscription (engine/franchise → narrative/UI/calibration).
 
 ---
@@ -272,6 +312,8 @@ Common system-prompt rules (all agents): stay inside your owned path; import onl
 | # | Date | Change | Rationale |
 |---|---|---|---|
 | 1 | Jul 2026 | Added Spec #11 (Coaching & Staff) to backlog; staff recognized as a cross-domain system owned by franchise with contract-channel effects into engine/development | Coaching was a gap in the original domain map; owner directed per-organization evaluation profiles and staff economics that require formal treatment |
+| 8 | Jul 2026 | §4.1 added — the working principle *prefer a compile error to a convention; prefer a loud failure to a silent default*, with its five precedents | It was already governing decisions and had repeatedly caught defects review could not. An unstated principle gets applied when someone remembers it; a stated one gets applied when it matters |
+| 7 | Jul 2026 | `packages/playbook` added to the domain map as **content, not a domain** — no agent, Orchestrator-stewarded, transferring to franchise in Phase 4 (ADR-017). The play-call vocabulary moves from `engine` to `contracts` in the same change, narrowing ADR-013's refusal | The play-card corpus is Phase 1's critical path (the frozen caller cannot call plays without it; backlog entry 8 makes zone metrics fixture-shaped without horizontal placement) and franchise, its eventual owner under ADR-006, does not exist until Phase 4. Three domains now need the play-call types, which under Amendment 6's corollary makes them shared vocabulary |
 | 6 | Jul 2026 | §4 rule 1 amended: a domain whose explicit purpose is to exercise another may import it, under a ratified ADR, one-directional, with its permitted surface named. First and only instance: `calibration` → `engine` (ADR-012), whose surface is the simulation entry points, their input/output types, the tunables-patch interface, and the debug renderer — the engine's barrel trimmed to match in the same commit | Calibration cannot fulfil its Charter §3-D4 mandate without invoking the engine; the engine's export barrel had already made that decision implicitly and far too generously (~90 resolver functions). The alternative — a simulation-harness interface inside `contracts` — would have violated contracts.md §10 to preserve the letter of a rule about internals. Sequenced after ADR-011, since most of the pressure to import engine internals was the event stream's missing result bands wearing a dependency costume |
 | 5 | Jul 2026 | ADR-001 (fashion seeding) and ADR-002 (leagueContext slot) ratified. Phase 0 complete: contracts v0 implemented and tested | Owner ratification; first implementation milestone |
 | 4 | Jul 2026 | Added Spec #15 (Owners' Meeting, deferred). League rule changes tiered: competitive rules may pass autonomously; structural changes (league size, game count, playoff field) require user assent | Owner ruled the simulated league must not restructure itself autonomously across a long save; the meeting system needs granular design before it holds that power |
