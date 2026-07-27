@@ -56,8 +56,13 @@ under any circumstance.
    `MatchGameState`, the play-call vocabulary (`AnyPlayCalls`, `OffensivePlayCall`,
    `DefensivePlayCall`, `RunPlayCall` and the assignment/route/gap types they compose),
    `SimulationResult`, and `IncoherentPlayCallError`.
-3. **The tunables-patch interface** — the `Tunables` **type**, and a pure
-   `applyTunablePatch(tunables, patch)` returning a new `Tunables`. This matches
+3. **The tunables-patch interface** — the `Tunables` **type**, a **deeply frozen
+   `DEFAULT_TUNABLES`** (added by [ADR-016](ADR-016-special-teams-play-scope-and-a-reachable-tunables-base.md),
+   ratified July 2026), and a pure `applyTunablePatch(tunables, patch)` returning a new
+   `Tunables`. Without a reachable base value the patch interface had no callable first
+   argument from outside the package — the capability existed and could not be used. This
+   ADR's objection was to an **edit channel**, not to a value: a deeply frozen constant
+   cannot be written to, so exporting it concedes nothing the objection was about. This matches
    `calibration.md`'s stated workflow: proposals are *patches, not edits*
    (`{tunableId, currentValue, proposedValue, evidence, expectedEffect}`), filed as ADR
    petitions. A patch interface serves that; a mutable exported constant does not.

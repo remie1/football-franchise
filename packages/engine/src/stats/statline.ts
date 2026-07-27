@@ -40,7 +40,7 @@
  */
 import type { PlayerId, TeamId } from "@ff/contracts";
 import { isGameScoped } from "../game/events.js";
-import type { GameEventEnvelope, GameScopedEvent, PlayScopedEvent } from "../game/events.js";
+import type { GameEventEnvelope, PlayScopedEvent } from "../game/events.js";
 
 export interface PassingLine {
   readonly attempts: number;
@@ -249,10 +249,14 @@ export function reduceStatlines(events: readonly GameEventEnvelope[]): readonly 
   let play: PlayScratch | undefined;
 
   for (const { event } of events) {
-    if (isGameScoped(event)) {
-      applyGameEvent(event, touch);
-      continue;
-    }
+    // NO GAME-SCOPED EVENT FEEDS A STATLINE, and since ADR-016 item 1 that is
+    // the whole of this branch. The kicking summaries used to be the exception
+    // — they were GAME-scoped and they are the only place kicking and return
+    // numbers come from — and moving them onto `MatchEventBase` moved them into
+    // the play branch below, where they are handled before the scrimmage
+    // scratch. A boundary, a scoreboard state or a coach decision credits
+    // nobody with anything.
+    if (isGameScoped(event)) continue;
     play = applyPlayEvent(event, play, touch);
   }
 
@@ -276,15 +280,19 @@ function freeze(a: Acc): StatLine {
 
 type Touch = (player: PlayerId, team: TeamId | undefined) => Acc | undefined;
 
+/** The three kicking summaries, PLAY-scoped since ADR-016 item 1. */
+type KickEvent = Extract<PlayScopedEvent, { type: "PLACEKICK" | "PUNT" | "KICKOFF" }>;
+
 /**
- * The GAME-scoped half of the stream (ADR-014 item 13). This used to be a
- * hand-maintained list of type names, because the game events were an
- * engine-local union that contracts did not declare. The partition is now
- * structural — `isGameScoped` asks whether the event carries a `playId` — so a
- * twelfth game-structure event is routed correctly on the day it lands rather
- * than falling silently into the play branch.
+ * The kicking game's contribution to the box score. These three are the only
+ * events a kicker, a punter or a returner is ever named on, so without them
+ * there is no kicking ledger and no return ledger at all.
+ *
+ * They are PLAY-scoped and they are not scrimmage plays: no `PLAY_START`
+ * precedes them and there is no scratch state to thread, which is why they are
+ * handled here rather than in `applyPlayEvent`'s switch.
  */
-function applyGameEvent(event: GameScopedEvent, touch: Touch): void {
+function applyKickEvent(event: KickEvent, touch: Touch): void {
   if (event.type === "PLACEKICK") {
     const line = touch(event.payload.kicker, event.payload.team);
     if (line === undefined) return;
@@ -338,6 +346,15 @@ function applyPlayEvent(
   play: PlayScratch | undefined,
   touch: Touch,
 ): PlayScratch | undefined {
+  // ADR-016 item 1: a kick is a play, so these three arrive here now. They are
+  // NOT scrimmage plays — they open no scratch, they need none, and they leave
+  // whatever scratch is open exactly as they found it — so they are dispatched
+  // before the `play === undefined` guard, which would otherwise drop every kick
+  // in the game (a kickoff is preceded by no `PLAY_START` at all).
+  if (event.type === "PLACEKICK" || event.type === "PUNT" || event.type === "KICKOFF") {
+    applyKickEvent(event, touch);
+    return play;
+  }
   if (event.type === "PLAY_START") {
     const view = readPlayStart(event.payload);
     if (view === undefined) return undefined;

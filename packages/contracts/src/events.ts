@@ -229,20 +229,27 @@ export type MatchEvent =
   | ({ type: "COACH_DECISION"; payload: {
         kind: CoachDecisionKind; authority: "COACH"; team: TeamId; choice: string;
       } } & GameEventBase)
+  /**
+   * The three kicking events are PLAY-scoped, not game-scoped (ADR-016). A field-goal
+   * attempt is a fourth down, a punt is a play, a kickoff is a free-kick down — and once
+   * ADR-014 item 12 moved their rolls onto CHECKs, those CHECKs had to name a real PlayId
+   * anyway. A summary event that cannot name the play its own CHECK identifies is the exact
+   * inverse of the fiction item 13 removed.
+   */
   | ({ type: "PLACEKICK"; payload: {
         kind: PlacekickKind; kicker: PlayerId; team: TeamId; distanceYards: number;
         made: boolean; band: string; rollRef: string; target: number;
-      } } & GameEventBase)
+      } } & MatchEventBase)
   | ({ type: "PUNT"; payload: {
         punter: PlayerId; team: TeamId; fromYardLine: number; grossYards: number;
         touchback: boolean; downed: boolean; returner?: PlayerId; returnYards: number;
         resultYardLine: number; rollRef: string; returnRollRef?: string;
-      } } & GameEventBase)
+      } } & MatchEventBase)
   | ({ type: "KICKOFF"; payload: {
         kicker: PlayerId; team: TeamId; fromYardLine: number; touchback: boolean;
         returner?: PlayerId; returnYards: number; resultYardLine: number;
         rollRef: string; returnRollRef?: string;
-      } } & GameEventBase)
+      } } & MatchEventBase)
   /**
    * Summarises; introduces nothing. Every field except `seed` is derivable from the
    * preceding stream. `seed` is provenance, not a game fact — RollDetail.rngLabel carries

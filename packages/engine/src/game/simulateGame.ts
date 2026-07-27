@@ -391,10 +391,11 @@ export function simulateGame(
     });
     // ADR-004: the rolls are recorded HERE, once, and the summary below names
     // them by rngLabel. The CHECKs come first so every reference points back.
+    // ADR-016 item 1: ONE id, minted once, on the CHECKs and on the summary.
     const playId = log.specialTeamsPlayId("kickoff", kickoffNumber);
     log.check(playId, result.check);
     if (result.returnCheck !== undefined) log.check(playId, result.returnCheck);
-    log.kickoff({
+    log.kickoff(playId, {
       kicker: kickingSnapshot.specialTeams.kicker,
       team: kicking,
       fromYardLine,
@@ -430,7 +431,7 @@ export function simulateGame(
     const playId = log.specialTeamsPlayId("punt", s.driveNumber);
     log.check(playId, result.check);
     if (result.returnCheck !== undefined) log.check(playId, result.returnCheck);
-    log.punt({
+    log.punt(playId, {
       punter: offense.specialTeams.punter,
       team: s.possession,
       fromYardLine: s.ballOn,
@@ -462,8 +463,9 @@ export function simulateGame(
       distanceYards: distance,
       rng: gameRng.fork(`drive:${s.driveNumber}`).fork("fieldGoal"),
     });
-    log.check(log.specialTeamsPlayId("fieldGoal", s.driveNumber), result.check);
-    log.placekick({
+    const playId = log.specialTeamsPlayId("fieldGoal", s.driveNumber);
+    log.check(playId, result.check);
+    log.placekick(playId, {
       kind: "FIELD_GOAL",
       kicker: offense.specialTeams.kicker,
       team: kicking,
@@ -504,8 +506,9 @@ export function simulateGame(
       distanceYards: ST.extraPoint.distanceYards,
       rng: gameRng.fork(`drive:${s.driveNumber}`).fork("pat"),
     });
-    log.check(log.specialTeamsPlayId("pat", s.driveNumber), result.check);
-    log.placekick({
+    const playId = log.specialTeamsPlayId("pat", s.driveNumber);
+    log.check(playId, result.check);
+    log.placekick(playId, {
       kind: "EXTRA_POINT",
       kicker: offense.specialTeams.kicker,
       team: s.possession,

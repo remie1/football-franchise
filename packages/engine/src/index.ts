@@ -12,10 +12,12 @@
  *   1. the simulation entry points;
  *   2. the types needed to construct their inputs and read their outputs;
  *   3. the tunables-PATCH interface (`calibration.md` §3.1: proposals are
- *      patches, not edits) — the `Tunables` type and a pure `applyTunablePatch`.
- *      Notably NOT the `TUNABLES` value: a mutable ambient constant exported
- *      across a package boundary is an edit channel, which is the thing the
- *      patch workflow exists to replace;
+ *      patches, not edits) — the `Tunables` type, a pure `applyTunablePatch`,
+ *      and (ADR-016 item 2) the deeply frozen `DEFAULT_TUNABLES` it patches
+ *      FROM. Still not a MUTABLE ambient constant: that was ADR-012's objection
+ *      and it was an objection to an edit channel, not to a value. A tree that
+ *      cannot be written to at any depth is not a channel — the only thing a
+ *      consumer can do with it is produce a patched copy, which is the workflow;
  *   4. the §17 debug renderer, for report attachments and failure diagnosis.
  *
  * WHAT WENT, AND WHY. Roughly ninety resolver functions, `bandFor`, `tierFor`
@@ -153,10 +155,17 @@ export type {
 //     named the unions to prevent.
 export type { GameEvent, GameEventEnvelope, GameScopedEvent, PlayScopedEvent } from "./game/events.js";
 
-// 3. CATEGORY 3 — the tunables-PATCH interface: the type and the patcher, never
-//    the value. `Tunables` is also what the entry points' optional argument is
-//    typed against, so a caller can pin a version it obtained by patching.
-export { applyTunablePatch, TunablePatchError } from "./tunables.js";
+// 3. CATEGORY 3 — the tunables-PATCH interface: the type, the patcher, and the
+//    base. `Tunables` is also what the entry points' optional argument is typed
+//    against, so a caller can pin a version it obtained by patching.
+//
+//    `DEFAULT_TUNABLES` is ADR-016 item 2 (an amendment to ADR-012 §B category
+//    3): `applyTunablePatch(base, patch)` had no reachable first argument from
+//    outside this package, so the patch workflow could not be invoked at all. It
+//    is the module constant itself — deeply frozen, never a copy, so the value
+//    the entry points default to and the value a patch is measured against are
+//    the same object and cannot drift.
+export { applyTunablePatch, DEFAULT_TUNABLES, TunablePatchError } from "./tunables.js";
 export type { Tunables, TunablePatch } from "./tunables.js";
 
 // 4. CATEGORY 4 — the §17 debug renderers: one play, and one game.

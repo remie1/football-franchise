@@ -224,7 +224,14 @@ describe("3 — the ambient constant is reachable from the surface and nowhere e
         // Strip comments: `TUNABLES.x` is still the clearest way to NAME a
         // tunable in prose, and prose is not a read.
         .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/^\s*\/\/.*$/gm, "");
+        .replace(/^\s*\/\/.*$/gm, "")
+        // ADR-016 item 2: `DEFAULT_TUNABLES` is the DEEPLY FROZEN value, named
+        // on the barrel so `applyTunablePatch` has a reachable first argument.
+        // A different name and a different capability — it cannot be written to
+        // at any depth — so it is not the ambient-read this check is about.
+        // Stripped BY NAME rather than by allowing a file, so a bare `TUNABLES`
+        // appearing in `index.ts` still fails this test.
+        .replaceAll("DEFAULT_TUNABLES", "");
       expect(code, `${rel} names TUNABLES outside a comment`).not.toContain("TUNABLES");
     }
   });

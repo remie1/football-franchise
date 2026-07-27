@@ -1,7 +1,12 @@
 /**
  * TUNABLES — every target number, band threshold, weight and trait bonus the
- * pass-play slice uses. Calibration adjusts this object; resolution code holds
- * no magic numbers.
+ * pass-play slice uses. Calibration adjusts this object BY PATCHING IT into a
+ * new one (ADR-012); resolution code holds no magic numbers.
+ *
+ * The object is DEEPLY FROZEN at module load and re-exported as
+ * `DEFAULT_TUNABLES` (ADR-016 item 2). Nothing in the engine writes to it, and
+ * now nothing outside can either — a patch produces a new tree, which is the
+ * only way a tunables version ever changes.
  *
  * Each block cites the section of docs/design/match-engine.md it implements.
  * Where the design doc is qualitative ("CB in phase", "route disrupted"), the
@@ -1776,6 +1781,49 @@ export const TUNABLES = {
 } as const;
 
 export type Tunables = typeof TUNABLES;
+
+// --- the base a patch is a patch OF (ADR-016 item 2) -------------------------
+
+/**
+ * Freeze a tree in place and return the SAME reference. Recursive because a
+ * shallow `Object.freeze` on `TUNABLES` would freeze thirteen top-level keys and
+ * leave every band table, every term list and every nested block writable —
+ * which is the edit channel ADR-012 §B objected to, wearing a hat.
+ *
+ * Idempotent and cycle-safe: an already-frozen node is returned untouched rather
+ * than re-walked. `TUNABLES` is a literal tree with no cycles, but a freeze
+ * helper that recurses forever on one is a trap for whoever adds the first
+ * shared sub-object.
+ */
+function deepFreeze<T>(node: T): T {
+  if (typeof node !== "object" || node === null || Object.isFrozen(node)) return node;
+  Object.freeze(node);
+  for (const key of Object.getOwnPropertyNames(node)) {
+    deepFreeze((node as Record<string, unknown>)[key]);
+  }
+  return node;
+}
+
+/**
+ * THE BUILD'S TUNABLES, DEEPLY FROZEN — ratified as ADR-016 item 2, an amendment
+ * to ADR-012 §B category 3.
+ *
+ * ADR-012 kept the tunables VALUE off the barrel because "a mutable ambient
+ * constant exported across a package boundary is an edit channel". That
+ * objection was to the edit channel, not to the value: `applyTunablePatch` is
+ * `(Tunables, TunablePatch) → Tunables`, and from outside the package there was
+ * no way to obtain the first argument, so the patch workflow the amendment
+ * ratified was unreachable by the one consumer it exists for.
+ *
+ * A deeply frozen value is not an edit channel. It cannot be written to at any
+ * depth, so the only thing a consumer can do with it is pass it to
+ * `applyTunablePatch` — which is the workflow, exactly.
+ *
+ * It is the module constant ITSELF, not a copy: `deepFreeze` returns its
+ * argument, so `DEFAULT_TUNABLES === TUNABLES` and the five entry points'
+ * default and the exported base can never drift apart into two versions.
+ */
+export const DEFAULT_TUNABLES: Tunables = deepFreeze(TUNABLES);
 
 // --- the calibration patch interface (ADR-012) -------------------------------
 

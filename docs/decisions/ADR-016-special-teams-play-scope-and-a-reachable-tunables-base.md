@@ -2,7 +2,7 @@
 
 - **Date:** July 2026
 - **Proposed by:** `match-engine` (ADR-014 adaptation + ADR-012's open item, closed)
-- **Status:** proposed
+- **Status:** approved
 
 ## Need
 
@@ -186,4 +186,48 @@ of league identity).
 
 ## Decision
 
-*Pending Orchestrator + project owner.*
+**Both items approved** by project owner + Orchestrator, July 2026, on the reasoning as filed.
+
+**Item 1** corrects a classification the Orchestrator got wrong when amending contracts for
+ADR-014. All eleven new events were declared on `GameEventBase`; three of them are plays. The
+framing here was decisive: once item 12 moved the kicking rolls onto `CHECK`s, those `CHECK`s had
+to name a real `PlayId` anyway — so the summary event describing the same down became the only
+thing that could not name it. That is the exact inverse of the fiction item 13 removed.
+
+The refusal to solve it with a payload `playId` field instead is also ratified: a `PlayId` in two
+structurally different positions in one union is precisely the ambiguity item 13 refused.
+
+**Item 2** closes a gap that made the preceding dispatch's work unreachable. `TUNABLES` is
+deliberately not exported (ADR-012 category 3), so calibration could run a game with the default
+but could not produce a patched `Tunables` to pin — the capability existed and had no callable
+first argument from outside the package. **ADR-012's objection was to an edit channel, not to a
+value**, and a deeply frozen constant cannot be written to, so exporting it concedes nothing the
+objection was about. `DEFAULT_TUNABLES === TUNABLES` by identity rather than a copy, so the entry
+points' defaults cannot drift from the exported value.
+
+### Consequence worth recording
+
+Moving the three events play-side broke the box score, and `tsc` caught it. `statline.ts` routed
+by `isGameScoped`, so all three kicking events had been landing in the game-scoped branch; moving
+them play-side put them behind a scratch guard that discards events not preceded by a
+`PLAY_START` — which a kickoff never is. Every kicking and return statistic would have silently
+become zero. The fix routes them before the guard, and the box-score tests passed unedited
+afterwards.
+
+That is the second time in two dispatches that a type-level change surfaced a defect no review
+would have found — the argument for making these distinctions structural rather than
+conventional.
+
+### Follow-on, not filed
+
+`CHECK.payload.tier` was measured on three special-teams emission sites (punt gross, punt return,
+kickoff return) and found meaningless by construction: a d20 deviation on a d100 margin ladder
+produced **two of nine rungs and never a failure** across five games. `tier` is required on
+`CHECK`, so it cannot be omitted; the fix is to make it optional exactly as
+[ADR-005](ADR-005-decision-tier-optional.md) already did for `QB_DECISION.tier`, on identical
+reasoning — absent means *no roll of that kind happened*, never *a bad result*. The kickoff
+**depth** roll is a genuine d100 against a real target, spans all nine rungs, and must not be
+touched.
+
+Deliberately left unfiled, to ride with the next batch of contract needs rather than spend a
+window on one field. Recorded at the emission site with the measurement, and here.

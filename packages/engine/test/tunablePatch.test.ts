@@ -56,8 +56,13 @@ describe("ADR-012 — the barrel is exactly the permitted surface", () => {
     "IncoherentPlayCallError",
     "UnsupportedPlayCallError",
     "GameLoopError",
-    // 3. the tunables-PATCH interface — never the TUNABLES value
+    // 3. the tunables-PATCH interface. Never the MUTABLE ambient constant —
+    //    but, since ADR-016 item 2 amended ADR-012 §B category 3, the DEEPLY
+    //    FROZEN one, because `applyTunablePatch(base, patch)` had no reachable
+    //    first argument from outside the package and the workflow the amendment
+    //    ratified was therefore uninvokable by the consumer it exists for.
     "applyTunablePatch",
+    "DEFAULT_TUNABLES",
     "TunablePatchError",
     // 4. the §17 debug renderers — one play, and one game
     "renderPlay",
@@ -79,8 +84,11 @@ describe("ADR-012 — the barrel is exactly the permitted surface", () => {
 
   it("does NOT export the internals ADR-012 removed", () => {
     const removed = [
-      // the mutable ambient tunables value — an edit channel, which is the thing
-      // the patch workflow exists to replace
+      // the MUTABLE ambient tunables value — an edit channel, which is the thing
+      // the patch workflow exists to replace. `DEFAULT_TUNABLES` is the same
+      // object under a different name and is permitted (ADR-016 item 2), because
+      // it is frozen to the leaves and so is not a channel; the bare name stays
+      // off the barrel so that "the writable one" has no export at all.
       "TUNABLES",
       // the band machinery: ADR-011 put bands in the stream so this is unneeded
       "bandFor",
@@ -123,6 +131,120 @@ describe("ADR-012 — the barrel is exactly the permitted surface", () => {
     expect(typeof engine.simulateRunPlay).toBe("function");
     expect(typeof engine.renderPlay).toBe("function");
     expect(typeof engine.applyTunablePatch).toBe("function");
+  });
+});
+
+/**
+ * ADR-016 ITEM 2 — THE BASE A PATCH IS A PATCH OF, AND WHY FREEZING IT DEEPLY IS
+ * THE WHOLE OF THE ARGUMENT.
+ *
+ * ADR-012 kept the tunables value off the barrel because "a mutable ambient
+ * constant exported across a package boundary is an edit channel". The objection
+ * was to the CHANNEL, not to the value — and a shallow `Object.freeze` would
+ * leave the objection standing in full, because `TUNABLES` is a deeply nested
+ * tree and everything worth editing lives three or four levels down. Sealing
+ * thirteen top-level keys while every band table, every term list and every
+ * block beneath them stays writable is not a smaller edit channel; it is the
+ * same one with a locked front door.
+ *
+ * So the assertions below reach for LEAVES, and they assert on the VALUE rather
+ * than on a thrown error: a write to a frozen object throws `TypeError` in
+ * strict-mode ESM and silently no-ops in sloppy mode, and "the number did not
+ * change" is the property in both worlds.
+ */
+describe("ADR-016 item 2 — DEFAULT_TUNABLES is the constant itself, frozen to the leaves", () => {
+  /**
+   * Attempt a write the way a consumer reaching across the boundary would, and
+   * swallow the strict-mode `TypeError` so the caller can assert on the value.
+   * Typed through `Record<string, unknown>` rather than `any`: the point is to
+   * defeat `readonly`, not to defeat the type checker generally.
+   */
+  function attemptWrite(node: unknown, key: string, value: unknown): void {
+    try {
+      (node as Record<string, unknown>)[key] = value;
+    } catch {
+      // Frozen + strict mode. Expected on exactly the objects under test.
+    }
+  }
+
+  it("is the module constant, not a copy — so the default and the base cannot drift", () => {
+    // If this were a structural clone, the entry points' default and the value
+    // calibration measures a patch against would be two objects that agree
+    // today and diverge on whichever one the next edit lands in.
+    expect(engine.DEFAULT_TUNABLES).toBe(TUNABLES);
+  });
+
+  it("is frozen at the root", () => {
+    expect(Object.isFrozen(engine.DEFAULT_TUNABLES)).toBe(true);
+    attemptWrite(engine.DEFAULT_TUNABLES, "qb", { throwThreshold: 0 });
+    expect(engine.DEFAULT_TUNABLES.qb.throwThreshold).toBe(50);
+  });
+
+  it("is frozen at every depth a shallow freeze would have missed", () => {
+    // One node per level, down to a band inside a band table inside a contest
+    // inside a block. A shallow freeze passes the first of these and fails the
+    // rest, which is exactly what this test exists to tell apart.
+    const t = engine.DEFAULT_TUNABLES;
+    expect(Object.isFrozen(t.ballCarrier)).toBe(true);
+    expect(Object.isFrozen(t.ballCarrier.contests)).toBe(true);
+    expect(Object.isFrozen(t.ballCarrier.contests.secondLevel)).toBe(true);
+    expect(Object.isFrozen(t.ballCarrier.contests.secondLevel.bands)).toBe(true);
+    expect(Object.isFrozen(t.ballCarrier.contests.secondLevel.bands[0])).toBe(true);
+  });
+
+  it("a nested LEAF cannot be written: a band's minMargin", () => {
+    const band = engine.DEFAULT_TUNABLES.ballCarrier.contests.secondLevel.bands[0];
+    expect(band?.minMargin).toBe(15);
+    attemptWrite(band, "minMargin", 999);
+    attemptWrite(band, "label", "FREE_YARDS");
+    expect(engine.DEFAULT_TUNABLES.ballCarrier.contests.secondLevel.bands[0]?.minMargin).toBe(15);
+    expect(engine.DEFAULT_TUNABLES.ballCarrier.contests.secondLevel.bands[0]?.label).toBe(
+      "BROKEN_TACKLE",
+    );
+  });
+
+  it("a TERM LIST cannot be edited, replaced, or grown", () => {
+    const terms = engine.DEFAULT_TUNABLES.pocketMovement.appeal.standIn.terms;
+    expect(terms[0]?.attr).toBe("poise");
+    expect(terms[0]?.divisor).toBe(2);
+    // the entry's fields...
+    attemptWrite(terms[0], "attr", "speed");
+    attemptWrite(terms[0], "divisor", 0.5);
+    // ...the slot the entry sits in...
+    attemptWrite(terms, "0", { attr: "speed", divisor: 0.5 });
+    // ...and the array's own length.
+    try {
+      (terms as unknown as unknown[]).push({ attr: "speed", divisor: 1 });
+    } catch {
+      // Frozen array in strict mode.
+    }
+    const after = engine.DEFAULT_TUNABLES.pocketMovement.appeal.standIn.terms;
+    expect(after.length).toBe(2);
+    expect(after[0]?.attr).toBe("poise");
+    expect(after[0]?.divisor).toBe(2);
+  });
+
+  it("the ADR-012 example value survives a direct assignment through the barrel", () => {
+    attemptWrite(engine.DEFAULT_TUNABLES.passRush, "blockerStructuralAdvantage", 12);
+    expect(engine.DEFAULT_TUNABLES.passRush.blockerStructuralAdvantage).toBe(15);
+  });
+
+  /**
+   * The capability the item exists for, exercised the way calibration will: a
+   * base obtained from the barrel, a patch applied to it, a new tunables handed
+   * to an entry point. Before this export, the first argument was unobtainable
+   * from outside the package and none of this composed.
+   */
+  it("is a usable first argument to applyTunablePatch, and the result is writable", () => {
+    const next = engine.applyTunablePatch(engine.DEFAULT_TUNABLES, patch());
+    expect(next).not.toBe(engine.DEFAULT_TUNABLES);
+    expect(next.passRush.blockerStructuralAdvantage).toBe(12);
+    expect(engine.DEFAULT_TUNABLES.passRush.blockerStructuralAdvantage).toBe(15);
+    // A patched copy is a fresh object along the rewritten path — the freeze is
+    // a property of the BUILD's tunables, not a property every Tunables carries.
+    expect(Object.isFrozen(next.passRush)).toBe(false);
+    // ...and the branches it did not name are still the frozen originals.
+    expect(next.ballCarrier).toBe(engine.DEFAULT_TUNABLES.ballCarrier);
   });
 });
 

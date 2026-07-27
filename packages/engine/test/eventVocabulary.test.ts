@@ -382,10 +382,13 @@ describe("ADR-014 — the game is described by the schema, not by an engine-loca
   });
 
   it("every GAME-scoped event has no playId, and every play event has one", () => {
+    // ADR-016 item 1 moved `PLACEKICK`, `PUNT` and `KICKOFF` OUT of this set:
+    // a field goal is a fourth down, a punt is a play, a kickoff is a free-kick
+    // down, and each one's summary now carries the same `PlayId` its own CHECKs
+    // carry. What is left is boundaries, decisions and scoreboard states.
     const GAME_SCOPED = new Set([
       "GAME_START", "COIN_TOSS", "PERIOD_START", "PERIOD_END", "POSSESSION_CHANGE",
-      "DRIVE_START", "DRIVE_END", "SCORE", "COACH_DECISION", "PLACEKICK", "PUNT",
-      "KICKOFF", "GAME_END",
+      "DRIVE_START", "DRIVE_END", "SCORE", "COACH_DECISION", "GAME_END",
     ]);
     const seen = new Set<string>();
     for (const { event } of game.events) {
@@ -402,6 +405,7 @@ describe("ADR-014 — the game is described by the schema, not by an engine-loca
     for (const type of GAME_SCOPED) expect(seen).toContain(type);
     expect(seen).toContain("PLAY_START");
     expect(seen).toContain("CHECK");
+    for (const type of ["PLACEKICK", "PUNT", "KICKOFF"]) expect(seen).toContain(type);
   });
 
   it("GAME_SUMMARY is gone: one closing event carries the whole ending", () => {
@@ -439,5 +443,65 @@ describe("ADR-014 — the game is described by the schema, not by an engine-loca
     for (const [id, labels] of byPlay) {
       expect(labels.size, `${id} carries ${labels.size} rolls`).toBeLessThanOrEqual(2);
     }
+  });
+
+  /**
+   * ADR-016 item 1. The summary of a play could not name the play its own roll
+   * named: `PLACEKICK` / `PUNT` / `KICKOFF` were GAME-scoped and their `CHECK`s
+   * were not, so "is this event about a play?" had two answers for two events
+   * describing the same down.
+   *
+   * The check below is the strong form of the fix rather than a restatement of
+   * it. It does not assume the two ids were produced by the same expression: it
+   * joins summary to roll through `rollRef` — the ADR-004 join that was the only
+   * available one before this — and then asserts the `playId` on either end of
+   * that join agrees. A second minting would fail it.
+   */
+  it("a kick's summary names the SAME play its own CHECKs name", () => {
+    const playOfRoll = new Map<string, string>();
+    for (const { event } of game.events) {
+      if (event.type !== "CHECK") continue;
+      playOfRoll.set(event.payload.roll.rngLabel, String(event.playId));
+    }
+
+    const ids: string[] = [];
+    for (const { event } of game.events) {
+      if (event.type !== "PLACEKICK" && event.type !== "PUNT" && event.type !== "KICKOFF") continue;
+      const id = String(event.playId);
+      ids.push(id);
+      // Honest, and the same two coordinates the PRNG fork label uses.
+      expect(id).toMatch(/:(kickoff|punt|fieldGoal|pat):\d+$/);
+      expect(id).not.toContain(":final");
+      const refs = [
+        event.payload.rollRef,
+        ...(event.type === "PLACEKICK" ? [] : [event.payload.returnRollRef]),
+      ];
+      for (const ref of refs) {
+        if (ref === undefined) continue;
+        expect(playOfRoll.get(ref), `${ref} is referenced by no CHECK`).toBe(id);
+      }
+    }
+
+    expect(ids.length).toBeGreaterThan(20);
+    // One id per kick: a summary and its rolls share an id, but two kicks never do.
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  /**
+   * The consequence ADR-016 item 1 states plainly: `GAME_END.plays` still counts
+   * SCRIMMAGE plays and would continue to. "Downs including kicks" is a count of
+   * distinct `playId`s, which is what item 1 made possible — so the two numbers
+   * must differ by exactly the number of kicks.
+   */
+  it("GAME_END.plays stays scrimmage-only; distinct playIds are the wider count", () => {
+    const end = game.events.map((e) => e.event).find((e) => e.type === "GAME_END");
+    if (end?.type !== "GAME_END") throw new Error("no GAME_END");
+    const distinct = new Set<string>();
+    let kicks = 0;
+    for (const { event } of game.events) {
+      if (event.playId !== undefined) distinct.add(String(event.playId));
+      if (event.type === "PLACEKICK" || event.type === "PUNT" || event.type === "KICKOFF") kicks += 1;
+    }
+    expect(distinct.size).toBe(end.payload.plays + kicks);
   });
 });

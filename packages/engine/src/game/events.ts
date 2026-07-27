@@ -29,20 +29,28 @@
  *     `CATCH_RESOLUTION` and `TIPPED_BALL` do (ADR-004). Calibration's "count
  *     rolls from CHECK/PRESNAP_READ only" now counts every kick in the league.
  *
- * ================== THE ONE THING RATIFICATION DID NOT SETTLE ==================
+ * ================== WHAT ADR-016 ITEM 1 SETTLED ==================
  *
  * A `CHECK` is PLAY-scoped, so a field goal's roll needs a `PlayId` — and a
  * field-goal attempt IS a play (a fourth down), as a punt is and as a kickoff is
  * a free-kick down. So this log mints one, from the same coordinates the PRNG
  * fork label already uses (`{gameId}:fieldGoal:{drive}`, `{gameId}:punt:{drive}`,
- * `{gameId}:kickoff:{n}`). That is not a `{gameId}:final`-style fiction: it names
- * a real play that really happened, and nobody parses it (`contracts.md` §1).
+ * `{gameId}:kickoff:{n}`, `{gameId}:pat:{drive}`). That is not a
+ * `{gameId}:final`-style fiction: it names a real play that really happened, and
+ * nobody parses it (`contracts.md` §1).
  *
- * It does leave an asymmetry: the CHECK can name the play and the `PLACEKICK` /
- * `PUNT` / `KICKOFF` summary that references it cannot, because those three are
- * declared GAME-scoped. The join goes through `rollRef` instead, which is what
- * ADR-004 asks for everywhere else, so nothing is unreconstructible — but the
- * classification is worth revisiting. Filed as ADR-016.
+ * That left an asymmetry for one dispatch: the CHECK could name the play and the
+ * `PLACEKICK` / `PUNT` / `KICKOFF` summary that references it could not, because
+ * those three were declared GAME-scoped. ADR-016 item 1 moved them onto
+ * `MatchEventBase`. The summary of a kick now carries THE SAME `PlayId` its own
+ * rolls carry — `specialTeamsPlayId` is called once per kick and the id is
+ * passed to both the `check` calls and the summary call, so the two cannot
+ * disagree. `rollRef` still joins a summary to its individual roll, per ADR-004;
+ * `playId` groups the whole down, which is the identifier that exists for it.
+ *
+ * `GAME_END.plays` still counts SCRIMMAGE plays. A consumer wanting "downs
+ * including kicks" counts distinct `playId`s, which item 1 is what makes
+ * possible.
  *
  * The COIN TOSS is different and is correctly game-scoped: it is not a play, it
  * is not a down, and it keeps its `RollDetail` INLINE on its own payload (the
@@ -189,16 +197,23 @@ export class GameEventLog {
     this.emit({ type: "SCORE", payload: { team, kind, points, home, away }, gameId: this.gameId });
   }
 
-  placekick(payload: PayloadOf<"PLACEKICK">): void {
-    this.emit({ type: "PLACEKICK", payload, gameId: this.gameId });
+  // --- the kicking game (PLAY-scoped since ADR-016 item 1) -------------------
+  //
+  // `playId` is the FIRST parameter on all three, deliberately: it is the same
+  // `specialTeamsPlayId(...)` value the play's `check` calls were given, and a
+  // required leading argument is the shape that makes reusing it the path of
+  // least resistance rather than minting a second one.
+
+  placekick(playId: PlayId, payload: PayloadOf<"PLACEKICK">): void {
+    this.emit({ type: "PLACEKICK", payload, gameId: this.gameId, playId });
   }
 
-  punt(payload: PayloadOf<"PUNT">): void {
-    this.emit({ type: "PUNT", payload, gameId: this.gameId });
+  punt(playId: PlayId, payload: PayloadOf<"PUNT">): void {
+    this.emit({ type: "PUNT", payload, gameId: this.gameId, playId });
   }
 
-  kickoff(payload: PayloadOf<"KICKOFF">): void {
-    this.emit({ type: "KICKOFF", payload, gameId: this.gameId });
+  kickoff(playId: PlayId, payload: PayloadOf<"KICKOFF">): void {
+    this.emit({ type: "KICKOFF", payload, gameId: this.gameId, playId });
   }
 
   coachDecision(kind: CoachDecisionKind, team: TeamId, choice: string): void {

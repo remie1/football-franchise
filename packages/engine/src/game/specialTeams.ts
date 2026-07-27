@@ -33,15 +33,29 @@
  * ROLLS. These no longer ride inline on their own events. Each resolver returns
  * a `CheckEmission`, the loop emits it as a `CHECK` (`field_goal`, `punt`,
  * `kick_return`), and `PLACEKICK` / `PUNT` / `KICKOFF` carry only `rollRef`s —
- * ADR-004's rule, with the exception it never chose now closed.
+ * ADR-004's rule, with the exception it never chose now closed. Since ADR-016
+ * item 1 the three summaries are PLAY-scoped and carry the SAME `PlayId` their
+ * own CHECKs carry, so the kicking game groups by play and not only by roll.
  *
- * ⚠ TWO OF THESE CHECKS ROLL A d20 AGAINST A NEUTRAL DIE RATHER THAN A TARGET.
- * A punt and a return produce a DISTANCE, not a pass or a fail, so there is no
- * target number to state and no band table to name. `target` is therefore the
- * neutral die (the value at which the variance term contributes nothing) and
+ * ⚠ THE DISTANCE CHECKS ROLL A d20 AGAINST A NEUTRAL DIE RATHER THAN A TARGET.
+ * A punt's gross and a return produce a DISTANCE, not a pass or a fail, so there
+ * is no target number to state and no band table to name. `target` is therefore
+ * the neutral die (the value at which the variance term contributes nothing) and
  * `margin` is the deviation from it, which is exactly the quantity that moves
  * the yardage. `band` is absent, which per ADR-011 means "no band table behind
  * this resolution" — never "the band was not worth carrying".
+ *
+ * `tier` on those three emissions (punt gross, kickoff return, punt return) is
+ * NOT meaningful and should be read as noise. `ResultTier` is the nine-rung
+ * ladder of d100 margins (±30/±15/±5/±1); a d20 deviation plus an attribute
+ * modifier cannot reach the outer rungs and cannot go negative, so measured over
+ * five games every one of them lands on SUCCESS or STRONG_SUCCESS and on nothing
+ * else. It is carried because `CHECK.payload.tier` is REQUIRED by the schema —
+ * unlike `QB_DECISION.tier`, which ADR-005 made optional for the analogous "no
+ * roll of that kind happened" case. Omitting it here is a contract change, not
+ * an engine choice; inventing a d20 band table to make it mean something would
+ * be inventing tunable values. The kickoff's DEPTH roll is unaffected: it is a
+ * d100 against a real target (`touchbackTarget`) and its tier spans the ladder.
  */
 import { getAttr } from "@ff/contracts";
 import type { PlayerState, Rng, RollDetail } from "@ff/contracts";
