@@ -273,6 +273,69 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
 
 ---
 
+# GAME SCALE (Phase 1 exit) — Tier 1 metrics, measured for the first time
+
+40 games, fixture-grade rosters. **The game loop introduces no divergence of its own** —
+every red row below is a play-level defect already logged in this file, now visible at game
+scale. Recorded here so the next reader does not re-diagnose them as loop bugs.
+
+| metric | engine | NFL | note |
+|---|---|---|---|
+| points/team | 30.6 | 22.5 | downstream of ypc (entries 11-14) |
+| drives/game | **32.0** | 22-24 | see the diagnosis below |
+| plays/drive | **4.4** | ~5.9 | the same number, inverted |
+| plays/game | 140.5 | ~128 | acceptable; closer with out-of-bounds and penalties |
+| three-and-out | 25.4% | ~24% | close |
+| points/drive | 1.91 | ~2.0 | close — and the tell |
+| time of possession | 3483s | ~3540s | sound; the 117s gap is kickoffs and PATs |
+| FG% / XP% | 80.1% / 92.4% | ~84% / ~94% | new; attempts skew long because drives stall |
+| punts/game | 13.0 | 8.4 | downstream of plays/drive, not of the punt model |
+
+## 18. The scoring divergence is a possession-count problem, not an efficiency problem
+
+- **The diagnosis worth keeping:** scoring is **36% high** while points-per-drive is **5%
+  low**. The engine is not scoring efficiently — it is being handed the ball ten extra times.
+  Time of possession is sound, so drives are *short*, not numerous-because-fast.
+- **Root cause is completion percentage** (44.7% vs ~65%), which is entry 1, still gated on
+  entry 3's frozen `blockerStructuralAdvantage`. Fixing entry 3 should move drives/game,
+  plays/drive, punts/game and points/drive **simultaneously**, and none of it needs a
+  game-loop change.
+- **Do not touch `huddleSeconds` or any clock tunable to chase drives/game.** The clock is
+  demonstrably correct; the drives are short. Worth a sensitivity run before anyone believes
+  otherwise.
+
+## 19. Special teams are placeholder depth by design
+
+- One check per kick: field goal (target rises linearly with distance), extra point, punt
+  (gross from leg + d20, touchback, downed-inside-10, one return roll), kickoff. Nothing else.
+- **Absent, each being a rule the design doc does not contain:** snap, hold, operation time,
+  block, protection and coverage units, directional kicking, hang time, fair catch, muff, ST
+  fumble, onside kick, fakes, long snapper, weather, ST penalties, two-point conversion.
+- **Return touchdowns are unreachable by construction** (`returnStart 5 + maxReturn 60 < 100`),
+  with a test asserting that ceiling so the day a real return model lands the assertion fails
+  and somebody notices.
+- **Kicking attributes do not exist in the registry.** The four are mapped to `strength` /
+  `accuracy` / `speed` as an interim, so a 99-accuracy quarterback would kick like a
+  99-accuracy kicker. ADR-014 petitions the real four with a `defaultFrom` equal to that
+  mapping, making ratification a no-op.
+- **Order of value for a real implementation:** the four attributes; a block check (the only
+  ST outcome that changes a drive's *character* rather than its distance); hang time plus a
+  coverage unit (what makes a punt *net* rather than *gross*, and where most real punting
+  skill lives); fair catch and muff; onside kick; return blocking.
+
+## 20. 2025 depth charts are unusable for week-matched replay
+
+- nflverse replaced the weekly depth-chart format (season/week/game_type) with a **daily
+  snapshot** format carrying a timestamp and no season, week or game type — 221 snapshots,
+  554k rows. Both formats ingest and the format is recorded per manifest.
+- **No snapshot-date → game-week mapping was invented**, deliberately: it requires the
+  schedule and is a modelling judgement, not a parse. Rows are counted as `depthRowsUnkeyable`.
+- **Blocks:** availability-matched replay of the held-out 2025 season (Tier 3). Not urgent —
+  2025 is sacred until a declared checkpoint — but it needs a decision before that checkpoint,
+  not at it.
+
+---
+
 # PHASE 3 OPENING DELIVERABLE — the systematic scale audit
 
 **Before any individual tunable patch, sweep every check in the engine for scale
