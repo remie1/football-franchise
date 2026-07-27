@@ -37,6 +37,22 @@ export type CheckKind =
   | "rb_vision" | "gap_battle" | "pursuit_angle" | "tackle" | "break_tackle"
   | "communication" | "snap_jump" | "fumble" | "penalty_check";
 
+/**
+ * Named aliases for the closed unions that ride inside match-event payloads (ADR-013).
+ *
+ * These were spelled inline, which forced every producer to re-declare them locally — and a
+ * local copy silently becomes a subset the moment a member is added here. That is the wrong
+ * side of ADR-010's rule: widen or add, never leave a consumer quietly wrong. Naming them
+ * makes the payload the single authority and lets domains import rather than restate.
+ */
+export type PocketStatus = "CLEAN" | "PRESSURE" | "COLLAPSING" | "IMMEDIATE" | "SACK";
+export type ThrowType = "BULLET" | "TOUCH" | "BACK_SHOULDER" | "THROWAWAY";
+export type RushAlignment = "EDGE" | "INTERIOR";
+export type RushThreatState = "TRAVELLING" | "DELAYED" | "RESET" | "ARRIVED";
+export type RoutePhase = "JAMMED" | "DEVELOPING" | "OPEN" | "SETTLED" | "DECAYING" | "SCRAMBLE_DRILL";
+export type QbDecisionChoice = "THROW" | "HOLD" | "STEP_UP" | "SCRAMBLE" | "THROWAWAY" | "CHECKDOWN";
+export type CarryType = "DESIGNED" | "SCRAMBLE";
+
 export interface MatchEventBase {
   gameId: GameId;
   playId: PlayId;
@@ -64,7 +80,7 @@ export type MatchEvent =
         margin: number;
         testsAttrs: AttrId[];   // lets perception update from exposure (Spec #6 §3)
       } } & MatchEventBase)
-  | ({ type: "POCKET_STATUS"; payload: { status: "CLEAN"|"PRESSURE"|"COLLAPSING"|"IMMEDIATE"|"SACK" } } & MatchEventBase)
+  | ({ type: "POCKET_STATUS"; payload: { status: PocketStatus } } & MatchEventBase)
   /**
    * A won rep starts a rusher travelling rather than arriving him (ADR-007).
    * The ETA is what separates COLLAPSING from SACK and what makes interior
@@ -74,12 +90,12 @@ export type MatchEvent =
    */
   | ({ type: "RUSH_THREAT"; payload: {
         rusher: PlayerId;
-        alignment: "EDGE"|"INTERIOR";
+        alignment: RushAlignment;
         rollRef: string;
         etaTick: number;
-        state: "TRAVELLING"|"DELAYED"|"RESET"|"ARRIVED";
+        state: RushThreatState;
       } } & MatchEventBase)
-  | ({ type: "ROUTE_STATUS"; payload: { receiver: PlayerId; route: string; phase: "JAMMED"|"DEVELOPING"|"OPEN"|"SETTLED"|"DECAYING"|"SCRAMBLE_DRILL"; openness: number } } & MatchEventBase)
+  | ({ type: "ROUTE_STATUS"; payload: { receiver: PlayerId; route: string; phase: RoutePhase; openness: number } } & MatchEventBase)
   | ({ type: "QB_READ"; payload: {
         target: PlayerId;
         actualOpenness: number;
@@ -91,7 +107,7 @@ export type MatchEvent =
       } } & MatchEventBase)
   | ({ type: "QB_DECISION"; payload: {
         /** STEP_UP is climbing the pocket (ADR-007) — HOLD means stood in and kept reading. */
-        choice: "THROW"|"HOLD"|"STEP_UP"|"SCRAMBLE"|"THROWAWAY"|"CHECKDOWN";
+        choice: QbDecisionChoice;
         target?: PlayerId;
         /**
          * Present ONLY when a decision-quality roll was actually made (ADR-005).
@@ -102,7 +118,7 @@ export type MatchEvent =
       } } & MatchEventBase)
   | ({ type: "THROW"; payload: {
         target: PlayerId;
-        throwType: "BULLET"|"TOUCH"|"BACK_SHOULDER"|"THROWAWAY";
+        throwType: ThrowType;
         accuracyTier: ResultTier;
         /** The accuracy CHECK's rngLabel — §10.4's placement band lives there (ADR-011). */
         rollRef?: string;
@@ -133,7 +149,7 @@ export type MatchEvent =
   | ({ type: "RUSH_ZONE"; payload: { carrier: PlayerId; zone: number; yardsInZone: number } } & MatchEventBase)
   | ({ type: "RUN_RESOLUTION"; payload: {
         carrier: PlayerId;
-        carryType: "DESIGNED"|"SCRAMBLE";
+        carryType: CarryType;
         /** Absent on a scramble — a quarterback leaving the pocket has no designed gap. */
         gap?: string;
         yardsBeforeContact: number;

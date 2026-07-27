@@ -273,6 +273,36 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
 
 ---
 
+# PHASE 3 OPENING DELIVERABLE — the systematic scale audit
+
+**Before any individual tunable patch, sweep every check in the engine for scale
+compatibility: maximum realistic modifier stack versus stated target number.**
+
+Eight structural defects of exactly this kind were found across five Phase 1 dispatches —
+entries 3, 6, 7, 9, 10, 11, 13 and 14 below. Every one was found *incidentally*, by
+implementing a section and measuring what came out. That rate strongly implies the
+unimplemented sections (§8.6, §15, §16, blitz/stunts/hot routes) hold more.
+
+**Root cause, and why a sweep beats one-at-a-time discovery.** The design doc's tables were
+authored mechanic-by-mechanic against intuition, never against a shared modifier budget. So
+stacks and targets keep landing on incompatible scales: six attribute terms at ÷5 against a
+target of 20-90 (§12.4), a rusher carrying three terms against a blocker's two (§7.1), a raw
+rating difference where every other modifier is ÷5 (§14.4's pursuit gate), a band boundary of
++15 on the difference of two d100s (§14.4). These are **authoring errors, not implementation
+surprises**, and they are mechanically detectable without simulating anything: compute each
+check's maximum realistic stack from the registry's 0-99 scale and compare it to the target.
+
+**Method:** enumerate every `CheckKind`, compute best-case and worst-case totals from
+`TUNABLES` plus the attribute scale, compare against the target (or against the opposing
+stack for opposed rolls), and flag any check where the die cannot meaningfully decide the
+outcome — in either direction. Report as a table, ranked by how little the dice matter.
+
+**Rule that has served well and should continue:** implement the doc literally, measure, and
+log — never quietly rescale. A rescaled table produces clean statistics about a game nobody
+designed, and the compensation becomes invisible the moment the missing mechanic lands.
+
+---
+
 # RUN GAME AND YAC (breadth pass 2)
 
 Seven defects, all found by implementing §6.3/§13/§14 literally and measuring. Fixture

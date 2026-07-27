@@ -2,7 +2,7 @@
 
 - **Date:** July 2026
 - **Proposed by:** `match-engine` (Phase 1 breadth audit, finding R1)
-- **Status:** proposed
+- **Status:** approved
 
 ## Need
 
