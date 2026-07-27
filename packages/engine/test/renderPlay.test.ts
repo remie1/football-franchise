@@ -2,7 +2,7 @@ import { gameId, playId } from "@ff/contracts";
 import type { MatchEventEnvelope, PlayerId, RollDetail } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import { renderPlay, simulatePassPlay } from "../src/index.js";
-import { STAMP, buildScenario, buildStalledPocketScenario } from "./fixtures.js";
+import { STAMP, buildScenario, buildScramblerScenario, buildStalledPocketScenario } from "./fixtures.js";
 
 describe("§17.1 debug renderer", () => {
   it("renders the in-scope sections from the event stream", () => {
@@ -20,6 +20,50 @@ describe("§17.1 debug renderer", () => {
     expect(text).toContain("QB DECISION-MAKING:");
     expect(text).toContain("PLAY RESULT:");
     expect(text).not.toContain("undefined");
+  });
+
+  it("renders time-of-arrival for every won rep, recomputed from the same CHECK", () => {
+    // The renderer is not told the ETA — it derives it from alignment (carried
+    // on PLAY_START), move, and the margin already in the stream.
+    let seen = 0;
+    for (let i = 0; i < 60 && seen === 0; i++) {
+      const { state, calls, names } = buildScenario();
+      const text = renderPlay(simulatePassPlay(state, calls, `arrival-render-${i}`).events, names);
+      if (!text.includes("RUSHER TIME OF ARRIVAL")) continue;
+      seen += 1;
+      expect(text).toMatch(/wins the rep → (EDGE|INTERIOR) threat, \d\.\ds to travel, projected arrival \d\.\d/);
+    }
+    expect(seen).toBe(1);
+  });
+
+  it("renders the §7.2 movement branch, and says what the stream cannot tell it", () => {
+    let seen = 0;
+    for (let i = 0; i < 60 && seen === 0; i++) {
+      const { state, calls, names } = buildScramblerScenario();
+      const text = renderPlay(simulatePassPlay(state, calls, `movement-render-${i}`).events, names);
+      if (!text.includes("POCKET MOVEMENT")) continue;
+      seen += 1;
+      expect(text).toContain("POCKET MOVEMENT (§7.2 throw / MOVE / take hit):");
+      expect(text).toMatch(/Result: (SOUND|RUSHED|PANICKED) \([+-]\d+\) → took response rank \d/);
+      // The gap is stated in the printout rather than papered over.
+      expect(text).toContain("ADR-007");
+      expect(text).not.toContain("undefined");
+    }
+    expect(seen).toBe(1);
+  });
+
+  it("renders the escape attempt when one happens", () => {
+    let seen = 0;
+    for (let i = 0; i < 200 && seen === 0; i++) {
+      const { state, calls, names } = buildScramblerScenario();
+      const { events } = simulatePassPlay(state, calls, `escape-render-${i}`);
+      if (!events.some((e) => e.event.type === "CHECK" && e.event.payload.checkKind === "scramble")) continue;
+      seen += 1;
+      const text = renderPlay(events, names);
+      expect(text).toContain("escape attempt (§8.8)");
+      expect(text).toMatch(/Result: (CLEAN_ESCAPE|ESCAPED|CONTAINED|CAUGHT_FROM_BEHIND) \([+-]\d+\)/);
+    }
+    expect(seen).toBe(1);
   });
 
   it("never renders out-of-slice sections", () => {

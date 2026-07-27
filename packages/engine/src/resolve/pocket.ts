@@ -12,12 +12,17 @@
  * gives no single-tick trigger for. The counter can only make the status WORSE
  * than the floor, never better.
  *
- * Both inputs are read from the previous tick, which reproduces the doc's
+ * The third input is the TIME-OF-ARRIVAL floor (`./rushThreat.ts`): how long
+ * the nearest travelling rusher still needs. This is what separates COLLAPSING
+ * from SACK — the doc's two states were previously the same instant.
+ *
+ * All inputs are read from the previous tick, which reproduces the doc's
  * one-tick lag ("pressure/hit next tick").
  */
 import { TUNABLES } from "../tunables.js";
 import type { PocketStatus } from "../types.js";
 import type { PassRushBandLabel } from "./passRush.js";
+import { pocketFloorFromArrival } from "./rushThreat.js";
 
 export interface PressureUpdate {
   readonly pressureDelta: number;
@@ -59,14 +64,23 @@ export function pocketStatusFromPressure(highestPressure: number): PocketStatus 
 }
 
 /**
- * The status the QB actually plays under: the worse of the doc's per-rep floor
- * and the accumulated counter.
+ * The status the QB actually plays under: the worst of the doc's per-rep floor,
+ * the nearest threat's time of arrival, and the accumulated counter.
+ *
+ * `minTimeToArrival` is `undefined` when nobody is travelling — which is not the
+ * same as "nobody won a rep this tick", because a threat outlives the rep that
+ * created it until the blocker resets him or the quarterback moves.
  */
 export function pocketStatusFor(
   highestPressure: number,
   previousTickBands: readonly PassRushBandLabel[] = [],
+  minTimeToArrival?: number,
 ): PocketStatus {
-  return worsePocketStatus(pocketStatusFromPressure(highestPressure), pocketFloorFor(previousTickBands));
+  return [
+    pocketStatusFromPressure(highestPressure),
+    pocketFloorFor(previousTickBands),
+    pocketFloorFromArrival(minTimeToArrival),
+  ].reduce(worsePocketStatus, "CLEAN");
 }
 
 export function accuracyModifierFor(status: PocketStatus): number {

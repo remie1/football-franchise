@@ -6,7 +6,12 @@
  *
  * Out of slice by design (docs/design/match-engine.md sections not implemented
  * here): tipped balls (§12), YAC (§13), the run game (§14), zone coverage
- * (§9.4), scrambles (§8.8), penalties, weather/stamina/crowd noise (§16).
+ * (§9.4), penalties, weather/stamina/crowd noise (§16).
+ *
+ * §7.2's "throw, move, or take hit" is complete as of the time-of-arrival patch:
+ * a won rep starts a rusher TRAVELLING (`resolve/rushThreat.ts`), and the
+ * quarterback answers with a stand-in, a climb, or an escape
+ * (`resolve/pocketMovement.ts`, `resolve/scramble.ts`).
  */
 import { createRng, playId as makePlayId } from "@ff/contracts";
 import type { PlayerId, PlayerState, Rng } from "@ff/contracts";
@@ -20,6 +25,7 @@ import type {
   PlayCalls,
   PocketStatus,
   RouteAssignment,
+  RushAlignment,
   RushMove,
   SimulationResult,
   ThrowType,
@@ -27,12 +33,31 @@ import type {
 import { catchTypeFor, resolveCatch } from "../resolve/catchResolution.js";
 import { resolveManCoverage } from "../resolve/manCoverage.js";
 import { advancePressure, forcesDecision, pocketStatusFor, sacksWithoutTarget } from "../resolve/pocket.js";
+import { resolvePocketMovement } from "../resolve/pocketMovement.js";
 import { resolvePassRushTick } from "../resolve/passRush.js";
 import type { PassRushBandLabel } from "../resolve/passRush.js";
 import { maxReadsFor, readCapacityPerTick, resolveQbRead, timeBudgetSeconds } from "../resolve/qbRead.js";
 import { resolveReleaseVsPress } from "../resolve/release.js";
 import type { RoutePhase } from "../resolve/route.js";
 import { opennessAt, routePhaseAt, routeReadySeconds } from "../resolve/route.js";
+import type { RushThreat } from "../resolve/rushThreat.js";
+import {
+  clearsThreat,
+  delayThreat,
+  hasArrived,
+  minTimeToArrival,
+  recoverySecondsFor,
+  rushAlignmentFor,
+  soonerThreat,
+  startsThreat,
+  threatFromWonRep,
+} from "../resolve/rushThreat.js";
+import {
+  pursuitDeadline,
+  resolveScramble,
+  scrambleOpennessAt,
+  visionConeRollModifier,
+} from "../resolve/scramble.js";
 import { selectTarget } from "../resolve/targetSelection.js";
 import type { TargetCandidate } from "../resolve/targetSelection.js";
 import {
@@ -47,8 +72,17 @@ interface RushMatchup {
   readonly rusher: PlayerState;
   readonly blocker: PlayerState;
   readonly move: RushMove;
+  readonly alignment: RushAlignment;
   pressure: number;
   previousBand: PassRushBandLabel | undefined;
+  /** Set when he beats the block; cleared when the blocker resets him. */
+  threat: RushThreat | undefined;
+}
+
+/** The quarterback outside the pocket (§8.8), on pursuit's clock. */
+interface ScrambleState {
+  readonly sinceTick: number;
+  readonly pursuitAtTick: number;
 }
 
 interface ReceiverTrack {
@@ -65,6 +99,8 @@ interface ReceiverTrack {
   lastPhase: RoutePhase | undefined;
   lastOpenness: number | undefined;
   lastRead: { perceived: number; effective: number } | undefined;
+  /** §8.8 scramble drill: openness the receiver had when the QB left the pocket. */
+  scrambleBaseOpenness: number | undefined;
 }
 
 interface PlayOutcome {
@@ -93,6 +129,7 @@ export function simulatePassPlay(
   const rushRng = playRng.fork("rush");
   const coverageRng = playRng.fork("coverage");
   const qbReadRng = playRng.fork("qbread");
+  const movementRng = playRng.fork("movement");
   const throwRng = playRng.fork("throw");
   const catchRng = playRng.fork("catch");
 
@@ -116,7 +153,13 @@ export function simulatePassPlay(
       front: calls.defense.front,
       coverage: calls.defense.coverage,
       assignments: calls.defense.assignments,
-      rush: calls.defense.rush,
+      // Alignment resolved, not echoed: it is the input the §7.2 arrival model
+      // actually ran on, and the only place the stream states it.
+      rush: matchups.map((m) => ({
+        rusher: m.rusher.bio.id,
+        move: m.move,
+        alignment: m.alignment,
+      })),
     },
     situation: {
       down: state.down,
@@ -144,40 +187,70 @@ export function simulatePassPlay(
   let readIndex = 0;
   let outcome: PlayOutcome | undefined;
   let tick: number = TUNABLES.clock.firstTick;
+  let stepUpsUsed = 0;
+  let scramble: ScrambleState | undefined;
+
+  const sack = (at: number): PlayOutcome => {
+    // A tick has ONE status, and a tick that ends in a sack ends in SACK. This
+    // rewrites the status already emitted for this tick rather than appending a
+    // second POCKET_STATUS, which double-counted for status-tick consumers.
+    log.escalatePocketStatus("SACK");
+    return {
+      yards: -TUNABLES.result.sackYardsLost,
+      turnover: false,
+      clockRunoff: at + TUNABLES.result.clockRunoff.sack,
+    };
+  };
 
   while (outcome === undefined && tick <= TUNABLES.clock.maxTick) {
     log.tickStart(tick);
 
-    // §7.2 — both inputs are last tick's: the bands each rusher posted (the
-    // doc's single-rep rule) and the pressure each has accumulated (escalation
-    // to IMMEDIATE/SACK). `previousBand` is exactly tick−0.5's result.
+    // §7.2 — every input is last tick's: the bands each rusher posted (the doc's
+    // single-rep rule), how far the nearest travelling rusher still has to come,
+    // and the pressure each has accumulated. `previousBand` is exactly tick−0.5.
+    const threats = activeThreats(matchups, scramble);
+    const minTta = minTimeToArrival(threats, tick);
     const highest = matchups.reduce((max, m) => Math.max(max, m.pressure), 0);
     const previousBands = matchups.flatMap((m) => (m.previousBand === undefined ? [] : [m.previousBand]));
-    const pocket: PocketStatus = pocketStatusFor(highest, previousBands);
+    const pocket: PocketStatus = pocketStatusFor(highest, previousBands, minTta);
     log.pocketStatus(pocket);
 
-    if (pocket === "SACK") {
-      outcome = {
-        yards: -TUNABLES.result.sackYardsLost,
-        turnover: false,
-        clockRunoff: tick + TUNABLES.result.clockRunoff.sack,
-      };
-      break;
-    }
-
     // ---- §7.1 line battle (feeds the NEXT tick's pocket status) -------------
-    const tickRng = rushRng.fork(`t${tick.toFixed(1)}`);
-    for (const m of matchups) {
-      const rush = resolvePassRushTick({
-        rusher: m.rusher,
-        blocker: m.blocker,
-        move: m.move,
-        tickRng,
-        ...(m.previousBand === undefined ? {} : { previousBand: m.previousBand }),
-      });
-      log.check(rush.check);
-      m.pressure = advancePressure(m.pressure, rush);
-      m.previousBand = rush.band;
+    // Suspended once the QB is out of the pocket: the protection is broken and
+    // what is left is pursuit, which runs on the scramble's own clock (§8.8).
+    if (scramble === undefined) {
+      const tickRng = rushRng.fork(`t${tick.toFixed(1)}`);
+      for (const m of matchups) {
+        const rush = resolvePassRushTick({
+          rusher: m.rusher,
+          blocker: m.blocker,
+          move: m.move,
+          tickRng,
+          ...(m.previousBand === undefined ? {} : { previousBand: m.previousBand }),
+        });
+        log.check(rush.check);
+        m.pressure = advancePressure(m.pressure, rush);
+        m.previousBand = rush.band;
+        // A won rep does not arrive; it departs. The threat outlives the rep
+        // that created it until the blocker resets him or the QB moves.
+        if (startsThreat(rush.band)) {
+          m.threat = soonerThreat(
+            m.threat,
+            threatFromWonRep({
+              rusher: m.rusher.bio.id,
+              alignment: m.alignment,
+              move: m.move,
+              margin: rush.margin,
+              tick,
+            }),
+          );
+        } else if (clearsThreat(rush.band)) {
+          m.threat = undefined;
+        } else if (m.threat !== undefined) {
+          // Still coming, but a blocker who recovered position costs him ground.
+          m.threat = delayThreat(m.threat, recoverySecondsFor(rush.band));
+        }
+      }
     }
 
     // ---- §9.1/§9.2/§9.3 routes ---------------------------------------------
@@ -208,8 +281,12 @@ export function simulatePassPlay(
         track.contestPosition = coverage.contestPosition;
       }
 
+      // INTERIM VOCABULARY (ADR-007): ROUTE_STATUS.phase has no SCRAMBLE_DRILL
+      // value, so a receiver who has abandoned his route to find open grass is
+      // reported as DEVELOPING — true (he is working to get open) but silent
+      // about the fact that the play has changed shape.
       const phase = routePhaseAt(tick, track.readySeconds, track.jamDelaySeconds);
-      const openness = currentOpenness(track, tick);
+      const openness = currentOpenness(track, tick, scramble);
       if (phase !== track.lastPhase || openness !== track.lastOpenness) {
         log.routeStatus(track.receiver.bio.id, track.assignment.routeName, phase, openness);
         track.lastPhase = phase;
@@ -227,10 +304,15 @@ export function simulatePassPlay(
       readPointer = next.pointer;
       const target = next.track;
       readIndex += 1;
+      // §8.8 — a scrambling QB does not see the whole field. The cone rides on
+      // §8.3's awareness roll, which is the check the doc writes it against.
+      const vision =
+        scramble === undefined ? [] : [visionConeRollModifier(target.assignment.depthClass)];
       const read = resolveQbRead(
         qb,
-        currentOpenness(target, tick),
+        currentOpenness(target, tick, scramble),
         qbReadRng.fork(`t${tick.toFixed(1)}:r${readIndex}:${String(target.receiver.bio.id)}:read`),
+        vision,
       );
       log.qbRead(
         target.receiver.bio.id,
@@ -274,23 +356,127 @@ export function simulatePassPlay(
         effectiveOpenness: selection.selected.effectiveOpenness,
         throwRng,
         catchRng,
+        scramble,
       });
       break;
     }
 
-    if (sacksWithoutTarget(pocket)) {
-      log.pocketStatus("SACK");
-      outcome = {
-        yards: -TUNABLES.result.sackYardsLost,
-        turnover: false,
-        clockRunoff: tick + TUNABLES.result.clockRunoff.sack,
-      };
+    const throwawayAvailable = tick >= TUNABLES.qb.throwawayEarliestSeconds;
+
+    if (scramble !== undefined) {
+      // Outside the pocket the clock is pursuit's, not the rush's. When it runs
+      // out he tucks it. PLACEHOLDER: flat yardage — §14 owns ball-carrier
+      // resolution and is the next dispatch. This is not a rushing model.
+      if (tick >= scramble.pursuitAtTick) {
+        log.qbDecision("SCRAMBLE");
+        outcome = {
+          yards: TUNABLES.result.scrambleRunYards,
+          turnover: false,
+          clockRunoff: tick + TUNABLES.result.clockRunoff.scrambleRun,
+        };
+        break;
+      }
+      log.qbDecision("HOLD");
+      tick = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
+      continue;
+    }
+
+    // §7.2 SACK — "rusher reaches QB before ball released". Arrival is now a
+    // NECESSARY condition: the status list alone used to sack a quarterback one
+    // second into his drop for a rep lost fifty feet away.
+    if (hasArrived(threats, tick) && sacksWithoutTarget(pocket)) {
+      outcome = sack(tick);
       break;
     }
 
-    if (mustDecide && tick >= TUNABLES.qb.throwawayEarliestSeconds) {
-      // No decision-quality roll runs on a throwaway — there was nobody to pick
-      // between — so no tier (ADR-005). Same reason there is no THROW event.
+    // §7.2's "move" branch. Reached only when he is not throwing and nobody has
+    // arrived: stand in, climb, leave, or eat it — chosen on his own attributes.
+    if (forcesDecision(pocket)) {
+      const movement = resolvePocketMovement({
+        qb,
+        tick,
+        threats,
+        stepUpsUsed,
+        throwawayAvailable,
+        movementRng: movementRng.fork(`t${tick.toFixed(1)}:movement`),
+      });
+      log.check(movement.check);
+
+      if (movement.response === "STEP_UP") {
+        stepUpsUsed += 1;
+        for (const m of matchups) {
+          if (m.threat === undefined || m.threat.alignment !== "EDGE") continue;
+          m.threat = delayThreat(m.threat, TUNABLES.pocketMovement.stepUp.edgeThreatDelaySeconds);
+          // A rusher run past by a climbing quarterback starts his rep over.
+          if (TUNABLES.pocketMovement.stepUp.resetsEdgePressure) m.pressure = 0;
+        }
+        // INTERIM VOCABULARY (ADR-007): QB_DECISION.choice has no STEP_UP. HOLD
+        // under-describes (he held the ball, and he moved to do it) but does not
+        // fabricate; the branch is recoverable only by re-banding the
+        // hold_decision CHECK margin above, which is what the ADR asks to fix.
+        log.qbDecision("HOLD");
+        tick = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
+        continue;
+      }
+
+      if (movement.response === "ESCAPE") {
+        const escape = resolveScramble({
+          qb,
+          tick,
+          threats,
+          scrambleRng: movementRng.fork(`t${tick.toFixed(1)}:scramble`),
+        });
+        log.check(escape.check);
+        if (escape.sacked) {
+          outcome = sack(tick);
+          break;
+        }
+        if (escape.escaped) {
+          scramble = { sinceTick: tick, pursuitAtTick: pursuitDeadline(tick) };
+          // The protection is broken and the rush becomes pursuit: every rep
+          // and every threat in the pocket stops meaning anything.
+          for (const m of matchups) {
+            m.threat = undefined;
+            m.pressure = 0;
+            m.previousBand = undefined;
+          }
+          // §8.8 — receivers stop running routes and find open grass from here.
+          for (const track of tracks) {
+            track.scrambleBaseOpenness = currentOpenness(track, tick, undefined);
+          }
+          log.qbDecision("SCRAMBLE");
+          tick = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
+          continue;
+        }
+        // CONTAINED: he tried to get out, got walled in, and lost the tick.
+        log.qbDecision("HOLD");
+        tick = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
+        continue;
+      }
+
+      if (movement.response === "THROWAWAY") {
+        // No §8.5 roll ran — there was nobody to pick between — so no tier
+        // (ADR-005). The hold_decision CHECK above carries the roll that
+        // produced this choice.
+        log.qbDecision("THROWAWAY");
+        outcome = {
+          yards: 0,
+          turnover: false,
+          clockRunoff: tick + TUNABLES.result.clockRunoff.throwaway,
+        };
+        break;
+      }
+
+      // STAND_IN: he feels it, resets his feet, and keeps reading.
+      log.qbDecision("HOLD");
+      tick = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
+      continue;
+    }
+
+    if (mustDecide && throwawayAvailable) {
+      // The clock ran out rather than the pocket: no duress, so no movement
+      // check. No decision-quality roll runs on a throwaway either — there was
+      // nobody to pick between — so no tier (ADR-005), and no THROW event.
       log.qbDecision("THROWAWAY");
       outcome = {
         yards: 0,
@@ -308,7 +494,9 @@ export function simulatePassPlay(
 
   if (outcome === undefined) {
     // Nobody got open and the pocket never broke: coverage sack at the horizon.
-    log.pocketStatus("SACK");
+    // Escalate rather than append — the last tick already reported a status, and
+    // two POCKET_STATUS events for one tick double-count for calibration.
+    log.escalatePocketStatus("SACK");
     outcome = {
       yards: -TUNABLES.result.sackYardsLost,
       turnover: false,
@@ -340,11 +528,12 @@ interface ThrowArgs {
   readonly effectiveOpenness: number;
   readonly throwRng: Rng;
   readonly catchRng: Rng;
+  readonly scramble: ScrambleState | undefined;
 }
 
 function resolveThrow(args: ThrowArgs): PlayOutcome {
-  const { log, qb, track, tick, pocket, effectiveOpenness, throwRng, catchRng } = args;
-  const actualOpenness = currentOpenness(track, tick);
+  const { log, qb, track, tick, pocket, effectiveOpenness, throwRng, catchRng, scramble } = args;
+  const actualOpenness = currentOpenness(track, tick, scramble);
   const throwType: ThrowType = selectThrowType(track.assignment.depthClass, effectiveOpenness);
   const shortfall = armStrengthShortfall(qb, track.assignment.airYards);
 
@@ -404,9 +593,45 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
   };
 }
 
-function currentOpenness(track: ReceiverTrack, tick: number): number {
+/**
+ * §8.7 while the play is in structure; §8.8 once the quarterback has left it —
+ * the receiver stops running his route where he stood and works back to grass,
+ * so coverage stops closing on him.
+ */
+function currentOpenness(
+  track: ReceiverTrack,
+  tick: number,
+  scramble: ScrambleState | undefined,
+): number {
+  if (scramble !== undefined && track.scrambleBaseOpenness !== undefined) {
+    return scrambleOpennessAt(track.scrambleBaseOpenness, scramble.sinceTick, tick);
+  }
   if (track.baseOpenness === undefined) return 0;
   return opennessAt(track.baseOpenness, track.readySeconds, tick);
+}
+
+/**
+ * Every rusher currently on his way to the passer. Once he is out of the
+ * pocket, the only clock that matters is pursuit's — modelled as a single
+ * threat so status derivation and arrival stay one code path.
+ */
+function activeThreats(
+  matchups: readonly RushMatchup[],
+  scramble: ScrambleState | undefined,
+): RushThreat[] {
+  if (scramble !== undefined) {
+    const chaser = matchups[0];
+    if (chaser === undefined) return [];
+    return [
+      {
+        rusher: chaser.rusher.bio.id,
+        alignment: "EDGE",
+        wonAtTick: scramble.sinceTick,
+        etaTick: scramble.pursuitAtTick,
+      },
+    ];
+  }
+  return matchups.flatMap((m) => (m.threat === undefined ? [] : [m.threat]));
 }
 
 function nextReadable(
@@ -434,12 +659,15 @@ function buildMatchups(state: MatchGameState, calls: PlayCalls): RushMatchup[] {
         `@ff/engine: rusher ${String(assignment.rusher)} is unblocked — free-rusher/blitz-pickup (§7.4) is out of the pass-play slice`,
       );
     }
+    const rusher = requirePlayer(state, assignment.rusher);
     return {
-      rusher: requirePlayer(state, assignment.rusher),
+      rusher,
       blocker: requirePlayer(state, protection.blocker),
       move: assignment.move,
+      alignment: rushAlignmentFor(rusher.bio.position, assignment.alignment),
       pressure: 0,
       previousBand: undefined,
+      threat: undefined,
     };
   });
 }
@@ -466,6 +694,7 @@ function buildReceiverTracks(state: MatchGameState, calls: PlayCalls): ReceiverT
       lastPhase: undefined,
       lastOpenness: undefined,
       lastRead: undefined,
+      scrambleBaseOpenness: undefined,
     };
   });
 }

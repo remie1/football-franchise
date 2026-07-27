@@ -19,7 +19,7 @@ import {
   worsePocketStatus,
 } from "../src/index.js";
 import type { PassRushBandLabel, PocketStatus } from "../src/index.js";
-import { buildLopsidedRushScenario, buildScenario } from "./fixtures.js";
+import { buildLopsidedRushScenario, buildScenario, buildStalledPocketScenario } from "./fixtures.js";
 
 /** Per-tick view of the stream: what each rusher did, and the status that followed. */
 interface TickRow {
@@ -136,6 +136,59 @@ describe("§7.2 invariant over real event streams", () => {
 
   it("holds when one matchup is dominated and the other holds (B3)", () => {
     invariant(buildLopsidedRushScenario, "inv-lopsided");
+  });
+
+  it("a tick has EXACTLY ONE pocket status, sack ticks included", () => {
+    // A sack used to emit COLLAPSING and then SACK for the same tick: harmless
+    // for rendering, a double count for anything tallying status-ticks.
+    let sacks = 0;
+    // The stalled-pocket fixture is here for the coverage-sack path at the tick
+    // horizon, which is the OTHER place a second status used to be appended.
+    for (const build of [buildScenario, buildLopsidedRushScenario, buildStalledPocketScenario]) {
+      for (let i = 0; i < 400; i++) {
+        const { state, calls } = build();
+        const { events } = simulatePassPlay(state, calls, `one-status-${i}`);
+        const perTick = new Map<number, number>();
+        for (const { event } of events) {
+          if (event.type !== "POCKET_STATUS") continue;
+          const tick = event.tick ?? -1;
+          perTick.set(tick, (perTick.get(tick) ?? 0) + 1);
+          if (event.payload.status === "SACK") sacks += 1;
+        }
+        for (const count of perTick.values()) expect(count).toBe(1);
+      }
+    }
+    expect(sacks).toBeGreaterThan(0);
+  });
+
+  it("a sack tick reports SACK — the status is the tick's outcome, not its opening", () => {
+    let checked = 0;
+    for (let i = 0; i < 400; i++) {
+      const { state, calls } = buildLopsidedRushScenario();
+      const { events } = simulatePassPlay(state, calls, `sack-status-${i}`);
+      const result = events.find((e) => e.event.type === "PLAY_RESULT");
+      if (result?.event.type !== "PLAY_RESULT") continue;
+      const isSack = result.event.payload.yards === -TUNABLES.result.sackYardsLost;
+      const sawSackStatus = events.some(
+        (e) => e.event.type === "POCKET_STATUS" && e.event.payload.status === "SACK",
+      );
+      if (!isSack) continue;
+      checked += 1;
+      expect(sawSackStatus).toBe(true);
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it("the arrival floor is folded in: a travelling rusher keeps the pocket dirty", () => {
+    // Nobody won a rep last tick and no pressure has accumulated, but a rusher
+    // is still on his way — the pocket is not clean.
+    expect(pocketStatusFor(0, ["STALEMATE"], undefined)).toBe("CLEAN");
+    expect(pocketStatusFor(0, ["STALEMATE"], 2.0)).toBe("PRESSURE");
+    expect(pocketStatusFor(0, ["STALEMATE"], 0.5)).toBe("COLLAPSING");
+    expect(pocketStatusFor(0, ["STALEMATE"], 0)).toBe("IMMEDIATE");
+    // ...and it can only make things worse, never better
+    expect(pocketStatusFor(0, ["RUSHER_WINS_REP"], 2.0)).toBe("COLLAPSING");
+    expect(pocketStatusFor(9, ["STALEMATE"], 2.0)).toBe("SACK");
   });
 
   it("the first tick of a play is always CLEAN — nothing has happened yet", () => {

@@ -27,6 +27,44 @@ export {
   forcesDecision,
   sacksWithoutTarget,
 } from "./resolve/pocket.js";
+export {
+  rushAlignmentFor,
+  travelSecondsFor,
+  threatFromWonRep,
+  soonerThreat,
+  delayThreat,
+  recoverySecondsFor,
+  timeToArrival,
+  minTimeToArrival,
+  hasArrived,
+  threatsWithAlignment,
+  pocketFloorFromArrival,
+  urgencySteps,
+  startsThreat,
+  clearsThreat,
+} from "./resolve/rushThreat.js";
+export type { RushThreat } from "./resolve/rushThreat.js";
+export {
+  resolvePocketMovement,
+  rankResponses,
+  climbLaneOpen,
+  pocketMovementBandFor,
+} from "./resolve/pocketMovement.js";
+export type {
+  PocketMovementArgs,
+  PocketMovementOutcome,
+  PocketMovementBandLabel,
+  PocketResponse,
+  ResponseAppeal,
+} from "./resolve/pocketMovement.js";
+export {
+  resolveScramble,
+  visionConeModifier,
+  visionConeRollModifier,
+  scrambleOpennessAt,
+  pursuitDeadline,
+} from "./resolve/scramble.js";
+export type { ScrambleArgs, ScrambleOutcome, ScrambleBandLabel } from "./resolve/scramble.js";
 export { resolveReleaseVsPress } from "./resolve/release.js";
 export type { ReleaseArgs, ReleaseOutcome, ReleaseBandLabel } from "./resolve/release.js";
 export { resolveManCoverage } from "./resolve/manCoverage.js";
@@ -73,6 +111,8 @@ export type {
   ReadSystem,
   RouteAssignment,
   RouteDepthClass,
+  ResolvedRushAssignment,
+  RushAlignment,
   RushAssignment,
   RushMove,
   SimulationResult,

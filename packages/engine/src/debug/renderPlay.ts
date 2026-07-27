@@ -9,6 +9,8 @@
 import type { MatchEvent, MatchEventEnvelope, PlayerId, RollDetail } from "@ff/contracts";
 import { bandFor } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
+import { startsThreat, travelSecondsFor } from "../resolve/rushThreat.js";
+import type { RushAlignment, RushMove } from "../types.js";
 
 export type NameLookup = (id: PlayerId) => string;
 
@@ -22,6 +24,7 @@ export function renderPlay(events: readonly MatchEventEnvelope[], names: NameLoo
   lines.push(...renderPlayCall(events));
   lines.push(...renderLineBattle(events, name));
   lines.push(...renderRoutes(events, name));
+  lines.push(...renderPocketMovement(events, name));
   lines.push(...renderQbDecisionMaking(events, name));
   lines.push(...renderThrow(events, name));
   lines.push(...renderCatch(events, name));
@@ -48,7 +51,9 @@ function renderPlayCall(events: readonly MatchEventEnvelope[]): string[] {
 }
 
 function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
+  const rushCall = readRushCall(firstOfType(events, "PLAY_START")?.payload);
   const matchups = new Map<string, { rusher: PlayerId; blocker: PlayerId; rows: string[] }>();
+  const threats: string[] = [];
   for (const { event } of events) {
     if (event.type !== "CHECK" || event.payload.checkKind !== "pass_rush_tick") continue;
     const rusher = event.payload.actors[0];
@@ -63,6 +68,22 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
         ` → ${band.label} (${signed(event.payload.margin)})`,
     );
     matchups.set(key, entry);
+
+    // §7.2 TIME OF ARRIVAL. A won rep starts a rusher travelling; the travel is a
+    // pure function of this same CHECK (alignment, move, margin), so the renderer
+    // recomputes it rather than being told. Printed as PROJECTED because the
+    // quarterback can still move it — a step-up pushes edge arrivals back, and
+    // that adjustment is NOT in the stream today (ADR-007).
+    if (!startsThreat(band.label)) continue;
+    const call = rushCall.get(String(rusher));
+    const alignment: RushAlignment = call?.alignment ?? TUNABLES.arrival.defaultAlignment;
+    const move: RushMove = call?.move ?? "SPEED";
+    const travel = travelSecondsFor(alignment, move, event.payload.margin);
+    const eta = (event.tick ?? 0) + travel;
+    threats.push(
+      `  │    Tick ${tickLabel(event.tick)}: ${name(rusher)} wins the rep → ${alignment} threat,` +
+        ` ${travel.toFixed(1)}s to travel, projected arrival ${eta.toFixed(1)}`,
+    );
   }
 
   const pocket = events.flatMap(({ event }) =>
@@ -77,11 +98,52 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
     out.push(...entry.rows);
     out.push("  │");
   }
+  if (threats.length > 0) {
+    out.push("  ├─ RUSHER TIME OF ARRIVAL (§7.2):", ...threats);
+    out.push("  │    (projected from the rep alone — a step-up pushes EDGE arrivals");
+    out.push("  │     back, and that adjustment is not yet in the stream: ADR-007)");
+    out.push("  │");
+  }
   if (pocket.length > 0) {
     out.push("  └─ POCKET STATUS:", ...pocket);
   }
   out.push("");
   return out;
+}
+
+/**
+ * §7.2's "move" branch. The CHECK carries the roll and the margin; the BRANCH it
+ * selected does not appear anywhere in the stream, because `QB_DECISION.choice`
+ * has no STEP_UP and `CheckKind` has no `pocket_movement` (ADR-007). What the
+ * printout can honestly say is what the quarterback rolled and how composed he
+ * was when he chose — which is exactly the gap the ADR asks to close.
+ */
+function renderPocketMovement(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
+  const out: string[] = [];
+  for (const { event } of events) {
+    if (event.type !== "CHECK") continue;
+    const p = event.payload;
+    if (p.checkKind === "hold_decision") {
+      const band = bandFor(TUNABLES.pocketMovement.bands, p.margin);
+      const actor = p.actors[0];
+      out.push(`  ├─ Tick ${tickLabel(event.tick)}: pocket movement${actor === undefined ? "" : ` (${name(actor)})`}`);
+      out.push(`  │    ${formatRoll(p.roll)} vs. target ${p.target ?? "-"}`);
+      out.push(
+        `  │    Result: ${band.label} (${signed(p.margin)}) → took response rank ${band.takeRank}` +
+          " of his own preference list",
+      );
+      out.push("  │");
+    }
+    if (p.checkKind === "scramble") {
+      const band = bandFor(TUNABLES.scramble.bands, p.margin);
+      out.push(`  ├─ Tick ${tickLabel(event.tick)}: escape attempt (§8.8)`);
+      out.push(`  │    ${formatRoll(p.roll)} vs. target ${p.target ?? "-"}`);
+      out.push(`  │    Result: ${band.label} (${signed(p.margin)})`);
+      out.push("  │");
+    }
+  }
+  if (out.length === 0) return [];
+  return ["POCKET MOVEMENT (§7.2 throw / MOVE / take hit):", ...out, ""];
 }
 
 function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
@@ -349,6 +411,31 @@ function asString(value: unknown, fallback: string): string {
 
 function asNumber(value: unknown, fallback: number): number {
   return typeof value === "number" ? value : fallback;
+}
+
+/**
+ * `PLAY_START.payload` is `unknown` in contracts, so the rush call is read
+ * defensively. It is the only place alignment appears in the stream today.
+ */
+function readRushCall(
+  payload: unknown,
+): Map<string, { alignment?: RushAlignment; move?: RushMove }> {
+  const out = new Map<string, { alignment?: RushAlignment; move?: RushMove }>();
+  const defense = asRecord(asRecord(payload)?.["defense"]);
+  const rush = defense?.["rush"];
+  if (!Array.isArray(rush)) return out;
+  for (const item of rush) {
+    const entry = asRecord(item);
+    const rusher = entry?.["rusher"];
+    if (typeof rusher !== "string") continue;
+    const alignment = entry?.["alignment"];
+    const move = entry?.["move"];
+    out.set(rusher, {
+      ...(alignment === "EDGE" || alignment === "INTERIOR" ? { alignment } : {}),
+      ...(move === "SPEED" || move === "POWER" || move === "FINESSE" ? { move } : {}),
+    });
+  }
+  return out;
 }
 
 function readPlayStart(payload: unknown): PlayStartView | undefined {

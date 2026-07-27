@@ -1,0 +1,198 @@
+/**
+ * §7.2's third option — "QB must throw, **move**, or take hit".
+ *
+ * The engine implemented *throw* and *take hit*. This is *move*, as TWO
+ * distinct mechanics rather than one blended "evade":
+ *
+ *   STEP UP   climb the pocket. Resets or delays EDGE threats; does nothing
+ *             against interior penetration, because you cannot climb into a
+ *             three-technique. The cheap, common, correct answer, and a QB who
+ *             climbs is still a passer.
+ *   ESCAPE    leave the pocket, triggering §8.8's scramble drill. Gated by
+ *             mobility and improvisation.
+ *
+ * Selection is deliberately NOT an if-ladder on pocket status. Each available
+ * response carries an APPEAL score built from this quarterback's own attributes
+ * and the shape of the threat in front of him; one d100 then decides how far
+ * down his own preference list the moment pushes him, using the same band→rank
+ * mechanic §8.5 uses for target selection. What falls out should be
+ * recognisable:
+ *
+ *   - a statue with high poise stands in and throws (standIn appeal is poise
+ *     and patience; escape appeal is mobility he does not have);
+ *   - a mobile quarterback escapes — but only when the climb lane is gone,
+ *     which is exactly what interior penetration takes away;
+ *   - a panicky one is pushed off index 0 by a bad roll and bails into a worse
+ *     outcome than the one he fled.
+ */
+import { getAttr } from "@ff/contracts";
+import type { AttrId, PlayerState, Rng, RollDetail } from "@ff/contracts";
+import { ATTR } from "../attrs.js";
+import type { CheckEmission } from "../events.js";
+import { actorAttrModifier, bandFor, compact, rollD100, tierFor } from "../rolls.js";
+import { TUNABLES } from "../tunables.js";
+import type { RushThreat } from "./rushThreat.js";
+import { minTimeToArrival, threatsWithAlignment, urgencySteps } from "./rushThreat.js";
+
+export type PocketResponse = "STAND_IN" | "STEP_UP" | "ESCAPE" | "THROWAWAY";
+export type PocketMovementBandLabel = (typeof TUNABLES.pocketMovement.bands)[number]["label"];
+
+type AppealKey = keyof typeof TUNABLES.pocketMovement.appeal;
+
+interface AppealTerm {
+  readonly attr: string;
+  readonly divisor: number;
+}
+
+interface AppealSpec {
+  readonly base: number;
+  readonly terms: readonly AppealTerm[];
+  readonly perUrgencyStep: number;
+}
+
+/** One response, scored. Ordered highest-first, this is the QB's preference list. */
+export interface ResponseAppeal {
+  readonly response: PocketResponse;
+  readonly appeal: number;
+}
+
+export interface PocketMovementArgs {
+  readonly qb: PlayerState;
+  readonly tick: number;
+  /** Rushers currently travelling. Shape, not just count, drives availability. */
+  readonly threats: readonly RushThreat[];
+  readonly stepUpsUsed: number;
+  /** §8.7 — a throwaway is only legal once the concept has had time to develop. */
+  readonly throwawayAvailable: boolean;
+  readonly movementRng: Rng;
+}
+
+export interface PocketMovementOutcome {
+  readonly response: PocketResponse;
+  readonly band: PocketMovementBandLabel;
+  readonly margin: number;
+  readonly roll: RollDetail;
+  /** Every response he could have taken, best-first. Index 0 is what he wanted. */
+  readonly ranked: readonly ResponseAppeal[];
+  readonly urgency: number;
+  readonly check: CheckEmission;
+}
+
+const RESPONSE_BY_APPEAL_KEY: Readonly<Record<AppealKey, PocketResponse>> = {
+  standIn: "STAND_IN",
+  stepUp: "STEP_UP",
+  escape: "ESCAPE",
+  throwaway: "THROWAWAY",
+};
+
+function attrIdOf(name: string): AttrId {
+  const id = (ATTR as Readonly<Record<string, AttrId>>)[name];
+  if (id === undefined) throw new Error(`@ff/engine: pocketMovement term "${name}" is not a registry attribute`);
+  return id;
+}
+
+function appealFrom(qb: PlayerState, spec: AppealSpec, urgency: number): number {
+  const baseline = TUNABLES.pocketMovement.appealBaseline;
+  const attrTotal = spec.terms.reduce(
+    (sum, term) => sum + Math.round((getAttr(qb.attributes.values, attrIdOf(term.attr)) - baseline) / term.divisor),
+    0,
+  );
+  return spec.base + attrTotal + spec.perUrgencyStep * urgency;
+}
+
+/**
+ * Is the climb lane open? Two ways it is not: somebody is penetrating the
+ * interior (you cannot climb into him), or the quarterback has already climbed
+ * as far as the pocket goes.
+ */
+export function climbLaneOpen(threats: readonly RushThreat[], stepUpsUsed: number): boolean {
+  if (stepUpsUsed >= TUNABLES.pocketMovement.stepUp.maxPerPlay) return false;
+  return threatsWithAlignment(threats, "INTERIOR").length === 0;
+}
+
+/** The QB's own ranking of the responses available to him, best-first. */
+export function rankResponses(args: {
+  readonly qb: PlayerState;
+  readonly tick: number;
+  readonly threats: readonly RushThreat[];
+  readonly stepUpsUsed: number;
+  readonly throwawayAvailable: boolean;
+}): { readonly ranked: readonly ResponseAppeal[]; readonly urgency: number } {
+  const t = TUNABLES.pocketMovement;
+  const urgency = urgencySteps(minTimeToArrival(args.threats, args.tick));
+  const canClimb = climbLaneOpen(args.threats, args.stepUpsUsed);
+
+  const scored: ResponseAppeal[] = [];
+  for (const key of Object.keys(t.appeal) as AppealKey[]) {
+    const response = RESPONSE_BY_APPEAL_KEY[key];
+    if (response === "STEP_UP" && !canClimb) continue;
+    if (response === "THROWAWAY" && !args.throwawayAvailable) continue;
+    const spec: AppealSpec = t.appeal[key];
+    let appeal = appealFrom(args.qb, spec, urgency);
+    // The bonus that makes interior pressure hurt: with the climb lane gone,
+    // leaving is the only way to buy space, so a mobile QB reaches for it.
+    if (response === "ESCAPE" && !canClimb) appeal += t.appeal.escape.noClimbLaneBonus;
+    scored.push({ response, appeal });
+  }
+
+  // Ties break on the fixed declaration order of TUNABLES.pocketMovement.appeal,
+  // which `Array.prototype.sort` preserves — no die, so no hidden randomness.
+  const ranked = [...scored].sort((a, b) => b.appeal - a.appeal);
+  return { ranked, urgency };
+}
+
+export function resolvePocketMovement(args: PocketMovementArgs): PocketMovementOutcome {
+  const t = TUNABLES.pocketMovement;
+  const { ranked, urgency } = rankResponses(args);
+  if (ranked.length === 0) throw new Error("@ff/engine: pocket movement with no available response");
+
+  const testsAttrs = t.checkTerms.map((term) => attrIdOf(term.attr));
+  const roll = rollD100(
+    args.movementRng,
+    compact(
+      t.checkTerms.map((term, i) =>
+        actorAttrModifier(args.qb, attrLabelFor(term.attr), testsAttrs[i] ?? attrIdOf(term.attr), term.divisor),
+      ),
+    ),
+  );
+  const margin = roll.total - t.target;
+  const band = bandFor(t.bands, margin);
+
+  // One roll decides the whole thing (ADR-004): the band names how far down his
+  // own preference list the moment pushed him, and the rank is read directly.
+  const rank = Math.min(band.takeRank, ranked.length - 1);
+  const chosen = ranked[rank];
+  if (chosen === undefined) throw new Error("@ff/engine: empty pocket-movement selection pool");
+
+  return {
+    response: chosen.response,
+    band: band.label,
+    margin,
+    roll,
+    ranked,
+    urgency,
+    check: {
+      // INTERIM VOCABULARY (ADR-007): `hold_decision` is §8.7's "keep holding or
+      // not" check. This is the same decision point one step further in — stand,
+      // climb, leave, or eat it — and CheckKind has no `pocket_movement`. The
+      // margin below is what a consumer must re-band to recover which branch
+      // fired, which is exactly the reconstruction the ADR asks to remove.
+      checkKind: "hold_decision",
+      actors: [args.qb.bio.id],
+      roll,
+      target: t.target,
+      tier: tierFor(margin),
+      margin,
+      testsAttrs,
+    },
+  };
+}
+
+function attrLabelFor(name: string): string {
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)} (pocket movement)`;
+}
+
+/** Exposed so the debug renderer can name the branch a margin selected. */
+export function pocketMovementBandFor(margin: number): PocketMovementBandLabel {
+  return bandFor(TUNABLES.pocketMovement.bands, margin).label;
+}

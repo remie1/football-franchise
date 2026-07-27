@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { simulatePassPlay } from "../src/index.js";
-import { buildScenario } from "./fixtures.js";
+import { buildScenario, buildScramblerScenario } from "./fixtures.js";
 
 describe("determinism (Charter pillar 5)", () => {
   it("same seed produces a byte-identical event stream and identical new state", () => {
@@ -12,6 +12,29 @@ describe("determinism (Charter pillar 5)", () => {
     // Byte-identical: serialize the whole stream, not a summary of it.
     expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
     expect(JSON.stringify(second.newState)).toBe(JSON.stringify(first.newState));
+  });
+
+  it("survives the §7.2 move branch: streams carrying movement and scramble rolls replay identically", () => {
+    // The branch structure of a play now depends on rolls made mid-play (climb,
+    // escape, stand in), so a reproducibility test that never exercises those
+    // branches proves nothing about them.
+    let movement = 0;
+    let scrambles = 0;
+    for (let i = 0; i < 120; i++) {
+      const a = buildScramblerScenario();
+      const b = buildScramblerScenario();
+      const first = simulatePassPlay(a.state, a.calls, `move-determinism-${i}`);
+      const second = simulatePassPlay(b.state, b.calls, `move-determinism-${i}`);
+      expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+      expect(JSON.stringify(second.newState)).toBe(JSON.stringify(first.newState));
+      for (const { event } of first.events) {
+        if (event.type !== "CHECK") continue;
+        if (event.payload.checkKind === "hold_decision") movement += 1;
+        if (event.payload.checkKind === "scramble") scrambles += 1;
+      }
+    }
+    expect(movement).toBeGreaterThan(0);
+    expect(scrambles).toBeGreaterThan(0);
   });
 
   it("re-simulating from the same state object is stable across repeated calls", () => {

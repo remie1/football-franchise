@@ -74,6 +74,29 @@ throwaway **0.0%**. Those are measured on a sample where 56% of dropbacks end in
 these numbers.** Entry 1's diagnosis (accuracy target 60 against `Accuracy ÷ 5` alone) still
 stands on its own analysis, but its *measurements* must be re-taken after entry 2 is closed.
 
+## 2b. The QB doesn't run his progression — he throws to whoever is ready first
+
+- **Measured after the time-of-arrival fix:** time-to-throw **1.63s** against a 2.4–2.9s
+  target. **43% of all throws leave at tick 1.0**, and on the fixture they are *all* the TE
+  shallow cross.
+- **Cause:** `nextReadable()` in `sim/passPlay.ts` skips past receivers whose routes have
+  not developed. On a Y-Cross with `readOrder [WR2 dig, WR1 go, TE shallow]`, the QB's first
+  look of the play is therefore his **third progression read** — purely because it is the
+  only route ready at 1.0s. That is not a progression; it is "throw to whoever is available
+  first," and it makes §8.1's three reading systems (half-field / full-field / concept)
+  decorative.
+- **Counterfactual, measured and reverted:** forcing the QB to stay on his primary until it
+  develops gives time-to-throw **2.10s** and yards/completion **14.4** — and also sack
+  **25.7%**, completion **24.4%**, throwaway **9.4%**. So the naive fix trades one wrong
+  number for several; §8.7's hold/time-budget logic and §8.2's read capacity have to move
+  with it.
+- **Why it is not fixed yet:** it is a behavioural change to §8.1/§8.2, not a defect in the
+  time-of-arrival work it was found during. Bundling it there would have repeated exactly
+  what entry 2 records as the right thing to have avoided. It wants its own dispatch.
+- **Coupled to:** entry 1 (`qb.throwThreshold` is the shared completion/time-to-throw dial)
+  and entry 2 (early throws suppress sacks by ending plays before rushers arrive). Do not
+  tune any of the three independently.
+
 ## 3. §7.1 pass-rush term asymmetry — design-doc defect, not a tuning question
 
 - **Finding:** §7.1 gives the rusher two-to-three attribute terms
@@ -94,6 +117,24 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
   The decision gets made deliberately and recorded here; it does not get inherited by
   default because nobody revisited it.
 - **Cross-reference:** noted as a known issue in `docs/design/match-engine.md` §7.1.
+
+## 3a. The play-card corpus is a calibration dependency, not an engine detail
+
+- **Dependency:** the frozen baseline play-caller (`calibration.md` §3.1, Phase 1
+  deliverable 3) is fit from real play-by-play. It selects *concepts* — but the engine
+  resolves *cards*. If the card set those concepts map onto is not validated, with realistic
+  distributions of formation, personnel and concept, the tendency model is fit to real NFL
+  play-calling and then executed against fictional plays.
+- **Why it is dangerous rather than merely wrong:** the resulting statistics are clean.
+  They converge, they have tight confidence intervals, and nothing in a baseline report
+  looks broken — the numbers accurately describe a game nobody plays. This is the one
+  failure mode a statistical arbiter cannot detect from its own output, which is why it is
+  logged here rather than left to be noticed.
+- **Blocked on:** [ADR-006](ADR-006-play-card-validity-ownership.md) — franchise owns
+  playbook definitions and validates cards at authoring time; the engine rejects only
+  internal incoherence.
+- **Phase 3 gate:** do not accept a baseline comparison report as evidence for any tunable
+  patch until the card corpus behind it is validated.
 
 ## 4. Pressure is effectively unresistable — Poise barely registers
 

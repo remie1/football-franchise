@@ -52,9 +52,33 @@ export interface ManAssignment {
   readonly technique: CoverageTechnique;
 }
 
+/**
+ * Where the rusher starts, and therefore how far he has to travel once he wins
+ * (§7.2 time-of-arrival). This is a property of the DEFENSIVE CALL, not of the
+ * player: the same end who lines up wide on first down walks inside on a
+ * passing down, and the two are worth very different things.
+ */
+export type RushAlignment = "EDGE" | "INTERIOR";
+
 export interface RushAssignment {
   readonly rusher: PlayerId;
   readonly move: RushMove;
+  /**
+   * Optional. Omitted, it is derived from the rusher's `Position`
+   * (`TUNABLES.arrival.interiorPositions`), which is right for a base four-man
+   * front and wrong for anything creative — an A-gap blitzing linebacker has to
+   * say so.
+   */
+  readonly alignment?: RushAlignment;
+}
+
+/**
+ * A rush assignment after the engine has resolved the optional alignment. This
+ * is what goes into PLAY_START, so the stream carries the alignment the play was
+ * actually simulated with rather than the one the caller happened to type.
+ */
+export interface ResolvedRushAssignment extends RushAssignment {
+  readonly alignment: RushAlignment;
 }
 
 export interface DefensivePlayCall {
@@ -116,7 +140,8 @@ export interface PassPlayStartPayload {
     readonly front: string;
     readonly coverage: "MAN";
     readonly assignments: readonly ManAssignment[];
-    readonly rush: readonly RushAssignment[];
+    /** Alignment resolved: §7.2's time-of-arrival model depends on it. */
+    readonly rush: readonly ResolvedRushAssignment[];
   };
   readonly situation: {
     readonly down: number;

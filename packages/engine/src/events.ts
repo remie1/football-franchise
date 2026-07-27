@@ -15,6 +15,7 @@ import type {
   ResultTier,
   RollDetail,
 } from "@ff/contracts";
+import { TUNABLES } from "./tunables.js";
 import type { PassPlayStartPayload, PocketStatus, ThrowType } from "./types.js";
 
 export interface CheckEmission {
@@ -90,6 +91,31 @@ export class PlayEventLog {
 
   pocketStatus(status: PocketStatus): void {
     this.push({ type: "POCKET_STATUS", payload: { status }, ...this.base() });
+  }
+
+  /**
+   * A tick has exactly ONE pocket status. The status is emitted at the top of
+   * the tick from last tick's inputs, but a tick that ends in a sack ends in
+   * SACK — and emitting a second POCKET_STATUS for the same tick double-counts
+   * for anything that tallies status-ticks (harmless for rendering, wrong for
+   * calibration). This rewrites the tick's status in the buffer BEFORE `drain()`
+   * publishes it, rather than appending a contradictory second one.
+   *
+   * Escalation only: a status may get worse within a tick, never better.
+   */
+  escalatePocketStatus(status: PocketStatus): void {
+    for (let i = this.envelopes.length - 1; i >= 0; i--) {
+      const envelope = this.envelopes[i];
+      if (envelope === undefined) continue;
+      const event = envelope.event;
+      if (event.type !== "POCKET_STATUS") continue;
+      if (event.tick !== this.tick) break;
+      const severity = TUNABLES.pocket.severity;
+      if (severity[status] <= severity[event.payload.status]) return;
+      this.envelopes[i] = { ...envelope, event: { ...event, payload: { status } } };
+      return;
+    }
+    this.pocketStatus(status);
   }
 
   routeStatus(

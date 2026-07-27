@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
 import { simulatePassPlay } from "../src/index.js";
-import { buildLopsidedRushScenario, buildScenario } from "./fixtures.js";
+import { buildLopsidedRushScenario, buildScenario, buildScramblerScenario } from "./fixtures.js";
 
 /** Every RollDetail anywhere in the stream, with the event that carried it. */
 function allRolls(
@@ -46,10 +46,17 @@ function allRolls(
 
 describe("ADR-004 roll accounting", () => {
   it("no RollDetail appears twice in one play's event stream", () => {
-    for (const build of [buildScenario, buildLopsidedRushScenario]) {
+    // The scrambler fixture is here so the §7.2 movement roll and the §8.8
+    // escape roll are covered too: ADR-004 has to hold for every roll ADDED,
+    // not just the ones that existed when the rule was written.
+    const kinds = new Set<string>();
+    for (const build of [buildScenario, buildLopsidedRushScenario, buildScramblerScenario]) {
       for (let i = 0; i < 150; i++) {
         const { state, calls } = build();
         const { events } = simulatePassPlay(state, calls, `accounting-${i}`);
+        for (const { event } of events) {
+          if (event.type === "CHECK") kinds.add(event.payload.checkKind);
+        }
         const rolls = allRolls(events);
         expect(rolls.length).toBeGreaterThan(0);
 
@@ -63,6 +70,10 @@ describe("ADR-004 roll accounting", () => {
         expect(new Set(serialized).size).toBe(serialized.length);
       }
     }
+    // ...and prove the new rolls were actually in the sample, so this test
+    // cannot silently stop covering them.
+    expect(kinds).toContain("hold_decision");
+    expect(kinds).toContain("scramble");
   });
 
   it("every RollDetail lives on a CHECK, except the QB_READ perception roll", () => {

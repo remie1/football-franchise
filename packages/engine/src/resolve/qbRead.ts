@@ -1,6 +1,6 @@
 /** §8.2–§8.4, §8.7 — QB processing capacity, perceived openness, effective openness. */
 import { getAttr } from "@ff/contracts";
-import type { AttrId, PlayerState, Rng, RollDetail } from "@ff/contracts";
+import type { AttrId, PlayerState, Rng, RollDetail, RollModifier } from "@ff/contracts";
 import { ATTR, TRAIT } from "../attrs.js";
 import { clamp, flatModifier, rollD20 } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
@@ -24,8 +24,21 @@ export interface QbReadOutcome {
 /** §8.4 — the attributes the tight-window compensation term is built from. */
 const TIGHT_WINDOW_ATTRS: readonly AttrId[] = [ATTR.accuracy, ATTR.armStrength, ATTR.touch];
 
-/** §8.3 — the QB never sees actual openness, only a variance-shifted estimate. */
-export function resolveQbRead(qb: PlayerState, actualOpenness: number, readRng: Rng): QbReadOutcome {
+/**
+ * §8.3 — the QB never sees actual openness, only a variance-shifted estimate.
+ *
+ * `extraModifiers` carries situational terms that belong on THIS roll because
+ * the doc writes them against it — §8.8's scramble vision cone ("−20 direction
+ * of run / −40 back toward the line") is the only current caller. Putting them
+ * in the roll's modifier list rather than adjusting the result afterwards keeps
+ * perceived openness reconstructible from the stream.
+ */
+export function resolveQbRead(
+  qb: PlayerState,
+  actualOpenness: number,
+  readRng: Rng,
+  extraModifiers: readonly RollModifier[] = [],
+): QbReadOutcome {
   const t = TUNABLES.qb;
   const awarenessTerm = Math.round(
     (getAttr(qb.attributes.values, ATTR.awareness) - t.awarenessVariance.baseline) / t.awarenessVariance.divisor,
@@ -33,6 +46,7 @@ export function resolveQbRead(qb: PlayerState, actualOpenness: number, readRng: 
   const varianceRoll = rollD20(readRng, [
     flatModifier("d20 variance offset", t.awarenessVariance.d20Offset),
     { source: `${qb.bio.position} Awareness (variance narrowing)`, attr: ATTR.awareness, value: awarenessTerm },
+    ...extraModifiers.filter((m) => m.value !== 0),
   ]);
 
   const perceivedOpenness = Math.round(

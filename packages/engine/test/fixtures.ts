@@ -239,6 +239,60 @@ export function buildStalledPocketScenario(): Scenario {
 }
 
 /**
+ * A quarterback who can actually run, behind a line that gives up the interior.
+ * This is the shape that exercises §7.2's ESCAPE branch: with the climb lane
+ * shut by penetration, a 94-mobility passer's own attributes make leaving the
+ * pocket his best option — where the base fixture's 70-mobility passer stands in.
+ *
+ * Alignments are stated EXPLICITLY here rather than derived from position, which
+ * is the case a base four-man front never exercises.
+ */
+export function buildScramblerScenario(): Scenario {
+  const base = buildScenario();
+
+  const runner = makePlayer("qb-scram", "Malik Ovande", "QB", {
+    awareness: 78, decisionMaking: 76, accuracy: 78, armStrength: 84, touch: 74,
+    pocketPatience: 62, poise: 66, release: 78, mobility: 94, improvisation: 92,
+  });
+  // A three-technique who lives in the backfield, and a guard who cannot hold him.
+  const penetrator = makePlayer("dt-wreck", "Ezra Kubiak", "DT", {
+    passRush: 96, firstStep: 92, powerMove: 95, finesseMove: 88, strength: 96,
+  });
+  const guard = makePlayer("lg-soft", "Denny Roux", "LG", {
+    passBlock: 30, footwork: 28, strength: 55, anchor: 40,
+  });
+
+  const players: Record<string, PlayerState> = { ...base.state.players };
+  for (const p of [runner, penetrator, guard]) players[p.bio.id as unknown as string] = p;
+
+  const state: MatchGameState = { ...base.state, players, quarterback: runner.bio.id };
+  const edgeRusher = base.calls.defense.rush[0];
+  const edgeProtection = base.calls.offense.protection[0];
+  if (edgeRusher === undefined || edgeProtection === undefined) throw new Error("bad fixture");
+
+  const calls: PlayCalls = {
+    offense: {
+      ...base.calls.offense,
+      protection: [edgeProtection, { blocker: guard.bio.id, rusher: penetrator.bio.id }],
+    },
+    defense: {
+      ...base.calls.defense,
+      rush: [
+        { ...edgeRusher, alignment: "EDGE" },
+        { rusher: penetrator.bio.id, move: "POWER", alignment: "INTERIOR" },
+      ],
+    },
+  };
+
+  const names = (id: PlayerId): string => {
+    const p = players[id as unknown as string];
+    return p === undefined ? String(id) : `${p.bio.displayName} (${p.bio.position})`;
+  };
+
+  return { state, calls, names };
+}
+
+/**
  * The case B1 was broken on, isolated: TWO rush matchups where one is dominated
  * and the other holds comfortably. §7.2's rule is per rusher — "1+ rushers won"
  * — so the interior collapse must set the pocket status even while the edge is

@@ -89,16 +89,95 @@ export const TUNABLES = {
   },
 
   /**
-   * §7.2 — pocket status. Two inputs, combined by taking the WORSE of the two,
-   * both read from tick T−0.5 so the doc's one-tick lag ("pressure/hit next
-   * tick") holds:
+   * §7.2 — RUSHER TIME OF ARRIVAL. A won rep does not put a rusher on the
+   * quarterback; it starts him TRAVELLING. Winning by 15+ creates a threat with
+   * an ETA, and the QB has the intervening ticks to respond (throw, climb,
+   * escape). Without this, COLLAPSING and SACK are the same state.
+   *
+   * The travel time is a PHYSICAL quantity, not a pressure dial:
+   *  - An interior rusher who defeats a guard is ~4-5 yards from a shotgun
+   *    launch point on a straight line. He is on top of the passer almost at
+   *    once, and he collapses the very space a step-up would use.
+   *  - An edge rusher who wins outside has depth and an ARC to run — 10-12
+   *    yards to a spot the QB has already vacated by dropping.
+   * The asymmetry is the point: interior pressure is worth more than edge
+   * pressure, and it falls out of these numbers rather than being asserted.
+   *
+   * No die is rolled here (ADR-005): the ETA is a deterministic function of the
+   * §7.1 rep that the stream already carries — alignment, move, and the winning
+   * margin — so it is reconstructible from the CHECK that produced it.
+   */
+  arrival: {
+    /** Seconds from the won rep to the quarterback. Rows: alignment; cols: §7.1 move. */
+    travelSecondsByAlignmentAndMove: {
+      INTERIOR: { SPEED: 1.0, POWER: 1.0, FINESSE: 1.0 },
+      /** A speed rush IS the arc; a bull rush walks the tackle back on a straighter line. */
+      EDGE: { SPEED: 2.0, POWER: 1.5, FINESSE: 1.5 },
+    },
+    /**
+     * INTERPRETATION: a rusher who obliterates a blocker is past him cleanly and
+     * arrives sooner than one who scrapes a win. Every this many points of
+     * margin ABOVE the RUSHER_WINS_REP threshold shaves one half-tick.
+     *
+     * Sized against the actual margin distribution, not by feel. §7.1 margins are
+     * a difference of two d100s, so on an evenly-matched rep P(margin ≥ 15) ≈ .36
+     * while P(margin ≥ 65) ≈ .06 — a half-tick shave should be the top sixth of
+     * won reps, not the top half of them. At 25 it fired on more than half of all
+     * won reps and turned "beat his man" into "unblocked", which is what a value
+     * chosen by feel does.
+     */
+    dominanceMarginPerHalfTick: 50,
+    /**
+     * A threat is not frozen at the instant it was created. §7.1's "blocker wins
+     * by 1-14: rusher contained" is the tackle recovering position and riding him
+     * past the launch point — the rusher is still coming, but from further away.
+     * Seconds added to the ETA by the FOLLOWING tick's rep, per band.
+     * (BLOCKER_RESETS does not appear: it does not delay the threat, it ends it.)
+     */
+    recoverySecondsByBand: {
+      RUSHER_WINS_REP: 0.0,
+      RUSHER_GAINING: 0.0,
+      STALEMATE: 0.0,
+      BLOCKER_CONTAINS: 0.5,
+      BLOCKER_RESETS: 0.0,
+    },
+    /**
+     * Nobody teleports. Even an unblocked interior rusher needs a beat to cover
+     * the ground to a launch point six or seven yards deep, so the dominance
+     * shave cannot produce a same-tick arrival — in practice it shortens the
+     * EDGE arc, which is the path that actually has slack in it.
+     */
+    minTravelSeconds: 1.0,
+    maxTravelSeconds: 3.0,
+    /** ETAs live on the tick grid so status transitions land on emitted ticks. */
+    quantizeSeconds: 0.5,
+    /**
+     * Default alignment when the play call does not state one. Everything not
+     * listed rushes from the edge — an A-gap blitzer must say so explicitly.
+     */
+    interiorPositions: ["DT", "NT"],
+    defaultAlignment: "EDGE",
+    /**
+     * Time-to-arrival → pocket-status floor. A threat still 1.5s out is real
+     * pressure; one arriving next tick is a collapsing pocket; one that has
+     * arrived is in the QB's face.
+     */
+    immediateWithinSeconds: 0.0,
+    collapsingWithinSeconds: 1.0,
+  },
+
+  /**
+   * §7.2 — pocket status. Three inputs, combined by taking the WORST, all read
+   * from tick T−0.5 so the doc's one-tick lag ("pressure/hit next tick") holds:
    *
    *  1. `minimumStatusByBand` — the doc's rule, stated per rusher and per tick.
    *     One won rep is sufficient; it is not a quantity that must accumulate.
-   *  2. `thresholds` — the accumulated per-rusher pressure counter, which is
-   *     what escalates a sustained rush to IMMEDIATE and then to a SACK. The
-   *     counter can only make the status worse than the band floor, never
-   *     better.
+   *  2. `arrival` above — how long the nearest travelling threat still needs.
+   *     This is what keeps a beaten tackle beaten: a rusher who won at 1.0 and
+   *     stalemates at 1.5 has NOT un-beaten his block, he is still coming.
+   *  3. `thresholds` — the accumulated per-rusher pressure counter, which is
+   *     what escalates a sustained rush to IMMEDIATE. The counter can only make
+   *     the status worse than the floors, never better.
    */
   pocket: {
     /**
@@ -143,26 +222,173 @@ export const TUNABLES = {
     forcesDecision: ["COLLAPSING", "IMMEDIATE"],
     /**
      * §7.2 COLLAPSING/IMMEDIATE: "QB must throw, move, or take hit" / "must
-     * decide THIS tick: throw, scramble, or sack". Scrambling is out of the
-     * slice, so a QB with nobody to throw to and the pocket caving in goes
-     * down — he cannot calmly set and throw the ball away. Throwaways are what
-     * happens when the clock, not the rush, runs out.
+     * decide THIS tick: throw, scramble, or sack". A status in this list is a
+     * status under which the QB may go down.
      *
-     * CALIBRATION FLAG (raised by the B1 fix, July 2026). This list was set
-     * while COLLAPSING required ~3 accumulated won reps. Now that §7.2's
-     * single-rep rule is implemented as written, COLLAPSING means "one rusher
-     * beat one block last tick" and arrives at tick 1.0 on ~63% of dropbacks —
-     * before any route has developed — which takes the fixture matchup to a 56%
-     * sack rate. Two dials are implicated and BOTH belong to the §7.1 KNOWN
-     * ISSUE (term asymmetry) that the design doc defers to Phase 3:
-     *   - `passRush.blockerStructuralAdvantage`, the pressure-rate dial;
-     *   - this list, i.e. whether "take hit" at COLLAPSING is really a sack when
-     *     the engine has no rusher time-of-arrival model.
-     * Left at the pre-patch value deliberately: changing it here would move a
-     * calibration dial under cover of a defect fix. Measured alternatives are in
-     * the patch report.
+     * VALUE UNCHANGED, SEMANTICS NARROWED (July 2026, time-of-arrival patch).
+     * This list is now a NECESSARY but no longer SUFFICIENT condition: a sack
+     * additionally requires a rusher who has actually ARRIVED
+     * (`RushThreat.etaTick <= tick`). Since an arrived threat floors the status
+     * at IMMEDIATE, the `COLLAPSING` entry is currently subsumed — it is kept at
+     * its pre-patch value deliberately rather than pruned, because pruning it
+     * would move a calibration decision under cover of a defect fix. It becomes
+     * live again the moment a mechanic can produce COLLAPSING with an arrived
+     * rusher (a free runner off a failed blitz pickup, §7.4, is the obvious one).
+     *
+     * CALIBRATION FLAG (raised by the B1 fix, still open). The other implicated
+     * dial, `passRush.blockerStructuralAdvantage`, belongs to the §7.1 KNOWN
+     * ISSUE (term asymmetry) that the design doc defers to Phase 3. Also
+     * untouched. See docs/decisions/CALIBRATION-BACKLOG.md §2, §3.
      */
     sackWhenNoTarget: ["COLLAPSING", "IMMEDIATE"],
+  },
+
+  /**
+   * §7.2's third option — "throw, MOVE, or take hit" — as two distinct
+   * mechanics rather than one blended "evade".
+   *
+   * STEP UP / CLIMB resets or delays EDGE threats and does nothing whatever
+   * against interior penetration: you cannot climb into a three-technique. It
+   * is the cheap, common, correct answer to most collapsing pockets, and a QB
+   * who climbs stays a passer.
+   *
+   * ESCAPE / SCRAMBLE leaves the pocket entirely and triggers §8.8's scramble
+   * drill. It is gated by mobility and improvisation.
+   *
+   * Selection is NOT an if-ladder on pocket status. Each response carries an
+   * APPEAL score built from the quarterback's own attributes and the shape of
+   * the threat; the §8.5 band mechanic then decides how far down his own
+   * preference list the die pushes him. A composed QB takes his best option; a
+   * panicked one takes his second or third — which is how a bail-out into a
+   * worse outcome than the one he fled emerges rather than being scripted.
+   */
+  pocketMovement: {
+    target: 50,
+    /** Attributes on the die itself: can he think while it caves in? */
+    checkTerms: [
+      { attr: "poise", divisor: 5 },
+      { attr: "awareness", divisor: 5 },
+    ],
+    /** Appeal attribute terms are measured against this rating. */
+    appealBaseline: 70,
+    /**
+     * Half-ticks by which the nearest arrival is already inside this horizon.
+     * 0 when nothing is travelling; 3 when a rusher is on top of him.
+     */
+    urgencyHorizonSeconds: 1.5,
+    appeal: {
+      /**
+       * Stand in and keep reading. Poise and patience. Urgency erodes it, but
+       * gently: standing in and taking the hit is what MOST quarterbacks do
+       * when the climb lane is gone, and a steep penalty here turns every
+       * collapsed pocket into a bail-out.
+       */
+      standIn: {
+        base: 35,
+        terms: [
+          { attr: "poise", divisor: 2 },
+          { attr: "pocketPatience", divisor: 2 },
+        ],
+        perUrgencyStep: -6,
+      },
+      /**
+       * Climb. The default answer, and by design the highest base — this is
+       * what the drop is FOR. Unavailable against interior penetration and
+       * capped per play, so it cannot be spammed into a forcefield.
+       */
+      stepUp: {
+        base: 55,
+        terms: [
+          { attr: "awareness", divisor: 3 },
+          { attr: "pocketPatience", divisor: 3 },
+        ],
+        perUrgencyStep: -2,
+      },
+      /**
+       * Leave. Low base — most dropbacks are not scrambles — but it is the
+       * answer when the climb lane is gone, which is exactly what interior
+       * penetration takes away.
+       */
+      /**
+       * Leave. The base is deliberately near zero and the attribute divisors
+       * are the steepest in the table, because leaving the pocket is a THING
+       * YOU HAVE TO BE ABLE TO DO. A 70/50 pocket passer scores negative here
+       * and stands in; a 90/88 improviser outscores every other option the
+       * moment the climb lane shuts. Mobility gates it, not the situation.
+       */
+      escape: {
+        base: 5,
+        terms: [
+          { attr: "mobility", divisor: 1.5 },
+          { attr: "improvisation", divisor: 1.5 },
+        ],
+        perUrgencyStep: 5,
+        /** INTERPRETATION: no climb lane (interior threat, or climbs spent). */
+        noClimbLaneBonus: 20,
+      },
+      /** Eat the down. Available only once the concept has had time to develop. */
+      throwaway: {
+        base: 25,
+        terms: [
+          { attr: "decisionMaking", divisor: 3 },
+          { attr: "awareness", divisor: 4 },
+        ],
+        perUrgencyStep: 8,
+      },
+    },
+    stepUp: {
+      /** You can only climb so far before you are standing on the centre's heels. */
+      maxPerPlay: 2,
+      /** Seconds added to every EDGE threat's ETA. Interior threats: nothing. */
+      edgeThreatDelaySeconds: 1.0,
+      /** A rusher run past by a climbing QB starts his rep over. */
+      resetsEdgePressure: true,
+    },
+    /**
+     * §8.5's rank mechanic applied to the response list ordered by appeal.
+     * `takeRank` 0 is what the quarterback WANTS to do; a bad roll pushes him
+     * down his own list, which is where a panicked bail-out comes from. Ranks
+     * clamp to the number of responses actually available.
+     */
+    bands: [
+      { label: "SOUND", minMargin: 0, takeRank: 0 },
+      { label: "RUSHED", minMargin: -20, takeRank: 1 },
+      { label: "PANICKED", minMargin: NEG_INF, takeRank: 2 },
+    ],
+  },
+
+  /** §8.8 — the scramble itself, and the drill it triggers. */
+  scramble: {
+    target: 50,
+    attrDivisor: 5,
+    /**
+     * INTERPRETATION: edge rushers are the contain players. Getting out past a
+     * threat that is already outside you is the hard version; escaping a purely
+     * interior collapse is the easy one.
+     */
+    edgeThreatPenalty: 10,
+    perUrgencyStepPenalty: 5,
+    bands: [
+      { label: "CLEAN_ESCAPE", minMargin: 15, escaped: true, sacked: false },
+      { label: "ESCAPED", minMargin: 0, escaped: true, sacked: false },
+      { label: "CONTAINED", minMargin: -20, escaped: false, sacked: false },
+      { label: "CAUGHT_FROM_BEHIND", minMargin: NEG_INF, escaped: false, sacked: true },
+    ],
+    /**
+     * §8.8 vision cone, read as DEPTH relative to the scrambling passer:
+     * "forward cone: full / direction of run: −20 / back toward line: −40".
+     * The deep and intermediate routes are in front of him; the short stuff is
+     * where he is running; the quick game is behind him, and he cannot see it.
+     * INTERPRETATION — the doc's cone is spatial and the slice has no horizontal
+     * field model, so depth class stands in for it. Applied as a named modifier
+     * on §8.3's awareness roll, which is the check the doc's "-20/-40" describes.
+     */
+    visionConeByDepthClass: { DEEP: 0, INTERMEDIATE: 0, SHORT: -20, QUICK: -40 },
+    /** §8.8 "receivers stop running routes, find open grass". */
+    opennessGainPerTick: 8,
+    maxOpenness: 85,
+    /** Seconds outside the pocket before pursuit forces the ball down. */
+    pursuitSeconds: 1.5,
   },
 
   /** §9.1 — release vs. press at tick 0.5. */
@@ -394,6 +620,14 @@ export const TUNABLES = {
   result: {
     sackYardsLost: 7,
     touchdownPoints: 6,
+    /**
+     * PLACEHOLDER — a scrambling QB who runs out of receivers tucks it. The run
+     * game (§14) owns ball-carrier resolution and is the NEXT dispatch; this is
+     * a flat constant standing in for it so the scramble branch can terminate,
+     * exactly as `sackYardsLost` stands in for a tackle resolution. It is not a
+     * rushing model and must be replaced, not tuned.
+     */
+    scrambleRunYards: 5,
     /** Seconds burned after the ball is dead, added to the play's elapsed time. */
     clockRunoff: {
       completion: 5,
@@ -401,6 +635,7 @@ export const TUNABLES = {
       sack: 5,
       throwaway: 0,
       interception: 0,
+      scrambleRun: 5,
     },
     firstDownResetsDistance: 10,
   },

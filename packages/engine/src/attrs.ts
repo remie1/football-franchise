@@ -45,6 +45,8 @@ export const ATTR = {
   touch: resolveAttr("touch"),
   pocketPatience: resolveAttr("pocketPatience"),
   poise: resolveAttr("poise"),
+  mobility: resolveAttr("mobility"),
+  improvisation: resolveAttr("improvisation"),
   // OL
   passBlock: resolveAttr("passBlock"),
   footwork: resolveAttr("footwork"),
