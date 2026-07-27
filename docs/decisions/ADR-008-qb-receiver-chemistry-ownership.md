@@ -2,7 +2,7 @@
 
 - **Date:** July 2026
 - **Proposed by:** `match-engine` (Phase 1, §8.1 progression / anticipation patch)
-- **Status:** proposed
+- **Status:** approved
 
 ## Need
 
@@ -162,3 +162,31 @@ of franchise state, which iron rule 1 forbids.
 but perception is about *belief* (what an observer thinks a subject's rating is) and
 chemistry is about *capability* (what the two of them can actually execute). Merging them
 would make a scout's opinion change how a pass is thrown. Same machinery, separate table.
+
+## Decision
+
+**Both parts approved** by project owner + Orchestrator, July 2026, in a single unlock
+window.
+
+**Part A — chemistry.** `ChemistryPair` and `ChemistryTable` added to
+`packages/contracts/src/players.ts`, alongside `PerceivedAttributes` rather than in a new
+file: perception is the precedent this memo argues from, and pair state keyed
+(passer × receiver) sits naturally next to pair state keyed (observer × subject). The
+three-part argument that chemistry is not an attribute — belongs to a pair, not symmetric
+with performance, moves on the franchise clock — was decisive, as was the refusal to fold it
+into perception. Belief and capability are different things and a scout's opinion must not
+change how a pass is thrown.
+
+Ratified now rather than when franchise is built, for two reasons: migration is a genuine
+no-op (absent table ⇒ 50 ⇒ neutral ⇒ today's behaviour exactly), and franchise should inherit
+the accrual model as a designed-in responsibility rather than discover it as a retrofit.
+Franchise owns the formula; this memo asked only for the home.
+
+**Part B — `CheckKind` gains `"anticipation"`.** Same category and same reasoning as
+ADR-007's `pocket_movement`: two different decisions sharing one label means calibration can
+count neither. `qb_read` is kept, not renamed, so no existing stream becomes invalid.
+
+Engine adaptation — deleting the two `INTERIM VOCABULARY (ADR-008)` markers and wiring the
+optional `ChemistryTable` input — ships with the Phase 1 breadth pass.
+
+Related: [ADR-007](ADR-007-pocket-movement-event-vocabulary.md).

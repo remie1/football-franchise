@@ -30,7 +30,7 @@ export type CheckKind =
   | "coverage_read" | "blitz_recognition" | "audible"
   | "release_vs_press" | "route_break" | "man_coverage" | "zone_coverage" | "option_route"
   | "pass_rush_tick" | "run_block" | "second_level_climb" | "stunt_communication" | "blitz_pickup"
-  | "qb_read" | "qb_decision" | "unseen_defender" | "hold_decision" | "pocket_movement" | "scramble"
+  | "qb_read" | "anticipation" | "qb_decision" | "unseen_defender" | "hold_decision" | "pocket_movement" | "scramble"
   | "passing_lane" | "accuracy" | "dline_tip"
   | "catch" | "contested_catch" | "deflection_quality" | "deflection_recovery"
   | "yac_tackle" | "downfield_block" | "breakaway"

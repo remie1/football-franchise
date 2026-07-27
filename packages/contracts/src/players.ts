@@ -27,6 +27,29 @@ export interface PerceivedAttributes {
   knownTraits: TraitSet;
 }
 
+/**
+ * Rapport between a passer and a receiver (ADR-008). Franchise-owned, engine reads only.
+ *
+ * NOT an attribute: it belongs to a pair rather than a player, it is not symmetric with
+ * performance (a 95-rated receiver has no chemistry with a QB he met in August), and it
+ * moves on the franchise clock rather than the game clock. Same shape and owner as
+ * perception, deliberately a separate table — perception is *belief*, chemistry is
+ * *capability*, and a scout's opinion must never change how a pass is thrown.
+ */
+export interface ChemistryPair {
+  quarterback: PlayerId;
+  receiver: PlayerId;
+  /** 0-100; 50 = neutral, a competent pairing with no particular history. */
+  level: number;
+}
+
+/**
+ * Resolved chemistry for the players on the field, keyed passer -> receiver.
+ * A snapshot computed by franchise, not a system the engine calls into.
+ * Absent table => every pair reads 50 => neutral modifier => unchanged behaviour.
+ */
+export type ChemistryTable = Readonly<Record<string, Readonly<Record<string, number>>>>;
+
 /** Generated appearance — deterministic from PlayerId + world seed (Portrait System §2). */
 export interface Appearance {
   skinTone: number;      // 1..10
