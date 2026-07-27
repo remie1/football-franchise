@@ -5,16 +5,20 @@ import { ATTR } from "../attrs.js";
 import { chemistryEstablished, chemistrySupportsBackShoulder } from "../chemistry.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, flatModifier, rollD100, tierFor } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { ContestPosition, PocketStatus, RouteDepthClass, ThrowType } from "../types.js";
 import { accuracyModifierFor } from "./pocket.js";
 
-export type AccuracyBandLabel = (typeof TUNABLES.throwExec.accuracy.bands)[number]["label"];
-export type AccuracyBand = (typeof TUNABLES.throwExec.accuracy.bands)[number];
+export type AccuracyBandLabel = (Tunables["throwExec"]["accuracy"]["bands"])[number]["label"];
+export type AccuracyBand = (Tunables["throwExec"]["accuracy"]["bands"])[number];
 
 /** §10.2 — deterministic throw-type selection from the situation. */
-export function selectThrowType(depthClass: RouteDepthClass, effectiveOpenness: number): ThrowType {
-  const t = TUNABLES.throwExec.typeSelection;
+export function selectThrowType(
+  tunables: Tunables,
+  depthClass: RouteDepthClass,
+  effectiveOpenness: number,
+): ThrowType {
+  const t = tunables.throwExec.typeSelection;
   if (effectiveOpenness <= t.tightWindowMaxOpenness) return "BULLET";
   const touch: readonly string[] = t.touchDepthClasses;
   if (touch.includes(depthClass)) return "TOUCH";
@@ -23,9 +27,9 @@ export function selectThrowType(depthClass: RouteDepthClass, effectiveOpenness: 
 }
 
 /** §10.1 — does this throw sit above the QB's arm-strength gate? */
-export function armStrengthShortfall(qb: PlayerState, airYards: number): boolean {
+export function armStrengthShortfall(tunables: Tunables, qb: PlayerState, airYards: number): boolean {
   const arm = getAttr(qb.attributes.values, ATTR.armStrength);
-  for (const req of TUNABLES.throwExec.armRequirements) {
+  for (const req of tunables.throwExec.armRequirements) {
     if (airYards >= req.minAirYards) return arm < req.minArmStrength;
   }
   return false;
@@ -40,6 +44,8 @@ export interface AccuracyOutcome {
 }
 
 export interface AccuracyArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly qb: PlayerState;
   readonly airYards: number;
   readonly throwType: ThrowType;
@@ -54,14 +60,14 @@ export interface AccuracyArgs {
 }
 
 export function resolveAccuracy(args: AccuracyArgs): AccuracyOutcome {
-  const t = TUNABLES.throwExec.accuracy;
-  const { qb, airYards, throwType, pocket, armShortfall, throwRng } = args;
-  const chemistry = args.chemistryLevel ?? TUNABLES.chemistry.neutralLevel;
+  const { qb, airYards, throwType, pocket, armShortfall, throwRng, tunables } = args;
+  const t = tunables.throwExec.accuracy;
+  const chemistry = args.chemistryLevel ?? tunables.chemistry.neutralLevel;
 
-  const pocketPenalty = accuracyModifierFor(pocket);
+  const pocketPenalty = accuracyModifierFor(tunables, pocket);
   const poiseRefundRaw = Math.max(
     0,
-    Math.round((getAttr(qb.attributes.values, ATTR.poise) - TUNABLES.qb.poise.baseline) / TUNABLES.qb.poise.divisor),
+    Math.round((getAttr(qb.attributes.values, ATTR.poise) - tunables.qb.poise.baseline) / tunables.qb.poise.divisor),
   );
   const poiseRefund = Math.min(poiseRefundRaw, Math.abs(pocketPenalty));
 
@@ -82,19 +88,19 @@ export function resolveAccuracy(args: AccuracyArgs): AccuracyOutcome {
     depthMod,
     flatModifier(`Throw type: ${throwType}`, t.throwTypeModifier[throwType]),
     armShortfall
-      ? flatModifier("Below arm-strength threshold (§10.1)", TUNABLES.throwExec.underArmThresholdAccuracyPenalty)
+      ? flatModifier("Below arm-strength threshold (§10.1)", tunables.throwExec.underArmThresholdAccuracyPenalty)
       : undefined,
     // §10.4 verbatim: "Chemistry with receiver: +5" (ADR-008).
-    chemistryEstablished(chemistry)
-      ? flatModifier(`Chemistry with receiver (${chemistry})`, TUNABLES.chemistry.establishedAccuracyBonus)
+    chemistryEstablished(tunables, chemistry)
+      ? flatModifier(`Chemistry with receiver (${chemistry})`, tunables.chemistry.establishedAccuracyBonus)
       : undefined,
     // §10.2: the back-shoulder throw "requires chemistry (else −10)". WIRED AND
     // DORMANT — `selectThrowType` never returns BACK_SHOULDER today, so this is
     // unreachable until §10.2's selection grows the branch. It is placed here
     // rather than held in reserve so that the day it does, the penalty is
     // already correct and already in the printout.
-    throwType === "BACK_SHOULDER" && !chemistrySupportsBackShoulder(chemistry)
-      ? flatModifier("Back shoulder without chemistry (§10.2)", TUNABLES.chemistry.backShoulderWithoutChemistry)
+    throwType === "BACK_SHOULDER" && !chemistrySupportsBackShoulder(tunables, chemistry)
+      ? flatModifier("Back shoulder without chemistry (§10.2)", tunables.chemistry.backShoulderWithoutChemistry)
       : undefined,
   ]);
 
@@ -112,7 +118,7 @@ export function resolveAccuracy(args: AccuracyArgs): AccuracyOutcome {
       actors: [qb.bio.id],
       roll,
       target: t.target,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       // ADR-011 — §10.4's PLACEMENT BAND, and the reason the whole amendment
       // exists: it drives the catch modifier, the defender's contest modifier,
       // the catch difficulty and §10.5's YAC multiplier. `THROW.rollRef` points
@@ -133,6 +139,8 @@ export interface PassingLaneOutcome {
 }
 
 export interface PassingLaneArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly defender: PlayerState;
   readonly quarterback: PlayerState;
   readonly throwType: ThrowType;
@@ -145,8 +153,8 @@ export interface PassingLaneArgs {
  * deflection is resolved as a batted-down incompletion.
  */
 export function resolvePassingLane(args: PassingLaneArgs): PassingLaneOutcome {
-  const t = TUNABLES.throwExec.lane;
-  const { defender, quarterback, throwType, throwRng } = args;
+  const { defender, quarterback, throwType, throwRng, tunables } = args;
+  const t = tunables.throwExec.lane;
 
   const angleKey = t.angleByThrowType[throwType];
   const target = t.target + t.velocityModifier[throwType] + t.angleModifier[angleKey];
@@ -169,7 +177,7 @@ export function resolvePassingLane(args: PassingLaneArgs): PassingLaneOutcome {
       actors: [defender.bio.id, quarterback.bio.id],
       roll,
       target,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       margin,
       testsAttrs: [ATTR.reaction, ATTR.ballSkills],
     },
@@ -178,9 +186,10 @@ export function resolvePassingLane(args: PassingLaneArgs): PassingLaneOutcome {
 
 /** §10.3 — is this defender actually in the throwing lane? */
 export function laneDefenderEligible(
+  tunables: Tunables,
   contestPosition: ContestPosition,
   actualOpenness: number,
 ): boolean {
-  const eligible: readonly string[] = TUNABLES.throwExec.lane.eligibleContestPositions;
-  return eligible.includes(contestPosition) && actualOpenness <= TUNABLES.throwExec.lane.contestOpennessMax;
+  const eligible: readonly string[] = tunables.throwExec.lane.eligibleContestPositions;
+  return eligible.includes(contestPosition) && actualOpenness <= tunables.throwExec.lane.contestOpennessMax;
 }

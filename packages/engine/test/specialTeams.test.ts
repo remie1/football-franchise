@@ -36,7 +36,7 @@ function returner(speed: number): PlayerState {
 function makeRate(distance: number, samples = 2000, leg = 78, placement = 80): number {
   let made = 0;
   for (let i = 0; i < samples; i++) {
-    const result = resolvePlacekick({
+    const result = resolvePlacekick({ tunables: TUNABLES,
       kicker: kicker(leg, placement),
       distanceYards: distance,
       rng: createRng("st", `fg:${distance}:${i}`),
@@ -48,8 +48,8 @@ function makeRate(distance: number, samples = 2000, leg = 78, placement = 80): n
 
 describe("the placekick", () => {
   it("distance is the distance to the goal line plus the snap and the hold", () => {
-    expect(fieldGoalDistanceFrom(80)).toBe(20 + ST.fieldGoal.snapAndHoldYards);
-    expect(fieldGoalDistanceFrom(50)).toBe(50 + ST.fieldGoal.snapAndHoldYards);
+    expect(fieldGoalDistanceFrom(TUNABLES, 80)).toBe(20 + ST.fieldGoal.snapAndHoldYards);
+    expect(fieldGoalDistanceFrom(TUNABLES, 50)).toBe(50 + ST.fieldGoal.snapAndHoldYards);
   });
 
   it("is monotone in distance — a longer kick is never easier", () => {
@@ -75,15 +75,15 @@ describe("the placekick", () => {
   });
 
   it("is a pure function of its seed", () => {
-    const a = resolvePlacekick({ kicker: kicker(78, 80), distanceYards: 44, rng: createRng("s", "l") });
-    const b = resolvePlacekick({ kicker: kicker(78, 80), distanceYards: 44, rng: createRng("s", "l") });
+    const a = resolvePlacekick({ tunables: TUNABLES, kicker: kicker(78, 80), distanceYards: 44, rng: createRng("s", "l") });
+    const b = resolvePlacekick({ tunables: TUNABLES, kicker: kicker(78, 80), distanceYards: 44, rng: createRng("s", "l") });
     expect(b).toEqual(a);
   });
 
   it("a miss gives the ball to the defence at the spot of the kick, never inside its own 20", () => {
-    expect(missedFieldGoalYardLine(60)).toBe(100 - (60 - ST.fieldGoal.missSpotYardsBehindLos));
+    expect(missedFieldGoalYardLine(TUNABLES, 60)).toBe(100 - (60 - ST.fieldGoal.missSpotYardsBehindLos));
     // Deep in the red zone, the touchback-equivalent floor applies.
-    expect(missedFieldGoalYardLine(95)).toBe(ST.fieldGoal.missMinimumYardLine);
+    expect(missedFieldGoalYardLine(TUNABLES, 95)).toBe(ST.fieldGoal.missMinimumYardLine);
   });
 });
 
@@ -91,7 +91,7 @@ describe("the punt", () => {
   it("never leaves the ball outside the field of play", () => {
     for (let from = 1; from < 100; from += 3) {
       for (let i = 0; i < 25; i++) {
-        const result = resolvePunt({
+        const result = resolvePunt({ tunables: TUNABLES,
           punter: punter(76),
           returner: returner(88),
           fromYardLine: from,
@@ -108,7 +108,7 @@ describe("the punt", () => {
   it("a punt from deep in the opponent's half is a touchback rather than a 46-yard gain", () => {
     let touchbacks = 0;
     for (let i = 0; i < 200; i++) {
-      const result = resolvePunt({
+      const result = resolvePunt({ tunables: TUNABLES,
         punter: punter(76),
         returner: returner(88),
         fromYardLine: 60,
@@ -126,7 +126,7 @@ describe("the punt", () => {
     let total = 0;
     const n = 1000;
     for (let i = 0; i < n; i++) {
-      total += resolvePunt({
+      total += resolvePunt({ tunables: TUNABLES,
         punter: punter(76),
         returner: returner(88),
         fromYardLine: 30,
@@ -141,7 +141,7 @@ describe("the punt", () => {
     const mean = (leg: number): number => {
       let total = 0;
       for (let i = 0; i < 500; i++) {
-        total += resolvePunt({
+        total += resolvePunt({ tunables: TUNABLES,
           punter: punter(leg),
           returner: returner(80),
           fromYardLine: 25,
@@ -156,7 +156,7 @@ describe("the punt", () => {
   it("a ball fielded inside the receiving team's own 10 is downed, not returned", () => {
     let downed = 0;
     for (let i = 0; i < 400; i++) {
-      const result = resolvePunt({
+      const result = resolvePunt({ tunables: TUNABLES,
         punter: punter(90),
         returner: returner(88),
         fromYardLine: 48,
@@ -177,7 +177,7 @@ describe("the kickoff", () => {
     let touchbacks = 0;
     let returns = 0;
     for (let i = 0; i < 500; i++) {
-      const result = resolveKickoff({
+      const result = resolveKickoff({ tunables: TUNABLES,
         kicker: kicker(78, 80),
         returner: returner(88),
         rng: createRng("ko", `${i}`),
@@ -185,10 +185,10 @@ describe("the kickoff", () => {
       if (result.touchback) {
         touchbacks += 1;
         expect(result.resultYardLine).toBe(ST.kickoff.touchbackYardLine);
-        expect(result.returnRoll).toBeUndefined();
+        expect(result.returnCheck).toBeUndefined();
       } else {
         returns += 1;
-        expect(result.returnRoll).toBeDefined();
+        expect(result.returnCheck).toBeDefined();
         expect(result.resultYardLine).toBeGreaterThan(0);
         expect(result.resultYardLine).toBeLessThan(100);
       }
@@ -201,7 +201,7 @@ describe("the kickoff", () => {
     let total = 0;
     const n = 2000;
     for (let i = 0; i < n; i++) {
-      total += resolveKickoff({
+      total += resolveKickoff({ tunables: TUNABLES,
         kicker: kicker(78, 80),
         returner: returner(85),
         rng: createRng("ko", `avg:${i}`),

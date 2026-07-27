@@ -113,7 +113,6 @@ export function renderGameSummary(
   names: GameNameLookup,
 ): string {
   const start = eventsOf(events, "GAME_START")[0];
-  const summary = eventsOf(events, "GAME_SUMMARY")[0];
   const end = eventsOf(events, "GAME_END")[0];
   if (start === undefined || end === undefined) return "";
 
@@ -121,7 +120,9 @@ export function renderGameSummary(
   const away = start.payload.away;
   const lines: string[] = [RULE, "GAME SUMMARY", RULE, ""];
 
-  const periods = summary?.payload.periods ?? [];
+  // ADR-014 item 8: one closing event. The provenance that used to arrive on a
+  // sibling `GAME_SUMMARY` is on the widened `GAME_END`.
+  const periods = end.payload.periods;
   const header = ["", ...periods.map((p) => `Q${p.period}`), "F"];
   const homeRow = [names.team(home), ...periods.map((p) => String(p.home)), String(end.payload.home)];
   const awayRow = [names.team(away), ...periods.map((p) => String(p.away)), String(end.payload.away)];
@@ -131,16 +132,13 @@ export function renderGameSummary(
   lines.push(homeRow.map((h, i) => (i === 0 ? pad(h, width) : padLeft(h, 5))).join(""));
   lines.push("");
 
-  if (summary !== undefined) {
-    lines.push(
-      `  Ended: ${summary.payload.reason} · ${summary.payload.plays} plays · ` +
-        `${summary.payload.drives} drives`,
-    );
-    // ★3 — the seed is the one thing on the summary that is NOT derivable from
-    // the stream, and it is the reason the game is re-runnable at all.
-    lines.push(`  Seed:  "${summary.payload.seed}"`);
-    lines.push("");
-  }
+  lines.push(
+    `  Ended: ${end.payload.reason} · ${end.payload.plays} plays · ${end.payload.drives} drives`,
+  );
+  // ★3 — the seed is the one thing on the summary that is NOT derivable from
+  // the stream, and it is the reason the game is re-runnable at all.
+  lines.push(`  Seed:  "${end.payload.seed}"`);
+  lines.push("");
 
   // Drive-result census: the shape of the game in nine numbers.
   const census = new Map<string, number>();

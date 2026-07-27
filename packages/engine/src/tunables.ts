@@ -1601,20 +1601,33 @@ export const TUNABLES = {
      * MACRO numbers calibration needs (points per drive, drives per game,
      * starting field position) are not obviously wrong.
      *
-     * ⚠ THE REGISTRY HAS NO KICKING ATTRIBUTES. `ATTRIBUTE_REGISTRY_V1` contains
-     * no `kickPower`, `kickAccuracy`, `puntPower` or `puntHangTime`; the ST
-     * positions K/P/LS exist only as `Position` values. Petitioned in ADR-014.
-     * INTERIM: a kicker's leg is `strength` and his placement is `accuracy` —
-     * both real registry ids, so the `attrs.ts` sweep passes and nothing is
-     * invented locally, but a 99-accuracy quarterback would kick like a 99
-     * kicker if you lined him up. Replace the two `*Attr` fields below the day
-     * the petition lands; no other code changes.
+     * KICKING ATTRIBUTES — LIVE AS OF ADR-014 ITEM 14. `ATTRIBUTE_REGISTRY_V1`
+     * had no kicking attribute of any kind and the ST positions K/P/LS existed
+     * only as `Position` values, so a kicker's leg was `strength` and his
+     * placement was `accuracy` — real registry ids that mean something else, and
+     * under which a 99-accuracy quarterback kicked like a 99-accuracy kicker.
+     * The registry now defines `kickPower`, `kickAccuracy`, `puntPower` and
+     * `puntHangTime` at `schemaVersion` 3, and `MIGRATION_V2_TO_V3` seeds each
+     * from exactly the id that stood in for it, so a MIGRATED roster kicks
+     * identically to the way it kicked before. Four strings changed here and no
+     * code did.
+     *
+     * ⚠ A roster that has NOT been through `applyMigration` carries no kicking
+     * attribute at all, and `getAttr`'s absent-id fallback reads 50 for every
+     * kicker in the league. That is the migration's job, not this module's — but
+     * it is the reason the engine's own fixtures migrate their kickers and
+     * punters (`test/gameFixtures.ts`).
+     *
+     * `returnerSpeedAttr` is deliberately still `speed`: ADR-014 declined a
+     * return attribute, because returning a kick is running with the ball in
+     * space and `speed`/`acceleration`/`elusiveness`/`vision` already mean that.
      */
     specialTeams: {
-      kickerLegAttr: "strength",
-      kickerAccuracyAttr: "accuracy",
-      punterLegAttr: "strength",
-      punterAccuracyAttr: "accuracy",
+      kickerLegAttr: "kickPower",
+      kickerAccuracyAttr: "kickAccuracy",
+      punterLegAttr: "puntPower",
+      /** Wired, unread: the punt resolver has no hang-time term (no net model). */
+      punterAccuracyAttr: "puntHangTime",
       returnerSpeedAttr: "speed",
       attrDivisor: 5,
 

@@ -23,7 +23,7 @@
  *        play; failure leaves him free, and he shows up in §14.4's second level.
  *
  * ⚠ §6.3's result table and §14.3's disagree about the same margin. See the
- * warning on `TUNABLES.runBlock.bands`. Neither is rescaled here.
+ * warning on `tunables.runBlock.bands`. Neither is rescaled here.
  */
 import { getAttr } from "@ff/contracts";
 import type { PlayerState, Rng, RollDetail } from "@ff/contracts";
@@ -31,11 +31,13 @@ import { ATTR, TRAIT } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import { bandFor, compact, flatModifier, rollD100, tierFor, traitModifier } from "../rolls.js";
 import { termAttrs, termModifiers } from "../terms.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 
-export type RunBlockBandLabel = (typeof TUNABLES.runBlock.bands)[number]["label"];
+export type RunBlockBandLabel = (Tunables["runBlock"]["bands"])[number]["label"];
 
 export interface RunBlockArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly blocker: PlayerState;
   readonly defender: PlayerState;
   /** §6.3 "Double team: +20 to OL". */
@@ -54,7 +56,8 @@ export interface RunBlockOutcome {
 }
 
 export function resolveRunBlock(args: RunBlockArgs): RunBlockOutcome {
-  const t = TUNABLES.runBlock;
+  const { tunables } = args;
+  const t = tunables.runBlock;
 
   const blockerMods = compact([
     ...termModifiers(args.blocker, t.blockerTerms),
@@ -83,7 +86,7 @@ export function resolveRunBlock(args: RunBlockArgs): RunBlockOutcome {
       actors: [args.blocker.bio.id, args.defender.bio.id],
       roll,
       opposedRoll,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: [...termAttrs(t.blockerTerms), ...termAttrs(t.defenderTerms)],
@@ -91,13 +94,15 @@ export function resolveRunBlock(args: RunBlockArgs): RunBlockOutcome {
   };
 }
 
-export function runBlockBandFor(margin: number): RunBlockBandLabel {
-  return bandFor(TUNABLES.runBlock.bands, margin).label;
+export function runBlockBandFor(tunables: Tunables, margin: number): RunBlockBandLabel {
+  return bandFor(tunables.runBlock.bands, margin).label;
 }
 
 // --- §6.2 zone scheme: gap integrity -----------------------------------------
 
 export interface GapIntegrityArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly blocker: PlayerState;
   readonly defender: PlayerState;
   readonly gapRng: Rng;
@@ -119,7 +124,8 @@ export interface GapIntegrityOutcome {
  * the DEFENCE holds. A defender who wins keeps his gap.
  */
 export function resolveGapIntegrity(args: GapIntegrityArgs): GapIntegrityOutcome {
-  const t = TUNABLES.runBlock.gapIntegrity;
+  const { tunables } = args;
+  const t = tunables.runBlock.gapIntegrity;
 
   const defenderMods = compact(termModifiers(args.defender, t.defenderTerms));
   const blockerMods = compact(termModifiers(args.blocker, t.blockerTerms));
@@ -140,7 +146,7 @@ export function resolveGapIntegrity(args: GapIntegrityArgs): GapIntegrityOutcome
       actors: [args.defender.bio.id, args.blocker.bio.id],
       roll,
       opposedRoll,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: [...termAttrs(t.defenderTerms), ...termAttrs(t.blockerTerms)],
@@ -151,6 +157,8 @@ export function resolveGapIntegrity(args: GapIntegrityArgs): GapIntegrityOutcome
 // --- §6.4 second-level climb -------------------------------------------------
 
 export interface SecondLevelClimbArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly climber: PlayerState;
   readonly linebacker: PlayerState;
   readonly climbRng: Rng;
@@ -166,12 +174,13 @@ export interface SecondLevelClimbOutcome {
 }
 
 /** §6.4 "Triggers when OL wins first-level block by 10+". */
-export function climbTriggered(firstLevelMargin: number): boolean {
-  return firstLevelMargin >= TUNABLES.runBlock.secondLevelClimb.triggerMinMargin;
+export function climbTriggered(tunables: Tunables, firstLevelMargin: number): boolean {
+  return firstLevelMargin >= tunables.runBlock.secondLevelClimb.triggerMinMargin;
 }
 
 export function resolveSecondLevelClimb(args: SecondLevelClimbArgs): SecondLevelClimbOutcome {
-  const t = TUNABLES.runBlock.secondLevelClimb;
+  const { tunables } = args;
+  const t = tunables.runBlock.secondLevelClimb;
 
   const target =
     t.target +
@@ -192,7 +201,7 @@ export function resolveSecondLevelClimb(args: SecondLevelClimbArgs): SecondLevel
       actors: [args.climber.bio.id, args.linebacker.bio.id],
       roll,
       target,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       margin,
       testsAttrs: [...termAttrs(t.climberTerms), ATTR.playRecognition],
     },

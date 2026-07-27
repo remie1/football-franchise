@@ -27,6 +27,7 @@ const TARGET = playerId("wr-target");
 
 function args(over: Partial<AnticipationArgs> = {}): AnticipationArgs {
   return {
+    tunables: TUNABLES,
     qb: SHARP,
     system: "HALF_FIELD",
     leadSeconds: 0.5,
@@ -55,18 +56,18 @@ function passRate(over: Partial<AnticipationArgs>, n = 600): number {
 
 describe("§8.1 anticipation availability", () => {
   it("does not roll at all outside the rhythm window (ADR-005: no die, no check)", () => {
-    expect(anticipationAvailable(0.5)).toBe(true);
-    expect(anticipationAvailable(TUNABLES.qb.anticipation.maxLeadSeconds)).toBe(true);
-    expect(anticipationAvailable(TUNABLES.qb.anticipation.maxLeadSeconds + 0.5)).toBe(false);
+    expect(anticipationAvailable(TUNABLES, 0.5)).toBe(true);
+    expect(anticipationAvailable(TUNABLES, TUNABLES.qb.anticipation.maxLeadSeconds)).toBe(true);
+    expect(anticipationAvailable(TUNABLES, TUNABLES.qb.anticipation.maxLeadSeconds + 0.5)).toBe(false);
     // A route that has already broken is not anticipated, it is seen.
-    expect(anticipationAvailable(0)).toBe(false);
-    expect(anticipationAvailable(-0.5)).toBe(false);
+    expect(anticipationAvailable(TUNABLES, 0)).toBe(false);
+    expect(anticipationAvailable(TUNABLES, -0.5)).toBe(false);
   });
 
   it("counts the lead in half-ticks", () => {
-    expect(leadSteps(0.5)).toBe(1);
-    expect(leadSteps(1.0)).toBe(2);
-    expect(leadSteps(0)).toBe(0);
+    expect(leadSteps(TUNABLES, 0.5)).toBe(1);
+    expect(leadSteps(TUNABLES, 1.0)).toBe(2);
+    expect(leadSteps(TUNABLES, 0)).toBe(0);
   });
 });
 
@@ -76,7 +77,7 @@ describe("§8.1 anticipation check", () => {
     expect(out.roll.die).toBe("d100");
     expect(out.check.target).toBe(TUNABLES.qb.anticipation.target);
     expect(out.margin).toBe(out.roll.total - TUNABLES.qb.anticipation.target);
-    expect(out.band).toBe(anticipationBandFor(out.margin));
+    expect(out.band).toBe(anticipationBandFor(TUNABLES, out.margin));
     expect(out.anticipated).toBe(bandFor(TUNABLES.qb.anticipation.bands, out.margin).anticipated);
   });
 

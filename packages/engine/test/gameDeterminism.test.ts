@@ -91,13 +91,13 @@ describe("★2 — draws are addressed by fork label, never by stream position",
     expect(toss?.type === "COIN_TOSS" && toss.payload.roll.rngLabel).toBe(`game:${gameId}/coin`);
 
     const kickoff = result.events.map((e) => e.event).find((e) => e.type === "KICKOFF");
-    expect(kickoff?.type === "KICKOFF" && kickoff.payload.roll.rngLabel).toBe(
+    expect(kickoff?.type === "KICKOFF" && kickoff.payload.rollRef).toBe(
       `game:${gameId}/kickoff:1/kick`,
     );
 
     const punt = result.events.map((e) => e.event).find((e) => e.type === "PUNT");
     if (punt?.type === "PUNT") {
-      expect(punt.payload.roll.rngLabel).toMatch(
+      expect(punt.payload.rollRef).toMatch(
         new RegExp(`^game:${escapeRegExp(gameId)}/drive:\\d+/punt$`),
       );
     }
@@ -106,7 +106,7 @@ describe("★2 — draws are addressed by fork label, never by stream position",
       .map((e) => e.event)
       .find((e) => e.type === "PLACEKICK" && e.payload.kind === "FIELD_GOAL");
     if (kick?.type === "PLACEKICK") {
-      expect(kick.payload.roll.rngLabel).toMatch(
+      expect(kick.payload.rollRef).toMatch(
         new RegExp(`^game:${escapeRegExp(gameId)}/drive:\\d+/fieldGoal$`),
       );
     }

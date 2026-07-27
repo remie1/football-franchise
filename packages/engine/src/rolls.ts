@@ -17,7 +17,7 @@ import type {
   TraitId,
   TraitSet,
 } from "@ff/contracts";
-import { TUNABLES } from "./tunables.js";
+import type { Tunables } from "./tunables.js";
 
 export interface Band {
   readonly label: string;
@@ -37,9 +37,16 @@ export function bandFor<B extends Band>(table: readonly B[], margin: number): B 
   return last;
 }
 
-/** Margin → contracts ResultTier, via the single ladder in tunables. */
-export function tierFor(margin: number): ResultTier {
-  return bandFor(TUNABLES.resultTierLadder, margin).label;
+/**
+ * Margin → contracts ResultTier, via the single ladder in tunables.
+ *
+ * `tunables` is a REQUIRED first argument, here and everywhere below it
+ * (ADR-016 / ADR-012's open item). An optional parameter would turn a missed
+ * call site into a silent default, and a batch could then report clean
+ * statistics about a simulation half-run under the wrong ladder.
+ */
+export function tierFor(tunables: Tunables, margin: number): ResultTier {
+  return bandFor(tunables.resultTierLadder, margin).label;
 }
 
 /** A modifier sourced from a registry attribute: rating ÷ divisor, rounded. */

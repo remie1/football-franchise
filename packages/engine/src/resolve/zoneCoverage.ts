@@ -19,7 +19,7 @@
  * `QB Disguise` names an attribute that does not exist in §4.1 or in
  * `ATTRIBUTE_REGISTRY_V1`, and cannot be a 0-99 rating on scale grounds (added
  * raw to 60 it would make the check unwinnable). See
- * `TUNABLES.zoneCoverage.readQb.disguise` for what stands in and why.
+ * `tunables.zoneCoverage.readQb.disguise` for what stands in and why.
  */
 import { getAttr } from "@ff/contracts";
 import type { AttrId, PlayerState, Rng, RollDetail } from "@ff/contracts";
@@ -34,12 +34,14 @@ import {
   tierFor,
   traitModifier,
 } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { ContestPosition } from "../types.js";
 
-export type ZoneCoverageBandLabel = (typeof TUNABLES.zoneCoverage.bands)[number]["label"];
+export type ZoneCoverageBandLabel = (Tunables["zoneCoverage"]["bands"])[number]["label"];
 
 export interface ZoneCoverageArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly receiver: PlayerState;
   readonly defender: PlayerState;
   readonly coverageRng: Rng;
@@ -60,8 +62,8 @@ export interface ZoneCoverageOutcome {
 const ZONE_COVERAGE_ATTRS: readonly AttrId[] = [ATTR.routeRunning, ATTR.zoneCoverage];
 
 export function resolveZoneCoverage(args: ZoneCoverageArgs): ZoneCoverageOutcome {
-  const { receiver, defender, coverageRng } = args;
-  const t = TUNABLES.zoneCoverage;
+  const { receiver, defender, coverageRng, tunables } = args;
+  const t = tunables.zoneCoverage;
 
   const receiverMods = compact([
     actorAttrModifier(receiver, "Route Running", ATTR.routeRunning, t.receiverAttrDivisor),
@@ -69,7 +71,7 @@ export function resolveZoneCoverage(args: ZoneCoverageArgs): ZoneCoverageOutcome
       "Trait: Route Technician",
       receiver.attributes.traits,
       TRAIT.routeTechnician,
-      TUNABLES.traitBonuses.routeTechnician,
+      tunables.traitBonuses.routeTechnician,
     ),
   ]);
 
@@ -98,7 +100,7 @@ export function resolveZoneCoverage(args: ZoneCoverageArgs): ZoneCoverageOutcome
       actors: [receiver.bio.id, defender.bio.id],
       roll,
       target,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: ZONE_COVERAGE_ATTRS,
@@ -107,8 +109,8 @@ export function resolveZoneCoverage(args: ZoneCoverageArgs): ZoneCoverageOutcome
 }
 
 /** Exposed so the §17 renderer can name the branch a margin selected. */
-export function zoneCoverageBandFor(margin: number): ZoneCoverageBandLabel {
-  return bandFor(TUNABLES.zoneCoverage.bands, margin).label;
+export function zoneCoverageBandFor(tunables: Tunables, margin: number): ZoneCoverageBandLabel {
+  return bandFor(tunables.zoneCoverage.bands, margin).label;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,8 +119,8 @@ export function zoneCoverageBandFor(margin: number): ZoneCoverageBandLabel {
  * §9.4's "QB Disguise", derived. INTERPRETATION — see the tunables block. This
  * is a MODIFIER-scale quantity (roughly −6..+6), not a rating.
  */
-export function qbDisguise(quarterback: PlayerState): number {
-  const d = TUNABLES.zoneCoverage.readQb.disguise;
+export function qbDisguise(tunables: Tunables, quarterback: PlayerState): number {
+  const d = tunables.zoneCoverage.readQb.disguise;
   return d.terms.reduce((total, term) => {
     const value = getAttr(quarterback.attributes.values, resolveAttr(term.attr));
     return total + Math.round((value - d.baseline) / term.divisor);
@@ -126,6 +128,8 @@ export function qbDisguise(quarterback: PlayerState): number {
 }
 
 export interface ZoneReadArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly defender: PlayerState;
   readonly quarterback: PlayerState;
   readonly coverageRng: Rng;
@@ -143,10 +147,10 @@ export interface ZoneReadOutcome {
 const ZONE_READ_ATTRS: readonly AttrId[] = [ATTR.zoneCoverage, ATTR.awareness];
 
 export function resolveZoneRead(args: ZoneReadArgs): ZoneReadOutcome {
-  const { defender, quarterback, coverageRng } = args;
-  const t = TUNABLES.zoneCoverage.readQb;
+  const { defender, quarterback, coverageRng, tunables } = args;
+  const t = tunables.zoneCoverage.readQb;
 
-  const disguise = qbDisguise(quarterback);
+  const disguise = qbDisguise(tunables, quarterback);
   const target = t.baseTarget + disguise;
 
   const mods = compact([
@@ -169,7 +173,7 @@ export function resolveZoneRead(args: ZoneReadArgs): ZoneReadOutcome {
       actors: [defender.bio.id, quarterback.bio.id],
       roll,
       target,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       margin,
       testsAttrs: ZONE_READ_ATTRS,
     },
@@ -177,10 +181,10 @@ export function resolveZoneRead(args: ZoneReadArgs): ZoneReadOutcome {
 }
 
 /** §9.4 "Creates +20 to contest/interception", as a named roll modifier. */
-export function brokeOnBallContestModifier(): { source: string; value: number } {
+export function brokeOnBallContestModifier(tunables: Tunables): { source: string; value: number } {
   return {
     source: "Zone defender broke on the ball (§9.4)",
-    value: TUNABLES.zoneCoverage.readQb.contestBonus,
+    value: tunables.zoneCoverage.readQb.contestBonus,
   };
 }
 
@@ -190,18 +194,19 @@ export function brokeOnBallContestModifier(): { source: string; value: number } 
  * at its own (tunable, currently zero) rate.
  */
 export function settledOpennessAt(
+  tunables: Tunables,
   baseOpenness: number,
   readySeconds: number,
   tick: number,
 ): number {
-  const r = TUNABLES.route;
-  const step = TUNABLES.clock.tickStepSeconds;
+  const r = tunables.route;
+  const step = tunables.clock.tickStepSeconds;
   const growthEnd = Math.min(tick, r.decayStartsAtSeconds);
   const gainSteps = Math.max(0, (growthEnd - readySeconds) / step);
   const decaySteps = Math.max(0, (tick - r.decayStartsAtSeconds) / step);
   const raw =
     baseOpenness +
     r.opennessGainPerTick * gainSteps -
-    TUNABLES.zoneCoverage.settledDecayPerTick * decaySteps;
+    tunables.zoneCoverage.settledDecayPerTick * decaySteps;
   return Math.round(Math.max(r.minOpenness, Math.min(r.maxOpenness, raw)));
 }

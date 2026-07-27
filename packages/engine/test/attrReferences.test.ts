@@ -29,7 +29,8 @@ import {
   resolveAttr,
   validateTunableAttrRefs,
 } from "../src/attrs.js";
-import { simulatePassPlay, simulateRunPlay } from "../src/index.js";
+import { simulateGame, simulatePassPlay, simulateRunPlay } from "../src/index.js";
+import { buildGameFixture } from "./gameFixtures.js";
 import { TUNABLES } from "../src/tunables.js";
 import {
   buildDeflectionScenario,
@@ -72,6 +73,12 @@ function everyStream(prefix: string, n: number): MatchEventEnvelope[][] {
       out.push([...simulateRunPlay(state, calls, `${prefix}-run-${scheme}-${i}`).events]);
     }
   }
+  // ...and a whole game, so the KICKING game is swept too. It was not, and the
+  // special-teams modifiers were the last hand-written attribute labels in the
+  // engine ("K Leg" over `strength`). ADR-014 gave those attributes real
+  // registry names, and this is what keeps the labels honest about them.
+  const fixture = buildGameFixture({ seed: `${prefix}-game` });
+  out.push([...simulateGame(fixture.state, fixture.inputs, fixture.seed).events]);
   return out;
 }
 
@@ -104,6 +111,10 @@ describe("V1 — the stream spells attributes the way the registry does", () => 
     // ...and the sample really reached the attributes whose registry name is NOT
     // the id with spaces inserted, which are the only ones that can catch this.
     expect(namesSeen).toContain("YAC");
+    // ...and the kicking attributes, whose labels used to be hand-written.
+    expect(namesSeen).toContain("Kick Power");
+    expect(namesSeen).toContain("Kick Accuracy");
+    expect(namesSeen).toContain("Punt Power");
   });
 
   it("the registry disagrees with a naive id transformation, which is the point", () => {

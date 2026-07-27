@@ -11,7 +11,7 @@
  *
  *  - **Horizontal position is not derivable.** Nothing on a play card says which
  *    side of the field a route runs to. A `RouteAssignment` may state a
- *    `breakZone`; one that does not gets `TUNABLES.zoneModel.defaultHorizontal`,
+ *    `breakZone`; one that does not gets `tunables.zoneModel.defaultHorizontal`,
  *    which puts every silent route in the same lane and therefore in the same
  *    zone as every other silent route. That is a fake, not a model, and it is
  *    why the fixtures that exercise zone coverage state `breakZone` explicitly.
@@ -26,7 +26,7 @@
  *    where the doc uses it explicitly: §12.3's recovery eligibility.
  */
 import type { PlayerId } from "@ff/contracts";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type {
   CoverageAssignment,
   FieldZone,
@@ -36,8 +36,8 @@ import type {
 } from "../types.js";
 
 /** §3.2 — which depth band a route that gains `airYards` finishes in. */
-export function verticalZoneForAirYards(airYards: number): VerticalZone {
-  const bounds = TUNABLES.zoneModel.verticalUpperYards;
+export function verticalZoneForAirYards(tunables: Tunables, airYards: number): VerticalZone {
+  const bounds = tunables.zoneModel.verticalUpperYards;
   if (airYards <= bounds.BACKFIELD) return "BACKFIELD";
   if (airYards <= bounds.SHORT) return "SHORT";
   if (airYards <= bounds.INTERMEDIATE) return "INTERMEDIATE";
@@ -49,29 +49,29 @@ export function verticalZoneForAirYards(airYards: number): VerticalZone {
  * The cell a route breaks into. Stated by the play card where the card states
  * it; otherwise depth from §3.2 and the faked default lane horizontally.
  */
-export function routeZone(assignment: RouteAssignment): FieldZone {
+export function routeZone(tunables: Tunables, assignment: RouteAssignment): FieldZone {
   if (assignment.breakZone !== undefined) return assignment.breakZone;
   return {
-    horizontal: TUNABLES.zoneModel.defaultHorizontal,
-    vertical: verticalZoneForAirYards(assignment.airYards),
+    horizontal: tunables.zoneModel.defaultHorizontal,
+    vertical: verticalZoneForAirYards(tunables, assignment.airYards),
   };
 }
 
 /** Everyone in protection — blockers, rushers, the passer — is here. */
-export function backfieldZone(): FieldZone {
+export function backfieldZone(tunables: Tunables): FieldZone {
   return {
-    horizontal: TUNABLES.zoneModel.defaultHorizontal,
-    vertical: TUNABLES.zoneModel.backfieldVertical,
+    horizontal: tunables.zoneModel.defaultHorizontal,
+    vertical: tunables.zoneModel.backfieldVertical,
   };
 }
 
-function horizontalIndex(h: HorizontalZone): number {
-  const order: readonly HorizontalZone[] = TUNABLES.zoneModel.horizontalOrder;
+function horizontalIndex(tunables: Tunables, h: HorizontalZone): number {
+  const order: readonly HorizontalZone[] = tunables.zoneModel.horizontalOrder;
   return order.indexOf(h);
 }
 
-function verticalIndex(v: VerticalZone): number {
-  const order: readonly VerticalZone[] = TUNABLES.zoneModel.verticalOrder;
+function verticalIndex(tunables: Tunables, v: VerticalZone): number {
+  const order: readonly VerticalZone[] = tunables.zoneModel.verticalOrder;
   return order.indexOf(v);
 }
 
@@ -80,10 +80,10 @@ function verticalIndex(v: VerticalZone): number {
  * 1 adjacent, 2+ "two zones away". Diagonals count as one step (Chebyshev),
  * because a defender one lane over and one band deeper is one move away, not two.
  */
-export function zoneDistance(a: FieldZone, b: FieldZone): number {
+export function zoneDistance(tunables: Tunables, a: FieldZone, b: FieldZone): number {
   return Math.max(
-    Math.abs(horizontalIndex(a.horizontal) - horizontalIndex(b.horizontal)),
-    Math.abs(verticalIndex(a.vertical) - verticalIndex(b.vertical)),
+    Math.abs(horizontalIndex(tunables, a.horizontal) - horizontalIndex(tunables, b.horizontal)),
+    Math.abs(verticalIndex(tunables, a.vertical) - verticalIndex(tunables, b.vertical)),
   );
 }
 

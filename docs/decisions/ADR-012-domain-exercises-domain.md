@@ -62,6 +62,10 @@ under any circumstance.
    (`{tunableId, currentValue, proposedValue, evidence, expectedEffect}`), filed as ADR
    petitions. A patch interface serves that; a mutable exported constant does not.
 4. **The §17 debug renderer** — `renderPlay`, for report attachments and failure diagnosis.
+5. **The statline reducer and its shapes** — added by [ADR-014](ADR-014-game-structure-vocabulary.md)
+   item 15, ratified July 2026. `FANTASY-GATE-PHASE1` §3.5 requires the box score be a pure
+   reduction over the event stream, and the reducer is logic, so it cannot live in contracts
+   (`contracts.md` §10). It belongs here or nowhere.
 
 **Not permitted, and removed from the barrel in the same commit:** the individual resolver
 functions (`resolvePassRushTick`, `resolveManCoverage`, `advanceCarrier`, and the rest),

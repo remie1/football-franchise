@@ -19,7 +19,7 @@
  * three things the engine does have — where the ball was hit (in the lane, or at
  * the catch point), how far the route was going, and how the ball was thrown —
  * rather than by inventing a trajectory field. The whole mapping lives in
- * `TUNABLES.tippedBall` and is marked INTERPRETATION there.
+ * `tunables.tippedBall` and is marked INTERPRETATION there.
  */
 import { getAttr } from "@ff/contracts";
 import type { AttrId, PlayerId, PlayerState, Rng, RollDetail } from "@ff/contracts";
@@ -34,13 +34,13 @@ import {
   tierFor,
   traitModifier,
 } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { FieldZone, RouteDepthClass, ThrowType } from "../types.js";
 import { zoneDistance } from "./zone.js";
 
-export type ThrowHeight = keyof typeof TUNABLES.tippedBall.baseTargetByHeight;
-export type DeflectionQualityLabel = (typeof TUNABLES.tippedBall.qualityBands)[number]["label"];
-export type DeflectionQualityBand = (typeof TUNABLES.tippedBall.qualityBands)[number];
+export type ThrowHeight = keyof Tunables["tippedBall"]["baseTargetByHeight"];
+export type DeflectionQualityLabel = (Tunables["tippedBall"]["qualityBands"])[number]["label"];
+export type DeflectionQualityBand = (Tunables["tippedBall"]["qualityBands"])[number];
 
 /** Where the ball was when the defender got a hand on it. */
 export type DeflectionPoint = "LANE" | "CATCH_POINT";
@@ -52,11 +52,12 @@ export type DeflectionPoint = "LANE" | "CATCH_POINT";
  * notch either way by how hard it was thrown.
  */
 export function throwHeightFor(
+  tunables: Tunables,
   point: DeflectionPoint,
   depthClass: RouteDepthClass,
   throwType: ThrowType,
 ): ThrowHeight {
-  const t = TUNABLES.tippedBall;
+  const t = tunables.tippedBall;
   const ladder: readonly ThrowHeight[] = t.heightLadder;
   if (point === "LANE") return t.heightAtLane;
   const base: ThrowHeight = t.heightAtCatchPointByDepth[depthClass];
@@ -66,6 +67,8 @@ export function throwHeightFor(
 }
 
 export interface DeflectionQualityArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly deflector: PlayerState;
   readonly point: DeflectionPoint;
   readonly depthClass: RouteDepthClass;
@@ -92,8 +95,9 @@ export interface DeflectionQualityOutcome {
  * rating, and claiming one would corrupt the perception exposure channel.
  */
 export function resolveDeflectionQuality(args: DeflectionQualityArgs): DeflectionQualityOutcome {
-  const t = TUNABLES.tippedBall;
-  const height = throwHeightFor(args.point, args.depthClass, args.throwType);
+  const { tunables } = args;
+  const t = tunables.tippedBall;
+  const height = throwHeightFor(tunables, args.point, args.depthClass, args.throwType);
 
   const mods = compact([
     flatModifier(`Ball velocity: ${args.throwType}`, t.velocityModifier[args.throwType]),
@@ -120,7 +124,7 @@ export function resolveDeflectionQuality(args: DeflectionQualityArgs): Deflectio
       actors: [args.deflector.bio.id],
       roll,
       target: targetNumber,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: [],
@@ -157,15 +161,16 @@ export interface EligibleRecoverer extends RecoveryCandidate {
  * already pays Speed a second time as a modifier.
  */
 export function eligibleRecoverers(
+  tunables: Tunables,
   band: DeflectionQualityBand,
   ballZone: FieldZone,
   candidates: readonly RecoveryCandidate[],
 ): EligibleRecoverer[] {
   if (!band.recoverable) return [];
-  const minSpeed = TUNABLES.tippedBall.recovery.speedCheckMinSpeed;
+  const minSpeed = tunables.tippedBall.recovery.speedCheckMinSpeed;
   const out: EligibleRecoverer[] = [];
   for (const candidate of candidates) {
-    const distance = zoneDistance(candidate.zone, ballZone);
+    const distance = zoneDistance(tunables, candidate.zone, ballZone);
     if (distance > band.maxZoneDistance) continue;
     if (distance >= band.speedCheckFromDistance) {
       if (getAttr(candidate.player.attributes.values, ATTR.speed) < minSpeed) continue;
@@ -191,14 +196,16 @@ export function recoveryOrder(candidates: readonly EligibleRecoverer[]): Eligibl
   });
 }
 
-function proximityModifier(distance: number): number {
-  const p = TUNABLES.tippedBall.recovery.proximityModifier;
+function proximityModifier(tunables: Tunables, distance: number): number {
+  const p = tunables.tippedBall.recovery.proximityModifier;
   if (distance <= 0) return p.sameZone;
   if (distance === 1) return p.adjacentZone;
   return p.twoZonesAway;
 }
 
 export interface RecoveryAttemptArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly candidate: EligibleRecoverer;
   readonly band: DeflectionQualityBand;
   readonly finalTargetNumber: number;
@@ -215,8 +222,8 @@ export interface RecoveryAttemptOutcome {
 
 /** §12.4 — one player's attempt at a live ball. */
 export function resolveRecoveryAttempt(args: RecoveryAttemptArgs): RecoveryAttemptOutcome {
-  const t = TUNABLES.tippedBall.recovery;
-  const { candidate, band, finalTargetNumber, tipRng } = args;
+  const { candidate, band, finalTargetNumber, tipRng, tunables } = args;
+  const t = tunables.tippedBall.recovery;
   const who = candidate.player;
 
   const handsAttr = resolveAttr(
@@ -224,7 +231,7 @@ export function resolveRecoveryAttempt(args: RecoveryAttemptArgs): RecoveryAttem
   );
 
   const mods = compact([
-    flatModifier(`Proximity: ${zoneProximityLabel(candidate.zoneDistance)}`, proximityModifier(candidate.zoneDistance)),
+    flatModifier(`Proximity: ${zoneProximityLabel(candidate.zoneDistance)}`, proximityModifier(tunables, candidate.zoneDistance)),
     actorAttrModifier(who, attrName(handsAttr), handsAttr, t.handsDivisor),
     ...t.attrTerms.map((term) => {
       const id = resolveAttr(term.attr);
@@ -251,15 +258,15 @@ export function resolveRecoveryAttempt(args: RecoveryAttemptArgs): RecoveryAttem
       actors: [who.bio.id],
       roll,
       target: finalTargetNumber,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       margin,
-      testsAttrs: recoveryTestsAttrs(handsAttr),
+      testsAttrs: recoveryTestsAttrs(tunables, handsAttr),
     },
   };
 }
 
-function recoveryTestsAttrs(handsAttr: AttrId): AttrId[] {
-  return [handsAttr, ...TUNABLES.tippedBall.recovery.attrTerms.map((term) => resolveAttr(term.attr))];
+function recoveryTestsAttrs(tunables: Tunables, handsAttr: AttrId): AttrId[] {
+  return [handsAttr, ...tunables.tippedBall.recovery.attrTerms.map((term) => resolveAttr(term.attr))];
 }
 
 export function zoneProximityLabel(distance: number): string {
@@ -269,6 +276,6 @@ export function zoneProximityLabel(distance: number): string {
 }
 
 /** Exposed so the §17 renderer can name the branch a Roll 1 margin selected. */
-export function deflectionQualityBandFor(margin: number): DeflectionQualityLabel {
-  return bandFor(TUNABLES.tippedBall.qualityBands, margin).label;
+export function deflectionQualityBandFor(tunables: Tunables, margin: number): DeflectionQualityLabel {
+  return bandFor(tunables.tippedBall.qualityBands, margin).label;
 }

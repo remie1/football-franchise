@@ -47,25 +47,25 @@ function threat(alignment: "EDGE" | "INTERIOR", etaTick: number): RushThreat {
 }
 
 function best(qb: PlayerState, threats: RushThreat[], stepUpsUsed = 0, throwaway = false): PocketResponse {
-  const { ranked } = rankResponses({ qb, tick: 1.5, threats, stepUpsUsed, throwawayAvailable: throwaway });
+  const { ranked } = rankResponses({ tunables: TUNABLES, qb, tick: 1.5, threats, stepUpsUsed, throwawayAvailable: throwaway });
   return ranked[0]?.response ?? "STAND_IN";
 }
 
 describe("the climb lane", () => {
   it("is open against pure edge pressure", () => {
-    expect(climbLaneOpen([threat("EDGE", 3.0)], 0)).toBe(true);
-    expect(climbLaneOpen([], 0)).toBe(true);
+    expect(climbLaneOpen(TUNABLES, [threat("EDGE", 3.0)], 0)).toBe(true);
+    expect(climbLaneOpen(TUNABLES, [], 0)).toBe(true);
   });
 
   it("is shut by ANY interior penetration — you cannot climb into a three-technique", () => {
-    expect(climbLaneOpen([threat("INTERIOR", 2.5)], 0)).toBe(false);
-    expect(climbLaneOpen([threat("EDGE", 3.0), threat("INTERIOR", 3.5)], 0)).toBe(false);
+    expect(climbLaneOpen(TUNABLES, [threat("INTERIOR", 2.5)], 0)).toBe(false);
+    expect(climbLaneOpen(TUNABLES, [threat("EDGE", 3.0), threat("INTERIOR", 3.5)], 0)).toBe(false);
   });
 
   it("runs out: a quarterback can only climb so far before he is on the centre", () => {
     const max = TUNABLES.pocketMovement.stepUp.maxPerPlay;
-    expect(climbLaneOpen([threat("EDGE", 3.0)], max - 1)).toBe(true);
-    expect(climbLaneOpen([threat("EDGE", 3.0)], max)).toBe(false);
+    expect(climbLaneOpen(TUNABLES, [threat("EDGE", 3.0)], max - 1)).toBe(true);
+    expect(climbLaneOpen(TUNABLES, [threat("EDGE", 3.0)], max)).toBe(false);
   });
 });
 
@@ -92,23 +92,23 @@ describe("attribute-driven selection", () => {
   it("escaping is gated by mobility, not by the situation", () => {
     // Identical threat, identical urgency: only the passer differs.
     const interior = [threat("INTERIOR", 2.0)];
-    const statueRank = rankResponses({ qb: STATUE, tick: 1.5, threats: interior, stepUpsUsed: 0, throwawayAvailable: false });
-    const mobileRank = rankResponses({ qb: IMPROVISER, tick: 1.5, threats: interior, stepUpsUsed: 0, throwawayAvailable: false });
+    const statueRank = rankResponses({ tunables: TUNABLES, qb: STATUE, tick: 1.5, threats: interior, stepUpsUsed: 0, throwawayAvailable: false });
+    const mobileRank = rankResponses({ tunables: TUNABLES, qb: IMPROVISER, tick: 1.5, threats: interior, stepUpsUsed: 0, throwawayAvailable: false });
     const escapeOf = (r: typeof statueRank): number =>
       r.ranked.find((x) => x.response === "ESCAPE")?.appeal ?? 0;
     expect(escapeOf(mobileRank)).toBeGreaterThan(escapeOf(statueRank) + 20);
   });
 
   it("a throwaway is not on the menu before the concept has had time to develop", () => {
-    const early = rankResponses({ qb: STATUE, tick: 1.0, threats: [threat("INTERIOR", 2.0)], stepUpsUsed: 0, throwawayAvailable: false });
+    const early = rankResponses({ tunables: TUNABLES, qb: STATUE, tick: 1.0, threats: [threat("INTERIOR", 2.0)], stepUpsUsed: 0, throwawayAvailable: false });
     expect(early.ranked.map((r) => r.response)).not.toContain("THROWAWAY");
-    const late = rankResponses({ qb: STATUE, tick: 2.5, threats: [threat("INTERIOR", 3.0)], stepUpsUsed: 0, throwawayAvailable: true });
+    const late = rankResponses({ tunables: TUNABLES, qb: STATUE, tick: 2.5, threats: [threat("INTERIOR", 3.0)], stepUpsUsed: 0, throwawayAvailable: true });
     expect(late.ranked.map((r) => r.response)).toContain("THROWAWAY");
   });
 
   it("urgency erodes standing in and feeds leaving — but does not invert the passer", () => {
-    const far = rankResponses({ qb: STATUE, tick: 1.0, threats: [threat("INTERIOR", 2.5)], stepUpsUsed: 0, throwawayAvailable: false });
-    const near = rankResponses({ qb: STATUE, tick: 2.0, threats: [threat("INTERIOR", 2.5)], stepUpsUsed: 0, throwawayAvailable: false });
+    const far = rankResponses({ tunables: TUNABLES, qb: STATUE, tick: 1.0, threats: [threat("INTERIOR", 2.5)], stepUpsUsed: 0, throwawayAvailable: false });
+    const near = rankResponses({ tunables: TUNABLES, qb: STATUE, tick: 2.0, threats: [threat("INTERIOR", 2.5)], stepUpsUsed: 0, throwawayAvailable: false });
     const appeal = (r: typeof far, k: PocketResponse): number =>
       r.ranked.find((x) => x.response === k)?.appeal ?? 0;
     expect(appeal(near, "STAND_IN")).toBeLessThan(appeal(far, "STAND_IN"));
@@ -117,7 +117,7 @@ describe("attribute-driven selection", () => {
   });
 
   it("step-up never appears in the list when it is unavailable", () => {
-    const r = rankResponses({ qb: IMPROVISER, tick: 1.5, threats: [threat("INTERIOR", 2.0)], stepUpsUsed: 0, throwawayAvailable: true });
+    const r = rankResponses({ tunables: TUNABLES, qb: IMPROVISER, tick: 1.5, threats: [threat("INTERIOR", 2.0)], stepUpsUsed: 0, throwawayAvailable: true });
     expect(r.ranked.map((x) => x.response)).not.toContain("STEP_UP");
     expect(r.ranked.length).toBeGreaterThan(0);
   });
@@ -125,11 +125,11 @@ describe("attribute-driven selection", () => {
 
 describe("the die decides how far down his own list he is pushed", () => {
   it("bands map margins to ranks, worst-first", () => {
-    expect(pocketMovementBandFor(40)).toBe("SOUND");
-    expect(pocketMovementBandFor(0)).toBe("SOUND");
-    expect(pocketMovementBandFor(-1)).toBe("RUSHED");
-    expect(pocketMovementBandFor(-20)).toBe("RUSHED");
-    expect(pocketMovementBandFor(-21)).toBe("PANICKED");
+    expect(pocketMovementBandFor(TUNABLES, 40)).toBe("SOUND");
+    expect(pocketMovementBandFor(TUNABLES, 0)).toBe("SOUND");
+    expect(pocketMovementBandFor(TUNABLES, -1)).toBe("RUSHED");
+    expect(pocketMovementBandFor(TUNABLES, -20)).toBe("RUSHED");
+    expect(pocketMovementBandFor(TUNABLES, -21)).toBe("PANICKED");
   });
 
   it("a panicked quarterback bails into an option he did not want", () => {
@@ -138,7 +138,7 @@ describe("the die decides how far down his own list he is pushed", () => {
     const threats = [threat("EDGE", 3.0)];
     const chosen = new Map<PocketResponse, number>();
     for (let i = 0; i < 400; i++) {
-      const out = resolvePocketMovement({
+      const out = resolvePocketMovement({ tunables: TUNABLES,
         qb: STATUE, tick: 2.5, threats, stepUpsUsed: 0, throwawayAvailable: true,
         movementRng: rng(`panic-${i}`),
       });
@@ -155,7 +155,7 @@ describe("the die decides how far down his own list he is pushed", () => {
   it("the rank clamps rather than throwing when few responses are available", () => {
     // Interior threat, climbs irrelevant, no throwaway: only STAND_IN + ESCAPE.
     for (let i = 0; i < 100; i++) {
-      const out = resolvePocketMovement({
+      const out = resolvePocketMovement({ tunables: TUNABLES,
         qb: STATUE, tick: 1.0, threats: [threat("INTERIOR", 2.0)], stepUpsUsed: 0,
         throwawayAvailable: false, movementRng: rng(`clamp-${i}`),
       });
@@ -168,15 +168,15 @@ describe("the die decides how far down his own list he is pushed", () => {
     const args = {
       qb: STATUE, tick: 2.0, threats: [threat("EDGE", 3.0)], stepUpsUsed: 0, throwawayAvailable: true,
     };
-    const a = resolvePocketMovement({ ...args, movementRng: rng("same") });
-    const b = resolvePocketMovement({ ...args, movementRng: rng("same") });
+    const a = resolvePocketMovement({ tunables: TUNABLES, ...args, movementRng: rng("same") });
+    const b = resolvePocketMovement({ tunables: TUNABLES, ...args, movementRng: rng("same") });
     expect(a.response).toBe(b.response);
     expect(a.roll.raw).toBe(b.roll.raw);
     expect(a.roll.rngLabel).toBe(b.roll.rngLabel);
   });
 
   it("emits exactly one roll, on a check that names the attributes it tested", () => {
-    const out = resolvePocketMovement({
+    const out = resolvePocketMovement({ tunables: TUNABLES,
       qb: STATUE, tick: 2.0, threats: [threat("EDGE", 3.0)], stepUpsUsed: 0,
       throwawayAvailable: true, movementRng: rng("one-roll"),
     });

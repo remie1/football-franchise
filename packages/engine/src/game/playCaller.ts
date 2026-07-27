@@ -15,9 +15,15 @@
  *
  * Every number it consults is in `TUNABLES.game.caller`, so replacing it is a
  * substitution rather than an excavation.
+ *
+ * IT OWNS NO TUNABLES. Every request carries the tunables the game is being
+ * played under (`DecisionRequestBase.tunables`), so this caller cannot be built
+ * against one version and run under another — the silent-mixing failure ADR-012's
+ * open item is about. That is also why `defaultPlayCaller` keeps its one-argument
+ * signature: there is nothing version-shaped for a construction site to get wrong.
  */
 import type { Rng } from "@ff/contracts";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { DefensivePlayCall, OffensiveCall } from "../types.js";
 import { COVERAGE_CARDS, PASS_CARDS, RUN_CARDS } from "./playbook.js";
 import type {
@@ -30,18 +36,19 @@ import type {
   PlayCaller,
 } from "./types.js";
 
-const CALLER = TUNABLES.game.caller;
-
 /** Pass probability for this down and distance, before any die is thrown. */
 export function passRateFor(args: {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly down: number;
   readonly distance: number;
   readonly twoMinute: boolean;
 }): number {
-  if (args.twoMinute) return CALLER.twoMinutePassRate;
-  if (args.distance <= CALLER.shortYardagePassMaxDistance) return CALLER.shortYardagePassRate;
-  const byDown: Readonly<Record<number, number>> = CALLER.passRateByDown;
-  return byDown[args.down] ?? CALLER.passRateByDown[1];
+  const caller = args.tunables.game.caller;
+  if (args.twoMinute) return caller.twoMinutePassRate;
+  if (args.distance <= caller.shortYardagePassMaxDistance) return caller.shortYardagePassRate;
+  const byDown: Readonly<Record<number, number>> = caller.passRateByDown;
+  return byDown[args.down] ?? caller.passRateByDown[1];
 }
 
 /**
@@ -50,11 +57,13 @@ export function passRateFor(args: {
  */
 export function fourthDownPolicy(request: FourthDownRequest): FourthDownChoice {
   const s = request.situation;
+  const game = request.tunables.game;
+  const CALLER = game.caller;
   const inRange =
-    request.fieldGoalDistanceYards <= TUNABLES.game.specialTeams.fieldGoal.maxAttemptDistanceYards;
+    request.fieldGoalDistanceYards <= game.specialTeams.fieldGoal.maxAttemptDistanceYards;
 
   const desperate =
-    s.period >= TUNABLES.game.periodsInRegulation &&
+    s.period >= game.periodsInRegulation &&
     s.clockSeconds <= CALLER.desperationClockSeconds &&
     s.offenseScore < s.defenseScore &&
     s.defenseScore - s.offenseScore > CALLER.desperationPointDeficit;
@@ -84,7 +93,12 @@ export function defaultPlayCaller(name = "baseline-v0"): PlayCaller {
 
     callOffense(request: OffensiveCallRequest, rng: Rng): OffensiveCall {
       const s = request.situation;
-      const rate = passRateFor({ down: s.down, distance: s.distance, twoMinute: s.twoMinute });
+      const rate = passRateFor({
+        tunables: request.tunables,
+        down: s.down,
+        distance: s.distance,
+        twoMinute: s.twoMinute,
+      });
       const pass = rng.fork("kind").next() < rate;
       const cardRng = rng.fork("card");
       const card = pass ? cardRng.pick(PASS_CARDS) : cardRng.pick(RUN_CARDS);

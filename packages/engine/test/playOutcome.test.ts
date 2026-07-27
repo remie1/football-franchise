@@ -18,7 +18,7 @@ const base = buildScenario().state;
 
 describe("the down and distance", () => {
   it("a gain short of the sticks advances the down and shortens the distance", () => {
-    const next = applyPlayOutcome({ ...base, down: 1, distance: 10, ballOn: 40 }, {
+    const next = applyPlayOutcome(TUNABLES, { ...base, down: 1, distance: 10, ballOn: 40 }, {
       yards: 4, turnover: false, clockRunoff: 6,
     }, 0);
     expect(next.down).toBe(2);
@@ -27,7 +27,7 @@ describe("the down and distance", () => {
   });
 
   it("a gain that reaches the sticks resets to first and ten", () => {
-    const next = applyPlayOutcome({ ...base, down: 3, distance: 7, ballOn: 40 }, {
+    const next = applyPlayOutcome(TUNABLES, { ...base, down: 3, distance: 7, ballOn: 40 }, {
       yards: 7, turnover: false, clockRunoff: 6,
     }, 0);
     expect(next.down).toBe(1);
@@ -35,7 +35,7 @@ describe("the down and distance", () => {
   });
 
   it("a loss lengthens the distance", () => {
-    const next = applyPlayOutcome({ ...base, down: 2, distance: 8, ballOn: 40 }, {
+    const next = applyPlayOutcome(TUNABLES, { ...base, down: 2, distance: 8, ballOn: 40 }, {
       yards: -7, turnover: false, clockRunoff: 11,
     }, 0);
     expect(next.down).toBe(3);
@@ -44,7 +44,7 @@ describe("the down and distance", () => {
   });
 
   it("hands back down 5, because a series is a GAME rule and not this function's", () => {
-    const next = applyPlayOutcome({ ...base, down: 4, distance: 9, ballOn: 40 }, {
+    const next = applyPlayOutcome(TUNABLES, { ...base, down: 4, distance: 9, ballOn: 40 }, {
       yards: 2, turnover: false, clockRunoff: 6,
     }, 0);
     expect(next.down).toBe(5);
@@ -53,7 +53,7 @@ describe("the down and distance", () => {
 
 describe("possession", () => {
   it("a turnover flips the teams and mirrors the spot", () => {
-    const next = applyPlayOutcome({ ...base, ballOn: 35, down: 2, distance: 6 }, {
+    const next = applyPlayOutcome(TUNABLES, { ...base, ballOn: 35, down: 2, distance: 6 }, {
       yards: 20, turnover: true, clockRunoff: 4,
     }, 0);
     expect(next.offenseTeam).toBe(base.defenseTeam);
@@ -64,25 +64,25 @@ describe("possession", () => {
   });
 
   it("the spot is clamped to the field at both ends", () => {
-    expect(applyPlayOutcome({ ...base, ballOn: 3 }, { yards: -20, turnover: false, clockRunoff: 6 }, 0).ballOn).toBe(0);
-    expect(applyPlayOutcome({ ...base, ballOn: 95 }, { yards: 40, turnover: false, clockRunoff: 6 }, 0).ballOn).toBe(100);
+    expect(applyPlayOutcome(TUNABLES, { ...base, ballOn: 3 }, { yards: -20, turnover: false, clockRunoff: 6 }, 0).ballOn).toBe(0);
+    expect(applyPlayOutcome(TUNABLES, { ...base, ballOn: 95 }, { yards: 40, turnover: false, clockRunoff: 6 }, 0).ballOn).toBe(100);
   });
 });
 
 describe("the clock and the bookkeeping", () => {
   it("runoff is subtracted and never goes negative", () => {
-    expect(applyPlayOutcome({ ...base, clockSeconds: 4 }, { yards: 1, turnover: false, clockRunoff: 11 }, 0).clockSeconds).toBe(0);
+    expect(applyPlayOutcome(TUNABLES, { ...base, clockSeconds: 4 }, { yards: 1, turnover: false, clockRunoff: 11 }, 0).clockSeconds).toBe(0);
   });
 
   it("the play number advances and the sequence number is taken from the log", () => {
-    const next = applyPlayOutcome({ ...base, playNumber: 12 }, { yards: 1, turnover: false, clockRunoff: 6 }, 987);
+    const next = applyPlayOutcome(TUNABLES, { ...base, playNumber: 12 }, { yards: 1, turnover: false, clockRunoff: 6 }, 987);
     expect(next.playNumber).toBe(13);
     expect(next.nextEventSeq).toBe(987);
   });
 
   it("the input state is not mutated", () => {
     const before = JSON.stringify({ ...base, players: undefined });
-    applyPlayOutcome(base, { yards: 12, turnover: true, clockRunoff: 6 }, 5);
+    applyPlayOutcome(TUNABLES, base, { yards: 12, turnover: true, clockRunoff: 6 }, 5);
     expect(JSON.stringify({ ...base, players: undefined })).toBe(before);
   });
 });
@@ -96,7 +96,7 @@ describe("both simulators go through the same owner", () => {
       .find((e) => e.type === "PLAY_RESULT");
     expect(result?.type).toBe("PLAY_RESULT");
     if (result?.type !== "PLAY_RESULT") return;
-    const rebuilt = applyPlayOutcome(
+    const rebuilt = applyPlayOutcome(TUNABLES, 
       scenario.state,
       {
         yards: result.payload.yards,
@@ -116,7 +116,7 @@ describe("both simulators go through the same owner", () => {
       .map((e) => e.event)
       .find((e) => e.type === "PLAY_RESULT");
     if (result?.type !== "PLAY_RESULT") throw new Error("no PLAY_RESULT");
-    const rebuilt = applyPlayOutcome(
+    const rebuilt = applyPlayOutcome(TUNABLES, 
       scenario.state,
       {
         yards: result.payload.yards,

@@ -43,6 +43,7 @@ import { chemistryLevel } from "../chemistry.js";
 import { PlayEventLog } from "../events.js";
 import { clamp, flatModifier } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type {
   ContestPosition,
   CoverageShell,
@@ -196,6 +197,13 @@ export function simulatePassPlay(
   state: MatchGameState,
   calls: PlayCalls,
   seed: string,
+  /**
+   * ADR-012's open item, closed. OPTIONAL here and REQUIRED everywhere beneath:
+   * this is the barrel's own surface, which is where ergonomics belong, and the
+   * default is safe precisely because nothing under it has one — a resolver that
+   * forgot to take tunables is a compile error rather than a silent fallback.
+   */
+  tunables: Tunables = TUNABLES,
 ): SimulationResult {
   // ADR-006 — internal coherence only, before a single die is thrown. A card the
   // engine cannot resolve is rejected loudly; a card that is merely unrealistic
@@ -203,7 +211,7 @@ export function simulatePassPlay(
   assertCoherentPlayCall(state, calls);
 
   const playId = makePlayId(`${String(state.gameId)}:play:${state.playNumber}`);
-  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq);
+  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq, tunables);
   const qb = requirePlayer(state, state.quarterback);
 
   const playRng = createRng(seed, `game:${String(state.gameId)}`).fork(`play:${state.playNumber}`);
@@ -219,14 +227,14 @@ export function simulatePassPlay(
   // §13/§14 — everything that happens once somebody has the ball in his hands.
   const carrierRng = playRng.fork("carrier");
 
-  const matchups = buildMatchups(state, calls);
-  const tracks = buildReceiverTracks(state, calls);
-  const recoverySpots = buildRecoverySpots(state, calls, tracks);
+  const matchups = buildMatchups(tunables, state, calls);
+  const tracks = buildReceiverTracks(tunables, state, calls);
+  const recoverySpots = buildRecoverySpots(tunables, state, calls, tracks);
 
   const system = calls.offense.readSystem;
-  const budgetSeconds = timeBudgetSeconds(qb, system);
-  const maxReads = maxReadsFor(system);
-  const throwThreshold = throwThresholdFor(system);
+  const budgetSeconds = timeBudgetSeconds(tunables, qb, system);
+  const maxReads = maxReadsFor(tunables, system);
+  const throwThreshold = throwThresholdFor(tunables, system);
   const readOrder = calls.offense.readOrder.filter((id) =>
     tracks.some((t) => t.assignment.receiver === id),
   );
@@ -284,7 +292,7 @@ export function simulatePassPlay(
   /** Same, for §8.1's anticipation rolls, which are not progression steps. */
   let anticipationIndex = 0;
   let outcome: PlayOutcome | undefined;
-  let tick: number = TUNABLES.clock.firstTick;
+  let tick: number = tunables.clock.firstTick;
   let stepUpsUsed = 0;
   let scramble: ScrambleState | undefined;
 
@@ -311,6 +319,7 @@ export function simulatePassPlay(
 
     if (track.coverage.kind === "MAN") {
       const coverage = resolveManCoverage({
+        tunables,
         receiver: track.receiver,
         defender: track.coverage.defender,
         coverageRng: rng,
@@ -328,13 +337,13 @@ export function simulatePassPlay(
       // §9.4 step 2 — nobody is responsible for this cell. There is no contest,
       // so there is no die and no CHECK (ADR-005: an absent check means no roll
       // was made, never a failed one). A hole in a zone is not a won rep.
-      track.baseOpenness = TUNABLES.zoneCoverage.uncoveredOpenness;
-      track.contestPosition = TUNABLES.zoneCoverage.uncoveredContestPosition;
+      track.baseOpenness = tunables.zoneCoverage.uncoveredOpenness;
+      track.contestPosition = tunables.zoneCoverage.uncoveredContestPosition;
       track.settled = true;
       return;
     }
 
-    const zone = resolveZoneCoverage({ receiver: track.receiver, defender, coverageRng: rng });
+    const zone = resolveZoneCoverage({ tunables, receiver: track.receiver, defender, coverageRng: rng });
     log.check(zone.check);
     track.baseOpenness = zone.openness;
     track.contestPosition = zone.contestPosition;
@@ -347,13 +356,13 @@ export function simulatePassPlay(
     // second POCKET_STATUS, which double-counted for status-tick consumers.
     log.escalatePocketStatus("SACK");
     return {
-      yards: -TUNABLES.result.sackYardsLost,
+      yards: -tunables.result.sackYardsLost,
       turnover: false,
-      clockRunoff: at + TUNABLES.result.clockRunoff.sack,
+      clockRunoff: at + tunables.result.clockRunoff.sack,
     };
   };
 
-  while (outcome === undefined && tick <= TUNABLES.clock.maxTick) {
+  while (outcome === undefined && tick <= tunables.clock.maxTick) {
     log.tickStart(tick);
 
     // §7.2 — every input is last tick's: the bands each rusher posted (the doc's
@@ -375,7 +384,7 @@ export function simulatePassPlay(
 
     const highest = matchups.reduce((max, m) => Math.max(max, m.pressure), 0);
     const previousBands = matchups.flatMap((m) => (m.previousBand === undefined ? [] : [m.previousBand]));
-    const pocket: PocketStatus = pocketStatusFor(highest, previousBands, minTta);
+    const pocket: PocketStatus = pocketStatusFor(tunables, highest, previousBands, minTta);
     log.pocketStatus(pocket);
 
     // ---- §7.1 line battle (feeds the NEXT tick's pocket status) -------------
@@ -385,6 +394,7 @@ export function simulatePassPlay(
       const tickRng = rushRng.fork(`t${tick.toFixed(1)}`);
       for (const m of matchups) {
         const rush = resolvePassRushTick({
+          tunables,
           rusher: m.rusher,
           blocker: m.blocker,
           move: m.move,
@@ -399,6 +409,7 @@ export function simulatePassPlay(
         const before = m.threat;
         if (startsThreat(rush.band)) {
           const won = threatFromWonRep({
+            tunables,
             rusher: m.rusher.bio.id,
             alignment: m.alignment,
             move: m.move,
@@ -413,7 +424,7 @@ export function simulatePassPlay(
             publishThreat(m.threat, "TRAVELLING");
             m.announcedArrival = false;
           }
-        } else if (clearsThreat(rush.band)) {
+        } else if (clearsThreat(tunables, rush.band)) {
           if (before !== undefined) {
             publishThreat(before, "RESET");
             m.threat = undefined;
@@ -421,7 +432,7 @@ export function simulatePassPlay(
           }
         } else if (before !== undefined) {
           // Still coming, but a blocker who recovered position costs him ground.
-          const delayed = delayThreat(before, recoverySecondsFor(rush.band));
+          const delayed = delayThreat(before, recoverySecondsFor(tunables, rush.band));
           if (delayed !== before) {
             m.threat = delayed;
             publishThreat(delayed, "DELAYED");
@@ -436,15 +447,16 @@ export function simulatePassPlay(
       // `pressed` is only ever true on a MAN assignment, so the defender is
       // present by construction; the guard is the type system's, not football's.
       const presser = track.coverage.kind === "MAN" ? track.coverage.defender : undefined;
-      if (tick === TUNABLES.clock.firstTick && track.pressed && presser !== undefined) {
+      if (tick === tunables.clock.firstTick && track.pressed && presser !== undefined) {
         const release = resolveReleaseVsPress({
+          tunables,
           receiver: track.receiver,
           defender: presser,
           coverageRng: coverageRng.fork(String(track.assignment.receiver)),
         });
         log.check(release.check);
         track.jamDelaySeconds = release.delaySeconds;
-        track.readySeconds = routeReadySeconds(track.assignment.depthClass, release.delaySeconds);
+        track.readySeconds = routeReadySeconds(tunables, track.assignment.depthClass, release.delaySeconds);
         track.releaseReceiverMod = release.receiverCoverageModifier;
         track.releaseDefenderMod = release.defenderCoverageModifier;
       }
@@ -459,8 +471,8 @@ export function simulatePassPlay(
       const phase: RoutePhase =
         scramble !== undefined && track.scrambleBaseOpenness !== undefined
           ? "SCRAMBLE_DRILL"
-          : routePhaseAt(tick, track.readySeconds, track.jamDelaySeconds, track.settled);
-      const openness = currentOpenness(track, tick, scramble);
+          : routePhaseAt(tunables, tick, track.readySeconds, track.jamDelaySeconds, track.settled);
+      const openness = currentOpenness(tunables, track, tick, scramble);
       if (phase !== track.lastPhase || openness !== track.lastOpenness) {
         log.routeStatus(track.receiver.bio.id, track.assignment.routeName, phase, openness);
         track.lastPhase = phase;
@@ -474,10 +486,11 @@ export function simulatePassPlay(
       // §8.8 — a scrambling QB does not see the whole field. The cone rides on
       // §8.3's awareness roll, which is the check the doc writes it against.
       const vision =
-        scramble === undefined ? [] : [visionConeRollModifier(target.assignment.depthClass)];
+        scramble === undefined ? [] : [visionConeRollModifier(tunables, target.assignment.depthClass)];
       const read = resolveQbRead(
+        tunables,
         qb,
-        readOpenness(target, tick, scramble),
+        readOpenness(tunables, target, tick, scramble),
         qbReadRng.fork(`t${tick.toFixed(1)}:${labelPart}:${String(target.receiver.bio.id)}:read`),
         vision,
       );
@@ -493,7 +506,7 @@ export function simulatePassPlay(
       return read.effectiveOpenness;
     };
 
-    readAccumulator += readCapacityPerTick(qb, system, pocket);
+    readAccumulator += readCapacityPerTick(tunables, qb, system, pocket);
     let reads = Math.floor(readAccumulator);
     readAccumulator -= reads;
     while (reads > 0 && readsUsed < maxReads) {
@@ -513,9 +526,10 @@ export function simulatePassPlay(
       if (target.baseOpenness === undefined) {
         const lead = Number((target.readySeconds - tick).toFixed(1));
         // Too early even to consider: no die, so no CHECK (ADR-005).
-        if (!anticipationAvailable(lead)) break;
+        if (!anticipationAvailable(tunables, lead)) break;
         anticipationIndex += 1;
         const antic = resolveAnticipation({
+          tunables,
           qb,
           system,
           leadSeconds: lead,
@@ -552,7 +566,7 @@ export function simulatePassPlay(
       list.reduce((max, c) => Math.max(max, c.effectiveOpenness), Number.NEGATIVE_INFINITY);
 
     let candidates = readCandidates();
-    const mustDecide = forcesDecision(pocket) || tick >= budgetSeconds || readsUsed >= maxReads;
+    const mustDecide = forcesDecision(tunables, pocket) || tick >= budgetSeconds || readsUsed >= maxReads;
 
     const throwTo = (selection: ReturnType<typeof selectTarget>, outletId: PlayerId | undefined): PlayOutcome => {
       const track = tracks.find((t) => t.receiver.bio.id === selection.selected.receiver);
@@ -568,13 +582,14 @@ export function simulatePassPlay(
         tier: selection.check.tier,
       });
       return resolveThrow({
+        tunables,
         log,
         qb,
         track,
         tick,
         pocket,
         effectiveOpenness: selection.selected.effectiveOpenness,
-        chemistry: chemistryLevel(state.chemistry, state.quarterback, track.assignment.receiver),
+        chemistry: chemistryLevel(tunables, state.chemistry, state.quarterback, track.assignment.receiver),
         coverageRng,
         throwRng,
         catchRng,
@@ -589,7 +604,7 @@ export function simulatePassPlay(
 
     if (candidates.length > 0 && bestOf(candidates) >= throwThreshold) {
       outcome = throwTo(
-        selectTarget(qb, candidates, qbReadRng.fork(`t${tick.toFixed(1)}:decision`)),
+        selectTarget(tunables, qb, candidates, qbReadRng.fork(`t${tick.toFixed(1)}:decision`)),
         undefined,
       );
       break;
@@ -614,7 +629,7 @@ export function simulatePassPlay(
       const outlet = checkdownTrack(tracks, readOrder);
       if (outlet !== undefined && !outlet.reachedInProgression) {
         const effective = takeRead(outlet, "checkdown");
-        if (effective >= TUNABLES.qb.checkdown.threshold) {
+        if (effective >= tunables.qb.checkdown.threshold) {
           outletId = outlet.receiver.bio.id;
           candidates = readCandidates();
         } else {
@@ -625,15 +640,15 @@ export function simulatePassPlay(
       }
     }
 
-    if (mustDecide && candidates.length > 0 && bestOf(candidates) >= TUNABLES.qb.desperationThreshold) {
+    if (mustDecide && candidates.length > 0 && bestOf(candidates) >= tunables.qb.desperationThreshold) {
       outcome = throwTo(
-        selectTarget(qb, candidates, qbReadRng.fork(`t${tick.toFixed(1)}:decision`)),
+        selectTarget(tunables, qb, candidates, qbReadRng.fork(`t${tick.toFixed(1)}:decision`)),
         outletId,
       );
       break;
     }
 
-    const throwawayAvailable = tick >= TUNABLES.qb.throwawayEarliestSeconds;
+    const throwawayAvailable = tick >= tunables.qb.throwawayEarliestSeconds;
 
     if (scramble !== undefined) {
       // Outside the pocket the clock is pursuit's, not the rush's. When it runs
@@ -643,9 +658,10 @@ export function simulatePassPlay(
       if (tick >= scramble.pursuitAtTick) {
         log.qbDecision("SCRAMBLE");
         const run = advanceCarrier({
+          tunables,
           carrier: qb,
           mode: "RUSH",
-          pursuers: buildCarrierPursuers(recoverySpots, state.quarterback, 0),
+          pursuers: buildCarrierPursuers(tunables, recoverySpots, state.quarterback, 0),
           yardsToGoalLine: 100 - state.ballOn,
           carrierRng: carrierRng.fork("scramble"),
           emitCheck: (check) => log.check(check),
@@ -660,27 +676,28 @@ export function simulatePassPlay(
         outcome = {
           yards: run.yards,
           turnover: false,
-          clockRunoff: tick + TUNABLES.result.clockRunoff.scrambleRun,
+          clockRunoff: tick + tunables.result.clockRunoff.scrambleRun,
         };
         break;
       }
       log.qbDecision("HOLD");
-      tick = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
+      tick = Number((tick + tunables.clock.tickStepSeconds).toFixed(1));
       continue;
     }
 
     // §7.2 SACK — "rusher reaches QB before ball released". Arrival is now a
     // NECESSARY condition: the status list alone used to sack a quarterback one
     // second into his drop for a rep lost fifty feet away.
-    if (hasArrived(threats, tick) && sacksWithoutTarget(pocket)) {
+    if (hasArrived(tunables, threats, tick) && sacksWithoutTarget(tunables, pocket)) {
       outcome = sack(tick);
       break;
     }
 
     // §7.2's "move" branch. Reached only when he is not throwing and nobody has
     // arrived: stand in, climb, leave, or eat it — chosen on his own attributes.
-    if (forcesDecision(pocket)) {
+    if (forcesDecision(tunables, pocket)) {
       const movement = resolvePocketMovement({
+        tunables,
         qb,
         tick,
         threats,
@@ -697,20 +714,21 @@ export function simulatePassPlay(
         log.qbDecision("STEP_UP");
         for (const m of matchups) {
           if (m.threat === undefined || m.threat.alignment !== "EDGE") continue;
-          m.threat = delayThreat(m.threat, TUNABLES.pocketMovement.stepUp.edgeThreatDelaySeconds);
+          m.threat = delayThreat(m.threat, tunables.pocketMovement.stepUp.edgeThreatDelaySeconds);
           m.announcedArrival = false;
           // ADR-007 — the climb is exactly the adjustment the printout used to
           // have to disclaim. The arrival it publishes here is the real one.
           publishThreat(m.threat, "DELAYED");
           // A rusher run past by a climbing quarterback starts his rep over.
-          if (TUNABLES.pocketMovement.stepUp.resetsEdgePressure) m.pressure = 0;
+          if (tunables.pocketMovement.stepUp.resetsEdgePressure) m.pressure = 0;
         }
-        tick = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
+        tick = Number((tick + tunables.clock.tickStepSeconds).toFixed(1));
         continue;
       }
 
       if (movement.response === "ESCAPE") {
         const escape = resolveScramble({
+          tunables,
           qb,
           tick,
           threats,
@@ -724,7 +742,7 @@ export function simulatePassPlay(
         if (escape.escaped) {
           scramble = {
             sinceTick: tick,
-            pursuitAtTick: pursuitDeadline(tick),
+            pursuitAtTick: pursuitDeadline(tunables, tick),
             escapeRollRef: escape.check.roll.rngLabel,
           };
           // The protection is broken and the rush becomes pursuit: every rep
@@ -741,15 +759,15 @@ export function simulatePassPlay(
           }
           // §8.8 — receivers stop running routes and find open grass from here.
           for (const track of tracks) {
-            track.scrambleBaseOpenness = currentOpenness(track, tick, undefined);
+            track.scrambleBaseOpenness = currentOpenness(tunables, track, tick, undefined);
           }
           log.qbDecision("SCRAMBLE");
-          tick = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
+          tick = Number((tick + tunables.clock.tickStepSeconds).toFixed(1));
           continue;
         }
         // CONTAINED: he tried to get out, got walled in, and lost the tick.
         log.qbDecision("HOLD");
-        tick = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
+        tick = Number((tick + tunables.clock.tickStepSeconds).toFixed(1));
         continue;
       }
 
@@ -761,14 +779,14 @@ export function simulatePassPlay(
         outcome = {
           yards: 0,
           turnover: false,
-          clockRunoff: tick + TUNABLES.result.clockRunoff.throwaway,
+          clockRunoff: tick + tunables.result.clockRunoff.throwaway,
         };
         break;
       }
 
       // STAND_IN: he feels it, resets his feet, and keeps reading.
       log.qbDecision("HOLD");
-      tick = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
+      tick = Number((tick + tunables.clock.tickStepSeconds).toFixed(1));
       continue;
     }
 
@@ -780,7 +798,7 @@ export function simulatePassPlay(
       outcome = {
         yards: 0,
         turnover: false,
-        clockRunoff: tick + TUNABLES.result.clockRunoff.throwaway,
+        clockRunoff: tick + tunables.result.clockRunoff.throwaway,
       };
       break;
     }
@@ -788,7 +806,7 @@ export function simulatePassPlay(
     // A hold forced by nobody being open is correct QB behaviour, not a failed
     // check. No §8.5 roll ran, so there is no honest tier to report (ADR-005).
     log.qbDecision("HOLD");
-    tick = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
+    tick = Number((tick + tunables.clock.tickStepSeconds).toFixed(1));
   }
 
   if (outcome === undefined) {
@@ -797,22 +815,22 @@ export function simulatePassPlay(
     // two POCKET_STATUS events for one tick double-count for calibration.
     log.escalatePocketStatus("SACK");
     outcome = {
-      yards: -TUNABLES.result.sackYardsLost,
+      yards: -tunables.result.sackYardsLost,
       turnover: false,
-      clockRunoff: TUNABLES.clock.maxTick + TUNABLES.result.clockRunoff.sack,
+      clockRunoff: tunables.clock.maxTick + tunables.result.clockRunoff.sack,
     };
   }
 
   const scored =
     !outcome.turnover && state.ballOn + outcome.yards >= 100
-      ? { ...outcome, score: TUNABLES.result.touchdownPoints }
+      ? { ...outcome, score: tunables.result.touchdownPoints }
       : outcome;
 
   log.playResult(scored.yards, scored.turnover, scored.clockRunoff, scored.score);
 
   return {
     events: log.drain(),
-    newState: applyPlayOutcome(state, scored, log.nextSeq),
+    newState: applyPlayOutcome(tunables, state, scored, log.nextSeq),
   };
 }
 
@@ -827,6 +845,7 @@ interface RecoverySpot {
 }
 
 interface ThrowArgs {
+  readonly tunables: Tunables;
   readonly log: PlayEventLog;
   readonly qb: PlayerState;
   readonly track: ReceiverTrack;
@@ -849,12 +868,12 @@ interface ThrowArgs {
 }
 
 function resolveThrow(args: ThrowArgs): PlayOutcome {
-  const { log, qb, track, tick, pocket, effectiveOpenness, throwRng, catchRng, scramble } = args;
+  const { log, qb, track, tick, pocket, effectiveOpenness, throwRng, catchRng, scramble, tunables } = args;
   // The window the ball actually arrives into. On an anticipation throw that is
   // the window at the BREAK, not at the release — the receiver is still running.
-  const actualOpenness = readOpenness(track, tick, scramble);
-  const throwType: ThrowType = selectThrowType(track.assignment.depthClass, effectiveOpenness);
-  const shortfall = armStrengthShortfall(qb, track.assignment.airYards);
+  const actualOpenness = readOpenness(tunables, track, tick, scramble);
+  const throwType: ThrowType = selectThrowType(tunables, track.assignment.depthClass, effectiveOpenness);
+  const shortfall = armStrengthShortfall(tunables, qb, track.assignment.airYards);
   const defender = coverageDefender(track);
 
   // §9.4 — the zone defender reads the release. Rolled here and not earlier
@@ -862,6 +881,7 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
   let brokeOnBall = false;
   if (track.coverage.kind === "ZONE" && defender !== undefined) {
     const read = resolveZoneRead({
+      tunables,
       defender,
       quarterback: qb,
       coverageRng: args.coverageRng.fork(`release:${String(track.assignment.receiver)}`),
@@ -871,6 +891,7 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
   }
 
   const accuracy = resolveAccuracy({
+    tunables,
     qb,
     airYards: track.assignment.airYards,
     throwType,
@@ -887,7 +908,7 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
   const incomplete = (): PlayOutcome => ({
     yards: 0,
     turnover: false,
-    clockRunoff: tick + TUNABLES.result.clockRunoff.incompletion,
+    clockRunoff: tick + tunables.result.clockRunoff.incompletion,
   });
 
   // §10.4 MISS: not catchable. §12.1 is explicit that an uncatchable ball does
@@ -901,28 +922,29 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
   // read the release and left his area early, can get a hand on it.
   const laneEligible =
     defender !== undefined &&
-    (laneDefenderEligible(track.contestPosition, actualOpenness) ||
+    (laneDefenderEligible(tunables, track.contestPosition, actualOpenness) ||
       (brokeOnBall &&
-        TUNABLES.zoneCoverage.readQb.grantsLaneContest &&
-        actualOpenness <= TUNABLES.throwExec.lane.contestOpennessMax));
+        tunables.zoneCoverage.readQb.grantsLaneContest &&
+        actualOpenness <= tunables.throwExec.lane.contestOpennessMax));
 
   if (laneEligible && defender !== undefined) {
-    const lane = resolvePassingLane({ defender, quarterback: qb, throwType, throwRng });
+    const lane = resolvePassingLane({ tunables, defender, quarterback: qb, throwType, throwRng });
     log.check(lane.check);
     // §12 — a deflection is a LIVE BALL, not an incompletion.
     if (lane.deflected) return tip(defender, "LANE");
   }
 
-  const forcedContest = brokeOnBall && TUNABLES.zoneCoverage.readQb.forcesContestedCatch;
+  const forcedContest = brokeOnBall && tunables.zoneCoverage.readQb.forcesContestedCatch;
   const catchType =
-    defender === undefined ? "ROUTINE" : forcedContest ? "CONTESTED" : catchTypeFor(actualOpenness);
+    defender === undefined ? "ROUTINE" : forcedContest ? "CONTESTED" : catchTypeFor(tunables, actualOpenness);
   const result = resolveCatch({
+    tunables,
     receiver: track.receiver,
     defender,
     accuracy: accuracy.bandEffects,
     contestPosition: track.contestPosition,
     catchType,
-    ...(brokeOnBall ? { defenderContestModifiers: [brokeOnBallContestModifier()] } : {}),
+    ...(brokeOnBall ? { defenderContestModifiers: [brokeOnBallContestModifier(tunables)] } : {}),
     catchRng,
   });
   // ADR-004: the CHECK carries the roll, the summary references it by rngLabel.
@@ -930,12 +952,12 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
   log.catchResolution(track.receiver.bio.id, result.catchType, result.check.roll.rngLabel, result.caught);
 
   if (result.interception) {
-    return { yards: 0, turnover: true, clockRunoff: tick + TUNABLES.result.clockRunoff.interception };
+    return { yards: 0, turnover: true, clockRunoff: tick + tunables.result.clockRunoff.interception };
   }
 
   // §12.1 — the catch-point triggers. A defender who got a hand on it at the
   // catch point, or a receiver who dropped a ball he had.
-  const deflector = catchPointDeflector(result, track.receiver, defender);
+  const deflector = catchPointDeflector(tunables, result, track.receiver, defender);
   if (deflector !== undefined) return tip(deflector, "CATCH_POINT");
 
   if (!result.caught) return incomplete();
@@ -950,7 +972,7 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
   return {
     yards: track.assignment.airYards + yac,
     turnover: false,
-    clockRunoff: tick + TUNABLES.result.clockRunoff.completion,
+    clockRunoff: tick + tunables.result.clockRunoff.completion,
   };
 }
 
@@ -972,8 +994,8 @@ interface YacArgs extends ThrowArgs {
  * the knob that unstacks them.
  */
 function resolveYac(args: YacArgs): number {
-  const { log, track, carrierRng, recoverySpots, accuracyBand, throwType } = args;
-  const t = TUNABLES.ballCarrier;
+  const { log, track, carrierRng, recoverySpots, accuracyBand, throwType, tunables } = args;
+  const t = tunables.ballCarrier;
   const carrierId = track.receiver.bio.id;
   const catchDepth = track.assignment.airYards;
 
@@ -987,9 +1009,10 @@ function resolveYac(args: YacArgs): number {
   ];
 
   const advance = advanceCarrier({
+    tunables,
     carrier: track.receiver,
     mode: "YAC",
-    pursuers: buildCarrierPursuers(recoverySpots, carrierId, catchDepth),
+    pursuers: buildCarrierPursuers(tunables, recoverySpots, carrierId, catchDepth),
     yardsToGoalLine: Math.max(0, 100 - args.ballOn - catchDepth),
     zone1CarrierModifiers: zone1Modifiers,
     carrierRng: carrierRng.fork(String(carrierId)),
@@ -1018,6 +1041,7 @@ function resolveYac(args: YacArgs): number {
  * run call does (`RunPlayCall.perimeter`), and there they are honoured.
  */
 function buildCarrierPursuers(
+  tunables: Tunables,
   spots: readonly RecoverySpot[],
   carrierId: PlayerId,
   carrierDepth: number,
@@ -1029,7 +1053,7 @@ function buildCarrierPursuers(
     // A man engaged at the line is not in the chase and is not blocking in
     // space; §13's zones are downfield and his fight was at the snap.
     if (spot.engagedInBlock) continue;
-    const zone = zoneOfDefender(depthOfVerticalZone(spot.zone.vertical), carrierDepth);
+    const zone = zoneOfDefender(tunables, depthOfVerticalZone(tunables, spot.zone.vertical), carrierDepth);
     if (zone === undefined) continue;
     (spot.side === "DEFENSE" ? defenders : blockers).push({ player: spot.player, zone });
   }
@@ -1039,7 +1063,7 @@ function buildCarrierPursuers(
   const blockRank = (p: PlayerState): number => getAttr(p.attributes.values, ATTR.runBlock);
 
   const out: Pursuer[] = [];
-  for (const zoneSpec of TUNABLES.ballCarrier.zones) {
+  for (const zoneSpec of tunables.ballCarrier.zones) {
     const zone = zoneSpec.zone;
     const inZone = defenders
       .filter((d) => d.zone === zone)
@@ -1067,11 +1091,12 @@ function buildCarrierPursuers(
  * clean pass breakup and a clean drop are not.
  */
 function catchPointDeflector(
+  tunables: Tunables,
   result: CatchOutcome,
   receiver: PlayerState,
   defender: PlayerState | undefined,
 ): PlayerState | undefined {
-  const t = TUNABLES.tippedBall;
+  const t = tunables.tippedBall;
   if (result.catchType === "CONTESTED") {
     const triggers: readonly string[] = t.triggerContestedBands;
     return defender !== undefined && triggers.includes(result.band) ? defender : undefined;
@@ -1096,9 +1121,10 @@ interface TippedBallArgs extends ThrowArgs {
  * engine has never had, and the INT rate is expected to move because of it.
  */
 function resolveTippedBall(args: TippedBallArgs): PlayOutcome {
-  const { log, track, tick, deflector, point, throwType, tipRng, recoverySpots } = args;
+  const { log, track, tick, deflector, point, throwType, tipRng, recoverySpots, tunables } = args;
 
   const quality = resolveDeflectionQuality({
+    tunables,
     deflector,
     point,
     depthClass: track.assignment.depthClass,
@@ -1111,7 +1137,7 @@ function resolveTippedBall(args: TippedBallArgs): PlayOutcome {
   // throwing lane, short of it, in the same lane (INTERPRETATION, tunable).
   const ballZone: FieldZone =
     point === "LANE"
-      ? { horizontal: track.zone.horizontal, vertical: TUNABLES.zoneModel.laneDeflectionVertical }
+      ? { horizontal: track.zone.horizontal, vertical: tunables.zoneModel.laneDeflectionVertical }
       : track.zone;
 
   // §12.4 "Already tracking ball": the intended receiver, whoever was covering
@@ -1129,12 +1155,13 @@ function resolveTippedBall(args: TippedBallArgs): PlayOutcome {
     trackingBall: trackingIds.has(String(spot.player.bio.id)),
   }));
 
-  const ordered = recoveryOrder(eligibleRecoverers(quality.band, ballZone, candidates));
+  const ordered = recoveryOrder(eligibleRecoverers(tunables, quality.band, ballZone, candidates));
 
   const attempts: { player: PlayerId; rollRef: string }[] = [];
   let recovered: (typeof ordered)[number] | undefined;
   for (const candidate of ordered) {
     const attempt = resolveRecoveryAttempt({
+      tunables,
       candidate,
       band: quality.band,
       finalTargetNumber: quality.finalTargetNumber,
@@ -1160,11 +1187,11 @@ function resolveTippedBall(args: TippedBallArgs): PlayOutcome {
   );
 
   if (recovered === undefined) {
-    return { yards: 0, turnover: false, clockRunoff: tick + TUNABLES.result.clockRunoff.incompletion };
+    return { yards: 0, turnover: false, clockRunoff: tick + tunables.result.clockRunoff.incompletion };
   }
   if (recovered.side === "DEFENSE") {
     // §12.4 step 5.
-    return { yards: 0, turnover: true, clockRunoff: tick + TUNABLES.result.clockRunoff.interception };
+    return { yards: 0, turnover: true, clockRunoff: tick + tunables.result.clockRunoff.interception };
   }
   // §12.4 step 4: "play continues" — and it now does. He is credited with the
   // air yards of wherever he came up with it (his own route's depth, or zero for
@@ -1173,9 +1200,10 @@ function resolveTippedBall(args: TippedBallArgs): PlayOutcome {
   const recoveredId = recovered.player.bio.id;
   const airYards = args.airYardsOf(recoveredId);
   const advance = advanceCarrier({
+    tunables,
     carrier: recovered.player,
     mode: "YAC",
-    pursuers: buildCarrierPursuers(recoverySpots, recoveredId, airYards),
+    pursuers: buildCarrierPursuers(tunables, recoverySpots, recoveredId, airYards),
     yardsToGoalLine: Math.max(0, 100 - args.ballOn - airYards),
     carrierRng: args.carrierRng.fork(`tip:${String(recoveredId)}`),
     emitCheck: (check) => log.check(check),
@@ -1184,7 +1212,7 @@ function resolveTippedBall(args: TippedBallArgs): PlayOutcome {
   return {
     yards: airYards + advance.yards,
     turnover: false,
-    clockRunoff: tick + TUNABLES.result.clockRunoff.completion,
+    clockRunoff: tick + tunables.result.clockRunoff.completion,
   };
 }
 
@@ -1198,16 +1226,17 @@ function resolveTippedBall(args: TippedBallArgs): PlayOutcome {
  * what keeps ROUTE_STATUS honest about a receiver the ball is already headed to.
  */
 function currentOpenness(
+  tunables: Tunables,
   track: ReceiverTrack,
   tick: number,
   scramble: ScrambleState | undefined,
 ): number {
   if (scramble !== undefined && track.scrambleBaseOpenness !== undefined) {
-    return scrambleOpennessAt(track.scrambleBaseOpenness, scramble.sinceTick, tick);
+    return scrambleOpennessAt(tunables, track.scrambleBaseOpenness, scramble.sinceTick, tick);
   }
   if (track.baseOpenness === undefined) return 0;
   if (tick < track.readySeconds) return 0;
-  return decayedOpenness(track, tick);
+  return decayedOpenness(tunables, track, tick);
 }
 
 /**
@@ -1216,11 +1245,11 @@ function currentOpenness(
  * defender whose responsibility is the area, not the man. Which curve applies is
  * a property of the coverage rep, not of the receiver.
  */
-function decayedOpenness(track: ReceiverTrack, tick: number): number {
+function decayedOpenness(tunables: Tunables, track: ReceiverTrack, tick: number): number {
   const base = track.baseOpenness ?? 0;
   return track.settled
-    ? settledOpennessAt(base, track.readySeconds, tick)
-    : opennessAt(base, track.readySeconds, tick);
+    ? settledOpennessAt(tunables, base, track.readySeconds, tick)
+    : opennessAt(tunables, base, track.readySeconds, tick);
 }
 
 /**
@@ -1232,15 +1261,16 @@ function decayedOpenness(track: ReceiverTrack, tick: number): number {
  * Identical to `currentOpenness` for every route that has actually broken.
  */
 function readOpenness(
+  tunables: Tunables,
   track: ReceiverTrack,
   tick: number,
   scramble: ScrambleState | undefined,
 ): number {
   if (scramble !== undefined && track.scrambleBaseOpenness !== undefined) {
-    return scrambleOpennessAt(track.scrambleBaseOpenness, scramble.sinceTick, tick);
+    return scrambleOpennessAt(tunables, track.scrambleBaseOpenness, scramble.sinceTick, tick);
   }
   if (track.baseOpenness === undefined) return 0;
-  return decayedOpenness(track, Math.max(tick, track.readySeconds));
+  return decayedOpenness(tunables, track, Math.max(tick, track.readySeconds));
 }
 
 /**
@@ -1339,7 +1369,7 @@ function checkdownTrack(
   return best;
 }
 
-function buildMatchups(state: MatchGameState, calls: PlayCalls): RushMatchup[] {
+function buildMatchups(tunables: Tunables, state: MatchGameState, calls: PlayCalls): RushMatchup[] {
   return calls.defense.rush.map((assignment) => {
     const protection = calls.offense.protection.find((p) => p.rusher === assignment.rusher);
     if (protection === undefined) {
@@ -1356,7 +1386,7 @@ function buildMatchups(state: MatchGameState, calls: PlayCalls): RushMatchup[] {
       rusher,
       blocker: requirePlayer(state, protection.blocker),
       move: assignment.move,
-      alignment: rushAlignmentFor(rusher.bio.position, assignment.alignment),
+      alignment: rushAlignmentFor(tunables, rusher.bio.position, assignment.alignment),
       pressure: 0,
       previousBand: undefined,
       threat: undefined,
@@ -1374,9 +1404,13 @@ function buildMatchups(state: MatchGameState, calls: PlayCalls): RushMatchup[] {
  * plays it. Nobody responsible for the cell means nobody is there — which is a
  * hole in the zone, not a modelling gap.
  */
-function buildReceiverTracks(state: MatchGameState, calls: PlayCalls): ReceiverTrack[] {
+function buildReceiverTracks(
+  tunables: Tunables,
+  state: MatchGameState,
+  calls: PlayCalls,
+): ReceiverTrack[] {
   return calls.offense.routes.map((assignment) => {
-    const zone = routeZone(assignment);
+    const zone = routeZone(tunables, assignment);
     const manned = calls.defense.assignments.find(
       (a) => a.kind === "MAN" && a.covers === assignment.receiver,
     );
@@ -1406,7 +1440,7 @@ function buildReceiverTracks(state: MatchGameState, calls: PlayCalls): ReceiverT
       pressed: coverage.kind === "MAN" && coverage.technique === "PRESS",
       settled: false,
       jamDelaySeconds: 0,
-      readySeconds: routeReadySeconds(assignment.depthClass, 0),
+      readySeconds: routeReadySeconds(tunables, assignment.depthClass, 0),
       releaseReceiverMod: undefined,
       releaseDefenderMod: undefined,
       baseOpenness: undefined,
@@ -1432,6 +1466,7 @@ function buildReceiverTracks(state: MatchGameState, calls: PlayCalls): ReceiverT
  * question the engine has no business answering to spend one modifier.
  */
 function buildRecoverySpots(
+  tunables: Tunables,
   state: MatchGameState,
   calls: PlayCalls,
   tracks: readonly ReceiverTrack[],
@@ -1461,7 +1496,7 @@ function buildRecoverySpots(
       engagedInBlock: false,
     });
   }
-  const backfield = backfieldZone();
+  const backfield = backfieldZone(tunables);
   for (const protection of calls.offense.protection) {
     add({ player: requirePlayer(state, protection.blocker), side: "OFFENSE", zone: backfield, engagedInBlock: true });
   }

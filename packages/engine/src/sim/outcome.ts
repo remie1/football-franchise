@@ -22,7 +22,7 @@
  * and kickoffs. Splitting it there keeps one owner per rule rather than one
  * owner per layer.
  */
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import { clamp } from "../rolls.js";
 import type { MatchGameState } from "../types.js";
 
@@ -36,6 +36,7 @@ export interface PlayOutcome {
 }
 
 export function applyPlayOutcome(
+  tunables: Tunables,
   state: MatchGameState,
   outcome: PlayOutcome,
   nextSeq: number,
@@ -56,7 +57,7 @@ export function applyPlayOutcome(
       defenseTeam: state.offenseTeam,
       ballOn: 100 - ballOn,
       down: 1,
-      distance: TUNABLES.result.firstDownResetsDistance,
+      distance: tunables.result.firstDownResetsDistance,
     };
   }
 
@@ -66,7 +67,7 @@ export function applyPlayOutcome(
     ballOn,
     down: gotFirstDown ? 1 : state.down + 1,
     distance: gotFirstDown
-      ? TUNABLES.result.firstDownResetsDistance
+      ? tunables.result.firstDownResetsDistance
       : Math.max(1, state.distance - outcome.yards),
   };
 }

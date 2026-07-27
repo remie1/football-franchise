@@ -21,7 +21,7 @@
  *
  * `advanceCarrier` drives them zone by zone (§13.1), and is the function both
  * `simulateRunPlay` and the pass play's post-catch phase call. What the two
- * modes disagree on is DATA, in `TUNABLES.ballCarrier`: which contest profile
+ * modes disagree on is DATA, in `tunables.ballCarrier`: which contest profile
  * applies, and which zones gate a tackle behind a pursuit check.
  *
  * WHAT NO DIE PRODUCES HERE. Where the doc gives a yardage RANGE ("gain 3-5
@@ -42,12 +42,12 @@ import {
   traitModifier,
 } from "../rolls.js";
 import { termAttrs, termModifiers } from "../terms.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { BlockType, VerticalZone } from "../types.js";
 
 // --- §13.2 / §14.3 / §14.4 — the tackle contest ------------------------------
 
-export type ContestProfileKey = keyof typeof TUNABLES.ballCarrier.contests;
+export type ContestProfileKey = keyof Tunables["ballCarrier"]["contests"];
 
 /**
  * The shape every contest band shares. The four profiles in tunables are
@@ -65,6 +65,8 @@ export interface ContestBand {
 }
 
 export interface TackleContestArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly carrier: PlayerState;
   readonly tackler: PlayerState;
   readonly profile: ContestProfileKey;
@@ -88,7 +90,8 @@ export interface TackleContestOutcome {
 }
 
 export function resolveTackleContest(args: TackleContestArgs): TackleContestOutcome {
-  const t = TUNABLES.ballCarrier;
+  const { tunables } = args;
+  const t = tunables.ballCarrier;
   const profile = t.contests[args.profile];
 
   const carrierMods = compact([
@@ -120,7 +123,7 @@ export function resolveTackleContest(args: TackleContestArgs): TackleContestOutc
   return {
     band: band.label,
     margin,
-    yards: yardsInBand(band, margin),
+    yards: yardsInBand(tunables, band, margin),
     tackled: band.tackled,
     broken: band.broken,
     roll,
@@ -132,7 +135,7 @@ export function resolveTackleContest(args: TackleContestArgs): TackleContestOutc
       actors: [args.carrier.bio.id, args.tackler.bio.id],
       roll,
       opposedRoll,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: [...termAttrs(profile.carrierTerms), ...termAttrs(profile.tacklerTerms)],
@@ -148,18 +151,21 @@ export function resolveTackleContest(args: TackleContestArgs): TackleContestOutc
  * `marginPerExtraYard` above the band floor, capped by the band's own maximum.
  */
 export function yardsInBand(
+  tunables: Tunables,
   band: { readonly minMargin: number; readonly minYards: number; readonly maxYards: number },
   margin: number,
 ): number {
   if (band.maxYards <= band.minYards) return band.minYards;
   const over = Math.max(0, margin - band.minMargin);
-  const extra = Math.floor(over / TUNABLES.ballCarrier.marginPerExtraYard);
+  const extra = Math.floor(over / tunables.ballCarrier.marginPerExtraYard);
   return Math.min(band.maxYards, band.minYards + extra);
 }
 
 // --- §13.3 / §14.5 — blocking in space ---------------------------------------
 
 export interface BlockInSpaceArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly blocker: PlayerState;
   readonly defender: PlayerState;
   readonly blockType: BlockType;
@@ -177,7 +183,8 @@ export interface BlockInSpaceOutcome {
 }
 
 export function resolveBlockInSpace(args: BlockInSpaceArgs): BlockInSpaceOutcome {
-  const t = TUNABLES.ballCarrier.blockInSpace;
+  const { tunables } = args;
+  const t = tunables.ballCarrier.blockInSpace;
   const profile = t.profiles[args.blockType];
 
   const blockerMods = compact([
@@ -203,7 +210,7 @@ export function resolveBlockInSpace(args: BlockInSpaceArgs): BlockInSpaceOutcome
       actors: [args.blocker.bio.id, args.defender.bio.id],
       roll,
       opposedRoll,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: [...termAttrs(profile.blockerTerms), ...termAttrs(profile.defenderTerms)],
@@ -214,6 +221,8 @@ export function resolveBlockInSpace(args: BlockInSpaceArgs): BlockInSpaceOutcome
 // --- §14.4 — the pursuit angle -----------------------------------------------
 
 export interface PursuitAngleArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly carrier: PlayerState;
   readonly defender: PlayerState;
   readonly pursuitRng: Rng;
@@ -235,7 +244,8 @@ export interface PursuitAngleOutcome {
  * 70-speed linebacker moves the target 25 points on its own.
  */
 export function resolvePursuitAngle(args: PursuitAngleArgs): PursuitAngleOutcome {
-  const t = TUNABLES.ballCarrier.pursuitAngle;
+  const { tunables } = args;
+  const t = tunables.ballCarrier.pursuitAngle;
   const speed = resolveAttr(t.speedAttr);
   const target =
     t.target +
@@ -248,7 +258,7 @@ export function resolvePursuitAngle(args: PursuitAngleArgs): PursuitAngleOutcome
       "Trait: High Motor",
       args.defender.attributes.traits,
       TRAIT.highMotor,
-      TUNABLES.ballCarrier.tacklerTraits.highMotor,
+      tunables.ballCarrier.tacklerTraits.highMotor,
     ),
   ]);
   const roll = rollD100(args.pursuitRng, mods);
@@ -264,7 +274,7 @@ export function resolvePursuitAngle(args: PursuitAngleArgs): PursuitAngleOutcome
       actors: [args.defender.bio.id, args.carrier.bio.id],
       roll,
       target,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       margin,
       testsAttrs: [...termAttrs(t.defenderTerms), speed],
     },
@@ -274,6 +284,8 @@ export function resolvePursuitAngle(args: PursuitAngleArgs): PursuitAngleOutcome
 // --- §13.4 — the breakaway ---------------------------------------------------
 
 export interface BreakawayArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly carrier: PlayerState;
   readonly pursuer: PlayerState;
   readonly breakawayRng: Rng;
@@ -290,7 +302,8 @@ export interface BreakawayOutcome {
 }
 
 export function resolveBreakaway(args: BreakawayArgs): BreakawayOutcome {
-  const t = TUNABLES.ballCarrier.breakaway;
+  const { tunables } = args;
+  const t = tunables.ballCarrier.breakaway;
 
   const carrierMods = compact([
     ...termModifiers(args.carrier, t.carrierTerms),
@@ -319,7 +332,7 @@ export function resolveBreakaway(args: BreakawayArgs): BreakawayOutcome {
       actors: [args.carrier.bio.id, args.pursuer.bio.id],
       roll,
       opposedRoll,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: [...termAttrs(t.carrierTerms), ...termAttrs(t.pursuerTerms)],
@@ -330,8 +343,8 @@ export function resolveBreakaway(args: BreakawayArgs): BreakawayOutcome {
 // --- the zone model ----------------------------------------------------------
 
 /** §3.2 band → yards downfield, for placing a man in a §13.1 zone. */
-export function depthOfVerticalZone(vertical: VerticalZone): number {
-  return TUNABLES.ballCarrier.verticalDepthYards[vertical];
+export function depthOfVerticalZone(tunables: Tunables, vertical: VerticalZone): number {
+  return tunables.ballCarrier.verticalDepthYards[vertical];
 }
 
 /**
@@ -339,8 +352,12 @@ export function depthOfVerticalZone(vertical: VerticalZone): number {
  * to a carrier at `carrierYards`. `undefined` means he is behind the play: the
  * doc's zone table is forward-only and does not model chasing from behind.
  */
-export function zoneOfDefender(depthYards: number, carrierYards: number): number | undefined {
-  const t = TUNABLES.ballCarrier;
+export function zoneOfDefender(
+  tunables: Tunables,
+  depthYards: number,
+  carrierYards: number,
+): number | undefined {
+  const t = tunables.ballCarrier;
   const ahead = depthYards - carrierYards;
   if (ahead < -t.behindReachYards) return undefined;
   let edge = 0;
@@ -351,8 +368,8 @@ export function zoneOfDefender(depthYards: number, carrierYards: number): number
   return t.zones[t.zones.length - 1]?.zone;
 }
 
-export function zoneWidth(zone: number): number {
-  return TUNABLES.ballCarrier.zones.find((z) => z.zone === zone)?.widthYards ?? 0;
+export function zoneWidth(tunables: Tunables, zone: number): number {
+  return tunables.ballCarrier.zones.find((z) => z.zone === zone)?.widthYards ?? 0;
 }
 
 // --- the advance -------------------------------------------------------------
@@ -369,6 +386,8 @@ export interface Pursuer {
 }
 
 export interface AdvanceArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly carrier: PlayerState;
   readonly mode: CarrierMode;
   readonly pursuers: readonly Pursuer[];
@@ -415,7 +434,8 @@ export interface AdvanceOutcome {
  * on. §13.4's breakaway fires once, on clearing `breakawayAfterZone`.
  */
 export function advanceCarrier(args: AdvanceArgs): AdvanceOutcome {
-  const t = TUNABLES.ballCarrier;
+  const { tunables } = args;
+  const t = tunables.ballCarrier;
   const gates: readonly number[] = t.pursuitGateZones[args.mode];
   const profile: ContestProfileKey = args.mode === "YAC" ? "yac" : "secondLevel";
 
@@ -455,6 +475,7 @@ export function advanceCarrier(args: AdvanceArgs): AdvanceOutcome {
         // out of the play for this zone.
         if (pursuer.blocker !== undefined) {
           const block = resolveBlockInSpace({
+            tunables,
             blocker: pursuer.blocker,
             defender: pursuer.defender,
             blockType: pursuer.blockType ?? "STALK",
@@ -468,6 +489,7 @@ export function advanceCarrier(args: AdvanceArgs): AdvanceOutcome {
         // there, so no tackle contest is rolled at all (ADR-005).
         if (gates.includes(zone)) {
           const pursuit = resolvePursuitAngle({
+            tunables,
             carrier: args.carrier,
             defender: pursuer.defender,
             pursuitRng: encounterRng.fork("pursuit"),
@@ -477,6 +499,7 @@ export function advanceCarrier(args: AdvanceArgs): AdvanceOutcome {
         }
 
         const contest = resolveTackleContest({
+          tunables,
           carrier: args.carrier,
           tackler: pursuer.defender,
           profile,
@@ -506,6 +529,7 @@ export function advanceCarrier(args: AdvanceArgs): AdvanceOutcome {
       const pursuer = bestPursuerBeyond(args.pursuers, zone);
       if (pursuer !== undefined) {
         const breakaway = resolveBreakaway({
+          tunables,
           carrier: args.carrier,
           pursuer,
           breakawayRng: zoneRng.fork("breakaway"),

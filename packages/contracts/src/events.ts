@@ -35,7 +35,9 @@ export type CheckKind =
   | "catch" | "contested_catch" | "deflection_quality" | "deflection_recovery"
   | "yac_tackle" | "downfield_block" | "breakaway"
   | "rb_vision" | "gap_battle" | "pursuit_angle" | "tackle" | "break_tackle"
-  | "communication" | "snap_jump" | "fumble" | "penalty_check";
+  | "communication" | "snap_jump" | "fumble" | "penalty_check"
+  /** Special teams (ADR-014 item 12) — so ADR-004's roll accounting has no exception it did not choose. */
+  | "coin_toss" | "field_goal" | "punt" | "kick_return";
 
 /**
  * Named aliases for the closed unions that ride inside match-event payloads (ADR-013).
@@ -53,10 +55,48 @@ export type RoutePhase = "JAMMED" | "DEVELOPING" | "OPEN" | "SETTLED" | "DECAYIN
 export type QbDecisionChoice = "THROW" | "HOLD" | "STEP_UP" | "SCRAMBLE" | "THROWAWAY" | "CHECKDOWN";
 export type CarryType = "DESIGNED" | "SCRAMBLE";
 
+/** Game-structure vocabulary (ADR-014). Named rather than inline, per ADR-013. */
+export type PossessionCause =
+  | "OPENING_KICKOFF" | "SECOND_HALF_KICKOFF" | "OVERTIME_KICKOFF"
+  | "KICKOFF_AFTER_SCORE" | "FREE_KICK_AFTER_SAFETY"
+  | "PUNT" | "INTERCEPTION" | "DOWNS" | "MISSED_FIELD_GOAL" | "END_OF_PERIOD";
+
+export type DriveResult =
+  | "TOUCHDOWN" | "FIELD_GOAL" | "MISSED_FIELD_GOAL" | "PUNT"
+  | "INTERCEPTION" | "TURNOVER_ON_DOWNS" | "SAFETY" | "END_OF_HALF" | "END_OF_GAME";
+
+export type ScoreKind = "TOUCHDOWN" | "FIELD_GOAL" | "EXTRA_POINT" | "TWO_POINT" | "SAFETY";
+export type PlacekickKind = "FIELD_GOAL" | "EXTRA_POINT";
+export type CoachDecisionKind = "FOURTH_DOWN" | "COIN_TOSS";
+export type GameEndReason = "REGULATION" | "OVERTIME" | "TIE";
+
+/**
+ * A PLAY-scoped event. `playId` is required: an event about a play that cannot name
+ * the play is a bug, and the compiler should say so.
+ */
 export interface MatchEventBase {
   gameId: GameId;
   playId: PlayId;
   tick?: number;
+}
+
+/**
+ * A GAME-scoped event — a coin toss, a period or drive boundary, a scoreboard change,
+ * a kick. These are not plays and carry no `playId`.
+ *
+ * `playId?: never` rather than `playId?: PlayId` is the whole point (ADR-014 item 13).
+ * Making the field optional on one shared base would have made "this is not a play" and
+ * "somebody forgot to set it" both arrive as `undefined` — a narrowing of a guarantee
+ * every existing consumer relies on, and the opposite direction from every other change
+ * ratified here. This way absence is structural: a play event that omits its id fails to
+ * compile, and a game event cannot claim one.
+ *
+ * An event that genuinely relates to a play states the link in its own payload, as a
+ * named field with a documented meaning — never as an ambiguous base field.
+ */
+export interface GameEventBase {
+  gameId: GameId;
+  playId?: never;
 }
 
 export type MatchEvent =
@@ -159,7 +199,63 @@ export type MatchEvent =
   | ({ type: "STAMINA_DELTA"; payload: { player: PlayerId; delta: number }[] } & MatchEventBase)
   | ({ type: "PENALTY"; payload: { kind: string; player: PlayerId; accepted: boolean; yards: number } } & MatchEventBase)
   | ({ type: "PLAY_RESULT"; payload: { yards: number; turnover: boolean; score?: number; clockRunoff: number } } & MatchEventBase)
-  | ({ type: "GAME_END"; payload: { home: number; away: number } } & MatchEventBase);
+  // ---- Game structure (ADR-014). All GAME-scoped: none of these is a play. ----
+  | ({ type: "GAME_START"; payload: { home: TeamId; away: TeamId; seed: string } } & GameEventBase)
+  | ({ type: "COIN_TOSS"; payload: {
+        winner: TeamId; choice: "RECEIVE" | "DEFER"; receivesFirst: TeamId; roll: RollDetail;
+      } } & GameEventBase)
+  | ({ type: "PERIOD_START"; payload: { period: number; clockSeconds: number } } & GameEventBase)
+  | ({ type: "PERIOD_END"; payload: { period: number; home: number; away: number } } & GameEventBase)
+  | ({ type: "POSSESSION_CHANGE"; payload: {
+        from: TeamId; to: TeamId; cause: PossessionCause; ballOn: number;
+      } } & GameEventBase)
+  | ({ type: "DRIVE_START"; payload: {
+        driveNumber: number; offense: TeamId; defense: TeamId; period: number;
+        clockSeconds: number; startYardLine: number; cause: PossessionCause;
+      } } & GameEventBase)
+  | ({ type: "DRIVE_END"; payload: {
+        driveNumber: number; offense: TeamId; result: DriveResult; plays: number;
+        yards: number; elapsedSeconds: number; endYardLine: number; points: number;
+      } } & GameEventBase)
+  /**
+   * An ADDITION, never a widening of PLAY_RESULT.score (ADR-010's rule). That field keeps
+   * its exact meaning — points scored on this play by whoever had the ball — and cannot
+   * express a safety (points to the DEFENCE), a placekick (no scrimmage play), or a
+   * running total. Teaching it to would make every existing consumer silently wrong.
+   */
+  | ({ type: "SCORE"; payload: {
+        team: TeamId; kind: ScoreKind; points: number; home: number; away: number;
+      } } & GameEventBase)
+  | ({ type: "COACH_DECISION"; payload: {
+        kind: CoachDecisionKind; authority: "COACH"; team: TeamId; choice: string;
+      } } & GameEventBase)
+  | ({ type: "PLACEKICK"; payload: {
+        kind: PlacekickKind; kicker: PlayerId; team: TeamId; distanceYards: number;
+        made: boolean; band: string; rollRef: string; target: number;
+      } } & GameEventBase)
+  | ({ type: "PUNT"; payload: {
+        punter: PlayerId; team: TeamId; fromYardLine: number; grossYards: number;
+        touchback: boolean; downed: boolean; returner?: PlayerId; returnYards: number;
+        resultYardLine: number; rollRef: string; returnRollRef?: string;
+      } } & GameEventBase)
+  | ({ type: "KICKOFF"; payload: {
+        kicker: PlayerId; team: TeamId; fromYardLine: number; touchback: boolean;
+        returner?: PlayerId; returnYards: number; resultYardLine: number;
+        rollRef: string; returnRollRef?: string;
+      } } & GameEventBase)
+  /**
+   * Summarises; introduces nothing. Every field except `seed` is derivable from the
+   * preceding stream. `seed` is provenance, not a game fact — RollDetail.rngLabel carries
+   * the fork path but never the seed, so without it a completed game is not re-runnable
+   * from its own stream (FANTASY-GATE-PHASE1 §3.3).
+   */
+  | ({ type: "GAME_END"; payload: {
+        home: number; away: number;
+        periods: readonly { period: number; home: number; away: number }[];
+        plays: number; drives: number;
+        reason: GameEndReason;
+        seed: string;
+      } } & GameEventBase);
 
 export type FranchiseEvent =
   | { type: "CALENDAR_PHASE_ENTERED"; payload: { phase: string } }

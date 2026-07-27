@@ -38,8 +38,9 @@
  *     as a pass attempt. Real NFL scoring counts it. Logged, not patched: the
  *     fix is a `THROWAWAY` producer decision, not a reducer decision.
  */
-import type { MatchEvent, PlayerId, TeamId } from "@ff/contracts";
-import type { GameEvent, GameEventEnvelope } from "../game/events.js";
+import type { PlayerId, TeamId } from "@ff/contracts";
+import { isGameScoped } from "../game/events.js";
+import type { GameEventEnvelope, GameScopedEvent, PlayScopedEvent } from "../game/events.js";
 
 export interface PassingLine {
   readonly attempts: number;
@@ -248,11 +249,11 @@ export function reduceStatlines(events: readonly GameEventEnvelope[]): readonly 
   let play: PlayScratch | undefined;
 
   for (const { event } of events) {
-    if (isMatchEvent(event)) {
-      play = applyPlayEvent(event, play, touch);
+    if (isGameScoped(event)) {
+      applyGameEvent(event, touch);
       continue;
     }
-    applyGameEvent(event, touch);
+    play = applyPlayEvent(event, play, touch);
   }
 
   return [...lines.values()]
@@ -273,31 +274,17 @@ function freeze(a: Acc): StatLine {
   };
 }
 
-/** The interim game events are the only ones contracts does not declare. */
-function isMatchEvent(event: GameEvent): event is MatchEvent {
-  switch (event.type) {
-    case "GAME_START":
-    case "COIN_TOSS":
-    case "PERIOD_START":
-    case "PERIOD_END":
-    case "POSSESSION_CHANGE":
-    case "DRIVE_START":
-    case "DRIVE_END":
-    case "SCORE":
-    case "PLACEKICK":
-    case "PUNT":
-    case "KICKOFF":
-    case "COACH_DECISION":
-    case "GAME_SUMMARY":
-      return false;
-    default:
-      return true;
-  }
-}
-
 type Touch = (player: PlayerId, team: TeamId | undefined) => Acc | undefined;
 
-function applyGameEvent(event: Exclude<GameEvent, MatchEvent>, touch: Touch): void {
+/**
+ * The GAME-scoped half of the stream (ADR-014 item 13). This used to be a
+ * hand-maintained list of type names, because the game events were an
+ * engine-local union that contracts did not declare. The partition is now
+ * structural — `isGameScoped` asks whether the event carries a `playId` — so a
+ * twelfth game-structure event is routed correctly on the day it lands rather
+ * than falling silently into the play branch.
+ */
+function applyGameEvent(event: GameScopedEvent, touch: Touch): void {
   if (event.type === "PLACEKICK") {
     const line = touch(event.payload.kicker, event.payload.team);
     if (line === undefined) return;
@@ -347,7 +334,7 @@ function applyGameEvent(event: Exclude<GameEvent, MatchEvent>, touch: Touch): vo
 }
 
 function applyPlayEvent(
-  event: MatchEvent,
+  event: PlayScopedEvent,
   play: PlayScratch | undefined,
   touch: Touch,
 ): PlayScratch | undefined {

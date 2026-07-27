@@ -53,36 +53,36 @@ const route = (over: Partial<RouteAssignment> = {}): RouteAssignment => ({
 
 describe("§3 field model — what is derived and what is faked", () => {
   it("depth bands come straight from §3.2's yard boundaries", () => {
-    expect(verticalZoneForAirYards(0)).toBe("BACKFIELD");
-    expect(verticalZoneForAirYards(5)).toBe("SHORT");
-    expect(verticalZoneForAirYards(10)).toBe("SHORT");
-    expect(verticalZoneForAirYards(14)).toBe("INTERMEDIATE");
-    expect(verticalZoneForAirYards(20)).toBe("INTERMEDIATE");
-    expect(verticalZoneForAirYards(28)).toBe("DEEP");
-    expect(verticalZoneForAirYards(40)).toBe("VERY_DEEP");
+    expect(verticalZoneForAirYards(TUNABLES, 0)).toBe("BACKFIELD");
+    expect(verticalZoneForAirYards(TUNABLES, 5)).toBe("SHORT");
+    expect(verticalZoneForAirYards(TUNABLES, 10)).toBe("SHORT");
+    expect(verticalZoneForAirYards(TUNABLES, 14)).toBe("INTERMEDIATE");
+    expect(verticalZoneForAirYards(TUNABLES, 20)).toBe("INTERMEDIATE");
+    expect(verticalZoneForAirYards(TUNABLES, 28)).toBe("DEEP");
+    expect(verticalZoneForAirYards(TUNABLES, 40)).toBe("VERY_DEEP");
   });
 
   it("a stated breakZone always wins over the derivation", () => {
     const stated: FieldZone = { horizontal: "LW", vertical: "VERY_DEEP" };
-    expect(routeZone(route({ breakZone: stated, airYards: 4 }))).toEqual(stated);
+    expect(routeZone(TUNABLES, route({ breakZone: stated, airYards: 4 }))).toEqual(stated);
   });
 
   it("a route that states nothing lands in the FAKED default lane", () => {
     // Documented as a fake rather than hidden: nothing on a play card says which
     // side of the field a route runs to, so every silent route shares a lane.
-    const derived = routeZone(route({ airYards: 14 }));
+    const derived = routeZone(TUNABLES, route({ airYards: 14 }));
     expect(derived.horizontal).toBe(TUNABLES.zoneModel.defaultHorizontal);
     expect(derived.vertical).toBe("INTERMEDIATE");
   });
 
   it("distance counts cells, and a diagonal is one step (§3.3 'adjacent')", () => {
     const c: FieldZone = { horizontal: "C", vertical: "SHORT" };
-    expect(zoneDistance(c, c)).toBe(0);
-    expect(zoneDistance(c, { horizontal: "RH", vertical: "SHORT" })).toBe(1);
-    expect(zoneDistance(c, { horizontal: "C", vertical: "INTERMEDIATE" })).toBe(1);
-    expect(zoneDistance(c, { horizontal: "RH", vertical: "INTERMEDIATE" })).toBe(1);
-    expect(zoneDistance(c, { horizontal: "RW", vertical: "DEEP" })).toBe(2);
-    expect(zoneDistance(backfieldZone(), { horizontal: "C", vertical: "VERY_DEEP" })).toBe(4);
+    expect(zoneDistance(TUNABLES, c, c)).toBe(0);
+    expect(zoneDistance(TUNABLES, c, { horizontal: "RH", vertical: "SHORT" })).toBe(1);
+    expect(zoneDistance(TUNABLES, c, { horizontal: "C", vertical: "INTERMEDIATE" })).toBe(1);
+    expect(zoneDistance(TUNABLES, c, { horizontal: "RH", vertical: "INTERMEDIATE" })).toBe(1);
+    expect(zoneDistance(TUNABLES, c, { horizontal: "RW", vertical: "DEEP" })).toBe(2);
+    expect(zoneDistance(TUNABLES, backfieldZone(TUNABLES), { horizontal: "C", vertical: "VERY_DEEP" })).toBe(4);
   });
 
   it("§9.4 step 2 finds the defender responsible for the cell, and only that cell", () => {
@@ -100,7 +100,7 @@ describe("§3 field model — what is derived and what is faked", () => {
 
 describe("§9.4 route into a zone", () => {
   const resolve = (defender = DEEP_ZONE_DB, seed = "z1"): ReturnType<typeof resolveZoneCoverage> =>
-    resolveZoneCoverage({ receiver: WR, defender, coverageRng: createRng(seed, "coverage") });
+    resolveZoneCoverage({ tunables: TUNABLES, receiver: WR, defender, coverageRng: createRng(seed, "coverage") });
 
   it("is one roll against a target, not an opposed roll", () => {
     const out = resolve();
@@ -123,11 +123,11 @@ describe("§9.4 route into a zone", () => {
   });
 
   it("maps §9.4's four result bands onto openness, soft spot down to defender in the lane", () => {
-    expect(zoneCoverageBandFor(25)).toBe("SOFT_SPOT");
-    expect(zoneCoverageBandFor(15)).toBe("WINDOW");
-    expect(zoneCoverageBandFor(5)).toBe("TIGHT_WINDOW");
-    expect(zoneCoverageBandFor(0)).toBe("DEFENDER_IN_LANE");
-    expect(zoneCoverageBandFor(-40)).toBe("DEFENDER_IN_LANE");
+    expect(zoneCoverageBandFor(TUNABLES, 25)).toBe("SOFT_SPOT");
+    expect(zoneCoverageBandFor(TUNABLES, 15)).toBe("WINDOW");
+    expect(zoneCoverageBandFor(TUNABLES, 5)).toBe("TIGHT_WINDOW");
+    expect(zoneCoverageBandFor(TUNABLES, 0)).toBe("DEFENDER_IN_LANE");
+    expect(zoneCoverageBandFor(TUNABLES, -40)).toBe("DEFENDER_IN_LANE");
   });
 
   it("beating the zone leaves the defender behind; losing puts him in the lane", () => {
@@ -137,7 +137,7 @@ describe("§9.4 route into a zone", () => {
   });
 
   it("a receiver who found the hole SETTLES and coverage stops closing", () => {
-    const decayed = settledOpennessAt(70, 2.0, 5.0);
+    const decayed = settledOpennessAt(TUNABLES, 70, 2.0, 5.0);
     expect(decayed).toBeGreaterThanOrEqual(70);
     expect(TUNABLES.zoneCoverage.settledDecayPerTick).toBe(0);
   });
@@ -145,13 +145,13 @@ describe("§9.4 route into a zone", () => {
 
 describe("§9.4 zone defender reading the QB", () => {
   const read = (qb = SHARP_QB, defender = DEEP_ZONE_DB, seed = "r1"): ReturnType<typeof resolveZoneRead> =>
-    resolveZoneRead({ defender, quarterback: qb, coverageRng: createRng(seed, "coverage") });
+    resolveZoneRead({ tunables: TUNABLES, defender, quarterback: qb, coverageRng: createRng(seed, "coverage") });
 
   it("'QB Disguise' is a modifier-scale quantity, not a rating", () => {
     // The whole reason it is derived: added RAW to a target of 60, a 0-99 rating
     // would put the target at 159 and make the check unwinnable.
-    expect(Math.abs(qbDisguise(SHARP_QB))).toBeLessThan(15);
-    expect(qbDisguise(SHARP_QB)).toBeGreaterThan(qbDisguise(BLUNT_QB));
+    expect(Math.abs(qbDisguise(TUNABLES, SHARP_QB))).toBeLessThan(15);
+    expect(qbDisguise(TUNABLES, SHARP_QB)).toBeGreaterThan(qbDisguise(TUNABLES, BLUNT_QB));
   });
 
   it("a quarterback who disguises it raises the target the defender has to beat", () => {

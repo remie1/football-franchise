@@ -1,4 +1,4 @@
-import { gameId, playerId, setAttr, teamId } from "@ff/contracts";
+import { MIGRATION_V2_TO_V3, applyMigration, gameId, playerId, setAttr, teamId } from "@ff/contracts";
 import type {
   AttributeMap,
   CalendarStamp,
@@ -30,6 +30,22 @@ export function makePlayer(
   for (const [key, value] of Object.entries(values)) {
     map = setAttr(map, resolveAttr(key), value);
   }
+  /**
+   * ADR-014 item 14. Fixtures are written in the vocabulary a scout uses —
+   * `strength`, `accuracy`, `speed` — and the four kicking attributes are
+   * DERIVED, exactly as they are for a real roster: the attributes pipeline runs
+   * `MIGRATION_V2_TO_V3` when the registry moves from schemaVersion 2 to 3, and
+   * this is that migration, on this roster.
+   *
+   * It is also the proof that pointing `TUNABLES.game.specialTeams.*Attr` at the
+   * new ids was a behavioural NO-OP: `kickPower` seeds from `strength`,
+   * `kickAccuracy` from `accuracy`, `puntPower` from `strength`, so every kick
+   * in every fixture is rolled with the identical modifier it was rolled with
+   * before ratification. An unmigrated roster would read `getAttr`'s absent-id
+   * fallback of 50 for every kicker in the league, which is the whole reason
+   * `defaultFrom` exists.
+   */
+  map = applyMigration(map, MIGRATION_V2_TO_V3);
   return {
     bio: {
       id: playerId(id),

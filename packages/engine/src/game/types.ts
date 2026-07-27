@@ -25,15 +25,17 @@
 import type {
   CalendarStamp,
   ChemistryTable,
+  GameEndReason,
   GameId,
   PlayerId,
   PlayerState,
+  PossessionCause,
   Rng,
   TeamId,
 } from "@ff/contracts";
 import { gameId as makeGameId } from "@ff/contracts";
+import type { Tunables } from "../tunables.js";
 import type { AnyPlayCalls, DefensivePlayCall, OffensiveCall } from "../types.js";
-import type { PossessionCause } from "./events.js";
 
 // --- identity ---------------------------------------------------------------
 
@@ -154,6 +156,20 @@ interface DecisionRequestBase {
    */
   readonly authority: "COACH";
   readonly situation: DecisionSituation;
+  /**
+   * THE TUNABLES THE GAME IS BEING PLAYED UNDER (ADR-012's open item).
+   *
+   * A play-caller reads tunables — the default one reads `game.caller` and
+   * `game.specialTeams.fieldGoal.maxAttemptDistanceYards` — so it needs them
+   * threaded like everything else. They ride on the REQUEST rather than on the
+   * caller's constructor deliberately: a caller built with one tunables version
+   * and handed to a game run under another would be the silent-mixing failure
+   * this whole change exists to prevent, and there is no way to express that
+   * mistake if the game states the version at every decision point.
+   *
+   * A caller is free to ignore it. It cannot disagree with it.
+   */
+  readonly tunables: Tunables;
 }
 
 export interface OffensiveCallRequest extends DecisionRequestBase {
@@ -296,7 +312,7 @@ export interface MatchState {
    */
   readonly clockStopped: boolean;
   /** Set once the game is over; the reason it ended. */
-  readonly finalReason: "REGULATION" | "OVERTIME" | "TIE" | undefined;
+  readonly finalReason: GameEndReason | undefined;
 }
 
 export interface GameInputs {
@@ -321,7 +337,7 @@ export interface GameSummary {
   readonly periods: readonly Scoreboard[];
   readonly plays: number;
   readonly drives: number;
-  readonly finalReason: "REGULATION" | "OVERTIME" | "TIE";
+  readonly finalReason: GameEndReason;
 }
 
 /** A call pair the loop resolved for one snap, kept together for the stream. */

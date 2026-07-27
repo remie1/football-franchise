@@ -3,12 +3,14 @@ import type { PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR, TRAIT } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, flatModifier, rollD100, tierFor, traitModifier } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { RushMove } from "../types.js";
 
-export type PassRushBandLabel = (typeof TUNABLES.passRush.bands)[number]["label"];
+export type PassRushBandLabel = (Tunables["passRush"]["bands"])[number]["label"];
 
 export interface PassRushArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly rusher: PlayerState;
   readonly blocker: PlayerState;
   readonly move: RushMove;
@@ -29,14 +31,14 @@ export interface PassRushOutcome {
 }
 
 export function resolvePassRushTick(args: PassRushArgs): PassRushOutcome {
-  const { rusher, blocker, move, previousBand, tickRng } = args;
-  const t = TUNABLES.passRush;
+  const { rusher, blocker, move, previousBand, tickRng, tunables } = args;
+  const t = tunables.passRush;
 
   const moveMods =
     move === "SPEED"
       ? [
           actorAttrModifier(rusher, "speed rush (First Step)", ATTR.firstStep, t.rusherAttrDivisor),
-          traitModifier("Trait: Quick Twitch", rusher.attributes.traits, TRAIT.quickTwitch, TUNABLES.traitBonuses.quickTwitch),
+          traitModifier("Trait: Quick Twitch", rusher.attributes.traits, TRAIT.quickTwitch, tunables.traitBonuses.quickTwitch),
         ]
       : move === "POWER"
         ? [
@@ -58,7 +60,7 @@ export function resolvePassRushTick(args: PassRushArgs): PassRushOutcome {
     actorAttrModifier(blocker, "Pass Block", ATTR.passBlock, t.blockerAttrDivisor),
     actorAttrModifier(blocker, "Footwork", ATTR.footwork, t.blockerAttrDivisor),
     move === t.brickWallMove
-      ? traitModifier("Trait: Brick Wall (anchor)", blocker.attributes.traits, TRAIT.brickWall, TUNABLES.traitBonuses.brickWall)
+      ? traitModifier("Trait: Brick Wall (anchor)", blocker.attributes.traits, TRAIT.brickWall, tunables.traitBonuses.brickWall)
       : undefined,
   ]);
 
@@ -80,7 +82,7 @@ export function resolvePassRushTick(args: PassRushArgs): PassRushOutcome {
       actors: [rusher.bio.id, blocker.bio.id],
       roll: rusherRoll,
       opposedRoll: blockerRoll,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: [

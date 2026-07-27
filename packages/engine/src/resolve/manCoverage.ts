@@ -3,12 +3,14 @@ import type { PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR, TRAIT } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, flatModifier, rollD100, tierFor, traitModifier } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { ContestPosition } from "../types.js";
 
-export type ManCoverageBandLabel = (typeof TUNABLES.manCoverage.bands)[number]["label"];
+export type ManCoverageBandLabel = (Tunables["manCoverage"]["bands"])[number]["label"];
 
 export interface ManCoverageArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly receiver: PlayerState;
   readonly defender: PlayerState;
   /** Carried from the release battle (§9.1 outcome effects). */
@@ -29,13 +31,13 @@ export interface ManCoverageOutcome {
 }
 
 export function resolveManCoverage(args: ManCoverageArgs): ManCoverageOutcome {
-  const { receiver, defender, coverageRng } = args;
-  const t = TUNABLES.manCoverage;
+  const { receiver, defender, coverageRng, tunables } = args;
+  const t = tunables.manCoverage;
 
   const receiverMods = compact([
     actorAttrModifier(receiver, "Route Running", ATTR.routeRunning, t.attrDivisor),
     actorAttrModifier(receiver, "Agility", ATTR.agility, t.attrDivisor),
-    traitModifier("Trait: Route Technician", receiver.attributes.traits, TRAIT.routeTechnician, TUNABLES.traitBonuses.routeTechnician),
+    traitModifier("Trait: Route Technician", receiver.attributes.traits, TRAIT.routeTechnician, tunables.traitBonuses.routeTechnician),
     args.receiverReleaseModifier === undefined
       ? undefined
       : flatModifier("Release battle carry-over", args.receiverReleaseModifier),
@@ -44,7 +46,7 @@ export function resolveManCoverage(args: ManCoverageArgs): ManCoverageOutcome {
   const defenderMods = compact([
     actorAttrModifier(defender, "Man Coverage", ATTR.manCoverage, t.attrDivisor),
     actorAttrModifier(defender, "Agility", ATTR.agility, t.attrDivisor),
-    traitModifier("Trait: Shutdown", defender.attributes.traits, TRAIT.shutdown, TUNABLES.traitBonuses.shutdown),
+    traitModifier("Trait: Shutdown", defender.attributes.traits, TRAIT.shutdown, tunables.traitBonuses.shutdown),
     args.defenderReleaseModifier === undefined
       ? undefined
       : flatModifier("Release battle carry-over", args.defenderReleaseModifier),
@@ -67,7 +69,7 @@ export function resolveManCoverage(args: ManCoverageArgs): ManCoverageOutcome {
       actors: [receiver.bio.id, defender.bio.id],
       roll: receiverRoll,
       opposedRoll: defenderRoll,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: [ATTR.routeRunning, ATTR.agility, ATTR.manCoverage],

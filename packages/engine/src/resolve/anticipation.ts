@@ -37,12 +37,14 @@ import { ATTR } from "../attrs.js";
 import { anticipationChemistryModifier, chemistryLevel } from "../chemistry.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, flatModifier, rollD100, tierFor } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { ReadSystem, RouteDepthClass } from "../types.js";
 
-export type AnticipationBandLabel = (typeof TUNABLES.qb.anticipation.bands)[number]["label"];
+export type AnticipationBandLabel = (Tunables["qb"]["anticipation"]["bands"])[number]["label"];
 
 export interface AnticipationArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly qb: PlayerState;
   readonly system: ReadSystem;
   /** Seconds between the release and the break. Must be > 0 and ≤ maxLeadSeconds. */
@@ -73,26 +75,27 @@ const ANTICIPATION_ATTRS: readonly AttrId[] = [ATTR.awareness, ATTR.footballIQ];
  * second and a half early is a ball on the ground before the receiver turns.
  * `false` means NO ROLL IS MADE (ADR-005) — he is simply not there yet.
  */
-export function anticipationAvailable(leadSeconds: number): boolean {
-  return leadSeconds > 0 && leadSeconds <= TUNABLES.qb.anticipation.maxLeadSeconds;
+export function anticipationAvailable(tunables: Tunables, leadSeconds: number): boolean {
+  return leadSeconds > 0 && leadSeconds <= tunables.qb.anticipation.maxLeadSeconds;
 }
 
 /** How far ahead of the break he is, in half-ticks. */
-export function leadSteps(leadSeconds: number): number {
-  return Math.max(0, Math.round(leadSeconds / TUNABLES.clock.tickStepSeconds));
+export function leadSteps(tunables: Tunables, leadSeconds: number): number {
+  return Math.max(0, Math.round(leadSeconds / tunables.clock.tickStepSeconds));
 }
 
 export function resolveAnticipation(args: AnticipationArgs): AnticipationOutcome {
-  const t = TUNABLES.qb.anticipation;
-  const system = TUNABLES.qb.readSystem[args.system];
-  const pairLevel = chemistryLevel(args.chemistry, args.qb.bio.id, args.receiver);
+  const { tunables } = args;
+  const t = tunables.qb.anticipation;
+  const system = tunables.qb.readSystem[args.system];
+  const pairLevel = chemistryLevel(tunables, args.chemistry, args.qb.bio.id, args.receiver);
 
   const modifiers = compact([
     actorAttrModifier(args.qb, "Awareness (anticipation)", ATTR.awareness, t.terms[0]?.divisor ?? 5),
     actorAttrModifier(args.qb, "Football IQ (anticipation)", ATTR.footballIQ, t.terms[1]?.divisor ?? 5),
     flatModifier(
       `Throwing ${args.leadSeconds.toFixed(1)}s before the break`,
-      t.perHalfTickAheadPenalty * leadSteps(args.leadSeconds),
+      t.perHalfTickAheadPenalty * leadSteps(tunables, args.leadSeconds),
     ),
     flatModifier(`${args.depthClass} route declares`, t.depthModifier[args.depthClass]),
     flatModifier(`${args.system} timing`, system.anticipationModifier),
@@ -101,7 +104,7 @@ export function resolveAnticipation(args: AnticipationArgs): AnticipationOutcome
       : undefined,
     // ADR-008 — the pair term. `compact` drops it at neutral, so the printout
     // gains the line only where the pairing actually means something.
-    anticipationChemistryModifier(pairLevel),
+    anticipationChemistryModifier(tunables, pairLevel),
   ]);
 
   const roll = rollD100(args.anticipationRng, modifiers);
@@ -120,7 +123,7 @@ export function resolveAnticipation(args: AnticipationArgs): AnticipationOutcome
       actors: [args.qb.bio.id],
       roll,
       target: t.target,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: ANTICIPATION_ATTRS,
@@ -129,6 +132,6 @@ export function resolveAnticipation(args: AnticipationArgs): AnticipationOutcome
 }
 
 /** Exposed so the §17 renderer can name the branch a margin selected. */
-export function anticipationBandFor(margin: number): AnticipationBandLabel {
-  return bandFor(TUNABLES.qb.anticipation.bands, margin).label;
+export function anticipationBandFor(tunables: Tunables, margin: number): AnticipationBandLabel {
+  return bandFor(tunables.qb.anticipation.bands, margin).label;
 }

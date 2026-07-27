@@ -1,7 +1,7 @@
 /** §9.2 route development timing and §8.7 openness drift while the QB holds. */
 import type { RoutePhase } from "@ff/contracts";
 import { clamp } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { RouteDepthClass } from "../types.js";
 
 /**
@@ -23,8 +23,12 @@ import type { RouteDepthClass } from "../types.js";
 export type { RoutePhase };
 
 /** Base development time plus any jam delay from the release battle. */
-export function routeReadySeconds(depthClass: RouteDepthClass, delaySeconds: number): number {
-  return TUNABLES.route.readySeconds[depthClass] + delaySeconds;
+export function routeReadySeconds(
+  tunables: Tunables,
+  depthClass: RouteDepthClass,
+  delaySeconds: number,
+): number {
+  return tunables.route.readySeconds[depthClass] + delaySeconds;
 }
 
 /**
@@ -32,9 +36,14 @@ export function routeReadySeconds(depthClass: RouteDepthClass, delaySeconds: num
  * `baseOpenness`: routes keep improving until the decay point, then coverage
  * closes on them (§8.7).
  */
-export function opennessAt(baseOpenness: number, readySeconds: number, tick: number): number {
-  const t = TUNABLES.route;
-  const step = TUNABLES.clock.tickStepSeconds;
+export function opennessAt(
+  tunables: Tunables,
+  baseOpenness: number,
+  readySeconds: number,
+  tick: number,
+): number {
+  const t = tunables.route;
+  const step = tunables.clock.tickStepSeconds;
   const growthEnd = Math.min(tick, t.decayStartsAtSeconds);
   const gainSteps = Math.max(0, (growthEnd - readySeconds) / step);
   const decaySteps = Math.max(0, (tick - t.decayStartsAtSeconds) / step);
@@ -48,14 +57,15 @@ export function opennessAt(baseOpenness: number, readySeconds: number, tick: num
  * he gets there, and never DECAYING, because nothing is decaying.
  */
 export function routePhaseAt(
+  tunables: Tunables,
   tick: number,
   readySeconds: number,
   jamDelaySeconds: number,
   settled = false,
 ): Exclude<RoutePhase, "SCRAMBLE_DRILL"> {
-  if (jamDelaySeconds > 0 && tick < TUNABLES.clock.firstTick + jamDelaySeconds) return "JAMMED";
+  if (jamDelaySeconds > 0 && tick < tunables.clock.firstTick + jamDelaySeconds) return "JAMMED";
   if (tick < readySeconds) return "DEVELOPING";
   if (settled) return "SETTLED";
-  if (tick > TUNABLES.route.decayStartsAtSeconds) return "DECAYING";
+  if (tick > tunables.route.decayStartsAtSeconds) return "DECAYING";
   return "OPEN";
 }

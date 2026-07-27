@@ -3,9 +3,9 @@ import type { PlayerId, PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, rollD100, tierFor } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 
-export type DecisionBandLabel = (typeof TUNABLES.qb.decision.bands)[number]["label"];
+export type DecisionBandLabel = (Tunables["qb"]["decision"]["bands"])[number]["label"];
 
 export interface TargetCandidate {
   readonly receiver: PlayerId;
@@ -24,12 +24,13 @@ export interface TargetSelectionOutcome {
 }
 
 export function selectTarget(
+  tunables: Tunables,
   qb: PlayerState,
   candidates: readonly TargetCandidate[],
   decisionRng: Rng,
 ): TargetSelectionOutcome {
   if (candidates.length === 0) throw new Error("selectTarget: no candidates");
-  const t = TUNABLES.qb.decision;
+  const t = tunables.qb.decision;
 
   const roll = rollD100(
     decisionRng.fork("quality"),
@@ -57,7 +58,7 @@ export function selectTarget(
       actors: [qb.bio.id],
       roll,
       target: t.target,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: [ATTR.decisionMaking],

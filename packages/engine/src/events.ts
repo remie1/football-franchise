@@ -22,7 +22,7 @@ import type {
   RushThreatState,
   ThrowType,
 } from "@ff/contracts";
-import { TUNABLES } from "./tunables.js";
+import type { Tunables } from "./tunables.js";
 import type { PassPlayStartPayload, RunPlayStartPayload } from "./types.js";
 
 export interface CheckEmission {
@@ -48,16 +48,42 @@ export interface CheckEmission {
   readonly testsAttrs: readonly AttrId[];
 }
 
+/**
+ * A `CheckEmission` as the contract's CHECK payload. Shared by both logs
+ * (`PlayEventLog` here, `GameEventLog` in `game/events.ts`) so a check emitted
+ * for a field goal is byte-identical in shape to one emitted for a pass rush.
+ */
+export function checkPayload(c: CheckEmission): Extract<MatchEvent, { type: "CHECK" }>["payload"] {
+  return {
+    checkKind: c.checkKind,
+    actors: [...c.actors],
+    roll: c.roll,
+    tier: c.tier,
+    margin: c.margin,
+    testsAttrs: [...c.testsAttrs],
+    ...(c.target === undefined ? {} : { target: c.target }),
+    ...(c.opposedRoll === undefined ? {} : { opposedRoll: c.opposedRoll }),
+    ...(c.band === undefined ? {} : { band: c.band }),
+  };
+}
+
 export class PlayEventLog {
   private seq: number;
   private readonly envelopes: MatchEventEnvelope[] = [];
   private tick: number | undefined;
 
+  /**
+   * `tunables` is a constructor argument for one reason: `escalatePocketStatus`
+   * compares two statuses on `pocket.severity`, which is a tunable. Reading an
+   * ambient constant there would have made the ONE ordering the whole pocket
+   * model rests on immune to a patched tunables (ADR-012's open item).
+   */
   constructor(
     private readonly gameId: GameId,
     private readonly playId: PlayId,
     private readonly at: CalendarStamp,
     startSeq: number,
+    private readonly tunables: Tunables,
   ) {
     this.seq = startSeq;
   }
@@ -95,18 +121,7 @@ export class PlayEventLog {
   }
 
   check(c: CheckEmission): void {
-    const payload: Extract<MatchEvent, { type: "CHECK" }>["payload"] = {
-      checkKind: c.checkKind,
-      actors: [...c.actors],
-      roll: c.roll,
-      tier: c.tier,
-      margin: c.margin,
-      testsAttrs: [...c.testsAttrs],
-      ...(c.target === undefined ? {} : { target: c.target }),
-      ...(c.opposedRoll === undefined ? {} : { opposedRoll: c.opposedRoll }),
-      ...(c.band === undefined ? {} : { band: c.band }),
-    };
-    this.push({ type: "CHECK", payload, ...this.base() });
+    this.push({ type: "CHECK", payload: checkPayload(c), ...this.base() });
   }
 
   pocketStatus(status: PocketStatus): void {
@@ -130,7 +145,7 @@ export class PlayEventLog {
       const event = envelope.event;
       if (event.type !== "POCKET_STATUS") continue;
       if (event.tick !== this.tick) break;
-      const severity = TUNABLES.pocket.severity;
+      const severity = this.tunables.pocket.severity;
       if (severity[status] <= severity[event.payload.status]) return;
       this.envelopes[i] = { ...envelope, event: { ...event, payload: { status } } };
       return;

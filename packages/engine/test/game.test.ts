@@ -68,7 +68,8 @@ describe("a game completes", () => {
   });
 
   it("the per-period scoreboard sums to the final one", () => {
-    const summary = eventsOf(result.events, "GAME_SUMMARY")[0];
+    // ADR-014 item 8: the widened GAME_END carries what GAME_SUMMARY used to.
+    const summary = eventsOf(result.events, "GAME_END")[0];
     expect(summary).toBeDefined();
     const home = summary?.payload.periods.reduce((a, p) => a + p.home, 0);
     const away = summary?.payload.periods.reduce((a, p) => a + p.away, 0);
@@ -102,7 +103,7 @@ describe("★3 — gameId is derived from schedule coordinates, not minted", () 
 
   it("the seed is recorded on the game summary — it is not derivable from the stream", () => {
     expect(result.summary.seed).toBe(fixture.seed);
-    expect(eventsOf(result.events, "GAME_SUMMARY")[0]?.payload.seed).toBe(fixture.seed);
+    expect(eventsOf(result.events, "GAME_END")[0]?.payload.seed).toBe(fixture.seed);
   });
 });
 

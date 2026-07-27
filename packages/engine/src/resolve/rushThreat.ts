@@ -23,7 +23,7 @@
  */
 import type { PlayerId, Position } from "@ff/contracts";
 import { clamp } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { PocketStatus, RushAlignment, RushMove } from "../types.js";
 import type { PassRushBandLabel } from "./passRush.js";
 
@@ -48,26 +48,32 @@ export interface RushThreat {
 /** The band that starts a rusher travelling — §7.1's "rusher wins rep". */
 const WINNING_BAND: PassRushBandLabel = "RUSHER_WINS_REP";
 
-const WIN_MIN_MARGIN: number =
-  TUNABLES.passRush.bands.find((b) => b.label === WINNING_BAND)?.minMargin ?? 15;
+/** §7.1's own threshold, read from the table rather than restated. */
+function winMinMargin(tunables: Tunables): number {
+  return tunables.passRush.bands.find((b) => b.label === WINNING_BAND)?.minMargin ?? 15;
+}
 
 export function startsThreat(band: PassRushBandLabel): boolean {
   return band === WINNING_BAND;
 }
 
 /** A blocker win by 15+ resets the rusher — the threat he was is gone. */
-export function clearsThreat(band: PassRushBandLabel): boolean {
-  return TUNABLES.passRush.pressureProgressByBand[band].reset;
+export function clearsThreat(tunables: Tunables, band: PassRushBandLabel): boolean {
+  return tunables.passRush.pressureProgressByBand[band].reset;
 }
 
 /**
  * Alignment for a rush assignment. The play call states it; when it does not,
  * the rusher's registry `Position` supplies a base-front default.
  */
-export function rushAlignmentFor(position: Position, declared?: RushAlignment): RushAlignment {
+export function rushAlignmentFor(
+  tunables: Tunables,
+  position: Position,
+  declared?: RushAlignment,
+): RushAlignment {
   if (declared !== undefined) return declared;
-  const interior: readonly string[] = TUNABLES.arrival.interiorPositions;
-  return interior.includes(position) ? "INTERIOR" : TUNABLES.arrival.defaultAlignment;
+  const interior: readonly string[] = tunables.arrival.interiorPositions;
+  return interior.includes(position) ? "INTERIOR" : tunables.arrival.defaultAlignment;
 }
 
 /**
@@ -76,14 +82,15 @@ export function rushAlignmentFor(position: Position, declared?: RushAlignment): 
  * cleanly past the blocker; one who scrapes a 15 is still fighting through.
  */
 export function travelSecondsFor(
+  tunables: Tunables,
   alignment: RushAlignment,
   move: RushMove,
   margin: number,
 ): number {
-  const t = TUNABLES.arrival;
+  const t = tunables.arrival;
   const base = t.travelSecondsByAlignmentAndMove[alignment][move];
   const dominanceSteps = Math.floor(
-    Math.max(0, margin - WIN_MIN_MARGIN) / t.dominanceMarginPerHalfTick,
+    Math.max(0, margin - winMinMargin(tunables)) / t.dominanceMarginPerHalfTick,
   );
   const raw = base - dominanceSteps * t.quantizeSeconds;
   const quantized = Math.round(raw / t.quantizeSeconds) * t.quantizeSeconds;
@@ -92,6 +99,8 @@ export function travelSecondsFor(
 
 /** The threat a won rep creates. */
 export function threatFromWonRep(args: {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly rusher: PlayerId;
   readonly alignment: RushAlignment;
   readonly move: RushMove;
@@ -100,7 +109,7 @@ export function threatFromWonRep(args: {
   /** The `pass_rush_tick` roll that produced this win (ADR-004/007). */
   readonly rollRef: string;
 }): RushThreat {
-  const travel = travelSecondsFor(args.alignment, args.move, args.margin);
+  const travel = travelSecondsFor(args.tunables, args.alignment, args.move, args.margin);
   return {
     rusher: args.rusher,
     alignment: args.alignment,
@@ -130,8 +139,8 @@ export function delayThreat(threat: RushThreat, seconds: number): RushThreat {
  * at the moment it was created: a tackle who recovers position is not
  * un-beaten, but the man he beat is arriving later than he was.
  */
-export function recoverySecondsFor(band: PassRushBandLabel): number {
-  return TUNABLES.arrival.recoverySecondsByBand[band];
+export function recoverySecondsFor(tunables: Tunables, band: PassRushBandLabel): number {
+  return tunables.arrival.recoverySecondsByBand[band];
 }
 
 export function timeToArrival(threat: RushThreat, tick: number): number {
@@ -151,9 +160,13 @@ export function minTimeToArrival(
   return min;
 }
 
-export function hasArrived(threats: readonly RushThreat[], tick: number): boolean {
+export function hasArrived(
+  tunables: Tunables,
+  threats: readonly RushThreat[],
+  tick: number,
+): boolean {
   const min = minTimeToArrival(threats, tick);
-  return min !== undefined && min <= TUNABLES.arrival.immediateWithinSeconds;
+  return min !== undefined && min <= tunables.arrival.immediateWithinSeconds;
 }
 
 export function threatsWithAlignment(
@@ -168,9 +181,12 @@ export function threatsWithAlignment(
  * keeps a beaten tackle beaten: a rusher who won at 1.0 and stalemates at 1.5
  * has not un-beaten his block — he is still coming, and the pocket knows it.
  */
-export function pocketFloorFromArrival(minTta: number | undefined): PocketStatus {
+export function pocketFloorFromArrival(
+  tunables: Tunables,
+  minTta: number | undefined,
+): PocketStatus {
   if (minTta === undefined) return "CLEAN";
-  const t = TUNABLES.arrival;
+  const t = tunables.arrival;
   if (minTta <= t.immediateWithinSeconds) return "IMMEDIATE";
   if (minTta <= t.collapsingWithinSeconds) return "COLLAPSING";
   return "PRESSURE";
@@ -181,9 +197,9 @@ export function pocketFloorFromArrival(minTta: number | undefined): PocketStatus
  * travelling, rising as the nearest arrival closes. Both the movement decision
  * and the scramble check are scaled by it.
  */
-export function urgencySteps(minTta: number | undefined): number {
+export function urgencySteps(tunables: Tunables, minTta: number | undefined): number {
   if (minTta === undefined) return 0;
-  const t = TUNABLES;
+  const t = tunables;
   const horizon = t.pocketMovement.urgencyHorizonSeconds;
   return Math.max(0, Math.round((horizon - Math.max(0, minTta)) / t.clock.tickStepSeconds));
 }

@@ -14,7 +14,8 @@
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
-import { simulatePassPlay, simulateRunPlay } from "../src/index.js";
+import { simulateGame, simulatePassPlay, simulateRunPlay } from "../src/index.js";
+import { buildGameFixture } from "./gameFixtures.js";
 import {
   buildDeflectionScenario,
   buildLopsidedRushScenario,
@@ -258,6 +259,74 @@ describe("ADR-004 roll accounting", () => {
     }
     expect(tips).toBeGreaterThan(0);
     expect(attempts).toBeGreaterThan(0);
+  });
+
+  /**
+   * ADR-014 item 12 — the exception ADR-004 never chose, closed.
+   *
+   * Until ratification the four special-teams rolls rode INLINE on their own
+   * events, because `CheckKind` had no member for any of them. Calibration's
+   * "count rolls from CHECK/PRESNAP_READ only" therefore UNDERCOUNTED every kick
+   * in the league. `field_goal`, `punt` and `kick_return` exist now, the rolls
+   * live in CHECKs, and the summary events carry references.
+   */
+  it("every special-teams roll is in a CHECK, and the kick events only reference it", () => {
+    const fixture = buildGameFixture({ seed: "special-teams-accounting" });
+    const { events } = simulateGame(fixture.state, fixture.inputs, fixture.seed);
+
+    const checkAt = new Map<string, number>();
+    const kinds = new Set<string>();
+    for (const { seq, event } of events) {
+      if (event.type !== "CHECK") continue;
+      kinds.add(event.payload.checkKind);
+      checkAt.set(event.payload.roll.rngLabel, seq);
+    }
+    expect(kinds).toContain("field_goal");
+    expect(kinds).toContain("punt");
+    expect(kinds).toContain("kick_return");
+
+    let referenced = 0;
+    for (const { seq, event } of events) {
+      if (event.type !== "PLACEKICK" && event.type !== "PUNT" && event.type !== "KICKOFF") continue;
+      // No RollDetail anywhere in the payload — a reference, never a copy.
+      expect(allRolls([{ seq, at: fixture.state.at, event }]).length).toBe(0);
+      const refs = [
+        event.payload.rollRef,
+        ...(event.type === "PLACEKICK" ? [] : [event.payload.returnRollRef]),
+      ].filter((r): r is string => r !== undefined);
+      for (const ref of refs) {
+        const at = checkAt.get(ref);
+        expect(at, `${event.type} references ${ref}, which is in no CHECK`).toBeDefined();
+        // ...and it points BACKWARDS: the roll is recorded before it is named.
+        expect(at ?? Infinity).toBeLessThan(seq);
+        referenced += 1;
+      }
+    }
+    expect(referenced).toBeGreaterThan(20);
+  });
+
+  /**
+   * The COIN TOSS is the deliberate exception, and the second one in the schema
+   * after `QB_READ.varianceRoll`. Contracts' ratified `COIN_TOSS` payload has
+   * `roll`, not `rollRef`, so the draw is recorded there — once — and no
+   * `coin_toss` CHECK is emitted beside it. Emitting both would double-count the
+   * one draw that decides the shape of both halves.
+   */
+  it("COIN_TOSS carries its roll inline and has no CHECK counterpart", () => {
+    const fixture = buildGameFixture({ seed: "coin-toss-accounting" });
+    const { events } = simulateGame(fixture.state, fixture.inputs, fixture.seed);
+    const tosses = events.filter(({ event }) => event.type === "COIN_TOSS");
+    expect(tosses).toHaveLength(1);
+    const labels = new Set<string>();
+    for (const { event } of events) {
+      if (event.type === "CHECK") {
+        expect(event.payload.checkKind).not.toBe("coin_toss");
+        labels.add(event.payload.roll.rngLabel);
+      }
+    }
+    const toss = tosses[0]?.event;
+    if (toss?.type !== "COIN_TOSS") throw new Error("no toss");
+    expect(labels.has(toss.payload.roll.rngLabel)).toBe(false);
   });
 
   it("QB_READ carries testsAttrs: awareness always, arm talent only on a tight window", () => {

@@ -3,13 +3,13 @@ import type { PlayerState, Rng, RollDetail, RollModifier } from "@ff/contracts";
 import { ATTR, TRAIT, attrName, resolveAttr } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, flatModifier, rollD100, tierFor, traitModifier } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { ContestPosition } from "../types.js";
 import type { AccuracyBand } from "./throwExecution.js";
 
 export type CatchType = "ROUTINE" | "CONTESTED";
-export type RoutineCatchBandLabel = (typeof TUNABLES.catching.routine.bands)[number]["label"];
-export type ContestedCatchBandLabel = (typeof TUNABLES.catching.contested.bands)[number]["label"];
+export type RoutineCatchBandLabel = (Tunables["catching"]["routine"]["bands"])[number]["label"];
+export type ContestedCatchBandLabel = (Tunables["catching"]["contested"]["bands"])[number]["label"];
 
 export interface CatchOutcome {
   readonly catchType: CatchType;
@@ -23,11 +23,13 @@ export interface CatchOutcome {
 }
 
 /** §11.1 — a defender inside the contest window makes it a 50/50 ball. */
-export function catchTypeFor(actualOpenness: number): CatchType {
-  return actualOpenness <= TUNABLES.catching.contestedMaxOpenness ? "CONTESTED" : "ROUTINE";
+export function catchTypeFor(tunables: Tunables, actualOpenness: number): CatchType {
+  return actualOpenness <= tunables.catching.contestedMaxOpenness ? "CONTESTED" : "ROUTINE";
 }
 
 export interface CatchArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly receiver: PlayerState;
   /**
    * Absent when nobody is near enough to contest — a hole in a zone with no
@@ -50,12 +52,12 @@ export function resolveCatch(args: CatchArgs): CatchOutcome {
 }
 
 function resolveRoutineCatch(args: CatchArgs): CatchOutcome {
-  const t = TUNABLES.catching.routine;
-  const { receiver, accuracy, catchRng } = args;
+  const { receiver, accuracy, catchRng, tunables } = args;
+  const t = tunables.catching.routine;
 
   const mods = compact([
     actorAttrModifier(receiver, "Catching", ATTR.catching, t.attrDivisor),
-    traitModifier("Trait: Reliable Hands", receiver.attributes.traits, TRAIT.reliableHands, TUNABLES.traitBonuses.reliableHands),
+    traitModifier("Trait: Reliable Hands", receiver.attributes.traits, TRAIT.reliableHands, tunables.traitBonuses.reliableHands),
     flatModifier(`Ball placement: ${accuracy.label}`, accuracy.catchMod),
   ]);
 
@@ -76,7 +78,7 @@ function resolveRoutineCatch(args: CatchArgs): CatchOutcome {
       actors: [receiver.bio.id],
       roll,
       target,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: [ATTR.catching],
@@ -85,8 +87,8 @@ function resolveRoutineCatch(args: CatchArgs): CatchOutcome {
 }
 
 function resolveContestedCatch(args: CatchArgs, defender: PlayerState): CatchOutcome {
-  const t = TUNABLES.catching.contested;
-  const { receiver, accuracy, contestPosition, catchRng } = args;
+  const { receiver, accuracy, contestPosition, catchRng, tunables } = args;
+  const t = tunables.catching.contested;
 
   // The role prefix is the actor's own position (B2); the attribute label is the
   // registry's display name, so a ratified attribute (ADR-003 `jumping`) needs
@@ -100,7 +102,7 @@ function resolveContestedCatch(args: CatchArgs, defender: PlayerState): CatchOut
 
   const receiverMods = compact([
     ...termMods(t.receiverTerms, receiver),
-    traitModifier("Trait: Reliable Hands", receiver.attributes.traits, TRAIT.reliableHands, TUNABLES.traitBonuses.reliableHands),
+    traitModifier("Trait: Reliable Hands", receiver.attributes.traits, TRAIT.reliableHands, tunables.traitBonuses.reliableHands),
     flatModifier(`Ball placement: ${accuracy.label}`, accuracy.catchMod),
   ]);
 
@@ -108,7 +110,7 @@ function resolveContestedCatch(args: CatchArgs, defender: PlayerState): CatchOut
     ...termMods(t.defenderTerms, defender),
     flatModifier(`Contest position: ${contestPosition}`, t.positionModifier[contestPosition]),
     flatModifier(`Ball placement: ${accuracy.label}`, accuracy.defenderContestMod),
-    traitModifier("Trait: Ball Hawk", defender.attributes.traits, TRAIT.ballHawk, TUNABLES.traitBonuses.ballHawk),
+    traitModifier("Trait: Ball Hawk", defender.attributes.traits, TRAIT.ballHawk, tunables.traitBonuses.ballHawk),
     ...(args.defenderContestModifiers ?? []),
   ]);
 
@@ -130,7 +132,7 @@ function resolveContestedCatch(args: CatchArgs, defender: PlayerState): CatchOut
       actors: [receiver.bio.id, defender.bio.id],
       roll,
       opposedRoll,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: [

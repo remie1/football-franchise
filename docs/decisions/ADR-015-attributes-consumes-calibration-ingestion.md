@@ -2,7 +2,7 @@
 
 - **Date:** July 2026
 - **Proposed by:** `calibration`, on completing Phase 1 deliverable 1 (ingestion + cache + manifest)
-- **Status:** proposed
+- **Status:** approved
 - **Charter impact:** §4 rule 1 (a second named exception); no contracts change requested
 
 ## Need
@@ -115,6 +115,29 @@ calibration. **Together that is a cycle**, which ADR-012's "one-directional" req
 and which pnpm workspaces will reject outright.
 
 This ADR does **not** propose resolving it by mutual import. Three options, for the Orchestrator:
+
+**RESOLVED — option 1 ratified.** `RatedLeague` now lives in `packages/contracts/src/players.ts`,
+with `provenance` and `coverage` as `unknown` slots claimed by `attributes.md` via a later
+petition, following `SaveFile`'s precedent.
+
+**The generalized principle, recorded because it will recur:**
+
+> When two domains both need a type, that type is by definition **shared vocabulary** and
+> belongs in the constitution. The cycle is the signal, not the problem — pnpm rejecting a
+> circular dependency is the tooling correctly reporting an architecture error, not an
+> inconvenience to engineer around.
+
+It passes `contracts.md` §10's test cleanly, which is the discipline that keeps this from
+becoming a licence to dump anything shared into contracts: **a data shape belongs; logic does
+not.** The harness needs the *shape* of a rated league, not the pipeline that produced one.
+This is the same reasoning that put the event schema in the constitution rather than in
+whichever domain first emitted an event.
+
+Options 2 and 3 rejected: a structural interface duplicates the shape and lets the two copies
+drift (the failure ADR-013 had just finished closing), and splitting `@ff/nfl-data` into its own
+domain is a larger change than Phase 2 wants for a problem this solves outright.
+
+---
 
 1. **`RatedLeague` moves to `contracts`.** It is a data shape (`Player`, `Team`, `Roster` and an
    attribute map are already contracts-owned), so it violates neither `contracts.md` §10 nor the

@@ -48,7 +48,7 @@ const BLOCKER = makePlayer("t-te", "Sam Pryor", "TE", { runBlock: 80, strength: 
 
 describe("§13.2 / §14.4 — the tackle contest is one function with four profiles", () => {
   it("§13.2 tests the receiver's YAC and elusiveness against tackling and pursuit", () => {
-    const out = resolveTackleContest({
+    const out = resolveTackleContest({ tunables: TUNABLES,
       carrier: BACK, tackler: LB, profile: "yac", contestRng: rng("yac1"),
     });
     expect(out.check.checkKind).toBe("yac_tackle");
@@ -56,7 +56,7 @@ describe("§13.2 / §14.4 — the tackle contest is one function with four profi
   });
 
   it("§14.4 tests elusiveness and power against tackling and strength", () => {
-    const out = resolveTackleContest({
+    const out = resolveTackleContest({ tunables: TUNABLES,
       carrier: BACK, tackler: LB, profile: "secondLevel", contestRng: rng("sl1"),
     });
     expect(out.check.checkKind).toBe("break_tackle");
@@ -66,10 +66,10 @@ describe("§13.2 / §14.4 — the tackle contest is one function with four profi
   });
 
   it("§14.3's two contests at the line are ONE term each, as the doc writes them", () => {
-    const power = resolveTackleContest({
+    const power = resolveTackleContest({ tunables: TUNABLES,
       carrier: BACK, tackler: LB, profile: "atLosPower", contestRng: rng("p1"),
     });
-    const evade = resolveTackleContest({
+    const evade = resolveTackleContest({ tunables: TUNABLES,
       carrier: BACK, tackler: LB, profile: "atLosEvade", contestRng: rng("e1"),
     });
     expect(power.check.checkKind).toBe("tackle");
@@ -79,7 +79,7 @@ describe("§13.2 / §14.4 — the tackle contest is one function with four profi
   });
 
   it("every contest carries both rolls and an opposed margin (ADR-004)", () => {
-    const out = resolveTackleContest({
+    const out = resolveTackleContest({ tunables: TUNABLES,
       carrier: BACK, tackler: LB, profile: "yac", contestRng: rng("both"),
     });
     expect(out.check.roll).toBe(out.roll);
@@ -89,7 +89,7 @@ describe("§13.2 / §14.4 — the tackle contest is one function with four profi
   });
 
   it("Appendix B's Power Runner (+10 to break tackles) is on the carrier's roll", () => {
-    const out = resolveTackleContest({
+    const out = resolveTackleContest({ tunables: TUNABLES,
       carrier: POWER_BACK, tackler: LB, profile: "secondLevel", contestRng: rng("trait"),
     });
     expect(out.roll.modifiers.some((m) => m.source === "Trait: Power Runner" && m.value === 10)).toBe(true);
@@ -97,14 +97,14 @@ describe("§13.2 / §14.4 — the tackle contest is one function with four profi
 
   it("Appendix B's High Motor (+5 to pursuit) is on the tackler's roll", () => {
     const motor = makePlayer("t-motor", "Kade Vance", "DE", { tackling: 76, strength: 80 }, ["highMotor"]);
-    const out = resolveTackleContest({
+    const out = resolveTackleContest({ tunables: TUNABLES,
       carrier: BACK, tackler: motor, profile: "secondLevel", contestRng: rng("motor"),
     });
     expect(out.opposedRoll.modifiers.some((m) => m.source === "Trait: High Motor" && m.value === 5)).toBe(true);
   });
 
   it("§13.2's catch-transition modifiers ride on the carrier's roll, not the tackler's", () => {
-    const out = resolveTackleContest({
+    const out = resolveTackleContest({ tunables: TUNABLES,
       carrier: BACK,
       tackler: LB,
       profile: "yac",
@@ -136,27 +136,27 @@ describe("yardsInBand — a stated range resolved without a second die (ADR-004)
   const band = { minMargin: 10, minYards: 3, maxYards: 5 };
 
   it("the band floor pays the minimum", () => {
-    expect(yardsInBand(band, 10)).toBe(3);
+    expect(yardsInBand(TUNABLES, band, 10)).toBe(3);
   });
 
   it("margin above the floor buys yards, one per marginPerExtraYard", () => {
     const step = TUNABLES.ballCarrier.marginPerExtraYard;
-    expect(yardsInBand(band, 10 + step)).toBe(4);
-    expect(yardsInBand(band, 10 + 2 * step)).toBe(5);
+    expect(yardsInBand(TUNABLES, band, 10 + step)).toBe(4);
+    expect(yardsInBand(TUNABLES, band, 10 + 2 * step)).toBe(5);
   });
 
   it("never exceeds the band's own maximum, however big the margin", () => {
-    expect(yardsInBand(band, 500)).toBe(5);
+    expect(yardsInBand(TUNABLES, band, 500)).toBe(5);
   });
 
   it("a fixed band is fixed", () => {
-    expect(yardsInBand({ minMargin: 0, minYards: 2, maxYards: 2 }, 90)).toBe(2);
+    expect(yardsInBand(TUNABLES, { minMargin: 0, minYards: 2, maxYards: 2 }, 90)).toBe(2);
   });
 
   it("is monotone in the margin — a better result is never fewer yards", () => {
     let previous = -1;
     for (let m = 10; m < 60; m++) {
-      const y = yardsInBand(band, m);
+      const y = yardsInBand(TUNABLES, band, m);
       expect(y).toBeGreaterThanOrEqual(previous);
       previous = y;
     }
@@ -165,7 +165,7 @@ describe("yardsInBand — a stated range resolved without a second die (ADR-004)
 
 describe("§13.3 / §14.5 — blocking in space", () => {
   it("STALK gives the defender §13.3's TWO terms, not §14.5's one", () => {
-    const out = resolveBlockInSpace({
+    const out = resolveBlockInSpace({ tunables: TUNABLES,
       blocker: BLOCKER, defender: LB, blockType: "STALK", blockRng: rng("stalk"),
     });
     expect(out.check.checkKind).toBe("downfield_block");
@@ -173,7 +173,7 @@ describe("§13.3 / §14.5 — blocking in space", () => {
   });
 
   it("CRACK carries §13.3's +10 'defender not expecting'", () => {
-    const out = resolveBlockInSpace({
+    const out = resolveBlockInSpace({ tunables: TUNABLES,
       blocker: BLOCKER, defender: LB, blockType: "CRACK", blockRng: rng("crack"),
     });
     expect(out.roll.modifiers.some((m) => m.source.startsWith("CRACK") && m.value === 10)).toBe(true);
@@ -181,14 +181,14 @@ describe("§13.3 / §14.5 — blocking in space", () => {
 
   it("§13.3's illegal-crack −15 is recorded and NOT applied — no input states legality", () => {
     expect(TUNABLES.ballCarrier.blockInSpace.illegalCrackPenalty).toBe(-15);
-    const out = resolveBlockInSpace({
+    const out = resolveBlockInSpace({ tunables: TUNABLES,
       blocker: BLOCKER, defender: LB, blockType: "CRACK", blockRng: rng("crack2"),
     });
     expect(out.roll.modifiers.some((m) => m.value === -15)).toBe(false);
   });
 
   it("LEAD is §14.5's Run Block + Strength against Tackling + Strength", () => {
-    const out = resolveBlockInSpace({
+    const out = resolveBlockInSpace({ tunables: TUNABLES,
       blocker: BLOCKER, defender: LB, blockType: "LEAD", blockRng: rng("lead"),
     });
     expect(out.check.testsAttrs.map(String)).toEqual(["runBlock", "strength", "tackling", "strength"]);
@@ -203,18 +203,18 @@ describe("§13.3 / §14.5 — blocking in space", () => {
 
 describe("§14.4 — the pursuit angle", () => {
   it("the target is 50 + the RAW speed difference, as the doc writes it", () => {
-    const out = resolvePursuitAngle({ carrier: BACK, defender: SLOW_LB, pursuitRng: rng("pa1") });
+    const out = resolvePursuitAngle({ tunables: TUNABLES, carrier: BACK, defender: SLOW_LB, pursuitRng: rng("pa1") });
     // BACK speed 88, SLOW_LB speed 62 → 50 + 26.
     expect(out.target).toBe(76);
   });
 
   it("a faster defender lowers his own target below 50", () => {
     const burner = makePlayer("t-fs", "Gil Tanner", "FS", { speed: 95, pursuit: 86, instincts: 80 });
-    expect(resolvePursuitAngle({ carrier: BACK, defender: burner, pursuitRng: rng("pa2") }).target).toBe(43);
+    expect(resolvePursuitAngle({ tunables: TUNABLES, carrier: BACK, defender: burner, pursuitRng: rng("pa2") }).target).toBe(43);
   });
 
   it("it is a gate, and the defender is the actor", () => {
-    const out = resolvePursuitAngle({ carrier: BACK, defender: LB, pursuitRng: rng("pa3") });
+    const out = resolvePursuitAngle({ tunables: TUNABLES, carrier: BACK, defender: LB, pursuitRng: rng("pa3") });
     expect(out.check.checkKind).toBe("pursuit_angle");
     expect(String(out.check.actors[0])).toBe(String(LB.bio.id));
     expect(out.madePursuit).toBe(out.margin >= 0);
@@ -223,7 +223,7 @@ describe("§14.4 — the pursuit angle", () => {
 
 describe("§13.4 — the breakaway", () => {
   it("is speed + acceleration against speed + pursuit", () => {
-    const out = resolveBreakaway({ carrier: BACK, pursuer: LB, breakawayRng: rng("br1") });
+    const out = resolveBreakaway({ tunables: TUNABLES, carrier: BACK, pursuer: LB, breakawayRng: rng("br1") });
     expect(out.check.checkKind).toBe("breakaway");
     expect(out.check.testsAttrs.map(String)).toEqual(["speed", "acceleration", "speed", "pursuit"]);
   });
@@ -232,7 +232,7 @@ describe("§13.4 — the breakaway", () => {
     const burner = makePlayer("t-hr", "Dez Ellis", "WR", {
       speed: 94, acceleration: 92,
     }, ["homeRunHitter"]);
-    const out = resolveBreakaway({ carrier: burner, pursuer: LB, breakawayRng: rng("br2") });
+    const out = resolveBreakaway({ tunables: TUNABLES, carrier: burner, pursuer: LB, breakawayRng: rng("br2") });
     expect(out.roll.modifiers.some((m) => m.source === "Trait: Home Run Hitter" && m.value === 15)).toBe(true);
   });
 
@@ -246,29 +246,29 @@ describe("§13.4 — the breakaway", () => {
 describe("§13.1 — the zone model", () => {
   it("the zones are the doc's: 0-5, 5-15, 15-30, 30+", () => {
     expect(TUNABLES.ballCarrier.zones.map((z) => z.widthYards)).toEqual([5, 10, 15, 30]);
-    expect(zoneWidth(1)).toBe(5);
-    expect(zoneWidth(3)).toBe(15);
+    expect(zoneWidth(TUNABLES, 1)).toBe(5);
+    expect(zoneWidth(TUNABLES, 3)).toBe(15);
   });
 
   it("a defender is placed by how far AHEAD of the carrier he is", () => {
-    expect(zoneOfDefender(0, 0)).toBe(1);
-    expect(zoneOfDefender(5, 0)).toBe(1);
-    expect(zoneOfDefender(6, 0)).toBe(2);
-    expect(zoneOfDefender(15, 0)).toBe(2);
-    expect(zoneOfDefender(16, 0)).toBe(3);
-    expect(zoneOfDefender(31, 0)).toBe(4);
+    expect(zoneOfDefender(TUNABLES, 0, 0)).toBe(1);
+    expect(zoneOfDefender(TUNABLES, 5, 0)).toBe(1);
+    expect(zoneOfDefender(TUNABLES, 6, 0)).toBe(2);
+    expect(zoneOfDefender(TUNABLES, 15, 0)).toBe(2);
+    expect(zoneOfDefender(TUNABLES, 16, 0)).toBe(3);
+    expect(zoneOfDefender(TUNABLES, 31, 0)).toBe(4);
   });
 
   it("a man well behind the carrier is not in the doc's forward-only table", () => {
-    expect(zoneOfDefender(0, 20)).toBeUndefined();
+    expect(zoneOfDefender(TUNABLES, 0, 20)).toBeUndefined();
     // ...but the corner a stride the wrong side of a receiver still is.
-    expect(zoneOfDefender(19, 20)).toBe(1);
+    expect(zoneOfDefender(TUNABLES, 19, 20)).toBe(1);
   });
 
   it("§3.2 depths are the ones the grid states", () => {
-    expect(depthOfVerticalZone("BACKFIELD")).toBe(0);
-    expect(depthOfVerticalZone("SHORT")).toBeLessThan(depthOfVerticalZone("INTERMEDIATE"));
-    expect(depthOfVerticalZone("DEEP")).toBeLessThan(depthOfVerticalZone("VERY_DEEP"));
+    expect(depthOfVerticalZone(TUNABLES, "BACKFIELD")).toBe(0);
+    expect(depthOfVerticalZone(TUNABLES, "SHORT")).toBeLessThan(depthOfVerticalZone(TUNABLES, "INTERMEDIATE"));
+    expect(depthOfVerticalZone(TUNABLES, "DEEP")).toBeLessThan(depthOfVerticalZone(TUNABLES, "VERY_DEEP"));
   });
 });
 
@@ -284,7 +284,7 @@ describe("advanceCarrier — the loop both YAC and the run game use", () => {
   ): { yards: number; kinds: string[]; zones: number[] } {
     const kinds: string[] = [];
     const zones: number[] = [];
-    const out = advanceCarrier({
+    const out = advanceCarrier({ tunables: TUNABLES,
       carrier: BACK,
       mode,
       pursuers,
@@ -338,7 +338,7 @@ describe("advanceCarrier — the loop both YAC and the run game use", () => {
   });
 
   it("the goal line caps the gain — nobody runs out of the back of the end zone", () => {
-    const out = advanceCarrier({
+    const out = advanceCarrier({ tunables: TUNABLES,
       carrier: BACK,
       mode: "YAC",
       pursuers: [],
@@ -353,7 +353,7 @@ describe("advanceCarrier — the loop both YAC and the run game use", () => {
 
   it("broken tackles are counted from contests the carrier won outright", () => {
     const soft = makePlayer("t-soft2", "Roy Emmett", "DT", { tackling: 5, strength: 10, pursuit: 5, speed: 50 });
-    const out = advanceCarrier({
+    const out = advanceCarrier({ tunables: TUNABLES,
       carrier: BACK,
       mode: "RUSH",
       pursuers: [{ defender: soft, zone: 1 }, { defender: soft, zone: 2 }],

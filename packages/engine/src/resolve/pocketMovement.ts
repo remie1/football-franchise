@@ -30,14 +30,14 @@ import type { AttrId, PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR, attrName } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, rollD100, tierFor } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { RushThreat } from "./rushThreat.js";
 import { minTimeToArrival, threatsWithAlignment, urgencySteps } from "./rushThreat.js";
 
 export type PocketResponse = "STAND_IN" | "STEP_UP" | "ESCAPE" | "THROWAWAY";
-export type PocketMovementBandLabel = (typeof TUNABLES.pocketMovement.bands)[number]["label"];
+export type PocketMovementBandLabel = (Tunables["pocketMovement"]["bands"])[number]["label"];
 
-type AppealKey = keyof typeof TUNABLES.pocketMovement.appeal;
+type AppealKey = keyof Tunables["pocketMovement"]["appeal"];
 
 interface AppealTerm {
   readonly attr: string;
@@ -57,6 +57,8 @@ export interface ResponseAppeal {
 }
 
 export interface PocketMovementArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly qb: PlayerState;
   readonly tick: number;
   /** Rushers currently travelling. Shape, not just count, drives availability. */
@@ -91,8 +93,13 @@ function attrIdOf(name: string): AttrId {
   return id;
 }
 
-function appealFrom(qb: PlayerState, spec: AppealSpec, urgency: number): number {
-  const baseline = TUNABLES.pocketMovement.appealBaseline;
+function appealFrom(
+  tunables: Tunables,
+  qb: PlayerState,
+  spec: AppealSpec,
+  urgency: number,
+): number {
+  const baseline = tunables.pocketMovement.appealBaseline;
   const attrTotal = spec.terms.reduce(
     (sum, term) => sum + Math.round((getAttr(qb.attributes.values, attrIdOf(term.attr)) - baseline) / term.divisor),
     0,
@@ -105,22 +112,28 @@ function appealFrom(qb: PlayerState, spec: AppealSpec, urgency: number): number 
  * interior (you cannot climb into him), or the quarterback has already climbed
  * as far as the pocket goes.
  */
-export function climbLaneOpen(threats: readonly RushThreat[], stepUpsUsed: number): boolean {
-  if (stepUpsUsed >= TUNABLES.pocketMovement.stepUp.maxPerPlay) return false;
+export function climbLaneOpen(
+  tunables: Tunables,
+  threats: readonly RushThreat[],
+  stepUpsUsed: number,
+): boolean {
+  if (stepUpsUsed >= tunables.pocketMovement.stepUp.maxPerPlay) return false;
   return threatsWithAlignment(threats, "INTERIOR").length === 0;
 }
 
 /** The QB's own ranking of the responses available to him, best-first. */
 export function rankResponses(args: {
+  readonly tunables: Tunables;
   readonly qb: PlayerState;
   readonly tick: number;
   readonly threats: readonly RushThreat[];
   readonly stepUpsUsed: number;
   readonly throwawayAvailable: boolean;
 }): { readonly ranked: readonly ResponseAppeal[]; readonly urgency: number } {
-  const t = TUNABLES.pocketMovement;
-  const urgency = urgencySteps(minTimeToArrival(args.threats, args.tick));
-  const canClimb = climbLaneOpen(args.threats, args.stepUpsUsed);
+  const { tunables } = args;
+  const t = tunables.pocketMovement;
+  const urgency = urgencySteps(tunables, minTimeToArrival(args.threats, args.tick));
+  const canClimb = climbLaneOpen(tunables, args.threats, args.stepUpsUsed);
 
   const scored: ResponseAppeal[] = [];
   for (const key of Object.keys(t.appeal) as AppealKey[]) {
@@ -128,21 +141,22 @@ export function rankResponses(args: {
     if (response === "STEP_UP" && !canClimb) continue;
     if (response === "THROWAWAY" && !args.throwawayAvailable) continue;
     const spec: AppealSpec = t.appeal[key];
-    let appeal = appealFrom(args.qb, spec, urgency);
+    let appeal = appealFrom(tunables, args.qb, spec, urgency);
     // The bonus that makes interior pressure hurt: with the climb lane gone,
     // leaving is the only way to buy space, so a mobile QB reaches for it.
     if (response === "ESCAPE" && !canClimb) appeal += t.appeal.escape.noClimbLaneBonus;
     scored.push({ response, appeal });
   }
 
-  // Ties break on the fixed declaration order of TUNABLES.pocketMovement.appeal,
+  // Ties break on the fixed declaration order of tunables.pocketMovement.appeal,
   // which `Array.prototype.sort` preserves — no die, so no hidden randomness.
   const ranked = [...scored].sort((a, b) => b.appeal - a.appeal);
   return { ranked, urgency };
 }
 
 export function resolvePocketMovement(args: PocketMovementArgs): PocketMovementOutcome {
-  const t = TUNABLES.pocketMovement;
+  const { tunables } = args;
+  const t = tunables.pocketMovement;
   const { ranked, urgency } = rankResponses(args);
   if (ranked.length === 0) throw new Error("@ff/engine: pocket movement with no available response");
 
@@ -184,7 +198,7 @@ export function resolvePocketMovement(args: PocketMovementArgs): PocketMovementO
       actors: [args.qb.bio.id],
       roll,
       target: t.target,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs,
@@ -193,6 +207,9 @@ export function resolvePocketMovement(args: PocketMovementArgs): PocketMovementO
 }
 
 /** Kept for calibration/test use; the §17 renderer reads the band off the stream. */
-export function pocketMovementBandFor(margin: number): PocketMovementBandLabel {
-  return bandFor(TUNABLES.pocketMovement.bands, margin).label;
+export function pocketMovementBandFor(
+  tunables: Tunables,
+  margin: number,
+): PocketMovementBandLabel {
+  return bandFor(tunables.pocketMovement.bands, margin).label;
 }

@@ -46,14 +46,14 @@ const band = (label: string): (typeof TUNABLES.tippedBall.qualityBands)[number] 
 
 describe("§12.2 throw height — the derived input (INTERPRETATION)", () => {
   it("a ball knocked down in the lane has one height, whatever the route was", () => {
-    expect(throwHeightFor("LANE", "QUICK", "BULLET")).toBe(TUNABLES.tippedBall.heightAtLane);
-    expect(throwHeightFor("LANE", "DEEP", "TOUCH")).toBe(TUNABLES.tippedBall.heightAtLane);
+    expect(throwHeightFor(TUNABLES, "LANE", "QUICK", "BULLET")).toBe(TUNABLES.tippedBall.heightAtLane);
+    expect(throwHeightFor(TUNABLES, "LANE", "DEEP", "TOUCH")).toBe(TUNABLES.tippedBall.heightAtLane);
   });
 
   it("at the catch point the ball arrives higher the further it travelled", () => {
     const ladder: readonly string[] = TUNABLES.tippedBall.heightLadder;
     const at = (d: "QUICK" | "SHORT" | "INTERMEDIATE" | "DEEP"): number =>
-      ladder.indexOf(throwHeightFor("CATCH_POINT", d, "BACK_SHOULDER"));
+      ladder.indexOf(throwHeightFor(TUNABLES, "CATCH_POINT", d, "BACK_SHOULDER"));
     expect(at("QUICK")).toBeLessThan(at("SHORT"));
     expect(at("SHORT")).toBeLessThan(at("INTERMEDIATE"));
     expect(at("INTERMEDIATE")).toBeLessThan(at("DEEP"));
@@ -61,18 +61,18 @@ describe("§12.2 throw height — the derived input (INTERPRETATION)", () => {
 
   it("a bullet arrives a notch lower than a touch pass at the same depth", () => {
     const ladder: readonly string[] = TUNABLES.tippedBall.heightLadder;
-    expect(ladder.indexOf(throwHeightFor("CATCH_POINT", "INTERMEDIATE", "BULLET"))).toBeLessThan(
-      ladder.indexOf(throwHeightFor("CATCH_POINT", "INTERMEDIATE", "TOUCH")),
+    expect(ladder.indexOf(throwHeightFor(TUNABLES, "CATCH_POINT", "INTERMEDIATE", "BULLET"))).toBeLessThan(
+      ladder.indexOf(throwHeightFor(TUNABLES, "CATCH_POINT", "INTERMEDIATE", "TOUCH")),
     );
   });
 
   it("the velocity step never walks off either end of the ladder", () => {
     const ladder: readonly string[] = TUNABLES.tippedBall.heightLadder;
-    expect(throwHeightFor("CATCH_POINT", "QUICK", "BULLET")).toBe("LOW");
-    expect(throwHeightFor("CATCH_POINT", "DEEP", "TOUCH")).toBe("JUMP_BALL");
+    expect(throwHeightFor(TUNABLES, "CATCH_POINT", "QUICK", "BULLET")).toBe("LOW");
+    expect(throwHeightFor(TUNABLES, "CATCH_POINT", "DEEP", "TOUCH")).toBe("JUMP_BALL");
     for (const depth of ["QUICK", "SHORT", "INTERMEDIATE", "DEEP"] as const) {
       for (const throwType of ["BULLET", "TOUCH", "BACK_SHOULDER", "THROWAWAY"] as const) {
-        expect(ladder).toContain(throwHeightFor("CATCH_POINT", depth, throwType));
+        expect(ladder).toContain(throwHeightFor(TUNABLES, "CATCH_POINT", depth, throwType));
       }
     }
   });
@@ -85,7 +85,7 @@ describe("§12.2 Roll 1 — deflection quality", () => {
     throwType: "BULLET" | "TOUCH",
     seed: string,
   ): ReturnType<typeof resolveDeflectionQuality> =>
-    resolveDeflectionQuality({
+    resolveDeflectionQuality({ tunables: TUNABLES,
       deflector: DEFLECTOR,
       point,
       depthClass: depth,
@@ -114,12 +114,12 @@ describe("§12.2 Roll 1 — deflection quality", () => {
   });
 
   it("the result sets the FINAL target number recovery is measured against", () => {
-    expect(deflectionQualityBandFor(41)).toBe("GIFT");
-    expect(deflectionQualityBandFor(21)).toBe("FLOATER");
-    expect(deflectionQualityBandFor(1)).toBe("LIVE_BALL");
-    expect(deflectionQualityBandFor(-19)).toBe("CONTESTED");
-    expect(deflectionQualityBandFor(-39)).toBe("DIFFICULT");
-    expect(deflectionQualityBandFor(-40)).toBe("DEAD");
+    expect(deflectionQualityBandFor(TUNABLES, 41)).toBe("GIFT");
+    expect(deflectionQualityBandFor(TUNABLES, 21)).toBe("FLOATER");
+    expect(deflectionQualityBandFor(TUNABLES, 1)).toBe("LIVE_BALL");
+    expect(deflectionQualityBandFor(TUNABLES, -19)).toBe("CONTESTED");
+    expect(deflectionQualityBandFor(TUNABLES, -39)).toBe("DIFFICULT");
+    expect(deflectionQualityBandFor(TUNABLES, -40)).toBe("DEAD");
     expect(band("GIFT").finalTargetNumber).toBe(20);
     expect(band("DEAD").recoverable).toBe(false);
   });
@@ -141,27 +141,27 @@ describe("§12.3 eligibility", () => {
     list.map((c) => String(c.player.bio.id));
 
   it("a dead ball is recoverable by nobody", () => {
-    expect(eligibleRecoverers(band("DEAD"), HERE, all)).toHaveLength(0);
+    expect(eligibleRecoverers(TUNABLES, band("DEAD"), HERE, all)).toHaveLength(0);
   });
 
   it("DIFFICULT reaches the same zone only", () => {
-    expect(ids(eligibleRecoverers(band("DIFFICULT"), HERE, all))).toEqual(["near"]);
+    expect(ids(eligibleRecoverers(TUNABLES, band("DIFFICULT"), HERE, all))).toEqual(["near"]);
   });
 
   it("LIVE BALL reaches adjacent with no speed gate", () => {
-    expect(ids(eligibleRecoverers(band("LIVE_BALL"), HERE, all))).toEqual(["near", "adj"]);
+    expect(ids(eligibleRecoverers(TUNABLES, band("LIVE_BALL"), HERE, all))).toEqual(["near", "adj"]);
   });
 
   it("CONTESTED reaches adjacent only for a player who can get there", () => {
     // §12.3's "Speed check" column, as a deterministic rating gate (§10.1's
     // precedent) rather than a third die.
-    expect(ids(eligibleRecoverers(band("CONTESTED"), HERE, all))).toEqual(["near"]);
+    expect(ids(eligibleRecoverers(TUNABLES, band("CONTESTED"), HERE, all))).toEqual(["near"]);
     const quick = candidate(makePlayer("quick", "Quick", "MLB", { speed: 95 }), NEXT_DOOR);
-    expect(ids(eligibleRecoverers(band("CONTESTED"), HERE, [quick]))).toEqual(["quick"]);
+    expect(ids(eligibleRecoverers(TUNABLES, band("CONTESTED"), HERE, [quick]))).toEqual(["quick"]);
   });
 
   it("a GIFT reaches two zones away, but only for the fast man", () => {
-    const eligible = ids(eligibleRecoverers(band("GIFT"), HERE, all));
+    const eligible = ids(eligibleRecoverers(TUNABLES, band("GIFT"), HERE, all));
     expect(eligible).toContain("fast");
     expect(eligible).not.toContain("two");
   });
@@ -170,7 +170,7 @@ describe("§12.3 eligibility", () => {
     const corner: FieldZone = { horizontal: "LW", vertical: "BACKFIELD" };
     const across = candidate(makePlayer("across", "Across", "DE", { speed: 99 }), MILES);
     for (const label of ["GIFT", "FLOATER", "LIVE_BALL", "CONTESTED", "DIFFICULT"]) {
-      expect(eligibleRecoverers(band(label), corner, [across])).toHaveLength(0);
+      expect(eligibleRecoverers(TUNABLES, band(label), corner, [across])).toHaveLength(0);
     }
   });
 });
@@ -197,7 +197,7 @@ describe("§12.4 Roll 2 — recovery", () => {
 
   it("proximity is worth §12.4's stated amounts", () => {
     const at = (distance: number): number => {
-      const out = resolveRecoveryAttempt({
+      const out = resolveRecoveryAttempt({ tunables: TUNABLES,
         candidate: { ...eligible(quick, "DEFENSE"), zoneDistance: distance },
         band: band("LIVE_BALL"),
         finalTargetNumber: 55,
@@ -213,7 +213,7 @@ describe("§12.4 Roll 2 — recovery", () => {
 
   it("an offensive player uses Catching, a defender uses Ball Skills", () => {
     const sources = (side: "OFFENSE" | "DEFENSE"): string[] =>
-      resolveRecoveryAttempt({
+      resolveRecoveryAttempt({ tunables: TUNABLES,
         candidate: eligible(side === "OFFENSE" ? slow : quick, side),
         band: band("LIVE_BALL"),
         finalTargetNumber: 55,
@@ -224,7 +224,7 @@ describe("§12.4 Roll 2 — recovery", () => {
   });
 
   it("a gift zone and already tracking the ball both pay out", () => {
-    const out = resolveRecoveryAttempt({
+    const out = resolveRecoveryAttempt({ tunables: TUNABLES,
       candidate: { ...eligible(quick, "DEFENSE"), trackingBall: true },
       band: band("GIFT"),
       finalTargetNumber: 20,
@@ -236,7 +236,7 @@ describe("§12.4 Roll 2 — recovery", () => {
   });
 
   it("a blocker is penalised for being in a block", () => {
-    const out = resolveRecoveryAttempt({
+    const out = resolveRecoveryAttempt({ tunables: TUNABLES,
       candidate: { ...eligible(slow, "OFFENSE"), engagedInBlock: true },
       band: band("LIVE_BALL"),
       finalTargetNumber: 55,
@@ -246,7 +246,7 @@ describe("§12.4 Roll 2 — recovery", () => {
   });
 
   it("must MEET or exceed the final target number", () => {
-    const out = resolveRecoveryAttempt({
+    const out = resolveRecoveryAttempt({ tunables: TUNABLES,
       candidate: eligible(quick, "DEFENSE"),
       band: band("LIVE_BALL"),
       finalTargetNumber: 55,

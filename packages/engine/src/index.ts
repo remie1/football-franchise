@@ -31,14 +31,14 @@
  * own metrics. Result bands now travel on `CHECK.payload.band`.
  *
  * ---------------------------------------------------------------------------
- * THE GAME LOOP ADDS TO ALL FOUR CATEGORIES, AND PETITIONS FOR A FIFTH.
+ * THE GAME LOOP ADDS TO ALL FOUR CATEGORIES, AND ADR-014 RATIFIED A FIFTH.
  *
  * Category 1 gains `simulateGame` (and the two pure constructors a caller needs
  * to build its arguments); category 2 gains the game-level state, snapshot and
  * decision types; category 4 gains the drive-chart and box-score renderers.
- * None of that changes the shape of the exception ADR-012 ratified.
+ * None of that changed the shape of the exception ADR-012 ratified.
  *
- * The FIFTH category is new and is proposed in ADR-014 rather than assumed:
+ * The FIFTH category is ADR-014 item 15, approved:
  *
  *   5. **The statline reducer** — `reduceStatlines` and the `StatLine` shapes it
  *      returns. It is required by FANTASY-GATE-PHASE1 §3.5, which also rules
@@ -47,11 +47,30 @@
  *      for every per-player metric it has; without it on the surface, calibration
  *      would write a second reducer over the same stream and the two would drift
  *      — the exact failure ADR-004's roll accounting exists to prevent, one level
- *      up. Until ADR-014 is ratified this export is marked INTERIM.
+ *      up.
+ *
+ * EVERY EXPORT BELOW IS ANNOTATED WITH THE CATEGORY IT BELONGS TO, and
+ * `test/tunablePatch.test.ts` asserts the runtime half of the list as a SET.
  * ---------------------------------------------------------------------------
+ *
+ * TUNABLES, AND WHERE THE OPTIONAL ARGUMENT LIVES (ADR-012's open item).
+ *
+ * `simulatePlay`, `simulatePassPlay`, `simulateRunPlay`, `simulateGame` and
+ * `createMatchState` take an OPTIONAL trailing `tunables` that defaults to the
+ * module constant. Every function beneath them takes it as a REQUIRED argument,
+ * so a call site that forgot to pass the version it was handed is a compile
+ * error rather than a silent fallback — which is the whole point: an optional
+ * parameter one level down would let a batch report clean statistics about a
+ * simulation half-run under the wrong tunables. The default belongs on the
+ * surface, where ergonomics belong, and is safe precisely because nothing
+ * underneath has one.
+ *
+ * `defaultPlayCaller` takes NO tunables at all: every decision request carries
+ * the tunables the game is being played under, so a caller cannot be built
+ * against one version and run under another.
  */
 
-// 1. Entry points.
+// 1. CATEGORY 1 — the simulation entry points.
 export { simulatePlay } from "./sim/play.js";
 export { simulatePassPlay } from "./sim/passPlay.js";
 export { simulateRunPlay } from "./sim/runPlay.js";
@@ -59,7 +78,7 @@ export { simulateGame, createMatchState, GameLoopError } from "./game/simulateGa
 export { deriveGameId } from "./game/types.js";
 export { defaultPlayCaller } from "./game/playCaller.js";
 
-// 2. Inputs and outputs.
+// 2. CATEGORY 2 — the types needed to construct the inputs and read the outputs.
 export { IncoherentPlayCallError, UnsupportedPlayCallError } from "./validate/playCall.js";
 export type {
   // state and result
@@ -96,7 +115,7 @@ export type {
   BlockType,
 } from "./types.js";
 
-// 2b. The game loop's inputs and outputs.
+// 2b. CATEGORY 2 — the game loop's inputs and outputs.
 export type {
   // state and result
   MatchState,
@@ -125,31 +144,29 @@ export type {
   DecisionSituation,
 } from "./game/index.js";
 
-// 2c. The game-level event stream. INTERIM until ADR-014 (see game/events.ts):
-//     these members are a contract petition, not an engine invention, and they
-//     collapse into `MatchEvent` on ratification.
-export type {
-  GameEvent,
-  GameEventEnvelope,
-  InterimGameEvent,
-  PossessionCause,
-  DriveResult,
-  ScoreKind,
-  PlacekickKind,
-  CoachDecisionKind,
-} from "./game/events.js";
+// 2c. CATEGORY 2 — the game-level event stream, as NAMES rather than as a union.
+//     ADR-014 ratified the eleven game-structure members into `MatchEvent`, so
+//     `GameEvent` is an alias of it and `PossessionCause`, `DriveResult`,
+//     `ScoreKind`, `PlacekickKind`, `CoachDecisionKind` and `GameEndReason` live
+//     in `@ff/contracts`. They are deliberately NOT re-exported here: a second
+//     import path for a contracts type is exactly the local-copy drift ADR-013
+//     named the unions to prevent.
+export type { GameEvent, GameEventEnvelope, GameScopedEvent, PlayScopedEvent } from "./game/events.js";
 
-// 3. The tunables-patch interface. The type and the patcher — never the value.
+// 3. CATEGORY 3 — the tunables-PATCH interface: the type and the patcher, never
+//    the value. `Tunables` is also what the entry points' optional argument is
+//    typed against, so a caller can pin a version it obtained by patching.
 export { applyTunablePatch, TunablePatchError } from "./tunables.js";
 export type { Tunables, TunablePatch } from "./tunables.js";
 
-// 4. The §17 debug renderers — one play, and one game.
+// 4. CATEGORY 4 — the §17 debug renderers: one play, and one game.
 export { renderPlay } from "./debug/renderPlay.js";
 export type { NameLookup } from "./debug/renderPlay.js";
 export { renderDriveChart, renderGameSummary, renderBoxScore } from "./debug/renderGame.js";
 export type { GameNameLookup } from "./debug/renderGame.js";
 
-// 5. The statline reducer. PROPOSED as a fifth ADR-012 category; see the header.
+// 5. CATEGORY 5 — the statline reducer and the statline shapes it returns.
+//    Ratified as ADR-014 item 15 (an amendment to ADR-012 §B).
 export { reduceStatlines } from "./stats/statline.js";
 export type {
   StatLine,

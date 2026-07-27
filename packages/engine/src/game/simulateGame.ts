@@ -31,11 +31,12 @@
  *    generator is carried across plays.
  *
  * 3. `gameId` IS DERIVED FROM SCHEDULE COORDINATES (`deriveGameId`), never from
- *    a counter or a clock, and the seed string is written onto `GAME_SUMMARY`
- *    and `GameSummary`.
+ *    a counter or a clock, and the seed string is written onto `GAME_END` and
+ *    `GameSummary`.
  *
  * 4. POSSESSION, DRIVES, PERIODS AND SCORING ARE EVENTS, not just state deltas.
- *    See `game/events.ts` for why they are engine-local and interim.
+ *    Ratified as ADR-014; `game/events.ts` is now a log over contracts' own
+ *    union rather than an engine-local one.
  *
  * 5. STATLINES ARE A REDUCER OVER THE RETURNED STREAM — literally
  *    `reduceStatlines(events)` on the array this function is about to return.
@@ -48,15 +49,24 @@
  * and NFL overtime possession rules.
  */
 import { createRng } from "@ff/contracts";
-import type { MatchEventEnvelope, PlayerId, PlayerState, TeamId } from "@ff/contracts";
+import type {
+  DriveResult,
+  GameEndReason,
+  MatchEventEnvelope,
+  PlayerId,
+  PlayerState,
+  PossessionCause,
+  TeamId,
+} from "@ff/contracts";
 import { rollD100 } from "../rolls.js";
 import { simulatePlay } from "../sim/play.js";
 import { reduceStatlines } from "../stats/statline.js";
 import type { StatLine } from "../stats/statline.js";
 import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { AnyPlayCalls, MatchGameState, PlayCalls, RunPlayCalls } from "../types.js";
 import { GameEventLog } from "./events.js";
-import type { DriveResult, GameEventEnvelope, PossessionCause } from "./events.js";
+import type { GameEventEnvelope } from "./events.js";
 import {
   fieldGoalDistanceFrom,
   missedFieldGoalYardLine,
@@ -75,9 +85,6 @@ import type {
   Scoreboard,
   TeamSnapshot,
 } from "./types.js";
-
-const G = TUNABLES.game;
-const ST = G.specialTeams;
 
 export interface GameResult {
   readonly events: readonly GameEventEnvelope[];
@@ -99,7 +106,18 @@ export class GameLoopError extends Error {
  * signature stays `(state, inputs, seed)` and the state stays something a caller
  * can construct, persist, diff and hand back.
  */
-export function createMatchState(coordinates: GameCoordinates, snapshot: GameSnapshot): MatchState {
+export function createMatchState(
+  coordinates: GameCoordinates,
+  snapshot: GameSnapshot,
+  /**
+   * Optional on the barrel's own surface, as `simulateGame` is. Its only two
+   * tunable reads are pre-kickoff placeholders — the opening kickoff overwrites
+   * both before a snap happens — so a caller that constructs the state with the
+   * default and runs the game under a patch cannot observe the difference.
+   */
+  tunables: Tunables = TUNABLES,
+): MatchState {
+  const G = tunables.game;
   return {
     gameId: deriveGameId(coordinates),
     at: snapshot.at,
@@ -115,7 +133,7 @@ export function createMatchState(coordinates: GameCoordinates, snapshot: GameSna
     possession: coordinates.home,
     down: 1,
     distance: G.field.firstDownYards,
-    ballOn: ST.kickoff.touchbackYardLine,
+    ballOn: G.specialTeams.kickoff.touchbackYardLine,
     score: { home: 0, away: 0 },
     drive: undefined,
     secondHalfKickoffBy: coordinates.away,
@@ -125,7 +143,20 @@ export function createMatchState(coordinates: GameCoordinates, snapshot: GameSna
   };
 }
 
-export function simulateGame(state: MatchState, inputs: GameInputs, seed: string): GameResult {
+export function simulateGame(
+  state: MatchState,
+  inputs: GameInputs,
+  seed: string,
+  /**
+   * ADR-012's open item, closed. OPTIONAL here — this is the barrel's surface —
+   * and REQUIRED at every boundary beneath, including the decision requests the
+   * play-caller receives, so no part of one game can run under a different
+   * tunables version from any other part of it.
+   */
+  tunables: Tunables = TUNABLES,
+): GameResult {
+  const G = tunables.game;
+  const ST = G.specialTeams;
   if (state.phase === "FINAL") {
     throw new GameLoopError("this game is already over; construct a new MatchState to re-run it");
   }
@@ -278,7 +309,7 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
     });
   };
 
-  function finish(reason: "REGULATION" | "OVERTIME" | "TIE"): void {
+  function finish(reason: GameEndReason): void {
     if (s.drive !== undefined) endDrive("END_OF_GAME", 0, s.ballOn);
     if (periodScores.length < s.period) closePeriod();
     s = { ...s, phase: "FINAL", finalReason: reason };
@@ -353,10 +384,16 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
         : ST.kickoff.fromYardLine;
 
     const result = resolveKickoff({
+      tunables,
       kicker: playerOf(kickingSnapshot, kickingSnapshot.specialTeams.kicker),
       returner: playerOf(receivingSnapshot, receivingSnapshot.specialTeams.returner),
       rng: gameRng.fork(`kickoff:${kickoffNumber}`),
     });
+    // ADR-004: the rolls are recorded HERE, once, and the summary below names
+    // them by rngLabel. The CHECKs come first so every reference points back.
+    const playId = log.specialTeamsPlayId("kickoff", kickoffNumber);
+    log.check(playId, result.check);
+    if (result.returnCheck !== undefined) log.check(playId, result.returnCheck);
     log.kickoff({
       kicker: kickingSnapshot.specialTeams.kicker,
       team: kicking,
@@ -365,8 +402,10 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
       ...(result.touchback ? {} : { returner: receivingSnapshot.specialTeams.returner }),
       returnYards: result.returnYards,
       resultYardLine: result.resultYardLine,
-      roll: result.roll,
-      ...(result.returnRoll === undefined ? {} : { returnRoll: result.returnRoll }),
+      rollRef: result.check.roll.rngLabel,
+      ...(result.returnCheck === undefined
+        ? {}
+        : { returnRollRef: result.returnCheck.roll.rngLabel }),
     });
 
     s = { ...s, kickoffNumber, pendingKickoff: undefined, clockStopped: true };
@@ -382,11 +421,15 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
     const offense = snapshotOf(s.possession);
     const defense = snapshotOf(other(s.possession));
     const result = resolvePunt({
+      tunables,
       punter: playerOf(offense, offense.specialTeams.punter),
       returner: playerOf(defense, defense.specialTeams.returner),
       fromYardLine: s.ballOn,
       rng: gameRng.fork(`drive:${s.driveNumber}`),
     });
+    const playId = log.specialTeamsPlayId("punt", s.driveNumber);
+    log.check(playId, result.check);
+    if (result.returnCheck !== undefined) log.check(playId, result.returnCheck);
     log.punt({
       punter: offense.specialTeams.punter,
       team: s.possession,
@@ -397,8 +440,10 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
       ...(result.touchback || result.downed ? {} : { returner: defense.specialTeams.returner }),
       returnYards: result.returnYards,
       resultYardLine: result.resultYardLine,
-      roll: result.roll,
-      ...(result.returnRoll === undefined ? {} : { returnRoll: result.returnRoll }),
+      rollRef: result.check.roll.rngLabel,
+      ...(result.returnCheck === undefined
+        ? {}
+        : { returnRollRef: result.returnCheck.roll.rngLabel }),
     });
     burn(ST.elapsedSeconds.punt);
     endDrive("PUNT", 0, s.ballOn);
@@ -410,12 +455,14 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
   const doFieldGoal = (): void => {
     const offense = snapshotOf(s.possession);
     const kicking = s.possession;
-    const distance = fieldGoalDistanceFrom(s.ballOn);
+    const distance = fieldGoalDistanceFrom(tunables, s.ballOn);
     const result = resolvePlacekick({
+      tunables,
       kicker: playerOf(offense, offense.specialTeams.kicker),
       distanceYards: distance,
       rng: gameRng.fork(`drive:${s.driveNumber}`).fork("fieldGoal"),
     });
+    log.check(log.specialTeamsPlayId("fieldGoal", s.driveNumber), result.check);
     log.placekick({
       kind: "FIELD_GOAL",
       kicker: offense.specialTeams.kicker,
@@ -423,7 +470,7 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
       distanceYards: distance,
       made: result.made,
       band: result.band,
-      roll: result.roll,
+      rollRef: result.check.roll.rngLabel,
       target: result.target,
     });
     burn(ST.elapsedSeconds.fieldGoal);
@@ -442,7 +489,7 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
       return;
     }
 
-    const spot = missedFieldGoalYardLine(s.ballOn);
+    const spot = missedFieldGoalYardLine(tunables, s.ballOn);
     endDrive("MISSED_FIELD_GOAL", 0, s.ballOn);
     changePossession(other(kicking), "MISSED_FIELD_GOAL", spot);
     s = { ...s, clockStopped: true };
@@ -452,10 +499,12 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
   const doExtraPoint = (): void => {
     const offense = snapshotOf(s.possession);
     const result = resolvePlacekick({
+      tunables,
       kicker: playerOf(offense, offense.specialTeams.kicker),
       distanceYards: ST.extraPoint.distanceYards,
       rng: gameRng.fork(`drive:${s.driveNumber}`).fork("pat"),
     });
+    log.check(log.specialTeamsPlayId("pat", s.driveNumber), result.check);
     log.placekick({
       kind: "EXTRA_POINT",
       kicker: offense.specialTeams.kicker,
@@ -463,7 +512,7 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
       distanceYards: ST.extraPoint.distanceYards,
       made: result.made,
       band: result.band,
-      roll: result.roll,
+      rollRef: result.check.roll.rngLabel,
       target: result.target,
     });
     if (result.made) addScore(s.possession, "EXTRA_POINT", G.points.extraPoint);
@@ -487,9 +536,10 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
       const choice = callerOf(offenseTeam).decideFourthDown({
         kind: "FOURTH_DOWN",
         authority: "COACH",
+        tunables,
         situation: situationFor(),
         offense: offenseSnapshot,
-        fieldGoalDistanceYards: fieldGoalDistanceFrom(s.ballOn),
+        fieldGoalDistanceYards: fieldGoalDistanceFrom(tunables, s.ballOn),
       });
       log.coachDecision("FOURTH_DOWN", offenseTeam, choice);
       if (choice === "PUNT") return doPunt();
@@ -502,6 +552,7 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
       {
         kind: "OFFENSIVE_PLAY_CALL",
         authority: "COACH",
+        tunables,
         situation,
         offense: offenseSnapshot,
         defense: defenseSnapshot,
@@ -512,6 +563,7 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
       {
         kind: "DEFENSIVE_PLAY_CALL",
         authority: "COACH",
+        tunables,
         situation,
         offense: offenseSnapshot,
         defense: defenseSnapshot,
@@ -540,7 +592,7 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
         ? ({ offense: offenseCall, defense: defenseCall } satisfies RunPlayCalls)
         : ({ offense: offenseCall, defense: defenseCall } satisfies PlayCalls);
 
-    const played = simulatePlay(playState, calls, seed);
+    const played = simulatePlay(playState, calls, seed, tunables);
     log.append(played.events);
 
     const outcome = readPlayResult(played.events);
@@ -618,6 +670,7 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
     const choice = callerOf(winner).decideCoinToss({
       kind: "COIN_TOSS",
       authority: "COACH",
+      tunables,
       situation: situationFor(),
       winner,
     });
@@ -675,17 +728,17 @@ export function simulateGame(state: MatchState, inputs: GameInputs, seed: string
   }
 
   const reason = s.finalReason ?? "REGULATION";
-  log.gameEnd(s.score.home, s.score.away);
-  log.gameSummary({
-    seed,
-    home: s.home,
-    away: s.away,
-    homeScore: s.score.home,
-    awayScore: s.score.away,
+  // ONE closing event (ADR-014 item 8). `GAME_SUMMARY` is gone: it existed only
+  // because the narrow `GAME_END` could not carry provenance, and carrying the
+  // same game's ending in two events meant two things to keep in agreement.
+  log.gameEnd({
+    home: s.score.home,
+    away: s.score.away,
     periods: periodScores.map((p, i) => ({ period: i + 1, home: p.home, away: p.away })),
     plays: s.playNumber - state.playNumber,
     drives: drivesCompleted,
     reason,
+    seed,
   });
 
   const events = log.drain();

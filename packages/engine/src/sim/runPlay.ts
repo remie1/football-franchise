@@ -28,6 +28,7 @@ import { PlayEventLog } from "../events.js";
 import type { CheckEmission } from "../events.js";
 import { clamp } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type {
   CoverageShell,
   GapId,
@@ -71,12 +72,14 @@ export function simulateRunPlay(
   state: MatchGameState,
   calls: RunPlayCalls,
   seed: string,
+  /** Optional HERE and required beneath — see `simulatePassPlay`. */
+  tunables: Tunables = TUNABLES,
 ): SimulationResult {
   // ADR-006 — internal coherence only, before a single die is thrown.
   assertCoherentRunCall(state, calls);
 
   const playId = makePlayId(`${String(state.gameId)}:play:${state.playNumber}`);
-  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq);
+  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq, tunables);
   const carrier = requirePlayer(state, calls.offense.carrier);
 
   const playRng = createRng(seed, `game:${String(state.gameId)}`).fork(`play:${state.playNumber}`);
@@ -85,11 +88,11 @@ export function simulateRunPlay(
   const decisionRng = playRng.fork("decision");
   const carrierRng = playRng.fork("carrier");
 
-  const phases = TUNABLES.runGame.phaseTicks;
+  const phases = tunables.runGame.phaseTicks;
   const designed: GapId = { gap: calls.offense.designedGap, side: calls.offense.designedSide };
 
   log.setTick(undefined);
-  log.playStart(buildStartPayload(state, calls));
+  log.playStart(buildStartPayload(tunables, state, calls));
 
   // ---- PHASE 1 (§14.2 / §6.3 / §6.2) --------------------------------------
   log.tickStart(phases.lineBattle);
@@ -102,6 +105,7 @@ export function simulateRunPlay(
     const gapRng = lineRng.fork(key);
 
     const block = resolveRunBlock({
+      tunables,
       blocker,
       defender,
       doubleTeam: assignment.doubleTeamWith !== undefined,
@@ -114,7 +118,7 @@ export function simulateRunPlay(
     // `gapDiscipline` anywhere in the engine.
     let overflowed = false;
     if (calls.offense.scheme === "ZONE") {
-      const integrity = resolveGapIntegrity({ blocker, defender, gapRng: gapRng.fork("integrity") });
+      const integrity = resolveGapIntegrity({ tunables, blocker, defender, gapRng: gapRng.fork("integrity") });
       log.check(integrity.check);
       overflowed = integrity.overflowed;
     }
@@ -133,15 +137,16 @@ export function simulateRunPlay(
 
   // ---- PHASE 2 (§14.2 / §6.4) ---------------------------------------------
   log.tickStart(phases.secondLevel);
-  const secondLevel = secondLevelDefenders(state, calls, engagedDefenders);
+  const secondLevel = secondLevelDefenders(tunables, state, calls, engagedDefenders);
   const climbedOut = new Set<string>();
   let climbIndex = 0;
   for (const engagement of engagements) {
-    if (!climbTriggered(engagement.blockMargin)) continue;
+    if (!climbTriggered(tunables, engagement.blockMargin)) continue;
     const linebacker = secondLevel.find((d) => !climbedOut.has(String(d.player.bio.id)));
     if (linebacker === undefined) break;
     climbIndex += 1;
     const climb = resolveSecondLevelClimb({
+      tunables,
       climber: engagement.blocker,
       linebacker: linebacker.player,
       climbRng: climbRng.fork(`c${climbIndex}:${gapKey(engagement)}`),
@@ -159,7 +164,7 @@ export function simulateRunPlay(
   log.tickStart(phases.rbDecision);
   let foundBestLane = false;
   if (calls.offense.scheme === "ZONE") {
-    const vision = resolveRbVision({ carrier, visionRng: decisionRng.fork("vision") });
+    const vision = resolveRbVision({ tunables, carrier, visionRng: decisionRng.fork("vision") });
     log.check(vision.check);
     foundBestLane = vision.foundBestLane;
   }
@@ -168,7 +173,7 @@ export function simulateRunPlay(
   const running = engagements.find((e) => e.gap === chosen.gap && e.side === chosen.side);
   if (running === undefined) throw new Error("@ff/engine: chosen gap has no engagement");
 
-  const poa = pointOfAttackFor(running.blockMargin);
+  const poa = pointOfAttackFor(tunables, running.blockMargin);
   const yardsToGoalLine = 100 - state.ballOn;
   let yards = poa.yardsBeforeContact;
   let down = false;
@@ -177,6 +182,7 @@ export function simulateRunPlay(
   // the attribute pairings are the doc's own and they are different.
   if (poa.contact === "POWER" || poa.contact === "EVADE") {
     const contest = resolveTackleContest({
+      tunables,
       carrier,
       tackler: running.defender,
       profile: poa.contact === "POWER" ? "atLosPower" : "atLosEvade",
@@ -188,15 +194,16 @@ export function simulateRunPlay(
       down = true;
       // §14.3 "Failure: TFL". The doc never says how far back; see
       // `TUNABLES.runGame.tflYardsLost`.
-      if (poa.contact === "EVADE") yards = -TUNABLES.runGame.tflYardsLost;
+      if (poa.contact === "EVADE") yards = -tunables.runGame.tflYardsLost;
     }
   }
 
   // ---- §14.4 second level and beyond — the SHARED machinery ---------------
   if (!down) {
     log.tickStart(phases.openField);
-    const pursuers = buildPursuers(state, calls, secondLevel, engagedDefenders);
+    const pursuers = buildPursuers(tunables, state, calls, secondLevel, engagedDefenders);
     const advance = advanceCarrier({
+      tunables,
       carrier,
       mode: "RUSH",
       pursuers,
@@ -208,7 +215,7 @@ export function simulateRunPlay(
       // YAC_ZONE: rushing yards in a receiving aggregate is exactly the silent
       // corruption the schema exists to prevent.
       emitZone: (zone, yardsInZone) => log.rushZone(carrier.bio.id, zone, yardsInZone),
-      onZoneEntered: (zone) => log.tickStart(zoneTick(zone)),
+      onZoneEntered: (zone) => log.tickStart(zoneTick(tunables, zone)),
     });
     // §17.2's "broken tackles" is counted from the `break_tackle` CHECKs, not
     // carried here: the stream is the source of truth (Charter pillar 3).
@@ -223,12 +230,12 @@ export function simulateRunPlay(
   const outcome: PlayOutcome = {
     yards: gained,
     turnover: false,
-    clockRunoff: TUNABLES.result.clockRunoff.run,
-    ...(state.ballOn + gained >= 100 ? { score: TUNABLES.result.touchdownPoints } : {}),
+    clockRunoff: tunables.result.clockRunoff.run,
+    ...(state.ballOn + gained >= 100 ? { score: tunables.result.touchdownPoints } : {}),
   };
   log.playResult(outcome.yards, outcome.turnover, outcome.clockRunoff, outcome.score);
 
-  return { events: log.drain(), newState: applyPlayOutcome(state, outcome, log.nextSeq) };
+  return { events: log.drain(), newState: applyPlayOutcome(tunables, state, outcome, log.nextSeq) };
 }
 
 // ---------------------------------------------------------------------------
@@ -256,6 +263,7 @@ interface SecondLevelDefender {
  * does not chase, which is a real simplification.
  */
 function secondLevelDefenders(
+  tunables: Tunables,
   state: MatchGameState,
   calls: RunPlayCalls,
   engagedDefenders: ReadonlySet<string>,
@@ -273,12 +281,12 @@ function secondLevelDefenders(
     add(
       assignment.defender,
       assignment.kind === "ZONE"
-        ? depthOfVerticalZone(assignment.zone.vertical)
-        : TUNABLES.runGame.manDefenderDepthYards,
+        ? depthOfVerticalZone(tunables, assignment.zone.vertical)
+        : tunables.runGame.manDefenderDepthYards,
     );
   }
   for (const rusher of calls.defense.rush) {
-    add(rusher.rusher, depthOfVerticalZone(TUNABLES.zoneModel.backfieldVertical));
+    add(rusher.rusher, depthOfVerticalZone(tunables, tunables.zoneModel.backfieldVertical));
   }
   // Deepest last: a back running downhill meets the linebackers before the
   // safeties. Ties break on id so the order is total and needs no die.
@@ -289,6 +297,7 @@ function secondLevelDefenders(
 
 /** §14.4's pool, with §14.5's perimeter blocks attached to the men they target. */
 function buildPursuers(
+  tunables: Tunables,
   state: MatchGameState,
   calls: RunPlayCalls,
   secondLevel: readonly SecondLevelDefender[],
@@ -308,7 +317,7 @@ function buildPursuers(
     // "SUCCESS: LB engaged, clean lane for RB").
     if (defender.engaged) continue;
     if (engagedDefenders.has(String(defender.player.bio.id))) continue;
-    const zone = zoneOfDefender(defender.depthYards, 0);
+    const zone = zoneOfDefender(tunables, defender.depthYards, 0);
     if (zone === undefined) continue;
     const block = perimeter.get(String(defender.player.bio.id));
     out.push({
@@ -321,12 +330,16 @@ function buildPursuers(
 }
 
 /** Ticks for the open-field phase, half a second per §13.1 zone. */
-function zoneTick(zone: number): number {
-  const phases = TUNABLES.runGame.phaseTicks;
-  return Number((phases.openField + (zone - 1) * TUNABLES.clock.tickStepSeconds).toFixed(1));
+function zoneTick(tunables: Tunables, zone: number): number {
+  const phases = tunables.runGame.phaseTicks;
+  return Number((phases.openField + (zone - 1) * tunables.clock.tickStepSeconds).toFixed(1));
 }
 
-function buildStartPayload(state: MatchGameState, calls: RunPlayCalls): RunPlayStartPayload {
+function buildStartPayload(
+  tunables: Tunables,
+  state: MatchGameState,
+  calls: RunPlayCalls,
+): RunPlayStartPayload {
   return {
     kind: "RUN_PLAY_V1",
     offense: {
@@ -348,7 +361,7 @@ function buildStartPayload(state: MatchGameState, calls: RunPlayCalls): RunPlayS
       rush: calls.defense.rush.map((r) => ({
         rusher: r.rusher,
         move: r.move,
-        alignment: rushAlignmentFor(requirePlayer(state, r.rusher).bio.position, r.alignment),
+        alignment: rushAlignmentFor(tunables, requirePlayer(state, r.rusher).bio.position, r.alignment),
       })),
     },
     situation: {

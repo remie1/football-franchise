@@ -64,7 +64,8 @@ describe("ADR-012 — the barrel is exactly the permitted surface", () => {
     "renderDriveChart",
     "renderGameSummary",
     "renderBoxScore",
-    // 5. PROPOSED FIFTH CATEGORY (ADR-014): the statline reducer. Per
+    // 5. FIFTH CATEGORY, ratified as ADR-014 item 15 (an amendment to ADR-012
+    //    §B): the statline reducer and the statline shapes it returns. Per
     //    FANTASY-GATE-PHASE1 §3.5 the box score must be a pure reduction of the
     //    stream, and the reducer is LOGIC so it cannot live in contracts
     //    (`contracts.md` §10). Without it here, calibration writes a second

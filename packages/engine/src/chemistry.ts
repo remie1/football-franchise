@@ -8,20 +8,21 @@
  * runs on the franchise calendar and the engine is calendar-blind.
  *
  * Everything degrades to neutral. Absent table, absent passer, absent pair, or a
- * non-numeric entry all read `TUNABLES.chemistry.neutralLevel` — which produces
+ * non-numeric entry all read `tunables.chemistry.neutralLevel` — which produces
  * a zero modifier, which `compact()` drops, which is the engine's pre-ADR-008
  * behaviour exactly. That is what makes the migration a genuine no-op.
  */
 import type { ChemistryTable, PlayerId, RollModifier } from "@ff/contracts";
-import { TUNABLES } from "./tunables.js";
+import type { Tunables } from "./tunables.js";
 
 /** The pair's 0-100 level, or neutral when the table cannot answer. */
 export function chemistryLevel(
+  tunables: Tunables,
   table: ChemistryTable | undefined,
   quarterback: PlayerId,
   receiver: PlayerId,
 ): number {
-  const neutral = TUNABLES.chemistry.neutralLevel;
+  const neutral = tunables.chemistry.neutralLevel;
   if (table === undefined) return neutral;
   const row = table[quarterback as unknown as string];
   if (row === undefined) return neutral;
@@ -30,13 +31,13 @@ export function chemistryLevel(
 }
 
 /** True when the pairing is ESTABLISHED for §10.4's "+5 chemistry with receiver". */
-export function chemistryEstablished(level: number): boolean {
-  return level >= TUNABLES.chemistry.establishedThreshold;
+export function chemistryEstablished(tunables: Tunables, level: number): boolean {
+  return level >= tunables.chemistry.establishedThreshold;
 }
 
 /** True when §10.2's back-shoulder throw has the chemistry it "requires". */
-export function chemistrySupportsBackShoulder(level: number): boolean {
-  return level >= TUNABLES.chemistry.backShoulderThreshold;
+export function chemistrySupportsBackShoulder(tunables: Tunables, level: number): boolean {
+  return level >= tunables.chemistry.backShoulderThreshold;
 }
 
 /**
@@ -45,8 +46,8 @@ export function chemistrySupportsBackShoulder(level: number): boolean {
  * zero-valued modifier at neutral, which `compact()` then drops — the printout
  * gains the line only when the pairing actually means something.
  */
-export function anticipationChemistryModifier(level: number): RollModifier {
-  const t = TUNABLES.chemistry;
+export function anticipationChemistryModifier(tunables: Tunables, level: number): RollModifier {
+  const t = tunables.chemistry;
   return {
     source: `QB/receiver chemistry (${level})`,
     value: Math.round((level - t.neutralLevel) / t.anticipationDivisor),

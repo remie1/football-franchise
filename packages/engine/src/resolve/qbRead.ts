@@ -3,7 +3,7 @@ import { getAttr } from "@ff/contracts";
 import type { AttrId, PlayerState, Rng, RollDetail, RollModifier } from "@ff/contracts";
 import { ATTR, TRAIT } from "../attrs.js";
 import { clamp, flatModifier, rollD20 } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { PocketStatus, ReadSystem } from "../types.js";
 import { readCapacityDeltaFor } from "./pocket.js";
 
@@ -34,12 +34,13 @@ const TIGHT_WINDOW_ATTRS: readonly AttrId[] = [ATTR.accuracy, ATTR.armStrength, 
  * perceived openness reconstructible from the stream.
  */
 export function resolveQbRead(
+  tunables: Tunables,
   qb: PlayerState,
   actualOpenness: number,
   readRng: Rng,
   extraModifiers: readonly RollModifier[] = [],
 ): QbReadOutcome {
-  const t = TUNABLES.qb;
+  const t = tunables.qb;
   const awarenessTerm = Math.round(
     (getAttr(qb.attributes.values, ATTR.awareness) - t.awarenessVariance.baseline) / t.awarenessVariance.divisor,
   );
@@ -50,12 +51,12 @@ export function resolveQbRead(
   ]);
 
   const perceivedOpenness = Math.round(
-    clamp(actualOpenness + varianceRoll.total, TUNABLES.route.minOpenness, TUNABLES.route.maxOpenness),
+    clamp(actualOpenness + varianceRoll.total, tunables.route.minOpenness, tunables.route.maxOpenness),
   );
   const tightWindow = perceivedOpenness < t.window.tightWindowThreshold;
-  const windowModifier = tightWindow ? windowModifierFor(qb) : 0;
+  const windowModifier = tightWindow ? windowModifierFor(tunables, qb) : 0;
   const effectiveOpenness = Math.round(
-    clamp(perceivedOpenness + windowModifier, TUNABLES.route.minOpenness, TUNABLES.route.maxOpenness),
+    clamp(perceivedOpenness + windowModifier, tunables.route.minOpenness, tunables.route.maxOpenness),
   );
 
   return {
@@ -71,8 +72,8 @@ export function resolveQbRead(
 }
 
 /** §8.4 — what a tight window is worth to THIS quarterback. */
-export function windowModifierFor(qb: PlayerState): number {
-  const w = TUNABLES.qb.window;
+export function windowModifierFor(tunables: Tunables, qb: PlayerState): number {
+  const w = tunables.qb.window;
   const v = qb.attributes.values;
   return (
     Math.round((getAttr(v, ATTR.accuracy) - w.baseline) / w.accuracyDivisor) +
@@ -82,19 +83,24 @@ export function windowModifierFor(qb: PlayerState): number {
 }
 
 /** §8.1 + §8.2 — reads available this tick, before the fractional carry. */
-export function readCapacityPerTick(qb: PlayerState, system: ReadSystem, pocket: PocketStatus): number {
-  const t = TUNABLES.qb;
+export function readCapacityPerTick(
+  tunables: Tunables,
+  qb: PlayerState,
+  system: ReadSystem,
+  pocket: PocketStatus,
+): number {
+  const t = tunables.qb;
   const extra = Math.floor(
     (getAttr(qb.attributes.values, ATTR.decisionMaking) - t.extraReads.baseline) / t.extraReads.divisor,
   );
   const systemRate = t.readSystem[system].readsPerTick;
   const floor = Math.min(systemRate, t.minReadsPerTick);
   const base = systemRate + Math.max(0, extra);
-  return Math.max(floor, base + readCapacityDeltaFor(pocket));
+  return Math.max(floor, base + readCapacityDeltaFor(tunables, pocket));
 }
 
-export function maxReadsFor(system: ReadSystem): number {
-  return TUNABLES.qb.readSystem[system].maxReads;
+export function maxReadsFor(tunables: Tunables, system: ReadSystem): number {
+  return tunables.qb.readSystem[system].maxReads;
 }
 
 /**
@@ -106,8 +112,8 @@ export function maxReadsFor(system: ReadSystem): number {
  * working a four-man progression at half a read per tick has not finished
  * looking when a half-field passer is already out of the play.
  */
-export function timeBudgetSeconds(qb: PlayerState, system: ReadSystem): number {
-  const t = TUNABLES.qb;
+export function timeBudgetSeconds(tunables: Tunables, qb: PlayerState, system: ReadSystem): number {
+  const t = tunables.qb;
   const patience = getAttr(qb.attributes.values, ATTR.pocketPatience);
   const sensing = qb.attributes.traits.has(TRAIT.pocketAwareness as unknown as string)
     ? t.pressureSensing.pocketAwarenessBudgetSeconds
@@ -125,6 +131,6 @@ export function timeBudgetSeconds(qb: PlayerState, system: ReadSystem): number {
  * trigger on a primary. A full-field passer has reads left and passes on a
  * marginal window; a concept passer has two and takes what the key gives him.
  */
-export function throwThresholdFor(system: ReadSystem): number {
-  return TUNABLES.qb.throwThreshold + TUNABLES.qb.readSystem[system].throwThresholdDelta;
+export function throwThresholdFor(tunables: Tunables, system: ReadSystem): number {
+  return tunables.qb.throwThreshold + tunables.qb.readSystem[system].throwThresholdDelta;
 }

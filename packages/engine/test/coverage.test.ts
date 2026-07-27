@@ -21,7 +21,7 @@ const poorWr = makePlayer("wr-poor", "Blocked Up", "WR", {
 
 describe("§9.1 release vs. press", () => {
   it("is WR (Release + Agility) vs. CB (Press + Strength)", () => {
-    const out = resolveReleaseVsPress({
+    const out = resolveReleaseVsPress({ tunables: TUNABLES,
       receiver: eliteWr, defender: eliteCb, coverageRng: createRng("s", "cov"),
     });
     const wrSources = out.receiverRoll.modifiers.map((m) => m.source);
@@ -39,8 +39,8 @@ describe("§9.1 release vs. press", () => {
     let clean = 0;
     let disrupted = 0;
     for (let i = 0; i < 100; i++) {
-      const win = resolveReleaseVsPress({ receiver: eliteWr, defender: poorCb, coverageRng: createRng(`r-${i}`, "cov") });
-      const loss = resolveReleaseVsPress({ receiver: poorWr, defender: eliteCb, coverageRng: createRng(`r-${i}`, "cov") });
+      const win = resolveReleaseVsPress({ tunables: TUNABLES, receiver: eliteWr, defender: poorCb, coverageRng: createRng(`r-${i}`, "cov") });
+      const loss = resolveReleaseVsPress({ tunables: TUNABLES, receiver: poorWr, defender: eliteCb, coverageRng: createRng(`r-${i}`, "cov") });
       if (win.delaySeconds === 0) clean++;
       if (loss.disrupted) disrupted++;
       expect(win.delaySeconds).toBeGreaterThanOrEqual(0);
@@ -53,7 +53,7 @@ describe("§9.1 release vs. press", () => {
   it("labels the roll with the ENTITY's position, not the check's role (B2)", () => {
     const te = makePlayer("te-b2", "Sam Pryor", "TE", { releaseWR: 70, agility: 76 });
     const mlb = makePlayer("lb-b2", "Isaiah Ford", "MLB", { press: 60, strength: 78 });
-    const out = resolveReleaseVsPress({ receiver: te, defender: mlb, coverageRng: createRng("s", "cov") });
+    const out = resolveReleaseVsPress({ tunables: TUNABLES, receiver: te, defender: mlb, coverageRng: createRng("s", "cov") });
     const wrSources = out.receiverRoll.modifiers.map((m) => m.source);
     const cbSources = out.defenderRoll.modifiers.map((m) => m.source);
     // The attribute's own name survives; only the fabricated role prefix goes.
@@ -75,36 +75,36 @@ describe("§9.1 release vs. press", () => {
 
 describe("§9.2 route development", () => {
   it("adds jam delay to the base development time", () => {
-    expect(routeReadySeconds("QUICK", 0)).toBe(1.0);
-    expect(routeReadySeconds("SHORT", 0)).toBe(1.5);
-    expect(routeReadySeconds("INTERMEDIATE", 0)).toBe(2.0);
-    expect(routeReadySeconds("DEEP", 0)).toBe(2.5);
-    expect(routeReadySeconds("DEEP", 1.5)).toBe(4.0);
+    expect(routeReadySeconds(TUNABLES, "QUICK", 0)).toBe(1.0);
+    expect(routeReadySeconds(TUNABLES, "SHORT", 0)).toBe(1.5);
+    expect(routeReadySeconds(TUNABLES, "INTERMEDIATE", 0)).toBe(2.0);
+    expect(routeReadySeconds(TUNABLES, "DEEP", 0)).toBe(2.5);
+    expect(routeReadySeconds(TUNABLES, "DEEP", 1.5)).toBe(4.0);
   });
 
   it("openness grows until the decay point then falls (§8.7)", () => {
     const base = 50;
-    expect(opennessAt(base, 2.0, 2.0)).toBe(50);
-    expect(opennessAt(base, 2.0, 2.5)).toBe(55);
-    expect(opennessAt(base, 2.0, 3.0)).toBe(60);
-    expect(opennessAt(base, 2.0, 3.5)).toBe(55);
-    expect(opennessAt(base, 2.0, 4.0)).toBe(50);
-    expect(opennessAt(base, 2.5, 1.0)).toBe(50); // not open yet: no growth applied
-    expect(opennessAt(95, 1.0, 3.0)).toBe(100);  // clamped to the scale
-    expect(opennessAt(5, 1.0, 6.0)).toBe(0);
+    expect(opennessAt(TUNABLES, base, 2.0, 2.0)).toBe(50);
+    expect(opennessAt(TUNABLES, base, 2.0, 2.5)).toBe(55);
+    expect(opennessAt(TUNABLES, base, 2.0, 3.0)).toBe(60);
+    expect(opennessAt(TUNABLES, base, 2.0, 3.5)).toBe(55);
+    expect(opennessAt(TUNABLES, base, 2.0, 4.0)).toBe(50);
+    expect(opennessAt(TUNABLES, base, 2.5, 1.0)).toBe(50); // not open yet: no growth applied
+    expect(opennessAt(TUNABLES, 95, 1.0, 3.0)).toBe(100);  // clamped to the scale
+    expect(opennessAt(TUNABLES, 5, 1.0, 6.0)).toBe(0);
   });
 
   it("reports route phase from jam, development, break and decay", () => {
-    expect(routePhaseAt(0.5, 3.0, 1.0)).toBe("JAMMED");
-    expect(routePhaseAt(1.5, 3.0, 1.0)).toBe("DEVELOPING");
-    expect(routePhaseAt(1.5, 1.5, 0)).toBe("OPEN");
-    expect(routePhaseAt(3.5, 1.5, 0)).toBe("DECAYING");
+    expect(routePhaseAt(TUNABLES, 0.5, 3.0, 1.0)).toBe("JAMMED");
+    expect(routePhaseAt(TUNABLES, 1.5, 3.0, 1.0)).toBe("DEVELOPING");
+    expect(routePhaseAt(TUNABLES, 1.5, 1.5, 0)).toBe("OPEN");
+    expect(routePhaseAt(TUNABLES, 3.5, 1.5, 0)).toBe("DECAYING");
   });
 });
 
 describe("§9.3 man coverage", () => {
   it("is WR (Route Running + Agility) vs. CB (Man Coverage + Agility)", () => {
-    const out = resolveManCoverage({
+    const out = resolveManCoverage({ tunables: TUNABLES,
       receiver: eliteWr, defender: eliteCb, coverageRng: createRng("s", "cov"),
     });
     expect(out.receiverRoll.modifiers.map((m) => m.source)).toContain("WR Route Running");
@@ -117,14 +117,14 @@ describe("§9.3 man coverage", () => {
   it("labels the roll with the ENTITY's position, not the check's role (B2)", () => {
     const te = makePlayer("te-b2m", "Sam Pryor", "TE", { routeRunning: 74, agility: 76 });
     const mlb = makePlayer("lb-b2m", "Isaiah Ford", "MLB", { manCoverage: 66, agility: 76 });
-    const out = resolveManCoverage({ receiver: te, defender: mlb, coverageRng: createRng("s", "cov") });
+    const out = resolveManCoverage({ tunables: TUNABLES, receiver: te, defender: mlb, coverageRng: createRng("s", "cov") });
     expect(out.receiverRoll.modifiers.map((m) => m.source)).toContain("TE Route Running");
     expect(out.defenderRoll.modifiers.map((m) => m.source)).toContain("MLB Man Coverage");
     expect(out.defenderRoll.modifiers.some((m) => m.source.startsWith("CB "))).toBe(false);
   });
 
   it("carries release-battle modifiers into the separation roll", () => {
-    const out = resolveManCoverage({
+    const out = resolveManCoverage({ tunables: TUNABLES,
       receiver: eliteWr,
       defender: eliteCb,
       receiverReleaseModifier: 10,
@@ -146,8 +146,8 @@ describe("§9.3 man coverage", () => {
     let wideOpen = 0;
     let smothered = 0;
     for (let i = 0; i < 100; i++) {
-      const win = resolveManCoverage({ receiver: eliteWr, defender: poorCb, coverageRng: createRng(`m-${i}`, "cov") });
-      const loss = resolveManCoverage({ receiver: poorWr, defender: eliteCb, coverageRng: createRng(`m-${i}`, "cov") });
+      const win = resolveManCoverage({ tunables: TUNABLES, receiver: eliteWr, defender: poorCb, coverageRng: createRng(`m-${i}`, "cov") });
+      const loss = resolveManCoverage({ tunables: TUNABLES, receiver: poorWr, defender: eliteCb, coverageRng: createRng(`m-${i}`, "cov") });
       if (win.openness >= 70) wideOpen++;
       if (loss.openness <= 25) smothered++;
       expect(win.contestPosition).toBeDefined();

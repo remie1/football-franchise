@@ -3,11 +3,13 @@ import type { PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR, TRAIT } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, rollD100, tierFor, traitModifier } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 
-export type ReleaseBandLabel = (typeof TUNABLES.release.bands)[number]["label"];
+export type ReleaseBandLabel = (Tunables["release"]["bands"])[number]["label"];
 
 export interface ReleaseArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly receiver: PlayerState;
   readonly defender: PlayerState;
   /** Coverage-subsystem fork; the resolver forks once per actor. */
@@ -28,8 +30,8 @@ export interface ReleaseOutcome {
 }
 
 export function resolveReleaseVsPress(args: ReleaseArgs): ReleaseOutcome {
-  const { receiver, defender, coverageRng } = args;
-  const t = TUNABLES.release;
+  const { receiver, defender, coverageRng, tunables } = args;
+  const t = tunables.release;
 
   const receiverMods = compact([
     actorAttrModifier(receiver, "Release", ATTR.releaseWR, t.attrDivisor),
@@ -39,7 +41,7 @@ export function resolveReleaseVsPress(args: ReleaseArgs): ReleaseOutcome {
   const defenderMods = compact([
     actorAttrModifier(defender, "Press", ATTR.press, t.attrDivisor),
     actorAttrModifier(defender, "Strength", ATTR.strength, t.attrDivisor),
-    traitModifier("Trait: Press Specialist", defender.attributes.traits, TRAIT.pressSpecialist, TUNABLES.traitBonuses.pressSpecialist),
+    traitModifier("Trait: Press Specialist", defender.attributes.traits, TRAIT.pressSpecialist, tunables.traitBonuses.pressSpecialist),
   ]);
 
   const receiverRoll = rollD100(coverageRng.fork(`${receiver.bio.id}:release`), receiverMods);
@@ -61,7 +63,7 @@ export function resolveReleaseVsPress(args: ReleaseArgs): ReleaseOutcome {
       actors: [receiver.bio.id, defender.bio.id],
       roll: receiverRoll,
       opposedRoll: defenderRoll,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: [ATTR.releaseWR, ATTR.agility, ATTR.press, ATTR.strength],

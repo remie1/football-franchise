@@ -35,7 +35,7 @@ function threat(alignment: "EDGE" | "INTERIOR", etaTick: number): RushThreat {
 
 describe("§8.8 the escape check", () => {
   it("mobility and improvisation are the whole roll", () => {
-    const out = resolveScramble({ qb: RUNNER, tick: 2.0, threats: [threat("EDGE", 3.0)], scrambleRng: rng("a") });
+    const out = resolveScramble({ tunables: TUNABLES, qb: RUNNER, tick: 2.0, threats: [threat("EDGE", 3.0)], scrambleRng: rng("a") });
     expect(out.check.checkKind).toBe("scramble");
     expect(out.check.testsAttrs.map(String)).toEqual(["mobility", "improvisation"]);
     expect(out.roll.modifiers.map((m) => m.attr).filter(Boolean).map(String)).toEqual([
@@ -49,18 +49,18 @@ describe("§8.8 the escape check", () => {
     let statue = 0;
     for (let i = 0; i < 300; i++) {
       const threats = [threat("EDGE", 3.0)];
-      if (resolveScramble({ qb: RUNNER, tick: 2.0, threats, scrambleRng: rng(`e-${i}`) }).escaped) runner += 1;
-      if (resolveScramble({ qb: STATUE, tick: 2.0, threats, scrambleRng: rng(`e-${i}`) }).escaped) statue += 1;
+      if (resolveScramble({ tunables: TUNABLES, qb: RUNNER, tick: 2.0, threats, scrambleRng: rng(`e-${i}`) }).escaped) runner += 1;
+      if (resolveScramble({ tunables: TUNABLES, qb: STATUE, tick: 2.0, threats, scrambleRng: rng(`e-${i}`) }).escaped) statue += 1;
     }
     expect(runner).toBeGreaterThan(statue);
     expect(statue).toBeGreaterThan(0);
   });
 
   it("edge rushers are the contain players: getting out past one is harder", () => {
-    const interiorOnly = resolveScramble({
+    const interiorOnly = resolveScramble({ tunables: TUNABLES,
       qb: RUNNER, tick: 2.0, threats: [threat("INTERIOR", 3.0)], scrambleRng: rng("t"),
     });
-    const edgeToo = resolveScramble({
+    const edgeToo = resolveScramble({ tunables: TUNABLES,
       qb: RUNNER, tick: 2.0, threats: [threat("INTERIOR", 3.0), threat("EDGE", 3.0)], scrambleRng: rng("t"),
     });
     expect(edgeToo.check.target ?? 0).toBeGreaterThan(interiorOnly.check.target ?? 0);
@@ -68,8 +68,8 @@ describe("§8.8 the escape check", () => {
   });
 
   it("a late escape attempt is harder than an early one", () => {
-    const early = resolveScramble({ qb: RUNNER, tick: 1.0, threats: [threat("EDGE", 2.5)], scrambleRng: rng("u") });
-    const late = resolveScramble({ qb: RUNNER, tick: 2.0, threats: [threat("EDGE", 2.5)], scrambleRng: rng("u") });
+    const early = resolveScramble({ tunables: TUNABLES, qb: RUNNER, tick: 1.0, threats: [threat("EDGE", 2.5)], scrambleRng: rng("u") });
+    const late = resolveScramble({ tunables: TUNABLES, qb: RUNNER, tick: 2.0, threats: [threat("EDGE", 2.5)], scrambleRng: rng("u") });
     expect(late.check.target ?? 0).toBeGreaterThan(early.check.target ?? 0);
   });
 
@@ -78,7 +78,7 @@ describe("§8.8 the escape check", () => {
     let contained = 0;
     let escaped = 0;
     for (let i = 0; i < 400; i++) {
-      const out = resolveScramble({
+      const out = resolveScramble({ tunables: TUNABLES,
         qb: STATUE, tick: 2.0, threats: [threat("EDGE", 2.5)], scrambleRng: rng(`c-${i}`),
       });
       if (out.sacked) caught += 1;
@@ -94,22 +94,22 @@ describe("§8.8 the escape check", () => {
 
   it("is deterministic on the same label", () => {
     const args = { qb: RUNNER, tick: 2.0, threats: [threat("EDGE", 3.0)] };
-    const a = resolveScramble({ ...args, scrambleRng: rng("same") });
-    const b = resolveScramble({ ...args, scrambleRng: rng("same") });
+    const a = resolveScramble({ tunables: TUNABLES, ...args, scrambleRng: rng("same") });
+    const b = resolveScramble({ tunables: TUNABLES, ...args, scrambleRng: rng("same") });
     expect(a).toEqual(b);
   });
 });
 
 describe("§8.8 vision cone", () => {
   it("forward is full, the direction of the run costs, behind him costs most", () => {
-    expect(visionConeModifier("DEEP")).toBe(0);
-    expect(visionConeModifier("INTERMEDIATE")).toBe(0);
-    expect(visionConeModifier("SHORT")).toBe(-20);
-    expect(visionConeModifier("QUICK")).toBe(-40);
+    expect(visionConeModifier(TUNABLES, "DEEP")).toBe(0);
+    expect(visionConeModifier(TUNABLES, "INTERMEDIATE")).toBe(0);
+    expect(visionConeModifier(TUNABLES, "SHORT")).toBe(-20);
+    expect(visionConeModifier(TUNABLES, "QUICK")).toBe(-40);
   });
 
   it("rides on the awareness roll as a named modifier, so it stays auditable", () => {
-    const mod = visionConeRollModifier("QUICK");
+    const mod = visionConeRollModifier(TUNABLES, "QUICK");
     expect(mod.value).toBe(-40);
     expect(mod.source).toContain("Scramble vision cone");
     expect(mod.attr).toBeUndefined();
@@ -119,18 +119,18 @@ describe("§8.8 vision cone", () => {
 describe("§8.8 the scramble drill", () => {
   it("openness climbs from where it stood when the QB left, and stops climbing", () => {
     const gain = TUNABLES.scramble.opennessGainPerTick;
-    expect(scrambleOpennessAt(40, 2.0, 2.0)).toBe(40);
-    expect(scrambleOpennessAt(40, 2.0, 2.5)).toBe(40 + gain);
-    expect(scrambleOpennessAt(40, 2.0, 3.0)).toBe(40 + 2 * gain);
-    expect(scrambleOpennessAt(80, 2.0, 6.0)).toBe(TUNABLES.scramble.maxOpenness);
+    expect(scrambleOpennessAt(TUNABLES, 40, 2.0, 2.0)).toBe(40);
+    expect(scrambleOpennessAt(TUNABLES, 40, 2.0, 2.5)).toBe(40 + gain);
+    expect(scrambleOpennessAt(TUNABLES, 40, 2.0, 3.0)).toBe(40 + 2 * gain);
+    expect(scrambleOpennessAt(TUNABLES, 80, 2.0, 6.0)).toBe(TUNABLES.scramble.maxOpenness);
   });
 
   it("never rewinds: openness before the escape is the escape value", () => {
-    expect(scrambleOpennessAt(40, 2.0, 1.0)).toBe(40);
+    expect(scrambleOpennessAt(TUNABLES, 40, 2.0, 1.0)).toBe(40);
   });
 
   it("pursuit gives the quarterback a fixed window outside the pocket", () => {
-    expect(pursuitDeadline(2.0)).toBe(2.0 + TUNABLES.scramble.pursuitSeconds);
+    expect(pursuitDeadline(TUNABLES, 2.0)).toBe(2.0 + TUNABLES.scramble.pursuitSeconds);
   });
 });
 

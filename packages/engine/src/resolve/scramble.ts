@@ -20,14 +20,16 @@ import type { PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, clamp, compact, flatModifier, rollD100, tierFor } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { RouteDepthClass } from "../types.js";
 import type { RushThreat } from "./rushThreat.js";
 import { minTimeToArrival, threatsWithAlignment, urgencySteps } from "./rushThreat.js";
 
-export type ScrambleBandLabel = (typeof TUNABLES.scramble.bands)[number]["label"];
+export type ScrambleBandLabel = (Tunables["scramble"]["bands"])[number]["label"];
 
 export interface ScrambleArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly qb: PlayerState;
   readonly tick: number;
   readonly threats: readonly RushThreat[];
@@ -53,8 +55,9 @@ export interface ScrambleOutcome {
  * pocket rather than trapping them in it.
  */
 export function resolveScramble(args: ScrambleArgs): ScrambleOutcome {
-  const t = TUNABLES.scramble;
-  const urgency = urgencySteps(minTimeToArrival(args.threats, args.tick));
+  const { tunables } = args;
+  const t = tunables.scramble;
+  const urgency = urgencySteps(tunables, minTimeToArrival(args.threats, args.tick));
   const edgeThreats = threatsWithAlignment(args.threats, "EDGE").length;
 
   const roll = rollD100(
@@ -80,7 +83,7 @@ export function resolveScramble(args: ScrambleArgs): ScrambleOutcome {
       actors: [args.qb.bio.id, ...args.threats.map((threat) => threat.rusher)],
       roll,
       target,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       band: band.label,
       margin,
       testsAttrs: [ATTR.mobility, ATTR.improvisation],
@@ -98,12 +101,15 @@ export function resolveScramble(args: ScrambleArgs): ScrambleOutcome {
  * Emitted as a NAMED MODIFIER on §8.3's awareness roll, which is the check the
  * doc's "−20 / −40" is written against, so it stays auditable in the stream.
  */
-export function visionConeModifier(depthClass: RouteDepthClass): number {
-  return TUNABLES.scramble.visionConeByDepthClass[depthClass];
+export function visionConeModifier(tunables: Tunables, depthClass: RouteDepthClass): number {
+  return tunables.scramble.visionConeByDepthClass[depthClass];
 }
 
-export function visionConeRollModifier(depthClass: RouteDepthClass): ReturnType<typeof flatModifier> {
-  return flatModifier(`Scramble vision cone (${depthClass.toLowerCase()})`, visionConeModifier(depthClass));
+export function visionConeRollModifier(
+  tunables: Tunables,
+  depthClass: RouteDepthClass,
+): ReturnType<typeof flatModifier> {
+  return flatModifier(`Scramble vision cone (${depthClass.toLowerCase()})`, visionConeModifier(tunables, depthClass));
 }
 
 /**
@@ -112,18 +118,19 @@ export function visionConeRollModifier(depthClass: RouteDepthClass): ReturnType<
  * stood when the QB left, up to a ceiling short of wide-open.
  */
 export function scrambleOpennessAt(
+  tunables: Tunables,
   opennessAtEscape: number,
   escapeTick: number,
   tick: number,
 ): number {
-  const t = TUNABLES.scramble;
-  const steps = Math.max(0, (tick - escapeTick) / TUNABLES.clock.tickStepSeconds);
+  const t = tunables.scramble;
+  const steps = Math.max(0, (tick - escapeTick) / tunables.clock.tickStepSeconds);
   return Math.round(
-    clamp(opennessAtEscape + t.opennessGainPerTick * steps, TUNABLES.route.minOpenness, t.maxOpenness),
+    clamp(opennessAtEscape + t.opennessGainPerTick * steps, tunables.route.minOpenness, t.maxOpenness),
   );
 }
 
 /** When pursuit runs the scrambling quarterback down and the ball must come out. */
-export function pursuitDeadline(escapeTick: number): number {
-  return Number((escapeTick + TUNABLES.scramble.pursuitSeconds).toFixed(1));
+export function pursuitDeadline(tunables: Tunables, escapeTick: number): number {
+  return Number((escapeTick + tunables.scramble.pursuitSeconds).toFixed(1));
 }

@@ -231,26 +231,26 @@ describe("§14.2 phase 3 — the vision check is the zone/gap difference", () =>
 
 describe("§6.3 vs §14.3 — the two band tables the doc disagrees on", () => {
   it("§6.3 calls a 15-point win SEALED and §14.3 calls it HOLE_OPEN, and both are kept", () => {
-    expect(runBlockBandFor(15)).toBe("SEALED");
-    expect(pointOfAttackFor(15).band).toBe("HOLE_OPEN");
+    expect(runBlockBandFor(TUNABLES, 15)).toBe("SEALED");
+    expect(pointOfAttackFor(TUNABLES, 15).band).toBe("HOLE_OPEN");
     // ...and they agree either side of the disputed window.
-    expect(runBlockBandFor(25)).toBe("DRIVEN_BACK");
-    expect(pointOfAttackFor(25).band).toBe("HOLE_OPEN");
-    expect(runBlockBandFor(5)).toBe("SEALED");
-    expect(pointOfAttackFor(5).band).toBe("HOLE_EXISTS");
+    expect(runBlockBandFor(TUNABLES, 25)).toBe("DRIVEN_BACK");
+    expect(pointOfAttackFor(TUNABLES, 25).band).toBe("HOLE_OPEN");
+    expect(runBlockBandFor(TUNABLES, 5)).toBe("SEALED");
+    expect(pointOfAttackFor(TUNABLES, 5).band).toBe("HOLE_EXISTS");
   });
 
   it("§6.4's climb trigger (10+) sides with §14.3, not with §6.3's 20", () => {
-    expect(climbTriggered(10)).toBe(true);
-    expect(climbTriggered(9)).toBe(false);
+    expect(climbTriggered(TUNABLES, 10)).toBe(true);
+    expect(climbTriggered(TUNABLES, 9)).toBe(false);
     expect(TUNABLES.runBlock.bands[0]?.minMargin).toBe(20);
   });
 
   it("§14.3's yardage is the doc's: 3-5 open, 1-2 exists, and contact at a tie", () => {
-    expect(pointOfAttackFor(10).yardsBeforeContact).toBe(3);
-    expect(pointOfAttackFor(1).yardsBeforeContact).toBe(1);
-    expect(pointOfAttackFor(0).contact).toBe("POWER");
-    expect(pointOfAttackFor(-5).contact).toBe("EVADE");
+    expect(pointOfAttackFor(TUNABLES, 10).yardsBeforeContact).toBe(3);
+    expect(pointOfAttackFor(TUNABLES, 1).yardsBeforeContact).toBe(1);
+    expect(pointOfAttackFor(TUNABLES, 0).contact).toBe("POWER");
+    expect(pointOfAttackFor(TUNABLES, -5).contact).toBe("EVADE");
   });
 });
 
@@ -287,7 +287,7 @@ describe("§6.4 — the second-level climb", () => {
   it("only fires where the first level was won by 10+, and never more often", () => {
     for (const events of sweep("ZONE", 200, "climb")) {
       const wins = checks(events, "run_block").filter(
-        (e) => e.event.type === "CHECK" && climbTriggered(e.event.payload.margin),
+        (e) => e.event.type === "CHECK" && climbTriggered(TUNABLES, e.event.payload.margin),
       ).length;
       expect(checks(events, "second_level_climb").length).toBeLessThanOrEqual(wins);
     }

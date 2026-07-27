@@ -144,7 +144,7 @@ describe("§8.1 the checkdown", () => {
     const scenario = buildCleanPocketScenario();
     const qb = scenario.state.players[scenario.state.quarterback as unknown as string];
     if (qb === undefined) throw new Error("bad fixture");
-    const budget = timeBudgetSeconds(qb, "FULL_FIELD");
+    const budget = timeBudgetSeconds(TUNABLES, qb, "FULL_FIELD");
     const maxReads = TUNABLES.qb.readSystem.FULL_FIELD.maxReads;
     const forcing: readonly string[] = TUNABLES.pocket.forcesDecision;
     let seen = 0;

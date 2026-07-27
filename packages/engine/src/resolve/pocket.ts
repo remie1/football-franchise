@@ -19,7 +19,7 @@
  * All inputs are read from the previous tick, which reproduces the doc's
  * one-tick lag ("pressure/hit next tick").
  */
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { PocketStatus } from "../types.js";
 import type { PassRushBandLabel } from "./passRush.js";
 import { pocketFloorFromArrival } from "./rushThreat.js";
@@ -35,29 +35,32 @@ export function advancePressure(current: number, update: PressureUpdate): number
 }
 
 /** Ordering on the status ladder; higher is worse for the offense. */
-export function pocketSeverity(status: PocketStatus): number {
-  return TUNABLES.pocket.severity[status];
+export function pocketSeverity(tunables: Tunables, status: PocketStatus): number {
+  return tunables.pocket.severity[status];
 }
 
-export function worsePocketStatus(a: PocketStatus, b: PocketStatus): PocketStatus {
-  return pocketSeverity(b) > pocketSeverity(a) ? b : a;
+export function worsePocketStatus(tunables: Tunables, a: PocketStatus, b: PocketStatus): PocketStatus {
+  return pocketSeverity(tunables, b) > pocketSeverity(tunables, a) ? b : a;
 }
 
 /**
  * §7.2's single-rep rule. The worst floor any one rusher's previous-tick band
  * imposes — a matchup that held does not soften a matchup that was lost.
  */
-export function pocketFloorFor(previousTickBands: readonly PassRushBandLabel[]): PocketStatus {
+export function pocketFloorFor(
+  tunables: Tunables,
+  previousTickBands: readonly PassRushBandLabel[],
+): PocketStatus {
   let floor: PocketStatus = "CLEAN";
   for (const band of previousTickBands) {
-    floor = worsePocketStatus(floor, TUNABLES.pocket.minimumStatusByBand[band]);
+    floor = worsePocketStatus(tunables, floor, tunables.pocket.minimumStatusByBand[band]);
   }
   return floor;
 }
 
 /** Status implied by the accumulated pressure counter alone. */
-export function pocketStatusFromPressure(highestPressure: number): PocketStatus {
-  for (const threshold of TUNABLES.pocket.thresholds) {
+export function pocketStatusFromPressure(tunables: Tunables, highestPressure: number): PocketStatus {
+  for (const threshold of tunables.pocket.thresholds) {
     if (highestPressure >= threshold.minProgress) return threshold.label;
   }
   return "CLEAN";
@@ -72,32 +75,33 @@ export function pocketStatusFromPressure(highestPressure: number): PocketStatus 
  * created it until the blocker resets him or the quarterback moves.
  */
 export function pocketStatusFor(
+  tunables: Tunables,
   highestPressure: number,
   previousTickBands: readonly PassRushBandLabel[] = [],
   minTimeToArrival?: number,
 ): PocketStatus {
   return [
-    pocketStatusFromPressure(highestPressure),
-    pocketFloorFor(previousTickBands),
-    pocketFloorFromArrival(minTimeToArrival),
-  ].reduce(worsePocketStatus, "CLEAN");
+    pocketStatusFromPressure(tunables, highestPressure),
+    pocketFloorFor(tunables, previousTickBands),
+    pocketFloorFromArrival(tunables, minTimeToArrival),
+  ].reduce((a, b) => worsePocketStatus(tunables, a, b), "CLEAN" as PocketStatus);
 }
 
-export function accuracyModifierFor(status: PocketStatus): number {
-  return TUNABLES.pocket.accuracyModifier[status];
+export function accuracyModifierFor(tunables: Tunables, status: PocketStatus): number {
+  return tunables.pocket.accuracyModifier[status];
 }
 
-export function readCapacityDeltaFor(status: PocketStatus): number {
-  return TUNABLES.pocket.readCapacityDelta[status];
+export function readCapacityDeltaFor(tunables: Tunables, status: PocketStatus): number {
+  return tunables.pocket.readCapacityDelta[status];
 }
 
-export function forcesDecision(status: PocketStatus): boolean {
-  const forcing: readonly string[] = TUNABLES.pocket.forcesDecision;
+export function forcesDecision(tunables: Tunables, status: PocketStatus): boolean {
+  const forcing: readonly string[] = tunables.pocket.forcesDecision;
   return forcing.includes(status);
 }
 
 /** §7.2 — the QB is going down if he has no one to throw to under this status. */
-export function sacksWithoutTarget(status: PocketStatus): boolean {
-  const sacking: readonly string[] = TUNABLES.pocket.sackWhenNoTarget;
+export function sacksWithoutTarget(tunables: Tunables, status: PocketStatus): boolean {
+  const sacking: readonly string[] = tunables.pocket.sackWhenNoTarget;
   return sacking.includes(status);
 }

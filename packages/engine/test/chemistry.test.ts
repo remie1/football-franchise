@@ -31,25 +31,25 @@ describe("ADR-008 — the read path degrades to neutral, always", () => {
   const neutral = TUNABLES.chemistry.neutralLevel;
 
   it("an absent table reads neutral", () => {
-    expect(chemistryLevel(undefined, QB.bio.id, QB.bio.id)).toBe(neutral);
+    expect(chemistryLevel(TUNABLES, undefined, QB.bio.id, QB.bio.id)).toBe(neutral);
   });
 
   it("a table with no row for this passer reads neutral", () => {
-    expect(chemistryLevel({ other: { x: 99 } }, QB.bio.id, QB.bio.id)).toBe(neutral);
+    expect(chemistryLevel(TUNABLES, { other: { x: 99 } }, QB.bio.id, QB.bio.id)).toBe(neutral);
   });
 
   it("a row with no entry for this receiver reads neutral", () => {
-    expect(chemistryLevel(tableFor("someone-else", 99), QB.bio.id, QB.bio.id)).toBe(neutral);
+    expect(chemistryLevel(TUNABLES, tableFor("someone-else", 99), QB.bio.id, QB.bio.id)).toBe(neutral);
   });
 
   it("a real pair reads its own level", () => {
-    expect(chemistryLevel(tableFor(String(QB.bio.id), 88), QB.bio.id, QB.bio.id)).toBe(88);
+    expect(chemistryLevel(TUNABLES, tableFor(String(QB.bio.id), 88), QB.bio.id, QB.bio.id)).toBe(88);
   });
 });
 
 describe("ADR-008 — §10.4's '+5 chemistry with receiver' is live", () => {
   const accuracy = (chemistryLevel?: number): ReturnType<typeof resolveAccuracy> =>
-    resolveAccuracy({
+    resolveAccuracy({ tunables: TUNABLES,
       qb: QB,
       airYards: 14,
       throwType: "BULLET",
@@ -74,14 +74,14 @@ describe("ADR-008 — §10.4's '+5 chemistry with receiver' is live", () => {
 
   it("the threshold is a real threshold, not a rename of neutral", () => {
     expect(TUNABLES.chemistry.establishedThreshold).toBeGreaterThan(TUNABLES.chemistry.neutralLevel);
-    expect(chemistryEstablished(TUNABLES.chemistry.establishedThreshold)).toBe(true);
-    expect(chemistryEstablished(TUNABLES.chemistry.establishedThreshold - 1)).toBe(false);
+    expect(chemistryEstablished(TUNABLES, TUNABLES.chemistry.establishedThreshold)).toBe(true);
+    expect(chemistryEstablished(TUNABLES, TUNABLES.chemistry.establishedThreshold - 1)).toBe(false);
   });
 });
 
 describe("ADR-008 — §10.2's back-shoulder −10 is wired and dormant", () => {
   it("the penalty exists and applies to a BACK_SHOULDER throw without chemistry", () => {
-    const out = resolveAccuracy({
+    const out = resolveAccuracy({ tunables: TUNABLES,
       qb: QB,
       airYards: 14,
       throwType: "BACK_SHOULDER",
@@ -95,7 +95,7 @@ describe("ADR-008 — §10.2's back-shoulder −10 is wired and dormant", () => 
   });
 
   it("...and vanishes when the pairing has the chemistry the throw requires", () => {
-    const out = resolveAccuracy({
+    const out = resolveAccuracy({ tunables: TUNABLES,
       qb: QB,
       airYards: 14,
       throwType: "BACK_SHOULDER",
@@ -105,7 +105,7 @@ describe("ADR-008 — §10.2's back-shoulder −10 is wired and dormant", () => 
       throwRng: createRng("bs", "throw"),
     });
     expect(out.roll.modifiers.some((m) => m.source.includes("Back shoulder"))).toBe(false);
-    expect(chemistrySupportsBackShoulder(90)).toBe(true);
+    expect(chemistrySupportsBackShoulder(TUNABLES, 90)).toBe(true);
   });
 
   it("DORMANT: nothing in the engine selects a BACK_SHOULDER throw yet", () => {

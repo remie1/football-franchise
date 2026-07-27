@@ -11,20 +11,20 @@
  *
  * §14.3 then turns the winning gap's ENGAGEMENT MARGIN into yards and into what
  * kind of contact he takes. Its thresholds are not §6.3's — see the warning on
- * `TUNABLES.runBlock.bands`, which is the defect, not the implementation.
+ * `tunables.runBlock.bands`, which is the defect, not the implementation.
  */
 import type { PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import { bandFor, compact, rollD100, tierFor } from "../rolls.js";
 import { termAttrs, termModifiers } from "../terms.js";
-import { TUNABLES } from "../tunables.js";
+import type { Tunables } from "../tunables.js";
 import type { GapId, RunGap, RunSide } from "../types.js";
 import { yardsInBand } from "./ballCarrier.js";
 
-export type PointOfAttackLabel = (typeof TUNABLES.runGame.pointOfAttack.bands)[number]["label"];
+export type PointOfAttackLabel = (Tunables["runGame"]["pointOfAttack"]["bands"])[number]["label"];
 export type PointOfAttackContact =
-  (typeof TUNABLES.runGame.pointOfAttack.bands)[number]["contact"];
+  (Tunables["runGame"]["pointOfAttack"]["bands"])[number]["contact"];
 
 /** Stable text for `RUN_RESOLUTION.gap` and for the §17 printout. */
 export function gapKey(gap: GapId): string {
@@ -32,13 +32,15 @@ export function gapKey(gap: GapId): string {
 }
 
 /** §3.1 lane a gap runs through, so a run can be placed on the zone grid. */
-export function gapLane(gap: GapId): "LW" | "LH" | "C" | "RH" | "RW" {
-  return TUNABLES.runGame.gapLane[gap.side][gap.gap];
+export function gapLane(tunables: Tunables, gap: GapId): "LW" | "LH" | "C" | "RH" | "RW" {
+  return tunables.runGame.gapLane[gap.side][gap.gap];
 }
 
 // --- §14.2 PHASE 3: the vision check -----------------------------------------
 
 export interface RbVisionArgs {
+  /** Required, never defaulted: a missed call site must be a compile error. */
+  readonly tunables: Tunables;
   readonly carrier: PlayerState;
   readonly visionRng: Rng;
 }
@@ -53,7 +55,8 @@ export interface RbVisionOutcome {
 }
 
 export function resolveRbVision(args: RbVisionArgs): RbVisionOutcome {
-  const t = TUNABLES.runGame.vision;
+  const { tunables } = args;
+  const t = tunables.runGame.vision;
   const mods = compact(termModifiers(args.carrier, t.terms));
   const roll = rollD100(args.visionRng, mods);
   const margin = roll.total - t.target;
@@ -68,7 +71,7 @@ export function resolveRbVision(args: RbVisionArgs): RbVisionOutcome {
       actors: [args.carrier.bio.id],
       roll,
       target: t.target,
-      tier: tierFor(margin),
+      tier: tierFor(tunables, margin),
       margin,
       testsAttrs: termAttrs(t.terms),
     },
@@ -136,12 +139,12 @@ export interface PointOfAttack {
  *   EVADE        — a defender in the backfield, `atLosEvade` (Elusiveness vs
  *                  Tackling); failing it is the TFL.
  */
-export function pointOfAttackFor(blockMargin: number): PointOfAttack {
-  const band = bandFor(TUNABLES.runGame.pointOfAttack.bands, blockMargin);
+export function pointOfAttackFor(tunables: Tunables, blockMargin: number): PointOfAttack {
+  const band = bandFor(tunables.runGame.pointOfAttack.bands, blockMargin);
   return {
     band: band.label,
     contact: band.contact,
-    yardsBeforeContact: yardsInBand(band, blockMargin),
+    yardsBeforeContact: yardsInBand(tunables, band, blockMargin),
   };
 }
 

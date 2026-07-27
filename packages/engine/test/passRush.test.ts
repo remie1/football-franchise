@@ -26,7 +26,7 @@ const poorRusher = makePlayer("r-poor", "Practice Squad", "DE", {
 
 describe("§7.1 pass rush per tick", () => {
   it("is an opposed roll: rusher roll, blocker opposedRoll, margin = difference", () => {
-    const out = resolvePassRushTick({
+    const out = resolvePassRushTick({ tunables: TUNABLES,
       rusher: eliteRusher,
       blocker: eliteBlocker,
       move: "SPEED",
@@ -39,9 +39,9 @@ describe("§7.1 pass rush per tick", () => {
 
   it("applies the move's attribute package (speed / power / finesse)", () => {
     const rng = createRng("s", "t");
-    const speed = resolvePassRushTick({ rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", tickRng: rng });
-    const power = resolvePassRushTick({ rusher: eliteRusher, blocker: eliteBlocker, move: "POWER", tickRng: rng });
-    const finesse = resolvePassRushTick({ rusher: eliteRusher, blocker: eliteBlocker, move: "FINESSE", tickRng: rng });
+    const speed = resolvePassRushTick({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", tickRng: rng });
+    const power = resolvePassRushTick({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "POWER", tickRng: rng });
+    const finesse = resolvePassRushTick({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "FINESSE", tickRng: rng });
     const sources = (o: typeof speed): string[] => o.rusherRoll.modifiers.map((m) => m.source);
     expect(sources(speed).some((s) => s.includes("First Step"))).toBe(true);
     expect(sources(power).some((s) => s.includes("Power Move"))).toBe(true);
@@ -51,13 +51,13 @@ describe("§7.1 pass rush per tick", () => {
 
   it("adds the counter-move bonus only after a stalemate", () => {
     const rng = createRng("s", "t");
-    const after = resolvePassRushTick({
+    const after = resolvePassRushTick({ tunables: TUNABLES,
       rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", previousBand: "STALEMATE", tickRng: rng,
     });
     const counter = after.rusherRoll.modifiers.find((m) => m.source.includes("Counter move"));
     expect(counter?.value).toBe(TUNABLES.passRush.counterMoveAfterStalemate);
 
-    const without = resolvePassRushTick({
+    const without = resolvePassRushTick({ tunables: TUNABLES,
       rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", previousBand: "BLOCKER_CONTAINS", tickRng: rng,
     });
     expect(without.rusherRoll.modifiers.some((m) => m.source.includes("Counter move"))).toBe(false);
@@ -65,8 +65,8 @@ describe("§7.1 pass rush per tick", () => {
 
   it("fires Quick Twitch only on speed rushes and Brick Wall only against power", () => {
     const rng = createRng("traits", "t");
-    const speed = resolvePassRushTick({ rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", tickRng: rng });
-    const power = resolvePassRushTick({ rusher: eliteRusher, blocker: eliteBlocker, move: "POWER", tickRng: rng });
+    const speed = resolvePassRushTick({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", tickRng: rng });
+    const power = resolvePassRushTick({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "POWER", tickRng: rng });
     expect(speed.rusherRoll.modifiers.some((m) => m.source.includes("Quick Twitch"))).toBe(true);
     expect(power.rusherRoll.modifiers.some((m) => m.source.includes("Quick Twitch"))).toBe(false);
     expect(power.blockerRoll.modifiers.some((m) => m.source.includes("Brick Wall"))).toBe(true);
@@ -78,8 +78,8 @@ describe("§7.1 pass rush per tick", () => {
     let blockerResets = 0;
     for (let i = 0; i < 100; i++) {
       const rng = createRng(`rush-${i}`, "t");
-      if (resolvePassRushTick({ rusher: eliteRusher, blocker: poorBlocker, move: "POWER", tickRng: rng }).band === "RUSHER_WINS_REP") rusherWins++;
-      if (resolvePassRushTick({ rusher: poorRusher, blocker: eliteBlocker, move: "FINESSE", tickRng: rng }).band === "BLOCKER_RESETS") blockerResets++;
+      if (resolvePassRushTick({ tunables: TUNABLES, rusher: eliteRusher, blocker: poorBlocker, move: "POWER", tickRng: rng }).band === "RUSHER_WINS_REP") rusherWins++;
+      if (resolvePassRushTick({ tunables: TUNABLES, rusher: poorRusher, blocker: eliteBlocker, move: "FINESSE", tickRng: rng }).band === "BLOCKER_RESETS") blockerResets++;
     }
     expect(rusherWins).toBeGreaterThan(70);
     expect(blockerResets).toBeGreaterThan(50);
@@ -101,23 +101,23 @@ describe("§7.2 pocket status", () => {
   });
 
   it("transitions CLEAN → PRESSURE → COLLAPSING → IMMEDIATE → SACK", () => {
-    expect(pocketStatusFor(0)).toBe("CLEAN");
-    expect(pocketStatusFor(2)).toBe("CLEAN");
-    expect(pocketStatusFor(3)).toBe("PRESSURE");
-    expect(pocketStatusFor(5)).toBe("COLLAPSING");
-    expect(pocketStatusFor(7)).toBe("IMMEDIATE");
-    expect(pocketStatusFor(9)).toBe("SACK");
+    expect(pocketStatusFor(TUNABLES, 0)).toBe("CLEAN");
+    expect(pocketStatusFor(TUNABLES, 2)).toBe("CLEAN");
+    expect(pocketStatusFor(TUNABLES, 3)).toBe("PRESSURE");
+    expect(pocketStatusFor(TUNABLES, 5)).toBe("COLLAPSING");
+    expect(pocketStatusFor(TUNABLES, 7)).toBe("IMMEDIATE");
+    expect(pocketStatusFor(TUNABLES, 9)).toBe("SACK");
   });
 
   it("carries the §10.4 accuracy penalties and §7.2 read-capacity loss", () => {
-    expect(accuracyModifierFor("CLEAN")).toBe(0);
-    expect(accuracyModifierFor("PRESSURE")).toBe(-10);
-    expect(accuracyModifierFor("COLLAPSING")).toBe(-20);
-    expect(accuracyModifierFor("IMMEDIATE")).toBe(-30);
-    expect(readCapacityDeltaFor("PRESSURE")).toBe(-1);
-    expect(forcesDecision("CLEAN")).toBe(false);
-    expect(forcesDecision("PRESSURE")).toBe(false);
-    expect(forcesDecision("COLLAPSING")).toBe(true);
-    expect(forcesDecision("IMMEDIATE")).toBe(true);
+    expect(accuracyModifierFor(TUNABLES, "CLEAN")).toBe(0);
+    expect(accuracyModifierFor(TUNABLES, "PRESSURE")).toBe(-10);
+    expect(accuracyModifierFor(TUNABLES, "COLLAPSING")).toBe(-20);
+    expect(accuracyModifierFor(TUNABLES, "IMMEDIATE")).toBe(-30);
+    expect(readCapacityDeltaFor(TUNABLES, "PRESSURE")).toBe(-1);
+    expect(forcesDecision(TUNABLES, "CLEAN")).toBe(false);
+    expect(forcesDecision(TUNABLES, "PRESSURE")).toBe(false);
+    expect(forcesDecision(TUNABLES, "COLLAPSING")).toBe(true);
+    expect(forcesDecision(TUNABLES, "IMMEDIATE")).toBe(true);
   });
 });

@@ -13,7 +13,9 @@
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
-import { simulatePassPlay } from "../src/index.js";
+import { simulateGame, simulatePassPlay } from "../src/index.js";
+import { isGameScoped } from "../src/game/events.js";
+import { buildGameFixture } from "./gameFixtures.js";
 import {
   buildMixedCoverageScenario,
   buildScenario,
@@ -349,6 +351,93 @@ describe("ADR-010 — RUSH_ZONE is a sibling of YAC_ZONE, not a flag on it", () 
       const yac = events.some((e) => e.event.type === "YAC_ZONE");
       const rush = events.some((e) => e.event.type === "RUSH_ZONE");
       expect(yac && rush).toBe(false);
+    }
+  });
+});
+
+/**
+ * ADR-014 — the game-structure vocabulary, and the interim it retired.
+ *
+ * Item 13 is the one with teeth. The petition asked for `MatchEventBase.playId`
+ * to become OPTIONAL; that was refused, because it would have made "this is not
+ * a play" and "somebody forgot to set it" arrive as the same `undefined`, and
+ * because it narrows a guarantee every existing consumer relies on. Ratified
+ * instead as TWO bases — `playId: PlayId` and `playId?: never` — so absence is
+ * structural, a play event that omits its id fails to compile, and a game event
+ * cannot claim one.
+ *
+ * The concrete thing that bought: `{gameId}:final` is gone. It was a branded
+ * `PlayId` naming no play, minted for `GAME_END` only because the base demanded
+ * one, and it was the only dishonest identifier in the stream.
+ */
+describe("ADR-014 — the game is described by the schema, not by an engine-local union", () => {
+  const fixture = buildGameFixture({ seed: "adr014-vocabulary" });
+  const game = simulateGame(fixture.state, fixture.inputs, fixture.seed);
+
+  it("no event anywhere in a game carries a minted, play-less identifier", () => {
+    for (const { event } of game.events) {
+      if (event.playId === undefined) continue;
+      expect(String(event.playId)).not.toContain(":final");
+    }
+  });
+
+  it("every GAME-scoped event has no playId, and every play event has one", () => {
+    const GAME_SCOPED = new Set([
+      "GAME_START", "COIN_TOSS", "PERIOD_START", "PERIOD_END", "POSSESSION_CHANGE",
+      "DRIVE_START", "DRIVE_END", "SCORE", "COACH_DECISION", "PLACEKICK", "PUNT",
+      "KICKOFF", "GAME_END",
+    ]);
+    const seen = new Set<string>();
+    for (const { event } of game.events) {
+      seen.add(event.type);
+      if (GAME_SCOPED.has(event.type)) {
+        expect(isGameScoped(event), `${event.type} claims a playId`).toBe(true);
+        expect(event.playId).toBeUndefined();
+      } else {
+        expect(isGameScoped(event), `${event.type} has no playId`).toBe(false);
+        expect(event.playId).toBeDefined();
+      }
+    }
+    // The partition is only meaningful if the sample actually straddled it.
+    for (const type of GAME_SCOPED) expect(seen).toContain(type);
+    expect(seen).toContain("PLAY_START");
+    expect(seen).toContain("CHECK");
+  });
+
+  it("GAME_SUMMARY is gone: one closing event carries the whole ending", () => {
+    const types = new Set(game.events.map((e) => e.event.type));
+    expect(types.has("GAME_SUMMARY" as never)).toBe(false);
+    const end = game.events.map((e) => e.event).find((e) => e.type === "GAME_END");
+    if (end?.type !== "GAME_END") throw new Error("no GAME_END");
+    expect(end.payload.seed).toBe(fixture.seed);
+    expect(end.payload.reason).toBe(game.summary.finalReason);
+    expect(end.payload.plays).toBe(game.summary.plays);
+    expect(end.payload.drives).toBe(game.summary.drives);
+    expect(end.payload.periods.length).toBeGreaterThanOrEqual(4);
+    expect(end.payload.periods.reduce((a, p) => a + p.home, 0)).toBe(end.payload.home);
+    expect(end.payload.periods.reduce((a, p) => a + p.away, 0)).toBe(end.payload.away);
+  });
+
+  /**
+   * A field-goal attempt is a fourth down, a punt is a play, a kickoff is a free
+   * kick. Their CHECKs therefore carry a real `PlayId` derived from the same two
+   * coordinates the PRNG fork label uses — not a fiction, and not a counter.
+   */
+  it("special-teams CHECKs name the play they belong to, honestly and uniquely", () => {
+    const byPlay = new Map<string, Set<string>>();
+    for (const { event } of game.events) {
+      if (event.type !== "CHECK") continue;
+      if (!["field_goal", "punt", "kick_return"].includes(event.payload.checkKind)) continue;
+      const id = String(event.playId);
+      expect(id).toMatch(/:(kickoff|punt|fieldGoal|pat):\d+$/);
+      const kinds = byPlay.get(id) ?? new Set<string>();
+      kinds.add(event.payload.roll.rngLabel);
+      byPlay.set(id, kinds);
+    }
+    expect(byPlay.size).toBeGreaterThan(20);
+    // At most two rolls per special-teams play (the kick, and the return).
+    for (const [id, labels] of byPlay) {
+      expect(labels.size, `${id} carries ${labels.size} rolls`).toBeLessThanOrEqual(2);
     }
   });
 });

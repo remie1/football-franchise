@@ -151,8 +151,14 @@ export function collectTunableAttrRefs(node: unknown, path = ""): TunableAttrRef
  * Resolve every one of them, or throw. Called once, below, while this module is
  * evaluating — NOT from a test. A stringly-typed reference that throws mid
  * simulation is the worst possible failure timing.
+ *
+ * `tunables` is required rather than defaulted: this module is the one place in
+ * the engine that still names the ambient `TUNABLES`, and it does so once, at
+ * the single call site below, where the intent is precisely "sweep THE BUILD'S
+ * constant". A default parameter would have let a caller sweep nothing by
+ * accident and read the silence as a pass.
  */
-export function validateTunableAttrRefs(tunables: unknown = TUNABLES): readonly TunableAttrRef[] {
+export function validateTunableAttrRefs(tunables: unknown): readonly TunableAttrRef[] {
   const refs = collectTunableAttrRefs(tunables);
   for (const ref of refs) {
     if (!Object.prototype.hasOwnProperty.call(ATTRIBUTE_REGISTRY_V1.attributes, ref.id)) {
@@ -166,7 +172,7 @@ export function validateTunableAttrRefs(tunables: unknown = TUNABLES): readonly 
 }
 
 /** The references this build validated. Exported so a test can assert coverage. */
-export const TUNABLE_ATTR_REFS: readonly TunableAttrRef[] = validateTunableAttrRefs();
+export const TUNABLE_ATTR_REFS: readonly TunableAttrRef[] = validateTunableAttrRefs(TUNABLES);
 
 export const TRAIT = {
   ballHawk: resolveTrait("ballHawk"),

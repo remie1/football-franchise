@@ -128,6 +128,30 @@ export interface StaffState {
   teamId?: TeamId;
 }
 
+/**
+ * A rated league — the output of the attributes pipeline and the input to a calibration
+ * batch (ADR-015).
+ *
+ * It lives here, rather than in `attributes`, because two domains both need it and a type
+ * two domains both need is by definition shared vocabulary. The dependency cycle pnpm
+ * reported (attributes → calibration for ingestion, calibration → attributes for this type)
+ * was not a packaging inconvenience to work around — it was the tooling correctly reporting
+ * an architecture error. Same reasoning that put the event schema in the constitution.
+ *
+ * It passes `contracts.md` §10's test cleanly: this is a data shape, not logic. The harness
+ * needs the *shape* of a rated league, not the pipeline that produced one.
+ *
+ * `provenance` and `coverage` are deliberate `unknown` slots, claimed by `attributes.md` via
+ * a later petition — the same treatment `SaveFile`'s open slots get (§9), and for the same
+ * reason: it keeps v0 shippable without guessing another domain's internals.
+ */
+export interface RatedLeague {
+  teams: Team[];
+  players: PlayerState[];
+  provenance: unknown;
+  coverage: unknown;
+}
+
 export interface CapState {
   capLimit: number;
   committed: number;

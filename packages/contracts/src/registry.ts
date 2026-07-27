@@ -57,7 +57,7 @@ const FRONT: PositionGroup[] = ["OL","DL"];
 
 /** v0 registry, populated from match-engine.md §4. */
 export const ATTRIBUTE_REGISTRY_V1: AttributeRegistry = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   attributes: Object.fromEntries([
     // Universal
     A("speed","Speed",ALL,"physical"),
@@ -118,6 +118,11 @@ export const ATTRIBUTE_REGISTRY_V1: AttributeRegistry = {
     A("patience","Patience",["RB"],"mental"),
     // Blocking-adjacent front
     A("gapDiscipline","Gap Discipline",FRONT.concat(["LB"]),"knowledge"),
+    // Special teams (ADR-014). K, P and LS existed as positions with nothing describing them.
+    A("kickPower","Kick Power",["ST"],"physical","Placekick distance"),
+    A("kickAccuracy","Kick Accuracy",["ST"],"skill","Placekick precision, independent of leg"),
+    A("puntPower","Punt Power",["ST"],"physical","Punt distance"),
+    A("puntHangTime","Punt Hang Time",["ST"],"skill","Airtime — what makes a punt net rather than gross"),
     // Personality (Spec #14)
     A("volatility","Volatility",ALL,"mental","Rate morale moves in BOTH directions"),
   ].map((d) => [d.id as unknown as string, d])),
@@ -203,6 +208,30 @@ export const MIGRATION_V1_TO_V2: RegistryMigration = {
     attr: ATTRIBUTE_REGISTRY_V1.attributes["jumping"]!,
     defaultFrom: { sources: [attrId("spectacularCatch"), attrId("ballSkills")], method: "mean" },
   }],
+};
+
+/**
+ * ADR-014: kicking attributes. `K`, `P` and `LS` existed as positions with nothing in the
+ * registry describing what any of them could do, so the game loop's special teams ran on
+ * `strength`/`accuracy`/`speed` — a 99-accuracy quarterback would have kicked like a
+ * 99-accuracy kicker. `defaultFrom` reproduces exactly that interim mapping, so ratification
+ * changes four strings in the engine's tunables and no behaviour.
+ */
+export const MIGRATION_V2_TO_V3: RegistryMigration = {
+  fromVersion: 2,
+  toVersion: 3,
+  ops: [
+    { op: "add", attr: ATTRIBUTE_REGISTRY_V1.attributes["kickPower"]!,
+      defaultFrom: { sources: [attrId("strength")], method: "mean" } },
+    { op: "add", attr: ATTRIBUTE_REGISTRY_V1.attributes["kickAccuracy"]!,
+      defaultFrom: { sources: [attrId("accuracy")], method: "mean" } },
+    { op: "add", attr: ATTRIBUTE_REGISTRY_V1.attributes["puntPower"]!,
+      defaultFrom: { sources: [attrId("strength")], method: "mean" } },
+    { op: "add", attr: ATTRIBUTE_REGISTRY_V1.attributes["puntHangTime"]!,
+      // ADR-014 §E's table: hang time is a punter's skill, not raw leg. Seeded from
+      // `accuracy`, not `strength` — the migration must match the ratified table.
+      defaultFrom: { sources: [attrId("accuracy")], method: "mean" } },
+  ],
 };
 
 /** Coach attributes live in a separate namespace (Spec #11 §3). */

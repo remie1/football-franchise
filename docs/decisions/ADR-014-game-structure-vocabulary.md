@@ -2,7 +2,7 @@
 
 - **Date:** July 2026
 - **Proposed by:** `match-engine` (Phase 1 game loop — drives, possessions, the clock, scoring, special teams)
-- **Status:** proposed
+- **Status:** approved (item 13 approved in amended form — see Decision)
 
 ## Need
 
@@ -291,6 +291,45 @@ the shape proposed:
 | F (barrel) | `reduceStatlines` and the `StatLine` types are exported from `src/index.ts` and are listed in `test/tunablePatch.test.ts`'s permitted-surface assertion, marked as the proposed fifth category. |
 
 ---
+
+## Decision
+
+**Approved** by project owner + Orchestrator, July 2026. Fourteen items as proposed; **item 13
+approved in amended form.**
+
+`SCORE` as an addition rather than a widening of `PLAY_RESULT.score` was singled out as
+correct, on the same precedent that refused a `phase` discriminator on `YAC_ZONE`.
+
+### Item 13 amended: split the base, do not make `playId` optional
+
+The proposal made `MatchEventBase.playId` optional. Rejected in that form, on the owner's
+objection: **it is a narrowing of a guarantee every existing consumer relies on — the opposite
+direction from every other change ratified here — and it makes "this is not a play" and
+"somebody forgot to set it" both arrive as `undefined`.** The whole point of the item was that
+minting `{gameId}:final` is a fiction inside a type whose purpose is to stop fictions; replacing
+one fiction with an ambiguity is not an improvement.
+
+Ratified instead as **two bases**:
+
+```ts
+/** PLAY-scoped. playId is required: an event about a play that cannot name it is a bug. */
+export interface MatchEventBase { gameId: GameId; playId: PlayId; tick?: number; }
+
+/** GAME-scoped — coin toss, period and drive boundaries, scoreboard, kicks. Not plays. */
+export interface GameEventBase { gameId: GameId; playId?: never; }
+```
+
+`playId?: never` rather than the field's mere absence, so that setting one on a game event is a
+compile error rather than an excess-property surprise. Absence is now structural: a play event
+that omits its id fails to compile, and a game event cannot claim one. No `undefined` to
+misread in either direction, and no existing producer or consumer changes — `playId` stays
+required exactly where it was.
+
+**Consequent rule, which the engine must apply when it classifies the eleven new events:** an
+event that genuinely relates to a play states that link **in its own payload**, as a named field
+with a documented meaning — never as an ambiguous base field. Where the relationship is
+positional (a `SCORE` follows the `PLAY_RESULT` that produced it in a single ordered stream),
+ordering is the link and no field is needed.
 
 ## Considered and NOT proposed
 

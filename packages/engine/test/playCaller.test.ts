@@ -51,6 +51,7 @@ function fourthDown(overrides: Partial<DecisionSituation> & { fieldGoalDistanceY
   return {
     kind: "FOURTH_DOWN",
     authority: "COACH",
+    tunables: TUNABLES,
     situation: s,
     offense,
     fieldGoalDistanceYards: fieldGoalDistanceYards ?? 100 - s.ballOn + 17,
@@ -134,16 +135,16 @@ describe("the fourth-down policy is a pure function of the situation", () => {
 
 describe("the pass rate", () => {
   it("throws more on third down and less on third and one", () => {
-    expect(passRateFor({ down: 3, distance: 8, twoMinute: false })).toBeGreaterThan(
-      passRateFor({ down: 1, distance: 10, twoMinute: false }),
+    expect(passRateFor({ tunables: TUNABLES, down: 3, distance: 8, twoMinute: false })).toBeGreaterThan(
+      passRateFor({ tunables: TUNABLES, down: 1, distance: 10, twoMinute: false }),
     );
-    expect(passRateFor({ down: 3, distance: 1, twoMinute: false })).toBeLessThan(
-      passRateFor({ down: 3, distance: 8, twoMinute: false }),
+    expect(passRateFor({ tunables: TUNABLES, down: 3, distance: 1, twoMinute: false })).toBeLessThan(
+      passRateFor({ tunables: TUNABLES, down: 3, distance: 8, twoMinute: false }),
     );
   });
 
   it("throws in the two-minute drill", () => {
-    expect(passRateFor({ down: 1, distance: 10, twoMinute: true })).toBe(
+    expect(passRateFor({ tunables: TUNABLES, down: 1, distance: 10, twoMinute: true })).toBe(
       TUNABLES.game.caller.twoMinutePassRate,
     );
   });

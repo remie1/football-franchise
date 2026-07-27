@@ -37,39 +37,39 @@ const WIN_MARGIN = 15;
 
 describe("§7.2 alignment", () => {
   it("derives interior from the rusher's position when the call does not state it", () => {
-    expect(rushAlignmentFor("DT")).toBe("INTERIOR");
-    expect(rushAlignmentFor("NT")).toBe("INTERIOR");
-    expect(rushAlignmentFor("DE")).toBe("EDGE");
-    expect(rushAlignmentFor("OLB")).toBe("EDGE");
-    expect(rushAlignmentFor("MLB")).toBe("EDGE");
+    expect(rushAlignmentFor(TUNABLES, "DT")).toBe("INTERIOR");
+    expect(rushAlignmentFor(TUNABLES, "NT")).toBe("INTERIOR");
+    expect(rushAlignmentFor(TUNABLES, "DE")).toBe("EDGE");
+    expect(rushAlignmentFor(TUNABLES, "OLB")).toBe("EDGE");
+    expect(rushAlignmentFor(TUNABLES, "MLB")).toBe("EDGE");
   });
 
   it("an explicit alignment on the play call always wins — a DE can walk inside", () => {
-    expect(rushAlignmentFor("DE", "INTERIOR")).toBe("INTERIOR");
-    expect(rushAlignmentFor("DT", "EDGE")).toBe("EDGE");
-    expect(rushAlignmentFor("MLB", "INTERIOR")).toBe("INTERIOR");
+    expect(rushAlignmentFor(TUNABLES, "DE", "INTERIOR")).toBe("INTERIOR");
+    expect(rushAlignmentFor(TUNABLES, "DT", "EDGE")).toBe("EDGE");
+    expect(rushAlignmentFor(TUNABLES, "MLB", "INTERIOR")).toBe("INTERIOR");
   });
 });
 
 describe("§7.2 travel time", () => {
   it("interior arrives sooner than the edge on every move — the whole point", () => {
     for (const move of MOVES) {
-      expect(travelSecondsFor("INTERIOR", move, WIN_MARGIN)).toBeLessThan(
-        travelSecondsFor("EDGE", move, WIN_MARGIN),
+      expect(travelSecondsFor(TUNABLES, "INTERIOR", move, WIN_MARGIN)).toBeLessThan(
+        travelSecondsFor(TUNABLES, "EDGE", move, WIN_MARGIN),
       );
     }
   });
 
   it("the edge speed rush is the slowest path: it is an arc around a corner", () => {
-    expect(travelSecondsFor("EDGE", "SPEED", WIN_MARGIN)).toBeGreaterThan(
-      travelSecondsFor("EDGE", "POWER", WIN_MARGIN),
+    expect(travelSecondsFor(TUNABLES, "EDGE", "SPEED", WIN_MARGIN)).toBeGreaterThan(
+      travelSecondsFor(TUNABLES, "EDGE", "POWER", WIN_MARGIN),
     );
   });
 
   it("a more dominant rep arrives sooner, monotonically", () => {
-    let previous = travelSecondsFor("EDGE", "SPEED", WIN_MARGIN);
+    let previous = travelSecondsFor(TUNABLES, "EDGE", "SPEED", WIN_MARGIN);
     for (let margin = WIN_MARGIN; margin <= 99; margin += 5) {
-      const travel = travelSecondsFor("EDGE", "SPEED", margin);
+      const travel = travelSecondsFor(TUNABLES, "EDGE", "SPEED", margin);
       expect(travel).toBeLessThanOrEqual(previous);
       previous = travel;
     }
@@ -78,10 +78,10 @@ describe("§7.2 travel time", () => {
   it("nobody teleports: travel never drops below the floor, at any margin", () => {
     for (const move of MOVES) {
       for (const alignment of ["INTERIOR", "EDGE"] as const) {
-        expect(travelSecondsFor(alignment, move, 99)).toBeGreaterThanOrEqual(
+        expect(travelSecondsFor(TUNABLES, alignment, move, 99)).toBeGreaterThanOrEqual(
           TUNABLES.arrival.minTravelSeconds,
         );
-        expect(travelSecondsFor(alignment, move, 99)).toBeLessThanOrEqual(
+        expect(travelSecondsFor(TUNABLES, alignment, move, 99)).toBeLessThanOrEqual(
           TUNABLES.arrival.maxTravelSeconds,
         );
       }
@@ -90,7 +90,7 @@ describe("§7.2 travel time", () => {
 
   it("every travel time lands on the tick grid", () => {
     for (let margin = WIN_MARGIN; margin <= 99; margin += 1) {
-      const travel = travelSecondsFor("EDGE", "SPEED", margin);
+      const travel = travelSecondsFor(TUNABLES, "EDGE", "SPEED", margin);
       expect(Number.isInteger(Math.round(travel / TUNABLES.arrival.quantizeSeconds))).toBe(true);
       expect(Math.abs(travel / TUNABLES.arrival.quantizeSeconds - Math.round(travel / TUNABLES.arrival.quantizeSeconds)))
         .toBeLessThan(1e-9);
@@ -99,10 +99,10 @@ describe("§7.2 travel time", () => {
 
   it("the dominance shave is reserved for exceptional reps, not routine ones", () => {
     // Sized against the §7.1 margin distribution: a bare win must not shave.
-    expect(travelSecondsFor("EDGE", "SPEED", WIN_MARGIN)).toBe(
+    expect(travelSecondsFor(TUNABLES, "EDGE", "SPEED", WIN_MARGIN)).toBe(
       TUNABLES.arrival.travelSecondsByAlignmentAndMove.EDGE.SPEED,
     );
-    expect(travelSecondsFor("EDGE", "SPEED", WIN_MARGIN + 40)).toBe(
+    expect(travelSecondsFor(TUNABLES, "EDGE", "SPEED", WIN_MARGIN + 40)).toBe(
       TUNABLES.arrival.travelSecondsByAlignmentAndMove.EDGE.SPEED,
     );
   });
@@ -124,16 +124,16 @@ describe("§7.2 threat lifecycle", () => {
   });
 
   it("only a blocker win by 15+ ends one — §7.1's 'rusher reset, starts fresh'", () => {
-    expect(clearsThreat("BLOCKER_RESETS")).toBe(true);
-    expect(clearsThreat("BLOCKER_CONTAINS")).toBe(false);
-    expect(clearsThreat("RUSHER_WINS_REP")).toBe(false);
+    expect(clearsThreat(TUNABLES, "BLOCKER_RESETS")).toBe(true);
+    expect(clearsThreat(TUNABLES, "BLOCKER_CONTAINS")).toBe(false);
+    expect(clearsThreat(TUNABLES, "RUSHER_WINS_REP")).toBe(false);
   });
 
   it("a contained rusher is not un-beaten, but he loses ground", () => {
-    expect(recoverySecondsFor("BLOCKER_CONTAINS")).toBeGreaterThan(0);
-    expect(recoverySecondsFor("STALEMATE")).toBe(0);
-    expect(recoverySecondsFor("RUSHER_GAINING")).toBe(0);
-    expect(delayThreat(threat(2.5), recoverySecondsFor("BLOCKER_CONTAINS")).etaTick).toBe(3.0);
+    expect(recoverySecondsFor(TUNABLES, "BLOCKER_CONTAINS")).toBeGreaterThan(0);
+    expect(recoverySecondsFor(TUNABLES, "STALEMATE")).toBe(0);
+    expect(recoverySecondsFor(TUNABLES, "RUSHER_GAINING")).toBe(0);
+    expect(delayThreat(threat(2.5), recoverySecondsFor(TUNABLES, "BLOCKER_CONTAINS")).etaTick).toBe(3.0);
     expect(delayThreat(threat(2.5), 0).etaTick).toBe(2.5);
   });
 
@@ -144,7 +144,7 @@ describe("§7.2 threat lifecycle", () => {
   });
 
   it("the ETA is the tick of the rep plus the travel it earned", () => {
-    const t = threatFromWonRep({
+    const t = threatFromWonRep({ tunables: TUNABLES,
       rusher: buildScenario().state.quarterback,
       alignment: "INTERIOR",
       move: "POWER",
@@ -153,40 +153,40 @@ describe("§7.2 threat lifecycle", () => {
       rollRef: "test/rush-rep",
     });
     expect(t.wonAtTick).toBe(1.5);
-    expect(t.etaTick).toBe(1.5 + travelSecondsFor("INTERIOR", "POWER", WIN_MARGIN));
+    expect(t.etaTick).toBe(1.5 + travelSecondsFor(TUNABLES, "INTERIOR", "POWER", WIN_MARGIN));
   });
 
   it("time to arrival and the nearest threat", () => {
     expect(timeToArrival(threat(2.5), 1.0)).toBe(1.5);
     expect(minTimeToArrival([threat(3.0), threat(2.0)], 1.0)).toBe(1.0);
     expect(minTimeToArrival([], 1.0)).toBeUndefined();
-    expect(hasArrived([threat(2.0)], 1.5)).toBe(false);
-    expect(hasArrived([threat(2.0)], 2.0)).toBe(true);
-    expect(hasArrived([], 6.0)).toBe(false);
+    expect(hasArrived(TUNABLES, [threat(2.0)], 1.5)).toBe(false);
+    expect(hasArrived(TUNABLES, [threat(2.0)], 2.0)).toBe(true);
+    expect(hasArrived(TUNABLES, [], 6.0)).toBe(false);
   });
 });
 
 describe("§7.2 the arrival floor", () => {
   it("nobody travelling is a clean pocket, however the rep went", () => {
-    expect(pocketFloorFromArrival(undefined)).toBe("CLEAN");
+    expect(pocketFloorFromArrival(TUNABLES, undefined)).toBe("CLEAN");
   });
 
   it("a distant threat is pressure, a near one collapsing, an arrived one immediate", () => {
-    expect(pocketFloorFromArrival(2.0)).toBe("PRESSURE");
-    expect(pocketFloorFromArrival(1.5)).toBe("PRESSURE");
-    expect(pocketFloorFromArrival(1.0)).toBe("COLLAPSING");
-    expect(pocketFloorFromArrival(0.5)).toBe("COLLAPSING");
-    expect(pocketFloorFromArrival(0.0)).toBe("IMMEDIATE");
-    expect(pocketFloorFromArrival(-0.5)).toBe("IMMEDIATE");
+    expect(pocketFloorFromArrival(TUNABLES, 2.0)).toBe("PRESSURE");
+    expect(pocketFloorFromArrival(TUNABLES, 1.5)).toBe("PRESSURE");
+    expect(pocketFloorFromArrival(TUNABLES, 1.0)).toBe("COLLAPSING");
+    expect(pocketFloorFromArrival(TUNABLES, 0.5)).toBe("COLLAPSING");
+    expect(pocketFloorFromArrival(TUNABLES, 0.0)).toBe("IMMEDIATE");
+    expect(pocketFloorFromArrival(TUNABLES, -0.5)).toBe("IMMEDIATE");
   });
 
   it("urgency rises as the arrival closes and is zero when nobody is coming", () => {
-    expect(urgencySteps(undefined)).toBe(0);
-    expect(urgencySteps(2.0)).toBe(0);
-    expect(urgencySteps(1.5)).toBe(0);
-    expect(urgencySteps(1.0)).toBe(1);
-    expect(urgencySteps(0.5)).toBe(2);
-    expect(urgencySteps(0.0)).toBe(3);
+    expect(urgencySteps(TUNABLES, undefined)).toBe(0);
+    expect(urgencySteps(TUNABLES, 2.0)).toBe(0);
+    expect(urgencySteps(TUNABLES, 1.5)).toBe(0);
+    expect(urgencySteps(TUNABLES, 1.0)).toBe(1);
+    expect(urgencySteps(TUNABLES, 0.5)).toBe(2);
+    expect(urgencySteps(TUNABLES, 0.0)).toBe(3);
   });
 });
 
@@ -217,7 +217,7 @@ function sackCause(events: readonly MatchEventEnvelope[]): "INTERIOR" | "EDGE" |
       const rusher = String(event.payload.actors[0]);
       const band = bandFor(TUNABLES.passRush.bands, event.payload.margin).label;
       if (band === "RUSHER_WINS_REP") {
-        const travel = travelSecondsFor(
+        const travel = travelSecondsFor(TUNABLES, 
           alignment.get(rusher) ?? "EDGE",
           move.get(rusher) ?? "SPEED",
           event.payload.margin,
@@ -225,11 +225,11 @@ function sackCause(events: readonly MatchEventEnvelope[]): "INTERIOR" | "EDGE" |
         const next = Number(((event.tick ?? 0) + travel).toFixed(1));
         const prev = eta.get(rusher);
         eta.set(rusher, prev === undefined ? next : Math.min(prev, next));
-      } else if (clearsThreat(band)) {
+      } else if (clearsThreat(TUNABLES, band)) {
         eta.delete(rusher);
       } else {
         const cur = eta.get(rusher);
-        const rec = recoverySecondsFor(band);
+        const rec = recoverySecondsFor(TUNABLES, band);
         if (cur !== undefined && rec !== 0) eta.set(rusher, Number((cur + rec).toFixed(1)));
       }
     }
@@ -274,7 +274,7 @@ describe("§7.2 the emergent claim: interior pressure outweighs edge pressure", 
         if (event.type === "CHECK" && event.payload.checkKind === "pass_rush_tick") {
           const band = bandFor(TUNABLES.passRush.bands, event.payload.margin).label;
           if (band === "RUSHER_WINS_REP") wonAt.push(event.tick ?? -1);
-          if (clearsThreat(band)) clearedAt.push(event.tick ?? -1);
+          if (clearsThreat(TUNABLES, band)) clearedAt.push(event.tick ?? -1);
         }
       }
       for (const tick of wonAt) {

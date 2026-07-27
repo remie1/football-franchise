@@ -17,6 +17,7 @@ import {
   worsePocketStatus,
 } from "../src/resolve/pocket.js";
 import type { PassRushBandLabel } from "../src/resolve/passRush.js";
+import { isGameScoped } from "../src/game/events.js";
 import { bandFor } from "../src/rolls.js";
 import { TUNABLES } from "../src/tunables.js";
 import type { PocketStatus } from "../src/types.js";
@@ -32,6 +33,9 @@ interface TickRow {
 function tickRows(events: readonly MatchEventEnvelope[]): TickRow[] {
   const rows = new Map<number, { status?: PocketStatus; bands: PassRushBandLabel[] }>();
   for (const { event } of events) {
+    // ADR-014 item 13: `tick` is on the PLAY-scoped base only. A game-scoped
+    // event has no `playId` and no `tick`, and this loop is about ticks.
+    if (isGameScoped(event)) continue;
     const tick = event.tick;
     if (tick === undefined) continue;
     const row = rows.get(tick) ?? { bands: [] };
@@ -53,37 +57,37 @@ function tickRows(events: readonly MatchEventEnvelope[]): TickRow[] {
 
 describe("§7.2 the single-rep rule (B1)", () => {
   it("one won rep is COLLAPSING on its own — no accumulation required", () => {
-    expect(pocketFloorFor(["RUSHER_WINS_REP"])).toBe("COLLAPSING");
+    expect(pocketFloorFor(TUNABLES, ["RUSHER_WINS_REP"])).toBe("COLLAPSING");
     // zero accumulated pressure, one beaten block: still COLLAPSING
-    expect(pocketStatusFor(0, ["RUSHER_WINS_REP"])).toBe("COLLAPSING");
-    expect(pocketStatusFromPressure(0)).toBe("CLEAN");
+    expect(pocketStatusFor(TUNABLES, 0, ["RUSHER_WINS_REP"])).toBe("COLLAPSING");
+    expect(pocketStatusFromPressure(TUNABLES, 0)).toBe("CLEAN");
   });
 
   it("one rusher gaining by 1-14 is PRESSURE on its own", () => {
-    expect(pocketFloorFor(["RUSHER_GAINING"])).toBe("PRESSURE");
-    expect(pocketStatusFor(0, ["RUSHER_GAINING"])).toBe("PRESSURE");
+    expect(pocketFloorFor(TUNABLES, ["RUSHER_GAINING"])).toBe("PRESSURE");
+    expect(pocketStatusFor(TUNABLES, 0, ["RUSHER_GAINING"])).toBe("PRESSURE");
   });
 
   it("blockers who held do not soften the matchup that was lost (B3)", () => {
     // The exact shape that was broken: one interior collapse, everything else
     // contained. An average, or a read of a single matchup, misses it.
-    expect(pocketStatusFor(0, ["BLOCKER_RESETS", "RUSHER_WINS_REP", "BLOCKER_CONTAINS"])).toBe("COLLAPSING");
-    expect(pocketStatusFor(0, ["STALEMATE", "RUSHER_GAINING", "BLOCKER_CONTAINS"])).toBe("PRESSURE");
-    expect(pocketStatusFor(0, ["BLOCKER_RESETS", "BLOCKER_CONTAINS", "STALEMATE"])).toBe("CLEAN");
+    expect(pocketStatusFor(TUNABLES, 0, ["BLOCKER_RESETS", "RUSHER_WINS_REP", "BLOCKER_CONTAINS"])).toBe("COLLAPSING");
+    expect(pocketStatusFor(TUNABLES, 0, ["STALEMATE", "RUSHER_GAINING", "BLOCKER_CONTAINS"])).toBe("PRESSURE");
+    expect(pocketStatusFor(TUNABLES, 0, ["BLOCKER_RESETS", "BLOCKER_CONTAINS", "STALEMATE"])).toBe("CLEAN");
     // ...and the worst rusher sets it regardless of his position in the list
-    expect(pocketStatusFor(0, ["RUSHER_WINS_REP", "BLOCKER_RESETS"])).toBe("COLLAPSING");
-    expect(pocketStatusFor(0, ["BLOCKER_RESETS", "RUSHER_WINS_REP"])).toBe("COLLAPSING");
+    expect(pocketStatusFor(TUNABLES, 0, ["RUSHER_WINS_REP", "BLOCKER_RESETS"])).toBe("COLLAPSING");
+    expect(pocketStatusFor(TUNABLES, 0, ["BLOCKER_RESETS", "RUSHER_WINS_REP"])).toBe("COLLAPSING");
   });
 
   it("the counter still earns its place: it escalates past COLLAPSING", () => {
     // The floor caps out at COLLAPSING; IMMEDIATE and SACK come from sustained
     // pressure, which is the counter's whole job.
-    expect(pocketStatusFor(7, ["BLOCKER_CONTAINS"])).toBe("IMMEDIATE");
-    expect(pocketStatusFor(9, ["STALEMATE"])).toBe("SACK");
-    expect(pocketStatusFor(7, ["RUSHER_WINS_REP"])).toBe("IMMEDIATE");
+    expect(pocketStatusFor(TUNABLES, 7, ["BLOCKER_CONTAINS"])).toBe("IMMEDIATE");
+    expect(pocketStatusFor(TUNABLES, 9, ["STALEMATE"])).toBe("SACK");
+    expect(pocketStatusFor(TUNABLES, 7, ["RUSHER_WINS_REP"])).toBe("IMMEDIATE");
     // ...and it can never make the pocket look BETTER than the doc's floor
-    expect(pocketStatusFor(0, ["RUSHER_WINS_REP"])).toBe("COLLAPSING");
-    expect(pocketStatusFor(3, ["RUSHER_WINS_REP"])).toBe("COLLAPSING");
+    expect(pocketStatusFor(TUNABLES, 0, ["RUSHER_WINS_REP"])).toBe("COLLAPSING");
+    expect(pocketStatusFor(TUNABLES, 3, ["RUSHER_WINS_REP"])).toBe("COLLAPSING");
   });
 
   it("the severity ladder covers every status and is strictly ordered", () => {
@@ -92,9 +96,9 @@ describe("§7.2 the single-rep rule (B1)", () => {
       if (i === 0) return;
       const previous = ladder[i - 1];
       if (previous === undefined) throw new Error("ladder");
-      expect(pocketSeverity(status)).toBeGreaterThan(pocketSeverity(previous));
-      expect(worsePocketStatus(previous, status)).toBe(status);
-      expect(worsePocketStatus(status, previous)).toBe(status);
+      expect(pocketSeverity(TUNABLES, status)).toBeGreaterThan(pocketSeverity(TUNABLES, previous));
+      expect(worsePocketStatus(TUNABLES, previous, status)).toBe(status);
+      expect(worsePocketStatus(TUNABLES, status, previous)).toBe(status);
     });
   });
 
@@ -120,10 +124,10 @@ describe("§7.2 invariant over real event streams", () => {
 
         if (row.bands.includes("RUSHER_WINS_REP")) {
           sawWonRep += 1;
-          expect(pocketSeverity(next.status)).toBeGreaterThanOrEqual(pocketSeverity("COLLAPSING"));
+          expect(pocketSeverity(TUNABLES, next.status)).toBeGreaterThanOrEqual(pocketSeverity(TUNABLES, "COLLAPSING"));
         } else if (row.bands.includes("RUSHER_GAINING")) {
           sawGaining += 1;
-          expect(pocketSeverity(next.status)).toBeGreaterThanOrEqual(pocketSeverity("PRESSURE"));
+          expect(pocketSeverity(TUNABLES, next.status)).toBeGreaterThanOrEqual(pocketSeverity(TUNABLES, "PRESSURE"));
         }
       });
     }
@@ -183,13 +187,13 @@ describe("§7.2 invariant over real event streams", () => {
   it("the arrival floor is folded in: a travelling rusher keeps the pocket dirty", () => {
     // Nobody won a rep last tick and no pressure has accumulated, but a rusher
     // is still on his way — the pocket is not clean.
-    expect(pocketStatusFor(0, ["STALEMATE"], undefined)).toBe("CLEAN");
-    expect(pocketStatusFor(0, ["STALEMATE"], 2.0)).toBe("PRESSURE");
-    expect(pocketStatusFor(0, ["STALEMATE"], 0.5)).toBe("COLLAPSING");
-    expect(pocketStatusFor(0, ["STALEMATE"], 0)).toBe("IMMEDIATE");
+    expect(pocketStatusFor(TUNABLES, 0, ["STALEMATE"], undefined)).toBe("CLEAN");
+    expect(pocketStatusFor(TUNABLES, 0, ["STALEMATE"], 2.0)).toBe("PRESSURE");
+    expect(pocketStatusFor(TUNABLES, 0, ["STALEMATE"], 0.5)).toBe("COLLAPSING");
+    expect(pocketStatusFor(TUNABLES, 0, ["STALEMATE"], 0)).toBe("IMMEDIATE");
     // ...and it can only make things worse, never better
-    expect(pocketStatusFor(0, ["RUSHER_WINS_REP"], 2.0)).toBe("COLLAPSING");
-    expect(pocketStatusFor(9, ["STALEMATE"], 2.0)).toBe("SACK");
+    expect(pocketStatusFor(TUNABLES, 0, ["RUSHER_WINS_REP"], 2.0)).toBe("COLLAPSING");
+    expect(pocketStatusFor(TUNABLES, 9, ["STALEMATE"], 2.0)).toBe("SACK");
   });
 
   it("the first tick of a play is always CLEAN — nothing has happened yet", () => {

@@ -1,235 +1,100 @@
 /**
- * GAME-STRUCTURE EVENTS — INTERIM, PENDING ADR-014.
+ * GAME-STRUCTURE EVENTS — RATIFIED (ADR-014).
  *
- * ============================ READ THIS FIRST ============================
- * Every type in this file is a CONTRACT PETITION that has not been ratified
- * yet. `@ff/contracts`'s `MatchEvent` union describes a PLAY and nothing above
- * one: it has no possession, no drive, no period, no scoreboard, no kick, and
- * its `GAME_END` payload is `{ home, away }`. The game loop cannot satisfy
- * FANTASY-GATE-PHASE1 §3.4 — "possession changes, drive start/end, period
- * boundaries and scoring are EVENTS, not just state deltas" — with that union.
+ * This file used to declare an `InterimGameEvent` union: eleven proposed members
+ * of `MatchEvent`, plus a `GAME_SUMMARY` sibling carrying the fields the narrow
+ * `GAME_END` could not, plus an engine-local `GameEventBase` whose `playId` was
+ * optional. All of it is gone. `@ff/contracts` now declares the eleven members,
+ * the widened `GAME_END` and the six named payload unions, so what is left here
+ * is a LOG — the thing that emits them — and two type aliases.
  *
- * Three ways to bridge that were available and two are forbidden:
+ * ================== WHAT RATIFICATION CHANGED, EXACTLY ==================
  *
- *  ✗ Put the facts only in `newState`. Forbidden by §3.4, and it is the exact
- *    hole `FANTASY-GATE-PHASE1` F3 was commissioned about: a consumer holding
- *    the stream could not say who had the ball or what the score was.
- *  ✗ Carry them on an existing event — `PLAY_START`'s open `unknown` payload is
- *    the obvious temptation. Forbidden by ADR-010's standing rule: *widen or
- *    add, never overload*. A `PLAY_START` that is not a play makes the §17
- *    renderer, the calibration play counter and the UI play log all SILENTLY
- *    wrong rather than loudly incomplete.
- *  ✓ Declare the proposed events here, in the engine, in exactly the shape
- *    ADR-014 petitions for, and interleave them into the ONE returned stream as
- *    a union member. On ratification the members move into `MatchEvent`
- *    verbatim, `GameEvent` collapses to `MatchEvent`, and this file is deleted.
- *    No producer changes, no consumer changes, no re-sequencing.
+ *  1. `GameEvent` is an alias of `MatchEvent`. One stream, one `seq` space, one
+ *     ordering, as it always was; the union it is typed against is now the
+ *     contract's rather than the engine's.
  *
- * There is exactly one stream, one `seq` space and one ordering. The statline
- * reducer, the debug renderer and `GameResult.events` all read that one stream.
- * ======================================================================== */
+ *  2. `MatchEventBase.playId` stayed REQUIRED and a second base was added
+ *     (ADR-014 item 13, amended). `GameEventBase` has `playId?: never`, so
+ *     "this is not a play" is structural rather than a missing value, and
+ *     setting one on a drive boundary is a compile error.
+ *
+ *  3. `{gameId}:final` is gone. It was the one dishonest identifier in the
+ *     stream — a branded `PlayId` naming no play — and it existed solely because
+ *     the final whistle had to ride on a base that demanded one. `GAME_END` is
+ *     game-scoped now and mints nothing.
+ *
+ *  4. The special-teams rolls moved onto `CHECK`s (`field_goal`, `punt`,
+ *     `kick_return`) and the summary events keep only `rollRef`s, exactly as
+ *     `CATCH_RESOLUTION` and `TIPPED_BALL` do (ADR-004). Calibration's "count
+ *     rolls from CHECK/PRESNAP_READ only" now counts every kick in the league.
+ *
+ * ================== THE ONE THING RATIFICATION DID NOT SETTLE ==================
+ *
+ * A `CHECK` is PLAY-scoped, so a field goal's roll needs a `PlayId` — and a
+ * field-goal attempt IS a play (a fourth down), as a punt is and as a kickoff is
+ * a free-kick down. So this log mints one, from the same coordinates the PRNG
+ * fork label already uses (`{gameId}:fieldGoal:{drive}`, `{gameId}:punt:{drive}`,
+ * `{gameId}:kickoff:{n}`). That is not a `{gameId}:final`-style fiction: it names
+ * a real play that really happened, and nobody parses it (`contracts.md` §1).
+ *
+ * It does leave an asymmetry: the CHECK can name the play and the `PLACEKICK` /
+ * `PUNT` / `KICKOFF` summary that references it cannot, because those three are
+ * declared GAME-scoped. The join goes through `rollRef` instead, which is what
+ * ADR-004 asks for everywhere else, so nothing is unreconstructible — but the
+ * classification is worth revisiting. Filed as ADR-016.
+ *
+ * The COIN TOSS is different and is correctly game-scoped: it is not a play, it
+ * is not a down, and it keeps its `RollDetail` INLINE on its own payload (the
+ * ratified `COIN_TOSS` payload has `roll`, not `rollRef`). It is therefore the
+ * second ADR-004 exception after `QB_READ.varianceRoll`, and `CheckKind`'s
+ * `coin_toss` member has no producer — the same standing as `fumble`,
+ * `dline_tip` and `penalty_check`, which are waiting for mechanics rather than
+ * for types.
+ */
 import { playId as makePlayId } from "@ff/contracts";
 import type {
   CalendarStamp,
+  CoachDecisionKind,
+  GameEndReason,
   GameId,
   MatchEvent,
   MatchEventEnvelope,
   PlayId,
-  PlayerId,
+  PossessionCause,
   RollDetail,
+  ScoreKind,
   TeamId,
 } from "@ff/contracts";
+import { checkPayload } from "../events.js";
+import type { CheckEmission } from "../events.js";
+
+/** The one stream. An alias since ADR-014 landed; kept as a name, not a union. */
+export type GameEvent = MatchEvent;
+export type GameEventEnvelope = MatchEventEnvelope;
 
 /**
- * INTERIM DEVIATION FROM `MatchEventBase`, and it is deliberate: `playId` is
- * OPTIONAL here. A drive boundary, a period boundary and a coin toss are not
- * plays, and minting a `PlayId` for them would be a lie in a branded type.
- * ADR-014 petitions for `MatchEventBase.playId` to become optional — a widening
- * no existing producer or consumer notices, since every existing event carries
- * one.
+ * The GAME-scoped half of `MatchEvent`, derived from the base rather than
+ * listed. `GameEventBase.playId` is `?: never` and `MatchEventBase.playId` is
+ * `PlayId`, so this partition is exactly ADR-014 item 13's and cannot drift out
+ * of date when a twelfth game-structure event lands.
  */
-export interface GameEventBase {
-  readonly gameId: GameId;
-  readonly playId?: PlayId;
+export type GameScopedEvent = Extract<MatchEvent, { playId?: never }>;
+export type PlayScopedEvent = Exclude<MatchEvent, GameScopedEvent>;
+
+/** Structural, not a list of type names: absence of `playId` IS the predicate. */
+export function isGameScoped(event: MatchEvent): event is GameScopedEvent {
+  return event.playId === undefined;
 }
 
-/** Why the ball changed hands. Named, not inline (ADR-013's lesson). */
-export type PossessionCause =
-  | "OPENING_KICKOFF"
-  | "SECOND_HALF_KICKOFF"
-  | "OVERTIME_KICKOFF"
-  | "KICKOFF_AFTER_SCORE"
-  | "FREE_KICK_AFTER_SAFETY"
-  | "PUNT"
-  | "INTERCEPTION"
-  | "DOWNS"
-  | "MISSED_FIELD_GOAL"
-  | "END_OF_PERIOD";
-
-/** How a drive ended. One value per way the engine can actually end one. */
-export type DriveResult =
-  | "TOUCHDOWN"
-  | "FIELD_GOAL"
-  | "MISSED_FIELD_GOAL"
-  | "PUNT"
-  | "INTERCEPTION"
-  | "TURNOVER_ON_DOWNS"
-  | "SAFETY"
-  | "END_OF_HALF"
-  | "END_OF_GAME";
-
-export type ScoreKind = "TOUCHDOWN" | "FIELD_GOAL" | "EXTRA_POINT" | "TWO_POINT" | "SAFETY";
-
-export type PlacekickKind = "FIELD_GOAL" | "EXTRA_POINT";
-
-export type CoachDecisionKind = "FOURTH_DOWN" | "COIN_TOSS";
-
-/**
- * The proposed additions to `MatchEvent`, verbatim.
- *
- * ⚠ ROLL ACCOUNTING (ADR-004) — INTERIM EXCEPTION, NARROW AND DOCUMENTED.
- * `COIN_TOSS`, `PLACEKICK`, `PUNT` and `KICKOFF` carry `RollDetail` INLINE
- * rather than referencing a `CHECK` by `rollRef`, because `CheckKind` is a
- * closed union in contracts and contains no `coin_toss`, `field_goal`, `punt`
- * or `kick_return`. ADR-014 petitions for those four members; on ratification
- * each roll moves to its own `CHECK` and these payloads keep only a `rollRef`,
- * exactly as `CATCH_RESOLUTION` and `TIPPED_BALL` already do. Until then,
- * calibration's "count rolls from CHECK/PRESNAP_READ only" rule UNDERCOUNTS
- * special teams rather than double-counting anything, which is the safe
- * direction to be wrong in.
- */
-export type InterimGameEvent =
-  | ({ type: "GAME_START"; payload: { home: TeamId; away: TeamId; seed: string } } & GameEventBase)
-  | ({
-      type: "COIN_TOSS";
-      payload: { winner: TeamId; choice: "RECEIVE" | "DEFER"; receivesFirst: TeamId; roll: RollDetail };
-    } & GameEventBase)
-  | ({ type: "PERIOD_START"; payload: { period: number; clockSeconds: number } } & GameEventBase)
-  | ({ type: "PERIOD_END"; payload: { period: number; home: number; away: number } } & GameEventBase)
-  | ({
-      type: "POSSESSION_CHANGE";
-      payload: { from: TeamId; to: TeamId; cause: PossessionCause; ballOn: number };
-    } & GameEventBase)
-  | ({
-      type: "DRIVE_START";
-      payload: {
-        driveNumber: number;
-        offense: TeamId;
-        defense: TeamId;
-        period: number;
-        clockSeconds: number;
-        startYardLine: number;
-        cause: PossessionCause;
-      };
-    } & GameEventBase)
-  | ({
-      type: "DRIVE_END";
-      payload: {
-        driveNumber: number;
-        offense: TeamId;
-        result: DriveResult;
-        plays: number;
-        yards: number;
-        elapsedSeconds: number;
-        endYardLine: number;
-        points: number;
-      };
-    } & GameEventBase)
-  | ({
-      type: "SCORE";
-      payload: { team: TeamId; kind: ScoreKind; points: number; home: number; away: number };
-    } & GameEventBase)
-  | ({
-      type: "PLACEKICK";
-      payload: {
-        kind: PlacekickKind;
-        kicker: PlayerId;
-        team: TeamId;
-        distanceYards: number;
-        made: boolean;
-        band: string;
-        roll: RollDetail;
-        target: number;
-      };
-    } & GameEventBase)
-  | ({
-      type: "PUNT";
-      payload: {
-        punter: PlayerId;
-        team: TeamId;
-        fromYardLine: number;
-        grossYards: number;
-        touchback: boolean;
-        downed: boolean;
-        returner?: PlayerId;
-        returnYards: number;
-        resultYardLine: number;
-        roll: RollDetail;
-        returnRoll?: RollDetail;
-      };
-    } & GameEventBase)
-  | ({
-      type: "KICKOFF";
-      payload: {
-        kicker: PlayerId;
-        team: TeamId;
-        fromYardLine: number;
-        touchback: boolean;
-        returner?: PlayerId;
-        returnYards: number;
-        resultYardLine: number;
-        roll: RollDetail;
-        returnRoll?: RollDetail;
-      };
-    } & GameEventBase)
-  | ({
-      type: "COACH_DECISION";
-      payload: { kind: CoachDecisionKind; authority: "COACH"; team: TeamId; choice: string };
-    } & GameEventBase)
-  /**
-   * The provenance half of the widened `GAME_END` ADR-014 petitions for.
-   *
-   * Contracts' `GAME_END { home, away }` is still emitted, immediately before
-   * this, and it is still CORRECT — it is merely not enough. Splitting rather
-   * than replacing keeps every existing `GAME_END` consumer right today; the
-   * petition merges the two payloads and deletes this event.
-   *
-   * Every field except `seed` is derivable from the preceding stream, which is
-   * the discipline `GAME_END` inherits from `PLAY_RESULT`. `seed` is not
-   * derivable and is not a game fact — it is the provenance that makes the game
-   * re-runnable at all, and FANTASY-GATE-PHASE1 §3.3 requires it be written down.
-   */
-  | ({
-      type: "GAME_SUMMARY";
-      payload: {
-        seed: string;
-        home: TeamId;
-        away: TeamId;
-        homeScore: number;
-        awayScore: number;
-        periods: readonly { period: number; home: number; away: number }[];
-        plays: number;
-        drives: number;
-        reason: "REGULATION" | "OVERTIME" | "TIE";
-      };
-    } & GameEventBase);
-
-/** The one stream. Collapses to `MatchEvent` when ADR-014 lands. */
-export type GameEvent = MatchEvent | InterimGameEvent;
-
-export interface GameEventEnvelope {
-  readonly seq: number;
-  readonly at: CalendarStamp;
-  readonly event: GameEvent;
-}
+type PayloadOf<T extends MatchEvent["type"]> = Extract<MatchEvent, { type: T }>["payload"];
 
 /**
  * The game loop's log. Deliberately the same shape as `PlayEventLog`: a
  * monotonic `seq`, no I/O, nothing said except through `drain()`.
  *
  * Play-level envelopes produced by `simulatePlay` are appended verbatim by
- * `append` — they are already `MatchEventEnvelope`s and `MatchEvent` is a member
- * of `GameEvent`, so nothing is rewritten and no sequence number is reassigned.
+ * `append` — nothing is rewritten and no sequence number is reassigned.
  */
 export class GameEventLog {
   private seq: number;
@@ -259,9 +124,30 @@ export class GameEventLog {
     }
   }
 
-  emit(event: InterimGameEvent | MatchEvent): void {
+  emit(event: GameEvent): void {
     this.envelopes.push({ seq: this.seq++, at: this.at, event });
   }
+
+  // --- the id a special-teams play is known by ------------------------------
+
+  /**
+   * A real `PlayId` for a real play. Mirrors the PRNG fork label of the same
+   * draw, so "which play was this" and "which fork produced it" are the same
+   * two coordinates rather than two independent schemes.
+   */
+  specialTeamsPlayId(kind: "kickoff" | "punt" | "fieldGoal" | "pat", ordinal: number): PlayId {
+    return makePlayId(`${String(this.gameId)}:${kind}:${ordinal}`);
+  }
+
+  /**
+   * A CHECK, on the play it belongs to. ADR-004: the roll is recorded HERE, once,
+   * and the summary event that follows names it by `RollDetail.rngLabel`.
+   */
+  check(playId: PlayId, c: CheckEmission): void {
+    this.emit({ type: "CHECK", payload: checkPayload(c), gameId: this.gameId, playId });
+  }
+
+  // --- game structure -------------------------------------------------------
 
   gameStart(home: TeamId, away: TeamId, seed: string): void {
     this.emit({ type: "GAME_START", payload: { home, away, seed }, gameId: this.gameId });
@@ -291,11 +177,11 @@ export class GameEventLog {
     });
   }
 
-  driveStart(payload: Extract<InterimGameEvent, { type: "DRIVE_START" }>["payload"]): void {
+  driveStart(payload: PayloadOf<"DRIVE_START">): void {
     this.emit({ type: "DRIVE_START", payload, gameId: this.gameId });
   }
 
-  driveEnd(payload: Extract<InterimGameEvent, { type: "DRIVE_END" }>["payload"]): void {
+  driveEnd(payload: PayloadOf<"DRIVE_END">): void {
     this.emit({ type: "DRIVE_END", payload, gameId: this.gameId });
   }
 
@@ -303,15 +189,15 @@ export class GameEventLog {
     this.emit({ type: "SCORE", payload: { team, kind, points, home, away }, gameId: this.gameId });
   }
 
-  placekick(payload: Extract<InterimGameEvent, { type: "PLACEKICK" }>["payload"]): void {
+  placekick(payload: PayloadOf<"PLACEKICK">): void {
     this.emit({ type: "PLACEKICK", payload, gameId: this.gameId });
   }
 
-  punt(payload: Extract<InterimGameEvent, { type: "PUNT" }>["payload"]): void {
+  punt(payload: PayloadOf<"PUNT">): void {
     this.emit({ type: "PUNT", payload, gameId: this.gameId });
   }
 
-  kickoff(payload: Extract<InterimGameEvent, { type: "KICKOFF" }>["payload"]): void {
+  kickoff(payload: PayloadOf<"KICKOFF">): void {
     this.emit({ type: "KICKOFF", payload, gameId: this.gameId });
   }
 
@@ -324,24 +210,24 @@ export class GameEventLog {
   }
 
   /**
-   * Contracts' own event, unchanged and still correct.
+   * The widened `GAME_END` (ADR-014 item 8). `{ home, away }` keeps its exact
+   * meaning; everything added except `seed` is derivable from the preceding
+   * stream, which is the discipline `GAME_END` inherits from `PLAY_RESULT`.
    *
-   * `MatchEventBase.playId` is REQUIRED, and the final whistle is not a play, so
-   * this mints `{gameId}:final`. That is the concrete cost of the required field
-   * and the reason ADR-014 petitions to make it optional — a branded `PlayId`
-   * that names no play is exactly the kind of quiet fiction the schema exists to
-   * prevent.
+   * `seed` is the deliberate exception and it is not a game fact:
+   * `RollDetail.rngLabel` carries the fork PATH but never the seed, so without
+   * it a completed game is not re-runnable from its own stream
+   * (FANTASY-GATE-PHASE1 §3.3).
    */
-  gameEnd(home: number, away: number): void {
-    this.emit({
-      type: "GAME_END",
-      payload: { home, away },
-      gameId: this.gameId,
-      playId: makePlayId(`${String(this.gameId)}:final`),
-    });
-  }
-
-  gameSummary(payload: Extract<InterimGameEvent, { type: "GAME_SUMMARY" }>["payload"]): void {
-    this.emit({ type: "GAME_SUMMARY", payload, gameId: this.gameId });
+  gameEnd(payload: {
+    readonly home: number;
+    readonly away: number;
+    readonly periods: readonly { period: number; home: number; away: number }[];
+    readonly plays: number;
+    readonly drives: number;
+    readonly reason: GameEndReason;
+    readonly seed: string;
+  }): void {
+    this.emit({ type: "GAME_END", payload, gameId: this.gameId });
   }
 }
