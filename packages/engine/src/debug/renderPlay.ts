@@ -3,10 +3,11 @@
  *
  * The only inputs are `MatchEventEnvelope[]` and a name lookup — this module
  * cannot see engine internals, and the engine never prints anything itself.
- * Sections outside the pass-play slice (zone coverage, YAC, environmental)
- * simply do not render because no events describe them.
+ * Sections outside the implemented slice (YAC, environmental) simply do not
+ * render because no events describe them.
  */
 import type { MatchEvent, MatchEventEnvelope, PlayerId, RollDetail } from "@ff/contracts";
+import { isRollRefStub, referencedRollLabel } from "../events.js";
 import { bandFor } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
 
@@ -26,6 +27,7 @@ export function renderPlay(events: readonly MatchEventEnvelope[], names: NameLoo
   lines.push(...renderQbDecisionMaking(events, name));
   lines.push(...renderThrow(events, name));
   lines.push(...renderCatch(events, name));
+  lines.push(...renderTippedBall(events, name));
   lines.push(...renderResult(events));
   lines.push(RULE);
   return lines.join("\n");
@@ -160,8 +162,15 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
     timeline.set(key, rows);
   }
 
+  // INTERIM VOCABULARY (ADR-009): §9.4's route-vs-zone rep and its
+  // read-the-quarterback rep share the `zone_coverage` CheckKind, so they are
+  // told apart HERE by actor shape — [receiver, defender] against
+  // [defender, quarterback]. That the printout has to do this is the argument
+  // for `zone_read_qb`.
+  const quarterback = quarterbackOf(events);
   const releases = new Map<string, MatchEventEnvelope>();
   const coverages = new Map<string, MatchEventEnvelope>();
+  const zoneCoverages = new Map<string, MatchEventEnvelope>();
   for (const envelope of events) {
     const event = envelope.event;
     if (event.type !== "CHECK") continue;
@@ -169,6 +178,9 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
     if (receiver === undefined) continue;
     if (event.payload.checkKind === "release_vs_press") releases.set(String(receiver), envelope);
     if (event.payload.checkKind === "man_coverage") coverages.set(String(receiver), envelope);
+    if (event.payload.checkKind === "zone_coverage" && !isZoneReadCheck(event, quarterback)) {
+      zoneCoverages.set(String(receiver), envelope);
+    }
   }
 
   if (timeline.size === 0) return [];
@@ -218,6 +230,38 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
       );
     }
 
+    // §9.4 — one roll against a target, not two rolls against each other. The
+    // zone defender's rating sets how small the window is; it does not get its
+    // own die, and the printout should not pretend otherwise.
+    const zoned = zoneCoverages.get(key);
+    if (zoned !== undefined && zoned.event.type === "CHECK") {
+      const payload = zoned.event.payload;
+      const band = bandFor(TUNABLES.zoneCoverage.bands, payload.margin);
+      const defender = payload.actors[1];
+      out.push(
+        `  │    Zone coverage (rep resolved at tick ${tickLabel(zoned.event.tick)})` +
+          (defender === undefined ? ":" : ` vs. ${name(defender)}:`),
+      );
+      out.push(`  │      ${actorLabel(payload.roll, "OFF")}:  ${formatRoll(payload.roll)}`);
+      out.push(`  │      vs. target ${payload.target ?? "-"} (50 + defender Zone Coverage ÷ 5)`);
+      out.push(
+        `  │      Result: ${band.label} (${signed(payload.margin)}) → base openness ${band.openness}` +
+          (band.settled ? " — sits down in it" : ""),
+      );
+    }
+
+    // No coverage rep at all. Two different facts, and the stream distinguishes
+    // them: a route that never declared has no rep because it never got there;
+    // a route that DID declare and still has no rep found a hole in the zone.
+    if (coverages.get(key) === undefined && zoned === undefined) {
+      const declared = rows.some((row) => row.includes("OPEN(") || row.includes("DECAYING("));
+      out.push(
+        declared
+          ? "  │    Zone coverage: nobody responsible for his cell — uncovered (§9.4)"
+          : "  │    Coverage: no rep — the route never declared",
+      );
+    }
+
     out.push(`  │    Openness track: ${rows.join(" → ")}`);
     out.push("  │");
   }
@@ -228,10 +272,8 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
 function renderQbDecisionMaking(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const out: string[] = [];
   for (const { event } of events) {
-    if (event.type === "CHECK" && event.payload.checkKind === "qb_read") {
+    if (event.type === "CHECK" && event.payload.checkKind === "anticipation") {
       // §8.1 anticipation — throwing to a window that does not exist yet.
-      // INTERIM VOCABULARY (ADR-008): `qb_read` is the CheckKind this rides on
-      // until `anticipation` is ratified.
       const p = event.payload;
       const band = bandFor(TUNABLES.qb.anticipation.bands, p.margin);
       const actor = p.actors[0];
@@ -287,13 +329,28 @@ function renderThrow(events: readonly MatchEventEnvelope[], name: NameLookup): s
     "  │",
   ];
 
-  // Rendered in design-doc order (§17.1): lane first, then ball placement —
-  // regardless of the order the engine happened to roll them in.
+  // Rendered in design-doc order (§17.1): the zone defender's read of the
+  // release, then the lane, then ball placement — regardless of the order the
+  // engine happened to roll them in.
+  const zoneRead: string[] = [];
   const lane: string[] = [];
   const accuracy: string[] = [];
+  const quarterback = quarterbackOf(events);
   for (const { event } of events) {
     if (event.type !== "CHECK") continue;
     const p = event.payload;
+    if (p.checkKind === "zone_coverage" && isZoneReadCheck(event, quarterback)) {
+      const defender = p.actors[0];
+      zoneRead.push(
+        `  ├─ Zone defender reading the QB (§9.4)${defender === undefined ? "" : `: ${name(defender)}`}`,
+      );
+      zoneRead.push(`  │    ${formatRoll(p.roll)} vs. target ${p.target ?? "-"} (60 + QB disguise)`);
+      zoneRead.push(
+        `  │    Result: ${p.margin >= 0 ? "BREAKS ON THE BALL" : "stays in his area"} (${signed(p.margin)})` +
+          (p.margin >= 0 ? ` → +${TUNABLES.zoneCoverage.readQb.contestBonus} to contest/INT` : ""),
+      );
+      zoneRead.push("  │");
+    }
     if (p.checkKind === "passing_lane") {
       const defender = p.actors[0];
       lane.push(`  ├─ Passing lane${defender === undefined ? "" : ` (${name(defender)})`}:`);
@@ -311,7 +368,75 @@ function renderThrow(events: readonly MatchEventEnvelope[], name: NameLookup): s
       );
     }
   }
-  out.push(...lane, ...accuracy, "");
+  out.push(...zoneRead, ...lane, ...accuracy, "");
+  return out;
+}
+
+/**
+ * §12 — the tipped ball, joined from its CHECKs.
+ *
+ * INTERIM VOCABULARY (ADR-009): `TIPPED_BALL.qualityRoll` and
+ * `attempts[].roll` are typed `RollDetail` in contracts, which predates ADR-004.
+ * The engine fills them with self-identifying REFERENCE STUBS (`raw` 0, no
+ * modifiers, `rngLabel` prefixed `ref:`) rather than repeating rolls that
+ * already live in the `deflection_quality` / `deflection_recovery` CHECKs, so
+ * this renderer performs the same join `renderCatch` performs for the catch.
+ * When ADR-009 lands these become plain `rollRef` strings and the `ref:`
+ * stripping below is the only line that changes.
+ */
+function renderTippedBall(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
+  const tip = firstOfType(events, "TIPPED_BALL");
+  if (tip === undefined) return [];
+  const p = tip.payload;
+
+  const checksByLabel = new Map<string, Extract<MatchEvent, { type: "CHECK" }>>();
+  for (const { event } of events) {
+    if (event.type !== "CHECK") continue;
+    if (event.payload.checkKind !== "deflection_quality" && event.payload.checkKind !== "deflection_recovery") {
+      continue;
+    }
+    checksByLabel.set(event.payload.roll.rngLabel, event);
+  }
+  const join = (roll: RollDetail): Extract<MatchEvent, { type: "CHECK" }> | undefined =>
+    checksByLabel.get(isRollRefStub(roll) ? referencedRollLabel(roll) : roll.rngLabel);
+
+  const out: string[] = ["TIPPED BALL (§12):", `  ├─ Deflected by ${name(p.deflector)}`];
+
+  const quality = join(p.qualityRoll);
+  if (quality !== undefined) {
+    const q = quality.payload;
+    const band = bandFor(TUNABLES.tippedBall.qualityBands, q.margin);
+    out.push("  ├─ Roll 1 — deflection quality:");
+    out.push(`  │    ${formatRoll(q.roll)} vs. target ${q.target ?? "-"} (throw height + velocity)`);
+    out.push(`  │    Result: ${band.label} (${signed(q.margin)}) → recovery target ${p.finalTargetNumber}`);
+  } else {
+    out.push(`  ├─ Roll 1 — deflection quality: recovery target ${p.finalTargetNumber}`);
+  }
+
+  out.push(
+    p.eligible.length === 0
+      ? "  ├─ Eligible to recover: nobody (§12.3)"
+      : `  ├─ Eligible to recover (§12.3, Reaction order): ${p.eligible.map(name).join(", ")}`,
+  );
+
+  if (p.attempts.length > 0) out.push("  ├─ Roll 2 — recovery attempts:");
+  for (const attempt of p.attempts) {
+    const check = join(attempt.roll);
+    if (check === undefined) {
+      out.push(`  │    ${name(attempt.player)}: roll not in this stream`);
+      continue;
+    }
+    const a = check.payload;
+    out.push(`  │    ${name(attempt.player)}: ${formatRoll(a.roll)} vs. ${a.target ?? "-"}`);
+    out.push(`  │      → ${a.margin >= 0 ? "RECOVERS" : "cannot come up with it"} (${signed(a.margin)})`);
+  }
+
+  out.push(
+    p.recoveredBy === undefined
+      ? "  └─ Nobody recovers: incomplete"
+      : `  └─ Recovered by ${name(p.recoveredBy)}`,
+    "",
+  );
   return out;
 }
 
@@ -401,6 +526,26 @@ function tickLabel(tick: number | undefined): string {
   return tick === undefined ? "-" : tick.toFixed(1);
 }
 
+/**
+ * INTERIM VOCABULARY (ADR-009). §9.4's two rolls share the `zone_coverage`
+ * CheckKind, so the only thing that separates them in the stream is who is in
+ * `actors`: the route rep is [receiver, defender], the read-the-QB rep is
+ * [defender, quarterback]. This function is the cost of that collision, and it
+ * disappears the day `zone_read_qb` is ratified.
+ */
+function isZoneReadCheck(
+  event: Extract<MatchEvent, { type: "CHECK" }>,
+  quarterback: string | undefined,
+): boolean {
+  if (quarterback === undefined) return false;
+  return String(event.payload.actors[1] ?? "") === quarterback;
+}
+
+function quarterbackOf(events: readonly MatchEventEnvelope[]): string | undefined {
+  const start = firstOfType(events, "PLAY_START");
+  return start === undefined ? undefined : readPlayStart(start.payload)?.quarterback;
+}
+
 function firstOfType<T extends MatchEvent["type"]>(
   events: readonly MatchEventEnvelope[],
   type: T,
@@ -417,6 +562,7 @@ interface PlayStartView {
   readonly offenseCall: string;
   readonly offenseFormation: string;
   readonly readSystem: string;
+  readonly quarterback: string | undefined;
   readonly readOrder: readonly string[];
   readonly defenseCall: string;
   readonly defenseFront: string;
@@ -452,6 +598,7 @@ function readPlayStart(payload: unknown): PlayStartView | undefined {
     offenseCall: asString(offense["call"], "?"),
     offenseFormation: asString(offense["formation"], "?"),
     readSystem: asString(offense["readSystem"], "?"),
+    quarterback: typeof offense["quarterback"] === "string" ? offense["quarterback"] : undefined,
     readOrder: asStringArray(offense["readOrder"]),
     defenseCall: asString(defense["call"], "?"),
     defenseFront: asString(defense["front"], "?"),

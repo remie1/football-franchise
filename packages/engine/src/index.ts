@@ -69,6 +69,58 @@ export { resolveReleaseVsPress } from "./resolve/release.js";
 export type { ReleaseArgs, ReleaseOutcome, ReleaseBandLabel } from "./resolve/release.js";
 export { resolveManCoverage } from "./resolve/manCoverage.js";
 export type { ManCoverageArgs, ManCoverageOutcome, ManCoverageBandLabel } from "./resolve/manCoverage.js";
+export {
+  verticalZoneForAirYards,
+  routeZone,
+  backfieldZone,
+  zoneDistance,
+  sameZone,
+  zoneKey,
+  zoneDefenderFor,
+} from "./resolve/zone.js";
+export {
+  resolveZoneCoverage,
+  resolveZoneRead,
+  zoneCoverageBandFor,
+  qbDisguise,
+  brokeOnBallContestModifier,
+  settledOpennessAt,
+} from "./resolve/zoneCoverage.js";
+export type {
+  ZoneCoverageArgs,
+  ZoneCoverageOutcome,
+  ZoneCoverageBandLabel,
+  ZoneReadArgs,
+  ZoneReadOutcome,
+} from "./resolve/zoneCoverage.js";
+export {
+  throwHeightFor,
+  resolveDeflectionQuality,
+  eligibleRecoverers,
+  recoveryOrder,
+  resolveRecoveryAttempt,
+  deflectionQualityBandFor,
+  zoneProximityLabel,
+} from "./resolve/tippedBall.js";
+export type {
+  ThrowHeight,
+  DeflectionPoint,
+  DeflectionQualityArgs,
+  DeflectionQualityOutcome,
+  DeflectionQualityLabel,
+  RecoveryCandidate,
+  EligibleRecoverer,
+  RecoveryAttemptOutcome,
+  BallSide,
+} from "./resolve/tippedBall.js";
+export { assertCoherentPlayCall, IncoherentPlayCallError } from "./validate/playCall.js";
+export {
+  chemistryLevel,
+  chemistryEstablished,
+  chemistrySupportsBackShoulder,
+  anticipationChemistryModifier,
+} from "./chemistry.js";
+export { isRollRefStub, referencedRollLabel, ROLL_REF_PREFIX } from "./events.js";
 export { opennessAt, routePhaseAt, routeReadySeconds } from "./resolve/route.js";
 export type { RoutePhase } from "./resolve/route.js";
 export {
@@ -107,8 +159,12 @@ export type { CatchType, CatchOutcome } from "./resolve/catchResolution.js";
 
 export type {
   ContestPosition,
+  CoverageAssignment,
+  CoverageShell,
   CoverageTechnique,
   DefensivePlayCall,
+  FieldZone,
+  HorizontalZone,
   ManAssignment,
   MatchGameState,
   OffensivePlayCall,
@@ -125,4 +181,6 @@ export type {
   RushMove,
   SimulationResult,
   ThrowType,
+  VerticalZone,
+  ZoneAssignment,
 } from "./types.js";

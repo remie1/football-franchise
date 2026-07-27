@@ -29,15 +29,24 @@ export function catchTypeFor(actualOpenness: number): CatchType {
 
 export interface CatchArgs {
   readonly receiver: PlayerState;
-  readonly defender: PlayerState;
+  /**
+   * Absent when nobody is near enough to contest — a hole in a zone with no
+   * defender responsible for it. A contested catch without a defender is not a
+   * 50/50 ball, it is a catch.
+   */
+  readonly defender?: PlayerState | undefined;
   readonly accuracy: AccuracyBand;
   readonly contestPosition: ContestPosition;
   readonly catchType: CatchType;
+  /** §9.4 "+20 to contest/interception" for a zone defender who broke on the ball. */
+  readonly defenderContestModifiers?: readonly RollModifier[];
   readonly catchRng: Rng;
 }
 
 export function resolveCatch(args: CatchArgs): CatchOutcome {
-  return args.catchType === "CONTESTED" ? resolveContestedCatch(args) : resolveRoutineCatch(args);
+  return args.catchType === "CONTESTED" && args.defender !== undefined
+    ? resolveContestedCatch(args, args.defender)
+    : resolveRoutineCatch(args);
 }
 
 function resolveRoutineCatch(args: CatchArgs): CatchOutcome {
@@ -74,9 +83,9 @@ function resolveRoutineCatch(args: CatchArgs): CatchOutcome {
   };
 }
 
-function resolveContestedCatch(args: CatchArgs): CatchOutcome {
+function resolveContestedCatch(args: CatchArgs, defender: PlayerState): CatchOutcome {
   const t = TUNABLES.catching.contested;
-  const { receiver, defender, accuracy, contestPosition, catchRng } = args;
+  const { receiver, accuracy, contestPosition, catchRng } = args;
 
   // The role prefix is the actor's own position (B2); the attribute label is the
   // registry's display name, so a ratified attribute (ADR-003 `jumping`) needs
@@ -99,6 +108,7 @@ function resolveContestedCatch(args: CatchArgs): CatchOutcome {
     flatModifier(`Contest position: ${contestPosition}`, t.positionModifier[contestPosition]),
     flatModifier(`Ball placement: ${accuracy.label}`, accuracy.defenderContestMod),
     traitModifier("Trait: Ball Hawk", defender.attributes.traits, TRAIT.ballHawk, TUNABLES.traitBonuses.ballHawk),
+    ...(args.defenderContestModifiers ?? []),
   ]);
 
   const roll = rollD100(catchRng.fork(`${receiver.bio.id}:contested`), receiverMods);

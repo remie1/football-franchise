@@ -56,8 +56,9 @@ export const ATTR = {
   powerMove: resolveAttr("powerMove"),
   finesseMove: resolveAttr("finesseMove"),
   firstStep: resolveAttr("firstStep"),
-  // DB
+  // DB / LB
   manCoverage: resolveAttr("manCoverage"),
+  zoneCoverage: resolveAttr("zoneCoverage"),
   press: resolveAttr("press"),
   ballSkills: resolveAttr("ballSkills"),
   // WR

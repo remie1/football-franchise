@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { simulatePassPlay } from "../src/index.js";
-import { buildScenario, buildScramblerScenario, withReadSystem } from "./fixtures.js";
+import {
+  buildDeflectionScenario,
+  buildMixedCoverageScenario,
+  buildScenario,
+  buildScramblerScenario,
+  buildShortConceptScenario,
+  buildZoneScenario,
+  withReadSystem,
+} from "./fixtures.js";
 
 describe("determinism (Charter pillar 5)", () => {
   it("same seed produces a byte-identical event stream and identical new state", () => {
@@ -53,7 +61,7 @@ describe("determinism (Charter pillar 5)", () => {
         expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
         expect(JSON.stringify(second.newState)).toBe(JSON.stringify(first.newState));
         for (const { event } of first.events) {
-          if (event.type === "CHECK" && event.payload.checkKind === "qb_read") anticipation += 1;
+          if (event.type === "CHECK" && event.payload.checkKind === "anticipation") anticipation += 1;
           if (event.type === "QB_DECISION" && event.payload.choice === "CHECKDOWN") checkdowns += 1;
         }
       }
@@ -81,6 +89,43 @@ describe("determinism (Charter pillar 5)", () => {
     }
     expect(travelling).toBeGreaterThan(0);
     expect(delayed).toBeGreaterThan(0);
+  });
+
+  it("survives §9.4 and §12: zone reps and live balls replay identically", () => {
+    // Both mechanics ADD branch points that a die decides — whether a zone
+    // defender breaks on the ball, and who comes up with a deflection — so a
+    // reproducibility test that never fires them proves nothing about them.
+    let zoneReps = 0;
+    let tips = 0;
+    for (const build of [buildMixedCoverageScenario, buildDeflectionScenario, buildZoneScenario]) {
+      for (let i = 0; i < 80; i++) {
+        const a = build();
+        const b = build();
+        const first = simulatePassPlay(a.state, a.calls, `zonetip-${i}`);
+        const second = simulatePassPlay(b.state, b.calls, `zonetip-${i}`);
+        expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+        expect(JSON.stringify(second.newState)).toBe(JSON.stringify(first.newState));
+        for (const { event } of first.events) {
+          if (event.type === "CHECK" && event.payload.checkKind === "zone_coverage") zoneReps += 1;
+          if (event.type === "TIPPED_BALL") tips += 1;
+        }
+      }
+    }
+    expect(zoneReps).toBeGreaterThan(0);
+    expect(tips).toBeGreaterThan(0);
+  });
+
+  it("a SHORT-primary concept replays identically (CALIBRATION-BACKLOG 4b)", () => {
+    let shortRoutes = 0;
+    for (let i = 0; i < 60; i++) {
+      const a = buildShortConceptScenario();
+      const b = buildShortConceptScenario();
+      const first = simulatePassPlay(a.state, a.calls, `short-${i}`);
+      const second = simulatePassPlay(b.state, b.calls, `short-${i}`);
+      expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+      shortRoutes += a.calls.offense.routes.filter((r) => r.depthClass === "SHORT").length;
+    }
+    expect(shortRoutes).toBeGreaterThan(0);
   });
 
   it("re-simulating from the same state object is stable across repeated calls", () => {
@@ -166,7 +211,16 @@ describe("determinism (Charter pillar 5)", () => {
     for (const { event } of events) {
       if (event.type !== "CHECK") continue;
       checks += 1;
-      expect(event.payload.testsAttrs.length).toBeGreaterThan(0);
+      // §12.2's deflection-quality roll is the one check that legitimately
+      // exercises NO rating: the doc's Roll 1 is a bare d100 against a
+      // situational target, and nothing about the deflector changes how the ball
+      // bounces. An empty list is the honest answer, and claiming an attribute
+      // would corrupt the perception exposure channel `testsAttrs` exists for.
+      if (event.payload.checkKind === "deflection_quality") {
+        expect(event.payload.testsAttrs).toEqual([]);
+      } else {
+        expect(event.payload.testsAttrs.length).toBeGreaterThan(0);
+      }
       expect(event.payload.actors.length).toBeGreaterThan(0);
       for (const mod of event.payload.roll.modifiers) {
         expect(mod.source.length).toBeGreaterThan(0);

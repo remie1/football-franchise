@@ -41,7 +41,7 @@ function shot(events: readonly MatchEventEnvelope[]): Shot {
   let anticipationPasses = 0;
   let sacked = false;
   for (const { event } of events) {
-    if (event.type === "CHECK" && event.payload.checkKind === "qb_read") {
+    if (event.type === "CHECK" && event.payload.checkKind === "anticipation") {
       anticipationAttempts += 1;
       if (event.payload.margin >= 0) anticipationPasses += 1;
     }

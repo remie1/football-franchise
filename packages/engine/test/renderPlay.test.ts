@@ -5,9 +5,12 @@ import { renderPlay, simulatePassPlay } from "../src/index.js";
 import {
   STAMP,
   baseReceivers,
+  buildDeflectionScenario,
+  buildMixedCoverageScenario,
   buildScenario,
   buildScramblerScenario,
   buildStalledPocketScenario,
+  buildZoneScenario,
   withReadOrder,
   withReadSystem,
 } from "./fixtures.js";
@@ -128,7 +131,7 @@ describe("§17.1 debug renderer", () => {
     for (let i = 0; i < 60 && seen === 0; i++) {
       const { state, calls, names } = buildScenario();
       const { events } = simulatePassPlay(state, calls, `antic-render-${i}`);
-      if (!events.some((e) => e.event.type === "CHECK" && e.event.payload.checkKind === "qb_read")) continue;
+      if (!events.some((e) => e.event.type === "CHECK" && e.event.payload.checkKind === "anticipation")) continue;
       seen += 1;
       const text = renderPlay(events, names);
       expect(text).toMatch(/Anticipation \(Tick \d\.\d\)/);
@@ -271,6 +274,82 @@ describe("§17.1 debug renderer", () => {
     const text = renderPlay(orphan, (id: PlayerId) => String(id));
     expect(text).toContain("not in this stream");
     expect(text).toContain("CAUGHT");
+  });
+
+  describe("§9.4 and §12 sections", () => {
+    const findText = (
+      build: () => ReturnType<typeof buildScenario>,
+      prefix: string,
+      wanted: (text: string) => boolean,
+      tries = 400,
+    ): string | undefined => {
+      for (let i = 0; i < tries; i++) {
+        const { state, calls, names } = build();
+        const { events } = simulatePassPlay(state, calls, `${prefix}-${i}`);
+        const text = renderPlay(events, names);
+        if (wanted(text)) return text;
+      }
+      return undefined;
+    };
+
+    it("renders a zone rep as one roll against a target, not as an opposed roll", () => {
+      const text = findText(buildZoneScenario, "zrender", (t) => t.includes("Zone coverage ("));
+      expect(text).toBeDefined();
+      expect(text).toContain("50 + defender Zone Coverage ÷ 5");
+      expect(text).not.toContain("undefined");
+    });
+
+    it("says plainly when nobody was responsible for a receiver's cell", () => {
+      const text = findText(buildZoneScenario, "hole", (t) => t.includes("uncovered (§9.4)"));
+      expect(text).toBeDefined();
+    });
+
+    it("distinguishes the read-the-QB rep from the route rep despite one CheckKind", () => {
+      // ADR-009 item 2, rendered: the two §9.4 rolls share `zone_coverage` and
+      // the renderer separates them by actor shape. If that inference broke, the
+      // read would appear in ROUTE DEVELOPMENT instead of THROW EXECUTION.
+      const text = findText(buildZoneScenario, "zread", (t) =>
+        t.includes("Zone defender reading the QB"),
+      );
+      expect(text).toBeDefined();
+      const routeSection = (text ?? "").slice(
+        (text ?? "").indexOf("ROUTE DEVELOPMENT:"),
+        (text ?? "").indexOf("QB DECISION-MAKING:"),
+      );
+      expect(routeSection).not.toContain("reading the QB");
+      expect(text).toContain("60 + QB disguise");
+    });
+
+    it("renders a tipped ball by JOINING its CHECKs, never by repeating a roll", () => {
+      const text = findText(buildDeflectionScenario, "tiprender", (t) =>
+        t.includes("TIPPED BALL (§12)") && t.includes("Recovered by"),
+      );
+      expect(text).toBeDefined();
+      expect(text).toContain("Roll 1 — deflection quality:");
+      expect(text).toContain("Roll 2 — recovery attempts:");
+      expect(text).toContain("Eligible to recover (§12.3, Reaction order)");
+      // The interim `ref:` stub is a reference, and the renderer strips it: a
+      // reader must never see the marker, only the roll it points at.
+      expect(text).not.toContain("ref:");
+      expect(text).not.toContain("undefined");
+    });
+
+    it("a dead ball is rendered as recoverable by nobody", () => {
+      const text = findText(
+        buildDeflectionScenario,
+        "deadrender",
+        (t) => t.includes("Eligible to recover: nobody"),
+        800,
+      );
+      expect(text).toBeDefined();
+      expect(text).toContain("Nobody recovers: incomplete");
+    });
+
+    it("states the DERIVED coverage shell, including MIXED", () => {
+      const { state, calls, names } = buildMixedCoverageScenario();
+      const { events } = simulatePassPlay(state, calls, "shellrender");
+      expect(renderPlay(events, names)).toContain("(MIXED)");
+    });
   });
 
   it("prints each RollDetail exactly once (ADR-004, rendered)", () => {

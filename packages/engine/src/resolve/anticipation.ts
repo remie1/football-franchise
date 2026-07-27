@@ -27,15 +27,14 @@
  * die was actually thrown. Outside `maxLeadSeconds` NO check is emitted at all —
  * being three seconds early is not a failed anticipation, it is not a decision.
  *
- * INTERIM VOCABULARY (ADR-008): `CheckKind` has no `anticipation`. `qb_read` is
- * the closest true statement — this IS the quarterback's read of an undeclared
- * route, and no other producer emits `qb_read` today (§8.3's per-read perception
- * roll is the documented non-CHECK exception, ADR-004). It is still
- * under-descriptive in exactly ADR-007's sense: a consumer counting `qb_read`
- * CHECKs is counting anticipation attempts, not reads. Petitioned in ADR-008.
+ * ADR-008 ratified both halves of this check's vocabulary: the CHECK is emitted
+ * as `anticipation` (it was riding on `qb_read`, which meant a consumer counting
+ * reads was counting anticipation attempts), and the chemistry term is a real
+ * per-pair input rather than a named neutral constant.
  */
-import type { AttrId, PlayerState, Rng, RollDetail } from "@ff/contracts";
+import type { AttrId, ChemistryTable, PlayerId, PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
+import { anticipationChemistryModifier, chemistryLevel } from "../chemistry.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, flatModifier, rollD100, tierFor } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
@@ -51,6 +50,10 @@ export interface AnticipationArgs {
   readonly depthClass: RouteDepthClass;
   /** True on progression index 0 — the concept read's pre-snap key. */
   readonly firstRead: boolean;
+  /** ADR-008 — who he is throwing to, so the pair term can be looked up. */
+  readonly receiver: PlayerId;
+  /** ADR-008 — franchise-resolved pair state. Absent ⇒ every pair reads neutral. */
+  readonly chemistry?: ChemistryTable | undefined;
   readonly anticipationRng: Rng;
 }
 
@@ -82,6 +85,7 @@ export function leadSteps(leadSeconds: number): number {
 export function resolveAnticipation(args: AnticipationArgs): AnticipationOutcome {
   const t = TUNABLES.qb.anticipation;
   const system = TUNABLES.qb.readSystem[args.system];
+  const pairLevel = chemistryLevel(args.chemistry, args.qb.bio.id, args.receiver);
 
   const modifiers = compact([
     actorAttrModifier(args.qb, "Awareness (anticipation)", ATTR.awareness, t.terms[0]?.divisor ?? 5),
@@ -95,9 +99,9 @@ export function resolveAnticipation(args: AnticipationArgs): AnticipationOutcome
     args.firstRead
       ? flatModifier(`${args.system} first read (key)`, system.firstReadAnticipationModifier)
       : undefined,
-    // Neutral until chemistry has an owner (ADR-008). `compact` drops it at 0,
-    // so the printout gains a line the day the input becomes real and not before.
-    flatModifier("QB/receiver chemistry", TUNABLES.chemistry.pairModifier),
+    // ADR-008 — the pair term. `compact` drops it at neutral, so the printout
+    // gains the line only where the pairing actually means something.
+    anticipationChemistryModifier(pairLevel),
   ]);
 
   const roll = rollD100(args.anticipationRng, modifiers);
@@ -111,7 +115,8 @@ export function resolveAnticipation(args: AnticipationArgs): AnticipationOutcome
     roll,
     leadSeconds: args.leadSeconds,
     check: {
-      checkKind: "qb_read",
+      // ADR-008 part B, ratified: this is `anticipation`, not `qb_read`.
+      checkKind: "anticipation",
       actors: [args.qb.bio.id],
       roll,
       target: t.target,

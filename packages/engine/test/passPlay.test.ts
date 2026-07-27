@@ -95,6 +95,7 @@ describe("pass play integration", () => {
     players[turnstile.bio.id as unknown as string] = turnstile;
     // blanket coverage on every route, so the QB never finds an outlet
     for (const assignment of calls.defense.assignments) {
+      if (assignment.kind !== "MAN") continue;
       const covered = state.players[assignment.covers as unknown as string];
       const defender = state.players[assignment.defender as unknown as string];
       if (covered === undefined || defender === undefined) throw new Error("bad fixture");
@@ -136,24 +137,36 @@ describe("pass play integration", () => {
     expect(sacks).toBeGreaterThan(0);
   });
 
-  it("rejects unblocked rushers and uncovered receivers as out-of-slice inputs", () => {
+  it("rejects unblocked rushers as an out-of-slice input (§7.4 blitz pickup)", () => {
     const { state, calls } = buildScenario();
     const noProtection: PlayCalls = {
       ...calls,
       offense: { ...calls.offense, protection: [] },
     };
     expect(() => simulatePassPlay(state, noProtection, "x")).toThrow(/unblocked/);
+  });
 
+  it("a receiver nobody covers is no longer an error — it is a hole in the zone (§9.4)", () => {
+    const { state, calls } = buildScenario();
     const noCoverage: PlayCalls = {
       ...calls,
       defense: { ...calls.defense, assignments: [] },
     };
-    expect(() => simulatePassPlay(state, noCoverage, "x")).toThrow(/no man defender/);
+    const { events } = simulatePassPlay(state, noCoverage, "uncovered");
+    expect(events[events.length - 1]?.event.type).toBe("PLAY_RESULT");
+    // No coverage rep runs at all: there is nobody to contest, so there is no
+    // die and therefore no CHECK (ADR-005).
+    const reps = events.filter(
+      ({ event }) =>
+        event.type === "CHECK" &&
+        (event.payload.checkKind === "man_coverage" || event.payload.checkKind === "zone_coverage"),
+    );
+    expect(reps).toHaveLength(0);
   });
 
-  it("rejects players missing from game state", () => {
+  it("rejects players missing from game state (ADR-006 coherence)", () => {
     const { state, calls } = buildScenario();
     const stripped: MatchGameState = { ...state, players: {} };
-    expect(() => simulatePassPlay(stripped, calls, "x")).toThrow(/not in GameState/);
+    expect(() => simulatePassPlay(stripped, calls, "x")).toThrow(/is not in state\.players/);
   });
 });

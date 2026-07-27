@@ -2,6 +2,7 @@
 import { getAttr } from "@ff/contracts";
 import type { PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
+import { chemistryEstablished, chemistrySupportsBackShoulder } from "../chemistry.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, flatModifier, rollD100, tierFor } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
@@ -44,12 +45,18 @@ export interface AccuracyArgs {
   readonly throwType: ThrowType;
   readonly pocket: PocketStatus;
   readonly armShortfall: boolean;
+  /**
+   * ADR-008 — this pair's 0-100 rapport, already resolved by the caller.
+   * Omitted reads neutral, which produces neither §10.4's +5 nor §10.2's −10.
+   */
+  readonly chemistryLevel?: number;
   readonly throwRng: Rng;
 }
 
 export function resolveAccuracy(args: AccuracyArgs): AccuracyOutcome {
   const t = TUNABLES.throwExec.accuracy;
   const { qb, airYards, throwType, pocket, armShortfall, throwRng } = args;
+  const chemistry = args.chemistryLevel ?? TUNABLES.chemistry.neutralLevel;
 
   const pocketPenalty = accuracyModifierFor(pocket);
   const poiseRefundRaw = Math.max(
@@ -76,6 +83,18 @@ export function resolveAccuracy(args: AccuracyArgs): AccuracyOutcome {
     flatModifier(`Throw type: ${throwType}`, t.throwTypeModifier[throwType]),
     armShortfall
       ? flatModifier("Below arm-strength threshold (§10.1)", TUNABLES.throwExec.underArmThresholdAccuracyPenalty)
+      : undefined,
+    // §10.4 verbatim: "Chemistry with receiver: +5" (ADR-008).
+    chemistryEstablished(chemistry)
+      ? flatModifier(`Chemistry with receiver (${chemistry})`, TUNABLES.chemistry.establishedAccuracyBonus)
+      : undefined,
+    // §10.2: the back-shoulder throw "requires chemistry (else −10)". WIRED AND
+    // DORMANT — `selectThrowType` never returns BACK_SHOULDER today, so this is
+    // unreachable until §10.2's selection grows the branch. It is placed here
+    // rather than held in reserve so that the day it does, the penalty is
+    // already correct and already in the printout.
+    throwType === "BACK_SHOULDER" && !chemistrySupportsBackShoulder(chemistry)
+      ? flatModifier("Back shoulder without chemistry (§10.2)", TUNABLES.chemistry.backShoulderWithoutChemistry)
       : undefined,
   ]);
 

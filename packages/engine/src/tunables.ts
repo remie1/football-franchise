@@ -13,30 +13,49 @@ const NEG_INF = Number.NEGATIVE_INFINITY;
 
 export const TUNABLES = {
   /**
-   * QB↔RECEIVER CHEMISTRY — declared, neutral, and deliberately inert.
+   * QB↔RECEIVER CHEMISTRY — live as of ADR-008.
    *
-   * The design doc references chemistry twice (§10.2 back shoulder "requires
-   * chemistry, else −10"; §10.4 "Chemistry with receiver: +5") but chemistry is
-   * **pair state**: it belongs to a (quarterback, receiver) PAIR, it accrues over
-   * a season of reps, and it is not a property of either player. There is no
-   * chemistry attribute, no pair record, and nothing in `@ff/contracts` that
-   * carries one. The engine will not invent a local copy of shared state
-   * (Charter iron rule 1), so every chemistry term below is a NAMED NEUTRAL
-   * CONSTANT and the mechanic is currently off.
+   * Chemistry is **pair state**: it belongs to a (quarterback, receiver) PAIR, it
+   * accrues over a season of reps, and it is not a property of either player.
+   * ADR-008 ratified `ChemistryPair`/`ChemistryTable` in `@ff/contracts` as
+   * franchise-owned state delivered to the engine RESOLVED, the same way
+   * attribute maps are. The engine reads `MatchGameState.chemistry` and never
+   * writes it; an absent table, an absent passer, or an absent pair all read
+   * `neutralLevel`, so migration is a genuine no-op.
    *
-   * The doc's two exchange rates are recorded here so the number is not lost
-   * when the input arrives; nothing reads them while `pairModifier` is neutral.
-   *
-   * TODO(ADR-008): replace `pairModifier` with a real per-pair input once
-   * ownership is ratified. See docs/decisions/ADR-008-qb-receiver-chemistry.md.
+   * The doc's two exchange rates are now consumed rather than merely recorded:
+   * §10.4's "+5 chemistry with receiver" and §10.2's back-shoulder −10.
    */
   chemistry: {
-    /** What a QB/receiver pair is worth today: nothing, because nobody owns it. */
-    pairModifier: 0,
-    /** §10.4 verbatim, for when the input exists. */
-    docEstablishedAccuracyBonus: 5,
-    /** §10.2 verbatim, for when the input exists. */
-    docBackShoulderWithoutChemistry: -10,
+    /** ADR-008: 50 is "a competent pairing with no particular history". */
+    neutralLevel: 50,
+    /**
+     * §8.1 anticipation term: `(level − neutralLevel) ÷ divisor`. The doc gives
+     * no exchange rate for chemistry-on-anticipation (anticipation is not in the
+     * doc at all), so this is the knob. At /5 a 0-chemistry pair is −10 and a
+     * 100-chemistry pair +10 on a target of 55 — comparable to the reading
+     * system's own ±10-15, which is the intended magnitude: knowing the man is
+     * worth about as much as the system you were taught.
+     */
+    anticipationDivisor: 5,
+    /** §10.4 verbatim: "Chemistry with receiver: +5", above the threshold below. */
+    establishedAccuracyBonus: 5,
+    /**
+     * INTERPRETATION — the doc says "chemistry with receiver", not "how much".
+     * This is the level at which a pairing counts as ESTABLISHED. Set above
+     * neutral so the bonus is earned rather than default.
+     */
+    establishedThreshold: 65,
+    /**
+     * §10.2 verbatim: the back-shoulder throw "requires chemistry (else −10)".
+     * WIRED AND DORMANT: `selectThrowType` never returns BACK_SHOULDER today, so
+     * this term is reachable only when §10.2's throw-type selection grows the
+     * branch. It is applied in `resolveAccuracy` rather than held in reserve, so
+     * the day the branch exists the penalty is already correct.
+     */
+    backShoulderWithoutChemistry: -10,
+    /** The level at or above which a back-shoulder throw is "with chemistry". */
+    backShoulderThreshold: 65,
   },
 
   /** §2.1 — 0.5s ticks. Times are expressed in seconds, matching the doc's tick labels. */
@@ -449,6 +468,120 @@ export const TUNABLES = {
     maxOpenness: 100,
   },
 
+  /**
+   * §3 — THE ZONE GRID, and the two places it is faked.
+   *
+   * `verticalUpperYards` is the doc verbatim (§3.2: SHORT 0-10, INTERMEDIATE
+   * 10-20, DEEP 20-35, VERY DEEP 35+), so the depth half of a route's cell is
+   * derived, not invented.
+   *
+   * `defaultHorizontal` is the FAKE. Nothing on a play card says which side of
+   * the field a route runs to, and the engine will not guess from a formation
+   * string it is forbidden to interpret (ADR-006). A route that does not state
+   * its `breakZone` is placed in this lane — which means every silent route
+   * shares a lane, and therefore a zone. Play cards meant to exercise zone
+   * coverage state `breakZone`.
+   */
+  zoneModel: {
+    horizontalOrder: ["LW", "LH", "C", "RH", "RW"],
+    verticalOrder: ["BACKFIELD", "SHORT", "INTERMEDIATE", "DEEP", "VERY_DEEP"],
+    /** §3.2 verbatim, as inclusive upper bounds in air yards. */
+    verticalUpperYards: { BACKFIELD: 0, SHORT: 10, INTERMEDIATE: 20, DEEP: 35 },
+    /** FAKE — see the block comment. */
+    defaultHorizontal: "C",
+    /** §3.2 "BACKFIELD (−5 to 0 yards): QB, RB, FB positions; pass protection zone". */
+    backfieldVertical: "BACKFIELD",
+    /**
+     * INTERPRETATION — a ball knocked down in the throwing lane never gets to
+     * the route's cell. It comes down short, in the target's lane.
+     */
+    laneDeflectionVertical: "SHORT",
+  },
+
+  /** §9.4 — zone coverage: the route entering a zone, and the defender reading the QB. */
+  zoneCoverage: {
+    /** §9.4 verbatim: target `50 + (Defender Zone Coverage ÷ 5)`. */
+    target: 50,
+    receiverAttrDivisor: 5,
+    defenderAttrDivisor: 5,
+    /**
+     * §9.4's result bands verbatim. Margin = WR roll total − target. The 0-100
+     * openness each maps to is calibrated against §8.4's scale exactly as
+     * `manCoverage.bands` is — the doc states the outcome, not the number.
+     *
+     * Note the SHAPE difference from man coverage, and it is the point of zone:
+     * the good outcomes are BETTER (a soft spot is uncontested grass, not a step
+     * of separation from a corner who is still running with you) and the bad
+     * outcome is not as bad (a zone defender in the lane is not on your hip).
+     */
+    bands: [
+      { label: "SOFT_SPOT", minMargin: 20, openness: 85, contest: "TRAILING", settled: true },
+      { label: "WINDOW", minMargin: 10, openness: 70, contest: "TRAILING", settled: true },
+      { label: "TIGHT_WINDOW", minMargin: 1, openness: 45, contest: "EVEN", settled: true },
+      { label: "DEFENDER_IN_LANE", minMargin: NEG_INF, openness: 20, contest: "IN_FRONT", settled: false },
+    ],
+    /**
+     * INTERPRETATION — nobody is in the cell. This is a hole in the zone, and it
+     * is the thing zone coverage is FOR giving up. No die is rolled: there is no
+     * contest to roll (ADR-005 forbids inventing a failed check where none ran).
+     */
+    uncoveredOpenness: 90,
+    uncoveredContestPosition: "TRAILING",
+    /**
+     * INTERPRETATION — §8.7's openness decay is "coverage closes on him". A
+     * receiver who has SAT DOWN in the soft spot of a zone is not being run away
+     * from: the defender's responsibility is the area, not the man, so the
+     * window shuts far more slowly. Set this equal to
+     * `route.opennessDecayPerTick` to recover uniform man-style decay.
+     */
+    settledDecayPerTick: 0,
+    /** §9.4 "ZONE DEFENDER READING QB" — jumping the route. */
+    readQb: {
+      /** §9.4 verbatim: `d100 + ZoneCoverage÷5 + Awareness÷5` vs `60 + QB Disguise`. */
+      baseTarget: 60,
+      attrDivisor: 5,
+      /**
+       * INTERPRETATION — §9.4's "QB Disguise" names an attribute that does not
+       * exist. It is not in §4.1's quarterback table and not in
+       * `ATTRIBUTE_REGISTRY_V1`, and its scale cannot be a 0-99 rating: added
+       * RAW to a target of 60 it would put the target at 159 for an elite passer
+       * and make the check unwinnable. So it is a MODIFIER-scale quantity, and
+       * it is derived here from the two registry attributes that already mean
+       * "understands what the defence is looking at" — the same two §8.1's
+       * anticipation uses, because looking a safety off and throwing him open
+       * are the same skill. Range at these settings: roughly −6 to +6.
+       *
+       * The engine deliberately does NOT petition for a `disguise` attribute for
+       * one check; see ADR-009's "considered and not proposed".
+       */
+      disguise: {
+        baseline: 70,
+        terms: [
+          { attr: "awareness", divisor: 10 },
+          { attr: "footballIQ", divisor: 10 },
+        ],
+      },
+      /** §9.4 verbatim: "Creates +20 to contest/interception". */
+      contestBonus: 20,
+      /**
+       * INTERPRETATION of "can break on ball at release": a defender who read it
+       * is IN the throwing lane, so he gets §10.3's lane check regardless of the
+       * contest position his coverage rep left him in. Openness still gates it
+       * (`throwExec.lane.contestOpennessMax`), so a receiver sitting wide open in
+       * a soft spot is not lane-contested by a defender two cells away.
+       */
+      grantsLaneContest: true,
+      /**
+       * The stronger reading of the same phrase — he arrives, so every catch
+       * becomes a 50/50 ball. OFF by default: §11.3's contested roll ignores
+       * openness entirely, so switching this on treats a wide-open soft-spot
+       * throw as a jump ball, which is not what "broke on the ball" means when
+       * the receiver has eight yards on him.
+       */
+      forcesContestedCatch: false,
+    },
+  },
+
   /** §9.3 — man coverage at the break point. */
   manCoverage: {
     attrDivisor: 5,
@@ -577,6 +710,12 @@ export const TUNABLES = {
         { attr: "awareness", divisor: 5 },
         { attr: "footballIQ", divisor: 5 },
       ],
+      /*
+       * ADR-008 — a third term rides on this roll from `TUNABLES.chemistry`:
+       * awareness and football IQ are "can he see the picture", chemistry is
+       * "does he know how THIS man runs it". Exchange rate:
+       * `TUNABLES.chemistry.anticipationDivisor`.
+       */
       /**
        * "On rhythm" means ONE TICK, not "early". A quarterback releases as the
        * receiver plants; he does not throw a fourteen-yard dig a full second
@@ -762,6 +901,183 @@ export const TUNABLES = {
         { label: "INTERCEPTION", minMargin: NEG_INF, caught: false, interception: true },
       ],
     },
+  },
+
+  /**
+   * §12 — THE TIPPED BALL SYSTEM.
+   *
+   * Until this landed, every deflection terminated as a batted-down
+   * incompletion. That is the single largest missing source of interceptions in
+   * the engine: in real football a tipped ball is a live ball, and defensive tip
+   * recoveries are a material fraction of NFL picks. Expect the INT rate to rise
+   * — that is the mechanic arriving, not a mis-calibration.
+   */
+  tippedBall: {
+    /**
+     * §12.1's trigger table, expressed as the §11 result bands that produce a
+     * live ball. The doc's other two triggers are not reachable: the engine has
+     * no D-line tip-at-release check (§12.1 row 5, `dline_tip` CheckKind exists
+     * and has no producer), and "defender causes drop via hit" is not a distinct
+     * outcome of §11.2.
+     */
+    triggerRoutineBands: ["DROPPED_TIP_POSSIBLE"],
+    triggerContestedBands: ["TIP_BALL", "PBU_TIP"],
+    /** §12.1 explicitly does NOT trigger on an uncatchable ball or a throwaway. */
+
+    /** §12.2 base target number by throw height — the doc's table verbatim. */
+    baseTargetByHeight: {
+      GROUND: 100,
+      LOW: 90,
+      WAIST: 80,
+      CHEST: 70,
+      SHOULDER: 60,
+      HEAD: 50,
+      HIGH_POINT: 40,
+      JUMP_BALL: 30,
+    },
+    /** Ordered low to high; `heightStepsByThrowType` walks it. */
+    heightLadder: ["GROUND", "LOW", "WAIST", "CHEST", "SHOULDER", "HEAD", "HIGH_POINT", "JUMP_BALL"],
+    /**
+     * INTERPRETATION — THROW HEIGHT IS NOT MODELLED, and §12.2 requires it.
+     *
+     * The engine has no ball trajectory. What it has is where the ball was hit,
+     * how far it was going, and how it was thrown, and those three do determine
+     * height well enough to be worth deriving rather than inventing a field:
+     *
+     *  - A ball knocked down IN THE THROWING LANE is hit a stride after release,
+     *    at its flattest and lowest point. One height, regardless of the route.
+     *  - A ball deflected AT THE CATCH POINT is at the end of its arc, and the
+     *    arc rises with distance: a quick hitch arrives at the waist, a go route
+     *    arrives above everybody's head.
+     *  - Velocity tilts it either way at the same depth — a bullet is thrown
+     *    flat and arrives a notch lower, a touch pass a notch higher.
+     *
+     * Every one of those is a knob, and the whole mapping is replaceable by a
+     * real trajectory the day one exists.
+     */
+    heightAtLane: "WAIST",
+    heightAtCatchPointByDepth: {
+      QUICK: "WAIST",
+      SHORT: "CHEST",
+      INTERMEDIATE: "SHOULDER",
+      DEEP: "HIGH_POINT",
+    },
+    /** Steps along `heightLadder`, applied at the catch point only. */
+    heightStepsByThrowType: { BULLET: -1, TOUCH: 1, BACK_SHOULDER: 0, THROWAWAY: 0 },
+    /** §12.2 "Ball Velocity" verbatim: bullet +15, normal 0, touch −15. */
+    velocityModifier: { BULLET: 15, TOUCH: -15, BACK_SHOULDER: 0, THROWAWAY: 0 },
+    /**
+     * §12.2 weather — OUT OF SCOPE. §16's weather system is not implemented, so
+     * the engine has no weather input and applies nothing. The keys are present
+     * and ZERO so the day §16 lands the wiring is a value change, not a code
+     * change. Doc values, recorded so they are not lost: light rain +5, heavy
+     * rain +15, snow +10, extreme cold +10, wind 15+ mph +5, dome/clear +0.
+     */
+    weatherModifier: {
+      DOME_CLEAR: 0,
+      LIGHT_RAIN: 0,
+      HEAVY_RAIN: 0,
+      SNOW: 0,
+      EXTREME_COLD: 0,
+      WIND_15_PLUS: 0,
+    },
+    /**
+     * §12.2's result bands. Margin = d100 − modified TN, so the doc's
+     * "Roll > TN + 40" is `minMargin: 41`. Each band sets the FINAL target
+     * number every recovery attempt is then rolled against, and §12.3's
+     * eligibility reach.
+     *
+     * `speedCheckFromDistance` is §12.3's "Speed check" column: at or beyond
+     * this many zones away a candidate must ALSO clear
+     * `recovery.speedCheckMinSpeed`. 99 means the column says a plain "Yes"/"No".
+     */
+    qualityBands: [
+      { label: "GIFT", minMargin: 41, finalTargetNumber: 20, recoverable: true, maxZoneDistance: 2, speedCheckFromDistance: 2, giftZone: true },
+      { label: "FLOATER", minMargin: 21, finalTargetNumber: 35, recoverable: true, maxZoneDistance: 2, speedCheckFromDistance: 2, giftZone: false },
+      { label: "LIVE_BALL", minMargin: 1, finalTargetNumber: 55, recoverable: true, maxZoneDistance: 1, speedCheckFromDistance: 99, giftZone: false },
+      { label: "CONTESTED", minMargin: -19, finalTargetNumber: 75, recoverable: true, maxZoneDistance: 1, speedCheckFromDistance: 1, giftZone: false },
+      { label: "DIFFICULT", minMargin: -39, finalTargetNumber: 90, recoverable: true, maxZoneDistance: 0, speedCheckFromDistance: 99, giftZone: false },
+      { label: "DEAD", minMargin: NEG_INF, finalTargetNumber: 0, recoverable: false, maxZoneDistance: -1, speedCheckFromDistance: 99, giftZone: false },
+    ],
+    /**
+     * §12.4 — the recovery attempt, in Reaction order.
+     *
+     * MEASURED DEFECT, IMPLEMENTED AS SPECIFIED AND NOT TUNED — for the
+     * calibration backlog, same class as the §7.1 term asymmetry (entry 3).
+     *
+     * §12.4's modifier stack and §12.2's target numbers are on incompatible
+     * scales. The doc gives a recovering player SIX attribute terms at Rating÷5
+     * (hands, reaction, speed, acceleration, agility, awareness) — roughly +90
+     * for an average player — plus +25 for being in the ball's zone, against a
+     * FINAL target number of 20 (GIFT) to 90 (DIFFICULT). Even the hardest ball
+     * in the table is cleared by a d100 roll of 1.
+     *
+     * Measured over 18,000 plays across six fixtures: **1,474 recovery attempts,
+     * ZERO failures.** Roll 2 never fails, so it decides nothing. Who ends up
+     * with a tipped ball is settled entirely by (a) whether Roll 1 killed the
+     * ball and (b) the deterministic Reaction ordering — the highest-Reaction
+     * player within reach takes it, every time. A §17 printout of a live tip
+     * reads "RECOVERS (+166)".
+     *
+     * NOT TUNED HERE, deliberately: the value that would fix it is either the
+     * attribute divisor or the final target numbers, and both are calibration
+     * decisions about how much of an outcome should be skill (Mandate 1 /
+     * backlog entry 5), not a defect fix to be smuggled into a feature dispatch.
+     * The knobs are `attrTerms[].divisor` and `qualityBands[].finalTargetNumber`.
+     */
+    recovery: {
+      /** §12.4 "Proximity" verbatim. */
+      proximityModifier: { sameZone: 25, adjacentZone: 10, twoZonesAway: -10 },
+      /** §12.4 "Attributes (each adds Rating ÷ 5)". */
+      attrTerms: [
+        { attr: "reaction", divisor: 5 },
+        { attr: "speed", divisor: 5 },
+        { attr: "acceleration", divisor: 5 },
+        { attr: "agility", divisor: 5 },
+        { attr: "awareness", divisor: 5 },
+      ],
+      /** §12.4's "Catching/Ball Skills" — whichever of the two the side owns. */
+      offenseHandsAttr: "catching",
+      defenseHandsAttr: "ballSkills",
+      handsDivisor: 5,
+      /**
+       * §12.3's "Speed check" for a candidate at reach. Implemented as a
+       * DETERMINISTIC attribute gate rather than a die, on §10.1's precedent
+       * (`armStrengthShortfall` is a rating threshold with no roll). The doc's
+       * own §12.4 already pays speed twice — once as an eligibility gate and
+       * once as a `Speed ÷ 5` modifier — so a third die here would be noise.
+       */
+      speedCheckMinSpeed: 75,
+      /** §12.4 "Situational". */
+      situational: {
+        /** The two men who were already playing the ball: the target and whoever contested him. */
+        alreadyTrackingBall: 10,
+        engagedInBlock: -20,
+        giftZoneBonus: 20,
+        /**
+         * NOT APPLIED — recorded so the doc's number survives. The engine has no
+         * facing and no ground state, and inventing either to spend a modifier
+         * would be asserting a fact no die and no input produced (ADR-005).
+         */
+        backWasTurned: -15,
+        onGround: -25,
+      },
+      /**
+       * §12.4 "Traits". `highPoint` is NOT in `TRAIT_REGISTRY_V1` and is
+       * therefore never applied — the value is recorded, not used. Adding a
+       * trait to the shared registry is a contracts petition, not an engine
+       * decision, and one modifier is not worth one.
+       */
+      traits: { ballHawk: 15, highPoint: 10, reliableHands: 10 },
+    },
+    /**
+     * PLACEHOLDER — §12.4 step 4: "If offensive recovery: play continues." What
+     * happens next is YAC (§13), which is the next dispatch. Until it exists an
+     * offensive recovery is scored as a completion for the recovering player's
+     * own air yards (0 for a lineman or a back in protection), exactly as
+     * `result.sackYardsLost` stands in for a tackle. Not a yardage model.
+     */
+    offensiveRecoveryUsesAirYards: true,
   },
 
   /** §17 result bookkeeping. YAC is out of this slice, so gains are air yards. */

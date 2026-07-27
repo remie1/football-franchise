@@ -5,8 +5,21 @@
  * globals, no mutation of the inputs, no randomness outside the injected PRNG.
  *
  * Out of slice by design (docs/design/match-engine.md sections not implemented
- * here): tipped balls (§12), YAC (§13), the run game (§14), zone coverage
- * (§9.4), penalties, weather/stamina/crowd noise (§16).
+ * here): YAC (§13), the run game (§14), option routes (§9.5), §8.6's unseen
+ * defender, penalties, weather/stamina/crowd noise (§16).
+ *
+ * §9.4 ZONE COVERAGE is live. Coverage is stated PER ASSIGNMENT rather than per
+ * call, because a single `coverage: "MAN"` flag on the whole defence cannot
+ * express what defences actually play — man underneath with a zone robber, three
+ * deep and matched below, a fire zone with an end dropping. A receiver named by
+ * no man assignment is played by whatever zone his route breaks into, and if
+ * nobody is responsible for that cell he is uncovered, which is what a hole in a
+ * zone is.
+ *
+ * §12 TIPPED BALLS is live. A deflection no longer terminates the play: the ball
+ * is live, its recoverability is rolled, and every player near it gets an attempt
+ * in Reaction order. A defensive recovery is an interception — a real source of
+ * them the engine has never had.
  *
  * §7.2's "throw, move, or take hit" is complete as of the time-of-arrival patch:
  * a won rep starts a rusher TRAVELLING (`resolve/rushThreat.ts`), and the
@@ -25,11 +38,15 @@
  */
 import { createRng, playId as makePlayId } from "@ff/contracts";
 import type { PlayerId, PlayerState, Rng } from "@ff/contracts";
+import { chemistryLevel } from "../chemistry.js";
 import { PlayEventLog } from "../events.js";
 import { clamp } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
 import type {
   ContestPosition,
+  CoverageShell,
+  CoverageTechnique,
+  FieldZone,
   MatchGameState,
   PassPlayStartPayload,
   PlayCalls,
@@ -40,9 +57,25 @@ import type {
   SimulationResult,
   ThrowType,
 } from "../types.js";
+import { assertCoherentPlayCall } from "../validate/playCall.js";
 import { anticipationAvailable, resolveAnticipation } from "../resolve/anticipation.js";
+import type { CatchOutcome } from "../resolve/catchResolution.js";
 import { catchTypeFor, resolveCatch } from "../resolve/catchResolution.js";
 import { resolveManCoverage } from "../resolve/manCoverage.js";
+import { backfieldZone, routeZone, zoneDefenderFor } from "../resolve/zone.js";
+import {
+  brokeOnBallContestModifier,
+  resolveZoneCoverage,
+  resolveZoneRead,
+  settledOpennessAt,
+} from "../resolve/zoneCoverage.js";
+import type { DeflectionPoint, RecoveryCandidate } from "../resolve/tippedBall.js";
+import {
+  eligibleRecoverers,
+  recoveryOrder,
+  resolveDeflectionQuality,
+  resolveRecoveryAttempt,
+} from "../resolve/tippedBall.js";
 import { advancePressure, forcesDecision, pocketStatusFor, sacksWithoutTarget } from "../resolve/pocket.js";
 import { resolvePocketMovement } from "../resolve/pocketMovement.js";
 import { resolvePassRushTick } from "../resolve/passRush.js";
@@ -106,11 +139,24 @@ interface ScrambleState {
   readonly escapeRollRef: string;
 }
 
+/**
+ * How this receiver is being played. Man is a person; zone is a CELL, which may
+ * or may not have somebody standing in it — and "may not" is the whole point of
+ * attacking a zone.
+ */
+type TrackCoverage =
+  | { readonly kind: "MAN"; readonly defender: PlayerState; readonly technique: CoverageTechnique }
+  | { readonly kind: "ZONE"; readonly defender: PlayerState | undefined };
+
 interface ReceiverTrack {
   readonly assignment: RouteAssignment;
   readonly receiver: PlayerState;
-  readonly defender: PlayerState;
+  readonly coverage: TrackCoverage;
+  /** §3 — the cell this route breaks into. Where the ball is if it is tipped. */
+  readonly zone: FieldZone;
   readonly pressed: boolean;
+  /** §9.4 — he found the hole and sat down in it, so coverage stops closing. */
+  settled: boolean;
   jamDelaySeconds: number;
   readySeconds: number;
   releaseReceiverMod: number | undefined;
@@ -139,11 +185,21 @@ function requirePlayer(state: MatchGameState, id: PlayerId): PlayerState {
   return p;
 }
 
+/** Whoever is close enough to this receiver to contest a ball, if anyone is. */
+function coverageDefender(track: ReceiverTrack): PlayerState | undefined {
+  return track.coverage.defender;
+}
+
 export function simulatePassPlay(
   state: MatchGameState,
   calls: PlayCalls,
   seed: string,
 ): SimulationResult {
+  // ADR-006 — internal coherence only, before a single die is thrown. A card the
+  // engine cannot resolve is rejected loudly; a card that is merely unrealistic
+  // is franchise's problem, checked at authoring time, not here.
+  assertCoherentPlayCall(state, calls);
+
   const playId = makePlayId(`${String(state.gameId)}:play:${state.playNumber}`);
   const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq);
   const qb = requirePlayer(state, state.quarterback);
@@ -155,9 +211,13 @@ export function simulatePassPlay(
   const movementRng = playRng.fork("movement");
   const throwRng = playRng.fork("throw");
   const catchRng = playRng.fork("catch");
+  // §12's two rolls get their own subsystem fork so a tip cannot shift the
+  // stream of any check that precedes it.
+  const tipRng = playRng.fork("tip");
 
   const matchups = buildMatchups(state, calls);
   const tracks = buildReceiverTracks(state, calls);
+  const recoverySpots = buildRecoverySpots(state, calls, tracks);
 
   const system = calls.offense.readSystem;
   const budgetSeconds = timeBudgetSeconds(qb, system);
@@ -184,7 +244,9 @@ export function simulatePassPlay(
       team: state.defenseTeam,
       call: calls.defense.name,
       front: calls.defense.front,
-      coverage: calls.defense.coverage,
+      // Derived, not echoed: with per-assignment coverage, MIXED is the honest
+      // answer for most real defences and no input field can state it.
+      coverage: coverageShellFor(calls),
       assignments: calls.defense.assignments,
       // Alignment resolved, not echoed: it is the input the §7.2 arrival model
       // actually ran on, and the only place the stream states it.
@@ -231,26 +293,51 @@ export function simulatePassPlay(
   };
 
   /**
-   * §9.3 — resolve the break point. Called from the route loop when the route's
-   * time comes, and from the read loop when the quarterback ANTICIPATES it: a
-   * ball thrown on timing arrives as the receiver comes out of his cut, so the
-   * coverage rep that decides the window is the same rep, resolved at the same
-   * point of the route, whether or not the QB waited to watch it.
+   * §9.3 / §9.4 — resolve the break point. Called from the route loop when the
+   * route's time comes, and from the read loop when the quarterback ANTICIPATES
+   * it: a ball thrown on timing arrives as the receiver comes out of his cut, so
+   * the coverage rep that decides the window is the same rep, resolved at the
+   * same point of the route, whether or not the QB waited to watch it.
+   *
+   * Which rep it is depends on how HE is being played, not on how the defence is
+   * described — which is the entire reason coverage moved onto the assignment.
    */
   const resolveBreakPoint = (track: ReceiverTrack): void => {
     if (track.baseOpenness !== undefined) return;
-    const coverage = resolveManCoverage({
-      receiver: track.receiver,
-      defender: track.defender,
-      // Forked per receiver rather than drawn from a shared stream: a receiver's
-      // rep against his man must not depend on the order the QB looked at people.
-      coverageRng: coverageRng.fork(String(track.assignment.receiver)),
-      ...(track.releaseReceiverMod === undefined ? {} : { receiverReleaseModifier: track.releaseReceiverMod }),
-      ...(track.releaseDefenderMod === undefined ? {} : { defenderReleaseModifier: track.releaseDefenderMod }),
-    });
-    log.check(coverage.check);
-    track.baseOpenness = coverage.openness;
-    track.contestPosition = coverage.contestPosition;
+    // Forked per receiver rather than drawn from a shared stream: a receiver's
+    // rep must not depend on the order the QB happened to look at people.
+    const rng = coverageRng.fork(String(track.assignment.receiver));
+
+    if (track.coverage.kind === "MAN") {
+      const coverage = resolveManCoverage({
+        receiver: track.receiver,
+        defender: track.coverage.defender,
+        coverageRng: rng,
+        ...(track.releaseReceiverMod === undefined ? {} : { receiverReleaseModifier: track.releaseReceiverMod }),
+        ...(track.releaseDefenderMod === undefined ? {} : { defenderReleaseModifier: track.releaseDefenderMod }),
+      });
+      log.check(coverage.check);
+      track.baseOpenness = coverage.openness;
+      track.contestPosition = coverage.contestPosition;
+      return;
+    }
+
+    const defender = track.coverage.defender;
+    if (defender === undefined) {
+      // §9.4 step 2 — nobody is responsible for this cell. There is no contest,
+      // so there is no die and no CHECK (ADR-005: an absent check means no roll
+      // was made, never a failed one). A hole in a zone is not a won rep.
+      track.baseOpenness = TUNABLES.zoneCoverage.uncoveredOpenness;
+      track.contestPosition = TUNABLES.zoneCoverage.uncoveredContestPosition;
+      track.settled = true;
+      return;
+    }
+
+    const zone = resolveZoneCoverage({ receiver: track.receiver, defender, coverageRng: rng });
+    log.check(zone.check);
+    track.baseOpenness = zone.openness;
+    track.contestPosition = zone.contestPosition;
+    track.settled = zone.settled;
   };
 
   const sack = (at: number): PlayOutcome => {
@@ -343,12 +430,15 @@ export function simulatePassPlay(
       }
     }
 
-    // ---- §9.1/§9.2/§9.3 routes ---------------------------------------------
+    // ---- §9.1/§9.2/§9.3/§9.4 routes ----------------------------------------
     for (const track of tracks) {
-      if (tick === TUNABLES.clock.firstTick && track.pressed) {
+      // `pressed` is only ever true on a MAN assignment, so the defender is
+      // present by construction; the guard is the type system's, not football's.
+      const presser = track.coverage.kind === "MAN" ? track.coverage.defender : undefined;
+      if (tick === TUNABLES.clock.firstTick && track.pressed && presser !== undefined) {
         const release = resolveReleaseVsPress({
           receiver: track.receiver,
-          defender: track.defender,
+          defender: presser,
           coverageRng: coverageRng.fork(String(track.assignment.receiver)),
         });
         log.check(release.check);
@@ -362,6 +452,13 @@ export function simulatePassPlay(
 
       // §8.8 — a receiver who has abandoned the route to find open grass is not
       // at a point on his route's timeline; the play has changed shape (ADR-007).
+      //
+      // INTERIM VOCABULARY (ADR-009): a receiver who beat a zone and SAT DOWN in
+      // the window is reported as OPEN and then, past the decay point, as
+      // DECAYING — which is false, because nothing is decaying: his openness is
+      // held flat by `zoneCoverage.settledDecayPerTick`. `SETTLED` is petitioned
+      // in ADR-009; until it exists the phase is true-but-silent and the
+      // openness track is what tells the reader.
       const phase: RoutePhase =
         scramble !== undefined && track.scrambleBaseOpenness !== undefined
           ? "SCRAMBLE_DRILL"
@@ -427,6 +524,9 @@ export function simulatePassPlay(
           leadSeconds: lead,
           depthClass: target.assignment.depthClass,
           firstRead: step.progressionIndex === 0,
+          // ADR-008 — the pair term. Absent table ⇒ neutral ⇒ unchanged.
+          receiver: target.assignment.receiver,
+          chemistry: state.chemistry,
           anticipationRng: qbReadRng.fork(
             `t${tick.toFixed(1)}:a${anticipationIndex}:${String(target.receiver.bio.id)}:anticipation`,
           ),
@@ -477,9 +577,14 @@ export function simulatePassPlay(
         tick,
         pocket,
         effectiveOpenness: selection.selected.effectiveOpenness,
+        chemistry: chemistryLevel(state.chemistry, state.quarterback, track.assignment.receiver),
+        coverageRng,
         throwRng,
         catchRng,
+        tipRng,
         scramble,
+        recoverySpots,
+        airYardsOf: (id) => airYardsFor(tracks, id),
       });
     };
 
@@ -698,6 +803,14 @@ export function simulatePassPlay(
 
 // ---------------------------------------------------------------------------
 
+/** A player and where he is standing, for §12.3. Tracking is per tip, not static. */
+interface RecoverySpot {
+  readonly player: PlayerState;
+  readonly side: "OFFENSE" | "DEFENSE";
+  readonly zone: FieldZone;
+  readonly engagedInBlock: boolean;
+}
+
 interface ThrowArgs {
   readonly log: PlayEventLog;
   readonly qb: PlayerState;
@@ -705,9 +818,15 @@ interface ThrowArgs {
   readonly tick: number;
   readonly pocket: PocketStatus;
   readonly effectiveOpenness: number;
+  /** ADR-008 — this pair's resolved 0-100 rapport. */
+  readonly chemistry: number;
+  readonly coverageRng: Rng;
   readonly throwRng: Rng;
   readonly catchRng: Rng;
+  readonly tipRng: Rng;
   readonly scramble: ScrambleState | undefined;
+  readonly recoverySpots: readonly RecoverySpot[];
+  readonly airYardsOf: (id: PlayerId) => number;
 }
 
 function resolveThrow(args: ThrowArgs): PlayOutcome {
@@ -717,6 +836,20 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
   const actualOpenness = readOpenness(track, tick, scramble);
   const throwType: ThrowType = selectThrowType(track.assignment.depthClass, effectiveOpenness);
   const shortfall = armStrengthShortfall(qb, track.assignment.airYards);
+  const defender = coverageDefender(track);
+
+  // §9.4 — the zone defender reads the release. Rolled here and not earlier
+  // because the doc's own trigger is the release: he breaks on the BALL.
+  let brokeOnBall = false;
+  if (track.coverage.kind === "ZONE" && defender !== undefined) {
+    const read = resolveZoneRead({
+      defender,
+      quarterback: qb,
+      coverageRng: args.coverageRng.fork(`release:${String(track.assignment.receiver)}`),
+    });
+    log.check(read.check);
+    brokeOnBall = read.brokeOnBall;
+  }
 
   const accuracy = resolveAccuracy({
     qb,
@@ -724,36 +857,51 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
     throwType,
     pocket,
     armShortfall: shortfall,
+    chemistryLevel: args.chemistry,
     throwRng,
   });
   log.check(accuracy.check);
   log.throwBall(track.receiver.bio.id, throwType, accuracy.check.tier);
 
-  // §10.4 MISS: not catchable. Nothing downstream fires.
-  if (!accuracy.bandEffects.catchable) {
-    return { yards: 0, turnover: false, clockRunoff: tick + TUNABLES.result.clockRunoff.incompletion };
-  }
+  const incomplete = (): PlayOutcome => ({
+    yards: 0,
+    turnover: false,
+    clockRunoff: tick + TUNABLES.result.clockRunoff.incompletion,
+  });
 
-  if (laneDefenderEligible(track.contestPosition, actualOpenness)) {
-    const lane = resolvePassingLane({
-      defender: track.defender,
-      quarterback: qb,
-      throwType,
-      throwRng,
-    });
+  // §10.4 MISS: not catchable. §12.1 is explicit that an uncatchable ball does
+  // NOT trigger the tipped-ball system — nothing downstream fires.
+  if (!accuracy.bandEffects.catchable) return incomplete();
+
+  const tip = (deflector: PlayerState, point: DeflectionPoint): PlayOutcome =>
+    resolveTippedBall({ ...args, deflector, point, throwType });
+
+  // §10.3 — a defender who has undercut the route, or (§9.4) a zone defender who
+  // read the release and left his area early, can get a hand on it.
+  const laneEligible =
+    defender !== undefined &&
+    (laneDefenderEligible(track.contestPosition, actualOpenness) ||
+      (brokeOnBall &&
+        TUNABLES.zoneCoverage.readQb.grantsLaneContest &&
+        actualOpenness <= TUNABLES.throwExec.lane.contestOpennessMax));
+
+  if (laneEligible && defender !== undefined) {
+    const lane = resolvePassingLane({ defender, quarterback: qb, throwType, throwRng });
     log.check(lane.check);
-    if (lane.deflected) {
-      return { yards: 0, turnover: false, clockRunoff: tick + TUNABLES.result.clockRunoff.incompletion };
-    }
+    // §12 — a deflection is a LIVE BALL, not an incompletion.
+    if (lane.deflected) return tip(defender, "LANE");
   }
 
-  const catchType = catchTypeFor(actualOpenness);
+  const forcedContest = brokeOnBall && TUNABLES.zoneCoverage.readQb.forcesContestedCatch;
+  const catchType =
+    defender === undefined ? "ROUTINE" : forcedContest ? "CONTESTED" : catchTypeFor(actualOpenness);
   const result = resolveCatch({
     receiver: track.receiver,
-    defender: track.defender,
+    defender,
     accuracy: accuracy.bandEffects,
     contestPosition: track.contestPosition,
     catchType,
+    ...(brokeOnBall ? { defenderContestModifiers: [brokeOnBallContestModifier()] } : {}),
     catchRng,
   });
   // ADR-004: the CHECK carries the roll, the summary references it by rngLabel.
@@ -763,12 +911,131 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
   if (result.interception) {
     return { yards: 0, turnover: true, clockRunoff: tick + TUNABLES.result.clockRunoff.interception };
   }
-  if (!result.caught) {
-    return { yards: 0, turnover: false, clockRunoff: tick + TUNABLES.result.clockRunoff.incompletion };
-  }
+
+  // §12.1 — the catch-point triggers. A defender who got a hand on it at the
+  // catch point, or a receiver who dropped a ball he had.
+  const deflector = catchPointDeflector(result, track.receiver, defender);
+  if (deflector !== undefined) return tip(deflector, "CATCH_POINT");
+
+  if (!result.caught) return incomplete();
   // YAC is out of this slice: the gain is the air yards.
   return {
     yards: track.assignment.airYards,
+    turnover: false,
+    clockRunoff: tick + TUNABLES.result.clockRunoff.completion,
+  };
+}
+
+/**
+ * §12.1's catch-point triggers, read off the §11 result band. A ball the
+ * receiver had and lost is live; a ball a defender got a hand on is live; a
+ * clean pass breakup and a clean drop are not.
+ */
+function catchPointDeflector(
+  result: CatchOutcome,
+  receiver: PlayerState,
+  defender: PlayerState | undefined,
+): PlayerState | undefined {
+  const t = TUNABLES.tippedBall;
+  if (result.catchType === "CONTESTED") {
+    const triggers: readonly string[] = t.triggerContestedBands;
+    return defender !== undefined && triggers.includes(result.band) ? defender : undefined;
+  }
+  const triggers: readonly string[] = t.triggerRoutineBands;
+  // The receiver tipped it himself. He is also, correctly, eligible to recover.
+  return triggers.includes(result.band) ? receiver : undefined;
+}
+
+interface TippedBallArgs extends ThrowArgs {
+  readonly deflector: PlayerState;
+  readonly point: DeflectionPoint;
+  readonly throwType: ThrowType;
+}
+
+/**
+ * §12 — the ball is in the air and nobody owns it.
+ *
+ * Roll 1 sets how recoverable it is; §12.3 says who may reach it; Roll 2 is each
+ * of them in Reaction order until somebody has it. A defensive recovery is an
+ * interception, which is the point: this is a real source of turnovers the
+ * engine has never had, and the INT rate is expected to move because of it.
+ */
+function resolveTippedBall(args: TippedBallArgs): PlayOutcome {
+  const { log, track, tick, deflector, point, throwType, tipRng, recoverySpots } = args;
+
+  const quality = resolveDeflectionQuality({
+    deflector,
+    point,
+    depthClass: track.assignment.depthClass,
+    throwType,
+    tipRng,
+  });
+  log.check(quality.check);
+
+  // Where the ball comes down: at the catch point, the route's own cell; in the
+  // throwing lane, short of it, in the same lane (INTERPRETATION, tunable).
+  const ballZone: FieldZone =
+    point === "LANE"
+      ? { horizontal: track.zone.horizontal, vertical: TUNABLES.zoneModel.laneDeflectionVertical }
+      : track.zone;
+
+  // §12.4 "Already tracking ball": the intended receiver, whoever was covering
+  // him, and whoever knocked it down were all playing the ball already.
+  const trackingIds = new Set<string>([
+    String(track.receiver.bio.id),
+    String(deflector.bio.id),
+    ...(coverageDefender(track) === undefined ? [] : [String(coverageDefender(track)?.bio.id)]),
+  ]);
+  const candidates: RecoveryCandidate[] = recoverySpots.map((spot) => ({
+    player: spot.player,
+    side: spot.side,
+    zone: spot.zone,
+    engagedInBlock: spot.engagedInBlock,
+    trackingBall: trackingIds.has(String(spot.player.bio.id)),
+  }));
+
+  const ordered = recoveryOrder(eligibleRecoverers(quality.band, ballZone, candidates));
+
+  const attempts: { player: PlayerId; rollRef: string }[] = [];
+  let recovered: (typeof ordered)[number] | undefined;
+  for (const candidate of ordered) {
+    const attempt = resolveRecoveryAttempt({
+      candidate,
+      band: quality.band,
+      finalTargetNumber: quality.finalTargetNumber,
+      tipRng,
+    });
+    log.check(attempt.check);
+    attempts.push({ player: attempt.player, rollRef: attempt.roll.rngLabel });
+    // §12.4: "First success = recovery." Everyone behind him in Reaction order
+    // never gets an attempt, which is why the order is total and deterministic.
+    if (attempt.recovered) {
+      recovered = candidate;
+      break;
+    }
+  }
+
+  log.tippedBall(
+    deflector.bio.id,
+    quality.roll.rngLabel,
+    quality.finalTargetNumber,
+    ordered.map((c) => c.player.bio.id),
+    attempts,
+    recovered?.player.bio.id,
+  );
+
+  if (recovered === undefined) {
+    return { yards: 0, turnover: false, clockRunoff: tick + TUNABLES.result.clockRunoff.incompletion };
+  }
+  if (recovered.side === "DEFENSE") {
+    // §12.4 step 5.
+    return { yards: 0, turnover: true, clockRunoff: tick + TUNABLES.result.clockRunoff.interception };
+  }
+  // §12.4 step 4: "play continues" — which is YAC (§13), the next dispatch.
+  // PLACEHOLDER, same class as `result.sackYardsLost`: the completion is scored
+  // for the recovering player's own air yards and nothing after it is modelled.
+  return {
+    yards: args.airYardsOf(recovered.player.bio.id),
     turnover: false,
     clockRunoff: tick + TUNABLES.result.clockRunoff.completion,
   };
@@ -793,7 +1060,20 @@ function currentOpenness(
   }
   if (track.baseOpenness === undefined) return 0;
   if (tick < track.readySeconds) return 0;
-  return opennessAt(track.baseOpenness, track.readySeconds, tick);
+  return decayedOpenness(track, tick);
+}
+
+/**
+ * §8.7's decay is "coverage closes on him", and zone coverage does not close the
+ * same way: a receiver who has sat down in the soft spot is being watched by a
+ * defender whose responsibility is the area, not the man. Which curve applies is
+ * a property of the coverage rep, not of the receiver.
+ */
+function decayedOpenness(track: ReceiverTrack, tick: number): number {
+  const base = track.baseOpenness ?? 0;
+  return track.settled
+    ? settledOpennessAt(base, track.readySeconds, tick)
+    : opennessAt(base, track.readySeconds, tick);
 }
 
 /**
@@ -813,7 +1093,7 @@ function readOpenness(
     return scrambleOpennessAt(track.scrambleBaseOpenness, scramble.sinceTick, tick);
   }
   if (track.baseOpenness === undefined) return 0;
-  return opennessAt(track.baseOpenness, track.readySeconds, Math.max(tick, track.readySeconds));
+  return decayedOpenness(track, Math.max(tick, track.readySeconds));
 }
 
 /**
@@ -934,19 +1214,46 @@ function buildMatchups(state: MatchGameState, calls: PlayCalls): RushMatchup[] {
   });
 }
 
+/**
+ * Each route, and how the defence is playing it.
+ *
+ * The precedence is what makes mixed coverage work: a man assignment naming this
+ * receiver wins, because somebody is on him personally. Otherwise the route
+ * breaks into a cell of the §3 grid, and whoever is responsible for that cell
+ * plays it. Nobody responsible for the cell means nobody is there — which is a
+ * hole in the zone, not a modelling gap.
+ */
 function buildReceiverTracks(state: MatchGameState, calls: PlayCalls): ReceiverTrack[] {
   return calls.offense.routes.map((assignment) => {
-    const cover = calls.defense.assignments.find((a) => a.covers === assignment.receiver);
-    if (cover === undefined) {
-      throw new Error(
-        `@ff/engine: receiver ${String(assignment.receiver)} has no man defender — zone coverage (§9.4) is out of the pass-play slice`,
-      );
+    const zone = routeZone(assignment);
+    const manned = calls.defense.assignments.find(
+      (a) => a.kind === "MAN" && a.covers === assignment.receiver,
+    );
+
+    let coverage: TrackCoverage;
+    if (manned !== undefined && manned.kind === "MAN") {
+      coverage = {
+        kind: "MAN",
+        defender: requirePlayer(state, manned.defender),
+        technique: manned.technique,
+      };
+    } else {
+      const zoned = zoneDefenderFor(calls.defense.assignments, zone);
+      coverage = {
+        kind: "ZONE",
+        defender: zoned === undefined ? undefined : requirePlayer(state, zoned.defender),
+      };
     }
+
     return {
       assignment,
       receiver: requirePlayer(state, assignment.receiver),
-      defender: requirePlayer(state, cover.defender),
-      pressed: cover.technique === "PRESS",
+      coverage,
+      zone,
+      // §9.1's jam is a man-coverage technique; a zone defender is not standing
+      // on the line waiting to put hands on somebody who may not come to him.
+      pressed: coverage.kind === "MAN" && coverage.technique === "PRESS",
+      settled: false,
       jamDelaySeconds: 0,
       readySeconds: routeReadySeconds(assignment.depthClass, 0),
       releaseReceiverMod: undefined,
@@ -960,6 +1267,72 @@ function buildReceiverTracks(state: MatchGameState, calls: PlayCalls): ReceiverT
       scrambleBaseOpenness: undefined,
     };
   });
+}
+
+/**
+ * Everyone on the field, and the §3 cell they are standing in, for §12.3's
+ * eligibility. This is the point where the field model's limits are most
+ * visible: receivers are at their break cell, man defenders wherever the man
+ * they are covering is, zone defenders in their stated cell, and everyone in
+ * protection in the backfield. Nobody moves and nobody has a path.
+ *
+ * The quarterback is deliberately absent. A passer recovering his own tipped
+ * ball is legal in some circumstances and not in others, and that is a rules
+ * question the engine has no business answering to spend one modifier.
+ */
+function buildRecoverySpots(
+  state: MatchGameState,
+  calls: PlayCalls,
+  tracks: readonly ReceiverTrack[],
+): RecoverySpot[] {
+  const spots: RecoverySpot[] = [];
+  const seen = new Set<string>();
+  const add = (spot: RecoverySpot): void => {
+    const key = String(spot.player.bio.id);
+    if (seen.has(key)) return;
+    seen.add(key);
+    spots.push(spot);
+  };
+
+  for (const track of tracks) {
+    add({ player: track.receiver, side: "OFFENSE", zone: track.zone, engagedInBlock: false });
+    const defender = coverageDefender(track);
+    if (defender !== undefined) {
+      add({ player: defender, side: "DEFENSE", zone: track.zone, engagedInBlock: false });
+    }
+  }
+  for (const assignment of calls.defense.assignments) {
+    if (assignment.kind !== "ZONE") continue;
+    add({
+      player: requirePlayer(state, assignment.defender),
+      side: "DEFENSE",
+      zone: assignment.zone,
+      engagedInBlock: false,
+    });
+  }
+  const backfield = backfieldZone();
+  for (const protection of calls.offense.protection) {
+    add({ player: requirePlayer(state, protection.blocker), side: "OFFENSE", zone: backfield, engagedInBlock: true });
+  }
+  for (const rush of calls.defense.rush) {
+    add({ player: requirePlayer(state, rush.rusher), side: "DEFENSE", zone: backfield, engagedInBlock: true });
+  }
+  return spots;
+}
+
+/** Air yards credited to an offensive recovery: his own route, or none. */
+function airYardsFor(tracks: readonly ReceiverTrack[], id: PlayerId): number {
+  return tracks.find((t) => t.assignment.receiver === id)?.assignment.airYards ?? 0;
+}
+
+/** What the defence played, derived from the assignments (never declared). */
+function coverageShellFor(calls: PlayCalls): CoverageShell {
+  const man = calls.defense.assignments.some((a) => a.kind === "MAN");
+  const zone = calls.defense.assignments.some((a) => a.kind === "ZONE");
+  if (man && zone) return "MIXED";
+  if (man) return "MAN";
+  if (zone) return "ZONE";
+  return "NONE";
 }
 
 function applyOutcome(state: MatchGameState, outcome: PlayOutcome, nextSeq: number): MatchGameState {

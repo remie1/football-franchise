@@ -62,13 +62,20 @@ export function buildScenario(overrides: Partial<MatchGameState> = {}): Scenario
 
   // `jumping` (ADR-003) is set on everyone who can contest a ball in the air,
   // so the §11.3 term is actually exercised rather than falling back to 50.
+  //
+  // `reaction` and `awareness` are set on the RECEIVERS as well as the defenders
+  // as of §12. They were absent, which was harmless while nothing on offence
+  // read them — and stopped being harmless the moment §12.4 made Reaction the
+  // resolution ORDER for a live ball. Left unset they fall back to 50, the whole
+  // offence sorts behind every defender, and "who recovers a tip" is decided by
+  // a hole in the fixture rather than by the mechanic.
   const wr1 = makePlayer("wr1", "Dez Ellis", "WR", {
-    speed: 91, acceleration: 88, agility: 87, strength: 62, jumping: 88,
+    speed: 91, acceleration: 88, agility: 87, strength: 62, jumping: 88, reaction: 78, awareness: 74,
     routeRunning: 84, releaseWR: 80, catching: 83, catchInTraffic: 76, spectacularCatch: 80,
   }, ["routeTechnician"]);
 
   const wr2 = makePlayer("wr2", "Cole Rankin", "WR", {
-    speed: 84, acceleration: 85, agility: 86, strength: 58, jumping: 74,
+    speed: 84, acceleration: 85, agility: 86, strength: 58, jumping: 74, reaction: 74, awareness: 71,
     routeRunning: 78, releaseWR: 74, catching: 79, catchInTraffic: 70,
   }, ["reliableHands"]);
 
@@ -84,7 +91,7 @@ export function buildScenario(overrides: Partial<MatchGameState> = {}): Scenario
 
   // A 6'5" seam tight end: elite at the high point, ordinary everywhere else.
   const te = makePlayer("te1", "Sam Pryor", "TE", {
-    speed: 78, acceleration: 79, agility: 76, strength: 74, jumping: 86,
+    speed: 78, acceleration: 79, agility: 76, strength: 74, jumping: 86, reaction: 70, awareness: 76,
     routeRunning: 74, releaseWR: 70, catching: 82, catchInTraffic: 80,
   }, ["reliableHands"]);
 
@@ -149,11 +156,10 @@ export function buildScenario(overrides: Partial<MatchGameState> = {}): Scenario
     defense: {
       name: "Cover 1 Press",
       front: "Nickel Even",
-      coverage: "MAN",
       assignments: [
-        { defender: cb1.bio.id, covers: wr1.bio.id, technique: "PRESS" },
-        { defender: cb2.bio.id, covers: wr2.bio.id, technique: "OFF" },
-        { defender: lb.bio.id, covers: te.bio.id, technique: "PRESS" },
+        { kind: "MAN", defender: cb1.bio.id, covers: wr1.bio.id, technique: "PRESS" },
+        { kind: "MAN", defender: cb2.bio.id, covers: wr2.bio.id, technique: "OFF" },
+        { kind: "MAN", defender: lb.bio.id, covers: te.bio.id, technique: "PRESS" },
       ],
       rush: [
         { rusher: edge.bio.id, move: "SPEED" },
@@ -223,7 +229,9 @@ export function buildCleanPocketScenario(): Scenario {
       // Off coverage everywhere: no jam, so every route's break time is its
       // §9.2 base and the progression can be observed without the release
       // battle moving the goalposts underneath it.
-      assignments: base.calls.defense.assignments.map((a) => ({ ...a, technique: "OFF" as const })),
+      assignments: base.calls.defense.assignments.map((a) =>
+        a.kind === "MAN" ? { ...a, technique: "OFF" as const } : a,
+      ),
       rush: [
         { rusher: futileA.bio.id, move: "SPEED" },
         { rusher: futileB.bio.id, move: "POWER" },
@@ -237,6 +245,223 @@ export function buildCleanPocketScenario(): Scenario {
   };
 
   return { state: { ...base.state, players }, calls, names };
+}
+
+/**
+ * CALIBRATION-BACKLOG 4b — a SHORT-primary concept, on a committed card.
+ *
+ * Until this existed, no fixture in the repo carried a `SHORT` route: the base
+ * concept is DEEP / INTERMEDIATE / QUICK, and the depth-class timing split was
+ * only ever exercised by a throwaway harness that remapped a depth class. So
+ * `TUNABLES.route.readySeconds.SHORT` (1.5s) and
+ * `TUNABLES.qb.anticipation.depthModifier.SHORT` (0) had never resolved a play.
+ *
+ * "Stick" is the natural carrier: the stick route IS the primary, it breaks at
+ * six yards, and the concept is built around throwing it on rhythm — which makes
+ * it the one shape where the SHORT column is load-bearing rather than incidental.
+ * Zones are stated explicitly so the same card can be run against zone coverage.
+ */
+export function buildShortConceptScenario(): Scenario {
+  const base = buildScenario();
+  const { deep, intermediate, quick } = baseReceivers(base);
+
+  const calls: PlayCalls = {
+    ...base.calls,
+    offense: {
+      ...base.calls.offense,
+      name: "Stick",
+      formation: "Shotgun Trey Right",
+      routes: [
+        // The stick: sit at six, in the right hash. SHORT, and the primary.
+        {
+          receiver: intermediate,
+          routeName: "Stick",
+          depthClass: "SHORT",
+          airYards: 6,
+          breakZone: { horizontal: "RH", vertical: "SHORT" },
+        },
+        // The flat, underneath and outside him — the other half of the read.
+        {
+          receiver: quick,
+          routeName: "Flat",
+          depthClass: "QUICK",
+          airYards: 3,
+          breakZone: { horizontal: "RW", vertical: "SHORT" },
+        },
+        // The backside clear-out, keeping a safety honest.
+        {
+          receiver: deep,
+          routeName: "Go",
+          depthClass: "DEEP",
+          airYards: 24,
+          breakZone: { horizontal: "LW", vertical: "DEEP" },
+        },
+      ],
+      readOrder: [intermediate, quick, deep],
+    },
+  };
+
+  return { ...base, calls };
+}
+
+/**
+ * The base concept against a spot-drop zone. Nobody is manned; four defenders
+ * own four cells, and the routes are placed so that TWO of them are covered and
+ * one — the shallow cross into the left hash — runs into a cell nobody owns.
+ * That hole is the point: it is what zone gives up, and it is a fact the engine
+ * could not previously represent at all.
+ */
+export function buildZoneScenario(): Scenario {
+  const base = buildScenario();
+  const { deep, intermediate, quick } = baseReceivers(base);
+  const assignments = base.calls.defense.assignments;
+  const cb1 = assignments[0]?.defender;
+  const cb2 = assignments[1]?.defender;
+  const lb = assignments[2]?.defender;
+  if (cb1 === undefined || cb2 === undefined || lb === undefined) throw new Error("bad fixture");
+
+  const players = withZoneRatings(base.state.players, {
+    [String(cb1)]: 84,
+    [String(cb2)]: 68,
+    [String(lb)]: 74,
+  });
+
+  const calls: PlayCalls = {
+    offense: {
+      ...base.calls.offense,
+      routes: [
+        { receiver: deep, routeName: "Go", depthClass: "DEEP", airYards: 24, breakZone: { horizontal: "RW", vertical: "DEEP" } },
+        { receiver: intermediate, routeName: "Dig", depthClass: "INTERMEDIATE", airYards: 14, breakZone: { horizontal: "C", vertical: "INTERMEDIATE" } },
+        // Into the left hash — and nobody drops there.
+        { receiver: quick, routeName: "Shallow Cross", depthClass: "QUICK", airYards: 5, breakZone: { horizontal: "LH", vertical: "SHORT" } },
+      ],
+    },
+    defense: {
+      name: "Cover 3 Spot Drop",
+      front: "Nickel Even",
+      assignments: [
+        { kind: "ZONE", defender: cb1, zone: { horizontal: "RW", vertical: "DEEP" } },
+        { kind: "ZONE", defender: cb2, zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
+        { kind: "ZONE", defender: lb, zone: { horizontal: "RH", vertical: "SHORT" } },
+      ],
+      rush: base.calls.defense.rush,
+    },
+  };
+
+  const names = (id: PlayerId): string => {
+    const p = players[id as unknown as string];
+    return p === undefined ? String(id) : `${p.bio.displayName} (${p.bio.position})`;
+  };
+
+  return { state: { ...base.state, players }, calls, names };
+}
+
+/**
+ * MIXED COVERAGE — the shape a single `coverage: "MAN" | "ZONE"` flag on the
+ * whole call cannot express, and the reason coverage moved onto the assignment.
+ *
+ * Built on the Stick concept rather than on Y Cross deliberately: the two
+ * covered routes break at 1.0s and 1.5s, so BOTH reps are resolved on nearly
+ * every snap rather than only on the ones the protection survives long enough to
+ * reach a fourteen-yard dig. A man/zone split measured on a fixture where the
+ * man rep only happens on slow-developing plays is a split by play length.
+ *
+ *   Flat  (QUICK, RW/SHORT)  → MAN, the nickel travelling with the back
+ *   Stick (SHORT, RH/SHORT)  → ZONE, the hook dropper
+ *   Go    (DEEP,  LW/DEEP)   → ZONE, the deep third
+ */
+export function buildMixedCoverageScenario(): Scenario {
+  const base = buildShortConceptScenario();
+  const routes = base.calls.offense.routes;
+  const stick = routes.find((r) => r.depthClass === "SHORT");
+  const flat = routes.find((r) => r.depthClass === "QUICK");
+  if (stick === undefined || flat === undefined) throw new Error("bad fixture");
+
+  const assignments = base.calls.defense.assignments;
+  const cb1 = assignments[0]?.defender;
+  const cb2 = assignments[1]?.defender;
+  const lb = assignments[2]?.defender;
+  if (cb1 === undefined || cb2 === undefined || lb === undefined) throw new Error("bad fixture");
+
+  const players = withZoneRatings(base.state.players, { [String(cb1)]: 84, [String(lb)]: 74 });
+
+  const calls: PlayCalls = {
+    ...base.calls,
+    defense: {
+      name: "Cover 1 Robber",
+      front: base.calls.defense.front,
+      assignments: [
+        { kind: "MAN", defender: cb2, covers: flat.receiver, technique: "OFF" },
+        { kind: "ZONE", defender: lb, zone: { horizontal: "RH", vertical: "SHORT" } },
+        { kind: "ZONE", defender: cb1, zone: { horizontal: "LW", vertical: "DEEP" } },
+      ],
+      rush: base.calls.defense.rush,
+    },
+  };
+
+  const names = (id: PlayerId): string => {
+    const p = players[id as unknown as string];
+    return p === undefined ? String(id) : `${p.bio.displayName} (${p.bio.position})`;
+  };
+
+  return { state: { ...base.state, players }, calls, names };
+}
+
+/**
+ * The base fixture only ever set `manCoverage` on its cover players, so without
+ * this every zone rep would resolve against `getAttr`'s 50 fallback and a zone
+ * defender's rating would be untested.
+ */
+function withZoneRatings(
+  players: Readonly<Record<string, PlayerState>>,
+  ratings: Readonly<Record<string, number>>,
+): Record<string, PlayerState> {
+  const out: Record<string, PlayerState> = { ...players };
+  for (const [id, zoneCoverage] of Object.entries(ratings)) {
+    const existing = out[id];
+    if (existing === undefined) throw new Error(`bad fixture: no player ${id}`);
+    out[id] = {
+      ...existing,
+      attributes: {
+        ...existing.attributes,
+        values: setAttr(existing.attributes.values, resolveAttr("zoneCoverage"), zoneCoverage),
+      },
+    };
+  }
+  return out;
+}
+
+/**
+ * A fixture built to produce DEFLECTIONS, so §12 is exercised rather than
+ * merely present. Every cover player is a ball-skills specialist with elite
+ * reaction sitting in the throwing lane, and the pocket holds long enough for
+ * the ball to be thrown. Tips are still rolled for, not scripted.
+ */
+export function buildDeflectionScenario(): Scenario {
+  const base = buildCleanPocketScenario();
+  const players: Record<string, PlayerState> = { ...base.state.players };
+  for (const assignment of base.calls.defense.assignments) {
+    if (assignment.kind !== "MAN") continue;
+    const defender = players[assignment.defender as unknown as string];
+    if (defender === undefined) throw new Error("bad fixture");
+    players[assignment.defender as unknown as string] = makePlayer(
+      String(assignment.defender),
+      defender.bio.displayName,
+      defender.bio.position,
+      {
+        manCoverage: 95, agility: 92, press: 70, ballSkills: 99, reaction: 99,
+        speed: 92, acceleration: 92, awareness: 90, jumping: 90, strength: 80,
+      },
+      ["ballHawk", "shutdown"],
+    );
+  }
+
+  const names = (id: PlayerId): string => {
+    const p = players[id as unknown as string];
+    return p === undefined ? String(id) : `${p.bio.displayName} (${p.bio.position})`;
+  };
+
+  return { state: { ...base.state, players }, calls: base.calls, names };
 }
 
 /** Receivers of the base scenario in a stable order: [WR1 go, WR2 dig, TE shallow]. */
@@ -278,6 +503,7 @@ export function buildStalledPocketScenario(): Scenario {
   }
   // Blanket man coverage: every receiver is smothered, every defender is elite.
   for (const assignment of base.calls.defense.assignments) {
+    if (assignment.kind !== "MAN") continue;
     const covered = players[assignment.covers as unknown as string];
     const defender = players[assignment.defender as unknown as string];
     if (covered === undefined || defender === undefined) throw new Error("bad fixture");
@@ -303,7 +529,9 @@ export function buildStalledPocketScenario(): Scenario {
     },
     defense: {
       ...base.calls.defense,
-      assignments: base.calls.defense.assignments.map((a) => ({ ...a, technique: "PRESS" as const })),
+      assignments: base.calls.defense.assignments.map((a) =>
+        a.kind === "MAN" ? { ...a, technique: "PRESS" as const } : a,
+      ),
       rush: [
         { rusher: futileA.bio.id, move: "SPEED" },
         { rusher: futileB.bio.id, move: "POWER" },

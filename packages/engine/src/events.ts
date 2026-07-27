@@ -29,6 +29,28 @@ export interface CheckEmission {
   readonly testsAttrs: readonly AttrId[];
 }
 
+/** ADR-009 interim: the prefix that marks a reference stub, never a roll. */
+export const ROLL_REF_PREFIX = "ref:";
+
+/**
+ * ADR-009 interim. A `RollDetail`-shaped REFERENCE to a roll that is recorded
+ * exactly once elsewhere. Self-identifying: `raw` 0, `total` 0, no modifiers,
+ * and an `rngLabel` that cannot collide with a real one.
+ */
+export function rollRefStub(rngLabel: string): RollDetail {
+  return { die: "d100", raw: 0, modifiers: [], total: 0, rngLabel: `${ROLL_REF_PREFIX}${rngLabel}` };
+}
+
+/** True for a value produced by `rollRefStub` — used by consumers and by tests. */
+export function isRollRefStub(roll: RollDetail): boolean {
+  return roll.rngLabel.startsWith(ROLL_REF_PREFIX) && roll.raw === 0 && roll.modifiers.length === 0;
+}
+
+/** The label of the roll a stub points at. */
+export function referencedRollLabel(roll: RollDetail): string {
+  return roll.rngLabel.slice(ROLL_REF_PREFIX.length);
+}
+
 export class PlayEventLog {
   private seq: number;
   private readonly envelopes: MatchEventEnvelope[] = [];
@@ -206,6 +228,45 @@ export class PlayEventLog {
    */
   catchResolution(receiver: PlayerId, catchType: string, rollRef: string, caught: boolean): void {
     this.push({ type: "CATCH_RESOLUTION", payload: { receiver, catchType, rollRef, caught }, ...this.base() });
+  }
+
+  /**
+   * §12 summary — INTERIM VOCABULARY (ADR-009).
+   *
+   * `TIPPED_BALL`'s payload predates ADR-004. It types `qualityRoll` and
+   * `attempts[].roll` as `RollDetail`, which would repeat rolls that already
+   * live — exactly once, as the rule requires — in the `deflection_quality` and
+   * `deflection_recovery` CHECKs. Repeating them would double every tip in any
+   * consumer that counts rolls, which is precisely the invisible corruption
+   * ADR-004 exists to prevent, and skipping the CHECKs would hide the rolls from
+   * calibration entirely. Neither is acceptable.
+   *
+   * So those two slots carry a REFERENCE STUB: a RollDetail-shaped value whose
+   * only meaningful field is `rngLabel`, prefixed `ref:` so it can never be
+   * mistaken for — or counted as — a roll. `raw`, `total` and `modifiers` are
+   * zero/empty by construction, which is what makes the stub self-identifying.
+   *
+   * ADR-009 proposes `qualityRoll` → `rollRef: string` and `attempts[].roll` →
+   * `attempts[].rollRef: string`, at which point `rollRefStub` is deleted and
+   * these become plain strings, the way `CATCH_RESOLUTION.rollRef` already is.
+   */
+  tippedBall(
+    deflector: PlayerId,
+    qualityRollRef: string,
+    finalTargetNumber: number,
+    eligible: readonly PlayerId[],
+    attempts: readonly { readonly player: PlayerId; readonly rollRef: string }[],
+    recoveredBy?: PlayerId,
+  ): void {
+    const payload = {
+      deflector,
+      qualityRoll: rollRefStub(qualityRollRef),
+      finalTargetNumber,
+      eligible: [...eligible],
+      attempts: attempts.map((a) => ({ player: a.player, roll: rollRefStub(a.rollRef) })),
+      ...(recoveredBy === undefined ? {} : { recoveredBy }),
+    };
+    this.push({ type: "TIPPED_BALL", payload, ...this.base() });
   }
 
   playResult(yards: number, turnover: boolean, clockRunoff: number, score?: number): void {

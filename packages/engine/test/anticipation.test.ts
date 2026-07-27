@@ -6,7 +6,8 @@
  * full-field passer roll the same numbers against the same target, §8.1 is a
  * label rather than a system.
  */
-import { createRng } from "@ff/contracts";
+import { createRng, playerId } from "@ff/contracts";
+import type { ChemistryTable, PlayerState } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import {
   TUNABLES,
@@ -21,6 +22,7 @@ import { makePlayer } from "./fixtures.js";
 
 const SHARP = makePlayer("qb-sharp", "Rhythm", "QB", { awareness: 94, footballIQ: 92 });
 const BLUNT = makePlayer("qb-blunt", "Late", "QB", { awareness: 62, footballIQ: 58 });
+const TARGET = playerId("wr-target");
 
 function args(over: Partial<AnticipationArgs> = {}): AnticipationArgs {
   return {
@@ -29,9 +31,15 @@ function args(over: Partial<AnticipationArgs> = {}): AnticipationArgs {
     leadSeconds: 0.5,
     depthClass: "INTERMEDIATE",
     firstRead: false,
+    receiver: TARGET,
     anticipationRng: createRng("anticipation", "qbread"),
     ...over,
   };
+}
+
+/** ADR-008 — a resolved chemistry snapshot for one pair. */
+function chemistryFor(qb: PlayerState, level: number): ChemistryTable {
+  return { [qb.bio.id as unknown as string]: { [TARGET as unknown as string]: level } };
 }
 
 /** Pass rate over a fixed seed sweep — the only honest way to compare profiles. */
@@ -83,10 +91,43 @@ describe("§8.1 anticipation check", () => {
     expect(resolveAnticipation(args()).check.tier).toBeDefined();
   });
 
-  it("chemistry is declared and neutral — no term while nobody owns it (ADR-008)", () => {
-    expect(TUNABLES.chemistry.pairModifier).toBe(0);
-    const sources = resolveAnticipation(args()).roll.modifiers.map((m) => m.source);
-    expect(sources).not.toContain("QB/receiver chemistry");
+  describe("ADR-008 — chemistry is a real pair input", () => {
+    it("an absent table reads neutral and adds no term at all", () => {
+      const sources = resolveAnticipation(args()).roll.modifiers.map((m) => m.source);
+      expect(sources.some((s) => s.startsWith("QB/receiver chemistry"))).toBe(false);
+    });
+
+    it("a neutral pair is byte-identical to no table — the migration is a no-op", () => {
+      const without = resolveAnticipation(args());
+      const neutral = resolveAnticipation(
+        args({ chemistry: chemistryFor(SHARP, TUNABLES.chemistry.neutralLevel) }),
+      );
+      expect(JSON.stringify(neutral.roll)).toBe(JSON.stringify(without.roll));
+    });
+
+    it("a missing pair inside a present table also reads neutral", () => {
+      const without = resolveAnticipation(args());
+      const elsewhere = resolveAnticipation(
+        args({ chemistry: { "somebody-else": { "some-receiver": 95 } } }),
+      );
+      expect(elsewhere.margin).toBe(without.margin);
+    });
+
+    it("an established pair is a named modifier the printout can show", () => {
+      const out = resolveAnticipation(args({ chemistry: chemistryFor(SHARP, 90) }));
+      const mod = out.roll.modifiers.find((m) => m.source.startsWith("QB/receiver chemistry"));
+      expect(mod?.value).toBe(8);
+    });
+
+    it("throwing to a stranger is worse than throwing to a partner", () => {
+      const strangers = passRate({ chemistry: chemistryFor(SHARP, 10) });
+      const partners = passRate({ chemistry: chemistryFor(SHARP, 95) });
+      expect(partners).toBeGreaterThan(strangers);
+    });
+
+    it("is emitted as `anticipation`, not `qb_read` (ADR-008 part B)", () => {
+      expect(resolveAnticipation(args()).check.checkKind).toBe("anticipation");
+    });
   });
 
   it("a quarterback who knows where the man will be beats one who does not", () => {

@@ -42,7 +42,7 @@ describe("§8.1 anticipation throws, end to end", () => {
       const passed = events.some(
         (e) =>
           e.event.type === "CHECK" &&
-          e.event.payload.checkKind === "qb_read" &&
+          e.event.payload.checkKind === "anticipation" &&
           (e.event.tick ?? 0) === at &&
           e.event.payload.margin >= 0,
       );
@@ -84,7 +84,7 @@ describe("§8.1 anticipation throws, end to end", () => {
     for (const events of streams(200, "antic-early", "HALF_FIELD", [deep, intermediate, quick])) {
       plays += 1;
       for (const { event } of events) {
-        if (event.type !== "CHECK" || event.payload.checkKind !== "qb_read") continue;
+        if (event.type !== "CHECK" || event.payload.checkKind !== "anticipation") continue;
         expect(event.tick ?? 0).toBeGreaterThanOrEqual(
           TUNABLES.route.readySeconds.DEEP - TUNABLES.qb.anticipation.maxLeadSeconds,
         );

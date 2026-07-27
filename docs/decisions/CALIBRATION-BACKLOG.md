@@ -217,3 +217,56 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
   (the ÷5 divisor, or a widened attribute spread), **not** the target numbers. Moving target
   numbers shifts the mean outcome; it does not change how much of the outcome is skill.
   Distinguishing those two is precisely Mandate 1.
+
+## 6. §12.4's recovery roll decides nothing — 0 failures in 1,474 attempts
+
+- **Measured:** across 18,000 plays, **1,474 tipped-ball recovery attempts and zero failures.**
+  A §17 printout line reads `RECOVERS (+166)`.
+- **Cause — same class as entry 3, and just as structural.** §12.4 gives a recovering player
+  six attribute terms at Rating ÷ 5 (≈ +90 for a competent player) plus +25 same-zone
+  proximity, against final target numbers of 20–90 set by Roll 1. **A natural 1 clears the
+  hardest ball in the table.** The doc's modifier stack and its target numbers are on
+  incompatible scales.
+- **Consequence:** Roll 2 is a formality. Who recovers a tipped ball is decided entirely by
+  (a) whether Roll 1 returned DEAD and (b) the deterministic Reaction sort. The interception
+  mechanic that §12 exists to provide is real, but the *contest* inside it is not.
+- **Levers, both in `TUNABLES.tippedBall.recovery`:** `attrTerms[].divisor` (thin the stack)
+  or `qualityBands[].finalTargetNumber` (raise the bar). Implemented literally and left
+  alone, exactly as entry 3's asymmetry was.
+- **Phase 3 must choose, not inherit.** Prefer thinning the attribute stack: six terms at ÷5
+  means a tipped ball is contested on speed, acceleration, agility, awareness, reaction *and*
+  hands simultaneously, which is not what the moment is about.
+- **Note the INT rate this already produces is meaningful anyway:** base fixture 3.1% → 6.7%
+  once §12 exists, because defensive tip recoveries are a genuine interception source the
+  engine previously did not have. Do not read that number as validated until this entry is
+  closed.
+
+## 7. §9.4's zone defender reads the QB on ~65% of throws
+
+- **Measured:** 64.9% pass rate on the mixed-coverage fixture (2,072 checks).
+- **Cause:** the doc's formula taken literally — `d100 + ZoneCoverage÷5 + Awareness÷5`
+  averages ≈ 84 against a target of 60 + disguise (≈ 62). A zone defender therefore breaks on
+  the ball, earning §9.4's +20 to contest/INT, on two of every three throws.
+- **Why it matters beyond realism:** this is what drives mixed coverage to a 23.5% tip rate
+  against man's 14.9%, so it propagates straight into entry 6's interception numbers.
+- **Also unresolved here:** "QB Disguise" appears in §9.4's target but exists nowhere in the
+  registry, and cannot be a 0-99 rating (added raw to a target of 60 it makes the check
+  unwinnable). It is currently derived from `awareness` + `footballIQ` at ±6, recorded in
+  ADR-009 as considered-and-not-proposed. If calibration finds quarterbacks need to differ on
+  disguise independently, that is a separate petition.
+
+## 8. Zone coverage is spatially faked, and knows it
+
+- **The fake:** nothing on a play card says which side of the field a route runs to, and
+  ADR-006 forbids the engine interpreting the formation string. A route that does not declare
+  `breakZone` is assigned the middle lane — so **every silent route shares a lane and
+  therefore a zone**. Only fixtures set `breakZone` today.
+- **Consequence:** zone-coverage metrics currently describe the fixture more than the
+  mechanic. This is the weakest thing in the zone implementation and the agent said so
+  unprompted.
+- **Blocked on:** entry 3a — play cards carrying real horizontal placement, which is
+  franchise's under ADR-006. Until then, do not fit zone tunables to measured zone outcomes.
+- **Related invented knob:** `TUNABLES.zoneCoverage.settledDecayPerTick` is 0 — a receiver who
+  beat a zone and sat down is not being run away from, so §8.7's openness decay is held flat.
+  Football-true, not in the doc, marked INTERPRETATION. Set to 5 to recover man-style decay.
+  It is the single largest behavioural lever added in that pass.

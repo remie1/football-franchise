@@ -8,10 +8,26 @@
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
-import { simulatePassPlay } from "../src/index.js";
-import { buildLopsidedRushScenario, buildScenario, buildScramblerScenario } from "./fixtures.js";
+import { isRollRefStub, referencedRollLabel, simulatePassPlay } from "../src/index.js";
+import {
+  buildDeflectionScenario,
+  buildLopsidedRushScenario,
+  buildScenario,
+  buildScramblerScenario,
+} from "./fixtures.js";
 
-/** Every RollDetail anywhere in the stream, with the event that carried it. */
+/**
+ * Every RollDetail anywhere in the stream, with the event that carried it.
+ *
+ * INTERIM VOCABULARY (ADR-009): `TIPPED_BALL.qualityRoll` and `attempts[].roll`
+ * are typed `RollDetail` in contracts, which predates ADR-004. The engine fills
+ * them with self-identifying REFERENCE STUBS rather than repeating rolls that
+ * already live in the `deflection_quality` / `deflection_recovery` CHECKs, and a
+ * stub is not a roll — so this walker skips them, exactly as it would skip a
+ * `rollRef` string once ADR-009 lands. A dedicated test below asserts every stub
+ * really is a stub and really does point at a CHECK, so the skip cannot hide a
+ * duplicated roll.
+ */
 function allRolls(
   events: readonly MatchEventEnvelope[],
 ): { roll: RollDetail; type: MatchEvent["type"]; seq: number }[] {
@@ -19,13 +35,16 @@ function allRolls(
   const isRoll = (v: unknown): v is RollDetail => {
     if (typeof v !== "object" || v === null) return false;
     const r = v as Record<string, unknown>;
-    return (
-      typeof r["die"] === "string" &&
-      typeof r["raw"] === "number" &&
-      typeof r["total"] === "number" &&
-      typeof r["rngLabel"] === "string" &&
-      Array.isArray(r["modifiers"])
-    );
+    if (
+      typeof r["die"] !== "string" ||
+      typeof r["raw"] !== "number" ||
+      typeof r["total"] !== "number" ||
+      typeof r["rngLabel"] !== "string" ||
+      !Array.isArray(r["modifiers"])
+    ) {
+      return false;
+    }
+    return !isRollRefStub(v as unknown as RollDetail);
   };
   const walk = (value: unknown, type: MatchEvent["type"], seq: number): void => {
     if (isRoll(value)) {
@@ -74,8 +93,8 @@ describe("ADR-004 roll accounting", () => {
     // cannot silently stop covering them.
     expect(kinds).toContain("pocket_movement");
     expect(kinds).toContain("scramble");
-    // §8.1's anticipation roll — INTERIM VOCABULARY (ADR-008), rides on `qb_read`.
-    expect(kinds).toContain("qb_read");
+    // §8.1's anticipation roll — its own CheckKind as of ADR-008 part B.
+    expect(kinds).toContain("anticipation");
   });
 
   it("RUSH_THREAT carries no roll: it references one (ADR-004/007)", () => {
@@ -132,6 +151,41 @@ describe("ADR-004 roll accounting", () => {
       }
     }
     expect(joined).toBeGreaterThan(0);
+  });
+
+  it("TIPPED_BALL references its rolls instead of repeating them (ADR-004/009)", () => {
+    let tips = 0;
+    let attempts = 0;
+    for (let i = 0; i < 400; i++) {
+      const { state, calls } = buildDeflectionScenario();
+      const { events } = simulatePassPlay(state, calls, `tipref-${i}`);
+      const labels = new Map<string, number>();
+      for (const { seq, event } of events) {
+        if (event.type !== "CHECK") continue;
+        if (event.payload.checkKind !== "deflection_quality" && event.payload.checkKind !== "deflection_recovery") {
+          continue;
+        }
+        labels.set(event.payload.roll.rngLabel, seq);
+      }
+      for (const { seq, event } of events) {
+        if (event.type !== "TIPPED_BALL") continue;
+        tips += 1;
+        const stubs = [event.payload.qualityRoll, ...event.payload.attempts.map((a) => a.roll)];
+        for (const stub of stubs) {
+          // Self-identifying: a stub can never be mistaken for, or counted as, a roll.
+          expect(isRollRefStub(stub)).toBe(true);
+          expect(stub.raw).toBe(0);
+          expect(stub.modifiers).toEqual([]);
+          // ...and it points backwards at a CHECK that is really in the stream.
+          const at = labels.get(referencedRollLabel(stub));
+          expect(at).toBeDefined();
+          expect(at ?? Infinity).toBeLessThan(seq);
+        }
+        attempts += event.payload.attempts.length;
+      }
+    }
+    expect(tips).toBeGreaterThan(0);
+    expect(attempts).toBeGreaterThan(0);
   });
 
   it("QB_READ carries testsAttrs: awareness always, arm talent only on a tight window", () => {
