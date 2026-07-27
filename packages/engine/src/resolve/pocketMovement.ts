@@ -172,12 +172,11 @@ export function resolvePocketMovement(args: PocketMovementArgs): PocketMovementO
     ranked,
     urgency,
     check: {
-      // INTERIM VOCABULARY (ADR-007): `hold_decision` is §8.7's "keep holding or
-      // not" check. This is the same decision point one step further in — stand,
-      // climb, leave, or eat it — and CheckKind has no `pocket_movement`. The
-      // margin below is what a consumer must re-band to recover which branch
-      // fired, which is exactly the reconstruction the ADR asks to remove.
-      checkKind: "hold_decision",
+      // ADR-007: §8.7's `hold_decision` (keep holding or not, against
+      // pocketPatience) and this — §7.2's stand / climb / leave / eat it, against
+      // poise and awareness — are different checks with different consequences,
+      // and calibration can now count them separately.
+      checkKind: "pocket_movement",
       actors: [args.qb.bio.id],
       roll,
       target: t.target,

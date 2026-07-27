@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { simulatePassPlay } from "../src/index.js";
-import { buildScenario, buildScramblerScenario } from "./fixtures.js";
+import { buildScenario, buildScramblerScenario, withReadSystem } from "./fixtures.js";
 
 describe("determinism (Charter pillar 5)", () => {
   it("same seed produces a byte-identical event stream and identical new state", () => {
@@ -29,12 +29,58 @@ describe("determinism (Charter pillar 5)", () => {
       expect(JSON.stringify(second.newState)).toBe(JSON.stringify(first.newState));
       for (const { event } of first.events) {
         if (event.type !== "CHECK") continue;
-        if (event.payload.checkKind === "hold_decision") movement += 1;
+        if (event.payload.checkKind === "pocket_movement") movement += 1;
         if (event.payload.checkKind === "scramble") scrambles += 1;
       }
     }
     expect(movement).toBeGreaterThan(0);
     expect(scrambles).toBeGreaterThan(0);
+  });
+
+  it("survives §8.1's progression: streams carrying anticipation rolls replay identically", () => {
+    // The branch structure now depends on a roll made mid-play for a receiver
+    // whose route has not broken (§8.1 anticipation), and on the checkdown look
+    // that follows when it fails. A determinism test that never fires those
+    // proves nothing about them.
+    let anticipation = 0;
+    let checkdowns = 0;
+    for (const system of ["HALF_FIELD", "FULL_FIELD", "CONCEPT"] as const) {
+      for (let i = 0; i < 60; i++) {
+        const a = withReadSystem(buildScenario(), system);
+        const b = withReadSystem(buildScenario(), system);
+        const first = simulatePassPlay(a.state, a.calls, `read-determinism-${system}-${i}`);
+        const second = simulatePassPlay(b.state, b.calls, `read-determinism-${system}-${i}`);
+        expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+        expect(JSON.stringify(second.newState)).toBe(JSON.stringify(first.newState));
+        for (const { event } of first.events) {
+          if (event.type === "CHECK" && event.payload.checkKind === "qb_read") anticipation += 1;
+          if (event.type === "QB_DECISION" && event.payload.choice === "CHECKDOWN") checkdowns += 1;
+        }
+      }
+    }
+    expect(anticipation).toBeGreaterThan(0);
+    expect(checkdowns).toBeGreaterThan(0);
+  });
+
+  it("RUSH_THREAT replays identically, including the arrivals a step-up moved", () => {
+    let travelling = 0;
+    let delayed = 0;
+    for (let i = 0; i < 120; i++) {
+      const a = buildScramblerScenario();
+      const b = buildScramblerScenario();
+      const first = simulatePassPlay(a.state, a.calls, `threat-determinism-${i}`);
+      const second = simulatePassPlay(b.state, b.calls, `threat-determinism-${i}`);
+      const threatsOf = (r: typeof first): string =>
+        JSON.stringify(r.events.filter((e) => e.event.type === "RUSH_THREAT"));
+      expect(threatsOf(second)).toBe(threatsOf(first));
+      for (const { event } of first.events) {
+        if (event.type !== "RUSH_THREAT") continue;
+        if (event.payload.state === "TRAVELLING") travelling += 1;
+        if (event.payload.state === "DELAYED") delayed += 1;
+      }
+    }
+    expect(travelling).toBeGreaterThan(0);
+    expect(delayed).toBeGreaterThan(0);
   });
 
   it("re-simulating from the same state object is stable across repeated calls", () => {

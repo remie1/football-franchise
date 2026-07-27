@@ -39,6 +39,7 @@ export const ATTR = {
   awareness: resolveAttr("awareness"),
   reaction: resolveAttr("reaction"),
   // QB
+  footballIQ: resolveAttr("footballIQ"),
   decisionMaking: resolveAttr("decisionMaking"),
   accuracy: resolveAttr("accuracy"),
   armStrength: resolveAttr("armStrength"),

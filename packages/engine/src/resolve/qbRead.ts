@@ -97,12 +97,34 @@ export function maxReadsFor(system: ReadSystem): number {
   return TUNABLES.qb.readSystem[system].maxReads;
 }
 
-/** §8.7 — how long this QB will stand in a clean pocket. */
-export function timeBudgetSeconds(qb: PlayerState): number {
+/**
+ * §8.7 — how long this QB will stand in a clean pocket.
+ *
+ * The reading system is an argument, not a detail: §8.7's budget and §8.1's
+ * anticipation profile are ONE mechanic seen from two sides. A quarterback who
+ * releases on timing is late the moment he needs a fourth tick; a quarterback
+ * working a four-man progression at half a read per tick has not finished
+ * looking when a half-field passer is already out of the play.
+ */
+export function timeBudgetSeconds(qb: PlayerState, system: ReadSystem): number {
   const t = TUNABLES.qb;
   const patience = getAttr(qb.attributes.values, ATTR.pocketPatience);
   const sensing = qb.attributes.traits.has(TRAIT.pocketAwareness as unknown as string)
     ? t.pressureSensing.pocketAwarenessBudgetSeconds
     : 0;
-  return t.timeBudget.baseSeconds + (patience - t.timeBudget.baseline) / t.timeBudget.divisor + sensing;
+  return (
+    t.timeBudget.baseSeconds +
+    (patience - t.timeBudget.baseline) / t.timeBudget.divisor +
+    sensing +
+    t.readSystem[system].budgetDeltaSeconds
+  );
+}
+
+/**
+ * §8.5 — the effective openness at which THIS system's quarterback pulls the
+ * trigger on a primary. A full-field passer has reads left and passes on a
+ * marginal window; a concept passer has two and takes what the key gives him.
+ */
+export function throwThresholdFor(system: ReadSystem): number {
+  return TUNABLES.qb.throwThreshold + TUNABLES.qb.readSystem[system].throwThresholdDelta;
 }

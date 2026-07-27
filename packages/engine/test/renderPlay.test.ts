@@ -2,7 +2,15 @@ import { gameId, playId } from "@ff/contracts";
 import type { MatchEventEnvelope, PlayerId, RollDetail } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import { renderPlay, simulatePassPlay } from "../src/index.js";
-import { STAMP, buildScenario, buildScramblerScenario, buildStalledPocketScenario } from "./fixtures.js";
+import {
+  STAMP,
+  baseReceivers,
+  buildScenario,
+  buildScramblerScenario,
+  buildStalledPocketScenario,
+  withReadOrder,
+  withReadSystem,
+} from "./fixtures.js";
 
 describe("§17.1 debug renderer", () => {
   it("renders the in-scope sections from the event stream", () => {
@@ -22,21 +30,50 @@ describe("§17.1 debug renderer", () => {
     expect(text).not.toContain("undefined");
   });
 
-  it("renders time-of-arrival for every won rep, recomputed from the same CHECK", () => {
-    // The renderer is not told the ETA — it derives it from alignment (carried
-    // on PLAY_START), move, and the margin already in the stream.
+  it("reads time-of-arrival from RUSH_THREAT rather than recomputing it (ADR-007)", () => {
     let seen = 0;
     for (let i = 0; i < 60 && seen === 0; i++) {
       const { state, calls, names } = buildScenario();
-      const text = renderPlay(simulatePassPlay(state, calls, `arrival-render-${i}`).events, names);
+      const { events } = simulatePassPlay(state, calls, `arrival-render-${i}`);
+      const text = renderPlay(events, names);
       if (!text.includes("RUSHER TIME OF ARRIVAL")) continue;
       seen += 1;
-      expect(text).toMatch(/wins the rep → (EDGE|INTERIOR) threat, \d\.\ds to travel, projected arrival \d\.\d/);
+      expect(text).toMatch(/wins the rep → (EDGE|INTERIOR) threat, \d\.\ds to travel, arrival \d\.\d/);
+      // The caveat is gone because the number no longer needs one.
+      expect(text).not.toContain("projected");
+      expect(text).not.toContain("ADR-007");
+      // Every printed arrival is one the stream stated, not one derived here.
+      const published = events.flatMap(({ event }) =>
+        event.type === "RUSH_THREAT" ? [event.payload.etaTick.toFixed(1)] : [],
+      );
+      expect(published.length).toBeGreaterThan(0);
+      for (const line of text.split("\n")) {
+        const match = /arrival (?:now )?(\d\.\d)/.exec(line);
+        if (match?.[1] !== undefined) expect(published).toContain(match[1]);
+      }
     }
     expect(seen).toBe(1);
   });
 
-  it("renders the §7.2 movement branch, and says what the stream cannot tell it", () => {
+  it("shows the adjusted arrival when the quarterback climbs (ADR-007 DELAYED)", () => {
+    // The one fact the old printout had to disclaim: a step-up pushes EDGE
+    // arrivals back, and the renderer could not see the adjustment.
+    let seen = 0;
+    for (let i = 0; i < 400 && seen === 0; i++) {
+      const { state, calls, names } = buildScramblerScenario();
+      const { events } = simulatePassPlay(state, calls, `delayed-render-${i}`);
+      const delayed = events.find(
+        (e) => e.event.type === "RUSH_THREAT" && e.event.payload.state === "DELAYED",
+      );
+      if (delayed === undefined || delayed.event.type !== "RUSH_THREAT") continue;
+      seen += 1;
+      const text = renderPlay(events, names);
+      expect(text).toContain(`pushed back → arrival now ${delayed.event.payload.etaTick.toFixed(1)}`);
+    }
+    expect(seen).toBe(1);
+  });
+
+  it("renders the §7.2 movement branch and the branch it chose", () => {
     let seen = 0;
     for (let i = 0; i < 60 && seen === 0; i++) {
       const { state, calls, names } = buildScramblerScenario();
@@ -45,9 +82,58 @@ describe("§17.1 debug renderer", () => {
       seen += 1;
       expect(text).toContain("POCKET MOVEMENT (§7.2 throw / MOVE / take hit):");
       expect(text).toMatch(/Result: (SOUND|RUSHED|PANICKED) \([+-]\d+\) → took response rank \d/);
-      // The gap is stated in the printout rather than papered over.
-      expect(text).toContain("ADR-007");
       expect(text).not.toContain("undefined");
+    }
+    expect(seen).toBe(1);
+  });
+
+  it("prints STEP_UP as a climb, not as a hold (ADR-007)", () => {
+    let seen = 0;
+    for (let i = 0; i < 400 && seen === 0; i++) {
+      const { state, calls, names } = buildScramblerScenario();
+      const { events } = simulatePassPlay(state, calls, `stepup-render-${i}`);
+      if (!events.some((e) => e.event.type === "QB_DECISION" && e.event.payload.choice === "STEP_UP")) continue;
+      seen += 1;
+      expect(renderPlay(events, names)).toMatch(/Tick \d\.\d: STEP_UP$/m);
+    }
+    expect(seen).toBe(1);
+  });
+
+  it("shows the progression being WORKED, with the anticipation check in line", () => {
+    // The §17 printout has to be readable as football: which system, which read
+    // he was on, whether he could turn it loose before the break, and what the
+    // stream says the rush was doing while he decided.
+    const base = buildScenario();
+    const { deep, intermediate, quick } = baseReceivers(base);
+    const s = withReadSystem(withReadOrder(base, [intermediate, deep, quick]), "HALF_FIELD");
+    const text = renderPlay(simulatePassPlay(s.state, s.calls, "print-35").events, s.names);
+
+    expect(text).toContain("Reads:   HALF_FIELD — 3 in the progression");
+    // Read one is the dig, turned loose half a tick before the break...
+    expect(text).toContain("Anticipation (Tick 1.5): Miles Corbin (QB)");
+    expect(text).toContain("Result: ON_TIME (+50) → turns it loose before the break");
+    expect(text).toContain("├─ Read (Tick 1.5): Cole Rankin (WR)");
+    // ...read two is the go route, which he cannot anticipate and does not skip.
+    expect(text).toContain("Result: NOT_YET (-4) → cannot pull the trigger; stays on this read");
+    expect(text).toContain("(DEEP route declares)");
+    // The rush is described by the stream, with real arrivals and no caveat.
+    expect(text).toContain("Kade Vance (DE) wins the rep → EDGE threat, 2.0s to travel, arrival 3.5");
+    expect(text).toContain("Marcus Bell (DT) wins the rep → INTERIOR threat, 1.0s to travel, arrival 2.5");
+    expect(text).toContain("Tick 2.0: THROW → Cole Rankin (WR)");
+    expect(text).not.toContain("undefined");
+  });
+
+  it("renders the §8.1 anticipation check with its terms", () => {
+    let seen = 0;
+    for (let i = 0; i < 60 && seen === 0; i++) {
+      const { state, calls, names } = buildScenario();
+      const { events } = simulatePassPlay(state, calls, `antic-render-${i}`);
+      if (!events.some((e) => e.event.type === "CHECK" && e.event.payload.checkKind === "qb_read")) continue;
+      seen += 1;
+      const text = renderPlay(events, names);
+      expect(text).toMatch(/Anticipation \(Tick \d\.\d\)/);
+      expect(text).toMatch(/Result: (ON_TIME|ANTICIPATED|NOT_YET|LOCKED_ON) \([+-]\d+\)/);
+      expect(text).toContain("before the break");
     }
     expect(seen).toBe(1);
   });

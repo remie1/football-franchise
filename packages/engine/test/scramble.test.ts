@@ -29,6 +29,7 @@ function threat(alignment: "EDGE" | "INTERIOR", etaTick: number): RushThreat {
     alignment,
     wonAtTick: 1.0,
     etaTick,
+    rollRef: "test/rush-rep",
   };
 }
 

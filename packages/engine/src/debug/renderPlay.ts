@@ -9,8 +9,6 @@
 import type { MatchEvent, MatchEventEnvelope, PlayerId, RollDetail } from "@ff/contracts";
 import { bandFor } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
-import { startsThreat, travelSecondsFor } from "../resolve/rushThreat.js";
-import type { RushAlignment, RushMove } from "../types.js";
 
 export type NameLookup = (id: PlayerId) => string;
 
@@ -42,6 +40,7 @@ function renderPlayCall(events: readonly MatchEventEnvelope[]): string[] {
   return [
     "PLAY CALL:",
     `  Offense: ${view.offenseFormation}, "${view.offenseCall}" (Pass)`,
+    `  Reads:   ${view.readSystem} — ${view.readOrder.length} in the progression`,
     `  Defense: ${view.defenseFront}, "${view.defenseCall}" (${view.coverage})`,
     "",
     "SITUATION:",
@@ -51,9 +50,7 @@ function renderPlayCall(events: readonly MatchEventEnvelope[]): string[] {
 }
 
 function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
-  const rushCall = readRushCall(firstOfType(events, "PLAY_START")?.payload);
   const matchups = new Map<string, { rusher: PlayerId; blocker: PlayerId; rows: string[] }>();
-  const threats: string[] = [];
   for (const { event } of events) {
     if (event.type !== "CHECK" || event.payload.checkKind !== "pass_rush_tick") continue;
     const rusher = event.payload.actors[0];
@@ -68,22 +65,31 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
         ` → ${band.label} (${signed(event.payload.margin)})`,
     );
     matchups.set(key, entry);
+  }
 
-    // §7.2 TIME OF ARRIVAL. A won rep starts a rusher travelling; the travel is a
-    // pure function of this same CHECK (alignment, move, margin), so the renderer
-    // recomputes it rather than being told. Printed as PROJECTED because the
-    // quarterback can still move it — a step-up pushes edge arrivals back, and
-    // that adjustment is NOT in the stream today (ADR-007).
-    if (!startsThreat(band.label)) continue;
-    const call = rushCall.get(String(rusher));
-    const alignment: RushAlignment = call?.alignment ?? TUNABLES.arrival.defaultAlignment;
-    const move: RushMove = call?.move ?? "SPEED";
-    const travel = travelSecondsFor(alignment, move, event.payload.margin);
-    const eta = (event.tick ?? 0) + travel;
-    threats.push(
-      `  │    Tick ${tickLabel(event.tick)}: ${name(rusher)} wins the rep → ${alignment} threat,` +
-        ` ${travel.toFixed(1)}s to travel, projected arrival ${eta.toFixed(1)}`,
-    );
+  // §7.2 TIME OF ARRIVAL, read from RUSH_THREAT (ADR-007) rather than recomputed
+  // from the rep. The difference is not tidiness: the arrival published here is
+  // the ADJUSTED one, after every step-up and every blocker who recovered
+  // position, so the printout no longer has to caveat itself as "projected".
+  const threats: string[] = [];
+  for (const { event } of events) {
+    if (event.type !== "RUSH_THREAT") continue;
+    const p = event.payload;
+    const at = tickLabel(event.tick);
+    const eta = p.etaTick.toFixed(1);
+    if (p.state === "TRAVELLING") {
+      const travel = p.etaTick - (event.tick ?? 0);
+      threats.push(
+        `  │    Tick ${at}: ${name(p.rusher)} wins the rep → ${p.alignment} threat,` +
+          ` ${travel.toFixed(1)}s to travel, arrival ${eta}`,
+      );
+    } else if (p.state === "DELAYED") {
+      threats.push(`  │    Tick ${at}: ${name(p.rusher)} pushed back → arrival now ${eta}`);
+    } else if (p.state === "RESET") {
+      threats.push(`  │    Tick ${at}: ${name(p.rusher)} reset — threat over (was arriving ${eta})`);
+    } else {
+      threats.push(`  │    Tick ${at}: ${name(p.rusher)} ARRIVES`);
+    }
   }
 
   const pocket = events.flatMap(({ event }) =>
@@ -100,8 +106,6 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
   }
   if (threats.length > 0) {
     out.push("  ├─ RUSHER TIME OF ARRIVAL (§7.2):", ...threats);
-    out.push("  │    (projected from the rep alone — a step-up pushes EDGE arrivals");
-    out.push("  │     back, and that adjustment is not yet in the stream: ADR-007)");
     out.push("  │");
   }
   if (pocket.length > 0) {
@@ -112,18 +116,16 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
 }
 
 /**
- * §7.2's "move" branch. The CHECK carries the roll and the margin; the BRANCH it
- * selected does not appear anywhere in the stream, because `QB_DECISION.choice`
- * has no STEP_UP and `CheckKind` has no `pocket_movement` (ADR-007). What the
- * printout can honestly say is what the quarterback rolled and how composed he
- * was when he chose — which is exactly the gap the ADR asks to close.
+ * §7.2's "move" branch. The CHECK is now labelled `pocket_movement` (ADR-007)
+ * and the branch it selected is stated by the QB_DECISION next to it, so the
+ * printout no longer has to say what the stream could not tell it.
  */
 function renderPocketMovement(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const out: string[] = [];
   for (const { event } of events) {
     if (event.type !== "CHECK") continue;
     const p = event.payload;
-    if (p.checkKind === "hold_decision") {
+    if (p.checkKind === "pocket_movement") {
       const band = bandFor(TUNABLES.pocketMovement.bands, p.margin);
       const actor = p.actors[0];
       out.push(`  ├─ Tick ${tickLabel(event.tick)}: pocket movement${actor === undefined ? "" : ` (${name(actor)})`}`);
@@ -202,7 +204,10 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
       const band = bandFor(TUNABLES.manCoverage.bands, payload.margin);
       const off = actorLabel(payload.roll, "OFF");
       const def = actorLabel(payload.opposedRoll, "DEF");
-      out.push(`  │    Man coverage (break at tick ${tickLabel(coverage.event.tick)}):`);
+      // "Resolved at", not "break at": §8.1's anticipation resolves the rep
+      // EARLY, because the ball is already on its way to the spot. The openness
+      // track below is what says when the receiver actually got there.
+      out.push(`  │    Man coverage (rep resolved at tick ${tickLabel(coverage.event.tick)}):`);
       out.push(`  │      ${off}:  ${formatRoll(payload.roll)}`);
       if (payload.opposedRoll !== undefined) {
         out.push(`  │      ${def}:  ${formatRoll(payload.opposedRoll)}`);
@@ -223,7 +228,25 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
 function renderQbDecisionMaking(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const out: string[] = [];
   for (const { event } of events) {
-    if (event.type === "QB_READ") {
+    if (event.type === "CHECK" && event.payload.checkKind === "qb_read") {
+      // §8.1 anticipation — throwing to a window that does not exist yet.
+      // INTERIM VOCABULARY (ADR-008): `qb_read` is the CheckKind this rides on
+      // until `anticipation` is ratified.
+      const p = event.payload;
+      const band = bandFor(TUNABLES.qb.anticipation.bands, p.margin);
+      const actor = p.actors[0];
+      out.push(
+        `  ├─ Anticipation (Tick ${tickLabel(event.tick)})${actor === undefined ? "" : `: ${name(actor)}`}`,
+      );
+      out.push(`  │    ${formatRoll(p.roll)} vs. target ${p.target ?? "-"}`);
+      out.push(
+        `  │    Result: ${band.label} (${signed(p.margin)}) → ` +
+          (band.anticipated
+            ? "turns it loose before the break"
+            : "cannot pull the trigger; stays on this read"),
+      );
+      out.push("  │");
+    } else if (event.type === "QB_READ") {
       const p = event.payload;
       out.push(`  ├─ Read (Tick ${tickLabel(event.tick)}): ${name(p.target)}`);
       out.push(`  │    Actual openness: ${p.actualOpenness}`);
@@ -393,6 +416,8 @@ function firstOfType<T extends MatchEvent["type"]>(
 interface PlayStartView {
   readonly offenseCall: string;
   readonly offenseFormation: string;
+  readonly readSystem: string;
+  readonly readOrder: readonly string[];
   readonly defenseCall: string;
   readonly defenseFront: string;
   readonly coverage: string;
@@ -413,29 +438,8 @@ function asNumber(value: unknown, fallback: number): number {
   return typeof value === "number" ? value : fallback;
 }
 
-/**
- * `PLAY_START.payload` is `unknown` in contracts, so the rush call is read
- * defensively. It is the only place alignment appears in the stream today.
- */
-function readRushCall(
-  payload: unknown,
-): Map<string, { alignment?: RushAlignment; move?: RushMove }> {
-  const out = new Map<string, { alignment?: RushAlignment; move?: RushMove }>();
-  const defense = asRecord(asRecord(payload)?.["defense"]);
-  const rush = defense?.["rush"];
-  if (!Array.isArray(rush)) return out;
-  for (const item of rush) {
-    const entry = asRecord(item);
-    const rusher = entry?.["rusher"];
-    if (typeof rusher !== "string") continue;
-    const alignment = entry?.["alignment"];
-    const move = entry?.["move"];
-    out.set(rusher, {
-      ...(alignment === "EDGE" || alignment === "INTERIOR" ? { alignment } : {}),
-      ...(move === "SPEED" || move === "POWER" || move === "FINESSE" ? { move } : {}),
-    });
-  }
-  return out;
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
 
 function readPlayStart(payload: unknown): PlayStartView | undefined {
@@ -447,6 +451,8 @@ function readPlayStart(payload: unknown): PlayStartView | undefined {
   return {
     offenseCall: asString(offense["call"], "?"),
     offenseFormation: asString(offense["formation"], "?"),
+    readSystem: asString(offense["readSystem"], "?"),
+    readOrder: asStringArray(offense["readOrder"]),
     defenseCall: asString(defense["call"], "?"),
     defenseFront: asString(defense["front"], "?"),
     coverage: asString(defense["coverage"], "?"),

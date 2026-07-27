@@ -2,7 +2,7 @@
 
 - **Date:** July 2026
 - **Proposed by:** `match-engine` (Phase 1, pass-play baseline / time-of-arrival patch)
-- **Status:** proposed
+- **Status:** approved
 
 ## Need
 
@@ -132,7 +132,28 @@ it is the only place alignment appears in the stream today, and because typing
 
 ## Decision
 
-Pending. Everything in this ADR is implemented behind the interim mappings above, so the
-patch it accompanies is complete and testable without ratification; what is **stalled** is
-the ability of any consumer other than the engine to read the two new mechanics out of the
-stream without duplicating engine code.
+**Approved in full** by project owner + Orchestrator, July 2026. All five items, including
+`RUSH_THREAT`.
+
+The deciding argument was Charter pillar 3, not convenience: the engine was emitting a
+stream that under-describes what it simulated. A step-up reported as `HOLD` and a
+scramble-drill receiver reported as `DEVELOPING` — both true and both silent about the
+mechanic that actually fired. A single source of truth that omits the branch taken is not
+one.
+
+The corroborating evidence was in the accompanying report: the step-up-vs-escape split and
+the sacks-by-alignment breakdown had to be produced by a throwaway harness re-implementing
+`rankResponses` and the threat lifecycle over the stream. That harness was correct on the
+day it was written and would have gone silently wrong the first time a tunable moved. Any
+consumer — calibration, narrative, UI replay — faced the same choice between duplicating
+engine logic and not seeing the mechanic at all.
+
+`RUSH_THREAT` was ratified rather than deferred despite being the one item that adds surface
+rather than widening it. The ETA is now the central quantity of the pass rush — it is what
+separates COLLAPSING from SACK and what makes interior pressure outweigh edge pressure — and
+a quantity that load-bearing belongs in the stream. It carries `rollRef` and no tier
+precisely because no die produces it, which keeps it inside ADR-004's and ADR-005's rules
+rather than creating an exception to them.
+
+Engine adaptation replaces the four `INTERIM VOCABULARY (ADR-007)` mappings and ships in the
+same dispatch as the §8.1/§8.2 progression work.

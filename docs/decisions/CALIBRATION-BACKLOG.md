@@ -26,9 +26,17 @@ requires a calibration report, not an opinion.
   exactly; the divergence is in the table, not the implementation.
 - **Levers:** `TUNABLES.throwExec.accuracy.bands`, `TUNABLES.catching.routine.target`,
   `TUNABLES.qb.throwThreshold`.
-- **Note:** `qb.throwThreshold` is also the time-to-throw dial — the QB currently fires at
-  the first read clearing 50, producing 1.92s vs. an NFL average nearer 2.7s. Completion
-  rate and time-to-throw are coupled; do not tune them independently.
+- **Superseded note (kept for the audit trail).** This entry originally read: *"`qb.throwThreshold`
+  is also the time-to-throw dial — the QB currently fires at the first read clearing 50."*
+  That is **no longer true**. Entry 2b's fix replaced first-available targeting with a real
+  progression plus an anticipation check, and `throwThresholdFor(system)` is now per reading
+  system. Time-to-throw is now a *dispersion* property driven by the concept, not a single dial.
+- **Current status: unblocked by 2b, still gated on entry 3.** Post-fix completion is 40.5%
+  and yards/completion moved 6.0 → 10.5, which is the honest signal that the QB stopped
+  throwing exclusively to the shallowest available man. But completion is now dominated by a
+  *different* artefact: **90%+ of throws come under pressure** at −10/−20 accuracy, which is
+  the §7.1 term asymmetry (entry 3, frozen). **Do not accept an accuracy-band patch measured
+  on this fixture** — you would be tuning §10.4 to compensate for §7.1.
 - **Caveat:** the sample is one matchup with a fixed receiver concept, not a league. Re-measure
   across derived rosters before concluding the bands are wrong (Mandate 1: mechanic or rating?).
 
@@ -90,12 +98,31 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
   **25.7%**, completion **24.4%**, throwaway **9.4%**. So the naive fix trades one wrong
   number for several; §8.7's hold/time-budget logic and §8.2's read capacity have to move
   with it.
-- **Why it is not fixed yet:** it is a behavioural change to §8.1/§8.2, not a defect in the
-  time-of-arrival work it was found during. Bundling it there would have repeated exactly
-  what entry 2 records as the right thing to have avoided. It wants its own dispatch.
-- **Coupled to:** entry 1 (`qb.throwThreshold` is the shared completion/time-to-throw dial)
-  and entry 2 (early throws suppress sacks by ending plays before rushers arrive). Do not
-  tune any of the three independently.
+- **RESOLVED, July 2026.** Cause confirmed as stated above. The fix was three coupled
+  changes, not a timing dial:
+  1. The progression pointer stops skipping — `progressionStep()` returns the man the QB is
+     *on*, developed or not. `nextReadable()` survives only for the scramble drill, where
+     being off-script is correct.
+  2. **Anticipation** (`resolve/anticipation.ts`): within one tick of the break, `d100 +
+     awareness/5 + footballIQ/5 + chemistry − earliness ± depth ± system` vs. 55. Pass and he
+     turns it loose before the receiver declares, resolving the coverage rep at the break and
+     throwing to the window that *will* exist. Fail and he stays on the read. Outside the
+     window there is no roll at all — being two seconds early is not a failed decision
+     (ADR-005).
+  3. §8.7's time budget and a per-system throw threshold moved with it, as one change.
+- **The counterfactual's 25.7% sack / 24.4% completion is superseded** — it measured forcing
+  the QB to wait on a primary he could not anticipate to, which is the worst of both models.
+  That is precisely why anticipation was the missing mechanic rather than a dial.
+- **Result:** the three reading systems now diverge on 42.5% of seeds (half-field vs.
+  full-field), and clean-pocket time-to-throw spreads **0.78s** (quick game) → **1.23s**
+  (rhythm) → **2.56s** (shot play). Dispersion, not a mean.
+- **New finding, not yet actioned:** full-field posts 0.01 anticipation attempts/play — not
+  from its −15 modifier but because 0.5 reads/tick lands its looks on even ticks while route
+  breaks land on the tick before. The processing rate structurally excludes it from rhythm
+  throws. That is arguably why real timing offences are not full-field, but the *magnitude*
+  is unverified, and full-field's 14.9% sack rate is the visible consequence. The fix is
+  either a §8.1 read-rate change or a phase offset — a doc-level decision, deliberately not
+  taken inside a defect fix.
 
 ## 3. §7.1 pass-rush term asymmetry — design-doc defect, not a tuning question
 
@@ -151,6 +178,29 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
 - **Phase 3 question:** what fraction of the pressure penalty should elite poise refund?
   The lever is the poise refund divisor in `TUNABLES` (currently `/10`), not the pocket
   penalties themselves, which come straight from §10.4.
+
+## 4a. Anticipation is pure upside until §8.6 lands
+
+- **Gap:** throwing before the break means throwing without seeing the defender's final
+  position. That risk is §8.6's unseen-defender check, which is out of the Phase 1 slice. So
+  a passed anticipation check currently carries **no additional interception risk** — it is
+  free yardage for quarterbacks with `awareness` + `footballIQ`.
+- **Deliberately not patched with a constant.** A compensating accuracy penalty on
+  anticipated throws would be modelling §8.6 with a fudge factor in the wrong place, and it
+  would then have to be unwound when the real check lands. Flagged instead.
+- **Watch for:** anticipation-heavy QBs (high awareness/IQ) posting implausibly good INT
+  rates. Re-measure when §8.6 exists; expect the anticipation modifiers to need re-tuning
+  downward at that point, not before.
+
+## 4b. Two smaller measurement holes
+
+- **No SHORT route in any committed fixture.** The depth-class timing split was exercised
+  through a harness remap, so the SHORT column is unverified against a real play card. Fold a
+  SHORT-primary concept into the fixture set (relates to entry 3a — the card corpus).
+- **Stale reads are unbounded.** A receiver read at 1.5s can be thrown to at 3.0s on
+  1.5-second-old information, while his actual openness has decayed. Realistic in *direction*
+  — quarterbacks do throw to where they last looked — but nothing caps the staleness. If
+  late-play completions look too good, look here first.
 
 ## 5. Dice dominate attributes at every level — the ratio is the real lever
 

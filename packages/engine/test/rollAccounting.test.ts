@@ -72,8 +72,32 @@ describe("ADR-004 roll accounting", () => {
     }
     // ...and prove the new rolls were actually in the sample, so this test
     // cannot silently stop covering them.
-    expect(kinds).toContain("hold_decision");
+    expect(kinds).toContain("pocket_movement");
     expect(kinds).toContain("scramble");
+    // §8.1's anticipation roll — INTERIM VOCABULARY (ADR-008), rides on `qb_read`.
+    expect(kinds).toContain("qb_read");
+  });
+
+  it("RUSH_THREAT carries no roll: it references one (ADR-004/007)", () => {
+    let threats = 0;
+    for (let i = 0; i < 200; i++) {
+      const { state, calls } = buildScenario();
+      const { events } = simulatePassPlay(state, calls, `threat-accounting-${i}`);
+      const rushLabels = new Set(
+        events.flatMap(({ event }) =>
+          event.type === "CHECK" && event.payload.checkKind === "pass_rush_tick"
+            ? [event.payload.roll.rngLabel]
+            : [],
+        ),
+      );
+      for (const { event } of events) {
+        if (event.type !== "RUSH_THREAT") continue;
+        threats += 1;
+        expect(allRolls([{ seq: 0, at: state.at, event }]).length).toBe(0);
+        expect(rushLabels.has(event.payload.rollRef)).toBe(true);
+      }
+    }
+    expect(threats).toBeGreaterThan(0);
   });
 
   it("every RollDetail lives on a CHECK, except the QB_READ perception roll", () => {

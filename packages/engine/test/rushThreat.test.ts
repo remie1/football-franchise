@@ -113,6 +113,7 @@ describe("§7.2 threat lifecycle", () => {
     alignment,
     wonAtTick: 1.0,
     etaTick,
+    rollRef: "test/rush-rep",
   });
 
   it("only a won rep starts a rusher travelling", () => {
@@ -148,6 +149,7 @@ describe("§7.2 threat lifecycle", () => {
       move: "POWER",
       margin: WIN_MARGIN,
       tick: 1.5,
+      rollRef: "test/rush-rep",
     });
     expect(t.wonAtTick).toBe(1.5);
     expect(t.etaTick).toBe(1.5 + travelSecondsFor("INTERIOR", "POWER", WIN_MARGIN));

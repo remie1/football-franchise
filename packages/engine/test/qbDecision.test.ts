@@ -7,6 +7,7 @@ import {
   readCapacityPerTick,
   resolveQbRead,
   selectTarget,
+  throwThresholdFor,
   timeBudgetSeconds,
   windowModifierFor,
 } from "../src/index.js";
@@ -96,12 +97,32 @@ describe("§8.1/§8.2 processing capacity and §8.7 time budget", () => {
   });
 
   it("time budget is 2.5s at baseline patience and grows with it", () => {
-    expect(timeBudgetSeconds(averageQb)).toBe(2.5);
+    // Measured on HALF_FIELD's system delta of −0.5s; the doc's bare formula is
+    // `base + patience` and the system term rides on top of it.
+    const half = TUNABLES.qb.readSystem.HALF_FIELD.budgetDeltaSeconds;
+    expect(timeBudgetSeconds(averageQb, "HALF_FIELD")).toBe(2.5 + half);
     // 2.5 + (90 − 70) / 20 = 3.5s for the patient QB
-    expect(timeBudgetSeconds(eliteQb)).toBe(3.5);
+    expect(timeBudgetSeconds(eliteQb, "HALF_FIELD")).toBe(3.5 + half);
     // Pocket Awareness buys another half tick of feel in the pocket
-    expect(timeBudgetSeconds(makePlayer("qb-pa", "Feel", "QB", { pocketPatience: 90 }, ["pocketAwareness"]))).toBe(4);
-    expect(timeBudgetSeconds(poorQb)).toBeLessThan(2.5);
+    expect(
+      timeBudgetSeconds(makePlayer("qb-pa", "Feel", "QB", { pocketPatience: 90 }, ["pocketAwareness"]), "HALF_FIELD"),
+    ).toBe(4 + half);
+    expect(timeBudgetSeconds(poorQb, "HALF_FIELD")).toBeLessThan(2.5 + half);
+  });
+
+  it("§8.7's budget moves with §8.1's anticipation, not separately from it", () => {
+    // One quarterback, three systems: the passer who releases on timing does not
+    // get the hold profile of one who waits to see separation.
+    const full = timeBudgetSeconds(averageQb, "FULL_FIELD");
+    const halfField = timeBudgetSeconds(averageQb, "HALF_FIELD");
+    const concept = timeBudgetSeconds(averageQb, "CONCEPT");
+    expect(full).toBeGreaterThan(halfField);
+    expect(halfField).toBeGreaterThan(concept);
+  });
+
+  it("the trigger-pull threshold is a property of the reading system", () => {
+    expect(throwThresholdFor("FULL_FIELD")).toBeGreaterThan(throwThresholdFor("HALF_FIELD"));
+    expect(throwThresholdFor("HALF_FIELD")).toBeGreaterThan(throwThresholdFor("CONCEPT"));
   });
 });
 

@@ -121,10 +121,34 @@ export class PlayEventLog {
   routeStatus(
     receiver: PlayerId,
     route: string,
-    phase: "JAMMED" | "DEVELOPING" | "OPEN" | "DECAYING",
+    phase: "JAMMED" | "DEVELOPING" | "OPEN" | "DECAYING" | "SCRAMBLE_DRILL",
     openness: number,
   ): void {
     this.push({ type: "ROUTE_STATUS", payload: { receiver, route, phase, openness }, ...this.base() });
+  }
+
+  /**
+   * ADR-007 — a won rep starts a rusher TRAVELLING, and his time of arrival is
+   * what separates COLLAPSING from SACK. No die produces the ETA: it is a
+   * deterministic function of the `pass_rush_tick` rep named by `rollRef`, so
+   * this event carries neither a RollDetail nor a tier (ADR-004/005).
+   *
+   * `DELAYED` is the honest reason the printout no longer says "projected": a
+   * step-up or a blocker who recovered position pushes the arrival back, and the
+   * adjusted number is stated here rather than recomputed by every consumer.
+   */
+  rushThreat(
+    rusher: PlayerId,
+    alignment: "EDGE" | "INTERIOR",
+    rollRef: string,
+    etaTick: number,
+    state: "TRAVELLING" | "DELAYED" | "RESET" | "ARRIVED",
+  ): void {
+    this.push({
+      type: "RUSH_THREAT",
+      payload: { rusher, alignment, rollRef, etaTick, state },
+      ...this.base(),
+    });
   }
 
   /**
@@ -160,7 +184,7 @@ export class PlayEventLog {
    * carries no tier — absent means "no roll", never "bad decision".
    */
   qbDecision(
-    choice: "THROW" | "HOLD" | "SCRAMBLE" | "THROWAWAY" | "CHECKDOWN",
+    choice: "THROW" | "HOLD" | "STEP_UP" | "SCRAMBLE" | "THROWAWAY" | "CHECKDOWN",
     options: { readonly target?: PlayerId; readonly tier?: ResultTier } = {},
   ): void {
     const payload = {

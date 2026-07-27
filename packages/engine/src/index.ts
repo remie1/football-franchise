@@ -77,8 +77,16 @@ export {
   readCapacityPerTick,
   maxReadsFor,
   timeBudgetSeconds,
+  throwThresholdFor,
 } from "./resolve/qbRead.js";
 export type { QbReadOutcome } from "./resolve/qbRead.js";
+export {
+  resolveAnticipation,
+  anticipationAvailable,
+  anticipationBandFor,
+  leadSteps,
+} from "./resolve/anticipation.js";
+export type { AnticipationArgs, AnticipationOutcome, AnticipationBandLabel } from "./resolve/anticipation.js";
 export { selectTarget } from "./resolve/targetSelection.js";
 export type { TargetCandidate, TargetSelectionOutcome, DecisionBandLabel } from "./resolve/targetSelection.js";
 export {

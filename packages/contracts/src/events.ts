@@ -30,7 +30,7 @@ export type CheckKind =
   | "coverage_read" | "blitz_recognition" | "audible"
   | "release_vs_press" | "route_break" | "man_coverage" | "zone_coverage" | "option_route"
   | "pass_rush_tick" | "run_block" | "second_level_climb" | "stunt_communication" | "blitz_pickup"
-  | "qb_read" | "qb_decision" | "unseen_defender" | "hold_decision" | "scramble"
+  | "qb_read" | "qb_decision" | "unseen_defender" | "hold_decision" | "pocket_movement" | "scramble"
   | "passing_lane" | "accuracy" | "dline_tip"
   | "catch" | "contested_catch" | "deflection_quality" | "deflection_recovery"
   | "yac_tackle" | "downfield_block" | "breakaway"
@@ -58,7 +58,21 @@ export type MatchEvent =
         testsAttrs: AttrId[];   // lets perception update from exposure (Spec #6 §3)
       } } & MatchEventBase)
   | ({ type: "POCKET_STATUS"; payload: { status: "CLEAN"|"PRESSURE"|"COLLAPSING"|"IMMEDIATE"|"SACK" } } & MatchEventBase)
-  | ({ type: "ROUTE_STATUS"; payload: { receiver: PlayerId; route: string; phase: "JAMMED"|"DEVELOPING"|"OPEN"|"DECAYING"; openness: number } } & MatchEventBase)
+  /**
+   * A won rep starts a rusher travelling rather than arriving him (ADR-007).
+   * The ETA is what separates COLLAPSING from SACK and what makes interior
+   * pressure outweigh edge pressure, so it belongs in the stream.
+   * No die produces it — it is a deterministic function of the pass_rush_tick
+   * roll named by `rollRef` — so it carries no RollDetail and no tier (ADR-004/005).
+   */
+  | ({ type: "RUSH_THREAT"; payload: {
+        rusher: PlayerId;
+        alignment: "EDGE"|"INTERIOR";
+        rollRef: string;
+        etaTick: number;
+        state: "TRAVELLING"|"DELAYED"|"RESET"|"ARRIVED";
+      } } & MatchEventBase)
+  | ({ type: "ROUTE_STATUS"; payload: { receiver: PlayerId; route: string; phase: "JAMMED"|"DEVELOPING"|"OPEN"|"DECAYING"|"SCRAMBLE_DRILL"; openness: number } } & MatchEventBase)
   | ({ type: "QB_READ"; payload: {
         target: PlayerId;
         actualOpenness: number;
@@ -69,7 +83,8 @@ export type MatchEvent =
         testsAttrs: AttrId[];   // exposure channel for perception (Spec #6 §3)
       } } & MatchEventBase)
   | ({ type: "QB_DECISION"; payload: {
-        choice: "THROW"|"HOLD"|"SCRAMBLE"|"THROWAWAY"|"CHECKDOWN";
+        /** STEP_UP is climbing the pocket (ADR-007) — HOLD means stood in and kept reading. */
+        choice: "THROW"|"HOLD"|"STEP_UP"|"SCRAMBLE"|"THROWAWAY"|"CHECKDOWN";
         target?: PlayerId;
         /**
          * Present ONLY when a decision-quality roll was actually made (ADR-005).

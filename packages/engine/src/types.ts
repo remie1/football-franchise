@@ -132,6 +132,13 @@ export interface PassPlayStartPayload {
     readonly quarterback: PlayerId;
     readonly readSystem: ReadSystem;
     readonly routes: readonly RouteAssignment[];
+    /**
+     * The progression the quarterback actually worked, filtered to receivers who
+     * have a route. §8.1's reading systems are only auditable from the stream if
+     * the ORDER is in it — a consumer counting "did he get to his third read?"
+     * cannot reconstruct it from `routes`, which is a set, not a sequence.
+     */
+    readonly readOrder: readonly PlayerId[];
     readonly protection: readonly ProtectionAssignment[];
   };
   readonly defense: {

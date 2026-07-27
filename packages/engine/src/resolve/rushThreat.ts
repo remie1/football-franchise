@@ -35,6 +35,14 @@ export interface RushThreat {
   readonly wonAtTick: number;
   /** Tick at which he reaches the quarterback if nothing changes. */
   readonly etaTick: number;
+  /**
+   * `rngLabel` of the roll that justifies this threat's existence — the
+   * `pass_rush_tick` CHECK that created it. ADR-004: the ETA asserts nothing the
+   * stream cannot already justify, and it points back at what justified it.
+   * (The pursuit clock a scrambling QB runs on is not a pass-rush rep and is
+   * never published as a RUSH_THREAT; it references the §8.8 escape roll.)
+   */
+  readonly rollRef: string;
 }
 
 /** The band that starts a rusher travelling — §7.1's "rusher wins rep". */
@@ -89,6 +97,8 @@ export function threatFromWonRep(args: {
   readonly move: RushMove;
   readonly margin: number;
   readonly tick: number;
+  /** The `pass_rush_tick` roll that produced this win (ADR-004/007). */
+  readonly rollRef: string;
 }): RushThreat {
   const travel = travelSecondsFor(args.alignment, args.move, args.margin);
   return {
@@ -96,6 +106,7 @@ export function threatFromWonRep(args: {
     alignment: args.alignment,
     wonAtTick: args.tick,
     etaTick: Number((args.tick + travel).toFixed(1)),
+    rollRef: args.rollRef,
   };
 }
 

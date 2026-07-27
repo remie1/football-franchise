@@ -41,6 +41,7 @@ function threat(alignment: "EDGE" | "INTERIOR", etaTick: number): RushThreat {
     alignment,
     wonAtTick: 1.0,
     etaTick,
+    rollRef: "test/rush-rep",
   };
 }
 
@@ -187,7 +188,7 @@ describe("the die decides how far down his own list he is pushed", () => {
 
 describe("over real event streams", () => {
   const movementChecks = (events: readonly MatchEventEnvelope[]): number =>
-    events.filter((e) => e.event.type === "CHECK" && e.event.payload.checkKind === "hold_decision").length;
+    events.filter((e) => e.event.type === "CHECK" && e.event.payload.checkKind === "pocket_movement").length;
 
   it("the move branch actually fires — §7.2's third option is no longer missing", () => {
     let checks = 0;

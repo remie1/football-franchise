@@ -12,6 +12,33 @@
 const NEG_INF = Number.NEGATIVE_INFINITY;
 
 export const TUNABLES = {
+  /**
+   * QB↔RECEIVER CHEMISTRY — declared, neutral, and deliberately inert.
+   *
+   * The design doc references chemistry twice (§10.2 back shoulder "requires
+   * chemistry, else −10"; §10.4 "Chemistry with receiver: +5") but chemistry is
+   * **pair state**: it belongs to a (quarterback, receiver) PAIR, it accrues over
+   * a season of reps, and it is not a property of either player. There is no
+   * chemistry attribute, no pair record, and nothing in `@ff/contracts` that
+   * carries one. The engine will not invent a local copy of shared state
+   * (Charter iron rule 1), so every chemistry term below is a NAMED NEUTRAL
+   * CONSTANT and the mechanic is currently off.
+   *
+   * The doc's two exchange rates are recorded here so the number is not lost
+   * when the input arrives; nothing reads them while `pairModifier` is neutral.
+   *
+   * TODO(ADR-008): replace `pairModifier` with a real per-pair input once
+   * ownership is ratified. See docs/decisions/ADR-008-qb-receiver-chemistry.md.
+   */
+  chemistry: {
+    /** What a QB/receiver pair is worth today: nothing, because nobody owns it. */
+    pairModifier: 0,
+    /** §10.4 verbatim, for when the input exists. */
+    docEstablishedAccuracyBonus: 5,
+    /** §10.2 verbatim, for when the input exists. */
+    docBackShoulderWithoutChemistry: -10,
+  },
+
   /** §2.1 — 0.5s ticks. Times are expressed in seconds, matching the doc's tick labels. */
   clock: {
     tickStepSeconds: 0.5,
@@ -444,11 +471,55 @@ export const TUNABLES = {
 
   /** §8.2–§8.7 — QB processing, perception, and the hold/throw decision. */
   qb: {
-    /** §8.1 reads per tick and progression length by reading system. */
+    /**
+     * §8.1 READING SYSTEMS. The doc gives each system a read rate and a
+     * progression depth; those two numbers alone produced three quarterbacks who
+     * behaved identically, because the engine's progression pointer skipped past
+     * any receiver whose route had not developed (CALIBRATION-BACKLOG 2b). With
+     * the pointer honouring the progression, the rate and depth are live — and
+     * the rest of each system's character is the ANTICIPATION profile below.
+     *
+     * `readsPerTick` / `maxReads` are the doc's. Everything else is
+     * INTERPRETATION, and each entry exists because the systems differ in what
+     * they ASK OF THE QUARTERBACK, not merely in how fast he processes:
+     *
+     *  HALF_FIELD  a timing system. The throw and the break happen together, so
+     *              the QB is coached to turn it loose before the window exists:
+     *              the easiest anticipation in the table, and the shortest
+     *              budget, because being late IS the failure mode.
+     *  FULL_FIELD  see it, then throw it. Four reads and the longest budget buy
+     *              him the right to be sure — and the hardest anticipation,
+     *              because a progression QB throwing blind is a progression QB
+     *              guessing. He gets there later and picks better.
+     *  CONCEPT     binary. The key is identified pre-snap, so the FIRST read is
+     *              anticipated better than any other system manages — and there
+     *              are only two of them. Fastest ball out; nothing behind it.
+     */
     readSystem: {
-      HALF_FIELD: { readsPerTick: 1, maxReads: 3 },
-      FULL_FIELD: { readsPerTick: 0.5, maxReads: 4 },
-      CONCEPT: { readsPerTick: 2, maxReads: 2 },
+      HALF_FIELD: {
+        readsPerTick: 1,
+        maxReads: 3,
+        budgetDeltaSeconds: -0.5,
+        throwThresholdDelta: 0,
+        anticipationModifier: 10,
+        firstReadAnticipationModifier: 0,
+      },
+      FULL_FIELD: {
+        readsPerTick: 0.5,
+        maxReads: 4,
+        budgetDeltaSeconds: 1.0,
+        throwThresholdDelta: 5,
+        anticipationModifier: -15,
+        firstReadAnticipationModifier: 0,
+      },
+      CONCEPT: {
+        readsPerTick: 2,
+        maxReads: 2,
+        budgetDeltaSeconds: -1.0,
+        throwThresholdDelta: -5,
+        anticipationModifier: -10,
+        firstReadAnticipationModifier: 30,
+      },
     },
     /** §8.2 "+ (Decision Making − 70) ÷ 20 extra reads". */
     extraReads: { baseline: 70, divisor: 20 },
@@ -470,11 +541,88 @@ export const TUNABLES = {
       armStrengthDivisor: 4,
       touchDivisor: 4,
     },
-    /** §8.7 time budget: 2.5 + (Pocket Patience − 70) ÷ 20 seconds. */
+    /**
+     * §8.7 time budget: 2.5 + (Pocket Patience − 70) ÷ 20 seconds, plus the
+     * reading system's own `budgetDeltaSeconds`.
+     *
+     * The system term is not a separate change from anticipation — it is the
+     * SAME change. A quarterback who releases on timing needs a different hold
+     * profile from one who waits to see separation: giving a half-field passer a
+     * full-field budget makes him late on every rhythm throw the system exists
+     * to produce, and giving a full-field passer a half-field budget forces a
+     * checkdown before his third read has broken.
+     */
     timeBudget: { baseSeconds: 2.5, baseline: 70, divisor: 20 },
+    /**
+     * §8.1 ANTICIPATION — the mechanic the three reading systems differ on.
+     *
+     * NOT IN THE DESIGN DOC. It is the missing half of §8.1: half-field football
+     * assumes the quarterback releases BEFORE the receiver is open, on timing.
+     * Without it the only honest model is "wait until you can see him", which is
+     * a full-field progression — so every system collapsed into the same
+     * quarterback, and CALIBRATION-BACKLOG 2b's counterfactual (force him to
+     * stay on the primary, no anticipation) produced 25.7% sacks and 24.4%
+     * completion: the worst of both models.
+     *
+     * A quarterback who passes this check throws to a window that does not exist
+     * yet — the coverage rep resolves at the break and the ball is already gone.
+     * One who fails it waits for separation he can SEE, and pays for the wait in
+     * pressure. Gated on `awareness` and `footballIQ` (knowing where he will be)
+     * plus chemistry (knowing how HE runs it) — which is why chemistry's absence
+     * from the data model is load-bearing rather than cosmetic.
+     */
+    anticipation: {
+      target: 55,
+      terms: [
+        { attr: "awareness", divisor: 5 },
+        { attr: "footballIQ", divisor: 5 },
+      ],
+      /**
+       * "On rhythm" means ONE TICK, not "early". A quarterback releases as the
+       * receiver plants; he does not throw a fourteen-yard dig a full second
+       * before the break, because the ball would arrive before the man did.
+       * Beyond this lead NO ROLL IS MADE — he simply is not there yet (ADR-005:
+       * an absent check means no die, never a failed one).
+       *
+       * Measured: at 1.0s this put 44-51% of all throws on tick 1.0, because the
+       * earliest anticipable tick is the one everybody throws on.
+       */
+      maxLeadSeconds: 0.5,
+      /** Cost per half-tick between the release and the break. */
+      perHalfTickAheadPenalty: -20,
+      /**
+       * How far ahead the route declares itself, and the discriminating term now
+       * that the lead is capped at one tick. A slant tells you at the snap; a dig
+       * does not declare until the receiver is at depth; a go route never
+       * declares at all, and the throw is pure projection.
+       */
+      depthModifier: { QUICK: 10, SHORT: 0, INTERMEDIATE: -10, DEEP: -20 },
+      bands: [
+        { label: "ON_TIME", minMargin: 15, anticipated: true },
+        { label: "ANTICIPATED", minMargin: 0, anticipated: true },
+        { label: "NOT_YET", minMargin: -20, anticipated: false },
+        { label: "LOCKED_ON", minMargin: NEG_INF, anticipated: false },
+      ],
+    },
+    /**
+     * §8.1's "max reads before CHECKDOWN". The checkdown is the OUTLET — it is
+     * not part of the progression and does not cost a progression read, which is
+     * the whole point of having one. Once the progression is spent (or the
+     * pocket ends the play early) the quarterback looks at the shortest route on
+     * the field and takes it at a lower bar than he would take a primary.
+     *
+     * INTERPRETATION: the doc names the checkdown but never says what makes a QB
+     * take one. Without this branch a progression QB whose primary never opens
+     * has only "throw it away" and "eat it" — which is precisely the 25.7% sack
+     * rate 2b's counterfactual measured.
+     */
+    checkdown: { threshold: 30 },
     /**
      * INTERPRETATION: the doc never states the openness at which a QB pulls the
      * trigger. These two thresholds are the primary aggression knobs.
+     * `throwThreshold` is adjusted per reading system by `throwThresholdDelta`:
+     * a full-field passer has options coming and passes on a marginal window; a
+     * concept passer has two reads and takes what the key gives him.
      */
     throwThreshold: 50,
     desperationThreshold: 25,

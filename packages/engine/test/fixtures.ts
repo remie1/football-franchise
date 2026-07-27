@@ -7,7 +7,7 @@ import type {
   PersonalitySheet,
 } from "@ff/contracts";
 import { resolveAttr, resolveTrait } from "../src/attrs.js";
-import type { MatchGameState, PlayCalls } from "../src/index.js";
+import type { MatchGameState, PlayCalls, ReadSystem } from "../src/index.js";
 
 const PERSONALITY: PersonalitySheet = { needs: {}, type: "quiet" };
 
@@ -56,7 +56,7 @@ export interface Scenario {
  */
 export function buildScenario(overrides: Partial<MatchGameState> = {}): Scenario {
   const qb = makePlayer("qb1", "Miles Corbin", "QB", {
-    awareness: 82, decisionMaking: 85, accuracy: 84, armStrength: 86, touch: 78,
+    awareness: 82, footballIQ: 84, decisionMaking: 85, accuracy: 84, armStrength: 86, touch: 78,
     pocketPatience: 76, poise: 80, release: 80, mobility: 70,
   }, ["pocketAwareness"]);
 
@@ -171,6 +171,87 @@ export function buildScenario(overrides: Partial<MatchGameState> = {}): Scenario
 }
 
 /**
+ * The SAME play — same eleven players, same defensive call, same routes — run
+ * under a different §8.1 reading system. This is the fixture the three systems
+ * have to diverge on: if the only thing that changes is a label, §8.1 is not
+ * implemented.
+ */
+export function withReadSystem(base: Scenario, readSystem: ReadSystem): Scenario {
+  return { ...base, calls: { ...base.calls, offense: { ...base.calls.offense, readSystem } } };
+}
+
+/** The same personnel running a different CONCEPT: the progression is re-ordered. */
+export function withReadOrder(base: Scenario, order: readonly PlayerId[]): Scenario {
+  return { ...base, calls: { ...base.calls, offense: { ...base.calls.offense, readOrder: order } } };
+}
+
+/**
+ * The base concept behind a line that actually holds. Coverage is untouched, so
+ * the routes and the reads run normally — this is the fixture for anything that
+ * has to observe the quarterback WITHOUT the pocket forcing his hand, which on
+ * the base matchup happens by tick 1.0 on ~90% of dropbacks
+ * (CALIBRATION-BACKLOG 3: `blockerStructuralAdvantage`, frozen).
+ */
+export function buildCleanPocketScenario(): Scenario {
+  const base = buildScenario();
+  const futileA = makePlayer("dl-clean-a", "Nate Orme", "DE", {
+    passRush: 10, firstStep: 10, powerMove: 10, finesseMove: 10, strength: 25,
+  });
+  const futileB = makePlayer("dl-clean-b", "Cy Redfern", "DT", {
+    passRush: 10, firstStep: 10, powerMove: 10, finesseMove: 10, strength: 25,
+  });
+  const wallA = makePlayer("ol-clean-a", "Duke Halloran", "LT", {
+    passBlock: 99, footwork: 99, strength: 95,
+  }, ["brickWall"]);
+  const wallB = makePlayer("ol-clean-b", "Pete Vasquez", "RG", {
+    passBlock: 99, footwork: 99, strength: 95,
+  }, ["brickWall"]);
+
+  const players: Record<string, PlayerState> = { ...base.state.players };
+  for (const p of [futileA, futileB, wallA, wallB]) players[p.bio.id as unknown as string] = p;
+
+  const calls: PlayCalls = {
+    offense: {
+      ...base.calls.offense,
+      protection: [
+        { blocker: wallA.bio.id, rusher: futileA.bio.id },
+        { blocker: wallB.bio.id, rusher: futileB.bio.id },
+      ],
+    },
+    defense: {
+      ...base.calls.defense,
+      // Off coverage everywhere: no jam, so every route's break time is its
+      // §9.2 base and the progression can be observed without the release
+      // battle moving the goalposts underneath it.
+      assignments: base.calls.defense.assignments.map((a) => ({ ...a, technique: "OFF" as const })),
+      rush: [
+        { rusher: futileA.bio.id, move: "SPEED" },
+        { rusher: futileB.bio.id, move: "POWER" },
+      ],
+    },
+  };
+
+  const names = (id: PlayerId): string => {
+    const p = players[id as unknown as string];
+    return p === undefined ? String(id) : `${p.bio.displayName} (${p.bio.position})`;
+  };
+
+  return { state: { ...base.state, players }, calls, names };
+}
+
+/** Receivers of the base scenario in a stable order: [WR1 go, WR2 dig, TE shallow]. */
+export function baseReceivers(base: Scenario): { deep: PlayerId; intermediate: PlayerId; quick: PlayerId } {
+  const routes = base.calls.offense.routes;
+  const deep = routes.find((r) => r.depthClass === "DEEP")?.receiver;
+  const intermediate = routes.find((r) => r.depthClass === "INTERMEDIATE")?.receiver;
+  const quick = routes.find((r) => r.depthClass === "QUICK")?.receiver;
+  if (deep === undefined || intermediate === undefined || quick === undefined) {
+    throw new Error("bad fixture: expected DEEP/INTERMEDIATE/QUICK routes");
+  }
+  return { deep, intermediate, quick };
+}
+
+/**
  * A play that goes nowhere: the line holds all day and nobody ever gets open.
  * This is the shape that produces held balls and eventually a throwaway, which
  * is where ADR-005's "no roll, no tier" rule has to hold.
@@ -251,7 +332,7 @@ export function buildScramblerScenario(): Scenario {
   const base = buildScenario();
 
   const runner = makePlayer("qb-scram", "Malik Ovande", "QB", {
-    awareness: 78, decisionMaking: 76, accuracy: 78, armStrength: 84, touch: 74,
+    awareness: 78, footballIQ: 71, decisionMaking: 76, accuracy: 78, armStrength: 84, touch: 74,
     pocketPatience: 62, poise: 66, release: 78, mobility: 94, improvisation: 92,
   });
   // A three-technique who lives in the backfield, and a guard who cannot hold him.

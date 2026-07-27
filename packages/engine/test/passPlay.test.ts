@@ -21,8 +21,12 @@ describe("pass play integration", () => {
 
       const throwIndex = firstIndex(events, "THROW");
       if (throwIndex >= 0) {
+        // A ball leaves on a THROW decision or on a CHECKDOWN (§8.1's outlet,
+        // past the progression) — both are decisions to put it in the air.
         const decisionIndex = events.findIndex(
-          (e) => e.event.type === "QB_DECISION" && e.event.payload.choice === "THROW",
+          (e) =>
+            e.event.type === "QB_DECISION" &&
+            (e.event.payload.choice === "THROW" || e.event.payload.choice === "CHECKDOWN"),
         );
         expect(decisionIndex).toBeGreaterThanOrEqual(0);
         expect(decisionIndex).toBeLessThan(throwIndex);

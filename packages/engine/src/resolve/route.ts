@@ -3,7 +3,13 @@ import { clamp } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
 import type { RouteDepthClass } from "../types.js";
 
-export type RoutePhase = "JAMMED" | "DEVELOPING" | "OPEN" | "DECAYING";
+/**
+ * `SCRAMBLE_DRILL` (ADR-007) is not produced by `routePhaseAt` — it is not a
+ * point on the route's own timeline. It is what a receiver is doing once the
+ * quarterback has left the pocket (§8.8): the play has changed shape, he has
+ * abandoned the route that was called, and coverage has stopped closing on him.
+ */
+export type RoutePhase = "JAMMED" | "DEVELOPING" | "OPEN" | "DECAYING" | "SCRAMBLE_DRILL";
 
 /** Base development time plus any jam delay from the release battle. */
 export function routeReadySeconds(depthClass: RouteDepthClass, delaySeconds: number): number {
@@ -29,7 +35,7 @@ export function routePhaseAt(
   tick: number,
   readySeconds: number,
   jamDelaySeconds: number,
-): RoutePhase {
+): Exclude<RoutePhase, "SCRAMBLE_DRILL"> {
   if (jamDelaySeconds > 0 && tick < TUNABLES.clock.firstTick + jamDelaySeconds) return "JAMMED";
   if (tick < readySeconds) return "DEVELOPING";
   if (tick > TUNABLES.route.decayStartsAtSeconds) return "DECAYING";
