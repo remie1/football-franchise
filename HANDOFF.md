@@ -54,12 +54,15 @@ git commit -m "Architecture charter, 15 specs, contracts v0 (Phase 0 complete)"
 git branch -M main
 ```
 
-Create a **private** repo on GitHub (no README/gitignore — we have both), then:
+Then create the **private** GitHub repo and push in one step:
 
 ```bash
-git remote add origin git@github.com:<you>/football-franchise.git
-git push -u origin main
+gh repo create football-franchise --private --source=. --remote=origin --push
 ```
+
+This creates the repo with no README or `.gitignore` (we have both), wires `origin`, and pushes `main`. It also uses whatever protocol `gh auth` is configured for — check with `gh auth status`. If that reports `Git operations protocol: https`, an SSH remote (`git@github.com:…`) will not work on that machine, which is why the `gh` form is preferred over `git remote add` here.
+
+**Already done:** this repo is live at `remie1/football-franchise` (private). On an existing clone, `git pull` is all you need.
 
 On any other machine: `git clone` → `npm install -g pnpm` → `pnpm install` → `claude`. Same repo, same specs, same agent definitions. Note that pnpm itself is a machine-level prerequisite the clone does not carry — §1.1 applies on every device.
 
