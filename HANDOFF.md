@@ -95,7 +95,20 @@ Notes:
 | `apps/game` | UI stub (Phase 5) |
 | `assets/style/` | Prompt pack v0, portrait system v0, style guide placeholder |
 
-**Protected:** `.claude/settings.json` denies Edit/Write on `packages/contracts/**`. Contract changes go through you as Orchestrator via ADR petition — the guardian reviews, agents cannot edit.
+**Protected — two layers, and only one of them is a wall.**
+
+`.claude/settings.json` denies Edit/Write on `packages/contracts/**`. Understand what that does and does not buy you:
+
+- It applies to **every participant in a session, including the Orchestrator**. Permissions have no notion of "agent vs. orchestrator," so this is not a distinction the file can express. It is a gate the human opens: to amend contracts, remove the two deny lines, make the ratified change, and restore them.
+- It stops `Edit` and `Write`. It does **not** stop a shell redirect, and `match-engine`, `franchise-engine`, `calibration`, `attributes-pipeline` and `ui-layout` all have `Bash`. Treat it as a reliable speed bump against accidental edits, not as enforcement.
+
+`.githooks/commit-msg` is the actual wall. It rejects any commit staging `packages/contracts/**` unless the message names a decision record (`ADR-0NN`). It reads the staged diff, so it catches shell writes the permission rule cannot. Install it per machine — **git config does not travel with a clone**:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Contract changes remain petitions either way: an agent files an ADR in `docs/decisions/`, the Orchestrator and owner ratify, and only then does `contracts` change. The hook enforces the paper trail, not the approval — it can tell that you named an ADR, not that anyone agreed to it.
 
 ---
 

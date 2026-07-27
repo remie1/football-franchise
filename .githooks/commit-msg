@@ -1,0 +1,65 @@
+#!/bin/sh
+#
+# commit-msg — contract amendments require a ratified ADR reference.
+#
+# WHY THIS IS A commit-msg HOOK, NOT pre-commit:
+#   pre-commit runs before a commit message exists, so it cannot inspect one.
+#   commit-msg receives the message file as $1 and can.
+#
+# WHY A GIT HOOK AND NOT A PERMISSION RULE:
+#   .claude/settings.json denies Edit/Write on packages/contracts/** — that is a
+#   speed bump against accidental tool-based edits, and it applies to every
+#   participant in a session including the Orchestrator. It does NOT constrain
+#   shell writes, and most sub-agents have Bash. This hook sees the staged diff
+#   regardless of how the bytes got there, which makes it the actual wall.
+#
+# THE INVARIANT (Charter §4, CLAUDE.md Iron Rule 2):
+#   Contracts are the constitution. Changing them requires an approved ADR and
+#   human ratification. This hook enforces the paper trail, not the approval —
+#   it cannot know whether an ADR was really ratified, only that the committer
+#   named one and therefore had to look.
+#
+# INSTALL (per machine — clones do not carry git config):
+#   git config core.hooksPath .githooks
+#
+# BYPASS, if you ever genuinely need it:
+#   git commit --no-verify        # and expect to justify it in review
+
+msg_file="$1"
+
+# Nothing staged under packages/contracts? Not our business.
+if ! git diff --cached --name-only | grep -q '^packages/contracts/'; then
+  exit 0
+fi
+
+# Strip git's comment lines so a commented-out ADR reference cannot satisfy this.
+if git stripspace --strip-comments < "$msg_file" | grep -Eq 'ADR-[0-9]{3}'; then
+  exit 0
+fi
+
+cat >&2 <<'EOF'
+
+  COMMIT REJECTED — contracts changed without an ADR reference.
+
+  This commit stages changes under packages/contracts/, which is the project's
+  constitution (ARCHITECTURE_CHARTER.md §4, CLAUDE.md Iron Rule 2). Contract
+  changes are petitions: an agent files an ADR in docs/decisions/, the
+  Orchestrator and the project owner ratify it, and only then does contracts
+  change.
+
+  Fix one of these:
+
+    * Name the ratified ADR in the commit message, e.g.
+        "contracts: add jumping attribute (ADR-003)"
+
+    * If no ADR exists yet, write one from docs/decisions/ADR-TEMPLATE.md and
+      get it ratified before committing.
+
+    * If contracts was changed by accident, unstage it:
+        git restore --staged packages/contracts
+
+  Staged contract files:
+EOF
+git diff --cached --name-only | grep '^packages/contracts/' | sed 's/^/    /' >&2
+echo "" >&2
+exit 1
