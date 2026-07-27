@@ -1,0 +1,13 @@
+{
+  "name": "@ff/franchise",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ff/contracts": "workspace:*"
+  }
+}
