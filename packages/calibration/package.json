@@ -5,9 +5,14 @@
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "ingest": "tsc -p tsconfig.json && node dist/ingest/cli.js"
   },
   "dependencies": {
     "@ff/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
   }
 }

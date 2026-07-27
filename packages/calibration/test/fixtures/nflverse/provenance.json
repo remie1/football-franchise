@@ -1,0 +1,98 @@
+{
+  "note": "Committed samples of real nflverse release assets. Used to exercise the parsers, manifest and availability join with no network access.",
+  "builtBy": "packages/calibration/test/fixtures/build-fixtures.mjs",
+  "focusGame": "2023_05_JAX_BUF",
+  "files": [
+    {
+      "file": "games_sample.csv",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv",
+      "upstreamRows": 7548,
+      "sampledRows": 24,
+      "columns": 46
+    },
+    {
+      "file": "roster_weekly_sample.csv",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_2023.csv",
+      "upstreamRows": 45655,
+      "sampledRows": 155,
+      "columns": 36
+    },
+    {
+      "file": "roster_weekly_status_sample.csv",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_2023.csv",
+      "upstreamRows": 45655,
+      "sampledRows": 60,
+      "columns": 36
+    },
+    {
+      "file": "injuries_sample.csv",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/injuries/injuries_2023.csv",
+      "upstreamRows": 5599,
+      "sampledRows": 21,
+      "columns": 16
+    },
+    {
+      "file": "snap_counts_sample.csv",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/snap_counts/snap_counts_2023.csv",
+      "upstreamRows": 26540,
+      "sampledRows": 94,
+      "columns": 16
+    },
+    {
+      "file": "depth_charts_weekly_sample.csv",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/depth_charts/depth_charts_2023.csv",
+      "upstreamRows": 37327,
+      "sampledRows": 80,
+      "columns": 15
+    },
+    {
+      "file": "depth_charts_daily_sample.csv",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/depth_charts/depth_charts_2025.csv",
+      "upstreamRows": 554215,
+      "sampledRows": 30,
+      "columns": 12
+    },
+    {
+      "file": "play_by_play_sample.csv",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_2023.csv.gz",
+      "upstreamRows": 49665,
+      "sampledRows": 30,
+      "columns": 372
+    },
+    {
+      "file": "pbp_participation_sample.csv",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/pbp_participation/pbp_participation_2023.csv",
+      "upstreamRows": 46168,
+      "sampledRows": 12,
+      "columns": 26
+    },
+    {
+      "file": "ftn_charting_sample.csv",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/ftn_charting/ftn_charting_2023.csv",
+      "upstreamRows": 48225,
+      "sampledRows": 20,
+      "columns": 29
+    },
+    {
+      "file": "ngs_passing_sample.csv",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_passing.csv.gz",
+      "upstreamRows": 5933,
+      "sampledRows": 30,
+      "columns": 29
+    },
+    {
+      "file": "ngs_rushing_sample.csv",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_rushing.csv.gz",
+      "upstreamRows": 6059,
+      "sampledRows": 20,
+      "columns": 22
+    },
+    {
+      "file": "ngs_receiving_sample.csv",
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_receiving.csv.gz",
+      "upstreamRows": 14731,
+      "sampledRows": 20,
+      "columns": 23
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+season,club_code,week,game_type,depth_team,last_name,first_name,football_name,formation,gsis_id,jersey_number,position,elias_id,depth_position,full_name
+2023,BUF,5,REG,1,Martin,Sam,Sam,Special Teams,00-0030092,8,P,MAR720548,P,Sam Martin
+2023,BUF,5,REG,1,Martin,Sam,Sam,Special Teams,00-0030092,8,P,MAR720548,H,Sam Martin
+2023,BUF,5,REG,1,Ferguson,Chandler,Reid,Special Teams,00-0032497,69,LS,FER300870,LS,Reid Ferguson
+2023,BUF,5,REG,1,Harty,Deonte,Deonte,Special Teams,00-0035215,11,WR,HAR363871,PR,Deonte Harty
+2023,BUF,5,REG,1,Harty,Deonte,Deonte,Special Teams,00-0035215,11,WR,HAR363871,KR,Deonte Harty
+2023,BUF,5,REG,1,Davis,Gabriel,Gabe,Offense,00-0036196,0,WR,DAV329675,WR,Gabe Davis
+2023,BUF,5,REG,1,Knox,Dawson,Dawson,Offense,00-0035689,88,TE,KNO490795,TE,Dawson Knox
+2023,BUF,5,REG,1,Cook,James,James,Offense,00-0037248,4,RB,COO151970,RB,James Cook
+2023,BUF,5,REG,1,Gilliam,Reggie,Reggie,Offense,00-0036187,41,FB,GIL562234,FB,Reggie Gilliam
+2023,BUF,5,REG,3,Morris,Quintin,Quintin,Offense,00-0036590,85,TE,MOR489431,TE,Quintin Morris
+2023,BUF,5,REG,3,Murray,Latavius,Latavius,Offense,00-0030513,28,RB,MUR671046,RB,Latavius Murray
+2023,BUF,5,REG,1,Rousseau,Gregory,Gregory,Defense,00-0036914,50,DE,ROU617685,EDGE,Gregory Rousseau
+2023,BUF,5,REG,1,Oliver,Ed,Ed,Defense,00-0035230,91,DT,OLI290385,DT,Ed Oliver
+2023,BUF,5,REG,3,Ford,Kaylon,Poona,Defense,00-0034234,95,DE,FOR313563,DT,Poona Ford
+2023,BUF,5,REG,2,Dodson,Tyrel,Tyrel,Defense,00-0035352,0,MLB,DOD341460,MLB,Tyrel Dodson
+2023,BUF,5,REG,1,Johnson,Taron,Taron,Defense,00-0034376,7,CB,JOH676640,NCB,Taron Johnson
+2023,BUF,5,REG,3,Neal,Siran,Siran,Defense,00-0034391,33,CB,NEA475848,NCB,Siran Neal
+2023,BUF,5,REG,1,White,Tre'Davious,Tre'Davious,Defense,00-0033884,27,CB,WHI547699,CB,Tre'Davious White
+2023,BUF,5,REG,2,Jackson,Dane,Dane,Defense,00-0036166,23,CB,JAC118718,CB,Dane Jackson
+2023,BUF,5,REG,1,Benford,Christian,Christian,Defense,00-0037288,47,CB,BEN036336,CB,Christian Benford
+2023,BUF,5,REG,2,Hamlin,Damar,Damar,Defense,00-0036888,3,SS,HAM401130,S,Damar Hamlin
+2023,BUF,5,REG,3,Poyer,Jordan,Jordan,Defense,00-0030114,21,SS,POY177981,S,Jordan Poyer
+2023,BUF,5,REG,1,Hyde,Micah,Micah,Defense,00-0030090,23,FS,HYD422041,S,Micah Hyde
+2023,BUF,5,REG,1,Torrence,O'Cyrus,O'Cyrus,Offense,00-0038548,64,G,TOR694111,RG,O'Cyrus Torrence
+2023,BUF,5,REG,2,Anderson,Alec,Alec,Offense,00-0037428,70,T,AND037350,RG,Alec Anderson
+2023,BUF,5,REG,2,Harris,Damien,Damien,Offense,00-0035657,22,RB,HAR311469,RB,Damien Harris
+2023,BUF,5,REG,2,Shakir,Khalil,Khalil,Offense,00-0037261,10,WR,SHA107427,WR,Khalil Shakir
+2023,BUF,5,REG,2,Sherfield,Trent,Trent,Offense,00-0034487,11,WR,SHE566024,WR,Trent Sherfield
+2023,BUF,5,REG,2,Lawson,Shaq,Shaq,Defense,00-0033096,90,DE,LAW783964,EDGE,Shaq Lawson
+2023,BUF,5,REG,2,Settle,Timothy,Tim,Defense,00-0034397,98,DT,SET509598,DT,Tim Settle
+2023,BUF,5,REG,1,Milano,Matthew,Matt,Defense,00-0033571,58,MLB,MIL033577,WLB,Matt Milano
+2023,BUF,5,REG,3,Matakevich,Tyler,Tyler,Defense,00-0032366,44,MLB,MAT026118,MLB,Tyler Matakevich
+2023,BUF,5,REG,2,Lewis,Cameron,Cameron,Defense,00-0035357,39,CB,LEW089606,NCB,Cameron Lewis
+2023,BUF,5,REG,1,Rapp,Taylor,Taylor,Defense,00-0035663,9,SS,RAP505098,S,Taylor Rapp
+2023,BUF,5,REG,2,Lewis,Cameron,Cameron,Defense,00-0035357,39,CB,LEW089606,S,Cameron Lewis
+2023,BUF,5,REG,2,Shakir,Khalil,Khalil,Special Teams,00-0037261,10,WR,SHA107427,PR,Khalil Shakir
+2023,BUF,5,REG,2,Shakir,Khalil,Khalil,Special Teams,00-0037261,10,WR,SHA107427,KR,Khalil Shakir
+2023,BUF,5,REG,1,Allen,Joshua,Josh,Offense,00-0034857,17,QB,ALL529264,QB,Josh Allen
+2023,BUF,5,REG,1,Harty,Deonte,Deonte,Offense,00-0035215,11,WR,HAR363871,WR,Deonte Harty
+2023,BUF,5,REG,2,Edwards,David,David,Offense,00-0035668,76,G,EDW337483,LG,David Edwards
+2023,BUF,5,REG,2,Bates,Ryan,Ryan,Offense,00-0035382,71,C,BAT139733,C,Ryan Bates
+2023,BUF,5,REG,2,Ifedi,Germain,Germain,Offense,00-0032384,65,G,IFE136317,RT,Germain Ifedi
+2023,BUF,5,REG,2,Kincaid,Dalton,Dalton,Offense,00-0038933,86,TE,KIN069130,TE,Dalton Kincaid
+2023,BUF,5,REG,2,Allen,Kyle,Kyle,Offense,00-0034577,4,QB,ALL543234,QB,Kyle Allen
+2023,BUF,5,REG,1,Floyd,Leonard,Leonard,Defense,00-0033072,56,DE,FLO758060,EDGE,Leonard Floyd
+2023,BUF,5,REG,3,Jonathan,Kingsley,Kingsley,Defense,00-0037431,59,DE,JON024084,EDGE,Kingsley Jonathan
+2023,BUF,5,REG,2,Williams,Dorian,Dorian,Defense,00-0038557,42,MLB,WIL243940,WLB,Dorian Williams
+2023,BUF,5,REG,1,Bernard,Terrel,Terrel,Defense,00-0037254,43,MLB,BER236424,MLB,Terrel Bernard
+2023,BUF,5,REG,1,Bass,Tyler,Tyler,Special Teams,00-0036162,2,K,BAS555802,K,Tyler Bass
+2023,BUF,5,REG,1,Dawkins,Dion,Dion,Offense,00-0033904,73,T,DAW056236,LT,Dion Dawkins
+2023,BUF,5,REG,1,McGovern,Connor,Connor,Offense,00-0035679,66,G,MCG417420,LG,Connor McGovern
+2023,BUF,5,REG,1,Morse,Mitchell,Mitch,Offense,00-0031936,65,C,MOR734298,C,Mitch Morse
+2023,BUF,5,REG,1,Brown,Spencer,Spencer,Offense,00-0036976,79,T,BRO690310,RT,Spencer Brown
+2023,BUF,5,REG,1,Diggs,Stefon,Stefon,Offense,00-0031588,1,WR,DIG218895,WR,Stefon Diggs
+2023,BUF,5,REG,2,Van Demark,Ryan,Ryan,Offense,00-0037404,74,T,VAN358786,LT,Ryan Van Demark
+2023,BUF,5,REG,2,Phillips,Jordan,Jordan,Defense,00-0031557,99,DT,PHI386190,DT,Jordan Phillips
+2023,BUF,5,REG,1,Jones,DaQuan,DaQuan,Defense,00-0031054,92,DT,JON200565,DT,DaQuan Jones
+2023,BUF,5,REG,2,Epenesa,Andrew,A.J.,Defense,00-0036192,57,DE,EPE415291,EDGE,A.J. Epenesa
+2023,BUF,5,REG,2,Elam,Kaiir,Kaiir,Defense,00-0037242,5,CB,ELA550002,CB,Kaiir Elam
+2023,JAX,5,REG,3,Johnson,D'Ernest,D'Ernest,Offense,00-0035628,2,RB,JOH201643,RB,D'Ernest Johnson
+2023,JAX,5,REG,3,Washington,Christopher,Parker,Offense,00-0038606,11,WR,WAS604325,WR,Parker Washington
+2023,JAX,5,REG,1,Gotsis,Adam,Adam,Defense,00-0033064,96,DE,GOT428790,DE,Adam Gotsis
+2023,JAX,5,REG,1,Hines-Allen,Joshua,Josh,Defense,00-0035642,41,OLB,ALL528759,WILL,Josh Hines-Allen
+2023,JAX,5,REG,1,Lloyd,Devin,Devin,Defense,00-0037244,33,ILB,LLO339464,LB,Devin Lloyd
+2023,JAX,5,REG,1,Williams,Darious,Darious,Defense,00-0034203,24,CB,WIL207303,CB,Darious Williams
+2023,JAX,5,REG,2,Abdullah,Yasir,Yasir,Defense,00-0038580,56,OLB,ABD685761,WILL,Yasir Abdullah
+2023,JAX,5,REG,2,Quarterman,Shaquille,Shaquille,Defense,00-0036235,50,ILB,QUA404376,LB,Shaquille Quarterman
+2023,JAX,5,REG,2,Muma,Chad,Chad,Defense,00-0037811,48,ILB,MUM069215,LB,Chad Muma
+2023,JAX,5,REG,2,Brown,Montaric,Montaric,Defense,00-0037313,30,CB,BRO565972,CB,Montaric Brown
+2023,JAX,5,REG,1,Cooke,Logan,Logan,Special Teams,00-0034437,9,P,COO283823,H,Logan Cooke
+2023,JAX,5,REG,1,Matiscik,Ross,Ross,Special Teams,00-0035827,46,LS,MAT311216,LS,Ross Matiscik
+2023,JAX,5,REG,1,Farrell,Luke,Luke,Offense,00-0036887,89,TE,FAR615740,TE,Luke Farrell
+2023,JAX,5,REG,1,Hasty,Jamycal,Jamycal,Offense,00-0035806,39,RB,HAS766320,RB,Jamycal Hasty
+2023,JAX,5,REG,2,Van Lanen,Cole,Cole,Offense,00-0036655,70,G,VAN623866,RT,Cole Van Lanen
+2023,JAX,5,REG,2,Beathard,Casey,C.J.,Offense,00-0033936,3,QB,BEA000000,QB,C.J. Beathard
+2023,JAX,5,REG,2,Agnew,Jamal,Jamal,Offense,00-0033572,39,WR,AGN406291,WR,Jamal Agnew
+2023,JAX,5,REG,2,Jones,Tim,Tim,Offense,00-0036497,15,WR,JON759314,WR,Tim Jones
+2023,JAX,5,REG,1,Robertson-Harris,Roy,Roy,Defense,00-0032667,95,DT,ROB360907,DE,Roy Robertson-Harris
+2023,JAX,5,REG,1,Walker,Travon,Travon,Defense,00-0037235,44,OLB,WAL335860,SAM,Travon Walker
+2023,JAX,5,REG,2,Blackson,Angelo,Angelo,Defense,00-0032107,90,DT,BLA326665,DE,Angelo Blackson

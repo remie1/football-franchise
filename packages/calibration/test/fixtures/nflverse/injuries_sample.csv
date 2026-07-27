@@ -1,0 +1,23 @@
+season,game_type,team,week,gsis_id,position,full_name,first_name,last_name,report_primary_injury,report_secondary_injury,report_status,practice_primary_injury,practice_secondary_injury,practice_status,date_modified
+2023,REG,BUF,5,00-0033072,DE,Leonard Floyd,Leonard,Floyd,,,,Not injury related - resting player,,Did Not Participate In Practice,2023-10-04T19:20:12Z
+2023,REG,BUF,5,00-0030090,S,Micah Hyde,Micah,Hyde,,,,Not injury related - resting player,,Did Not Participate In Practice,2023-10-04T19:20:41Z
+2023,REG,BUF,5,00-0033571,LB,Matt Milano,Matt,Milano,,,,Not injury related - resting player,,Did Not Participate In Practice,2023-10-04T19:21:14Z
+2023,REG,BUF,5,00-0035657,RB,Damien Harris,Damien,Harris,,,,Neck,,Full Participation in Practice,2023-10-06T21:31:41Z
+2023,REG,BUF,5,00-0035689,TE,Dawson Knox,Dawson,Knox,,,,Quadricep,,Full Participation in Practice,2023-10-06T21:32:52Z
+2023,REG,BUF,5,00-0030114,S,Jordan Poyer,Jordan,Poyer,,,,Knee,,Full Participation in Practice,2023-10-06T21:31:41Z
+2023,REG,BUF,5,00-0033884,CB,Tre'Davious White,Tre'Davious,White,Achilles,,Out,Achilles,,Did Not Participate In Practice,2023-10-06T21:35:43Z
+2023,REG,BUF,5,00-0036914,DE,Gregory Rousseau,Gregory,Rousseau,Foot,,Doubtful,Foot,,Did Not Participate In Practice,2023-10-06T21:35:33Z
+2023,REG,BUF,5,00-0033096,DE,Shaq Lawson,Shaq,Lawson,Toe,,Questionable,,,"
+    ",2023-10-07T20:56:18Z
+2023,REG,BUF,5,00-0037288,CB,Christian Benford,Christian,Benford,Shoulder,,Questionable,Shoulder,,Limited Participation in Practice,2023-10-06T21:33:02Z
+2023,REG,BUF,5,00-0027940,LB,Von Miller,Von,Miller,Knee,,Questionable,Knee,,Limited Participation in Practice,2023-10-06T21:33:02Z
+2023,REG,JAX,5,00-0035642,LB,Josh Hines-Allen,Josh,Hines-Allen,,,,Shoulder,,Full Participation in Practice,2023-10-06T21:37:40Z
+2023,REG,JAX,5,00-0033889,T,Cam Robinson,Cam,Robinson,,,,not injury related - returning from suspension,,Full Participation in Practice,2023-10-04T21:49:49Z
+2023,REG,JAX,5,00-0038616,CB,Christian Braswell,Christian,Braswell,Hamstring,,Out,Hamstring,,Did Not Participate In Practice,2023-10-06T21:39:14Z
+2023,REG,JAX,5,00-0037244,LB,Devin Lloyd,Devin,Lloyd,Thumb,,Out,Thumb,,Did Not Participate In Practice,2023-10-06T21:39:44Z
+2023,REG,JAX,5,00-0038606,WR,Parker Washington,Parker,Washington,Knee,,Out,Knee,,Did Not Participate In Practice,2023-10-06T21:39:03Z
+2023,REG,JAX,5,00-0033907,LB,Dawuane Smoot,Dawuane,Smoot,Achilles,,Out,Achilles,,Limited Participation in Practice,2023-10-06T21:38:57Z
+2023,REG,JAX,5,00-0033572,WR,Jamal Agnew,Jamal,Agnew,Quadricep,,Questionable,Quadricep,,Limited Participation in Practice,2023-10-06T21:38:21Z
+2023,REG,JAX,5,00-0034275,DT,Folorunso Fatukasi,Folorunso,Fatukasi,Shoulder,,Questionable,Shoulder,,Limited Participation in Practice,2023-10-06T21:38:21Z
+2023,REG,JAX,5,00-0038596,S,Antonio Johnson,Antonio,Johnson,Hamstring,,Questionable,Hamstring,,Limited Participation in Practice,2023-10-06T21:38:21Z
+2023,REG,JAX,5,00-0033891,WR,Zay Jones,Zay,Jones,Knee,,Questionable,Knee,,Limited Participation in Practice,2023-10-06T21:38:21Z
