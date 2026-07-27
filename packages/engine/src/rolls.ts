@@ -24,6 +24,9 @@ export interface Band {
   readonly minMargin: number;
 }
 
+/** What the modifier builders below return. Structurally a contracts `RollModifier`. */
+export type RollModifierLike = RollModifier;
+
 /** First band whose threshold the margin clears. Tables are ordered descending. */
 export function bandFor<B extends Band>(table: readonly B[], margin: number): B {
   for (const band of table) {

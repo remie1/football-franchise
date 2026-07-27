@@ -7,7 +7,13 @@ import type {
   PersonalitySheet,
 } from "@ff/contracts";
 import { resolveAttr, resolveTrait } from "../src/attrs.js";
-import type { MatchGameState, PlayCalls, ReadSystem } from "../src/index.js";
+import type {
+  MatchGameState,
+  PlayCalls,
+  ReadSystem,
+  RunPlayCalls,
+  RunScheme,
+} from "../src/index.js";
 
 const PERSONALITY: PersonalitySheet = { needs: {}, type: "quiet" };
 
@@ -139,6 +145,7 @@ export function buildScenario(overrides: Partial<MatchGameState> = {}): Scenario
 
   const calls: PlayCalls = {
     offense: {
+      kind: "PASS",
       name: "Y Cross",
       formation: "Shotgun Trips Right",
       readSystem: "HALF_FIELD",
@@ -462,6 +469,143 @@ export function buildDeflectionScenario(): Scenario {
   };
 
   return { state: { ...base.state, players }, calls: base.calls, names };
+}
+
+export interface RunScenario {
+  readonly state: MatchGameState;
+  readonly calls: RunPlayCalls;
+  readonly names: (id: PlayerId) => string;
+}
+
+/**
+ * §14 — INSIDE ZONE LEFT, from an eleven-man offence against a four-man front
+ * with two linebackers and four in the secondary.
+ *
+ * Deliberately ORDINARY. Every rating is in Appendix A's 70-85 "solid starter /
+ * Pro Bowl" band on both sides, so the measured yards per carry describes the
+ * mechanics rather than a mismatch — the same reason `buildScenario` is a normal
+ * dropback rather than a shootout.
+ *
+ * Four gaps are blocked, the designed one is LEFT-B with a double team, and
+ * three men block in space (§14.5): both receivers stalk the corners and the
+ * tight end leads on the middle linebacker. Zones are stated explicitly on every
+ * dropping defender so §3's depth model is real rather than defaulted.
+ */
+export function buildRunScenario(scheme: RunScheme = "ZONE"): RunScenario {
+  const qb = makePlayer("r-qb", "Miles Corbin", "QB", { awareness: 82, poise: 80 });
+
+  const rb = makePlayer("r-rb", "Amari Teague", "RB", {
+    speed: 88, acceleration: 87, agility: 85, strength: 74,
+    vision: 82, patience: 78, elusiveness: 84, power: 79, ballSecurity: 80, yac: 80,
+  });
+
+  const lt = makePlayer("r-lt", "Owen Brooks", "LT", { runBlock: 80, strength: 85, awareness: 75, sustain: 78 });
+  const lg = makePlayer("r-lg", "Hank Doyle", "LG", { runBlock: 82, strength: 88, awareness: 71, sustain: 76 });
+  const ce = makePlayer("r-c", "Vince Kohl", "C", { runBlock: 78, strength: 80, awareness: 84, sustain: 79 });
+  const rg = makePlayer("r-rg", "Bo Ackerman", "RG", { runBlock: 79, strength: 84, awareness: 73, sustain: 75 });
+  const rt = makePlayer("r-rt", "Pete Vasquez", "RT", { runBlock: 76, strength: 82, awareness: 72, sustain: 74 });
+  const te = makePlayer("r-te", "Sam Pryor", "TE", { runBlock: 74, strength: 78, awareness: 76, sustain: 72 });
+  const wr1 = makePlayer("r-wr1", "Dez Ellis", "WR", { runBlock: 66, strength: 62, speed: 91 });
+  const wr2 = makePlayer("r-wr2", "Cole Rankin", "WR", { runBlock: 62, strength: 58, speed: 84 });
+
+  const deL = makePlayer("r-de-l", "Kade Vance", "DE", {
+    runStuff: 78, strength: 80, blockShed: 79, tackling: 76, pursuit: 80, gapDiscipline: 74, speed: 78, instincts: 72,
+  });
+  const dtL = makePlayer("r-dt-l", "Marcus Bell", "DT", {
+    runStuff: 84, strength: 92, blockShed: 76, tackling: 74, pursuit: 66, gapDiscipline: 80, speed: 68, instincts: 70,
+  });
+  const dtR = makePlayer("r-dt-r", "Cy Redfern", "DT", {
+    runStuff: 79, strength: 88, blockShed: 72, tackling: 72, pursuit: 64, gapDiscipline: 76, speed: 67, instincts: 68,
+  });
+  const deR = makePlayer("r-de-r", "Nate Orme", "DE", {
+    runStuff: 74, strength: 78, blockShed: 75, tackling: 74, pursuit: 78, gapDiscipline: 72, speed: 77, instincts: 71,
+  });
+
+  const mlb = makePlayer("r-mlb", "Isaiah Ford", "MLB", {
+    tackling: 84, strength: 78, pursuit: 82, instincts: 80, playRecognition: 82, blockShed: 74, speed: 80, zoneCoverage: 70,
+  });
+  const wlb = makePlayer("r-wlb", "Drew Halstead", "OLB", {
+    tackling: 79, strength: 74, pursuit: 84, instincts: 76, playRecognition: 75, blockShed: 70, speed: 84, zoneCoverage: 68,
+  });
+  const cb1 = makePlayer("r-cb1", "Ray Whitfield", "CB", {
+    tackling: 68, strength: 66, pursuit: 76, instincts: 74, blockShed: 62, speed: 90, manCoverage: 82,
+  });
+  const cb2 = makePlayer("r-cb2", "Trey Nunez", "CB", {
+    tackling: 65, strength: 60, pursuit: 74, instincts: 71, blockShed: 60, speed: 86, manCoverage: 71,
+  });
+  const fs = makePlayer("r-fs", "Gil Tanner", "FS", {
+    tackling: 74, strength: 70, pursuit: 86, instincts: 82, blockShed: 64, speed: 88, zoneCoverage: 80,
+  });
+  const ss = makePlayer("r-ss", "Vic Marchetti", "SS", {
+    tackling: 82, strength: 78, pursuit: 80, instincts: 78, blockShed: 68, speed: 82, zoneCoverage: 74,
+  });
+
+  const roster = [qb, rb, lt, lg, ce, rg, rt, te, wr1, wr2, deL, dtL, dtR, deR, mlb, wlb, cb1, cb2, fs, ss];
+  const players: Record<string, PlayerState> = {};
+  for (const p of roster) players[p.bio.id as unknown as string] = p;
+
+  const state: MatchGameState = {
+    gameId: gameId("g-2026-04-hou-den"),
+    at: STAMP,
+    playNumber: 12,
+    nextEventSeq: 400,
+    players,
+    offenseTeam: teamId("t-hou"),
+    defenseTeam: teamId("t-den"),
+    quarterback: qb.bio.id,
+    down: 1,
+    distance: 10,
+    ballOn: 41,
+    clockSeconds: 742,
+  };
+
+  const calls: RunPlayCalls = {
+    offense: {
+      kind: "RUN",
+      name: "Inside Zone Left",
+      formation: "Singleback Ace",
+      scheme,
+      designedGap: "B",
+      designedSide: "LEFT",
+      carrier: rb.bio.id,
+      blocking: [
+        { blocker: lt.bio.id, defender: deL.bio.id, gap: "C", side: "LEFT" },
+        { blocker: lg.bio.id, defender: dtL.bio.id, gap: "B", side: "LEFT", doubleTeamWith: ce.bio.id },
+        { blocker: rg.bio.id, defender: dtR.bio.id, gap: "A", side: "RIGHT" },
+        { blocker: rt.bio.id, defender: deR.bio.id, gap: "C", side: "RIGHT" },
+      ],
+      perimeter: [
+        { blocker: wr1.bio.id, defender: cb1.bio.id, blockType: "STALK" },
+        { blocker: wr2.bio.id, defender: cb2.bio.id, blockType: "STALK" },
+        { blocker: te.bio.id, defender: mlb.bio.id, blockType: "LEAD" },
+      ],
+    },
+    defense: {
+      name: "Under Front, Cover 3",
+      front: "4-3 Under",
+      assignments: [
+        { kind: "MAN", defender: cb1.bio.id, covers: wr1.bio.id, technique: "OFF" },
+        { kind: "MAN", defender: cb2.bio.id, covers: wr2.bio.id, technique: "OFF" },
+        { kind: "ZONE", defender: mlb.bio.id, zone: { horizontal: "C", vertical: "SHORT" } },
+        { kind: "ZONE", defender: wlb.bio.id, zone: { horizontal: "LH", vertical: "SHORT" } },
+        { kind: "ZONE", defender: ss.bio.id, zone: { horizontal: "RH", vertical: "INTERMEDIATE" } },
+        { kind: "ZONE", defender: fs.bio.id, zone: { horizontal: "C", vertical: "DEEP" } },
+      ],
+      rush: [
+        { rusher: deL.bio.id, move: "POWER", alignment: "EDGE" },
+        { rusher: dtL.bio.id, move: "POWER", alignment: "INTERIOR" },
+        { rusher: dtR.bio.id, move: "POWER", alignment: "INTERIOR" },
+        { rusher: deR.bio.id, move: "POWER", alignment: "EDGE" },
+      ],
+    },
+  };
+
+  const names = (id: PlayerId): string => {
+    const p = players[id as unknown as string];
+    return p === undefined ? String(id) : `${p.bio.displayName} (${p.bio.position})`;
+  };
+
+  return { state, calls, names };
 }
 
 /** Receivers of the base scenario in a stable order: [WR1 go, WR2 dig, TE shallow]. */

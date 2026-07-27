@@ -270,3 +270,120 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
   beat a zone and sat down is not being run away from, so §8.7's openness decay is held flat.
   Football-true, not in the doc, marked INTERPRETATION. Set to 5 to recover man-style decay.
   It is the single largest behavioural lever added in that pass.
+
+---
+
+# RUN GAME AND YAC (breadth pass 2)
+
+Seven defects, all found by implementing §6.3/§13/§14 literally and measuring. Fixture
+`buildRunScenario`: 11-man offence, 4-3 front, all ratings 60-92, deliberately ordinary on
+both sides. 3,000 carries per scheme.
+
+**Headline: yards per carry is 11.58 (ZONE) / 9.44 (GAP) against NFL ~4.3 — but the mean is
+not the defect.** 54.5% of ZONE carries gain *exactly 5 yards*, and the gain histogram has
+**zero mass between 10 and 14, and between 20 and 58**. Do not accept any run-game tunable
+patch measured against this fixture until entries 11 and 12 are closed, for the same reason
+entry 1 is gated on entry 3.
+
+## 9. §6.3 and §14.3 band the same roll at different thresholds
+
+- **Finding:** §6.3 step 4 says "OL wins by 20+: hole opens wide / 1-19: defender sealed".
+  §14.3 says "HOLE_OPEN (OL won by 10+) / HOLE_EXISTS (1-9)". **A margin of +15 is
+  simultaneously SEALED and HOLE_OPEN.** §6.4's climb trigger ("OL wins by 10+") sides with
+  §14.3, which makes §6.3's 20 the outlier.
+- **Evidence:** 8.3% (ZONE) / 9.0% (GAP) of 12,000 engagements land in the disputed 10-19
+  window — roughly 1,000 carries per 3,000 where the two tables contradict each other.
+  Both are implemented verbatim and printed side by side in the §17 output.
+- **Levers:** `TUNABLES.runBlock.bands[0].minMargin` (20) or
+  `TUNABLES.runGame.pointOfAttack.bands[0].minMargin` (10). This is a **doc reconciliation**,
+  not a tuning choice — one of the two numbers is simply wrong.
+
+## 10. §13.3 and §14.5 disagree on the stalk block
+
+- **Finding:** §13.3 gives the defender "Block Shed **+ Tackling**"; §14.5 gives the same
+  block "Block Shed" alone. Two terms against one — a ~14-point structural swing on an
+  identical roll. §13.3's version shipped, being the section that enumerates block types.
+- **Consequence today:** downfield blocking mostly fails — a 66-runBlock receiver rolls ~13
+  against a corner's ~26, which inflates the not-designed-gap and broken-tackle counts.
+- **Lever:** delete one entry from
+  `TUNABLES.ballCarrier.blockInSpace.profiles.STALK.defenderTerms`. Measure against real
+  receiver-blocking rates before touching it.
+
+## 11. §14 states no open-field yardage, so §13.1's receiver zones quantise every run
+
+- **Finding:** §14.4's winning band is "Broken tackle, continue" — **no distance attached**.
+  §14.3 covers only yards *before* contact. §13.1's 5/10/15/30 zone table is the only yardage
+  grid in the document, and it was written for a receiver in space after a catch.
+- **Evidence:** the quantisation above — 54.5% of carries at exactly 5 yards, empty bands at
+  10-14 and 20-58. Excluding goal-line breakaways ypc is 5.46, so **coarseness is the primary
+  defect, not the mean.**
+- **Lever:** `TUNABLES.ballCarrier.zones[].widthYards`. Likely wants a run-specific zone
+  table rather than a rescaled receiver one.
+
+## 12. §13.1's zone 4 is unoccupiable from the line of scrimmage
+
+- **Finding:** zone 4 is 30-60 yards downfield. On a run, every defender aligns inside 20. So
+  a carrier who clears zone 3 gains 30 more yards **against nobody**.
+- **Evidence:** 343 of 3,000 ZONE carries gained exactly 59 (the goal line) and **not one
+  gained 30 or 45**. Every carrier reaching zone 4 scored.
+- **Levers:** `TUNABLES.ballCarrier.breakaway.freeRunReachesGoalLine` (currently `true`, an
+  engine INTERPRETATION of §13.4's "Touchdown potential"), and
+  `ballCarrier.verticalDepthYards` / `runGame.manDefenderDepthYards`.
+
+## 13. §14.4's broken-tackle threshold sits on the fat part of the distribution
+
+- **Finding:** "RB wins by 15+" on the difference of two d100s in an evenly-matched contest is
+  a **36% event by construction**. Measured 39.0% on a fixture where the two stacks are within
+  one point: **0.54 broken tackles per carry** against an NFL rate near 0.15.
+- **Same class as entry 6 (§12.4):** a doc band boundary set without reference to the
+  distribution the roll actually produces.
+- **Lever:** `TUNABLES.ballCarrier.contests.secondLevel.bands[0].minMargin`.
+
+## 14. §14.4's pursuit-angle gate barely gates — and carries the only raw-rating term in the doc
+
+- **Finding:** `d100 + Pursuit÷5 + Instincts÷5` (mean ≈ 82) against `50 + (RB Speed −
+  Defender Speed)` → **78.3% pass rate**. The gate does not gate.
+- **The deeper oddity:** that target's speed term is a **raw rating difference, not ÷5** —
+  ±99 in principle, where every other modifier in the document is ±20. Almost certainly a doc
+  slip rather than intent.
+- **Levers:** `TUNABLES.ballCarrier.pursuitAngle.target`, `defenderTerms[].divisor`.
+
+## 15. §10.5 and §13.2 both model accuracy→YAC, and stacked they zero it out
+
+- **Finding:** §13.2 gives ±15 on the immediate YAC contest; §10.5 gives a separate
+  yardage-reduction column ending in "No YAC". Both are in the doc so both are implemented,
+  and they compound.
+- **Evidence (YAC per reception by the accuracy tier that produced the catch, clean-pocket
+  fixture):** PERFECT 13.17 · EXCELLENT 14.35 · GOOD 10.69 · ADEQUATE 7.96 · POOR 3.11 ·
+  **BAD 0.00** (n=128). A badly-thrown completed pass produces exactly zero yards after
+  catch, every time.
+- **Lever:** set every entry in `TUNABLES.ballCarrier.yacMultiplierByAccuracyBand` to 1 to
+  apply §13.2 alone.
+
+## 16. Sack and TFL yardage exist nowhere in the design doc
+
+- **Finding:** §7.2 ends the play at "sack" with no distance. §17.2 counts sacks without one.
+  §14.3's tackle for loss is equally silent. Both `TUNABLES.pocket.sackYardsLost` and
+  `TUNABLES.runGame.tflYardsLost` are therefore **engine constants filling a doc gap**, not
+  placeholders awaiting an unimplemented section — correctly reclassified as such.
+- **Deliberately not "fixed" in the engine.** Inventing a resolution (e.g. an evade contest
+  against the arriving rusher) would emit bands like `EVADED` on a play that ends in a sack —
+  a false fact in the stream — and gating the sack on it would move the frozen
+  `pocket.sackWhenNoTarget`.
+- **The honest route is a design-doc amendment**, not an engine dispatch. Until then these two
+  constants are known fiction and any yardage statistic that includes sacks or TFLs inherits
+  it.
+
+## 17. Two more spatial fakes, same class as entry 8
+
+- **§6.4's climb pairs blockers to linebackers by ORDER, not geometry** — in the reference
+  printout the left tackle climbs to the *middle* linebacker. The engine has no lateral model,
+  and ADR-006 forbids reading the formation string, so the fix is a second-level target on the
+  play card. Franchise's, under ADR-006.
+- **`runGame.manDefenderDepthYards: 8`** — on a run, a MAN-assigned defender is covering
+  somebody who is not running a route, so the §3 grid has nothing to say about where he
+  stands. A new fake of exactly entry 8's kind.
+- **Not a defect, worth recording:** the zone/gap scheme split is real and explicable. RB
+  vision finds the best lane 83.8% of the time, so ZONE posts a 4.3% TFL rate against GAP's
+  16.1%, and 52.7% of ZONE carries go somewhere other than the designed gap against GAP's 0%.
+  §6.2's "RB Vision Dependency: HIGH / LOW" is mechanically live.

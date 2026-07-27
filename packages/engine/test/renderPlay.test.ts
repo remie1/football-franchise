@@ -1,12 +1,13 @@
 import { gameId, playId } from "@ff/contracts";
 import type { MatchEventEnvelope, PlayerId, RollDetail } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
-import { renderPlay, simulatePassPlay } from "../src/index.js";
+import { renderPlay, simulatePassPlay, simulateRunPlay } from "../src/index.js";
 import {
   STAMP,
   baseReceivers,
   buildDeflectionScenario,
   buildMixedCoverageScenario,
+  buildRunScenario,
   buildScenario,
   buildScramblerScenario,
   buildStalledPocketScenario,
@@ -304,10 +305,10 @@ describe("§17.1 debug renderer", () => {
       expect(text).toBeDefined();
     });
 
-    it("distinguishes the read-the-QB rep from the route rep despite one CheckKind", () => {
-      // ADR-009 item 2, rendered: the two §9.4 rolls share `zone_coverage` and
-      // the renderer separates them by actor shape. If that inference broke, the
-      // read would appear in ROUTE DEVELOPMENT instead of THROW EXECUTION.
+    it("puts the read-the-QB rep in THROW EXECUTION and the route rep in ROUTE DEVELOPMENT", () => {
+      // ADR-009 item 2, rendered: the two §9.4 rolls now have their own
+      // CheckKinds, so this is a label test. The renderer used to infer it from
+      // actor shape, and that function is gone.
       const text = findText(buildZoneScenario, "zread", (t) =>
         t.includes("Zone defender reading the QB"),
       );
@@ -368,6 +369,89 @@ describe("§17.1 debug renderer", () => {
       for (const label of labels) {
         const occurrences = text.split(`[${label}]`).length - 1;
         expect(occurrences).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+});
+
+/**
+ * §17.1 for a designed run. The printout is still a pure renderer over events:
+ * the run sections exist because run events exist, and nothing in the engine
+ * prints anything itself.
+ */
+describe("§17.1 — the run play printout", () => {
+  it("renders the run's own sections and none of the dropback's", () => {
+    const { state, calls, names } = buildRunScenario();
+    const { events } = simulateRunPlay(state, calls, "render-run-1");
+    const text = renderPlay(events, names);
+
+    expect(text).toContain('"Inside Zone Left" (Run)');
+    expect(text).toContain("ZONE scheme, LEFT-B gap");
+    expect(text).toContain("LINE BATTLE — RUN (§6.3");
+    expect(text).toContain("GAP INTEGRITY (§6.2");
+    expect(text).toContain("RB DECISION (§14.2 phase 3)");
+    expect(text).toContain("PLAY RESULT:");
+    expect(text).not.toContain("ROUTE DEVELOPMENT:");
+    expect(text).not.toContain("QB DECISION-MAKING:");
+    expect(text).not.toContain("undefined");
+  });
+
+  it("prints BOTH band tables for the same margin, because the doc has two", () => {
+    const { state, calls, names } = buildRunScenario();
+    const text = renderPlay(simulateRunPlay(state, calls, "render-run-2").events, names);
+    expect(text).toMatch(/§6\.3: [A-Z_]+ \([+-]\d+\)\s+§14\.3: [A-Z_]+/);
+  });
+
+  it("says whether the ball went where it was drawn", () => {
+    let asDesigned = 0;
+    let cutback = 0;
+    for (let i = 0; i < 80; i++) {
+      const { state, calls, names } = buildRunScenario();
+      const text = renderPlay(simulateRunPlay(state, calls, `render-run-cut-${i}`).events, names);
+      if (text.includes("(as designed)")) asDesigned += 1;
+      if (text.includes("CUTBACK, designed")) cutback += 1;
+    }
+    expect(asDesigned).toBeGreaterThan(0);
+    expect(cutback).toBeGreaterThan(0);
+  });
+
+  it("a failed pursuit angle is printed as not getting there, not as a missed tackle", () => {
+    let seen = 0;
+    for (let i = 0; i < 200 && seen === 0; i++) {
+      const { state, calls, names } = buildRunScenario();
+      const text = renderPlay(simulateRunPlay(state, calls, `render-run-pa-${i}`).events, names);
+      if (text.includes("TAKEN OUT OF THE PLAY — no tackle attempt")) seen += 1;
+    }
+    expect(seen).toBe(1);
+  });
+
+  it("YAC zones are printed for a catch and there are none for a carry (ADR-010)", () => {
+    const run = buildRunScenario();
+    const runText = renderPlay(simulateRunPlay(run.state, run.calls, "render-run-3").events, run.names);
+    expect(runText).not.toMatch(/Zone \d: -?\d+ yards/);
+
+    let printed = 0;
+    for (let i = 0; i < 60 && printed === 0; i++) {
+      const { state, calls, names } = buildScenario();
+      const text = renderPlay(simulatePassPlay(state, calls, `render-yac-${i}`).events, names);
+      if (/Zone \d: -?\d+ yards/.test(text)) printed += 1;
+    }
+    expect(printed).toBe(1);
+  });
+
+  it("prints each RollDetail exactly once on a run too (ADR-004, rendered)", () => {
+    for (let i = 0; i < 30; i++) {
+      const { state, calls, names } = buildRunScenario();
+      const { events } = simulateRunPlay(state, calls, `render-run-once-${i}`);
+      const text = renderPlay(events, names);
+      for (const { event } of events) {
+        if (event.type !== "CHECK") continue;
+        const labels = [event.payload.roll.rngLabel];
+        const opposed: RollDetail | undefined = event.payload.opposedRoll;
+        if (opposed !== undefined) labels.push(opposed.rngLabel);
+        for (const label of labels) {
+          expect(text.split(`[${label}]`).length - 1).toBeLessThanOrEqual(1);
+        }
       }
     }
   });

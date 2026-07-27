@@ -160,9 +160,9 @@ describe("§9.4 zone defender reading the QB", () => {
     expect(TUNABLES.zoneCoverage.readQb.contestBonus).toBe(20);
   });
 
-  it("actors are [defender, quarterback] — the interim disambiguator (ADR-009)", () => {
+  it("is its own CheckKind (ADR-009), with actors [defender, quarterback]", () => {
     const out = read();
-    expect(out.check.checkKind).toBe("zone_coverage");
+    expect(out.check.checkKind).toBe("zone_read_qb");
     expect(out.check.actors.map(String)).toEqual([
       String(DEEP_ZONE_DB.bio.id),
       String(SHARP_QB.bio.id),
@@ -261,10 +261,13 @@ describe("§9.4 over real event streams", () => {
       const { state, calls } = buildZoneScenario();
       const { events } = simulatePassPlay(state, calls, `read-${i}`);
       const thrown = events.some(({ event }) => event.type === "THROW");
-      const readChecks = events.filter(({ event }) => {
-        if (event.type !== "CHECK" || event.payload.checkKind !== "zone_coverage") return false;
-        return String(event.payload.actors[1]) === String(state.quarterback);
-      });
+      // ADR-009 — a label test. Before it this had to be an actor-shape
+      // inference, because the two §9.4 rolls shared `zone_coverage`.
+      const readChecks = checksOf(events, "zone_read_qb");
+      for (const { event } of readChecks) {
+        if (event.type !== "CHECK") continue;
+        expect(String(event.payload.actors[1])).toBe(String(state.quarterback));
+      }
       // One at most: it is asked about the man he is throwing to.
       expect(readChecks.length).toBeLessThanOrEqual(1);
       if (!thrown) expect(readChecks).toHaveLength(0);

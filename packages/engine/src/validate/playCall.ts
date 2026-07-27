@@ -17,7 +17,7 @@
  * game nobody played (CALIBRATION-BACKLOG 3a).
  */
 import type { PlayerId } from "@ff/contracts";
-import type { MatchGameState, PlayCalls } from "../types.js";
+import type { AnyPlayCalls, MatchGameState, PlayCalls, RunPlayCalls } from "../types.js";
 
 /** Football's own arithmetic, and the only football fact in this file. */
 const PLAYERS_ON_THE_FIELD = 11;
@@ -121,6 +121,119 @@ export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls):
       fail(`${String(rusher.rusher)} is both rushing and in coverage`);
     }
   }
+}
+
+/**
+ * The same four ADR-006 rejections, stated for a designed run. Nothing here is
+ * football either: a blocker who is not on the field, a gap assigned twice, the
+ * ball carrier blocking for himself, twelve men. The scheme, the gap and whether
+ * the concept makes sense against this front are franchise's, exactly as
+ * `formation` is.
+ */
+export function assertCoherentRunCall(state: MatchGameState, calls: RunPlayCalls): void {
+  const { offense, defense } = calls;
+
+  // 1. Every name has to resolve to somebody who is actually here.
+  const named: { readonly role: string; readonly id: PlayerId }[] = [
+    { role: "ball carrier", id: offense.carrier },
+    ...offense.blocking.flatMap((b) => [
+      { role: `${b.side} ${b.gap}-gap blocker`, id: b.blocker },
+      { role: `${b.side} ${b.gap}-gap defender`, id: b.defender },
+      ...(b.doubleTeamWith === undefined
+        ? []
+        : [{ role: `${b.side} ${b.gap}-gap double-team partner`, id: b.doubleTeamWith }]),
+    ]),
+    ...(offense.perimeter ?? []).flatMap((p) => [
+      { role: "perimeter blocker", id: p.blocker },
+      { role: "perimeter block target", id: p.defender },
+    ]),
+    ...defense.assignments.map((a) => ({ role: "coverage defender", id: a.defender })),
+    ...defense.assignments.flatMap((a) =>
+      a.kind === "MAN" ? [{ role: "covered receiver", id: a.covers }] : [],
+    ),
+    ...defense.rush.map((r) => ({ role: "front defender", id: r.rusher })),
+  ];
+  for (const { role, id } of named) {
+    if (!known(state, id)) fail(`${role} ${String(id)} is not in state.players`);
+  }
+
+  // 2. The play has to have somewhere to go: the designed gap must be blocked.
+  const designed = `${offense.designedSide}-${offense.designedGap}`;
+  if (!offense.blocking.some((b) => `${b.side}-${b.gap}` === designed)) {
+    fail(`the designed gap ${designed} has no blocking assignment`);
+  }
+
+  // 3. Nobody does two jobs.
+  assertNoDuplicates(offense.blocking.map((b) => `${b.side}-${b.gap}`), (gap) =>
+    `gap ${gap} is assigned twice`,
+  );
+  const blockers = offense.blocking.flatMap((b) =>
+    b.doubleTeamWith === undefined ? [String(b.blocker)] : [String(b.blocker), String(b.doubleTeamWith)],
+  );
+  assertNoDuplicates(blockers, (id) => `${id} is assigned two blocks at the line`);
+  assertNoDuplicates(offense.blocking.map((b) => String(b.defender)), (id) =>
+    `${id} is engaged in two gaps`,
+  );
+  assertNoDuplicates((offense.perimeter ?? []).map((p) => String(p.blocker)), (id) =>
+    `${id} is assigned two blocks in space`,
+  );
+  assertNoDuplicates((offense.perimeter ?? []).map((p) => String(p.defender)), (id) =>
+    `${id} is blocked by two men in space`,
+  );
+  const allBlockers = new Set<string>([
+    ...blockers,
+    ...(offense.perimeter ?? []).map((p) => String(p.blocker)),
+  ]);
+  if (allBlockers.has(String(offense.carrier))) {
+    fail(`${String(offense.carrier)} is both carrying the ball and blocking`);
+  }
+  for (const p of offense.perimeter ?? []) {
+    if (offense.blocking.some((b) => b.defender === p.defender)) {
+      fail(`${String(p.defender)} is both engaged at the line and blocked in space`);
+    }
+  }
+  assertNoDuplicates(defense.rush.map((r) => String(r.rusher)), (id) => `${id} is in the front twice`);
+  assertNoDuplicates(defense.assignments.map((a) => String(a.defender)), (id) =>
+    `${id} has two coverage assignments`,
+  );
+  for (const rusher of defense.rush) {
+    if (defense.assignments.some((a) => a.defender === rusher.rusher)) {
+      fail(`${String(rusher.rusher)} is both in the front and in coverage`);
+    }
+  }
+
+  // 4. Arithmetic. The quarterback handed it off; he is still on the field.
+  const offensePlayers = new Set<string>([
+    String(state.quarterback),
+    String(offense.carrier),
+    ...allBlockers,
+  ]);
+  if (offensePlayers.size > PLAYERS_ON_THE_FIELD) {
+    fail(
+      `${offensePlayers.size} offensive players on the field ` +
+        `(quarterback + carrier + ${allBlockers.size} blockers); the limit is ${PLAYERS_ON_THE_FIELD}`,
+    );
+  }
+  const defensePlayers = new Set<string>([
+    ...defense.assignments.map((a) => String(a.defender)),
+    ...defense.rush.map((r) => String(r.rusher)),
+    ...offense.blocking.map((b) => String(b.defender)),
+    ...(offense.perimeter ?? []).map((p) => String(p.defender)),
+  ]);
+  if (defensePlayers.size > PLAYERS_ON_THE_FIELD) {
+    fail(
+      `${defensePlayers.size} defensive players on the field; the limit is ${PLAYERS_ON_THE_FIELD}`,
+    );
+  }
+}
+
+/** Dispatches on the call's own discriminant. */
+export function assertCoherentCall(state: MatchGameState, calls: AnyPlayCalls): void {
+  if (calls.offense.kind === "RUN") {
+    assertCoherentRunCall(state, calls as RunPlayCalls);
+    return;
+  }
+  assertCoherentPlayCall(state, calls as PlayCalls);
 }
 
 function assertNoDuplicates(ids: readonly string[], message: (id: string) => string): void {

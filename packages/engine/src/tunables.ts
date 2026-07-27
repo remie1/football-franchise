@@ -551,8 +551,10 @@ export const TUNABLES = {
        * anticipation uses, because looking a safety off and throwing him open
        * are the same skill. Range at these settings: roughly −6 to +6.
        *
-       * The engine deliberately does NOT petition for a `disguise` attribute for
-       * one check; see ADR-009's "considered and not proposed".
+       * **Settled, not pending:** ADR-009 ratified "no `disguise` attribute" as
+       * a decision, not merely as a note. If calibration later finds that
+       * quarterbacks must differ on disguise INDEPENDENTLY of `awareness` and
+       * `footballIQ`, that is a genuine finding and earns its own petition.
        */
       disguise: {
         baseline: 70,
@@ -1063,35 +1065,464 @@ export const TUNABLES = {
         onGround: -25,
       },
       /**
-       * §12.4 "Traits". `highPoint` is NOT in `TRAIT_REGISTRY_V1` and is
-       * therefore never applied — the value is recorded, not used. Adding a
-       * trait to the shared registry is a contracts petition, not an engine
-       * decision, and one modifier is not worth one.
+       * §12.4 "Traits". `highPoint` is NOT in `TRAIT_REGISTRY_V1` and is never
+       * applied — the value is recorded, not used. **This is settled, not
+       * pending:** ADR-009 ratified "no `highPoint` trait" as a decision. Do not
+       * re-petition; `ballHawk` and `reliableHands`, which do exist, are applied.
        */
       traits: { ballHawk: 15, highPoint: 10, reliableHands: 10 },
     },
     /**
-     * PLACEHOLDER — §12.4 step 4: "If offensive recovery: play continues." What
-     * happens next is YAC (§13), which is the next dispatch. Until it exists an
-     * offensive recovery is scored as a completion for the recovering player's
-     * own air yards (0 for a lineman or a back in protection), exactly as
-     * `result.sackYardsLost` stands in for a tackle. Not a yardage model.
+     * §12.4 step 4: "If offensive recovery: play continues." It now does. The
+     * recovering player is credited with the air yards of wherever he caught it
+     * (his own route's, or zero for a lineman who fell on it in protection) and
+     * is then run through §13's ball-carrier machinery from that spot like any
+     * other man with the ball — which is what retired the placeholder that
+     * scored the whole play as a completion for those air yards and stopped.
      */
     offensiveRecoveryUsesAirYards: true,
   },
 
-  /** §17 result bookkeeping. YAC is out of this slice, so gains are air yards. */
+  /**
+   * §6.1–§6.4 — THE RUN BLOCK, and the two places the design doc contradicts
+   * itself. Both are implemented literally and neither is rescaled; see
+   * `pointOfAttack` below and CALIBRATION-BACKLOG.
+   */
+  runBlock: {
+    /** §6.3 verbatim: `d100 + RunBlock÷5 + Strength÷5` vs `d100 + RunStuff÷5 + Strength÷5`. */
+    blockerTerms: [
+      { attr: "runBlock", divisor: 5 },
+      { attr: "strength", divisor: 5 },
+    ],
+    defenderTerms: [
+      { attr: "runStuff", divisor: 5 },
+      { attr: "strength", divisor: 5 },
+    ],
+    /**
+     * §6.3 step 3's scheme modifiers, verbatim. Note the pulling pair is the
+     * only modifier in the doc that moves BOTH sides — a puller in space is
+     * worse off and the man he is trying to reach is better off, which is a
+     * 20-point swing on one assignment.
+     */
+    doubleTeamBonus: 20,
+    pullingBlockerPenalty: -10,
+    pullingDefenderBonus: 10,
+    /** Appendix B "Road Grader: +10 to pancakes" / "Run Stuffer: +10 vs. run". */
+    traits: { roadGrader: 10, runStuffer: 10 },
+    /**
+     * §6.3 step 4, verbatim. Margin = blocker total − defender total.
+     *
+     * ⚠ THESE THRESHOLDS DISAGREE WITH §14.3's, ON THE SAME ROLL. §6.3 calls a
+     * hole "wide open" at +20 and "exists" from +1; §14.3 calls it HOLE OPEN at
+     * +10 and HOLE EXISTS at +1..+9. A margin of +15 is therefore SEALED here
+     * and HOLE OPEN there. §6.4's climb trigger ("OL wins by 10+") agrees with
+     * §14.3, which makes §6.3's +20 the outlier. Both tables are kept, verbatim
+     * and separate: this one names the ENGAGEMENT (what the CHECK reports) and
+     * `pointOfAttack.bands` decides the BALL CARRIER'S yardage. Reconciling them
+     * is a calibration decision, not a feature-dispatch one.
+     */
+    bands: [
+      { label: "DRIVEN_BACK", minMargin: 20 },
+      { label: "SEALED", minMargin: 1 },
+      { label: "STALEMATE", minMargin: 0 },
+      { label: "PENETRATION", minMargin: -19 },
+      { label: "TFL_OPPORTUNITY", minMargin: NEG_INF },
+    ],
+    /**
+     * §6.2 ZONE SCHEME: "For each gap, check if defender maintains gap
+     * integrity — Roll: Defender Gap Discipline vs. OL Zone Execution."
+     *
+     * Fired on ZONE plays only, one per gap, IN ADDITION to the §6.3 engagement:
+     * the doc states it as the zone scheme's own resolution and it is what
+     * produces §6.2's "cutback lanes available if defense overflows". A defender
+     * who loses it has overflowed, and the gap BEHIND him opens.
+     *
+     * INTERPRETATION — "OL Zone Execution" is not a registry attribute. It is
+     * expressed as `runBlock` alone rather than as a stack, so the roll stays
+     * one term against one term the way the doc writes it. Margin =
+     * defender − blocker: a defender who WINS keeps his gap.
+     */
+    gapIntegrity: {
+      defenderTerms: [{ attr: "gapDiscipline", divisor: 5 }],
+      blockerTerms: [{ attr: "runBlock", divisor: 5 }],
+      bands: [
+        { label: "GAP_HELD", minMargin: 0, overflowed: false },
+        { label: "OVERFLOWED", minMargin: NEG_INF, overflowed: true },
+      ],
+    },
+    /**
+     * §6.4 CLIMB TO LINEBACKER, verbatim:
+     * `d100 + OL Awareness÷5 + OL Sustain÷5` vs `50 + LB Play Recognition÷5`,
+     * triggered when the first-level block was won by 10+.
+     */
+    secondLevelClimb: {
+      triggerMinMargin: 10,
+      target: 50,
+      climberTerms: [
+        { attr: "awareness", divisor: 5 },
+        { attr: "sustain", divisor: 5 },
+      ],
+      defenderAttrDivisor: 5,
+    },
+  },
+
+  /**
+   * §14 — THE RUN GAME.
+   *
+   * `phaseTicks` is §14.2's own timeline read onto the §2.1 half-second grid:
+   * "PHASE 1: LINE BATTLE (Ticks 0.0-1.0) / PHASE 2: SECOND LEVEL (1.0-1.5) /
+   * PHASE 3: RB DECISION (1.0-2.0)". Each phase resolves on the tick it ends on,
+   * so the stream reads in the doc's order.
+   */
+  runGame: {
+    phaseTicks: { lineBattle: 0.5, secondLevel: 1.0, rbDecision: 1.5, openField: 2.0 },
+    /**
+     * §14.2 PHASE 3's vision check, verbatim: `d100 + Vision÷5 + Patience÷5` vs
+     * a flat target of 50. ZONE scheme only — §6.2 gives gap/power "RB Vision
+     * Dependency: LOW: designed hole, RB hits it decisively", so no die is
+     * rolled on a gap play (ADR-005: an absent check means no roll, never a
+     * failed one).
+     */
+    vision: {
+      target: 50,
+      terms: [
+        { attr: "vision", divisor: 5 },
+        { attr: "patience", divisor: 5 },
+      ],
+      /**
+       * INTERPRETATION of §14.2's "Failure: RB may miss cutback or hit wrong
+       * hole". He runs the gap that was CALLED. The doc's "may" is not a second
+       * die and there is nothing here to invent a penalty from — a back who runs
+       * the designed hole on a zone play is not punished, he simply does not get
+       * the cutback his vision would have found.
+       */
+      failureTakesDesignedGap: true,
+    },
+    /**
+     * §14.3 RB AT POINT OF ATTACK. Margin is the §6.3 engagement's margin in the
+     * gap he actually runs through. See the ⚠ note on `runBlock.bands`: these
+     * thresholds are the doc's and they are NOT the same thresholds.
+     *
+     * `yards` are §14.3's, verbatim ("gains 3-5 yards before contact", "1-2
+     * yards"). Where the doc gives a RANGE, the position within it is a
+     * deterministic function of the margin the recorded roll already produced
+     * (`marginPerExtraYard`) — no second die, on the ADR-007 precedent that made
+     * a rusher's ETA a function of his rep rather than a fresh roll.
+     */
+    pointOfAttack: {
+      bands: [
+        { label: "HOLE_OPEN", minMargin: 10, minYards: 3, maxYards: 5, contact: "SECOND_LEVEL" },
+        { label: "HOLE_EXISTS", minMargin: 1, minYards: 1, maxYards: 2, contact: "AT_LOS" },
+        { label: "STALEMATE", minMargin: 0, minYards: 0, maxYards: 0, contact: "POWER" },
+        { label: "PENETRATION", minMargin: NEG_INF, minYards: 0, maxYards: 0, contact: "EVADE" },
+      ],
+    },
+    /**
+     * INTERPRETATION — §14.3 says "Failure: TFL" and never says how far back.
+     * A tackle for loss on a penetrated gap happens a stride or two behind the
+     * line, not at the quarterback's depth; `sackYardsLost` (7) would be absurd
+     * here. Named so calibration can move it, and the ONLY invented number in
+     * the run game's yardage.
+     */
+    tflYardsLost: 2,
+    /**
+     * INTERPRETATION — where a defender who is not at the line is standing, in
+     * yards downfield, when the play starts. Used to place him in a §13.1 zone.
+     *  - a rusher (`defense.rush`) is at the line;
+     *  - a ZONE defender is at the depth of his own stated §3 cell;
+     *  - a MAN defender on a run play is covering somebody who is not running a
+     *    route, so the §3 model has nothing to say about where he is.
+     */
+    manDefenderDepthYards: 8,
+    /** The horizontal lane each §6.1 gap runs through, for the §3 grid. */
+    gapLane: {
+      LEFT: { A: "C", B: "LH", C: "LH", D: "LW" },
+      RIGHT: { A: "C", B: "RH", C: "RH", D: "RW" },
+    },
+  },
+
+  /**
+   * §13 + §14.4 — THE BALL CARRIER, and it is ONE set of machinery.
+   *
+   * Tackling a man, breaking a tackle, blocking somebody in space and running a
+   * pursuit angle are the same four mechanics whether the carrier caught the
+   * ball or was handed it, so they are resolved by one set of functions
+   * (`resolve/ballCarrier.ts`) parameterised by the PROFILES below. What differs
+   * between YAC and the run game is which profile the doc points at where, and
+   * that difference is data in this block rather than two copies of the code.
+   */
+  ballCarrier: {
+    /** §13.1's zones, measured forward from where the carrier got the ball. */
+    zones: [
+      { zone: 1, widthYards: 5 },
+      { zone: 2, widthYards: 10 },
+      { zone: 3, widthYards: 15 },
+      { zone: 4, widthYards: 30 },
+    ],
+    /** §13.4 fires once, after the carrier clears this zone. */
+    breakawayAfterZone: 2,
+    /**
+     * A defender this far BEHIND the carrier still counts as the immediate
+     * (zone 1) defender — it is the covering corner at the catch point, who is
+     * a stride the wrong side of the receiver by definition. Anyone further back
+     * than this is chasing from behind, which §13's forward-only zone table does
+     * not model.
+     */
+    behindReachYards: 2,
+    /** Depth (yards downfield) of each §3.2 band, for placing a man in a zone. */
+    verticalDepthYards: { BACKFIELD: 0, SHORT: 5, INTERMEDIATE: 15, DEEP: 27, VERY_DEEP: 40 },
+    /**
+     * Where a range like "gain 3-5 yards" lands inside itself: one extra yard
+     * per this much margin above the band floor. No second die (ADR-004/005) —
+     * the margin came from a roll the stream already carries.
+     */
+    marginPerExtraYard: 5,
+    /**
+     * §13.2 "Modifiers" on the immediate-YAC roll, verbatim (+15 in stride, −15
+     * off balance, bullet −5, touch +5). INTERPRETATION: the doc says "good
+     * accuracy" and "off-balance" without naming §10.4's bands, so the mapping
+     * from accuracy band to modifier is here.
+     */
+    catchTransition: {
+      byAccuracyBand: {
+        PERFECT: 15, EXCELLENT: 15, GOOD: 15, ADEQUATE: 0, POOR: -15, BAD: -15, MISS: 0,
+      },
+      byThrowType: { BULLET: -5, TOUCH: 5, BACK_SHOULDER: 0, THROWAWAY: 0 },
+    },
+    /**
+     * §10.5's "YAC Mod" column, as a multiplier on total yards after catch.
+     * The column is QUALITATIVE ("Full", "Slight reduction", "Moderate
+     * reduction", "Minimal YAC", "No YAC") so every number here is
+     * INTERPRETATION.
+     *
+     * ⚠ THIS STACKS WITH `catchTransition.byAccuracyBand`, and deliberately: the
+     * doc states the accuracy effect TWICE, once in §13.2 as a roll modifier and
+     * once in §10.5 as a yardage reduction, and the engine's rule is to
+     * implement what is written rather than to pick. Set every entry to 1 to
+     * apply §13.2's version alone. This is the first thing to try if YAC by
+     * accuracy tier comes out too steep.
+     */
+    yacMultiplierByAccuracyBand: {
+      PERFECT: 1, EXCELLENT: 1, GOOD: 0.85, ADEQUATE: 0.7, POOR: 0.4, BAD: 0, MISS: 0,
+    },
+    /**
+     * §13.2 / §14.3 / §14.4 — the carrier-versus-tackler contests. Four
+     * profiles, because the doc gives four different attribute pairings and four
+     * different result tables for what is structurally one roll.
+     */
+    contests: {
+      /**
+       * §13.2 IMMEDIATE DEFENDER, verbatim:
+       * `d100 + YAC÷5 + Elusiveness÷5` vs `d100 + Tackling÷5 + Pursuit÷5`.
+       * §13.3 sends every later YAC zone back here ("Tackle attempt (see
+       * above)"), so this profile covers all of §13.
+       */
+      yac: {
+        checkKind: "yac_tackle",
+        carrierTerms: [
+          { attr: "yac", divisor: 5 },
+          { attr: "elusiveness", divisor: 5 },
+        ],
+        tacklerTerms: [
+          { attr: "tackling", divisor: 5 },
+          { attr: "pursuit", divisor: 5 },
+        ],
+        bands: [
+          { label: "DEFENDER_MISSED", minMargin: 20, minYards: 0, maxYards: 0, tackled: false, broken: true },
+          { label: "PARTIAL_TACKLE", minMargin: 10, minYards: 3, maxYards: 5, tackled: true, broken: false },
+          { label: "CONTACT_MADE", minMargin: 1, minYards: 1, maxYards: 2, tackled: true, broken: false },
+          { label: "WRAPPED_UP", minMargin: 0, minYards: 0, maxYards: 1, tackled: true, broken: false },
+          { label: "TACKLED_AT_CATCH", minMargin: NEG_INF, minYards: 0, maxYards: 0, tackled: true, broken: false },
+        ],
+      },
+      /**
+       * §14.4 TACKLE ATTEMPT, verbatim:
+       * `d100 + Elusiveness÷5 + Power÷5` vs `d100 + Tackling÷5 + Strength÷5`.
+       * This is the check whose success IS a broken tackle, which is what §17.2
+       * counts.
+       */
+      secondLevel: {
+        checkKind: "break_tackle",
+        carrierTerms: [
+          { attr: "elusiveness", divisor: 5 },
+          { attr: "power", divisor: 5 },
+        ],
+        tacklerTerms: [
+          { attr: "tackling", divisor: 5 },
+          { attr: "strength", divisor: 5 },
+        ],
+        bands: [
+          { label: "BROKEN_TACKLE", minMargin: 15, minYards: 0, maxYards: 0, tackled: false, broken: true },
+          { label: "PARTIAL_TACKLE", minMargin: 1, minYards: 2, maxYards: 4, tackled: true, broken: false },
+          { label: "TACKLED", minMargin: NEG_INF, minYards: 0, maxYards: 0, tackled: true, broken: false },
+        ],
+      },
+      /**
+       * §14.3 STALEMATE: "Contact at LOS — Roll: RB Power vs. Tackler Tackling."
+       * One term each, as written. The doc states NO result bands for it, so the
+       * split is at zero and the yardage below is INTERPRETATION: a back who
+       * wins a collision at the line falls forward and the play goes on; one who
+       * loses is down where he stood.
+       */
+      atLosPower: {
+        checkKind: "tackle",
+        carrierTerms: [{ attr: "power", divisor: 5 }],
+        tacklerTerms: [{ attr: "tackling", divisor: 5 }],
+        bands: [
+          { label: "FELL_FORWARD", minMargin: 1, minYards: 1, maxYards: 2, tackled: false, broken: true },
+          { label: "STOPPED", minMargin: NEG_INF, minYards: 0, maxYards: 0, tackled: true, broken: false },
+        ],
+      },
+      /**
+       * §14.3 PENETRATION: "RB must evade — Roll: RB Elusiveness vs. DL
+       * Tackling. Success: RB avoids, reduced gain. Failure: TFL." The loss on
+       * a failure is `runGame.tflYardsLost`, applied by the resolver.
+       */
+      atLosEvade: {
+        checkKind: "tackle",
+        carrierTerms: [{ attr: "elusiveness", divisor: 5 }],
+        tacklerTerms: [{ attr: "tackling", divisor: 5 }],
+        bands: [
+          { label: "EVADED", minMargin: 1, minYards: 0, maxYards: 0, tackled: false, broken: true },
+          { label: "TACKLED_FOR_LOSS", minMargin: NEG_INF, minYards: 0, maxYards: 0, tackled: true, broken: false },
+        ],
+      },
+    },
+    /** Appendix B "Power Runner: +10 to break tackles". */
+    carrierTraits: { powerRunner: 10 },
+    /** Appendix B "High Motor: +5 to pursuit" / §4.9's "every pursuit situation". */
+    tacklerTraits: { highMotor: 5 },
+    /**
+     * §14.4 PURSUIT ANGLE CHECK, verbatim:
+     * `d100 + Pursuit÷5 + Instincts÷5` vs `50 + (RB Speed − Defender Speed)`.
+     *
+     * Note the target term is a RAW rating difference, not a ÷5 one — it is the
+     * doc's, and it is the largest single term anywhere in the engine (±99 in
+     * principle). A defender who fails it never gets a tackle attempt.
+     */
+    pursuitAngle: {
+      target: 50,
+      defenderTerms: [
+        { attr: "pursuit", divisor: 5 },
+        { attr: "instincts", divisor: 5 },
+      ],
+      speedAttr: "speed",
+    },
+    /**
+     * Which zones gate a tackle attempt behind a §14.4 pursuit-angle check.
+     * §13's YAC zones 1-3 do not: §13.2/§13.3 send an unblocked defender
+     * straight into the tackle attempt, and only §13.1's zone 4 is "pursuit
+     * only". §14.4 gates the whole second level, which is the doc's own
+     * difference between the two sections rather than an engine choice.
+     */
+    pursuitGateZones: { YAC: [4], RUSH: [2, 3, 4] },
+    /**
+     * §13.4 BREAKAWAY, verbatim:
+     * `d100 + Speed÷5 + Acceleration÷5` vs `d100 + Speed÷5 + Pursuit÷5`.
+     * Appendix B "Home Run Hitter: +15 to breakaway".
+     */
+    breakaway: {
+      carrierTerms: [
+        { attr: "speed", divisor: 5 },
+        { attr: "acceleration", divisor: 5 },
+      ],
+      pursuerTerms: [
+        { attr: "speed", divisor: 5 },
+        { attr: "pursuit", divisor: 5 },
+      ],
+      traits: { homeRunHitter: 15 },
+      bands: [
+        { label: "TOUCHDOWN_POTENTIAL", minMargin: 15, freeRun: true },
+        { label: "SIGNIFICANT_GAIN", minMargin: 1, freeRun: false },
+        { label: "PURSUIT_ANGLE_WORKS", minMargin: NEG_INF, freeRun: false },
+      ],
+      /**
+       * INTERPRETATION of "Touchdown potential". A carrier nobody has an angle
+       * on runs to the goal line rather than to the end of §13.1's zone table
+       * (which stops at 60 yards and would strand a 70-yard breakaway on the
+       * ten). Set false to make a free runner merely clear the remaining zones.
+       *
+       * This is the single largest yardage lever in §13/§14: the check only
+       * fires on a carrier who is already past `breakawayAfterZone` clean, but
+       * once it does, an opposed roll won by 15+ is the whole rest of the field.
+       */
+      freeRunReachesGoalLine: true,
+    },
+    /**
+     * §13.3 / §14.5 — BLOCKING IN SPACE. Three named block types.
+     *
+     * ⚠ §13.3 and §14.5 DISAGREE about the stalk block's defender: §13.3 says
+     * "WR Run Block vs. CB Block Shed + Tackling" and §14.5 says "Roll: WR Run
+     * Block vs. CB Block Shed" — two terms against one for the same block.
+     * §13.3's is used, because it is the section that enumerates block TYPES and
+     * gives each one its own stack; §14.5's shorter form is recorded here and is
+     * recovered by deleting the `tackling` term. Not rescaled either way.
+     */
+    blockInSpace: {
+      checkKind: "downfield_block",
+      profiles: {
+        STALK: {
+          blockerTerms: [{ attr: "runBlock", divisor: 5 }],
+          defenderTerms: [
+            { attr: "blockShed", divisor: 5 },
+            { attr: "tackling", divisor: 5 },
+          ],
+          blockerBonus: 0,
+        },
+        /** §13.3 "CRACK BLOCK: +10 to block (defender not expecting)". */
+        CRACK: {
+          blockerTerms: [{ attr: "runBlock", divisor: 5 }],
+          defenderTerms: [{ attr: "blockShed", divisor: 5 }],
+          blockerBonus: 10,
+        },
+        /** §14.5 "TE/FB Lead Block: Run Block + Strength vs. Tackling + Strength". */
+        LEAD: {
+          blockerTerms: [
+            { attr: "runBlock", divisor: 5 },
+            { attr: "strength", divisor: 5 },
+          ],
+          defenderTerms: [
+            { attr: "tackling", divisor: 5 },
+            { attr: "strength", divisor: 5 },
+          ],
+          blockerBonus: 0,
+        },
+      },
+      /**
+       * NOT APPLIED — §13.3's "−15 if illegal (blindside, low)". The engine has
+       * no blindside and no block height, and inventing either to spend a
+       * modifier would assert a fact no die and no input produced (ADR-005).
+       * Recorded so the doc's number is not lost, exactly as `backWasTurned` is
+       * in §12.4.
+       */
+      illegalCrackPenalty: -15,
+      /** §14.5's bands. A tie is not "defender wins", so it holds. */
+      bands: [
+        { label: "PANCAKED", minMargin: 10, occupied: true },
+        { label: "SEALED", minMargin: 0, occupied: true },
+        { label: "SHED", minMargin: NEG_INF, occupied: false },
+      ],
+      traits: { roadGrader: 10 },
+    },
+  },
+
+  /** §17 result bookkeeping. */
   result: {
+    /**
+     * INTERPRETATION, and RECLASSIFIED (breadth pass 2) rather than retired.
+     *
+     * This was flagged as "a placeholder standing in for a tackle resolution"
+     * that §14 would supply. §14 does not supply it: the design doc states no
+     * sack yardage anywhere — §7.2 ends the play at "sack" and §17.2 counts
+     * sacks without a distance — and §14.3's own tackle for loss is equally
+     * silent (`runGame.tflYardsLost` is the twin invention). Retiring this
+     * constant would therefore mean fabricating a rule, not implementing one, so
+     * it stays flat and is now honestly labelled: an engine constant filling a
+     * doc gap, of the same class as `tflYardsLost`, not a stub awaiting a
+     * section that turned out not to exist.
+     */
     sackYardsLost: 7,
     touchdownPoints: 6,
-    /**
-     * PLACEHOLDER — a scrambling QB who runs out of receivers tucks it. The run
-     * game (§14) owns ball-carrier resolution and is the NEXT dispatch; this is
-     * a flat constant standing in for it so the scramble branch can terminate,
-     * exactly as `sackYardsLost` stands in for a tackle resolution. It is not a
-     * rushing model and must be replaced, not tuned.
-     */
-    scrambleRunYards: 5,
     /** Seconds burned after the ball is dead, added to the play's elapsed time. */
     clockRunoff: {
       completion: 5,
@@ -1100,8 +1531,16 @@ export const TUNABLES = {
       throwaway: 0,
       interception: 0,
       scrambleRun: 5,
+      run: 5,
     },
     firstDownResetsDistance: 10,
+    /**
+     * `RUN_RESOLUTION.gap` for a carry that had no designed gap. A scrambling
+     * quarterback is a ball carrier and runs through the same machinery, but he
+     * is not running a gap — INTERIM (ADR-010) until `RUN_RESOLUTION` can say
+     * `carryType` and leave `gap` off.
+     */
+    scrambleGapLabel: "SCRAMBLE",
   },
 } as const;
 

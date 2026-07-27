@@ -8,8 +8,20 @@ import type { RouteDepthClass } from "../types.js";
  * point on the route's own timeline. It is what a receiver is doing once the
  * quarterback has left the pocket (§8.8): the play has changed shape, he has
  * abandoned the route that was called, and coverage has stopped closing on him.
+ *
+ * `SETTLED` (ADR-009) is the zone counterpart: a receiver who beat a zone and
+ * SAT DOWN in the window is not running away from anybody, so neither `OPEN`
+ * ("the route has broken and is still running") nor `DECAYING` ("coverage is
+ * closing") describes him — and `zoneCoverage.settledDecayPerTick` means the
+ * second is literally false.
  */
-export type RoutePhase = "JAMMED" | "DEVELOPING" | "OPEN" | "DECAYING" | "SCRAMBLE_DRILL";
+export type RoutePhase =
+  | "JAMMED"
+  | "DEVELOPING"
+  | "OPEN"
+  | "SETTLED"
+  | "DECAYING"
+  | "SCRAMBLE_DRILL";
 
 /** Base development time plus any jam delay from the release battle. */
 export function routeReadySeconds(depthClass: RouteDepthClass, delaySeconds: number): number {
@@ -31,13 +43,20 @@ export function opennessAt(baseOpenness: number, readySeconds: number, tick: num
   return Math.round(clamp(raw, t.minOpenness, t.maxOpenness));
 }
 
+/**
+ * `settled` is the §9.4 rep's own answer (`ZoneCoverageOutcome.settled`), not an
+ * inference: a receiver who found the soft spot reports SETTLED from the moment
+ * he gets there, and never DECAYING, because nothing is decaying.
+ */
 export function routePhaseAt(
   tick: number,
   readySeconds: number,
   jamDelaySeconds: number,
+  settled = false,
 ): Exclude<RoutePhase, "SCRAMBLE_DRILL"> {
   if (jamDelaySeconds > 0 && tick < TUNABLES.clock.firstTick + jamDelaySeconds) return "JAMMED";
   if (tick < readySeconds) return "DEVELOPING";
+  if (settled) return "SETTLED";
   if (tick > TUNABLES.route.decayStartsAtSeconds) return "DECAYING";
   return "OPEN";
 }

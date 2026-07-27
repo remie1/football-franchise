@@ -2,7 +2,7 @@
 
 - **Date:** July 2026
 - **Proposed by:** `match-engine` (Phase 1 breadth pass — §9.4 zone coverage, §12 tipped balls)
-- **Status:** proposed
+- **Status:** approved
 
 ## Need
 
@@ -172,6 +172,32 @@ are applied.
 - **narrative:** `TIPPED_BALL` with a defensive `recoveredBy` is a usable trigger ("tipped
   at the line and picked off") for the first time.
 - **franchise:** none.
+
+## Decision
+
+**All three approved** by project owner + Orchestrator, July 2026, amended in one unlock
+window.
+
+Item 1 was never really a proposal — it is ADR-004 enforcement on a payload written before
+that rule existed. Declining it would have left exactly one event permanently exempt from the
+invariant ADR-004 was ratified to protect, and the exemption would have sat on the event most
+likely to be aggregated (every tipped ball carries a quality roll plus one roll per recovery
+attempt). The self-identifying reference stub the engine shipped in the meantime was honest
+and tested, but a workaround for an out-of-date schema is not a resting place.
+
+Items 2 and 3 fall squarely under the rule already applied to `pocket_movement` (ADR-007) and
+`anticipation` (ADR-008): one label covering two different things means calibration can count
+neither. `zone_coverage` narrowing rather than being renamed, and `OPEN` keeping its meaning
+alongside the new `SETTLED`, follow the same no-stream-invalidated convention.
+
+The two **considered-and-not-proposed** items are ratified as *decisions*, not merely as
+notes: no `disguise` attribute and no `highPoint` trait. Both are recorded so they are not
+re-proposed by a future dispatch that rediscovers the same doc lines. If calibration finds
+quarterbacks must differ on disguise independently of `awareness` and `footballIQ`, that is a
+genuine finding and earns its own petition.
+
+Engine adaptation — deleting the stub helpers and the three `INTERIM VOCABULARY (ADR-009)`
+markers, one `checkKind` string, and emitting `SETTLED` — ships with breadth pass 2.
 
 ## Related
 

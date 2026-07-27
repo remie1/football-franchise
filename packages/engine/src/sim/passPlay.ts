@@ -36,11 +36,12 @@
  * how long he will hold (§8.7's budget, which moves with anticipation rather
  * than separately from it), and how many reads he gets before the outlet.
  */
-import { createRng, playId as makePlayId } from "@ff/contracts";
+import { createRng, getAttr, playId as makePlayId } from "@ff/contracts";
 import type { PlayerId, PlayerState, Rng } from "@ff/contracts";
+import { ATTR } from "../attrs.js";
 import { chemistryLevel } from "../chemistry.js";
 import { PlayEventLog } from "../events.js";
-import { clamp } from "../rolls.js";
+import { clamp, flatModifier } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
 import type {
   ContestPosition,
@@ -58,6 +59,12 @@ import type {
   ThrowType,
 } from "../types.js";
 import { assertCoherentPlayCall } from "../validate/playCall.js";
+import type { Pursuer } from "../resolve/ballCarrier.js";
+import {
+  advanceCarrier,
+  depthOfVerticalZone,
+  zoneOfDefender,
+} from "../resolve/ballCarrier.js";
 import { anticipationAvailable, resolveAnticipation } from "../resolve/anticipation.js";
 import type { CatchOutcome } from "../resolve/catchResolution.js";
 import { catchTypeFor, resolveCatch } from "../resolve/catchResolution.js";
@@ -214,6 +221,8 @@ export function simulatePassPlay(
   // §12's two rolls get their own subsystem fork so a tip cannot shift the
   // stream of any check that precedes it.
   const tipRng = playRng.fork("tip");
+  // §13/§14 — everything that happens once somebody has the ball in his hands.
+  const carrierRng = playRng.fork("carrier");
 
   const matchups = buildMatchups(state, calls);
   const tracks = buildReceiverTracks(state, calls);
@@ -452,17 +461,13 @@ export function simulatePassPlay(
 
       // §8.8 — a receiver who has abandoned the route to find open grass is not
       // at a point on his route's timeline; the play has changed shape (ADR-007).
-      //
-      // INTERIM VOCABULARY (ADR-009): a receiver who beat a zone and SAT DOWN in
-      // the window is reported as OPEN and then, past the decay point, as
-      // DECAYING — which is false, because nothing is decaying: his openness is
-      // held flat by `zoneCoverage.settledDecayPerTick`. `SETTLED` is petitioned
-      // in ADR-009; until it exists the phase is true-but-silent and the
-      // openness track is what tells the reader.
+      // ADR-009 — and one who beat a zone and SAT DOWN in the window is not on
+      // that timeline either: he reports SETTLED rather than OPEN and then the
+      // flatly false DECAYING.
       const phase: RoutePhase =
         scramble !== undefined && track.scrambleBaseOpenness !== undefined
           ? "SCRAMBLE_DRILL"
-          : routePhaseAt(tick, track.readySeconds, track.jamDelaySeconds);
+          : routePhaseAt(tick, track.readySeconds, track.jamDelaySeconds, track.settled);
       const openness = currentOpenness(track, tick, scramble);
       if (phase !== track.lastPhase || openness !== track.lastOpenness) {
         log.routeStatus(track.receiver.bio.id, track.assignment.routeName, phase, openness);
@@ -582,6 +587,8 @@ export function simulatePassPlay(
         throwRng,
         catchRng,
         tipRng,
+        carrierRng,
+        ballOn: state.ballOn,
         scramble,
         recoverySpots,
         airYardsOf: (id) => airYardsFor(tracks, id),
@@ -638,12 +645,25 @@ export function simulatePassPlay(
 
     if (scramble !== undefined) {
       // Outside the pocket the clock is pursuit's, not the rush's. When it runs
-      // out he tucks it. PLACEHOLDER: flat yardage — §14 owns ball-carrier
-      // resolution and is the next dispatch. This is not a rushing model.
+      // out he tucks it — and a quarterback with the ball under his arm is a
+      // ball carrier, so he goes through §14.4's machinery like any other one.
+      // This replaced a flat five yards; it is not a tuned version of it.
       if (tick >= scramble.pursuitAtTick) {
         log.qbDecision("SCRAMBLE");
+        const run = advanceCarrier({
+          carrier: qb,
+          mode: "RUSH",
+          pursuers: buildCarrierPursuers(recoverySpots, state.quarterback, 0),
+          yardsToGoalLine: 100 - state.ballOn,
+          carrierRng: carrierRng.fork("scramble"),
+          emitCheck: (check) => log.check(check),
+          // ADR-010 item 1 — a scramble is a carry, and YAC_ZONE would corrupt
+          // YAC aggregates. No per-zone event; the CHECKs carry the detail.
+          emitZone: () => undefined,
+        });
+        log.runResolution(state.quarterback, TUNABLES.result.scrambleGapLabel, run.yards);
         outcome = {
-          yards: TUNABLES.result.scrambleRunYards,
+          yards: run.yards,
           turnover: false,
           clockRunoff: tick + TUNABLES.result.clockRunoff.scrambleRun,
         };
@@ -827,6 +847,10 @@ interface ThrowArgs {
   readonly scramble: ScrambleState | undefined;
   readonly recoverySpots: readonly RecoverySpot[];
   readonly airYardsOf: (id: PlayerId) => number;
+  /** §13 — the ball carrier's own fork, so YAC cannot shift any earlier roll. */
+  readonly carrierRng: Rng;
+  /** Yards from the offence's own goal line; caps every advance at the field. */
+  readonly ballOn: number;
 }
 
 function resolveThrow(args: ThrowArgs): PlayOutcome {
@@ -918,12 +942,126 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
   if (deflector !== undefined) return tip(deflector, "CATCH_POINT");
 
   if (!result.caught) return incomplete();
-  // YAC is out of this slice: the gain is the air yards.
+
+  // §13 — the catch is not the end of the play. The gain is air yards PLUS what
+  // he does with it, resolved by the same machinery a handoff uses.
+  const yac = resolveYac({
+    ...args,
+    accuracyBand: accuracy.bandEffects.label,
+    throwType,
+  });
   return {
-    yards: track.assignment.airYards,
+    yards: track.assignment.airYards + yac,
     turnover: false,
     clockRunoff: tick + TUNABLES.result.clockRunoff.completion,
   };
+}
+
+// --- §13 YAC ----------------------------------------------------------------
+
+interface YacArgs extends ThrowArgs {
+  readonly accuracyBand: string;
+  readonly throwType: ThrowType;
+}
+
+/**
+ * §13, driven by the shared ball-carrier advance.
+ *
+ * Two accuracy effects apply and the doc states both, in different places:
+ * §13.2's ±15 roll modifier on the immediate defender ("catch in stride" /
+ * "catching off-balance", plus the bullet/touch transition), and §10.5's "YAC
+ * Mod" column as a reduction of the yardage itself. They stack, deliberately —
+ * see the ⚠ note on `TUNABLES.ballCarrier.yacMultiplierByAccuracyBand`, which is
+ * the knob that unstacks them.
+ */
+function resolveYac(args: YacArgs): number {
+  const { log, track, carrierRng, recoverySpots, accuracyBand, throwType } = args;
+  const t = TUNABLES.ballCarrier;
+  const carrierId = track.receiver.bio.id;
+  const catchDepth = track.assignment.airYards;
+
+  const transition = t.catchTransition;
+  const zone1Modifiers = [
+    flatModifier(
+      `Catch transition, ${accuracyBand.toLowerCase()} placement (§13.2)`,
+      transition.byAccuracyBand[accuracyBand as keyof typeof transition.byAccuracyBand] ?? 0,
+    ),
+    flatModifier(`${throwType} caught (§13.2)`, transition.byThrowType[throwType]),
+  ];
+
+  const advance = advanceCarrier({
+    carrier: track.receiver,
+    mode: "YAC",
+    pursuers: buildCarrierPursuers(recoverySpots, carrierId, catchDepth),
+    yardsToGoalLine: Math.max(0, 100 - args.ballOn - catchDepth),
+    zone1CarrierModifiers: zone1Modifiers,
+    carrierRng: carrierRng.fork(String(carrierId)),
+    emitCheck: (check) => log.check(check),
+    emitZone: (zone, yardsInZone) => log.yacZone(carrierId, zone, yardsInZone),
+  });
+
+  // §10.5's YAC Mod column, applied to the total.
+  const multiplier =
+    t.yacMultiplierByAccuracyBand[accuracyBand as keyof typeof t.yacMultiplierByAccuracyBand] ?? 1;
+  return Math.round(advance.yards * multiplier);
+}
+
+/**
+ * §13.3 step 1 — "count blockers vs. defenders in zone", built from the same
+ * §3 placement `buildRecoverySpots` uses for §12.3.
+ *
+ * Defenders are placed in a §13.1 zone by the depth of their §3 cell relative to
+ * the carrier; anyone further behind him than `behindReachYards` is out of the
+ * doc's forward-only zone table and does not appear. Blockers are every other
+ * offensive player who is not tied up in protection, paired to a defender in the
+ * same zone — best blocker to the most dangerous man, which needs no die.
+ *
+ * Every block here is a STALK: §13.3's CRACK and LEAD are properties of a CALL,
+ * and a dropback's play card does not state downfield blocking assignments. A
+ * run call does (`RunPlayCall.perimeter`), and there they are honoured.
+ */
+function buildCarrierPursuers(
+  spots: readonly RecoverySpot[],
+  carrierId: PlayerId,
+  carrierDepth: number,
+): Pursuer[] {
+  const defenders: { player: PlayerState; zone: number }[] = [];
+  const blockers: { player: PlayerState; zone: number }[] = [];
+  for (const spot of spots) {
+    if (String(spot.player.bio.id) === String(carrierId)) continue;
+    // A man engaged at the line is not in the chase and is not blocking in
+    // space; §13's zones are downfield and his fight was at the snap.
+    if (spot.engagedInBlock) continue;
+    const zone = zoneOfDefender(depthOfVerticalZone(spot.zone.vertical), carrierDepth);
+    if (zone === undefined) continue;
+    (spot.side === "DEFENSE" ? defenders : blockers).push({ player: spot.player, zone });
+  }
+
+  const rank = (p: PlayerState): number =>
+    getAttr(p.attributes.values, ATTR.pursuit) + getAttr(p.attributes.values, ATTR.tackling);
+  const blockRank = (p: PlayerState): number => getAttr(p.attributes.values, ATTR.runBlock);
+
+  const out: Pursuer[] = [];
+  for (const zoneSpec of TUNABLES.ballCarrier.zones) {
+    const zone = zoneSpec.zone;
+    const inZone = defenders
+      .filter((d) => d.zone === zone)
+      .sort((a, b) => rank(b.player) - rank(a.player) ||
+        String(a.player.bio.id).localeCompare(String(b.player.bio.id)));
+    const available = blockers
+      .filter((b) => b.zone === zone)
+      .sort((a, b) => blockRank(b.player) - blockRank(a.player) ||
+        String(a.player.bio.id).localeCompare(String(b.player.bio.id)));
+    inZone.forEach((defender, i) => {
+      const blocker = available[i];
+      out.push({
+        defender: defender.player,
+        zone,
+        ...(blocker === undefined ? {} : { blocker: blocker.player, blockType: "STALK" as const }),
+      });
+    });
+  }
+  return out;
 }
 
 /**
@@ -1031,11 +1169,23 @@ function resolveTippedBall(args: TippedBallArgs): PlayOutcome {
     // §12.4 step 5.
     return { yards: 0, turnover: true, clockRunoff: tick + TUNABLES.result.clockRunoff.interception };
   }
-  // §12.4 step 4: "play continues" — which is YAC (§13), the next dispatch.
-  // PLACEHOLDER, same class as `result.sackYardsLost`: the completion is scored
-  // for the recovering player's own air yards and nothing after it is modelled.
+  // §12.4 step 4: "play continues" — and it now does. He is credited with the
+  // air yards of wherever he came up with it (his own route's depth, or zero for
+  // a lineman who fell on it) and is then a ball carrier from that spot like any
+  // other. This replaced scoring the play as a completion and stopping there.
+  const recoveredId = recovered.player.bio.id;
+  const airYards = args.airYardsOf(recoveredId);
+  const advance = advanceCarrier({
+    carrier: recovered.player,
+    mode: "YAC",
+    pursuers: buildCarrierPursuers(recoverySpots, recoveredId, airYards),
+    yardsToGoalLine: Math.max(0, 100 - args.ballOn - airYards),
+    carrierRng: args.carrierRng.fork(`tip:${String(recoveredId)}`),
+    emitCheck: (check) => log.check(check),
+    emitZone: (zone, yardsInZone) => log.yacZone(recoveredId, zone, yardsInZone),
+  });
   return {
-    yards: args.airYardsOf(recovered.player.bio.id),
+    yards: airYards + advance.yards,
     turnover: false,
     clockRunoff: tick + TUNABLES.result.clockRunoff.completion,
   };

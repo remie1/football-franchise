@@ -135,8 +135,15 @@ describe("§8.8 the scramble drill", () => {
 });
 
 describe("§8.8 over real event streams", () => {
-  it("a scramble that never finds a receiver resolves as a run, flagged as a placeholder", () => {
+  /**
+   * The flat five yards this used to assert is gone. A quarterback who tucks it
+   * is a ball carrier and goes through §14.4's machinery — so the assertion is
+   * no longer a constant, it is that the carry was actually RESOLVED: a
+   * RUN_RESOLUTION naming him, agreeing with PLAY_RESULT, and rolls behind it.
+   */
+  it("a scramble that never finds a receiver is resolved as a carry, not a constant", () => {
     let runs = 0;
+    const yardages = new Set<number>();
     for (let i = 0; i < 1500; i++) {
       const { state, calls } = buildScenario();
       const { events } = simulatePassPlay(state, calls, `scram-${i}`);
@@ -146,11 +153,18 @@ describe("§8.8 over real event streams", () => {
       if (decisions.length < 2) continue;
       runs += 1;
       const result = events.find((e) => e.event.type === "PLAY_RESULT");
+      const run = events.find((e) => e.event.type === "RUN_RESOLUTION");
       if (result?.event.type !== "PLAY_RESULT") throw new Error("no result");
-      expect(result.event.payload.yards).toBe(TUNABLES.result.scrambleRunYards);
+      if (run?.event.type !== "RUN_RESOLUTION") throw new Error("no run resolution");
+      expect(run.event.payload.carrier).toBe(state.quarterback);
+      expect(run.event.payload.gap).toBe(TUNABLES.result.scrambleGapLabel);
+      expect(run.event.payload.yards).toBe(result.event.payload.yards);
       expect(result.event.payload.turnover).toBe(false);
+      yardages.add(result.event.payload.yards);
     }
     expect(runs).toBeGreaterThan(0);
+    // A constant produces one value; a resolution produces a distribution.
+    expect(yardages.size).toBeGreaterThan(1);
   });
 
   it("receivers in the drill are still reported, and the cone reaches the read", () => {

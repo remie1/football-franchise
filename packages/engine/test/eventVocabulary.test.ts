@@ -14,7 +14,13 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import { simulatePassPlay } from "../src/index.js";
-import { buildScenario, buildScramblerScenario } from "./fixtures.js";
+import {
+  buildMixedCoverageScenario,
+  buildScenario,
+  buildScramblerScenario,
+  buildStalledPocketScenario,
+  buildZoneScenario,
+} from "./fixtures.js";
 
 type Threat = Extract<MatchEventEnvelope["event"], { type: "RUSH_THREAT" }>;
 
@@ -202,5 +208,96 @@ describe("ADR-007 #4 — RUSH_THREAT", () => {
         if ((event.tick ?? 0) >= escapedAt) expect(event.payload.state).toBe("RESET");
       }
     }
+  });
+});
+
+/**
+ * ADR-009 — the three interim mappings the engine shipped while the amendment
+ * was pending, retired. Each test asserts the thing the interim could NOT say.
+ */
+describe("ADR-009 #1 — TIPPED_BALL references its rolls", () => {
+  it("the payload carries strings, not RollDetail-shaped stubs", () => {
+    // Covered mechanically by rollAccounting.test.ts; this pins the SHAPE, so a
+    // regression to a stub is a type error and a test failure rather than a
+    // silently double-counted roll.
+    for (const events of sweep(buildScenario, 60, "tip-shape")) {
+      for (const { event } of events) {
+        if (event.type !== "TIPPED_BALL") continue;
+        expect(typeof event.payload.rollRef).toBe("string");
+        for (const attempt of event.payload.attempts) {
+          expect(typeof attempt.rollRef).toBe("string");
+          expect(attempt.rollRef.startsWith("ref:")).toBe(false);
+        }
+      }
+    }
+  });
+});
+
+describe("ADR-009 #2 — CheckKind gains zone_read_qb", () => {
+  it("§9.4's two rolls no longer share one label", () => {
+    let routeReps = 0;
+    let readReps = 0;
+    for (const events of sweep(buildMixedCoverageScenario, 300, "zread")) {
+      for (const { event } of events) {
+        if (event.type !== "CHECK") continue;
+        if (event.payload.checkKind === "zone_coverage") routeReps += 1;
+        if (event.payload.checkKind === "zone_read_qb") readReps += 1;
+      }
+    }
+    expect(routeReps).toBeGreaterThan(0);
+    expect(readReps).toBeGreaterThan(0);
+  });
+
+  it("zone_coverage is now EXACTLY the route rep: actors are [receiver, defender]", () => {
+    for (const events of sweep(buildZoneScenario, 100, "zshape")) {
+      const qb = new Set<string>();
+      for (const { event } of events) {
+        if (event.type === "CHECK" && event.payload.checkKind === "zone_read_qb") {
+          qb.add(String(event.payload.actors[1]));
+        }
+      }
+      for (const { event } of events) {
+        if (event.type !== "CHECK" || event.payload.checkKind !== "zone_coverage") continue;
+        // The quarterback is never the second actor of a route rep. Before the
+        // amendment that was the ONLY way to tell the two apart.
+        expect(qb.has(String(event.payload.actors[1]))).toBe(false);
+      }
+    }
+  });
+});
+
+describe("ADR-009 #3 — ROUTE_STATUS.phase gains SETTLED", () => {
+  it("a receiver who sat down in a zone hole says so, and is never DECAYING", () => {
+    let settled = 0;
+    for (const events of sweep(buildZoneScenario, 200, "settled")) {
+      const byReceiver = new Map<string, string[]>();
+      for (const { event } of events) {
+        if (event.type !== "ROUTE_STATUS") continue;
+        const key = String(event.payload.receiver);
+        byReceiver.set(key, [...(byReceiver.get(key) ?? []), event.payload.phase]);
+      }
+      for (const phases of byReceiver.values()) {
+        if (!phases.includes("SETTLED")) continue;
+        settled += 1;
+        // The interim reported him OPEN and then DECAYING. Nothing decays: his
+        // openness is held flat by `zoneCoverage.settledDecayPerTick`.
+        expect(phases).not.toContain("DECAYING");
+      }
+    }
+    expect(settled).toBeGreaterThan(0);
+  });
+
+  it("a man-covered receiver still DECAYS — the narrowing did not change man", () => {
+    let decaying = 0;
+    // The stalled fixture is the one that reaches §8.7's decay point at all: on
+    // the base matchup the pocket ends the play before 3.0s.
+    for (const events of sweep(buildStalledPocketScenario, 300, "decay")) {
+      for (const { event } of events) {
+        if (event.type !== "ROUTE_STATUS") continue;
+        if (event.payload.phase === "DECAYING") decaying += 1;
+        expect(event.payload.phase).not.toBe("SETTLED");
+      }
+    }
+    expect(decaying).toBeGreaterThan(0);
   });
 });

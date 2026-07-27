@@ -16,7 +16,12 @@ import type {
   RollDetail,
 } from "@ff/contracts";
 import { TUNABLES } from "./tunables.js";
-import type { PassPlayStartPayload, PocketStatus, ThrowType } from "./types.js";
+import type {
+  PassPlayStartPayload,
+  PocketStatus,
+  RunPlayStartPayload,
+  ThrowType,
+} from "./types.js";
 
 export interface CheckEmission {
   readonly checkKind: CheckKind;
@@ -27,28 +32,6 @@ export interface CheckEmission {
   readonly tier: ResultTier;
   readonly margin: number;
   readonly testsAttrs: readonly AttrId[];
-}
-
-/** ADR-009 interim: the prefix that marks a reference stub, never a roll. */
-export const ROLL_REF_PREFIX = "ref:";
-
-/**
- * ADR-009 interim. A `RollDetail`-shaped REFERENCE to a roll that is recorded
- * exactly once elsewhere. Self-identifying: `raw` 0, `total` 0, no modifiers,
- * and an `rngLabel` that cannot collide with a real one.
- */
-export function rollRefStub(rngLabel: string): RollDetail {
-  return { die: "d100", raw: 0, modifiers: [], total: 0, rngLabel: `${ROLL_REF_PREFIX}${rngLabel}` };
-}
-
-/** True for a value produced by `rollRefStub` — used by consumers and by tests. */
-export function isRollRefStub(roll: RollDetail): boolean {
-  return roll.rngLabel.startsWith(ROLL_REF_PREFIX) && roll.raw === 0 && roll.modifiers.length === 0;
-}
-
-/** The label of the roll a stub points at. */
-export function referencedRollLabel(roll: RollDetail): string {
-  return roll.rngLabel.slice(ROLL_REF_PREFIX.length);
 }
 
 export class PlayEventLog {
@@ -88,7 +71,7 @@ export class PlayEventLog {
       : { gameId: this.gameId, playId: this.playId, tick: this.tick };
   }
 
-  playStart(payload: PassPlayStartPayload): void {
+  playStart(payload: PassPlayStartPayload | RunPlayStartPayload): void {
     this.push({ type: "PLAY_START", payload, ...this.base() });
   }
 
@@ -143,7 +126,7 @@ export class PlayEventLog {
   routeStatus(
     receiver: PlayerId,
     route: string,
-    phase: "JAMMED" | "DEVELOPING" | "OPEN" | "DECAYING" | "SCRAMBLE_DRILL",
+    phase: "JAMMED" | "DEVELOPING" | "OPEN" | "SETTLED" | "DECAYING" | "SCRAMBLE_DRILL",
     openness: number,
   ): void {
     this.push({ type: "ROUTE_STATUS", payload: { receiver, route, phase, openness }, ...this.base() });
@@ -231,28 +214,14 @@ export class PlayEventLog {
   }
 
   /**
-   * §12 summary — INTERIM VOCABULARY (ADR-009).
-   *
-   * `TIPPED_BALL`'s payload predates ADR-004. It types `qualityRoll` and
-   * `attempts[].roll` as `RollDetail`, which would repeat rolls that already
-   * live — exactly once, as the rule requires — in the `deflection_quality` and
-   * `deflection_recovery` CHECKs. Repeating them would double every tip in any
-   * consumer that counts rolls, which is precisely the invisible corruption
-   * ADR-004 exists to prevent, and skipping the CHECKs would hide the rolls from
-   * calibration entirely. Neither is acceptable.
-   *
-   * So those two slots carry a REFERENCE STUB: a RollDetail-shaped value whose
-   * only meaningful field is `rngLabel`, prefixed `ref:` so it can never be
-   * mistaken for — or counted as — a roll. `raw`, `total` and `modifiers` are
-   * zero/empty by construction, which is what makes the stub self-identifying.
-   *
-   * ADR-009 proposes `qualityRoll` → `rollRef: string` and `attempts[].roll` →
-   * `attempts[].rollRef: string`, at which point `rollRefStub` is deleted and
-   * these become plain strings, the way `CATCH_RESOLUTION.rollRef` already is.
+   * §12 summary. ADR-009 item 1 brought this payload in line with ADR-004: the
+   * deflection-quality roll and every recovery attempt live exactly once, in
+   * their own `deflection_quality` / `deflection_recovery` CHECKs, and are named
+   * here by `rngLabel` — the same treatment `CATCH_RESOLUTION` already had.
    */
   tippedBall(
     deflector: PlayerId,
-    qualityRollRef: string,
+    rollRef: string,
     finalTargetNumber: number,
     eligible: readonly PlayerId[],
     attempts: readonly { readonly player: PlayerId; readonly rollRef: string }[],
@@ -260,13 +229,43 @@ export class PlayEventLog {
   ): void {
     const payload = {
       deflector,
-      qualityRoll: rollRefStub(qualityRollRef),
+      rollRef,
       finalTargetNumber,
       eligible: [...eligible],
-      attempts: attempts.map((a) => ({ player: a.player, roll: rollRefStub(a.rollRef) })),
+      attempts: attempts.map((a) => ({ player: a.player, rollRef: a.rollRef })),
       ...(recoveredBy === undefined ? {} : { recoveredBy }),
     };
     this.push({ type: "TIPPED_BALL", payload, ...this.base() });
+  }
+
+  /**
+   * §13.1 — one per zone the ball carrier enters AFTER A CATCH, with the yards
+   * he made inside it.
+   *
+   * DELIBERATELY NOT EMITTED FOR A RUN (ADR-010 item 1). A handoff has no catch,
+   * and putting a carry's zone-by-zone advance into an event called YAC_ZONE
+   * would corrupt every YAC aggregate downstream — the same class of invisible
+   * error ADR-004 exists to prevent. A run's per-zone yardage is therefore
+   * absent from the stream until `RUSH_ZONE` is ratified; what a consumer gets
+   * meanwhile is the `pursuit_angle` / `break_tackle` CHECK sequence and
+   * `RUN_RESOLUTION`'s total.
+   */
+  yacZone(carrier: PlayerId, zone: number, yardsInZone: number): void {
+    this.push({ type: "YAC_ZONE", payload: { carrier, zone, yardsInZone }, ...this.base() });
+  }
+
+  /**
+   * §14 summary. `gap` is the gap the ball ACTUALLY went through, which on a
+   * zone play is §14.2's vision check speaking; the gap it was DRAWN to is in
+   * `PLAY_START`, so "did he find the cutback?" is a join rather than an
+   * inference.
+   *
+   * INTERIM (ADR-010 item 2): a scrambling quarterback is a ball carrier and
+   * runs through the same machinery, but he is not running a gap. `gap` is
+   * required, so he gets `TUNABLES.result.scrambleGapLabel`.
+   */
+  runResolution(carrier: PlayerId, gap: string, yards: number): void {
+    this.push({ type: "RUN_RESOLUTION", payload: { carrier, gap, yards }, ...this.base() });
   }
 
   playResult(yards: number, turnover: boolean, clockRunoff: number, score?: number): void {

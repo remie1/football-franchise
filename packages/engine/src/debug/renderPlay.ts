@@ -7,7 +7,6 @@
  * render because no events describe them.
  */
 import type { MatchEvent, MatchEventEnvelope, PlayerId, RollDetail } from "@ff/contracts";
-import { isRollRefStub, referencedRollLabel } from "../events.js";
 import { bandFor } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
 
@@ -20,14 +19,16 @@ export function renderPlay(events: readonly MatchEventEnvelope[], names: NameLoo
   const name = (id: PlayerId): string => names(id);
 
   lines.push(RULE, "PLAY DEBUG OUTPUT", RULE, "");
-  lines.push(...renderPlayCall(events));
+  lines.push(...renderPlayCall(events, name));
   lines.push(...renderLineBattle(events, name));
+  lines.push(...renderRunBlocking(events, name));
   lines.push(...renderRoutes(events, name));
   lines.push(...renderPocketMovement(events, name));
   lines.push(...renderQbDecisionMaking(events, name));
   lines.push(...renderThrow(events, name));
   lines.push(...renderCatch(events, name));
   lines.push(...renderTippedBall(events, name));
+  lines.push(...renderBallCarrier(events, name));
   lines.push(...renderResult(events));
   lines.push(RULE);
   return lines.join("\n");
@@ -35,20 +36,182 @@ export function renderPlay(events: readonly MatchEventEnvelope[], names: NameLoo
 
 // --- sections ---------------------------------------------------------------
 
-function renderPlayCall(events: readonly MatchEventEnvelope[]): string[] {
+function renderPlayCall(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const start = firstOfType(events, "PLAY_START");
   const view = start === undefined ? undefined : readPlayStart(start.payload);
   if (view === undefined) return [];
+  const run = view.kind === "RUN_PLAY_V1";
   return [
     "PLAY CALL:",
-    `  Offense: ${view.offenseFormation}, "${view.offenseCall}" (Pass)`,
-    `  Reads:   ${view.readSystem} — ${view.readOrder.length} in the progression`,
+    `  Offense: ${view.offenseFormation}, "${view.offenseCall}" (${run ? "Run" : "Pass"})`,
+    run
+      ? `  Design:  ${view.scheme} scheme, ${view.designedGap} gap` +
+        (view.carrier === undefined ? "" : `, ball to ${name(view.carrier as unknown as PlayerId)}`)
+      : `  Reads:   ${view.readSystem} — ${view.readOrder.length} in the progression`,
     `  Defense: ${view.defenseFront}, "${view.defenseCall}" (${view.coverage})`,
     "",
     "SITUATION:",
     `  Down ${view.down} & ${view.distance}, ball on ${view.ballOn}`,
     "",
   ];
+}
+
+/**
+ * §6.3 / §6.2 / §6.4 / §14.2 — the run's line of scrimmage.
+ *
+ * The engagement band and the point-of-attack band are BOTH printed for the gap
+ * the ball actually went through, because they come from two different tables
+ * keyed on the same margin and the doc disagrees with itself about where their
+ * boundaries are (see `TUNABLES.runBlock.bands`). A reader tuning the run game
+ * has to be able to see the disagreement rather than infer it.
+ */
+function renderRunBlocking(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
+  const start = firstOfType(events, "PLAY_START");
+  const view = start === undefined ? undefined : readPlayStart(start.payload);
+  const blocks: string[] = [];
+  const integrity: string[] = [];
+  const climbs: string[] = [];
+  const vision: string[] = [];
+
+  for (const { event } of events) {
+    if (event.type !== "CHECK") continue;
+    const p = event.payload;
+    const off = p.actors[0];
+    const def = p.actors[1];
+    if (p.checkKind === "run_block") {
+      const band = bandFor(TUNABLES.runBlock.bands, p.margin);
+      const poa = bandFor(TUNABLES.runGame.pointOfAttack.bands, p.margin);
+      blocks.push(
+        `  ├─ ${off === undefined ? "?" : name(off)} vs. ${def === undefined ? "?" : name(def)}:`,
+      );
+      blocks.push(`  │    OL:  ${formatRoll(p.roll)}`);
+      if (p.opposedRoll !== undefined) blocks.push(`  │    DL:  ${formatRoll(p.opposedRoll)}`);
+      blocks.push(
+        `  │    §6.3: ${band.label} (${signed(p.margin)})   §14.3: ${poa.label}` +
+          ` → ${yardRange(poa.minYards, poa.maxYards)} before contact, then ${poa.contact}`,
+      );
+      blocks.push("  │");
+    }
+    if (p.checkKind === "gap_battle") {
+      const band = bandFor(TUNABLES.runBlock.gapIntegrity.bands, p.margin);
+      integrity.push(
+        `  │    ${off === undefined ? "?" : name(off)} gap discipline ${p.roll.total}` +
+          ` vs. zone execution ${p.opposedRoll?.total ?? "-"} → ${band.label} (${signed(p.margin)})` +
+          (band.overflowed ? " — cutback lane behind him" : ""),
+      );
+    }
+    if (p.checkKind === "second_level_climb") {
+      climbs.push(
+        `  │    ${off === undefined ? "?" : name(off)} climbs to ${def === undefined ? "?" : name(def)}:` +
+          ` ${formatRoll(p.roll)} vs. target ${p.target ?? "-"}` +
+          ` → ${p.margin >= 0 ? "LB ENGAGED, clean lane" : "LB free to make the play"} (${signed(p.margin)})`,
+      );
+    }
+    if (p.checkKind === "rb_vision") {
+      vision.push(`  ├─ RB vision (§14.2): ${formatRoll(p.roll)} vs. target ${p.target ?? "-"}`);
+      vision.push(
+        `  │    Result: ${p.margin >= 0 ? "finds the best lane" : "runs the designed hole"} (${signed(p.margin)})`,
+      );
+    }
+  }
+
+  if (blocks.length === 0) return [];
+
+  const out: string[] = ["LINE BATTLE — RUN (§6.3, ticks 0.0-1.0):", ...blocks];
+  if (integrity.length > 0) out.push("  ├─ GAP INTEGRITY (§6.2, zone scheme):", ...integrity, "  │");
+  if (climbs.length > 0) out.push("  ├─ SECOND-LEVEL CLIMB (§6.4):", ...climbs, "  │");
+  out.push("");
+
+  const decision: string[] = [...vision];
+  const resolution = firstOfType(events, "RUN_RESOLUTION");
+  if (resolution !== undefined) {
+    const designed = view?.designedGap;
+    const actual = resolution.payload.gap;
+    decision.push(
+      `  └─ Ball goes through ${actual}` +
+        (designed === undefined || designed === actual
+          ? " (as designed)"
+          : ` — CUTBACK, designed ${designed}`),
+    );
+  }
+  if (decision.length > 0) out.push("RB DECISION (§14.2 phase 3):", ...decision, "");
+  return out;
+}
+
+/**
+ * §13 and §14.4 — everything after somebody has the ball, from the one set of
+ * checks both produce. `pursuit_angle` failing is not a missed tackle: it is a
+ * defender who never got there, and the printout says so.
+ */
+function renderBallCarrier(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
+  const out: string[] = [];
+  for (const { event } of events) {
+    if (event.type === "YAC_ZONE") {
+      out.push(`  ├─ Zone ${event.payload.zone}: ${event.payload.yardsInZone} yards`);
+      continue;
+    }
+    if (event.type !== "CHECK") continue;
+    const p = event.payload;
+    const a0 = p.actors[0];
+    const a1 = p.actors[1];
+    if (p.checkKind === "downfield_block") {
+      const band = bandFor(TUNABLES.ballCarrier.blockInSpace.bands, p.margin);
+      out.push(
+        `  ├─ Block in space: ${a0 === undefined ? "?" : name(a0)} on ${a1 === undefined ? "?" : name(a1)}` +
+          ` → ${band.label} (${signed(p.margin)})${band.occupied ? "" : " — defender is free"}`,
+      );
+    }
+    if (p.checkKind === "pursuit_angle") {
+      out.push(
+        `  ├─ Pursuit angle (§14.4): ${a0 === undefined ? "?" : name(a0)}` +
+          ` ${formatRoll(p.roll)} vs. target ${p.target ?? "-"} (50 + speed difference)`,
+      );
+      out.push(
+        `  │    ${p.margin >= 0 ? "gets there" : "TAKEN OUT OF THE PLAY — no tackle attempt"} (${signed(p.margin)})`,
+      );
+    }
+    if (p.checkKind === "yac_tackle" || p.checkKind === "break_tackle" || p.checkKind === "tackle") {
+      const profile = contestProfileFor(p.checkKind);
+      const band = bandFor(profile, p.margin);
+      out.push(
+        `  ├─ ${p.checkKind} (${a0 === undefined ? "?" : name(a0)} vs. ${a1 === undefined ? "?" : name(a1)}):`,
+      );
+      out.push(`  │    Carrier: ${formatRoll(p.roll)}`);
+      if (p.opposedRoll !== undefined) out.push(`  │    Tackler: ${formatRoll(p.opposedRoll)}`);
+      out.push(
+        `  │    Result: ${band.label} (${signed(p.margin)}) → ${yardRange(band.minYards, band.maxYards)}` +
+          (band.tackled ? ", DOWN" : band.broken ? ", tackle BROKEN, still going" : ""),
+      );
+    }
+    if (p.checkKind === "breakaway") {
+      const band = bandFor(TUNABLES.ballCarrier.breakaway.bands, p.margin);
+      out.push(
+        `  ├─ Breakaway (§13.4) vs. ${a1 === undefined ? "?" : name(a1)}: ${band.label} (${signed(p.margin)})` +
+          (band.freeRun ? " — nobody has an angle" : ""),
+      );
+    }
+  }
+  if (out.length === 0) return [];
+  return ["BALL CARRIER (§13 / §14.4):", ...out, ""];
+}
+
+/** Which §13/§14 contest table a CheckKind came from. */
+function contestProfileFor(
+  kind: "yac_tackle" | "break_tackle" | "tackle",
+): readonly {
+  readonly label: string;
+  readonly minMargin: number;
+  readonly minYards: number;
+  readonly maxYards: number;
+  readonly tackled: boolean;
+  readonly broken: boolean;
+}[] {
+  const c = TUNABLES.ballCarrier.contests;
+  if (kind === "yac_tackle") return c.yac.bands;
+  if (kind === "break_tackle") return c.secondLevel.bands;
+  // §14.3's two at-the-line contests share `tackle`; they have the same band
+  // shape and split at zero, so either table renders both correctly.
+  return c.atLosPower.bands;
 }
 
 function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
@@ -162,12 +325,6 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
     timeline.set(key, rows);
   }
 
-  // INTERIM VOCABULARY (ADR-009): §9.4's route-vs-zone rep and its
-  // read-the-quarterback rep share the `zone_coverage` CheckKind, so they are
-  // told apart HERE by actor shape — [receiver, defender] against
-  // [defender, quarterback]. That the printout has to do this is the argument
-  // for `zone_read_qb`.
-  const quarterback = quarterbackOf(events);
   const releases = new Map<string, MatchEventEnvelope>();
   const coverages = new Map<string, MatchEventEnvelope>();
   const zoneCoverages = new Map<string, MatchEventEnvelope>();
@@ -178,9 +335,9 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
     if (receiver === undefined) continue;
     if (event.payload.checkKind === "release_vs_press") releases.set(String(receiver), envelope);
     if (event.payload.checkKind === "man_coverage") coverages.set(String(receiver), envelope);
-    if (event.payload.checkKind === "zone_coverage" && !isZoneReadCheck(event, quarterback)) {
-      zoneCoverages.set(String(receiver), envelope);
-    }
+    // ADR-009: `zone_coverage` is now exactly the route-vs-zone rep, so this is
+    // a label test rather than an inference from who is in `actors`.
+    if (event.payload.checkKind === "zone_coverage") zoneCoverages.set(String(receiver), envelope);
   }
 
   if (timeline.size === 0) return [];
@@ -254,7 +411,9 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
     // them: a route that never declared has no rep because it never got there;
     // a route that DID declare and still has no rep found a hole in the zone.
     if (coverages.get(key) === undefined && zoned === undefined) {
-      const declared = rows.some((row) => row.includes("OPEN(") || row.includes("DECAYING("));
+      const declared = rows.some(
+        (row) => row.includes("OPEN(") || row.includes("SETTLED(") || row.includes("DECAYING("),
+      );
       out.push(
         declared
           ? "  │    Zone coverage: nobody responsible for his cell — uncovered (§9.4)"
@@ -335,11 +494,10 @@ function renderThrow(events: readonly MatchEventEnvelope[], name: NameLookup): s
   const zoneRead: string[] = [];
   const lane: string[] = [];
   const accuracy: string[] = [];
-  const quarterback = quarterbackOf(events);
   for (const { event } of events) {
     if (event.type !== "CHECK") continue;
     const p = event.payload;
-    if (p.checkKind === "zone_coverage" && isZoneReadCheck(event, quarterback)) {
+    if (p.checkKind === "zone_read_qb") {
       const defender = p.actors[0];
       zoneRead.push(
         `  ├─ Zone defender reading the QB (§9.4)${defender === undefined ? "" : `: ${name(defender)}`}`,
@@ -373,16 +531,8 @@ function renderThrow(events: readonly MatchEventEnvelope[], name: NameLookup): s
 }
 
 /**
- * §12 — the tipped ball, joined from its CHECKs.
- *
- * INTERIM VOCABULARY (ADR-009): `TIPPED_BALL.qualityRoll` and
- * `attempts[].roll` are typed `RollDetail` in contracts, which predates ADR-004.
- * The engine fills them with self-identifying REFERENCE STUBS (`raw` 0, no
- * modifiers, `rngLabel` prefixed `ref:`) rather than repeating rolls that
- * already live in the `deflection_quality` / `deflection_recovery` CHECKs, so
- * this renderer performs the same join `renderCatch` performs for the catch.
- * When ADR-009 lands these become plain `rollRef` strings and the `ref:`
- * stripping below is the only line that changes.
+ * §12 — the tipped ball, joined from its CHECKs by `rollRef` (ADR-004/009),
+ * exactly as `renderCatch` joins the catch.
  */
 function renderTippedBall(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const tip = firstOfType(events, "TIPPED_BALL");
@@ -397,12 +547,12 @@ function renderTippedBall(events: readonly MatchEventEnvelope[], name: NameLooku
     }
     checksByLabel.set(event.payload.roll.rngLabel, event);
   }
-  const join = (roll: RollDetail): Extract<MatchEvent, { type: "CHECK" }> | undefined =>
-    checksByLabel.get(isRollRefStub(roll) ? referencedRollLabel(roll) : roll.rngLabel);
+  const join = (rollRef: string): Extract<MatchEvent, { type: "CHECK" }> | undefined =>
+    checksByLabel.get(rollRef);
 
   const out: string[] = ["TIPPED BALL (§12):", `  ├─ Deflected by ${name(p.deflector)}`];
 
-  const quality = join(p.qualityRoll);
+  const quality = join(p.rollRef);
   if (quality !== undefined) {
     const q = quality.payload;
     const band = bandFor(TUNABLES.tippedBall.qualityBands, q.margin);
@@ -421,7 +571,7 @@ function renderTippedBall(events: readonly MatchEventEnvelope[], name: NameLooku
 
   if (p.attempts.length > 0) out.push("  ├─ Roll 2 — recovery attempts:");
   for (const attempt of p.attempts) {
-    const check = join(attempt.roll);
+    const check = join(attempt.rollRef);
     if (check === undefined) {
       out.push(`  │    ${name(attempt.player)}: roll not in this stream`);
       continue;
@@ -511,6 +661,10 @@ function actorLabel(roll: RollDetail | undefined, fallback: string): string {
   return first === undefined || first === "" ? fallback : first;
 }
 
+function yardRange(min: number, max: number): string {
+  return min === max ? `${min} yds` : `${min}-${max} yds`;
+}
+
 function signed(value: number): string {
   return value >= 0 ? `+${value}` : `${value}`;
 }
@@ -526,26 +680,6 @@ function tickLabel(tick: number | undefined): string {
   return tick === undefined ? "-" : tick.toFixed(1);
 }
 
-/**
- * INTERIM VOCABULARY (ADR-009). §9.4's two rolls share the `zone_coverage`
- * CheckKind, so the only thing that separates them in the stream is who is in
- * `actors`: the route rep is [receiver, defender], the read-the-QB rep is
- * [defender, quarterback]. This function is the cost of that collision, and it
- * disappears the day `zone_read_qb` is ratified.
- */
-function isZoneReadCheck(
-  event: Extract<MatchEvent, { type: "CHECK" }>,
-  quarterback: string | undefined,
-): boolean {
-  if (quarterback === undefined) return false;
-  return String(event.payload.actors[1] ?? "") === quarterback;
-}
-
-function quarterbackOf(events: readonly MatchEventEnvelope[]): string | undefined {
-  const start = firstOfType(events, "PLAY_START");
-  return start === undefined ? undefined : readPlayStart(start.payload)?.quarterback;
-}
-
 function firstOfType<T extends MatchEvent["type"]>(
   events: readonly MatchEventEnvelope[],
   type: T,
@@ -559,11 +693,16 @@ function firstOfType<T extends MatchEvent["type"]>(
 // --- PLAY_START is `unknown` in contracts; read it defensively --------------
 
 interface PlayStartView {
+  readonly kind: string;
   readonly offenseCall: string;
   readonly offenseFormation: string;
   readonly readSystem: string;
   readonly quarterback: string | undefined;
   readonly readOrder: readonly string[];
+  /** RUN_PLAY_V1 only. */
+  readonly scheme: string;
+  readonly carrier: string | undefined;
+  readonly designedGap: string | undefined;
   readonly defenseCall: string;
   readonly defenseFront: string;
   readonly coverage: string;
@@ -595,11 +734,15 @@ function readPlayStart(payload: unknown): PlayStartView | undefined {
   const defense = asRecord(root["defense"]) ?? {};
   const situation = asRecord(root["situation"]) ?? {};
   return {
+    kind: asString(root["kind"], "?"),
     offenseCall: asString(offense["call"], "?"),
     offenseFormation: asString(offense["formation"], "?"),
     readSystem: asString(offense["readSystem"], "?"),
     quarterback: typeof offense["quarterback"] === "string" ? offense["quarterback"] : undefined,
     readOrder: asStringArray(offense["readOrder"]),
+    scheme: asString(offense["scheme"], "?"),
+    carrier: typeof offense["carrier"] === "string" ? offense["carrier"] : undefined,
+    designedGap: typeof offense["designedGap"] === "string" ? offense["designedGap"] : undefined,
     defenseCall: asString(defense["call"], "?"),
     defenseFront: asString(defense["front"], "?"),
     coverage: asString(defense["coverage"], "?"),

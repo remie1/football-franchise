@@ -91,11 +91,10 @@ export function resolveZoneCoverage(args: ZoneCoverageArgs): ZoneCoverageOutcome
     settled: band.settled,
     roll,
     check: {
+      // ADR-009 narrowed `zone_coverage` to exactly this rep: the route working
+      // against a spot somebody is standing in. The read-the-QB rep below is
+      // `zone_read_qb`, so nothing has to infer which is which from actor shape.
       checkKind: "zone_coverage",
-      // The route rep's actors are [receiver, defender]; the read-the-QB rep
-      // below is [defender, quarterback]. Both currently share the
-      // `zone_coverage` label (INTERIM VOCABULARY, ADR-009) and this actor shape
-      // is what tells them apart until `zone_read_qb` is ratified.
       actors: [receiver.bio.id, defender.bio.id],
       roll,
       target,
@@ -163,12 +162,9 @@ export function resolveZoneRead(args: ZoneReadArgs): ZoneReadOutcome {
     target,
     roll,
     check: {
-      // INTERIM VOCABULARY (ADR-009): `CheckKind` has no member for §9.4's
-      // read-the-QB roll. `zone_coverage` is the closest true label and is
-      // already taken by the route rep above, so the two are told apart only by
-      // actor shape — [defender, quarterback] here. That collision is the
-      // argument for `zone_read_qb`, petitioned in ADR-009.
-      checkKind: "zone_coverage",
+      // ADR-009 item 2 — §9.4's second roll has its own member. Before it, a
+      // consumer counting `zone_coverage` was adding route reps to read reps.
+      checkKind: "zone_read_qb",
       actors: [defender.bio.id, quarterback.bio.id],
       roll,
       target,

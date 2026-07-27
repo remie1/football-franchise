@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
-import { isRollRefStub, referencedRollLabel, simulatePassPlay } from "../src/index.js";
+import { simulatePassPlay } from "../src/index.js";
 import {
   buildDeflectionScenario,
   buildLopsidedRushScenario,
@@ -19,14 +19,12 @@ import {
 /**
  * Every RollDetail anywhere in the stream, with the event that carried it.
  *
- * INTERIM VOCABULARY (ADR-009): `TIPPED_BALL.qualityRoll` and `attempts[].roll`
- * are typed `RollDetail` in contracts, which predates ADR-004. The engine fills
- * them with self-identifying REFERENCE STUBS rather than repeating rolls that
- * already live in the `deflection_quality` / `deflection_recovery` CHECKs, and a
- * stub is not a roll — so this walker skips them, exactly as it would skip a
- * `rollRef` string once ADR-009 lands. A dedicated test below asserts every stub
- * really is a stub and really does point at a CHECK, so the skip cannot hide a
- * duplicated roll.
+ * The walker has NO exemptions. ADR-009 removed the last one: `TIPPED_BALL`
+ * carried two `RollDetail`-typed slots that predated ADR-004, and while the
+ * amendment was pending the engine filled them with self-identifying reference
+ * stubs that this walker had to skip. Both slots are `rollRef: string` now, so
+ * anything RollDetail-shaped anywhere in a payload is a real roll and is
+ * counted — which is the property the rule actually wants.
  */
 function allRolls(
   events: readonly MatchEventEnvelope[],
@@ -35,16 +33,13 @@ function allRolls(
   const isRoll = (v: unknown): v is RollDetail => {
     if (typeof v !== "object" || v === null) return false;
     const r = v as Record<string, unknown>;
-    if (
-      typeof r["die"] !== "string" ||
-      typeof r["raw"] !== "number" ||
-      typeof r["total"] !== "number" ||
-      typeof r["rngLabel"] !== "string" ||
-      !Array.isArray(r["modifiers"])
-    ) {
-      return false;
-    }
-    return !isRollRefStub(v as unknown as RollDetail);
+    return (
+      typeof r["die"] === "string" &&
+      typeof r["raw"] === "number" &&
+      typeof r["total"] === "number" &&
+      typeof r["rngLabel"] === "string" &&
+      Array.isArray(r["modifiers"])
+    );
   };
   const walk = (value: unknown, type: MatchEvent["type"], seq: number): void => {
     if (isRoll(value)) {
@@ -170,17 +165,17 @@ describe("ADR-004 roll accounting", () => {
       for (const { seq, event } of events) {
         if (event.type !== "TIPPED_BALL") continue;
         tips += 1;
-        const stubs = [event.payload.qualityRoll, ...event.payload.attempts.map((a) => a.roll)];
-        for (const stub of stubs) {
-          // Self-identifying: a stub can never be mistaken for, or counted as, a roll.
-          expect(isRollRefStub(stub)).toBe(true);
-          expect(stub.raw).toBe(0);
-          expect(stub.modifiers).toEqual([]);
-          // ...and it points backwards at a CHECK that is really in the stream.
-          const at = labels.get(referencedRollLabel(stub));
+        const refs = [event.payload.rollRef, ...event.payload.attempts.map((a) => a.rollRef)];
+        for (const ref of refs) {
+          // A reference, not a roll — and one that points BACKWARDS at a CHECK
+          // that is really in this stream.
+          expect(ref.length).toBeGreaterThan(0);
+          const at = labels.get(ref);
           expect(at).toBeDefined();
           expect(at ?? Infinity).toBeLessThan(seq);
         }
+        // ...and the summary itself carries no RollDetail at all (ADR-004).
+        expect(allRolls([{ seq, at: state.at, event }]).length).toBe(0);
         attempts += event.payload.attempts.length;
       }
     }

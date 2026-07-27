@@ -67,6 +67,8 @@ export interface ProtectionAssignment {
 }
 
 export interface OffensivePlayCall {
+  /** Discriminant of `OffensiveCall`. A dropback. */
+  readonly kind: "PASS";
   readonly name: string;
   readonly formation: string;
   readonly readSystem: ReadSystem;
@@ -75,6 +77,76 @@ export interface OffensivePlayCall {
   readonly readOrder: readonly PlayerId[];
   readonly protection: readonly ProtectionAssignment[];
 }
+
+// --- §6 / §14 — the run call ------------------------------------------------
+
+/** §6.2 — the two families of blocking scheme, and they behave differently. */
+export type RunScheme = "ZONE" | "GAP";
+
+/** §6.1 — A between centre and guard, B guard/tackle, C outside the tackle, D the edge. */
+export type RunGap = "A" | "B" | "C" | "D";
+
+/** §6.1's diagram is symmetric about the centre; a gap is not identified without a side. */
+export type RunSide = "LEFT" | "RIGHT";
+
+/** §13.3's three named ways to block a man in space. */
+export type BlockType = "STALK" | "CRACK" | "LEAD";
+
+export interface GapId {
+  readonly gap: RunGap;
+  readonly side: RunSide;
+}
+
+/**
+ * §6.3 — one gap of the play design: who is blocking, and whom.
+ *
+ * The pairing is STATED, not inferred, for the same reason `ProtectionAssignment`
+ * is: the engine is forbidden from reading a formation string (ADR-006), so it
+ * cannot work out which defender is in the B gap. `doubleTeamWith` and `pulling`
+ * are §6.3's two scheme modifiers, and both are properties of the CALL.
+ */
+export interface RunBlockAssignment {
+  readonly blocker: PlayerId;
+  readonly defender: PlayerId;
+  readonly gap: RunGap;
+  readonly side: RunSide;
+  /** §6.3 "Double team: +20 to OL". The second man does not block anyone else. */
+  readonly doubleTeamWith?: PlayerId;
+  /** §6.3 "Pulling blocker in space: −10 to OL, +10 to defender". */
+  readonly pulling?: boolean;
+}
+
+/** §13.3 / §14.5 — a blocker working in space rather than at the line. */
+export interface SpaceBlockAssignment {
+  readonly blocker: PlayerId;
+  readonly defender: PlayerId;
+  readonly blockType: BlockType;
+}
+
+/**
+ * §14 — a designed run.
+ *
+ * `designedGap`/`designedSide` are where the play is drawn to go. On a GAP
+ * scheme that is where the ball goes, full stop (§6.2: "RB Vision Dependency:
+ * LOW — designed hole, RB hits it decisively"). On a ZONE scheme it is only the
+ * starting point: §14.2's vision check decides whether he finds the best lane or
+ * runs the one that was called.
+ */
+export interface RunPlayCall {
+  /** Discriminant of `OffensiveCall`. A handoff. */
+  readonly kind: "RUN";
+  readonly name: string;
+  readonly formation: string;
+  readonly scheme: RunScheme;
+  readonly designedGap: RunGap;
+  readonly designedSide: RunSide;
+  readonly carrier: PlayerId;
+  readonly blocking: readonly RunBlockAssignment[];
+  /** §14.5 — stalk/crack/lead blocks on defenders who are not in a gap. */
+  readonly perimeter?: readonly SpaceBlockAssignment[];
+}
+
+export type OffensiveCall = OffensivePlayCall | RunPlayCall;
 
 /**
  * COVERAGE IS PER ASSIGNMENT, NOT PER CALL.
@@ -155,6 +227,22 @@ export interface PlayCalls {
   readonly defense: DefensivePlayCall;
 }
 
+export interface RunPlayCalls {
+  readonly offense: RunPlayCall;
+  readonly defense: DefensivePlayCall;
+}
+
+/**
+ * What `simulatePlay` takes. Discriminated on `offense.kind`, so a caller that
+ * hands the engine a run gets the run simulation and a caller that hands it a
+ * dropback gets the pass one, with no flag and no inference.
+ */
+export type AnyPlayCalls = PlayCalls | RunPlayCalls;
+
+export function isRunCall(calls: AnyPlayCalls): calls is RunPlayCalls {
+  return calls.offense.kind === "RUN";
+}
+
 /**
  * The engine's view of game state. Franchise owns the real one; this is the
  * subset a play needs. `at` rides along because EventEnvelope requires it.
@@ -216,6 +304,40 @@ export interface PassPlayStartPayload {
     readonly coverage: CoverageShell;
     readonly assignments: readonly CoverageAssignment[];
     /** Alignment resolved: §7.2's time-of-arrival model depends on it. */
+    readonly rush: readonly ResolvedRushAssignment[];
+  };
+  readonly situation: {
+    readonly down: number;
+    readonly distance: number;
+    readonly ballOn: number;
+    readonly clockSeconds: number;
+  };
+}
+
+/**
+ * PLAY_START payload for a designed run. Same open slot as `PassPlayStartPayload`
+ * and the same reason it is worth filling: `RUN_RESOLUTION` states the gap the
+ * ball ACTUALLY went through, and "did the back find the cutback?" is only
+ * answerable if the gap it was DRAWN to is also in the stream.
+ */
+export interface RunPlayStartPayload {
+  readonly kind: "RUN_PLAY_V1";
+  readonly offense: {
+    readonly team: TeamId;
+    readonly call: string;
+    readonly formation: string;
+    readonly scheme: RunScheme;
+    readonly carrier: PlayerId;
+    readonly designedGap: string;
+    readonly blocking: readonly RunBlockAssignment[];
+    readonly perimeter: readonly SpaceBlockAssignment[];
+  };
+  readonly defense: {
+    readonly team: TeamId;
+    readonly call: string;
+    readonly front: string;
+    readonly coverage: CoverageShell;
+    readonly assignments: readonly CoverageAssignment[];
     readonly rush: readonly ResolvedRushAssignment[];
   };
   readonly situation: {

@@ -5,6 +5,8 @@
  * Phase 1 vertical slice: one complete pass play, snap through result.
  */
 export { simulatePassPlay } from "./sim/passPlay.js";
+export { simulateRunPlay } from "./sim/runPlay.js";
+export { simulatePlay } from "./sim/play.js";
 export { renderPlay, formatRoll } from "./debug/renderPlay.js";
 export type { NameLookup } from "./debug/renderPlay.js";
 export { TUNABLES } from "./tunables.js";
@@ -113,14 +115,78 @@ export type {
   RecoveryAttemptOutcome,
   BallSide,
 } from "./resolve/tippedBall.js";
-export { assertCoherentPlayCall, IncoherentPlayCallError } from "./validate/playCall.js";
+export {
+  assertCoherentPlayCall,
+  assertCoherentRunCall,
+  assertCoherentCall,
+  IncoherentPlayCallError,
+} from "./validate/playCall.js";
+// §13 / §14 — the shared ball-carrier machinery, exported unit by unit so
+// calibration can exercise a tackle contest without simulating a play.
+export {
+  advanceCarrier,
+  resolveTackleContest,
+  resolveBlockInSpace,
+  resolvePursuitAngle,
+  resolveBreakaway,
+  yardsInBand,
+  depthOfVerticalZone,
+  zoneOfDefender,
+  zoneWidth,
+} from "./resolve/ballCarrier.js";
+export type {
+  AdvanceArgs,
+  AdvanceOutcome,
+  BlockInSpaceArgs,
+  BlockInSpaceOutcome,
+  BreakawayArgs,
+  BreakawayOutcome,
+  CarrierMode,
+  ContestProfileKey,
+  Pursuer,
+  PursuitAngleArgs,
+  PursuitAngleOutcome,
+  TackleContestArgs,
+  TackleContestOutcome,
+} from "./resolve/ballCarrier.js";
+export {
+  resolveRunBlock,
+  runBlockBandFor,
+  resolveGapIntegrity,
+  resolveSecondLevelClimb,
+  climbTriggered,
+} from "./resolve/runBlock.js";
+export type {
+  RunBlockArgs,
+  RunBlockOutcome,
+  RunBlockBandLabel,
+  GapIntegrityArgs,
+  GapIntegrityOutcome,
+  SecondLevelClimbArgs,
+  SecondLevelClimbOutcome,
+} from "./resolve/runBlock.js";
+export {
+  resolveRbVision,
+  selectGap,
+  pointOfAttackFor,
+  gapKey,
+  gapLane,
+} from "./resolve/runGame.js";
+export type {
+  RbVisionArgs,
+  RbVisionOutcome,
+  GapResult,
+  PointOfAttack,
+  PointOfAttackLabel,
+} from "./resolve/runGame.js";
+export { termModifiers, termAttrs, attrTermLabel } from "./terms.js";
+export type { AttrTerm } from "./terms.js";
 export {
   chemistryLevel,
   chemistryEstablished,
   chemistrySupportsBackShoulder,
   anticipationChemistryModifier,
 } from "./chemistry.js";
-export { isRollRefStub, referencedRollLabel, ROLL_REF_PREFIX } from "./events.js";
 export { opennessAt, routePhaseAt, routeReadySeconds } from "./resolve/route.js";
 export type { RoutePhase } from "./resolve/route.js";
 export {
@@ -157,16 +223,21 @@ export type {
 export { catchTypeFor, resolveCatch } from "./resolve/catchResolution.js";
 export type { CatchType, CatchOutcome } from "./resolve/catchResolution.js";
 
+export { isRunCall } from "./types.js";
 export type {
+  AnyPlayCalls,
+  BlockType,
   ContestPosition,
   CoverageAssignment,
   CoverageShell,
   CoverageTechnique,
   DefensivePlayCall,
   FieldZone,
+  GapId,
   HorizontalZone,
   ManAssignment,
   MatchGameState,
+  OffensiveCall,
   OffensivePlayCall,
   PassPlayStartPayload,
   PlayCalls,
@@ -176,10 +247,18 @@ export type {
   RouteAssignment,
   RouteDepthClass,
   ResolvedRushAssignment,
+  RunBlockAssignment,
+  RunGap,
+  RunPlayCall,
+  RunPlayCalls,
+  RunPlayStartPayload,
+  RunScheme,
+  RunSide,
   RushAlignment,
   RushAssignment,
   RushMove,
   SimulationResult,
+  SpaceBlockAssignment,
   ThrowType,
   VerticalZone,
   ZoneAssignment,

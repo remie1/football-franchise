@@ -51,21 +51,38 @@ export const ATTR = {
   // OL
   passBlock: resolveAttr("passBlock"),
   footwork: resolveAttr("footwork"),
+  runBlock: resolveAttr("runBlock"),
+  sustain: resolveAttr("sustain"),
+  anchor: resolveAttr("anchor"),
+  pullSkill: resolveAttr("pullSkill"),
   // DL
   passRush: resolveAttr("passRush"),
   powerMove: resolveAttr("powerMove"),
   finesseMove: resolveAttr("finesseMove"),
   firstStep: resolveAttr("firstStep"),
+  runStuff: resolveAttr("runStuff"),
+  blockShed: resolveAttr("blockShed"),
+  pursuit: resolveAttr("pursuit"),
+  gapDiscipline: resolveAttr("gapDiscipline"),
   // DB / LB
   manCoverage: resolveAttr("manCoverage"),
   zoneCoverage: resolveAttr("zoneCoverage"),
   press: resolveAttr("press"),
   ballSkills: resolveAttr("ballSkills"),
+  tackling: resolveAttr("tackling"),
+  playRecognition: resolveAttr("playRecognition"),
+  instincts: resolveAttr("instincts"),
   // WR
   routeRunning: resolveAttr("routeRunning"),
   releaseWR: resolveAttr("releaseWR"),
   catching: resolveAttr("catching"),
   catchInTraffic: resolveAttr("catchInTraffic"),
+  yac: resolveAttr("yac"),
+  // RB
+  vision: resolveAttr("vision"),
+  patience: resolveAttr("patience"),
+  elusiveness: resolveAttr("elusiveness"),
+  power: resolveAttr("power"),
 } as const;
 
 export const TRAIT = {
@@ -77,4 +94,10 @@ export const TRAIT = {
   quickTwitch: resolveTrait("quickTwitch"),
   pocketAwareness: resolveTrait("pocketAwareness"),
   brickWall: resolveTrait("brickWall"),
+  // §13/§14 — live for the first time with the ball-carrier machinery.
+  powerRunner: resolveTrait("powerRunner"),
+  homeRunHitter: resolveTrait("homeRunHitter"),
+  runStuffer: resolveTrait("runStuffer"),
+  highMotor: resolveTrait("highMotor"),
+  roadGrader: resolveTrait("roadGrader"),
 } as const;

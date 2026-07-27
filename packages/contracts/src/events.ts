@@ -28,7 +28,7 @@ export type ResultTier =
 /** Closed union — extending it is a contract petition (lightweight, pre-approved category). */
 export type CheckKind =
   | "coverage_read" | "blitz_recognition" | "audible"
-  | "release_vs_press" | "route_break" | "man_coverage" | "zone_coverage" | "option_route"
+  | "release_vs_press" | "route_break" | "man_coverage" | "zone_coverage" | "zone_read_qb" | "option_route"
   | "pass_rush_tick" | "run_block" | "second_level_climb" | "stunt_communication" | "blitz_pickup"
   | "qb_read" | "anticipation" | "qb_decision" | "unseen_defender" | "hold_decision" | "pocket_movement" | "scramble"
   | "passing_lane" | "accuracy" | "dline_tip"
@@ -72,7 +72,7 @@ export type MatchEvent =
         etaTick: number;
         state: "TRAVELLING"|"DELAYED"|"RESET"|"ARRIVED";
       } } & MatchEventBase)
-  | ({ type: "ROUTE_STATUS"; payload: { receiver: PlayerId; route: string; phase: "JAMMED"|"DEVELOPING"|"OPEN"|"DECAYING"|"SCRAMBLE_DRILL"; openness: number } } & MatchEventBase)
+  | ({ type: "ROUTE_STATUS"; payload: { receiver: PlayerId; route: string; phase: "JAMMED"|"DEVELOPING"|"OPEN"|"SETTLED"|"DECAYING"|"SCRAMBLE_DRILL"; openness: number } } & MatchEventBase)
   | ({ type: "QB_READ"; payload: {
         target: PlayerId;
         actualOpenness: number;
@@ -101,7 +101,19 @@ export type MatchEvent =
         rollRef: string;
         caught: boolean;
       } } & MatchEventBase)
-  | ({ type: "TIPPED_BALL"; payload: { deflector: PlayerId; qualityRoll: RollDetail; finalTargetNumber: number; eligible: PlayerId[]; attempts: { player: PlayerId; roll: RollDetail }[]; recoveredBy?: PlayerId } } & MatchEventBase)
+  /**
+   * Summary of a deflection. The rolls themselves live in the
+   * `deflection_quality` and `deflection_recovery` CHECKs and are referenced
+   * here by rngLabel — this payload predated ADR-004 and repeated them (ADR-009).
+   */
+  | ({ type: "TIPPED_BALL"; payload: {
+        deflector: PlayerId;
+        rollRef: string;
+        finalTargetNumber: number;
+        eligible: PlayerId[];
+        attempts: { player: PlayerId; rollRef: string }[];
+        recoveredBy?: PlayerId;
+      } } & MatchEventBase)
   | ({ type: "YAC_ZONE"; payload: { carrier: PlayerId; zone: number; yardsInZone: number } } & MatchEventBase)
   | ({ type: "RUN_RESOLUTION"; payload: { carrier: PlayerId; gap: string; yards: number } } & MatchEventBase)
   | ({ type: "ENV_APPLIED"; payload: { weather?: RollModifier[]; stamina?: RollModifier[]; noise?: RollModifier[] } } & MatchEventBase)
