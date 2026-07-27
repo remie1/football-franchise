@@ -57,7 +57,7 @@ const FRONT: PositionGroup[] = ["OL","DL"];
 
 /** v0 registry, populated from match-engine.md §4. */
 export const ATTRIBUTE_REGISTRY_V1: AttributeRegistry = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   attributes: Object.fromEntries([
     // Universal
     A("speed","Speed",ALL,"physical"),
@@ -114,6 +114,7 @@ export const ATTRIBUTE_REGISTRY_V1: AttributeRegistry = {
     A("elusiveness","Elusiveness",["RB","WR","TE"],"skill"),
     A("power","Power",["RB","FB"],"physical"),
     A("ballSecurity","Ball Security",SKILL,"skill"),
+    A("jumping","Jumping",["WR","TE","RB","DB","LB"],"physical","Vertical explosiveness; contested-catch and high-point term (ADR-003)"),
     A("patience","Patience",["RB"],"mental"),
     // Blocking-adjacent front
     A("gapDiscipline","Gap Discipline",FRONT.concat(["LB"]),"knowledge"),
@@ -187,6 +188,22 @@ export function applyMigration(map: AttributeMap, m: RegistryMigration): Attribu
   }
   return out;
 }
+
+/**
+ * ADR-003: adds `jumping` so the contested-catch formula (match-engine.md §11.3)
+ * has the term the doc specifies on both sides of the roll. Existing rosters seed
+ * from the mean of `spectacularCatch` and `ballSkills` until the attributes
+ * pipeline derives it from combine vertical jump (a Family A source).
+ */
+export const MIGRATION_V1_TO_V2: RegistryMigration = {
+  fromVersion: 1,
+  toVersion: 2,
+  ops: [{
+    op: "add",
+    attr: ATTRIBUTE_REGISTRY_V1.attributes["jumping"]!,
+    defaultFrom: { sources: [attrId("spectacularCatch"), attrId("ballSkills")], method: "mean" },
+  }],
+};
 
 /** Coach attributes live in a separate namespace (Spec #11 §3). */
 export interface CoachAttributeDefinition {

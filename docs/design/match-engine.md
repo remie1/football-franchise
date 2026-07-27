@@ -561,6 +561,21 @@ Results per Tick:
   Rusher wins by 15+: Rusher wins rep, pressure/hit next tick
 ```
 
+> **KNOWN ISSUE (logged July 2026, Phase 1 slice) — term asymmetry.**
+> The rusher above carries two-to-three attribute terms (`Pass Rush` plus a move
+> modifier, and a power rush adds both `Power Move` *and* `Strength`) against the
+> blocker's two (`Pass Block`, `Footwork`). An evenly-rated matchup therefore favours
+> the rush by roughly 15 points **structurally**, before any dice are thrown — on the
+> literal formula every pocket collapses inside 1.5s.
+>
+> The engine currently absorbs this in a named tunable
+> (`TUNABLES.passRush.blockerStructuralAdvantage: +15`, marked `INTERPRETATION`,
+> settable to 0 to recover the formula as written). That is a **holding position, not a
+> ruling.** Phase 3 must deliberately choose between adding a real blocker term
+> (`Anchor` or `Strength` — what a human reading the two lists would say is missing, and
+> which restores symmetry in attributes rather than in a constant) and keeping the flat
+> term. See `docs/decisions/CALIBRATION-BACKLOG.md` §3.
+
 ### 7.2 Pocket Status
 
 ```
@@ -588,6 +603,18 @@ SACK:
   - Rusher reaches QB before ball released
   - Play ends, loss of yardage
 ```
+
+> **KNOWN ISSUE (logged July 2026, Phase 1 slice) — the missing "move" branch.**
+> COLLAPSING gives the quarterback three options: "throw, **move**, or take hit." The
+> Phase 1 engine implements *throw* and *take hit* only — step-up and scramble (§8.8) are
+> out of slice scope. A QB with no available target under COLLAPSING therefore resolves to
+> a sack, because two of his three options do not exist. Combined with a correct
+> single-won-rep COLLAPSING rule, this produces a **56% sack rate, 74% of it at tick 1.0**.
+>
+> There is also no **rusher time-of-arrival model**: a rusher who wins his rep at 0.5s is
+> treated as being on the quarterback immediately, rather than needing time to cover the
+> ground. Sack rate cannot be calibrated at any dial setting until that exists.
+> See `docs/decisions/CALIBRATION-BACKLOG.md` §2.
 
 ### 7.3 Stunts and Twists
 

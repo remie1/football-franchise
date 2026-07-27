@@ -1,5 +1,80 @@
 /**
- * @ff/engine — see ARCHITECTURE_CHARTER.md §3 and docs/design/.
- * Implementation begins per the phase plan (Charter §6).
+ * @ff/engine — the match simulation. Pure, headless, seeded, event-emitting.
+ * Spec: docs/design/match-engine.md. Charter §3 (D2).
+ *
+ * Phase 1 vertical slice: one complete pass play, snap through result.
  */
-export {};
+export { simulatePassPlay } from "./sim/passPlay.js";
+export { renderPlay, formatRoll } from "./debug/renderPlay.js";
+export type { NameLookup } from "./debug/renderPlay.js";
+export { TUNABLES } from "./tunables.js";
+export type { Tunables } from "./tunables.js";
+export { ATTR, TRAIT, resolveAttr, resolveTrait } from "./attrs.js";
+export { bandFor, tierFor, actorAttrModifier } from "./rolls.js";
+
+// Resolution units — exported so calibration can exercise them in isolation.
+export { resolvePassRushTick } from "./resolve/passRush.js";
+export type { PassRushArgs, PassRushOutcome, PassRushBandLabel } from "./resolve/passRush.js";
+export {
+  advancePressure,
+  pocketStatusFor,
+  pocketStatusFromPressure,
+  pocketFloorFor,
+  pocketSeverity,
+  worsePocketStatus,
+  accuracyModifierFor,
+  readCapacityDeltaFor,
+  forcesDecision,
+  sacksWithoutTarget,
+} from "./resolve/pocket.js";
+export { resolveReleaseVsPress } from "./resolve/release.js";
+export type { ReleaseArgs, ReleaseOutcome, ReleaseBandLabel } from "./resolve/release.js";
+export { resolveManCoverage } from "./resolve/manCoverage.js";
+export type { ManCoverageArgs, ManCoverageOutcome, ManCoverageBandLabel } from "./resolve/manCoverage.js";
+export { opennessAt, routePhaseAt, routeReadySeconds } from "./resolve/route.js";
+export type { RoutePhase } from "./resolve/route.js";
+export {
+  resolveQbRead,
+  windowModifierFor,
+  readCapacityPerTick,
+  maxReadsFor,
+  timeBudgetSeconds,
+} from "./resolve/qbRead.js";
+export type { QbReadOutcome } from "./resolve/qbRead.js";
+export { selectTarget } from "./resolve/targetSelection.js";
+export type { TargetCandidate, TargetSelectionOutcome, DecisionBandLabel } from "./resolve/targetSelection.js";
+export {
+  selectThrowType,
+  armStrengthShortfall,
+  resolveAccuracy,
+  resolvePassingLane,
+  laneDefenderEligible,
+} from "./resolve/throwExecution.js";
+export type {
+  AccuracyOutcome,
+  AccuracyBand,
+  AccuracyBandLabel,
+  PassingLaneOutcome,
+} from "./resolve/throwExecution.js";
+export { catchTypeFor, resolveCatch } from "./resolve/catchResolution.js";
+export type { CatchType, CatchOutcome } from "./resolve/catchResolution.js";
+
+export type {
+  ContestPosition,
+  CoverageTechnique,
+  DefensivePlayCall,
+  ManAssignment,
+  MatchGameState,
+  OffensivePlayCall,
+  PassPlayStartPayload,
+  PlayCalls,
+  PocketStatus,
+  ProtectionAssignment,
+  ReadSystem,
+  RouteAssignment,
+  RouteDepthClass,
+  RushAssignment,
+  RushMove,
+  SimulationResult,
+  ThrowType,
+} from "./types.js";

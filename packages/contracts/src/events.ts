@@ -59,10 +59,33 @@ export type MatchEvent =
       } } & MatchEventBase)
   | ({ type: "POCKET_STATUS"; payload: { status: "CLEAN"|"PRESSURE"|"COLLAPSING"|"IMMEDIATE"|"SACK" } } & MatchEventBase)
   | ({ type: "ROUTE_STATUS"; payload: { receiver: PlayerId; route: string; phase: "JAMMED"|"DEVELOPING"|"OPEN"|"DECAYING"; openness: number } } & MatchEventBase)
-  | ({ type: "QB_READ"; payload: { target: PlayerId; actualOpenness: number; perceivedOpenness: number; effectiveOpenness: number; varianceRoll: RollDetail } } & MatchEventBase)
-  | ({ type: "QB_DECISION"; payload: { choice: "THROW"|"HOLD"|"SCRAMBLE"|"THROWAWAY"|"CHECKDOWN"; target?: PlayerId; tier: ResultTier } } & MatchEventBase)
+  | ({ type: "QB_READ"; payload: {
+        target: PlayerId;
+        actualOpenness: number;
+        perceivedOpenness: number;
+        effectiveOpenness: number;
+        /** Perception roll, not a contested check — has no CHECK counterpart (ADR-004). */
+        varianceRoll: RollDetail;
+        testsAttrs: AttrId[];   // exposure channel for perception (Spec #6 §3)
+      } } & MatchEventBase)
+  | ({ type: "QB_DECISION"; payload: {
+        choice: "THROW"|"HOLD"|"SCRAMBLE"|"THROWAWAY"|"CHECKDOWN";
+        target?: PlayerId;
+        /**
+         * Present ONLY when a decision-quality roll was actually made (ADR-005).
+         * A hold forced by no route being available is correct QB behaviour, not a
+         * failed check — absent tier means "no roll", never "bad decision".
+         */
+        tier?: ResultTier;
+      } } & MatchEventBase)
   | ({ type: "THROW"; payload: { target: PlayerId; throwType: "BULLET"|"TOUCH"|"BACK_SHOULDER"|"THROWAWAY"; accuracyTier: ResultTier } } & MatchEventBase)
-  | ({ type: "CATCH_RESOLUTION"; payload: { receiver: PlayerId; catchType: string; roll: RollDetail; caught: boolean } } & MatchEventBase)
+  | ({ type: "CATCH_RESOLUTION"; payload: {
+        receiver: PlayerId;
+        catchType: string;
+        /** The catch CHECK's RollDetail.rngLabel — never a repeated RollDetail (ADR-004). */
+        rollRef: string;
+        caught: boolean;
+      } } & MatchEventBase)
   | ({ type: "TIPPED_BALL"; payload: { deflector: PlayerId; qualityRoll: RollDetail; finalTargetNumber: number; eligible: PlayerId[]; attempts: { player: PlayerId; roll: RollDetail }[]; recoveredBy?: PlayerId } } & MatchEventBase)
   | ({ type: "YAC_ZONE"; payload: { carrier: PlayerId; zone: number; yardsInZone: number } } & MatchEventBase)
   | ({ type: "RUN_RESOLUTION"; payload: { carrier: PlayerId; gap: string; yards: number } } & MatchEventBase)
@@ -97,6 +120,15 @@ export type FranchiseEvent =
   | { type: "AWARD_GIVEN"; payload: { award: string; subject: PlayerId | StaffId } }
   | { type: "GAME_COMPLETED"; payload: { gameId: GameId; home: number; away: number } };
 
+/**
+ * ROLL ACCOUNTING RULE (ADR-004).
+ * A roll is recorded exactly once, in a CHECK or PRESNAP_READ event.
+ * Summary events (CATCH_RESOLUTION, THROW, etc.) reference it by `rollRef`
+ * (the RollDetail.rngLabel), never by repeating RollDetail.
+ * Calibration counts rolls ONLY from CHECK/PRESNAP_READ — no double-counting.
+ * Exception: QB_READ.varianceRoll is a perception roll, not a contested check,
+ * and has no CHECK counterpart.
+ */
 export interface EventEnvelope<E> {
   seq: number;
   at: CalendarStamp;
