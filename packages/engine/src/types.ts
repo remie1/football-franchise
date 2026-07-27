@@ -13,15 +13,26 @@ import type {
   MatchEventEnvelope,
   PlayerId,
   PlayerState,
+  PocketStatus,
+  RushAlignment,
   TeamId,
+  ThrowType,
 } from "@ff/contracts";
+
+/**
+ * ADR-013 — `PocketStatus`, `ThrowType` and `RushAlignment` are NOT declared
+ * here any more. They are members of match-event payloads, contracts names them,
+ * and a local copy silently becomes a subset the moment contracts widens one.
+ * They are re-exported so that every existing `from "../types.js"` import keeps
+ * working and the ADR-012 barrel surface is unchanged — the DEFINITION moved,
+ * the spelling did not.
+ */
+export type { PocketStatus, RushAlignment, ThrowType };
 
 export type RouteDepthClass = "QUICK" | "SHORT" | "INTERMEDIATE" | "DEEP";
 export type RushMove = "SPEED" | "POWER" | "FINESSE";
 export type CoverageTechnique = "PRESS" | "OFF";
 export type ReadSystem = "HALF_FIELD" | "FULL_FIELD" | "CONCEPT";
-export type PocketStatus = "CLEAN" | "PRESSURE" | "COLLAPSING" | "IMMEDIATE" | "SACK";
-export type ThrowType = "BULLET" | "TOUCH" | "BACK_SHOULDER" | "THROWAWAY";
 export type ContestPosition = "TRAILING" | "EVEN" | "IN_FRONT";
 
 /**
@@ -182,13 +193,12 @@ export type CoverageAssignment = ManAssignment | ZoneAssignment;
 export type CoverageShell = "MAN" | "ZONE" | "MIXED" | "NONE";
 
 /**
- * Where the rusher starts, and therefore how far he has to travel once he wins
- * (§7.2 time-of-arrival). This is a property of the DEFENSIVE CALL, not of the
- * player: the same end who lines up wide on first down walks inside on a
- * passing down, and the two are worth very different things.
+ * `RushAlignment` — where the rusher starts, and therefore how far he has to
+ * travel once he wins (§7.2 time-of-arrival). A property of the DEFENSIVE CALL,
+ * not of the player: the same end who lines up wide on first down walks inside
+ * on a passing down, and the two are worth very different things. Defined in
+ * contracts (ADR-013) and re-exported at the top of this file.
  */
-export type RushAlignment = "EDGE" | "INTERIOR";
-
 export interface RushAssignment {
   readonly rusher: PlayerId;
   readonly move: RushMove;

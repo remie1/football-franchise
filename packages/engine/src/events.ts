@@ -6,22 +6,24 @@
 import type {
   AttrId,
   CalendarStamp,
+  CarryType,
   CheckKind,
   GameId,
   MatchEvent,
   MatchEventEnvelope,
   PlayId,
   PlayerId,
+  PocketStatus,
+  QbDecisionChoice,
   ResultTier,
   RollDetail,
+  RoutePhase,
+  RushAlignment,
+  RushThreatState,
+  ThrowType,
 } from "@ff/contracts";
 import { TUNABLES } from "./tunables.js";
-import type {
-  PassPlayStartPayload,
-  PocketStatus,
-  RunPlayStartPayload,
-  ThrowType,
-} from "./types.js";
+import type { PassPlayStartPayload, RunPlayStartPayload } from "./types.js";
 
 export interface CheckEmission {
   readonly checkKind: CheckKind;
@@ -139,7 +141,7 @@ export class PlayEventLog {
   routeStatus(
     receiver: PlayerId,
     route: string,
-    phase: "JAMMED" | "DEVELOPING" | "OPEN" | "SETTLED" | "DECAYING" | "SCRAMBLE_DRILL",
+    phase: RoutePhase,
     openness: number,
   ): void {
     this.push({ type: "ROUTE_STATUS", payload: { receiver, route, phase, openness }, ...this.base() });
@@ -157,10 +159,10 @@ export class PlayEventLog {
    */
   rushThreat(
     rusher: PlayerId,
-    alignment: "EDGE" | "INTERIOR",
+    alignment: RushAlignment,
     rollRef: string,
     etaTick: number,
-    state: "TRAVELLING" | "DELAYED" | "RESET" | "ARRIVED",
+    state: RushThreatState,
   ): void {
     this.push({
       type: "RUSH_THREAT",
@@ -202,7 +204,7 @@ export class PlayEventLog {
    * carries no tier — absent means "no roll", never "bad decision".
    */
   qbDecision(
-    choice: "THROW" | "HOLD" | "STEP_UP" | "SCRAMBLE" | "THROWAWAY" | "CHECKDOWN",
+    choice: QbDecisionChoice,
     options: { readonly target?: PlayerId; readonly tier?: ResultTier } = {},
   ): void {
     const payload = {
@@ -306,7 +308,7 @@ export class PlayEventLog {
    */
   runResolution(
     carrier: PlayerId,
-    carryType: "DESIGNED" | "SCRAMBLE",
+    carryType: CarryType,
     gap: string | undefined,
     yardsBeforeContact: number,
     yards: number,

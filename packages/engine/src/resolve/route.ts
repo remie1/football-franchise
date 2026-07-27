@@ -1,9 +1,14 @@
 /** §9.2 route development timing and §8.7 openness drift while the QB holds. */
+import type { RoutePhase } from "@ff/contracts";
 import { clamp } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
 import type { RouteDepthClass } from "../types.js";
 
 /**
+ * `RoutePhase` is contracts' (ADR-013) — it rides on `ROUTE_STATUS.phase`, and
+ * the local copy this module used to declare was a subset waiting to happen.
+ * Re-exported so existing `from "./route.js"` imports are undisturbed.
+ *
  * `SCRAMBLE_DRILL` (ADR-007) is not produced by `routePhaseAt` — it is not a
  * point on the route's own timeline. It is what a receiver is doing once the
  * quarterback has left the pocket (§8.8): the play has changed shape, he has
@@ -15,13 +20,7 @@ import type { RouteDepthClass } from "../types.js";
  * closing") describes him — and `zoneCoverage.settledDecayPerTick` means the
  * second is literally false.
  */
-export type RoutePhase =
-  | "JAMMED"
-  | "DEVELOPING"
-  | "OPEN"
-  | "SETTLED"
-  | "DECAYING"
-  | "SCRAMBLE_DRILL";
+export type { RoutePhase };
 
 /** Base development time plus any jam delay from the release battle. */
 export function routeReadySeconds(depthClass: RouteDepthClass, delaySeconds: number): number {

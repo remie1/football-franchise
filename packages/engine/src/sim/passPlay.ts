@@ -37,7 +37,7 @@
  * than separately from it), and how many reads he gets before the outlet.
  */
 import { createRng, getAttr, playId as makePlayId } from "@ff/contracts";
-import type { PlayerId, PlayerState, Rng } from "@ff/contracts";
+import type { PlayerId, PlayerState, Rng, RushThreatState } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
 import { chemistryLevel } from "../chemistry.js";
 import { PlayEventLog } from "../events.js";
@@ -59,6 +59,8 @@ import type {
   ThrowType,
 } from "../types.js";
 import { UnsupportedPlayCallError, assertCoherentPlayCall } from "../validate/playCall.js";
+import { applyPlayOutcome } from "./outcome.js";
+import type { PlayOutcome } from "./outcome.js";
 import type { Pursuer } from "../resolve/ballCarrier.js";
 import {
   advanceCarrier,
@@ -179,13 +181,6 @@ interface ReceiverTrack {
   scrambleBaseOpenness: number | undefined;
 }
 
-interface PlayOutcome {
-  readonly yards: number;
-  readonly turnover: boolean;
-  readonly clockRunoff: number;
-  readonly score?: number;
-}
-
 function requirePlayer(state: MatchGameState, id: PlayerId): PlayerState {
   const p = state.players[id as unknown as string];
   if (p === undefined) throw new Error(`@ff/engine: player ${String(id)} is not in GameState.players`);
@@ -294,10 +289,7 @@ export function simulatePassPlay(
   let scramble: ScrambleState | undefined;
 
   /** ADR-007 — every threat transition is published, not inferred. */
-  const publishThreat = (
-    threat: RushThreat,
-    state: "TRAVELLING" | "DELAYED" | "RESET" | "ARRIVED",
-  ): void => {
+  const publishThreat = (threat: RushThreat, state: RushThreatState): void => {
     log.rushThreat(threat.rusher, threat.alignment, threat.rollRef, threat.etaTick, state);
   };
 
@@ -820,7 +812,7 @@ export function simulatePassPlay(
 
   return {
     events: log.drain(),
-    newState: applyOutcome(state, scored, log.nextSeq),
+    newState: applyPlayOutcome(state, scored, log.nextSeq),
   };
 }
 
@@ -1494,34 +1486,8 @@ function coverageShellFor(calls: PlayCalls): CoverageShell {
   return "NONE";
 }
 
-function applyOutcome(state: MatchGameState, outcome: PlayOutcome, nextSeq: number): MatchGameState {
-  const ballOn = clamp(state.ballOn + outcome.yards, 0, 100);
-  const clockSeconds = Math.max(0, state.clockSeconds - outcome.clockRunoff);
-  const base = {
-    ...state,
-    nextEventSeq: nextSeq,
-    playNumber: state.playNumber + 1,
-    clockSeconds,
-  };
-
-  if (outcome.turnover) {
-    return {
-      ...base,
-      offenseTeam: state.defenseTeam,
-      defenseTeam: state.offenseTeam,
-      ballOn: 100 - ballOn,
-      down: 1,
-      distance: TUNABLES.result.firstDownResetsDistance,
-    };
-  }
-
-  const gotFirstDown = outcome.yards >= state.distance;
-  return {
-    ...base,
-    ballOn,
-    down: gotFirstDown ? 1 : state.down + 1,
-    distance: gotFirstDown
-      ? TUNABLES.result.firstDownResetsDistance
-      : Math.max(1, state.distance - outcome.yards),
-  };
-}
+/*
+ * The possession / down / distance / spot transition used to live here as
+ * `applyOutcome`, with a second copy in `runPlay.ts`. Both are gone: there is
+ * exactly one owner, `sim/outcome.ts` (FANTASY-GATE-PHASE1 §3.11).
+ */

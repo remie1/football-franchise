@@ -37,6 +37,8 @@ import type {
   SimulationResult,
 } from "../types.js";
 import { assertCoherentRunCall } from "../validate/playCall.js";
+import { applyPlayOutcome } from "./outcome.js";
+import type { PlayOutcome } from "./outcome.js";
 import type { Pursuer } from "../resolve/ballCarrier.js";
 import {
   advanceCarrier,
@@ -57,13 +59,6 @@ import { rushAlignmentFor } from "../resolve/rushThreat.js";
 interface GapEngagement extends GapResult {
   readonly blocker: PlayerState;
   readonly defender: PlayerState;
-}
-
-interface RunOutcome {
-  readonly yards: number;
-  readonly turnover: boolean;
-  readonly clockRunoff: number;
-  readonly score?: number;
 }
 
 function requirePlayer(state: MatchGameState, id: PlayerId): PlayerState {
@@ -225,7 +220,7 @@ export function simulateRunPlay(
   // is a subtraction rather than an unanswerable question (ADR-010 item 2).
   log.runResolution(carrier.bio.id, "DESIGNED", gapKey(running), poa.yardsBeforeContact, gained);
 
-  const outcome: RunOutcome = {
+  const outcome: PlayOutcome = {
     yards: gained,
     turnover: false,
     clockRunoff: TUNABLES.result.clockRunoff.run,
@@ -233,7 +228,7 @@ export function simulateRunPlay(
   };
   log.playResult(outcome.yards, outcome.turnover, outcome.clockRunoff, outcome.score);
 
-  return { events: log.drain(), newState: applyRunOutcome(state, outcome, log.nextSeq) };
+  return { events: log.drain(), newState: applyPlayOutcome(state, outcome, log.nextSeq) };
 }
 
 // ---------------------------------------------------------------------------
@@ -376,22 +371,9 @@ function coverageShellFor(
   return "NONE";
 }
 
-function applyRunOutcome(
-  state: MatchGameState,
-  outcome: RunOutcome,
-  nextSeq: number,
-): MatchGameState {
-  const ballOn = clamp(state.ballOn + outcome.yards, 0, 100);
-  const gotFirstDown = outcome.yards >= state.distance;
-  return {
-    ...state,
-    nextEventSeq: nextSeq,
-    playNumber: state.playNumber + 1,
-    clockSeconds: Math.max(0, state.clockSeconds - outcome.clockRunoff),
-    ballOn,
-    down: gotFirstDown ? 1 : state.down + 1,
-    distance: gotFirstDown
-      ? TUNABLES.result.firstDownResetsDistance
-      : Math.max(1, state.distance - outcome.yards),
-  };
-}
+/*
+ * `applyRunOutcome` used to live here — a SECOND copy of the pass play's
+ * transition, and one that had already drifted (it had no turnover branch, which
+ * was invisible only because §13/§14 specify no fumble). Both copies are gone;
+ * `sim/outcome.ts` is the one owner (FANTASY-GATE-PHASE1 §3.11).
+ */

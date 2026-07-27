@@ -1516,6 +1516,221 @@ export const TUNABLES = {
     },
   },
 
+  /**
+   * THE GAME LOOP — drives, possessions, the clock, scoring, special teams.
+   *
+   * ⚠ EVERY NUMBER IN THIS BLOCK IS AN INVENTION, and the block is marked as a
+   * unit rather than line by line. `docs/design/match-engine.md` specifies a
+   * PLAY. It has no section on drives, no section on the clock between snaps, no
+   * kickoff, no punt, no field goal and no scoreboard: §15.2 mentions the
+   * two-minute drill only to say audibles get harder, and §17.2's summary block
+   * counts plays without ever saying how many there are. So where the rest of
+   * TUNABLES is "the doc's number, or an INTERPRETATION of the doc's words",
+   * this block is "a rule the engine needs in order for a game to end at all".
+   *
+   * That is why it is one named block instead of constants sprinkled through the
+   * loop: calibration moves these first and moves them often, and every one of
+   * them is reachable by `applyTunablePatch`.
+   */
+  game: {
+    /** §2 has ticks and no periods. Four fifteen-minute quarters is the sport. */
+    periodsInRegulation: 4,
+    periodSeconds: 900,
+    /**
+     * Overtime is deliberately THIN (out of dispatch scope beyond what a tie
+     * requires): one period, sudden death, and a tie stands if nobody scores.
+     * Real NFL possession rules are a franchise-era concern.
+     */
+    overtimePeriods: 1,
+    overtimeSeconds: 600,
+    overtimeSuddenDeath: true,
+
+    /**
+     * THE CLOCK BETWEEN SNAPS, and the single largest dial in the block.
+     *
+     * A play's own `PLAY_RESULT.clockRunoff` covers the snap-to-whistle time plus
+     * the doc's dead-ball runoff. Everything else — huddle, spot, play clock — is
+     * this. Plays per game and time of possession are both essentially a function
+     * of this one number, so it is stated once and named rather than buried.
+     */
+    huddleSeconds: 32,
+    /** §15.2's two-minute drill, as the only clock rule it actually implies. */
+    twoMinuteSeconds: 120,
+    twoMinuteHuddleSeconds: 14,
+    /**
+     * Plays after which the clock stops and no huddle time is charged. The list
+     * is the real rule set the engine can actually observe from its own stream:
+     * an incompletion, a score, a change of possession, the end of a period.
+     * Out of bounds and penalties are not in it because the engine models
+     * neither — which shortens games slightly and is logged, not tuned.
+     */
+    clockStopsOnIncompletion: true,
+    clockStopsOnScore: true,
+    clockStopsOnPossessionChange: true,
+
+    /**
+     * Hard stop. A game that reaches this has a defect in the loop (a drive that
+     * cannot end, a clock that cannot run out), and the engine throws rather than
+     * truncating: a silently truncated game produces clean statistics about a
+     * game nobody played.
+     */
+    maxPlaysPerGame: 400,
+
+    /** Where a drive starts, and where it can no longer legally start. */
+    field: {
+      /** Yards from the offence's own goal line at which a touchdown is scored. */
+      goalLine: 100,
+      /** Yards to gain on a fresh set of downs. */
+      firstDownYards: 10,
+      /** Downs in a series. */
+      downsInSeries: 4,
+      /** Safety: the offence is tackled at or behind its own goal line. */
+      safetyAtOrBehind: 0,
+    },
+
+    /** Points. The sport's, not an invention — but they belong on the dial too. */
+    points: { touchdown: 6, fieldGoal: 3, extraPoint: 1, twoPoint: 2, safety: 2 },
+
+    /**
+     * SPECIAL TEAMS — PLACEHOLDER DEPTH, DECLARED.
+     *
+     * Field goals, punts and kickoffs are resolved by ONE probabilistic check
+     * each. There is no snap, no hold, no block, no protection, no coverage unit,
+     * no directional kicking, no hang time, no fair catch and no muff. They exist
+     * because a game cannot end without them, and they are sized so that the
+     * MACRO numbers calibration needs (points per drive, drives per game,
+     * starting field position) are not obviously wrong.
+     *
+     * ⚠ THE REGISTRY HAS NO KICKING ATTRIBUTES. `ATTRIBUTE_REGISTRY_V1` contains
+     * no `kickPower`, `kickAccuracy`, `puntPower` or `puntHangTime`; the ST
+     * positions K/P/LS exist only as `Position` values. Petitioned in ADR-014.
+     * INTERIM: a kicker's leg is `strength` and his placement is `accuracy` —
+     * both real registry ids, so the `attrs.ts` sweep passes and nothing is
+     * invented locally, but a 99-accuracy quarterback would kick like a 99
+     * kicker if you lined him up. Replace the two `*Attr` fields below the day
+     * the petition lands; no other code changes.
+     */
+    specialTeams: {
+      kickerLegAttr: "strength",
+      kickerAccuracyAttr: "accuracy",
+      punterLegAttr: "strength",
+      punterAccuracyAttr: "accuracy",
+      returnerSpeedAttr: "speed",
+      attrDivisor: 5,
+
+      /**
+       * Game clock a special-teams play consumes, whistle to whistle. The
+       * scrimmage plays get theirs from `result.clockRunoff` plus the tick they
+       * resolved on; these have no tick loop, so they are stated.
+       */
+      elapsedSeconds: { kickoff: 7, punt: 14, fieldGoal: 6, extraPoint: 4 },
+
+      fieldGoal: {
+        /** Yards added to the distance-to-goal-line: 10 of end zone + 7 of snap and hold. */
+        snapAndHoldYards: 17,
+        /**
+         * Target number at `baseDistanceYards`, rising `targetPerYardOver` per
+         * yard beyond it. Sized against real NFL make rates for a 70/70 kicker
+         * (+28 of modifier): ~95% from 30, ~80% from 40, ~65% from 50.
+         */
+        baseDistanceYards: 30,
+        baseTarget: 34,
+        targetPerYardOver: 1.5,
+        /** Beyond this, the decision layer will not attempt one. */
+        maxAttemptDistanceYards: 58,
+        /** A miss is a change of possession at the spot of the kick, not the LOS. */
+        missSpotYardsBehindLos: 8,
+        /** Inside this, a miss gives the ball to the defence at its own 20. */
+        missMinimumYardLine: 20,
+        bands: [
+          { label: "GOOD", minMargin: 0, made: true },
+          { label: "MISSED", minMargin: NEG_INF, made: false },
+        ],
+      },
+
+      extraPoint: {
+        /** Snapped from the 15 → a 33-yard kick. Resolved by the field-goal check. */
+        distanceYards: 33,
+      },
+
+      punt: {
+        /** Gross yards for a league-average leg before the roll. */
+        baseGrossYards: 46,
+        legBaseline: 70,
+        legYardsPerPoint: 0.25,
+        /** d20 − 10, in yards: a punt is not a constant. */
+        varianceDieOffset: -10,
+        varianceYardsPerPoint: 1.0,
+        minGrossYards: 25,
+        maxGrossYards: 70,
+        /** A punt that reaches the end zone comes out to here. */
+        touchbackYardLine: 20,
+        /** Return yards on a punt that is fielded in the field of play. */
+        returnBaseYards: 4,
+        returnerBaseline: 70,
+        returnYardsPerSpeedPoint: 0.15,
+        returnVarianceDieOffset: -10,
+        returnVarianceYardsPerPoint: 0.6,
+        minReturnYards: 0,
+        maxReturnYards: 45,
+        /**
+         * Inside this many yards of the receiving team's own goal line the return
+         * man does not field it — the ball is downed where it lands. Stands in
+         * for the entire fair-catch / coffin-corner apparatus.
+         */
+        downedInsideYardLine: 10,
+      },
+
+      kickoff: {
+        /** The kicking team's own yard line the ball is teed from. */
+        fromYardLine: 35,
+        /**
+         * A touchback puts the ball here, for the RECEIVING team, measured from
+         * its own goal line.
+         */
+        touchbackYardLine: 30,
+        /** `d100 + leg÷5` at or above this is a touchback. */
+        touchbackTarget: 55,
+        /** A returned kick is fielded here and advanced by the return roll. */
+        returnStartYardLine: 5,
+        returnBaseYards: 21,
+        returnerBaseline: 70,
+        returnYardsPerSpeedPoint: 0.2,
+        returnVarianceDieOffset: -10,
+        returnVarianceYardsPerPoint: 0.8,
+        minReturnYards: 0,
+        maxReturnYards: 60,
+        /** A safety is followed by a free kick from the 20, not the 35. */
+        freeKickAfterSafetyYardLine: 20,
+      },
+    },
+
+    /**
+     * THE DEFAULT PLAY-CALLER'S POLICY.
+     *
+     * Calibration owns the frozen baseline caller (`calibration.md` §3.1) and it
+     * does not exist yet. This is NOT that caller and is not a tendency model: it
+     * is the smallest deterministic policy under which a game completes, so that
+     * the loop can be measured at all. Every number here is expected to be
+     * replaced wholesale rather than tuned.
+     */
+    caller: {
+      /** Pass rate by down, before the situational overrides below. */
+      passRateByDown: { 1: 0.55, 2: 0.55, 3: 0.75, 4: 0.75 },
+      /** Third-and-short is a run regardless of the base rate. */
+      shortYardagePassMaxDistance: 2,
+      shortYardagePassRate: 0.35,
+      /** Fourth down: go for it inside this distance and beyond this yard line. */
+      goForItMaxDistance: 2,
+      goForItMinYardLine: 55,
+      /** Trailing by more than this in the fourth quarter, go for it on any 4th. */
+      desperationPointDeficit: 8,
+      desperationClockSeconds: 300,
+      /** Two-minute offence throws. */
+      twoMinutePassRate: 0.85,
+    },
+  },
+
   /** §17 result bookkeeping. */
   result: {
     /**

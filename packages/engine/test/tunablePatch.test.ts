@@ -37,18 +37,39 @@ describe("ADR-012 — the barrel is exactly the permitted surface", () => {
    * Anything wider than this list is a border the next agent will reach through.
    */
   const PERMITTED: readonly string[] = [
-    // 1. the simulation entry points
+    // 1. the simulation entry points — one play, and one whole game
     "simulatePlay",
     "simulatePassPlay",
     "simulateRunPlay",
+    "simulateGame",
+    // 1b. the two pure constructors a caller needs to BUILD the game entry
+    //     point's arguments. `createMatchState` is the opening state;
+    //     `deriveGameId` is the derivation FANTASY-GATE-PHASE1 §3.3 requires,
+    //     and exporting it is what stops a consumer minting ids from a counter.
+    "createMatchState",
+    "deriveGameId",
+    // 1c. the play-calling seam's minimal default. The interface is a type; a
+    //     caller cannot run a game without SOME implementation, and calibration
+    //     owns the real one (`calibration.md` §3.1).
+    "defaultPlayCaller",
     // 2. the errors a caller distinguishes on (types are erased at runtime)
     "IncoherentPlayCallError",
     "UnsupportedPlayCallError",
+    "GameLoopError",
     // 3. the tunables-PATCH interface — never the TUNABLES value
     "applyTunablePatch",
     "TunablePatchError",
-    // 4. the §17 debug renderer
+    // 4. the §17 debug renderers — one play, and one game
     "renderPlay",
+    "renderDriveChart",
+    "renderGameSummary",
+    "renderBoxScore",
+    // 5. PROPOSED FIFTH CATEGORY (ADR-014): the statline reducer. Per
+    //    FANTASY-GATE-PHASE1 §3.5 the box score must be a pure reduction of the
+    //    stream, and the reducer is LOGIC so it cannot live in contracts
+    //    (`contracts.md` §10). Without it here, calibration writes a second
+    //    reducer over the same stream and the two drift.
+    "reduceStatlines",
   ];
 
   it("exports these runtime values and no others", () => {
