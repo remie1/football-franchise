@@ -11,9 +11,10 @@
  *     the direction of the run is −20, back toward the line is −40;
  *   - the rush becomes pursuit, on its own clock.
  *
- * Ball-carrier resolution is explicitly NOT here. A scramble that tucks and runs
- * resolves against a flat placeholder (`TUNABLES.result.scrambleRunYards`); the
- * run game (§14) is the next dispatch and owns it properly.
+ * Ball-carrier resolution is not here, and no longer needs to be: a quarterback
+ * who tucks it is a ball carrier, and `resolve/ballCarrier.ts` runs him through
+ * §14.4's machinery like any other one. This module answers only "did he get
+ * out?"; what he does once he is out belongs to §13/§14.
  */
 import type { PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
@@ -80,6 +81,7 @@ export function resolveScramble(args: ScrambleArgs): ScrambleOutcome {
       roll,
       target,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs: [ATTR.mobility, ATTR.improvisation],
     },

@@ -30,6 +30,18 @@ export interface CheckEmission {
   readonly target?: number;
   readonly opposedRoll?: RollDetail;
   readonly tier: ResultTier;
+  /**
+   * ADR-011 — the design doc's own result-band label, present whenever the
+   * resolution HAS a band table ("RUSHER_WINS_REP", "HOLE_OPEN", "GOOD").
+   *
+   * `tier` is the generic 9-tier ladder; the band is the vocabulary §6-§14, the
+   * §17 printout and every calibration metric actually speak, and it is the
+   * thing four downstream modifiers key on. Absent means the resolution rolled
+   * against a bare target with no band table behind it (`pursuit_angle`,
+   * `rb_vision`, `passing_lane`, `second_level_climb`, `zone_read_qb`,
+   * `deflection_recovery`) — never "the band was not worth carrying".
+   */
+  readonly band?: string;
   readonly margin: number;
   readonly testsAttrs: readonly AttrId[];
 }
@@ -90,6 +102,7 @@ export class PlayEventLog {
       testsAttrs: [...c.testsAttrs],
       ...(c.target === undefined ? {} : { target: c.target }),
       ...(c.opposedRoll === undefined ? {} : { opposedRoll: c.opposedRoll }),
+      ...(c.band === undefined ? {} : { band: c.band }),
     };
     this.push({ type: "CHECK", payload, ...this.base() });
   }
@@ -200,8 +213,24 @@ export class PlayEventLog {
     this.push({ type: "QB_DECISION", payload, ...this.base() });
   }
 
-  throwBall(target: PlayerId, throwType: ThrowType, accuracyTier: ResultTier): void {
-    this.push({ type: "THROW", payload: { target, throwType, accuracyTier }, ...this.base() });
+  /**
+   * ADR-011 item 2 — `rollRef` names the accuracy CHECK's `rngLabel`, and
+   * §10.4's PLACEMENT BAND lives there. A reference rather than a copy, exactly
+   * as `CATCH_RESOLUTION` and `TIPPED_BALL` do it (ADR-004): the band drives the
+   * catch modifier, the defender's contest modifier, the catch difficulty and
+   * §10.5's YAC multiplier, and it is carried ONCE, on the roll that produced it.
+   */
+  throwBall(
+    target: PlayerId,
+    throwType: ThrowType,
+    accuracyTier: ResultTier,
+    rollRef: string,
+  ): void {
+    this.push({
+      type: "THROW",
+      payload: { target, throwType, accuracyTier, rollRef },
+      ...this.base(),
+    });
   }
 
   /**
@@ -240,32 +269,59 @@ export class PlayEventLog {
 
   /**
    * §13.1 — one per zone the ball carrier enters AFTER A CATCH, with the yards
-   * he made inside it.
+   * he made inside it. A carry emits `RUSH_ZONE` instead.
    *
-   * DELIBERATELY NOT EMITTED FOR A RUN (ADR-010 item 1). A handoff has no catch,
-   * and putting a carry's zone-by-zone advance into an event called YAC_ZONE
-   * would corrupt every YAC aggregate downstream — the same class of invisible
-   * error ADR-004 exists to prevent. A run's per-zone yardage is therefore
-   * absent from the stream until `RUSH_ZONE` is ratified; what a consumer gets
-   * meanwhile is the `pursuit_angle` / `break_tackle` CHECK sequence and
-   * `RUN_RESOLUTION`'s total.
+   * The two are separate events rather than one with a `phase` discriminator
+   * because a consumer tallying yards after catch must be able to exclude a
+   * handoff and a consumer tallying rushing must be able to exclude a reception
+   * — ADR-010's standing rule: widen or add, never overload.
    */
   yacZone(carrier: PlayerId, zone: number, yardsInZone: number): void {
     this.push({ type: "YAC_ZONE", payload: { carrier, zone, yardsInZone }, ...this.base() });
   }
 
   /**
-   * §14 summary. `gap` is the gap the ball ACTUALLY went through, which on a
-   * zone play is §14.2's vision check speaking; the gap it was DRAWN to is in
-   * `PLAY_START`, so "did he find the cutback?" is a join rather than an
-   * inference.
+   * §13.1's zone table read onto a CARRY — a handoff or a scrambling
+   * quarterback. Identical shape to `yacZone`, deliberately different name.
    *
-   * INTERIM (ADR-010 item 2): a scrambling quarterback is a ball carrier and
-   * runs through the same machinery, but he is not running a gap. `gap` is
-   * required, so he gets `TUNABLES.result.scrambleGapLabel`.
+   * This is what makes "yards before contact" separable from "yards after
+   * contact" for a run, which is the single question a run game exists to
+   * answer (ADR-010 item 1).
    */
-  runResolution(carrier: PlayerId, gap: string, yards: number): void {
-    this.push({ type: "RUN_RESOLUTION", payload: { carrier, gap, yards }, ...this.base() });
+  rushZone(carrier: PlayerId, zone: number, yardsInZone: number): void {
+    this.push({ type: "RUSH_ZONE", payload: { carrier, zone, yardsInZone }, ...this.base() });
+  }
+
+  /**
+   * §14 summary.
+   *
+   * `gap` is the gap the ball ACTUALLY went through, which on a zone play is
+   * §14.2's vision check speaking; the gap it was DRAWN to is in `PLAY_START`,
+   * so "did he find the cutback?" is a join rather than an inference. It is
+   * ABSENT on a scramble: a quarterback who tucked it is a ball carrier running
+   * the same §14.4 machinery, and he has no designed gap at all (ADR-010 item 2
+   * — this replaced a literal `"SCRAMBLE"` sentinel in the free-text field).
+   *
+   * `yardsBeforeContact` is §14.3's own number, the line's half of the run.
+   */
+  runResolution(
+    carrier: PlayerId,
+    carryType: "DESIGNED" | "SCRAMBLE",
+    gap: string | undefined,
+    yardsBeforeContact: number,
+    yards: number,
+  ): void {
+    this.push({
+      type: "RUN_RESOLUTION",
+      payload: {
+        carrier,
+        carryType,
+        ...(gap === undefined ? {} : { gap }),
+        yardsBeforeContact,
+        yards,
+      },
+      ...this.base(),
+    });
   }
 
   playResult(yards: number, turnover: boolean, clockRunoff: number, score?: number): void {

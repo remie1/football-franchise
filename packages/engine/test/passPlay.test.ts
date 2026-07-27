@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
-import { simulatePassPlay } from "../src/index.js";
-import type { MatchGameState, PlayCalls } from "../src/index.js";
+import {
+  IncoherentPlayCallError,
+  UnsupportedPlayCallError,
+  simulatePassPlay,
+} from "../src/index.js";
+import type { MatchGameState, PlayCalls } from "../src/types.js";
 import { buildScenario, makePlayer } from "./fixtures.js";
 
 const types = (events: readonly MatchEventEnvelope[]): string[] => events.map((e) => e.event.type);
@@ -137,13 +141,25 @@ describe("pass play integration", () => {
     expect(sacks).toBeGreaterThan(0);
   });
 
-  it("rejects unblocked rushers as an out-of-slice input (§7.4 blitz pickup)", () => {
+  /**
+   * R4 — the two rejections are DIFFERENT KINDS OF NO, and the type says which.
+   *
+   * An unblocked blitzer is coherent, resolvable football; the engine simply has
+   * no §7.4 mechanic for him. That is a scope limit, not a bad card, and a
+   * caller (franchise, authoring play cards) has to be able to tell them apart
+   * without matching on a message string.
+   */
+  it("an unblocked rusher is a SCOPE LIMIT, not incoherence (§7.4 blitz pickup)", () => {
     const { state, calls } = buildScenario();
     const noProtection: PlayCalls = {
       ...calls,
       offense: { ...calls.offense, protection: [] },
     };
-    expect(() => simulatePassPlay(state, noProtection, "x")).toThrow(/unblocked/);
+    expect(() => simulatePassPlay(state, noProtection, "x")).toThrow(UnsupportedPlayCallError);
+    expect(() => simulatePassPlay(state, noProtection, "x")).toThrow(/ProtectionAssignment/);
+    // ...and specifically NOT the other one: a caller catching incoherence must
+    // not swallow "the engine cannot do this yet".
+    expect(() => simulatePassPlay(state, noProtection, "x")).not.toThrow(IncoherentPlayCallError);
   });
 
   it("a receiver nobody covers is no longer an error — it is a hole in the zone (§9.4)", () => {

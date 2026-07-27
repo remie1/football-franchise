@@ -62,6 +62,7 @@ export function resolveReleaseVsPress(args: ReleaseArgs): ReleaseOutcome {
       roll: receiverRoll,
       opposedRoll: defenderRoll,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs: [ATTR.releaseWR, ATTR.agility, ATTR.press, ATTR.strength],
     },

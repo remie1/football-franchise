@@ -10,14 +10,15 @@ import { createRng, playerId } from "@ff/contracts";
 import type { ChemistryTable, PlayerState } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import {
-  TUNABLES,
   anticipationAvailable,
   anticipationBandFor,
-  bandFor,
   leadSteps,
   resolveAnticipation,
-} from "../src/index.js";
-import type { AnticipationArgs, ReadSystem, RouteDepthClass } from "../src/index.js";
+} from "../src/resolve/anticipation.js";
+import type { AnticipationArgs } from "../src/resolve/anticipation.js";
+import { bandFor } from "../src/rolls.js";
+import { TUNABLES } from "../src/tunables.js";
+import type { ReadSystem, RouteDepthClass } from "../src/types.js";
 import { makePlayer } from "./fixtures.js";
 
 const SHARP = makePlayer("qb-sharp", "Rhythm", "QB", { awareness: 94, footballIQ: 92 });

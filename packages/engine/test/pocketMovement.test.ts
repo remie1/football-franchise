@@ -12,15 +12,16 @@
 import { describe, expect, it } from "vitest";
 import { createRng } from "@ff/contracts";
 import type { MatchEventEnvelope, PlayerState } from "@ff/contracts";
+import { simulatePassPlay } from "../src/index.js";
 import {
-  TUNABLES,
   climbLaneOpen,
   pocketMovementBandFor,
   rankResponses,
   resolvePocketMovement,
-  simulatePassPlay,
-} from "../src/index.js";
-import type { PocketResponse, RushThreat } from "../src/index.js";
+} from "../src/resolve/pocketMovement.js";
+import type { PocketResponse } from "../src/resolve/pocketMovement.js";
+import type { RushThreat } from "../src/resolve/rushThreat.js";
+import { TUNABLES } from "../src/tunables.js";
 import { buildScenario, makePlayer } from "./fixtures.js";
 
 const rng = (label: string) => createRng("movement-seed", label);

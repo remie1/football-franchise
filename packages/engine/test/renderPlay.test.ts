@@ -2,6 +2,7 @@ import { gameId, playId } from "@ff/contracts";
 import type { MatchEventEnvelope, PlayerId, RollDetail } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import { renderPlay, simulatePassPlay, simulateRunPlay } from "../src/index.js";
+import { formatRoll } from "../src/debug/renderPlay.js";
 import {
   STAMP,
   baseReceivers,
@@ -85,7 +86,33 @@ describe("§17.1 debug renderer", () => {
       if (!text.includes("POCKET MOVEMENT")) continue;
       seen += 1;
       expect(text).toContain("POCKET MOVEMENT (§7.2 throw / MOVE / take hit):");
-      expect(text).toMatch(/Result: (SOUND|RUSHED|PANICKED) \([+-]\d+\) → took response rank \d/);
+      // ADR-011 — the band NAME comes off CHECK.payload.band. What it means
+      // ("took response rank 1") was `TUNABLES.pocketMovement.bands[].takeRank`
+      // re-derived here; the response he actually took is the QB_DECISION.
+      expect(text).toMatch(/Result: (SOUND|RUSHED|PANICKED) \([+-]\d+\)/);
+      expect(text).not.toContain("undefined");
+    }
+    expect(seen).toBe(1);
+  });
+
+  /**
+   * A scramble carry has no line of scrimmage, so it renders no run sections —
+   * but it is still a carry, and its RUN_RESOLUTION is still a fact the stream
+   * carries. It belongs under BALL CARRIER with the §14.4 checks it produced.
+   */
+  it("prints a scramble carry as a carry, with no designed gap (ADR-010)", () => {
+    let seen = 0;
+    for (let i = 0; i < 1500 && seen === 0; i++) {
+      const { state, calls, names } = buildScramblerScenario();
+      const { events } = simulatePassPlay(state, calls, `scramble-carry-render-${i}`);
+      if (!events.some((e) => e.event.type === "RUN_RESOLUTION")) continue;
+      seen += 1;
+      const text = renderPlay(events, names);
+      expect(text).toMatch(/tucks it and runs: -?\d+ yards \(SCRAMBLE — no designed gap\)/);
+      expect(text).toMatch(/rush zone \d: -?\d+ yards/);
+      // ...and none of the designed run's sections, because none of it happened.
+      expect(text).not.toContain("LINE BATTLE — RUN");
+      expect(text).not.toContain("RB DECISION");
       expect(text).not.toContain("undefined");
     }
     expect(seen).toBe(1);
@@ -115,10 +142,10 @@ describe("§17.1 debug renderer", () => {
     expect(text).toContain("Reads:   HALF_FIELD — 3 in the progression");
     // Read one is the dig, turned loose half a tick before the break...
     expect(text).toContain("Anticipation (Tick 1.5): Miles Corbin (QB)");
-    expect(text).toContain("Result: ON_TIME (+50) → turns it loose before the break");
+    expect(text).toContain("Result: ON_TIME (+50)");
     expect(text).toContain("├─ Read (Tick 1.5): Cole Rankin (WR)");
     // ...read two is the go route, which he cannot anticipate and does not skip.
-    expect(text).toContain("Result: NOT_YET (-4) → cannot pull the trigger; stays on this read");
+    expect(text).toContain("Result: NOT_YET (-4)");
     expect(text).toContain("(DEEP route declares)");
     // The rush is described by the stream, with real arrivals and no caveat.
     expect(text).toContain("Kade Vance (DE) wins the rep → EDGE threat, 2.0s to travel, arrival 3.5");
@@ -137,7 +164,7 @@ describe("§17.1 debug renderer", () => {
       const text = renderPlay(events, names);
       expect(text).toMatch(/Anticipation \(Tick \d\.\d\)/);
       expect(text).toMatch(/Result: (ON_TIME|ANTICIPATED|NOT_YET|LOCKED_ON) \([+-]\d+\)/);
-      expect(text).toContain("before the break");
+      expect(text).toContain("before the break");   // the lead modifier's own label
     }
     expect(seen).toBe(1);
   });
@@ -329,8 +356,8 @@ describe("§17.1 debug renderer", () => {
       expect(text).toContain("Roll 1 — deflection quality:");
       expect(text).toContain("Roll 2 — recovery attempts:");
       expect(text).toContain("Eligible to recover (§12.3, Reaction order)");
-      // The interim `ref:` stub is a reference, and the renderer strips it: a
-      // reader must never see the marker, only the roll it points at.
+      // ADR-009 replaced two RollDetail-shaped slots with `rollRef` strings; a
+      // reader must never see a reference, only the roll it points at.
       expect(text).not.toContain("ref:");
       expect(text).not.toContain("undefined");
     });
@@ -396,10 +423,20 @@ describe("§17.1 — the run play printout", () => {
     expect(text).not.toContain("undefined");
   });
 
-  it("prints BOTH band tables for the same margin, because the doc has two", () => {
+  /**
+   * The §6.3 / §14.3 disagreement is still visible, but STATED IN YARDS rather
+   * than in two label names re-derived from one margin.
+   *
+   * §6.3's engagement band is on the `run_block` CHECK (ADR-011). §14.3's table
+   * rolls no die of its own, so it produces no CHECK and no band — what the
+   * stream carries for it is `RUN_RESOLUTION.yardsBeforeContact` (ADR-010),
+   * which is the number the two tables actually disagree about.
+   */
+  it("prints §6.3's engagement band and §14.3's yards before contact", () => {
     const { state, calls, names } = buildRunScenario();
     const text = renderPlay(simulateRunPlay(state, calls, "render-run-2").events, names);
-    expect(text).toMatch(/§6\.3: [A-Z_]+ \([+-]\d+\)\s+§14\.3: [A-Z_]+/);
+    expect(text).toMatch(/§6\.3: [A-Z_]+ \([+-]\d+\)/);
+    expect(text).toMatch(/└─ -?\d+ yards before contact, -?\d+ after/);
   });
 
   it("says whether the ball went where it was drawn", () => {
@@ -425,16 +462,19 @@ describe("§17.1 — the run play printout", () => {
     expect(seen).toBe(1);
   });
 
-  it("YAC zones are printed for a catch and there are none for a carry (ADR-010)", () => {
+  it("a carry prints RUSH zones and a catch prints YAC zones, never each other's", () => {
     const run = buildRunScenario();
     const runText = renderPlay(simulateRunPlay(run.state, run.calls, "render-run-3").events, run.names);
-    expect(runText).not.toMatch(/Zone \d: -?\d+ yards/);
+    // ADR-010 — a carry's zone-by-zone advance is published now, in its OWN
+    // event. What it must never be is a YAC zone.
+    expect(runText).toMatch(/rush zone \d: -?\d+ yards/);
+    expect(runText).not.toMatch(/YAC zone \d:/);
 
     let printed = 0;
     for (let i = 0; i < 60 && printed === 0; i++) {
       const { state, calls, names } = buildScenario();
       const text = renderPlay(simulatePassPlay(state, calls, `render-yac-${i}`).events, names);
-      if (/Zone \d: -?\d+ yards/.test(text)) printed += 1;
+      if (/YAC zone \d: -?\d+ yards/.test(text)) printed += 1;
     }
     expect(printed).toBe(1);
   });

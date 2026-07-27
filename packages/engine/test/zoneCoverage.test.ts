@@ -10,23 +10,25 @@
 import { createRng, getAttr } from "@ff/contracts";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
+import { ATTR } from "../src/attrs.js";
+import { simulatePassPlay } from "../src/index.js";
 import {
-  ATTR,
-  TUNABLES,
   backfieldZone,
+  routeZone,
+  sameZone,
+  verticalZoneForAirYards,
+  zoneDefenderFor,
+  zoneDistance,
+} from "../src/resolve/zone.js";
+import {
   qbDisguise,
   resolveZoneCoverage,
   resolveZoneRead,
-  routeZone,
-  sameZone,
   settledOpennessAt,
-  simulatePassPlay,
-  verticalZoneForAirYards,
   zoneCoverageBandFor,
-  zoneDefenderFor,
-  zoneDistance,
-} from "../src/index.js";
-import type { CoverageAssignment, FieldZone, RouteAssignment } from "../src/index.js";
+} from "../src/resolve/zoneCoverage.js";
+import { TUNABLES } from "../src/tunables.js";
+import type { CoverageAssignment, FieldZone, RouteAssignment } from "../src/types.js";
 import {
   baseReceivers,
   buildMixedCoverageScenario,

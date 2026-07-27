@@ -11,17 +11,15 @@ import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import {
   IncoherentPlayCallError,
-  TUNABLES,
-  climbTriggered,
-  gapKey,
-  pointOfAttackFor,
-  runBlockBandFor,
-  selectGap,
   simulatePlay,
   simulateRunPlay,
   simulatePassPlay,
 } from "../src/index.js";
-import type { GapResult, RunPlayCalls } from "../src/index.js";
+import { climbTriggered, runBlockBandFor } from "../src/resolve/runBlock.js";
+import { gapKey, pointOfAttackFor, selectGap } from "../src/resolve/runGame.js";
+import type { GapResult } from "../src/resolve/runGame.js";
+import { TUNABLES } from "../src/tunables.js";
+import type { RunPlayCalls } from "../src/types.js";
 import { buildRunScenario, buildScenario } from "./fixtures.js";
 
 function checks(events: readonly MatchEventEnvelope[], kind: string): MatchEventEnvelope[] {
@@ -86,10 +84,81 @@ describe("§14 — a designed run resolves end to end", () => {
     }
   });
 
-  it("no YAC_ZONE is emitted for a carry — ADR-010 item 1, stated not smuggled", () => {
-    for (const events of sweep("ZONE", 100, "yaczone")) {
+  /**
+   * ADR-010 item 1 — a carry publishes its zone-by-zone advance on RUSH_ZONE,
+   * and never on YAC_ZONE.
+   *
+   * The distinction is the whole point of the amendment: YAC_ZONE means yards
+   * after CATCH, so a handoff landing in one silently corrupts every receiving
+   * aggregate downstream while every individual event stays well-formed.
+   */
+  it("a carry emits RUSH_ZONE and never YAC_ZONE", () => {
+    let zones = 0;
+    for (const events of sweep("ZONE", 100, "rushzone")) {
       expect(events.some((e) => e.event.type === "YAC_ZONE")).toBe(false);
+      for (const { event } of events) {
+        if (event.type !== "RUSH_ZONE") continue;
+        zones += 1;
+        expect(event.payload.zone).toBeGreaterThanOrEqual(1);
+      }
     }
+    expect(zones).toBeGreaterThan(0);
+  });
+
+  it("RUSH_ZONE's per-zone yards account for everything after the line", () => {
+    let checked = 0;
+    for (const events of sweep("ZONE", 300, "rushzone-sum")) {
+      const run = events.find((e) => e.event.type === "RUN_RESOLUTION");
+      const result = events.find((e) => e.event.type === "PLAY_RESULT");
+      if (run?.event.type !== "RUN_RESOLUTION") throw new Error("no run resolution");
+      if (result?.event.type !== "PLAY_RESULT") throw new Error("no result");
+      const zoned = events.flatMap(({ event }) =>
+        event.type === "RUSH_ZONE" ? [event.payload.yardsInZone] : [],
+      );
+      // A carry stopped at the line never reaches `advanceCarrier`, so it
+      // publishes no zones at all and its yards are entirely pre-contact.
+      if (zoned.length === 0) continue;
+      // §14.3's own contact contests (`tackle`) pay yards at the line that are
+      // neither "before contact" nor inside a §13.1 zone, and a run into the end
+      // zone is capped by the field. Both are separately covered; this is the
+      // plain case, where the two halves are the whole carry.
+      if (events.some((e) => e.event.type === "CHECK" && e.event.payload.checkKind === "tackle")) continue;
+      if (result.event.payload.score !== undefined) continue;
+      checked += 1;
+      const after = zoned.reduce((a, b) => a + b, 0);
+      expect(run.event.payload.yardsBeforeContact + after).toBe(run.event.payload.yards);
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  /**
+   * ADR-010 item 2 — the single question a run game exists to answer.
+   *
+   * Before the amendment the stream carried the SUM and nothing else, so "is the
+   * line good or is the back good?" was unanswerable from the event stream. It
+   * is now a subtraction.
+   */
+  it("RUN_RESOLUTION states carryType, the gap, and §14.3's yards before contact", () => {
+    let blocked = 0;
+    let stuffed = 0;
+    for (const events of sweep("ZONE", 300, "beforecontact")) {
+      const run = events.find((e) => e.event.type === "RUN_RESOLUTION");
+      if (run?.event.type !== "RUN_RESOLUTION") throw new Error("no run resolution");
+      const p = run.event.payload;
+      expect(p.carryType).toBe("DESIGNED");
+      // A designed run always has one; only a scramble may omit it.
+      expect(p.gap).toMatch(/^(LEFT|RIGHT)-[ABCD]$/);
+      // §14.3's table: 3-5 through an open hole, 1-2 through one that exists,
+      // 0 at a stalemate or on penetration. Never negative — the TFL is taken
+      // off the TOTAL, not off the line's half.
+      expect(p.yardsBeforeContact).toBeGreaterThanOrEqual(0);
+      expect(p.yardsBeforeContact).toBeLessThanOrEqual(5);
+      if (p.yardsBeforeContact > 0) blocked += 1;
+      if (p.yardsBeforeContact === 0) stuffed += 1;
+    }
+    // ...and it actually varies, so the field is measuring something.
+    expect(blocked).toBeGreaterThan(0);
+    expect(stuffed).toBeGreaterThan(0);
   });
 });
 
@@ -235,23 +304,15 @@ describe("§6.4 — the second-level climb", () => {
   });
 });
 
-describe("ADR-004/005 hold for the run game too", () => {
-  it("no roll appears twice, and every roll is on a CHECK", () => {
-    for (const events of sweep("ZONE", 150, "adr4")) {
-      const labels: string[] = [];
-      for (const { event } of events) {
-        if (event.type !== "CHECK") {
-          // Only CHECKs carry rolls on a run play — there is no QB_READ.
-          expect(JSON.stringify(event.payload)).not.toContain("rngLabel");
-          continue;
-        }
-        labels.push(event.payload.roll.rngLabel);
-        if (event.payload.opposedRoll !== undefined) labels.push(event.payload.opposedRoll.rngLabel);
-      }
-      expect(new Set(labels).size).toBe(labels.length);
-    }
-  });
-
+/**
+ * ADR-004 enforcement for the run game LIVES IN `rollAccounting.test.ts` (R7).
+ *
+ * It used to be split: `rollAccounting.test.ts` drove only `simulatePassPlay`
+ * and the run's copy lived here and swept only `"ZONE"`, so a GAP stream was
+ * never checked for duplicate roll labels at all. One rule, one file, both entry
+ * points, both schemes.
+ */
+describe("ADR-005 holds for the run game too", () => {
   it("the CheckKinds emitted are all doc mechanics, none invented", () => {
     const kinds = new Set<string>();
     for (const events of sweep("ZONE", 300, "kinds")) {
@@ -295,11 +356,23 @@ describe("determinism", () => {
     expect(JSON.stringify(a.events)).not.toBe(JSON.stringify(b.events));
   });
 
+  /**
+   * R6 — the WHOLE state, players and all.
+   *
+   * This used to serialize `{ ...state, players: Object.keys(state.players) }`,
+   * which replaced the player map with its key list and therefore proved nothing
+   * about the `PlayerState` objects themselves — the very objects handed to
+   * `advanceCarrier`, `resolveTackleContest` and `resolveBlockInSpace`, and so
+   * the ones most at risk of being mutated. The pass play's equivalent test has
+   * always serialized everything; this now matches it, and covers the calls too.
+   */
   it("the input state is not mutated", () => {
     const { state, calls } = buildRunScenario();
-    const before = JSON.stringify({ ...state, players: Object.keys(state.players) });
+    const stateBefore = JSON.stringify(state);
+    const callsBefore = JSON.stringify(calls);
     simulateRunPlay(state, calls, "nomutate");
-    expect(JSON.stringify({ ...state, players: Object.keys(state.players) })).toBe(before);
+    expect(JSON.stringify(state)).toBe(stateBefore);
+    expect(JSON.stringify(calls)).toBe(callsBefore);
   });
 
   function args(seed: string): [ReturnType<typeof buildRunScenario>["state"], RunPlayCalls, string] {

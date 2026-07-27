@@ -58,7 +58,7 @@ import type {
   SimulationResult,
   ThrowType,
 } from "../types.js";
-import { assertCoherentPlayCall } from "../validate/playCall.js";
+import { UnsupportedPlayCallError, assertCoherentPlayCall } from "../validate/playCall.js";
 import type { Pursuer } from "../resolve/ballCarrier.js";
 import {
   advanceCarrier,
@@ -657,11 +657,14 @@ export function simulatePassPlay(
           yardsToGoalLine: 100 - state.ballOn,
           carrierRng: carrierRng.fork("scramble"),
           emitCheck: (check) => log.check(check),
-          // ADR-010 item 1 — a scramble is a carry, and YAC_ZONE would corrupt
-          // YAC aggregates. No per-zone event; the CHECKs carry the detail.
-          emitZone: () => undefined,
+          // A scramble is a carry, so it publishes RUSH_ZONE — never YAC_ZONE,
+          // which would put quarterback rushing into a receiving aggregate.
+          emitZone: (zone, yardsInZone) => log.rushZone(state.quarterback, zone, yardsInZone),
         });
-        log.runResolution(state.quarterback, TUNABLES.result.scrambleGapLabel, run.yards);
+        // `gap` is absent, because he did not run one; `yardsBeforeContact` is
+        // zero, because nothing was blocked for him — §14.3's point of attack is
+        // a designed-run mechanic and no part of it ran here (ADR-010 item 2).
+        log.runResolution(state.quarterback, "SCRAMBLE", undefined, 0, run.yards);
         outcome = {
           yards: run.yards,
           turnover: false,
@@ -885,7 +888,9 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
     throwRng,
   });
   log.check(accuracy.check);
-  log.throwBall(track.receiver.bio.id, throwType, accuracy.check.tier);
+  // ADR-011 — the placement band is on the accuracy CHECK; THROW names the roll
+  // rather than repeating the band (ADR-004's rule, applied to a derived fact).
+  log.throwBall(track.receiver.bio.id, throwType, accuracy.check.tier, accuracy.roll.rngLabel);
 
   const incomplete = (): PlayOutcome => ({
     yards: 0,
@@ -1346,8 +1351,12 @@ function buildMatchups(state: MatchGameState, calls: PlayCalls): RushMatchup[] {
   return calls.defense.rush.map((assignment) => {
     const protection = calls.offense.protection.find((p) => p.rusher === assignment.rusher);
     if (protection === undefined) {
-      throw new Error(
-        `@ff/engine: rusher ${String(assignment.rusher)} is unblocked — free-rusher/blitz-pickup (§7.4) is out of the pass-play slice`,
+      // NOT incoherence (R4): an unblocked blitzer is coherent, resolvable
+      // football. It is a SCOPE LIMIT — §7.4 blitz pickup is unimplemented — and
+      // it gets its own type so a caller can tell "bad card" from "not yet".
+      throw new UnsupportedPlayCallError(
+        `rusher ${String(assignment.rusher)} has no ProtectionAssignment; ` +
+          "the free-rusher / blitz-pickup mechanic (§7.4) is not implemented",
       );
     }
     const rusher = requirePlayer(state, assignment.rusher);

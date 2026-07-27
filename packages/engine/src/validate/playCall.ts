@@ -29,6 +29,33 @@ export class IncoherentPlayCallError extends Error {
   }
 }
 
+/**
+ * A DIFFERENT rejection, and the distinction is the whole reason this class
+ * exists (R4). `IncoherentPlayCallError` means the card contradicts itself:
+ * twelve men, a progression naming somebody with no route, a carrier blocking
+ * for himself. No engine will ever resolve those, and the caller's answer is to
+ * fix the card.
+ *
+ * This one means the card is perfectly coherent football that THIS ENGINE cannot
+ * simulate yet. The live instance is §7.4 blitz pickup: a rusher with no
+ * `ProtectionAssignment` is an unblocked blitzer, which is real, legal and
+ * resolvable — the engine simply has no free-rusher mechanic, so it refuses
+ * rather than quietly pairing him with a blocker who is not there.
+ *
+ * FOR FRANCHISE (Spec #5), which authors play cards: the constraint is that
+ * **every rusher named in `DefensivePlayCall.rush` must be named as the
+ * `rusher` of some `OffensivePlayCall.protection` entry.** A card that leaves
+ * one free is not invalid — it is ahead of the engine, and the day §7.4 lands
+ * the same card starts working with no change at the call site. Catch this type
+ * to distinguish "bad card" from "not yet".
+ */
+export class UnsupportedPlayCallError extends Error {
+  constructor(message: string) {
+    super(`@ff/engine: play call is out of scope — ${message}`);
+    this.name = "UnsupportedPlayCallError";
+  }
+}
+
 function fail(message: string): never {
   throw new IncoherentPlayCallError(message);
 }
@@ -157,7 +184,20 @@ export function assertCoherentRunCall(state: MatchGameState, calls: RunPlayCalls
     if (!known(state, id)) fail(`${role} ${String(id)} is not in state.players`);
   }
 
-  // 2. The play has to have somewhere to go: the designed gap must be blocked.
+  // 2. An ORPHANED REFERENCE, and that is the class it belongs to (R5): this is
+  //    the run's analogue of "readOrder names a player who has no route".
+  //    `designedGap`/`designedSide` point at a gap, and §14.3 resolves the carry
+  //    from the ENGAGEMENT MARGIN in the gap the ball goes through — so a
+  //    designed gap with no `RunBlockAssignment` names a battle that was never
+  //    fought, and `selectGap` would silently fall through to some other gap.
+  //    It is rejected for the same reason as the readOrder case: the reference
+  //    does not resolve, not that the football is wrong.
+  //
+  //    ⚠ REVISIT WHEN FRANCHISE AUTHORS OPTION PLAYS. A zone-read keep leaves
+  //    the end deliberately UNBLOCKED — that is the read — so an option card
+  //    would name a designed gap whose defender has no blocker on purpose, and
+  //    this check would reject legal football. The fix then is a way to state
+  //    "unblocked by design" on the assignment, not the deletion of this check.
   const designed = `${offense.designedSide}-${offense.designedGap}`;
   if (!offense.blocking.some((b) => `${b.side}-${b.gap}` === designed)) {
     fail(`the designed gap ${designed} has no blocking assignment`);

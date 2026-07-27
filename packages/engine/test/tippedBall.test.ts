@@ -9,17 +9,18 @@
 import { createRng } from "@ff/contracts";
 import type { MatchEventEnvelope, PlayerState } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
+import { simulatePassPlay } from "../src/index.js";
 import {
-  TUNABLES,
   deflectionQualityBandFor,
   eligibleRecoverers,
   recoveryOrder,
   resolveDeflectionQuality,
   resolveRecoveryAttempt,
-  simulatePassPlay,
   throwHeightFor,
-} from "../src/index.js";
-import type { EligibleRecoverer, FieldZone, RecoveryCandidate } from "../src/index.js";
+} from "../src/resolve/tippedBall.js";
+import type { EligibleRecoverer, RecoveryCandidate } from "../src/resolve/tippedBall.js";
+import { TUNABLES } from "../src/tunables.js";
+import type { FieldZone } from "../src/types.js";
 import { buildDeflectionScenario, buildScenario, makePlayer } from "./fixtures.js";
 
 const DEFLECTOR = makePlayer("db-tip", "Swat", "CB", { ballSkills: 90, reaction: 88 });

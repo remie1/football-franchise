@@ -77,6 +77,7 @@ function resolveRoutineCatch(args: CatchArgs): CatchOutcome {
       roll,
       target,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs: [ATTR.catching],
     },
@@ -130,6 +131,7 @@ function resolveContestedCatch(args: CatchArgs, defender: PlayerState): CatchOut
       roll,
       opposedRoll,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs: [
         ...t.receiverTerms.map((term) => resolveAttr(term.attr)),

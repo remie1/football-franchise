@@ -121,6 +121,7 @@ export function resolveAnticipation(args: AnticipationArgs): AnticipationOutcome
       roll,
       target: t.target,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs: ANTICIPATION_ATTRS,
     },

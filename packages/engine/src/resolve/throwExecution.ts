@@ -113,6 +113,11 @@ export function resolveAccuracy(args: AccuracyArgs): AccuracyOutcome {
       roll,
       target: t.target,
       tier: tierFor(margin),
+      // ADR-011 — §10.4's PLACEMENT BAND, and the reason the whole amendment
+      // exists: it drives the catch modifier, the defender's contest modifier,
+      // the catch difficulty and §10.5's YAC multiplier. `THROW.rollRef` points
+      // here rather than copying it.
+      band: band.label,
       margin,
       testsAttrs: armShortfall ? [ATTR.accuracy, ATTR.poise, ATTR.armStrength] : [ATTR.accuracy, ATTR.poise],
     },

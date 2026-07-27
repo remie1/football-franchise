@@ -7,7 +7,17 @@
  * Where the design doc is qualitative ("CB in phase", "route disrupted"), the
  * numeric expression of that outcome lives here under a descriptive key and is
  * marked INTERPRETATION so calibration knows it is a knob, not a doc quote.
+ *
+ * TWO KINDS OF STRINGLY-TYPED REFERENCE LIVE IN HERE, and both are checked:
+ *  - attribute ids (`{ attr: "poise" }`, `speedAttr: "speed"`) are resolved
+ *    against `ATTRIBUTE_REGISTRY_V1` at module load by `src/attrs.ts`'s sweep,
+ *    which walks this whole object generically. An id the registry does not
+ *    define throws at import, not mid-simulation;
+ *  - `checkKind` fields are `satisfies CheckKind`, so a value contracts does not
+ *    define fails to compile HERE, at the site that is wrong, rather than at the
+ *    resolver that reads it (R9).
  */
+import type { CheckKind } from "@ff/contracts";
 
 const NEG_INF = Number.NEGATIVE_INFINITY;
 
@@ -1318,7 +1328,7 @@ export const TUNABLES = {
        * above)"), so this profile covers all of §13.
        */
       yac: {
-        checkKind: "yac_tackle",
+        checkKind: "yac_tackle" satisfies CheckKind,
         carrierTerms: [
           { attr: "yac", divisor: 5 },
           { attr: "elusiveness", divisor: 5 },
@@ -1342,7 +1352,7 @@ export const TUNABLES = {
        * counts.
        */
       secondLevel: {
-        checkKind: "break_tackle",
+        checkKind: "break_tackle" satisfies CheckKind,
         carrierTerms: [
           { attr: "elusiveness", divisor: 5 },
           { attr: "power", divisor: 5 },
@@ -1365,7 +1375,7 @@ export const TUNABLES = {
        * loses is down where he stood.
        */
       atLosPower: {
-        checkKind: "tackle",
+        checkKind: "tackle" satisfies CheckKind,
         carrierTerms: [{ attr: "power", divisor: 5 }],
         tacklerTerms: [{ attr: "tackling", divisor: 5 }],
         bands: [
@@ -1379,7 +1389,7 @@ export const TUNABLES = {
        * a failure is `runGame.tflYardsLost`, applied by the resolver.
        */
       atLosEvade: {
-        checkKind: "tackle",
+        checkKind: "tackle" satisfies CheckKind,
         carrierTerms: [{ attr: "elusiveness", divisor: 5 }],
         tacklerTerms: [{ attr: "tackling", divisor: 5 }],
         bands: [
@@ -1459,7 +1469,7 @@ export const TUNABLES = {
      * recovered by deleting the `tackling` term. Not rescaled either way.
      */
     blockInSpace: {
-      checkKind: "downfield_block",
+      checkKind: "downfield_block" satisfies CheckKind,
       profiles: {
         STALK: {
           blockerTerms: [{ attr: "runBlock", divisor: 5 }],
@@ -1534,14 +1544,107 @@ export const TUNABLES = {
       run: 5,
     },
     firstDownResetsDistance: 10,
-    /**
-     * `RUN_RESOLUTION.gap` for a carry that had no designed gap. A scrambling
-     * quarterback is a ball carrier and runs through the same machinery, but he
-     * is not running a gap — INTERIM (ADR-010) until `RUN_RESOLUTION` can say
-     * `carryType` and leave `gap` off.
-     */
-    scrambleGapLabel: "SCRAMBLE",
   },
 } as const;
 
 export type Tunables = typeof TUNABLES;
+
+// --- the calibration patch interface (ADR-012) -------------------------------
+
+/**
+ * ONE tuning change, in the shape `docs/design/calibration.md` §3.1 states:
+ * *"Calibration proposals are patches, not edits:
+ * `{tunableId, currentValue, proposedValue, evidence, expectedEffect}` filed as
+ * ADR petitions."*
+ *
+ * `tunableId` is the dotted path of a LEAF inside `TUNABLES`
+ * ("passRush.blockerStructuralAdvantage", "ballCarrier.contests.yac.bands.0.minMargin").
+ * `evidence` and `expectedEffect` are the petition's own prose: this module
+ * records them and reads neither, because neither is an engine input.
+ */
+export interface TunablePatch {
+  readonly tunableId: string;
+  /** What the patch was written against. A mismatch is a STALE patch and throws. */
+  readonly currentValue: string | number | boolean;
+  readonly proposedValue: string | number | boolean;
+  /** Report reference the proposal cites. Carried, never interpreted. */
+  readonly evidence: string;
+  readonly expectedEffect: string;
+}
+
+export class TunablePatchError extends Error {
+  constructor(message: string) {
+    super(`@ff/engine: tunable patch — ${message}`);
+    this.name = "TunablePatchError";
+  }
+}
+
+/**
+ * Apply one patch, purely: the argument is never touched and a new `Tunables` is
+ * returned with structural sharing along the untouched branches. Fold a list
+ * with `patches.reduce(applyTunablePatch, TUNABLES)`.
+ *
+ * Four rejections, all loud, because a silently-ignored patch is a calibration
+ * report about a simulation that never ran:
+ *   1. the path does not exist;
+ *   2. the path names a branch (an object or an array) rather than a leaf;
+ *   3. `currentValue` disagrees with what is actually there — the patch was
+ *      written against a different tunables version;
+ *   4. `proposedValue` is a different primitive type from the value it replaces.
+ *
+ * NOTE ON THE RETURN TYPE. `Tunables` is `typeof TUNABLES` on an `as const`
+ * object, so every leaf carries a LITERAL type (`blockerStructuralAdvantage: 15`).
+ * A patched copy is the same shape with a different literal, which no amount of
+ * generic machinery can express; the single cast below is that fiction and
+ * nothing more. It is not `any` and it hides no runtime uncertainty — the four
+ * checks above have already established the shape.
+ */
+export function applyTunablePatch(tunables: Tunables, patch: TunablePatch): Tunables {
+  const path = patch.tunableId.split(".");
+  if (path.length === 0 || patch.tunableId === "") {
+    throw new TunablePatchError("tunableId is empty");
+  }
+
+  const rewrite = (node: unknown, depth: number): unknown => {
+    const key = path[depth];
+    if (key === undefined) throw new TunablePatchError(`path "${patch.tunableId}" ran out of segments`);
+    if (typeof node !== "object" || node === null) {
+      throw new TunablePatchError(
+        `"${path.slice(0, depth).join(".")}" is a leaf, so "${patch.tunableId}" does not exist`,
+      );
+    }
+    const record = node as Record<string, unknown>;
+    if (!Object.prototype.hasOwnProperty.call(record, key)) {
+      throw new TunablePatchError(`"${patch.tunableId}" is not a path into TUNABLES`);
+    }
+    const child = record[key];
+
+    if (depth === path.length - 1) {
+      if (typeof child === "object" && child !== null) {
+        throw new TunablePatchError(
+          `"${patch.tunableId}" names a branch, not a tunable value; patch a leaf`,
+        );
+      }
+      if (child !== patch.currentValue) {
+        throw new TunablePatchError(
+          `"${patch.tunableId}" is ${String(child)}, but the patch was written against ` +
+            `${String(patch.currentValue)} — stale patch, re-measure before filing`,
+        );
+      }
+      if (typeof child !== typeof patch.proposedValue) {
+        throw new TunablePatchError(
+          `"${patch.tunableId}" is a ${typeof child}; the patch proposes a ${typeof patch.proposedValue}`,
+        );
+      }
+      const next = Array.isArray(record) ? [...record] : { ...record };
+      (next as Record<string, unknown>)[key] = patch.proposedValue;
+      return next;
+    }
+
+    const next = Array.isArray(record) ? [...record] : { ...record };
+    (next as Record<string, unknown>)[key] = rewrite(child, depth + 1);
+    return next;
+  };
+
+  return rewrite(tunables, 0) as unknown as Tunables;
+}

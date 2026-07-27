@@ -27,7 +27,7 @@
  */
 import { getAttr } from "@ff/contracts";
 import type { AttrId, PlayerState, Rng, RollDetail } from "@ff/contracts";
-import { ATTR } from "../attrs.js";
+import { ATTR, attrName } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, rollD100, tierFor } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
@@ -150,9 +150,13 @@ export function resolvePocketMovement(args: PocketMovementArgs): PocketMovementO
   const roll = rollD100(
     args.movementRng,
     compact(
-      t.checkTerms.map((term, i) =>
-        actorAttrModifier(args.qb, attrLabelFor(term.attr), testsAttrs[i] ?? attrIdOf(term.attr), term.divisor),
-      ),
+      t.checkTerms.map((term, i) => {
+        const id = testsAttrs[i] ?? attrIdOf(term.attr);
+        // The attribute half of the source is the REGISTRY'S name, looked up —
+        // never the id with its first letter capitalised (contracts.md §1: ids
+        // are opaque). Only the "(pocket movement)" qualifier is ours.
+        return actorAttrModifier(args.qb, `${attrName(id)} (pocket movement)`, id, term.divisor);
+      }),
     ),
   );
   const margin = roll.total - t.target;
@@ -181,17 +185,14 @@ export function resolvePocketMovement(args: PocketMovementArgs): PocketMovementO
       roll,
       target: t.target,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs,
     },
   };
 }
 
-function attrLabelFor(name: string): string {
-  return `${name.charAt(0).toUpperCase()}${name.slice(1)} (pocket movement)`;
-}
-
-/** Exposed so the debug renderer can name the branch a margin selected. */
+/** Kept for calibration/test use; the §17 renderer reads the band off the stream. */
 export function pocketMovementBandFor(margin: number): PocketMovementBandLabel {
   return bandFor(TUNABLES.pocketMovement.bands, margin).label;
 }

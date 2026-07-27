@@ -30,7 +30,7 @@
  * ADR-007's rule for the rusher ETA applied to yardage.
  */
 import { getAttr } from "@ff/contracts";
-import type { CheckKind, PlayerId, PlayerState, Rng, RollDetail } from "@ff/contracts";
+import type { PlayerId, PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR, TRAIT, resolveAttr } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import {
@@ -126,11 +126,14 @@ export function resolveTackleContest(args: TackleContestArgs): TackleContestOutc
     roll,
     opposedRoll,
     check: {
-      checkKind: profile.checkKind as CheckKind,
+      // No assertion: `TUNABLES` declares these `satisfies CheckKind`, so an id
+      // contracts does not define fails to compile at the tunables site (R9).
+      checkKind: profile.checkKind,
       actors: [args.carrier.bio.id, args.tackler.bio.id],
       roll,
       opposedRoll,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs: [...termAttrs(profile.carrierTerms), ...termAttrs(profile.tacklerTerms)],
     },
@@ -196,11 +199,12 @@ export function resolveBlockInSpace(args: BlockInSpaceArgs): BlockInSpaceOutcome
     roll,
     opposedRoll,
     check: {
-      checkKind: t.checkKind as CheckKind,
+      checkKind: t.checkKind,
       actors: [args.blocker.bio.id, args.defender.bio.id],
       roll,
       opposedRoll,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs: [...termAttrs(profile.blockerTerms), ...termAttrs(profile.defenderTerms)],
     },
@@ -316,6 +320,7 @@ export function resolveBreakaway(args: BreakawayArgs): BreakawayOutcome {
       roll,
       opposedRoll,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs: [...termAttrs(t.carrierTerms), ...termAttrs(t.pursuerTerms)],
     },

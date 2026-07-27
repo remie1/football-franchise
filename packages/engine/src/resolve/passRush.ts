@@ -81,6 +81,7 @@ export function resolvePassRushTick(args: PassRushArgs): PassRushOutcome {
       roll: rusherRoll,
       opposedRoll: blockerRoll,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs: [
         ATTR.passRush,

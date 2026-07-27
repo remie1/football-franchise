@@ -1,17 +1,16 @@
 import { createRng } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
+import { catchTypeFor, resolveCatch } from "../src/resolve/catchResolution.js";
 import {
-  TUNABLES,
   armStrengthShortfall,
-  bandFor,
-  catchTypeFor,
   laneDefenderEligible,
   resolveAccuracy,
-  resolveCatch,
   resolvePassingLane,
   selectThrowType,
-} from "../src/index.js";
-import type { AccuracyBand } from "../src/index.js";
+} from "../src/resolve/throwExecution.js";
+import type { AccuracyBand } from "../src/resolve/throwExecution.js";
+import { bandFor } from "../src/rolls.js";
+import { TUNABLES } from "../src/tunables.js";
 import { makePlayer } from "./fixtures.js";
 
 const qb = makePlayer("qb", "Passer", "QB", { accuracy: 85, armStrength: 78, touch: 80, poise: 90 });

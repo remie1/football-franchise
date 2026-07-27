@@ -1,13 +1,9 @@
 import { createRng } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
-import {
-  TUNABLES,
-  opennessAt,
-  resolveManCoverage,
-  resolveReleaseVsPress,
-  routePhaseAt,
-  routeReadySeconds,
-} from "../src/index.js";
+import { resolveManCoverage } from "../src/resolve/manCoverage.js";
+import { resolveReleaseVsPress } from "../src/resolve/release.js";
+import { opennessAt, routePhaseAt, routeReadySeconds } from "../src/resolve/route.js";
+import { TUNABLES } from "../src/tunables.js";
 import { makePlayer } from "./fixtures.js";
 
 const eliteWr = makePlayer("wr-elite", "Burner", "WR", {

@@ -11,14 +11,14 @@ import { createRng } from "@ff/contracts";
 import type { ChemistryTable } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import {
-  TUNABLES,
   chemistryEstablished,
   chemistryLevel,
   chemistrySupportsBackShoulder,
-  resolveAccuracy,
-  simulatePassPlay,
-} from "../src/index.js";
-import type { MatchGameState } from "../src/index.js";
+} from "../src/chemistry.js";
+import { resolveAccuracy } from "../src/resolve/throwExecution.js";
+import { simulatePassPlay } from "../src/index.js";
+import { TUNABLES } from "../src/tunables.js";
+import type { MatchGameState } from "../src/types.js";
 import { buildCleanPocketScenario, buildScenario, makePlayer } from "./fixtures.js";
 
 const QB = makePlayer("qb-chem", "Passer", "QB", { accuracy: 84, poise: 80, armStrength: 86 });

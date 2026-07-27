@@ -10,9 +10,8 @@
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
+import { simulatePassPlay } from "../src/index.js";
 import {
-  TUNABLES,
-  bandFor,
   clearsThreat,
   delayThreat,
   hasArrived,
@@ -20,15 +19,17 @@ import {
   pocketFloorFromArrival,
   recoverySecondsFor,
   rushAlignmentFor,
-  simulatePassPlay,
   soonerThreat,
   startsThreat,
   threatFromWonRep,
   timeToArrival,
   travelSecondsFor,
   urgencySteps,
-} from "../src/index.js";
-import type { RushMove, RushThreat } from "../src/index.js";
+} from "../src/resolve/rushThreat.js";
+import type { RushThreat } from "../src/resolve/rushThreat.js";
+import { bandFor } from "../src/rolls.js";
+import { TUNABLES } from "../src/tunables.js";
+import type { RushMove } from "../src/types.js";
 import { buildScenario } from "./fixtures.js";
 
 const MOVES: RushMove[] = ["SPEED", "POWER", "FINESSE"];

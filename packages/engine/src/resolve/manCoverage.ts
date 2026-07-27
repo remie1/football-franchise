@@ -68,6 +68,7 @@ export function resolveManCoverage(args: ManCoverageArgs): ManCoverageOutcome {
       roll: receiverRoll,
       opposedRoll: defenderRoll,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs: [ATTR.routeRunning, ATTR.agility, ATTR.manCoverage],
     },

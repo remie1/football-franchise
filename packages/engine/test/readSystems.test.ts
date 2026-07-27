@@ -11,8 +11,9 @@
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope, PlayerId } from "@ff/contracts";
-import { TUNABLES, simulatePassPlay } from "../src/index.js";
-import type { ReadSystem, RouteDepthClass } from "../src/index.js";
+import { simulatePassPlay } from "../src/index.js";
+import { TUNABLES } from "../src/tunables.js";
+import type { ReadSystem, RouteDepthClass } from "../src/types.js";
 import {
   baseReceivers,
   buildCleanPocketScenario,

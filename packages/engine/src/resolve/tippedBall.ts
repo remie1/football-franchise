@@ -121,6 +121,7 @@ export function resolveDeflectionQuality(args: DeflectionQualityArgs): Deflectio
       roll,
       target: targetNumber,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs: [],
     },

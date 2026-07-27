@@ -2,7 +2,7 @@
 
 - **Date:** July 2026
 - **Proposed by:** `match-engine` (Phase 1 breadth pass 2 — §13 YAC, §14 the run game, §6.3/§6.4)
-- **Status:** proposed
+- **Status:** approved
 
 ## Need
 
@@ -180,6 +180,40 @@ a petition until a second package needs to read it.
 - **narrative:** a `carryType: "SCRAMBLE"` with a long gain is a usable trigger for the first
   time ("he made something out of nothing").
 - **franchise:** none.
+
+## Decision
+
+**Both items approved** by project owner + Orchestrator, July 2026.
+
+`RUSH_ZONE` carries the load: without it, yards *before* contact and yards *after* contact
+cannot be separated for a run, which is the single question a run game exists to answer. The
+interim for item 2 — the literal string `"SCRAMBLE"` in a free-text `gap` field, compared
+against an engine constant contracts has never heard of — is exactly the sort of private
+agreement between producer and consumer that the event schema exists to prevent.
+
+### The schema-evolution precedent this ADR establishes
+
+The rejection of a `phase: "YAC" | "RUSH"` discriminator on `YAC_ZONE`, in favour of a
+separate `RUSH_ZONE` event, is **promoted from a one-off judgement to a standing rule**:
+
+> **Widen or add; never overload an existing event's meaning.**
+>
+> Adding a member to a union, or a new event type, leaves every existing consumer *loudly
+> incomplete* — it sees a value it does not handle, and says so. Repurposing an existing event
+> to also mean something else makes every existing consumer *silently wrong* — its filters
+> still match, its aggregates still compute, and the numbers are quietly about a different
+> thing.
+>
+> Silent wrongness in a stream that four domains consume is the failure mode this project
+> cannot detect from its own output. Prefer the loud one, every time, even when it costs a
+> new event type.
+
+This governs future schema decisions and should be cited rather than re-argued. It is the
+same instinct behind ADR-004's roll accounting (a duplicated roll inflates aggregates
+silently), ADR-005's optional tier (a fabricated tier reads as a real failure), and ADR-009's
+narrowing of `zone_coverage` rather than renaming it.
+
+Engine adaptation ships alongside the ADR-011 and ADR-012 work.
 
 ## Related
 

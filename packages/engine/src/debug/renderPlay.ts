@@ -1,16 +1,33 @@
 /**
  * §17.1 debug printout, rendered PURELY from the event stream.
  *
- * The only inputs are `MatchEventEnvelope[]` and a name lookup — this module
- * cannot see engine internals, and the engine never prints anything itself.
- * Sections outside the implemented slice (YAC, environmental) simply do not
- * render because no events describe them.
+ * The only inputs are `MatchEventEnvelope[]` and a name lookup. Note what this
+ * module does NOT import, and that it is the point rather than housekeeping:
+ * **no `TUNABLES`, no `bandFor`, no band tables at all** (ADR-011).
+ *
+ * Until the amendment, every result this printout named was RE-DERIVED here from
+ * the check's margin against the engine's own band tables — which are
+ * calibration's moving tuning target. A consumer coupled to those tables desyncs
+ * silently the first time a boundary moves: nothing errors, the printout simply
+ * starts describing a game the engine is no longer simulating. Bands now travel
+ * on `CHECK.payload.band`, and this renderer prints what the stream says.
+ *
+ * The consequence, and it is the right one: where a line used to state a band's
+ * EFFECTS (the openness a coverage band maps to, the yards a contest band pays,
+ * §10.4's placement modifiers), it now states either the fact the stream carries
+ * for it — `ROUTE_STATUS.openness`, `RUSH_ZONE`/`YAC_ZONE` yardage,
+ * `RUN_RESOLUTION.yardsBeforeContact`, the named modifiers already inside each
+ * `RollDetail` — or nothing at all. A printout that invents a number it cannot
+ * read is worse than a printout that is silent about it.
  */
 import type { MatchEvent, MatchEventEnvelope, PlayerId, RollDetail } from "@ff/contracts";
-import { bandFor } from "../rolls.js";
-import { TUNABLES } from "../tunables.js";
 
 export type NameLookup = (id: PlayerId) => string;
+
+/** `CHECK.band` is optional; a check with no band table has none (ADR-011). */
+function bandOf(payload: Extract<MatchEvent, { type: "CHECK" }>["payload"]): string {
+  return payload.band ?? "-";
+}
 
 const RULE = "=".repeat(71);
 
@@ -59,11 +76,14 @@ function renderPlayCall(events: readonly MatchEventEnvelope[], name: NameLookup)
 /**
  * §6.3 / §6.2 / §6.4 / §14.2 — the run's line of scrimmage.
  *
- * The engagement band and the point-of-attack band are BOTH printed for the gap
- * the ball actually went through, because they come from two different tables
- * keyed on the same margin and the doc disagrees with itself about where their
- * boundaries are (see `TUNABLES.runBlock.bands`). A reader tuning the run game
- * has to be able to see the disagreement rather than infer it.
+ * §6.3's ENGAGEMENT band comes off the `run_block` CHECK. §14.3's point-of-attack
+ * band is a second table keyed on the same margin, and the doc disagrees with
+ * itself about where the two sets of boundaries sit — but §14.3's table produces
+ * no roll of its own, so it produces no CHECK and therefore no band in the
+ * stream. What the stream DOES carry is the number that disagreement is about:
+ * `RUN_RESOLUTION.yardsBeforeContact` (ADR-010). A reader tuning the run game
+ * sees "SEALED, and he got 1 yard before contact" — the disagreement stated in
+ * yards instead of in two label names.
  */
 function renderRunBlocking(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const start = firstOfType(events, "PLAY_START");
@@ -79,25 +99,18 @@ function renderRunBlocking(events: readonly MatchEventEnvelope[], name: NameLook
     const off = p.actors[0];
     const def = p.actors[1];
     if (p.checkKind === "run_block") {
-      const band = bandFor(TUNABLES.runBlock.bands, p.margin);
-      const poa = bandFor(TUNABLES.runGame.pointOfAttack.bands, p.margin);
       blocks.push(
         `  ├─ ${off === undefined ? "?" : name(off)} vs. ${def === undefined ? "?" : name(def)}:`,
       );
       blocks.push(`  │    OL:  ${formatRoll(p.roll)}`);
       if (p.opposedRoll !== undefined) blocks.push(`  │    DL:  ${formatRoll(p.opposedRoll)}`);
-      blocks.push(
-        `  │    §6.3: ${band.label} (${signed(p.margin)})   §14.3: ${poa.label}` +
-          ` → ${yardRange(poa.minYards, poa.maxYards)} before contact, then ${poa.contact}`,
-      );
+      blocks.push(`  │    §6.3: ${bandOf(p)} (${signed(p.margin)})`);
       blocks.push("  │");
     }
     if (p.checkKind === "gap_battle") {
-      const band = bandFor(TUNABLES.runBlock.gapIntegrity.bands, p.margin);
       integrity.push(
         `  │    ${off === undefined ? "?" : name(off)} gap discipline ${p.roll.total}` +
-          ` vs. zone execution ${p.opposedRoll?.total ?? "-"} → ${band.label} (${signed(p.margin)})` +
-          (band.overflowed ? " — cutback lane behind him" : ""),
+          ` vs. zone execution ${p.opposedRoll?.total ?? "-"} → ${bandOf(p)} (${signed(p.margin)})`,
       );
     }
     if (p.checkKind === "second_level_climb") {
@@ -125,13 +138,19 @@ function renderRunBlocking(events: readonly MatchEventEnvelope[], name: NameLook
   const decision: string[] = [...vision];
   const resolution = firstOfType(events, "RUN_RESOLUTION");
   if (resolution !== undefined) {
+    const r = resolution.payload;
     const designed = view?.designedGap;
-    const actual = resolution.payload.gap;
+    const actual = r.gap ?? "?";
     decision.push(
-      `  └─ Ball goes through ${actual}` +
+      `  ├─ Ball goes through ${actual}` +
         (designed === undefined || designed === actual
           ? " (as designed)"
           : ` — CUTBACK, designed ${designed}`),
+    );
+    // §14.3's half of the run, stated rather than inferred (ADR-010 item 1):
+    // this minus the total is what the BACK did after contact.
+    decision.push(
+      `  └─ ${r.yardsBeforeContact} yards before contact, ${r.yards - r.yardsBeforeContact} after`,
     );
   }
   if (decision.length > 0) out.push("RB DECISION (§14.2 phase 3):", ...decision, "");
@@ -146,8 +165,12 @@ function renderRunBlocking(events: readonly MatchEventEnvelope[], name: NameLook
 function renderBallCarrier(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const out: string[] = [];
   for (const { event } of events) {
-    if (event.type === "YAC_ZONE") {
-      out.push(`  ├─ Zone ${event.payload.zone}: ${event.payload.yardsInZone} yards`);
+    // §13.1's zone table, from whichever event the carry published it on. The
+    // two are distinct so aggregates cannot mix rushing with receiving
+    // (ADR-010); the printout names which one it is reading.
+    if (event.type === "YAC_ZONE" || event.type === "RUSH_ZONE") {
+      const kind = event.type === "YAC_ZONE" ? "YAC" : "rush";
+      out.push(`  ├─ ${kind} zone ${event.payload.zone}: ${event.payload.yardsInZone} yards`);
       continue;
     }
     if (event.type !== "CHECK") continue;
@@ -155,10 +178,9 @@ function renderBallCarrier(events: readonly MatchEventEnvelope[], name: NameLook
     const a0 = p.actors[0];
     const a1 = p.actors[1];
     if (p.checkKind === "downfield_block") {
-      const band = bandFor(TUNABLES.ballCarrier.blockInSpace.bands, p.margin);
       out.push(
         `  ├─ Block in space: ${a0 === undefined ? "?" : name(a0)} on ${a1 === undefined ? "?" : name(a1)}` +
-          ` → ${band.label} (${signed(p.margin)})${band.occupied ? "" : " — defender is free"}`,
+          ` → ${bandOf(p)} (${signed(p.margin)})`,
       );
     }
     if (p.checkKind === "pursuit_angle") {
@@ -171,47 +193,39 @@ function renderBallCarrier(events: readonly MatchEventEnvelope[], name: NameLook
       );
     }
     if (p.checkKind === "yac_tackle" || p.checkKind === "break_tackle" || p.checkKind === "tackle") {
-      const profile = contestProfileFor(p.checkKind);
-      const band = bandFor(profile, p.margin);
       out.push(
         `  ├─ ${p.checkKind} (${a0 === undefined ? "?" : name(a0)} vs. ${a1 === undefined ? "?" : name(a1)}):`,
       );
       out.push(`  │    Carrier: ${formatRoll(p.roll)}`);
       if (p.opposedRoll !== undefined) out.push(`  │    Tackler: ${formatRoll(p.opposedRoll)}`);
-      out.push(
-        `  │    Result: ${band.label} (${signed(p.margin)}) → ${yardRange(band.minYards, band.maxYards)}` +
-          (band.tackled ? ", DOWN" : band.broken ? ", tackle BROKEN, still going" : ""),
-      );
+      // The band NAMES the outcome — DEFENDER_MISSED, PARTIAL_TACKLE, TACKLED —
+      // and the yards it paid are in the zone event for the zone it happened in.
+      // Four contest profiles share three CheckKinds, so re-deriving this from
+      // the margin also meant guessing which table to guess with.
+      out.push(`  │    Result: ${bandOf(p)} (${signed(p.margin)})`);
     }
     if (p.checkKind === "breakaway") {
-      const band = bandFor(TUNABLES.ballCarrier.breakaway.bands, p.margin);
       out.push(
-        `  ├─ Breakaway (§13.4) vs. ${a1 === undefined ? "?" : name(a1)}: ${band.label} (${signed(p.margin)})` +
-          (band.freeRun ? " — nobody has an angle" : ""),
+        `  ├─ Breakaway (§13.4) vs. ${a1 === undefined ? "?" : name(a1)}:` +
+          ` ${bandOf(p)} (${signed(p.margin)})`,
       );
     }
   }
+
+  // A SCRAMBLE carry has no line of scrimmage to render — no `run_block`
+  // CHECKs, so `renderRunBlocking` renders nothing at all — and its
+  // RUN_RESOLUTION would otherwise never be printed. It belongs here: a
+  // quarterback with the ball under his arm IS a ball carrier (ADR-010 item 2).
+  const carry = firstOfType(events, "RUN_RESOLUTION");
+  if (carry !== undefined && carry.payload.carryType === "SCRAMBLE") {
+    out.push(
+      `  └─ ${name(carry.payload.carrier)} tucks it and runs: ${carry.payload.yards} yards` +
+        " (SCRAMBLE — no designed gap)",
+    );
+  }
+
   if (out.length === 0) return [];
   return ["BALL CARRIER (§13 / §14.4):", ...out, ""];
-}
-
-/** Which §13/§14 contest table a CheckKind came from. */
-function contestProfileFor(
-  kind: "yac_tackle" | "break_tackle" | "tackle",
-): readonly {
-  readonly label: string;
-  readonly minMargin: number;
-  readonly minYards: number;
-  readonly maxYards: number;
-  readonly tackled: boolean;
-  readonly broken: boolean;
-}[] {
-  const c = TUNABLES.ballCarrier.contests;
-  if (kind === "yac_tackle") return c.yac.bands;
-  if (kind === "break_tackle") return c.secondLevel.bands;
-  // §14.3's two at-the-line contests share `tackle`; they have the same band
-  // shape and split at zero, so either table renders both correctly.
-  return c.atLosPower.bands;
 }
 
 function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
@@ -224,10 +238,9 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
     if (rusher === undefined || blocker === undefined || opposed === undefined) continue;
     const key = `${String(rusher)}|${String(blocker)}`;
     const entry = matchups.get(key) ?? { rusher, blocker, rows: [] };
-    const band = bandFor(TUNABLES.passRush.bands, event.payload.margin);
     entry.rows.push(
       `  │    Tick ${tickLabel(event.tick)}: rush ${event.payload.roll.total} vs. block ${opposed.total}` +
-        ` → ${band.label} (${signed(event.payload.margin)})`,
+        ` → ${bandOf(event.payload)} (${signed(event.payload.margin)})`,
     );
     matchups.set(key, entry);
   }
@@ -291,21 +304,19 @@ function renderPocketMovement(events: readonly MatchEventEnvelope[], name: NameL
     if (event.type !== "CHECK") continue;
     const p = event.payload;
     if (p.checkKind === "pocket_movement") {
-      const band = bandFor(TUNABLES.pocketMovement.bands, p.margin);
       const actor = p.actors[0];
       out.push(`  ├─ Tick ${tickLabel(event.tick)}: pocket movement${actor === undefined ? "" : ` (${name(actor)})`}`);
       out.push(`  │    ${formatRoll(p.roll)} vs. target ${p.target ?? "-"}`);
-      out.push(
-        `  │    Result: ${band.label} (${signed(p.margin)}) → took response rank ${band.takeRank}` +
-          " of his own preference list",
-      );
+      // SOUND / RUSHED / PANICKED — how far down his own preference list the
+      // moment pushed him. WHICH response that landed on is the QB_DECISION
+      // event beside it, so the rank itself needs no table.
+      out.push(`  │    Result: ${bandOf(p)} (${signed(p.margin)})`);
       out.push("  │");
     }
     if (p.checkKind === "scramble") {
-      const band = bandFor(TUNABLES.scramble.bands, p.margin);
       out.push(`  ├─ Tick ${tickLabel(event.tick)}: escape attempt (§8.8)`);
       out.push(`  │    ${formatRoll(p.roll)} vs. target ${p.target ?? "-"}`);
-      out.push(`  │    Result: ${band.label} (${signed(p.margin)})`);
+      out.push(`  │    Result: ${bandOf(p)} (${signed(p.margin)})`);
       out.push("  │");
     }
   }
@@ -361,8 +372,7 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
         out.push(`  │      ${def}:  ${formatRoll(payload.opposedRoll)}`);
       }
       out.push(
-        `  │      Result: ${winnerText(payload.margin, off, def)} → ` +
-          `${bandFor(TUNABLES.release.bands, payload.margin).label}` +
+        `  │      Result: ${winnerText(payload.margin, off, def)} → ${bandOf(payload)}` +
           (defender === undefined ? "" : ` (vs. ${name(defender)})`),
       );
     }
@@ -370,7 +380,6 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
     const coverage = coverages.get(key);
     if (coverage !== undefined && coverage.event.type === "CHECK") {
       const payload = coverage.event.payload;
-      const band = bandFor(TUNABLES.manCoverage.bands, payload.margin);
       const off = actorLabel(payload.roll, "OFF");
       const def = actorLabel(payload.opposedRoll, "DEF");
       // "Resolved at", not "break at": §8.1's anticipation resolves the rep
@@ -381,10 +390,10 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
       if (payload.opposedRoll !== undefined) {
         out.push(`  │      ${def}:  ${formatRoll(payload.opposedRoll)}`);
       }
-      out.push(
-        `  │      Result: ${winnerText(payload.margin, off, def)} → ${band.label}` +
-          ` → base openness ${band.openness}`,
-      );
+      // The openness the band maps to is not restated here: the openness TRACK
+      // below is `ROUTE_STATUS.openness`, which is the number the play actually
+      // ran on, tick by tick, and it starts from exactly this rep.
+      out.push(`  │      Result: ${winnerText(payload.margin, off, def)} → ${bandOf(payload)}`);
     }
 
     // §9.4 — one roll against a target, not two rolls against each other. The
@@ -393,7 +402,6 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
     const zoned = zoneCoverages.get(key);
     if (zoned !== undefined && zoned.event.type === "CHECK") {
       const payload = zoned.event.payload;
-      const band = bandFor(TUNABLES.zoneCoverage.bands, payload.margin);
       const defender = payload.actors[1];
       out.push(
         `  │    Zone coverage (rep resolved at tick ${tickLabel(zoned.event.tick)})` +
@@ -401,10 +409,9 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
       );
       out.push(`  │      ${actorLabel(payload.roll, "OFF")}:  ${formatRoll(payload.roll)}`);
       out.push(`  │      vs. target ${payload.target ?? "-"} (50 + defender Zone Coverage ÷ 5)`);
-      out.push(
-        `  │      Result: ${band.label} (${signed(payload.margin)}) → base openness ${band.openness}` +
-          (band.settled ? " — sits down in it" : ""),
-      );
+      // Whether he SAT DOWN in it is in the openness track too: a settled
+      // receiver reports the SETTLED phase, which is what ADR-009 added it for.
+      out.push(`  │      Result: ${bandOf(payload)} (${signed(payload.margin)})`);
     }
 
     // No coverage rep at all. Two different facts, and the stream distinguishes
@@ -433,19 +440,15 @@ function renderQbDecisionMaking(events: readonly MatchEventEnvelope[], name: Nam
   for (const { event } of events) {
     if (event.type === "CHECK" && event.payload.checkKind === "anticipation") {
       // §8.1 anticipation — throwing to a window that does not exist yet.
+      // ON_TIME / ANTICIPATED / NOT_YET / LOCKED_ON say it; whether the ball
+      // actually left is the QB_DECISION that follows.
       const p = event.payload;
-      const band = bandFor(TUNABLES.qb.anticipation.bands, p.margin);
       const actor = p.actors[0];
       out.push(
         `  ├─ Anticipation (Tick ${tickLabel(event.tick)})${actor === undefined ? "" : `: ${name(actor)}`}`,
       );
       out.push(`  │    ${formatRoll(p.roll)} vs. target ${p.target ?? "-"}`);
-      out.push(
-        `  │    Result: ${band.label} (${signed(p.margin)}) → ` +
-          (band.anticipated
-            ? "turns it loose before the break"
-            : "cannot pull the trigger; stays on this read"),
-      );
+      out.push(`  │    Result: ${bandOf(p)} (${signed(p.margin)})`);
       out.push("  │");
     } else if (event.type === "QB_READ") {
       const p = event.payload;
@@ -461,10 +464,9 @@ function renderQbDecisionMaking(events: readonly MatchEventEnvelope[], name: Nam
       out.push("  │");
     } else if (event.type === "CHECK" && event.payload.checkKind === "qb_decision") {
       const p = event.payload;
-      const band = bandFor(TUNABLES.qb.decision.bands, p.margin);
       out.push(`  ├─ Decision quality (Tick ${tickLabel(event.tick)}):`);
       out.push(`  │    ${formatRoll(p.roll)} vs. target ${p.target ?? "-"}`);
-      out.push(`  │    Result: ${band.label} (${signed(p.margin)})`);
+      out.push(`  │    Result: ${bandOf(p)} (${signed(p.margin)})`);
       out.push("  │");
     } else if (event.type === "QB_DECISION") {
       const p = event.payload;
@@ -479,12 +481,22 @@ function renderQbDecisionMaking(events: readonly MatchEventEnvelope[], name: Nam
   return ["QB DECISION-MAKING:", ...out, ""];
 }
 
+/**
+ * §10 — and the one place ADR-011's two halves meet.
+ *
+ * `THROW` carries `rollRef`, the accuracy CHECK's `rngLabel`; that CHECK carries
+ * §10.4's PLACEMENT BAND. So the band a throw was made with is recoverable by a
+ * join, exactly the way `CATCH_RESOLUTION` and `TIPPED_BALL` already work — one
+ * roll, one band, referenced rather than copied (ADR-004).
+ */
 function renderThrow(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const thrown = firstOfType(events, "THROW");
   if (thrown === undefined) return [];
+  const placement = accuracyCheckFor(events, thrown.payload.rollRef);
   const out: string[] = [
     "THROW EXECUTION:",
-    `  ├─ Throw type: ${thrown.payload.throwType} to ${name(thrown.payload.target)}`,
+    `  ├─ Throw type: ${thrown.payload.throwType} to ${name(thrown.payload.target)}` +
+      (placement === undefined ? "" : ` — ${bandOf(placement.payload)} placement`),
     "  │",
   ];
 
@@ -503,9 +515,10 @@ function renderThrow(events: readonly MatchEventEnvelope[], name: NameLookup): s
         `  ├─ Zone defender reading the QB (§9.4)${defender === undefined ? "" : `: ${name(defender)}`}`,
       );
       zoneRead.push(`  │    ${formatRoll(p.roll)} vs. target ${p.target ?? "-"} (60 + QB disguise)`);
+      // What breaking on the ball is WORTH shows up where it is spent: as a
+      // named modifier on the contested-catch roll below.
       zoneRead.push(
-        `  │    Result: ${p.margin >= 0 ? "BREAKS ON THE BALL" : "stays in his area"} (${signed(p.margin)})` +
-          (p.margin >= 0 ? ` → +${TUNABLES.zoneCoverage.readQb.contestBonus} to contest/INT` : ""),
+        `  │    Result: ${p.margin >= 0 ? "BREAKS ON THE BALL" : "stays in his area"} (${signed(p.margin)})`,
       );
       zoneRead.push("  │");
     }
@@ -517,17 +530,28 @@ function renderThrow(events: readonly MatchEventEnvelope[], name: NameLookup): s
       lane.push("  │");
     }
     if (p.checkKind === "accuracy") {
-      const band = bandFor(TUNABLES.throwExec.accuracy.bands, p.margin);
       accuracy.push("  └─ Accuracy:");
       accuracy.push(`       ${formatRoll(p.roll)} vs. target ${p.target ?? "-"}`);
-      accuracy.push(`       Result: ${band.label} (${signed(p.margin)}) [${p.tier}]`);
-      accuracy.push(
-        `       Placement effects: catch ${signed(band.catchMod)}, defender contest ${signed(band.defenderContestMod)}`,
-      );
+      // The placement band, and what it is worth is visible where it is applied:
+      // "Ball placement: GOOD +10" is a named modifier on the catch roll.
+      accuracy.push(`       Result: ${bandOf(p)} (${signed(p.margin)}) [${p.tier}]`);
     }
   }
   out.push(...zoneRead, ...lane, ...accuracy, "");
   return out;
+}
+
+/** The accuracy CHECK a `THROW.rollRef` names, if it is in this stream. */
+function accuracyCheckFor(
+  events: readonly MatchEventEnvelope[],
+  rollRef: string | undefined,
+): Extract<MatchEvent, { type: "CHECK" }> | undefined {
+  if (rollRef === undefined) return undefined;
+  for (const { event } of events) {
+    if (event.type !== "CHECK" || event.payload.checkKind !== "accuracy") continue;
+    if (event.payload.roll.rngLabel === rollRef) return event;
+  }
+  return undefined;
 }
 
 /**
@@ -555,10 +579,9 @@ function renderTippedBall(events: readonly MatchEventEnvelope[], name: NameLooku
   const quality = join(p.rollRef);
   if (quality !== undefined) {
     const q = quality.payload;
-    const band = bandFor(TUNABLES.tippedBall.qualityBands, q.margin);
     out.push("  ├─ Roll 1 — deflection quality:");
     out.push(`  │    ${formatRoll(q.roll)} vs. target ${q.target ?? "-"} (throw height + velocity)`);
-    out.push(`  │    Result: ${band.label} (${signed(q.margin)}) → recovery target ${p.finalTargetNumber}`);
+    out.push(`  │    Result: ${bandOf(q)} (${signed(q.margin)}) → recovery target ${p.finalTargetNumber}`);
   } else {
     out.push(`  ├─ Roll 1 — deflection quality: recovery target ${p.finalTargetNumber}`);
   }
@@ -611,16 +634,13 @@ function renderCatch(events: readonly MatchEventEnvelope[], name: NameLookup): s
     if (check !== undefined) {
       const p = check.payload;
       const contested = p.checkKind === "contested_catch";
-      const band = contested
-        ? bandFor(TUNABLES.catching.contested.bands, p.margin)
-        : bandFor(TUNABLES.catching.routine.bands, p.margin);
       out.push(`  ├─ Catch type: ${contested ? "CONTESTED" : "ROUTINE"}`);
       out.push(`  ├─ ${actorLabel(p.roll, "OFF")}: ${formatRoll(p.roll)}`);
       if (p.opposedRoll !== undefined) {
         out.push(`  ├─ ${actorLabel(p.opposedRoll, "DEF")}: ${formatRoll(p.opposedRoll)}`);
       }
       if (p.target !== undefined) out.push(`  ├─ vs. target ${p.target}`);
-      out.push(`  ├─ Result: ${band.label} (${signed(p.margin)}) [${p.tier}]`);
+      out.push(`  ├─ Result: ${bandOf(p)} (${signed(p.margin)}) [${p.tier}]`);
     } else {
       out.push(`  ├─ Catch type: ${resolution.catchType} (roll ${resolution.rollRef} not in this stream)`);
     }
@@ -659,10 +679,6 @@ function actorLabel(roll: RollDetail | undefined, fallback: string): string {
   const attrMod = roll?.modifiers.find((m) => m.attr !== undefined);
   const first = attrMod?.source.split(" ")[0];
   return first === undefined || first === "" ? fallback : first;
-}
-
-function yardRange(min: number, max: number): string {
-  return min === max ? `${min} yds` : `${min}-${max} yds`;
 }
 
 function signed(value: number): string {

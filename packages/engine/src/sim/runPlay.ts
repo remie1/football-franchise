@@ -209,11 +209,10 @@ export function simulateRunPlay(
       yardsToGoalLine,
       carrierRng,
       emitCheck: (check: CheckEmission) => log.check(check),
-      // ADR-010 item 1 — there is no run counterpart to YAC_ZONE, and emitting
-      // a carry into an event named "yards after catch" would corrupt every YAC
-      // aggregate downstream. So a run's zone-by-zone detail is absent from the
-      // stream; the CHECKs and RUN_RESOLUTION's total are what a consumer gets.
-      emitZone: () => undefined,
+      // ADR-010 item 1 — a carry's zone-by-zone advance, in its own event. Not
+      // YAC_ZONE: rushing yards in a receiving aggregate is exactly the silent
+      // corruption the schema exists to prevent.
+      emitZone: (zone, yardsInZone) => log.rushZone(carrier.bio.id, zone, yardsInZone),
       onZoneEntered: (zone) => log.tickStart(zoneTick(zone)),
     });
     // §17.2's "broken tackles" is counted from the `break_tackle` CHECKs, not
@@ -222,7 +221,9 @@ export function simulateRunPlay(
   }
 
   const gained = Math.round(clamp(yards, -state.ballOn, yardsToGoalLine));
-  log.runResolution(carrier.bio.id, gapKey(running), gained);
+  // §14.3's own number rides along, so "is the line good or is the back good?"
+  // is a subtraction rather than an unanswerable question (ADR-010 item 2).
+  log.runResolution(carrier.bio.id, "DESIGNED", gapKey(running), poa.yardsBeforeContact, gained);
 
   const outcome: RunOutcome = {
     yards: gained,

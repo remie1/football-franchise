@@ -99,6 +99,7 @@ export function resolveZoneCoverage(args: ZoneCoverageArgs): ZoneCoverageOutcome
       roll,
       target,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs: ZONE_COVERAGE_ATTRS,
     },

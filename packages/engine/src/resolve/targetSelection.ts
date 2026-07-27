@@ -58,6 +58,7 @@ export function selectTarget(
       roll,
       target: t.target,
       tier: tierFor(margin),
+      band: band.label,
       margin,
       testsAttrs: [ATTR.decisionMaking],
     },

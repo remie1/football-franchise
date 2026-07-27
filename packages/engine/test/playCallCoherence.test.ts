@@ -8,8 +8,9 @@
  */
 import { playerId } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
-import { IncoherentPlayCallError, assertCoherentPlayCall, simulatePassPlay } from "../src/index.js";
-import type { MatchGameState, PlayCalls, RouteAssignment } from "../src/index.js";
+import { simulatePassPlay } from "../src/index.js";
+import { IncoherentPlayCallError, assertCoherentPlayCall } from "../src/validate/playCall.js";
+import type { MatchGameState, PlayCalls, RouteAssignment } from "../src/types.js";
 import { baseReceivers, buildScenario, makePlayer } from "./fixtures.js";
 
 function scenario(): { state: MatchGameState; calls: PlayCalls } {

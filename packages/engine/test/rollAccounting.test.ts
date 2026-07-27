@@ -5,13 +5,20 @@
  * or the other") does not survive four domains and a year of development, and
  * the failure mode is invisible: every individual event stays well-formed and
  * only aggregates are wrong.
+ *
+ * R7 — THIS FILE IS THE WHOLE OF THAT ENFORCEMENT. It used to drive only
+ * `simulatePassPlay`, with a second, weaker copy inside `runPlay.test.ts` that
+ * swept only the ZONE scheme; a GAP stream was therefore never checked for
+ * duplicate roll labels by anything. One rule, one file, both entry points, both
+ * schemes.
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
-import { simulatePassPlay } from "../src/index.js";
+import { simulatePassPlay, simulateRunPlay } from "../src/index.js";
 import {
   buildDeflectionScenario,
   buildLopsidedRushScenario,
+  buildRunScenario,
   buildScenario,
   buildScramblerScenario,
 } from "./fixtures.js";
@@ -92,6 +99,41 @@ describe("ADR-004 roll accounting", () => {
     expect(kinds).toContain("anticipation");
   });
 
+  /**
+   * The same rule, on the other entry point, and on BOTH blocking schemes —
+   * which differ in the checks they emit (§6.2's gap-integrity roll and §14.2's
+   * vision check are zone-only), so they are genuinely different streams.
+   */
+  it("no RollDetail appears twice on a run either, ZONE or GAP", () => {
+    const kinds = new Set<string>();
+    for (const scheme of ["ZONE", "GAP"] as const) {
+      for (let i = 0; i < 150; i++) {
+        const { state, calls } = buildRunScenario(scheme);
+        const { events } = simulateRunPlay(state, calls, `run-accounting-${scheme}-${i}`);
+        for (const { event } of events) {
+          if (event.type === "CHECK") kinds.add(event.payload.checkKind);
+        }
+        const rolls = allRolls(events);
+        expect(rolls.length).toBeGreaterThan(0);
+
+        const labels = rolls.map((r) => r.roll.rngLabel);
+        expect(new Set(labels).size).toBe(labels.length);
+
+        const serialized = rolls.map((r) => JSON.stringify(r.roll));
+        expect(new Set(serialized).size).toBe(serialized.length);
+
+        // A run play has no QB_READ, so the CHECK is the ONLY roll carrier.
+        for (const roll of rolls) expect(roll.type).toBe("CHECK");
+      }
+    }
+    // Proof the sample really covered both schemes' distinctive mechanics.
+    expect(kinds).toContain("run_block");
+    expect(kinds).toContain("gap_battle");     // ZONE only
+    expect(kinds).toContain("rb_vision");      // ZONE only
+    expect(kinds).toContain("break_tackle");
+    expect(kinds).toContain("pursuit_angle");
+  });
+
   it("RUSH_THREAT carries no roll: it references one (ADR-004/007)", () => {
     let threats = 0;
     for (let i = 0; i < 200; i++) {
@@ -146,6 +188,41 @@ describe("ADR-004 roll accounting", () => {
       }
     }
     expect(joined).toBeGreaterThan(0);
+  });
+
+  /**
+   * ADR-011 item 2 — THROW names the accuracy roll rather than restating what it
+   * produced. §10.4's placement band drives four downstream quantities, and it
+   * is carried ONCE, on the CHECK, exactly as ADR-004 requires of a roll.
+   */
+  it("THROW.rollRef points at the accuracy CHECK, and the band lives there", () => {
+    let throws = 0;
+    for (let i = 0; i < 300; i++) {
+      const { state, calls } = buildScenario();
+      const { events } = simulatePassPlay(state, calls, `throwref-${i}`);
+      for (const { seq, event } of events) {
+        if (event.type !== "THROW") continue;
+        throws += 1;
+        // A reference, not a roll, and not a copy of the band.
+        expect(allRolls([{ seq, at: state.at, event }]).length).toBe(0);
+        expect(JSON.stringify(event.payload)).not.toContain("band");
+        const ref = event.payload.rollRef;
+        expect(ref).toBeDefined();
+        const accuracy = events.find(
+          (e) =>
+            e.event.type === "CHECK" &&
+            e.event.payload.checkKind === "accuracy" &&
+            e.event.payload.roll.rngLabel === ref,
+        );
+        expect(accuracy).toBeDefined();
+        // ...pointing BACKWARDS, and carrying the band the throw was made with.
+        expect(accuracy?.seq ?? Infinity).toBeLessThan(seq);
+        if (accuracy?.event.type !== "CHECK") throw new Error("not a check");
+        expect(accuracy.event.payload.band).toBeTruthy();
+        expect(accuracy.event.payload.tier).toBe(event.payload.accuracyTier);
+      }
+    }
+    expect(throws).toBeGreaterThan(0);
   });
 
   it("TIPPED_BALL references its rolls instead of repeating them (ADR-004/009)", () => {

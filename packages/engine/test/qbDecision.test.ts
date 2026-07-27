@@ -1,17 +1,17 @@
 import { createRng } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import {
-  TUNABLES,
-  bandFor,
   maxReadsFor,
   readCapacityPerTick,
   resolveQbRead,
-  selectTarget,
   throwThresholdFor,
   timeBudgetSeconds,
   windowModifierFor,
-} from "../src/index.js";
-import type { TargetCandidate } from "../src/index.js";
+} from "../src/resolve/qbRead.js";
+import { selectTarget } from "../src/resolve/targetSelection.js";
+import type { TargetCandidate } from "../src/resolve/targetSelection.js";
+import { bandFor } from "../src/rolls.js";
+import { TUNABLES } from "../src/tunables.js";
 import { makePlayer } from "./fixtures.js";
 
 const eliteQb = makePlayer("qb-elite", "Franchise", "QB", {

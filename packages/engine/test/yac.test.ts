@@ -10,7 +10,8 @@ import { describe, expect, it } from "vitest";
 import { setAttr } from "@ff/contracts";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import { resolveAttr } from "../src/attrs.js";
-import { TUNABLES, simulatePassPlay } from "../src/index.js";
+import { simulatePassPlay } from "../src/index.js";
+import { TUNABLES } from "../src/tunables.js";
 import {
   buildCleanPocketScenario,
   buildDeflectionScenario,
@@ -21,14 +22,18 @@ function checks(events: readonly MatchEventEnvelope[], kind: string): MatchEvent
   return events.filter(({ event }) => event.type === "CHECK" && event.payload.checkKind === kind);
 }
 
+/**
+ * §10.4's placement band, READ from the stream (ADR-011).
+ *
+ * This used to hold `TUNABLES.throwExec.accuracy.bands` and re-derive the label
+ * from the margin — which is precisely the coupling the amendment removed: the
+ * boundaries are calibration's tuning target, so a consumer re-deriving them
+ * desyncs silently the moment one moves.
+ */
 function accuracyBandOf(events: readonly MatchEventEnvelope[]): string | undefined {
   const acc = checks(events, "accuracy")[0];
   if (acc?.event.type !== "CHECK") return undefined;
-  const m = acc.event.payload.margin;
-  for (const band of TUNABLES.throwExec.accuracy.bands) {
-    if (m >= band.minMargin) return band.label;
-  }
-  return undefined;
+  return acc.event.payload.band;
 }
 
 describe("§13 — a catch is no longer the end of the play", () => {

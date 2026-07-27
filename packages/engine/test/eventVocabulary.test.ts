@@ -301,3 +301,54 @@ describe("ADR-009 #3 — ROUTE_STATUS.phase gains SETTLED", () => {
     expect(decaying).toBeGreaterThan(0);
   });
 });
+
+/**
+ * ADR-010 — the ball carrier gets a vocabulary of his own.
+ *
+ * The rejected alternative was a `phase: "YAC" | "RUSH"` discriminator on
+ * `YAC_ZONE`, and the reason it was rejected is the standing rule the ADR
+ * promoted: **widen or add; never overload.** A discriminator makes every
+ * existing consumer's filter silently WRONG — its aggregates still compute, and
+ * they are quietly about a different thing. A separate event makes it loudly
+ * incomplete instead.
+ */
+describe("ADR-010 — RUSH_ZONE is a sibling of YAC_ZONE, not a flag on it", () => {
+  it("a scrambling quarterback publishes RUSH zones: he is rushing, not receiving", () => {
+    let carries = 0;
+    for (let i = 0; i < 1500 && carries === 0; i++) {
+      const { state, calls } = buildScramblerScenario();
+      const { events } = simulatePassPlay(state, calls, `scramble-zone-${i}`);
+      const run = events.find((e) => e.event.type === "RUN_RESOLUTION");
+      if (run?.event.type !== "RUN_RESOLUTION") continue;
+      const rush = events.flatMap(({ event }) =>
+        event.type === "RUSH_ZONE" ? [event.payload] : [],
+      );
+      if (rush.length === 0) continue;
+      carries += 1;
+      // Quarterback rushing yards must never land in a receiving aggregate.
+      expect(events.some((e) => e.event.type === "YAC_ZONE")).toBe(false);
+      for (const zone of rush) expect(zone.carrier).toBe(state.quarterback);
+      expect(run.event.payload.carryType).toBe("SCRAMBLE");
+    }
+    expect(carries).toBe(1);
+  });
+
+  it("a completion publishes YAC zones and never RUSH zones", () => {
+    let receptions = 0;
+    for (const events of sweep(buildScenario, 120, "yac-zone")) {
+      const yac = events.filter((e) => e.event.type === "YAC_ZONE");
+      if (yac.length === 0) continue;
+      receptions += 1;
+      expect(events.some((e) => e.event.type === "RUSH_ZONE")).toBe(false);
+    }
+    expect(receptions).toBeGreaterThan(0);
+  });
+
+  it("no stream ever carries both — the two aggregates cannot cross", () => {
+    for (const events of sweep(buildScenario, 200, "no-mix")) {
+      const yac = events.some((e) => e.event.type === "YAC_ZONE");
+      const rush = events.some((e) => e.event.type === "RUSH_ZONE");
+      expect(yac && rush).toBe(false);
+    }
+  });
+});

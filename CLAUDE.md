@@ -29,7 +29,7 @@ Delegate implementation to the owning sub-agent. Never let one agent write in an
 
 ## Iron Rules
 
-1. **Domains import only `@ff/contracts`** — never each other's internals.
+1. **Domains import only `@ff/contracts`** — never each other's internals. **Exception:** where a domain's explicit purpose is to exercise another, it may import it under a ratified ADR, one-directional, with its permitted surface **named** (Charter §4, Amendment 6). Ratified to date: `calibration` → `engine` (ADR-012). Assume nothing beyond that list.
 2. **Contract changes are petitions.** When an agent needs a new type/event/channel, it files a proposal memo in `docs/decisions/` (use `ADR-TEMPLATE.md`). The Orchestrator + project owner approve; only then does `contracts` change.
 3. **The event stream is the single source of truth.** Debug text, calibration stats, UI replay, and narrative triggers are all renderers/consumers of the same typed events. No side-channel logging of game facts.
 4. **Determinism.** Every sim entry point takes a seed. Same seed → identical event stream. Tests must assert this.

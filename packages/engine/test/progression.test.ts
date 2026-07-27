@@ -4,8 +4,10 @@
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope, PlayerId } from "@ff/contracts";
-import { TUNABLES, simulatePassPlay, timeBudgetSeconds } from "../src/index.js";
-import type { ReadSystem } from "../src/index.js";
+import { simulatePassPlay } from "../src/index.js";
+import { timeBudgetSeconds } from "../src/resolve/qbRead.js";
+import { TUNABLES } from "../src/tunables.js";
+import type { ReadSystem } from "../src/types.js";
 import {
   baseReceivers,
   buildCleanPocketScenario,

@@ -13,7 +13,7 @@ import type {
   ReadSystem,
   RunPlayCalls,
   RunScheme,
-} from "../src/index.js";
+} from "../src/types.js";
 
 const PERSONALITY: PersonalitySheet = { needs: {}, type: "quiet" };
 

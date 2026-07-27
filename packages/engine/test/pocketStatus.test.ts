@@ -8,17 +8,18 @@
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
+import { simulatePassPlay } from "../src/index.js";
 import {
-  TUNABLES,
-  bandFor,
   pocketFloorFor,
   pocketSeverity,
   pocketStatusFor,
   pocketStatusFromPressure,
-  simulatePassPlay,
   worsePocketStatus,
-} from "../src/index.js";
-import type { PassRushBandLabel, PocketStatus } from "../src/index.js";
+} from "../src/resolve/pocket.js";
+import type { PassRushBandLabel } from "../src/resolve/passRush.js";
+import { bandFor } from "../src/rolls.js";
+import { TUNABLES } from "../src/tunables.js";
+import type { PocketStatus } from "../src/types.js";
 import { buildLopsidedRushScenario, buildScenario, buildStalledPocketScenario } from "./fixtures.js";
 
 /** Per-tick view of the stream: what each rusher did, and the status that followed. */

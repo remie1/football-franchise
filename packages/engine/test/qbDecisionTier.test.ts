@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import { simulatePassPlay } from "../src/index.js";
-import type { PlayCalls } from "../src/index.js";
+import type { PlayCalls } from "../src/types.js";
 import { buildScenario, buildStalledPocketScenario } from "./fixtures.js";
 
 function decisions(

@@ -54,6 +54,13 @@ export type MatchEvent =
         target?: number;
         opposedRoll?: RollDetail;
         tier: ResultTier;
+        /**
+         * The design doc's own result-band label for this check, when the resolution
+         * produced one ("RUSHER_WINS_REP", "HOLE_OPEN", "SEPARATION_3_4"…). ADR-011.
+         * A free string, not a union: the band vocabulary is per-check-kind and is
+         * exactly what calibration proposes changes to.
+         */
+        band?: string;
         margin: number;
         testsAttrs: AttrId[];   // lets perception update from exposure (Spec #6 §3)
       } } & MatchEventBase)
@@ -93,7 +100,13 @@ export type MatchEvent =
          */
         tier?: ResultTier;
       } } & MatchEventBase)
-  | ({ type: "THROW"; payload: { target: PlayerId; throwType: "BULLET"|"TOUCH"|"BACK_SHOULDER"|"THROWAWAY"; accuracyTier: ResultTier } } & MatchEventBase)
+  | ({ type: "THROW"; payload: {
+        target: PlayerId;
+        throwType: "BULLET"|"TOUCH"|"BACK_SHOULDER"|"THROWAWAY";
+        accuracyTier: ResultTier;
+        /** The accuracy CHECK's rngLabel — §10.4's placement band lives there (ADR-011). */
+        rollRef?: string;
+      } } & MatchEventBase)
   | ({ type: "CATCH_RESOLUTION"; payload: {
         receiver: PlayerId;
         catchType: string;
@@ -115,7 +128,17 @@ export type MatchEvent =
         recoveredBy?: PlayerId;
       } } & MatchEventBase)
   | ({ type: "YAC_ZONE"; payload: { carrier: PlayerId; zone: number; yardsInZone: number } } & MatchEventBase)
-  | ({ type: "RUN_RESOLUTION"; payload: { carrier: PlayerId; gap: string; yards: number } } & MatchEventBase)
+  /** A designed run's zone-by-zone advance. Separate from YAC_ZONE so rushing yards
+   *  never land in a receiving aggregate — widen or add, never overload (ADR-010). */
+  | ({ type: "RUSH_ZONE"; payload: { carrier: PlayerId; zone: number; yardsInZone: number } } & MatchEventBase)
+  | ({ type: "RUN_RESOLUTION"; payload: {
+        carrier: PlayerId;
+        carryType: "DESIGNED"|"SCRAMBLE";
+        /** Absent on a scramble — a quarterback leaving the pocket has no designed gap. */
+        gap?: string;
+        yardsBeforeContact: number;
+        yards: number;
+      } } & MatchEventBase)
   | ({ type: "ENV_APPLIED"; payload: { weather?: RollModifier[]; stamina?: RollModifier[]; noise?: RollModifier[] } } & MatchEventBase)
   | ({ type: "STAMINA_DELTA"; payload: { player: PlayerId; delta: number }[] } & MatchEventBase)
   | ({ type: "PENALTY"; payload: { kind: string; player: PlayerId; accepted: boolean; yards: number } } & MatchEventBase)

@@ -10,7 +10,6 @@ import { describe, expect, it } from "vitest";
 import { createRng } from "@ff/contracts";
 import type { PlayerState, Rng } from "@ff/contracts";
 import {
-  TUNABLES,
   advanceCarrier,
   depthOfVerticalZone,
   resolveBlockInSpace,
@@ -20,8 +19,9 @@ import {
   yardsInBand,
   zoneOfDefender,
   zoneWidth,
-} from "../src/index.js";
-import type { Pursuer } from "../src/index.js";
+} from "../src/resolve/ballCarrier.js";
+import type { Pursuer } from "../src/resolve/ballCarrier.js";
+import { TUNABLES } from "../src/tunables.js";
 import { makePlayer } from "./fixtures.js";
 
 const rng = (label: string): Rng => createRng("carrier-test", label);

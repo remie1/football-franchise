@@ -2,16 +2,16 @@
 import { describe, expect, it } from "vitest";
 import { createRng } from "@ff/contracts";
 import type { PlayerState } from "@ff/contracts";
+import { simulatePassPlay } from "../src/index.js";
 import {
-  TUNABLES,
   pursuitDeadline,
   resolveScramble,
   scrambleOpennessAt,
-  simulatePassPlay,
   visionConeModifier,
   visionConeRollModifier,
-} from "../src/index.js";
-import type { RushThreat } from "../src/index.js";
+} from "../src/resolve/scramble.js";
+import type { RushThreat } from "../src/resolve/rushThreat.js";
+import { TUNABLES } from "../src/tunables.js";
 import { buildScenario, makePlayer } from "./fixtures.js";
 
 const rng = (label: string) => createRng("scramble-seed", label);
@@ -157,7 +157,12 @@ describe("§8.8 over real event streams", () => {
       if (result?.event.type !== "PLAY_RESULT") throw new Error("no result");
       if (run?.event.type !== "RUN_RESOLUTION") throw new Error("no run resolution");
       expect(run.event.payload.carrier).toBe(state.quarterback);
-      expect(run.event.payload.gap).toBe(TUNABLES.result.scrambleGapLabel);
+      // ADR-010 item 2 — `carryType`, not a `"SCRAMBLE"` sentinel in the
+      // free-text gap field. A quarterback who tucked it ran no designed gap, so
+      // `gap` is ABSENT and nothing was blocked ahead of him.
+      expect(run.event.payload.carryType).toBe("SCRAMBLE");
+      expect(run.event.payload.gap).toBeUndefined();
+      expect(run.event.payload.yardsBeforeContact).toBe(0);
       expect(run.event.payload.yards).toBe(result.event.payload.yards);
       expect(result.event.payload.turnover).toBe(false);
       yardages.add(result.event.payload.yards);

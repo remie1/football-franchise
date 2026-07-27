@@ -1,14 +1,14 @@
 import { createRng } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
+import { resolvePassRushTick } from "../src/resolve/passRush.js";
 import {
-  TUNABLES,
-  advancePressure,
   accuracyModifierFor,
+  advancePressure,
   forcesDecision,
   pocketStatusFor,
   readCapacityDeltaFor,
-  resolvePassRushTick,
-} from "../src/index.js";
+} from "../src/resolve/pocket.js";
+import { TUNABLES } from "../src/tunables.js";
 import { makePlayer } from "./fixtures.js";
 
 const eliteRusher = makePlayer("r-elite", "Elite Rusher", "DE", {
