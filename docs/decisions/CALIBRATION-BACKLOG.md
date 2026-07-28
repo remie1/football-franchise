@@ -409,8 +409,19 @@ and 18 to read "or against the corpus."**
 - Unprotectable pressures re-draw the **concept**, preserving the fitted blitz rate and pushing
   the distortion into the concept mix instead. Measured at 57 re-draws in 69,627 calls (0.08%),
   so the concept-mix distortion is negligible; the protection bias is not.
-- **Not fixable in calibration.** It closes when §7.4 blitz pickup lands — which is the blitz and
-  stunt dispatch, and is another reason that work should not be measured before it exists.
+- **HALF-CLOSED — and the half that closed is the smaller half.** Measured `baseline-0002`
+  (`03f9974`, 496 games, seeds `baseline-0001`, digest `fnv1a:020c1dcb#496`).
+  The **re-draw path is closed**: 0 concept re-draws in 69,432 calls, against 57.
+  The **protection bias is not.** The frozen caller still calls `instantiatePass` against the
+  *actual* defensive card — ADR-023 changed what happens when protection runs out, not what it is
+  built from. `unaccounted_rusher_rate` = **0.13%** (56 of 43,583 dropbacks).
+- **Consequences, and they are severe:** `hot_route_rate` **0.10%** (42 dropbacks), and
+  **`PICKUP_LOST` = 0 in 496 games — §7.4 step 3 has never once resolved.** ADR-022's hot
+  conversion is not weak, it is **starved**. What does fire is the pressure needing no protection
+  failure: stunts on 28.32% of dropbacks, 5,432 `STUNT_LOOPER` threats.
+- **The decision is [ADR-024](ADR-024-the-frozen-caller-still-knows-the-front.md) — PROPOSED.**
+- **⚠ Do not run the `freeRunnerArrivalSeconds` sweep while this holds.** That tunable governs
+  56 dropbacks in 496 games; sweeping it now would measure noise and call it a result.
 
 ## 23. Yards per carry has ~5 unattributed yards, and they sit where entries 11–14 do not look
 
@@ -424,10 +435,23 @@ and 18 to read "or against the corpus."**
   64.32% of all carries, average **7.078**, and average **6.72–7.37 across every one of seven
   probes** — while the real analogue (carries under 30 yards) averages **3.945**. That population
   is **79% high and does not move under entries 12, 13 or 14 at all.**
-- **Where it must be:** §14.3's point of attack — **yards before contact alone is 3.129 per carry,
-  72% of the entire real per-carry average** — plus §13.1's 5/10/15 clearing grant. That is entry
-  11's table and entry 9's disputed band boundary. **The split between those two is not measured**
-  and cannot be until the zone-width probe runs.
+- **RE-MEASURED at `03f9974` after ADR-022/023, and it survived intact:** DEFAULT **16.234**;
+  entries 12/13/14 as claimed **9.307**; residual **+4.982** (was +4.971). At *maximum* credit for
+  those three, **+3.232** still survives.
+- **SPLIT (on the residual base, where zone 4 is 0-wide so the breakaway channel is defused and
+  the levers become monotone):** §14.3's point of attack **31.8%**, §13.1's clearing grant
+  **49.6%** at 2/3/5, **jointly 83.0%** with an interaction of just **−0.079**.
+- **The additivity is a property of the BASE, not of the mechanisms — and this is the caveat that
+  matters.** On `DEFAULT_TUNABLES` the same pair interacts at **+8.800**: deleting *both* raises
+  y/c by 1.52. The shares are also **settings-dependent, not bounded** — §13.1 alone closes 49.6%
+  at 2/3/5 and **127.1%** at 0/0/0. *"§13.1 owns half the residual"* is a statement about the
+  number 2/3/5, not about §13.1.
+- **17.0% survives both.** At the stated settings jointly, y/c is **5.171** against real 4.324 —
+  **+0.847 still unattributed and unowned.**
+- **Entry 9's band boundary is REMOVED from "where it must be."** Probed both directions it moves
+  y/c by **±0.04** on DEFAULT and ±0.13 on the residual base. It is not a yards-per-carry lever.
+  (It raises y/c in *both* directions, which is not explicable by a monotone mechanism — likely
+  the breakaway channel again; not chased.)
 - **Do not close the y/c row by closing 12 and 13.** They are worth 52.6% and 34.2%; the rest is
   not theirs.
 - **Yards before contact has no real-side comparator** in the ingested sources, so 3.129 is stated
@@ -537,6 +561,67 @@ report exists.
   on a CI of roughly [0.057, 0.22], so the true margin could be ~2.5σ). **The obvious economy —
   trimming games to make CI fast — converts this gate straight back into a coin flip.**
 
+## 26. The sack excess is a PRESSURE-RATE excess, not a conversion excess
+
+**This redirects entries 2 and 3, and it is the most actionable finding in `baseline-0002`.**
+
+- **`pressure_to_sack` = 15.32% against a real 16.37% — PASS+.** The engine converts pressure into
+  sacks at very nearly the real rate. Measured for the first time in `baseline-0002`.
+- Every sim sack is on a pressured dropback by construction, so sim
+  `pressure_to_sack ≡ sack_rate ÷ pressure_rate` exactly. **Therefore the entire sack excess is a
+  pressure-rate excess.**
+- **At the real 29.23% pressure rate with the sim's own conversion, sack rate would be 4.48% —
+  BELOW the real 6.90%.**
+- **→ Do not tune §7.1/§7.2's conversion terms to chase sack rate.** They are already right. The
+  lever is whatever produces 88.68% pressure against a real 29.23%, which is entry 3.
+- **A real-side asymmetry the engine cannot express:** arithmetic across the report's denominators
+  (56,893 vs 58,277, so approximate) puts **roughly a third of real sacks on dropbacks with no
+  charted pressure** — FTN charts the category as `is_qb_fault_sack`. **The engine cannot produce
+  one at all: a sack requires an arrival.** Needs its own metric before it is a fact rather than
+  an inference.
+
+## 27. `baseline-0001` wrote no carry-forward, and a reconstructed predecessor may never ratchet
+
+- Its numbers survive only as prose in this file, so `baseline-0002`'s trend column had to be
+  reconstructed by hand from seven cited rows.
+- Fixed forward: the tool now writes `<out>.carry-forward.json` and reads `FF_BASELINE_PREV`.
+- **The rule that keeps this honest: a reconstructed predecessor may inform a trend arrow and may
+  never ratchet a band.** Its `comfortableStreak` is empty on purpose and a test asserts it —
+  §10.1's ratchet is a rising floor, and a floor raised on prose is not a floor.
+
+## 22c. STANDING RULE — never buy CI time by reducing n
+
+The known-truth suite is ~57 seconds, essentially all of it `db-coverage`, which needs **~5× the
+sample of any other family** because its SE estimate is itself unstable.
+
+**Do not trim games.** Reducing n on that ladder converts it straight back into the coin flip
+entry 22a records — a gate that passes by luck, indistinguishable from one that works. The
+economy is obvious, available, and wrong.
+
+**If CI time becomes a real problem, split the ladders instead:** the fast families on every
+push, `db-coverage` on a schedule or gated to engine-touching paths. That trades *coverage
+frequency*, which is visible and recoverable, for *statistical power*, which is neither.
+
+## 22d. Every sensitivity figure measured before the re-runging is PROVISIONAL
+
+Entry 22's original numbers were wrong — accuracy's 0→95 span read **4.3 completion points when
+it is 9.9**, and 60→95 read **0.2 when it is 1.0** — purely because the ladder started at 40 with
+40 games per rung. **That is a property of the instrument, not of that one measurement.**
+
+**Treat every effect-size, span or sensitivity number in this file that predates the re-runging
+as provisional until re-measured.** Known to be in that class:
+
+- Entry 22's accuracy and coverage figures — **already corrected above.**
+- The four other ladders' effect sizes as originally recorded (`ol-passblock` −0.098,
+  `dl-passrush` +0.086, `rb-vision` +3.17, `db-coverage` −0.207). All were measured on 40-game
+  rungs placed without reference to where the effect lives; the re-recorded table supersedes them.
+- Any figure elsewhere in this file quoted as "X moves outcomes by Y" from a pre-re-runging run.
+
+**The generalisable error:** a ladder whose rungs sit on a saturated shelf measures the shelf, not
+the attribute. Before quoting any sensitivity number, check the rungs were placed where the
+response actually varies — the response curve is cheap to map and was never mapped until it had
+to be.
+
 ## 22b. Sacks taken reconcile; sacks CREDITED do not
 
 - **Measured over a 30-game corpus:** the offence is charged **344** sacks and the defensive
@@ -548,6 +633,44 @@ report exists.
   "some sacks are uncredited" and "more than half are" are different facts.
 - Only the direction is asserted in test (`credited ≤ taken`); equality would be red for a reason
   that is the engine's to fix. **Sibling of entry 25** and a candidate declared absence.
+- **This is an ATTRIBUTION gap, not a tuning gap, and it does not announce itself.** It will
+  **silently understate every pass rusher in the league** the moment ratings exist — Tier 4's
+  per-player convergence check is exactly the instrument that would be fooled, because each
+  credited sack is correct and only the denominator lies.
+- **NAMED INVESTIGATION — the 180 unattributed sacks must be decomposed before Tier 4 is trusted.**
+  Three candidate causes, and they need separating rather than assuming:
+  1. **Coverage sacks with no winner** — no rusher ever arrived, so nobody *should* be credited.
+     Legitimate, and the real NFL has the same category; the question is what share.
+  2. **Free runners the ledger does not credit** — a rusher nobody blocked arrives without a won
+     rep, so a credit keyed on `pass_rush_tick` would miss him. If this is the bulk, it is a
+     straightforward reducer fix.
+  3. **The sacker being dropped on the way to the statline** — the same class as the
+     `availableBlockers` bug: a real winner who exists in the stream and does not survive the
+     fold. This is the one that would be a defect rather than a modelling choice.
+  `RUSH_THREAT.origin` (ADR-022) makes the second separable from the first for the first time.
+- **DECOMPOSED, `baseline-0002`, 496 games: 5,921 charged / 2,891 credited (48.83%) / remainder
+  3,030.** The 30-game 47.7% replicates at 16× the sample.
+
+  | cause | share of remainder |
+  |---|---|
+  | **3 — the sacker dropped on the way to the statline** | **89.74%** (45.92% of all sacks) |
+  | 1 — coverage sack, every threat RESET, nobody coming | 7.79% |
+  | 2 — free runner the ledger does not credit | 2.48% |
+  | 1a — no `RUSH_THREAT` published at all | **0.00%** |
+
+- **CAUSE 3 IS AN ENGINE DEFECT AND IT IS LOCALISED EXACTLY.** All 3,030 uncredited sacks
+  followed a failed §8.8 escape. `sim/passPlay.ts` sacks at two sites: the §7.2 site is guarded by
+  `hasArrived`, which coincides with the `ARRIVED` publication because
+  `arrival.immediateWithinSeconds` is 0.0, so it **always credits**. The **escape site** publishes
+  no threat transition, so `reduceStatlines`' `lastArrivedRusher` is `undefined`.
+- **A real winner is present in every one of them:** 53.07% had a rusher **0.5s** from arriving,
+  83.3% within 1.0s, and none had already arrived.
+- **No contract change needed.** `resolveScramble` already emits a `scramble` CHECK with
+  `actors: [qb, ...threats]` — the men are named in the stream today. The ADR-007-consistent
+  repair is for the escape branch to publish the nearest threat as `ARRIVED` before `sack(tick)`;
+  the reducer then works unchanged.
+- **Definitional note:** read cause 1 *literally* ("no rusher ever arrived") and it is 100% of the
+  remainder; read as intended ("nobody was ever coming") it is 7.79%, and the pure form is zero.
 - **Coverage is the weakest attribute family measured**: a fifth of a yard per dropback across
   40→95 on five attributes at once, against 9.7 sack points for OL pass block and 3.2 y/c for RB
   vision. Note two candidate measures were **rejected** en route because better coverage changes
@@ -729,9 +852,23 @@ entry 1 is gated on entry 3.
   width.** That is **13.147 of the 16.277 y/c (80.8%)**. Coarseness *is* the mean.
 - **Lever:** `TUNABLES.ballCarrier.zones[].widthYards`. Wants a run-specific zone table rather
   than a rescaled receiver one.
-- **NOT YET PROBED.** The zone-width counterfactual is written into
-  `packages/calibration/test/attribution.test.ts` as `MAX11-12-13-14` and has not been run — the
-  engine tree was mid-dispatch. **Re-baseline first, then run it.**
+- **PROBED — AND THIS ENTRY'S OWN STATED LEVER HAS AN INVERTED SIGN ON `DEFAULT_TUNABLES`. Same
+  class as entry 14, found by the same both-directions rule.** A run-shaped table (2/3/5) moves
+  y/c **16.234 → 20.686, Δ +4.452.** Narrowing the zones makes yards per carry **worse**.
+- **Mechanism, measured rather than argued: §13.1 has TWO CHANNELS PULLING OPPOSITE WAYS.** The
+  clearing grant, which narrowing shrinks — and §13.4's breakaway gate (`breakawayAfterZone: 2`),
+  which narrowing pulls *forward*:
+
+  | | breakaway checks/carry | FREE_RUN carries | FREE_RUN mean | reached zone 4 |
+  |---|---|---|---|---|
+  | DEFAULT | 0.335 | 12.40% | 62.33 | 7.60% |
+  | 2/3/5 | **0.611** | **22.40%** | 58.98 | **31.16%** |
+  | 10/20/30 | 0.114 | 4.27% | 64.39 | 4.63% |
+
+  `TOUCHDOWN_POTENTIAL` pass rate is flat at ~37% throughout — the gate's *quality* never changes,
+  only how often it is **reached**.
+- **→ Any §13.1 width change must move together with `breakawayAfterZone`, or it buys the yardage
+  straight back through the gate.**
 
 ## 12. §13.1's zone 4 is unoccupiable from the line of scrimmage
 

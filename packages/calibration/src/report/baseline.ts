@@ -257,7 +257,7 @@ export function renderBaselineReport<E extends Eligibility>(report: BaselineRepo
           `${fmtInterval(e.simInterval, e.unit)} | ${fmt(e.real, e.unit)} | ` +
           `${fmtInterval(e.realInterval, e.unit)} | ${e.simN}/${e.realN} | ` +
           `${e.deviation === null ? "—" : e.deviation.toFixed(4)} | ${trendCell(e)} | ` +
-          `${[e.detail, ...e.knownDivergences].filter((s) => s.length > 0).join("; ")} |`,
+          `${notesCell(e)} |`,
       );
     }
     lines.push("");
@@ -318,6 +318,27 @@ export function renderBaselineReport<E extends Eligibility>(report: BaselineRepo
   lines.push("");
 
   return lines.join("\n");
+}
+
+/**
+ * The notes cell — and the reason it is a function rather than a join.
+ *
+ * `outsideDetail` in `bands.ts` already builds "outside band; already diagnosed: <entries>" out
+ * of the SAME `knownDivergences` list, so appending the list again printed every backlog
+ * reference twice in every failing row. Harmless to a machine and corrosive to a reader: the
+ * report's whole layout argument is that "forty rows of 'still open, see entry 3' is a map", and
+ * a map that says everything twice is one nobody reads. Fixed here rather than by thinning
+ * `outsideDetail`, because a PASSING row still wants its known-divergence list visible — a metric
+ * that passes while a backlog entry claims it is exactly the row the first baseline warned about
+ * (`points_per_drive` passing "is arithmetic, not health").
+ */
+function notesCell(evaluation: MetricEvaluation): string {
+  const detail = evaluation.detail;
+  const parts =
+    detail.includes("already diagnosed:") || detail.includes("NO backlog entry")
+      ? [detail]
+      : [detail, ...evaluation.knownDivergences];
+  return parts.filter((s) => s.length > 0).join("; ");
 }
 
 function trendCell(evaluation: MetricEvaluation): string {

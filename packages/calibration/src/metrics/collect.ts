@@ -99,6 +99,27 @@ export interface PlayFold {
   coverageShells: Record<string, number>;
   /** Rusher counts from PLAY_START, the other half of the orthogonality check (BACKLOG 8b). */
   rusherCounts: Record<string, number>;
+
+  /**
+   * ================== THE ADR-022 / ADR-023 PRESSURE COUNTERS ==================
+   *
+   * Three facts about a dropback that became sayable only when the corpus could state
+   * pressure. All three are read from PLAY_START, which is where ADR-022 put them, and
+   * none is re-derived from a resolution — ADR-022 refused a `blitz` flag on PLAY_START
+   * precisely because rusher count and `unaccountedRushers` already state it, so these
+   * count the fields the ADR ratified rather than inventing a fourth spelling.
+   */
+  /** Dropbacks the defence rushed five or more men on. */
+  blitzDropbacks: number;
+  /**
+   * Dropbacks where at least one rusher was named by no `ProtectionAssignment` — §7.4
+   * step 1's UNACCOUNTED, a fact about the CALL. Distinct from `blitzDropbacks`: a
+   * six-man pressure a seven-man protection answers is a blitz and is fully accounted,
+   * and a four-man rush against empty can leave a man unaccounted without being one.
+   */
+  unaccountedRusherDropbacks: number;
+  /** Dropbacks on which at least one route actually converted hot (§5.3 recognised). */
+  hotConversionDropbacks: number;
 }
 
 export interface DriveFold {
@@ -197,6 +218,9 @@ export function emptyAccumulator(): SimAccumulator {
       tippedRecoveredByDefense: 0,
       coverageShells: {},
       rusherCounts: {},
+      blitzDropbacks: 0,
+      unaccountedRusherDropbacks: 0,
+      hotConversionDropbacks: 0,
     },
     drive: {
       drives: 0,
@@ -237,10 +261,27 @@ interface PlayStartSituation {
 
 interface PlayStartShape {
   readonly kind: string;
-  readonly offense?: { readonly team?: unknown };
-  readonly defense?: { readonly coverage?: unknown; readonly rush?: readonly unknown[] };
+  readonly offense?: {
+    readonly team?: unknown;
+    /** ADR-022 petition 2 / §5.3 — routes that broke off hot, and what they were before. */
+    readonly hotConversions?: readonly unknown[];
+  };
+  readonly defense?: {
+    readonly coverage?: unknown;
+    readonly rush?: readonly unknown[];
+    /** §7.4 step 1 — rushers no `ProtectionAssignment` named. */
+    readonly unaccountedRushers?: readonly unknown[];
+  };
   readonly situation?: PlayStartSituation;
 }
+
+/**
+ * Five or more rushers. Both sides of `blitz_rate` use this number and nothing else, which is
+ * the whole reason it is a named constant here rather than a `>= 5` at two call sites: the sim
+ * side counts `PLAY_START.defense.rush` and the real side counts FTN's `n_pass_rushers`, and a
+ * metric whose two sides disagree about the threshold is worse than no metric.
+ */
+export const BLITZ_MIN_RUSHERS = 5;
 
 /**
  * `PLAY_START.payload` is `unknown` in contracts — a deliberately open slot the engine fills
@@ -415,6 +456,16 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
           if (typeof coverage === "string") bumpKey(p.coverageShells, coverage);
           const rush = start.defense?.rush;
           if (Array.isArray(rush)) bumpKey(p.rusherCounts, String(rush.length));
+          // Dropbacks only. `blitz_rate` and `hot_route_rate` are per-dropback rates and a run
+          // play carries a `rush` list too, so counting every PLAY_START would put the run mix
+          // in the denominator of a passing-game metric.
+          if (current.isPass) {
+            if (Array.isArray(rush) && rush.length >= BLITZ_MIN_RUSHERS) p.blitzDropbacks++;
+            const unaccounted = start.defense?.unaccountedRushers;
+            if (Array.isArray(unaccounted) && unaccounted.length > 0) p.unaccountedRusherDropbacks++;
+            const hot = start.offense?.hotConversions;
+            if (Array.isArray(hot) && hot.length > 0) p.hotConversionDropbacks++;
+          }
         }
         break;
       }
@@ -729,6 +780,9 @@ export function mergeAccumulators(a: SimAccumulator, b: SimAccumulator): SimAccu
     tippedRecoveredByDefense: a.play.tippedRecoveredByDefense + b.play.tippedRecoveredByDefense,
     coverageShells: mergeCounters(a.play.coverageShells, b.play.coverageShells),
     rusherCounts: mergeCounters(a.play.rusherCounts, b.play.rusherCounts),
+    blitzDropbacks: a.play.blitzDropbacks + b.play.blitzDropbacks,
+    unaccountedRusherDropbacks: a.play.unaccountedRusherDropbacks + b.play.unaccountedRusherDropbacks,
+    hotConversionDropbacks: a.play.hotConversionDropbacks + b.play.hotConversionDropbacks,
   };
 
   const drive: DriveFold = {

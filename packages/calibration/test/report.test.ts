@@ -19,7 +19,8 @@ import {
   renderBaselineReport,
   withTrend,
 } from "../src/report/baseline.js";
-import { allMetrics, getMetric } from "../src/metrics/registry.js";
+import { PREVIOUS_BASELINE, PREVIOUS_BASELINE_CITATIONS } from "../src/report/previous.js";
+import { allMetrics, getMetric, isRegistered } from "../src/metrics/registry.js";
 import type { RealInput } from "../src/metrics/realInput.js";
 import { makeEvidence } from "../src/ingest/eligibility.js";
 import type { Season } from "../src/ingest/seasons.js";
@@ -300,6 +301,57 @@ describe("the baseline report", () => {
     const rendered = renderBaselineReport(report);
     expect(rendered).toContain("## Metric definitions");
     expect(rendered).toContain(getMetric("sack_rate").definition);
+  });
+
+  /**
+   * `outsideDetail` already builds "already diagnosed: <entries>" from `knownDivergences`, so
+   * appending the same list printed every backlog reference twice in every failing row. The
+   * report's layout argument is that forty rows of "still open, see entry 3" is a MAP; a map that
+   * says everything twice is one nobody reads.
+   */
+  it("names each backlog entry once in a failing row, and still shows them on a passing one", () => {
+    const failing = evaluateMetric(
+      { ...metric(), knownDivergences: ["backlog 42 (the thing)"] },
+      rate(90, 100),
+      rate(10, 100),
+    );
+    const passing = evaluateMetric(
+      { ...metric(), knownDivergences: ["backlog 42 (the thing)"] },
+      rate(50, 100),
+      rate(50, 100),
+    );
+    const rendered = renderBaselineReport({
+      ...report,
+      evaluations: [failing, passing],
+    });
+    const failingLine = rendered.split("\n").find((l) => l.includes("already diagnosed")) ?? "";
+    expect(failingLine.split("backlog 42").length - 1).toBe(1);
+    // The passing row keeps its list: a metric that passes while an entry claims it is exactly
+    // the row the first baseline warned about ("the pass is arithmetic, not health").
+    expect(rendered).toContain("| PASS+ |");
+    expect(rendered.split("backlog 42").length - 1).toBe(2);
+  });
+});
+
+describe("the reconstructed predecessor", () => {
+  it("carries only figures the backlog actually recorded, each with a citation", () => {
+    for (const id of Object.keys(PREVIOUS_BASELINE.sim)) {
+      expect(PREVIOUS_BASELINE_CITATIONS[id], `no citation for ${id}`).toBeDefined();
+      expect(isRegistered(id), `${id} is not a registered metric`).toBe(true);
+    }
+    expect(Object.keys(PREVIOUS_BASELINE.sim).length).toBe(
+      Object.keys(PREVIOUS_BASELINE_CITATIONS).length,
+    );
+  });
+
+  it("cannot ratchet a band, because a ratchet is permanent and prose is not a report", () => {
+    // The load-bearing refusal. `ratchetBand` only ever tightens and never widens, so a band
+    // tightened on the strength of a reconstructed predecessor could not be undone. An empty
+    // streak map means the reconstruction can inform a trend arrow and can never move a gate.
+    expect(PREVIOUS_BASELINE.comfortableStreak).toEqual({});
+    const comfortable = evaluateMetric(metric(), rate(50, 100), rate(50, 100));
+    expect(comfortable.comfortable).toBe(true);
+    expect(proposeRatchets([comfortable], PREVIOUS_BASELINE.comfortableStreak, "r1")).toHaveLength(0);
   });
 });
 

@@ -214,6 +214,19 @@ not:
 - **`DerivedLeague` uninhabited** (ADR-020). On a flat league the upset-rate metric computes a
   rating gap of zero for every game and reports a perfectly calibrated 50% — **it renders
   green.** Making the provenance a phantom brand turns that into `NOT_APPLICABLE` with a reason.
+- **The known-truth gates' recorded step SEs.** A monotonicity gate sat **1.4σ from its
+  tolerance with an ~8% false-red rate and had never fired** — worse than the gate that did go
+  red, and invisible *precisely because it was passing*. **A gate passing by luck is
+  indistinguishable from a gate working, right up until it isn't.** The fix was not a wider
+  tolerance: each scenario now carries `recordedSteps` and `recordedStepSE`, and every run
+  asserts a 4σ noise margin, a signal margin of half the smallest true step, and an effect floor
+  under 80% of measured span — so **widening a tolerance to go green requires editing a field
+  labelled "measured", beside the seed digest that measured it.** §4.1 applied to the test suite
+  itself.
+
+**Corollary — chase the visible red.** The buried gate was found only by investigating the one
+that fired. A failing test is often the cheapest available sample of a class of problem, and the
+instinct to fix it quickly and move on is what leaves the silent siblings in place.
 
 ### The sharpest form of the rule
 

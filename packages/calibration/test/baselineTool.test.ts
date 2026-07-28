@@ -13,7 +13,7 @@
  * `FF_BASELINE_OUT` names a path, because a test that writes a file on every run turns
  * `git status` into noise.
  */
-import { writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
@@ -23,7 +23,14 @@ import { fsCacheStore } from "../src/ingest/cache.js";
 import { TUNING_SEASONS } from "../src/ingest/seasons.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import { openRealForTuning } from "../src/metrics/realInput.js";
-import { buildBaselineReport, renderBaselineReport } from "../src/report/baseline.js";
+import {
+  buildBaselineReport,
+  carryForward,
+  renderBaselineReport,
+  withTrend,
+  type PreviousReport,
+} from "../src/report/baseline.js";
+import { PREVIOUS_BASELINE } from "../src/report/previous.js";
 import "../src/metrics/index.js";
 
 const enabled = process.env["FF_BASELINE"] === "1";
@@ -48,15 +55,37 @@ describe.skipIf(!enabled)("baseline comparison", () => {
     const real = await openRealForTuning(store, TUNING_SEASONS, {
       withNgs: true,
       withParticipation: true,
+      // ADR-022 made blitz measurable; FTN's `n_pass_rushers` is the real side of it.
+      withFtn: true,
     });
 
-    const report = buildBaselineReport({
-      id: process.env["FF_BASELINE_ID"] ?? "baseline-0001",
-      accumulator: batch.accumulator,
-      provenance: batch.provenance,
-      caller: batch.caller,
-      real,
-    });
+    /**
+     * THE TREND COLUMN, AND WHERE ITS PREDECESSOR COMES FROM.
+     *
+     * `FF_BASELINE_PREV` names a carry-forward JSON written by an earlier run of this tool. When
+     * there is none — which was the case for baseline-0002, because baseline-0001 wrote a
+     * markdown artefact and no machine-readable carry-forward — `previous.ts` supplies the
+     * figures the backlog recorded in prose, with every one of them cited to the line that
+     * recorded it. That is a reconstruction and the module says so; it is not a substitute for
+     * the file, which is why this run writes one.
+     */
+    const prevPath = process.env["FF_BASELINE_PREV"];
+    const previous: PreviousReport | undefined =
+      prevPath !== undefined && existsSync(resolve(import.meta.dirname, "..", prevPath))
+        ? (JSON.parse(readFileSync(resolve(import.meta.dirname, "..", prevPath), "utf8")) as PreviousReport)
+        : PREVIOUS_BASELINE;
+
+    const report = withTrend(
+      buildBaselineReport({
+        id: process.env["FF_BASELINE_ID"] ?? "baseline-0001",
+        accumulator: batch.accumulator,
+        provenance: batch.provenance,
+        caller: batch.caller,
+        real,
+        previous,
+      }),
+      previous,
+    );
 
     const rendered = renderBaselineReport(report);
     const out = process.env["FF_BASELINE_OUT"];
@@ -64,6 +93,14 @@ describe.skipIf(!enabled)("baseline comparison", () => {
       const path = resolve(import.meta.dirname, "..", out);
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, rendered, "utf8");
+      // The half baseline-0001 did not write. A report whose successor cannot read it has no
+      // trend column, and "what moved" then has to be reconstructed from prose — which is
+      // exactly what `previous.ts` had to do.
+      writeFileSync(
+        path.replace(/\.md$/, "") + ".carry-forward.json",
+        `${JSON.stringify(carryForward(report), null, 2)}\n`,
+        "utf8",
+      );
     }
 
     // A compact tabular dump for the terminal; the markdown is the artefact.

@@ -766,6 +766,185 @@ function maximumCredit(): readonly Probe[] {
   ];
 }
 
+// ---------------------------------------------------------------------------
+// ENTRY 23 — the residual, re-measured and then split.
+//
+// Entry 23 measured +4.971 unattributed yards per carry on `e42ee36`. ADR-022 and ADR-023 have
+// landed since, so **the residual itself is re-measured before anything is split off it** — a
+// magnitude taken on a tree that no longer exists is not a magnitude.
+//
+// Two rules govern the shape of this block, and both were bought with wrong answers:
+//
+//   1. EVERY NAMED LEVER IS PROBED IN BOTH DIRECTIONS. Entry 14 was cited as an explanation for
+//      yards per carry while actually SUPPRESSING it, and only a signed measurement found that
+//      out. So each lever below has an "off" probe and an "up" probe, and the sign of each is
+//      reported rather than assumed.
+//   2. DECOMPOSITION IS NOT ADDITIVE. Entry 12's halves were worth −1.84 and −1.95 alone and
+//      −6.29 together, because they share a population. §14.3's point of attack and §13.1's
+//      clearing grant operate on the SAME carries, so each is measured alone AND jointly, and
+//      the interaction term is printed. **A clean two-way percentage split is the outcome to be
+//      suspicious of.**
+// ---------------------------------------------------------------------------
+
+/** The real-side yards per carry the residual is measured against (2022-2024 TUNING pbp). */
+const REAL_YPC = 4.3243;
+
+interface Config {
+  readonly id: string;
+  readonly what: string;
+  readonly tunables: Tunables;
+}
+
+/** §12 + §13 + §14 as entry 23 stated them: 12 deleted, 13 below the NFL rate, 14 in its own direction. */
+function residualBase(): Tunables {
+  return patch(
+    patch(
+      patch(
+        patch(DEFAULT_TUNABLES, "ballCarrier.zones.3.widthYards", 30, 0),
+        "ballCarrier.breakaway.freeRunReachesGoalLine",
+        true,
+        false,
+      ),
+      "ballCarrier.contests.secondLevel.bands.0.minMargin",
+      15,
+      54,
+    ),
+    "ballCarrier.pursuitAngle.target",
+    50,
+    78,
+  );
+}
+
+/** The same three entries at MAXIMUM credit — the bound on what they can possibly own. */
+function residualMaxBase(): Tunables {
+  return patch(
+    patch(
+      patch(
+        patch(DEFAULT_TUNABLES, "ballCarrier.zones.3.widthYards", 30, 0),
+        "ballCarrier.breakaway.freeRunReachesGoalLine",
+        true,
+        false,
+      ),
+      "ballCarrier.contests.secondLevel.bands.0.minMargin",
+      15,
+      200,
+    ),
+    "ballCarrier.pursuitAngle.target",
+    50,
+    0,
+  );
+}
+
+// --- the two levers, each in both directions --------------------------------
+
+/** §14.3's yardage grant deleted: HOLE_OPEN and HOLE_EXISTS award nothing before contact. */
+function poaOff(t: Tunables): Tunables {
+  return patch(
+    patch(
+      patch(
+        patch(t, "runGame.pointOfAttack.bands.0.minYards", 3, 0),
+        "runGame.pointOfAttack.bands.0.maxYards",
+        5,
+        0,
+      ),
+      "runGame.pointOfAttack.bands.1.minYards",
+      1,
+      0,
+    ),
+    "runGame.pointOfAttack.bands.1.maxYards",
+    2,
+    0,
+  );
+}
+
+/** The opposite direction: §14.3 grants twice what the doc's table says. */
+function poaUp(t: Tunables): Tunables {
+  return patch(
+    patch(
+      patch(
+        patch(t, "runGame.pointOfAttack.bands.0.minYards", 3, 6),
+        "runGame.pointOfAttack.bands.0.maxYards",
+        5,
+        10,
+      ),
+      "runGame.pointOfAttack.bands.1.minYards",
+      1,
+      2,
+    ),
+    "runGame.pointOfAttack.bands.1.maxYards",
+    2,
+    4,
+  );
+}
+
+/** Entry 9's disputed boundary, taken to §6.3's number: HOLE_OPEN needs a win by 20, not 10. */
+function poaStrict(t: Tunables): Tunables {
+  return patch(t, "runGame.pointOfAttack.bands.0.minMargin", 10, 20);
+}
+
+/** The other direction: any win at all opens the hole wide. */
+function poaLoose(t: Tunables): Tunables {
+  return patch(t, "runGame.pointOfAttack.bands.0.minMargin", 10, 1);
+}
+
+/** §13.1's grid rescaled for a run rather than a reception — entry 11's own proposal. */
+function zonesRun(t: Tunables): Tunables {
+  return patch(
+    patch(patch(t, "ballCarrier.zones.0.widthYards", 5, 2), "ballCarrier.zones.1.widthYards", 10, 3),
+    "ballCarrier.zones.2.widthYards",
+    15,
+    5,
+  );
+}
+
+/** §13.1's clearing grant deleted outright — the bound on what entry 11 can own. */
+function zonesOff(t: Tunables): Tunables {
+  return patch(
+    patch(patch(t, "ballCarrier.zones.0.widthYards", 5, 0), "ballCarrier.zones.1.widthYards", 10, 0),
+    "ballCarrier.zones.2.widthYards",
+    15,
+    0,
+  );
+}
+
+/** The opposite direction, so the lever's sign is measured rather than assumed. */
+function zonesUp(t: Tunables): Tunables {
+  return patch(
+    patch(patch(t, "ballCarrier.zones.0.widthYards", 5, 10), "ballCarrier.zones.1.widthYards", 10, 20),
+    "ballCarrier.zones.2.widthYards",
+    15,
+    30,
+  );
+}
+
+function entry23Configs(base: Tunables, prefix: string): readonly Config[] {
+  return [
+    { id: `${prefix}`, what: "the base itself", tunables: base },
+    { id: `${prefix}+POA_OFF`, what: "§14.3 grants 0 yards before contact", tunables: poaOff(base) },
+    { id: `${prefix}+POA_UP`, what: "§14.3 grants double (6-10 / 2-4)", tunables: poaUp(base) },
+    { id: `${prefix}+POA_STRICT`, what: "entry 9: HOLE_OPEN needs +20 (§6.3's number)", tunables: poaStrict(base) },
+    { id: `${prefix}+POA_LOOSE`, what: "entry 9: HOLE_OPEN needs +1", tunables: poaLoose(base) },
+    { id: `${prefix}+ZONES_RUN`, what: "§13.1 rescaled to 2/3/5", tunables: zonesRun(base) },
+    { id: `${prefix}+ZONES_OFF`, what: "§13.1's clearing grant deleted (0/0/0)", tunables: zonesOff(base) },
+    { id: `${prefix}+ZONES_UP`, what: "§13.1 widened to 10/20/30", tunables: zonesUp(base) },
+    {
+      id: `${prefix}+POA_OFF+ZONES_RUN`,
+      what: "JOINT — both levers, each in its own stated direction",
+      tunables: zonesRun(poaOff(base)),
+    },
+    {
+      id: `${prefix}+POA_OFF+ZONES_OFF`,
+      what: "JOINT — both mechanisms deleted; the bound on the pair",
+      tunables: zonesOff(poaOff(base)),
+    },
+    {
+      id: `${prefix}+POA_UP+ZONES_UP`,
+      what: "JOINT — both levers in the OPPOSITE direction",
+      tunables: zonesUp(poaUp(base)),
+    },
+  ];
+}
+
 // --- rendering --------------------------------------------------------------
 
 function pct(n: number, d: number): string {
@@ -1025,6 +1204,155 @@ describe.skipIf(!enabled)("attribution", () => {
       expect(passes.throws).toBeGreaterThan(1000);
     },
     30 * 60_000,
+  );
+
+  it(
+    "3 — re-measures entry 23's residual, then splits it between §14.3 and §13.1 in both directions",
+    () => {
+      say("");
+      say("=======================================================================");
+      say("ENTRY 23 — the residual, RE-MEASURED, then split");
+      say(`league flat-60 32t · SYNTHETIC_ROUND_ROBIN 2024 · ${GAMES} games · seed "${BATCH_SEED}"`);
+      say(`real side: yards_per_carry = ${REAL_YPC} (2022-2024 TUNING pbp, baseline-0002)`);
+      say("=======================================================================");
+
+      /** Every configuration run once, keyed by id, so nothing is simulated twice. */
+      const measured = new Map<string, CarryFold>();
+      const run = (config: Config): CarryFold => {
+        const existing = measured.get(config.id);
+        if (existing !== undefined) return existing;
+        const fold = emptyCarryFold();
+        runProbe(config.tunables, { carries: fold });
+        measured.set(config.id, fold);
+        return fold;
+      };
+
+      const ypc = (fold: CarryFold): number => fold.yards / fold.carries;
+      const ybc = (fold: CarryFold): number => fold.yardsBeforeContact / fold.carries;
+
+      const defaultFold = run({ id: "DEFAULT", what: "DEFAULT_TUNABLES", tunables: DEFAULT_TUNABLES });
+      const residualFold = run({ id: "RESIDUAL", what: "entries 12/13/14 as claimed", tunables: residualBase() });
+      const residualMaxFold = run({
+        id: "RESIDUAL_MAX",
+        what: "entries 12/13/14 at maximum credit",
+        tunables: residualMaxBase(),
+      });
+
+      say("");
+      say("### Step 1 — the residual itself, re-measured");
+      say("");
+      say("| configuration | y/c | §14.3 ybc | residual vs real | vs entry 23's recorded figure |");
+      say("|---|---|---|---|---|");
+      say(
+        `| DEFAULT_TUNABLES | ${ypc(defaultFold).toFixed(3)} | ${ybc(defaultFold).toFixed(3)} | ` +
+          `${(ypc(defaultFold) - REAL_YPC).toFixed(3)} | entry 23 recorded 16.277 |`,
+      );
+      say(
+        `| entries 12/13/14 as claimed | ${ypc(residualFold).toFixed(3)} | ${ybc(residualFold).toFixed(3)} | ` +
+          `**${(ypc(residualFold) - REAL_YPC).toFixed(3)}** | entry 23 recorded 9.295 / +4.971 |`,
+      );
+      say(
+        `| entries 12/13/14 at MAX credit | ${ypc(residualMaxFold).toFixed(3)} | ${ybc(residualMaxFold).toFixed(3)} | ` +
+          `${(ypc(residualMaxFold) - REAL_YPC).toFixed(3)} | not previously measured |`,
+      );
+
+      // Step 2 — the split, on both bases. The DEFAULT run is the standing SIGNED measurement of
+      // each lever; the RESIDUAL run is the one that actually splits entry 23's remainder, since
+      // that is the configuration the remainder was defined in.
+      for (const [prefix, base, baseFold] of [
+        ["DEFAULT", DEFAULT_TUNABLES, defaultFold],
+        ["RESIDUAL", residualBase(), residualFold],
+      ] as const) {
+        const baseYpc = ypc(baseFold);
+        const baseResidual = baseYpc - REAL_YPC;
+        say("");
+        say(`### Step 2 — the levers on the ${prefix} base (residual ${baseResidual.toFixed(3)})`);
+        say("");
+        say("| probe | what | y/c | Δ y/c | sign | §14.3 ybc | % of this base's residual closed |");
+        say("|---|---|---|---|---|---|---|");
+        for (const config of entry23Configs(base, prefix)) {
+          if (config.id === prefix) continue;
+          const fold = run(config);
+          const delta = ypc(fold) - baseYpc;
+          say(
+            `| ${config.id} | ${config.what} | ${ypc(fold).toFixed(3)} | ` +
+              `${delta >= 0 ? "+" : ""}${delta.toFixed(3)} | ${delta < 0 ? "REDUCES" : "RAISES"} | ` +
+              `${ybc(fold).toFixed(3)} | ${((-delta / baseResidual) * 100).toFixed(1)}% |`,
+          );
+        }
+
+        // RULE 2, made a number rather than a warning. If the two levers were disjoint the joint
+        // delta would equal the sum of the singles; the gap between them is the interaction, and
+        // its SIGN says whether they compete (sub-additive) or compound (super-additive).
+        const pairs = [
+          ["POA_OFF", "ZONES_RUN", "POA_OFF+ZONES_RUN"],
+          ["POA_OFF", "ZONES_OFF", "POA_OFF+ZONES_OFF"],
+          ["POA_UP", "ZONES_UP", "POA_UP+ZONES_UP"],
+        ] as const;
+        say("");
+        say("Non-additivity (rule 2) — a clean split would show an interaction of zero:");
+        for (const [a, b, joint] of pairs) {
+          const fa = measured.get(`${prefix}+${a}`);
+          const fb = measured.get(`${prefix}+${b}`);
+          const fj = measured.get(`${prefix}+${joint}`);
+          if (fa === undefined || fb === undefined || fj === undefined) continue;
+          const da = ypc(fa) - baseYpc;
+          const db = ypc(fb) - baseYpc;
+          const dj = ypc(fj) - baseYpc;
+          const interaction = dj - (da + db);
+          say(
+            `  ${a} ${da >= 0 ? "+" : ""}${da.toFixed(3)} · ${b} ${db >= 0 ? "+" : ""}${db.toFixed(3)} · ` +
+              `together ${dj >= 0 ? "+" : ""}${dj.toFixed(3)} — interaction ` +
+              `${interaction >= 0 ? "+" : ""}${interaction.toFixed(3)} ` +
+              `(${Math.abs(interaction) < 0.05 ? "additive" : interaction * dj > 0 ? "SUPER-additive" : "SUB-additive"})`,
+          );
+        }
+      }
+
+      // The population entry 23 localised the residual to, re-checked under every probe.
+      say("");
+      say("### Step 3 — entry 23's localisation, re-checked");
+      say("");
+      say("Entry 23: carries stopping inside 30 yards are 64.32% of all carries, average 7.078,");
+      say("and 6.72-7.37 across every one of seven probes, against a real analogue of 3.945.");
+      say("");
+      say("| configuration | STOPPED_INSIDE_30 share | its mean gain | its contribution to y/c |");
+      say("|---|---|---|---|");
+      for (const [id, fold] of measured) {
+        const bucket = fold.byClass.get("STOPPED_INSIDE_30") ?? { carries: 0, yards: 0 };
+        say(
+          `| ${id} | ${pct(bucket.carries, fold.carries)} | ${per(bucket.yards, bucket.carries)} | ` +
+            `${per(bucket.yards, fold.carries)} |`,
+        );
+      }
+
+      /**
+       * Step 4 exists because step 2 produced a SIGN nobody predicted: narrowing §13.1's zones
+       * RAISES yards per carry on DEFAULT_TUNABLES. The obvious explanation is that the zone
+       * table has two channels pulling opposite ways — a clearing grant that narrower zones
+       * shrink, and §13.4's breakaway gate (`breakawayAfterZone: 2`) that narrower zones pull
+       * FORWARD — and an explanation is not a measurement. This is the measurement.
+       */
+      say("");
+      say("### Step 4 — the second channel: §13.4's breakaway gate, per configuration");
+      say("");
+      say("| configuration | breakaway checks/carry | TOUCHDOWN_POTENTIAL share | FREE_RUN carries | FREE_RUN mean | reached zone 4 | gains > 60 |");
+      say("|---|---|---|---|---|---|---|");
+      for (const [id, fold] of measured) {
+        const free = fold.byClass.get("FREE_RUN") ?? { carries: 0, yards: 0 };
+        const zone4 = fold.byClass.get("REACHED_ZONE_4") ?? { carries: 0, yards: 0 };
+        say(
+          `| ${id} | ${per(fold.breakawayChecks, fold.carries)} | ` +
+            `${pct(fold.breakawayFreeRun, fold.breakawayChecks)} | ` +
+            `${pct(free.carries, fold.carries)} | ${per(free.yards, free.carries)} | ` +
+            `${pct(zone4.carries, fold.carries)} | ${pct(fold.beyondTable, fold.carries)} |`,
+        );
+      }
+
+      expect(defaultFold.carries).toBeGreaterThan(1000);
+      expect(residualFold.carries).toBeGreaterThan(1000);
+    },
+    60 * 60_000,
   );
 
   /**

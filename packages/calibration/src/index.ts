@@ -48,6 +48,7 @@ export * from "./harness/workerPool.js";
 
 export * from "./report/bands.js";
 export * from "./report/baseline.js";
+export * from "./report/previous.js";
 
 export * from "./knownTruth/scenarios.js";
 export * from "./knownTruth/assertions.js";

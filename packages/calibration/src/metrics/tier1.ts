@@ -17,6 +17,7 @@
  * red row that already has a diagnosis reads as "still open" rather than as news. A red row with
  * NO backlog entry beside it is the one worth reading twice.
  */
+import { BLITZ_MIN_RUSHERS } from "./collect.js";
 import { registerMetric } from "./registry.js";
 import {
   isDesignedRush,
@@ -156,7 +157,8 @@ export const pressureRate: Metric = registerMetric({
   tier: 1,
   definition:
     "Dropbacks on which the pocket was ever anything other than CLEAN ÷ dropbacks. Real side is " +
-    "nflverse participation's `was_pressure`, which is NGS-derived and covers 2022-2023 only.",
+    "nflverse participation's `was_pressure`, which is NGS-derived. Which seasons it covers is a " +
+    "property of the CACHE, not of this metric — read the manifest list the report prints.",
   unit: "%",
   direction: "LOWER_IS_BETTER",
   toleranceBand: relativeBand(0.15),
@@ -196,10 +198,183 @@ export const pressureRate: Metric = registerMetric({
     }
     return dropbacks === 0
       ? noObservations(
-          "no participation row joined to a pbp dropback for these seasons — participation " +
-            "covers 2022-2023 only, so a 2024-only report has no real side here",
+          "no participation row joined to a pbp dropback for these seasons. Participation is " +
+            "ingested per season and its coverage has changed over time; check the manifest " +
+            "list rather than assuming a season range",
         )
       : rate(pressured, dropbacks);
+  },
+});
+
+/**
+ * ============================ THE THREE PRESSURE METRICS ============================
+ *
+ * ADR-022's impact table says, in its own words, that calibration *"can measure blitz, stunt and
+ * hot-route rates against the real corpus"* — these are that sentence carried out, and they are
+ * registered rather than left in a probe file because the whole point of the ADR-022/ADR-023
+ * sequence is that these numbers stop being fixture-grade and start being report rows.
+ *
+ * `pressure_to_sack` is the one worth explaining. Sack rate and pressure rate are both per
+ * DROPBACK, so they move together and neither can say whether the engine generates too much
+ * pressure or converts too much of it. The conversion rate is the term that separates them, and
+ * it is the one Mandate-3 wants: a sim with the right pressure rate and the wrong conversion is a
+ * MECHANIC error in §7.2's arrival model; a sim with the wrong pressure rate and the right
+ * conversion is a §7.1/§7.4 error one step earlier.
+ */
+export const blitzRate: Metric = registerMetric({
+  id: "blitz_rate",
+  tier: 1,
+  definition:
+    "Dropbacks the defence rushed five or more men on ÷ dropbacks. Sim side counts " +
+    "PLAY_START.defense.rush; real side counts FTN charting's `n_pass_rushers`, joined to " +
+    "play-by-play dropbacks. Both sides use the same five-man threshold and neither counts " +
+    "'blitzers' — FTN's separate `n_blitzers` column charts non-linemen, which is a different " +
+    "question the engine's rush list cannot answer.",
+  unit: "%",
+  toleranceBand: relativeBand(0.15),
+  // Not a divergence claimed by any entry yet: this row is measured for the first time here.
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const p = accumulator.play;
+    return p.dropbacks === 0 ? noObservations("no dropbacks") : rate(p.blitzDropbacks, p.dropbacks);
+  },
+  computeFromReal<E extends Eligibility>(input: RealInput<E>): MetricOutcome {
+    const ftn = input.ftn;
+    if (ftn === undefined) {
+      return noObservations("ftn_charting not loaded (open the real input with withFtn)");
+    }
+    // Joined for exactly the reason `pressure_rate` is: FTN carries a row per charted play, and
+    // a run play has a pass-rusher count too.
+    const dropbackKeys = new Set<string>();
+    for (const row of input.pbp.rows) {
+      if (isDropback(row)) dropbackKeys.add(`${row.gameId}|${row.playId}`);
+    }
+    let dropbacks = 0;
+    let blitzes = 0;
+    for (const row of ftn.rows) {
+      if (row.nPassRushers === null) continue;
+      if (!dropbackKeys.has(`${row.gameId}|${row.playId}`)) continue;
+      dropbacks++;
+      if (row.nPassRushers >= BLITZ_MIN_RUSHERS) blitzes++;
+    }
+    return dropbacks === 0
+      ? noObservations("no FTN row joined to a pbp dropback for these seasons")
+      : rate(blitzes, dropbacks);
+  },
+});
+
+export const pressureToSackRate: Metric = registerMetric({
+  id: "pressure_to_sack",
+  tier: 1,
+  definition:
+    "Sacks ÷ PRESSURED dropbacks — how often pressure is converted, as distinct from how often " +
+    "it happens. Sim side: dropbacks whose worst POCKET_STATUS was not CLEAN. Real side: " +
+    "participation's `was_pressure`, joined to play-by-play dropbacks, against `sack`.",
+  unit: "%",
+  direction: "LOWER_IS_BETTER",
+  toleranceBand: relativeBand(0.15),
+  knownDivergences: [
+    "backlog 2 (rusher time-of-arrival + missing move branch)",
+    "backlog 3 (§7.1 term asymmetry, frozen)",
+  ],
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const p = accumulator.play;
+    return p.pressuredDropbacks === 0
+      ? noObservations("no pressured dropbacks")
+      : rate(p.sacks, p.pressuredDropbacks);
+  },
+  computeFromReal<E extends Eligibility>(input: RealInput<E>): MetricOutcome {
+    const participation = input.participation;
+    if (participation === undefined) {
+      return noObservations("participation not loaded (open the real input with withParticipation)");
+    }
+    const sackedKeys = new Set<string>();
+    const dropbackKeys = new Set<string>();
+    for (const row of input.pbp.rows) {
+      if (!isDropback(row)) continue;
+      const key = `${row.gameId}|${row.playId}`;
+      dropbackKeys.add(key);
+      if (row.sack === true) sackedKeys.add(key);
+    }
+    let pressured = 0;
+    let sacks = 0;
+    for (const row of participation.rows) {
+      if (row.wasPressure !== true) continue;
+      const key = `${row.gameId}|${row.playId}`;
+      if (!dropbackKeys.has(key)) continue;
+      pressured++;
+      if (sackedKeys.has(key)) sacks++;
+    }
+    return pressured === 0
+      ? noObservations("no pressured participation row joined to a pbp dropback for these seasons")
+      : rate(sacks, pressured);
+  },
+});
+
+/**
+ * SIM-SIDE ONLY, and registered as an observation rather than a graded row.
+ *
+ * A hot conversion is a *sight adjustment*: the receiver ran a different route from the one the
+ * card drew. Nothing in the eleven ingested sources charts that. FTN charts `n_blitzers`,
+ * `read_thrown` and `is_qb_out_of_pocket` — all things about the throw, none about whether a
+ * route was converted before the snap — so there is no real side to be had and an infinite band
+ * is the honest shape. It is here rather than in a probe file because ADR-023 makes "a card that
+ * cannot block six states a hot" a corpus rule, and a corpus rule with no standing measurement is
+ * a rule nobody can tell has stopped holding.
+ */
+export const hotRouteRate: Metric = registerMetric({
+  id: "hot_route_rate",
+  tier: 1,
+  definition:
+    "SIM SIDE ONLY. Dropbacks on which at least one route actually converted hot ÷ dropbacks, " +
+    "read from PLAY_START.offense.hotConversions. A conversion requires an unaccounted rusher " +
+    "AND a passed §5.3 recognition AND a card that states a hot, so this is the product of all " +
+    "three and not a count of cards that could convert. No ingested source charts sight " +
+    "adjustments, so there is no real-side target and this row is never graded.",
+  unit: "%",
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const p = accumulator.play;
+    return p.dropbacks === 0
+      ? noObservations("no dropbacks")
+      : rate(p.hotConversionDropbacks, p.dropbacks);
+  },
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations(
+      "no ingested source charts a sight adjustment. FTN's n_blitzers counts rushers, not " +
+        "conversions; nflverse has nothing at all. Do NOT substitute the blitz rate for this — " +
+        "the conversion rate is the blitz rate times the recognition rate times the share of " +
+        "cards that state a hot, and equating them would make §5.3's roll invisible.",
+    );
+  },
+});
+
+/**
+ * The other half of the ADR-023 story, and it is the one that moved most. §7.4 step 1's
+ * UNACCOUNTED is a fact about the CALL — it is what the frozen caller could not previously
+ * produce, because playbook refused the front and the caller re-drew the concept (backlog 21).
+ * Observation, not a graded row: no source charts "was this rusher named by the protection".
+ */
+export const unaccountedRusherRate: Metric = registerMetric({
+  id: "unaccounted_rusher_rate",
+  tier: 1,
+  definition:
+    "SIM SIDE ONLY. Dropbacks with at least one rusher no ProtectionAssignment named ÷ " +
+    "dropbacks, from PLAY_START.defense.unaccountedRushers. This is the number backlog entry 21 " +
+    "was about: while the caller re-drew every concept it could not protect, it was structurally " +
+    "zero. No real source charts protection assignments, so it is never graded.",
+  unit: "%",
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const p = accumulator.play;
+    return p.dropbacks === 0
+      ? noObservations("no dropbacks")
+      : rate(p.unaccountedRusherDropbacks, p.dropbacks);
+  },
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations(
+      "no ingested source states which rushers a protection named. FTN's n_blitzers is the " +
+        "nearest thing and it counts who rushed, not who was blocked.",
+    );
   },
 });
 
@@ -751,6 +926,10 @@ export const TIER_1_METRICS: readonly Metric[] = [
   interceptionRate,
   sackRate,
   pressureRate,
+  pressureToSackRate,
+  blitzRate,
+  hotRouteRate,
+  unaccountedRusherRate,
   yardsPerAttempt,
   timeToThrow,
   explosivePassRate,

@@ -17,6 +17,8 @@ import type { RealInput } from "../src/metrics/realInput.js";
 import { isInapplicable, pointEstimate, sampleSize } from "../src/metrics/types.js";
 import { makeEvidence } from "../src/ingest/eligibility.js";
 import type { Season } from "../src/ingest/seasons.js";
+import type { FtnChartingRow } from "../src/ingest/sources/ftn.js";
+import type { ParticipationRow } from "../src/ingest/sources/participation.js";
 import type { PbpRow } from "../src/ingest/sources/pbp.js";
 import type { ScheduleRow } from "../src/ingest/sources/schedules.js";
 import { buildFlatLeague } from "../src/league/flat.js";
@@ -272,6 +274,14 @@ describe("the event fold", () => {
     // production reads `defense.sacks`, so any per-player rate built on it is currently working
     // from under half the sacks that happened.
     //
+    // DECOMPOSED, July 2026, over the full 496-game baseline batch (5,921 charged / 2,891
+    // credited = 48.83%, so the 30-game figure replicates). `test/sackAttribution.test.ts` does
+    // it, and the answer is that backlog 22b's third candidate cause is almost all of it:
+    // **89.74% of the remainder is a real winner the fold loses** — a quarterback caught on a
+    // failed §8.8 escape, with a rusher still travelling and no RUSH_THREAT ever published as
+    // ARRIVED, so `reduceStatlines` has no `lastArrivedRusher` to credit. Coverage sacks with
+    // nobody coming are 7.79%; free runners are 2.48%.
+    //
     // Equality is therefore NOT asserted: it would be red today for a reason that is the
     // engine's to fix, and a red test nobody can act on is a red test somebody deletes. What is
     // asserted is the direction, which is a genuine invariant — credited above taken would mean
@@ -340,6 +350,26 @@ describe("the event fold", () => {
       expect(entry.wins).toBeLessThanOrEqual(entry.reps);
     }
   });
+
+  /**
+   * ADR-022/023's three counters. The invariant worth asserting is not their VALUE — that is what
+   * the baseline report is for — but their DENOMINATOR: all three are per-dropback rates, and a
+   * run play carries a `rush` list too. Counting every PLAY_START would put the run mix into the
+   * denominator of a passing-game metric and the error would look like a corpus finding.
+   */
+  it("counts the pressure facts on dropbacks only, never on a run", () => {
+    const p = acc.play;
+    expect(p.blitzDropbacks).toBeLessThanOrEqual(p.dropbacks);
+    expect(p.unaccountedRusherDropbacks).toBeLessThanOrEqual(p.dropbacks);
+    expect(p.hotConversionDropbacks).toBeLessThanOrEqual(p.dropbacks);
+    // §5.3 only rolls when a rusher is unaccounted for, so a conversion cannot outnumber the
+    // dropbacks that could have produced one. This is the relationship that makes
+    // `hot_route_rate` interpretable at all, and it is structural rather than statistical.
+    expect(p.hotConversionDropbacks).toBeLessThanOrEqual(p.unaccountedRusherDropbacks);
+    // Runs happen in this corpus, so the pass-only denominator is genuinely being exercised.
+    expect(p.rushAttempts).toBeGreaterThan(0);
+    expect(p.dropbacks).toBeLessThan(p.scrimmagePlays);
+  });
 });
 
 // --- the real side ----------------------------------------------------------
@@ -386,12 +416,56 @@ function scheduleRow(over: Partial<ScheduleRow>): ScheduleRow {
   } as ScheduleRow;
 }
 
-function realInput(pbp: readonly PbpRow[], schedules: readonly ScheduleRow[]): RealInput<"TUNING"> {
+function realInput(
+  pbp: readonly PbpRow[],
+  schedules: readonly ScheduleRow[],
+  optional: {
+    readonly ftn?: readonly FtnChartingRow[];
+    readonly participation?: readonly ParticipationRow[];
+  } = {},
+): RealInput<"TUNING"> {
   return {
     eligibility: "TUNING",
     seasons: [2023 as Season],
     pbp: makeEvidence<PbpRow, "TUNING">("TUNING", pbp, [2023 as Season], []),
     schedules: makeEvidence<ScheduleRow, "TUNING">("TUNING", schedules, [2023 as Season], []),
+    ...(optional.ftn === undefined
+      ? {}
+      : { ftn: makeEvidence<FtnChartingRow, "TUNING">("TUNING", optional.ftn, [2023 as Season], []) }),
+    ...(optional.participation === undefined
+      ? {}
+      : {
+          participation: makeEvidence<ParticipationRow, "TUNING">(
+            "TUNING",
+            optional.participation,
+            [2023 as Season],
+            [],
+          ),
+        }),
+  };
+}
+
+function ftnRow(over: Partial<FtnChartingRow>): FtnChartingRow {
+  return {
+    gameId: "g", playId: 1, ftnGameId: null, ftnPlayId: null, season: 2023, week: 1,
+    startingHash: null, qbLocation: null, nOffenseBackfield: null, nDefenseBox: null,
+    nBlitzers: null, nPassRushers: 4,
+    isNoHuddle: null, isMotion: null, isPlayAction: null, isScreenPass: null, isRpo: null,
+    isTrickPlay: null, isQbSneak: null, isQbOutOfPocket: null, isInterceptionWorthy: null,
+    isThrowAway: null, isCatchableBall: null, isContestedBall: null, isCreatedReception: null,
+    isDrop: null, isQbFaultSack: null, readThrown: null, datePulled: null,
+    ...over,
+  };
+}
+
+function participationRow(over: Partial<ParticipationRow>): ParticipationRow {
+  return {
+    gameId: "g", oldGameId: null, playId: 1, possessionTeam: "A", offenseFormation: null,
+    offensePersonnel: null, defendersInBox: null, defensePersonnel: null,
+    numberOfPassRushers: null, nOffense: 11, nDefense: 11, ngsAirYards: null, timeToThrow: null,
+    wasPressure: null, route: null, defenseManZoneType: null, defenseCoverageType: null,
+    offensePlayers: [], defensePlayers: [],
+    ...over,
   };
 }
 
@@ -466,6 +540,79 @@ describe("Tier 1 real-side computations", () => {
     const outcome = getMetric("pressure_rate").computeFromReal(input);
     expect(isInapplicable(outcome)).toBe(true);
     if (isInapplicable(outcome)) expect(outcome.detail).toContain("participation");
+  });
+
+  /**
+   * The ADR-022 rows. Both real sides are JOINS, and the join is the load-bearing part in exactly
+   * the way `pressure_rate`'s header records: FTN and participation both carry a row per charted
+   * play, so counting non-null values without joining to the dropback set puts run plays into a
+   * passing-game denominator. That error already happened once on `pressure_rate` and produced a
+   * number wrong in the direction that made the engine look worse than it is.
+   */
+  it("counts blitzes only on rows that joined to a dropback", () => {
+    const dropbacks = [
+      pbpRow({ playId: 1 }),
+      pbpRow({ playId: 2 }),
+      pbpRow({ playId: 3, sack: true, passAttempt: false, completePass: false, yardsGained: -7 }),
+    ];
+    const runs = [pbpRow({ playId: 9, playType: "run", passAttempt: false, rushAttempt: true })];
+    const input = realInput([...dropbacks, ...runs], [scheduleRow({})], {
+      ftn: [
+        ftnRow({ playId: 1, nPassRushers: 6 }),
+        ftnRow({ playId: 2, nPassRushers: 4 }),
+        ftnRow({ playId: 3, nPassRushers: 5 }),
+        // A six-man run-play front. Counted, the rate would be 3/4; joined, it is 2/3.
+        ftnRow({ playId: 9, nPassRushers: 6 }),
+      ],
+    });
+    const sample = getMetric("blitz_rate").computeFromReal(input);
+    if (isInapplicable(sample)) throw new Error("unexpected");
+    expect(sampleSize(sample)).toBe(3);
+    expect(pointEstimate(sample)).toBeCloseTo(2 / 3, 6);
+  });
+
+  it("computes pressure-to-sack over PRESSURED dropbacks, not over all of them", () => {
+    const input = realInput(
+      [
+        pbpRow({ playId: 1, sack: true, passAttempt: false, completePass: false, yardsGained: -7 }),
+        pbpRow({ playId: 2 }),
+        pbpRow({ playId: 3 }),
+        pbpRow({ playId: 4, sack: true, passAttempt: false, completePass: false, yardsGained: -6 }),
+      ],
+      [scheduleRow({})],
+      {
+        participation: [
+          participationRow({ playId: 1, wasPressure: true }),
+          participationRow({ playId: 2, wasPressure: true }),
+          participationRow({ playId: 3, wasPressure: false }),
+          // Sacked but charted as unpressured: excluded from the denominator AND the numerator,
+          // which is what makes this a conversion rate rather than a rearranged sack rate.
+          participationRow({ playId: 4, wasPressure: false }),
+        ],
+      },
+    );
+    const sample = getMetric("pressure_to_sack").computeFromReal(input);
+    if (isInapplicable(sample)) throw new Error("unexpected");
+    expect(sampleSize(sample)).toBe(2);
+    expect(pointEstimate(sample)).toBeCloseTo(0.5, 6);
+  });
+
+  it("names the missing source for each ADR-022 row rather than returning a silent zero", () => {
+    const bare = realInput([pbpRow({})], [scheduleRow({})]);
+    const noFtn = getMetric("blitz_rate").computeFromReal(bare);
+    expect(isInapplicable(noFtn)).toBe(true);
+    if (isInapplicable(noFtn)) expect(noFtn.detail).toContain("ftn_charting");
+
+    // The two sim-only rows are absent on the real side FOREVER, not pending a load option, and
+    // they say which — a reader who sees "no data" and reaches for the blitz rate is exactly the
+    // failure `absence.ts` exists to prevent, so the refusal is written into the detail.
+    for (const id of ["hot_route_rate", "unaccounted_rusher_rate"]) {
+      const outcome = getMetric(id).computeFromReal(bare);
+      expect(isInapplicable(outcome)).toBe(true);
+      if (isInapplicable(outcome)) expect(outcome.detail.length).toBeGreaterThan(40);
+      // An infinite band is what makes the row an OBSERVATION rather than a permanent NO_DATA.
+      expect(Number.isFinite(getMetric(id).toleranceBand.width)).toBe(false);
+    }
   });
 
   it("computes upset rate against the spread from the market line", () => {
