@@ -35,6 +35,7 @@ port.on("message", (job: BatchJob) => {
       tendencies: bootstrap.tendencies,
       fourthDown: bootstrap.fourthDown,
       ...(bootstrap.tunables === undefined ? {} : { tunables: bootstrap.tunables as Tunables }),
+      ...(bootstrap.callerVersion === undefined ? {} : { callerVersion: bootstrap.callerVersion }),
     });
     const result: WorkerJobResult = {
       accumulator: foldGame(emptyAccumulator(), output.observation),

@@ -440,9 +440,30 @@ and 18 to read "or against the corpus."**
   **`PICKUP_LOST` = 0 in 496 games — §7.4 step 3 has never once resolved.** ADR-022's hot
   conversion is not weak, it is **starved**. What does fire is the pressure needing no protection
   failure: stunts on 28.32% of dropbacks, 5,432 `STUNT_LOOPER` threats.
-- **The decision is [ADR-024](ADR-024-the-frozen-caller-still-knows-the-front.md) — PROPOSED.**
-- **⚠ Do not run the `freeRunnerArrivalSeconds` sweep while this holds.** That tunable governs
-  56 dropbacks in 496 games; sweeping it now would measure noise and call it a result.
+- **CLOSED July 2026 by [ADR-024](ADR-024-the-frozen-caller-still-knows-the-front.md) at
+  `callerVersion` v2 — and the size of the effect is the finding.**
+
+  | counter | v1 | v2 |
+  |---|---|---|
+  | `PICKUP_LOST` threats | **0** | **4,766** |
+  | `hot_route_rate` | 0.096% | **9.232%** |
+  | `unaccounted_rusher_rate` | 0.128% | **26.125%** |
+  | `STUNT_LOOPER` (control) | 5,432 | 5,431 |
+
+- **§7.4 step 3 has resolved for the first time.** The starved branch executes.
+- **⚠ THIS ENTRY PREDICTED THE WRONG PRIORITY.** It said the true figures under honest protection
+  "are worse than what the report shows." They are — **by 1.54pp of pressure and 0.12pp of sack.**
+  Ending perfectly-informed protection was the **largest structural distortion in the caller**, and
+  it barely registers, because pressure was already **88.68% against a real 29.23%: there is almost
+  no headroom left.**
+- **→ This strengthens entry 3 and removes the last stated reason to defer
+  `blockerStructuralAdvantage`.** It is now measured against a caller that guesses, which was
+  ADR-024's own stated precondition for unfreezing it.
+- **⚠ `freeRunnerArrivalSeconds` is now sweepable** — it governed 56 dropbacks in 496 games at v1
+  and governs a real population at v2. It remains *second* in the order, behind entry 3.
+- **Open:** [ADR-026](ADR-026-a-protector-with-nobody-to-block.md) — 13.40% of dropbacks now carry
+  a protector with nobody to block. Its resolution moves the pressure rate (**never** the
+  conversion — entries 2 and 3).
 
 ## 23. Yards per carry has ~5 unattributed yards, and they sit where entries 11–14 do not look
 
@@ -600,6 +621,38 @@ report exists.
   charted pressure** — FTN charts the category as `is_qb_fault_sack`. **The engine cannot produce
   one at all: a sack requires an arrival.** Needs its own metric before it is a fact rather than
   an inference.
+
+## 28. Hot conversions shorten the throw population — the mechanism behind `int_rate`'s regression
+
+- **`int_rate` PASS+ → FAIL (known)** at caller v2: 2.269% → 1.927%, 624 → 531 interceptions. The
+  only verdict change in the whole library; `newDivergences` is empty on both arms.
+- Claimed by entries 6 and 7, but **the mechanism is new and specific**: hot conversions shorten
+  routes *and* move them to the front of the progression, so **fewer throws reach the
+  contested/tipped population that entry 6 says dominates interceptions.** The INT rate did not
+  fall because interceptions got harder — it fell because the *throws that produce them* got rarer.
+- Worth holding separately from 6 and 7 because it is a **composition** effect, not a mechanic
+  defect: the same engine, a different mix of throws. It will move again when ADR-026 lands, and
+  again when entry 6's recovery roll is fixed.
+
+## 29. A snapshot holds every rostered player, so a cross-grouping call resolves cleanly
+
+Found while establishing ADR-024's personnel rule, and it is the reason that rule is structural
+rather than a taste choice.
+
+- `buildTeamSnapshot` copies every **available rostered** player into `TeamSnapshot.players`, and
+  `simulateGame` merges both teams' maps. So `assertCoherentPlayCall`'s "is this player known"
+  check passes for **any rostered player**, including one standing on the sideline.
+- **Consequence:** a protection built against a NICKEL card and played against a BASE card would
+  name a nickel corner who is not on the field, **resolve cleanly, and produce plausible numbers.**
+  Nothing catches it. That is backlog 3a in miniature — clean statistics about a game nobody plays.
+- **Closed structurally for the caller** by constraining the anticipated front to the *actual*
+  personnel grouping: `buildDefensiveUnit(personnel, chart)` is pure, so two cards sharing a
+  grouping bind literally the same eleven players, and a test asserts it rather than trusting two
+  calls to agree.
+- **Still open in general.** Anything else that constructs a play call against a snapshot can make
+  the same mistake, and the engine cannot detect it — "is this man on the field" is football
+  knowledge under ADR-006, and the snapshot does not distinguish *rostered* from *playing*.
+  Candidate for a future petition if a second consumer appears.
 
 ## 27. `baseline-0001` wrote no carry-forward, and a reconstructed predecessor may never ratchet
 

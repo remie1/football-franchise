@@ -35,6 +35,7 @@ export * from "./league/snapshot.js";
 export * from "./caller/tendencies.js";
 export * from "./caller/fourthDown.js";
 export * from "./caller/fit.js";
+export * from "./caller/anticipate.js";
 export * from "./caller/frozen.js";
 export * from "./caller/frozenTendencies.js";
 

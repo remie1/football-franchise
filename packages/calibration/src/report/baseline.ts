@@ -302,6 +302,7 @@ export function renderBaselineReport<E extends Eligibility>(report: BaselineRepo
       .join(", ") || "—"}`,
   );
   lines.push("");
+  lines.push(renderDrawQuality(report));
 
   const newDivergences = report.evaluations.filter((e) => e.verdict === "FAIL");
   lines.push("## New divergences");
@@ -415,6 +416,134 @@ function notesCell(evaluation: MetricEvaluation): string {
       ? [detail]
       : [detail, ...evaluation.knownDivergences];
   return parts.filter((s) => s.length > 0).join("; ");
+}
+
+/**
+ * DRAW QUALITY — ADR-024's instrument, and the reason it was ratified rather than deferred.
+ *
+ * *"A caller that guesses badly is a confound you can measure; a branch that never executes is one
+ * you cannot."* So the guess is graded, in the report, every time — not in a probe file and not as
+ * a debug print. ADR-024's two open sub-questions are the ones these numbers are for, and the
+ * section is laid out so that neither can be answered from a single headline:
+ *
+ *  - the exact-match rate is printed BESIDE the forced share that inflates it;
+ *  - the axes are separate rows and are never summed into a score;
+ *  - the two set differences are labelled by the mechanic they feed, not by their arithmetic.
+ *
+ * Under v1 there is no second draw, `draws` is zero and the section says so rather than printing a
+ * table of zeroes that would read as "the caller guessed perfectly".
+ */
+function renderDrawQuality<E extends Eligibility>(report: BaselineReport<E>): string {
+  const d = report.caller.draw;
+  const lines: string[] = ["### Anticipated-front draw quality (ADR-024)", ""];
+  if (d.draws === 0) {
+    lines.push(
+      "Not applicable — this batch ran a caller that does not anticipate " +
+        `(\`${report.provenance.callerVersion}\`). The offence's protection was built against the ` +
+        "ACTUAL defensive card, which is `CALIBRATION-BACKLOG.md` entry 21's perfectly-informed " +
+        "protection. Expect `unaccounted_rusher_rate`, `hot_route_rate` and `PICKUP_LOST` to be " +
+        "structurally near zero.",
+    );
+    lines.push("");
+    return lines.join("\n");
+  }
+
+  const pct = (n: number, of: number): string => (of === 0 ? "—" : `${((n / of) * 100).toFixed(2)}%`);
+  const per = (n: number, of: number): string => (of === 0 ? "—" : (n / of).toFixed(4));
+
+  lines.push(
+    `${d.draws} anticipated fronts (${d.passDraws} on dropbacks, ${d.runDraws} on runs). ` +
+      `Mean candidate pool ${per(d.poolSizeSum, d.draws)} cards.`,
+  );
+  lines.push("");
+  lines.push(
+    d.forcedDraws === 0
+      ? "**No draw was FORCED.** A forced draw is one where the corpus offered a single card for " +
+          "that situation in that personnel grouping, so the caller was right because it had no " +
+          "alternative. There were none, which is what makes the exact-card rate below an honest " +
+          "measure of the guess rather than partly a measure of corpus thinness. It is reported " +
+          "whether or not it fires, because a rate that is zero and a rate nobody looked at are " +
+          "different facts."
+      : `**${pct(d.forcedDraws, d.draws)} of draws were FORCED** — the corpus offered a single ` +
+          "card for that situation in that grouping, so the caller was right because it had no " +
+          "alternative. Every match rate below is inflated by exactly that share; read them " +
+          "together.",
+  );
+  lines.push("");
+  lines.push("| axis | matched | what it captures |");
+  lines.push("|---|---|---|");
+  lines.push(
+    `| exact card | ${pct(d.exactCard, d.draws)} | strictest reading; read beside the forced share above |`,
+  );
+  lines.push(
+    `| front label | ${pct(d.sameFrontLabel, d.draws)} | playbook's own \`front\` string — coarser than a card, finer than a grouping |`,
+  );
+  lines.push(
+    `| personnel grouping | 100.00% | **by construction, not by measurement** — the anticipation is constrained to it (\`caller/anticipate.ts\`) |`,
+  );
+  lines.push(
+    `| rusher count | ${pct(d.sameRusherCount, d.draws)} | how many were coming, exactly |`,
+  );
+  lines.push(
+    `| blitz class (≥5) | ${pct(d.sameBlitzClass, d.draws)} | whether the offence had ENOUGH bodies; same threshold as \`blitz_rate\` |`,
+  );
+  lines.push(
+    `| coverage family | ${pct(d.sameCoverageFamily, d.draws)} | MAN/ZONE/MIXED/NONE. **Descriptive only** — nothing downstream of the caller reads the anticipated coverage |`,
+  );
+  lines.push(
+    `| exact rusher set | ${pct(d.exactRusherSet, d.draws)} | the same MEN, which is what protection pairs on |`,
+  );
+  lines.push(
+    `| mean rusher Jaccard | ${per(d.jaccardSum, d.draws)} | \`|∩| ÷ |∪|\` over rusher ids |`,
+  );
+  lines.push("");
+  lines.push("| consequence | value | mechanic it feeds |");
+  lines.push("|---|---|---|");
+  lines.push(
+    `| rushers missed (real ∖ expected) | ${d.missedRusherSum} total, ${per(d.missedRusherSum, d.draws)}/draw | §5.3 recognition and §7.4 step 3 — the starved branch |`,
+  );
+  lines.push(
+    `| men expected who dropped (expected ∖ real) | ${d.phantomRusherSum} total, ${per(d.phantomRusherSum, d.draws)}/draw | ADR-026 — a protector with nobody to block |`,
+  );
+  lines.push(
+    `| protection entries naming a non-rusher | ${d.protectorsInCoverage} | ADR-026, counted from the CALL rather than the card diff |`,
+  );
+  lines.push(
+    `| dropbacks with ≥1 missed rusher | ${pct(d.passDrawsWithMissed, d.passDraws)} | should track \`unaccounted_rusher_rate\` |`,
+  );
+  lines.push(
+    `| dropbacks with ≥1 idle protector | ${pct(d.passDrawsWithPhantom, d.passDraws)} | ADR-026's population |`,
+  );
+  lines.push(
+    `| **dropbacks with BOTH** | **${pct(d.passDrawsWithBoth, d.passDraws)}** | the snaps where ADR-026's answer CHANGES AN OUTCOME rather than wasting a body |`,
+  );
+  lines.push("");
+  lines.push(
+    `Missed-rusher histogram: ${histogram(d.missedHistogram)}. ` +
+      `Idle-protector histogram: ${histogram(d.phantomHistogram)}.`,
+  );
+  lines.push("");
+  lines.push("| defensive personnel | draws | exact-card match |");
+  lines.push("|---|---|---|");
+  for (const [grouping, draws] of Object.entries(d.byPersonnel).sort((a, b) => b[1] - a[1])) {
+    lines.push(`| ${grouping} | ${draws} | ${pct(d.exactByPersonnel[grouping] ?? 0, draws)} |`);
+  }
+  lines.push("");
+  lines.push(
+    "**What these do NOT capture** (`caller/anticipate.ts` states it at length): rusher " +
+      "TECHNIQUE — the same man from a different alignment or side pairs to a different " +
+      "protector, so a matched rusher can still be mispaired; STUNTS, which protection never " +
+      "reads and the engine takes from the real card, so `STUNT_LOOPER` movement is not draw " +
+      "quality; and the run game's analogue, since `instantiateRun` pairs by GAP rather than by " +
+      "rusher identity.",
+  );
+  lines.push("");
+  return lines.join("\n");
+}
+
+function histogram(counts: Readonly<Record<string, number>>): string {
+  const entries = Object.entries(counts).sort((a, b) => Number(a[0]) - Number(b[0]));
+  return entries.length === 0 ? "—" : entries.map(([k, v]) => `${k}:${v}`).join(" ");
 }
 
 /**

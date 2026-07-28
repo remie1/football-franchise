@@ -33,23 +33,43 @@
  *  - **No coach attributes.** `COACH_ATTRIBUTE_REGISTRY_V1` has `playCalling` and
  *    `situationalJudgment`; neither is read, for the same reason the engine's default caller
  *    does not read them — how coaching works is Spec #11's decision.
- *  - **No audibles, no hot routes, no motion, no play-action distinction.** The corpus carries
- *    none of those as separate cards, so a caller cannot call them.
- *  - **PROTECTION IS PERFECTLY INFORMED, and this one is a real distortion.** The engine
- *    rejects a play whose defensive rush includes a man no protection assignment names
- *    (`UnsupportedPlayCallError` — §7.4 blitz pickup is unimplemented). So the offence's
- *    protection is built AGAINST THE ACTUAL DEFENSIVE CARD. The concept choice is still blind —
- *    the tendency draw and the card draw happen before the defence is known — but the blocking
- *    is not. **Expect sack rate and pressure rate to be biased DOWNWARD** relative to reality
- *    by however much real offences miss blitz pickups, and do not fit a pass-rush tunable to
- *    that number until §7.4 exists. This is not fixable in calibration.
+ *  - **No audibles, no motion, no play-action distinction.** The corpus carries none of those as
+ *    separate cards, so a caller cannot call them. (Hot routes it DOES get: they are a property
+ *    of the card, converted by the engine's §5.3, not something the caller calls.)
  *  - **Unprotectable pressures cause a CONCEPT re-draw, not a defensive re-draw.** When the
- *    corpus's protection cannot account for a pressure at all (empty personnel against a
- *    six-man pressure throws `UnprotectableCallError` by design), the offensive concept is
- *    re-drawn and the defensive card is kept, so the fitted blitz rate survives and the
- *    offensive concept mix takes the distortion. The rate is counted and reported
- *    (`FrozenCallerDiagnostics.conceptRedraws`); it is a number to look at, not a number to
- *    ignore.
+ *    corpus's protection cannot be bound at all (`UnprotectableCallError` — a protector role with
+ *    no player bound to it), the offensive concept is re-drawn and the defensive card is kept, so
+ *    the fitted blitz rate survives and the offensive concept mix takes the distortion. The rate
+ *    is counted and reported (`FrozenCallerDiagnostics.conceptRedraws`); it is a number to look
+ *    at, not a number to ignore. `baseline-0002` measured 0 in 69,432 calls.
+ *
+ * ================== WHAT CHANGED AT v2 — ADR-024, AND IT IS THE BIG ONE ==================
+ *
+ * This block used to read **"PROTECTION IS PERFECTLY INFORMED, and this one is a real
+ * distortion"**, and it was the caller half of `CALIBRATION-BACKLOG.md` entry 21: the concept draw
+ * was blind, the blocking was not, and the consequence was that a whole branch of the pass game
+ * never executed — `PICKUP_LOST` = 0 and `hot_route_rate` = 0.10% in 496 games.
+ *
+ * **At `callerVersion` v2 the caller anticipates the front** (`anticipate.ts`, which carries the
+ * whole argument including the personnel rule and everything rejected). A second card is drawn
+ * from the same situational weights, constrained to the real card's personnel grouping; the
+ * OFFENCE is instantiated against that; the real card goes to the engine.
+ *
+ * **IT ANTICIPATES ONCE, AND EVERYTHING DOWNSTREAM READS THAT DRAW — INCLUDING THE RUN.** ADR-024
+ * rejected the narrower scoping by name: anticipating for protection while anything else keeps
+ * reading the real card is not a smaller change, it is an INCOHERENT caller, and its failures
+ * stop being protection problems and become the seam between two views of the same defence. A
+ * caller that guessed on dropbacks and was clairvoyant on runs would be exactly that, one axis
+ * over. So `instantiateRun` gets `D_exp` too, and run blocking is paired against the gaps the
+ * offence expected to be filled.
+ *
+ * **WHAT v2 DOES NOT CHANGE, and this is what makes the re-baseline readable.** The run/pass
+ * decision, the defensive card and the offensive concept are drawn on the SAME PRNG addresses as
+ * v1 — `fork("kind")`, `fork("defense-card")`, `fork("offense-card:n")` — and the anticipation
+ * uses a new, independent `fork("anticipated-front")`. So for any seed, v1 and v2 call the same
+ * plays against the same defences and differ ONLY in what the offence blocked. Every movement
+ * between a v1 and a v2 batch on one seed list is attributable to protection and to nothing else.
+ * `test/caller.test.ts` asserts it rather than asserting the comment.
  */
 import type { Rng } from "@ff/contracts";
 import { createRng } from "@ff/contracts";
@@ -82,6 +102,16 @@ import {
 } from "@ff/playbook";
 import type { Down } from "@ff/playbook";
 import {
+  DEFAULT_CALLER_VERSION,
+  anticipateFront,
+  blankDrawQuality,
+  compareFronts,
+  recordDraw,
+  type AnticipatedFront,
+  type CallerVersion,
+  type DrawQualityFold,
+} from "./anticipate.js";
+import {
   distanceBand,
   lookupPassRate,
   scoreState,
@@ -113,6 +143,11 @@ export interface FrozenCallerDiagnostics {
   fourthDownFieldGoal: number;
   /** Backoff level each run/pass decision was taken at, so a report can say how specific it was. */
   backoff: Record<string, number>;
+  /**
+   * ADR-024's instrument. Empty counters under v1 — the caller never guesses, so there is nothing
+   * to grade, and zeroes are the honest reading rather than a missing key.
+   */
+  draw: DrawQualityFold;
 }
 
 function blankDiagnostics(): FrozenCallerDiagnostics {
@@ -126,12 +161,22 @@ function blankDiagnostics(): FrozenCallerDiagnostics {
     fourthDownPunt: 0,
     fourthDownFieldGoal: 0,
     backoff: {},
+    draw: blankDrawQuality(),
   };
 }
 
 export interface FrozenCallerSpec {
   readonly tendencies: FittedTendencies;
   readonly fourthDown: FittedFourthDown;
+  /**
+   * v1 (the informed caller) or v2 (ADR-024's anticipating caller). Defaults to v2.
+   *
+   * OPTIONAL HERE AND RECORDED IN PROVENANCE, which is the same split `runBatch` makes for
+   * `tunables`: ergonomics on the surface, and the value that was actually used printed in the
+   * report header. It is part of `BaselineIdentity` through `BatchProvenance.callerVersion`, so
+   * the two cannot be silently compared.
+   */
+  readonly callerVersion?: CallerVersion;
   /**
    * BOTH depth charts, because both callers resolve BOTH sides of every snap and must agree.
    * That agreement is the load-bearing property: the engine asks the offence first and the
@@ -150,6 +195,21 @@ export interface FrozenCallerPair {
   readonly away: PlayCaller;
   readonly diagnostics: FrozenCallerDiagnostics;
   readonly name: string;
+  readonly callerVersion: CallerVersion;
+}
+
+/**
+ * THE IDENTITY STRING A BASELINE IS COMPARED ON.
+ *
+ * `BatchProvenance.callerVersion` used to be `tendencies.version` alone, which tracked the TABLE
+ * and not the CALLER. `report/identity.ts` states the criterion it is meant to satisfy — *"the
+ * frozen caller sets the play mix that every rate in the library is measured over. A different
+ * caller is a different denominator"* — and a behaviour change with an unchanged table met that
+ * criterion while leaving the string alone. ADR-024 is exactly such a change, so the behaviour
+ * version is composed in and the field now says what its own comment always claimed.
+ */
+export function callerIdentity(version: CallerVersion, tendenciesVersion: string): string {
+  return `${version}/${tendenciesVersion}`;
 }
 
 function situationOf(request: {
@@ -226,6 +286,22 @@ interface ResolvedSnap {
   readonly redraws: number;
   readonly pass: boolean;
   readonly backoff: string;
+  /**
+   * The front the offence blocked, and how close it was. Absent under v1, where there is no
+   * second draw and therefore nothing to grade — an absent value, not a zeroed one, because
+   * "the caller did not guess" and "the caller guessed perfectly" are different facts and only
+   * one of them is ADR-024's subject (same argument as ADR-005 on an absent CHECK).
+   */
+  readonly anticipated: AnticipatedFront | undefined;
+  /**
+   * The anticipated card, instantiated — what the offence actually blocked. Identical to
+   * `defense` under v1 and whenever the guess was exact, which is why the two are separate
+   * fields rather than one optional: the code that grades the draw must not have to ask whether
+   * it is looking at the real front by accident.
+   */
+  readonly expectedDefense: InstantiatedDefense;
+  /** Protection entries naming a man `defense.rush` does not contain. ADR-026's population. */
+  readonly protectorsInCoverage: number;
 }
 
 /**
@@ -241,14 +317,26 @@ function resolveSnap(
   key: TendencyKey,
   snapRng: Rng,
 ): ResolvedSnap {
+  const version = spec.callerVersion ?? DEFAULT_CALLER_VERSION;
   const rate = lookupPassRate(spec.tendencies, key);
   const pass = snapRng.fork("kind").next() < rate.passRate;
 
   // The defensive card is drawn WITHOUT reference to the offensive concept — the corpus's
-  // situational weights are all it sees — so the defence is not clairvoyant even though the
-  // offence's protection is.
+  // situational weights are all it sees — so the defence is not clairvoyant either.
   const defensiveCard = selectDefensiveCard(snapRng.fork("defense-card"), situation);
   const defenseUnit = buildDefensiveUnit(defensiveCard.personnel, defenseChart);
+
+  /**
+   * ADR-024 step 2, on a fork of its own so v1's three addresses are untouched.
+   *
+   * The anticipation is drawn ONCE PER SNAP, before the concept loop, and deliberately not inside
+   * it: a caller that re-anticipated on every re-draw would be sampling the defence repeatedly
+   * until it found one it liked, which is clairvoyance wearing a guess's face.
+   */
+  const anticipated: AnticipatedFront | undefined =
+    version === "v1"
+      ? undefined
+      : anticipateFront(snapRng.fork("anticipated-front"), situation, defensiveCard);
 
   let redraws = 0;
   let lastError: unknown = null;
@@ -258,14 +346,30 @@ function resolveSnap(
       ? selectPassConcept(conceptRng, situation)
       : selectRunConcept(conceptRng, situation);
     const offenseUnit = buildOffensiveUnit(concept.formation.personnel, offenseChart);
-    const defense = instantiateDefense(defensiveCard, defenseUnit, {
-      formation: concept.formation,
-      unit: offenseUnit,
-    });
+    const look = { formation: concept.formation, unit: offenseUnit };
+    const defense = instantiateDefense(defensiveCard, defenseUnit, look);
+    /**
+     * THE SAME ELEVEN MEN, and that is the whole point of the personnel rule.
+     *
+     * `anticipated.card.personnel === defensiveCard.personnel` by construction in
+     * `anticipateFront`, and `buildDefensiveUnit` is a pure function of the grouping and the
+     * chart — so `defenseUnit` is correct for both cards and every player the protection names is
+     * on the field. Reusing the same unit rather than rebuilding it is what makes that a
+     * structural fact instead of a coincidence two calls happen to agree on.
+     */
+    const expected =
+      anticipated === undefined
+        ? defense
+        : instantiateDefense(anticipated.card, defenseUnit, look);
     try {
       const offense = isRunConcept(concept)
-        ? instantiateRun(concept, offenseUnit, defense)
-        : instantiatePass(concept, offenseUnit, defense);
+        ? instantiateRun(concept, offenseUnit, expected)
+        : instantiatePass(concept, offenseUnit, expected);
+      const realRushers = new Set(defense.rush.map((r) => String(r.rusher)));
+      const protectorsInCoverage =
+        offense.call.kind === "PASS"
+          ? offense.call.protection.filter((p) => !realRushers.has(String(p.rusher))).length
+          : 0;
       return {
         offense,
         defense,
@@ -274,6 +378,9 @@ function resolveSnap(
         redraws,
         pass,
         backoff: rate.level,
+        anticipated,
+        expectedDefense: expected,
+        protectorsInCoverage,
       };
     } catch (e) {
       if (!(e instanceof UnprotectableCallError)) throw e;
@@ -282,14 +389,16 @@ function resolveSnap(
     }
   }
   throw new FrozenCallerError(
-    `no offensive concept in the corpus could be protected against ${defensiveCard.id} on ` +
+    `no offensive concept in the corpus could be protected against ` +
+      `${anticipated === undefined ? defensiveCard.id : anticipated.card.id} on ` +
       `${situation.down} and ${situation.distance} at ${situation.ballOn} after ` +
       `${MAX_CONCEPT_REDRAWS + 1} draws. Last: ${String(lastError)}`,
   );
 }
 
 export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
-  const name = spec.name ?? `frozen-${spec.tendencies.version}`;
+  const callerVersion = spec.callerVersion ?? DEFAULT_CALLER_VERSION;
+  const name = spec.name ?? `frozen-${callerIdentity(callerVersion, spec.tendencies.version)}`;
   const diagnostics = blankDiagnostics();
 
   const chartsFor = (side: "HOME" | "AWAY"): { offense: DepthChart; defense: DepthChart } =>
@@ -315,6 +424,24 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
       else diagnostics.runCalls++;
       diagnostics.conceptRedraws += resolved.redraws;
       diagnostics.backoff[resolved.backoff] = (diagnostics.backoff[resolved.backoff] ?? 0) + 1;
+      // Recorded HERE and not in `callDefense`, which resolves the identical snap and would
+      // double every count. The two resolutions agreeing is asserted below; it is not a licence
+      // to fold both.
+      const anticipated = resolved.anticipated;
+      if (anticipated !== undefined) {
+        recordDraw(diagnostics.draw, {
+          front: anticipated,
+          comparison: compareFronts(
+            anticipated.card,
+            resolved.expectedDefense,
+            resolved.defensiveCard,
+            resolved.defense,
+          ),
+          pass: resolved.pass,
+          personnel: resolved.defensiveCard.personnel,
+          protectorsInCoverage: resolved.protectorsInCoverage,
+        });
+      }
       return resolved.offense.call;
     },
 
@@ -384,5 +511,5 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
     },
   });
 
-  return { home: makeCaller("HOME"), away: makeCaller("AWAY"), diagnostics, name };
+  return { home: makeCaller("HOME"), away: makeCaller("AWAY"), diagnostics, name, callerVersion };
 }

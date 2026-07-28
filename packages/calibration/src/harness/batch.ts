@@ -30,8 +30,14 @@
  */
 import type { Tunables } from "@ff/engine";
 import { DEFAULT_TUNABLES } from "@ff/engine";
+import {
+  DEFAULT_CALLER_VERSION,
+  blankDrawQuality,
+  mergeDrawQuality,
+  type CallerVersion,
+} from "../caller/anticipate.js";
 import type { FittedFourthDown } from "../caller/fourthDown.js";
-import type { FrozenCallerDiagnostics } from "../caller/frozen.js";
+import { callerIdentity, type FrozenCallerDiagnostics } from "../caller/frozen.js";
 import { assertTendencyIntegrity, type FittedTendencies } from "../caller/tendencies.js";
 import type { LeagueProvenance } from "../league/provenance.js";
 import type { AnyProvenancedLeague } from "../league/provenance.js";
@@ -52,7 +58,16 @@ export interface BatchConfig {
   readonly schedule: ScheduleSpec;
   /** Either an explicit list or a batch seed plus a count. Recorded either way. */
   readonly seeds: SeedList | { readonly batchSeed: string };
-  readonly playCalling: { readonly tendencies: FittedTendencies; readonly fourthDown: FittedFourthDown };
+  readonly playCalling: {
+    readonly tendencies: FittedTendencies;
+    readonly fourthDown: FittedFourthDown;
+    /**
+     * ADR-024. `v2` (the default) anticipates the front; `v1` is the informed caller every batch
+     * before this one ran. Recorded into `callerVersion`, which is part of `BaselineIdentity`, so
+     * a v1 report and a v2 report are refused as trend partners rather than compared.
+     */
+    readonly callerVersion?: CallerVersion;
+  };
   /**
    * The tunables version this batch measured. §6: *"every baseline report states which
    * tunables-version it measured — the audit trail that prevents tuning amnesia."* Defaulted to
@@ -123,7 +138,13 @@ export interface BatchExecutor {
   ): Promise<{ accumulator: SimAccumulator; caller: FrozenCallerDiagnostics }>;
 }
 
-function mergeCallerDiagnostics(
+/**
+ * EXPORTED, and it was not before — `workerPool.ts` carried a private second copy of this
+ * function and of `blankCaller`, so `FrozenCallerDiagnostics` gaining ADR-024's `draw` fold made
+ * two of the three merge sites correct and one silently short. Two merges over one type is the
+ * drift ADR-014 item 15 put `reduceStatlines` on the engine's barrel to prevent, one level down.
+ */
+export function mergeCallerDiagnostics(
   a: FrozenCallerDiagnostics,
   b: FrozenCallerDiagnostics,
 ): FrozenCallerDiagnostics {
@@ -139,10 +160,11 @@ function mergeCallerDiagnostics(
     fourthDownPunt: a.fourthDownPunt + b.fourthDownPunt,
     fourthDownFieldGoal: a.fourthDownFieldGoal + b.fourthDownFieldGoal,
     backoff,
+    draw: mergeDrawQuality(a.draw, b.draw),
   };
 }
 
-function blankCaller(): FrozenCallerDiagnostics {
+export function blankCallerDiagnostics(): FrozenCallerDiagnostics {
   return {
     offensiveCalls: 0,
     defensiveCalls: 0,
@@ -153,6 +175,7 @@ function blankCaller(): FrozenCallerDiagnostics {
     fourthDownPunt: 0,
     fourthDownFieldGoal: 0,
     backoff: {},
+    draw: blankDrawQuality(),
   };
 }
 
@@ -163,7 +186,7 @@ export function inProcessExecutor(): BatchExecutor {
     workers: 1,
     async run(jobs, runJob) {
       let accumulator = emptyAccumulator();
-      let caller = blankCaller();
+      let caller = blankCallerDiagnostics();
       for (const job of jobs) {
         const result = runJob(job);
         accumulator = mergeAccumulators(accumulator, result.accumulator);
@@ -189,7 +212,7 @@ export function shardedExecutor(workers: number): BatchExecutor {
       const callers: FrozenCallerDiagnostics[] = [];
       for (let w = 0; w < workers; w++) {
         let accumulator = emptyAccumulator();
-        let caller = blankCaller();
+        let caller = blankCallerDiagnostics();
         for (const job of jobs) {
           if (job.index % workers !== w) continue;
           const result = runJob(job);
@@ -201,7 +224,7 @@ export function shardedExecutor(workers: number): BatchExecutor {
       }
       let accumulator = emptyAccumulator();
       for (const shard of shards) accumulator = mergeAccumulators(accumulator, shard);
-      let caller = blankCaller();
+      let caller = blankCallerDiagnostics();
       for (const c of callers) caller = mergeCallerDiagnostics(caller, c);
       return { accumulator, caller };
     },
@@ -243,6 +266,8 @@ export async function runBatch(config: BatchConfig): Promise<BatchResult> {
     );
   }
 
+  const callerVersion = config.playCalling.callerVersion ?? DEFAULT_CALLER_VERSION;
+
   const started = Date.now();
   const { accumulator, caller } = await executor.run(jobs, (job) => {
     const built = buildFixture(index, job.fixture);
@@ -252,6 +277,7 @@ export async function runBatch(config: BatchConfig): Promise<BatchResult> {
       tendencies: config.playCalling.tendencies,
       fourthDown: config.playCalling.fourthDown,
       tunables,
+      callerVersion,
     });
     return {
       accumulator: foldGame(emptyAccumulator(), output.observation),
@@ -279,7 +305,7 @@ export async function runBatch(config: BatchConfig): Promise<BatchResult> {
       leagueDescription: config.league.description,
       tunablesVersion,
       tunablesDigest: stableDigest(tunables),
-      callerVersion: config.playCalling.tendencies.version,
+      callerVersion: callerIdentity(callerVersion, config.playCalling.tendencies.version),
       callerFourthDownVersion: config.playCalling.fourthDown.version,
       scheduleKind: config.schedule.kind,
       season: config.schedule.season,

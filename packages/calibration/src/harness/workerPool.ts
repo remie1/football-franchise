@@ -27,12 +27,18 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
+import type { CallerVersion } from "../caller/anticipate.js";
 import type { FrozenCallerDiagnostics } from "../caller/frozen.js";
 import type { FittedFourthDown } from "../caller/fourthDown.js";
 import type { FittedTendencies } from "../caller/tendencies.js";
 import { emptyAccumulator, mergeAccumulators, type SimAccumulator } from "../metrics/collect.js";
 import type { AnyProvenancedLeague } from "../league/provenance.js";
-import type { BatchExecutor, BatchJob } from "./batch.js";
+import {
+  blankCallerDiagnostics,
+  mergeCallerDiagnostics,
+  type BatchExecutor,
+  type BatchJob,
+} from "./batch.js";
 
 export class WorkerPoolUnavailableError extends Error {
   constructor(path: string) {
@@ -88,6 +94,9 @@ export interface WorkerBootstrap {
   readonly fourthDown: FittedFourthDown;
   /** Serialised tunables. `undefined` means the worker uses `DEFAULT_TUNABLES`. */
   readonly tunables?: unknown;
+  /** ADR-024. `undefined` means the worker uses `DEFAULT_CALLER_VERSION` — the same default the
+   *  in-process path takes, so the two executors cannot run different callers. */
+  readonly callerVersion?: CallerVersion;
 }
 
 export interface WorkerJobResult {
@@ -143,7 +152,7 @@ export function workerPoolExecutor(workers: number, bootstrap: WorkerBootstrap):
                 return;
               }
               accumulator = mergeAccumulators(accumulator, message.accumulator);
-              caller = caller === null ? message.caller : mergeInto(caller, message.caller);
+              caller = caller === null ? message.caller : mergeCallerDiagnostics(caller, message.caller);
               submit();
             });
             worker.on("error", (error: Error) => {
@@ -161,36 +170,7 @@ export function workerPoolExecutor(workers: number, bootstrap: WorkerBootstrap):
       );
 
       if (failure !== null) throw failure;
-      return {
-        accumulator,
-        caller: caller ?? {
-          offensiveCalls: 0,
-          defensiveCalls: 0,
-          passCalls: 0,
-          runCalls: 0,
-          conceptRedraws: 0,
-          fourthDownGo: 0,
-          fourthDownPunt: 0,
-          fourthDownFieldGoal: 0,
-          backoff: {},
-        },
-      };
+      return { accumulator, caller: caller ?? blankCallerDiagnostics() };
     },
-  };
-}
-
-function mergeInto(a: FrozenCallerDiagnostics, b: FrozenCallerDiagnostics): FrozenCallerDiagnostics {
-  const backoff: Record<string, number> = { ...a.backoff };
-  for (const [k, v] of Object.entries(b.backoff)) backoff[k] = (backoff[k] ?? 0) + v;
-  return {
-    offensiveCalls: a.offensiveCalls + b.offensiveCalls,
-    defensiveCalls: a.defensiveCalls + b.defensiveCalls,
-    passCalls: a.passCalls + b.passCalls,
-    runCalls: a.runCalls + b.runCalls,
-    conceptRedraws: a.conceptRedraws + b.conceptRedraws,
-    fourthDownGo: a.fourthDownGo + b.fourthDownGo,
-    fourthDownPunt: a.fourthDownPunt + b.fourthDownPunt,
-    fourthDownFieldGoal: a.fourthDownFieldGoal + b.fourthDownFieldGoal,
-    backoff,
   };
 }

@@ -120,6 +120,23 @@ export interface PlayFold {
   unaccountedRusherDropbacks: number;
   /** Dropbacks on which at least one route actually converted hot (§5.3 recognised). */
   hotConversionDropbacks: number;
+
+  /**
+   * ================== ADR-024: THE STARVED BRANCH, PROMOTED TO A STANDING COUNT ==================
+   *
+   * `RUSH_THREAT.origin` (ADR-022 petition 5), counted once per (play, rusher) rather than once
+   * per publication — a threat transitions TRAVELLING → DELAYED → ARRIVED/RESET and publishes at
+   * each step, so counting envelopes would count the same free runner three times and make
+   * `PICKUP_LOST` look like a rate when it is a population.
+   *
+   * It is here rather than in `test/sackAttribution.test.ts` because `baseline-0002` recorded
+   * **`PICKUP_LOST` = 0 in 496 games** as the headline evidence for ADR-024, and a number that
+   * important living only in an env-gated probe is a number nobody notices going wrong again.
+   * §7.4 step 3 is the branch it measures; ADR-024 exists because it had never once resolved.
+   */
+  threatOrigins: Record<string, number>;
+  /** Dropbacks on which at least one threat of each origin was published. Rates, not populations. */
+  threatOriginDropbacks: Record<string, number>;
 }
 
 export interface DriveFold {
@@ -221,6 +238,8 @@ export function emptyAccumulator(): SimAccumulator {
       blitzDropbacks: 0,
       unaccountedRusherDropbacks: 0,
       hotConversionDropbacks: 0,
+      threatOrigins: {},
+      threatOriginDropbacks: {},
     },
     drive: {
       drives: 0,
@@ -322,6 +341,15 @@ interface PlayState {
   resultYards: number | null;
   resultScore: number;
   turnover: boolean;
+  /**
+   * Rusher id → the origin the stream FIRST published for him on this play.
+   *
+   * First-wins rather than last-wins because a threat's origin is a fact about how it was
+   * created and does not change; only its `state` does. A stunt swap re-publishes with the
+   * looper's origin under a new id, so it is a different key and counts separately, which is
+   * correct — that is a second threat, not the same one re-labelled.
+   */
+  threats: Map<string, string>;
 }
 
 function blankPlay(): PlayState {
@@ -346,6 +374,7 @@ function blankPlay(): PlayState {
     resultYards: null,
     resultScore: 0,
     turnover: false,
+    threats: new Map<string, string>(),
   };
 }
 
@@ -396,6 +425,12 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
     if (play.isPass) {
       p.dropbacks++;
       if (play.pressured) p.pressuredDropbacks++;
+      const originsSeen = new Set<string>();
+      for (const origin of play.threats.values()) {
+        bumpKey(p.threatOrigins, origin);
+        originsSeen.add(origin);
+      }
+      for (const origin of originsSeen) bumpKey(p.threatOriginDropbacks, origin);
       if (play.threw) {
         p.passAttempts++;
         if (play.throwTick !== null) p.throwTicks.push(play.throwTick);
@@ -474,6 +509,12 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
         break;
       case "POCKET_STATUS":
         if (current !== null && event.payload.status !== "CLEAN") current.pressured = true;
+        break;
+      case "RUSH_THREAT":
+        if (current !== null) {
+          const key = String(event.payload.rusher);
+          if (!current.threats.has(key)) current.threats.set(key, event.payload.origin);
+        }
         break;
       case "THROW":
         if (current !== null) {
@@ -783,6 +824,8 @@ export function mergeAccumulators(a: SimAccumulator, b: SimAccumulator): SimAccu
     blitzDropbacks: a.play.blitzDropbacks + b.play.blitzDropbacks,
     unaccountedRusherDropbacks: a.play.unaccountedRusherDropbacks + b.play.unaccountedRusherDropbacks,
     hotConversionDropbacks: a.play.hotConversionDropbacks + b.play.hotConversionDropbacks,
+    threatOrigins: mergeCounters(a.play.threatOrigins, b.play.threatOrigins),
+    threatOriginDropbacks: mergeCounters(a.play.threatOriginDropbacks, b.play.threatOriginDropbacks),
   };
 
   const drive: DriveFold = {

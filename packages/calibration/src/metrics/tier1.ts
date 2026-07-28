@@ -378,6 +378,50 @@ export const unaccountedRusherRate: Metric = registerMetric({
   },
 });
 
+/**
+ * ============ THE STARVED BRANCH, PROMOTED FROM A PROBE TO A REPORT ROW (ADR-024) ============
+ *
+ * `baseline-0002` recorded **`PICKUP_LOST` = 0 in 496 games** and that single number is most of
+ * why ADR-024 exists: §7.4 step 3 is a built, tested, ratified mechanic that had never once
+ * resolved. The number lived in an env-gated probe (`test/sackAttribution.test.ts`), which is
+ * exactly how a fact that important goes unnoticed the second time.
+ *
+ * It is an OBSERVATION and never graded. `RUSH_THREAT.origin` (ADR-022 petition 5) is a statement
+ * about the engine's own resolution vocabulary and no ingested source charts anything like it —
+ * FTN's `n_blitzers` counts who rushed, not how each of them came free. Do NOT substitute the
+ * blitz rate for this: a five-man pressure a six-man protection answers produces no free runner
+ * at all, which is the entire distinction ADR-024 turns on.
+ *
+ * ONE ENTRY PER (PLAY, RUSHER), not per publication — a threat transitions and re-publishes, and
+ * counting envelopes would triple-count one free runner and turn a population into a rate.
+ */
+export const freeRunnerOriginMix: Metric = registerMetric({
+  id: "free_runner_origin_mix",
+  tier: 1,
+  definition:
+    "SIM SIDE ONLY. Rush threats by `RUSH_THREAT.origin`, one per (play, rusher): WON_REP is " +
+    "§7.1's won rep, and UNBLOCKED / PICKUP_LOST / STUNT_LOOPER are the three ways to be coming " +
+    "without one. PICKUP_LOST is §7.4 step 3's contest and was structurally ZERO in every batch " +
+    "before ADR-024, because the caller's protection was built against the actual defensive card " +
+    "and therefore never failed. No ingested source charts how a rusher came free.",
+  unit: "share",
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
+  knownDivergences: ["backlog 21", "backlog 22b", "ADR-024", "ADR-026"],
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const origins = accumulator.play.threatOrigins;
+    const total = Object.values(origins).reduce((a, b) => a + b, 0);
+    return total === 0 ? noObservations("no rush threats published") : categorical(origins);
+  },
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations(
+      "no ingested source states HOW a pass rusher came free. FTN charts `n_pass_rushers` and " +
+        "`n_blitzers` — both counts of who rushed — and nothing charts whether the protection " +
+        "accounted for him. Do not substitute the blitz rate: a five-man pressure a six-man " +
+        "protection answers produces no free runner at all.",
+    );
+  },
+});
+
 export const yardsPerAttempt: Metric = registerMetric({
   id: "yards_per_attempt",
   tier: 1,

@@ -28,6 +28,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../src/caller/anticipate.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { runBatch } from "../src/harness/batch.js";
 import { generateSeeds } from "../src/harness/seeds.js";
@@ -77,11 +78,43 @@ function requireEngineCommit(): string {
   return assertEngineCommit(raw);
 }
 
+/**
+ * WHICH CALLER TO BASELINE — ADR-024.
+ *
+ *   FF_BASELINE_CALLER=v1   the informed caller every batch before ADR-024 ran
+ *   FF_BASELINE_CALLER=v2   the anticipating caller (the default)
+ *
+ * It exists so that ADR-024's comparability paragraph can be honoured — *"the first v2 report
+ * should be run alongside a final v1 report on the same seeds so the size of the discontinuity is
+ * a measurement rather than a surprise"* — and so that the v2 report's `FF_BASELINE_PREV` can be
+ * pointed at that v1 run and REFUSED on `callerVersion`, which is the ADR-025 guard doing its job
+ * where a reader can see it.
+ *
+ * REFUSES AN UNKNOWN VALUE rather than falling back to the default. A typo that silently ran v2
+ * and wrote a file called `…-v1.md` is precisely the class of provenance lie `identity.ts` exists
+ * to make impossible, and it is a mistake this file has already made once.
+ */
+function callerVersionFromEnv(): CallerVersion {
+  const raw = process.env["FF_BASELINE_CALLER"];
+  if (raw === undefined || raw.trim().length === 0) return DEFAULT_CALLER_VERSION;
+  const value = raw.trim();
+  if (!(CALLER_VERSIONS as readonly string[]).includes(value)) {
+    throw new Error(
+      `FF_BASELINE_CALLER=${JSON.stringify(raw)} is not a caller version. ` +
+        `Expected one of ${CALLER_VERSIONS.join(", ")}. It is NOT defaulted: a run that quietly ` +
+        `used the default while its output was named for the other caller would put a lie in the ` +
+        `provenance block, which is what report/identity.ts exists to prevent.`,
+    );
+  }
+  return value as CallerVersion;
+}
+
 describe.skipIf(!enabled)("baseline comparison", () => {
   it("runs a full batch and compares every metric against the ingested seasons", async () => {
     // First, before several hundred games are spent: a batch that cannot stamp its output is a
     // batch whose output nobody may trend against.
     const engineCommit = requireEngineCommit();
+    const callerVersion = callerVersionFromEnv();
     const league = buildFlatLeague({ teams: 32 });
     const rounds = Number(process.env["FF_BASELINE_ROUNDS"] ?? "1");
     const schedule = { kind: "SYNTHETIC_ROUND_ROBIN", rounds, season: 2024 } as const;
@@ -93,7 +126,11 @@ describe.skipIf(!enabled)("baseline comparison", () => {
       league,
       schedule,
       seeds,
-      playCalling: { tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN },
+      playCalling: {
+        tendencies: FROZEN_TENDENCIES,
+        fourthDown: FROZEN_FOURTH_DOWN,
+        callerVersion,
+      },
     });
 
     const store = fsCacheStore(resolve(import.meta.dirname, "..", "data-cache"));
@@ -132,7 +169,7 @@ describe.skipIf(!enabled)("baseline comparison", () => {
           ) as unknown)
         : undefined;
     const trend: TrendDecision =
-      prevFile === undefined ? reconstructedTrend() : decideTrend(prevFile, identity);
+      prevFile === undefined ? reconstructedTrend(identity) : decideTrend(prevFile, identity);
 
     const report = withTrend(
       buildBaselineReport({
@@ -185,8 +222,10 @@ describe.skipIf(!enabled)("baseline comparison", () => {
     // eslint-disable-next-line no-console
     console.log(
       `\ngames=${batch.provenance.games} wall=${batch.wallClockMs}ms seeds=${batch.provenance.seedDigest}\n` +
-        `caller: pass=${batch.caller.passCalls} run=${batch.caller.runCalls} ` +
-        `redraws=${batch.caller.conceptRedraws} ` +
+        `caller: ${batch.provenance.callerVersion} pass=${batch.caller.passCalls} ` +
+        `run=${batch.caller.runCalls} ` +
+        `redraws=${batch.caller.conceptRedraws} draws=${batch.caller.draw.draws} ` +
+        `exact=${batch.caller.draw.draws === 0 ? "—" : ((batch.caller.draw.exactCard / batch.caller.draw.draws) * 100).toFixed(2) + "%"} ` +
         `4th: go=${batch.caller.fourthDownGo} punt=${batch.caller.fourthDownPunt} fg=${batch.caller.fourthDownFieldGoal}\n` +
         `new divergences (no backlog entry): ${report.newDivergences.join(", ") || "none"}`,
     );

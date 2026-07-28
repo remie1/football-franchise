@@ -12,8 +12,16 @@ import {
   fitFourthDown,
   lookupFourthDown,
 } from "../src/caller/fourthDown.js";
+import {
+  DEFENSE_ROLES,
+  applicableDefensiveCards,
+  buildDefensiveUnit,
+  type DefenseRole,
+  type PlaySituation,
+} from "@ff/playbook";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
-import { frozenCallerPair } from "../src/caller/frozen.js";
+import { callerIdentity, frozenCallerPair } from "../src/caller/frozen.js";
+import { DEFAULT_CALLER_VERSION, anticipateFront } from "../src/caller/anticipate.js";
 import {
   assertTendencyIntegrity,
   backoffKeys,
@@ -381,5 +389,162 @@ describe("the frozen caller pair", () => {
   it("uses the documented default sample floor", () => {
     expect(DEFAULT_MIN_PLAYS).toBe(200);
     expect(FROZEN_TENDENCIES.minPlays).toBe(200);
+  });
+
+  /**
+   * ============================ ADR-024, callerVersion v2 ============================
+   *
+   * The property the whole re-baseline rests on: **v1 and v2 call the same play against the same
+   * defence and differ only in what the offence blocked.** v1's three PRNG addresses are
+   * untouched (`kind`, `defense-card`, `offense-card:n`) and the anticipation forks a fourth, so
+   * any movement between a v1 batch and a v2 batch on one seed list is attributable to protection
+   * and to nothing else.
+   *
+   * Asserted rather than commented, because it is the control-arm claim every ADR-024 number
+   * depends on, and it is exactly the kind of claim that quietly stops being true the day
+   * somebody re-orders a fork.
+   */
+  it("v2 calls the SAME play against the SAME defence as v1 — only the protection differs", () => {
+    const v1 = runOneGame({
+      built, seed: "adr024", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
+      callerVersion: "v1",
+    });
+    const v2 = runOneGame({
+      built, seed: "adr024", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
+      callerVersion: "v2",
+    });
+    // Compared over the FIRST snap of each stream: the only snap on which both callers have seen
+    // identical history. The two games diverge the moment one blocks differently, which is the
+    // change, not a defect.
+    const firstStart = (out: typeof v1): Record<string, unknown> =>
+      (out.observation.events.find((e) => e.event.type === "PLAY_START")?.event.payload ??
+        {}) as Record<string, unknown>;
+    const sub = (x: Record<string, unknown>, key: string): Record<string, unknown> =>
+      (x[key] ?? {}) as Record<string, unknown>;
+    const a = firstStart(v1);
+    const b = firstStart(v2);
+    expect(a["kind"]).toBe(b["kind"]);
+    expect(sub(a, "defense")["front"]).toBe(sub(b, "defense")["front"]);
+    expect(JSON.stringify(sub(a, "defense")["rush"])).toBe(
+      JSON.stringify(sub(b, "defense")["rush"]),
+    );
+    expect(JSON.stringify(sub(a, "defense")["coverage"])).toBe(
+      JSON.stringify(sub(b, "defense")["coverage"]),
+    );
+  });
+
+  it("v1 never anticipates and v2 grades every call it makes, exactly once", () => {
+    const v1 = runOneGame({
+      built, seed: "adr024-b", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
+      callerVersion: "v1",
+    });
+    const v2 = runOneGame({
+      built, seed: "adr024-b", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
+      callerVersion: "v2",
+    });
+    expect(v1.caller.draw.draws).toBe(0);
+    // Once per OFFENSIVE call. `callDefense` resolves the identical snap and must not fold it a
+    // second time — a doubled denominator would halve every rate in the draw-quality table.
+    expect(v2.caller.draw.draws).toBe(v2.caller.offensiveCalls);
+    expect(v2.caller.draw.passDraws + v2.caller.draw.runDraws).toBe(v2.caller.draw.draws);
+    expect(v2.caller.draw.passDraws).toBe(v2.caller.passCalls);
+  });
+
+  it("defaults to v2, and the identity string says which caller ran", () => {
+    expect(DEFAULT_CALLER_VERSION).toBe("v2");
+    const pair = frozenCallerPair({
+      tendencies: FROZEN_TENDENCIES,
+      fourthDown: FROZEN_FOURTH_DOWN,
+      homeDepthChart: built.homeDepthChart,
+      awayDepthChart: built.awayDepthChart,
+    });
+    expect(pair.callerVersion).toBe("v2");
+    expect(callerIdentity("v2", FROZEN_TENDENCIES.version)).toBe(`v2/${FROZEN_TENDENCIES.version}`);
+    expect(callerIdentity("v1", "x")).not.toBe(callerIdentity("v2", "x"));
+  });
+});
+
+/**
+ * THE PERSONNEL RULE — ADR-024's first open sub-question, decided in `caller/anticipate.ts`.
+ *
+ * The load-bearing test is the last one. `MatchGameState.players` is the whole AVAILABLE ROSTER
+ * (`league/snapshot.ts` copies it; `simulateGame` merges both teams'), so
+ * `assertCoherentPlayCall`'s `known()` would NOT reject a protection naming a defender who is not
+ * on the field. ADR-024 said this "was not established and it decides the design": it is now
+ * established, it is the bad case, and it is why the constraint lives in the caller.
+ */
+describe("the anticipated front", () => {
+  const situations: readonly PlaySituation[] = [
+    { down: 1, distance: 10, ballOn: 25, twoMinute: false },
+    { down: 2, distance: 4, ballOn: 55, twoMinute: false },
+    { down: 3, distance: 12, ballOn: 40, twoMinute: false },
+    { down: 3, distance: 1, ballOn: 96, twoMinute: false },
+    { down: 4, distance: 2, ballOn: 98, twoMinute: true },
+  ];
+
+  it("never leaves the real card's personnel grouping", () => {
+    for (const situation of situations) {
+      for (const real of applicableDefensiveCards(situation)) {
+        for (let i = 0; i < 25; i++) {
+          const front = anticipateFront(createRng("anticipate", String(i)), situation, real);
+          expect(front.card.personnel).toBe(real.personnel);
+        }
+      }
+    }
+  });
+
+  it("draws from exactly the applicable cards of that grouping, and states how many", () => {
+    for (const situation of situations) {
+      for (const real of applicableDefensiveCards(situation)) {
+        const pool = applicableDefensiveCards(situation).filter(
+          (c) => c.personnel === real.personnel,
+        );
+        const front = anticipateFront(createRng("pool", "1"), situation, real);
+        expect(front.poolSize).toBe(pool.length);
+        expect(front.forced).toBe(pool.length === 1);
+        expect(pool.map((c) => c.id)).toContain(front.card.id);
+      }
+    }
+  });
+
+  it("is deterministic in its Rng address", () => {
+    const situation = situations[0]!;
+    const real = applicableDefensiveCards(situation)[0]!;
+    expect(anticipateFront(createRng("same", "addr"), situation, real).card.id).toBe(
+      anticipateFront(createRng("same", "addr"), situation, real).card.id,
+    );
+  });
+
+  it("can actually be wrong — the corpus is not degenerate under the rule", () => {
+    const situation = situations[0]!;
+    const real = applicableDefensiveCards(situation).find((c) => c.personnel === "NICKEL");
+    expect(real).toBeDefined();
+    const drawn = new Set<string>();
+    for (let i = 0; i < 200; i++) {
+      drawn.add(anticipateFront(createRng("spread", String(i)), situation, real!).card.id);
+    }
+    // If this ever collapses to one, §7.4 step 3 is starved again and ADR-024 is undone.
+    expect(drawn.size).toBeGreaterThan(1);
+  });
+
+  it("binds the identical eleven within a grouping and a DIFFERENT eleven across groupings", () => {
+    const twoTeam = buildFlatLeague({ teams: 2 });
+    const idx = indexLeague(twoTeam);
+    const fx = buildFixtures(idx, {
+      kind: "SYNTHETIC_PAIR",
+      home: idx.teamIds()[0]!,
+      away: idx.teamIds()[1]!,
+      games: 1,
+      season: 2024,
+    });
+    const chart = buildFixture(idx, fx[0]!).homeDepthChart;
+    const idsOf = (grouping: "NICKEL" | "BASE"): string[] => {
+      const unit = buildDefensiveUnit(grouping, chart) as Record<string, unknown>;
+      return (DEFENSE_ROLES[grouping] as readonly DefenseRole[]).map((r) => String(unit[r])).sort();
+    };
+    // Same grouping, same chart ⇒ the same eleven. This is what makes "every name in the
+    // protection is a man on the field" a structural fact rather than a coincidence.
+    expect(idsOf("NICKEL")).toEqual(idsOf("NICKEL"));
+    expect(idsOf("NICKEL")).not.toEqual(idsOf("BASE"));
   });
 });

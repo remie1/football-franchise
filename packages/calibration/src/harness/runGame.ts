@@ -8,6 +8,7 @@
  */
 import type { Tunables } from "@ff/engine";
 import { createMatchState, deriveGameId, simulateGame, DEFAULT_TUNABLES } from "@ff/engine";
+import type { CallerVersion } from "../caller/anticipate.js";
 import type { FittedFourthDown } from "../caller/fourthDown.js";
 import { frozenCallerPair, type FrozenCallerDiagnostics } from "../caller/frozen.js";
 import type { FittedTendencies } from "../caller/tendencies.js";
@@ -20,6 +21,8 @@ export interface RunGameInput {
   readonly tendencies: FittedTendencies;
   readonly fourthDown: FittedFourthDown;
   readonly tunables?: Tunables;
+  /** ADR-024. Defaults to v2 (the anticipating caller) inside `frozenCallerPair`. */
+  readonly callerVersion?: CallerVersion;
 }
 
 export interface RunGameOutput {
@@ -35,6 +38,7 @@ export function runOneGame(input: RunGameInput): RunGameOutput {
     fourthDown: input.fourthDown,
     homeDepthChart: built.homeDepthChart,
     awayDepthChart: built.awayDepthChart,
+    ...(input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }),
   });
 
   const coordinates = {

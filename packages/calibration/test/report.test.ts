@@ -37,7 +37,8 @@ import {
   type MetricOutcome,
 } from "../src/metrics/types.js";
 import { emptyAccumulator } from "../src/metrics/collect.js";
-import type { BatchProvenance } from "../src/harness/batch.js";
+import { blankCallerDiagnostics, type BatchProvenance } from "../src/harness/batch.js";
+import type { FrozenCallerDiagnostics } from "../src/caller/frozen.js";
 import "../src/metrics/index.js";
 
 const metric = (over: Partial<Metric> = {}): Metric => ({
@@ -205,7 +206,8 @@ const provenance: BatchProvenance = {
   teamWeeksWithAbsences: 0,
 };
 
-const caller = {
+const caller: FrozenCallerDiagnostics = {
+  ...blankCallerDiagnostics(),
   offensiveCalls: 100, defensiveCalls: 100, passCalls: 57, runCalls: 43,
   conceptRedraws: 2, fourthDownGo: 3, fourthDownPunt: 8, fourthDownFieldGoal: 4,
   backoff: { FULL: 60, NO_SCORE: 30, DOWN_DISTANCE: 10 },

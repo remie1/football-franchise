@@ -25,7 +25,19 @@
  * `<out>.carry-forward.json` beside the markdown, and `FF_BASELINE_PREV` reads it. The next
  * report will not need this file.
  */
-import type { PreviousReport, TrendDecision } from "./identity.js";
+import { refusalMessage, type BaselineIdentity, type PreviousReport, type TrendDecision } from "./identity.js";
+
+/**
+ * The caller baseline-0001 ran, and the reason this constant exists rather than being implied.
+ *
+ * Every batch before ADR-024 ran the informed caller, whose protection was built against the
+ * ACTUAL defensive card. `BatchProvenance.callerVersion` did not record that at the time — it
+ * recorded the tendency TABLE's version only — so the fact survives in exactly one place, which
+ * is here. A v2 report trending against these figures would be comparing a caller that guesses
+ * against a caller that cannot be wrong, which is the identical incomparability
+ * `identity.ts` refuses on every other axis.
+ */
+const RECONSTRUCTED_CALLER_VERSION = "v1";
 
 /** Where each figure came from, printed nowhere and read by whoever doubts one of them. */
 export const PREVIOUS_BASELINE_CITATIONS: Readonly<Record<string, string>> = {
@@ -80,8 +92,37 @@ export const PREVIOUS_BASELINE: PreviousReport = {
  * beside the seed list). That is why this cannot be an `ACCEPTED` decision and never could be:
  * the tree is three phases behind, and a carry-forward with that identity would be refused on
  * `engineCommit` before anything else was checked.
+ *
+ * ★ AND IT IS NOW REFUSED OUTRIGHT FOR AN ADR-024 RUN. ★ The `current` argument is not
+ * decoration. A reconstruction is allowed to inform an arrow precisely because it is an estimate
+ * of the same quantity under the same system; a v1 figure is not an estimate of a v2 quantity,
+ * because the caller sets the play mix every rate in the library is measured over. Without this
+ * check a v2 baseline run with no `FF_BASELINE_PREV` — the DEFAULT invocation — would print a
+ * confident column of arrows measuring the distance between a caller that guesses and a caller
+ * that could not be wrong, and `sack_rate +0.7pp` would render exactly like progress. That is the
+ * failure `identity.ts` was written for, arriving through the one door it did not cover.
  */
-export function reconstructedTrend(): TrendDecision {
+export function reconstructedTrend(current: BaselineIdentity): TrendDecision {
+  if (!current.callerVersion.startsWith(`${RECONSTRUCTED_CALLER_VERSION}/`)) {
+    const mismatches = [
+      {
+        field: "callerVersion",
+        previous: RECONSTRUCTED_CALLER_VERSION,
+        current: current.callerVersion,
+        why:
+          "the reconstructed figures were produced by the caller whose protection was built " +
+          "against the ACTUAL defensive card (CALIBRATION-BACKLOG.md entry 21). A caller that " +
+          "anticipates the front is a different denominator, and ADR-024 changed every pressure " +
+          "number in the library",
+      },
+    ];
+    return {
+      kind: "REFUSED",
+      previousId: PREVIOUS_BASELINE.id,
+      mismatches,
+      message: refusalMessage(PREVIOUS_BASELINE.id, mismatches),
+    };
+  }
   return {
     kind: "RECONSTRUCTED",
     previous: PREVIOUS_BASELINE,

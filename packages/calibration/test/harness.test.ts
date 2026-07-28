@@ -126,11 +126,43 @@ describe("runBatch", () => {
     expect(result.provenance.games).toBe(6);
     expect(result.provenance.leagueProvenance).toBe("FLAT_SYNTHETIC");
     expect(result.provenance.tunablesVersion).toBe("DEFAULT_TUNABLES");
-    expect(result.provenance.callerVersion).toBe(FROZEN_TENDENCIES.version);
+    // ADR-024/ADR-025: the identity string carries the caller BEHAVIOUR version as well as the
+    // tendency table's, because a caller that anticipates the front is a different denominator
+    // while its table is byte-identical. `report/identity.ts` always claimed this field meant
+    // "which caller"; before ADR-024 it only ever meant "which table".
+    expect(result.provenance.callerVersion).toBe(`v2/${FROZEN_TENDENCIES.version}`);
     expect(result.provenance.seedDigest).toBe(digestSeeds(result.seeds.seeds.slice(0, 6)));
     expect(result.provenance.availabilityMatched).toBe(false);
     expect(result.accumulator.games).toBe(6);
   }, 120_000);
+
+  /**
+   * THE ADR-025 GUARD, EXERCISED AT ITS SOURCE.
+   *
+   * `decideTrend` refuses a predecessor whose `callerVersion` differs, and it can only do that if
+   * the two callers actually produce different strings. A v1 batch and a v2 batch differing in
+   * every pressure number while sharing an identity is the exact silent-staleness failure
+   * `report/identity.ts` was written for.
+   */
+  it("records a DIFFERENT caller identity for v1 and v2, so the trend layer can refuse", async () => {
+    const seeds = generateSeeds("caller-version", 6);
+    const v1 = await runBatch({
+      league, schedule, seeds,
+      playCalling: { ...playCalling, callerVersion: "v1" },
+    });
+    const v2 = await runBatch({
+      league, schedule, seeds,
+      playCalling: { ...playCalling, callerVersion: "v2" },
+    });
+    expect(v1.provenance.callerVersion).toBe(`v1/${FROZEN_TENDENCIES.version}`);
+    expect(v2.provenance.callerVersion).toBe(`v2/${FROZEN_TENDENCIES.version}`);
+    expect(v1.provenance.callerVersion).not.toBe(v2.provenance.callerVersion);
+    // And the batches really do differ, so the refusal is protecting something.
+    expect(JSON.stringify(v1.accumulator.play)).not.toBe(JSON.stringify(v2.accumulator.play));
+    // v1 draws nothing; v2 grades every call it makes.
+    expect(v1.caller.draw.draws).toBe(0);
+    expect(v2.caller.draw.draws).toBe(v2.caller.offensiveCalls);
+  }, 240_000);
 
   it("is reproducible from its seed list", async () => {
     const seeds = generateSeeds("repro", 6);

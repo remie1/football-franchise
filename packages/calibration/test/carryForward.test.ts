@@ -26,7 +26,8 @@ import type { Season } from "../src/ingest/seasons.js";
 import type { PbpRow } from "../src/ingest/sources/pbp.js";
 import type { ScheduleRow } from "../src/ingest/sources/schedules.js";
 import type { RealInput } from "../src/metrics/realInput.js";
-import type { BatchProvenance } from "../src/harness/batch.js";
+import { blankCallerDiagnostics, type BatchProvenance } from "../src/harness/batch.js";
+import type { FrozenCallerDiagnostics } from "../src/caller/frozen.js";
 import { stableDigest } from "../src/harness/digest.js";
 import {
   buildBaselineReport,
@@ -90,7 +91,8 @@ const provenance: BatchProvenance = {
   teamWeeksWithAbsences: 0,
 };
 
-const caller = {
+const caller: FrozenCallerDiagnostics = {
+  ...blankCallerDiagnostics(),
   offensiveCalls: 100, defensiveCalls: 100, passCalls: 57, runCalls: 43,
   conceptRedraws: 2, fourthDownGo: 3, fourthDownPunt: 8, fourthDownFieldGoal: 4,
   backoff: { FULL: 60 },
@@ -382,7 +384,8 @@ describe("what a refused predecessor may do", () => {
    */
   it("does strictly less than a RECONSTRUCTED predecessor, which does less than an ACCEPTED one", () => {
     const accepted = decideTrend(stale, identityAt(COMMIT_A));
-    const reconstructed = reconstructedTrend();
+    // The reconstruction is a v1 figure set, so it may inform an arrow only for a v1 run.
+    const reconstructed = reconstructedTrend(identityAt(COMMIT_A, { callerVersion: "v1/v1" }));
     const refused = decideTrend(stale, identityAt(COMMIT_B));
 
     expect([mayInformArrow(accepted), mayRatchet(accepted)]).toEqual([true, true]);
@@ -393,6 +396,55 @@ describe("what a refused predecessor may do", () => {
     expect(PREVIOUS_BASELINE.comfortableStreak).toEqual({});
     const comfortable = evaluateMetric(testMetric, rate(50, 100), rate(50, 100));
     expect(proposeRatchets([comfortable], PREVIOUS_BASELINE.comfortableStreak, "r1")).toHaveLength(0);
+  });
+
+  /**
+   * ★ ADR-024 / ADR-025 — THE DEFAULT INVOCATION IS THE DANGEROUS ONE. ★
+   *
+   * Running the baseline tool with no `FF_BASELINE_PREV` falls back to `previous.ts`'s
+   * reconstruction, which is a set of figures produced by the caller that could not be wrong.
+   * Handing them to a v2 run would print a full column of confident arrows measuring the distance
+   * between two different denominators — and `sack_rate +0.7pp` renders exactly like progress.
+   *
+   * This is the one door `identity.ts`'s adjudication did not cover, because a reconstruction
+   * never went through `compareIdentity` at all.
+   */
+  it("refuses the reconstruction for an ADR-024 v2 run, naming callerVersion", () => {
+    const v2 = reconstructedTrend(identityAt(COMMIT_A, { callerVersion: "v2/v1" }));
+    expect(v2.kind).toBe("REFUSED");
+    expect(mayInformArrow(v2)).toBe(false);
+    expect(mayRatchet(v2)).toBe(false);
+    if (v2.kind === "REFUSED") {
+      expect(v2.mismatches.map((m) => m.field)).toEqual(["callerVersion"]);
+      expect(v2.message).toContain("callerVersion");
+    }
+  });
+
+  /**
+   * The same refusal from the OTHER direction, on a real pair of carry-forwards: two runs that
+   * agree on every field of identity except the caller. This is the assertion ADR-024's
+   * comparability paragraph asks for — *"a v2 caller invalidates the trend column for every row
+   * it touches, which is precisely why the caller is frozen"* — made mechanical.
+   */
+  it("refuses a v1 carry-forward as a predecessor for a v2 run, and vice versa", () => {
+    const v1Identity = identityAt(COMMIT_A, { callerVersion: "v1/v1" });
+    const v2Identity = identityAt(COMMIT_A, { callerVersion: "v2/v1" });
+    const v1File = {
+      format: CARRY_FORWARD_FORMAT,
+      id: "baseline-final-v1",
+      identity: v1Identity,
+      context: { seedDigest: "fnv1a:020c1dcb#496", batchSeed: "baseline-0001", games: 496 },
+      sim: { test_metric: 0.5 },
+      comfortableStreak: {},
+    };
+    const decision = decideTrend(v1File, v2Identity);
+    expect(decision.kind).toBe("REFUSED");
+    if (decision.kind === "REFUSED") {
+      expect(decision.mismatches.map((m) => m.field)).toEqual(["callerVersion"]);
+    }
+    // Symmetric: identity is a tuple equality, not a direction.
+    const back = decideTrend({ ...v1File, identity: v2Identity }, v1Identity);
+    expect(back.kind).toBe("REFUSED");
   });
 });
 
