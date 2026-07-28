@@ -25,7 +25,7 @@
  * `<out>.carry-forward.json` beside the markdown, and `FF_BASELINE_PREV` reads it. The next
  * report will not need this file.
  */
-import type { PreviousReport } from "./baseline.js";
+import type { PreviousReport, TrendDecision } from "./identity.js";
 
 /** Where each figure came from, printed nowhere and read by whoever doubts one of them. */
 export const PREVIOUS_BASELINE_CITATIONS: Readonly<Record<string, string>> = {
@@ -65,3 +65,30 @@ export const PREVIOUS_BASELINE: PreviousReport = {
   },
   comfortableStreak: {},
 };
+
+/**
+ * The reconstruction, as an adjudicated trend decision.
+ *
+ * ★ THE REFUSAL IS NOW STRUCTURAL. ★ The empty `comfortableStreak` above used to be the only
+ * thing stopping a reconstructed predecessor from ratcheting a band — a convention held up by an
+ * object literal that anybody could fill in. `buildBaselineReport` now inherits streaks only from
+ * an `ACCEPTED` decision (`mayRatchet`), so `RECONSTRUCTED` cannot move a gate even if this map
+ * were populated. The empty literal stays as belt and braces, and because it is also honest:
+ * nobody wrote down which of baseline-0001's rows sat comfortably inside their bands.
+ *
+ * baseline-0001 ran at engine commit `e42ee36` (CALIBRATION-BACKLOG.md entry 23, which records it
+ * beside the seed list). That is why this cannot be an `ACCEPTED` decision and never could be:
+ * the tree is three phases behind, and a carry-forward with that identity would be refused on
+ * `engineCommit` before anything else was checked.
+ */
+export function reconstructedTrend(): TrendDecision {
+  return {
+    kind: "RECONSTRUCTED",
+    previous: PREVIOUS_BASELINE,
+    reason:
+      "every figure is quoted from a named line of CALIBRATION-BACKLOG.md (see " +
+      "PREVIOUS_BASELINE_CITATIONS); baseline-0001 wrote a markdown artefact and no " +
+      "machine-readable carry-forward. It ran at engine commit e42ee36, so it could not be an " +
+      "accepted predecessor for any current tree in any case.",
+  };
+}

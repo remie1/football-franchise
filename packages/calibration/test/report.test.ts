@@ -191,6 +191,7 @@ const provenance: BatchProvenance = {
   leagueProvenance: "FLAT_SYNTHETIC",
   leagueDescription: "32 teams, every attribute at 60",
   tunablesVersion: "DEFAULT_TUNABLES",
+  tunablesDigest: "fnv1a:00000001",
   callerVersion: "v1",
   callerFourthDownVersion: "v1",
   scheduleKind: "SYNTHETIC_ROUND_ROBIN",
@@ -210,9 +211,12 @@ const caller = {
   backoff: { FULL: 60, NO_SCORE: 30, DOWN_DISTANCE: 10 },
 };
 
+const COMMIT = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
+
 describe("the baseline report", () => {
   const report = buildBaselineReport({
     id: "baseline-0001",
+    engineCommit: COMMIT,
     accumulator: emptyAccumulator(),
     provenance,
     caller,
@@ -231,6 +235,7 @@ describe("the baseline report", () => {
   it("refuses to let a held-out report be cited as justification", () => {
     const heldOut = buildBaselineReport({
       id: "checkpoint-2025",
+      engineCommit: COMMIT,
       accumulator: emptyAccumulator(),
       provenance,
       caller,
@@ -269,12 +274,17 @@ describe("the baseline report", () => {
     const next = withTrend(
       buildBaselineReport({
         id: "baseline-0002",
+        engineCommit: COMMIT,
         accumulator: emptyAccumulator(),
         provenance,
         caller,
         real: realInput("TUNING"),
+        trend: {
+          kind: "RECONSTRUCTED",
+          previous: { id: "baseline-0001", sim: { completion_pct: 0.44 }, comfortableStreak: {} },
+          reason: "quoted from prose",
+        },
       }),
-      { id: "baseline-0001", sim: { completion_pct: 0.44 }, comfortableStreak: {} },
     );
     const row = next.evaluations.find((e) => e.metricId === "completion_pct");
     expect(row?.previousSim).toBe(0.44);

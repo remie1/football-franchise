@@ -1,4 +1,65 @@
-# HANDOFF — Repo Setup & First Claude Code Session
+# HANDOFF
+
+> ## ▶ NEXT SESSION STARTS HERE — the caller dispatch
+>
+> Phase 1 is complete on both tracks: the engine sims full games, calibration ingests four real
+> seasons and runs baselines, the corpus states real football, and `pnpm -r test` exits 0 with
+> **2,362 tests** and CI gating on it. Twenty-five ADRs, eight Charter amendments, twenty-seven
+> backlog entries.
+>
+> **The next dispatch is ADR-024's caller fix, and it was deliberately held for a fresh session**
+> because it changes what the frozen caller *knows*, which moves every pressure number in the
+> project.
+>
+> ### State these three things up front, or the dispatch will settle them silently
+>
+> 1. **The anticipated front must be constrained to fronts that are POSSIBLE against the
+>    offensive personnel on the field.** Otherwise the caller protects against defences that
+>    could not have been called.
+> 2. **A protector who ends up in coverage needs an OWNER, not a runtime patch.** Same class as
+>    the ADR-022 TRIPLE boundary disagreement, where the engine was asserting football rather
+>    than arithmetic about its own arguments.
+> 3. **The caller anticipates ONCE, and everything downstream reads that draw.** Anticipating for
+>    protection while concept selection reads the real card is not a smaller change — it is an
+>    incoherent caller, and its failures would look like protection problems when they are the
+>    seam between two views of the same defence.
+>
+> ### Read the following re-baseline correctly
+>
+> Hot routes going from **0.10%** to something real will move sack rate, pressure rate and
+> completion **together**. Per backlog **entry 26**, the conversion terms are already correct
+> (`pressure_to_sack` 15.32% against a real 16.37%). **Read every movement as a pressure-rate
+> change, never as evidence that conversion needs touching.** Entries 2 and 3 carry that as an
+> explicit prohibition.
+>
+> ### Then, and only then, sensitivity
+>
+> `blockerStructuralAdvantage` **first** — entry 26 confirms it as the pressure-rate lever and
+> therefore the highest-value sweep in the project. **Unfreezing it deserves its own ADR**: it has
+> been frozen for fourteen dispatches, and sweeping it before the caller stops knowing the front
+> would fit it to a fixture-shaped pressure rate.
+> `freeRunnerArrivalSeconds` **second** — it currently governs 56 dropbacks in 496 games, so per
+> `calibration.md` §5.3's new precondition the sweep would refuse anyway.
+>
+> ### Open decisions waiting for the owner
+>
+> - **ADR-025** (proposed) — the baseline-identity table and its "recorded but not identity" list.
+>   Those are the parts a future agent will be tempted to relax.
+> - **ADR-024's two sub-questions**, above. Named and open on purpose.
+> - **Entry 23's +0.847 y/c (17%)** remains **unowned**, deliberately not distributed.
+>
+> ### Two things that will bite if forgotten
+>
+> - **Contracts is write-protected and the deny applies to the Orchestrator too.** Amending means
+>   lift → amend → restore, in one window, with the audit trail in the commit message. A
+>   `commit-msg` hook rejects any commit staging `packages/contracts/**` without an `ADR-0NN`
+>   reference.
+> - **Never buy CI time by reducing `n`** on a known-truth ladder (backlog §22c). `db-coverage`
+>   needs ~5× the sample of any other family and its SE estimate is itself unstable.
+
+---
+
+# Original handoff — Repo Setup & First Claude Code Session
 
 Everything needed to go from the zip in your downloads to a working engine slice. Read once, then follow in order.
 

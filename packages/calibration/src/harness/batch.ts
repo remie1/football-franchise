@@ -42,6 +42,7 @@ import {
   mergeAccumulators,
   type SimAccumulator,
 } from "../metrics/collect.js";
+import { stableDigest } from "./digest.js";
 import { runOneGame } from "./runGame.js";
 import { buildFixture, buildFixtures, type GameFixture, type ScheduleSpec } from "./schedule.js";
 import { digestSeeds, generateSeeds, type SeedList } from "./seeds.js";
@@ -69,6 +70,16 @@ export interface BatchProvenance {
   readonly leagueProvenance: LeagueProvenance;
   readonly leagueDescription: string;
   readonly tunablesVersion: string;
+  /**
+   * A digest of the tunables the batch ACTUALLY RAN, not of the label above it.
+   *
+   * §6's audit trail rests on a version string a caller asserts, and `runBatch` refuses an
+   * unnamed patch. Neither catches the opposite failure: two reports both labelled
+   * `DEFAULT_TUNABLES` while `DEFAULT_TUNABLES` itself changed underneath them. A label cannot
+   * detect a change to the thing it labels, so the values are measured as well as named. This is
+   * the one field of a baseline's identity that no caller can misreport.
+   */
+  readonly tunablesDigest: string;
   readonly callerVersion: string;
   readonly callerFourthDownVersion: string;
   readonly scheduleKind: ScheduleSpec["kind"];
@@ -267,6 +278,7 @@ export async function runBatch(config: BatchConfig): Promise<BatchResult> {
       leagueProvenance: config.league.provenance,
       leagueDescription: config.league.description,
       tunablesVersion,
+      tunablesDigest: stableDigest(tunables),
       callerVersion: config.playCalling.tendencies.version,
       callerFourthDownVersion: config.playCalling.fourthDown.version,
       scheduleKind: config.schedule.kind,

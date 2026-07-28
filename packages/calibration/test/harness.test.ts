@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_TUNABLES, applyTunablePatch } from "@ff/engine";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { inProcessExecutor, runBatch, shardedExecutor } from "../src/harness/batch.js";
+import { stableDigest } from "../src/harness/digest.js";
 import { buildFixtures, ScheduleError } from "../src/harness/schedule.js";
 import { assertSeedDigest, digestSeeds, generateSeeds, SeedMismatchError, seedListOf } from "../src/harness/seeds.js";
 import { WorkerPoolUnavailableError } from "../src/harness/workerPool.js";
@@ -191,6 +192,12 @@ describe("runBatch", () => {
       tunablesVersion: "test-bsa-40",
     });
     expect(withPatch.provenance.tunablesVersion).toBe("test-bsa-40");
+    // The MEASURED half of §6's audit trail. The version above is a label a caller asserts; the
+    // digest is taken from the tunables the batch actually ran, so it cannot be misreported and
+    // it catches the case a label cannot — `DEFAULT_TUNABLES` changing underneath two reports
+    // that both call themselves `DEFAULT_TUNABLES`. Baseline identity compares both.
+    expect(base.provenance.tunablesDigest).toBe(stableDigest(DEFAULT_TUNABLES));
+    expect(withPatch.provenance.tunablesDigest).not.toBe(base.provenance.tunablesDigest);
     // A blocker advantage of 40 against the default 15 must move the sack rate. If it did not,
     // the tunables argument is not reaching the simulation and every sensitivity run is a lie.
     expect(withPatch.accumulator.play.sacks).not.toBe(base.accumulator.play.sacks);

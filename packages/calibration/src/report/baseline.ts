@@ -20,7 +20,25 @@
  *  - The band table prints in full, every time, per §10.1's "every report states the current
  *    band table" — with the ratchet history, so a tightened band shows what tightened it.
  *  - The trend column is present from report one, showing `—` until there is a predecessor. A
- *    slot that appears later is a slot nobody builds tooling against.
+ *    slot that appears later is a slot nobody builds tooling against. It has since grown a THIRD
+ *    state: `**refused**`, when the predecessor is not a comparable baseline. See below.
+ *
+ * ================== THE TREND COLUMN IS ADJUDICATED, NOT ASSUMED ==================
+ *
+ * `reports/baseline-0002.carry-forward.json` recorded a full set of correct numbers and was
+ * silently stale within days — the corpus and sack-credit dispatches moved the engine, and
+ * nothing in the file could say so. The mechanism worked; the file simply had no provenance.
+ *
+ * So `carryForward` now stamps the identity of the run that produced it (`report/identity.ts`),
+ * `buildBaselineReport` takes an ADJUDICATED `TrendDecision` rather than a raw `PreviousReport`,
+ * and the three grades of predecessor differ in exactly what they may do:
+ *
+ *   ACCEPTED       arrow yes, streak yes
+ *   RECONSTRUCTED  arrow yes, streak NO   — `previous.ts`'s rule, now structural
+ *   REFUSED        arrow NO,  streak NO   — and the report says which field mismatched
+ *
+ * There is no way to reach the arrow or the streak except through that union, which is the
+ * point: the failure it prevents is one where the wrong answer renders as a confident number.
  *  - The **declared absences** section prints unconditionally. A metric the library deliberately
  *    lacks is more likely to be filled in wrongly when nobody is reminded it is missing.
  */
@@ -42,22 +60,50 @@ import {
   type MetricEvaluation,
   type RatchetProposal,
 } from "./bands.js";
-
-export interface PreviousReport {
-  readonly id: string;
-  /** Metric id → the scalar the previous report recorded, for the trend column. */
-  readonly sim: Readonly<Record<string, number>>;
-  readonly comfortableStreak: Readonly<Record<string, number>>;
-}
+import {
+  CARRY_FORWARD_FORMAT,
+  NO_TREND,
+  baselineIdentity,
+  isDirtyCommit,
+  mayInformArrow,
+  mayRatchet,
+  previousOf,
+  type BaselineIdentity,
+  type CarryForward,
+  type TrendDecision,
+} from "./identity.js";
 
 export interface BaselineReportInput<E extends Eligibility> {
   readonly id: string;
+  /**
+   * The engine tree these numbers were produced against — see `identity.ts`.
+   *
+   * REQUIRED, and required at the type level on purpose (ADR-012's precedent: *required
+   * `tunables` parameters over an optional one*, which `tsc` used to find seven silent
+   * module-load-time reads). An optional commit would default to "unknown" at every call site
+   * that forgot it, and a carry-forward stamped "unknown" is the file this whole mechanism exists
+   * to make impossible — `reports/baseline-0002.carry-forward.json`, which recorded nothing and
+   * was stale within days.
+   *
+   * A pure function cannot know its own commit and this package does not shell out to `git`, so
+   * the value comes from the caller. `assertEngineCommit` checks that it is at least SHAPED like
+   * a git object name; the tool that supplies it is the one place `FF_ENGINE_COMMIT` is read.
+   */
+  readonly engineCommit: string;
   readonly accumulator: SimAccumulator;
   readonly provenance: BatchProvenance;
   readonly caller: FrozenCallerDiagnostics;
   readonly real: RealInput<E>;
   readonly bands?: BandTable;
-  readonly previous?: PreviousReport;
+  /**
+   * An ADJUDICATED predecessor, never a raw one.
+   *
+   * The type is the enforcement. There is no `previous?: PreviousReport` parameter any more,
+   * because a caller that has a `PreviousReport` in hand — parsed off disk, say — must pass it
+   * through `decideTrend` to get one of these, and `decideTrend` is where a mismatched carry
+   * forward becomes `REFUSED`. The arrow and the streak are both downstream of this union.
+   */
+  readonly trend?: TrendDecision;
   readonly metrics?: readonly Metric[];
 }
 
@@ -73,6 +119,10 @@ export interface BaselineReport<E extends Eligibility> {
   readonly id: string;
   readonly eligibility: E;
   readonly seasons: readonly number[];
+  /** What a successor must match before it may trend against this report. */
+  readonly identity: BaselineIdentity;
+  /** Whether a predecessor informed this report, and on what terms. Rendered either way. */
+  readonly trend: TrendDecision;
   readonly provenance: BatchProvenance;
   readonly caller: FrozenCallerDiagnostics;
   readonly bands: BandTable;
@@ -111,6 +161,13 @@ export function buildBaselineReport<E extends Eligibility>(
 ): BaselineReport<E> {
   const metrics = input.metrics ?? allMetrics();
   const bands = input.bands ?? openingBandTable(metrics);
+  const trend = input.trend ?? NO_TREND;
+  const identity = baselineIdentity({
+    provenance: input.provenance,
+    engineCommit: input.engineCommit,
+    eligibility: input.real.eligibility,
+    realSeasons: input.real.seasons,
+  });
   const context = {
     accumulator: input.accumulator,
     provenance: input.provenance.leagueProvenance as LeagueProvenance,
@@ -126,24 +183,30 @@ export function buildBaselineReport<E extends Eligibility>(
     );
   });
 
-  const comfortableStreak = updateComfortStreaks(
-    input.previous?.comfortableStreak ?? {},
-    evaluations,
-  );
+  /**
+   * ★ THE STREAK IS SEEDED ONLY BY AN ACCEPTED PREDECESSOR. ★
+   *
+   * A streak is one report away from a `ratchetBand` call, and a ratchet is permanent —
+   * `ratchetBand` throws on any attempt to widen. Inheriting a streak from a REFUSED or
+   * RECONSTRUCTED predecessor would let a band be tightened on the strength of numbers produced
+   * by a tree that no longer exists, or by a paragraph, and there is no undo. `previous.ts`
+   * already refused this by shipping an empty streak map; `mayRatchet` makes it structural, so
+   * the guarantee survives somebody editing that literal.
+   */
+  const inheritedStreak = mayRatchet(trend) ? (previousOf(trend)?.comfortableStreak ?? {}) : {};
+  const comfortableStreak = updateComfortStreaks(inheritedStreak, evaluations);
 
   return {
     id: input.id,
     eligibility: input.real.eligibility,
     seasons: [...input.real.seasons],
+    identity,
+    trend,
     provenance: input.provenance,
     caller: input.caller,
     bands,
     evaluations,
-    ratchetProposals: proposeRatchets(
-      evaluations,
-      input.previous?.comfortableStreak ?? {},
-      input.id,
-    ),
+    ratchetProposals: proposeRatchets(evaluations, inheritedStreak, input.id),
     comfortableStreak,
     manifests: citeRealInput(input.real),
     newDivergences: evaluations.filter((e) => e.verdict === "FAIL").map((e) => e.metricId),
@@ -192,7 +255,8 @@ export function renderBaselineReport<E extends Eligibility>(report: BaselineRepo
   lines.push("");
   lines.push(`| field | value |`);
   lines.push(`|---|---|`);
-  lines.push(`| tunables version | \`${p.tunablesVersion}\` |`);
+  lines.push(`| engine commit | \`${report.identity.engineCommit}\` |`);
+  lines.push(`| tunables version | \`${p.tunablesVersion}\` (measured \`${p.tunablesDigest}\`) |`);
   lines.push(`| frozen caller | \`${p.callerVersion}\` + 4th-down \`${p.callerFourthDownVersion}\` |`);
   lines.push(`| league | \`${p.leagueId}\` — **${p.leagueProvenance}** |`);
   lines.push(`| league detail | ${p.leagueDescription} |`);
@@ -205,6 +269,18 @@ export function renderBaselineReport<E extends Eligibility>(report: BaselineRepo
   lines.push("");
   lines.push(`**What this report may claim:** ${claimScopeOf(p.leagueProvenance)}`);
   lines.push("");
+  if (isDirtyCommit(report.identity.engineCommit)) {
+    lines.push(
+      "> **PRODUCED FROM A DIRTY WORKING TREE.** The commit above is suffixed `-dirty`: this run " +
+        "included uncommitted edits that nothing records. Its carry-forward will be REFUSED by " +
+        "every successor, including another run stamped with the same hash, because two dirty " +
+        "trees are not the same tree. Commit before producing a baseline anybody will trend " +
+        "against.",
+    );
+    lines.push("");
+  }
+
+  lines.push(renderTrend(report));
 
   lines.push("## Frozen caller diagnostics");
   lines.push("");
@@ -256,7 +332,7 @@ export function renderBaselineReport<E extends Eligibility>(report: BaselineRepo
         `| \`${e.metricId}\` | ${VERDICT_MARK[e.verdict] ?? e.verdict} | ${fmt(e.sim, e.unit)} | ` +
           `${fmtInterval(e.simInterval, e.unit)} | ${fmt(e.real, e.unit)} | ` +
           `${fmtInterval(e.realInterval, e.unit)} | ${e.simN}/${e.realN} | ` +
-          `${e.deviation === null ? "—" : e.deviation.toFixed(4)} | ${trendCell(e)} | ` +
+          `${e.deviation === null ? "—" : e.deviation.toFixed(4)} | ${trendCell(report, e)} | ` +
           `${notesCell(e)} |`,
       );
     }
@@ -341,7 +417,73 @@ function notesCell(evaluation: MetricEvaluation): string {
   return parts.filter((s) => s.length > 0).join("; ");
 }
 
-function trendCell(evaluation: MetricEvaluation): string {
+/**
+ * THE TREND SECTION — printed unconditionally, in all four states.
+ *
+ * Charter §4.1: *prefer a loud failure to a silent default.* A report that met a mismatched
+ * carry-forward and simply rendered em dashes would be indistinguishable from a report that had
+ * no predecessor at all, and the reader's conclusion — "the trend column hasn't started yet" —
+ * would be wrong in the one case where being wrong matters. So the refusal is a section with a
+ * heading, and it names every field that mismatched with both sides printed.
+ */
+function renderTrend<E extends Eligibility>(report: BaselineReport<E>): string {
+  const lines: string[] = ["## Trend", ""];
+  const trend = report.trend;
+  switch (trend.kind) {
+    case "NONE":
+      lines.push(`No predecessor. ${trend.reason}`);
+      break;
+    case "ACCEPTED":
+      lines.push(
+        `Trending against \`${trend.previous.id}\`, which matches this run on every field of ` +
+          `baseline identity (engine commit \`${trend.identity.engineCommit}\`, tunables ` +
+          `\`${trend.identity.tunablesVersion}\`/\`${trend.identity.tunablesDigest}\`, caller ` +
+          `\`${trend.identity.callerVersion}\`, league \`${trend.identity.leagueId}\`). ` +
+          `Arrows are shown and its comfort streaks are inherited, so a band may ratchet.`,
+      );
+      break;
+    case "RECONSTRUCTED":
+      lines.push(
+        `Trending against **${trend.previous.id}** — a RECONSTRUCTION. ${trend.reason}`,
+        "",
+        "Arrows are shown. Its comfort streaks are **not** inherited and no band can ratchet on " +
+          "its evidence: `ratchetBand` is one-way, and a tightening taken on the strength of a " +
+          "figure quoted from prose could not be undone.",
+      );
+      break;
+    case "REFUSED":
+      lines.push("```");
+      lines.push(trend.message);
+      lines.push("```");
+      lines.push("");
+      if (trend.mismatches.length > 0) {
+        lines.push("| field | previous | this run | why it matters |");
+        lines.push("|---|---|---|---|");
+        for (const m of trend.mismatches) {
+          lines.push(`| \`${m.field}\` | \`${m.previous}\` | \`${m.current}\` | ${m.why} |`);
+        }
+        lines.push("");
+      }
+      lines.push(
+        "Every trend cell below reads **refused** rather than an em dash: an em dash means " +
+          "*there was no predecessor*, which is a different fact.",
+      );
+      break;
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
+/**
+ * The trend cell.
+ *
+ * `REFUSED` prints the word rather than an em dash. An em dash means "there was no predecessor",
+ * which is a different fact, and a report that renders a refusal as an absence is the silent
+ * drop this mechanism exists to prevent — the reader would conclude the trend column simply had
+ * not started yet.
+ */
+function trendCell(report: BaselineReport<Eligibility>, evaluation: MetricEvaluation): string {
+  if (report.trend.kind === "REFUSED") return "**refused**";
   if (evaluation.previousSim === undefined || evaluation.sim === null) return "—";
   const delta = evaluation.sim - evaluation.previousSim;
   return `${delta >= 0 ? "+" : ""}${delta.toFixed(4)}`;
@@ -351,11 +493,15 @@ function trendCell(evaluation: MetricEvaluation): string {
  * The trend slot, applied. Kept as a separate pass so a report with no predecessor and a report
  * with one go through the same code — a trend column that only exists on the second report is a
  * column nobody builds tooling against.
+ *
+ * It now takes only the report and reads the decision off it. The old signature took a second
+ * `previous` argument, which meant `withTrend` could be handed a DIFFERENT predecessor from the
+ * one `buildBaselineReport` used for the streaks — the arrows and the ratchet counters could
+ * disagree about which report they descended from, and nothing would say so.
  */
-export function withTrend<E extends Eligibility>(
-  report: BaselineReport<E>,
-  previous: PreviousReport | undefined,
-): BaselineReport<E> {
+export function withTrend<E extends Eligibility>(report: BaselineReport<E>): BaselineReport<E> {
+  if (!mayInformArrow(report.trend)) return report;
+  const previous = previousOf(report.trend);
   if (previous === undefined) return report;
   return {
     ...report,
@@ -366,11 +512,33 @@ export function withTrend<E extends Eligibility>(
   };
 }
 
-/** What the next report needs from this one. */
-export function carryForward<E extends Eligibility>(report: BaselineReport<E>): PreviousReport {
+/**
+ * What the next report needs from this one — the numbers AND the proof they are still comparable.
+ *
+ * The numbers alone were `reports/baseline-0002.carry-forward.json`, and they were silently stale
+ * within days. `identity` is what a successor's `decideTrend` checks; `context` is recorded for
+ * the reader and for reproduction and is deliberately not part of the check (`identity.ts` gives
+ * the reasons per field).
+ *
+ * Deterministic: no timestamp, no hostname, no run counter. The file is a pure function of the
+ * report, so two runs of the same batch produce byte-identical carry-forwards and a diff means
+ * something moved.
+ */
+export function carryForward<E extends Eligibility>(report: BaselineReport<E>): CarryForward {
   const sim: Record<string, number> = {};
   for (const e of report.evaluations) {
     if (e.sim !== null && Number.isFinite(e.sim)) sim[e.metricId] = e.sim;
   }
-  return { id: report.id, sim, comfortableStreak: report.comfortableStreak };
+  return {
+    format: CARRY_FORWARD_FORMAT,
+    id: report.id,
+    identity: report.identity,
+    context: {
+      seedDigest: report.provenance.seedDigest,
+      batchSeed: report.provenance.batchSeed,
+      games: report.provenance.games,
+    },
+    sim,
+    comfortableStreak: report.comfortableStreak,
+  };
 }

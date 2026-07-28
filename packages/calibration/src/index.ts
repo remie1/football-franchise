@@ -41,12 +41,14 @@ export * from "./caller/frozenTendencies.js";
 export * from "./metrics/index.js";
 
 export * from "./harness/seeds.js";
+export * from "./harness/digest.js";
 export * from "./harness/schedule.js";
 export * from "./harness/runGame.js";
 export * from "./harness/batch.js";
 export * from "./harness/workerPool.js";
 
 export * from "./report/bands.js";
+export * from "./report/identity.js";
 export * from "./report/baseline.js";
 export * from "./report/previous.js";
 
