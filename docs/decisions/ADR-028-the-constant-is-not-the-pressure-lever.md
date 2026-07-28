@@ -2,7 +2,8 @@
 
 - **Date:** July 2026
 - **Proposed by:** `calibration`, executing ADR-027's authorised sweep
-- **Status:** proposed — **two coupled changes petitioned; the value change ADR-027 anticipated is
+- **Status:** **APPROVED** July 2026 — **both petitions ratified, coupled.** See the ratification
+  note appended to the Decision section. *(Originally filed as:)* proposed — **two coupled changes petitioned; the value change ADR-027 anticipated is
   REFUSED, with evidence**
 - **Evidence:** `packages/calibration/test/pressureSweep.test.ts`, five stages, 60 configurations,
   **496 games each on `baseline-0005`'s own seeds** (batch seed `baseline-0001`, seed digest
@@ -284,3 +285,49 @@ or `pressureProgressByBand` requiring accumulation before `RUSHER_GAINING` floor
   owns at most **6.65 of the 24.91 completion points**, and that is a ceiling, not an estimate.
 - **`ol-passblock-sack-rate`:** its hypothesis names four attributes and two of them are read by
   nothing. Its numbers are correct; its description is not.
+
+---
+
+## Ratification
+
+**Both petitions approved, coupled**, by project owner + Orchestrator, July 2026. Petition 2 alone
+is BSA 0 — the worst configuration measured. **The coupling is the ADR.**
+
+### The pitch is accepted as stated: the gain is not in a Tier 1 mean
+
+Trading **+0.349pp of pressure and +1.013pp of sack** for a blocker stack that responds to blocker
+quality is correct, and the reason is asymmetric recoverability:
+
+> **Tier 1 means are recoverable later. Structural insensitivity is not.**
+
+Once real ratings arrive, a constant that is **65.2% of a twenty-rated line's protection** makes
+line quality nearly invisible — and that invisibility would present as a *rating* problem, in a
+franchise mode where offensive line quality mattering is close to the whole point. **Fix the shape
+now, chase the level later.**
+
+The trade is not even one-directional: it lands `pressure_to_sack` at **16.264% against a real
+16.371%**, the best value measured anywhere in the sweep.
+
+### What this sweep overturned, recorded plainly
+
+The sweep refuted **the ADR that authorised it, the entry that motivated it, and a rule stated two
+dispatches earlier** — all three written or endorsed by the Orchestrator:
+
+1. **Entry 3's headline.** At BSA 500 the §7.1 rep is extinguished (100% `BLOCKER_RESETS`, zero
+   won-rep threats) and pressure is still **24.525%**. The term's entire budget is **4.70pp of a
+   59.9pp gap.** §7.3/§7.4 own the pressure problem; §7.1 never did.
+2. **Entry 26's rule, as generalised into a prohibition.** `pressure_to_sack ≡ sack/pressure` is an
+   **identity, not an invariance.** ADR-026 looked like confirmation because one lever happened to
+   behave separably. Swept properly, conversion falls **15.191% → 6.247%**, because the lever
+   changes pocket *severity* as well as dirtiness. **Rewritten, not deleted** — the surviving
+   statement is *"do not treat conversion as fixed under intervention."*
+3. **Entry 1's gating.** With the pass rush fully extinguished, completion reaches only **46.324%
+   against 64.578%** — entry 3 owns at most **6.65 of 24.91** completion points. A measured
+   ceiling rather than an attribution, which is worth more than either.
+
+### And the map-first rule earned out, one dispatch after being written
+
+Fifteen-fold variation in the response curve, with the committed value on a bottom shelf at
+**−0.120 pp/pt against −1.181 at 75–90**. A by-eye ladder at 10/15/20/25 would have read 0.6pp and
+concluded the term barely matters — **the exact entry 22 failure, one dispatch after §22d was
+written to prevent it.**

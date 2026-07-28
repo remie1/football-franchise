@@ -217,9 +217,27 @@ export function withReadOrder(base: Scenario, order: readonly PlayerId[]): Scena
 /**
  * The base concept behind a line that actually holds. Coverage is untouched, so
  * the routes and the reads run normally — this is the fixture for anything that
- * has to observe the quarterback WITHOUT the pocket forcing his hand, which on
- * the base matchup happens by tick 1.0 on ~90% of dropbacks
- * (CALIBRATION-BACKLOG 3: `blockerStructuralAdvantage`, frozen).
+ * has to observe the quarterback WITHOUT the pocket forcing his hand.
+ *
+ * RE-MEASURED July 2026 (ADR-028), because the claim that used to stand here —
+ * "the base matchup goes non-CLEAN by tick 1.0 on ~90% of dropbacks" — was long
+ * out of date and nothing had re-run it. Over 600 dropbacks: the BASE matchup
+ * (`buildScenario`) is not what this measures; THIS fixture goes non-CLEAN by
+ * tick 1.0 on **26.8%** of dropbacks, against 21.2% on the pre-ADR-028 build.
+ *
+ * ⚠ AND THE 5.6pp IS A HOLE IN THIS FIXTURE, NOT A PROPERTY OF THE MECHANIC.
+ * `anchor` became a live §7.1 term in ADR-028, and the two wall blockers below
+ * state `passBlock: 99, footwork: 99` and say nothing about `anchor` — so they
+ * roll `getAttr`'s absent-id fallback of **50** for a third of their protection,
+ * exactly the failure the `jumping` and `reaction` notes in `buildScenario`
+ * above describe. Their stack went 15 + 20 + 20 = 55 to 20 + 20 + 10 = 50. The
+ * fixture is left as it stands and the number re-recorded rather than the rating
+ * added, because ADR-028's dispatch was two changes and no third one; giving
+ * every pass-protecting fixture in the package an explicit `anchor` is a
+ * separate, deliberate pass. `buildStalledPocketScenario` below has the same
+ * hole, and so does the game fixture's TIGHT END (`gameFixtures.ts`, which sets
+ * `passBlock` and `sustain` for him but not `anchor` — the five linemen are
+ * fine, they state it).
  */
 export function buildCleanPocketScenario(): Scenario {
   const base = buildScenario();

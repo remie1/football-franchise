@@ -166,8 +166,13 @@ describe(`zone reach over ${GAMES} games of the fixture corpus`, () => {
     //   INT/game       4.92 / 4.92      man  reps/game 110.6 / 110.6
     //   sacks/game     9.92 / 9.92      points/game     54.1 / 54.1  (both teams)
     // Nothing was tuned to compensate, and nothing needed to be:
-    // `blockerStructuralAdvantage` and `sackWhenNoTarget` are frozen and were
-    // not touched. Every row is unmoved because every route in this corpus
+    // `blockerStructuralAdvantage` and `sackWhenNoTarget` were frozen and were
+    // not touched BY ADR-018. (`blockerStructuralAdvantage` was unfrozen and set
+    // to 0 by ADR-028, jointly with the blocker's third attribute term, several
+    // dispatches after this table was recorded — so the six numbers above are a
+    // record of the ADR-018 comparison and are not current. The fences below are
+    // wide and still hold; the table is history, deliberately left as filed.)
+    // Every row is unmoved because every route in this corpus
     // resolved against the SAME defender it did before: the 70 contested cells
     // are all cells where the nearest claimant is the man exact-match already
     // returned, and no route reached a cell that only a span covers.

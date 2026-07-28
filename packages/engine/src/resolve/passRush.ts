@@ -55,10 +55,22 @@ export function resolvePassRushTick(args: PassRushArgs): PassRushOutcome {
       : undefined,
   ]);
 
+  /**
+   * ADR-028 petition 1. The blocker's third ATTRIBUTE term, and the reason
+   * `t.blockerStructuralAdvantage` is now 0.
+   *
+   * The stack used to be `round(v/5)·2 + BSA`, so the constant's contribution to
+   * the SLOPE of protection against line quality was identically zero: at a
+   * 20-rated line 65.2% of the blocker's edge did not respond to a rating at all.
+   * A third real term replaces those points with points that do. The flat term
+   * below stays in the list — it is still the §7.1 structural dial, it is simply
+   * set to 0, and `compact` drops it from the stream while it is.
+   */
   const blockerMods = compact([
     flatModifier("Protection structural advantage", t.blockerStructuralAdvantage),
     actorAttrModifier(blocker, "Pass Block", ATTR.passBlock, t.blockerAttrDivisor),
     actorAttrModifier(blocker, "Footwork", ATTR.footwork, t.blockerAttrDivisor),
+    actorAttrModifier(blocker, "Anchor", ATTR.anchor, t.blockerAttrDivisor),
     move === t.brickWallMove
       ? traitModifier("Trait: Brick Wall (anchor)", blocker.attributes.traits, TRAIT.brickWall, tunables.traitBonuses.brickWall)
       : undefined,
@@ -90,6 +102,7 @@ export function resolvePassRushTick(args: PassRushArgs): PassRushOutcome {
         ...(move === "SPEED" ? [ATTR.firstStep] : move === "POWER" ? [ATTR.powerMove, ATTR.strength] : [ATTR.finesseMove]),
         ATTR.passBlock,
         ATTR.footwork,
+        ATTR.anchor,
       ],
     },
   };

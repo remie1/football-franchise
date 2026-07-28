@@ -230,9 +230,15 @@ describe("the clock", () => {
  * scanning for a whole-game outcome is not a property of the overtime branch and
  * has to be re-found whenever any resolution changes. Ties are rare (one in
  * 1,500 seeds scanned), which is why the tie seed is a long way out.
+ *
+ * RE-SCANNED AGAIN for ADR-028 (the blocker's `anchor` term, and
+ * `blockerStructuralAdvantage` to 0). Every §7.1 rep in the league now draws a
+ * different modifier total, so `ot-103` is no longer an overtime and the OT seed
+ * moves to `ot-162`. The TIE seed `ot-1465` survived the change untouched, which
+ * is luck rather than evidence — it was re-scanned, not assumed.
  */
 describe("overtime, to the extent a tie requires one", () => {
-  const overtime = simulateGameFor("ot-103");
+  const overtime = simulateGameFor("ot-162");
   const tie = simulateGameFor("ot-1465");
 
   it("a tie at the end of regulation opens a fifth period", () => {

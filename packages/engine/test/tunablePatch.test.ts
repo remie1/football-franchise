@@ -18,11 +18,19 @@ import * as engine from "../src/index.js";
 import { TUNABLES, applyTunablePatch, TunablePatchError } from "../src/tunables.js";
 import type { TunablePatch } from "../src/tunables.js";
 
-/** A well-formed petition against the value the ADR itself uses as its example. */
+/**
+ * A well-formed petition against the value the ADR itself uses as its example.
+ *
+ * `currentValue` is 0 since ADR-028 landed petition 2, and the fact that this
+ * number had to move here is the version check DOING ITS JOB: a patch written
+ * against the old committed 15 is now stale and is refused, which is exactly
+ * what `applyTunablePatch` promises and what the two `/is 0/` assertions below
+ * pin. The dial is still a legal patch target; it is simply no longer 15.
+ */
 function patch(over: Partial<TunablePatch> = {}): TunablePatch {
   return {
     tunableId: "passRush.blockerStructuralAdvantage",
-    currentValue: 15,
+    currentValue: 0,
     proposedValue: 12,
     evidence: "reports/2024-pressure-rate.md",
     expectedEffect: "pressure rate +2pp, sack rate +0.5pp",
@@ -226,7 +234,7 @@ describe("ADR-016 item 2 — DEFAULT_TUNABLES is the constant itself, frozen to 
 
   it("the ADR-012 example value survives a direct assignment through the barrel", () => {
     attemptWrite(engine.DEFAULT_TUNABLES.passRush, "blockerStructuralAdvantage", 12);
-    expect(engine.DEFAULT_TUNABLES.passRush.blockerStructuralAdvantage).toBe(15);
+    expect(engine.DEFAULT_TUNABLES.passRush.blockerStructuralAdvantage).toBe(0);
   });
 
   /**
@@ -239,7 +247,7 @@ describe("ADR-016 item 2 — DEFAULT_TUNABLES is the constant itself, frozen to 
     const next = engine.applyTunablePatch(engine.DEFAULT_TUNABLES, patch());
     expect(next).not.toBe(engine.DEFAULT_TUNABLES);
     expect(next.passRush.blockerStructuralAdvantage).toBe(12);
-    expect(engine.DEFAULT_TUNABLES.passRush.blockerStructuralAdvantage).toBe(15);
+    expect(engine.DEFAULT_TUNABLES.passRush.blockerStructuralAdvantage).toBe(0);
     // A patched copy is a fresh object along the rewritten path — the freeze is
     // a property of the BUILD's tunables, not a property every Tunables carries.
     expect(Object.isFrozen(next.passRush)).toBe(false);
@@ -255,7 +263,7 @@ describe("applyTunablePatch — patches, not edits", () => {
     expect(next).not.toBe(TUNABLES);
     expect(next.passRush.blockerStructuralAdvantage).toBe(12);
     // the argument is untouched, and so is the module's own constant
-    expect(TUNABLES.passRush.blockerStructuralAdvantage).toBe(15);
+    expect(TUNABLES.passRush.blockerStructuralAdvantage).toBe(0);
     expect(JSON.stringify(TUNABLES)).toBe(before);
   });
 
@@ -325,7 +333,12 @@ describe("applyTunablePatch — patches, not edits", () => {
       /stale patch, re-measure before filing/,
     );
     // ...and says what it actually found, so the report can be re-run.
-    expect(() => applyTunablePatch(TUNABLES, patch({ currentValue: 99 }))).toThrow(/is 15/);
+    expect(() => applyTunablePatch(TUNABLES, patch({ currentValue: 99 }))).toThrow(/is 0/);
+    // And the concrete stale patch ADR-028 created: every proposal written
+    // against the pre-ADR-028 committed 15 is now refused rather than applied.
+    expect(() => applyTunablePatch(TUNABLES, patch({ currentValue: 15 }))).toThrow(
+      /is 0, but the patch was written against 15/,
+    );
   });
 
   it("rejects a proposal of the wrong primitive type", () => {

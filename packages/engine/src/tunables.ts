@@ -172,13 +172,38 @@ export const TUNABLES = {
     blockerAttrDivisor: 5,
     /**
      * INTERPRETATION — not in the doc's table. §7.1 gives the rusher two or
-     * three attribute terms and the blocker two, which makes an even matchup
-     * favour the rush by ~15 points and collapses every pocket inside 1.5s.
-     * This flat term represents protection's structural edge (extra blockers,
-     * depth of the drop, the rusher having ground to cover). It is the primary
-     * pressure-rate dial for calibration; set it to 0 for the raw doc formula.
+     * three attribute terms; this flat term represented protection's structural
+     * edge (extra blockers, depth of the drop, the rusher having ground to
+     * cover) and stood in for the blocker's missing third term.
+     *
+     * **0 SINCE ADR-028, COUPLED TO THE `anchor` TERM IN `resolve/passRush.ts`.**
+     * The two changes are one change: the blocker now has three ATTRIBUTE terms
+     * (`passBlock`, `footwork`, `anchor`) instead of two attributes plus a
+     * constant. Never restore a non-zero value here without removing that term,
+     * or the blocker is compensated twice.
+     *
+     * WHY 0 rather than a better constant. ADR-028 swept this dial across its
+     * whole reachable range (0…500, 60 configurations, 496 games each) and there
+     * is no value at which the pressure family is jointly in band: `p→s` is
+     * matched at ~12, `sack_rate` at ~40, `pressure_rate` at ~95, and at 95 only
+     * 0.732% of reps clear margin 1 — the contest stops deciding anything. The
+     * dial is not the pressure-rate lever it was documented as: with the §7.1 rep
+     * extinguished entirely, pressure is still 24.5%, all of it §7.3/§7.4 free
+     * channel. §7.1's entire budget is 4.70pp of a 59.9pp gap.
+     *
+     * WHAT THE CHANGE BOUGHT, and it is not a mean. Pressure 89.144→89.493% and
+     * sack 13.542→14.555% both moved slightly the WRONG way; `pressure_to_sack`
+     * moved 15.191→16.264% against a real 16.371%, the best measured anywhere in
+     * the sweep. The gain is structural: a constant contributes nothing to the
+     * slope of protection against line quality, so at a 20-rated line 65.2% of
+     * the blocker's edge was rating-invariant. It is now 0%, and pressure's
+     * response to line quality is ~2.9× as steep. Tier 1 means are recoverable
+     * later; structural insensitivity is not.
+     *
+     * It remains a live dial and a legal patch target — it is simply no longer
+     * the pressure-rate lever, and `freeRunnerArrivalSeconds` is next in line.
      */
-    blockerStructuralAdvantage: 15,
+    blockerStructuralAdvantage: 0,
     /** "Counter move: +15 if previous tick was stalemate". */
     counterMoveAfterStalemate: 15,
     /** Which rush move each conditional trait bonus attaches to. */
@@ -478,10 +503,14 @@ export const TUNABLES = {
      * live again the moment a mechanic can produce COLLAPSING with an arrived
      * rusher (a free runner off a failed blitz pickup, §7.4, is the obvious one).
      *
-     * CALIBRATION FLAG (raised by the B1 fix, still open). The other implicated
-     * dial, `passRush.blockerStructuralAdvantage`, belongs to the §7.1 KNOWN
-     * ISSUE (term asymmetry) that the design doc defers to Phase 3. Also
-     * untouched. See docs/decisions/CALIBRATION-BACKLOG.md §2, §3.
+     * CALIBRATION FLAG (raised by the B1 fix, still open). `sackWhenNoTarget`
+     * itself remains FROZEN. The other implicated dial,
+     * `passRush.blockerStructuralAdvantage`, was the §7.1 term-asymmetry
+     * compensator and is now 0 (ADR-028) with the asymmetry fixed at its source
+     * — the blocker's third attribute term. That resolved the asymmetry, NOT the
+     * pressure rate: ADR-028 measured §7.1's whole budget at 4.70pp of a 59.9pp
+     * gap and named §7.3/§7.4 as where the rest lives. See
+     * docs/decisions/CALIBRATION-BACKLOG.md §2, §3.
      */
     sackWhenNoTarget: ["COLLAPSING", "IMMEDIATE"],
   },

@@ -5,10 +5,12 @@
  * A REGRESSION FENCE, exactly as `gameMetrics.test.ts` is. The bounds are wide
  * and sit where the engine is, not where the NFL is. Nothing in the blitz
  * dispatch was tuned to move any of these; `blockerStructuralAdvantage` and
- * `sackWhenNoTarget` are frozen for the eleventh dispatch running.
+ * `sackWhenNoTarget` were frozen for the eleventh dispatch running. (ADR-028
+ * later unfroze the first of those and set it to 0; see the CURRENT block.)
  *
  * MEASURED July 2026 over 40 games (seeds `pressure-0`..`pressure-39`), 3,680
- * dropbacks, against the SAME SEEDS before the dispatch:
+ * dropbacks, against the SAME SEEDS before the dispatch — HISTORY, superseded by
+ * the CURRENT block at the foot of this comment:
  *
  *   metric                     before    after     NFL      note
  *   sack rate / dropback       11.86%     9.67%    ~6.9%    fell; see the split
@@ -32,6 +34,48 @@
  * A blitz the quarterback SEES is the safest snap in the sample; one he misses
  * is the most dangerous. That is the mechanic §5.3 exists to produce, and it is
  * the reason the dispatch's brief said the direction was not obvious.
+ *
+ * ============ CURRENT — RE-RECORDED July 2026, ADR-028 ============
+ * ⚠ THE TABLE ABOVE IS HISTORY. It described the blitz dispatch and has been
+ *   overtaken twice since (ADR-026, then this). Read the block below.
+ *
+ * ADR-028 landed two coupled changes in §7.1: the blocker gained a third
+ * ATTRIBUTE term (`anchor`) and `blockerStructuralAdvantage` went 15 → 0. Both
+ * arms below are the SAME 40 seeds (`pressure-0`..`pressure-39`) on the same
+ * fixture, measured against a build with the two changes reverted — a controlled
+ * before/after, not a re-run of the stale header.
+ *
+ *   metric                     before    after     NFL      note
+ *   dropbacks                   3,679     3,684    —        the corpus, for scale
+ *   sack rate / dropback         9.43%     9.39%   ~6.9%    flat
+ *   pressure rate / dropback    93.75%    93.92%  ~29.2%    flat; see below
+ *   pressure→sack ratio          0.101     0.100   ~0.236   flat
+ *   blitz rate                  32.84%    32.60%   ~25%     a property of the CARDS
+ *   stunt-win rate (OL fails)   28.66%    29.04%   —        642 / 644 twists
+ *   pickup lost rate            44.25%    44.72%   —        1,505 / 1,496 contests
+ *   recognition rate            71.27%    71.36%   —        1,208 / 1,201 blitzes
+ *   hot-route rate / dropback   17.67%    17.56%   —        650 / 647 conversions
+ *   completion %                42.59%    42.27%   ~65%     entries 1 and 3
+ *
+ * The split, re-recorded, and the ORDERING the file exists to protect survives:
+ *
+ *   no blitz                  2,471 → 2,483 plays   11.01% → 11.16% sack
+ *   blitz, recognised, hot      650 →   647 plays    4.46% →  4.33% sack
+ *   blitz, recognised, no hot   211 →   210 plays    0.95% →  0.48% sack
+ *   blitz, MISSED pre-snap      347 →   344 plays   12.68% → 11.63% sack
+ *
+ * WHY EVERY ROW IS FLAT, and it is not because nothing happened. On THIS corpus
+ * the linemen are rated `passBlock` 78-81, `footwork` 74-77 and `anchor` 78-81,
+ * so `anchor` sits almost exactly at the mean of the other two — and ADR-028's
+ * algebra says that is precisely the case where three terms and two-terms-plus-a
+ * constant are the same function. A flat league cannot distinguish the two
+ * hypotheses; that is the ADR's central finding, and this table is it happening.
+ * The change is visible only against SPREAD line quality, which this fixture does
+ * not have and `packages/calibration`'s archetype ladders do.
+ *
+ * NOTHING HERE WAS TUNED. `sackWhenNoTarget` and `freeRunnerArrivalSeconds`
+ * remain frozen (seventeenth dispatch); `blockerStructuralAdvantage` is no longer
+ * frozen but was moved by ratified petition, to 0, and to nothing else.
  * =======================================================
  */
 import { describe, expect, it } from "vitest";

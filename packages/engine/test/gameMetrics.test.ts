@@ -10,7 +10,7 @@
  * arrival or force a tuning change smuggled inside a feature dispatch.
  *
  * ⚠ THE TABLE IMMEDIATELY BELOW IS THE FIRST MEASUREMENT AND IS HISTORY. The
- *   CURRENT numbers are the third block, at the bottom of this comment.
+ *   CURRENT numbers are the FOURTH block, at the bottom of this comment.
  *
  * Measured over 12 games (seeds `metrics-0`..`metrics-11`), July 2026:
  *
@@ -52,7 +52,7 @@
  * `pressureMetrics.test.ts`. Nothing here was tuned.
  * ---------------------------------------------------------------------------
  *
- * ============ CURRENT — RE-MEASURED July 2026, THIRTEENTH DISPATCH ============
+ * ============ RE-MEASURED July 2026, THIRTEENTH DISPATCH (HISTORY) ============
  * Same 12 seeds, same fixture, the whole table this time rather than the eight
  * rows the block above happened to touch. RE-RECORDED BECAUSE THE HEADER HAD
  * STOPPED BEING TRUE: the second block re-measured the passing and rushing rows
@@ -86,6 +86,44 @@
  * denominators are small (39/52 field goals, 88/90 extra points, 145 punts over
  * twelve games), so FG% in particular is three kicks wide: read the direction,
  * not the digits. Fenced, logged, and left for calibration.
+ *
+ * ============ CURRENT — RE-RECORDED July 2026, ADR-028 ============
+ * Same 12 seeds, same fixture. Both columns are MEASURED here: the "before"
+ * column is this build with ADR-028's two coupled §7.1 changes reverted, on the
+ * same seeds — so this is a controlled before/after rather than a diff against
+ * the block above.
+ *
+ * ⚠ AND THE BLOCK ABOVE HAD ALREADY GONE STALE BEFORE THIS DISPATCH TOUCHED
+ *   ANYTHING. Measured on the pre-ADR-028 build, points/team is 31.6 not 31.5,
+ *   FG% is 78.8% (41/52) not 75.0%, XP% is 98.9% (89/90) not 97.8% (88/90), YPC
+ *   is 9.79 not 9.72. ADR-026 moved them and the header was not re-recorded. The
+ *   thirteenth dispatch's own warning — "a stale fence reads as a measurement" —
+ *   applied to the block that wrote it, one dispatch later.
+ *
+ *   metric                 before    after     NFL         verdict
+ *   points/team            31.6      32.3      22.5        HIGH — backlog 11-14
+ *   drives/game            31.08     31.25     22-24       HIGH — short drives
+ *   plays/game             137.17    138.00    ~128        close
+ *   plays/drive            4.41      4.42      ~5.9        LOW — completion rate
+ *   three-and-out rate     26.8%     27.2%     ~24%        close
+ *   points/drive           2.03      2.07      ~2.0        close
+ *   time of possession     3480s     3477s     ~3540       close; no OB model
+ *   completion %           48.6%     48.5%     ~65%        LOW — backlog 3
+ *   yards per carry        9.79      10.04     ~4.3        HIGH — backlog 11-14
+ *   sacks/game             10.50     10.33     ~4.6        HIGH — backlog 3
+ *   INT/game               4.25      4.08      ~1.4        HIGH — backlog 5/6
+ *   FG%                    78.8%     78.4%     ~84%        LOW — 40/51 vs 41/52
+ *   XP%                    98.9%     97.8%     ~94%        close — 91/93 vs 89/90
+ *   punt gross             48.0      48.1      ~46.5       close
+ *
+ * NOTHING WAS TUNED TO MOVE ANY OF THESE. ADR-028 changed exactly one number
+ * (`passRush.blockerStructuralAdvantage` 15 → 0) and it changed it only jointly
+ * with the blocker's third attribute term, by ratified petition, on a structural
+ * argument that explicitly expects the Tier 1 means NOT to improve. Every row
+ * here is flat to within its own denominator, which is the predicted result on a
+ * league whose linemen all rate `anchor` at roughly the mean of `passBlock` and
+ * `footwork` — see the note in `pressureMetrics.test.ts`. `sackWhenNoTarget` and
+ * `freeRunnerArrivalSeconds` remain frozen.
  * =======================================================
  */
 import { describe, expect, it } from "vitest";
@@ -237,8 +275,10 @@ describe("special teams, new in this dispatch and closest to reality of anything
   });
 
   it("extra-point percentage is near the league's", () => {
-    // ⚠ TIGHT. Measured 0.978 (88/90) against an upper fence of 0.99, so ONE
-    // more made kick in twelve games trips this. Recorded rather than widened:
+    // ⚠ TIGHT. Measured 0.978 (91/93 as of ADR-028; 88/90 when this was written,
+    // and 89/90 = 0.989 on the pre-ADR-028 build — it has been within one kick of
+    // the fence the whole time) against an upper fence of 0.99, so ONE more made
+    // kick in twelve games trips this. Recorded rather than widened:
     // the fence is where it is on purpose and moving it to make room is exactly
     // the "tuning smuggled into a feature dispatch" this file forbids. If it
     // does trip, re-measure first and widen deliberately, with the number.

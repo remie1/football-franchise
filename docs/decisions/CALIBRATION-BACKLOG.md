@@ -47,17 +47,29 @@ requires a calibration report, not an opinion.
 
 ## 2. Sack rate 56% vs. NFL ~6.5% — TOP PRIORITY, blocks entry 1
 
-> ### ⛔ PROHIBITION — do not tune §7.1/§7.2's conversion terms to chase sack rate.
+> ### ⛔ PROHIBITION — REWRITTEN July 2026 after the ADR-027 sweep refuted its reasoning.
 >
-> They are already right. `pressure_to_sack` measures **15.32% against a real 16.37%**
-> (`baseline-0002`). Every sim sack sits on a pressured dropback by construction, so sim
-> `pressure_to_sack ≡ sack_rate ÷ pressure_rate` exactly — **the entire sack excess is a
-> pressure-RATE excess.** At the real 29.23% pressure rate with the sim's own conversion, sack
-> rate lands at **4.48%, BELOW the real 6.90%.**
+> **The original said:** *"do not tune §7.1/§7.2's conversion terms to chase sack rate — they are
+> already right, and at the real 29.23% pressure rate with the sim's own conversion, sack rate
+> lands at 4.48%."* **That counterfactual is arithmetically true and causally false.** Measured at
+> the pressure-matching value: pressure 29.446%, **sack 1.839%.** The prohibition was telling a
+> future dispatch not to touch the right thing **for the wrong reason.**
 >
-> Written into the entry rather than filed as a note for a specific reason: **sack rate is the
-> visible number and conversion is the obvious lever.** The next person to look will reach for
-> it. See entry 26.
+> **The surviving true statement, and it is narrower:**
+>
+> > **Do not treat conversion as fixed under intervention.** A lever that changes pocket *severity*
+> > changes conversion as well as rate, and **any counterfactual computed by holding conversion
+> > constant is arithmetic, not prediction.**
+>
+> `pressure_to_sack ≡ sack_rate ÷ pressure_rate` is an **identity, not an invariance.** The
+> ADR-027 sweep moved it 15.191% → 6.247% by moving one rate lever, because `RUSHER_WINS_REP` fell
+> from 29.581% of reps to 0.015% — what remains is `PRESSURE` rather than `COLLAPSING`, and a sack
+> needs an arrival.
+>
+> **Still true and still worth the space:** conversion currently measures **15.19% against a real
+> 16.37%** and is the closest Tier 1 row in the library, so **do not reach for it as the obvious
+> lever** — sack rate is the visible number and conversion is the tempting dial. Reach for it only
+> with a measurement that does *not* hold the other rate fixed.
 
 **Status changed July 2026.** This entry previously read "3.2%, expected under-count."
 Fixing the pocket-status defect (§7.2's single-won-rep rule was never implemented; one
@@ -163,10 +175,15 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
 > (slope −0.120 pp/pt at 15, −1.181 at 75–90). A ladder chosen by eye at 10/15/20/25 would have
 > read 0.6pp and concluded the term barely matters. §22d's map-first rule is what caught it.
 
-> ### ⛔ PROHIBITION — same as entry 2, and this entry is the actual lever.
+> ### ⛔ PROHIBITION — carries entry 2's REWRITTEN form. Read it there.
 >
-> **⚠ The second clause is now KNOWN FALSE — see the sweep result above. The prohibition on
-> tuning §7.1/§7.2 *conversion* terms stands; "and this entry is the lever" does not.**
+> **Do not treat conversion as fixed under intervention.** A lever that changes pocket severity
+> changes conversion as well as rate; a counterfactual that holds conversion constant is
+> arithmetic, not prediction.
+>
+> **⚠ And the second clause of the original — "this entry is the actual lever" — is KNOWN FALSE.**
+> §7.1's entire budget is 4.70pp of a 59.9pp gap. §7.3/§7.4 own the pressure problem; §7.1 never
+> did. See the sweep result above.
 >
 > Do not tune §7.1/§7.2's **conversion** terms to chase sack rate; entry 26 shows the conversion
 > is already correct. **This entry — whatever produces 88.68% pressure against a real 29.23% —
@@ -610,6 +627,75 @@ and 18 to read "or against the corpus."**
 - **`anchor` is the one live petition here**, and it is already the subject of
   [ADR-028](ADR-028-the-constant-is-not-the-pressure-lever.md) petition 1, which adds it to §7.1's
   blocker terms.
+
+## 32. `anchor` going live left every fixture that omits it rolling the 50 fallback
+
+- ADR-028 made `anchor` a real §7.1 blocker term. **Fixtures that state `passBlock`/`footwork` and
+  say nothing about `anchor` now silently roll `getAttr`'s absent-id fallback of 50.**
+- **Measured:** `buildCleanPocketScenario`'s two "wall" blockers went from a 55-point stack to 50,
+  and the fixture's non-CLEAN-by-tick-1.0 rate moved **21.2% → 26.8%**. Same hole in
+  `buildStalledPocketScenario`, and in `gameFixtures.ts`'s **tight end** — the five linemen do
+  state it.
+- **Deliberately deferred, and correctly:** adding the ratings would have been a third change
+  inside a two-petition dispatch, and it changes the corpus, which would invalidate the tables
+  just recorded. Named at the sites in `test/fixtures.ts`.
+- **The general shape is worth keeping:** an attribute going from dead to live silently re-rates
+  every fixture that never had a reason to mention it. **The 50 fallback is doing exactly its job
+  and that is the problem** — it makes the omission invisible. Any future petition that makes a
+  registered-but-unread attribute live should expect this and budget a fixture pass.
+
+## 33. `ol-passblock-sack-rate`'s record is now wrong in three ways — the gate is green, its
+description is not
+
+The one known-truth gate designed to see the ADR-028 slope change did see it, and its own record
+did not keep up. Measured read-only by the engine dispatch (digest unchanged, `fnv1a:e52f06b6#80`,
+monotone and effect-floor both still pass):
+
+| rung | recorded | measured now |
+|---|---|---|
+| 20 | 0.2629 | **0.2808** |
+| 45 | 0.2175 | **0.2433** |
+| 70 | 0.1716 | **0.1717** |
+| 95 | 0.1353 | **0.1208** |
+| effect | 0.1276 | **0.1600** |
+| steps | 0.0435 / 0.0390 / 0.0393 | **0.0375 / 0.0716 / 0.0510** |
+
+1. **The effect grew 25%** (0.1276 → 0.1600) — the slope change showing up in the one instrument
+   built to detect it.
+2. **The hypothesis over-claims, in a new way.** It said four attributes; it was **two** (`anchor`
+   and `sustain` both inert). It is now **three** — `anchor` is live, `sustain` is still not read
+   by §7.1. The text also still describes the "+15 structural constant" as present, and it is 0.
+3. **"No saturation anywhere, every step worth the same" is now FALSE.** The rungs were chosen
+   *because* the response was straight (0.0435/0.0390/0.0393) and it no longer is
+   (0.0375/**0.0716**/0.0510).
+- **`recordedStepSE` must be re-derived across independent seed sets**, per §22a — one run cannot
+  produce an SE, and §22a's whole point is that the noise margin is measured rather than assumed.
+  **Do not re-record from a single run.**
+
+## 31. Stringly-typed tunables attribute references should become typed
+
+**Second evasion of a static check, so this stops being caught by hand.**
+
+- **Occurrence 1 (V2, guardian audit).** `attrs.ts` promised that a killed or renamed attribute
+  would fail loudly at import. It did — for the ~45 ids in `ATTR`. Most attribute references had
+  moved into `TUNABLES` as `{ attr: "..." }` strings resolved lazily at roll time, so a rename
+  would have thrown **mid-simulation**, deep inside a calibration batch. Fixed by a load-time sweep
+  that walks the tunables tree and validates all 64.
+- **Occurrence 2 (ADR-027 sweep).** A dead-attribute audit grepped `ATTR.anchor|ATTR.sustain` and
+  reported **both** dead. `sustain` is live at `tunables.ts:1360` as `{ attr: "sustain",
+  divisor: 5 }`. The grep could not see it. Only `anchor` was actually dead (entry 30).
+- **The pattern:** every static tool — grep, find-references, an IDE rename, a future
+  dead-code pass — is blind to these, and the load-time sweep is the *only* thing that sees them.
+  That sweep catches *unresolvable* references; it cannot answer "is this attribute used" or
+  "rename this attribute everywhere."
+- **Proposal:** make the term lists carry `AttrId` rather than `string` — the ids already exist in
+  `ATTR`, so the change is mechanical, and Charter §4.1 says prefer the compile error. The cost is
+  that `TUNABLES` stops being pure data, which is a real objection: a `Tunables` holding branded
+  ids is harder to serialise into a patch record (§6) or a report. **That tension is the decision**,
+  and it should be an ADR rather than a dispatch call.
+- Until then: **any audit touching attribute usage must walk the tunables tree**, and `attrs.ts`'s
+  existing load-time sweep — which already resolves all 64 references — is the instrument to reuse
+  rather than reimplement.
 
 ## 21a. The worker pool is deferred — and here is the trigger that ends the deferral
 

@@ -102,18 +102,46 @@ describe("§13 — a catch is no longer the end of the play", () => {
 });
 
 describe("§13.2 + §10.5 — both accuracy effects are applied, because the doc states both", () => {
+  /**
+   * TWO THINGS THIS ASSERTION USED TO GET AWAY WITH, both surfaced when ADR-028
+   * moved every stream and are fixed rather than re-seeded:
+   *
+   *  1. §13.2's throw-type row is worth 0 for `BACK_SHOULDER` and `THROWAWAY`,
+   *     and a zero-valued modifier is dropped by `compact` everywhere in the
+   *     engine. "The source is always present" was never the property; present
+   *     exactly when the table says non-zero is. The condition is READ from the
+   *     tunable rather than hard-coded, so re-tuning the row cannot desync it.
+   *  2. Not every first `yac_tackle` on a dropback belongs to a CATCH. A tucked
+   *     scramble and an offensive tip recovery are ball carriers too (§13's whole
+   *     point) and they carry no catch-transition modifier because no catch
+   *     happened. The sample is now narrowed to the carrier who was THROWN to.
+   */
   it("§13.2's catch-transition modifier is a NAMED modifier on the zone-1 roll", () => {
+    const byThrowType = TUNABLES.ballCarrier.catchTransition.byThrowType;
     let seen = 0;
-    for (let i = 0; i < 400 && seen < 5; i++) {
+    let typed = 0;
+    for (let i = 0; i < 400 && (seen < 5 || typed < 5); i++) {
       const { state, calls } = buildCleanPocketScenario();
       const { events } = simulatePassPlay(state, calls, `mod-${i}`);
       const zone1 = checks(events, "yac_tackle")[0];
-      if (zone1?.event.type !== "CHECK") continue;
+      const thrown = events.find(({ event }) => event.type === "THROW");
+      if (zone1?.event.type !== "CHECK" || thrown?.event.type !== "THROW") continue;
+      const throwType = thrown.event.payload.throwType;
+      const target = thrown.event.payload.target;
+      const caught = events.some(
+        ({ event }) =>
+          event.type === "CATCH_RESOLUTION" && event.payload.caught && event.payload.receiver === target,
+      );
+      // Only the thrown-to receiver's own first zone carries §13.2's transition.
+      if (!caught || zone1.event.payload.actors[0] !== target) continue;
       const sources = zone1.event.payload.roll.modifiers.map((m) => m.source);
       if (sources.some((s) => s.includes("Catch transition"))) seen += 1;
-      expect(sources.some((s) => s.includes("caught (§13.2)"))).toBe(true);
+      const expected = byThrowType[throwType] !== 0;
+      if (expected) typed += 1;
+      expect(sources.some((s) => s === `${throwType} caught (§13.2)`)).toBe(expected);
     }
     expect(seen).toBeGreaterThan(0);
+    expect(typed).toBeGreaterThan(0);
   });
 
   it("§10.5's 'No YAC' for a BAD ball is literally zero yards after the catch", () => {
