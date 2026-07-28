@@ -13,11 +13,12 @@
  *   roles.ts        personnel grouping → the exact eleven, as types
  *   alignment.ts    where a man stands; eligibility; receiver numbering
  *   formations.ts   twelve base looks, mirrorable
+ *   coverage.ts     named zone responsibilities and the shapes they have
  *   routes.ts       the route library, and the REQUIRED break zone
  *   passConcepts.ts twenty-eight dropbacks
  *   runConcepts.ts  sixteen designed runs
  *   defense.ts      duties, man targets, mirroring
- *   defensiveCards  twenty-one fronts/coverages/pressures
+ *   defensiveCards  twenty-two fronts/coverages/pressures
  *   protection.ts   protection schemes and blitz pickup
  *   personnel.ts    depth chart → bound personnel package
  *   instantiate.ts  template + personnel → contracts play calls
@@ -29,6 +30,7 @@ export const PLAYBOOK_VERSION = "0.1.0";
 
 export * from "./roles.js";
 export * from "./alignment.js";
+export * from "./coverage.js";
 export * from "./routes.js";
 export * from "./formations.js";
 export * from "./protection.js";

@@ -8,7 +8,7 @@
  * state without pretending a check failed.
  */
 import { createRng, getAttr } from "@ff/contracts";
-import type { MatchEventEnvelope } from "@ff/contracts";
+import type { MatchEventEnvelope, PlayerId } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import { ATTR } from "../src/attrs.js";
 import { simulatePassPlay } from "../src/index.js";
@@ -17,6 +17,7 @@ import {
   routeZone,
   sameZone,
   verticalZoneForAirYards,
+  zoneAssignmentCovers,
   zoneDefenderFor,
   zoneDistance,
 } from "../src/resolve/zone.js";
@@ -28,10 +29,16 @@ import {
   zoneCoverageBandFor,
 } from "../src/resolve/zoneCoverage.js";
 import { TUNABLES } from "../src/tunables.js";
-import type { CoverageAssignment, FieldZone, RouteAssignment } from "../src/types.js";
+import type {
+  CoverageAssignment,
+  FieldZone,
+  RouteAssignment,
+  ZoneAssignment,
+} from "../src/types.js";
 import {
   baseReceivers,
   buildMixedCoverageScenario,
+  buildOverlappingZoneScenario,
   buildScenario,
   buildZoneScenario,
   makePlayer,
@@ -90,13 +97,238 @@ describe("§3 field model — what is derived and what is faked", () => {
       { kind: "ZONE", defender: DEEP_ZONE_DB.bio.id, zone: { horizontal: "RW", vertical: "DEEP" } },
       { kind: "ZONE", defender: SOFT_ZONE_LB.bio.id, zone: { horizontal: "C", vertical: "SHORT" } },
     ];
-    expect(zoneDefenderFor(assignments, { horizontal: "C", vertical: "SHORT" })?.defender).toBe(
-      SOFT_ZONE_LB.bio.id,
-    );
-    // Adjacent is NOT the same zone: §9.4 asks the literal question.
-    expect(zoneDefenderFor(assignments, { horizontal: "RH", vertical: "SHORT" })).toBeUndefined();
+    expect(
+      zoneDefenderFor(TUNABLES, assignments, { horizontal: "C", vertical: "SHORT" })?.defender,
+    ).toBe(SOFT_ZONE_LB.bio.id);
+    // Adjacent is NOT the same zone: §9.4 asks the literal question, and a card
+    // that states no span still covers exactly its anchor cell.
+    expect(
+      zoneDefenderFor(TUNABLES, assignments, { horizontal: "RH", vertical: "SHORT" }),
+    ).toBeUndefined();
   });
 });
+
+// --- ADR-018 petition 1: a zone is a REGION ---------------------------------
+
+describe("ADR-018 — a zone defender covers a region, not a cell", () => {
+  const anchor: FieldZone = { horizontal: "C", vertical: "INTERMEDIATE" };
+
+  const zoneAt = (
+    defender: PlayerId,
+    zone: FieldZone,
+    spans: { laneSpan?: number; depthSpan?: number } = {},
+  ): ZoneAssignment => ({ kind: "ZONE", defender, zone, ...spans });
+
+  it("BASELINE — both spans absent is the anchor cell and nothing else", () => {
+    // The additive guarantee the petition was approved on: every card and every
+    // call site written before spans existed resolves exactly as it did.
+    const a = zoneAt(SOFT_ZONE_LB.bio.id, anchor);
+    expect(zoneAssignmentCovers(TUNABLES, a, anchor)).toBe(true);
+    for (const cell of NEIGHBOURS_OF_C_INTERMEDIATE) {
+      expect(zoneAssignmentCovers(TUNABLES, a, cell)).toBe(false);
+    }
+  });
+
+  it("laneSpan widens ACROSS the field and leaves depth alone (a curl/flat)", () => {
+    const a = zoneAt(SOFT_ZONE_LB.bio.id, { horizontal: "RW", vertical: "SHORT" }, { laneSpan: 1 });
+    expect(zoneAssignmentCovers(TUNABLES, a, { horizontal: "RW", vertical: "SHORT" })).toBe(true);
+    expect(zoneAssignmentCovers(TUNABLES, a, { horizontal: "RH", vertical: "SHORT" })).toBe(true);
+    // Two lanes over is outside it...
+    expect(zoneAssignmentCovers(TUNABLES, a, { horizontal: "C", vertical: "SHORT" })).toBe(false);
+    // ...and one band deeper in his own lane is too: the spans are independent.
+    expect(zoneAssignmentCovers(TUNABLES, a, { horizontal: "RW", vertical: "INTERMEDIATE" })).toBe(
+      false,
+    );
+  });
+
+  it("depthSpan widens DOWN the field and leaves lanes alone (a deep third)", () => {
+    const a = zoneAt(DEEP_ZONE_DB.bio.id, { horizontal: "LW", vertical: "DEEP" }, { depthSpan: 1 });
+    expect(zoneAssignmentCovers(TUNABLES, a, { horizontal: "LW", vertical: "INTERMEDIATE" })).toBe(
+      true,
+    );
+    expect(zoneAssignmentCovers(TUNABLES, a, { horizontal: "LW", vertical: "VERY_DEEP" })).toBe(true);
+    expect(zoneAssignmentCovers(TUNABLES, a, { horizontal: "LH", vertical: "DEEP" })).toBe(false);
+  });
+
+  it("the region is a RECTANGLE, not a radius — the corners are inside it", () => {
+    // Chebyshev, not Euclidean: a defender spanning one lane and one band owns
+    // the diagonal cell too, which is the same metric §3.3 counts "adjacent" by.
+    const a = zoneAt(DEEP_ZONE_DB.bio.id, anchor, { laneSpan: 1, depthSpan: 1 });
+    for (const cell of NEIGHBOURS_OF_C_INTERMEDIATE) {
+      expect(zoneAssignmentCovers(TUNABLES, a, cell)).toBe(true);
+    }
+    expect(zoneAssignmentCovers(TUNABLES, a, { horizontal: "LW", vertical: "SHORT" })).toBe(false);
+  });
+
+  it("THE CASE THE PETITION WAS FILED ON: a Cover 2 corner reaches one band deeper", () => {
+    // Before spans this returned undefined, and the route was uncovered BY
+    // CONSTRUCTION rather than by design — a hole nobody drew.
+    const flat: FieldZone = { horizontal: "RW", vertical: "SHORT" };
+    const deeper: FieldZone = { horizontal: "RW", vertical: "INTERMEDIATE" };
+    const point: CoverageAssignment[] = [zoneAt(DEEP_ZONE_DB.bio.id, flat)];
+    const region: CoverageAssignment[] = [zoneAt(DEEP_ZONE_DB.bio.id, flat, { depthSpan: 1 })];
+    expect(zoneDefenderFor(TUNABLES, point, deeper)).toBeUndefined();
+    expect(zoneDefenderFor(TUNABLES, region, deeper)?.defender).toBe(DEEP_ZONE_DB.bio.id);
+  });
+
+  it("a span cannot be negative: a defender always covers the cell he stands in", () => {
+    const a = zoneAt(SOFT_ZONE_LB.bio.id, anchor, { laneSpan: -3, depthSpan: -1 });
+    expect(zoneAssignmentCovers(TUNABLES, a, anchor)).toBe(true);
+    expect(
+      zoneAssignmentCovers(TUNABLES, a, { horizontal: "RH", vertical: "INTERMEDIATE" }),
+    ).toBe(false);
+  });
+
+  it("a fractional span is floored — the grid counts whole cells", () => {
+    const a = zoneAt(SOFT_ZONE_LB.bio.id, anchor, { laneSpan: 1.9 });
+    expect(zoneAssignmentCovers(TUNABLES, a, { horizontal: "LH", vertical: "INTERMEDIATE" })).toBe(
+      true,
+    );
+    expect(zoneAssignmentCovers(TUNABLES, a, { horizontal: "LW", vertical: "INTERMEDIATE" })).toBe(
+      false,
+    );
+  });
+
+  it("the region test and §3.3's distance are ONE measure, over the whole grid", () => {
+    // The pin that stops a second copy of §3.1/§3.2 appearing. A square region
+    // of span n is exactly the set of cells within §3.3 distance n, so if
+    // `zoneAssignmentCovers` ever restates the orderings locally, or swaps
+    // Chebyshev for anything else, this fails on 25 x 25 x 5 cases.
+    for (const anchorCell of ALL_CELLS) {
+      for (const cell of ALL_CELLS) {
+        for (let span = 0; span <= 4; span++) {
+          const a = zoneAt(SOFT_ZONE_LB.bio.id, anchorCell, { laneSpan: span, depthSpan: span });
+          expect(zoneAssignmentCovers(TUNABLES, a, cell)).toBe(
+            zoneDistance(TUNABLES, anchorCell, cell) <= span,
+          );
+        }
+      }
+    }
+  });
+
+  it("a span of 4 owns the whole field — twenty-five cells, not one", () => {
+    const a = zoneAt(DEEP_ZONE_DB.bio.id, { horizontal: "LW", vertical: "BACKFIELD" }, { laneSpan: 4, depthSpan: 4 });
+    const covered = ALL_CELLS.filter((c) => zoneAssignmentCovers(TUNABLES, a, c));
+    expect(covered).toHaveLength(25);
+  });
+});
+
+describe("ADR-018 — the ruling when more than one defender covers the cell", () => {
+  const cell: FieldZone = { horizontal: "RH", vertical: "INTERMEDIATE" };
+
+  /** A curl/flat stretching up to it, and a hook dropper standing on it. */
+  const stretching: CoverageAssignment = {
+    kind: "ZONE",
+    defender: DEEP_ZONE_DB.bio.id,
+    zone: { horizontal: "RW", vertical: "SHORT" },
+    laneSpan: 1,
+    depthSpan: 1,
+  };
+  const standingOnIt: CoverageAssignment = {
+    kind: "ZONE",
+    defender: SOFT_ZONE_LB.bio.id,
+    zone: cell,
+    laneSpan: 1,
+  };
+
+  it("the man whose ANCHOR is nearest plays it, whatever order the card lists them in", () => {
+    // §3.3's own cell distance is the measure. Both defenders reach the cell;
+    // one is standing in it and one is reaching two cells for it.
+    expect(zoneDefenderFor(TUNABLES, [stretching, standingOnIt], cell)?.defender).toBe(
+      SOFT_ZONE_LB.bio.id,
+    );
+    expect(zoneDefenderFor(TUNABLES, [standingOnIt, stretching], cell)?.defender).toBe(
+      SOFT_ZONE_LB.bio.id,
+    );
+  });
+
+  it("an equal distance breaks on DECLARATION ORDER — deterministic, and no die", () => {
+    // ADR-005: nothing is asserted that no roll produced, so the tie is resolved
+    // by the card's own ordering rather than by inventing a coin flip.
+    const left: CoverageAssignment = {
+      kind: "ZONE",
+      defender: DEEP_ZONE_DB.bio.id,
+      zone: { horizontal: "C", vertical: "INTERMEDIATE" },
+      laneSpan: 1,
+    };
+    const right: CoverageAssignment = {
+      kind: "ZONE",
+      defender: SOFT_ZONE_LB.bio.id,
+      zone: { horizontal: "RW", vertical: "INTERMEDIATE" },
+      laneSpan: 1,
+    };
+    expect(zoneDefenderFor(TUNABLES, [left, right], cell)?.defender).toBe(DEEP_ZONE_DB.bio.id);
+    expect(zoneDefenderFor(TUNABLES, [right, left], cell)?.defender).toBe(SOFT_ZONE_LB.bio.id);
+  });
+
+  it("the second claimant is NOT resolved: one rep, because §9.4 rolls one", () => {
+    // Deliberately not a bracket. The doc gives the receiver one target number
+    // from one defender's Zone Coverage rating; a second rep, a modifier, or a
+    // combined target would all be mechanics no rule in the doc produces.
+    const { state, calls } = buildOverlappingZoneScenario();
+    for (let i = 0; i < 60; i++) {
+      const { events } = simulatePassPlay(state, calls, `overlap-${i}`);
+      const perReceiver = new Map<string, number>();
+      for (const { event } of checksOf(events, "zone_coverage")) {
+        if (event.type !== "CHECK") continue;
+        const receiver = String(event.payload.actors[0]);
+        perReceiver.set(receiver, (perReceiver.get(receiver) ?? 0) + 1);
+      }
+      for (const count of perReceiver.values()) expect(count).toBe(1);
+    }
+  });
+
+  it("over a real stream, the nearest man rolls it — not the first one listed", () => {
+    // The fixture lists the stretching corner FIRST on purpose, so a first-match
+    // rule and the nearest-anchor rule name different defenders and the stream
+    // says which one actually played the route.
+    const { state, calls } = buildOverlappingZoneScenario();
+    const dig = calls.offense.routes.find((r) => r.depthClass === "INTERMEDIATE");
+    const stretching = calls.defense.assignments[0]?.defender;
+    const standingOnIt = calls.defense.assignments[1]?.defender;
+    if (dig === undefined || stretching === undefined || standingOnIt === undefined) {
+      throw new Error("bad fixture");
+    }
+    let reps = 0;
+    for (let i = 0; i < 60; i++) {
+      const { events } = simulatePassPlay(state, calls, `nearest-${i}`);
+      for (const { event } of checksOf(events, "zone_coverage")) {
+        if (event.type !== "CHECK") continue;
+        if (String(event.payload.actors[0]) !== String(dig.receiver)) continue;
+        expect(String(event.payload.actors[1])).toBe(String(standingOnIt));
+        expect(String(event.payload.actors[1])).not.toBe(String(stretching));
+        reps += 1;
+      }
+    }
+    expect(reps).toBeGreaterThan(0);
+  });
+
+  it("with every span 0 the ruling is a NO-OP: the old exact-match answer, exactly", () => {
+    // The additive guarantee, stated over the selector rather than the predicate.
+    const assignments: CoverageAssignment[] = [
+      { kind: "ZONE", defender: DEEP_ZONE_DB.bio.id, zone: cell },
+      { kind: "ZONE", defender: SOFT_ZONE_LB.bio.id, zone: cell },
+    ];
+    expect(zoneDefenderFor(TUNABLES, assignments, cell)?.defender).toBe(DEEP_ZONE_DB.bio.id);
+  });
+});
+
+/** Every cell of the §3 grid, in the orderings §3.1 and §3.2 state. */
+const ALL_CELLS: readonly FieldZone[] = TUNABLES.zoneModel.horizontalOrder.flatMap((horizontal) =>
+  TUNABLES.zoneModel.verticalOrder.map((vertical) => ({ horizontal, vertical })),
+);
+
+/** The eight cells around C/INTERMEDIATE — every one of them on the 5x5 grid. */
+const NEIGHBOURS_OF_C_INTERMEDIATE: readonly FieldZone[] = [
+  { horizontal: "LH", vertical: "SHORT" },
+  { horizontal: "C", vertical: "SHORT" },
+  { horizontal: "RH", vertical: "SHORT" },
+  { horizontal: "LH", vertical: "INTERMEDIATE" },
+  { horizontal: "RH", vertical: "INTERMEDIATE" },
+  { horizontal: "LH", vertical: "DEEP" },
+  { horizontal: "C", vertical: "DEEP" },
+  { horizontal: "RH", vertical: "DEEP" },
+];
 
 describe("§9.4 route into a zone", () => {
   const resolve = (defender = DEEP_ZONE_DB, seed = "z1"): ReturnType<typeof resolveZoneCoverage> =>

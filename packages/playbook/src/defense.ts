@@ -17,13 +17,13 @@
  * roles, so a card that forgets the strong safety does not compile. Eleven men, by
  * the type system rather than by a count in a validator.
  *
- * WHAT A DUTY CANNOT SAY, and it is a real limit: a `ZoneAssignment` covers exactly
- * ONE cell of the 5x5 grid, and `zoneDefenderFor` in the engine matches cells
- * exactly. So seven zone defenders cover seven of twenty-five cells and a route
- * breaking one band deeper than the man responsible for it is uncovered. Real zones
- * are regions. Petitioned as ADR-018; until then, `defensiveCards.ts` places
- * defenders on the cells the corpus's routes actually break into, and
- * `test/corpus.test.ts` measures what fraction that is rather than assuming it.
+ * A ZONE DUTY IS A REGION, NOT A POINT (ADR-018 §Petition 1, landed). Every zone
+ * duty states a named responsibility out of `coverage.ts`'s closed vocabulary, and
+ * the responsibility supplies the band and both spans. The three fields are REQUIRED
+ * here where contracts has two of them optional, for exactly the reason
+ * `RouteSpec.breakZone` is required: an omitted span means one cell of twenty-five,
+ * which is the modelling failure the petition existed to end, and a silent default in
+ * a corpus is invisible in the output.
  */
 import type {
   CoverageTechnique,
@@ -35,6 +35,7 @@ import type {
   RushMove,
 } from "@ff/contracts";
 import { mirrorLane, mirrorSide } from "./alignment.js";
+import type { ZoneRegion } from "./coverage.js";
 import type { DefensePersonnel, DefenseRole, DefenseRoleOf } from "./roles.js";
 import { DEFENSE_ROLES } from "./roles.js";
 import type { SituationalUsage } from "./distribution.js";
@@ -65,25 +66,44 @@ export type ManTarget =
  * there"; leaving it implicit would mean a silent default, and the whole point of
  * Charter §4.1 is that a silent default in a corpus is invisible in the output.
  */
-export type FallbackDuty =
-  | { readonly kind: "ZONE"; readonly zone: FieldZone; readonly runFit?: RunFit }
-  | {
-      readonly kind: "RUSH";
-      readonly move: RushMove;
-      readonly alignment: RushAlignment;
-      readonly gap: RunGap;
-      readonly side: RunSide;
-    };
+/**
+ * A zone duty, spread from `zone()`:
+ *
+ *     LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "LEFT" } }
+ *
+ * `responsibility`, `laneSpan` and `depthSpan` are required and are supplied
+ * together by the constructor, so the three cannot disagree with each other. A
+ * hand-written duty may still state them, and `validate.ts` then checks the numbers
+ * against the name the same way `C_VERTICAL_MISMATCH` checks a route's stated band
+ * against its own air yards.
+ */
+export interface ZoneDuty extends ZoneRegion {
+  readonly kind: "ZONE";
+  readonly runFit?: RunFit;
+}
+
+/**
+ * A rush duty.
+ *
+ * `side` was already required here when the corpus was written, because a gap has a
+ * side and a run fit needs one. What ADR-018 §Petition 2 added is the ability to
+ * CARRY IT ACROSS — `RushAssignment.side` now exists, so the side survives into the
+ * contracts call and pass protection can pair on it instead of inventing a pairing.
+ */
+export interface RushDuty {
+  readonly kind: "RUSH";
+  readonly move: RushMove;
+  readonly alignment: RushAlignment;
+  /** His gap in the run fit. Every front defender owns one. */
+  readonly gap: RunGap;
+  /** Which side of the centre he comes from. This is what pairs him with a blocker. */
+  readonly side: RunSide;
+}
+
+export type FallbackDuty = ZoneDuty | RushDuty;
 
 export type DefensiveDuty =
-  | {
-      readonly kind: "RUSH";
-      readonly move: RushMove;
-      readonly alignment: RushAlignment;
-      /** His gap in the run fit. Every front defender owns one. */
-      readonly gap: RunGap;
-      readonly side: RunSide;
-    }
+  | RushDuty
   | {
       readonly kind: "MAN";
       readonly target: ManTarget;
@@ -92,11 +112,7 @@ export type DefensiveDuty =
       /** Second-level run responsibility, for backers and safeties who have one. */
       readonly runFit?: RunFit;
     }
-  | {
-      readonly kind: "ZONE";
-      readonly zone: FieldZone;
-      readonly runFit?: RunFit;
-    };
+  | ZoneDuty;
 
 /**
  * What the card is TRYING to be, declared rather than inferred, so the validator
@@ -207,11 +223,27 @@ function mirrorTarget(target: ManTarget): ManTarget {
   return target.kind === "NUMBER" ? { ...target, side: mirrorSide(target.side) } : target;
 }
 
+/**
+ * Spans survive the flip untouched, and that is a property of the vocabulary rather
+ * than a coincidence: a span is symmetric about its landmark, so mirroring moves the
+ * landmark and leaves the shape alone. Every responsibility's permitted lane set is
+ * itself mirror-symmetric (`test/coverage.test.ts` asserts it), so the flipped duty
+ * is still a legal anchoring of the same responsibility.
+ */
+function mirrorZoneDuty(duty: ZoneDuty): ZoneDuty {
+  const flipped: ZoneDuty = {
+    kind: "ZONE",
+    responsibility: duty.responsibility,
+    zone: mirrorZone(duty.zone),
+    laneSpan: duty.laneSpan,
+    depthSpan: duty.depthSpan,
+  };
+  return duty.runFit === undefined ? flipped : { ...flipped, runFit: mirrorGap(duty.runFit) };
+}
+
 function mirrorFallback(duty: FallbackDuty): FallbackDuty {
   if (duty.kind === "RUSH") return { ...duty, side: mirrorSide(duty.side) };
-  return duty.runFit === undefined
-    ? { kind: "ZONE", zone: mirrorZone(duty.zone) }
-    : { kind: "ZONE", zone: mirrorZone(duty.zone), runFit: mirrorGap(duty.runFit) };
+  return mirrorZoneDuty(duty);
 }
 
 export function mirrorDuty(duty: DefensiveDuty): DefensiveDuty {
@@ -234,9 +266,7 @@ export function mirrorDuty(duty: DefensiveDuty): DefensiveDuty {
             runFit: mirrorGap(duty.runFit),
           };
     case "ZONE":
-      return duty.runFit === undefined
-        ? { kind: "ZONE", zone: mirrorZone(duty.zone) }
-        : { kind: "ZONE", zone: mirrorZone(duty.zone), runFit: mirrorGap(duty.runFit) };
+      return mirrorZoneDuty(duty);
   }
 }
 

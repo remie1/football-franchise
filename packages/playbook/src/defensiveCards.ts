@@ -19,25 +19,28 @@
  *     so a card that has accidentally lost its post safety fails validation instead
  *     of quietly playing Cover 0 for a thousand games.
  *
- * ZONE PLACEMENT IS DELIBERATE, NOT DECORATIVE. `zoneDefenderFor` in the engine
- * matches a route's break cell to a zone defender's cell EXACTLY, so a defender is
- * only worth something where routes actually go. The cells used here — SHORT and
- * INTERMEDIATE across all five lanes, DEEP in the wide and centre lanes — are the
- * cells the pass corpus breaks into. `test/corpus.test.ts` measures the resulting
- * coverage rate rather than assuming it, which is the first time anything in this
- * project has been able to say what fraction of routes a zone actually reaches.
+ * ZONES ARE REGIONS, AND THE REGION IS NAMED (ADR-018 §Petition 1). Every zone duty
+ * states a responsibility out of `coverage.ts`'s vocabulary — `zone("DEEP_THIRD",
+ * "LW")`, `zone("FLAT", "RW")` — and the responsibility carries the band and both
+ * spans. A card chooses WHO HAS WHAT, never how wide a third is.
+ *
+ * The consequence worth reading the cards for: **each shell now fails where the real
+ * shell fails, and it does so emergently.** Cover 3 Sky leaves the middle underneath
+ * open, which is the void Cover 3 Buzz exists to fill — and Buzz then gives up a
+ * flat instead, because the man who buzzed to the hook was the flat defender.
+ * Quarters covers four lanes deep and leaves the centre lane, which is why quarters
+ * is beaten by the seam. Cover 2's halves are DEEP-only and its two hook defenders
+ * are one lane each, so the intermediate outside — the hole a fifteen-yard comeback
+ * lives in — belongs to nobody. None of that was arranged; it falls out of stating
+ * who has which responsibility and letting the shapes land where they land.
  *
  * WEIGHTS. Shaped to reproduce `COVERAGE_SHELL_USAGE` and `BLITZ_RATE_PRIOR`, and
  * `test/distribution.test.ts` asserts they do. Read `distribution.ts` first for how
  * much those priors are worth.
  */
-import type { FieldZone, HorizontalZone, VerticalZone } from "@ff/contracts";
+import { zone } from "./coverage.js";
 import type { AnyDefensiveCard, DefensiveDuty } from "./defense.js";
 import { defensiveCard } from "./defense.js";
-
-function z(horizontal: HorizontalZone, vertical: VerticalZone): FieldZone {
-  return { horizontal, vertical };
-}
 
 /** The four-man front every base card shares. Gaps: C/A left, A/C right. */
 const FOUR_MAN_RUSH: Record<"DE_L" | "DT_L" | "DT_R" | "DE_R", DefensiveDuty> = {
@@ -58,14 +61,17 @@ export const NICKEL_COVER_3_SKY = defensiveCard({
   family: "COVER_3",
   duties: {
     ...FOUR_MAN_RUSH,
-    CB_L: { kind: "ZONE", zone: z("LW", "DEEP") },
-    CB_R: { kind: "ZONE", zone: z("RW", "DEEP") },
-    S_F: { kind: "ZONE", zone: z("C", "DEEP") },
+    // Three deep, four under. The two hooks are one lane each, so nobody has the
+    // centre lane underneath: that is Cover 3 Sky's hole, and it is the whole reason
+    // the next card exists.
+    CB_L: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
+    CB_R: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
+    S_F: { kind: "ZONE", ...zone("DEEP_MIDDLE_THIRD", "C") },
     // Sky = safety force. He rolls to the flat and owns the edge in the run fit.
-    S_S: { kind: "ZONE", zone: z("LW", "SHORT"), runFit: { gap: "D", side: "LEFT" } },
-    CB_N: { kind: "ZONE", zone: z("RW", "SHORT"), runFit: { gap: "D", side: "RIGHT" } },
-    LB_W: { kind: "ZONE", zone: z("LH", "SHORT"), runFit: { gap: "B", side: "LEFT" } },
-    LB_M: { kind: "ZONE", zone: z("RH", "SHORT"), runFit: { gap: "B", side: "RIGHT" } },
+    S_S: { kind: "ZONE", ...zone("FLAT", "LW"), runFit: { gap: "D", side: "LEFT" } },
+    CB_N: { kind: "ZONE", ...zone("FLAT", "RW"), runFit: { gap: "D", side: "RIGHT" } },
+    LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "LEFT" } },
+    LB_M: { kind: "ZONE", ...zone("HOOK_CURL", "RH"), runFit: { gap: "B", side: "RIGHT" } },
   },
   usage: { weight: 12 },
 });
@@ -79,15 +85,17 @@ export const NICKEL_COVER_3_BUZZ = defensiveCard({
   family: "COVER_3",
   duties: {
     ...FOUR_MAN_RUSH,
-    CB_L: { kind: "ZONE", zone: z("LW", "DEEP") },
-    CB_R: { kind: "ZONE", zone: z("RW", "DEEP") },
-    S_F: { kind: "ZONE", zone: z("C", "DEEP") },
+    CB_L: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
+    CB_R: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
+    S_F: { kind: "ZONE", ...zone("DEEP_MIDDLE_THIRD", "C") },
     // The buzz: the strong safety drops to the middle hook rather than the flat,
-    // which is the cell Cover 3 Sky leaves open.
-    S_S: { kind: "ZONE", zone: z("C", "SHORT"), runFit: { gap: "D", side: "LEFT" } },
-    CB_N: { kind: "ZONE", zone: z("RW", "SHORT"), runFit: { gap: "D", side: "RIGHT" } },
-    LB_W: { kind: "ZONE", zone: z("LW", "SHORT"), runFit: { gap: "B", side: "LEFT" } },
-    LB_M: { kind: "ZONE", zone: z("RH", "SHORT"), runFit: { gap: "B", side: "RIGHT" } },
+    // closing the void Sky leaves. The trade is stated by the shapes rather than by
+    // a comment — with the safety in the middle, the LEFT flat now belongs to a
+    // curl/flat player who is a lane inside it, so the swing to that side is open.
+    S_S: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "D", side: "LEFT" } },
+    CB_N: { kind: "ZONE", ...zone("FLAT", "RW"), runFit: { gap: "D", side: "RIGHT" } },
+    LB_W: { kind: "ZONE", ...zone("CURL_FLAT", "LW"), runFit: { gap: "B", side: "LEFT" } },
+    LB_M: { kind: "ZONE", ...zone("HOOK_CURL", "RH"), runFit: { gap: "B", side: "RIGHT" } },
   },
   usage: { weight: 6 },
 });
@@ -109,12 +117,16 @@ export const NICKEL_COVER_3_PRESSURE = defensiveCard({
   duties: {
     ...FOUR_MAN_RUSH,
     CB_N: { kind: "RUSH", move: "SPEED", alignment: "EDGE", gap: "D", side: "RIGHT" },
-    CB_L: { kind: "ZONE", zone: z("LW", "DEEP") },
-    CB_R: { kind: "ZONE", zone: z("RW", "DEEP") },
-    S_F: { kind: "ZONE", zone: z("C", "DEEP") },
-    S_S: { kind: "ZONE", zone: z("RW", "SHORT"), runFit: { gap: "D", side: "LEFT" } },
-    LB_W: { kind: "ZONE", zone: z("LH", "SHORT"), runFit: { gap: "B", side: "LEFT" } },
-    LB_M: { kind: "ZONE", zone: z("C", "SHORT"), runFit: { gap: "B", side: "RIGHT" } },
+    CB_L: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
+    CB_R: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
+    S_F: { kind: "ZONE", ...zone("DEEP_MIDDLE_THIRD", "C") },
+    // The nickel blitzes off the RIGHT edge, so the safety rolls down to the LEFT
+    // flat and the pressure side has no flat player at all. Stating a side on the
+    // rush is what makes that legible: before ADR-018 this man's zone and his run
+    // fit were on opposite sides of the formation and nothing could tell.
+    S_S: { kind: "ZONE", ...zone("FLAT", "LW"), runFit: { gap: "D", side: "LEFT" } },
+    LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "LEFT" } },
+    LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "B", side: "RIGHT" } },
   },
   usage: { weight: 7 },
 });
@@ -128,13 +140,17 @@ export const NICKEL_COVER_2 = defensiveCard({
   family: "COVER_2",
   duties: {
     ...FOUR_MAN_RUSH,
-    CB_L: { kind: "ZONE", zone: z("LW", "SHORT"), runFit: { gap: "D", side: "LEFT" } },
-    CB_R: { kind: "ZONE", zone: z("RW", "SHORT"), runFit: { gap: "D", side: "RIGHT" } },
-    S_F: { kind: "ZONE", zone: z("LH", "DEEP") },
-    S_S: { kind: "ZONE", zone: z("RH", "DEEP") },
-    LB_W: { kind: "ZONE", zone: z("LH", "SHORT"), runFit: { gap: "B", side: "LEFT" } },
-    LB_M: { kind: "ZONE", zone: z("C", "SHORT"), runFit: { gap: "B", side: "RIGHT" } },
-    CB_N: { kind: "ZONE", zone: z("RH", "SHORT") },
+    // Two deep, five under. The halves are DEEP-only precisely because there are
+    // five underneath, and the two hook players are one lane each — so the
+    // intermediate band outside the hashes belongs to nobody. That is where a
+    // fifteen-yard comeback against Cover 2 is caught.
+    CB_L: { kind: "ZONE", ...zone("FLAT", "LW"), runFit: { gap: "D", side: "LEFT" } },
+    CB_R: { kind: "ZONE", ...zone("FLAT", "RW"), runFit: { gap: "D", side: "RIGHT" } },
+    S_F: { kind: "ZONE", ...zone("DEEP_HALF", "LH") },
+    S_S: { kind: "ZONE", ...zone("DEEP_HALF", "RH") },
+    LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "LEFT" } },
+    LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "B", side: "RIGHT" } },
+    CB_N: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
   },
   usage: { weight: 7 },
 });
@@ -148,15 +164,16 @@ export const NICKEL_TAMPA_2 = defensiveCard({
   family: "COVER_2",
   duties: {
     ...FOUR_MAN_RUSH,
-    CB_L: { kind: "ZONE", zone: z("LW", "SHORT"), runFit: { gap: "D", side: "LEFT" } },
-    CB_R: { kind: "ZONE", zone: z("RW", "SHORT"), runFit: { gap: "D", side: "RIGHT" } },
-    S_F: { kind: "ZONE", zone: z("LH", "DEEP") },
-    S_S: { kind: "ZONE", zone: z("RH", "DEEP") },
-    // The Tampa: the middle backer carries the seam, closing Cover 2's hole and
-    // opening the middle underneath in exchange.
-    LB_M: { kind: "ZONE", zone: z("C", "DEEP"), runFit: { gap: "B", side: "RIGHT" } },
-    LB_W: { kind: "ZONE", zone: z("LH", "SHORT"), runFit: { gap: "B", side: "LEFT" } },
-    CB_N: { kind: "ZONE", zone: z("RH", "SHORT") },
+    CB_L: { kind: "ZONE", ...zone("FLAT", "LW"), runFit: { gap: "D", side: "LEFT" } },
+    CB_R: { kind: "ZONE", ...zone("FLAT", "RW"), runFit: { gap: "D", side: "RIGHT" } },
+    S_F: { kind: "ZONE", ...zone("DEEP_HALF", "LH") },
+    S_S: { kind: "ZONE", ...zone("DEEP_HALF", "RH") },
+    // The Tampa: the middle backer runs the seam. `SEAM_RUNNER` is the narrowest,
+    // tallest region in the vocabulary — one lane, from the short band to the deep —
+    // which is the shape of that job and of no other job on any card.
+    LB_M: { kind: "ZONE", ...zone("SEAM_RUNNER", "C"), runFit: { gap: "B", side: "RIGHT" } },
+    LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "LEFT" } },
+    CB_N: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
   },
   usage: { weight: 2 },
 });
@@ -170,13 +187,17 @@ export const NICKEL_QUARTERS = defensiveCard({
   family: "QUARTERS",
   duties: {
     ...FOUR_MAN_RUSH,
-    CB_L: { kind: "ZONE", zone: z("LW", "DEEP") },
-    CB_R: { kind: "ZONE", zone: z("RW", "DEEP") },
-    S_F: { kind: "ZONE", zone: z("LH", "DEEP") },
-    S_S: { kind: "ZONE", zone: z("RH", "DEEP") },
-    LB_W: { kind: "ZONE", zone: z("LH", "SHORT"), runFit: { gap: "B", side: "LEFT" } },
-    LB_M: { kind: "ZONE", zone: z("C", "SHORT"), runFit: { gap: "B", side: "RIGHT" } },
-    CB_N: { kind: "ZONE", zone: z("RH", "SHORT"), runFit: { gap: "D", side: "RIGHT" } },
+    // Four quarters over three under. Each quarter is ONE lane and reaches down into
+    // the intermediate band — the quarters safety is a run/pass conflict player who
+    // drives on the dig, and that is the whole shell. Four lanes are spoken for and
+    // the centre lane is not, which is why the answer to quarters is the seam.
+    CB_L: { kind: "ZONE", ...zone("DEEP_QUARTER", "LW") },
+    CB_R: { kind: "ZONE", ...zone("DEEP_QUARTER", "RW") },
+    S_F: { kind: "ZONE", ...zone("DEEP_QUARTER", "LH") },
+    S_S: { kind: "ZONE", ...zone("DEEP_QUARTER", "RH") },
+    LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "LEFT" } },
+    LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "B", side: "RIGHT" } },
+    CB_N: { kind: "ZONE", ...zone("CURL_FLAT", "RH"), runFit: { gap: "D", side: "RIGHT" } },
   },
   usage: { weight: 11 },
 });
@@ -192,13 +213,13 @@ export const NICKEL_COVER_6 = defensiveCard({
     ...FOUR_MAN_RUSH,
     // Quarters to the left, Cover 2 to the right. Two shells on one snap is exactly
     // what a per-assignment coverage vocabulary buys and a single enum could not say.
-    CB_L: { kind: "ZONE", zone: z("LW", "DEEP") },
-    S_F: { kind: "ZONE", zone: z("LH", "DEEP") },
-    CB_R: { kind: "ZONE", zone: z("RW", "SHORT"), runFit: { gap: "D", side: "RIGHT" } },
-    S_S: { kind: "ZONE", zone: z("RH", "DEEP") },
-    LB_W: { kind: "ZONE", zone: z("LH", "SHORT"), runFit: { gap: "B", side: "LEFT" } },
-    LB_M: { kind: "ZONE", zone: z("C", "SHORT"), runFit: { gap: "B", side: "RIGHT" } },
-    CB_N: { kind: "ZONE", zone: z("RH", "SHORT") },
+    CB_L: { kind: "ZONE", ...zone("DEEP_QUARTER", "LW") },
+    S_F: { kind: "ZONE", ...zone("DEEP_QUARTER", "LH") },
+    CB_R: { kind: "ZONE", ...zone("FLAT", "RW"), runFit: { gap: "D", side: "RIGHT" } },
+    S_S: { kind: "ZONE", ...zone("DEEP_HALF", "RH") },
+    LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "LEFT" } },
+    LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "B", side: "RIGHT" } },
+    CB_N: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
   },
   usage: { weight: 8 },
 });
@@ -218,33 +239,33 @@ export const NICKEL_COVER_1 = defensiveCard({
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("LW", "DEEP") },
+      ifAbsent: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
     },
     CB_R: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("RW", "DEEP") },
+      ifAbsent: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
     },
     CB_N: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 2 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("RH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
       runFit: { gap: "D", side: "RIGHT" },
     },
     LB_W: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 2 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("LH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "LH") },
       runFit: { gap: "B", side: "LEFT" },
     },
     LB_M: {
       kind: "MAN",
       target: { kind: "BACK", index: 0 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("C", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C") },
       runFit: { gap: "B", side: "RIGHT" },
     },
     // Against trips he has #3; against 2x2 there is no #3 and he becomes the robber.
@@ -253,10 +274,10 @@ export const NICKEL_COVER_1 = defensiveCard({
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 3 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("C", "INTERMEDIATE") },
+      ifAbsent: { kind: "ZONE", ...zone("HOLE", "C") },
       runFit: { gap: "D", side: "LEFT" },
     },
-    S_F: { kind: "ZONE", zone: z("C", "DEEP") },
+    S_F: { kind: "ZONE", ...zone("POST", "C") },
   },
   usage: { weight: 6 },
 });
@@ -274,38 +295,38 @@ export const NICKEL_COVER_1_RAT = defensiveCard({
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("LW", "DEEP") },
+      ifAbsent: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
     },
     CB_R: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("RW", "DEEP") },
+      ifAbsent: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
     },
     CB_N: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 2 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("RH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
       runFit: { gap: "D", side: "RIGHT" },
     },
     S_S: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 2 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("LH", "INTERMEDIATE") },
+      ifAbsent: { kind: "ZONE", ...zone("HOLE", "LH") },
       runFit: { gap: "D", side: "LEFT" },
     },
     LB_W: {
       kind: "MAN",
       target: { kind: "BACK", index: 0 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("LH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "LH") },
       runFit: { gap: "B", side: "LEFT" },
     },
     /** The rat in the hole: a zone player inside an otherwise man call. */
-    LB_M: { kind: "ZONE", zone: z("C", "SHORT"), runFit: { gap: "B", side: "RIGHT" } },
-    S_F: { kind: "ZONE", zone: z("C", "DEEP") },
+    LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "B", side: "RIGHT" } },
+    S_F: { kind: "ZONE", ...zone("POST", "C") },
   },
   usage: { weight: 3 },
 });
@@ -323,38 +344,38 @@ export const NICKEL_COVER_2_MAN = defensiveCard({
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("LW", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("FLAT", "LW") },
       runFit: { gap: "D", side: "LEFT" },
     },
     CB_R: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("RW", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("FLAT", "RW") },
       runFit: { gap: "D", side: "RIGHT" },
     },
     CB_N: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 2 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("RH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
     },
     LB_W: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 2 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("LH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "LH") },
       runFit: { gap: "B", side: "LEFT" },
     },
     LB_M: {
       kind: "MAN",
       target: { kind: "BACK", index: 0 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("C", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C") },
       runFit: { gap: "B", side: "RIGHT" },
     },
-    S_F: { kind: "ZONE", zone: z("LH", "DEEP") },
-    S_S: { kind: "ZONE", zone: z("RH", "DEEP") },
+    S_F: { kind: "ZONE", ...zone("DEEP_HALF", "LH") },
+    S_S: { kind: "ZONE", ...zone("DEEP_HALF", "RH") },
   },
   usage: { weight: 5 },
 });
@@ -375,12 +396,16 @@ export const NICKEL_FIRE_ZONE = defensiveCard({
     LB_W: { kind: "RUSH", move: "SPEED", alignment: "INTERIOR", gap: "B", side: "LEFT" },
     LB_M: { kind: "RUSH", move: "POWER", alignment: "INTERIOR", gap: "B", side: "RIGHT" },
     /** The dropping lineman — the thing a per-assignment vocabulary can express. */
-    DE_R: { kind: "ZONE", zone: z("RW", "SHORT"), runFit: { gap: "C", side: "RIGHT" } },
-    CB_L: { kind: "ZONE", zone: z("LW", "DEEP") },
-    CB_R: { kind: "ZONE", zone: z("RW", "DEEP") },
-    S_F: { kind: "ZONE", zone: z("C", "DEEP") },
-    CB_N: { kind: "ZONE", zone: z("RH", "SHORT"), runFit: { gap: "D", side: "RIGHT" } },
-    S_S: { kind: "ZONE", zone: z("LH", "SHORT"), runFit: { gap: "D", side: "LEFT" } },
+    DE_R: { kind: "ZONE", ...zone("CURL_FLAT", "RW"), runFit: { gap: "C", side: "RIGHT" } },
+    CB_L: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
+    CB_R: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
+    S_F: { kind: "ZONE", ...zone("DEEP_MIDDLE_THIRD", "C") },
+    // Three under, and none of them is a flat player anchored behind the line: a
+    // five-man pressure buys its rush by giving up the checkdown. The shapes say so
+    // without a tunable — nobody on this card reaches the BACKFIELD band except the
+    // one hook defender whose window happens to start there.
+    CB_N: { kind: "ZONE", ...zone("HOOK_CURL", "RH"), runFit: { gap: "D", side: "RIGHT" } },
+    S_S: { kind: "ZONE", ...zone("CURL_FLAT", "LH"), runFit: { gap: "D", side: "LEFT" } },
   },
   usage: { weight: 7 },
 });
@@ -403,29 +428,29 @@ export const NICKEL_DOUBLE_A_BLITZ = defensiveCard({
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("LW", "DEEP") },
+      ifAbsent: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
     },
     CB_R: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("RW", "DEEP") },
+      ifAbsent: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
     },
     CB_N: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 2 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("RH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
       runFit: { gap: "D", side: "RIGHT" },
     },
     S_S: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 2 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("LH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "LH") },
       runFit: { gap: "D", side: "LEFT" },
     },
-    S_F: { kind: "ZONE", zone: z("C", "DEEP") },
+    S_F: { kind: "ZONE", ...zone("POST", "C") },
   },
   usage: { weight: 4 },
 });
@@ -446,33 +471,33 @@ export const NICKEL_COVER_0_BLITZ = defensiveCard({
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("LW", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("FLAT", "LW") },
     },
     CB_R: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("RW", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("FLAT", "RW") },
     },
     CB_N: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 2 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("RH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
       runFit: { gap: "D", side: "RIGHT" },
     },
     S_S: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 2 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("LH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "LH") },
       runFit: { gap: "D", side: "LEFT" },
     },
     S_F: {
       kind: "MAN",
       target: { kind: "BACK", index: 0 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("C", "INTERMEDIATE") },
+      ifAbsent: { kind: "ZONE", ...zone("HOLE", "C") },
     },
   },
   usage: { weight: 3, downs: [2, 3, 4] },
@@ -489,13 +514,15 @@ export const BASE_COVER_3 = defensiveCard({
   family: "COVER_3",
   duties: {
     ...FOUR_MAN_RUSH,
-    CB_L: { kind: "ZONE", zone: z("LW", "DEEP") },
-    CB_R: { kind: "ZONE", zone: z("RW", "DEEP") },
-    S_F: { kind: "ZONE", zone: z("C", "DEEP") },
-    S_S: { kind: "ZONE", zone: z("LW", "SHORT"), runFit: { gap: "D", side: "LEFT" } },
-    LB_S: { kind: "ZONE", zone: z("RW", "SHORT"), runFit: { gap: "D", side: "RIGHT" } },
-    LB_W: { kind: "ZONE", zone: z("LH", "SHORT"), runFit: { gap: "B", side: "LEFT" } },
-    LB_M: { kind: "ZONE", zone: z("RH", "SHORT"), runFit: { gap: "B", side: "RIGHT" } },
+    CB_L: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
+    CB_R: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
+    S_F: { kind: "ZONE", ...zone("DEEP_MIDDLE_THIRD", "C") },
+    S_S: { kind: "ZONE", ...zone("FLAT", "LW"), runFit: { gap: "D", side: "LEFT" } },
+    // The SAM gets a curl/flat rather than the flat itself — a linebacker widening
+    // from the box does not get out to the numbers the way a rolled-down safety does.
+    LB_S: { kind: "ZONE", ...zone("CURL_FLAT", "RW"), runFit: { gap: "D", side: "RIGHT" } },
+    LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "LEFT" } },
+    LB_M: { kind: "ZONE", ...zone("HOOK_CURL", "RH"), runFit: { gap: "B", side: "RIGHT" } },
   },
   usage: { weight: 4 },
 });
@@ -513,37 +540,37 @@ export const BASE_COVER_1 = defensiveCard({
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("LW", "DEEP") },
+      ifAbsent: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
     },
     CB_R: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("RW", "DEEP") },
+      ifAbsent: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
     },
     LB_S: {
       kind: "MAN",
       target: { kind: "TIGHT_END", index: 0 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("RH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
       runFit: { gap: "D", side: "RIGHT" },
     },
     LB_W: {
       kind: "MAN",
       target: { kind: "BACK", index: 0 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("LH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "LH") },
       runFit: { gap: "B", side: "LEFT" },
     },
-    LB_M: { kind: "ZONE", zone: z("C", "SHORT"), runFit: { gap: "B", side: "RIGHT" } },
+    LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "B", side: "RIGHT" } },
     S_S: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 2 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("C", "INTERMEDIATE") },
+      ifAbsent: { kind: "ZONE", ...zone("HOLE", "C") },
       runFit: { gap: "D", side: "LEFT" },
     },
-    S_F: { kind: "ZONE", zone: z("C", "DEEP") },
+    S_F: { kind: "ZONE", ...zone("POST", "C") },
   },
   usage: { weight: 2 },
 });
@@ -557,13 +584,13 @@ export const BASE_COVER_2 = defensiveCard({
   family: "COVER_2",
   duties: {
     ...FOUR_MAN_RUSH,
-    CB_L: { kind: "ZONE", zone: z("LW", "SHORT"), runFit: { gap: "D", side: "LEFT" } },
-    CB_R: { kind: "ZONE", zone: z("RW", "SHORT"), runFit: { gap: "D", side: "RIGHT" } },
-    S_F: { kind: "ZONE", zone: z("LH", "DEEP") },
-    S_S: { kind: "ZONE", zone: z("RH", "DEEP") },
-    LB_W: { kind: "ZONE", zone: z("LH", "SHORT"), runFit: { gap: "B", side: "LEFT" } },
-    LB_M: { kind: "ZONE", zone: z("C", "SHORT"), runFit: { gap: "B", side: "RIGHT" } },
-    LB_S: { kind: "ZONE", zone: z("RH", "SHORT") },
+    CB_L: { kind: "ZONE", ...zone("FLAT", "LW"), runFit: { gap: "D", side: "LEFT" } },
+    CB_R: { kind: "ZONE", ...zone("FLAT", "RW"), runFit: { gap: "D", side: "RIGHT" } },
+    S_F: { kind: "ZONE", ...zone("DEEP_HALF", "LH") },
+    S_S: { kind: "ZONE", ...zone("DEEP_HALF", "RH") },
+    LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "LEFT" } },
+    LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "B", side: "RIGHT" } },
+    LB_S: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
   },
   usage: { weight: 2 },
 });
@@ -583,29 +610,29 @@ export const BASE_RUN_BLITZ = defensiveCard({
       kind: "MAN",
       target: { kind: "BACK", index: 0 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("C", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C") },
       runFit: { gap: "B", side: "RIGHT" },
     },
     CB_L: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("LW", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("FLAT", "LW") },
     },
     CB_R: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("RW", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("FLAT", "RW") },
     },
     S_S: {
       kind: "MAN",
       target: { kind: "TIGHT_END", index: 0 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("RH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
       runFit: { gap: "D", side: "LEFT" },
     },
-    S_F: { kind: "ZONE", zone: z("C", "DEEP") },
+    S_F: { kind: "ZONE", ...zone("POST", "C") },
   },
   usage: { weight: 2, maxDistance: 6 },
 });
@@ -621,13 +648,13 @@ export const DIME_QUARTERS = defensiveCard({
   family: "QUARTERS",
   duties: {
     ...FOUR_MAN_RUSH,
-    CB_L: { kind: "ZONE", zone: z("LW", "DEEP") },
-    CB_R: { kind: "ZONE", zone: z("RW", "DEEP") },
-    S_F: { kind: "ZONE", zone: z("LH", "DEEP") },
-    S_S: { kind: "ZONE", zone: z("RH", "DEEP"), runFit: { gap: "B", side: "LEFT" } },
-    CB_N: { kind: "ZONE", zone: z("RH", "SHORT"), runFit: { gap: "D", side: "RIGHT" } },
-    CB_D: { kind: "ZONE", zone: z("LH", "SHORT"), runFit: { gap: "D", side: "LEFT" } },
-    LB_M: { kind: "ZONE", zone: z("C", "SHORT"), runFit: { gap: "B", side: "RIGHT" } },
+    CB_L: { kind: "ZONE", ...zone("DEEP_QUARTER", "LW") },
+    CB_R: { kind: "ZONE", ...zone("DEEP_QUARTER", "RW") },
+    S_F: { kind: "ZONE", ...zone("DEEP_QUARTER", "LH") },
+    S_S: { kind: "ZONE", ...zone("DEEP_QUARTER", "RH"), runFit: { gap: "B", side: "LEFT" } },
+    CB_N: { kind: "ZONE", ...zone("CURL_FLAT", "RH"), runFit: { gap: "D", side: "RIGHT" } },
+    CB_D: { kind: "ZONE", ...zone("CURL_FLAT", "LH"), runFit: { gap: "D", side: "LEFT" } },
+    LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "B", side: "RIGHT" } },
   },
   usage: { weight: 5, minDistance: 7 },
 });
@@ -646,36 +673,36 @@ export const DIME_MAN_BLITZ = defensiveCard({
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("LW", "DEEP") },
+      ifAbsent: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
     },
     CB_R: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("RW", "DEEP") },
+      ifAbsent: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
     },
     CB_N: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 2 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("RH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
       runFit: { gap: "D", side: "RIGHT" },
     },
     LB_M: {
       kind: "MAN",
       target: { kind: "BACK", index: 0 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("C", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C") },
       runFit: { gap: "B", side: "RIGHT" },
     },
     S_S: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 2 },
       technique: "OFF",
-      ifAbsent: { kind: "ZONE", zone: z("LH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "LH") },
       runFit: { gap: "B", side: "LEFT" },
     },
-    S_F: { kind: "ZONE", zone: z("C", "DEEP") },
+    S_F: { kind: "ZONE", ...zone("POST", "C") },
   },
   usage: { weight: 3, minDistance: 7 },
 });
@@ -696,14 +723,17 @@ export const DIME_PREVENT = defensiveCard({
     DE_L: { kind: "RUSH", move: "SPEED", alignment: "EDGE", gap: "C", side: "LEFT" },
     DT_R: { kind: "RUSH", move: "POWER", alignment: "INTERIOR", gap: "A", side: "RIGHT" },
     DE_R: { kind: "RUSH", move: "FINESSE", alignment: "EDGE", gap: "C", side: "RIGHT" },
-    DT_L: { kind: "ZONE", zone: z("C", "SHORT"), runFit: { gap: "A", side: "LEFT" } },
-    CB_L: { kind: "ZONE", zone: z("LW", "DEEP") },
-    CB_R: { kind: "ZONE", zone: z("RW", "DEEP") },
-    S_F: { kind: "ZONE", zone: z("C", "DEEP") },
-    S_S: { kind: "ZONE", zone: z("LH", "DEEP") },
-    CB_N: { kind: "ZONE", zone: z("RH", "DEEP") },
-    CB_D: { kind: "ZONE", zone: z("RH", "SHORT") },
-    LB_M: { kind: "ZONE", zone: z("LH", "SHORT"), runFit: { gap: "B", side: "RIGHT" } },
+    DT_L: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "A", side: "LEFT" } },
+    // Five deep, and `PREVENT_DEEP` is the one responsibility in the vocabulary with
+    // no downward reach at all: a prevent defender will not come up for anything.
+    // Everything in front of them is open by construction, which is what prevent IS.
+    CB_L: { kind: "ZONE", ...zone("PREVENT_DEEP", "LW") },
+    CB_R: { kind: "ZONE", ...zone("PREVENT_DEEP", "RW") },
+    S_F: { kind: "ZONE", ...zone("PREVENT_DEEP", "C") },
+    S_S: { kind: "ZONE", ...zone("PREVENT_DEEP", "LH") },
+    CB_N: { kind: "ZONE", ...zone("PREVENT_DEEP", "RH") },
+    CB_D: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
+    LB_M: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "RIGHT" } },
   },
   usage: { weight: 1, minDistance: 15 },
 });
@@ -732,36 +762,36 @@ export const GOAL_LINE_MAN = defensiveCard({
       kind: "MAN",
       target: { kind: "TIGHT_END", index: 0 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("RH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
       runFit: { gap: "B", side: "RIGHT" },
     },
     LB_M: {
       kind: "MAN",
       target: { kind: "BACK", index: 0 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("C", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C") },
       runFit: { gap: "D", side: "LEFT" },
     },
     LB_S: {
       kind: "MAN",
       target: { kind: "TIGHT_END", index: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("LH", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "LH") },
       runFit: { gap: "D", side: "RIGHT" },
     },
     CB_L: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("LW", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("FLAT", "LW") },
     },
     CB_R: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "RIGHT", number: 1 },
       technique: "PRESS",
-      ifAbsent: { kind: "ZONE", zone: z("RW", "SHORT") },
+      ifAbsent: { kind: "ZONE", ...zone("FLAT", "RW") },
     },
-    S_S: { kind: "ZONE", zone: z("C", "INTERMEDIATE") },
+    S_S: { kind: "ZONE", ...zone("HOLE", "C") },
   },
   usage: { weight: 3, regions: ["GOAL_LINE"] },
 });
@@ -776,12 +806,14 @@ export const GOAL_LINE_ZONE = defensiveCard({
   noDeepHelp: true,
   duties: {
     ...GOAL_LINE_FRONT,
-    LB_W: { kind: "ZONE", zone: z("LH", "SHORT"), runFit: { gap: "B", side: "RIGHT" } },
-    LB_M: { kind: "ZONE", zone: z("C", "SHORT"), runFit: { gap: "D", side: "LEFT" } },
-    LB_S: { kind: "ZONE", zone: z("RH", "SHORT"), runFit: { gap: "D", side: "RIGHT" } },
-    CB_L: { kind: "ZONE", zone: z("LW", "SHORT") },
-    CB_R: { kind: "ZONE", zone: z("RW", "SHORT") },
-    S_S: { kind: "ZONE", zone: z("C", "INTERMEDIATE") },
+    LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "RIGHT" } },
+    LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "D", side: "LEFT" } },
+    LB_S: { kind: "ZONE", ...zone("HOOK_CURL", "RH"), runFit: { gap: "D", side: "RIGHT" } },
+    CB_L: { kind: "ZONE", ...zone("FLAT", "LW") },
+    CB_R: { kind: "ZONE", ...zone("FLAT", "RW") },
+    // No deep zone at the goal line because the end line is the deep zone. The hole
+    // player at the intermediate band is as far back as this defence goes.
+    S_S: { kind: "ZONE", ...zone("HOLE", "C") },
   },
   usage: { weight: 2, regions: ["GOAL_LINE"] },
 });

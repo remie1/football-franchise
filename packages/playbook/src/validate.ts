@@ -32,7 +32,9 @@
 import type { HorizontalZone, RunGap, RunSide } from "@ff/contracts";
 import type { AlignedRole } from "./alignment.js";
 import { alignmentSide, eligibleRoles, laneIndex, laneSide, laneWidth } from "./alignment.js";
-import type { AnyDefensiveCard } from "./defense.js";
+import type { ZoneShape } from "./coverage.js";
+import { ZONE_SHAPES, regionArea, regionCells } from "./coverage.js";
+import type { AnyDefensiveCard, ZoneDuty } from "./defense.js";
 import { dutyList } from "./defense.js";
 import { InvalidCardError } from "./errors.js";
 import type { AnyFormation } from "./formations.js";
@@ -526,23 +528,39 @@ export function validateDefensiveCard(card: AnyDefensiveCard): readonly Diagnost
 
   for (const { role, duty } of duties) {
     if (duty.kind === "ZONE") {
-      const key = `${duty.zone.horizontal}/${duty.zone.vertical}`;
+      out.push(...checkRegion(where, role, duty));
+      // IDENTICAL REGIONS, not overlapping ones. Overlap is what a zone shell is
+      // made of — two deep halves meet in the middle, a hook and a deep third share
+      // a lane — and the rule this replaces (exact cell equality is a duplicate)
+      // stopped meaning anything the moment zones became regions. Two defenders with
+      // the SAME responsibility at the SAME landmark is still almost always a
+      // copy-paste, so it stays an error unless the card claims a bracket.
+      const key = `${duty.responsibility}@${duty.zone.horizontal}`;
       const other = zoneCells.get(key);
-      if (other !== undefined) {
+      if (other !== undefined && card.brackets !== true) {
         out.push(
           err(
-            "D_ZONE_CELL_DUPLICATE",
+            "D_ZONE_RESPONSIBILITY_DUPLICATE",
             where,
-            `${role} and ${other} are both responsible for ${key}; the engine matches cells ` +
-              "exactly, so the second man covers nothing",
+            `${role} and ${other} both play ${duty.responsibility} from ${duty.zone.horizontal}; ` +
+              "two men in one region with one shape is a duplicated duty. A zone bracket is " +
+              "legal — say `brackets: true` if that is the intent",
           ),
         );
       }
       zoneCells.set(key, role);
-      if (duty.zone.vertical === "DEEP" || duty.zone.vertical === "VERY_DEEP") deepZones += 1;
+      // DEEP HELP IS MEASURED BY REACH, NOT BY THE LANDMARK. Tampa 2's middle backer
+      // is anchored in the intermediate band and carries the seam into the deep one;
+      // he is deep help and a card that counted anchors would not know it.
+      if (regionCells(duty).some((cell) => cell.vertical === "DEEP")) deepZones += 1;
     }
     if (duty.kind === "MAN") {
       manCount += 1;
+      // The fallback is a real duty that really runs — every card in the corpus takes
+      // one against some formation — so it is checked like any other region.
+      if (duty.ifAbsent.kind === "ZONE") {
+        out.push(...checkRegion(where, `${role} (if absent)`, duty.ifAbsent));
+      }
       const key = describeManTarget(duty.target);
       const other = manTargets.get(key);
       if (other !== undefined && card.brackets !== true) {
@@ -631,6 +649,76 @@ export function validateDefensiveCard(card: AnyDefensiveCard): readonly Diagnost
       break;
   }
   return dedupe(out);
+}
+
+/**
+ * THE ZONE-REGION CHECKS, and the reason they exist at all.
+ *
+ * `zone()` produces regions that pass every one of these by construction, exactly as
+ * `breakAt()` produces break zones that can never fail `C_VERTICAL_MISMATCH`. They
+ * are here for the cards that do NOT come from the constructor — a JSON import, a UI
+ * authoring surface, a hand-written duty in somebody's test — where the stated
+ * responsibility and the stated numbers can drift apart. A region that says
+ * DEEP_THIRD and covers one cell would look authoritative in a coverage report and
+ * be fiction, which is entry 8's failure mode wearing a span.
+ *
+ * The span ceiling is the one rule with teeth against the corpus's own author: it
+ * rejects padding. A defender responsible for more than nine of twenty-five cells is
+ * not playing a zone, he is standing in for a model nobody has written.
+ */
+const MAX_SPAN = 2;
+const MAX_REGION_CELLS = 9;
+
+function checkRegion(where: string, role: string, region: ZoneDuty): readonly Diagnostic[] {
+  const out: Diagnostic[] = [];
+  const at = `${where} / ${role} ${region.responsibility}`;
+  const shape: ZoneShape | undefined = ZONE_SHAPES[region.responsibility];
+  if (shape === undefined) {
+    return [err("D_ZONE_UNKNOWN_RESPONSIBILITY", at, `${region.responsibility} is not a zone`)];
+  }
+  if (!shape.lanes.includes(region.zone.horizontal)) {
+    out.push(
+      err(
+        "D_ZONE_LANE",
+        at,
+        `a ${region.responsibility} is anchored in ${shape.lanes.join("/")}, not ${region.zone.horizontal}`,
+      ),
+    );
+  }
+  if (
+    region.zone.vertical !== shape.vertical ||
+    region.laneSpan !== shape.laneSpan ||
+    region.depthSpan !== shape.depthSpan
+  ) {
+    out.push(
+      err(
+        "D_ZONE_SHAPE_MISMATCH",
+        at,
+        `a ${region.responsibility} is ${shape.vertical} with spans ${shape.laneSpan}/${shape.depthSpan}; ` +
+          `this one says ${region.zone.vertical} with ${region.laneSpan}/${region.depthSpan}`,
+      ),
+    );
+  }
+  for (const [axis, span] of [
+    ["laneSpan", region.laneSpan],
+    ["depthSpan", region.depthSpan],
+  ] as const) {
+    if (!Number.isInteger(span) || span < 0 || span > MAX_SPAN) {
+      out.push(err("D_ZONE_SPAN_RANGE", at, `${axis} is ${span}; it must be 0..${MAX_SPAN}`));
+    }
+  }
+  const area = regionArea(region);
+  if (area > MAX_REGION_CELLS) {
+    out.push(
+      err(
+        "D_ZONE_AREA",
+        at,
+        `one defender covering ${area} of the grid's twenty-five cells is not a zone; ` +
+          `${MAX_REGION_CELLS} is the ceiling`,
+      ),
+    );
+  }
+  return out;
 }
 
 function describeManTarget(target: {

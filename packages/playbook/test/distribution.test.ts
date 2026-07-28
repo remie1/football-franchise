@@ -165,7 +165,18 @@ describe("the offensive corpus", () => {
     expect(intermediate).toBeGreaterThan(0.2);
     expect(deep).toBeGreaterThan(attemptDeepShare);
     expect(deep).toBeLessThan(0.3);
-    expect(behind).toBeGreaterThan(0);
+
+    // BEHIND THE LINE, and the same argument running the other way (backlog 8a).
+    // The prior says ~13% of ATTEMPTS; the corpus offers ~7% of ROUTES, and the gap
+    // is the mechanic rather than a miss. A checkdown is the outlet — it is thrown
+    // far more often than it is run, because it is what the quarterback comes to
+    // when the progression fails. Pinning the corpus at 13% would need every second
+    // concept to carry a swing, and the corpus would then be claiming credit for
+    // §8.1's read order. The number this file can defend is that backs release
+    // behind the line at a realistic rate, not that they are targeted at one.
+    const attemptBehindShare = AIR_YARDS_SHARE_PRIOR.find((r) => r.label === "behind")?.share ?? 0;
+    expect(behind).toBeGreaterThan(0.04);
+    expect(behind).toBeLessThan(attemptBehindShare);
   });
 
   it("gives every read system real work", () => {

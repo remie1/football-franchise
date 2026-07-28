@@ -274,6 +274,39 @@ function baseRush(defense: DefensivePersonnel): DefensivePlayCall["rush"] {
   ];
 }
 
+/**
+ * SPANS ARE STATED ON EVERY ZONE DUTY BELOW (ADR-018 petition 1), AND THEY ARE
+ * READ OFF THE COVERAGE'S NAME RATHER THAN FITTED TO A NUMBER.
+ *
+ * Before spans existed these seven-man coverages held seven of the grid's
+ * twenty-five cells, so a "deep third" corner did not touch a route that broke
+ * one band shallower in the third he is named for, and whether a route was
+ * covered measured how well the author of these cards guessed which cells the
+ * four dropbacks above would use. That is the fixture-shaped failure ADR-017
+ * exists to prevent, displaced from the offence to the defence.
+ *
+ * The rule used for every value here, so that it is checkable rather than felt:
+ * **a span states what the DUTY'S OWN NAME says it owns, and nothing else.**
+ *
+ *   a deep THIRD or HALF owns a lane across the deep bands  → `depthSpan: 1`
+ *   a single-high safety owns the deep middle of the field  → both spans
+ *   a SPOT DROP drops to a spot                             → no span at all
+ *
+ * That last line is the one that keeps this honest. The first pass at these
+ * cards gave every underneath dropper `laneSpan: 1` as well, and the measured
+ * result was an UNCOVERED RATE OF ZERO — three underneath defenders spanning
+ * three lanes each cover five lanes twice over, and a defence that gives up no
+ * hole anywhere is not a zone defence, it is eleven men who are everywhere. The
+ * card is called "Cover 3 SPOT DROP"; its underneath four drop to spots, and the
+ * duties that are named for a region are the three deep ones. Widening the
+ * others would have been a coverage-rate dial with a card's face on it.
+ *
+ * Nothing is 2 or more: one step either side of the landmark is as much as the
+ * §3 grid can express without a defender owning most of the field.
+ *
+ * These are FIXTURE cards (see the header). The real corpus is
+ * `packages/playbook`'s, and when it states its own spans these stop mattering.
+ */
 export const COVERAGE_CARDS: readonly CoverageCard[] = [
   {
     name: "Cover 1 Press",
@@ -287,7 +320,10 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
           { kind: "MAN", defender: at(defense.corners, 2, "NB"), covers: at(offense.receivers, 2, "slot"), technique: "OFF" },
           { kind: "MAN", defender: at(defense.linebackers, 0, "LB1"), covers: offense.tightEnd, technique: "PRESS" },
           { kind: "MAN", defender: at(defense.linebackers, 1, "LB2"), covers: offense.runningBack, technique: "OFF" },
-          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" } },
+          // The single-high safety: the deep middle QUADRANT, which is what the
+          // "1" in Cover 1 names — everything over the top between the hashes.
+          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
+          // The robber sits in the hole. A hole is a spot, so he states no span.
           { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
         ],
         rush: baseRush(defense),
@@ -301,9 +337,15 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         name: "Cover 3 Spot Drop",
         front: "Nickel Even",
         assignments: [
-          { kind: "ZONE", defender: at(defense.corners, 0, "CB1"), zone: { horizontal: "LW", vertical: "DEEP" } },
-          { kind: "ZONE", defender: at(defense.corners, 1, "CB2"), zone: { horizontal: "RW", vertical: "DEEP" } },
-          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" } },
+          // Three deep. A THIRD is a lane owned across every deep band, which is
+          // the case ADR-018 was filed on: as a single cell this corner did not
+          // touch a route breaking at INTERMEDIATE in his own third.
+          { kind: "ZONE", defender: at(defense.corners, 0, "CB1"), zone: { horizontal: "LW", vertical: "DEEP" }, depthSpan: 1 },
+          { kind: "ZONE", defender: at(defense.corners, 1, "CB2"), zone: { horizontal: "RW", vertical: "DEEP" }, depthSpan: 1 },
+          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, depthSpan: 1 },
+          // Four under, on SPOTS — which is what this card is called. The seams
+          // at LH and RH deep are left open by three thirds across five lanes,
+          // and that hole is Cover 3's, not the model's.
           { kind: "ZONE", defender: at(defense.corners, 2, "NB"), zone: { horizontal: "RH", vertical: "SHORT" } },
           { kind: "ZONE", defender: at(defense.linebackers, 0, "LB1"), zone: { horizontal: "C", vertical: "SHORT" } },
           { kind: "ZONE", defender: at(defense.linebackers, 1, "LB2"), zone: { horizontal: "LH", vertical: "SHORT" } },
@@ -325,8 +367,9 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
           { kind: "MAN", defender: at(defense.corners, 2, "NB"), covers: at(offense.receivers, 2, "slot"), technique: "OFF" },
           { kind: "MAN", defender: at(defense.linebackers, 0, "LB1"), covers: offense.tightEnd, technique: "OFF" },
           { kind: "MAN", defender: at(defense.linebackers, 1, "LB2"), covers: offense.runningBack, technique: "OFF" },
-          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "LW", vertical: "DEEP" } },
-          { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "RW", vertical: "DEEP" } },
+          // Two deep HALVES: a quadrant each, split down the middle of the field.
+          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "LW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
+          { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
         ],
         rush: baseRush(defense),
       };

@@ -21,6 +21,14 @@
  * ADR-006 governs what may be said here: a card states relationships explicitly and the
  * engine never infers football from a formation string. That is why every pairing below
  * — blocker↔rusher, blocker↔defender, defender↔receiver — is STATED.
+ *
+ * WHAT IS DELIBERATELY NOT HERE (ADR-018). `ResolvedRushAssignment`, `CoverageShell` and
+ * `GapId` were briefly in this file and were moved back to the engine. Each is a product of
+ * RESOLUTION rather than something a card states: a coverage shell is computed by walking
+ * assignments, a resolved alignment is what the engine produces after defaulting a missing
+ * one from a tunable, and no card has a `GapId` field at all. The test this file is held to
+ * is "what a play card IS" — the atoms (`RunGap`, `RunSide`, `RushAlignment`, `FieldZone`,
+ * the call types) are shared vocabulary; their resolution products are engine machinery.
  */
 import type { PlayerId } from "./ids.js";
 import type { RushAlignment } from "./events.js";
@@ -101,11 +109,6 @@ export type RunSide = "LEFT" | "RIGHT";
 /** The three named ways to block a man in space (§13.3). */
 export type BlockType = "STALK" | "CRACK" | "LEAD";
 
-export interface GapId {
-  readonly gap: RunGap;
-  readonly side: RunSide;
-}
-
 /**
  * One gap of the play design: who blocks, and whom (§6.3).
  *
@@ -169,21 +172,27 @@ export interface ManAssignment {
   readonly technique: CoverageTechnique;
 }
 
-/** A defender responsible for a cell of the §3 grid rather than a man (§9.4). */
+/**
+ * A defender responsible for a REGION of the §3 grid rather than a man (§9.4).
+ *
+ * `zone` is the anchor cell; the spans widen it (ADR-018). A zone defender covering exactly
+ * one cell of twenty-five is not a zone — it is man coverage with extra steps, and it is why
+ * `CALIBRATION-BACKLOG.md` entry 8 stayed open after every route gained a break zone. A Cover
+ * 2 corner must touch a route one band deeper in his own lane.
+ *
+ * Both default to 0, so every card and call site written before this is unchanged.
+ */
 export interface ZoneAssignment {
   readonly kind: "ZONE";
   readonly defender: PlayerId;
   readonly zone: FieldZone;
+  /** Lanes covered either side of `zone.horizontal`. 0 (default) = the anchor cell only. */
+  readonly laneSpan?: number;
+  /** Depth bands covered either side of `zone.vertical`. 0 (default) = the anchor cell only. */
+  readonly depthSpan?: number;
 }
 
 export type CoverageAssignment = ManAssignment | ZoneAssignment;
-
-/**
- * What the defence PLAYED, derived from the assignments rather than declared — so a
- * consumer can split man from zone without walking every assignment, and so `MIXED` is
- * sayable at all.
- */
-export type CoverageShell = "MAN" | "ZONE" | "MIXED" | "NONE";
 
 /**
  * Where the rusher starts, and therefore how far he travels once he wins (§7.2's
@@ -199,15 +208,18 @@ export interface RushAssignment {
    * and wrong for anything creative. An A-gap blitzing linebacker has to say so.
    */
   readonly alignment?: RushAlignment;
-}
-
-/**
- * A rush assignment after the engine has resolved the optional alignment, so the stream
- * carries the alignment the play was actually simulated with rather than the one the caller
- * happened to type.
- */
-export interface ResolvedRushAssignment extends RushAssignment {
-  readonly alignment: RushAlignment;
+  /**
+   * Which side he comes from (ADR-018). Without it a card cannot say "left A-gap blitz",
+   * so blocker↔rusher pairing has no geometry and has to be invented — which can put the
+   * left tackle on the right end, resolve cleanly, and produce plausible numbers from an
+   * impossible matchup.
+   *
+   * The asymmetry is the evidence this was missing: run blocking already pairs correctly,
+   * because `RunBlockAssignment` carries a side and this did not.
+   *
+   * Optional, defaulting to today's behaviour.
+   */
+  readonly side?: RunSide;
 }
 
 export interface DefensivePlayCall {

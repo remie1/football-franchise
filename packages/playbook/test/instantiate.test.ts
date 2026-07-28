@@ -24,7 +24,15 @@ import {
   instantiateRun,
   isRunConcept,
 } from "../src/instantiate.js";
-import { EMPTY_QUICK, SLANT_FLAT, Y_CROSS, FOUR_VERTS } from "../src/passConcepts.js";
+import {
+  EMPTY_QUICK,
+  FOUR_VERTS,
+  PASS_CONCEPTS,
+  SLANT_FLAT,
+  Y_CROSS,
+  protectionCapacity,
+} from "../src/passConcepts.js";
+import { DEFENSIVE_CARDS } from "../src/defensiveCards.js";
 import { buildDefensiveUnit, buildOffensiveUnit } from "../src/personnel.js";
 import { INSIDE_ZONE, POWER } from "../src/runConcepts.js";
 import { selectDefensiveCard, selectPassConcept, selectRunConcept } from "../src/selection.js";
@@ -167,6 +175,100 @@ describe("loud failure rather than a silent default", () => {
     expect(() => buildOffensiveUnit("22", { QB: [], RB: [], TE: [] })).toThrow(
       /no available player for role/,
     );
+  });
+});
+
+/**
+ * ADR-018 §Petition 2. The old pairing took edge rushers in card order and handed
+ * them to whichever tackle was free, so it could put the LEFT TACKLE ON THE RIGHT
+ * END, resolve cleanly, and produce plausible numbers from an impossible matchup.
+ * These tests are what makes that unrepresentable rather than merely unlikely.
+ */
+describe("pass protection pairs by side, not by whoever is free", () => {
+  it("puts each tackle on the end who is actually lined up over him", () => {
+    const unit = offenseUnitFor("11");
+    const defenseUnit = buildDefensiveUnit("NICKEL", DEEP_CHART);
+    const defense = instantiateDefense(NICKEL_COVER_3_SKY, defenseUnit, {
+      formation: SLANT_FLAT.formation,
+      unit,
+    });
+    const offense = instantiatePass(SLANT_FLAT, unit, defense);
+    if (offense.call.kind !== "PASS") throw new Error("expected a dropback");
+    const blockerOf = (rusher: string): string | undefined =>
+      offense.call.kind === "PASS"
+        ? offense.call.protection.find((p) => String(p.rusher) === rusher)?.blocker.toString()
+        : undefined;
+    expect(blockerOf(String(defenseUnit.DE_L))).toBe(String(unit.LT));
+    expect(blockerOf(String(defenseUnit.DE_R))).toBe(String(unit.RT));
+    expect(blockerOf(String(defenseUnit.DT_L))).toBe(String(unit.LG));
+    expect(blockerOf(String(defenseUnit.DT_R))).toBe(String(unit.RG));
+  });
+
+  it("never blocks an edge rusher with a lineman set to the other side, anywhere", () => {
+    const lineSide: Readonly<Record<string, "LEFT" | "RIGHT">> = {
+      LT: "LEFT",
+      LG: "LEFT",
+      RG: "RIGHT",
+      RT: "RIGHT",
+    };
+    let checked = 0;
+    for (const concept of PASS_CONCEPTS) {
+      const unit = buildOffensiveUnit(concept.formation.personnel, DEEP_CHART);
+      const byPlayer = new Map<string, string>(
+        Object.entries(unit).map(([role, player]) => [String(player), role]),
+      );
+      for (const card of DEFENSIVE_CARDS) {
+        const defenseUnit = buildDefensiveUnit(card.personnel, DEEP_CHART);
+        const defense = instantiateDefense(card, defenseUnit, {
+          formation: concept.formation,
+          unit,
+        });
+        if (rusherCount(card) > protectionCapacity(concept)) continue;
+        const offense = instantiatePass(concept, unit, defense);
+        if (offense.call.kind !== "PASS") continue;
+        for (const pair of offense.call.protection) {
+          const rusher = defense.rush.find((r) => r.rusher === pair.rusher);
+          const role = byPlayer.get(String(pair.blocker));
+          if (rusher === undefined || role === undefined) continue;
+          const side = lineSide[role];
+          if (side === undefined || rusher.alignment !== "EDGE") continue;
+          checked += 1;
+          expect(
+            side,
+            `${concept.id} vs ${card.id}: ${role} on a ${rusher.side} edge rusher`,
+          ).toBe(rusher.side);
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(500);
+  });
+
+  it("carries the rusher's side into the contracts call, not just into the pairing", () => {
+    const unit = buildDefensiveUnit("NICKEL", DEEP_CHART);
+    const defense = instantiateDefense(NICKEL_DOUBLE_A_BLITZ, unit, {
+      formation: GUN_DOUBLES_RT,
+      unit: offenseUnitFor("11"),
+    });
+    expect(defense.call.rush).toHaveLength(6);
+    for (const rusher of defense.call.rush) expect(rusher.side).toBeDefined();
+    expect(defense.call.rush.filter((r) => r.side === "LEFT")).toHaveLength(3);
+    expect(defense.call.rush.filter((r) => r.side === "RIGHT")).toHaveLength(3);
+  });
+
+  it("states both spans on every zone assignment it emits", () => {
+    const unit = buildDefensiveUnit("NICKEL", DEEP_CHART);
+    const defense = instantiateDefense(NICKEL_COVER_3_SKY, unit, {
+      formation: GUN_DOUBLES_RT,
+      unit: offenseUnitFor("11"),
+    });
+    const zones = defense.call.assignments.filter((a) => a.kind === "ZONE");
+    expect(zones).toHaveLength(7);
+    for (const z of zones) {
+      expect(z.laneSpan, JSON.stringify(z)).toBeDefined();
+      expect(z.depthSpan, JSON.stringify(z)).toBeDefined();
+    }
+    // The three-deep partition: two lanes, one lane, two lanes.
+    expect(zones.filter((z) => z.zone.vertical === "DEEP")).toHaveLength(3);
   });
 });
 

@@ -380,6 +380,59 @@ export function buildZoneScenario(): Scenario {
 }
 
 /**
+ * ADR-018 — TWO ZONE DEFENDERS WHOSE REGIONS OVERLAP THE SAME ROUTE.
+ *
+ * The shape that exact-match made nearly impossible and that spans make ordinary:
+ * a corner playing a quarter with lane and depth reach, and a hook dropper
+ * standing on the cell the dig breaks into. Both are responsible for RH/
+ * INTERMEDIATE and §9.4 is written for one man in the route's zone.
+ *
+ * Declaration order is DELIBERATELY the wrong answer here — the stretching
+ * corner is listed first — so that a fixture built on the old first-match rule
+ * would pick him and the nearest-anchor ruling picks the man standing there.
+ *
+ * The shallow cross still runs into LH/SHORT, which nobody's region reaches:
+ * regions close holes that were artefacts of cell matching, they do not abolish
+ * holes, and a fixture where zone gives up nothing is not zone.
+ */
+export function buildOverlappingZoneScenario(): Scenario {
+  const base = buildZoneScenario();
+  const { deep, intermediate, quick } = baseReceivers(base);
+  const assignments = base.calls.defense.assignments;
+  const stretching = assignments[0]?.defender;
+  const standingOnIt = assignments[1]?.defender;
+  const underneath = assignments[2]?.defender;
+  if (stretching === undefined || standingOnIt === undefined || underneath === undefined) {
+    throw new Error("bad fixture");
+  }
+
+  const calls: PlayCalls = {
+    offense: {
+      ...base.calls.offense,
+      routes: [
+        { receiver: deep, routeName: "Go", depthClass: "DEEP", airYards: 24, breakZone: { horizontal: "RW", vertical: "DEEP" } },
+        { receiver: intermediate, routeName: "Dig", depthClass: "INTERMEDIATE", airYards: 14, breakZone: { horizontal: "RH", vertical: "INTERMEDIATE" } },
+        { receiver: quick, routeName: "Shallow Cross", depthClass: "QUICK", airYards: 5, breakZone: { horizontal: "LH", vertical: "SHORT" } },
+      ],
+    },
+    defense: {
+      name: "Quarters, Overlapping Drops",
+      front: "Nickel Even",
+      assignments: [
+        // Reaches the dig's cell from a cell away — and is listed FIRST.
+        { kind: "ZONE", defender: stretching, zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
+        // Standing in it.
+        { kind: "ZONE", defender: standingOnIt, zone: { horizontal: "RH", vertical: "INTERMEDIATE" }, laneSpan: 1 },
+        { kind: "ZONE", defender: underneath, zone: { horizontal: "RH", vertical: "SHORT" }, laneSpan: 1 },
+      ],
+      rush: base.calls.defense.rush,
+    },
+  };
+
+  return { ...base, calls };
+}
+
+/**
  * MIXED COVERAGE — the shape a single `coverage: "MAN" | "ZONE"` flag on the
  * whole call cannot express, and the reason coverage moved onto the assignment.
  *

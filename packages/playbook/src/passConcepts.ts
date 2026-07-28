@@ -21,6 +21,20 @@
  * spread of concepts across quick / rhythm / shot / screen is chosen to reproduce
  * the published depth-of-target shares in `distribution.ts`, which
  * `test/distribution.test.ts` asserts rather than assumes.
+ *
+ * BACKS RELEASE BEHIND THE LINE (backlog 8a). A swing is caught a yard or two BEHIND
+ * the line of scrimmage, not on it, and a back's "flat" route out of the backfield is
+ * a swing. The corpus said nought and one; it now says minus two and minus one, which
+ * moves the behind-the-line share of the route mix from 1.4% to ~7%. That is a
+ * correction to where the ball is caught rather than a distribution tweak — and it is
+ * still deliberately below the ~13% share of ATTEMPTS, because the checkdown is
+ * thrown far more often than it is run and target selection is §8.5's job, not a
+ * card's.
+ *
+ * THE SIXTH PROTECTOR'S SIDE. Every formation in the corpus is right-strength, so
+ * the back in a six-man protection has the backside — LEFT — throughout. That is a
+ * property of the formations rather than a default: `sixManProtection` requires the
+ * side, and a left-strength card would state RIGHT.
  */
 import type { ReadSystem } from "@ff/contracts";
 import * as F from "./formations.js";
@@ -87,7 +101,7 @@ export const SLANT_FLAT = passConcept({
     SLOT: route("Slant", "QUICK", 6, "C"),
     Z: route("Slant", "QUICK", 6, "RH"),
     TE_Y: route("Flat", "QUICK", 2, "RW"),
-    RB: route("Swing", "QUICK", 0, "RH"),
+    RB: route("Swing", "QUICK", -2, "RH"),
   },
   readOrder: ["Z", "TE_Y", "RB"],
   protection: fiveManLine(["RB"]),
@@ -123,7 +137,7 @@ export const SNAG = passConcept({
     X: route("Go", "DEEP", 24, "LW"),
   },
   readOrder: ["Z", "SLOT", "TE_Y"],
-  protection: sixManProtection("RB"),
+  protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 6, maxDistance: 10 },
 });
 
@@ -137,7 +151,7 @@ export const BUBBLE_NOW = passConcept({
     Z: route("Hitch", "QUICK", 5, "RW"),
     X: route("Hitch", "QUICK", 6, "LW"),
     SLOT: route("Slant", "QUICK", 5, "C"),
-    RB: route("Swing", "QUICK", 0, "LH"),
+    RB: route("Swing", "QUICK", -2, "LH"),
   },
   readOrder: ["SLOT2", "Z"],
   protection: fiveManLine(["RB"]),
@@ -154,7 +168,7 @@ export const QUICK_OUTS = passConcept({
     TE_Y: route("Out", "SHORT", 6, "RW"),
     X: route("Curl", "SHORT", 10, "LW"),
     TE_U: route("Sit", "SHORT", 8, "LH"),
-    RB: route("Flat", "QUICK", 1, "RH"),
+    RB: route("Swing", "QUICK", -1, "RH"),
   },
   readOrder: ["Z", "TE_Y", "X"],
   protection: fiveManLine(["RB"]),
@@ -173,7 +187,7 @@ export const THIRD_SHORT_STICK = passConcept({
     SLOT: route("Flat", "QUICK", 1, "LW"),
   },
   readOrder: ["TE_Y", "Z", "X"],
-  protection: sixManProtection("RB"),
+  protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 4, downs: [3, 4], maxDistance: 3 },
 });
 
@@ -191,7 +205,7 @@ export const Y_CROSS = passConcept({
     X: route("Comeback", "INTERMEDIATE", 16, "LW"),
   },
   readOrder: ["TE_Y", "Z", "SLOT", "X"],
-  protection: sixManProtection("RB"),
+  protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 6, minDistance: 5 },
 });
 
@@ -205,7 +219,7 @@ export const MESH = passConcept({
     TE_Y: route("Shallow Cross", "QUICK", 4, "LH"),
     X: route("Corner", "INTERMEDIATE", 18, "LW"),
     Z: route("Dig", "INTERMEDIATE", 14, "RH"),
-    RB: route("Swing", "QUICK", 0, "RH"),
+    RB: route("Swing", "QUICK", -2, "RH"),
   },
   readOrder: ["SLOT", "TE_Y", "RB"],
   protection: fiveManLine(["RB"]),
@@ -224,7 +238,7 @@ export const CURL_FLAT = passConcept({
     SLOT: route("Dig", "INTERMEDIATE", 14, "C"),
   },
   readOrder: ["Z", "TE_Y", "X"],
-  protection: sixManProtection("RB"),
+  protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 7, minDistance: 4 },
 });
 
@@ -240,7 +254,7 @@ export const DRIVE = passConcept({
     TE_Y: route("Sit", "SHORT", 9, "RH"),
   },
   readOrder: ["X", "TE_U", "TE_Y", "Z"],
-  protection: sixManProtection("RB"),
+  protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 5, minDistance: 5 },
 });
 
@@ -273,7 +287,7 @@ export const FLOOD = passConcept({
     X: route("Deep Cross", "INTERMEDIATE", 16, "C"),
   },
   readOrder: ["TE_Y", "FB", "Z"],
-  protection: sixManProtection("RB"),
+  protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 4, minDistance: 5 },
 });
 
@@ -287,7 +301,7 @@ export const SMASH = passConcept({
     TE_Y: route("Corner", "INTERMEDIATE", 20, "RW"),
     X: route("Hitch", "QUICK", 7, "LW"),
     SLOT: route("Corner", "INTERMEDIATE", 20, "LW"),
-    RB: route("Flat", "QUICK", 1, "RH"),
+    RB: route("Swing", "QUICK", -1, "RH"),
   },
   readOrder: ["TE_Y", "Z", "RB"],
   protection: fiveManLine(["RB"]),
@@ -306,7 +320,7 @@ export const FOLLOW = passConcept({
     Z: route("Curl", "SHORT", 10, "RW"),
   },
   readOrder: ["TE_Y", "TE_U", "Z"],
-  protection: sixManProtection("RB"),
+  protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 4, minDistance: 4 },
 });
 
@@ -322,7 +336,7 @@ export const SPOT_OPTION = passConcept({
     X: route("Post", "DEEP", 25, "LH"),
   },
   readOrder: ["SLOT", "Z", "TE_Y"],
-  protection: sixManProtection("RB"),
+  protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 4, minDistance: 4 },
 });
 
@@ -357,7 +371,7 @@ export const FOUR_VERTS = passConcept({
     Z: route("Go", "DEEP", 24, "RW"),
   },
   readOrder: ["SLOT", "SLOT2", "X", "Z"],
-  protection: sixManProtection("RB"),
+  protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 4, minDistance: 7 },
 });
 
@@ -373,7 +387,7 @@ export const DAGGER = passConcept({
     TE_Y: route("Sit", "SHORT", 8, "RH"),
   },
   readOrder: ["X", "SLOT", "TE_Y", "Z"],
-  protection: sixManProtection("RB"),
+  protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 4, minDistance: 7 },
 });
 
@@ -388,7 +402,7 @@ export const YANKEE = passConcept({
     Z: route("Comeback", "INTERMEDIATE", 16, "RW"),
   },
   readOrder: ["X", "TE_U", "Z"],
-  protection: sevenManProtection("RB", "TE_Y"),
+  protection: sevenManProtection("RB", "LEFT", "TE_Y", "RIGHT"),
   usage: { weight: 2, minDistance: 8 },
 });
 
@@ -421,7 +435,7 @@ export const MILLS = passConcept({
     TE_U: route("Curl", "SHORT", 10, "LH"),
   },
   readOrder: ["TE_Y", "Z", "TE_U", "X"],
-  protection: sixManProtection("RB"),
+  protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 3, minDistance: 7 },
 });
 
@@ -436,7 +450,7 @@ export const SHOT_POST_CORNER = passConcept({
     X: route("Go", "DEEP", 26, "LW"),
   },
   readOrder: ["Z", "TE_Y", "X"],
-  protection: sevenManProtection("RB", "FB"),
+  protection: sevenManProtection("RB", "LEFT", "FB", "RIGHT"),
   usage: { weight: 2, minDistance: 7 },
 });
 
@@ -478,7 +492,7 @@ export const HEAVY_RED_ZONE = passConcept({
     RB: route("Angle", "QUICK", 3, "LH"),
   },
   readOrder: ["TE_H", "TE_Y", "X"],
-  protection: sixManProtection("TE_U", ["RB"]),
+  protection: sixManProtection("TE_U", "LEFT", ["RB"]),
   usage: { weight: 2, regions: ["RED_ZONE", "GOAL_LINE"] },
 });
 
@@ -494,7 +508,7 @@ export const RED_ZONE_RUB = passConcept({
     X: route("Slant", "QUICK", 5, "LH"),
   },
   readOrder: ["Z", "TE_Y", "SLOT"],
-  protection: sixManProtection("RB"),
+  protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 3, regions: ["RED_ZONE", "GOAL_LINE"] },
 });
 
@@ -550,7 +564,7 @@ export const TWO_MINUTE_SAIL = passConcept({
     TE_Y: route("Out", "INTERMEDIATE", 12, "RW"),
     X: route("Comeback", "INTERMEDIATE", 16, "LW"),
     SLOT: route("Out", "SHORT", 8, "LW"),
-    RB: route("Flat", "QUICK", 1, "RH"),
+    RB: route("Swing", "QUICK", -1, "RH"),
   },
   readOrder: ["Z", "TE_Y", "X"],
   protection: fiveManLine(["RB"]),

@@ -269,28 +269,83 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
   123 routes in the corpus state it, verified over the whole corpus rather than a sample. All
   five lanes are occupied and none exceeds 50% usage, so "every silent route shares a lane"
   cannot be true of this corpus.
-- **The instruction changes accordingly, and this correction matters.** It previously read
-  *"do not fit zone tunables until cards carry horizontal placement."* That is now satisfied
-  and it would be the wrong signal to act on. It should read:
+- **AMENDED TWICE, AND BOTH STATED CAUSES ARE NOW CLOSED.** The instruction has read, in turn,
+  *"until cards carry horizontal placement"* (satisfied by the corpus) and *"until zones are
+  REGIONS"* (satisfied by [ADR-018](ADR-018-spatial-vocabulary-gaps-found-authoring-the-corpus.md)).
+  Both were the visible symptom rather than the thing. **Current instruction, per
+  [ADR-019](ADR-019-coverage-reach-measures-responsibility-not-contest.md):**
 
-  > **Do not fit zone tunables until zones are REGIONS.**
+  > **Entry 8 stays open.** Cards state horizontal placement and zones are regions; both stated
+  > causes are closed. What remains is not a vocabulary gap: **coverage reach measures
+  > responsibility, not contest.** 85.8% is a real measurement of the cards and is not a
+  > coverage-quality metric — **it rises when defenders are stretched thinner.** Do not fit zone
+  > tunables to it. Entry 8 closes when the engine can say how *contested* a route was, at which
+  > point the metric to fit against is **separation, not reach**.
 
-  A zone defender currently covers exactly one cell of twenty-five (`zoneDefenderFor` matches
-  cells exactly), so seven defenders occupy seven cells and a Cover 2 corner does not touch a
-  route one band deeper in his own lane. Measured coverage reach across the full 968-pairing
-  cross product is **66.7%** (36.4% manned, 33.0% zoned) — and that number is *corpus-internal*:
-  it reflects how well one author matched defensive cell placement to the routes he had just
-  written. It will not survive a real playbook, and fitting against it would bake in an
-  artefact.
-- **Blocked on:** [ADR-018](ADR-018-spatial-vocabulary-gaps-found-authoring-the-corpus.md)
-  petition 1 — optional `laneSpan`/`depthSpan` on `ZoneAssignment`, defaulting to 0 so every
-  existing card and call site is unchanged.
+- **The evidence that reach is the wrong metric**, and it is decisive: the three-under fire zone
+  is responsible for **97.6%** of the field against four-under Cover 3's **92.7%** — while being
+  the easier of the two to throw against. Fewer droppers means wider regions means higher reach.
+  A metric that rewards thin coverage is a coverage *inventory*, not a coverage *grade*.
+- **What the corpus can honestly be held to instead**, and is: family spread (59.3% prevent →
+  97.6% fire zone), football ordering (prevent < Cover 2 < Cover 3; quarters < Cover 3), where
+  the residue sits (largest hole in the intermediate band outside the numbers, nothing deep in
+  the top four), and an anti-padding ceiling on region area.
+- **A second corpus-internal artefact, now demonstrated rather than argued.** Applying spans
+  moved the engine fixture corpus's route-level reach by **exactly zero** — no route in it breaks
+  into a cell that only a span reaches, because its offensive and defensive cards were written by
+  the same hand. That is precisely what "corpus-internal" means, and it is why the *grid-level*
+  ownership figure (cells of 25 a coverage is responsible for: 11 → 33) is the one to quote.
+
+## 8b. Corpus-authoring precedents — apply these to every future corpus
+
+Two patterns from authoring the first corpus, both cases of it doing better than its brief.
+Recorded because the next corpus work (offensive concepts, personnel, situational tendencies,
+franchise playbooks) will face the same problems and should not rediscover them.
+
+### The orthogonality test — match each marginal, then verify the dimensions aren't traded
+
+The first weighting reproduced the coverage-shell distribution **or** the blitz rate but never
+both, because it implicitly treated "pressure" as a shell. It is not: **shell and rusher count
+are orthogonal axes**, and a five-man pressure is played from Cover 1, Cover 3 or Cover 0.
+
+Why this is a standing test rather than a fixed bug: **a corpus that hit the blitz rate by
+inflating Cover 0 to four times its real frequency would have passed every distribution check
+while describing football nobody plays.** Each marginal is individually correct; only the joint
+distribution is wrong, and nothing in a report shows a joint distribution.
+
+So: match each marginal, **and separately verify the dimensions are not being traded against
+each other.** The fix here needed one more card (a Cover 3 nickel pressure) and produced both
+distributions at once. Applies to every corpus with more than one axis of variation.
+
+### Reference by role only when the role is guaranteed; otherwise by position, with a fallback
+
+A defensive card cannot say "`CB_L` covers `TE_Y`" — the tight end may not be on the field, and
+a defence cannot name offensive roles at all. It says what a real defence says: **#2 to the
+field, the back, the tight end.** Receiver numbering is derived from the formation's alignments,
+so an offence-agnostic card resolves against a concrete formation.
+
+The load-bearing part is that `ManTarget` carries a **required** `ifAbsent` fallback — "what if
+he isn't there" always has an answer, and requiring it means no card can forget to have one.
+Cover 1's strong safety takes #3 against trips and becomes the robber against 2x2, which is the
+behaviour a corpus should have and which falls out rather than being special-cased.
+
+**Generalise:** anywhere a card references something it cannot guarantee exists, reference it by
+a derived, position-relative handle and make the absent case a required field. This is Charter
+§4.1 applied to content rather than to code.
 
 ## 8a. Three smaller findings from authoring the corpus
 
-- **Behind-the-LOS routes are 1.4% of the corpus** against a real ~13% share of attempts. The
-  corpus under-supplies checkdowns and swing routes, which will suppress outlet usage in any
-  batch run against it. The weakest number in `distribution.ts` and its author says so.
+- **Behind-the-LOS routes: PARTLY CLOSED, and the remainder should stay open.** Was 1.4% of the
+  corpus against a ~13% share of attempts. It turned out to be a *correctness* bug rather than a
+  distribution one — a swing is caught a yard or two **behind** the line, and a back's flat
+  release out of the backfield is a swing. Six routes moved; the corpus is now **7.0% of
+  routes**.
+  **The gap to 13% is deliberately not chased**, and the reasoning generalises: 13% is a share of
+  *attempts*, and a checkdown is thrown far more often than it is run — it is the outlet the
+  quarterback arrives at when the progression fails. Pinning the corpus at 13% would put a swing
+  in every second concept and **would be the corpus claiming credit for §8.5's target selection**.
+  Same argument `distribution.test.ts` already makes for deep routes, run in reverse. The test now
+  asserts `0.04 < behind < 0.13` with that reasoning recorded.
 - **`ROUTE_ENVELOPES` and `VERTICAL_UPPER_YARDS` duplicate tables the engine also holds**
   (`TUNABLES.zoneModel.verticalUpperYards`), because playbook may not import the engine. If the
   engine retunes those bands, **every card's stated break zone quietly moves one band and

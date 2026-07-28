@@ -34,7 +34,13 @@ import type {
   ZoneAssignment,
 } from "@ff/contracts";
 import { backfieldRoles, receiverNumbering } from "./alignment.js";
-import type { AnyDefensiveCard, GapAssignment, ManTarget } from "./defense.js";
+import type {
+  AnyDefensiveCard,
+  GapAssignment,
+  ManTarget,
+  RushDuty,
+  ZoneDuty,
+} from "./defense.js";
 import { dutyList } from "./defense.js";
 import { UnresolvableAssignmentError } from "./errors.js";
 import type { AnyFormation } from "./formations.js";
@@ -103,6 +109,37 @@ function resolveManTarget(target: ManTarget, look: OffensiveLook): OffenseSkillR
   return tightEnds[target.index];
 }
 
+// --- duties → contracts assignments -----------------------------------------
+
+/**
+ * BOTH ADR-018 FIELDS ARE EMITTED EXPLICITLY, INCLUDING ZERO.
+ *
+ * They are optional in contracts and default to nought, so writing them out changes
+ * no behaviour. It changes what the event stream and the save file SAY: a zone that
+ * covers one cell because the card said so is a different fact from a zone that
+ * covers one cell because nobody stated a span, and only one of the two is a
+ * modelling decision. Charter §4.1 — a silent default is invisible in the output.
+ */
+function zoneAssignment(defender: PlayerId, duty: ZoneDuty): ZoneAssignment {
+  return {
+    kind: "ZONE",
+    defender,
+    zone: duty.zone,
+    laneSpan: duty.laneSpan,
+    depthSpan: duty.depthSpan,
+  };
+}
+
+/**
+ * The rusher's side rides along to the engine as well as into the pairing. §7.2's
+ * time-of-arrival model reads `alignment` today and nothing reads `side`, but the
+ * call is what the stream records, and a protection that pairs by geometry inside a
+ * call whose rushers have no geometry would be unauditable from the outside.
+ */
+function declaredRush(rusher: PlayerId, duty: RushDuty): DeclaredRush {
+  return { rusher, move: duty.move, alignment: duty.alignment, side: duty.side };
+}
+
 // --- the defensive call -----------------------------------------------------
 
 export interface InstantiatedDefense {
@@ -132,13 +169,12 @@ export function instantiateDefense(
     const defender = requireDefensePlayer(unit, role, context);
     switch (duty.kind) {
       case "RUSH": {
-        rush.push({ rusher: defender, move: duty.move, alignment: duty.alignment });
+        rush.push(declaredRush(defender, duty));
         gaps.push({ defender, gap: duty.gap, side: duty.side, level: "FIRST" });
         break;
       }
       case "ZONE": {
-        const zone: ZoneAssignment = { kind: "ZONE", defender, zone: duty.zone };
-        assignments.push(zone);
+        assignments.push(zoneAssignment(defender, duty));
         if (duty.runFit !== undefined) {
           gaps.push({ defender, ...duty.runFit, level: "SECOND" });
         }
@@ -150,10 +186,10 @@ export function instantiateDefense(
           fallbacksTaken.push(role);
           const fallback = duty.ifAbsent;
           if (fallback.kind === "RUSH") {
-            rush.push({ rusher: defender, move: fallback.move, alignment: fallback.alignment });
+            rush.push(declaredRush(defender, fallback));
             gaps.push({ defender, gap: fallback.gap, side: fallback.side, level: "FIRST" });
           } else {
-            assignments.push({ kind: "ZONE", defender, zone: fallback.zone });
+            assignments.push(zoneAssignment(defender, fallback));
             const fit = fallback.runFit ?? duty.runFit;
             if (fit !== undefined) gaps.push({ defender, ...fit, level: "SECOND" });
           }

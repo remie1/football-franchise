@@ -31,7 +31,6 @@ import { TUNABLES } from "../tunables.js";
 import type { Tunables } from "../tunables.js";
 import type {
   CoverageShell,
-  GapId,
   MatchGameState,
   RunPlayCalls,
   RunPlayStartPayload,
@@ -53,9 +52,9 @@ import {
   resolveRunBlock,
   resolveSecondLevelClimb,
 } from "../resolve/runBlock.js";
-import type { GapResult } from "../resolve/runGame.js";
+import type { GapId, GapResult } from "../resolve/runGame.js";
 import { gapKey, pointOfAttackFor, resolveRbVision, selectGap } from "../resolve/runGame.js";
-import { rushAlignmentFor } from "../resolve/rushThreat.js";
+import { resolvedRushAssignment, rushAlignmentFor } from "../resolve/rushThreat.js";
 
 interface GapEngagement extends GapResult {
   readonly blocker: PlayerState;
@@ -358,11 +357,16 @@ function buildStartPayload(
       front: calls.defense.front,
       coverage: coverageShellFor(calls.defense.assignments),
       assignments: calls.defense.assignments,
-      rush: calls.defense.rush.map((r) => ({
-        rusher: r.rusher,
-        move: r.move,
-        alignment: rushAlignmentFor(tunables, requirePlayer(state, r.rusher).bio.position, r.alignment),
-      })),
+      // Alignment resolved, side carried through as stated (ADR-018) — the same
+      // owner the pass payload uses, so the two cannot drift.
+      rush: calls.defense.rush.map((r) =>
+        resolvedRushAssignment({
+          rusher: r.rusher,
+          move: r.move,
+          alignment: rushAlignmentFor(tunables, requirePlayer(state, r.rusher).bio.position, r.alignment),
+          side: r.side,
+        }),
+      ),
     },
     situation: {
       down: state.down,

@@ -2,7 +2,7 @@
 
 - **Date:** July 2026
 - **Proposed by:** `franchise-engine`, from building `packages/playbook` under ADR-017
-- **Status:** proposed — petition, not a decision
+- **Status:** approved — petition, not a decision
 - **Affects:** `packages/contracts` (`playcalls.ts`), `packages/engine` (§7.4, §9.4 consumers)
 
 ## Need
@@ -165,3 +165,49 @@ Recorded because a petition that quietly grows is worse than one that is refused
   `assignProtection`'s side-blind pairing comment comes out.
 - **calibration:** coverage reach stops being an artefact of cell matching, which is
   the precondition for closing backlog entry 7 as well as 8.
+
+## Decision
+
+**Both petitions approved** by project owner + Orchestrator, July 2026, and sequenced
+**before** the calibration harness rather than after it.
+
+**Petition 1 was decisive on its own terms:** *a zone defender covering one cell of twenty-five
+is not a zone, it is man coverage with extra steps.* Building the harness first would mean the
+first baseline report measures a coverage model already known to be wrong — and the risk that
+carries is not hypothetical. **First numbers become reference points whether or not anyone
+intends them to.** They get quoted, compared against, and reasoned from long after the caveat
+attached to them is forgotten. Do not generate them against a known-broken model.
+
+**Petition 2 rides along for a reason other than its own urgency.** It changes no resolution
+today — the engine resolves whatever pairing it is handed. But `assignProtection` currently
+*invents* that pairing, so it can put the left tackle on the right end, **resolve cleanly, and
+produce plausible numbers from an impossible matchup.** That is silent wrongness, which Charter
+§4.1 exists to catch. It also becomes load-bearing in the blitz and stunt work, so fixing it now
+means that work lands on correct geometry instead of being measured and then re-measured.
+
+The asymmetry in the filing is what carried it: run blocking already pairs by gap correctly,
+because the run vocabulary carries a side and the rush vocabulary did not.
+
+### Landed alongside: three types moved back out of contracts
+
+`ResolvedRushAssignment`, `CoverageShell` and `GapId` were briefly in `playcalls.ts` and return
+to the engine. Both the engine agent and the playbook agent reached that verdict independently,
+each against its own convenience — the playbook agent used all three and still argued none was
+shared, then removed the dependency itself.
+
+The test that settled it is worth keeping: **"same shape, different fact."**
+`ResolvedRushAssignment` meant *the alignment the engine simulated with*; the corpus needed *the
+alignment the card declared*. Identical structure, two different claims, and borrowing the name
+would have coupled them permanently. The atoms are shared vocabulary; their resolution products
+are machinery.
+
+### Backlog entry 8 stays open, on amended terms
+
+Its instruction changes from *"do not fit zone tunables until cards carry horizontal placement"*
+— now satisfied, and therefore the wrong signal to act on — to **"do not fit zone tunables until
+zones are REGIONS."** The 66.7% coverage-reach figure is corpus-internal: it measures how well
+one author placed defenders on cells his own routes happened to break into. It would read as a
+mechanic validation and is not one.
+
+Two authoring precedents from the same work are recorded in `CALIBRATION-BACKLOG.md` §8b: the
+orthogonality test, and reference-by-derived-handle with a required absent case.

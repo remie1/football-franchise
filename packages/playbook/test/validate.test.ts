@@ -22,6 +22,7 @@ import { SLANT_FLAT, Y_CROSS } from "../src/passConcepts.js";
 import type { PassConcept } from "../src/passConcepts.js";
 import { fiveManLine, sixManProtection } from "../src/protection.js";
 import { breakAt, route } from "../src/routes.js";
+import { zone } from "../src/coverage.js";
 import {
   errorsOnly,
   validateDefensiveCard,
@@ -180,7 +181,7 @@ describe("pass concepts it rejects", () => {
   });
 
   it("rejects a check-release man with no route to release into", () => {
-    const bad = pass({ protection: sixManProtection("RB", ["TE_Y"]) });
+    const bad = pass({ protection: sixManProtection("RB", "LEFT", ["TE_Y"]) });
     // TE_Y has a route, so use a role that does not.
     const worse = pass({
       protection: { ...bad.protection, checkRelease: ["SLOT2"] },
@@ -238,31 +239,81 @@ describe("run concepts it rejects", () => {
 });
 
 describe("defensive cards it rejects", () => {
-  it("rejects two defenders sitting in the same cell", () => {
+  it("rejects two defenders playing the same responsibility from the same landmark", () => {
     const bad = defense({
       duties: {
         ...NICKEL_COVER_3_SKY.duties,
-        LB_M: { kind: "ZONE", zone: { horizontal: "LH", vertical: "SHORT" }, runFit: { gap: "B", side: "RIGHT" } },
+        LB_M: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "RIGHT" } },
       },
     });
-    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_ZONE_CELL_DUPLICATE");
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_ZONE_RESPONSIBILITY_DUPLICATE");
+  });
+
+  it("rejects a region whose numbers contradict the responsibility it claims", () => {
+    // The shape of the ADR-018 failure that survives the constructor: a card that
+    // arrives from JSON, says DEEP_THIRD, and covers one cell. It would read as a
+    // third in every report and be man coverage with extra steps.
+    const bad = defense({
+      duties: {
+        ...NICKEL_COVER_3_SKY.duties,
+        CB_L: {
+          kind: "ZONE",
+          responsibility: "DEEP_THIRD",
+          zone: { horizontal: "LW", vertical: "DEEP" },
+          laneSpan: 0,
+          depthSpan: 0,
+        },
+      },
+    });
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_ZONE_SHAPE_MISMATCH");
+  });
+
+  it("rejects padding — a defender cannot be responsible for most of the field", () => {
+    const bad = defense({
+      duties: {
+        ...NICKEL_COVER_3_SKY.duties,
+        CB_L: {
+          kind: "ZONE",
+          responsibility: "DEEP_THIRD",
+          zone: { horizontal: "C", vertical: "INTERMEDIATE" },
+          laneSpan: 2,
+          depthSpan: 2,
+        },
+      },
+    });
+    expect(errorCodes(validateDefensiveCard(bad))).toEqual(
+      expect.arrayContaining(["D_ZONE_AREA", "D_ZONE_LANE", "D_ZONE_SHAPE_MISMATCH"]),
+    );
+  });
+
+  it("rejects a span outside the range the grid can mean anything in", () => {
+    const bad = defense({
+      duties: {
+        ...NICKEL_COVER_3_SKY.duties,
+        CB_L: {
+          kind: "ZONE",
+          responsibility: "DEEP_THIRD",
+          zone: { horizontal: "LW", vertical: "DEEP" },
+          laneSpan: -1,
+          depthSpan: 9,
+        },
+      },
+    });
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_ZONE_SPAN_RANGE");
   });
 
   it("rejects two defenders fitting the same gap", () => {
     const bad = defense({
       duties: {
         ...NICKEL_COVER_3_SKY.duties,
-        LB_M: { kind: "ZONE", zone: { horizontal: "RH", vertical: "INTERMEDIATE" }, runFit: { gap: "B", side: "LEFT" } },
+        LB_M: { kind: "ZONE", ...zone("HOOK_CURL", "RH"), runFit: { gap: "B", side: "LEFT" } },
       },
     });
     expect(errorCodes(validateDefensiveCard(bad))).toContain("D_GAP_OWNED_TWICE");
   });
 
   it("rejects a front that leaves an interior gap unaccounted for", () => {
-    const noBLeft: DefensiveDuty = {
-      kind: "ZONE",
-      zone: { horizontal: "LH", vertical: "INTERMEDIATE" },
-    };
+    const noBLeft: DefensiveDuty = { kind: "ZONE", ...zone("HOLE", "LH") };
     const bad = defense({ duties: { ...NICKEL_COVER_3_SKY.duties, LB_W: noBLeft } });
     expect(errorCodes(validateDefensiveCard(bad))).toContain("D_GAP_INTEGRITY");
   });
@@ -271,9 +322,9 @@ describe("defensive cards it rejects", () => {
     const bad = defense({
       duties: {
         ...NICKEL_COVER_3_SKY.duties,
-        CB_L: { kind: "ZONE", zone: { horizontal: "LW", vertical: "INTERMEDIATE" } },
-        CB_R: { kind: "ZONE", zone: { horizontal: "RW", vertical: "INTERMEDIATE" } },
-        S_F: { kind: "ZONE", zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
+        CB_L: { kind: "ZONE", ...zone("CURL_FLAT", "LW") },
+        CB_R: { kind: "ZONE", ...zone("CURL_FLAT", "RW") },
+        S_F: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C") },
       },
     });
     expect(errorCodes(validateDefensiveCard(bad))).toContain("D_UNDECLARED_NO_DEEP_HELP");
@@ -317,7 +368,7 @@ describe("what it deliberately accepts (ADR-006)", () => {
           kind: "MAN",
           target: { kind: "NUMBER", side: "RIGHT", number: 1 },
           technique: "OFF",
-          ifAbsent: { kind: "ZONE", zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
+          ifAbsent: { kind: "ZONE", ...zone("HOLE", "C") },
           runFit: { gap: "D", side: "LEFT" },
         },
       },
@@ -334,7 +385,7 @@ describe("what it deliberately accepts (ADR-006)", () => {
           kind: "MAN",
           target: { kind: "NUMBER", side: "RIGHT", number: 1 },
           technique: "OFF",
-          ifAbsent: { kind: "ZONE", zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
+          ifAbsent: { kind: "ZONE", ...zone("HOLE", "C") },
           runFit: { gap: "D", side: "LEFT" },
         },
       },

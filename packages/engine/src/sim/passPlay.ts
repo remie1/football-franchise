@@ -54,6 +54,7 @@ import type {
   PlayCalls,
   PocketStatus,
   RouteAssignment,
+  RunSide,
   RushAlignment,
   RushMove,
   SimulationResult,
@@ -107,6 +108,7 @@ import {
   hasArrived,
   minTimeToArrival,
   recoverySecondsFor,
+  resolvedRushAssignment,
   rushAlignmentFor,
   soonerThreat,
   startsThreat,
@@ -133,6 +135,20 @@ interface RushMatchup {
   readonly blocker: PlayerState;
   readonly move: RushMove;
   readonly alignment: RushAlignment;
+  /**
+   * ADR-018 petition 2 — which side of the centre he came from, as the card
+   * stated it. The engine does NOT pair protection by it: `ProtectionAssignment`
+   * states the blocker↔rusher pairing and playbook is what forms it. It is
+   * carried so that the geometry the play was simulated with reaches PLAY_START,
+   * exactly as `alignment` does — a consumer that can see a resolved alignment
+   * and cannot see which side it was on can still be looking at an impossible
+   * matchup that resolved cleanly.
+   *
+   * `undefined` where the card said nothing, and never defaulted: unlike
+   * `alignment` there is no tunable to default it from, and guessing a side is
+   * the fabricated geometry the petition exists to remove.
+   */
+  readonly side: RunSide | undefined;
   pressure: number;
   previousBand: PassRushBandLabel | undefined;
   /** Set when he beats the block; cleared when the blocker resets him. */
@@ -261,12 +277,16 @@ export function simulatePassPlay(
       coverage: coverageShellFor(calls),
       assignments: calls.defense.assignments,
       // Alignment resolved, not echoed: it is the input the §7.2 arrival model
-      // actually ran on, and the only place the stream states it.
-      rush: matchups.map((m) => ({
-        rusher: m.rusher.bio.id,
-        move: m.move,
-        alignment: m.alignment,
-      })),
+      // actually ran on, and the only place the stream states it. Side carried
+      // through unresolved (ADR-018) — see `resolvedRushAssignment`.
+      rush: matchups.map((m) =>
+        resolvedRushAssignment({
+          rusher: m.rusher.bio.id,
+          move: m.move,
+          alignment: m.alignment,
+          side: m.side,
+        }),
+      ),
     },
     situation: {
       down: state.down,
@@ -1387,6 +1407,7 @@ function buildMatchups(tunables: Tunables, state: MatchGameState, calls: PlayCal
       blocker: requirePlayer(state, protection.blocker),
       move: assignment.move,
       alignment: rushAlignmentFor(tunables, rusher.bio.position, assignment.alignment),
+      side: assignment.side,
       pressure: 0,
       previousBand: undefined,
       threat: undefined,
@@ -1423,7 +1444,7 @@ function buildReceiverTracks(
         technique: manned.technique,
       };
     } else {
-      const zoned = zoneDefenderFor(calls.defense.assignments, zone);
+      const zoned = zoneDefenderFor(tunables, calls.defense.assignments, zone);
       coverage = {
         kind: "ZONE",
         defender: zoned === undefined ? undefined : requirePlayer(state, zoned.defender),

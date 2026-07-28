@@ -13,12 +13,10 @@ import type {
   CalendarStamp,
   ChemistryTable,
   CoverageAssignment,
-  CoverageShell,
   CoverageTechnique,
   DefensivePlayCall,
   FieldZone,
   GameId,
-  GapId,
   HorizontalZone,
   ManAssignment,
   MatchEventEnvelope,
@@ -30,7 +28,6 @@ import type {
   PocketStatus,
   ProtectionAssignment,
   ReadSystem,
-  ResolvedRushAssignment,
   RouteAssignment,
   RouteDepthClass,
   RunBlockAssignment,
@@ -85,11 +82,9 @@ export type {
   AnyPlayCalls,
   BlockType,
   CoverageAssignment,
-  CoverageShell,
   CoverageTechnique,
   DefensivePlayCall,
   FieldZone,
-  GapId,
   HorizontalZone,
   ManAssignment,
   OffensiveCall,
@@ -97,7 +92,6 @@ export type {
   PlayCalls,
   ProtectionAssignment,
   ReadSystem,
-  ResolvedRushAssignment,
   RouteAssignment,
   RouteDepthClass,
   RunBlockAssignment,
@@ -127,6 +121,55 @@ export { isRunCall } from "@ff/contracts";
  * so ADR-013's refusal still covers it and it stays here.
  */
 export type ContestPosition = "TRAILING" | "EVEN" | "IN_FRONT";
+
+/**
+ * ADR-018 — RESOLUTION PRODUCTS, DECLARED HERE BECAUSE THEY ARE NOT VOCABULARY.
+ *
+ * `CoverageShell` and `ResolvedRushAssignment` spent one dispatch in
+ * `@ff/contracts/playcalls` and came back. The test that settled it is worth
+ * keeping, because it is not "who uses it" — the playbook agent used all three
+ * and still argued none was shared — it is **same shape, different fact**:
+ *
+ *   `ResolvedRushAssignment` means *the alignment the engine SIMULATED with*,
+ *   after `rushAlignmentFor` defaulted an omitted one from a tunable. What a
+ *   card corpus needed was *the alignment the card DECLARED*. The two structures
+ *   are identical and the two claims are not, so one name for both would have
+ *   coupled a play card to an engine tunable permanently and invisibly: change
+ *   `tunables.arrival.defaultAlignment` and a corpus's meaning moves.
+ *
+ * The same test disposes of the other two. A `CoverageShell` is COMPUTED by
+ * walking assignments — no card has a coverage field, and `MIXED` is precisely
+ * the answer no card can state. `GapId` (now in `resolve/runGame.ts`, next to
+ * every operation on it) appears on no card at all: cards carry `designedGap`
+ * and `designedSide` as two fields, and the pair is an engine handle.
+ *
+ * `contracts.md` §10's rule for that file is "what a play card IS". The ATOMS —
+ * `RunGap`, `RunSide`, `RushAlignment`, `FieldZone` — are shared vocabulary and
+ * are still imported from contracts above. Their resolution products are
+ * machinery and live with the machine.
+ */
+
+/**
+ * What the defence PLAYED, derived from the assignments rather than declared.
+ * Emitted on PLAY_START so a consumer can split man from zone without walking
+ * every assignment — and so `MIXED` is sayable at all.
+ */
+export type CoverageShell = "MAN" | "ZONE" | "MIXED" | "NONE";
+
+/**
+ * A rush assignment after the engine has resolved the optional alignment. This
+ * is what goes into PLAY_START, so the stream carries the alignment the play was
+ * actually simulated with rather than the one the caller happened to type.
+ *
+ * `side` (ADR-018 petition 2) is inherited from `RushAssignment` and stays
+ * OPTIONAL, which is the honest shape: unlike `alignment` there is no tunable
+ * default to resolve it from, and inventing one would be exactly the fabricated
+ * geometry the petition exists to remove. Omitted here means the card did not
+ * say, which is what it means on the card.
+ */
+export interface ResolvedRushAssignment extends RushAssignment {
+  readonly alignment: RushAlignment;
+}
 
 /**
  * The engine's view of game state. Franchise owns the real one; this is the

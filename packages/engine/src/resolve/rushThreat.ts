@@ -24,7 +24,13 @@
 import type { PlayerId, Position } from "@ff/contracts";
 import { clamp } from "../rolls.js";
 import type { Tunables } from "../tunables.js";
-import type { PocketStatus, RushAlignment, RushMove } from "../types.js";
+import type {
+  PocketStatus,
+  ResolvedRushAssignment,
+  RunSide,
+  RushAlignment,
+  RushMove,
+} from "../types.js";
 import type { PassRushBandLabel } from "./passRush.js";
 
 /** A rusher who has beaten his block and is on his way. */
@@ -74,6 +80,35 @@ export function rushAlignmentFor(
   if (declared !== undefined) return declared;
   const interior: readonly string[] = tunables.arrival.interiorPositions;
   return interior.includes(position) ? "INTERIOR" : tunables.arrival.defaultAlignment;
+}
+
+/**
+ * The rush assignment as PLAY_START states it: the alignment RESOLVED, and the
+ * side carried through unchanged (ADR-018 petition 2).
+ *
+ * The asymmetry between the two fields is the whole content of this function and
+ * is deliberate. `alignment` is resolved because §7.2's time-of-arrival model
+ * cannot run without one, so an absent alignment becomes a tunable default and
+ * the stream must state which value was actually used. `side` has no such
+ * consumer and therefore no default: nothing in the engine reads it, so there is
+ * nothing to substitute for it and substituting anything would be inventing the
+ * geometry the petition exists to stop being invented. Absent stays absent, and
+ * a consumer can tell "the card did not say" from "the card said LEFT".
+ *
+ * One owner, called from both `sim/passPlay.ts` and `sim/runPlay.ts`, because
+ * two copies of "what PLAY_START says about a rusher" is how the pass and run
+ * payloads drift apart.
+ */
+export function resolvedRushAssignment(args: {
+  readonly rusher: PlayerId;
+  readonly move: RushMove;
+  readonly alignment: RushAlignment;
+  readonly side: RunSide | undefined;
+}): ResolvedRushAssignment {
+  const { rusher, move, alignment, side } = args;
+  // `exactOptionalPropertyTypes` — an omitted side is an ABSENT key, not a key
+  // whose value is `undefined`, so a consumer's `in` test and its `?.` test agree.
+  return side === undefined ? { rusher, move, alignment } : { rusher, move, alignment, side };
 }
 
 /**

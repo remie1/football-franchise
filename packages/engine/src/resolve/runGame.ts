@@ -19,12 +19,38 @@ import type { CheckEmission } from "../events.js";
 import { bandFor, compact, rollD100, tierFor } from "../rolls.js";
 import { termAttrs, termModifiers } from "../terms.js";
 import type { Tunables } from "../tunables.js";
-import type { GapId, RunGap, RunSide } from "../types.js";
+import type { RunGap, RunSide } from "../types.js";
 import { yardsInBand } from "./ballCarrier.js";
 
 export type PointOfAttackLabel = (Tunables["runGame"]["pointOfAttack"]["bands"])[number]["label"];
 export type PointOfAttackContact =
   (Tunables["runGame"]["pointOfAttack"]["bands"])[number]["contact"];
+
+/**
+ * §6.1's gap, identified — a gap letter is not a place until it has a side.
+ *
+ * ADR-018 — declared HERE rather than in `@ff/contracts/playcalls`, and here
+ * rather than in `types.ts`, for two separate reasons.
+ *
+ * NOT CONTRACTS: no play card has a `GapId` field. `RunPlayCall` carries
+ * `designedGap` and `designedSide` as two independent fields, and
+ * `RunBlockAssignment` carries `gap` and `side` the same way. The PAIR is
+ * something the engine forms in order to key a lookup, compare a designed gap to
+ * a resolved one, and print `RUN_RESOLUTION.gap`. `contracts.md` §10's test for
+ * that file is "what a play card IS"; the atoms `RunGap` and `RunSide` pass it
+ * and are imported below, the pair does not.
+ *
+ * NOT `types.ts`: `types.ts` holds the engine's STATE vocabulary and the
+ * PLAY_START payload shapes, and no payload field is typed `GapId` — the run
+ * payload states `designedGap` as the `gapKey` STRING. Every operation on a
+ * GapId is in this module (`gapKey`, `gapLane`, `selectGap`), so the type lives
+ * with them and `sim/runPlay.ts` imports the type and the functions from one
+ * place.
+ */
+export interface GapId {
+  readonly gap: RunGap;
+  readonly side: RunSide;
+}
 
 /** Stable text for `RUN_RESOLUTION.gap` and for the §17 printout. */
 export function gapKey(gap: GapId): string {

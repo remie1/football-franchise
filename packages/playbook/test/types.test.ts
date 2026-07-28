@@ -22,6 +22,7 @@ import { GUN_DOUBLES_RT, GUN_TRIPS_RT, I_FORM_PRO_RT, formation } from "../src/f
 import { passConcept } from "../src/passConcepts.js";
 import { runConcept } from "../src/runConcepts.js";
 import { defensiveCard } from "../src/defense.js";
+import { zone } from "../src/coverage.js";
 import { fiveManLine, sixManProtection } from "../src/protection.js";
 import { route } from "../src/routes.js";
 
@@ -37,7 +38,7 @@ describe("a route cannot be given to a role that is not on the field", () => {
         TE_Y: route("Flat", "QUICK", 2, "RW"),
       },
       readOrder: ["Z", "TE_Y"],
-      protection: sixManProtection("RB"),
+      protection: sixManProtection("RB", "LEFT"),
       usage: { weight: 1 },
     });
     expect(good.id).toBe("T_GOOD");
@@ -56,7 +57,7 @@ describe("a route cannot be given to a role that is not on the field", () => {
         TE_U: route("Flat", "QUICK", 2, "RW"),
       },
       readOrder: ["Z"],
-      protection: sixManProtection("RB"),
+      protection: sixManProtection("RB", "LEFT"),
       usage: { weight: 1 },
     });
     expect(true).toBe(true);
@@ -76,7 +77,7 @@ describe("a progression cannot name somebody with no route", () => {
       },
       // @ts-expect-error X has no route on this card
       readOrder: ["Z", "X"],
-      protection: sixManProtection("RB"),
+      protection: sixManProtection("RB", "LEFT"),
       usage: { weight: 1 },
     });
     expect(true).toBe(true);
@@ -157,12 +158,12 @@ describe("a defensive card must give every one of its eleven a duty", () => {
         DT_L: { kind: "RUSH", move: "POWER", alignment: "INTERIOR", gap: "A", side: "LEFT" },
         DT_R: { kind: "RUSH", move: "POWER", alignment: "INTERIOR", gap: "A", side: "RIGHT" },
         DE_R: { kind: "RUSH", move: "FINESSE", alignment: "EDGE", gap: "C", side: "RIGHT" },
-        CB_L: { kind: "ZONE", zone: { horizontal: "LW", vertical: "DEEP" } },
-        CB_R: { kind: "ZONE", zone: { horizontal: "RW", vertical: "DEEP" } },
-        CB_N: { kind: "ZONE", zone: { horizontal: "RH", vertical: "SHORT" } },
-        S_F: { kind: "ZONE", zone: { horizontal: "C", vertical: "DEEP" } },
-        LB_W: { kind: "ZONE", zone: { horizontal: "LH", vertical: "SHORT" } },
-        LB_M: { kind: "ZONE", zone: { horizontal: "C", vertical: "SHORT" } },
+        CB_L: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
+        CB_R: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
+        CB_N: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
+        S_F: { kind: "ZONE", ...zone("DEEP_MIDDLE_THIRD", "C") },
+        LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH") },
+        LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C") },
       },
       usage: { weight: 1 },
     });
@@ -182,15 +183,15 @@ describe("a defensive card must give every one of its eleven a duty", () => {
         DT_L: { kind: "RUSH", move: "POWER", alignment: "INTERIOR", gap: "A", side: "LEFT" },
         DT_R: { kind: "RUSH", move: "POWER", alignment: "INTERIOR", gap: "A", side: "RIGHT" },
         DE_R: { kind: "RUSH", move: "FINESSE", alignment: "EDGE", gap: "C", side: "RIGHT" },
-        CB_L: { kind: "ZONE", zone: { horizontal: "LW", vertical: "DEEP" } },
-        CB_R: { kind: "ZONE", zone: { horizontal: "RW", vertical: "DEEP" } },
-        CB_N: { kind: "ZONE", zone: { horizontal: "RH", vertical: "SHORT" } },
-        S_F: { kind: "ZONE", zone: { horizontal: "C", vertical: "DEEP" } },
-        S_S: { kind: "ZONE", zone: { horizontal: "LW", vertical: "SHORT" } },
-        LB_W: { kind: "ZONE", zone: { horizontal: "LH", vertical: "SHORT" } },
-        LB_M: { kind: "ZONE", zone: { horizontal: "C", vertical: "SHORT" } },
+        CB_L: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
+        CB_R: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
+        CB_N: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
+        S_F: { kind: "ZONE", ...zone("DEEP_MIDDLE_THIRD", "C") },
+        S_S: { kind: "ZONE", ...zone("FLAT", "LW") },
+        LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH") },
+        LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C") },
         // @ts-expect-error nickel has no third linebacker
-        LB_S: { kind: "ZONE", zone: { horizontal: "RW", vertical: "SHORT" } },
+        LB_S: { kind: "ZONE", ...zone("CURL_FLAT", "RW") },
       },
       usage: { weight: 1 },
     });
@@ -232,6 +233,46 @@ describe("a run card cannot hand the ball to somebody who is not there", () => {
       usage: { weight: 1 },
     });
     expect(true).toBe(true);
+  });
+});
+
+describe("a zone duty cannot omit its region — ADR-018 §Petition 1 as a type", () => {
+  it("does not compile as a bare cell, which is what a zone used to be", () => {
+    defensiveCard({
+      id: "T_POINT_ZONE",
+      name: "T",
+      personnel: "NICKEL",
+      front: "Nickel Over",
+      shellIntent: "SPOT_ZONE",
+      family: "COVER_3",
+      duties: {
+        DE_L: { kind: "RUSH", move: "SPEED", alignment: "EDGE", gap: "C", side: "LEFT" },
+        DT_L: { kind: "RUSH", move: "POWER", alignment: "INTERIOR", gap: "A", side: "LEFT" },
+        DT_R: { kind: "RUSH", move: "POWER", alignment: "INTERIOR", gap: "A", side: "RIGHT" },
+        DE_R: { kind: "RUSH", move: "FINESSE", alignment: "EDGE", gap: "C", side: "RIGHT" },
+        // A defender covering exactly one cell of twenty-five is not a zone. Before
+        // ADR-018 this was the ONLY thing a card could say.
+        // @ts-expect-error a zone duty must state its responsibility and both spans
+        CB_L: { kind: "ZONE", zone: { horizontal: "LW", vertical: "DEEP" } },
+        CB_R: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
+        CB_N: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
+        S_F: { kind: "ZONE", ...zone("DEEP_MIDDLE_THIRD", "C") },
+        S_S: { kind: "ZONE", ...zone("FLAT", "LW") },
+        LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH") },
+        LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C") },
+      },
+      usage: { weight: 1 },
+    });
+    expect(true).toBe(true);
+  });
+
+  it("does not compile with a responsibility anchored where it cannot be", () => {
+    // A flat is outside by definition; a "middle flat" is not a thing anyone calls.
+    // @ts-expect-error FLAT may only be anchored in LW or RW
+    zone("FLAT", "C");
+    // @ts-expect-error a deep third is an OUTSIDE third
+    zone("DEEP_THIRD", "LH");
+    expect(zone("FLAT", "LW").depthSpan).toBe(1);
   });
 });
 
