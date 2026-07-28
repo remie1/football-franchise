@@ -2,8 +2,8 @@
 
 - **Date:** July 2026
 - **Proposed by:** `calibration`, at the Orchestrator's direction, from a stale-artefact finding
-- **Status:** **proposed** — the identity table and the "recorded but not identity" list need owner
-  sign-off, because they are exactly what a future agent will be tempted to relax
+- **Status:** **approved** July 2026 — both the identity table and the "recorded but not identity"
+  list. See the Decision at the foot.
 
 ## Need
 
@@ -108,3 +108,44 @@ remain legitimate evidence of what baseline-0002 measured, and the backlog cites
 Renamed rather than left in place because `FF_BASELINE_PREV=…baseline-0002.carry-forward.json` is
 the obvious next command for whoever finds it — **a loaded gun that only misfires because a guard
 caught it is still a loaded gun in the drawer.**
+
+---
+
+## Decision
+
+**Approved in full** by project owner + Orchestrator, July 2026 — both the identity table and the
+"recorded but not identity" list.
+
+**The criterion is what makes this hold**, and it is ratified as the operative rule rather than the
+table it produced: *a field belongs to the identity when a change to it means the predecessor's
+number is no longer an estimate of the same quantity under the same system.* It is **checkable**,
+it is why `seedDigest` and `games` are correctly excluded, and it is what a future agent tempted to
+relax the table has to argue against. Filing this proposed rather than taking it was itself the
+right call — **this is exactly the kind of rule that gets loosened by someone who sees the friction
+and not the failure it prevents.**
+
+### The two catches, and why each generalises
+
+**`tunablesDigest` is the sharper one.** Its general form is now a Charter §4.1 precedent: *a
+declared version cannot detect a change to the thing it labels.* It applies well beyond this file —
+**anywhere we are tempted to trust a declared version over an observed hash.** The test whose `why`
+string reads *"the label is lying"* stays exactly as written.
+
+**`eligibility` is the subtle one, and worth restating because the mechanism is indirect.** The sim
+column trends fine across an eligibility change. But a `comfortableStreak` is a verdict against the
+**real** side, and under §10.1's loose-and-ratchet a streak is *one report away from a permanent
+tightening*. So a streak earned partly against 2025 could ratchet a gate — **the sacred-season rule
+leaking through the trend layer rather than through data access.** The `Evidence<T, E>` brand guards
+the door; this guards the window.
+
+### Refusing to guard is as important as the guards
+
+Excluding `seedDigest`, `games` and `workers` is ratified as **part of the decision, not an
+omission from it.** Two seed lists over one tree are two samples of one population; forbidding that
+would block the single unambiguously legitimate trend — the same batch re-run larger, which
+`CALIBRATION-BACKLOG.md` §22c positively encourages.
+
+**A guard that always fires gets deleted.** Over-guarding is how a guard loses its authority, and a
+deleted guard protects nothing. Recorded as a Charter §4.1 design note, because the instinct this
+project has repeatedly rewarded — make it structural — has an obvious failure mode in the other
+direction.
