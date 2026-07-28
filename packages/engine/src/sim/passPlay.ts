@@ -35,6 +35,14 @@
  * how well he can turn it loose BEFORE the break (`resolve/anticipation.ts`),
  * how long he will hold (§8.7's budget, which moves with anticipation rather
  * than separately from it), and how many reads he gets before the outlet.
+ *
+ * §5.3 / §7.3 / §7.4 ARE LIVE, and they retired the last `UnsupportedPlayCallError`
+ * in the engine. A rusher no `ProtectionAssignment` names used to be refused;
+ * `sim/preSnap.ts` now answers him — the slide takes him, the back who stayed in
+ * contests him, or he is a FREE RUNNER with a time of arrival. That refusal was
+ * what forced every caller to build blocking against the actual defensive card,
+ * so protection was perfectly informed and pressure was biased downward
+ * (`CALIBRATION-BACKLOG.md` entry 21).
  */
 import { createRng, getAttr, playId as makePlayId } from "@ff/contracts";
 import type { PlayerId, PlayerState, Rng, RushThreatState } from "@ff/contracts";
@@ -60,9 +68,12 @@ import type {
   SimulationResult,
   ThrowType,
 } from "../types.js";
-import { UnsupportedPlayCallError, assertCoherentPlayCall } from "../validate/playCall.js";
+import { assertCoherentPlayCall } from "../validate/playCall.js";
+import { availableBlockersOf } from "../interim/adr022.js";
 import { applyPlayOutcome } from "./outcome.js";
 import type { PlayOutcome } from "./outcome.js";
+import { resolvePreSnap } from "./preSnap.js";
+import type { PreSnapResult, RushPlan } from "./preSnap.js";
 import type { Pursuer } from "../resolve/ballCarrier.js";
 import {
   advanceCarrier,
@@ -109,7 +120,6 @@ import {
   minTimeToArrival,
   recoverySecondsFor,
   resolvedRushAssignment,
-  rushAlignmentFor,
   soonerThreat,
   startsThreat,
   threatFromWonRep,
@@ -132,7 +142,16 @@ import {
 
 interface RushMatchup {
   readonly rusher: PlayerState;
-  readonly blocker: PlayerState;
+  /**
+   * `undefined` is a FREE RUNNER (§7.3 / §7.4) — nobody is blocking him, so no
+   * §7.1 rep runs, nothing can reset him, and his threat exists from the snap.
+   *
+   * This is what the engine used to reject with `UnsupportedPlayCallError`. An
+   * unblocked rusher is football; refusing him forced every caller to build
+   * protection against the actual defensive card, which is `CALIBRATION-BACKLOG`
+   * entry 21's perfectly-informed protection.
+   */
+  readonly blocker: PlayerState | undefined;
   readonly move: RushMove;
   readonly alignment: RushAlignment;
   /**
@@ -155,6 +174,18 @@ interface RushMatchup {
   threat: RushThreat | undefined;
   /** Whether the CURRENT threat's arrival has already been published (ADR-007). */
   announcedArrival: boolean;
+}
+
+/** A free runner's threat starts at the snap, before the first tick. */
+function freeRunnerThreat(plan: RushPlan): RushThreat | undefined {
+  if (plan.free === undefined) return undefined;
+  return {
+    rusher: plan.rusher.bio.id,
+    alignment: plan.alignment,
+    wonAtTick: 0,
+    etaTick: plan.free.etaTick,
+    rollRef: plan.free.rollRef,
+  };
 }
 
 /** The quarterback outside the pocket (§8.8), on pursuit's clock. */
@@ -231,6 +262,9 @@ export function simulatePassPlay(
   const qb = requirePlayer(state, state.quarterback);
 
   const playRng = createRng(seed, `game:${String(state.gameId)}`).fork(`play:${state.playNumber}`);
+  // §5 pre-snap gets its own subsystem fork, so a blitz that is recognised
+  // cannot shift the stream of any check that follows it.
+  const presnapRng = playRng.fork("presnap");
   const rushRng = playRng.fork("rush");
   const coverageRng = playRng.fork("coverage");
   const qbReadRng = playRng.fork("qbread");
@@ -243,15 +277,30 @@ export function simulatePassPlay(
   // §13/§14 — everything that happens once somebody has the ball in his hands.
   const carrierRng = playRng.fork("carrier");
 
-  const matchups = buildMatchups(tunables, state, calls);
-  const tracks = buildReceiverTracks(tunables, state, calls);
+  // ---- §5 PRE-SNAP ---------------------------------------------------------
+  // Resolved BEFORE PLAY_START is logged, because it decides what PLAY_START has
+  // to say: which routes were actually run (§5.3's hot conversion), what order
+  // he worked them in, and who was blocking whom at the snap. The EVENTS are
+  // emitted after PLAY_START, which is the order they happened in relative to
+  // the play's own header.
+  const preSnap = resolvePreSnap({
+    tunables,
+    state,
+    calls,
+    quarterback: qb,
+    presnapRng,
+    player: (id) => requirePlayer(state, id),
+  });
+
+  const matchups = buildMatchups(preSnap);
+  const tracks = buildReceiverTracks(tunables, state, calls, preSnap.routes);
   const recoverySpots = buildRecoverySpots(tunables, state, calls, tracks);
 
   const system = calls.offense.readSystem;
   const budgetSeconds = timeBudgetSeconds(tunables, qb, system);
   const maxReads = maxReadsFor(tunables, system);
   const throwThreshold = throwThresholdFor(tunables, system);
-  const readOrder = calls.offense.readOrder.filter((id) =>
+  const readOrder = preSnap.readOrder.filter((id) =>
     tracks.some((t) => t.assignment.receiver === id),
   );
 
@@ -263,10 +312,14 @@ export function simulatePassPlay(
       formation: calls.offense.formation,
       quarterback: state.quarterback,
       readSystem: system,
-      routes: calls.offense.routes,
+      // The routes he RAN, which on a recognised blitz is not the routes the card
+      // drew. `hotConversions` states the difference.
+      routes: preSnap.routes,
       // Filtered, not echoed: this is the progression he actually worked.
       readOrder,
       protection: calls.offense.protection,
+      availableBlockers: preSnap.availableBlockers,
+      hotConversions: preSnap.hotConversions,
     },
     defense: {
       team: state.defenseTeam,
@@ -287,6 +340,9 @@ export function simulatePassPlay(
           side: m.side,
         }),
       ),
+      unaccountedRushers: preSnap.unaccounted,
+      blitzDisguise: preSnap.disguise,
+      stunts: preSnap.stunts,
     },
     situation: {
       down: state.down,
@@ -297,6 +353,12 @@ export function simulatePassPlay(
   };
   log.setTick(undefined);
   log.playStart(startPayload);
+
+  // §5.3's recognition, then §7.4's pickups and §7.3's exchanges. Emitted after
+  // PLAY_START and before the first TICK, which is where they belong: they
+  // happened before the snap.
+  if (preSnap.recognition !== undefined) log.presnapRead(preSnap.recognition);
+  for (const check of preSnap.checks) log.check(check);
 
   /** §8.1 — where he is in the progression. Wraps; it does NOT skip. */
   let readPointer = 0;
@@ -320,6 +382,20 @@ export function simulatePassPlay(
   const publishThreat = (threat: RushThreat, state: RushThreatState): void => {
     log.rushThreat(threat.rusher, threat.alignment, threat.rollRef, threat.etaTick, state);
   };
+
+  // §7.3 / §7.4 — a free runner is TRAVELLING from the snap. He is published
+  // here, pre-snap, because that is when he started: no rep created him, so
+  // there is no tick at which he "won".
+  //
+  // ⚠ ADR-022 INTERIM. `RUSH_THREAT` has no way to say WHY a rusher is
+  // travelling, so an unblocked blitzer and a beaten tackle arrive in the stream
+  // looking identical. `rollRef` still points at a real roll in every case — the
+  // §5.3 recognition, the §7.4 pickup, or the §7.3 exchange — but a consumer
+  // cannot tell which kind of roll it is without going and looking. The petition
+  // is an `origin` field; nothing is faked in the meantime.
+  for (const m of matchups) {
+    if (m.threat !== undefined) publishThreat(m.threat, "TRAVELLING");
+  }
 
   /**
    * §9.3 / §9.4 — resolve the break point. Called from the route loop when the
@@ -413,10 +489,15 @@ export function simulatePassPlay(
     if (scramble === undefined) {
       const tickRng = rushRng.fork(`t${tick.toFixed(1)}`);
       for (const m of matchups) {
+        // §7.3 / §7.4 — nobody is blocking him, so there is no rep to roll. His
+        // threat was created at the snap and nothing at the line can reset it:
+        // only the quarterback moving, or the clock, changes what happens next.
+        if (m.blocker === undefined) continue;
+        const blocker = m.blocker;
         const rush = resolvePassRushTick({
           tunables,
           rusher: m.rusher,
-          blocker: m.blocker,
+          blocker,
           move: m.move,
           tickRng,
           ...(m.previousBand === undefined ? {} : { previousBand: m.previousBand }),
@@ -1389,31 +1470,28 @@ function checkdownTrack(
   return best;
 }
 
-function buildMatchups(tunables: Tunables, state: MatchGameState, calls: PlayCalls): RushMatchup[] {
-  return calls.defense.rush.map((assignment) => {
-    const protection = calls.offense.protection.find((p) => p.rusher === assignment.rusher);
-    if (protection === undefined) {
-      // NOT incoherence (R4): an unblocked blitzer is coherent, resolvable
-      // football. It is a SCOPE LIMIT — §7.4 blitz pickup is unimplemented — and
-      // it gets its own type so a caller can tell "bad card" from "not yet".
-      throw new UnsupportedPlayCallError(
-        `rusher ${String(assignment.rusher)} has no ProtectionAssignment; ` +
-          "the free-rusher / blitz-pickup mechanic (§7.4) is not implemented",
-      );
-    }
-    const rusher = requirePlayer(state, assignment.rusher);
-    return {
-      rusher,
-      blocker: requirePlayer(state, protection.blocker),
-      move: assignment.move,
-      alignment: rushAlignmentFor(tunables, rusher.bio.position, assignment.alignment),
-      side: assignment.side,
-      pressure: 0,
-      previousBand: undefined,
-      threat: undefined,
-      announcedArrival: false,
-    };
-  });
+/**
+ * The line battle as §5's pre-snap phase left it.
+ *
+ * THIS FUNCTION NO LONGER THROWS. It used to raise `UnsupportedPlayCallError`
+ * for a rusher no `ProtectionAssignment` named — the honest refusal of a
+ * mechanic that did not exist — and that refusal is what forced every caller to
+ * build blocking against the actual defensive card (`CALIBRATION-BACKLOG.md`
+ * entry 21). §7.4 now answers the question the exception was standing in for:
+ * he is picked up, he is slid to, or he is a free runner with an ETA.
+ */
+function buildMatchups(preSnap: PreSnapResult): RushMatchup[] {
+  return preSnap.plans.map((plan) => ({
+    rusher: plan.rusher,
+    blocker: plan.blocker,
+    move: plan.move,
+    alignment: plan.alignment,
+    side: plan.side,
+    pressure: 0,
+    previousBand: undefined,
+    threat: freeRunnerThreat(plan),
+    announcedArrival: false,
+  }));
 }
 
 /**
@@ -1429,8 +1507,10 @@ function buildReceiverTracks(
   tunables: Tunables,
   state: MatchGameState,
   calls: PlayCalls,
+  /** The routes ACTUALLY RUN — §5.3 may have converted some of them. */
+  routes: readonly RouteAssignment[],
 ): ReceiverTrack[] {
-  return calls.offense.routes.map((assignment) => {
+  return routes.map((assignment) => {
     const zone = routeZone(tunables, assignment);
     const manned = calls.defense.assignments.find(
       (a) => a.kind === "MAN" && a.covers === assignment.receiver,
@@ -1520,6 +1600,11 @@ function buildRecoverySpots(
   const backfield = backfieldZone(tunables);
   for (const protection of calls.offense.protection) {
     add({ player: requirePlayer(state, protection.blocker), side: "OFFENSE", zone: backfield, engagedInBlock: true });
+  }
+  // §7.4 — a back who stayed in to scan is in protection whether or not he ended
+  // up with anybody to block. He is in the backfield and he is not in a route.
+  for (const id of availableBlockersOf(calls.offense)) {
+    add({ player: requirePlayer(state, id), side: "OFFENSE", zone: backfield, engagedInBlock: true });
   }
   for (const rush of calls.defense.rush) {
     add({ player: requirePlayer(state, rush.rusher), side: "DEFENSE", zone: backfield, engagedInBlock: true });

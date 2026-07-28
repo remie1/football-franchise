@@ -142,24 +142,71 @@ describe("pass play integration", () => {
   });
 
   /**
-   * R4 — the two rejections are DIFFERENT KINDS OF NO, and the type says which.
+   * ==================== THE REJECTION THAT IS GONE ====================
+   * This test used to assert that an unblocked rusher THREW
+   * `UnsupportedPlayCallError`. It was right to: §7.4 did not exist, and a
+   * silent approximation would have produced clean statistics about a game
+   * nobody played.
    *
-   * An unblocked blitzer is coherent, resolvable football; the engine simply has
-   * no §7.4 mechanic for him. That is a scope limit, not a bad card, and a
-   * caller (franchise, authoring play cards) has to be able to tell them apart
-   * without matching on a message string.
+   * It is inverted now, and the inversion is the dispatch's headline. A rusher
+   * nobody blocks is a FREE RUNNER — real, legal, resolvable football — and the
+   * refusal is what forced every caller to build protection against the actual
+   * defensive card, biasing pressure downward (`CALIBRATION-BACKLOG.md` 21).
+   *
+   * What replaced the throw: a `RUSH_THREAT` with a time of arrival, and a play
+   * that finishes.
+   * ====================================================================
    */
-  it("an unblocked rusher is a SCOPE LIMIT, not incoherence (§7.4 blitz pickup)", () => {
+  it("an unblocked rusher no longer throws — he is a free runner (§7.4)", () => {
     const { state, calls } = buildScenario();
     const noProtection: PlayCalls = {
       ...calls,
       offense: { ...calls.offense, protection: [] },
     };
-    expect(() => simulatePassPlay(state, noProtection, "x")).toThrow(UnsupportedPlayCallError);
-    expect(() => simulatePassPlay(state, noProtection, "x")).toThrow(/ProtectionAssignment/);
-    // ...and specifically NOT the other one: a caller catching incoherence must
-    // not swallow "the engine cannot do this yet".
-    expect(() => simulatePassPlay(state, noProtection, "x")).not.toThrow(IncoherentPlayCallError);
+
+    expect(() => simulatePassPlay(state, noProtection, "x")).not.toThrow();
+
+    const { events } = simulatePassPlay(state, noProtection, "x");
+    expect(events[0]?.event.type).toBe("PLAY_START");
+    expect(events[events.length - 1]?.event.type).toBe("PLAY_RESULT");
+
+    // He is published as a threat BEFORE the first tick: no rep created him, so
+    // there is no tick at which he won one.
+    const threats = events.filter(({ event }) => event.type === "RUSH_THREAT");
+    expect(threats.length).toBeGreaterThan(0);
+    const first = threats[0]?.event;
+    expect(first?.type).toBe("RUSH_THREAT");
+    if (first?.type === "RUSH_THREAT") {
+      expect(first.tick).toBeUndefined();
+      expect(first.payload.state).toBe("TRAVELLING");
+      expect(first.payload.etaTick).toBeGreaterThan(0);
+      // ADR-004/005 — the threat names a real roll and never a synthetic label.
+      expect(first.payload.rollRef.length).toBeGreaterThan(0);
+    }
+
+    // No pass_rush_tick rep is rolled for a man nobody is blocking (ADR-005).
+    const reps = events.filter(
+      ({ event }) => event.type === "CHECK" && event.payload.checkKind === "pass_rush_tick",
+    );
+    expect(reps).toHaveLength(0);
+  });
+
+  /**
+   * The rejection VOCABULARY survives its only member. `UnsupportedPlayCallError`
+   * stays exported so the next scope limit reuses the distinction rather than
+   * reinventing it — and so a caller that catches it keeps compiling.
+   */
+  it("the two rejection types are still distinct, and incoherence still throws", () => {
+    const { state, calls } = buildScenario();
+    expect(new UnsupportedPlayCallError("x")).not.toBeInstanceOf(IncoherentPlayCallError);
+    const twoRoutes: PlayCalls = {
+      ...calls,
+      offense: {
+        ...calls.offense,
+        readOrder: [...calls.offense.readOrder, state.quarterback],
+      },
+    };
+    expect(() => simulatePassPlay(state, twoRoutes, "x")).toThrow(IncoherentPlayCallError);
   });
 
   it("a receiver nobody covers is no longer an error — it is a hole in the zone (§9.4)", () => {

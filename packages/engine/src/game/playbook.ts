@@ -12,10 +12,22 @@
  *  - eleven cards, so play-call variety is a rounding error against reality;
  *  - no personnel groupings, no motion, no play action, no screens, no draws,
  *    no option, no empty, no heavy, no goal-line, no two-minute package;
- *  - no blitz, no stunt, no simulated pressure (the engine has no §7.3/§7.4);
+ *  - six coverage cards, of which two blitz and one twists. That mix is a
+ *    PROPERTY OF THIS FILE and not of the engine: it puts the blitz rate at 1
+ *    in 3 and the stunt rate at 1 in 6 by construction, because `pick` is
+ *    uniform. Any measured blitz rate is therefore a statement about these six
+ *    cards. The real distribution is `packages/playbook`'s, fitted to real
+ *    play-by-play (CALIBRATION-BACKLOG 8b);
  *  - the CENTRE never blocks anybody on a dropback. Protection is 1:1 and the
- *    front is four men, so four tackles and guards account for it and he stands
- *    there. That is a simplification of protection, not of the engine.
+ *    base front is four men, so four tackles and guards account for it and he
+ *    stands there — he is now NAMED, because §5.3 and §7.3 both roll his
+ *    awareness and the engine cannot work out who he is from a pairing list.
+ *    That is a simplification of protection, not of the engine.
+ *
+ * ⚠ ADR-022 INTERIM. The blitz, stunt, hot-route and protection-scheme fields
+ * below are petitioned vocabulary, not ratified. They are declared in
+ * `src/interim/adr022.ts` and are the reason the pass cards are built as
+ * `InterimOffensivePlayCall` rather than `OffensivePlayCall`.
  *  - route break zones are stated on every route, which real cards would also
  *    do, but the horizontal spacing is chosen to exercise the §3 grid rather
  *    than to be sound football.
@@ -27,11 +39,11 @@
  * ============================================================== */
 import type { PlayerId } from "@ff/contracts";
 import type {
-  DefensivePlayCall,
-  OffensivePlayCall,
-  ProtectionAssignment,
-  RunPlayCall,
-} from "../types.js";
+  InterimDefensivePlayCall,
+  InterimOffensivePlayCall,
+  ProtectionSchemeCall,
+} from "../interim/adr022.js";
+import type { ProtectionAssignment, RunPlayCall } from "../types.js";
 import type { DefensivePersonnel, OffensivePersonnel } from "./types.js";
 
 function at<T>(items: readonly T[], index: number, what: string): T {
@@ -52,7 +64,16 @@ export function frontFour(defense: DefensivePersonnel): readonly PlayerId[] {
   ];
 }
 
-/** 1:1 protection, tackles on the edges and guards inside. The centre is free. */
+/**
+ * 1:1 protection against the FOUR DOWN LINEMEN, who are personnel and not a
+ * play call: the offence blocks the men it can see lined up with a hand in the
+ * dirt, and it does not name the linebacker who is about to blitz.
+ *
+ * That distinction is the whole of `CALIBRATION-BACKLOG.md` entry 21 as it
+ * applies to this file. `frontFour` reads `DefensivePersonnel`; nothing here
+ * reads `DefensivePlayCall.rush`. A fifth or sixth rusher therefore arrives
+ * UNNAMED, which is what a blitz is, and §7.4 answers him.
+ */
 function baseProtection(
   offense: OffensivePersonnel,
   defense: DefensivePersonnel,
@@ -66,9 +87,24 @@ function baseProtection(
   ];
 }
 
+/**
+ * ⚠ ADR-022 INTERIM — §7.4's step 1 inputs.
+ *
+ * `available` is the pre-snap decision to keep a man in, and it is the whole
+ * reason a blitz is answerable. It is stated on the CARD, before the defensive
+ * call is known: a back who is not in the route is scanning, and one who is in
+ * the route cannot become a blocker because a linebacker showed.
+ */
+function manProtection(
+  offense: OffensivePersonnel,
+  available: readonly PlayerId[],
+): ProtectionSchemeCall {
+  return { kind: "MAN", center: offense.center, available };
+}
+
 export interface PassCard {
   readonly name: string;
-  build(offense: OffensivePersonnel, defense: DefensivePersonnel): OffensivePlayCall;
+  build(offense: OffensivePersonnel, defense: DefensivePersonnel): InterimOffensivePlayCall;
 }
 
 export interface RunCard {
@@ -78,7 +114,7 @@ export interface RunCard {
 
 export interface CoverageCard {
   readonly name: string;
-  build(offense: OffensivePersonnel, defense: DefensivePersonnel): DefensivePlayCall;
+  build(offense: OffensivePersonnel, defense: DefensivePersonnel): InterimDefensivePlayCall;
 }
 
 // --- dropbacks --------------------------------------------------------------
@@ -98,13 +134,23 @@ export const PASS_CARDS: readonly PassCard[] = [
         formation: "Shotgun Trips Right",
         readSystem: "FULL_FIELD",
         routes: [
-          { receiver: x, routeName: "Go", depthClass: "DEEP", airYards: 24, breakZone: { horizontal: "LW", vertical: "DEEP" } },
+          {
+            receiver: x, routeName: "Go", depthClass: "DEEP", airYards: 24,
+            breakZone: { horizontal: "LW", vertical: "DEEP" },
+            // §5.3 — the backside X converts. A go route against a blitz is a
+            // ball that arrives after the quarterback has been hit.
+            hot: {
+              routeName: "Hot Slant", depthClass: "QUICK", airYards: 6,
+              breakZone: { horizontal: "LH", vertical: "SHORT" },
+            },
+          },
           { receiver: z, routeName: "Dig", depthClass: "INTERMEDIATE", airYards: 14, breakZone: { horizontal: "C", vertical: "INTERMEDIATE" } },
           { receiver: offense.tightEnd, routeName: "Shallow Cross", depthClass: "QUICK", airYards: 5, breakZone: { horizontal: "RH", vertical: "SHORT" } },
           { receiver: slot, routeName: "Sit", depthClass: "SHORT", airYards: 8, breakZone: { horizontal: "RW", vertical: "SHORT" } },
         ],
         readOrder: [z, x, slot, offense.tightEnd],
         protection: baseProtection(offense, defense),
+        protectionScheme: manProtection(offense, [offense.runningBack]),
       };
     },
   },
@@ -124,10 +170,18 @@ export const PASS_CARDS: readonly PassCard[] = [
         routes: [
           { receiver: slot, routeName: "Stick", depthClass: "SHORT", airYards: 6, breakZone: { horizontal: "RH", vertical: "SHORT" } },
           { receiver: offense.tightEnd, routeName: "Flat", depthClass: "QUICK", airYards: 3, breakZone: { horizontal: "RW", vertical: "SHORT" } },
-          { receiver: x, routeName: "Go", depthClass: "DEEP", airYards: 24, breakZone: { horizontal: "LW", vertical: "DEEP" } },
+          {
+            receiver: x, routeName: "Go", depthClass: "DEEP", airYards: 24,
+            breakZone: { horizontal: "LW", vertical: "DEEP" },
+            hot: {
+              routeName: "Hot Slant", depthClass: "QUICK", airYards: 5,
+              breakZone: { horizontal: "LH", vertical: "SHORT" },
+            },
+          },
         ],
         readOrder: [slot, offense.tightEnd, x],
         protection: baseProtection(offense, defense),
+        protectionScheme: manProtection(offense, [offense.runningBack]),
       };
     },
   },
@@ -146,12 +200,21 @@ export const PASS_CARDS: readonly PassCard[] = [
         readSystem: "FULL_FIELD",
         routes: [
           { receiver: x, routeName: "Go", depthClass: "DEEP", airYards: 22, breakZone: { horizontal: "LW", vertical: "DEEP" } },
-          { receiver: slot, routeName: "Seam", depthClass: "DEEP", airYards: 20, breakZone: { horizontal: "LH", vertical: "DEEP" } },
+          {
+            receiver: slot, routeName: "Seam", depthClass: "DEEP", airYards: 20,
+            breakZone: { horizontal: "LH", vertical: "DEEP" },
+            // The seam sits down in the vacated middle rather than running past it.
+            hot: {
+              routeName: "Hot Sit", depthClass: "QUICK", airYards: 6,
+              breakZone: { horizontal: "C", vertical: "SHORT" },
+            },
+          },
           { receiver: offense.tightEnd, routeName: "Seam", depthClass: "DEEP", airYards: 20, breakZone: { horizontal: "RH", vertical: "DEEP" } },
           { receiver: z, routeName: "Go", depthClass: "DEEP", airYards: 22, breakZone: { horizontal: "RW", vertical: "DEEP" } },
         ],
         readOrder: [slot, offense.tightEnd, x, z],
         protection: baseProtection(offense, defense),
+        protectionScheme: manProtection(offense, [offense.runningBack]),
       };
     },
   },
@@ -176,6 +239,15 @@ export const PASS_CARDS: readonly PassCard[] = [
         ],
         readOrder: [x, slot, z, offense.runningBack],
         protection: baseProtection(offense, defense),
+        /**
+         * FIVE OUT AND NOBODY IN, on purpose, and no hot route either. This is
+         * the card that gets a free runner against a five-man pressure — and it
+         * is also the card that beats one, because every route is ready at
+         * §9.2's 1.0s and §7.4's free runner does not arrive until 1.5s. The
+         * quick game IS the hot route here; bolting one on would be saying the
+         * same thing twice.
+         */
+        protectionScheme: manProtection(offense, []),
       };
     },
   },
@@ -265,12 +337,17 @@ export const RUN_CARDS: readonly RunCard[] = [
 
 // --- coverages --------------------------------------------------------------
 
-function baseRush(defense: DefensivePersonnel): DefensivePlayCall["rush"] {
+/**
+ * The base four. SIDES ARE STATED (ADR-018 petition 2, landed): they cost
+ * nothing on a four-man rush, and §7.4's slide protection cannot be expressed
+ * without them.
+ */
+function baseRush(defense: DefensivePersonnel): InterimDefensivePlayCall["rush"] {
   return [
-    { rusher: at(defense.edges, 0, "LE"), move: "SPEED", alignment: "EDGE" },
-    { rusher: at(defense.interior, 0, "DT"), move: "POWER", alignment: "INTERIOR" },
-    { rusher: at(defense.interior, 1, "DT"), move: "POWER", alignment: "INTERIOR" },
-    { rusher: at(defense.edges, 1, "RE"), move: "FINESSE", alignment: "EDGE" },
+    { rusher: at(defense.edges, 0, "LE"), move: "SPEED", alignment: "EDGE", side: "LEFT" },
+    { rusher: at(defense.interior, 0, "DT"), move: "POWER", alignment: "INTERIOR", side: "LEFT" },
+    { rusher: at(defense.interior, 1, "DT"), move: "POWER", alignment: "INTERIOR", side: "RIGHT" },
+    { rusher: at(defense.edges, 1, "RE"), move: "FINESSE", alignment: "EDGE", side: "RIGHT" },
   ];
 }
 
@@ -368,6 +445,113 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
           { kind: "MAN", defender: at(defense.linebackers, 0, "LB1"), covers: offense.tightEnd, technique: "OFF" },
           { kind: "MAN", defender: at(defense.linebackers, 1, "LB2"), covers: offense.runningBack, technique: "OFF" },
           // Two deep HALVES: a quadrant each, split down the middle of the field.
+          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "LW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
+          { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
+        ],
+        rush: baseRush(defense),
+      };
+    },
+  },
+
+  // ------------------------------------------------------------------------
+  // ⚠ ADR-022 INTERIM — the three cards the engine could not resolve before
+  // §5.3, §7.3 and §7.4 landed. Two send more men than the protection names;
+  // one twists inside a four-man rush.
+  // ------------------------------------------------------------------------
+
+  {
+    /**
+     * SIX MEN, both linebackers mugged in the A gaps. The protection names four
+     * (the down linemen), so TWO rushers arrive unaccounted for and §7.4 has to
+     * answer both — a back who stayed in takes one and the other runs free.
+     *
+     * `blitzDisguise` is STANDARD because that is what this is: two linebackers
+     * walked up where everybody can see them. The disguise table's higher rows
+     * belong to pressures that hide.
+     */
+    name: "Cover 1 Double A",
+    build(offense, defense) {
+      return {
+        name: "Cover 1 Double A",
+        front: "Nickel Double A Mug",
+        blitzDisguise: "STANDARD",
+        assignments: [
+          { kind: "MAN", defender: at(defense.corners, 0, "CB1"), covers: at(offense.receivers, 0, "X"), technique: "PRESS" },
+          { kind: "MAN", defender: at(defense.corners, 1, "CB2"), covers: at(offense.receivers, 1, "Z"), technique: "PRESS" },
+          { kind: "MAN", defender: at(defense.corners, 2, "NB"), covers: at(offense.receivers, 2, "slot"), technique: "OFF" },
+          { kind: "MAN", defender: at(defense.safeties, 1, "SS"), covers: offense.tightEnd, technique: "OFF" },
+          // Single high, and nothing else behind it. Six rushing plus five in
+          // coverage is eleven; there is no robber and no help.
+          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
+        ],
+        rush: [
+          ...baseRush(defense),
+          { rusher: at(defense.linebackers, 0, "LB1"), move: "SPEED", alignment: "INTERIOR", side: "LEFT" },
+          { rusher: at(defense.linebackers, 1, "LB2"), move: "SPEED", alignment: "INTERIOR", side: "RIGHT" },
+        ],
+      };
+    },
+  },
+
+  {
+    /**
+     * A FIRE ZONE: five rush, the right end drops. One unaccounted rusher —
+     * and the offence blocks an end who is not rushing, which is what a zone
+     * pressure is FOR and what makes its `blitzDisguise` +15.
+     */
+    name: "Cover 3 Fire Zone",
+    build(_offense, defense) {
+      return {
+        name: "Cover 3 Fire Zone",
+        front: "Nickel Fire",
+        blitzDisguise: "ZONE_BLITZ",
+        assignments: [
+          { kind: "ZONE", defender: at(defense.corners, 0, "CB1"), zone: { horizontal: "LW", vertical: "DEEP" }, depthSpan: 1 },
+          { kind: "ZONE", defender: at(defense.corners, 1, "CB2"), zone: { horizontal: "RW", vertical: "DEEP" }, depthSpan: 1 },
+          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, depthSpan: 1 },
+          // Three under, one of whom had his hand in the dirt at the snap.
+          { kind: "ZONE", defender: at(defense.edges, 1, "RE"), zone: { horizontal: "RH", vertical: "SHORT" } },
+          { kind: "ZONE", defender: at(defense.corners, 2, "NB"), zone: { horizontal: "LH", vertical: "SHORT" } },
+          { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
+        ],
+        rush: [
+          { rusher: at(defense.edges, 0, "LE"), move: "SPEED", alignment: "EDGE", side: "LEFT" },
+          { rusher: at(defense.interior, 0, "DT"), move: "POWER", alignment: "INTERIOR", side: "LEFT" },
+          { rusher: at(defense.interior, 1, "DT"), move: "POWER", alignment: "INTERIOR", side: "RIGHT" },
+          { rusher: at(defense.linebackers, 0, "LB1"), move: "SPEED", alignment: "INTERIOR", side: "LEFT" },
+          { rusher: at(defense.linebackers, 1, "LB2"), move: "SPEED", alignment: "EDGE", side: "RIGHT" },
+        ],
+      };
+    },
+  },
+
+  {
+    /**
+     * FOUR MEN AND A TWIST. No extra rusher at all — every rusher is named by
+     * the protection, so §5.3 does not roll and no hot route is available. The
+     * only question is §7.3's: does the line pass the exchange off?
+     *
+     * That is deliberately the cleanest possible measurement of the stunt
+     * mechanic: nothing else on this card differs from Cover 2 Man.
+     */
+    name: "Cover 2 Man Twist",
+    build(offense, defense) {
+      return {
+        name: "Cover 2 Man Twist",
+        front: "Nickel Even (TE twist right)",
+        stunts: [
+          {
+            penetrator: at(defense.interior, 1, "DT"),
+            looper: at(defense.edges, 1, "RE"),
+            complexity: "T_E",
+          },
+        ],
+        assignments: [
+          { kind: "MAN", defender: at(defense.corners, 0, "CB1"), covers: at(offense.receivers, 0, "X"), technique: "PRESS" },
+          { kind: "MAN", defender: at(defense.corners, 1, "CB2"), covers: at(offense.receivers, 1, "Z"), technique: "PRESS" },
+          { kind: "MAN", defender: at(defense.corners, 2, "NB"), covers: at(offense.receivers, 2, "slot"), technique: "OFF" },
+          { kind: "MAN", defender: at(defense.linebackers, 0, "LB1"), covers: offense.tightEnd, technique: "OFF" },
+          { kind: "MAN", defender: at(defense.linebackers, 1, "LB2"), covers: offense.runningBack, technique: "OFF" },
           { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "LW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
           { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
         ],

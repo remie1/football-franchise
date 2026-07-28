@@ -17,6 +17,7 @@
  * game nobody played (CALIBRATION-BACKLOG 3a).
  */
 import type { PlayerId } from "@ff/contracts";
+import { availableBlockersOf, protectionSchemeOf, stuntsOf } from "../interim/adr022.js";
 import type { AnyPlayCalls, MatchGameState, PlayCalls, RunPlayCalls } from "../types.js";
 
 /** Football's own arithmetic, and the only football fact in this file. */
@@ -37,17 +38,27 @@ export class IncoherentPlayCallError extends Error {
  * fix the card.
  *
  * This one means the card is perfectly coherent football that THIS ENGINE cannot
- * simulate yet. The live instance is §7.4 blitz pickup: a rusher with no
- * `ProtectionAssignment` is an unblocked blitzer, which is real, legal and
- * resolvable — the engine simply has no free-rusher mechanic, so it refuses
- * rather than quietly pairing him with a blocker who is not there.
+ * simulate yet.
  *
- * FOR FRANCHISE (Spec #5), which authors play cards: the constraint is that
- * **every rusher named in `DefensivePlayCall.rush` must be named as the
- * `rusher` of some `OffensivePlayCall.protection` entry.** A card that leaves
- * one free is not invalid — it is ahead of the engine, and the day §7.4 lands
- * the same card starts working with no change at the call site. Catch this type
- * to distinguish "bad card" from "not yet".
+ * ================== IT HAS NO LIVE INSTANCE AS OF §7.4 ==================
+ * The instance was **a rusher with no `ProtectionAssignment`** — an unblocked
+ * blitzer, which is real, legal and resolvable football that the engine simply
+ * had no mechanic for. §7.4 blitz pickup landed and the engine now answers the
+ * question instead of refusing it: he is picked up by whoever stayed in, the
+ * slide takes him, or he is a FREE RUNNER with a time of arrival.
+ *
+ * FOR FRANCHISE (Spec #5), which authors play cards: the constraint this class
+ * used to impose — *every rusher must be named by some protection entry* — is
+ * **withdrawn**. A card may leave a rusher free; that is what a blitz IS, and it
+ * is what a card needs to be able to say for `CALIBRATION-BACKLOG.md` entry 21
+ * (perfectly-informed protection) to close.
+ *
+ * THE CLASS STAYS, and deliberately. It is exported, callers catch it to tell
+ * "bad card" from "not yet", and the next scope limit — §9.5 option routes,
+ * §15's special situations, a screen — should reuse it rather than reinvent the
+ * distinction. A rejection vocabulary with no current member is not dead code;
+ * it is a vocabulary that has been fully honoured.
+ * =======================================================================
  */
 export class UnsupportedPlayCallError extends Error {
   constructor(message: string) {
@@ -71,6 +82,11 @@ function known(state: MatchGameState, id: PlayerId): boolean {
  */
 export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls): void {
   const { offense, defense } = calls;
+  // ⚠ ADR-022 INTERIM vocabulary. Read through the one module that names these
+  // fields; validated here for exactly the same reasons the ratified fields are.
+  const scheme = protectionSchemeOf(offense);
+  const availableBlockers = availableBlockersOf(offense);
+  const stunts = stuntsOf(defense);
 
   // 1. Every name has to resolve to somebody who is actually here.
   const named: { readonly role: string; readonly id: PlayerId }[] = [
@@ -81,9 +97,15 @@ export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls):
       { role: "protection's named rusher", id: p.rusher },
     ]),
     ...offense.readOrder.map((id) => ({ role: "readOrder entry", id })),
+    ...availableBlockers.map((id) => ({ role: "available blocker", id })),
+    ...(scheme?.center === undefined ? [] : [{ role: "protection's centre", id: scheme.center }]),
     ...defense.assignments.map((a) => ({ role: "coverage defender", id: a.defender })),
     ...defense.assignments.flatMap((a) => (a.kind === "MAN" ? [{ role: "covered receiver", id: a.covers }] : [])),
     ...defense.rush.map((r) => ({ role: "rusher", id: r.rusher })),
+    ...stunts.flatMap((s) => [
+      { role: "stunt penetrator", id: s.penetrator },
+      { role: "stunt looper", id: s.looper },
+    ]),
   ];
   for (const { role, id } of named) {
     if (!known(state, id)) fail(`${role} ${String(id)} is not in state.players`);
@@ -118,17 +140,58 @@ export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls):
   // Note what is NOT rejected: two defenders on one receiver is a bracket, and
   // a receiver nobody is assigned to is a hole in the zone. Both are football
   // decisions and neither makes the card unresolvable.
+  //
+  // ALSO NOT REJECTED, AS OF §7.4: a rusher no protection names. That is a free
+  // runner, and it is now the mechanic rather than the refusal.
+
+  // 3b. ⚠ ADR-022 INTERIM — the same "nobody does two jobs" rule, applied to the
+  //     petitioned fields. The available-blocker rule is the load-bearing one:
+  //     a man who is running a route cannot materialise as a blocker the moment
+  //     a blitz shows, because that is exactly the perfectly-informed protection
+  //     §7.4 exists to remove (CALIBRATION-BACKLOG 21). Keeping a man in is a
+  //     PRE-SNAP decision and the card has to have made it.
+  assertNoDuplicates(availableBlockers.map(String), (id) => `${id} is listed twice as an available blocker`);
+  const preAssigned = new Set(offense.protection.map((p) => String(p.blocker)));
+  for (const id of availableBlockers) {
+    if (routeRunners.has(String(id))) {
+      fail(`${String(id)} is both available in protection and running a route`);
+    }
+    if (preAssigned.has(String(id))) {
+      fail(`${String(id)} is both assigned a blocking assignment and listed as available`);
+    }
+  }
+  const rushers = new Set(defense.rush.map((r) => String(r.rusher)));
+  for (const stunt of stunts) {
+    if (String(stunt.penetrator) === String(stunt.looper)) {
+      fail(`${String(stunt.looper)} stunts with himself`);
+    }
+    if (!rushers.has(String(stunt.penetrator))) {
+      fail(`stunt penetrator ${String(stunt.penetrator)} is not rushing`);
+    }
+    if (!rushers.has(String(stunt.looper))) {
+      fail(`stunt looper ${String(stunt.looper)} is not rushing`);
+    }
+  }
+  assertNoDuplicates(
+    stunts.flatMap((s) => [String(s.penetrator), String(s.looper)]),
+    (id) => `${id} is in two stunts`,
+  );
+  if (scheme?.kind === "SLIDE" && scheme.slideSide === undefined) {
+    fail("a SLIDE protection does not say which way it slides");
+  }
 
   // 4. Arithmetic. The quarterback is on the field too.
   const offensePlayers = new Set<string>([
     String(state.quarterback),
     ...routeRunners,
     ...offense.protection.map((p) => String(p.blocker)),
+    ...availableBlockers.map(String),
   ]);
   if (offensePlayers.size > PLAYERS_ON_THE_FIELD) {
     fail(
       `${offensePlayers.size} offensive players on the field ` +
-        `(quarterback + ${routeRunners.size} route-runners + ${offense.protection.length} blockers); ` +
+        `(quarterback + ${routeRunners.size} route-runners + ${offense.protection.length} blockers` +
+        ` + ${availableBlockers.length} available in protection); ` +
         `the limit is ${PLAYERS_ON_THE_FIELD}`,
     );
   }

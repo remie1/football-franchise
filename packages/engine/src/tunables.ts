@@ -109,6 +109,63 @@ export const TUNABLES = {
     pocketAwareness: 10,      // QB sensing pressure — INTERPRETATION: see qb.pressureSensing
   },
 
+  /**
+   * §5.3 PRE-SNAP BLITZ RECOGNITION, and the hot route that is its whole point.
+   *
+   * WHEN THIS ROLLS, and it is an INTERPRETATION worth stating because the doc
+   * gives no trigger: **when the defence sends a rusher the protection does not
+   * name.** That is the moment §5.3 describes — "blitz shows" — and it is the
+   * only moment at which recognition changes anything, because a pressure the
+   * protection already accounts for has nothing to recognise. A play where every
+   * rusher is blocked therefore rolls NOTHING here (ADR-005: an absent check
+   * means no die was thrown, never a failed one).
+   *
+   * §5.3 states two consequences of success and the engine honours both:
+   * "hot route available" (`hotRoute` below) and "protection adjusted"
+   * (`blitzPickup.recognitionModifier`).
+   */
+  presnap: {
+    blitzRecognition: {
+      /** §5.3 verbatim: `d100 + QB Awareness÷5 + Centre Awareness÷5` vs `50 + disguise`. */
+      target: 50,
+      attrDivisor: 5,
+      /**
+       * §5.3's disguise table, verbatim. Stated by the defensive card; a card
+       * that says nothing is a standard blitz, which is the doc's own +0 row and
+       * therefore a default that asserts nothing.
+       */
+      disguise: { STANDARD: 0, ZONE_BLITZ: 15, DELAYED: 20, ZERO: 25 },
+      /**
+       * §5.3 gives two outcomes ("SUCCESS" / "FAILURE"); the four bands are the
+       * usual margin split so the stream can say HOW well he saw it. Only
+       * `recognized` is consumed.
+       */
+      bands: [
+        { label: "READ_IT", minMargin: 20, recognized: true },
+        { label: "RECOGNIZED", minMargin: 0, recognized: true },
+        { label: "MISSED", minMargin: -20, recognized: false },
+        { label: "FOOLED", minMargin: NEG_INF, recognized: false },
+      ],
+    },
+    /**
+     * §5.3's "hot route available" and §7.4 step 2's "QB must recognize and
+     * throw hot".
+     *
+     * WHAT THE ENGINE DOES: a route the card marks hot CONVERTS — its depth
+     * class, air yards and break zone become the hot spec's — and the converted
+     * receivers move to the front of the progression. Both are stated on the
+     * card; neither is inferred.
+     *
+     * WHAT THE ENGINE REFUSES TO DO: force the throw. §7.4 says the quarterback
+     * "must" throw hot, but making it unconditional would assert a decision no
+     * roll produced and would bypass §8.5 entirely. He looks there FIRST; §8.5
+     * still decides.
+     */
+    hotRoute: {
+      movesToFrontOfProgression: true,
+    },
+  },
+
   /** §7.1 — per-tick rusher vs. blocker opposed roll. */
   passRush: {
     rusherAttrDivisor: 5,
@@ -147,6 +204,113 @@ export const TUNABLES = {
       BLOCKER_CONTAINS: { delta: 0, reset: false },
       BLOCKER_RESETS: { delta: 0, reset: true },
     },
+  },
+
+  /**
+   * §7.3 — STUNTS AND TWISTS.
+   *
+   * One communication check per stunt, resolved at the snap because that is when
+   * the exchange happens. The two outcomes the doc names are both real changes to
+   * the line battle rather than a modifier:
+   *
+   *   PASSED OFF   "normal matchups resume" — and the matchups that resume are
+   *                SWAPPED, because that is what a twist IS. The penetrator ends
+   *                up on the looper's blocker and vice versa, so a stunt the line
+   *                handles still changes who is blocking whom. A version that
+   *                left the pairing alone would make a successful stunt a no-op,
+   *                which is not what "passed off cleanly" means.
+   *   FAILED       "free rusher created (the looper)" — the looper's blocker is
+   *                gone and the looper arrives on his own clock.
+   */
+  stunt: {
+    /** §7.3 verbatim: `d100 + Centre Awareness÷5 + Adjacent OL Awareness÷5` vs `60 + complexity`. */
+    target: 60,
+    attrDivisor: 5,
+    /** §7.3's complexity table, verbatim. Stated by the defensive card. */
+    complexity: { T_E: 0, T_T: 10, DELAYED: 15, TRIPLE: 25 },
+    /**
+     * INTERPRETATION — which "adjacent OL". The doc names the centre plus one
+     * neighbour; the engine uses **the looper's own blocker**, because he is the
+     * man who has to take the exchange and the man who is beaten when it fails.
+     * The centre term is present only when the card names a centre: no centre is
+     * stated, no centre term is rolled, and the stream shows exactly which terms
+     * applied rather than a silently-substituted stand-in.
+     */
+    bands: [
+      { label: "PASSED_OFF_CLEAN", minMargin: 20, passedOff: true, arrivalDelaySeconds: 0.0 },
+      { label: "PASSED_OFF", minMargin: 0, passedOff: true, arrivalDelaySeconds: 0.0 },
+      { label: "LATE_EXCHANGE", minMargin: -19, passedOff: false, arrivalDelaySeconds: 0.5 },
+      { label: "LOOPER_FREE", minMargin: NEG_INF, passedOff: false, arrivalDelaySeconds: 0.0 },
+    ],
+    /**
+     * INTERPRETATION — §7.3 gives the looper "an unblocked rush at QB" and no
+     * time. A loop is a longer path than a straight blitz, so he is slower than
+     * §7.4's free runner, and `arrivalDelaySeconds` above separates a late
+     * exchange (somebody got a hand on him) from a clean miss.
+     */
+    looperArrivalSeconds: 2.0,
+  },
+
+  /**
+   * §7.4 — BLITZ PICKUP, and the free runner that is the whole reason it exists.
+   *
+   * The doc's four steps map exactly onto four engine behaviours:
+   *
+   *   1. RECOGNITION   deterministic, no die. A rusher is ACCOUNTED FOR if a
+   *                    `ProtectionAssignment` names him (man protection), or if
+   *                    the card declares a slide and he comes from the slide side
+   *                    with a slide blocker still free. Everything else is
+   *                    UNACCOUNTED, which is what starts §5.3's recognition roll.
+   *   2. HOT ROUTE     `presnap.hotRoute`, gated on §5.3's recognition.
+   *   3. PICKED UP     the contest below — the back or tight end who stayed in.
+   *   4. FREE RUNNER   nobody left to pick him up, or the pickup was lost.
+   *
+   * WHAT THIS UNBLOCKS, and it is the point of the dispatch: the engine used to
+   * REJECT a rusher no protection named (`UnsupportedPlayCallError`). That forced
+   * every caller to build blocking against the actual defensive card, so
+   * protection was perfectly informed and pressure was biased DOWN
+   * (`CALIBRATION-BACKLOG.md` entry 21). A free runner is football; it is now
+   * resolved rather than refused.
+   */
+  blitzPickup: {
+    /** §7.4 step 3 verbatim: RB/TE Pass Block vs Blitzer Pass Rush. */
+    blockerAttrDivisor: 5,
+    rusherAttrDivisor: 5,
+    /**
+     * INTERPRETATION of §5.3's "protection adjusted". A blitz the quarterback and
+     * the centre SAW is pointed out before the snap; one they missed is picked up
+     * on instinct. This is the only place recognition touches the line, and it is
+     * a modifier rather than a gate — §5.3's failure text is "free rusher
+     * POTENTIAL", not "free rusher".
+     */
+    recognitionModifier: { RECOGNIZED: 10, MISSED: -10 },
+    /**
+     * Margin = blocker total − rusher total, so the bands read from the
+     * PROTECTION's point of view, matching §7.4's own framing ("if picked up").
+     */
+    bands: [
+      { label: "PICKED_UP_CLEAN", minMargin: 15, blocked: true, arrivalDelaySeconds: 0.0 },
+      { label: "PICKED_UP", minMargin: 0, blocked: true, arrivalDelaySeconds: 0.0 },
+      { label: "RAN_THROUGH", minMargin: -19, blocked: false, arrivalDelaySeconds: 0.5 },
+      { label: "BLOWN_UP", minMargin: NEG_INF, blocked: false, arrivalDelaySeconds: 0.0 },
+    ],
+    /**
+     * §7.4 step 4: "Blitzer reaches QB in ~1.5 ticks."
+     *
+     * AMBIGUOUS IN THE DOC AND RESOLVED HERE, DELIBERATELY. §2.1's ticks are 0.5
+     * seconds, so "1.5 ticks" reads literally as 0.75s — but every tick in the
+     * document is LABELLED in seconds ("Tick 1.5: MID-PROGRESSION"), and 0.75s
+     * beats the earliest route in the game (§9.2's QUICK, 1.0s) on every snap,
+     * which would make a blitz an automatic sack rather than a risk. Read against
+     * the doc's own labels: he arrives at 1.5 seconds. The quick game and a hot
+     * route beat him; nothing else does.
+     */
+    freeRunnerArrivalSeconds: 1.5,
+    /**
+     * §7.4 step 1's slide: "Covered if blitzer on slide side." No contest — the
+     * slide IS the answer, and the resulting matchup is an ordinary §7.1 rep.
+     */
+    slideIsUncontested: true,
   },
 
   /**

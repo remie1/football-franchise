@@ -214,9 +214,21 @@ describe("the grid a coverage OWNS, independent of what the offence runs", () =>
     // sidelines, so they own four lanes and NOT the deep middle. That hole is
     // the one Cover 2 actually has, and it fell out of the geometry rather than
     // being put there.
+    //
+    // THREE PRESSURE CARDS ADDED (§5.3/§7.3/§7.4 dispatch), measured the same way:
+    //   Cover 1 Double A     9   the same single-high quadrant, and nothing else
+    //                            — six rushing leaves four in man and one deep.
+    //   Cover 3 Fire Zone   11   three deep thirds plus three spot drops, ONE
+    //                            fewer than the four-under version. That is the
+    //                            trade a fire zone makes, and it is the shape
+    //                            backlog entry 8 warns against reading as a
+    //                            coverage GRADE: fewer droppers, thinner coverage,
+    //                            and the reach metric does not know the difference.
+    //   Cover 2 Man Twist   12   identical to Cover 2 Man, on purpose: the twist
+    //                            changes the rush and nothing behind it.
     const owned = COVERAGE_CARDS.map((card) => cellsOwned(card));
-    expect(owned).toEqual([9, 12, 12]);
-    expect(owned.reduce((a, b) => a + b, 0)).toBe(33);
+    expect(owned).toEqual([9, 12, 12, 9, 11, 12]);
+    expect(owned.slice(0, 3).reduce((a, b) => a + b, 0)).toBe(33);
   });
 
   it("the deep middle of Cover 2 is open, and the deep seams of Cover 3 are", () => {

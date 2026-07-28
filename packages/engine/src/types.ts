@@ -45,6 +45,7 @@ import type {
   VerticalZone,
   ZoneAssignment,
 } from "@ff/contracts";
+import type { BlitzDisguise, StuntCall } from "./interim/adr022.js";
 
 /**
  * ADR-013 — `PocketStatus`, `ThrowType` and `RushAlignment` are NOT declared
@@ -121,6 +122,20 @@ export { isRunCall } from "@ff/contracts";
  * so ADR-013's refusal still covers it and it stays here.
  */
 export type ContestPosition = "TRAILING" | "EVEN" | "IN_FRONT";
+
+/**
+ * §5.3 — a route that broke off hot, and what it was before. A RESOLUTION
+ * PRODUCT, not vocabulary: the card states a `HotRouteSpec`, and whether it was
+ * used is decided by a die (ADR-018's "same shape, different fact" test).
+ */
+export interface HotConversion {
+  readonly receiver: PlayerId;
+  /** The route the card drew. */
+  readonly from: string;
+  /** The route he actually ran. */
+  readonly to: string;
+  readonly airYards: number;
+}
 
 /**
  * ADR-018 — RESOLUTION PRODUCTS, DECLARED HERE BECAUSE THEY ARE NOT VOCABULARY.
@@ -223,6 +238,20 @@ export interface PassPlayStartPayload {
      */
     readonly readOrder: readonly PlayerId[];
     readonly protection: readonly ProtectionAssignment[];
+    /**
+     * §7.4 step 1 — men kept in who are NOT pre-paired to a rusher: the back who
+     * stayed to scan, the uncommitted lineman on a slide. Without this the
+     * stream cannot say whether a blitz went unblocked because the offence had
+     * nobody left or because the body it had lost the contest.
+     */
+    readonly availableBlockers: readonly PlayerId[];
+    /**
+     * §5.3 — routes that broke off hot, and what they were before. ⚠ ADR-022
+     * INTERIM: `RoutePhase` has no `HOT` member, so a consumer watching
+     * `ROUTE_STATUS` cannot tell a conversion from a card that always ran that
+     * route. Until the petition lands, this is where the change is stated.
+     */
+    readonly hotConversions: readonly HotConversion[];
   };
   readonly defense: {
     readonly team: TeamId;
@@ -233,6 +262,16 @@ export interface PassPlayStartPayload {
     readonly assignments: readonly CoverageAssignment[];
     /** Alignment resolved: §7.2's time-of-arrival model depends on it. */
     readonly rush: readonly ResolvedRushAssignment[];
+    /**
+     * §7.4 step 1 — rushers no `ProtectionAssignment` named. A fact about the
+     * CALL, not about the resolution: whether each was picked up, ran through a
+     * back, or came clean is in the `blitz_pickup` CHECKs and the RUSH_THREATs.
+     */
+    readonly unaccountedRushers: readonly PlayerId[];
+    /** §5.3's disguise row this pressure was rolled against. */
+    readonly blitzDisguise: BlitzDisguise;
+    /** §7.3's twists, as the card stated them. */
+    readonly stunts: readonly StuntCall[];
   };
   readonly situation: {
     readonly down: number;

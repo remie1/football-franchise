@@ -49,6 +49,27 @@ export interface CheckEmission {
 }
 
 /**
+ * A PRE-SNAP check (§5). Its own shape rather than a `CheckEmission`, because
+ * `PRESNAP_READ`'s payload is genuinely different: ONE actor, a bare target, no
+ * opposed roll — and, as of ADR-022, **no `band`**.
+ *
+ * ⚠ ADR-022 INTERIM. §5.3's result table has four rows (`READ_IT`,
+ * `RECOGNIZED`, `MISSED`, `FOOLED`) and `PRESNAP_READ` has nowhere to put the
+ * label, so ADR-011's rule ("the doc's own band travels in the stream") is not
+ * met for the one check that uses this event. Nothing is invented to cover it:
+ * the binary outcome IS recoverable (`roll.total >= target`, equivalently `tier`
+ * at TIE or better), and the four-way label is simply absent until the petition
+ * to add `band?: string` is ratified.
+ */
+export interface PresnapEmission {
+  readonly actor: PlayerId;
+  readonly kind: CheckKind;
+  readonly roll: RollDetail;
+  readonly target: number;
+  readonly tier: ResultTier;
+}
+
+/**
  * A `CheckEmission` as the contract's CHECK payload. Shared by both logs
  * (`PlayEventLog` here, `GameEventLog` in `game/events.ts`) so a check emitted
  * for a field goal is byte-identical in shape to one emitted for a pass rush.
@@ -122,6 +143,21 @@ export class PlayEventLog {
 
   check(c: CheckEmission): void {
     this.push({ type: "CHECK", payload: checkPayload(c), ...this.base() });
+  }
+
+  /**
+   * §5's pre-snap phase. `PRESNAP_READ` has had a `CheckKind` slot and no
+   * producer since contracts v0; §5.3's blitz recognition is the first.
+   *
+   * ADR-004 counts rolls from CHECK **and PRESNAP_READ**, so a roll recorded
+   * here is recorded exactly once and must not also appear as a CHECK.
+   */
+  presnapRead(p: PresnapEmission): void {
+    this.push({
+      type: "PRESNAP_READ",
+      payload: { actor: p.actor, kind: p.kind, roll: p.roll, target: p.target, tier: p.tier },
+      ...this.base(),
+    });
   }
 
   pocketStatus(status: PocketStatus): void {

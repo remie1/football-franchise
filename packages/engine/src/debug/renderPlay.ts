@@ -37,6 +37,7 @@ export function renderPlay(events: readonly MatchEventEnvelope[], names: NameLoo
 
   lines.push(RULE, "PLAY DEBUG OUTPUT", RULE, "");
   lines.push(...renderPlayCall(events, name));
+  lines.push(...renderPreSnap(events, name));
   lines.push(...renderLineBattle(events, name));
   lines.push(...renderRunBlocking(events, name));
   lines.push(...renderRoutes(events, name));
@@ -228,6 +229,79 @@ function renderBallCarrier(events: readonly MatchEventEnvelope[], name: NameLook
   return ["BALL CARRIER (§13 / §14.4):", ...out, ""];
 }
 
+/**
+ * §5.3 recognition, §7.4 pickup, §7.3 exchange — the phase that decides who is
+ * blocking whom before a single rep is rolled.
+ *
+ * Every line here is read from the stream. The §5.3 line prints `roll vs.
+ * target` rather than a band, because ⚠ ADR-022's interim leaves `PRESNAP_READ`
+ * with nowhere to carry §5.3's four-row label — a printout that invented one
+ * would be worse than a printout that shows the arithmetic.
+ */
+function renderPreSnap(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
+  const out: string[] = [];
+
+  const start = firstOfType(events, "PLAY_START");
+  const view = start === undefined ? undefined : readPlayStart(start.payload);
+  if (view !== undefined && view.unaccountedRushers.length > 0) {
+    out.push(
+      `  ├─ PRESSURE: ${view.unaccountedRushers.length} rusher(s) the protection did not name` +
+        ` — ${view.unaccountedRushers.map((id) => name(id as unknown as PlayerId)).join(", ")}` +
+        ` (disguise ${view.blitzDisguise})`,
+    );
+    out.push(
+      `  │    In protection and unassigned: ${
+        view.availableBlockers.length === 0
+          ? "nobody — everyone is in the route"
+          : view.availableBlockers.map((id) => name(id as unknown as PlayerId)).join(", ")
+      }`,
+    );
+  }
+
+  for (const { event } of events) {
+    if (event.type !== "PRESNAP_READ") continue;
+    const p = event.payload;
+    out.push(
+      `  ├─ ${p.kind} — ${name(p.actor)}: ${p.roll.total} vs. ${p.target}` +
+        ` → ${p.roll.total >= p.target ? "SEES IT" : "MISSED IT"} (${p.tier})`,
+    );
+    out.push(`  │    d100 ${p.roll.raw}${p.roll.modifiers.map((m) => ` ${signed(m.value)} ${m.source}`).join("")}`);
+  }
+
+  for (const { event } of events) {
+    if (event.type !== "CHECK") continue;
+    const p = event.payload;
+    if (p.checkKind !== "blitz_pickup" && p.checkKind !== "stunt_communication") continue;
+    const opposed = p.opposedRoll;
+    const a0 = p.actors[0];
+    const a1 = p.actors[1];
+    if (p.checkKind === "blitz_pickup" && opposed !== undefined) {
+      out.push(
+        `  ├─ blitz pickup (§7.4): ${a0 === undefined ? "?" : name(a0)} ${p.roll.total}` +
+          ` vs. ${a1 === undefined ? "?" : name(a1)} ${opposed.total} → ${bandOf(p)} (${signed(p.margin)})`,
+      );
+    } else {
+      out.push(
+        `  ├─ stunt communication (§7.3): ${p.roll.total} vs. ${p.target ?? "-"}` +
+          ` → ${bandOf(p)} (${signed(p.margin)})`,
+      );
+    }
+  }
+
+  if (view !== undefined && view.hotConversions.length > 0) {
+    for (const c of view.hotConversions) {
+      out.push(
+        `  ├─ HOT (§5.3): ${name(c.receiver as unknown as PlayerId)} breaks off "${c.from}"` +
+          ` → "${c.to}" (${c.airYards} air yards)`,
+      );
+    }
+    out.push("  │    …and moves to the front of the progression");
+  }
+
+  if (out.length === 0) return [];
+  return ["PRE-SNAP (§5.3 / §7.3 / §7.4):", ...out, ""];
+}
+
 function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const matchups = new Map<string, { rusher: PlayerId; blocker: PlayerId; rows: string[] }>();
   for (const { event } of events) {
@@ -257,9 +331,18 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
     const eta = p.etaTick.toFixed(1);
     if (p.state === "TRAVELLING") {
       const travel = p.etaTick - (event.tick ?? 0);
+      // ⚠ ADR-022 INTERIM. A threat published BEFORE the first tick cannot have
+      // come from a won rep — no rep has been rolled yet — so it is a §7.3/§7.4
+      // free runner. That is read off the stream (`tick` absent) rather than
+      // stated by it, and the petition is a `RUSH_THREAT.origin` field. The
+      // printout does not invent the reason; it says which roll justified him.
+      const unblocked = event.tick === undefined;
       threats.push(
-        `  │    Tick ${at}: ${name(p.rusher)} wins the rep → ${p.alignment} threat,` +
-          ` ${travel.toFixed(1)}s to travel, arrival ${eta}`,
+        unblocked
+          ? `  │    Pre-snap: ${name(p.rusher)} is UNBLOCKED → ${p.alignment} free runner,` +
+            ` ${travel.toFixed(1)}s to travel, arrival ${eta} (roll ${p.rollRef})`
+          : `  │    Tick ${at}: ${name(p.rusher)} wins the rep → ${p.alignment} threat,` +
+            ` ${travel.toFixed(1)}s to travel, arrival ${eta}`,
       );
     } else if (p.state === "DELAYED") {
       threats.push(`  │    Tick ${at}: ${name(p.rusher)} pushed back → arrival now ${eta}`);
@@ -725,6 +808,16 @@ interface PlayStartView {
   readonly down: number;
   readonly distance: number;
   readonly ballOn: number;
+  /** §7.4 / §5.3. Empty on a run and on any card the printout predates. */
+  readonly unaccountedRushers: readonly string[];
+  readonly availableBlockers: readonly string[];
+  readonly blitzDisguise: string;
+  readonly hotConversions: readonly {
+    readonly receiver: string;
+    readonly from: string;
+    readonly to: string;
+    readonly airYards: number;
+  }[];
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -765,5 +858,25 @@ function readPlayStart(payload: unknown): PlayStartView | undefined {
     down: asNumber(situation["down"], 0),
     distance: asNumber(situation["distance"], 0),
     ballOn: asNumber(situation["ballOn"], 0),
+    unaccountedRushers: asStringArray(defense["unaccountedRushers"]),
+    availableBlockers: asStringArray(offense["availableBlockers"]),
+    blitzDisguise: asString(defense["blitzDisguise"], "STANDARD"),
+    hotConversions: asHotConversions(offense["hotConversions"]),
   };
+}
+
+function asHotConversions(value: unknown): PlayStartView["hotConversions"] {
+  if (!Array.isArray(value)) return [];
+  const out: { receiver: string; from: string; to: string; airYards: number }[] = [];
+  for (const entry of value) {
+    const record = asRecord(entry);
+    if (record === undefined) continue;
+    out.push({
+      receiver: asString(record["receiver"], "?"),
+      from: asString(record["from"], "?"),
+      to: asString(record["to"], "?"),
+      airYards: asNumber(record["airYards"], 0),
+    });
+  }
+  return out;
 }

@@ -383,13 +383,16 @@ and 18 to read "or against the corpus."**
 | drives per team-game | 32.0 per game | **19.34 per team** (38.7/game) | 18 |
 | time to throw | 1.63s | **1.147s** | 2b |
 
-- **y/c 16.28.** §13.1's zone quantisation and §12's unoccupiable zone 4 fire more often because
-  the corpus supplies the perimeter blocking the fixture lacked. Entries 11 and 12 are the
-  levers; neither number is tunable until they are settled.
-- **Time to throw fell rather than rose.** Entry 2b's fix moved it 1.27 → 1.63s; the corpus's
-  read systems and route mix push it back down to 1.147s. This does **not** reopen 2b — the
-  progression mechanic works — it says the corpus's concept mix resolves faster than the
-  fixture's did, which is a distribution question for 8a's neighbourhood.
+- **y/c 16.28 — ATTRIBUTED, and the claim did not survive.** Entry 12 is **52.6%** of the gap,
+  entry 13 is **34.2%**, **entry 14 is NEGATIVE** (its lever moves y/c the wrong way, +2.62), and
+  roughly **5 yards are unattributed — see entry 23.** "The corpus is harder" was hiding an
+  inverted lever and a residual larger than most of the named causes. Do not close the y/c row by
+  closing 12 and 13.
+- **Time to throw fell rather than rose — ATTRIBUTED, and it is a different mechanism.** This does
+  **not** reopen 2b; the progression mechanic demonstrably works. But it is **not** a distribution
+  question either, because **no distribution of this corpus reaches 2.68s — its slowest concept is
+  still faster than the NFL mean.** 2b's 1.63s was measured on the one read system where
+  anticipation is structurally excluded. **See entry 24.**
 - **Two passing rows that must not be read as validated.** `points_per_drive` passes comfortably
   (2.011 vs 1.936) while `points_per_team_game` is 100% high — the pass is arithmetic, not
   health, exactly as entry 18 describes. And `int_rate` passing at 2.25% means nothing while
@@ -408,6 +411,66 @@ and 18 to read "or against the corpus."**
   so the concept-mix distortion is negligible; the protection bias is not.
 - **Not fixable in calibration.** It closes when §7.4 blitz pickup lands — which is the blitz and
   stunt dispatch, and is another reason that work should not be measured before it exists.
+
+## 23. Yards per carry has ~5 unattributed yards, and they sit where entries 11–14 do not look
+
+**This entry exists because "the corpus is harder" was asked to prove itself and could not.**
+
+- **Measured** (`e42ee36`, DEFAULT_TUNABLES, flat-60 32 teams, 496 games, seeds `baseline-0001`,
+  25,947 carries). With **entry 12 fully deleted**, **entry 13 pushed below the NFL broken-tackle
+  rate**, and **entry 14 moved in its own stated direction**, y/c is **9.295 — still 115% above
+  the real 4.324. Residual +4.971 y/c. Entries 11–14 as claimed do not add up to 16.28.**
+- **The residual is localised and probe-invariant.** Carries that never get past 30 yards are
+  64.32% of all carries, average **7.078**, and average **6.72–7.37 across every one of seven
+  probes** — while the real analogue (carries under 30 yards) averages **3.945**. That population
+  is **79% high and does not move under entries 12, 13 or 14 at all.**
+- **Where it must be:** §14.3's point of attack — **yards before contact alone is 3.129 per carry,
+  72% of the entire real per-carry average** — plus §13.1's 5/10/15 clearing grant. That is entry
+  11's table and entry 9's disputed band boundary. **The split between those two is not measured**
+  and cannot be until the zone-width probe runs.
+- **Do not close the y/c row by closing 12 and 13.** They are worth 52.6% and 34.2%; the rest is
+  not theirs.
+- **Yards before contact has no real-side comparator** in the ingested sources, so 3.129 is stated
+  without a target.
+
+## 24. Anticipation was measured only where it does not fire
+
+- **Entry 2b's fix HOLDS — this is not 2b reopening.** The progression profile is now
+  system-differentiated and working deep. Where the targeted man sat in `readOrder` (r0/r1/r2):
+  CONCEPT **66.6/23.3/10.1%**, HALF_FIELD **39.4/46.1/14.5%**, FULL_FIELD **24.6/31.5/40.0%**.
+  2b's symptom — "throws to whoever is ready first" — is gone.
+- **What 2b did not cover:** its 1.63s was measured on **FULL_FIELD, the one read system where the
+  anticipation mechanic 2b itself installed is structurally excluded.** 2b logged that exclusion
+  as *full-field's* problem (0.01 attempts/play). The corollary nobody wrote down: **every
+  post-fix timing number was taken where the new mechanic never fires.** Per dropback — CONCEPT
+  **1.289 checks / 0.893 passes**; HALF_FIELD 0.568 / 0.325; FULL_FIELD **0.065 / 0.010**. The
+  corpus puts **75.3% of dropbacks on the first two.**
+- **Consequence:** corpus time-to-throw **1.147s** vs real **2.682s** — CONCEPT 0.859 /
+  HALF_FIELD 1.229 / **FULL_FIELD 1.612, unchanged from the fixture.** And the decisive number:
+  **the corpus's SLOWEST concept, Four Verticals at 2.541s, is still below the NFL mean.** No
+  concept mix fixes this. **88.3% of all throws leave before 2.0s.**
+- **Scale defect — same class as entries 3, 6, 7, 13, 14; belongs on the Phase-3 scale audit.**
+  `qb.readSystem.CONCEPT.firstReadAnticipationModifier: 30` against `qb.anticipation.target: 55`.
+  Flat-60 first read, QUICK route, 0.5s lead: `d100 + 24 − 10 + 30 + 10 − 20` vs 55 → **~79%
+  pass**. A concept quarterback anticipates his key on nearly every snap — and per entry 4a it
+  costs him nothing, because a passed anticipation carries no interception risk until §8.6 lands.
+- **Second, independent floor:** `clock.firstTick` is 0.5s, so the earliest legal release is 0.5s
+  and **17.3% of all throws take it** (36.0% of CONCEPT throws). A ball out half a second after
+  the snap is not a dropback pass.
+- **Third, the metric is censored:** only **39.7%** of FULL_FIELD dropbacks produce a throw, vs
+  80.8% for CONCEPT — so the slow system is 24.7% of dropbacks but 15.5% of throws.
+- **Levers:** `qb.readSystem.*.firstReadAnticipationModifier` / `anticipationModifier`,
+  `qb.anticipation.target`, `qb.anticipation.maxLeadSeconds`, `clock.firstTick`. **Gated behind
+  §8.6 (entry 4a)** — do not tune the modifiers down as a substitute for the missing risk.
+
+## 25. Two stream gaps found while attributing
+
+- **The `anticipation` CHECK carries `actors: [qb]` and names no receiver**, so "which man did he
+  anticipate to" is not derivable from the stream — only positionally, via the following
+  `QB_READ`. Same class as the ADR-011 family.
+- **`SimAccumulator.play.yardsBeforeContact` is folded but no metric reads it**, and it is not a
+  declared absence. nflverse pbp carries no real-side yards-before-contact, which is why — but
+  that makes it an absence with a reason, and it should be declared as one.
 
 ## 21a. The worker pool is deferred — and here is the trigger that ends the deferral
 
@@ -581,11 +644,20 @@ entry 1 is gated on entry 3.
 - **Finding:** §14.4's winning band is "Broken tackle, continue" — **no distance attached**.
   §14.3 covers only yards *before* contact. §13.1's 5/10/15/30 zone table is the only yardage
   grid in the document, and it was written for a receiver in space after a catch.
-- **Evidence:** the quantisation above — 54.5% of carries at exactly 5 yards, empty bands at
-  10-14 and 20-58. Excluding goal-line breakaways ypc is 5.46, so **coarseness is the primary
-  defect, not the mean.**
-- **Lever:** `TUNABLES.ballCarrier.zones[].widthYards`. Likely wants a run-specific zone
-  table rather than a rescaled receiver one.
+- **Evidence (corpus, 25,947 carries, `e42ee36`, DEFAULT_TUNABLES, flat-60, seeds `baseline-0001`):**
+  **43.20% of all carries end exactly on a zone boundary {5, 15, 30, 60}** — 26.79% at 5, 10.71%
+  at 15, 0.17% at 30, 5.53% at 60. Real: 7.92% at exactly 5, 0.65% at exactly 15.
+- **CORRECTION, and it ENLARGES this entry.** This entry read *"coarseness is the primary defect,
+  not the mean."* **That is false on the corpus.** In RUSH mode the only band that awards yardage
+  *inside* a zone is `PARTIAL_TACKLE` (2–4 yards) and it ends the carry; `BROKEN_TACKLE` and
+  `TACKLED` both award zero. So **every yard gained past the point of attack, bar 2–4 on a partial
+  tackle, comes from `yards = max(yards, zoneEnd)` — clearing a zone and being handed its full
+  width.** That is **13.147 of the 16.277 y/c (80.8%)**. Coarseness *is* the mean.
+- **Lever:** `TUNABLES.ballCarrier.zones[].widthYards`. Wants a run-specific zone table rather
+  than a rescaled receiver one.
+- **NOT YET PROBED.** The zone-width counterfactual is written into
+  `packages/calibration/test/attribution.test.ts` as `MAX11-12-13-14` and has not been run — the
+  engine tree was mid-dispatch. **Re-baseline first, then run it.**
 
 ## 12. §13.1's zone 4 is unoccupiable from the line of scrimmage
 
@@ -596,6 +668,16 @@ entry 1 is gated on entry 3.
 - **Levers:** `TUNABLES.ballCarrier.breakaway.freeRunReachesGoalLine` (currently `true`, an
   engine INTERPRETATION of §13.4's "Touchdown potential"), and
   `ballCarrier.verticalDepthYards` / `runGame.manDefenderDepthYards`.
+- **MEASURED, and it is the largest single term in the 16.28.** Probe `zones[4].widthYards 30→0`
+  **plus** `freeRunReachesGoalLine true→false`: **16.277 → 9.984, Δ −6.293 = 52.6% of the
+  11.95-yard gap.** Applied singly they are worth −1.842 and −1.952; **jointly −6.293 — strongly
+  super-additive**, because they share a population and each alone lets the other collect the
+  yards. **Do not budget them separately.**
+- **The "against nobody" claim, measured exactly:** carries reaching zone 4 without a free run
+  average **56.45** at baseline and **exactly 30.0000 for all 1,983 of them** with zone 4's width
+  at 0 — they collect **26.45 of the available 30 free yards, 88.2% of the maximum, untouched.**
+- 7.69% of carries gain **more than 60**, which the zone table cannot produce at all; that is
+  `freeRunReachesGoalLine`. Real ≥60 is **0.14%**.
 
 ## 13. §14.4's broken-tackle threshold sits on the fat part of the distribution
 
@@ -605,6 +687,12 @@ entry 1 is gated on entry 3.
 - **Same class as entry 6 (§12.4):** a doc band boundary set without reference to the
   distribution the roll actually produces.
 - **Lever:** `TUNABLES.ballCarrier.contests.secondLevel.bands[0].minMargin`.
+- **MEASURED on the corpus:** `BROKEN_TACKLE` **36.70%** of 24,953 checks — within 0.15pp of the
+  flat-league closed form `P(d100 − d100 ≥ 15) = 36.55%`. **0.353 broken tackles per carry**
+  against NFL ~0.15. Note the corpus is **better** here than the fixture's 0.54, so the "corpus is
+  worse than the fixture" generalisation **does not hold for this mechanism**.
+- **Probe credit:** `minMargin 15→54` (landing broken tackles at 0.088/carry, slightly *below* the
+  NFL rate) gives **16.277 → 12.188, Δ −4.089 = 34.2% of the gap.**
 
 ## 14. §14.4's pursuit-angle gate barely gates — and carries the only raw-rating term in the doc
 
@@ -614,6 +702,20 @@ entry 1 is gated on entry 3.
   ±99 in principle, where every other modifier in the document is ±20. Almost certainly a doc
   slip rather than intent.
 - **Levers:** `TUNABLES.ballCarrier.pursuitAngle.target`, `defenderTerms[].divisor`.
+- **MEASURED — AND THE LEVER'S SIGN IS INVERTED relative to the yards-per-carry row that cites
+  it.** Failing the pursuit gate means the defender gets **no tackle attempt**, so making the gate
+  discriminate *removes tacklers*. Probe `pursuitAngle.target 50→78` (pass 74.78% → 46.54%):
+  **y/c 16.277 → 18.898, Δ +2.621.** This entry is currently **suppressing** the run-game
+  divergence, not causing it.
+  **→ Remove entry 14 from `yards_per_carry`'s known-divergence list.** Its helpful contribution
+  is bounded near 2 y/c and only by driving the gate to 100% pass — i.e. deleting the mechanic
+  rather than fixing it.
+- Gate pass rate **74.78%** of 13,018 checks (78.3% on the fixture), predicted exactly by the
+  flat-league closed form: target 50, stack `pursuit/5 + instincts/5` = 24, pass on d100 ≥ 26.
+- **The flat-60 league cannot test this entry's headline oddity.** The target's raw speed
+  difference is *identically zero* when every speed is 60, so nothing measured bears on the ±99
+  term. That needs a spread league — a Mandate-1 rating-side question no flat-league report can
+  answer.
 
 ## 15. §10.5 and §13.2 both model accuracy→YAC, and stacked they zero it out
 

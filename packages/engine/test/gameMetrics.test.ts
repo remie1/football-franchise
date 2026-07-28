@@ -31,6 +31,23 @@
  * loop merely made it visible at game scale for the first time. Nothing in this
  * dispatch was tuned to move any of them, and `blockerStructuralAdvantage` and
  * `sackWhenNoTarget` remain frozen.
+ *
+ * ---------------------------------------------------------------------------
+ * RE-MEASURED July 2026, after §5.3/§7.3/§7.4. Same seeds, same fences, three
+ * more coverage cards in the corpus — so this is NOT a controlled comparison,
+ * it is the same fixture with a different play mix, and the mix is the reason
+ * every row moved. Recorded so the table above is not read as current:
+ *
+ *   points/team        30.6 → 31.5      drives/game    32.0 → 31.2
+ *   plays/game         140  → 137       plays/drive     4.4 →  4.4
+ *   completion %       44.7% → 48.3%    sacks/game     10.8 → 10.7
+ *   INT/game            5.0 →  4.3      yards/carry    9.34 → 9.72
+ *
+ * The completion move is the largest and the most interesting: a blitz thins the
+ * coverage behind it, and a recognised blitz converts a route to a hot one. The
+ * CONTROLLED before/after — identical seeds, pressure metrics only — is in
+ * `pressureMetrics.test.ts`. Nothing here was tuned.
+ * ---------------------------------------------------------------------------
  * =======================================================
  */
 import { describe, expect, it } from "vitest";

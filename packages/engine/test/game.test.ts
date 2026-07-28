@@ -216,10 +216,16 @@ describe("the clock", () => {
  * NFL possession rules are explicitly out of this dispatch. These seeds were
  * found by scanning; they exist so the OT branch is not an untested path, which
  * it was until the search ran.
+ *
+ * RE-SCANNED for the §5.3/§7.3/§7.4 dispatch. `ot-3` and `ot-139` are not ties
+ * any more, and that is expected rather than alarming: adding three pressure
+ * cards to the fixture corpus changes every play call downstream of the first
+ * one, so any seed chosen for a whole-game PROPERTY has to be re-found. Nothing
+ * about the overtime branch changed.
  */
 describe("overtime, to the extent a tie requires one", () => {
-  const overtime = simulateGameFor("ot-3");
-  const tie = simulateGameFor("ot-139");
+  const overtime = simulateGameFor("ot-33");
+  const tie = simulateGameFor("ot-792");
 
   it("a tie at the end of regulation opens a fifth period", () => {
     const starts = eventsOf(overtime.events, "PERIOD_START").map((e) => e.payload.period);
