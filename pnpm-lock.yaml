@@ -70,6 +70,12 @@ importers:
         specifier: workspace:*
         version: link:../contracts
 
+  packages/playbook:
+    dependencies:
+      '@ff/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
 packages:
 
   '@babel/code-frame@7.29.7':

@@ -264,8 +264,43 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
 - **Consequence:** zone-coverage metrics currently describe the fixture more than the
   mechanic. This is the weakest thing in the zone implementation and the agent said so
   unprompted.
-- **Blocked on:** entry 3a — play cards carrying real horizontal placement, which is
-  franchise's under ADR-006. Until then, do not fit zone tunables to measured zone outcomes.
+- **UPDATED July 2026 — the stated cause is closed; the entry is not.** `packages/playbook`
+  (ADR-017) makes `RouteSpec.breakZone` **required** where contracts has it optional, and all
+  123 routes in the corpus state it, verified over the whole corpus rather than a sample. All
+  five lanes are occupied and none exceeds 50% usage, so "every silent route shares a lane"
+  cannot be true of this corpus.
+- **The instruction changes accordingly, and this correction matters.** It previously read
+  *"do not fit zone tunables until cards carry horizontal placement."* That is now satisfied
+  and it would be the wrong signal to act on. It should read:
+
+  > **Do not fit zone tunables until zones are REGIONS.**
+
+  A zone defender currently covers exactly one cell of twenty-five (`zoneDefenderFor` matches
+  cells exactly), so seven defenders occupy seven cells and a Cover 2 corner does not touch a
+  route one band deeper in his own lane. Measured coverage reach across the full 968-pairing
+  cross product is **66.7%** (36.4% manned, 33.0% zoned) — and that number is *corpus-internal*:
+  it reflects how well one author matched defensive cell placement to the routes he had just
+  written. It will not survive a real playbook, and fitting against it would bake in an
+  artefact.
+- **Blocked on:** [ADR-018](ADR-018-spatial-vocabulary-gaps-found-authoring-the-corpus.md)
+  petition 1 — optional `laneSpan`/`depthSpan` on `ZoneAssignment`, defaulting to 0 so every
+  existing card and call site is unchanged.
+
+## 8a. Three smaller findings from authoring the corpus
+
+- **Behind-the-LOS routes are 1.4% of the corpus** against a real ~13% share of attempts. The
+  corpus under-supplies checkdowns and swing routes, which will suppress outlet usage in any
+  batch run against it. The weakest number in `distribution.ts` and its author says so.
+- **`ROUTE_ENVELOPES` and `VERTICAL_UPPER_YARDS` duplicate tables the engine also holds**
+  (`TUNABLES.zoneModel.verticalUpperYards`), because playbook may not import the engine. If the
+  engine retunes those bands, **every card's stated break zone quietly moves one band and
+  nothing detects it.** Flagged in `routes.ts` as a petition rather than silent drift, but the
+  cross-package assertion that would catch it belongs to neither package and does not exist.
+  Worth solving before Phase 3 fits anything spatial.
+- **The half-field read validation is an interpretation, not doctrine.** §8.1 says half-field
+  reads "work 2-3 reads within a chosen half"; the validator turns that into "the first two
+  reads must break into the same half of the grid". It caught two of the author's own cards, so
+  it earns its place — but it should not be inherited as though the design doc said it.
 - **Related invented knob:** `TUNABLES.zoneCoverage.settledDecayPerTick` is 0 — a receiver who
   beat a zone and sat down is not being run away from, so §8.7's openness decay is held flat.
   Football-true, not in the doc, marked INTERPRETATION. Set to 5 to recover man-style decay.
