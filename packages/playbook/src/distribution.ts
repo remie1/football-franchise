@@ -233,6 +233,105 @@ export const RUN_SCHEME_USAGE: Readonly<Record<"ZONE" | "GAP", number>> = {
 export const BLITZ_RATE_PRIOR = 0.26;
 
 /**
+ * =================== THE FOUR PRESSURE AXES, AND WHICH ARE WORTH ANYTHING ==========
+ *
+ * ADR-022 gave the corpus three things it could not say and one it could only imply, so
+ * pressure is now FOUR marginals rather than one: how often five come, how well it is
+ * hidden, how often four exchange, and how often the offence has an answer. §8b's
+ * orthogonality rule is the whole reason they are listed separately — **a corpus that
+ * hit `BLITZ_RATE_PRIOR` by making every blitz a zero blitz would pass the marginal
+ * check while describing football nobody plays.**
+ *
+ * Read the provenance banner at the top of this file first, then this, because these
+ * four are NOT of equal quality and pretending otherwise is the failure mode:
+ *
+ *  - **Blitz rate.** Unchanged, and the best of the four. Five-plus rushers on ~25% of
+ *    dropbacks is a number charting services publish and agree on to within a few points.
+ *  - **Stunt rate.** Defensible as a range. Line games on roughly a quarter to a third of
+ *    pass rushes is a published figure, though the definition of "stunt" varies enough
+ *    between charters that the spread between sources is wider than for blitz rate.
+ *  - **Disguise mix.** Half-defensible and only where it is anchored. The ZONE_BLITZ and
+ *    ZERO shares are not independent guesses — they fall out of `COVERAGE_SHELL_USAGE`'s
+ *    already-stated FIRE_ZONE and COVER_0 rates divided by the blitz rate, so they are
+ *    exactly as good as those are. The STANDARD/DELAYED split is a judgement with no
+ *    source behind it at all.
+ *  - **Hot-route availability.** SHAPE ONLY, and it is the weakest number in this file.
+ *    Nobody publishes how often a concept carries a sight adjustment, and the honest
+ *    answer for the real NFL is probably "nearly always" — every dropback has a hot rule
+ *    written somewhere. What the corpus states is narrower and is the only thing it can
+ *    be responsible for: how often the answer is NOT already the first read, which is the
+ *    only case where stating it changes anything (`C_HOT_IS_A_NO_OP`). Do not read a
+ *    league rate off it.
+ *
+ * **AND NONE OF THESE IS A SACK RATE.** Availability sets a ceiling; §5.3's recognition
+ * roll decides how much of it is realised, and the engine measured that gap directly —
+ * a blitz the quarterback missed sacks him on 13.99% of dropbacks and one he answered on
+ * 4.29%. A corpus that stated a hot on every concept would not remove pressure from the
+ * game; it would move the whole question onto a die the engine rolls.
+ */
+
+/** Share of pass rushes with a line game. Published range is roughly 0.25-0.32. */
+export const STUNT_RATE_PRIOR = 0.28;
+
+/**
+ * Complexity mix WITHIN the stunting share. T-E is the game everyone runs; the other
+ * three are progressively rarer calls.
+ *
+ * **This is the least-sourced table in the file and it is here so that it is legible
+ * rather than smeared across six cards.** Nothing publishes a T-E/T-T split. The
+ * ordering is confident, the magnitudes are not, and the corpus's granularity is coarser
+ * than the table anyway: twenty-two defensive cards on a weight vector fixed by
+ * `COVERAGE_SHELL_USAGE` means the smallest expressible share of the stunting pool is
+ * about one part in fourteen. `test/pressure.test.ts` asserts the ORDER and a loose band,
+ * not these numbers.
+ */
+export const STUNT_COMPLEXITY_MIX: Readonly<Record<string, number>> = {
+  T_E: 0.68,
+  T_T: 0.2,
+  DELAYED: 0.07,
+  TRIPLE: 0.05,
+};
+
+/**
+ * Disguise mix WITHIN the blitzing share, i.e. among cards that rush five or more.
+ *
+ * ZONE_BLITZ ≈ FIRE_ZONE's shell share ÷ the blitz rate, and ZERO ≈ COVER_0's the same
+ * way, so two of the four rows are arithmetic on numbers this file already committed to
+ * rather than fresh guesses. The other two are a judgement: most pressure is shown,
+ * because most pressure is a linebacker walked up and everyone can see him.
+ */
+export const BLITZ_DISGUISE_MIX: Readonly<Record<string, number>> = {
+  STANDARD: 0.5,
+  ZONE_BLITZ: 0.27,
+  DELAYED: 0.12,
+  ZERO: 0.11,
+};
+
+/**
+ * Share of dropback weight whose answer to pressure is not already the first read.
+ *
+ * Deliberately not called a league rate. See the banner above: this is a property of how
+ * the corpus is BUILT — quick-game concepts state nothing because their first read is the
+ * answer, max protect states nothing because it paid in bodies, the screen states nothing
+ * because a blitz is what it wants — and the number that falls out is a fact about that
+ * construction and not about football. It is recorded so a future edit that quietly puts
+ * a hot on everything shows up as a moved number rather than as nothing.
+ */
+export const HOT_ROUTE_SHARE_SHAPE = 0.48;
+
+/**
+ * Slide-side split among the corpus's slide protections.
+ *
+ * **THIS IS AN ARTEFACT AND IT IS RECORDED AS ONE.** Every formation in `formations.ts`
+ * is right-strength — mirrors are produced on demand and never stored — so most
+ * check-release backs release right, so most lines slide left. The 70/30 skew is a
+ * property of a right-handed formation set, not of football, and it will move the day
+ * the corpus stores a left-strength look or the caller starts drawing mirrored ones. A
+ * consumer measuring anything against slide direction should mirror first.
+ */
+export const SLIDE_SIDE_SKEW_IS_A_FORMATION_ARTEFACT = true;
+
+/**
  * Depth-of-target distribution, as shares of attempts. The property the pass-concept
  * weights are shaped to reproduce; asserted in `test/distribution.test.ts`.
  * Behind the line ~13%, 0-9 ~50%, 10-19 ~25%, 20+ ~12%, mean air yards ~7.8.

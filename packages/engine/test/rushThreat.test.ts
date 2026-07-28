@@ -112,6 +112,9 @@ describe("§7.2 threat lifecycle", () => {
   const threat = (etaTick: number, alignment: "EDGE" | "INTERIOR" = "EDGE"): RushThreat => ({
     rusher: buildScenario().state.quarterback,
     alignment,
+    // A published threat has to say why he is coming (ADR-022); this one is a
+    // §7.1 rep, which is what the lifecycle helpers below are about.
+    origin: "WON_REP",
     wonAtTick: 1.0,
     etaTick,
     rollRef: "test/rush-rep",

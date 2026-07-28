@@ -2,7 +2,9 @@
 
 - **Date:** July 2026
 - **Proposed by:** `match-engine` (the §5.3 / §7.3 / §7.4 dispatch)
-- **Status:** PETITION — implemented behind marked interim mappings, nothing stalled
+- **Status:** APPROVED — all six petitions ratified July 2026; petition 1 taken in the stricter
+  discriminated-union shape. The interim mappings and their containment table below are
+  **historical**: `src/interim/adr022.ts` is deleted and no marker survives in the engine.
 - **Affects:** `packages/contracts` (`playcalls.ts`, `events.ts`), `packages/engine`,
   `packages/playbook` (which can then author pressure), `packages/calibration`
   (which can then measure it)

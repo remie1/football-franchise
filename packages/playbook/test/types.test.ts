@@ -23,7 +23,8 @@ import { passConcept } from "../src/passConcepts.js";
 import { runConcept } from "../src/runConcepts.js";
 import { defensiveCard } from "../src/defense.js";
 import { zone } from "../src/coverage.js";
-import { fiveManLine, sixManProtection } from "../src/protection.js";
+import type { ProtectionScheme, SchemeCall } from "../src/protection.js";
+import { fiveManSlide, sixManProtection } from "../src/protection.js";
 import { route } from "../src/routes.js";
 
 describe("a route cannot be given to a role that is not on the field", () => {
@@ -289,7 +290,63 @@ describe("a route cannot omit its horizontal placement", () => {
         TE_Y: route("Flat", "QUICK", 2, "RW"),
       },
       readOrder: ["Z", "TE_Y"],
-      protection: fiveManLine(["RB"]),
+      protection: fiveManSlide("LEFT", ["RB"]),
+      usage: { weight: 1 },
+    });
+    expect(true).toBe(true);
+  });
+});
+
+describe("a slide protection cannot omit which way it slides — ADR-022 as a type", () => {
+  it("does not compile as a slide with no side", () => {
+    // The weaker shape the engine drafted and the ADR argued against itself: `kind`
+    // plus an optional `slideSide` plus a runtime check. Charter §4.1 landed one
+    // dispatch earlier and the owner took the union instead, so this is the assertion
+    // that the union is what shipped.
+    // @ts-expect-error a SLIDE carries its side structurally
+    const bad: SchemeCall = { kind: "SLIDE" };
+    expect(bad.kind).toBe("SLIDE");
+  });
+
+  it("does not compile with a side on a man protection", () => {
+    const bad: SchemeCall = {
+      kind: "MAN",
+      // @ts-expect-error MAN has no slide side to state
+      slideSide: "LEFT",
+    };
+    expect(bad.kind).toBe("MAN");
+  });
+
+  it("does not compile with a back nominated as the centre", () => {
+    fiveManSlide("LEFT", ["RB"]);
+    const scheme: ProtectionScheme = {
+      ...fiveManSlide("LEFT", ["RB"]),
+      // @ts-expect-error the centre is a line role; §5.3 rolls a lineman's awareness
+      center: "RB",
+    };
+    expect(scheme.name).toContain("slide");
+  });
+});
+
+describe("a hot conversion cannot omit its break zone", () => {
+  it("does not compile without one, which is entry 8 covering a second route type", () => {
+    passConcept({
+      id: "T_HOT_NO_BREAK_ZONE",
+      name: "T",
+      formation: GUN_DOUBLES_RT,
+      readSystem: "HALF_FIELD",
+      routes: {
+        Z: {
+          ...route("Post", "DEEP", 26, "RH"),
+          // Contracts allows this and means "keep the original". A converted route does
+          // not keep the original, so the corpus does not allow it.
+          // @ts-expect-error HotSpec.breakZone is required in this package
+          hot: { routeName: "Slant", depthClass: "QUICK", airYards: 6 },
+        },
+        TE_Y: route("Flat", "QUICK", 2, "RW"),
+      },
+      readOrder: ["Z", "TE_Y"],
+      protection: sixManProtection("RB", "LEFT"),
       usage: { weight: 1 },
     });
     expect(true).toBe(true);

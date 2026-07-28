@@ -21,7 +21,7 @@
  * threat — its actors, its move, and its margin — all of which are already in
  * the event stream. Nothing is asserted that no roll produced.
  */
-import type { PlayerId, Position } from "@ff/contracts";
+import type { PlayerId, Position, ThreatOrigin } from "@ff/contracts";
 import { clamp } from "../rolls.js";
 import type { Tunables } from "../tunables.js";
 import type {
@@ -33,8 +33,17 @@ import type {
 } from "../types.js";
 import type { PassRushBandLabel } from "./passRush.js";
 
-/** A rusher who has beaten his block and is on his way. */
-export interface RushThreat {
+/**
+ * SOMETHING WITH A TIME OF ARRIVAL — whatever the §7.2 clock is counting down.
+ *
+ * Two things are, and only one of them is publishable. A rusher who beat his
+ * block is a `RushThreat` below and reaches the stream. The pursuit clock a
+ * scrambling quarterback runs on (§8.8) is not a pass-rush rep, is never
+ * published as a `RUSH_THREAT`, and has no `ThreatOrigin` that would be true of
+ * it — so it is typed as the weaker thing rather than handed a fabricated
+ * origin to satisfy a publisher it never reaches.
+ */
+export interface ArrivalClock {
   readonly rusher: PlayerId;
   readonly alignment: RushAlignment;
   /** Tick of the rep he won. */
@@ -42,13 +51,28 @@ export interface RushThreat {
   /** Tick at which he reaches the quarterback if nothing changes. */
   readonly etaTick: number;
   /**
-   * `rngLabel` of the roll that justifies this threat's existence — the
-   * `pass_rush_tick` CHECK that created it. ADR-004: the ETA asserts nothing the
-   * stream cannot already justify, and it points back at what justified it.
-   * (The pursuit clock a scrambling QB runs on is not a pass-rush rep and is
-   * never published as a RUSH_THREAT; it references the §8.8 escape roll.)
+   * `rngLabel` of the roll that justifies this clock. ADR-004: the ETA asserts
+   * nothing the stream cannot already justify, and it points back at what
+   * justified it. For the pursuit clock that is the §8.8 escape roll.
    */
   readonly rollRef: string;
+}
+
+/**
+ * A rusher who is on his way to the quarterback, and therefore a thing the
+ * stream states.
+ *
+ * `origin` is ADR-022 petition 5, ratified: four ways to become a threat, one of
+ * which is a won rep, and `rollRef` names the roll the ADR's table says
+ * justifies each — the `pass_rush_tick` CHECK for `WON_REP`, the
+ * `blitz_recognition` PRESNAP_READ for `UNBLOCKED`, the `blitz_pickup` CHECK for
+ * `PICKUP_LOST`, the `stunt_communication` CHECK for `STUNT_LOOPER`. It travels
+ * ON the threat rather than being decided at the publication site, because a
+ * threat is published up to four times — TRAVELLING, DELAYED, RESET, ARRIVED —
+ * and every one of them has to say the same thing about why he is coming.
+ */
+export interface RushThreat extends ArrivalClock {
+  readonly origin: ThreatOrigin;
 }
 
 /** The band that starts a rusher travelling — §7.1's "rusher wins rep". */
@@ -148,6 +172,8 @@ export function threatFromWonRep(args: {
   return {
     rusher: args.rusher,
     alignment: args.alignment,
+    // §7.1's own rep, which is the one origin of the four that a tick produced.
+    origin: "WON_REP",
     wonAtTick: args.tick,
     etaTick: Number((args.tick + travel).toFixed(1)),
     rollRef: args.rollRef,
@@ -178,13 +204,13 @@ export function recoverySecondsFor(tunables: Tunables, band: PassRushBandLabel):
   return tunables.arrival.recoverySecondsByBand[band];
 }
 
-export function timeToArrival(threat: RushThreat, tick: number): number {
+export function timeToArrival(threat: ArrivalClock, tick: number): number {
   return Number((threat.etaTick - tick).toFixed(1));
 }
 
 /** Seconds until the nearest threat arrives; `undefined` when nobody is coming. */
 export function minTimeToArrival(
-  threats: readonly RushThreat[],
+  threats: readonly ArrivalClock[],
   tick: number,
 ): number | undefined {
   let min: number | undefined;
@@ -197,7 +223,7 @@ export function minTimeToArrival(
 
 export function hasArrived(
   tunables: Tunables,
-  threats: readonly RushThreat[],
+  threats: readonly ArrivalClock[],
   tick: number,
 ): boolean {
   const min = minTimeToArrival(threats, tick);
@@ -205,9 +231,9 @@ export function hasArrived(
 }
 
 export function threatsWithAlignment(
-  threats: readonly RushThreat[],
+  threats: readonly ArrivalClock[],
   alignment: RushAlignment,
-): RushThreat[] {
+): ArrivalClock[] {
   return threats.filter((t) => t.alignment === alignment);
 }
 

@@ -101,21 +101,191 @@ function game(seed: string) {
     .observation;
 }
 
+/**
+ * Every league player id anywhere in an event payload, found STRUCTURALLY rather than by naming
+ * fields.
+ *
+ * Naming the fields is what made the defect this guards against possible: `readPlayStart` walked
+ * `routes`, `protection`, `blocking` and `perimeter` and did not walk `availableBlockers`,
+ * because that one is a bare id array and the others are arrays of records. A checker written the
+ * same way would have shared the same blind spot and agreed that nothing was wrong. Walking the
+ * payload and keeping whatever is a known player id has no field list to be incomplete.
+ */
+function playerIdsIn(value: unknown, known: ReadonlySet<string>): ReadonlySet<string> {
+  const found = new Set<string>();
+  const walk = (node: unknown): void => {
+    if (typeof node === "string") {
+      if (known.has(node)) found.add(node);
+      return;
+    }
+    if (Array.isArray(node)) {
+      for (const entry of node as readonly unknown[]) walk(entry);
+      return;
+    }
+    if (typeof node === "object" && node !== null) {
+      for (const entry of Object.values(node as Record<string, unknown>)) walk(entry);
+    }
+  };
+  walk(value);
+  return found;
+}
+
+/**
+ * THE FOLD AGAINST THE ENGINE'S OWN REDUCER — a corpus, not an instance.
+ *
+ * ADR-014 item 15 put `reduceStatlines` on the barrel so calibration would not write a second
+ * reducer and let the two drift. These are the assertions that they have not, and they are the
+ * consumer half of a PAIR: the engine asserts the same property from inside `statline.ts`.
+ *
+ * ================== WHY THIS IS THIRTY GAMES AND NOT ONE ==================
+ *
+ * A one-game version of this test found a real defect — `reduceStatlines` never read
+ * `PLAY_START.availableBlockers`, so a man who was only ever AVAILABLE in protection could not be
+ * resolved to a team, and when one of them fell on a tipped ball the reception AND the
+ * quarterback's completion were dropped from the box score with nothing looking wrong. It found
+ * it by luck. The path needs a tipped ball, recovered by the offence, by a man in the §12.4
+ * recovery pool who is in no `ProtectionAssignment` — and one game either contains that or it
+ * does not.
+ *
+ * So the fixed seed is now a fixed CORPUS. Thirty games is ~1,100 plays and ~95 offensive tip
+ * recoveries, which makes the rare path a certainty rather than a coincidence, and the corpus is
+ * seeded so it is the same 1,100 plays on every machine. `expect` names the seed that disagreed,
+ * because "the fold disagrees" is not actionable and "seed agree-17, completions: fold 24 vs
+ * reducer 23" is — that message is literally how the defect above was found.
+ */
 describe("the event fold", () => {
   const observation = game("fold-1");
   const acc = collectGames([observation]);
 
-  it("agrees with the engine's own statline reducer about attempts, sacks and completions", () => {
-    // ADR-014 item 15 put `reduceStatlines` on the barrel so calibration would not write a
-    // second reducer and let the two drift. This is the assertion that they have not.
-    const lines = observation.statlines;
-    const sum = (f: (l: (typeof lines)[number]) => number) => lines.reduce((n, l) => n + f(l), 0);
-    expect(acc.play.passAttempts).toBe(sum((l) => l.passing.attempts));
-    expect(acc.play.completions).toBe(sum((l) => l.passing.completions));
-    expect(acc.play.sacks).toBe(sum((l) => l.passing.sacked));
-    // Statline rushing includes scrambles; the fold's designed-rush count deliberately does not,
-    // because the real side excludes `qb_scramble` too.
-    expect(acc.play.rushAttempts + acc.play.scrambles).toBe(sum((l) => l.rushing.attempts));
+  /** Fixed, seeded, and large enough to contain the rare reconciliation paths. */
+  const CORPUS = Array.from({ length: 30 }, (_, i) => game(`agree-${i}`));
+
+  it("agrees with the engine's own statline reducer on every commensurable quantity", () => {
+    const disagreements: string[] = [];
+    for (const [i, observed] of CORPUS.entries()) {
+      const seed = `agree-${i}`;
+      const p = collectGames([observed]).play;
+      const lines = observed.statlines;
+      const sum = (f: (l: (typeof lines)[number]) => number) => lines.reduce((n, l) => n + f(l), 0);
+      // Every quantity BOTH sides compute, and each is a separate chance to catch a dropped
+      // credit: the completion is the quarterback's ledger, the reception is the receiver's, and
+      // the defect above moved both at once. Checking one would have found it; checking the pair
+      // says WHICH ledger lost the play.
+      const checks: readonly (readonly [string, number, number])[] = [
+        ["passAttempts", p.passAttempts, sum((l) => l.passing.attempts)],
+        ["completions", p.completions, sum((l) => l.passing.completions)],
+        ["receptions", p.completions, sum((l) => l.receiving.receptions)],
+        ["passYards", p.passYards, sum((l) => l.passing.yards)],
+        ["receivingYards", p.passYards, sum((l) => l.receiving.yards)],
+        ["sacksTaken", p.sacks, sum((l) => l.passing.sacked)],
+        ["interceptionsThrown", p.interceptions, sum((l) => l.passing.interceptions)],
+        ["interceptionsCaught", p.interceptions, sum((l) => l.defense.interceptions)],
+        // Statline rushing includes scrambles; the fold's designed-rush count deliberately does
+        // not, because the real side excludes `qb_scramble` too.
+        ["carries", p.rushAttempts + p.scrambles, sum((l) => l.rushing.attempts)],
+      ];
+      for (const [name, fold, reducer] of checks) {
+        if (fold !== reducer) disagreements.push(`seed ${seed}, ${name}: fold ${fold} vs reducer ${reducer}`);
+      }
+      // The same definitional gap in yards rather than attempts: the fold carries designed-rush
+      // yardage only and has no scramble-yards field, so this one is ONE-SIDED by construction.
+      // Asserted anyway, because the direction is still information — the fold exceeding the
+      // reducer would mean designed-run yardage the box score never credited to anybody.
+      if (p.rushYards > sum((l) => l.rushing.yards)) {
+        disagreements.push(`seed ${seed}, rushYards: fold ${p.rushYards} EXCEEDS reducer`);
+      }
+    }
+    expect(disagreements, disagreements.join("\n")).toEqual([]);
+  });
+
+  it("names every man its outcome events credit in the play's own PLAY_START", () => {
+    // THE PRECONDITION THE REDUCER SILENTLY DEPENDS ON, asserted directly.
+    //
+    // `reduceStatlines` resolves a player's TEAM from the play's `PLAY_START` and from nowhere
+    // else, and a credit it cannot resolve is a credit it DROPS rather than one it complains
+    // about. So "an outcome event may only name men the PLAY_START declared" is load-bearing,
+    // and until something asserted it, breaking it produced a quietly wrong box score.
+    //
+    // Note what this is NOT, because the obvious phrasing is wrong: it is not "every man named
+    // in a PLAY_START appears in the box score". `reduceStatlines` only opens a line for a player
+    // who is CREDITED with something, so the five linemen who blocked cleanly and the three
+    // receivers nobody threw to have no line, correctly. The checkable invariant is the converse.
+    const known = new Set(index.players.keys());
+    const violations: string[] = [];
+    for (const [i, observed] of CORPUS.entries()) {
+      const declared = new Map<string, ReadonlySet<string>>();
+      const pending: { play: string; type: string; ids: ReadonlySet<string> }[] = [];
+      for (const { event } of observed.events) {
+        if (event.playId === undefined) continue;
+        const play = String(event.playId);
+        const ids = playerIdsIn(event.payload, known);
+        if (event.type === "PLAY_START") declared.set(play, ids);
+        else pending.push({ play, type: event.type, ids });
+      }
+      for (const { play, type, ids } of pending) {
+        // Kickoffs, punts and placekicks are play-scoped and have no PLAY_START — there is no
+        // scrimmage roster to declare, and `reduceStatlines` credits them from the kick event
+        // itself. Nothing to check, so nothing is claimed.
+        const start = declared.get(play);
+        if (start === undefined) continue;
+        for (const id of ids) {
+          if (!start.has(id)) {
+            violations.push(`seed agree-${i}, play ${play}: ${type} names ${id}, PLAY_START does not`);
+          }
+        }
+      }
+    }
+    expect(violations, violations.slice(0, 10).join("\n")).toEqual([]);
+  });
+
+  it("puts every credited player on the team the league says he plays for", () => {
+    // The other way the resolution can fail. A man reachable through the WRONG side of the
+    // PLAY_START payload resolves to a team and gets a line — the credit is not dropped, it is
+    // misfiled, and a per-team rate computed off `line.team` is then wrong in both directions at
+    // once. Cheap to check because the archetype leagues make team membership unambiguous.
+    const rosterOf = new Map<string, string>();
+    for (const [teamId, team] of index.teams) {
+      for (const player of team.roster) rosterOf.set(String(player), teamId);
+    }
+    const misfiled: string[] = [];
+    for (const [i, observed] of CORPUS.entries()) {
+      for (const line of observed.statlines) {
+        const expectedTeam = rosterOf.get(String(line.player));
+        if (expectedTeam === undefined) {
+          misfiled.push(`seed agree-${i}: ${String(line.player)} has a statline and no roster`);
+        } else if (expectedTeam !== String(line.team)) {
+          misfiled.push(
+            `seed agree-${i}: ${String(line.player)} filed under ${String(line.team)}, rostered by ${expectedTeam}`,
+          );
+        }
+      }
+    }
+    expect(misfiled, misfiled.slice(0, 10).join("\n")).toEqual([]);
+  });
+
+  it("never credits defenders with more sacks than the offence was charged", () => {
+    // ONE-SIDED ON PURPOSE, AND THE GAP IS A FINDING RATHER THAN A TOLERANCE.
+    //
+    // Sacks TAKEN reconcile exactly — that is in the corpus test above. Sacks CREDITED do not:
+    // across these thirty games the offence is charged 344 sacks and the defensive ledger names
+    // a sacker on 164 of them, 47.7%, with one game as low as 27%. Tier 4's sim-side pass-rush
+    // production reads `defense.sacks`, so any per-player rate built on it is currently working
+    // from under half the sacks that happened.
+    //
+    // Equality is therefore NOT asserted: it would be red today for a reason that is the
+    // engine's to fix, and a red test nobody can act on is a red test somebody deletes. What is
+    // asserted is the direction, which is a genuine invariant — credited above taken would mean
+    // sacks invented or double-counted, and that would be a defect in this consumer's favour and
+    // therefore the kind nobody notices.
+    let taken = 0;
+    let credited = 0;
+    for (const observed of CORPUS) {
+      taken += collectGames([observed]).play.sacks;
+      credited += observed.statlines.reduce((n, l) => n + l.defense.sacks, 0);
+    }
+    expect(taken).toBeGreaterThan(0);
+    expect(credited).toBeLessThanOrEqual(taken);
+    expect(credited).toBeGreaterThan(0);
   });
 
   it("accounts for every dropback exactly once", () => {

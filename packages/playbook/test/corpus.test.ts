@@ -20,7 +20,6 @@ import { PASS_CONCEPTS, protectionCapacity } from "../src/passConcepts.js";
 import { buildDefensiveUnit, buildOffensiveUnit } from "../src/personnel.js";
 import { RUN_CONCEPTS } from "../src/runConcepts.js";
 import { rusherCount } from "../src/defense.js";
-import { UnprotectableCallError } from "../src/errors.js";
 import {
   errorsOnly,
   validateDefensiveCard,
@@ -101,12 +100,27 @@ describe("the cross product — every offensive card against every defensive car
         unit: offenseUnit,
       });
 
-      // A card that cannot absorb the pressure must FAIL LOUDLY, not quietly.
-      if (rusherCount(card) > protectionCapacity(concept)) {
-        expect(() => instantiatePass(concept, offenseUnit, defense)).toThrow(UnprotectableCallError);
-        return;
-      }
+      /**
+       * WHAT THIS BRANCH USED TO ASSERT, and why the change is the point of ADR-023.
+       *
+       * It asserted a THROW: a card that could not absorb the pressure had to fail
+       * loudly rather than quietly, because §7.4 was unimplemented and a free rusher
+       * could not be simulated. §7.4 landed. What "loudly" means now is that the free
+       * runner is NAMED — in `unblockedRushers`, on a call that also states who is
+       * available to pick him up and which routes convert — rather than that the play
+       * is refused. Refusing it was `CALIBRATION-BACKLOG.md` entry 21: every front the
+       * corpus could not answer perfectly was declined, so measured pressure was biased
+       * down by exactly the fronts that generate the most of it.
+       */
       const offense = instantiatePass(concept, offenseUnit, defense);
+      const shortfall = Math.max(0, rusherCount(card) - protectionCapacity(concept));
+      expect(offense.unblockedRushers).toHaveLength(shortfall);
+      if (shortfall > 0) {
+        // Nothing may come free from a card that has no answer to it. The validator
+        // guarantees this at authoring time; this asserts it survives to the call.
+        if (offense.call.kind !== "PASS") throw new Error("expected a dropback");
+        expect(offense.call.routes.some((r) => r.hot !== undefined)).toBe(true);
+      }
       const quarterback = offenseUnit.QB;
       expect(quarterback).toBeDefined();
       if (quarterback === undefined) return;
@@ -185,7 +199,6 @@ describe("coverage reach", () => {
         formation: concept.formation,
         unit: offenseUnit,
       });
-      if (rusherCount(card) > protectionCapacity(concept)) continue;
       const offense = instantiatePass(concept, offenseUnit, defense);
       if (offense.call.kind !== "PASS") continue;
       const family = byFamily.get(card.family) ?? empty();

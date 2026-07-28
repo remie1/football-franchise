@@ -20,6 +20,7 @@ import type {
   RoutePhase,
   RushAlignment,
   RushThreatState,
+  ThreatOrigin,
   ThrowType,
 } from "@ff/contracts";
 import type { Tunables } from "./tunables.js";
@@ -51,15 +52,14 @@ export interface CheckEmission {
 /**
  * A PRE-SNAP check (§5). Its own shape rather than a `CheckEmission`, because
  * `PRESNAP_READ`'s payload is genuinely different: ONE actor, a bare target, no
- * opposed roll — and, as of ADR-022, **no `band`**.
+ * opposed roll.
  *
- * ⚠ ADR-022 INTERIM. §5.3's result table has four rows (`READ_IT`,
- * `RECOGNIZED`, `MISSED`, `FOOLED`) and `PRESNAP_READ` has nowhere to put the
- * label, so ADR-011's rule ("the doc's own band travels in the stream") is not
- * met for the one check that uses this event. Nothing is invented to cover it:
- * the binary outcome IS recoverable (`roll.total >= target`, equivalently `tier`
- * at TIE or better), and the four-way label is simply absent until the petition
- * to add `band?: string` is ratified.
+ * `band` is ADR-022 petition 6, ratified — the same field and the same meaning
+ * ADR-011 gave `CHECK.band`, for the same reason: a band a consumer re-derives
+ * desyncs silently the first time calibration moves a boundary. §5.3's four rows
+ * (`READ_IT`, `RECOGNIZED`, `MISSED`, `FOOLED`) travel in the stream rather than
+ * being reconstructed from `tier`. Absent means the read rolled against a bare
+ * target with no band table behind it, never "the band was not worth carrying".
  */
 export interface PresnapEmission {
   readonly actor: PlayerId;
@@ -67,6 +67,7 @@ export interface PresnapEmission {
   readonly roll: RollDetail;
   readonly target: number;
   readonly tier: ResultTier;
+  readonly band?: string;
 }
 
 /**
@@ -155,7 +156,16 @@ export class PlayEventLog {
   presnapRead(p: PresnapEmission): void {
     this.push({
       type: "PRESNAP_READ",
-      payload: { actor: p.actor, kind: p.kind, roll: p.roll, target: p.target, tier: p.tier },
+      payload: {
+        actor: p.actor,
+        kind: p.kind,
+        roll: p.roll,
+        target: p.target,
+        tier: p.tier,
+        // `exactOptionalPropertyTypes` — an absent band is an ABSENT key, the
+        // same treatment `checkPayload` gives ADR-011's.
+        ...(p.band === undefined ? {} : { band: p.band }),
+      },
       ...this.base(),
     });
   }
@@ -207,17 +217,25 @@ export class PlayEventLog {
    * `DELAYED` is the honest reason the printout no longer says "projected": a
    * step-up or a blocker who recovered position pushes the arrival back, and the
    * adjusted number is stated here rather than recomputed by every consumer.
+   *
+   * `origin` is ADR-022 petition 5, ratified: there are four ways to become a
+   * threat and only one of them is a won rep, so an unblocked blitzer and a
+   * beaten left tackle used to arrive in the stream looking identical. It is a
+   * REQUIRED argument — a publisher that does not know why a rusher is coming
+   * has no business publishing him — and `rollRef` names the roll the ADR's
+   * table says justifies that origin.
    */
   rushThreat(
     rusher: PlayerId,
     alignment: RushAlignment,
+    origin: ThreatOrigin,
     rollRef: string,
     etaTick: number,
     state: RushThreatState,
   ): void {
     this.push({
       type: "RUSH_THREAT",
-      payload: { rusher, alignment, rollRef, etaTick, state },
+      payload: { rusher, alignment, origin, rollRef, etaTick, state },
       ...this.base(),
     });
   }

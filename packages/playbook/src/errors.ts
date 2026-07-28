@@ -24,14 +24,22 @@ export class PersonnelUnavailableError extends PlaybookError {
 }
 
 /**
- * More rushers than the card has men to block them.
+ * A protection could not be built at all — a protector role the personnel package
+ * did not fill.
  *
- * NOT a bad card and NOT a bad defensive call — it is a real football situation
- * (an overloaded blitz) that the engine cannot resolve, because §7.4 blitz pickup
- * is unimplemented and `simulatePassPlay` throws `UnsupportedPlayCallError` on a
- * rusher with no `ProtectionAssignment`. Rather than hand the engine a card it
- * will reject three layers down, the pairing refuses here, where the caller can
- * pick a different card.
+ * **THIS USED TO MEAN SOMETHING MUCH BIGGER, AND THAT MEANING IS GONE (ADR-023).**
+ * It was raised whenever a front had more rushers than the card had men, on the
+ * stated ground that "§7.4 blitz pickup is unimplemented in the engine, so a free
+ * rusher cannot be simulated". §7.4 landed with ADR-022; a free rusher now resolves;
+ * and the refusal was the playbook half of `CALIBRATION-BACKLOG.md` entry 21 —
+ * protection that looked perfectly informed because every front it could not answer
+ * was declined rather than played. An unpaired rusher now comes free and is reported
+ * in `ProtectionResult.unblocked`.
+ *
+ * The class stays, with a narrower and still-loud job, because a role with no player
+ * behind it is a personnel error and there is no plausible substitute to make up.
+ * Consumers that catch it to re-draw a concept (calibration's frozen caller) will
+ * simply stop seeing it, which is what closing entry 21 looks like from outside.
  */
 export class UnprotectableCallError extends PlaybookError {
   constructor(message: string) {

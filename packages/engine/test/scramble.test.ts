@@ -10,7 +10,7 @@ import {
   visionConeModifier,
   visionConeRollModifier,
 } from "../src/resolve/scramble.js";
-import type { RushThreat } from "../src/resolve/rushThreat.js";
+import type { ArrivalClock } from "../src/resolve/rushThreat.js";
 import { TUNABLES } from "../src/tunables.js";
 import { buildScenario, makePlayer } from "./fixtures.js";
 
@@ -23,7 +23,8 @@ const STATUE: PlayerState = makePlayer("qb-stand", "Bill Rafferty", "QB", {
   awareness: 84, decisionMaking: 86, accuracy: 90, mobility: 45, improvisation: 40,
 });
 
-function threat(alignment: "EDGE" | "INTERIOR", etaTick: number): RushThreat {
+/** The §7.2 clock is all these resolvers read, so that is what the fixture is. */
+function threat(alignment: "EDGE" | "INTERIOR", etaTick: number): ArrivalClock {
   return {
     rusher: buildScenario().calls.defense.rush[0]?.rusher ?? buildScenario().state.quarterback,
     alignment,

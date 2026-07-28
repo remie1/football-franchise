@@ -22,6 +22,7 @@
 import type {
   CoverageAssignment,
   DefensivePlayCall,
+  HotRouteSpec,
   ManAssignment,
   OffensiveCall,
   OffensivePlayCall,
@@ -31,6 +32,7 @@ import type {
   RunSide,
   RouteAssignment,
   SpaceBlockAssignment,
+  StuntCall,
   ZoneAssignment,
 } from "@ff/contracts";
 import { backfieldRoles, receiverNumbering } from "./alignment.js";
@@ -47,6 +49,7 @@ import type { AnyFormation } from "./formations.js";
 import { alignedRoles } from "./formations.js";
 import type { DeclaredRush } from "./protection.js";
 import { assignProtection } from "./protection.js";
+import type { HotSpec } from "./routes.js";
 import type {
   AnyDefensiveUnit,
   AnyOffensiveUnit,
@@ -140,6 +143,51 @@ function declaredRush(rusher: PlayerId, duty: RushDuty): DeclaredRush {
   return { rusher, move: duty.move, alignment: duty.alignment, side: duty.side };
 }
 
+/**
+ * A stunt survives to the call only if BOTH its men are actually rushing this snap.
+ *
+ * That is a resolution-time filter and not a card-time one, because a card's rush is
+ * not fully known until it meets a formation: a `MAN` duty whose target is absent takes
+ * its `ifAbsent` fallback, and a fallback can be a rush or a zone. A pair where one man
+ * ended up in coverage is not a stunt — it is one man rushing — and emitting it would
+ * hand the engine an exchange with nobody to exchange with. No card in the corpus
+ * stunts with a conditional duty today; the filter exists so that the day one does, the
+ * incoherence is dropped rather than published.
+ */
+function resolveStunts(
+  card: AnyDefensiveCard,
+  byRole: Readonly<Partial<Record<DefenseRole, PlayerId>>>,
+  rushing: ReadonlySet<string>,
+): readonly StuntCall[] {
+  const out: StuntCall[] = [];
+  for (const spec of card.stunts ?? []) {
+    const penetrator = byRole[spec.penetrator];
+    const looper = byRole[spec.looper];
+    if (penetrator === undefined || looper === undefined) continue;
+    if (!rushing.has(String(penetrator)) || !rushing.has(String(looper))) continue;
+    out.push({ penetrator, looper, complexity: spec.complexity });
+  }
+  return out;
+}
+
+/**
+ * The hot conversion, as contracts wants it.
+ *
+ * `breakZone` is written out even though contracts treats it as optional-meaning-keep-
+ * the-original, because in this package it is never absent and never means that: a
+ * converted route breaks somewhere new and the corpus has stated where. Same argument
+ * as the zone spans above — the field is optional in the contract and mandatory in the
+ * content, and the content is what the event stream will be read back from.
+ */
+function hotRoute(spec: HotSpec): HotRouteSpec {
+  return {
+    routeName: spec.routeName,
+    depthClass: spec.depthClass,
+    airYards: spec.airYards,
+    breakZone: spec.breakZone,
+  };
+}
+
 // --- the defensive call -----------------------------------------------------
 
 export interface InstantiatedDefense {
@@ -215,9 +263,26 @@ export function instantiateDefense(
     byRole[role] = requireDefensePlayer(unit, role, context);
   }
 
+  const stunts = resolveStunts(card, byRole, new Set(rush.map((r) => String(r.rusher))));
+  const call: DefensivePlayCall = {
+    name: card.name,
+    front: card.front,
+    assignments,
+    rush,
+    ...(stunts.length === 0 ? {} : { stunts }),
+    // ABSENT WHERE THE CARD SAID NOTHING, and that is deliberate rather than lazy.
+    // An absent `blitzDisguise` is §5.3's +0 row (ADR-022 petition 4), and the cards
+    // that omit it are the four-man rushes, where there is no extra man and therefore
+    // nothing to hide. Writing STANDARD onto every one of them would assert that the
+    // author considered disguise on a card where the question does not arise — the
+    // opposite of the explicit-zero argument that governs the zone spans above, because
+    // there the omitted value was a FAKE and here it is a fact.
+    ...(card.blitzDisguise === undefined ? {} : { blitzDisguise: card.blitzDisguise }),
+  };
+
   return {
     cardId: card.id,
-    call: { name: card.name, front: card.front, assignments, rush },
+    call,
     shell: deriveShell(assignments),
     gaps,
     byRole,
@@ -253,6 +318,15 @@ export interface InstantiatedOffense {
   readonly call: OffensiveCall;
   /** Check-release men who ended up blocking, and therefore lost their route. */
   readonly pulledIntoProtection: readonly OffenseSkillRole[];
+  /**
+   * Rushers no protector answered. Empty on a run, and empty on most dropbacks.
+   *
+   * It is REPORTED rather than refused (ADR-023). A caller that wants to know whether a
+   * pairing left somebody free — calibration, a debug renderer, a test — reads it here
+   * instead of catching an exception, and the engine resolves the man himself against
+   * `protectionScheme.available` and the card's hot routes.
+   */
+  readonly unblockedRushers: readonly PlayerId[];
 }
 
 export function instantiatePass(
@@ -261,7 +335,7 @@ export function instantiatePass(
   defense: InstantiatedDefense,
 ): InstantiatedOffense {
   const context = `pass concept ${concept.id}`;
-  const { protection, pulledIn } = assignProtection(
+  const { protection, pulledIn, scheme, unblocked } = assignProtection(
     concept.id,
     concept.protection,
     unit,
@@ -279,6 +353,10 @@ export function instantiatePass(
       depthClass: spec.depthClass,
       airYards: spec.airYards,
       breakZone: spec.breakZone,
+      // A check-release man who was pulled in has no route, and therefore no hot: he
+      // is blocking. That is petition 1's rule — keeping a man in costs a route, before
+      // the snap — falling out of the loop above rather than being restated here.
+      ...(spec.hot === undefined ? {} : { hot: hotRoute(spec.hot) }),
     });
   }
   if (routes.length === 0) {
@@ -304,11 +382,18 @@ export function instantiatePass(
     routes,
     readOrder,
     protection,
+    // ALWAYS EMITTED, including on a MAN protection where contracts says an omitted
+    // scheme means exactly this. The difference is the same one `zoneAssignment` makes
+    // about a zero span: a card that says MAN chose man, and a call that says nothing
+    // might be a call from before the field existed. It also carries the centre and the
+    // pickup order, which are not derivable from a pairing list at all.
+    protectionScheme: scheme,
   };
   return {
     cardId: concept.id,
     call,
     pulledIntoProtection: pulledIn as readonly OffenseSkillRole[],
+    unblockedRushers: unblocked,
   };
 }
 
@@ -479,7 +564,7 @@ export function instantiateRun(
     blocking,
     ...(perimeter.length === 0 ? {} : { perimeter }),
   };
-  return { cardId: concept.id, call, pulledIntoProtection: [] };
+  return { cardId: concept.id, call, pulledIntoProtection: [], unblockedRushers: [] };
 }
 
 function describeTarget(target: PerimeterTarget): string {

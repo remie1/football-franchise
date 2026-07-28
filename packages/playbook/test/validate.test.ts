@@ -15,13 +15,19 @@ import { describe, expect, it } from "vitest";
 import type { AnyDefensiveCard, DefensiveDuty } from "../src/defense.js";
 import type { AnyFormation } from "../src/formations.js";
 import { GUN_DOUBLES_RT, GUN_TRIPS_RT, SINGLEBACK_ACE_RT } from "../src/formations.js";
-import { NICKEL_COVER_1, NICKEL_COVER_3_SKY } from "../src/defensiveCards.js";
+import {
+  DIME_MAN_BLITZ,
+  GOAL_LINE_MAN,
+  NICKEL_COVER_1,
+  NICKEL_COVER_3_SKY,
+  NICKEL_DOUBLE_A_BLITZ,
+} from "../src/defensiveCards.js";
 import { INSIDE_ZONE, POWER } from "../src/runConcepts.js";
 import type { RunConcept } from "../src/runConcepts.js";
-import { SLANT_FLAT, Y_CROSS } from "../src/passConcepts.js";
+import { EMPTY_QUICK, SLANT_FLAT, Y_CROSS } from "../src/passConcepts.js";
 import type { PassConcept } from "../src/passConcepts.js";
-import { fiveManLine, sixManProtection } from "../src/protection.js";
-import { breakAt, route } from "../src/routes.js";
+import { fiveManSlide, sixManProtection } from "../src/protection.js";
+import { alreadyHot, breakAt, route } from "../src/routes.js";
 import { zone } from "../src/coverage.js";
 import {
   errorsOnly,
@@ -176,7 +182,11 @@ describe("pass concepts it rejects", () => {
 
   it("rejects a man who neither runs a route nor blocks", () => {
     const { RB: _removed, ...withoutBack } = SLANT_FLAT.routes;
-    const bad = pass({ routes: withoutBack, readOrder: ["Z", "TE_Y"], protection: fiveManLine([]) });
+    const bad = pass({
+      routes: withoutBack,
+      readOrder: ["Z", "TE_Y"],
+      protection: fiveManSlide("LEFT", []),
+    });
     expect(errorCodes(validatePassConcept(bad))).toContain("C_UNACCOUNTED_ROLE");
   });
 
@@ -191,9 +201,93 @@ describe("pass concepts it rejects", () => {
 
   it("rejects a protection that leaves a lineman out", () => {
     const bad = pass({
-      protection: { name: "4-man", protectors: fiveManLine([]).protectors.slice(0, 4), checkRelease: ["RB"] },
+      protection: {
+        name: "4-man",
+        call: { kind: "MAN" },
+        center: "C",
+        protectors: fiveManSlide("LEFT", []).protectors.slice(0, 4),
+        checkRelease: ["RB"],
+      },
     });
     expect(errorCodes(validatePassConcept(bad))).toContain("C_LINE_NOT_PROTECTING");
+  });
+
+  it("rejects a scheme whose centre is not one of its protectors", () => {
+    // §5.3 and §7.3 both roll Centre Awareness and the engine substitutes nobody, so
+    // a scheme that nominates a man who is not blocking silently drops two terms.
+    const bad = pass({
+      protection: { ...SLANT_FLAT.protection, center: "LT" },
+    });
+    const worse = pass({
+      protection: { ...bad.protection, protectors: bad.protection.protectors.slice(1) },
+    });
+    expect(errorCodes(validatePassConcept(worse))).toContain("C_CENTRE_NOT_PROTECTING");
+  });
+
+  it("rejects a card that can neither block six nor convert a route", () => {
+    // Empty personnel with the hot stripped: five men block, the corpus rushes six,
+    // and nothing on the card answers the man nobody blocked.
+    const stripped = Object.fromEntries(
+      Object.entries(EMPTY_QUICK.routes).map(([role, spec]) => [
+        role,
+        spec === undefined ? spec : { ...spec, hot: undefined },
+      ]),
+    );
+    const bad = pass({ ...EMPTY_QUICK, routes: stripped });
+    expect(errorCodes(validatePassConcept(bad))).toContain("C_NO_ANSWER_TO_PRESSURE");
+    // And the shipped card, which does convert, is clean.
+    expect(errorCodes(validatePassConcept(EMPTY_QUICK))).toHaveLength(0);
+  });
+
+  it("rejects a hot conversion that is slower than the route it replaces", () => {
+    const bad = pass({
+      routes: {
+        ...SLANT_FLAT.routes,
+        X: {
+          ...route("Hitch", "QUICK", 7, "LW"),
+          hot: { ...route("Curl", "SHORT", 10, "LW") },
+        },
+      },
+    });
+    expect(errorCodes(validatePassConcept(bad))).toContain("C_HOT_DEEPER_THAN_THE_ROUTE");
+  });
+
+  it("rejects a hot conversion that is not a quick answer at all", () => {
+    const bad = pass({
+      routes: {
+        ...SLANT_FLAT.routes,
+        X: {
+          ...route("Hitch", "QUICK", 7, "LW"),
+          hot: { ...route("Comeback", "INTERMEDIATE", 15, "LW") },
+        },
+      },
+    });
+    expect(errorCodes(validatePassConcept(bad))).toEqual(
+      expect.arrayContaining(["C_HOT_TOO_SLOW", "C_HOT_DEEPER_THAN_THE_ROUTE"]),
+    );
+  });
+
+  it("rejects a hot conversion whose new break zone is unreachable", () => {
+    // The entry-8 check, applied to the second route type. A conversion is a route.
+    const bad = pass({
+      routes: {
+        ...SLANT_FLAT.routes,
+        Z: {
+          ...route("Slant", "QUICK", 6, "RH"),
+          hot: { ...route("Slant", "QUICK", 5, "LW") },
+        },
+      },
+    });
+    expect(errorCodes(validatePassConcept(bad))).toContain("C_HOT_LANE_TRAVEL");
+  });
+
+  it("rejects a designation that designates nothing", () => {
+    const bad = pass({
+      routes: { ...SLANT_FLAT.routes, Z: alreadyHot(route("Slant", "QUICK", 6, "RH")) },
+    });
+    // Z is SLANT_FLAT's first read, so moving him to the front of the progression and
+    // converting him to the route he is already running does precisely nothing.
+    expect(errorCodes(validatePassConcept(bad))).toContain("C_HOT_IS_A_NO_OP");
   });
 });
 
@@ -352,6 +446,97 @@ describe("defensive cards it rejects", () => {
       shellIntent: "MAN_ZERO",
     });
     expect(errorCodes(validateDefensiveCard(bad))).toContain("D_TOO_MANY_RUSHERS");
+  });
+
+  it("rejects a stunt with a man who is not rushing", () => {
+    const bad = defense({ stunts: [{ penetrator: "DT_L", looper: "LB_M", complexity: "T_E" }] });
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_STUNT_NOT_A_RUSHER");
+  });
+
+  it("rejects two edge rushers exchanging, because there is nothing between them", () => {
+    const bad = defense({ stunts: [{ penetrator: "DE_L", looper: "DE_R", complexity: "T_E" }] });
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_STUNT_BOTH_EDGE");
+  });
+
+  it("rejects a man twisting with himself", () => {
+    const bad = defense({ stunts: [{ penetrator: "DT_L", looper: "DT_L", complexity: "T_T" }] });
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_STUNT_SELF");
+  });
+
+  /**
+   * THE RULE THAT KEEPS §7.3'S HARDEST ROW HONEST. Without it, `complexity: "TRIPLE"`
+   * on an ordinary T-E is a card helping itself to +25 — ADR-018's `laneSpan` failure
+   * (a tunable wearing a card's face) with a different field name.
+   */
+  it("rejects a lone pair claiming to be a three-man game", () => {
+    const bad = defense({ stunts: [{ penetrator: "DT_L", looper: "DE_L", complexity: "TRIPLE" }] });
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_STUNT_TRIPLE_NOT_CHAINED");
+  });
+
+  it("rejects two triple entries that share no middle man", () => {
+    const bad = defense({
+      stunts: [
+        { penetrator: "DT_L", looper: "DE_L", complexity: "TRIPLE" },
+        { penetrator: "DT_R", looper: "DE_R", complexity: "TRIPLE" },
+      ],
+    });
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_STUNT_TRIPLE_NOT_CHAINED");
+  });
+
+  it("rejects a rusher running two separate games", () => {
+    const bad = defense({
+      stunts: [
+        { penetrator: "DT_L", looper: "DE_L", complexity: "T_E" },
+        { penetrator: "DT_L", looper: "DE_R", complexity: "T_E" },
+      ],
+    });
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_STUNT_ROLE_REUSED");
+  });
+
+  it("rejects a five-man pressure that says nothing about how it is hidden", () => {
+    const bad = defense({
+      duties: {
+        ...NICKEL_COVER_3_SKY.duties,
+        LB_W: { kind: "RUSH", move: "SPEED", alignment: "INTERIOR", gap: "B", side: "LEFT" },
+      },
+    });
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_PRESSURE_WITHOUT_DISGUISE");
+  });
+
+  it("rejects a four-man rush buying a disguise modifier", () => {
+    const bad = defense({ blitzDisguise: "DELAYED" });
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_DISGUISE_WITHOUT_PRESSURE");
+  });
+
+  it("rejects a zone blitz with nobody dropping off the line", () => {
+    const bad = defense({
+      ...NICKEL_DOUBLE_A_BLITZ,
+      blitzDisguise: "ZONE_BLITZ",
+    });
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_ZONE_BLITZ_WITHOUT_A_DROP");
+  });
+
+  it("rejects a 0-blitz claim from a card with a post safety", () => {
+    const bad = defense({ ...NICKEL_DOUBLE_A_BLITZ, blitzDisguise: "ZERO" });
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_ZERO_WITH_DEEP_HELP");
+  });
+
+  /**
+   * THE CASE THAT CORRECTED THE RULE. The first version of the disguise check keyed on
+   * "five or more rush" and flagged both goal-line cards — which were right. A 5-3
+   * goal-line front rushes five DOWN LINEMEN and holds nobody back, so §5.3's
+   * recognition roll has no unaccounted man to find. Pressure is somebody arriving from
+   * off the ball, not a headcount, and the rule says so now.
+   */
+  it("does not demand a disguise from a five-man front of down linemen", () => {
+    expect(errorCodes(validateDefensiveCard(GOAL_LINE_MAN))).toHaveLength(0);
+    // And the same card claiming a disguise is refused from the other direction.
+    const bad = defense({ ...GOAL_LINE_MAN, blitzDisguise: "DELAYED" });
+    expect(errorCodes(validateDefensiveCard(bad))).toContain("D_DISGUISE_WITHOUT_PRESSURE");
+  });
+
+  it("accepts the shipped delayed pressure, which sends a defensive back off the edge", () => {
+    expect(errorCodes(validateDefensiveCard(DIME_MAN_BLITZ))).toHaveLength(0);
   });
 });
 

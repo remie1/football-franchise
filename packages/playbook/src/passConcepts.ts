@@ -35,15 +35,58 @@
  * the back in a six-man protection has the backside — LEFT — throughout. That is a
  * property of the formations rather than a default: `sixManProtection` requires the
  * side, and a left-strength card would state RIGHT.
+ *
+ * ======================= ADR-022: SCHEME AND SIGHT ADJUSTMENT =======================
+ *
+ * **WHICH CARDS SLIDE.** Five-man protections slide; six- and seven-man protections
+ * are big-on-big MAN. That is not a taxonomy, it is the arithmetic: five men against
+ * a possible six rushers cannot answer man-for-man, so the answer is a gap rule and
+ * one leftover the offence covers another way. Six in against six is a body apiece.
+ *
+ * **WHICH WAY.** *The line slides away from the man who answers that side.* With a
+ * check-release back that man is the back, and his side is the one his route releases
+ * to — you do not send a back across the formation to check a linebacker. In empty
+ * there is no back and the answer is the hot receiver, so the slide covers the half he
+ * is not in. `validate.ts` carries this as a WARNING (`C_SLIDE_TOWARD_THE_OUTLET`)
+ * rather than an error, because sliding to the outlet is legal football and merely
+ * usually a mistake.
+ *
+ * The distribution this produces is 9 LEFT to 4 RIGHT, and that skew is honest rather
+ * than chosen: every formation in the corpus is right-strength, so most check-release
+ * backs release right, so most lines slide left. It is a property of a right-handed
+ * formation set and it is stated in `distribution.ts` as such.
+ *
+ * **WHICH CARDS STATE A HOT ROUTE, and the rule that decides it.** *A concept states a
+ * hot when its answer to pressure is not already its first read.* Three shapes fall
+ * out of that and all three are real:
+ *
+ *  - **Quick game says nothing.** Slant-Flat's first read is the slant. Designating it
+ *    hot would move to the front of the progression a man who is already at the front.
+ *    A card that says nothing here is saying the true thing: this concept IS the
+ *    answer. `validate.ts` rejects the no-op (`C_HOT_IS_A_NO_OP`) so it cannot creep
+ *    in as decoration.
+ *  - **Rhythm concepts designate.** Curl-Flat, Smash, Levels, Drive, Flood all carry a
+ *    quick route behind a slower first read — the flat, the hitch, the drag. Against
+ *    pressure that man is thrown first and his route does not change, which is what
+ *    `alreadyHot` says and exactly what a coach means by "the flat is your hot".
+ *  - **Shot plays and empty CONVERT.** Four Verticals, Mills, Post-Wheel and both empty
+ *    cards have nothing quick on the field, so somebody breaks his route off: the inside
+ *    seam sits down, the post becomes a slant, the wheel becomes a swing. Those state a
+ *    new route AND a new break zone, because a converted route is somewhere else.
+ *
+ *  - **Two families deliberately state nothing at all**, and the refusal is the point.
+ *    **Max protect** (Yankee, Post-Corner Shot) answers pressure with bodies — seven in,
+ *    and a hot route on top would be a second answer to a problem already paid for.
+ *    **The screen** answers it by design: a blitz is what a screen wants.
  */
 import type { ReadSystem } from "@ff/contracts";
 import * as F from "./formations.js";
 import type { AnyFormation } from "./formations.js";
 import type { ProtectionScheme } from "./protection.js";
-import { fiveManLine, sevenManProtection, sixManProtection } from "./protection.js";
+import { fiveManSlide, sevenManProtection, sixManProtection } from "./protection.js";
 import type { OffenseSkillRole, SkillRoleOf } from "./roles.js";
 import type { RouteSpec } from "./routes.js";
-import { optionRoute, route } from "./routes.js";
+import { alreadyHot, convertsTo, hot, optionRoute, route } from "./routes.js";
 import type { SituationalUsage } from "./distribution.js";
 
 /**
@@ -84,9 +127,27 @@ export function passConcept<F extends AnyFormation, R extends SkillRoleOf<F["per
   return spec;
 }
 
-/** How many rushers this card can account for before somebody comes free. */
+/**
+ * How many rushers this card can account for before somebody comes free.
+ *
+ * It is no longer a limit on what may be PLAYED — a free runner resolves (ADR-023) —
+ * only on what may be blocked. A card below the corpus's heaviest pressure has to
+ * carry a hot route instead, and `validate.ts` enforces exactly that trade.
+ */
 export function protectionCapacity(concept: PassConcept): number {
   return concept.protection.protectors.length + concept.protection.checkRelease.length;
+}
+
+/** The roles whose route converts or is designated hot, in `routes` order. */
+export function hotRoles(concept: PassConcept): readonly OffenseSkillRole[] {
+  return (Object.keys(concept.routes) as OffenseSkillRole[]).filter(
+    (role) => concept.routes[role]?.hot !== undefined,
+  );
+}
+
+/** Whether this concept has any stated answer to a rusher nobody blocked. */
+export function statesAHotRoute(concept: PassConcept): boolean {
+  return hotRoles(concept).length > 0;
 }
 
 // --- quick game -------------------------------------------------------------
@@ -104,7 +165,9 @@ export const SLANT_FLAT = passConcept({
     RB: route("Swing", "QUICK", -2, "RH"),
   },
   readOrder: ["Z", "TE_Y", "RB"],
-  protection: fiveManLine(["RB"]),
+  // No hot, and that is the statement: the slant IS the hot, and it is already the
+  // first read. The back releases right, so the line slides left.
+  protection: fiveManSlide("LEFT", ["RB"]),
   usage: { weight: 9, maxDistance: 8 },
 });
 
@@ -121,7 +184,7 @@ export const STICK = passConcept({
     RB: route("Angle", "QUICK", 4, "LH"),
   },
   readOrder: ["SLOT", "TE_Y", "RB"],
-  protection: fiveManLine(["RB"]),
+  protection: fiveManSlide("RIGHT", ["RB"]),
   usage: { weight: 8, maxDistance: 9 },
 });
 
@@ -154,7 +217,7 @@ export const BUBBLE_NOW = passConcept({
     RB: route("Swing", "QUICK", -2, "LH"),
   },
   readOrder: ["SLOT2", "Z"],
-  protection: fiveManLine(["RB"]),
+  protection: fiveManSlide("RIGHT", ["RB"]),
   usage: { weight: 5, downs: [1, 2], maxDistance: 10 },
 });
 
@@ -171,7 +234,7 @@ export const QUICK_OUTS = passConcept({
     RB: route("Swing", "QUICK", -1, "RH"),
   },
   readOrder: ["Z", "TE_Y", "X"],
-  protection: fiveManLine(["RB"]),
+  protection: fiveManSlide("LEFT", ["RB"]),
   usage: { weight: 5, maxDistance: 9 },
 });
 
@@ -199,7 +262,12 @@ export const Y_CROSS = passConcept({
   formation: F.GUN_TRIPS_RT,
   readSystem: "FULL_FIELD",
   routes: {
-    TE_Y: route("Deep Cross", "INTERMEDIATE", 16, "LH"),
+    // The crosser IS the first read and he is sixteen yards away, so against pressure
+    // he runs it shallow. A real conversion: new route, new depth, new band, same lane.
+    TE_Y: convertsTo(
+      route("Deep Cross", "INTERMEDIATE", 16, "LH"),
+      hot("Shallow Cross", "QUICK", 4, "LH"),
+    ),
     Z: route("Go", "DEEP", 24, "RW"),
     SLOT: route("Curl", "SHORT", 12, "RH"),
     X: route("Comeback", "INTERMEDIATE", 16, "LW"),
@@ -222,7 +290,7 @@ export const MESH = passConcept({
     RB: route("Swing", "QUICK", -2, "RH"),
   },
   readOrder: ["SLOT", "TE_Y", "RB"],
-  protection: fiveManLine(["RB"]),
+  protection: fiveManSlide("LEFT", ["RB"]),
   usage: { weight: 6, minDistance: 4 },
 });
 
@@ -233,7 +301,9 @@ export const CURL_FLAT = passConcept({
   readSystem: "HALF_FIELD",
   routes: {
     Z: route("Curl", "INTERMEDIATE", 12, "RW"),
-    TE_Y: route("Flat", "QUICK", 3, "RW"),
+    // "The flat is your hot." He is already running it; what changes is that the
+    // quarterback goes there first instead of second. Designation, not conversion.
+    TE_Y: alreadyHot(route("Flat", "QUICK", 3, "RW")),
     X: route("Curl", "INTERMEDIATE", 12, "LW"),
     SLOT: route("Dig", "INTERMEDIATE", 14, "C"),
   },
@@ -248,7 +318,7 @@ export const DRIVE = passConcept({
   formation: F.GUN_DOUBLES_12_RT,
   readSystem: "FULL_FIELD",
   routes: {
-    TE_U: route("Drag", "QUICK", 5, "RH"),
+    TE_U: alreadyHot(route("Drag", "QUICK", 5, "RH")),
     X: route("Dig", "INTERMEDIATE", 15, "C"),
     Z: route("Go", "DEEP", 25, "RW"),
     TE_Y: route("Sit", "SHORT", 9, "RH"),
@@ -265,13 +335,13 @@ export const LEVELS = passConcept({
   readSystem: "HALF_FIELD",
   routes: {
     SLOT: route("Dig", "INTERMEDIATE", 12, "C"),
-    TE_Y: route("Drag", "QUICK", 5, "C"),
+    TE_Y: alreadyHot(route("Drag", "QUICK", 5, "C")),
     Z: route("Comeback", "INTERMEDIATE", 16, "RW"),
     X: route("Go", "DEEP", 26, "LW"),
     RB: route("Angle", "SHORT", 5, "LH"),
   },
   readOrder: ["SLOT", "TE_Y", "RB"],
-  protection: fiveManLine(["RB"]),
+  protection: fiveManSlide("RIGHT", ["RB"]),
   usage: { weight: 5, minDistance: 4 },
 });
 
@@ -283,7 +353,7 @@ export const FLOOD = passConcept({
   routes: {
     Z: route("Go", "DEEP", 24, "RW"),
     TE_Y: route("Out", "INTERMEDIATE", 14, "RW"),
-    FB: route("Flat", "QUICK", 2, "RH"),
+    FB: alreadyHot(route("Flat", "QUICK", 2, "RH")),
     X: route("Deep Cross", "INTERMEDIATE", 16, "C"),
   },
   readOrder: ["TE_Y", "FB", "Z"],
@@ -297,14 +367,15 @@ export const SMASH = passConcept({
   formation: F.GUN_DOUBLES_RT,
   readSystem: "HALF_FIELD",
   routes: {
-    Z: route("Hitch", "QUICK", 7, "RW"),
+    // Smash against pressure is the hitch, and it has been for forty years.
+    Z: alreadyHot(route("Hitch", "QUICK", 7, "RW")),
     TE_Y: route("Corner", "INTERMEDIATE", 20, "RW"),
     X: route("Hitch", "QUICK", 7, "LW"),
     SLOT: route("Corner", "INTERMEDIATE", 20, "LW"),
     RB: route("Swing", "QUICK", -1, "RH"),
   },
   readOrder: ["TE_Y", "Z", "RB"],
-  protection: fiveManLine(["RB"]),
+  protection: fiveManSlide("LEFT", ["RB"]),
   usage: { weight: 5, minDistance: 6 },
 });
 
@@ -353,7 +424,7 @@ export const SPLIT_BACKS_TEXAS = passConcept({
     SLOT: route("Curl", "SHORT", 10, "LH"),
   },
   readOrder: ["RB", "FB", "SLOT"],
-  protection: fiveManLine(["FB"]),
+  protection: fiveManSlide("LEFT", ["FB"]),
   usage: { weight: 3, minDistance: 3 },
 });
 
@@ -366,8 +437,11 @@ export const FOUR_VERTS = passConcept({
   readSystem: "FULL_FIELD",
   routes: {
     X: route("Go", "DEEP", 24, "LW"),
-    SLOT: route("Seam", "DEEP", 22, "LH"),
-    SLOT2: route("Seam", "DEEP", 22, "RH"),
+    // Nothing on this card is quick, so somebody has to break off, and it is the
+    // inside seams — they are the men running into the space a blitz vacates. Both
+    // sit down; each states the band and the lane he sits down in.
+    SLOT: convertsTo(route("Seam", "DEEP", 22, "LH"), hot("Sit", "SHORT", 8, "LH")),
+    SLOT2: convertsTo(route("Seam", "DEEP", 22, "RH"), hot("Sit", "SHORT", 8, "RH")),
     Z: route("Go", "DEEP", 24, "RW"),
   },
   readOrder: ["SLOT", "SLOT2", "X", "Z"],
@@ -384,7 +458,7 @@ export const DAGGER = passConcept({
     SLOT: route("Seam", "DEEP", 24, "LH"),
     X: route("Dig", "INTERMEDIATE", 16, "C"),
     Z: route("Comeback", "INTERMEDIATE", 15, "RW"),
-    TE_Y: route("Sit", "SHORT", 8, "RH"),
+    TE_Y: alreadyHot(route("Sit", "SHORT", 8, "RH")),
   },
   readOrder: ["X", "SLOT", "TE_Y", "Z"],
   protection: sixManProtection("RB", "LEFT"),
@@ -413,13 +487,16 @@ export const POST_WHEEL = passConcept({
   readSystem: "HALF_FIELD",
   routes: {
     TE_Y: route("Post", "DEEP", 26, "C"),
-    RB: route("Wheel", "INTERMEDIATE", 18, "RW"),
+    // The back's wheel and the back's check release are the same decision made twice:
+    // if the pressure comes and he is not needed in protection, the wheel becomes the
+    // swing. If he IS needed, `pulledIn` takes the route away and this never happens.
+    RB: convertsTo(route("Wheel", "INTERMEDIATE", 18, "RW"), hot("Swing", "QUICK", -1, "RH")),
     Z: route("Comeback", "INTERMEDIATE", 15, "RW"),
     X: route("Go", "DEEP", 24, "LW"),
     SLOT: route("Drag", "QUICK", 5, "C"),
   },
   readOrder: ["TE_Y", "RB", "Z"],
-  protection: fiveManLine(["RB"]),
+  protection: fiveManSlide("LEFT", ["RB"]),
   usage: { weight: 3, minDistance: 6 },
 });
 
@@ -429,7 +506,9 @@ export const MILLS = passConcept({
   formation: F.GUN_DOUBLES_12_RT,
   readSystem: "FULL_FIELD",
   routes: {
-    Z: route("Post", "DEEP", 28, "RH"),
+    // Post becomes slant: the canonical sight adjustment, and the one that most
+    // obviously needs a new break zone — twenty-eight yards to six is two bands.
+    Z: convertsTo(route("Post", "DEEP", 28, "RH"), hot("Slant", "QUICK", 6, "RH")),
     TE_Y: route("Dig", "INTERMEDIATE", 16, "C"),
     X: route("Go", "DEEP", 24, "LW"),
     TE_U: route("Curl", "SHORT", 10, "LH"),
@@ -476,7 +555,10 @@ export const RB_SLIP_SCREEN = passConcept({
     TE_Y: route("Sit", "SHORT", 8, "RH"),
   },
   readOrder: ["RB", "TE_Y"],
-  protection: fiveManLine(["TE_Y"]),
+  // NO HOT, on purpose. A screen's answer to pressure is the screen: the rushers who
+  // came are the rushers who are not there when the ball is caught. Adding a sight
+  // adjustment would be a second answer to a problem the design already solves.
+  protection: fiveManSlide("LEFT", ["TE_Y"]),
   usage: { weight: 3, minDistance: 5 },
 });
 
@@ -487,7 +569,7 @@ export const HEAVY_RED_ZONE = passConcept({
   readSystem: "HALF_FIELD",
   routes: {
     TE_H: route("Fade", "INTERMEDIATE", 14, "RW"),
-    TE_Y: route("Flat", "QUICK", 3, "RW"),
+    TE_Y: alreadyHot(route("Flat", "QUICK", 3, "RW")),
     X: route("Slant", "QUICK", 6, "LH"),
     RB: route("Angle", "QUICK", 3, "LH"),
   },
@@ -503,7 +585,7 @@ export const RED_ZONE_RUB = passConcept({
   readSystem: "CONCEPT",
   routes: {
     Z: route("Fade", "INTERMEDIATE", 12, "RW"),
-    TE_Y: route("Flat", "QUICK", 2, "RW"),
+    TE_Y: alreadyHot(route("Flat", "QUICK", 2, "RW")),
     SLOT: route("Slant", "QUICK", 5, "C"),
     X: route("Slant", "QUICK", 5, "LH"),
   },
@@ -513,12 +595,22 @@ export const RED_ZONE_RUB = passConcept({
 });
 
 /**
- * EMPTY IS THE ONE PLACE THE CORPUS CANNOT COVER ITSELF, and that is football
- * rather than an oversight. There is no sixth blocker in empty personnel: five
- * linemen protect and the answer to a sixth rusher is a hot route, which the
- * contracts vocabulary cannot express. So these two cards throw
- * `UnprotectableCallError` against a six-man pressure, loudly, at the call site.
- * `test/instantiate.test.ts` asserts exactly that rather than papering over it.
+ * EMPTY IS WHERE THE HOT ROUTE STOPS BEING OPTIONAL, and these two cards are the
+ * reason ADR-022 petition 2 was not optional either.
+ *
+ * There is no sixth blocker in empty personnel — five linemen protect, nobody is in
+ * the backfield to check-release, and a six-man pressure therefore has one man the
+ * offence cannot block by any arrangement of bodies. **That is football, not a gap in
+ * the corpus.** Until ADR-022 these cards could not say the thing every real offence
+ * says about them, so playbook refused the front instead: they threw
+ * `UnprotectableCallError` against a six-man pressure and the caller re-drew a concept.
+ * That refusal was `CALIBRATION-BACKLOG.md` entry 21 in miniature — a corpus that
+ * declines every front it cannot answer perfectly reports pressure rates biased down.
+ *
+ * They now state the answer. The free rusher comes, `unblocked` names him, and whether
+ * the hot beats him is §5.3's recognition roll rather than a property of the card.
+ * `validate.ts` makes it structural: a concept that cannot block six and states no hot
+ * is `C_NO_ANSWER_TO_PRESSURE`, an error.
  */
 export const EMPTY_QUICK = passConcept({
   id: "PASS_EMPTY_QUICK",
@@ -527,13 +619,15 @@ export const EMPTY_QUICK = passConcept({
   readSystem: "CONCEPT",
   routes: {
     SLOT: route("Stick", "SHORT", 7, "RH"),
-    SLOT3: route("Flat", "QUICK", 2, "RW"),
+    // The answer is to the RIGHT, so the line slides LEFT and covers the half he is
+    // not in. Two statements about the same free rusher, made from opposite ends.
+    SLOT3: alreadyHot(route("Flat", "QUICK", 2, "RW")),
     Z: route("Go", "DEEP", 22, "RW"),
     X: route("Slant", "QUICK", 6, "LH"),
     SLOT2: route("Curl", "SHORT", 11, "LH"),
   },
   readOrder: ["SLOT", "SLOT3", "SLOT2"],
-  protection: fiveManLine([]),
+  protection: fiveManSlide("LEFT", []),
   usage: { weight: 2, downs: [3, 4], minDistance: 4 },
 });
 
@@ -544,13 +638,15 @@ export const EMPTY_VERTS = passConcept({
   readSystem: "FULL_FIELD",
   routes: {
     X: route("Go", "DEEP", 24, "LW"),
-    SLOT2: route("Seam", "DEEP", 20, "LH"),
+    // Five men running vertically and one rusher nobody blocked. The backside seam
+    // converts, which is both the answer and the reason the line slides the other way.
+    SLOT2: convertsTo(route("Seam", "DEEP", 20, "LH"), hot("Slant", "QUICK", 6, "C")),
     Z: route("Go", "DEEP", 24, "RW"),
     SLOT: route("Seam", "DEEP", 20, "RH"),
     SLOT3: route("Sit", "SHORT", 9, "C"),
   },
   readOrder: ["SLOT2", "SLOT", "X", "Z", "SLOT3"],
-  protection: fiveManLine([]),
+  protection: fiveManSlide("RIGHT", []),
   usage: { weight: 1, minDistance: 8 },
 });
 
@@ -561,13 +657,15 @@ export const TWO_MINUTE_SAIL = passConcept({
   readSystem: "HALF_FIELD",
   routes: {
     Z: route("Comeback", "INTERMEDIATE", 16, "RW"),
-    TE_Y: route("Out", "INTERMEDIATE", 12, "RW"),
+    // Same route, shorter. A twelve-yard out against pressure is a sack; a six-yard
+    // out is a first down and the clock stops. Different band, so it says so.
+    TE_Y: convertsTo(route("Out", "INTERMEDIATE", 12, "RW"), hot("Out", "SHORT", 6, "RW")),
     X: route("Comeback", "INTERMEDIATE", 16, "LW"),
     SLOT: route("Out", "SHORT", 8, "LW"),
     RB: route("Swing", "QUICK", -1, "RH"),
   },
   readOrder: ["Z", "TE_Y", "X"],
-  protection: fiveManLine(["RB"]),
+  protection: fiveManSlide("LEFT", ["RB"]),
   usage: { weight: 3, twoMinuteOnly: true },
 });
 

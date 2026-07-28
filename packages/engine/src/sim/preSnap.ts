@@ -38,7 +38,14 @@
  * `STUNT_LOOPER` names the communication check. No sentinel, no fabricated
  * label, and no threat that the stream cannot justify.
  */
-import type { PlayerId, PlayerState, Rng } from "@ff/contracts";
+import type {
+  BlitzDisguise,
+  PlayerId,
+  PlayerState,
+  Rng,
+  StuntCall,
+  ThreatOrigin,
+} from "@ff/contracts";
 import type { CheckEmission, PresnapEmission } from "../events.js";
 import {
   resolveBlitzPickup,
@@ -56,18 +63,17 @@ import type {
   RushAlignment,
   RushMove,
 } from "../types.js";
-import {
-  availableBlockersOf,
-  blitzDisguiseOf,
-  centerOf,
-  hotRouteOf,
-  protectionSchemeOf,
-  stuntsOf,
-} from "../interim/adr022.js";
-import type { BlitzDisguise, StuntCall } from "../interim/adr022.js";
 
-/** Why a rusher is running free. Every value names a roll that produced it. */
-export type FreeRunnerOrigin = "UNBLOCKED" | "PICKUP_LOST" | "STUNT_LOOPER";
+/**
+ * Why a rusher is running free — every `ThreatOrigin` except the won rep, which
+ * is §7.1's and belongs to a tick rather than to the snap.
+ *
+ * Stated as an exclusion rather than as its own three-member union so that the
+ * day contracts adds a fifth origin, this list is not quietly a subset: each of
+ * these values names a roll made in THIS file, and `RUSH_THREAT.origin` is
+ * exactly this value carried through unchanged.
+ */
+export type FreeRunnerOrigin = Exclude<ThreatOrigin, "WON_REP">;
 
 export interface FreeRunner {
   readonly origin: FreeRunnerOrigin;
@@ -77,16 +83,42 @@ export interface FreeRunner {
   readonly rollRef: string;
 }
 
-/** One rusher, as the snap finds him. */
-export interface RushPlan {
+/** What every rusher has in common, whoever is or is not blocking him. */
+interface RushPlanCommon {
   readonly rusher: PlayerState;
   readonly move: RushMove;
   readonly alignment: RushAlignment;
   readonly side: RunSide | undefined;
-  /** `undefined` is the whole point of this dispatch: nobody is blocking him. */
-  readonly blocker: PlayerState | undefined;
-  /** Set exactly when `blocker` is undefined. */
-  readonly free: FreeRunner | undefined;
+}
+
+/**
+ * ONE RUSHER, AS THE SNAP FINDS HIM — BLOCKED OR FREE, AND STRUCTURALLY NEITHER
+ * BOTH NOR NEITHER (ADR-022's Decision, applying Charter §4.1).
+ *
+ * This was two independent fields and a runtime invariant that threw. The thing
+ * the invariant caught was real — a stunt swap that exchanged blockers without
+ * exchanging the free records left a man on the field, unblocked, with no
+ * arrival: he would have resolved cleanly, produced plausible numbers, and been
+ * invisible. A discriminated union makes that state unsayable instead of
+ * detectable, so the check and its test are gone rather than kept as belt and
+ * braces that make the shape look optional.
+ *
+ * The discriminant is `blocker` itself rather than an added `kind`, because
+ * "somebody is blocking him" is the fact, and a second field restating it is a
+ * second source of truth for it.
+ */
+export type RushPlan = BlockedRush | FreeRush;
+
+/** Somebody is blocking him: an ordinary §7.1 matchup, rep by rep. */
+export interface BlockedRush extends RushPlanCommon {
+  readonly blocker: PlayerState;
+  readonly free?: undefined;
+}
+
+/** Nobody is blocking him: §7.3 / §7.4's free runner, travelling from the snap. */
+export interface FreeRush extends RushPlanCommon {
+  readonly blocker?: undefined;
+  readonly free: FreeRunner;
 }
 
 export interface PreSnapResult {
@@ -120,41 +152,44 @@ export function resolvePreSnap(args: {
   const { tunables, calls, quarterback, presnapRng, player } = args;
   const { offense, defense } = calls;
 
-  const scheme = protectionSchemeOf(offense);
-  const center = centerOf(offense);
+  const scheme = offense.protectionScheme;
+  const center = scheme?.center;
   const centerPlayer = center === undefined ? undefined : player(center);
-  const disguise = blitzDisguiseOf(defense);
-  const stunts = stuntsOf(defense);
+  // §5.3's own +0 row. A card that says nothing is describing the least
+  // disguised pressure in the doc's table, which is not a silent default.
+  const disguise: BlitzDisguise = defense.blitzDisguise ?? "STANDARD";
+  const stunts: readonly StuntCall[] = defense.stunts ?? [];
 
   // ---- 1. §7.4 step 1: recognition, deterministic -------------------------
+  // `slideSide` is reachable only on the SLIDE arm, and the union makes a slide
+  // that does not say which way it goes unrepresentable — there is no runtime
+  // check here for it any more, because there is no such card (ADR-022).
   const slideSide = scheme?.kind === "SLIDE" ? scheme.slideSide : undefined;
-  const available: PlayerId[] = [...availableBlockersOf(offense)];
+  const declaredAvailable: readonly PlayerId[] = scheme?.available ?? [];
+  const available: PlayerId[] = [...declaredAvailable];
 
-  interface Draft {
-    readonly rusher: PlayerState;
-    readonly move: RushMove;
-    readonly alignment: RushAlignment;
-    readonly side: RunSide | undefined;
-    blocker: PlayerState | undefined;
-    free: FreeRunner | undefined;
+  /** A rusher and the blocker the CARD paired him with, if it paired one. */
+  interface Accounting {
+    readonly common: RushPlanCommon;
+    readonly blocker: PlayerState | undefined;
   }
 
-  const drafts: Draft[] = [];
+  const accounted: Accounting[] = [];
   const unaccounted: PlayerId[] = [];
 
   for (const assignment of defense.rush) {
     const rusher = player(assignment.rusher);
     const named = offense.protection.find((p) => p.rusher === assignment.rusher);
-    const draft: Draft = {
-      rusher,
-      move: assignment.move,
-      alignment: rushAlignmentFor(tunables, rusher.bio.position, assignment.alignment),
-      side: assignment.side,
+    accounted.push({
+      common: {
+        rusher,
+        move: assignment.move,
+        alignment: rushAlignmentFor(tunables, rusher.bio.position, assignment.alignment),
+        side: assignment.side,
+      },
       blocker: named === undefined ? undefined : player(named.blocker),
-      free: undefined,
-    };
+    });
     if (named === undefined) unaccounted.push(assignment.rusher);
-    drafts.push(draft);
   }
 
   // ---- 2. §5.3: does he see it? -------------------------------------------
@@ -180,23 +215,25 @@ export function resolvePreSnap(args: {
   const hot = resolveHotRoutes(tunables, offense.routes, offense.readOrder, recognized);
 
   // ---- 4/5. §7.4 steps 3 and 4: pickup, then the free runner --------------
+  //
+  // EVERY BRANCH BELOW RETURNS A `RushPlan`, which is what replaced the old
+  // post-hoc "blocked or free, never neither" invariant: the compiler now
+  // requires each path to end in one of the two states, so there is no path that
+  // can end in neither and nothing left to assert afterwards.
   const checks: CheckEmission[] = [];
-  for (const draft of drafts) {
-    if (draft.blocker !== undefined) continue;
+  const plans: RushPlan[] = accounted.map(({ common, blocker }): RushPlan => {
+    if (blocker !== undefined) return { ...common, blocker };
 
     // The slide answers its own side without a contest: §7.4 step 1 says
     // "covered", and a covered rusher is an ordinary §7.1 rep from there.
     if (
       slideSide !== undefined &&
-      draft.side === slideSide &&
+      common.side === slideSide &&
       available.length > 0 &&
       tunables.blitzPickup.slideIsUncontested
     ) {
       const slid = available.shift();
-      if (slid !== undefined) {
-        draft.blocker = player(slid);
-        continue;
-      }
+      if (slid !== undefined) return { ...common, blocker: player(slid) };
     }
 
     const bodyId = available.shift();
@@ -204,43 +241,48 @@ export function resolvePreSnap(args: {
       // §7.4 step 4, the pure case: nobody left to block him. No contest, so no
       // die and no CHECK. The threat points at the §5.3 roll, which is the roll
       // that decided whether the protection adjusted to him.
-      draft.free = {
-        origin: "UNBLOCKED",
-        etaTick: tunables.blitzPickup.freeRunnerArrivalSeconds,
-        rollRef: recognitionRollRef,
+      return {
+        ...common,
+        free: {
+          origin: "UNBLOCKED",
+          etaTick: tunables.blitzPickup.freeRunnerArrivalSeconds,
+          rollRef: recognitionRollRef,
+        },
       };
-      continue;
     }
 
     const body = player(bodyId);
     const pickup = resolveBlitzPickup({
       tunables,
       blocker: body,
-      rusher: draft.rusher,
+      rusher: common.rusher,
       recognized,
       pickupRng: presnapRng.fork("pickup"),
     });
     checks.push(pickup.check);
-    if (pickup.blocked) {
-      draft.blocker = body;
-      continue;
-    }
+    if (pickup.blocked) return { ...common, blocker: body };
+
     // He beat the back. The back is still on him in the sense that he had to get
     // through a body — which is what `arrivalDelaySeconds` is — but nobody is
     // blocking him any more, so no §7.1 rep runs.
-    draft.free = {
-      origin: "PICKUP_LOST",
-      etaTick: Number(
-        (tunables.blitzPickup.freeRunnerArrivalSeconds + pickup.arrivalDelaySeconds).toFixed(1),
-      ),
-      rollRef: pickup.check.roll.rngLabel,
+    return {
+      ...common,
+      free: {
+        origin: "PICKUP_LOST",
+        etaTick: Number(
+          (tunables.blitzPickup.freeRunnerArrivalSeconds + pickup.arrivalDelaySeconds).toFixed(1),
+        ),
+        rollRef: pickup.check.roll.rngLabel,
+      },
     };
-  }
+  });
 
   // ---- 6. §7.3: the twist -------------------------------------------------
   for (const stunt of stunts) {
-    const penetrator = drafts.find((d) => d.rusher.bio.id === stunt.penetrator);
-    const looper = drafts.find((d) => d.rusher.bio.id === stunt.looper);
+    const penetratorIndex = plans.findIndex((p) => p.rusher.bio.id === stunt.penetrator);
+    const looperIndex = plans.findIndex((p) => p.rusher.bio.id === stunt.looper);
+    const penetrator = penetratorIndex < 0 ? undefined : plans[penetratorIndex];
+    const looper = looperIndex < 0 ? undefined : plans[looperIndex];
     if (penetrator === undefined || looper === undefined) continue;
 
     const outcome = resolveStuntCommunication({
@@ -258,57 +300,34 @@ export function resolvePreSnap(args: {
       // "Normal matchups resume" — and they resume SWAPPED, which is what a
       // twist is. A stunt the line handles still changes who blocks whom.
       //
-      // The FREE RECORD travels with the blocker, and it has to: a stunt can be
-      // run by a blitzer nobody blocked, and exchanging only the blockers would
-      // leave the other man unblocked with nothing saying when he arrives — a
-      // rusher who is on the field, is not blocked, and never gets there.
-      const blocker = penetrator.blocker;
-      const free = penetrator.free;
-      penetrator.blocker = looper.blocker;
-      penetrator.free = looper.free;
-      looper.blocker = blocker;
-      looper.free = free;
+      // The two men exchange the WHOLE assignment, blocker or free record
+      // together, and the union is what makes that the only expressible swap: a
+      // stunt can be run by a blitzer nobody blocked, and exchanging the
+      // blockers alone would have left the other man unblocked with nothing
+      // saying when he arrives — on the field, not blocked, never getting there.
+      plans[penetratorIndex] = withAssignmentOf(penetrator, looper);
+      plans[looperIndex] = withAssignmentOf(looper, penetrator);
       continue;
     }
 
     // "Free rusher created (the looper). Looper gets unblocked rush at QB."
-    looper.blocker = undefined;
-    looper.free = {
-      origin: "STUNT_LOOPER",
-      etaTick: Number((tunables.stunt.looperArrivalSeconds + outcome.arrivalDelaySeconds).toFixed(1)),
-      rollRef: outcome.check.roll.rngLabel,
+    plans[looperIndex] = {
+      rusher: looper.rusher,
+      move: looper.move,
+      alignment: looper.alignment,
+      side: looper.side,
+      free: {
+        origin: "STUNT_LOOPER",
+        etaTick: Number((tunables.stunt.looperArrivalSeconds + outcome.arrivalDelaySeconds).toFixed(1)),
+        rollRef: outcome.check.roll.rngLabel,
+      },
     };
   }
-
-  /**
-   * THE INVARIANT, checked rather than assumed: a rusher is blocked or he is
-   * free, never neither. "Neither" is a man on the field who is not blocked and
-   * never arrives — he would resolve cleanly, produce plausible numbers, and be
-   * invisible, which is the failure class Charter §4.1 names. It cannot be
-   * expressed in the type today because the two fields are independent; the
-   * shape that would fix it is a discriminated union on `blocker`, and that is
-   * worth taking the next time this file is touched.
-   */
-  const plans: RushPlan[] = drafts.map((d) => {
-    if (d.blocker === undefined && d.free === undefined) {
-      throw new Error(
-        `@ff/engine: rusher ${String(d.rusher.bio.id)} is neither blocked nor free after the pre-snap phase`,
-      );
-    }
-    return {
-      rusher: d.rusher,
-      move: d.move,
-      alignment: d.alignment,
-      side: d.side,
-      blocker: d.blocker,
-      free: d.blocker === undefined ? d.free : undefined,
-    };
-  });
 
   return {
     plans,
     unaccounted,
-    availableBlockers: availableBlockersOf(offense),
+    availableBlockers: declaredAvailable,
     disguise,
     stunts,
     recognition,
@@ -318,6 +337,24 @@ export function resolvePreSnap(args: {
     readOrder: hot.readOrder,
     hotConversions: hot.conversions,
   };
+}
+
+/**
+ * `plan`, with the assignment `from` is carrying — blocker or free record,
+ * whichever it is, and never a mixture of the two. §7.3's exchange is two of
+ * these, which is why a swap cannot strand anybody: each side is handed a
+ * complete assignment, and there is no state in which it is half done.
+ */
+function withAssignmentOf(plan: RushPlan, from: RushPlan): RushPlan {
+  const common: RushPlanCommon = {
+    rusher: plan.rusher,
+    move: plan.move,
+    alignment: plan.alignment,
+    side: plan.side,
+  };
+  return from.blocker === undefined
+    ? { ...common, free: from.free }
+    : { ...common, blocker: from.blocker };
 }
 
 interface HotResult {
@@ -346,7 +383,7 @@ function resolveHotRoutes(
 
   const conversions: HotConversion[] = [];
   const converted = routes.map((route): RouteAssignment => {
-    const spec = hotRouteOf(route);
+    const spec = route.hot;
     if (spec === undefined) return route;
     conversions.push({
       receiver: route.receiver,

@@ -20,9 +20,33 @@
  * `RollDetail` — or nothing at all. A printout that invents a number it cannot
  * read is worse than a printout that is silent about it.
  */
-import type { MatchEvent, MatchEventEnvelope, PlayerId, RollDetail } from "@ff/contracts";
+import type {
+  MatchEvent,
+  MatchEventEnvelope,
+  PlayerId,
+  RollDetail,
+  ThreatOrigin,
+} from "@ff/contracts";
 
 export type NameLookup = (id: PlayerId) => string;
+
+/**
+ * ADR-022's `RUSH_THREAT.origin`, in the printout's own words. Every phrase is
+ * the ADR's table read out: which section of the doc produced this rusher. The
+ * renderer chooses WORDING, never the fact — the fact is on the event.
+ */
+function freeRunnerReason(origin: ThreatOrigin): string {
+  switch (origin) {
+    case "WON_REP":
+      return "§7.1 — he beat his man";
+    case "UNBLOCKED":
+      return "§7.4 step 4 — nobody was left";
+    case "PICKUP_LOST":
+      return "§7.4 step 3 — he beat the back";
+    case "STUNT_LOOPER":
+      return "§7.3 — the exchange was missed";
+  }
+}
 
 /** `CHECK.band` is optional; a check with no band table has none (ADR-011). */
 function bandOf(payload: Extract<MatchEvent, { type: "CHECK" }>["payload"]): string {
@@ -233,10 +257,9 @@ function renderBallCarrier(events: readonly MatchEventEnvelope[], name: NameLook
  * §5.3 recognition, §7.4 pickup, §7.3 exchange — the phase that decides who is
  * blocking whom before a single rep is rolled.
  *
- * Every line here is read from the stream. The §5.3 line prints `roll vs.
- * target` rather than a band, because ⚠ ADR-022's interim leaves `PRESNAP_READ`
- * with nowhere to carry §5.3's four-row label — a printout that invented one
- * would be worse than a printout that shows the arithmetic.
+ * Every line here is read from the stream, the §5.3 band included: ADR-022 gave
+ * `PRESNAP_READ` the same `band` field ADR-011 gave `CHECK`, so the four-row
+ * label is printed rather than re-derived from the margin here.
  */
 function renderPreSnap(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const out: string[] = [];
@@ -263,7 +286,7 @@ function renderPreSnap(events: readonly MatchEventEnvelope[], name: NameLookup):
     const p = event.payload;
     out.push(
       `  ├─ ${p.kind} — ${name(p.actor)}: ${p.roll.total} vs. ${p.target}` +
-        ` → ${p.roll.total >= p.target ? "SEES IT" : "MISSED IT"} (${p.tier})`,
+        ` → ${p.band ?? (p.roll.total >= p.target ? "SEES IT" : "MISSED IT")} (${p.tier})`,
     );
     out.push(`  │    d100 ${p.roll.raw}${p.roll.modifiers.map((m) => ` ${signed(m.value)} ${m.source}`).join("")}`);
   }
@@ -331,18 +354,17 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
     const eta = p.etaTick.toFixed(1);
     if (p.state === "TRAVELLING") {
       const travel = p.etaTick - (event.tick ?? 0);
-      // ⚠ ADR-022 INTERIM. A threat published BEFORE the first tick cannot have
-      // come from a won rep — no rep has been rolled yet — so it is a §7.3/§7.4
-      // free runner. That is read off the stream (`tick` absent) rather than
-      // stated by it, and the petition is a `RUSH_THREAT.origin` field. The
-      // printout does not invent the reason; it says which roll justified him.
-      const unblocked = event.tick === undefined;
+      // ADR-022 petition 5, ratified: the EVENT says why he is coming. This used
+      // to be read off the absence of a tick ("published before the first TICK,
+      // so no rep can have created him"), which was correct and was an inference
+      // from an absence — the class of thing Charter §4.1 exists to eliminate.
       threats.push(
-        unblocked
-          ? `  │    Pre-snap: ${name(p.rusher)} is UNBLOCKED → ${p.alignment} free runner,` +
-            ` ${travel.toFixed(1)}s to travel, arrival ${eta} (roll ${p.rollRef})`
-          : `  │    Tick ${at}: ${name(p.rusher)} wins the rep → ${p.alignment} threat,` +
-            ` ${travel.toFixed(1)}s to travel, arrival ${eta}`,
+        p.origin === "WON_REP"
+          ? `  │    Tick ${at}: ${name(p.rusher)} wins the rep → ${p.alignment} threat,` +
+            ` ${travel.toFixed(1)}s to travel, arrival ${eta}`
+          : `  │    Pre-snap: ${name(p.rusher)} is UNBLOCKED (${freeRunnerReason(p.origin)})` +
+            ` → ${p.alignment} free runner,` +
+            ` ${travel.toFixed(1)}s to travel, arrival ${eta} (roll ${p.rollRef})`,
       );
     } else if (p.state === "DELAYED") {
       threats.push(`  │    Tick ${at}: ${name(p.rusher)} pushed back → arrival now ${eta}`);

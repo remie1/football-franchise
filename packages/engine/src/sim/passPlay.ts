@@ -69,7 +69,6 @@ import type {
   ThrowType,
 } from "../types.js";
 import { assertCoherentPlayCall } from "../validate/playCall.js";
-import { availableBlockersOf } from "../interim/adr022.js";
 import { applyPlayOutcome } from "./outcome.js";
 import type { PlayOutcome } from "./outcome.js";
 import { resolvePreSnap } from "./preSnap.js";
@@ -112,7 +111,7 @@ import {
 import { resolveReleaseVsPress } from "../resolve/release.js";
 import type { RoutePhase } from "../resolve/route.js";
 import { opennessAt, routePhaseAt, routeReadySeconds } from "../resolve/route.js";
-import type { RushThreat } from "../resolve/rushThreat.js";
+import type { ArrivalClock, RushThreat } from "../resolve/rushThreat.js";
 import {
   clearsThreat,
   delayThreat,
@@ -176,12 +175,20 @@ interface RushMatchup {
   announcedArrival: boolean;
 }
 
-/** A free runner's threat starts at the snap, before the first tick. */
+/**
+ * A free runner's threat starts at the snap, before the first tick.
+ *
+ * `origin` and `rollRef` are the pre-snap phase's, carried through unchanged:
+ * §7.4 step 4's `UNBLOCKED` naming the §5.3 recognition, §7.4 step 3's
+ * `PICKUP_LOST` naming the pickup contest, §7.3's `STUNT_LOOPER` naming the
+ * exchange. Nothing is decided here.
+ */
 function freeRunnerThreat(plan: RushPlan): RushThreat | undefined {
   if (plan.free === undefined) return undefined;
   return {
     rusher: plan.rusher.bio.id,
     alignment: plan.alignment,
+    origin: plan.free.origin,
     wonAtTick: 0,
     etaTick: plan.free.etaTick,
     rollRef: plan.free.rollRef,
@@ -378,21 +385,19 @@ export function simulatePassPlay(
   let stepUpsUsed = 0;
   let scramble: ScrambleState | undefined;
 
-  /** ADR-007 — every threat transition is published, not inferred. */
+  /**
+   * ADR-007 — every threat transition is published, not inferred. ADR-022: the
+   * threat states its own `origin`, so the publisher never has to work out why a
+   * rusher is coming from where in the play it happens to be standing.
+   */
   const publishThreat = (threat: RushThreat, state: RushThreatState): void => {
-    log.rushThreat(threat.rusher, threat.alignment, threat.rollRef, threat.etaTick, state);
+    log.rushThreat(threat.rusher, threat.alignment, threat.origin, threat.rollRef, threat.etaTick, state);
   };
 
   // §7.3 / §7.4 — a free runner is TRAVELLING from the snap. He is published
   // here, pre-snap, because that is when he started: no rep created him, so
-  // there is no tick at which he "won".
-  //
-  // ⚠ ADR-022 INTERIM. `RUSH_THREAT` has no way to say WHY a rusher is
-  // travelling, so an unblocked blitzer and a beaten tackle arrive in the stream
-  // looking identical. `rollRef` still points at a real roll in every case — the
-  // §5.3 recognition, the §7.4 pickup, or the §7.3 exchange — but a consumer
-  // cannot tell which kind of roll it is without going and looking. The petition
-  // is an `origin` field; nothing is faked in the meantime.
+  // there is no tick at which he "won". Which of the three snap-time origins he
+  // is, and which roll justifies him, travels on the event.
   for (const m of matchups) {
     if (m.threat !== undefined) publishThreat(m.threat, "TRAVELLING");
   }
@@ -1382,7 +1387,7 @@ function readOpenness(
 function activeThreats(
   matchups: readonly RushMatchup[],
   scramble: ScrambleState | undefined,
-): RushThreat[] {
+): ArrivalClock[] {
   if (scramble !== undefined) {
     const chaser = matchups[0];
     if (chaser === undefined) return [];
@@ -1392,8 +1397,11 @@ function activeThreats(
         alignment: "EDGE",
         wonAtTick: scramble.sinceTick,
         etaTick: scramble.pursuitAtTick,
-        // Not a pass-rush rep, so it is never published as a RUSH_THREAT; it
-        // still names the roll that put the quarterback on this clock.
+        // Not a pass-rush rep, so it is never published as a RUSH_THREAT and it
+        // has no `ThreatOrigin` — which is why this function returns the weaker
+        // `ArrivalClock`: the pursuit clock cannot reach a publisher that would
+        // have to invent one for it. It still names the roll that put the
+        // quarterback on this clock.
         rollRef: scramble.escapeRollRef,
       },
     ];
@@ -1603,7 +1611,7 @@ function buildRecoverySpots(
   }
   // §7.4 — a back who stayed in to scan is in protection whether or not he ended
   // up with anybody to block. He is in the backfield and he is not in a route.
-  for (const id of availableBlockersOf(calls.offense)) {
+  for (const id of calls.offense.protectionScheme?.available ?? []) {
     add({ player: requirePlayer(state, id), side: "OFFENSE", zone: backfield, engagedInBlock: true });
   }
   for (const rush of calls.defense.rush) {

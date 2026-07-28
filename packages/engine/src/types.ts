@@ -9,6 +9,7 @@
  */
 import type {
   AnyPlayCalls,
+  BlitzDisguise,
   BlockType,
   CalendarStamp,
   ChemistryTable,
@@ -18,6 +19,7 @@ import type {
   FieldZone,
   GameId,
   HorizontalZone,
+  HotRouteSpec,
   ManAssignment,
   MatchEventEnvelope,
   OffensiveCall,
@@ -27,6 +29,7 @@ import type {
   PlayerState,
   PocketStatus,
   ProtectionAssignment,
+  ProtectionCall,
   ReadSystem,
   RouteAssignment,
   RouteDepthClass,
@@ -40,12 +43,13 @@ import type {
   RushAssignment,
   RushMove,
   SpaceBlockAssignment,
+  StuntCall,
+  StuntComplexity,
   TeamId,
   ThrowType,
   VerticalZone,
   ZoneAssignment,
 } from "@ff/contracts";
-import type { BlitzDisguise, StuntCall } from "./interim/adr022.js";
 
 /**
  * ADR-013 — `PocketStatus`, `ThrowType` and `RushAlignment` are NOT declared
@@ -81,17 +85,20 @@ export type { PocketStatus, RushAlignment, ThrowType };
  */
 export type {
   AnyPlayCalls,
+  BlitzDisguise,
   BlockType,
   CoverageAssignment,
   CoverageTechnique,
   DefensivePlayCall,
   FieldZone,
   HorizontalZone,
+  HotRouteSpec,
   ManAssignment,
   OffensiveCall,
   OffensivePlayCall,
   PlayCalls,
   ProtectionAssignment,
+  ProtectionCall,
   ReadSystem,
   RouteAssignment,
   RouteDepthClass,
@@ -104,6 +111,8 @@ export type {
   RushAssignment,
   RushMove,
   SpaceBlockAssignment,
+  StuntCall,
+  StuntComplexity,
   VerticalZone,
   ZoneAssignment,
 };
@@ -246,10 +255,13 @@ export interface PassPlayStartPayload {
      */
     readonly availableBlockers: readonly PlayerId[];
     /**
-     * §5.3 — routes that broke off hot, and what they were before. ⚠ ADR-022
-     * INTERIM: `RoutePhase` has no `HOT` member, so a consumer watching
-     * `ROUTE_STATUS` cannot tell a conversion from a card that always ran that
-     * route. Until the petition lands, this is where the change is stated.
+     * §5.3 — routes that broke off hot, and what they were before.
+     *
+     * THIS IS WHERE A CONVERSION IS STATED, and ADR-022 ratified that it stays
+     * here: `RoutePhase` gets no `HOT` member, because a phase is a position on
+     * a route's timeline (`JAMMED`, `DEVELOPING`, `OPEN`…) and "hot" is a fact
+     * about WHICH ROUTE HE IS RUNNING. A consumer that needs the change per-tick
+     * wants a `ROUTE_CONVERTED` event, not an overloaded phase (ADR-010).
      */
     readonly hotConversions: readonly HotConversion[];
   };

@@ -20,7 +20,7 @@ import {
   resolvePocketMovement,
 } from "../src/resolve/pocketMovement.js";
 import type { PocketResponse } from "../src/resolve/pocketMovement.js";
-import type { RushThreat } from "../src/resolve/rushThreat.js";
+import type { ArrivalClock } from "../src/resolve/rushThreat.js";
 import { TUNABLES } from "../src/tunables.js";
 import { buildScenario, makePlayer } from "./fixtures.js";
 
@@ -36,7 +36,8 @@ const IMPROVISER: PlayerState = makePlayer("qb-escape", "Jax Ruiz", "QB", {
   mobility: 94, improvisation: 92,
 });
 
-function threat(alignment: "EDGE" | "INTERIOR", etaTick: number): RushThreat {
+/** The §7.2 clock is all these resolvers read, so that is what the fixture is. */
+function threat(alignment: "EDGE" | "INTERIOR", etaTick: number): ArrivalClock {
   return {
     rusher: buildScenario().calls.defense.rush[0]?.rusher ?? buildScenario().state.quarterback,
     alignment,
@@ -46,7 +47,7 @@ function threat(alignment: "EDGE" | "INTERIOR", etaTick: number): RushThreat {
   };
 }
 
-function best(qb: PlayerState, threats: RushThreat[], stepUpsUsed = 0, throwaway = false): PocketResponse {
+function best(qb: PlayerState, threats: ArrivalClock[], stepUpsUsed = 0, throwaway = false): PocketResponse {
   const { ranked } = rankResponses({ tunables: TUNABLES, qb, tick: 1.5, threats, stepUpsUsed, throwawayAvailable: throwaway });
   return ranked[0]?.response ?? "STAND_IN";
 }

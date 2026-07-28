@@ -14,12 +14,12 @@
  *   alignment.ts    where a man stands; eligibility; receiver numbering
  *   formations.ts   twelve base looks, mirrorable
  *   coverage.ts     named zone responsibilities and the shapes they have
- *   routes.ts       the route library, and the REQUIRED break zone
- *   passConcepts.ts twenty-eight dropbacks
+ *   routes.ts       the route library, the REQUIRED break zone, and hot conversions
+ *   passConcepts.ts twenty-eight dropbacks, with their schemes and sight adjustments
  *   runConcepts.ts  sixteen designed runs
- *   defense.ts      duties, man targets, mirroring
+ *   defense.ts      duties, man targets, stunts, disguise, mirroring
  *   defensiveCards  twenty-two fronts/coverages/pressures
- *   protection.ts   protection schemes and blitz pickup
+ *   protection.ts   man and slide schemes, the centre, blitz pickup, free runners
  *   personnel.ts    depth chart → bound personnel package
  *   instantiate.ts  template + personnel → contracts play calls
  *   validate.ts     the football rules the engine is forbidden to know

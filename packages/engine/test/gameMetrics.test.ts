@@ -9,6 +9,9 @@
  * with evidence. A test that asserted NFL-realistic bounds would either fail on
  * arrival or force a tuning change smuggled inside a feature dispatch.
  *
+ * ⚠ THE TABLE IMMEDIATELY BELOW IS THE FIRST MEASUREMENT AND IS HISTORY. The
+ *   CURRENT numbers are the third block, at the bottom of this comment.
+ *
  * Measured over 12 games (seeds `metrics-0`..`metrics-11`), July 2026:
  *
  *   metric                 engine        NFL         verdict
@@ -48,6 +51,41 @@
  * CONTROLLED before/after — identical seeds, pressure metrics only — is in
  * `pressureMetrics.test.ts`. Nothing here was tuned.
  * ---------------------------------------------------------------------------
+ *
+ * ============ CURRENT — RE-MEASURED July 2026, THIRTEENTH DISPATCH ============
+ * Same 12 seeds, same fixture, the whole table this time rather than the eight
+ * rows the block above happened to touch. RE-RECORDED BECAUSE THE HEADER HAD
+ * STOPPED BEING TRUE: the second block re-measured the passing and rushing rows
+ * and silently left the FIRST block's special-teams and drive-shape rows
+ * standing, so this comment has been quoting numbers the engine does not
+ * produce for two dispatches. That is the same failure the file's own "log, do
+ * not tune" rule exists to prevent, one level up — a stale fence reads as a
+ * measurement.
+ *
+ *   metric                 engine        NFL         was          verdict
+ *   points/team            31.5          22.5        30.6→31.5    HIGH — backlog 11-14
+ *   drives/game            31.2          22-24       32.0→31.2    HIGH — short drives
+ *   plays/game             137           ~128        140 →137     close
+ *   plays/drive            4.40          ~5.9        4.4          LOW — completion rate
+ *   three-and-out rate     26.7%         ~24%        25.4%        close
+ *   points/drive           2.02          ~2.0        1.91         close
+ *   time of possession     3479s/3600    ~3540       3483s        close; no OB model
+ *   completion %           48.3%         ~65%        44.7%→48.3%  LOW — backlog 3
+ *   yards per carry        9.72          ~4.3        9.34→9.72    HIGH — backlog 11-14
+ *   sacks/game             10.7          ~4.6        10.8→10.7    HIGH — backlog 3
+ *   INT/game               4.3           ~1.4        5.0 →4.3     HIGH — backlog 5/6
+ *   FG%                    75.0%         ~84%        80.1%        LOW — see below
+ *   XP%                    97.8%         ~94%        92.4%        close
+ *   punt gross             48.6          ~46.5       48.2         close
+ *
+ * NOTHING WAS TUNED TO MOVE ANY OF THESE, and in particular no special-teams
+ * dial was touched: `blockerStructuralAdvantage`, `sackWhenNoTarget` and
+ * `freeRunnerArrivalSeconds` are frozen. The three special-teams rows moved
+ * because the PLAY MIX moved — §5.3/§7.3/§7.4 changed drive shape, which changes
+ * where drives stall and therefore the distance distribution of the kicks. The
+ * denominators are small (39/52 field goals, 88/90 extra points, 145 punts over
+ * twelve games), so FG% in particular is three kicks wide: read the direction,
+ * not the digits. Fenced, logged, and left for calibration.
  * =======================================================
  */
 import { describe, expect, it } from "vitest";
@@ -199,6 +237,11 @@ describe("special teams, new in this dispatch and closest to reality of anything
   });
 
   it("extra-point percentage is near the league's", () => {
+    // ⚠ TIGHT. Measured 0.978 (88/90) against an upper fence of 0.99, so ONE
+    // more made kick in twelve games trips this. Recorded rather than widened:
+    // the fence is where it is on purpose and moving it to make room is exactly
+    // the "tuning smuggled into a feature dispatch" this file forbids. If it
+    // does trip, re-measure first and widen deliberately, with the number.
     const rate = totals.extraPointsMade / totals.extraPointAttempts;
     expect(rate).toBeGreaterThan(0.85);
     expect(rate).toBeLessThan(0.99);

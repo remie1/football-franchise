@@ -112,10 +112,54 @@ export function checkPassCoherence(
   if (defensePlayers.size > PLAYERS_ON_THE_FIELD) {
     problems.push(`${defensePlayers.size} defensive players`);
   }
-  // The scope limit, not an incoherence: every rusher must be blocked until §7.4.
-  for (const r of defense.rush) {
-    if (!offense.protection.some((p) => p.rusher === r.rusher)) {
-      problems.push(`rusher ${String(r.rusher)} is unblocked`);
+
+  /**
+   * WHAT USED TO BE HERE, AND WHY IT IS NOT.
+   *
+   * "Every rusher must be blocked until §7.4" — labelled a scope limit rather than an
+   * incoherence, correctly, and it expired with ADR-022. A rusher no `ProtectionAssignment`
+   * names now resolves as a free runner. Asserting the old rule would make the corpus's
+   * own test the last thing enforcing entry 21.
+   *
+   * WHAT REPLACED IT is the coherence the new fields actually have to satisfy, and all
+   * three are properties of the CALL rather than of the engine's scope.
+   */
+  const scheme = offense.protectionScheme;
+  if (scheme !== undefined) {
+    const blockers = new Set(offense.protection.map((p) => String(p.blocker)));
+    for (const man of scheme.available ?? []) {
+      // Available means IN PROTECTION AND UNENGAGED. A man who is running a route
+      // cannot be picked up out of it, which is ADR-022 petition 1's rule about paying
+      // for protection before the snap.
+      if (routeRunners.includes(String(man))) {
+        problems.push(`${String(man)} is available for pickup and running a route`);
+      }
+      if (blockers.has(String(man))) {
+        problems.push(`${String(man)} is available for pickup and already blocking somebody`);
+      }
+    }
+    // The centre is a protector, so he is engaged or he is available — never neither.
+    const centre = scheme.center;
+    if (centre !== undefined) {
+      const known = blockers.has(String(centre)) || (scheme.available ?? []).includes(centre);
+      if (!known) problems.push(`the centre ${String(centre)} is not in the protection at all`);
+    }
+  }
+  for (const route of offense.routes) {
+    // The entry-8 invariant, extended to conversions: contracts lets a hot omit its
+    // break zone; this corpus does not, and the check lives here so it is asserted
+    // against the CALL the engine receives rather than against the card.
+    if (route.hot !== undefined && route.hot.breakZone === undefined) {
+      problems.push(`${String(route.receiver)}'s hot conversion states no break zone`);
+    }
+  }
+  const rushers = new Set(defense.rush.map((r) => String(r.rusher)));
+  for (const stunt of defense.stunts ?? []) {
+    if (!rushers.has(String(stunt.penetrator)) || !rushers.has(String(stunt.looper))) {
+      problems.push(`a stunt names somebody who is not rushing`);
+    }
+    if (String(stunt.penetrator) === String(stunt.looper)) {
+      problems.push(`${String(stunt.penetrator)} twists with himself`);
     }
   }
   return { problems };

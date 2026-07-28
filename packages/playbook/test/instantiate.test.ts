@@ -144,15 +144,50 @@ describe("check release — pressure removes a receiver rather than breaking the
 });
 
 describe("loud failure rather than a silent default", () => {
-  it("refuses empty personnel against a six-man pressure, naming the reason", () => {
+  /**
+   * THIS TEST USED TO ASSERT THE OPPOSITE, and the flip is ADR-023.
+   *
+   * It asserted that empty personnel against a six-man pressure THREW, "naming the
+   * reason" — §7.4 blitz pickup being unimplemented. §7.4 landed with ADR-022 and the
+   * reason expired, so the refusal became the last thing keeping
+   * `CALIBRATION-BACKLOG.md` entry 21 open from playbook's side: a corpus that declines
+   * every front it cannot answer with bodies reports pressure biased downward by exactly
+   * the fronts that produce most of it.
+   *
+   * The loud part did not go away, it moved. A free rusher is NAMED rather than thrown:
+   * the call says who came unblocked, who is available to pick him up, and which route
+   * converts. That is more information than the exception carried, and it arrives at the
+   * engine instead of at the caller.
+   */
+  it("plays empty personnel against a six-man pressure and names the free rusher", () => {
     const unit = offenseUnitFor("00");
     const defenseUnit = buildDefensiveUnit("NICKEL", DEEP_CHART);
     const defense = instantiateDefense(NICKEL_COVER_0_BLITZ, defenseUnit, {
       formation: GUN_EMPTY_RT,
       unit,
     });
-    expect(() => instantiatePass(EMPTY_QUICK, unit, defense)).toThrow(UnprotectableCallError);
-    expect(() => instantiatePass(EMPTY_QUICK, unit, defense)).toThrow(/blitz pickup/);
+    const offense = instantiatePass(EMPTY_QUICK, unit, defense);
+    expect(rusherCount(NICKEL_COVER_0_BLITZ)).toBe(6);
+    expect(protectionCapacity(EMPTY_QUICK)).toBe(5);
+    expect(offense.unblockedRushers).toHaveLength(1);
+    if (offense.call.kind !== "PASS") throw new Error("expected a dropback");
+    // Five men block five rushers and the sixth is answered by the hot route, which is
+    // the only answer empty personnel has ever had.
+    expect(offense.call.protection).toHaveLength(5);
+    expect(offense.call.routes.filter((r) => r.hot !== undefined)).toHaveLength(1);
+  });
+
+  it("still throws when a protector role has no player behind it", () => {
+    // The narrowed job of `UnprotectableCallError`: not "this front is too much", which
+    // is football, but "this personnel package is missing a man", which is not.
+    const { LT: _missing, ...thin } = offenseUnitFor("11");
+    const defenseUnit = buildDefensiveUnit("NICKEL", DEEP_CHART);
+    const defense = instantiateDefense(NICKEL_COVER_3_SKY, defenseUnit, {
+      formation: SLANT_FLAT.formation,
+      unit: offenseUnitFor("11"),
+    });
+    expect(() => instantiatePass(SLANT_FLAT, thin, defense)).toThrow(UnprotectableCallError);
+    expect(() => instantiatePass(SLANT_FLAT, thin, defense)).toThrow(/no player bound/);
   });
 
   it("refuses a run block whose gap nobody owns and whose climb target is taken", () => {

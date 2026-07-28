@@ -31,7 +31,7 @@ import { ATTR, attrName } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, rollD100, tierFor } from "../rolls.js";
 import type { Tunables } from "../tunables.js";
-import type { RushThreat } from "./rushThreat.js";
+import type { ArrivalClock } from "./rushThreat.js";
 import { minTimeToArrival, threatsWithAlignment, urgencySteps } from "./rushThreat.js";
 
 export type PocketResponse = "STAND_IN" | "STEP_UP" | "ESCAPE" | "THROWAWAY";
@@ -62,7 +62,7 @@ export interface PocketMovementArgs {
   readonly qb: PlayerState;
   readonly tick: number;
   /** Rushers currently travelling. Shape, not just count, drives availability. */
-  readonly threats: readonly RushThreat[];
+  readonly threats: readonly ArrivalClock[];
   readonly stepUpsUsed: number;
   /** §8.7 — a throwaway is only legal once the concept has had time to develop. */
   readonly throwawayAvailable: boolean;
@@ -114,7 +114,7 @@ function appealFrom(
  */
 export function climbLaneOpen(
   tunables: Tunables,
-  threats: readonly RushThreat[],
+  threats: readonly ArrivalClock[],
   stepUpsUsed: number,
 ): boolean {
   if (stepUpsUsed >= tunables.pocketMovement.stepUp.maxPerPlay) return false;
@@ -126,7 +126,7 @@ export function rankResponses(args: {
   readonly tunables: Tunables;
   readonly qb: PlayerState;
   readonly tick: number;
-  readonly threats: readonly RushThreat[];
+  readonly threats: readonly ArrivalClock[];
   readonly stepUpsUsed: number;
   readonly throwawayAvailable: boolean;
 }): { readonly ranked: readonly ResponseAppeal[]; readonly urgency: number } {

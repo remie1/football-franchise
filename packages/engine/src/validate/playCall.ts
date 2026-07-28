@@ -17,7 +17,6 @@
  * game nobody played (CALIBRATION-BACKLOG 3a).
  */
 import type { PlayerId } from "@ff/contracts";
-import { availableBlockersOf, protectionSchemeOf, stuntsOf } from "../interim/adr022.js";
 import type { AnyPlayCalls, MatchGameState, PlayCalls, RunPlayCalls } from "../types.js";
 
 /** Football's own arithmetic, and the only football fact in this file. */
@@ -82,11 +81,11 @@ function known(state: MatchGameState, id: PlayerId): boolean {
  */
 export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls): void {
   const { offense, defense } = calls;
-  // ⚠ ADR-022 INTERIM vocabulary. Read through the one module that names these
-  // fields; validated here for exactly the same reasons the ratified fields are.
-  const scheme = protectionSchemeOf(offense);
-  const availableBlockers = availableBlockersOf(offense);
-  const stunts = stuntsOf(defense);
+  // ADR-022's vocabulary, validated for exactly the same reasons every other
+  // field is: a name that resolves to nobody, and nobody doing two jobs.
+  const scheme = offense.protectionScheme;
+  const availableBlockers = scheme?.available ?? [];
+  const stunts = defense.stunts ?? [];
 
   // 1. Every name has to resolve to somebody who is actually here.
   const named: { readonly role: string; readonly id: PlayerId }[] = [
@@ -144,8 +143,8 @@ export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls):
   // ALSO NOT REJECTED, AS OF §7.4: a rusher no protection names. That is a free
   // runner, and it is now the mechanic rather than the refusal.
 
-  // 3b. ⚠ ADR-022 INTERIM — the same "nobody does two jobs" rule, applied to the
-  //     petitioned fields. The available-blocker rule is the load-bearing one:
+  // 3b. The same "nobody does two jobs" rule, applied to ADR-022's fields. The
+  //     available-blocker rule is the load-bearing one:
   //     a man who is running a route cannot materialise as a blocker the moment
   //     a blitz shows, because that is exactly the perfectly-informed protection
   //     §7.4 exists to remove (CALIBRATION-BACKLOG 21). Keeping a man in is a
@@ -172,13 +171,57 @@ export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls):
       fail(`stunt looper ${String(stunt.looper)} is not rushing`);
     }
   }
-  assertNoDuplicates(
-    stunts.flatMap((s) => [String(s.penetrator), String(s.looper)]),
-    (id) => `${id} is in two stunts`,
+  // ============ THE TRIPLE EXCHANGE, AND WHY THIS CHECK SHRANK ============
+  // This used to be `assertNoDuplicates` over penetrators AND loopers together —
+  // "a man is in at most one stunt". That rejected §7.3's own hardest row.
+  // "Triple exchange: +25" is BY DEFINITION three men in two exchanges, so the
+  // middle man is the looper of one entry and the penetrator of the other; a
+  // shared man is what the row MEANS. The old check was written when no card
+  // could express one, and it made the doc's +25 unreachable.
+  //
+  // It was also on the wrong side of ADR-006. "One stunt per man" is a football
+  // rule about what a line game is — it needs to know that exchanging twice is
+  // not a thing a rusher does — and the engine rejects internal incoherence
+  // only. `StuntCall`'s own contract comment says the list shape exists so a
+  // card can state "A twisting with B while B twists with C" unambiguously,
+  // which is precisely a chain.
+  //
+  // WHAT IS STILL REJECTED, and it is arithmetic rather than football: NOBODY
+  // HOLDS THE SAME ROLE TWICE. §7.3 gives the looper an outcome — he is swapped
+  // into the penetrator's assignment, or he is the free runner — so two entries
+  // naming the same looper hand one man two contradictory §7.3 results and the
+  // later silently wins. Two entries naming the same penetrator do the same to
+  // the other side of the exchange. That is the identical "nobody does two jobs"
+  // rule already applied to routes, blocks, rushes and coverage above, and it
+  // subsumes the degenerate case of the same {penetrator, looper} pair stated
+  // twice. It is also what keeps ADR-004 honest: the §7.3 roll's `rngLabel` is
+  // keyed on the looper, so two entries sharing one would put two
+  // indistinguishable rolls in the audit trail.
+  //
+  // A CHAIN PASSES BOTH: X→Y with Y→Z has distinct loopers and distinct
+  // penetrators, and `resolvePreSnap` walks the entries in order, so the middle
+  // man carries whatever the first exchange gave him into the second.
+  //
+  // WHAT IS NOT CHECKED HERE, DELIBERATELY: chain SHAPE — that a `TRIPLE` is two
+  // entries sharing a middle, that a lone pair may not claim +25, that a game
+  // needs an interior man in it. Every one of those reads the football meaning
+  // of a complexity label, which is franchise/playbook's authoring-time
+  // question (ADR-006, ADR-017), and `packages/playbook`'s validator already
+  // asks it — `D_STUNT_TRIPLE_NOT_CHAINED`, `D_STUNT_BOTH_EDGE`,
+  // `D_STUNT_ROLE_REUSED`. Re-deriving it per snap would put football rules in a
+  // resolution engine and cost the check on every one of ~130 plays a game.
+  // =======================================================================
+  assertNoDuplicates(stunts.map((s) => String(s.looper)), (id) =>
+    `${id} is the looper of two stunts`,
   );
-  if (scheme?.kind === "SLIDE" && scheme.slideSide === undefined) {
-    fail("a SLIDE protection does not say which way it slides");
-  }
+  assertNoDuplicates(stunts.map((s) => String(s.penetrator)), (id) =>
+    `${id} is the penetrator of two stunts`,
+  );
+  // NOT CHECKED, AND DELIBERATELY: that a SLIDE says which way it slides.
+  // `ProtectionCall` is a discriminated union, so a side-less slide does not
+  // compile and there is no card to reject (ADR-022's Decision, Charter §4.1).
+  // The check that used to be here was policy where a type would do, and
+  // keeping it alongside the type would make `slideSide` look optional.
 
   // 4. Arithmetic. The quarterback is on the field too.
   const offensePlayers = new Set<string>([

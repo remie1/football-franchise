@@ -26,6 +26,7 @@
  * a corpus is invisible in the output.
  */
 import type {
+  BlitzDisguise,
   CoverageTechnique,
   FieldZone,
   PlayerId,
@@ -33,6 +34,7 @@ import type {
   RunSide,
   RushAlignment,
   RushMove,
+  StuntComplexity,
 } from "@ff/contracts";
 import { mirrorLane, mirrorSide } from "./alignment.js";
 import type { ZoneRegion } from "./coverage.js";
@@ -144,6 +146,36 @@ export type CoverageFamily =
   | "PREVENT"
   | "GOAL_LINE";
 
+/**
+ * A LINE GAME, said in roles (ADR-022 petition 3).
+ *
+ * Contracts' `StuntCall` names two `PlayerId`s; a card cannot, for the same reason it
+ * cannot name the receiver a corner covers — it has not seen the personnel package
+ * yet. So the card names the two DUTIES and instantiation binds them, exactly as
+ * `ManTarget` does in the other direction.
+ *
+ * **A stunt is a relationship, so one entry names both men.** ADR-022 chose a list over
+ * a `stuntWith` field on each rusher precisely so a card cannot state the pair
+ * inconsistently, and that reasoning carries here unchanged.
+ *
+ * **`complexity` is a closed union and not a number**, and that is the difference
+ * between a card and a tunable with a card's face on it (ADR-018's `laneSpan`
+ * lesson). §7.3's table has four named rows with stated values; a card chooses a row.
+ *
+ * A TRIPLE game involves three men and this type names two, which is not an oversight:
+ * a three-man game is a CHAIN of two exchanges sharing a middle man, so it is two
+ * entries and the middle man appears in both. `validate.ts` requires that chain — a
+ * lone entry claiming TRIPLE is a card taking §7.3's hardest row without running its
+ * hardest stunt, and that is the one way this field could be quietly abused.
+ */
+export interface StuntSpec<R extends DefenseRole = DefenseRole> {
+  /** He goes first, hard, into his gap. */
+  readonly penetrator: R;
+  /** He goes second, around. §7.3's exchange is his to time. */
+  readonly looper: R;
+  readonly complexity: StuntComplexity;
+}
+
 export interface DefensiveCardTemplate<G extends DefensePersonnel> {
   readonly id: string;
   readonly name: string;
@@ -153,6 +185,28 @@ export interface DefensiveCardTemplate<G extends DefensePersonnel> {
   readonly shellIntent: ShellIntent;
   readonly family: CoverageFamily;
   readonly duties: { readonly [R in DefenseRoleOf<G>]: DefensiveDuty };
+  /**
+   * Line games. Generic in `G`, so a nickel card that stunts with the SAM does not
+   * compile — the same guarantee `duties` gives, on the same axis.
+   */
+  readonly stunts?: readonly StuntSpec<DefenseRoleOf<G>>[];
+  /**
+   * §5.3's disguise row (ADR-022 petition 4).
+   *
+   * REQUIRED IN PRACTICE ON ANY CARD THAT RUSHES FIVE, and forbidden anything but
+   * STANDARD on a card that does not — both as validator rules, because the rusher
+   * count is a runtime property of `duties` and no type can see it. Absent means
+   * §5.3's own +0 row, which is the honest reading of a four-man rush: there is no
+   * extra man, so there is nothing to hide.
+   *
+   * **NOT derived from the shell, and the validator does not derive it either.** ADR-022
+   * refused derivation because a delayed blitz's whole point is looking like the same
+   * shell. What `validate.ts` does instead is CHECK: a card claiming ZONE_BLITZ with no
+   * lineman in coverage, or ZERO with a post safety, is contradicting its own
+   * assignments. Checking a stated fact against the card is the opposite of inferring
+   * it from the card, and the difference is that a check can be wrong out loud.
+   */
+  readonly blitzDisguise?: BlitzDisguise;
   /** Two defenders on one receiver, on purpose. ADR-006 says a bracket is legal. */
   readonly brackets?: true;
   /**
@@ -178,6 +232,8 @@ export interface AnyDefensiveCard {
   readonly shellIntent: ShellIntent;
   readonly family: CoverageFamily;
   readonly duties: Readonly<Partial<Record<DefenseRole, DefensiveDuty>>>;
+  readonly stunts?: readonly StuntSpec[];
+  readonly blitzDisguise?: BlitzDisguise;
   readonly brackets?: true;
   readonly noDeepHelp?: true;
   readonly usage: SituationalUsage;
@@ -207,6 +263,23 @@ export function dutyList(
 /** How many men rush, counting nothing else. */
 export function rusherCount(card: AnyDefensiveCard): number {
   return dutyList(card).filter((entry) => entry.duty.kind === "RUSH").length;
+}
+
+/** Whether five or more come. The blitz axis, as one predicate everything shares. */
+export function isPressure(card: AnyDefensiveCard): boolean {
+  return rusherCount(card) >= 5;
+}
+
+/**
+ * What a card's line game IS, as one label, for reports and distribution tests.
+ *
+ * `undefined` for a card that does not stunt. A TRIPLE chain is two entries with one
+ * complexity between them, so this collapses the entries rather than counting them —
+ * "how often does a triple game get called" is a question about CARDS, and counting
+ * entries would make the hardest row look twice as common as it is.
+ */
+export function stuntComplexity(card: AnyDefensiveCard): StuntComplexity | undefined {
+  return card.stunts?.[0]?.complexity;
 }
 
 // --- mirroring --------------------------------------------------------------
@@ -295,7 +368,21 @@ export function mirrorDefensiveCard(card: AnyDefensiveCard): AnyDefensiveCard {
     if (duty === undefined) continue;
     flipped[role] = mirrorDuty(duty);
   }
-  return { ...card, id: `${card.id}_MIRROR`, duties: flipped };
+  // A STUNT MIRRORS BY ROLE, NOT BY GEOMETRY, and it has to: the duties moved to the
+  // other side of the football, so the men running the game moved with them. A card
+  // whose stunts were left alone would twist a tackle with an end on the far side —
+  // silently, and only on the flipped copy, which is the worst place for it to hide.
+  const stunts = card.stunts?.map((s) => ({
+    penetrator: swap[s.penetrator] ?? s.penetrator,
+    looper: swap[s.looper] ?? s.looper,
+    complexity: s.complexity,
+  }));
+  return {
+    ...card,
+    id: `${card.id}_MIRROR`,
+    duties: flipped,
+    ...(stunts === undefined ? {} : { stunts }),
+  };
 }
 
 /** Convenience for tests and reports: which players ended up rushing. */

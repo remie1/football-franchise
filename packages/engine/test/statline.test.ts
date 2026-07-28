@@ -13,7 +13,10 @@
  * would also pass the equality test.
  */
 import { describe, expect, it } from "vitest";
+import { gameId as gameIdOf, playId, playerId, teamId } from "@ff/contracts";
+import type { CalendarStamp } from "@ff/contracts";
 import { reduceStatlines } from "../src/stats/statline.js";
+import type { PassPlayStartPayload } from "../src/types.js";
 import { simulateGame } from "../src/game/simulateGame.js";
 import type { GameEvent, GameEventEnvelope } from "../src/game/events.js";
 import { buildGameFixture } from "./gameFixtures.js";
@@ -161,5 +164,125 @@ describe("the documented gaps are gaps, not silent wrongness", () => {
     const taken = result.statlines.reduce((a, l) => a + l.passing.sacked, 0);
     const credited = result.statlines.reduce((a, l) => a + l.defense.sacks, 0);
     expect(credited).toBeLessThanOrEqual(taken);
+  });
+});
+
+/**
+ * EVERY MAN THE STREAM PUTS ON THE FIELD HAS A SIDE — and the day one of them
+ * did not, a whole play left the box score without anything looking wrong.
+ *
+ * `PLAY_START.offense.availableBlockers` (ADR-022, §7.4's men kept in who are
+ * not pre-paired to a rusher) was published by the producer and never read by
+ * this reducer. `buildRecoverySpots` puts exactly those men in §12.4's recovery
+ * pool, so when one of them fell on a tipped ball the reducer could not resolve
+ * his team, and dropped the reception AND the quarterback's completion. It was
+ * found as a one-completion disagreement with calibration's independent fold —
+ * which is the only reason it was found at all.
+ */
+describe("the men in protection are on the field too", () => {
+  const gameId = gameIdOf("g:test");
+  const play = playId("g:test:play:1");
+  const at: CalendarStamp = { season: 2026, phase: "REGULAR_SEASON", week: 1, day: 1 };
+  const offenseTeam = teamId("t:home");
+  const defenseTeam = teamId("t:away");
+  const qb = playerId("p:home:QB0");
+  const wr = playerId("p:home:WR0");
+  const centre = playerId("p:home:C0");
+  const cb = playerId("p:away:CB0");
+
+  /**
+   * The minimum stream that reproduces it: the centre is ON THE FIELD only as an
+   * available blocker, and he is the man who comes up with the tipped ball.
+   *
+   * The PLAY_START payload is built as a `PassPlayStartPayload` rather than as a
+   * cast object literal, so this fixture cannot drift away from what the producer
+   * actually emits — which is the whole hazard, since contracts types the payload
+   * as `unknown` and a hand-written shape would compile whatever it said.
+   */
+  function stream(): GameEventEnvelope[] {
+    const base = { gameId, playId: play };
+    const start: PassPlayStartPayload = {
+      kind: "PASS_PLAY_V1",
+      offense: {
+        team: offenseTeam,
+        call: "Mesh",
+        formation: "Shotgun Doubles Right",
+        quarterback: qb,
+        readSystem: "FULL_FIELD",
+        routes: [{ receiver: wr, routeName: "Dig", depthClass: "INTERMEDIATE", airYards: 14 }],
+        readOrder: [wr],
+        protection: [],
+        availableBlockers: [centre],
+        hotConversions: [],
+      },
+      defense: {
+        team: defenseTeam,
+        call: "Cover 3",
+        front: "4-3",
+        coverage: "ZONE",
+        assignments: [],
+        rush: [],
+        unaccountedRushers: [],
+        blitzDisguise: "STANDARD",
+        stunts: [],
+      },
+      situation: { down: 1, distance: 10, ballOn: 24, clockSeconds: 500 },
+    };
+    const events: GameEvent[] = [
+      { type: "PLAY_START", ...base, payload: start },
+      {
+        type: "THROW",
+        ...base,
+        payload: { target: wr, throwType: "BULLET", accuracyTier: "SUCCESS" },
+      },
+      {
+        type: "TIPPED_BALL",
+        ...base,
+        payload: {
+          deflector: cb,
+          rollRef: "r:quality",
+          finalTargetNumber: 55,
+          eligible: [centre],
+          attempts: [{ player: centre, rollRef: "r:recover" }],
+          recoveredBy: centre,
+        },
+      },
+      { type: "PLAY_RESULT", ...base, payload: { yards: 6, turnover: false, clockRunoff: 5.5 } },
+    ];
+    return events.map((event, seq) => ({ seq, at, event }));
+  }
+
+  it("a tipped ball an AVAILABLE blocker recovers is a completion and a reception", () => {
+    const lines = reduceStatlines(stream());
+    const passer = lines.find((l) => String(l.player) === String(qb));
+    const recoverer = lines.find((l) => String(l.player) === String(centre));
+    expect(passer?.passing.attempts).toBe(1);
+    expect(passer?.passing.completions).toBe(1);
+    expect(passer?.passing.yards).toBe(6);
+    expect(recoverer?.team).toBe(offenseTeam);
+    expect(recoverer?.receiving.receptions).toBe(1);
+    expect(recoverer?.receiving.yards).toBe(6);
+  });
+
+  it("an available blocker is on the field, so he has a line and a team", () => {
+    const lines = reduceStatlines(stream());
+    expect(lines.map((l) => String(l.player))).toContain(String(centre));
+  });
+
+  /**
+   * The invariant behind the fix, asserted over a whole real game rather than a
+   * hand-built stream: nobody the producer says is on the field is unknown to
+   * the reducer. This is what would have caught it the first time.
+   */
+  it("every man named in a PLAY_START has a statline, over a whole game", () => {
+    const known = new Set(result.statlines.map((l) => String(l.player)));
+    for (const start of eventsOf(result.events, "PLAY_START")) {
+      const root = start.payload as unknown as Record<string, unknown>;
+      const offense = (root["offense"] ?? {}) as Record<string, unknown>;
+      const available = Array.isArray(offense["availableBlockers"])
+        ? (offense["availableBlockers"] as readonly unknown[])
+        : [];
+      for (const id of available) expect(known).toContain(String(id));
+    }
   });
 });

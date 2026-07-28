@@ -96,6 +96,9 @@ export type {
   // the assignments those calls compose
   RouteAssignment,
   ProtectionAssignment,
+  ProtectionCall,
+  HotRouteSpec,
+  StuntCall,
   CoverageAssignment,
   ManAssignment,
   ZoneAssignment,
@@ -115,34 +118,11 @@ export type {
   RunGap,
   RunSide,
   BlockType,
+  StuntComplexity,
+  BlitzDisguise,
   // §5.3 — what a hot conversion produced, reported on PLAY_START.
   HotConversion,
 } from "./types.js";
-
-/**
- * 2c. CATEGORY 2, ⚠ ADR-022 INTERIM — the petitioned play-call vocabulary for
- * §5.3, §7.3 and §7.4.
- *
- * TYPE-ONLY, which is why it does not widen the runtime surface
- * `test/tunablePatch.test.ts` asserts as a set. It is on the barrel for one
- * reason: a caller building a blitz card cannot state a hot route, a stunt or a
- * protection scheme without these declarations, and without a caller that can,
- * the mechanics are unmeasurable outside this package's own fixtures.
- *
- * ON RATIFICATION these move to `@ff/contracts/playcalls` and this block is
- * DELETED — a caller then constructs an `OffensivePlayCall` directly and the
- * `Interim*` names go with it.
- */
-export type {
-  BlitzDisguise,
-  StuntComplexity,
-  ProtectionSchemeCall,
-  HotRouteSpec,
-  StuntCall,
-  InterimRouteAssignment,
-  InterimOffensivePlayCall,
-  InterimDefensivePlayCall,
-} from "./interim/adr022.js";
 
 // 2b. CATEGORY 2 — the game loop's inputs and outputs.
 export type {

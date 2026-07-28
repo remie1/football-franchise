@@ -8,7 +8,7 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.test.json",
     "ingest": "tsc -p tsconfig.json && node dist/ingest/cli.js",
-    "known-truth": "vitest run test/knownTruth.test.ts"
+    "known-truth": "vitest run test/knownTruth"
   },
   "dependencies": {
     "@ff/contracts": "workspace:*",

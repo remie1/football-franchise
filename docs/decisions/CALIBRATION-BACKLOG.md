@@ -498,11 +498,56 @@ and 18 to read "or against the corpus."**
 Both are §5.3 sensitivity signals that fell out of the monotonicity gate before the sensitivity
 report exists.
 
-- **Accuracy saturates above 60.** The entire 4.3-point completion effect across a 40→95 ladder
-  sits in 40→60; **60→95 is worth 0.2 points.** Consistent with §10.4's target of 60 against
-  `Accuracy ÷ 5`, where the −10/−20 pressure penalty is a larger term than an elite QB's whole
-  advantage over an average one. A kill/merge candidate flag would be premature — the more likely
-  reading is that the *scale* is wrong, not the attribute.
+- **Accuracy saturates above 60 — the shape was right, THE NUMBERS HERE WERE WRONG.** This entry
+  originally read "the entire 4.3-point effect sits in 40→60; 60→95 is worth 0.2 points." A
+  200-game-per-rung sweep at 0/10/20/30/40/50/60/70/80/95 gives
+  `0.3023 / 0.3226 / 0.3338 / 0.3515 / 0.3682 / 0.3751 / 0.3965 / 0.4020 / 0.3985 / 0.4063`:
+  accuracy is near-linear at **0.00157 completion per point from 0→60**, then **0.00028 above
+  60** — a fifth of the slope. **The 0→95 span is 9.9 points, not 4.3, and 60→95 is worth 1.0,
+  not 0.2.** The original figures were an artefact of a ladder that started at 40 with 40 games
+  per rung.
+- **The reading stands and strengthens:** consistent with §10.4's target of 60 against
+  `Accuracy ÷ 5`, where the −10/−20 pressure penalty outweighs an elite QB's whole advantage over
+  an average one. The *scale* is wrong, not the attribute — a kill/merge flag would still be
+  premature.
+- **Coverage saturates the same way, and this is new:** `0/20/40/60/80/95` →
+  `2.256 / 1.943 / 1.878 / 1.599 / 1.663 / 1.624` net yards per dropback. **Two of five families
+  saturate at the top.** `dl-passrush` flattens at the *bottom* instead (0→20 worth 0.012 against
+  0.038 for 20→40) while `ol-passblock` — the same rep from the other side — is linear to zero.
+  That is a shape asymmetry, not just a level one, and it is a Mandate-2 signal arriving early.
+
+## 22a. A gate that never fired was worse than the one that went red
+
+- **`db-coverage`'s smallest step sat 1.4σ from its tolerance** — roughly an 8% false-red per run
+  on that step alone — and it had never gone off. The ladder that *did* go red was the same
+  defect, one rung further along. **A gate passing by luck is indistinguishable from a gate
+  working, right up until it isn't.**
+- **Root cause was rung placement, not tolerance.** 60→80→95 was two rungs of noise on a
+  saturated curve, so a 0.01 tolerance was policing a 0.001 true step. Fixed by re-runging all
+  five ladders to where the effect lives, plus power; **tolerances were not widened** and the
+  gates got *stricter* — tolerance as a fraction of the smallest true step is now 0.26–0.39
+  across all five, where the red ladder's was effectively ~10.
+- **The rule is now machine-checked rather than prose.** Each scenario carries `recordedSteps`
+  and `recordedStepSE`, and every run asserts noise margin `(step + tol)/SE ≥ 4σ`, signal margin
+  `tol ≤ ½ × smallest step`, and `minEffect ≤ 0.8 × measured span`. **Widening a tolerance to go
+  green now requires editing a field labelled "measured" next to the seed digest that measured
+  it.** Charter §4.1 applied to a test suite.
+- **Standing caution:** `db-coverage` needs ~5× the sample of any other family, and its SE
+  estimate is itself unstable (0.028 over three seed sets, 0.091 over six; the 4.2σ margin rests
+  on a CI of roughly [0.057, 0.22], so the true margin could be ~2.5σ). **The obvious economy —
+  trimming games to make CI fast — converts this gate straight back into a coin flip.**
+
+## 22b. Sacks taken reconcile; sacks CREDITED do not
+
+- **Measured over a 30-game corpus:** the offence is charged **344** sacks and the defensive
+  ledger names a sacker on **164 — 47.7%**, one game as low as 27%.
+- **Why it matters:** Tier 4's sim-side pass-rush production reads `defense.sacks`, so **any
+  per-player rate built on it is working from under half the sacks that happened.**
+- The engine already flagged the mechanism: a coverage sack has no arrived rusher and is credited
+  to nobody, so team sacks ≥ credited sacks by construction. What is new is the **magnitude** —
+  "some sacks are uncredited" and "more than half are" are different facts.
+- Only the direction is asserted in test (`credited ≤ taken`); equality would be red for a reason
+  that is the engine's to fix. **Sibling of entry 25** and a candidate declared absence.
 - **Coverage is the weakest attribute family measured**: a fifth of a yard per dropback across
   40→95 on five attributes at once, against 9.7 sack points for OL pass block and 3.2 y/c for RB
   vision. Note two candidate measures were **rejected** en route because better coverage changes

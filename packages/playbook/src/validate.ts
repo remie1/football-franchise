@@ -29,22 +29,28 @@
  * not what the author meant. `assertValid*` throws on errors only, so a warning
  * never blocks a corpus that has a deliberate oddity in it.
  */
-import type { HorizontalZone, RunGap, RunSide } from "@ff/contracts";
+import type { HorizontalZone, RouteDepthClass, RunGap, RunSide } from "@ff/contracts";
 import type { AlignedRole } from "./alignment.js";
 import { alignmentSide, eligibleRoles, laneIndex, laneSide, laneWidth } from "./alignment.js";
 import type { ZoneShape } from "./coverage.js";
 import { ZONE_SHAPES, regionArea, regionCells } from "./coverage.js";
-import type { AnyDefensiveCard, ZoneDuty } from "./defense.js";
+import type { AnyDefensiveCard, DefensiveDuty, ZoneDuty } from "./defense.js";
 import { dutyList } from "./defense.js";
 import { InvalidCardError } from "./errors.js";
 import type { AnyFormation } from "./formations.js";
 import { alignedRoles } from "./formations.js";
 import type { PassConcept } from "./passConcepts.js";
-import { protectionCapacity } from "./passConcepts.js";
-import type { OffenseRole, OffenseSkillRole } from "./roles.js";
+import { protectionCapacity, statesAHotRoute } from "./passConcepts.js";
+import type { DefenseLineRole, DefenseRole, OffenseRole, OffenseSkillRole } from "./roles.js";
 import { OFFENSE_LINE_ROLES, PLAYERS_ON_THE_FIELD, SKILL_ROLES } from "./roles.js";
 import type { RunConcept } from "./runConcepts.js";
-import { DEPTH_CLASS_AIR_YARDS, ROUTE_ENVELOPES, verticalZoneForAirYards } from "./routes.js";
+import type { RouteName, RouteSpec } from "./routes.js";
+import {
+  DEPTH_CLASS_AIR_YARDS,
+  ROUTE_ENVELOPES,
+  isDesignationOnly,
+  verticalZoneForAirYards,
+} from "./routes.js";
 
 export type Severity = "ERROR" | "WARN";
 
@@ -163,6 +169,170 @@ export function validateFormation(formation: AnyFormation): readonly Diagnostic[
   return dedupe(out);
 }
 
+// --- routes, base and converted ---------------------------------------------
+
+/**
+ * A route's shape, checked against its own name and against where the man started.
+ *
+ * EXTRACTED SO A HOT CONVERSION GETS EXACTLY THE SAME TREATMENT, which is the whole
+ * argument: a converted route is a route. If the hot spec were checked more loosely
+ * than the base one, `breakZone` would be required on both and meaningful on one, and
+ * the corpus would have a second, softer route vocabulary hiding inside the first —
+ * entry 8's failure mode with a new field name.
+ */
+function checkRouteGeometry(
+  at: string,
+  spec: {
+    readonly routeName: RouteName;
+    readonly depthClass: RouteDepthClass;
+    readonly airYards: number;
+    readonly breakZone: { readonly horizontal: HorizontalZone; readonly vertical: string };
+  },
+  from: HorizontalZone,
+): readonly Diagnostic[] {
+  const out: Diagnostic[] = [];
+  const envelope = ROUTE_ENVELOPES[spec.routeName];
+  if (!envelope.depthClasses.includes(spec.depthClass)) {
+    out.push(
+      err(
+        "C_ROUTE_DEPTH_CLASS",
+        at,
+        `a ${spec.routeName} is ${envelope.depthClasses.join("/")}, not ${spec.depthClass}`,
+      ),
+    );
+  }
+  if (spec.airYards < envelope.minAirYards || spec.airYards > envelope.maxAirYards) {
+    out.push(
+      err(
+        "C_ROUTE_AIR_YARDS",
+        at,
+        `${spec.airYards} air yards is outside a ${spec.routeName}'s ` +
+          `${envelope.minAirYards}..${envelope.maxAirYards}`,
+      ),
+    );
+  }
+  const classBand = DEPTH_CLASS_AIR_YARDS[spec.depthClass];
+  if (spec.airYards < classBand.min || spec.airYards > classBand.max) {
+    out.push(
+      err(
+        "C_DEPTH_CLASS_AIR_YARDS",
+        at,
+        `${spec.depthClass} routes are ${classBand.min}..${classBand.max} air yards, not ${spec.airYards}`,
+      ),
+    );
+  }
+
+  // The half of the break zone that is derivable, checked against the half that
+  // is not. A card whose stated depth disagrees with its own air yards would hand
+  // the engine two different answers to the same question.
+  const derived = verticalZoneForAirYards(spec.airYards);
+  if (spec.breakZone.vertical !== derived) {
+    out.push(
+      err(
+        "C_VERTICAL_MISMATCH",
+        at,
+        `${spec.airYards} air yards is the ${derived} band, but the card says ${spec.breakZone.vertical}`,
+      ),
+    );
+  }
+
+  // THE ENTRY-8 CHECK. Horizontal placement is stated (the type requires it) —
+  // this is whether the placement is reachable from where the man lined up.
+  const to = spec.breakZone.horizontal;
+  const travel = Math.abs(laneIndex(to) - laneIndex(from));
+  if (travel > envelope.maxLaneTravel) {
+    out.push(
+      err(
+        "C_LANE_TRAVEL",
+        at,
+        `${from} → ${to} crosses ${travel} lanes; a ${spec.routeName} crosses at most ` +
+          `${envelope.maxLaneTravel}`,
+      ),
+    );
+  }
+  // Direction only means something if the man moved, and only if he started
+  // somewhere with a side. A back aligned in the centre lane has no "inside".
+  if (travel > 0 && laneSide(from) !== "MIDDLE" && envelope.lateral !== "EITHER") {
+    const outward = laneWidth(to) > laneWidth(from);
+    if (envelope.lateral === "NONE") {
+      out.push(err("C_LANE_DIRECTION", at, `a ${spec.routeName} does not change lanes`));
+    } else if (envelope.lateral === "IN" && outward) {
+      out.push(err("C_LANE_DIRECTION", at, `a ${spec.routeName} breaks inside, not to ${to}`));
+    } else if (envelope.lateral === "OUT" && !outward) {
+      out.push(err("C_LANE_DIRECTION", at, `a ${spec.routeName} breaks outside, not to ${to}`));
+    }
+  }
+  return out;
+}
+
+/** `C_LANE_TRAVEL` on a conversion is `C_HOT_LANE_TRAVEL`, and so on down the list. */
+function asHotFinding(d: Diagnostic): Diagnostic {
+  return { ...d, code: `C_HOT${d.code.slice(1)}` };
+}
+
+/**
+ * THE THREE RULES A SIGHT ADJUSTMENT HAS TO PASS, beyond being a legal route.
+ *
+ *  1. **It must be QUICK or SHORT.** The entire mechanic is getting the ball out before
+ *     a man nobody blocked arrives. A hot route classed INTERMEDIATE is a slower answer
+ *     to a faster problem, and a card that stated one would be claiming §5.3's benefit
+ *     without paying for it.
+ *  2. **It may not be slower than what it replaces.** Not "must be faster" — a
+ *     designation keeps its route unchanged on purpose, and that is real football (see
+ *     `alreadyHot`). Only an INCREASE is refused, because a conversion that takes longer
+ *     is not a conversion.
+ *  3. **A designation must actually designate.** An unchanged hot on the man who is
+ *     already the first read converts nothing and re-orders nothing: the engine would
+ *     move to the front of the progression somebody who is at the front of it. It is
+ *     legal, it is free, and it is invisible, which is exactly the class of thing that
+ *     accumulates as decoration until a hot-route-availability number means nothing. So
+ *     it is an error rather than a warning.
+ */
+function checkHotConversion(
+  where: string,
+  role: string,
+  spec: RouteSpec,
+  from: HorizontalZone,
+  isFirstRead: boolean,
+): readonly Diagnostic[] {
+  const to = spec.hot;
+  if (to === undefined) return [];
+  const at = `${where} / ${role} ${spec.routeName} → hot ${to.routeName}`;
+  const out: Diagnostic[] = checkRouteGeometry(at, to, from).map(asHotFinding);
+
+  if (to.depthClass !== "QUICK" && to.depthClass !== "SHORT") {
+    out.push(
+      err(
+        "C_HOT_TOO_SLOW",
+        at,
+        `a hot conversion is QUICK or SHORT because the ball has to come out; ` +
+          `this one is ${to.depthClass}`,
+      ),
+    );
+  }
+  if (to.airYards > spec.airYards) {
+    out.push(
+      err(
+        "C_HOT_DEEPER_THAN_THE_ROUTE",
+        at,
+        `${to.airYards} air yards against the original ${spec.airYards}; a sight adjustment ` +
+          "may keep its depth (a designation) but may not add to it",
+      ),
+    );
+  }
+  if (isFirstRead && isDesignationOnly(spec)) {
+    out.push(
+      err(
+        "C_HOT_IS_A_NO_OP",
+        at,
+        `${role} is already the first read and his route does not change, so this hot ` +
+          "converts nothing and re-orders nothing. Either convert the route or drop the flag",
+      ),
+    );
+  }
+  return out;
+}
+
 // --- pass concepts ----------------------------------------------------------
 
 export function validatePassConcept(concept: PassConcept): readonly Diagnostic[] {
@@ -196,78 +366,9 @@ export function validatePassConcept(concept: PassConcept): readonly Diagnostic[]
       );
     }
 
-    const envelope = ROUTE_ENVELOPES[spec.routeName];
-    if (!envelope.depthClasses.includes(spec.depthClass)) {
-      out.push(
-        err(
-          "C_ROUTE_DEPTH_CLASS",
-          at,
-          `a ${spec.routeName} is ${envelope.depthClasses.join("/")}, not ${spec.depthClass}`,
-        ),
-      );
-    }
-    if (spec.airYards < envelope.minAirYards || spec.airYards > envelope.maxAirYards) {
-      out.push(
-        err(
-          "C_ROUTE_AIR_YARDS",
-          at,
-          `${spec.airYards} air yards is outside a ${spec.routeName}'s ` +
-            `${envelope.minAirYards}..${envelope.maxAirYards}`,
-        ),
-      );
-    }
-    const classBand = DEPTH_CLASS_AIR_YARDS[spec.depthClass];
-    if (spec.airYards < classBand.min || spec.airYards > classBand.max) {
-      out.push(
-        err(
-          "C_DEPTH_CLASS_AIR_YARDS",
-          at,
-          `${spec.depthClass} routes are ${classBand.min}..${classBand.max} air yards, not ${spec.airYards}`,
-        ),
-      );
-    }
-
-    // The half of the break zone that is derivable, checked against the half that
-    // is not. A card whose stated depth disagrees with its own air yards would hand
-    // the engine two different answers to the same question.
-    const derived = verticalZoneForAirYards(spec.airYards);
-    if (spec.breakZone.vertical !== derived) {
-      out.push(
-        err(
-          "C_VERTICAL_MISMATCH",
-          at,
-          `${spec.airYards} air yards is the ${derived} band, but the card says ${spec.breakZone.vertical}`,
-        ),
-      );
-    }
-
-    // THE ENTRY-8 CHECK. Horizontal placement is stated (the type requires it) —
-    // this is whether the placement is reachable from where the man lined up.
     const from = entry.alignment.lane;
-    const to = spec.breakZone.horizontal;
-    const travel = Math.abs(laneIndex(to) - laneIndex(from));
-    if (travel > envelope.maxLaneTravel) {
-      out.push(
-        err(
-          "C_LANE_TRAVEL",
-          at,
-          `${from} → ${to} crosses ${travel} lanes; a ${spec.routeName} crosses at most ` +
-            `${envelope.maxLaneTravel}`,
-        ),
-      );
-    }
-    // Direction only means something if the man moved, and only if he started
-    // somewhere with a side. A back aligned in the centre lane has no "inside".
-    if (travel > 0 && laneSide(from) !== "MIDDLE" && envelope.lateral !== "EITHER") {
-      const outward = laneWidth(to) > laneWidth(from);
-      if (envelope.lateral === "NONE") {
-        out.push(err("C_LANE_DIRECTION", at, `a ${spec.routeName} does not change lanes`));
-      } else if (envelope.lateral === "IN" && outward) {
-        out.push(err("C_LANE_DIRECTION", at, `a ${spec.routeName} breaks inside, not to ${to}`));
-      } else if (envelope.lateral === "OUT" && !outward) {
-        out.push(err("C_LANE_DIRECTION", at, `a ${spec.routeName} breaks outside, not to ${to}`));
-      }
-    }
+    out.push(...checkRouteGeometry(at, spec, from));
+    out.push(...checkHotConversion(where, role, spec, from, concept.readOrder[0] === role));
   }
 
   // Progression.
@@ -322,6 +423,44 @@ export function validatePassConcept(concept: PassConcept): readonly Diagnostic[]
       out.push(err("C_LINE_NOT_PROTECTING", where, `${line} is not in the protection`));
     }
   }
+
+  // THE CENTRE. §5.3 and §7.3 both roll his awareness and the engine substitutes no
+  // stand-in, so a scheme that names somebody who is not blocking costs the play two
+  // rolls it should have had — silently, because a missing term looks like a low one.
+  if (!protectors.includes(concept.protection.center)) {
+    out.push(
+      err(
+        "C_CENTRE_NOT_PROTECTING",
+        where,
+        `the scheme names ${concept.protection.center} as the centre and he is not one of ` +
+          "its protectors; §5.3 and §7.3 would roll the awareness of a man who is not there",
+      ),
+    );
+  }
+
+  // THE SLIDE PRINCIPLE, as a warning rather than a rule. `passConcepts.ts` states it:
+  // the line slides AWAY from the man who answers that side, because he cannot answer a
+  // side the line has already covered while the other one comes free. Sliding toward
+  // the outlet is legal — plenty of protections do it on purpose against a specific
+  // look — and it is usually a card that was written without thinking about the pair.
+  const call = concept.protection.call;
+  if (call.kind === "SLIDE") {
+    for (const outlet of concept.protection.checkRelease) {
+      const lane = concept.routes[outlet]?.breakZone.horizontal;
+      if (lane === undefined) continue;
+      if (laneSide(lane) === call.slideSide) {
+        out.push(
+          warn(
+            "C_SLIDE_TOWARD_THE_OUTLET",
+            where,
+            `the line slides ${call.slideSide} and ${outlet} — the man who checks that ` +
+              `side — releases to ${lane}. Both answers cover one half and the other half ` +
+              "has neither",
+          ),
+        );
+      }
+    }
+  }
   for (const role of concept.protection.checkRelease) {
     if (concept.routes[role] === undefined) {
       out.push(
@@ -362,22 +501,36 @@ export function validatePassConcept(concept: PassConcept): readonly Diagnostic[]
     );
   }
 
-  // Can this card absorb the corpus's heaviest pressure? Empty personnel genuinely
-  // cannot — there is no sixth blocker — so it is a warning there and an error
-  // everywhere else.
+  /**
+   * THE TRADE THIS RULE ENFORCES, and it is the rule that replaced a scope limit.
+   *
+   * It used to say: a card that cannot block six is an error, except in empty personnel
+   * where it is a warning, because a free rusher threw. That was a statement about the
+   * ENGINE (§7.4 was unimplemented), dressed as a statement about the card. §7.4 landed,
+   * the throw is gone (ADR-023), and what is left is a statement about football:
+   *
+   * **every dropback has an answer to the corpus's heaviest pressure, and it is either
+   * bodies or a sight adjustment.** Six men in protection is one answer. A hot route is
+   * the other, and it is the answer empty personnel has always had — there is no sixth
+   * blocker in empty and never was. Neither is a finding; having neither is.
+   */
   const capacity = protectionCapacity(concept);
-  if (capacity < 6) {
-    const message =
-      `${capacity} men can block; the defensive corpus rushes up to six, and a free rusher ` +
-      "throws UnprotectableCallError because §7.4 blitz pickup is unimplemented";
+  if (capacity < HEAVIEST_PRESSURE && !statesAHotRoute(concept)) {
     out.push(
-      concept.formation.personnel === "00"
-        ? warn("C_PROTECTION_CAPACITY", where, `${message} (unavoidable in empty personnel)`)
-        : err("C_PROTECTION_CAPACITY", where, message),
+      err(
+        "C_NO_ANSWER_TO_PRESSURE",
+        where,
+        `${capacity} men can block, the defensive corpus rushes up to ${HEAVIEST_PRESSURE}, ` +
+          "and no route on this card converts. A card that cannot answer pressure with " +
+          "bodies has to answer it with a hot route",
+      ),
     );
   }
   return dedupe(out);
 }
+
+/** The most any card in `defensiveCards.ts` sends, and `D_TOO_MANY_RUSHERS`'s ceiling. */
+const HEAVIEST_PRESSURE = 6;
 
 // --- run concepts -----------------------------------------------------------
 
@@ -509,13 +662,19 @@ export function validateDefensiveCard(card: AnyDefensiveCard): readonly Diagnost
   if (rushers.length < 3) {
     out.push(err("D_TOO_FEW_RUSHERS", where, `${rushers.length} rushers is not a pass rush`));
   }
-  if (rushers.length > 6) {
+  if (rushers.length > HEAVIEST_PRESSURE) {
+    // STILL AN ERROR, and the reason has changed. It is no longer that the engine cannot
+    // simulate a free runner — it can (ADR-022 §7.4). It is that seven rushers against
+    // an offence whose deepest protection is seven leaves at most four in coverage
+    // against five eligibles, and `HEAVIEST_PRESSURE` is the number every offensive
+    // card's `C_NO_ANSWER_TO_PRESSURE` check is written against. Raising one without
+    // the other would silently invalidate the trade on the other side of the ball.
     out.push(
       err(
         "D_TOO_MANY_RUSHERS",
         where,
-        `${rushers.length} rushers; no offensive card in the corpus can block more than six, ` +
-          "and an unblocked rusher is unsimulable until §7.4 lands",
+        `${rushers.length} rushers; ${HEAVIEST_PRESSURE} is the ceiling every offensive ` +
+          "card in the corpus is validated against, in bodies or in hot routes",
       ),
     );
   }
@@ -648,7 +807,218 @@ export function validateDefensiveCard(card: AnyDefensiveCard): readonly Diagnost
     case "PREVENT":
       break;
   }
+
+  out.push(...checkStunts(where, card, duties));
+  out.push(...checkDisguise(where, card, duties, rushers.length, deepZones));
   return dedupe(out);
+}
+
+// --- stunts (ADR-022 petition 3) ---------------------------------------------
+
+const DEFENSE_LINE_ROLES: readonly DefenseLineRole[] = ["DE_L", "DT_L", "NT", "DT_R", "DE_R"];
+
+/** What `dutyList` returns, named once so the two checks below can share it. */
+type DutyEntries = readonly { readonly role: DefenseRole; readonly duty: DefensiveDuty }[];
+
+/**
+ * WHAT A LINE GAME HAS TO BE, and the one rule that keeps the exotic rows honest.
+ *
+ * The first three are arithmetic about the card's own duties. The fourth is the one
+ * worth reading:
+ *
+ * **At least one of the pair must be INTERIOR.** Every real game has an inside man in
+ * it — a tackle penetrating and an end looping (T-E), two tackles crossing the centre
+ * (T-T), an end crashing while a tackle comes around him. Two EDGE rushers on opposite
+ * sides of the formation cannot exchange; there is nothing between them to exchange
+ * around and thirty feet to run. A card stating one would produce a §7.3 roll for a
+ * stunt nobody could run.
+ *
+ * **A TRIPLE must be a chain.** Three men, two exchanges, and the middle man is the
+ * looper of one entry and the penetrator of the other. Without this, `complexity:
+ * "TRIPLE"` on a single ordinary pair is a card helping itself to §7.3's +25 row while
+ * running a T-E, and it is the exact failure ADR-018 recorded about `laneSpan`: a
+ * tunable wearing a card's face. Reusing a rusher across entries is refused for the
+ * same reason and permitted only inside a chain, which is the only place it means
+ * something.
+ */
+function checkStunts(
+  where: string,
+  card: AnyDefensiveCard,
+  duties: DutyEntries,
+): readonly Diagnostic[] {
+  const stunts = card.stunts ?? [];
+  if (stunts.length === 0) return [];
+  const out: Diagnostic[] = [];
+  const rushing = new Map<string, string>();
+  for (const { role, duty } of duties) {
+    if (duty.kind === "RUSH") rushing.set(role, duty.alignment);
+  }
+
+  const appearances = new Map<string, number>();
+  for (const stunt of stunts) {
+    const at = `${where} / ${stunt.penetrator}→${stunt.looper} ${stunt.complexity}`;
+    for (const man of [stunt.penetrator, stunt.looper]) {
+      appearances.set(man, (appearances.get(man) ?? 0) + 1);
+      if (!rushing.has(man)) {
+        out.push(err("D_STUNT_NOT_A_RUSHER", at, `${man} is not rushing on this card`));
+      }
+    }
+    if (stunt.penetrator === stunt.looper) {
+      out.push(err("D_STUNT_SELF", at, `${stunt.penetrator} cannot twist with himself`));
+      continue;
+    }
+    const alignments = [rushing.get(stunt.penetrator), rushing.get(stunt.looper)];
+    if (alignments.every((a) => a === "EDGE")) {
+      out.push(
+        err(
+          "D_STUNT_BOTH_EDGE",
+          at,
+          "two edge rushers have nothing to exchange around; every line game has an " +
+            "interior man in it",
+        ),
+      );
+    }
+  }
+
+  const triples = stunts.filter((s) => s.complexity === "TRIPLE");
+  if (triples.length === 1) {
+    out.push(
+      err(
+        "D_STUNT_TRIPLE_NOT_CHAINED",
+        where,
+        "a triple game is three men and two exchanges, so it is two entries sharing a " +
+          "middle man. One entry claiming TRIPLE is a T-E taking §7.3's hardest row",
+      ),
+    );
+  }
+  if (triples.length >= 2) {
+    const chained = triples.some((a) =>
+      triples.some((b) => a !== b && (a.looper === b.penetrator || a.penetrator === b.looper)),
+    );
+    if (!chained) {
+      out.push(
+        err(
+          "D_STUNT_TRIPLE_NOT_CHAINED",
+          where,
+          "the TRIPLE entries name four separate men; a three-man game shares its middle",
+        ),
+      );
+    }
+  }
+  for (const [man, count] of appearances) {
+    if (count < 2) continue;
+    const inChainOnly = stunts
+      .filter((s) => s.penetrator === man || s.looper === man)
+      .every((s) => s.complexity === "TRIPLE");
+    if (!inChainOnly) {
+      out.push(
+        err(
+          "D_STUNT_ROLE_REUSED",
+          where,
+          `${man} appears in ${count} stunts that are not one chained triple; a rusher ` +
+            "runs one game",
+        ),
+      );
+    }
+  }
+  return out;
+}
+
+// --- blitz disguise (ADR-022 petition 4) -------------------------------------
+
+/**
+ * DISGUISE IS STATED BY THE CARD AND CHECKED AGAINST THE CARD. That is not the
+ * derivation ADR-022 refused: derivation would compute the row from the shell, which
+ * would make a delayed blitz impossible to describe because a delayed blitz's whole
+ * point is that the shell does not move. Checking asks a narrower question — does this
+ * card's own front contradict the row it claims — and it can be answered wrong out
+ * loud, which is the difference.
+ *
+ * **THE TRIGGER IS AN OFF-BALL RUSHER, NOT A HEADCOUNT, and getting that wrong is how
+ * this rule was first written.** "Five or more rush" flagged both goal-line cards, and
+ * they were right and the rule was wrong: a 5-3 goal-line front rushes five DOWN
+ * LINEMEN and holds nobody back, so there is no extra man and nothing for §5.3's
+ * recognition roll to find. What makes pressure pressure is somebody arriving from off
+ * the ball. A four-man rush with a walked-up backer replacing an end is a blitz; a
+ * five-man front is a front.
+ *
+ * Both directions are load-bearing. A card that sends a backer and says nothing has not
+ * chosen §5.3's +0 row, it has forgotten there is a table; a card with nobody off the
+ * ball that claims +15 is buying a modifier for pressure it is not sending.
+ */
+function checkDisguise(
+  where: string,
+  card: AnyDefensiveCard,
+  duties: DutyEntries,
+  rushers: number,
+  deepZones: number,
+): readonly Diagnostic[] {
+  const out: Diagnostic[] = [];
+  const disguise = card.blitzDisguise;
+  const offBall = duties
+    .filter((d) => d.duty.kind === "RUSH" && !(DEFENSE_LINE_ROLES as readonly string[]).includes(d.role))
+    .map((d) => d.role);
+
+  if (offBall.length > 0 && disguise === undefined) {
+    out.push(
+      err(
+        "D_PRESSURE_WITHOUT_DISGUISE",
+        where,
+        `${rushers} rush and ${offBall.join("/")} came from off the ball, so §5.3's ` +
+          "recognition roll has an unaccounted man to find. The table has four rows and " +
+          "STANDARD is one of them — say which",
+      ),
+    );
+  }
+  if (offBall.length === 0 && disguise !== undefined && disguise !== "STANDARD") {
+    out.push(
+      err(
+        "D_DISGUISE_WITHOUT_PRESSURE",
+        where,
+        `every one of this card's ${rushers} rushers has his hand down and it claims ` +
+          `${disguise}; with nobody arriving from off the ball there is no extra man to hide`,
+      ),
+    );
+  }
+  if (disguise === "ZERO" && card.noDeepHelp !== true) {
+    out.push(
+      err(
+        "D_ZERO_WITH_DEEP_HELP",
+        where,
+        `§5.3's +25 row is "0-blitz from the coverage shell"; this card claims it with ` +
+          `${deepZones} deep zones and no \`noDeepHelp\``,
+      ),
+    );
+  }
+  if (disguise === "ZONE_BLITZ") {
+    const dropping = duties.some(
+      (d) => (DEFENSE_LINE_ROLES as readonly string[]).includes(d.role) && d.duty.kind !== "RUSH",
+    );
+    if (!dropping) {
+      out.push(
+        err(
+          "D_ZONE_BLITZ_WITHOUT_A_DROP",
+          where,
+          "a zone blitz is a front man dropping so somebody else can come; nobody on this " +
+            "line is in coverage, so there is nothing the pre-snap picture is hiding",
+        ),
+      );
+    }
+  }
+  /**
+   * DELAYED HAS NO CHECK, AND THE ABSENCE IS THE POINT.
+   *
+   * The other three rows say something about the assignments — a zone blitz needs a
+   * dropping lineman, a 0-blitz needs no post safety, a standard look needs nothing.
+   * A delayed blitz needs the picture NOT to change: the man who comes was aligned in
+   * coverage and the shell behind him is the shell he was aligned in. There is nothing
+   * on the card that distinguishes him from a standard walked-up rusher, and inventing
+   * a proxy — "a defensive back is rushing", say — would re-derive disguise from the
+   * assignments, which is exactly the derivation ADR-022 refused and for exactly this
+   * reason. So DELAYED is stated and trusted, and this comment is the record that it
+   * was considered rather than missed.
+   */
+  return out;
 }
 
 /**

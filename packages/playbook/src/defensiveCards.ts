@@ -34,9 +34,37 @@
  * lives in — belongs to nobody. None of that was arranged; it falls out of stating
  * who has which responsibility and letting the shapes land where they land.
  *
+ * ===================== ADR-022: STUNTS AND DISGUISE, AND HOW THEY WERE PLACED =====
+ *
+ * **STUNTS ARE THE FOUR-MAN ANSWER; PRESSURE IS THE FIVE-MAN ONE.** A line game is how
+ * a rush of four manufactures a free man without giving up a coverage defender; an
+ * overload does it by sending more people. They are alternatives more often than they
+ * are companions, and the corpus reflects that — but not perfectly, and deliberately
+ * not: `NICKEL_FIRE_ZONE` runs a game inside a five-man pressure, because a corpus in
+ * which stunting and blitzing were exactly disjoint would be its own artefact and every
+ * "does pressure come from the game or the extra man" measurement would be answerable
+ * from the card id.
+ *
+ * **THE COMPLEXITY MIX IS DELIBERATELY LOPSIDED.** T-E is the game everyone runs; T-T
+ * is common on obvious passing downs; delayed and triple are special calls. Each of the
+ * two exotic rows appears on exactly ONE card, at weight 2, because `StuntComplexity`
+ * having four members is not a reason to use four. §7.3's +25 row belongs to a stunt
+ * that is genuinely a three-man chain, and `validate.ts` makes a card prove it is one.
+ *
+ * **DISGUISE IS STATED AND THEN CHECKED, WHICH IS NOT THE SAME AS DERIVED.** ADR-022
+ * refused to read disguise off the coverage shell — a delayed blitz is delayed
+ * precisely because the shell does not change — so every pressure card names its row.
+ * What the validator does is refuse a card whose claim its own assignments contradict:
+ * ZONE_BLITZ with nobody dropping off the line, ZERO with a post safety, DELAYED with
+ * nobody rushing from the second level. A stated fact checked against the card can be
+ * wrong out loud; an inferred one cannot.
+ *
  * WEIGHTS. Shaped to reproduce `COVERAGE_SHELL_USAGE` and `BLITZ_RATE_PRIOR`, and
- * `test/distribution.test.ts` asserts they do. Read `distribution.ts` first for how
- * much those priors are worth.
+ * `test/distribution.test.ts` asserts they do. **The weight vector was already fixed by
+ * the shell distribution before stunts and disguise existed**, and it was not touched to
+ * make the new axes land — which is why their granularity is coarse and is reported as
+ * coarse rather than tuned away. Read `distribution.ts` first for how much any of these
+ * priors is worth.
  */
 import { zone } from "./coverage.js";
 import type { AnyDefensiveCard, DefensiveDuty } from "./defense.js";
@@ -128,6 +156,10 @@ export const NICKEL_COVER_3_PRESSURE = defensiveCard({
     LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "LEFT" } },
     LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "B", side: "RIGHT" } },
   },
+  // The nickel walks up and comes. Nothing about the picture is hidden, which is
+  // §5.3's own +0 row — "standard blitz, LB walked up" — stated rather than omitted,
+  // because a five-man rush that said nothing would be a card that never considered it.
+  blitzDisguise: "STANDARD",
   usage: { weight: 7 },
 });
 
@@ -175,6 +207,25 @@ export const NICKEL_TAMPA_2 = defensiveCard({
     LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "LEFT" } },
     CB_N: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
   },
+  /**
+   * THE CORPUS'S ONLY TRIPLE GAME, and it is here rather than on a bigger card for a
+   * football reason and an honesty reason.
+   *
+   * Football: a three-man chain takes time to develop, and Tampa 2 is the shell built
+   * to make a quarterback hold the ball — two deep, the middle backer running the seam,
+   * nothing open early. Rushing four and asking them to exchange twice is the trade that
+   * shell is already making.
+   *
+   * Honesty: it is weight 2 of 100, and a triple game should be rare. It is expressed as
+   * a CHAIN — DT_L goes first and DE_L comes around him; DT_R goes second around DT_L —
+   * because a lone pair claiming §7.3's +25 row would be a card taking the hardest
+   * modifier without running the hardest stunt. `validate.ts` will not accept the lone
+   * pair, so the exotic row cannot be borrowed by accident.
+   */
+  stunts: [
+    { penetrator: "DT_L", looper: "DE_L", complexity: "TRIPLE" },
+    { penetrator: "DT_R", looper: "DT_L", complexity: "TRIPLE" },
+  ],
   usage: { weight: 2 },
 });
 
@@ -221,6 +272,10 @@ export const NICKEL_COVER_6 = defensiveCard({
     LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "B", side: "RIGHT" } },
     CB_N: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
   },
+  // The ordinary game, on the corpus's heaviest four-man zone card: the three-technique
+  // crashes the B gap and the end comes around him. Both are RIGHT-side rushers, which
+  // is what makes it a T-E rather than two men going the same place.
+  stunts: [{ penetrator: "DT_R", looper: "DE_R", complexity: "T_E" }],
   usage: { weight: 8 },
 });
 
@@ -407,6 +462,14 @@ export const NICKEL_FIRE_ZONE = defensiveCard({
     CB_N: { kind: "ZONE", ...zone("HOOK_CURL", "RH"), runFit: { gap: "D", side: "RIGHT" } },
     S_S: { kind: "ZONE", ...zone("CURL_FLAT", "LH"), runFit: { gap: "D", side: "LEFT" } },
   },
+  // THE ONE CARD THAT DOES BOTH, and the reason it exists is measurement rather than
+  // taste: if stunting and blitzing were disjoint across the corpus, "did that pressure
+  // come from the game or from the extra man?" would be answerable from the card id
+  // instead of from the event stream, and neither rate would mean anything.
+  stunts: [{ penetrator: "DT_L", looper: "DE_L", complexity: "T_E" }],
+  // The dropping end IS the disguise: five come, four cover underneath one fewer, and
+  // the picture pre-snap is a four-man rush. §5.3's +15 row.
+  blitzDisguise: "ZONE_BLITZ",
   usage: { weight: 7 },
 });
 
@@ -452,6 +515,10 @@ export const NICKEL_DOUBLE_A_BLITZ = defensiveCard({
     },
     S_F: { kind: "ZONE", ...zone("POST", "C") },
   },
+  // Both backers mugged in the A gaps, in plain sight. This is §5.3's "+0, standard
+  // blitz (LB walked up)" almost verbatim, and a card built to be SEEN is not a defect —
+  // the double-A look is a protection problem whether or not it is recognised.
+  blitzDisguise: "STANDARD",
   usage: { weight: 4 },
 });
 
@@ -500,6 +567,11 @@ export const NICKEL_COVER_0_BLITZ = defensiveCard({
       ifAbsent: { kind: "ZONE", ...zone("HOLE", "C") },
     },
   },
+  // §5.3's +25 row is "0-blitz from the coverage shell", so the claim and `noDeepHelp`
+  // are the same fact said twice — and `validate.ts` rejects a card that says one
+  // without the other, which is the only place in the corpus where disguise and shell
+  // are allowed to constrain each other.
+  blitzDisguise: "ZERO",
   usage: { weight: 3, downs: [2, 3, 4] },
 });
 
@@ -524,6 +596,7 @@ export const BASE_COVER_3 = defensiveCard({
     LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "LEFT" } },
     LB_M: { kind: "ZONE", ...zone("HOOK_CURL", "RH"), runFit: { gap: "B", side: "RIGHT" } },
   },
+  stunts: [{ penetrator: "DT_L", looper: "DE_L", complexity: "T_E" }],
   usage: { weight: 4 },
 });
 
@@ -592,6 +665,10 @@ export const BASE_COVER_2 = defensiveCard({
     LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "B", side: "RIGHT" } },
     LB_S: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
   },
+  // THE CORPUS'S ONLY DELAYED GAME. Base Cover 2 is a two-deep, five-under shell that
+  // asks the quarterback to work through it, so the extra beat the looper waits is a
+  // beat the coverage has already bought. Weight 2, for the same reason as the triple.
+  stunts: [{ penetrator: "DT_R", looper: "DE_R", complexity: "DELAYED" }],
   usage: { weight: 2 },
 });
 
@@ -634,6 +711,9 @@ export const BASE_RUN_BLITZ = defensiveCard({
     },
     S_F: { kind: "ZONE", ...zone("POST", "C") },
   },
+  // A run blitz is a shown blitz: the SAM is on the edge and the Will is in the B gap
+  // before the snap, because the point is to be in the gap early, not to be unseen.
+  blitzDisguise: "STANDARD",
   usage: { weight: 2, maxDistance: 6 },
 });
 
@@ -656,6 +736,10 @@ export const DIME_QUARTERS = defensiveCard({
     CB_D: { kind: "ZONE", ...zone("CURL_FLAT", "LH"), runFit: { gap: "D", side: "LEFT" } },
     LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "B", side: "RIGHT" } },
   },
+  // The corpus's only T-T. Both tackles, crossing the centre — the interior game a dime
+  // front runs on an obvious passing down, when there is no run to honour and the two
+  // three-techniques can simply exchange gaps.
+  stunts: [{ penetrator: "DT_L", looper: "DT_R", complexity: "T_T" }],
   usage: { weight: 5, minDistance: 7 },
 });
 
@@ -704,6 +788,11 @@ export const DIME_MAN_BLITZ = defensiveCard({
     },
     S_F: { kind: "ZONE", ...zone("POST", "C") },
   },
+  // The dime back is aligned as a coverage defender and comes off the edge late, from a
+  // single-high picture that does not change when he does. §5.3's +20 row, and the one
+  // card in the corpus where the shell genuinely tells you nothing about the pressure —
+  // which is exactly why ADR-022 refused to derive disguise from the shell.
+  blitzDisguise: "DELAYED",
   usage: { weight: 3, minDistance: 7 },
 });
 

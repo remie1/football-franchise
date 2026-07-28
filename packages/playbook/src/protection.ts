@@ -31,18 +31,57 @@
  * THE ONE CROSSING THAT IS REAL is the slide. An interior rusher may be picked up by
  * an interior protector from the other side, because that is what a full slide
  * protection does. An EDGE rusher may not: no protection in football answers a wide
- * rusher with the tackle from the far side, so when that is the only pairing left the
- * call is unprotectable and says so.
+ * rusher with the tackle from the far side.
+ *
+ * ============================ ADR-022, AND WHAT CHANGED ============================
+ *
+ * **THE SCHEME IS NOW STATED, AND IT IS A DISCRIMINATED UNION.** A list of pairings
+ * is a MAN protection by construction; there was no way to say "we slide left".
+ * `ProtectionCall` in contracts is the field, and `SchemeCall` below is the card's
+ * form of it — `kind: "SLIDE"` carries `slideSide` structurally, so a side-less slide
+ * does not compile (Charter §4.1, and the shape the owner ratified over the engine's
+ * own weaker draft).
+ *
+ * The scheme is not decoration: **the cross-formation pickup is now gated on it.**
+ * Rule 5 below — an interior rusher answered by an interior protector from the other
+ * side — is what a line SLIDING does, and a big-on-big man protection does not do it.
+ * Before ADR-022 every protection got the slide rule because no card could say it was
+ * not sliding.
+ *
+ * **A FREE RUSHER IS NO LONGER AN ERROR.** This file used to throw
+ * `UnprotectableCallError` the moment a rusher could not be paired, and the stated
+ * reason was that "§7.4 blitz pickup is unimplemented in the engine, so a free rusher
+ * cannot be simulated". §7.4 is implemented; the reason has expired; and the throw was
+ * the playbook half of `CALIBRATION-BACKLOG.md` entry 21 — protection that is
+ * perfectly informed because any front it cannot answer is refused rather than played.
+ * An unpaired rusher now comes free, is reported in `unblocked`, and the engine
+ * resolves him against `available` and the card's hot routes. See ADR-023.
+ *
+ * **`available` IS THE LEFTOVERS, AND IT IS NOT A GUESS.** It is the protectors who
+ * finished the pairing walk with nobody to block, in pickup priority. Two refusals
+ * shape it:
+ *
+ *  - **A check-release man who released is NOT available.** ADR-022 petition 1 is
+ *    explicit that a man running a route must not materialise as a blocker the instant
+ *    a blitz shows. Keeping a man in costs a route, and it costs it before the snap:
+ *    that is what `checkRelease` does, and `pulledIn` is the receipt.
+ *  - **The two tackles are NOT available.** A tackle with nobody on his edge is not
+ *    free, he is holding an edge against a rusher who has not declared; a tackle who
+ *    leaves it is the reason the edge rusher was free. Everybody else who ended up
+ *    unengaged is available, backs and tight ends first, because scanning for exactly
+ *    this is their job.
  */
 import type {
   PlayerId,
   ProtectionAssignment,
+  ProtectionCall,
   RunSide,
   RushAlignment,
   RushAssignment,
 } from "@ff/contracts";
 import { UnprotectableCallError } from "./errors.js";
-import type { AnyOffensiveUnit, OffenseRole, OffenseSkillRole } from "./roles.js";
+import type { AnyOffensiveUnit, OffenseLineRole, OffenseRole, OffenseSkillRole } from "./roles.js";
+import { OFFENSE_LINE_ROLES } from "./roles.js";
 
 /**
  * A rusher whose alignment AND SIDE are known.
@@ -82,6 +121,19 @@ export interface ProtectorSpec {
 }
 
 /**
+ * MAN or SLIDE, as a discriminated union so `slideSide` is structurally required
+ * (ADR-022 §Decision — the shape ratified over the engine's optional-plus-a-check).
+ *
+ * The names mean what a coach means. **MAN** is big-on-big: every rusher is answered
+ * by a designated man, which is exactly what a list of pairings already is, and it is
+ * what the six- and seven-man protections in this corpus play. **SLIDE** is a gap
+ * rule rather than a man rule, and it is what five men play when six can come.
+ */
+export type SchemeCall =
+  | { readonly kind: "MAN" }
+  | { readonly kind: "SLIDE"; readonly slideSide: RunSide };
+
+/**
  * NOT generic in the personnel grouping, deliberately. Tying it to `P` fought
  * inference at every construction site and bought little: `validate.ts` already
  * rejects a scheme that leaves a lineman out or check-releases a man with no route,
@@ -89,6 +141,20 @@ export interface ProtectorSpec {
  */
 export interface ProtectionScheme {
   readonly name: string;
+  readonly call: SchemeCall;
+  /**
+   * The man §5.3 and §7.3 roll "Centre Awareness" on, and §7.3 rolls "Adjacent OL
+   * Awareness" around.
+   *
+   * REQUIRED, and typed to a line role so a scheme cannot nominate a back. Contracts
+   * makes it optional because the ENGINE cannot work it out — `ProtectionAssignment`
+   * names players, not positions, and ADR-006 forbids reading it out of `formation` —
+   * and states plainly that absent a centre the term is simply not rolled, with no
+   * stand-in substituted. Playbook is the layer that knows: it binds a typed role
+   * called `C` to a player. So it says, on every card, and the engine gets to make
+   * the roll the doc asks for instead of dropping a term.
+   */
+  readonly center: OffenseLineRole;
   /** Blocks on every snap. Order is the order in which they claim rushers. */
   readonly protectors: readonly ProtectorSpec[];
   /**
@@ -102,6 +168,12 @@ export interface ProtectionResult {
   readonly protection: readonly ProtectionAssignment[];
   /** Check-release roles that ended up blocking, and therefore lost their route. */
   readonly pulledIn: readonly string[];
+  /** The contracts call: scheme, centre and pickup order, ready to go on the play. */
+  readonly scheme: ProtectionCall;
+  /** Protectors nobody claimed, in pickup priority. Mirrors `scheme.available`. */
+  readonly available: readonly PlayerId[];
+  /** Rushers no protector could answer. §7.4 resolves them; nothing here refuses. */
+  readonly unblocked: readonly PlayerId[];
 }
 
 interface Slot {
@@ -125,22 +197,47 @@ interface Slot {
  *     unblockable by a six-man protection that can plainly block it.
  *  3. **The centre, on his technique.** Uncommitted, so he takes an interior man.
  *  4. **The centre, on anything.**
- *  5. **The slide, and INTERIOR ONLY.** An interior rusher can be picked up across
- *     the football because the line slides a gap. An edge rusher cannot, and that
- *     omission is the whole point: it makes the left-tackle-on-the-right-end pairing
- *     unrepresentable rather than merely unlikely.
+ *  5. **The slide, and INTERIOR ONLY, and ONLY IF THE CARD SAID IT IS SLIDING.** An
+ *     interior rusher can be picked up across the football because the line slides a
+ *     gap. An edge rusher cannot, and that omission is the whole point: it makes the
+ *     left-tackle-on-the-right-end pairing unrepresentable rather than merely
+ *     unlikely. Gating the rule on `kind === "SLIDE"` is what makes the scheme a
+ *     mechanic rather than a label — a big-on-big protection that runs out of bodies
+ *     on one side gives up a free runner, which is why offences slide at all.
  */
-function claim(free: readonly Slot[], rusher: DeclaredRush): Slot | undefined {
+function claim(free: readonly Slot[], rusher: DeclaredRush, call: SchemeCall): Slot | undefined {
   const onHisSide = (s: Slot): boolean => s.side === rusher.side;
   const middle = (s: Slot): boolean => s.side === "MIDDLE";
   const onHisTechnique = (s: Slot): boolean => s.takes === rusher.alignment;
+  const sliding = call.kind === "SLIDE" && rusher.alignment === "INTERIOR";
   return (
     free.find((s) => onHisSide(s) && onHisTechnique(s)) ??
     free.find(onHisSide) ??
     free.find((s) => middle(s) && onHisTechnique(s)) ??
     free.find(middle) ??
-    (rusher.alignment === "INTERIOR" ? free.find((s) => s.takes === "INTERIOR") : undefined)
+    (sliding ? free.find((s) => s.takes === "INTERIOR") : undefined)
   );
+}
+
+/**
+ * Pickup priority for a protector nobody claimed, and the two refusals in the file
+ * header expressed as a number.
+ *
+ * 0 — a back or tight end who stayed in. Scanning is the job; §7.4 step 3's contest
+ *     is written about exactly this man.
+ * 1 — the centre. The only lineman with a help-either-side rule.
+ * 2 — a guard. He can fold to the next gap; he is not holding an edge.
+ *
+ * The tackles are absent, and `available` filters them out rather than ranking them
+ * last: a list that ends with the left tackle is a list that says he may be used, and
+ * the engine picking down it under a six-man pressure would produce exactly the
+ * left-tackle-leaves-the-edge pairing ADR-018 made unrepresentable.
+ */
+const EDGE_ANCHORS: readonly string[] = ["LT", "RT"];
+
+function pickupRank(role: string, center: string): number {
+  if (role === center) return 1;
+  return (OFFENSE_LINE_ROLES as readonly string[]).includes(role) ? 2 : 0;
 }
 
 /**
@@ -149,9 +246,10 @@ function claim(free: readonly Slot[], rusher: DeclaredRush): Slot | undefined {
  * a calibration batch.
  *
  * Order of resolution: edge rushers first (they are the ones a tackle must have),
- * then interior. Each rusher claims a protector by the rules above, and a rusher
- * nobody can legally block pulls in a check-release man — which is what a check
- * release is for.
+ * then interior. Each rusher claims a protector by the rules above; a rusher nobody
+ * can legally block pulls in a check-release man — which is what a check release is
+ * for — and if there is no reserve left he comes FREE and is reported. Nothing here
+ * refuses a front any more (ADR-023).
  */
 export function assignProtection(
   cardName: string,
@@ -171,14 +269,18 @@ export function assignProtection(
   const used = new Set<string>();
   const pulledIn: string[] = [];
   const protection: ProtectionAssignment[] = [];
+  const unblocked: PlayerId[] = [];
 
   for (const rusher of ordered) {
     const free = slots.filter((s) => !used.has(s.role));
-    let slot = claim(free, rusher);
+    let slot = claim(free, rusher, scheme.call);
     if (slot === undefined) {
       const next = reserve.shift();
       if (next === undefined) {
-        throw new UnprotectableCallError(unprotectable(cardName, scheme, ordered, free, rusher));
+        // §7.4's free runner. He is the reason the card states a hot route, and the
+        // reason `available` exists; both travel to the engine on the same call.
+        unblocked.push(rusher.rusher);
+        continue;
       }
       // A back who stays in scans and blocks whoever came free, so he has no declared
       // side. That is a fact about check release, not a pairing this code invented.
@@ -195,37 +297,26 @@ export function assignProtection(
     protection.push({ blocker: slot.player, rusher: rusher.rusher });
   }
 
-  return { protection, pulledIn };
-}
+  const center = requirePlayer(unit, scheme.center, cardName);
+  const available = slots
+    .filter((s) => !used.has(s.role) && !EDGE_ANCHORS.includes(s.role))
+    .map((s, index) => ({ slot: s, index }))
+    .sort(
+      (a, b) =>
+        pickupRank(a.slot.role, scheme.center) - pickupRank(b.slot.role, scheme.center) ||
+        a.index - b.index,
+    )
+    .map((entry) => entry.slot.player);
 
-/**
- * Two different failures wearing one exception, told apart because they call for
- * different fixes: too few blockers is a protection choice, and too few blockers ON
- * ONE SIDE is an overload the offence has no answer to without a hot route.
- */
-function unprotectable(
-  cardName: string,
-  scheme: ProtectionScheme,
-  rush: readonly DeclaredRush[],
-  free: readonly Slot[],
-  rusher: DeclaredRush,
-): string {
-  const tail =
-    "§7.4 blitz pickup is unimplemented in the engine, so a free rusher cannot be " +
-    "simulated; call a card with more protection or a hot route.";
-  if (free.length > 0) {
-    const sameSide = rush.filter((r) => r.side === rusher.side).length;
-    return (
-      `${cardName}: ${sameSide} rushers from the ${rusher.side} against ` +
-      `${scheme.protectors.filter((p) => p.side === rusher.side).length} protectors set that way, ` +
-      `with ${free.length} free on the other side and a ${rusher.alignment} rusher who cannot be ` +
-      `passed across the formation. ${tail}`
-    );
-  }
-  return (
-    `${cardName}: ${rush.length} rushers against ${scheme.protectors.length} protectors ` +
-    `and ${scheme.checkRelease.length} check-release men. ${tail}`
-  );
+  // `available` is emitted even when empty, for the reason `zoneAssignment` emits a
+  // zero span: "everybody is engaged" is a statement, and it is a different statement
+  // from a call that never mentioned pickup at all.
+  const call: ProtectionCall =
+    scheme.call.kind === "SLIDE"
+      ? { kind: "SLIDE", slideSide: scheme.call.slideSide, center, available }
+      : { kind: "MAN", center, available };
+
+  return { protection, pulledIn, scheme: call, available, unblocked };
 }
 
 function rank(alignment: RushAlignment): number {
@@ -242,33 +333,53 @@ function requirePlayer(unit: AnyOffensiveUnit, role: string, cardName: string): 
 
 // --- the named schemes ------------------------------------------------------
 
+/** The five up front, with the technique and side each is set for. */
+const LINE: readonly ProtectorSpec[] = [
+  { role: "LT", takes: "EDGE", side: "LEFT" },
+  { role: "RT", takes: "EDGE", side: "RIGHT" },
+  { role: "LG", takes: "INTERIOR", side: "LEFT" },
+  { role: "RG", takes: "INTERIOR", side: "RIGHT" },
+  { role: "C", takes: "INTERIOR", side: "MIDDLE" },
+];
+
 /**
- * Five-man protection: the line, and nobody else. The back and the tight end are
- * in the route. This is the league's most common dropback protection and it is
- * also the one that gets a free rusher against a five-man pressure — which is why
- * every concept using it lists a check-release man.
+ * Five-man SLIDE protection: the line, and nobody else, sliding one way.
+ *
+ * Five men and six possible rushers, so the answer cannot be a man rule. The line
+ * slides, one man is left over on the away side, and the offence covers him with the
+ * check-release back or with a hot route — which is why every concept using this
+ * lists one or the other, and why `validate.ts` insists on it.
+ *
+ * **WHICH WAY IT SLIDES IS AUTHORED, NOT DERIVED**, for the reason ADR-018 made the
+ * sixth protector's side authored: a resolver that works it out from where the routes
+ * happen to go is inventing a call. The principle the corpus authors to is stated on
+ * `passConcepts.ts` and checked as a warning in `validate.ts`: **the line slides AWAY
+ * from the man who answers that side.** With a check-release back that is the back,
+ * and his side is the one he releases to — you do not cross the formation to check a
+ * linebacker. In empty there is no back, so it is the hot receiver.
  */
-export function fiveManLine(checkRelease: readonly OffenseSkillRole[]): ProtectionScheme {
+export function fiveManSlide(
+  slideSide: RunSide,
+  checkRelease: readonly OffenseSkillRole[],
+): ProtectionScheme {
   return {
-    name: "5-man",
-    protectors: [
-      { role: "LT", takes: "EDGE", side: "LEFT" },
-      { role: "RT", takes: "EDGE", side: "RIGHT" },
-      { role: "LG", takes: "INTERIOR", side: "LEFT" },
-      { role: "RG", takes: "INTERIOR", side: "RIGHT" },
-      { role: "C", takes: "INTERIOR", side: "MIDDLE" },
-    ],
+    name: `5-man slide ${slideSide.toLowerCase()}`,
+    call: { kind: "SLIDE", slideSide },
+    center: "C",
+    protectors: LINE,
     checkRelease,
   };
 }
 
 /**
- * Six men: the line plus one, usually the back. One fewer eligible, one more blocker.
+ * Six men, big on big: the line plus one, usually the back. One fewer eligible, one
+ * more blocker, and a designated man for every rusher a six-man pressure can send —
+ * which is what MAN means and what a bare pairing list already said.
  *
  * THE SIXTH MAN'S SIDE IS STATED, not inferred from where he lines up. A protection
- * call says which edge the back has — "slide right, back has the backside" — and it
- * is the same information a defensive card gives about its rushers. Leaving it to the
- * resolver would put the invention back exactly where ADR-018 took it out.
+ * call says which edge the back has, and it is the same information a defensive card
+ * gives about its rushers. Leaving it to the resolver would put the invention back
+ * exactly where ADR-018 took it out.
  */
 export function sixManProtection(
   sixth: OffenseSkillRole,
@@ -277,7 +388,9 @@ export function sixManProtection(
 ): ProtectionScheme {
   return {
     name: "6-man",
-    protectors: [...fiveManLine([]).protectors, { role: sixth, takes: "EDGE", side }],
+    call: { kind: "MAN" },
+    center: "C",
+    protectors: [...LINE, { role: sixth, takes: "EDGE", side }],
     checkRelease,
   };
 }
@@ -291,8 +404,10 @@ export function sevenManProtection(
 ): ProtectionScheme {
   return {
     name: "7-man",
+    call: { kind: "MAN" },
+    center: "C",
     protectors: [
-      ...fiveManLine([]).protectors,
+      ...LINE,
       { role: sixth, takes: "EDGE", side: sixthSide },
       { role: seventh, takes: "EDGE", side: seventhSide },
     ],

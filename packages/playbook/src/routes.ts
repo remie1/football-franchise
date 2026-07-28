@@ -16,6 +16,13 @@
  * it, which is why `routeVerticalMatchesAirYards` can never fire on the shipped
  * cards — it exists for cards that arrive from JSON or from a UI authoring surface
  * later, where nothing enforces the constructor.
+ *
+ * **THE SAME RULE APPLIES TO A HOT CONVERSION, AND THAT IS NOT NEGOTIABLE.** ADR-022
+ * gave `RouteAssignment` a `hot?: HotRouteSpec` whose `breakZone` is optional with
+ * "omitted ⇒ keep the original". A converted route does not keep the original — that
+ * is what converting means — so in this package `HotSpec.breakZone` is required and
+ * `hot()` derives its band the same way `route()` does. The entry-8 invariant does
+ * not weaken because a second route type arrived; it now covers two.
  */
 import type { FieldZone, HorizontalZone, RouteDepthClass, VerticalZone } from "@ff/contracts";
 
@@ -169,6 +176,88 @@ export interface RouteSpec {
   readonly breakZone: FieldZone;
   /** §9.5 — the receiver reads coverage and picks. Presentation and future mechanic. */
   readonly option?: true;
+  /** What he runs instead when the offence answers pressure (ADR-022 petition 2). */
+  readonly hot?: HotSpec;
+}
+
+/**
+ * A HOT CONVERSION — the sight adjustment, and the mechanic that makes a blitz a
+ * risk to the defence rather than a free win (ADR-022 petition 2).
+ *
+ * **`breakZone` IS REQUIRED HERE, exactly as it is on `RouteSpec`.** Contracts makes
+ * it optional with "omitted ⇒ keep the original", which is a sane contract-level
+ * default and a corpus-level fake: a route that breaks off into vacated space is
+ * breaking off SOMEWHERE, and a conversion that does not say where hands the zone
+ * model the pre-snap lane for a post-snap route. Entry 8's failure mode, one
+ * mechanic later. `hot()` derives the depth band from air yards for the same reason
+ * `breakAt()` does, so the author only ever chooses the lane.
+ */
+export interface HotSpec {
+  readonly routeName: RouteName;
+  readonly depthClass: RouteDepthClass;
+  readonly airYards: number;
+  readonly breakZone: FieldZone;
+}
+
+/** The route he breaks off into. Lane is the author's choice; the band is derived. */
+export function hot(
+  routeName: RouteName,
+  depthClass: RouteDepthClass,
+  airYards: number,
+  lane: HorizontalZone,
+): HotSpec {
+  return { routeName, depthClass, airYards, breakZone: breakAt(lane, airYards) };
+}
+
+/**
+ * "He breaks it off." The base route and what it becomes.
+ *
+ * Used where every route on the card is too slow to beat a free runner, so somebody
+ * has to convert — the seam that sits down, the post that becomes a slant.
+ */
+export function convertsTo(base: RouteSpec, to: HotSpec): RouteSpec {
+  return { ...base, hot: to };
+}
+
+/**
+ * "He IS the hot, and he does not have to change what he is doing."
+ *
+ * The other half of real football's answer to pressure, and the reason the two
+ * constructors are separate. A coach's hot rule is sometimes a CONVERSION (the
+ * sight adjustment) and sometimes just a DESIGNATION — "against pressure the flat is
+ * your hot" — where the route was already quick and the only thing that changes is
+ * that the quarterback goes there first.
+ *
+ * The engine models both with one field, because it does two things with a hot
+ * route: it converts it, and it moves the receiver to the front of the progression.
+ * An unchanged conversion is the second of those on its own, which is precisely what
+ * a designation is. `validate.ts` then refuses the case where it buys nothing —
+ * an unchanged hot on the man who is ALREADY the first read converts nothing and
+ * re-orders nothing, and is an authoring slip rather than a football statement.
+ */
+export function alreadyHot(base: RouteSpec): RouteSpec {
+  return {
+    ...base,
+    hot: {
+      routeName: base.routeName,
+      depthClass: base.depthClass,
+      airYards: base.airYards,
+      breakZone: base.breakZone,
+    },
+  };
+}
+
+/** True when the conversion changes nothing but the progression. */
+export function isDesignationOnly(base: RouteSpec): boolean {
+  const to = base.hot;
+  if (to === undefined) return false;
+  return (
+    to.routeName === base.routeName &&
+    to.depthClass === base.depthClass &&
+    to.airYards === base.airYards &&
+    to.breakZone.horizontal === base.breakZone.horizontal &&
+    to.breakZone.vertical === base.breakZone.vertical
+  );
 }
 
 /**

@@ -24,10 +24,6 @@
  *    awareness and the engine cannot work out who he is from a pairing list.
  *    That is a simplification of protection, not of the engine.
  *
- * ⚠ ADR-022 INTERIM. The blitz, stunt, hot-route and protection-scheme fields
- * below are petitioned vocabulary, not ratified. They are declared in
- * `src/interim/adr022.ts` and are the reason the pass cards are built as
- * `InterimOffensivePlayCall` rather than `OffensivePlayCall`.
  *  - route break zones are stated on every route, which real cards would also
  *    do, but the horizontal spacing is chosen to exercise the §3 grid rather
  *    than to be sound football.
@@ -39,11 +35,12 @@
  * ============================================================== */
 import type { PlayerId } from "@ff/contracts";
 import type {
-  InterimDefensivePlayCall,
-  InterimOffensivePlayCall,
-  ProtectionSchemeCall,
-} from "../interim/adr022.js";
-import type { ProtectionAssignment, RunPlayCall } from "../types.js";
+  DefensivePlayCall,
+  OffensivePlayCall,
+  ProtectionAssignment,
+  ProtectionCall,
+  RunPlayCall,
+} from "../types.js";
 import type { DefensivePersonnel, OffensivePersonnel } from "./types.js";
 
 function at<T>(items: readonly T[], index: number, what: string): T {
@@ -88,7 +85,7 @@ function baseProtection(
 }
 
 /**
- * ⚠ ADR-022 INTERIM — §7.4's step 1 inputs.
+ * §7.4's step 1 inputs (ADR-022, ratified).
  *
  * `available` is the pre-snap decision to keep a man in, and it is the whole
  * reason a blitz is answerable. It is stated on the CARD, before the defensive
@@ -98,13 +95,13 @@ function baseProtection(
 function manProtection(
   offense: OffensivePersonnel,
   available: readonly PlayerId[],
-): ProtectionSchemeCall {
+): ProtectionCall {
   return { kind: "MAN", center: offense.center, available };
 }
 
 export interface PassCard {
   readonly name: string;
-  build(offense: OffensivePersonnel, defense: DefensivePersonnel): InterimOffensivePlayCall;
+  build(offense: OffensivePersonnel, defense: DefensivePersonnel): OffensivePlayCall;
 }
 
 export interface RunCard {
@@ -114,7 +111,7 @@ export interface RunCard {
 
 export interface CoverageCard {
   readonly name: string;
-  build(offense: OffensivePersonnel, defense: DefensivePersonnel): InterimDefensivePlayCall;
+  build(offense: OffensivePersonnel, defense: DefensivePersonnel): DefensivePlayCall;
 }
 
 // --- dropbacks --------------------------------------------------------------
@@ -342,7 +339,7 @@ export const RUN_CARDS: readonly RunCard[] = [
  * nothing on a four-man rush, and §7.4's slide protection cannot be expressed
  * without them.
  */
-function baseRush(defense: DefensivePersonnel): InterimDefensivePlayCall["rush"] {
+function baseRush(defense: DefensivePersonnel): DefensivePlayCall["rush"] {
   return [
     { rusher: at(defense.edges, 0, "LE"), move: "SPEED", alignment: "EDGE", side: "LEFT" },
     { rusher: at(defense.interior, 0, "DT"), move: "POWER", alignment: "INTERIOR", side: "LEFT" },
@@ -454,9 +451,9 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
   },
 
   // ------------------------------------------------------------------------
-  // ⚠ ADR-022 INTERIM — the three cards the engine could not resolve before
-  // §5.3, §7.3 and §7.4 landed. Two send more men than the protection names;
-  // one twists inside a four-man rush.
+  // The three cards the engine could not resolve before §5.3, §7.3 and §7.4
+  // landed. Two send more men than the protection names; one twists inside a
+  // four-man rush.
   // ------------------------------------------------------------------------
 
   {

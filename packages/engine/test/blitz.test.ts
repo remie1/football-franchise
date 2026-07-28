@@ -14,8 +14,16 @@ import { simulatePassPlay } from "../src/sim/passPlay.js";
 import { renderPlay } from "../src/debug/renderPlay.js";
 import { TUNABLES } from "../src/tunables.js";
 import { IncoherentPlayCallError } from "../src/validate/playCall.js";
-import type { InterimDefensivePlayCall, InterimOffensivePlayCall } from "../src/interim/adr022.js";
-import type { MatchGameState, PlayCalls } from "../src/types.js";
+import type {
+  BlitzDisguise,
+  DefensivePlayCall,
+  MatchGameState,
+  OffensivePlayCall,
+  PlayCalls,
+  ProtectionCall,
+  RunSide,
+  StuntCall,
+} from "../src/types.js";
 import { buildScenario, makePlayer } from "./fixtures.js";
 
 // --- a blitz fixture --------------------------------------------------------
@@ -25,11 +33,11 @@ interface BlitzOptions {
   readonly backStaysIn?: boolean;
   /** Name the centre, so §5.3's and §7.3's second term is rolled. */
   readonly nameCentre?: boolean;
-  readonly disguise?: InterimDefensivePlayCall["blitzDisguise"];
+  readonly disguise?: BlitzDisguise;
   /** Give the X a hot conversion. Default: yes. */
   readonly hot?: boolean;
   /** Add a T/E twist between the interior rusher and the edge. */
-  readonly twist?: InterimDefensivePlayCall["stunts"];
+  readonly twist?: readonly StuntCall[];
   /** How many extra unblocked rushers to send. Default 1. */
   readonly extraRushers?: number;
   readonly blockerPassBlock?: number;
@@ -91,7 +99,7 @@ function buildBlitz(options: BlitzOptions = {}): BlitzFixture {
   const lg = base.calls.offense.protection[1]?.blocker;
   if (lt === undefined || lg === undefined) throw new Error("fixture protection is wrong");
 
-  const offense: InterimOffensivePlayCall = {
+  const offense: OffensivePlayCall = {
     ...base.calls.offense,
     routes: routes.map((r, i) =>
       i === 0 && (options.hot ?? true)
@@ -113,7 +121,7 @@ function buildBlitz(options: BlitzOptions = {}): BlitzFixture {
     },
   };
 
-  const defense: InterimDefensivePlayCall = {
+  const defense: DefensivePlayCall = {
     ...base.calls.defense,
     ...(options.disguise === undefined ? {} : { blitzDisguise: options.disguise }),
     ...(options.twist === undefined ? {} : { stunts: options.twist }),
@@ -151,6 +159,21 @@ function buildBlitz(options: BlitzOptions = {}): BlitzFixture {
       lg,
     },
   };
+}
+
+/**
+ * The fixture with a different protection SCHEME. Written as a whole
+ * `ProtectionCall` rather than a spread-and-override because `ProtectionCall` is
+ * a discriminated union (ADR-022): overriding `kind` on a spread of the MAN arm
+ * is exactly the "SLIDE with no side" the union exists to make unsayable.
+ */
+function withScheme(f: BlitzFixture, protectionScheme: ProtectionCall): PlayCalls {
+  return { ...f.calls, offense: { ...f.calls.offense, protectionScheme } };
+}
+
+/** The fixture's own men, sliding the given way. */
+function slideTo(f: BlitzFixture, slideSide: RunSide): PlayCalls {
+  return withScheme(f, { kind: "SLIDE", slideSide, center: f.ids.centre, available: [f.ids.rb] });
 }
 
 // --- helpers ----------------------------------------------------------------
@@ -238,6 +261,21 @@ describe("§7.4 — the free runner the engine used to refuse", () => {
     expect(first?.rollRef).not.toBe("");
   });
 
+  /**
+   * ADR-022 petition 5. Before `origin`, an unblocked blitzer and a beaten left
+   * tackle arrived in the stream looking identical, and the only way to tell
+   * them apart was that the free runner was published before the first TICK —
+   * an inference from an absence. The event says it now, and `rollRef` names the
+   * roll the ADR's table pairs with that origin.
+   */
+  it("the threat SAYS he is unblocked, and names §5.3's roll for it", () => {
+    const f = buildBlitz({ backStaysIn: false });
+    const { events } = simulatePassPlay(f.state, f.calls, "origin-unblocked");
+    const first = threatsOf(events)[0];
+    expect(first?.origin).toBe("UNBLOCKED");
+    expect(first?.rollRef).toBe(presnapOf(events, "blitz_recognition")[0]?.roll.rngLabel);
+  });
+
   it("a free runner puts the pocket under duress by the first tick", () => {
     const f = buildBlitz({ backStaysIn: false });
     let clean = 0;
@@ -307,6 +345,7 @@ describe("§7.4 step 3 — the pickup contest", () => {
     expect(pickup?.band).toMatch(/RAN_THROUGH|BLOWN_UP/);
     const threat = threatsOf(events).find((t) => t.rusher === f.ids.blitzers[0]);
     expect(threat).toBeDefined();
+    expect(threat?.origin).toBe("PICKUP_LOST");
     expect(threat?.rollRef).toBe(pickup?.roll.rngLabel);
     // Getting through a body costs time that nobody-there does not.
     expect(threat?.etaTick).toBeGreaterThanOrEqual(TUNABLES.blitzPickup.freeRunnerArrivalSeconds);
@@ -327,7 +366,8 @@ describe("§7.4 step 3 — the pickup contest", () => {
     const f = buildBlitz({ backStaysIn: true, extraRushers: 2, blockerPassBlock: 99, blitzerPassRush: 20 });
     const { events } = simulatePassPlay(f.state, f.calls, "overload");
     expect(checksOf(events, "blitz_pickup")).toHaveLength(1);
-    const free = threatsOf(events).filter((t) => t.tick === undefined);
+    // Read off `origin`, which the event states, rather than off an absent tick.
+    const free = threatsOf(events).filter((t) => t.origin === "UNBLOCKED");
     expect(free).toHaveLength(1);
     expect(free[0]?.rusher).toBe(f.ids.blitzers[1]);
   });
@@ -336,15 +376,7 @@ describe("§7.4 step 3 — the pickup contest", () => {
 describe("§7.4 step 1 — slide protection", () => {
   it("a slide answers its own side with no contest at all", () => {
     const f = buildBlitz({ backStaysIn: true });
-    const offense = f.calls.offense as InterimOffensivePlayCall;
-    const slid: PlayCalls = {
-      ...f.calls,
-      offense: {
-        ...offense,
-        protectionScheme: { ...offense.protectionScheme, kind: "SLIDE", slideSide: "RIGHT" },
-      } as InterimOffensivePlayCall,
-    };
-    const { events } = simulatePassPlay(f.state, slid, "slide");
+    const { events } = simulatePassPlay(f.state, slideTo(f, "RIGHT"), "slide");
     // The blitzer comes from the RIGHT; the slide takes him, so no §7.4 contest.
     expect(checksOf(events, "blitz_pickup")).toHaveLength(0);
     const reps = checksOf(events, "pass_rush_tick").filter((c) => c.actors[0] === f.ids.blitzers[0]);
@@ -354,27 +386,18 @@ describe("§7.4 step 1 — slide protection", () => {
 
   it("a slide the wrong way does not cover him — he goes to the pickup contest", () => {
     const f = buildBlitz({ backStaysIn: true });
-    const offense = f.calls.offense as InterimOffensivePlayCall;
-    const slid: PlayCalls = {
-      ...f.calls,
-      offense: {
-        ...offense,
-        protectionScheme: { ...offense.protectionScheme, kind: "SLIDE", slideSide: "LEFT" },
-      } as InterimOffensivePlayCall,
-    };
-    const { events } = simulatePassPlay(f.state, slid, "slide-wrong");
+    const { events } = simulatePassPlay(f.state, slideTo(f, "LEFT"), "slide-wrong");
     expect(checksOf(events, "blitz_pickup")).toHaveLength(1);
   });
 
-  it("a SLIDE that does not say which way is incoherent, not merely unsupported", () => {
-    const f = buildBlitz({ backStaysIn: true });
-    const offense = f.calls.offense as InterimOffensivePlayCall;
-    const broken: PlayCalls = {
-      ...f.calls,
-      offense: { ...offense, protectionScheme: { kind: "SLIDE" } } as InterimOffensivePlayCall,
-    };
-    expect(() => simulatePassPlay(f.state, broken, "x")).toThrow(IncoherentPlayCallError);
-  });
+  /**
+   * THERE IS NO TEST HERE FOR "a SLIDE that does not say which way it slides",
+   * and its absence is the point. `ProtectionCall` is a discriminated union, so
+   * `{ kind: "SLIDE" }` does not compile — there is no such call to hand the
+   * engine and nothing for a runtime check to reject. The check that used to be
+   * in `assertCoherentPlayCall`, and the test that exercised it, came out
+   * together when the type replaced them (ADR-022's Decision, Charter §4.1).
+   */
 });
 
 describe("§5.3 — blitz recognition", () => {
@@ -400,7 +423,7 @@ describe("§5.3 — blitz recognition", () => {
   });
 
   it("§5.3's disguise table moves the target, verbatim", () => {
-    const target = (d: InterimDefensivePlayCall["blitzDisguise"]): number => {
+    const target = (d: BlitzDisguise | undefined): number => {
       const f = buildBlitz({ ...(d === undefined ? {} : { disguise: d }) });
       return presnapOf(simulatePassPlay(f.state, f.calls, "d").events, "blitz_recognition")[0]?.target ?? 0;
     };
@@ -413,7 +436,7 @@ describe("§5.3 — blitz recognition", () => {
   });
 
   it("a harder disguise is recognised less often", () => {
-    const rate = (d: InterimDefensivePlayCall["blitzDisguise"]): number => {
+    const rate = (d: BlitzDisguise | undefined): number => {
       const f = buildBlitz({ ...(d === undefined ? {} : { disguise: d }) });
       let seen = 0;
       for (let i = 0; i < 200; i++) {
@@ -578,6 +601,7 @@ describe("§7.3 — stunts and twists", () => {
       const threat = threatsOf(events).find((t) => t.rusher === f.ids.edge);
       expect(threat).toBeDefined();
       expect(threat?.tick).toBeUndefined();
+      expect(threat?.origin).toBe("STUNT_LOOPER");
       expect(threat?.rollRef).toBe(stunt.roll.rngLabel);
       expect(threat?.etaTick).toBeGreaterThanOrEqual(TUNABLES.stunt.looperArrivalSeconds);
       return;
@@ -638,6 +662,109 @@ describe("§7.3 — stunts and twists", () => {
     expect(passedOff).toBeGreaterThan(0);
   });
 
+  /**
+   * §7.3's "Triple exchange: +25" RESOLVED, which nothing exercised before: a
+   * triple is three men and TWO exchanges sharing a middle, and the engine used
+   * to reject any card that said so (`is in two stunts`), leaving the doc's
+   * hardest row unreachable. This is playbook's corpus shape — `DT_L→DE_L`
+   * chained to `DT_R→DT_L` — mapped onto the blitz fixture's three rushers.
+   */
+  describe("the triple exchange — a chain, not a pair", () => {
+    function chained(): { fixture: BlitzFixture; blitzer: PlayerId } {
+      const probe = buildBlitz({ extraRushers: 1 });
+      const blitzer = probe.ids.blitzers[0];
+      if (blitzer === undefined) throw new Error("fixture has no blitzer");
+      return {
+        fixture: buildBlitz({
+          extraRushers: 1,
+          twist: [
+            { penetrator: probe.ids.interior, looper: probe.ids.edge, complexity: "TRIPLE" },
+            { penetrator: blitzer, looper: probe.ids.interior, complexity: "TRIPLE" },
+          ],
+        }),
+        blitzer,
+      };
+    }
+
+    it("rolls one §7.3 check per exchange, both at the +25 row, and the middle man is in both", () => {
+      const { fixture: f } = chained();
+      const { events } = simulatePassPlay(f.state, f.calls, "triple");
+      const checks = checksOf(events, "stunt_communication");
+      expect(checks).toHaveLength(2);
+      for (const check of checks) {
+        expect(check.target).toBe(TUNABLES.stunt.target + TUNABLES.stunt.complexity.TRIPLE);
+      }
+      // Three men, two exchanges: the shared middle is an actor in both.
+      expect(checks.every((c) => c.actors.includes(f.ids.interior))).toBe(true);
+      // ADR-004: two exchanges are two rolls, and the audit can tell them apart.
+      const labels = checks.map((c) => c.roll.rngLabel);
+      expect(new Set(labels).size).toBe(2);
+    });
+
+    it("both exchanges passed off chain through the middle man", () => {
+      const { fixture: f, blitzer } = chained();
+      for (let i = 0; i < 300; i++) {
+        const { events } = simulatePassPlay(f.state, f.calls, `chain-${i}`);
+        const checks = checksOf(events, "stunt_communication");
+        if (checks.length !== 2) throw new Error("a triple is two exchanges");
+        if (!checks.every((c) => c.band === "PASSED_OFF" || c.band === "PASSED_OFF_CLEAN")) continue;
+        // The card pairs LT↔edge and LG↔interior, and the back has the blitzer.
+        // Exchange 1 gives the edge the interior man's blocker (LG). Exchange 2
+        // then takes what the middle man is now holding — the edge's LT — and
+        // hands it to the blitzer, which is what "chained" means: the second
+        // game acts on the result of the first, not on the card.
+        const reps = checksOf(events, "pass_rush_tick");
+        expect(reps.find((r) => r.actors[0] === f.ids.edge)?.actors[1]).toBe(f.ids.lg);
+        expect(reps.find((r) => r.actors[0] === blitzer)?.actors[1]).toBe(f.ids.lt);
+        // ...and the middle man ended up with the blitzer's assignment, so he is
+        // never left holding a blocker who is now on somebody else.
+        const middleRep = reps.find((r) => r.actors[0] === f.ids.interior);
+        if (middleRep !== undefined) expect(middleRep.actors[1]).toBe(f.ids.rb);
+        return;
+      }
+      throw new Error("no seed passed both exchanges off");
+    });
+
+    it("a middle man who loses the second exchange is the free runner, penetrator or not", () => {
+      const { fixture: f } = chained();
+      for (let i = 0; i < 300; i++) {
+        const { events } = simulatePassPlay(f.state, f.calls, `chain-free-${i}`);
+        const second = checksOf(events, "stunt_communication")[1];
+        if (second?.band !== "LOOPER_FREE" && second?.band !== "LATE_EXCHANGE") continue;
+        const threat = threatsOf(events).find((t) => t.rusher === f.ids.interior);
+        expect(threat?.origin).toBe("STUNT_LOOPER");
+        expect(threat?.rollRef).toBe(second.roll.rngLabel);
+        expect(checksOf(events, "pass_rush_tick").every((r) => r.actors[0] !== f.ids.interior)).toBe(
+          true,
+        );
+        return;
+      }
+      throw new Error("no seed failed the second exchange");
+    });
+
+    it("nobody is stranded — every rusher is blocked or arriving, on every seed", () => {
+      const { fixture: f, blitzer } = chained();
+      const front = [f.ids.edge, f.ids.interior, blitzer];
+      for (let i = 0; i < 120; i++) {
+        const { events } = simulatePassPlay(f.state, f.calls, `chain-strand-${i}`);
+        const reps = checksOf(events, "pass_rush_tick");
+        const threats = threatsOf(events);
+        for (const man of front) {
+          const blocked = reps.some((r) => r.actors[0] === man);
+          const arriving = threats.some((t) => t.rusher === man && t.etaTick > 0);
+          expect(blocked || arriving).toBe(true);
+        }
+      }
+    });
+
+    it("is deterministic — the same seed replays the chain identically", () => {
+      const { fixture: f } = chained();
+      const a = simulatePassPlay(f.state, f.calls, "chain-determinism");
+      const b = simulatePassPlay(f.state, f.calls, "chain-determinism");
+      expect(JSON.stringify(a.events)).toBe(JSON.stringify(b.events));
+    });
+  });
+
   it("a stunt naming somebody who is not rushing is incoherent", () => {
     const f = buildBlitz({ extraRushers: 0 });
     const broken: PlayCalls = {
@@ -645,99 +772,113 @@ describe("§7.3 — stunts and twists", () => {
       defense: {
         ...f.calls.defense,
         stunts: [{ penetrator: f.ids.interior, looper: f.ids.rb, complexity: "T_E" }],
-      } as InterimDefensivePlayCall,
+      },
     };
     expect(() => simulatePassPlay(f.state, broken, "x")).toThrow(IncoherentPlayCallError);
   });
 });
 
-describe("coherence rules the interim vocabulary brought with it", () => {
+describe("coherence rules ADR-022's vocabulary brought with it", () => {
   it("a man in a route cannot also be available in protection", () => {
     const f = buildBlitz();
-    const offense = f.calls.offense as InterimOffensivePlayCall;
-    const broken: PlayCalls = {
-      ...f.calls,
-      offense: {
-        ...offense,
-        protectionScheme: { ...offense.protectionScheme, kind: "MAN", available: [f.ids.x] },
-      } as InterimOffensivePlayCall,
-    };
+    const broken = withScheme(f, { kind: "MAN", center: f.ids.centre, available: [f.ids.x] });
     expect(() => simulatePassPlay(f.state, broken, "x")).toThrow(IncoherentPlayCallError);
     expect(() => simulatePassPlay(f.state, broken, "x")).toThrow(/running a route/);
   });
 
   it("a man already blocking cannot also be listed as available", () => {
     const f = buildBlitz();
-    const offense = f.calls.offense as InterimOffensivePlayCall;
-    const broken: PlayCalls = {
-      ...f.calls,
-      offense: {
-        ...offense,
-        protectionScheme: { ...offense.protectionScheme, kind: "MAN", available: [f.ids.lt] },
-      } as InterimOffensivePlayCall,
-    };
+    const broken = withScheme(f, { kind: "MAN", center: f.ids.centre, available: [f.ids.lt] });
     expect(() => simulatePassPlay(f.state, broken, "x")).toThrow(IncoherentPlayCallError);
   });
 
   it("an available blocker who is not on the field is rejected by name", () => {
     const f = buildBlitz();
-    const offense = f.calls.offense as InterimOffensivePlayCall;
-    const broken: PlayCalls = {
-      ...f.calls,
-      offense: {
-        ...offense,
-        protectionScheme: { kind: "MAN", available: ["ghost" as unknown as PlayerId] },
-      } as InterimOffensivePlayCall,
-    };
+    const broken = withScheme(f, { kind: "MAN", available: ["ghost" as unknown as PlayerId] });
     expect(() => simulatePassPlay(f.state, broken, "x")).toThrow(/available blocker/);
   });
 });
 
 /**
- * ⚠ ADR-022's containment. The petition is only cheap to ratify if it is only
- * cheap to REMOVE: ratification should be a MOVE of one file's declarations into
- * `@ff/contracts`, not a sweep through the engine for field names.
- *
- * The single point of contact is the widening cast — the place the engine reads
- * a field the compiler does not know a contract type has. Exactly one file in
- * `src/` is allowed to do that, and `game/playbook.ts` is the only other file
- * allowed to name the one field that exists nowhere but a card.
+ * ADR-022 petitions 5 and 6, ratified: the two things the stream could not say.
  */
-describe("ADR-022 — the interim vocabulary is confined to one readable file", () => {
-  async function sources(): Promise<{ file: string; text: string }[]> {
-    const { readdir, readFile } = await import("node:fs/promises");
-    const { join } = await import("node:path");
+describe("ADR-022 — what the stream now states instead of leaving to inference", () => {
+  /** The ADR's own table: each origin, and the roll that justifies it. */
+  const ROLL_FOR_ORIGIN: Record<string, string> = {
+    WON_REP: "pass_rush_tick",
+    UNBLOCKED: "blitz_recognition",
+    PICKUP_LOST: "blitz_pickup",
+    STUNT_LOOPER: "stunt_communication",
+  };
 
-    async function walk(dir: string, prefix: string): Promise<string[]> {
-      const entries = await readdir(dir, { withFileTypes: true });
-      const out: string[] = [];
-      for (const entry of entries) {
-        const rel = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
-        if (entry.isDirectory()) out.push(...(await walk(join(dir, entry.name), rel)));
-        else if (entry.name.endsWith(".ts")) out.push(rel);
-      }
-      return out;
+  /** Every roll in the stream, by `rngLabel`, with the kind of check it was. */
+  function rollKinds(events: readonly MatchEventEnvelope[]): Map<string, string> {
+    const kinds = new Map<string, string>();
+    for (const { event } of events) {
+      if (event.type === "CHECK") kinds.set(event.payload.roll.rngLabel, event.payload.checkKind);
+      if (event.type === "PRESNAP_READ") kinds.set(event.payload.roll.rngLabel, event.payload.kind);
     }
-
-    const root = new URL("../src", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
-    const files = await walk(root, "");
-    expect(files.length).toBeGreaterThan(20);
-    return Promise.all(files.map(async (file) => ({ file, text: await readFile(join(root, file), "utf8") })));
+    return kinds;
   }
 
-  it("only the interim module reaches through a contract type", async () => {
-    const offenders = (await sources())
-      .filter(({ file, text }) => file !== "interim/adr022.ts" && /\bas Interim[A-Za-z]*\b/.test(text))
-      .map(({ file }) => file);
-    expect(offenders).toEqual([]);
+  it("every threat's rollRef names a roll that is IN the stream, of the kind its origin implies", () => {
+    const probe = buildBlitz();
+    const twist = [{ penetrator: probe.ids.interior, looper: probe.ids.edge, complexity: "T_T" as const }];
+    // Two cards, because the four origins do not co-occur: a back who stayed in
+    // takes the blitzer to a CONTEST, and only a card with nobody left produces
+    // §7.4 step 4's pure unblocked runner.
+    const fixtures = [buildBlitz({ twist }), buildBlitz({ twist, backStaysIn: false })];
+    const seen = new Set<string>();
+    for (const f of fixtures) {
+      for (let i = 0; i < 120; i++) {
+        const { events } = simulatePassPlay(f.state, f.calls, `origins-${i}`);
+        const kinds = rollKinds(events);
+        for (const threat of threatsOf(events)) {
+          seen.add(threat.origin);
+          expect(kinds.get(threat.rollRef)).toBe(ROLL_FOR_ORIGIN[threat.origin]);
+        }
+      }
+    }
+    // The fixture produces all four, which is what makes the assertion above
+    // worth making: a table checked against one row is not a table.
+    expect([...seen].sort()).toEqual(["PICKUP_LOST", "STUNT_LOOPER", "UNBLOCKED", "WON_REP"]);
   });
 
-  it("only the interim module and the card author name `protectionScheme`", async () => {
-    const allowed = new Set(["interim/adr022.ts", "game/playbook.ts"]);
-    const offenders = (await sources())
-      .filter(({ file, text }) => !allowed.has(file) && /\bprotectionScheme\b/.test(text))
-      .map(({ file }) => file);
-    expect(offenders).toEqual([]);
+  it("a threat keeps its origin through every later transition it is published with", () => {
+    const f = buildBlitz({ backStaysIn: false });
+    for (let i = 0; i < 60; i++) {
+      const { events } = simulatePassPlay(f.state, f.calls, `carry-${i}`);
+      const byRusher = new Map<string, string>();
+      for (const threat of threatsOf(events)) {
+        const key = `${String(threat.rusher)}|${threat.rollRef}`;
+        const first = byRusher.get(key);
+        if (first === undefined) byRusher.set(key, threat.origin);
+        else expect(threat.origin).toBe(first);
+      }
+    }
+  });
+
+  it("§5.3's four-row label travels on PRESNAP_READ, and agrees with the arithmetic", () => {
+    const f = buildBlitz({ backStaysIn: false });
+    const bands = new Set<string>();
+    for (let i = 0; i < 200; i++) {
+      const read = presnapOf(simulatePassPlay(f.state, f.calls, `band-${i}`).events, "blitz_recognition")[0];
+      if (read === undefined) continue;
+      expect(read.band).toBeDefined();
+      const band = read.band ?? "";
+      bands.add(band);
+      expect(["READ_IT", "RECOGNIZED", "MISSED", "FOOLED"]).toContain(band);
+      // The band is the doc's; the binary outcome is the arithmetic's. They agree.
+      const saw = read.roll.total >= read.target;
+      expect(band === "READ_IT" || band === "RECOGNIZED").toBe(saw);
+    }
+    expect(bands.size).toBeGreaterThan(1);
+  });
+
+  it("§17 states WHY the free runner is coming, rather than reading it off an absent tick", () => {
+    const f = buildBlitz({ backStaysIn: false });
+    const text = renderPlay(simulatePassPlay(f.state, f.calls, "print-origin").events, f.names);
+    expect(text).toContain("§7.4 step 4 — nobody was left");
   });
 });
 

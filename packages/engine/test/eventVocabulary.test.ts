@@ -146,7 +146,7 @@ describe("ADR-007 #4 — RUSH_THREAT", () => {
     for (const events of sweep(buildScenario, 100, "notier")) {
       for (const t of threats(events)) {
         const keys = Object.keys(t.payload).sort();
-        expect(keys).toEqual(["alignment", "etaTick", "rollRef", "rusher", "state"]);
+        expect(keys).toEqual(["alignment", "etaTick", "origin", "rollRef", "rusher", "state"]);
       }
     }
   });

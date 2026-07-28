@@ -162,6 +162,17 @@ function idsFrom(list: unknown, ...keys: readonly string[]): PlayerId[] {
   return out;
 }
 
+/** A BARE id array, as `availableBlockers` is — `idsFrom`'s sibling for lists of ids. */
+function idList(list: unknown): PlayerId[] {
+  if (!Array.isArray(list)) return [];
+  const out: PlayerId[] = [];
+  for (const entry of list as readonly unknown[]) {
+    const id = asId(entry);
+    if (id !== undefined) out.push(id);
+  }
+  return out;
+}
+
 function readPlayStart(payload: unknown): PlayStartView | undefined {
   const root = asRecord(payload);
   if (root === undefined) return undefined;
@@ -175,6 +186,21 @@ function readPlayStart(payload: unknown): PlayStartView | undefined {
     ...(carrier === undefined ? [] : [carrier]),
     ...idsFrom(offense["routes"], "receiver"),
     ...idsFrom(offense["protection"], "blocker"),
+    // §7.4's men kept in who are NOT pre-paired to a rusher — the back who
+    // stayed to scan, the uncommitted lineman on a slide (ADR-022).
+    //
+    // THIS LINE WAS MISSING AND IT SILENTLY DELETED PLAYS. `availableBlockers`
+    // is a bare id list rather than a list of records, so `idsFrom` does not
+    // reach it. A man who is only ever AVAILABLE — never a `ProtectionAssignment`
+    // blocker — was therefore absent from `side`, and `side` is how every credit
+    // below resolves a team. `buildRecoverySpots` puts exactly these men in the
+    // §12.4 recovery pool, so when one of them fell on a tipped ball the
+    // reducer could not tell whose he was, and dropped the reception AND the
+    // quarterback's completion with it. That is the failure mode the module
+    // header calls out: a play that resolved, produced yards, and vanished from
+    // the box score without anything looking wrong. Found as a one-completion
+    // disagreement with calibration's independent fold.
+    ...idList(offense["availableBlockers"]),
     ...idsFrom(offense["blocking"], "blocker", "doubleTeamWith"),
     ...idsFrom(offense["perimeter"], "blocker"),
   ];

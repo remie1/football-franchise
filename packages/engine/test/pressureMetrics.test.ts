@@ -124,7 +124,13 @@ for (let i = 0; i < GAMES; i++) {
       if (event.payload.status !== "CLEAN") record.pressured = true;
       if (event.payload.status === "SACK") record.sack = true;
     }
-    if (event.type === "RUSH_THREAT" && event.tick === undefined) {
+    // ADR-022: a free runner is one the EVENT calls one. This used to read
+    // `event.tick === undefined` — true, and an inference from an absence.
+    if (
+      event.type === "RUSH_THREAT" &&
+      event.payload.state === "TRAVELLING" &&
+      event.payload.origin !== "WON_REP"
+    ) {
       totals.freeRunnerThreats += 1;
     }
     if (event.type === "CHECK") {
@@ -177,7 +183,7 @@ const bucketRate = (key: string): number => {
 };
 
 describe("§7.4 — the mechanic exists at game scale", () => {
-  it("free runners occur, and every one of them is published before a tick", () => {
+  it("free runners occur, and every one of them says which mechanic produced him", () => {
     expect(totals.freeRunnerThreats).toBeGreaterThan(200);
   });
 

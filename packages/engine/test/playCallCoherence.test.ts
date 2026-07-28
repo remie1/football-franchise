@@ -10,12 +10,49 @@ import { playerId } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import { simulatePassPlay } from "../src/index.js";
 import { IncoherentPlayCallError, assertCoherentPlayCall } from "../src/validate/playCall.js";
+import type { PlayerId } from "@ff/contracts";
 import type { MatchGameState, PlayCalls, RouteAssignment } from "../src/types.js";
 import { baseReceivers, buildScenario, makePlayer } from "./fixtures.js";
 
 function scenario(): { state: MatchGameState; calls: PlayCalls } {
   const { state, calls } = buildScenario();
   return { state, calls };
+}
+
+/**
+ * The base front plus a third down lineman, and §7.3's triple exchange over the
+ * three of them — the shape playbook's corpus ships: `DT_L→DE_L` chained to
+ * `DT_R→DT_L`, so `DT_L` is the looper of one entry and the penetrator of the
+ * other. `middle` is that shared man.
+ */
+function tripleChain(): {
+  state: MatchGameState;
+  calls: PlayCalls;
+  chain: PlayCalls;
+  middle: PlayerId;
+  edge: PlayerId;
+  third: PlayerId;
+} {
+  const { state, calls } = scenario();
+  const edge = calls.defense.rush[0]?.rusher;
+  const middle = calls.defense.rush[1]?.rusher;
+  if (edge === undefined || middle === undefined) throw new Error("bad fixture");
+  const extra = makePlayer("dt-r", "Rhys Kovač", "DT", {
+    strength: 84, passRush: 74, powerMove: 78, firstStep: 70, awareness: 68, tackling: 78,
+  });
+  const players = { ...state.players, [extra.bio.id as unknown as string]: extra };
+  const chain: PlayCalls = {
+    ...calls,
+    defense: {
+      ...calls.defense,
+      rush: [...calls.defense.rush, { rusher: extra.bio.id, move: "POWER" }],
+      stunts: [
+        { penetrator: middle, looper: edge, complexity: "TRIPLE" },
+        { penetrator: extra.bio.id, looper: middle, complexity: "TRIPLE" },
+      ],
+    },
+  };
+  return { state: { ...state, players }, calls, chain, middle, edge, third: extra.bio.id };
 }
 
 describe("ADR-006 — rejections", () => {
@@ -141,6 +178,82 @@ describe("ADR-006 — rejections", () => {
     );
   });
 
+  /**
+   * The chain is permitted; holding the SAME ROLE twice is not, and that is the
+   * "nobody does two jobs" rule the rest of this block applies to routes,
+   * blocks, rushes and coverage. §7.3 gives the looper an outcome — swapped into
+   * the penetrator's assignment, or free — so one man loopering twice gets two
+   * contradictory results and the later one silently wins. It is ADR-004's
+   * problem too: the §7.3 roll's `rngLabel` is keyed on the looper.
+   */
+  it("the same man looping in two stunts", () => {
+    const { state, chain, middle, edge, third } = tripleChain();
+    const bad: PlayCalls = {
+      ...chain,
+      defense: {
+        ...chain.defense,
+        stunts: [
+          { penetrator: middle, looper: edge, complexity: "TRIPLE" },
+          { penetrator: third, looper: edge, complexity: "TRIPLE" },
+        ],
+      },
+    };
+    expect(() => assertCoherentPlayCall(state, bad)).toThrow(IncoherentPlayCallError);
+    expect(() => assertCoherentPlayCall(state, bad)).toThrow(/is the looper of two stunts/);
+  });
+
+  it("the same man penetrating in two stunts", () => {
+    const { state, chain, middle, edge, third } = tripleChain();
+    const bad: PlayCalls = {
+      ...chain,
+      defense: {
+        ...chain.defense,
+        stunts: [
+          { penetrator: middle, looper: edge, complexity: "TRIPLE" },
+          { penetrator: middle, looper: third, complexity: "TRIPLE" },
+        ],
+      },
+    };
+    expect(() => assertCoherentPlayCall(state, bad)).toThrow(/is the penetrator of two stunts/);
+  });
+
+  it("the same pair stated twice — one exchange, written down twice", () => {
+    const { state, chain, middle, edge } = tripleChain();
+    const pair = { penetrator: middle, looper: edge, complexity: "T_T" as const };
+    const bad: PlayCalls = {
+      ...chain,
+      defense: { ...chain.defense, stunts: [pair, pair] },
+    };
+    expect(() => assertCoherentPlayCall(state, bad)).toThrow(IncoherentPlayCallError);
+  });
+
+  it("a man twisting with himself", () => {
+    const { state, chain, middle } = tripleChain();
+    const bad: PlayCalls = {
+      ...chain,
+      defense: {
+        ...chain.defense,
+        stunts: [{ penetrator: middle, looper: middle, complexity: "T_E" }],
+      },
+    };
+    expect(() => assertCoherentPlayCall(state, bad)).toThrow(/stunts with himself/);
+  });
+
+  it("a stunt naming a man who is not in the rush", () => {
+    const { state, chain } = tripleChain();
+    const cover = chain.defense.assignments[0]?.defender;
+    const middleMan = chain.defense.rush[1]?.rusher;
+    if (cover === undefined || middleMan === undefined) throw new Error("bad fixture");
+    const bad: PlayCalls = {
+      ...chain,
+      defense: {
+        ...chain.defense,
+        stunts: [{ penetrator: middleMan, looper: cover, complexity: "T_E" }],
+      },
+    };
+    expect(() => assertCoherentPlayCall(state, bad)).toThrow(/looper .* is not rushing/);
+  });
+
   it("fires before any die is thrown — a bad card costs a snap, not a stream", () => {
     const { state, calls } = scenario();
     const bad: PlayCalls = {
@@ -191,6 +304,45 @@ describe("ADR-006 — what the engine must NOT reject", () => {
     const { state, calls } = scenario();
     const uncovered: PlayCalls = { ...calls, defense: { ...calls.defense, assignments: [] } };
     expect(() => assertCoherentPlayCall(state, uncovered)).not.toThrow();
+  });
+
+  /**
+   * §7.3's "Triple exchange: +25" is three men in two exchanges, so the middle
+   * man is the looper of one entry and the penetrator of the other. The engine
+   * used to reject any man appearing twice, which made the doc's own hardest row
+   * unrepresentable — and "one stunt per man" is a football rule about what a
+   * line game IS, not arithmetic about the call's arguments, so it belongs to
+   * playbook's authoring-time validator (`D_STUNT_TRIPLE_NOT_CHAINED`) rather
+   * than here.
+   */
+  it("a chained triple — three men, two exchanges, one shared middle", () => {
+    const { state, calls, chain } = tripleChain();
+    expect(() => assertCoherentPlayCall(state, chain)).not.toThrow();
+    // ...and the engine does not ask whether the complexity label matches the
+    // shape either: the same chain stated as two T/E games is equally fine.
+    const asTwoTwists: PlayCalls = {
+      ...chain,
+      defense: {
+        ...chain.defense,
+        stunts: (chain.defense.stunts ?? []).map((s) => ({ ...s, complexity: "T_E" as const })),
+      },
+    };
+    expect(() => assertCoherentPlayCall(state, asTwoTwists)).not.toThrow();
+    // ...nor whether a lone pair is entitled to the +25 row. That is playbook's.
+    const loneTriple: PlayCalls = {
+      ...calls,
+      defense: {
+        ...calls.defense,
+        stunts: [
+          {
+            penetrator: calls.defense.rush[0]?.rusher ?? playerId("x"),
+            looper: calls.defense.rush[1]?.rusher ?? playerId("y"),
+            complexity: "TRIPLE",
+          },
+        ],
+      },
+    };
+    expect(() => assertCoherentPlayCall(state, loneTriple)).not.toThrow();
   });
 
   it("exactly eleven men", () => {

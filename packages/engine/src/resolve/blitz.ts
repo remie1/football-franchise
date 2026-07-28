@@ -14,12 +14,18 @@
  * roll at all, because there is nothing to recognise and an absent check must
  * mean "no die", never "failed".
  */
-import type { PlayerId, PlayerState, Rng, RollDetail } from "@ff/contracts";
+import type {
+  BlitzDisguise,
+  PlayerId,
+  PlayerState,
+  Rng,
+  RollDetail,
+  StuntComplexity,
+} from "@ff/contracts";
 import { ATTR } from "../attrs.js";
 import type { CheckEmission, PresnapEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, flatModifier, rollD100, tierFor } from "../rolls.js";
 import type { Tunables } from "../tunables.js";
-import type { BlitzDisguise, StuntComplexity } from "../interim/adr022.js";
 
 export type BlitzRecognitionBandLabel =
   Tunables["presnap"]["blitzRecognition"]["bands"][number]["label"];
@@ -79,6 +85,9 @@ export function resolveBlitzRecognition(args: {
       roll,
       target,
       tier: tierFor(args.tunables, margin),
+      // ADR-022 petition 6 — §5.3's own four-row label, carried rather than
+      // re-derived from the tier by whoever needs to know HOW well he saw it.
+      band: band.label,
     },
   };
 }

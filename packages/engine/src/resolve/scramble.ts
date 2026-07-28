@@ -22,7 +22,7 @@ import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, clamp, compact, flatModifier, rollD100, tierFor } from "../rolls.js";
 import type { Tunables } from "../tunables.js";
 import type { RouteDepthClass } from "../types.js";
-import type { RushThreat } from "./rushThreat.js";
+import type { ArrivalClock } from "./rushThreat.js";
 import { minTimeToArrival, threatsWithAlignment, urgencySteps } from "./rushThreat.js";
 
 export type ScrambleBandLabel = (Tunables["scramble"]["bands"])[number]["label"];
@@ -32,7 +32,7 @@ export interface ScrambleArgs {
   readonly tunables: Tunables;
   readonly qb: PlayerState;
   readonly tick: number;
-  readonly threats: readonly RushThreat[];
+  readonly threats: readonly ArrivalClock[];
   readonly scrambleRng: Rng;
 }
 
