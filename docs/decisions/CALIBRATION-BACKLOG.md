@@ -42,6 +42,18 @@ requires a calibration report, not an opinion.
 
 ## 2. Sack rate 56% vs. NFL ~6.5% — TOP PRIORITY, blocks entry 1
 
+> ### ⛔ PROHIBITION — do not tune §7.1/§7.2's conversion terms to chase sack rate.
+>
+> They are already right. `pressure_to_sack` measures **15.32% against a real 16.37%**
+> (`baseline-0002`). Every sim sack sits on a pressured dropback by construction, so sim
+> `pressure_to_sack ≡ sack_rate ÷ pressure_rate` exactly — **the entire sack excess is a
+> pressure-RATE excess.** At the real 29.23% pressure rate with the sim's own conversion, sack
+> rate lands at **4.48%, BELOW the real 6.90%.**
+>
+> Written into the entry rather than filed as a note for a specific reason: **sack rate is the
+> visible number and conversion is the obvious lever.** The next person to look will reach for
+> it. See entry 26.
+
 **Status changed July 2026.** This entry previously read "3.2%, expected under-count."
 Fixing the pocket-status defect (§7.2's single-won-rep rule was never implemented; one
 dominant rusher took three ticks to register what the doc registers in one) corrected the
@@ -125,6 +137,15 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
   taken inside a defect fix.
 
 ## 3. §7.1 pass-rush term asymmetry — design-doc defect, not a tuning question
+
+> ### ⛔ PROHIBITION — same as entry 2, and this entry is the actual lever.
+>
+> Do not tune §7.1/§7.2's **conversion** terms to chase sack rate; entry 26 shows the conversion
+> is already correct. **This entry — whatever produces 88.68% pressure against a real 29.23% —
+> is the lever.** `blockerStructuralAdvantage` is therefore the **highest-value sweep in the
+> project**, which is also why unfreezing it deserves its own ADR rather than a dispatch
+> decision: sweeping it before the caller stops knowing the front would fit it to a
+> fixture-shaped pressure rate, which is the compensation-debt pattern refused five times now.
 
 - **Finding:** §7.1 gives the rusher two-to-three attribute terms
   (`passRush` + move modifier, where a power rush adds both `powerMove` and `strength`)
@@ -759,6 +780,21 @@ rating difference where every other modifier is ÷5 (§14.4's pursuit gate), a b
 +15 on the difference of two d100s (§14.4). These are **authoring errors, not implementation
 surprises**, and they are mechanically detectable without simulating anything: compute each
 check's maximum realistic stack from the registry's 0-99 scale and compare it to the target.
+
+### Attribution method — three rules, each bought with a wrong answer
+
+**3. An attribution percentage is meaningless without its base stated, and must be re-measured
+whenever the base moves.** Entry 23's split has an interaction of **−0.079 on the probe base and
++8.800 on `DEFAULT_TUNABLES`** — on the latter, deleting *both* mechanisms *raises* yards per
+carry. And §13.1 alone closes **49.6% of the residual at 2/3/5 and 127.1% at 0/0/0**. So
+*"§13.1 owns half the residual"* is a statement about the number 2/3/5, not about §13.1.
+
+**Any entry in this file quoting a share without naming its tunables point is quoting a number
+that will not survive Phase 3.** State the base, or do not state the share.
+
+**Corollary — keep unowned residue named as unowned.** Entry 23's surviving **17.0% / +0.847 y/c**
+is deliberately not distributed across the nearest plausible entries. An unattributed remainder
+that stays visible is worth far more than a tidy decomposition that is not true.
 
 ### Attribution method — two rules bought with a wrong answer
 

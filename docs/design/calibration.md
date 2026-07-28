@@ -65,6 +65,25 @@ When a metric fails, three instruments separate **mechanic error** from **rating
 Output: a verdict memo — `mechanic (suspect: tunable X)` or `rating (suspect: family/position cohort Y)` — with the evidence, filed to `docs/decisions/`.
 
 ### 5.3 Sensitivity (Mandate 2a — kill candidates)
+
+> **PRECONDITION (added July 2026) — a sweep must first establish that its subject has a LIVE
+> POPULATION, and must report the affected-play count alongside every result.**
+>
+> Below a stated floor the sweep **refuses** rather than returning a wide-error-bar answer.
+> The case that produced this rule: `freeRunnerArrivalSeconds` was named the first sweep target
+> because it looked load-bearing — on *fixture* data. On the corpus it governs **56 dropbacks in
+> 496 games (0.13%)**, because the frozen caller still knows the defensive front, so §7.4 step 3
+> has never once resolved. Sweeping it would have produced a number with the shape of a result
+> and the content of noise, **and it would have been the first sensitivity output, anchoring
+> everyone's sense of what the instrument does.**
+>
+> Same species as the known-truth gate that passed by luck (`CALIBRATION-BACKLOG.md` §22a): **an
+> instrument that runs and returns something is more dangerous than one that declines.**
+>
+> A second-order caution from the same case: a subject whose population is *suppressed by a
+> known open defect* should be swept only after that defect is closed, or the sweep fits the
+> tunable to the defect.
+
 One attribute at a time: perturb ±15 points league-wide, measure outcome deltas across the metric library. Attributes whose perturbation moves nothing beyond noise are flagged **dead weight** with the evidence. (Also produces a useful byproduct: an empirical importance ranking of attributes per position — eventual scouting/UI gold.)
 
 ### 5.4 Correlation (Mandate 2b — merge candidates)

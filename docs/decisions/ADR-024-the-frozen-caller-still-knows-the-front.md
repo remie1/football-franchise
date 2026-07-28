@@ -2,7 +2,8 @@
 
 - **Date:** July 2026
 - **Proposed by:** `calibration`, from the ADR-022/ADR-023 re-baseline (`baseline-0002`)
-- **Status:** **PROPOSED.** Nothing in this ADR is implemented. It asks for a decision about
+- **Status:** **APPROVED** July 2026 — the caller anticipates the front at `callerVersion` v2.
+  See the Decision section at the foot of this memo. *(Originally filed as:)* PROPOSED. Nothing in this ADR is implemented. It asks for a decision about
   `packages/calibration/src/caller/frozen.ts`, which is deliberately frozen and therefore
   deliberately not changed by the agent that owns it.
 - **Affects:** `packages/calibration` only. No contract change is requested and none is needed.
@@ -103,3 +104,54 @@ rather than at a rate somebody picked. Nothing is invented and no new tunable ap
 - No engine change **here**. There is one engine defect in this dispatch's findings (the sacker
   dropped on a failed §8.8 escape, 89.7% of the unattributed sack remainder) and it is a dispatch
   rather than a decision, so it is not petitioned in this ADR.
+
+---
+
+## Decision
+
+**Approved** by project owner + Orchestrator, July 2026. **The caller anticipates the front at
+`callerVersion` v2 — a second draw from the same situational weights — and everything downstream
+reads that draw.**
+
+**The finding is not a tuning observation.** §7.4 step 3 and ADR-022's hot routes are not weak,
+they are **starved**: built, tested, and never once given a chance to fire in 496 games.
+`PICKUP_LOST` = 0 and a hot-route rate of 0.10% are evidence that **a whole branch of the pass
+game has never executed.** An offence that knows the defensive call is not football, and every
+pressure number stays fixture-shaped until it stops.
+
+### The narrower scoping was considered and rejected, for a specific reason
+
+Anticipating the front *for protection only*, while concept selection keeps reading the real
+card, is not a smaller change — **it is an incoherent caller.** It produces an offence that calls
+the perfect play against a front it then fails to block, and it would make protection failures
+look like protection problems when they are actually **the seam between two different views of
+the same defence**. If the caller anticipates, it anticipates **once**.
+
+Deferring was also rejected, and the currency is the point: **a caller that guesses badly is a
+confound you can measure** — draw quality is observable, so the open sub-questions get answered
+with data instead of argument. **A branch that never executes is a confound you cannot measure at
+all.**
+
+### The two sub-questions stay open and named — do not let the first implementation settle them
+
+1. **Personnel matching.** An anticipated front drawn from situational weights must be
+   constrained to fronts that are *possible* against the offensive personnel on the field, or the
+   caller will protect against defences that could not have been called.
+2. **A protector who ends up in coverage.** Same class as the TRIPLE boundary disagreement
+   (ADR-022 → engine): it needs an **owner**, not a runtime patch.
+
+Recording them honestly rather than pretending they were solved is part of why this ADR was
+accepted as filed. Keep them visible.
+
+### What to watch in the re-baseline that follows
+
+Hot routes going from 0.10% to something real **will move sack rate, pressure rate and completion
+together.** Per [backlog entry 26](CALIBRATION-BACKLOG.md), the conversion terms are already
+correct — so **read any movement as a pressure-rate change, never as evidence that conversion
+needs touching.**
+
+### The sequence this sits in
+
+ADR-024 caller fix → sack-credit fix (engine) → re-baseline → *then* sensitivity, with
+`blockerStructuralAdvantage` **first** (unfrozen by its own ADR) and `freeRunnerArrivalSeconds`
+second — both measured against a caller that guesses.

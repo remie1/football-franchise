@@ -389,6 +389,24 @@ export const TUNABLES = {
      */
     immediateWithinSeconds: 0.0,
     collapsingWithinSeconds: 1.0,
+    /**
+     * WHO GETS THE SACK IN A DEAD HEAT. When a quarterback goes down to a rusher
+     * he ran into rather than one who ran him down (§8.8's `CAUGHT_FROM_BEHIND`),
+     * the man is the NEAREST live threat — and ETAs sit on a 0.5s grid, so two of
+     * them being equally near is common rather than exotic.
+     *
+     * AMBIGUOUS, AND NOT SETTLED BY ANY DIE: nothing in §7 or §8.8 ranks two
+     * simultaneous arrivals, and rolling for the identity of a sacker would put a
+     * result in the stream that no table in the doc produces (ADR-005). It is a
+     * football claim, so it is named here rather than buried in a comparator:
+     * §8.8's own target number charges `scramble.edgeThreatPenalty` per EDGE
+     * threat because "edge rushers are the contain players", so the man the model
+     * already says walls in a bailing passer is the man who gets him.
+     *
+     * Flip it to "INTERIOR" and the same dead heats go the other way; nothing
+     * else in the simulation moves, because this decides attribution only.
+     */
+    simultaneousArrivalPriority: "EDGE",
   },
 
   /**

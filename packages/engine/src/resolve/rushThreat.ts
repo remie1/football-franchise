@@ -196,6 +196,78 @@ export function delayThreat(threat: RushThreat, seconds: number): RushThreat {
 }
 
 /**
+ * THE ARRIVAL THE QUARTERBACK CAUSED — the mirror of `delayThreat`.
+ *
+ * An ETA is a projection about a passer who STAYS WHERE HE IS: `travelSecondsFor`
+ * measures the ground between a beaten blocker and the launch point. §7.2 already
+ * accepts that the quarterback's own movement rewrites it — a climb pushes an
+ * edge rusher's arrival back, and ADR-007 ratified publishing the ADJUSTED number
+ * rather than leaving a consumer to derive it.
+ *
+ * §8.8's failed escape is the same adjustment in the other direction. He did not
+ * stay where he was: he bailed, and `CAUGHT_FROM_BEHIND` is the band that says
+ * the bail did not work. The men in the pocket did not have to finish their trip
+ * — the passer closed the last of it himself. So the meeting happened at THIS
+ * tick, and that is what the arrival states.
+ *
+ * No die is involved (ADR-005), exactly as no die produces any other ETA. The
+ * roll that justifies the change is the §8.8 escape check, which is emitted
+ * immediately before it and names this rusher among its actors. `rollRef` is left
+ * pointing at the roll that started him coming, per ADR-022 — a threat says the
+ * same thing about WHY it exists at every one of its publications, and a step-up's
+ * `DELAYED` keeps its `rollRef` for the same reason.
+ *
+ * A rusher whose ETA has already passed is returned untouched: he got there on
+ * his own clock and nothing about him needs restating.
+ */
+export function arrivedAt(threat: RushThreat, tick: number): RushThreat {
+  if (threat.etaTick <= tick) return threat;
+  return { ...threat, etaTick: Number(tick.toFixed(1)) };
+}
+
+/**
+ * The threat CLOSEST TO ARRIVING — the man a quarterback who moves runs into.
+ *
+ * Total and deterministic, with no die at any level (ADR-005): the identity of a
+ * sacker is not a contest the design rolls for, and inventing one would put a
+ * result in the stream that no table in the doc produces.
+ *
+ *   1. the smallest time to arrival, which is §7.2's own measure of "nearest" and
+ *      the same quantity `hasArrived` and `pocketFloorFromArrival` read;
+ *   2. ties to `priority` — the alignment the escape was already made harder by.
+ *      §8.8's target number charges `edgeThreatPenalty` per EDGE threat because
+ *      "edge rushers are the contain players", so when two men reach the passer
+ *      together the contain player is the one the model has already said walls a
+ *      bailing quarterback in. Passed in rather than hard-coded: which alignment
+ *      wins a dead heat is a football claim no die settles, so it is a named
+ *      tunable (`arrival.simultaneousArrivalPriority`) and calibration can flip it;
+ *   3. ties to the lower `PlayerId`, so the answer never depends on the order the
+ *      play call happened to list rushers in.
+ */
+export function nearestThreat<T extends ArrivalClock>(
+  threats: readonly T[],
+  priority: RushAlignment,
+): T | undefined {
+  let best: T | undefined;
+  for (const threat of threats) {
+    if (best === undefined) {
+      best = threat;
+      continue;
+    }
+    if (threat.etaTick !== best.etaTick) {
+      if (threat.etaTick < best.etaTick) best = threat;
+      continue;
+    }
+    if (threat.alignment !== best.alignment) {
+      if (threat.alignment === priority) best = threat;
+      continue;
+    }
+    if (String(threat.rusher).localeCompare(String(best.rusher)) < 0) best = threat;
+  }
+  return best;
+}
+
+/**
  * Ground the rusher loses on the following tick's rep. A threat is not frozen
  * at the moment it was created: a tackle who recovers position is not
  * un-beaten, but the man he beat is arriving later than he was.

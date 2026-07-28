@@ -113,10 +113,12 @@ import type { RoutePhase } from "../resolve/route.js";
 import { opennessAt, routePhaseAt, routeReadySeconds } from "../resolve/route.js";
 import type { ArrivalClock, RushThreat } from "../resolve/rushThreat.js";
 import {
+  arrivedAt,
   clearsThreat,
   delayThreat,
   hasArrived,
   minTimeToArrival,
+  nearestThreat,
   recoverySecondsFor,
   resolvedRushAssignment,
   soonerThreat,
@@ -842,6 +844,46 @@ export function simulatePassPlay(
         });
         log.check(escape.check);
         if (escape.sacked) {
+          // ADR-007 — the man who got him is PUBLISHED, not left to be inferred.
+          //
+          // This site used to end a play in a sack having stated no threat
+          // transition at all: the stream said a quarterback went down and never
+          // said anybody reached him, so `reduceStatlines` had no
+          // `lastArrivedRusher` and 89.7% of every uncredited sack in the
+          // 496-game baseline came from these eight lines. The roll decided THAT
+          // he was caught; the arrival clock decides BY WHOM, deterministically
+          // and with no second die, and `arrivedAt` dates the meeting at this
+          // tick because the quarterback closed the last of the distance himself.
+          //
+          // The pool is an intersection and both halves are load-bearing.
+          // `threats` is what `resolveScramble` was handed, so every man in it is
+          // an ACTOR of the check that just caught the quarterback — the
+          // attribution is justified by a roll the stream already carries, never
+          // by a name the roll did not mention, which is also why a rusher who
+          // won his rep in THIS tick's line battle is not eligible (§7.2's inputs
+          // are last tick's throughout; he starts travelling for the next one).
+          // And a man that battle RESET is dropped, because the stream has
+          // already said his threat is over and a RESET followed by an ARRIVED is
+          // not a thing that happened.
+          //
+          // Nobody eligible means nobody named. An escape that fails with every
+          // man it named already blocked out of the play is a coverage sack, and
+          // a coverage sack has no sacker here for the same reason it has none in
+          // the NFL.
+          const named = new Set(threats.map((t) => String(t.rusher)));
+          const caught = nearestThreat(
+            liveThreats(matchups).filter((t) => named.has(String(t.rusher))),
+            tunables.arrival.simultaneousArrivalPriority,
+          );
+          if (caught !== undefined) {
+            const arrival = arrivedAt(caught, tick);
+            publishThreat(arrival, "ARRIVED");
+            for (const m of matchups) {
+              if (m.threat !== caught) continue;
+              m.threat = arrival;
+              m.announcedArrival = true;
+            }
+          }
           outcome = sack(tick);
           break;
         }
@@ -1380,6 +1422,16 @@ function readOpenness(
 }
 
 /**
+ * Every rusher with a live clock, as the PUBLISHABLE thing — a `RushThreat`,
+ * origin and all, rather than `activeThreats`' weaker `ArrivalClock`. Anything
+ * that has to name a rusher in the stream needs this one; anything that only has
+ * to know how long he needs can take the weaker one.
+ */
+function liveThreats(matchups: readonly RushMatchup[]): RushThreat[] {
+  return matchups.flatMap((m) => (m.threat === undefined ? [] : [m.threat]));
+}
+
+/**
  * Every rusher currently on his way to the passer. Once he is out of the
  * pocket, the only clock that matters is pursuit's — modelled as a single
  * threat so status derivation and arrival stay one code path.
@@ -1406,7 +1458,7 @@ function activeThreats(
       },
     ];
   }
-  return matchups.flatMap((m) => (m.threat === undefined ? [] : [m.threat]));
+  return liveThreats(matchups);
 }
 
 interface ProgressionStep {
