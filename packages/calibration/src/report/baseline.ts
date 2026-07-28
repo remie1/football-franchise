@@ -251,6 +251,37 @@ export function renderBaselineReport<E extends Eligibility>(report: BaselineRepo
     lines.push("");
   }
 
+  /**
+   * THE TREND RULE, PRINTED BEFORE ANY TREND CELL IS SEEN.
+   *
+   * It used to live only in the Trend section, which a reader reaches after the provenance block
+   * and long before the tables — but the question it answers ("why is this column refusing?") is
+   * asked at the table. Stated here, at the top, so it is read before it is needed rather than
+   * looked up after a column has already confused somebody.
+   *
+   * The rule itself is ADR-025's and is not negotiable by a report: a trend across an engine
+   * change is unavailable BY CONSTRUCTION, because two different trees are not two measurements
+   * of one thing. Nothing in this file can restore it, and a column that quietly rendered
+   * arrows across a boundary would be manufacturing the comparison the ADR exists to refuse.
+   */
+  lines.push("## How to read the trend column");
+  lines.push("");
+  lines.push(
+    "> **A trend across an engine change is unavailable by construction (ADR-025).** Two runs " +
+      "against two different trees are not two measurements of one thing, so no arrow between " +
+      "them means anything, and this report will not draw one. The honest comparison across an " +
+      "engine change is **paired arms in one process on one tree** — the control arm and the " +
+      "changed arm, same seeds, same fixtures, differing only in the thing under test.",
+  );
+  lines.push("");
+  lines.push(
+    "> **The trend column therefore means \"same tree, more games\" and nothing else.** It is a " +
+      "sampling arrow, not a progress arrow. A `**refused**` cell is that rule firing, with the " +
+      "mismatched field named in the Trend section below; an em dash is the different fact that " +
+      "there was no predecessor at all.",
+  );
+  lines.push("");
+
   lines.push("## Provenance");
   lines.push("");
   lines.push(`| field | value |`);

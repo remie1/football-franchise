@@ -297,6 +297,29 @@ describe("the baseline report", () => {
     expect(rendered).toContain("## New divergences");
   });
 
+  /**
+   * ADR-025's rule, stated in the HEADER rather than only in the Trend section.
+   *
+   * The section that explains a refusal sits below the provenance block and above the tables; the
+   * question it answers is asked at the tables. So the rule is printed before either, and this
+   * test pins it there — it is the sort of paragraph that gets tidied into the section it belongs
+   * to by somebody who has not watched a reader hit the column first.
+   *
+   * It also pins the two halves that are easy to lose separately: that the honest comparison
+   * across an engine change is PAIRED ARMS, and that the column means "same tree, more games".
+   */
+  it("states the trend rule in the header, before any trend cell can be read", () => {
+    const rendered = renderBaselineReport(report);
+    const heading = rendered.indexOf("## How to read the trend column");
+    expect(heading).toBeGreaterThan(-1);
+    expect(heading).toBeLessThan(rendered.indexOf("## Provenance"));
+    expect(heading).toBeLessThan(rendered.indexOf("## Trend"));
+    expect(heading).toBeLessThan(rendered.indexOf("| trend |"));
+    expect(rendered).toContain("unavailable by construction (ADR-025)");
+    expect(rendered).toContain("paired arms in one process on one tree");
+    expect(rendered).toContain('"same tree, more games"');
+  });
+
   it("reports the frozen caller's own diagnostics, including concept re-draws", () => {
     const rendered = renderBaselineReport(report);
     expect(rendered).toContain("concept re-draws");

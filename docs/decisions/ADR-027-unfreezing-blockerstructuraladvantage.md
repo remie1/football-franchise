@@ -31,6 +31,18 @@ anything.
 Two known distortions have now been removed and pressure remains **89.14% against a real 29.23%.**
 **The excess is overwhelmingly mechanical**, and this tunable is the mechanism.
 
+> ### ⚠ OUTCOME — the second clause above was WRONG, and the sweep is what established it.
+>
+> "The excess is overwhelmingly mechanical" holds. **"And this tunable is the mechanism" does
+> not.** At `blockerStructuralAdvantage` 500 the §7.1 rep is extinguished entirely and pressure is
+> still **24.525%**, all of it §7.3/§7.4's free channel. **This term's entire available budget is
+> 4.70pp of a 59.9pp gap.**
+>
+> The premise being wrong is the sweep working. An ADR that authorised a measurement and had its
+> own stated hypothesis refuted by that measurement is the instrument doing its job — which is the
+> argument for having unfrozen it rather than reasoning about it for a seventeenth dispatch.
+> See [ADR-028](ADR-028-the-constant-is-not-the-pressure-lever.md).
+
 ## The preconditions the freeze was waiting for are met
 
 ADR-024's stated precondition was that it be *"measured against a caller that guesses"* — it now

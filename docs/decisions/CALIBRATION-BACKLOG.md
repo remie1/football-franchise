@@ -31,7 +31,12 @@ requires a calibration report, not an opinion.
   That is **no longer true**. Entry 2b's fix replaced first-available targeting with a real
   progression plus an anticipation check, and `throwThresholdFor(system)` is now per reading
   system. Time-to-throw is now a *dispersion* property driven by the concept, not a single dial.
-- **Current status: unblocked by 2b, still gated on entry 3.** Post-fix completion is 40.5%
+- **⚠ "GATED ON ENTRY 3" IS NOW BOUNDED, AND MOSTLY FALSE.** With the pass rush extinguished
+  *entirely* (BSA 500, zero won reps), completion reaches only **46.324% against a real 64.578%**.
+  **Entry 3 owns at most 6.65 of the 24.91 completion points — a measured ceiling, not an
+  estimate.** The remaining ~18 points are this entry's own §10.4 accuracy bands and whatever else
+  is in entry 18's neighbourhood. Stop deferring entry 1 to entry 3.
+- **Former status, kept for the trail: unblocked by 2b, still gated on entry 3.** Post-fix completion is 40.5%
   and yards/completion moved 6.0 → 10.5, which is the honest signal that the QB stopped
   throwing exclusively to the shallowest available man. But completion is now dominated by a
   *different* artefact: **90%+ of throws come under pressure** at −10/−20 accuracy, which is
@@ -138,7 +143,30 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
 
 ## 3. §7.1 pass-rush term asymmetry — design-doc defect, not a tuning question
 
+> ### ⚠ SWEPT July 2026 (ADR-027) — AND THIS ENTRY'S HEADLINE CLAIM IS WRONG.
+>
+> **`blockerStructuralAdvantage` is not the pressure lever.** 60 configurations, 496 games each,
+> control arm reproducing `baseline-0005` to every digit. Evidence in
+> [ADR-028](ADR-028-the-constant-is-not-the-pressure-lever.md).
+>
+> **The floor is the finding.** At BSA 500 the §7.1 rep is *extinguished* — 100.000%
+> `BLOCKER_RESETS`, zero `WON_REP` threats — and pressure is **still 24.525%**, entirely
+> free-channel: §7.3 loopers and §7.4 free runners, structurally out of §7.1's reach.
+> **§7.1 has 4.70pp of pressure to spend against a 59.9pp gap.** §7.3+§7.4 alone deliver **83.9%
+> of the real pressure rate and 100% of the sacks at the floor.**
+>
+> **Three metrics, three optima, no common solution:** conversion matches at BSA ≈ 11–12,
+> `sack_rate` at ≈ 40 (6.970% vs real 6.898%, *in band*), `pressure_rate` at ≈ 95. Twelve to
+> ninety-five, on one dial.
+>
+> **The response curve varies fifteen-fold and the committed value sits on a shelf at the bottom**
+> (slope −0.120 pp/pt at 15, −1.181 at 75–90). A ladder chosen by eye at 10/15/20/25 would have
+> read 0.6pp and concluded the term barely matters. §22d's map-first rule is what caught it.
+
 > ### ⛔ PROHIBITION — same as entry 2, and this entry is the actual lever.
+>
+> **⚠ The second clause is now KNOWN FALSE — see the sweep result above. The prohibition on
+> tuning §7.1/§7.2 *conversion* terms stands; "and this entry is the lever" does not.**
 >
 > Do not tune §7.1/§7.2's **conversion** terms to chase sack rate; entry 26 shows the conversion
 > is already correct. **This entry — whatever produces 88.68% pressure against a real 29.23% —
@@ -459,8 +487,11 @@ and 18 to read "or against the corpus."**
 - **→ This strengthens entry 3 and removes the last stated reason to defer
   `blockerStructuralAdvantage`.** It is now measured against a caller that guesses, which was
   ADR-024's own stated precondition for unfreezing it.
-- **⚠ `freeRunnerArrivalSeconds` is now sweepable** — it governed 56 dropbacks in 496 games at v1
-  and governs a real population at v2. It remains *second* in the order, behind entry 3.
+- **⚠ `freeRunnerArrivalSeconds` MOVES UP THE ORDER — it is now the primary target, not the
+  second.** The ADR-027 sweep found that §7.3/§7.4's free channel owns **100% of the pressure floor
+  and 100% of the sacks at that floor**, and delivers **83.9% of the real pressure rate on its
+  own** — a far larger population than this entry credited it with. `blockerStructuralAdvantage`
+  cannot reach any of it. Sweep the free channel next.
 - **[ADR-026](ADR-026-a-protector-with-nobody-to-block.md) — RATIFIED AND LANDED**, before any
   sweep, because `blockerStructuralAdvantage` is the pressure-rate lever and this defect moved the
   pressure rate on 13.40% of dropbacks. The unblocked protector joins `available` at the back of
@@ -557,6 +588,29 @@ and 18 to read "or against the corpus."**
   declared absence. nflverse pbp carries no real-side yards-before-contact, which is why — but
   that makes it an absence with a reason, and it should be declared as one.
 
+## 30. `anchor` is a dead attribute — found without a sensitivity sweep
+
+- **`anchor` is `active` in the registry and read by nothing.** It appears in
+  `packages/engine/src/attrs.ts` as `ATTR.anchor` and **nowhere else in `src/`** — no resolver, no
+  tunables term list. §7.1's blocker stack is `passBlock + footwork` and that is all.
+- **This is a Mandate-2 kill/merge candidate arriving without the sweep that was supposed to find
+  it**, and it is worse than dead weight: it is an attribute the design doc names as the blocker's
+  answer to power that the engine has never consulted.
+- **The `ol-passblock-sack-rate` known-truth gate sets four attributes and moves two.** Its
+  recorded effect sizes are correct; its *hypothesis string* claims more than it measures.
+  Not amended in passing — editing a description beside a field labelled "measured" is exactly
+  what §22a's machinery exists to make deliberate.
+- **⚠ Methodology correction, and it matters more than the finding.** The sweep's grep was
+  `ATTR.anchor|ATTR.sustain`, which reported **both** dead. `sustain` is **live** — referenced at
+  `tunables.ts:1360` as a stringly-typed `{ attr: "sustain", divisor: 5 }`. **A grep for
+  `ATTR.x` cannot see a reference that lives in `TUNABLES` as a string**, which is precisely the
+  V2 finding that moved most attribute references there. Any future dead-attribute audit must walk
+  the tunables tree, exactly as `attrs.ts`'s load-time sweep already does — and that sweep is the
+  instrument to reuse, since it already resolves all 64 references.
+- **`anchor` is the one live petition here**, and it is already the subject of
+  [ADR-028](ADR-028-the-constant-is-not-the-pressure-lever.md) petition 1, which adds it to §7.1's
+  blocker terms.
+
 ## 21a. The worker pool is deferred — and here is the trigger that ends the deferral
 
 - **State:** `workerPool.ts` compiles and cannot run. `@ff/engine` and `@ff/playbook` declare
@@ -577,6 +631,14 @@ and 18 to read "or against the corpus."**
      availability-matched replay could reach.
 - Also blocked by the same cause: `refit.ts` (the tendency-refit tool), currently exercised by an
   env-gated test.
+- **⚠ THE TRIGGER FIRED July 2026 AND WAS NOT SPENT.** ADR-027's sweep *is* "the first sensitivity
+  sweep". The `exports`-map fix spans `@ff/engine` and `@ff/playbook` and was outside the sweeping
+  agent's write scope, so it used **process-level parallelism instead** — five `vitest` processes,
+  ~7 minutes wall for ~28 minutes of CPU. **That cost nothing and reduced `n` nowhere**, so §22c
+  was honoured and the sweep is sound.
+- **The trigger stands unspent.** Process-level parallelism worked here because the sweep
+  decomposed into independent stages; it will not always. Do the `exports` fix at the next sweep
+  that does not decompose, or the first report over ~5 minutes.
 
 ## 22. Two findings from the known-truth ladders, arriving early
 
@@ -633,8 +695,21 @@ report exists.
   pressure-rate excess.**
 - **At the real 29.23% pressure rate with the sim's own conversion, sack rate would be 4.48% —
   BELOW the real 6.90%.**
-- **→ Do not tune §7.1/§7.2's conversion terms to chase sack rate.** They are already right. The
-  lever is whatever produces 88.68% pressure against a real 29.23%, which is entry 3.
+- **→ Do not tune §7.1/§7.2's conversion terms to chase sack rate.** They are already right.
+- **⚠ CORRECTION (ADR-027 sweep) — the INFERENCE drawn from this entry was wrong, though the
+  prohibition is right.** This entry was read as *"conversion is already right, so move the rate"*,
+  which assumes the rate can be moved while conversion is held. **With `blockerStructuralAdvantage`
+  it cannot.** Swept to the pressure-matching value, `pressure_to_sack` falls **15.191% → 6.247%**
+  — the lever changes not just *whether* a pocket is dirty but *how severe* it is
+  (`RUSHER_WINS_REP` 29.581% of reps → 0.015%, so what remains is `PRESSURE` rather than
+  `COLLAPSING`, and a sack needs an arrival).
+- **This entry's counterfactual is arithmetically true and causally false.** It said: at the real
+  29.23% pressure with the sim's own conversion, sack rate would be 4.48%. **Measured at BSA 95:
+  pressure 29.446%, sack 1.839%.** Not 4.48%.
+- **Why ADR-026 looked like confirmation and was not.** That fix moved pressure 1.08pp with
+  conversion moving 0.001pp — but that is a property of *rushers meeting a body*, not of the
+  pressure rate in general. A single lever behaving separably was generalised into a rule about
+  all levers. **`pressure_to_sack ≡ sack/pressure` is an identity, not an invariance.**
 - **A real-side asymmetry the engine cannot express:** arithmetic across the report's denominators
   (56,893 vs 58,277, so approximate) puts **roughly a third of real sacks on dropbacks with no
   charted pressure** — FTN charts the category as `is_qb_fault_sack`. **The engine cannot produce

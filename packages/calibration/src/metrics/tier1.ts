@@ -162,7 +162,26 @@ export const pressureRate: Metric = registerMetric({
   unit: "%",
   direction: "LOWER_IS_BETTER",
   toleranceBand: relativeBand(0.15),
-  knownDivergences: ["backlog 2", "backlog 3", "frozen caller: protection is perfectly informed"],
+  /**
+   * ★ THE THIRD CLAUSE WAS STALE AND IS CORRECTED HERE (backlog 28's note). ★
+   *
+   * It read *"frozen caller: protection is perfectly informed"*. That was true at `callerVersion`
+   * v1 and became FALSE at v2 (ADR-024): the caller now builds protection against an ANTICIPATED
+   * front and is wrong about roughly a quarter of rushers — `unaccounted_rusher_rate` is 26.08%
+   * in `baseline-0005`, against 0.13% at v1.
+   *
+   * The row is still correctly `FAIL (known)` against entries 2 and 3; only the clause naming the
+   * caller was wrong, and a wrong clause on a failing row is worse than none, because it offers a
+   * reader a spare explanation for a gap that no longer has one. Rewritten rather than deleted:
+   * the caller IS still a confound, it is simply the opposite confound. Perfectly-informed
+   * protection biased pressure DOWN; a caller that guesses biases it up, by the 1.54pp ADR-024
+   * measured, which is a rounding error against 89.14% versus a real 29.23%.
+   */
+  knownDivergences: [
+    "backlog 2",
+    "backlog 3",
+    "frozen caller v2: protection is built against an ANTICIPATED front and misses ~26% of rushers (ADR-024) — biases this UP, by 1.54pp when measured",
+  ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;
     return p.dropbacks === 0

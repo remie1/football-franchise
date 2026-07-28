@@ -645,6 +645,30 @@ describe("the registry", () => {
   it("names an unknown metric's alternatives instead of returning undefined", () => {
     expect(() => getMetric("does_not_exist")).toThrow(/Registered:/);
   });
+
+  /**
+   * ★ A KNOWN-DIVERGENCE CLAUSE ROTS SILENTLY, AND THIS ONE DID. ★
+   *
+   * `pressure_rate` carried *"frozen caller: protection is perfectly informed"* from the first
+   * baseline. ADR-024 made it false — the caller anticipates the front at v2 and misses roughly a
+   * quarter of rushers — and nothing detected it for two dispatches, because the row was still
+   * correctly `FAIL (known)` and the verdict is what anybody checks.
+   *
+   * That is the failure mode worth a test: a stale clause on a FAILING row is worse than no
+   * clause, because it hands the reader a spare explanation for a gap that no longer has one, and
+   * the row's own verdict cannot contradict it. `backlog 28` recorded the correction as a note;
+   * this is the note made mechanical. It asserts the DIRECTION too, because "the caller is a
+   * confound" survived the fix while the sign of the confound flipped.
+   */
+  it("does not still claim the frozen caller has perfect protection information", () => {
+    const pressure = getMetric("pressure_rate");
+    const clauses = pressure.knownDivergences ?? [];
+    expect(clauses.join(" ")).not.toContain("perfectly informed");
+    expect(clauses.some((c) => c.includes("ADR-024"))).toBe(true);
+    // Still claimed by the two entries that own the divergence; only the caller clause moved.
+    expect(clauses.some((c) => c.includes("backlog 2"))).toBe(true);
+    expect(clauses.some((c) => c.includes("backlog 3"))).toBe(true);
+  });
 });
 
 describe("Tier 3 and 4 provenance gating", () => {
