@@ -234,6 +234,14 @@ not:
 that fired. A failing test is often the cheapest available sample of a class of problem, and the
 instinct to fix it quickly and move on is what leaves the silent siblings in place.
 
+**Corollary — frozen means "not editable", never "not observable".** A frozen tunable exists to
+stop a number being *changed* to flatter a metric. It should never stop the number being
+*measured*. `blockerStructuralAdvantage` went **sixteen dispatches** without a sensitivity sweep
+because the freeze was stated without that distinction, and it was the project's most load-bearing
+tunable throughout (ADR-027). **Any future freeze must say so in those words**, and the split it
+implies — a sweep may vary the value in memory; only a patch petition changes the committed one —
+is what lets a freeze be strict without being blinding.
+
 **Counter-corollary — a guard that always fires gets deleted.** This principle has an obvious
 failure mode in the other direction, and ADR-025 is the worked example: refusing to compare two
 baselines that differ only in *seed list* would have blocked the one unambiguously legitimate

@@ -68,8 +68,16 @@ measuring it is the cost of not having drawn that line earlier.
 - **§7.1's asymmetry is a design-doc defect, and the sweep is not the decision about it.** Entry 3
   records the real choice: add a genuine blocker term (`anchor` or `strength` — restoring symmetry
   in attributes rather than in a constant), or keep the flat term. The sweep informs that choice;
-  it does not make it, and a proposal that only moves the constant should say why the attribute-term
-  fix was rejected.
+  it does not make it.
+
+  > **A sweep that finds a better constant is measuring the COMPENSATOR, not the defect.**
+
+  A proposal that only moves the number must argue **why the attribute-term fix was rejected** —
+  and it argues uphill, because **the attribute-term route is the one that survives attributes
+  landing.** A tuned constant is fitted to a flat-60 league where every blocker is identical; it
+  will need re-litigating the moment real ratings create genuine blocker variance, which is
+  precisely when the compensation becomes invisible again. Prefer the fix that does not have to be
+  paid for twice.
 
 ## Impact
 
