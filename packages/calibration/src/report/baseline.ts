@@ -8,7 +8,9 @@
  *
  * The first baseline will fail most of its Tier 1 rows, and that is the expected state rather
  * than a crisis: backlog entry 3's §7.1 term asymmetry is frozen, and entries 1, 2, 6, 7 and
- * 9-15 are all open with named levers. A report that renders forty red rows and nothing else
+ * 9-15 are all open with named levers. (Written of the FIRST baseline and left as written. Entry
+ * 3's freeze ended at ADR-027 and the asymmetry itself was closed by ADR-028; the layout
+ * argument below does not depend on which entries happen to be open.) A report that renders forty red rows and nothing else
  * would be unreadable and would invite the wrong reaction — quietly widening bands, which §10.1
  * forbids, or tuning against a fixture that entries 1, 2a and 11 all say not to tune against.
  *

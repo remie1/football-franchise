@@ -60,7 +60,59 @@ function statlinesForTeam(accumulator: SimAccumulator, teamIndex: 0 | 1): readon
   return Object.values(accumulator.player.statlines).filter((line) => line.team === team);
 }
 
-export async function runLadder(scenario: KnownTruthScenario): Promise<LadderResult> {
+/** The batch seed a scenario's CANONICAL ladder runs on. The gate never uses any other. */
+export function canonicalBatchSeed(scenario: KnownTruthScenario): string {
+  return `known-truth:${scenario.id}`;
+}
+
+/**
+ * The league one rung of a scenario is measured on. Exported so a REPLICATE run and the gate
+ * build the identical league from the identical declaration — a probe that rebuilt the design by
+ * hand would be measuring a different instrument from the one it reports on.
+ */
+export function ladderLeagueFor(
+  scenario: KnownTruthScenario,
+  value: number,
+): ReturnType<typeof buildArchetypeLeague> {
+  return buildArchetypeLeague({
+    id: `${scenario.id}-${value}`,
+    description: `${scenario.hypothesis} | ${scenario.attributes.join("+")} at ${value}`,
+    base: scenario.baseRating ?? 60,
+    teams: 2,
+    designs: [
+      {
+        teamIndex: scenario.designedTeam,
+        positions: scenario.positions as readonly Position[],
+        attributes: Object.fromEntries(scenario.attributes.map((a) => [a, value])),
+      },
+    ],
+  });
+}
+
+export interface RunLadderOptions {
+  /**
+   * A REPLICATE's batch seed, replacing `known-truth:{id}`.
+   *
+   * ============ THIS IS THE ONLY WAY TO PRODUCE A `recordedStepSE` ============
+   *
+   * `scenarios.ts` requires the step SE to be MEASURED across independent seed sets, and every
+   * rung of one ladder deliberately shares one seed list (common random numbers, see the header),
+   * so a single `runLadder` call cannot produce a spread of any kind — it produces one number per
+   * step, exactly. A replicate is the same scenario on a DIFFERENT seed list; the spread of a
+   * step across replicates is what `recordedStepSE` records.
+   *
+   * The gate itself must never pass this. A gate whose seeds could be re-drawn is a gate somebody
+   * re-runs until it is green, which is the failure `assertions.ts`'s header exists to prevent —
+   * so the default is `canonicalBatchSeed(scenario)` and `test/knownTruth.test.ts` asserts that
+   * every gate file calls `runLadder` with the scenario alone.
+   */
+  readonly batchSeed?: string;
+}
+
+export async function runLadder(
+  scenario: KnownTruthScenario,
+  options: RunLadderOptions = {},
+): Promise<LadderResult> {
   const teams = syntheticTeamIds(2);
   const home = teams[0];
   const away = teams[1];
@@ -68,24 +120,12 @@ export async function runLadder(scenario: KnownTruthScenario): Promise<LadderRes
 
   // One seed list, shared by every rung. See the header: this is the whole variance-reduction
   // argument, and it is why the batch seed does not carry the rung's value.
-  const batchSeed = `known-truth:${scenario.id}`;
+  const batchSeed = options.batchSeed ?? canonicalBatchSeed(scenario);
   const seeds = generateSeeds(batchSeed, scenario.games);
 
   const rungs: LadderRung[] = [];
   for (const value of scenario.rungs) {
-    const league = buildArchetypeLeague({
-      id: `${scenario.id}-${value}`,
-      description: `${scenario.hypothesis} | ${scenario.attributes.join("+")} at ${value}`,
-      base: scenario.baseRating ?? 60,
-      teams: 2,
-      designs: [
-        {
-          teamIndex: scenario.designedTeam,
-          positions: scenario.positions as readonly Position[],
-          attributes: Object.fromEntries(scenario.attributes.map((a) => [a, value])),
-        },
-      ],
-    });
+    const league = ladderLeagueFor(scenario, value);
     const result: BatchResult = await runBatch({
       league,
       schedule: { kind: "SYNTHETIC_PAIR", home, away, games: scenario.games, season: 2024 },
@@ -142,8 +182,18 @@ export function renderLadder(
   const ladder = rungs
     .map((r) => `${r.value} → ${r.measured === null ? "n/a" : r.measured.toFixed(4)}`)
     .join(", ");
+  const provisional =
+    scenario.provisional === undefined
+      ? []
+      : [
+          `  ⚠ PROVISIONAL RECORD (§22d) — invalidated by ${scenario.provisional.invalidatedBy}. ` +
+            `Every figure in the hypothesis below predates it. Ladder as re-measured: ` +
+            `${scenario.provisional.measuredLadder.map((v) => v.toFixed(4)).join(" / ")}. ` +
+            scenario.provisional.note,
+        ];
   return [
     `known-truth "${scenario.id}"`,
+    ...provisional,
     `  hypothesis: ${scenario.hypothesis}`,
     `  design: ${scenario.attributes.join("+")} on ${scenario.positions.join("/")} of team ` +
       `${scenario.designedTeam}, measuring ${scenario.measurement.label} on team ${scenario.measuredTeam}`,

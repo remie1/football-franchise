@@ -55,3 +55,4 @@ export * from "./report/previous.js";
 
 export * from "./knownTruth/scenarios.js";
 export * from "./knownTruth/assertions.js";
+export * from "./knownTruth/attributeUsage.js";

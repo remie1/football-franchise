@@ -17,6 +17,14 @@
  * `db-coverage` alone — every other ladder finishes inside it, so the next scenario added is
  * free until it exceeds 55s on its own.
  *
+ * **AND THAT BUDGET HAS SINCE BEEN SPENT ONCE, DELIBERATELY.** `ol-passblock` went from 80 games
+ * a rung to 160 to buy its first step from 4.7σ to 7.0σ of noise margin, taking it from ~13s to
+ * ~38s. The package still runs in ~61s because `db-coverage` still runs ~60s and everything else
+ * still finishes inside it — the split is doing exactly what it was built for, and the headroom
+ * is now ~22s rather than ~42s. The next scenario, or the next `games` increase, has that much
+ * before the suite's cost starts rising; past it, the answer is `exports`-map + worker threads
+ * (backlog §21a's trigger), not a smaller `n` (§22c).
+ *
  * The cost of the split is that a scenario could be added to the registry and silently never
  * gated, because nothing would import it. `knownTruth.test.ts` closes that hole by asserting the
  * file exists — see its `every scenario has a gate file` test, which is the reason this helper

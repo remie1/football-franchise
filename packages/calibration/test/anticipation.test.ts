@@ -27,9 +27,16 @@
  * file is evidence that §7.1/§7.2's conversion terms need touching, and the assertion at the foot
  * says so in a form that fails rather than in prose.
  *
- * ⛔ **No tunable is patched anywhere here.** `blockerStructuralAdvantage`, `sackWhenNoTarget` and
- * `freeRunnerArrivalSeconds` are frozen; this measures a CALLER change against `DEFAULT_TUNABLES`
- * on both arms, which is the only way the difference means anything.
+ * ⛔ **No tunable is patched anywhere here.** This measures a CALLER change against
+ * `DEFAULT_TUNABLES` on both arms, which is the only way the difference means anything.
+ *
+ * The freeze list this used to quote has since moved and is worth stating correctly, because a
+ * stale freeze claim is a claim somebody cites: `pocket.sackWhenNoTarget` and
+ * `blitzPickup.freeRunnerArrivalSeconds` remain FROZEN, and `freeRunnerArrivalSeconds` is the
+ * next sweep's target. `passRush.blockerStructuralAdvantage` is NOT frozen — ADR-027 unfroze it
+ * for measurement, ADR-028 moved it 15 → 0 and made `anchor` a real §7.1 blocker term in its
+ * place. Both arms here still run `DEFAULT_TUNABLES`, so the comparison is unaffected; what
+ * changed is only what the sentence is allowed to say.
  */
 import { describe, expect, it } from "vitest";
 import type { CallerVersion } from "../src/caller/anticipate.js";

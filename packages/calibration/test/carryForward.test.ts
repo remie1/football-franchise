@@ -58,9 +58,16 @@ const COMMIT_B = "2222222222222222222222222222222222222222";
 
 /**
  * A tunables patch used ONLY to produce a second digest. No batch runs against it and no number
- * it produces is a proposal. `game.huddleSeconds` is chosen because it is not one of the three
- * frozen dials (`blockerStructuralAdvantage`, `sackWhenNoTarget`, `freeRunnerArrivalSeconds`) —
- * a test that reaches for a frozen dial, even inertly, is a test somebody will later cite.
+ * it produces is a proposal. `game.huddleSeconds` is chosen because it is not one of the frozen
+ * dials — `pocket.sackWhenNoTarget` and `blitzPickup.freeRunnerArrivalSeconds` — and a test that
+ * reaches for a frozen dial, even inertly, is a test somebody will later cite.
+ *
+ * ⚠ THE LIST WAS THREE AND IS NOW TWO. `passRush.blockerStructuralAdvantage` was named here as
+ * frozen; ADR-027 unfroze it for measurement and ADR-028 moved it 15 → 0, coupled to `anchor`
+ * becoming a real §7.1 blocker term. `game.huddleSeconds` remains the right choice for exactly
+ * the reason it always was, so nothing below changes — but the reason had gone stale, and a
+ * comment that names the wrong dials is worse than one that names none.
+ * `freeRunnerArrivalSeconds` is the next sweep's target and is still frozen today.
  */
 function probe(seconds: number): TunablePatch {
   return {

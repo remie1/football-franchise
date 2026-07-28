@@ -7,14 +7,41 @@
  *   FF_PRESSURE_SWEEP=1 FF_SWEEP_STAGE=spread ...
  *   FF_PRESSURE_SWEEP=1 FF_SWEEP_STAGE=inter  ...
  *
+ * ============================ ⚠ SPENT. THIS SWEEP CANNOT RUN ANY MORE ============================
+ *
+ * **It won its argument and the win is what broke it.** Every patch below asserts
+ * `currentValue: 15` for `passRush.blockerStructuralAdvantage`; ADR-028 set the committed value
+ * to **0**. `applyTunablePatch` rejects a patch whose `currentValue` disagrees with what is
+ * actually there — *"stale patch, re-measure before filing"* — so enabling `FF_PRESSURE_SWEEP=1`
+ * today throws `TunablePatchError` in every stage.
+ *
+ * It is kept, not deleted and not repaired, and each half of that is deliberate:
+ *
+ *  - **Kept**, because it is the METHOD ADR-028's petition was argued from — five stages, the
+ *    both-directions grid, the arm-A/arm-C matching on blocker points, the `FREE_CHANNEL`
+ *    decomposition that established the floor. The next term-versus-constant question should
+ *    copy this file, and a deleted file cannot be copied.
+ *  - **Not repaired**, because repairing it would produce a sweep of a question already decided.
+ *    Arm A ("remove the constant, add a third blocker term") is now simply what the engine does.
+ *    Re-pointing the patches at the current committed value would measure a comparison whose two
+ *    arms have merged, and would quietly turn an evidence artefact into a live instrument nobody
+ *    asked for.
+ *
+ * `test/ladderRerung.test.ts` is the live descendant: same map-then-choose-then-replicate
+ * discipline, no patching at all.
+ *
+ * The guard test at the head of the describe below states this as a FAILURE rather than letting
+ * five stages die of an obscure `TunablePatchError`.
+ *
  * ============================ WHAT ADR-027 AUTHORISED ============================
  *
  * > *"Unfrozen for MEASUREMENT. The committed value is not."*
  *
  * Every value below is applied through `applyTunablePatch`, in memory, and dies with the process.
- * `src/tunables.ts` is not touched by this file and `TUNABLES.passRush.blockerStructuralAdvantage`
- * stays **15**. A proposal to change it is a `calibration.md` §6 patch record filed as an ADR, and
- * this file produces the evidence such a petition would have to cite — not the change.
+ * `src/tunables.ts` is not touched by this file and, at the time it ran,
+ * `TUNABLES.passRush.blockerStructuralAdvantage` stayed **15**. A proposal to change it is a
+ * `calibration.md` §6 patch record filed as an ADR, and this file produced the evidence such a
+ * petition had to cite — not the change. ADR-028 is that petition, ratified.
  *
  * `pocket.sackWhenNoTarget` and `blitzPickup.freeRunnerArrivalSeconds` remain FROZEN and are not
  * patched anywhere in this file. The free-runner channel is *observed* instead, through
@@ -69,9 +96,9 @@
  *     passBlock/5 + footwork/5 + anchor/5   ==   passBlock/d + footwork/d   with d = 10/3
  *
  * exactly when `anchor` equals the mean of the other two — which is precisely how the known-truth
- * `ol-passblock` ladder already treats them (`attributes: ["passBlock","footwork","anchor","sustain"]`,
- * all set to one rung). So the divisor is not an approximation of the attribute-term route; it is
- * that route, written in the one channel calibration is allowed to use. What it cannot reproduce
+ * `ol-passblock` ladder already treated them (it set `passBlock`, `footwork`, `anchor` and
+ * `sustain` to one rung; `sustain` has since been dropped from it, being read by no §7.1 check).
+ * So the divisor is not an approximation of the attribute-term route; it is that route, written in the one channel calibration is allowed to use. What it cannot reproduce
  * is `anchor` varying INDEPENDENTLY of pass block, and that limitation is stated in the output
  * rather than hidden.
  *
@@ -599,9 +626,13 @@ const FLAT = (): AnyProvenancedLeague => buildFlatLeague({ teams: 32 });
  * term. Every team gets the same design, so the round-robin stays balanced and the league mean is
  * a clean function of the rung.
  *
- * The four attributes are exactly `ol-passblock-sack-rate`'s, so this ladder and the known-truth
- * gate are measuring the same construct. `anchor` and `sustain` are inert in §7.1 today; they are
- * set anyway so that the day `anchor` becomes live the ladder does not silently change meaning.
+ * The four attributes were exactly `ol-passblock-sack-rate`'s when this was written, so the ladder
+ * and the known-truth gate measured the same construct. `anchor` and `sustain` were both inert in
+ * §7.1 then and were set anyway, so that the day `anchor` went live the ladder would not silently
+ * change meaning. ADR-028 made `anchor` live and the known-truth scenario has since dropped
+ * `sustain`, which no §7.1 check reads — so the two lists have diverged by one inert id. That is
+ * recorded rather than synchronised, because this file is spent (see the header) and editing a
+ * dead instrument to match a live one is how a record stops being a record.
  */
 function olLeague(rating: number): AnyProvenancedLeague {
   return buildArchetypeLeague({
@@ -619,7 +650,40 @@ function olLeague(rating: number): AnyProvenancedLeague {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * The value every patch in this file was written against. Not a constant to update — the moment
+ * it stops matching the engine, this sweep is a record of a decision rather than an instrument,
+ * and the test below says so instead of leaving five stages to throw.
+ */
+const AUTHORED_AGAINST_BSA = 15;
+/**
+ * Widened to `number` on purpose. `Tunables` carries LITERAL types on every leaf (see
+ * `tunables.ts`: *"every leaf carries a LITERAL type"*), so comparing the committed value to 15
+ * directly is a compile error — `error TS2367: types '0' and '15' have no overlap`. Which is to
+ * say the type system can already prove this sweep is spent, and refuses to let the check be
+ * written as a runtime one. That is the compile error Charter §4.1 prefers, arriving unbidden;
+ * the widening is what lets the runtime message explain it to whoever set the env var.
+ */
+const COMMITTED_BSA: number = DEFAULT_TUNABLES.passRush.blockerStructuralAdvantage;
+const SPENT = COMMITTED_BSA !== AUTHORED_AGAINST_BSA;
+
 describe.skipIf(!enabled)("ADR-027 blockerStructuralAdvantage sweep", () => {
+  it("is still an instrument and not only a record", () => {
+    expect(
+      COMMITTED_BSA,
+      `THIS SWEEP IS SPENT. Every patch in this file asserts ` +
+        `passRush.blockerStructuralAdvantage = ${AUTHORED_AGAINST_BSA}; the committed value is ` +
+        `${COMMITTED_BSA}, because ADR-028 accepted the ` +
+        `petition this sweep produced the evidence for — the constant went to 0 and \`anchor\` ` +
+        `became a real §7.1 blocker term in its place. \`applyTunablePatch\` refuses a patch ` +
+        `whose currentValue is stale, so every stage below would throw TunablePatchError.\n\n` +
+        `Do NOT "fix" this by re-pointing the patches at the current value: arm A and arm C of ` +
+        `the comparison have merged, so the repaired sweep would measure a question with one ` +
+        `answer. Copy the METHOD into a new file for the next term-versus-constant question. ` +
+        `\`test/ladderRerung.test.ts\` is the live descendant of the discipline.`,
+    ).toBe(AUTHORED_AGAINST_BSA);
+  });
+
   /**
    * STAGE 1 — THE RESPONSE CURVE, mapped before any rung is chosen (backlog §22d).
    *
@@ -631,7 +695,7 @@ describe.skipIf(!enabled)("ADR-027 blockerStructuralAdvantage sweep", () => {
    * It also runs BELOW the committed value, to 0 — the design doc's literal formula. Attribution
    * rule 1: signed, both directions, never an assumed sign.
    */
-  it.skipIf(STAGE !== "curve")(
+  it.skipIf(SPENT || STAGE !== "curve")(
     "curve — maps the response of pressure to blockerStructuralAdvantage across its whole range",
     () => {
       const league = FLAT();
@@ -689,7 +753,7 @@ describe.skipIf(!enabled)("ADR-027 blockerStructuralAdvantage sweep", () => {
    * STAGE 2 — the chosen rungs, at full n, with the both-directions table stated as signed
    * results. Run only after the curve exists; the rungs it uses are argued for in the report.
    */
-  it.skipIf(STAGE !== "rungs")(
+  it.skipIf(SPENT || STAGE !== "rungs")(
     "rungs — the chosen ladder, signed in both directions",
     () => {
       const league = FLAT();
@@ -738,7 +802,7 @@ describe.skipIf(!enabled)("ADR-027 blockerStructuralAdvantage sweep", () => {
    * `A:2` is the CURRENT term count with the constant removed — the design doc's literal §7.1.
    * `A:3` is backlog entry 3's option 1 exactly: pass block, footwork, anchor, no constant.
    */
-  it.skipIf(STAGE !== "terms")(
+  it.skipIf(SPENT || STAGE !== "terms")(
     "terms — the constant and the attribute term, matched on blocker points, on a flat league",
     () => {
       const league = FLAT();
@@ -830,7 +894,7 @@ describe.skipIf(!enabled)("ADR-027 blockerStructuralAdvantage sweep", () => {
    * This is `DESIGNED_ARCHETYPE` evidence: it says nothing about realism and everything about
    * which of entry 3's two options survives ratings landing.
    */
-  it.skipIf(STAGE !== "spread")(
+  it.skipIf(SPENT || STAGE !== "spread")(
     "spread — the two arms against an offensive-line quality ladder",
     () => {
       const rungs = [20, 40, 60, 80, 95];
@@ -951,7 +1015,7 @@ describe.skipIf(!enabled)("ADR-027 blockerStructuralAdvantage sweep", () => {
    * interaction of −0.079 on one base and +8.800 on another; a share without its base is a number
    * that will not survive Phase 3.
    */
-  it.skipIf(STAGE !== "inter")(
+  it.skipIf(SPENT || STAGE !== "inter")(
     "inter — interactions and non-additivity, each share stated against its base",
     () => {
       const league = FLAT();

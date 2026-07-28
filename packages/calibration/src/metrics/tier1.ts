@@ -9,7 +9,12 @@
  *
  * Fail. Widely. `CALIBRATION-BACKLOG.md` has completion near 45% against ~65%, yards per carry
  * near 9.3 against ~4.3, sacks near 10.8 a game against ~2.5, with entry 3's §7.1 term asymmetry
- * frozen and entries 1, 2, 6, 7 and 9-15 open with named levers. §10.1's bands are a **rising
+ * frozen and entries 1, 2, 6, 7 and 9-15 open with named levers. (That freeze is HISTORY as of
+ * ADR-027/028: `blockerStructuralAdvantage` was unfrozen for measurement, then set to 0 with
+ * `anchor` added as a third blocker term, which closes the term asymmetry itself. The figures in
+ * this paragraph are the FIRST baseline's and are kept as written — a paragraph about what the
+ * first report was expected to do should not be edited to describe the fifth. `reports/` holds
+ * what each actually did.) §10.1's bands are a **rising
  * floor, not an entry exam** — they open at ±15% relative precisely so that the first report is
  * a map of known divergences rather than a verdict.
  *
@@ -81,7 +86,7 @@ export const completionPct: Metric = registerMetric({
     "play_type=pass, and neither is a throw); kneels and spikes are excluded league-wide.",
   unit: "%",
   toleranceBand: relativeBand(0.15),
-  knownDivergences: ["backlog 1 (accuracy bands)", "backlog 3 (§7.1 term asymmetry, frozen)", "backlog 18"],
+  knownDivergences: ["backlog 1 (accuracy bands)", "backlog 3 (§7.1 term asymmetry, closed by ADR-028)", "backlog 18"],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;
     return p.passAttempts === 0
@@ -293,7 +298,7 @@ export const pressureToSackRate: Metric = registerMetric({
   toleranceBand: relativeBand(0.15),
   knownDivergences: [
     "backlog 2 (rusher time-of-arrival + missing move branch)",
-    "backlog 3 (§7.1 term asymmetry, frozen)",
+    "backlog 3 (§7.1 term asymmetry, closed by ADR-028)",
   ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;

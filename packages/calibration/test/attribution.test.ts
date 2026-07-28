@@ -42,6 +42,14 @@
  * the 16.28 does this entry actually own", and the numbers they produce are not recommendations.
  *
  * `passRush.blockerStructuralAdvantage` and `pocket.sackWhenNoTarget` are NOT touched.
+ *
+ * ⚠ THAT SENTENCE USED TO SAY THOSE TWO WERE FROZEN, AND HALF OF IT IS NO LONGER TRUE.
+ * ADR-027 unfroze `blockerStructuralAdvantage` for MEASUREMENT and ADR-028 then moved it from 15
+ * to 0, coupled to `anchor` becoming a real §7.1 blocker term. So it is a live, changed dial and
+ * this file simply does not touch it — which is a statement about this file's probe list, not
+ * about the engine's freeze list. `pocket.sackWhenNoTarget` and
+ * `blitzPickup.freeRunnerArrivalSeconds` ARE still frozen; the latter is the next sweep's target
+ * and nothing here should pre-empt it.
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";

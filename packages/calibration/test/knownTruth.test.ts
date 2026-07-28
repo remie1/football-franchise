@@ -21,7 +21,7 @@
  * Failures print the whole ladder and the batch seeds that produced it, because "monotonicity
  * failed" is not actionable and "0 → 0.3057, 20 → 0.3364, 40 → 0.3728, 95 → 0.4055" is.
  */
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -70,6 +70,40 @@ describe("known-truth scenarios", () => {
       ).toBe(true);
     }
     expect(gateFiles.length).toBe(KNOWN_TRUTH_SCENARIOS.length);
+  });
+
+  it("keeps the gate on the canonical seeds — no gate file may re-draw a ladder", () => {
+    /**
+     * `runLadder` grew a `batchSeed` option so `ladderRerung.test.ts` can run the same ladder on
+     * INDEPENDENT seed lists, which is the only way to measure a `recordedStepSE` (§22a). That
+     * option must never reach the gate. A gate whose seeds can be re-drawn is a gate somebody
+     * re-runs until it is green — the exact failure `assertions.ts`'s header argues the common-
+     * random-numbers design against — and the difference between the two uses is one argument,
+     * which is small enough to be added in passing and invisible in review.
+     *
+     * Checked at the SOURCE, because there is no runtime signal: a re-drawn ladder produces
+     * numbers that look exactly like a ladder.
+     */
+    const gate = readFileSync(join(here, "knownTruthGate.ts"), "utf8");
+    expect(
+      gate.includes("batchSeed"),
+      "test/knownTruthGate.ts mentions `batchSeed`. The gate must call runLadder(scenario) with " +
+        "no options, so every CI run measures the same games. Replicates belong in " +
+        "test/ladderRerung.test.ts.",
+    ).toBe(false);
+    for (const scenario of KNOWN_TRUTH_SCENARIOS) {
+      const file = readFileSync(join(here, gateFileName(scenario.id)), "utf8");
+      expect(
+        file.includes(`gateFor("${scenario.id}")`),
+        `test/${gateFileName(scenario.id)} must delegate to gateFor("${scenario.id}") rather ` +
+          `than driving runLadder itself — one gate shape, one seed policy.`,
+      ).toBe(true);
+      expect(
+        file.includes("runLadder"),
+        `test/${gateFileName(scenario.id)} calls runLadder directly. Gate files exist to name a ` +
+          `scenario; the running belongs in knownTruthGate.ts.`,
+      ).toBe(false);
+    }
   });
 
   // ===================== THE TOLERANCE RULE, AS AN ASSERTION =====================
@@ -124,6 +158,44 @@ describe("known-truth scenarios", () => {
             `widen the rung spacing so the step itself is bigger.`,
         ).toBeGreaterThanOrEqual(4);
       }
+    }
+  });
+
+  it("states a mechanism for every scenario, and declares its inert attributes against it", () => {
+    // The CONTENT of these two fields is checked against the engine by
+    // `attributeClaims.test.ts`, which has to run games to do it. This is the structural half —
+    // it costs nothing and it catches the shapes that would make the expensive check meaningless.
+    for (const s of KNOWN_TRUTH_SCENARIOS) {
+      expect(
+        s.mechanismCheckKinds.length,
+        `"${s.id}" names no mechanism. Without one, "is this attribute read" has no answer and ` +
+          `the attribute list goes back to being prose.`,
+      ).toBeGreaterThan(0);
+      for (const kind of s.mechanismCheckKinds) expect(kind.trim().length).toBeGreaterThan(0);
+      expect(
+        s.attributesNotReadByMechanism.length,
+        `"${s.id}" declares every attribute it ladders as unread. A scenario whose mechanism ` +
+          `reads none of its design measures nothing.`,
+      ).toBeLessThan(s.attributes.length);
+    }
+  });
+
+  it("pins every PROVISIONAL record to a re-measurement rather than to an adjective", () => {
+    // §22d marks stale figures provisional. A bare flag would rot the same way the figures did,
+    // so the field carries the ladder as re-measured and what invalidated it — enough for a
+    // reader to see the size of the drift without running anything.
+    for (const s of KNOWN_TRUTH_SCENARIOS) {
+      if (s.provisional === undefined) continue;
+      expect(
+        s.provisional.measuredLadder,
+        `"${s.id}" is provisional but its re-measured ladder has ` +
+          `${s.provisional.measuredLadder.length} of ${s.rungs.length} rungs`,
+      ).toHaveLength(s.rungs.length);
+      expect(s.provisional.invalidatedBy.trim().length).toBeGreaterThan(0);
+      expect(
+        s.provisional.note.length,
+        `"${s.id}" says it is provisional and does not say what that costs a reader`,
+      ).toBeGreaterThan(40);
     }
   });
 

@@ -626,7 +626,72 @@ and 18 to read "or against the corpus."**
   instrument to reuse, since it already resolves all 64 references.
 - **`anchor` is the one live petition here**, and it is already the subject of
   [ADR-028](ADR-028-the-constant-is-not-the-pressure-lever.md) petition 1, which adds it to §7.1's
-  blocker terms.
+  blocker terms. **Landed** — `anchor` is now read by `pass_rush_tick`.
+- **`sustain` refined:** it is **live on the RUN and inert in §7.1** — read by
+  `second_level_climb` and by no pass-rush check. So it was varying the line's *run* blocking
+  underneath a sack-rate ladder, and has been dropped from `ol-passblock-sack-rate` on measurement
+  (no rung moved more than 0.0070, sign alternating, endpoints 0.0042 and 0.0001).
+- **Three further inert attributes found**, all by the derived-claims check rather than a sweep:
+  - `qb-accuracy`'s **`touch`** — read only by §8.4's tight-window modifier, not by §10.4's
+    accuracy check. **That ladder moves completion through two channels and names one.**
+  - `db-coverage`'s **`playRecognition`** — **genuinely dead in that scenario.** A §5.3 kill
+    candidate arriving from a gate rather than a sweep. Not dropped yet: it is the 1,200-game
+    ladder and dropping it forces a full re-record.
+  - `rb-vision`'s `elusiveness`/`power` are genuinely read by the contact contests — **not** a
+    finding; its mechanism list is legitimately four check kinds.
+
+## 30a. The claimed-attribute list is now DERIVED, and it found things prose never would
+
+- `knownTruth/attributeUsage.ts` folds `CHECK.testsAttrs` and `QB_READ.testsAttrs` — **the
+  engine's own published statement of what a resolution consulted** — out of each scenario's own
+  league at its top rung, restricted to plays a designed player took part in. Set equality is
+  asserted, so **drift reddens in both directions**. Verified to bite: re-adding `sustain` produces
+  *"`sustain` INERT IN THIS MECHANISM — read by `second_level_climb`."*
+- **This is entry 33's hypothesis-drift lesson actioned rather than noted.** The claimed-attribute
+  list was prose beside machine-checked numbers; it is now derived from the same stream the numbers
+  come from. Only `mechanismCheckKinds` — which mechanic a scenario *means* to test — is still
+  declared, because nothing else can supply it.
+- **The actor filter is load-bearing:** unfiltered, `db-coverage`'s `playRecognition` appeared read
+  by `second_level_climb` — on the *linebacker*, at base rating.
+- **New stream gap, sibling of entry 29's:** `QB_READ.testsAttrs` names the quarterback's
+  attributes but only the **receiver** as a player, so the check can only ever *over*-credit. A
+  contract petition if a scenario ever ladders a QB attribute where *which* QB matters.
+
+## 33a. All four other ladders are stale, and one cross-scenario claim is falsified
+
+Re-measured read-only on canonical seeds; marked **provisional** per §22d with a structured field
+carrying the re-measured ladder and what invalidated it — not an adjective, and its shape is
+asserted.
+
+| scenario | recorded | measured now | effect |
+|---|---|---|---|
+| qb-accuracy | 0.3057/0.3364/0.3728/0.4055 | 0.3029/0.3349/0.3645/0.4060 | 0.0998 → 0.1031 |
+| dl-passrush | 0.1251/0.1607/0.2017/0.2444 | 0.1365/0.1703/0.2114/0.2451 | 0.1193 → **0.1086** |
+| rb-vision | 10.157/12.000/14.193/17.139 | 9.923/11.341/13.288/17.706 | 6.98 → 6.78 |
+| db-coverage | 2.3975/2.1168/1.8398 | 2.3228/2.0060/1.6425 | 0.5576 → **0.6803** |
+
+- `dl-passrush` is **ADR-028 seen from the other side of the same rep** (a 60-rated blocker went
+  39 → 36 points). `db-coverage` is the most stale and **its two steps have swapped which is
+  larger** — re-runging candidate.
+- **A cross-scenario claim is falsified and marked dead in place.** `dl-passrush`'s hypothesis
+  cited *"the pass RUSH flattens at the bottom while the pass BLOCK it is contested against is
+  linear to zero"* as evidence for entry 3's term-count asymmetry. **Post-ADR-028 pass block
+  flattens at the bottom too.** The prediction was right and **the thing it predicted has been
+  removed.**
+- **Full re-records owed** (§22a procedure, ~15 min compute): all four, with `db-coverage` and
+  `dl-passrush` the material ones. Settle `db-coverage`'s dead `playRecognition` and
+  `qb-accuracy`'s two-channel `touch` in that same pass.
+
+## 33b. `pressureSweep.test.ts` is spent, and the type system proved it
+
+- Every patch in it asserts `currentValue: 15`; the committed value is now 0, so `applyTunablePatch`
+  refuses them as **stale patches** — §6's guard working on the very record that argued for the
+  change.
+- **Kept, not repaired.** It is the method ADR-028 was argued from and deserves to remain readable;
+  a repaired sweep would be measuring a decided question. It now fails with one explicit message
+  rather than five obscure throws.
+- Worth recording: `Tunables`' literal types made **TypeScript** prove it spent —
+  `error TS2367: types '0' and '15' have no overlap`. Charter §4.1, arriving unasked.
 
 ## 32. `anchor` going live left every fixture that omits it rolling the 50 fallback
 
@@ -674,9 +739,24 @@ monotone and effect-floor both still pass):
 2. **The hypothesis over-claims, in a new way.** It said four attributes; it was **two** (`anchor`
    and `sustain` both inert). It is now **three** — `anchor` is live, `sustain` is still not read
    by §7.1. The text also still describes the "+15 structural constant" as present, and it is 0.
-3. **"No saturation anywhere, every step worth the same" is now FALSE.** The rungs were chosen
-   *because* the response was straight (0.0435/0.0390/0.0393) and it no longer is
-   (0.0375/**0.0716**/0.0510).
+3. ~~**"No saturation anywhere, every step worth the same" is now FALSE.**~~ **⚠ CLAIM 3 IS
+   REFUTED — and it was mine.** The "middle step nearly twice the outer ones"
+   (0.0375/0.0716/0.0510) is a property of **the canonical seed list, not the engine.** Across
+   **8 independent seed sets at 160 games** the mean steps are **0.0509 / 0.0546 / 0.0537** —
+   flat. The canonical run happens to hold *both* extremes: its 20→45 step is the smallest of the
+   eight (0.0356 against a spread to 0.0647) and its 45→70 the largest (0.0628 against down to
+   0.0463), because that one seed list measures rung 45 high.
+
+   > **A genuine shelf does not move when the seeds do.**
+
+   **This is exactly what the "re-derive SE across independent seed sets, not from a single run"
+   requirement exists to catch.** Re-recorded from the one run I was handed, the ladder would have
+   been re-runged against noise — the entry-22 failure committed in the act of fixing an
+   entry-22 failure. **The rungs stand at 20/45/70/95.**
+
+   There *is* a new shelf, and it is at the **bottom**: 0.00089 sack rate per point from 0→20
+   against 0.00205 from 20→95, created by ADR-028 (a 0-rated line used to collect +15 it had not
+   earned). **The ladder already starts at 20, on top of it.**
 - **`recordedStepSE` must be re-derived across independent seed sets**, per §22a — one run cannot
   produce an SE, and §22a's whole point is that the noise margin is measured rather than assumed.
   **Do not re-record from a single run.**
