@@ -662,9 +662,22 @@ When extra rusher (LB or DB) comes:
    Roll: RB/TE Pass Block vs. Blitzer Pass Rush
    
 4. IF FREE RUNNER:
-   Blitzer reaches QB in ~1.5 ticks
+   Blitzer reaches QB in ~1.5 SECONDS (see the note below — this said "ticks")
    QB must throw or take sack
 ```
+
+> **AUTHORING CORRECTION (July 2026) — the unit, not the value.**
+> This step read *"~1.5 ticks"*. A tick is 0.5s (§2.1), so read literally that is **0.75s**,
+> which is earlier than §9.2's fastest route can possibly declare — making **every blitz an
+> automatic sack and hot routes decorative.** That is the same "unimplemented mechanic silently
+> resolved as its worst alternative" pattern that produced the 56% sack rate, one layer up.
+> The unit is corrected to seconds because it was unambiguously wrong.
+>
+> **KNOWN ISSUE — the VALUE is not ratified.** `TUNABLES.blitz.freeRunnerArrivalSeconds: 1.5`
+> is an engine interpretation, not doctrine: at 1.5s the quick game beats a free runner and
+> nothing else does, so the entire recognition-versus-pressure balance sits on it. It is
+> **the first target of the Phase 3 sensitivity sweep** — see `CALIBRATION-BACKLOG.md`.
+> Do not treat 1.5 as settled because the unit was fixed.
 
 ---
 

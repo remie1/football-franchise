@@ -51,6 +51,17 @@ export type PocketStatus = "CLEAN" | "PRESSURE" | "COLLAPSING" | "IMMEDIATE" | "
 export type ThrowType = "BULLET" | "TOUCH" | "BACK_SHOULDER" | "THROWAWAY";
 export type RushAlignment = "EDGE" | "INTERIOR";
 export type RushThreatState = "TRAVELLING" | "DELAYED" | "RESET" | "ARRIVED";
+
+/**
+ * Why a rusher is a threat (ADR-022 petition 5). There are four ways and only one is a won
+ * rep, so without this an unblocked blitzer and a beaten left tackle arrive in the stream
+ * looking identical and "how much pressure came from blitzing?" is unanswerable.
+ *
+ * Every origin points at a real roll — `rollRef` names the `pass_rush_tick` CHECK, the
+ * `blitz_recognition` PRESNAP_READ, the `blitz_pickup` CHECK or the `stunt_communication`
+ * CHECK respectively. Nothing here is justified by an absence.
+ */
+export type ThreatOrigin = "WON_REP" | "UNBLOCKED" | "PICKUP_LOST" | "STUNT_LOOPER";
 export type RoutePhase = "JAMMED" | "DEVELOPING" | "OPEN" | "SETTLED" | "DECAYING" | "SCRAMBLE_DRILL";
 export type QbDecisionChoice = "THROW" | "HOLD" | "STEP_UP" | "SCRAMBLE" | "THROWAWAY" | "CHECKDOWN";
 export type CarryType = "DESIGNED" | "SCRAMBLE";
@@ -101,7 +112,12 @@ export interface GameEventBase {
 
 export type MatchEvent =
   | ({ type: "PLAY_START"; payload: unknown } & MatchEventBase)
-  | ({ type: "PRESNAP_READ"; payload: { actor: PlayerId; kind: CheckKind; roll: RollDetail; target: number; tier: ResultTier } } & MatchEventBase)
+  | ({ type: "PRESNAP_READ"; payload: {
+        actor: PlayerId; kind: CheckKind; roll: RollDetail; target: number; tier: ResultTier;
+        /** §5.3's four-row result table, same reasoning as ADR-011 gave `CHECK.band`: a
+         *  re-derived band desyncs silently the first time calibration moves a boundary. */
+        band?: string;
+      } } & MatchEventBase)
   | ({ type: "TICK"; payload: { tick: number } } & MatchEventBase)
   | ({ type: "CHECK"; payload: {
         checkKind: CheckKind;
@@ -131,6 +147,9 @@ export type MatchEvent =
   | ({ type: "RUSH_THREAT"; payload: {
         rusher: PlayerId;
         alignment: RushAlignment;
+        origin: ThreatOrigin;
+        /** The roll that JUSTIFIES this threat — widened from "the pass_rush_tick roll that
+         *  created it", since three of the four origins are justified by a different roll. */
         rollRef: string;
         etaTick: number;
         state: RushThreatState;

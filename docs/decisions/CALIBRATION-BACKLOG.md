@@ -592,6 +592,35 @@ rating difference where every other modifier is ÷5 (§14.4's pursuit gate), a b
 surprises**, and they are mechanically detectable without simulating anything: compute each
 check's maximum realistic stack from the registry's 0-99 scale and compare it to the target.
 
+### Attribution method — two rules bought with a wrong answer
+
+Both come from the entry 23 attribution, and both are standing rules for every future
+decomposition. **Neither is optional; the first one already produced a confidently wrong
+backlog entry.**
+
+**1. Probe every named lever in BOTH directions. A signed measurement, never an assumed sign.**
+Entry 14 was cited as an explanation for the yards-per-carry divergence while actually
+*suppressing* it — probing it in its own stated direction moved y/c from **16.28 to 18.90**.
+A backlog entry can be confidently wrong in a way that makes the residual look **smaller** than
+it is, which is the dangerous direction: it makes the remaining gap look attributable when it
+is not. **Treat "this entry explains part of it" as a hypothesis requiring a signed measurement,
+not as a claim.**
+
+**2. Expect non-additive decomposition. Gaps decompose MULTIPLICATIVELY when levers compete for
+the same plays.** Entry 12's two halves are worth **−1.84 and −1.95 alone but −6.29 together**,
+because they share a population and each alone lets the other collect the yards. Measure every
+lever alone *and* jointly. **A clean two-way percentage split is the outcome to be suspicious
+of** — it usually means the populations were assumed disjoint and were not.
+
+### First sensitivity-sweep target
+
+**`TUNABLES.blitz.freeRunnerArrivalSeconds` (currently 1.5).** §7.4's authoring error said
+"~1.5 ticks", which at 0.5s/tick is 0.75s — earlier than any route can declare, making every
+blitz an automatic sack. The **unit** has been corrected in the design doc; the **value** has
+not been ratified. It sits directly under the best result of the blitz dispatch (4.29% sacks
+when a blitz is seen and answered, 13.99% when missed), so the whole recognition-versus-pressure
+balance moves with it. Sweep it first.
+
 **Method:** enumerate every `CheckKind`, compute best-case and worst-case totals from
 `TUNABLES` plus the attribute scale, compare against the target (or against the opposing
 stack for opposed rolls), and flag any check where the die cannot meaningfully decide the

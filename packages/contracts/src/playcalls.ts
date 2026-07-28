@@ -76,11 +76,57 @@ export interface RouteAssignment {
    * every route.**
    */
   readonly breakZone?: FieldZone;
+  /** The route he converts to if the offence recognises pressure (ADR-022). */
+  readonly hot?: HotRouteSpec;
 }
 
 export interface ProtectionAssignment {
   readonly blocker: PlayerId;
   readonly rusher: PlayerId;
+}
+
+/**
+ * The protection SCHEME, as distinct from its pairings (ADR-022 petition 1).
+ *
+ * A discriminated union rather than `kind` plus an optional `slideSide` with a runtime
+ * check: on a slide, the side is not optional information, and Charter §4.1 says take the
+ * shape that makes the wrong card fail to compile. The engine's own weaker draft was
+ * self-reported as "policy where a type would do" and is not what shipped.
+ *
+ * An omitted `protectionScheme` on a call means MAN — which is exactly what a bare list of
+ * pairings already is, so every card written before this is unchanged.
+ */
+export type ProtectionCall =
+  | {
+      readonly kind: "MAN";
+      /** §5.3 / §7.3's "Centre". Omitted ⇒ that term is not rolled, and no stand-in is
+       *  substituted: the engine cannot tell which blocker is the centre from a pairing
+       *  list, and ADR-006 forbids reading it out of `formation`. */
+      readonly center?: PlayerId;
+      /** Men in protection not pre-paired to a rusher, in pickup priority order. */
+      readonly available?: readonly PlayerId[];
+    }
+  | {
+      readonly kind: "SLIDE";
+      readonly slideSide: RunSide;
+      readonly center?: PlayerId;
+      readonly available?: readonly PlayerId[];
+    };
+
+/**
+ * A hot route: the offence's answer to pressure (§5.3, ADR-022 petition 2). A converted
+ * route is just a different route, so the spec is the fields a route already has.
+ *
+ * This is the mechanic that makes a blitz a RISK rather than a free win. Measured: a blitz
+ * the quarterback misses pre-snap sacks him on 13.99% of dropbacks; one he saw and answered
+ * sacks him on 4.29%, against 11.16% on a snap with no blitz at all.
+ */
+export interface HotRouteSpec {
+  readonly routeName: string;
+  readonly depthClass: RouteDepthClass;
+  readonly airYards: number;
+  /** The area the pressure vacated, as the CARD sees it. Omitted ⇒ keep the original. */
+  readonly breakZone?: FieldZone;
 }
 
 export interface OffensivePlayCall {
@@ -93,6 +139,8 @@ export interface OffensivePlayCall {
   /** Progression order; must reference receivers that have a route. */
   readonly readOrder: readonly PlayerId[];
   readonly protection: readonly ProtectionAssignment[];
+  /** Omitted ⇒ MAN, i.e. exactly what a list of pairings already means (ADR-022). */
+  readonly protectionScheme?: ProtectionCall;
 }
 
 // --- the run call -----------------------------------------------------------
@@ -222,9 +270,35 @@ export interface RushAssignment {
   readonly side?: RunSide;
 }
 
+/** §7.3's four complexities, verbatim. */
+export type StuntComplexity = "T_E" | "T_T" | "DELAYED" | "TRIPLE";
+
+/**
+ * A stunt is a RELATIONSHIP between two rushers (ADR-022 petition 3), which is why it is a
+ * separate list rather than a `stuntWith` field on each `RushAssignment` — that shape lets a
+ * card state the pair inconsistently (A twisting with B while B twists with C).
+ */
+export interface StuntCall {
+  readonly penetrator: PlayerId;
+  readonly looper: PlayerId;
+  readonly complexity: StuntComplexity;
+}
+
+/**
+ * §5.3's four disguise rows (ADR-022 petition 4). An absent value means `STANDARD`, and that
+ * is not a silent default — it is §5.3's own +0 row, "standard blitz, LB walked up". A card
+ * that says nothing is describing the least disguised pressure in the doc's table.
+ *
+ * Deliberately NOT derived from the coverage shell: a delayed blitz's whole point is that it
+ * looks like the same shell, so deriving disguise from it would make the two the same axis.
+ */
+export type BlitzDisguise = "STANDARD" | "ZONE_BLITZ" | "DELAYED" | "ZERO";
+
 export interface DefensivePlayCall {
   readonly name: string;
   readonly front: string;
+  readonly stunts?: readonly StuntCall[];
+  readonly blitzDisguise?: BlitzDisguise;
   /**
    * Man and zone assignments, mixed freely. A receiver named by no `ManAssignment` is
    * played by whatever zone his route breaks into; if no zone defender is responsible for

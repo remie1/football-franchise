@@ -368,3 +368,43 @@ Recorded because a petition that quietly grows is worse than one that is refused
 | `test/blitz.test.ts` | two tests that fail if the containment above is broken |
 
 No interim marker exists in the engine that is not in this table.
+
+---
+
+## Decision
+
+**All six petitions approved** by project owner + Orchestrator, July 2026 — **and petition 1
+ratified in the stricter shape this ADR recommended against itself.**
+
+`ProtectionCall` ships as a **discriminated union**, so `slideSide` is structurally required on
+a slide rather than optional-with-a-runtime-check. The owner's reasoning: *Charter §4.1 landed
+one dispatch ago; letting policy-where-a-type-would-do into the constitution immediately after
+would make it decorative.* The same ruling applies to the engine's `RushPlan` — "blocked or
+free, never neither" becomes a discriminated union on `blocker`, not a runtime throw. Both
+weaknesses were **self-reported**, which is why they were caught; take the stricter shape in
+both places.
+
+**`blitzDisguise` is ratified despite having no current producer**, and the reason is the
+refusal that accompanies it. Deriving disguise from the coverage shell was correctly refused —
+a delayed blitz's whole point is that it looks like the same shell — and the consequence of
+*not* shipping the field is that the first author who wants to disguise a blitz reaches for the
+shell, which is exactly the derivation just refused. A card that wants to say something needs
+somewhere to say it.
+
+**The refusals are ratified as decisions, not merely noted:** no `RoutePhase: "HOT"` (a phase is
+a timeline position, not which route he is running); no `gap` on `RushAssignment` (ADR-018
+refused it, §7.4 gave it a *potential* consumer, and it is still refused); no sight-adjust key;
+no `blitz` flag on `PLAY_START`; and `rollRef` stays required — the §5.3 recognition roll is
+always made when a rusher is unaccounted for, so a real roll justifies every threat and an
+optional field would have created a second, emptier way to say "no roll".
+
+### Why this unblocks more than it implements
+
+Until this landed, `packages/playbook` could not state a stunt, a hot route or a protection
+scheme on ratified types, so **every pressure number in the blitz dispatch is fixture-grade** —
+blitz rate 32.8% is a property of six uniformly-picked fixture cards, and the stunt-win rate is
+one card at one complexity. The corpus can now say these things, which is the precondition for
+measuring any of it properly.
+
+Sequenced accordingly: **ratify → corpus states them → re-baseline → then probe entry 23's
+residual.** Entry 23's +4.97 is a magnitude measured on a tree that no longer exists.
