@@ -325,6 +325,27 @@ dispatches earlier** — all three written or endorsed by the Orchestrator:
    against 64.578%** — entry 3 owns at most **6.65 of 24.91** completion points. A measured
    ceiling rather than an attribution, which is worth more than either.
 
+### ⚠ READ THIS BEFORE CONCLUDING ADR-028 BOUGHT NOTHING
+
+**On the engine's own fixture corpus, all four Tier 1 means came out flat** — pressure −0.148pp,
+sack −0.083pp, conversion −0.071pp, completion +0.075pp. **That is the PREDICTED result, not a
+null**, and the record says so here so nobody re-derives the wrong conclusion from four flat rows.
+
+That corpus rates `anchor` at almost exactly the mean of `passBlock` and `footwork`, which is
+**precisely the algebraic-identity case**: `passBlock/5 + footwork/5 + anchor/5` and
+`passBlock/5 + footwork/5 + 15` are *the same function* when anchor sits at that mean. **A flat
+league cannot distinguish the two hypotheses.** It is not weak evidence; it is *no* evidence, by
+construction.
+
+**The spread ladder is the evidence**, and it is unambiguous: constant share of the blocker stack
+64.2% → **0.0%** at a twenty-rated line, stack slope **×1.501**, rep margin ×1.490, rep win rate
+×1.419.
+
+**What ADR-028 bought is a slope that only becomes visible when ratings vary** — which is the
+entire point, and the entire reason to have done it **before** attributes rather than after. Do it
+after and the insensitivity arrives disguised as a rating problem, in a franchise mode where
+offensive line quality mattering is close to the whole point.
+
 ### And the map-first rule earned out, one dispatch after being written
 
 Fifteen-fold variation in the response curve, with the committed value on a bottom shelf at

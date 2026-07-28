@@ -641,8 +641,17 @@ and 18 to read "or against the corpus."**
   just recorded. Named at the sites in `test/fixtures.ts`.
 - **The general shape is worth keeping:** an attribute going from dead to live silently re-rates
   every fixture that never had a reason to mention it. **The 50 fallback is doing exactly its job
-  and that is the problem** — it makes the omission invisible. Any future petition that makes a
-  registered-but-unread attribute live should expect this and budget a fixture pass.
+  and that is the problem** — it makes the omission invisible. A fixture missing `anchor` rolls a
+  plausible number and nothing looks wrong. **Same family as `buildTeamSnapshot` passing the
+  known-player check for someone standing on the sideline** (entry 29).
+- **Question for the fixture pass, and it is the structural-versus-conventional choice:** should a
+  fixture be **required to state every attribute its play type reads**, with absence an **error**
+  rather than a fallback? The fallback is the conventional answer and it is why this was invisible;
+  the requirement is the Charter §4.1 answer. The objection to weigh is that `getAttr`'s fallback
+  is load-bearing elsewhere — partial real-world data degrades gracefully because of it (ADR-008's
+  chemistry table, the attributes pipeline's coverage gaps) — so the rule would have to be a
+  *fixture* rule rather than a `getAttr` rule. Decide it when the pass runs; do not let the pass
+  settle it silently.
 
 ## 33. `ol-passblock-sack-rate`'s record is now wrong in three ways — the gate is green, its
 description is not
@@ -671,6 +680,20 @@ monotone and effect-floor both still pass):
 - **`recordedStepSE` must be re-derived across independent seed sets**, per §22a — one run cannot
   produce an SE, and §22a's whole point is that the noise margin is measured rather than assumed.
   **Do not re-record from a single run.**
+- **The +25% effect growth is the best possible outcome here.** The slope change surfaced in the
+  one instrument built to see it, **without anyone pointing the instrument at it.** That is the
+  ladder system earning its cost, and it is the argument for keeping five gates rather than one.
+- **The hypothesis drift is its own small lesson.** That field has now over-claimed in three
+  successive ways — four attributes, then two, now three — and each time it was the *code* that
+  moved while the description sat still. **A hypothesis field that drifts with the code is a
+  hypothesis nobody re-reads.** It is prose beside numbers that are machine-checked, which is
+  exactly the asymmetry §22a's `recordedSteps`/`recordedStepSE` were introduced to remove for the
+  numbers. Consider whether the claimed-attribute list can be derived rather than written.
+- **Sequencing note, and the reason this is its own dispatch:** these rungs were chosen *because*
+  the response was straight, and it no longer is — **a ladder now sitting partly on a shelf, which
+  is the entry 22 shape appearing inside the instrument built to detect it.** Re-recording it while
+  running the next sensitivity sweep would mean measuring with a gate that is misdescribed.
+  Housekeeping first, clean tree, then sweep.
 
 ## 31. Stringly-typed tunables attribute references should become typed
 
@@ -693,6 +716,14 @@ monotone and effect-floor both still pass):
   that `TUNABLES` stops being pure data, which is a real objection: a `Tunables` holding branded
   ids is harder to serialise into a patch record (§6) or a report. **That tension is the decision**,
   and it should be an ADR rather than a dispatch call.
+- **Owner's lean, filed as the position the ADR must argue against rather than as the answer:**
+  **keep the stored form serialisable and brand at the boundary.** A typed accessor that resolves
+  and validates on read, so a bad reference **fails at load rather than mid-batch**, without the
+  patch record ever holding a branded value. That is the V2 startup-validation pattern applied to
+  tunables rather than a type change to the record itself — and `attrs.ts`'s existing load-time
+  sweep is already most of it.
+- **Two evasions is enough evidence that the status quo will not hold, and not enough to pick the
+  shape by assertion.** File the ADR; let it be argued.
 - Until then: **any audit touching attribute usage must walk the tunables tree**, and `attrs.ts`'s
   existing load-time sweep — which already resolves all 64 references — is the instrument to reuse
   rather than reimplement.
