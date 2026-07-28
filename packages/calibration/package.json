@@ -7,10 +7,13 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.test.json",
-    "ingest": "tsc -p tsconfig.json && node dist/ingest/cli.js"
+    "ingest": "tsc -p tsconfig.json && node dist/ingest/cli.js",
+    "known-truth": "vitest run test/knownTruth.test.ts"
   },
   "dependencies": {
-    "@ff/contracts": "workspace:*"
+    "@ff/contracts": "workspace:*",
+    "@ff/engine": "workspace:*",
+    "@ff/playbook": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"

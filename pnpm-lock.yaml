@@ -45,6 +45,12 @@ importers:
       '@ff/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@ff/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@ff/playbook':
+        specifier: workspace:*
+        version: link:../playbook
     devDependencies:
       '@types/node':
         specifier: ^22.0.0

@@ -363,6 +363,69 @@ a derived, position-relative handle and make the absent case a required field. T
 
 ---
 
+# FIRST BASELINE REPORT — 496 games, real corpus, flat-60 league
+
+Run against `packages/playbook`'s corpus rather than the engine's fixtures, under
+`DEFAULT_TUNABLES`, bands at §10.1's opening ±15%. **Every failing row is claimed by an
+already-logged entry — no new divergence.** Three numbers moved materially against their
+fixture-measured values, and all three move the same way for the same reason.
+
+**The headline finding: the corpus is WORSE than the fixture, and that is the expected
+direction.** A real corpus exercises more of the engine — more perimeter blocking, more
+second-level climbs, more varied read systems — so the known defects fire more often. The
+fixture was flattering, which is exactly what backlog 3a predicted and what a fixture-shaped
+corpus always does. **Amend the "do not tune against this fixture" instructions in entries 11
+and 18 to read "or against the corpus."**
+
+| metric | fixture-measured | corpus-measured | entry |
+|---|---|---|---|
+| yards per carry | 9.44 GAP / 11.58 ZONE | **16.28** | 11–14 |
+| drives per team-game | 32.0 per game | **19.34 per team** (38.7/game) | 18 |
+| time to throw | 1.63s | **1.147s** | 2b |
+
+- **y/c 16.28.** §13.1's zone quantisation and §12's unoccupiable zone 4 fire more often because
+  the corpus supplies the perimeter blocking the fixture lacked. Entries 11 and 12 are the
+  levers; neither number is tunable until they are settled.
+- **Time to throw fell rather than rose.** Entry 2b's fix moved it 1.27 → 1.63s; the corpus's
+  read systems and route mix push it back down to 1.147s. This does **not** reopen 2b — the
+  progression mechanic works — it says the corpus's concept mix resolves faster than the
+  fixture's did, which is a distribution question for 8a's neighbourhood.
+- **Two passing rows that must not be read as validated.** `points_per_drive` passes comfortably
+  (2.011 vs 1.936) while `points_per_team_game` is 100% high — the pass is arithmetic, not
+  health, exactly as entry 18 describes. And `int_rate` passing at 2.25% means nothing while
+  entry 6's recovery roll never fails.
+
+## 21. Perfectly-informed protection biases sack and pressure rates DOWN
+
+- The engine rejects a rush no protection names (`UnsupportedPlayCallError`, §7.4 unimplemented),
+  so the frozen caller must build blocking against the actual defensive card. **The concept draw
+  is blind, but the protection is not.**
+- **Consequence:** sack rate and pressure rate are biased *downward* relative to reality — and
+  they are still 13.0% and 87.0% against real 6.9% and 29.2%. The true figures under honest
+  protection are worse than what the report shows.
+- Unprotectable pressures re-draw the **concept**, preserving the fitted blitz rate and pushing
+  the distortion into the concept mix instead. Measured at 57 re-draws in 69,627 calls (0.08%),
+  so the concept-mix distortion is negligible; the protection bias is not.
+- **Not fixable in calibration.** It closes when §7.4 blitz pickup lands — which is the blitz and
+  stunt dispatch, and is another reason that work should not be measured before it exists.
+
+## 22. Two findings from the known-truth ladders, arriving early
+
+Both are §5.3 sensitivity signals that fell out of the monotonicity gate before the sensitivity
+report exists.
+
+- **Accuracy saturates above 60.** The entire 4.3-point completion effect across a 40→95 ladder
+  sits in 40→60; **60→95 is worth 0.2 points.** Consistent with §10.4's target of 60 against
+  `Accuracy ÷ 5`, where the −10/−20 pressure penalty is a larger term than an elite QB's whole
+  advantage over an average one. A kill/merge candidate flag would be premature — the more likely
+  reading is that the *scale* is wrong, not the attribute.
+- **Coverage is the weakest attribute family measured**: a fifth of a yard per dropback across
+  40→95 on five attributes at once, against 9.7 sack points for OL pass block and 3.2 y/c for RB
+  vision. Note two candidate measures were **rejected** en route because better coverage changes
+  *which throws happen*: completion-rate-allowed inverts, and completions per dropback is flat,
+  both through pure selection. Net yards per dropback closes that channel and is the measure to
+  use.
+
 # GAME SCALE (Phase 1 exit) — Tier 1 metrics, measured for the first time
 
 40 games, fixture-grade rosters. **The game loop introduces no divergence of its own** —
