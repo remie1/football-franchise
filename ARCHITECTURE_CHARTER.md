@@ -211,6 +211,22 @@ not:
   *loudly incomplete*; overloading makes them *silently wrong*.
 - **`Evidence<T, E>` with a checkpoint token** (calibration ingestion). The sacred-season rule
   became impossible to violate rather than merely against policy.
+- **`DerivedLeague` uninhabited** (ADR-020). On a flat league the upset-rate metric computes a
+  rating gap of zero for every game and reports a perfectly calibrated 50% — **it renders
+  green.** Making the provenance a phantom brand turns that into `NOT_APPLICABLE` with a reason.
+
+### The sharpest form of the rule
+
+Those last two are the same failure class, and it is the one worth naming:
+
+> **Where a wrong answer would look like a *right* one, encode the constraint in the type
+> system rather than in policy.**
+
+A tautology passing a band is worse than a failing row, because **red gets investigated and
+green gets trusted.** The same holds for a metric computed from a held-out season, a roll
+counted twice, a step-up reported as a hold, and a simulation half-run under the wrong tunables:
+in every case the output looks healthy and no amount of care at the call site would reveal it.
+Policy catches the wrong answers that look wrong. Types are for the ones that don't.
 
 The common shape: a schema or signature that cannot express the wrong thing beats any amount of
 discipline about not writing it. When choosing between the two, the cost of the stricter option

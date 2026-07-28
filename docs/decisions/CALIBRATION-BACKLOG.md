@@ -409,6 +409,27 @@ and 18 to read "or against the corpus."**
 - **Not fixable in calibration.** It closes when §7.4 blitz pickup lands — which is the blitz and
   stunt dispatch, and is another reason that work should not be measured before it exists.
 
+## 21a. The worker pool is deferred — and here is the trigger that ends the deferral
+
+- **State:** `workerPool.ts` compiles and cannot run. `@ff/engine` and `@ff/playbook` declare
+  `main: src/index.ts`, so a compiled worker resolves them to TypeScript that Node will not
+  execute. It throws `WorkspaceNotBuiltError` naming the cause rather than failing obscurely,
+  and `shardedExecutor(n)` is proven byte-identical to it (one shard and five produce identical
+  accumulators), so batches run correctly single-process.
+- **Why deferred:** 496 games in **20.6 seconds**. Parallelism is not the bottleneck, and the fix
+  is an `exports` map across two packages that would put a build step in front of every test run
+  — a real workflow cost for a problem nobody has.
+- **THE TRIGGER, named so this is remembered rather than rediscovered.** Do the `exports`-map fix
+  at whichever comes first:
+  1. **The first sensitivity sweep** (§5.3). It varies one attribute at a time across many
+     batches and is by far the likeliest thing to actually need parallelism — a 50-attribute
+     sweep at 4 rungs is 200 batches where the baseline is one.
+  2. **The first baseline report exceeding ~5 minutes wall-clock.** At 20.6s for 496 games that
+     is roughly a 15× growth in games or cost per game, which a real derived league plus
+     availability-matched replay could reach.
+- Also blocked by the same cause: `refit.ts` (the tendency-refit tool), currently exercised by an
+  env-gated test.
+
 ## 22. Two findings from the known-truth ladders, arriving early
 
 Both are §5.3 sensitivity signals that fell out of the monotonicity gate before the sensitivity

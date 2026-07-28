@@ -2,7 +2,26 @@
 
 - **Date:** July 2026
 - **Proposed by:** `calibration`, implementing `calibration.md` §9 deliverables 2-4
-- **Status:** proposed
+- **Status:** approved
+
+> **Decision (project owner + Orchestrator, July 2026): ratified in full — the brand threads
+> through the whole harness, not just Tier 3/4.**
+>
+> Narrowing it to the rating-attributable tiers was considered and rejected, because it assumes
+> we can predict which metrics are rating-attributable *permanently*, and we cannot. A Tier 1
+> metric acquires a rating dependency quietly and legitimately the moment completion rate splits
+> by quarterback tier, or sack rate is normalised by pass-blocking quality — and nothing
+> announces the change. Whole-harness threading makes that a compile error instead of a silently
+> green row. The guarantee is only worth having at the moment someone would have missed it.
+>
+> This is the **second instance** of one failure class — a number that is meaningless but renders
+> green — after the sacred-season `Evidence<T, E>` brand. Two instances make it a pattern, now
+> stated in Charter §4.1: *where a wrong answer would look like a right one, encode the
+> constraint in the type system rather than in policy.* A tautology passing a band is worse than
+> a failing row, because red gets investigated and green gets trusted.
+>
+> No contracts change; `RatedLeague` is untouched and carried inside. The real pipeline seams in
+> at one constructor call.
 - **Charter impact:** none. Amends no rule; records a decision `calibration.md` §3 left open.
 
 ## Need

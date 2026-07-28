@@ -1,0 +1,48 @@
+name: CI
+
+# Spec #3 §5.2 instrument 2: the synthetic known-truth harness is the engine's statistical
+# regression suite and is meant to run on every engine change. It lives in
+# packages/calibration's default test run, so gating on the workspace suite gates on it.
+#
+# WHAT THIS GATE DOES AND DOES NOT MEAN.
+# It asserts MONOTONICITY and EFFECT-SIZE FLOORS — better attribute, better outcome, always —
+# never realism. Every Tier 1 baseline metric is currently outside its band for reasons the
+# twenty-two entries in docs/decisions/CALIBRATION-BACKLOG.md own and name. A red baseline is
+# expected; a broken ladder is not. Do not add a realism assertion here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm 11 refuses to run dependency build scripts until each is approved and treats an
+      # unapproved script as fatal on every later command. esbuild is approved in
+      # pnpm-workspace.yaml's allowBuilds — see HANDOFF §1.1.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Typecheck before tests: several guarantees in this repo are compile errors by design
+      # (Charter §4.1), so a green test run against a tree that does not typecheck would be
+      # reporting less than it appears to.
+      - name: Typecheck
+        run: pnpm -r exec tsc --noEmit
+
+      # The four dormant packages carry --passWithNoTests so the recursive run reaches the
+      # packages that do have tests. Engine deliberately does NOT (HANDOFF §1.2) — it has 585.
+      - name: Test
+        run: pnpm -r test

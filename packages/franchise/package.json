@@ -5,7 +5,7 @@
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@ff/contracts": "workspace:*"
