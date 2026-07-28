@@ -48,6 +48,20 @@
 > - **ADR-024's two sub-questions**, above. Named and open on purpose.
 > - **Entry 23's +0.847 y/c (17%)** remains **unowned**, deliberately not distributed.
 >
+> ### Standing operational rules
+>
+> - **RUN BASELINES FROM A CLEAN TREE.** `FF_ENGINE_COMMIT` is required and shape-checked, and a
+>   `-dirty` stamp **never compares equal, including to itself** (ADR-025) — so a baseline produced
+>   from a dirty tree is honest and useless: nothing can ever trend against it, including a later
+>   run of the same thing. This has already cost one regeneration cycle. Commit first, then
+>   measure:
+>   ```
+>   FF_BASELINE=1 FF_ENGINE_COMMIT=$(git rev-parse HEAD) \
+>     FF_BASELINE_OUT=reports/baseline-000N.md pnpm --filter @ff/calibration test baselineTool
+>   ```
+> - **Never buy CI time by reducing `n`** on a known-truth ladder (backlog §22c). `db-coverage`
+>   needs ~5× the sample of any other family and its SE estimate is itself unstable.
+>
 > ### Two things that will bite if forgotten
 >
 > - **Contracts is write-protected and the deny applies to the Orchestrator too.** Amending means

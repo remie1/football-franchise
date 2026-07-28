@@ -328,6 +328,7 @@ export function simulatePassPlay(
       readOrder,
       protection: calls.offense.protection,
       availableBlockers: preSnap.availableBlockers,
+      unblockedProtectors: preSnap.unblockedProtectors,
       hotConversions: preSnap.hotConversions,
     },
     defense: {

@@ -461,9 +461,28 @@ and 18 to read "or against the corpus."**
   ADR-024's own stated precondition for unfreezing it.
 - **⚠ `freeRunnerArrivalSeconds` is now sweepable** — it governed 56 dropbacks in 496 games at v1
   and governs a real population at v2. It remains *second* in the order, behind entry 3.
-- **Open:** [ADR-026](ADR-026-a-protector-with-nobody-to-block.md) — 13.40% of dropbacks now carry
-  a protector with nobody to block. Its resolution moves the pressure rate (**never** the
-  conversion — entries 2 and 3).
+- **[ADR-026](ADR-026-a-protector-with-nobody-to-block.md) — RATIFIED AND LANDED**, before any
+  sweep, because `blockerStructuralAdvantage` is the pressure-rate lever and this defect moved the
+  pressure rate on 13.40% of dropbacks. The unblocked protector joins `available` at the back of
+  pickup priority.
+
+  | row | before | after |
+  |---|---|---|
+  | pressure_rate | 90.223% | **89.144%** (−1.079pp) |
+  | sack_rate | 13.705% | **13.542%** |
+  | **`pressure_to_sack`** | 15.190% | **15.191%** (+0.001pp) |
+  | `PICKUP_LOST` | 4,766 | **5,918** |
+  | `UNBLOCKED` | 4,461 | **1,152** |
+
+- **The cleanest confirmation of entry 26 available.** 3,309 rushers who used to arrive clean now
+  meet a body, pressure falls 1.079pp — and **`pressure_to_sack` moves by one thousandth of a
+  percentage point.** The entire movement is in the *rate*; none of it is in the conversion.
+- **v1 is byte-identical before and after**, so the fix is provably a no-op against a caller that
+  builds protection from the real card — the control arm working.
+- **Not solely a caller phenomenon:** the engine's own game fixture carries the same shape on
+  **16.5%** of dropbacks (310 of 1,880).
+- **Pressure is still 89.1% against a real 29.23%.** The excess remains overwhelmingly mechanical.
+  **Entry 3 is the dominant open item in the project.**
 
 ## 23. Yards per carry has ~5 unattributed yards, and they sit where entries 11–14 do not look
 

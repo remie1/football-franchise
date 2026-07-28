@@ -222,10 +222,18 @@ describe("the clock", () => {
  * cards to the fixture corpus changes every play call downstream of the first
  * one, so any seed chosen for a whole-game PROPERTY has to be re-found. Nothing
  * about the overtime branch changed.
+ *
+ * RE-SCANNED AGAIN for ADR-026, and for the same reason. A protector whose named
+ * rusher is not rushing now joins the pickup pool, which moves the dice on any
+ * snap where he is offered somebody — so `ot-33` and `ot-792` are no longer an
+ * overtime and a tie. That the seeds moved is the fix working; a seed chosen by
+ * scanning for a whole-game outcome is not a property of the overtime branch and
+ * has to be re-found whenever any resolution changes. Ties are rare (one in
+ * 1,500 seeds scanned), which is why the tie seed is a long way out.
  */
 describe("overtime, to the extent a tie requires one", () => {
-  const overtime = simulateGameFor("ot-33");
-  const tie = simulateGameFor("ot-792");
+  const overtime = simulateGameFor("ot-103");
+  const tie = simulateGameFor("ot-1465");
 
   it("a tie at the end of regulation opens a fifth period", () => {
     const starts = eventsOf(overtime.events, "PERIOD_START").map((e) => e.payload.period);

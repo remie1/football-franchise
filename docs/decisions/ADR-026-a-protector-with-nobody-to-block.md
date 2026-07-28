@@ -3,7 +3,9 @@
 - **Date:** July 2026
 - **Proposed by:** `calibration`, implementing [ADR-024](ADR-024-the-frozen-caller-still-knows-the-front.md)
   at `callerVersion` v2.
-- **Status:** PROPOSED. Nothing is implemented. It asks for a decision about
+- **Status:** **APPROVED** July 2026 — the unblocked protector joins `available` at the back of
+  pickup priority, and this lands **before any sensitivity sweep.** See the Decision at the foot.
+  *(Originally filed as:)* PROPOSED. Nothing is implemented. It asks for a decision about
   `packages/engine/src/sim/preSnap.ts`, which calibration may not write to.
 - **Affects:** `packages/engine` only. **No contract change is requested and none is needed** —
   every field involved already exists on `PlayCalls` and is already validated.
@@ -147,3 +149,37 @@ every sim sack sits on a pressured dropback by construction, and the whole sack 
   contest it feeds men into is `resolveBlitzPickup`, which already has its own stated terms.
 - **No caller change.** ADR-024's v2 caller is implemented and measured; nothing here asks it to
   behave differently, only for the engine to answer a question the caller can now ask.
+
+---
+
+## Decision
+
+**Approved** by project owner + Orchestrator, July 2026. **The unblocked protector joins
+`available` at the back of pickup priority** — the recommended shape, unchanged.
+
+**The shape is right for the same reason the ADR-022 TRIPLE resolution was:** the engine was
+making a **football claim by omission**, and the correction is arithmetic about its own arguments
+rather than a new rule. No new mechanic, no new tunable, feeding `resolveBlitzPickup`, which
+exists for exactly that meeting and already has its own stated terms.
+
+### This lands BEFORE any sensitivity sweep, and the reason is the point
+
+`blockerStructuralAdvantage` is **the pressure-rate lever** — entry 26 established that the whole
+sack excess is a pressure-rate excess, not a conversion excess — and **this defect moves pressure
+rate by a known amount on 13.40% of dropbacks.**
+
+> **Sweeping first would fit the project's most load-bearing tunable to a distortion we had
+> already identified and chosen not to fix. That is the compensation-debt pattern in its purest
+> form: the number would look measured, and it would be absorbing a defect.**
+
+That is the sixth time this project has declined to buy a number with hidden compensation, and it
+is the clearest statement of the rule so far. Record it as the canonical phrasing.
+
+### Sequence
+
+ADR-026 fix → **re-baseline from a clean tree** → the `blockerStructuralAdvantage` unfreezing ADR
+→ the sweep. Entry 3 is now the **dominant open item in the project**: ending perfectly-informed
+protection was the largest structural distortion in the caller and moved pressure only 1.54pp
+against a rate already at 88.68% versus a real 29.23%. There is essentially no headroom, **which
+means the pressure excess is overwhelmingly mechanical.** A clean result, and a cleaner one than a
+large movement would have been.

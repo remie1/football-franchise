@@ -213,6 +213,10 @@ describe("the men in protection are on the field too", () => {
         readOrder: [wr],
         protection: [],
         availableBlockers: [centre],
+        // ADR-026's tail is empty here on purpose: the centre is a man the CARD
+        // kept in, not a protector whose rusher failed to rush. The reducer has
+        // to find him from `availableBlockers` either way.
+        unblockedProtectors: [],
         hotConversions: [],
       },
       defense: {

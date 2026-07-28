@@ -248,12 +248,28 @@ export interface PassPlayStartPayload {
     readonly readOrder: readonly PlayerId[];
     readonly protection: readonly ProtectionAssignment[];
     /**
-     * §7.4 step 1 — men kept in who are NOT pre-paired to a rusher: the back who
-     * stayed to scan, the uncommitted lineman on a slide. Without this the
-     * stream cannot say whether a blitz went unblocked because the offence had
-     * nobody left or because the body it had lost the contest.
+     * §7.4 step 1 — men with nobody to block at the snap: the back who stayed to
+     * scan, the uncommitted lineman on a slide, and (ADR-026) a protector whose
+     * named rusher is not in `rush`. Without this the stream cannot say whether
+     * a blitz went unblocked because the offence had nobody left or because the
+     * body it had lost the contest.
+     *
+     * IN PICKUP PRIORITY, which is the order the engine actually offered them
+     * in: the card's own list first, then `unblockedProtectors` at the back.
+     * This is the pool as OFFERED — a man in it may have been used, beaten, or
+     * never needed at all, and only the `blitz_pickup` CHECKs say which.
      */
     readonly availableBlockers: readonly PlayerId[];
+    /**
+     * ADR-026 — the tail of `availableBlockers`: men the card paired with a
+     * rusher who is not in `rush`, so their protection entry named nobody who
+     * came. They are also in `protection`, which is why they are named here
+     * rather than left for a consumer to intersect two lists: a reader counting
+     * bodies must not add `protection` and `availableBlockers` together, and a
+     * reader asking "was he kept in to scan, or did his man simply not come?"
+     * can now answer it from the stream instead of inferring it.
+     */
+    readonly unblockedProtectors: readonly PlayerId[];
     /**
      * §5.3 — routes that broke off hot, and what they were before.
      *

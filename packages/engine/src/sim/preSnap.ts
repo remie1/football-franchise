@@ -12,6 +12,9 @@
  *     ACCOUNTED FOR when a `ProtectionAssignment` names him, or when the card
  *     declares a slide, he comes from the slide side, and a slide blocker is
  *     still free. Everything else is UNACCOUNTED.
+ *  1b. §7.4 step 1 READ FROM THE PROTECTION'S SIDE (ADR-026) — a
+ *     `ProtectionAssignment` whose named rusher is not in `defense.rush` is a
+ *     blocker with nobody to block. He joins the pickup pool at the BACK.
  *  2. §5.3 — if anything is unaccounted, the quarterback and the centre roll to
  *     SEE it. This is the only trigger; a pressure the protection already names
  *     has nothing to recognise, so nothing is rolled (ADR-005).
@@ -125,7 +128,21 @@ export interface PreSnapResult {
   readonly plans: readonly RushPlan[];
   /** Rushers no `ProtectionAssignment` named — a fact about the CALL. */
   readonly unaccounted: readonly PlayerId[];
+  /**
+   * THE POOL AS IT WAS OFFERED, in pickup priority: the card's own `available`
+   * list first, then ADR-026's unblocked protectors at the back. Snapshotted
+   * before anybody is taken out of it, so it states who COULD have been used and
+   * never who was — whether a body ended up on somebody is the `blitz_pickup`
+   * CHECK's business, and there is no die here (ADR-004/ADR-005).
+   */
   readonly availableBlockers: readonly PlayerId[];
+  /**
+   * ADR-026 — the tail of `availableBlockers`: protectors the card paired with a
+   * man who is not in `defense.rush`. Stated separately so a consumer can tell
+   * "the card kept him in to scan" from "his man did not come", and so the two
+   * lists are not added together by anybody counting bodies.
+   */
+  readonly unblockedProtectors: readonly PlayerId[];
   readonly disguise: BlitzDisguise;
   readonly stunts: readonly StuntCall[];
   /** §5.3. Absent when nothing was unaccounted and therefore nothing was rolled. */
@@ -166,7 +183,45 @@ export function resolvePreSnap(args: {
   // check here for it any more, because there is no such card (ADR-022).
   const slideSide = scheme?.kind === "SLIDE" ? scheme.slideSide : undefined;
   const declaredAvailable: readonly PlayerId[] = scheme?.available ?? [];
-  const available: PlayerId[] = [...declaredAvailable];
+
+  // ---- 1b. ADR-026: A PROTECTOR WITH NOBODY TO BLOCK ----------------------
+  //
+  // The loop below looks protection up BY RUSHER, so a `ProtectionAssignment`
+  // naming a man who is not in `defense.rush` is never consulted at all: the
+  // blocker it names was paired to nobody and appeared in no list. He was on the
+  // field doing nothing, and nothing in the stream said so — the engine making a
+  // football claim ("a lineman whose man dropped out is idle") by omission,
+  // which is the ADR-022 TRIPLE class of defect and not a resolution.
+  //
+  // THE CHECK IS ARITHMETIC ABOUT THE CALL'S OWN ARGUMENTS, and deliberately
+  // nothing more: does this protection entry name a man who is in `rush`? Two
+  // lists that are both already on `PlayCalls` and already validated. WHY his
+  // man is not rushing — the offence guessed the front wrong, the defence
+  // dropped him into coverage — is the caller's business and the engine reads
+  // none of it. Nor does it read his `Position`: "a tackle holds his edge, a
+  // guard scans" is football (ADR-026's option 3), and it would need
+  // `ProtectionCall` to say so before the engine could act on it.
+  //
+  // AT THE BACK, and the order is the decision. A card that named a man in
+  // `available` stated an intention for him; a protector whose man did not come
+  // is a windfall, not a plan, so he is offered only after the men the card
+  // nominated. He becomes AVAILABLE and not assigned: whether he picks anybody
+  // up is `resolveBlitzPickup`'s roll on its own stated terms, and if nobody
+  // needs him he stays in the pool unused, which `availableBlockers` says.
+  //
+  // NOT A DUPLICATE OF ANYTHING: `assertCoherentPlayCall` already rejects a man
+  // who is both assigned a block and listed as available, and rejects the same
+  // blocker twice in `protection`, so the concatenation cannot repeat a name. It
+  // is not defended against here, because absorbing an incoherent card quietly
+  // is the failure this whole module is written against.
+  const rushing = new Set(defense.rush.map((r) => String(r.rusher)));
+  const unblockedProtectors: readonly PlayerId[] = offense.protection
+    .filter((p) => !rushing.has(String(p.rusher)))
+    .map((p) => p.blocker);
+
+  /** Pickup priority, snapshotted before step 3 starts taking men out of it. */
+  const pickupPool: readonly PlayerId[] = [...declaredAvailable, ...unblockedProtectors];
+  const available: PlayerId[] = [...pickupPool];
 
   /** A rusher and the blocker the CARD paired him with, if it paired one. */
   interface Accounting {
@@ -327,7 +382,8 @@ export function resolvePreSnap(args: {
   return {
     plans,
     unaccounted,
-    availableBlockers: declaredAvailable,
+    availableBlockers: pickupPool,
+    unblockedProtectors,
     disguise,
     stunts,
     recognition,

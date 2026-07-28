@@ -281,6 +281,22 @@ function renderPreSnap(events: readonly MatchEventEnvelope[], name: NameLookup):
     );
   }
 
+  // ADR-026 — the protector whose man is not rushing, printed whether or not
+  // anybody needed him. An available blocker nobody used is a real outcome and
+  // the printout says so rather than leaving him out, which is exactly the
+  // silence the ADR was filed about.
+  if (view !== undefined && view.unblockedProtectors.length > 0) {
+    out.push(
+      `  ├─ PROTECTION (§7.4 step 1, ADR-026): ${view.unblockedProtectors.length} blocker(s)` +
+        " whose named rusher is not rushing — " +
+        `${view.unblockedProtectors.map((id) => name(id as unknown as PlayerId)).join(", ")}` +
+        " — available for pickup, behind the men the card nominated",
+    );
+    if (view.unaccountedRushers.length === 0) {
+      out.push("  │    …and nobody needed him: every rusher was already accounted for");
+    }
+  }
+
   for (const { event } of events) {
     if (event.type !== "PRESNAP_READ") continue;
     const p = event.payload;
@@ -833,6 +849,8 @@ interface PlayStartView {
   /** §7.4 / §5.3. Empty on a run and on any card the printout predates. */
   readonly unaccountedRushers: readonly string[];
   readonly availableBlockers: readonly string[];
+  /** ADR-026. Empty on a run, and on any card whose protection all found a man. */
+  readonly unblockedProtectors: readonly string[];
   readonly blitzDisguise: string;
   readonly hotConversions: readonly {
     readonly receiver: string;
@@ -882,6 +900,7 @@ function readPlayStart(payload: unknown): PlayStartView | undefined {
     ballOn: asNumber(situation["ballOn"], 0),
     unaccountedRushers: asStringArray(defense["unaccountedRushers"]),
     availableBlockers: asStringArray(offense["availableBlockers"]),
+    unblockedProtectors: asStringArray(offense["unblockedProtectors"]),
     blitzDisguise: asString(defense["blitzDisguise"], "STANDARD"),
     hotConversions: asHotConversions(offense["hotConversions"]),
   };
