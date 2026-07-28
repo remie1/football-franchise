@@ -652,6 +652,18 @@ report exists.
 - Worth holding separately from 6 and 7 because it is a **composition** effect, not a mechanic
   defect: the same engine, a different mix of throws. It will move again when ADR-026 lands, and
   again when entry 6's recovery roll is fixed.
+- **It did move when ADR-026 landed, and back into band:** `int_rate` is **PASS** at 2.03% against
+  a real 2.28% in `baseline-0005`, from FAIL at 1.927%. **This is the entry's own prediction
+  confirmed** — the composition shifted back when 3,309 rushers stopped arriving clean and more
+  throws reached the contested population. Do not read the PASS as validation while entry 6's
+  recovery roll never fails; the mix moved, the mechanic did not.
+
+### Stale note to correct in the metric library
+
+`pressure_rate`'s note still reads *"frozen caller: protection is perfectly informed"*. That was
+true at `callerVersion` v1 and is false at v2 — the caller anticipates and is wrong about 26% of
+rushers. The row is still correctly `FAIL (known)` against entries 2 and 3; only the third clause
+is stale. Calibration's to fix.
 
 ## 29. A snapshot holds every rostered player, so a cross-grouping call resolves cleanly
 
