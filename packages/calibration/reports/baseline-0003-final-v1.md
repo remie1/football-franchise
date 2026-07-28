@@ -1,10 +1,10 @@
-# Baseline comparison — baseline-0003-final-v1
+# Baseline comparison — baseline-0001
 
 ## Provenance
 
 | field | value |
 |---|---|
-| engine commit | `9f5e915-dirty` |
+| engine commit | `dcd08ac0565f9c485c86927e8899ab78b547e914` |
 | tunables version | `DEFAULT_TUNABLES` (measured `fnv1a:c035e158`) |
 | frozen caller | `v1/v1` + 4th-down `v1` |
 | league | `flat-60-32t` — **FLAT_SYNTHETIC** |
@@ -17,8 +17,6 @@
 | real seasons | 2022, 2023, 2024 (TUNING) |
 
 **What this report may claim:** MECHANIC CLAIMS ONLY. Every player is identically rated, so no divergence here can be a rating error — but equally, nothing here says whether real rosters would diverge differently. Player-level (Tier 4) and rating-gap (Tier 3 upset) metrics are meaningless on this league and are reported as NOT_APPLICABLE.
-
-> **PRODUCED FROM A DIRTY WORKING TREE.** The commit above is suffixed `-dirty`: this run included uncommitted edits that nothing records. Its carry-forward will be REFUSED by every successor, including another run stamped with the same hash, because two dirty trees are not the same tree. Commit before producing a baseline anybody will trend against.
 
 ## Trend
 

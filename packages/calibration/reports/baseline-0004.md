@@ -1,10 +1,10 @@
-# Baseline comparison — baseline-0004
+# Baseline comparison — baseline-0001
 
 ## Provenance
 
 | field | value |
 |---|---|
-| engine commit | `9f5e915-dirty` |
+| engine commit | `dcd08ac0565f9c485c86927e8899ab78b547e914` |
 | tunables version | `DEFAULT_TUNABLES` (measured `fnv1a:c035e158`) |
 | frozen caller | `v2/v1` + 4th-down `v1` |
 | league | `flat-60-32t` — **FLAT_SYNTHETIC** |
@@ -18,19 +18,13 @@
 
 **What this report may claim:** MECHANIC CLAIMS ONLY. Every player is identically rated, so no divergence here can be a rating error — but equally, nothing here says whether real rosters would diverge differently. Player-level (Tier 4) and rating-gap (Tier 3 upset) metrics are meaningless on this league and are reported as NOT_APPLICABLE.
 
-> **PRODUCED FROM A DIRTY WORKING TREE.** The commit above is suffixed `-dirty`: this run included uncommitted edits that nothing records. Its carry-forward will be REFUSED by every successor, including another run stamped with the same hash, because two dirty trees are not the same tree. Commit before producing a baseline anybody will trend against.
-
 ## Trend
 
 ```
-TREND REFUSED — "baseline-0003-final-v1" is not a comparable baseline for this run.
+TREND REFUSED — "baseline-0001" is not a comparable baseline for this run.
 
-  engineCommit
-      previous (baseline-0003-final-v1): 9f5e915-dirty
-      this run:                9f5e915-dirty
-      → a -dirty tree carries uncommitted edits that nothing records, so it is not comparable to anything — including another run stamped with the same hash
   callerVersion
-      previous (baseline-0003-final-v1): v1/v1
+      previous (baseline-0001): v1/v1
       this run:                v2/v1
       → a different frozen caller sets a different play mix — a different denominator
 
@@ -50,7 +44,6 @@ across a boundary is that same comparison with the control arm quietly missing.
 
 | field | previous | this run | why it matters |
 |---|---|---|---|
-| `engineCommit` | `9f5e915-dirty` | `9f5e915-dirty` | a -dirty tree carries uncommitted edits that nothing records, so it is not comparable to anything — including another run stamped with the same hash |
 | `callerVersion` | `v1/v1` | `v2/v1` | a different frozen caller sets a different play mix — a different denominator |
 
 Every trend cell below reads **refused** rather than an em dash: an em dash means *there was no predecessor*, which is a different fact.
