@@ -202,8 +202,20 @@ export type MatchEvent =
         receiver: PlayerId;
         catchType: string;
         /**
-         * The EFFECTIVE openness that DECIDED `catchType` — §8.4's 0-100 scale, after §8.7's
-         * decay and §8.4's window modifier. The quantity, not the classification.
+         * The ACTUAL openness that DECIDED `catchType` — §8.4's 0-100 scale, after §8.7's decay,
+         * and carrying NEITHER §8.3's perception variance NOR §8.4's window modifier. The
+         * quantity, not the classification.
+         *
+         * ⚠ NOT `effectiveOpenness`, and do not "correct" it to that. ADR-044 fixed this comment,
+         * which originally said EFFECTIVE and was wrong — the engine had it right. Two reasons,
+         * either of which is sufficient:
+         *   1. §11.1 is a statement about GEOMETRY AT THE CATCH POINT. Whether a defender is
+         *      inside a yard is a fact about the DEFENDER — not about what the passer believed,
+         *      nor what his arm talent can compensate for. Perception and arm talent belong to
+         *      the READ, and are already published there as QB_READ.actual/perceived/effective.
+         *   2. Publishing effective openness would satisfy this sentence and DESTROY the field's
+         *      only purpose: a reach counted against it would be a count against a threshold
+         *      nothing compares to.
          *
          * ADR-042. `catchType` is `contested` or `routine` BECAUSE this number fell on one side
          * of `contestedMaxOpenness`. Publishing the label without the quantity made the label's

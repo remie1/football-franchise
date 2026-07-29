@@ -1034,11 +1034,11 @@ Separation Results:
   EXISTING five bands — one band DOWN from where they used to read.
   See the note below.
 
-  WR wins by 30+:   5+ yards separation  -> WIDE OPEN    (§8.4: 70+)
-  WR wins by 20-29: 3-4 yards separation -> OPEN         (§8.4: 50-69)
-  WR wins by 10-19: 1-2 yards separation -> TIGHT WINDOW (§8.4: 30-49)
-  WR wins by 1-9:   half yard separation -> COVERED      (§8.4: 15-29)
-  Tie:              even, bracket        -> COVERED, low end
+  WR wins by 30+:   5+ yards separation  -> 70  WIDE OPEN floor  (§8.4: 70+)
+  WR wins by 20-29: 3-4 yards separation -> 52  OPEN             (§8.4: 50-69)
+  WR wins by 10-19: 1-2 yards separation -> 38  TIGHT WINDOW mid (§8.4: 30-49)
+  WR wins by 1-9:   half yard separation -> 30  TIGHT WINDOW flr (§8.4: 30-49)
+  Tie:              even, bracket        -> 25  COVERED          (§8.4: 15-29, unchanged)
   CB wins by 1-9: CB in phase, trail position
   CB wins by 10-19: CB on hip, can contest
   CB wins by 20+: CB in position for PBU/INT
@@ -1066,8 +1066,44 @@ Separation Results:
 > sharing a term is how a reader conflates a pre-throw geometry with a post-throw event, and this
 > document did exactly that for its whole life. Do not reintroduce it here under any spelling.
 >
-> **Engine change owed** — the §9.3 → §8.4 mapping must move one band down to match. Not yet
-> implemented at time of writing.
+> ### RE-RULED July 2026 (ADR-043) — the first version was not arithmetically satisfiable
+>
+> **The original ruling mapped LABELS while the column is ORDINAL, and ignored row 5.** It put rows 3
+> and 4 both into `covered (15-29)` while `CB_IN_PHASE` **already sits at 25 inside that interval** —
+> so honouring *"tie → covered, low end"* **inverts the column**, and avoiding the inversion forces
+> rows 3–4 into `26-29`, **compressing two distinct outcomes into four points of scale**, which is
+> worse than the label imprecision it was fixing. An implementer following the recorded list would
+> have written four cells and shipped an inverted column.
+>
+> **The corrected column above is monotone by construction, and every value sits inside the band its
+> label names.** The substantive change: **row 4 lands at the tight-window FLOOR (30), not inside
+> covered.** Half a yard of separation is the **boundary case** — the throw must be perfect and the
+> defender can play the ball — and **30 is exactly where §8.4 draws that line.** Rows 1 and 2 keep the
+> correction that motivated SA-08: they were reading one band optimistic.
+>
+> ### ⛔ SCOPE ENLARGED — this is now a SCALE CORRECTION ACROSS §9.3 AND §9.4, and must not land as §9.3 alone
+>
+> The derived consumer enumeration (ADR-043) surfaced three consequences **nobody proposed**, and two
+> are disqualifying for a §9.3-only change:
+>
+> 1. **`targetSelection` would rank man and zone candidates on TWO DIFFERENT MAPPINGS.** That is not a
+>    magnitude shift, **it is an incoherence** — it changes *who gets the ball*. **A scale used by two
+>    producers cannot be corrected for one.** §9.4's zone bands are re-pointed in the same change, or
+>    the change does not happen.
+> 2. **`qb.throwThreshold` and its siblings** (`checkdown.threshold`, `desperationThreshold`, both
+>    spellings of the tight-window boundary) would make the quarterback **materially more reluctant to
+>    throw** — longer holds, more sacks, more throwaways — **with nothing erroring and no test pinning
+>    those populations.** That is a **mechanic change riding inside a labelling fix**, the pattern this
+>    project has refused every time it has appeared.
+>
+> **Therefore: the threshold consumers are enumerated and PINNED BEFORE the values move.**
+>
+> **In scope, same change:** `zoneCoverage.bands.1` is labelled *"open"* in §9.4 and holds **70 —
+> §8.4's `wide open` FLOOR.** That is this very defect one table over, and it is **in scope**, not a
+> separate finding.
+
+> **Engine change owed** — not yet implemented at time of writing, and deliberately so: see the scope
+> block above. §9.3 alone is not a valid landing.
 
 ### 9.4 Zone Coverage Resolution
 

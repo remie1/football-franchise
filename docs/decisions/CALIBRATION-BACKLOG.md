@@ -82,6 +82,28 @@ decides must fail to compile rather than pass green** (now Charter §4.1).
 > places**, six of them with **exclusive reach provably 0** (total stream comparison over 160 games,
 > not a sample). **RIDER 2's two `maxYards` cells are reported and NOT ruled**, as required.
 
+**2b. THE `packages/contracts` DOC-COMMENT AUDIT — a reading pass, no instrument possible.**
+
+**Owner ruling, July 2026, arising from ADR-044.** The doc comments in `packages/contracts` **have
+never been audited.** Every one was written by the owner **in the same pass that produced eight
+structural defects and three transcription artifacts in the design doc**, under the same conditions —
+authored locally, checked against intuition. **There is no reason to think the prose is cleaner than
+the tables were.**
+
+And the stakes are higher than the design doc's, per Charter §4.1: **types, gates and pins constrain
+the value; nothing constrains the prose**, and a wrong comment in a write-protected constitution file
+is trusted *more* than the code because the file is hard to change. ADR-044's was wrong in the exact
+direction that would have converted a correct implementation into a broken one, with every test green.
+
+**Method — and it is the only method:** read each comment **against what the field actually carries in
+the stream.** This is **the same shape as the doc→table reading, pointed at `contracts` instead of the
+design doc** — irreducibly a reading, redone whenever either side changes, and marked in the Charter's
+register as **no path to elimination.**
+
+**Placed here, beside the scale audit, deliberately** — not left to be discovered by the next
+implementer tripping over one. ADR-044 was found by an implementer; that is the mitigation working,
+not a plan.
+
 **3. Entry 23's unowned +0.847 y/c residual (17%)** — attribution, after the sweep. Coupled to
 entry 44; neither closes without the other.
 

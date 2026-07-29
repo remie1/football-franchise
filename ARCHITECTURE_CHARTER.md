@@ -599,6 +599,64 @@ it *claims* to check; only failing it tells you what it *does* check.
    instrument over a changed subject is the exact configuration all three failures above shared.
 3. **An instrument with no failing case is not yet an instrument.** It is a claim.
 
+**Corollary — THE OPAQUE-TYPE FIXPOINT is how you enumerate a scale's consumers. And its ONE blind
+spot is labels, which is exactly where scale changes originate.**
+
+**The method** (ADR-043, and the best instrument built in this project so far): make the quantity an
+**opaque type at its producers**, then let `tsc` walk the transitive closure. Each round's terminal
+errors (`Operator '<=' cannot be applied to 'OP' and 'number'`) **are** the consumer list; re-type
+each carrier and recompile to a fixpoint, then revert. **Use it for any future scale question.**
+
+Why it beats a careful list: it found a **laundering site** — a helper returning plain `number` —
+whose tightening **surfaced two more consumers that had been invisible.** No reading finds those,
+because there is nothing to read: the type had already been erased.
+
+**⚠ ITS BLIND SPOT IS THE FINDING, NOT A CAVEAT. A type cannot see a LABEL consumer** — code or prose
+consuming a scale's *words* rather than its *numbers*. And **scale corrections are almost always
+label re-pointings**, so the method is blind precisely where the work originates.
+
+This was not hypothetical for one dispatch. SA-08 **is** a label re-pointing; §9.4's zone bands are
+stated in **§8.4's words**; and that invisible coupling is what forced SA-08's scope to enlarge from
+one table to two — **after** the derivation had returned a complete-looking numeric answer. **A scale
+used by two producers cannot be corrected for one**, and the derivation could not have told you the
+second producer existed.
+
+**So pair it, always:** the fixpoint for numeric consumers, and a **reading** for label consumers.
+The second has no instrument (see this register's *no path to elimination* entry) and must be redone
+whenever the doc changes. Its other stated limits: it closes over one package only and **stops at the
+event boundary** — anything past the stream was found by **grep on field names, which is not a
+derivation**; and laundering is **mitigated by reaching a fixpoint, not proven.**
+
+**Corollary — TYPES, GATES AND PINS ALL CONSTRAIN THE VALUE. NOTHING CONSTRAINS THE PROSE — and the
+prose is what the next implementer reads first.**
+
+**A field's comment is a claim about the field, and it can be wrong in a way nothing checks.** In
+`packages/contracts` this is **the single highest-leverage defect available in this repo**, and the
+asymmetry is vicious: **the guard's own strength is what makes its prose authoritative.** A comment in
+a write-protected constitution file is trusted *more* than the code, precisely because the file is
+hard to change.
+
+The worked example is ADR-044. `CATCH_RESOLUTION.openness` was documented as **effective** openness;
+the engine correctly publishes **actual** openness. **The comment was wrong in the exact direction
+that converts a correct implementation into a broken one** — a future author trusts the constitution
+over the engine, swaps in `effectiveOpenness`, destroys the measurement the field exists for, **and
+every test stays green.**
+
+**THE RULE, because the mitigation that worked must not stay an anecdote:**
+
+> **An implementer who finds prose contradicting behaviour REPORTS THE MISMATCH AND IMPLEMENTS THE
+> BEHAVIOUR. Resolving it silently, in either direction, is the error.**
+
+**It applies in both directions** — including when the prose is right and the code is wrong. The
+report is what surfaces *which*, and an implementer who quietly "fixed" the code to match a correct
+comment would have destroyed the same information: the fact that they disagreed. **This is correct
+procedure, not pedantry**, and `match-engine` reporting rather than resolving is what saved ADR-042's
+field from being satisfied into uselessness.
+
+**This is the fourth blindness class, and it has no instrument** — it belongs with the register's *no
+path to elimination* entry. There is nothing to walk, hash or perturb; a comment has no
+representation a check can reach.
+
 **Counter-corollary — a guard that always fires gets deleted.** This principle has an obvious
 failure mode in the other direction, and ADR-025 is the worked example: refusing to compare two
 baselines that differ only in *seed list* would have blocked the one unambiguously legitimate
