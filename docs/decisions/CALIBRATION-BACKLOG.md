@@ -580,6 +580,67 @@ measured.** Recorded rather than softened to 0.0 to dodge saying so — which is
 and the alternative would have been a value chosen to avoid a disclosure. **Unratified until a
 corpus sends down linemen unblocked.**
 
+## 40. THE REDIRECT — the pressure rate is a SUPPLY problem, not a threshold problem
+
+**Four levers have now been swept and all four refused.** `blockerStructuralAdvantage` (4.70pp of
+budget), `freeRunnerArrivalSeconds` (0.406pp, zero rate reach), `RUSHER_GAINING`'s band map
+(2.395pp), and `arrival.pressureWithinSeconds` (2.600pp). **Jointly the last two leave 91.4% of the
+gap standing.**
+
+**The decisive measurement:** with the **entire band map extinguished** *and* the arrival PRESSURE
+band closed, pressure is **82.394 ± 0.065%**. `PRESSURE`-status ticks fall to **0.09%** — and
+**`COLLAPSING` is still 45.69% of every pass tick. 88.3% of the divergence survives having removed
+every threshold that classifies a pocket as dirty.**
+
+> **The pressure rate is a `COLLAPSING` phenomenon produced by the SUPPLY of threats, not by any
+> threshold classifying them.**
+
+**The two unswept candidates, and neither has ever been named as a pressure lever:**
+
+1. **`startsThreat` fires on 31.85% of all §7.1 reps.** The `RUSHER_WINS_REP` band sits at margin
+   15, which on an even rep is **P ≈ 0.36** — roughly a third of every rep in the game creates a
+   threat. This is where the supply comes from.
+2. **Threat persistence.** A threat is removed **only** by `BLOCKER_RESETS`. Nothing else retires
+   one — not time, not distance, not the blocker recovering short of a reset.
+
+**Sweep these next.** Note the shape of the finding: four dispatches looked for the pressure rate
+in the *classification* of reps and it was in the *production* of them. That is worth remembering
+as a class — **when every threshold in a subsystem is refused, the quantity is upstream of all of
+them.**
+
+## 41. `RUSHER_GAINING → PRESSURE` is a TRANSCRIPTION, not an interpretation
+
+`match-engine.md` §7.2 says, verbatim: **`POCKET PRESSURE: 1+ rushers winning by 1-14`**, and
+`passRush.bands` puts `RUSHER_GAINING` at `minMargin: 1`.
+
+**So the football objection — "gaining ground is not pressure" — is an objection to the DOC**, and
+it is the owner's to make, not a tuning question. It is neither compensator nor defect: **a
+different constant would be a cosmetic edit to a quotation.** ADR-032 prices it at **2.382 ±
+0.051pp of pressure and 0.000pp of sack** so the owner can rule with the number in hand.
+
+**The asymmetry worth recording:** candidate 1 *is* the doc and is small. Candidate 2
+(`pocketFloorFromArrival`) has **no counterpart in §7.2 at all** and is the same size. One is a
+faithful transcription of a rule; the other is a rule the engine invented — and they cost the same.
+
+**One measurement to keep:** in `GAINING_ONLY` dropbacks — where the band map is the *only* thing
+dirtying pockets — pressure is **27.875% against a real 29.225%.** Where this mechanism acts alone
+it is already realistic. (Named selection effect: that bucket is short plays, ttt 0.748 vs 1.217,
+so it is an observation and not a counterfactual.)
+
+## 42. The status ladder is non-monotone in urgency at its top rung
+
+**Found by probing a direction only rule 1 required.** Setting the band to `SACK` **lowers** the
+sack rate by **1.889pp**.
+
+- `pocket.severity` ranks `SACK` above `IMMEDIATE`, but `forcesDecision` and `sackWhenNoTarget` are
+  both `["COLLAPSING","IMMEDIATE"]` — **a pocket at status `SACK` forces nothing.**
+- Consequences: time-to-throw **+0.122s**, throwaways **+2.68pp**, scrambles **−5.96pp**.
+- **The state is reachable today** via `pocket.thresholds` `minProgress: 9`.
+- **Engine petition (ADR-032):** is `SACK` a *status* or an *outcome*? It is currently both, and the
+  ladder is ordered as though it were only the former.
+- **No known-truth gate asserts monotonicity of the status ladder itself**, which is why this
+  survived to be found by a sweep rather than by a gate. Candidate for a new gate.
+
 ## 34. Both named suspects for the pressure rate are eliminated — here is what is left
 
 After ADR-028 and ADR-030, the two tunables the backlog named as the pressure levers have both been
@@ -599,6 +660,13 @@ it.** The remaining unswept candidates, and they are now the highest-value sensi
    **Both candidates are now measurable. Sweep candidate 1 first**, per the owner: `RUSHER_GAINING`
    is the more likely single cause, and 100.000% ± 0.000 pressure at every rung including
    extinction is the strongest possible sign the floor is doing the work.
+
+**⚠ BOTH CANDIDATES SWEPT AND BOTH REFUSED (ADR-032).** Candidate 1 is worth 2.395pp, candidate 2
+is worth 2.600pp, and **jointly they leave 91.4% of the gap standing.** The interaction is
+**near-separable** — the opposite of what was expected, because candidate 1's exclusive population
+has no threats for a horizon to reach. **This entry is closed and superseded by entry 40:** the
+quantity is upstream of every threshold, in the *supply* of threats rather than their
+classification.
 
 ## 35. The free runner's clock reads nothing about the man it is timing
 
