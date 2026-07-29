@@ -348,6 +348,54 @@ pressure by any charting convention, and the sim's 89% is not made of free runne
 thing to measure. It needs a tunable before it can be swept, which makes it a petition of its own
 and not a line item in this one.
 
+## Ratification — Option A, the path term
+
+**Approved** by project owner + Orchestrator, July 2026. **Give the clock a §7.4-specific path
+term keyed on where the rusher starts.** No patch record; the committed `freeRunnerArrivalSeconds`
+is not what changes.
+
+**The ADR-028 precedent controls, and the parallel is close to exact.** There, a constant was
+**65.2% of a bad line's protection**, and the fix cost Tier 1 means to buy a slope that only
+becomes visible when ratings vary. Here, the free runner's clock is **the only threat clock in the
+engine consulting no property of its rusher** — so a blitzing safety from depth and a linebacker
+walked up to the A gap **arrive identically, forever.**
+
+That is structural insensitivity, it is precisely the thing ratings are supposed to move, and it is
+what will not be recoverable once attributes land: **a franchise mode where blitz design and rusher
+alignment do not change arrival time is one where a defensive coordinator's most distinctive
+decision is inert.**
+
+**Losing ≈0.6pp of sack is the same trade as ADR-028, and cheaper.** Treat the +0.6pp as
+**arithmetic, not prediction** — entry 26's 4.48% is the cautionary case, and this lever governs a
+channel whose conversion optimum sits at the committed value, so **expect the realised number to
+differ.**
+
+### The counter-observation stays prominent, because it is what makes this real
+
+**Outcomes are not flat by alignment today**: 14.863% of INTERIOR governed threats arrive against
+7.586% of EDGE ones, via `scramble.edgeThreatPenalty` and `simultaneousArrivalPriority`.
+
+**So what is undifferentiated is the CLOCK, not the OUTCOME.** The engine already produces
+alignment-varying results through other channels while the arrival model itself is blind. That is
+what makes this a genuine structural defect rather than a cosmetic one — and it is also why the
+repair cannot be justified by pointing at a flat output, because the output is not flat.
+
+### The refusal, and the sequencing, are the other results
+
+Filing with **no patch record because the refusal is the result** is the correct form.
+
+And §5.3's precondition is vindicated as a **sequencing** rule rather than a gate that changes
+answers: **14.20% affected against the 0.13% that would have triggered refusal — 109×.** Waiting
+did not change the conclusion; it changed whether the conclusion was worth anything. Swept sixteen
+dispatches ago it would have measured 56 dropbacks and produced a number shaped like a result.
+
+### The complement finding
+
+`blockerStructuralAdvantage` moved the **rate** and destroyed the conversion; this moves the
+**conversion** and cannot touch the rate. **Two levers, two disjoint halves of the identity,
+demonstrated rather than argued** — which means entry 26's original rule was wrong in a *specific,
+now-understood* way rather than merely overgeneralised.
+
 ## Backlog amendments this ADR requires
 
 Filed here because `calibration` may not write `CALIBRATION-BACKLOG.md` in this dispatch. Each is a

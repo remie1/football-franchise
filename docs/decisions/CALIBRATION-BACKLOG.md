@@ -576,6 +576,15 @@ it.** The remaining unswept candidates, and they are now the highest-value sensi
   one seed list. This says: **eight lists is enough to claim direction and saturation, and not
   enough to rank adjacent steps.** Anyone re-runging in that region needs **more lists, not bigger
   ones** — the sweep already ran 496 games a rung.
+
+> ### THE RULE, sharpened — two different failures needing two different fixes
+>
+> **Replication count governs RANKING claims. Game count governs EFFECT-SIZE claims.**
+>
+> More games shrink the error on *how big* a step is. Only more independent seed lists shrink the
+> error on *which step is bigger*. Confusing them is why the 1.5→2.0 region looked like a shelf on
+> one eight-set group and not on another at 496 games a rung — and why the remedy there is more
+> lists, not bigger ones. Ask which claim you are making before choosing which number to raise.
 - **[ADR-026](ADR-026-a-protector-with-nobody-to-block.md) — RATIFIED AND LANDED**, before any
   sweep, because `blockerStructuralAdvantage` is the pressure-rate lever and this defect moved the
   pressure rate on 13.40% of dropbacks. The unblocked protector joins `available` at the back of
