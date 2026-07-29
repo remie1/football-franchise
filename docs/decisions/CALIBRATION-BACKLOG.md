@@ -673,11 +673,15 @@ asserted.
 - `dl-passrush` is **ADR-028 seen from the other side of the same rep** (a 60-rated blocker went
   39 → 36 points). `db-coverage` is the most stale and **its two steps have swapped which is
   larger** — re-runging candidate.
-- **A cross-scenario claim is falsified and marked dead in place.** `dl-passrush`'s hypothesis
-  cited *"the pass RUSH flattens at the bottom while the pass BLOCK it is contested against is
-  linear to zero"* as evidence for entry 3's term-count asymmetry. **Post-ADR-028 pass block
-  flattens at the bottom too.** The prediction was right and **the thing it predicted has been
-  removed.**
+- **A cross-scenario claim is falsified and marked dead in place — and this is the GOOD outcome,
+  not a wrong call.** `dl-passrush`'s hypothesis cited *"the pass RUSH flattens at the bottom while
+  the pass BLOCK it is contested against is linear to zero"* as evidence for entry 3's term-count
+  asymmetry. **Post-ADR-028 pass block flattens at the bottom too.**
+
+  **The prediction was correct. ADR-028 removed the asymmetry it described.** A hypothesis that
+  dies because the thing it described was *fixed* is the outcome the hypothesis existed to produce,
+  and the record should read that way rather than as a miss. Marked dead in place, with the reason,
+  so nobody later reads a struck-through claim as a bad call.
 - **Full re-records owed** (§22a procedure, ~15 min compute): all four, with `db-coverage` and
   `dl-passrush` the material ones. Settle `db-coverage`'s dead `playRecognition` and
   `qb-accuracy`'s two-channel `touch` in that same pass.
@@ -876,6 +880,30 @@ report exists.
   `tol ≤ ½ × smallest step`, and `minEffect ≤ 0.8 × measured span`. **Widening a tolerance to go
   green now requires editing a field labelled "measured" next to the seed digest that measured
   it.** Charter §4.1 applied to a test suite.
+
+### THE TEST FOR A SHELF — use this, not judgement
+
+> **A genuine shelf does not move when the seeds do.**
+
+A step that looks flat, or a step that looks twice its neighbours, is **not evidence of curve shape
+until it survives independent seed sets.** Entry 33's claim 3 was written from a single run reading
+0.0375/0.0716/0.0510; eight independent seed sets at 160 games gave **0.0509/0.0546/0.0537 —
+flat**, with that one canonical list happening to hold *both* extremes. Re-runging on it would have
+committed **the entry-22 failure inside the act of fixing an entry-22 failure.**
+
+**Corollary, and it is the operative status right now: any ladder record derived from a single run
+is UNTRUSTED.** Not "less certain" — untrusted, and not to be re-runged from.
+
+### Record the dispersion of the thing the gate actually DRAWS
+
+`recordedStepSE` holds the **SD of one ladder's step, not the SEM across replicates**, because the
+gate runs **one** ladder — so what threatens it is a **single draw**.
+
+Dividing by √K would shrink the recorded margin every time somebody measured harder: **a metric
+that rewards effort with laxity**, the same failure family as a tolerance widened to go green.
+Generalise: **record the dispersion of the quantity the check actually consumes**, not the
+dispersion of your estimate of it.
+
 - **Standing caution:** `db-coverage` needs ~5× the sample of any other family, and its SE
   estimate is itself unstable (0.028 over three seed sets, 0.091 over six; the 4.2σ margin rests
   on a CI of roughly [0.057, 0.22], so the true margin could be ~2.5σ). **The obvious economy —
