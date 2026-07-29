@@ -1,7 +1,10 @@
 import { createRng } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
+import { ATTR } from "../src/attrs.js";
 import {
   maxReadsFor,
+  perceptionHalfWidth,
+  perceptionVariance,
   readCapacityPerTick,
   resolveQbRead,
   throwThresholdFor,
@@ -24,30 +27,130 @@ const poorQb = makePlayer("qb-poor", "Backup", "QB", {
   awareness: 60, decisionMaking: 55, accuracy: 62, armStrength: 66, touch: 60, pocketPatience: 55, poise: 58,
 });
 
-describe("§8.3 awareness variance", () => {
-  it("perceived = actual + variance roll total, and the roll is a d20", () => {
+/**
+ * §8.3 AS AMENDED (ADR-040, owner ruling on ADR-039 SA-09).
+ *
+ * Two properties are required of the perception band and neither is the
+ * engine's to choose: it is CENTRED ON THE TRUE VALUE at every awareness, and
+ * its half-width is MONOTONE DECREASING in awareness. Both are proved here over
+ * EVERY face of the die and every rating on the registry's range, rather than
+ * sampled — a statistical check on a symmetric band is exactly the instrument
+ * that would let a half-point of optimism back in.
+ */
+describe("§8.3 perception band", () => {
+  const FACES = Array.from({ length: 20 }, (_, i) => i + 1);
+  const RATINGS = Array.from({ length: 100 }, (_, i) => i);
+  const HALF_WIDTHS = [0, 0.5, 1, 2, 4.2, 5, 7.5, 10, 12, 16, 24];
+
+  it("perceived = actual + variance roll total, and the roll is still §8.3's d20", () => {
     const out = resolveQbRead(TUNABLES, eliteQb, 60, createRng("s", "qbread"));
     expect(out.varianceRoll.die).toBe("d20");
     expect(out.perceivedOpenness).toBe(Math.max(0, Math.min(100, 60 + out.varianceRoll.total)));
-    expect(out.varianceRoll.modifiers.map((m) => m.source)).toContain("d20 variance offset");
   });
 
-  // The doc's illustrative ranges assume a 0-based d20; @ff/contracts rolls 1..20,
-  // so each window sits one point higher at the bottom end.
-  it("awareness narrows the variance window (d20 1..20)", () => {
-    const range = (qb: typeof eliteQb): [number, number] => {
+  it("the roll's arithmetic is still raw + Σmodifiers = total", () => {
+    for (const qb of [eliteQb, averageQb, poorQb]) {
+      for (let i = 0; i < 200; i++) {
+        const roll = resolveQbRead(TUNABLES, qb, 50, createRng(`acct-${i}`, "qbread")).varianceRoll;
+        const sum = roll.modifiers.reduce((acc, m) => acc + m.value, 0);
+        expect(roll.total).toBe(roll.raw + sum);
+      }
+    }
+  });
+
+  it("awareness is emitted as a named, attribute-tagged modifier on every read", () => {
+    for (const qb of [eliteQb, averageQb, poorQb]) {
+      const roll = resolveQbRead(TUNABLES, qb, 50, createRng("mod", "qbread")).varianceRoll;
+      const awareness = roll.modifiers.find((m) => m.attr === ATTR.awareness);
+      expect(awareness).toBeDefined();
+      // The half-width is IN the printout: the band is the mechanic.
+      expect(awareness?.source).toContain("perception band");
+    }
+  });
+
+  it("CENTRED: the variance map is odd, so the mean over the die is exactly zero", () => {
+    for (const halfWidth of HALF_WIDTHS) {
+      for (const face of FACES) {
+        expect(perceptionVariance(21 - face, halfWidth)).toBe(-perceptionVariance(face, halfWidth));
+      }
+      const total = FACES.reduce((acc, face) => acc + perceptionVariance(face, halfWidth), 0);
+      expect(total).toBe(0);
+    }
+  });
+
+  it("CENTRED at every rating on the registry's range, not merely at the ones in the doc", () => {
+    for (const rating of RATINGS) {
+      const qb = makePlayer(`qb-${rating}`, "Reader", "QB", { awareness: rating });
+      const halfWidth = perceptionHalfWidth(TUNABLES, qb);
+      const total = FACES.reduce((acc, face) => acc + perceptionVariance(face, halfWidth), 0);
+      expect(total).toBe(0);
+    }
+  });
+
+  it("the band reaches its stated half-width and never exceeds it", () => {
+    for (const halfWidth of HALF_WIDTHS) {
+      const magnitudes = FACES.map((face) => Math.abs(perceptionVariance(face, halfWidth)));
+      expect(Math.max(...magnitudes)).toBe(Math.round(halfWidth));
+    }
+  });
+
+  it("MONOTONE: better awareness is a narrower band, at every rating and on every face", () => {
+    const widthAt = (rating: number): number =>
+      perceptionHalfWidth(TUNABLES, makePlayer(`qb-${rating}`, "Reader", "QB", { awareness: rating }));
+    for (let rating = 1; rating < 100; rating++) {
+      expect(widthAt(rating)).toBeLessThan(widthAt(rating - 1));
+      for (const face of FACES) {
+        expect(Math.abs(perceptionVariance(face, widthAt(rating)))).toBeLessThanOrEqual(
+          Math.abs(perceptionVariance(face, widthAt(rating - 1))),
+        );
+      }
+    }
+  });
+
+  it("the half-width is §8.3's own numbers: ±10 at the baseline, ±5 for an elite passer", () => {
+    expect(perceptionHalfWidth(TUNABLES, averageQb)).toBe(10 - (75 - 70) / 5);
+    expect(perceptionHalfWidth(TUNABLES, eliteQb)).toBe(5);
+    expect(perceptionHalfWidth(TUNABLES, poorQb)).toBe(12);
+    expect(perceptionHalfWidth(TUNABLES, makePlayer("qb-base", "Base", "QB", { awareness: 70 }))).toBe(10);
+  });
+
+  it("NOT OPTIMISM: an elite passer's band is narrower than a poor one's, both sides", () => {
+    // The defect this replaces gave the elite quarterback −5..+15 and the poor
+    // one −12..+8: same width, shifted centre. Both bands are now centred, and
+    // the observed range is symmetric.
+    const observed = (qb: typeof eliteQb): { low: number; high: number; mean: number } => {
       let low = Infinity;
       let high = -Infinity;
-      for (let i = 0; i < 400; i++) {
+      let sum = 0;
+      const n = 2000;
+      for (let i = 0; i < n; i++) {
         const v = resolveQbRead(TUNABLES, qb, 50, createRng(`v-${i}`, "qbread")).varianceRoll.total;
         low = Math.min(low, v);
         high = Math.max(high, v);
+        sum += v;
       }
-      return [low, high];
+      return { low, high, mean: sum / n };
     };
-    expect(range(eliteQb)).toEqual([-4, 15]);
-    expect(range(averageQb)).toEqual([-8, 11]);
-    expect(range(poorQb)).toEqual([-11, 8]);
+    const elite = observed(eliteQb);
+    const poor = observed(poorQb);
+    expect(elite).toMatchObject({ low: -5, high: 5 });
+    expect(poor).toMatchObject({ low: -12, high: 12 });
+    expect(Math.abs(elite.mean)).toBeLessThan(0.5);
+    expect(Math.abs(poor.mean)).toBeLessThan(0.5);
+  });
+
+  it("§8.8's vision cone still shifts the centre — a deliberate bias is not awareness", () => {
+    const cone = { source: "Scramble vision cone", value: -40 };
+    const plain = resolveQbRead(TUNABLES, eliteQb, 50, createRng("cone", "qbread"));
+    const blind = resolveQbRead(TUNABLES, eliteQb, 50, createRng("cone", "qbread"), [cone]);
+    expect(blind.varianceRoll.total).toBe(plain.varianceRoll.total - 40);
+  });
+
+  it("is deterministic: the same seed produces the same read", () => {
+    const a = resolveQbRead(TUNABLES, eliteQb, 55, createRng("det", "qbread"));
+    const b = resolveQbRead(TUNABLES, eliteQb, 55, createRng("det", "qbread"));
+    expect(a.varianceRoll).toEqual(b.varianceRoll);
+    expect(a.perceivedOpenness).toBe(b.perceivedOpenness);
   });
 });
 

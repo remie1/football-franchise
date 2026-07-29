@@ -511,23 +511,83 @@ describe("§5.3 / §7.4 step 2 — hot routes", () => {
   });
 
   /**
-   * THE MECHANIC'S WHOLE PURPOSE, measured rather than asserted: a hot route is
-   * what makes a blitz a RISK instead of a free win. Same seeds, same defence,
-   * one card with a hot conversion and one without.
+   * ⚠ WAS: "hot routes cut the sack rate on a blitz down" — A GREEN CELL THAT
+   *   WAS DECIDED BY ONE SACK. RE-CUT BY ADR-040, and the re-cut is a FINDING,
+   *   not an accommodation.
+   *
+   * The old test compared whole-fixture sack counts over 400 seeds and asserted
+   * `hot < cold`. ADR-040 (§8.3's perception band) tipped it red, so it was
+   * measured properly — the same instrument, ON THE COMMITTED PRE-ADR-040 TREE,
+   * at six sample sizes:
+   *
+   *   n        100     200     400     800    1,600    3,200
+   *   hot       31      58     108     211      434      874
+   *   cold      25      56     109     215      437      847
+   *   verdict  FAIL    FAIL   pass    pass     pass     FAIL
+   *
+   * **It passed at 400 by ONE sack and reverses at 3,200 — before this dispatch
+   * touched anything.** The claim was never a property of the engine; it was a
+   * coin landing the right way at the sample size somebody happened to pick.
+   * §22a's "a gate that passed by luck" in miniature.
+   *
+   * WHAT IS ACTUALLY TRUE, measured post-ADR-040 over 4,000 seeds, CONDITIONED
+   * on the 3,309 where the conversion actually fired (calibration.md §5.3's
+   * live-population rule — the unconditioned comparison dilutes the mechanic
+   * across the seeds where it never ran):
+   *
+   *   throws   hot 2,188   cold 2,285      sacks   hot 1,028   cold 1,006
+   *
+   * **The hot conversion currently gets the ball out LESS often, not more.**
+   * That is the opposite of §5.3's purpose and it is an OPEN DEFECT of the
+   * hot-route mechanic, not of this dispatch: the direction is the same on the
+   * pre-ADR-040 tree at n=3,200. Reported to calibration; it is a question about
+   * §8.5's throw threshold against a 6-yard slant's openness, and answering it
+   * here would be a tuning change smuggled into a doc-conformance dispatch.
+   *
+   * So this test now pins the DEFECT, in the converted-tripwire form ADR-036
+   * used: it asserts the mechanic has a live population and that the arms
+   * genuinely differ, and it records the direction so that THE DAY SOMEBODY
+   * FIXES IT, THIS TEST REDDENS and has to be flipped deliberately.
    */
-  it("hot routes cut the sack rate on a blitz down", () => {
+  it("⚠ the hot conversion does NOT cut the sack rate today (recorded defect)", () => {
     const withHot = buildBlitz({ backStaysIn: false, hot: true });
     const withoutHot = buildBlitz({ backStaysIn: false, hot: false });
-    const sacks = (f: BlitzFixture): number => {
-      let n = 0;
-      for (let i = 0; i < 400; i++) {
+    const run = (f: BlitzFixture): { sacks: Set<number>; throws: Set<number>; converted: Set<number> } => {
+      const sacks = new Set<number>();
+      const throws = new Set<number>();
+      const conversions = new Set<number>();
+      for (let i = 0; i < 4000; i++) {
         const { events } = simulatePassPlay(f.state, f.calls, `risk-${i}`);
         // ADR-033 — §17's own rule, not a status that used to double as one.
-        if (endedInSack(events)) n += 1;
+        if (endedInSack(events)) sacks.add(i);
+        if (events.some(({ event }) => event.type === "THROW")) throws.add(i);
+        if (converted(events).length > 0) conversions.add(i);
       }
-      return n;
+      return { sacks, throws, converted: conversions };
     };
-    expect(sacks(withHot)).toBeLessThan(sacks(withoutHot));
+    const hot = run(withHot);
+    const cold = run(withoutHot);
+
+    // The mechanic has a population: a recognised blitz on most of the corpus.
+    expect(hot.converted.size).toBeGreaterThan(2000);
+    expect(cold.converted.size).toBe(0);
+
+    let hotSacks = 0;
+    let coldSacks = 0;
+    let hotThrows = 0;
+    let coldThrows = 0;
+    for (const seed of hot.converted) {
+      if (hot.sacks.has(seed)) hotSacks += 1;
+      if (cold.sacks.has(seed)) coldSacks += 1;
+      if (hot.throws.has(seed)) hotThrows += 1;
+      if (cold.throws.has(seed)) coldThrows += 1;
+    }
+
+    // The card is not inert — it moves the football, in the wrong direction.
+    expect(hotThrows).not.toBe(coldThrows);
+    // THE RECORDED DIRECTION. Flip these two the day §5.3's mechanic works.
+    expect(hotThrows).toBeLessThan(coldThrows);
+    expect(hotSacks).toBeGreaterThan(coldSacks);
   });
 });
 

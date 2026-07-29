@@ -50,6 +50,13 @@
  * was blind, the blocking was not, and the consequence was that a whole branch of the pass game
  * never executed — `PICKUP_LOST` = 0 and `hot_route_rate` = 0.10% in 496 games.
  *
+ * ⚠ **THOSE TWO FIGURES ARE v1's AND ARE NOT THE CURRENT STATE — quote them only about v1.**
+ * Measured at v2 on the same league and schedule (496 games, seeds `fnv1a:020c1dcb#496`, tunables
+ * `fnv1a:8a8354c3`): **5,901 `PICKUP_LOST` threats**, and **1,970 hot-converted dropbacks = 4.51%
+ * of 43,657** — roughly 35× the v1 rate, and comfortably above `calibration.md` §5.3's refusal
+ * floor, which the v1 figure sat below. Backlog 28a is the first finding that population made
+ * measurable.
+ *
  * **At `callerVersion` v2 the caller anticipates the front** (`anticipate.ts`, which carries the
  * whole argument including the personnel rule and everything rejected). A second card is drawn
  * from the same situational weights, constrained to the real card's personnel grouping; the

@@ -115,6 +115,29 @@ export function rollD20(rng: Rng, modifiers: readonly RollModifier[]): RollDetai
   return { die: "d20", raw, modifiers: mods, total: raw + sumModifiers(mods), rngLabel: rng.label };
 }
 
+/**
+ * A d20 whose modifiers are a FUNCTION OF THE FACE ROLLED.
+ *
+ * One caller: §8.3's perception band (ADR-040). Awareness narrows the band the
+ * draw is taken from rather than shifting it, so its contribution is not a
+ * constant that can be summed before the die is thrown — it depends on how far
+ * from the truth this particular face lands.
+ *
+ * It is a builder HERE, beside the other two, for the reason this module exists:
+ * every consumer of the stream — the §17 printout above all — reads a
+ * `RollDetail` as `raw + Σmodifiers = total`, and a resolver that hand-rolled
+ * its own detail could quietly break that arithmetic. This cannot: the total is
+ * still computed from the modifier list.
+ */
+export function rollD20Shaped(
+  rng: Rng,
+  shape: (raw: number) => readonly RollModifier[],
+): RollDetail {
+  const raw = rng.d20();
+  const mods = [...shape(raw)];
+  return { die: "d20", raw, modifiers: mods, total: raw + sumModifiers(mods), rngLabel: rng.label };
+}
+
 export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }

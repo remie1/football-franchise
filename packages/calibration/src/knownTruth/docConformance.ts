@@ -71,6 +71,14 @@ export interface NumericLeaf {
  * rather than magnitudes. **Both exclusions are declared here and counted by `leafCensus`** so that
  * "the register covers the tunables" cannot quietly mean "covers the part it chose to look at" —
  * Charter §4.1's implicit-coverage corollary applied to this file's own scope.
+ *
+ * ⚠ **AND THE EXCLUSION HAS A COST THIS FILE NOW KNOWS THE SIZE OF (ADR-041, backlog 51).** SA-13's
+ * *worse half* — the one that made a touch pass harder to deflect than a bullet — was not a number
+ * at all. It was `angleByThrowType`, a **string-valued mapping** from throw type onto §10.3's angle
+ * column, and this register is structurally blind to it: the numeric angle values were verbatim and
+ * correct, and the defect was entirely in which of them got selected. The register's only contact
+ * with that table was its contribution to a string COUNT. Closing the gap means classifying string
+ * leaves against the doc the same way, which is a reading and not a count; it is backlog 51.
  */
 export function numericLeaves(tunables: Tunables = DEFAULT_TUNABLES): readonly NumericLeaf[] {
   const out: NumericLeaf[] = [];
@@ -79,7 +87,7 @@ export function numericLeaves(tunables: Tunables = DEFAULT_TUNABLES): readonly N
       out.push({ path, value: node });
       return;
     }
-    if (typeof node !== "object" || node === null) return;
+    if (!isPlainContainer(node)) return;
     for (const key of Object.keys(node as Record<string, unknown>)) {
       walk((node as Record<string, unknown>)[key], path === "" ? key : `${path}.${key}`);
     }
@@ -90,8 +98,22 @@ export function numericLeaves(tunables: Tunables = DEFAULT_TUNABLES): readonly N
 
 export interface LeafCensus {
   readonly numbers: number;
+  /**
+   * REPORTED, NOT PINNED — see `docConformance.test.ts`'s census block for the argument. The
+   * register classifies no string and no boolean, so their cardinality is a fact about a population
+   * this file has declared out of scope, not a denominator for any claim it makes.
+   */
   readonly strings: number;
   readonly booleans: number;
+  /**
+   * ⚠ THE TYPOLOGY'S OWN COMPLETENESS. Paths of leaves the walk REACHED and could not put in any of
+   * the three buckets — `undefined`, `null`, a function, a `bigint`, a `Map`, a `Date`. MUST be
+   * empty, and it is asserted rather than assumed because the old `else if` chain **dropped them
+   * silently**: a subtree that stopped being a plain object would have vanished from every count
+   * with nothing to show for it. This is the derived form of "the walk did not quietly narrow" —
+   * it fails at a PATH, by name, instead of as an integer that no longer matches.
+   */
+  readonly untyped: readonly string[];
 }
 
 /** The whole leaf population, by type, so the register's denominator is visible. */
@@ -99,18 +121,64 @@ export function leafCensus(tunables: Tunables = DEFAULT_TUNABLES): LeafCensus {
   let numbers = 0;
   let strings = 0;
   let booleans = 0;
-  const walk = (node: unknown): void => {
+  const untyped: string[] = [];
+  const walk = (node: unknown, path: string): void => {
     if (typeof node === "number") numbers += 1;
     else if (typeof node === "string") strings += 1;
     else if (typeof node === "boolean") booleans += 1;
-    else if (typeof node === "object" && node !== null) {
+    else if (isPlainContainer(node)) {
       for (const key of Object.keys(node as Record<string, unknown>)) {
-        walk((node as Record<string, unknown>)[key]);
+        walk((node as Record<string, unknown>)[key], path === "" ? key : `${path}.${key}`);
       }
-    }
+    } else untyped.push(path === "" ? "<root>" : path);
   };
-  walk(tunables);
-  return { numbers, strings, booleans };
+  walk(tunables, "");
+  return { numbers, strings, booleans, untyped };
+}
+
+/**
+ * A container the walk may descend into: a plain object or an array, and nothing else.
+ *
+ * `typeof node === "object" && node !== null` was the old test and it is too wide in one direction
+ * and too narrow in the other — it descends into a `Map` (whose entries `Object.keys` cannot see, so
+ * the subtree silently disappears) and it treats `null` as an object (so a nulled cell vanishes
+ * rather than reporting). Both are the same failure: a leaf that leaves the census without saying so.
+ */
+function isPlainContainer(node: unknown): boolean {
+  if (typeof node !== "object" || node === null) return false;
+  if (Array.isArray(node)) return true;
+  const proto: unknown = Object.getPrototypeOf(node);
+  return proto === Object.prototype || proto === null;
+}
+
+/** Every numeric leaf PATH, sorted — the register's subject as a set rather than as a count. */
+export function numericLeafPaths(tunables: Tunables = DEFAULT_TUNABLES): readonly string[] {
+  return numericLeaves(tunables)
+    .map((l) => l.path)
+    .sort();
+}
+
+/**
+ * FNV-1a over the sorted numeric leaf paths.
+ *
+ * ⚠ **WHY A CARDINALITY WAS NOT ENOUGH, AND ADR-040 IS THE PROOF.** The census pinned `numbers:
+ * 699`. ADR-040 removed `qb.awarenessVariance.d20Offset` and added `qb.awarenessVariance.baseHalfWidth`
+ * in the same dispatch — **a net change of zero.** Both sit under the block rule
+ * `qb.awarenessVariance.*`, so `unclassified` stayed empty and `deadRules` stayed empty too, and a
+ * cell that did not exist yesterday entered the tree already wearing a `DOC_VERBATIM` classification
+ * written about a different cell. Nothing reddened. A count cannot see a swap; a path set can.
+ */
+export function numericLeafPathDigest(tunables: Tunables = DEFAULT_TUNABLES): string {
+  let h = 0x811c9dc5;
+  for (const path of numericLeafPaths(tunables)) {
+    for (let i = 0; i < path.length; i++) {
+      h ^= path.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    h ^= 0x0a;
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `fnv1a:${h.toString(16).padStart(8, "0")}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -694,23 +762,58 @@ export const REGISTER: readonly RegisterRule[] = [
     docRef: "§9.3",
     note: "30 / 20 / 10 / 1 / 0 / −9 / −19 / −∞ encode the doc's eight rows exactly.",
   },
-  {
-    pattern: "manCoverage.bands.2.openness",
-    provenance: "INTERPRETATION",
-    docRef: "§9.3 + §8.4",
-    note:
-      "⚠ §9.3 labels this row '1-2 yards separation (CONTESTED)' and §8.4's scale calls 55 'open' " +
-      "(50-69). The two sections disagree about the same rep, and the engine sits on §8.4's side. " +
-      "See SA-08.",
-    finding: "SA-08",
-  },
+  // ---- SA-08 — RULED, AND THE ENGINE CHANGE IS OWED ---------------------------------------------
+  //
+  // OWNER RULING (July 2026): §9.3's labels are re-pointed onto §8.4's EXISTING FIVE BANDS, one
+  // band DOWN — `30+ → wide open (70+)`, `20-29 → open (50-69)`, `10-19 → tight window (30-49)`,
+  // `1-9 → covered (15-29)`, `tie → covered, low end`. **§8.4's SCALE DOES NOT CHANGE**: its
+  // thresholds are load-bearing on the effective-openness math, so adding a band to fit §9.3's
+  // words would change QB read mechanics to fix a LABELLING problem. And **the word "contested"
+  // leaves the openness vocabulary entirely** — it is reserved for §11.1's catch resolution, which
+  // is what forecloses ADR-040 §3's rejected 55 rather than merely leaving it unruled.
+  //
+  // ⚠ THE ENGINE MAPPING CHANGE IS NOT IMPLEMENTED. Every cell below still holds its PRE-RULING
+  // value, so these notes describe a RULED-BUT-OPEN defect, not a fixed one. Rows 1-4 all move;
+  // row 0 (85) is already inside `wide open` and does not.
   {
     pattern: "manCoverage.bands.1.openness",
     provenance: "INTERPRETATION",
     docRef: "§9.3 + §8.4",
     note:
-      "⚠ §9.3 labels this row '3-4 yards separation (OPEN)' and §8.4 calls 70 'wide open' (70+). " +
-      "One band optimistic, same class as bands.2. See SA-08.",
+      "⏳ SA-08 RULED, OWED. §9.3's `20-29` row. Holds 70, which is §8.4's `wide open` floor; the " +
+      "ruling puts this row in `open (50-69)`, so it must come down below 70.",
+    finding: "SA-08",
+  },
+  {
+    pattern: "manCoverage.bands.2.openness",
+    provenance: "INTERPRETATION",
+    docRef: "§9.3 + §8.4",
+    note:
+      "⏳ SA-08 RULED, OWED. §9.3's `10-19` row, the one whose '(CONTESTED)' parenthetical opened " +
+      "the finding. Holds 55 = §8.4 `open`; the ruling puts it in `tight window (30-49)` and " +
+      "retires the word 'contested' from this scale altogether.",
+    finding: "SA-08",
+  },
+  {
+    pattern: "manCoverage.bands.3.openness",
+    provenance: "INTERPRETATION",
+    docRef: "§9.3 + §8.4 / §11.1",
+    note:
+      "⏳ SA-08 RULED, OWED — **AND THIS IS THE COUPLED CELL.** §9.3's `1-9` row " +
+      "(SEPARATION_HALF_YARD) holds 40 = §8.4 `tight window`; the ruling puts it in " +
+      "`covered (15-29)`. `catching.contestedMaxOpenness` is pinned to this cell BY THE COMPILER " +
+      "(ADR-040 §3), so SA-08's owed change moves SA-14's threshold with it. That is the " +
+      "derivation working — but it means the two findings cannot be priced separately, and the " +
+      "compiler will NOT complain, because the equality is preserved while the football moves.",
+    finding: "SA-08",
+  },
+  {
+    pattern: "manCoverage.bands.4.openness",
+    provenance: "INTERPRETATION",
+    docRef: "§9.3 + §8.4",
+    note:
+      "⏳ SA-08 RULED, OWED. §9.3's `tie` row (EVEN_BRACKET) holds 32 = §8.4 `tight window`; the " +
+      "ruling puts it at the LOW END of `covered (15-29)`.",
     finding: "SA-08",
   },
   {
@@ -781,13 +884,32 @@ export const REGISTER: readonly RegisterRule[] = [
     note: "§7.2's −1 read capacity would take a baseline QB to zero reads. Declared floor.",
   },
   {
+    pattern: "qb.awarenessVariance.baseHalfWidth",
+    provenance: "DOC_DERIVED",
+    docRef: "§8.3 as amended (owner ruling, ADR-040 §1)",
+    note:
+      "✅ SA-09 RULED AND IMPLEMENTED. A NEW CELL — it replaced `d20Offset` and is not the same " +
+      "claim. 10 is §8.3's own `d20 − 10`, re-read as the die's EXCURSION MAGNITUDE and installed " +
+      "as the half-width at the baseline rating, where it used to be a shift of the centre. That " +
+      "re-reading is arithmetic on a doc number rather than the number itself, so DOC_DERIVED, not " +
+      "DOC_VERBATIM. ⚠ It entered the tree under the OLD block rule's `DOC_VERBATIM` note with " +
+      "nothing reddening (`d20Offset` out, `baseHalfWidth` in, net 0 numeric cells) — which is why " +
+      "the census now pins the numeric leaf PATH SET and not only its cardinality.",
+    finding: "SA-09",
+  },
+  {
     pattern: "qb.awarenessVariance.*",
     provenance: "DOC_VERBATIM",
-    docRef: "§8.3",
+    docRef: "§8.3 as amended (owner ruling, ADR-040 §1)",
     note:
-      "⚠ 'd20 − 10, modified by + (QB Awareness − 70) ÷ 5' transcribed exactly — including the " +
-      "fact that the doc CALLS it variance narrowing and its own worked examples make it a MEAN " +
-      "SHIFT. §7.2's failure direction: the doc is wrong and the engine is faithful. See SA-09.",
+      "✅ SA-09 RULED AND IMPLEMENTED. `baseline: 70` and `divisor: 5` are §8.3's own awareness " +
+      "term, unchanged in value and MOVED — from the centre of the perception band to its " +
+      "half-width, which is the quantity the doc's sentence always claimed it applied to. The " +
+      "engine now holds the ruled properties (centred at every awareness, half-width monotone " +
+      "decreasing) and proves them exhaustively over 20 faces × 100 ratings. " +
+      "⚠ CALIBRATION DECLINES TO EVALUATE THE FOOTBALL: on flat-60 this term is a CONSTANT with " +
+      "ZERO VARIANCE, so any corpus number about it would be measuring the fixture. Backlog entry " +
+      "49's first member; re-open when `packages/attributes` supplies real spread.",
     finding: "SA-09",
   },
   {
@@ -913,10 +1035,15 @@ export const REGISTER: readonly RegisterRule[] = [
   {
     pattern: "throwExec.lane.velocityModifier.BULLET",
     provenance: "DOC_VERBATIM",
-    docRef: "§10.3",
+    docRef: "§10.2",
     note:
-      "⚠ §10.3 says 'Bullet: +15'; §10.2 says the bullet's modifier is '+10 to passing lane'. The " +
-      "doc contradicts itself and the engine took §10.3. See SA-13.",
+      "✅ SA-13 RULED AND IMPLEMENTED (ADR-040 §2): 15 → 10. §10.2 is the MECHANIC DESCRIPTION and " +
+      "wins; §10.3's velocity table was the restatement, and the general rule is now Appendix C's " +
+      "— resolve against the section, then correct the loser. **The doc edit ADR-040 §2.1 reported " +
+      "as outstanding HAS LANDED**: §10.3 now reads 'Bullet: +10' over an AMENDED note recording " +
+      "what it was, so the contradiction is closed on both sides and `docRef` is §10.2 because " +
+      "§10.2 is where the number is stated as a mechanic. §12.2's `Bullet pass: +15` is a " +
+      "different table and is correctly untouched.",
     finding: "SA-13",
   },
   {
@@ -929,7 +1056,15 @@ export const REGISTER: readonly RegisterRule[] = [
     pattern: "throwExec.lane.angleModifier.*",
     provenance: "DOC_VERBATIM",
     docRef: "§10.3",
-    note: "Over defender +20, past defender +0, through zone −10. Verbatim.",
+    note:
+      "Over defender +20, past defender +0, through zone −10. Verbatim, and verbatim BEFORE and " +
+      "AFTER ADR-040 — the three values never moved. ⚠ THE DEFECT WAS IN THE SELECTOR, NOT IN " +
+      "THESE CELLS: `angleByThrowType` keyed §10.3's angle on the THROW TYPE, putting the type on " +
+      "both of §10.3's terms and making a touch pass harder to deflect than a bullet. ADR-040 " +
+      "re-keyed it onto `ContestPosition` (§11.3's own input), so the ordering is now a property " +
+      "of §10.2's two velocity numbers alone. **The selector is a STRING table and this register " +
+      "does not walk strings** — the register's whole contact with SA-13's worse half was one unit " +
+      "of a string count. Backlog 51.",
   },
   {
     pattern: "throwExec.lane.contestOpennessMax",
@@ -1025,11 +1160,23 @@ export const REGISTER: readonly RegisterRule[] = [
   {
     pattern: "catching.contestedMaxOpenness",
     provenance: "INTERPRETATION",
-    docRef: "§11.1",
+    docRef: "§11.1 / §9.3",
     note:
-      "⚠ §11.1 defines a contested catch as 'defender within 1 yard'. 30 on §8.4's scale excludes " +
-      "§9.3's EVEN_BRACKET (openness 32, a dead-even rep — zero yards) and SEPARATION_HALF_YARD " +
-      "(40, half a yard), both of which the doc's own words make contested. See SA-14.",
+      "✅ SA-14 RULED AND IMPLEMENTED (ADR-040 §3): 30 → 40. Still INTERPRETATION and deliberately " +
+      "so — §11.1 states a DISTANCE ('defender within 1 yard') and §9.3's eight discrete rows " +
+      "cannot say what openness one yard is, since one yard is the lower edge of a row that also " +
+      "contains two. What changed is that the reading is now ANCHORED instead of free: it is the " +
+      "openness of `manCoverage.bands.3` (SEPARATION_HALF_YARD), the widest separation §11.1 makes " +
+      "contested beyond argument, and the equality is asserted BY THE COMPILER in the engine " +
+      "(mutual assignability of two `as const` literal types), so the pair cannot drift silently. " +
+      "⚠ COUPLED TO SA-08, WHICH IS RULED AND WHOSE ENGINE CHANGE IS OWED: SA-08 moves every " +
+      "§9.3 openness one §8.4 band DOWN, so `bands.3.openness` leaves 40 for the covered band " +
+      "(15-29) and THIS CELL FOLLOWS IT — correctly, because the derivation is anchored to the " +
+      "ROW and not to the number. The consequence is not neutral and nothing gates it: openness " +
+      "arriving from §9.4's zone table and §8.7's ±5/tick decay is NOT re-scaled by SA-08 and will " +
+      "be compared against a lower threshold, so part of SA-14's measured widening will unwind. " +
+      "PRICE SA-08 AND SA-14 JOINTLY when SA-08 lands; a sequential arm will attribute SA-08's " +
+      "unwinding to SA-14's ruling.",
     finding: "SA-14",
   },
   {
@@ -1167,8 +1314,16 @@ export const REGISTER: readonly RegisterRule[] = [
     docRef: "§12.4",
     note:
       "+10 / −20 / +20 / −15 / −25, all verbatim; the last two are recorded and not applied, and " +
-      "tunables says so. ⚠ §12.3 EXCLUDES men engaged in blocks and on the ground where §12.4 " +
-      "merely penalises them — a doc-internal contradiction the engine resolved toward §12.4. See SA-17.",
+      "tunables says so. §12.3 EXCLUDES men engaged in blocks and on the ground where §12.4 merely " +
+      "penalises them. ✅ SA-17 RULED (owner, July 2026): **§12.4 wins — PRICED PARTICIPATION " +
+      "(−20 / −25), not exclusion**, so the engine's resolution direction was right and the two " +
+      "cells should become APPLIED rather than merely recorded. ⛔ AND THE RULING FORBIDS DOING IT " +
+      "STANDALONE: it is **folded into backlog entry 50**, which supersedes entry 6 and specifies " +
+      "eligibility and BOTH rolls as one design. The reason is measurement, not process — with " +
+      "§12.4's recovery roll never failing (0 failures in 1,474 attempts) and " +
+      "`deflection_quality`'s `ratingSpan` exactly 0.000, a −25 applied on its own is DECORATIVE. " +
+      "It would render as instrumentation and decide nothing, which is worse than the declared " +
+      "absence it replaced.",
     finding: "SA-17",
   },
   {
@@ -1734,12 +1889,35 @@ export type FindingClass =
   /** Reported for the owner; this audit is forbidden from ruling (backlog 44 / ADR-037). */
   | "REPORTED_NOT_RULED";
 
+/**
+ * WHERE A FINDING STANDS. Added July 2026, because ADR-040 ruled three of them at once and the
+ * register had no way to say so except in prose — and `bandTables.ts`'s own lesson is that
+ * **a shrinking finding count cannot tell a repaired engine from a loosened register.** A finding is
+ * retired WITH ITS PROVENANCE, never deleted (`pocketLadder.ts`'s `retiredRed` discipline).
+ */
+export type FindingStatus =
+  /** Reported; nobody has ruled. The audit's default and the only status that needs no citation. */
+  | "OPEN"
+  /** Ruled AND the engine holds the ruling today. */
+  | "RULED_IMPLEMENTED"
+  /** ⏳ Ruled and the engine change is OWED. The cells still hold their pre-ruling values. */
+  | "RULED_OWED"
+  /** ⛔ Ruled, and the ruling forbids implementing it standalone — it belongs to a larger design. */
+  | "RULED_FOLDED";
+
 export interface ScaleAuditFinding {
   readonly id: string;
   readonly klass: FindingClass;
   readonly docRef: string;
   readonly cells: readonly string[];
   readonly headline: string;
+  readonly status: FindingStatus;
+  /**
+   * The ruling that produced a non-`OPEN` status. REQUIRED whenever `status !== "OPEN"` and
+   * asserted in `docConformance.test.ts`: a finding cannot be marked ruled without naming who ruled
+   * it, so "this was decided" can never become a thing somebody remembered.
+   */
+  readonly ruling?: string;
 }
 
 /**
@@ -1754,6 +1932,7 @@ export interface ScaleAuditFinding {
 export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   {
     id: "SA-01",
+    status: "OPEN",
     klass: "TRANSCRIPTION_ARTIFACT",
     docRef: "§10.5 / §13.2",
     cells: [
@@ -1769,6 +1948,7 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-02",
+    status: "OPEN",
     klass: "DOC_CONTRADICTION",
     docRef: "§7.3 vs Appendix C",
     cells: ["stunt.target"],
@@ -1776,6 +1956,7 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-03",
+    status: "OPEN",
     klass: "TRANSCRIPTION_ARTIFACT",
     docRef: "§9.1 / §9.2",
     cells: ["release.bands.6.delaySeconds"],
@@ -1785,6 +1966,7 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-04",
+    status: "OPEN",
     klass: "TRANSCRIPTION_ARTIFACT",
     docRef: "§7.2",
     cells: ["pocket.readCapacityDelta.COLLAPSING", "pocket.readCapacityDelta.IMMEDIATE"],
@@ -1794,6 +1976,7 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-05",
+    status: "OPEN",
     klass: "INTERPRETATION_DRIFT",
     docRef: "§8.8",
     cells: ["scramble.target"],
@@ -1803,6 +1986,7 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-06",
+    status: "OPEN",
     klass: "DOC_DEFECT",
     docRef: "§8.7 / §9.1 / §9.2",
     cells: ["qb.timeBudget.baseSeconds", "qb.timeBudget.divisor", "route.decayStartsAtSeconds"],
@@ -1812,6 +1996,7 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-07",
+    status: "OPEN",
     klass: "TRANSCRIPTION_ARTIFACT",
     docRef: "§9.2",
     cells: ["route.readySeconds.DEEP"],
@@ -1819,24 +2004,43 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-08",
+    status: "RULED_OWED",
+    ruling: "owner ruling, July 2026 — reported to calibration via ADR-040's dispatch",
     klass: "DOC_CONTRADICTION",
     docRef: "§9.3 vs §8.4",
-    cells: ["manCoverage.bands.1.openness", "manCoverage.bands.2.openness"],
+    cells: [
+      "manCoverage.bands.1.openness",
+      "manCoverage.bands.2.openness",
+      "manCoverage.bands.3.openness",
+      "manCoverage.bands.4.openness",
+    ],
     headline:
       "§9.3 calls 1-2 yards of separation 'contested' and 3-4 yards 'open'; §8.4's scale calls the " +
-      "engine's values for those rows 'open' and 'wide open'.",
+      "engine's values for those rows 'open' and 'wide open'. RULED: the LABELS move one band " +
+      "down onto §8.4's five existing bands, §8.4's scale does not change, and 'contested' leaves " +
+      "the openness vocabulary for §11.1. Four rows move; the engine change is OWED.",
   },
   {
     id: "SA-09",
+    status: "RULED_IMPLEMENTED",
+    ruling: "owner ruling on ADR-039; implemented in ADR-040 §1",
     klass: "DOC_DEFECT",
     docRef: "§8.3",
-    cells: ["qb.awarenessVariance.divisor", "qb.awarenessVariance.baseline"],
+    cells: [
+      "qb.awarenessVariance.baseHalfWidth",
+      "qb.awarenessVariance.divisor",
+      "qb.awarenessVariance.baseline",
+    ],
     headline:
       "§8.3 says the awareness term 'reduces variance range' and its own worked examples SHIFT THE " +
-      "MEAN instead. Faithfully transcribed; an elite QB is systematically optimistic.",
+      "MEAN instead. Faithfully transcribed; an elite QB was systematically optimistic. FIXED: the " +
+      "awareness term now sets the band's HALF-WIDTH, centred on the truth. ⚠ Backlog entry 49's " +
+      "first member — on flat-60 the term is a constant with zero variance, so calibration DECLINES " +
+      "to say whether the football improved.",
   },
   {
     id: "SA-10",
+    status: "OPEN",
     klass: "INTERPRETATION_DRIFT",
     docRef: "§8.5",
     cells: ["qb.decision.bands.3.poolFrom", "qb.decision.bands.4.poolFrom"],
@@ -1844,6 +2048,7 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-11",
+    status: "OPEN",
     klass: "INTERPRETATION_DRIFT",
     docRef: "§8.4 / §10.2",
     cells: ["throwExec.typeSelection.tightWindowMaxOpenness"],
@@ -1851,6 +2056,7 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-12",
+    status: "OPEN",
     klass: "TRANSCRIPTION_ARTIFACT",
     docRef: "§10.1",
     cells: ["throwExec.armRequirements.0.minArmStrength", "throwExec.armRequirements.1.minArmStrength"],
@@ -1860,25 +2066,34 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-13",
+    status: "RULED_IMPLEMENTED",
+    ruling: "owner ruling on ADR-039; implemented in ADR-040 §2",
     klass: "DOC_CONTRADICTION",
     docRef: "§10.2 vs §10.3",
     cells: ["throwExec.lane.velocityModifier.BULLET"],
     headline:
       "The bullet's passing-lane modifier is +10 in §10.2 and +15 in §10.3; and the engine's " +
-      "throw-type→angle mapping makes a TOUCH pass harder to deflect than a bullet, which §10.2 " +
-      "contradicts in words.",
+      "throw-type→angle mapping made a TOUCH pass harder to deflect than a bullet, which §10.2 " +
+      "contradicts in words. FIXED both halves: §10.2's 10 wins, and the angle is re-keyed onto " +
+      "contest GEOMETRY so the ordering is a property of the velocity numbers alone. ⚠ §10.3's " +
+      "table in the design doc still reads +15 — an Orchestrator edit, outstanding.",
   },
   {
     id: "SA-14",
+    status: "RULED_IMPLEMENTED",
+    ruling: "owner ruling on ADR-039; implemented in ADR-040 §3",
     klass: "INTERPRETATION_DRIFT",
     docRef: "§11.1 / §9.3",
     cells: ["catching.contestedMaxOpenness"],
     headline:
       "§11.1 makes a catch contested when a defender is within one yard; the engine's threshold " +
-      "leaves a DEAD-EVEN coverage rep uncontested.",
+      "left a DEAD-EVEN coverage rep uncontested. FIXED at 40, DERIVED from §9.3's half-yard row " +
+      "and compiler-pinned to it. ⚠ That pin makes this finding a DEPENDENT of SA-08: when SA-08's " +
+      "owed mapping moves the half-yard row, this threshold moves with it, silently and by design.",
   },
   {
     id: "SA-15",
+    status: "OPEN",
     klass: "SILENT_OMISSION",
     docRef: "§16.1",
     cells: ["tippedBall.weatherModifier.DOME_CLEAR"],
@@ -1888,6 +2103,7 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-16",
+    status: "OPEN",
     klass: "TRANSCRIPTION_ARTIFACT",
     docRef: "§12.3",
     cells: ["tippedBall.qualityBands.5.speedCheckFromDistance"],
@@ -1895,16 +2111,24 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-17",
+    status: "RULED_FOLDED",
+    ruling: "owner ruling, July 2026 — §12.4 wins; folded into backlog entry 50",
     klass: "DOC_CONTRADICTION",
     docRef: "§12.3 vs §12.4",
     cells: [
       "tippedBall.recovery.situational.engagedInBlock",
       "tippedBall.recovery.situational.onGround",
     ],
-    headline: "§12.3 EXCLUDES blocked and grounded players from recovery; §12.4 gives them modifiers.",
+    headline:
+      "§12.3 EXCLUDES blocked and grounded players from recovery; §12.4 gives them modifiers. " +
+      "RULED for §12.4 — priced participation, not exclusion. ⛔ MUST NOT BE IMPLEMENTED " +
+      "STANDALONE: with the recovery roll never failing and `deflection_quality`'s ratingSpan " +
+      "exactly 0.000, a −25 would be decorative — it would LOOK instrumented. Folded into backlog " +
+      "entry 50, which supersedes entry 6 and specifies eligibility and both rolls as one design.",
   },
   {
     id: "SA-18",
+    status: "OPEN",
     klass: "TRANSCRIPTION_ARTIFACT",
     docRef: "§13.1",
     cells: ["ballCarrier.zones.3.widthYards"],
@@ -1914,6 +2138,7 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-19",
+    status: "OPEN",
     klass: "INTERPRETATION_DRIFT",
     docRef: "§14.2",
     cells: [
@@ -1928,6 +2153,7 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-R2",
+    status: "OPEN",
     klass: "REPORTED_NOT_RULED",
     docRef: "§13.2 / §14.4",
     cells: [

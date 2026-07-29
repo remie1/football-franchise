@@ -1087,7 +1087,15 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
         actualOpenness <= tunables.throwExec.lane.contestOpennessMax));
 
   if (laneEligible && defender !== undefined) {
-    const lane = resolvePassingLane({ tunables, defender, quarterback: qb, throwType, throwRng });
+    const lane = resolvePassingLane({
+      tunables,
+      defender,
+      quarterback: qb,
+      throwType,
+      // §10.3's angle is where he IS, not what was thrown (ADR-040).
+      contestPosition: track.contestPosition,
+      throwRng,
+    });
     log.check(lane.check);
     // §12 — a deflection is a LIVE BALL, not an incompletion.
     if (lane.deflected) return tip(defender, "LANE");

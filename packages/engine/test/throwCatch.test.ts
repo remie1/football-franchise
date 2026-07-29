@@ -8,9 +8,10 @@ import {
   resolvePassingLane,
   selectThrowType,
 } from "../src/resolve/throwExecution.js";
-import type { AccuracyBand } from "../src/resolve/throwExecution.js";
+import type { AccuracyBand, PassingLaneOutcome } from "../src/resolve/throwExecution.js";
 import { bandFor } from "../src/rolls.js";
 import { TUNABLES } from "../src/tunables.js";
+import type { ContestPosition, ThrowType } from "../src/types.js";
 import { makePlayer } from "./fixtures.js";
 
 const qb = makePlayer("qb", "Passer", "QB", { accuracy: 85, armStrength: 78, touch: 80, poise: 90 });
@@ -111,12 +112,44 @@ describe("§10.4 accuracy", () => {
 });
 
 describe("§10.3 passing lane", () => {
-  it("targets 60 plus velocity and angle modifiers", () => {
-    const bullet = resolvePassingLane({ tunables: TUNABLES, defender: cb, quarterback: qb, throwType: "BULLET", throwRng: createRng("s", "throw") });
-    const touch = resolvePassingLane({ tunables: TUNABLES, defender: cb, quarterback: qb, throwType: "TOUCH", throwRng: createRng("s", "throw") });
-    expect(bullet.target).toBe(60 + 15 - 10); // through the defender's zone
-    expect(touch.target).toBe(60 - 10 + 20); // lobbed over him
-    expect(bullet.check.checkKind).toBe("passing_lane");
+  const lane = (throwType: ThrowType, contestPosition: ContestPosition, seed = "s"): PassingLaneOutcome =>
+    resolvePassingLane({
+      tunables: TUNABLES,
+      defender: cb,
+      quarterback: qb,
+      throwType,
+      contestPosition,
+      throwRng: createRng(seed, "throw"),
+    });
+
+  it("targets 60 plus §10.2's velocity and §10.3's angle, and the angle is GEOMETRY", () => {
+    // ADR-040 (ADR-039 SA-13): §10.2's +10 for the bullet, and the angle keyed
+    // on where the defender IS rather than on what was thrown.
+    expect(lane("BULLET", "IN_FRONT").target).toBe(60 + 10 - 10); // undercut: through his zone
+    expect(lane("BULLET", "EVEN").target).toBe(60 + 10 + 0); // alongside: past him
+    expect(lane("BULLET", "TRAILING").target).toBe(60 + 10 + 20); // beaten: thrown over him
+    expect(lane("TOUCH", "IN_FRONT").target).toBe(60 - 10 - 10);
+    expect(lane("BULLET", "IN_FRONT").check.checkKind).toBe("passing_lane");
+  });
+
+  it("§10.2 in words: a bullet is HARDER to deflect than a touch pass, at every geometry", () => {
+    // The defect this replaces made a touch pass harder to deflect (bullet 65,
+    // touch 70) because the throw type drove both terms. The ordering is now a
+    // property of the two doc modifiers alone and cannot depend on the mapping.
+    const positions: readonly ContestPosition[] = ["IN_FRONT", "EVEN", "TRAILING"];
+    for (const position of positions) {
+      const bullet = lane("BULLET", position).target;
+      const touch = lane("TOUCH", position).target;
+      expect(bullet).toBeGreaterThan(touch);
+      expect(bullet - touch).toBe(
+        TUNABLES.throwExec.lane.velocityModifier.BULLET - TUNABLES.throwExec.lane.velocityModifier.TOUCH,
+      );
+    }
+  });
+
+  it("every one of §10.3's three angle values is reachable from a contest position", () => {
+    const angles = new Set(Object.values(TUNABLES.throwExec.lane.angleByContestPosition));
+    expect(angles).toEqual(new Set(Object.keys(TUNABLES.throwExec.lane.angleModifier)));
   });
 
   it("only a defender who has undercut the route is in the lane", () => {
@@ -132,18 +165,84 @@ describe("§10.3 passing lane", () => {
     let sharp = 0;
     let soft = 0;
     for (let i = 0; i < 200; i++) {
-      if (resolvePassingLane({ tunables: TUNABLES, defender: cb, quarterback: qb, throwType: "TOUCH", throwRng: createRng(`l-${i}`, "throw") }).deflected) sharp++;
-      if (resolvePassingLane({ tunables: TUNABLES, defender: softCb, quarterback: qb, throwType: "TOUCH", throwRng: createRng(`l-${i}`, "throw") }).deflected) soft++;
+      if (lane("TOUCH", "IN_FRONT", `l-${i}`).deflected) sharp++;
+      if (
+        resolvePassingLane({
+          tunables: TUNABLES, defender: softCb, quarterback: qb, throwType: "TOUCH",
+          contestPosition: "IN_FRONT", throwRng: createRng(`l-${i}`, "throw"),
+        }).deflected
+      ) {
+        soft++;
+      }
     }
     expect(sharp).toBeGreaterThan(soft);
   });
+
+  it("the same defender deflects a touch pass more often than a bullet", () => {
+    let touch = 0;
+    let bullet = 0;
+    for (let i = 0; i < 300; i++) {
+      if (lane("TOUCH", "IN_FRONT", `b-${i}`).deflected) touch++;
+      if (lane("BULLET", "IN_FRONT", `b-${i}`).deflected) bullet++;
+    }
+    expect(touch).toBeGreaterThan(bullet);
+  });
 });
 
+/**
+ * §11.1's contested threshold IS §9.3's half-yard openness — ASSERTED BY THE
+ * COMPILER (ADR-040, ADR-039 SA-14).
+ *
+ * `TUNABLES` is `as const`, so both sides are literal types and the equality is
+ * a fact the type system decides. Mutual assignability makes a drift in EITHER
+ * cell a compile error at the site of the derivation, rather than a red test
+ * that a future editor could "fix" by updating the expected number.
+ */
+type HalfYardOpenness = Extract<
+  (typeof TUNABLES)["manCoverage"]["bands"][number],
+  { label: "SEPARATION_HALF_YARD" }
+>["openness"];
+type ContestedMax = (typeof TUNABLES)["catching"]["contestedMaxOpenness"];
+const _contestedMaxIsHalfYardOpenness: ContestedMax = null as unknown as HalfYardOpenness;
+const _halfYardOpennessIsContestedMax: HalfYardOpenness = null as unknown as ContestedMax;
+void _contestedMaxIsHalfYardOpenness;
+void _halfYardOpennessIsContestedMax;
+
 describe("§11 catch resolution", () => {
+  /** §9.3's row for a named separation, by label rather than by index. */
+  const separation = (label: string): number => {
+    const row = TUNABLES.manCoverage.bands.find((b) => b.label === label);
+    if (row === undefined) throw new Error(`no §9.3 row ${label}`);
+    return row.openness;
+  };
+
   it("classifies contested vs. routine from openness", () => {
     expect(catchTypeFor(TUNABLES, 15)).toBe("CONTESTED");
-    expect(catchTypeFor(TUNABLES, 30)).toBe("CONTESTED");
-    expect(catchTypeFor(TUNABLES, 31)).toBe("ROUTINE");
+    expect(catchTypeFor(TUNABLES, 40)).toBe("CONTESTED");
+    expect(catchTypeFor(TUNABLES, 41)).toBe("ROUTINE");
+  });
+
+  it("§11.1: every §9.3 rep unambiguously inside one yard is a contested catch", () => {
+    // ADR-040 (ADR-039 SA-14). A dead-even rep is the DEFINITION of contested;
+    // at the old threshold of 30 both of these resolved as routine catches.
+    expect(catchTypeFor(TUNABLES, separation("EVEN_BRACKET"))).toBe("CONTESTED"); // 0 yards
+    expect(catchTypeFor(TUNABLES, separation("SEPARATION_HALF_YARD"))).toBe("CONTESTED"); // ½ yard
+    // and every row the corner wins outright
+    expect(catchTypeFor(TUNABLES, separation("CB_IN_PHASE"))).toBe("CONTESTED");
+    expect(catchTypeFor(TUNABLES, separation("CB_ON_HIP"))).toBe("CONTESTED");
+    expect(catchTypeFor(TUNABLES, separation("CB_IN_POSITION"))).toBe("CONTESTED");
+  });
+
+  it("the threshold stops below the row SA-08 owns", () => {
+    // The EQUALITY half of the derivation is decided by the compiler above, not
+    // here (`ContestedMax` / `HalfYardOpenness`) — `TUNABLES` is `as const`, so
+    // asserting it at run time would be a green cell for a fact the type system
+    // already knows. The ORDERING is not type-decidable, so it lives here.
+    //
+    // The upper bound is the live question: SA-08 (§9.3's "(contested)" against
+    // §8.4's scale) is NOT ruled, so `SEPARATION_1_2` stays routine until it is.
+    expect(TUNABLES.catching.contestedMaxOpenness).toBeLessThan(separation("SEPARATION_1_2"));
+    expect(catchTypeFor(TUNABLES, separation("SEPARATION_1_2"))).toBe("ROUTINE");
   });
 
   it("routine catch is d100 + Catching ÷ 5 + placement vs. 50 + difficulty", () => {

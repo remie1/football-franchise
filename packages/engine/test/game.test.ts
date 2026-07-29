@@ -244,10 +244,18 @@ describe("the clock", () => {
  * seed moves to `ot-2`. `ot-1465` has now survived three consecutive resolution
  * changes, which is still luck and is still re-scanned rather than assumed —
  * 2,500 seeds scanned, two of them ties.
+ *
+ * RE-SCANNED AGAIN for ADR-040 (§8.3's perception band, §10.3's lane target,
+ * §11.1's contested threshold). Three resolutions moved at once, so every seed
+ * in this block had to be re-found: `ot-2` is no longer an overtime and
+ * `ot-1465`'s run of luck is over. The OT seed moves to `ot-95` and the tie seed
+ * to `ot-891` — 1,914 seeds scanned, thirty-one overtimes and two ties. As
+ * before: a seed chosen by scanning for a whole-game outcome is not a property
+ * of the overtime branch, and nothing about that branch changed.
  */
 describe("overtime, to the extent a tie requires one", () => {
-  const overtime = simulateGameFor("ot-2");
-  const tie = simulateGameFor("ot-1465");
+  const overtime = simulateGameFor("ot-95");
+  const tie = simulateGameFor("ot-891");
 
   it("a tie at the end of regulation opens a fifth period", () => {
     const starts = eventsOf(overtime.events, "PERIOD_START").map((e) => e.payload.period);

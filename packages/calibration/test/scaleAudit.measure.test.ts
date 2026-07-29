@@ -43,6 +43,11 @@
  *                                               here at 160 games would be a worse measurement of a
  *                                               settled number, and per attribution rule 3 the
  *                                               share is a statement about that tunables point.
+ *
+ *   SA-14 `catching.contestedMaxOpenness`     — RULED (30 → 40) AND IMPLEMENTED. The pricing block
+ *                                               is RETIRED, not re-pointed; see the block below
+ *                                               where it stood, which records why and what would
+ *                                               be needed to price it at all.
  */
 import { describe, expect, it } from "vitest";
 import { DEFAULT_TUNABLES, applyTunablePatch, type TunablePatch } from "@ff/engine";
@@ -146,48 +151,43 @@ d("scale audit — pricing", () => {
     },
   );
 
-  it(
-    "prices SA-14 — the contested-catch population §11.1's own words ask for",
-    { timeout: 900_000 },
-    () => {
-      const base = runCorpus(DEFAULT_TUNABLES, CORPUS, { countBands: true });
-      // 30 → 40 admits §9.3's SEPARATION_HALF_YARD (openness 40, half a yard) and EVEN_BRACKET (32,
-      // a dead-even rep). NAMED, per §22a: nothing else is held — this is a single-cell move and the
-      // catch population it re-routes is the same population in both arms.
-      const moved = runCorpus(
-        applyTunablePatch(DEFAULT_TUNABLES, patch("catching.contestedMaxOpenness", 30, 40)),
-        CORPUS,
-        { countBands: true },
-      );
-      const total = (o: typeof base, kind: string, bands: readonly string[]): number =>
-        bands.reduce((n, b) => n + (o.bandCounts.get(`${kind}\u0000${b}`) ?? 0), 0);
-      const CONTESTED = [
-        "CLEAN_CATCH", "CATCH_TIP_RISK", "CATCH_HIGH_TIP_RISK", "TIP_BALL", "PBU_TIP", "CLEAN_PBU", "INTERCEPTION",
-      ] as const;
-      const ROUTINE = [
-        "SECURED", "CAUGHT_SLIGHT_BOBBLE", "CAUGHT_AFTER_BOBBLE", "DROPPED_TIP_POSSIBLE", "DROPPED_CLEANLY", "NOT_CLOSE",
-      ] as const;
-
-      const baseContested = total(base, "contested_catch", CONTESTED);
-      const movedContested = total(moved, "contested_catch", CONTESTED);
-      const baseRoutine = total(base, "catch", ROUTINE);
-      const movedRoutine = total(moved, "catch", ROUTINE);
-      const baseInt = base.bandCounts.get("contested_catch\u0000INTERCEPTION") ?? 0;
-      const movedInt = moved.bandCounts.get("contested_catch\u0000INTERCEPTION") ?? 0;
-
-      console.log(
-        `\nSA-14 catching.contestedMaxOpenness 30 → 40, ${String(CORPUS.games)} games\n` +
-          `  contested resolutions  ${String(baseContested)} → ${String(movedContested)} ` +
-          `(Δ ${String(movedContested - baseContested)})\n` +
-          `  routine resolutions    ${String(baseRoutine)} → ${String(movedRoutine)} ` +
-          `(Δ ${String(movedRoutine - baseRoutine)})\n` +
-          `  INTERCEPTION band      ${String(baseInt)} → ${String(movedInt)} ` +
-          `(Δ ${String(movedInt - baseInt)})\n` +
-          `  ⚠ The two arms are NOT a clean population diff — a re-routed catch changes the play, ` +
-          `which changes the drive. Read the CONTESTED delta as the exclusive reach and the other ` +
-          `two as contaminated by propagation.`,
-      );
-      expect(base.digest).not.toBe(moved.digest);
-    },
-  );
+  /**
+   * RETIRED — SA-14's PRICING BLOCK STOOD HERE. Recorded rather than deleted, per
+   * `pocketLadder.ts`'s `retiredRed` discipline: a gate that quietly loses the finding it was
+   * written against is indistinguishable from one that never fired.
+   *
+   * It ran `patch("catching.contestedMaxOpenness", 30, 40)`. **SA-14 is now RULED and 40 IS THE
+   * COMMITTED TREE** (ADR-040 §3), so that call throws `TunablePatchError` — the probe became its
+   * own subject. There were two dispositions and only one of them is honest.
+   *
+   * **RE-POINT (40 → 30, pricing the ruled cell from the other side) — REJECTED.** Not because it
+   * would not run, but because of what the block CLAIMED. Its console text read *"read the
+   * CONTESTED delta as the exclusive reach"*, and `calibration.md` §5.3's LIMIT — added by ADR-039,
+   * AFTER this block was written — forbids exactly that. The change alters a CLASSIFICATION read on
+   * every catch, the stream diverges from the first affected play, and **the number of catch
+   * resolutions itself moves between the arms**, so the contested delta is contaminated and not
+   * exclusive. The tell is the LIMIT's own: no digest-identical arm, therefore no exclusive count.
+   * Re-pointing would have kept publishing a contaminated number under the word "exclusive", which
+   * is worse than publishing nothing. ADR-040 §4.3 declined it on the engine's own fixture for the
+   * same reason; this file must not contradict that from the other side of the boundary.
+   *
+   * **RETIRE — TAKEN.** Two further reasons, stated so this is not re-opened by someone counting
+   * missing tests:
+   *
+   *   1. **A one-run bound is unavailable for a reason that has NOTHING to do with propagation.**
+   *      SA-14 is a pure RE-CLASSIFICATION of catch reps whose openness falls in (30, 40], so its
+   *      exclusive reach *ought* to be countable from a SINGLE stream with no diff at all. It is
+   *      not: `CATCH_RESOLUTION` publishes the catch TYPE and never the OPENNESS that decided it,
+   *      so the population cannot be counted from the stream at all. That is a STREAM GAP and a
+   *      petition to the engine, not something a second corpus run repairs. Backlog 52.
+   *   2. **The cell is about to move again, so pricing it now would price the wrong number.** SA-08
+   *      is RULED and its engine change is OWED; it re-points §9.3's openness one §8.4 band down,
+   *      and `contestedMaxOpenness` is compiler-pinned to `manCoverage.bands.3.openness`, so it
+   *      follows. Per attribution rule 3 a share is a statement about a tunables POINT — and this
+   *      point has a ruled successor. **SA-08 and SA-14 must be priced JOINTLY when SA-08 lands**,
+   *      or SA-08's unwinding is attributed to SA-14's ruling.
+   *
+   * The RAW contested / routine / INTERCEPTION reach of the RULED tree is still measured: the RAW
+   * REACH block above reads `DEFAULT_TUNABLES`, and `DEFAULT_TUNABLES` now holds 40.
+   */
 });

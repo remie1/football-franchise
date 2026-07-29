@@ -435,6 +435,14 @@ a class is eliminated, name what remains beside it.
   class only, and a future reader will cite it as proof of more than that.
 - Every sweep, corpus reach and tolerance band. **Their silence means *not observed*, never *not
   present*.**
+- **🚫 BOUNDED WITH NO PATH TO ELIMINATION — the only entry of its kind: the doc → table direction
+  of the scale audit (ADR-039).** Every other line in this register has at least a *theoretical*
+  instrument; **this one cannot have one, in principle.** Finding a doc requirement for which **no
+  cell exists** means detecting an absence, and **the absent thing has no representation to derive
+  from** — there is nothing to walk, hash, perturb or enumerate. It is **irreducibly a reading**,
+  and it **must be redone whenever the doc changes**, by a person, forever. Mark anything that joins
+  this line the same way: not "we have not built the instrument yet", but **"no instrument is
+  possible"** — the two look identical in a backlog and are opposites in a plan.
 
 **Tier 3 — BOUNDED AND UNVERIFIABLE. Its status depends on a human having run a command, and the
 repo cannot tell from inside whether they did.** *Written as "a category of one"; it was two within
@@ -516,6 +524,30 @@ crisp today and gets argued at the edges tomorrow: *tsconfig is tooling; is a ba
 registry constant?* **Every carve-out invites the next, and the guard's value comes from being
 unarguable.** Firing here costs one paragraph in a commit message — and **three files touched in the
 constitution's directory should cost a paragraph.** The friction is the feature.
+
+**Corollary — a register that WALKS A TABLE is structurally blind to what the table OMITS. Audit in
+both directions, permanently.** Walking the implementation finds cells that are wrong, dead, or
+invented. It **cannot** find the doc's requirement for which **no cell exists** — there is nothing to
+walk.
+
+ADR-039 found **seven** such omissions, and only by reading the doc **forwards**: §10.4's *"Off
+platform (moving): −15"* **with a live population**, §11.1's entire DIFFICULT CATCH type, §7.1's
+*"−5 if all matchups are ties"*, and four more. Alongside them, `spectacularCatch` — **active in the
+registry, read by no resolver, absent from `TUNABLES`** — which is `anchor` before ADR-028, all over
+again.
+
+**So the audit has two directions and needs both every time**, not once:
+
+- **Table → doc** finds *cells nobody asked for* (transcription artifacts: the doc had prose, the
+  rectangle demanded a number, a number appeared).
+- **Doc → table** finds *requirements nobody implemented*. **This direction has no instrument that
+  can be derived**, because the absent thing has no representation to derive from — it is
+  irreducibly a reading, and it must be redone whenever the doc changes.
+
+This is the third distinct failure at the doc/table boundary, and the three are **not** variants of
+one: the doc said something **wrong** and was transcribed faithfully (§7.2); the doc said
+**nothing** and a zero was transcribed (ADR-036); the doc said something and **no cell exists**
+(ADR-039). Each needs its own pass.
 
 **Counter-corollary — a guard that always fires gets deleted.** This principle has an obvious
 failure mode in the other direction, and ADR-025 is the worked example: refusing to compare two

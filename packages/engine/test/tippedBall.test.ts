@@ -563,15 +563,37 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
   /** The whole 24-game corpus, once; every assertion below reads it. */
   const base = deadTargetCorpus(DEFAULT_TUNABLES);
 
-  it("still moves no football: the pre-fix totals, on every digit", () => {
-    // ADR-035/036 measured these before the change. A reporting fix that moved
-    // any of them would not be a reporting fix.
-    expect(base.plays).toBe(3420);
-    expect(base.yards).toBe(20047);
-    expect(base.turnovers).toBe(107);
-    expect(base.points).toBe(1545);
-    expect(base.tips).toBe(271);
-    expect(base.deadTips).toBe(163);
+  /**
+   * ⚠ RE-BASELINED, July 2026, ADR-040 — AND THE RE-BASELINE IS THE POINT.
+   *
+   * These digits were pinned by ADR-035/036 to prove a REPORTING fix moved no
+   * football. ADR-040 is not a reporting fix: it changes §8.3's perception band,
+   * §10.3's lane target and §11.1's contested threshold, so the whole 24-game
+   * corpus legitimately moves and this fence has to be re-cut against the new
+   * stream or it would be asserting that the engine never changes again.
+   *
+   * WHAT THE FENCE STILL GUARDS IS UNCHANGED, and it is the part below this
+   * one: `deadEligible`, `deadRecoveryChecks`, `deadCarryingTheKey`,
+   * `deadClaimingRecoverable` and `liveTargets` are all STRUCTURAL — they read
+   * zero, or read §12.2's five real thresholds, on any stream whatsoever. None
+   * of them moved, which is exactly what ADR-036's claim predicted.
+   *
+   *   digit           ADR-035/036     ADR-040
+   *   plays              3,420          3,421
+   *   yards             20,047         21,107
+   *   turnovers            107            113
+   *   points             1,545          1,683
+   *   tips                 271            270
+   *   deadTips             163            164
+   *   live tips            108            106
+   */
+  it("the corpus totals, on every digit (re-baselined by ADR-040)", () => {
+    expect(base.plays).toBe(3421);
+    expect(base.yards).toBe(21107);
+    expect(base.turnovers).toBe(113);
+    expect(base.points).toBe(1683);
+    expect(base.tips).toBe(270);
+    expect(base.deadTips).toBe(164);
   });
 
   it("still never consults a target on a dead ball", () => {
@@ -609,7 +631,7 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
     // deflection carries its band's genuine target.
     expect(base.liveMissingTheKey).toBe(0);
     expect(base.liveTargets).toEqual([20, 35, 55, 75, 90]);
-    expect(base.tips - base.deadTips).toBe(108);
+    expect(base.tips - base.deadTips).toBe(106); // 108 before ADR-040 re-baselined the corpus
   });
 
   it("the cell is not addressable, because the cell does not exist", () => {

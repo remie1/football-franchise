@@ -17,6 +17,49 @@
  * `expect(unclassified).toEqual([])` would stay green if the walk silently narrowed (the
  * implicit-coverage family, §4.1). Pinning the denominator means a walk that stops descending
  * reddens.
+ *
+ * ============ WHAT THIS GATE PINS, AND WHAT IT DELIBERATELY DOES NOT (ADR-041) ============
+ *
+ * The census used to pin all three leaf types as one object — `{ numbers, strings, booleans }`.
+ * ADR-040's SA-13 re-keyed `angleByThrowType` (four `ThrowType` leaves) to `angleByContestPosition`
+ * (three `ContestPosition` leaves) and this gate went RED at `strings: 283 → 282`, with **`numbers`
+ * unchanged**. Applying Charter §4.1's own falsifiable test — *does a change to the SUBJECT
+ * automatically invalidate the check?* — to each pin separately is what decides the shape:
+ *
+ *   `numbers` — **PINNED, and restating is the right shape.** It is the DENOMINATOR of the totality
+ *   claim one test above. Without it, `classified === census.numbers` says "N of N", which is true
+ *   of every N including a walk that found six cells. `unclassified` and `deadRules` between them
+ *   already catch a cell entering or leaving a NARROW rule; what neither can catch is a cell
+ *   entering or leaving the interior of a BLOCK rule (`game.*` is 84 cells), and that is exactly the
+ *   population this number defends. It cannot go stale silently: any change to its subject reddens
+ *   it. That is the opposite of the drifting copy §4.1's derivation corollary is about.
+ *
+ *   `strings` / `booleans` — **NOT PINNED. The gate was asserting an invariant the register does not
+ *   hold.** This file classifies no string and no boolean; they are a DECLARED EXCLUSION. Pinning
+ *   the cardinality of an excluded population asserts that its shape never changes, which is not a
+ *   claim the register makes and cannot defend — and the cost is not merely a false red. **The red
+ *   could not distinguish its own two causes.** `282` is what you get from a legitimate re-key AND
+ *   from a walk that stopped descending into a string-only subtree, and the only repair available
+ *   for either is to type a different number. A check whose sole remedy is transcription is how
+ *   stale copies are manufactured.
+ *
+ * TWO THINGS REPLACE IT, and both are derived rather than restated:
+ *
+ *   1. **`census.untyped` must be empty.** This is what "the walk did not quietly narrow" actually
+ *      means, and it fails at a PATH rather than as an integer discrepancy. The old walk's `else if`
+ *      chain dropped `null`, `undefined`, functions and non-plain objects with no trace.
+ *   2. **`numericLeafPathDigest` is pinned beside the count**, because ⚠ **the count was proved
+ *      blind by the very dispatch that reddened it.** ADR-040 removed `qb.awarenessVariance.d20Offset`
+ *      and added `qb.awarenessVariance.baseHalfWidth` — a NET ZERO change under one block rule. The
+ *      cardinality held at 699, `unclassified` stayed empty, `deadRules` stayed empty, and a cell
+ *      that did not exist the day before entered the tree wearing a `DOC_VERBATIM` note written
+ *      about a different cell. Nothing reddened. A cardinality cannot see a swap.
+ *
+ * WHAT IS STILL NOT COVERED, said out loud: string-valued MAPPING tables. SA-13's worse half — the
+ * one that made a touch pass harder to deflect than a bullet — lived entirely in one, and this
+ * register's whole contact with it was a unit of a string count. Backlog 51 owns closing that, by
+ * READING the tables against the doc; manufacturing ninety-odd hand-written rules to satisfy a
+ * count would be the artefact §4.1 says has been wrong every time it has been checked.
  */
 import { describe, expect, it } from "vitest";
 import {
@@ -25,6 +68,7 @@ import {
   SCALE_AUDIT_FINDINGS,
   auditRegister,
   leafCensus,
+  numericLeafPathDigest,
   numericLeaves,
 } from "../src/knownTruth/docConformance.js";
 
@@ -33,7 +77,14 @@ import {
  * measured against a different tree and the reading needs re-doing, which is the whole point of
  * pinning it.
  */
-const RECORDED_CENSUS = { numbers: 699, strings: 283, booleans: 126 } as const;
+const RECORDED_NUMERIC_CENSUS = 699;
+
+/**
+ * The same subject as a SET rather than a size. Re-cut at ADR-040 (`d20Offset` → `baseHalfWidth`).
+ * When this reddens and the count does not, a cell was SWAPPED: diff `numericLeafPaths()` against
+ * `git diff packages/engine/src/tunables.ts` and re-read the affected rule against the doc.
+ */
+const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:cedf4eb9";
 
 describe("doc-conformance register", () => {
   it("classifies every numeric leaf of the committed tunables tree", () => {
@@ -46,9 +97,26 @@ describe("doc-conformance register", () => {
     expect(auditRegister().deadRules).toEqual([]);
   });
 
-  it("pins the leaf census, so a walk that quietly narrows cannot pass", () => {
-    expect(leafCensus()).toEqual(RECORDED_CENSUS);
-    expect(numericLeaves()).toHaveLength(RECORDED_CENSUS.numbers);
+  it("pins the numeric denominator, so `N of N` cannot pass for a walk that found six cells", () => {
+    expect(leafCensus().numbers).toBe(RECORDED_NUMERIC_CENSUS);
+    expect(numericLeaves()).toHaveLength(RECORDED_NUMERIC_CENSUS);
+  });
+
+  it("pins the numeric leaf PATH SET, because a cardinality cannot see a swap", () => {
+    // ADR-040: `d20Offset` out, `baseHalfWidth` in, both under `qb.awarenessVariance.*`, net zero.
+    // The count held and a new cell inherited a stale classification in silence.
+    expect(numericLeafPathDigest()).toBe(RECORDED_NUMERIC_PATH_DIGEST);
+  });
+
+  it("declares its exclusion TOTALLY — every leaf lands in one of the three buckets", () => {
+    const census = leafCensus();
+    // The derived form of "the walk did not narrow": a leaf the typology cannot place is named at
+    // its path instead of vanishing from a count. `null`, `undefined`, a function, a `Map`.
+    expect(census.untyped).toEqual([]);
+    // The exclusion is REAL, and reported rather than pinned — see this file's header for why
+    // pinning the cardinality of a population the register does not classify was the wrong gate.
+    expect(census.strings).toBeGreaterThan(0);
+    expect(census.booleans).toBeGreaterThan(0);
   });
 
   it("names no finding that does not exist, and no cell that does not exist", () => {
@@ -65,6 +133,20 @@ describe("doc-conformance register", () => {
     );
     const unreferenced = SCALE_AUDIT_FINDINGS.filter((f) => !named.has(f.id)).map((f) => f.id);
     expect(unreferenced).toEqual([]);
+  });
+
+  it("cannot mark a finding RULED without naming the ruling", () => {
+    // Structural, per Charter §4.1: "this was decided" must never become a thing somebody
+    // remembered. A finding is retired WITH its provenance or it is not retired.
+    const uncited = SCALE_AUDIT_FINDINGS.filter(
+      (f) => f.status !== "OPEN" && (f.ruling === undefined || f.ruling.trim() === ""),
+    ).map((f) => f.id);
+    expect(uncited).toEqual([]);
+    // And the converse: an OPEN finding citing a ruling is a status that went stale.
+    const overCited = SCALE_AUDIT_FINDINGS.filter(
+      (f) => f.status === "OPEN" && f.ruling !== undefined,
+    ).map((f) => f.id);
+    expect(overCited).toEqual([]);
   });
 
   it("records the TABLE_SHAPE population — RIDER 1's whole subject", () => {

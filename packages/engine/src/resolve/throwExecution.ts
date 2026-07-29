@@ -145,6 +145,13 @@ export interface PassingLaneArgs {
   readonly defender: PlayerState;
   readonly quarterback: PlayerState;
   readonly throwType: ThrowType;
+  /**
+   * §10.3's THROW ANGLE — where this defender is relative to the ball's path.
+   * Required for the same reason `tunables` is: the angle used to be inferred
+   * from the throw type, which put the type on both of §10.3's terms and
+   * inverted the bullet/touch ordering (ADR-040, ADR-039 SA-13).
+   */
+  readonly contestPosition: ContestPosition;
   readonly throwRng: Rng;
 }
 
@@ -152,12 +159,16 @@ export interface PassingLaneArgs {
  * §10.3 — a defender close enough to the target can get into the throwing lane.
  * Success is a deflection; the tipped-ball system is out of this slice, so a
  * deflection is resolved as a batted-down incompletion.
+ *
+ * `target = 60 + velocity(throw type) + angle(geometry)`. The two terms take
+ * DIFFERENT inputs, which is what §10.3 asks for and what makes the bullet a
+ * harder ball to deflect than a touch pass at every geometry.
  */
 export function resolvePassingLane(args: PassingLaneArgs): PassingLaneOutcome {
-  const { defender, quarterback, throwType, throwRng, tunables } = args;
+  const { defender, quarterback, throwType, contestPosition, throwRng, tunables } = args;
   const t = tunables.throwExec.lane;
 
-  const angleKey = t.angleByThrowType[throwType];
+  const angleKey = t.angleByContestPosition[contestPosition];
   const target = t.target + t.velocityModifier[throwType] + t.angleModifier[angleKey];
 
   const mods = compact([

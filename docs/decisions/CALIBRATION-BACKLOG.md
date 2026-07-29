@@ -363,6 +363,157 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
   numbers shifts the mean outcome; it does not change how much of the outcome is skill.
   Distinguishing those two is precisely Mandate 1.
 
+## 50. ⛔ THE TIPPED-BALL SUBSYSTEM HAS NO ATTRIBUTE SURFACE AT ALL — entry 6 is one symptom of this
+
+**Raised above entry 6 by owner ruling (July 2026, ADR-039), because entry 6 is a symptom and this is
+the disease.** Do not fix them separately.
+
+**Two independent measurements, one conclusion:**
+
+- **`deflection_quality`'s `ratingSpan` is EXACTLY 0.000.** §12.2's roll is a **bare d100** — no
+  attribute term of any kind enters it.
+- **§12.4's recovery roll never fails** — 0 failures in 1,474 attempts (entry 6).
+
+> **So no player property decides anything in the entire tipped-ball subsystem.** Who deflects a ball
+> and who comes down with it are settled by a coin flip and a deterministic sort. **And it is
+> currently producing a real share of the game's interceptions.**
+
+**This is not a scale defect and must not be filed as one.** A scale audit asks whether a number is
+right; here **there is no number to be right.** The design intent was always that **ball skills,
+awareness and reaction** decide a tipped ball — that intent is simply absent from the implementation.
+
+**⚠ FIX BOTH ROLLS AS ONE DESIGN, NOT TWO PATCHES.** Per Charter §4.1's radiation corollary they are
+**one mechanic**: a deflection-quality term and a recovery term that are designed separately will
+double-count the same attributes or leave a seam between them. Entry 6 must not be closed on its own
+— closing the never-failing recovery roll while `deflection_quality` stays a bare d100 would produce
+a subsystem where **one** roll reads attributes and the other still does not, which is harder to
+diagnose than the current state because it *looks* instrumented.
+
+**Related and probably part of the same fix:** `spectacularCatch` is **active in the registry, read
+by no resolver, absent from `TUNABLES`** (ADR-039 MC-04, checked both ways per entry 31). **This is
+`anchor` before ADR-028** — an attribute the design believes in that no mechanic consumes. If the
+tipped-ball fix needs a ball-skills term, that attribute is sitting there unused.
+
+### 📥 FOLDED IN — SA-17's eligibility ruling lands HERE, not standalone (owner, July 2026)
+
+§12.3 excluded blocked and grounded players; §12.4 priced them at −20/−25. **Ruled: §12.4 wins —
+priced participation, not exclusion.** §12.3's own *"unless disengage check"* already conceded
+engagement is a cost rather than a bar, and its *"(penalty, not excluded)"* bullet proves the list
+was drawing that distinction deliberately, making the placement an error rather than the intent. The
+doc is amended at §12.3.
+
+**⛔ It must NOT be implemented on its own, and this entry is why.** With the scale as it is, **a −25
+is decorative** — the recovery roll never fails (entry 6) and nothing in the subsystem reads an
+attribute (above). **Fixing eligibility into a mechanism where modifiers decide nothing produces
+exactly the failure this entry prohibits: it LOOKS instrumented**, and a reader would see a priced,
+plausible modifier table without ever learning that nothing in it changes an outcome. That is harder
+to diagnose than the honest contradiction it replaced.
+
+**So the redesign specifies THREE things as one:** eligibility (§12.3), the deflection-quality roll
+(§12.2), and the recovery roll (§12.4).
+
+## 49. 📅 PHASE 2 MEASUREMENT ITEMS — findings that a FLAT LEAGUE cannot evaluate
+
+**A new category, opened by ADR-039 SA-09 (owner ruling, July 2026), and it will grow.**
+
+Some findings are **read, never swept**: the synthetic flat-60 corpus gives every player the same
+rating, so any term keyed on *attribute spread* collapses to a constant with **zero variance** and
+**no flat-league measurement bears on it at all**.
+
+**Members:**
+
+1. **SA-09 — §8.3's awareness/openness variance.** On flat-60 the term is a **constant −2 with zero
+   variance across every quarterback.** The amendment (awareness narrows the band, never biases the
+   mean) is ruled on **football and doc-coherence grounds**, and **cannot be validated here.** A
+   digest diff proving the stream moved is legitimate evidence; a claim that the football improved is
+   not available until `packages/attributes` provides real spread.
+
+> **⚠ THE STANDING HAZARD FOR THIS CATEGORY:** a flat-league run over one of these findings will
+> return a clean, confident, meaningless number — an instrument that runs and returns something is
+> more dangerous than one that declines (`calibration.md` §5.3). **Anything on this list must
+> DECLINE on the current corpus rather than report.** Re-open the whole list when attributes land;
+> do not evaluate members piecemeal as they become measurable, since several will interact.
+
+## 51. THE DOC-CONFORMANCE REGISTER IS BLIND TO STRING-VALUED MAPPING TABLES — and SA-13's worse half lived in one
+
+**Found by ADR-040 reddening the register's own census, and the interesting part is that the red was
+in the wrong place.** `docConformance.ts` walks `DEFAULT_TUNABLES` and classifies **numeric leaves
+only**; strings are excluded by a declared rule (*"attribute ids and closed vocabularies … a string
+carries no scale"*). That exclusion is stated, and it is wrong about one family.
+
+- **SA-13 had two halves and only one was a number.** The bullet's `+15 → +10` was a numeric cell the
+  register classified and flagged. The *worse* half — `angleByThrowType` putting the throw type on
+  **both** of §10.3's terms, so a touch pass came out **harder** to deflect than a bullet — was a
+  **string-valued mapping**: `BULLET → "THROUGH_ZONE"`, `TOUCH → "OVER_DEFENDER"`. Every numeric
+  angle value (+20 / 0 / −10) was verbatim §10.3 and correct. **The defect was entirely in which of
+  them got selected, and no numeric cell was wrong anywhere.**
+- **The register's entire contact with that table was one unit of a string count.** When ADR-040
+  re-keyed it to `ContestPosition`, the census went `283 → 282` — a red that named no table, cited no
+  doc section, referenced no finding, and whose only available repair was to type a different number.
+- **So the population that needs classifying is the SELECTORS.** A table mapping one closed
+  vocabulary onto another is a doc claim (*"which of §10.3's three angles applies here"*), it is
+  exactly the kind of claim the doc states in prose, and it is the kind ADR-036's direction produces:
+  the table's shape demanded a key for every `ThrowType`, and four appeared.
+
+**What this entry is NOT.** It is not "add 92 rules for the 282 string leaves". Charter §4.1: *in
+this repo hand-enumerated coverage lists have been wrong every single time they have been checked.*
+Manufacturing ninety rules to satisfy a count would produce the artefact that keeps being wrong.
+**The rules are a by-product of READING the selector tables against the doc**, and the work is the
+reading. Do it when a dispatch has cause to read §10 / §12.2 / §9.4 again — not before.
+
+**In the meantime the gate no longer pretends.** `strings` and `booleans` are reported and **not**
+pinned (a pin on an excluded population asserts an invariant the register does not hold, and its red
+cannot distinguish a legitimate re-key from a walk that stopped descending). What replaced it is
+derived: `census.untyped` must be empty, and the **numeric leaf PATH SET** is pinned by digest — see
+entry 51a, which is why.
+
+### 51a. A CARDINALITY CANNOT SEE A SWAP, and ADR-040 proved it on the same day
+
+Sub-finding, and it is the sharper one. The census pinned `numbers: 699`. ADR-040 **removed**
+`qb.awarenessVariance.d20Offset` and **added** `qb.awarenessVariance.baseHalfWidth` — both under the
+block rule `qb.awarenessVariance.*`, **net change zero**.
+
+- `leafCensus().numbers` held at 699. ✅ green
+- `auditRegister().unclassified` stayed empty — the block rule matched the new cell. ✅ green
+- `auditRegister().deadRules` stayed empty — the block rule still matched something. ✅ green
+
+**A cell that did not exist the day before entered the tree already wearing a `DOC_VERBATIM`
+classification written about a different cell, and nothing in the register reddened.** (`baseHalfWidth`
+is `DOC_DERIVED`: §8.3's `d20 − 10` re-read as the die's excursion magnitude, not a value the doc
+states for that cell.) The register's own totality gate is blind to a swap inside a block rule, and
+`game.*` alone is 84 cells wide.
+
+**Fixed:** `numericLeafPathDigest()` pins the subject as a SET, not a size, and is asserted beside the
+count. The count stays — it is the denominator that makes `classified === census.numbers` mean
+something rather than `N of N` — but it is no longer the only thing watching.
+
+## 52. `CATCH_RESOLUTION` DOES NOT PUBLISH THE OPENNESS THAT DECIDED THE CATCH TYPE — a one-run count is unavailable for a reason that is not propagation
+
+**Engine petition, not a calibration fix.** Raised by ADR-040 §4.3 and confirmed here while retiring
+SA-14's pricing block.
+
+`catching.contestedMaxOpenness` is a pure **re-classification**: a catch is contested iff the
+receiver's openness is at or under the threshold. Its exclusive reach is therefore the count of reps
+whose openness falls in the moved interval — **a quantity that needs no counterfactual, no second
+arm and no diff.** One stream should answer it.
+
+**It cannot.** `CATCH_RESOLUTION` publishes the catch **type** (`CONTESTED` / `ROUTINE`) and never
+the **openness** that produced it, so the population is not countable from the stream at all. The
+two-run diff is then the only instrument left, and §5.3's LIMIT forbids reporting it: the change is
+read on every catch, the stream diverges from the first affected play, and **the number of catch
+resolutions itself moves between the arms**.
+
+- **This is worth recording as its own class.** Every other refusal in this file is a refusal because
+  the change **propagates**. This one would be computable *despite* propagation if the stream carried
+  one more field, and it is the general shape: **where a classification is published without the
+  quantity that decided it, exclusive reach becomes uncomputable for a reason the LIMIT does not
+  cover.** Look for the same shape wherever a band label is emitted without its input.
+- **Petition:** the deciding openness on `CATCH_RESOLUTION`, or the same value on the `catch` /
+  `contested_catch` `CHECK`. Iron rule 3 (the stream is the single source of truth) is the argument:
+  a fact the engine used and did not publish is a fact calibration must re-derive or refuse.
+- **Do not bundle with a re-price.** SA-08's owed mapping moves `contestedMaxOpenness` anyway (see
+  entry 48's rider); the field is worth having regardless of when that lands.
+
 ## 6. §12.4's recovery roll decides nothing — 0 failures in 1,474 attempts
 
 - **Measured:** across 18,000 plays, **1,474 tipped-ball recovery attempts and zero failures.**
@@ -973,12 +1124,51 @@ left as prose**, `maxYards` must be **read against §13/§14 before anyone rules
 ## 48. THE SYSTEMATIC SCALE AUDIT — 19 findings, and a THIRD failure direction
 
 Full evidence in [ADR-039](ADR-039-the-systematic-scale-audit-and-the-cells-nobody-asked-for.md).
-**Nothing below is fixed; every one is priced and awaiting an owner ruling.**
+
+### 🔔 STATUS AS OF ADR-040 — four findings have moved, and the register now carries it structurally
+
+The table below was written when **nothing** was ruled. It no longer is. Statuses live on
+`SCALE_AUDIT_FINDINGS[].status` in `knownTruth/docConformance.ts` — machine-readable, and a finding
+cannot be marked non-`OPEN` without naming its ruling (asserted). **Fifteen findings are still
+`OPEN`.**
+
+| finding | status | where |
+|---|---|---|
+| **SA-09** §8.3 | ✅ `RULED_IMPLEMENTED` | ADR-040 §1 — the awareness term now sets the band's HALF-WIDTH, centred on the truth. **Entry 49's first member: calibration DECLINES to say whether the football improved** — on flat-60 the term is a constant with zero variance |
+| **SA-13** §10.2/§10.3 | ✅ `RULED_IMPLEMENTED` | ADR-040 §2 — `+15 → +10`, and the angle re-keyed onto contest GEOMETRY. **Closed on both sides:** ADR-040 §2.1 reported a doc edit outstanding; it has since landed — §10.3 reads `Bullet: +10` over an `AMENDED` note. §12.2's `Bullet pass: +15` is a different table and correctly untouched |
+| **SA-14** §11.1 | ✅ `RULED_IMPLEMENTED` | ADR-040 §3 — `30 → 40`, derived from §9.3's half-yard row and compiler-pinned to it |
+| **SA-08** §9.3/§8.4 | ⏳ `RULED_OWED` | Labels re-pointed onto §8.4's five **existing** bands, one band DOWN; §8.4's scale unchanged; **"contested" leaves the openness vocabulary** for §11.1. **The engine mapping change is NOT implemented** — `manCoverage.bands.1..4.openness` still hold pre-ruling values |
+| **SA-17** §12.3/§12.4 | ⛔ `RULED_FOLDED` | §12.4 wins (priced participation, −20/−25). **Folded into entry 50; must not be implemented standalone** — with the recovery roll never failing and `deflection_quality`'s `ratingSpan` exactly 0.000, a −25 is decorative |
+
+#### ⚠ RIDER — SA-08 AND SA-14 ARE NOW ONE MEASUREMENT, AND NOTHING GATES THAT
+
+ADR-040 derived `catching.contestedMaxOpenness = 40` as `manCoverage.bands.3.openness`
+(`SEPARATION_HALF_YARD`) and asserted the equality **by the compiler**. That derivation is right —
+it is anchored to §11.1's *row* (*"defender within 1 yard"*), not to the number, so it survives a
+re-scale by construction. **And that is exactly the problem for pricing:**
+
+- SA-08's owed mapping moves the half-yard row out of `tight window` into `covered (15-29)`.
+  **`contestedMaxOpenness` follows it, silently, and the compiler stays green** — the equality is
+  preserved while the football moves.
+- Openness arriving from **§9.4's zone bands** (85/70/45/20) and **§8.7's ±5/tick** decay is **not**
+  re-scaled by SA-08 and will be compared against the lower threshold. **Part of SA-14's widening
+  unwinds**, by an amount nobody has measured.
+- **Therefore: price SA-08 and SA-14 JOINTLY when SA-08 lands.** A sequential arm attributes SA-08's
+  unwinding to SA-14's ruling. Attribution rule 3 — a share is a statement about a tunables POINT,
+  and this point has a ruled successor.
+- SA-14's pricing block in `scaleAudit.measure.test.ts` is **RETIRED** (recorded, not deleted) rather
+  than re-pointed, for this reason and for entry 52's. Raw reach of the **ruled** tree, 160 games,
+  seeds `fnv1a:60f21076#160`: **473 contested / 5,379 routine resolutions (8.08% contested)**,
+  against the 6.3% ADR-039 measured pre-ruling — **direction only; the tree differs by SA-09 and
+  SA-13 as well, so this is not an effect size.**
 
 **Scope, stated so it cannot be read as a sample:** all **699 numeric leaves** of
 `DEFAULT_TUNABLES` and all **44 `CheckKind`s**. Excluded with counts: `game.*` (84 cells — the doc
-specifies a play, not a loop), 283 string leaves and 126 booleans (no scale), all classified rather
-than dropped. Two instruments landed and both are total in both directions:
+specifies a play, not a loop), 282 string leaves and 126 booleans (no scale). ⚠ **The `game.*`
+exclusion is CLASSIFIED (`OUT_OF_SCOPE`, a rule in the register); the string and boolean exclusions
+are merely COUNTED, and entry 51 is what that turned out to cost** — SA-13's worse half was a
+string-valued mapping table and the register's only contact with it was a unit of that count.
+Two instruments landed and both are total in both directions:
 `knownTruth/docConformance.ts` (an unclassified cell OR a stale rule is red) and
 `knownTruth/scaleSurface.ts` (a `Record<CheckKind, …>`, so a new check kind **fails to compile**).
 
@@ -1596,6 +1786,39 @@ are the ones that determine rungs, and rungs determine everything downstream.** 
 a ladder on a shelf, and a ladder on a shelf measures the shelf. Every one of the four cost a
 downstream artefact before it was caught.
 
+### STANDING RULE — a whole-fixture A/B at an unstated `n` is not an instrument, and a green one is the dangerous case
+
+**Added July 2026 from ADR-040 §5.1, and it is §22a's own lesson arriving in a unit test.**
+`blitz.test.ts`'s *"hot routes cut the sack rate on a blitz down"* compared two whole-fixture sack
+counts over 400 seeds and asserted `hot < cold`. Re-measured on the **committed pre-ADR-040 tree**,
+the same instrument at six sample sizes:
+
+| n | 100 | 200 | 400 | 800 | 1,600 | 3,200 |
+|---|---|---|---|---|---|---|
+| hot | 31 | 58 | **108** | 211 | 434 | 874 |
+| cold | 25 | 56 | **109** | 215 | 437 | 847 |
+| verdict | FAIL | FAIL | pass | pass | pass | **FAIL** |
+
+**It passed at 400 by ONE sack and REVERSES at 3,200.** It was never a property of the engine; it
+was a coin landing the right way at the sample size somebody picked, and it had been green long
+enough to be believed. ADR-040 did not break it — it moved a coin that was already in the air.
+
+> **A comparison of two aggregate counts with no stated `n`, no stated dispersion and no replication
+> is a coin flip wearing a test's name.** Three requirements, and none of them is "raise `n`":
+>
+> 1. **State the effect you expect and check `n` is powered for it** — one sack out of ~108 is not
+>    an effect, it is the resolution of the instrument.
+> 2. **Condition on the LIVE POPULATION** (§5.3). The unconditioned comparison dilutes the mechanic
+>    across every seed where it never fired, which is what made the margin small enough to flip.
+> 3. **Report the direction at more than one `n`.** The monotone-in-`n` table above IS the finding;
+>    a single cell of it is the artefact.
+>
+> **And when the claim turns out to be false, convert the test into a tripwire that pins the DEFECT
+> rather than deleting it** (ADR-036's form, used again here): assert the live population, assert
+> the arms genuinely differ, and record the CURRENT direction, so the day somebody fixes the
+> mechanic the test reddens and has to be flipped deliberately. A deleted test is a finding that
+> evaporates; a pinned defect is a finding with a deadline.
+
 ### THE TEST FOR A COUNTERFACTUAL — name what you held
 
 > **A curve measured by moving everybody cannot price a change to the mixture.**
@@ -1716,6 +1939,90 @@ dispersion of your estimate of it.
   confirmed** — the composition shifted back when 3,309 rushers stopped arriving clean and more
   throws reached the contested population. Do not read the PASS as validation while entry 6's
   recovery roll never fails; the mix moved, the mechanic did not.
+
+### 🔺 28a. THE SAME MECHANISM, A SECOND AND LARGER CONSEQUENCE: the hot conversion REDUCES the throw rate and RAISES the sack rate
+
+**Raised by ADR-040 §5.2, adjudicated here. VERDICT: this is entry 28's mechanism, not a distinct
+defect — and entry 28 measured it on the wrong outcome variable.**
+
+Entry 28's claim is that hot conversions *"shorten routes **and** move them to the front of the
+progression"*. It then priced only the **composition** of throws that happened (`int_rate` 2.269% →
+1.927%, 624 → 531). **It never measured whether the throw happened at all.** That is the larger
+effect, and it points the same way.
+
+**The engine's fixture (ADR-040 §5.2)** — one hand-built blitz card, hot flag toggled, 4,000 seeds,
+conditioned on the 3,309 where the conversion actually fired:
+
+| | throws | sacks |
+|---|---|---|
+| hot card | 2,188 | 1,028 |
+| no hot card | 2,285 | 1,006 |
+
+**Replicated on the corpus, and this is calibration's own instrument:** `freeRunnerSweep` population
+stage, `DEFAULT_TUNABLES` (`fnv1a:8a8354c3`), flat-60 32-team, caller **v2**, 496 games, seeds
+`fnv1a:020c1dcb#496`. GOVERNED dropbacks (a live free rusher), **§5.3's recognition band held fixed**:
+
+| band / hot | dropbacks | attempts/dropback | sack % | scramble % | completion % | ttt |
+|---|---|---|---|---|---|---|
+| `READ_IT/HOT` | 1,407 | **60.2%** | **16.99%** | 21.2% | 42.27% | 0.907 |
+| `READ_IT/NO_HOT` | 1,294 | **70.3%** | **11.28%** | 17.0% | 40.33% | 0.895 |
+| `RECOGNIZED/HOT` | 563 | **59.3%** | **16.52%** | 22.6% | 44.01% | 0.939 |
+| `RECOGNIZED/NO_HOT` | 540 | **71.5%** | **11.67%** | 15.9% | 39.90% | 0.891 |
+
+**Three readings, and the third is the one that names the mechanism:**
+
+1. **Same direction, both instruments, two very different populations.** Fewer throws, more sacks.
+2. **It is not an ARRIVAL-TIMING failure, and the committed tunables settle that without a run.**
+   `route.readySeconds.QUICK = 1.0s`; `blitzPickup.freeRunnerArrivalSeconds = 1.5s`. **The hot slant
+   is ready half a second before the free rusher arrives** and the sack rate goes up anyway. The
+   mechanic is not losing a race.
+3. **It is not a SPEED-UP that trades accuracy either — `ttt` does not move** (0.907 vs 0.895;
+   0.939 vs 0.891, i.e. hot is marginally *slower*), while **completion % on the throws that do
+   happen goes UP** (+1.9pp, +4.1pp). Fewer throws, no faster, slightly better when taken. **That is
+   the signature of a FILTER, not of a quick game:** the converted slant is being *declined*.
+
+**So the suspect is `qb.throwThreshold` (50) against a 6-yard slant's openness, exactly as ADR-040
+§5.2 guessed** — with entry 28's own progression-reordering as the amplifier: the slant is at rank 1,
+the quarterback spends his early read on an option he will not take, and §8.5's pooling
+(`poolFrom`/`poolTo`, and SA-10) does the rest. **`qb.throwThreshold` is INTERPRETATION in the
+doc-conformance register — §8.5 never states the openness at which a quarterback pulls the trigger.**
+
+**⚠ THE DISCRIMINATING EXPERIMENT IS OWED AND IS NOT ANY OF THE ABOVE.** Everything here is
+consistent with the filter hypothesis and none of it proves it. The decisive measurement is
+**one-run and needs no counterfactual**: on the hot arm alone, take the QB_READ of the converted
+receiver and compare his **perceived openness** against the effective throw threshold. If the slant
+sits below it systematically, the mechanism is named. Run it before anyone moves the number — moving
+a threshold to fix a symptom is how entry 5's ratio problem gets buried.
+
+### 📛 PRICING — RAW REPORTED, EXCLUSIVE **REFUSED**, and the refusal is stronger than §5.3's LIMIT
+
+**RAW live population — clears the floor comfortably, and this is new.** 1,970 hot-converted
+GOVERNED dropbacks in 496 games = **4.51% of 43,657 dropbacks.** ⚠ **The `hot_route_rate = 0.10%
+(42 dropbacks)` quoted in `caller/anticipate.ts` and `caller/frozen.ts` is the `callerVersion` **v1**
+number and is stale for any v2 statement.** ADR-024 did what it was built for: the branch that had
+never executed now runs on ~35× the population. §5.3's canonical refusal case
+(`freeRunnerArrivalSeconds`, 56 dropbacks, 0.13%) is 35× *smaller* than this.
+
+**EXCLUSIVE — REFUSED. A refusal is a result.** Not merely because the change propagates:
+
+- **The two arms are not two values of a cell. They are two different offensive PLAY CALLS.** The
+  route assignment differs at tick 0, so there is no digest-identical arm — §5.3's LIMIT tell — and
+  "plays that differ" over-counts without bound while "games that differ" under-counts. Neither is
+  reported here as an exclusive count.
+- **And a same-seed pairing does not rescue it.** Once the play differs, the same seed does not mean
+  the same draws; the engine's 3,309-seed conditioning is a *live-population* filter (correctly, per
+  §5.3), never a counterfactual.
+- **The corpus table above is a SELECTION, not a counterfactual, and must not be quoted as an effect
+  size.** Which cards carry a hot route is a property of ADR-022's sixteen authored cards, correlated
+  with concept, personnel and situation. Holding the recognition band fixed removes the *"did he see
+  it"* confound and **not** the *"which concept is this"* confound. **The +5.70pp is corroboration of
+  DIRECTION only.** Anyone quoting it as the price of the mechanic is quoting the play-card mix.
+
+**Consequences for other entries.** Entry 28's `int_rate` composition claim stands and is now a
+*second-order* consequence: fewer throws is upstream of a different mix of throws. Entry 2's sack
+rate has a contributor here that is not pressure supply (entry 40) and not conversion (entry 26) — it
+is **throws that do not happen**, and it is confined to the hot population, which is 4.5% of
+dropbacks and rising as the caller improves.
 
 ### Stale note to correct in the metric library
 

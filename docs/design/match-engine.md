@@ -791,18 +791,50 @@ For each target QB reads:
    
    Perceived = Actual + Variance
    
-   Variance Roll: d20 - 10, modified by:
-     + (QB Awareness - 70) ÷ 5 (reduces variance range)
+   AMENDED July 2026 (ADR-039 SA-09). The original text and its worked
+   examples DISAGREED, and both are superseded — see the note below.
    
-   Elite QB (95 Awareness): Variance = d20 - 10 + 5 = -5 to +15
-     (Slightly optimistic but rarely fooled)
+   Variance is SYMMETRIC ABOUT ZERO. Awareness narrows its HALF-WIDTH
+   and NEVER shifts its centre.
    
-   Average QB (75 Awareness): Variance = d20 - 10 + 1 = -9 to +11
-     (More uncertainty)
+   Elite QB (95 Awareness): a narrow band around the truth
+     (rarely wrong, and never systematically optimistic)
    
-   Poor QB (60 Awareness): Variance = d20 - 10 - 2 = -12 to +8
-     (Often misreads situation)
+   Average QB (75 Awareness): a wider band, still centred on truth
+   
+   Poor QB (60 Awareness): a wide band
+     (misreads the situation in BOTH directions)
 ```
+
+> **AMENDMENT (July 2026, owner ruling on ADR-039 SA-09) — awareness narrows the band; it does
+> not bias the mean.**
+>
+> This section previously specified `+ (QB Awareness - 70) ÷ 5` annotated *"(reduces variance
+> range)"*, while **its own worked examples did the opposite**: elite `-5 to +15`, average
+> `-9 to +11`, poor `-12 to +8` — every range exactly **20 wide**, with only the **centre**
+> moving. The prose said *variance*; the arithmetic said *bias*. The engine transcribed the
+> arithmetic faithfully, so **an elite quarterback perceived receivers as MORE OPEN THAN THEY
+> WERE**, and the doc's own parenthetical conceded it: *"slightly optimistic"*.
+>
+> **That is backwards as football.** Elite awareness means **seeing the field accurately** — a
+> narrower band around the truth — not optimistically. A high-awareness passer should rarely be
+> fooled *in either direction*; a low-awareness passer should be wrong *both ways*. Optimism is
+> not a skill, and it is certainly not the same skill as awareness.
+>
+> **Both the sentence and the examples are superseded.** The sentence was right about the
+> mechanism and the examples were right about nothing; they were not two readings of one rule.
+>
+> **The half-width mapping is deliberately left to the engine**, on the ADR-033 precedent: derive
+> it from an existing scale in the game rather than inventing a constant, and state what was
+> rejected. Two properties are required and are not the engine's to choose: **the distribution is
+> centred on the true value at every awareness**, and **half-width is monotone decreasing in
+> awareness**. Both are gateable — see Charter §4.1's monotonicity corollary.
+>
+> **⚠ THIS CANNOT BE MEASURED ON THE CURRENT CORPUS.** On the flat-60 synthetic league the term is
+> a **constant −2 with zero variance across every quarterback**, so **no flat-league measurement
+> bears on it** — this finding is *read*, never *swept*. It is the project's first
+> **PHASE 2 MEASUREMENT ITEM**: a finding whose evaluation requires real attribute spread and must
+> wait for `packages/attributes`. See `CALIBRATION-BACKLOG.md` entry 49.
 
 ### 8.4 Effective Openness
 
@@ -998,15 +1030,44 @@ vs.
 Roll: d100 + (CB Man Coverage ÷ 5) + (CB Agility ÷ 5)
 
 Separation Results:
-  WR wins by 30+: 5+ yards separation (wide open)
-  WR wins by 20-29: 3-4 yards separation (open)
-  WR wins by 10-19: 1-2 yards separation (contested)
-  WR wins by 1-9: Half yard separation (tight window)
-  Tie: Even, bracket situation
+  AMENDED July 2026 (ADR-039 SA-08). Labels re-pointed onto §8.4's
+  EXISTING five bands — one band DOWN from where they used to read.
+  See the note below.
+
+  WR wins by 30+:   5+ yards separation  -> WIDE OPEN    (§8.4: 70+)
+  WR wins by 20-29: 3-4 yards separation -> OPEN         (§8.4: 50-69)
+  WR wins by 10-19: 1-2 yards separation -> TIGHT WINDOW (§8.4: 30-49)
+  WR wins by 1-9:   half yard separation -> COVERED      (§8.4: 15-29)
+  Tie:              even, bracket        -> COVERED, low end
   CB wins by 1-9: CB in phase, trail position
   CB wins by 10-19: CB on hip, can contest
   CB wins by 20+: CB in position for PBU/INT
 ```
+
+> **AMENDMENT (July 2026, owner ruling on ADR-039 SA-08) — the labels move; the scale does not.**
+>
+> §9.3's separation words and §8.4's openness numbers disagreed, and the audit found **both middle
+> rows reading one band optimistic**. The resolution is **§8.4's scale, unchanged** — the labels here
+> are re-pointed onto its existing five bands.
+>
+> **Why the scale does not move.** §8.4's thresholds are **load-bearing**: they are consumed by the
+> effective-openness math and the tight-window modifier. **Adding a band there would change QB read
+> mechanics to fix a labelling problem.** §9.3's words are *descriptive output of a separation
+> contest* — they map onto the scale, they do not extend it.
+>
+> **Why one band down is right as football.** *Half a yard of separation is COVERED* — the throw has
+> to be perfect and the defender can play the ball. **1–2 yards is a tight window.** Calling half a
+> yard a "tight window" was flattering the receiver, and every read downstream inherited the
+> flattery.
+>
+> **⚠ THE WORD "CONTESTED" LEAVES THE OPENNESS VOCABULARY ENTIRELY.** It was overloaded across two
+> subsystems: here for *pre-throw geometry*, and in §11.1 for *catch resolution* — a usage ADR-039
+> SA-14 has just sharpened. **It is reserved for §11.1.** An openness scale and a catch-contest scale
+> sharing a term is how a reader conflates a pre-throw geometry with a post-throw event, and this
+> document did exactly that for its whole life. Do not reintroduce it here under any spelling.
+>
+> **Engine change owed** — the §9.3 → §8.4 mapping must move one band down to match. Not yet
+> implemented at time of writing.
 
 ### 9.4 Zone Coverage Resolution
 
@@ -1132,11 +1193,15 @@ Roll: d100 + (Defender Reaction ÷ 5) + (Defender Ball Skills ÷ 5)
 vs. Target: 60 + (Ball Velocity Modifier) + (Throw Angle Modifier)
 
 Ball Velocity:
-  Bullet: +15 (harder to react)
+  AMENDED July 2026 (ADR-039 SA-13 / ADR-040) — was "Bullet: +15".
+  Resolved toward §10.2, which specifies +10. See the note below.
+  Bullet: +10 (harder to react)
   Normal: +0
   Touch: -10 (more time)
   
 Throw Angle:
+  KEYED ON GEOMETRY, NOT ON THROW TYPE (ADR-040). All three values
+  remain reachable; the mapping is by contest position.
   Over defender: +20
   Past defender: +0
   Through defender zone: -10
@@ -1144,11 +1209,32 @@ Throw Angle:
 Success for Defender:
   Gets hand on ball → TIPPED BALL SYSTEM triggered
   
-D-LINE TIP SPECIAL CASE:
+D-LINE TIP SPECIAL CASE (see the amendment note after this block):
   D-lineman in "hands up" technique can attempt:
   Roll: d100 + Height + Awareness + Reaction
   vs. Target: 75 + QB Release Height + (Velocity ÷ 5)
 ```
+
+> **AMENDMENT (July 2026, owner ruling on ADR-039 SA-13; implemented in ADR-040) — two independent
+> inputs, and one of them was doing both jobs.**
+>
+> **Part 1 — the value.** This section said the bullet's modifier was **+15**; §10.2 says **+10**.
+> **§10.2 wins** — the mechanic description is the source and this is the derived text. Now `+10`.
+>
+> **Part 2 — the worse half.** The engine's angle table was keyed on **throw type**, which made a
+> **touch** pass *harder* to deflect than a bullet. §10.2 contradicts that **in words**, and the
+> football is unambiguous: **a touch pass hangs — it gives the defender time. That is the entire
+> trade against a bullet's accuracy risk.**
+>
+> The defect was structural rather than numeric: **Ball Velocity and Throw Angle are meant to be two
+> INDEPENDENT inputs, and the throw type was feeding both**, so the ordering of the two throw types
+> depended on the angle mapping rather than on velocity. The angle table is now keyed on **contest
+> geometry** (`IN_FRONT → through zone`, `EVEN → past defender`, `TRAILING → over defender`), which
+> restores the independence: **`bullet − touch = +20` at every geometry**, so the ordering **can no
+> longer depend on the mapping at all**, and all three angle values above stay reachable.
+>
+> *Lesson worth keeping: when one quantity feeds two terms that the design treats as independent,
+> the bug is not in either term's value.*
 
 ### 10.4 Accuracy Resolution
 
@@ -1373,10 +1459,40 @@ Based on deflection result:
 | GIFT | Yes | Yes | Speed check |
 
 Excluded players:
-  - Engaged in blocks (unless disengage check)
-  - On ground
+  AMENDED July 2026 (ADR-039 SA-17) — §12.4 wins: PRICED PARTICIPATION,
+  not exclusion. This list now keeps only what is genuinely impossible.
+  See the note below.
+
+  - Engaged in blocks   -> NOT excluded; §12.4 prices it at -20
+  - On ground           -> NOT excluded; §12.4 prices it at -25
   - Facing wrong direction (penalty, not excluded)
 ```
+
+> **AMENDMENT (July 2026, owner ruling on ADR-039 SA-17) — §12.4's modifiers are what was meant.**
+>
+> §12.3 **excluded** blocked and grounded players; §12.4 **priced** them at −20 and −25. A straight
+> contradiction, and **§12.4 wins.**
+>
+> **Two things in §12.3's own text settle it.** Its first bullet said *"unless disengage check"* —
+> already conceding that engagement is **a cost, not a hard bar**. And its third bullet says
+> *"(penalty, not excluded)"* — **proving the list was drawing that distinction deliberately**, which
+> makes blocks and ground appearing on the excluded side an **error of placement, not of intent.**
+>
+> **And §12.4's model is the more robust football:** a lineman engaged with a blocker can absolutely
+> bat at a ball beside him, and balls do fall to players on the ground.
+>
+> ### ⛔ DO NOT IMPLEMENT THIS STANDALONE — it is folded into `CALIBRATION-BACKLOG.md` entry 50
+>
+> **With the scale as it is, a −25 is decorative.** Entry 6 established that §12.4's recovery roll
+> **never fails** (0 of 1,474), and entry 50 established that the tipped-ball subsystem has **no
+> attribute surface at all** — `deflection_quality`'s `ratingSpan` is exactly 0.000 on a bare d100.
+>
+> **Fixing eligibility into a mechanism where modifiers decide nothing produces precisely the state
+> entry 50's prohibition warns about: it LOOKS instrumented.** A reader would see a priced,
+> plausible modifier table and never learn that nothing it contains changes an outcome — which is
+> harder to diagnose than the honest contradiction it replaced.
+>
+> **Eligibility and both rolls are specified together, as one design.** See entry 50.
 
 ### 12.4 Roll 2: Recovery Attempts
 
@@ -2189,6 +2305,24 @@ Standard attribute scale: 0-99
 
 ## APPENDIX C: COMMON TARGET NUMBERS
 
+> **⚠ DERIVED, NOT AUTHORITATIVE (owner ruling, July 2026, ADR-039 SA-02).**
+>
+> **This is a SUMMARY TABLE. The mechanic sections are the source; where this appendix and a
+> mechanic section disagree, THE MECHANIC SECTION WINS and this table is the thing to fix.**
+>
+> Until this ruling, Appendix C **had never been audited against anything.** The scale audit found
+> it silently contradicting its source in the `Communication` row — **§7.3 specifies `Target: 60 +
+> complexity`; this table said `40-50`** — and that row is corrected below. (The audit's other
+> three contradictions, SA-08/SA-13/SA-17, are *section against section* and are resolved in their
+> own sections, not here.)
+>
+> **A summary that can contradict its source is a restated constant** (Charter §4.1's derivation
+> corollary): a second source of truth, and — because it is the convenient one to read — the one
+> people trust.
+>
+> Corrected below to match the mechanic sections. **Do not resolve a future conflict in this
+> table's favour**; resolve it against the section, then correct this table.
+
 | Check | Base Target | Common Modifiers |
 |-------|-------------|------------------|
 | Coverage read | 50 | +10-25 (disguise) |
@@ -2199,7 +2333,7 @@ Standard attribute scale: 0-99
 | Break tackle | Opposed | - |
 | Block shed | Opposed | - |
 | Deflection recovery | Variable | Based on Roll 1 |
-| Communication | 40-50 | +10-25 (noise) |
+| Communication | **60** + complexity (§7.3) | +10-25 (noise) |
 
 ---
 

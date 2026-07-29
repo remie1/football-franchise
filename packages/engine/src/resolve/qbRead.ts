@@ -2,7 +2,7 @@
 import { getAttr } from "@ff/contracts";
 import type { AttrId, PlayerState, Rng, RollDetail, RollModifier } from "@ff/contracts";
 import { ATTR, TRAIT } from "../attrs.js";
-import { clamp, flatModifier, rollD20 } from "../rolls.js";
+import { clamp, compact, flatModifier, rollD20Shaped } from "../rolls.js";
 import type { Tunables } from "../tunables.js";
 import type { ReadSystem } from "../types.js";
 import type { PocketStatusRung } from "./pocket.js";
@@ -15,8 +15,8 @@ export interface QbReadOutcome {
   readonly windowModifier: number;
   readonly varianceRoll: RollDetail;
   /**
-   * ADR-004 — what this read actually exercised. Awareness always (§8.3
-   * variance narrowing); the arm-talent trio only when the §8.4 tight-window
+   * ADR-004 — what this read actually exercised. Awareness always (§8.3's
+   * perception band); the arm-talent trio only when the §8.4 tight-window
    * modifier was applied, because on a wide-open read it never ran.
    */
   readonly testsAttrs: readonly AttrId[];
@@ -25,14 +25,65 @@ export interface QbReadOutcome {
 /** §8.4 — the attributes the tight-window compensation term is built from. */
 const TIGHT_WINDOW_ATTRS: readonly AttrId[] = [ATTR.accuracy, ATTR.armStrength, ATTR.touch];
 
+/** A d20's faces, and the widest excursion the fold below can produce. */
+const D20_FACES = 20;
+const MAX_EXCURSION = D20_FACES - 1;
+
 /**
- * §8.3 — the QB never sees actual openness, only a variance-shifted estimate.
+ * §8.3 (AMENDED) — THE HALF-WIDTH OF THIS QUARTERBACK'S PERCEPTION BAND.
+ *
+ * `baseHalfWidth − (Awareness − baseline) ÷ divisor`, which is §8.3's own
+ * `d20 − 10` and its own `(Awareness − 70) ÷ 5` doing what §8.3's sentence
+ * always said they did. Strictly decreasing in awareness: an elite passer sees
+ * the field ACCURATELY, which is a narrower band around the truth and never an
+ * optimistic one. See the ⚠ block on `TUNABLES.qb.awarenessVariance`.
+ */
+export function perceptionHalfWidth(tunables: Tunables, qb: PlayerState): number {
+  const t = tunables.qb.awarenessVariance;
+  const narrowing = (getAttr(qb.attributes.values, ATTR.awareness) - t.baseline) / t.divisor;
+  // A band cannot be narrower than nothing. NOT a magnitude and therefore not a
+  // tunable: on the registry's 0-99 range the largest narrowing is 5.8 against a
+  // base of 10, so this floor is unreachable today. It exists so that a rating
+  // outside that range could not MIRROR the band and break monotonicity.
+  return Math.max(0, t.baseHalfWidth - narrowing);
+}
+
+/**
+ * §8.3 (AMENDED) — one face of the d20, folded onto a band of half-width `h`.
+ *
+ * `face → 2·face − 21` maps 1..20 onto ±{1,3,…,19}: symmetric about the die's
+ * own midpoint, with no face landing on zero and no face unpaired. Scaling that
+ * to ±h and rounding AWAY FROM ZERO keeps the map ODD —
+ * `variance(21 − face) === −variance(face)` for every face and every half-width
+ * — so the mean over the die is EXACTLY zero rather than approximately zero.
+ *
+ * That last detail is the whole repair: `Math.round` alone breaks ties upward,
+ * and a half-point of systematic optimism is the same defect as five points of
+ * it. `test/qbDecision.test.ts` proves the property over every face rather than
+ * sampling it.
+ */
+export function perceptionVariance(face: number, halfWidth: number): number {
+  const scaled = ((2 * face - (D20_FACES + 1)) * halfWidth) / MAX_EXCURSION;
+  return Math.sign(scaled) * Math.round(Math.abs(scaled));
+}
+
+/** Half-widths are fractional at most ratings; the printout gets one decimal. */
+function formatHalfWidth(halfWidth: number): string {
+  return Number.isInteger(halfWidth) ? String(halfWidth) : halfWidth.toFixed(1);
+}
+
+/**
+ * §8.3 — the QB never sees actual openness, only an estimate drawn from a band
+ * CENTRED ON THE TRUTH whose width is his awareness (ADR-040).
  *
  * `extraModifiers` carries situational terms that belong on THIS roll because
  * the doc writes them against it — §8.8's scramble vision cone ("−20 direction
  * of run / −40 back toward the line") is the only current caller. Putting them
  * in the roll's modifier list rather than adjusting the result afterwards keeps
- * perceived openness reconstructible from the stream.
+ * perceived openness reconstructible from the stream. They ARE deliberate mean
+ * shifts, and that is the point of the distinction: a quarterback running for
+ * his life genuinely cannot see the backside of the field, whereas awareness
+ * buys accuracy of perception and never optimism.
  */
 export function resolveQbRead(
   tunables: Tunables,
@@ -42,13 +93,22 @@ export function resolveQbRead(
   extraModifiers: readonly RollModifier[] = [],
 ): QbReadOutcome {
   const t = tunables.qb;
-  const awarenessTerm = Math.round(
-    (getAttr(qb.attributes.values, ATTR.awareness) - t.awarenessVariance.baseline) / t.awarenessVariance.divisor,
-  );
-  const varianceRoll = rollD20(readRng, [
-    flatModifier("d20 variance offset", t.awarenessVariance.d20Offset),
-    { source: `${qb.bio.position} Awareness (variance narrowing)`, attr: ATTR.awareness, value: awarenessTerm },
-    ...extraModifiers.filter((m) => m.value !== 0),
+  const baseHalfWidth = t.awarenessVariance.baseHalfWidth;
+  const halfWidth = perceptionHalfWidth(tunables, qb);
+
+  const varianceRoll = rollD20Shaped(readRng, (face) => [
+    // The die's own fold onto the baseline band: what a 70-awareness passer sees.
+    flatModifier(`d20 → perception band (±${baseHalfWidth})`, perceptionVariance(face, baseHalfWidth) - face),
+    // What awareness is worth on THIS draw — always emitted, even at zero, because
+    // the band width is the mechanic and a reader of the §17 printout has to see
+    // it. Its sign always points TOWARDS the truth for a better-than-baseline
+    // quarterback and away from it for a worse one.
+    {
+      source: `${qb.bio.position} Awareness (perception band ±${formatHalfWidth(halfWidth)})`,
+      attr: ATTR.awareness,
+      value: perceptionVariance(face, halfWidth) - perceptionVariance(face, baseHalfWidth),
+    },
+    ...compact(extraModifiers),
   ]);
 
   const perceivedOpenness = Math.round(

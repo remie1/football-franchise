@@ -11,6 +11,14 @@
  *   `hot_route_rate`           0.10%   (42 dropbacks)
  *   `PICKUP_LOST` threats      0       in 496 games
  *
+ * ⚠ **ALL THREE ARE v1 FIGURES. They describe the DEFECT this module exists to remove and must
+ * never be quoted as the current state.** At v2, same league and schedule (496 games, seeds
+ * `fnv1a:020c1dcb#496`, tunables `fnv1a:8a8354c3`): **5,901 `PICKUP_LOST` threats** and **1,970
+ * hot-converted dropbacks, 4.51% of 43,657** — about 35× the v1 rate. That matters beyond
+ * bookkeeping: the v1 figure sat BELOW `calibration.md` §5.3's refusal floor, so no sweep of the
+ * hot-route mechanic was admissible at all, and the v2 figure clears it by a wide margin. Backlog
+ * 28a is the first finding that population made measurable.
+ *
  * Those are not weak numbers. They are the numbers of a branch that has never executed: §7.4 step
  * 3 and ADR-022's sixteen authored hot routes were built, tested, and never once given a snap on
  * which they could fire. ADR-024 was approved to end that, and its mechanism is deliberately not

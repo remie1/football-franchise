@@ -1171,8 +1171,43 @@ export const TUNABLES = {
      * progressions still process at half speed.
      */
     minReadsPerTick: 1,
-    /** §8.3 awareness variance: d20 − 10 + (Awareness − 70) ÷ 5. */
-    awarenessVariance: { d20Offset: -10, baseline: 70, divisor: 5 },
+    /**
+     * §8.3 AWARENESS PERCEPTION BAND — AMENDED (ADR-040, owner ruling on
+     * ADR-039 SA-09). **Awareness narrows the band; it does not bias the mean.**
+     *
+     * The engine used to hold §8.3's arithmetic verbatim — `d20 − 10 + (Awareness
+     * − 70) ÷ 5` — which is a MEAN SHIFT wearing the doc's own label "(reduces
+     * variance range)". An elite quarterback perceived receivers as MORE OPEN
+     * THAN THEY WERE (+5 at 95 awareness) and a poor one as less open. §8.3 has
+     * been amended: the sentence and its worked examples are BOTH superseded,
+     * and two properties are now required of any implementation — the
+     * distribution is CENTRED ON THE TRUE VALUE at every awareness, and the
+     * half-width is MONOTONE DECREASING in awareness.
+     *
+     * THE MAPPING IS THE ENGINE'S, ON THE ADR-033 PRECEDENT: derived from a
+     * scale already in the game, never invented. Both numbers below are §8.3's
+     * OWN, doing the job §8.3's own sentence says they do:
+     *
+     *   `baseHalfWidth: 10` — §8.3's `d20 − 10`. The doc's offset IS the die's
+     *     excursion magnitude, so it becomes the half-width at the baseline
+     *     rating instead of a shift of the centre.
+     *   `baseline: 70` / `divisor: 5` — §8.3's `(Awareness − 70) ÷ 5`, moved
+     *     from the CENTRE to the HALF-WIDTH. Same term, same magnitude, applied
+     *     to the quantity the sentence always claimed it applied to.
+     *
+     * REJECTED, and named so the choice is auditable:
+     *   - a per-awareness-band table of half-widths (a new scale nobody asked
+     *     for: ADR-039 SA-01's failure with better intentions);
+     *   - a fresh divisor picked to make the elite band ±5 (the same invention,
+     *     wearing a formula);
+     *   - the doc's superseded examples' 20-point width as the elite band (they
+     *     are superseded precisely because they were never a narrowing).
+     *
+     * SCALE, at these values: 95 awareness → ±5, 70 → ±10, 60 → ±12, 40 → ±16.
+     * ⚠ NOT MEASURABLE ON A FLAT LEAGUE — every quarterback shares one band, so
+     * the property is invisible there. Phase 2 measurement item; backlog 49.
+     */
+    awarenessVariance: { baseHalfWidth: 10, baseline: 70, divisor: 5 },
     /** §8.4 tight-window compensation. */
     window: {
       tightWindowThreshold: 50,
@@ -1338,10 +1373,52 @@ export const TUNABLES = {
        * one defender's chance to break the pass up.
        */
       eligibleContestPositions: ["IN_FRONT"],
-      velocityModifier: { BULLET: 15, TOUCH: -10, BACK_SHOULDER: 0, THROWAWAY: 0 },
-      /** §10.3 throw angle. Touch passes go over the trailing defender; bullets through him. */
+      /**
+       * §10.2's numbers, not §10.3's (ADR-040, owner ruling on ADR-039 SA-13).
+       *
+       * The doc contradicts itself: §10.2 states the bullet's passing-lane
+       * modifier as `+10`, §10.3's velocity table says `+15`. **§10.2 wins —
+       * the mechanic description is the source, and the summary is the thing to
+       * fix**, which is the same rule Appendix C now carries in the doc itself.
+       * Touch is −10 in both sections and is untouched.
+       */
+      velocityModifier: { BULLET: 10, TOUCH: -10, BACK_SHOULDER: 0, THROWAWAY: 0 },
+      /** §10.3 throw angle. Verbatim. */
       angleModifier: { OVER_DEFENDER: 20, PAST_DEFENDER: 0, THROUGH_ZONE: -10 },
-      angleByThrowType: { BULLET: "THROUGH_ZONE", TOUCH: "OVER_DEFENDER", BACK_SHOULDER: "PAST_DEFENDER", THROWAWAY: "PAST_DEFENDER" },
+      /**
+       * §10.3's ANGLE IS GEOMETRY, NOT VELOCITY (ADR-040, ADR-039 SA-13's worse
+       * half).
+       *
+       * This table used to be keyed by THROW TYPE — `BULLET → THROUGH_ZONE
+       * (−10)`, `TOUCH → OVER_DEFENDER (+20)` — which put the type on BOTH of
+       * §10.3's terms and made the angle half the larger of the two. Net lane
+       * targets came out **bullet 65, touch 70**: a touch pass was HARDER to
+       * deflect than a bullet, and §10.2 says the opposite in words ("BULLET:
+       * harder for passing lane defenders" / "TOUCH: more time for coverage to
+       * close"). A floated ball hangs; hanging is the whole trade against a
+       * bullet's accuracy risk.
+       *
+       * §10.3 computes `60 + velocity + angle` from two INDEPENDENT inputs: the
+       * throw's speed and the ball's path relative to THIS defender. The engine
+       * already knows the second one — `ContestPosition`, the same input §11.3
+       * uses — so the angle is keyed on it and the throw type is left to the
+       * velocity term alone:
+       *
+       *   IN_FRONT  he has undercut the route and is standing IN the lane; the
+       *             ball goes THROUGH his zone (−10, easiest to deflect).
+       *   EVEN      alongside at the catch point, not in the flight path; the
+       *             ball goes PAST him (+0).
+       *   TRAILING  beaten, chasing from behind and therefore nearer the line
+       *             than the receiver: the ball is thrown OVER him (+20) — the
+       *             bucket throw over a trailing corner, hardest to play.
+       *
+       * Consequence, and it is the ruling's requirement: at every geometry the
+       * bullet's lane target now exceeds the touch pass's by exactly §10.2's
+       * 20 points, so the ORDERING no longer depends on the mapping at all.
+       * All three of §10.3's angle values are reachable — TRAILING and EVEN via
+       * §9.4's zone defender who broke on the ball (`grantsLaneContest`).
+       */
+      angleByContestPosition: { IN_FRONT: "THROUGH_ZONE", EVEN: "PAST_DEFENDER", TRAILING: "OVER_DEFENDER" },
     },
 
     /** §10.4 accuracy. */
@@ -1365,8 +1442,38 @@ export const TUNABLES = {
 
   /** §11 — catch resolution. */
   catching: {
-    /** §11.1 "defender within 1 yard" expressed on the openness scale. */
-    contestedMaxOpenness: 30,
+    /**
+     * §11.1 "CONTESTED CATCH: **Defender within 1 yard**", expressed on §9.3's
+     * openness scale (ADR-040, owner ruling on ADR-039 SA-14).
+     *
+     * DERIVED, NOT CHOSEN. §9.3's separation rows carry the mapping —
+     * `SEPARATION_1_2 → 55`, `SEPARATION_HALF_YARD → 40`, `EVEN_BRACKET → 32`,
+     * every CB-wins row lower — so the question "which openness is one yard of
+     * separation?" is answered by reading down that table until the rows stop
+     * being unambiguously inside a yard:
+     *
+     *   EVEN_BRACKET          0 yards    → 32   inside a yard, beyond argument
+     *   SEPARATION_HALF_YARD  ½ yard     → 40   inside a yard, beyond argument
+     *   SEPARATION_1_2        1-2 yards  → 55   STRADDLES the boundary
+     *
+     * so the threshold is **40, the half-yard row's own openness**, compared
+     * inclusively. At the previous 30 a DEAD-EVEN coverage rep — zero yards of
+     * separation — resolved as a ROUTINE catch, which §11.1's words forbid.
+     *
+     * WHY NOT 55, AND WHY NOT AN INTERPOLATION. §9.3's mapping is a table of
+     * eight discrete rows, not a function of yards, and one yard is the LOWER
+     * EDGE of a row that also contains two yards. Interpolating between 40 and
+     * 55 would produce ≈47 — a number this file invented, which is exactly the
+     * failure ADR-039 SA-01 recorded. Taking 55 would pull the whole
+     * `SEPARATION_1_2` row in on the strength of §9.3's parenthetical
+     * "(contested)" — and that parenthetical against §8.4's scale is **SA-08,
+     * which is not ruled**. So the smallest defensible reading is taken: the
+     * rows §11.1 makes contested beyond argument, and not the row that is
+     * SA-08's to decide. If SA-08 later rules for §9.3's words, this cell moves
+     * to 55 WITH that ruling, and `test/throwCatch.test.ts` pins the relation so
+     * the two cannot drift apart silently.
+     */
+    contestedMaxOpenness: 40,
     routine: {
       target: 50,
       attrDivisor: 5,

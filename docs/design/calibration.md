@@ -111,6 +111,24 @@ Output: a verdict memo — `mechanic (suspect: tunable X)` or `rating (suspect: 
 > count *is* a statement about what was held fixed. **Name the co-deriving mechanism**, not just the
 > percentage — "1.65% exclusive" without "because a live threat floors the same pocket" is a number
 > nobody can check.
+>
+> **LIMIT (added July 2026, ADR-039) — WHEN A CHANGE PROPAGATES, EXCLUSIVE REACH IS NOT COMPUTABLE
+> FROM A TWO-RUN DIFF. Say so; do not pick the flattering bound.**
+>
+> Once a change alters the stream, every later play in that game diverges for reasons that are not
+> the change. So the two available counts are **both wrong, in opposite directions and by unknown
+> amounts**:
+>
+> - **"plays that differ"** — over-counts **without bound**, because propagation is unbounded.
+> - **"games that differ"** — under-counts, collapsing every affected play in a game to one.
+>
+> **Neither may be reported as if it were the exclusive count.** ADR-039 left SA-03, SA-04, SA-07 and
+> SA-18 **explicitly unpriced** on these grounds, which is the correct outcome: *a refusal is a
+> result.* Where the change genuinely does **not** propagate — a reporting-only field, a dead cell —
+> an identical whole-stream digest **proves** exclusive reach is zero (ADR-036, SA-01, SA-16), and
+> that proof is available precisely because nothing downstream moved.
+>
+> **The tell:** if you cannot produce a digest-identical arm, you cannot produce an exclusive count.
 
 One attribute at a time: perturb ±15 points league-wide, measure outcome deltas across the metric library. Attributes whose perturbation moves nothing beyond noise are flagged **dead weight** with the evidence. (Also produces a useful byproduct: an empirical importance ranking of attributes per position — eventual scouting/UI gold.)
 
