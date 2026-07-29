@@ -191,22 +191,87 @@ describe("§10.3 passing lane", () => {
 
 /**
  * §11.1's contested threshold IS §9.3's half-yard openness — ASSERTED BY THE
- * COMPILER (ADR-040, ADR-039 SA-14).
+ * COMPILER, IN TWO PARTS (ADR-040 §3 and its amendment; ADR-039 SA-08/SA-14).
  *
- * `TUNABLES` is `as const`, so both sides are literal types and the equality is
- * a fact the type system decides. Mutual assignability makes a drift in EITHER
- * cell a compile error at the site of the derivation, rather than a red test
- * that a future editor could "fix" by updating the expected number.
+ * `TUNABLES` is `as const`, so both sides are literal types and each claim below
+ * is a fact the type system decides. Two claims are needed because ONE OF THEM
+ * CANNOT SEE THE MISTAKE THE OTHER CATCHES, and each is named here by the mistake
+ * a future author would be making — Charter §4.1: *an instrument can only be
+ * audited by running it against a case it should fail on, and a compiler pin's
+ * failing case is a second assertion.* With only assertion 1 this pin was a
+ * claim; with both it is an instrument.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ASSERTION 1 — THE COUPLING. `contestedMaxOpenness === SEPARATION_HALF_YARD's
+ * openness`, by mutual assignability of two literal types.
+ *
+ *   CATCHES: an author who tunes §11.1's threshold as if it were a free
+ *   parameter — "the contested rate looks low, try 45" — or who edits §9.3's
+ *   half-yard row and leaves §11.1 behind. It is a compile error AT THE
+ *   DERIVATION rather than a red test whose expected number can be updated, so
+ *   the author is stopped at the sentence they were about to make false: the
+ *   threshold is not a number, it is a ROW.
+ *
+ *   CANNOT SEE: the row itself moving. If SEPARATION_HALF_YARD's openness leaves
+ *   40, `contestedMaxOpenness` follows it, the equality still holds, this
+ *   assertion stays green — and every catch inside the vacated interval silently
+ *   changes classification.
+ *
+ * ASSERTION 2 — THE ANCHOR'S OWN IDENTITY. The row ADR-040 ruled on holds the
+ * value ADR-040 ruled it held.
+ *
+ *   CATCHES: exactly the case assertion 1 is blind to, and it is not
+ *   hypothetical — ADR-039 SA-08 is RULED AND OWED, and it re-points §9.3's
+ *   labels one §8.4 band DOWN, moving this very row out of `tight window (30-49)`
+ *   into `covered (15-29)`. When that lands, THIS LINE MUST REDDEN.
+ *
+ *   THE MISTAKE IT NAMES: implementing SA-08's mapping and letting §11.1's
+ *   threshold ride along, on the reasoning that "the derivation is anchored to
+ *   the row, so it follows correctly". That reasoning is half right and the half
+ *   that is wrong is the football. ADR-040 §3 did not rule "whatever the half-
+ *   yard row happens to hold"; it ruled *"the widest separation §11.1 makes
+ *   contested BEYOND ARGUMENT"* — a judgement about one yard, made against the
+ *   table as it stood. SA-08 re-points that table, so the judgement is owed
+ *   again, ON PURPOSE and out loud, and it may well come back to a different
+ *   row: §9.3's `1-2 yards` row was rejected in ADR-040 §3 only because SA-08
+ *   was then unruled.
+ *
+ *   WHAT TO DO WHEN IT GOES RED — and do NOT satisfy it by editing the literal:
+ *   1. re-open ADR-040 §3 and re-run its argument against the re-pointed table;
+ *   2. record which §9.3 row §11.1's "within one yard" now names;
+ *   3. move BOTH numbers together and update this assertion to the ruled value.
+ *   Updating this line alone converts a ruling into a transcription, which is the
+ *   defect ADR-039 SA-14 was opened about in the first place.
+ *
+ * WHY BOTH ARE COMPILE-TIME. §8.4's scale and this threshold are read on every
+ * catch resolution (ADR-040 §4.2: 2,285 of them in 48 games). A runtime test on a
+ * cell that `as const` already knows is a green cell asserting nothing; and a
+ * pin that can only fail at run time cannot stop the commit that moves it.
  */
 type HalfYardOpenness = Extract<
   (typeof TUNABLES)["manCoverage"]["bands"][number],
   { label: "SEPARATION_HALF_YARD" }
 >["openness"];
 type ContestedMax = (typeof TUNABLES)["catching"]["contestedMaxOpenness"];
+
+// ASSERTION 1 — the coupling.
 const _contestedMaxIsHalfYardOpenness: ContestedMax = null as unknown as HalfYardOpenness;
 const _halfYardOpennessIsContestedMax: HalfYardOpenness = null as unknown as ContestedMax;
 void _contestedMaxIsHalfYardOpenness;
 void _halfYardOpennessIsContestedMax;
+
+/**
+ * ASSERTION 2 — the anchor's own identity: the value ADR-040 §3 ruled the
+ * half-yard row holds, written once, here, and nowhere else in the engine.
+ *
+ * Mutual assignability again, so it fails whichever way the row moves. A one-way
+ * annotation would let the row widen to `number` unnoticed.
+ */
+type AdrO40RuledHalfYardOpenness = 40;
+const _anchorIsStillTheRuledRow: AdrO40RuledHalfYardOpenness = null as unknown as HalfYardOpenness;
+const _ruledRowIsStillTheAnchor: HalfYardOpenness = null as unknown as AdrO40RuledHalfYardOpenness;
+void _anchorIsStillTheRuledRow;
+void _ruledRowIsStillTheAnchor;
 
 describe("§11 catch resolution", () => {
   /** §9.3's row for a named separation, by label rather than by index. */

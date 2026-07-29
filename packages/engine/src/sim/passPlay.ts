@@ -1102,6 +1102,14 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
   }
 
   const forcedContest = brokeOnBall && tunables.zoneCoverage.readQb.forcesContestedCatch;
+  // ADR-042 — `actualOpenness` is the quantity published on CATCH_RESOLUTION, and
+  // it is THIS binding that is published, not a second call to `readOpenness`.
+  // Two of the three arms below do not consult it (no defender; a zone defender
+  // who broke on the ball under `forcesContestedCatch`), so the stream carries
+  // the window the ball arrived into on every catch and the classification is
+  // decided by it only on the third arm. That is a property a consumer can check
+  // — `CONTESTED ⟹ openness ≤ contestedMaxOpenness` holds unconditionally under
+  // the default tunables, because both other arms are ROUTINE or switched off.
   const catchType =
     defender === undefined ? "ROUTINE" : forcedContest ? "CONTESTED" : catchTypeFor(tunables, actualOpenness);
   const result = resolveCatch({
@@ -1116,7 +1124,13 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
   });
   // ADR-004: the CHECK carries the roll, the summary references it by rngLabel.
   log.check(result.check);
-  log.catchResolution(track.receiver.bio.id, result.catchType, result.check.roll.rngLabel, result.caught);
+  log.catchResolution(
+    track.receiver.bio.id,
+    result.catchType,
+    actualOpenness,
+    result.check.roll.rngLabel,
+    result.caught,
+  );
 
   if (result.interception) {
     return { yards: 0, turnover: true, clockRunoff: tick + tunables.result.clockRunoff.interception };

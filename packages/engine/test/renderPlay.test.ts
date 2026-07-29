@@ -293,7 +293,14 @@ describe("§17.1 debug renderer", () => {
         at: STAMP,
         event: {
           type: "CATCH_RESOLUTION",
-          payload: { receiver: "wr9" as unknown as PlayerId, catchType: "ROUTINE", rollRef: "missing/label", caught: true },
+          payload: {
+            receiver: "wr9" as unknown as PlayerId,
+            catchType: "ROUTINE",
+            // ADR-042 — required, so an orphan fixture must carry it too.
+            openness: 62,
+            rollRef: "missing/label",
+            caught: true,
+          },
           gameId: gameId("g-x"),
           playId: playId("p-x"),
         },

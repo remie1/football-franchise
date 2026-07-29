@@ -201,6 +201,26 @@ export type MatchEvent =
   | ({ type: "CATCH_RESOLUTION"; payload: {
         receiver: PlayerId;
         catchType: string;
+        /**
+         * The EFFECTIVE openness that DECIDED `catchType` — §8.4's 0-100 scale, after §8.7's
+         * decay and §8.4's window modifier. The quantity, not the classification.
+         *
+         * ADR-042. `catchType` is `contested` or `routine` BECAUSE this number fell on one side
+         * of `contestedMaxOpenness`. Publishing the label without the quantity made the label's
+         * own reach uncomputable from the stream — and uncomputable for a reason
+         * `docs/design/calibration.md` §5.3's propagation LIMIT does not cover.
+         *
+         * THE DISTINCTION WORTH REMEMBERING: every other refusal in the backlog is uncomputable
+         * because a change PROPAGATES — the obstacle is causal, and no field repairs it. This one
+         * was only LEXICAL. Every catch already knew its own answer; the stream did not say it.
+         * That is the test for future petitions of this shape: does the information exist at the
+         * emission site, or would we be inventing it?
+         *
+         * REQUIRED, never optional. An optional field re-creates the defect for every producer
+         * that omits it, and a consumer cannot tell "not published" from "not applicable" —
+         * §4.1's sorting-default corollary, which is how the whole `?? 0` family got established.
+         */
+        openness: number;
         /** The catch CHECK's RollDetail.rngLabel — never a repeated RollDetail (ADR-004). */
         rollRef: string;
         caught: boolean;

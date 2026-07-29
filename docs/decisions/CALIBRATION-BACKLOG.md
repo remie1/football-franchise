@@ -1330,6 +1330,27 @@ against. **This is decisions outliving the VALUE they were checked against.**
 it before Tier 2 distribution work**, since that is where the most value-specific rulings will
 accumulate.
 
+### ➕ WIDENED BRIEF (owner, July 2026) — a PIN ANCHORED TO A SYMBOL is as inheritable as a ruling anchored to a NUMBER
+
+**A sharper instance arrived before the sweep did, and it is not the shape the sweep was built for:
+not a ruling inheriting a value, but a PIN INHERITING A DEFINITION.**
+
+ADR-040 pinned `contestedMaxOpenness === SEPARATION_HALF_YARD.openness` **by the compiler** — moving
+either number is a build error. Correct, and better than a test. **But the pin is anchored to §11.1's
+ROW**, and SA-08's ruling **moves that row** into `covered (15-29)`. So: **the row moves, the
+threshold follows silently, the compiler stays green, and the football moves.**
+
+> **That is a pin enforcing a COUPLING rather than a VALUE — which was exactly right until the anchor
+> itself became the subject of a ruling.** Treat it as a defect in the pin, not a convenience.
+
+**Required fix (owed with SA-08's engine mapping): a SECOND assertion that the anchor is the row that
+was ruled on.** Pin the openness band's **own identity**, not merely the equality — so that if §8.4's
+mapping changes underneath, it **reddens and points at ADR-040** rather than tracking quietly.
+
+**So the sweep looks for BOTH shapes:** rulings anchored to a number, and **pins anchored to a
+symbol.** The second is more dangerous precisely because it looks stronger: a compiler pin reads as
+the safest possible enforcement, and it is — of the coupling it names, and of nothing else.
+
 ## 45. `GIFT` / `FLOATER` — DECLARED ABSTENTION, and why a targeted fixture is the wrong fix
 
 ADR-035's `deriveGuardedBy` **over-exempted on its first real run**: `GIFT` and `FLOATER` were

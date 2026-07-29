@@ -549,6 +549,56 @@ one: the doc said something **wrong** and was transcribed faithfully (§7.2); th
 **nothing** and a zero was transcribed (ADR-036); the doc said something and **no cell exists**
 (ADR-039). Each needs its own pass.
 
+**Corollary — ANY CHECK WHOSE SUBJECT IS A COUNT IS BLIND TO SUBSTITUTION.** A cardinality cannot
+see a swap. Pin the **set**, not its size.
+
+ADR-041's worked example is as clean as this gets: ADR-040 **removed** one tunable cell and **added**
+another under the same block rule — **net zero**. The census held at `numbers: 699`, `unclassified`
+was empty, `deadRules` was empty, **every gate was green** — and **a cell that had not existed the
+day before entered the tree wearing a `DOC_VERBATIM` note written about a different cell.** The
+register reddened on a *string* count that same day, and was blind to the substitution that actually
+mattered. Fixed by pinning the subject's identity (`numericLeafPathDigest()`), not its cardinality.
+
+**This is the third distinct blindness class found INSIDE an instrument built to find blindnesses**
+— after the implicit-coverage family and the doc→table direction. That is the argument for **keeping
+the register itself under review rather than trusting it once it is green**: the instruments in this
+project have a worse record of self-knowledge than the code they inspect, and each blindness was
+found by using the instrument, never by reading it.
+
+**Related, and the reason a stronger check is not automatically a safer one: a compiler pin anchored
+to a SYMBOL inherits that symbol's definition.** ADR-040 pinned a threshold to §11.1's row by type
+equality — unbreakable as to the coupling, and **silent when the anchor itself is re-ruled** (see
+`CALIBRATION-BACKLOG.md` entry 47). **Pin what you mean: if the identity of the anchor is part of the
+claim, assert the identity too.**
+
+**Corollary — AN INSTRUMENT CAN ONLY BE AUDITED BY RUNNING IT AGAINST A CASE IT SHOULD FAIL ON.
+Every instrument ships with such a case, and that case is RE-RUN whenever the instrument's subject
+changes.**
+
+`CALIBRATION-BACKLOG.md` §22a said this about *gates* — *a gate that never fired was worse than the
+one that went red.* **It generalises to every instrument in this project**, and the evidence is that
+all three blindnesses found in instruments were found **by using them, never by reading them**:
+
+| instrument | blindness | found by |
+|---|---|---|
+| hand-written band-table exemption list | named the **wrong rows** and went green | deriving the relation and comparing |
+| the doc-conformance census | a **cardinality cannot see a swap** (net-zero cell substitution) | a real swap landing under a block rule |
+| ADR-040's compiler pin | **inherits its anchor's definition** when the anchor is re-ruled | a ruling moving the anchor |
+
+**None was visible to review.** Each looked correct, careful and green. **So the review discipline
+for an instrument is different in kind from the one for code:** reading an instrument tells you what
+it *claims* to check; only failing it tells you what it *does* check.
+
+**The standing practice, therefore:**
+
+1. **Every instrument ships with a case it must fail on.** The band gate does (`guard-removed`,
+   `injected-inversion`). The pocket-ladder gate did (the recorded `IMMEDIATE → SACK` red). The
+   doc-conformance register now does. **A compiler pin's failing case is a second assertion** — which
+   is precisely what entry 47's pin fix is.
+2. **Re-run it when the instrument's SUBJECT changes**, not only when the instrument does. A green
+   instrument over a changed subject is the exact configuration all three failures above shared.
+3. **An instrument with no failing case is not yet an instrument.** It is a claim.
+
 **Counter-corollary — a guard that always fires gets deleted.** This principle has an obvious
 failure mode in the other direction, and ADR-025 is the worked example: refusing to compare two
 baselines that differ only in *seed list* would have blocked the one unambiguously legitimate

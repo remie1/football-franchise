@@ -187,6 +187,36 @@ describe("determinism (Charter pillar 5)", () => {
     expect(labels.some((l) => l.includes("/coverage/"))).toBe(true);
   });
 
+  /**
+   * ADR-042 — the newly published quantity replays.
+   *
+   * The whole-stream assertions above already cover it byte-for-byte; this one
+   * exists because they cover it SILENTLY. A field added to a payload is inside
+   * `JSON.stringify(events)` whether or not anybody meant it to be, so a test
+   * that names the field is what tells the next reader that its determinism was
+   * checked ON PURPOSE — and it fails loudly if a future emitter recovers the
+   * number from anything less deterministic than the value that decided the
+   * classification.
+   */
+  it("ADR-042: CATCH_RESOLUTION.openness replays identically on the same seed", () => {
+    const openness = (seed: string): number[] => {
+      const { state, calls } = buildScenario();
+      const { events } = simulatePassPlay(state, calls, seed);
+      return events.flatMap(({ event }) =>
+        event.type === "CATCH_RESOLUTION" ? [event.payload.openness] : [],
+      );
+    };
+    let observed = 0;
+    for (let i = 0; i < 60; i++) {
+      const seed = `adr042-determinism-${i}`;
+      const first = openness(seed);
+      expect(openness(seed)).toEqual(first);
+      observed += first.length;
+    }
+    // Not vacuous: the corpus actually produces catch resolutions.
+    expect(observed).toBeGreaterThan(0);
+  });
+
   it("sequence numbers continue from the incoming state and are contiguous", () => {
     const { state, calls } = buildScenario();
     const { events, newState } = simulatePassPlay(state, calls, "seq");

@@ -323,9 +323,38 @@ export class PlayEventLog {
    * ADR-004: the outcome REFERENCES the roll that produced it. `rollRef` is the
    * `rngLabel` of the catch CHECK's RollDetail, which must already have been
    * emitted — a RollDetail appears exactly once in the stream.
+   *
+   * ADR-042 — `openness` is the QUANTITY THAT DECIDED `catchType`, and the caller
+   * must hand over the very number it compared against
+   * `catching.contestedMaxOpenness`. This method deliberately takes it as an
+   * argument rather than deriving it: a second derivation would publish a number
+   * that merely USUALLY agrees with the one that decided, which is worse than
+   * publishing nothing, because it renders as a fact.
+   *
+   * ⚠ THE CONTRACT'S OWN DOC COMMENT NAMES A DIFFERENT QUANTITY, and the engine
+   * publishes the deciding one. `MatchEvent.CATCH_RESOLUTION.openness` is
+   * described as "the EFFECTIVE openness ... after §8.7's decay and §8.4's window
+   * modifier". The engine classifies on ACTUAL openness — post-§8.7-decay, but
+   * WITHOUT §8.3's perception variance and WITHOUT §8.4's window modifier —
+   * because whether a defender is inside a yard is a fact about the defender, not
+   * about what the quarterback believed or what his arm talent can compensate
+   * for. Effective openness exists at this site (`ThrowArgs.effectiveOpenness`)
+   * and is NOT what `catchTypeFor` reads. Publishing it would satisfy the comment
+   * and break the field's entire purpose. Reported as a contracts doc-comment
+   * defect; a petition, not an engine edit.
    */
-  catchResolution(receiver: PlayerId, catchType: string, rollRef: string, caught: boolean): void {
-    this.push({ type: "CATCH_RESOLUTION", payload: { receiver, catchType, rollRef, caught }, ...this.base() });
+  catchResolution(
+    receiver: PlayerId,
+    catchType: string,
+    openness: number,
+    rollRef: string,
+    caught: boolean,
+  ): void {
+    this.push({
+      type: "CATCH_RESOLUTION",
+      payload: { receiver, catchType, openness, rollRef, caught },
+      ...this.base(),
+    });
   }
 
   /**

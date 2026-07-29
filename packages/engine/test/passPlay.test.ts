@@ -41,6 +41,110 @@ describe("pass play integration", () => {
     }
   });
 
+  /**
+   * ADR-042 — CATCH_RESOLUTION publishes the QUANTITY that decided `catchType`.
+   *
+   * The point of the field is that SA-14's reach becomes a `filter().length` over
+   * ONE stream, so what has to be true is that the published number REPRODUCES
+   * the classification: a consumer must be able to re-run §11.1's comparison and
+   * get back the label that is already there. If it could not, the field would be
+   * a decoration that merely correlates.
+   */
+  describe("ADR-042 — the openness that decided the catch type", () => {
+    interface Resolution {
+      readonly openness: number;
+      readonly catchType: string;
+      readonly receiver: string;
+      /** The QB's own last read of this man — a DIFFERENT quantity. See below. */
+      readonly lastEffective: number | undefined;
+    }
+
+    const corpus = (): Resolution[] => {
+      const out: Resolution[] = [];
+      for (let i = 0; i < 400; i++) {
+        const { state, calls } = buildScenario();
+        const { events } = simulatePassPlay(state, calls, `adr042-${i}`);
+        const lastEffectiveByReceiver = new Map<string, number>();
+        for (const { event } of events) {
+          if (event.type === "QB_READ") {
+            lastEffectiveByReceiver.set(String(event.payload.target), event.payload.effectiveOpenness);
+          }
+          if (event.type !== "CATCH_RESOLUTION") continue;
+          const receiver = String(event.payload.receiver);
+          out.push({
+            openness: event.payload.openness,
+            catchType: event.payload.catchType,
+            receiver,
+            lastEffective: lastEffectiveByReceiver.get(receiver),
+          });
+        }
+      }
+      return out;
+    };
+
+    const resolutions = corpus();
+
+    it("publishes a number on every catch resolution, on §8.4's 0-100 scale", () => {
+      expect(resolutions.length).toBeGreaterThan(0);
+      for (const r of resolutions) {
+        expect(Number.isInteger(r.openness)).toBe(true);
+        expect(r.openness).toBeGreaterThanOrEqual(TUNABLES.route.minOpenness);
+        expect(r.openness).toBeLessThanOrEqual(TUNABLES.route.maxOpenness);
+      }
+    });
+
+    it("every CONTESTED catch published a number at or under §11.1's threshold", () => {
+      // The unconditional direction, and it is unconditional for a stated reason:
+      // the other two arms of the classification are `defender === undefined →
+      // ROUTINE` and `forcesContestedCatch`, which is OFF in the default tree. So
+      // nothing can be CONTESTED except by this comparison.
+      const contested = resolutions.filter((r) => r.catchType === "CONTESTED");
+      expect(contested.length).toBeGreaterThan(0);
+      for (const r of contested) {
+        expect(r.openness).toBeLessThanOrEqual(TUNABLES.catching.contestedMaxOpenness);
+      }
+    });
+
+    it("SA-14's reach is countable from this stream alone, which is the whole point", () => {
+      // The count ADR-040 §4.3 had to DECLINE: how many catches sit in the
+      // interval a threshold move would reclassify. No counterfactual, no second
+      // arm, no digest diff — one corpus and a filter.
+      const inSa14Interval = resolutions.filter((r) => r.openness > 30 && r.openness <= 40);
+      expect(inSa14Interval.every((r) => r.catchType === "CONTESTED")).toBe(true);
+      // and both sides of the threshold are populated, so the filter is not
+      // vacuous on this fixture.
+      expect(resolutions.some((r) => r.openness <= TUNABLES.catching.contestedMaxOpenness)).toBe(true);
+      expect(resolutions.some((r) => r.openness > TUNABLES.catching.contestedMaxOpenness)).toBe(true);
+    });
+
+    it("no ROUTINE catch is left under the threshold on this corpus", () => {
+      // ⚠ A CORPUS FACT, NOT A LAW, and it is recorded as one. `defender ===
+      // undefined → ROUTINE` can in principle publish a low number, and would be
+      // honest to do so: the classification was not decided by openness on that
+      // arm. It does not happen here because the only uncovered receivers are
+      // §9.4 zone holes, which enter at `uncoveredOpenness` 90. If this goes red,
+      // the correct response is to check WHICH arm produced it before touching
+      // anything.
+      const routineBelow = resolutions.filter(
+        (r) => r.catchType !== "CONTESTED" && r.openness <= TUNABLES.catching.contestedMaxOpenness,
+      );
+      expect(routineBelow).toEqual([]);
+    });
+
+    it("publishes ACTUAL openness, not the quarterback's EFFECTIVE openness", () => {
+      // The failure mode this pins is specific and would go unnoticed: §8.4's
+      // effective openness (perception variance + the tight-window arm-talent
+      // modifier) is in scope at the emission site and is NOT what §11.1 reads.
+      // Publishing it would satisfy the contract's doc comment and destroy the
+      // field's meaning — whether a defender is inside a yard is a fact about the
+      // defender, not about what the passer believed. If these two quantities
+      // were ever the same object, this count would be zero.
+      const withRead = resolutions.filter((r) => r.lastEffective !== undefined);
+      expect(withRead.length).toBeGreaterThan(0);
+      expect(withRead.some((r) => r.openness !== r.lastEffective)).toBe(true);
+    });
+  });
+
   it("emits a TICK and a POCKET_STATUS for every tick of the play", () => {
     const { state, calls } = buildScenario();
     const { events } = simulatePassPlay(state, calls, "ticks");

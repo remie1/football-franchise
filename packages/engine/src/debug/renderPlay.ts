@@ -763,7 +763,10 @@ function renderCatch(events: readonly MatchEventEnvelope[], name: NameLookup): s
     if (check !== undefined) {
       const p = check.payload;
       const contested = p.checkKind === "contested_catch";
-      out.push(`  ├─ Catch type: ${contested ? "CONTESTED" : "ROUTINE"}`);
+      // ADR-042 — the quantity that decided the classification, beside it. The
+      // §17.1 printout is a renderer over the stream, so this number is READ from
+      // the payload and never recomputed from the coverage band or the decay.
+      out.push(`  ├─ Catch type: ${contested ? "CONTESTED" : "ROUTINE"} (openness ${resolution.openness})`);
       out.push(`  ├─ ${actorLabel(p.roll, "OFF")}: ${formatRoll(p.roll)}`);
       if (p.opposedRoll !== undefined) {
         out.push(`  ├─ ${actorLabel(p.opposedRoll, "DEF")}: ${formatRoll(p.opposedRoll)}`);
@@ -771,7 +774,10 @@ function renderCatch(events: readonly MatchEventEnvelope[], name: NameLookup): s
       if (p.target !== undefined) out.push(`  ├─ vs. target ${p.target}`);
       out.push(`  ├─ Result: ${bandOf(p)} (${signed(p.margin)}) [${p.tier}]`);
     } else {
-      out.push(`  ├─ Catch type: ${resolution.catchType} (roll ${resolution.rollRef} not in this stream)`);
+      out.push(
+        `  ├─ Catch type: ${resolution.catchType} (openness ${resolution.openness}) ` +
+          `(roll ${resolution.rollRef} not in this stream)`,
+      );
     }
     out.push(`  └─ ${name(resolution.receiver)}: ${resolution.caught ? "CAUGHT" : "INCOMPLETE"}`);
   }

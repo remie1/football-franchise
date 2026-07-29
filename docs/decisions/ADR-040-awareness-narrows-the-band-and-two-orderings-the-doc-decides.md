@@ -5,6 +5,9 @@
 - **Status:** proposed — **implements three owner rulings on ADR-039 (SA-09, SA-13, SA-14).** The
   rulings are the owner's; everything below is the engine's implementation of them, its measurements,
   and the things it found while implementing and did **not** fix.
+- **Amended 2026-07-29 (§3.1):** owner ruling — **SA-14's compiler pin was one assertion short, and
+  the gap is a defect in the pin.** A second compile-time assertion now pins the anchor's own
+  identity, so SA-08's owed re-pointing reddens here instead of tracking quietly.
 
 ---
 
@@ -210,6 +213,60 @@ the derivation. The ordering `40 < 55` is not type-decidable and is asserted at 
 interception channel widens, `int_rate` is expected to move, and the interception figures below are
 reported **contaminated by propagation**, never as exclusive counts.
 
+### 3.1 AMENDMENT (2026-07-29) — **THE PIN ABOVE WAS ONE ASSERTION SHORT, AND THAT IS A DEFECT IN IT**
+
+The paragraph above is right that the pair cannot drift apart. **It is wrong to have stopped there**,
+and the owner has ruled the gap a defect in the pin rather than a convenience:
+
+> *"A pin that enforces coupling rather than a value was the right thing right up until the anchor
+> itself became the subject of a ruling."*
+
+**What was missed.** The pin is anchored to §11.1's **row**, and **ADR-039 SA-08 moves that row** —
+it is RULED and OWED, and it re-points §9.3's labels one §8.4 band DOWN, taking
+`SEPARATION_HALF_YARD` out of `tight window (30-49)` into `covered (15-29)`. When that lands, the row
+moves, `contestedMaxOpenness` follows it *because the derivation is correct*, **the equality is
+preserved, the compiler stays green, and the football moves.** The general form, worth recognising on
+sight (Charter §4.1; `CALIBRATION-BACKLOG.md` entry 47):
+
+> **A compiler pin anchored to a symbol inherits that symbol's definition.**
+
+**What §3 above actually ruled**, and this is why inheriting is wrong here: not *"whatever the
+half-yard row happens to hold"* but *"the widest separation §11.1 makes contested **beyond
+argument**"* — a **judgement about one yard**, made against the table **as it stood**. SA-08
+re-points that table, so the judgement is **owed again**, and it may not come back to the same row:
+the `SEPARATION_1_2` row was rejected above **only because SA-08 was then unruled**.
+
+**The repair — a second compile-time assertion**, in `test/throwCatch.test.ts` beside the first:
+
+| | asserts | catches | blind to |
+|---|---|---|---|
+| **1. the coupling** | `contestedMaxOpenness ≡ SEPARATION_HALF_YARD.openness` | an author tuning §11.1's threshold as a free parameter, or editing either cell alone | **the row itself moving** — both sides move together and it stays green |
+| **2. the anchor's identity** | `SEPARATION_HALF_YARD.openness ≡ 40`, the value **this ADR ruled** | exactly SA-08's re-pointing: **it reddens and points here** | a change that leaves this row alone (assertion 1's job) |
+
+Both are mutual assignability on `as const` literal types, so neither can be satisfied by a runtime
+edit, and each fails whichever way its pair moves.
+
+**The instrument was audited against the case it must fail on** — Charter §4.1: *an instrument can
+only be audited by running it against a case it should fail on, and a compiler pin's failing case is
+a second assertion.* Two perturbations, each run and reverted:
+
+| perturbation | assertion 1 | assertion 2 |
+|---|---|---|
+| `contestedMaxOpenness 40 → 45`, row untouched (a lone tune) | **RED** | green |
+| row **and** threshold both `40 → 25` (SA-08's shape, coupling intact) | green | **RED** |
+
+Without assertion 2 the second row of that table is green everywhere, which is the whole finding:
+**with one assertion this pin was a claim; with two it is an instrument.**
+
+**When assertion 2 goes red, do NOT satisfy it by editing the literal.** Re-open this section, re-run
+its argument against the re-pointed table, record which §9.3 row §11.1's *"within one yard"* now
+names, and move both numbers together. Updating the line alone converts a ruling into a
+transcription — the defect SA-14 was opened about.
+
+**Not done here, deliberately:** SA-08's mapping is not implemented. The owner has sequenced it
+behind ADR-042 and behind the §8.4 consumer enumeration, so that SA-08 and SA-14 can be priced
+**jointly and measurably** rather than argued.
+
 ---
 
 ## 4. PRICING — RAW COUNTS, AND A REFUSAL WHERE ONE IS OWED
@@ -365,7 +422,7 @@ that a whole-fixture comparison at n=400 is not an instrument (§5.1).
 | `packages/engine/src/resolve/throwExecution.ts` | `PassingLaneArgs.contestPosition` (required); angle from geometry |
 | `packages/engine/src/sim/passPlay.ts` | passes `track.contestPosition` to the lane check |
 | `packages/engine/test/qbDecision.test.ts` | §8.3's two ruled properties, proved exhaustively |
-| `packages/engine/test/throwCatch.test.ts` | lane ordering at every geometry; §11.1's contested rows; compiler-decided derivation |
+| `packages/engine/test/throwCatch.test.ts` | lane ordering at every geometry; §11.1's contested rows; compiler-decided derivation — **and, per §3.1's amendment, its second assertion** |
 | `packages/engine/test/blitz.test.ts` | the recorded defect (§5.1, §5.2) |
 | `packages/engine/test/tippedBall.test.ts`, `test/game.test.ts` | fixtures re-cut (§5.3) |
 
