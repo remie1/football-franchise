@@ -24,7 +24,7 @@
 import { getAttr } from "@ff/contracts";
 import type { AttrId, PlayerId, PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR, TRAIT, attrName, resolveAttr } from "../attrs.js";
-import type { CheckEmission } from "../events.js";
+import type { CheckEmission, TippedBallRecovery } from "../events.js";
 import {
   actorAttrModifier,
   bandFor,
@@ -81,11 +81,29 @@ export interface DeflectionQualityOutcome {
   readonly result: DeflectionQualityLabel;
   readonly band: DeflectionQualityBand;
   readonly targetNumber: number;
-  readonly finalTargetNumber: number;
-  readonly recoverable: boolean;
+  /**
+   * ADR-036. Was `finalTargetNumber: number` plus `recoverable: boolean`, which
+   * let a caller read a target off a dead ball. The two facts are one fact and
+   * are now carried as one: on a `DEAD` deflection there is no threshold, and
+   * `recovery.finalTargetNumber` does not exist to be read.
+   */
+  readonly recovery: TippedBallRecovery;
   readonly margin: number;
   readonly roll: RollDetail;
   readonly check: CheckEmission;
+}
+
+/**
+ * The band's recovery state, read the only way the band permits: by branching.
+ *
+ * `DEAD` has no `finalTargetNumber` KEY (`tunables.tippedBall.qualityBands`), so
+ * `band.finalTargetNumber` does not compile on the union and this function is
+ * where the narrowing happens, once.
+ */
+export function recoveryFor(band: DeflectionQualityBand): TippedBallRecovery {
+  return band.recoverable
+    ? { recoverable: true, finalTargetNumber: band.finalTargetNumber }
+    : { recoverable: false };
 }
 
 /**
@@ -115,8 +133,7 @@ export function resolveDeflectionQuality(args: DeflectionQualityArgs): Deflectio
     result: band.label,
     band,
     targetNumber,
-    finalTargetNumber: band.finalTargetNumber,
-    recoverable: band.recoverable,
+    recovery: recoveryFor(band),
     margin,
     roll,
     check: {
@@ -203,12 +220,24 @@ function proximityModifier(tunables: Tunables, distance: number): number {
   return p.twoZonesAway;
 }
 
+/**
+ * ADR-036 — the bands a recovery can actually be attempted on. `DEAD` is not
+ * one of them and is not merely discouraged from being one: it lacks
+ * `finalTargetNumber`, so it is not assignable here.
+ */
+export type RecoverableBand = Extract<DeflectionQualityBand, { recoverable: true }>;
+
 export interface RecoveryAttemptArgs {
   /** Required, never defaulted: a missed call site must be a compile error. */
   readonly tunables: Tunables;
   readonly candidate: EligibleRecoverer;
-  readonly band: DeflectionQualityBand;
-  readonly finalTargetNumber: number;
+  /**
+   * ADR-036: this used to be the whole union PLUS a separate
+   * `finalTargetNumber: number`, so nothing stopped a caller pairing the `DEAD`
+   * row with an invented threshold. The band now carries its own target and is
+   * the only place the target comes from.
+   */
+  readonly band: RecoverableBand;
   readonly tipRng: Rng;
 }
 
@@ -222,9 +251,10 @@ export interface RecoveryAttemptOutcome {
 
 /** §12.4 — one player's attempt at a live ball. */
 export function resolveRecoveryAttempt(args: RecoveryAttemptArgs): RecoveryAttemptOutcome {
-  const { candidate, band, finalTargetNumber, tipRng, tunables } = args;
+  const { candidate, band, tipRng, tunables } = args;
   const t = tunables.tippedBall.recovery;
   const who = candidate.player;
+  const finalTargetNumber = band.finalTargetNumber;
 
   const handsAttr = resolveAttr(
     candidate.side === "OFFENSE" ? t.offenseHandsAttr : t.defenseHandsAttr,

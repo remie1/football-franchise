@@ -130,18 +130,29 @@ of the tables.** The engine's own suite runs the mechanism on one column at an
 
 ---
 
-## 3. The eleven inversions, recorded
+## 3. The inversions, recorded — **eleven when measured, ten since ADR-036**
 
 Measured against the committed `DEFAULT_TUNABLES`. The dispatch named six tables;
-it is six tables and **eleven columns** — `tippedBall.qualityBands.speedCheckFromDistance`
+it was six tables and **eleven columns** — `tippedBall.qualityBands.speedCheckFromDistance`
 was not among the named six.
+
+> **AMENDED 2026-07-29 (ADR-036, ratified and executed).** One row has left this
+> table: `tippedBall.qualityBands/finalTargetNumber`. It was **not exempted.**
+> The `DEAD` row's cell was **deleted from `TUNABLES`**, so there is no longer a
+> value in that column for that row and `orderViolations` has nothing to compare
+> — the surviving sequence is `20, 35, 55, 75, 90`, monotone. *An inversion that
+> disappears because the cell stops existing is a fix; an inversion that
+> disappears because it is exempted is a note.* The distinction is the whole
+> subject of this ADR, so it is stated here rather than left to the reader to
+> infer from a changed count. **The recorded set is now ten**, and
+> `test/bandGuards.test.ts` holds the fence at ten.
 
 | table | column | sequence, best band first |
 |---|---|---|
 | `throwExec.accuracy.bands` | `catchMod` | 20, 15, 10, 0, −15, −25, **0** |
 | `throwExec.accuracy.bands` | `defenderContestMod` | −15, −10, −5, 0, 10, 15, **0** |
 | `throwExec.accuracy.bands` | `difficulty` | 0, 0, 0, 10, 15, 20, **0** |
-| `tippedBall.qualityBands` | `finalTargetNumber` | 20, 35, 55, 75, 90, **0** |
+| ~~`tippedBall.qualityBands`~~ | ~~`finalTargetNumber`~~ | ~~20, 35, 55, 75, 90, **0**~~ — **RESOLVED by ADR-036: the `DEAD` cell was removed; the column is now `20, 35, 55, 75, 90` and monotone** |
 | `tippedBall.qualityBands` | `speedCheckFromDistance` | 2, 2, **99**, 1, **99**, **99** |
 | `ballCarrier.contests.yac.bands` | `minYards` | **0**, 3, 1, 0, 0 |
 | `ballCarrier.contests.yac.bands` | `maxYards` | **0**, 5, 2, 1, 0 |
@@ -150,8 +161,10 @@ was not among the named six.
 | `stunt.bands` | `arrivalDelaySeconds` | 0, 0, 0.5, **0** |
 | `blitzPickup.bands` | `arrivalDelaySeconds` | 0, 0, 0.5, **0** |
 
-The other **41 orderable columns are monotone**, which is the first time anything
-has asserted that.
+The other **41 orderable columns are monotone** — **42 since ADR-036** — which is
+the first time anything has asserted that. The denominator did not move: there
+are still 52 orderable columns, and `finalTargetNumber` is still one of them,
+now with five rows instead of six. A column changed sides; none disappeared.
 
 ---
 
@@ -194,6 +207,10 @@ wrong two rows, still gone green, and left `LATE_EXCHANGE` vs `LOOPER_FREE`
 un-asserted forever.
 
 ### 4.3 `tippedBall.qualityBands.finalTargetNumber` on `DEAD` — **NOT a dead cell** ✘
+
+> **RESOLVED by ADR-036 (2026-07-29).** The verdict below stands as measured and
+> is why the cell could not be exempted; the cell has since been **removed**, and
+> with it the `LIVE` verdict's subject. Both code references below are historical.
 
 It derives **`LIVE`**. `sim/passPlay.ts:1339` emits `log.tippedBall(...,
 quality.finalTargetNumber, ...)` **unconditionally**, on every deflection
@@ -294,12 +311,24 @@ same species, and it is a §4.1 species: **a sentinel value sharing a column wit
 real values.** In each case the offending cell means *not applicable* and is
 spelled with a numeral that means something else entirely.
 
+> **AMENDED 2026-07-29.** **Four of ten** now: §6.1 was ruled on and fixed
+> (ADR-036). The other four are unchanged and remain the owner's.
+
 Prices are measured over 24 games, seeds `bg-0..bg-23`, **3,420 plays, 20,047
 yards, 5.8617 y/p, 107 turnovers**, on `test/gameFixtures.ts`'s two ordinary
 teams. Raw and exclusive counts are both stated, per `calibration.md` §5.3's
 ADR-032 qualification.
 
 ### 6.1 `tippedBall.qualityBands.DEAD.finalTargetNumber = 0` — a **reporting** defect, zero outcome cost
+
+> **RULED ON AND FIXED — ADR-036, ratified and executed 2026-07-29.** The owner
+> ruled that *an absence must look like an absence*. `packages/contracts` made
+> `TIPPED_BALL`'s payload a discriminated union on `recoverable`, and the `DEAD`
+> row's cell was deleted from `TUNABLES`. There is now no value on this row, in
+> the table or on the stream. Everything below is the measurement that produced
+> the ruling and is preserved as measured. The fix moved plays, yards, turnovers
+> and points by **zero on every digit** (3,420 / 20,047 / 107 / 1,545, re-measured
+> after the change over the same 24 seeds).
 
 `0` on this row means *"nobody is recovering this"*. In every other row the
 column means *"the target number a recovery attempt must meet"*, where **lower is

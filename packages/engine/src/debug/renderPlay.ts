@@ -697,14 +697,22 @@ function renderTippedBall(events: readonly MatchEventEnvelope[], name: NameLooku
 
   const out: string[] = ["TIPPED BALL (§12):", `  ├─ Deflected by ${name(p.deflector)}`];
 
+  // ADR-036: the printout carries the absence the same way the payload does. A
+  // dead ball has no recovery target, so no number is rendered for one — not a
+  // zero, not an em-dash in a "recovery target" slot, and not a slot at all.
+  // Reading `p.finalTargetNumber` without this narrowing is a compile error.
+  const target = p.recoverable
+    ? `recovery target ${String(p.finalTargetNumber)}`
+    : "dead ball, no recovery (§12.3)";
+
   const quality = join(p.rollRef);
   if (quality !== undefined) {
     const q = quality.payload;
     out.push("  ├─ Roll 1 — deflection quality:");
     out.push(`  │    ${formatRoll(q.roll)} vs. target ${q.target ?? "-"} (throw height + velocity)`);
-    out.push(`  │    Result: ${bandOf(q)} (${signed(q.margin)}) → recovery target ${p.finalTargetNumber}`);
+    out.push(`  │    Result: ${bandOf(q)} (${signed(q.margin)}) → ${target}`);
   } else {
-    out.push(`  ├─ Roll 1 — deflection quality: recovery target ${p.finalTargetNumber}`);
+    out.push(`  ├─ Roll 1 — deflection quality: ${target}`);
   }
 
   out.push(

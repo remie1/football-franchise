@@ -8,7 +8,7 @@
  */
 import { createHash } from "node:crypto";
 import { createRng } from "@ff/contracts";
-import type { MatchEventEnvelope, PlayerState } from "@ff/contracts";
+import type { MatchEvent, MatchEventEnvelope, PlayerState } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import { simulatePassPlay } from "../src/index.js";
 import { simulateGame } from "../src/game/simulateGame.js";
@@ -23,8 +23,12 @@ import {
   resolveRecoveryAttempt,
   throwHeightFor,
 } from "../src/resolve/tippedBall.js";
-import type { EligibleRecoverer, RecoveryCandidate } from "../src/resolve/tippedBall.js";
-import { TUNABLES } from "../src/tunables.js";
+import type {
+  EligibleRecoverer,
+  RecoverableBand,
+  RecoveryCandidate,
+} from "../src/resolve/tippedBall.js";
+import { TUNABLES, TunablePatchError } from "../src/tunables.js";
 import type { FieldZone } from "../src/types.js";
 import { buildDeflectionScenario, buildScenario, makePlayer } from "./fixtures.js";
 
@@ -46,6 +50,19 @@ function candidate(
 const band = (label: string): (typeof TUNABLES.tippedBall.qualityBands)[number] => {
   const found = TUNABLES.tippedBall.qualityBands.find((b) => b.label === label);
   if (found === undefined) throw new Error(`no band ${label}`);
+  return found;
+};
+
+/**
+ * ADR-036 — a band a recovery can be attempted on, narrowed rather than cast.
+ *
+ * `DEAD` has no `finalTargetNumber`, so it is not assignable to
+ * `RecoverableBand` and a test that asked this helper for it fails loudly here
+ * instead of quietly supplying a threshold to a ball that has none.
+ */
+const liveBand = (label: string): RecoverableBand => {
+  const found = band(label);
+  if (!found.recoverable) throw new Error(`${label} is not a recoverable band`);
   return found;
 };
 
@@ -125,8 +142,10 @@ describe("§12.2 Roll 1 — deflection quality", () => {
     expect(deflectionQualityBandFor(TUNABLES, -19)).toBe("CONTESTED");
     expect(deflectionQualityBandFor(TUNABLES, -39)).toBe("DIFFICULT");
     expect(deflectionQualityBandFor(TUNABLES, -40)).toBe("DEAD");
-    expect(band("GIFT").finalTargetNumber).toBe(20);
-    expect(band("DEAD").recoverable).toBe(false);
+    expect(liveBand("GIFT").finalTargetNumber).toBe(20);
+    // ADR-036: and the bottom row sets no final target number, because nothing
+    // is ever measured against one there. `liveBand("DEAD")` throws by design.
+    expect(() => liveBand("DEAD")).toThrow();
   });
 
   it("tests no attribute at all, and says so honestly", () => {
@@ -204,8 +223,7 @@ describe("§12.4 Roll 2 — recovery", () => {
     const at = (distance: number): number => {
       const out = resolveRecoveryAttempt({ tunables: TUNABLES,
         candidate: { ...eligible(quick, "DEFENSE"), zoneDistance: distance },
-        band: band("LIVE_BALL"),
-        finalTargetNumber: 55,
+        band: liveBand("LIVE_BALL"),
         tipRng: createRng("prox", "tip"),
       });
       const mod = out.roll.modifiers.find((m) => m.source.startsWith("Proximity"));
@@ -220,8 +238,7 @@ describe("§12.4 Roll 2 — recovery", () => {
     const sources = (side: "OFFENSE" | "DEFENSE"): string[] =>
       resolveRecoveryAttempt({ tunables: TUNABLES,
         candidate: eligible(side === "OFFENSE" ? slow : quick, side),
-        band: band("LIVE_BALL"),
-        finalTargetNumber: 55,
+        band: liveBand("LIVE_BALL"),
         tipRng: createRng("hands", "tip"),
       }).roll.modifiers.map((m) => m.source);
     expect(sources("OFFENSE").some((s) => s.includes("Catching"))).toBe(true);
@@ -231,8 +248,7 @@ describe("§12.4 Roll 2 — recovery", () => {
   it("a gift zone and already tracking the ball both pay out", () => {
     const out = resolveRecoveryAttempt({ tunables: TUNABLES,
       candidate: { ...eligible(quick, "DEFENSE"), trackingBall: true },
-      band: band("GIFT"),
-      finalTargetNumber: 20,
+      band: liveBand("GIFT"),
       tipRng: createRng("gift", "tip"),
     });
     const sources = out.roll.modifiers.map((m) => m.source);
@@ -243,21 +259,24 @@ describe("§12.4 Roll 2 — recovery", () => {
   it("a blocker is penalised for being in a block", () => {
     const out = resolveRecoveryAttempt({ tunables: TUNABLES,
       candidate: { ...eligible(slow, "OFFENSE"), engagedInBlock: true },
-      band: band("LIVE_BALL"),
-      finalTargetNumber: 55,
+      band: liveBand("LIVE_BALL"),
       tipRng: createRng("block", "tip"),
     });
     expect(out.roll.modifiers.find((m) => m.source === "Engaged in a block")?.value).toBe(-20);
   });
 
   it("must MEET or exceed the final target number", () => {
+    const live = liveBand("LIVE_BALL");
     const out = resolveRecoveryAttempt({ tunables: TUNABLES,
       candidate: eligible(quick, "DEFENSE"),
-      band: band("LIVE_BALL"),
-      finalTargetNumber: 55,
+      band: live,
       tipRng: createRng("meet", "tip"),
     });
     expect(out.recovered).toBe(out.margin >= 0);
+    // ADR-036: the target comes from the band and from nowhere else — there is
+    // no longer a second parameter a caller could disagree with it in.
+    expect(out.check.target).toBe(live.finalTargetNumber);
+    expect(out.margin).toBe(out.roll.total - live.finalTargetNumber);
   });
 });
 
@@ -402,29 +421,43 @@ describe("§12 over real event streams", () => {
 // ---------------------------------------------------------------------------
 
 /**
- * ADR-035 §6.1 priced this cell and ADR-036 petitions for its removal from the
- * payload. Both rest on one claim, and this block is the claim rather than a
- * summary of it:
+ * ADR-035 §6.1 priced this cell, ADR-036 petitioned for its removal, and the
+ * petition was RATIFIED. What follows is the executed state, and it is written
+ * as the property rather than as a note that the property was once checked.
  *
- *   **On a `DEAD` deflection the recovery target is published and never used.**
+ * THE DEFECT, in the past tense: a `DEAD` deflection published
+ * `finalTargetNumber: 0` on all 163 of them across a 24-game corpus, and nothing
+ * ever read it — no `deflection_recovery` CHECK occurs on a dead ball, because
+ * `recoverable: false` empties the candidate list first. `0` was dangerous
+ * precisely because it is a legal point on the target scale and the easiest one
+ * in the table (§4.1's sorting-default corollary): a consumer building a
+ * recovery-difficulty distribution would read it, believe it, and average it in.
  *
- * ADR-035 established that by two independent routes — no `deflection_recovery`
- * CHECK on any of the 163 `DEAD` plays, and a `0 → 100` patch moving plays,
- * yards, turnovers and points by exactly zero. Neither of those is quite the
- * claim the petition needs, because "outcomes did not move" leaves open how much
- * of the STREAM moved. So the measurement here is total rather than sampled, per
- * §4.1's corollary on verifying a total function: two whole 24-game corpora,
- * hashed event-for-event, with the `DEAD` payload's `finalTargetNumber` removed.
+ * THE FIX is structural, at three levels, and all three are asserted below
+ * because each alone would leave the value reachable from another direction:
  *
- *   - full stream:     the two digests DIFFER — the value is genuinely published.
- *   - stripped stream: the two digests are IDENTICAL — and that field is the
- *                      entire surface of the cell. Nothing else in 24 games of
- *                      events or in either resulting `MatchState` moves by one
- *                      byte when the number changes.
+ *   source   `tunables.tippedBall.qualityBands`' `DEAD` row has no such KEY, so
+ *            the cell is not addressable by `applyTunablePatch` at all.
+ *   type     `MatchEvent`'s `TIPPED_BALL` payload is a discriminated union on
+ *            `recoverable`; the key's PRESENCE on the `false` arm is a compile
+ *            error under `exactOptionalPropertyTypes`.
+ *   stream   no emitted `DEAD` payload carries the key at runtime, which is a
+ *            genuinely different claim from the type-level one — a key can
+ *            survive a spread, a cast or a JSON round-trip that the compiler
+ *            never sees.
  *
- * Which is the petition's safety argument stated as a measurement: removing the
- * field from the `DEAD` payload removes the misreadable number and provably
- * nothing else.
+ * WHY THE `0 → 100` PATCH TEST IS GONE AND WHAT REPLACED IT. That test proved
+ * the cell was reporting-only by patching it and hashing two whole 24-game
+ * corpora: the full digests differed (so the number was genuinely published) and
+ * the digests with the field stripped were identical (so that field was the
+ * cell's entire surface). It cannot run now, because there is nothing to patch —
+ * which is the strongest possible version of its own conclusion. `expect(...)
+ * .toThrow(TunablePatchError)` below is what remains of it, and it is a stronger
+ * claim than any assertion about the cell's value could be: not "the value is
+ * harmless" but "there is no value".
+ *
+ * The four outcome totals stay as literals, unchanged from the pre-fix
+ * measurement, because this was a REPORTING fix and had to move no football.
  */
 const ADR036_GAMES = 24;
 
@@ -433,14 +466,24 @@ interface DeadTargetCorpus {
   readonly yards: number;
   readonly turnovers: number;
   readonly points: number;
+  readonly tips: number;
   readonly deadTips: number;
-  /** The distinct `finalTargetNumber` values published on a `DEAD` deflection. */
-  readonly deadTargets: number[];
   readonly deadEligible: number;
   readonly deadRecoveryChecks: number;
+  /**
+   * `DEAD` payloads carrying a `finalTargetNumber` KEY, tested with
+   * `hasOwnProperty` on the emitted object. The type forbids it; this measures
+   * whether the object agrees, which the type cannot do for a value that has
+   * crossed a spread or a package boundary.
+   */
+  readonly deadCarryingTheKey: number;
+  /** `DEAD` payloads whose discriminant disagrees with the CHECK's band. */
+  readonly deadClaimingRecoverable: number;
+  /** Live payloads MISSING the key — the other direction, so this is not vacuous. */
+  readonly liveMissingTheKey: number;
+  /** The distinct real thresholds published on recoverable deflections. */
+  readonly liveTargets: number[];
   readonly fullDigest: string;
-  /** As above, with `finalTargetNumber` deleted from every `DEAD` payload. */
-  readonly strippedDigest: string;
 }
 
 function deadTargetCorpus(tunables: Tunables): DeadTargetCorpus {
@@ -448,12 +491,15 @@ function deadTargetCorpus(tunables: Tunables): DeadTargetCorpus {
   let yards = 0;
   let turnovers = 0;
   let points = 0;
+  let tips = 0;
   let deadTips = 0;
   let deadEligible = 0;
   let deadRecoveryChecks = 0;
-  const deadTargets = new Set<number>();
+  let deadCarryingTheKey = 0;
+  let deadClaimingRecoverable = 0;
+  let liveMissingTheKey = 0;
+  const liveTargets = new Set<number>();
   const full = createHash("sha256");
-  const stripped = createHash("sha256");
 
   for (let i = 0; i < ADR036_GAMES; i++) {
     const fixture = buildGameFixture({ seed: `bg-${String(i)}` });
@@ -461,6 +507,9 @@ function deadTargetCorpus(tunables: Tunables): DeadTargetCorpus {
 
     // Which deflections were DEAD, named by the band the CHECK recorded (ADR-011)
     // rather than by re-deriving a margin — the band is on the stream already.
+    // Deliberately NOT by reading the payload's own `recoverable`: that is the
+    // field under test, and a test that established the truth from the thing it
+    // is checking would establish nothing.
     const deadRoll = new Set<string>();
     const recoveriesByPlay = new Map<string, number>();
     for (const { event } of events) {
@@ -480,85 +529,152 @@ function deadTargetCorpus(tunables: Tunables): DeadTargetCorpus {
         yards += event.payload.yards;
         if (event.payload.turnover) turnovers += 1;
       }
-      if (event.type === "TIPPED_BALL" && deadRoll.has(event.payload.rollRef)) {
+      if (event.type !== "TIPPED_BALL") continue;
+      tips += 1;
+      const payload = event.payload;
+      const carriesKey = Object.prototype.hasOwnProperty.call(payload, "finalTargetNumber");
+      if (deadRoll.has(payload.rollRef)) {
         deadTips += 1;
-        deadTargets.add(event.payload.finalTargetNumber);
-        deadEligible += event.payload.eligible.length;
+        if (carriesKey) deadCarryingTheKey += 1;
+        if (payload.recoverable) deadClaimingRecoverable += 1;
+        deadEligible += payload.eligible.length;
         deadRecoveryChecks += recoveriesByPlay.get(String(event.playId)) ?? 0;
+      } else {
+        if (!carriesKey) liveMissingTheKey += 1;
+        if (payload.recoverable) liveTargets.add(payload.finalTargetNumber);
       }
     }
     points += newState.score.home + newState.score.away;
 
     full.update(JSON.stringify(events));
     full.update(JSON.stringify(newState));
-
-    const asPetitioned = events.map((envelope) => {
-      const { event } = envelope;
-      if (event.type !== "TIPPED_BALL" || !deadRoll.has(event.payload.rollRef)) return envelope;
-      const { finalTargetNumber: _notApplicable, ...payload } = event.payload;
-      return { ...envelope, event: { ...event, payload } };
-    });
-    stripped.update(JSON.stringify(asPetitioned));
-    stripped.update(JSON.stringify(newState));
   }
 
   return {
     plays, yards, turnovers, points,
-    deadTips, deadTargets: [...deadTargets], deadEligible, deadRecoveryChecks,
+    tips, deadTips, deadEligible, deadRecoveryChecks,
+    deadCarryingTheKey, deadClaimingRecoverable, liveMissingTheKey,
+    liveTargets: [...liveTargets].sort((a, b) => a - b),
     fullDigest: full.digest("hex"),
-    strippedDigest: stripped.digest("hex"),
   };
 }
 
 describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () => {
-  /** Both corpora, once — 48 games, and every assertion below reads them. */
+  /** The whole 24-game corpus, once; every assertion below reads it. */
   const base = deadTargetCorpus(DEFAULT_TUNABLES);
-  const moved = deadTargetCorpus(
-    applyTunablePatch(DEFAULT_TUNABLES, {
-      tunableId: "tippedBall.qualityBands.5.finalTargetNumber",
-      currentValue: 0,
-      proposedValue: 100,
-      evidence: "ADR-036 — the reporting-only proof, re-measured on every run",
-      expectedEffect: "no outcome moves; the published number changes and nothing else",
-    }),
-  );
 
-  it("reaches the stream on every DEAD deflection and is consulted on none", () => {
+  it("still moves no football: the pre-fix totals, on every digit", () => {
+    // ADR-035/036 measured these before the change. A reporting fix that moved
+    // any of them would not be a reporting fix.
     expect(base.plays).toBe(3420);
+    expect(base.yards).toBe(20047);
+    expect(base.turnovers).toBe(107);
+    expect(base.points).toBe(1545);
+    expect(base.tips).toBe(271);
     expect(base.deadTips).toBe(163);
-    // The mechanism that makes it unreachable: `recoverable: false` empties the
-    // candidate list in `eligibleRecoverers` before a target is ever compared.
+  });
+
+  it("still never consults a target on a dead ball", () => {
+    // The mechanism: `recoverable: false` empties the candidate list in
+    // `eligibleRecoverers` before a target could be compared against anything.
     expect(base.deadEligible).toBe(0);
     expect(base.deadRecoveryChecks).toBe(0);
   });
 
   /**
-   * PENDING ADR-036 — this assertion INVERTS when the petition ratifies.
+   * THE CONVERTED TRIPWIRE (was: "PENDING ADR-036 — publishes a readable target
+   * on all 163 of them", asserting `deadTargets === [0]`).
    *
-   * It is here so the defect cannot be closed cosmetically. `0` is dangerous
-   * because it is a VALID VALUE ON THE TARGET SCALE and the easiest one in the
-   * table (§4.1's sorting-default corollary), so the tempting repair is to spell
-   * it `99` or `-1` and move on. Any such edit turns this red and points at the
-   * petition; only removing the field from the payload satisfies it.
+   * It is converted rather than deleted on purpose. A tripwire that vanishes
+   * when the defect is fixed leaves nothing standing where the defect was, and
+   * the next author to reach for a "harmless default" on this payload meets no
+   * resistance. So it now asserts the POST-fix property over the same 163
+   * events: not that the published number is a particular value, but that there
+   * is no number to publish.
+   *
+   * It cannot be satisfied cosmetically. `-1`, `99` and `NaN` all fail it, and
+   * so does re-adding the key with `undefined` — `hasOwnProperty` sees the key,
+   * not the value, which is exactly the distinction ADR-036 turned on.
    */
-  it("PENDING ADR-036: publishes a readable target on all 163 of them", () => {
-    expect(base.deadTargets).toEqual([0]);
+  it("publishes NO recovery target on any of the 163 — the key is absent, not zeroed", () => {
+    expect(base.deadCarryingTheKey).toBe(0);
+    // And the discriminant tells the truth: every payload the CHECK graded DEAD
+    // says `recoverable: false`. Two independent facts on the stream agreeing.
+    expect(base.deadClaimingRecoverable).toBe(0);
   });
 
-  it("moves plays, yards, turnovers and points by exactly zero", () => {
-    expect(moved.plays).toBe(base.plays);
-    expect(moved.yards).toBe(base.yards);
-    expect(moved.turnovers).toBe(base.turnovers);
-    expect(moved.points).toBe(base.points);
-    expect(moved.deadTips).toBe(base.deadTips);
-    expect(moved.deadTargets).toEqual([100]);
+  it("and still publishes the real thresholds where they exist", () => {
+    // The other direction, so the assertion above is not satisfied by an engine
+    // that simply stopped emitting the field at all. Every recoverable
+    // deflection carries its band's genuine target.
+    expect(base.liveMissingTheKey).toBe(0);
+    expect(base.liveTargets).toEqual([20, 35, 55, 75, 90]);
+    expect(base.tips - base.deadTips).toBe(108);
   });
 
-  it("moves exactly one thing in 24 games of stream: the number it publishes", () => {
-    // Published — so it is a value a consumer can read, believe and aggregate.
-    expect(moved.fullDigest).not.toBe(base.fullDigest);
-    // And nothing else. Event-for-event over both whole corpora, plus both final
-    // states: identical once the DEAD payload's target is gone.
-    expect(moved.strippedDigest).toBe(base.strippedDigest);
+  it("the cell is not addressable, because the cell does not exist", () => {
+    // What replaced the `0 → 100` patch test. That patch proved the value was
+    // reporting-only; this proves there is no value. ADR-035's recorded
+    // inversion on this column did not become exempt — it ceased to exist.
+    expect(() =>
+      applyTunablePatch(DEFAULT_TUNABLES, {
+        tunableId: "tippedBall.qualityBands.5.finalTargetNumber",
+        currentValue: 0,
+        proposedValue: 100,
+        evidence: "ADR-036 — the cell this patch names was removed",
+        expectedEffect: "rejection: there is nothing at this path",
+      }),
+    ).toThrow(TunablePatchError);
+    // The live rows above it are still patchable, so the rejection is about the
+    // missing cell and not about the path shape or the table being off-limits.
+    expect(() =>
+      applyTunablePatch(DEFAULT_TUNABLES, {
+        tunableId: "tippedBall.qualityBands.4.finalTargetNumber",
+        currentValue: 90,
+        proposedValue: 91,
+        evidence: "ADR-036 — the control for the rejection above",
+        expectedEffect: "accepted; DIFFICULT has a real target",
+      }),
+    ).not.toThrow();
+  });
+
+  it("the stream is reproducible with the field gone, as it was with it present", () => {
+    expect(deadTargetCorpus(DEFAULT_TUNABLES).fullDigest).toBe(base.fullDigest);
+  });
+});
+
+/**
+ * The type-level half of the same claim. The runtime test above says the engine
+ * does not emit the key; this says a producer COULD NOT, and it is the half that
+ * survives someone rewriting the emitter.
+ */
+type TippedBallPayload = Extract<MatchEvent, { type: "TIPPED_BALL" }>["payload"];
+
+describe("ADR-036 the absence is enforced by the type, not by convention", () => {
+  const deflector = DEFLECTOR.bio.id;
+
+  it("a recoverable deflection carries its threshold", () => {
+    const live: TippedBallPayload = {
+      deflector, rollRef: "r:q", recoverable: true, finalTargetNumber: 55, eligible: [], attempts: [],
+    };
+    expect(live.recoverable ? live.finalTargetNumber : undefined).toBe(55);
+  });
+
+  it("a dead ball compiles without one", () => {
+    // The positive control for the `@ts-expect-error` below: the rest of this
+    // literal is fine, so the error there is caused by the key and nothing else.
+    const dead: TippedBallPayload = {
+      deflector, rollRef: "r:q", recoverable: false, eligible: [], attempts: [],
+    };
+    expect(Object.prototype.hasOwnProperty.call(dead, "finalTargetNumber")).toBe(false);
+  });
+
+  it("a dead ball carrying one does not compile", () => {
+    // @ts-expect-error ADR-036 — `recoverable: false` has `finalTargetNumber?: never`, so the key's PRESENCE is the error. Deleting this directive fails the build with TS2578, which is the proof it is load-bearing.
+    const dead: TippedBallPayload = { deflector, rollRef: "r:q", recoverable: false, finalTargetNumber: 0, eligible: [], attempts: [] };
+    // The value is still there at RUNTIME — that is the point. The compiler is
+    // the only thing standing between a consumer and this number, which is why
+    // the runtime corpus assertion above exists as well as this one.
+    expect(Object.prototype.hasOwnProperty.call(dead, "finalTargetNumber")).toBe(true);
   });
 });

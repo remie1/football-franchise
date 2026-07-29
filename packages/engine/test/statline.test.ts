@@ -242,9 +242,13 @@ describe("the men in protection are on the field too", () => {
       {
         type: "TIPPED_BALL",
         ...base,
+        // ADR-036: a recovered tip is by construction a LIVE ball, so this
+        // literal takes the `recoverable: true` arm and its threshold is a real
+        // one. The dead arm could not carry `finalTargetNumber` at all.
         payload: {
           deflector: cb,
           rollRef: "r:quality",
+          recoverable: true,
           finalTargetNumber: 55,
           eligible: [centre],
           attempts: [{ player: centre, rollRef: "r:recover" }],

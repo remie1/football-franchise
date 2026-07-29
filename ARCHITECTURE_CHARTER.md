@@ -355,6 +355,31 @@ practical form: when executing an approved plan, re-read the constitution, not t
 a step no longer fits, amend the decision on the record rather than either executing it or dropping
 it silently.
 
+**Corollary — a test asserting a comparison the type system already decides must FAIL TO COMPILE,
+not pass green.** A tautology renders as a passing test. It costs a line in the suite, contributes a
+green tick, and asserts nothing — and it is *indistinguishable from a real assertion* in every
+report anyone reads.
+
+The worked example is `test/passPlay.test.ts:143`, which asserted that
+`event.payload.status === "SACK"` is `false`. True when written. After ADR-034 narrowed
+`PocketStatus`, **provably false by type** — the comparison cannot be anything else, so the test
+began passing for a reason unrelated to the behaviour it was written to protect. The fix is not to
+delete it but to **replace it with the general property it was a case of, derived from the source of
+truth** (here, `pocket.severity`).
+
+**The reason this is a §4.1 claim and not a style note:** it was invisible until a *typecheck of the
+test files* existed, and the repo's root `typecheck` script had never checked a test file in any
+package but one. **A suite cannot report that one of its own assertions has become vacuous** — every
+signal it emits says "passing". This is the sharpest available demonstration of the section's own
+premise, found inside the section's own instrument.
+
+**Corollary — a root command must check everything its name implies, or be renamed.** `typecheck`
+running `pnpm -r exec tsc --noEmit` resolves each package's *nearest* `tsconfig.json`, which
+everywhere includes `src` only — so a gate made blocking in CI **silently checked less than its name
+claimed**, for the entire life of the repo. Fix the command, never paper over it with per-package
+overrides: **a root script that silently checks less than its name implies is the same species as a
+restated constant** — a second source of truth about coverage, and the one everybody trusts.
+
 **Counter-corollary — a guard that always fires gets deleted.** This principle has an obvious
 failure mode in the other direction, and ADR-025 is the worked example: refusing to compare two
 baselines that differ only in *seed list* would have blocked the one unambiguously legitimate

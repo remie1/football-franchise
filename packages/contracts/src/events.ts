@@ -213,11 +213,32 @@ export type MatchEvent =
   | ({ type: "TIPPED_BALL"; payload: {
         deflector: PlayerId;
         rollRef: string;
-        finalTargetNumber: number;
         eligible: PlayerId[];
         attempts: { player: PlayerId; rollRef: string }[];
         recoveredBy?: PlayerId;
-      } } & MatchEventBase)
+      } & (
+        /**
+         * ADR-036 — AN ABSENCE MUST LOOK LIKE AN ABSENCE.
+         *
+         * A deflection graded DEAD has no recovery target. It previously published
+         * `finalTargetNumber: 0` on every such play — a value a future consumer can read,
+         * believe and aggregate, by which point it is indistinguishable from a real target.
+         * `0` is a legal point on the target scale, which is exactly what made it dangerous
+         * (Charter §4.1, the sorting-default corollary).
+         *
+         * Deliberately NOT `finalTargetNumber?: number`: an optional still hands the consumer
+         * `number | undefined`, and they may write `?? 0` — putting back the precise value at
+         * issue. The `false` arm makes the key's PRESENCE a producer-side type error under
+         * `exactOptionalPropertyTypes`, and forces consumer-side narrowing. Same move as
+         * ADR-016's `playId?: never`: "not applicable" is structural, never a value.
+         *
+         * `recoverable` is NOT a discriminant invented for this union. `eligible: []` does not
+         * imply it — measured, 2 of 39 DIFFICULT deflections carry an empty eligible list with
+         * a REAL target of 90 (nobody in the throwing zone). Two distinct facts, one observable.
+         */
+        | { recoverable: true; finalTargetNumber: number }
+        | { recoverable: false; finalTargetNumber?: never }
+      ) } & MatchEventBase)
   | ({ type: "YAC_ZONE"; payload: { carrier: PlayerId; zone: number; yardsInZone: number } } & MatchEventBase)
   /** A designed run's zone-by-zone advance. Separate from YAC_ZONE so rushing yards
    *  never land in a receiving aggregate — widen or add, never overload (ADR-010). */

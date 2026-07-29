@@ -1318,28 +1318,36 @@ function resolveTippedBall(args: TippedBallArgs): PlayOutcome {
 
   const attempts: { player: PlayerId; rollRef: string }[] = [];
   let recovered: (typeof ordered)[number] | undefined;
-  for (const candidate of ordered) {
-    const attempt = resolveRecoveryAttempt({
-      tunables,
-      candidate,
-      band: quality.band,
-      finalTargetNumber: quality.finalTargetNumber,
-      tipRng,
-    });
-    log.check(attempt.check);
-    attempts.push({ player: attempt.player, rollRef: attempt.roll.rngLabel });
-    // §12.4: "First success = recovery." Everyone behind him in Reaction order
-    // never gets an attempt, which is why the order is total and deterministic.
-    if (attempt.recovered) {
-      recovered = candidate;
-      break;
+  // ADR-036: the branch is not defensive padding around a loop that used to be
+  // unconditional — it is the loop's precondition, previously only a comment.
+  // `eligibleRecoverers` returns [] for an unrecoverable band, so `ordered` is
+  // already empty here and no iteration is skipped (asserted in
+  // `test/tippedBall.test.ts`, "a dead ball is recoverable by nobody"). What
+  // changes is that the target the attempt is rolled against now comes from a
+  // band that HAS one, instead of from a number the DEAD row supplied as `0`.
+  if (quality.band.recoverable) {
+    for (const candidate of ordered) {
+      const attempt = resolveRecoveryAttempt({
+        tunables,
+        candidate,
+        band: quality.band,
+        tipRng,
+      });
+      log.check(attempt.check);
+      attempts.push({ player: attempt.player, rollRef: attempt.roll.rngLabel });
+      // §12.4: "First success = recovery." Everyone behind him in Reaction order
+      // never gets an attempt, which is why the order is total and deterministic.
+      if (attempt.recovered) {
+        recovered = candidate;
+        break;
+      }
     }
   }
 
   log.tippedBall(
     deflector.bio.id,
     quality.roll.rngLabel,
-    quality.finalTargetNumber,
+    quality.recovery,
     ordered.map((c) => c.player.bio.id),
     attempts,
     recovered?.player.bio.id,

@@ -25,6 +25,26 @@ import type {
 import type { PocketStatusRung } from "./resolve/pocket.js";
 import type { PassPlayStartPayload, RunPlayStartPayload } from "./types.js";
 
+/**
+ * ADR-036 — the recovery state of a deflected ball, as ONE value.
+ *
+ * The contracts payload spells this as a discriminated union so that a dead ball
+ * cannot carry a threshold. This is the same union at the producer's end: it is
+ * what `tippedBall` accepts, and spreading it into the payload is what makes the
+ * absence structural. Nothing here restates a value — it restates a SHAPE, and
+ * the restatement is load-bearing in one direction only: if contracts changes,
+ * `tippedBall`'s `this.push` stops compiling, because the payload it assembles
+ * from this union must satisfy `MatchEvent`'s.
+ *
+ * Deliberately not `Pick<>` off the contracts payload: the payload is an
+ * intersection of a common half with the union, so `Pick` would flatten the
+ * correlation between `recoverable` and `finalTargetNumber` back into
+ * `boolean × (number | undefined)` — precisely the reading ADR-036 removed.
+ */
+export type TippedBallRecovery =
+  | { readonly recoverable: true; readonly finalTargetNumber: number }
+  | { readonly recoverable: false };
+
 export interface CheckEmission {
   readonly checkKind: CheckKind;
   readonly actors: readonly PlayerId[];
@@ -313,11 +333,16 @@ export class PlayEventLog {
    * deflection-quality roll and every recovery attempt live exactly once, in
    * their own `deflection_quality` / `deflection_recovery` CHECKs, and are named
    * here by `rngLabel` — the same treatment `CATCH_RESOLUTION` already had.
+   *
+   * ADR-036: the recovery state arrives as ONE argument, not as a bare number,
+   * so there is no call site at which a dead ball can be handed a target. The
+   * old signature's third parameter was `finalTargetNumber: number` and `0` was
+   * what a caller with nothing to say put there.
    */
   tippedBall(
     deflector: PlayerId,
     rollRef: string,
-    finalTargetNumber: number,
+    recovery: TippedBallRecovery,
     eligible: readonly PlayerId[],
     attempts: readonly { readonly player: PlayerId; readonly rollRef: string }[],
     recoveredBy?: PlayerId,
@@ -325,7 +350,7 @@ export class PlayEventLog {
     const payload = {
       deflector,
       rollRef,
-      finalTargetNumber,
+      ...recovery,
       eligible: [...eligible],
       attempts: attempts.map((a) => ({ player: a.player, rollRef: a.rollRef })),
       ...(recoveredBy === undefined ? {} : { recoveredBy }),

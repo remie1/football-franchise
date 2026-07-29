@@ -1497,6 +1497,25 @@ export const TUNABLES = {
      * `speedCheckFromDistance` is §12.3's "Speed check" column: at or beyond
      * this many zones away a candidate must ALSO clear
      * `recovery.speedCheckMinSpeed`. 99 means the column says a plain "Yes"/"No".
+     *
+     * ADR-036 — THE `DEAD` ROW HAS NO `finalTargetNumber`, AND THAT IS THE POINT.
+     *
+     * It carried `0` until ADR-036. `0` is a legal point on the target scale and
+     * the easiest one in the table, so a consumer reading it could believe it
+     * (§4.1's sorting-default corollary). The row is `recoverable: false`; no
+     * recovery is ever attempted, so there is no threshold for one to be measured
+     * against, so THERE IS NO CELL. Because `TUNABLES` is `as const`,
+     * `qualityBands[number]` is a union in which this member simply lacks the key
+     * — `band.finalTargetNumber` no longer compiles, and a resolver is forced to
+     * branch on `recoverable` instead of copying a number it should not have.
+     *
+     * Two consequences, stated here rather than discovered:
+     *   - `tippedBall.qualityBands.5.finalTargetNumber` is no longer addressable
+     *     by `applyTunablePatch`. There is nothing to patch.
+     *   - the column's surviving sequence is `20, 35, 55, 75, 90` against
+     *     descending `minMargin`, which is monotone. ADR-035's recorded inversion
+     *     for this column CEASED TO EXIST; it was not exempted (see
+     *     `test/bandGuards.test.ts`).
      */
     qualityBands: [
       { label: "GIFT", minMargin: 41, finalTargetNumber: 20, recoverable: true, maxZoneDistance: 2, speedCheckFromDistance: 2, giftZone: true },
@@ -1504,7 +1523,7 @@ export const TUNABLES = {
       { label: "LIVE_BALL", minMargin: 1, finalTargetNumber: 55, recoverable: true, maxZoneDistance: 1, speedCheckFromDistance: 99, giftZone: false },
       { label: "CONTESTED", minMargin: -19, finalTargetNumber: 75, recoverable: true, maxZoneDistance: 1, speedCheckFromDistance: 1, giftZone: false },
       { label: "DIFFICULT", minMargin: -39, finalTargetNumber: 90, recoverable: true, maxZoneDistance: 0, speedCheckFromDistance: 99, giftZone: false },
-      { label: "DEAD", minMargin: NEG_INF, finalTargetNumber: 0, recoverable: false, maxZoneDistance: -1, speedCheckFromDistance: 99, giftZone: false },
+      { label: "DEAD", minMargin: NEG_INF, recoverable: false, maxZoneDistance: -1, speedCheckFromDistance: 99, giftZone: false },
     ],
     /**
      * §12.4 — the recovery attempt, in Reaction order.

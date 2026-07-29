@@ -121,8 +121,16 @@ describe("band-table discovery", () => {
 
 /**
  * MEASURED against the committed `DEFAULT_TUNABLES`, July 2026 (ADR-035 §3).
- * Eleven column inversions across six tables. Six of the eleven are exempt under
- * the derived relation; five survive and are the owner's to rule on.
+ * TEN column inversions across six tables.
+ *
+ * ADR-035 recorded ELEVEN. `tippedBall.qualityBands/finalTargetNumber` is the
+ * one that left, and HOW it left is the point (ADR-036): the `DEAD` row's cell
+ * was deleted, not exempted. `orderViolations` drops a row that has no value in
+ * a column before comparing, so the sequence it now sees is `20, 35, 55, 75, 90`
+ * against descending `minMargin` — monotone. Nothing suppressed it; there is no
+ * longer a cell to invert. An inversion that disappears because the cell stops
+ * existing is a FIX; an inversion that disappears because it is exempted is a
+ * NOTE, and the exempt set is where the second kind lives.
  *
  * This is a FENCE, not a target. A new entry appearing means a band table gained
  * an inversion, and that is exactly the event nothing was watching for before.
@@ -137,7 +145,6 @@ const RECORDED_VIOLATIONS: readonly string[] = [
   "throwExec.accuracy.bands/catchMod",
   "throwExec.accuracy.bands/defenderContestMod",
   "throwExec.accuracy.bands/difficulty",
-  "tippedBall.qualityBands/finalTargetNumber",
   "tippedBall.qualityBands/speedCheckFromDistance",
 ];
 
@@ -160,10 +167,14 @@ describe("recorded column inversions", () => {
         checked += 1;
       }
     }
-    // 41 of the 52 orderable columns are clean today. The assertion above is
-    // what proves it; this only stops the sample silently emptying — a
+    // 42 of the 52 orderable columns are clean today — 41 before ADR-036, which
+    // removed the `DEAD` row's `finalTargetNumber` and with it that column's
+    // inversion. The column itself is still here and still orderable, now with
+    // five rows instead of six, so the DENOMINATOR did not move: this is a
+    // column changing sides, not a column disappearing. The assertion above is
+    // what proves the set; this only stops the sample silently emptying — a
     // discovery regression that found no columns would otherwise pass.
-    expect(checked).toBe(41);
+    expect(checked).toBe(42);
   });
 
   it("drops an exempt cell from the sequence rather than the whole column", () => {

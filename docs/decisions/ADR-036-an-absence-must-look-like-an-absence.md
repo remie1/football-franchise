@@ -3,8 +3,12 @@
 - **Date:** 2026-07-29
 - **Proposed by:** `match-engine`
 - **Status:**
-  - **Item 1 — PETITION.** Awaiting the project owner. `packages/contracts` is
-    unchanged and will not be touched until ratified (Iron Rule 2).
+  - **Item 1 — RATIFIED AND EXECUTED**, including the separable recommendation
+    (the `DEAD` row's tunables cell). The contracts change was made by the
+    Orchestrator; the engine's four edits, the tunables removal and the test
+    migration are done and verified. See **"Execution — what was done and how it
+    was verified"** below, which is the record of the ratified change and is
+    written after the fact, not as a plan.
   - **Item 2 — IMPLEMENTED** in `packages/engine`, under the owner-approved
     follow-up recorded in ADR-034's amended consequence section.
 
@@ -16,7 +20,7 @@ nothing at all.
 
 ---
 
-# PART A — ITEM 1: the `DEAD` recovery target (PETITION)
+# PART A — ITEM 1: the `DEAD` recovery target (RATIFIED, EXECUTED)
 
 ## The ruling being implemented
 
@@ -155,8 +159,13 @@ say opposite and equally necessary things:
 **Removing the field from the `DEAD` payload removes the misreadable number and
 provably nothing else.**
 
-This lives in `packages/engine/test/tippedBall.test.ts` as four tests that run on
-every suite invocation, not as a number transcribed into this document.
+This lived in `packages/engine/test/tippedBall.test.ts` as four tests that ran on
+every suite invocation, not as a number transcribed into this document. Post-fix
+it is **nine** — six over the corpus and three over the type — and the
+`0 → 100` patch is not among them, because the cell it patched no longer exists.
+The post-fix measurement is in "Execution" below; the pre-fix column of its table
+is this table's, re-captured from the committed tree before the change rather
+than copied from here.
 
 ## Impact — what changes on ratification, exactly
 
@@ -168,7 +177,13 @@ for this field).
 
 **`packages/contracts`** — the shape above.
 
-**`packages/engine`**, four edits, all mine and all mechanical:
+**`packages/engine`**, four edits, all mine and all mechanical. *(As executed:
+five. `resolveRecoveryAttempt` took the whole band union PLUS a separate
+`finalTargetNumber: number`, so nothing stopped a caller pairing the `DEAD` row
+with an invented threshold — the same defect at the sibling boundary, found by
+the compiler once the union changed. Its band argument is now `RecoverableBand`
+and the duplicate parameter is gone. Behaviour-neutral: every existing call site
+already passed the band's own number.)*
 
 1. `src/events.ts:317` — `PlayEventLog.tippedBall` takes the recovery state as one
    argument instead of a bare number, so a caller cannot pass a dead ball a target:
@@ -184,8 +199,15 @@ for this field).
    "publishes a readable target on all 163" to "publishes no target on any of the
    163". The other three tests are unchanged and keep passing; they assert
    properties true in both worlds.
+   *(As executed: **converted, not deleted**, and the inverted assertion is made
+   with `hasOwnProperty` rather than about a value, so no value can satisfy it.
+   The `0 → 100` patch test could not survive — there is nothing left to patch —
+   and was replaced by the rejection assertion. See "Execution" below.)*
 
-### Recommended in the same change, separable if the owner prefers
+### Recommended in the same change — **RATIFIED AND EXECUTED**
+
+*(Was: "separable if the owner prefers". Taken, on the owner's reason: an
+inversion that ceases to exist is a fix; one that is exempted is a note.)*
 
 Omit `finalTargetNumber` from the `DEAD` row of `tunables.tippedBall.qualityBands`
 entirely. The contracts change alone fixes the **stream**; this fixes the
@@ -205,6 +227,169 @@ the boundary:
   `applyTunablePatch`, so the `0 → 100` patch above has nothing to patch. That
   test is replaced by the structural assertion that the `DEAD` row has no such
   key — a strictly stronger claim, since it cannot be satisfied by a value.
+
+---
+
+## Execution — what was done and how it was verified
+
+**RATIFIED including the separable recommendation**, on the owner's reason for
+taking it: *"an inversion that disappears because the cell stops existing is a
+fix; an inversion that disappears because it's exempted is a note."*
+`packages/contracts` carries the union above, with the rationale — the
+optional-field refutation and the `eligible: []` measurement — preserved as a doc
+comment on it. What follows is the engine side, executed.
+
+### The edits, as made
+
+| # | file | what changed |
+|---|---|---|
+| 1 | `src/tunables.ts` | the `DEAD` row of `tippedBall.qualityBands` **has no `finalTargetNumber` key**. `TUNABLES` is `as const`, so `qualityBands[number]` is a union in which that member lacks the key: `band.finalTargetNumber` no longer compiles, and every reader must branch on `recoverable`. |
+| 2 | `src/events.ts` | new `TippedBallRecovery` union; `PlayEventLog.tippedBall`'s third parameter is now that union instead of `finalTargetNumber: number`, and it is spread into the payload. **There is no call site at which a dead ball can be handed a target.** |
+| 3 | `src/resolve/tippedBall.ts` | `DeflectionQualityOutcome`'s `finalTargetNumber: number` + `recoverable: boolean` became one `recovery: TippedBallRecovery`, built by the new `recoveryFor(band)` — the single place the branch happens. **Also:** `RecoveryAttemptArgs.band` narrowed to `RecoverableBand` and its redundant `finalTargetNumber` parameter deleted, so the target now comes from the band and cannot disagree with it. |
+| 4 | `src/sim/passPlay.ts` | passes `quality.recovery` to the log; the attempt loop is inside `if (quality.band.recoverable)`. That branch is the loop's **precondition, previously only a comment** — `eligibleRecoverers` already returns `[]` for an unrecoverable band, so no iteration is skipped and nothing at runtime changes. |
+| 5 | `src/debug/renderPlay.ts` | on `recoverable: false` the §17 printout says `→ dead ball, no recovery (§12.3)` and emits **no target and no slot for one**. Reading `p.finalTargetNumber` without narrowing is a compile error, so the renderer cannot drift back. |
+
+### The spec never asked for the number
+
+Worth recording, because it changes what kind of change this was.
+`docs/design/match-engine.md` §12.2's own result table is:
+
+```
+  Roll > TN + 40: GIFT (Final TN = 20)
+  ...
+  Roll > TN - 40: DIFFICULT (Final TN = 90)
+  Roll ≤ TN - 40: DEAD BALL (no recovery possible)
+```
+
+Every live band is given a Final TN and **`DEAD` is given a sentence instead**.
+The `0` was invented at implementation time to fill a column the spec had left
+empty on that row — the shape of the table demanded a number and the doc did not
+supply one. So this is not a tuning decision reversed; it is the table being
+brought back into agreement with the document it was transcribed from. That is
+also the general lesson: *a required field in a table is a demand for a value on
+every row, and the row that has nothing to say will answer it with a lie.*
+
+### The suite migration
+
+- **`test/tippedBall.test.ts` — the `PENDING ADR-036` tripwire was CONVERTED, not
+  deleted.** A tripwire that vanishes on the fix leaves nothing standing where the
+  defect was, and the next author reaching for a harmless default meets no
+  resistance. It now asserts the post-fix property over the same 163 events —
+  *no `DEAD` payload carries the key at all* — tested with `hasOwnProperty` on the
+  emitted object, so `-1`, `99`, `NaN` **and** re-adding the key as `undefined`
+  all fail it. Its negative twin (`liveMissingTheKey === 0`, live targets
+  `[20, 35, 55, 75, 90]`) stops it being satisfied by an engine that simply
+  stopped emitting the field.
+- **The type-level half is separate and both halves are needed.** A new block
+  instantiates the contracts payload three ways: live-with-target compiles,
+  dead-without-target compiles (the positive control, so the error below is
+  attributable to the key and not to the rest of the literal), and
+  dead-with-target is a `@ts-expect-error`. **Proved load-bearing**: removing the
+  offending key from that literal fails the build with
+  `test/tippedBall.test.ts(673,5): error TS2578: Unused '@ts-expect-error' directive.`
+- **The `0 → 100` patch test is gone, and what replaced it is stronger.** The cell
+  is no longer addressable, so `applyTunablePatch` on
+  `tippedBall.qualityBands.5.finalTargetNumber` now throws `TunablePatchError`,
+  and that is the assertion — *there is no value*, not *the value is harmless*.
+  A control patches row 4's real target and asserts it is still accepted, so the
+  rejection is attributable to the missing cell rather than to the path shape.
+- **`test/statline.test.ts`** — the hand-built `TIPPED_BALL` literal takes the
+  `recoverable: true` arm; it is a recovered tip, so it is a live ball by
+  construction. (Listed in "Reported, not fixed" below so the migration would be
+  complete rather than discovered by a red test; it was.)
+- **`test/bandGuards.test.ts`** — `RECORDED_VIOLATIONS` 11 → 10, clean columns
+  41 → 42, both with the reason attached at the site: the column is still there
+  and still orderable with five rows instead of six, so **the denominator did not
+  move.** A column changed sides; none disappeared.
+- **ADR-035 amended** at §3 (the table, the count, the 41), §4.3, §6 and §6.1,
+  each stating explicitly that the inversion **ceased to exist rather than being
+  exempted** — the distinction ADR-035 exists to draw, applied to itself.
+
+### Verified totally, not by sampling
+
+Same standard as the finding. Two complete 24-game corpora (`test/gameFixtures.ts`,
+seeds `bg-0..bg-23`, `DEFAULT_TUNABLES`), captured **before** the change and
+**after** it, hashed event-for-event plus both final `MatchState`s, then compared
+key-by-key over all 271 `TIPPED_BALL` payloads.
+
+| measure | pre-fix | post-fix |
+|---|---|---|
+| plays | 3,420 | **3,420** |
+| yards | 20,047 | **20,047** |
+| turnovers | 107 | **107** |
+| points | 1,545 | **1,545** |
+| tipped balls | 271 | **271** |
+| event count, per game | — | **identical in all 24** |
+| whole-stream digest | `c93f989f…` | `a55b1bd5…` — DIFFERENT |
+| digest with `TIPPED_BALL` payloads reduced to the keys common to both shapes | `1cfcbea9…` | `1cfcbea9…` — **IDENTICAL** |
+| games whose canonical event digest moved | — | **0 / 24** |
+| games whose final-state digest moved | — | **0 / 24** |
+
+**The whole 271-payload diff, exhaustive — these are the only two change classes
+that exist:**
+
+```
+163 x  DEAD: +recoverable(=false)  -finalTargetNumber(was 0)
+108 x  LIVE: +recoverable(=true)
+```
+
+and on the live side the thresholds are unchanged **event for event**, not merely
+as a set: `[20, 35, 55, 75, 90]` before and after, each payload's own value equal
+to its predecessor's.
+
+Read the two together and they say the necessary opposite things. The full
+digests differ, so the change genuinely reached the stream — this was not a dead
+cell being tidied. The canonical digests are identical across 24 games of events
+**and both final states**, so nothing outside those payload keys moved by one
+byte. **Outcomes are identical on every digit: this fix moved no football.**
+
+**Stated precisely, because it is more than the dispatch's phrasing:** the stream
+differs by the removal of the key on the 163 `DEAD` rows **and by the addition of
+the ratified discriminant `recoverable` on all 271**. The second is required by
+the ratified shape, not incidental — `recoverable` is the field that makes the
+absence readable, and without it a consumer is back to inferring "not applicable"
+from `eligible: []`. The corpus reproduced exactly why that inference is unsafe:
+**the 2 live deflections with an empty eligible list are still there** (games 0
+and 16, `DIFFICULT`, real target 90, nobody in the throwing zone), and they now
+carry `recoverable: true` — distinguishable, for the first time, from the 163 that
+nobody could ever have recovered.
+
+Two further checks the corpus makes on every suite run rather than once here: no
+`DEAD` payload claims `recoverable: true` and no live one claims `false`, cross-
+checked against the `deflection_quality` CHECK's own band label (ADR-011) rather
+than against the payload field under test; and re-running the corpus reproduces
+its own digest, so the stream is still deterministic with the field gone.
+
+### One consequence outside this package, reported and NOT acted on
+
+`packages/calibration/src/knownTruth/bandTables.ts` records this cell, and it
+**wrote its own instructions for this day** — its `OPEN` entry for
+`tippedBall.qualityBands/finalTargetNumber` carries:
+
+> *"⚠ THIS ENTRY HAS A KNOWN EXPIRY … The day the engine adopts it … this entry
+> goes VANISHED and the gate goes RED. That red is CORRECT: delete this entry,
+> drop the raw-inversion record to ten, and re-run Tier B."*
+
+That day is today. `RECORDED_RAW_INVERSIONS` there still lists eleven and the
+entry's `ruledCells` still names `tippedBall.qualityBands.5.finalTargetNumber`,
+a path that no longer exists. **Nothing in `packages/calibration` was touched** —
+it has a dispatch in flight on exactly this file and the remediation is that
+dispatch's, not mine.
+
+**One factual correction for whoever does it**, because their predicted mechanism
+is slightly off and it changes the verdict they should expect: the cell does not
+become `GUARDED`. `allCells` skips a (row, column) pair whose value is
+`undefined`, so **no cell is produced at all** and no verdict is derived for it.
+The entry is `VANISHED`, not reclassified — which is the stronger of the two
+outcomes and the one their equality assertion (ADR-037 §2) will catch.
+
+### Result
+
+`pnpm --filter @ff/engine test` — `tsc -p tsconfig.test.json` clean over `src`
+**and** `test`, then **44 files, 742 tests, green** (737 → 742). `tsc -p
+tsconfig.json` clean. No contract petition arises from the execution.
+
+---
 
 ## What this petition does not claim
 
@@ -361,15 +546,33 @@ the standing evidence that a finding is worth more reported than assumed:
 2. **`test/statline.test.ts:248` constructs a `TIPPED_BALL` with a literal
    `finalTargetNumber: 55`.** It will need the new shape when item 1 lands; noted
    here so the migration list in "Impact" is complete rather than discovered by a
-   red test.
+   red test. — **DONE**, in the execution above; it takes the `recoverable: true`
+   arm, which a recovered tip is by construction.
+
+3. **The TS2367 class of tautological assertion is now closed in this package,
+   and not by an audit.** The standing requirement — *a test asserting a
+   comparison the type system already decides must FAIL TO COMPILE rather than
+   pass green* — is enforced structurally for the whole engine test suite by the
+   wired `tsc -p tsconfig.test.json`: a comparison between types with no overlap
+   IS `error TS2367`, which is how `test/passPlay.test.ts:143`'s
+   `status === "SACK"` was found in the first place. The typecheck is clean, so
+   **there is no second one hiding.** That is a complete answer for that class
+   and cost nothing. It says nothing about tautologies the compiler cannot see
+   (`expect(x).toBe(x)`-shaped), which would need the separate audit this
+   dispatch scoped out.
 
 ---
 
 ## Decision
 
-**Item 1 — awaiting the project owner.** `packages/contracts` is untouched. If
-ratified, the change is the payload shape above plus the four mechanical engine
-edits, and the commit must reference `ADR-036` for the `commit-msg` hook.
+**Item 1 — RATIFIED AND EXECUTED**, including the separable recommendation.
+`packages/contracts` carries the payload shape above (changed by the
+Orchestrator, not by this agent); `packages/engine` carries the five edits, the
+tunables removal and the test migration recorded under "Execution". ADR-035's
+recorded figures were amended to match — **eleven inversions to ten, 41 clean
+columns to 42** — with the reason stated at each site: *the inversion ceased to
+exist rather than being exempted.* The commit must reference `ADR-036` for the
+`commit-msg` hook.
 
 **Item 2 — implemented** under ADR-034's amended consequence section, which
 assigned the follow-up to `match-engine` and to an engine dispatch.

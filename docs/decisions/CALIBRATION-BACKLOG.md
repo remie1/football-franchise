@@ -28,6 +28,28 @@ requires a calibration report, not an opinion.
   derivation is freshly built — six months from now someone re-derives it worse.**
 - Cheap, because §7 already specifies the shape.
 
+**1b. THE TYPECHECK HOLE — jumps the roadmap, lands before the scale audit.**
+
+`pnpm -r exec tsc --noEmit` resolves each package's *nearest* `tsconfig.json`, which everywhere
+includes `src` only. **The CI gate we made blocking has never typechecked a test file in any package
+but `@ff/playbook`.** Worse, `@ff/calibration` *already has* a `typecheck` script pointing at a
+correct `tsconfig.test.json` — and **nothing invokes it**: root `typecheck` doesn't, and its `test`
+script is a bare `vitest run`. Same species as `packages/engine/tsconfig.test.json`, which existed,
+was correct, and was wired to nothing since `cb21523`.
+
+**This is a hole in the instrument, not a defect in the code** — and what it let through is the worst
+available example: `passPlay.test.ts:143` asserting `status === "SACK"` is false, which after ADR-034
+is **provably false by type. A tautology rendering green.** Eight stale errors surfaced in `engine`
+alone the moment its config was wired; **assume `calibration` has some.**
+
+Requirements (owner, July 2026): **fix the root script so it is correct, rather than adding
+per-package overrides** — *a root command that silently checks less than its name implies is the same
+species as a restated constant.* And **any test asserting a comparison the type system already
+decides must fail to compile rather than pass green** (now Charter §4.1).
+
+> **Why it jumps the queue:** *an audit run against a package whose test types were never checked is
+> an audit with an unknown denominator.*
+
 **2. Phase 3 systematic scale audit** — *before* entry 23, deliberately.
 
 > Entry 23's residual is **defined against current target numbers.** If the audit moves any check the
@@ -331,6 +353,10 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
 - **Levers, both in `TUNABLES.tippedBall.recovery`:** `attrTerms[].divisor` (thin the stack)
   or `qualityBands[].finalTargetNumber` (raise the bar). Implemented literally and left
   alone, exactly as entry 3's asymmetry was.
+  - *ADR-036 (2026-07-29): the second lever now has **five** cells, not six. The `DEAD`
+    row's `finalTargetNumber` was removed — a dead ball has no recovery to raise the bar
+    for, and `tippedBall.qualityBands.5.finalTargetNumber` is no longer a patchable path.
+    The five live rows (`20, 35, 55, 75, 90`) are untouched and are the whole lever.*
 - **Phase 3 must choose, not inherit.** Prefer thinning the attribute stack: six terms at ÷5
   means a tipped ball is contested on speed, acceleration, agility, awareness, reaction *and*
   hands simultaneously, which is not what the moment is about.
