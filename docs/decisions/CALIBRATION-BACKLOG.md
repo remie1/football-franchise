@@ -858,11 +858,20 @@ report exists.
   `Accuracy ÷ 5`, where the −10/−20 pressure penalty outweighs an elite QB's whole advantage over
   an average one. The *scale* is wrong, not the attribute — a kill/merge flag would still be
   premature.
-- **Coverage saturates the same way, and this is new:** `0/20/40/60/80/95` →
-  `2.256 / 1.943 / 1.878 / 1.599 / 1.663 / 1.624` net yards per dropback. **Two of five families
-  saturate at the top.** `dl-passrush` flattens at the *bottom* instead (0→20 worth 0.012 against
-  0.038 for 20→40) while `ol-passblock` — the same rep from the other side — is linear to zero.
-  That is a shape asymmetry, not just a level one, and it is a Mandate-2 signal arriving early.
+- ~~**Coverage saturates the same way.**~~ **⚠ RETRACTED (ADR-029) — FALSE, and drawn from an
+  80-game sweep.** Re-mapped at **800 games a rung**, the curve is **monotone at every 10-point
+  step** and 60→95 is worth **0.3356 yards — half the span.** The real shape is a shelf at the
+  **bottom**: 0.00283 yards/point from 0→30 against 0.00918 from 30→95.
+- ~~`dl-passrush` flattens at the bottom while `ol-passblock` is linear to zero — a shape
+  asymmetry.~~ **⚠ ALSO RETRACTED (ADR-029), and the retraction is the GOOD outcome.** The recorded
+  steps (0.0298/0.0436/0.0435, four seed sets, three at 80 games) do not survive: eight sets at 120
+  games give **0.0378/0.0365/0.0361 — flat.** **Post-ADR-028 both sides of §7.1 pay evenly per
+  rating point from 20 to 95** — the asymmetry this described is precisely the one ADR-028 removed.
+  Same error class as entry 33's claim 3, on the other side of the same rep.
+- **CORRECTED TALLY:** **one** family saturates at the top (`qb-accuracy`), **three** flatten at
+  the bottom, `rb-vision` **accelerates**.
+- **Both retractions came from the same cause:** a curve-shape claim written from an 80-game
+  single-seed-list sweep. **Neither survived eight seed sets.** See §22a's shelf test.
 
 ## 22a. A gate that never fired was worse than the one that went red
 
@@ -893,6 +902,16 @@ committed **the entry-22 failure inside the act of fixing an entry-22 failure.**
 
 **Corollary, and it is the operative status right now: any ladder record derived from a single run
 is UNTRUSTED.** Not "less certain" — untrusted, and not to be re-runged from.
+
+**It applies to attribute-DROP comparisons too.** On the canonical seed list alone, dropping
+`playRecognition` appears to move `db-coverage`'s first step 0.3168 → 0.3631 and its span 0.6803 →
+0.7235 — reading as a 6% confound removed. **Across eight seed sets the effect is 0.003.** One seed
+list cannot *size* an effect, only suggest one — and that 6% would have been written up as a result.
+
+**And eight seed sets is not many either.** Two matched eight-set runs of `db-coverage` at 400
+games put the same step's SD at **0.1003 and 0.0912** on means agreeing to 0.003 — roughly **±25%
+on an eight-sample SD**, so a margin recorded at 4.5σ may really be 3.6σ. Treat a recorded σ near
+the 4σ floor as *within noise of the floor*, not as clearing it.
 
 ### Record the dispersion of the thing the gate actually DRAWS
 
@@ -1012,6 +1031,13 @@ frequency*, which is visible and recoverable, for *statistical power*, which is 
 Entry 22's original numbers were wrong — accuracy's 0→95 span read **4.3 completion points when
 it is 9.9**, and 60→95 read **0.2 when it is 1.0** — purely because the ladder started at 40 with
 40 games per rung. **That is a property of the instrument, not of that one measurement.**
+
+> ### ✅ DISCHARGED July 2026 (ADR-029) — all five ladders re-recorded.
+>
+> Every scenario has now been through the full §22a procedure against the engine as committed at
+> ADR-028, each on **eight independent seed sets**. **No scenario carries `provisional` any more.**
+> Two of the claims this section flagged as suspect turned out to be **false**, not merely
+> imprecise — see entry 22's retractions. The list below is kept as the audit trail.
 
 **Treat every effect-size, span or sensitivity number in this file that predates the re-runging
 as provisional until re-measured.** Known to be in that class:

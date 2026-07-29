@@ -34,8 +34,15 @@
  * Every scenario below therefore records a RESPONSE CURVE, not only a ladder — the measured
  * shape of outcome against attribute across the whole 0-99 scale — because the rungs are only
  * defensible with respect to where the effect actually lives, and a saturating attribute is a
- * finding in its own right. Two of the five families saturate at the TOP; two now flatten at the
- * BOTTOM. None of that is visible from a four-rung ladder someone picked by eye.
+ * finding in its own right. As re-mapped in 2026-07, at each scenario's own per-rung sample:
+ * ONE family saturates at the top (`qb-accuracy`, whose slope falls fivefold above 60); THREE
+ * flatten at the bottom (`ol-passblock` and `dl-passrush` below 20, `db-coverage` below 30); and
+ * `rb-vision` alone ACCELERATES, paying most over its top fifteen points. None of that is
+ * visible from a four-rung ladder someone picked by eye.
+ *
+ * That tally used to read "two saturate at the top", and the second of the two was `db-coverage`
+ * — a claim made from an 80-game sweep and killed by the same sweep at 800. A curve mapped at a
+ * tenth of the sample is a hypothesis about a curve.
  *
  * ================== AND WHY A CURVE IS NOT ENOUGH EITHER ==================
  *
@@ -117,11 +124,17 @@ export interface KnownTruthScenario {
    * The attributes this scenario SETS that its mechanism does NOT read — asserted to be EXACTLY
    * the derived set, in both directions.
    *
-   * The empty list is the healthy state and four of the five scenarios do not have it. It exists
-   * because the alternative to declaring a known inertness is DROPPING the attribute, and
-   * dropping one changes what the ladder measures and therefore forces a full re-record — which
-   * is a real cost that should be paid deliberately rather than smuggled into whichever dispatch
-   * happened to notice.
+   * The empty list is the healthy state and, as of the 2026-07 re-record, ALL FIVE SCENARIOS
+   * HAVE IT. Every attribute every ladder sets is read by the mechanism that ladder measures.
+   * It exists because the alternative to declaring a known inertness is DROPPING the attribute,
+   * and dropping one changes what the ladder measures and therefore forces a full re-record —
+   * which is a real cost that should be paid deliberately rather than smuggled into whichever
+   * dispatch happened to notice. Three have now been paid: `sustain` from `ol-passblock`,
+   * `touch` from `qb-accuracy`, `playRecognition` from `db-coverage`.
+   *
+   * All-empty is the STRONGEST state this field can be in, not a reason to delete it: with
+   * nothing declared, any attribute that goes dead reddens `attributeClaims.test.ts` on the run
+   * it dies, with no standing exemption for it to hide behind.
    *
    * It cannot rot in either direction. If a listed attribute becomes live the set no longer
    * matches and the check reddens; if an unlisted one goes dead, likewise. That is the whole
@@ -141,6 +154,11 @@ export interface KnownTruthScenario {
    *
    * Re-recording clears it. Nothing else does — and re-recording means the whole §22a procedure:
    * re-map the curve, re-choose the rungs, re-derive the SE across independent seed sets.
+   *
+   * AS OF 2026-07 NO SCENARIO CARRIES THIS FIELD. All five have been through the full procedure
+   * against the engine as committed at ADR-028, each on eight independent seed sets, so every
+   * number quoted in this file is current and the field is waiting for the next engine change
+   * rather than describing one. It is kept because that change will come.
    */
   readonly provisional?: {
     /** What moved underneath the record. An ADR id, normally. */
@@ -197,11 +215,12 @@ export interface KnownTruthScenario {
    *
    * NOTE WHAT THIS MEANS FOR A "WIDENED" TOLERANCE. `db-coverage`'s tolerance went UP, 0.06 to
    * 0.10, and the gate got STRICTER: on its old rungs the smallest true step was 0.096, so the
-   * tolerance was 0.63 of the signal; on its new ones the smallest true step is 0.258 and the
-   * tolerance is 0.39 of it. The absolute number is not the thing to read. The ratio is, and
-   * across all five scenarios it is now 0.26 to 0.39 where it used to reach 0.63 — and, on the
+   * tolerance was 0.63 of the signal; on its current ones the smallest true step is 0.2976 and
+   * the tolerance is 0.34 of it. The absolute number is not the thing to read. The ratio is, and
+   * across all five scenarios it is now 0.20 to 0.35 where it used to reach 0.63 — and, on the
    * ladder that actually went red, an unmeasurable ~10 (a tolerance of 0.01 policing a step that
-   * turned out to be 0.001).
+   * turned out to be 0.001). No tolerance in this file has been raised since; two scenarios have
+   * instead bought their margin with `games`, which is the only lever §22a leaves open.
    *
    * Neither half is left as prose. `recordedSteps` and `recordedStepSE` carry the measurement,
    * and `test/knownTruth.test.ts` asserts both halves against them on every run.
@@ -231,6 +250,13 @@ export interface KnownTruthScenario {
    * scenario. Estimates from three replicates proved optimistic — `db-coverage`'s second step
    * read SE 0.028 over three seeds and 0.091 over six — so treat a small replicate count as a
    * lower bound and buy headroom in `games` rather than trusting it.
+   *
+   * EIGHT IS NOT MANY EITHER, and the 2026-07 re-record measured how much slack that leaves.
+   * Two matched eight-seed-set runs of `db-coverage` at 400 games, differing only in whether a
+   * DEAD attribute was laddered, put its first step's SD at 0.1003 and 0.0912 on mean steps
+   * agreeing to 0.003. An eight-sample SD carries roughly ±25%, so a margin recorded at 4.5σ may
+   * really be 3.6σ — which is why the scenarios that could afford it bought 6σ or better rather
+   * than stopping at the rule.
    */
   readonly recordedStepSE: readonly number[];
   readonly baseRating?: number;
@@ -355,43 +381,49 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
     hypothesis:
       "A more accurate quarterback completes a higher share of his attempts. §10.4's accuracy " +
       "bands are the mechanism; the target number is 60 against Accuracy ÷ 5. " +
-      "RECORDED 2026-07 (seed known-truth:qb-accuracy-completion, digest fnv1a:8fea204c#100, " +
-      "100 games a rung): 0 → 0.3057, 20 → 0.3364, 40 → 0.3728, 95 → 0.4055, effect 0.0998. " +
-      "Steps across four independent seed sets: 0.0296 ± 0.0053, 0.0317 ± 0.0071, 0.0380 ± " +
-      "0.0086 — noise margins 7.4σ / 5.9σ / 5.6σ, floor margin 4.6σ. " +
-      "WHY THE RUNGS ARE 0/20/40/95 AND NOT 40/60/80/95. A 200-game-a-rung sweep at 0, 10, 20, " +
-      "30, 40, 50, 60, 70, 80, 95 reads 0.3023 / 0.3226 / 0.3338 / 0.3515 / 0.3682 / 0.3751 / " +
-      "0.3965 / 0.4020 / 0.3985 / 0.4063: near-linear at 0.00157 completion per accuracy point " +
-      "from 0 to 60, then 0.00028 per point from 60 to 95 — a fifth of the slope. Above 60 the " +
-      "attribute is real but nearly flat (the 60→95 step measures 0.0104 ± 0.0045 over three " +
-      "seeds, positive at t≈4 but smaller than the tolerance), so a ladder of 40/60/80/95 spends " +
-      "three of its four rungs inside the saturated shelf and asserts monotonicity over noise. " +
-      "It failed in CI for exactly that reason. The 40→95 rung skips the shelf, keeping the top " +
-      "of the scale in the ladder while making every step 3–4× the tolerance. " +
-      "THIS CORRECTS CALIBRATION-BACKLOG ENTRY 22, which recorded the saturation as 'the entire " +
-      "4.3-point effect sits in 40→60, 60→95 is worth 0.2 points'. That reading came from a " +
-      "ladder starting at 40 with 40 games a rung, where the step SE is ~0.011 and three of the " +
-      "four rungs are one rung. Measured properly the span is 9.9 points over 0→95, the " +
-      "saturation point is ~60 rather than ~50, and 60→95 is worth 1.0 point, not 0.2. The " +
-      "FINDING survives — accuracy's scale is compressed above 60 and that is a §5.3 sensitivity " +
-      "signal about the SCALE, not a kill candidate — but its numbers were wrong.",
-    attributes: ["accuracy", "touch"],
+      "RE-RECORDED 2026-07 AFTER ADR-024/026/028, AND `touch` DROPPED (seed " +
+      "known-truth:qb-accuracy-completion, digest fnv1a:8fea204c#100, 100 games a rung): " +
+      "0 → 0.3009, 20 → 0.3365, 40 → 0.3684, 95 → 0.4122, effect 0.1113. Steps across EIGHT " +
+      "independent seed sets at 100 games: 0.0305 ± 0.0063, 0.0291 ± 0.0066, 0.0454 ± 0.0062 — " +
+      "noise margins 6.4σ / 5.9σ / 8.9σ, span 0.1050 ± 0.0089 against a floor of 0.05, floor " +
+      "margin 6.2σ. Every ± is the SD of ONE ladder's step, never the SE of the mean of eight. " +
+      "THIS LADDER NOW MOVES EXACTLY ONE ATTRIBUTE, AND IT USED TO MOVE TWO. It set `touch` as " +
+      "well as `accuracy`, and `touch` is read by §8.4's tight-window modifier (`QB_READ`) and " +
+      "by no `accuracy` check — so the ladder moved completion through two channels and " +
+      "attributed the result to one. That is a LIVE MISATTRIBUTION, not an inert attribute, and " +
+      "it is settled by dropping `touch` rather than by declaring it: the gate is for §10.4, and " +
+      "a second channel that could hold it green while §10.4's term was broken is a gate that " +
+      "does not fire — entry 22a's disease, arriving through the attribute list instead of " +
+      "through the rungs. " +
+      "WHAT THE DROP COST, MEASURED RATHER THAN ASSUMED. `touch` LADDERED ALONE, with accuracy " +
+      "left at the league base of 60, 100 games a rung on the canonical seeds at 0/20/40/60/80/" +
+      "95: 0.3966 / 0.4005 / 0.4051 / 0.4104 / 0.3977 / 0.3911. Its whole 0→95 range moves " +
+      "completion by 0.019 at the widest and −0.0055 end to end, non-monotonically, against " +
+      "accuracy's 0.1050. So the confound was real in the CLAIM and nearly nil in the NUMBER: " +
+      "the 10-point curve run with and without it differs by less than a rung SD at every rung, " +
+      "and the span moved 0.1031 (accuracy+touch) → 0.1113 (accuracy alone) — up, not down. " +
+      "That `touch` is a §5.3 kill candidate ON THIS MEASUREMENT is a separate finding and is " +
+      "not a claim about deep-ball or YAC channels this scenario cannot see. " +
+      "WHY THE RUNGS DID NOT MOVE, AND THE INVERSION THAT WAS NOT THERE. The curve was re-mapped " +
+      "first (§22d) at 100 games a rung, and the canonical draw reads 0.3009 / 0.3365 / 0.3684 / " +
+      "0.4104 / 0.4207 / 0.4152 / 0.4122 at 0/20/40/60/70/80/95 — apparently peaking at 70 and " +
+      "FALLING, which would have forced the top rung down to 70. It is not falling. Across the " +
+      "eight seed sets the same rungs mean 0.3098 / 0.3403 / 0.3694 / 0.4033 / 0.4129 / 0.4137 / " +
+      "0.4148: monotone throughout, and the canonical list simply measures rung 70 high (0.4207 " +
+      "against a mean of 0.4129, +1σ). A one-draw shape read as a slope change, caught by the " +
+      "shelf test on the way in this time rather than after it reached a backlog entry. " +
+      "THE SATURATION IS REAL AND SURVIVED THREE ADRs UNCHANGED: 0.00156 completion per accuracy " +
+      "point from 0 to 60, then 0.00033 per point from 60 to 95 — a fifth of the slope, against " +
+      "the pre-ADR record's 0.00157 and 0.00028. The 40→95 rung skips that shelf, keeping the " +
+      "top of the scale in the ladder while making it the ladder's LARGEST step (0.0454, 8.9σ); " +
+      "40→70 was measured too, at 0.0435 ± 0.0050, and is not better. A ladder of 40/60/80/95 " +
+      "spends three of its four rungs inside the shelf and asserts monotonicity over noise; it " +
+      "failed in CI for exactly that reason, and 0/20/40/95 is where the effect lives. " +
+      "CALIBRATION-BACKLOG ENTRY 22's numbers stay corrected: the span is 11.1 completion points " +
+      "over 0→95 and not 4.3, and 60→95 is worth 1.2 points and not 0.2.",
+    attributes: ["accuracy"],
     mechanismCheckKinds: ["accuracy"],
-    /**
-     * `touch` is read by the §8.4 tight-window modifier (`QB_READ`), never by §10.4's `accuracy`
-     * check — so this ladder moves completion through TWO channels and its hypothesis names one.
-     * Found by the derivation, not by reading the engine, which is the point of the derivation.
-     */
-    attributesNotReadByMechanism: ["touch"],
-    provisional: {
-      invalidatedBy: "ADR-024/026/028",
-      measuredLadder: [0.3029, 0.3349, 0.3645, 0.406],
-      note:
-        "2026-07, re-measured read-only on the canonical seeds (digest fnv1a:8fea204c#100). The " +
-        "record above reads 0.3057 / 0.3364 / 0.3728 / 0.4055; the drift is inside the recorded " +
-        "step SEs and the effect grew 0.0998 → 0.1031. Least stale of the four. Steps and SE " +
-        "NOT re-derived, so every margin quoted above is the pre-ADR-024 one.",
-    },
+    attributesNotReadByMechanism: [],
     positions: ["QB"],
     rungs: [0, 20, 40, 95],
     designedTeam: 0,
@@ -401,8 +433,8 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
     games: 100,
     minEffect: 0.05,
     monotonicityTolerance: 0.01,
-    recordedSteps: [0.0296, 0.0317, 0.038],
-    recordedStepSE: [0.0053, 0.0071, 0.0086],
+    recordedSteps: [0.0305, 0.0291, 0.0454],
+    recordedStepSE: [0.0063, 0.0066, 0.0062],
   },
   {
     id: "ol-passblock-sack-rate",
@@ -485,16 +517,29 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
     hypothesis:
       "A better pass rush produces more sacks against a fixed line. The mirror of the previous " +
       "scenario, and the pair is what separates 'the rep works' from 'one side of the rep works'. " +
-      "RECORDED 2026-07 (seed known-truth:dl-passrush-sack-rate, digest fnv1a:e1fb93bc#120, 120 " +
-      "games a rung): 20 → 0.1251, 45 → 0.1607, 70 → 0.2017, 95 → 0.2444, effect 0.1193. Steps " +
-      "across four independent seed sets: 0.0298 ± 0.0091, 0.0436 ± 0.0035, 0.0435 ± 0.0072 — " +
-      "noise margins 4.4σ / 15.2σ / 7.4σ, floor margin 4.7σ. Three of those four seed sets ran " +
-      "at 80 games rather than 120, so the SE quoted is a CONSERVATIVE estimate for this " +
-      "scenario's sample size, not a scaled one; the true margins are wider. " +
-      "WHY THE LADDER STARTS AT 20. An 80-game sweep at 0/20/40/60/80/95 reads 0.0909 / 0.1031 " +
-      "/ 0.1411 / 0.1764 / 0.2044 / 0.2280: the 0→20 span is worth 0.012 against 0.038 for " +
-      "20→40, so the bottom of the pass-rush scale is a shelf the way the TOP of the accuracy " +
-      "scale is. " +
+      "RE-RECORDED 2026-07 AFTER ADR-028 (seed known-truth:dl-passrush-sack-rate, digest " +
+      "fnv1a:e1fb93bc#120, 120 games a rung): 20 → 0.1365, 45 → 0.1703, 70 → 0.2114, 95 → " +
+      "0.2451, effect 0.1086. Steps across EIGHT independent seed sets at 120 games: 0.0378 ± " +
+      "0.0049, 0.0365 ± 0.0041, 0.0361 ± 0.0061 — noise margins 9.7σ / 11.3σ / 7.5σ, span " +
+      "0.1104 ± 0.0063 against a floor of 0.075, floor margin 5.6σ. Every ± is the SD of ONE " +
+      "ladder's step, never the SE of the mean of eight. " +
+      "THE STEPS ARE FLAT, AND THE OLD RECORD SAID THEY WERE NOT. It read 0.0298 / 0.0436 / " +
+      "0.0435 — a first step two thirds of its neighbours, at 4.4σ — from FOUR seed sets, three " +
+      "of them at 80 games rather than 120. Eight seed sets at the scenario's own sample size " +
+      "give 0.0378 / 0.0365 / 0.0361, flat to within their SDs, and the canonical list is again " +
+      "the one holding an extreme (its 45→70 step is 0.0411 against a mean of 0.0365). Same " +
+      "error class as CALIBRATION-BACKLOG entry 33's claim 3 on the other side of this rep, and " +
+      "the same test disposes of it: a genuine shelf does not move when the seeds do. " +
+      "WHAT THAT MAKES TRUE OF THE PAIR. `ol-passblock` measures 0.0509 / 0.0546 / 0.0537 and " +
+      "this measures 0.0378 / 0.0365 / 0.0361: BOTH SIDES OF §7.1 NOW PAY EVENLY PER RATING " +
+      "POINT from 20 to 95, with the blocker's point worth about 1.5× the rusher's on sack rate " +
+      "because five blockers are laddered against four rushers. Post-ADR-028 there is no shape " +
+      "asymmetry left between the two sides — see the ⚠ below, which recorded the death of the " +
+      "SHAPE finding and could not yet record this, its replacement. " +
+      "WHY THE LADDER STARTS AT 20, RE-MAPPED (§22d) AT 120 GAMES A RUNG, 0/10/20/30/40/50/60/" +
+      "70/80/95: 0.1184 / 0.1254 / 0.1365 / 0.1538 / 0.1667 / 0.1803 / 0.1953 / 0.2114 / 0.2237 " +
+      "/ 0.2451. The bottom shelf is still there and is still the reason the ladder starts at " +
+      "20: 0.00091 sack rate per point from 0 to 20 against 0.00145 from 20 to 95. " +
       "⚠ THE SHAPE-ASYMMETRY FINDING THAT USED TO SIT HERE IS DEAD, AND ADR-028 KILLED IT. It " +
       "read: 'the pass RUSH flattens at the bottom while the pass BLOCK it is contested against " +
       "is linear to zero, and that asymmetry of SHAPE, not merely of level, is what backlog " +
@@ -509,17 +554,6 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
     attributes: ["passRush", "powerMove", "finesseMove", "firstStep"],
     mechanismCheckKinds: ["pass_rush_tick"],
     attributesNotReadByMechanism: [],
-    provisional: {
-      invalidatedBy: "ADR-028",
-      measuredLadder: [0.1365, 0.1703, 0.2114, 0.2451],
-      note:
-        "2026-07, re-measured read-only on the canonical seeds (digest fnv1a:e1fb93bc#120). The " +
-        "record above reads 0.1251 / 0.1607 / 0.2017 / 0.2444 and the effect SHRANK, 0.1193 → " +
-        "0.1086, which is ADR-028 seen from the other side of the same rep: a 60-rated blocker " +
-        "went from 2×round(60/5)+15 = 39 points to 3×round(60/5) = 36, so a fixed line is three " +
-        "points weaker and every rung of the rush ladder sits higher. Steps and SE NOT " +
-        "re-derived; the margins quoted above are the pre-ADR-028 ones.",
-    },
     positions: ["DE", "DT", "NT"],
     rungs: [20, 45, 70, 95],
     designedTeam: 1,
@@ -529,8 +563,8 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
     games: 120,
     minEffect: 0.075,
     monotonicityTolerance: 0.01,
-    recordedSteps: [0.0298, 0.0436, 0.0435],
-    recordedStepSE: [0.0091, 0.0035, 0.0072],
+    recordedSteps: [0.0378, 0.0365, 0.0361],
+    recordedStepSE: [0.0049, 0.0041, 0.0061],
   },
   {
     id: "rb-vision-ypc",
@@ -538,22 +572,41 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
       "A better back gains more per carry behind a fixed line. §6.2's 'RB Vision Dependency' " +
       "makes vision mechanically live on zone schemes; backlog entry 11's quantisation means " +
       "the ABSOLUTE number is wrong, which is precisely why only the ordering is asserted. " +
-      "RECORDED 2026-07 (seed known-truth:rb-vision-ypc, digest fnv1a:3d483a27#80, 80 games a " +
-      "rung): 20 → 10.157, 45 → 12.000, 70 → 14.193, 95 → 17.139, effect 6.98. Steps across " +
-      "four independent seed sets: 1.408 ± 0.301, 2.168 ± 0.293, 2.666 ± 0.330 — noise margins " +
-      "6.3σ / 9.1σ / 9.6σ. " +
-      "THE FLOOR IS DELIBERATELY SLACK AT 1.5 AGAINST A MEASURED SPAN OF 6.24 ± 0.50, WHICH IS " +
-      "9.5σ OF SLACK, and that is not an oversight. Yards per carry runs 10–17 against a real " +
+      "RE-RECORDED 2026-07 AFTER ADR-024/026/028 (seed known-truth:rb-vision-ypc, digest " +
+      "fnv1a:dcc46768#160, 160 games a rung): 20 → 10.3569, 45 → 11.8785, 70 → 13.8482, 95 → " +
+      "16.8885, effect 6.5316. Steps across EIGHT independent seed sets at 160 games: 1.4192 ± " +
+      "0.1753, 2.0897 ± 0.2803, 2.7125 ± 0.2001 — noise margins 11.0σ / 9.2σ / 16.1σ, span " +
+      "6.2215 ± 0.2408 against a floor of 1.5, floor margin 19.6σ. Every ± is the SD of ONE " +
+      "ladder's step, never the SE of the mean of eight. " +
+      "GAMES WENT 80 → 160 AND THE REASON IS THE MEASURED SE, NOT THE VALUES — the same trade " +
+      "`ol-passblock` made, at the same trigger. At 80 games over eight seed sets the steps read " +
+      "1.2604 ± 0.3735 / 2.1145 ± 0.4139 / 2.7101 ± 0.5314, so the first step sat at 4.7σ: over " +
+      "the 4σ rule and close enough that a moderate engine change would redden it for no reason. " +
+      "160 buys 11.0σ. The ladder went from ~19s to ~38s and `db-coverage` still runs longer " +
+      "beside it, so the PACKAGE's wall clock did not move for this change. Widening the " +
+      "tolerance to 0.6 would also have reached 5.0σ and was rejected: tolerance is not the " +
+      "lever, n is. " +
+      "THE CONVEXITY IS NOW ESTABLISHED RATHER THAN SUGGESTIVE. The record this replaces read it " +
+      "as 2.3× from a single draw and rated it 2.3σ. Over eight seed sets the 70→95 step is 1.91× " +
+      "the 20→45 step (2.7125 ± 0.2001 against 1.4192 ± 0.1753) — the two do not overlap at any " +
+      "plausible multiple of their SDs, so the back's attributes compound rather than add. " +
+      "THE RESPONSE CURVE, RE-MAPPED AT THE NEW SAMPLE SIZE (§22d), 160 games a rung at " +
+      "0/10/20/30/40/50/60/70/80/95: 9.1387 / 9.6059 / 10.3569 / 10.7727 / 11.5895 / 12.1549 / " +
+      "13.2032 / 13.8482 / 14.8205 / 16.8885 — 0.061 yards per rating point from 0 to 20, 0.087 " +
+      "from 20 to 95, and 0.138 over the top fifteen points. Starting the ladder at 20 keeps it " +
+      "off the shallow bottom; the top rung is where the family pays most, which is the one " +
+      "shape in this file that does NOT flatten at either end. " +
+      "THE FLOOR IS DELIBERATELY SLACK AT 1.5 AGAINST A MEASURED SPAN OF 6.22 ± 0.24, WHICH IS " +
+      "19.6σ OF SLACK, and that is not an oversight. Yards per carry runs 10–17 against a real " +
       "4.3 (backlog entries 11–14: the receiver-zone quantisation adds yardage that has nowhere " +
       "to go). Every step on this ladder is inflated by the same defect. When it is fixed the " +
       "span will shrink roughly in proportion, and a floor set tight against today's inflated " +
       "span would then fail — reporting a REGRESSION on the day the engine got more correct. " +
       "A floor pinned to a known-wrong magnitude is a floor that punishes the fix. Re-tighten " +
       "this one only after entries 11–14 close. " +
-      "The convexity is a separate finding and is real: the 70→95 step is 1.9× the 20→45 step, " +
-      "so the back's attributes compound rather than add — plausibly vision opening a gap that " +
-      "elusiveness then exploits, which would be a genuine interaction and is the first thing " +
-      "§5.3's correlation sweep should look at on this family.",
+      "The compounding is plausibly vision opening a gap that elusiveness then exploits, which " +
+      "would be a genuine interaction and is the first thing §5.3's correlation sweep should " +
+      "look at on this family — now with a replicated effect size to size the sweep against.",
     attributes: ["vision", "elusiveness", "power", "patience"],
     /**
      * FOUR CHECK KINDS AND NOT JUST `rb_vision`, and this is the one mechanism list in the file
@@ -570,29 +623,17 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
      */
     mechanismCheckKinds: ["rb_vision", "break_tackle", "tackle", "yac_tackle"],
     attributesNotReadByMechanism: [],
-    provisional: {
-      invalidatedBy: "ADR-024/026/028",
-      measuredLadder: [9.9228, 11.3406, 13.2879, 16.7055],
-      note:
-        "2026-07, re-measured read-only on the canonical seeds (digest fnv1a:3d483a27#80). The " +
-        "record above reads 10.157 / 12.000 / 14.193 / 17.139 and the effect shrank 6.98 → 6.78. " +
-        "The convexity finding STRENGTHENED rather than weakening — the 70→95 step now measures " +
-        "3.418 against a recorded 2.666, which is 2.3× the 20→45 step where the record said " +
-        "1.9×. It is a single draw and the recorded step SE is 0.330, so 2.3σ: suggestive, not " +
-        "established, and it is what §5.3's correlation sweep on this family should be sized " +
-        "for. Steps and SE NOT re-derived.",
-    },
     positions: ["RB"],
     rungs: [20, 45, 70, 95],
     designedTeam: 0,
     measuredTeam: 0,
     measurement: YARDS_PER_CARRY,
     direction: "INCREASES",
-    games: 80,
+    games: 160,
     minEffect: 1.5,
     monotonicityTolerance: 0.5,
-    recordedSteps: [1.408, 2.168, 2.666],
-    recordedStepSE: [0.301, 0.293, 0.33],
+    recordedSteps: [1.4192, 2.0897, 2.7125],
+    recordedStepSE: [0.1753, 0.2803, 0.2001],
   },
   {
     id: "db-coverage-net-yards-per-dropback",
@@ -601,31 +642,62 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
       "it measures the OUTCOME of coverage, not how CONTESTED the route was. Separation at the " +
       "throw is a declared absence (metrics/absence.ts) and no scenario in this file should be " +
       "read as covering it. " +
-      "RECORDED 2026-07 (seed known-truth:db-coverage-net-yards-per-dropback, digest " +
-      "fnv1a:0c9d7f1f#400, 400 games a rung): 0 → 2.3975, 50 → 2.1168, 95 → 1.8398, effect " +
-      "0.5576. Steps across SIX independent seed sets at 350 games: 0.371 ± 0.087 and 0.258 ± " +
-      "0.091; the SE recorded on the scenario is those scaled to 400 games by √(350/400). Noise " +
-      "margins 5.8σ and 4.2σ, floor margin 4.6σ. " +
-      "THIS IS THE MOST EXPENSIVE LADDER IN THE FILE, 1,200 GAMES, AND THE COST IS THE FINDING. " +
-      "Net yards per dropback has a fat tail — a beaten corner concedes a 40-yard play, not a " +
-      "6-yard one — so its per-rung SE is ~0.12 yards at 350 games where completion rate's is " +
-      "~0.006 share. Coverage needs roughly five times the sample of any other family in this " +
-      "file to say anything at all, and that IS §5.3's signal: coverage attributes have the " +
-      "worst signal-to-noise ratio of anything measured. Recorded loudly because the obvious " +
-      "economy — trim the games until the suite is fast — silently converts this gate back into " +
-      "the coin flip it was. " +
-      "THE PREVIOUS RUNGS WERE 40/60/80/95 AND THEY WERE THE WORST GATE IN THE SUITE, worse " +
-      "than the accuracy ladder that actually went red. Measured across three seed sets, its " +
-      "smallest step sat 1.4σ from its tolerance — call it an 8% chance of a false red on that " +
-      "step alone, per run, on a suite that runs on every push. It was green on the day it was " +
-      "written and that was luck. The cause is the same as the accuracy ladder's: COVERAGE ALSO " +
-      "SATURATES ABOVE 60. An 80-game sweep at 0/20/40/60/80/95 reads 2.256 / 1.943 / 1.878 / " +
-      "1.599 / 1.663 / 1.624 — monotone to 60, then flat-to-inverted, so 60→80→95 was two rungs " +
-      "of noise. Two of the five families measured here flatten at the top of the scale; that " +
-      "the SECOND one was found only by re-rungeing the first is the reason this file now " +
-      "records a response curve for every scenario rather than only a ladder. " +
-      "The 0/50/95 ladder keeps the whole scale and puts both steps above a quarter of a yard.",
-    attributes: ["manCoverage", "zoneCoverage", "press", "ballSkills", "playRecognition"],
+      "RE-RECORDED 2026-07 AFTER ADR-024/026/028, AND `playRecognition` DROPPED (seed " +
+      "known-truth:db-coverage-net-yards-per-dropback, digest fnv1a:6b9a68f2#600, 600 games a " +
+      "rung): 0 → 2.2756, 50 → 2.0177, 95 → 1.5941, effect 0.6815. Steps across EIGHT " +
+      "independent seed sets at 600 games: 0.2976 ± 0.0681 and 0.3452 ± 0.0821 — noise margins " +
+      "5.8σ and 5.4σ, span 0.6429 ± 0.0507 against a floor of 0.25, floor margin 7.8σ. Every ± " +
+      "is the SD of ONE ladder's step at THIS scenario's sample size, directly measured — " +
+      "nothing here is scaled from another n, and the previous record's was. " +
+      "THE OLD RECORD FAILED ITS OWN 4σ RULE, AND ONLY EIGHT SEED SETS COULD SHOW IT. Re-run at " +
+      "the recorded 400 games over eight seed sets, the first step measures 0.2862 ± 0.1003 — " +
+      "3.85σ, against a recorded 5.8σ. Both halves of the recorded margin were wrong in the " +
+      "same direction: the step was recorded 0.3711 where the mean of eight is 0.2862 (the " +
+      "canonical seed list measures rung 0 high, 2.3835 against a mean of 2.1736, +2.3σ), and " +
+      "the SE was recorded 0.0816 where the direct measurement is 0.1003. This is the THIRD " +
+      "time this family has been found under-powered — 1.4σ from a false red on the 40/60/80/95 " +
+      "rungs, then a 4.2σ margin resting on six seed sets, now this — and it is why §22a's " +
+      "standing caution names it by id. " +
+      "GAMES WENT 400 → 600 AND NOTHING ELSE COULD HAVE FIXED IT. The tolerance is not the " +
+      "lever (§22a) and n may never fall (§22c), so the only move available was to buy SE. " +
+      "Measured at three sample sizes over eight seed sets each, the first step's SD reads " +
+      "0.1003 at 400, 0.0681 at 600 and 0.0464 at 800 — so 600 clears the rule with 5.8σ and " +
+      "800 would give 8.7σ for twice the CI cost of the increase. 600 was chosen and the cost " +
+      "is stated rather than absorbed: this ladder goes from ~60s to ~90s and it is the longest " +
+      "file in the package, so the PACKAGE goes from ~63s to ~92s on every push. That is a real " +
+      "+46%, it is the price of a gate that is not a coin flip, and §22c's alternative — split " +
+      "the fast families from this one — is a policy change for whoever owns CI, not something " +
+      "to take unilaterally inside a re-record. " +
+      "THE SE ESTIMATE IS STILL THE SHAKIEST NUMBER IN THE FILE. Two matched eight-seed-set runs " +
+      "at 400 games, differing only in whether `playRecognition` was laddered, put the first " +
+      "step's SD at 0.1003 and 0.0912 on mean steps that agree to 0.003. An eight-sample SD " +
+      "carries roughly ±25%, so treat every margin here as ±1σ of itself and do not shave n " +
+      "against it. " +
+      "THIS IS STILL THE MOST EXPENSIVE LADDER IN THE FILE, NOW 1,800 GAMES, AND THE COST IS " +
+      "THE FINDING. Net yards per dropback has a fat tail — a beaten corner concedes a 40-yard " +
+      "play, not a 6-yard one — so its per-rung SD across seed sets is ~0.075 yards at 600 games " +
+      "where completion rate's is ~0.007 share at 100. Coverage needs roughly six times the " +
+      "sample of any other family in this file to say anything at all, and that IS §5.3's " +
+      "signal: coverage attributes have the worst signal-to-noise ratio of anything measured. " +
+      "⚠ COVERAGE DOES NOT SATURATE ABOVE 60, AND THIS RECORD USED TO SAY IT DID. The claim was " +
+      "'monotone to 60, then flat-to-inverted', from an 80-GAME sweep reading 2.256 / 1.943 / " +
+      "1.878 / 1.599 / 1.663 / 1.624 at 0/20/40/60/80/95. Re-mapped at 800 games a rung " +
+      "(§22d, and ten times the sample the claim was made on), 0/10/20/30/40/50/60/70/80/95 " +
+      "reads 2.2337 / 2.1743 / 2.1546 / 2.1489 / 2.0569 / 1.9635 / 1.8881 / 1.7796 / 1.6907 / " +
+      "1.5525: MONOTONE AT EVERY STEP, with 60→95 worth 0.3356 — half the whole span. What is " +
+      "real is a shelf at the BOTTOM: 0.00283 yards per rating point from 0 to 30 against " +
+      "0.00918 from 30 to 95. So this family belongs with `ol-passblock` and `dl-passrush`, " +
+      "which flatten at the bottom, and not with `qb-accuracy`, which is the only one in the " +
+      "file that saturates at the top. " +
+      "WHY THE RUNGS DID NOT MOVE DESPITE THAT BOTTOM SHELF — measured, not deferred to. The " +
+      "shelf argues for starting above 30, and every ladder that does is worse: at 400 games " +
+      "over eight seed sets, 0/30/50/95 reads 4.8σ / 3.4σ / 5.6σ and 30/50/95 reads 3.4σ / " +
+      "5.6σ, both failing, because a four-rung ladder cuts a 0.64-yard span into pieces smaller " +
+      "than the noise and dropping rung 0 throws away a quarter of the span for nothing. " +
+      "0/50/95 keeps the whole scale and splits it 0.2976 / 0.3452 — as near even as this " +
+      "measurement allows. The rungs stand because the alternatives were run, not because they " +
+      "were the recorded ones.",
+    attributes: ["manCoverage", "zoneCoverage", "press", "ballSkills"],
     /**
      * Every check kind on the path from a snap to a net yard conceded on a dropback: the two
      * coverage reps, the press rep at the line (§9's release), and the two ball-in-the-air
@@ -640,44 +712,38 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
       "passing_lane",
     ],
     /**
-     * ⚠ A §5.3 KILL/MERGE CANDIDATE, ARRIVING AS A GATE FACT RATHER THAN AS A SWEEP RESULT.
+     * `playRecognition` WAS HERE, AND DROPPING IT CHANGED NOTHING MEASURABLE — measured with
+     * matched seed sets rather than argued, the same way `sustain` left `ol-passblock`.
      *
-     * This ladder sets `playRecognition` on CB/FS/SS and NOTHING in the pass game reads it. The
-     * only check that reads it at all is `second_level_climb` — the OL climbing to a second-level
-     * defender, a run play — and it reaches a designed safety often enough to show up, which is
-     * exactly why the naive "is it read anywhere" test would have called it live. It is live on
-     * the RUN and dead in this scenario's mechanism.
+     * It was set on CB/FS/SS and read by no check in the pass game. The only check that reads it
+     * at all is `second_level_climb` — the OL climbing to a second-level defender, a run play —
+     * which reaches a designed safety often enough that the naive "is it read anywhere" test
+     * would have called it live. Live on the RUN, dead in this scenario's mechanism, and setting
+     * it on the rung was therefore varying the secondary's RUN defence underneath a passing rate.
      *
-     * NOT dropped here, and the reason is the cost, stated so the deferral is auditable: this is
-     * the most expensive ladder in the file at 1,200 games, dropping an attribute changes what it
-     * measures, and re-recording it means re-mapping the curve and re-deriving the SE across
-     * independent seed sets — §22a's full procedure at ~10,000 games. That is its own dispatch.
+     * THE CONFOUND WAS REAL AND ITS SIZE IS ZERO. Eight independent seed sets at 400 games, run
+     * with and without it on the same seed lists: the mean rungs read 2.1714 / 1.8884 / 1.5594
+     * with, and 2.1736 / 1.8874 / 1.5574 without — every rung inside 0.003 yards against rung
+     * SDs of 0.06 to 0.11, and the steps 0.2830 / 0.3290 against 0.2862 / 0.3300.
+     *
+     * ⚠ AND THE SINGLE-DRAW VERSION OF THIS COMPARISON SAYS SOMETHING ELSE ENTIRELY. On the
+     * canonical seed list alone the drop appears to move the first step 0.3168 → 0.3631 and the
+     * span 0.6803 → 0.7235, which reads as a 6% confound removed. It is not there in the mean of
+     * eight. That is the shelf test again, applied to an attribute drop instead of to a curve:
+     * one seed list cannot size an effect, only suggest one.
      */
-    attributesNotReadByMechanism: ["playRecognition"],
-    provisional: {
-      invalidatedBy: "ADR-024/026/028",
-      measuredLadder: [2.3228, 2.006, 1.6425],
-      note:
-        "2026-07, re-measured read-only on the canonical seeds (digest fnv1a:0c9d7f1f#400). THE " +
-        "MOST STALE RECORD IN THE FILE. The record above reads 2.3975 / 2.1168 / 1.8398 with an " +
-        "effect of 0.5576; it now measures an effect of 0.6803, up 22%, and the SECOND step moved " +
-        "0.258 → 0.3635 while the first moved 0.371 → 0.3168 — the two steps have swapped which " +
-        "is larger. The recorded claim that 'the 0/50/95 ladder puts both steps above a quarter " +
-        "of a yard' still holds and is now the only part of the numbers a reader should trust. " +
-        "Steps and SE NOT re-derived. Re-recording this one is a dispatch of its own; see " +
-        "`attributesNotReadByMechanism` above, which should be settled in the same pass.",
-    },
+    attributesNotReadByMechanism: [],
     positions: ["CB", "FS", "SS"],
     rungs: [0, 50, 95],
     designedTeam: 1,
     measuredTeam: 0,
     measurement: NET_YARDS_PER_DROPBACK,
     direction: "DECREASES",
-    games: 400,
+    games: 600,
     minEffect: 0.25,
     monotonicityTolerance: 0.1,
-    recordedSteps: [0.3711, 0.258],
-    recordedStepSE: [0.0816, 0.0849],
+    recordedSteps: [0.2976, 0.3452],
+    recordedStepSE: [0.0681, 0.0821],
   },
 ];
 

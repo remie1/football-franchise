@@ -12,18 +12,29 @@
  * scenario and the suite's cost stops being the SUM of the ladders and becomes the MAX. That is
  * what paid for the sample sizes in `scenarios.ts`: the set went from 1,040 games to 2,720, a
  * 2.6× increase, for about a third more wall clock rather than 160% more, because the longest
- * single ladder (`db-coverage`, 1,200 games) now runs beside the other four rather than after
- * them. Measured on this repo: the package ran 43s before and runs ~57s after, and the 57s is
- * `db-coverage` alone — every other ladder finishes inside it, so the next scenario added is
- * free until it exceeds 55s on its own.
+ * single ladder (`db-coverage`, then 1,200 games) now runs beside the other four rather than
+ * after them. Measured on this repo: the package ran 43s before and ~57s after, and that 57s was
+ * `db-coverage` alone — every other ladder finished inside it, so the next scenario added was
+ * free until it exceeded 55s on its own. The set is now 4,120 games and `db-coverage` is 1,800
+ * of them.
  *
- * **AND THAT BUDGET HAS SINCE BEEN SPENT ONCE, DELIBERATELY.** `ol-passblock` went from 80 games
- * a rung to 160 to buy its first step from 4.7σ to 7.0σ of noise margin, taking it from ~13s to
- * ~38s. The package still runs in ~61s because `db-coverage` still runs ~60s and everything else
- * still finishes inside it — the split is doing exactly what it was built for, and the headroom
- * is now ~22s rather than ~42s. The next scenario, or the next `games` increase, has that much
- * before the suite's cost starts rising; past it, the answer is `exports`-map + worker threads
- * (backlog §21a's trigger), not a smaller `n` (§22c).
+ * **AND THAT BUDGET HAS SINCE BEEN SPENT, TWICE, AND THEN OVERRUN.**
+ *
+ *  1. `ol-passblock` went from 80 games a rung to 160 to buy its first step from 4.7σ to 7.0σ of
+ *     noise margin, taking it from ~13s to ~38s. Free: `db-coverage` still ran longer.
+ *  2. `rb-vision` did the same thing at the same trigger — 4.7σ, 80 → 160 games, ~19s to ~38s.
+ *     Also free, for the same reason.
+ *  3. **`db-coverage` itself went 400 → 600 games, and that one is NOT free.** Its first step
+ *     measured 3.85σ at 400 over eight seed sets, so the increase was compulsory rather than
+ *     prudent (§22a leaves no other lever: tolerances may not widen and `n` may not fall). The
+ *     longest file in the package went from ~60s to ~90s, and because the package's cost IS the
+ *     longest file, **the package went from ~63s to ~92s.**
+ *
+ * So the headroom the split bought is spent and the suite's cost now rises with `db-coverage`
+ * one-for-one. The next increase on that scenario is a straight addition to every push. Past
+ * here the answers are `exports`-map + worker threads (backlog §21a's trigger, now due) or
+ * §22c's split — the fast four on every push, `db-coverage` on a schedule. **Never a smaller
+ * `n`** (§22c), which is the one economy that would silently undo all of the above.
  *
  * The cost of the split is that a scenario could be added to the registry and silently never
  * gated, because nothing would import it. `knownTruth.test.ts` closes that hole by asserting the
