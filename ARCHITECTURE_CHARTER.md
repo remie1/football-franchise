@@ -234,6 +234,20 @@ not:
 that fired. A failing test is often the cheapest available sample of a class of problem, and the
 instinct to fix it quickly and move on is what leaves the silent siblings in place.
 
+**Corollary — verifying that a TOTAL FUNCTION did not change requires a total comparison.** A
+sample cannot establish it. When converting a constant-by-omission into a constant-by-declaration
+(ADR-031's `arrival.pressureWithinSeconds`), transcribe the old function verbatim and compare it
+**point-for-point over the whole reachable domain**, then corroborate with a whole-stream hash —
+124,870,341 characters, identical. That second check does double duty: it also proves the *other*
+change in the same dispatch had no behavioural surface beyond its stated table. **Reuse this
+pattern for every behaviour-preserving refactor**; "the tests still pass" is not the same claim.
+
+**Corollary — do not become a field's first consumer merely because it exists.** ADR-018 added
+`RushAssignment.side`; ADR-031 declined to key travel time on it, because **left and right are
+mirror images and handedness is a claim no football supports.** The availability of a field is not
+an argument for using it, and the temptation recurs every time a petition lands. Same restraint as
+ADR-006's engine declining to assert football it cannot know.
+
 **Corollary — frozen means "not editable", never "not observable".** A frozen tunable exists to
 stop a number being *changed* to flatter a metric. It should never stop the number being
 *measured*. `blockerStructuralAdvantage` went **sixteen dispatches** without a sensitivity sweep

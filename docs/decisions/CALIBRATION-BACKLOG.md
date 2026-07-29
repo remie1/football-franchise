@@ -1037,6 +1037,29 @@ are the ones that determine rungs, and rungs determine everything downstream.** 
 a ladder on a shelf, and a ladder on a shelf measures the shelf. Every one of the four cost a
 downstream artefact before it was caught.
 
+### THE TEST FOR A COUNTERFACTUAL — name what you held
+
+> **A curve measured by moving everybody cannot price a change to the mixture.**
+>
+> **General form: whenever you compute an expected effect by holding something fixed, NAME WHAT
+> YOU HELD.**
+
+Three failures of this project have been the same failure wearing different clothes, and the one
+discipline above would have caught all three (entry 37):
+
+1. **Conversion is not invariant under a rate intervention.** `pressure_to_sack ≡ sack ÷ pressure`
+   is an identity, not an invariance — held fixed, it predicted sack 4.48% and measured **1.839%**.
+2. **A counterfactual holding conversion fixed is arithmetic, not prediction.** Entry 26's
+   original prohibition was built on one.
+3. **A counterfactual holding the MIXTURE fixed is also arithmetic.** ADR-030's curve priced the
+   path term at ≈ +0.6pp; pro-rata on the correctly-signed portion gave −0.093pp; measured
+   **−0.012 ± 0.061**, 3.8 SE away — because the change moved *the edge*, already converting at
+   half the interior rate, and pro-rating assumes the subpopulation sits at the curve's mean.
+
+**Applied prospectively:** entry 38's three mechanisms now jointly produce "edge pressure is worth
+less" (interior/edge arrival ratio 2.036× → 3.291×). **A share attributed to one of them without
+stating the other two's values is another mixture-held-fixed error.**
+
 ### THE TEST FOR A SHELF — use this, not judgement
 
 > **A genuine shelf does not move when the seeds do.**
