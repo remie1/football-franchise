@@ -418,6 +418,16 @@ a class is eliminated, name what remains beside it.
 - `PocketStatus` / `pocket.severity` ladder drift (ADR-034's mutual-assignability assertions).
 - `DEAD` recovery targets (ADR-036's discriminated union — the key's *presence* is unrepresentable).
 
+> **⚠ A REACH FLOOR IS NOT A REDNESS LEVER — and the intuition runs the wrong way.** A floor *feels*
+> like a filter that removes noisy rows from a gate. **It is a filter that removes EXEMPTIONS.**
+> Refusing to exempt an under-sampled row **keeps that row's honest value in the sequence**, so a
+> floor can only ever make a gate *stricter*. ADR-035 §6.3 predicted the opposite — that a column
+> would "stay red until calibration has a corpus that reaches those rows" — and the gate's very first
+> unpatched run refuted it: `GIFT` at reach 1 derived `LIVE`, `FLOATER` was `UNREACHED_ROW`, the
+> genuine sentinels were `GUARDED` on evidence, and the sequence came out monotone. **Anyone reaching
+> for a floor to suppress a noisy red is reaching for the wrong instrument, and will get a stricter
+> gate than they started with.**
+
 **Tier 2 — BOUNDED AND VERIFIABLE. A machine can check whether the guard is live.**
 
 - ADR-038's workspace-coverage assertion. Note it proves every package **claims** to be typechecked,

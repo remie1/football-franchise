@@ -75,6 +75,13 @@ decides must fail to compile rather than pass green** (now Charter §4.1).
 > wrong and the engine transcribed it faithfully; here, the doc said **nothing** and the engine
 > transcribed a zero.
 
+> ### ✅ RUN, July 2026 — [ADR-039](ADR-039-the-systematic-scale-audit-and-the-cells-nobody-asked-for.md). See entry 48.
+>
+> **699 numeric cells and all 44 `CheckKind`s, swept; 19 findings.** Scope and exclusions are stated
+> in ADR-039 §1 with counts. The transcription-artifact hunt returned **eighteen cells in eight
+> places**, six of them with **exclusive reach provably 0** (total stream comparison over 160 games,
+> not a sample). **RIDER 2's two `maxYards` cells are reported and NOT ruled**, as required.
+
 **3. Entry 23's unowned +0.847 y/c residual (17%)** — attribution, after the sweep. Coupled to
 entry 44; neither closes without the other.
 
@@ -375,6 +382,15 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
     row's `finalTargetNumber` was removed — a dead ball has no recovery to raise the bar
     for, and `tippedBall.qualityBands.5.finalTargetNumber` is no longer a patchable path.
     The five live rows (`20, 35, 55, 75, 90`) are untouched and are the whole lever.*
+  - *⚠ ADR-039 / entry 48 (SA-16): **the `DEAD` row still holds `speedCheckFromDistance: 99`**,
+    where §12.3's DEAD row is `None | None | None`. Raw reach 699 selections, exclusive reach **0**
+    (proven by total stream comparison). ADR-036 emptied one column of that row and left the next.*
+- **⚠ AND THE CONTEST IS NOT MERELY DECIDED BY THE STACK — Roll 1 CONSULTS NO ATTRIBUTE EITHER**
+  (ADR-039 §4.2). §12.2's deflection-quality roll is a **bare d100**: `deflection_quality` is the only
+  check in the engine whose `ratingSpan` is exactly **0.000**. Together with the never-failing
+  recovery roll that means **no player rating decides anything in the whole tipped-ball subsystem** —
+  who ends up with the ball is one d100 and a deterministic Reaction sort. That is the doc's own
+  design, not an implementation defect, and it belongs in whatever ruling closes this entry.
 - **Phase 3 must choose, not inherit.** Prefer thinning the attribute stack: six terms at ÷5
   means a tipped ball is contested on speed, acceleration, agility, awareness, reaction *and*
   hands simultaneously, which is not what the moment is about.
@@ -911,12 +927,218 @@ interior/edge compounding note, where three mechanisms each legitimately reflect
 **+0.0979 and +0.3332 y/p are exactly what double-counting would buy**, which is why they look like
 free yardage: they are yardage the model has already awarded once.
 
+### ⏸ `yac.maxYards` and `secondLevel.maxYards` — OPEN, and DEFERRED INTO THE AUDIT specifically
+
+**The ruling above covers the `minYards` halves ONLY.** ADR-037 refused to extend it across columns
+and was right to: *a broken tackle crediting zero yards is correct because the zone walk credits them
+separately* — **that argument is about the FLOOR and does not reach the CEILING at all.** A
+`maxYards` sentinel is a different claim about a different thing, and inheriting a ruling across
+columns is **the silent widening ADR-010 forbids**. The owner has confirmed they would have accepted
+the widening had it been offered.
+
+**These are not deferred generally — they are deferred INTO the Phase 3 scale audit**, and the reason
+is specific: *a ceiling on yards-in-band is exactly the kind of cell the audit is built to examine.*
+Given `DEAD.finalTargetNumber` turned out to be a **transcription artifact filling a column the doc
+left as prose**, `maxYards` must be **read against §13/§14 before anyone rules on it.**
+
+> **REQUIRED OF THE AUDIT:** report **what the doc actually says** about each of these two cells —
+> specified, or demanded by the table's shape — **before a ruling is asked for.** Ruling now would be
+> ruling without the evidence the audit exists to produce.
+
+> ### ✅ DISCHARGED July 2026 (ADR-039 / entry 48) — REPORTED, STILL NOT RULED.
+>
+> **Both are DEMANDED BY THE TABLE'S RECTANGLE. Neither is specified by the doc.**
+> §13.2's row is *"Defender missed, **advance to Zone 2**"* — a destination. §14.4's is *"Broken
+> tackle, **continue**"* — a continuation. Neither states a quantity in **either** direction, while
+> every other yardage-bearing row in both tables does.
+>
+> **The discriminating observation, and it is what makes this evidence rather than a shrug:** both
+> tables' BOTTOM rows also hold `0/0` and are **not** artifacts — *"Tackled at catch point"* and
+> *"Tackled"* fix the value by entailment. **In each table exactly one row's yardage is unspecified,
+> and it is the winning one.**
+>
+> Raw reach on the gate's 160-game corpus (29,973 plays): `yac.DEFENDER_MISSED` **1,647 selections**,
+> `secondLevel.BROKEN_TACKLE` **4,256**.
+>
+> **The audit proposes no value and recommends no change.** The ruling is the owner's, and the
+> coupling to entry 23 above is unchanged: **decide once, with both halves visible.**
+
 > **⚠ COUPLED TO ENTRY 23 — decide once, with both halves visible.**
 > Entry 23 carries an **unowned +0.847 y/c residual (17%)**. If the zone walk is later found to
 > **under**-credit, these two cells are **the natural place to restore it** — they are already
 > pointed at the right plays. **That decision must be made once, seeing both halves**, not twice:
 > restoring a minimum here *and* separately fixing the walk would re-create the double count from
 > the other direction. Neither entry may be closed without checking the other.
+
+## 48. THE SYSTEMATIC SCALE AUDIT — 19 findings, and a THIRD failure direction
+
+Full evidence in [ADR-039](ADR-039-the-systematic-scale-audit-and-the-cells-nobody-asked-for.md).
+**Nothing below is fixed; every one is priced and awaiting an owner ruling.**
+
+**Scope, stated so it cannot be read as a sample:** all **699 numeric leaves** of
+`DEFAULT_TUNABLES` and all **44 `CheckKind`s**. Excluded with counts: `game.*` (84 cells — the doc
+specifies a play, not a loop), 283 string leaves and 126 booleans (no scale), all classified rather
+than dropped. Two instruments landed and both are total in both directions:
+`knownTruth/docConformance.ts` (an unclassified cell OR a stale rule is red) and
+`knownTruth/scaleSurface.ts` (a `Record<CheckKind, …>`, so a new check kind **fails to compile**).
+
+### The transcription artifacts — 18 cells, 8 places, ADR-036's direction
+
+| id | cells | doc says | raw | exclusive |
+|---|---|---|---|---|
+| **SA-01** | `throwExec.accuracy.bands.6.{catchMod,defenderContestMod,difficulty}`, `catchTransition.byAccuracyBand.MISS`, `yacMultiplierByAccuracyBand.MISS` | §10.5's MISS row is **`No catch possible \| N/A \| N/A`** | **2,319 selections** | **0** — perturbed to absurd values, 160-game stream **digest identical** |
+| **SA-16** | `tippedBall.qualityBands.5.speedCheckFromDistance` | §12.3's DEAD row is **`None \| None \| None`** | **699 selections** | **0**, same proof |
+| **SA-18** | `ballCarrier.zones.3.widthYards` | §13.1's zone 4 is **`30+`**, an open bound | — | **already priced**: entry 12's −6.293 y/c jointly, 52.6% of the gap |
+| **SA-03** | `release.bands.6.delaySeconds` | §9.1's 7th row is prose with **no delay**; 2.0 also breaks §9.2's `+0.5 to +1.0` jam ceiling | **2,675 selections** | DECLINED — propagation |
+| **SA-04** | `pocket.readCapacityDelta.{COLLAPSING,IMMEDIATE}` | §7.2 gives a read-capacity penalty for **PRESSURE only** | — | DECLINED — propagation |
+| **SA-07** | `route.readySeconds.DEEP` | §9.2 gives DEEP a **range**, `2.5-3.0`; the fast end was taken silently | — | DECLINED — propagation |
+| **SA-12** | `throwExec.armRequirements.*` | §10.1 has **six throw-type rows**; the table has two air-yard rows and **the doc's strictest gate (85) exists nowhere** | — | — |
+| **SA-R2** | the two `maxYards` ceilings | **see below** | 1,647 / 4,256 | — |
+
+**SA-01 is fourteen times the reach of the cell ADR-036 removed** (2,319 selections against 163), and the band
+gate had already derived three of its cells `GUARDED` — the deadness was known and the doc reading
+was not. **SA-16 is in the row ADR-036 emptied**, one column over.
+
+### ⏸ RIDER 2 — REPORTED, NOT RULED (backlog 44 / ADR-037's requirement, discharged)
+
+- **`ballCarrier.contests.yac.bands.0.maxYards`** — §13.2 verbatim: *"WR wins by 20+: **Defender
+  missed, advance to Zone 2**"*. The row names a **destination**. The three rows below it each state
+  a quantity; this one states none in **either** direction. **Demanded by the table's rectangle.**
+- **`ballCarrier.contests.secondLevel.bands.0.maxYards`** — §14.4 verbatim: *"RB wins by 15+:
+  **Broken tackle, continue**"*. The row names a **continuation**. **Demanded by the table's
+  rectangle.**
+- **The discriminating observation:** both tables' BOTTOM rows also hold `0/0` and are **not**
+  artifacts — "Tackled at catch point" and "Tackled" fix the value by entailment. In each table
+  exactly one row's yardage is unspecified, and it is the winning one.
+- **NO VALUE PROPOSED. NO CHANGE RECOMMENDED.** Entry 44's coupling to entry 23 stands: decide once,
+  with both halves visible.
+
+### The doc is what is wrong — §7.2's direction, faithfully transcribed
+
+- **SA-09 — §8.3's awareness term.** The doc says it *"reduces variance range"*; its own worked
+  examples **shift the mean** and leave the range 20 wide at every rating. The engine implements the
+  arithmetic. **An elite QB therefore perceives receivers as MORE open than they are** (mean +5 at
+  95 awareness) and a poor one as less open. ⚠ **On flat-60 this term is a constant −2 with zero
+  variance, so no flat-league measurement bears on it** — a spread-league question, like entry 14's.
+- **SA-06 — the tick/second ambiguity was resolved five times and recorded once.** §7.4 carries an
+  authoring correction. §8.7's budget (`2.5 ticks` → 2.5s, and `÷20 ticks` → ±1.0s: **base and slope
+  both doubled**), §8.7's decay start and §9.1's four delays got the same treatment silently.
+
+### Doc contradictions — entry 9's class, and **Appendix C had never been audited against**
+
+| id | check | vs |
+|---|---|---|
+| **SA-02** | §7.3 puts OL communication at **60** | **Appendix C** puts communication at **40-50** |
+| **SA-13** | §10.3 gives the bullet **+15** to the lane | §10.2 gives it **+10** — and the engine's `angleByThrowType` then makes a **touch pass harder to deflect than a bullet** (65 vs 70), which §10.2 contradicts in words |
+| **SA-08** | §9.3 calls 1-2 yds *"contested"* and 3-4 yds *"open"* | §8.4's scale calls the engine's values for those rows *open* and *wide open* — both one band optimistic |
+| **SA-17** | §12.3 **excludes** blocked and grounded men from recovery | §12.4 gives them **−20 / −25 modifiers** |
+
+### Interpretation drift — a declared knob contradicting the doc elsewhere
+
+- **SA-14 — a DEAD-EVEN coverage rep is not a contested catch.** §11.1: *"defender within 1 yard"*.
+  `contestedMaxOpenness: 30` excludes `SEPARATION_HALF_YARD` (openness 40) **and** `EVEN_BRACKET`
+  (32, zero yards). Contested is **6.3% of catch resolutions** (365 of 5,776).
+  **PRICED, 160 games, seeds `fnv1a:60f21076#160`:** 30 → 40 gives contested **365 → 492 (+34.8%,
+  the exclusive reach)** and interceptions **169 → 203 (+20.1%, contaminated by propagation — a
+  re-routed catch changes the play, which changes the drive)**. ⚠ **Not free:** `int_rate` currently
+  PASSES at 2.03% and this moves it by a fifth, on top of entry 6's never-failing recovery roll.
+- **SA-05 — §8.8's scramble is stated OPPOSED (*"vs. Pursuit"*) and reads no defender attribute at
+  all.** ADR-028's structural-insensitivity argument in a new subsystem.
+- **SA-10 — §8.5's *"may take suboptimal"* is implemented as *"cannot take the best"*.** Both failure
+  rows carry `poolFrom: 1`, so a failed decision check makes the best-perceived target **structurally
+  unreachable** — ~37% of target selections on flat-60.
+- **SA-11** — two cells meaning "tight window", both 50, compared `<` in one place and `<=` in the other.
+- **SA-19** — `runGame.phaseTicks` says each phase resolves *"on the tick it ends on"*; two of three
+  resolve on the tick they START on, and a fourth phase exists §14.2 does not name.
+
+### 🆕 A THIRD FAILURE DIRECTION — the doc said something and there is NO CELL TO WALK
+
+ADR-036 is *the doc said nothing and a number appeared*. §7.2's amendment is *the doc was wrong and
+the engine was faithful*. **This is neither, and a register that walks a table is structurally blind
+to it.** Seven, all found by reading the document forwards (`MISSING_CELLS`, pinned by test):
+
+- **MC-01 §7.1** — *"Tie: slight pressure, **−5 to QB accuracy if all matchups are ties**"*. No cell,
+  no resolver term, no declared absence. The one §7.1 result row whose stated consequence never fires.
+- **MC-02 §10.2** — the bullet's **−5 to catch** and the touch's **+10 to catch**. The *lane* halves
+  exist; the *catch* halves exist nowhere.
+- **MC-03 §10.4** — ***"Off platform (moving): −15"***. The population is **LIVE**: a scrambling
+  quarterback throws off platform by construction.
+- **MC-04 §11.1** — the whole **DIFFICULT CATCH** type (−20, *"Spectacular Catch attribute applies"*).
+  ⚠ **`spectacularCatch` is `active` in the registry, read by NO resolver, and absent from `TUNABLES`
+  — checked both ways per entry 31.** *This is `anchor` before ADR-028*, and a Mandate-2 kill/merge
+  candidate arriving from a READ rather than from a sweep.
+- **MC-05 §11.2** — *"One-handed +25"* has no cell; "diving" and "behind/high" were silently re-keyed
+  from catch TYPE to accuracy BAND.
+- **MC-06 §3.3** — the general adjacency penalty (**−10 adjacent, −25 two zones**) is implemented
+  nowhere; §12.4's proximity ladder is a different rule with different numbers.
+- **MC-07 §15** — six red-zone / two-minute / short-yardage modifiers, **no cells and no declared
+  absence**, unlike §16 which is declared with zeroed keys. Red-zone TD% is a Tier 1 metric.
+- **SA-15, the same family in miniature:** `tippedBall.weatherModifier`'s comment claims wiring §16
+  will be *"a value change, not a code change"*. **False** — §16.1's COLD row and its second wind row
+  have no key.
+
+### The scale sweep — and the instrument checks itself
+
+Exact probabilities, no simulation. It reproduces **two independently measured numbers**:
+`break_tackle` clears 15 on **36.6%** of even reps against entry 13's measured **36.70%**, and
+`breakaway`'s `TOUCHDOWN_POTENTIAL` at **36.6%** against entry 11's *"flat at ~37%"*.
+
+- **`deflection_quality` has `ratingSpan` 0.000** — §12.2's roll is a **bare d100**, no attribute
+  term exists. With entry 6's never-failing recovery roll, **no player rating decides anything in the
+  entire tipped-ball subsystem**; who ends up with the ball is a d100 and a deterministic Reaction sort.
+- **`accuracy`: rating owns 0.200 of the outcome, situation owns 0.750.** Entry 1 and entry 5,
+  quantified: **the situation is worth 3.75× the quarterback's accuracy rating.**
+- **`qb_decision` is the thinnest check in the game** (0.200, one term against a flat 50) and it
+  decides **who gets the ball**.
+- **`pursuit_angle` flags BOTH `DIE_CANNOT_LOSE` and `DIE_CANNOT_WIN` at even ratings** — entry 14's
+  raw speed term, quantified: the die decides nothing at either end of it.
+- **`pass_rush_tick`'s `RUSHER_WINS_REP` at 15 is a 36.6% event on an even rep** — entry 40's
+  `startsThreat` 31.85%, seen from the arithmetic. **The supply of threats is a band boundary on the
+  fat part of a triangular distribution.**
+- Two structural asymmetries without a corpus: `downfield_block` is **1 term vs 2** (entry 10) and
+  `contested_catch` is **3 vs 2**, a 12-point receiver edge — which with SA-14 narrows the
+  interception channel twice over.
+- **Eleven checks are `levelInvariant`.** Correct football, and a hard constraint: **on a flat league
+  a symmetric check measures its band boundary and nothing else.**
+- **15 of 44 `CheckKind`s have no producer.** Three are fully specified and simply absent (§5.1
+  coverage read, §5.4 audible, §9.5 option route); §8.6's absence already has a logged consequence
+  (entry 4a); `fumble` has an attribute and §16.1 modifiers but **no base rate anywhere in the doc**.
+
+### What could not be seen — stated, per the standing rule
+
+- **Declared term lists can drift.** Where a stack lives in resolver code rather than as a
+  `{attr, divisor}` array, `SURFACE` declares it with the doc's formula. A term added to a resolver
+  reddens nothing. **Derived rows are eliminated; declared rows are bounded.** The mitigation exists
+  and is unwired: `CHECK.testsAttrs` + `knownTruth/attributeUsage.ts`.
+- **Four findings are unpriced** (SA-03/04/07 and SA-18's re-measure) because **a two-run diff cannot
+  produce a per-play exclusive count when the change propagates** — a re-timed release changes the
+  play, the down, the drive and every later play in that game. "Plays that differ" over-counts
+  without bound; "games that differ" under-counts. Neither is reported as an exclusive count.
+- **The classifications are hand-authored readings of the doc.** Only their COMPLETENESS is
+  machine-checked. Charter §4.1: hand-enumerated lists in this repo have been wrong every time they
+  have been checked — every rule carries its `docRef` so a reader can falsify one in a single lookup.
+- The register **found its own over-reach on its first run**: a rule written for `zoneModel`'s
+  spatial fakes matched no numeric leaf (they are string-valued) and the totality gate reported it
+  dead.
+
+## 47. STANDING SWEEP OWED — which owner rulings are currently INHERITABLE?
+
+**The pattern to generalise, from ADR-037's handling of entry 44:** a ruling made *about a number*
+should **redden when the number moves.** Entry 44's ruled cells each carry a **stale-proof no-op
+`applyTunablePatch`**, so if `yac.bands.0.minYards` ever changes — entry 23's coupling makes that
+plausible — the gate **fails** rather than silently continuing to apply a ruling made about a
+different value.
+
+**Every ruling in this backlog that names a specific value is a candidate**, and none of the others
+is currently protected this way. A ruling that outlives its subject is not a ruling; it is an
+inherited assumption with an owner's name attached — the same species as Charter §4.1's
+*ratified-plan* corollary, which is about decisions outliving the constitution they were checked
+against. **This is decisions outliving the VALUE they were checked against.**
+
+**Owed:** a sweep of the backlog for rulings that name a value, classifying each as *enforced*
+(reddens on change) or *inheritable* (does not), and pinning the inheritable ones. Not urgent; **do
+it before Tier 2 distribution work**, since that is where the most value-specific rulings will
+accumulate.
 
 ## 45. `GIFT` / `FLOATER` — DECLARED ABSTENTION, and why a targeted fixture is the wrong fix
 
@@ -1099,6 +1321,14 @@ first and the derivation last.
     ladder and dropping it forces a full re-record.
   - `rb-vision`'s `elusiveness`/`power` are genuinely read by the contact contests — **not** a
     finding; its mechanism list is legitimately four check kinds.
+- **⚠ A FOURTH DEAD ATTRIBUTE, and again without a sweep: `spectacularCatch`** (ADR-039 / entry 48,
+  MC-04). `active` in `ATTRIBUTE_REGISTRY_V1`, read by **no engine resolver**, and **absent from
+  `TUNABLES`** — checked both ways per this entry's own methodology correction, since a grep for
+  `ATTR.x` cannot see a tunables string. It survives only as a `defaultFrom` source for `jumping`
+  (ADR-003). **This is `anchor`'s exact shape**: the design doc names it as the mechanic's answer
+  (§11.1's DIFFICULT CATCH, *"Spectacular Catch attribute applies"*) and the engine never built the
+  mechanic. Kill/merge candidate, or a petition to implement §11.1's third catch type — and the
+  choice between those two is the same choice ADR-028 made for `anchor`.
 
 ## 30a. The claimed-attribute list is now DERIVED, and it found things prose never would
 
