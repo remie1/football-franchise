@@ -236,9 +236,17 @@ describe("the clock", () => {
  * different modifier total, so `ot-103` is no longer an overtime and the OT seed
  * moves to `ot-162`. The TIE seed `ot-1465` survived the change untouched, which
  * is luck rather than evidence — it was re-scanned, not assumed.
+ *
+ * RE-SCANNED AGAIN for ADR-031 (§7.4's free runner gets a path term). Every free
+ * runner off the EDGE now arrives half a tick later, which moves the pocket
+ * clock on ~20% of this corpus's free runners and therefore every call after the
+ * first play that contains one: `ot-162` is no longer an overtime and the OT
+ * seed moves to `ot-2`. `ot-1465` has now survived three consecutive resolution
+ * changes, which is still luck and is still re-scanned rather than assumed —
+ * 2,500 seeds scanned, two of them ties.
  */
 describe("overtime, to the extent a tie requires one", () => {
-  const overtime = simulateGameFor("ot-162");
+  const overtime = simulateGameFor("ot-2");
   const tie = simulateGameFor("ot-1465");
 
   it("a tie at the end of regulation opens a fifth period", () => {

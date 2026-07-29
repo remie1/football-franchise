@@ -124,6 +124,46 @@
  * league whose linemen all rate `anchor` at roughly the mean of `passBlock` and
  * `footwork` — see the note in `pressureMetrics.test.ts`. `sackWhenNoTarget` and
  * `freeRunnerArrivalSeconds` remain frozen.
+ *
+ * ============ CURRENT — RE-RECORDED July 2026, ADR-031 ============
+ * ⚠ THE BLOCK ABOVE IS HISTORY. Read this one.
+ *
+ * Same 12 seeds, same fixture. Both columns MEASURED: the "before" column is
+ * this build with ADR-031's six path offsets zeroed, which reproduces the
+ * pre-ADR-031 engine byte for byte (verified over the 40-game
+ * `pressureMetrics` corpus: 124,870,341 characters of event JSON, digest
+ * `fnv1a:b6289b40`, identical). So this is a controlled before/after and the
+ * "before" column agrees with the ADR-028 "after" column above to every digit,
+ * which is the check that the block above had not gone stale this time.
+ *
+ *   metric                 before    after     NFL         verdict
+ *   points/team            32.3      31.9      22.5        HIGH — backlog 11-14
+ *   drives/game            31.25     30.67     22-24       HIGH — short drives
+ *   plays/game             138.00    136.25    ~128        close
+ *   plays/drive            4.42      4.44      ~5.9        LOW — completion rate
+ *   three-and-out rate     27.2%     27.2%     ~24%        close
+ *   points/drive           2.07      2.08      ~2.0        close
+ *   time of possession     3477s     3480s     ~3540       close; no OB model
+ *   completion %           48.5%     49.3%     ~65%        LOW — backlog 3
+ *   yards per carry        10.04     9.41      ~4.3        HIGH — backlog 11-14
+ *   sacks/game             10.33     10.17     ~4.6        HIGH — backlog 3
+ *   INT/game               4.08      3.75      ~1.4        HIGH — backlog 5/6
+ *   FG%                    78.4%     72.5%     ~84%        LOW — 40/51 vs 37/51
+ *   XP%                    97.8%     95.7%     ~94%        close — 91/93 vs 89/93
+ *   punt gross             48.1      48.4      ~46.5       close — 150 vs 149
+ *
+ * NOTHING WAS TUNED TO MOVE ANY OF THESE. ADR-031 changed no committed value:
+ * `freeRunnerArrivalSeconds` is 1.5 before and after (ADR-030 refused a value
+ * change, on the record), and the new table is a set of offsets whose zero cell
+ * is the man that constant was chosen for. `sackWhenNoTarget` remains frozen.
+ *
+ * READ THE DIRECTION, NOT THE DIGITS, ON THE THREE SPECIAL-TEAMS ROWS. FG% moves
+ * 5.9pp on three kicks out of fifty-one and XP% moves on two out of ninety-three;
+ * a half-tick change to when an edge blitzer arrives cannot plausibly reach a
+ * kicker, and what it reaches is WHERE DRIVES STALL, which is the distance
+ * distribution of the kicks. The same caveat the thirteenth dispatch wrote, for
+ * the same reason. The XP fence is one kick from tripping in the other
+ * direction and this move was AWAY from it.
  * =======================================================
  */
 import { describe, expect, it } from "vitest";

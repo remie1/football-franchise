@@ -156,6 +156,72 @@ export function travelSecondsFor(
   return Number(clamp(quantized, t.minTravelSeconds, t.maxTravelSeconds).toFixed(1));
 }
 
+/**
+ * §7.4's THREE STARTING DEPTHS, keyed on the rusher's registry `Position`.
+ *
+ * The same shape as `rushAlignmentFor` above and for the same reason: a position
+ * is not an attribute and this is not `getAttr`'s business, but it IS a registry
+ * fact about where a man lines up, and the two lists that partition it are
+ * tunables so calibration can move a position between classes without a code
+ * change. Everything nobody classified is `BOX`, which is the class §7.4's own
+ * sentence describes and the class at offset 0.0.
+ */
+export type FreeRunnerDepth = "LINE" | "BOX" | "DEEP";
+
+export function freeRunnerDepthFor(tunables: Tunables, position: Position): FreeRunnerDepth {
+  const t = tunables.blitzPickup.freeRunnerPath;
+  const onLine: readonly string[] = t.onLinePositions;
+  if (onLine.includes(position)) return "LINE";
+  const deep: readonly string[] = t.deepPositions;
+  if (deep.includes(position)) return "DEEP";
+  return t.defaultDepthClass;
+}
+
+/**
+ * §7.4's ARRIVAL CLOCK — how long a man nobody is blocking needs, given where he
+ * started. ADR-030 petition 1, Option A, ratified; ADR-031 implements it.
+ *
+ * DELIBERATELY NOT `travelSecondsFor` ABOVE, and the two live in one file so the
+ * difference cannot be missed. That function measures the ground between a
+ * BEATEN BLOCKER and the launch point, from the instant the rep was won — a
+ * rusher who is already past a body, roughly a second into the play. This one
+ * measures the ground between a MAN'S PRE-SNAP ALIGNMENT and the launch point,
+ * from the snap, for a rusher no one ever engaged. Same unit, different
+ * quantity, different zero, and ADR-030 priced the confusion of the two at about
+ * +0.6pp of sack.
+ *
+ * The base is §7.4's ratified constant and the table is a signed offset on it,
+ * so the value 1.5 keeps its meaning: it is the ETA of the second-level box
+ * blitzer coming inside, which is the man the doc's sentence is about.
+ *
+ * `pickupDelaySeconds` is §7.4 step 3's own band delay — the time it costs to
+ * get THROUGH a body — and it is summed here rather than at the call site so
+ * that one function owns "when does a free runner arrive" and the clamp sees the
+ * whole number. `UNBLOCKED` passes 0: nobody touched him.
+ *
+ * No die (ADR-005). Every input is on the play call or the registry, and the
+ * result is published on the `RUSH_THREAT` this produces.
+ */
+export function freeRunnerArrivalSecondsFor(
+  tunables: Tunables,
+  alignment: RushAlignment,
+  position: Position,
+  pickupDelaySeconds: number,
+): number {
+  const t = tunables.blitzPickup;
+  const depth = freeRunnerDepthFor(tunables, position);
+  const raw =
+    t.freeRunnerArrivalSeconds +
+    t.freeRunnerPath.offsetSecondsByAlignmentAndDepth[alignment][depth] +
+    pickupDelaySeconds;
+  const bounded = clamp(
+    raw,
+    t.freeRunnerPath.minArrivalSeconds,
+    t.freeRunnerPath.maxArrivalSeconds,
+  );
+  return Number(bounded.toFixed(1));
+}
+
 /** The threat a won rep creates. */
 export function threatFromWonRep(args: {
   /** Required, never defaulted: a missed call site must be a compile error. */
@@ -313,6 +379,13 @@ export function threatsWithAlignment(
  * Pocket-status floor implied by the nearest travelling threat. This is what
  * keeps a beaten tackle beaten: a rusher who won at 1.0 and stalemates at 1.5
  * has not un-beaten his block — he is still coming, and the pocket knows it.
+ *
+ * THREE HORIZONS, ALL NAMED (ADR-031 change 2). The last of them used to be the
+ * absence of a branch: this function returned `PRESSURE` for any live threat at
+ * any distance, so the horizon was infinite AS A FACT and unsweepable AS A
+ * TUNABLE. `arrival.pressureWithinSeconds` defaults to `POS_INF`, which is that
+ * same behaviour written down — the output is identical at the default and the
+ * constant is now a value calibration can move.
  */
 export function pocketFloorFromArrival(
   tunables: Tunables,
@@ -322,7 +395,11 @@ export function pocketFloorFromArrival(
   const t = tunables.arrival;
   if (minTta <= t.immediateWithinSeconds) return "IMMEDIATE";
   if (minTta <= t.collapsingWithinSeconds) return "COLLAPSING";
-  return "PRESSURE";
+  if (minTta <= t.pressureWithinSeconds) return "PRESSURE";
+  // Travelling, and still too far away to be dirtying the pocket. Unreachable at
+  // the committed horizon and deliberately so: it is the state a sweep of that
+  // horizon exists to reach.
+  return "CLEAN";
 }
 
 /**

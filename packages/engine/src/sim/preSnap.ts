@@ -23,7 +23,10 @@
  *  4. §7.4 step 3 — each unaccounted rusher is offered to the next available
  *     blocker, in the card's stated priority. Contest per rusher.
  *  5. §7.4 step 4 — anybody left, or anybody who beat his pickup, is a FREE
- *     RUNNER with an ETA. Not a teleport: a rusher with a short clock.
+ *     RUNNER with an ETA. Not a teleport: a rusher with a short clock, and since
+ *     ADR-031 a clock that reads WHERE HE STARTED — his alignment and the depth
+ *     his position lines up at — rather than one constant for every rusher on
+ *     the field (`freeRunnerArrivalSecondsFor`).
  *  6. §7.3 — stunts resolve last, because a twist is an exchange between two
  *     men whose blockers step 4 may just have decided.
  *
@@ -55,7 +58,7 @@ import {
   resolveBlitzRecognition,
   resolveStuntCommunication,
 } from "../resolve/blitz.js";
-import { rushAlignmentFor } from "../resolve/rushThreat.js";
+import { freeRunnerArrivalSecondsFor, rushAlignmentFor } from "../resolve/rushThreat.js";
 import type { Tunables } from "../tunables.js";
 import type {
   HotConversion,
@@ -300,7 +303,16 @@ export function resolvePreSnap(args: {
         ...common,
         free: {
           origin: "UNBLOCKED",
-          etaTick: tunables.blitzPickup.freeRunnerArrivalSeconds,
+          // ADR-030 petition 1, ratified: the clock reads WHERE HE STARTED —
+          // his alignment and the depth his position lines up at — instead of
+          // being the same number for a nose tackle and a blitzing safety.
+          // Nobody laid a hand on him, so there is no pickup delay to add.
+          etaTick: freeRunnerArrivalSecondsFor(
+            tunables,
+            common.alignment,
+            common.rusher.bio.position,
+            0,
+          ),
           rollRef: recognitionRollRef,
         },
       };
@@ -324,8 +336,14 @@ export function resolvePreSnap(args: {
       ...common,
       free: {
         origin: "PICKUP_LOST",
-        etaTick: Number(
-          (tunables.blitzPickup.freeRunnerArrivalSeconds + pickup.arrivalDelaySeconds).toFixed(1),
+        // The same path, plus §7.4 step 3's own delay for the body he had to get
+        // through. Two terms, both stated: where he started, and what it cost him
+        // to beat the back.
+        etaTick: freeRunnerArrivalSecondsFor(
+          tunables,
+          common.alignment,
+          common.rusher.bio.position,
+          pickup.arrivalDelaySeconds,
         ),
         rollRef: pickup.check.roll.rngLabel,
       },

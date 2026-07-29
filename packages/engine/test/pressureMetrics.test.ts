@@ -73,15 +73,57 @@
  * The change is visible only against SPREAD line quality, which this fixture does
  * not have and `packages/calibration`'s archetype ladders do.
  *
- * NOTHING HERE WAS TUNED. `sackWhenNoTarget` and `freeRunnerArrivalSeconds`
- * remain frozen (seventeenth dispatch); `blockerStructuralAdvantage` is no longer
- * frozen but was moved by ratified petition, to 0, and to nothing else.
+ * ============ CURRENT — RE-RECORDED July 2026, ADR-031 ============
+ * ⚠ THE ADR-028 BLOCK ABOVE IS NOW HISTORY TOO. Read this one.
+ *
+ * ADR-030 petition 1 (Option A, ratified) gave §7.4's free runner a PATH TERM:
+ * his ETA now reads his alignment and the depth his position lines up at,
+ * instead of being one constant for every rusher on the field. Both columns are
+ * the SAME 40 seeds (`pressure-0`..`pressure-39`) on the same fixture; the
+ * "before" column is the build with the six path offsets zeroed, which is
+ * byte-identical to the pre-ADR-031 engine over this whole corpus (124,870,341
+ * characters of event JSON, `fnv1a:b6289b40`, verified rather than asserted).
+ *
+ *   metric                     before    after     NFL      note
+ *   dropbacks                   3,684     3,679    —        the corpus, for scale
+ *   sack rate / dropback         9.39%     9.43%   ~6.9%    flat
+ *   pressure rate / dropback    93.92%    93.67%  ~29.2%    flat; see below
+ *   pressure→sack ratio          0.100     0.101   ~0.236   flat
+ *   blitz rate                  32.60%    32.70%   ~25%     a property of the CARDS
+ *   stunt-win rate (OL fails)   29.04%    29.22%   —        644 / 640 twists
+ *   pickup lost rate            44.72%    44.86%   —        1,496 / 1,498 contests
+ *   recognition rate            71.36%    71.49%   —        1,201 / 1,203 blitzes
+ *   hot-route rate / dropback   17.56%    17.67%   —        647 / 650 conversions
+ *   free-runner threats          1,762     1,767   —        §7.3 and §7.4 together
+ *
+ * The split, re-recorded, and the ORDERING this file exists to protect survives:
+ *
+ *   no blitz                  2,483 → 2,476 plays   11.16% → 11.23% sack
+ *   blitz, recognised, hot      647 →   650 plays    4.33% →  4.31% sack
+ *   blitz, recognised, no hot   210 →   210 plays    0.48% →  0.48% sack
+ *   blitz, MISSED pre-snap      344 →   343 plays   11.63% → 11.66% sack
+ *
+ * WHY EVERY ROW IS FLAT, and it is again not because nothing happened. THIS
+ * corpus sends only linebackers on the free-runner channel — measured: all 1,575
+ * governed free runners over 40 games are OLB or MLB, not one down lineman and
+ * not one defensive back. So five of the model's six cells never fire here and
+ * the whole change reduces to ONE step: the 19.6% of free runners aligned at the
+ * EDGE move 1.5s → 2.0s (and 2.0s → 2.5s behind a lost pickup). The cells are
+ * visible in the ETA histogram this file now asserts on, and the population that
+ * exercises the other four is `packages/calibration`'s, not this fixture's.
+ *
+ * NOTHING HERE WAS TUNED. `sackWhenNoTarget` remains frozen (eighteenth
+ * dispatch). `freeRunnerArrivalSeconds` is **still 1.5** — ADR-030 refused a
+ * value change explicitly and this dispatch changed how the number is USED, not
+ * what it is: it is now the zero point of the path table, which is why the
+ * interior box blitzer's ETA is unchanged to the digit.
  * =======================================================
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEvent, MatchEventEnvelope, PlayId } from "@ff/contracts";
 import { simulateGame } from "../src/game/simulateGame.js";
 import { COVERAGE_CARDS } from "../src/game/playbook.js";
+import { TUNABLES } from "../src/tunables.js";
 import { buildGameFixture } from "./gameFixtures.js";
 
 const GAMES = 40;
@@ -120,6 +162,12 @@ const totals: Totals = {
   recognitionChecks: 0, recognized: 0, freeRunnerThreats: 0,
 };
 const buckets = new Map<string, Bucket>();
+/**
+ * ADR-031 — every free runner's published ETA, keyed by alignment. The whole
+ * point of the path term is that this stops being one number, so the file
+ * measures it rather than trusting the tunable to be wired.
+ */
+const freeRunnerEtas = new Map<string, Set<number>>();
 
 /** PLAY_START's payload is `unknown` in contracts; read it the way §17 does. */
 function readStart(payload: unknown): {
@@ -176,6 +224,12 @@ for (let i = 0; i < GAMES; i++) {
       event.payload.origin !== "WON_REP"
     ) {
       totals.freeRunnerThreats += 1;
+      if (event.payload.origin !== "STUNT_LOOPER") {
+        const key = event.payload.alignment;
+        const seen = freeRunnerEtas.get(key) ?? new Set<number>();
+        seen.add(event.payload.etaTick);
+        freeRunnerEtas.set(key, seen);
+      }
     }
     if (event.type === "CHECK") {
       if (event.payload.checkKind === "stunt_communication") {
@@ -243,6 +297,35 @@ describe("§7.4 — the mechanic exists at game scale", () => {
     const lost = rate(totals.pickupsLost, totals.pickupChecks);
     expect(lost).toBeGreaterThan(0.2);
     expect(lost).toBeLessThan(0.7);
+  });
+});
+
+/**
+ * ADR-030 petition 1, ratified as ADR-031, defended at game scale.
+ *
+ * The petition was filed on STRUCTURAL grounds and not to move a number: "a
+ * blitzing safety from depth and a linebacker walked up to the A gap arrive
+ * identically, forever." The unit tests in `freeRunnerPath.test.ts` prove the
+ * table; this proves the table is actually reaching whole simulated games, which
+ * is the failure mode a tunable added and never wired produces.
+ */
+describe("§7.4 — the free runner's clock reads where he started", () => {
+  it("interior and edge free runners do NOT arrive at the same time any more", () => {
+    const interior = freeRunnerEtas.get("INTERIOR");
+    const edge = freeRunnerEtas.get("EDGE");
+    expect(interior?.size).toBeGreaterThan(0);
+    expect(edge?.size).toBeGreaterThan(0);
+    // On THIS corpus every free runner is a linebacker, so the two alignments are
+    // one half-tick apart and disjoint. A corpus with down linemen or blitzing
+    // defensive backs in the free channel would widen both sets; it would not
+    // make them overlap, because the edge arc is charged at every depth.
+    expect(Math.min(...(interior ?? []))).toBeLessThan(Math.min(...(edge ?? [])));
+  });
+
+  it("the interior box blitzer still arrives on the ratified constant, to the digit", () => {
+    // ADR-030 refused a value change. If this drifts, `freeRunnerArrivalSeconds`
+    // has been retuned through the offset table instead of by petition.
+    expect(freeRunnerEtas.get("INTERIOR")?.has(TUNABLES.blitzPickup.freeRunnerArrivalSeconds)).toBe(true);
   });
 });
 

@@ -25,6 +25,14 @@
 import type { CheckKind } from "@ff/contracts";
 
 const NEG_INF = Number.NEGATIVE_INFINITY;
+/**
+ * The other end of the same idea as `NEG_INF`: a horizon that never runs out.
+ *
+ * Used by `arrival.pressureWithinSeconds`, where it reproduces "any live threat
+ * at any distance" as a DECLARED value rather than as a missing branch. It is a
+ * number and it is patchable — which is the whole point of writing it down.
+ */
+const POS_INF = Number.POSITIVE_INFINITY;
 
 export const TUNABLES = {
   /**
@@ -201,7 +209,17 @@ export const TUNABLES = {
      * later; structural insensitivity is not.
      *
      * It remains a live dial and a legal patch target — it is simply no longer
-     * the pressure-rate lever, and `freeRunnerArrivalSeconds` is next in line.
+     * the pressure-rate lever.
+     *
+     * ⚠ THE POINTER THAT USED TO END THIS COMMENT IS SPENT. It said
+     * "`freeRunnerArrivalSeconds` is next in line"; ADR-030 swept that tunable
+     * across nine rungs on eight seed lists and refuted it too — its whole
+     * budget is 0.406pp of sack and it cannot move the pressure rate at all
+     * (0.20pp across the entire grid, including the rung where the rusher never
+     * arrives). **Both named suspects are eliminated.** The remaining candidates
+     * are `pocket.minimumStatusByBand.RUSHER_GAINING` and
+     * `arrival.pressureWithinSeconds`, which ADR-031 named so that it could be
+     * swept at all.
      */
     blockerStructuralAdvantage: 0,
     /** "Counter move: +15 if previous tick was stalemate". */
@@ -332,6 +350,108 @@ export const TUNABLES = {
      */
     freeRunnerArrivalSeconds: 1.5,
     /**
+     * §7.4's PATH TERM — ADR-030 petition 1, Option A, ratified; ADR-031 is the
+     * implementation record. **ENTIRELY INTERPRETATION: the doc contains no
+     * table here at all**, only the one sentence quoted above, and its "~1.5
+     * ticks" was already an authoring ambiguity resolved for UNITS. Every number
+     * below is invented structure and is marked as such.
+     *
+     * ================== WHAT IT REPAIRS ==================
+     * `freeRunnerArrivalSeconds` alone was the only threat clock in the engine
+     * that consulted no property of the man it was timing. §7.2's won-rep clock
+     * reads alignment, move, margin and the next tick's band; §7.3's looper reads
+     * the stunt band; §7.4 read the pickup band for the `PICKUP_LOST` share and,
+     * for `UNBLOCKED`, nothing whatever — a nose tackle nobody blocked and a
+     * safety blitzing from ten yards arrived at the same instant, on every snap.
+     *
+     * ================== THE ZERO POINT, WHICH IS THE WHOLE DESIGN ==================
+     * These are SIGNED OFFSETS ON `freeRunnerArrivalSeconds`, not travel times,
+     * and the man at offset 0.0 is **§7.4's own blitzer: a second-level defender
+     * in the box, coming inside**. That is the man the doc's sentence is about
+     * and the man the ratified value 1.5 was chosen for ("the quick game and a
+     * hot route beat him; nothing else does"). So the ratified value keeps both
+     * its number AND its meaning: it is now the model's origin instead of the
+     * whole model, and the modal free runner's ETA is unchanged.
+     *
+     * **THIS IS NOT `arrival.travelSecondsByAlignmentAndMove`, AND MUST NOT
+     * BECOME IT** (ADR-030 says so explicitly, and states the cost of the
+     * mistake). That table's zero point is the instant a rusher DEFEATS A
+     * BLOCKER, roughly a second into the rep and already past the man; it gives
+     * INTERIOR 1.0 because a three-technique who beat a guard is four yards from
+     * the launch point with nothing in front of him. A §7.4 free runner was
+     * never engaged: his clock starts AT THE SNAP, from wherever he lined up.
+     * Two different quantities that happen to share a unit. Importing that table
+     * would have moved 63% of this population an entire half-second earlier and
+     * ADR-030 priced it at roughly +0.6pp of sack.
+     *
+     * ================== THE TWO AXES, AND WHY THESE TWO ==================
+     * WHERE HE STARTS, which is what the ratification asked for, and nothing
+     * else. Both axes are already on the play call or the registry:
+     *
+     *   ALIGNMENT (`RushAssignment.alignment`, resolved by `rushAlignmentFor`)
+     *     INTERIOR is a straight line at a launch point the drop moved TOWARDS
+     *     him; EDGE is an arc around the pocket to a spot the quarterback has
+     *     already vacated. Same asymmetry §7.2 asserts, at HALF its magnitude
+     *     (+0.5s here against +0.5-1.0s there) because a free edge rusher has no
+     *     blocker riding him wide — the arc is geometry, not a defeat.
+     *
+     *   DEPTH (`rusher.bio.position`, via the two lists below)
+     *     LINE  a hand-in-the-dirt front (DE/DT/NT): a yard off the ball, the
+     *           least ground of anybody, and the heaviest body covering it.
+     *     BOX   a second-level defender (OLB/MLB/ILB): four or five yards further
+     *           back, a faster body, and the man §7.4's sentence describes.
+     *     DEEP  a defensive back blitzing (CB/FS/SS): the most ground by a
+     *           distance, the fastest body, and the reason a corner blitz is a
+     *           gamble rather than free pressure.
+     *
+     * ONE HALF-TICK PER AXIS PER STEP, and no step larger, because 0.5s is the
+     * engine's quantum and the honest resolution of "how far back does he start"
+     * is not finer than that. The extreme cells are a full second apart, which is
+     * the claim the ratification made in words: a linebacker walked up to the A
+     * gap (1.5s) and a safety blitzing off the edge from depth (2.5s) must not
+     * arrive together.
+     *
+     * WHAT IS DELIBERATELY NOT AN AXIS. **`move`** — a rush move is something you
+     * do TO a blocker, and this man has none; §7.2 reads it for exactly that
+     * reason and §7.4 must not. **`side`** — left and right are mirror images,
+     * and keying a travel time on which one would assert a handedness no football
+     * supports. **Attributes** — the ratification says "keyed on where the rusher
+     * starts", and a speed term would be a second petition, on a league that has
+     * no speed variance to measure it with. ADR-031 records it as unclaimed.
+     */
+    freeRunnerPath: {
+      /** Fronts with a hand in the dirt: least ground, heaviest body. */
+      onLinePositions: ["DE", "DT", "NT"],
+      /** Defensive backs: most ground, fastest body. */
+      deepPositions: ["CB", "FS", "SS"],
+      /**
+       * Everything else — the second level. Named as a DEFAULT rather than as a
+       * third list because it is the class §7.4's own sentence is about, so a
+       * position nobody classified should land on the man the constant already
+       * described, at offset 0.0, rather than somewhere new.
+       */
+      defaultDepthClass: "BOX",
+      /**
+       * Seconds ADDED TO `freeRunnerArrivalSeconds`. Authored on the 0.5s tick
+       * grid for the same reason the pickup bands' `arrivalDelaySeconds` are, so
+       * the sum lands on a tick that is actually emitted and no rounding step is
+       * needed to put it there.
+       */
+      offsetSecondsByAlignmentAndDepth: {
+        INTERIOR: { LINE: -0.5, BOX: 0.0, DEEP: 0.5 },
+        EDGE: { LINE: 0.0, BOX: 0.5, DEEP: 1.0 },
+      },
+      /**
+       * Bounds on the SUM (offset plus the pickup band's delay), so a patched
+       * table cannot produce a negative ETA or one past `clock.maxTick`. §7.2 has
+       * its own pair (`arrival.minTravelSeconds` / `maxTravelSeconds`) measuring a
+       * different quantity from a different zero, so these are separate numbers
+       * rather than a shared one.
+       */
+      minArrivalSeconds: 0.5,
+      maxArrivalSeconds: 4.0,
+    },
+    /**
      * §7.4 step 1's slide: "Covered if blitzer on slide side." No contest — the
      * slide IS the answer, and the resulting matchup is an ordinary §7.1 rep.
      */
@@ -414,6 +534,36 @@ export const TUNABLES = {
      */
     immediateWithinSeconds: 0.0,
     collapsingWithinSeconds: 1.0,
+    /**
+     * THE THIRD HORIZON — how far out a travelling rusher still dirties the
+     * pocket. **`POS_INF` REPRODUCES TODAY'S BEHAVIOUR EXACTLY** and is not a
+     * behaviour change of any kind: `pocketFloorFromArrival` returned `PRESSURE`
+     * for any live threat at any distance, so the constant was already there —
+     * it was spelled as a missing branch instead of as a value.
+     *
+     * WHY IT IS WRITTEN DOWN (ADR-031 change 2, on `calibration`'s petition).
+     * A constant-by-omission is observable and UNSWEEPABLE. A free runner's
+     * threat is created at the snap, so with no third horizon **100.000% of
+     * governed dropbacks are pressured at every rung of the arrival grid,
+     * including the rung where the rusher provably never arrives** (ADR-030 §1a,
+     * measured, ± 0.000). That floor is the last unswept candidate for the
+     * 89.4%-versus-29.2% pressure divergence, alongside
+     * `pocket.minimumStatusByBand.RUSHER_GAINING`, after both previously-named
+     * suspects were swept and refuted (ADR-028, ADR-030). It could not be
+     * measured until it had a name, and giving it one is the change.
+     *
+     * WHAT A FINITE VALUE WOULD MEAN, so a sweep knows what it is sweeping: a
+     * rusher further out than this is TRAVELLING but not yet dirtying the pocket
+     * — he is in the stream, he still arrives on his own clock, and until he
+     * closes to this horizon he sets no floor. `CLEAN` becomes reachable with a
+     * live threat on the field, which today it is not.
+     *
+     * NOT A FOOTBALL CLAIM EITHER WAY. An unblocked blitzer IS pressure by most
+     * charting conventions, which is the argument for leaving it at infinity;
+     * a man who will not arrive for three seconds is not, which is the argument
+     * for a finite value. ADR-030 declined to answer it and so does this.
+     */
+    pressureWithinSeconds: POS_INF,
     /**
      * WHO GETS THE SACK IN A DEAD HEAT. When a quarterback goes down to a rusher
      * he ran into rather than one who ran him down (§8.8's `CAUGHT_FROM_BEHIND`),

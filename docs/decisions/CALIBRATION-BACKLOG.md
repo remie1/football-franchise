@@ -530,6 +530,56 @@ and 18 to read "or against the corpus."**
   grid, but the **ratio is 0.75–0.80 at every rung, including extinction.** The tunable scales the
   stakes; it does not decide whether §5.3 recognition and hot routes matter.
 
+## 37. A mixture move is not a mean move — the third form of entry 26's lesson
+
+**ADR-030 priced the path term at ≈ +0.6pp of sack. Measured: −0.012 ± 0.061pp. A null.**
+
+Two reasons, and only the second is interesting:
+
+1. **Bookkeeping.** The +0.6pp was priced for *importing §7.2's table*, a design ADR-031 did not
+   build. Discard.
+2. **Even the correctly-signed arithmetic overpredicts EIGHTFOLD.** ADR-030's own curve prices
+   1.5→2.0 at −0.232pp, so the measured +0.2014s mean ETA shift is −0.093pp pro-rata. Measured
+   **−0.012 ± 0.061** (paired SE 0.022) — **3.8 SE away.**
+
+> **A curve measured by moving EVERYBODY cannot price a change to the MIXTURE.**
+
+The path term moved *the edge*, whose arrivals were already converting at roughly half the interior
+rate. Pro-rating a curve onto a subpopulation assumes the subpopulation sits at the curve's mean,
+and it did not.
+
+**This is entry 26's lesson arriving from a third direction.** First: conversion is not invariant
+under a rate intervention. Second: a counterfactual holding conversion fixed is arithmetic.
+**Third: a counterfactual holding the *mixture* fixed is also arithmetic.** Same failure, three
+disguises — **whenever you compute an expected effect by holding something fixed, name what you
+held.**
+
+## 38. "Edge pressure is worth less" is now produced by three mechanisms
+
+Share of governed threats reaching the quarterback:
+
+| | INTERIOR | EDGE | ratio |
+|---|---|---|---|
+| before the path term | 14.966% | 7.350% | **2.036×** |
+| after | 15.091% | 4.586% | **3.291×** |
+
+- **Not double-counting** — *when he arrives*, *how hard escape is* (`scramble.edgeThreatPenalty`)
+  and *who is credited in a dead heat* (`simultaneousArrivalPriority`) are three distinct things.
+- **But the aggregate is up 62% relative**, and per attribution rule 3 **any future share
+  attributed to one of the three must state the values of the other two it was measured against.**
+  A share measured with two of them at unstated values is a share about an unnamed configuration.
+
+## 39. One path cell is below §5.3's own refusal threshold, and is recorded as such
+
+`INTERIOR`/`LINE` — a down lineman coming free inside — fires **72 times in 56,155 governed
+threats: 0.128%.** That is the same order as the **0.13%** that made §5.3 refuse the original
+`freeRunnerArrivalSeconds` sweep.
+
+**It is the only cell arriving *earlier* than the base constant, and it is authored, not
+measured.** Recorded rather than softened to 0.0 to dodge saying so — which is the honest form,
+and the alternative would have been a value chosen to avoid a disclosure. **Unratified until a
+corpus sends down linemen unblocked.**
+
 ## 34. Both named suspects for the pressure rate are eliminated — here is what is left
 
 After ADR-028 and ADR-030, the two tunables the backlog named as the pressure levers have both been
@@ -539,11 +589,16 @@ it.** The remaining unswept candidates, and they are now the highest-value sensi
 1. **`pocket.minimumStatusByBand.RUSHER_GAINING: PRESSURE`** — **one rusher gaining by a single
    point makes a pocket dirty.** This is the most likely single cause of a 60pp gap and has never
    been measured.
-2. **The missing arrival horizon.** `arrival` carries `immediateWithinSeconds` and
-   `collapsingWithinSeconds` and **no third horizon**, so the "any live threat at any distance is
-   PRESSURE" floor **has no tunable at all** — it can be *observed* and not *swept*. **It needs an
-   engine petition before it can be measured**, which makes it the one open item that a sweep
-   cannot start on.
+2. ~~**The missing arrival horizon** has no tunable, so it can be observed and not swept.~~
+   **✅ NOW SWEEPABLE (ADR-031).** `arrival.pressureWithinSeconds` exists, defaulting to positive
+   infinity, which **reproduces today's behaviour exactly** — an existing constant-by-omission made
+   a constant-by-declaration. Verified two ways: the old three-branch function transcribed verbatim
+   and compared **point-for-point over the whole reachable domain** (a sample cannot establish that
+   a total function did not change), and a whole 40-game event stream — **124,870,341 characters,
+   identical hash.**
+   **Both candidates are now measurable. Sweep candidate 1 first**, per the owner: `RUSHER_GAINING`
+   is the more likely single cause, and 100.000% ± 0.000 pressure at every rung including
+   extinction is the strongest possible sign the floor is doing the work.
 
 ## 35. The free runner's clock reads nothing about the man it is timing
 
