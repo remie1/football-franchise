@@ -57,6 +57,24 @@ decides must fail to compile rather than pass green** (now Charter §4.1).
 > *opportunistically* means the unswept sections almost certainly hold more. **Do the systematic
 > sweep while attribution is still structurally mechanic-only, then attribute what survives.**
 
+> **➕ ADDED TO THE AUDIT'S BRIEF (owner, July 2026, generalising ADR-036): hunt TRANSCRIPTION
+> ARTIFACTS — cells whose value exists because the TABLE's shape demanded one, not because the DOC
+> specified one.**
+>
+> `tippedBall.qualityBands.DEAD.finalTargetNumber = 0` was not a tuning choice. §12.2 gives every
+> *live* band a Final TN and gives `DEAD` a **sentence** — *"DEAD BALL (no recovery possible)"*. The
+> table demanded a number where the doc had prose, **and a number appeared.**
+>
+> **These are invisible to a scale check, because they are not wrong on any scale — they are answers
+> to questions never asked.** A sensitivity sweep will report them as inert and move on; only reading
+> the cell against the *doc* finds them.
+>
+> **Expect more.** The doc's tables were authored by hand and the engine's tables are their
+> transcription, so every place the doc's prose meets the table's rectangle is a candidate. Same
+> species as §7.2's amendment, arrived at from the opposite direction: there, the doc said something
+> wrong and the engine transcribed it faithfully; here, the doc said **nothing** and the engine
+> transcribed a zero.
+
 **3. Entry 23's unowned +0.847 y/c residual (17%)** — attribution, after the sweep. Coupled to
 entry 44; neither closes without the other.
 
@@ -920,6 +938,59 @@ Exempting them was never an option. **But manufacturing the population is worse 
 produces the population.** Precedent, and the discipline is identical: `freeRunnerArrivalSeconds`
 was worth sweeping only *after* ADR-024 moved its population from **0.13% to 14.20%** — the fix came
 first and the measurement followed, rather than the measurement being staged.
+
+> **📐 IMPLEMENTED, AND THE IMPLEMENTATION CORRECTED THE ENTRY'S SUBJECT (ADR-037 §3.2).** The
+> abstention is now `DECLARED_ABSTENTIONS` in `packages/calibration/src/knownTruth/bandTables.ts`
+> and it is **asserted**, not written down: if a corpus ever lifts `GIFT` or `FLOATER` over the reach
+> floor, the gate goes red saying *the population arrived*, which is this entry's own instruction
+> made unforgettable. Measured on the gate's 160-game corpus: `GIFT` **1** selection in 29,973
+> plays, `FLOATER` **0**.
+>
+> **It is a claim about two ROWS, not about a column.** The gate first carried it as an adjudicated
+> inversion on `tippedBall.qualityBands.speedCheckFromDistance`, and that was wrong — see entry 46.
+
+## 46. ADR-035 §6.3 predicted its own instrument would go red, and it goes green — a floor is not a redness lever
+
+**Found by the gate ADR-035 §7 specified, on its first full run, using ADR-035's own relation.**
+
+§6.3 said of `tippedBall.qualityBands.speedCheckFromDistance`: *"Under any sane floor they become
+`UNDER_SAMPLED_ROW` and the column stays red until calibration has a corpus that reaches those
+rows."* **Measured at a floor of 30 over 29,973 plays, it does not.**
+
+| row | reach | verdict |
+|---|---|---|
+| `GIFT` | **1** | **`LIVE`** — one selection was enough to move the stream |
+| `FLOATER` | 0 | `UNREACHED_ROW` |
+| `LIVE_BALL` / `DIFFICULT` / `DEAD` | 42 / 220 / 699 | `GUARDED` — `maxZoneDistance` 1, 0, −1 |
+
+Dropping the three genuine `99` sentinels leaves **`[2, 2, 1]`, which is monotone.** The inversion
+was manufactured entirely by the sentinels the derivation correctly exempts.
+
+**The general lesson, and it is the reusable half.** The prediction assumed *a floor makes a column
+redder*. It does the opposite: **a floor refuses to EXEMPT a rare row, which KEEPS its value in the
+sequence** — and an honest value in an honest place is not an inversion. A floor constrains what may
+be *dropped*; it never adds a term. And `GIFT` deriving `LIVE` on a single selection is the sharpest
+form of it: **a positive liveness reading needs no floor at all**, because the floor only ever
+qualifies an *inert* reading.
+
+### 📐 STANDING RULE — a vanished finding must say whether it is a FIX or a NOTE
+
+Two adjudicated inversions left the register on this dispatch, hours apart, **for opposite reasons**:
+
+- `tippedBall.qualityBands.finalTargetNumber` left because ADR-036 **deleted the cell** — a **FIX**.
+- `speedCheckFromDistance` left because the **exemption set covered it** — a **NOTE**; the inversion
+  is still sitting in the table.
+
+**Both arrive as the same decrement in a count.** So `classifyVanished` labels every departure
+(`TABLE_REMOVED` / `COLUMN_REMOVED` / `CELLS_REMOVED` / `VALUES_CHANGED` → FIX;
+`EXEMPTED_BY_DERIVATION` → NOTE), and the recorded raw-inversion set carries **the sequence**, not
+just the column name, so a removed cell is visible as a shortened row list. *A silently shrinking
+inversion count cannot distinguish a repaired engine from a loosened gate.*
+
+A third state exists and it is ADR-035's title one level up: **a dead cell is exempt, a DELETED cell
+is absent, and dead code is neither.** `allCells` produces no cell for an `undefined` (row, column)
+pair, so a deleted cell has no verdict to inspect — which is why the classifier consults the TABLE
+first and the derivation last.
 
 ## 23. Yards per carry has ~5 unattributed yards, and they sit where entries 11–14 do not look
 

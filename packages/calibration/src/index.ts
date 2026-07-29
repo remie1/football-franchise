@@ -57,5 +57,8 @@ export * from "./knownTruth/scenarios.js";
 export * from "./knownTruth/assertions.js";
 export * from "./knownTruth/attributeUsage.js";
 // The second known-truth family: property gates over ORDERED ENUMS rather than over attribute
-// ladders (Charter §4.1). `pocketLadder` is the first instance.
+// ladders (Charter §4.1). `pocketLadder` is the first instance; `bandTables` is the second and the
+// larger — 26 tables, 249 cells, with the exemption set DERIVED from the engine (ADR-035) rather
+// than declared here.
 export * from "./knownTruth/pocketLadder.js";
+export * from "./knownTruth/bandTables.js";
