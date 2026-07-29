@@ -890,6 +890,22 @@ report exists.
   green now requires editing a field labelled "measured" next to the seed digest that measured
   it.** Charter §4.1 applied to a test suite.
 
+### STANDING RULE — no curve-shape claim from a single seed list, at any game count
+
+**Four retractions in this file share exactly one root cause: a shape claim written from one seed
+list.** Entry 22's ladder artefact (a 9.9-point span read as 4.3), entry 33's claim 3 (a flat step
+read as double its neighbours), "coverage saturates above 60" (an 80-game sweep; the curve is
+monotone at 800), and `dl-passrush`'s step asymmetry (flat across eight sets). **None survived
+replication. All four were believed.**
+
+> **A curve-shape claim requires multiple independent seed sets. Game count does not substitute
+> for seed sets** — 800 games on one list is still one draw of the shape.
+
+This is not a general caution about noise; it is specific and it is load-bearing: **shape claims
+are the ones that determine rungs, and rungs determine everything downstream.** A wrong shape puts
+a ladder on a shelf, and a ladder on a shelf measures the shelf. Every one of the four cost a
+downstream artefact before it was caught.
+
 ### THE TEST FOR A SHELF — use this, not judgement
 
 > **A genuine shelf does not move when the seeds do.**
@@ -908,10 +924,21 @@ is UNTRUSTED.** Not "less certain" — untrusted, and not to be re-runged from.
 0.7235 — reading as a 6% confound removed. **Across eight seed sets the effect is 0.003.** One seed
 list cannot *size* an effect, only suggest one — and that 6% would have been written up as a result.
 
-**And eight seed sets is not many either.** Two matched eight-set runs of `db-coverage` at 400
-games put the same step's SD at **0.1003 and 0.0912** on means agreeing to 0.003 — roughly **±25%
-on an eight-sample SD**, so a margin recorded at 4.5σ may really be 3.6σ. Treat a recorded σ near
-the 4σ floor as *within noise of the floor*, not as clearing it.
+### KNOWN PROPERTY OF THE INSTRUMENT — the recorded σ is itself an estimate
+
+**Eight seed sets is not many either.** Two matched eight-set runs of `db-coverage` at 400 games
+put the same step's SD at **0.1003 and 0.0912** on means agreeing to 0.003 — roughly **±25% on an
+eight-sample SD**.
+
+**Consequence, and it is a property of the instrument rather than a caution about any one gate:**
+a margin recorded at **4.5σ may really be 3.6σ**. A recorded σ near the 4σ floor is **within noise
+of the floor, not clearing it.**
+
+> **Therefore: keep headroom above the floor. Do not tune a gate to exactly meet 4σ.**
+
+A gate sized to land precisely on the floor has roughly even odds of being under it, and the
+failure is silent — it presents as a gate that passes. Same family as §22a's opening finding, one
+level up: there, a gate passed by luck; here, a *margin* can pass by luck.
 
 ### Record the dispersion of the thing the gate actually DRAWS
 
