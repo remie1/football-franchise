@@ -78,7 +78,7 @@ export function simulateRunPlay(
   assertCoherentRunCall(state, calls);
 
   const playId = makePlayId(`${String(state.gameId)}:play:${state.playNumber}`);
-  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq, tunables);
+  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq);
   const carrier = requirePlayer(state, calls.offense.carrier);
 
   const playRng = createRng(seed, `game:${String(state.gameId)}`).fork(`play:${state.playNumber}`);

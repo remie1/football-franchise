@@ -117,6 +117,39 @@
  * value change explicitly and this dispatch changed how the number is USED, not
  * what it is: it is now the zero point of the path table, which is why the
  * interior box blitzer's ETA is unchanged to the digit.
+ *
+ * ============ CURRENT — RE-RECORDED July 2026, ADR-033 ============
+ * ⚠ THE ADR-031 BLOCK ABOVE IS HISTORY. Read this one.
+ *
+ * TWO OWNER RULINGS ON §7.2, measured as four arms over the SAME 40 seeds
+ * (`pressure-0`..`pressure-39`) and the same fixture, each arm an in-memory
+ * tunables revert of one ruling. 3,679 dropbacks an arm.
+ *
+ *   arm                                   sack rate   pressure rate
+ *   both reverted (pre-ADR-033)             9.432%       93.667%
+ *   ruling 1 only (SACK still on ladder)    9.378%       93.232%
+ *   ruling 2 only (band map unchanged)      9.432%       93.667%
+ *   committed (both rulings)                9.378%       93.232%
+ *
+ * RULING 1 — "gaining ground is not pressure". Margins 1-4 moved off the
+ * PRESSURE floor onto CLEAN: **−0.435pp of pressure, −0.054pp of sack**. The
+ * sack figure is TWO PLAYS out of 3,679 against a binomial SE of ~0.48pp, so it
+ * is indistinguishable from zero, which is what ADR-032 predicted (it priced the
+ * whole reachable domain of that band map at 2.382 ± 0.051pp of pressure and
+ * 0.000pp of sack; this change is a strict subset of that domain and lands well
+ * inside it). NOT A PRESSURE-RATE FIX AND MUST NOT BE CITED AS ONE — 88.3% of
+ * the divergence survives extinguishing every §7.2 threshold, the rate is a
+ * SUPPLY problem, and `CALIBRATION-BACKLOG.md` entry 40 remains open.
+ *
+ * RULING 2 — "SACK is an outcome, not a status". **EXACTLY ZERO on this corpus,
+ * on both axes, to the digit**, and the reason is worth recording rather than
+ * celebrating: with the rung restored, this fixture produced **0 SACK-status
+ * ticks out of 9,929**. The rung was UNREACHABLE here. It needs a pressure
+ * counter of 9 at +2 a won rep with the play still alive, and these plays end
+ * first. So the inversion the ruling removes was invisible to every batch
+ * statistic this package can produce, and it took `packages/calibration`'s
+ * ladder WALK — which imposes each rung rather than sampling it — to see it at
+ * all. That is the argument for the walk, happening.
  * =======================================================
  */
 import { describe, expect, it } from "vitest";
@@ -128,12 +161,28 @@ import { buildGameFixture } from "./gameFixtures.js";
 
 const GAMES = 40;
 
+/**
+ * ADR-033 — `sack` is DERIVED, not observed.
+ *
+ * It used to be set from a `POCKET_STATUS: SACK` event. A sack is an OUTCOME and
+ * the ladder no longer carries it, so this applies §17's own rule per play — a
+ * dropback with no THROW, no RUN_RESOLUTION, that lost ground — which is the
+ * same sentence `src/stats/statline.ts` and `packages/calibration`'s collector
+ * both use. `test/fixtures.ts`'s `endedInSack` is the single-play version of it;
+ * this is the same rule keyed by `playId`, because a game stream carries many.
+ */
 interface PlayRecord {
   pressured: boolean;
-  sack: boolean;
+  threw: boolean;
+  carried: boolean;
+  yards: number;
   blitz: boolean;
   hot: boolean;
   recognized: boolean;
+}
+
+function wasSack(record: PlayRecord): boolean {
+  return !record.threw && !record.carried && record.yards < 0;
 }
 
 interface Totals {
@@ -207,14 +256,22 @@ for (let i = 0; i < GAMES; i++) {
       if (blitz) totals.blitzes += 1;
       if (view.hot > 0) totals.hotPlays += 1;
       byPlay.set(key, {
-        pressured: false, sack: false, blitz, hot: view.hot > 0, recognized: false,
+        pressured: false, threw: false, carried: false, yards: 0,
+        blitz, hot: view.hot > 0, recognized: false,
       });
     }
     if (event.type === "POCKET_STATUS" && key !== undefined) {
       const record = byPlay.get(key);
       if (record === undefined) continue;
       if (event.payload.status !== "CLEAN") record.pressured = true;
-      if (event.payload.status === "SACK") record.sack = true;
+    }
+    if (key !== undefined && (event.type === "THROW" || event.type === "RUN_RESOLUTION" || event.type === "PLAY_RESULT")) {
+      const record = byPlay.get(key);
+      if (record !== undefined) {
+        if (event.type === "THROW") record.threw = true;
+        if (event.type === "RUN_RESOLUTION") record.carried = true;
+        if (event.type === "PLAY_RESULT") record.yards = event.payload.yards;
+      }
     }
     // ADR-022: a free runner is one the EVENT calls one. This used to read
     // `event.tick === undefined` — true, and an inference from an absence.
@@ -258,8 +315,9 @@ for (let i = 0; i < GAMES; i++) {
   }
 
   for (const record of byPlay.values()) {
+    const sack = wasSack(record);
     if (record.pressured) totals.pressured += 1;
-    if (record.sack) totals.sacks += 1;
+    if (sack) totals.sacks += 1;
     const key = record.blitz
       ? record.recognized
         ? record.hot
@@ -269,7 +327,7 @@ for (let i = 0; i < GAMES; i++) {
       : "no-blitz";
     const bucket = buckets.get(key) ?? { plays: 0, sacks: 0 };
     bucket.plays += 1;
-    if (record.sack) bucket.sacks += 1;
+    if (sack) bucket.sacks += 1;
     buckets.set(key, bucket);
   }
 }

@@ -24,7 +24,7 @@ import type {
   RunSide,
   StuntCall,
 } from "../src/types.js";
-import { buildScenario, makePlayer } from "./fixtures.js";
+import { buildScenario, endedInSack, makePlayer } from "./fixtures.js";
 
 // --- a blitz fixture --------------------------------------------------------
 
@@ -522,9 +522,8 @@ describe("§5.3 / §7.4 step 2 — hot routes", () => {
       let n = 0;
       for (let i = 0; i < 400; i++) {
         const { events } = simulatePassPlay(f.state, f.calls, `risk-${i}`);
-        if (events.some(({ event }) => event.type === "POCKET_STATUS" && event.payload.status === "SACK")) {
-          n += 1;
-        }
+        // ADR-033 — §17's own rule, not a status that used to double as one.
+        if (endedInSack(events)) n += 1;
       }
       return n;
     };

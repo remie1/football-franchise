@@ -30,7 +30,7 @@ import type { RushThreat } from "../src/resolve/rushThreat.js";
 import { bandFor } from "../src/rolls.js";
 import { TUNABLES } from "../src/tunables.js";
 import type { RushMove } from "../src/types.js";
-import { buildScenario } from "./fixtures.js";
+import { buildScenario, sackTick as sackTickOf } from "./fixtures.js";
 
 const MOVES: RushMove[] = ["SPEED", "POWER", "FINESSE"];
 const WIN_MARGIN = 15;
@@ -210,11 +210,15 @@ function sackCause(events: readonly MatchEventEnvelope[]): "INTERIOR" | "EDGE" |
 
   const eta = new Map<string, number>();
   let snapshot = new Map<string, number>();
-  let sackTick: number | undefined;
+  // ADR-033 — whether the play WAS a sack, and which tick it landed on, are now
+  // read by §17's own rule. They used to be read off a `POCKET_STATUS: SACK`,
+  // which is a status the ladder no longer has because a sack is an outcome.
+  // `snapshot` still tracks the ETA map at every status, so on a sack play it
+  // ends up holding the map as of the last tick — the sack tick.
+  const sackTick = sackTickOf(events);
   for (const { event } of events) {
     if (event.type === "POCKET_STATUS") {
       snapshot = new Map(eta);
-      if (event.payload.status === "SACK") sackTick = event.tick ?? 0;
     }
     if (event.type === "CHECK" && event.payload.checkKind === "pass_rush_tick") {
       const rusher = String(event.payload.actors[0]);

@@ -297,3 +297,12 @@ manifest {source, season, fetchedAt, schemaHash}.
 4. **Small increments.** A vertical slice, then breadth. A subsystem, then tests. Long agent runs without checkpoints are how architecture drifts.
 5. **The specs are living.** When a design decision changes, amend the spec in the same commit as the code. A spec that lies is worse than no spec.
 6. **Consult `@fantasy-advisor` at phase gates.** It writes memos, never code, and its whole job is catching decisions that would foreclose fantasy mode.
+7. **Every `packages/contracts` unlock states itself in the commit message.** The write-protection in
+   `.claude/settings.json` is lifted, the contracts edit is made, and the deny is restored **before
+   the commit** — which means the lift and the restore **net to zero and the diff shows nothing at
+   all.** So the commit message must record: **what was lifted, what changed, and that it was
+   restored.** Otherwise the guard's own history is the one thing in this repo that cannot be
+   reconstructed — every other change is recoverable from the diff, but a guard that was off for
+   one commit and back on by the next leaves no trace by construction. Name the ADR that authorised
+   it (the `commit-msg` hook already requires an `ADR-0NN` reference for contracts changes; this is
+   the *narrative* half the hook cannot enforce).

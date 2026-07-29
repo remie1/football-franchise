@@ -25,13 +25,16 @@ import type { PlayerId, Position, ThreatOrigin } from "@ff/contracts";
 import { clamp } from "../rolls.js";
 import type { Tunables } from "../tunables.js";
 import type {
-  PocketStatus,
   ResolvedRushAssignment,
   RunSide,
   RushAlignment,
   RushMove,
 } from "../types.js";
 import type { PassRushBandLabel } from "./passRush.js";
+// Type-only, and therefore erased: `./pocket.ts` imports the FUNCTION below, so a
+// value import in this direction would be a cycle. The ladder's rung type belongs
+// with the ladder (ADR-033) and this file is one of its consumers.
+import type { PocketStatusRung } from "./pocket.js";
 
 /**
  * SOMETHING WITH A TIME OF ARRIVAL — whatever the §7.2 clock is counting down.
@@ -390,7 +393,7 @@ export function threatsWithAlignment(
 export function pocketFloorFromArrival(
   tunables: Tunables,
   minTta: number | undefined,
-): PocketStatus {
+): PocketStatusRung {
   if (minTta === undefined) return "CLEAN";
   const t = tunables.arrival;
   if (minTta <= t.immediateWithinSeconds) return "IMMEDIATE";

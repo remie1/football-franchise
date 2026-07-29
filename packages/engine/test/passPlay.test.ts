@@ -6,7 +6,7 @@ import {
   simulatePassPlay,
 } from "../src/index.js";
 import type { MatchGameState, PlayCalls } from "../src/types.js";
-import { buildScenario, makePlayer } from "./fixtures.js";
+import { buildScenario, endedInSack, makePlayer } from "./fixtures.js";
 
 const types = (events: readonly MatchEventEnvelope[]): string[] => events.map((e) => e.event.type);
 
@@ -135,7 +135,12 @@ describe("pass play integration", () => {
       const result = events[events.length - 1]?.event;
       if (result?.type === "PLAY_RESULT" && result.payload.yards < 0) {
         sacks++;
-        expect(events.some(({ event }) => event.type === "POCKET_STATUS" && event.payload.status === "SACK")).toBe(true);
+        // ADR-033 — the sack is read off the stream the way §17 reads it: from
+        // PLAY_RESULT plus the absence of a throw or a carry. It used to be read
+        // off a `POCKET_STATUS: SACK`, which was an outcome wearing a status.
+        expect(endedInSack(events)).toBe(true);
+        expect(events.some(({ event }) =>
+          event.type === "POCKET_STATUS" && event.payload.status === "SACK")).toBe(false);
       }
     }
     expect(sacks).toBeGreaterThan(0);

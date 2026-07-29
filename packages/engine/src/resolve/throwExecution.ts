@@ -6,7 +6,8 @@ import { chemistryEstablished, chemistrySupportsBackShoulder } from "../chemistr
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, flatModifier, rollD100, tierFor } from "../rolls.js";
 import type { Tunables } from "../tunables.js";
-import type { ContestPosition, PocketStatus, RouteDepthClass, ThrowType } from "../types.js";
+import type { ContestPosition, RouteDepthClass, ThrowType } from "../types.js";
+import type { PocketStatusRung } from "./pocket.js";
 import { accuracyModifierFor } from "./pocket.js";
 
 export type AccuracyBandLabel = (Tunables["throwExec"]["accuracy"]["bands"])[number]["label"];
@@ -49,7 +50,7 @@ export interface AccuracyArgs {
   readonly qb: PlayerState;
   readonly airYards: number;
   readonly throwType: ThrowType;
-  readonly pocket: PocketStatus;
+  readonly pocket: PocketStatusRung;
   readonly armShortfall: boolean;
   /**
    * ADR-008 — this pair's 0-100 rapport, already resolved by the caller.

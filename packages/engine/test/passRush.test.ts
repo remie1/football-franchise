@@ -229,13 +229,16 @@ describe("§7.2 pocket status", () => {
     expect(advancePressure(0, { pressureDelta: -3, resetsPressure: false })).toBe(0);
   });
 
-  it("transitions CLEAN → PRESSURE → COLLAPSING → IMMEDIATE → SACK", () => {
+  it("transitions CLEAN → PRESSURE → COLLAPSING → IMMEDIATE, and stops there", () => {
     expect(pocketStatusFor(TUNABLES, 0)).toBe("CLEAN");
     expect(pocketStatusFor(TUNABLES, 2)).toBe("CLEAN");
     expect(pocketStatusFor(TUNABLES, 3)).toBe("PRESSURE");
     expect(pocketStatusFor(TUNABLES, 5)).toBe("COLLAPSING");
     expect(pocketStatusFor(TUNABLES, 7)).toBe("IMMEDIATE");
-    expect(pocketStatusFor(TUNABLES, 9)).toBe("SACK");
+    // ADR-033 — the counter used to climb one rung further, to `SACK`, and that
+    // rung forced nothing. IMMEDIATE is the worst SPACE there is; what happens
+    // next is an outcome, not a fifth description of the pocket.
+    expect(pocketStatusFor(TUNABLES, 9)).toBe("IMMEDIATE");
   });
 
   it("carries the §10.4 accuracy penalties and §7.2 read-capacity loss", () => {

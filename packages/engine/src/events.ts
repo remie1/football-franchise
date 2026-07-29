@@ -13,7 +13,6 @@ import type {
   MatchEventEnvelope,
   PlayId,
   PlayerId,
-  PocketStatus,
   QbDecisionChoice,
   ResultTier,
   RollDetail,
@@ -23,7 +22,7 @@ import type {
   ThreatOrigin,
   ThrowType,
 } from "@ff/contracts";
-import type { Tunables } from "./tunables.js";
+import type { PocketStatusRung } from "./resolve/pocket.js";
 import type { PassPlayStartPayload, RunPlayStartPayload } from "./types.js";
 
 export interface CheckEmission {
@@ -95,17 +94,29 @@ export class PlayEventLog {
   private tick: number | undefined;
 
   /**
-   * `tunables` is a constructor argument for one reason: `escalatePocketStatus`
-   * compares two statuses on `pocket.severity`, which is a tunable. Reading an
-   * ambient constant there would have made the ONE ordering the whole pocket
-   * model rests on immune to a patched tunables (ADR-012's open item).
+   * NO `tunables` ARGUMENT ANY MORE (ADR-033). It was here for exactly one
+   * method: `escalatePocketStatus` compared two statuses on `pocket.severity`,
+   * which is a tunable, and taking it as an argument kept the ONE ordering the
+   * pocket model rests on from being read off an ambient constant (ADR-012's
+   * open item). That method is gone — both of its callers rewrote a tick's
+   * status to `SACK`, and a sack is an OUTCOME, not a description of the space
+   * the passer is working in — so the log ranks nothing and needs nothing to
+   * rank it with.
+   *
+   * The log is now what it claims to be: a buffer that appends. A tick has
+   * exactly one `POCKET_STATUS` because exactly one call site emits one, not
+   * because a later call rewrites the first.
+   *
+   * If a mechanic ever needs to restate an already-emitted status, the
+   * comparison it needs is `pocketSeverityOfEmitted` in `resolve/pocket.ts`,
+   * which takes its tunables explicitly and throws on a status the ladder does
+   * not rank.
    */
   constructor(
     private readonly gameId: GameId,
     private readonly playId: PlayId,
     private readonly at: CalendarStamp,
     startSeq: number,
-    private readonly tunables: Tunables,
   ) {
     this.seq = startSeq;
   }
@@ -170,33 +181,17 @@ export class PlayEventLog {
     });
   }
 
-  pocketStatus(status: PocketStatus): void {
-    this.push({ type: "POCKET_STATUS", payload: { status }, ...this.base() });
-  }
-
   /**
-   * A tick has exactly ONE pocket status. The status is emitted at the top of
-   * the tick from last tick's inputs, but a tick that ends in a sack ends in
-   * SACK — and emitting a second POCKET_STATUS for the same tick double-counts
-   * for anything that tallies status-ticks (harmless for rendering, wrong for
-   * calibration). This rewrites the tick's status in the buffer BEFORE `drain()`
-   * publishes it, rather than appending a contradictory second one.
+   * A tick has exactly ONE pocket status, and this is the only method that
+   * emits one.
    *
-   * Escalation only: a status may get worse within a tick, never better.
+   * `PocketStatusRung`, not contracts' `PocketStatus`: the engine publishes only
+   * statuses its own ladder ranks (ADR-033). A rung widens to a `PocketStatus`
+   * for the payload, so the event schema is unchanged and the narrowing is the
+   * engine declining to emit a value it cannot rank.
    */
-  escalatePocketStatus(status: PocketStatus): void {
-    for (let i = this.envelopes.length - 1; i >= 0; i--) {
-      const envelope = this.envelopes[i];
-      if (envelope === undefined) continue;
-      const event = envelope.event;
-      if (event.type !== "POCKET_STATUS") continue;
-      if (event.tick !== this.tick) break;
-      const severity = this.tunables.pocket.severity;
-      if (severity[status] <= severity[event.payload.status]) return;
-      this.envelopes[i] = { ...envelope, event: { ...event, payload: { status } } };
-      return;
-    }
-    this.pocketStatus(status);
+  pocketStatus(status: PocketStatusRung): void {
+    this.push({ type: "POCKET_STATUS", payload: { status }, ...this.base() });
   }
 
   routeStatus(

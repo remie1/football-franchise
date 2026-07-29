@@ -603,6 +603,20 @@ every threshold that classifies a pocket as dirty.**
 2. **Threat persistence.** A threat is removed **only** by `BLOCKER_RESETS`. Nothing else retires
    one — not time, not distance, not the blocker recovering short of a reset.
 
+> **Owner's read (July 2026): candidate 2 is the more suspicious of the two AS FOOTBALL.** *"A
+> rusher who wins a step and then gets ridden past the pocket is still a live threat forever."*
+> Being beaten and being *dangerous* are different states, and the engine currently has no way to
+> say a rusher was beaten and then taken out of the play. Candidate 1 is a rate; candidate 2 is a
+> missing state transition, and a missing transition is the more likely home for a 60pp gap.
+
+**⚠ THEY COMPOUND, AND THE COMPOUNDING IS MULTIPLICATIVE.** Threats created × threats never retired
+is a product, not a sum, so **neither may be swept as though the other were absent.** Per §22a's
+counterfactual rule and entry 37: **name what you held.** A share attributed to `startsThreat`
+without stating the persistence rule's value — or the reverse — is a mixture-held-fixed error, the
+same failure this project has now made three times in different clothes. Probe both directions,
+report the interaction term rather than assuming separability, and expect non-additivity here
+specifically: **a threat rate only matters as much as threats last.**
+
 **Sweep these next.** Note the shape of the finding: four dispatches looked for the pressure rate
 in the *classification* of reps and it was in the *production* of them. That is worth remembering
 as a class — **when every threshold in a subsystem is refused, the quantity is upstream of all of
@@ -627,6 +641,23 @@ dirtying pockets — pressure is **27.875% against a real 29.225%.** Where this 
 it is already realistic. (Named selection effect: that bucket is short plays, ttt 0.748 vs 1.217,
 so it is an observation and not a counterfactual.)
 
+### ✅ OWNER RULING (July 2026) — §7.2 amended; the football objection stands
+
+**The doc was wrong.** *"1+ rushers winning by 1–14"* **conflates winning a rep with pressuring the
+passer.** A rusher who has gained a step at tick 1.0 with two more ticks of travel ahead of him has
+not affected the throw. Pressure in football means **the passer's platform, vision, or timing was
+disturbed** — arriving, or being close enough to force the throw. Gaining ground is not that.
+
+§7.2 now defines PRESSURE as **either** a **won** rep with an arrival inside a horizon, **or** a
+margin high enough to mean the blocker is **beaten** rather than merely losing. The 2.382pp is
+**taken**: directionally correct, and the **0.000pp sack cost means nothing downstream is being
+bought** by it.
+
+> ⛔ **DO NOT CONFLATE THIS WITH ENTRY 34 / ENTRY 40.** This is a **doc correction that does not
+> close the gap.** 88.3% of the divergence survives extinguishing *every* classification threshold
+> in §7.2 — so amending the definition is **fixing a definition, not solving the pressure rate.**
+> Any future note citing this amendment as progress on entry 40 is wrong on its face.
+
 ## 42. The status ladder is non-monotone in urgency at its top rung
 
 **Found by probing a direction only rule 1 required.** Setting the band to `SACK` **lowers** the
@@ -640,6 +671,61 @@ sack rate by **1.889pp**.
   ladder is ordered as though it were only the former.
 - **No known-truth gate asserts monotonicity of the status ladder itself**, which is why this
   survived to be found by a sweep rather than by a gate. Candidate for a new gate.
+
+### ✅ OWNER RULING (July 2026) — `SACK` is an OUTCOME, not a status. Remove it from the ladder.
+
+**A pocket status describes the space the passer is working in; `SACK` describes the play having
+ended.** The current arrangement is what *produced* the inversion — `SACK` ranks above `IMMEDIATE`
+while `forcesDecision` and `sackWhenNoTarget` both stop at `IMMEDIATE`, so **the worst status forces
+nothing**, and setting the band there lowers sack rate by 1.889pp. **That state is reachable today
+and is strictly wrong.**
+
+### 📐 STANDING RULE — an ordered enum whose order carries meaning gets a monotonicity gate
+
+Add a known-truth gate asserting **monotonicity of the status ladder in urgency: a strictly worse
+pocket never produces a strictly better outcome.** No gate asserted it, which is why a *sweep* found
+this and not the suite.
+
+**Generalise it.** Whenever an enum's *order* carries meaning — severity, urgency, tier, priority —
+the ordering is a **claim about behaviour**, and an unasserted claim about behaviour is exactly the
+thing this project keeps finding by accident. **Any ordered enum whose order carries meaning should
+have a monotonicity gate.** The ladder is the first instance, not the only one: `attrMod` bands,
+`QB_DECISION` tiers and the accuracy bands are all ordered, and none of them is gated on order.
+(Charter §4.1 — *prefer a loud failure to a silent default*; an order that nothing checks is a
+silent default with extra steps.)
+
+## 43. DECLARED IN ADVANCE — ADR-033 will move a number on calibration's corpus, and it is not drift
+
+**Filed BEFORE the next baseline, deliberately.** ADR-033 is described as a category fix (`SACK` is an
+outcome, not a status), and **one half of it is a genuine behaviour change hiding inside that
+description**: removing the `pocket.thresholds` `{ label: "SACK", minProgress: 9 }` row means **nine
+points of accumulated pressure now reads as `IMMEDIATE` and forces a decision** like any other rung.
+
+**The two corpora disagree about whether that rung was reachable, so they will disagree about the
+size of the move:**
+
+| corpus | `SACK`-status ticks | expected movement |
+|---|---|---|
+| engine's 40-game fixture | **0 of 9,929** | **none** — measured at exactly zero on both axes |
+| calibration's flat-60 league | **4.96% of in-pocket ticks** (ADR-032) | **non-zero, and upward on urgency** |
+
+**Direction, stated before measurement so it cannot be fitted after:** on calibration's corpus these
+ticks previously sat at a rung that forced *nothing* (the inversion). They now force a decision, so
+**sack rate should RISE, time-to-throw should FALL, and throwaways should FALL** on the affected
+population — the inversion running in reverse. If the movement is in the *opposite* direction, or is
+absent, something other than this change is involved and it must be found before the baseline is
+ratified.
+
+**Calibration owns the reconciliation** — the two corpora differ in construction and the engine
+cannot settle it. But the movement must be **attributed to this change explicitly in the baseline
+report**, not left to be noticed.
+
+> **📐 STANDING RULE — declare expected movement before the baseline that will show it.**
+> A known behaviour change that lands *between* baselines and is not declared in advance arrives as
+> **unexplained drift**, and unexplained drift is expensive twice: once when someone investigates it,
+> and again when it teaches everyone that drift is normal. **Predict the direction and the affected
+> population before the run** — a prediction made afterward is a rationalisation, and this project
+> has a standing rule (entry 22) that a predicted result must be recorded *as* the prediction.
 
 ## 34. Both named suspects for the pressure rate are eliminated — here is what is left
 

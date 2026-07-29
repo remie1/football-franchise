@@ -2,6 +2,7 @@ import { MIGRATION_V2_TO_V3, applyMigration, gameId, playerId, setAttr, teamId }
 import type {
   AttributeMap,
   CalendarStamp,
+  MatchEventEnvelope,
   PlayerId,
   PlayerState,
   PersonalitySheet,
@@ -884,4 +885,44 @@ export function buildLopsidedRushScenario(): Scenario {
   };
 
   return { state, calls, names };
+}
+
+/**
+ * DID THIS PASS PLAY END IN A SACK? — read off the stream, the way §17 reads it.
+ *
+ * ADR-033 removed `SACK` from the pocket-status ladder, and with it the practice
+ * of rewriting a tick's `POCKET_STATUS` to `SACK` when the play ended. Every test
+ * that used to detect a sack by looking for that status now asks this instead,
+ * and the question it asks is the one `src/stats/statline.ts` already answers for
+ * the statlines: **a dropback with no `THROW`, no `RUN_RESOLUTION`, that lost
+ * ground.** A throwaway gains 0 and a scramble publishes a `RUN_RESOLUTION`, so
+ * neither is caught here.
+ *
+ * ONE definition, in one place, deliberately: seven test files inferred "sack"
+ * independently before this existed, and the inference was the same sentence
+ * written seven times. It is a TEST helper rather than an engine export because
+ * the engine already states the fact in `PLAY_RESULT` and the statline reducer —
+ * nothing in the simulation needs to ask.
+ */
+export function endedInSack(events: readonly MatchEventEnvelope[]): boolean {
+  let threw = false;
+  let carried = false;
+  let yards: number | undefined;
+  for (const { event } of events) {
+    if (event.type === "THROW") threw = true;
+    if (event.type === "RUN_RESOLUTION") carried = true;
+    if (event.type === "PLAY_RESULT") yards = event.payload.yards;
+  }
+  return !threw && !carried && yards !== undefined && yards < 0;
+}
+
+/** The tick a sack landed on: the last tick the stream reported anything for. */
+export function sackTick(events: readonly MatchEventEnvelope[]): number | undefined {
+  if (!endedInSack(events)) return undefined;
+  let last: number | undefined;
+  for (const { event } of events) {
+    const tick = "tick" in event ? event.tick : undefined;
+    if (tick !== undefined) last = tick;
+  }
+  return last;
 }

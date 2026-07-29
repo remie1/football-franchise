@@ -18,6 +18,7 @@ import {
   baseReceivers,
   buildCleanPocketScenario,
   buildScenario,
+  endedInSack,
   withReadOrder,
   withReadSystem,
 } from "./fixtures.js";
@@ -40,13 +41,14 @@ function shot(events: readonly MatchEventEnvelope[]): Shot {
   let yards = 0;
   let anticipationAttempts = 0;
   let anticipationPasses = 0;
-  let sacked = false;
+  // ADR-033 — a sack is an OUTCOME, so it is read from the whole stream by
+  // §17's rule rather than from a `POCKET_STATUS` that used to carry it.
+  const sacked = endedInSack(events);
   for (const { event } of events) {
     if (event.type === "CHECK" && event.payload.checkKind === "anticipation") {
       anticipationAttempts += 1;
       if (event.payload.margin >= 0) anticipationPasses += 1;
     }
-    if (event.type === "POCKET_STATUS" && event.payload.status === "SACK") sacked = true;
     if (event.type === "QB_DECISION" && (event.payload.choice === "THROW" || event.payload.choice === "CHECKDOWN")) {
       ttt = event.tick;
       target = event.payload.target;

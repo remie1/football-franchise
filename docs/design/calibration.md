@@ -80,9 +80,37 @@ Output: a verdict memo — `mechanic (suspect: tunable X)` or `rating (suspect: 
 > Same species as the known-truth gate that passed by luck (`CALIBRATION-BACKLOG.md` §22a): **an
 > instrument that runs and returns something is more dangerous than one that declines.**
 >
+> **The rule extends to PARTIAL blindness, which is the common case.** An instrument that can see
+> most of its population and not the rest must **decline over the blind subpopulation and say how
+> large it was** — never average across it, and never let a value it could not observe enter a mean
+> as though it had been measured. The worked example: ADR-032's per-tick reconstruction printed its
+> own agreement rate (93.75% exact, 0.041% high) and **declined on the 25,479 post-escape ticks where
+> the pursuit clock is never published**, rather than folding blindness into the average. Same
+> discipline as a declared absence with forbidden substitutes (`metrics/absence.ts`) — a gap that is
+> *reported* is evidence; a gap that is *averaged over* is a fabricated observation wearing the
+> denominator of a real one.
+>
 > A second-order caution from the same case: a subject whose population is *suppressed by a
 > known open defect* should be swept only after that defect is closed, or the sweep fits the
 > tunable to the defect.
+>
+> **QUALIFICATION (added July 2026, ADR-032) — report BOTH the raw and the EXCLUSIVE affected-play
+> count. A count that clears this precondition can still be the wrong count.**
+>
+> ADR-032's subject governed **66.3% of dropbacks by raw count — clearing the floor by 500×** — but
+> governed only **1.65% EXCLUSIVELY**, because on the other 64.6% a live threat floored the same
+> pocket by a *different derivation*. The raw count answers "how often is this subject present?"; the
+> sweep's reach is bounded by "how often is this subject **deciding** the outcome?", and where a
+> second mechanism is already producing the same value, moving the subject moves nothing.
+>
+> **The raw count therefore over-states reach by 40× here, in the direction that flatters the sweep**,
+> and a refusal argued from a raw count alone is arguing from the wrong number even when it reaches
+> the right verdict. State both, and state which one bounds the result.
+>
+> This is the §5.3 form of the counterfactual rule in `CALIBRATION-BACKLOG.md` §22a: an exclusive
+> count *is* a statement about what was held fixed. **Name the co-deriving mechanism**, not just the
+> percentage — "1.65% exclusive" without "because a live threat floors the same pocket" is a number
+> nobody can check.
 
 One attribute at a time: perturb ±15 points league-wide, measure outcome deltas across the metric library. Attributes whose perturbation moves nothing beyond noise are flagged **dead weight** with the evidence. (Also produces a useful byproduct: an empirical importance ranking of attributes per position — eventual scouting/UI gold.)
 

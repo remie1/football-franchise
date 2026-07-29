@@ -26,9 +26,26 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { KNOWN_TRUTH_SCENARIOS, scenarioById } from "../src/knownTruth/scenarios.js";
+import { POCKET_STATUS_LADDER_SCENARIO } from "../src/knownTruth/pocketLadder.js";
 import { gateFileName } from "./knownTruthGate.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * THE SECOND KNOWN-TRUTH FAMILY — property gates over ORDERED ENUMS (Charter §4.1), as opposed
+ * to the five ladders over ATTRIBUTES that the rest of this file describes.
+ *
+ * They share the `knownTruth.<id>.test.ts` naming and the canonical-seed rule and they do NOT
+ * share `gateFor`: an attribute ladder asserts that an outcome MOVES (monotone plus an effect
+ * floor), while a property gate asserts that it does not move BACKWARDS (monotone, no floor at
+ * all, because two rungs measuring the same thing is a legitimate result rather than a defect).
+ * Each such scenario carries its own tolerance rule, in its own file, for that reason.
+ *
+ * They are listed here so the file guard below stays an EXACT match on the directory. Widening
+ * it to a prefix, or naming the file so it fell outside the pattern, would have re-opened the
+ * "a scenario can be added and never gated" hole in the other direction.
+ */
+const PROPERTY_GATE_IDS: readonly string[] = [POCKET_STATUS_LADDER_SCENARIO.id];
 
 describe("known-truth scenarios", () => {
   it("has at least one scenario per major check family, and each states its hypothesis", () => {
@@ -59,17 +76,28 @@ describe("known-truth scenarios", () => {
           `\`gateFor("${scenario.id}")\` — a scenario nothing runs is a scenario that gates nothing.`,
       ).toBe(true);
     }
+    for (const id of PROPERTY_GATE_IDS) {
+      const file = gateFileName(id);
+      expect(
+        existsSync(join(here, file)),
+        `property gate "${id}" has no gate file. Create test/${file} — a property gate nothing ` +
+          `runs is a property gate that gates nothing, exactly as for the attribute ladders.`,
+      ).toBe(true);
+    }
     // `knownTruth.test.ts` is deliberately NOT matched: the pattern needs a non-empty id between
     // the prefix and the `.test.ts` suffix, and this file has none.
     const gateFiles = readdirSync(here).filter((f) => /^knownTruth\..+\.test\.ts$/.test(f));
-    const expected = new Set(KNOWN_TRUTH_SCENARIOS.map((s) => gateFileName(s.id)));
+    const expected = new Set([
+      ...KNOWN_TRUTH_SCENARIOS.map((s) => gateFileName(s.id)),
+      ...PROPERTY_GATE_IDS.map((id) => gateFileName(id)),
+    ]);
     for (const file of gateFiles) {
       expect(
         expected.has(file),
-        `test/${file} looks like a gate file but names no scenario in the registry`,
+        `test/${file} looks like a gate file but names no scenario in either known-truth registry`,
       ).toBe(true);
     }
-    expect(gateFiles.length).toBe(KNOWN_TRUTH_SCENARIOS.length);
+    expect(gateFiles.length).toBe(KNOWN_TRUTH_SCENARIOS.length + PROPERTY_GATE_IDS.length);
   });
 
   it("keeps the gate on the canonical seeds — no gate file may re-draw a ladder", () => {

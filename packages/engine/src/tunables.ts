@@ -216,10 +216,16 @@ export const TUNABLES = {
      * across nine rungs on eight seed lists and refuted it too — its whole
      * budget is 0.406pp of sack and it cannot move the pressure rate at all
      * (0.20pp across the entire grid, including the rung where the rusher never
-     * arrives). **Both named suspects are eliminated.** The remaining candidates
-     * are `pocket.minimumStatusByBand.RUSHER_GAINING` and
-     * `arrival.pressureWithinSeconds`, which ADR-031 named so that it could be
-     * swept at all.
+     * arrives). **Both named suspects are eliminated.** So is the third:
+     * ADR-032 swept `pocket.minimumStatusByBand` across its whole reachable
+     * domain and priced it at 2.382 ± 0.051pp of pressure and 0.000pp of sack,
+     * with 88.3% of the divergence surviving EVERY §7.2 classification threshold
+     * being extinguished. ADR-033 then changed that row on football grounds and
+     * banked a delta inside that envelope — a definition correction, not a lever.
+     * The ONE remaining named candidate is `arrival.pressureWithinSeconds`, which
+     * ADR-031 named so that it could be swept at all and which is still at
+     * `POS_INF`. The rate is a SUPPLY problem (§7.1/§7.3/§7.4 threat creation),
+     * not a classification problem; see `CALIBRATION-BACKLOG.md` entry 40.
      */
     blockerStructuralAdvantage: 0,
     /** "Counter move: +15 if previous tick was stalemate". */
@@ -227,9 +233,47 @@ export const TUNABLES = {
     /** Which rush move each conditional trait bonus attaches to. */
     quickTwitchMove: "SPEED",
     brickWallMove: "POWER",
-    /** Margin = rusher total − blocker total. */
+    /**
+     * Margin = rusher total − blocker total.
+     *
+     * SIX BANDS, NOT FIVE — §7.2's July 2026 amendment, ADR-033. The doc's
+     * original sentence made ONE band of everything between a stalemate and a won
+     * rep and called all of it pressure ("1+ rushers winning by 1-14"). The owner
+     * has ruled that sentence wrong: **gaining ground is not pressure.** A rusher
+     * who has gained a step against a blocker still in front of him has not
+     * disturbed the passer's platform, vision or timing, and 1-14 contains both
+     * that man and the man who has genuinely beaten the block.
+     *
+     * So the interval is SPLIT, and the split point is not invented:
+     *
+     *   RUSHER_GAINING    1-4    `resultTierLadder`'s MARGINAL_SUCCESS. He got
+     *                            something, marginally. The blocker is losing
+     *                            ground and is still in front of him. → CLEAN.
+     *   BLOCKER_BEATEN    5-14   `resultTierLadder`'s SUCCESS. The rusher has won
+     *                            the leverage; the blocker is beaten and is now
+     *                            recovering rather than controlling. → PRESSURE.
+     *   RUSHER_WINS_REP   15+    `resultTierLadder`'s STRONG_SUCCESS, unchanged.
+     *                            He is past him and TRAVELLING (see `arrival`).
+     *
+     * WHY 5 AND NOT A NUMBER CHOSEN BY FEEL. §7 gives no interior boundary at all,
+     * so the choice had to come from somewhere; the only margin vocabulary this
+     * engine has is `resultTierLadder`, which every check in the game is read on.
+     * This table ALREADY agrees with it at two of its three interior boundaries —
+     * 15 is STRONG_SUCCESS, 1 is MARGINAL_SUCCESS, −15 is STRONG_FAILURE — so the
+     * one boundary the ladder offers between "marginal" and "decisive" is 5, and
+     * adopting it makes the §7.1 bands a projection of the universal ladder rather
+     * than a private set of numbers. Rejected: **1** (the committed value, and the
+     * thing the amendment overturns — it makes a one-point edge pressure); **8**
+     * ("half way to a won rep", a number with no referent anywhere else in the
+     * engine); **15** (that is the won rep, and it would delete limb (b) of the
+     * amendment rather than implement it).
+     *
+     * It is a `minMargin` like every other and calibration patches it by path
+     * (`passRush.bands`), so being wrong about 5 costs a sweep, not an excavation.
+     */
     bands: [
       { label: "RUSHER_WINS_REP", minMargin: 15 },
+      { label: "BLOCKER_BEATEN", minMargin: 5 },
       { label: "RUSHER_GAINING", minMargin: 1 },
       { label: "STALEMATE", minMargin: 0 },
       { label: "BLOCKER_CONTAINS", minMargin: -14 },
@@ -239,9 +283,19 @@ export const TUNABLES = {
      * §7.2 — pressure accrues per rusher. INTERPRETATION: the doc describes
      * statuses qualitatively; this counter is the mechanism that produces them.
      * A blocker win by 15+ ("rusher reset, starts fresh") zeroes the counter.
+     *
+     * DELIBERATELY UNCHANGED BY ADR-033's BAND SPLIT: `BLOCKER_BEATEN` inherits
+     * `RUSHER_GAINING`'s row exactly, so the counter cannot tell the two apart and
+     * the whole measured effect of the amendment is attributable to the status
+     * map. It also makes the two mechanisms agree for the first time: the floor
+     * now says one tick of gaining is not pressure, and the counter says three
+     * ticks of it is (`pocket.thresholds.PRESSURE` = 3 at +1 a tick). Before the
+     * amendment the floor short-circuited the counter and that sentence was
+     * unreachable.
      */
     pressureProgressByBand: {
       RUSHER_WINS_REP: { delta: 2, reset: false },
+      BLOCKER_BEATEN: { delta: 1, reset: false },
       RUSHER_GAINING: { delta: 1, reset: false },
       STALEMATE: { delta: 0, reset: false },
       BLOCKER_CONTAINS: { delta: 0, reset: false },
@@ -506,6 +560,8 @@ export const TUNABLES = {
      */
     recoverySecondsByBand: {
       RUSHER_WINS_REP: 0.0,
+      /** ADR-033's new band. A rusher who is winning does not lose ground. */
+      BLOCKER_BEATEN: 0.0,
       RUSHER_GAINING: 0.0,
       STALEMATE: 0.0,
       BLOCKER_CONTAINS: 0.5,
@@ -562,6 +618,19 @@ export const TUNABLES = {
      * charting conventions, which is the argument for leaving it at infinity;
      * a man who will not arrive for three seconds is not, which is the argument
      * for a finite value. ADR-030 declined to answer it and so does this.
+     *
+     * ADR-033 — THIS FIELD IS LIMB (a) OF §7.2's AMENDMENT, AND IT IS STILL
+     * `POS_INF`. The amended §7.2 reads "PRESSURE requires either (a) a WON rep
+     * whose arrival falls inside the pressure horizon, or (b) a margin high enough
+     * that the blocker is beaten". This field IS that horizon, so at `POS_INF`
+     * limb (a) is satisfied in its widest form — every won rep, at every distance
+     * — and the amendment is implemented at the committed default with no change
+     * here. Narrowing it is a distinct question the ruling did not decide and this
+     * dispatch did not answer: it is a football claim ADR-030 and ADR-031 both
+     * declined, its budget is measured in tens of points of pressure rate rather
+     * than the 2.382pp ADR-032 priced the band map at, and it is a SWEEP that
+     * belongs to `packages/calibration`. Moving it here would have smuggled the
+     * largest unswept dial in §7 into a definition correction.
      */
     pressureWithinSeconds: POS_INF,
     /**
@@ -599,22 +668,65 @@ export const TUNABLES = {
    */
   pocket: {
     /**
-     * §7.2 verbatim:
-     *   "POCKET PRESSURE:    1+ rushers winning by 1-14"
-     *   "POCKET COLLAPSING:  1+ rushers won (winning by 15+) previous tick"
-     * A single rusher's band on tick T sets a FLOOR for the status on T+0.5.
+     * §7.2 as AMENDED (July 2026, ADR-033). A single rusher's band on tick T sets
+     * a FLOOR for the status on T+0.5.
+     *
+     *   "POCKET COLLAPSING:  1+ rushers won (winning by 15+) previous tick"   — verbatim
+     *   "POCKET PRESSURE:    1+ rushers winning by 1-14"                      — OVERTURNED
+     *
+     * The amendment: pressure requires EITHER a won rep whose arrival falls
+     * inside the pressure horizon (`arrival.pressureWithinSeconds`, limb a),
+     * OR a margin high enough that the blocker is BEATEN rather than merely
+     * losing ground (`BLOCKER_BEATEN`, limb b). Gaining ground is neither, so
+     * `RUSHER_GAINING` — which after the band split above means margins 1-4, the
+     * one-point edge the owner's ruling names — floors at CLEAN.
+     *
+     * A gaining rusher is NOT thereby invisible: `passRush.pressureProgressByBand`
+     * still accrues +1 a tick for him, and `thresholds` turns three of those into
+     * PRESSURE. The amendment says one tick of gaining is not pressure. It does
+     * not say a rusher who gains ground every tick for a second and a half is
+     * clean, and the counter is the mechanism that says so.
      */
     minimumStatusByBand: {
       RUSHER_WINS_REP: "COLLAPSING",
-      RUSHER_GAINING: "PRESSURE",
+      BLOCKER_BEATEN: "PRESSURE",
+      RUSHER_GAINING: "CLEAN",
       STALEMATE: "CLEAN",
       BLOCKER_CONTAINS: "CLEAN",
       BLOCKER_RESETS: "CLEAN",
     },
-    /** Ordering used to take the worse of the two derivations. */
-    severity: { CLEAN: 0, PRESSURE: 1, COLLAPSING: 2, IMMEDIATE: 3, SACK: 4 },
+    /**
+     * THE LADDER. Ordering used to take the worse of the derivations above, and
+     * the declaration every status-keyed table in this block is checked against
+     * (`packages/calibration`'s `knownTruth.pocket-status-ladder` derives its
+     * rungs from this object rather than restating them).
+     *
+     * FOUR RUNGS, NOT FIVE (July 2026, owner ruling, ADR-033). `SACK: 4` used to
+     * sit on top of it and it was a CATEGORY ERROR: a pocket status describes the
+     * SPACE THE PASSER IS WORKING IN, and a sack describes THE PLAY HAVING ENDED.
+     * The two are not points on one scale, and carrying the outcome on the status
+     * ladder produced an inversion rather than a merely untidy table — `SACK`
+     * outranked `IMMEDIATE` while `forcesDecision` and `sackWhenNoTarget` both
+     * stopped at `IMMEDIATE`, so the WORST status forced nothing, and moving a
+     * band up to it LOWERED the sack rate. It also orphaned a third row,
+     * `readCapacityDelta.SACK = 0`, which handed a quarterback in the worst
+     * pocket on the ladder his FULL progression back.
+     *
+     * IMMEDIATE is now the top, which is correct on its own terms: "rusher in the
+     * QB's face" is the worst SPACE there is. What happens next — throw, escape,
+     * or go down — is an outcome, and the stream states it as one (`PLAY_RESULT`,
+     * and §17's own inference rule: a dropback with no THROW and no
+     * RUN_RESOLUTION that lost yards is a sack).
+     */
+    severity: { CLEAN: 0, PRESSURE: 1, COLLAPSING: 2, IMMEDIATE: 3 },
+    /**
+     * The counter's entry requirement per rung. The `{ label: "SACK",
+     * minProgress: 9 }` row is gone with the rung: a counter that reached 9 used
+     * to buy the quarterback a status that forced nothing, which is exactly the
+     * inversion above, at its most reachable. Nine points of accumulated pressure
+     * now reads as what it is — IMMEDIATE — and forces a decision like any other.
+     */
     thresholds: [
-      { label: "SACK", minProgress: 9 },
       { label: "IMMEDIATE", minProgress: 7 },
       { label: "COLLAPSING", minProgress: 5 },
       { label: "PRESSURE", minProgress: 3 },
@@ -626,17 +738,31 @@ export const TUNABLES = {
       PRESSURE: -10,
       COLLAPSING: -20,
       IMMEDIATE: -30,
-      SACK: -30,
     },
-    /** §7.2 "QB processing: −1 read capacity" under pressure. */
+    /**
+     * §7.2 "QB processing: −1 read capacity" under pressure.
+     *
+     * The `SACK: 0` row is REMOVED, not re-valued: with `SACK` off the ladder it
+     * is an orphan, and an orphan row keyed by a status that no longer exists is
+     * the same defect one step quieter. Every rung of `severity` is named here and
+     * nothing else is.
+     */
     readCapacityDelta: {
       CLEAN: 0,
       PRESSURE: -1,
       COLLAPSING: -1,
       IMMEDIATE: -2,
-      SACK: 0,
     },
-    /** §7.2 — statuses where the QB may no longer hold. */
+    /**
+     * §7.2 — statuses where the QB may no longer hold.
+     *
+     * VALUE UNCHANGED BY ADR-033 and now UPWARD-CLOSED for the first time: the
+     * list stops at `IMMEDIATE` and `IMMEDIATE` is the top of `severity`, so there
+     * is no longer a status the engine calls worse that this list does not
+     * contain. The hole was `SACK`, and it was closed by removing the rung rather
+     * than by adding an entry — adding one would have made the outcome a more
+     * urgent kind of space instead of admitting it is not a space at all.
+     */
     forcesDecision: ["COLLAPSING", "IMMEDIATE"],
     /**
      * §7.2 COLLAPSING/IMMEDIATE: "QB must throw, move, or take hit" / "must
@@ -661,6 +787,9 @@ export const TUNABLES = {
      * pressure rate: ADR-028 measured §7.1's whole budget at 4.70pp of a 59.9pp
      * gap and named §7.3/§7.4 as where the rest lives. See
      * docs/decisions/CALIBRATION-BACKLOG.md §2, §3.
+     *
+     * STILL FROZEN, and now UPWARD-CLOSED for the same reason `forcesDecision` is
+     * (ADR-033). No entry was added or removed here; the rung above it went away.
      */
     sackWhenNoTarget: ["COLLAPSING", "IMMEDIATE"],
   },

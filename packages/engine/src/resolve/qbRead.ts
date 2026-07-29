@@ -4,7 +4,8 @@ import type { AttrId, PlayerState, Rng, RollDetail, RollModifier } from "@ff/con
 import { ATTR, TRAIT } from "../attrs.js";
 import { clamp, flatModifier, rollD20 } from "../rolls.js";
 import type { Tunables } from "../tunables.js";
-import type { PocketStatus, ReadSystem } from "../types.js";
+import type { ReadSystem } from "../types.js";
+import type { PocketStatusRung } from "./pocket.js";
 import { readCapacityDeltaFor } from "./pocket.js";
 
 export interface QbReadOutcome {
@@ -87,7 +88,7 @@ export function readCapacityPerTick(
   tunables: Tunables,
   qb: PlayerState,
   system: ReadSystem,
-  pocket: PocketStatus,
+  pocket: PocketStatusRung,
 ): number {
   const t = tunables.qb;
   const extra = Math.floor(

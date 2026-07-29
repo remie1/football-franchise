@@ -16,10 +16,20 @@
  *
  * Every value below is applied through `applyTunablePatch`, in memory, and dies with the process.
  * `packages/engine/src/tunables.ts` is not touched by this file and
- * `TUNABLES.pocket.minimumStatusByBand.RUSHER_GAINING` stays **"PRESSURE"** whatever this sweep
- * finds. A proposal to change it is a `calibration.md` §6 patch record filed as an ADR; this file
- * produces the evidence such a petition must cite, never the change. ADR-027's split, applied
- * again — the third time, and the shape is now routine.
+ * `TUNABLES.pocket.minimumStatusByBand.RUSHER_GAINING` keeps whatever value the engine ships
+ * whatever this sweep finds. A proposal to change it is a `calibration.md` §6 patch record filed
+ * as an ADR; this file produces the evidence such a petition must cite, never the change.
+ * ADR-027's split, applied again — the third time, and the shape is now routine.
+ *
+ * ⚠ **THE SUBJECT'S COMMITTED VALUE MOVED UNDERNEATH THIS FILE, AND NOT BECAUSE OF THIS FILE.**
+ * When the sweep was written the cell read `"PRESSURE"`. It now reads `"CLEAN"` — the owner
+ * amended §7.2 (see the amendment block in `docs/design/match-engine.md`, implemented as ADR-033
+ * ruling 1: *gaining ground is not pressure*), and the same ADR split the band itself, so the
+ * subject no longer covers margins 1–14 but only 1–4, with the new `BLOCKER_BEATEN` band taking
+ * 5–14 → PRESSURE. `COMMITTED` below is READ from `DEFAULT_TUNABLES`, so every patch, every
+ * control arm and every table label in this file followed the change automatically; this note
+ * exists because the PROSE did not, and a reader comparing these tables to ADR-032's must know
+ * that the control arm is a different configuration from the one ADR-032 measured.
  *
  * `pocket.sackWhenNoTarget` remains FROZEN and is not patched anywhere here.
  *
@@ -34,13 +44,24 @@
  * by a single point makes the pocket dirty for the following tick.** That is the least defensible
  * line in the pressure model as football, and it has never been measured.
  *
+ * **RESOLVED — and the resolution is why this paragraph is left standing rather than rewritten.**
+ * The sweep measured it (ADR-032: the whole reachable domain of this map is worth 2.382 ± 0.051pp
+ * of pressure and 0.000pp of sack), and the owner then overturned the line on football grounds
+ * rather than on this evidence (ADR-033 ruling 1). Both happened, in that order, and the second
+ * did not follow from the first: ADR-033 is a definition correction that banks a delta INSIDE the
+ * envelope this sweep priced, and it explicitly must not be cited as closing the pressure gap.
+ * The subject is now `"CLEAN"` and the question this paragraph asks is answered; the file stays a
+ * standing instrument because its stages measure a MAP, not a value.
+ *
  * ============================ THE THREE FLOORS, AND WHY THIS FILE RECONSTRUCTS THEM ============================
  *
  * `pocketStatusFor` takes the WORST of three independent derivations:
  *
- *   BAND     `pocketFloorFor(previousTickBands)` — the subject. `RUSHER_GAINING → PRESSURE` and
- *            `RUSHER_WINS_REP → COLLAPSING`. Fed only by §7.1 reps, so free rushers contribute
- *            nothing to it (a matchup with no blocker never posts a band).
+ *   BAND     `pocketFloorFor(previousTickBands)` — the subject. Since ADR-033 the dirty rows are
+ *            `RUSHER_WINS_REP → COLLAPSING` and `BLOCKER_BEATEN → PRESSURE`, with the subject
+ *            itself at `RUSHER_GAINING → CLEAN`. Fed only by §7.1 reps, so free rushers
+ *            contribute nothing to it (a matchup with no blocker never posts a band). Read off
+ *            `DEFAULT_TUNABLES` by `bandFloor` below, never restated.
  *   ARRIVAL  `pocketFloorFromArrival(minTta)` — candidate 2. At the committed
  *            `arrival.pressureWithinSeconds = +∞` **any live threat at any distance floors the
  *            pocket at PRESSURE**, which is why 100.000% of free-runner dropbacks are pressured
@@ -68,9 +89,11 @@
  *  2. **Map the response across MULTIPLE INDEPENDENT SEED LISTS** (§22a). The subject is
  *     CATEGORICAL, so its "curve" is the complete reachable domain — all five `PocketStatus`
  *     values — not a grid chosen by eye. There is nothing between the rungs to miss.
- *  3. **Both directions, signed** (attribution rule 1). CLEAN is below the committed value and
- *     COLLAPSING/IMMEDIATE/SACK are above it. Two of four cited yards-per-carry levers turned out
- *     inverted; nothing here is assumed.
+ *  3. **Both directions, signed** (attribution rule 1). `DOMAIN` is the whole severity ladder, so
+ *     it spans both sides of the committed value whatever that value is — which now matters,
+ *     because the committed value moved to the BOTTOM of the ladder (ADR-033) and every rung is
+ *     above it. Two of four cited yards-per-carry levers turned out inverted; nothing here is
+ *     assumed.
  *  4. **Non-additivity, base stated with every share** (rules 2 and 3). Stage `inter` crosses the
  *     subject with `arrival.pressureWithinSeconds` — the two floors decide the same question for
  *     the same dropbacks, so they are expected to mask each other rather than add.
@@ -94,6 +117,7 @@ import { stableDigest } from "../src/harness/digest.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import type { AnyProvenancedLeague } from "../src/league/provenance.js";
 import { indexLeague } from "../src/league/snapshot.js";
+import { pocketStatusLadder, severityOf } from "../src/knownTruth/pocketLadder.js";
 
 const enabled = process.env["FF_PB_SWEEP"] === "1";
 const STAGE = process.env["FF_PB_STAGE"] ?? "population";
@@ -112,21 +136,43 @@ const SUBJECT_BAND: BandName = "RUSHER_GAINING";
 const COMMITTED: string = DEFAULT_TUNABLES.pocket.minimumStatusByBand.RUSHER_GAINING;
 
 /**
- * The WHOLE reachable domain, in severity order. A band→status map is a CLASSIFICATION, so its
- * response is enumerable rather than sampled: there is no interpolation between CLEAN and
- * PRESSURE and therefore no rung placement to get wrong (§22a's failure mode does not exist for a
- * categorical subject — its other requirement, independent seed lists, still does).
+ * The WHOLE reachable domain, in severity order, DERIVED from `pocket.severity` rather than
+ * listed. A band→status map is a CLASSIFICATION, so its response is enumerable rather than
+ * sampled: there is no interpolation between CLEAN and PRESSURE and therefore no rung placement
+ * to get wrong (§22a's failure mode does not exist for a categorical subject — its other
+ * requirement, independent seed lists, still does).
+ *
+ * IT WAS A LITERAL AND THE LITERAL WENT STALE. It read
+ * `["CLEAN", "PRESSURE", "COLLAPSING", "IMMEDIATE", "SACK"]`, typed as
+ * `keyof DEFAULT_TUNABLES.pocket.severity`; ADR-033 removed the `SACK` rung and that line became
+ * a TYPE ERROR. It was invisible because this package's `test` script is `vitest run` with no
+ * `tsc` pass over `test/` and this file is env-gated — so it was green-by-skip in CI and broken
+ * the next time anyone ran the sweep. Derived, it follows the engine's own declaration and there
+ * is nothing left to go stale.
  */
-const DOMAIN: readonly StatusName[] = ["CLEAN", "PRESSURE", "COLLAPSING", "IMMEDIATE", "SACK"];
+const DOMAIN: readonly StatusName[] = pocketStatusLadder() as readonly StatusName[];
 
 const HORIZON_PATH = "arrival.pressureWithinSeconds";
 const HORIZON_COMMITTED: number = DEFAULT_TUNABLES.arrival.pressureWithinSeconds;
 
-function severityOf(status: string): number {
-  const table: Readonly<Record<string, number>> = DEFAULT_TUNABLES.pocket.severity;
-  return table[status] ?? 0;
-}
-
+/**
+ * ⚠ THIS FILE'S OWN `severityOf` USED TO BE `table[status] ?? 0` — AN UNRANKED STATUS SORTING
+ * SILENTLY AS THE SAFEST RUNG ON THE LADDER.
+ *
+ * That is the exact failure mode ADR-033's ruling 2 exists to remove, one file over: `SACK: 4`
+ * outranked `IMMEDIATE` unnoticed for as long as it did precisely because a status can acquire a
+ * plausible-looking rank without anyone having ordered it. `?? 0` is worse than a wrong number —
+ * it is the BEST possible number, so a status nothing ranks would have been reported here as the
+ * cleanest pocket in the sweep, and every reconstruction, every `worst()` and every
+ * `emittedStatusTicks` bucket in this file would have quietly agreed.
+ *
+ * It now delegates to the shared `severityOf`, which throws a `RangeError` — the same behaviour
+ * as `packages/engine`'s `pocketSeverityOfEmitted` and for the same reason (Charter §4.1: prefer
+ * a loud failure to a silent default). This is live, not theoretical: `POCKET_STATUS.status` is
+ * typed `PocketStatus` in `@ff/contracts`, which STILL admits `"SACK"` while `pocket.severity` no
+ * longer ranks it. If a stream ever carries one, this sweep stops instead of publishing a table
+ * in which the worst pocket in football sorts first.
+ */
 function worst(a: StatusName, b: StatusName): StatusName {
   return severityOf(b) > severityOf(a) ? b : a;
 }
@@ -831,10 +877,14 @@ function renderDecomposition(rows: readonly Measured[]): void {
   say("");
   say("`pocketStatusFor` = worst(COUNTER, BAND, ARRIVAL). All three are rebuilt here from the");
   say("stream, reading the tables off DEFAULT_TUNABLES. `matched` is exact agreement with the");
-  say("emitted POCKET_STATUS. `under` is the reconstruction reading LOWER than the engine — the");
-  say("expected residue, since a sack REWRITES its own tick's status to SACK (`escalatePocketStatus`)");
-  say("and nothing in the stream distinguishes that rewrite from a status the floors produced.");
-  say("`over` would be a broken reconstruction and is the number to watch.");
+  say("emitted POCKET_STATUS. `under` is the reconstruction reading LOWER than the engine.");
+  say("");
+  say("ONE NAMED CAUSE OF `under` IS GONE (ADR-033 ruling 2). A sack used to REWRITE its own");
+  say("tick's status to SACK via `PlayEventLog.escalatePocketStatus`, and nothing in the stream");
+  say("distinguished that rewrite from a status the floors produced. That method is deleted: a");
+  say("tick now has exactly one POCKET_STATUS because exactly one call site emits one. The");
+  say("remaining known cause is a frozen `prevBand` on a rusher whose rep did not resolve this");
+  say("tick. `over` would be a broken reconstruction and is the number to watch.");
   say("");
   say("POST-ESCAPE ticks are EXCLUDED and counted separately: once the QB is out of the pocket the");
   say("only live clock is §8.8's PURSUIT clock, which is deliberately never published as a");
@@ -954,12 +1004,18 @@ function renderStatusTicks(rows: readonly Measured[]): void {
   say("");
   say("A rate over dropbacks says how many plays were touched; this says how much of the play was.");
   say("");
-  say("| config | set | ticks | CLEAN | PRESSURE | COLLAPSING | IMMEDIATE | SACK |");
-  say("|---|---|---|---|---|---|---|---|");
+  // Columns DERIVED from the ladder. The header used to end in a hand-written `SACK` column read
+  // at `g(4)`, which after ADR-033 would have printed a permanently empty column for a rung that
+  // does not exist — the reporting half of the same staleness the `?? 0` above hid.
+  const ladder = pocketStatusLadder();
+  say(`| config | set | ticks | ${ladder.join(" | ")} |`);
+  say(`|---|---|---|${ladder.map(() => "---|").join("")}`);
   for (const m of rows) {
     const total = [...m.fold.emittedStatusTicks.values()].reduce((a, b) => a + b, 0);
-    const g = (s: number): string => pct(m.fold.emittedStatusTicks.get(s) ?? 0, total, 2);
-    say(`| ${m.id} | ${m.set} | ${total} | ${g(0)} | ${g(1)} | ${g(2)} | ${g(3)} | ${g(4)} |`);
+    const cells = ladder.map((status) =>
+      pct(m.fold.emittedStatusTicks.get(severityOf(status)) ?? 0, total, 2),
+    );
+    say(`| ${m.id} | ${m.set} | ${total} | ${cells.join(" | ")} |`);
   }
 }
 

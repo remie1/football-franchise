@@ -56,3 +56,6 @@ export * from "./report/previous.js";
 export * from "./knownTruth/scenarios.js";
 export * from "./knownTruth/assertions.js";
 export * from "./knownTruth/attributeUsage.js";
+// The second known-truth family: property gates over ORDERED ENUMS rather than over attribute
+// ladders (Charter §4.1). `pocketLadder` is the first instance.
+export * from "./knownTruth/pocketLadder.js";

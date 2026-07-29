@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { simulatePassPlay } from "../src/index.js";
+import { bandFor } from "../src/rolls.js";
+import { TUNABLES } from "../src/tunables.js";
 import {
   buildDeflectionScenario,
+  buildLopsidedRushScenario,
   buildMixedCoverageScenario,
   buildScenario,
   buildScramblerScenario,
   buildShortConceptScenario,
+  buildStalledPocketScenario,
   buildZoneScenario,
+  endedInSack,
   withReadSystem,
 } from "./fixtures.js";
 
@@ -237,5 +242,64 @@ describe("determinism (Charter pillar 5)", () => {
       expect(result?.type).toBe("PLAY_RESULT");
       expect(Number.isFinite(newState.ballOn)).toBe(true);
     }
+  });
+
+  /**
+   * ADR-033 — THE TWO RULINGS, REPLAYED.
+   *
+   * Both changed which branch a play takes: ruling 1 moved margins 1-4 off the
+   * PRESSURE floor (so a tick that used to force a decision may not), and ruling
+   * 2 removed the `SACK` rung (so a pressure counter at 9 now forces one where it
+   * used to force nothing). A determinism test that never reaches those branches
+   * says nothing about them, so this one COUNTS its coverage and fails if the
+   * fixtures stop producing it — the same discipline the movement and
+   * anticipation cases above use.
+   */
+  it("survives ADR-033: beaten-blocker reps and sacks replay identically", () => {
+    let beaten = 0;
+    let gaining = 0;
+    let sacks = 0;
+    for (const build of [buildScenario, buildLopsidedRushScenario, buildStalledPocketScenario]) {
+      for (let i = 0; i < 60; i++) {
+        const a = build();
+        const b = build();
+        const first = simulatePassPlay(a.state, a.calls, `adr033-determinism-${i}`);
+        const second = simulatePassPlay(b.state, b.calls, `adr033-determinism-${i}`);
+        expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+        expect(JSON.stringify(second.newState)).toBe(JSON.stringify(first.newState));
+        if (endedInSack(first.events)) sacks += 1;
+        for (const { event } of first.events) {
+          if (event.type !== "CHECK" || event.payload.checkKind !== "pass_rush_tick") continue;
+          const band = bandFor(TUNABLES.passRush.bands, event.payload.margin).label;
+          if (band === "BLOCKER_BEATEN") beaten += 1;
+          if (band === "RUSHER_GAINING") gaining += 1;
+        }
+      }
+    }
+    // Both halves of the split rep are REACHED, or the replay above proved
+    // nothing about the band this dispatch introduced.
+    expect(beaten).toBeGreaterThan(0);
+    expect(gaining).toBeGreaterThan(0);
+    expect(sacks).toBeGreaterThan(0);
+  });
+
+  it("no path in the engine emits SACK as a pocket status (ADR-033 ruling 2)", () => {
+    // `PocketStatus` in @ff/contracts still PERMITS "SACK"; the engine's ladder
+    // does not rank it, and this asserts the engine never emits it, over every
+    // pass fixture and both terminal sack paths (an arrival, and the coverage
+    // sack at the tick horizon). The type is the Orchestrator's to narrow — this
+    // is the evidence for that petition, kept where it can go stale loudly.
+    let statuses = 0;
+    for (const build of [buildScenario, buildLopsidedRushScenario, buildStalledPocketScenario, buildScramblerScenario]) {
+      for (let i = 0; i < 100; i++) {
+        const { state, calls } = build();
+        for (const { event } of simulatePassPlay(state, calls, `no-sack-status-${i}`).events) {
+          if (event.type !== "POCKET_STATUS") continue;
+          statuses += 1;
+          expect(Object.keys(TUNABLES.pocket.severity)).toContain(event.payload.status);
+        }
+      }
+    }
+    expect(statuses).toBeGreaterThan(1000);
   });
 });

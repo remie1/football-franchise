@@ -193,6 +193,25 @@ When a rule can be expressed in the type system, express it there. When a failur
 loud, make it loud. A convention is a rule that holds until someone is in a hurry; a silent
 default is a defect that reports success.
 
+> **WHAT BELONGS IN THIS SECTION — the filter, stated so the list stays a principle rather than
+> becoming an accumulation.**
+>
+> **`CALIBRATION-BACKLOG.md` records what we found. The Charter records what we cannot find by
+> looking.** An entry earns Charter space when it is a claim about a **blind spot** — a class of
+> defect that the suite, the review or the measurement is structurally unable to surface — rather
+> than a claim about a defect.
+>
+> The test is whether the claim could have been made *by* the thing it describes. "A codebase
+> containing both a restated constant and a sorting sentinel has a defect class it cannot detect by
+> testing, because every test passes" is a statement about the limits of the suite, **and the suite
+> cannot make that statement about itself.** That is why it lives here.
+>
+> Applied retroactively, this explains every corollary below rather than merely permitting them:
+> structural-over-conventional, the sentinel rule, the derivation rule, the sorting-default rule,
+> the monotonicity rule — **each one is a statement about a blind spot, not about a bug.** Anyone
+> deciding what goes here next should apply the same filter: *if the existing instruments could
+> have told us this, it is a backlog entry.*
+
 This is not style preference — it has repeatedly caught defects that review structurally could
 not:
 
@@ -255,6 +274,67 @@ because the freeze was stated without that distinction, and it was the project's
 tunable throughout (ADR-027). **Any future freeze must say so in those words**, and the split it
 implies — a sweep may vary the value in memory; only a patch petition changes the committed one —
 is what lets a freeze be strict without being blinding.
+
+**Corollary — an ordered enum whose order carries meaning gets a monotonicity gate.** When an
+enum's *order* means something — severity, urgency, tier, priority — the ordering is a **claim about
+behaviour**: that a strictly worse input never produces a strictly better outcome. An unasserted
+claim about behaviour is exactly what this project keeps finding by accident. The worked example is
+the pocket-status ladder (ADR-032, backlog 42): `pocket.severity` ranked `SACK` above `IMMEDIATE`
+while `forcesDecision` and `sackWhenNoTarget` both stopped at `IMMEDIATE`, so **the worst status
+forced nothing** and moving the band there *lowered* the sack rate by 1.889pp — a reachable state,
+strictly wrong, found by a **sweep** rather than by the suite because **nothing asserted the order**.
+The root cause was a category error the gate would have exposed: `SACK` is an *outcome*, not a
+status, and did not belong on the ladder at all. **Gate the order wherever the order is load-bearing**
+— an order that nothing checks is a silent default with extra steps.
+
+**Corollary — a default that is also a valid extreme is not a default. It is a lie with a
+fallback's name.** `severityOf(status) ?? 0` looks like defensive coding and is the opposite:
+**`0` is the BEST rung**, so an unranked status reports as *the cleanest possible pocket*, and every
+`worst()`, every reconstruction and every tick bucket downstream silently agrees. Nothing is
+missing, nothing is `undefined`, nothing looks wrong — the value simply *is* the answer that hides
+the error. This is the exact mechanism by which `SACK: 4` outranked `IMMEDIATE` unnoticed for the
+life of the ladder, and it recurred **twice in one week** (`pocketBandSweep.test.ts`,
+`freeRunnerSweep.test.ts`, the latter from a hand-restated map that had already gone stale).
+
+**The rule: anywhere a `??`, `||` or `defaultValue` supplies a value on an ORDERED scale, the
+supplied value must be unreachable on that scale, or the expression must throw.** A sentinel that
+sorts is not a sentinel. Prefer the throw — ADR-034's narrowing removed the *conditions* for this
+class rather than its instances, but the guard stays because the type cannot bind a caller arriving
+from JavaScript across a package boundary.
+
+**Corollary — derive the check from the thing it checks; a restated constant is a copy that will
+drift.** A test, gate or probe that *restates* the value it verifies is a second source of truth,
+and the second source is always the one that goes stale — silently, because a stale copy is
+indistinguishable from a passing check. **Derive it instead, so the check cannot survive a change
+to its subject.** Four applications, and it has paid every time:
+
+1. Calibration's claimed-attribute list derived from `testsAttrs` rather than maintained by hand.
+2. The pocket-ladder gate's rungs derived from `pocket.severity` — which is *why* ADR-033 worked:
+   removing one key removed a rung from three tables, one type, and one gate at once.
+3. `probeBands` derived from `passRush.bands` by margin sign rather than named literally —
+   **a literal cannot notice a band being split underneath it**, which is precisely what ADR-033
+   did to it (the previously stated "~95% reach" turned out to be one band's reach attached to a
+   three-band argument).
+4. The band-table `guardedBy` relation derived from the resolvers rather than declared as an
+   exemption list — because **a stale exemption is indistinguishable from a suppressed defect**.
+
+The falsifiable test to apply when someone claims a check is derived: *does a change to the subject
+automatically invalidate the check?* If it does not, it is a restatement wearing a derivation's
+name.
+
+**These two corollaries COMPOUND, and neither alone explains the defect that produced them.**
+`freeRunnerSweep.test.ts` held a hand-restated `SEVERITY` map read through `?? 0`. **The
+restatement is what let it drift; the sorting sentinel is what turned the drift into a silent wrong
+answer instead of a crash.** Separate them and each looks survivable — a stale copy would have
+thrown on the missing key, and a bad default would never have been reached had the map been
+derived. Together they produce the worst available outcome: a confident, plausible, wrong number,
+with the *cleanest possible pocket* as the answer.
+
+**So treat the pair as one review question:** wherever a constant is restated, ask what happens when
+it drifts — and if the answer is a default rather than a failure, that is not two small problems, it
+is one silent one. The general shape is that **drift supplies the wrong key and a sorting sentinel
+supplies the wrong answer to it**, and a codebase containing both patterns has a defect class it
+cannot detect by testing, because every test passes.
 
 **Counter-corollary — a guard that always fires gets deleted.** This principle has an obvious
 failure mode in the other direction, and ADR-025 is the worked example: refusing to compare two

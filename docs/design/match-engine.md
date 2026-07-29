@@ -558,8 +558,29 @@ Results per Tick:
   Blocker wins by 1-14: Rusher contained, no progress
   Tie: Slight pressure, -5 to QB accuracy if all matchups are ties
   Rusher wins by 1-14: Rusher gaining, blocker sliding
+                       (SPLIT at 5 — see the note below)
   Rusher wins by 15+: Rusher wins rep, pressure/hit next tick
 ```
+
+> **CONSEQUENCE OF §7.2's AMENDMENT (July 2026, ADR-033) — the 1–14 row is now two bands.**
+> §7.2 no longer treats a rusher who has merely gained ground as pressure, so this row had
+> to distinguish *beaten* from *losing*. The boundary is **5**, and it was **not invented
+> for this table** — it is `resultTierLadder`'s `SUCCESS` boundary, the same nine-tier scale
+> every check in the game is read on, which this table already agreed with at 15
+> (`STRONG_SUCCESS`), 1 (`MARGINAL_SUCCESS`) and −15 (`STRONG_FAILURE`).
+>
+> | band | margin | tier | reading | pocket floor |
+> |---|---|---|---|---|
+> | `RUSHER_WINS_REP` | 15+ | `STRONG_SUCCESS` | past him and travelling | COLLAPSING |
+> | `BLOCKER_BEATEN` | 5–14 | `SUCCESS` | leverage won; the blocker is recovering, not controlling | PRESSURE |
+> | `RUSHER_GAINING` | 1–4 | `MARGINAL_SUCCESS` | gained a step; the blocker is still in front of him | **CLEAN** |
+>
+> Both bands advance the pressure counter identically (+1, no reset), so the counter cannot
+> tell them apart and the whole measured effect belongs to the status map. This also makes
+> the two mechanisms agree for the first time: the floor says *one* tick of gaining is not
+> pressure, the counter says *three* ticks of it is — **a rusher who gains ground every tick
+> is still pressure, he just has to actually do it.** Previously the floor short-circuited
+> the counter and that sentence was unreachable.
 
 > **KNOWN ISSUE (logged July 2026, Phase 1 slice) — term asymmetry.**
 > The rusher above carries two-to-three attribute terms (`Pass Rush` plus a move
@@ -586,7 +607,10 @@ CLEAN POCKET:
   - QB has full accuracy, full time
   
 POCKET PRESSURE:
-  - 1+ rushers winning by 1-14
+  - AMENDED July 2026 — see the note below. Was: "1+ rushers winning by 1-14"
+  - 1+ rushers either (a) having WON a rep with an arrival inside the pressure
+    horizon, or (b) winning by a margin high enough to mean the blocker is BEATEN
+    rather than merely losing ground
   - QB accuracy: -10
   - QB processing: -1 read capacity
   
@@ -603,6 +627,27 @@ SACK:
   - Rusher reaches QB before ball released
   - Play ends, loss of yardage
 ```
+
+> **AMENDMENT (July 2026, owner ruling on ADR-032) — gaining ground is not pressure.**
+> This section previously defined POCKET PRESSURE as *"1+ rushers winning by 1-14"*. The
+> engine transcribed that faithfully; the band sat at `minMargin: 1`. **The doc was wrong.**
+> Winning a rep and pressuring the passer are not the same event: a rusher who has gained a
+> step at tick 1.0 with two more ticks of travel ahead of him has not affected the throw.
+> Pressure in football means **the passer's platform, vision, or timing was disturbed** —
+> arriving, or being close enough to force the throw. Gaining ground is neither.
+>
+> PRESSURE therefore now requires **either** (a) a **won** rep whose arrival falls inside the
+> pressure horizon, **or** (b) a margin high enough that the blocker is **beaten** rather than
+> merely losing ground. A rusher gaining by a single point against a blocker who is still in
+> front of him is a CLEAN pocket.
+>
+> **What this amendment does NOT do.** It does not close the pressure-rate gap, and it must
+> not be cited as though it had. ADR-032 measured the whole reachable domain of this band map
+> at **2.382pp of pressure and 0.000pp of sack**, and showed that with **every** classification
+> threshold in this section extinguished, **88.3% of the divergence survives** — the rate is
+> produced by the *supply* of threats (§7.1), not by how §7.2 classifies them. This is a
+> **definition correction**, banked because it is directionally right and buys nothing
+> downstream. The gap itself is `CALIBRATION-BACKLOG.md` entry 40, and remains open.
 
 > **KNOWN ISSUE (logged July 2026, Phase 1 slice) — the missing "move" branch.**
 > COLLAPSING gives the quarterback three options: "throw, **move**, or take hit." The

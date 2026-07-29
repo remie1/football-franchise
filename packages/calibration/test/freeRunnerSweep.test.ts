@@ -73,6 +73,7 @@ import { stableDigest } from "../src/harness/digest.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import type { AnyProvenancedLeague } from "../src/league/provenance.js";
 import { indexLeague } from "../src/league/snapshot.js";
+import { pocketStatusLadder, severityOf } from "../src/knownTruth/pocketLadder.js";
 
 const enabled = process.env["FF_FR_SWEEP"] === "1";
 const STAGE = process.env["FF_FR_STAGE"] ?? "population";
@@ -222,13 +223,21 @@ interface PlayFold {
   ticks: number;
 }
 
-const SEVERITY: Readonly<Record<string, number>> = {
-  CLEAN: 0,
-  PRESSURE: 1,
-  COLLAPSING: 2,
-  IMMEDIATE: 3,
-  SACK: 4,
-};
+/**
+ * ⚠ THE LADDER USED TO BE RESTATED HERE — a local `SEVERITY` map ending in `SACK: 4`, read as
+ * `SEVERITY[status] ?? 0`, which sorted any status it did not recognise as the SAFEST rung.
+ *
+ * Both halves of that were defects and ADR-033 made both live. The restatement went stale the
+ * moment `SACK` left `pocket.severity` (this file would have kept ranking a rung the engine no
+ * longer declares, above the rung that is now the top); and the `?? 0` is the silent-ranking
+ * failure mode ruling 2 exists to remove — it is how `SACK: 4` outranked `IMMEDIATE` unnoticed in
+ * the first place, and `POCKET_STATUS.status` is still typed `PocketStatus` in `@ff/contracts`,
+ * which admits `"SACK"` while nothing ranks it.
+ *
+ * `severityOf` is the engine's own table, and it throws a `RangeError` on an unranked status —
+ * matching `packages/engine`'s `pocketSeverityOfEmitted`. Charter §4.1: prefer a loud failure to
+ * a silent default.
+ */
 
 function blankPlay(): PlayFold {
   return {
@@ -405,7 +414,7 @@ function foldEvents(fold: Fold, events: readonly MatchEventEnvelope[]): void {
         break;
       case "POCKET_STATUS": {
         if (play === null) break;
-        const severity = SEVERITY[event.payload.status] ?? 0;
+        const severity = severityOf(event.payload.status);
         if (event.payload.status !== "CLEAN") play.pressured = true;
         if (severity > play.worstStatus) play.worstStatus = severity;
         play.ticks += 1;
@@ -722,17 +731,23 @@ function renderSeverity(rows: readonly Measured[]): void {
   say("pocket at PRESSURE from the snap whatever its ETA (`pocketFloorFromArrival`), so this table");
   say("is where an arrival time can show up at all.");
   say("");
-  say("| config | set | governed | CLEAN | PRESSURE | COLLAPSING | IMMEDIATE | SACK | threats arrived |");
-  say("|---|---|---|---|---|---|---|---|---|");
+  // Columns DERIVED from the ladder, for the same reason `severityOf` is no longer restated: the
+  // header used to end in a hand-written `SACK` column read at `g(4)`, which since ADR-033 would
+  // print a permanently empty column for a rung the engine does not declare.
+  const ladder = pocketStatusLadder();
+  say(`| config | set | governed | ${ladder.join(" | ")} | threats arrived |`);
+  say(`|---|---|---|${ladder.map(() => "---|").join("")}---|`);
   for (const m of rows) {
     const total = [...m.fold.governedWorstStatus.values()].reduce((a, b) => a + b, 0);
-    const g = (s: number): string => pct(m.fold.governedWorstStatus.get(s) ?? 0, total, 2);
+    const cells = ladder.map((status) =>
+      pct(m.fold.governedWorstStatus.get(severityOf(status)) ?? 0, total, 2),
+    );
     const threats =
       (m.fold.threatsByOrigin.get("UNBLOCKED") ?? 0) + (m.fold.threatsByOrigin.get("PICKUP_LOST") ?? 0);
     const arrived =
       (m.fold.arrivedByOrigin.get("UNBLOCKED") ?? 0) + (m.fold.arrivedByOrigin.get("PICKUP_LOST") ?? 0);
     say(
-      `| ${m.id} | ${m.set} | ${total} | ${g(0)} | ${g(1)} | ${g(2)} | ${g(3)} | ${g(4)} | ` +
+      `| ${m.id} | ${m.set} | ${total} | ${cells.join(" | ")} | ` +
         `${arrived}/${threats} (${pct(arrived, threats, 2)}) |`,
     );
   }

@@ -47,7 +47,23 @@ export type CheckKind =
  * side of ADR-010's rule: widen or add, never leave a consumer quietly wrong. Naming them
  * makes the payload the single authority and lets domains import rather than restate.
  */
-export type PocketStatus = "CLEAN" | "PRESSURE" | "COLLAPSING" | "IMMEDIATE" | "SACK";
+/**
+ * A pocket status describes THE SPACE THE PASSER IS WORKING IN.
+ *
+ * `SACK` was removed by ADR-034 (owner ruling, ADR-032): a sack is an OUTCOME — the play having
+ * ended — and is not a description of that space. It is read off the stream, not published as a
+ * status (a dropback with no `THROW` and no `RUN_RESOLUTION` that lost ground).
+ *
+ * The narrowing is deliberate load-bearing typing, not tidiness. While the union was wider than
+ * the engine's severity ladder it produced two defects of one shape — a status-keyed lookup with
+ * `?? 0` — and `0` is the BEST rung, so an unranked status reported as the cleanest possible
+ * pocket and every `worst()` silently agreed. That is how `SACK: 4` outranked `IMMEDIATE`
+ * unnoticed. Narrowing removes the conditions for that class rather than its instances.
+ *
+ * Consumers should nonetheless still THROW on an unranked status rather than defaulting one:
+ * this crosses a package boundary, and the type cannot bind a caller arriving from JavaScript.
+ */
+export type PocketStatus = "CLEAN" | "PRESSURE" | "COLLAPSING" | "IMMEDIATE";
 export type ThrowType = "BULLET" | "TOUCH" | "BACK_SHOULDER" | "THROWAWAY";
 export type RushAlignment = "EDGE" | "INTERIOR";
 export type RushThreatState = "TRAVELLING" | "DELAYED" | "RESET" | "ARRIVED";

@@ -60,7 +60,6 @@ import type {
   MatchGameState,
   PassPlayStartPayload,
   PlayCalls,
-  PocketStatus,
   RouteAssignment,
   RunSide,
   RushAlignment,
@@ -97,6 +96,7 @@ import {
   resolveDeflectionQuality,
   resolveRecoveryAttempt,
 } from "../resolve/tippedBall.js";
+import type { PocketStatusRung } from "../resolve/pocket.js";
 import { advancePressure, forcesDecision, pocketStatusFor, sacksWithoutTarget } from "../resolve/pocket.js";
 import { resolvePocketMovement } from "../resolve/pocketMovement.js";
 import { resolvePassRushTick } from "../resolve/passRush.js";
@@ -267,7 +267,7 @@ export function simulatePassPlay(
   assertCoherentPlayCall(state, calls);
 
   const playId = makePlayId(`${String(state.gameId)}:play:${state.playNumber}`);
-  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq, tunables);
+  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq);
   const qb = requirePlayer(state, state.quarterback);
 
   const playRng = createRng(seed, `game:${String(state.gameId)}`).fork(`play:${state.playNumber}`);
@@ -454,11 +454,20 @@ export function simulatePassPlay(
     track.settled = zone.settled;
   };
 
+  /**
+   * A SACK IS AN OUTCOME AND THE STREAM STATES IT AS ONE (ADR-033).
+   *
+   * This used to rewrite the tick's already-emitted `POCKET_STATUS` to `SACK`.
+   * It no longer touches the status at all, because a pocket status describes
+   * THE SPACE THE PASSER IS WORKING IN and a sack describes THE PLAY HAVING
+   * ENDED — the tick keeps the space it actually had (IMMEDIATE at the arrival
+   * site below, and whatever it was on a coverage sack, which is frequently
+   * CLEAN and correctly so). Nothing is lost: §17's own rule reads a sack off
+   * the stream as a dropback with no `THROW` and no `RUN_RESOLUTION` that lost
+   * ground, `PLAY_RESULT` carries the yardage, and `RUSH_THREAT`/`ARRIVED` names
+   * the man when there was one.
+   */
   const sack = (at: number): PlayOutcome => {
-    // A tick has ONE status, and a tick that ends in a sack ends in SACK. This
-    // rewrites the status already emitted for this tick rather than appending a
-    // second POCKET_STATUS, which double-counted for status-tick consumers.
-    log.escalatePocketStatus("SACK");
     return {
       yards: -tunables.result.sackYardsLost,
       turnover: false,
@@ -488,7 +497,7 @@ export function simulatePassPlay(
 
     const highest = matchups.reduce((max, m) => Math.max(max, m.pressure), 0);
     const previousBands = matchups.flatMap((m) => (m.previousBand === undefined ? [] : [m.previousBand]));
-    const pocket: PocketStatus = pocketStatusFor(tunables, highest, previousBands, minTta);
+    const pocket: PocketStatusRung = pocketStatusFor(tunables, highest, previousBands, minTta);
     log.pocketStatus(pocket);
 
     // ---- §7.1 line battle (feeds the NEXT tick's pocket status) -------------
@@ -960,9 +969,10 @@ export function simulatePassPlay(
 
   if (outcome === undefined) {
     // Nobody got open and the pocket never broke: coverage sack at the horizon.
-    // Escalate rather than append — the last tick already reported a status, and
-    // two POCKET_STATUS events for one tick double-count for calibration.
-    log.escalatePocketStatus("SACK");
+    // The last tick's status STANDS (ADR-033) — this is the case where the space
+    // genuinely was clean and the quarterback went down anyway, which is what a
+    // coverage sack IS. Restating it as a worse status would have the stream
+    // assert pressure that no rusher produced.
     outcome = {
       yards: -tunables.result.sackYardsLost,
       turnover: false,
@@ -999,7 +1009,7 @@ interface ThrowArgs {
   readonly qb: PlayerState;
   readonly track: ReceiverTrack;
   readonly tick: number;
-  readonly pocket: PocketStatus;
+  readonly pocket: PocketStatusRung;
   readonly effectiveOpenness: number;
   /** ADR-008 — this pair's resolved 0-100 rapport. */
   readonly chemistry: number;
