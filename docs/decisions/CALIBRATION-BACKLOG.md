@@ -14,6 +14,38 @@ requires a calibration report, not an opinion.
 
 ---
 
+## 📍 RATIFIED ORDER OF WORK (owner, July 2026) — and the reasoning, which is the part worth keeping
+
+**1. The band-table gate (ADR-035 §7) — IN FLIGHT.** Ahead of everything, on three grounds:
+
+- **It is the only item that PREVENTS rather than measures.** Entries 23, the scale audit and Tier 2
+  all *find* things; this is standing enforcement over 27 ordered, load-bearing tables. It has
+  already proven it finds what nobody was looking for — **11 inversions where 6 were expected, and
+  three of six hand-written exemptions confidently wrong.**
+- **Two subsystems carrying the sorting-sentinel pattern is a codebase property, not two
+  incidents.** The status ladder is guarded and the band tables are not: **one guarded door and
+  twenty-seven open ones.** Close it while the pattern is understood and **the `guardedBy`
+  derivation is freshly built — six months from now someone re-derives it worse.**
+- Cheap, because §7 already specifies the shape.
+
+**2. Phase 3 systematic scale audit** — *before* entry 23, deliberately.
+
+> Entry 23's residual is **defined against current target numbers.** If the audit moves any check the
+> run game touches, **the residual has to be re-measured anyway.** And eight defects found
+> *opportunistically* means the unswept sections almost certainly hold more. **Do the systematic
+> sweep while attribution is still structurally mechanic-only, then attribute what survives.**
+
+**3. Entry 23's unowned +0.847 y/c residual (17%)** — attribution, after the sweep. Coupled to
+entry 44; neither closes without the other.
+
+**4. Tier 2 distributions — LAST.** Distribution shapes are **the most sensitive to everything
+upstream**, so measuring them before the audit means **measuring them twice.**
+
+**The general principle underneath the ordering:** *instrument before you measure; sweep
+systematically before you attribute; and measure the most upstream-sensitive thing last.*
+
+---
+
 ## 1. Completion rate ~52% vs. NFL ~65%
 
 - **Measured:** 51.9% completion, 9.4 yds/completion, 2.2% INT, 3.2% sack, 0.4% throwaway,
@@ -816,6 +848,52 @@ classification.
   **16.5%** of dropbacks (310 of 1,880).
 - **Pressure is still 89.1% against a real 29.23%.** The excess remains overwhelmingly mechanical.
   **Entry 3 is the dominant open item in the project.**
+
+## 44. Two `minYards` sentinels — RULED no-change, and COUPLED to entry 23's residual
+
+ADR-035's derivation found `yac.DEFENDER_MISSED` and `secondLevel.BROKEN_TACKLE` carrying
+`minYards: 0`, and priced restoring a minimum:
+
+| cell | raw reach | exclusive effect |
+|---|---|---|
+| `yac.DEFENDER_MISSED.minYards` 0 → 6 | 226 plays (6.608%) | **+0.0979 y/p** |
+| `secondLevel.BROKEN_TACKLE.minYards` 0 → 5 | 489 plays (14.298%) | **+0.3332 y/p** |
+
+### ✅ OWNER RULING (July 2026) — no change. Both are correct as they stand.
+
+**A broken tackle crediting zero yards is right if the zone walk credits the yardage separately, and
+it does.** Crediting a minimum on top would **double-count the same ground** — the same class as the
+interior/edge compounding note, where three mechanisms each legitimately reflect one advantage.
+**+0.0979 and +0.3332 y/p are exactly what double-counting would buy**, which is why they look like
+free yardage: they are yardage the model has already awarded once.
+
+> **⚠ COUPLED TO ENTRY 23 — decide once, with both halves visible.**
+> Entry 23 carries an **unowned +0.847 y/c residual (17%)**. If the zone walk is later found to
+> **under**-credit, these two cells are **the natural place to restore it** — they are already
+> pointed at the right plays. **That decision must be made once, seeing both halves**, not twice:
+> restoring a minimum here *and* separately fixing the walk would re-create the double count from
+> the other direction. Neither entry may be closed without checking the other.
+
+## 45. `GIFT` / `FLOATER` — DECLARED ABSTENTION, and why a targeted fixture is the wrong fix
+
+ADR-035's `deriveGuardedBy` **over-exempted on its first real run**: `GIFT` and `FLOATER` were
+selected **twice each in 3,420 plays**, so `speedCheckFromDistance` read `GUARDED` when **there is no
+guard at all** (`maxZoneDistance: 2` makes the column reachable). The instrument now reports
+`UNDER_SAMPLED_ROW` with `reachFloorApplied: false`, so nobody reads *not measured* as *measured and
+fine*.
+
+### ✅ OWNER RULING (July 2026) — declared abstention. Not a targeted fixture.
+
+Exempting them was never an option. **But manufacturing the population is worse than abstaining:**
+
+> **A targeted fixture that manufactures selection frequency measures the fixture.** That is entry
+> 8's mistake in a new costume — a number with the shape of a result and the content of the setup
+> that produced it.
+
+**Declare the abstention with the reach floor stated**, and revisit **when a corpus naturally
+produces the population.** Precedent, and the discipline is identical: `freeRunnerArrivalSeconds`
+was worth sweeping only *after* ADR-024 moved its population from **0.13% to 14.20%** — the fix came
+first and the measurement followed, rather than the measurement being staged.
 
 ## 23. Yards per carry has ~5 unattributed yards, and they sit where entries 11–14 do not look
 

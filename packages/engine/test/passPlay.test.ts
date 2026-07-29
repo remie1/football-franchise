@@ -6,6 +6,7 @@ import {
   simulatePassPlay,
 } from "../src/index.js";
 import type { MatchGameState, PlayCalls } from "../src/types.js";
+import { TUNABLES } from "../src/tunables.js";
 import { buildScenario, endedInSack, makePlayer } from "./fixtures.js";
 
 const types = (events: readonly MatchEventEnvelope[]): string[] => events.map((e) => e.event.type);
@@ -139,8 +140,16 @@ describe("pass play integration", () => {
         // PLAY_RESULT plus the absence of a throw or a carry. It used to be read
         // off a `POCKET_STATUS: SACK`, which was an outcome wearing a status.
         expect(endedInSack(events)).toBe(true);
-        expect(events.some(({ event }) =>
-          event.type === "POCKET_STATUS" && event.payload.status === "SACK")).toBe(false);
+        // This used to read `status === "SACK"` and be `false`. After ADR-034 that
+        // comparison is a TYPE ERROR — the union no longer contains the member — and
+        // an assertion the compiler can prove is worth nothing at runtime (§4.1: green
+        // gets trusted). What is still worth asserting is the general property "SACK is
+        // not emitted" was a case of: every status on the stream is a rung of the
+        // ladder. DERIVED from `pocket.severity`, so a rung added or removed moves it.
+        for (const { event } of events) {
+          if (event.type !== "POCKET_STATUS") continue;
+          expect(Object.keys(TUNABLES.pocket.severity)).toContain(event.payload.status);
+        }
       }
     }
     expect(sacks).toBeGreaterThan(0);

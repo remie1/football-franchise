@@ -45,13 +45,14 @@ export function advancePressure(current: number, update: PressureUpdate): number
 /**
  * A RUNG OF THE LADDER — derived from `pocket.severity`, never restated.
  *
- * `@ff/contracts`' `PocketStatus` is still `CLEAN | PRESSURE | COLLAPSING |
- * IMMEDIATE | SACK`, and after ADR-033 the engine ranks only the first four.
- * That gap is a CONTRACT question and not the engine's to settle (Iron Rule 2),
- * so the engine narrows locally instead of widening the shared type: this alias
- * is the set of statuses the engine's own ladder declares, every engine function
- * that reads a status-keyed table takes it, and a rung is assignable to
- * `PocketStatus` so nothing at the event boundary changes.
+ * ADR-034 has now narrowed `@ff/contracts`' `PocketStatus` to the same four
+ * members the engine ranks, so the two agree today. **The alias is kept anyway,
+ * and keeping it is the point of ADR-034's amendment:** this is the DERIVED
+ * type — it reads the ladder — and contracts' union is the RESTATED one.
+ * Charter §4.1's derivation corollary forbids replacing a derived type with a
+ * restated copy of it, whatever their present agreement. Every engine function
+ * that reads a status-keyed table takes a rung, and a rung stays assignable to
+ * `PocketStatus`, so nothing at the event boundary changes.
  *
  * It is DERIVED rather than written out for the same reason `calibration`'s gate
  * derives its rungs: a hand-written copy is a second declaration of the ladder,
@@ -60,15 +61,74 @@ export function advancePressure(current: number, update: PressureUpdate): number
  */
 export type PocketStatusRung = keyof Tunables["pocket"]["severity"] & PocketStatus;
 
+/**
+ * ============ THE INTERSECTION IS ASSERTED, NOT ASSUMED (ADR-036 item 2) ============
+ *
+ * `PocketStatusRung` is an INTERSECTION, and an intersection is the quietest
+ * possible way for two declarations to disagree: a member present on one side
+ * and absent on the other does not error, does not warn, and does not appear —
+ * **it silently stops existing**, and every function taking a rung silently
+ * stops accepting it. Today the ladder and the union agree; until now nothing
+ * said they had to, in either direction.
+ *
+ * `Exclude<A, B>` is empty exactly when every member of `A` is a member of `B`,
+ * so the two aliases below are mutual assignability stated one direction at a
+ * time — and stated that way on purpose, because the compiler then names the
+ * drifted member in the error (`Type '"PANICKED"' does not satisfy the
+ * constraint 'never'`) instead of reporting an unhelpful union mismatch.
+ *
+ * They are types, so they cost nothing at runtime and are erased entirely.
+ * `test/pocketStatus.test.ts` proves both of them actually fire, with
+ * `@ts-expect-error` on a deliberately divergent pair.
+ */
+export type AssertEmptyUnion<T extends never> = T;
+
+/**
+ * DIRECTION 1 — a rung on the engine's ladder that the shared union does not
+ * declare.
+ *
+ * The mistake this catches: an author adds a rung to `tunables.pocket.severity`
+ * (say `PANICKED: 4`, or restores `SACK`) to model a new state, fills in
+ * `accuracyModifier`, `readCapacityDelta` and `minimumStatusByBand` for it, and
+ * never files the contract petition that would put it in `PocketStatus`.
+ * Without this line the new rung is **intersected away**: `pocketStatusFor`
+ * cannot return it, `worsePocketStatus` cannot rank it, the ladder the author
+ * believes they extended is unchanged, and the whole edit compiles clean.
+ */
+export type _EveryRungIsAPocketStatus = AssertEmptyUnion<
+  Exclude<keyof Tunables["pocket"]["severity"], PocketStatus>
+>;
+
+/**
+ * DIRECTION 2 — a member of the shared union with no rung on the ladder.
+ *
+ * The mistake this catches: contracts widens `PocketStatus` (a petition
+ * ratified for some other consumer, or `SACK` coming back) and nobody adds the
+ * corresponding row to `pocket.severity`. Without this line the engine simply
+ * never produces the new status — but it is now a **legal value on the stream**,
+ * so a status the compiler swears is fine reaches `pocketSeverityOfEmitted` and
+ * blows up at runtime, in a batch, hours in. That is precisely the direction
+ * ADR-033 lived in for a month with `SACK`.
+ */
+export type _EveryPocketStatusIsARung = AssertEmptyUnion<
+  Exclude<PocketStatus, keyof Tunables["pocket"]["severity"]>
+>;
+
 /** Ordering on the status ladder; higher is worse for the offense. */
 export function pocketSeverity(tunables: Tunables, status: PocketStatusRung): number {
   return tunables.pocket.severity[status];
 }
 
 /**
- * The severity of a status READ BACK OUT OF THE EVENT STREAM, where the type is
- * contracts' wider union and the value could in principle be one the ladder does
- * not rank.
+ * The severity of a status READ BACK OUT OF THE EVENT STREAM.
+ *
+ * **KEPT DELIBERATELY AFTER ADR-034, not left behind by it.** The union is no
+ * longer wider than the ladder, and the assertions above now make a future
+ * divergence a build failure — so it is fair to ask whether the runtime check
+ * can ever fire (Charter §4.1's counter-corollary). It can: this function sits
+ * on the far side of a PACKAGE BOUNDARY from the stream's producer, and a type
+ * binds no caller arriving from JavaScript, from a JSON save, or from a future
+ * consumer built against an older `@ff/contracts`.
  *
  * It THROWS rather than defaulting, and the throw is the point: a status the
  * ladder cannot rank has no place on the ladder, and silently ranking it (at 0,

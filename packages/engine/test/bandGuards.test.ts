@@ -35,7 +35,7 @@ import {
   perturbationsFor,
   starvationFor,
 } from "../src/bandGuards.js";
-import type { BandCell, BandTable, StreamObserver } from "../src/bandGuards.js";
+import type { BandCell, BandTable, BandValue, StreamObserver } from "../src/bandGuards.js";
 
 // ---------------------------------------------------------------------------
 // 1. STRUCTURE

@@ -18,7 +18,7 @@
  * the way §17 does.
  */
 import { describe, expect, it } from "vitest";
-import type { MatchEventEnvelope } from "@ff/contracts";
+import type { MatchEventEnvelope, PocketStatus } from "@ff/contracts";
 import { simulatePassPlay } from "../src/index.js";
 import {
   pocketFloorFor,
@@ -28,7 +28,7 @@ import {
   pocketStatusFromPressure,
   worsePocketStatus,
 } from "../src/resolve/pocket.js";
-import type { PocketStatusRung } from "../src/resolve/pocket.js";
+import type { AssertEmptyUnion, PocketStatusRung } from "../src/resolve/pocket.js";
 import type { PassRushBandLabel } from "../src/resolve/passRush.js";
 import { isGameScoped } from "../src/game/events.js";
 import { bandFor } from "../src/rolls.js";
@@ -206,13 +206,33 @@ describe("§7.2 the single-rep rule (B1)", () => {
   });
 
   it("a status the ladder does not rank throws rather than sorting silently", () => {
-    // `SACK` is still a legal `PocketStatus` in @ff/contracts (that type is the
-    // Orchestrator's to narrow, not the engine's). If one ever reaches the engine
-    // the comparison must fail loudly — ranking it quietly is how `SACK: 4`
-    // outranked `IMMEDIATE` for a month with nothing noticing.
-    expect(() => pocketSeverityOfEmitted(TUNABLES, "SACK")).toThrow(/not a rung/);
+    // ADR-034 removed `SACK` from `PocketStatus`, so this call no longer typechecks
+    // — and the cast is the test, not a workaround. The guard exists for the caller
+    // the type cannot bind: a consumer arriving from JavaScript, from a JSON save, or
+    // built against an older `@ff/contracts`. `as` is the closest thing this suite has
+    // to an untyped caller, so it is how the boundary gets exercised.
+    const fromOutsideTheType = "SACK" as PocketStatus;
+    expect(() => pocketSeverityOfEmitted(TUNABLES, fromOutsideTheType)).toThrow(/not a rung/);
     expect(pocketSeverityOfEmitted(TUNABLES, "IMMEDIATE")).toBe(3);
   });
+
+  /**
+   * ============ THE MUTUAL-ASSIGNABILITY ASSERTION, PROVED TO FIRE ============
+   *
+   * `resolve/pocket.ts` asserts at COMPILE TIME that `keyof pocket.severity` and
+   * `PocketStatus` contain each other. An assertion that holds today proves nothing
+   * about whether it would notice tomorrow — a guard nobody has seen fail is
+   * indistinguishable from a guard that cannot (Charter §4.1: the buried monotonicity
+   * gate). So both directions are instantiated here with a deliberately divergent
+   * pair, and `@ts-expect-error` FAILS THE BUILD if either starts compiling.
+   *
+   * These are types. They erase to nothing; there is no runtime assertion to make,
+   * which is the whole reason `tsc -p tsconfig.test.json` now runs before vitest.
+   */
+  // @ts-expect-error DIRECTION 1 — a rung the shared union does not declare (an author extended the ladder without a petition).
+  type _RungWithNoStatus = AssertEmptyUnion<Exclude<PocketStatusRung | "PANICKED", PocketStatus>>;
+  // @ts-expect-error DIRECTION 2 — a union member the ladder does not rank (contracts widened; `pocket.severity` did not follow).
+  type _StatusWithNoRung = AssertEmptyUnion<Exclude<PocketStatus | "PANICKED", keyof typeof TUNABLES.pocket.severity>>;
 });
 
 describe("§7.2 invariant over real event streams", () => {

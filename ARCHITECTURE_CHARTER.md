@@ -336,6 +336,25 @@ is one silent one. The general shape is that **drift supplies the wrong key and 
 supplies the wrong answer to it**, and a codebase containing both patterns has a defect class it
 cannot detect by testing, because every test passes.
 
+**Corollary — a ratified plan is not a licence to stop thinking. Check the plan against the
+constitution as it stands at EXECUTION, not as it stood at drafting.** This project ratifies faster
+than it executes, so a decision approved on Monday can be governed by a principle added on Tuesday.
+
+The worked example is ADR-034's own consequence section, which proposed deleting
+`PocketStatusRung` — `keyof Tunables["pocket"]["severity"] & PocketStatus`, the **derived** type — in
+favour of contracts' **restated** union. Correct when drafted; **backwards** by the time it was
+executed, because §4.1's derivation corollary was ratified in between. It compiled, the ADR was
+approved, and the two types agreed that day. It would have been silently wrong the first day they
+did not.
+
+**Why this belongs here rather than in a workflow note:** a ratified plan is the one artefact review
+structurally cannot catch, *because review already happened*. Approval converts a claim into an
+assumption, and the assumption is then carried by everyone downstream — including its author, who is
+the person least likely to re-open it. **The authority of a decision is not evidence for it.** The
+practical form: when executing an approved plan, re-read the constitution, not the approval — and if
+a step no longer fits, amend the decision on the record rather than either executing it or dropping
+it silently.
+
 **Counter-corollary — a guard that always fires gets deleted.** This principle has an obvious
 failure mode in the other direction, and ADR-025 is the worked example: refusing to compare two
 baselines that differ only in *seed list* would have blocked the one unambiguously legitimate

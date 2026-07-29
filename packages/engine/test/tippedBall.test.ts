@@ -6,10 +6,15 @@
  * incompletion, which quietly removed one of football's real sources of
  * interceptions from the engine.
  */
+import { createHash } from "node:crypto";
 import { createRng } from "@ff/contracts";
 import type { MatchEventEnvelope, PlayerState } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import { simulatePassPlay } from "../src/index.js";
+import { simulateGame } from "../src/game/simulateGame.js";
+import { buildGameFixture } from "./gameFixtures.js";
+import { DEFAULT_TUNABLES, applyTunablePatch } from "../src/tunables.js";
+import type { Tunables } from "../src/tunables.js";
 import {
   deflectionQualityBandFor,
   eligibleRecoverers,
@@ -389,5 +394,171 @@ describe("§12 over real event streams", () => {
       tips += first.events.filter((e: MatchEventEnvelope) => e.event.type === "TIPPED_BALL").length;
     }
     expect(tips).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// §12.2 `DEAD` × `finalTargetNumber` — the reporting defect, measured
+// ---------------------------------------------------------------------------
+
+/**
+ * ADR-035 §6.1 priced this cell and ADR-036 petitions for its removal from the
+ * payload. Both rest on one claim, and this block is the claim rather than a
+ * summary of it:
+ *
+ *   **On a `DEAD` deflection the recovery target is published and never used.**
+ *
+ * ADR-035 established that by two independent routes — no `deflection_recovery`
+ * CHECK on any of the 163 `DEAD` plays, and a `0 → 100` patch moving plays,
+ * yards, turnovers and points by exactly zero. Neither of those is quite the
+ * claim the petition needs, because "outcomes did not move" leaves open how much
+ * of the STREAM moved. So the measurement here is total rather than sampled, per
+ * §4.1's corollary on verifying a total function: two whole 24-game corpora,
+ * hashed event-for-event, with the `DEAD` payload's `finalTargetNumber` removed.
+ *
+ *   - full stream:     the two digests DIFFER — the value is genuinely published.
+ *   - stripped stream: the two digests are IDENTICAL — and that field is the
+ *                      entire surface of the cell. Nothing else in 24 games of
+ *                      events or in either resulting `MatchState` moves by one
+ *                      byte when the number changes.
+ *
+ * Which is the petition's safety argument stated as a measurement: removing the
+ * field from the `DEAD` payload removes the misreadable number and provably
+ * nothing else.
+ */
+const ADR036_GAMES = 24;
+
+interface DeadTargetCorpus {
+  readonly plays: number;
+  readonly yards: number;
+  readonly turnovers: number;
+  readonly points: number;
+  readonly deadTips: number;
+  /** The distinct `finalTargetNumber` values published on a `DEAD` deflection. */
+  readonly deadTargets: number[];
+  readonly deadEligible: number;
+  readonly deadRecoveryChecks: number;
+  readonly fullDigest: string;
+  /** As above, with `finalTargetNumber` deleted from every `DEAD` payload. */
+  readonly strippedDigest: string;
+}
+
+function deadTargetCorpus(tunables: Tunables): DeadTargetCorpus {
+  let plays = 0;
+  let yards = 0;
+  let turnovers = 0;
+  let points = 0;
+  let deadTips = 0;
+  let deadEligible = 0;
+  let deadRecoveryChecks = 0;
+  const deadTargets = new Set<number>();
+  const full = createHash("sha256");
+  const stripped = createHash("sha256");
+
+  for (let i = 0; i < ADR036_GAMES; i++) {
+    const fixture = buildGameFixture({ seed: `bg-${String(i)}` });
+    const { events, newState } = simulateGame(fixture.state, fixture.inputs, fixture.seed, tunables);
+
+    // Which deflections were DEAD, named by the band the CHECK recorded (ADR-011)
+    // rather than by re-deriving a margin — the band is on the stream already.
+    const deadRoll = new Set<string>();
+    const recoveriesByPlay = new Map<string, number>();
+    for (const { event } of events) {
+      if (event.type !== "CHECK") continue;
+      if (event.payload.checkKind === "deflection_quality" && event.payload.band === "DEAD") {
+        deadRoll.add(event.payload.roll.rngLabel);
+      }
+      if (event.payload.checkKind === "deflection_recovery") {
+        const play = String(event.playId);
+        recoveriesByPlay.set(play, (recoveriesByPlay.get(play) ?? 0) + 1);
+      }
+    }
+
+    for (const { event } of events) {
+      if (event.type === "PLAY_RESULT") {
+        plays += 1;
+        yards += event.payload.yards;
+        if (event.payload.turnover) turnovers += 1;
+      }
+      if (event.type === "TIPPED_BALL" && deadRoll.has(event.payload.rollRef)) {
+        deadTips += 1;
+        deadTargets.add(event.payload.finalTargetNumber);
+        deadEligible += event.payload.eligible.length;
+        deadRecoveryChecks += recoveriesByPlay.get(String(event.playId)) ?? 0;
+      }
+    }
+    points += newState.score.home + newState.score.away;
+
+    full.update(JSON.stringify(events));
+    full.update(JSON.stringify(newState));
+
+    const asPetitioned = events.map((envelope) => {
+      const { event } = envelope;
+      if (event.type !== "TIPPED_BALL" || !deadRoll.has(event.payload.rollRef)) return envelope;
+      const { finalTargetNumber: _notApplicable, ...payload } = event.payload;
+      return { ...envelope, event: { ...event, payload } };
+    });
+    stripped.update(JSON.stringify(asPetitioned));
+    stripped.update(JSON.stringify(newState));
+  }
+
+  return {
+    plays, yards, turnovers, points,
+    deadTips, deadTargets: [...deadTargets], deadEligible, deadRecoveryChecks,
+    fullDigest: full.digest("hex"),
+    strippedDigest: stripped.digest("hex"),
+  };
+}
+
+describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () => {
+  /** Both corpora, once — 48 games, and every assertion below reads them. */
+  const base = deadTargetCorpus(DEFAULT_TUNABLES);
+  const moved = deadTargetCorpus(
+    applyTunablePatch(DEFAULT_TUNABLES, {
+      tunableId: "tippedBall.qualityBands.5.finalTargetNumber",
+      currentValue: 0,
+      proposedValue: 100,
+      evidence: "ADR-036 — the reporting-only proof, re-measured on every run",
+      expectedEffect: "no outcome moves; the published number changes and nothing else",
+    }),
+  );
+
+  it("reaches the stream on every DEAD deflection and is consulted on none", () => {
+    expect(base.plays).toBe(3420);
+    expect(base.deadTips).toBe(163);
+    // The mechanism that makes it unreachable: `recoverable: false` empties the
+    // candidate list in `eligibleRecoverers` before a target is ever compared.
+    expect(base.deadEligible).toBe(0);
+    expect(base.deadRecoveryChecks).toBe(0);
+  });
+
+  /**
+   * PENDING ADR-036 — this assertion INVERTS when the petition ratifies.
+   *
+   * It is here so the defect cannot be closed cosmetically. `0` is dangerous
+   * because it is a VALID VALUE ON THE TARGET SCALE and the easiest one in the
+   * table (§4.1's sorting-default corollary), so the tempting repair is to spell
+   * it `99` or `-1` and move on. Any such edit turns this red and points at the
+   * petition; only removing the field from the payload satisfies it.
+   */
+  it("PENDING ADR-036: publishes a readable target on all 163 of them", () => {
+    expect(base.deadTargets).toEqual([0]);
+  });
+
+  it("moves plays, yards, turnovers and points by exactly zero", () => {
+    expect(moved.plays).toBe(base.plays);
+    expect(moved.yards).toBe(base.yards);
+    expect(moved.turnovers).toBe(base.turnovers);
+    expect(moved.points).toBe(base.points);
+    expect(moved.deadTips).toBe(base.deadTips);
+    expect(moved.deadTargets).toEqual([100]);
+  });
+
+  it("moves exactly one thing in 24 games of stream: the number it publishes", () => {
+    // Published — so it is a value a consumer can read, believe and aggregate.
+    expect(moved.fullDigest).not.toBe(base.fullDigest);
+    // And nothing else. Event-for-event over both whole corpora, plus both final
+    // states: identical once the DEAD payload's target is gone.
+    expect(moved.strippedDigest).toBe(base.strippedDigest);
   });
 });
