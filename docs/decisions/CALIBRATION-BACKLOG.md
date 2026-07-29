@@ -504,11 +504,78 @@ and 18 to read "or against the corpus."**
 - **→ This strengthens entry 3 and removes the last stated reason to defer
   `blockerStructuralAdvantage`.** It is now measured against a caller that guesses, which was
   ADR-024's own stated precondition for unfreezing it.
-- **⚠ `freeRunnerArrivalSeconds` MOVES UP THE ORDER — it is now the primary target, not the
-  second.** The ADR-027 sweep found that §7.3/§7.4's free channel owns **100% of the pressure floor
-  and 100% of the sacks at that floor**, and delivers **83.9% of the real pressure rate on its
-  own** — a far larger population than this entry credited it with. `blockerStructuralAdvantage`
-  cannot reach any of it. Sweep the free channel next.
+- ~~**`freeRunnerArrivalSeconds` MOVES UP THE ORDER — it is now the primary target.**~~
+  **⚠ SWEPT AND REFUTED (ADR-030).** The premise was that because §7.3/§7.4's free channel owns
+  100% of the pressure floor, its arrival clock could reach the pressure problem. **It cannot.**
+
+  | | |
+  |---|---|
+  | affected plays | **14.20%** of dropbacks (against 0.13% at caller v1 — **109×**, precondition satisfied) |
+  | entire helpful budget | **0.406pp** against a **7.512pp** sack excess — **5.4%** |
+  | pressure movement across the whole grid | **0.20pp** against a 60.21pp gap — **0.3%** |
+  | conversion | **1.5s is already the optimum** (−0.260pp from real; +0.754 at 1.0s, −0.450 at 2.0s) |
+
+- **Extinguishing the channel's arrival leaves 94.6% of the sack excess standing**, and **every
+  "helpful" move makes `pressure_to_sack` — the closest row in the library — worse.**
+- **Why pressure cannot move, and it is structural:** `pocketFloorFromArrival` returns `PRESSURE`
+  for *any* live threat at *any* distance, and a free runner's threat is created **at the snap**.
+  **100.000% ± 0.000 of governed dropbacks are pressured at every rung — including the rung where
+  the rusher provably never arrives.**
+- **This lever is the exact complement of `blockerStructuralAdvantage`:** BSA moved the *rate* and
+  destroyed the conversion; this moves the *conversion* and cannot touch the rate. **Two levers,
+  two disjoint halves of the identity** — which is entry 26's corrected language demonstrated
+  rather than argued.
+- **This entry's other stated reason is also falsified.** It claimed the recognition-versus-pressure
+  balance moves with this tunable. The seen/missed sack **gap** moves 15.6pp → 3.4pp across the
+  grid, but the **ratio is 0.75–0.80 at every rung, including extinction.** The tunable scales the
+  stakes; it does not decide whether §5.3 recognition and hot routes matter.
+
+## 34. Both named suspects for the pressure rate are eliminated — here is what is left
+
+After ADR-028 and ADR-030, the two tunables the backlog named as the pressure levers have both been
+swept and both refuted. **89.4% against a real 29.23% remains, and neither named suspect can reach
+it.** The remaining unswept candidates, and they are now the highest-value sensitivity targets:
+
+1. **`pocket.minimumStatusByBand.RUSHER_GAINING: PRESSURE`** — **one rusher gaining by a single
+   point makes a pocket dirty.** This is the most likely single cause of a 60pp gap and has never
+   been measured.
+2. **The missing arrival horizon.** `arrival` carries `immediateWithinSeconds` and
+   `collapsingWithinSeconds` and **no third horizon**, so the "any live threat at any distance is
+   PRESSURE" floor **has no tunable at all** — it can be *observed* and not *swept*. **It needs an
+   engine petition before it can be measured**, which makes it the one open item that a sweep
+   cannot start on.
+
+## 35. The free runner's clock reads nothing about the man it is timing
+
+- It is **the only threat clock in the engine that consults no property of its rusher.** §7.2 reads
+  alignment, move, margin and the next tick's band; §7.3 reads the stunt band; §7.4 reads the
+  pickup band for 82.9% of threats — and for the **1,196 `UNBLOCKED` threats per 496 games,
+  nothing at all**: no die, no attribute, no alignment.
+- **The input varies:** 63.4% INTERIOR / 36.6% EDGE.
+- **But the outcome is not flat today**, and the ADR records the counter-observation rather than
+  omitting it: 14.863% of INTERIOR governed threats arrive against 7.586% of EDGE ones, via
+  `scramble.edgeThreatPenalty` and `simultaneousArrivalPriority`. **What is undifferentiated is the
+  clock, not the outcome.**
+- **Fixing it makes the numbers worse**, and the estimate is labelled as what it is: reusing
+  `arrival.travelSecondsByAlignmentAndMove` would arrive 63% of the population *earlier* (its zero
+  point is a blocker's spot on the line), predicted at ≈ +0.6pp of sack — **arithmetic, not
+  prediction**, of exactly the kind entry 26's 4.48% turned out to be.
+- **So this is ADR-028's question with the answer pointing the other way:** it is a genuine
+  structural defect, and repairing it costs a Tier 1 mean. ADR-030 petitions the engine either to
+  give the clock a §7.4-specific path term **or to ratify the constant as the model on the
+  record** — filed on the ADR-028 ground that structural insensitivity is not recoverable, not to
+  improve a number.
+
+## 36. §22a one level up — an eight-set mean step moved 2σ on replication
+
+- The 1.5→2.0 step reads **−0.158 ± 0.133** on seed sets 0–7 and **−0.306 ± 0.138** on sets 8–15 —
+  **~2σ apart, both eight-set means.** Pooled over 16: −0.232 ± 0.152.
+- **Direction and saturation replicate; adjacent-step RANKING at 8 × 496 does not.** On one group
+  the curve looks like it shelves between 1.5 and 2.0; on the other it does not.
+- **This extends §22a's rule rather than restating it.** The standing rule says no shape claim from
+  one seed list. This says: **eight lists is enough to claim direction and saturation, and not
+  enough to rank adjacent steps.** Anyone re-runging in that region needs **more lists, not bigger
+  ones** — the sweep already ran 496 games a rung.
 - **[ADR-026](ADR-026-a-protector-with-nobody-to-block.md) — RATIFIED AND LANDED**, before any
   sweep, because `blockerStructuralAdvantage` is the pressure-rate lever and this defect moved the
   pressure rate on 13.40% of dropbacks. The unblocked protector joins `available` at the back of
@@ -1253,7 +1320,20 @@ because they share a population and each alone lets the other collect the yards.
 lever alone *and* jointly. **A clean two-way percentage split is the outcome to be suspicious
 of** — it usually means the populations were assumed disjoint and were not.
 
-### First sensitivity-sweep target
+### First sensitivity-sweep target — ✅ DONE, AND REFUTED (ADR-030). See entry 21.
+
+**Outcome:** the sweep found the tunable governs 14.20% of dropbacks (109× its v1 population, so
+§5.3's precondition was correctly satisfied before it ran) and has a **total helpful budget of
+0.406pp against a 7.512pp sack excess**, with **zero reach on the pressure rate** and the committed
+value **already sitting on the conversion optimum**. **No patch record was filed, and the refusal
+is the result.**
+
+**§5.3's precondition is vindicated as a *sequencing* rule, not a gate that changes answers.** Had
+this been swept at caller v1 it would have measured 56 dropbacks and produced a number with the
+shape of a result. Waiting did not change the conclusion — it changed whether the conclusion was
+worth anything.
+
+*(Original text kept below for the trail.)*
 
 **`TUNABLES.blitz.freeRunnerArrivalSeconds` (currently 1.5).** §7.4's authoring error said
 "~1.5 ticks", which at 0.5s/tick is 0.75s — earlier than any route can declare, making every
