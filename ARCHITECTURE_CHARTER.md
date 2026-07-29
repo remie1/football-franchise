@@ -322,6 +322,21 @@ The falsifiable test to apply when someone claims a check is derived: *does a ch
 automatically invalidate the check?* If it does not, it is a restatement wearing a derivation's
 name.
 
+**The track record, stated flatly because it is now a pattern rather than an anecdote: in this repo,
+HAND-ENUMERATED COVERAGE LISTS HAVE BEEN WRONG EVERY SINGLE TIME THEY HAVE BEEN CHECKED.** Two
+instances in one week, both authored carefully, both confidently wrong:
+
+- **The six band-table exemptions (ADR-035).** Three of six were wrong — and on `stunt.bands` /
+  `blitzPickup.bands` the list named *the wrong rows*, so it would have **gone green while leaving
+  `LATE_EXCHANGE → LOOPER_FREE` unasserted forever.** Not incomplete: **confidently wrong while
+  passing.**
+- **The five packages needing a `typecheck` script (ADR-038).** Hand-counted as four; the derived
+  checker found **five** — `apps/game` was missed, and the fix would have shipped with a hole in it.
+  **The guard caught an omission in its own rollout.**
+
+Treat a hand-written coverage list as a defect report about the missing derivation, not as an
+artefact to review more carefully. Reviewing it harder has never been what caught these.
+
 **These two corollaries COMPOUND, and neither alone explains the defect that produced them.**
 `freeRunnerSweep.test.ts` held a hand-restated `SEVERITY` map read through `?? 0`. **The
 restatement is what let it drift; the sorting sentinel is what turned the drift into a silent wrong
@@ -379,6 +394,118 @@ everywhere includes `src` only — so a gate made blocking in CI **silently chec
 claimed**, for the entire life of the repo. Fix the command, never paper over it with per-package
 overrides: **a root script that silently checks less than its name implies is the same species as a
 restated constant** — a second source of truth about coverage, and the one everybody trusts.
+
+**Corollary — say whether an instrument ELIMINATES a defect class or merely BOUNDS it. Most bound;
+a few eliminate; assuming the wrong one is how a family gets abandoned half-handled.**
+
+A clean `tsc` over the test project **proves** there is no second `TS2367` tautology in the engine's
+44 test files — a comparison between non-overlapping types *is* that error, so the check is
+**exhaustive over its class**. No audit, no sampling, no residual doubt. That is rare here: most of
+this project's instruments bound a class *probabilistically* (a sweep at some `n`, a corpus with some
+reach, a gate with a tolerance), and their silence means *not observed*, never *not present*.
+
+**The hazard is the adjacent class that looks handled and is not.** `TS2367` is closed;
+`expect(x).toBe(x)`-shaped tautologies are **wide open**, because the compiler cannot see them. A
+reader told "the tautology problem is fixed" will reasonably assume the family. **So state the
+class, not the outcome** — "no `TS2367` in the test project" rather than "no tautologies" — and when
+a class is eliminated, name what remains beside it.
+
+### The register — THREE tiers, not two
+
+**Tier 1 — ELIMINATED. The compiler proves it; no installation, no invocation, no human step.**
+
+- `TS2367` tautologies in `@ff/engine` and `@ff/playbook` (wired `tsconfig.test.json`).
+- `PocketStatus` / `pocket.severity` ladder drift (ADR-034's mutual-assignability assertions).
+- `DEAD` recovery targets (ADR-036's discriminated union — the key's *presence* is unrepresentable).
+
+**Tier 2 — BOUNDED AND VERIFIABLE. A machine can check whether the guard is live.**
+
+- ADR-038's workspace-coverage assertion. Note it proves every package **claims** to be typechecked,
+  **not that the workspace IS** — `"typecheck": "true"` satisfies it. It eliminates the *silent-skip*
+  class only, and a future reader will cite it as proof of more than that.
+- Every sweep, corpus reach and tolerance band. **Their silence means *not observed*, never *not
+  present*.**
+
+**Tier 3 — BOUNDED AND UNVERIFIABLE. Its status depends on a human having run a command, and the
+repo cannot tell from inside whether they did.** *Written as "a category of one"; it was two within
+the hour — see the second entry. **Assume it is larger than this list.***
+
+- **`.githooks/commit-msg`.** It is **the strongest guard in the repo** — it sees the staged diff
+  *however the bytes got there*, including shell writes by sub-agents, which `.claude/settings.json`
+  cannot. And it is the **only** guard a clone can lack **silently**: `core.hooksPath` is per-machine
+  and not carried, so a fresh clone can amend the constitution with no ADR and no error, looking
+  identical to a machine where the guard is live. CI asserts the file exists and is executable; it
+  cannot know whether your git invokes it. (HANDOFF §1.3.)
+
+- **Every env-gated instrument** — `FF_BAND_GATE`, `FF_POCKET_LADDER`, the sweeps. **Nothing in CI can
+  tell whether a human typed the variable**, and a tree where a resolver started reading an exempt
+  cell is **byte-identical under `pnpm test`**. Mitigated by standing instructions in ADR-037 §6 and
+  the test headers, and by `typecheck` now covering `test/` — **neither is a proof.**
+- **`@ff/calibration`'s clean typecheck, historically.** Its `tsconfig.test.json` and `typecheck`
+  script were correct and **invoked by nothing** until ADR-038. It came back with **zero** stale
+  errors anyway — against `@ff/engine`'s eight on a smaller surface — because its agents had been
+  running it **by hand** every dispatch. **The coverage was real and the guarantee was not:** a
+  convention is a rule that holds until someone is in a hurry, and it held only for as long as the
+  people involved were conscientious. Now tier 2. *Recorded because "it was clean anyway" is the
+  most misleading possible evidence that a missing instrument did not matter.*
+
+> **The inversion is structural, not incidental, and it generalises.** The guards that operate on
+> **content** — types, a hook over the staged diff — are the strong ones *precisely because they sit
+> outside the process being guarded*. **That is the same property that makes their presence
+> unverifiable from inside it.** Strength and self-verifiability trade against each other here, so
+> anything joining tier 3 has earned its power the same way and deserves the same scrutiny: state
+> plainly what a machine lacking it would look like, and assume that is some machine.
+
+**Corollary — a structural fix radiates to sibling boundaries; a patch does not.** ADR-036 changed
+one payload into a discriminated union, and the compiler then surfaced `resolveRecoveryAttempt`
+taking the band union **plus** a redundant `finalTargetNumber` — so **nothing had stopped a caller
+pairing the `DEAD` row with an invented threshold.** Nobody was looking there. It was found by
+**making the wrong thing unrepresentable somewhere else**, and it was behaviour-neutral *that day*
+and would not have stayed so. **When weighing a structural fix against a local one, count the
+siblings it will implicate** — that yield is invisible at the time of the decision and is routinely
+the larger half of the value.
+
+**Corollary — AN INSTRUMENT WHOSE COVERAGE IS IMPLICIT WILL EVENTUALLY REPORT SUCCESS OVER A SET IT
+QUIETLY NARROWED.** This is the most-repeated defect family in the project, and every instance wore
+different clothes:
+
+1. `pnpm -r exec tsc --noEmit` resolving to each package's nearest `tsconfig.json` — **`src` only**,
+   so the blocking CI gate never typechecked a test file outside one package.
+2. `pnpm -r run <script>` **silently skipping** packages that lack the script, erroring only when
+   *none* has it. The obvious repair for (1) would have rebuilt (1).
+3. A sweep quoting a **raw** affected-play count where only the **exclusive** count bounds the
+   result (§5.3) — the same shape in statistics rather than tooling.
+4. Latent: `pnpm -r test` and `-r build` cover all eight packages **today**, but nothing *requires*
+   them to. Package nine escapes in silence.
+
+**The fix is never to enumerate better; it is to make the command know what it is SUPPOSED to cover
+and fail when it does not.** Declared coverage, checked — not discovered coverage, reported. An
+instrument that says "I ran everything I found" is answering a different question from "I ran
+everything there is", and only the second is worth a green tick.
+
+**Corollary — ANYTHING THAT ENFORCES MUST CALL, NEVER RESTATE.** A hook, a CI workflow, a
+pre-commit step: if it *names* a command instead of *invoking the declared one*, it is a copy — and
+**it is the copy that decides.**
+
+Proven instance: `.github/workflows/ci.yml` inlined `pnpm -r exec tsc --noEmit` and `pnpm -r test`
+rather than calling the root scripts. **This is the worst member of the implicit-coverage family**,
+and it is worth understanding why. Every other instance let something go *unchecked*. This one would
+have let ADR-038 **repair `package.json`, report the hole closed, and leave the gate that actually
+blocks still running the broken command** — the fix and the false confirmation *in the same commit*.
+
+**That failure has the longest half-life of any in this document**, because what it leaves behind is
+a green gate plus a ratified ADR saying it is fixed. Nobody re-opens that. The next person inherits
+two pieces of evidence that agree with each other and are both wrong.
+
+**Corollary — a guard firing on something legitimate is not a false positive if the firing is
+cheap.** §4.1's counter-corollary asks whether a guard *can* ever fire; this asks the complement:
+**does firing cost more than the class it prevents?** The `packages/contracts` write-protection fires
+on build tooling — `tsconfig.test.json`, a `typecheck` script — which is not contract content. It was
+**deliberately not taught the distinction**, because "contract content versus package tooling" looks
+crisp today and gets argued at the edges tomorrow: *tsconfig is tooling; is a barrel export? a
+registry constant?* **Every carve-out invites the next, and the guard's value comes from being
+unarguable.** Firing here costs one paragraph in a commit message — and **three files touched in the
+constitution's directory should cost a paragraph.** The friction is the feature.
 
 **Counter-corollary — a guard that always fires gets deleted.** This principle has an obvious
 failure mode in the other direction, and ADR-025 is the worked example: refusing to compare two

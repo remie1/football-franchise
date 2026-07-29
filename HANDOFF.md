@@ -139,7 +139,30 @@ This creates the repo with no README or `.gitignore` (we have both), wires `orig
 
 **Already done:** this repo is live at `remie1/football-franchise` (private). On an existing clone, `git pull` is all you need.
 
-On any other machine: `git clone` → `npm install -g pnpm` → `pnpm install` → `claude`. Same repo, same specs, same agent definitions. Note that pnpm itself is a machine-level prerequisite the clone does not carry — §1.1 applies on every device.
+On any other machine: `git clone` → `npm install -g pnpm` → `pnpm install` → **`git config core.hooksPath .githooks`** → `claude`. Same repo, same specs, same agent definitions. Note that pnpm itself is a machine-level prerequisite the clone does not carry — §1.1 applies on every device.
+
+> ### ⚠ REQUIRED, NOT OPTIONAL — a fresh clone has NO contracts guard until you run this
+>
+> ```bash
+> git config core.hooksPath .githooks
+> ```
+>
+> `.githooks/commit-msg` is what actually enforces Iron Rule 2 — it rejects any commit touching
+> `packages/contracts/**` without an `ADR-0NN` reference, and unlike `.claude/settings.json` it sees
+> the staged diff **however the bytes got there**, including shell writes by sub-agents. **Git only
+> runs it when `core.hooksPath` is configured, and that setting is per-machine: a clone does not
+> carry it.**
+>
+> **So a fresh clone can amend the constitution with no ADR, no petition, and no error** — and it
+> looks *identical* to a machine where the guard is live. There is no warning, because the absence of
+> a hook is silent by construction. CI asserts the hook file exists and is executable (ADR-038), which
+> is the most CI can do; **it cannot know whether your machine invokes it.**
+>
+> **This is concrete rather than hypothetical for this project: multiple devices share this repo, and
+> the second machine IS a fresh clone.** Recorded in the Charter's eliminated-vs-bounded register as
+> **mitigated, not closed**, for exactly this reason.
+>
+> Verify with `git config core.hooksPath` — it must print `.githooks`.
 
 ### 1.4 Confirm the agents loaded
 

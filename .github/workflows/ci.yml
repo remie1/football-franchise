@@ -39,10 +39,27 @@ jobs:
       # Typecheck before tests: several guarantees in this repo are compile errors by design
       # (Charter §4.1), so a green test run against a tree that does not typecheck would be
       # reporting less than it appears to.
+      #
+      # CALL THE ROOT SCRIPTS — never inline the recursive command (ADR-038).
+      # These steps previously ran `pnpm -r exec tsc --noEmit` and `pnpm -r test` directly.
+      # That was a RESTATEMENT of package.json's scripts, and it drifted the moment they were
+      # fixed: repairing the root `typecheck` would have left this gate — the one that actually
+      # blocks — still running the broken command, while reporting the hole closed.
+      # `pnpm typecheck` / `pnpm test` run the workspace-coverage assertion first, so a package
+      # that declares no typecheck script fails here instead of being silently skipped.
       - name: Typecheck
-        run: pnpm -r exec tsc --noEmit
+        run: pnpm typecheck
 
       # The four dormant packages carry --passWithNoTests so the recursive run reaches the
-      # packages that do have tests. Engine deliberately does NOT (HANDOFF §1.2) — it has 585.
+      # packages that do have tests. Engine deliberately does NOT (HANDOFF §1.2).
       - name: Test
-        run: pnpm -r test
+        run: pnpm test
+
+      # THE CONTRACTS HOOK IS NOT SELF-INSTALLING. `.githooks/commit-msg` enforces the
+      # ADR-reference rule on packages/contracts, but git only runs it when
+      # `core.hooksPath=.githooks` is configured — which is per-machine and NOT carried by a
+      # clone. A fresh clone therefore has NO contracts guard, and CI is the only place that
+      # can notice. This asserts the hook exists and is executable; it cannot assert that a
+      # given developer installed it, which is why HANDOFF §1.3 states the install step.
+      - name: Contracts hook present
+        run: test -x .githooks/commit-msg || { echo "::error::.githooks/commit-msg missing or not executable"; exit 1; }
