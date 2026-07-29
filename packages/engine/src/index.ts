@@ -51,6 +51,17 @@
  *      — the exact failure ADR-004's roll accounting exists to prevent, one level
  *      up.
  *
+ * A SIXTH is PROPOSED by ADR-035 and awaits ratification:
+ *
+ *   6. **Band-table reflection and the derived `guardedBy` relation** — what a
+ *      band table is, which of its columns carry an effect, whether a column's
+ *      order inverts, and whether a given cell is ever READ. Charter §4.1's
+ *      newest corollary wants a monotonicity gate on all twenty-six tables; six
+ *      of them contain an inverting column, and some of those cells are dead.
+ *      Which ones is a fact about engine RESOLVERS, so calibration can only hold
+ *      it as a hand-maintained list — and a stale exemption is indistinguishable
+ *      from a suppressed defect. Derived here, consumed there.
+ *
  * EVERY EXPORT BELOW IS ANNOTATED WITH THE CATEGORY IT BELONGS TO, and
  * `test/tunablePatch.test.ts` asserts the runtime half of the list as a SET.
  * ---------------------------------------------------------------------------
@@ -193,3 +204,49 @@ export type {
   KickingLine,
   ReturnLine,
 } from "./stats/statline.js";
+
+// 6. CATEGORY 6 — BAND-TABLE REFLECTION AND THE DERIVED `guardedBy` RELATION.
+//    Proposed by ADR-035 as an amendment to ADR-012 §B, in the same form as
+//    ADR-014 item 15 and ADR-016 item 2: implemented here, awaiting the
+//    Orchestrator's ratification, and backed out if refused.
+//
+//    WHY IT IS NOT CALIBRATION'S TO WRITE. Charter §4.1's newest corollary wants
+//    a monotonicity gate on every band table; six of the twenty-six contain a
+//    column that inverts, and some of those cells are never read. Deciding which
+//    is which is a statement about ENGINE RESOLVERS, and the only version of
+//    that statement which cannot go stale is one DERIVED from the engine at run
+//    time. Calibration owns the gate — the corpus, the population floors, and
+//    what red means. The engine owns the vocabulary: what a band table is, which
+//    of its columns carry an effect, and whether a given cell is read.
+//
+//    THE SURFACE IS NAMED, not described (Charter §4 rule 1): the discovery
+//    walk, the ordering check, the perturbation/starvation constructors, the
+//    derivation, and their types. No resolver becomes reachable by any of it —
+//    `deriveGuardedBy` takes an OBSERVER and never runs a simulation itself,
+//    because a corpus is a population and a population is calibration's to
+//    state (`docs/design/calibration.md` §5.3).
+export {
+  allCells,
+  cellId,
+  cellPath,
+  columnIsOrderable,
+  deriveGuardedBy,
+  discoverBandTables,
+  labelledLadderPaths,
+  orderViolations,
+  perturbationsFor,
+  starvationFor,
+  DELTAS,
+} from "./bandGuards.js";
+export type {
+  BandCell,
+  BandRow,
+  BandTable,
+  BandValue,
+  CellVerdict,
+  DeriveOptions,
+  GuardedByRelation,
+  Liveness,
+  OrderViolation,
+  StreamObserver,
+} from "./bandGuards.js";

@@ -84,6 +84,30 @@ describe("ADR-012 — the barrel is exactly the permitted surface", () => {
     //    (`contracts.md` §10). Without it here, calibration writes a second
     //    reducer over the same stream and the two drift.
     "reduceStatlines",
+    // 6. SIXTH CATEGORY, PROPOSED by ADR-035 as an amendment to ADR-012 §B and
+    //    awaiting the Orchestrator: band-table reflection and the derived
+    //    `guardedBy` relation. Charter §4.1's newest corollary wants a
+    //    monotonicity gate on every band table; six of the twenty-six contain a
+    //    column that inverts, and some of those cells are never read. WHICH ones
+    //    are never read is a statement about engine RESOLVERS, and the only
+    //    version of it that cannot go stale is DERIVED at run time — a
+    //    hand-maintained exemption list is a second source of truth, and a stale
+    //    exemption is indistinguishable from a suppressed defect.
+    //
+    //    None of this widens the resolver surface: `deriveGuardedBy` takes an
+    //    OBSERVER and runs no simulation of its own, because the corpus is a
+    //    population and populations are calibration's (`calibration.md` §5.3).
+    "discoverBandTables",
+    "labelledLadderPaths",
+    "columnIsOrderable",
+    "orderViolations",
+    "allCells",
+    "cellId",
+    "cellPath",
+    "perturbationsFor",
+    "starvationFor",
+    "deriveGuardedBy",
+    "DELTAS",
   ];
 
   it("exports these runtime values and no others", () => {
