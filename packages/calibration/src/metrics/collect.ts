@@ -23,6 +23,7 @@
  * `SimAccumulator` grows linearly with plays rather than staying constant.
  */
 import type { MatchEventEnvelope, PlayerId, TeamId } from "@ff/contracts";
+import { DEFAULT_TUNABLES } from "@ff/engine";
 import type { GameSummary, StatLine } from "@ff/engine";
 
 /** One simulated game, as it comes back from a worker. */
@@ -551,7 +552,7 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
         break;
       case "CHECK":
         if (event.payload.checkKind === "pass_rush_tick") {
-          recordRushRep(acc.player, event.payload.actors, event.payload.band, event.payload.tier);
+          recordRushRep(acc.player, event.payload.actors, event.payload.band, event.payload.margin);
         }
         break;
       case "PLAY_RESULT":
@@ -654,26 +655,48 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
 }
 
 /**
- * A `pass_rush_tick` rep, attributed.
+ * ⛔ **"DID THE RUSHER WIN THE REP" HAS ONE ANSWER AND IT IS §7.1's BAND TABLE** — owner ruling,
+ * ADR-051. Both arms below read `passRush.bands` and nothing else.
  *
- * `actors` is `[rusher, blocker]` by the engine's own ordering convention on this check. The
- * WIN is read from ADR-011's band rather than re-derived from the tier, because the band is the
- * design document's own vocabulary and the tier is a generic ladder — and ADR-011 exists
- * precisely so calibration reads bands instead of importing `bandFor`.
+ * WHAT WAS HERE, AND IT WAS A LIVE DEFECT. The fallback arm read three tier identities —
+ * `CRITICAL_SUCCESS || STRONG_SUCCESS || SUCCESS` — which is `margin ≥ 5`, while the band arm is
+ * `RUSHER_WINS_REP` at `margin ≥ 15`. **The two arms disagreed by ten points of margin**, and the
+ * tier arm counted `BLOCKER_BEATEN` as a rusher win — the exact interval ADR-033 split out on the
+ * owner's ruling that *gaining ground is not pressure*. It was introduced with the fold and stood
+ * until ADR-051.
+ *
+ * WHY THE IDENTITIES ARE REMOVED RATHER THAN CORRECTED. Three equality comparisons against tier
+ * NAMES are a restated constant: `ResultTier` is a closed union that grows, and ADR-051's own
+ * consumer audit found that a rung added ABOVE `CRITICAL_SUCCESS` would make this line record the
+ * largest-margin win in the game as a LOSS — and credit the blocker with the corresponding win.
+ * The compiler cannot see that, because the comparison is against a string. Reading the floor
+ * removes the failure mode rather than deferring it.
+ *
+ * `actors` is `[rusher, blocker]` by the engine's own ordering convention on this check.
  */
+const RUSHER_WINS_REP_FLOOR: number = ((): number => {
+  const row = DEFAULT_TUNABLES.passRush.bands.find((b) => b.label === "RUSHER_WINS_REP");
+  if (row === undefined) throw new Error("collect: passRush.bands has no RUSHER_WINS_REP row");
+  return row.minMargin;
+})();
+
+/** The band labels at or above that floor — DERIVED from the table, never listed. */
+const RUSHER_WON_BANDS: ReadonlySet<string> = new Set(
+  DEFAULT_TUNABLES.passRush.bands.filter((b) => b.minMargin >= RUSHER_WINS_REP_FLOOR).map((b) => b.label),
+);
+
 function recordRushRep(
   fold: PlayerFold,
   actors: readonly PlayerId[],
   band: string | undefined,
-  tier: string,
+  margin: number,
 ): void {
   const rusher = actors[0];
   const blocker = actors[1];
   if (rusher === undefined) return;
-  const rusherWon =
-    band === undefined
-      ? tier === "CRITICAL_SUCCESS" || tier === "STRONG_SUCCESS" || tier === "SUCCESS"
-      : band.includes("RUSHER_WINS") || band.includes("RUSHER_BEATS");
+  // ADR-011: prefer the PUBLISHED band. `band` is optional on the payload, so the fallback reads
+  // the same table's floor off the same margin — one source, two paths to it.
+  const rusherWon = band === undefined ? margin >= RUSHER_WINS_REP_FLOOR : RUSHER_WON_BANDS.has(band);
   const rusherKey = String(rusher);
   const r = fold.rushReps[rusherKey] ?? { wins: 0, reps: 0 };
   r.reps++;
