@@ -95,15 +95,25 @@ describe("result-tier ladder — occupancy", () => {
    * not. `STRONG_SUCCESS` is untouched by ADR-052/053's re-banding (its floor 15/ceiling 29 never
    * moved), so this figure holds exactly as before.
    *
-   * ⚠ **THE SECOND SENTENCE THIS COMMENT USED TO MAKE IS NOW FALSE, AND THAT IS THE FIX WORKING.**
-   * On the PRE-ratification nine-rung ladder, `CRITICAL_SUCCESS` was the open top rung and absorbed
-   * everything past ±30 — MODAL at 24.850%, which is exactly the defect ADR-050 measured and the
-   * owner ruled against (`ladderTail.ts`'s `PRE_RATIFICATION_LADDER` / `IMPOSSIBILITY`). On the
-   * RATIFIED seventeen-rung ladder below, `CRITICAL_SUCCESS` is an interior BOUNDED rung (floor 60,
-   * ceiling 74) at 4.950%, and the new open extremes (`TOTAL_SUCCESS` / `TOTAL_FAILURE`, floor ±90)
-   * are the RAREST tiers on the ladder at 0.550% each — tail monotonicity holding by construction.
-   * No tier is modal at a quarter of resolutions anymore; the widest tiers are `STRONG_SUCCESS` /
-   * `STRONG_FAILURE` at 11.700%, unchanged from before.
+   * ⚠ **PRIOR TO ADR-052, `CRITICAL_SUCCESS` WAS THE MODAL TIER OF THIS LADDER AT 24.850% — AND THE
+   * LADDER WAS RE-BANDED BECAUSE OF IT.** That claim is kept here deliberately rather than replaced
+   * by the new numbers, because **it is the reason the ladder changed**: on the pre-ratification
+   * nine-rung ladder `CRITICAL_SUCCESS` was the open top rung and absorbed everything past ±30, so
+   * *critical* was the ladder's modal vocabulary — the defect ADR-050 measured and the owner ruled
+   * against (`ladderTail.ts`'s `PRE_RATIFICATION_LADDER` / `IMPOSSIBILITY`). **Delete the old claim
+   * and the new figures below read as arbitrary**; a reader would have no way to see why anyone
+   * thought this ladder needed changing. Log-don't-smooth, applied to a pin's own history.
+   *
+   * ⛔ **NO FOOTBALL IS NOW FALSE HERE. The claim aged out because we changed the thing it
+   * described** — which is a pin doing its job, not a pin going stale.
+   *
+   * On the RATIFIED seventeen-rung ladder below, `CRITICAL_SUCCESS` is an interior BOUNDED rung
+   * (floor 60, ceiling 74) at **4.950%** — the owner's *"low single digits"* — and the new open
+   * extremes (`TOTAL_SUCCESS` / `TOTAL_FAILURE`, floor ±90) are the RAREST tiers on the ladder at
+   * **0.550%** each, with tail monotonicity holding by construction. That 0.550% is the design
+   * intent rather than a by-product: **a top rung a player sees once and remembers.** No tier is
+   * modal at a quarter of resolutions anymore; the widest are `STRONG_SUCCESS` / `STRONG_FAILURE`
+   * at 11.700%, unchanged.
    */
   it("pins the canonical even-roll occupancies of both forms", () => {
     const { opposedEven, targetOnTheNumber } = canonicalOccupancies();

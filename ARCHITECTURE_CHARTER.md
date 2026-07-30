@@ -793,6 +793,7 @@ one dispatch, arrived at from opposite directions:
 |---|---|---|
 | **from the prose direction** | *"re-scope ADR-032's monotonicity gate"* — ADR-032 is real, and it **does** rule a monotonicity gate | that gate is over the **`PocketStatus` severity ladder**. The tail-occupancy property belongs to ADR-050/052, lives in `calibration`, and **was already correctly scoped.** `packages/engine` has no such gate at all. |
 | **from the type direction** | `minimumStatusByBand` listed among the `PocketStatus`-keyed tables — it is real, and `PocketStatus` **does** appear in it | as its **VALUES**. Its keys are `PassRushBandLabel`. A mapped type over `PocketStatus` would have constrained **the wrong axis.** |
+| **from the scope direction** ⇒ **the one with a measured cost** | *"`resultTierLadder` is structurally outside the band-table gate's scope"* — **true**, and about **one of that gate's two tiers** | true of the **monotonicity check** (no columns beyond `label`/`minMargin`, so nothing for Tier B to order); **false of the CENSUS**, which counts raw rows and had `resultTierLadder` among its 26 tables all along — `discoverBandTables` recognises *any* array of `{label, minMargin}`. **Cost: 119 → 127.** |
 
 **Both would have produced a guard that compiles, reads as coverage, and checks a property its
 subject does not have** — the *apparently-instrumented* failure, reached not by a blind instrument
