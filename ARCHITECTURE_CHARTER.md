@@ -669,6 +669,31 @@ comment would have destroyed the same information: the fact that they disagreed.
 procedure, not pedantry**, and `match-engine` reporting rather than resolving is what saved ADR-042's
 field from being satisfied into uselessness.
 
+**Corollary — A CONSTANT QUOTED IN AN ADR'S `Need` SECTION IS A RESTATED CONSTANT WITH AN OWNER'S
+RATIFICATION ATTACHED, AND THAT IS STRICTLY WORSE THAN AN UNRATIFIED ONE.**
+
+**Ratification converts a restatement into an assumption.** This is the *ratified-plan* corollary and
+the *derivation* corollary **compounding** — a pairing not previously seen here, and the compound is
+worse than either: the number is a copy that can drift **and** it now carries authority that
+suppresses re-checking.
+
+The instance: `route.opennessGainPerTick = 8` was quoted through **three documents into a ratified
+ruling**. The committed value is **5**. The `8` is `scramble.opennessGainPerTick` — **a sibling leaf
+of the same name under a different block.** Every instrument in the chain was pointed at
+**behaviour**, not at the **citation**, and `packages/calibration`'s doc-conformance register **held
+the correct value the entire time** (`DOC_VERBATIM` against §8.7's *"+5 per tick"*). **Two artefacts
+in the repo disagreed and nothing compared them.**
+
+**Mitigation, and the cheap half is a habit rather than work:**
+
+1. **Cite the register entry, do not transcribe the number.** An ADR that says *"§8.7's per-tick gain
+   (see the doc-conformance register)"* cannot drift; one that says *"= 8"* already has.
+2. *(Real work, optional)* a check that constants appearing in ADR text match the committed tunables.
+
+**Note what did NOT go wrong:** the ruling turned on **shape**, not magnitude, so it stands. **A
+quoted constant is most dangerous where the decision depends on its VALUE** — and that is exactly the
+case where nobody re-reads it, because the ADR is ratified.
+
 > **THE GENERAL FORM — LOG, DO NOT SMOOTH. The disagreement is the finding; the resolution is
 > downstream of it.**
 >
@@ -752,6 +777,24 @@ naming values, comments, notes. They are the ones that **can be wrong indefinite
 
 **Prose is the extreme case** — zero enforcement, maximum authority (see the corollary above, and
 `CALIBRATION-BACKLOG.md` roadmap item **2b**, which exists for exactly this reason).
+
+**Corollary — RETIRED ARTEFACTS NEED A DISPOSAL RULE, NOT A LABEL. If a retired block can still
+execute, "retired" is a comment.**
+
+ADR-047 found a **retired pricing block** asserting that
+`patch("catching.contestedMaxOpenness", 30, 40)` **throws `TunablePatchError`**. With the tree back at
+`30`, **that call would no longer throw — it would apply.** A *retired guard* had silently become a
+**live perturbation**, inside an **env-gated file that emits no green tick on a default run.**
+
+**That is two failures compounding:** tier 3 (**unverifiable invocation** — nothing can tell whether
+a human ran it) **plus** entry 47's first shape (**a stale referent**). Neither alone would have hidden
+it; together, nothing in the repo could report on it.
+
+**So retirement is an ACTION, not an annotation.** A retired artefact is **deleted**, or **converted
+to an assertion of the post-retirement state** (ADR-036's tripwire is the model — *converted, not
+deleted*, so something still stands where the defect was), or **made unable to run**. A block that is
+merely *labelled* retired and remains executable is **a live artefact with a misleading comment** —
+and by §4.1's prose corollary, the comment is what the next reader will believe.
 
 **Counter-corollary — a guard that always fires gets deleted.** This principle has an obvious
 failure mode in the other direction, and ADR-025 is the worked example: refusing to compare two

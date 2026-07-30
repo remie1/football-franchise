@@ -1472,6 +1472,43 @@ fourth shape **never drifts at all**, which is why it survives every staleness c
 > and **`orderViolations` is green on a tie BY CONSTRUCTION on all 52 orderable columns**, not merely
 > on §9.3 — which is why nothing pointed at that table could see the 25/25 tie.
 
+## 54. ⚠ `orderViolations` IS GREEN ON A TIE BY CONSTRUCTION — ON ALL 52 ORDERABLE COLUMNS
+
+**The §9.3 cell that surfaced this is the small half. The finding is the scale.** `orderViolations`
+cannot see a tie **anywhere**: a tie neither rises nor falls, so it passes by construction on **every
+one of the 52 orderable columns**. That is entry 47's **fourth shape at scale** — *a check that never
+asserted the property it names*, across 52 subjects, for its whole life.
+
+> **⛔ DO NOT READ `orderViolations` GREEN AS EVIDENCE THAT NO COLUMN TIES. It has never made that
+> claim.** It asserts *non-inversion*, not *strictness*, and the two differ on exactly the case a
+> ruling is most likely to care about.
+
+**51 columns remain unasserted on ties.** ADR-045's strictness pin covers **§9.3 only**, and that
+scoping is **correct and endorsed** — **nothing ruled that §9.4 (or any other column) may not tie**,
+and inventing an ordering law nobody ruled would be the larger error. Calibration pinned the ruled
+**set** instead, which is the right shape.
+
+**So this entry is the standing record that the gap exists and is deliberate.** A column becomes
+strictness-asserted **when a ruling says it may not tie**, not before — and when one does, the pin
+goes with it in the same change.
+
+## 55. Two more fourth-shape instruments: guards that measure their own file
+
+**Same species as §8.5's sort-stability pin — green for a reason other than the stated subject.**
+
+1. **The pocket-ladder canonical-seed guards MEASURE THE TEXT OF THEIR OWN FILE.** They assert
+   something about the source they live in, not about the seeds' behaviour. They will stay green
+   through any change that leaves the file's text alone — including one that changes what the seeds
+   do.
+2. **`scaleSurface.test.ts`'s two `toHaveLength(44)`** are cardinalities where `Record<CheckKind, …>`
+   **already pins the set** at compile time. Redundant rather than wrong — and per ADR-041 a
+   cardinality **cannot see a swap**, so if the type pin were ever loosened these would not notice.
+   Kept because `vitest` does not typecheck; **logged so nobody mistakes them for the guarantee.**
+
+**The diagnostic that found all three: *what would make this go red?*** If the answer names something
+other than the stated subject, the instrument is measuring that other thing. Apply it to any pin
+under review.
+
 ## 53. OWED SWEEP — every recorded NULL measured at CORPUS scope on a PER-PLAY subject is suspect
 
 **Same reasoning as the sweep of pre-re-runging sensitivity numbers, and the same standing:** these
