@@ -82,16 +82,40 @@ describe("§9.2 route development", () => {
     expect(routeReadySeconds(TUNABLES, "DEEP", 1.5)).toBe(4.0);
   });
 
-  it("openness grows until the decay point then falls (§8.7)", () => {
+  /**
+   * ⚠ RE-RECORDED FOR ADR-048. The gain is CONTEST-CONDITIONED, so every line
+   *   here now names the rep that produced the break. The `EVEN` column is the
+   *   nearest thing to what this case used to assert (`+5` per step); it is not
+   *   the same curve, because it stops after `burstSteps` — the ruling's *"then
+   *   converges toward a lower steady rate"*.
+   *
+   * The decay half is UNCHANGED and deliberately re-asserted: §8.7's decay is
+   *   rep-independent, and ADR-048 did not touch it.
+   */
+  it("openness grows until the decay point then falls, at the rate the rep earned (§8.7, ADR-048)", () => {
     const base = 50;
-    expect(opennessAt(TUNABLES, base, 2.0, 2.0)).toBe(50);
-    expect(opennessAt(TUNABLES, base, 2.0, 2.5)).toBe(55);
-    expect(opennessAt(TUNABLES, base, 2.0, 3.0)).toBe(60);
-    expect(opennessAt(TUNABLES, base, 2.0, 3.5)).toBe(55);
-    expect(opennessAt(TUNABLES, base, 2.0, 4.0)).toBe(50);
-    expect(opennessAt(TUNABLES, base, 2.5, 1.0)).toBe(50); // not open yet: no growth applied
-    expect(opennessAt(TUNABLES, 95, 1.0, 3.0)).toBe(100);  // clamped to the scale
-    expect(opennessAt(TUNABLES, 5, 1.0, 6.0)).toBe(0);
+    // A receiver the corner is TRAILING: 2u at the break, then he holds it.
+    expect(opennessAt(TUNABLES, base, 2.0, 2.0, "TRAILING")).toBe(50);
+    expect(opennessAt(TUNABLES, base, 2.0, 2.5, "TRAILING")).toBe(60);
+    expect(opennessAt(TUNABLES, base, 2.0, 3.0, "TRAILING")).toBe(70);
+    // An EVEN rep: 1u at the break, then he holds it.
+    expect(opennessAt(TUNABLES, base, 2.0, 2.5, "EVEN")).toBe(55);
+    expect(opennessAt(TUNABLES, base, 2.0, 3.0, "EVEN")).toBe(60);
+    // The defender IN FRONT: nothing at the break, and then he closes.
+    expect(opennessAt(TUNABLES, base, 1.0, 1.5, "IN_FRONT")).toBe(50);
+    expect(opennessAt(TUNABLES, base, 1.0, 2.0, "IN_FRONT")).toBe(50);
+    expect(opennessAt(TUNABLES, base, 1.0, 2.5, "IN_FRONT")).toBe(45);
+    expect(opennessAt(TUNABLES, base, 1.0, 3.0, "IN_FRONT")).toBe(40);
+    // §8.7's decay, unchanged and rep-independent: −5 a step past 3.0 for all.
+    expect(opennessAt(TUNABLES, base, 2.0, 3.5, "TRAILING")).toBe(65);
+    expect(opennessAt(TUNABLES, base, 2.0, 4.0, "TRAILING")).toBe(60);
+    expect(opennessAt(TUNABLES, base, 2.0, 3.5, "EVEN")).toBe(55);
+    expect(opennessAt(TUNABLES, base, 2.0, 4.0, "EVEN")).toBe(50);
+    // Not open yet: no growth applied, whatever the rep said.
+    expect(opennessAt(TUNABLES, base, 2.5, 1.0, "TRAILING")).toBe(50);
+    // Clamped to the scale at both ends.
+    expect(opennessAt(TUNABLES, 95, 1.0, 3.0, "TRAILING")).toBe(100);
+    expect(opennessAt(TUNABLES, 5, 1.0, 6.0, "TRAILING")).toBe(0);
   });
 
   it("reports route phase from jam, development, break and decay", () => {

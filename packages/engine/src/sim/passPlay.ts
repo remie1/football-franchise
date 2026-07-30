@@ -1436,9 +1436,13 @@ function currentOpenness(
  */
 function decayedOpenness(tunables: Tunables, track: ReceiverTrack, tick: number): number {
   const base = track.baseOpenness ?? 0;
+  // ADR-048 — the rep CONDITIONS the gain, so both curves take the contest
+  // position the break point wrote onto the track. `contestPosition` is set in
+  // the same assignment as `baseOpenness` at every one of the three break-point
+  // sites, so a track with a base always has the rep that produced it.
   return track.settled
-    ? settledOpennessAt(tunables, base, track.readySeconds, tick)
-    : opennessAt(tunables, base, track.readySeconds, tick);
+    ? settledOpennessAt(tunables, base, track.readySeconds, tick, track.contestPosition)
+    : opennessAt(tunables, base, track.readySeconds, tick, track.contestPosition);
 }
 
 /**

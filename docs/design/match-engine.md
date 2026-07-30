@@ -932,9 +932,85 @@ Example: Patient QB (90 Pocket Patience)
 
 Each tick held:
   + Routes develop further (+5 to openness per tick up to 3.0 ticks)
-  - Coverage tightens after 3.0 ticks (-5 per tick)
+    AMENDED July 2026 (ADR-046 ruling, ADR-048 landed) — the gain is
+    CONTEST-CONDITIONED. +5 is now the UNIT of a ladder, not a flat rate.
+    See the amendment below.
+  - Coverage tightens after 3.0 ticks (-5 per tick)   [unchanged]
   - Pass rush continues (pocket may degrade)
 ```
+
+> **AMENDMENT (July 2026, owner ruling on ADR-046) — the openness gain is CONTEST-CONDITIONED. A
+> flat gain erases the rep that earned it.**
+>
+> A flat `+5` was applied **identically, whatever the coverage rep produced**, which makes the §9.3 /
+> §9.4 contest decide only **when** a receiver reaches a given openness — never **whether**. Hold the
+> ball long enough and a receiver who was stonewalled clears every threshold a receiver who won
+> cleanly cleared. **The route-running battle §9.3 exists to resolve had a half-life measured in
+> ticks**, and that gets worse, not better, when `packages/attributes` makes route-running
+> differences real: a mechanic that erases attribute differences makes Phase 2 look like it did
+> nothing.
+>
+> This is a **structural insensitivity**, the same species as ADR-028's constant swallowing blocker
+> quality — the number is not wrong on any scale; the **SHAPE** is wrong.
+>
+> **RULED: contest-conditioned, NOT proportional.** The owner's football:
+>
+> > **Separation is created at the break and then DEFENDED.** A corner who lost badly closes ground
+> > as the route flattens; a receiver who won cleanly **holds an advantage rather than compounding
+> > it.**
+>
+> **Proportional was refused for a specific reason: it makes the gap widen forever.** A receiver who
+> wins by 30 would keep pulling away from one who won by 10, at an accelerating absolute distance,
+> and that is not what happens on a route.
+>
+> **So the rep outcome CONDITIONS the gain rate; it does not SCALE it.** A won rep produces a higher
+> gain for the ticks immediately after the break, then converges toward a lower steady rate. A lost
+> rep produces little or no gain, and the defender may close.
+>
+> **Two constraints, SPECIFICATION and not the engine's to choose:**
+>
+> 1. **A receiver who won his rep by more is never less open at any later tick.** The load-bearing
+>    invariant, and gated.
+> 2. **Gain must not fully erase the rep's margin at any tick within the route's live window.** The
+>    property whose absence created the finding: convergence means *the contest decided nothing*.
+>
+> ### "THE ROUTE'S LIVE WINDOW" = THE GAIN WINDOW — ruled July 2026, on ADR-048 §6
+>
+> **Constraint 2 binds across the GAIN WINDOW. Decay proceeds REP-INDEPENDENTLY after
+> `decayStartsAtSeconds`, and that is football rather than a defect.**
+>
+> **The constraint was written to stop the contest deciding NOTHING** — a receiver who beat his man by
+> 30 and one who lost by 5 converging in two ticks. **It was not written to make separation
+> permanent.** Separation is created at the break and then defended: a corner who lost recovers ground
+> as the route flattens, and **by tick 3.5 the play is either gone or has become a scramble drill
+> where the original rep no longer describes anything.**
+>
+> > **What the flat gain got wrong was NOT that beaten receivers eventually catch up. It is that they
+> > caught up BEFORE THE CONTEST COULD MATTER.**
+>
+> **Two facts recorded so this is not re-litigated as a tuning artefact:**
+>
+> 1. **The floor coming forward is FORCED BY THE RULING, NOT CHOSEN BY THE RATES.** ADR-048's test
+>    re-runs the grid over **every** ladder in which a lost rep does not gain and **finds no
+>    survivor.** A future reader would otherwise read the tick-3.5 convergence of `CB_ON_HIP` and
+>    `CB_IN_POSITION` as a consequence of the chosen numbers. It is not.
+> 2. **The cushion the flat gain gave a beaten receiver WAS ITSELF THE DEFECT**, so removing it
+>    *necessarily* brings the floor forward. The two are the same change, not a fix and a side effect.
+>
+> **The rate mapping is the engine's to DERIVE** from an existing scale (the ADR-033 precedent:
+> derive it, state what was rejected, never pick a value that makes a downstream metric behave).
+>
+> **LANDED July 2026 (ADR-048).** `+5` becomes the **unit** of a three-class ladder keyed on the
+> `contest` column both band tables already carry, with a burst window of two ticks; every rate is an
+> integer multiple of the unit. Both constraints are gated in
+> `packages/engine/test/opennessContestConditioning.test.ts`, and the change is priced at **play
+> scope** per `docs/design/calibration.md` §5.3's standing rule, with the instrument built before the
+> change.
+>
+> ✅ **THE BOUNDARY CASE ADR-048 §6 BROUGHT IS NOW RULED — see "the route's live window" above.**
+> Constraint 2 binds across the **gain window**; past `decayStartsAtSeconds` the decay is uniform and
+> rep-independent, and the two lost-rep rows meeting at the scale floor from tick 3.5 is **football,
+> not a defect.** Brought rather than tidied, which was the correct handling.
 
 ### 8.8 Scramble Decision
 

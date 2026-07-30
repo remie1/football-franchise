@@ -55,6 +55,29 @@
  *      that did not exist the day before entered the tree wearing a `DOC_VERBATIM` note written
  *      about a different cell. Nothing reddened. A cardinality cannot see a swap.
  *
+ * ============ ⛔ ADR-048: THE PAIR ABOVE EARNED ITSELF, AND THE CLASSIFICATION DID NOT ============
+ *
+ * Seven `route.contestGain.*` cells landed. The catch-all `route.*` — `STRUCTURAL`, §8.4, *"Openness
+ * clamps at §8.4's 0-100 scale"* — matched all seven and reported them **classified**;
+ * `unclassified` was empty, `deadRules` was empty, and the note was false of every one of them.
+ * **The count and the path digest went red. Nothing else did.**
+ *
+ * > **OWNER, July 2026:** *"The classification rule failed and the guard that exists BECAUSE
+ * > classification fails caught it. That's defense-in-depth working exactly as intended — and it is
+ * > the FIRST TIME IN THIS PROJECT A SECOND LAYER HAS CAUGHT WHAT THE FIRST MISSED rather than the
+ * > first layer catching everything."*
+ *
+ * ADR-041's argument for keeping a restated number was that it *"cannot go stale silently: any
+ * change to its subject reddens it."* That was written as a defence of a denominator. It turned out
+ * to be a defence of the whole register, on a failure mode ADR-041 did not anticipate — and the
+ * reason it worked is that **its subject is the TREE, not the reading**, so it is independent of
+ * every judgement the register makes. Two layers that fail for the same reason are one layer.
+ *
+ * **AND THE RULING THAT FOLLOWED, which is why `classified === census.numbers` is gone from this
+ * file:** *a prefix rule is a classification that cannot be wrong, which means it classifies
+ * nothing.* Prefix-matched cells are now a distinct reported population — see the three tests below
+ * the totality identity, and `UNIFORM_REGIONS` for the 32 catch-alls that argued their way out.
+ *
  * WHAT IS STILL NOT COVERED, said out loud: string-valued MAPPING tables. SA-13's worse half — the
  * one that made a touch pass harder to deflect than a bullet — lived entirely in one, and this
  * register's whole contact with it was a unit of a string count. Backlog 51 owns closing that, by
@@ -66,11 +89,20 @@ import {
   MISSING_CELLS,
   REGISTER,
   SCALE_AUDIT_FINDINGS,
+  UNIFORM_REGIONS,
+  absorbedBy,
+  absorbedCellDigest,
+  absorbingBlockRules,
   auditFindingRulings,
   auditRegister,
+  blockRuleAbsorption,
+  blockRuleAbsorptionPins,
+  classify,
   leafCensus,
   numericLeafPathDigest,
+  numericLeafPaths,
   numericLeaves,
+  type RegisterRule,
   type ScaleAuditFinding,
 } from "../src/knownTruth/docConformance.js";
 
@@ -78,21 +110,162 @@ import {
  * The tree as committed at the audit. NOT a target — a denominator. If it moves, the register was
  * measured against a different tree and the reading needs re-doing, which is the whole point of
  * pinning it.
+ *
+ * **699 → 706 at ADR-048** (roadmap 2a, contest-conditioned openness gain). Re-recorded as the RULED
+ * state: the owner ruled the shape on ADR-046, the engine derived the ladder in ADR-048 §2.2/§2.3,
+ * and §8.7 of `docs/design/match-engine.md` carries the amendment. Not a transcription — the seven
+ * cells are named as a SET below and each is classified by a rule written about it.
  */
-const RECORDED_NUMERIC_CENSUS = 699;
+const RECORDED_NUMERIC_CENSUS = 706;
 
 /**
- * The same subject as a SET rather than a size. Re-cut at ADR-040 (`d20Offset` → `baseHalfWidth`).
+ * The same subject as a SET rather than a size. Re-cut at ADR-040 (`d20Offset` → `baseHalfWidth`),
+ * again at ADR-048 (`route.contestGain.*`, +7).
  * When this reddens and the count does not, a cell was SWAPPED: diff `numericLeafPaths()` against
  * `git diff packages/engine/src/tunables.ts` and re-read the affected rule against the doc.
  */
-const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:cedf4eb9";
+const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:fbf72d08";
+
+/**
+ * ⚠ **THE RE-RECORD, AS A SET AND NOT AS A COUNT** — §4.1's count-blindness corollary applied to the
+ * act of re-recording, which is where the previous one went wrong.
+ *
+ * ADR-041 added the census/digest pair, and at ADR-048 the pair **worked**: both went red. What did
+ * NOT work is the CLASSIFICATION — the catch-all `route.*` (`STRUCTURAL`, *"Openness clamps at
+ * §8.4's 0-100 scale"*) matched all seven of these and reported them classified, so `unclassified`
+ * and `deadRules` stayed empty and the totality gate stayed green while carrying a note that is
+ * false of every one of them.
+ *
+ * So the delta is recorded by NAME. A `+7` next to a re-typed digest is a transcription; a named set
+ * with a rule per member is a reading, and the difference is the whole finding.
+ */
+const ADR_048_ADDED_PATHS: readonly string[] = [
+  "route.contestGain.burstSteps",
+  "route.contestGain.byContest.EVEN.burst",
+  "route.contestGain.byContest.EVEN.steady",
+  "route.contestGain.byContest.IN_FRONT.burst",
+  "route.contestGain.byContest.IN_FRONT.steady",
+  "route.contestGain.byContest.TRAILING.burst",
+  "route.contestGain.byContest.TRAILING.steady",
+];
 
 describe("doc-conformance register", () => {
-  it("classifies every numeric leaf of the committed tunables tree", () => {
+  it("accounts for every numeric leaf — and no longer calls a PREFIX MATCH a classification", () => {
+    // ⛔ OWNER RULING, July 2026: "a prefix rule is a classification that cannot be wrong, which
+    // means it classifies nothing. Treat every catch-all as an UNCLASSIFIED REGION WEARING A
+    // CLASSIFICATION'S NAME." So the old `classified === census.numbers` is GONE — it was true on
+    // the day seven `route.contestGain.*` cells entered wearing a note about a clamp.
     const audit = auditRegister();
     expect(audit.unclassified).toEqual([]);
-    expect(audit.classified).toBe(audit.census.numbers);
+    // The identity, which is what totality actually means now. Four populations, one denominator.
+    expect(
+      audit.classifiedNarrow +
+        audit.classifiedUniform +
+        audit.absorbed.length +
+        audit.unclassified.length,
+    ).toBe(audit.census.numbers);
+    expect(audit.classified).toBe(audit.classifiedNarrow + audit.classifiedUniform);
+    // A `UNIFORM` claim about a rule that does not exist is a claim about nothing.
+    expect(audit.danglingUniformRegions).toEqual([]);
+  });
+
+  it("REPORTS the absorbed population as its own number, because that is the honest state", () => {
+    // ⚠ THIS IS NOT A TARGET OF ZERO AND MUST NOT BECOME ONE BY TRANSCRIPTION. 206 of 706 cells —
+    // NEARLY THREE IN TEN — are matched only by a prefix rule that has not argued its note
+    // generalises. Folding them into `classified` is precisely what made ADR-048's seven cells
+    // invisible. The number goes DOWN when a rule earns `UNIFORM` with a written argument, or when
+    // its cells are named individually. It goes UP when a new catch-all is written, and it should.
+    const audit = auditRegister();
+    expect(audit.classifiedNarrow).toBe(227);
+    expect(audit.classifiedUniform).toBe(273);
+    expect(audit.absorbed).toHaveLength(206);
+    // The SET, not the size — a swap inside the absorbed region holds the count and moves this.
+    expect(absorbedCellDigest()).toBe("fnv1a:f159870b");
+  });
+
+  it("pins WHICH rules are absorbing — the register's own to-do list", () => {
+    // ⚠ THE SHAPE OF THIS LIST IS THE FINDING, and it is the opposite of the intuition: it is
+    // dominated by `DOC_VERBATIM`. A transcription is inherently a claim about the rows that were
+    // there to transcribe, so it cannot generalise to a row added tomorrow — whereas "the doc
+    // specifies nothing in this block" covers cells nobody has written yet. THE REGISTER IS ON
+    // FIRMEST GROUND EXACTLY WHERE THE DOC IS EMPTIEST.
+    expect(absorbingBlockRules()).toEqual([
+      "traitBonuses.*",
+      "clock.*",
+      "zoneModel.verticalUpperYards.*",
+      "presnap.blitzRecognition.disguise.*",
+      "passRush.bands.*",
+      "passRush.*",
+      "stunt.complexity.*",
+      "blitzPickup.*",
+      "pocket.accuracyModifier.*",
+      "pocket.readCapacityDelta.*",
+      "release.bands.*",
+      "route.readySeconds.*",
+      "qb.extraReads.*",
+      // ⚠ ADR-040's OWN CELL IS STILL IN AN ABSORBING REGION. `qb.awarenessVariance.*` is where
+      // `d20Offset` left and `baseHalfWidth` arrived at net zero — the swap that bought the path
+      // digest. Its note now NAMES both cells, which is why it is accurate; it is still a prefix
+      // rule, so a third cell would inherit that note in silence. The digest would catch it; the
+      // classification still would not.
+      "qb.awarenessVariance.*",
+      "qb.window.*",
+      "qb.timeBudget.*",
+      "qb.decision.*",
+      "qb.pressureSensing.*",
+      "throwExec.lane.velocityModifier.*",
+      "throwExec.accuracy.depthModifier.*",
+      "throwExec.accuracy.throwTypeModifier.*",
+      "throwExec.accuracy.*",
+      "catching.routine.*",
+      "catching.contested.positionModifier.*",
+      "catching.contested.*",
+      "tippedBall.baseTargetByHeight.*",
+      "tippedBall.velocityModifier.*",
+      "tippedBall.recovery.proximityModifier.*",
+      "tippedBall.recovery.attrTerms.*",
+      "tippedBall.recovery.situational.*",
+      "tippedBall.recovery.traits.*",
+      "ballCarrier.catchTransition.byThrowType.*",
+      "ballCarrier.contests.atLosEvade.bands.*",
+      "ballCarrier.contests.*",
+      "ballCarrier.carrierTraits.*",
+      "ballCarrier.tacklerTraits.*",
+      "ballCarrier.pursuitAngle.*",
+      "ballCarrier.breakaway.traits.*",
+      "ballCarrier.breakaway.bands.*",
+      "ballCarrier.breakaway.*",
+      "ballCarrier.blockInSpace.bands.*",
+      "ballCarrier.blockInSpace.traits.*",
+      "ballCarrier.blockInSpace.*",
+      "runBlock.traits.*",
+      "runBlock.bands.*",
+      "runBlock.secondLevelClimb.*",
+      "runBlock.*",
+      "runGame.vision.*",
+      "runGame.pointOfAttack.bands.0.*",
+      "runGame.pointOfAttack.bands.1.*",
+      "runGame.pointOfAttack.bands.*",
+    ]);
+    // 51 absorbing, 32 uniform, 83 block rules. Stated so a rule that quietly stops being either is
+    // visible as an arithmetic failure and not only as a list diff.
+    expect(absorbingBlockRules().length + UNIFORM_REGIONS.length).toBe(
+      REGISTER.filter((r) => r.pattern.split(".").at(-1) === "*").length,
+    );
+  });
+
+  it("cannot claim UNIFORM without stating why it generalises", () => {
+    // The `why` is the whole content of a UNIFORM claim: it is an argument that the note survives a
+    // member added tomorrow. An empty one is the fourth-shape failure — a field that looks like a
+    // justification and is not.
+    const silent = UNIFORM_REGIONS.filter((r) => r.why.trim().length < 40).map((r) => r.pattern);
+    expect(silent).toEqual([]);
+    // And every UNIFORM pattern must be a rule that could actually absorb. A narrow rule declared
+    // UNIFORM would be a claim with no subject.
+    const notBlockRules = UNIFORM_REGIONS.filter(
+      (r) => r.pattern.split(".").at(-1) !== "*",
+    ).map((r) => r.pattern);
+    expect(notBlockRules).toEqual([]);
   });
 
   it("carries no stale rule — a deleted cell reddens the register, not just an added one", () => {
@@ -108,6 +281,24 @@ describe("doc-conformance register", () => {
     // ADR-040: `d20Offset` out, `baseHalfWidth` in, both under `qb.awarenessVariance.*`, net zero.
     // The count held and a new cell inherited a stale classification in silence.
     expect(numericLeafPathDigest()).toBe(RECORDED_NUMERIC_PATH_DIGEST);
+  });
+
+  it("names ADR-048's seven cells as a SET, each under a rule written about it", () => {
+    // The re-record, in the shape §4.1 asks for. `+7` is a count; this is the subject.
+    const paths = new Set(numericLeafPaths());
+    expect(ADR_048_ADDED_PATHS.filter((p) => !paths.has(p))).toEqual([]);
+    // ⛔ AND THE HALF THAT WAS ACTUALLY BROKEN. Every one of the seven must be classified by a rule
+    // whose pattern is ABOUT `contestGain` — not by whatever catch-all happens to sit above it.
+    // Under the pre-ADR-048 register all seven answered `route.*`, and nothing in this file noticed.
+    const wrongOwner = ADR_048_ADDED_PATHS.filter(
+      (p) => !(classify(p)?.pattern ?? "").startsWith("route.contestGain"),
+    );
+    expect(wrongOwner).toEqual([]);
+    // The seven are `INTERPRETATION`: §8.7's amendment says in terms that the rate mapping is the
+    // engine's to DERIVE. They are NOT `STRUCTURAL`, which is what the catch-all called them.
+    expect([...new Set(ADR_048_ADDED_PATHS.map((p) => classify(p)?.provenance))]).toEqual([
+      "INTERPRETATION",
+    ]);
   });
 
   it("declares its exclusion TOTALLY — every leaf lands in one of the three buckets", () => {
@@ -229,6 +420,150 @@ describe("doc-conformance register", () => {
     expect(auditFindingRulings([dangling]).danglingRuledPaths).toEqual([
       "SYNTHETIC-DANGLING manCoverage.bands.99.openness",
     ]);
+  });
+
+  // -------------------------------------------------------------------------------------------
+  // BLOCK-RULE ABSORPTION — ADR-048's finding, made structural
+  // -------------------------------------------------------------------------------------------
+
+  it("pins what each BLOCK rule absorbs, because a catch-all goes stale by absorbing", () => {
+    // ⛔ WHAT WOULD MAKE THIS GO RED (backlog entry 55, recorded beside the instrument):
+    //   a numeric leaf entering or leaving the INTERIOR of a named block rule — including a
+    //   net-zero swap inside one rule, and including a REGISTER edit that re-points a cell from one
+    //   block rule to another WITHOUT the tunables tree moving at all. That last case is invisible
+    //   to every other pin in this file: the census, the path digest, `unclassified` and
+    //   `deadRules` are all functions of the TREE, and it does not move.
+    //
+    //   WHAT WOULD NOT: a note that is wrong about cells it has owned all along. That is a reading
+    //   and it has no instrument; this pin makes ABSORPTION loud, not misreading.
+    //
+    // ⚠ THE REMEDY ON RED IS NOT "RE-TYPE THE DIGEST". The failing line names the pattern. Call
+    //   `absorbedBy(pattern)`, diff the cell set, and RE-READ THAT RULE'S NOTE against what it now
+    //   owns. Re-recording without re-reading reproduces ADR-048's defect one dispatch later.
+    expect(blockRuleAbsorptionPins()).toEqual([
+      "resultTierLadder.* :: STRUCTURAL :: 9 :: fnv1a:1cfe67ec",
+      "traitBonuses.* :: DOC_VERBATIM :: 8 :: fnv1a:b1d1df0e",
+      "clock.* :: DOC_VERBATIM :: 2 :: fnv1a:8c0b642c",
+      "zoneModel.verticalUpperYards.* :: DOC_VERBATIM :: 4 :: fnv1a:fe98a685",
+      "presnap.blitzRecognition.disguise.* :: DOC_VERBATIM :: 4 :: fnv1a:89fabc1a",
+      "passRush.bands.* :: DOC_DERIVED :: 6 :: fnv1a:becac752",
+      "passRush.pressureProgressByBand.* :: INTERPRETATION :: 6 :: fnv1a:0f5eebe6",
+      "passRush.* :: DOC_VERBATIM :: 2 :: fnv1a:c6fc134e",
+      "stunt.complexity.* :: DOC_VERBATIM :: 4 :: fnv1a:76a0ded0",
+      "blitzPickup.recognitionModifier.* :: INTERPRETATION :: 2 :: fnv1a:234a5112",
+      "blitzPickup.freeRunnerPath.* :: INTERPRETATION :: 8 :: fnv1a:5cd36578",
+      "blitzPickup.bands.* :: INTERPRETATION :: 6 :: fnv1a:678eeb63",
+      "blitzPickup.* :: DOC_VERBATIM :: 2 :: fnv1a:b994fb1e",
+      "arrival.* :: INTERPRETATION :: 18 :: fnv1a:924db233",
+      "pocket.accuracyModifier.* :: DOC_VERBATIM :: 4 :: fnv1a:2edef696",
+      "pocket.readCapacityDelta.* :: TABLE_SHAPE :: 2 :: fnv1a:ae9bbb70",
+      "pocket.severity.* :: STRUCTURAL :: 4 :: fnv1a:384a330e",
+      "pocket.thresholds.* :: INTERPRETATION :: 4 :: fnv1a:454a6419",
+      "pocketMovement.* :: INTERPRETATION :: 30 :: fnv1a:84811268",
+      "scramble.visionConeByDepthClass.* :: INTERPRETATION :: 4 :: fnv1a:f1d62faf",
+      "scramble.* :: INTERPRETATION :: 9 :: fnv1a:86b2c9cb",
+      "release.bands.* :: INTERPRETATION :: 14 :: fnv1a:8d89f331",
+      "route.readySeconds.* :: DOC_UNIT_RESOLVED :: 3 :: fnv1a:0e43f0bc",
+      "route.contestGain.byContest.* :: INTERPRETATION :: 6 :: fnv1a:3e1462a7",
+      "zoneCoverage.readQb.disguise.* :: INTERPRETATION :: 3 :: fnv1a:693abc51",
+      "qb.readSystem.* :: INTERPRETATION :: 11 :: fnv1a:1a129a3a",
+      "qb.extraReads.* :: DOC_VERBATIM :: 2 :: fnv1a:00c03f48",
+      "qb.awarenessVariance.* :: DOC_VERBATIM :: 2 :: fnv1a:ef94d2e6",
+      "qb.window.* :: DOC_VERBATIM :: 5 :: fnv1a:3159403b",
+      "qb.timeBudget.* :: DOC_UNIT_RESOLVED :: 3 :: fnv1a:8df83fb3",
+      "qb.anticipation.* :: INTERPRETATION :: 13 :: fnv1a:78fbc5a3",
+      "qb.decision.* :: DOC_VERBATIM :: 2 :: fnv1a:9d375887",
+      "qb.poise.* :: INTERPRETATION :: 2 :: fnv1a:449d7872",
+      "qb.pressureSensing.* :: INTERPRETATION :: 1 :: fnv1a:cfb77e89",
+      "throwExec.armRequirements.* :: TABLE_SHAPE :: 4 :: fnv1a:88cc2405",
+      "throwExec.lane.velocityModifier.* :: DOC_VERBATIM :: 3 :: fnv1a:46146911",
+      "throwExec.lane.angleModifier.* :: DOC_VERBATIM :: 3 :: fnv1a:5a783ac6",
+      "throwExec.accuracy.depthModifier.* :: DOC_VERBATIM :: 5 :: fnv1a:1734bfca",
+      "throwExec.accuracy.throwTypeModifier.* :: DOC_VERBATIM :: 4 :: fnv1a:1e19130c",
+      "throwExec.accuracy.* :: DOC_VERBATIM :: 2 :: fnv1a:4243d445",
+      "catching.routine.* :: DOC_VERBATIM :: 2 :: fnv1a:022b45c3",
+      "catching.contested.positionModifier.* :: DOC_VERBATIM :: 3 :: fnv1a:2293932a",
+      "catching.contested.* :: DOC_VERBATIM :: 6 :: fnv1a:c8cf99fe",
+      "tippedBall.baseTargetByHeight.* :: DOC_VERBATIM :: 8 :: fnv1a:e25a7b4c",
+      "tippedBall.heightStepsByThrowType.* :: INTERPRETATION :: 4 :: fnv1a:6931f528",
+      "tippedBall.velocityModifier.* :: DOC_VERBATIM :: 4 :: fnv1a:1d304f3c",
+      "tippedBall.weatherModifier.* :: DOC_GAP :: 6 :: fnv1a:45c32b0f",
+      "tippedBall.recovery.proximityModifier.* :: DOC_VERBATIM :: 3 :: fnv1a:f2b78244",
+      "tippedBall.recovery.attrTerms.* :: DOC_VERBATIM :: 5 :: fnv1a:fd76d73d",
+      "tippedBall.recovery.situational.* :: DOC_VERBATIM :: 5 :: fnv1a:0bb6c300",
+      "tippedBall.recovery.traits.* :: DOC_VERBATIM :: 3 :: fnv1a:d5a4170a",
+      "ballCarrier.verticalDepthYards.* :: INTERPRETATION :: 5 :: fnv1a:ebc84859",
+      "ballCarrier.catchTransition.byAccuracyBand.* :: DOC_VERBATIM :: 6 :: fnv1a:c35d9dc0",
+      "ballCarrier.catchTransition.byThrowType.* :: DOC_VERBATIM :: 4 :: fnv1a:8d9d6820",
+      "ballCarrier.yacMultiplierByAccuracyBand.* :: INTERPRETATION :: 6 :: fnv1a:a73dea42",
+      "ballCarrier.contests.yac.bands.4.* :: DOC_DERIVED :: 3 :: fnv1a:1866aa6a",
+      "ballCarrier.contests.secondLevel.bands.2.* :: DOC_DERIVED :: 3 :: fnv1a:5491a235",
+      "ballCarrier.contests.atLosPower.bands.* :: INTERPRETATION :: 6 :: fnv1a:4945cd8c",
+      "ballCarrier.contests.atLosEvade.bands.* :: DOC_DERIVED :: 6 :: fnv1a:5149f42c",
+      "ballCarrier.contests.* :: DOC_VERBATIM :: 12 :: fnv1a:3f40f575",
+      "ballCarrier.carrierTraits.* :: DOC_VERBATIM :: 1 :: fnv1a:f743dd2c",
+      "ballCarrier.tacklerTraits.* :: DOC_VERBATIM :: 1 :: fnv1a:7865a482",
+      "ballCarrier.pursuitAngle.* :: DOC_VERBATIM :: 3 :: fnv1a:ba967785",
+      "ballCarrier.pursuitGateZones.* :: DOC_DERIVED :: 4 :: fnv1a:68cb9e2d",
+      "ballCarrier.breakaway.traits.* :: DOC_VERBATIM :: 1 :: fnv1a:35d38856",
+      "ballCarrier.breakaway.bands.* :: DOC_DERIVED :: 3 :: fnv1a:2c4b8608",
+      "ballCarrier.breakaway.* :: DOC_VERBATIM :: 4 :: fnv1a:430b2045",
+      "ballCarrier.blockInSpace.bands.* :: DOC_DERIVED :: 3 :: fnv1a:47ab7cff",
+      "ballCarrier.blockInSpace.traits.* :: DOC_VERBATIM :: 1 :: fnv1a:cf9b20ca",
+      "ballCarrier.blockInSpace.* :: DOC_VERBATIM :: 11 :: fnv1a:18dfab43",
+      "runBlock.traits.* :: DOC_VERBATIM :: 2 :: fnv1a:54c3ea30",
+      "runBlock.bands.* :: DOC_VERBATIM :: 5 :: fnv1a:2d2be48f",
+      "runBlock.gapIntegrity.bands.* :: INTERPRETATION :: 2 :: fnv1a:dc541238",
+      "runBlock.secondLevelClimb.* :: DOC_VERBATIM :: 5 :: fnv1a:336f3da2",
+      "runBlock.* :: DOC_VERBATIM :: 6 :: fnv1a:509e84dc",
+      "runGame.phaseTicks.* :: INTERPRETATION :: 3 :: fnv1a:57186773",
+      "runGame.vision.* :: DOC_VERBATIM :: 3 :: fnv1a:09d7aaac",
+      "runGame.pointOfAttack.bands.0.* :: DOC_VERBATIM :: 3 :: fnv1a:fdb5eab1",
+      "runGame.pointOfAttack.bands.1.* :: DOC_VERBATIM :: 3 :: fnv1a:179b7c50",
+      "runGame.pointOfAttack.bands.* :: DOC_DERIVED :: 6 :: fnv1a:b54cd0d4",
+      "result.* :: DOC_GAP :: 8 :: fnv1a:86dc06e6",
+      "chemistry.* :: INTERPRETATION :: 4 :: fnv1a:12e843ac",
+      "game.* :: OUT_OF_SCOPE :: 71 :: fnv1a:d1c07bc6",
+    ]);
+  });
+
+  it("REDDENS on the case it exists for — THE ADR-048 REGISTER, replayed", () => {
+    // Not a description of the defect: the defect. This is `REGISTER` as it stood when ADR-048
+    // landed — the two `route.contestGain` rules removed, the catch-all `route.*` restored — run
+    // against the SAME committed tree. Every other pin in this file is green on it, because the
+    // tree is byte-identical; only the classification differs.
+    const asItStood: readonly RegisterRule[] = [
+      ...REGISTER.filter((r) => !r.pattern.startsWith("route.contestGain") && r.pattern !== "route.maxOpenness" && r.pattern !== "route.minOpenness"),
+      {
+        pattern: "route.*",
+        provenance: "STRUCTURAL",
+        docRef: "§8.4",
+        note: "Openness clamps at §8.4's 0-100 scale.",
+      },
+    ];
+    const pins = blockRuleAbsorptionPins(undefined, asItStood);
+    const routeStar = pins.find((p) => p.startsWith("route.* ::"));
+    // NINE cells under a note about a clamp: `maxOpenness`, `minOpenness`, and ADR-048's seven.
+    expect(routeStar).toBe("route.* :: STRUCTURAL :: 9 :: fnv1a:73ec85a6");
+    expect(pins).not.toEqual(blockRuleAbsorptionPins());
+    // ⚠ AND THIS IS THE POINT. On that register the totality gate is still GREEN — every cell
+    // classified, no dead rule — which is why the defect survived a dispatch.
+    const stale = blockRuleAbsorption(undefined, asItStood);
+    expect(stale.some((a) => a.pattern === "route.*" && a.cells.length === 9)).toBe(true);
+  });
+
+  it("`absorbedBy` is the diff tool the failing pin sends you to", () => {
+    expect([...absorbedBy("route.contestGain.byContest.*")]).toEqual([
+      "route.contestGain.byContest.EVEN.burst",
+      "route.contestGain.byContest.EVEN.steady",
+      "route.contestGain.byContest.IN_FRONT.burst",
+      "route.contestGain.byContest.IN_FRONT.steady",
+      "route.contestGain.byContest.TRAILING.burst",
+      "route.contestGain.byContest.TRAILING.steady",
+    ]);
+    // A NARROW rule owns cells too; `absorbedBy` answers for any pattern, which is what makes the
+    // route.* → named-cells repair checkable rather than merely asserted in a comment.
+    expect([...absorbedBy("route.maxOpenness")]).toEqual(["route.maxOpenness"]);
   });
 
   it("records the TABLE_SHAPE population — RIDER 1's whole subject", () => {

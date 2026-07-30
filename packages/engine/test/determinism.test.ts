@@ -313,6 +313,55 @@ describe("determinism (Charter pillar 5)", () => {
     expect(sacks).toBeGreaterThan(0);
   });
 
+  /**
+   * ADR-048 — the openness gain is now conditioned on the coverage rep, so the
+   * hold/throw decision reads a different number at every tick after a break and
+   * the branch structure of a play depends on which contest class each receiver's
+   * rep produced. A replay test that never sees all three classes proves nothing
+   * about the branch this dispatch introduced.
+   *
+   * ⚠ WHAT WOULD MAKE THIS GO RED? Any nondeterminism reachable from the new
+   *   code path — the obvious one being an `Object.entries` order dependence or a
+   *   `Map` iteration in the gain lookup, neither of which the other determinism
+   *   cases would exercise, because none of them looks up a rate by contest.
+   *
+   * ⚠ AND THE COVERAGE ASSERTIONS AT THE FOOT ARE NOT DECORATION. They are what
+   *   separates *"the replay is deterministic"* from *"the replay is
+   *   deterministic over the cases this loop happened to produce"*. All three
+   *   classes must appear, and the post-break tick count must be non-zero, or the
+   *   gain term never ran at all and this case is asserting nothing.
+   */
+  it("survives ADR-048's contest-conditioned gain: all three classes replay identically", () => {
+    const seen = new Set<string>();
+    let postBreakTicks = 0;
+    for (const build of [buildScenario, buildZoneScenario, buildMixedCoverageScenario, buildStalledPocketScenario]) {
+      for (let i = 0; i < 40; i++) {
+        const a = build();
+        const b = build();
+        const first = simulatePassPlay(a.state, a.calls, `adr048-determinism-${i}`);
+        const second = simulatePassPlay(b.state, b.calls, `adr048-determinism-${i}`);
+        expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+        expect(JSON.stringify(second.newState)).toBe(JSON.stringify(first.newState));
+
+        // Which contest classes this play actually produced, read from the rep's
+        // own band rather than from anything this test declares.
+        for (const { event } of first.events) {
+          if (event.type === "CHECK" && event.payload.checkKind === "man_coverage") {
+            const row = TUNABLES.manCoverage.bands.find((r) => r.label === event.payload.band);
+            if (row !== undefined) seen.add(row.contest);
+          }
+          if (event.type === "CHECK" && event.payload.checkKind === "zone_coverage") {
+            const row = TUNABLES.zoneCoverage.bands.find((r) => r.label === event.payload.band);
+            if (row !== undefined) seen.add(row.contest);
+          }
+          if (event.type === "ROUTE_STATUS" && event.payload.phase === "DECAYING") postBreakTicks += 1;
+        }
+      }
+    }
+    expect([...seen].sort()).toEqual(["EVEN", "IN_FRONT", "TRAILING"]);
+    expect(postBreakTicks).toBeGreaterThan(0);
+  });
+
   it("no path in the engine emits SACK as a pocket status (ADR-033 ruling 2)", () => {
     // `PocketStatus` in @ff/contracts still PERMITS "SACK"; the engine's ladder
     // does not rank it, and this asserts the engine never emits it, over every

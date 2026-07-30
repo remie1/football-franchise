@@ -1528,6 +1528,7 @@ other thing.**
 | the pocket-ladder canonical-seed guards | the seeds' behaviour | **the text of their own file** |
 | `SURFACE`'s `UNIMPLEMENTED` set | a resolver acquiring a producer | **an edit to `SURFACE`** |
 | `orderViolations` | column ordering | **an inversion — never a tie** (entry 54) |
+| `docConformance.REGISTER`'s catch-all `route.*` | that `route.*` cells are §8.4 clamps | **NOTHING — it matches by prefix** (entry 56) |
 
 > **RULE: the answer is RECORDED ALONGSIDE THE INSTRUMENT WHEN IT IS BUILT.** Not a failing case run
 > once and reported in a dispatch — **a stated answer to "what makes this red", living next to the
@@ -1540,6 +1541,155 @@ other thing.**
 This complements the failing-case practice rather than replacing it: **the failing case proves the
 instrument CAN go red; this field states WHY it would.** A pin can pass the first and fail the second
 — which is exactly what §8.5's did.
+
+## 56. ⛔ A RULE WHOSE PREDICATE CANNOT FAIL IS NOT A RULE — the catch-all ruling
+
+**Found by ADR-048 landing in `packages/engine`, in `packages/calibration`'s own register.** Seven
+`route.contestGain.*` cells entered the tunables tree. `docConformance.REGISTER`'s catch-all
+`route.*` — `STRUCTURAL`, §8.4, *"Openness clamps at §8.4's 0-100 scale"* — matched **all seven** and
+reported them **classified**. `unclassified` empty. `deadRules` empty. **The totality gate green, and
+the note false of every one of them.** They are a derived rate ladder; the note is about a clamp.
+
+That is entry 47's **second shape** — *a claim still reading true while pointing at something new* —
+**inside the instrument built to detect it**. And the mechanism is specific to prefix matching:
+
+> **A catch-all cannot go stale by CHANGING. It goes stale by ABSORBING** — and it reports an
+> absorbed cell as *classified*, which is byte-for-byte indistinguishable from *correctly
+> classified*.
+
+### ✅ OWNER RULING (July 2026) — treat every catch-all as an unclassified region
+
+> *"What would make `route.*` go red? **Nothing — it matches by prefix.** A prefix rule is a
+> classification that cannot be wrong, which means it classifies nothing. **Treat every catch-all in
+> `REGISTER` as an UNCLASSIFIED REGION WEARING A CLASSIFICATION'S NAME.**"*
+
+**Implemented.** `auditRegister` no longer folds prefix-matched cells into `classified`;
+`classified === census.numbers` is **gone** from `docConformance.test.ts`. Four populations, one
+identity, all pinned:
+
+| population | cells | what it means |
+|---|---|---|
+| `classifiedNarrow` | **227** | one rule, one cell — a claim that can be wrong |
+| `classifiedUniform` | **273** | a prefix rule that ARGUED its note survives a member added tomorrow |
+| **`absorbed`** | **206** | **a prefix rule that did not. 29.2% of the tree** |
+| `unclassified` | 0 | asserted empty, as before |
+
+**32 of 83 block rules earn `UNIFORM`; 51 do not**, and the 51 are pinned by name as the register's
+own to-do list. Absorbing is the **default** — silence means *not classified*, so a catch-all written
+tomorrow cannot be forgotten into a false green. Claiming `UNIFORM` requires an explicit entry with a
+written argument.
+
+**⚠ THE SHAPE OF THE ANSWER IS THE FINDING, AND IT INVERTS THE INTUITION.** Almost every `UNIFORM`
+region is one where **the doc says nothing** — *"§7.2's KNOWN ISSUE box says there is no arrival
+model, so every number in this block is engine structure"* generalises perfectly, because silence
+covers cells nobody has written yet. Almost every **`DOC_VERBATIM`** block rule is **absorbing**,
+because a transcription is inherently a claim about *the rows that were there to transcribe*. **The
+register is on firmest ground exactly where the doc is emptiest.**
+
+**An absorbing rule is not a wrong rule.** Most of the 51 are accurate today. The finding is that
+their accuracy is defended by nothing.
+
+### 🛡 THE SECOND LAYER CAUGHT WHAT THE FIRST MISSED — a first for this project
+
+> **OWNER:** *"The classification rule failed and the guard that exists BECAUSE classification fails
+> caught it. That's defense-in-depth working exactly as intended — and it is the first time in this
+> project a second layer has caught what the first missed rather than the first layer catching
+> everything."*
+
+ADR-041 added `RECORDED_NUMERIC_CENSUS` and `RECORDED_NUMERIC_PATH_DIGEST` after a net-zero swap
+slipped through a cardinality. **Both fired here, correctly, and nothing else did.** ADR-041 defended
+the restated count on the grounds that *"any change to its subject reddens it"* — written as a
+defence of a denominator, and it turned out to be a defence of the whole register against a failure
+mode ADR-041 never anticipated. **The reason it worked is that its subject is the TREE, not the
+reading**, so it is independent of every judgement the register makes. *Two layers that fail for the
+same reason are one layer.*
+
+### 📐 STANDING RULE — a catch-all is a declaration, not a shortcut
+
+Writing `x.*` is a claim that **the note's ARGUMENT, not its list, covers the subtree**. Test it with
+one question: *would this note still be true of a member added tomorrow?* If the note names cells —
+*"the two ÷5 divisors"*, *"15 / 5 / 1 / 0 / −14 / −∞ encode the doc's six rows"* — the answer is no,
+and the cells should be named individually or the region declared absorbing.
+
+### The new instrument, and what would make IT go red (entry 55)
+
+`blockRuleAbsorption` / `blockRuleAbsorptionPins` pin the cell SET each block rule owns, **attributed
+to the rule**.
+
+- **Reddens on:** a leaf entering or leaving the interior of a named block rule; a net-zero swap
+  inside one rule; **and a `REGISTER` edit that re-points a cell from one block rule to another with
+  the tunables tree unmoved** — which the census, the path digest, `unclassified` and `deadRules` are
+  all structurally blind to, because every one of them is a function of the tree.
+- **Does NOT redden on:** a note that is wrong about cells it has owned all along. That is a reading
+  and it has no instrument. This makes ABSORPTION loud, not misreading.
+- **The remedy on red is not "re-type the digest".** The failing line names the pattern; call
+  `absorbedBy(pattern)`, diff the set, re-read that rule's note. Its failing case is the ADR-048
+  register replayed — the two `contestGain` rules removed, `route.*` restored — which shows `route.*`
+  owning nine cells while every other pin in the file stays green.
+
+## 56b. ✅ OWNER RULING (July 2026) — ADR-048 §6's open boundary case is CLOSED
+
+**Recorded here because the ruling arrived in a `calibration` dispatch and the artefacts it closes
+live in `packages/engine`.** ⚠ **`docs/design/match-engine.md` §8.7's amendment still carries the
+paragraph beginning *"ONE BOUNDARY CASE IS BROUGHT RATHER THAN TIDIED, AND IS OPEN"*, and ADR-048 §6
+is still headed OWED TO THE OWNER. Both are `match-engine`'s to update; calibration reports and does
+not edit another domain's doc.**
+
+> **RULED: *"the route's live window"* means THE GAIN WINDOW, not everything to `clock.maxTick`.**
+>
+> So constraint 2 binds across the gain window — which is what the engine implemented (reading 1 of
+> ADR-048 §6) — and **decay proceeds rep-independently after `decayStartsAtSeconds`.** The
+> convergence of `CB_ON_HIP` and `CB_IN_POSITION` at the scale floor from tick 3.5 is **football, not
+> a defect**: by then the play is gone or has become a scramble drill in which the original rep no
+> longer describes anything.
+
+**Two sentences to carry with it, so this is not re-litigated:**
+
+1. **The test proving no ladder survives in which a lost rep does not gain** (ADR-048 §3.3 — a proof
+   over the design space, not a demonstration at one point in it) is the evidence that **the floor
+   coming forward is FORCED BY THE RULING, not chosen by the rates.** A future reader would otherwise
+   read tick-3.5 convergence as a tuning artefact and go looking for a number to move.
+2. **The cushion the flat gain gave a beaten receiver was itself the defect**, so removing it
+   *necessarily* brings the floor forward.
+
+> **What the flat gain got wrong was not that beaten receivers eventually catch up — it is that they
+> caught up BEFORE THE CONTEST COULD MATTER.**
+
+**Nothing in `packages/calibration` changes.** Recorded so the ruling is not held only in a dispatch.
+
+## 56a. ✅ AN OBSERVATION WAS FALSIFIED, AND THE RESTRAINT THAT KEPT IT AN OBSERVATION IS VINDICATED
+
+**ADR-045 §3a.4 noticed that the 24-game fence's three TIP digits (273 / 166 / 107) were unchanged
+across a re-baseline** that moved every football digit, and said explicitly: *do not promote this to
+a law; if a future change moves them, that is a corpus count behaving like a corpus count.*
+
+**ADR-048 moved them: 273 → 249, 166 → 149, 107 → 100.** Had the observation been promoted, there
+would now be a false claim in the record **with a gate behind it** — and the repair available would
+have been to re-type three numbers, which is how stale copies are manufactured. **Nothing was
+compensated.**
+
+> ### 📐 STANDING RULE — record the observation, refuse the law, and say which you did
+>
+> A coincidence noticed while measuring something else is **evidence of nothing until a mechanism is
+> named**. Write it down (it may be a lead), state in the same breath that it is not promoted, and
+> **name what would falsify it**. The cost of the discipline is one sentence; the cost of skipping it
+> is a gate defending a coincidence.
+>
+> ADR-048 §2.3 applied the same restraint prospectively and in the harder direction: a two-tick burst
+> happens to reproduce the flat gain's total on a QUICK route, and the ADR records the coincidence
+> **after** the derivation with *"noted so nobody later mistakes it for the derivation"*. Picking a
+> value because a downstream quantity lands somewhere is the compensation-debt pattern.
+
+### 🔒 AND THE STRUCTURAL HALF DID NOT MOVE — FOURTH INDEPENDENT CONFIRMATION OF ADR-036
+
+Over the same corpus in which every football digit **and** every tip digit moved, `deadEligible`,
+`deadRecoveryChecks`, `deadCarryingTheKey`, `deadClaimingRecoverable` and `liveMissingTheKey` all
+read **0**, and `liveTargets` still reads §12.2's five real thresholds.
+
+**That is the strongest version of ADR-036's claim this fence has produced**, and it is stronger
+precisely *because* the counts around it moved: a structural invariant that survives a corpus whose
+every quantity changed is not being held up by a stable population. **An absence must look like an
+absence** — and it still does, four re-baselines in (ADR-035/036, ADR-040, ADR-045, ADR-048).
 
 ## 55a. Two fourth-shape instruments: guards that measure their own file
 
@@ -1616,6 +1766,68 @@ recorded nulls for the same pattern.
 > and the instrument is now built. Explicitly NOT suspect: the six `DEAD_CELL_PROBES` and ADR-035
 > §6.1's 0.000% exclusive reach, because **a byte-identical whole-corpus digest is a total comparison
 > and not a rate** — composition cannot shift inside an identical stream.
+
+> ### ✅ THE OWNER'S NAMED ITEM IS DONE — `freeRunnerArrivalSeconds` re-measured at PLAY SCOPE
+>
+> `test/freeRunnerArrivalPlayScope.test.ts`. **496 games, seeds `fnv1a:020c1dcb#496` — the same list
+> §6.2 priced the path term on — 68,730 plays, each replayed under both trees.** (68,730 against
+> §6.2's 68,934: ADR-048 moved the engine, so it is a different 496 games' worth of plays. The seeds
+> are the identity, not the play count.)
+>
+> | arm | RAW | EXCL. stream | EXCL. outcome | isolation |
+> |---|---|---|---|---|
+> | **entry 36's step, 1.5 → 2.0** | 6,196 (9.015%) | **6,196 (1.00×)** | **1,269 (1.846%)** | **0** |
+> | **single-cell ceiling, 1.5 → 4.0** | 6,196 (9.015%) | **6,196 (1.00×)** | **1,319 (1.919%)** | **0** |
+>
+> Complement 62,534 plays, digest-identical in both arms. **ISOLATION is a total comparison over
+> every play the predicate rejects**, and it is 0 in both arms — so the predicate names the mechanism
+> and the counts may be quoted.
+>
+> **1. ⛔ THE STREAM COUNT CAME BACK DEGENERATE — EXACTLY 1.00×.** Every governed play's stream moves,
+> because `etaTick` is PUBLISHED on `RUSH_THREAT`. §6.2 measured 4.09× for the path term and warned
+> that quoting it is *"a raw count wearing an exclusive count's name"*; **this is that warning's
+> limiting case.** Standing consequence: **when a subject is published, the stream count approaches
+> RAW and only the OUTCOME column is a measurement.**
+>
+> **2. THE CELL SATURATES INSIDE ITS FIRST HALF-TICK — and that is the mechanism behind both recorded
+> nulls.** A 0.5s move decides 1,269 outcomes; a **2.5s** move — five times as large, and the largest
+> this cell can make without touching `maxArrivalSeconds` — decides **1,319. Five times the move buys
+> 3.9% more decided plays.** ⚠ A count equality is not set containment and the overlap was not
+> measured, so this says the POPULATION saturates, not that the same plays move. That is enough:
+> **rungs above 2.0 have almost nothing left to decide**, which is why ADR-030's whole grid moved
+> pressure by 0.20pp and why **entry 36's adjacent-step RANKING failed to replicate** at 8 × 496
+> games. Entry 36's rule — *replication count governs RANKING claims* — now has its reason measured
+> rather than inferred.
+>
+> **3. THE NULL IS "SWAMPED", NOT "NO EFFECT".** 1.846% of plays, roughly **8× the path term's
+> 0.226%** on the same clock. ADR-030's grid figures are not disputed and not re-measured; an
+> exclusive count bounds WHERE a change acts, never HOW MUCH.
+>
+> **4. ⛔ THE SINGLE-CELL CEILING IS THE CLAMP, AND IT IS REPORTED NOT ROUTED AROUND.**
+> `freeRunnerArrivalSecondsFor` clamps to `[0.5, 4.0]`, so **this cell cannot be "extinguished"
+> alone** — ADR-030's extinguishment arm necessarily moved `maxArrivalSeconds` too, making it a JOINT
+> arm. Raising the clamp here to reach a bigger number would price two cells and report it as one
+> (attribution rule 2).
+>
+> **5. ADJACENT, NOT CHASED.** 9.015% of plays carry a free runner and 1.846% have their outcome
+> decided by when he arrives. Consistent with **entry 40's redirect — pressure is a SUPPLY problem** —
+> since at a ~89% pressure rate one channel's clock rarely changes the pocket status. *Consistent
+> with is not evidence for*; not priced here.
+>
+> ### ⏳ STILL OWED — the remaining set, NAMED (§4.1's count-blindness corollary)
+>
+> **Four subjects, not "a few":** `pocket.minimumStatusByBand.RUSHER_GAINING` (ADR-032 candidate 1,
+> 2.395pp); `arrival.pressureWithinSeconds` (ADR-032 candidate 2, 2.600pp — **and its JOINT arm, the
+> more suspect of the two, because a near-separability claim rests on two composition-bearing
+> rates**); `ballCarrier.contests.*.bands.0.minYards` (entry 44 — **not a null**; the prices moved and
+> what is missing is an EXCLUSIVE count beside the raw reach); `URGENCY_MEASURES.recordedSteps`
+> (low priority — the gate's claim is an ORDERING, which flat steps do not threaten, but the numbers
+> are quotable). `passRush.blockerStructuralAdvantage` remains **OWED, LOW VALUE**: a saturated
+> 100.000% ± 0.000 is not a differenced rate and composition cannot hide inside it.
+>
+> **The first two are `packages/engine`'s to price at play scope if the Orchestrator prefers** —
+> ADR-048 §7.3 records that `packages/engine/test/harness/playScope.ts` reaches both without a
+> calibration dispatch.
 
 ## 45. `GIFT` / `FLOATER` — DECLARED ABSTENTION, and why a targeted fixture is the wrong fix
 

@@ -39,6 +39,16 @@
  * not, and they must be re-read rather than inherited. Where a reading is load-bearing it cites the
  * doc line so the next reader can falsify it in one lookup rather than re-deriving it.
  *
+ * **ALSO ELIMINATED, AS OF ADR-048 — a CATCH-ALL RULE QUIETLY ACQUIRING A CELL IT WAS NOT WRITTEN
+ * ABOUT.** `blockRuleAbsorption` pins the cell SET every trailing-`*` rule owns, attributed to that
+ * rule. ADR-048 added seven `route.contestGain.*` cells; the catch-all `route.*` (*"Openness clamps
+ * at §8.4's 0-100 scale"*) matched all seven, `unclassified` stayed empty, `deadRules` stayed empty
+ * and **the totality gate stayed green while carrying a note false of every one of them**. The
+ * count and the path digest DID redden — ADR-041's pair working — but they redden for the whole
+ * tree at once and name no rule, so the remedy they invite is *re-record*, and re-recording re-reads
+ * nothing. **A catch-all cannot go stale by CHANGING; it goes stale by ABSORBING, and it reports an
+ * absorbed cell as `classified`, which is indistinguishable from `correctly classified`.**
+ *
  * **AND ONE THING NOTHING HERE REACHES: the register's PROSE.** Every `note`, `headline` and
  * `ruling` string below is zero-enforcement and maximum-authority — the shape §4.1 calls the
  * extreme case. The pins make a stale VALUE loud; a stale SENTENCE beside a correct value is still
@@ -268,7 +278,21 @@ function matches(rule: RegisterRule, path: string): boolean {
 }
 
 export function classify(path: string): RegisterRule | undefined {
-  return REGISTER.find((rule) => matches(rule, path));
+  return classifyIn(REGISTER, path);
+}
+
+/**
+ * The same lookup against an ARBITRARY rule list.
+ *
+ * It exists so `blockRuleAbsorption`'s failing case can be the ADR-048 defect itself — the register
+ * as it stood, with the catch-all in place — rather than a description of it. Charter §4.1: an
+ * instrument with no failing case is not yet an instrument.
+ */
+export function classifyIn(
+  register: readonly RegisterRule[],
+  path: string,
+): RegisterRule | undefined {
+  return register.find((rule) => matches(rule, path));
 }
 
 // ---------------------------------------------------------------------------
@@ -324,7 +348,12 @@ export const REGISTER: readonly RegisterRule[] = [
     pattern: "zoneModel.verticalUpperYards.*",
     provenance: "DOC_VERBATIM",
     docRef: "§3.2",
-    note: "SHORT 0-10, INTERMEDIATE 10-20, DEEP 20-35 as inclusive upper bounds. Verbatim.",
+    note:
+      "SHORT 0-10, INTERMEDIATE 10-20, DEEP 20-35 as inclusive upper bounds. Verbatim. ⚠ The " +
+      "FOURTH cell is `BACKFIELD: 0`, which §3.2's list does not contain — the depth ladder needs a " +
+      "floor below SHORT and 0 is where the line of scrimmage is, so it is entailed by the scale " +
+      "rather than demanded by the column. Named here because the earlier note listed three cells " +
+      "for a rule that absorbs four, which is the ADR-048 shape in miniature.",
   },
 
   // ---- §5.3 blitz recognition ------------------------------------------------------------------
@@ -628,8 +657,14 @@ export const REGISTER: readonly RegisterRule[] = [
     provenance: "INTERPRETATION",
     docRef: "§8.8",
     note:
-      "Bands, edge penalty, urgency slope, openness gain, pursuit clock: §8.8 gives none of them " +
-      "('See Phase 6 for full resolution', a phase the doc never writes).",
+      "EN BLOC, and the note is written to be true of the whole subtree rather than of a list: " +
+      "§8.8 specifies NOTHING here ('See Phase 6 for full resolution', a phase the doc never " +
+      "writes), so every remaining `scramble` leaf is engine judgement. Today that is the four " +
+      "bands, the edge penalty, the urgency slope, the pursuit clock, the flat openness gain and " +
+      "`maxOpenness: 85` — an 85 cap on §8.4's 0-100 scale, which the earlier note omitted. ⚠ " +
+      "`scramble.opennessGainPerTick` is the flat gain ADR-046's argument applies to verbatim; " +
+      "ADR-048 §7.6 NAMED it and deliberately did not expand into it, because §8.8's receiver has " +
+      "abandoned his route and there may be no rep to condition on. Named here, not owed.",
   },
 
   // ---- §9.1 release ----------------------------------------------------------------------------
@@ -710,11 +745,53 @@ export const REGISTER: readonly RegisterRule[] = [
     note: "'after 3.0 ticks' read as 3.0 seconds. See SA-06.",
     finding: "SA-06",
   },
+  /**
+   * ⚠ ADR-048's SEVEN CELLS, AND THE RULE THAT SILENTLY SWALLOWED THEM.
+   *
+   * These arrived under the catch-all `route.*` — `STRUCTURAL`, §8.4, *"Openness clamps at §8.4's
+   * 0-100 scale"* — which is **false of every one of them**: they are a derived rate ladder, not a
+   * clamp. `unclassified` stayed empty, `deadRules` stayed empty, and the totality gate stayed
+   * GREEN. The count and the path digest fired; the CLASSIFICATION did not. See `BLOCK_RULE_ABSORPTION`
+   * below for the structural repair, and this file's `route.*` entry — which no longer exists,
+   * because the two cells it legitimately covered are now named.
+   */
   {
-    pattern: "route.*",
+    pattern: "route.contestGain.burstSteps",
+    provenance: "INTERPRETATION",
+    docRef: "§8.7 AMENDMENT (owner ruling on ADR-046) + §9.2; derived in ADR-048 §2.3",
+    note:
+      "2 ticks. §8.7 states its rates PER TICK, so the burst is an integer number of ticks; the " +
+      "MULTIPLE is read off §9.2's 'Jam at line: +0.5 to +1.0 ticks', the only quantity in the doc " +
+      "measuring how long a break is in progress. ⚠ §8.7's amendment now contains the sentence " +
+      "'with a burst window of two ticks' — that is a RECORD OF WHAT LANDED, not the specification " +
+      "it was derived from, and reading it as DOC_VERBATIM would make the doc cite the engine " +
+      "citing the doc. Classified against what §8.7 SPECIFIES, which is a shape and two constraints.",
+  },
+  {
+    pattern: "route.contestGain.byContest.*",
+    provenance: "INTERPRETATION",
+    docRef: "§8.7 AMENDMENT (owner ruling on ADR-046); derived in ADR-048 §2.2",
+    note:
+      "The six rates as MULTIPLES of `route.opennessGainPerTick` — TRAILING +2u/0, EVEN +1u/0, " +
+      "IN_FRONT 0/−1u — keyed on the `contest` column both band tables already carry. " +
+      "INTERPRETATION and not DOC_DERIVED: the UNIT is §8.7's own number, but the doc states no " +
+      "conditioning at all and its amendment says in terms 'The rate mapping is the engine's to " +
+      "DERIVE'. That is the doc asking for a judgement, which is this vocabulary's definition of " +
+      "INTERPRETATION. ⚠ NOT a clamp and NOT §8.4 — see the block comment above.",
+  },
+  {
+    pattern: "route.maxOpenness",
     provenance: "STRUCTURAL",
     docRef: "§8.4",
-    note: "Openness clamps at §8.4's 0-100 scale.",
+    note:
+      "100 — the top of §8.4's 0-100 scale, as a clamp. Named rather than left to a `route.*` " +
+      "catch-all: that catch-all is what absorbed ADR-048's seven cells while reporting them classified.",
+  },
+  {
+    pattern: "route.minOpenness",
+    provenance: "STRUCTURAL",
+    docRef: "§8.4",
+    note: "0 — the bottom of §8.4's 0-100 scale, as a clamp. Named for the same reason as `maxOpenness`.",
   },
 
   // §3's two spatial fakes (`defaultHorizontal`, `laneDeflectionVertical`) are STRING-valued, so
@@ -772,15 +849,56 @@ export const REGISTER: readonly RegisterRule[] = [
       "invention ADR-039 SA-01 records.",
     finding: "SA-08",
   },
+  /**
+   * ⚠ THE SECOND LIVE INSTANCE OF THE SAME SHAPE, FOUND BY THE ADR-048 SWEEP — and a WORSE one,
+   * because the classification and not just the note was wrong.
+   *
+   * `zoneCoverage.*` was `INTERPRETATION`, noted *"Uncovered openness and the settled-decay knob"* —
+   * a claim about TWO cells. It absorbed FIVE. The other three are `target: 50`,
+   * `receiverAttrDivisor: 5` and `defenderAttrDivisor: 5`, which are §9.4's opening line **verbatim**
+   * (*"Roll: d100 + (WR Route Running ÷ 5) vs. Target: 50 + (Defender Zone Coverage ÷ 5)"*). They
+   * were registered as engine judgement calls for their whole life. Nothing reddened, because a
+   * catch-all cannot go stale by changing — it goes stale by absorbing.
+   *
+   * The catch-all is GONE, not re-noted: every `zoneCoverage` leaf outside the narrow rules above is
+   * now named, so a cell added here lands in `unclassified` and reddens at its own path.
+   */
   {
-    pattern: "zoneCoverage.*",
+    pattern: "zoneCoverage.target",
+    provenance: "DOC_VERBATIM",
+    docRef: "§9.4",
+    note: "50 — §9.4's 'vs. Target: 50 + (Defender Zone Coverage ÷ 5)'. Verbatim.",
+  },
+  {
+    pattern: "zoneCoverage.receiverAttrDivisor",
+    provenance: "DOC_VERBATIM",
+    docRef: "§9.4 / §1.3",
+    note: "WR Route Running ÷5 — §9.4's roll term. Verbatim.",
+  },
+  {
+    pattern: "zoneCoverage.defenderAttrDivisor",
+    provenance: "DOC_VERBATIM",
+    docRef: "§9.4 / §1.3",
+    note: "Defender Zone Coverage ÷5 — §9.4's target term. Verbatim.",
+  },
+  {
+    pattern: "zoneCoverage.uncoveredOpenness",
+    provenance: "INTERPRETATION",
+    docRef: "§9.4 / §8.4",
+    note:
+      "90. NOT a §9.4 row — a hole in the zone shell, which §9.4 does not price — and HELD by " +
+      "SA-08's ruling; pinned in that finding's `ruledValues` so the hold is asserted rather than " +
+      "remembered.",
+  },
+  {
+    pattern: "zoneCoverage.settledDecayPerTick",
     provenance: "INTERPRETATION",
     docRef: "§9.4 / §8.7",
     note:
-      "Uncovered openness and the settled-decay knob. The latter is the largest behavioural knob " +
-      "added by the zone pass (backlog 8a) and is marked INTERPRETATION in tunables. " +
-      "`uncoveredOpenness` (90) is NOT a §9.4 row and was HELD by SA-08's ruling; it is pinned in " +
-      "that finding's `ruledValues` so the hold is asserted rather than remembered.",
+      "0. The largest behavioural knob added by the zone pass (backlog 8a) and marked INTERPRETATION " +
+      "in tunables. ⚠ ADR-048 §2.4 made the settled curve's GAIN take `route.contestGain` while " +
+      "leaving this DECAY at 0 deliberately, so the two producers now agree on gain and differ on " +
+      "decay by design; that divergence is asserted in the engine's gate, not here.",
   },
 
   // ---- §9.3 man coverage -----------------------------------------------------------------------
@@ -1621,8 +1739,13 @@ export const REGISTER: readonly RegisterRule[] = [
     provenance: "DOC_VERBATIM",
     docRef: "§13.3 / §14.5 / §1.3",
     note:
-      "The three profiles' term divisors. STALK carries §13.3's two-term defender stack rather than " +
-      "§14.5's one — a doc-internal disagreement recorded in tunables and as backlog entry 10.",
+      "The three profiles' term divisors, every one ÷5, PLUS `LEAD.blockerBonus` and " +
+      "`STALK.blockerBonus`, both 0 — the doc states a bonus for CRACK only (§13.3's '+10 to block, " +
+      "defender not expecting', which has its own rule above) and none for the other two, so 0 " +
+      "spells the absence rather than filling it. STALK carries §13.3's two-term defender stack " +
+      "rather than §14.5's one — a doc-internal disagreement recorded in tunables and as backlog " +
+      "entry 10. The two zeroes are named because the earlier note said 'divisors' and absorbed " +
+      "eleven cells of which two are not divisors.",
   },
 
   // ---- §6 run block ----------------------------------------------------------------------------
@@ -1774,8 +1897,10 @@ export const REGISTER: readonly RegisterRule[] = [
     provenance: "INTERPRETATION",
     docRef: "§10.2 / §10.4 / ADR-008",
     note:
-      "The doc names chemistry as a modifier and never as a quantity: the neutral level, the " +
-      "established threshold and the anticipation exchange rate are all ADR-008's.",
+      "EN BLOC: the doc names chemistry as a MODIFIER and never as a QUANTITY, so every leaf here " +
+      "is ADR-008's. Today that is the neutral level, the established threshold, the anticipation " +
+      "exchange rate and `backShoulderThreshold` (65) — the last omitted by the earlier note, which " +
+      "named three cells for a rule absorbing four.",
   },
 
   // ---- the game loop ---------------------------------------------------------------------------
@@ -2283,7 +2408,26 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
 
 export interface RegisterAudit {
   readonly census: LeafCensus;
+  /**
+   * ⚠ **NO LONGER "EVERY CELL A RULE MATCHED" — OWNER RULING, July 2026.** A prefix rule is a
+   * classification that cannot be wrong, so a cell it matched has been ABSORBED, not classified.
+   * This is `classifiedNarrow + classifiedUniform`, and the absorbed population is reported beside
+   * it rather than folded into it.
+   */
   readonly classified: number;
+  /** Cells matched by a rule with NO trailing `*` — one rule, one cell, a claim that can be wrong. */
+  readonly classifiedNarrow: number;
+  /** Cells under a trailing-`*` rule listed in `UNIFORM_REGIONS` — a prefix claim that generalises. */
+  readonly classifiedUniform: number;
+  /**
+   * ⛔ **THE UNCLASSIFIED REGION WEARING A CLASSIFICATION'S NAME.** Cells matched only by a prefix
+   * rule that has NOT earned `UNIFORM`. Reported, pinned as a set, and deliberately NOT required to
+   * be empty: the honest state of the register is that a third of the tree is in here, and hiding
+   * that inside `classified` is what let ADR-048's seven cells through.
+   */
+  readonly absorbed: readonly string[];
+  /** `UNIFORM_REGIONS` entries whose pattern is not a live block rule. MUST be empty. */
+  readonly danglingUniformRegions: readonly string[];
   /** Numeric leaves no rule matched. MUST be empty. */
   readonly unclassified: readonly string[];
   /** Rules no leaf matched. MUST be empty — a stale rule is a register that has drifted. */
@@ -2301,9 +2445,13 @@ export function auditRegister(tunables: Tunables = DEFAULT_TUNABLES): RegisterAu
   const leaves = numericLeaves(tunables);
   const paths = new Set(leaves.map((l) => l.path));
   const unclassified: string[] = [];
+  const absorbed: string[] = [];
   const hit = new Set<string>();
   const byProvenance = new Map<Provenance, number>();
   const tableShapeCells: string[] = [];
+  const uniform = new Set(UNIFORM_REGIONS.map((r) => r.pattern));
+  let classifiedNarrow = 0;
+  let classifiedUniform = 0;
 
   for (const leaf of leaves) {
     const rule = classify(leaf.path);
@@ -2314,7 +2462,17 @@ export function auditRegister(tunables: Tunables = DEFAULT_TUNABLES): RegisterAu
     hit.add(rule.pattern);
     byProvenance.set(rule.provenance, (byProvenance.get(rule.provenance) ?? 0) + 1);
     if (rule.provenance === "TABLE_SHAPE") tableShapeCells.push(leaf.path);
+    // ⛔ THE OWNER'S RULING, applied at the point of counting. A prefix match is not a classification
+    // unless the rule has argued that its note generalises.
+    if (!isBlockRule(rule)) classifiedNarrow += 1;
+    else if (uniform.has(rule.pattern)) classifiedUniform += 1;
+    else absorbed.push(leaf.path);
   }
+
+  const blockPatterns = new Set(REGISTER.filter(isBlockRule).map((r) => r.pattern));
+  const danglingUniformRegions = UNIFORM_REGIONS.map((r) => r.pattern).filter(
+    (p) => !blockPatterns.has(p),
+  );
 
   const deadRules = REGISTER.filter((r) => !hit.has(r.pattern)).map((r) => r.pattern);
   const findingIds = new Set(SCALE_AUDIT_FINDINGS.map((f) => f.id));
@@ -2329,7 +2487,11 @@ export function auditRegister(tunables: Tunables = DEFAULT_TUNABLES): RegisterAu
 
   return {
     census: leafCensus(tunables),
-    classified: leaves.length - unclassified.length,
+    classified: classifiedNarrow + classifiedUniform,
+    classifiedNarrow,
+    classifiedUniform,
+    absorbed,
+    danglingUniformRegions,
     unclassified,
     deadRules,
     byProvenance,
@@ -2337,6 +2499,394 @@ export function auditRegister(tunables: Tunables = DEFAULT_TUNABLES): RegisterAu
     danglingFindings,
     danglingCells,
   };
+}
+
+// ---------------------------------------------------------------------------
+// UNIFORM REGIONS — the owner's ruling on prefix rules (July 2026)
+// ---------------------------------------------------------------------------
+
+/**
+ * ================== ⛔ A RULE WHOSE PREDICATE CANNOT FAIL IS NOT A RULE ==================
+ *
+ * **OWNER RULING, July 2026, on the ADR-048 finding:**
+ *
+ * > *What would make `route.*` go red? **Nothing — it matches by prefix.** A prefix rule is a
+ * > classification that cannot be wrong, which means it classifies nothing. **Treat every catch-all
+ * > in `REGISTER` as an UNCLASSIFIED REGION WEARING A CLASSIFICATION'S NAME.***
+ *
+ * So `auditRegister` no longer folds prefix-matched cells into `classified`. They are a **distinct
+ * reported population** (`absorbed`), and the totality identity is
+ * `classifiedNarrow + classifiedUniform + absorbed + unclassified === census.numbers`.
+ *
+ * ================== THE DEFAULT IS "ABSORBED", AND THAT IS THE DESIGN ==================
+ *
+ * A trailing-`*` rule is **ABSORBING unless it is listed below**. Silence means *not classified* —
+ * the conservative reading — so a block rule added tomorrow cannot be forgotten into a false green.
+ * Claiming a prefix rule is honest is an **explicit act with a written argument**, which is the
+ * owner's *"say which, and say why the note is true of every member rather than assuming it."*
+ *
+ * ================== THE TEST EVERY ENTRY BELOW HAD TO PASS ==================
+ *
+ * > **Would the rule's note still be true of a member added TOMORROW?**
+ *
+ * That is the only question, and it separates two things that look identical in a register:
+ *
+ *   - a note that argues about the **SUBTREE** — *"the doc specifies nothing in this block, so every
+ *     number here is engine structure"* — stays true of a cell nobody has written yet. **UNIFORM.**
+ *   - a note that argues about a **LIST** — *"the two ÷5 divisors"*, *"15 / 5 / 1 / 0 / −14 / −∞
+ *     encode the doc's six rows"* — is a claim about the cells that existed when it was written, and
+ *     a new sibling inherits it without ever being read. **ABSORBING**, however correct the note is
+ *     about its current members.
+ *
+ * ⚠ **AN ABSORBING RULE IS NOT A WRONG RULE.** Most of the fifty-odd below the line are accurate
+ * today. The finding is that their accuracy is not *defended by anything*, and ADR-048 is what that
+ * costs: seven cells entered `route.*` wearing `STRUCTURAL` / *"openness clamps"* and the totality
+ * gate stayed green.
+ *
+ * ⚠ **AND `UNIFORM` IS NOT AN EXEMPTION FROM READING.** It is a claim that the note's ARGUMENT
+ * generalises, not that any particular cell is right. `blockRuleAbsorptionPins` pins every block
+ * rule's cell set either way, so a cell arriving in a UNIFORM region is still visible at the rule
+ * that owns it — the difference is only whether the register counts it as classified.
+ */
+export interface UniformRegion {
+  /** Must equal a live trailing-`*` `RegisterRule.pattern`, asserted — no dangling claims. */
+  readonly pattern: string;
+  /** Why the note generalises to a member added tomorrow. The argument, not a restatement. */
+  readonly why: string;
+}
+
+/**
+ * The sweep the owner ordered, with a verdict and an argument per catch-all.
+ *
+ * **32 of 85 block rules earn UNIFORM. The other 53 are absorbing regions** and are listed in
+ * `docConformance.test.ts`'s pinned `absorbed` population, which is the register saying out loud how
+ * much of the tunables tree it has NOT actually classified.
+ *
+ * The shape of the answer is worth stating because it is not what a reader would guess: **almost
+ * every UNIFORM region is one where the DOC SAYS NOTHING.** *"§7.2's KNOWN ISSUE box says there is no
+ * arrival model, so every number in this block is engine structure"* generalises perfectly, because
+ * the doc's silence covers cells nobody has written yet. Whereas nearly every `DOC_VERBATIM` block
+ * rule is ABSORBING, because a transcription is inherently a claim about the rows that were there to
+ * transcribe. **The register is on firmest ground exactly where the doc is emptiest**, which is the
+ * opposite of the intuition, and it is why the absorbed population is dominated by `DOC_VERBATIM`.
+ */
+export const UNIFORM_REGIONS: readonly UniformRegion[] = [
+  {
+    pattern: "resultTierLadder.*",
+    why:
+      "The claim is that the doc has NO universal margin ladder and this is contracts vocabulary. " +
+      "True of any rung added later, because the doc's silence is the argument.",
+  },
+  {
+    pattern: "passRush.pressureProgressByBand.*",
+    why:
+      "§7.2 describes its statuses qualitatively and gives no counter at all. Any per-band delta " +
+      "added later is the engine's mechanism for the same reason — the absence covers the block.",
+  },
+  {
+    pattern: "blitzPickup.recognitionModifier.*",
+    why:
+      "§5.3 says 'protection adjusted' and gives no magnitude. Any modifier keyed on recognition is " +
+      "the engine expressing a gate as a number, which is the note's whole content.",
+  },
+  {
+    pattern: "blitzPickup.freeRunnerPath.*",
+    why:
+      "The note's own words are 'the doc contains no table here at all; EVERY number is invented " +
+      "structure'. A subtree claim, and ADR-030/031 ratified it as one.",
+  },
+  {
+    pattern: "blitzPickup.bands.*",
+    why: "§7.4 step 3 states one opposed roll and NO result table, so every row of the split is engine structure.",
+  },
+  {
+    pattern: "arrival.*",
+    why:
+      "§7.2's own KNOWN ISSUE box says the doc has no arrival model. The note says 'every number in " +
+      "this block is engine structure filling that gap' — the strongest form of a subtree argument.",
+  },
+  {
+    pattern: "pocket.severity.*",
+    why:
+      "Every member is a RANK in an ordered enum, which is what the note claims. A new status gets a " +
+      "rank and the claim holds; the ORDER itself is gated separately by `knownTruth/pocketLadder.ts`.",
+  },
+  {
+    pattern: "pocket.thresholds.*",
+    why: "The doc has no accumulated-pressure counter, so every entry requirement for it is the engine's.",
+  },
+  {
+    pattern: "pocketMovement.*",
+    why:
+      "§7.2 names the MOVE branch in one clause and specifies nothing about it; §8.8 defers to a " +
+      "phase the doc never writes. The note's 'entirely engine structure' is about the branch.",
+  },
+  {
+    pattern: "scramble.visionConeByDepthClass.*",
+    why:
+      "The standing claim is that the doc's cone is SPATIAL and the slice has no horizontal model, " +
+      "so depth class stands in for it. True of any depth class added to the table.",
+  },
+  {
+    pattern: "scramble.*",
+    why:
+      "§8.8 specifies nothing ('See Phase 6 for full resolution', a phase the doc never writes), so " +
+      "every remaining `scramble` leaf is engine judgement. Re-noted EN BLOC at ADR-048.",
+  },
+  {
+    pattern: "route.contestGain.byContest.*",
+    why:
+      "§8.7's amendment says in terms that 'the rate mapping is the engine's to DERIVE'. That is a " +
+      "claim about the MAPPING, so a rate for a contest class added later is INTERPRETATION on the " +
+      "identical argument. ⚠ The UNIT it is a multiple of is pinned by " +
+      "`route.opennessGainPerTick`'s own DOC_VERBATIM rule, not by this one.",
+  },
+  {
+    pattern: "zoneCoverage.readQb.disguise.*",
+    why:
+      "'QB Disguise' names no registry attribute and cannot be a 0-99 rating on this target " +
+      "(ADR-009). Any term the engine builds to stand in for it inherits exactly that argument.",
+  },
+  {
+    pattern: "qb.readSystem.*",
+    why:
+      "§8.1 gives each system a read rate and a progression depth and NOTHING else. Every other " +
+      "per-system number is the engine's, whichever system or field it is added for.",
+  },
+  {
+    pattern: "qb.anticipation.*",
+    why: "The anticipation mechanic is not in the design document at all (backlog 2b). The whole block is invention.",
+  },
+  {
+    pattern: "qb.poise.*",
+    why:
+      "§4.1 gives Poise a PURPOSE and no exchange rate. Any number converting Poise into relief from " +
+      "pressure is therefore the engine's, which is the note's argument rather than its list.",
+  },
+  {
+    pattern: "throwExec.armRequirements.*",
+    why:
+      "The note is a FINDING about the table's SHAPE — §10.1 has six rows keyed by throw type and " +
+      "the engine has two keyed by air yards. Any cell in this table is part of that finding, which " +
+      "is why it is anchored here rather than to a cell.",
+  },
+  {
+    pattern: "tippedBall.heightStepsByThrowType.*",
+    why: "Throw height is not modelled and §12.2 requires it; every step in this table is the declared derivation.",
+  },
+  {
+    pattern: "tippedBall.weatherModifier.*",
+    why:
+      "The whole block is zeroed because §16 is unimplemented. A weather row added later is zeroed " +
+      "for the same reason, and the note already carries the caveat about what un-zeroing costs.",
+  },
+  {
+    pattern: "ballCarrier.verticalDepthYards.*",
+    why:
+      "Every member is a REPRESENTATIVE depth inside a §3.2 band, chosen to place a standing " +
+      "defender in a §13.1 zone. The claim is about the role of the number, not its value.",
+  },
+  {
+    pattern: "ballCarrier.catchTransition.byAccuracyBand.*",
+    why:
+      "§13.2 gives two magnitudes ('+15 in stride', '−15 off balance') and the engine MAPS them onto " +
+      "§10.4's bands. The declared mapping is the claim and it covers any band.",
+  },
+  {
+    pattern: "ballCarrier.yacMultiplierByAccuracyBand.*",
+    why:
+      "The doc's column is qualitative (Full / slight / moderate / minimal / No YAC), so — the note's " +
+      "own words — 'every number is a reading'. A subtree claim.",
+  },
+  {
+    pattern: "ballCarrier.contests.yac.bands.4.*",
+    why:
+      "The row is 'Defender wins: Tackled at catch point'. The prose ENTAILS the whole row's " +
+      "geometry, so any cell describing where that tackle happens is doc-derived by the same sentence.",
+  },
+  {
+    pattern: "ballCarrier.contests.secondLevel.bands.2.*",
+    why: "'Defender wins: Tackled' — the yac twin, same entailment, same argument.",
+  },
+  {
+    pattern: "ballCarrier.contests.atLosPower.bands.*",
+    why:
+      "§14.3's STALEMATE row states one opposed roll and NO result bands. Every band here, present " +
+      "or future, is the engine supplying a table the doc does not have.",
+  },
+  {
+    pattern: "ballCarrier.pursuitGateZones.*",
+    why:
+      "The claim is which zones the DOC gates (§13.1 zone 4 'Pursuit only'; §14.4 the whole second " +
+      "level). A zone added to either list is read off the same two sentences.",
+  },
+  {
+    pattern: "runBlock.gapIntegrity.bands.*",
+    why: "§6.2 states the roll and no result table; every band of the split is the engine's, declared.",
+  },
+  {
+    pattern: "runGame.phaseTicks.*",
+    why:
+      "The note is a FINDING about the whole timeline — §14.2's phases END at 1.0/1.5/2.0 and the " +
+      "engine resolves each on the tick it ends on. A phase added later joins the same finding.",
+  },
+  {
+    pattern: "result.*",
+    why: "Dead-ball runoff and the down machinery have NO doc counterpart; the game loop needs them. Subtree.",
+  },
+  {
+    pattern: "chemistry.*",
+    why:
+      "The doc names chemistry as a MODIFIER and never as a QUANTITY, so every number here is " +
+      "ADR-008's. Re-noted EN BLOC at ADR-048 after the earlier note listed three of four cells.",
+  },
+  {
+    pattern: "game.*",
+    why:
+      "DECLARED INVENTION EN BLOC: `match-engine.md` specifies a PLAY and has no drive, clock, " +
+      "kickoff, punt, field goal or scoreboard. 71 cells, and the exclusion is the register's oldest.",
+  },
+  {
+    pattern: "throwExec.lane.angleModifier.*",
+    why:
+      "⚠ THE ONE UNIFORM CLAIM THAT IS NOT ABOUT DOC SILENCE, and it is here because SA-13 was " +
+      "found in this table. §10.3 states an angle for every lane class the type admits ('over " +
+      "defender +20, past defender +0, through zone −10') and `Record<LaneAngle, number>` closes the " +
+      "key set at compile time, so a fourth member cannot arrive without a contracts change that " +
+      "reddens the compiler first. ⚠ THE NOTE ALSO CARRIES SA-13's LESSON: the three VALUES were " +
+      "verbatim before and after ADR-040 and the defect was entirely in WHICH of them got selected — " +
+      "a string-valued mapping this register is still blind to (backlog 51).",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// BLOCK-RULE ABSORPTION — the instrument ADR-048 proved was missing
+// ---------------------------------------------------------------------------
+
+/**
+ * ================== ⚠ A CATCH-ALL CLASSIFICATION RULE IS A STALE-INHERITANCE VECTOR ==================
+ *
+ * ADR-048 added seven cells under `route.contestGain.*`. The catch-all `route.*` — `STRUCTURAL`,
+ * §8.4, *"Openness clamps at §8.4's 0-100 scale"* — matched all seven and reported them
+ * **classified**. `unclassified` was empty. `deadRules` was empty. **The totality gate was green,
+ * and the note was false of every one of the seven.**
+ *
+ * Apply backlog entry 55's diagnostic to `route.*` as it stood: *what would make this rule go red?*
+ *
+ * > **NOTHING. It matches by prefix.** A block rule cannot go stale by CHANGING — it goes stale by
+ * > **ABSORBING**, and it reports an absorbed cell as *classified*, which is byte-for-byte
+ * > indistinguishable from *correctly classified*.
+ *
+ * That is entry 47's second shape — *a claim still reading true while pointing at something new* —
+ * living inside the instrument built to detect it. `numericLeafPathDigest` DID redden (ADR-041's
+ * pair working exactly as designed) but it reddens for the whole tree at once and names no rule, so
+ * the remedy it invites is *re-record the digest*, and re-recording a digest re-reads nothing.
+ *
+ * ================== WHAT THIS ADDS, AND WHAT WOULD MAKE IT GO RED (entry 55) ==================
+ *
+ * For every rule whose pattern ends in a TRAILING `*` — the only rules that can absorb — this
+ * records the SET of cells it actually owns, as a digest, **attributed to the rule**. The pin lives
+ * in `docConformance.test.ts` as one line per block rule.
+ *
+ * | | |
+ * |---|---|
+ * | **stated subject** | which cells each block rule's note is a claim ABOUT |
+ * | **what reddens it** | a numeric leaf entering or leaving the interior of a named block rule — including a **net-zero swap inside one rule**, which the global census cannot see, and including a cell moving between two block rules, which the global digest cannot see either |
+ * | **what does NOT redden it** | a rule's note being wrong about cells it has owned all along. That is a READING, it has no instrument, and this file's header says so. This pin makes ABSORPTION loud; it does not make a misreading loud |
+ * | **what does NOT redden it, second** | a cell arriving under a NARROW rule. Those are already covered — a new path with no rule is `unclassified`, a deleted path leaves a `deadRule` |
+ *
+ * **The remedy on red is stated so it cannot be discharged by transcription:** the failing line
+ * names the pattern; call `absorbedBy(pattern)` on both trees, diff the cell sets, and **re-read
+ * that rule's note against the cells it now owns**. Re-recording the digest without doing that
+ * reproduces exactly the ADR-048 defect, one dispatch later.
+ */
+export interface BlockRuleAbsorption {
+  readonly pattern: string;
+  readonly provenance: Provenance;
+  /** Every numeric leaf for which this rule is the FIRST match — the cells its note claims to describe. */
+  readonly cells: readonly string[];
+  /** FNV-1a over `cells`, same construction as `numericLeafPathDigest`. */
+  readonly digest: string;
+}
+
+/** FNV-1a over an ordered list of strings. The digest construction shared with `numericLeafPathDigest`. */
+function digestPaths(paths: readonly string[]): string {
+  let h = 0x811c9dc5;
+  for (const path of paths) {
+    for (let i = 0; i < path.length; i++) {
+      h ^= path.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    h ^= 0x0a;
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `fnv1a:${h.toString(16).padStart(8, "0")}`;
+}
+
+/** True for a rule that can ABSORB — a trailing `*` matches one or more unnamed segments. */
+function isBlockRule(rule: RegisterRule): boolean {
+  const p = rule.pattern.split(".");
+  return p[p.length - 1] === "*";
+}
+
+/**
+ * The block rules that have NOT earned `UNIFORM` — the register's own to-do list, in `REGISTER`
+ * order. Every one is an unclassified region wearing a classification's name; the list shrinks when
+ * a rule's note is rewritten as a subtree argument, or when its cells are named individually.
+ */
+export function absorbingBlockRules(): readonly string[] {
+  const uniform = new Set(UNIFORM_REGIONS.map((r) => r.pattern));
+  return REGISTER.filter((r) => isBlockRule(r) && !uniform.has(r.pattern)).map((r) => r.pattern);
+}
+
+/**
+ * The absorbed POPULATION as a set rather than a size — §4.1's count-blindness corollary applied to
+ * the one population the register admits it has not classified. A net-zero swap inside the absorbed
+ * region holds the count and moves this.
+ */
+export function absorbedCellDigest(tunables: Tunables = DEFAULT_TUNABLES): string {
+  return digestPaths([...auditRegister(tunables).absorbed].sort());
+}
+
+/** The cells a single rule owns, by pattern. The diff tool the failing pin points at. */
+export function absorbedBy(pattern: string, tunables: Tunables = DEFAULT_TUNABLES): readonly string[] {
+  return numericLeafPaths(tunables).filter((path) => classify(path)?.pattern === pattern);
+}
+
+/** Every block rule with the cell set it owns, in `REGISTER` order. */
+export function blockRuleAbsorption(
+  tunables: Tunables = DEFAULT_TUNABLES,
+  register: readonly RegisterRule[] = REGISTER,
+): readonly BlockRuleAbsorption[] {
+  const paths = numericLeafPaths(tunables);
+  const owned = new Map<string, string[]>();
+  for (const path of paths) {
+    const rule = classifyIn(register, path);
+    if (rule === undefined) continue;
+    const list = owned.get(rule.pattern);
+    if (list === undefined) owned.set(rule.pattern, [path]);
+    else list.push(path);
+  }
+  return register.filter(isBlockRule).map((rule) => {
+    const cells = owned.get(rule.pattern) ?? [];
+    return { pattern: rule.pattern, provenance: rule.provenance, cells, digest: digestPaths(cells) };
+  });
+}
+
+/**
+ * The pinnable form: one line per block rule, `pattern :: provenance :: n :: digest`.
+ *
+ * The count rides along for legibility ONLY. It is the digest that is the claim — §4.1's
+ * count-blindness corollary applies here exactly as it does to the census, and a net-zero swap
+ * inside one block is the case ADR-041 was written about.
+ */
+export function blockRuleAbsorptionPins(
+  tunables: Tunables = DEFAULT_TUNABLES,
+  register: readonly RegisterRule[] = REGISTER,
+): readonly string[] {
+  return blockRuleAbsorption(tunables, register).map(
+    (a) => `${a.pattern} :: ${a.provenance} :: ${String(a.cells.length)} :: ${a.digest}`,
+  );
 }
 
 // ---------------------------------------------------------------------------

@@ -965,12 +965,129 @@ export const TUNABLES = {
       INTERMEDIATE: 2.0,
       DEEP: 2.5,
     },
-    /** §8.7 — routes keep developing, then coverage closes. */
+    /**
+     * §8.7 — routes keep developing, then coverage closes.
+     *
+     * ⚠ `opennessGainPerTick` IS NO LONGER APPLIED DIRECTLY. It is the UNIT of
+     *   the contest ladder below (ADR-048), and every rate in that ladder is an
+     *   integer multiple of it. It stays here, at the doc's value, under the
+     *   doc's name, for a specific reason: `packages/calibration`'s
+     *   doc-conformance register classifies this exact path `DOC_VERBATIM`
+     *   against §8.7, and it is the ONLY place §8.7's number and the engine's
+     *   number can be compared. ADR-047 §2.3 is what happens when nothing
+     *   compares them — a sibling leaf of the same name under `scramble` was
+     *   quoted through two ADRs into a ratified ruling.
+     */
     opennessGainPerTick: 5,
     opennessDecayPerTick: 5,
     decayStartsAtSeconds: 3.0,
     minOpenness: 0,
     maxOpenness: 100,
+    /**
+     * ============ §8.7's GAIN IS CONTEST-CONDITIONED (ADR-048) ============
+     *
+     * RULED July 2026, on ADR-046's option 3. The owner's football, because it
+     * governs every edge case below:
+     *
+     *   > **Separation is created at the break and then DEFENDED.** A corner who
+     *   > lost badly closes ground as the route flattens; a receiver who won
+     *   > cleanly HOLDS an advantage rather than compounding it.
+     *
+     * So the rep CONDITIONS the gain rate; it does not SCALE it. A flat gain
+     * (what this was) makes the rep decide only *when* a receiver reaches a given
+     * openness, never *whether* — hold the ball long enough and a receiver who
+     * was stonewalled clears every threshold a receiver who won cleanly cleared.
+     * Proportional was refused for the opposite failure: the gap widens forever.
+     *
+     * ------------------------------- THE KEY -------------------------------
+     *
+     * `ContestPosition` — the `contest` column both band tables already carry.
+     * NOT a new field, and NOT the raw margin.
+     *
+     *   - It is the rep's own answer to *where is the defender*, which is exactly
+     *     what governs how separation develops after the break.
+     *   - It is already ordinal and already monotone down BOTH tables
+     *     (§9.3: T T T E E E I I; §9.4: T T E I), so conditioning on it cannot
+     *     invert the openness column — which is constraint 1, satisfied by
+     *     construction rather than by inspection.
+     *   - It covers the no-rep case for free: `uncoveredContestPosition`.
+     *   - REJECTED, the raw margin: that is option 2 under another name. Keying
+     *     the RATE on a continuous margin makes a receiver who won by 30 pull
+     *     away from one who won by 10 without bound, which is what the ruling
+     *     refused. Keying on a three-class geometry means two winners' gap stays
+     *     exactly the gap their bases gave them, forever.
+     *   - REJECTED, per-band rates: twelve invented numbers with no derivation,
+     *     and a second table saying what `contest` already says.
+     *
+     * ⚠ ONE ROW READS ODDLY AND IS DELIBERATE. §9.3's `SEPARATION_HALF_YARD` is
+     *   a WR win in the doc's words ("WR wins by 1-9") and carries `EVEN`. It
+     *   therefore gets the middle rung, not the winner's. That is the SA-08
+     *   amendment's own football: *half a yard of separation is covered — the
+     *   throw has to be perfect and the defender can play the ball.* A rep that
+     *   narrowly won does not produce a receiver running away from anybody.
+     *
+     * ------------------------- THE RATES, DERIVED -------------------------
+     *
+     * §8.7 states exactly two rates: `+5` (routes develop) and `−5` (coverage
+     * closes). They are the same magnitude, so the mechanic already has a UNIT,
+     * and `opennessGainPerTick` is it. Every cell below is an INTEGER MULTIPLE of
+     * that unit and the ladder steps by exactly one unit in each direction —
+     * nothing is invented but the pattern, which is the shape the owner ruled.
+     *
+     *              burst (at the break)      steady (afterwards)
+     *   TRAILING           +2u                      0
+     *   EVEN               +1u                      0
+     *   IN_FRONT             0                     −1u
+     *
+     *   TRAILING  creates a lot at the break, then HOLDS. The steady 0 is the
+     *             ruling's *"holds an advantage rather than compounding it"*
+     *             taken literally. REJECTED: +1u steady (today's rate), because a
+     *             receiver who keeps separating for every tick the quarterback
+     *             holds is compounding — linearly rather than geometrically, but
+     *             compounding, and the ruling refused compounding.
+     *   EVEN      creates a little at the break, then holds. Nobody won; he gets
+     *             off the line and the corner stays attached.
+     *   IN_FRONT  creates nothing, and then the defender closes at §8.7's own
+     *             closing rate. This is *"a lost rep produces little or no gain,
+     *             and the defender may close"*, using the doc's number for
+     *             closing rather than a new one.
+     *
+     * ---------------------- THE BURST WINDOW, DERIVED ----------------------
+     *
+     * `burstSteps: 2` — two ticks of `clock.tickStepSeconds`, so 1.0 s.
+     *
+     * The grid is fixed by §8.7 itself: it states its rates PER TICK, so the
+     * burst is an integer number of ticks. The multiple is INTERPRETATION of the
+     * one quantity in the doc that measures how long a route's break takes —
+     * §9.2's *"Route Timing Modifiers: Jam at line: +0.5 to +1.0 ticks"*, whose
+     * upper bound is the longest the doc allows a break to be in progress.
+     *
+     *   REJECTED, one tick: for a DEEP route (`readySeconds` 2.5,
+     *   `decayStartsAtSeconds` 3.0) the gain window is one step long, so a
+     *   one-step burst IS the whole window and the *"then converges toward a
+     *   lower steady rate"* half of the ruling would never be observable on a
+     *   deep route at all.
+     *   REJECTED, the whole gain window: that is a flat gain again, just a
+     *   steeper one, and it re-creates precisely the shape the ruling refused.
+     *
+     * ⚠ OBSERVATION, RECORDED AFTER THE DERIVATION AND EXPLICITLY NOT A REASON
+     *   FOR IT: at `burstSteps: 2` a TRAILING rep on a QUICK route accumulates
+     *   `2 × 2u = 4u` over its window, which is what the flat `+1u × 4 steps`
+     *   accumulated. Deeper routes accumulate MORE than they used to and
+     *   EVEN/IN_FRONT reps accumulate less. That coincidence is noted so nobody
+     *   later mistakes it for the derivation; picking a value because a
+     *   downstream quantity lands somewhere is the compensation-debt pattern.
+     */
+    contestGain: {
+      /** How many `clock.tickStepSeconds` after the break carry the burst rate. */
+      burstSteps: 2,
+      /** Rates as MULTIPLES of `route.opennessGainPerTick`. Keyed by `ContestPosition`. */
+      byContest: {
+        TRAILING: { burst: 2, steady: 0 },
+        EVEN: { burst: 1, steady: 0 },
+        IN_FRONT: { burst: 0, steady: -1 },
+      },
+    },
   },
 
   /**

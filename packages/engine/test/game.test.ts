@@ -261,9 +261,18 @@ describe("the clock", () => {
  * scanned, forty overtimes and three ties (`ot-537`, `ot-891`, `ot-2352`) —
  * and, as every block above says, that is luck rather than evidence: it was
  * re-scanned, not assumed. Nothing about the overtime branch changed.
+ *
+ * RE-SCANNED AGAIN for ADR-048 (§8.7's openness gain becomes contest-conditioned).
+ * Same class of change and the widest yet in one respect: every coverage rep now
+ * publishes a different openness at every tick AFTER the break as well as at it,
+ * so the hold/throw decision moves on a large share of dropbacks. `ot-124` is no
+ * longer an overtime and the OT seed moves to **`ot-125`** — 1,229 seeds scanned
+ * (`ot-0`…`ot-1228`), twenty-five overtimes and three ties (`ot-891`, `ot-1027`,
+ * `ot-1228`). **The TIE seed `ot-891` survived a second time**, and that is still
+ * luck rather than evidence. Nothing about the overtime branch changed.
  */
 describe("overtime, to the extent a tie requires one", () => {
-  const overtime = simulateGameFor("ot-124");
+  const overtime = simulateGameFor("ot-125");
   const tie = simulateGameFor("ot-891");
 
   it("a tie at the end of regulation opens a fifth period", () => {

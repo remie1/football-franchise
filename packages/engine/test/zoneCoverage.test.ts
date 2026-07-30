@@ -28,6 +28,7 @@ import {
   settledOpennessAt,
   zoneCoverageBandFor,
 } from "../src/resolve/zoneCoverage.js";
+import { opennessAt } from "../src/resolve/route.js";
 import { TUNABLES } from "../src/tunables.js";
 import type {
   CoverageAssignment,
@@ -369,9 +370,32 @@ describe("§9.4 route into a zone", () => {
   });
 
   it("a receiver who found the hole SETTLES and coverage stops closing", () => {
-    const decayed = settledOpennessAt(TUNABLES, 70, 2.0, 5.0);
+    // ADR-048: the settled curve takes the rep's contest position too. SOFT_SPOT
+    // is TRAILING, which is the row this 70 comes from.
+    const decayed = settledOpennessAt(TUNABLES, 70, 2.0, 5.0, "TRAILING");
     expect(decayed).toBeGreaterThanOrEqual(70);
     expect(TUNABLES.zoneCoverage.settledDecayPerTick).toBe(0);
+  });
+
+  /**
+   * ADR-048 — the SETTLED curve and the man curve share §8.7's gain and differ
+   * only in the decay, which is what `settled` was introduced to carry. Asserted
+   * because the alternative (conditioning man's gain and not zone's) would put
+   * two producers of one §8.4 scale on two dynamics, and ADR-045 refused exactly
+   * that for the base values.
+   *
+   * ⚠ WHAT WOULD MAKE THIS GO RED? A gain term added to one curve and not the
+   *   other. It cannot see a decay divergence, which is deliberate: the decay
+   *   SHOULD differ, and asserting equality there would be asserting the opposite
+   *   of §9.4's ruling.
+   */
+  it("the settled curve gains on the SAME contest-conditioned schedule as the man curve", () => {
+    for (const contest of ["TRAILING", "EVEN", "IN_FRONT"] as const) {
+      for (const tick of [2.0, 2.5, 3.0]) {
+        expect(`${contest}@${String(tick)}: ${String(settledOpennessAt(TUNABLES, 40, 2.0, tick, contest))}`)
+          .toBe(`${contest}@${String(tick)}: ${String(opennessAt(TUNABLES, 40, 2.0, tick, contest))}`);
+      }
+    }
   });
 });
 

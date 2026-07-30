@@ -22,6 +22,56 @@
  * complement of 3,974 plays, which is not a sample but the statement that the change has no
  * behavioural surface on any of them.
  *
+ * ================== THE PRICE REGISTER — every raw-vs-exclusive pair measured to date ==================
+ *
+ * The over-statement factor is the reusable quantity, not any one count. **Five measurements, five
+ * subjects, and RAW has over-stated reach EVERY time, by between 4× and 40×.** Quoting a raw count
+ * as though it were a reach is not a rounding error in this project; it is the modal error.
+ *
+ * | subject | scope | raw | exclusive | over-statement |
+ * |---|---|---|---|---|
+ * | ADR-032's sweep candidate | corpus | — | — | **40×** |
+ * | ADR-045 §3a `manCoverage.bands.5.openness` | play (4,427) | 453 | 26 | **17×** |
+ * | ADR-031 `blitzPickup.freeRunnerPath.*` (§6.2) | play (68,934) | 6,213 | 1,518 stream / **156 outcome** | 4.09× / **39.83×** |
+ * | ADR-035 §6.1 `tippedBall.qualityBands.DEAD.finalTargetNumber` | corpus, total | 4.766% | **0.000%** | ∞ (dead cell) |
+ * | **ADR-048 `route.contestGain.*`** (§4) | play (4,000) | **1,827** (45.675%) | **185** (4.625%) | **9.9×** |
+ * | **entry 36 `blitzPickup.freeRunnerArrivalSeconds`** | play (68,730) | **6,196** (9.015%) | **1,269** (1.846%) | **4.88×** |
+ *
+ * ⛔ **AND ONE MEASUREMENT WHERE THE STREAM COUNT CAME BACK AT EXACTLY 1.00×.** The arrival row's
+ * `EXCLUSIVE stream` is **6,196 — identical to RAW, on both arms.** The cell's answer is published on
+ * `RUSH_THREAT.etaTick`, so moving it moves the stream on every play it is read on, unconditionally.
+ * ADR-047 §6.2 measured 4.09× for the path term and called quoting it *"a raw count wearing an
+ * exclusive count's name"*; **this is the degenerate case of that, and it is the cleanest possible
+ * demonstration that a stream digest is not a football measurement.** Whenever a subject is
+ * PUBLISHED, expect the stream count to approach RAW and read only the outcome column.
+ *
+ * ⚠ **ADR-048's ROW WAS MEASURED BY `packages/engine`'s OWN PLAY-SCOPE HARNESS**
+ * (`packages/engine/test/harness/playScope.ts`), not by this module, and the distinction is worth
+ * keeping: at play scope the engine needs no game reconstruction, because `simulatePassPlay(state,
+ * calls, seed, tunables)` is a pure function of four arguments and a paired arm is that function
+ * called twice. This module exists to reach plays a CORPUS produced, with the situations a season
+ * actually generates. Two instruments, one rule.
+ *
+ * ADR-048's row also carries the two numbers a reader needs before quoting it:
+ *
+ *   - **digest-identical complement 2,439 plays** — not a sample, the statement that the change has
+ *     no behavioural surface there at all; **ISOLATION 0**, so nothing moved with the subject absent.
+ *   - **the co-deriving mechanism is named, per §5.3, rather than the percentage being asserted:**
+ *     openness is PUBLISHED (`ROUTE_STATUS`, `QB_READ`, `CATCH_RESOLUTION`), so a moved number moves
+ *     the stream whether or not it crosses anything, and the comparisons that decide the football are
+ *     made against EFFECTIVE openness (after §8.3's perception variance and §8.4's window
+ *     compensation), so a base-level move is frequently swallowed before any threshold is reached.
+ *   - **the corpus's own limit, reported by the engine and not fixed:** on roughly two plays in three
+ *     the ball is gone within a tick of the break, so §8.7's gain never runs. That BOUNDS every price
+ *     that instrument can produce, and reweighting the corpus toward holding plays to make the subject
+ *     look larger would be the compensation-debt pattern wearing a population's clothes.
+ *
+ * **POPULATION pricing of ADR-048 is calibration's and is NOT DONE.** Per §5.3 a corpus arm on this
+ * subject may be reported only as *not measured at this instrument*, never as *no effect*. The
+ * engine states its expected direction (openness falls on average → more holds, more throwaways,
+ * fewer completions) and explicitly does not measure it; a 24-game fence moving −647 yards / −75
+ * points is consistent with that and **a fence is not a population**.
+ *
  * ================== WHY IT WORKS, STATED SO IT CAN BE DISPUTED ==================
  *
  * **Plays are causally independent GIVEN their entering state and the seed.** `simulatePassPlay`

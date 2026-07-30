@@ -620,14 +620,40 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
    *   is no reason they must hold. Do not promote it to one; if a future change
    *   moves them, that is not a regression, it is a corpus count behaving like a
    *   corpus count.
+   *
+   * ⚠ RE-BASELINED A FOURTH TIME, July 2026, ADR-048 — §8.7's openness gain
+   *   becomes CONTEST-CONDITIONED. Widest cause yet, and in a new direction: the
+   *   previous three moved openness AT the break, this one moves it at every tick
+   *   AFTER the break as well, so the hold/throw decision itself is drawn against
+   *   different numbers on any dropback that lasts past a receiver's break.
+   *
+   *   digit           ADR-035/036   ADR-040     ADR-045    §2.3a    ADR-048
+   *   plays              3,420       3,421       3,420     3,415      3,410
+   *   yards             20,047      21,107      20,953    20,922     20,275
+   *   turnovers            107         113         109       107        107
+   *   points             1,545       1,683       1,655     1,663      1,588
+   *   tips                 271         270         273       273        249
+   *   deadTips             163         164         166       166        149
+   *   live tips            108         106         107       107        100
+   *
+   * ⚠ THE OBSERVATION ABOVE IS NOW FALSIFIED, WHICH IS WHY IT WAS RECORDED AS AN
+   *   OBSERVATION. The three tip digits moved this time — 273 → 249, 166 → 149,
+   *   107 → 100. Had it been promoted to a law it would now be a false claim with
+   *   a gate behind it; it was not, so it is a note that has served its purpose.
+   *   The reason is legible: openness falls on average (only `TRAILING` reps keep
+   *   §8.7's old accumulated gain, and only on the shortest routes), so there are
+   *   fewer completions to tip and fewer throws into traffic. Nothing was
+   *   compensated for it.
+   *
+   * ⚠ THE STRUCTURAL HALF STILL DID NOT MOVE — FOURTH INDEPENDENT CONFIRMATION.
+   *   0 / 0 / 0 / 0 / 0 and §12.2's five real thresholds, over a corpus in which
+   *   every football digit AND every tip digit moved. That is the strongest
+   *   version of ADR-036's claim this fence has produced.
    */
-  it("the corpus totals, on every digit (re-baselined by ADR-045 §2.3a)", () => {
-    expect(base.plays).toBe(3415);
-    expect(base.yards).toBe(20922);
-    expect(base.turnovers).toBe(107);
-    expect(base.points).toBe(1663);
-    expect(base.tips).toBe(273);
-    expect(base.deadTips).toBe(166);
+  it("the corpus totals, on every digit (re-baselined by ADR-048)", () => {
+    expect([
+      base.plays, base.yards, base.turnovers, base.points, base.tips, base.deadTips,
+    ]).toEqual([3410, 20275, 107, 1588, 249, 149]);
   });
 
   it("still never consults a target on a dead ball", () => {
@@ -671,7 +697,8 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
     // deflection carries its band's genuine target.
     expect(base.liveMissingTheKey).toBe(0);
     expect(base.liveTargets).toEqual([20, 35, 55, 75, 90]);
-    expect(base.tips - base.deadTips).toBe(107); // 108 → 106 (ADR-040) → 107 (ADR-045)
+    // 108 → 106 (ADR-040) → 107 (ADR-045) → 100 (ADR-048)
+    expect(base.tips - base.deadTips).toBe(100);
   });
 
   it("the cell is not addressable, because the cell does not exist", () => {

@@ -803,6 +803,29 @@ was.** Prefer conversion wherever the post-fix state is assertable; delete only 
 become unrepresentable (ADR-034's narrowing, ADR-036's discriminated union), because then the type is
 the standing evidence.
 
+**Corollary — A RULE WHOSE PREDICATE CANNOT FAIL IS NOT A RULE. A catch-all is an UNCLASSIFIED REGION
+WEARING A CLASSIFICATION'S NAME.**
+
+`docConformance.REGISTER`'s `route.*` prefix rule (`STRUCTURAL`, *"Openness clamps at §8.4's 0-100
+scale"*) **silently classified all seven new `route.contestGain.*` cells**, and the note is **false of
+every one.** The totality gate stayed **green** — `unclassified` empty, `deadRules` empty.
+
+Apply the entry-55 diagnostic and it answers itself: *what would make this rule go red?* **Nothing —
+it matches by prefix.** **A classification that cannot be wrong classifies nothing.**
+
+**So a register must report catch-all-matched cells as a DISTINCT POPULATION**, never fold them into
+the classified count. A cell matched only by a prefix has not been *classified*; it has been
+**absorbed**, and *absorbed* is indistinguishable from *correctly classified* in every count anyone
+reads. (This is entry 47's second shape — *a claim still reading true while pointing at something
+new* — occurring **inside the instrument built to detect it**.)
+
+> **DEFENSE IN DEPTH, WORKING — AND FOR THE FIRST TIME HERE.** What caught it was the **count and
+> path-digest pair ADR-041 added because classification had failed before.** So **the classification
+> rule failed, and the guard that exists BECAUSE classification fails caught it.** This is the first
+> occasion in this project where a **second layer caught what the first missed**, rather than the
+> first layer catching everything — which is the argument for keeping redundant guards whose
+> individual value looks marginal at the time they are written.
+
 **Counter-corollary — a guard that always fires gets deleted.** This principle has an obvious
 failure mode in the other direction, and ADR-025 is the worked example: refusing to compare two
 baselines that differ only in *seed list* would have blocked the one unambiguously legitimate

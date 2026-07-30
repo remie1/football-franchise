@@ -36,6 +36,7 @@ import {
 } from "../rolls.js";
 import type { Tunables } from "../tunables.js";
 import type { ContestPosition } from "../types.js";
+import { opennessGainOverSteps } from "./route.js";
 
 export type ZoneCoverageBandLabel = (Tunables["zoneCoverage"]["bands"])[number]["label"];
 
@@ -192,12 +193,29 @@ export function brokeOnBallContestModifier(tunables: Tunables): { source: string
  * §8.7 decay for a receiver who has settled into a soft spot. Zone coverage does
  * not close on a man the way a corner running with him does, so the window shuts
  * at its own (tunable, currently zero) rate.
+ *
+ * ⚠ THE GAIN IS THE SAME MECHANIC AS MAN'S AND IS CONDITIONED THE SAME WAY
+ *   (ADR-048). What differs between the two curves is the DECAY, which is the
+ *   distinction §9.4's `settled` was introduced to carry — the defender's
+ *   responsibility is the area, not the man. Conditioning only man's gain would
+ *   have made §9.3 and §9.4 produce §8.4 openness on two different dynamics from
+ *   one shared scale, which is the incoherence ADR-045 refused: *a scale used by
+ *   two producers cannot be corrected for one.*
+ *
+ *   It does mean the two producers' band-for-band agreement (70/70, 52/52,
+ *   38/38) is an agreement AT THE BREAK. They already diverged after it —
+ *   `settledDecayPerTick` is 0 and `route.opennessDecayPerTick` is not — so this
+ *   adds a second axis to a divergence that was already deliberate, and it is
+ *   named here rather than discovered later. §9.4's `TIGHT_WINDOW` is `EVEN`
+ *   where §9.3's equally-open `SEPARATION_1_2` is `TRAILING`; a window found in
+ *   a zone is not a corner beaten at a break.
  */
 export function settledOpennessAt(
   tunables: Tunables,
   baseOpenness: number,
   readySeconds: number,
   tick: number,
+  contest: ContestPosition,
 ): number {
   const r = tunables.route;
   const step = tunables.clock.tickStepSeconds;
@@ -206,7 +224,7 @@ export function settledOpennessAt(
   const decaySteps = Math.max(0, (tick - r.decayStartsAtSeconds) / step);
   const raw =
     baseOpenness +
-    r.opennessGainPerTick * gainSteps -
+    opennessGainOverSteps(tunables, contest, gainSteps) -
     tunables.zoneCoverage.settledDecayPerTick * decaySteps;
   return Math.round(Math.max(r.minOpenness, Math.min(r.maxOpenness, raw)));
 }
