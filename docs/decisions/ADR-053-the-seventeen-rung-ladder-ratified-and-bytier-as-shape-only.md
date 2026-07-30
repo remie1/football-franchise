@@ -7,6 +7,28 @@ ADR-051 (the consumer audit), ADR-052 (the tail derivation).
 
 ---
 
+## 0. Provenance of factual claims — applied retroactively to this ADR, which is the one that created the rule
+
+This document is the reason `ADR-TEMPLATE.md` now requires this section, so it carries one. **⛔ It
+did not have one when it was ratified, and §6's error is exactly what that omission cost.**
+
+| claim | source | computed or reported? |
+|---|---|---|
+| occupancies `3.250 / 4.950 / 7.200 / 9.450 / 11.700%`; step 15; stop 90 at `B ≥ 85` | `ladderTail.ts` derivation | **COMPUTED** — closed-form triangular survival, no sampling. ⇒ **INDEPENDENTLY RE-COMPUTED** by `match-engine` on a separately written calculator, reproducing the table exactly. |
+| 15-rung candidate fails at 6 of 11 engine shifts, inverting from \|shift\| = 12 | same | **COMPUTED**, and independently reproduced. |
+| `0 of 69` two-rung boundaries; empty target window over 57 and 1,587 candidates | same | **COMPUTED** — exhaustive. |
+| `RUSHER_WINS_REP` = 31.871% before and after | same | **COMPUTED**, both namings and both scopes. |
+| target compliance `0 of 30 → 26 of 30`; the four survivors | same | **COMPUTED**. |
+| no `Record<ResultTier, …>` anywhere; engine compiles clean at the widened union | ADR-051 sweep | **COMPUTED** — and re-confirmed on the *real* change: `pnpm typecheck`, 8 packages, 0 errors. |
+| `tippedBall.test.ts`'s `CRITICAL_FAILURE` filter moves by zero | ADR-051 | **REPORTED**, then **CONFIRMED** by the engine suite (788 passed). |
+| ~~`minimumStatusByBand` is keyed by `PocketStatus`~~ | a dispatch report | ⛔ **REPORTED, NEVER CHECKED, AND FALSE.** See §6's correction. **This row is why the section exists.** |
+| ADR-032 rules the monotonicity gate for `resultTierLadder` | Orchestrator's brief | ⛔ **REPORTED, AND FALSE** — wrong ladder. See §8a. |
+
+**Both false rows are the only two that were neither computed nor traced.** That is not a coincidence
+worth smoothing over: **the field is doing its job in the same document that introduced it.**
+
+---
+
 ## 1. What is ratified
 
 Four decisions, all owner rulings on ADR-052's derivation.

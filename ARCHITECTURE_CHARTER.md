@@ -731,6 +731,34 @@ The worked example (ADR-045, `CB_IN_PHASE`): the owner found a defect **by readi
 property is in none of their subjects."*** The former is a gap you can see in a list; **the latter
 looks like coverage.**
 
+**Extension — A REFERENCE CAN NAME A REAL THING AND POINT AT A DIFFERENT ONE, and the sentence reads
+identically either way.**
+
+> ### **Naming a ladder is not identifying one.**
+
+The corollary above says an instrument can exist without the property in its subject. This adds the
+**referent** case: the *citation* is valid, the named artefact **exists**, and it is **the wrong
+one** — so no reader, diff or grep can distinguish it from a correct reference. Two instances, from
+one dispatch, arrived at from opposite directions:
+
+| instance | the reference | what it actually named |
+|---|---|---|
+| **from the prose direction** | *"re-scope ADR-032's monotonicity gate"* — ADR-032 is real, and it **does** rule a monotonicity gate | that gate is over the **`PocketStatus` severity ladder**. The tail-occupancy property belongs to ADR-050/052, lives in `calibration`, and **was already correctly scoped.** `packages/engine` has no such gate at all. |
+| **from the type direction** | `minimumStatusByBand` listed among the `PocketStatus`-keyed tables — it is real, and `PocketStatus` **does** appear in it | as its **VALUES**. Its keys are `PassRushBandLabel`. A mapped type over `PocketStatus` would have constrained **the wrong axis.** |
+
+**Both would have produced a guard that compiles, reads as coverage, and checks a property its
+subject does not have** — the *apparently-instrumented* failure, reached not by a blind instrument
+but by a **correct instrument aimed one referent away.** That is why it belongs here: the
+diagnostics above ask *"what would make this go red?"*, and a wrongly-aimed guard **answers that
+question fluently.** The missing question is the prior one — ***what, exactly, is the subject?***
+
+**And the standing disposition when a brief asserts that something exists and it does not: REPORT IT
+FOR ROUTING. DO NOT CONSTRUCT IT.** `match-engine`, told to re-scope a gate that was not there,
+reported rather than building one in `packages/engine` to make the instruction true. **An instrument
+built to satisfy a brief is the same failure as a fixture manufactured to produce a measurable
+population** — in both cases the artefact's existence is caused by the demand for it rather than by
+the thing it claims to measure, and it will be green for exactly that reason.
+
 **The diagnostic that caught it is the standing practice doing its job.** Requiring *a failing case
 per instrument* is what revealed that **none of the three could produce one** for this property.
 **Asking "what would make this go red?" of each instrument in turn is how an apparently-instrumented
@@ -778,10 +806,13 @@ naming values, comments, notes. They are the ones that **can be wrong indefinite
 **Prose is the extreme case** — zero enforcement, maximum authority (see the corollary above, and
 `CALIBRATION-BACKLOG.md` roadmap item **2b**, which exists for exactly this reason).
 
-**Sub-corollary — A RATIFIED RULING'S NUMERIC CLAIMS ARE UNVERIFIED UNTIL SOMETHING COMPUTES THEM.
-Not distrusted. UNVERIFIED.**
+**Sub-corollary — A RATIFIED CLAIM IS UNVERIFIED UNTIL SOMETHING COMPUTES IT. Not distrusted.
+UNVERIFIED.**
 
-> ### **Ratification converts a claim into an assumption, and the author is the last person who will re-open it.**
+> ### **RATIFICATION DOES NOT ADD EVIDENCE; IT ONLY REMOVES REVIEWERS.**
+
+That is the general statement. Everything below is instance. **Ratification converts a claim into an
+assumption, and the author is the last person who will re-open it.**
 
 A ratified ruling is the artefact **review cannot catch**, because review is *structurally absent* by
 the time it exists: the ruling **is** the review's output. Worse, when a ruling is issued by the
@@ -808,6 +839,37 @@ ratified inverts the actual reliability: ratification is the reason it needs com
 it does not. **Quoting a ratified number forward is a restated constant with an owner's signature
 attached** (ADR-046), and it propagates *further* than an unratified one precisely because nobody
 argues with it.
+
+### ⛔ CLAIMS TRAVEL IN TWO DIRECTIONS THROUGH A RATIFICATION, AND ONLY ONE OF THEM IS CATCHABLE
+
+| direction | what moves | the defect | why it survives |
+|---|---|---|---|
+| **DOWNWARD** — ratified doc → implementation | a ratified **number**, quoted into a brief or a comment | **inherited authority**: a wrong number carries an authority that **outlives its verification** | the number looks decided, so nobody recomputes it |
+| **UPWARD** — dispatch report → ratified doc | an **unverified implementation claim**, written into an ADR | **acquired authority**: the claim gains, at the moment of ratification, an authority **it never had** | ⛔ **the provenance disappears** |
+
+**The upward case is strictly harder, and the reason is structural rather than a matter of care.** A
+ratified ADR **looks identical whether its claims were derived or transcribed from a dispatch
+report** — and by the time anyone reads it, the report is a scroll-back. Every subsequent citation
+then treats **the ADR as the source**, when the ADR was only the first place the claim was written
+down. The chain that would let a reader check it is gone, and nothing about the document indicates
+that it ever existed.
+
+Both directions have now fired, within one month, on the same ADR:
+
+- **downward** — ADR-046's quoted constant, and ADR-050's accepting ruling (the table above);
+- **upward** — ADR-053 §6 named four tables as `PocketStatus`-keyed. Only three are. The fourth,
+  `minimumStatusByBand`, is keyed by `PassRushBandLabel` with `PocketStatus` merely as its *values*.
+  The claim came from an implementer's report and was carried into the ADR **without the table's
+  shape ever being checked**. Had it not been caught, the mapped type would have constrained **the
+  wrong axis** — a guard that compiles, reads as coverage, and checks a property the table does not
+  have.
+
+> #### **THE PRACTICAL RULE: AN ADR THAT QUOTES AN IMPLEMENTATION CLAIM MUST CITE WHERE IT CAME FROM, AND WHETHER IT WAS COMPUTED OR REPORTED.**
+>
+> **This is not verification. It is PROVENANCE** — and it is cheap precisely because it does not
+> pretend to be verification. It costs a clause; it buys a reader the ability to know **which claims
+> in a ratified document have never been checked**. Without it, a derived claim and a transcribed one
+> are typographically indistinguishable forever after.
 
 **Corollary — WHEN A PROPERTY CANNOT BE SATISFIED, THERE ARE TWO EXPLANATIONS, AND WE HAVE ONLY EVER
 ASSUMED THE FIRST.**
