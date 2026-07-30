@@ -234,7 +234,26 @@ quarterback's position**, or **whose remaining travel exceeds the time left in t
 > persistence stops being annihilated.** Measure the two **together and separately**, per entry 37,
 > and **name what is held.**
 
-**1c. RE-PRICE THE FOUR REFUSED LEVERS ON THE ARRIVAL-ONLY BASE — top of the queue after the rulings land.**
+> ### ⛔⛔ SEQUENCING RULING (owner, July 2026) — ENTRY 40'S SUPPLY CORRECTION IS THE **WHOLE** OF ITS DISPATCH
+>
+> **Not paired with 1c's re-pricing. Not bundled with ruling 2's retirement work** beyond the minimum
+> needed to price the two together (which ADR-049 already showed is required, since the pair is not
+> separable). **One change, one result.**
+>
+> **The reason is not tidiness.** It is **the first Tier 1 gap with a demonstrated fix**, and **the
+> pressure rate has not moved in the tree since we started tracking it.** Everything since entry 40's
+> measurement has been valuable — a ratified constant caught wrong, a retired guard found live, a
+> catch-all that could not fail, a ladder whose modal outcome was called *critical* — **and none of it
+> was that.**
+>
+> **If the supply correction lands and pressure comes into band, that is the FIRST BAR 2 MOVEMENT IN
+> THIS PROJECT.** A result of that size must not arrive **entangled with three other changes**, where
+> no arm can be attributed and the honest report is *"something in this bundle worked."*
+>
+> **1c follows immediately after, on the corrected base — which is the more honest place to price
+> those four anyway**, since each was originally measured behind a redundant sufficient cause.
+
+**1c. RE-PRICE THE FOUR REFUSED LEVERS ON THE ARRIVAL-ONLY BASE — immediately after the supply correction, NOT alongside it.**
 
 `blockerStructuralAdvantage`, `freeRunnerArrivalSeconds`, `RUSHER_GAINING`'s band map,
 `arrival.pressureWithinSeconds`. **Each was measured behind a redundant sufficient cause**, so each
@@ -1711,6 +1730,25 @@ mapping changes underneath, it **reddens and points at ADR-040** rather than tra
 **So the sweep looks for BOTH shapes:** rulings anchored to a number, and **pins anchored to a
 symbol.** The second is more dangerous precisely because it looks stronger: a compiler pin reads as
 the safest possible enforcement, and it is — of the coupling it names, and of nothing else.
+
+> #### ⚡ THE SECOND SHAPE, CAUGHT PROSPECTIVELY FOR THE FIRST TIME — ADR-053's RENAME-BY-FLOOR
+>
+> Every earlier instance of referent drift was found **after** it had happened. ADR-053's ladder
+> change is the first caught **before**, and it is worth the line because the mechanism is exactly
+> this shape: **`CRITICAL_SUCCESS` DENOTES TWO DIFFERENT RUNGS ACROSS THE CHANGE** — the committed
+> rung at floor 30, and the new rung at floor 60. During construction **the string appears twice**,
+> and a label-keyed rename rewrites **both**.
+>
+> **Ruled: rename BY FLOOR, never by label** (ADR-052 implements it structurally rather than by
+> ordering; ADR-053 §1 requires it of every consumer). A label-keyed edit would have left every
+> stored reference to `CRITICAL_SUCCESS` **reading true while pointing at a rung 30 margin points
+> away** — the second shape's exact signature, and undetectable afterwards because nothing about the
+> text would look stale.
+>
+> **The generalisable part: a rename is a referent change wearing a spelling change's clothes.** When
+> a symbol's *meaning* moves and its *spelling* survives, no diff, no pin and no register can see it.
+> **Anchor the edit to the thing that did not move** — here the floor, which is a number the
+> derivation owns — rather than to the name, which is the thing being changed.
 
 ### ➕ THIRD SHAPE (owner, July 2026) — REGISTERS THAT RECORD RULINGS DRIFT LIKE PINS THAT ENFORCE THEM
 

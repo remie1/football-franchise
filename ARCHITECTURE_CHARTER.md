@@ -809,6 +809,38 @@ it does not. **Quoting a ratified number forward is a restated constant with an 
 attached** (ADR-046), and it propagates *further* than an unratified one precisely because nobody
 argues with it.
 
+**Corollary — WHEN A PROPERTY CANNOT BE SATISFIED, THERE ARE TWO EXPLANATIONS, AND WE HAVE ONLY EVER
+ASSUMED THE FIRST.**
+
+> ### **Either the implementation is wrong, or THE PROPERTY DOES NOT BELONG TO THIS SUBJECT.**
+
+Every unsatisfiable property in this project so far has been met by asking *"what value fixes it?"* —
+which presupposes that the property is correctly attached and only mis-tuned. **That presupposition
+is invisible because it is never stated**, and it is the reason an unsatisfiable property reads as a
+hard tuning problem rather than as evidence.
+
+ADR-053 §4 produced the first case where the second explanation is live. Strict occupancy
+monotonicity is **unsatisfiable on the target roll form by ANY ladder whatsoever** — not narrowly, not
+at some shifts: a bounded rung's occupancy on a uniform margin **IS** its width, so equal widths are
+equally likely and no partition can make an outer rung rarer than an inner one. Two readings:
+
+| reading | what it implies | what it costs to be wrong |
+|---|---|---|
+| the ladder is mis-partitioned | search harder for boundaries | **the search cannot terminate** — 0 of 1,587 candidates, and the proof says 0 of all of them |
+| the ladder **does not belong on target checks** | remove the tier, let them report margin | a design decision, with evidence owed |
+
+**The tell that distinguishes them is EXHAUSTIVENESS.** A mis-tuned property fails for *some* values;
+a mis-attached property fails for *all* of them. **So an exhaustive search returning empty is not a
+harder tuning problem — it is a different KIND of finding, and it is the strongest available evidence
+that the property is attached to the wrong subject.** Treat an empty admissible set as a signal to
+re-examine the attachment, never as a licence to widen the search.
+
+**And note which way the repair points.** If the property does not belong, the fix for a monotonicity
+failure is **deleting the property's subject, not repairing the property** — the retirement-disposal
+corollary below, running in the opposite direction to its usual one. That inversion is exactly why
+such a case is a **design** question and not a tuning one, and why it must not be closed by a
+compromise value that satisfies the gate on both subjects by satisfying the football on neither.
+
 **Corollary — RETIRED ARTEFACTS NEED A DISPOSAL RULE, NOT A LABEL. If a retired block can still
 execute, "retired" is a comment.**
 

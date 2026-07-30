@@ -329,3 +329,16 @@ manifest {source, season, fetchedAt, schemaHash}.
    one commit and back on by the next leaves no trace by construction. Name the ADR that authorised
    it (the `commit-msg` hook already requires an `ADR-0NN` reference for contracts changes; this is
    the *narrative* half the hook cannot enforce).
+8. **Every dispatch that carries a quoted number tells the implementer the number is unverified.**
+   Standing rule, owner, July 2026 — it has caught **two ratified errors in one month.** A dispatch
+   brief quotes constants and rates out of ADRs and design docs, and **ratification makes a quoted
+   number MORE likely to be wrong, not less**: it converts a claim into an assumption, and the author
+   is the last person who will re-open it (Charter §4.1). So every brief carrying quoted numbers must
+   say, in the brief itself: *these numbers are quoted from a ratified document, you are the
+   verification, **compute rather than transcribe**, and **if a number disagrees with the tree, bring
+   the conflict — do not reconcile it quietly.*** Both catches this month came from an implementer
+   computing rather than quoting — ADR-046's constant (`8` was a sibling leaf of the same name; the
+   value is `5`) and ADR-050's accepting ruling (predicted a movement in a quantity that is
+   structurally invariant). **Neither came from review**, because by the time a ruling is ratified
+   there is no reviewer left. Point the instruction at the brief's own numbers explicitly, including
+   the Orchestrator's — that is where both errors were.
