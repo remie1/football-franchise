@@ -927,9 +927,27 @@ a human ran it) **plus** entry 47's first shape (**a stale referent**). Neither 
 it; together, nothing in the repo could report on it.
 
 **So retirement is an ACTION, not an annotation.** A retired artefact is **deleted**, or **converted
-to an assertion of the post-retirement state**, or **made unable to run**. A block that is merely
-*labelled* retired and remains executable is **a live artefact with a misleading comment** — and by
-§4.1's prose corollary, the comment is what the next reader will believe.
+to an assertion of the post-retirement state**, or **made unable to run**, or **kept LEGIBLE BUT NOT
+SELECTABLE**. A block that is merely *labelled* retired and remains executable is **a live artefact
+with a misleading comment** — and by §4.1's prose corollary, the comment is what the next reader will
+believe.
+
+> #### **LEGIBLE BUT NOT SELECTABLE — the third state, and it is the one that gets collapsed when moving fast.**
+>
+> Distinct from *"made unable to run"*, which is about **execution**. This is about **selection**: the
+> artefact stays fully readable as a record of a decision, while **no code path can choose it.**
+>
+> It exists because a rejected alternative can be **load-bearing as evidence.** ADR-053 §8 argues that
+> **no boundary was shaded to spare a consumer**, and that argument works only by comparing the two
+> candidate namings and showing their **boundaries are identical** — so `NAMING.ADJACENT` must remain
+> **legible**. It must not remain **selectable**, because a rejected scheme reachable as a live option
+> is one argument away from being selected by someone who reads it as a supported alternative.
+>
+> **The test that separates the states: does anything still need to READ this, and does anything still
+> need to CHOOSE it?** Two questions, four answers, and the diagonal — *read yes, choose no* — is the
+> state that gets collapsed into deletion by anyone in a hurry. Note it sits **beside** the generator
+> exception above and does not overlap it: there the hazard was that the artefact could **run**; here
+> it is that the artefact could be **picked**.
 
 **CONVERSION IS THE BEST OF THE THREE, and the reason is not tidiness: a DELETED guard leaves no
 evidence the defect was ever possible, so a future change can reintroduce it SILENTLY. A converted one

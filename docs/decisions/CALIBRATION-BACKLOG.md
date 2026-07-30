@@ -262,6 +262,30 @@ quarterback's position**, or **whose remaining travel exceeds the time left in t
 >
 > **1c follows immediately after, on the corrected base — which is the more honest place to price
 > those four anyway**, since each was originally measured behind a redundant sufficient cause.
+>
+> #### ⚡ THE SUCCESS CONDITION, STATED BEFORE THE DISPATCH SO IT CANNOT BE RE-READ AFTERWARDS
+>
+> **This is the first dispatch in a long while whose success condition is A FOOTBALL NUMBER MOVING,
+> not an instrument improving.** Every recent dispatch has been judged on whether it found something;
+> this one is judged on whether the tree changes. State it now, because a dispatch that discovers
+> something interesting and moves nothing is a **valuable result that is not this result**, and the
+> difference is easiest to blur after the fact.
+>
+> **THE MECHANISM IS ALREADY KNOWN TO BE LARGE ENOUGH — that is not what is being tested.** ADR-049
+> drove the rate to **24.587%** with supply extinguished, against a real **29.225%**, from a committed
+> **89.859%**. **The lever's reach EXCEEDS the gap and pushes the rate THROUGH the real value.**
+>
+> > ⛔ **SO THE WORK IS NOT "CAN THIS MOVE THE RATE." IT IS LANDING A CORRECTION THAT PUTS THE RATE
+> > IN BAND RATHER THAN THROUGH IT** — a football-motivated change to threat supply whose resulting
+> > rate lands near 29.225%, **not** an extinction arm re-run as a proposal. Extinction was a
+> > MEASUREMENT of reach. It is not a candidate configuration, and it must not become one by
+> > convenience.
+>
+> **And ruling 2's retirement is priced on the CORRECTED base in the same dispatch**, because that is
+> the only base on which it is not annihilated by its first factor (ADR-049's interaction term). Price
+> the two **together and separately**, per entry 37, and **name what is held.**
+>
+> **If it lands, that is the first Bar 2 movement in this tree since tracking began.**
 
 **1c. RE-PRICE THE FOUR REFUSED LEVERS ON THE ARRIVAL-ONLY BASE — immediately after the supply correction, NOT alongside it.**
 
