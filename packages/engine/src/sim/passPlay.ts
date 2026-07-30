@@ -903,6 +903,11 @@ export function simulatePassPlay(
             pursuitAtTick: pursuitDeadline(tunables, tick),
             escapeRollRef: escape.check.roll.rngLabel,
           };
+          // ADR-054 — publish the pursuit clock itself. One publication per
+          // escape: nothing runs step-up logic while `scramble !== undefined`,
+          // so the deadline set here never moves and there is no lifecycle to
+          // mirror.
+          log.qbPursuit(scramble.sinceTick, scramble.pursuitAtTick, scramble.escapeRollRef);
           // The protection is broken and the rush becomes pursuit: every rep
           // and every threat in the pocket stops meaning anything.
           for (const m of matchups) {

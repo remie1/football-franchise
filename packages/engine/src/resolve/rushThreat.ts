@@ -39,12 +39,21 @@ import type { PocketStatusRung } from "./pocket.js";
 /**
  * SOMETHING WITH A TIME OF ARRIVAL — whatever the §7.2 clock is counting down.
  *
- * Two things are, and only one of them is publishable. A rusher who beat his
- * block is a `RushThreat` below and reaches the stream. The pursuit clock a
- * scrambling quarterback runs on (§8.8) is not a pass-rush rep, is never
- * published as a `RUSH_THREAT`, and has no `ThreatOrigin` that would be true of
- * it — so it is typed as the weaker thing rather than handed a fabricated
- * origin to satisfy a publisher it never reaches.
+ * Two things are, and neither is published as a `RUSH_THREAT`. A rusher who
+ * beat his block is a `RushThreat` below and reaches the stream in that shape.
+ * The pursuit clock a scrambling quarterback runs on (§8.8) is not a pass-rush
+ * rep and has no `ThreatOrigin` that would be true of it — `origin` answers
+ * "which player, and why", and the pursuit clock names no player at all
+ * (ADR-054 §2: its would-be `rusher`/`alignment` are array order and a
+ * hardcoded literal, never facts).
+ *
+ * ADR-054 gave it a publisher — `QB_PURSUIT` — but that event carries only
+ * `sinceTick`/`deadlineTick`/`rollRef`, not `rusher`/`alignment`/`origin`, so
+ * it is still typed as the weaker `ArrivalClock` here rather than the
+ * `RushThreat` it is never handed as. The reasoning that kept it weaker did
+ * not change with ADR-054; only "a publisher it never reaches" did — it now
+ * reaches one, and that publisher was shaped to fit what this type actually
+ * carries, not the other way around.
  */
 export interface ArrivalClock {
   readonly rusher: PlayerId;

@@ -320,6 +320,25 @@ export class PlayEventLog {
   }
 
   /**
+   * ADR-054 — §8.8's pursuit clock, published as the thing it is rather than a
+   * `RUSH_THREAT` with a fabricated `rusher`/`alignment`. One publication per
+   * escape: the deadline never moves once set, so there is no
+   * `DELAYED`/`RESET`/`ARRIVED` lifecycle to mirror here the way `rushThreat`
+   * has one.
+   *
+   * Every argument is already computed at the call site — no new roll, no new
+   * derivation. `rollRef` is `escape.check.roll.rngLabel`, whose CHECK is
+   * already on the stream (ADR-004).
+   */
+  qbPursuit(sinceTick: number, deadlineTick: number, rollRef: string): void {
+    this.push({
+      type: "QB_PURSUIT",
+      payload: { sinceTick, deadlineTick, rollRef },
+      ...this.base(),
+    });
+  }
+
+  /**
    * ADR-004: the outcome REFERENCES the roll that produced it. `rollRef` is the
    * `rngLabel` of the catch CHECK's RollDetail, which must already have been
    * emitted — a RollDetail appears exactly once in the stream.

@@ -96,6 +96,47 @@ describe("determinism (Charter pillar 5)", () => {
     expect(delayed).toBeGreaterThan(0);
   });
 
+  /**
+   * ADR-054 — `QB_PURSUIT` is an additive log call at a site that already
+   * computes every value it publishes: no new roll, no read-back into
+   * simulation logic. The byte-identical whole-stream comparisons elsewhere in
+   * this file would already catch a regression here, since `QB_PURSUIT` is
+   * inside `JSON.stringify(events)` like everything else — but silently, the
+   * same way ADR-042's own determinism case explains. This one names the
+   * event on purpose, and its second half is the stronger check the owner
+   * asked for: with the emission stripped back out, the REST of the stream
+   * (everything except `QB_PURSUIT`, seq-renumbered so adding one more event
+   * does not itself register as a difference) is identical to a second
+   * independent run — proof that publishing the clock did not perturb the
+   * play `QB_PURSUIT` was added next to.
+   */
+  it("ADR-054: QB_PURSUIT replays identically, and does not perturb the rest of the stream", () => {
+    let pursuits = 0;
+    for (let i = 0; i < 200; i++) {
+      const a = buildScramblerScenario();
+      const b = buildScramblerScenario();
+      const seed = `qb-pursuit-determinism-${i}`;
+      const first = simulatePassPlay(a.state, a.calls, seed);
+      const second = simulatePassPlay(b.state, b.calls, seed);
+      // The event itself replays byte-for-byte, same as everything else on the
+      // stream.
+      expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+      expect(JSON.stringify(second.newState)).toBe(JSON.stringify(first.newState));
+
+      const withoutPursuit = (r: typeof first) =>
+        JSON.stringify(
+          r.events
+            .filter((e) => e.event.type !== "QB_PURSUIT")
+            .map((e, idx) => ({ ...e, seq: a.state.nextEventSeq + idx })),
+        );
+      expect(withoutPursuit(second)).toBe(withoutPursuit(first));
+
+      pursuits += first.events.filter((e) => e.event.type === "QB_PURSUIT").length;
+    }
+    // Not vacuous: the fixture actually produces the event this test is about.
+    expect(pursuits).toBeGreaterThan(0);
+  });
+
   it("survives §9.4 and §12: zone reps and live balls replay identically", () => {
     // Both mechanics ADD branch points that a die decides — whether a zone
     // defender breaks on the ball, and who comes up with a deflection — so a

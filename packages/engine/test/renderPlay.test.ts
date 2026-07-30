@@ -183,6 +183,27 @@ describe("§17.1 debug renderer", () => {
     expect(seen).toBe(1);
   });
 
+  /**
+   * ADR-054 — a reader of the play log wants the pursuit deadline next to the
+   * escape it followed from. No actor is stated (that is the whole point of
+   * `QB_PURSUIT`); only `sinceTick` and `deadlineTick`, which the renderer
+   * reads from the event rather than recomputing.
+   */
+  it("renders the pursuit clock next to a successful escape", () => {
+    let seen = 0;
+    for (let i = 0; i < 200 && seen === 0; i++) {
+      const { state, calls, names } = buildScramblerScenario();
+      const { events } = simulatePassPlay(state, calls, `pursuit-render-${i}`);
+      const pursuit = events.find((e) => e.event.type === "QB_PURSUIT");
+      if (pursuit === undefined || pursuit.event.type !== "QB_PURSUIT") continue;
+      seen += 1;
+      const text = renderPlay(events, names);
+      expect(text).toContain("pursuit clock running");
+      expect(text).toContain(`forces the ball down by tick ${pursuit.event.payload.deadlineTick.toFixed(1)}`);
+    }
+    expect(seen).toBe(1);
+  });
+
   it("never renders out-of-slice sections", () => {
     const { state, calls, names } = buildScenario();
     const text = renderPlay(simulatePassPlay(state, calls, "render-2").events, names);

@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import { simulateGame, simulatePassPlay } from "../src/index.js";
 import { isGameScoped } from "../src/game/events.js";
+import { TUNABLES } from "../src/tunables.js";
 import { buildGameFixture } from "./gameFixtures.js";
 import {
   buildMixedCoverageScenario,
@@ -210,6 +211,108 @@ describe("ADR-007 #4 — RUSH_THREAT", () => {
         if ((event.tick ?? 0) >= escapedAt) expect(event.payload.state).toBe("RESET");
       }
     }
+  });
+});
+
+/**
+ * ADR-054 — the pursuit clock gets its own publisher, `QB_PURSUIT`, rather
+ * than a `RUSH_THREAT` wearing a fabricated `rusher`/`alignment`. It is a
+ * PUBLICATION of values already computed at `resolveScramble`'s call site —
+ * `sinceTick`, `deadlineTick` (`pursuitDeadline(tunables, tick)`) and
+ * `rollRef` (the §8.8 escape CHECK's `rngLabel`) — so these tests check shape
+ * and joins, never a new derivation.
+ */
+describe("ADR-054 — QB_PURSUIT", () => {
+  type Pursuit = Extract<MatchEventEnvelope["event"], { type: "QB_PURSUIT" }>;
+
+  function pursuits(events: readonly MatchEventEnvelope[]): Pursuit[] {
+    return events.flatMap(({ event }) => (event.type === "QB_PURSUIT" ? [event] : []));
+  }
+
+  it("carries exactly sinceTick, deadlineTick and rollRef — no rusher, no alignment, no origin", () => {
+    let seen = 0;
+    for (const events of sweep(buildScramblerScenario, 300, "pursuit-shape")) {
+      for (const p of pursuits(events)) {
+        seen += 1;
+        expect(Object.keys(p.payload).sort()).toEqual(["deadlineTick", "rollRef", "sinceTick"]);
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+
+  it("at most one publication per play, and at least one play has exactly one (a successful escape)", () => {
+    let escapes = 0;
+    for (const events of sweep(buildScramblerScenario, 400, "pursuit-count")) {
+      const list = pursuits(events);
+      // No `DELAYED`/`RESET`/`ARRIVED` lifecycle to mirror (ADR-054 §3): the
+      // deadline never moves once set, so a play carries this event zero or
+      // one times, never more.
+      expect(list.length).toBeLessThanOrEqual(1);
+      if (list.length === 1) escapes += 1;
+    }
+    expect(escapes).toBeGreaterThan(0);
+  });
+
+  it("a play with no successful §8.8 escape publishes no QB_PURSUIT", () => {
+    let checked = 0;
+    for (const events of sweep(buildScenario, 300, "pursuit-none")) {
+      const escaped = events.some(
+        (e) => e.event.type === "QB_DECISION" && e.event.payload.choice === "SCRAMBLE",
+      );
+      if (escaped) continue;
+      checked += 1;
+      expect(pursuits(events).length).toBe(0);
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it("rollRef names the §8.8 escape CHECK already in the stream, and points backwards (ADR-004)", () => {
+    let joined = 0;
+    for (const events of sweep(buildScramblerScenario, 300, "pursuit-ref")) {
+      const scrambleChecks = new Map<string, number>();
+      for (const { seq, event } of events) {
+        if (event.type === "CHECK" && event.payload.checkKind === "scramble") {
+          scrambleChecks.set(event.payload.roll.rngLabel, seq);
+        }
+      }
+      for (const { seq, event } of events) {
+        if (event.type !== "QB_PURSUIT") continue;
+        joined += 1;
+        const at = scrambleChecks.get(event.payload.rollRef);
+        expect(at).toBeDefined();
+        expect(at ?? Infinity).toBeLessThan(seq);
+      }
+    }
+    expect(joined).toBeGreaterThan(0);
+  });
+
+  it("sinceTick is the tick it was emitted on, and deadlineTick is fixed at sinceTick + pursuitSeconds", () => {
+    let seen = 0;
+    for (const events of sweep(buildScramblerScenario, 300, "pursuit-numbers")) {
+      for (const p of pursuits(events)) {
+        seen += 1;
+        expect(p.tick).toBe(p.payload.sinceTick);
+        expect(p.payload.deadlineTick).toBe(
+          Number((p.payload.sinceTick + TUNABLES.scramble.pursuitSeconds).toFixed(1)),
+        );
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+
+  it("immediately follows the scramble CHECK it references — one publication, no lifecycle", () => {
+    let seen = 0;
+    for (const events of sweep(buildScramblerScenario, 300, "pursuit-adjacency")) {
+      for (let i = 0; i < events.length; i++) {
+        const e = events[i];
+        if (e === undefined || e.event.type !== "QB_PURSUIT") continue;
+        seen += 1;
+        const prev = events[i - 1];
+        expect(prev?.event.type).toBe("CHECK");
+        if (prev?.event.type === "CHECK") expect(prev.event.payload.checkKind).toBe("scramble");
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
   });
 });
 

@@ -422,6 +422,15 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
 function renderPocketMovement(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const out: string[] = [];
   for (const { event } of events) {
+    if (event.type === "QB_PURSUIT") {
+      // ADR-054 — the pursuit clock the escape just above started. No actor
+      // to name (that is the whole point of the event), so this states only
+      // what the stream states: since when, and the tick it forces the ball
+      // down.
+      out.push(`  ├─ Tick ${tickLabel(event.tick)}: pursuit clock running — forces the ball down by tick ${tickLabel(event.payload.deadlineTick)}`);
+      out.push("  │");
+      continue;
+    }
     if (event.type !== "CHECK") continue;
     const p = event.payload;
     if (p.checkKind === "pocket_movement") {
