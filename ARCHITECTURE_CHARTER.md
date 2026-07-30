@@ -998,6 +998,24 @@ finding NEW classes. They accumulate because EACH RULE CREATES THE REGION WHERE 
 HIDES.** That predicts the growth continues, and a sweep run once would itself become an instrument
 with an unwritten blind spot.
 
+> #### ⛔ THE SWEEP'S OWN RED-TRIGGER FIELD — PRE-REGISTERED HERE, BEFORE IT SHIPS
+>
+> Written now rather than discovered as instance six, because this corollary predicts exactly where
+> instance six would land: **in the sweep.**
+>
+> **It reddens for:** an instrument with **no** red-trigger field.
+>
+> ⚠ **It does NOT redden for: a red-trigger field that names the WRONG SUBJECT.** A sweep over
+> *presence* can only find **missing** fields, never **wrong** ones — and a red-trigger describing a
+> subject the instrument does not actually have is **the referent problem arriving at the very field
+> designed to prevent it**: a fluent, specific, checkable answer to *"what would make this go red?"*,
+> about the wrong thing. **Nothing enforces correctness here** (per the prohibition above, that is
+> stated rather than papered over with a claim about review).
+>
+> **Which is why the field must be written by the instrument's AUTHOR, at build time.** A sweep can
+> only ever establish that *someone answered the question*. **Only the author can answer it about the
+> right subject**, and only while they still remember what they chose not to cover.
+
 **Corollary — A FIELD THAT IS A PLACEHOLDER IN ONE EVENT TYPE AND A FACT IN ALL THE OTHERS IS WORSE
 THAN A SENTINEL, BECAUSE THE SURROUNDING ROWS VOUCH FOR IT.**
 
