@@ -51,6 +51,12 @@ function threat(args: {
 function stepUp(): MatchEventEnvelope {
   return env({ type: "QB_DECISION", gameId: GAME_ID, playId: PLAY_ID, payload: { choice: "STEP_UP" } });
 }
+function scramble(): MatchEventEnvelope {
+  return env({ type: "QB_DECISION", gameId: GAME_ID, playId: PLAY_ID, payload: { choice: "SCRAMBLE" } });
+}
+function hold(): MatchEventEnvelope {
+  return env({ type: "QB_DECISION", gameId: GAME_ID, playId: PLAY_ID, payload: { choice: "HOLD" } });
+}
 function scrambleCheck(): MatchEventEnvelope {
   return env({
     type: "CHECK",
@@ -64,6 +70,14 @@ function scrambleCheck(): MatchEventEnvelope {
       margin: 0,
       testsAttrs: [],
     },
+  });
+}
+function qbPursuit(sinceTick: number, deadlineTick: number): MatchEventEnvelope {
+  return env({
+    type: "QB_PURSUIT",
+    gameId: GAME_ID,
+    playId: PLAY_ID,
+    payload: { sinceTick, deadlineTick, rollRef: "r1" },
   });
 }
 function endPlay(): MatchEventEnvelope {
@@ -212,22 +226,64 @@ describe("geometryTimeRetirement — RESET clears both mirrors", () => {
   });
 });
 
-describe("geometryTimeRetirement — the §8.8 pursuit-clock boundary", () => {
-  it("excludes (does not silently classify) a play carrying a scramble CHECK, and counts it", () => {
+describe("geometryTimeRetirement — the §8.8 pursuit clock (ADR-054)", () => {
+  it("reconstructs pocket status from QB_PURSUIT once a scramble is live — no exclusion", () => {
+    // Mirrors the engine's own tick order: the pocket status BEFORE the escape reads off the
+    // §7.1 threat (RESET published the moment the escape succeeds), then QB_PURSUIT is published,
+    // then every later POCKET_STATUS is the pursuit clock ALONE — `activeThreats` has discarded
+    // the matchup entirely (module header). immediateWithinSeconds 0.0, collapsingWithinSeconds
+    // 1.0, pressureWithinSeconds POS_INF (DEFAULT_TUNABLES).
     const events = [
       playStart(),
       tick(0.5),
-      threat({ rusher: "p1", alignment: "EDGE", etaTick: 1.5, state: "TRAVELLING" }),
-      pocket("PRESSURE"),
+      threat({ rusher: "p1", alignment: "EDGE", etaTick: 100.0, state: "TRAVELLING" }),
+      pocket("PRESSURE"), // pre-scramble: read off the §7.1 threat, far away, PRESSURE by POS_INF horizon
       tick(1.0),
       scrambleCheck(),
-      threat({ rusher: "p1", alignment: "EDGE", etaTick: 1.5, state: "RESET" }),
-      // pursuit-governed ticks follow, unreconstructable — not modelled here
+      threat({ rusher: "p1", alignment: "EDGE", etaTick: 100.0, state: "RESET" }), // every threat resets
+      qbPursuit(1.0, 2.5), // sinceTick 1.0, deadlineTick 2.5 (1.5s pursuit)
+      scramble(),
+      tick(1.5),
+      pocket("COLLAPSING"), // minTta = 2.5 - 1.5 = 1.0 <= collapsingWithinSeconds(1.0), > 0.0
+      hold(),
+      tick(2.0),
+      pocket("COLLAPSING"), // minTta = 2.5 - 2.0 = 0.5 <= collapsingWithinSeconds, > 0.0
+      hold(),
+      tick(2.5),
+      pocket("IMMEDIATE"), // minTta = 2.5 - 2.5 = 0.0 <= immediateWithinSeconds(0.0)
       endPlay(),
     ];
     const result = reclassifyGame(events, T);
-    expect(result.plays.length).toBe(0);
-    expect(result.excludedForScramble).toBe(1);
+    expect(result.plays.length).toBe(1);
+    const [play] = result.plays;
+    // The identity check is the falsifier: the reconstruction must match the published stream
+    // exactly, tick for tick, once QB_PURSUIT is on the record — no exclusion, no guess.
+    expect(play?.identityChecks).toBe(4);
+    expect(play?.identityMismatches).toBe(0);
+    expect(play?.identityPressured).toBe(true);
+  });
+
+  it("agrees with the engine's own arrival floor at every pursuit tick (exact identity)", () => {
+    // immediateWithinSeconds 0.0, collapsingWithinSeconds 1.0, pressureWithinSeconds POS_INF.
+    const events = [
+      playStart(),
+      tick(1.0),
+      qbPursuit(1.0, 2.5),
+      scramble(),
+      tick(1.5),
+      pocket("COLLAPSING"), // minTta = 1.0 -> <= collapsingWithinSeconds(1.0), > immediateWithinSeconds(0.0)
+      hold(),
+      tick(2.0),
+      pocket("COLLAPSING"), // minTta = 0.5 -> still <= collapsingWithinSeconds, > 0.0
+      hold(),
+      tick(2.5),
+      pocket("IMMEDIATE"), // minTta = 0.0 -> <= immediateWithinSeconds
+      endPlay(),
+    ];
+    const [play] = reclassifyGame(events, T).plays;
+    expect(play?.identityChecks).toBe(3);
+    expect(play?.identityMismatches).toBe(0);
+    expect(play?.identityPressured).toBe(true);
   });
 });
 

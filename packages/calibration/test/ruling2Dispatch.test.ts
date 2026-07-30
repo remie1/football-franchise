@@ -127,10 +127,6 @@ function say(line: string): void {
   console.log(line);
 }
 
-function pct(n: number, d: number, places = 3): string {
-  return d === 0 ? "—" : `${((n / d) * 100).toFixed(places)}%`;
-}
-
 function reportDerivation(): void {
   say("");
   say("### §RESULT-0 — the supply correction, re-derived from ladderTail.ts, not transcribed");
@@ -160,7 +156,6 @@ interface ReclassFold {
   identityMismatches: number;
   geometryRetiredThreats: number;
   timeRetiredThreats: number;
-  excludedForScramble: number;
 }
 
 function emptyReclass(): ReclassFold {
@@ -172,12 +167,10 @@ function emptyReclass(): ReclassFold {
     identityMismatches: 0,
     geometryRetiredThreats: 0,
     timeRetiredThreats: 0,
-    excludedForScramble: 0,
   };
 }
 
-function foldReclass(fold: ReclassFold, game: { readonly plays: readonly DropbackReclass[]; readonly excludedForScramble: number }): void {
-  fold.excludedForScramble += game.excludedForScramble;
+function foldReclass(fold: ReclassFold, game: { readonly plays: readonly DropbackReclass[] }): void {
   for (const p of game.plays) {
     fold.dropbacks += 1;
     if (p.identityPressured) fold.identityPressured += 1;
@@ -347,7 +340,6 @@ function renderArrivalGrid(rows: readonly Measured[]): void {
     const mismatches = list.reduce((a, m) => a + m.reclass.identityMismatches, 0);
     const checks = list.reduce((a, m) => a + m.reclass.identityChecks, 0);
     const dropbacks = list.reduce((a, m) => a + m.reclass.dropbacks, 0);
-    const excluded = list.reduce((a, m) => a + m.reclass.excludedForScramble, 0);
     const geoPer1000 = (list.reduce((a, m) => a + m.reclass.geometryRetiredThreats, 0) / Math.max(1, dropbacks)) * 1000;
     const timePer1000 = (list.reduce((a, m) => a + m.reclass.timeRetiredThreats, 0) / Math.max(1, dropbacks)) * 1000;
     say(
@@ -361,16 +353,16 @@ function renderArrivalGrid(rows: readonly Measured[]): void {
         `${geoPer1000.toFixed(3)} | ${timePer1000.toFixed(3)} |`,
     );
     say(
-      `    ⚠ excluded (§8.8 pursuit clock, not reconstructable): ${String(excluded)} of ` +
-        `${String(dropbacks + excluded)} dropbacks (${pct(excluded, dropbacks + excluded)}). The RE-SIM ` +
-        "column's denominator includes them; the RECLASS columns' does not — declared, not hidden.",
+      `    ✅ no exclusion (ADR-054): all ${String(dropbacks)} dropbacks reconstructed, including ` +
+        "every play carrying a scramble — QB_PURSUIT covers the population the RUSH_THREAT-based " +
+        "reconstruction could not.",
     );
   }
   say("");
   say(
     "`identity` = the reclassifier with BOTH rules disabled — a SELF-CHECK, not a treatment. " +
-      "It must reproduce the RE-SIM pressure rate ON THE POPULATION IT COVERS (scramble dropbacks " +
-      "excluded from both sides of that comparison); the mismatch column is the falsifier.",
+      "It must reproduce the RE-SIM pressure rate ON THE FULL POPULATION (ADR-054 — the pursuit " +
+      "clock is no longer excluded); the mismatch column is the falsifier.",
   );
 }
 
