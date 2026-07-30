@@ -437,8 +437,32 @@ knows, that decides an outcome, and that no consumer can read. Neither was a new
 **publishing something already computed**, and both immediately unlocked measurements that had been
 declared unavailable.
 
-**Owed:** a petition to publish the pursuit clock as a first-class threat event, or an explicit ruling
-that it stays unpublishable **and every stream consumer must declare the exclusion.**
+> ### ✅ PETITIONED AND RATIFIED — [ADR-054](ADR-054-the-pursuit-clock-is-a-different-kind-of-object.md). **`QB_PURSUIT`, a NEW event, not a widened `RUSH_THREAT`.**
+>
+> **The premise was verified rather than inherited** (this entry began as a dispatch report, which is
+> the upward-travelling unverified claim in its pure form). It holds: on scramble ticks the §7.1 line
+> battle is **suspended** and every matchup's pressure resets to 0, so two of `pocketStatusFor`'s
+> three channels are pinned at `CLEAN` **by construction** and the pursuit clock is the **sole
+> determinant** of `POCKET_STATUS`.
+>
+> **⛔ AND THE FACT THAT DECIDED THE SHAPE WAS NOT ASKED FOR: the clock's `rusher` and `alignment` are
+> PLACEHOLDERS** — `matchups[0]` (arbitrary array order, *not* the man chasing him) and a hardcoded
+> `"EDGE"`. So a `RUSH_THREAT`-shaped publication **even with an honest fifth `ThreatOrigin`** would
+> not have avoided ADR-022/036's defect — **it would have RELOCATED it** to two fields that are honest
+> on every other threat in the stream. Now Charter §4.1: *a placeholder in an honest neighbourhood
+> inherits the neighbourhood's credibility.*
+>
+> **⚠ TWO PERCENTAGES, BOTH RIGHT, DIFFERENT QUESTIONS — written down because they differ by ~15pp and
+> both describe "scrambles":**
+>
+> | figure | question it answers |
+> |---|---|
+> | **19.013% / 14.225%** | dropbacks the clock **GOVERNS** — successful escapes only |
+> | **34.5% / 22.2%** | calibration's **EXCLUSION BOUNDARY** — any `scramble` CHECK, *including failed attempts*, because a reclassifier **cannot know in advance which succeed** |
+
+**Owed:** ~~a petition to publish the pursuit clock as a first-class threat event, or an explicit ruling
+that it stays unpublishable **and every stream consumer must declare the exclusion**.~~ ✅ **DONE —
+ADR-054.** Remaining: engine emission, then calibration drops the exclusion, then **1d**.
 
 ### ⛔⛔ ORDERING RULED (owner, July 2026): **58 LANDS FIRST. 1d FOLLOWS.**
 

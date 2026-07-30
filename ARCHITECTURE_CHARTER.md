@@ -938,6 +938,42 @@ Both directions have now fired, within one month, on the same ADR:
 > in a ratified document have never been checked**. Without it, a derived claim and a transcribed one
 > are typographically indistinguishable forever after.
 
+**Corollary — A FIELD THAT IS A PLACEHOLDER IN ONE EVENT TYPE AND A FACT IN ALL THE OTHERS IS WORSE
+THAN A SENTINEL, BECAUSE THE SURROUNDING ROWS VOUCH FOR IT.**
+
+> ### **A sentinel is a lie you can learn to distrust. A placeholder in an honest neighbourhood inherits the neighbourhood's credibility.**
+
+A sorting sentinel (`?? 0` where `0` is a valid extreme) is at least *uniformly* suspicious — once you
+know the pattern, you distrust every site. **This is worse**, and ADR-054 found the first instance:
+
+`activeThreats` synthesises the §8.8 pursuit clock with `rusher: matchups[0].rusher.bio.id` — **arbitrary
+array order, not the man chasing him** — and `alignment: "EDGE"`, a hardcoded literal. Both are
+documented in the engine as a *structural convenience* so status derivation and arrival stay one code
+path. Neither is read for its content.
+
+Had the pursuit clock been published as a `RUSH_THREAT` — **even with a perfectly honest fifth
+`ThreatOrigin`** — those two fields would have gone onto the stream as facts.
+
+> ⛔ **THE DEFECT WOULD NOT HAVE BEEN AVOIDED. IT WOULD HAVE BEEN RELOCATED** — from `origin`, where
+> ADR-022 and ADR-036 were watching, **to `rusher`/`alignment`, where nobody was** — and it would be
+> *harder* to see there, because on **every other `RUSH_THREAT` in the stream those fields are
+> honest.** A consumer that has read ten thousand true `rusher` values has no reason to doubt the ten
+> thousand and first.
+
+**Three real fields and two placeholders, published under a contract whose whole meaning is that all
+five are facts.**
+
+**⇒ THE OPERATIVE TEST, and it settles vocabulary questions empirically rather than by judgement:
+before reusing an event shape for a new subject, check EVERY field the shape requires — not just the
+one you were worried about. If any required field would have to be fabricated, THE SUBJECTS ARE TWO
+KINDS OF OBJECT SHARING A SHAPE, AND THE ANSWER IS ADD RATHER THAN WIDEN.** The count of fields you
+cannot honestly fill *is* the answer; you do not have to adjudicate whether the things "feel" alike.
+
+**And the boundary that goes with it:** *"publish a fact the engine already computes"* is the cheap,
+safe kind of petition — **but a value is not a fact.** If making the shape honest requires computing
+something new, **the petition has silently become a mechanism change at a publication's price**, which
+is the point at which it must be re-ruled rather than completed.
+
 **Corollary — BEFORE RULING ON A LEVER, ESTABLISH WHAT DETERMINES THE QUANTITY. A MECHANISM YOU HAVE
 BEEN SHOWN IS NOT THE SET OF DETERMINANTS.**
 

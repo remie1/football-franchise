@@ -233,6 +233,50 @@ export type MatchEvent =
         etaTick: number;
         state: RushThreatState;
       } } & MatchEventBase)
+  /**
+   * §8.8's PURSUIT CLOCK — the quarterback has left structure and pursuit is running him down.
+   *
+   * ⛔ THIS IS NOT A `RUSH_THREAT`, AND ADR-054 IS THE ARGUMENT FOR WHY IT MUST NOT BE ONE. It was
+   * added rather than folded into the threat vocabulary because the engine's pursuit clock has
+   * **three real fields and two placeholders**: `activeThreats` synthesises it with
+   * `rusher: matchups[0]` — **arbitrary array order, not the man chasing him** — and a hardcoded
+   * `alignment: "EDGE"`, both documented in the engine as a structural convenience so status
+   * derivation and arrival stay one code path, and neither ever read for its content.
+   *
+   * So publishing it as a `RUSH_THREAT` — **even with a perfectly honest fifth `ThreatOrigin`** —
+   * would not have avoided the defect ADR-022 and ADR-036 exist to prevent. **It would have RELOCATED
+   * it**, from `origin` where those ADRs were watching, to `rusher`/`alignment` where nobody was —
+   * and it would be *harder* to see there, because on every other `RUSH_THREAT` in the stream those
+   * fields are honest. **A placeholder in an honest neighbourhood inherits the neighbourhood's
+   * credibility** (Charter §4.1).
+   *
+   * ⇒ Two kinds of object sharing a shape, so the answer is ADD rather than WIDEN. This event carries
+   * **only what the engine actually knows**: he left structure at `sinceTick`, pursuit forces the
+   * ball down at `deadlineTick`, and §8.8's escape roll put him there. **No `rusher`. No `alignment`.
+   * No `origin`.** If a future mechanism ever computes a genuine chasing-defender identity, THAT is
+   * when a threat-shaped event with a real fifth origin becomes honest — a different, larger
+   * petition (ADR-054 §4).
+   *
+   * WHY IT MATTERS FOR MEASUREMENT, and it is not a small population: on scramble ticks the §7.1 line
+   * battle is SUSPENDED — every matchup's pressure resets to 0 — so two of `pocketStatusFor`'s three
+   * channels are pinned at `CLEAN` **by construction** and this clock is the **SOLE determinant of
+   * `POCKET_STATUS`**. It governs **19.013% of dropbacks** at the committed supply. Before this event
+   * existed, every stream-based reconstruction of pocket status had to **exclude those plays
+   * entirely** — Charter §3's single-source-of-truth rule with a hole in exactly the population that
+   * studies it.
+   *
+   * ⚠ ONE PUBLICATION PER ESCAPE, unlike a threat's `TRAVELLING`/`DELAYED`/`RESET`/`ARRIVED`
+   * lifecycle: the deadline never moves once set, because nothing runs step-up logic while a scramble
+   * is live.
+   */
+  | ({ type: "QB_PURSUIT"; payload: {
+        /** Tick the quarterback left structure — §8.8's escape succeeding. */
+        sinceTick: number;
+        /** Tick pursuit forces the ball down. Fixed at emission; it never moves. */
+        deadlineTick: number;
+        /** `rngLabel` of §8.8's escape roll — already on the stream as its own CHECK (ADR-004). */
+        rollRef: string;
+      } } & MatchEventBase)
   | ({ type: "ROUTE_STATUS"; payload: { receiver: PlayerId; route: string; phase: RoutePhase; openness: number } } & MatchEventBase)
   | ({ type: "QB_READ"; payload: {
         target: PlayerId;

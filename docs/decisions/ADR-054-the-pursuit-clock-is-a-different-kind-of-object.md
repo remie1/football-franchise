@@ -2,7 +2,7 @@
 
 **Date:** July 2026
 **Proposed by:** Orchestrator, on `match-engine`'s fact-finding; raised from `CALIBRATION-BACKLOG.md` entry 58
-**Status:** PROPOSED — contract petition, awaiting owner ratification
+**Status:** ✅ **RATIFIED AS PROPOSED** (owner, July 2026) — contract petition
 **Category:** new event type (`MatchEvent` union), ADR-013's pre-approved widening category
 
 ---
@@ -156,16 +156,41 @@ unblocking roadmap 1d. No existing consumer changes; this is additive.
 
 ---
 
-## 5. Open items for the ruling
+## 5. Open items — both RULED
 
-1. ⚠ **The name `QB_PURSUIT` is the Orchestrator's, and it is the one item here with NO provenance.**
-   `PURSUIT_CLOCK` was the alternative. Flagged rather than absorbed.
-2. **A precision the ADR should probably state**: the pursuit clock **governs 19.013% / 14.225%** of
-   dropbacks; the **34.5% / 22.2%** figure is calibration's *exclusion boundary*, which correctly
-   also drops failed escape attempts (where the clock never starts) because a reclassifier cannot
-   know in advance which attempts succeed. **Both are right; they answer different questions**, and
-   the urgency argument holds on either.
+**1. The name `QB_PURSUIT` — RULED: keep it, recorded as CHOSEN, provenance NONE.**
+
+Owner ruling, and the general form is worth keeping: **event names are named by someone; there is no
+derivation available.** Marking it as the one provenance-less row was correct precisely because the
+honest answer is *"chosen"* — a provenance table that only ever says `COMPUTED` is a table nobody
+filled in honestly. It also reads accurately: **the subject is the quarterback being pursued, not a
+threat with an origin**, which is exactly the distinction this event exists to make.
+
+**2. The two percentages — RULED: keep BOTH, with the distinction written down.**
+
+| figure | what it means |
+|---|---|
+| **19.013% / 14.225%** (supply 15 / 45) | dropbacks the pursuit clock **GOVERNS** — successful escapes, where the clock is live and is the sole determinant of `POCKET_STATUS` |
+| **34.5% / 22.2%** | calibration's **EXCLUSION BOUNDARY** — every play carrying a `scramble` CHECK, *including failed attempts* where the clock never starts |
+
+**Both are right and they answer different questions.** The exclusion boundary is correctly the wider
+one: a reclassifier **cannot know in advance which escape attempts succeed**, so it must exclude the
+attempt, not the outcome. ⚠ **Written down because someone will otherwise conflate them later** —
+they differ by ~15pp and both describe "scrambles".
 
 ## 6. Decision
 
-*Owner ruling pending.*
+✅ **RATIFIED AS PROPOSED**, owner, July 2026. `QB_PURSUIT` as specified in §3 — `sinceTick`,
+`deadlineTick`, `rollRef`, and nothing else.
+
+**The ratifying reasoning, recorded because it settles the vocabulary question empirically rather than
+by judgement:** *"A field that is a placeholder in one event type and a fact in all the others is
+worse than a sentinel, because the surrounding rows vouch for it."* Three real fields and two
+placeholders under a contract whose whole meaning is that all five are facts — **two kinds of object
+sharing a shape, so ADD rather than WIDEN.** Promoted to Charter §4.1 with its operative test: **before
+reusing an event shape for a new subject, check every field the shape requires, not only the one you
+were worried about.**
+
+**Implementation order:** (1) `packages/contracts` — the event, Orchestrator. (2) `packages/engine` —
+emit at `passPlay.ts:900-905`, `match-engine`. (3) `packages/calibration` — drop the scramble
+exclusion, then roadmap **1d**: *enumerate the three channels' shares before pricing any of them.*
