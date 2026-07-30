@@ -19,6 +19,18 @@ For every number, table shape, call site or invariant this ADR asserts, say **wh
 > **up** into ratification (ADR-053 §6 named four tables as `PocketStatus`-keyed; only three are).
 > ⚠ **A quoted constant in a `Need` section is a restated constant with a ratification attached.**
 
+> ### ⛔ RATIFICATION PRECONDITION (owner, July 2026): **AN ADR WHOSE PROVENANCE TABLE HAS UNMARKED ROWS IS NOT RATIFIABLE YET.**
+>
+> **Not because the unmarked claims are wrong — because we now have evidence about WHICH ROWS THE
+> ERRORS LIVE IN.** ADR-053's table was filled in retroactively, and the result is close to a
+> controlled experiment: **nine claims; the two that were neither computed nor traced are exactly the
+> two that were false; everything computed survived.**
+>
+> **Two for two is a small sample. It is also the only sample there is** — and it is the reason this
+> is a precondition rather than a suggestion. Marking a row `REPORTED` is always permitted and is
+> never a defect; it is the *unmarked* row that blocks, because an unmarked row is precisely the one
+> nobody has decided about.
+
 ## Need
 What type / event / channel is needed, by which domain, and why. Reference the spec section that motivates it.
 

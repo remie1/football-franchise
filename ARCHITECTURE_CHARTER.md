@@ -759,6 +759,17 @@ built to satisfy a brief is the same failure as a fixture manufactured to produc
 population** — in both cases the artefact's existence is caused by the demand for it rather than by
 the thing it claims to measure, and it will be green for exactly that reason.
 
+> ### ⛔ THE DIAGNOSTIC HAS A PRIOR QUESTION, AND IT IS PERMANENTLY ATTACHED
+>
+> **1. WHAT, EXACTLY, IS THE SUBJECT?**
+> **2. What would make this go red?**
+>
+> **Never ask the second without the first.** A guard pointed at the wrong subject has a *confident,
+> specific, checkable* answer to question 2 — it simply is not about the thing you meant. **A
+> wrongly-aimed guard answers the diagnostic FLUENTLY**, and fluency is what the diagnostic reads as
+> coverage. Question 1 is the only one that can fail for a wrongly-aimed guard, which is exactly why
+> it must be asked first and cannot be inferred from a confident answer to question 2.
+
 **The diagnostic that caught it is the standing practice doing its job.** Requiring *a failing case
 per instrument* is what revealed that **none of the three could produce one** for this property.
 **Asking "what would make this go red?" of each instrument in turn is how an apparently-instrumented
@@ -927,6 +938,31 @@ asserting *"no `DEAD` payload carries the key at all"*, so **something still sta
 was.** Prefer conversion wherever the post-fix state is assertable; delete only when the defect has
 become unrepresentable (ADR-034's narrowing, ADR-036's discriminated union), because then the type is
 the standing evidence.
+
+> ### ⚠ THE EXCEPTION, AND IT CUTS THE OTHER WAY: WHEN THE CAPABILITY ITSELF IS THE HAZARD, RETIRE THE ABILITY TO RUN IT AND KEEP ONLY THE RECORD.
+>
+> Conversion is the default because a deleted guard leaves no evidence. **But some retired artefacts
+> are not guards — they are GENERATORS, and a generator's danger is not that it is stale. It is that
+> it still works.**
+>
+> ADR-052's `derivedLadder` padded a short ladder with literal `ABSOLUTE_SUCCESS_N` placeholders
+> rather than coining plausible names, **and that was exactly right**: the ladder came up one name
+> short, and what it produced read as **an unfilled slot rather than a decision.** The name was then
+> supplied deliberately, by a human, from existing vocabulary.
+>
+> > **A placeholder that looks like a decision is worse than one that looks like a gap.**
+>
+> Once `OVERWHELMING_` shipped, the padding mechanism had **no live subject** — and a scheme that can
+> synthesise a plausible rung name on demand is **one careless call away** from producing the bad kind
+> of placeholder, at precisely the moment someone is in a hurry and a ladder is one name short. So the
+> owner's ruling: **keep the record of why it existed; retire the ability to run it.**
+>
+> **The general form: for a generator, "retired but executable" is not a misleading comment — it is a
+> loaded tool.** The correct post-retirement behaviour when a future ladder runs short of names is
+> **a loud failure demanding that a human name the rung**, which is §4.1's own preference for a loud
+> failure over a silent default, applied to a naming scheme rather than a value. Note that this
+> exception is **narrow**: it applies where the artefact's *capability* is the hazard, not where its
+> *staleness* is. Guards, pins and assertions still convert.
 
 **Corollary — A RULE WHOSE PREDICATE CANNOT FAIL IS NOT A RULE. A catch-all is an UNCLASSIFIED REGION
 WEARING A CLASSIFICATION'S NAME.**
