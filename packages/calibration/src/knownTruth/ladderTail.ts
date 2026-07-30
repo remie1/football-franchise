@@ -1,19 +1,25 @@
 /**
- * THE LADDER'S TAIL — where "critical" starts, DERIVED from the two roll forms rather than chosen
- * to hit a rate.
+ * THE LADDER'S TAIL — where "critical" starts. ADR-050/052 DERIVED it from the two roll forms
+ * rather than choosing it to hit a rate; ADR-053 RATIFIED the result. `resultTierLadder` is now
+ * SEVENTEEN rungs (`packages/engine/src/tunables.ts`), and this module's job changed shape with it.
+ *
+ * ⛔ **RE-POINTED, NOT REWRITTEN, AND THE DISTINCTION MATTERS.** Everything below used to derive a
+ * CANDIDATE against a nine-rung committed ladder that did not yet satisfy the owner's property. That
+ * ladder shipped. So every gate that used to read "does a candidate satisfy the property" now reads
+ * "does the ladder that is actually in the tree satisfy it" — and every gate that used to read "the
+ * committed ladder fails everywhere" is now testing something FALSE, because it is describing the
+ * ladder this module argued against rather than the one that replaced it. Per Charter §4.1's
+ * retirement-disposal corollary, those claims are CONVERTED into frozen historical regressions
+ * (`PRE_RATIFICATION_LADDER` and its derivations) rather than deleted, and the live gates are
+ * rewritten to assert the tree as it now stands.
  *
  * ================== THE QUESTION, AND THE ONE THING IT IS NOT ==================
  *
- * ADR-050 measured the ladder and found its only genuine mis-scaling: `CRITICAL_SUCCESS` and
- * `CRITICAL_FAILURE` are the MODAL outcomes of every symmetric opposed check, at **24.850% each**,
- * because the two extreme rungs are OPEN and absorb everything past ±30. The owner ruled that the
- * fix is the ladder's top rung and not §7.1's floor:
- *
- *   > *"'Critical' is the ladder's MODAL vocabulary. That is a naming error with a distributional
- *   > consequence, and moving §7.1's floor to 30 would paper over it while leaving every other check
- *   > reading the same open rungs."* … *"the committed 15 stays exactly where it is."*
- *
- * and stated the target as a PROPERTY:
+ * ADR-050 measured the PRE-ratification ladder and found its only genuine mis-scaling:
+ * `CRITICAL_SUCCESS` and `CRITICAL_FAILURE` were the MODAL outcomes of every symmetric opposed
+ * check, at **24.850% each**, because the two extreme rungs were OPEN and absorbed everything past
+ * ±30. The owner ruled that the fix is the ladder's top rung and not §7.1's floor, and stated the
+ * target as a PROPERTY:
  *
  *   > **the extreme rungs must be RARER than the ones beneath them.**
  *
@@ -23,7 +29,8 @@
  *
  *   1. the PROPERTY, which is an inequality and therefore defines an ADMISSIBLE SET, not a point;
  *   2. the SHAPE of the two margin distributions, which selects within that set;
- *   3. the ladder's OWN committed geometry (its outermost bounded width), which is data, not taste.
+ *   3. the ladder's OWN pre-ratification geometry (its outermost bounded width), which is data, not
+ *      taste — frozen as history now that the tree has moved past it (see `PRE_RATIFICATION_LADDER`).
  *
  * ================== ⛔ THE TWO INSTRUCTIONS ARE ONE OPERATION ==================
  *
@@ -37,27 +44,29 @@
  * DERIVED, exactly, no sampling and no seeds:
  *   - both survival functions (d100 uniform on 1..100; the difference of two d100s triangular on
  *     [−99, 99] with mass (100 − |d|)/10000);
- *   - the occupancy of every rung of every CANDIDATE ladder at every integer shift;
- *   - the admissible set, by exhaustive integer search over boundary tuples;
+ *   - the occupancy of every rung of every ladder this module builds, at every integer shift;
+ *   - the admissible set, by exhaustive integer search over boundary tuples, over the FROZEN
+ *     pre-ratification base — a historical record of the search, not a live re-derivation;
  *   - the impossibility results in `IMPOSSIBILITY`, which are closed-form and are the load-bearing
- *     findings.
+ *     findings that justified widening the ladder in the first place.
  *
  * DECLARED, and falsifiable:
  *   - `PASS_RUSH_MIXTURE` — §7.1's four shift buckets and their weights, which ADR-050's census
  *     DISCOVERED from the stream by an identity rather than being told. Re-stated here so the §7.1
- *     column can be recomputed under a candidate ladder; `ladderTail.test.ts` checks it reproduces
- *     ADR-050's committed 21.055 / 10.816 before any candidate is priced with it.
+ *     column can be recomputed under any ladder; `ladderTail.test.ts` checks it reproduces
+ *     ADR-050's 21.055 / 10.816 on the pre-ratification ladder AND the equivalent facts on the tree
+ *     as ratified, before either is trusted for anything else.
  *
  * ================== WHAT WOULD MAKE THIS INSTRUMENT GO RED (backlog entry 55) ==================
  *
  * | claim | what reddens it |
  * |---|---|
  * | the survival functions are the same arithmetic ADR-050 gated | either one disagreeing with `ladderOccupancy.ts` on the committed ladder, at any shift |
- * | the committed ladder is the one being fixed | `COMMITTED_TAIL` disagreeing with `DEFAULT_TUNABLES.resultTierLadder` — it is derived, so this throws rather than drifts |
- * | §7.1's mixture is ADR-050's | the mixture reproducing anything but 21.055 / 10.816 on the committed ladder |
- * | the +1 impossibility | any (r = 1) ladder passing `tailMonotone` at shift 0 |
+ * | the committed ladder is the one that was derived | `derivedLadder("OUTER", DERIVED_SUCCESS_FLOORS_ENGINE_SCOPE)` disagreeing with `committedLadder()` — both are computed, so a mismatch throws-or-fails rather than drifting |
+ * | §7.1's mixture is ADR-050's | the mixture reproducing anything but 21.055 / 10.816 on the pre-ratification ladder, or anything but the renamed equivalents on the committed one |
+ * | the +1 impossibility | any (r = 1) ladder passing `tailMonotone` at shift 0 on the pre-ratification base |
  * | the span theorem | a ladder that is both opposed-monotone and has a non-empty target exact-width window |
- * | the derived ladder | its monotone shift band narrowing, which means a boundary moved |
+ * | the committed ladder holds at engine scope | `tailMonotone` failing at any of the eleven `ENGINE_OPPOSED_SHIFTS` on `committedLadder()` |
  */
 import type { CheckKind } from "@ff/contracts";
 import { DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
@@ -123,44 +132,74 @@ export interface TailRung {
 export type CandidateLadder = readonly TailRung[];
 
 /**
- * The committed ladder's SUCCESS-side floors, derived from the tunables tree.
+ * ⛔ **THE PRE-RATIFICATION NINE-RUNG LADDER, FROZEN.** This is what `DEFAULT_TUNABLES.resultTierLadder`
+ * held before ADR-052/053, hand-written here as a historical constant rather than read off the tree.
  *
- * Everything at or below 15 is FROZEN for this exercise and the freeze is a ruling, not a
- * convenience: §7.1's `minMargin = 15` stays (owner, ADR-050), and ADR-050's blessed
- * `STRONG_SUCCESS` occupancy of 11.700% / 10.816% is a statement about the interval **[15, 29]**,
- * so 30 is `STRONG_SUCCESS`'s ceiling+1 and is frozen with it. Only floors ABOVE 30 are searched.
+ * It CANNOT be read off the tree any longer, and that is the bug this dispatch's Task 1 found and
+ * fixes: `mirroredLadder` used to build a candidate by reading `tunables.resultTierLadder` for its
+ * frozen base (floors ≤ 30) and its label positions (`committedLabels[4]` for `TIE`,
+ * `committedLabels.slice(0, 4)` for the four success labels below `CRITICAL_SUCCESS`,
+ * `committedLabels.slice(5)` for the four failure labels). Both reads assumed a NINE-element array in
+ * a specific order. `DEFAULT_TUNABLES.resultTierLadder` is now SEVENTEEN elements, so those same
+ * expressions silently read the WRONG rungs — `committedLabels[4]` is `DECISIVE_SUCCESS` on the
+ * ratified tree, not `TIE`, and would have mislabelled the tie rung had this module kept reading
+ * live. Freezing the base is not a stylistic choice; it is the only way this module's own historical
+ * reasoning (`IMPOSSIBILITY`, `REJECTED_RULES`, `admissibleSet`) still means what it meant when it
+ * was written, now that the tree it used to read has moved past it.
  */
-export function committedSuccessFloors(tunables: Tunables = DEFAULT_TUNABLES): readonly number[] {
-  return tunables.resultTierLadder
-    .map((r) => r.minMargin)
+export const PRE_RATIFICATION_LADDER: readonly { readonly label: string; readonly minMargin: number }[] = [
+  { label: "CRITICAL_SUCCESS", minMargin: 30 },
+  { label: "STRONG_SUCCESS", minMargin: 15 },
+  { label: "SUCCESS", minMargin: 5 },
+  { label: "MARGINAL_SUCCESS", minMargin: 1 },
+  { label: "TIE", minMargin: 0 },
+  { label: "MARGINAL_FAILURE", minMargin: -4 },
+  { label: "FAILURE", minMargin: -14 },
+  { label: "STRONG_FAILURE", minMargin: -29 },
+  { label: "CRITICAL_FAILURE", minMargin: Number.NEGATIVE_INFINITY },
+];
+
+/**
+ * The pre-ratification ladder's SUCCESS-side floors, `[1, 5, 15, 30]`. Everything at or below 15 was
+ * FROZEN for the derivation and the freeze was a ruling, not a convenience: §7.1's `minMargin = 15`
+ * stayed (owner, ADR-050), and ADR-050's blessed `STRONG_SUCCESS` occupancy of 11.700% / 10.816% is a
+ * statement about the interval **[15, 29]**, so 30 is `STRONG_SUCCESS`'s ceiling+1 and was frozen
+ * with it. Only floors ABOVE 30 were searched. Derived from `PRE_RATIFICATION_LADDER` rather than
+ * hand-duplicated, so the two constants cannot silently disagree.
+ */
+export function preRatificationSuccessFloors(): readonly number[] {
+  return PRE_RATIFICATION_LADDER.map((r) => r.minMargin)
     .filter((m) => Number.isFinite(m) && m > 0)
     .sort((a, b) => a - b);
 }
 
 /**
- * Build a full, mirror-symmetric candidate ladder from the SUCCESS-side floors above 30.
+ * Build a full, mirror-symmetric ladder from the SUCCESS-side floors above 30, on top of the FROZEN
+ * pre-ratification base. This is historical/exploratory machinery — every caller either replays the
+ * derivation (`admissibleSet`, `IMPOSSIBILITY`'s single-split demonstration) or reconstructs exactly
+ * what shipped (`derivedLadder`) to cross-check it against `committedLadder()`. It does not read
+ * `DEFAULT_TUNABLES` for the reason `PRE_RATIFICATION_LADDER`'s own comment gives.
  *
- * ⚠ **THE MIRROR IS THE COMMITTED ONE AND IS NOT SYMMETRIC IN THE FLOORS.** On the committed
- * ladder a success rung `[a, b]` mirrors to `[−b, −a]`, so a failure FLOOR is minus a success
- * CEILING: floors 1/5/15/30 give ceilings 4/14/29/∞ and the failure floors are −4/−14/−29/−∞. `TIE`
- * owns 0 alone, which is the single point of asymmetry and the reason `TIE` is the only rung whose
- * occupancy is the same on both roll forms.
+ * ⚠ **THE MIRROR IS THE PRE-RATIFICATION ONE AND IS NOT SYMMETRIC IN THE FLOORS.** A success rung
+ * `[a, b]` mirrors to `[−b, −a]`, so a failure FLOOR is minus a success CEILING: floors 1/5/15/30
+ * give ceilings 4/14/29/∞ and the failure floors are −4/−14/−29/−∞. `TIE` owns 0 alone, which is the
+ * single point of asymmetry and the reason `TIE` is the only rung whose occupancy is the same on
+ * both roll forms.
  */
 export function mirroredLadder(
   successFloorsAboveThirty: readonly number[],
   names: { readonly success: readonly string[]; readonly failure: readonly string[] },
-  tunables: Tunables = DEFAULT_TUNABLES,
 ): CandidateLadder {
-  const base = committedSuccessFloors(tunables); // [1, 5, 15, 30]
+  const base = preRatificationSuccessFloors(); // [1, 5, 15, 30]
   const successFloors = [...base, ...successFloorsAboveThirty].sort((a, b) => a - b);
-  const committedLabels = tunables.resultTierLadder.map((r) => r.label);
-  const tie = committedLabels[4] ?? "TIE";
+  const historicalLabels = PRE_RATIFICATION_LADDER.map((r) => r.label);
+  const tie = historicalLabels[4] ?? "TIE";
 
-  // Names: the committed success labels bottom-up, then the caller's additions outward.
-  const committedSuccess = [...committedLabels.slice(0, 4)].reverse(); // MARGINAL, SUCCESS, STRONG, CRITICAL
-  const successNames = [...committedSuccess.slice(0, base.length), ...names.success];
-  const committedFailure = committedLabels.slice(5); // MARGINAL_F, FAILURE, STRONG_F, CRITICAL_F
-  const failureNames = [...committedFailure.slice(0, base.length), ...names.failure];
+  // Names: the pre-ratification success labels bottom-up, then the caller's additions outward.
+  const historicalSuccess = [...historicalLabels.slice(0, 4)].reverse(); // MARGINAL, SUCCESS, STRONG, CRITICAL
+  const successNames = [...historicalSuccess.slice(0, base.length), ...names.success];
+  const historicalFailure = historicalLabels.slice(5); // MARGINAL_F, FAILURE, STRONG_F, CRITICAL_F
+  const failureNames = [...historicalFailure.slice(0, base.length), ...names.failure];
 
   const rungs: TailRung[] = [];
   for (let i = successFloors.length - 1; i >= 0; i--) {
@@ -181,7 +220,19 @@ export function mirroredLadder(
   return rungs;
 }
 
-/** The committed nine-rung ladder as a `CandidateLadder`, for the cross-check against ADR-050. */
+/** `PRE_RATIFICATION_LADDER` as a `CandidateLadder`, for the historical regressions below. */
+export function preRatificationLadder(): CandidateLadder {
+  return PRE_RATIFICATION_LADDER.map((r) => ({ label: r.label, floor: r.minMargin }));
+}
+
+/**
+ * ⛔ **THE LADDER, LIVE.** Seventeen rungs as of ADR-052/053, read directly from the tunables tree —
+ * this is the only function in the module that still does. Everything else builds on the FROZEN
+ * `PRE_RATIFICATION_LADDER` so that a future re-banding cannot silently corrupt this module's own
+ * historical reasoning the way this dispatch found it had (see that constant's comment). The cross
+ * check that ties the two together is `derivedLadder("OUTER", DERIVED_SUCCESS_FLOORS_ENGINE_SCOPE)`,
+ * which reconstructs this exact ladder from the frozen base and the derivation alone.
+ */
 export function committedLadder(tunables: Tunables = DEFAULT_TUNABLES): CandidateLadder {
   return tunables.resultTierLadder.map((r) => ({ label: r.label, floor: r.minMargin }));
 }
@@ -323,12 +374,20 @@ export function monotoneShiftBand(
 const PLACEHOLDER_SUCCESS = ["S+1", "S+2", "S+3", "S+4"] as const;
 const PLACEHOLDER_FAILURE = ["F+1", "F+2", "F+3", "F+4"] as const;
 
-function candidate(extra: readonly number[], tunables: Tunables = DEFAULT_TUNABLES): CandidateLadder {
-  return mirroredLadder(
-    extra,
-    { success: PLACEHOLDER_SUCCESS.slice(0, extra.length), failure: PLACEHOLDER_FAILURE.slice(0, extra.length) },
-    tunables,
-  );
+/**
+ * Build a ladder on the frozen pre-ratification base with placeholder names — `"S+1"`, `"F+1"` and
+ * so on. Used only where the LABEL does not matter, because only `PIVOTS` (`STRONG_SUCCESS` /
+ * `STRONG_FAILURE`, both in the frozen base) and floor positions are read: the exhaustive search
+ * (`admissibleSet`) and the rejected-scope demonstration (`ladderTail.test.ts`'s "shift-0 scope does
+ * not survive the engine's shifts"). This is NOT `NAMING`'s retired padding mechanism — it never
+ * invents a name for a rung a caller expected to be real; every name here is visibly a placeholder
+ * and nothing downstream reads it as a `ResultTier`.
+ */
+function candidate(extra: readonly number[]): CandidateLadder {
+  return mirroredLadder(extra, {
+    success: PLACEHOLDER_SUCCESS.slice(0, extra.length),
+    failure: PLACEHOLDER_FAILURE.slice(0, extra.length),
+  });
 }
 
 export interface Admissible {
@@ -351,11 +410,11 @@ export interface Admissible {
  * contest. Exhaustive over integer floors in (30, 99]; a floor above 99 is unreachable on the
  * opposed support and would make its rung dead rather than rare.
  */
-export function admissibleSet(r: number, tunables: Tunables = DEFAULT_TUNABLES): readonly Admissible[] {
+export function admissibleSet(r: number): readonly Admissible[] {
   const out: Admissible[] = [];
   const search = (prefix: readonly number[]): void => {
     if (prefix.length === r) {
-      const ladder = candidate(prefix, tunables);
+      const ladder = candidate(prefix);
       if (!tailMonotone(ladder, "OPPOSED", 0, PIVOTS).holds) return;
       const rows = occupancy(ladder, "OPPOSED", 0);
       const pivot = rows.findIndex((x) => x.label === PIVOTS.success);
@@ -380,8 +439,12 @@ export function admissibleSet(r: number, tunables: Tunables = DEFAULT_TUNABLES):
 
 /**
  * The span of the BOUNDED rungs, in margin points, from the lowest bounded floor to the highest
- * bounded ceiling inclusive. **The committed ladder's is 59 and the TARGET window is 100** — that
- * 41-point slack is exactly ADR-050's [−71, −30] interval (42 shifts = 101 − 59).
+ * bounded ceiling inclusive. **The PRE-RATIFICATION ladder's was 59 against a TARGET window of
+ * 100** — that 41-point slack is exactly ADR-050's [−71, −30] interval (42 shifts = 101 − 59), and
+ * it is exactly the slack `FORM_CONFLICT` closes: an opposed-monotone ladder needs a top floor of at
+ * least 61, which forces the span past 100 and the slack to nothing. **The ratified ladder's span is
+ * 179** (`2·(90 − 1) + 1`) — comfortably past 100, which is not a defect but the arithmetic
+ * consequence of the property the owner asked for; see `targetExactWidthWindow`.
  */
 export function boundedSpan(ladder: CandidateLadder): number {
   const rows = occupancy(ladder, "OPPOSED", 0);
@@ -394,7 +457,11 @@ export function boundedSpan(ladder: CandidateLadder): number {
 /**
  * The interval of TARGET shifts over which EVERY bounded rung reads its width exactly in percent.
  * Empty (`width = 0`) as soon as `boundedSpan > 100`, because a 100-wide uniform window cannot cover
- * a wider bounded span. ADR-050 pinned this at [−71, −30] for the committed ladder.
+ * a wider bounded span. ADR-050 pinned this at [−71, −30] for the PRE-ratification ladder
+ * (`boundedSpan` 59). It is EMPTY for the ratified ladder (`boundedSpan` 179) — computed, not
+ * assumed, and it is `FORM_CONFLICT`'s prediction landing exactly: the property the owner asked for
+ * and the target form's clean row were never jointly satisfiable, and the ladder that shipped chose
+ * the property.
  */
 export function targetExactWidthWindow(ladder: CandidateLadder): { readonly lo: number; readonly hi: number; readonly width: number } {
   const rows = occupancy(ladder, "OPPOSED", 0);
@@ -454,7 +521,15 @@ export const FORM_CONFLICT = {
   minTopFloorForOpposedMonotonicity: 61,
   maxTopFloorForTargetExactWidth: 50,
   gapInFloorPoints: 11,
-  committedBoundedSpan: 59,
+  /** The PRE-ratification ladder's bounded span (renamed from `committedBoundedSpan`: it no longer is). */
+  preRatificationBoundedSpan: 59,
+  /**
+   * The RATIFIED ladder's bounded span — `179`, computed by `boundedSpan(committedLadder())`.
+   * Comfortably past `minTopFloorForOpposedMonotonicity`'s implied minimum (a top floor of 61 gives
+   * a span of 121) because the ratified top floor is 90, not 61: the derivation's SCOPE (engine
+   * shifts, not shift 0) pushed the stop further out than the shift-0 minimum required.
+   */
+  ratifiedBoundedSpan: 179,
   targetWindowWidth: 100,
   /**
    * ⛔ **AND THE SHARPER HALF, WHICH IS NOT ABOUT SPAN AT ALL.** On the TARGET form a bounded rung's
@@ -526,7 +601,7 @@ export const REJECTED_RULES: readonly { readonly rule: string; readonly why: str
  * **Step 1 — the property is equivalent to a statement about WIDTHS.** On a density that is
  * decreasing in |margin| — which both roll forms are, outward from their mode — a partition into
  * rungs whose widths do not GROW outward has strictly decreasing occupancy automatically. The
- * committed ladder's widths are 1, 4, 10, 15, **∞**. It violates monotonicity for exactly one
+ * PRE-RATIFICATION ladder's widths are 1, 4, 10, 15, **∞**. It violates monotonicity for exactly one
  * reason: the last width is infinite. **Bounding the extremes is therefore not a tuning act; it is
  * restoring the ladder to the class of partitions on which the property is free.**
  *
@@ -569,34 +644,55 @@ export const OPEN_RUNG_STOP = {
 } as const;
 
 /**
- * ⛔ **TWO LABEL ASSIGNMENTS OVER THE SAME BOUNDARIES, AND THE CHOICE IS NOT A CALIBRATION ONE.**
+ * ⛔ **TWO LABEL ASSIGNMENTS WERE ON THE TABLE OVER THE SAME BOUNDARIES, AND ONLY ONE SHIPPED.**
  *
- * The boundaries are derived and identical in both. What differs is WHERE THE WORD `CRITICAL` SITS,
- * and it matters for two reasons that point the same way:
+ * The boundaries were derived and identical in both; what differed was WHERE THE WORD `CRITICAL`
+ * SAT. ADR-053 §3 ruled `OUTER`, drawing its fourth name (`OVERWHELMING_`, for the engine-scope
+ * floor `90` that shift-0 scope never needed) from `ADJACENT`'s own vocabulary rather than coining
+ * one — which is why `ADJACENT` is kept below rather than deleted: ADR-053 §8's argument that no
+ * boundary was shaded to spare a consumer needs both namings' numbers to stay legible.
  *
- * - **`ADJACENT`** keeps `CRITICAL` immediately outside `STRONG`, which is the owner's *"CRITICAL …
- *   now merely uncommon"* reading. It lands `CRITICAL` at **9.450%** — an order of magnitude better
- *   than 24.850%, but NOT the *"low single digits"* the same ruling asks for, and its
- *   `CRITICAL_FAILURE` floor of **−44** sits SHORT of the −60 at which `tippedBall.test.ts`'s
- *   `accuracyTier === "CRITICAL_FAILURE"` filter stops moving.
- * - **`OUTER`** puts `CRITICAL` on the third tail rung at **4.950%** — low single digits — and its
- *   `CRITICAL_FAILURE` floor of **−74** is beyond −60, so the live consumer moves by zero.
- *
- * ⚠ **This is NOT a boundary shaded to dodge a consumer.** No boundary moves between the two; the
- * label does. The constraint binds on the NAME, and that is reported rather than resolved here.
+ * `NAMING` therefore now holds ONLY the ratified scheme, typed so `derivedLadder`'s `naming`
+ * parameter cannot select anything else — `keyof typeof NAMING` is the literal `"OUTER"`. The
+ * rejected scheme lives in `REJECTED_NAMING`, a plain constant with no function that reads it as a
+ * selector, immediately below.
  */
 export const NAMING = {
+  OUTER: {
+    /** Engine-scope success names, outward from `STRONG_SUCCESS`: floors 45, 60, 75, 90. */
+    success: ["DOMINANT_SUCCESS", "CRITICAL_SUCCESS", "OVERWHELMING_SUCCESS", "TOTAL_SUCCESS"],
+    failure: ["DOMINANT_FAILURE", "CRITICAL_FAILURE", "OVERWHELMING_FAILURE", "TOTAL_FAILURE"],
+    criticalAt: "[60, 74] / [-74, -60]",
+    /** `DECISIVE_` takes the rung `CRITICAL_` vacates (floor 30 / ceiling −44 on the mirror). */
+    renamesCommittedRung: { from: "CRITICAL_SUCCESS", to: "DECISIVE_SUCCESS", mirroredTo: "DECISIVE_FAILURE" },
+  },
+} as const;
+
+/**
+ * ⛔ **THE REJECTED ALTERNATIVE, KEPT LEGIBLE AND MADE UNSELECTABLE.**
+ *
+ * Owner's ruling on why this is a constant and not a branch of `NAMING`: *"A padding scheme that can
+ * generate a plausible-looking rung name is the kind of thing that gets reached for the next time a
+ * ladder is short … Keep the record of why it existed; retire the ability to run it."* The same
+ * applies here one level up — `ADJACENT` is not a padding mechanism, but it IS a naming a human could
+ * reach for by habit, and `derivedLadder` must not be able to select it by passing a string that
+ * happens to match. It is a plain object, not a member of `NAMING`, and nothing in this module
+ * accepts it as a `naming` argument.
+ *
+ * `ADJACENT` kept `CRITICAL` immediately outside `STRONG`, which was the owner's own *"CRITICAL …
+ * now merely uncommon"* reading. It landed `CRITICAL` at **9.450%** — an order of magnitude better
+ * than 24.850%, but NOT the *"low single digits"* the same ruling asked for, and its
+ * `CRITICAL_FAILURE` floor of **−44** sat SHORT of the −60 at which `tippedBall.test.ts`'s
+ * `accuracyTier === "CRITICAL_FAILURE"` filter stops moving. `OUTER` put `CRITICAL` on the third
+ * tail rung at **4.950%** — low single digits — with a `CRITICAL_FAILURE` floor of **−74**, beyond
+ * −60, so the live consumer moves by zero. No boundary moved between the two; only the label did,
+ * which is `ladderTail.test.ts`'s "records where CRITICAL_FAILURE's floor lands under each naming".
+ */
+export const REJECTED_NAMING = {
   ADJACENT: {
     success: ["DOMINANT_SUCCESS", "OVERWHELMING_SUCCESS", "TOTAL_SUCCESS"],
     failure: ["DOMINANT_FAILURE", "OVERWHELMING_FAILURE", "TOTAL_FAILURE"],
     criticalAt: "[30, 44] / [-44, -30]",
-  },
-  OUTER: {
-    success: ["DOMINANT_SUCCESS", "CRITICAL_SUCCESS", "TOTAL_SUCCESS"],
-    failure: ["DOMINANT_FAILURE", "CRITICAL_FAILURE", "TOTAL_FAILURE"],
-    criticalAt: "[60, 74] / [-74, -60]",
-    /** `DECISIVE_` takes the rung `CRITICAL_` vacates. */
-    renamesCommittedRung: { from: "CRITICAL_SUCCESS", to: "DECISIVE_SUCCESS" },
   },
 } as const;
 
@@ -616,41 +712,56 @@ export const NAMING = {
  */
 export const RUSHER_WINS_REP_INVARIANT = { pctBefore: 31.871, pctAfter: 31.871 } as const;
 
-/** The derived ladder under a chosen naming and scope. */
+/**
+ * The derived ladder under `NAMING.OUTER` — the scheme that shipped — reconstructed from the frozen
+ * pre-ratification base and the derivation's own floors, independent of the live tunables tree. When
+ * called with its defaults this is a SECOND, independent construction of `committedLadder()`, and
+ * `ladderTail.test.ts` asserts the two agree rung for rung: that is the module's live cross-check
+ * that "the committed ladder is the one that was derived".
+ *
+ * ⛔ **NO PADDING.** `NAMING.OUTER` names exactly as many rungs as `DERIVED_SUCCESS_FLOORS_ENGINE_SCOPE`
+ * has floors, and this function THROWS rather than invent a name if a caller passes a different
+ * `floors` array — the retired `ABSOLUTE_SUCCESS_N` generator is not replaced with a smaller one.
+ * Per the owner's ruling on this: a generator that can synthesise a plausible rung name at runtime is
+ * "one careless call away" from producing a name nobody decided on, and the correct behaviour for a
+ * ladder that is short of names is a loud failure that demands a human supply one — never a
+ * generated placeholder. (`candidate()`, above, is a different function: its `"S+1"`-style labels are
+ * never mistakable for a real `ResultTier` and nothing downstream reads them as one.)
+ */
 export function derivedLadder(
   naming: keyof typeof NAMING = "OUTER",
-  floors: readonly number[] = DERIVED_SUCCESS_FLOORS,
-  tunables: Tunables = DEFAULT_TUNABLES,
+  floors: readonly number[] = DERIVED_SUCCESS_FLOORS_ENGINE_SCOPE,
 ): CandidateLadder {
   const n = NAMING[naming];
-  const extra = floors.length - n.success.length;
-  const success = [...n.success, ...Array.from({ length: Math.max(0, extra) }, (_, i) => `ABSOLUTE_SUCCESS_${String(i + 1)}`)];
-  const failure = [...n.failure, ...Array.from({ length: Math.max(0, extra) }, (_, i) => `ABSOLUTE_FAILURE_${String(i + 1)}`)];
+  if (floors.length !== n.success.length) {
+    throw new Error(
+      `ladderTail: NAMING.${naming} names ${String(n.success.length)} rung(s) per side but ${String(floors.length)} floor(s) were given — no rung is padded with an invented name; supply a naming with the right number of names instead.`,
+    );
+  }
   // ⚠ Renamed BY FLOOR, never by label: under OUTER the word `CRITICAL_SUCCESS` appears twice during
-  // construction — once as the committed rung at 30 and once as the new rung at 60 — and a
+  // construction — once as the pre-ratification rung at 30 and once as the new rung at 60 — and a
   // label-keyed rename would rewrite both. That is the same class of defect as a status-keyed
   // lookup with `?? 0` (ADR-034), and it is avoided structurally rather than by ordering.
-  const vacated = new Map<number, string>(
-    naming === "OUTER"
-      ? [
-          [30, "DECISIVE_SUCCESS"],
-          [-((floors[0] ?? 45) - 1), "DECISIVE_FAILURE"],
-        ]
-      : [],
-  );
-  const built = mirroredLadder(floors, { success: success.map((_, i) => `__S${String(i)}`), failure: failure.map((_, i) => `__F${String(i)}`) }, tunables);
+  const vacated = new Map<number, string>([
+    [30, n.renamesCommittedRung.to],
+    [-((floors[0] ?? 45) - 1), n.renamesCommittedRung.mirroredTo],
+  ]);
+  const built = mirroredLadder(floors, {
+    success: n.success.map((_, i) => `__S${String(i)}`),
+    failure: n.failure.map((_, i) => `__F${String(i)}`),
+  });
   let si = 0;
   let fi = 0;
   return built.map((r) => {
     const renamed = vacated.get(r.floor);
     if (renamed !== undefined) return { ...r, label: renamed };
     if (r.label.startsWith("__S")) {
-      const label = success[success.length - 1 - si];
+      const label = n.success[n.success.length - 1 - si];
       si += 1;
       return { ...r, label: label ?? r.label };
     }
     if (r.label.startsWith("__F")) {
-      const label = failure[fi];
+      const label = n.failure[fi];
       fi += 1;
       return { ...r, label: label ?? r.label };
     }
@@ -678,8 +789,11 @@ export function targetCompliantShifts(ladder: CandidateLadder, probe: readonly n
  * contest that only half its reps are.
  *
  * ⚠ Falsified before use: `ladderTail.test.ts` requires this mixture to reproduce ADR-050's
- * committed 21.055% `CRITICAL_SUCCESS` and 10.816% `STRONG_SUCCESS` on the COMMITTED ladder, to
- * three decimals, before any candidate is priced with it.
+ * 21.055% `CRITICAL_SUCCESS` and 10.816% `STRONG_SUCCESS` on `preRatificationLadder()` — the tree as
+ * ADR-050 measured it — to three decimals, before any ladder is priced with it. `STRONG_SUCCESS` and
+ * everything below floor 30 are UNCHANGED by the re-banding, so the ratified `committedLadder()`
+ * reproduces the same 10.816%; the 21.055% moved with the rung's name to `DECISIVE_SUCCESS`, which
+ * is `mixtureOccupancy`'s value there under the ratified tree, checked separately.
  */
 export const PASS_RUSH_MIXTURE: readonly { readonly shift: number; readonly weight: number; readonly branch: string }[] = [
   { shift: 0, weight: 0.49923, branch: "POWER" },
