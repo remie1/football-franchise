@@ -119,12 +119,43 @@ critical outcome must be **a genuine outlier — low single digits on an even co
 four.**
 
 **And §7.1's floor is RULED TO STAY AT 15.** The owner's `"10–15% of snaps"` named **`STRONG_SUCCESS`,
-which occupies 10.816% of §7.1's reps — exactly right.** The 31.871% is **entirely `CRITICAL_SUCCESS`
-riding along on an open floor.**
+which occupies 10.816% of §7.1's reps — exactly right.** ~~The 31.871% is **entirely `CRITICAL_SUCCESS`
+riding along on an open floor.**~~ ⛔ **THAT SENTENCE IS FALSE — see the correction below. Kept, struck
+rather than deleted, because it is the error this entry now exists to record.**
 
 > **The threshold was never wrong; the ladder above it was.** Moving §7.1's floor to 30 would **paper
 > over a naming error with a distributional consequence** while leaving **every other check reading the
 > same open rungs.**
+
+> ### ⛔⛔ THE RULING THAT ACCEPTED ADR-050 CONTAINED ADR-050'S EXACT ERROR — [ADR-053](ADR-053-the-seventeen-rung-ladder-ratified-and-bytier-as-shape-only.md) §5
+>
+> ADR-050 established that **the tier and the cumulative band are different numbers.** The ruling
+> above then predicted that `RUSHER_WINS_REP` — §7.1's **cumulative band** — *"lands near 10–15% per
+> rep once the tail above it is a tail."*
+>
+> **It does not, and it cannot.** `passRush.bands` is a **separate `minMargin` table**
+> (`packages/engine/src/tunables.ts:275`), structurally independent of `resultTierLadder` (`:97–105`).
+> `P(margin ≥ 15)` is fixed by the roll and is **INVARIANT UNDER EVERY RE-PARTITION OF THE LADDER
+> ABOVE 15** — **31.871% before this change and 31.871% after it**, to three decimals, asserted under
+> both namings and both scopes. The 31.871% is **not** `CRITICAL_SUCCESS` riding along; it is the band
+> table's own floor, which the tier ladder does not touch.
+>
+> **⇒ CONSEQUENCE, AND IT IS THE PART THAT CHANGES WORK: RE-BANDING THE LADDER WAS NEVER GOING TO FIX
+> §7.1's SUPPLY.** That remains **entry 40's supply correction — separate work, still owed** (1b-ii and
+> 1c below). The ladder change is worth doing **on its own merits** — the modal-critical naming defect
+> is real and the 26-of-30 target-shift fix is a genuine gain — **but it is not the pressure fix, and
+> no roadmap note may read as though it were.** Same discipline as entry 41's closing line.
+>
+> **⇒ AND THE GENERAL FORM (owner, July 2026): A RATIFIED RULING IS THE ARTIFACT REVIEW CANNOT CATCH.**
+> §4.1's audit-priority corollary says *a pin that drifts stops the build; a stored ruling that drifts
+> keeps being cited.* This is the sharpest instance yet, and **the owner's own diagnosis of why it
+> survived is the part worth keeping: *because it was mine and recent.*** A ruling issued by the
+> authority that reviews rulings, on a distinction that authority had **just drawn**, is the exact
+> configuration in which **no reviewer is looking** — the drawing of the distinction reads as evidence
+> that it is being applied. It was caught by an implementer **computing the number rather than quoting
+> it**, which is the same mechanism that caught [ADR-046](ADR-046-contest-conditioned-openness-gain.md)'s
+> constant. **Two for two: both ratified-ruling defects this month were caught downstream, by
+> recomputation, and neither by review.**
 
 **Two constraints on the derivation:** boundaries come **from the distribution's shape, not from a
 target rate** (the compensation pattern, refused every time); and the target property is that **the
@@ -141,6 +172,47 @@ consumers read floors*, so the change is safe **only if that remains true.**
 > before anything consumes it by name.**"*
 
 `ResultTier` is declared in `packages/contracts/src/events.ts:24` — **adding rungs is a petition.**
+
+> ### ✅ DERIVED AND RATIFIED — [ADR-052](ADR-052-the-tail-derivation-and-the-two-forms-that-cannot-both-be-served.md) (derivation), [ADR-053](ADR-053-the-seventeen-rung-ladder-ratified-and-bytier-as-shape-only.md) (petition). Four owner rulings.
+>
+> **1. SEVENTEEN RUNGS, FOUR NEW PER SIDE — and "add a rung above and below" was unsatisfiable.**
+> With `STRONG_SUCCESS` ratified at `[15, 29]`, the mass above 30 is 24.850% and a monotone two-rung
+> split caps at 2 × 11.700 = **23.400%. Deficit 1.450pp**; the exhaustive search agrees, **0 of 69
+> boundaries pass.** Floors **45 / 60 / 75 / 90** mirrored. `CRITICAL` falls **24.850% → 4.950%**, a
+> factor of 5.02.
+>
+> **⇒ AND THE GATE SCOPE IS THE DECISION, NOT THE NUMBERS.** The 15-rung ladder passes at shift 0 and
+> **fails at shift −12 — §7.1's SPEED/FINESSE branch, half of every pass-rush rep played** (6 of 11
+> engine shifts fail). **A shift-0 gate would have passed it.** That is **entry 49's flat-league trap
+> presenting live**, and it is why the ruling gates at **the engine's own shift set.** The stop
+> re-derives at the wider scope rather than being extended by hand: support widens 100 → 120, so
+> `u = 120 − B` gives `B ≥ 85`, first lattice point **90**. Same three steps; only the shift differs.
+>
+> **2. THE TWO ROLL FORMS CANNOT BOTH BE SERVED — ACCEPTED, NOT RECONCILED.** Opposed monotonicity
+> needs a top floor ≥ **61**; the target form's exact-width property needs ≤ **50**. Every admissible
+> ladder has an **empty target window** (asserted over all 57 two-rung and 1,587 three-rung
+> candidates). And **on the uniform form strict monotonicity is unsatisfiable outright, by ANY
+> ladder**, because a bounded rung's occupancy **is** its width. Ratified for the **opposed** form.
+> Gain taken while the conflict stands: non-strict target compliance **0 of 30 → 26 of 30** engine
+> shifts; the four survivors are stacks sitting **above** their target — **rating work, unreachable by
+> any ladder.** ⇒ **entry 57.**
+>
+> **3. NAMING: `DECISIVE` / `DOMINANT` / `CRITICAL` / `OVERWHELMING` / `TOTAL`.** The ruling's two
+> phrases were **30 margin points apart** — *"merely uncommon"* puts `CRITICAL` at 9.450%, *"low single
+> digits"* at 4.950% — and **no boundary reconciles them.** Owner: *"the tighter one is what I meant."*
+> `CRITICAL` at `[60, 74]`. ⚠ **No boundary was shaded to spare a consumer**; boundaries are identical
+> under both candidate namings and only the label differs.
+>
+> **4. `ByTier<T>` SHIPS AS SHAPE AND RULE, INSTANTIATED NOWHERE — the escape hatch was correct.**
+> The union widened to seventeen rungs and **the engine compiled clean, zero errors**, because every
+> tier-keyed structure is a runtime `Map` that gains a key in silence. But **no structure is keyed by
+> tier anywhere**, and the reason is **ADR-029 holding**: football meaning lives on a per-check **band
+> table**, never on a tier. A mapped type instantiated somewhere it does not belong would be **a guard
+> with no subject.** ⇒ **the guard's LIVE subject is `PocketStatus`** — `pocket.severity`,
+> `accuracyModifier`, `readCapacityDelta`, `minimumStatusByBand` are bare object literals, and
+> ADR-033/034 record **this exact failure already having happened there** (`?? 0` where `0` is the
+> *best* rung). **A guard whose subject is a documented past defect is the opposite of a guard with no
+> subject.** Referred to `match-engine`.
 
 **1b-ii. ⚡ RULING 2 (owner, July 2026) — A BEATEN RUSHER MUST BE ABLE TO STOP BEING A THREAT WITHOUT A RESET.**
 
@@ -3173,3 +3245,44 @@ entry 1 is gated on entry 3.
   vision finds the best lane 83.8% of the time, so ZONE posts a 4.3% TFL rate against GAP's
   16.1%, and 52.7% of ZONE carries go somewhere other than the designed gap against GAP's 0%.
   §6.2's "RB Vision Dependency: HIGH / LOW" is mechanically live.
+
+---
+
+## 57. ❓ SHOULD TARGET CHECKS READ A SEPARATE LADDER? — deliberately unanswered, with the conflict as its evidence
+
+**Opened by [ADR-053](ADR-053-the-seventeen-rung-ladder-ratified-and-bytier-as-shape-only.md) §4, on
+the owner's ruling to accept the form conflict rather than reconcile it.**
+
+`ResultTier` is read by checks of two different roll forms, and **they have incompatible
+requirements**:
+
+| | OPPOSED (`d100 − d100 + shift`) | TARGET (`d100 + shift ≥ k`) |
+|---|---|---|
+| margin distribution | triangular, decreasing in \|margin\| | **uniform** |
+| a bounded rung's occupancy | falls as the rung moves outward | **IS its width** |
+| strict monotonicity | achievable — and now ratified | ⛔ **unsatisfiable by ANY ladder** |
+| top-floor requirement | **≥ 61** | **≤ 50** |
+
+The windows do not overlap. Asserted exhaustively over **all 57 two-rung and 1,587 three-rung
+admissible ladders: every one has an empty target window.**
+
+**This is not a boundary problem.** A boundary problem has a boundary that fixes it. **This is the
+ladder being asked to do two jobs**, and the uniform-form half is unsatisfiable *by construction* —
+equal widths are equally likely, so no partition can make an outer rung rarer than an inner one.
+
+> ⛔ **WHY THIS IS AN OPEN QUESTION AND NOT A TASK.** The answer is a **design decision needing its own
+> evidence**, and the cheap alternative — **a compromise boundary in neither window** — is exactly what
+> this project has refused all week. It would satisfy the gate on both forms by satisfying the football
+> on neither, and it would make the conflict *invisible* rather than *decided*. Recorded so the
+> decision is taken deliberately when there is something to decide it with.
+
+**What was taken in the meantime, and it is large:** the derived ladder lifts non-strict target
+compliance from **0 of 30** engine target shifts to **26 of 30**. The four survivors are
+`field_goal`, `deflection_recovery` and five R99 checks — **stacks sitting ABOVE their target**, i.e.
+**rating work that no ladder can reach.** That is a clean mechanic-versus-rating disambiguation
+falling out of the derivation for free, and it is the strongest evidence this entry has today.
+
+**What would decide it.** Whether target checks *want* a severity vocabulary at all, or only a
+pass/fail with a margin — and if they want one, whether its rungs mean the same football thing as the
+opposed ladder's. **If they do not, this is not one ladder with a conflict; it is two ladders sharing
+a name**, which is entry 51's string-valued-table blindness in a different costume.
