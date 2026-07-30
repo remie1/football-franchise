@@ -3607,3 +3607,44 @@ a name**, which is entry 51's string-valued-table blindness in a different costu
 > would be **removed from it** — so the fix for a monotonicity failure is **deleting the property's
 > subject**, not repairing the property. That is the retirement-disposal corollary pointing the
 > opposite way to usual, and it is why this is a design question rather than a tuning one.
+
+---
+
+## 60. ⛔ `pnpm -r build` FAILS AT `apps/game`, AND ADR-038's COVERAGE GATE IS GREEN — a script that is DECLARED is not a script that RUNS
+
+**Found while running the full workspace suite for ADR-054 (habit 9), which is the only reason it was
+found at all** — nothing else in the routine touches `build`.
+
+`apps/game/package.json` declares `"build": "tsc -p tsconfig.json && vite build"`. **The `tsc` half
+passes. The `vite build` half cannot succeed: `apps/game` has no `index.html` and no
+`vite.config.ts` committed** — the directory holds only `package.json`, `src`, two tsconfigs and
+build output.
+
+> ### **ADR-038's `check-workspace-coverage.mjs` is GREEN on this, and correctly so by its own terms: it verifies that every package DECLARES `build`, `test` and `typecheck`. It does not verify that any of them SUCCEEDS.**
+
+**⇒ THIS IS THE APPARENTLY-INSTRUMENTED FAILURE, ARRIVING AT THE GATE THAT EXISTS TO PREVENT
+APPARENTLY-INSTRUMENTED FAILURES** (Charter §4.1). ADR-038 was written because *"a root command that
+silently checks less than its name implies is the same species as a restated constant."* The gate it
+produced closed the **declaration** gap and left the **execution** gap open — and the two read
+identically from a green run.
+
+**The prior question again, applied to the gate itself:** *what, exactly, is the subject?* The
+subject is **the presence of a script name in a manifest.** That is a real, checkable, useful
+property, and it is **not** the property anyone believes the gate has.
+
+### What is owed, and it is two separate things
+
+1. **A ruling on `apps/game`'s build.** It is a Phase-6 package with no UI yet (`ui-layout`'s domain,
+   dormant). Options: scaffold the two missing files; narrow the `build` script to `tsc` until there
+   is something to bundle; or declare the package explicitly pre-build. ⚠ **Whichever is chosen, it
+   must not be "leave it and remember"** — that is the convention §4.1 exists to refuse.
+2. **A decision on whether the coverage gate should EXECUTE rather than DECLARE.** ⚠ Note the cost
+   honestly: a gate that runs every package's `build` is slow, and slowness is how gates get
+   disabled. A cheaper middle exists — assert that each declared script's **first token resolves**,
+   or that `build` targets that name a bundler have the bundler's config present. **Do not adopt the
+   expensive version by default; price it.**
+
+> **Standing note, and it is the reusable half:** *a coverage gate over MANIFESTS answers a question
+> about manifests.* Any gate whose subject is configuration rather than behaviour has this shape, and
+> the failing case that would have caught it is the one ADR-038 never had to write: **a package that
+> declares all three scripts and whose build is broken.**
