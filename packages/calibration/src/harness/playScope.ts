@@ -24,8 +24,8 @@
  *
  * ================== THE PRICE REGISTER — every raw-vs-exclusive pair measured to date ==================
  *
- * The over-statement factor is the reusable quantity, not any one count. **Five measurements, five
- * subjects, and RAW has over-stated reach EVERY time, by between 4× and 40×.** Quoting a raw count
+ * The over-statement factor is the reusable quantity, not any one count. **Eight measurements, eight
+ * subjects, and RAW has over-stated reach EVERY time, by between 1.8× and 70×.** Quoting a raw count
  * as though it were a reach is not a rounding error in this project; it is the modal error.
  *
  * | subject | scope | raw | exclusive | over-statement |
@@ -36,6 +36,14 @@
  * | ADR-035 §6.1 `tippedBall.qualityBands.DEAD.finalTargetNumber` | corpus, total | 4.766% | **0.000%** | ∞ (dead cell) |
  * | **ADR-048 `route.contestGain.*`** (§4) | play (4,000) | **1,827** (45.675%) | **185** (4.625%) | **9.9×** |
  * | **entry 36 `blitzPickup.freeRunnerArrivalSeconds`** | play (68,730) | **6,196** (9.015%) | **1,269** (1.846%) | **4.88×** |
+ * | **ADR-049 entry 40 SUPPLY — `passRush.bands[RUSHER_WINS_REP].minMargin` extinguished** | play (68,730) | **41,457** (60.319%) | **41,457 stream (1.00×)** / **22,686 outcome** (33.007%) | **1.83× (outcome)** |
+ * | **ADR-049 entry 40 PERSISTENCE — `pressureProgressByBand[*].reset`, at its ceiling** | play (68,730) | **38,965** (56.693%) | 16,142 stream (2.41×) / **1,277 outcome** (1.858%) | **30.51× (outcome)** |
+ *
+ * ⛔ **THE SUPPLY ROW IS THE LARGEST EXCLUSIVE-OUTCOME REACH EVER MEASURED HERE — 33.007%, seven
+ * times `route.contestGain`'s — AND IT IS ALSO THE SMALLEST OVER-STATEMENT.** Read together those
+ * say one thing: this subject is not a cell that occasionally binds, it is a mechanism a third of
+ * the game's plays run through. The register is worth keeping precisely because the ratio, not the
+ * count, is what generalises — and this row is the first to sit at the bottom of its range.
  *
  * ⛔ **AND ONE MEASUREMENT WHERE THE STREAM COUNT CAME BACK AT EXACTLY 1.00×.** The arrival row's
  * `EXCLUSIVE stream` is **6,196 — identical to RAW, on both arms.** The cell's answer is published on

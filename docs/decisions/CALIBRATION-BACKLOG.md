@@ -111,6 +111,15 @@ window**); the rate mapping is derived, not chosen.
 
 **2a-ii. ⚡ ENTRY 40'S SUPPLY CANDIDATES — moved up, ahead of 2b and the joint measurement.**
 
+> ### ✅ RUN, July 2026 — [ADR-049](ADR-049-the-pressure-rate-is-over-determined.md). See entry 40.
+>
+> **Candidate 1 is the pressure rate (−63.581 ± 0.104pp where it acts alone); candidate 2 is refused
+> even at its ceiling (−0.108 ± 0.036pp); the pair is NOT separable.** The dominant open gap has a
+> named mechanism for the first time, and the four earlier refusals are explained: **the pressure
+> rate is OVER-DETERMINED**, so a lever measured on `DEFAULT_TUNABLES` prices whether a channel is
+> *binding*, not whether its mechanism is *large*. ⇒ **NEW QUEUE ITEM: re-price the four refused
+> levers on the arrival-only base.** Also the first lever ever found for entry 2's sack divergence.
+
 `startsThreat` firing on **31.85% of all §7.1 reps**, and **threats retired only by `BLOCKER_RESETS`**.
 Owner ruling, July 2026, and the reasoning is the part to keep:
 
@@ -952,6 +961,78 @@ specifically: **a threat rate only matters as much as threats last.**
 in the *classification* of reps and it was in the *production* of them. That is worth remembering
 as a class — **when every threshold in a subsystem is refused, the quantity is upstream of all of
 them.**
+
+### ✅ SWEPT — [ADR-049](ADR-049-the-pressure-rate-is-over-determined.md). The redirect was RIGHT, and the reason four levers refused is now measured.
+
+**Candidate 1 IS the pressure rate. Candidate 2 is refused. The pair is NOT separable.**
+4 seed lists × 496 games × 24 configurations, plus 68,730 plays at play scope with ISOLATION 0 on
+all seven arms and a digest-identical complement on every one.
+
+| | on `DEFAULT_TUNABLES` | on the ARRIVAL-ONLY base |
+|---|---|---|
+| supply extinguished (`RUSHER_WINS_REP` unreachable) | **−0.111 ± 0.043pp** | **−63.581 ± 0.104pp** |
+| persistence at its ceiling (a threat lives one tick) | +0.044 ± 0.037pp | **−0.108 ± 0.036pp** |
+| interaction at the extinction rung | — | **+0.108 ± 0.036 — exactly annihilating the persistence term** |
+
+Levels: committed **89.859 ± 0.132%**; arrival base with supply extinguished **24.587 ± 0.200%**;
+real **29.225%**. **The supply lever's reach EXCEEDS the divergence and drives the rate THROUGH the
+real value.** At play scope the extinction arm decides the outcome of **22,686 of 68,730 plays
+(33.007%)** — seven times the largest reach previously measured in this project — against the
+persistence ceiling's **1,277 (1.858%)**.
+
+> ## ⛔ THE PRESSURE RATE IS OVER-DETERMINED — and that is the class the last eight dispatches belong to
+>
+> The SAME intervention is worth **63.581pp** and **0.111pp**. Extinguishing the won-rep threat
+> channel drops COLLAPSING ticks by 39 points — and `BLOCKER_BEATEN → PRESSURE` picks up every one
+> of them, so **CLEAN ticks do not move at all** (29.16% → 29.30%). The rate has **several
+> individually SUFFICIENT causes**; remove one and the next takes over.
+>
+> **A lever measured against `DEFAULT_TUNABLES` prices "is this channel BINDING?", not "is this
+> mechanism LARGE?"** `blockerStructuralAdvantage`, `freeRunnerArrivalSeconds`, `RUSHER_GAINING`'s
+> map and `pressureWithinSeconds` were each measured with a redundant sufficient cause standing
+> behind them. **Their budgets are correct as CELL prices and are NOT evidence about their
+> mechanisms' sizes.** ⇒ **OWED: re-price all four on the arrival-only base.** The base already
+> exists (`packages/calibration/test/threatSupplyPatches.ts` → `arrivalOnlyBase()`), so this is cheap.
+
+**📐 THE PRESSURE-RATE TRANSFER FUNCTION — quote it beside every future pressure figure.**
+`pressure_rate` is `1 − P(every tick CLEAN)` over a mean of **2.98 ticks per dropback**, so it is
+COMPRESSIVE. Measured: CLEAN ticks 29.2 / 32.5 / 35.6 / 44.1 / 46.1 / 77.6% → pressure
+89.9 / 88.1 / 85.0 / 76.5 / 76.4 / 24.6%. **To reach a realistic rate the pocket must be CLEAN on
+about three ticks in four; today it is CLEAN on fewer than one in three.** A lever worth 2–3 points
+of tick dirtiness reads as a null at any n — a property of the METRIC, not of the lever.
+
+**🔧 AND THE FIRST LEVER THAT MOVES THE SACK RATE (entry 2).** Supply extinguished is
+**−13.379 ± 0.077pp** (15.235% → 1.855%); supply 15→40 with the persistence ceiling lands
+**7.086 ± 0.081% against a real 6.898%**. **Not a proposal** — reaching it means declaring that a
+rusher must win by 40 to have beaten anybody — but entry 2 has a named lever for the first time and
+it is the same one as the pressure gap's. Completion moves the WRONG WAY throughout (39.7% → 41.9%
+against a real 64.6%) and ttt rises 1.122 → 1.469s against 2.682s: **nothing here closes entry 1.**
+
+**Owner rulings owed, both football and neither tuning:** (a) is a 15-point d100 margin — `P ≈ 0.32`
+per rep, 4–5 rushers, every half-second, **2.711 threats per dropback** — "past his blocker and
+travelling"? (b) should a beaten rusher ever stop being a threat without a blocker "reset"? Measured
+at ~0.1pp of pressure and 1.8pp of sack, so it is **not** the rate lever — but it remains the missing
+state transition, and it is the only one of the two that is a modelling gap rather than a constant.
+
+### ⛔ 40a. TWO CORRECTIONS TO THIS ENTRY'S OWN TEXT, found while sweeping it
+
+1. **"A threat is removed ONLY by `BLOCKER_RESETS` — not by time, not by distance" is WRONG as
+   written.** `packages/engine/src/sim/passPlay.ts:912` publishes `RESET` for **every** live threat
+   when §8.8's escape succeeds, and wipes the matchup. It is why a configuration with zero won-rep
+   threats still shows a 15.58% reset share (free-runner matchups have no blocker, post no rep, and
+   `clearsThreat` can therefore never run for them). The football claim underneath survives — an
+   escape is the *quarterback's* action, not a blocker taking a beaten rusher out of the play — but
+   the mechanism list was incomplete, and this entry is what future dispatches read.
+2. **"The entire band map extinguished" does not describe a reproducible arm on today's tree.**
+   ADR-032 §5's `G + W` ran **before ADR-033 split `BLOCKER_BEATEN` out**; on the current engine
+   `BLOCKER_BEATEN → PRESSURE` is a third dirty row those two patches do not touch. Committed
+   pressure re-measured: **89.859 ± 0.132%** against ADR-032's 89.473 on a pre-ADR-033/034/046/048
+   engine. ⇒ **an inherited "extinguishment" is only extinguishment on the tree it was run on.**
+
+**Census, re-measured and replicating:** `RUSHER_WINS_REP` is **31.909%** of 409,574 reps at play
+scope and **31.858%** of 1,638,443 at corpus scope (entry 40 said 31.85%); **2.711 threats per
+dropback** on **97.678%** of dropbacks; **44.244%** of threats are ever RESET, **55.756%** are still
+live when the play ends, and only **7.040%** ever publish ARRIVED.
 
 ## 41. `RUSHER_GAINING → PRESSURE` is a TRANSCRIPTION, not an interpretation
 
