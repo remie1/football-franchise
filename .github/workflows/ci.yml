@@ -55,6 +55,22 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # BUILD RUNS HERE AND NOWHERE ELSE — owner ruling, July 2026, backlog entry 60.
+      #
+      # ADR-038's coverage gate checks that every package DECLARES `build`, `test` and
+      # `typecheck`. It does NOT check that any of them SUCCEEDS, and those two read identically
+      # from a green run. `apps/game` declared `vite build` with no `index.html` and no
+      # `vite.config.ts` committed: `pnpm -r build` had been failing while the coverage gate
+      # reported the workspace covered.
+      #
+      # WHY THE FIX IS HERE AND NOT IN THE GATE. Making the coverage gate execute every package's
+      # build would be slow, and SLOWNESS IS HOW GATES GET DISABLED — a disabled gate is worse
+      # than a narrow one. CI is the layer that can afford it: here the cost is a wait, not a
+      # habit. The coverage gate keeps doing the fast declaration check it is genuinely good at,
+      # and its subject is now stated precisely in ADR-038 rather than assumed.
+      - name: Build
+        run: pnpm -r build
+
       # THE CONTRACTS HOOK IS NOT SELF-INSTALLING. `.githooks/commit-msg` enforces the
       # ADR-reference rule on packages/contracts, but git only runs it when
       # `core.hooksPath=.githooks` is configured — which is per-machine and NOT carried by a

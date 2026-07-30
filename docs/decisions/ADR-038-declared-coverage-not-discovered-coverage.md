@@ -104,6 +104,37 @@ That line is drawn knowingly (§4.1's counter-corollary — *deciding what not t
 designing the guard*): this closes the **silent-skip** class; a lying script is a different failure,
 and a loud, reviewable one.
 
+### ⛔ AMENDED, July 2026 (backlog entry 60) — THE SUBJECT WAS STATED HONESTLY. THE RESIDUAL RISK WAS NOT.
+
+**The sentence above is right up to its last clause, and the last clause was false.** *"A lying
+script is a loud, reviewable failure"* assumed **something runs it.** Nothing did.
+
+`apps/game` declared `"build": "tsc -p tsconfig.json && vite build"` with **no `index.html` and no
+`vite.config.ts` committed** — not a lying script, a *real* command that could not succeed in this
+repo. `pnpm -r build` had been failing, and **the coverage gate was green the whole time**, because
+`build` was in no routine: CI ran `typecheck` and `test`, and so did every working session. It
+surfaced only when a full-workspace verification was run for an unrelated ADR.
+
+> **A failure is only "loud and reviewable" if something invokes it. An uninvoked script's failure is
+> as silent as a missing one — and the coverage gate reports both states identically.**
+
+**⇒ RULED (owner, July 2026): the gate does NOT change.** Making it execute every package's build
+would be slow, **and slowness is how gates get disabled — a disabled gate is worse than a narrow
+one.** `pnpm -r build` now runs **in CI**, where the cost is a wait rather than a habit. `apps/game`'s
+manifest is fixed (`build` narrowed to `tsc` until there is something to bundle). **Two separate
+actions, neither of them widening this gate's subject.**
+
+### 🔴 WHAT WOULD MAKE THIS GATE GO RED (entry 55's required field, retrofitted)
+
+**A package in a `pnpm-workspace.yaml` glob that lacks a `build`, `test` or `typecheck` script.**
+Full stop — that is the whole trigger.
+
+⚠ **It does NOT go red for:** a script that fails, a script that is a no-op, a script that names a
+tool the repo cannot run, or a package outside the declared globs. **This gate predates the
+red-trigger requirement**, which is exactly why the gap survived authoring: the field's purpose is to
+force this sentence to be written *while the instrument is being built*, when the author still
+remembers what they chose not to cover.
+
 ## The contracts guard fired, and was deliberately not taught the exception
 
 `packages/contracts/package.json` and `packages/contracts/tsconfig.test.json` are **build tooling,

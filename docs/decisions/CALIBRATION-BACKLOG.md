@@ -3648,3 +3648,29 @@ property, and it is **not** the property anyone believes the gate has.
 > about manifests.* Any gate whose subject is configuration rather than behaviour has this shape, and
 > the failing case that would have caught it is the one ADR-038 never had to write: **a package that
 > declares all three scripts and whose build is broken.**
+
+### ✅ RULED AND DONE (owner, July 2026) — two separate actions, and the gate does NOT change
+
+1. **`apps/game`'s manifest is fixed.** `build` narrowed to `tsc -p tsconfig.json`; the `vite build`
+   half is removed until there is something to bundle. `pnpm -r build` now exits **0**.
+2. **`pnpm -r build` runs in CI**, added after `Test` in `.github/workflows/ci.yml`.
+
+> ⛔ **AND THE COVERAGE GATE IS DELIBERATELY LEFT ALONE.** *"A gate that runs every package's build is
+> slow, slowness is how gates get disabled, and a disabled gate is worse than a narrow one."* CI is
+> the layer that can afford execution — **there the cost is a wait, not a habit.** The coverage gate
+> keeps doing the fast declaration check it is genuinely good at.
+
+3. **ADR-038's record amended**, and the correction is sharper than "state the subject": **the ADR
+   stated its subject honestly** — *"verifies a script is declared, not that it does anything"* — and
+   **got the very next clause wrong.** It said a lying script would be *"a loud, reviewable failure"*,
+   which assumed **something runs it.** Nothing did: `build` was in no routine, so an unrunnable
+   script was **exactly as silent as a missing one**, and the gate reported both states identically.
+   It also gained entry 55's red-trigger field, **stated negatively as well as positively.**
+
+**⇒ AND THE PATTERN IS NOW ITS OWN FINDING** — Charter §4.1: *ask the prior question of a new
+instrument on the day it ships.* Five rules in this repo have now been strengthened by an instance of
+**their own subject**, which is not irony but what a real defect class looks like from inside: the
+rule is written the first time the class is seen, the class is larger than the instance that revealed
+it, and the next instance lands **in the rule's own blind spot — the one place nobody re-examines
+because a rule now exists there.** ⇒ **OWED: retrofit entry 55's red-trigger field to every
+instrument that predates it.**

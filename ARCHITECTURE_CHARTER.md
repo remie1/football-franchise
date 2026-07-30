@@ -938,6 +938,39 @@ Both directions have now fired, within one month, on the same ADR:
 > in a ratified document have never been checked**. Without it, a derived claim and a transcribed one
 > are typographically indistinguishable forever after.
 
+**Corollary — ASK THE PRIOR QUESTION OF A NEW INSTRUMENT ON THE DAY IT SHIPS, NOT ON THE DAY
+SOMETHING SLIPS PAST IT.**
+
+> ### **A rule keeps being strengthened by the exact thing it was written to catch — and that pattern is itself the evidence.**
+
+Count them. Each of these is a guard **improved by an instance of its own subject**:
+
+| the rule | what later slipped past it |
+|---|---|
+| *derive the check from the thing it checks* | the band-table exemption list — **hand-enumerated, three of six wrong** |
+| ADR-036, *an absence must look like an absence* | `CATCH_RESOLUTION`'s comment naming the wrong quantity (ADR-044) |
+| the audit-priority corollary | ADR-050's accepting ruling, **making ADR-050's own error** |
+| the referent extension | a brief that **conflated two ladders**, in the dispatch about a ladder conflation |
+| ADR-038, *a command that checks less than its name implies* | **its own gate**: declaration checked, execution not — and `pnpm -r build` failing unnoticed |
+
+**This is not bad luck and it is not irony. It is what a real defect class looks like from inside:**
+the rule is written the first time the class is *seen*, and the class is larger than the instance
+that revealed it — so the next instance lands **in the rule's own blind spot**, which is the one
+place nobody re-examines *because a rule now exists there.*
+
+> ⛔ **THE OPERATIVE FORM: an instrument's blind spot must be written down BY ITS AUTHOR, WHILE THEY
+> ARE BUILDING IT.** Entry 55's *"what would make this go red?"* field exists for exactly this, and it
+> works — but only for instruments built after it. **Every instrument that predates the field has an
+> unwritten blind spot**, and ADR-038 is the proof: it stated its subject honestly (*"verifies a
+> script is declared, not that it does anything"*) and then guessed wrong about the residual risk in
+> the very next clause, because nothing forced it to name the failing case it was choosing not to
+> cover.
+
+**⇒ OWED: a retrofit sweep.** Add the red-trigger field to every instrument that predates it, and
+**state the trigger negatively as well as positively** — *what this does NOT redden for* is where the
+next instance will land. Cheap, mechanical, and it converts a class of unwritten assumptions into a
+class of written ones.
+
 **Corollary — A FIELD THAT IS A PLACEHOLDER IN ONE EVENT TYPE AND A FACT IN ALL THE OTHERS IS WORSE
 THAN A SENTINEL, BECAUSE THE SURROUNDING ROWS VOUCH FOR IT.**
 
