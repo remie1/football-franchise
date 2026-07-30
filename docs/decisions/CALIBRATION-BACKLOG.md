@@ -438,9 +438,30 @@ knows, that decides an outcome, and that no consumer can read. Neither was a new
 declared unavailable.
 
 **Owed:** a petition to publish the pursuit clock as a first-class threat event, or an explicit ruling
-that it stays unpublishable **and every stream consumer must declare the exclusion.** ⚠ **Ahead of
-anything else that reconstructs pocket status from the stream** — which includes 1d's channel-share
-measurement, so **check this first or accept a declared 22–35% blind spot in it.**
+that it stays unpublishable **and every stream consumer must declare the exclusion.**
+
+### ⛔⛔ ORDERING RULED (owner, July 2026): **58 LANDS FIRST. 1d FOLLOWS.**
+
+**1d reconstructs pocket status from the stream, so it inherits this hole** — and a channel-share
+measurement carrying a declared 22–35% blind spot **would be the third instance of the failure that
+has already cost two dispatches.** Over-determination bit twice because a channel was measured
+without establishing what was binding; **measuring channel SHARES on two-thirds of dropbacks would
+repeat it.**
+
+> ⚠ **AND THE MISSING THIRD IS NOT RANDOM.** The excluded population is **scrambles — exactly where
+> the pursuit clock and the pocket interact most.** This is not 30% missing at random; it is **the
+> population most likely to differ**, removed from the measurement that exists to compare channels.
+
+**58 is also CHEAP by the standard of its own precedents: the engine already computes the pursuit
+clock.** The petition **publishes a fact rather than adding a mechanism** — the same shape as
+`RUSH_THREAT.origin` and `CATCH_RESOLUTION.openness`, both of which paid immediately.
+
+⚠ **NOTE WHAT THE PETITION MUST NOT DO.** `ArrivalClock`'s own doc comment records that the pursuit
+clock was **typed as the weaker thing rather than handed a fabricated origin to satisfy a publisher
+it never reaches** — all four `ThreatOrigin` values (`WON_REP`, `UNBLOCKED`, `PICKUP_LOST`,
+`STUNT_LOOPER`) are **false of it**. That was correct, and it is ADR-036's *an absence must look like
+an absence*. **The fix is a new honest vocabulary, never a fifth meaning stretched over an existing
+one.**
 
 ---
 
