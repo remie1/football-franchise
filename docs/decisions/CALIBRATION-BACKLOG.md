@@ -109,6 +109,39 @@ window**); the rate mapping is derived, not chosen.
 > visible, the natural conclusion is **that attributes don't matter.** That is **worse than a wrong
 > number, because it discredits the SYSTEM rather than the CELL.**
 
+**1a. ⚡⚡ BOUND THE EXTREME RUNGS — RULED (owner, July 2026, on ADR-050). AHEAD OF EVERYTHING.**
+
+> **`CRITICAL_SUCCESS` and `CRITICAL_FAILURE` are the two most likely outcomes of every symmetric
+> opposed check in the game — 24.850% each. "Critical" is the ladder's MODAL vocabulary.**
+
+**RULED: bound the two extreme rungs, and add a rung above and below to hold the true tail.** A
+critical outcome must be **a genuine outlier — low single digits on an even contest — not one snap in
+four.**
+
+**And §7.1's floor is RULED TO STAY AT 15.** The owner's `"10–15% of snaps"` named **`STRONG_SUCCESS`,
+which occupies 10.816% of §7.1's reps — exactly right.** The 31.871% is **entirely `CRITICAL_SUCCESS`
+riding along on an open floor.**
+
+> **The threshold was never wrong; the ladder above it was.** Moving §7.1's floor to 30 would **paper
+> over a naming error with a distributional consequence** while leaving **every other check reading the
+> same open rungs.**
+
+**Two constraints on the derivation:** boundaries come **from the distribution's shape, not from a
+target rate** (the compensation pattern, refused every time); and the target property is that **the
+extreme rungs are RARER than the ones beneath them** — currently violated at 24.850% vs 11.700%, and
+gateable as a monotonicity claim about rung occupancy.
+
+**⛔ SAFETY PRECONDITION, and it gates the change:** every consumer that reads a rung by **EQUALITY**
+rather than as a **FLOOR** must be found **before anything moves.** Nothing is broken today *because
+consumers read floors*, so the change is safe **only if that remains true.**
+
+> **WHY IT CANNOT WAIT:** *"The UI badge and the narrative trigger are both coming, both will read the
+> TIER NAME rather than a floor, and a 'CRITICAL' badge firing on a quarter of all reps would be the
+> first thing a player notices and the last thing anyone would think to check. **Fix the vocabulary
+> before anything consumes it by name.**"*
+
+`ResultTier` is declared in `packages/contracts/src/events.ts:24` — **adding rungs is a petition.**
+
 **1b-ii. ⚡ RULING 2 (owner, July 2026) — A BEATEN RUSHER MUST BE ABLE TO STOP BEING A THREAT WITHOUT A RESET.**
 
 **The diagnosis is the pair of numbers: 55.756% of threats are still live at play end and only 7.040%
@@ -358,6 +391,29 @@ stands on its own analysis, but its *measurements* must be re-taken after entry 
   taken inside a defect fix.
 
 ## 3. §7.1 pass-rush term asymmetry — design-doc defect, not a tuning question
+
+> ### ⚠⚠ THIS ENTRY'S HOLDING POSITION IS STALE IN BOTH LIMBS (ADR-050). ANNOTATE WHEREVER IT IS CITED.
+>
+> *"The rusher carries two-to-three terms against the blocker's two, so an evenly-rated matchup favours
+> the rush by roughly 15 points structurally"* — **no longer true, in either half.** ADR-028 gave the
+> blocker `anchor` and zeroed the constant:
+>
+> | §7.1 branch | terms | shift @60 | shift @99 | share of reps |
+> |---|---|---|---|---|
+> | POWER | **3 v 3** | **0** | **0** | 49.923% |
+> | SPEED / FINESSE | 2 v 3 | **−12** | **−20** | 49.534% |
+>
+> **THE STRUCTURAL EDGE NOW RUNS AGAINST THE RUSH ON HALF THE REPS**, and level-variantly so. POWER is
+> exactly symmetric at every level — which is also why `pass_rush_tick` on POWER is **level-invariant**
+> and its occupancy is a property of the **ladder**, not of the flat-60 fixture.
+>
+> **Provenance worth keeping:** the four buckets were **discovered from the stream by an identity**
+> (`shift = margin − raw + opposedRaw`), **not declared.** A hand-written list would have restated
+> entry 3's stale claim, which is §4.1's derivation corollary paying again.
+>
+> **Consequence:** `blockerStructuralAdvantage`'s original justification no longer holds. That does not
+> by itself rule on the constant — but **any argument citing "the rush is favoured by ~15 structurally"
+> is arguing from a tree that no longer exists.**
 
 > ### ⚠ SWEPT July 2026 (ADR-027) — AND THIS ENTRY'S HEADLINE CLAIM IS WRONG.
 >
