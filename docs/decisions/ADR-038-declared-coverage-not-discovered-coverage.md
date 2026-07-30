@@ -135,6 +135,13 @@ red-trigger requirement**, which is exactly why the gap survived authoring: the 
 force this sentence to be written *while the instrument is being built*, when the author still
 remembers what they chose not to cover.
 
+⛔ **AND NOTHING IS ASSERTED ABOUT WHAT CATCHES THOSE CASES INSTEAD — deliberately.** The original
+text's error was not the boundary; it was the **reassurance attached to it** (*"a loud, reviewable
+failure"*), which made a claim about elsewhere that nothing checked. The rule now (Charter §4.1):
+**name the enforcing thing, or say nothing.** So, naming it: **`pnpm -r build` runs in CI** as of
+entry 60, which covers the *fails-to-run* case for `build` specifically — **and nothing covers the
+no-op case at all.** That is a recorded gap, not a guarded one.
+
 ## The contracts guard fired, and was deliberately not taught the exception
 
 `packages/contracts/package.json` and `packages/contracts/tsconfig.test.json` are **build tooling,

@@ -966,10 +966,37 @@ place nobody re-examines *because a rule now exists there.*
 > the very next clause, because nothing forced it to name the failing case it was choosing not to
 > cover.
 
-**⇒ OWED: a retrofit sweep.** Add the red-trigger field to every instrument that predates it, and
-**state the trigger negatively as well as positively** — *what this does NOT redden for* is where the
-next instance will land. Cheap, mechanical, and it converts a class of unwritten assumptions into a
-class of written ones.
+### ⛔ AND THE DEFECT WAS NOT THE BOUNDARY. IT WAS THE REASSURANCE ATTACHED TO THE BOUNDARY.
+
+> **A gate that says *"I do not cover X"* is honest. A gate that says *"I do not cover X, and X fails
+> loudly elsewhere"* has made a claim about ELSEWHERE — and nothing checks elsewhere.**
+
+ADR-038 drew its line correctly and then added *"a lying script is a different failure, and a loud,
+reviewable one."* That clause **assumed something invokes the script.** Nothing did, and:
+
+> ### **An uninvoked script's failure is exactly as silent as a missing one — and the gate reports both states identically.**
+
+**⇒ SO THE RED-TRIGGER FIELD HAS TWO HALVES, AND THE SECOND IS A PROHIBITION:**
+
+1. **State what the instrument does NOT redden for.** The negative half is where the next instance
+   lands.
+2. ⛔ **Do NOT assert what happens to it instead — unless something enforces that.** A comforting
+   sentence about coverage-elsewhere is an **unguarded claim inside a guard's own documentation**, and
+   it reads with the guard's authority. If the fallback is real, *name the thing that provides it*; if
+   it is a hope, **say nothing.**
+
+**⇒ AND THE PRIOR QUESTION AIMED AT THE RULE ITSELF, which is the actionable form of this whole
+corollary: WHEN A RULE IS WRITTEN, ASK WHAT PART OF ITS CLASS IT DOES NOT COVER.** It will not catch
+everything — the entire mechanism is that the class exceeds what is visible from the instance that
+revealed it. **But it converts *"we will find out"* into *"here is what we know we have not
+covered"*, which is the difference between a blind spot and a recorded gap.**
+
+**⇒ OWED, AND PERIODIC RATHER THAN ONE-TIME: the retrofit sweep.** Add the red-trigger field to every
+instrument that predates it, stated in both directions. **The periodicity is not administrative — it
+follows from the mechanism.** ⚠ **The rules in this document are not accumulating because we keep
+finding NEW classes. They accumulate because EACH RULE CREATES THE REGION WHERE THE NEXT INSTANCE
+HIDES.** That predicts the growth continues, and a sweep run once would itself become an instrument
+with an unwritten blind spot.
 
 **Corollary — A FIELD THAT IS A PLACEHOLDER IN ONE EVENT TYPE AND A FACT IN ALL THE OTHERS IS WORSE
 THAN A SENTINEL, BECAUSE THE SURROUNDING ROWS VOUCH FOR IT.**
