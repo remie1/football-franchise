@@ -31,6 +31,19 @@ For every number, table shape, call site or invariant this ADR asserts, say **wh
 > never a defect; it is the *unmarked* row that blocks, because an unmarked row is precisely the one
 > nobody has decided about.
 
+> ### ⚠ A PROVENANCE TABLE THAT ONLY EVER SAYS `COMPUTED` IS ONE NOBODY FILLED IN HONESTLY.
+>
+> **The row that admits a choice is the row proving the field works.** Real ADRs contain claims that
+> were read, claims that were reported, and claims — event names, thresholds picked from a football
+> judgement — that have **no provenance at all** and should say so. ADR-054's `QB_PURSUIT` is the
+> worked example: **`CHOSEN — provenance NONE`**, because *event names are named by someone and there
+> is no derivation available.*
+>
+> ⛔ **So do not read a table of uniform `COMPUTED` rows as verification.** Read it as a table that
+> has not been filled in — the same reflex as *"12 rulings, all current"* under the count-blindness
+> corollary (Charter §4.1). **Uniformity in a field whose whole purpose is to record difference is
+> the signal, not the reassurance.**
+
 ## Need
 What type / event / channel is needed, by which domain, and why. Reference the spec section that motivates it.
 
