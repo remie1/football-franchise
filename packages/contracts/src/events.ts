@@ -21,9 +21,72 @@ export interface RollDetail {
   rngLabel: string; // PRNG fork label — every roll auditable and replayable
 }
 
+/**
+ * The severity ladder, ordered. **The order carries meaning**, so it carries a monotonicity gate
+ * (ADR-032): occupancy must strictly decrease outward from `TIE`.
+ *
+ * ⛔ SEVENTEEN RUNGS, FOUR PER SIDE ADDED BY ADR-053. The nine-rung ladder's outermost rung was
+ * OPEN, and an open rung on a density decreasing in |margin| accumulates the whole tail: on an even
+ * opposed check `CRITICAL_SUCCESS` and `CRITICAL_FAILURE` were **the two most likely outcomes of
+ * every contest, at 24.850% each**. A critical outcome that fires on one snap in four is not a
+ * critical outcome. `CRITICAL` now sits at `[60, 74]` — **4.950%** at shift 0, a factor of 5.02.
+ *
+ * The widths are `1, 4, 10, 15, 15, 15, 15, 15, open`. The property is a statement about WIDTHS: on
+ * a density decreasing in |margin|, a partition whose widths do not grow outward has strictly
+ * decreasing occupancy *automatically*. The old ladder violated it for exactly one reason — the
+ * last width was infinite. **Bounding the extremes is not tuning; it restores the ladder to the
+ * class where the property is free.**
+ *
+ * Every boundary is DERIVED, none chosen to hit a rate (ADR-052 records the rejected rules by name
+ * and with their reasons, target-rate picking among them):
+ * - the **step, 15**, is the ladder's own outermost bounded width;
+ * - the **stop, 90**, is the first lattice point past `2·T(B) < T(B−15)` evaluated at the engine's
+ *   actual shift set — `u = 120 − B`, `B ≥ 85`. Gated at shift ±20, **not** at shift 0: the
+ *   15-rung candidate passes a shift-0 gate and fails at shift −12, which is §7.1's SPEED/FINESSE
+ *   branch — half of every pass-rush rep played.
+ *
+ * ⚠ RATIFIED FOR THE OPPOSED FORM ONLY. Target checks (`d100 + shift ≥ k`) read these same names
+ * under a UNIFORM margin, where a bounded rung's occupancy IS its width — so equal widths are
+ * equally likely and **strict monotonicity is unsatisfiable there by any ladder whatsoever**. That
+ * conflict is accepted rather than reconciled (ADR-053 §4); whether target checks should read a
+ * separate ladder is an open design question with its own evidence (backlog entry 57), deliberately
+ * not answered by a compromise boundary in neither window.
+ *
+ * ⚠ `CRITICAL_SUCCESS` MOVES FROM FLOOR 30 TO FLOOR 60, and `DECISIVE_SUCCESS` takes the rung it
+ * vacates. Any code that re-points the ladder must rename **by floor, never by label** — the word
+ * appears twice during construction and a label-keyed rename rewrites both.
+ */
 export type ResultTier =
-  | "CRITICAL_SUCCESS" | "STRONG_SUCCESS" | "SUCCESS" | "MARGINAL_SUCCESS"
-  | "TIE" | "MARGINAL_FAILURE" | "FAILURE" | "STRONG_FAILURE" | "CRITICAL_FAILURE";
+  | "TOTAL_SUCCESS" | "OVERWHELMING_SUCCESS" | "CRITICAL_SUCCESS" | "DOMINANT_SUCCESS"
+  | "DECISIVE_SUCCESS" | "STRONG_SUCCESS" | "SUCCESS" | "MARGINAL_SUCCESS"
+  | "TIE"
+  | "MARGINAL_FAILURE" | "FAILURE" | "STRONG_FAILURE" | "DECISIVE_FAILURE"
+  | "DOMINANT_FAILURE" | "CRITICAL_FAILURE" | "OVERWHELMING_FAILURE" | "TOTAL_FAILURE";
+
+/**
+ * A total map from the severity ladder to `T` — **every rung, no optionals, no index signature.**
+ *
+ * ⛔ WHAT THIS EXISTS TO PREVENT. Adding four rungs per side to `ResultTier` compiled clean across
+ * the whole workspace with **zero errors**, because every tier-keyed structure in the repo is a
+ * runtime `Map` that gains a key in silence. Nothing anywhere demanded a football value for a new
+ * rung. That is a choice which has to be REMEMBERED rather than enforced, and Charter §4.1 exists
+ * to refuse exactly that: a convention is a rule that holds until someone is in a hurry. This is
+ * the second ladder change in a month.
+ *
+ * It is a MAPPED TYPE OVER THE UNION, never a hand-written record of rung names — so it is derived
+ * from the ladder rather than restating it, and the next ladder change edits one place, not two.
+ *
+ * ⚠ NOTHING INSTANTIATES THIS TODAY, AND THAT IS DELIBERATE (ADR-053 §6). `ResultTier` appears
+ * repo-wide only as a payload field type and `tierFor`'s return: **no structure is keyed by tier
+ * anywhere**, because ADR-029 holds — every football meaning lives on a per-check BAND table, never
+ * on a tier. A mapped type instantiated somewhere it does not belong, purely to force a compile
+ * error, would be a guard with no subject. The subjects are SCHEDULED, not invented: the UI outcome
+ * badge and the narrative trigger table must each supply a meaning per tier by construction when
+ * those phases open, and they use this.
+ *
+ * Use it the moment such a site exists. Do not manufacture one.
+ */
+export type ByTier<T> = { [K in ResultTier]: T };
 
 /** Closed union — extending it is a contract petition (lightweight, pre-approved category). */
 export type CheckKind =

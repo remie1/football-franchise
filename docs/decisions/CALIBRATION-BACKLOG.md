@@ -3286,3 +3286,20 @@ falling out of the derivation for free, and it is the strongest evidence this en
 pass/fail with a margin — and if they want one, whether its rungs mean the same football thing as the
 opposed ladder's. **If they do not, this is not one ladder with a conflict; it is two ladders sharing
 a name**, which is entry 51's string-valued-table blindness in a different costume.
+
+> ### 🧭 THE OWNER'S EXPECTED SHAPE — recorded UNRULED, and explicitly NOT to be acted on
+>
+> *"My read, unruled, is that **target checks probably don't want a severity vocabulary.** A target
+> check asks **'did this succeed and by how much,' where margin is already the answer**; severity
+> tiers exist to **compress an opposed contest into a football outcome someone can name.** If that
+> holds, the resolution isn't a second ladder but **removing the tier from target checks entirely and
+> letting them report margin.**"* (Owner, July 2026.)
+>
+> ⛔ **DO NOT IMPLEMENT THIS.** It is recorded **because a stated expectation is falsifiable and an
+> unstated one silently steers the measurement** — the same discipline as ADR-033's expected-movement
+> note. This entry's evidence is still owed, and the expectation must be able to lose to it.
+>
+> **Note what it would mean if it holds:** the ladder would not be *fixed* for the target form, it
+> would be **removed from it** — so the fix for a monotonicity failure is **deleting the property's
+> subject**, not repairing the property. That is the retirement-disposal corollary pointing the
+> opposite way to usual, and it is why this is a design question rather than a tuning one.

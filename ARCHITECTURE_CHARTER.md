@@ -778,6 +778,37 @@ naming values, comments, notes. They are the ones that **can be wrong indefinite
 **Prose is the extreme case** — zero enforcement, maximum authority (see the corollary above, and
 `CALIBRATION-BACKLOG.md` roadmap item **2b**, which exists for exactly this reason).
 
+**Sub-corollary — A RATIFIED RULING'S NUMERIC CLAIMS ARE UNVERIFIED UNTIL SOMETHING COMPUTES THEM.
+Not distrusted. UNVERIFIED.**
+
+> ### **Ratification converts a claim into an assumption, and the author is the last person who will re-open it.**
+
+A ratified ruling is the artefact **review cannot catch**, because review is *structurally absent* by
+the time it exists: the ruling **is** the review's output. Worse, when a ruling is issued by the
+authority that reviews rulings, **on a distinction that authority has just drawn**, the drawing of the
+distinction *itself reads as evidence that it is being applied.* That is the precise configuration in
+which nobody is looking.
+
+**The evidence is two for two in one month, both caught downstream, neither by review:**
+
+| ruling | the claim | how it was caught |
+|---|---|---|
+| ADR-046's `Need` | quoted `route.opennessGainPerTick = 8`; committed value is **5** — the `8` is a **sibling leaf of the same name** under `scramble.*` | calibration's enforcement sweep, **recomputing the constant** |
+| ADR-050's accepting ruling | predicted `RUSHER_WINS_REP` would fall to 10–15% once the tail was a tail | ADR-052's implementer, **computing 31.871% before and after** and finding it **structurally invariant** |
+
+The second is the sharper one: it made **ADR-050's own error** — conflating the tier with the
+cumulative band — **inside the ruling that accepted ADR-050**, one dispatch after the distinction was
+named. The owner's diagnosis of why it survived is the part worth keeping: **because it was mine and
+recent.**
+
+**THE PRACTICAL CONSEQUENCE, and it exists so nobody treats the step as a formality when they are in
+a hurry: the implementer who computes a ruling's numbers is not CHECKING the ruling — they are
+performing THE ONLY VERIFICATION THAT RULING WILL EVER GET.** Skipping it because the number is
+ratified inverts the actual reliability: ratification is the reason it needs computing, not a reason
+it does not. **Quoting a ratified number forward is a restated constant with an owner's signature
+attached** (ADR-046), and it propagates *further* than an unratified one precisely because nobody
+argues with it.
+
 **Corollary — RETIRED ARTEFACTS NEED A DISPOSAL RULE, NOT A LABEL. If a retired block can still
 execute, "retired" is a comment.**
 
