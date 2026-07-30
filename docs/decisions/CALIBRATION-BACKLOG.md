@@ -109,7 +109,35 @@ window**); the rate mapping is derived, not chosen.
 > visible, the natural conclusion is **that attributes don't matter.** That is **worse than a wrong
 > number, because it discredits the SYSTEM rather than the CELL.**
 
-**2a-ii. ⚡ ENTRY 40'S SUPPLY CANDIDATES — moved up, ahead of 2b and the joint measurement.**
+**1b-ii. ⚡ RULING 2 (owner, July 2026) — A BEATEN RUSHER MUST BE ABLE TO STOP BEING A THREAT WITHOUT A RESET.**
+
+**The diagnosis is the pair of numbers: 55.756% of threats are still live at play end and only 7.040%
+ever ARRIVE.** *A "threat" that never arrives and never dies is not a threat — it is a flag.*
+
+**The football:** real rushers get **ridden past the pocket**, run themselves out of the play, lose the
+corner, or simply do not have the ground to cover before the ball goes. **Requiring a discrete blocker
+win to retire a threat means the only way to be safe is for the blocker to RE-WIN — which is not how a
+rep works. A blocker who steers a rusher wide has SUCCEEDED WITHOUT WINNING ANYTHING.**
+
+**Ruled: add retirement by GEOMETRY and by TIME.** A threat **whose path has been redirected past the
+quarterback's position**, or **whose remaining travel exceeds the time left in the play**, retires.
+**Derivable from data already in the stream** — ETA and alignment are both published.
+
+> **⛔ PRICE IT ON THE ARRIVAL-ONLY BASE, NOT ON `DEFAULT_TUNABLES`.** Persistence measured 0.18% of
+> the gap **because supply was a redundant sufficient cause behind it.** ADR-049's interaction finding
+> says exactly this: the term was **annihilated by its first factor.** **Once supply is corrected,
+> persistence stops being annihilated.** Measure the two **together and separately**, per entry 37,
+> and **name what is held.**
+
+**1c. RE-PRICE THE FOUR REFUSED LEVERS ON THE ARRIVAL-ONLY BASE — top of the queue after the rulings land.**
+
+`blockerStructuralAdvantage`, `freeRunnerArrivalSeconds`, `RUSHER_GAINING`'s band map,
+`arrival.pressureWithinSeconds`. **Each was measured behind a redundant sufficient cause**, so each
+priced *"is this channel binding?"* rather than *"is this mechanism large?"* (entry 40's annotation).
+**The base exists, it is cheap, and it may resurrect a mechanism we refused on a number that was never
+about it.**
+
+**2a-ii. ✅ ENTRY 40'S SUPPLY CANDIDATES — RUN (ADR-049). Candidate 1 found; candidate 2 refused.**
 
 > ### ✅ RUN, July 2026 — [ADR-049](ADR-049-the-pressure-rate-is-over-determined.md). See entry 40.
 >
@@ -922,10 +950,46 @@ corpus sends down linemen unblocked.**
 
 ## 40. THE REDIRECT — the pressure rate is a SUPPLY problem, not a threshold problem
 
+> # **`pressure_rate = 1 − P(every tick CLEAN)` over 2.98 ticks per dropback.**
+> # **The pocket must be CLEAN on THREE TICKS IN FOUR to be realistic. It is CLEAN on FEWER THAN ONE IN THREE.**
+>
+> *(Owner, July 2026 — the clearest statement of the problem yet, and the reason the rate resisted
+> four threshold levers: the metric is **compressive**. Measured transfer — CLEAN ticks 29.2 / 35.6 /
+> 44.1 / 77.6% maps to pressure 89.9 / 85.0 / 76.5 / 24.6%.)*
+>
+> **✅ FOUND (ADR-049).** Candidate 1 — **threat supply** — is the pressure rate: **−63.581 ± 0.104pp**
+> on the arrival-only base, driving 89.859% → **24.587%** against a real 29.225%. **Its reach exceeds
+> the divergence.** Candidate 2 (persistence) is **refused at its ceiling** — 0.18% of the gap — and
+> the two are **not separable**: the interaction exactly annihilates the persistence term.
+
 **Four levers have now been swept and all four refused.** `blockerStructuralAdvantage` (4.70pp of
 budget), `freeRunnerArrivalSeconds` (0.406pp, zero rate reach), `RUSHER_GAINING`'s band map
 (2.395pp), and `arrival.pressureWithinSeconds` (2.600pp). **Jointly the last two leave 91.4% of the
 gap standing.**
+
+> ### ⚠⚠ EVERY NUMBER IN THE PARAGRAPH ABOVE IS A **CELL PRICE**, NOT A MECHANISM SIZE (ADR-049)
+>
+> **The pressure rate is OVER-DETERMINED.** The same intervention is worth **63.581pp or 0.111pp
+> depending only on what else is live.** Extinguish the won-rep channel on the committed tree and
+> COLLAPSING ticks drop 39 points, `BLOCKER_BEATEN → PRESSURE` picks up **every one**, and **CLEAN
+> ticks do not move at all** (29.16% → 29.30%).
+>
+> **So all four levers were measured BEHIND A REDUNDANT SUFFICIENT CAUSE.** A lever measured against
+> `DEFAULT_TUNABLES` prices ***"is this channel binding?"*** — not ***"is this mechanism large?"***
+>
+> **Their budgets are CORRECT AS CELL PRICES and are NOT evidence about their mechanisms' sizes.**
+> This re-reads four recorded refusals **without contradicting a single number in them.**
+>
+> **⛔ Do not cite any of these four as a mechanism's budget.** Re-pricing them on the **arrival-only
+> base** is queued (roadmap 1c) and **may resurrect a mechanism refused on a number that was never
+> about it.**
+>
+> **Specific annotation — `freeRunnerArrivalSeconds` needs a second one.**
+> `freeRunnerArrivalSecondsFor` **clamps to `[0.5, 4.0]`**, so the cell **cannot be extinguished
+> alone**: ADR-030's extinguishment arm **necessarily moved `maxArrivalSeconds` too and was a JOINT
+> ARM.** It has been cited as a single-cell figure for eight dispatches. It is also now known to
+> **saturate inside its first half-tick** — five times the move buys 3.9% more decided plays — which
+> explains ADR-030's grid null *and* entry 36's failed adjacent-step ranking in one fact.
 
 **The decisive measurement:** with the **entire band map extinguished** *and* the arrival PRESSURE
 band closed, pressure is **82.394 ± 0.065%**. `PRESSURE`-status ticks fall to **0.09%** — and
