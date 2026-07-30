@@ -105,16 +105,36 @@ describe("pass play integration", () => {
       }
     });
 
-    it("SA-14's reach is countable from this stream alone, which is the whole point", () => {
+    it("a threshold move's reach is countable from this stream alone, which is the whole point", () => {
       // The count ADR-040 §4.3 had to DECLINE: how many catches sit in the
       // interval a threshold move would reclassify. No counterfactual, no second
       // arm, no digest diff — one corpus and a filter.
-      const inSa14Interval = resolutions.filter((r) => r.openness > 30 && r.openness <= 40);
-      expect(inSa14Interval.every((r) => r.catchType === "CONTESTED")).toBe(true);
+      //
+      // ⚠ THIS WAS WRITTEN AS `openness > 30 && openness <= 40` — SA-14's OWN
+      //   interval, restated. ADR-045 moved the anchor and it went red, which is
+      //   Charter §4.1's restated-constant defect exactly: the literals were a
+      //   second copy of `contestedMaxOpenness` before and after ADR-040, and a
+      //   copy is always the source that goes stale. Replaced with the GENERAL
+      //   PROPERTY it was a case of, derived from the two things that decide it:
+      //   the live threshold, and the next §9.3 row above it — which is the
+      //   population the next candidate move would reclassify, whatever that
+      //   move turns out to be.
+      const threshold = TUNABLES.catching.contestedMaxOpenness;
+      const nextRowUp = Math.min(
+        ...TUNABLES.manCoverage.bands
+          .map((b) => b.openness as number)
+          .filter((o) => o > threshold),
+      );
+      const inReach = resolutions.filter((r) => r.openness > threshold && r.openness <= nextRowUp);
+      // Everything in the interval is ROUTINE today BY CONSTRUCTION — it is above
+      // the threshold — so what this asserts is that the interval is the exact
+      // population a move to `nextRowUp` would flip, and that it is not empty.
+      expect(inReach.every((r) => r.catchType === "ROUTINE")).toBe(true);
+      expect(inReach.length).toBeGreaterThan(0);
       // and both sides of the threshold are populated, so the filter is not
       // vacuous on this fixture.
-      expect(resolutions.some((r) => r.openness <= TUNABLES.catching.contestedMaxOpenness)).toBe(true);
-      expect(resolutions.some((r) => r.openness > TUNABLES.catching.contestedMaxOpenness)).toBe(true);
+      expect(resolutions.some((r) => r.openness <= threshold)).toBe(true);
+      expect(resolutions.some((r) => r.openness > threshold)).toBe(true);
     });
 
     it("no ROUTINE catch is left under the threshold on this corpus", () => {

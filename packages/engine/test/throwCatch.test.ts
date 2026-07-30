@@ -266,8 +266,34 @@ void _halfYardOpennessIsContestedMax;
  *
  * Mutual assignability again, so it fails whichever way the row moves. A one-way
  * annotation would let the row widen to `number` unnoticed.
+ *
+ * ══════════ IT WENT RED. SA-08 LANDED (ADR-045), AND THIS IS THE RECORD. ══════════
+ *
+ * The three steps above were followed in that order, and the ruling is written up
+ * in `TUNABLES.catching.contestedMaxOpenness`'s block and in ADR-045 §2.4 — NOT
+ * here, because a literal updated in isolation is the transcription this pin
+ * exists to refuse.
+ *
+ *   1. ADR-040 §3's argument, re-run against the re-pointed table: 0 yards → 25
+ *      and ½ yard → 30 are inside a yard beyond argument; 1-2 yards → 38
+ *      STRADDLES the boundary, exactly as it did before.
+ *   2. §11.1's "within one yard" therefore still names `SEPARATION_HALF_YARD`.
+ *      **Same row, new value.** The alternative ADR-040 §3 flagged — pulling in
+ *      `SEPARATION_1_2` — got WEAKER rather than stronger: it rested entirely on
+ *      §9.3's parenthetical "(contested)", and SA-08's amendment DELETES that
+ *      word from §9.3 and reserves it for §11.1.
+ *   3. Both numbers moved together, 40 → 30, and this literal follows.
+ *
+ * ⚠ THE CLASSIFICATION DID NOT MOVE. The five rows contested at 40 against the
+ *   old column are the five contested at 30 against the new one. That is the
+ *   evidence this was a derivation and not a compensation: had 30 been chosen to
+ *   hold an outcome in place, it would have been chosen against a DIFFERENT set.
+ *
+ * ⚠ AND THE SCALE CHANGE COULD NOT HAVE LANDED WITHOUT SETTLING THIS. Assertion 1
+ *   makes the two inseparable by construction, so `pnpm typecheck` was red until
+ *   the ruling was re-run. Reported as a result (ADR-045 §4.1), not worked around.
  */
-type AdrO40RuledHalfYardOpenness = 40;
+type AdrO40RuledHalfYardOpenness = 30;
 const _anchorIsStillTheRuledRow: AdrO40RuledHalfYardOpenness = null as unknown as HalfYardOpenness;
 const _ruledRowIsStillTheAnchor: HalfYardOpenness = null as unknown as AdrO40RuledHalfYardOpenness;
 void _anchorIsStillTheRuledRow;
@@ -282,9 +308,15 @@ describe("§11 catch resolution", () => {
   };
 
   it("classifies contested vs. routine from openness", () => {
-    expect(catchTypeFor(TUNABLES, 15)).toBe("CONTESTED");
-    expect(catchTypeFor(TUNABLES, 40)).toBe("CONTESTED");
-    expect(catchTypeFor(TUNABLES, 41)).toBe("ROUTINE");
+    // DERIVED FROM THE THRESHOLD, not restated beside it. These three probes were
+    // written as `15 / 40 / 41` and went red when ADR-045 moved the anchor — a
+    // restated constant is a second source of truth and it is always the one that
+    // goes stale (Charter §4.1). What the case actually claims is that the
+    // comparison is INCLUSIVE at the boundary and exclusive one point above it.
+    const max = TUNABLES.catching.contestedMaxOpenness;
+    expect(catchTypeFor(TUNABLES, max - 15)).toBe("CONTESTED");
+    expect(catchTypeFor(TUNABLES, max)).toBe("CONTESTED");
+    expect(catchTypeFor(TUNABLES, max + 1)).toBe("ROUTINE");
   });
 
   it("§11.1: every §9.3 rep unambiguously inside one yard is a contested catch", () => {

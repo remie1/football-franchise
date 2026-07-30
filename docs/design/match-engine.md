@@ -1102,8 +1102,11 @@ Separation Results:
 > §8.4's `wide open` FLOOR.** That is this very defect one table over, and it is **in scope**, not a
 > separate finding.
 
-> **Engine change owed** — not yet implemented at time of writing, and deliberately so: see the scope
-> block above. §9.3 alone is not a valid landing.
+> **LANDED July 2026 (ADR-045)** — §9.3's column, §9.4's zone bands and `zoneCoverage.bands.1` in one
+> change, with the threshold consumers enumerated and pinned first. Rows 5-7 (`CB_IN_PHASE`,
+> `CB_ON_HIP`, `CB_IN_POSITION`) are **HELD** and the resulting `EVEN_BRACKET`/`CB_IN_PHASE` tie at 25
+> is reported unresolved (ADR-045 §2.3). The QB-reluctance consequences are **priced separately**
+> (ADR-045 §3) and nothing was compensated for.
 
 ### 9.4 Zone Coverage Resolution
 
@@ -1119,10 +1122,15 @@ Roll: d100 + (WR Route Running ÷ 5)
 vs. Target: 50 + (Defender Zone Coverage ÷ 5)
 
 Results:
-  WR wins by 20+: Found soft spot, wide open
-  WR wins by 10-19: Window exists, open
-  WR wins by 1-9: Tight window
-  WR loses: Defender in passing lane
+  RE-POINTED July 2026 (ADR-045) onto §9.3's corrected mapping. §9.4 states
+  its bands in §8.4's WORDS, which is a coupling no type can see — the
+  numbers below are §9.3's ruled column for the band each phrase names.
+
+  WR wins by 20+:   Found soft spot, wide open -> 70  (§8.4: 70+)
+  WR wins by 10-19: Window exists, open        -> 52  (§8.4: 50-69)
+  WR wins by 1-9:   Tight window               -> 38  (§8.4: 30-49)
+  WR loses:         Defender in passing lane   -> 20  HELD (no §8.4 word;
+                                                      already inside covered)
 
 ZONE DEFENDER READING QB:
 

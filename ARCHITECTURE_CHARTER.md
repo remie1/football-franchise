@@ -653,6 +653,20 @@ comment would have destroyed the same information: the fact that they disagreed.
 procedure, not pedantry**, and `match-engine` reporting rather than resolving is what saved ADR-042's
 field from being satisfied into uselessness.
 
+> **THE GENERAL FORM — LOG, DO NOT SMOOTH. The disagreement is the finding; the resolution is
+> downstream of it.**
+>
+> This project has done this well repeatedly and mostly by instinct: declared absences with forbidden
+> substitutes rather than a default; a refusal recorded as a result; `reachFloorApplied: false` so
+> *not measured* cannot read as *measured and fine*; both timings printed rather than differenced;
+> the retired red kept with its provenance instead of truncated.
+>
+> **What makes the prose case the sharpest instance is that BOTH smoothings look like diligence.**
+> Fixing the comment to match the code, and fixing the code to match the comment, are each defensible
+> in isolation — and each destroys the one fact that mattered, which is that two sources of truth had
+> drifted apart and nothing noticed. **Whenever two things that should agree do not, the disagreement
+> is data. Record it before resolving it, and record that it happened after you have.**
+
 **This is the fourth blindness class, and it has no instrument** — it belongs with the register's *no
 path to elimination* entry. There is nothing to walk, hash or perturb; a comment has no
 representation a check can reach.

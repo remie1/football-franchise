@@ -252,9 +252,18 @@ describe("the clock", () => {
  * to `ot-891` — 1,914 seeds scanned, thirty-one overtimes and two ties. As
  * before: a seed chosen by scanning for a whole-game outcome is not a property
  * of the overtime branch, and nothing about that branch changed.
+ *
+ * RE-SCANNED AGAIN for ADR-045 (SA-08's scale correction across §9.3 and §9.4,
+ * plus §11.1's threshold following its anchor). Every coverage rep in the league
+ * now publishes a different openness, so this is the widest resolution change any
+ * of these re-scans has followed: `ot-95` is no longer an overtime and the OT
+ * seed moves to `ot-124`. **The TIE seed `ot-891` survived** — 2,353 seeds
+ * scanned, forty overtimes and three ties (`ot-537`, `ot-891`, `ot-2352`) —
+ * and, as every block above says, that is luck rather than evidence: it was
+ * re-scanned, not assumed. Nothing about the overtime branch changed.
  */
 describe("overtime, to the extent a tie requires one", () => {
-  const overtime = simulateGameFor("ot-95");
+  const overtime = simulateGameFor("ot-124");
   const tie = simulateGameFor("ot-891");
 
   it("a tie at the end of regulation opens a fifth period", () => {

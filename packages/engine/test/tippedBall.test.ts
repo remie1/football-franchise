@@ -578,22 +578,38 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
    * zero, or read §12.2's five real thresholds, on any stream whatsoever. None
    * of them moved, which is exactly what ADR-036's claim predicted.
    *
-   *   digit           ADR-035/036     ADR-040
-   *   plays              3,420          3,421
-   *   yards             20,047         21,107
-   *   turnovers            107            113
-   *   points             1,545          1,683
-   *   tips                 271            270
-   *   deadTips             163            164
-   *   live tips            108            106
+   * ⚠ RE-BASELINED AGAIN, July 2026, ADR-045 — same reasoning, wider cause.
+   *
+   * SA-08's scale correction re-points BOTH §9.3's and §9.4's openness columns
+   * and carries §11.1's threshold with its anchor, so every coverage rep, every
+   * read, every throw-type selection, every lane contest and every catch
+   * classification in the 24-game corpus is drawn against different numbers.
+   * This fence moves or it asserts that the engine never changes again.
+   *
+   * ⚠ THE STRUCTURAL HALF DID NOT MOVE, AND THAT IS THE MEASUREMENT, NOT AN
+   *   ASIDE. `deadEligible`, `deadRecoveryChecks`, `deadCarryingTheKey`,
+   *   `deadClaimingRecoverable`, `liveMissingTheKey` and `liveTargets` read
+   *   exactly as before — 0/0/0/0/0 and §12.2's five real thresholds — across a
+   *   stream where every football digit moved. ADR-036's claim was that those
+   *   are properties of the TYPE and not of the corpus; this is the second
+   *   independent corpus-wide change to confirm it.
+   *
+   *   digit           ADR-035/036     ADR-040        ADR-045
+   *   plays              3,420          3,421          3,420
+   *   yards             20,047         21,107         20,953
+   *   turnovers            107            113            109
+   *   points             1,545          1,683          1,655
+   *   tips                 271            270            273
+   *   deadTips             163            164            166
+   *   live tips            108            106            107
    */
-  it("the corpus totals, on every digit (re-baselined by ADR-040)", () => {
-    expect(base.plays).toBe(3421);
-    expect(base.yards).toBe(21107);
-    expect(base.turnovers).toBe(113);
-    expect(base.points).toBe(1683);
-    expect(base.tips).toBe(270);
-    expect(base.deadTips).toBe(164);
+  it("the corpus totals, on every digit (re-baselined by ADR-045)", () => {
+    expect(base.plays).toBe(3420);
+    expect(base.yards).toBe(20953);
+    expect(base.turnovers).toBe(109);
+    expect(base.points).toBe(1655);
+    expect(base.tips).toBe(273);
+    expect(base.deadTips).toBe(166);
   });
 
   it("still never consults a target on a dead ball", () => {
@@ -610,15 +626,21 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
    * It is converted rather than deleted on purpose. A tripwire that vanishes
    * when the defect is fixed leaves nothing standing where the defect was, and
    * the next author to reach for a "harmless default" on this payload meets no
-   * resistance. So it now asserts the POST-fix property over the same 163
-   * events: not that the published number is a particular value, but that there
-   * is no number to publish.
+   * resistance. So it now asserts the POST-fix property over the same events:
+   * not that the published number is a particular value, but that there is no
+   * number to publish.
+   *
+   * ⚠ THE COUNT IS DELIBERATELY OUT OF THE NAME NOW (ADR-045). It read "all 163"
+   *   in the title while `deadTips` had already been re-baselined to 164 by
+   *   ADR-040 and is 166 today — a restated constant in PROSE, which nothing
+   *   checks (Charter §4.1's ADR-044 corollary). The claim was never about the
+   *   count; `deadTips` is asserted, once, in the totals fence above.
    *
    * It cannot be satisfied cosmetically. `-1`, `99` and `NaN` all fail it, and
    * so does re-adding the key with `undefined` — `hasOwnProperty` sees the key,
    * not the value, which is exactly the distinction ADR-036 turned on.
    */
-  it("publishes NO recovery target on any of the 163 — the key is absent, not zeroed", () => {
+  it("publishes NO recovery target on any DEAD deflection — the key is absent, not zeroed", () => {
     expect(base.deadCarryingTheKey).toBe(0);
     // And the discriminant tells the truth: every payload the CHECK graded DEAD
     // says `recoverable: false`. Two independent facts on the stream agreeing.
@@ -631,7 +653,7 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
     // deflection carries its band's genuine target.
     expect(base.liveMissingTheKey).toBe(0);
     expect(base.liveTargets).toEqual([20, 35, 55, 75, 90]);
-    expect(base.tips - base.deadTips).toBe(106); // 108 before ADR-040 re-baselined the corpus
+    expect(base.tips - base.deadTips).toBe(107); // 108 → 106 (ADR-040) → 107 (ADR-045)
   });
 
   it("the cell is not addressable, because the cell does not exist", () => {

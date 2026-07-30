@@ -1010,19 +1010,56 @@ export const TUNABLES = {
     receiverAttrDivisor: 5,
     defenderAttrDivisor: 5,
     /**
-     * §9.4's result bands verbatim. Margin = WR roll total − target. The 0-100
-     * openness each maps to is calibrated against §8.4's scale exactly as
-     * `manCoverage.bands` is — the doc states the outcome, not the number.
+     * §9.4's result bands. Margin = WR roll total − target.
      *
-     * Note the SHAPE difference from man coverage, and it is the point of zone:
-     * the good outcomes are BETTER (a soft spot is uncontested grass, not a step
-     * of separation from a corner who is still running with you) and the bad
-     * outcome is not as bad (a zone defender in the lane is not on your hip).
+     * ============ RE-POINTED ONTO §9.3's CORRECTED MAPPING (ADR-045 §2) ============
+     *
+     * **A SCALE USED BY TWO PRODUCERS CANNOT BE CORRECTED FOR ONE.** §8.5's
+     * `selectTarget` ranks man-covered and zone-covered candidates against each
+     * other by openness, and seven thresholds compare both. Correcting §9.3 alone
+     * would have left the two producers on two mappings — not a magnitude shift
+     * but an INCOHERENCE, changing *who gets the ball*.
+     *
+     * ⚠ THE COUPLING IS INVISIBLE TO A TYPE, AND THAT IS WHY IT ALMOST SHIPPED.
+     *   §9.4 states its bands in §8.4's WORDS — *"found soft spot, **wide open**"*,
+     *   *"window exists, **open**"*, *"**tight window**"*. A numeric consumer
+     *   enumeration returns a complete-looking answer and cannot see a LABEL
+     *   consumer (Charter §4.1). This table was found by READING, and that
+     *   reading must be redone whenever §8.4, §9.3 or §9.4 changes.
+     *
+     * So each row takes the value §9.3's ruled column gives the §8.4 band its own
+     * §9.4 words name:
+     *
+     *   "found soft spot, WIDE OPEN"  → 70   (was 85)
+     *   "window exists, OPEN"         → 52   (was 70 — §8.4's WIDE OPEN floor,
+     *                                         i.e. this very defect one table
+     *                                         over, and in scope for that reason)
+     *   "TIGHT WINDOW"                → 38   (was 45; the mapping's tight-window
+     *                                         MID. §9.3's second tight-window
+     *                                         value, 30, is its FLOOR — the
+     *                                         half-yard BOUNDARY case, which zone
+     *                                         has no counterpart for.)
+     *
+     * ⚠ TWO CELLS HELD, AND NAMED SO THE ABSENCE LOOKS LIKE AN ABSENCE:
+     *
+     *   `DEFENDER_IN_LANE` (20). §9.4's words for this row name NO §8.4 band —
+     *   "defender in passing lane" is a position, not an openness label — so the
+     *   mapping does not reach it, and 20 already sits inside `covered (15-29)`.
+     *   Moving it would be a value nobody asked for.
+     *
+     *   `uncoveredOpenness` (90). Not a §9.4 row and not label-mismatched: a hole
+     *   in the zone is wider than wide open, and 90 says so.
+     *
+     * WHAT THE RE-POINTING DID **NOT** CHANGE: the shape difference between zone
+     * and man. Zone's good outcomes were never numerically better than man's —
+     * rows 0 and 1 were already EQUAL (85/85, 70/70) — the advantage is in the
+     * MARGIN required (a soft spot needs +20, five yards of separation needs
+     * +30). That equality is preserved exactly: 70/70 and 52/52.
      */
     bands: [
-      { label: "SOFT_SPOT", minMargin: 20, openness: 85, contest: "TRAILING", settled: true },
-      { label: "WINDOW", minMargin: 10, openness: 70, contest: "TRAILING", settled: true },
-      { label: "TIGHT_WINDOW", minMargin: 1, openness: 45, contest: "EVEN", settled: true },
+      { label: "SOFT_SPOT", minMargin: 20, openness: 70, contest: "TRAILING", settled: true },
+      { label: "WINDOW", minMargin: 10, openness: 52, contest: "TRAILING", settled: true },
+      { label: "TIGHT_WINDOW", minMargin: 1, openness: 38, contest: "EVEN", settled: true },
       { label: "DEFENDER_IN_LANE", minMargin: NEG_INF, openness: 20, contest: "IN_FRONT", settled: false },
     ],
     /**
@@ -1093,16 +1130,48 @@ export const TUNABLES = {
   manCoverage: {
     attrDivisor: 5,
     /**
-     * Margin = WR total − CB total. The doc states separations in yards; the
-     * 0-100 openness value each band maps to is calibrated here against §8.4's
-     * openness scale (70+ wide open, 50-69 open, 30-49 tight, 15-29 covered).
+     * Margin = WR total − CB total. The doc states separations in YARDS; the
+     * 0-100 openness each band maps to is §8.4's scale (70+ wide open, 50-69
+     * open, 30-49 tight window, 15-29 covered, 0-14 no window).
+     *
+     * ===================== SA-08, AS RE-RULED (ADR-043 → ADR-045) =====================
+     *
+     * The first five rows are the owner's ruled column, verbatim from §9.3's
+     * amended block: `70 / 52 / 38 / 30 / 25`, labelled *wide-open floor / open /
+     * tight-window mid / tight-window floor / covered*. **Every value sits inside
+     * the §8.4 band its own §9.3 words name**, which is the whole content of the
+     * correction: the two middle rows had been reading ONE BAND OPTIMISTIC and
+     * every read downstream inherited the flattery. Half a yard of separation is
+     * the boundary case — the throw must be perfect and the defender can play the
+     * ball — and **30 is exactly where §8.4 draws that line**.
+     *
+     * THE COLUMN IS ORDINAL, WHICH IS WHY THE FIRST RULING WAS UNSATISFIABLE.
+     * Mapping labels while ignoring the ORDER put two rows into `covered (15-29)`
+     * while `CB_IN_PHASE` already sat at 25 inside it — an inversion, or a
+     * four-point compression of two distinct outcomes. ADR-043 refused it; this
+     * column is monotone by construction.
+     *
+     * ⚠ ROWS 5-7 ARE HELD, ON PURPOSE. The ruled column names five rows. The
+     *   three CB-wins rows keep 25 / 15 / 6, so `EVEN_BRACKET` (a dead-even rep)
+     *   and `CB_IN_PHASE` (the corner has WON the rep) now hold the SAME openness.
+     *   That is a TIE, not an inversion, and the monotonicity gate accepts it —
+     *   but as football a receiver dead even with his man should not be merely
+     *   EQUAL to one whose corner is in phase. **Reported, not resolved**
+     *   (ADR-045 §2.3): moving rows 5-7 is a value ruling nobody has made, and
+     *   picking one here to tidy the column is exactly the invention this
+     *   correction exists to remove.
+     *
+     * ⚠ THE WORD "CONTESTED" IS NOT IN THIS TABLE'S VOCABULARY AND MUST NOT COME
+     *   BACK. §9.3's amendment reserves it for §11.1's catch resolution. An
+     *   openness scale and a catch-contest scale sharing a term is how a reader
+     *   conflates pre-throw geometry with a post-throw event.
      */
     bands: [
-      { label: "SEPARATION_5_PLUS", minMargin: 30, openness: 85, contest: "TRAILING" },
-      { label: "SEPARATION_3_4", minMargin: 20, openness: 70, contest: "TRAILING" },
-      { label: "SEPARATION_1_2", minMargin: 10, openness: 55, contest: "TRAILING" },
-      { label: "SEPARATION_HALF_YARD", minMargin: 1, openness: 40, contest: "EVEN" },
-      { label: "EVEN_BRACKET", minMargin: 0, openness: 32, contest: "EVEN" },
+      { label: "SEPARATION_5_PLUS", minMargin: 30, openness: 70, contest: "TRAILING" },
+      { label: "SEPARATION_3_4", minMargin: 20, openness: 52, contest: "TRAILING" },
+      { label: "SEPARATION_1_2", minMargin: 10, openness: 38, contest: "TRAILING" },
+      { label: "SEPARATION_HALF_YARD", minMargin: 1, openness: 30, contest: "EVEN" },
+      { label: "EVEN_BRACKET", minMargin: 0, openness: 25, contest: "EVEN" },
       { label: "CB_IN_PHASE", minMargin: -9, openness: 25, contest: "EVEN" },
       { label: "CB_ON_HIP", minMargin: -19, openness: 15, contest: "IN_FRONT" },
       { label: "CB_IN_POSITION", minMargin: NEG_INF, openness: 6, contest: "IN_FRONT" },
@@ -1446,34 +1515,50 @@ export const TUNABLES = {
      * §11.1 "CONTESTED CATCH: **Defender within 1 yard**", expressed on §9.3's
      * openness scale (ADR-040, owner ruling on ADR-039 SA-14).
      *
-     * DERIVED, NOT CHOSEN. §9.3's separation rows carry the mapping —
-     * `SEPARATION_1_2 → 55`, `SEPARATION_HALF_YARD → 40`, `EVEN_BRACKET → 32`,
-     * every CB-wins row lower — so the question "which openness is one yard of
-     * separation?" is answered by reading down that table until the rows stop
-     * being unambiguously inside a yard:
+     * DERIVED, NOT CHOSEN. §9.3's separation rows carry the mapping, so the
+     * question "which openness is one yard of separation?" is answered by
+     * reading down that table until the rows stop being unambiguously inside a
+     * yard.
      *
-     *   EVEN_BRACKET          0 yards    → 32   inside a yard, beyond argument
-     *   SEPARATION_HALF_YARD  ½ yard     → 40   inside a yard, beyond argument
-     *   SEPARATION_1_2        1-2 yards  → 55   STRADDLES the boundary
+     * ============ RE-RUN AGAINST THE RE-POINTED TABLE (ADR-045 §2.4) ============
      *
-     * so the threshold is **40, the half-yard row's own openness**, compared
-     * inclusively. At the previous 30 a DEAD-EVEN coverage rep — zero yards of
-     * separation — resolved as a ROUTINE catch, which §11.1's words forbid.
+     * ⚠ **THE ANCHOR MOVED, SO THE JUDGEMENT WAS OWED AGAIN.** ADR-040 §3.1: *a
+     *   compiler pin anchored to a SYMBOL inherits that symbol's definition*, and
+     *   §3 did not rule "whatever the half-yard row happens to hold" — it ruled
+     *   *"the widest separation §11.1 makes contested BEYOND ARGUMENT"*, a
+     *   judgement about ONE YARD made against the table as it then stood. SA-08
+     *   re-points that table. The argument, re-run:
      *
-     * WHY NOT 55, AND WHY NOT AN INTERPOLATION. §9.3's mapping is a table of
-     * eight discrete rows, not a function of yards, and one yard is the LOWER
-     * EDGE of a row that also contains two yards. Interpolating between 40 and
-     * 55 would produce ≈47 — a number this file invented, which is exactly the
-     * failure ADR-039 SA-01 recorded. Taking 55 would pull the whole
-     * `SEPARATION_1_2` row in on the strength of §9.3's parenthetical
-     * "(contested)" — and that parenthetical against §8.4's scale is **SA-08,
-     * which is not ruled**. So the smallest defensible reading is taken: the
-     * rows §11.1 makes contested beyond argument, and not the row that is
-     * SA-08's to decide. If SA-08 later rules for §9.3's words, this cell moves
-     * to 55 WITH that ruling, and `test/throwCatch.test.ts` pins the relation so
-     * the two cannot drift apart silently.
+     *   EVEN_BRACKET          0 yards    → 25   inside a yard, beyond argument
+     *   SEPARATION_HALF_YARD  ½ yard     → 30   inside a yard, beyond argument
+     *   SEPARATION_1_2        1-2 yards  → 38   STRADDLES the boundary
+     *
+     *   Same row, new value: **30, the half-yard row's own openness**, compared
+     *   inclusively.
+     *
+     * WHY THE OTHER CANDIDATE IS NOW WEAKER, NOT STRONGER. ADR-040 §3 rejected
+     * 55 / `SEPARATION_1_2` and said so *"only because SA-08 was then unruled"* —
+     * that rejection rested on §9.3's parenthetical **"(contested)"** attaching
+     * to the 1-2 yard row. **SA-08's amendment DELETES that word from §9.3
+     * entirely** and reserves "contested" for §11.1; the re-ruled row is labelled
+     * *tight window*. The only ground for pulling `SEPARATION_1_2` in has been
+     * removed by the same ruling that moved the anchor, so the row is not
+     * eligible. Interpolating between 30 and 38 remains forbidden (ADR-039
+     * SA-01): §9.3 is eight discrete rows, not a function of yards.
+     *
+     * **THIS MOVE RECLASSIFIES NOTHING.** The five rows contested at `40` against
+     * the old column — half yard, dead even, and all three CB-wins rows — are
+     * exactly the five contested at `30` against the new one, and
+     * `SEPARATION_1_2` stays routine on both. The pair moved together because the
+     * derivation is correct, not to hold an outcome in place.
+     *
+     * NOT SEPARABLE FROM THE SCALE CHANGE, AND REPORTED AS SUCH (ADR-045 §4.1):
+     * `test/throwCatch.test.ts` pins this cell to the half-yard row BY TYPE, so
+     * the scale correction cannot compile without settling this. That is a
+     * property of the pin working, and it is why this paragraph exists instead of
+     * an edited literal.
      */
-    contestedMaxOpenness: 40,
+    contestedMaxOpenness: 30,
     routine: {
       target: 50,
       attrDivisor: 5,
