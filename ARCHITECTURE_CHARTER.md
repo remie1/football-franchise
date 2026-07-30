@@ -791,10 +791,17 @@ a human ran it) **plus** entry 47's first shape (**a stale referent**). Neither 
 it; together, nothing in the repo could report on it.
 
 **So retirement is an ACTION, not an annotation.** A retired artefact is **deleted**, or **converted
-to an assertion of the post-retirement state** (ADR-036's tripwire is the model — *converted, not
-deleted*, so something still stands where the defect was), or **made unable to run**. A block that is
-merely *labelled* retired and remains executable is **a live artefact with a misleading comment** —
-and by §4.1's prose corollary, the comment is what the next reader will believe.
+to an assertion of the post-retirement state**, or **made unable to run**. A block that is merely
+*labelled* retired and remains executable is **a live artefact with a misleading comment** — and by
+§4.1's prose corollary, the comment is what the next reader will believe.
+
+**CONVERSION IS THE BEST OF THE THREE, and the reason is not tidiness: a DELETED guard leaves no
+evidence the defect was ever possible, so a future change can reintroduce it SILENTLY. A converted one
+reddens.** ADR-036's tripwire is the model — it stopped asserting *"`DEAD` publishes `0`"* and started
+asserting *"no `DEAD` payload carries the key at all"*, so **something still stands where the defect
+was.** Prefer conversion wherever the post-fix state is assertable; delete only when the defect has
+become unrepresentable (ADR-034's narrowing, ADR-036's discriminated union), because then the type is
+the standing evidence.
 
 **Counter-corollary — a guard that always fires gets deleted.** This principle has an obvious
 failure mode in the other direction, and ADR-025 is the worked example: refusing to compare two

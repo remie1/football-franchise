@@ -109,6 +109,30 @@ window**); the rate mapping is derived, not chosen.
 > visible, the natural conclusion is **that attributes don't matter.** That is **worse than a wrong
 > number, because it discredits the SYSTEM rather than the CELL.**
 
+**2a-ii. ⚡ ENTRY 40'S SUPPLY CANDIDATES — moved up, ahead of 2b and the joint measurement.**
+
+`startsThreat` firing on **31.85% of all §7.1 reps**, and **threats retired only by `BLOCKER_RESETS`**.
+Owner ruling, July 2026, and the reasoning is the part to keep:
+
+1. **It is the only remaining item that could CLOSE A TIER 1 GAP rather than sharpen an instrument.**
+2. **It is cheapest to attribute NOW**, while the flat league keeps everything structurally
+   mechanic-only — the same logic that justified the scale audit's timing.
+
+> ### ⚠ THE PATTERN, NAMED OUT LOUD: EIGHT DISPATCHES WITHOUT TOUCHING THE DOMINANT OPEN GAP
+>
+> The instrument work has been **genuinely necessary and has repeatedly prevented worse outcomes** —
+> a ratified constant that was wrong, a retired guard become a live perturbation, a check that never
+> asserted its own property across 52 columns. **None of that is regrettable.**
+>
+> **But every one of those dispatches was individually justified, and that is exactly how a queue
+> stops pointing at the thing that matters.** Instrument work generates its own follow-ups: each
+> finding is real, each fix is cheap, each produces two more. **The queue as ordered before this
+> ruling added four more instrument items and still did not contain the pressure gap.**
+>
+> **Standing check for the Orchestrator: when the queue is re-ordered, say where the largest open
+> divergence sits in it.** If the answer is "not in the top three" more than twice running, that is
+> the finding.
+
 **2b. THE PROSE AUDITS — two reading passes, no instrument possible for either. Do them together.**
 
 **2b-i — `packages/contracts` doc comments.**
@@ -1492,7 +1516,32 @@ and inventing an ordering law nobody ruled would be the larger error. Calibratio
 strictness-asserted **when a ruling says it may not tie**, not before — and when one does, the pin
 goes with it in the same change.
 
-## 55. Two more fourth-shape instruments: guards that measure their own file
+## 55. ❓ "WHAT WOULD MAKE THIS GO RED?" — a REQUIRED FIELD when an instrument is built
+
+**One question found every instrument defect in this stretch.** Ask it of an instrument; **if the
+answer names something other than the instrument's stated subject, the instrument is measuring that
+other thing.**
+
+| instrument | stated subject | what actually reddens it |
+|---|---|---|
+| §8.5's rank-order pin | the §8.5 ordering | **`Array.prototype.sort`'s stability** |
+| the pocket-ladder canonical-seed guards | the seeds' behaviour | **the text of their own file** |
+| `SURFACE`'s `UNIMPLEMENTED` set | a resolver acquiring a producer | **an edit to `SURFACE`** |
+| `orderViolations` | column ordering | **an inversion — never a tie** (entry 54) |
+
+> **RULE: the answer is RECORDED ALONGSIDE THE INSTRUMENT WHEN IT IS BUILT.** Not a failing case run
+> once and reported in a dispatch — **a stated answer to "what makes this red", living next to the
+> instrument.**
+>
+> **The test of whether this rule earns its place: §8.5's pin would have FAILED IT ON THE DAY IT WAS
+> WRITTEN.** Nobody had to notice anything later; the question alone was sufficient, and it was never
+> asked.
+
+This complements the failing-case practice rather than replacing it: **the failing case proves the
+instrument CAN go red; this field states WHY it would.** A pin can pass the first and fail the second
+— which is exactly what §8.5's did.
+
+## 55a. Two fourth-shape instruments: guards that measure their own file
 
 **Same species as §8.5's sort-stability pin — green for a reason other than the stated subject.**
 
