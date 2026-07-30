@@ -129,6 +129,27 @@ Output: a verdict memo — `mechanic (suspect: tunable X)` or `rating (suspect: 
 > that proof is available precisely because nothing downstream moved.
 >
 > **The tell:** if you cannot produce a digest-identical arm, you cannot produce an exclusive count.
+>
+> **STANDING RULE (July 2026, ADR-045 §3a.5) — PRICE A PER-PLAY SUBJECT AT PLAY SCOPE FIRST. A CORPUS
+> ARM CANNOT DISTINGUISH "NO EFFECT" FROM "EFFECT SWAMPED."**
+>
+> `CB_IN_PHASE` moved **down**, and a 12-game corpus arm reported mean actual openness moving
+> **+0.03** — **it could not recover even the SIGN**, because composition shifted underneath it (105
+> reps → 99). Every behavioural row landed inside a quarter of its standard error. **That is not a
+> null. It is an unmeasured quantity wearing a null's clothes.**
+>
+> **At PLAY scope the same change priced cleanly:** plays are causally independent given entering
+> state and seed, so 4,000 paired plays gave raw **453**, exclusive **26** (0.65% of plays), with a
+> digest-identical complement of 3,974 — **raw over-stating reach by 17×**.
+>
+> **So: if the subject acts per play, the instrument is per play.** A corpus arm over a propagating
+> per-play subject may be reported only as *not measured at this instrument*, never as *no effect*.
+>
+> **⚠ RETROACTIVE — every recorded NULL measured at corpus scope on a per-play subject is now
+> suspect.** They were not wrong to record; they were measured with an instrument that cannot return
+> the answer they state. See `CALIBRATION-BACKLOG.md` entry 53 for the owed sweep. **Build the
+> play-scope instrument BEFORE the change, not after** — a null produced by the wrong instrument is
+> indistinguishable from a null, and that is the whole problem.
 
 One attribute at a time: perturb ±15 points league-wide, measure outcome deltas across the metric library. Attributes whose perturbation moves nothing beyond noise are flagged **dead weight** with the evidence. (Also produces a useful byproduct: an empirical importance ranking of attributes per position — eventual scouting/UI gold.)
 

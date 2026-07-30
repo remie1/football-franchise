@@ -22,12 +22,27 @@
  * stale in either — a deleted cell reddens as a dead rule, exactly as `attributeUsage.ts` asserts set
  * equality rather than containment.
  *
- * **NOT ELIMINATED, AND THIS IS THE IMPORTANT HALF:** whether a classification is *correct*. Each
- * rule is a hand-authored claim about what the design document says, and Charter §4.1 records that
- * in this repo **hand-enumerated lists have been wrong every single time they have been checked**.
- * The completeness is machine-checked; the readings are not, and they must be re-read rather than
- * inherited. Where a reading is load-bearing it cites the doc line so the next reader can falsify it
- * in one lookup rather than re-deriving it.
+ * **ALSO ELIMINATED, AS OF ADR-047 — a `RULED_*` status that has stopped describing the engine.**
+ * `auditFindingRulings` re-applies every ruled value as a no-op `applyTunablePatch` and reddens on
+ * a landed ruling whose cell has moved, on a `RULED_OWED` finding whose cells have all landed, and
+ * on a `cells` list that disagrees with the values pinned beside it. It exists because **this file
+ * is where Charter §4.1's inverted audit priority was proved**: the `contestedMaxOpenness` type pin
+ * drifted and `pnpm typecheck` went red, while this register drifted and said three false things
+ * authoritatively — that SA-08's engine change was unimplemented after it had landed, the
+ * superseded first ruling rather than the re-ruled column, and that the compiler would not complain
+ * about a compiler that had. **Nothing compiles against a register, so nothing caught it.**
+ *
+ * **NOT ELIMINATED, AND THIS IS THE IMPORTANT HALF:** whether a classification is *correct*, and
+ * whether a ruled VALUE is the right one. Each rule is a hand-authored claim about what the design
+ * document says, and Charter §4.1 records that in this repo **hand-enumerated lists have been wrong
+ * every single time they have been checked**. The completeness is machine-checked; the readings are
+ * not, and they must be re-read rather than inherited. Where a reading is load-bearing it cites the
+ * doc line so the next reader can falsify it in one lookup rather than re-deriving it.
+ *
+ * **AND ONE THING NOTHING HERE REACHES: the register's PROSE.** Every `note`, `headline` and
+ * `ruling` string below is zero-enforcement and maximum-authority — the shape §4.1 calls the
+ * extreme case. The pins make a stale VALUE loud; a stale SENTENCE beside a correct value is still
+ * invisible, and the only instrument for it is a reading.
  *
  * The register is deliberately NOT a claim that a `DOC_VERBATIM` cell is *right*. §7.2's amendment
  * and §14.4's raw speed term are both cells the engine transcribed perfectly from a doc that was
@@ -52,7 +67,7 @@
  * says nothing about them. That is stated here rather than discovered: an instrument that walks a
  * table is structurally blind to a row that was never written.
  */
-import { DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
+import { DEFAULT_TUNABLES, applyTunablePatch, type Tunables } from "@ff/engine";
 
 // ---------------------------------------------------------------------------
 // THE WALK
@@ -743,8 +758,19 @@ export const REGISTER: readonly RegisterRule[] = [
     provenance: "INTERPRETATION",
     docRef: "§9.4 + §8.4",
     note:
-      "The doc states outcomes in words and §8.4 supplies the 0-100 scale; the mapping between them " +
-      "is the engine's. Declared.",
+      "✅ SA-08's SECOND PRODUCER, RULED AND IMPLEMENTED (ADR-045 §2.2). The doc states outcomes in " +
+      "words and §8.4 supplies the 0-100 scale; the mapping between them is the engine's. ⚠ THE " +
+      "REASON THIS ROW BELONGS TO SA-08 AT ALL IS THE FINDING WORTH KEEPING: §9.4 states its bands " +
+      "in §8.4's WORDS, so it produces the same scale §9.3 does — and NO TYPE CAN SEE THAT. The " +
+      "opaque-type fixpoint over §9.3 returned a complete-looking numeric answer while this table " +
+      "sat unchanged, and a scale used by two producers cannot be corrected for one. Found by " +
+      "READING, which has no instrument. Re-pointed onto the same mapping: 70 / 52 / 38 / 20, " +
+      "where `WINDOW`'s 70 was the mislabelled cell — §8.4's wide-open FLOOR carrying the word " +
+      "'open' — and `DEFENDER_IN_LANE` (20) names no §8.4 band and is HELD. §9.3's two " +
+      "tight-window values collapse to one here (38) because §9.4 has no half-yard boundary case; " +
+      "34, interpolating to preserve §9.4's old position between them, was rejected as exactly the " +
+      "invention ADR-039 SA-01 records.",
+    finding: "SA-08",
   },
   {
     pattern: "zoneCoverage.*",
@@ -752,7 +778,9 @@ export const REGISTER: readonly RegisterRule[] = [
     docRef: "§9.4 / §8.7",
     note:
       "Uncovered openness and the settled-decay knob. The latter is the largest behavioural knob " +
-      "added by the zone pass (backlog 8a) and is marked INTERPRETATION in tunables.",
+      "added by the zone pass (backlog 8a) and is marked INTERPRETATION in tunables. " +
+      "`uncoveredOpenness` (90) is NOT a §9.4 row and was HELD by SA-08's ruling; it is pinned in " +
+      "that finding's `ruledValues` so the hold is asserted rather than remembered.",
   },
 
   // ---- §9.3 man coverage -----------------------------------------------------------------------
@@ -762,65 +790,52 @@ export const REGISTER: readonly RegisterRule[] = [
     docRef: "§9.3",
     note: "30 / 20 / 10 / 1 / 0 / −9 / −19 / −∞ encode the doc's eight rows exactly.",
   },
-  // ---- SA-08 — RULED, AND THE ENGINE CHANGE IS OWED ---------------------------------------------
+  // ---- SA-08 — RULED, RE-RULED, AND IMPLEMENTED (ADR-045 + its same-day amendment) --------------
   //
-  // OWNER RULING (July 2026): §9.3's labels are re-pointed onto §8.4's EXISTING FIVE BANDS, one
-  // band DOWN — `30+ → wide open (70+)`, `20-29 → open (50-69)`, `10-19 → tight window (30-49)`,
-  // `1-9 → covered (15-29)`, `tie → covered, low end`. **§8.4's SCALE DOES NOT CHANGE**: its
-  // thresholds are load-bearing on the effective-openness math, so adding a band to fit §9.3's
-  // words would change QB read mechanics to fix a LABELLING problem. And **the word "contested"
-  // leaves the openness vocabulary entirely** — it is reserved for §11.1's catch resolution, which
-  // is what forecloses ADR-040 §3's rejected 55 rather than merely leaving it unruled.
+  // OWNER RULING (July 2026), as it FINALLY STANDS. §9.3's labels are re-pointed onto §8.4's
+  // EXISTING FIVE BANDS. **§8.4's SCALE DOES NOT CHANGE**: its thresholds are load-bearing on the
+  // effective-openness math, so adding a band to fit §9.3's words would change QB read mechanics to
+  // fix a LABELLING problem. And **the word "contested" leaves the openness vocabulary entirely** —
+  // it is reserved for §11.1's catch resolution, which is what forecloses ADR-040 §3's rejected 55
+  // rather than merely leaving it unruled.
   //
-  // ⚠ THE ENGINE MAPPING CHANGE IS NOT IMPLEMENTED. Every cell below still holds its PRE-RULING
-  // value, so these notes describe a RULED-BUT-OPEN defect, not a fixed one. Rows 1-4 all move;
-  // row 0 (85) is already inside `wide open` and does not.
-  {
-    pattern: "manCoverage.bands.1.openness",
-    provenance: "INTERPRETATION",
-    docRef: "§9.3 + §8.4",
-    note:
-      "⏳ SA-08 RULED, OWED. §9.3's `20-29` row. Holds 70, which is §8.4's `wide open` floor; the " +
-      "ruling puts this row in `open (50-69)`, so it must come down below 70.",
-    finding: "SA-08",
-  },
-  {
-    pattern: "manCoverage.bands.2.openness",
-    provenance: "INTERPRETATION",
-    docRef: "§9.3 + §8.4",
-    note:
-      "⏳ SA-08 RULED, OWED. §9.3's `10-19` row, the one whose '(CONTESTED)' parenthetical opened " +
-      "the finding. Holds 55 = §8.4 `open`; the ruling puts it in `tight window (30-49)` and " +
-      "retires the word 'contested' from this scale altogether.",
-    finding: "SA-08",
-  },
-  {
-    pattern: "manCoverage.bands.3.openness",
-    provenance: "INTERPRETATION",
-    docRef: "§9.3 + §8.4 / §11.1",
-    note:
-      "⏳ SA-08 RULED, OWED — **AND THIS IS THE COUPLED CELL.** §9.3's `1-9` row " +
-      "(SEPARATION_HALF_YARD) holds 40 = §8.4 `tight window`; the ruling puts it in " +
-      "`covered (15-29)`. `catching.contestedMaxOpenness` is pinned to this cell BY THE COMPILER " +
-      "(ADR-040 §3), so SA-08's owed change moves SA-14's threshold with it. That is the " +
-      "derivation working — but it means the two findings cannot be priced separately, and the " +
-      "compiler will NOT complain, because the equality is preserved while the football moves.",
-    finding: "SA-08",
-  },
-  {
-    pattern: "manCoverage.bands.4.openness",
-    provenance: "INTERPRETATION",
-    docRef: "§9.3 + §8.4",
-    note:
-      "⏳ SA-08 RULED, OWED. §9.3's `tie` row (EVEN_BRACKET) holds 32 = §8.4 `tight window`; the " +
-      "ruling puts it at the LOW END of `covered (15-29)`.",
-    finding: "SA-08",
-  },
+  // ⚠ THIS BLOCK PREVIOUSLY RECORDED THE FIRST RULING, WHICH IS NOT THE ONE THAT LANDED, and said
+  // so for a dispatch after the engine change had shipped. Both facts are kept here rather than
+  // overwritten, because the disagreement is the finding (Charter §4.1, *log, do not smooth*):
+  //
+  //   - the first ruling's cell list — four cells, `1-9 → covered`, `tie → covered, low end` — was
+  //     **arithmetically unsatisfiable** and the owner re-ruled it (ADR-043, then ADR-045 §2.1);
+  //   - this register went on saying **"THE ENGINE MAPPING CHANGE IS NOT IMPLEMENTED"** after it
+  //     had landed, and asserted that **"the compiler will NOT complain"** about a compiler that
+  //     **did** — ADR-040 §3.1's second assertion exists to make it, and moving the half-yard row
+  //     turned `pnpm typecheck` red. That red is how the non-separability of
+  //     `catching.contestedMaxOpenness` was discovered (ADR-045 §4.1).
+  //
+  // Nothing compiled against those three sentences, so nothing caught them. The values below are
+  // therefore no longer carried in prose alone: `SCALE_AUDIT_FINDINGS`' `ruledValues` pins each one
+  // through `applyTunablePatch`, and `auditFindingRulings` reddens if a ruled cell moves or if a
+  // finding still calls itself OWED after its cells have landed. See that field's own comment.
+  //
+  // THE RULED COLUMN, one band down per row, strictly decreasing since the amendment:
+  //   §9.3  70 / 52 / 38 / 30 / 25 / 22 / 15 / 6   (`EVEN_BRACKET` 25 held; `CB_IN_PHASE` 25 → 22)
+  //   §9.4  70 / 52 / 38 / 20                      (`DEFENDER_IN_LANE` names no §8.4 band; held)
   {
     pattern: "manCoverage.bands.*.openness",
     provenance: "INTERPRETATION",
-    docRef: "§9.3 + §8.4",
-    note: "Separation-in-yards mapped onto §8.4's openness scale. Declared in tunables.",
+    docRef: "§9.3 + §8.4 / §11.1",
+    note:
+      "✅ SA-08 RULED AND IMPLEMENTED (ADR-045 §2.1, amended §2.3a). Separation-in-yards mapped " +
+      "onto §8.4's openness scale, one band DOWN from where it used to sit: 70 wide-open floor / " +
+      "52 open / 38 tight-window mid / 30 tight-window floor / 25 covered / 22 covered / 15 / 6. " +
+      "The last two rows are HELD and the ruling says so; `CB_IN_PHASE` moved 25 → 22 to break a " +
+      "tie with `EVEN_BRACKET` that no instrument pointed at this table could see (ADR-045 §2.3b " +
+      "— the band gate is green on a tie BY CONSTRUCTION, since it fires only on a column that " +
+      "both rises and falls). ⚠ `manCoverage.bands.3` (SEPARATION_HALF_YARD, 30) is THE COUPLED " +
+      "CELL: `catching.contestedMaxOpenness` is pinned to it by the compiler (ADR-040 §3), so it " +
+      "moved with the row and the two findings could not be priced separately. That is the " +
+      "derivation working, and the compiler DID complain — which is the evidence the coupling is " +
+      "real rather than argued.",
+    finding: "SA-08",
   },
   {
     pattern: "manCoverage.attrDivisor",
@@ -1162,21 +1177,25 @@ export const REGISTER: readonly RegisterRule[] = [
     provenance: "INTERPRETATION",
     docRef: "§11.1 / §9.3",
     note:
-      "✅ SA-14 RULED AND IMPLEMENTED (ADR-040 §3): 30 → 40. Still INTERPRETATION and deliberately " +
-      "so — §11.1 states a DISTANCE ('defender within 1 yard') and §9.3's eight discrete rows " +
-      "cannot say what openness one yard is, since one yard is the lower edge of a row that also " +
-      "contains two. What changed is that the reading is now ANCHORED instead of free: it is the " +
-      "openness of `manCoverage.bands.3` (SEPARATION_HALF_YARD), the widest separation §11.1 makes " +
-      "contested beyond argument, and the equality is asserted BY THE COMPILER in the engine " +
-      "(mutual assignability of two `as const` literal types), so the pair cannot drift silently. " +
-      "⚠ COUPLED TO SA-08, WHICH IS RULED AND WHOSE ENGINE CHANGE IS OWED: SA-08 moves every " +
-      "§9.3 openness one §8.4 band DOWN, so `bands.3.openness` leaves 40 for the covered band " +
-      "(15-29) and THIS CELL FOLLOWS IT — correctly, because the derivation is anchored to the " +
-      "ROW and not to the number. The consequence is not neutral and nothing gates it: openness " +
-      "arriving from §9.4's zone table and §8.7's ±5/tick decay is NOT re-scaled by SA-08 and will " +
-      "be compared against a lower threshold, so part of SA-14's measured widening will unwind. " +
-      "PRICE SA-08 AND SA-14 JOINTLY when SA-08 lands; a sequential arm will attribute SA-08's " +
-      "unwinding to SA-14's ruling.",
+      "✅ SA-14 RULED AND IMPLEMENTED, THEN RE-RULED WITH ITS ANCHOR: 30 → 40 (ADR-040 §3), then " +
+      "40 → **30** (ADR-045 §4.1a). Still INTERPRETATION and deliberately so — §11.1 states a " +
+      "DISTANCE ('defender within 1 yard') and §9.3's discrete rows cannot say what openness one " +
+      "yard is. What changed at ADR-040 is that the reading became ANCHORED instead of free: it is " +
+      "the openness of `manCoverage.bands.3` (SEPARATION_HALF_YARD), the widest separation §11.1 " +
+      "makes contested beyond argument, and the equality is asserted BY THE COMPILER in the engine " +
+      "(mutual assignability of two `as const` literal types). ⚠ THE PAIR IS NOT SEPARABLE, AND " +
+      "THE COMPILER IS WHAT ESTABLISHED THAT. When SA-08 moved the half-yard row 40 → 30, " +
+      "`pnpm typecheck` went RED until this cell followed; there is no landing of §9.3's column " +
+      "that leaves §11.1's threshold alone (ADR-045 §4.1). This register previously predicted the " +
+      "opposite — *'the compiler will NOT complain, because the equality is preserved while the " +
+      "football moves'* — and that sentence is corrected here rather than deleted, because it is " +
+      "the clearest instance in the file of a claim nothing could falsify. The 40 → 30 move was " +
+      "ratified as a DERIVATION, not a threshold choice: ADR-040's argument re-run against the " +
+      "re-pointed table returns the SAME ROW, the alternative got weaker once SA-08's amendment " +
+      "deleted the '(contested)' parenthetical it rested on, and **the reclassification is nil** " +
+      "— the contested set is the same five §9.3 rows at 40 and at 30, which is the evidence it is " +
+      "not compensation debt. Anchor identity is asserted engine-side by " +
+      "`AdrO40RuledHalfYardOpenness`; the value is pinned here in `ruledValues`.",
     finding: "SA-14",
   },
   {
@@ -1905,6 +1924,12 @@ export type FindingStatus =
   /** ⛔ Ruled, and the ruling forbids implementing it standalone — it belongs to a larger design. */
   | "RULED_FOLDED";
 
+/** A cell a ruling named, with the value it named for it. `applyTunablePatch`'s path language. */
+export interface RuledValue {
+  readonly path: string;
+  readonly value: number;
+}
+
 export interface ScaleAuditFinding {
   readonly id: string;
   readonly klass: FindingClass;
@@ -1918,6 +1943,37 @@ export interface ScaleAuditFinding {
    * it, so "this was decided" can never become a thing somebody remembered.
    */
   readonly ruling?: string;
+  /**
+   * ================== THE VALUES THE RULING NAMED, PINNED ==================
+   *
+   * REQUIRED whenever `status !== "OPEN"`, and its path set must EQUAL `cells` — see
+   * `auditFindingRulings`.
+   *
+   * ⚠ **THIS FIELD EXISTS BECAUSE A STORED RULING IS THE WEAKEST GUARD IN THE REPO AND NOTHING
+   * CAUGHT IT DRIFTING.** Charter §4.1's newest corollary states the mechanism: *a pin that drifts
+   * stops the build; a stored ruling that drifts keeps being cited.* One dispatch produced both
+   * ends. `catching.contestedMaxOpenness`' type pin drifted and `pnpm typecheck` went **red**. This
+   * register drifted and said **three false things authoritatively** — that SA-08's engine change
+   * was unimplemented when it had landed, the superseded and unsatisfiable first ruling instead of
+   * the re-ruled column, and that the compiler would not complain about a compiler that had. Every
+   * test in this package stayed green, because **nothing compiles against a register.**
+   *
+   * So the ruled values stop being prose. Each is re-applied as a NO-OP `applyTunablePatch`, which
+   * throws `TunablePatchError` when the tree no longer holds what the patch was written against —
+   * `bandTables.ts`'s `assertRuledCellsCurrent` trick, and deliberately the same one, so the
+   * staleness check is the ENGINE's and not a comparison restated here.
+   *
+   * **It is directional, and the OWED direction is the half that would have fired.** For
+   * `RULED_IMPLEMENTED` and `RULED_FOLDED` the values are what the tree must hold. For `RULED_OWED`
+   * they are what the tree must **NOT yet** hold in full: a finding that still calls itself owed
+   * after every one of its cells has landed is a status that outlived its subject, which is exactly
+   * what happened here for a dispatch.
+   *
+   * **What it does NOT check, said out loud (§4.1's eliminated-vs-bounded rule):** whether the
+   * values are the RIGHT ones. That is a reading of the ADR that ruled them, and no derivation can
+   * reach it. What is eliminated is a ruled value silently ceasing to describe the tree.
+   */
+  readonly ruledValues?: readonly RuledValue[];
 }
 
 /**
@@ -2004,21 +2060,58 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   },
   {
     id: "SA-08",
-    status: "RULED_OWED",
-    ruling: "owner ruling, July 2026 — reported to calibration via ADR-040's dispatch",
+    status: "RULED_IMPLEMENTED",
+    ruling:
+      "owner ruling, July 2026, RE-RULED twice: ADR-043 refused the original four-cell list as " +
+      "unsatisfiable; ADR-045 §2.1/§2.2 landed the column across BOTH producers; ADR-045 §2.3a " +
+      "amended `CB_IN_PHASE` 25 → 22 to break the tie the ruled column created",
     klass: "DOC_CONTRADICTION",
-    docRef: "§9.3 vs §8.4",
+    docRef: "§9.3 + §9.4 vs §8.4",
     cells: [
+      "manCoverage.bands.0.openness",
       "manCoverage.bands.1.openness",
       "manCoverage.bands.2.openness",
       "manCoverage.bands.3.openness",
       "manCoverage.bands.4.openness",
+      "manCoverage.bands.5.openness",
+      "manCoverage.bands.6.openness",
+      "manCoverage.bands.7.openness",
+      "zoneCoverage.bands.0.openness",
+      "zoneCoverage.bands.1.openness",
+      "zoneCoverage.bands.2.openness",
+      "zoneCoverage.bands.3.openness",
+      "zoneCoverage.uncoveredOpenness",
+    ],
+    ruledValues: [
+      // §9.3 — 70 / 52 / 38 / 30 / 25 / 22 / 15 / 6, strictly decreasing since §2.3a. The last two
+      // are HELD by the ruling, and a hold is a ruling: the owner's standing instruction was that
+      // if rows 7-8 did not fit beneath 22 monotonically that came back as a QUESTION rather than
+      // being solved by compression. They fit, so they are pinned where they sat.
+      { path: "manCoverage.bands.0.openness", value: 70 },
+      { path: "manCoverage.bands.1.openness", value: 52 },
+      { path: "manCoverage.bands.2.openness", value: 38 },
+      { path: "manCoverage.bands.3.openness", value: 30 },
+      { path: "manCoverage.bands.4.openness", value: 25 },
+      { path: "manCoverage.bands.5.openness", value: 22 },
+      { path: "manCoverage.bands.6.openness", value: 15 },
+      { path: "manCoverage.bands.7.openness", value: 6 },
+      // §9.4 — the second producer, which no type could see. `DEFENDER_IN_LANE` (20) names no §8.4
+      // band and `uncoveredOpenness` (90) is not a §9.4 row; both HELD.
+      { path: "zoneCoverage.bands.0.openness", value: 70 },
+      { path: "zoneCoverage.bands.1.openness", value: 52 },
+      { path: "zoneCoverage.bands.2.openness", value: 38 },
+      { path: "zoneCoverage.bands.3.openness", value: 20 },
+      { path: "zoneCoverage.uncoveredOpenness", value: 90 },
     ],
     headline:
       "§9.3 calls 1-2 yards of separation 'contested' and 3-4 yards 'open'; §8.4's scale calls the " +
-      "engine's values for those rows 'open' and 'wide open'. RULED: the LABELS move one band " +
-      "down onto §8.4's five existing bands, §8.4's scale does not change, and 'contested' leaves " +
-      "the openness vocabulary for §11.1. Four rows move; the engine change is OWED.",
+      "engine's values for those rows 'open' and 'wide open'. RULED: the LABELS move one band down " +
+      "onto §8.4's five existing bands, §8.4's scale does not change, and 'contested' leaves the " +
+      "openness vocabulary for §11.1. ⚠ IT WAS RECORDED HERE AS FOUR CELLS IN ONE TABLE AND IT IS " +
+      "NEITHER: the four-cell list was arithmetically unsatisfiable (ADR-043), and §9.4 states its " +
+      "bands in §8.4's WORDS, so it produces the same scale and had to move with it — a coupling " +
+      "no type can see, found by reading. IMPLEMENTED across both tables, with " +
+      "`catching.contestedMaxOpenness` carried by its compiler pin (SA-14).",
   },
   {
     id: "SA-09",
@@ -2030,6 +2123,11 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
       "qb.awarenessVariance.baseHalfWidth",
       "qb.awarenessVariance.divisor",
       "qb.awarenessVariance.baseline",
+    ],
+    ruledValues: [
+      { path: "qb.awarenessVariance.baseHalfWidth", value: 10 },
+      { path: "qb.awarenessVariance.divisor", value: 5 },
+      { path: "qb.awarenessVariance.baseline", value: 70 },
     ],
     headline:
       "§8.3 says the awareness term 'reduces variance range' and its own worked examples SHIFT THE " +
@@ -2071,6 +2169,7 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
     klass: "DOC_CONTRADICTION",
     docRef: "§10.2 vs §10.3",
     cells: ["throwExec.lane.velocityModifier.BULLET"],
+    ruledValues: [{ path: "throwExec.lane.velocityModifier.BULLET", value: 10 }],
     headline:
       "The bullet's passing-lane modifier is +10 in §10.2 and +15 in §10.3; and the engine's " +
       "throw-type→angle mapping made a TOUCH pass harder to deflect than a bullet, which §10.2 " +
@@ -2081,15 +2180,20 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
   {
     id: "SA-14",
     status: "RULED_IMPLEMENTED",
-    ruling: "owner ruling on ADR-039; implemented in ADR-040 §3",
+    ruling:
+      "owner ruling on ADR-039, implemented in ADR-040 §3 at 40; RE-RULED to 30 and RATIFIED in " +
+      "ADR-045 §4.1a as a DERIVATION carried by its anchor, not a threshold choice",
     klass: "INTERPRETATION_DRIFT",
     docRef: "§11.1 / §9.3",
     cells: ["catching.contestedMaxOpenness"],
+    ruledValues: [{ path: "catching.contestedMaxOpenness", value: 30 }],
     headline:
       "§11.1 makes a catch contested when a defender is within one yard; the engine's threshold " +
-      "left a DEAD-EVEN coverage rep uncontested. FIXED at 40, DERIVED from §9.3's half-yard row " +
-      "and compiler-pinned to it. ⚠ That pin makes this finding a DEPENDENT of SA-08: when SA-08's " +
-      "owed mapping moves the half-yard row, this threshold moves with it, silently and by design.",
+      "left a DEAD-EVEN coverage rep uncontested. Fixed at 40, DERIVED from §9.3's half-yard row " +
+      "and compiler-pinned to it — then carried to 30 when SA-08 moved that row. The pin made this " +
+      "finding a DEPENDENT of SA-08 and the dependency is NOT silent: `pnpm typecheck` went red " +
+      "until the threshold followed, which is the strongest available form of the " +
+      "non-separability claim. Reclassification nil at both values.",
   },
   {
     id: "SA-15",
@@ -2118,6 +2222,13 @@ export const SCALE_AUDIT_FINDINGS: readonly ScaleAuditFinding[] = [
     cells: [
       "tippedBall.recovery.situational.engagedInBlock",
       "tippedBall.recovery.situational.onGround",
+    ],
+    // ⛔ FOLDED, so what is pinned is §12.4's own numbers sitting RECORDED-AND-NOT-APPLIED. If
+    // either moves, the ruling that said "priced participation, not exclusion, but not standalone"
+    // has to be re-made against whatever the new number means rather than inherited by it.
+    ruledValues: [
+      { path: "tippedBall.recovery.situational.engagedInBlock", value: -20 },
+      { path: "tippedBall.recovery.situational.onGround", value: -25 },
     ],
     headline:
       "§12.3 EXCLUDES blocked and grounded players from recovery; §12.4 gives them modifiers. " +
@@ -2226,4 +2337,118 @@ export function auditRegister(tunables: Tunables = DEFAULT_TUNABLES): RegisterAu
     danglingFindings,
     danglingCells,
   };
+}
+
+// ---------------------------------------------------------------------------
+// THE RULING-STALENESS ASSERTION — Charter §4.1's inverted audit priority
+// ---------------------------------------------------------------------------
+
+/**
+ * ================== WHY THIS EXISTS, IN ONE SENTENCE ==================
+ *
+ * > **A pin that drifts stops the build; a stored ruling that drifts keeps being cited.**
+ *
+ * `auditRegister` above eliminates an unclassified cell and a dead rule. It says NOTHING about
+ * whether a `RULED_*` status still describes the engine, and that is the gap this closes: SA-08 sat
+ * at `RULED_OWED` — *"the cells still hold their pre-ruling values"* — for a dispatch after every
+ * one of its cells had moved, and the whole package stayed green. **The three false sentences it
+ * carried were found by a human reading the file, and by nothing else.**
+ *
+ * The check is directional because the failure is:
+ *
+ *   - `RULED_IMPLEMENTED` / `RULED_FOLDED` — every ruled value must be what the tree holds. A no-op
+ *     `applyTunablePatch` per cell, so the staleness check is the ENGINE's own and this file holds
+ *     no second copy of the comparison.
+ *   - `RULED_OWED` — the ruled values are what the tree must NOT hold in full. If every cell has
+ *     landed, the status is stale and `owedButLanded` names the finding. **This is the arm that
+ *     would have fired**, and it is the one with no natural test case, so `docConformance.test.ts`
+ *     runs it against a synthetic finding it must fail on (§4.1: an instrument with no failing case
+ *     is not yet an instrument).
+ *
+ * And it pins the SET, not the size: `cellSetMismatch` requires `cells` and `ruledValues` to name
+ * the same paths, so a ruling whose scope grew — SA-08's did, from four cells in one table to
+ * thirteen across two — cannot go on quoting the narrower list while reading true.
+ */
+export interface FindingRulingAudit {
+  /** Non-`OPEN` findings carrying no `ruledValues`. MUST be empty. */
+  readonly unpinned: readonly string[];
+  /** `OPEN` findings carrying `ruledValues` — a pin without a ruling behind it. MUST be empty. */
+  readonly overPinned: readonly string[];
+  /** `"<id> <path>"` where `cells` and `ruledValues` disagree in either direction. MUST be empty. */
+  readonly cellSetMismatch: readonly string[];
+  /** `"<id> <path>"` naming a path that is not a numeric leaf of the tree. MUST be empty. */
+  readonly danglingRuledPaths: readonly string[];
+  /**
+   * `"<id> <path>: ruled X, tree Y"` for a landed status whose cell has moved. MUST be empty —
+   * carries `TunablePatchError`'s message where the engine produced one.
+   */
+  readonly drifted: readonly string[];
+  /**
+   * `RULED_OWED` findings every one of whose cells already holds its ruled value. MUST be empty:
+   * the work is done and the status has outlived its subject.
+   */
+  readonly owedButLanded: readonly string[];
+}
+
+export function auditFindingRulings(
+  findings: readonly ScaleAuditFinding[] = SCALE_AUDIT_FINDINGS,
+  tunables: Tunables = DEFAULT_TUNABLES,
+): FindingRulingAudit {
+  const live = new Map(numericLeaves(tunables).map((l) => [l.path, l.value] as const));
+  const unpinned: string[] = [];
+  const overPinned: string[] = [];
+  const cellSetMismatch: string[] = [];
+  const danglingRuledPaths: string[] = [];
+  const drifted: string[] = [];
+  const owedButLanded: string[] = [];
+
+  for (const f of findings) {
+    const pinned = f.ruledValues;
+    if (f.status === "OPEN") {
+      if (pinned !== undefined) overPinned.push(f.id);
+      continue;
+    }
+    if (pinned === undefined || pinned.length === 0) {
+      unpinned.push(f.id);
+      continue;
+    }
+
+    const pinnedPaths = new Set(pinned.map((r) => r.path));
+    const declared = new Set(f.cells);
+    for (const p of pinnedPaths) if (!declared.has(p)) cellSetMismatch.push(`${f.id} ${p}`);
+    for (const c of declared) if (!pinnedPaths.has(c)) cellSetMismatch.push(`${f.id} ${c}`);
+
+    let allLanded = true;
+    for (const cell of pinned) {
+      const held = live.get(cell.path);
+      if (held === undefined) {
+        danglingRuledPaths.push(`${f.id} ${cell.path}`);
+        allLanded = false;
+        continue;
+      }
+      if (held !== cell.value) allLanded = false;
+      if (f.status === "RULED_OWED") continue;
+      // The staleness check is the engine's: a no-op patch, which throws on a stale `currentValue`.
+      try {
+        applyTunablePatch(tunables, {
+          tunableId: cell.path,
+          currentValue: cell.value,
+          proposedValue: cell.value,
+          evidence:
+            `DOC-CONFORMANCE REGISTER — staleness check for finding ${f.id} ` +
+            `(${f.status}; ${f.ruling ?? "no ruling cited"}). A no-op patch: it proposes the value ` +
+            `it finds, and exists only so that a ruling cannot outlive its subject.`,
+          expectedEffect: "none — the proposed value is the current value",
+        });
+      } catch (error) {
+        drifted.push(
+          `${f.id} ${cell.path}: ruled ${String(cell.value)}, tree ${String(held)} — ` +
+            `${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+    if (f.status === "RULED_OWED" && allLanded) owedButLanded.push(f.id);
+  }
+
+  return { unpinned, overPinned, cellSetMismatch, danglingRuledPaths, drifted, owedButLanded };
 }

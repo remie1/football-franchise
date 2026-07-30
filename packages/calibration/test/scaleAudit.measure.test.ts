@@ -44,10 +44,21 @@
  *                                               settled number, and per attribution rule 3 the
  *                                               share is a statement about that tunables point.
  *
- *   SA-14 `catching.contestedMaxOpenness`     — RULED (30 → 40) AND IMPLEMENTED. The pricing block
+ *   SA-14 `catching.contestedMaxOpenness`     — RULED, IMPLEMENTED, then RE-RULED WITH ITS ANCHOR:
+ *                                               30 → 40 (ADR-040 §3), then 40 → **30** (ADR-045
+ *                                               §4.1a), because SA-08 moved the §9.3 row the
+ *                                               threshold is compiler-pinned to. The pricing block
  *                                               is RETIRED, not re-pointed; see the block below
  *                                               where it stood, which records why and what would
  *                                               be needed to price it at all.
+ *
+ * ⚠ **THIS HEADER AND THE RETIRED BLOCK BELOW BOTH WENT STALE, AND THAT IS THE FINDING, NOT AN
+ * ERRATUM.** ADR-045 §4.2 reported three stale claims in `docConformance.ts` and re-checked that
+ * file only; these two lived here and nothing pointed at them. **Every claim in this file is prose
+ * inside an env-gated test** — Charter §4.1 tier 3, and the weakest possible combination: no
+ * consumer, and not even a green tick on a default `pnpm test` to suggest it was looked at. The
+ * ruled VALUES are now pinned in `SCALE_AUDIT_FINDINGS.ruledValues` (ADR-047) and reddened by the
+ * free tier; the SENTENCES here are still guarded by nothing but a reading.
  */
 import { describe, expect, it } from "vitest";
 import { DEFAULT_TUNABLES, applyTunablePatch, type TunablePatch } from "@ff/engine";
@@ -156,9 +167,17 @@ d("scale audit — pricing", () => {
    * `pocketLadder.ts`'s `retiredRed` discipline: a gate that quietly loses the finding it was
    * written against is indistinguishable from one that never fired.
    *
-   * It ran `patch("catching.contestedMaxOpenness", 30, 40)`. **SA-14 is now RULED and 40 IS THE
-   * COMMITTED TREE** (ADR-040 §3), so that call throws `TunablePatchError` — the probe became its
-   * own subject. There were two dispositions and only one of them is honest.
+   * It ran `patch("catching.contestedMaxOpenness", 30, 40)`. When SA-14 was ruled and **40 became
+   * the committed tree** (ADR-040 §3) that call started throwing `TunablePatchError` — the probe
+   * became its own subject. There were two dispositions and only one of them is honest.
+   *
+   * ⚠ **AND THE TREE HAS SINCE MOVED BACK: ADR-045 §4.1a re-ruled the cell to 30**, carried by its
+   * anchor when SA-08 moved §9.3's half-yard row. **So the sentence above stopped being true twice
+   * over**: `patch(…, 30, 40)` would no longer throw, it would apply — a retired probe describing a
+   * refusal that has quietly become a live perturbation. Recorded rather than silently corrected,
+   * because it is the sharpest instance in this package of the thing ADR-047 is about: **the claim
+   * "this throws" is a claim about the engine, made in prose, in an env-gated file, with nothing
+   * consuming it.** The retirement stands on the two reasons below, both of which are unaffected.
    *
    * **RE-POINT (40 → 30, pricing the ruled cell from the other side) — REJECTED.** Not because it
    * would not run, but because of what the block CLAIMED. Its console text read *"read the
@@ -180,14 +199,16 @@ d("scale audit — pricing", () => {
    *      not: `CATCH_RESOLUTION` publishes the catch TYPE and never the OPENNESS that decided it,
    *      so the population cannot be counted from the stream at all. That is a STREAM GAP and a
    *      petition to the engine, not something a second corpus run repairs. Backlog 52.
-   *   2. **The cell is about to move again, so pricing it now would price the wrong number.** SA-08
-   *      is RULED and its engine change is OWED; it re-points §9.3's openness one §8.4 band down,
-   *      and `contestedMaxOpenness` is compiler-pinned to `manCoverage.bands.3.openness`, so it
-   *      follows. Per attribution rule 3 a share is a statement about a tunables POINT — and this
-   *      point has a ruled successor. **SA-08 and SA-14 must be priced JOINTLY when SA-08 lands**,
-   *      or SA-08's unwinding is attributed to SA-14's ruling.
+   *   2. **The cell was about to move again, so pricing it then would have priced the wrong
+   *      number — and it DID move.** SA-08 re-pointed §9.3's openness one §8.4 band down, and
+   *      `contestedMaxOpenness` is compiler-pinned to `manCoverage.bands.3.openness`, so it
+   *      followed: 40 → 30. Per attribution rule 3 a share is a statement about a tunables POINT,
+   *      and that point now has a ruled successor which is the committed tree. **The joint pricing
+   *      this block demanded is what ADR-045 §3 did** — thirteen cells in one arm, with §3a pricing
+   *      the fourteenth separately rather than inheriting a price from the larger change. Nothing
+   *      is owed here; what remains owed is backlog 52, below.
    *
    * The RAW contested / routine / INTERCEPTION reach of the RULED tree is still measured: the RAW
-   * REACH block above reads `DEFAULT_TUNABLES`, and `DEFAULT_TUNABLES` now holds 40.
+   * REACH block above reads `DEFAULT_TUNABLES`, which now holds **30**.
    */
 });

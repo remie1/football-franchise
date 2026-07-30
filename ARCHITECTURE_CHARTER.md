@@ -687,6 +687,30 @@ field from being satisfied into uselessness.
 path to elimination* entry. There is nothing to walk, hash or perturb; a comment has no
 representation a check can reach.
 
+**Corollary — THE DANGEROUS STATE IS NOT "UNINSTRUMENTED". IT IS "APPARENTLY INSTRUMENTED": several
+green artefacts around a cell, and NONE of them has the property in its subject.**
+
+An uninstrumented surface is honest — nobody believes it is checked. **Three green instruments
+pointed at a column are the condition under which a reader stops reading.**
+
+The worked example (ADR-045, `CB_IN_PHASE`): the owner found a defect **by reading a column**, and
+**every instrument aimed at that column was blind to it**:
+
+| instrument | why it could not fail |
+|---|---|
+| the band-table monotonicity gate | **green on a tie by construction** — a tie neither rises nor falls |
+| §8.5's rank-order pin | passing because of **`Array.prototype.sort`'s stability**, not because of the ordering it names |
+| the openness consumer matrix | classified `25` and `25` **identically, and correctly** |
+
+**So state the failure precisely: not *"no instrument exists"* but *"instruments exist and the
+property is in none of their subjects."*** The former is a gap you can see in a list; **the latter
+looks like coverage.**
+
+**The diagnostic that caught it is the standing practice doing its job.** Requiring *a failing case
+per instrument* is what revealed that **none of the three could produce one** for this property.
+**Asking "what would make this go red?" of each instrument in turn is how an apparently-instrumented
+cell is distinguished from a covered one** — and it costs nothing when the answer is easy.
+
 **Corollary — A GUARD'S FAILURE MODE IS INVERSELY RELATED TO ITS ENFORCEMENT POWER. So the AUDIT
 priority is the INVERSE of the TRUST priority.**
 

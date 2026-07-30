@@ -47,6 +47,9 @@ export * from "./harness/schedule.js";
 export * from "./harness/runGame.js";
 export * from "./harness/batch.js";
 export * from "./harness/workerPool.js";
+// PLAY SCOPE (ADR-047, backlog 53). `calibration.md` §5.3's standing rule — price a per-play subject
+// at play scope first, because a corpus arm cannot distinguish "no effect" from "effect swamped".
+export * from "./harness/playScope.js";
 
 export * from "./report/bands.js";
 export * from "./report/identity.js";

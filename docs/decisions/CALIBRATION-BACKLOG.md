@@ -84,10 +84,17 @@ decides must fail to compile rather than pass green** (now Charter §4.1).
 
 **2a. ⚡ §8.7's OPENNESS GAIN — CONTEST-CONDITIONED (ADR-046, ruled). BEFORE the attributes pipeline.**
 
-`route.opennessGainPerTick = 8` applies **identically whatever the coverage rep produced**, so a 15–18
-point base correction is **recovered in about two ticks**. A receiver who beat his man by 30 and one
-who lost by 5 **converge in two ticks** — *the route-running battle has a half-life measured in
-ticks.* A **structural insensitivity**, the same species as ADR-028's constant swallowing blocker
+`route.opennessGainPerTick = 5` applies **identically whatever the coverage rep produced**, so a 15–18
+point base correction is **recovered in ~3.3 steps**. A receiver who beat his man by 30 and one who
+lost by 5 **converge within a few steps** — *the route-running battle has a half-life measured in
+ticks.*
+
+> **⚠ CONSTANT CORRECTED (ADR-047).** This entry, ADR-045 §3.4/§5.2 and ADR-046's `Need` all said
+> **`8`**, which is **`scramble.opennessGainPerTick`** — a **sibling leaf of the same name under a
+> different block.** It was quoted through three documents into a **ratified ruling** before anything
+> compared it to the tree. **The shape ruling is unaffected**; only the timing, which overstated by
+> ~1.6×. Calibration's doc-conformance register had the cell right the whole time — **it was the one
+> place the two could have been compared, and nothing compared them.** A **structural insensitivity**, the same species as ADR-028's constant swallowing blocker
 quality: the number is not wrong on any scale, **the shape is.**
 
 **Ruled: contest-conditioned.** Not proportional — proportional **widens the gap forever**, and
@@ -102,7 +109,22 @@ window**); the rate mapping is derived, not chosen.
 > visible, the natural conclusion is **that attributes don't matter.** That is **worse than a wrong
 > number, because it discredits the SYSTEM rather than the CELL.**
 
-**2b. THE `packages/contracts` DOC-COMMENT AUDIT — a reading pass, no instrument possible.**
+**2b. THE PROSE AUDITS — two reading passes, no instrument possible for either. Do them together.**
+
+**2b-i — `packages/contracts` doc comments.**
+
+**2b-ii — `docs/design/match-engine.md`'s DUPLICATED-ROW DEFECTS, added July 2026.** The SA-08
+amendment left the **old prose rows standing beneath the new numbered ones**, so §9.3 listed rows 6–8
+**twice** — nothing conflicting, nothing failing, and **a future ruling gets applied to one copy and
+not the other.** Entry 47's third shape appearing inside the design doc **days after we named it.**
+
+**The reason this is a sweep and not a one-off fix:** the doc has been amended **eight or nine times**
+now, **mostly by adding corrected rows**, and **the amendment style that produced this one was not
+unusual** — it is the house style. So assume more exist. Also in scope: **§17.1's example printout**,
+which prints `32` for a cell now at `22` and **drifts further with every ruling** — a stored example
+nothing compiles against. **Fix it or derive it; do not leave a document showing 32 for a cell at 22.**
+
+*(Original 2b text follows.)*
 
 **Owner ruling, July 2026, arising from ADR-044.** The doc comments in `packages/contracts` **have
 never been audited.** Every one was written by the owner **in the same pass that produced eight
@@ -1406,10 +1428,108 @@ surfaced any of them.**
 > entry's exact subject wearing different clothes.** A pin enforces and goes stale; **a register
 > merely asserts, and goes stale more quietly**, because nothing compiles against it.
 
-**So the sweep covers three shapes:** rulings anchored to a **number**, pins anchored to a **symbol**,
-and **registers recording rulings**. Note the ordering of danger is not the ordering of strength: the
-pin is strongest and drifted loudly (a red typecheck); the register is weakest and **drifted in
-silence while stating the opposite of the truth.**
+### ➕ FOURTH SHAPE (owner, July 2026) — A PIN WHOSE GREEN COMES FROM SOMEWHERE OTHER THAN ITS STATED SUBJECT
+
+**Harder to find than drift, because nothing is stale — the pin was NEVER measuring what it claimed.**
+
+ADR-045's §8.5 rank-order pin passed **because of `Array.prototype.sort`'s stability**, not because of
+the ordering it names. It **asserted an implementation detail while appearing to assert football**, and
+it would have gone on passing through any ruling about that ordering, including one that reversed it.
+
+**A drifted pin was once right.** This kind **never was** — so no amount of "check it against the
+current ruling" finds it. The only question that does: **what would make this go red?** If the answer
+names something other than the pin's stated subject, the pin is measuring that other thing.
+
+**So the sweep covers four shapes:** rulings anchored to a **number**, pins anchored to a **symbol**,
+**registers recording rulings**, and **pins green for the wrong reason**. Note the ordering of danger
+is not the ordering of strength: the pin is strongest and drifted loudly (a red typecheck); the
+register is weakest and **drifted in silence while stating the opposite of the truth**; and the
+fourth shape **never drifts at all**, which is why it survives every staleness check.
+
+> **📐 SWEPT FOR `packages/calibration`, AND THE THIRD SHAPE IS NOW ENFORCED (ADR-047).** Every
+> stored ruling in the package is partitioned ENFORCED / MERELY RECORDED — **as a set, not a count**
+> — in ADR-047 §2. `SCALE_AUDIT_FINDINGS` gains `ruledValues`, re-applied as no-op
+> `applyTunablePatch`es, and `auditFindingRulings` reddens on a landed ruling whose cell moved, on a
+> `RULED_OWED` finding whose cells have all landed, and on a `cells` list that disagrees with the
+> values pinned beside it. **The OWED arm is the one that would have fired**, so it ships with the
+> case it must fail on: SA-08 exactly as it stood before ADR-045.
+>
+> **Both named shapes were found.** Shape (a): **ADR-045 §3.4/§5.2 and ADR-046's `Need` state
+> `route.opennessGainPerTick = 8`; the committed value is `5`** — `8` belongs to
+> `scramble.opennessGainPerTick`, a sibling leaf of the same name. The shape argument survives; the
+> *"recovered in about two ticks"* timing does not. Shape (b): SA-08's `cells` named **four** cells
+> in **one** table for a ruling that moved a column across **two**, and read true while pointing at a
+> third of its subject.
+>
+> **Still owed:** the first two shapes across this file's own prose. `packages/calibration`'s
+> MERELY-RECORDED partition is enumerated in ADR-047 §2.2 and is led by the register's `note` /
+> `headline` / `ruling` strings and by `POCKET_STATUS_LADDER_SCENARIO.hypothesis`, a ~4,000-character
+> string restating four machine-checked fields.
+>
+> **Fourth shape, applied to calibration's own pins (ADR-047 §4):** `SURFACE`'s
+> implemented/unimplemented split is red only on an edit to `SURFACE`, never on a resolver acquiring
+> a producer; the pocket-ladder gate's canonical-seed guards measure **the text of their own file**;
+> and **`orderViolations` is green on a tie BY CONSTRUCTION on all 52 orderable columns**, not merely
+> on §9.3 — which is why nothing pointed at that table could see the 25/25 tie.
+
+## 53. OWED SWEEP — every recorded NULL measured at CORPUS scope on a PER-PLAY subject is suspect
+
+**Same reasoning as the sweep of pre-re-runging sensitivity numbers, and the same standing:** these
+were not wrong to record; **they were measured with an instrument that cannot return the answer they
+state.**
+
+ADR-045 §3a.5 established it by accident: a cell that moved **down** produced a corpus-arm reading of
+**+0.03** — **the wrong sign** — because composition shifted underneath the measurement. So *"no
+effect"* and *"effect swamped"* were **indistinguishable at that instrument**, and every behavioural
+row sat inside a quarter of its standard error. `docs/design/calibration.md` §5.3 now carries the
+rule: **price a per-play subject at play scope first.**
+
+**Start here, per the owner:** the **free-runner path-term null (−0.012 ± 0.061pp)** — *a per-play
+mechanism measured across whole corpora*, which is exactly the shape. Then walk the rest of the
+recorded nulls for the same pattern.
+
+> **The reason this is worth doing rather than noting: a null produced by the wrong instrument is
+> INDISTINGUISHABLE from a null.** Nothing about the record looks wrong. It is the fourth shape from
+> entry 47 in a different medium — **a number that never measured what it claimed**, as opposed to one
+> that drifted.
+
+**Classify each as** *re-measured at play scope* / *not a per-play subject, corpus scope correct* /
+*still owed*. **Name them as a set, not a count** (§4.1's count-blindness corollary).
+
+> **📐 THE INSTRUMENT EXISTS AND THE FIRST ITEM IS DONE (ADR-047 §6).** `src/harness/playScope.ts`
+> captures every scrimmage play with its entering state and calls and replays it under two trees.
+> **It needed no engine change:** a play's PRNG tree is `createRng(seed, "game:<id>").fork("play:<n>")`
+> and it reads nothing but the `MatchGameState` it is handed, so a play is exactly reproducible from
+> *(state, calls, seed)* — and calibration owns the caller, which sees the snapshots and the
+> situation. The reconstruction is proved against the game's own stream, **event for event, over
+> every play**, because an exclusive count of 0 is also what a broken replay returns.
+>
+> **ADR-031's path term, 496 games, seeds `fnv1a:020c1dcb#496`, 68,934 plays replayed twice:**
+>
+> | count | plays | share |
+> |---|---|---|
+> | RAW — carries an `UNBLOCKED`/`PICKUP_LOST` threat | 6,213 | 9.013% |
+> | EXCLUSIVE, stream digest differs | 1,518 | 2.202% |
+> | **EXCLUSIVE, `PLAY_RESULT` differs** | **156** | **0.226%** |
+>
+> Complement **67,416 plays, digest-identical in both arms.** Raw over-states reach by **4.09×** at
+> stream scope and **39.83×** at outcome scope.
+>
+> **This settles the reading the corpus arm could not.** −0.012 ± 0.061pp is not disputed and is not
+> re-measured — an exclusive count bounds *where* a change acts, never *how large* it is. But *"no
+> effect"* and *"effect swamped"* are now separated: **the term is LIVE and reaches 0.226% of
+> plays.** A sack-rate arm at 8 × 496 games was never going to resolve two plays in a thousand.
+>
+> ⚠ **The stream/outcome split is itself a finding.** The path term publishes on
+> `RUSH_THREAT.etaTick`, so a play whose ETA moves and whose ball goes to the same man for the same
+> yards is a *stream* difference and not a *football* one. **Quoting 1,518 would be a raw count
+> wearing an exclusive count's name**, one level finer than the mistake §5.3 already forbids.
+>
+> **The remaining candidate set is named in ADR-047 §6.3**, classified in all three buckets. Highest
+> priority of the remainder: **`freeRunnerArrivalSeconds` (entry 36)** — same mechanism, same shape,
+> and the instrument is now built. Explicitly NOT suspect: the six `DEAD_CELL_PROBES` and ADR-035
+> §6.1's 0.000% exclusive reach, because **a byte-identical whole-corpus digest is a total comparison
+> and not a rate** — composition cannot shift inside an identical stream.
 
 ## 45. `GIFT` / `FLOATER` — DECLARED ABSTENTION, and why a targeted fixture is the wrong fix
 

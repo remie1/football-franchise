@@ -66,10 +66,12 @@ import {
   MISSING_CELLS,
   REGISTER,
   SCALE_AUDIT_FINDINGS,
+  auditFindingRulings,
   auditRegister,
   leafCensus,
   numericLeafPathDigest,
   numericLeaves,
+  type ScaleAuditFinding,
 } from "../src/knownTruth/docConformance.js";
 
 /**
@@ -147,6 +149,86 @@ describe("doc-conformance register", () => {
       (f) => f.status === "OPEN" && f.ruling !== undefined,
     ).map((f) => f.id);
     expect(overCited).toEqual([]);
+  });
+
+  it("cannot mark a finding RULED without pinning the values it was ruled about", () => {
+    // ADR-047. The complement of the test above: naming WHO ruled is not the same as naming WHAT
+    // was ruled, and the second is the half that goes stale. `ruledValues` is required on every
+    // non-OPEN finding and forbidden on an OPEN one.
+    const audit = auditFindingRulings();
+    expect(audit.unpinned).toEqual([]);
+    expect(audit.overPinned).toEqual([]);
+    // Pin the SET, not the size: a ruling whose scope grew may not go on quoting the old list.
+    // SA-08's did — four cells in one table became thirteen across two.
+    expect(audit.cellSetMismatch).toEqual([]);
+    expect(audit.danglingRuledPaths).toEqual([]);
+  });
+
+  it("every ruled cell still holds the value its ruling was made about", () => {
+    // The staleness check is `applyTunablePatch`'s, not a comparison restated here — the same trick
+    // `bandTables.ts` uses for the adjudicated inversions, so both registers fail the same way.
+    expect(auditFindingRulings().drifted).toEqual([]);
+  });
+
+  it("no finding still calls itself OWED after its cells have landed", () => {
+    // ⚠ THIS IS THE ARM THAT WOULD HAVE FIRED. SA-08 sat at RULED_OWED — "the cells still hold
+    // their pre-ruling values" — for a dispatch after every one of its cells had moved, and every
+    // test in this package stayed green, because nothing compiles against a register.
+    expect(auditFindingRulings().owedButLanded).toEqual([]);
+  });
+
+  it("REDDENS on the case it exists for — a stale OWED status over a landed tree", () => {
+    // Charter §4.1: an instrument with no failing case is not yet an instrument, and reading one
+    // tells you what it CLAIMS to check. There is no live RULED_OWED finding, so the assertion
+    // above is vacuous today; this is the case that makes it real. The synthetic finding is SA-08
+    // exactly as it stood before this dispatch: OWED, over cells the engine has already moved.
+    const stale: ScaleAuditFinding = {
+      id: "SYNTHETIC-OWED",
+      status: "RULED_OWED",
+      ruling: "synthetic — the failing case for auditFindingRulings",
+      klass: "DOC_CONTRADICTION",
+      docRef: "§9.3 vs §8.4",
+      cells: ["manCoverage.bands.3.openness"],
+      ruledValues: [{ path: "manCoverage.bands.3.openness", value: 30 }],
+      headline: "the shape of SA-08 before ADR-045 landed: ruled, owed, and already implemented.",
+    };
+    expect(auditFindingRulings([stale]).owedButLanded).toEqual(["SYNTHETIC-OWED"]);
+
+    // …and the other three arms, each on its own case, so a green report cannot mean "the checker
+    // returned empty arrays for a reason unrelated to the finding".
+    const drifted: ScaleAuditFinding = {
+      ...stale,
+      id: "SYNTHETIC-DRIFTED",
+      status: "RULED_IMPLEMENTED",
+      ruledValues: [{ path: "manCoverage.bands.3.openness", value: 40 }],
+    };
+    expect(auditFindingRulings([drifted]).drifted).toHaveLength(1);
+    expect(auditFindingRulings([drifted]).drifted[0]).toContain("manCoverage.bands.3.openness");
+
+    const { ruledValues: _dropped, ...withoutValues } = stale;
+    const unpinned: ScaleAuditFinding = { ...withoutValues, id: "SYNTHETIC-UNPINNED" };
+    expect(auditFindingRulings([unpinned]).unpinned).toEqual(["SYNTHETIC-UNPINNED"]);
+
+    const mismatched: ScaleAuditFinding = {
+      ...stale,
+      id: "SYNTHETIC-MISMATCH",
+      status: "RULED_IMPLEMENTED",
+      cells: ["manCoverage.bands.3.openness", "manCoverage.bands.4.openness"],
+    };
+    expect(auditFindingRulings([mismatched]).cellSetMismatch).toEqual([
+      "SYNTHETIC-MISMATCH manCoverage.bands.4.openness",
+    ]);
+
+    const dangling: ScaleAuditFinding = {
+      ...stale,
+      id: "SYNTHETIC-DANGLING",
+      status: "RULED_IMPLEMENTED",
+      cells: ["manCoverage.bands.99.openness"],
+      ruledValues: [{ path: "manCoverage.bands.99.openness", value: 30 }],
+    };
+    expect(auditFindingRulings([dangling]).danglingRuledPaths).toEqual([
+      "SYNTHETIC-DANGLING manCoverage.bands.99.openness",
+    ]);
   });
 
   it("records the TABLE_SHAPE population — RIDER 1's whole subject", () => {

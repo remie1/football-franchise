@@ -6,15 +6,37 @@
 
 ## Need
 
-§8.7 applies `route.opennessGainPerTick = 8` **identically, whatever the coverage rep produced.**
+> ### ⚠ CORRECTION (ADR-047, after ratification) — THE CONSTANT IN THIS SECTION WAS WRONG
+>
+> **`route.opennessGainPerTick` is `5`, not `8`.** The `8` is **`scramble.opennessGainPerTick`** — a
+> **sibling leaf of the same name under a different block**, which is how it survived being quoted
+> through ADR-045 §3.4, ADR-045 §5.2, and this ADR's `Need` into a **ratified ruling**.
+>
+> **What survives: the SHAPE ruling, entirely.** A flat gain erases the rep whatever its size, and
+> nothing in the decision turned on the magnitude.
+>
+> **What changes: the timing overstates by ~1.6×.** At `5`/step the recovery is **~3.3 steps**, not
+> "about two ticks". *The contest still decays into irrelevance; it takes half a beat longer.*
+>
+> **Recorded rather than silently amended** (§4.1, *log do not smooth*), because the interesting part
+> is how it happened: **two leaves with the same name under different blocks**, and every instrument
+> in the chain was pointed at behaviour rather than at the citation. `packages/calibration`'s
+> doc-conformance register had the cell **right** (`DOC_VERBATIM` against §8.7's *"+5 per tick"*) —
+> **it was the only place the two could be compared, and nothing compared them.**
+>
+> **Generalises:** a ruling's *Need* section is prose (§4.1 — nothing constrains the prose), and a
+> quoted constant in it is a **restated constant with an owner's ratification attached.** This is
+> entry 47's first shape landing in an ADR rather than a register.
+
+§8.7 applies `route.opennessGainPerTick = 5` **identically, whatever the coverage rep produced.**
 
 ADR-045 corrected §9.3's column by 15–18 points at the affected rows — and the predicted downstream
 reluctance shift **did not appear.** The reason is this constant: **a 15–18 point base correction is
-recovered in about two ticks.**
+recovered in ~3.3 steps** (corrected from "about two ticks", which used the wrong leaf — see above).
 
 > **The outcome of the separation contest decays into irrelevance within a tick or two of the break.**
 
-A receiver who **beat his man by 30** and one who **lost by 5** converge in two ticks, because a flat
+A receiver who **beat his man by 30** and one who **lost by 5** converge within a few steps, because a flat
 additive gain **erases the difference between winning and losing the rep**. The route-running battle
 that §9.3 exists to resolve has **a half-life measured in ticks.**
 
