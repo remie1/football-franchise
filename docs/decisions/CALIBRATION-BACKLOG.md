@@ -286,6 +286,79 @@ quarterback's position**, or **whose remaining travel exceeds the time left in t
 > the two **together and separately**, per entry 37, and **name what is held.**
 >
 > **If it lands, that is the first Bar 2 movement in this tree since tracking began.**
+>
+> ### ⛔⛔ RUN, AND **THE SUCCESS CONDITION WAS NOT MET.** The tree does not change.
+>
+> **A football-derived supply correction — `passRush.bands[RUSHER_WINS_REP].minMargin` 15 → 45 —
+> moves the pressure rate −0.130 ± 0.016pp, from a gap of 60.6pp.** 90.019% → 89.888%, against a
+> real 29.225%. **Stated in the dispatch's own terms rather than softened: this is not the result.**
+>
+> ⚠ **AND THE INSTRUMENT WORK BELOW IS NOT A SUBSTITUTE FOR IT.** It is reported because it explains
+> the refusal mechanically, not because it is the outcome.
+>
+> #### THE REDUNDANCY IS STRUCTURAL, NOT A MIS-SIZED LEVER — and this is what actually closes the question
+>
+> `pocketStatusFor` (`engine/src/resolve/pocket.ts:194`) is the **worst of THREE INDEPENDENT
+> CHANNELS**, reduced by `worsePocketStatus`:
+>
+> | channel | source | reachable by supply/retirement? |
+> |---|---|---|
+> | `pocketStatusFromPressure` | the accumulated per-rusher counter | ❌ |
+> | `pocketFloorFor` | **this tick's own §7.1 band** | ❌ |
+> | `pocketFloorFromArrival` | the nearest live threat's time-to-arrival | ✅ **only this one** |
+>
+> **Both Ruling 1 and Ruling 2 act EXCLUSIVELY on the third channel.** The first two are recomputed
+> fresh every tick from that tick's own `pass_rush_tick` result — **they have no memory of a "threat"
+> object at all**, so nothing about threat *creation* or *retirement* can touch them. Move
+> `RUSHER_WINS_REP` from 15 to 45 and a margin-15–44 rep simply reclassifies from `RUSHER_WINS_REP`
+> (arrival channel) to `BLOCKER_BEATEN` (band-floor channel, which **independently floors the pocket
+> at `PRESSURE`**). A wash.
+>
+> **This is ADR-049's over-determination finding, now closed at a FINITE football-derived threshold
+> rather than only at the extinction rung.** The whole shelf is flat: 15→25 `+0.068`, 15→40 `−0.039`,
+> 15→∞ `−0.111`, 15→45 `−0.130 ± 0.016`. **No intermediate value behaves differently, and that
+> question is now settled rather than open.**
+>
+> #### ⇒ THE NEXT LEVER IS NAMED, AND IT IS NOT SUPPLY
+>
+> **Closing entry 40 on the shipping tree requires touching the BAND-FLOOR and/or COUNTER channels —
+> `pocket.minimumStatusByBand` and `passRush.pressureProgressByBand`.** Reported, not acted on;
+> outside the dispatch's scope. **⚠ Owner ruling owed on whether this becomes the next dispatch.**
+>
+> #### RULING 2 IS LARGE ON THE CHANNEL IT CAN REACH — which is the evidence, and also the point
+>
+> On the arrival-only base (a mechanism base, **explicitly not a proposal**): Ruling 1 alone
+> **−15.003pp**, Ruling 2 alone **−71.027pp** *(a LOWER BOUND)*, joint **−75.702pp**, interaction
+> **+10.328pp** — sub-additive, overlapping by ~14% of either main effect, and **nowhere near
+> ADR-049's exact persistence-annihilation.** So the mechanism is not small; it is **walled off from
+> two of the three channels that decide the rate.**
+>
+> #### WHAT THE ENGINE CANNOT EXPRESS TODAY, with the line number
+>
+> `sim/passPlay.ts:528` tests `startsThreat(rush.band)` **before** `:545`'s `clearsThreat(...)` in an
+> if/else-if chain, so **`pressureProgressByBand.RUSHER_WINS_REP.reset` is DEAD CODE** — a rusher who
+> keeps winning his rep can never reach the retirement branch on a tick he wins. `retireOn`'s "P2"
+> ceiling already works around this by excluding `RUSHER_WINS_REP`, **which is exactly why its
+> measured reach was 0.108pp.**
+>
+> #### ADJACENT, WATCHED NOT CHASED
+>
+> Supply→45 lands **sack at 8.634%** against a real 6.898% (from 14.957%) — **the closest any measured
+> configuration has come**, confirming ADR-049's finding that supply is the first lever ever found for
+> entry 2. **Completion moved the wrong way again (+0.708pp)**, as on every prior arm of this
+> subsystem.
+>
+> #### THE SELF-CHECK CAUGHT A REAL GAP, WHICH IS WHY THE NUMBERS ARE TRUSTWORTHY
+>
+> The reclassifier asserts that **with both rules disabled it reproduces the engine's own
+> `POCKET_STATUS` stream tick for tick** — 0 mismatches across 84,796 and 129,259 checks. Its first
+> pass **failed that check** (463 of 2,142 on a smoke run) and found the reason: **§8.8's pursuit
+> clock publishes no `RUSH_THREAT` event at all.** Plays carrying a `scramble` CHECK are therefore
+> **excluded and counted — 34.5% of dropbacks at supply=15, 22.2% at supply=45** — declared in every
+> row, never folded into a denominator.
+>
+> **⚠ N BELOW STANDARD: 320 games × 2 seed lists against the package's canonical 496.** The headline
+> SE is tight enough to trust the refusal; **a full run is owed before anything here is final.**
 
 **1c. RE-PRICE THE FOUR REFUSED LEVERS ON THE ARRIVAL-ONLY BASE — immediately after the supply correction, NOT alongside it.**
 
