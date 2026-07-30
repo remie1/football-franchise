@@ -1038,10 +1038,10 @@ Separation Results:
   WR wins by 20-29: 3-4 yards separation -> 52  OPEN             (§8.4: 50-69)
   WR wins by 10-19: 1-2 yards separation -> 38  TIGHT WINDOW mid (§8.4: 30-49)
   WR wins by 1-9:   half yard separation -> 30  TIGHT WINDOW flr (§8.4: 30-49)
-  Tie:              even, bracket        -> 25  COVERED          (§8.4: 15-29, unchanged)
-  CB wins by 1-9: CB in phase, trail position
-  CB wins by 10-19: CB on hip, can contest
-  CB wins by 20+: CB in position for PBU/INT
+  Tie:              even, bracket        -> 25  COVERED          (§8.4: 15-29)
+  CB wins by 1-9:   CB in phase, trail position   -> 22  COVERED       (RULED July 2026 — was 25)
+  CB wins by 10-19: CB on hip, can contest        -> 15  COVERED floor (held)
+  CB wins by 20+:   CB in position for PBU/INT    ->  6  NO WINDOW     (held)
 ```
 
 > **AMENDMENT (July 2026, owner ruling on ADR-039 SA-08) — the labels move; the scale does not.**
@@ -1103,10 +1103,33 @@ Separation Results:
 > separate finding.
 
 > **LANDED July 2026 (ADR-045)** — §9.3's column, §9.4's zone bands and `zoneCoverage.bands.1` in one
-> change, with the threshold consumers enumerated and pinned first. Rows 5-7 (`CB_IN_PHASE`,
-> `CB_ON_HIP`, `CB_IN_POSITION`) are **HELD** and the resulting `EVEN_BRACKET`/`CB_IN_PHASE` tie at 25
-> is reported unresolved (ADR-045 §2.3). The QB-reluctance consequences are **priced separately**
-> (ADR-045 §3) and nothing was compensated for.
+> change, with the threshold consumers enumerated and pinned first. The QB-reluctance consequences are
+> **priced separately** (ADR-045 §3) and nothing was compensated for.
+
+> ### THE 25/25 TIE — RULED July 2026: `CB_IN_PHASE` 25 → 22
+>
+> ADR-045 landed the ruled five rows and **held** rows 6–8, which left `EVEN_BRACKET` (a dead-even
+> rep) and `CB_IN_PHASE` (the corner has **won** the rep) **both at 25**. A tie, not an inversion — so
+> the monotonicity gate accepted it — and it was **brought rather than tidied**, correctly.
+>
+> **Ruled: `EVEN_BRACKET` stays 25; `CB_IN_PHASE` moves to 22.** The football: **in phase, the
+> defender has leverage** — he is between the receiver and the ball, or he has the hip, and **he can
+> play the throw.** *Even* means neither has won, and **the receiver at least has the option of
+> winning late.** Those are different situations and the column must not call them identical.
+>
+> **Why 22 and not lower:** it keeps `CB_IN_PHASE` comfortably inside `covered (15-29)`, leaves room
+> beneath for rows 7–8 (15 and 6, both held), and preserves the roughly even spacing the rest of the
+> column has. The full column is `70 / 52 / 38 / 30 / 25 / 22 / 15 / 6` — **strictly decreasing.**
+>
+> *(Standing instruction, same reasoning that refused `26-29`: if rows 7–8 could not have fit beneath
+> 22 monotonically, that comes back as a question — it does not get solved by compression. They fit.)*
+>
+> **Also ratified:** `catching.contestedMaxOpenness` **40 → 30**. Not a choice — ADR-040's argument
+> re-run against the re-pointed table returns the **same row**, and the alternative it weighed got
+> *weaker* because SA-08's amendment deleted the "(contested)" parenthetical that rejection rested on.
+> **The reclassification is nil** — the same five rows are contested before and after — which is the
+> evidence it is not compensation. **Non-separability was confirmed by the compiler, not argued:** the
+> type pin made `pnpm typecheck` red, which is the pin working exactly as ordered.
 
 ### 9.4 Zone Coverage Resolution
 

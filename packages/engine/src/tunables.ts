@@ -1146,20 +1146,36 @@ export const TUNABLES = {
      * ball — and **30 is exactly where §8.4 draws that line**.
      *
      * THE COLUMN IS ORDINAL, WHICH IS WHY THE FIRST RULING WAS UNSATISFIABLE.
-     * Mapping labels while ignoring the ORDER put two rows into `covered (15-29)`
-     * while `CB_IN_PHASE` already sat at 25 inside it — an inversion, or a
-     * four-point compression of two distinct outcomes. ADR-043 refused it; this
-     * column is monotone by construction.
+     * (History, stated against the table AS IT THEN STOOD.) Mapping labels while
+     * ignoring the ORDER put two rows into `covered (15-29)` while `CB_IN_PHASE`
+     * was at 25 inside it — an inversion, or a four-point compression of two
+     * distinct outcomes. ADR-043 refused it; this column is monotone by
+     * construction.
      *
-     * ⚠ ROWS 5-7 ARE HELD, ON PURPOSE. The ruled column names five rows. The
-     *   three CB-wins rows keep 25 / 15 / 6, so `EVEN_BRACKET` (a dead-even rep)
-     *   and `CB_IN_PHASE` (the corner has WON the rep) now hold the SAME openness.
-     *   That is a TIE, not an inversion, and the monotonicity gate accepts it —
-     *   but as football a receiver dead even with his man should not be merely
-     *   EQUAL to one whose corner is in phase. **Reported, not resolved**
-     *   (ADR-045 §2.3): moving rows 5-7 is a value ruling nobody has made, and
-     *   picking one here to tidy the column is exactly the invention this
-     *   correction exists to remove.
+     * THE 25/25 TIE — RULED July 2026, `CB_IN_PHASE` 25 → 22 (ADR-045 §2.3a).
+     * ADR-045 landed the ruled five rows and HELD rows 6-8, which left
+     * `EVEN_BRACKET` (a dead-even rep) and `CB_IN_PHASE` (the corner has WON the
+     * rep) both on 25. A tie, not an inversion, so the monotonicity gate accepted
+     * it — and it was BROUGHT rather than tidied, which is why there is a ruling
+     * to transcribe here instead of a number somebody picked.
+     *
+     * The owner's football, verbatim in substance: IN PHASE, THE DEFENDER HAS
+     * LEVERAGE — he is between the receiver and the ball, or he has the hip, and
+     * HE CAN PLAY THE THROW. *Even* means NEITHER has won, and the receiver at
+     * least has THE OPTION OF WINNING LATE. Those are different situations and
+     * the column must not call them identical.
+     *
+     * WHY 22 AND NOT LOWER: it keeps `CB_IN_PHASE` comfortably inside §8.4's
+     * `covered (15-29)`, leaves room beneath it for rows 7-8 (15 and 6, both
+     * HELD and verified to fit monotonically), and preserves the roughly even
+     * spacing the rest of the column has. Standing instruction, and the same
+     * reasoning that refused `26-29`: IF ROWS 7-8 HAD NOT FIT BENEATH 22
+     * MONOTONICALLY THAT COMES BACK AS A QUESTION — it does not get solved by
+     * compression. They fit. The full column is 70 / 52 / 38 / 30 / 25 / 22 /
+     * 15 / 6, STRICTLY DECREASING.
+     *
+     * ⚠ ROWS 7-8 REMAIN HELD (15 and 6). No value below `CB_IN_PHASE` has been
+     *   ruled and none was picked here.
      *
      * ⚠ THE WORD "CONTESTED" IS NOT IN THIS TABLE'S VOCABULARY AND MUST NOT COME
      *   BACK. §9.3's amendment reserves it for §11.1's catch resolution. An
@@ -1172,7 +1188,7 @@ export const TUNABLES = {
       { label: "SEPARATION_1_2", minMargin: 10, openness: 38, contest: "TRAILING" },
       { label: "SEPARATION_HALF_YARD", minMargin: 1, openness: 30, contest: "EVEN" },
       { label: "EVEN_BRACKET", minMargin: 0, openness: 25, contest: "EVEN" },
-      { label: "CB_IN_PHASE", minMargin: -9, openness: 25, contest: "EVEN" },
+      { label: "CB_IN_PHASE", minMargin: -9, openness: 22, contest: "EVEN" },
       { label: "CB_ON_HIP", minMargin: -19, openness: 15, contest: "IN_FRONT" },
       { label: "CB_IN_POSITION", minMargin: NEG_INF, openness: 6, contest: "IN_FRONT" },
     ],
@@ -1557,6 +1573,17 @@ export const TUNABLES = {
      * the scale correction cannot compile without settling this. That is a
      * property of the pin working, and it is why this paragraph exists instead of
      * an edited literal.
+     *
+     * ✅ RATIFIED July 2026 (owner, on ADR-045 §4.1). `40 → 30` stands, on the
+     *    reasoning above: a DERIVATION, not a choice, with the nil
+     *    reclassification as the evidence it is not compensation. And the
+     *    non-separability was CONFIRMED BY THE COMPILER rather than argued —
+     *    the type pin turning `pnpm typecheck` red is the pin working exactly as
+     *    ordered, which is the strongest form of that claim available.
+     *
+     * ⚠ RE-CHECKED against the ruled `CB_IN_PHASE` 25 → 22 (ADR-045 §2.3a): the
+     *   row moves DOWN and was already contested, so the contested set is still
+     *   the same five rows and the nil-reclassification claim above is unchanged.
      */
     contestedMaxOpenness: 30,
     routine: {

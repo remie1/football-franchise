@@ -82,6 +82,26 @@ decides must fail to compile rather than pass green** (now Charter §4.1).
 > places**, six of them with **exclusive reach provably 0** (total stream comparison over 160 games,
 > not a sample). **RIDER 2's two `maxYards` cells are reported and NOT ruled**, as required.
 
+**2a. ⚡ §8.7's OPENNESS GAIN — CONTEST-CONDITIONED (ADR-046, ruled). BEFORE the attributes pipeline.**
+
+`route.opennessGainPerTick = 8` applies **identically whatever the coverage rep produced**, so a 15–18
+point base correction is **recovered in about two ticks**. A receiver who beat his man by 30 and one
+who lost by 5 **converge in two ticks** — *the route-running battle has a half-life measured in
+ticks.* A **structural insensitivity**, the same species as ADR-028's constant swallowing blocker
+quality: the number is not wrong on any scale, **the shape is.**
+
+**Ruled: contest-conditioned.** Not proportional — proportional **widens the gap forever**, and
+separation is *created at the break and then defended*, not compounded. Two specification constraints
+(monotone in rep margin at every later tick; **gain never fully erases the margin within the live
+window**); the rate mapping is derived, not chosen.
+
+> **⚠ WHY IT OUTRANKS THE QUEUE — it must land BEFORE `packages/attributes`.** This is entry 49's
+> hazard mirrored: not *a finding a flat league cannot evaluate*, but **a mechanic a flat league
+> cannot reveal.** **Phase 2 would ship and the mechanic meant to showcase it would erase it.** Route
+> running is **the most legible attribute in the whole design to a player** — if it does nothing
+> visible, the natural conclusion is **that attributes don't matter.** That is **worse than a wrong
+> number, because it discredits the SYSTEM rather than the CELL.**
+
 **2b. THE `packages/contracts` DOC-COMMENT AUDIT — a reading pass, no instrument possible.**
 
 **Owner ruling, July 2026, arising from ADR-044.** The doc comments in `packages/contracts` **have
@@ -1372,6 +1392,24 @@ mapping changes underneath, it **reddens and points at ADR-040** rather than tra
 **So the sweep looks for BOTH shapes:** rulings anchored to a number, and **pins anchored to a
 symbol.** The second is more dangerous precisely because it looks stronger: a compiler pin reads as
 the safest possible enforcement, and it is — of the coupling it names, and of nothing else.
+
+### ➕ THIRD SHAPE (owner, July 2026) — REGISTERS THAT RECORD RULINGS DRIFT LIKE PINS THAT ENFORCE THEM
+
+**Evidence arrived before the sweep, again.** After ADR-045, `packages/calibration`'s SA-08 register
+still said **"THE ENGINE MAPPING CHANGE IS NOT IMPLEMENTED"**, still recorded the **first,
+unsatisfiable** ruling rather than the re-ruled column, and asserted **"the compiler will NOT
+complain"** — which is **false**: it *did*, because ADR-040 §3.1's second assertion exists to make it.
+**Three stale claims, all reading as authoritative, and nothing but a dispatch report would have
+surfaced any of them.**
+
+> **A register that records a ruling is a stored claim about a value it does not own — which is this
+> entry's exact subject wearing different clothes.** A pin enforces and goes stale; **a register
+> merely asserts, and goes stale more quietly**, because nothing compiles against it.
+
+**So the sweep covers three shapes:** rulings anchored to a **number**, pins anchored to a **symbol**,
+and **registers recording rulings**. Note the ordering of danger is not the ordering of strength: the
+pin is strongest and drifted loudly (a red typecheck); the register is weakest and **drifted in
+silence while stating the opposite of the truth.**
 
 ## 45. `GIFT` / `FLOATER` — DECLARED ABSTENTION, and why a targeted fixture is the wrong fix
 

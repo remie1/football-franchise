@@ -607,13 +607,29 @@ spot is labels, which is exactly where scale changes originate.**
 errors (`Operator '<=' cannot be applied to 'OP' and 'number'`) **are** the consumer list; re-type
 each carrier and recompile to a fixpoint, then revert. **Use it for any future scale question.**
 
-Why it beats a careful list: it found a **laundering site** — a helper returning plain `number` —
-whose tightening **surfaced two more consumers that had been invisible.** No reading finds those,
-because there is nothing to read: the type had already been erased.
+**Why it beats a careful list, stated exactly: THERE IS NOTHING TO READ AT A LAUNDERING SITE.** It
+found one on its first outing (a helper returning plain `number`, whose tightening surfaced two
+invisible consumers) and a worse one on its second: ADR-045's `QbReadOutcome`, which returns **all
+three** openness values as plain `number`, so everything past it — `throwThreshold`,
+`checkdown.threshold`, `desperationThreshold`, §8.5's ordering, §10.2's throw-type selection — **reads
+a quantity whose type is already erased.** Tightening that **one** return type surfaced **four of the
+seven** threshold consumers.
+
+**No list, however careful, finds a consumer whose type was erased upstream of it.** There is no text
+at that site to notice — the erasure is the absence of evidence, and a reader has nothing to be
+careful *about*.
 
 **⚠ ITS BLIND SPOT IS THE FINDING, NOT A CAVEAT. A type cannot see a LABEL consumer** — code or prose
 consuming a scale's *words* rather than its *numbers*. And **scale corrections are almost always
 label re-pointings**, so the method is blind precisely where the work originates.
+
+> **THE TWO ARE COMPLEMENTS, NOT ALTERNATIVES — AND EACH IS THE OTHER'S BLIND SPOT.** The derivation
+> **sees through erasure and cannot see words.** The reading **sees words and cannot see through
+> erasure.** ADR-045 proved both halves in one dispatch: the fixpoint found four consumers behind a
+> laundering site that no reader could reach, and the reading pass found §9.4's `WINDOW` row holding
+> **70 — §8.4's wide-open floor — labelled *"open"***, which **no numeric method finds, because
+> nothing in the table says "open."** Neither is sufficient; neither substitutes. **Run both, every
+> time.**
 
 This was not hypothetical for one dispatch. SA-08 **is** a label re-pointing; §9.4's zone bands are
 stated in **§8.4's words**; and that invisible coupling is what forced SA-08's scope to enlarge from
@@ -670,6 +686,48 @@ field from being satisfied into uselessness.
 **This is the fourth blindness class, and it has no instrument** — it belongs with the register's *no
 path to elimination* entry. There is nothing to walk, hash or perturb; a comment has no
 representation a check can reach.
+
+**Corollary — A GUARD'S FAILURE MODE IS INVERSELY RELATED TO ITS ENFORCEMENT POWER. So the AUDIT
+priority is the INVERSE of the TRUST priority.**
+
+> ### **A pin that drifts stops the build; a stored ruling that drifts keeps being cited.**
+
+**Strong guards fail loudly, because they are wired into a mechanism. Weak guards fail silently,
+because nothing consumes them.** One dispatch produced both ends of the scale simultaneously:
+
+| artefact | enforcement | how it drifted |
+|---|---|---|
+| the `contestedMaxOpenness` type pin | strongest | **`pnpm typecheck` went RED.** Impossible to miss. |
+| calibration's SA-08 register | weakest | **silence** — it recorded the *superseded, unsatisfiable* ruling, said the mapping was unimplemented when it had landed, and asserted *"the compiler will NOT complain"* about a compiler that **had**. Three false claims, all reading as authoritative. |
+
+**Nothing compiles against a register, so nothing catches it.**
+
+**THE CHEAP TRIAGE, and it is the practical form of this corollary: for each stored ruling, ask
+whether ANYTHING MECHANICALLY DEPENDS ON IT** — not whether its content is current, but whether it has
+a **consumer that would notice if it went stale.** That partitions any register into **rulings that
+are merely recorded** and **rulings that are enforced somewhere**, and **the first partition is the
+standing exposure.**
+
+**This inverts the reading order and makes the work tractable:** do not audit every stored ruling's
+correctness by reading. **First find the ones with zero enforcement — those are the ones worth reading
+carefully. The rest will announce themselves.**
+
+Two shapes to expect, both already observed here: **(a)** a ruling that names a specific value and was
+made about a *different* value of it (entry 44's shape, before no-op patches enforced it); **(b)** a
+ruling whose subject was later **renamed or split**, so the ruling **still reads true while pointing
+at nothing** — which is exactly why the band-table register needs its `VANISHED`-versus-`GUARDED`
+distinction.
+
+**And the answer is never a count.** Per the count-blindness corollary: *"12 rulings, all current"* is
+**blind to substitution.** A register must name its rulings **as a set**.
+
+**The practical inversion, and it is the point of this corollary:** we naturally audit in order of
+importance, which puts types and gates first — **but those are the ones that announce their own
+failures.** **Sweep the weakly-enforced artefacts FIRST**: registers, stored rulings, backlog entries
+naming values, comments, notes. They are the ones that **can be wrong indefinitely.**
+
+**Prose is the extreme case** — zero enforcement, maximum authority (see the corollary above, and
+`CALIBRATION-BACKLOG.md` roadmap item **2b**, which exists for exactly this reason).
 
 **Counter-corollary — a guard that always fires gets deleted.** This principle has an obvious
 failure mode in the other direction, and ADR-025 is the worked example: refusing to compare two

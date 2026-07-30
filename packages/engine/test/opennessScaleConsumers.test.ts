@@ -213,6 +213,15 @@ describe("ADR-045 §1 — §8.4's openness scale and everything that compares ag
    *   throw and becomes a tight window and a lane contest; `SEPARATION_3_4` and
    *   §9.4's `WINDOW` become lane-contestable; `SEPARATION_HALF_YARD` becomes a
    *   contested catch. NOTHING WAS COMPENSATED — see ADR-045 §3.
+   *
+   * ⚠ RE-RECORDED AGAIN (ADR-045 §2.3a, the owner's ruling on the 25/25 tie).
+   *   `CB_IN_PHASE` 25 → 22. **ONE line moved, and it moved because the ruling
+   *   moved it — this pin was NOT edited to accommodate the change.** The line
+   *   is `§9.3 CB_IN_PHASE`, and what it lost is `desperationThreshold`: at 25
+   *   an in-phase corner's receiver cleared §8.5's forced-decision floor (25,
+   *   compared `>=`); at 22 he does not. Everything else about the row is
+   *   unmoved — 22 and 25 are on the same side of the other six consumers — and
+   *   that single flip is the ENTIRE structural content of the ruling.
    */
   it("records which thresholds each §9.3 / §9.4 producer row is permissive against", () => {
     const matrix = producerRows(TUNABLES).map(
@@ -224,7 +233,7 @@ describe("ADR-045 §1 — §8.4's openness scale and everything that compares ag
       "§9.3 SEPARATION_1_2 @38 → checkdownThreshold desperationThreshold notContestedCatch",
       "§9.3 SEPARATION_HALF_YARD @30 → checkdownThreshold desperationThreshold",
       "§9.3 EVEN_BRACKET @25 → desperationThreshold",
-      "§9.3 CB_IN_PHASE @25 → desperationThreshold",
+      "§9.3 CB_IN_PHASE @22 → —",
       "§9.3 CB_ON_HIP @15 → —",
       "§9.3 CB_IN_POSITION @6 → —",
       "§9.4 SOFT_SPOT @70 → throwThreshold checkdownThreshold desperationThreshold notTightWindow notForcedBullet notLaneContestable notContestedCatch",
@@ -243,6 +252,15 @@ describe("ADR-045 §1 — §8.4's openness scale and everything that compares ag
    * The band edges are §8.4's prose (70+ / 50-69 / 30-49 / 15-29 / 0-14) and are
    * the one restated constant in this file — §8.4 is a doc paragraph, so there is
    * nothing to derive from. Flagged rather than hidden.
+   *
+   * ⚠ THREE ROWS ADDED BY THE READING PASS, ADR-045 §2.3a. §1.4's reading pass
+   *   HAS NO INSTRUMENT and must be redone whenever §8.4, §9.3 or §9.4 changes;
+   *   it was redone for the `CB_IN_PHASE` ruling and it found that the amended
+   *   §9.3 block now NAMES A §8.4 BAND for rows 6-8 (`COVERED`, `COVERED floor`,
+   *   `NO WINDOW`), which it did not before. Those three rows were absent here
+   *   because the doc gave them no words to check against; it now does, so they
+   *   are checked. That is the pass being re-run finding MORE to pin, not this
+   *   file being widened to swallow a change.
    */
   it("every producer value sits inside the §8.4 band its own label names", () => {
     const bandOf = (o: number): string =>
@@ -254,6 +272,11 @@ describe("ADR-045 §1 — §8.4's openness scale and everything that compares ag
       ["§9.3", "SEPARATION_1_2", "tight window"],
       ["§9.3", "SEPARATION_HALF_YARD", "tight window"],
       ["§9.3", "EVEN_BRACKET", "covered"],
+      // Rows 6-8, whose §8.4 words the SA-08 amendment supplied for the first
+      // time (`22 COVERED` / `15 COVERED floor` / `6 NO WINDOW`).
+      ["§9.3", "CB_IN_PHASE", "covered"],
+      ["§9.3", "CB_ON_HIP", "covered"],
+      ["§9.3", "CB_IN_POSITION", "no window"],
       // §9.4's words: "found soft spot, wide open" / "window exists, open" /
       // "tight window". Its fourth row ("defender in passing lane") names no §8.4
       // band and is deliberately ABSENT here rather than assigned one.
@@ -310,6 +333,16 @@ describe("ADR-045 §1 — §8.4's openness scale and everything that compares ag
    * Recorded as the interleaved rank order rather than as a sortedness check: a
    * sortedness check is true of any mapping and would go green through exactly
    * the incoherence this pin exists to expose.
+   *
+   * ⚠ ONE ENTRY IN THIS LIST USED TO BE DECIDED BY THE SORT AND IS NOW DECIDED
+   *   BY THE FOOTBALL. While `EVEN_BRACKET` and `CB_IN_PHASE` were tied at 25,
+   *   which of them ranked higher was a property of `Array.prototype.sort`'s
+   *   stability over the order `producerRows` happens to build — not of the
+   *   mechanic. The recorded sequence is UNCHANGED, and that is the point worth
+   *   noticing: this pin could not have told anyone the tie existed, because a
+   *   coincidentally-correct order looks exactly like a derived one. Cf. the
+   *   band gate, which accepts a tie by construction. **Neither instrument saw
+   *   it; the reading pass did.**
    */
   it("records the interleaved man/zone rank order §8.5 produces", () => {
     const rows = producerRows(TUNABLES).filter((r) => r.label !== "UNCOVERED");
@@ -334,11 +367,56 @@ describe("ADR-045 §1 — §8.4's openness scale and everything that compares ag
       "§9.4 TIGHT_WINDOW @38",
       "§9.3 SEPARATION_HALF_YARD @30",
       "§9.3 EVEN_BRACKET @25",
-      "§9.3 CB_IN_PHASE @25",
+      "§9.3 CB_IN_PHASE @22",
       "§9.4 DEFENDER_IN_LANE @20",
       "§9.3 CB_ON_HIP @15",
       "§9.3 CB_IN_POSITION @6",
     ]);
+  });
+
+  /**
+   * §9.3's COLUMN IS STRICTLY DECREASING — the ruling's own content, made
+   * checkable, because NOTHING ELSE IN THE TREE CHECKS IT.
+   *
+   * The band-table monotonicity gate (`FF_BAND_GATE=1`) fires on a column that
+   * *both rises and falls*, so a TIE is green there by construction — and a tie
+   * is exactly what ADR-045 shipped and brought back as a question. The §8.5
+   * rank-order pin above could not see it either (see its own note). So the one
+   * property the owner actually ruled on had no instrument at all.
+   *
+   * It has one now. The owner's football, which is the reason this is a strict
+   * inequality and not a loose one: **in phase, the defender has leverage — he is
+   * between the receiver and the ball, or he has the hip, and he can play the
+   * throw. EVEN means neither has won, and the receiver at least has the option
+   * of winning late. Those are different situations and the column must not call
+   * them identical.** Two adjacent rows carrying the same openness is that
+   * failure, whichever two rows they are.
+   *
+   * SCOPE, STATED SO IT CAN BE OVERRULED: this asserts strictness on **§9.3
+   * only**. §9.4's column is not asserted here — its four rows are a different
+   * table with a different ruling behind them, and nothing has ruled that IT may
+   * not tie. Widening this to every openness column would be inventing a law
+   * from one ruling, which is the move this whole ADR chain exists to refuse.
+   */
+  it("§9.3's openness column strictly decreases — no two separation outcomes are equally open", () => {
+    const column = TUNABLES.manCoverage.bands.map((b) => `${b.label}@${String(b.openness)}`);
+    const violations: string[] = [];
+    for (let i = 1; i < TUNABLES.manCoverage.bands.length; i++) {
+      const above = TUNABLES.manCoverage.bands[i - 1]!;
+      const below = TUNABLES.manCoverage.bands[i]!;
+      if ((below.openness as number) >= (above.openness as number)) {
+        violations.push(`${below.label}@${String(below.openness)} is not below ${above.label}@${String(above.openness)}`);
+      }
+    }
+    // The whole column is in the failure message, so a red tells the reader which
+    // ruling to go and read rather than only which pair broke.
+    expect(`${violations.join("; ")} | column: ${column.join(" > ")}`).toBe(
+      ` | column: ${column.join(" > ")}`,
+    );
+    // And the ruled rows 7-8 fit BENEATH row 6, which was the owner's standing
+    // condition on choosing 22: if they had not fit, that came back as a question
+    // rather than being solved by compression.
+    expect(violations).toEqual([]);
   });
 
   /**

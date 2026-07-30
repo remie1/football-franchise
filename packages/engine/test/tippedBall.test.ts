@@ -594,20 +594,38 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
    *   are properties of the TYPE and not of the corpus; this is the second
    *   independent corpus-wide change to confirm it.
    *
-   *   digit           ADR-035/036     ADR-040        ADR-045
-   *   plays              3,420          3,421          3,420
-   *   yards             20,047         21,107         20,953
-   *   turnovers            107            113            109
-   *   points             1,545          1,683          1,655
-   *   tips                 271            270            273
-   *   deadTips             163            164            166
-   *   live tips            108            106            107
+   * ⚠ RE-BASELINED A THIRD TIME, July 2026, ADR-045 §2.3a — the owner's ruling
+   *   on the 25/25 tie, `CB_IN_PHASE` 25 → 22. ONE cell, and it moves this fence
+   *   for the same reason the last two did: a §9.3 openness is an input to every
+   *   read, throw-type selection, lane contest and catch classification
+   *   downstream of it, so the corpus is drawn against different numbers.
+   *
+   *   digit           ADR-035/036     ADR-040        ADR-045      §2.3a
+   *   plays              3,420          3,421          3,420      3,415
+   *   yards             20,047         21,107         20,953     20,922
+   *   turnovers            107            113            109        107
+   *   points             1,545          1,683          1,655      1,663
+   *   tips                 271            270            273        273
+   *   deadTips             163            164            166        166
+   *   live tips            108            106            107        107
+   *
+   * ⚠ THE STRUCTURAL HALF STILL DID NOT MOVE — THIRD INDEPENDENT CONFIRMATION.
+   *   0 / 0 / 0 / 0 / 0 and §12.2's five real thresholds, again, over a corpus
+   *   whose plays, yards, turnovers and points all moved.
+   *
+   * ⚠ AND A NEW OBSERVATION, RECORDED AS AN OBSERVATION AND NOT AS A LAW: the
+   *   THREE TIP DIGITS (`tips` 273, `deadTips` 166, live 107) are UNCHANGED
+   *   across this re-baseline, while every football digit moved. That is NOT the
+   *   structural claim above — those three are ordinary corpus counts and there
+   *   is no reason they must hold. Do not promote it to one; if a future change
+   *   moves them, that is not a regression, it is a corpus count behaving like a
+   *   corpus count.
    */
-  it("the corpus totals, on every digit (re-baselined by ADR-045)", () => {
-    expect(base.plays).toBe(3420);
-    expect(base.yards).toBe(20953);
-    expect(base.turnovers).toBe(109);
-    expect(base.points).toBe(1655);
+  it("the corpus totals, on every digit (re-baselined by ADR-045 §2.3a)", () => {
+    expect(base.plays).toBe(3415);
+    expect(base.yards).toBe(20922);
+    expect(base.turnovers).toBe(107);
+    expect(base.points).toBe(1663);
     expect(base.tips).toBe(273);
     expect(base.deadTips).toBe(166);
   });
