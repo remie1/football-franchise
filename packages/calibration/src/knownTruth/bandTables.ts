@@ -564,10 +564,25 @@ export function bandTableCensus(tunables: Tunables = DEFAULT_TUNABLES): BandTabl
  * (`f3195f3`) and is 248 now**: ADR-036 deleted `tippedBall.qualityBands.DEAD.finalTargetNumber`
  * outright rather than re-spelling the sentinel, so the cell does not exist. The denominator did
  * not move — 52 orderable columns throughout; one of them changed sides.
+ *
+ * **`rows` moved 119 → 127 at ADR-052/053.** `discoverBandTables` recognises a band table
+ * STRUCTURALLY — any array whose every element carries a numeric `minMargin` and string `label`
+ * (`isBandRow`, `packages/engine/src/bandGuards.ts`) — and `resultTierLadder` matches that shape
+ * exactly, with zero columns beyond the two keys the shape requires. So it was already one of the
+ * 26 tables counted here before this dispatch; widening it from nine rungs to seventeen (ADR-053)
+ * added eight rows to the population this census counts. **`cells`, `orderableColumns` and
+ * `stringColumns` did NOT move**, and that is not a coincidence to re-verify by hand: those three
+ * are driven by `table.columns` (every key besides `label`/`minMargin`), and `resultTierLadder`'s
+ * rows have never carried one — the eight new rows each contribute zero cells, exactly like the
+ * nine before them. That is also why `ladderTail.ts`'s conclusion that `resultTierLadder` sits
+ * "structurally outside the [monotonicity] gate's scope" was right about ORDERING (no columns
+ * means no inversion for Tier B to find) but incomplete about the FREE TIER'S census specifically:
+ * the census counts raw table/row population regardless of whether a table has any orderable
+ * columns, and `resultTierLadder` is a real, zero-column row of that population like any other.
  */
 export const RECORDED_CENSUS: BandTableCensus = {
   tables: 26,
-  rows: 119,
+  rows: 127,
   cells: 248,
   orderableColumns: 52,
   stringColumns: 3,

@@ -757,6 +757,28 @@ The worked example (ADR-045, `CB_IN_PHASE`): the owner found a defect **by readi
 property is in none of their subjects."*** The former is a gap you can see in a list; **the latter
 looks like coverage.**
 
+**Extension — A FAILING ASSERTION MASKS EVERY ASSERTION AFTER IT IN THE SAME TEST. A red test is not
+a fully evaluated test.**
+
+Found by accident while clearing ADR-053's red tree, which is the only way it *can* be found.
+`ladderOccupancy.test.ts` held two inline snapshots in one test — `OPPOSED`, then `TARGET`. The first
+went red on the ladder change and threw; **the second never executed.** It was still asserting
+`CRITICAL_SUCCESS 71.000` from the old open rung, against a true value of `15.000` — **stale, wrong,
+and completely invisible**, because a test that is already failing reports nothing about what comes
+after the throw.
+
+> ### **A red test tells you about its FIRST failure and nothing else. Everything downstream of the throw is UNEVALUATED, not passing.**
+
+**The compounding case is what makes this worth a corollary:** while a test is red for a *known*
+reason, every later assertion in it is **silently unverified for as long as the red persists** — so a
+long-lived red test is a place where stale assertions accumulate *undetected*, and they surface only
+when someone fixes the first failure. **Clearing a red assertion is therefore not "restoring" the
+test; it is EXPOSING the rest of it for the first time since it broke.**
+
+⇒ **Practical form: when clearing a red test, re-read every assertion after the one that failed.**
+And prefer one assertion per test where the assertions are independent claims, so a failure cannot
+take unrelated checks down with it.
+
 **Extension — A REFERENCE CAN NAME A REAL THING AND POINT AT A DIFFERENT ONE, and the sentence reads
 identically either way.**
 

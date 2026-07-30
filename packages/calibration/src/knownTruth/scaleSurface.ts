@@ -195,8 +195,23 @@ export interface OpposedCheck extends Common {
   readonly form: "OPPOSED";
   readonly actor: TermSource;
   readonly opponent: TermSource;
-  /** The `minMargin` of the band whose reach is the interesting claim, and its label. */
-  readonly headlineBand?: { readonly label: string; readonly minMargin: number };
+  /**
+   * The `minMargin` of the band whose reach is the interesting claim, and its label.
+   *
+   * ⛔ **REQUIRED, NOT OPTIONAL — the dormant instance of this month's ADR's own shape, found and
+   * fixed here.** This was `headlineBand?:`, read at its one call site as `d.headlineBand?.minMargin
+   * ?? 0`. `0` is `TIE`'s boundary and several real bands legitimately declare `minMargin: 0`
+   * (`PICKED_UP`, `SEALED`, `GAP_HELD`), so "no band declared" was indistinguishable from "the
+   * boundary IS zero" — the exact `status-keyed lookup with ?? 0` shape ADR-034 named and this
+   * package's own ladder work is about. It was unreachable (all twelve `OPPOSED` `SURFACE` entries
+   * declare a `headlineBand`), which is why it survived undetected rather than why it was safe: a
+   * thirteenth `OPPOSED` entry added without one would have silently priced itself against `TIE`
+   * instead of failing loudly. Made non-optional rather than given a runtime throw, because the
+   * violation is fully decidable at compile time — every `OpposedCheck` literal in `SURFACE` is
+   * checked against this type on every build, so a missing `headlineBand` cannot reach `pOpposed`
+   * silently the way a runtime-only guard would let it through an untyped caller.
+   */
+  readonly headlineBand: { readonly label: string; readonly minMargin: number };
   readonly flat?: readonly [number, number];
 }
 
@@ -732,7 +747,7 @@ export function sweepScaleSurface(tunables: Tunables = DEFAULT_TUNABLES): readon
     } else {
       const opp = termsOf(d.opponent, tunables);
       opposing = [stackAt(opp, 0), stackAt(opp, FLAT_LEAGUE), stackAt(opp, 99)];
-      const boundary = d.headlineBand?.minMargin ?? 0;
+      const boundary = d.headlineBand.minMargin;
       target = boundary;
       pWorst = pOpposed(stack[0] - opposing[2] + flatLow, boundary);
       pEven = pOpposed(stack[1] - opposing[1], boundary);

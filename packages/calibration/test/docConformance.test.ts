@@ -115,16 +115,23 @@ import {
  * state: the owner ruled the shape on ADR-046, the engine derived the ladder in ADR-048 §2.2/§2.3,
  * and §8.7 of `docs/design/match-engine.md` carries the amendment. Not a transcription — the seven
  * cells are named as a SET below and each is classified by a rule written about it.
+ *
+ * **706 → 714 at ADR-052/053.** `resultTierLadder` widened from nine rungs to seventeen (the
+ * engine-scope-derived ladder, ADR-053); each rung is one numeric leaf (`minMargin`) under the
+ * SAME `resultTierLadder.*` rule as before, so the eight new rungs are eight new numeric leaves
+ * with nowhere new to be classified — `resultTierLadder.*` is a `UNIFORM_REGIONS` entry (below)
+ * whose `why` already reads "True of any rung added later", so no rule text changed either.
  */
-const RECORDED_NUMERIC_CENSUS = 706;
+const RECORDED_NUMERIC_CENSUS = 714;
 
 /**
  * The same subject as a SET rather than a size. Re-cut at ADR-040 (`d20Offset` → `baseHalfWidth`),
- * again at ADR-048 (`route.contestGain.*`, +7).
+ * again at ADR-048 (`route.contestGain.*`, +7), again at ADR-052/053 (`resultTierLadder`, +8 new
+ * rung indices).
  * When this reddens and the count does not, a cell was SWAPPED: diff `numericLeafPaths()` against
  * `git diff packages/engine/src/tunables.ts` and re-read the affected rule against the doc.
  */
-const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:fbf72d08";
+const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:1c7c075d";
 
 /**
  * ⚠ **THE RE-RECORD, AS A SET AND NOT AS A COUNT** — §4.1's count-blindness corollary applied to the
@@ -177,7 +184,11 @@ describe("doc-conformance register", () => {
     // its cells are named individually. It goes UP when a new catch-all is written, and it should.
     const audit = auditRegister();
     expect(audit.classifiedNarrow).toBe(227);
-    expect(audit.classifiedUniform).toBe(273);
+    // 273 → 281 at ADR-052/053: `resultTierLadder.*` is a `UNIFORM_REGIONS` entry (its `why` already
+    // covers "any rung added later"), so the eight new rungs from the seventeen-rung ladder land
+    // here rather than in `classifiedNarrow` or `absorbed`. `classifiedNarrow` and `absorbed` are
+    // untouched — neither population's membership depends on `resultTierLadder`'s arity.
+    expect(audit.classifiedUniform).toBe(281);
     expect(audit.absorbed).toHaveLength(206);
     // The SET, not the size — a swap inside the absorbed region holds the count and moves this.
     expect(absorbedCellDigest()).toBe("fnv1a:f159870b");
@@ -441,7 +452,12 @@ describe("doc-conformance register", () => {
     //   `absorbedBy(pattern)`, diff the cell set, and RE-READ THAT RULE'S NOTE against what it now
     //   owns. Re-recording without re-reading reproduces ADR-048's defect one dispatch later.
     expect(blockRuleAbsorptionPins()).toEqual([
-      "resultTierLadder.* :: STRUCTURAL :: 9 :: fnv1a:1cfe67ec",
+      // 9 → 17 at ADR-052/053: `resultTierLadder`'s ratified widening. The pattern, provenance and
+      // note are unchanged (the note already reads "True of any rung added later" — see
+      // `UNIFORM_REGIONS`); only the population of leaf paths this rule owns grew, and the digest
+      // moved with it because the count "rides along for legibility ONLY" per this function's own
+      // doc comment — the digest is the claim.
+      "resultTierLadder.* :: STRUCTURAL :: 17 :: fnv1a:c885dfa3",
       "traitBonuses.* :: DOC_VERBATIM :: 8 :: fnv1a:b1d1df0e",
       "clock.* :: DOC_VERBATIM :: 2 :: fnv1a:8c0b642c",
       "zoneModel.verticalUpperYards.* :: DOC_VERBATIM :: 4 :: fnv1a:fe98a685",
