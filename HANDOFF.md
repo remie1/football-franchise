@@ -342,3 +342,20 @@ manifest {source, season, fetchedAt, schemaHash}.
    structurally invariant). **Neither came from review**, because by the time a ruling is ratified
    there is no reviewer left. Point the instruction at the brief's own numbers explicitly, including
    the Orchestrator's — that is where both errors were.
+9. **Before committing a change to a SHARED artefact, name the packages that read it and run those.**
+   Standing rule, owner, July 2026, after a red tree shipped and survived a review. **For
+   `packages/contracts` and `packages/engine/src/tunables.ts` the answer is "all of them"** — so the
+   standing verification for a shared-tunable or contracts change is **the full workspace suite**,
+   not `typecheck` plus the owning package.
+
+   **What went wrong is worth keeping, because the verification that failed was not sloppy — it was
+   CORRECT, COMPLETE, AND ABOUT THE WRONG SUBJECT.** The seventeen-rung `resultTierLadder` landed
+   after `pnpm typecheck` passed across eight packages and the engine suite passed 788/788. Both true.
+   **Neither was the question**: the change's subject was the ladder, the ladder's consumers extend
+   past the engine, and the package that reads it most was the one not run. Ten calibration tests were
+   red at the moment of commit.
+
+   ⇒ **This is the implicit-coverage family arriving at a WORKFLOW STEP rather than at an instrument**
+   (Charter §4.1), and the diagnostic that would have caught it is the one already standing: ***what,
+   exactly, is the subject?*** A green suite is evidence about the package it ran in and about nothing
+   else. **It is cheap to state and it would have caught this.**

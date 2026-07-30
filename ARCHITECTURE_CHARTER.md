@@ -769,6 +769,13 @@ the thing it claims to measure, and it will be green for exactly that reason.
 > wrongly-aimed guard answers the diagnostic FLUENTLY**, and fluency is what the diagnostic reads as
 > coverage. Question 1 is the only one that can fail for a wrongly-aimed guard, which is exactly why
 > it must be asked first and cannot be inferred from a confident answer to question 2.
+>
+> ⇒ **AND IT APPLIES TO WORKFLOW STEPS, NOT ONLY TO INSTRUMENTS.** A test suite is an instrument, and
+> *"I ran the suite"* is an answer to question 2. ADR-053's ladder shipped red because `pnpm
+> typecheck` passed across eight packages and the engine suite passed 788/788 — **both true, and
+> neither about the ladder's consumers**, which extend past the engine. The verification was
+> **correct, complete, and about the wrong subject.** ⚠ **A green suite is evidence about the package
+> it ran in and about nothing else.** See `HANDOFF.md` habit 9.
 
 **The diagnostic that caught it is the standing practice doing its job.** Requiring *a failing case
 per instrument* is what revealed that **none of the three could produce one** for this property.
@@ -881,6 +888,38 @@ Both directions have now fired, within one month, on the same ADR:
 > pretend to be verification. It costs a clause; it buys a reader the ability to know **which claims
 > in a ratified document have never been checked**. Without it, a derived claim and a transcribed one
 > are typographically indistinguishable forever after.
+
+**Corollary — A MODULE THAT COMPARES PAST TO PRESENT NEEDS EXACTLY ONE LIVE READER. HISTORY IS
+FROZEN.**
+
+> ### **The restated-constant problem, inverted: not a COPY that drifted from the source, but a READER that assumed the source's SHAPE.**
+
+Every restated-constant defect so far has been a **value** copied out of its source and left behind
+when the source moved. This is the dual, and it is less visible because **nothing is copied at all.**
+
+`ladderTail.ts` exists to re-band `resultTierLadder`, and it read the live tree not only for values
+but for **positions**: `committedLabels[4]` for `TIE`, `.slice(0, 4)` and `.slice(5)` for the success
+and failure label sets. Correct on nine rungs. On seventeen, `committedLabels[4]` is
+`DECISIVE_SUCCESS` and **both slices grab entirely wrong label sets** — silently, because indices do
+not typecheck against meaning.
+
+> ⛔ **The module that existed to change the ladder's arity was itself keyed to the ladder's old
+> arity.** No constant was stale; the *assumption about shape* was.
+
+**The general structure, and it is the reusable part:** in any module that compares a past state to a
+present one — a derivation, a regression, a migration, a before/after gate — **exactly one function
+may read the live tree, and every historical reference is anchored to a frozen constant.** Then:
+
+- the historical claims **cannot drift under the tree**, because they no longer touch it;
+- the single live reader is **one obvious place to audit** when the tree's shape changes;
+- and a re-derivation that reconstructs the live tree **from the frozen base plus the derivation** is
+  a real check rather than a transcription — `ladderTail` now rebuilds the committed ladder rung for
+  rung and label for label **with zero reads of `DEFAULT_TUNABLES`**, which is only meaningful because
+  the two sides are genuinely independent.
+
+**Positional reads deserve the same suspicion as a copied number.** `xs[4]` naming a specific rung is
+a restated constant whose *index* is the constant, and it is worse than a copied value because a
+copied value can at least be grepped for.
 
 **Corollary — WHEN A PROPERTY CANNOT BE SATISFIED, THERE ARE TWO EXPLANATIONS, AND WE HAVE ONLY EVER
 ASSUMED THE FIRST.**
