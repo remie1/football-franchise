@@ -322,6 +322,32 @@ The falsifiable test to apply when someone claims a check is derived: *does a ch
 automatically invalidate the check?* If it does not, it is a restatement wearing a derivation's
 name.
 
+### ⛔ THE FOUR MEDIA OF A RESTATED CONSTANT — and the family is now large enough that seeing them together is what makes the next one recognisable
+
+A restatement is not a kind of *value*; it is a **relationship** — a second source of truth about
+something that already has one. It has appeared in four different media in this repo, and **all four
+share the property that nothing compiles against them:**
+
+| medium | what carries the restatement | worked example |
+|---|---|---|
+| **PROSE** | a comment or design-doc sentence asserting a value or a shape | `CATCH_RESOLUTION`'s comment naming the wrong quantity (ADR-044) |
+| **TRANSCRIPTION** | a table hand-copied from the doc into the engine | `tippedBall.qualityBands.DEAD.finalTargetNumber = 0` — the doc had prose, the table demanded a number, **and a number appeared** |
+| **QUOTATION** | an ADR quoting a constant into a `Need` section, acquiring a ratification | ADR-046's `opennessGainPerTick = 8`, a **sibling leaf of the same name**; the value is `5` |
+| ⛔ **POSITION** | an **index standing in for an identity** | `ladderTail`'s `committedLabels[4]` for `TIE`, `.slice(0, 4)` for the success labels |
+
+> ### **The positional medium is the worst of the four, and the reason is mechanical: it leaves NO STRING TO GREP.**
+>
+> A copied value can be searched for. A copied sentence can be read. **An index is invisible to every
+> search that exists**, and — the part that makes it dangerous rather than merely hard — **it looks
+> like ACCESS rather than ASSERTION.** `xs[4]` reads as *"take the fifth element"*; it *means* **"the
+> fifth element is `TIE`"**, which is a claim about the structure that nothing checks and no reader
+> parses as a claim at all.
+>
+> **THE PRACTICAL FORM: any index into an ordered structure that MEANS something specific must be
+> derived by name or predicate, never written as a literal.** `ladder.indexOf(TIE)` **fails loudly**
+> when `TIE` moves. `xs[4]` **returns a different rung and keeps going** — and both compile, both
+> typecheck, and only one of them is a check.
+
 **The track record, stated flatly because it is now a pattern rather than an anecdote: in this repo,
 HAND-ENUMERATED COVERAGE LISTS HAVE BEEN WRONG EVERY SINGLE TIME THEY HAVE BEEN CHECKED.** Two
 instances in one week, both authored carefully, both confidently wrong:
@@ -917,9 +943,14 @@ may read the live tree, and every historical reference is anchored to a frozen c
   rung and label for label **with zero reads of `DEFAULT_TUNABLES`**, which is only meaningful because
   the two sides are genuinely independent.
 
-**Positional reads deserve the same suspicion as a copied number.** `xs[4]` naming a specific rung is
-a restated constant whose *index* is the constant, and it is worse than a copied value because a
-copied value can at least be grepped for.
+**Positional reads deserve the same suspicion as a copied number** — see the **four media** table
+above, where POSITION is catalogued as the fourth and worst medium of the restated-constant family.
+
+**And note what the one-live-reader rule buys, because it is the load-bearing part rather than the
+tidy part: A COMPARISON WHOSE TWO ARMS SHARE A SOURCE IS NOT A COMPARISON.** The re-derivation check
+is only evidence because the frozen base and the live tree are genuinely independent; the old
+structure destroyed exactly that independence, which is why a module full of confident assertions
+could sit on top of wrong label sets and stay green.
 
 **Corollary — WHEN A PROPERTY CANNOT BE SATISFIED, THERE ARE TWO EXPLANATIONS, AND WE HAVE ONLY EVER
 ASSUMED THE FIRST.**
