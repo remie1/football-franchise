@@ -360,6 +360,85 @@ quarterback's position**, or **whose remaining travel exceeds the time left in t
 > **⚠ N BELOW STANDARD: 320 games × 2 seed lists against the package's canonical 496.** The headline
 > SE is tight enough to trust the refusal; **a full run is owed before anything here is final.**
 
+---
+
+## 1d. ⚡⚡⚡ THE BAND FLOOR IS THE LEVER — `pocket.minimumStatusByBand`. RULED (owner, July 2026). TOP OF THE QUEUE.
+
+> ### **THE PRESSURE RATE IS DETERMINED BY A TABLE, NOT BY A MECHANISM.**
+
+`pocketFloorFor` maps **this tick's own §7.1 band** directly to a pocket floor — **no memory, no
+threat object.** So the rate is set by `pocket.minimumStatusByBand`, and that table currently says
+**`BLOCKER_BEATEN` floors the pocket at `PRESSURE`.**
+
+**⛔ AND ADR-032 ALREADY RULED THAT GAINING GROUND IS NOT PRESSURE.** `BLOCKER_BEATEN` is a rusher
+**losing by 5–14** who has beaten his man's *technique* — **not a rusher affecting the throw.** A
+blocker being beaten on a rep is not the same event as the passer being pressured, **and the table
+conflates them.**
+
+### The football question, and it is narrow
+
+> **Which §7.1 bands should floor the pocket at `PRESSURE` at all, and which should contribute ONLY
+> to the accumulated counter?**
+
+**Owner's reading, to be tested rather than assumed:** a beaten blocker should advance
+`pressureProgressByBand` — **pressure ACCUMULATING over ticks, which is how pressure actually
+builds** — while **only an arrival, or a rusher genuinely past his man with the ball still out,**
+should floor a tick as dirty on its own.
+
+**⇒ This is consistent with the counter's own existing logic: the floor says one tick of gaining is
+not pressure; the counter says three ticks of it is.** Right now **the floor SHORT-CIRCUITS the
+counter for `BLOCKER_BEATEN` — which is the same short-circuit ADR-032 removed one band lower.**
+
+### ⛔ Constraints, and the first exists because over-determination has now cost two dispatches
+
+1. **MEASURE THE THREE CHANNELS' CONTRIBUTIONS INDEPENDENTLY BEFORE CHANGING ANYTHING.** Not the
+   lever's size — **the channels' shares.** Entry 40 and ADR-050's ruling were both priced against a
+   determinant that was not binding; do not make it three.
+2. **Price at PLAY SCOPE** (§5.3), raw and exclusive, digest-identical complements.
+3. ⚠ **EXPECT THE COUNTER'S RATE TO NEED RE-DERIVATION once the floor stops doing its work** — the
+   two were **tuned against each other**, so moving one without re-deriving the other prices a
+   configuration nobody chose. **Name what is held.**
+
+---
+
+## 58. ⛔ §8.8's PURSUIT CLOCK PUBLISHES NO `RUSH_THREAT` EVENT AT ALL — a hole in the stream, found by a self-check
+
+**Found by `geometryTimeRetirement.ts`'s identity assertion**, not by looking: with both rules
+disabled the reclassifier must reproduce the engine's own `POCKET_STATUS` stream tick for tick, and
+its first pass **failed at 463 of 2,142 checks.**
+
+**The cause:** a scrambling quarterback's own arrival clock is typed as the weaker `ArrivalClock`
+**specifically because "the pursuit clock cannot reach a publisher that would need a `ThreatOrigin`"**
+— so those ticks have **a live arrival pressure with no event describing it.**
+
+**⇒ THE COST IS ALREADY BEING PAID: 34.5% of dropbacks at supply=15 and 22.2% at supply=45 must be
+EXCLUDED from any stream-based reconstruction** — a third of the corpus unreachable to exactly the
+class of instrument this project keeps building. This is Charter §3's single-source-of-truth rule with
+a hole in it: **a game fact that decides pocket status exists only inside the engine's own execution.**
+
+> **Note what caught it, because it is the argument for the practice:** a self-check that asserts *"with
+> my rules off I reproduce the engine exactly"* is the only instrument that could have. **A correctness
+> check on the reclassifier's OUTPUT would have been green** — the outputs were plausible. It was the
+> **identity** requirement that failed.
+
+**Owed:** a petition to publish the pursuit clock as a first-class threat event, or an explicit ruling
+that it stays unpublishable and every stream consumer must declare the exclusion. **Not urgent; do it
+before anything else reconstructs pocket status from the stream.**
+
+---
+
+## 59. 🔧 `pressureProgressByBand.RUSHER_WINS_REP.reset` IS DEAD CODE — fix regardless of 1d's ruling
+
+`sim/passPlay.ts:528` tests `startsThreat(rush.band)` **before** `:545`'s `clearsThreat(...)` in an
+**if/else-if chain**, so a rusher who keeps winning his rep **can never reach the retirement branch on
+a tick he wins.** The reset is unreachable.
+
+**This is not a design question and does not wait on 1d** (owner, July 2026). It also **explains
+`retireOn` P2's measured reach of 0.108pp**: that ceiling excludes `RUSHER_WINS_REP` precisely to work
+around this ordering, so it could only ever retire a threat *"one tick unless re-won."* **A measured
+ceiling that is really an artefact of statement order** — same species as a guard whose predicate
+cannot fail, arrived at from control flow.
+
 **1c. RE-PRICE THE FOUR REFUSED LEVERS ON THE ARRIVAL-ONLY BASE — immediately after the supply correction, NOT alongside it.**
 
 `blockerStructuralAdvantage`, `freeRunnerArrivalSeconds`, `RUSHER_GAINING`'s band map,

@@ -938,6 +938,35 @@ Both directions have now fired, within one month, on the same ADR:
 > in a ratified document have never been checked**. Without it, a derived claim and a transcribed one
 > are typographically indistinguishable forever after.
 
+**Corollary — BEFORE RULING ON A LEVER, ESTABLISH WHAT DETERMINES THE QUANTITY. A MECHANISM YOU HAVE
+BEEN SHOWN IS NOT THE SET OF DETERMINANTS.**
+
+> ### **Reasoning about the mechanism in front of you is not the same as reasoning about the number you are trying to move.**
+
+The prior question — *what, exactly, is the subject?* — applied to a **quantity** rather than to an
+instrument. It has now cost two dispatches, in the same shape both times:
+
+| ruling | what was reasoned about | what actually determines the quantity |
+|---|---|---|
+| ADR-050's accepting ruling | the **tier ladder**, which had just been re-banded | `RUSHER_WINS_REP` is a **cumulative band on a separate `minMargin` table**. Structurally invariant under every ladder change. |
+| entry 40's supply redirect | **threat supply**, measured on the arrival-only base where it is worth **−71pp** | the pressure rate is the **worst of THREE channels**; supply reaches **one**. On the shipping tree: **−0.130pp.** |
+
+**In both cases the mechanism was real, the measurement was sound, and the ruling was about the wrong
+determinant.** Neither error is visible from inside the mechanism — the arrival channel really does
+respond to supply exactly as measured. **What was never established is whether it is the only thing,
+or even the binding thing, that sets the number.**
+
+> ⛔ **THE OPERATIVE STEP, AND IT IS CHEAP: ENUMERATE THE DETERMINANTS BEFORE PRICING ANY OF THEM.**
+> Read the function that produces the quantity and list every input that can set it. `pocketStatusFor`
+> is eleven lines and names its three channels explicitly; **reading it would have pre-empted an
+> entire dispatch.** A lever's measured size on a base where it is the *only* live cause says nothing
+> about its size on a tree where it is *one of several*.
+
+**And note the trap this sits inside: over-determination makes a redundant cause LOOK like a
+sufficient one.** We named that failure in ADR-049 — *"a lever measured against `DEFAULT_TUNABLES`
+prices whether a channel is BINDING, not whether its mechanism is LARGE"* — **and then failed to
+apply it to our own next move.** Naming a trap does not exempt the next decision from it.
+
 **Corollary — A MODULE THAT COMPARES PAST TO PRESENT NEEDS EXACTLY ONE LIVE READER. HISTORY IS
 FROZEN.**
 
