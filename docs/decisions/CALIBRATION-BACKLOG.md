@@ -213,6 +213,16 @@ consumers read floors*, so the change is safe **only if that remains true.**
 > ADR-033/034 record **this exact failure already having happened there** (`?? 0` where `0` is the
 > *best* rung). **A guard whose subject is a documented past defect is the opposite of a guard with no
 > subject.** Referred to `match-engine`.
+>
+> ⛔ **CORRECTION on landing: that list named FOUR tables and only THREE are status-keyed.**
+> `pocket.minimumStatusByBand` is keyed by **`PassRushBandLabel`**; only its **values** are
+> `PocketStatus`, so a mapped type over `PocketStatus` would have constrained **the wrong axis** —
+> a guard that compiles, reads as coverage, and checks a property the table does not have. Caught by
+> `match-engine` while implementing; it brought the conflict instead of forcing the type on. **The
+> claim came from an implementer's report and the Orchestrator carried it into a ratified ADR without
+> checking the shape** — §4.1's newest sub-corollary running the OTHER way: not a ratified number
+> quoted into implementation, but **an unverified implementation claim quoted into ratification,
+> where it gains an authority nothing gave it.** See ADR-053 §6.
 
 **1b-ii. ⚡ RULING 2 (owner, July 2026) — A BEATEN RUSHER MUST BE ABLE TO STOP BEING A THREAT WITHOUT A RESET.**
 

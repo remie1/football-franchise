@@ -46,9 +46,11 @@
  * this resolution" — never "the band was not worth carrying".
  *
  * `tier` on those three emissions (punt gross, kickoff return, punt return) is
- * NOT meaningful and should be read as noise. `ResultTier` is the nine-rung
- * ladder of d100 margins (±30/±15/±5/±1); a d20 deviation plus an attribute
- * modifier cannot reach the outer rungs and cannot go negative, so measured over
+ * NOT meaningful and should be read as noise. `ResultTier` is the seventeen-rung
+ * ladder of d100 margins (±90/±75/±60/±45/±30/±15/±5/±1, re-banded July 2026 by
+ * ADR-052/ADR-053 — the boundaries this comment actually depends on, 15/5/1,
+ * are UNCHANGED by that re-banding); a d20 deviation plus an attribute modifier
+ * cannot reach the outer rungs and cannot go negative, so measured over
  * five games every one of them lands on SUCCESS or STRONG_SUCCESS and on nothing
  * else. It is carried because `CHECK.payload.tier` is REQUIRED by the schema —
  * unlike `QB_DECISION.tier`, which ADR-005 made optional for the analogous "no

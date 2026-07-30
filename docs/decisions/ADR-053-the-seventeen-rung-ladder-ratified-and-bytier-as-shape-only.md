@@ -169,10 +169,34 @@ compile errors is a guard with no subject."* So:
   construction when those phases open.
 
 **The guard's live subject is elsewhere, and it is documented.** `pocket.severity`,
-`accuracyModifier`, `readCapacityDelta` and `minimumStatusByBand` are bare object literals keyed by
-`PocketStatus` — and ADR-033/034 record **this exact failure already having happened there**: a
-status-keyed lookup with `?? 0` where `0` is the *best* rung, so an unranked status reported as the
-cleanest possible pocket and every `worst()` silently agreed.
+`accuracyModifier` and `readCapacityDelta` are bare object literals keyed by `PocketStatus` — and
+ADR-033/034 record **this exact failure already having happened there**: a status-keyed lookup with
+`?? 0` where `0` is the *best* rung, so an unranked status reported as the cleanest possible pocket
+and every `worst()` silently agreed.
+
+> ### ⛔ CORRECTION, LOGGED NOT SMOOTHED — this section originally named FOUR tables, and one of them is not keyed by `PocketStatus` at all
+>
+> `pocket.minimumStatusByBand` was listed above with the other three. **It is keyed by
+> `PassRushBandLabel`** — §7.1's band, `RUSHER_WINS_REP` / `BLOCKER_BEATEN` / `RUSHER_GAINING` — and
+> only its **VALUES** are `PocketStatus`. A mapped type over `PocketStatus` would have **constrained
+> the wrong axis**, and forcing it on would have produced a guard that compiles, reads as coverage,
+> and checks a property the table does not have.
+>
+> Caught by `match-engine` while implementing, which brought the conflict rather than reconciling it.
+> Resolved correctly rather than forced: the three genuinely status-keyed tables get `satisfies
+> ByPocketStatus<T>`; `minimumStatusByBand` gets a **value-only** constraint where it is declared, and
+> the discrepancy is documented at `ByPocketStatus`'s own declaration so the next reader cannot repeat
+> the assumption. Its key side stays structurally checked at its read site in `resolve/pocket.ts`,
+> because `PassRushBandLabel` is derived from `Tunables` itself and cannot be imported into
+> `tunables.ts` without a circular import.
+>
+> **⇒ AND THE PROVENANCE IS THE POINT.** This claim did not originate here. It came from an
+> implementer's report and **the Orchestrator carried it into a ratified ADR without checking the
+> table's shape** — which is Charter §4.1's newest sub-corollary running in the **opposite direction**
+> to the two cases that motivated it. Those were ratified numbers quoted forward into implementation;
+> **this is an unverified implementation claim quoted forward into ratification**, where it acquires
+> an authority nothing ever gave it. **Ratification does not add evidence; it only removes reviewers.**
+> Third quoted-claim defect this month, and the first travelling upward.
 
 > A guard whose subject is a **documented past defect** is the opposite of a guard with no subject.
 
@@ -206,6 +230,31 @@ the first second producer. Landed in `e6a36ff`.
   ⚠ **No boundary was shaded to achieve this.** Boundaries are identical under both candidate
   namings; only the label differs, and the naming was chosen on the owner's own *"low single
   digits"* test. The zero impact is a consequence, not the motive.
+
+## 8a. ⛔ The gate's home, and a second correction — THE DISPATCH BRIEF CONFLATED TWO LADDERS
+
+The engine dispatch was told to check *"ADR-032's monotonicity gate"* and re-scope it. **There is no
+such gate for `resultTierLadder`, and ADR-032 is not about it.**
+
+- **ADR-032** is *"Gaining ground is not the pressure rate"*. The monotonicity gate it ruled is over
+  the **`PocketStatus` severity ladder** — a different ladder, four rungs, ordered by urgency.
+- The **tail-occupancy** monotonicity property belongs to **ADR-050/052** and lives in
+  `packages/calibration/src/knownTruth/ladderTail.ts` (`tailMonotone`, `ENGINE_OPPOSED_SHIFTS`) —
+  and it is **already scoped to the engine's shift set, not shift 0**, so the re-scoping the brief
+  asked for was already done.
+- `packages/engine` has **no** `resultTierLadder` occupancy gate. `bandGuards.ts` is a different
+  mechanism — per-check band-table *effect-column* ordering — and `resultTierLadder`'s rows carry no
+  columns beyond `label`/`minMargin`, so they are structurally outside its scope. Confirmed by
+  `bandGuards.test.ts`'s 26-table count being unchanged by the ladder gaining eight rows.
+
+`match-engine` **reported this for routing instead of building a duplicate gate in `packages/engine`
+to satisfy the brief.** That was the right call: a second gate over the same property, in the wrong
+package, would have been an instrument built to make an instruction true.
+
+> **What it is worth recording: the brief that conflated two ladders was the brief for the dispatch
+> that exists BECAUSE a ladder conflation was ratified twice** (§5). Charter §4.1's *implicit
+> coverage* corollary in miniature — *"a gate exists for this"* was true of a **different subject**,
+> and the sentence reads identically either way. **Naming a ladder is not identifying one.**
 
 ## 9. Implementation order
 

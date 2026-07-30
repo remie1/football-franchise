@@ -62,6 +62,43 @@ import type {
 export type { PocketStatus, RushAlignment, ThrowType };
 
 /**
+ * A total map from `PocketStatus` to `T` — every rung, no optionals, no index
+ * signature. Engine-owned (ADR-053 §6 ruling 2, `match-engine`'s half of the
+ * petition contracts' `ByTier<T>` raised): `PocketStatus` is a contracts type,
+ * but the tables this constrains — `pocket.severity`, `pocket.accuracyModifier`,
+ * `pocket.readCapacityDelta` in `tunables.ts` — are engine machinery, the same
+ * place `ContestPosition` above lives for the analogous reason.
+ *
+ * WHY THIS ONE HAS A LIVE SUBJECT WHEN `ByTier<T>` DOES NOT. `ResultTier`
+ * appears repo-wide only as a payload field type; nothing is keyed by it.
+ * `PocketStatus` is different — three tables in `tunables.ts` ARE keyed by it
+ * today, and ADR-033/ADR-034 record the exact failure this guards against
+ * already having happened there: a status-keyed lookup with `?? 0`, where `0`
+ * is the BEST rung, so an unranked status silently read as the cleanest
+ * possible pocket. The fix at the time was to narrow `PocketStatus` itself and
+ * to make the engine-side reader (`pocketSeverityOfEmitted`) throw rather than
+ * default. This type moves the SAME guarantee two steps earlier — from "throws
+ * at the package boundary when the value arrives from outside the type system"
+ * and "asserted at runtime by a test that reads `Object.keys`" to "the object
+ * literal in `tunables.ts` fails to compile" — without replacing either of the
+ * existing guards, which cover callers this type cannot (a status arriving
+ * from JSON, from an older `@ff/contracts`, or from any other side of a
+ * package boundary the compiler cannot see across).
+ *
+ * A MAPPED TYPE OVER THE UNION, never a hand-written record of status names —
+ * so it is derived from `PocketStatus` rather than restating it, and a future
+ * contracts petition that widens or narrows the union moves every `satisfies`
+ * site that uses this to a compile error instead of a silent gap.
+ *
+ * ⚠ NOT EVERY PocketStatus-ADJACENT TABLE IS KEYED BY IT. `pocket
+ * .minimumStatusByBand` is keyed by `PassRushBandLabel` (§7.1's band, not the
+ * pocket's own status) and its VALUES — not its keys — are `PocketStatus`.
+ * That table does not fit this shape and is constrained separately, by value,
+ * where it is declared.
+ */
+export type ByPocketStatus<T> = { readonly [K in PocketStatus]: T };
+
+/**
  * ADR-017 — THE PLAY-CALL VOCABULARY IS NOT DECLARED HERE ANY MORE EITHER, AND
  * THE ENGINE'S STATE VOCABULARY BELOW STILL IS.
  *

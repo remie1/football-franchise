@@ -23,6 +23,7 @@
  *    resolver that reads it (R9).
  */
 import type { CheckKind } from "@ff/contracts";
+import type { ByPocketStatus, PocketStatus } from "./types.js";
 
 const NEG_INF = Number.NEGATIVE_INFINITY;
 /**
@@ -90,11 +91,71 @@ export const TUNABLES = {
   },
 
   /**
-   * Generic 9-tier ladder (contracts ResultTier) applied to every check's margin.
-   * The doc's own per-check result bands are separate, named band tables below.
+   * Generic 17-tier ladder (contracts ResultTier) applied to every check's
+   * margin. The doc's own per-check result bands are separate, named band
+   * tables below (`passRush.bands` etc.) and this ladder does not feed them.
+   *
+   * RE-BANDED July 2026 (ADR-052, ratified ADR-053) from the committed 9 rungs
+   * (floors `1 / 5 / 15 / 30`, mirrored) to 17 (floors `1 / 5 / 15 / 30 / 45 /
+   * 60 / 75 / 90`, mirrored). The committed floors through `STRONG_SUCCESS`
+   * (`30` and inward) are UNCHANGED — ADR-052 §2 derives the new floors as a
+   * continuation of the ladder's own outermost bounded width (15) rather than
+   * a re-derivation of the whole ladder, and ADR-052's proposal states it
+   * explicitly: "§7.1's minMargin is not touched. Nothing at or inside ±29
+   * moves." `passRush.bands` (`:275`) is untouched by this edit and must stay
+   * that way — its floors are a separate table and re-partitioning THIS ladder
+   * above 15 cannot move `P(margin ≥ 15)` (ADR-053 §5, verified independently
+   * below).
+   *
+   * ⚠ `CRITICAL_SUCCESS` IS RENAMED BY FLOOR, NEVER BY LABEL. The committed
+   * rung at floor 30 is RETIRED under that name — floor 30 is now
+   * `DECISIVE_SUCCESS` — and a NEW rung at floor 60 takes the name
+   * `CRITICAL_SUCCESS`. The word appears twice in this transformation and a
+   * label-keyed rename (`s/CRITICAL_SUCCESS/DECISIVE_SUCCESS/`) would rewrite
+   * both, which is exactly the defect ADR-052 names as being of the same class
+   * as a status-keyed lookup with `?? 0`. Every row below is therefore written
+   * out fresh by FLOOR, not edited from the old list.
+   *
+   * NAMING is the OUTER assignment (ADR-052 §6, ADR-053 ruling 3): `CRITICAL`
+   * sits at `[60, 74]` (4.950% at shift 0) rather than immediately outside
+   * `STRONG_SUCCESS` at `[30,44]` (9.450%, the ADJACENT reading). OUTER is what
+   * satisfies the owner's own "low single digits on an even contest" test for
+   * a critical outcome, and it is the assignment under which
+   * `tippedBall.test.ts`'s `CRITICAL_FAILURE` filter moves by zero (ADR-053
+   * §8) — verify against the LIVE test file after this edit, not against the
+   * ADR's transcription of it.
+   *
+   * SCOPE is the engine's own shift set, not shift 0 (ADR-053 ruling 1). The
+   * derivation's STOP is evaluated at `ENGINE_OPPOSED_SHIFTS` (worst case
+   * ±20), which is `packages/calibration`'s own name for the set this project
+   * verified independently at dispatch time: with floors `15/30/45/60/75`
+   * (five rungs above STRONG_SUCCESS's floor, i.e. the old 9-rung ladder's
+   * shape extended by only one rung) occupancy is strictly increasing inward
+   * at shifts 0 through ±8 but INVERTS at |shift| = 12 and beyond — 6 of the
+   * engine's 11 even-contest shifts. Adding the fourth rung (floor 90) is what
+   * restores strict monotonicity at every one of the 11 shifts; this was
+   * computed directly (closed-form triangular survival on d100−d100, not
+   * sampled) rather than taken on the ADR's word, because Charter §4.1 now
+   * requires exactly that of a ratified ruling's numeric claims.
+   *
+   * ⛔ THE ADR SAID THIS GATE WAS "ADR-032's". IT IS NOT. ADR-032 is the
+   * `PocketStatus`-severity/`SACK`-ordering finding (see `pocket.severity`
+   * above) — an unrelated ladder. The tail-monotonicity derivation and its
+   * gate (`tailMonotone`, `ENGINE_OPPOSED_SHIFTS`) are ADR-050/ADR-052's, and
+   * they live in `packages/calibration/src/knownTruth/ladderTail.ts`, already
+   * scoped to the engine's shift set rather than shift 0. There is no
+   * occupancy-monotonicity gate over this ladder anywhere in `packages/engine`
+   * — `bandGuards.ts`'s gate is a column-ordering check over per-check EFFECT
+   * columns, and this table carries none (every row here is bare
+   * `{label, minMargin}`), so it is structurally out of that gate's scope.
+   * Flagged rather than duplicated; routed back to the Orchestrator.
    */
   resultTierLadder: [
-    { label: "CRITICAL_SUCCESS", minMargin: 30 },
+    { label: "TOTAL_SUCCESS", minMargin: 90 },
+    { label: "OVERWHELMING_SUCCESS", minMargin: 75 },
+    { label: "CRITICAL_SUCCESS", minMargin: 60 },
+    { label: "DOMINANT_SUCCESS", minMargin: 45 },
+    { label: "DECISIVE_SUCCESS", minMargin: 30 },
     { label: "STRONG_SUCCESS", minMargin: 15 },
     { label: "SUCCESS", minMargin: 5 },
     { label: "MARGINAL_SUCCESS", minMargin: 1 },
@@ -102,7 +163,11 @@ export const TUNABLES = {
     { label: "MARGINAL_FAILURE", minMargin: -4 },
     { label: "FAILURE", minMargin: -14 },
     { label: "STRONG_FAILURE", minMargin: -29 },
-    { label: "CRITICAL_FAILURE", minMargin: NEG_INF },
+    { label: "DECISIVE_FAILURE", minMargin: -44 },
+    { label: "DOMINANT_FAILURE", minMargin: -59 },
+    { label: "CRITICAL_FAILURE", minMargin: -74 },
+    { label: "OVERWHELMING_FAILURE", minMargin: -89 },
+    { label: "TOTAL_FAILURE", minMargin: NEG_INF },
   ],
 
   /** Appendix B trait bonuses. Only the ones this slice can fire are consumed. */
@@ -686,6 +751,28 @@ export const TUNABLES = {
      * PRESSURE. The amendment says one tick of gaining is not pressure. It does
      * not say a rusher who gains ground every tick for a second and a half is
      * clean, and the counter is the mechanism that says so.
+     *
+     * ⚠ THIS TABLE IS KEYED BY `PassRushBandLabel` (§7.1's band), NOT BY
+     * `PocketStatus` — ADR-053 §6 describes it as one of four tables "keyed by
+     * `PocketStatus`" alongside `severity`/`accuracyModifier`/
+     * `readCapacityDelta`, and that description does not match this tree: its
+     * KEYS are `RUSHER_WINS_REP` / `BLOCKER_BEATEN` / etc., and `PocketStatus`
+     * only appears as the type of its VALUES. Flagged rather than silently
+     * reconciled, per this dispatch's standing instruction to bring rather than
+     * paper over a disagreement between a ratified claim and the tree. The
+     * `ByPocketStatus<T>` shape (`types.ts`) genuinely does not fit here for
+     * that reason — a mapped type over `PocketStatus` would constrain the wrong
+     * axis. What DOES apply, and is added below, is a VALUE constraint: every
+     * entry must be a real `PocketStatus`, which is the axis this table
+     * actually shares with the other three, and closes the same class of
+     * defect (an unranked string silently accepted) without misdescribing the
+     * table's own shape. `PassRushBandLabel` itself is not importable here
+     * without a cycle (`resolve/passRush.ts`'s `PassRushBandLabel` is derived
+     * FROM `Tunables`, which is `typeof TUNABLES`), so the key set stays
+     * unconstrained at this declaration site — it is checked structurally
+     * where it is READ (`resolve/pocket.ts`'s `minimumStatusByBand[band]`
+     * indexing fails to compile if a `passRush.bands` label has no matching
+     * key here) rather than restated as a second literal union.
      */
     minimumStatusByBand: {
       RUSHER_WINS_REP: "COLLAPSING",
@@ -694,7 +781,7 @@ export const TUNABLES = {
       STALEMATE: "CLEAN",
       BLOCKER_CONTAINS: "CLEAN",
       BLOCKER_RESETS: "CLEAN",
-    },
+    } satisfies Record<string, PocketStatus>,
     /**
      * THE LADDER. Ordering used to take the worse of the derivations above, and
      * the declaration every status-keyed table in this block is checked against
@@ -717,8 +804,18 @@ export const TUNABLES = {
      * or go down — is an outcome, and the stream states it as one (`PLAY_RESULT`,
      * and §17's own inference rule: a dropback with no THROW and no
      * RUN_RESOLUTION that lost yards is a sack).
+     *
+     * `satisfies ByPocketStatus<number>` (ADR-053 §6 ruling 2): a TOTAL map over
+     * `PocketStatus`, so a rung added to this literal with no petition to widen
+     * the contracts union — or a contracts petition landing with no matching
+     * row here — fails to compile at THIS declaration, rather than surfacing
+     * three steps away at a runtime `?? 0` the way `SACK: 4`'s inversion did
+     * (ADR-033/034). No `?? 0` existed here to delete: `pocketSeverityOfEmitted`
+     * (`resolve/pocket.ts`) already throws on an unranked status rather than
+     * defaulting one, so this constraint moves the SAME guarantee earlier
+     * (compile time) rather than replacing a fallback that was still live.
      */
-    severity: { CLEAN: 0, PRESSURE: 1, COLLAPSING: 2, IMMEDIATE: 3 },
+    severity: { CLEAN: 0, PRESSURE: 1, COLLAPSING: 2, IMMEDIATE: 3 } satisfies ByPocketStatus<number>,
     /**
      * The counter's entry requirement per rung. The `{ label: "SACK",
      * minProgress: 9 }` row is gone with the rung: a counter that reached 9 used
@@ -732,13 +829,19 @@ export const TUNABLES = {
       { label: "PRESSURE", minProgress: 3 },
       { label: "CLEAN", minProgress: NEG_INF },
     ],
-    /** §10.4 accuracy modifiers by pocket status. */
+    /**
+     * §10.4 accuracy modifiers by pocket status.
+     *
+     * `satisfies ByPocketStatus<number>` — see `severity` above for why: a
+     * total map over `PocketStatus`, so a rung with no accuracy row is a
+     * compile error here rather than a football omission discovered later.
+     */
     accuracyModifier: {
       CLEAN: 0,
       PRESSURE: -10,
       COLLAPSING: -20,
       IMMEDIATE: -30,
-    },
+    } satisfies ByPocketStatus<number>,
     /**
      * §7.2 "QB processing: −1 read capacity" under pressure.
      *
@@ -746,13 +849,18 @@ export const TUNABLES = {
      * is an orphan, and an orphan row keyed by a status that no longer exists is
      * the same defect one step quieter. Every rung of `severity` is named here and
      * nothing else is.
+     *
+     * `satisfies ByPocketStatus<number>` — see `severity` above. This is the
+     * table `readCapacityDelta.SACK = 0` orphaned in the first place (ADR-033):
+     * a total map cannot carry an orphan, because there is no key to hang one
+     * on that the union does not also declare.
      */
     readCapacityDelta: {
       CLEAN: 0,
       PRESSURE: -1,
       COLLAPSING: -1,
       IMMEDIATE: -2,
-    },
+    } satisfies ByPocketStatus<number>,
     /**
      * §7.2 — statuses where the QB may no longer hold.
      *

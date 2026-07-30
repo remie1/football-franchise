@@ -565,9 +565,11 @@ Results per Tick:
 > **CONSEQUENCE OF §7.2's AMENDMENT (July 2026, ADR-033) — the 1–14 row is now two bands.**
 > §7.2 no longer treats a rusher who has merely gained ground as pressure, so this row had
 > to distinguish *beaten* from *losing*. The boundary is **5**, and it was **not invented
-> for this table** — it is `resultTierLadder`'s `SUCCESS` boundary, the same nine-tier scale
+> for this table** — it is `resultTierLadder`'s `SUCCESS` boundary, the same tier scale
 > every check in the game is read on, which this table already agreed with at 15
-> (`STRONG_SUCCESS`), 1 (`MARGINAL_SUCCESS`) and −15 (`STRONG_FAILURE`).
+> (`STRONG_SUCCESS`), 1 (`MARGINAL_SUCCESS`) and −15 (the boundary between `passRush.bands`'
+> own `BLOCKER_CONTAINS` and `BLOCKER_RESETS` rows — not a `resultTierLadder` floor; see the
+> July 2026 re-banding below for why that distinction now matters).
 >
 > | band | margin | tier | reading | pocket floor |
 > |---|---|---|---|---|
@@ -581,6 +583,13 @@ Results per Tick:
 > pressure, the counter says *three* ticks of it is — **a rusher who gains ground every tick
 > is still pressure, he just has to actually do it.** Previously the floor short-circuited
 > the counter and that sentence was unreachable.
+>
+> **`passRush.bands` is a SEPARATE table from `resultTierLadder` and the July 2026 ladder
+> re-banding below (ADR-052/ADR-053) does not move it.** `RUSHER_WINS_REP`'s floor of 15 is
+> unaffected by the ladder gaining eight new outer rungs, and so is every number in this
+> section — confirmed both by inspection (`passRush.bands` was not touched by that change)
+> and by direct computation: `P(margin ≥ 15)` on the raw triangular d100−d100 distribution
+> is fixed by the roll alone and is invariant under any re-partition of the ladder above 15.
 
 > **KNOWN ISSUE (logged July 2026, Phase 1 slice) — term asymmetry.**
 > The rusher above carries two-to-three attribute terms (`Pass Rush` plus a move
