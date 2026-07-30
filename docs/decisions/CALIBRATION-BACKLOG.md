@@ -421,9 +421,26 @@ a hole in it: **a game fact that decides pocket status exists only inside the en
 > check on the reclassifier's OUTPUT would have been green** — the outputs were plausible. It was the
 > **identity** requirement that failed.
 
+### ⚡ RAISED (owner, July 2026) — this is a CONTRACTS PETITION, and of the class that has paid best
+
+**Not "not urgent".** The framing that moves it: **the event stream is supposed to be the single
+source of truth (Charter §3), and here it is not.** A game fact that decides pocket status exists
+**only inside the engine's own execution.**
+
+> ⛔ **IT IS A PERMANENT TAX ON MEASUREMENT UNTIL IT IS FIXED.** It forced a **34.5%** exclusion in
+> this dispatch and it will force one in **every future analysis that touches scrambles** — a third of
+> the corpus unreachable to exactly the class of instrument this project keeps building.
+
+**And it is the same class of petition as `RUSH_THREAT.origin` and `CATCH_RESOLUTION.openness` —
+both of which turned out to be the strongest kind this project sees:** a fact the engine already
+knows, that decides an outcome, and that no consumer can read. Neither was a new mechanism; both were
+**publishing something already computed**, and both immediately unlocked measurements that had been
+declared unavailable.
+
 **Owed:** a petition to publish the pursuit clock as a first-class threat event, or an explicit ruling
-that it stays unpublishable and every stream consumer must declare the exclusion. **Not urgent; do it
-before anything else reconstructs pocket status from the stream.**
+that it stays unpublishable **and every stream consumer must declare the exclusion.** ⚠ **Ahead of
+anything else that reconstructs pocket status from the stream** — which includes 1d's channel-share
+measurement, so **check this first or accept a declared 22–35% blind spot in it.**
 
 ---
 
@@ -2210,6 +2227,24 @@ under review.
 **Same reasoning as the sweep of pre-re-runging sensitivity numbers, and the same standing:** these
 were not wrong to record; **they were measured with an instrument that cannot return the answer they
 state.**
+
+> ### ➕ SECOND CRITERION (owner, July 2026, from entry 59): **A NULL MEASURED ON A BRANCH NEEDS ITS REACHABILITY CHECKED BEFORE THE NUMBER IS TRUSTED.**
+>
+> The sweep was built for **scope** errors — corpus arithmetic on a per-play subject. This adds
+> **control-flow** errors, and they produce the same artefact by a different route.
+>
+> `retireOn` P2's **0.108pp** was recorded and cited as *a ceiling on a mechanism.* It is an
+> **artefact of statement order**: `passPlay.ts:528` tests `startsThreat` before `:545`'s
+> `clearsThreat` in an if/else-if chain, so the reset branch is unreachable and the arm could only
+> ever retire a threat *"one tick unless re-won"* (entry 59).
+>
+> > ⛔ **A DEAD BRANCH DOES NOT REPORT AS DEAD. IT REPORTS AS A SMALL EFFECT** — and a small effect
+> > enters this backlog as a finding and gets cited as one.
+>
+> **So the sweep now asks two questions of every recorded null:** *was it measured at the right
+> scope?* **and** *was the code path it measured actually reachable?* A null on an unreachable branch
+> is **not evidence about the mechanism**; it is evidence about the control flow, **and the two are
+> indistinguishable in the report.**
 
 ADR-045 §3a.5 established it by accident: a cell that moved **down** produced a corpus-arm reading of
 **+0.03** — **the wrong sign** — because composition shifted underneath the measurement. So *"no

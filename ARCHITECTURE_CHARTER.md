@@ -962,10 +962,34 @@ or even the binding thing, that sets the number.**
 > entire dispatch.** A lever's measured size on a base where it is the *only* live cause says nothing
 > about its size on a tree where it is *one of several*.
 
+**⚠ KEEP THIS DISTINCT FROM THE REFERENT PROBLEM. They look alike and they fail differently:**
+
+| | the referent problem | **this** |
+|---|---|---|
+| the instrument | **named something real and pointed elsewhere** | **pointed at exactly what it named** |
+| what was wrong | the aim | **the question** |
+| shorthand | **a MIS-AIMED guard** | **a WELL-AIMED guard answering an UNASKED question** |
+| catchable by | *what, exactly, is the subject?* | *what determines the quantity?* — the subject was never in doubt |
+
+**The second is harder, and the reason is worth stating: no amount of care INSIDE the measurement
+could have caught it.** The measurement was about the mechanism, and it was right about the
+mechanism. Rigour does not scale into this failure — **only a prior question does.**
+
 **And note the trap this sits inside: over-determination makes a redundant cause LOOK like a
 sufficient one.** We named that failure in ADR-049 — *"a lever measured against `DEFAULT_TUNABLES`
-prices whether a channel is BINDING, not whether its mechanism is LARGE"* — **and then failed to
-apply it to our own next move.** Naming a trap does not exempt the next decision from it.
+prices whether a channel is BINDING, not whether its mechanism is LARGE"* — **and then violated it on
+the very next move.**
+
+> ### ⛔ **NAMING A TRAP DOES NOT EXEMPT THE NEXT DECISION FROM IT.**
+>
+> **A recorded principle does not apply itself.** We wrote the over-determination rule, ratified it,
+> cited it — and walked into it one dispatch later, because **writing a rule down feels like having
+> handled it**, and the feeling is indistinguishable from having handled it.
+>
+> ⚠ **EVERY RULE IN THIS DOCUMENT HAS THIS EXPOSURE**, and the ones most likely to be violated are the
+> ones most recently and most confidently added — the same configuration as §4.1's ratified-claim
+> sub-corollary, where *"the drawing of the distinction itself reads as evidence that it is being
+> applied."* **The Charter is not a guard. It is prose, and prose is the weakest medium in it.**
 
 **Corollary — A MODULE THAT COMPARES PAST TO PRESENT NEEDS EXACTLY ONE LIVE READER. HISTORY IS
 FROZEN.**
@@ -1106,6 +1130,30 @@ the standing evidence.
 
 **Corollary — A RULE WHOSE PREDICATE CANNOT FAIL IS NOT A RULE. A catch-all is an UNCLASSIFIED REGION
 WEARING A CLASSIFICATION'S NAME.**
+
+> ### ⛔ IT ARRIVES FROM CONTROL FLOW TOO, NOT ONLY FROM A PREFIX RULE — and there it corrupts MEASUREMENTS, not classifications.
+>
+> `sim/passPlay.ts:528` tests `startsThreat(rush.band)` **before** `:545`'s `clearsThreat(...)` in an
+> **if/else-if chain**, so `pressureProgressByBand.RUSHER_WINS_REP.reset` **is unreachable** — a rusher
+> who keeps winning his rep can never reach the retirement branch on a tick he wins. No predicate is
+> wrong. **The statement order makes one of them undecidable.**
+>
+> **⇒ AND THE CONSEQUENCE IS A NUMBER WE BELIEVED.** `retireOn` P2's measured reach of **0.108pp** was
+> read as *a ceiling on a mechanism.* It is not. It is **an artefact of statement order** — the
+> workaround that excludes `RUSHER_WINS_REP` exists *because* of this ordering, so the arm could only
+> ever retire a threat *"one tick unless re-won."* **A dead branch does not report as dead; it reports
+> as a small effect.**
+>
+> > **⚠ STANDING CRITERION, and it changes an owed sweep: ANY RECORDED NULL OR SMALL EFFECT MEASURED
+> > ON A BRANCH NEEDS ITS REACHABILITY CHECKED BEFORE THE NUMBER IS TRUSTED.** A null on an
+> > unreachable branch is **not evidence about the mechanism** — it is evidence about the control
+> > flow, and the two are indistinguishable in the report. **Added to entry 53's sweep criteria**,
+> > alongside corpus-versus-play scope.
+>
+> Note the family resemblance and the difference: the catch-all case makes a **classification**
+> vacuous, this makes a **measurement** vacuous — and the measurement case is worse, because a
+> classification that cannot fail at least stays visible in a register, while **a null enters the
+> backlog as a finding and is cited as one.**
 
 `docConformance.REGISTER`'s `route.*` prefix rule (`STRUCTURAL`, *"Openness clamps at §8.4's 0-100
 scale"*) **silently classified all seven new `route.contestGain.*` cells**, and the note is **false of
