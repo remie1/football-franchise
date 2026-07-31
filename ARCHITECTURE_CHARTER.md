@@ -1148,6 +1148,30 @@ instance of this class was found by ACCIDENT rather than by AUDIT.**
 the complement: a stored finding that is CORRECT can fail to be cited at all.** Both failures are
 invisible in the document itself, which reads exactly the same either way.
 
+### ✅ THE COUNTER-MOVE: **ANNOTATE AT THE DECISION, NOT ONLY IN THE ENTRY THAT PRODUCED THE MEASUREMENT**
+
+> ### **When a measurement retroactively supports or undermines a ratified decision, it is recorded AT THAT DECISION — not merely in the backlog entry that produced it.**
+
+**This is the exact inverse of the absorbed finding.** There, a finding stayed in a document nothing
+read. Here, **a finding is routed to the document that most needs it.**
+
+**The worked example:** ADR-033 split `BLOCKER_BEATEN` out of `RUSHER_GAINING` **on football grounds
+alone, with no population figure available** — its own text could only argue that *"a one-point edge
+on a hundred-point scale is not a disturbed platform."* Three months later a census established the
+split reallocated **8.448% of all pass-rush reps**, with `BLOCKER_BEATEN` taking **69.734% of the
+pre-split range.** That number was annotated **into ADR-033**, not left in the backlog entry that
+computed it.
+
+> ⚠ **A reader arriving at a justification should not have to know that a census happened three months
+> later.** The decision's own record is where the evidence for it belongs, and **a ratified decision
+> whose supporting evidence lives somewhere else is one re-litigation away from being reopened on the
+> weaker argument it was originally made on.**
+
+**Note what it costs and what it buys:** the annotation is a paragraph, and it converts a decision
+that was *right for reasons it could not demonstrate* into one that is **demonstrated in place.**
+⛔ **And it applies symmetrically — a measurement that UNDERMINES a ratified decision gets annotated
+there too**, which is the harder half and the one that will be skipped first.
+
 > ### **So a register can be WRONG AND LOAD-BEARING, or RIGHT AND INERT — and NEITHER STATE SHOWS ON INSPECTION.**
 >
 > ⛔ **The only distinguishing evidence, in both directions, is DOWNSTREAM: what cites it, and whether
