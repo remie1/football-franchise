@@ -922,6 +922,27 @@ wider, and stating it wider is what lets the next instance be recognised:
 | **a ratified claim** | the ruling *is* the review's output; the author is the last to re-open it | ⛔ **two instances**: ADR-046's constant, ADR-050's accepting ruling |
 | **a pleasing result** | a real derivation and a rate-chase are **indistinguishable by their result**; only the process differs, and it leaves no trace in the number | ⛔ **live** — see the derived-boundary corollary below |
 | ⛔ **A CORRECT PRIOR STEP** — *the most concealed of the three* | the previous answer was **right**, so the next question reads as a **continuation** rather than as a new question. **There is no ratification event, no pleasing result, nothing to notice — just a chain of correct answers** | ⛔ **four instances in one week**, descending table → channel → branch → quantity |
+
+> ### ⛔ CONSEQUENCE FOR PRE-REGISTRATION — **THERE ARE TWO KINDS AND ONLY ONE IS SAFE TO SHARE WITH THE DISPATCH**
+>
+> Both are called *pre-registration*, and the difference is whether the document **names a direction.**
+>
+> | kind | form | share with the dispatch? |
+> |---|---|---|
+> | **DISPOSITION** | *"if X then A, if Y then B"* | ✅ **YES, and it should be** — it names **both** outcomes and their consequences, so **there is no direction to steer toward**, and it stops the result from choosing its own interpretation after the fact |
+> | ⛔ **EXPECTATION** | *"I think it will be X"* | ⛔ **NO. It supplies the answer.** |
+>
+> **A pre-registered EXPECTATION handed to the dispatch protects only against POST-HOC AMENDMENT — it
+> does nothing against the expectation STEERING THE WORK**, which is the larger risk and the invisible
+> one.
+>
+> > ### **An instinct confirmed by a dispatch that KNEW the instinct is worth less than one confirmed by a dispatch that did not.**
+>
+> **This is the pleasing-result trigger applied to pre-registration itself**, and withholding costs
+> nothing: it converts a possible agreement **from noise into evidence.** ⚠ **Worked instance:** entry
+> 71's fork was shared (both branches named, both dispositions stated) and resolved *against* the
+> owner's expectation. Entry 75 names a direction and was **withheld** — and the dispatch reached the
+> same conclusion independently, **which is the only reason that agreement means anything.**
 | a number that **matches a published source** | agreement reads as corroboration, though both sides may share an ancestor | ⚠ predicted, not yet observed here |
 | a fix that turns a **red gate green** | green is treated as *resolved* rather than as *no longer failing in the way it failed* | ⚠ predicted |
 | a measurement that **agrees with the previous one** | consistency reads as reliability, though two runs sharing a source are not two measurements | ⚠ predicted — and note the one-live-reader corollary is exactly this failure in code |

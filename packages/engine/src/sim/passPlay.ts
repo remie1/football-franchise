@@ -524,6 +524,15 @@ export function simulatePassPlay(
         m.previousBand = rush.band;
         // A won rep does not arrive; it departs. The threat outlives the rep
         // that created it until the blocker resets him or the QB moves.
+        //
+        // `startsThreat` is checked BEFORE `clearsThreat`, so `clearsThreat`
+        // is never reached for whichever band `startsThreat` claims — today
+        // that is only `RUSHER_WINS_REP`, and deliberately: `resolve/passRush
+        // .ts`'s `bandFor` gives a tick exactly one band from one margin, and
+        // no band is both "he won" and "the blocker reset him". See
+        // `resolve/rushThreat.ts`'s `_WinningBandNeverClearsItsOwnThreat` for
+        // the compile-time enforcement and CALIBRATION-BACKLOG entry 59 for
+        // the identity-check evidence that reordering this chain is a no-op.
         const before = m.threat;
         if (startsThreat(rush.band)) {
           const won = threatFromWonRep({

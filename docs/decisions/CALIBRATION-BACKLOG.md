@@ -4635,6 +4635,49 @@ framing — "a rusher who keeps winning his rep can never reach the retirement b
 — is true and is not a defect: there is no tick on which a win and a retirement are both the honest
 description of what happened.
 
+### ⚠ THE TWO CLAIMS, SEPARATED, PER THE OWNER'S STANDING WARNING NOT TO LET ONE RIDE IN ON THE OTHER
+
+Two different things are true here and only one of them is a code fact:
+
+1. **CODE FACT, verified, not asserted:** `clearsThreat(tunables, "RUSHER_WINS_REP")` is unreachable
+   through `sim/passPlay.ts`'s chain **for any value of the field** — proved by the identity check
+   below, which reorders the chain and shows the stream does not move while the value stays `false`.
+2. ⚠ **FOOTBALL CLAIM, flagged as one:** *no rep can be honestly described as both "he won" and "he is
+   reset," so the field's only coherent value for this band is `false`.* This is **not** a new ruling —
+   it is a direct reading of the ALREADY-RATIFIED §7.1 table quoted above, which names one reset row and
+   it is not this one. But it is still an assertion about football, not arithmetic, and it is flagged as
+   one rather than smuggled in as a corollary of claim 1. **Nobody has ever ruled on this question before
+   now, because the branch's unreachability meant the question never had to be asked** — this entry is
+   the first time it has been.
+
+**What the mechanic would DO if made reachable — reasoned, not measured, because there is no coherent
+way to build a reachable version to measure:**
+
+- **Reorder so `clearsThreat` is checked first for this band, with `reset: true`.** Then a rusher who
+  wins by 15+ would have his existing threat cleared and **the `startsThreat` branch would never run for
+  that tick** (the `else if` is shadowed) — a rusher could win his rep on every tick of a play and never
+  once start travelling. That does not just fail to match §7.1; it deletes the mechanism §7.1's
+  `RUSHER_WINS_REP` row exists to describe ("pressure/hit next tick").
+- **Keep the order, but let both branches fire when a rep both wins and clears.** The stream would
+  publish `TRAVELLING` and `RESET` for the identical threat off the identical roll — a threat that is
+  simultaneously created and denied to exist, which is not a state any consumer (`minTta`,
+  `pocketStatusFor`, a replay renderer) has a reading for.
+
+**Both reachable shapes are self-contradictory under the CURRENT ratified table, independent of any
+value judgement about which is "better."** That is offered as evidence for claim 2, not as a substitute
+for it — the owner is the one who rules on football, and this is reported so that ruling can be made
+with the mechanical consequence already in hand, not discovered after the fact.
+
+**⇒ Disposition taken: enforce claim 1 (the field cannot silently become live) without asserting claim
+2 into the code as a NEW, unfalsifiable premise.** The compile-time assertion below pins the field to
+`false` — which is what claim 2 says it must be — but it is an assertion **about this field's value**,
+not a redesign of `bandFor` or the chain, and it is exactly as easy to revisit as any other tunable: an
+editor who disagrees with claim 2 deletes or narrows the assertion, on purpose, in a diff the owner
+reviews — never silently. **If the owner wants to entertain a genuinely different mechanic** — e.g., an
+extremely dominant rep (margin ≫ 15) meaning the rusher is treated as already-arrived rather than
+merely travelling faster (`travelSecondsFor`'s existing dominance shave already does the latter) —
+**that is a new football question, not this one, and is not answered here.**
+
 ### Reachability table — the WHOLE `pressureProgressByBand` structure, not just the one row
 
 `startsThreat(band)` is `band === "RUSHER_WINS_REP"`, full stop — so it is `true` for exactly one band

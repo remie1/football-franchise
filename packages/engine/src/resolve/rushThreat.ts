@@ -87,8 +87,16 @@ export interface RushThreat extends ArrivalClock {
   readonly origin: ThreatOrigin;
 }
 
-/** The band that starts a rusher travelling — §7.1's "rusher wins rep". */
-const WINNING_BAND: PassRushBandLabel = "RUSHER_WINS_REP";
+/**
+ * The band that starts a rusher travelling — §7.1's "rusher wins rep".
+ *
+ * `satisfies` rather than `: PassRushBandLabel`, deliberately: a type
+ * annotation would widen the literal to the whole band union, and the
+ * assertion below needs the literal `"RUSHER_WINS_REP"` back out of this
+ * constant rather than a second hand-typed copy of the string
+ * (Charter §4.1 — derive, don't restate).
+ */
+const WINNING_BAND = "RUSHER_WINS_REP" satisfies PassRushBandLabel;
 
 /** §7.1's own threshold, read from the table rather than restated. */
 function winMinMargin(tunables: Tunables): number {
@@ -103,6 +111,69 @@ export function startsThreat(band: PassRushBandLabel): boolean {
 export function clearsThreat(tunables: Tunables, band: PassRushBandLabel): boolean {
   return tunables.passRush.pressureProgressByBand[band].reset;
 }
+
+/**
+ * ============ THE WINNING BAND CANNOT CLEAR ITS OWN THREAT — ASSERTED (CALIBRATION-BACKLOG entry 59) ============
+ *
+ * `sim/passPlay.ts`'s tick loop tests `startsThreat(rush.band)` BEFORE
+ * `clearsThreat(tunables, rush.band)`, in an if/else-if chain. For a tick
+ * whose band is `WINNING_BAND`, the first branch always matches, so the
+ * second is never evaluated for that band — `clearsThreat(tunables,
+ * "RUSHER_WINS_REP")` is dead code at that call site, for any config.
+ *
+ * Entry 59 asked which of two fixes that calls for: reorder the chain so the
+ * branch is reachable (a behaviour change, needing a football argument), or
+ * enforce that the branch cannot matter (a config fix, if the value it could
+ * never deliver was never a coherent value in the first place).
+ *
+ * IT IS THE SECOND. `resolve/passRush.ts`'s `bandFor` assigns exactly ONE
+ * band per tick from a SINGLE margin, and §7.1's own table (`match-engine.md`
+ * §7.1) names only one row that resets a rusher — "blocker wins by 15+"
+ * (`BLOCKER_RESETS`) — never the row that says he won. A tick cannot be both
+ * `RUSHER_WINS_REP` and `BLOCKER_RESETS`: they are the two opposite ends of
+ * the same margin. So `pressureProgressByBand.RUSHER_WINS_REP.reset === true`
+ * has no football reading — it would assert that the SAME roll which just
+ * started a rusher travelling also retired the threat it just created, off
+ * the same die, on the same tick. §7.1's table has no such rep.
+ *
+ * The ordering is therefore CORRECT football and always was; identity-check
+ * evidence for this is recorded in `docs/decisions/CALIBRATION-BACKLOG.md`'s
+ * 59-RESULT entry — swapping the branch order changes nothing about today's
+ * event stream, because `RUSHER_WINS_REP.reset` is already `false`, which is
+ * the only value the football ever supported.
+ *
+ * That the value on file already happens to be the coherent one is not
+ * something to leave to luck (see ADR-036's `tippedBall.qualityBands.DEAD
+ * .finalTargetNumber = 0` — a table demanded a value per band and a value
+ * appeared). This line is what makes it not luck: `TUNABLES` is `as const`,
+ * so `Tunables["passRush"]["pressureProgressByBand"]["RUSHER_WINS_REP"]
+ * ["reset"]` is the LITERAL `false`, not `boolean` — and `AssertFalse`
+ * rejects anything that is not. `tsc -p tsconfig.test.json` runs before
+ * `vitest` (`package.json`'s `test` script), so this is a build failure, not
+ * a runtime one, exactly as `resolve/pocket.ts`'s `AssertEmptyUnion` pair is.
+ *
+ * RED TRIGGER, both directions, named per entry 60's rule:
+ *   - FIRES (fails to compile) the instant `pressureProgressByBand
+ *     .RUSHER_WINS_REP.reset` becomes anything but the literal `false` — for
+ *     EITHER of its two readers, `advancePressure`'s pressure-counter reset
+ *     or this file's `clearsThreat` — since one field feeds both and neither
+ *     reading is coherent for this band. Proved to fire: `test/rushThreat
+ *     .test.ts` instantiates the failing case under `@ts-expect-error`.
+ *   - Does NOT fire, and is not meant to, for any of the other five bands.
+ *     `startsThreat` is false for all of them, so `clearsThreat` is genuinely
+ *     REACHABLE through the same if/else-if chain for `BLOCKER_BEATEN`,
+ *     `RUSHER_GAINING`, `STALEMATE`, `BLOCKER_CONTAINS` and `BLOCKER_RESETS`
+ *     — their `.reset` values are live tuning knobs today, not comments with
+ *     a value's name, and this assertion does not and must not constrain
+ *     them. (`BLOCKER_CONTAINS.reset` in particular is a real open question —
+ *     CALIBRATION-BACKLOG entry 71-RESULT's "missing mechanic" — and nothing
+ *     here stands in its way.)
+ */
+export type AssertFalse<T extends false> = T;
+
+export type _WinningBandNeverClearsItsOwnThreat = AssertFalse<
+  Tunables["passRush"]["pressureProgressByBand"][typeof WINNING_BAND]["reset"]
+>;
 
 /**
  * Alignment for a rush assignment. The play call states it; when it does not,

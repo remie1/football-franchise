@@ -26,9 +26,11 @@ import {
   travelSecondsFor,
   urgencySteps,
 } from "../src/resolve/rushThreat.js";
+import type { AssertFalse } from "../src/resolve/rushThreat.js";
 import type { RushThreat } from "../src/resolve/rushThreat.js";
 import { bandFor } from "../src/rolls.js";
 import { TUNABLES } from "../src/tunables.js";
+import type { Tunables } from "../src/tunables.js";
 import type { RushMove } from "../src/types.js";
 import { buildScenario, sackTick as sackTickOf } from "./fixtures.js";
 
@@ -131,6 +133,23 @@ describe("§7.2 threat lifecycle", () => {
     expect(clearsThreat(TUNABLES, "BLOCKER_CONTAINS")).toBe(false);
     expect(clearsThreat(TUNABLES, "RUSHER_WINS_REP")).toBe(false);
   });
+
+  /**
+   * ============ THE COMPILE-TIME ASSERTION, PROVED TO FIRE (entry 59) ============
+   *
+   * The runtime check three lines up only ever tells you the CURRENT value.
+   * `resolve/rushThreat.ts` also asserts it at COMPILE TIME —
+   * `pressureProgressByBand.RUSHER_WINS_REP.reset` cannot become anything but
+   * the literal `false`, because no reachable rep can both start a rusher's
+   * threat and retire it on the same die. An assertion nobody has seen fail
+   * is indistinguishable from one that cannot (Charter §4.1), so it is
+   * instantiated here on the REAL path (same as `_WinningBandNeverClears
+   * ItsOwnThreat`), with a deliberately wrong member unioned in exactly as
+   * `test/pocketStatus.test.ts` unions `"PANICKED"` into its own pair —
+   * and `@ts-expect-error` fails the build if it stops erroring.
+   */
+  // @ts-expect-error entry 59 — RUSHER_WINS_REP.reset has no football reading as `true`; this must not compile.
+  type _RusherWinsRepCannotReset = AssertFalse<Tunables["passRush"]["pressureProgressByBand"]["RUSHER_WINS_REP"]["reset"] | true>;
 
   it("a contained rusher is not un-beaten, but he loses ground", () => {
     expect(recoverySecondsFor(TUNABLES, "BLOCKER_CONTAINS")).toBeGreaterThan(0);
