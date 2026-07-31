@@ -1075,6 +1075,46 @@ with an unwritten blind spot.
 > only ever establish that *someone answered the question*. **Only the author can answer it about the
 > right subject**, and only while they still remember what they chose not to cover.
 
+**Corollary — THE ABSORBED FINDING: A CORRECT MEASUREMENT CAN BE MADE INERT BY ITS DELIVERY MEDIUM.**
+
+> ### **A finding in a document is available to whoever reads that document. A metric is available to everyone who runs anything.**
+
+**The worked example is exact, and it cost five dispatches.** ADR-049 §2 measured the pocket's
+severity shift under the supply lever and stated the conclusion in its own words — ***"COLLAPSING
+falls by 39 points and PRESSURE rises by 48, and CLEAN does not move at all."*** Correct, ratified,
+published.
+
+**And it changed nothing.** Because it was **a table inside one ADR rather than a row in the metric
+library**, it explained *that arm* and transferred to *nothing*. Four further levers were then priced
+on `pressure_rate` alone — a metric **structurally blind to exactly what that table showed** (63.6%
+of arrival's COLLAPSING work, 94.2% of the band floor's).
+
+> ⛔ **THE PROJECT DID NOT LACK THE INFORMATION. It had it, in a ratified document, correctly stated —
+> and the delivery medium made it INERT.**
+
+**⇒ This is the ABSORBED-MECHANIC class (entry 64) arriving at a FINDING**: a correct thing that
+produces no observable effect downstream, not because it is wrong but because **nothing consumes
+it.** Three victims of one shape now — an absorbed *mechanic* (the engine implements it and nothing
+is observable), an absorbed *lever* (it moves the game and the metric cannot see it), and an absorbed
+*finding* (it is measured and recorded and nothing reuses it).
+
+### ⛔ THE OPERATIVE FORM, AND THE TEST IS CHEAP
+
+> **When a dispatch measures something the standing metrics cannot see, that is a PETITION FOR A
+> METRIC — not merely a row in a report.**
+
+**The test:** *did this measurement require building something the library does not have?*
+
+- **If yes, the library has a gap, and THE GAP OUTLIVES THE DISPATCH.** The one-off instrument dies
+  with the report; the gap stays and the next dispatch pays for it again.
+- ⚠ **A one-off table is not a cheaper version of a metric. It is a DIFFERENT ARTEFACT with a
+  different reach** — and the reach, not the accuracy, is what determines whether a finding does
+  anything.
+
+**Charter §4.1's audit-priority corollary said a stored ruling that drifts keeps being cited. This is
+the complement: a stored finding that is CORRECT can fail to be cited at all.** Both failures are
+invisible in the document itself, which reads exactly the same either way.
+
 **Corollary — A FIELD THAT IS A PLACEHOLDER IN ONE EVENT TYPE AND A FACT IN ALL THE OTHERS IS WORSE
 THAN A SENTINEL, BECAUSE THE SURROUNDING ROWS VOUCH FOR IT.**
 
