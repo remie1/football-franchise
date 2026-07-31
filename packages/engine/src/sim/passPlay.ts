@@ -115,12 +115,14 @@ import type { ArrivalClock, RushThreat } from "../resolve/rushThreat.js";
 import {
   arrivedAt,
   clearsThreat,
+  continuesContainStreak,
   delayThreat,
   hasArrived,
   minTimeToArrival,
   nearestThreat,
   recoverySecondsFor,
   resolvedRushAssignment,
+  retiresBySustainedContainment,
   soonerThreat,
   startsThreat,
   threatFromWonRep,
@@ -175,6 +177,16 @@ interface RushMatchup {
   threat: RushThreat | undefined;
   /** Whether the CURRENT threat's arrival has already been published (ADR-007). */
   announcedArrival: boolean;
+  /**
+   * CALIBRATION-BACKLOG entry 73 — how many reps IN A ROW this matchup has
+   * just posted `BLOCKER_CONTAINS`. Any other band resets it to zero
+   * (`continuesContainStreak`); reaching `tunables.arrival
+   * .containRetiresAfterConsecutiveContains` retires a live threat instead of
+   * merely delaying it (`retiresBySustainedContainment`). Meaningless, and
+   * unread, while `threat` is `undefined` — nothing consumes it until a threat
+   * exists to retire.
+   */
+  consecutiveContains: number;
 }
 
 /**
@@ -522,8 +534,16 @@ export function simulatePassPlay(
         log.check(rush.check);
         m.pressure = advancePressure(m.pressure, rush);
         m.previousBand = rush.band;
+        // CALIBRATION-BACKLOG entry 73 — the run of consecutive `BLOCKER_CONTAINS`
+        // reps this matchup has JUST posted. Any other band breaks the streak,
+        // per `continuesContainStreak`; updated before the branch chain below so
+        // this tick's own band already counts toward (or resets) it.
+        m.consecutiveContains = continuesContainStreak(rush.band)
+          ? m.consecutiveContains + 1
+          : 0;
         // A won rep does not arrive; it departs. The threat outlives the rep
-        // that created it until the blocker resets him or the QB moves.
+        // that created it until the blocker resets him, sustained containment
+        // retires him (entry 73, below), or the QB moves.
         //
         // `startsThreat` is checked BEFORE `clearsThreat`, so `clearsThreat`
         // is never reached for whichever band `startsThreat` claims — today
@@ -558,12 +578,24 @@ export function simulatePassPlay(
             m.announcedArrival = false;
           }
         } else if (before !== undefined) {
-          // Still coming, but a blocker who recovered position costs him ground.
-          const delayed = delayThreat(before, recoverySecondsFor(tunables, rush.band));
-          if (delayed !== before) {
-            m.threat = delayed;
-            publishThreat(delayed, "DELAYED");
+          if (retiresBySustainedContainment(tunables, rush.band, m.consecutiveContains)) {
+            // CALIBRATION-BACKLOG entry 73 — two contained reps in a row against
+            // the SAME live threat is the block actually holding, not one tackle
+            // recovering position once. `RESET` is ADR-007's existing, already
+            // generic word for "this threat is over" — the same publication
+            // `BLOCKER_RESETS` and a broken scramble use, not a new event shape.
+            publishThreat(before, "RESET");
+            m.threat = undefined;
             m.announcedArrival = false;
+            m.consecutiveContains = 0;
+          } else {
+            // Still coming, but a blocker who recovered position costs him ground.
+            const delayed = delayThreat(before, recoverySecondsFor(tunables, rush.band));
+            if (delayed !== before) {
+              m.threat = delayed;
+              publishThreat(delayed, "DELAYED");
+              m.announcedArrival = false;
+            }
           }
         }
       }
@@ -928,6 +960,7 @@ export function simulatePassPlay(
             m.announcedArrival = false;
             m.pressure = 0;
             m.previousBand = undefined;
+            m.consecutiveContains = 0;
           }
           // §8.8 — receivers stop running routes and find open grass from here.
           for (const track of tracks) {
@@ -1610,6 +1643,7 @@ function buildMatchups(preSnap: PreSnapResult): RushMatchup[] {
     previousBand: undefined,
     threat: freeRunnerThreat(plan),
     announcedArrival: false,
+    consecutiveContains: 0,
   }));
 }
 

@@ -113,6 +113,52 @@ export function clearsThreat(tunables: Tunables, band: PassRushBandLabel): boole
 }
 
 /**
+ * The band a run of consecutive reps against a still-live threat can retire —
+ * §7.1's "contained" row, CALIBRATION-BACKLOG entry 73. `satisfies` for the
+ * same reason as `WINNING_BAND`: the literal is read back out here rather than
+ * hand-typed a second time.
+ */
+const CONTAINED_BAND = "BLOCKER_CONTAINS" satisfies PassRushBandLabel;
+
+/**
+ * Whether this tick's band continues a run of consecutive containments —
+ * the per-matchup counter `tunables.arrival.containRetiresAfterConsecutiveContains`
+ * is compared against. Any other band — a win, a gain, a beaten blocker, or a
+ * reset — breaks the run, matching the owner's "contained on one tick and free
+ * on the next is a real football event" (entry 73): the streak does not
+ * survive a tick that was not itself a contain.
+ */
+export function continuesContainStreak(band: PassRushBandLabel): boolean {
+  return band === CONTAINED_BAND;
+}
+
+/**
+ * §7.1's ONE reset row ("blocker wins by 15+") is not the only way a blocker
+ * ends a rusher's threat any more — CALIBRATION-BACKLOG entry 73, ruled on the
+ * football regardless of price. A blocker who has recovered position on
+ * `containRetiresAfterConsecutiveContains` reps IN A ROW against the same live
+ * threat has genuinely re-won the rep in aggregate, even though no single rep
+ * crossed the 15-margin threshold that would have reset him outright. See
+ * `tunables.ts`'s `arrival.containRetiresAfterConsecutiveContains` for the
+ * derivation of the count and what this does and does not assert.
+ *
+ * `consecutiveContains` is the caller's own running count (`RushMatchup
+ * .consecutiveContains` in `sim/passPlay.ts`), not recomputed here — this
+ * function is the THRESHOLD TEST, not the counter, the same division of labour
+ * `clearsThreat` already has with `advancePressure`.
+ */
+export function retiresBySustainedContainment(
+  tunables: Tunables,
+  band: PassRushBandLabel,
+  consecutiveContains: number,
+): boolean {
+  return (
+    band === CONTAINED_BAND &&
+    consecutiveContains >= tunables.arrival.containRetiresAfterConsecutiveContains
+  );
+}
+
+/**
  * ============ THE WINNING BAND CANNOT CLEAR ITS OWN THREAT — ASSERTED (CALIBRATION-BACKLOG entry 59) ============
  *
  * `sim/passPlay.ts`'s tick loop tests `startsThreat(rush.band)` BEFORE

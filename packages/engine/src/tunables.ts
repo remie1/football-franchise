@@ -633,6 +633,84 @@ export const TUNABLES = {
       BLOCKER_RESETS: 0.0,
     },
     /**
+     * CALIBRATION-BACKLOG entry 73 — `BLOCKER_CONTAINS` GETS A RETIREMENT ROUTE.
+     * KEPT, NOT REPLACED: `recoverySecondsByBand.BLOCKER_CONTAINS` above is
+     * UNCHANGED at 0.5 and still fires on every contained rep below this count.
+     * This field answers a different question — not "how much ground does one
+     * contained rep cost him" (that row, still true) but "how many contained
+     * reps in a row means the block actually held" (this row, new).
+     *
+     * ============ THE FOOTBALL, PER ENTRY 73'S RULING ============
+     * §7.1 names exactly one row that retires a rusher — "blocker wins by 15+:
+     * rusher reset" — and `BLOCKER_CONTAINS` (margin 1-14) is explicitly not
+     * that row (59-RESULT). But entry 71-RESULT's enumeration is also correct:
+     * a stalemate, a gain, or a contain today only DELAYS, never retires, so a
+     * rusher contained on EVERY remaining tick keeps an ETA that recedes at
+     * exactly the rate the clock advances (`recoverySecondsByBand
+     * .BLOCKER_CONTAINS` (0.5s) equals `clock.tickStepSeconds` (0.5s)) and
+     * therefore never gets closer, never arrives, and never goes away. That is
+     * a missing mechanic, not a calibration question, and the owner ruled on it
+     * regardless of price (entry 73).
+     *
+     * The owner also flagged the risk in the other direction: "a rusher
+     * contained on one tick and free on the next is a real football event," so
+     * retiring on the FIRST contain would overcorrect — a single recovered rep
+     * is one blocker winning one rep, not the block being won. §7.1's own
+     * "Counter move: +15 if previous tick was stalemate" answers this
+     * concretely for the neighbouring band: the model already lets a rusher who
+     * was just held answer with a bonus on his VERY NEXT rep. Retiring him for
+     * the tick that held him would delete the rep the counter move exists to
+     * let him win.
+     *
+     * ============ WHY TWO, DERIVED RATHER THAN PICKED ============
+     * Two independent structural facts, already ratified for other reasons,
+     * agree on the same number:
+     *
+     *  1. ONE TICK IS THE MODEL'S OWN MEMORY DEPTH. `previousBand` is a single
+     *     slot, carried for exactly one purpose today (the counter-move bonus
+     *     above) — the design speaks in "this rep" and "the rep before it," and
+     *     has never needed a longer window. The smallest pattern expressible at
+     *     that depth that is not "any one rep" is "the same result twice in a
+     *     row." Reaching for a three-tick or deeper window would be inventing a
+     *     memory the model does not otherwise have, for this mechanic alone.
+     *  2. THE ARITHMETIC AGREES. `recoverySecondsByBand.BLOCKER_CONTAINS` (0.5)
+     *     times 2 is 1.0 — exactly `minTravelSeconds` below, the model's own
+     *     floor for how close ANY threat, however dominant the win that created
+     *     it, is ever allowed to be. Two consecutive contains buy back the
+     *     entire closest-possible cushion; the "he is still coming, from
+     *     further away" reading `delayThreat` gives a single contain stops
+     *     having a coherent physical referent once the recovered ground alone
+     *     exceeds the shortest trip the model will ever grant a rusher.
+     *
+     * ============ WHAT THIS ASSERTS, AND WHAT IT DOES NOT ============
+     * At 2: the FIRST contained rep against a live threat only delays it
+     * (unchanged behaviour, `recoverySecondsByBand` still the whole story). The
+     * SECOND consecutive one — no `RUSHER_WINS_REP`, `BLOCKER_BEATEN`, or
+     * `RUSHER_GAINING` rep in between — retires it, publishing `RESET` exactly
+     * as `BLOCKER_RESETS` does today (ADR-007's existing, already-generic word
+     * for "this threat is over," not a new event shape). A rusher who wins
+     * again, or merely gains a step, resets the streak to zero — the model
+     * never counts a broken streak, matching the owner's "free on the next
+     * tick" caution directly.
+     *
+     * Deliberately NOT reset here: `pressureProgressByBand`'s per-rusher
+     * pressure counter (`resolve/pocket.ts`'s `advancePressure`). That counter
+     * measures cumulative disruption over the whole rep, a different question
+     * from "is a threat currently travelling," and `BLOCKER_CONTAINS` already
+     * contributes `delta: 0` to it on every tick, contained or not — this entry
+     * does not touch that mechanism, and widening scope to it here would be a
+     * second football claim nobody has ruled on.
+     *
+     * ⛔ NO RATE EXPECTATION IS ATTACHED TO THIS VALUE (entry 73's disposition,
+     * echoing 1d's mistake): the count is chosen on the football and the two
+     * structural facts above, not on any target `pressure_rate` movement, and
+     * none should be read into it. `pocket_status_distribution` — not
+     * `pressure_rate` — is the Tier-1 metric this dispatch is priced against,
+     * per entry 67-RESULT/68's standing ruling that a rate counting any
+     * non-CLEAN tick cannot see a change that only reshuffles severity.
+     */
+    containRetiresAfterConsecutiveContains: 2,
+    /**
      * Nobody teleports. Even an unblocked interior rusher needs a beat to cover
      * the ground to a launch point six or seven yards deep, so the dominance
      * shave cannot produce a same-tick arrival — in practice it shortens the

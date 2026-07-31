@@ -13,11 +13,13 @@ import type { MatchEventEnvelope } from "@ff/contracts";
 import { simulatePassPlay } from "../src/index.js";
 import {
   clearsThreat,
+  continuesContainStreak,
   delayThreat,
   hasArrived,
   minTimeToArrival,
   pocketFloorFromArrival,
   recoverySecondsFor,
+  retiresBySustainedContainment,
   rushAlignmentFor,
   soonerThreat,
   startsThreat,
@@ -28,6 +30,7 @@ import {
 } from "../src/resolve/rushThreat.js";
 import type { AssertFalse } from "../src/resolve/rushThreat.js";
 import type { RushThreat } from "../src/resolve/rushThreat.js";
+import type { PassRushBandLabel } from "../src/resolve/passRush.js";
 import { bandFor } from "../src/rolls.js";
 import { TUNABLES } from "../src/tunables.js";
 import type { Tunables } from "../src/tunables.js";
@@ -159,6 +162,40 @@ describe("§7.2 threat lifecycle", () => {
     expect(delayThreat(threat(2.5), 0).etaTick).toBe(2.5);
   });
 
+  /**
+   * ============ CALIBRATION-BACKLOG entry 73 — sustained containment retires a threat ============
+   *
+   * Only `BLOCKER_CONTAINS` ever accumulates a streak; every other band —
+   * including a fresh won rep — breaks it. This is the owner's "contained on
+   * one tick and free on the next is a real football event" caution, made
+   * concrete: a broken streak never reaches the count regardless of how it
+   * broke.
+   */
+  it("only BLOCKER_CONTAINS continues the streak; anything else breaks it", () => {
+    expect(continuesContainStreak("BLOCKER_CONTAINS")).toBe(true);
+    for (const band of ["RUSHER_WINS_REP", "BLOCKER_BEATEN", "RUSHER_GAINING", "STALEMATE", "BLOCKER_RESETS"] as const) {
+      expect(continuesContainStreak(band)).toBe(false);
+    }
+  });
+
+  it("one contain in a row only delays; the tunable count in a row retires", () => {
+    const n = TUNABLES.arrival.containRetiresAfterConsecutiveContains;
+    expect(n).toBeGreaterThan(1); // entry 73 — the owner's caution against retiring on the first one
+    for (let count = 0; count < n; count++) {
+      expect(retiresBySustainedContainment(TUNABLES, "BLOCKER_CONTAINS", count)).toBe(false);
+    }
+    expect(retiresBySustainedContainment(TUNABLES, "BLOCKER_CONTAINS", n)).toBe(true);
+    expect(retiresBySustainedContainment(TUNABLES, "BLOCKER_CONTAINS", n + 5)).toBe(true);
+  });
+
+  it("no other band retires a threat by repetition, however many times it recurs", () => {
+    const n = TUNABLES.arrival.containRetiresAfterConsecutiveContains;
+    for (const band of ["RUSHER_WINS_REP", "BLOCKER_BEATEN", "RUSHER_GAINING", "STALEMATE", "BLOCKER_RESETS"] as const) {
+      expect(retiresBySustainedContainment(TUNABLES, band, n)).toBe(false);
+      expect(retiresBySustainedContainment(TUNABLES, band, n + 100)).toBe(false);
+    }
+  });
+
   it("winning again does not slow a rusher down, and does not speed him up either", () => {
     expect(soonerThreat(threat(2.0), threat(3.0)).etaTick).toBe(2.0);
     expect(soonerThreat(threat(3.0), threat(2.0)).etaTick).toBe(2.0);
@@ -214,6 +251,25 @@ describe("§7.2 the arrival floor", () => {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * CALIBRATION-BACKLOG entry 73 — mirrors `sim/passPlay.ts`'s own
+ * `m.consecutiveContains` bookkeeping so these reconstructions retire a threat
+ * exactly where the real engine does, rather than re-deriving `eta` against a
+ * pre-entry-73 rule the stream no longer follows. Returns whether THIS band,
+ * for THIS rusher, retires the threat by sustained containment.
+ */
+function tracksContainRetirement(
+  streaks: Map<string, number>,
+  rusher: string,
+  band: PassRushBandLabel,
+): boolean {
+  const next = continuesContainStreak(band) ? (streaks.get(rusher) ?? 0) + 1 : 0;
+  streaks.set(rusher, next);
+  const retires = retiresBySustainedContainment(TUNABLES, band, next);
+  if (retires) streaks.set(rusher, 0);
+  return retires;
+}
+
 /** Which alignment, if any, had arrived by the tick the play ended in a sack. */
 function sackCause(events: readonly MatchEventEnvelope[]): "INTERIOR" | "EDGE" | "OTHER" | undefined {
   const alignment = new Map<string, "EDGE" | "INTERIOR">();
@@ -228,6 +284,9 @@ function sackCause(events: readonly MatchEventEnvelope[]): "INTERIOR" | "EDGE" |
   }
 
   const eta = new Map<string, number>();
+  // CALIBRATION-BACKLOG entry 73 — per-rusher consecutive-BLOCKER_CONTAINS
+  // count, mirroring `sim/passPlay.ts`'s `m.consecutiveContains`.
+  const streaks = new Map<string, number>();
   let snapshot = new Map<string, number>();
   // ADR-033 — whether the play WAS a sack, and which tick it landed on, are now
   // read by §17's own rule. They used to be read off a `POCKET_STATUS: SACK`,
@@ -243,7 +302,8 @@ function sackCause(events: readonly MatchEventEnvelope[]): "INTERIOR" | "EDGE" |
       const rusher = String(event.payload.actors[0]);
       const band = bandFor(TUNABLES.passRush.bands, event.payload.margin).label;
       if (band === "RUSHER_WINS_REP") {
-        const travel = travelSecondsFor(TUNABLES, 
+        tracksContainRetirement(streaks, rusher, band); // breaks any live streak
+        const travel = travelSecondsFor(TUNABLES,
           alignment.get(rusher) ?? "EDGE",
           move.get(rusher) ?? "SPEED",
           event.payload.margin,
@@ -251,12 +311,18 @@ function sackCause(events: readonly MatchEventEnvelope[]): "INTERIOR" | "EDGE" |
         const next = Number(((event.tick ?? 0) + travel).toFixed(1));
         const prev = eta.get(rusher);
         eta.set(rusher, prev === undefined ? next : Math.min(prev, next));
-      } else if (clearsThreat(TUNABLES, band)) {
-        eta.delete(rusher);
       } else {
-        const cur = eta.get(rusher);
-        const rec = recoverySecondsFor(TUNABLES, band);
-        if (cur !== undefined && rec !== 0) eta.set(rusher, Number((cur + rec).toFixed(1)));
+        // Unconditional, mirroring `sim/passPlay.ts`'s top-of-tick streak update:
+        // it has to run whether or not `clearsThreat` ALSO fires this tick, or a
+        // BLOCKER_RESETS tick would leave a stale streak count behind it.
+        const retiredBySustainedContain = tracksContainRetirement(streaks, rusher, band);
+        if (clearsThreat(TUNABLES, band) || retiredBySustainedContain) {
+          eta.delete(rusher);
+        } else {
+          const cur = eta.get(rusher);
+          const rec = recoverySecondsFor(TUNABLES, band);
+          if (cur !== undefined && rec !== 0) eta.set(rusher, Number((cur + rec).toFixed(1)));
+        }
       }
     }
   }
@@ -295,12 +361,20 @@ describe("§7.2 the emergent claim: interior pressure outweighs edge pressure", 
       const statuses = new Map<number, string>();
       const wonAt: number[] = [];
       const clearedAt: number[] = [];
+      // CALIBRATION-BACKLOG entry 73 — same per-rusher streak this test's
+      // `escape valve` (`resetInBetween`, below) has to know about: a threat
+      // sustained containment retires is just as much a reset, for the
+      // purpose of "did anything end the threat in this window", as a
+      // BLOCKER_RESETS is.
+      const streaks = new Map<string, number>();
       for (const { event } of events) {
         if (event.type === "POCKET_STATUS") statuses.set(event.tick ?? -1, event.payload.status);
         if (event.type === "CHECK" && event.payload.checkKind === "pass_rush_tick") {
+          const rusher = String(event.payload.actors[0]);
           const band = bandFor(TUNABLES.passRush.bands, event.payload.margin).label;
           if (band === "RUSHER_WINS_REP") wonAt.push(event.tick ?? -1);
-          if (clearsThreat(TUNABLES, band)) clearedAt.push(event.tick ?? -1);
+          const retiredBySustainedContain = tracksContainRetirement(streaks, rusher, band);
+          if (clearsThreat(TUNABLES, band) || retiredBySustainedContain) clearedAt.push(event.tick ?? -1);
         }
       }
       for (const tick of wonAt) {
