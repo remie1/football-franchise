@@ -525,8 +525,19 @@ export function threatsWithAlignment(
  * agreement is evidence the reconstruction is correct rather than an echo of
  * a shared function. Merge the two and the check becomes a tautology that can
  * never go red. The cost is that calibration's copy must be updated by hand
- * whenever this ladder changes — expected, not a bug — and when it isn't kept
- * in sync, calibration's identity check is exactly what reddens to say so.
+ * when this ladder's STRUCTURE changes — a new rung, a reordered branch, a new
+ * `arrival` field — expected, not a bug; and when it isn't kept in sync after
+ * such a change, calibration's identity check is exactly what reddens to say so.
+ *
+ * NARROWED, RECORDED RATHER THAN SILENTLY TIGHTENED (Charter §4.1: a reader who
+ * finds a tightened comment with no record of the tightening cannot tell whether
+ * the property was reduced or the description was). This clause used to read
+ * "calibration's copy must be updated by hand whenever this ladder changes" —
+ * that overstated the cost. `floorFromArrival` reads
+ * `tunables.arrival.{immediateWithinSeconds,collapsingWithinSeconds,pressureWithinSeconds}`
+ * dynamically off whatever `Tunables` it is handed; it never pins a literal, so
+ * the copy does not drift on a VALUE change, only on a STRUCTURE change. The
+ * text above states that narrower, accurate claim.
  */
 export function pocketFloorFromArrival(
   tunables: Tunables,
