@@ -515,6 +515,18 @@ export function threatsWithAlignment(
  * TUNABLE. `arrival.pressureWithinSeconds` defaults to `POS_INF`, which is that
  * same behaviour written down — the output is identical at the default and the
  * constant is now a value calibration can move.
+ *
+ * DUPLICATED ON PURPOSE. `packages/calibration/src/knownTruth/geometryTimeRetirement.ts`
+ * carries its own reimplementation of this branch ladder (`floorFromArrival`,
+ * off the same three public `tunables.arrival` fields) to reconstruct
+ * `POCKET_STATUS` from the published event stream. That is not drift and not an
+ * oversight left for someone to consolidate — it is what makes the module's
+ * identity self-check a REAL check: two arms with independent sources, where
+ * agreement is evidence the reconstruction is correct rather than an echo of
+ * a shared function. Merge the two and the check becomes a tautology that can
+ * never go red. The cost is that calibration's copy must be updated by hand
+ * whenever this ladder changes — expected, not a bug — and when it isn't kept
+ * in sync, calibration's identity check is exactly what reddens to say so.
  */
 export function pocketFloorFromArrival(
   tunables: Tunables,
