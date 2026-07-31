@@ -1122,6 +1122,32 @@ with an unwritten blind spot.
 > only ever establish that *someone answered the question*. **Only the author can answer it about the
 > right subject**, and only while they still remember what they chose not to cover.
 
+**Corollary — AN EXCEPTION ADDED TO A FAILING ASSERTION NEEDS A POSITIVE CONTROL THAT THE EXCEPTION'S
+STATE IS REACHABLE. WITHOUT ONE, THE EXCEPTION IS INDISTINGUISHABLE FROM A SUPPRESSION.**
+
+> ### **A valve added because a test failed, and a valve papering over a regression, produce the identical diff and the identical green.**
+
+**The only thing that separates them is evidence that the state the exception admits ACTUALLY OCCURS.**
+
+**The worked case.** Bounding the arrival horizon at `2.0` broke a pre-existing integration test
+asserting *"a beaten tackle stays beaten."* The failure was **real football**:
+`pocketMovement.stepUp.edgeThreatDelaySeconds` (1.0s) **stacks** with a §7.1 contain delay (0.5s) in
+one tick and can push a **live, un-reset** EDGE threat past 2.0s — so it reads `CLEAN` **with no reset
+event.** A rusher who beat his man, got delayed twice, and is now genuinely too far away to matter,
+**which is what a horizon is for.**
+
+**The fix added a third escape valve to the assertion — AND a positive control proving that state is
+reachable.** ⚠ **Without the control, *"a beaten tackle stays beaten"* would have been weakened by
+assertion**, and nothing in the repo could tell the difference afterwards.
+
+> ⛔ **THE RULE: every exception carries its own reachability proof, in the same change.** The
+> exception says *"this state is legitimate"*; the control says *"and it happens."* **The first
+> without the second is a claim; the pair is a finding.**
+
+⚠ **And note which direction the cheap path runs:** widening an assertion until it passes is always
+available, always defensible in the moment, and **leaves no trace that the assertion is now weaker
+than its name.** That is the same shape as re-pointing a census pin without re-deriving its set.
+
 **Corollary — *"IS THIS A LEVER?"* AND *"IS THIS CORRECT?"* ARE DIFFERENT QUESTIONS, AND ANSWERING THE
 FIRST SILENTLY CLOSES THE SECOND.**
 
@@ -1196,6 +1222,33 @@ rule.**
 pin is a cardinality over a *set*; **re-pointing the number without re-deriving the set is the
 count-blindness corollary arriving at the repair rather than at the original measurement.** ⚠ And it
 is the cheaper of the two paths, always — which is why it needs naming rather than trusting.
+
+**Corollary — A DELIBERATE DUPLICATION NEEDS A THREE-CLAUSE COMMENT AT BOTH COPIES, AND THE THIRD
+CLAUSE IS THE ONLY ONE THAT STOPS THE "FIX".**
+
+> ### **Two implementations of one function are, to any future reader, an invitation to consolidate — and consolidating silently converts an identity check into a tautology.**
+
+**Two instances now, and both needed the identical treatment:**
+
+| duplication | what it buys |
+|---|---|
+| entry 70's **seed labels** (`pcs-` / `phcs-`) | agreement between two harnesses is **cross-validation**, not an echo |
+| `calibration`'s copy of **`pocketFloorFromArrival`** | agreement between reconstruction and engine is **evidence the reconstruction is correct** |
+
+**The three clauses, at BOTH copies, each naming the other:**
+
+1. **WHAT it duplicates** — the file and the symbol.
+2. **THAT it is deliberate** — not drift, not an oversight.
+3. ⛔ **WHAT THE DUPLICATION BUYS.** ⚠ **Without this, the first two read as an accident somebody
+   chose not to clean up** — and a tidy-minded reader has every reason to merge them.
+
+**And state that DIVERGENCE IS EXPECTED TO REDDEN** — that is the mechanism working, not a
+maintenance burden. ⚠ **The cost of keeping the copies in step IS THE PRICE OF THE PROPERTY, never a
+defect in it.**
+
+> **This project has now paid for the two-independent-arms property in THREE MEDIA — code
+> (`ladderTail`'s live reader), seeds (entry 70), and citation (ADR-046's quoted constant). Each time
+> the tidier option destroyed it, and each time the tidier option looked like an improvement.**
 
 **Corollary — EXTENDING A VOCABULARY IS WIDEN-OR-ADD, AND IT NEEDS THE SAME SURVEY. A SURVEYED
 EXTENSION IS A PRACTICE; AN UNSURVEYED ONE IS DRIFT — AND THEY ARE INDISTINGUISHABLE A MONTH LATER.**
