@@ -811,6 +811,83 @@ export const TUNABLES = {
      */
     pressureWithinSeconds: 2.0,
     /**
+     * DERIVED MECHANIC (July 2026, owner ruling — TIME retirement). THIRD use of
+     * the `DERIVED MECHANIC` marker; `containRetiresAfterConsecutiveContains`
+     * above is the first, `pressureWithinSeconds` immediately above is the
+     * second, and both explain what the marker means and why its two halves are
+     * read separately. See `match-engine.md` §7.1 for the doc-facing block; this
+     * is the implementation-level derivation it summarises. Closes ADR-049 §9's
+     * declared abstention: "no time-based or distance-based threat retirement
+     * was priced, because none exists… a sweep cannot price a mechanism the
+     * engine does not have."
+     *
+     * ⛔ THE TWO HALVES, same convention as above:
+     *
+     *   half                                          status       re-litigate by
+     *   ---------------------------------------------------------------------------
+     *   that a threat retires on TIME at all           OWNER RULING  a football
+     *                                                                 argument to the
+     *                                                                 owner (this
+     *                                                                 ruling; the
+     *                                                                 same reasoning
+     *                                                                 as
+     *                                                                 `pressureWithinSeconds`'s
+     *                                                                 horizon ruling
+     *                                                                 above, one
+     *                                                                 channel over)
+     *   that the comparison is against `clock.maxTick` DERIVED       moves only if
+     *                                                                 `clock.maxTick`
+     *                                                                 moves — this
+     *                                                                 field never
+     *                                                                 restates that
+     *                                                                 number, it only
+     *                                                                 gates whether
+     *                                                                 the comparison
+     *                                                                 runs at all
+     *
+     * ⛔ THE FOOTBALL (the ruling half). A rusher whose whole-life time of
+     * arrival is beyond `clock.maxTick` — the SAME hard stop `sim/passPlay.ts`'s
+     * tick loop already runs its own `while` condition against ("a play that
+     * reaches this without resolving is a coverage sack") — cannot reach the
+     * passer before the play is over, by construction. Counting him as a live
+     * threat that floors the pocket is not a pressure model, it is a PRESENCE
+     * model: exactly `pressureWithinSeconds`'s error immediately above, one
+     * channel over again — a threshold so wide (here, no time-based retirement
+     * existed at all, i.e. infinitely wide) that the classification carries no
+     * information about whether the throw was actually disturbed.
+     *
+     * 🧮 THE COMPARISON (the derived half). `clock.maxTick` is not a new number
+     * chosen for this mechanic — it is the play's own terminal tick, already
+     * load-bearing as the tick loop's own hard stop. Nothing here restates or
+     * shadows it: `resolve/rushThreat.ts`'s `retiresByTime` reads
+     * `tunables.clock.maxTick` directly. This field is therefore a pure ON/OFF
+     * gate rather than a magnitude — there is no second number to derive, only
+     * whether the one existing anchor is compared against at all.
+     *
+     * ⛔ WHAT IS DELIBERATELY NOT DONE — GEOMETRY. ADR-049 §9's abstention named
+     * TWO candidate retirement routes, geometry and time. Only TIME is ruled
+     * here. `packages/calibration/src/knownTruth/geometryTimeRetirement.ts` (a
+     * post-hoc stream reclassifier, MEASUREMENT ONLY) priced them jointly and
+     * found the interaction strongly negative — TIME retires most of the same
+     * threats GEOMETRY would (a threat already beyond the play's clock is
+     * retired before a later STEP_UP could ever geometry-retire it), so
+     * geometry buys a small additional reach for a second mechanic. That is a
+     * reason to record the competition, not a reason to rule against geometry —
+     * it is left UNIMPLEMENTED so it is argued on its own football merits
+     * later, never inheriting this ruling by default.
+     *
+     * ⛔ NO RATE EXPECTATION IS ATTACHED. `pocket_status_distribution` —
+     * SEVERITY, the standing Tier-1 metric — is the outcome this mechanic is
+     * priced against, not `pressure_rate`, and it is priced in a calibration
+     * dispatch that follows this one, not justified here. A lower-bound
+     * estimate exists from the post-hoc reclassifier above (holding every
+     * quarterback decision fixed at what he actually did), but a LIVE rule
+     * changes later STEP_UP/HOLD/SCRAMBLE choices and which reps are even
+     * rolled, so the live number is expected to differ from that bound,
+     * possibly in either direction, and a mismatch is not a defect.
+     */
+    timeRetirementEnabled: true,
+    /**
      * WHO GETS THE SACK IN A DEAD HEAT. When a quarterback goes down to a rusher
      * he ran into rather than one who ran him down (§8.8's `CAUGHT_FROM_BEHIND`),
      * the man is the NEAREST live threat — and ETAs sit on a 0.5s grid, so two of

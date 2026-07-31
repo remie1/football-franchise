@@ -681,6 +681,61 @@ Results per Tick:
 > `TUNABLES.arrival.containRetiresAfterConsecutiveContains: 2` is the tunable; see `packages/engine/
 > src/tunables.ts` for the implementation-level derivation this note summarises.
 
+> **DERIVED MECHANIC (July 2026, owner ruling) — TIME RETIREMENT. A threat whose whole-life ETA
+> exceeds the play's own terminal tick is retired, in full, the moment that is known.**
+>
+> Third use of the `DERIVED MECHANIC` marker (`containRetiresAfterConsecutiveContains` above is the
+> first, `pressureWithinSeconds`'s bound in §7.2 below is the second); see either of those for what
+> the marker means and why its two halves are read separately. This one closes ADR-049 §9's declared
+> abstention: *"no time-based or distance-based threat retirement was priced, because none exists…
+> a sweep cannot price a mechanism the engine does not have."*
+>
+> ⛔ **THREE ROWS, NOT TWO — this dispatch's ruling covers only one of the two candidates ADR-049 §9
+> named:**
+>
+> | half | status | re-litigate by |
+> |---|---|---|
+> | that a threat retires on TIME at all | ⚖️ **OWNER RULING** — this dispatch, the same reasoning as `pressureWithinSeconds`'s horizon ruling below, one channel over: a threat that cannot possibly arrive before the play ends is not pressure, it is PRESENCE | a football argument to the owner |
+> | that the comparison is against the play's TERMINAL TICK | 🧮 **DERIVED** — it is `TUNABLES.clock.maxTick`, the SAME hard stop the tick loop already runs its own loop condition against ("a play that reaches this without resolving is a coverage sack"), not a value chosen for this mechanic | moves only if `clock.maxTick` moves |
+> | ⛔ **GEOMETRY retirement** (a threat whose path a step-up has run him past) | **NEITHER — unruled, unimplemented** | a future football argument to the owner, on its own merits |
+>
+> **The mechanic.** At every point in the tick loop where a threat would otherwise be published as
+> live (`TRAVELLING` on a fresh won rep, or `DELAYED` on a step-up's push-back or a recovering
+> blocker's delay), if the ETA about to be published is beyond `clock.maxTick`, the SAME tick
+> immediately follows with `RESET` — the same already-generic event `BLOCKER_RESETS` and entry 73's
+> sustained containment both publish, not a new event shape or pocket-status row — and the threat is
+> cleared. Checked uniformly over every threat, whatever `ThreatOrigin` created it; it does not reach
+> §8.8's pursuit clock, which is a different mechanism (a quarterback outrunning containment) with no
+> blocker to retire against.
+>
+> **Why geometry is left out, recorded so it is not re-litigated as an oversight.** A calibration
+> instrument (`packages/calibration/src/knownTruth/geometryTimeRetirement.ts`, a post-hoc stream
+> reclassifier, MEASUREMENT ONLY) priced TIME and GEOMETRY together on the reclassified stream and
+> found the interaction strongly negative: TIME retires most of the same threats GEOMETRY would have,
+> because a threat already beyond the play's clock is retired before a later `STEP_UP` could ever
+> geometry-retire it. That is a reason to record the competition, not a reason to rule against
+> geometry — it is left UNIMPLEMENTED so it is argued on its own football merits later, never
+> inheriting this ruling by default.
+>
+> ⛔ **NO RATE EXPECTATION IS ATTACHED.** `pocket_status_distribution` — SEVERITY, the standing Tier-1
+> metric — is the outcome this mechanic is priced against, not `pressure_rate`, and it is priced in a
+> calibration dispatch that follows this one, not justified here. A lower-bound estimate exists from
+> the post-hoc reclassifier above (holding every quarterback decision fixed at what he actually did),
+> but a LIVE rule changes later `STEP_UP`/`HOLD`/`SCRAMBLE` choices and which reps are even rolled, so
+> the live number is expected to differ from that bound, possibly in either direction, and a mismatch
+> is not a defect.
+>
+> **Reachability, measured directly against the current engine.** At the committed default
+> (`clock.maxTick: 6.0`), this is real but rare: 6 signature occurrences across 5 of 40,000 simulated
+> plays (0.0125%) — most plays never run long enough for a fresh won rep to still be too late. The
+> mechanic is not sized to a rate; this figure is reported as a reachability check (Charter §4.1), not
+> a calibration target.
+>
+> `TUNABLES.arrival.timeRetirementEnabled: true` is the tunable — a pure ON/OFF gate rather than a
+> magnitude, because the one anchor this mechanic has (`clock.maxTick`) already exists and is not
+> restated; see `packages/engine/src/tunables.ts` and `packages/engine/src/resolve/rushThreat.ts`'s
+> `retiresByTime` for the implementation-level derivation this note summarises.
+
 ### 7.2 Pocket Status
 
 ```
@@ -799,6 +854,16 @@ SACK:
 > arriving threat open indefinitely (the missing-arrival-model gap described immediately above) can
 > now return the affected rusher's matchup to CLEAN two contained reps after the block actually held,
 > rather than never.
+>
+> **CONSEQUENCE OF §7.1's TIME RETIREMENT (July 2026, owner ruling) — a second, independent way a
+> matchup can return to CLEAN without `BLOCKER_RESETS`.** Same shape as the paragraph immediately
+> above and the same non-consequence for this section's own definitions: `RESET` is published, no row
+> is added, no state changes definition. The difference is WHICH stale threat it reaches — sustained
+> containment answers a rusher held on the SAME block for two reps running; TIME retirement answers a
+> rusher who won cleanly but too late in the down for the ground between him and the passer to matter,
+> the missing-arrival-model gap described two paragraphs above, from its other side. A rusher whose
+> whole-life ETA is beyond `clock.maxTick` no longer floors PRESSURE/COLLAPSING/IMMEDIATE for a play
+> that was always going to end before he arrived.
 
 ### 7.3 Stunts and Twists
 

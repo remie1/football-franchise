@@ -159,6 +159,53 @@ export function retiresBySustainedContainment(
 }
 
 /**
+ * §7.2 TIME RETIREMENT — owner ruling, July 2026 (closes ADR-049 §9's declared
+ * abstention: "no time-based or distance-based threat retirement was priced,
+ * because none exists"). A threat whose whole-life ETA is beyond the play's
+ * own terminal tick (`tunables.clock.maxTick` — the SAME hard stop
+ * `sim/passPlay.ts`'s tick loop already runs its own `while` condition against
+ * ("a play that reaches this without resolving is a coverage sack"), not a
+ * value chosen for this mechanic) CANNOT ARRIVE: the play is over before he
+ * gets there, by construction. Counting him as a live threat that floors the
+ * pocket is not a pressure model, it is a PRESENCE model — the same reading
+ * that bounded `arrival.pressureWithinSeconds` off `POS_INF`, one channel
+ * over again.
+ *
+ * `tunables.arrival.timeRetirementEnabled` is a pure ON/OFF gate, not a
+ * magnitude: there is no second number to derive here, because the one anchor
+ * this mechanic has is `clock.maxTick`, which already exists and is not
+ * restated — this function reads it directly rather than shadowing it in a
+ * second field. See `tunables.ts`'s comment on that field for the two-halves
+ * derivation (`DERIVED MECHANIC`, third use) and `match-engine.md` §7.1 for
+ * the doc-facing block.
+ *
+ * `sim/passPlay.ts` calls this at every site that would otherwise leave a
+ * threat published live (`TRAVELLING` or `DELAYED` — a fresh win, a
+ * step-up's push-back, or a recovering blocker's delay): when the ETA about
+ * to be published is beyond the horizon, the SAME tick immediately follows
+ * with `RESET` (ADR-007's already-generic word for "this threat is over")
+ * instead, and the matchup's threat is cleared. The check runs uniformly
+ * over every `ArrivalClock`, not just a won rep's `RushThreat` — TIME
+ * retirement is a property of the ETA, not of the `ThreatOrigin` that
+ * produced it, and it does not reach the §8.8 pursuit clock at all: that
+ * clock is never stored as a matchup's `threat` and never reaches this
+ * function's call sites.
+ *
+ * ⛔ GEOMETRY retirement (a threat whose path a STEP_UP has run him past) is
+ * NOT implemented here or anywhere else in the engine. `tunables.ts`'s
+ * comment on `timeRetirementEnabled` records why: a calibration instrument
+ * priced the two jointly and found the interaction strongly negative (TIME
+ * retires most of the same threats GEOMETRY would, because a threat already
+ * beyond the play's clock is retired before a later STEP_UP could ever
+ * geometry-retire it), which is a reason to record the competition, not a
+ * reason to rule against geometry. It is left UNIMPLEMENTED so it is argued
+ * on its own football merits later, never inheriting this ruling by default.
+ */
+export function retiresByTime(tunables: Tunables, threat: ArrivalClock): boolean {
+  return tunables.arrival.timeRetirementEnabled && threat.etaTick > tunables.clock.maxTick;
+}
+
+/**
  * ============ THE WINNING BAND CANNOT CLEAR ITS OWN THREAT — ASSERTED (CALIBRATION-BACKLOG entry 59) ============
  *
  * `sim/passPlay.ts`'s tick loop tests `startsThreat(rush.band)` BEFORE

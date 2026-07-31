@@ -123,6 +123,7 @@ import {
   recoverySecondsFor,
   resolvedRushAssignment,
   retiresBySustainedContainment,
+  retiresByTime,
   soonerThreat,
   startsThreat,
   threatFromWonRep,
@@ -409,12 +410,36 @@ export function simulatePassPlay(
     log.rushThreat(threat.rusher, threat.alignment, threat.origin, threat.rollRef, threat.etaTick, state);
   };
 
+  /**
+   * §7.2 TIME RETIREMENT (owner ruling, July 2026 — `resolve/rushThreat.ts`'s
+   * `retiresByTime`). Called immediately after every site below that would
+   * otherwise leave a threat published as live: if its whole-life ETA is
+   * beyond the play's own terminal tick, the SAME tick immediately follows
+   * with `RESET` and the matchup's threat is cleared, so the NEXT tick's
+   * `activeThreats`/`pocketStatusFor` never sees it. A no-op whenever the
+   * matchup has no threat, or the threat is still within reach.
+   */
+  const retireIfBeyondClock = (m: RushMatchup): void => {
+    if (m.threat === undefined || !retiresByTime(tunables, m.threat)) return;
+    publishThreat(m.threat, "RESET");
+    m.threat = undefined;
+    m.announcedArrival = false;
+  };
+
   // §7.3 / §7.4 — a free runner is TRAVELLING from the snap. He is published
   // here, pre-snap, because that is when he started: no rep created him, so
   // there is no tick at which he "won". Which of the three snap-time origins he
   // is, and which roll justifies him, travels on the event.
+  //
+  // §7.2 TIME RETIREMENT — checked uniformly here too, even though a free
+  // runner's arrival is bounded well inside `clock.maxTick` by
+  // `blitzPickup.freeRunnerPath.maxArrivalSeconds` at the committed tunables
+  // (so this call is not reachable today): TIME retirement is a property of
+  // the ETA, not of the `ThreatOrigin` that produced it.
   for (const m of matchups) {
-    if (m.threat !== undefined) publishThreat(m.threat, "TRAVELLING");
+    if (m.threat === undefined) continue;
+    publishThreat(m.threat, "TRAVELLING");
+    retireIfBeyondClock(m);
   }
 
   /**
@@ -570,6 +595,9 @@ export function simulatePassPlay(
           if (m.threat !== before) {
             publishThreat(m.threat, "TRAVELLING");
             m.announcedArrival = false;
+            // §7.2 TIME RETIREMENT — a whole-life ETA beyond `clock.maxTick`
+            // never becomes a live threat, however decisively the rep was won.
+            retireIfBeyondClock(m);
           }
         } else if (clearsThreat(tunables, rush.band)) {
           if (before !== undefined) {
@@ -595,6 +623,11 @@ export function simulatePassPlay(
               m.threat = delayed;
               publishThreat(delayed, "DELAYED");
               m.announcedArrival = false;
+              // §7.2 TIME RETIREMENT — a recovering blocker can push an
+              // already-live threat's ETA past the play's own clock; that
+              // threat is retired the moment the push does it, not merely
+              // delayed further.
+              retireIfBeyondClock(m);
             }
           }
         }
@@ -878,6 +911,9 @@ export function simulatePassPlay(
           // ADR-007 — the climb is exactly the adjustment the printout used to
           // have to disclaim. The arrival it publishes here is the real one.
           publishThreat(m.threat, "DELAYED");
+          // §7.2 TIME RETIREMENT — a step-up's own push-back can be what tips
+          // an edge threat's ETA past the play's own clock.
+          retireIfBeyondClock(m);
           // A rusher run past by a climbing quarterback starts his rep over.
           if (tunables.pocketMovement.stepUp.resetsEdgePressure) m.pressure = 0;
         }

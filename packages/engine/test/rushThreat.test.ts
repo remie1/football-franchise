@@ -20,6 +20,7 @@ import {
   pocketFloorFromArrival,
   recoverySecondsFor,
   retiresBySustainedContainment,
+  retiresByTime,
   rushAlignmentFor,
   soonerThreat,
   startsThreat,
@@ -32,7 +33,7 @@ import type { AssertFalse } from "../src/resolve/rushThreat.js";
 import type { RushThreat } from "../src/resolve/rushThreat.js";
 import type { PassRushBandLabel } from "../src/resolve/passRush.js";
 import { bandFor } from "../src/rolls.js";
-import { TUNABLES } from "../src/tunables.js";
+import { applyTunablePatch, TUNABLES } from "../src/tunables.js";
 import type { Tunables } from "../src/tunables.js";
 import type { RushMove } from "../src/types.js";
 import { buildScenario, sackTick as sackTickOf } from "./fixtures.js";
@@ -254,6 +255,176 @@ describe("§7.2 the arrival floor", () => {
     expect(urgencySteps(TUNABLES, 1.0)).toBe(1);
     expect(urgencySteps(TUNABLES, 0.5)).toBe(2);
     expect(urgencySteps(TUNABLES, 0.0)).toBe(3);
+  });
+});
+
+/**
+ * ============ §7.2 TIME RETIREMENT — owner ruling, July 2026 (ADR-049 §9's declared abstention, closed) ============
+ *
+ * A threat whose whole-life ETA is beyond the play's own terminal tick
+ * (`clock.maxTick`) cannot arrive; `retiresByTime` is the pure predicate,
+ * `sim/passPlay.ts`'s `retireIfBeyondClock` is the call-site wiring. GEOMETRY
+ * retirement is a recorded, unruled competition and is NOT implemented — see
+ * `retiresByTime`'s own comment and `tunables.ts`'s `arrival
+ * .timeRetirementEnabled` for why.
+ */
+describe("§7.2 TIME RETIREMENT — owner ruling", () => {
+  const threat = (etaTick: number): RushThreat => ({
+    rusher: buildScenario().state.quarterback,
+    alignment: "EDGE",
+    origin: "WON_REP",
+    wonAtTick: 1.0,
+    etaTick,
+    rollRef: "test/rush-rep",
+  });
+
+  it("a whole-life ETA at or before the terminal tick is reachable", () => {
+    expect(retiresByTime(TUNABLES, threat(TUNABLES.clock.maxTick))).toBe(false);
+    expect(retiresByTime(TUNABLES, threat(TUNABLES.clock.maxTick - 0.5))).toBe(false);
+    expect(retiresByTime(TUNABLES, threat(0.5))).toBe(false);
+  });
+
+  it("an ETA beyond the terminal tick retires — the comparison is against clock.maxTick, not a chosen constant", () => {
+    expect(retiresByTime(TUNABLES, threat(TUNABLES.clock.maxTick + 0.5))).toBe(true);
+    // Moving `clock.maxTick` moves the boundary with it (DERIVED, not restated).
+    const shorterClock = applyTunablePatch(TUNABLES, {
+      tunableId: "clock.maxTick",
+      currentValue: TUNABLES.clock.maxTick,
+      proposedValue: 2.0,
+      evidence: "unit test",
+      expectedEffect: "the horizon this predicate reads moves with it",
+    });
+    expect(retiresByTime(shorterClock, threat(2.5))).toBe(true);
+    expect(retiresByTime(shorterClock, threat(2.0))).toBe(false);
+  });
+
+  it("the gate is a pure ON/OFF switch: disabled, nothing ever retires by time", () => {
+    const disabled = applyTunablePatch(TUNABLES, {
+      tunableId: "arrival.timeRetirementEnabled",
+      currentValue: true,
+      proposedValue: false,
+      evidence: "unit test",
+      expectedEffect: "no threat is ever time-retired, however far beyond clock.maxTick its ETA sits",
+    });
+    expect(retiresByTime(disabled, threat(999))).toBe(false);
+  });
+
+  /**
+   * ============ THE LIVE ENGINE — positive control (Charter §4.1) ============
+   *
+   * `clock.maxTick` is patched down (not a new comparison — the SAME field
+   * `retiresByTime` always reads) so that a play running even a few ticks
+   * reliably produces a fresh won rep whose travel carries it past the
+   * horizon: `arrival.minTravelSeconds` is 1.0s, so any fresh win from tick
+   * 1.0 onward against a 1.5s clock already qualifies. This is the
+   * reachability proof the owner's standing rule requires before any
+   * assertion is allowed to rely on this branch existing.
+   *
+   * At the COMMITTED default (`clock.maxTick: 6.0`), this is real but rare:
+   * measured directly at 40,000 plays (`buildScenario()`, seeds
+   * `identity-0`…`identity-39999`), 6 signature occurrences across 5 plays
+   * (0.0125%) — most plays never run long enough for a fresh win to still be
+   * possible this late. That measurement is reported in the dispatch, not
+   * repeated here as a slow, flaky 40,000-seed loop; this test proves the
+   * SAME code path fires, reliably, by moving the one anchor the mechanic
+   * has rather than by hoping a rare tail shows up in CI.
+   */
+  it("fires in the live engine: a late win past a short clock is retired the same tick, never ARRIVED", () => {
+    const shortClock = applyTunablePatch(TUNABLES, {
+      tunableId: "clock.maxTick",
+      currentValue: TUNABLES.clock.maxTick,
+      proposedValue: 1.5,
+      evidence: "unit test — positive control for retireIfBeyondClock",
+      expectedEffect: "any fresh win from tick 1.0 onward cannot arrive before the play's own clock",
+    });
+
+    let sawSignature = false;
+    for (let i = 0; i < 200 && !sawSignature; i++) {
+      const { state, calls } = buildScenario();
+      const { events } = simulatePassPlay(state, calls, `time-retire-${i}`, shortClock);
+      const last = new Map<string, { state: string; etaTick: number; tick: number | undefined }>();
+      for (const { event } of events) {
+        if (event.type !== "RUSH_THREAT") continue;
+        const key = String(event.payload.rusher);
+        const prev = last.get(key);
+        if (
+          event.payload.state === "RESET" &&
+          prev !== undefined &&
+          (prev.state === "TRAVELLING" || prev.state === "DELAYED") &&
+          prev.etaTick === event.payload.etaTick &&
+          prev.tick === event.tick &&
+          prev.etaTick > shortClock.clock.maxTick
+        ) {
+          sawSignature = true;
+        }
+        last.set(key, { state: event.payload.state, etaTick: event.payload.etaTick, tick: event.tick });
+      }
+    }
+    expect(sawSignature).toBe(true);
+  });
+
+  it("nobody is ever published ARRIVED past the play's own terminal tick — a retired threat cannot get there", () => {
+    const shortClock = applyTunablePatch(TUNABLES, {
+      tunableId: "clock.maxTick",
+      currentValue: TUNABLES.clock.maxTick,
+      proposedValue: 1.5,
+      evidence: "unit test",
+      expectedEffect: "no ARRIVED beyond the clock",
+    });
+    let arrivedChecks = 0;
+    for (let i = 0; i < 200; i++) {
+      const { state, calls } = buildScenario();
+      const { events } = simulatePassPlay(state, calls, `time-retire-arrive-${i}`, shortClock);
+      for (const { event } of events) {
+        if (event.type !== "RUSH_THREAT" || event.payload.state !== "ARRIVED") continue;
+        arrivedChecks += 1;
+        expect(event.payload.etaTick).toBeLessThanOrEqual(shortClock.clock.maxTick);
+      }
+    }
+    expect(arrivedChecks).toBeGreaterThan(0); // the check above is not vacuous
+  });
+
+  it("disabling the mechanic changes the stream on the SAME seed — the tunable is not inert", () => {
+    const shortClock = applyTunablePatch(TUNABLES, {
+      tunableId: "clock.maxTick",
+      currentValue: TUNABLES.clock.maxTick,
+      proposedValue: 1.5,
+      evidence: "unit test",
+      expectedEffect: "a difference to compare against",
+    });
+    const shortClockDisabled = applyTunablePatch(shortClock, {
+      tunableId: "arrival.timeRetirementEnabled",
+      currentValue: true,
+      proposedValue: false,
+      evidence: "unit test",
+      expectedEffect: "restores the pre-ruling stream on the same seed",
+    });
+
+    let diverged = 0;
+    for (let i = 0; i < 200; i++) {
+      const { state, calls } = buildScenario();
+      const on = simulatePassPlay(state, calls, `time-retire-toggle-${i}`, shortClock);
+      const off = simulatePassPlay(state, calls, `time-retire-toggle-${i}`, shortClockDisabled);
+      if (JSON.stringify(on.events) !== JSON.stringify(off.events)) diverged += 1;
+    }
+    expect(diverged).toBeGreaterThan(0);
+  });
+
+  it("determinism (Charter pillar 5): the same seed replays byte-identically with the mechanic live", () => {
+    const shortClock = applyTunablePatch(TUNABLES, {
+      tunableId: "clock.maxTick",
+      currentValue: TUNABLES.clock.maxTick,
+      proposedValue: 1.5,
+      evidence: "unit test",
+      expectedEffect: "no die is added by this mechanic (ADR-005); the stream must still replay exactly",
+    });
+    for (let i = 0; i < 50; i++) {
+      const a = buildScenario();
+      const b = buildScenario();
+      const first = simulatePassPlay(a.state, a.calls, `time-retire-determinism-${i}`, shortClock);
+      const second = simulatePassPlay(b.state, b.calls, `time-retire-determinism-${i}`, shortClock);
+      expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+    }
   });
 });
 
