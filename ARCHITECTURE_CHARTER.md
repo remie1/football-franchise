@@ -908,6 +908,32 @@ naming values, comments, notes. They are the ones that **can be wrong indefinite
 **Prose is the extreme case** — zero enforcement, maximum authority (see the corollary above, and
 `CALIBRATION-BACKLOG.md` roadmap item **2b**, which exists for exactly this reason).
 
+> ### ⛔ AND AUTHORITY IS INVERSELY RELATED TO THE READER'S ABILITY TO CHECK IT.
+>
+> **Not all prose is equally dangerous, and the ranking is not by importance — it is by AUDIENCE.**
+>
+> | prose | why it is trusted | can the reader check it? |
+> |---|---|---|
+> | a `packages/contracts` comment | **the file is hard to change**, so the comment reads as settled | ⚠ partly — a reader can open the field it describes |
+> | ⛔ **an onboarding / next-session block** | **the reader has nothing else** | ⛔ **NO — by definition** |
+>
+> **Both are unenforced prose. The second is worse, and the reason is structural: its audience is
+> DEFINED BY NOT KNOWING BETTER.** Every other stale artefact this project has found was read by
+> someone with the context to notice. **An onboarding block is read exclusively by people who do
+> not have it** — which is §4.1's weakest medium positioned where the weakness costs most.
+>
+> ⚠ **And it produces NO SYMPTOM until someone acts on it.** A drifted pin reddens; a drifted
+> onboarding block sends a fresh session to the wrong dispatch, and the first evidence is the wasted
+> work.
+>
+> **⇒ THE ONLY VERSION THAT SURVIVES: the block is updated BY THE DISPATCH THAT MAKES IT STALE, as a
+> step in that dispatch** — not by a periodic sweep. That is the moment the author knows what actually
+> comes next, and it is the *free at authoring time, expensive afterwards* test again.
+>
+> ⛔ **AND IT POINTS AT THE ROADMAP RATHER THAN RESTATING IT.** A second copy of the roadmap in the
+> onboarding document is the **restated-constant family's fourth medium** arriving where it is least
+> checkable — a copy that will drift, read by the one audience that cannot tell.
+
 **Sub-corollary — A CLAIM IS UNVERIFIED UNTIL SOMETHING COMPUTES IT. Not distrusted. UNVERIFIED.**
 
 > ### **RATIFICATION DOES NOT ADD EVIDENCE; IT ONLY REMOVES REVIEWERS.**

@@ -1,75 +1,64 @@
 # HANDOFF
 
-> ## ▶ NEXT SESSION STARTS HERE — the caller dispatch
+> ## ▶ NEXT SESSION STARTS HERE
 >
-> Phase 1 is complete on both tracks: the engine sims full games, calibration ingests four real
-> seasons and runs baselines, the corpus states real football, and `pnpm -r test` exits 0 with
-> **2,362 tests** and CI gating on it. Twenty-five ADRs, eight Charter amendments, twenty-seven
-> backlog entries.
+> **Phase 1 complete; the pocket subsystem is mid-correction.** ADR-054 ratified, backlog through
+> entry 78, ~3,600 tests, CI gating `build` + `test` + `typecheck`.
 >
-> **The next dispatch is ADR-024's caller fix, and it was deliberately held for a fresh session**
-> because it changes what the frozen caller *knows*, which moves every pressure number in the
-> project.
+> ### The immediate next dispatch
 >
-> ### State these three things up front, or the dispatch will settle them silently
+> **Re-point calibration's `geometryTimeRetirement` reconstruction** — 3 failures, `identityMismatches`
+> `3/1/1`. Calibration keeps **its own copy** of `pocketFloorFromArrival`, pinned while
+> `arrival.pressureWithinSeconds` was `POS_INF`; entry 76 bounded it at `2.0`. Also stale:
+> `docConformance.ts`'s `arrival.pressureWithinSeconds` entry, which still classifies it
+> `INTERPRETATION` with prose claiming `POS_INF` reproduces prior behaviour.
 >
-> 1. **The anticipated front must be constrained to fronts that are POSSIBLE against the
->    offensive personnel on the field.** Otherwise the caller protects against defences that
->    could not have been called.
-> 2. **A protector who ends up in coverage needs an OWNER, not a runtime patch.** Same class as
->    the ADR-022 TRIPLE boundary disagreement, where the engine was asserting football rather
->    than arithmetic about its own arguments.
-> 3. **The caller anticipates ONCE, and everything downstream reads that draw.** Anticipating for
->    protection while concept selection reads the real card is not a smaller change — it is an
->    incoherent caller, and its failures would look like protection problems when they are the
->    seam between two views of the same defence.
+> **Then ruling 2's re-measurement**, on a tree with all three confounds closed (entry 72).
 >
-> ### Read the following re-baseline correctly
+> ### Where the roadmap lives — do not restate it here
 >
-> Hot routes going from **0.10%** to something real will move sack rate, pressure rate and
-> completion **together**. Per backlog **entry 26**, the conversion terms are already correct
-> (`pressure_to_sack` 15.32% against a real 16.37%). **Read every movement as a pressure-rate
-> change, never as evidence that conversion needs touching.** Entries 2 and 3 carry that as an
-> explicit prohibition.
+> ⛔ **`docs/decisions/CALIBRATION-BACKLOG.md`, roadmap head.** It is the single source for what comes
+> next. **This block points at it and must never summarise it** — a second copy of the roadmap is the
+> restated-constant family's fourth medium arriving in the onboarding document (Charter §4.1).
 >
-> ### Then, and only then, sensitivity
+> ### The three things that change how you read everything else
 >
-> `blockerStructuralAdvantage` **first** — entry 26 confirms it as the pressure-rate lever and
-> therefore the highest-value sweep in the project. **Unfreezing it deserves its own ADR**: it has
-> been frozen for fourteen dispatches, and sweeping it before the caller stops knowing the front
-> would fit it to a fixture-shaped pressure rate.
-> `freeRunnerArrivalSeconds` **second** — it currently governs 56 dropbacks in 496 games, so per
-> `calibration.md` §5.3's new precondition the sweep would refuse anyway.
->
-> ### Open decisions waiting for the owner
->
-> - **ADR-025** (proposed) — the baseline-identity table and its "recorded but not identity" list.
->   Those are the parts a future agent will be tempted to relax.
-> - **ADR-024's two sub-questions**, above. Named and open on purpose.
-> - **Entry 23's +0.847 y/c (17%)** remains **unowned**, deliberately not distributed.
+> 1. ⛔ **`pressure_rate` is NOT the outcome variable for pocket levers** (entry 68). It counts any
+>    non-CLEAN tick, so a `COLLAPSING → PRESSURE` demotion is invisible to it — **63.6%** of what the
+>    dominant channel does. Use `pocket_status_distribution` alongside it. `pressure_rate` stays as the
+>    figure comparable to real football.
+> 2. ⛔ **The rate lives in `COLLAPSING`** (~51% of all ticks, ~72% of dirty ticks), **not `PRESSURE`**,
+>    and the three `pocketStatusFor` channels are **not independent** — two read one roll (entry 1g).
+> 3. ⚠ **Every number priced before entry 76 was measured against an unbounded horizon**, and supply
+>    and retirement were both priced that way. **They describe a configuration the tree no longer
+>    reproduces.**
 >
 > ### Standing operational rules
 >
 > - **RUN BASELINES FROM A CLEAN TREE.** `FF_ENGINE_COMMIT` is required and shape-checked, and a
->   `-dirty` stamp **never compares equal, including to itself** (ADR-025) — so a baseline produced
->   from a dirty tree is honest and useless: nothing can ever trend against it, including a later
->   run of the same thing. This has already cost one regeneration cycle. Commit first, then
->   measure:
+>   `-dirty` stamp **never compares equal, including to itself** (ADR-025) — a baseline from a dirty
+>   tree is honest and useless. Commit first, then measure:
 >   ```
->   FF_BASELINE=1 FF_ENGINE_COMMIT=$(git rev-parse HEAD) \
->     FF_BASELINE_OUT=reports/baseline-000N.md pnpm --filter @ff/calibration test baselineTool
+>   FF_BASELINE=1 FF_ENGINE_COMMIT=$(git rev-parse HEAD) >     FF_BASELINE_OUT=reports/baseline-000N.md pnpm --filter @ff/calibration test baselineTool
 >   ```
-> - **Never buy CI time by reducing `n`** on a known-truth ladder (backlog §22c). `db-coverage`
->   needs ~5× the sample of any other family and its SE estimate is itself unstable.
+> - **Never buy CI time by reducing `n`** on a known-truth ladder (backlog §22c). `db-coverage` needs
+>   ~5× the sample of any other family and its SE estimate is itself unstable.
+> - **Contracts is write-protected and the deny applies to the Orchestrator too.** Lift → amend →
+>   restore in one window, with the audit trail in the commit message (habit 7). A `commit-msg` hook
+>   rejects any commit staging `packages/contracts/**` without an `ADR-0NN` reference.
+> - ⚠ **The working habits in PART 5 are not optional colour** — habits 8, 9 and 10 each exist because
+>   something shipped broken. Read them before the first dispatch.
 >
-> ### Two things that will bite if forgotten
+> ### ⛔ THIS BLOCK IS UPDATED BY THE DISPATCH THAT MAKES IT STALE
 >
-> - **Contracts is write-protected and the deny applies to the Orchestrator too.** Amending means
->   lift → amend → restore, in one window, with the audit trail in the commit message. A
->   `commit-msg` hook rejects any commit staging `packages/contracts/**` without an `ADR-0NN`
->   reference.
-> - **Never buy CI time by reducing `n`** on a known-truth ladder (backlog §22c). `db-coverage`
->   needs ~5× the sample of any other family and its SE estimate is itself unstable.
+> Not by a periodic sweep. **The moment a dispatch changes what comes next, it updates this block** —
+> that is when the author knows the answer, and it is free then and expensive later.
+>
+> **Why this one is enforced when other prose is not:** *the authority of a document is inversely
+> related to its readers' ability to check it.* This block is **read first, trusted most, by a reader
+> with no context to check it against** — the only stale artefact in this repo whose audience is
+> defined by not knowing better. ⚠ **A stale onboarding block produces no symptom until someone acts
+> on it.**
 
 ---
 
