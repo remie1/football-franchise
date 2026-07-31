@@ -1083,6 +1083,22 @@ the rule is written the first time the class is *seen*, and the class is larger 
 that revealed it — so the next instance lands **in the rule's own blind spot**, which is the one
 place nobody re-examines *because a rule now exists there.*
 
+> ### ⛔⛔ THE CLEAREST EVIDENCE THAT RULES DO NOT APPLY THEMSELVES: THE INSTRUCTION AND ITS VIOLATION IN THE SAME MESSAGE.
+>
+> A brief instructed a dispatch: ***"derive the set; do not list it — a hand-enumerated list is the
+> thing this project has been wrong about every single time it has been checked."*** **The same brief
+> then handed over a hand-carried list of two, quoted from a previous report. The derivation found
+> three.**
+>
+> ⚠ **Knowing the rule, stating the rule, and citing the reason for the rule provided NO protection
+> against the thing the rule forbids** — in the same message, within a few lines of each other.
+>
+> **⇒ This is the strongest available form of *naming a trap does not exempt the next decision from
+> it*.** The usual case is a rule violated later, elsewhere, by someone who may not have read it.
+> **Here the author had just written it down.** ⛔ **So the defence is never awareness — it is the
+> mechanical step: derive, compute, enumerate to the leaves.** ⚠ **Awareness is what produced the
+> instruction; it did not produce compliance.**
+
 > ⛔ **THE OPERATIVE FORM: an instrument's blind spot must be written down BY ITS AUTHOR, WHILE THEY
 > ARE BUILDING IT.** Entry 55's *"what would make this go red?"* field exists for exactly this, and it
 > works — but only for instruments built after it. **Every instrument that predates the field has an
@@ -1407,6 +1423,21 @@ produces no observable effect downstream, not because it is wrong but because **
 it.** Three victims of one shape now — an absorbed *mechanic* (the engine implements it and nothing
 is observable), an absorbed *lever* (it moves the game and the metric cannot see it), and an absorbed
 *finding* (it is measured and recorded and nothing reuses it).
+
+> ### ⛔ AND IT SCALES ALL THE WAY DOWN TO A CODE COMMENT — the same shape, one medium lower.
+>
+> A test in `geometryTimeRetirement.test.ts` carried the comment ***"real stream would still be dirty
+> in practice; not asserted here."*** **Correct. Honest. Recorded AT THE SITE. And inert for its
+> entire life** — the test published a `POCKET_STATUS` that disagreed with the reconstruction by
+> **two** mismatches, and nothing noticed, **because nothing reads a comment.**
+>
+> ⚠ **It was found by a DERIVATION over the file's own source**, not by anyone reading it — which is
+> the point. **The author declared the gap in the only medium available at the moment they saw it,
+> and that medium has no consumer.**
+>
+> **⇒ Same anatomy as ADR-049's severity table sitting inert in one ADR, one medium down: a correct
+> observation recorded where nothing can act on it.** ⛔ **Declaring a gap in prose is not covering it.
+> It is a note that the gap exists, addressed to nobody.**
 
 > ### ⛔ AND AN ABSORBED MECHANIC CAN HIDE A TRANSCRIPTION DEFECT INSIDE ITSELF — because the doc-conformance register has nothing to check.
 >
