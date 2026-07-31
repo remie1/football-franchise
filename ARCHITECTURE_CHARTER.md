@@ -1099,7 +1099,21 @@ with an unwritten blind spot.
 **Corollary — *"IS THIS A LEVER?"* AND *"IS THIS CORRECT?"* ARE DIFFERENT QUESTIONS, AND ANSWERING THE
 FIRST SILENTLY CLOSES THE SECOND.**
 
-> ### **A refused lever leaves its football question UNASKED — and the refusal reads like an answer to it.**
+> ### **We ran a full sweep to refuse a lever, and the football answer was available the whole time from a ruling we had already made one channel over.**
+>
+> **A refused lever leaves its football question UNASKED — and the refusal reads like an answer to it.**
+
+⛔ **AND THE SHARPER HALF IS NOT THAT THE QUESTION WENT UNASKED. IT IS THAT THE ANSWER WAS ALREADY IN
+THE CORPUS, ONE ADR AWAY, AND NOTHING CONNECTED THEM.** ADR-032 ruled *gaining ground is not
+pressure* and removed a floor that carried no information. `POS_INF` is the identical error in the
+adjacent channel. **ADR-032 was correct, ratified, and INERT with respect to the identical case next
+door** — which is the **absorbed finding** (below) arriving at a *ruling* rather than at a
+measurement.
+
+> ⇒ **SO THE CHEAP FIRST PASS, BEFORE ANY FOOTBALL ARGUMENT FROM SCRATCH: for each committed value,
+> ask whether a RATIFIED RULING ELSEWHERE ALREADY DECIDES IT.** It is faster than reasoning from the
+> football, and **it is how this one would have been caught.** ⚠ A ruling's reach is almost never
+> recorded at the cells it implies — only at the cell that provoked it.
 
 **A lever is refused on a number.** The refusal is recorded, the queue moves on, and **the cell keeps
 its value** — not because anyone judged the value correct, but because **nothing in a lever refusal is

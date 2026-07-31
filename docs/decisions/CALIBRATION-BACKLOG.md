@@ -4848,3 +4848,62 @@ outcome variable.** **Priced afterwards.** ⚠ **Entry 37 — name what is held:
 | ⛔ the unbounded horizon | ✅ **closed by this ruling** |
 
 **⇒ Ruling 2 re-measures on a fully de-confounded tree once this lands.**
+
+---
+
+## 77. 📋 OWED RE-READING — four refused levers whose FOOTBALL question was never asked
+
+**Not a re-run.** Answerable from the doc and the code, like 68-RESULT was.
+
+**Each was refused as a LEVER. None was ever asked whether its committed value is FOOTBALL**
+(Charter §4.1: *a refused lever leaves its football question unasked*).
+
+| subject | refused at | football question never asked |
+|---|---|---|
+| `blockerStructuralAdvantage` | ADR-028, 4.70pp of budget | is the committed value right? |
+| `freeRunnerArrivalSeconds` | ADR-030, 0.406pp | is `1.5s` right? |
+| `RUSHER_GAINING`'s band map | ADR-032, 2.395pp | ⚠ **see the prediction below** |
+| entry 40's supply arms | ADR-049, −0.111pp committed | is `minMargin: 15` right? |
+
+### ⛔ STEP ONE IS CHEAP AND IS NOT A FOOTBALL ARGUMENT
+
+> **For each committed value, ask first: DOES A RATIFIED RULING ELSEWHERE ALREADY DECIDE IT?**
+
+**That is how entry 76 would have been caught without a sweep** — ADR-032's *gaining ground is not
+pressure* already implied `POS_INF` was wrong in the adjacent channel, and **nothing connected them
+because a ruling's reach is recorded only at the cell that provoked it, never at the cells it
+implies.**
+
+**Only if step one finds nothing does a football argument from scratch begin.**
+
+> ### 🧭 OWNER'S EXPECTATION — PRE-REGISTERED, UNRULED, AND ⛔ **NOT TO BE SHARED WITH THE DISPATCH**
+>
+> *"Given ADR-032 covers 'gaining ground is not pressure', I'd expect `RUSHER_GAINING`'s band map to
+> fall out of that same reading immediately."*
+>
+> ⚠ **This is an EXPECTATION pre-registration, not a DISPOSITION one** (Charter §4.1) — it names a
+> direction, so **it supplies the answer and must stay on this side.** The dispatch gets the *method*
+> (step one), never the *prediction*. If it reaches the same conclusion without being told, **that
+> agreement is evidence**; if it is told, it is an echo.
+
+---
+
+## 78. 📌 THE COST, RECORDED PLAINLY — **four dispatches to clear three confounds on a 0.108pp lever**
+
+| dispatch | what it closed |
+|---|---|
+| the census | metric blindness — only a third of retirements demote |
+| 59-RESULT | P2's ceiling — ⛔ **never a confound at all**; ADR-049 §8 had excluded `RUSHER_WINS_REP` correctly |
+| 1e | measured the horizon, and **refused it as a lever** |
+| entry 76 | the horizon — **closed by ruling, not by measurement** |
+
+> ### **That is the real cost of measuring anything on this subsystem BEFORE the instruments were right.**
+
+⚠ **And it is not an argument against having done it.** Each dispatch closed something permanently,
+and **two of the three "confounds" dissolved rather than resolved** — one was never a confound, one
+was settled by a football ruling that needed no measurement at all. **The instrument work was the
+price of discovering which was which**, and that price is paid once per subsystem rather than once
+per lever.
+
+**Worth citing whenever a lever's price looks cheap to obtain:** the *measurement* is rarely the cost.
+**Establishing that the measurement means what it appears to mean** is.
