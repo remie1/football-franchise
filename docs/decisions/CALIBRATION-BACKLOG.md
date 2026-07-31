@@ -4736,3 +4736,32 @@ declaration), `packages/engine/test/rushThreat.test.ts` (the `@ts-expect-error` 
 pre-existing runtime check), `packages/engine/src/sim/passPlay.ts` (comment only, at the chain itself —
 no logic changed). Full `pnpm --filter @ff/engine test` (47 files, 796 tests) and `pnpm -r build` both
 pass on the changed tree.
+
+---
+
+## 75. 🧭 PRE-REGISTERED, UNRULED — the football question entry 59 is about to surface
+
+**Recorded BEFORE entry 59's dispatch reports**, so the expectation is falsifiable and cannot
+retroactively shape the reading (ADR-033's rule).
+
+> ### **THE QUESTION, which has never been asked because the branch was unreachable: should a rusher who has just won his rep have his threat RESET?**
+
+**Owner's instinct, explicitly UNRULED and explicitly worth nothing without the mechanism:**
+
+> *"My instinct is **no**, and it is the same instinct that produced ruling 2 — **winning a rep is
+> precisely when a threat should be most live.** But that is worth nothing without the mechanism, and
+> it should arrive as a question rather than as a consequence."*
+
+⚠ **Do not treat this as a ruling and do not let a dispatch satisfy it.** It is recorded so that:
+
+- **if the mechanism contradicts it, the contradiction is visible** rather than absorbed — a falsified
+  owner expectation is a result and gets recorded beside the prediction (as entry 71's was, one
+  dispatch ago);
+- **and if a dispatch produces an answer matching it, the match is not evidence** — a pleasing result
+  is one of the reviewer-removing triggers (Charter §4.1), and an instinct confirmed by a dispatch
+  that knew the instinct is worth less than one confirmed by a dispatch that did not.
+
+**⇒ THE EXPECTED SHAPE OF THE ANSWER IS "FIX THE ORDERING WITHOUT MAKING THE BRANCH NEWLY LIVE."**
+That removes the silent dead config — the thing that made **every recorded `retireOn` number describe
+an unreachable configuration** — **without answering a football question nobody asked.** The question
+then arrives cleanly, on its own, as a petition.

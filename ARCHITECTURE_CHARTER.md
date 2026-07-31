@@ -1476,6 +1476,28 @@ was.** Prefer conversion wherever the post-fix state is assertable; delete only 
 become unrepresentable (ADR-034's narrowing, ADR-036's discriminated union), because then the type is
 the standing evidence.
 
+> ### ⛔ AND THE SAME ASYMMETRY SEEN FROM THE OTHER SIDE: **REMOVING A CONFIGURATION ASSERTS THAT ITS SUBJECT SHOULD NOT EXIST.**
+>
+> This corollary requires that **retiring an artefact be an ACTION rather than an ANNOTATION.** The
+> mirror is that **DELETING one is a RULING rather than a TIDY-UP** — and that direction is easier to
+> miss, **because deletion reads as cleanup while addition reads as a decision.**
+>
+> **The worked case (backlog entry 59):** `pressureProgressByBand.RUSHER_WINS_REP.reset` is
+> unreachable. Two candidate fixes, and **both smuggle a football ruling if nobody names it:**
+>
+> | fix | the claim it *looks* like | ⛔ the claim it *makes* |
+> |---|---|---|
+> | make the branch reachable | *"the statement order was wrong"* | **a rusher who wins his rep SHOULD be able to retire the threat that rep created** |
+> | delete the config | *"this value is a transcription artefact"* | **NO band should ever reset on a won rep** |
+>
+> **⇒ Neither question has ever been asked.** The branch was unreachable, so **the football never came
+> up** — and both fixes answer it silently, in opposite directions, while presenting as maintenance.
+>
+> **THE OPERATIVE FORM: before deleting a configuration, state what its ABSENCE asserts.** If that
+> sentence is a design claim, ⚠ **it is a petition, not a cleanup** — and the honest move is often a
+> third option: **make the unreachability explicit and enforced, and leave the football question
+> open.** That removes the silent dead config *without* answering anything.
+
 > ### ⚠ THE EXCEPTION, AND IT CUTS THE OTHER WAY: WHEN THE CAPABILITY ITSELF IS THE HAZARD, RETIRE THE ABILITY TO RUN IT AND KEEP ONLY THE RECORD.
 >
 > Conversion is the default because a deleted guard leaves no evidence. **But some retired artefacts
