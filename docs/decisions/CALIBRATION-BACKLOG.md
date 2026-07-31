@@ -4150,3 +4150,93 @@ the recorded prices stand as-is, and this entry closes with no consequence.
 INTERIOR ticks while EDGE splits differently, given INTERIOR travel (1.0s) meets
 `collapsingWithinSeconds` (1.0) exactly while EDGE is 1.5–2.0s. **Do not round a split answer to
 whichever side is larger.**
+
+---
+
+## 67-RESULT. ⛔⛔ **THE CONDITIONAL HOLDS.** `pressure_rate` is blind to the majority of what the dominant channel does.
+
+**Recorded BESIDE entry 67's pre-registration, not folded into it.** The pre-registration stands
+unamended and is now falsifiable-and-not-falsified.
+
+**Canonical run**, seeds stated: `batchSeedFor(0) = "baseline-0001"` (`fnv1a:020c1dcb#496`),
+`batchSeedFor(1) = "baseline-0001/pcs-set-1"` (`fnv1a:42c437d5#496`). 992 games, 86,291 dropbacks,
+**257,598 ticks, identity falsifier 0 mismatches**, and the overall fold reproduces entry 66's
+figures digit-for-digit — so the cross-cut changed nothing underneath.
+
+### The pre-registered number
+
+> ### **58.034% of arrival's exclusive share is `COLLAPSING`.** The conditional asked whether it was *most*. It is.
+
+| status | arrival-exclusive ticks | share of arrival's own 43.676% |
+|---|---|---|
+| PRESSURE | 15,616 | 19.606% |
+| **COLLAPSING** | **46,225** | **58.034%** |
+| IMMEDIATE | 17,810 | 22.360% |
+
+⇒ **Arrival's COLLAPSING-exclusive share is 25.347% of all dirty ticks, NOT 43.676%.** 1f's ruling was
+built on the larger number. **These two measurements had never been connected before this run.**
+
+### ⛔ THE OPERATIONAL PAYLOAD — demote-versus-clear
+
+`pressure_rate` counts **any** non-CLEAN tick, so only `ALONE` ticks would go *clear* if a channel's
+contribution were removed; `TIED` + `DOMINATED` would merely be **demoted**, and a demotion is
+**invisible to the rate.**
+
+| channel | status | would CLEAR | ⛔ **would NOT clear — invisible to `pressure_rate`** |
+|---|---|---|---|
+| arrival | **COLLAPSING** | 36.371% | ⛔ **63.629%** |
+| bandFloor | **COLLAPSING** | 5.774% | ⛔ **94.226%** |
+| counter | COLLAPSING | 0.000% | 100.000% |
+| arrival | IMMEDIATE | **99.996%** | 0.004% |
+| bandFloor | IMMEDIATE | 0.000% | 100.000% |
+
+> ### **On COLLAPSING — 72.2% of all dirty ticks — a lever acting on arrival alone is INVISIBLE TO `pressure_rate` 63.6% of the time. On the band floor it is invisible 94.2% of the time.**
+
+**⇒ SO THE CONSEQUENCE ENTRY 67 PRE-REGISTERED IS LIVE: every refusal on this subsystem needs
+RE-READING, not re-running.** The question those prices cannot answer is *"did this lever move
+severity without moving the rate?"* — because **none of them partitioned by status.** Affected as
+listed: entry 40's supply arms, ruling 2's `0.108pp`, 1e's `−2.440pp`, and the four levers refused
+before ADR-049.
+
+⚠ **Note what this does NOT say.** It does not say those levers worked. It says **the recorded numbers
+cannot distinguish a lever that did nothing from a lever that demoted severity** — and a refused
+lever leaves a number that reads as evidence of a small mechanism either way (entry 64's shape at a
+measurement).
+
+### ✅ The alignment split — Finding 3's mechanism, taken cheaply
+
+Tie subset `arrival + bandFloor`, cross-checked two ways (77,283 = 77,283):
+
+| argmin-arrival rusher | ticks | share of tie |
+|---|---|---|
+| **INTERIOR** (travel **1.0s** — the exact-coincidence case) | **64,654** | **83.659%** |
+| EDGE (1.5–2.0s — not coincident) | 12,629 | 16.341% |
+
+**Consistent with Finding 3** — INTERIOR travel meeting `collapsingWithinSeconds` exactly at 1.0.
+
+⚠ **Abstention carried, and it is the right one:** this attributes the tie to the alignment of the
+rusher whose ETA sets **channel 3**, *not* proven to be the same rusher who set **channel 2**'s band
+floor — `previousBand` is a worst-of across every live matchup and can persist from an earlier tick.
+**Consistent with the mechanism; not proof of it.** Resolving it needs per-rusher provenance of which
+CHECK last set `previousBand`.
+
+### 🔧 CORRECTION TO THE REPORT — the "~51%" flag is a FALSE ALARM, and the reason is instructive
+
+The dispatch flagged 1f's *"COLLAPSING is ~51% of ticks"* as using a different denominator from its
+own 72.2%. **Both are correct and they are the same number:**
+
+- `131,711 / 257,598` = **51.13% of ALL ticks** ← 1f's figure, correct as written
+- `131,711 / 182,367` = **72.22% of DIRTY ticks**
+
+**Right instinct, wrong conclusion** — and worth recording precisely because the instinct is the one
+§5.3 trains (*a share is meaningless without its denominator*). ⚠ **The lesson is that the discipline
+also generates FALSE POSITIVES, and a flagged discrepancy must be arithmetically closed rather than
+reported as a discrepancy.** Both denominators should be stated wherever this figure appears.
+
+### 📌 Entry 66's open item, deliberately not closed
+
+**No shared canonical seed-set constant exists anywhere** (`CANONICAL_SEED|SHARED_SEED|canonicalSeedSet`
+— zero hits). The dispatch **abstained from introducing one silently**, correctly, per entry 66's own
+ruling. ⇒ **Still owed as a decision, not a task:** if `pocketChannelShares` and
+`pressureHorizonChannelShares` are meant to be exact replicates, the shared constant is the honest
+fix; if they are not, the differing labels are correct and should say so.

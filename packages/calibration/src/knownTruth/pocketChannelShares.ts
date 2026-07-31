@@ -83,6 +83,17 @@ export interface TickChannels {
   readonly counter: PocketStatus;
   readonly bandFloor: PocketStatus;
   readonly arrival: PocketStatus;
+  /**
+   * The alignment of the rusher whose ETA is the argmin of `real` at this tick — i.e. the rusher
+   * channel 3's own value is READ OFF, when there is one. `undefined` when the pursuit clock is
+   * live (§8.8 replaces the whole rusher-keyed threat set, per the module header — there is no
+   * single rusher to attribute the clock to) or when `real` is empty (arrival is CLEAN and has no
+   * argmin). Added for backlog 1f-RESULT's Finding 3 follow-up: whether the arrival+bandFloor tie
+   * is INTERIOR-driven (where the two constants meet exactly) or EDGE (where they do not) is a
+   * question about the SAME argmin rusher this field names — no new reconstruction, only a second
+   * field read off state `reconstructPlay` already carries.
+   */
+  readonly arrivalAlignment: RushAlignment | undefined;
 }
 
 export interface PlayChannelReclass {
@@ -152,13 +163,22 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
   let identityMismatches = 0;
   const ticks: TickChannels[] = [];
 
-  const minTtaOfReal = (): number | undefined => {
+  // The argmin of `real` by time-to-arrival, plus its alignment. Ties broken by Map iteration
+  // order (insertion order); not disambiguated further because `passRush.bands`' §7.1 travel
+  // times are per-alignment constants, so two tied rushers of the SAME alignment agree on the
+  // answer this field exists to give, and a tie ACROSS alignments is a separate, rarer question
+  // this field does not claim to answer (see the report's abstention).
+  const minThreatOf = (): { readonly tta: number; readonly alignment: RushAlignment } | undefined => {
     let min: number | undefined;
+    let alignment: RushAlignment | undefined;
     for (const t of real.values()) {
       const tta = t.etaTick - curTick;
-      if (min === undefined || tta < min) min = tta;
+      if (min === undefined || tta < min) {
+        min = tta;
+        alignment = t.alignment;
+      }
     }
-    return min;
+    return min === undefined || alignment === undefined ? undefined : { tta: min, alignment };
   };
 
   for (const envelope of buf) {
@@ -214,11 +234,15 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
         let counter: PocketStatus;
         let bandFloor: PocketStatus;
         let arrival: PocketStatus;
+        let arrivalAlignment: RushAlignment | undefined;
         if (pursuitDeadlineTick !== undefined) {
-          // §8.8 live: channels 1 and 2 are pinned CLEAN by construction (module header).
+          // §8.8 live: channels 1 and 2 are pinned CLEAN by construction (module header). The
+          // pursuit clock has no single rusher to attribute an alignment to (it replaces the
+          // whole threat set), so `arrivalAlignment` is `undefined` here by construction too.
           counter = "CLEAN";
           bandFloor = "CLEAN";
           arrival = floorFromArrival(tunables, pursuitDeadlineTick - curTick);
+          arrivalAlignment = undefined;
         } else {
           const highest = [...rushers.values()].reduce((m, r) => Math.max(m, r.pressure), 0);
           const previousBands = [...rushers.values()].flatMap((r) =>
@@ -226,11 +250,13 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
           );
           counter = statusFromCounter(tunables, highest);
           bandFloor = statusFromBandFloor(tunables, previousBands);
-          arrival = floorFromArrival(tunables, minTtaOfReal());
+          const minThreat = minThreatOf();
+          arrival = floorFromArrival(tunables, minThreat?.tta);
+          arrivalAlignment = minThreat?.alignment;
         }
         const predicted = worstOf(tunables, worstOf(tunables, counter, bandFloor), arrival);
         if (predicted !== event.payload.status) identityMismatches += 1;
-        ticks.push({ published: event.payload.status, counter, bandFloor, arrival });
+        ticks.push({ published: event.payload.status, counter, bandFloor, arrival, arrivalAlignment });
         break;
       }
       default:
@@ -353,4 +379,118 @@ export function foldTick(fold: ChannelFold, tick: TickChannels, tunables: Tunabl
     const isExclusive = values[id] !== "CLEAN" && others.every((j) => values[j] === "CLEAN");
     if (isExclusive) fold.exclusiveOfDirty[id] += 1;
   }
+}
+
+// ---------------------------------------------------------------------------
+// STATUS PARTITION — the 1f-RESULT abstention: which STATUS a dirty tick emitted, cross-cut
+// against the SAME winner/alone/tied/exclusive columns above. See CALIBRATION-BACKLOG.md
+// 1f-RESULT, "THE ABSTENTION THAT GATES THE NEXT DISPATCH". `pocketChannelShares.ts` partitioned
+// dirty ticks by WINNING CHANNEL only; this partitions by the CHANNEL and the EMITTED STATUS
+// together, by calling `foldTick` a second time into a per-status accumulator. No new
+// reconstruction, no new falsifier: the same `TickChannels` stream, the same `foldTick`.
+// ---------------------------------------------------------------------------
+
+/** The three statuses a dirty tick can carry. `CLEAN` ticks are excluded by definition. */
+export const DIRTY_STATUSES = ["PRESSURE", "COLLAPSING", "IMMEDIATE"] as const;
+export type DirtyStatus = (typeof DIRTY_STATUSES)[number];
+
+export interface StatusPartitionedFold {
+  /** Identical to running `foldTick` alone over every tick — the un-partitioned table. */
+  readonly overall: ChannelFold;
+  /** One `ChannelFold` per emitted status, fed ONLY the ticks whose `published` equals that key. */
+  readonly byStatus: Record<DirtyStatus, ChannelFold>;
+}
+
+export function emptyStatusPartitionedFold(): StatusPartitionedFold {
+  return {
+    overall: emptyChannelFold(),
+    byStatus: {
+      PRESSURE: emptyChannelFold(),
+      COLLAPSING: emptyChannelFold(),
+      IMMEDIATE: emptyChannelFold(),
+    },
+  };
+}
+
+/**
+ * Fold one tick into both the overall accumulator and (if dirty) its status-keyed accumulator.
+ *
+ * ⚠ **WHY `allTicks === dirtyTicks` INSIDE EVERY `byStatus` ENTRY, AND WHY THAT IS CORRECT AND NOT
+ * A BUG.** Each `byStatus[S]` accumulator is fed exclusively ticks with `published === S`, which is
+ * by definition never `CLEAN`, so every tick handed to it is dirty by `foldTick`'s own test. The
+ * ALL-ticks and DIRTY-ticks denominators therefore coincide inside a status partition — there is no
+ * CLEAN population left to distinguish them from, once the partition has already fixed the status.
+ * `EXCLUSIVE / all ticks` and `EXCLUSIVE / dirty ticks` are consequently IDENTICAL columns within
+ * each `byStatus[S]` table; both are still reported, unreduced, so a reader can see that identity
+ * rather than take it on faith.
+ */
+export function foldTickByStatus(fold: StatusPartitionedFold, tick: TickChannels, tunables: Tunables): void {
+  foldTick(fold.overall, tick, tunables);
+  if (tick.published === "CLEAN") return;
+  foldTick(fold.byStatus[tick.published], tick, tunables);
+}
+
+export function mergeStatusPartitionedFold(a: StatusPartitionedFold, b: StatusPartitionedFold): void {
+  mergeChannelFold(a.overall, b.overall);
+  for (const s of DIRTY_STATUSES) mergeChannelFold(a.byStatus[s], b.byStatus[s]);
+}
+
+function mergeChannelFold(a: ChannelFold, b: ChannelFold): void {
+  a.allTicks += b.allTicks;
+  a.dirtyTicks += b.dirtyTicks;
+  for (const id of CHANNEL_IDS) {
+    a.winner[id] += b.winner[id];
+    a.alone[id] += b.alone[id];
+    a.tied[id] += b.tied[id];
+    a.exclusiveOfAll[id] += b.exclusiveOfAll[id];
+    a.exclusiveOfDirty[id] += b.exclusiveOfDirty[id];
+  }
+  for (const [k, v] of b.winnerSubsets) a.winnerSubsets.set(k, (a.winnerSubsets.get(k) ?? 0) + v);
+}
+
+// ---------------------------------------------------------------------------
+// THE ALIGNMENT SPLIT — 1f-RESULT Finding 3's unmeasured decomposition of the arrival+bandFloor
+// tie, taken cheaply off the SAME reconstruction because `TickChannels.arrivalAlignment` was
+// already available (added above). NOT a new instrument: same ticks, same `severityOf`, one more
+// field read off state `reconstructPlay` already carried.
+//
+// ⚠ WHAT THIS DOES AND DOES NOT ESTABLISH. It reports the alignment of the rusher whose ETA
+// determines channel 3's value on ticks where channels 2 and 3 are TIED FOR THE MAX (winning
+// subset exactly `{arrival, bandFloor}`). It does NOT establish that this is the SAME rusher who
+// set the band floor (channel 2's `previousBand` is a worst-of across all rushers with a live
+// matchup, tracked independently of `real`, and can persist from an earlier tick after the
+// argmin-by-arrival rusher has changed) — see the report's abstention on this exact point.
+// ---------------------------------------------------------------------------
+
+export interface TieAlignmentSplit {
+  /** Ties where the argmin-arrival rusher is INTERIOR — the exact-coincidence case Finding 3 named. */
+  interior: number;
+  /** Ties where the argmin-arrival rusher is EDGE — travel 1.5–2.0s, not the coincident case. */
+  edge: number;
+  /** Ties with no attributable alignment (pursuit clock live, or no live threat) — see header. */
+  unattributed: number;
+}
+
+export function emptyTieAlignmentSplit(): TieAlignmentSplit {
+  return { interior: 0, edge: 0, unattributed: 0 };
+}
+
+/**
+ * Fold one tick into the arrival+bandFloor tie-alignment split, using the IDENTICAL winner
+ * computation `foldTick` uses (severity-max, ties by equal severity) so the subset this measures
+ * is exactly the `"arrival+bandFloor"` row of `ChannelFold.winnerSubsets`.
+ */
+export function foldTieAlignmentSplit(acc: TieAlignmentSplit, tick: TickChannels, tunables: Tunables): void {
+  if (tick.published === "CLEAN") return;
+  const sev: Record<ChannelId, number> = {
+    counter: severityOf(tick.counter, tunables),
+    bandFloor: severityOf(tick.bandFloor, tunables),
+    arrival: severityOf(tick.arrival, tunables),
+  };
+  const M = Math.max(sev.counter, sev.bandFloor, sev.arrival);
+  const winners = CHANNEL_IDS.filter((id) => sev[id] === M);
+  if (winners.length !== 2 || !winners.includes("arrival") || !winners.includes("bandFloor")) return;
+  if (tick.arrivalAlignment === "INTERIOR") acc.interior += 1;
+  else if (tick.arrivalAlignment === "EDGE") acc.edge += 1;
+  else acc.unattributed += 1;
 }
