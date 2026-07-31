@@ -4301,3 +4301,90 @@ colliding, since both describe "COLLAPSING" and differ by 21pp.
 same week it generated its most valuable true positive (entry 67's demote-versus-clear). **A
 discipline sharp enough to be worth having is sharp enough to misfire; the fix is closure, not
 softening the instinct.**
+
+---
+
+## 68-RESULT. ⛔ FOUR REFUSALS STAND, TWO NEED RE-MEASUREMENT — and the re-read cost no simulation at all
+
+**Read from code and recorded numbers only. Nothing re-run.** The verdicts turn on one structural
+fact (`tunables.ts:777-784`): **only two bands are dirty** — `RUSHER_WINS_REP → COLLAPSING`,
+`BLOCKER_BEATEN → PRESSURE`. The other four are `CLEAN`.
+
+| subject | verdict | why |
+|---|---|---|
+| entry 40's supply arms | ✅ **STANDS** | ⛔ **ADR-049 ALREADY PUBLISHED THE SEVERITY TABLE FOR THIS ARM** — see below |
+| `freeRunnerArrivalSeconds` | ✅ **STANDS** | ADR-030's governed-population table already reports the redistribution; `sack_rate` catches the consequence |
+| `RUSHER_GAINING`'s band map | ✅ **STANDS** | **structurally cannot demote** — reachable states are `CLEAN`/`PRESSURE` only, never `COLLAPSING` |
+| `arrival.pressureWithinSeconds` + 1e | ✅ **STANDS** | **structurally cannot demote** — `PRESSURE` is the *lowest* dirty rung of that branch; the two rungs above are set by other constants |
+| `blockerStructuralAdvantage` | ⚠ **RE-MEASURE**, near-committed region only | ADR-028 records the curve is **15× steeper at BSA 75–90 than at 0–5**; a shallow-slope regime near a roll's mode is where mass moves `RUSHER_WINS_REP → BLOCKER_BEATEN` first |
+| **ruling 2's threat retirement** | ⛔ **RE-MEASURE — strongest candidate** | see below |
+
+### ⛔⛔ THE FINDING INSIDE THE RE-READ: THE MEASUREMENT EXISTED. THE METRIC DIDN'T.
+
+**ADR-049 §2 already carries a CLEAN/PRESSURE/COLLAPSING/IMMEDIATE table for the supply arm**, and
+already states the conclusion in its own words: ***"COLLAPSING falls by 39 points and PRESSURE rises
+by 48, and CLEAN does not move at all."***
+
+> ### **The demotion entry 67 discovered was measured, written down, and published — five dispatches before anyone could use it.**
+
+**It was a table in one ADR rather than a standing metric**, so it explained *that* arm and
+transferred to nothing. Then four more levers were priced on `pressure_rate` alone.
+
+⇒ **That is the argument for entry 68's ruling, and it is stronger than the one the ruling was made
+on.** The problem was never that the project could not see demotion — **it saw it, recorded it
+accurately, and had no way to reuse it.** ⚠ **A finding in a document is available to whoever reads
+that document; a metric is available to everyone who runs anything.** Same fact, incomparable reach.
+
+### The owner's expectation: CONFIRMED, and the mechanism is more specific than predicted
+
+**Predicted:** ruling 2's retirement is the likeliest demoter, because retiring a threat *removes an
+ETA from `minTta` entirely* rather than shifting a threshold.
+
+**Confirmed — but it is BAND-DEPENDENT, which the prediction did not say.**
+`passPlay.ts:524` sets `m.previousBand = rush.band` **unconditionally, BEFORE the branch dispatch**
+(verified independently). So the band that *triggered* a retirement is also that rusher's band-floor
+input for the next tick, **whichever branch fired**. And ADR-049's P2 retires on `BLOCKER_BEATEN`,
+`RUSHER_GAINING`, `STALEMATE` and `BLOCKER_CONTAINS` alike — of which **only `BLOCKER_BEATEN` maps to
+a dirty floor.**
+
+> **⇒ A `BLOCKER_BEATEN`-triggered retirement removes the arrival clock AND RE-DIRTIES THE SAME TICK
+> VIA THE BAND FLOOR — a demotion, not a clear. Retirement via the other three genuinely clears.**
+
+⚠ **So ruling 2's `0.108pp` now carries THREE named confounds**, not two: entry 59's dead-branch P2
+ceiling, the unbounded `pressureWithinSeconds`, and this.
+
+**Abstention, and it is the first number a re-measurement should report:** `BLOCKER_BEATEN`'s
+population share is **not in the record** — the band inherited part of the pre-ADR-033
+`RUSHER_GAINING` 1–14 range, now split 1–4 / 5–14, and no post-split census exists.
+
+### What the `IMMEDIATE` evidence rules out
+
+Arrival clears **99.996%** on `IMMEDIATE`, so **none of these near-null prices can be hiding a masked
+`IMMEDIATE`-severity effect** — a movement there would have shown up in `pressure_rate`. **Whatever
+masking exists is concentrated at the `COLLAPSING`/`PRESSURE` boundary**, which is consistent with
+every verdict above.
+
+---
+
+## 70. ✅ RULED (owner, July 2026) — THE TWO CHANNEL-SHARE HARNESSES KEEP DIVERGENT SEED LABELS. **Option B.**
+
+**Closing entry 66.** `pocketChannelShares.test.ts` uses `pcs-set-N`; `pressureHorizonChannelShares.test.ts`
+uses `phcs-set-N`; set 0 is `"baseline-0001"` in both and byte-identical.
+
+| option | verdict |
+|---|---|
+| **A — shared canonical seed constant** | ⛔ **REJECTED.** Makes every future cross-check between the two **structurally incapable of detecting sampling error** — `ladderTail`'s live-reader defect arriving through **seeds** instead of **code**, one week after we paid to remove it. *Comparability bought by destroying independence is the same bad trade in either medium.* |
+| **B — keep divergent labels, document why** | ✅ **RULED.** Agreement between the two on a shared quantity is then **cross-validation, not tautology.** |
+| **C — shared constant plus a declared independent set** | ⛔ **REJECTED EXPLICITLY, because it will look attractive to whoever revisits this.** It buys both properties for one more concept — but the concept is *"which seed set am I allowed to compare against"*, and **that is exactly the kind of distinction that erodes.** Someone in a hurry uses the shared set for a cross-check and the tautology arrives silently. **B costs a comment; C costs a rule that must be remembered at every call site.** |
+
+**What entry 66 actually exposed was an UNDOCUMENTED divergence, not a wrong one** — and **the fix for
+an undocumented fact is documentation, not homogenisation.** ⚠ Homogenising would have **removed a
+property we want while looking like it fixed something.**
+
+**Comments added at both `batchSeedFor` sites**, carrying three clauses — that the divergence is
+deliberate, that C was considered and rejected, and ⛔ **what the divergence BUYS.** The third is what
+stops a future "fix": the first two read as an accident someone chose not to clean up.
+
+⚠ **And the derive-don't-restate reflex is marked as NOT APPLYING here** — a rare honest exception,
+recorded so it is not re-litigated. **There is nothing to derive from, because independence is the
+point**; a derived label would reintroduce the shared source the divergence exists to avoid.

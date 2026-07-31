@@ -62,6 +62,23 @@ const SETS = (process.env["FF_PHCS_SETS"] ?? "0")
   .filter((n) => Number.isInteger(n) && n >= 0);
 const CANDIDATE_HORIZON = Number(process.env["FF_PHCS_HORIZON"] ?? "2.0");
 
+/**
+ * ⛔ THE `phcs-` PREFIX DIVERGES FROM `pocketChannelShares.test.ts`'s `pcs-`, AND THAT IS DELIBERATE —
+ * DO NOT "FIX" IT BY SHARING A SEED CONSTANT (owner ruling, backlog entries 66/70).
+ *
+ * Set 0 is `"baseline-0001"` in both files and is byte-identical; every set above 0 is file-specific,
+ * so the two instruments sample **independent populations**.
+ *
+ * **The agreement between these two files on the committed tree's channel shares (~0.2pp) is
+ * CROSS-VALIDATION precisely BECAUSE the seeds differ.** Share the constant and that evidence
+ * evaporates — two files reading the same seeds agreeing tells you nothing about sampling error.
+ *
+ * ⚠ Entry 66 investigated the 257,598-vs-259,737 tick difference between these two files and closed
+ * it as **an UNDOCUMENTED divergence, not a wrong one** — so the fix is this comment, not
+ * homogenisation. **Homogenising would have removed a property we want while looking like it fixed
+ * something.** Full reasoning, including the rejected third option, is at
+ * `pocketChannelShares.test.ts`'s own `batchSeedFor`.
+ */
 function batchSeedFor(set: number): string {
   return set === 0 ? "baseline-0001" : `baseline-0001/phcs-set-${String(set)}`;
 }

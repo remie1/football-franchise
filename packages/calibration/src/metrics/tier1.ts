@@ -231,6 +231,85 @@ export const pressureRate: Metric = registerMetric({
 });
 
 /**
+ * ============ THE SEVERITY PARTITION — PRIMARY, ALONGSIDE `pressure_rate` (backlog 67/67-RESULT) ============
+ *
+ * `pressure_rate` is `1 − P(every tick CLEAN)` over a dropback: it counts a dropback the instant
+ * its worst tick leaves CLEAN, and never again. A lever that demotes a tick from COLLAPSING to
+ * PRESSURE — a real, football-meaningful reduction in how bad the pocket got — moves nothing on
+ * that rate, because PRESSURE is still non-CLEAN. Measured on the canonical corpus (`baseline-0001`
+ * + `baseline-0001/pcs-set-1`, 992 games, 86,291 dropbacks, 257,598 ticks, identity falsifier 0):
+ * on `COLLAPSING` — 72.2% of every dirty tick — a lever acting on the arrival channel alone is
+ * invisible to `pressure_rate` 63.629% of the time; on the band floor, 94.226% of the time.
+ *
+ * ⛔ THE RULING THIS METRIC EXISTS TO ENFORCE (owner, following 67-RESULT): `pressure_rate` STAYS —
+ * it is the figure comparable to real football (nflverse `was_pressure`) and remains the headline
+ * against the real 29.225%. But **no pocket lever may be priced on it ALONE again.** Every pocket
+ * dispatch reads this row beside `pressure_rate`; a lever that moves this distribution but not the
+ * rate is evidence of a real, mis-priced effect, not evidence of nothing.
+ *
+ * SIM SIDE ONLY, deliberately: no ingested source charts pocket severity tick-by-tick.
+ * nflverse/NGS `was_pressure` is the single boolean `pressure_rate` already compares against; FTN
+ * charts `is_qb_out_of_pocket` and blitz/rusher counts, neither of which is a severity ladder. A
+ * real-side target for this shape does not exist and is not invented here (declared absence:
+ * `pocket_status_distribution_real_side`, same shape as `hot_route_rate`'s).
+ *
+ * WHERE THIS LIVES, AND WHY (stated per the ruling that promoted it): the exclusive-share,
+ * WHICH-CHANNEL-DID-IT diagnosis (`pocketChannelShares.ts`) stays a Tier 3, env-gated,
+ * `Tunables`-reading instrument — it reconstructs three channels off the public tunables tree and
+ * pays for a per-tick identity check, which is the right cost for a disambiguation tool run by
+ * choice. This row is different: it is a tally of one field the stream already publishes verbatim
+ * (`POCKET_STATUS.payload.status`), needs no `Tunables`, cannot throw on a tunables/stream
+ * mismatch, and costs nothing beyond what `pressure_rate` already pays to fold the same event.
+ * That is why it is promoted to Tier 1 and made standing rather than left beside its diagnostic
+ * sibling: the ruling makes it something every report must show, and a Tier-3 env-gated row is
+ * something a report can go without showing.
+ *
+ * 🔴 RED-TRIGGER, BOTH DIRECTIONS (entry 55's required field, entry 60's prohibition — named
+ * rather than left silent):
+ *   - It reddens (the count for a status is WRONG) if `collect.ts`'s `POCKET_STATUS` handler ever
+ *     tallies a tick this metric's dropback-level sibling `pressure_rate` does not agree is
+ *     pass-dropback-scoped — enforced structurally, not by a separate gate: both read the same
+ *     `current.isPass` guard in `foldGame`'s `POCKET_STATUS` case, so the two cannot disagree about
+ *     WHICH ticks count without a code change touching both in the same edit.
+ *   - It reddens (the four-way split is WRONG) if `pocketChannelShares.test.ts`'s cross-check
+ *     against this metric's tallies (`StatusPartitionedFold.overall.allTicks` and
+ *     `byStatus[S].allTicks` against `pocketStatusTicks`, same canonical corpus) fails to match —
+ *     the two are independent tallies of the identical published field and a mismatch means one of
+ *     the two folds drifted from the stream, not that pocket behaviour changed.
+ *   - ⛔ IT WILL NEVER FLAG A DEMOTION AS A PROBLEM — that is the metric working. It reddens on a
+ *     COUNTING defect, never on a football one; whether a given distribution is GOOD is a judgement
+ *     this row supplies the evidence for and does not make itself, exactly as `pressure_rate` does
+ *     not judge its own 89.9% either. Nothing computes "is this shift beneficial" — that is still a
+ *     per-lever, per-dispatch reading.
+ */
+export const pocketStatusDistribution: Metric = registerMetric({
+  id: "pocket_status_distribution",
+  tier: 1,
+  definition:
+    "SIM SIDE ONLY. Every in-pocket tick of every pass dropback, tallied by its published " +
+    "POCKET_STATUS (CLEAN / PRESSURE / COLLAPSING / IMMEDIATE). Report ALONGSIDE pressure_rate, " +
+    "never in place of it: pressure_rate is 1 - P(every tick CLEAN) and cannot see a demotion " +
+    "between two non-CLEAN statuses (backlog 67/67-RESULT) — this row is where that demotion " +
+    "shows up. No pocket lever may be priced on pressure_rate alone.",
+  unit: "share",
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
+  knownDivergences: ["backlog 67", "backlog 67-RESULT", "backlog 1g", "backlog 1f-RESULT", "ADR-049"],
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const ticks = accumulator.play.pocketStatusTicks;
+    const total = Object.values(ticks).reduce((a, b) => a + b, 0);
+    return total === 0 ? noObservations("no POCKET_STATUS ticks published") : categorical(ticks);
+  },
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations(
+      "no ingested source charts pocket severity tick-by-tick. nflverse/NGS was_pressure is the " +
+        "single boolean pressure_rate already compares against; FTN charts rusher counts and " +
+        "is_qb_out_of_pocket, neither a severity ladder. Do NOT substitute pressure_rate's real " +
+        "side here — a boolean has no distribution to compare a four-way split against.",
+    );
+  },
+});
+
+/**
  * ============================ THE THREE PRESSURE METRICS ============================
  *
  * ADR-022's impact table says, in its own words, that calibration *"can measure blitz, stunt and
@@ -994,6 +1073,7 @@ export const TIER_1_METRICS: readonly Metric[] = [
   interceptionRate,
   sackRate,
   pressureRate,
+  pocketStatusDistribution,
   pressureToSackRate,
   blitzRate,
   hotRouteRate,

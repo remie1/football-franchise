@@ -83,6 +83,37 @@ const SETS = (process.env["FF_PCS_SETS"] ?? "0")
   .map((s) => Number(s.trim()))
   .filter((n) => Number.isInteger(n) && n >= 0);
 
+/**
+ * ⛔ THE `pcs-` PREFIX DIVERGES FROM `pressureHorizonChannelShares.test.ts`'s `phcs-`, AND THAT IS
+ * DELIBERATE — DO NOT "FIX" IT BY SHARING A SEED CONSTANT (owner ruling, backlog entries 66/70).
+ *
+ * Set 0 is `"baseline-0001"` in both files and is byte-identical. Every set ABOVE 0 is derived from
+ * a file-specific label, so the two instruments sample **independent populations**.
+ *
+ * WHAT THE DIVERGENCE BUYS, and this is the clause that matters: when these two instruments agree on
+ * a shared quantity — as they do, to ~0.2pp on the committed tree's channel shares — **that
+ * agreement is CROSS-VALIDATION rather than TAUTOLOGY.** Two files reading the same seeds and
+ * agreeing tells you nothing about sampling error; two files reading different seeds and agreeing
+ * tells you the quantity is stable under resampling.
+ *
+ * ⇒ Sharing a constant would make every future cross-check between these two files **structurally
+ * incapable of detecting sampling error** — which is `ladderTail`'s live-reader defect (a comparison
+ * whose two arms share a source is not a comparison) arriving through SEEDS instead of through CODE,
+ * one week after this project paid to remove it. Comparability bought by destroying independence is
+ * the same bad trade in either medium.
+ *
+ * ⚠ A THIRD OPTION WAS CONSIDERED AND REJECTED: a shared constant PLUS an explicit independent set
+ * where cross-validation is wanted. It gets both properties for one more concept — but the concept
+ * is *"which seed set am I allowed to compare against"*, and that is exactly the kind of distinction
+ * that erodes. Someone in a hurry uses the shared set for a cross-check and the tautology arrives
+ * silently. **This comment is the whole cost of the chosen option; the rejected one costs a rule that
+ * must be remembered at every call site.**
+ *
+ * ⚠ NOTE FOR THE DERIVE-DON'T-RESTATE REFLEX (Charter §4.1): it genuinely does not apply here, and
+ * this is a rare honest exception. **There is nothing to derive from, because INDEPENDENCE IS THE
+ * POINT** — a derived label would reintroduce the shared source the divergence exists to avoid.
+ * Marked as such so it is not re-litigated.
+ */
 function batchSeedFor(set: number): string {
   return set === 0 ? "baseline-0001" : `baseline-0001/pcs-set-${String(set)}`;
 }
@@ -150,6 +181,18 @@ describe.skipIf(!ENABLED)("roadmap 1d step 1 — the three channels' shares, tie
       let dropbacks = 0;
       let gamesRun = 0;
       const seedDigests: string[] = [];
+      // Backlog 67's ruling: "derive from the existing fold or lift it into the metrics library,
+      // one implementation" — not a second reconstruction. `Tier1.pocketStatusDistribution`
+      // (`src/metrics/tier1.ts`) tallies `POCKET_STATUS.payload.status` directly off pass-dropback
+      // ticks in `collect.ts`, reading no `Tunables` and reconstructing nothing. That is the SAME
+      // field this file's `TickChannels.published` reads (`reconstructPlay` assigns it verbatim
+      // from `event.payload.status`), gated by the SAME `PLAY_START.kind === "PASS_PLAY_V1"` test
+      // both files use. This tally reproduces that metric's counting rule locally — no
+      // `collect.ts`/`foldGame` invocation, so no second run of 496×N games — and cross-checks it
+      // against `fold`/`statusFold`'s own denominators below, so a drift between the standing
+      // Tier 1 row and this Tier 3 instrument's notion of "all ticks" / "dirty ticks by status"
+      // is caught rather than assumed away.
+      const standingTally: Record<string, number> = {};
 
       for (const set of SETS) {
         const seeds = generateSeeds(batchSeedFor(set), fixtures.length);
@@ -174,6 +217,7 @@ describe.skipIf(!ENABLED)("roadmap 1d step 1 — the three channels' shares, tie
               foldTick(fold, tick, tunables);
               foldTickByStatus(statusFold, tick, tunables);
               foldTieAlignmentSplit(tieAlignment, tick, tunables);
+              standingTally[tick.published] = (standingTally[tick.published] ?? 0) + 1;
             }
           }
           used.push(seed);
@@ -200,6 +244,27 @@ describe.skipIf(!ENABLED)("roadmap 1d step 1 — the three channels' shares, tie
           `of ${String(identityChecks)} checks, across ${String(dropbacks)} dropbacks, ${String(gamesRun)} games.`,
       );
       expect(identityMismatches).toBe(0);
+
+      // ---- CROSS-CHECK AGAINST THE STANDING TIER 1 SEVERITY PARTITION -------
+      // Not a second reconstruction: `standingTally` above counts the identical `tick.published`
+      // field this file already reconstructed, gated the same way `Tier1.pocketStatusDistribution`
+      // gates it (pass dropbacks only). If this ever goes red, either this file's `allTicks` /
+      // `byStatus[S].dirtyTicks` bookkeeping or `collect.ts`'s `POCKET_STATUS` handler drifted from
+      // the published stream — not that pocket behaviour changed.
+      say("");
+      say("### CROSS-CHECK — `pocketStatusTicks`-style tally vs this file's own fold denominators");
+      say("");
+      const standingClean = standingTally["CLEAN"] ?? 0;
+      const standingAll = Object.values(standingTally).reduce((a, b) => a + b, 0);
+      say(`CLEAN: standing tally ${String(standingClean)} vs fold (allTicks - dirtyTicks) ${String(fold.allTicks - fold.dirtyTicks)}`);
+      expect(standingClean).toBe(fold.allTicks - fold.dirtyTicks);
+      say(`all ticks: standing tally total ${String(standingAll)} vs fold.allTicks ${String(fold.allTicks)}`);
+      expect(standingAll).toBe(fold.allTicks);
+      for (const s of DIRTY_STATUSES) {
+        const standing = standingTally[s] ?? 0;
+        say(`${s}: standing tally ${String(standing)} vs statusFold.byStatus[${s}].dirtyTicks ${String(statusFold.byStatus[s].dirtyTicks)}`);
+        expect(standing).toBe(statusFold.byStatus[s].dirtyTicks);
+      }
 
       // ---- SHARE / TIE / EXCLUSIVE -----------------------------------------
       say("");

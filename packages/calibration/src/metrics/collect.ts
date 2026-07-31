@@ -50,6 +50,36 @@ export interface PlayFold {
   scrambles: number;
   /** Dropbacks whose worst POCKET_STATUS was anything other than CLEAN. */
   pressuredDropbacks: number;
+  /**
+   * ================== THE SEVERITY PARTITION (backlog 67/67-RESULT, ADR-049) ==================
+   *
+   * `pressure_rate` (`pressuredDropbacks / dropbacks`) is `1 − P(every tick CLEAN)`: it counts a
+   * dropback once its WORST tick leaves CLEAN and never again, so a lever that moves a tick from
+   * COLLAPSING to PRESSURE — a real, football-meaningful de-escalation — is invisible to it.
+   * Measured: on the channel that dominates dirty ticks, a demotion off COLLAPSING is invisible to
+   * `pressure_rate` 63.629% of the time; off the band floor, 94.226% (67-RESULT, canonical N,
+   * identity falsifier 0 of 257,598).
+   *
+   * `pocketStatusTicks` is every `POCKET_STATUS.payload.status` published during a pass dropback,
+   * tallied by value — CLEAN/PRESSURE/COLLAPSING/IMMEDIATE (`@ff/contracts`' `PocketStatus`
+   * union, read as a string key so this file needs no import from it and cannot go stale against
+   * a union it never names). It is the STANDING, always-on half of the severity partition: no
+   * `Tunables` read, no per-play reconstruction, no falsifier of its own to run — it tallies a
+   * field the stream already publishes verbatim, the same field
+   * `packages/calibration/src/knownTruth/pocketChannelShares.ts`'s `TickChannels.published` reads.
+   * `pocketChannelShares.test.ts` cross-checks the two tallies against each other on the canonical
+   * corpus (backlog 67's ruling: derive from the existing fold, do not build a second
+   * reconstruction) — this field does not reconstruct anything the other file already reconstructs;
+   * it is the raw tally both that file's `ChannelFold.allTicks`/`byStatus[S].allTicks` and this
+   * field are ultimately counting off the identical published enum.
+   *
+   * What `pocketStatusTicks` does NOT do, and does not try to: it does not say WHICH channel
+   * (counter / bandFloor / arrival) produced a status — that disambiguation stays in
+   * `pocketChannelShares.ts`, Tier 3 and env-gated, because it needs `Tunables` to reconstruct the
+   * three channels and pays for an identity check on every tick. This field is cheap specifically
+   * because it asks less: "what did the pocket end up at", not "why".
+   */
+  pocketStatusTicks: Record<string, number>;
   passYards: number;
   /** Yards on every pass ATTEMPT, incompletions as zero. Kept so the mean has a real interval. */
   passAttemptYards: number[];
@@ -210,6 +240,7 @@ export function emptyAccumulator(): SimAccumulator {
       throwaways: 0,
       scrambles: 0,
       pressuredDropbacks: 0,
+      pocketStatusTicks: {},
       passYards: 0,
       passAttemptYards: [],
       airYards: 0,
@@ -509,7 +540,13 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
         tick = event.payload.tick;
         break;
       case "POCKET_STATUS":
-        if (current !== null && event.payload.status !== "CLEAN") current.pressured = true;
+        if (current !== null && current.isPass) {
+          if (event.payload.status !== "CLEAN") current.pressured = true;
+          // Tallied per TICK, immediately, not deferred to `flush()`: unlike `pressured` (a
+          // per-DROPBACK worst-status flag), the severity partition is a per-TICK count and needs
+          // no play-level reduction — see the `pocketStatusTicks` field comment.
+          bumpKey(p.pocketStatusTicks, event.payload.status);
+        }
         break;
       case "RUSH_THREAT":
         if (current !== null) {
@@ -818,6 +855,7 @@ export function mergeAccumulators(a: SimAccumulator, b: SimAccumulator): SimAccu
     throwaways: a.play.throwaways + b.play.throwaways,
     scrambles: a.play.scrambles + b.play.scrambles,
     pressuredDropbacks: a.play.pressuredDropbacks + b.play.pressuredDropbacks,
+    pocketStatusTicks: mergeCounters(a.play.pocketStatusTicks, b.play.pocketStatusTicks),
     passYards: a.play.passYards + b.play.passYards,
     passAttemptYards: [...a.play.passAttemptYards, ...b.play.passAttemptYards].sort((x, y) => x - y),
     airYards: a.play.airYards + b.play.airYards,
