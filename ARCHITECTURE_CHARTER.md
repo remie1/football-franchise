@@ -1096,6 +1096,33 @@ with an unwritten blind spot.
 > only ever establish that *someone answered the question*. **Only the author can answer it about the
 > right subject**, and only while they still remember what they chose not to cover.
 
+**Corollary — A RE-POINT IS NOT A RE-COUNT. AND AN UNCHANGED COUNT CAN BE THE EVIDENCE THAT A FIX WAS
+RIGHT — which inverts how a count normally reads.**
+
+> ### **Two identical numbers, two completely different states: one because nothing was examined, one because the examination concluded nothing should move.**
+
+**The worked case.** A new tunable leaf reddened four `docConformance` pins, including
+`classifiedUniform 281 → 282`. The available fix was **`281 → 282` → green → done.**
+
+⛔ **That would have been WRONG, and green.** The cell had no narrow rule and fell through to the
+`arrival.*` catch-all, whose note reads *"the doc has no arrival model … every number in this block is
+engine structure filling that gap"* — **false of a cell that now has a dedicated, ratified,
+multi-paragraph derivation naming it directly.** ADR-048's and entry 51's exact shape: **a catch-all
+classifying a cell with a note untrue of it, green throughout.**
+
+**The correct fix — a narrow rule above the catch-all — left `classifiedUniform` at 281 and the
+absorption row at 18.** Not by leaving them alone. **Because the cell no longer belongs to that
+rule.**
+
+> ⛔ **SO THE ARITHMETIC BEING UNCHANGED WAS EVIDENCE THE FIX WAS RIGHT.** A moved count normally
+> reads as *"work happened"*; here **an unmoved count was the proof that the work happened
+> correctly**, and a moved one would have been the symptom.
+
+**⇒ THE OPERATIVE TEST when a census pin reddens: ask WHICH POPULATION CHANGED, not by how much.** A
+pin is a cardinality over a *set*; **re-pointing the number without re-deriving the set is the
+count-blindness corollary arriving at the repair rather than at the original measurement.** ⚠ And it
+is the cheaper of the two paths, always — which is why it needs naming rather than trusting.
+
 **Corollary — EXTENDING A VOCABULARY IS WIDEN-OR-ADD, AND IT NEEDS THE SAME SURVEY. A SURVEYED
 EXTENSION IS A PRACTICE; AN UNSURVEYED ONE IS DRIFT — AND THEY ARE INDISTINGUISHABLE A MONTH LATER.**
 

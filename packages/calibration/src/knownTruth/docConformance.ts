@@ -249,7 +249,9 @@ export type Provenance =
   /** Declared invention en bloc — the game loop, which `match-engine.md` does not specify at all. */
   | "OUT_OF_SCOPE"
   /**
-   * ⛔ **PROPOSED CONVENTION, FIRST USE — NOT YET RATIFIED.** Mirrors `docs/design/match-engine.md`
+   * ✅ **RATIFIED CONVENTION** (owner, July 2026), and the two REFUSALS below are the reason it was
+   * ratified rather than an existing value stretched — in particular `INTERPRETATION`, which the
+   * register already had and which would have swallowed this cell. Mirrors `docs/design/match-engine.md`
    * §7.1's `DERIVED MECHANIC` marker (CALIBRATION-BACKLOG entry 73), which was itself introduced by
    * the same discipline this entry follows: survey every existing value, state why each does not
    * fit, propose one new value rather than stretch an old one, and flag it as proposed pending
