@@ -1122,6 +1122,32 @@ with an unwritten blind spot.
 > only ever establish that *someone answered the question*. **Only the author can answer it about the
 > right subject**, and only while they still remember what they chose not to cover.
 
+**Corollary — A REPAIR THAT REMOVES THE SYMPTOM ALSO REMOVES THE RECORD THAT THERE WAS ONE.**
+
+> ### **This is log-don't-smooth arriving at the act of FIXING rather than the act of REPORTING.**
+
+**Every one of these is the available cheap path, defensible in the moment, and leaves the repo with
+no evidence anything was ever wrong:**
+
+| the repair | what it consumes |
+|---|---|
+| **widening an assertion** until it passes | the record that the assertion once excluded that state — *"a beaten tackle stays beaten"* is now weaker than its name, and nothing says so |
+| **re-pointing a census pin** without re-deriving its set | the record that a population changed, and **which** one |
+| **deleting a stale artefact** | the evidence the defect was ever possible — so a future change reintroduces it silently |
+| **silently updating a comment** | the reason anyone believed the old thing, which is usually the useful half |
+
+⛔ **THE COMMON PROPERTY: the repair is indistinguishable, afterwards, from a state where the problem
+never existed.** The symptom and its record are the same artefact, so removing one removes both.
+
+> **⇒ THE RULE: a repair leaves BEHIND what it fixed — as a struck line, a converted assertion, a
+> named exception with its control, or a comment saying what used to be true and why.** ⚠ **The test
+> is not *"is the tree correct now?"* but *"can a reader tell it was ever otherwise?"***
+
+**This is why the backlog strikes lines rather than editing them, why ADR-033 keeps *"a one-point edge
+on a hundred-point scale is not a disturbed platform"*, and why the superseded modal-`CRITICAL` claim
+stayed in `ladderOccupancy`'s prose.** ⚠ **In every case the correction alone would have been shorter,
+correct, and would have destroyed the reason.**
+
 **Corollary — AN EXCEPTION ADDED TO A FAILING ASSERTION NEEDS A POSITIVE CONTROL THAT THE EXCEPTION'S
 STATE IS REACHABLE. WITHOUT ONE, THE EXCEPTION IS INDISTINGUISHABLE FROM A SUPPRESSION.**
 
@@ -1249,6 +1275,20 @@ defect in it.**
 > **This project has now paid for the two-independent-arms property in THREE MEDIA — code
 > (`ladderTail`'s live reader), seeds (entry 70), and citation (ADR-046's quoted constant). Each time
 > the tidier option destroyed it, and each time the tidier option looked like an improvement.**
+
+> ### ⛔ AND THAT IS NOT A COINCIDENCE: **INDEPENDENCE ALWAYS LOOKS LIKE DUPLICATION FROM THE INSIDE, BECAUSE THE TWO ARMS GENUINELY DO THE SAME THING.**
+>
+> A reconstruction that agrees with the engine **is** redundant, in the only sense visible from the
+> code. Two seed lists that produce the same shares **are** doing one job twice. **There is no
+> structural signal that separates deliberate independence from accidental redundancy** — the arms are
+> identical in behaviour, which is the whole point of having two.
+>
+> ⚠ **So the ONLY thing distinguishing them is the comment — which is why the third clause carries the
+> entire weight, and why omitting it is not a documentation lapse but the removal of the single
+> distinguishing feature.**
+>
+> **⇒ PREDICTION ON RECORD: this will recur, and it will recur LOOKING LIKE HOUSEKEEPING.** Not as a
+> proposal to weaken a check — as a tidy-up, by someone competent, with a clean diff.
 
 **Corollary — EXTENDING A VOCABULARY IS WIDEN-OR-ADD, AND IT NEEDS THE SAME SURVEY. A SURVEYED
 EXTENSION IS A PRACTICE; AN UNSURVEYED ONE IS DRIFT — AND THEY ARE INDISTINGUISHABLE A MONTH LATER.**
