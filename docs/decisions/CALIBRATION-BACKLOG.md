@@ -3802,6 +3802,24 @@ not an arithmetic error. That is the class this instrument is actually sensitive
 > papered over with a claim about the scale audit or the doc-conformance register catching it. **A
 > recorded gap, not a guarded one.** The doc-conformance register is the nearest thing, and its
 > subject is *cells against the doc*, not *values against behaviour*.
+>
+> #### ⛔ AND THE GAP IS NOT LOCAL TO THIS ENTRY — it is the THIRD FACE of one irreducible surface
+>
+> Cross-referenced because each of the three **looks like a local problem inside its own entry and is
+> not** (Charter §4.1's *no path to elimination* register, which now names all three):
+>
+> | direction | entry | reads |
+> |---|---|---|
+> | **doc → table** | the scale audit (ADR-039) | a doc requirement for which **no cell exists** |
+> | **comment → field** | **2b**'s contracts-comment audit | a comment against **what the field actually carries** |
+> | **value → intent** | ⛔ **this entry** | a published value against **what it was supposed to be** |
+>
+> > ### **A value that is computed, published, and internally consistent has NO instrument that can catch it being the WRONG value. Only a reading against intent.**
+>
+> **2b exists to cover part of this surface**, which is why it sits beside the scale audit rather than
+> in the instrument queue — and why **neither has a path to elimination.** All three terminate in *a
+> person reading something against what it was meant to be*, and they must each be redone whenever
+> their side changes. **They are one surface seen from three sides, not three gaps.**
 
 ---
 

@@ -466,7 +466,24 @@ a class is eliminated, name what remains beside it.
   instrument; **this one cannot have one, in principle.** Finding a doc requirement for which **no
   cell exists** means detecting an absence, and **the absent thing has no representation to derive
   from** — there is nothing to walk, hash, perturb or enumerate. It is **irreducibly a reading**,
-  and it **must be redone whenever the doc changes**, by a person, forever. Mark anything that joins
+  and it **must be redone whenever the doc changes**, by a person, forever.
+
+  > #### ⛔ THREE DIRECTIONS NOW POINT AT THIS SAME SURFACE, AND THAT IS WHAT MAKES IT IRREDUCIBLE RATHER THAN MERELY UNBUILT
+  >
+  > | direction | what it reads | why no instrument reaches it |
+  > |---|---|---|
+  > | **doc → table** (ADR-039) | a doc requirement for which **no cell exists** | detecting an absence; **the absent thing has no representation to derive from** |
+  > | **comment → field** (backlog **2b**) | a `contracts` comment against **what the field actually carries** | ADR-044's was wrong in the exact direction that converts a correct implementation into a broken one, **with every test green** |
+  > | **value → intent** (backlog **62**) | a published value against **what it was supposed to be** | an identity check proves **transport, never correctness** — publish `7` where the doc says `5`, read the same `7` back, and **both sides agree perfectly** |
+  >
+  > ### **A value that is computed, published, and internally consistent has NO instrument that can catch it being the WRONG value. Only a reading against intent.**
+  >
+  > The three are not three gaps. **They are one surface seen from three sides** — doc-shaped,
+  > comment-shaped and value-shaped — and every one of them terminates in *a person reading something
+  > against what it was meant to be.* ⚠ **Cross-reference them to each other**, because each looks
+  > like a local problem in its own entry and is not.
+
+  Mark anything that joins
   this line the same way: not "we have not built the instrument yet", but **"no instrument is
   possible"** — the two look identical in a backlog and are opposites in a plan.
 
