@@ -965,7 +965,8 @@ wider, and stating it wider is what lets the next instance be recognised:
 |---|---|---|
 | **a ratified claim** | the ruling *is* the review's output; the author is the last to re-open it | ⛔ **two instances**: ADR-046's constant, ADR-050's accepting ruling |
 | **a pleasing result** | a real derivation and a rate-chase are **indistinguishable by their result**; only the process differs, and it leaves no trace in the number | ⛔ **live** — see the derived-boundary corollary below |
-| ⛔ **A CORRECT PRIOR STEP** — *the most concealed of the three* | the previous answer was **right**, so the next question reads as a **continuation** rather than as a new question. **There is no ratification event, no pleasing result, nothing to notice — just a chain of correct answers** | ⛔ **four instances in one week**, descending table → channel → branch → quantity |
+| ⛔ **A CORRECT PRIOR STEP** | the previous answer was **right**, so the next question reads as a **continuation** rather than as a new question. **There is no ratification event, no pleasing result, nothing to notice — just a chain of correct answers** | ⛔ **four instances in one week**, descending table → channel → branch → quantity |
+| ⛔⛔ **A CORRECTION TO A KNOWN ERROR** — *the most disguised of the four* | *"this is the fix for the thing that was wrong"* carries a plausibility that makes it **LESS likely to be checked, not more**. ⚠ **Scepticism has just been exercised — one step earlier, on the thing being corrected** — and the feeling of having been careful transfers to the repair | ⚠ **live**: a brief's premise failed, and the very next brief's premise was *a claim about that correction*. It held — **but only computing established that** |
 
 > ### ⛔ CONSEQUENCE FOR PRE-REGISTRATION — **THERE ARE TWO KINDS AND ONLY ONE IS SAFE TO SHARE WITH THE DISPATCH**
 >
@@ -1133,6 +1134,19 @@ reviewable one."* That clause **assumed something invokes the script.** Nothing 
 > **That distinguishes a clean brief from an unchecked one WITHOUT creating pressure to manufacture a
 > finding.** ⚠ The signal was never *"a failure was found"*; it is *"the premises were computed."*
 > **Confirmation is a result, and it only counts when it is reported as one.**
+>
+> #### ✅ AND THIS IS WHY THE LEDGER IS UNCONDITIONAL RATHER THAN DISCIPLINED
+>
+> **Establishing that a premise HELD cost one file read. Catching a ninth failure would have cost the
+> same one file read.**
+>
+> > ### **A check whose confirming and disconfirming cases cost the SAME has no threshold to reason about.**
+>
+> ⚠ **There is nothing to triage.** Every argument for applying it selectively — *"this brief looks
+> routine"*, *"this is only a correction"*, *"the risky one was last time"* — **is reasoning about a
+> cost that does not vary.** ⛔ **And the selection criterion would be the thing this project has
+> already measured as uncorrelated with failure: the briefs that failed were not the ones that felt
+> risky.**
 
 **⇒ SO THE RED-TRIGGER FIELD HAS TWO HALVES, AND THE SECOND IS A PROHIBITION:**
 
