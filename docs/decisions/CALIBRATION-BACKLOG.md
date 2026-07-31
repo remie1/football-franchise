@@ -4808,3 +4808,43 @@ retroactively shape the reading (ADR-033's rule).
 That removes the silent dead config — the thing that made **every recorded `retireOn` number describe
 an unreachable configuration** — **without answering a football question nobody asked.** The question
 then arrives cleanly, on its own, as a petition.
+
+---
+
+## 76. ⚡ RULED — **THE ARRIVAL CHANNEL GETS A FINITE `PRESSURE` HORIZON. `POS_INF` IS WRONG FOOTBALL, REGARDLESS OF ITS WORTHLESSNESS AS A LEVER.**
+
+> ### **A rusher four seconds away is not pressure.** He is not in the passer's field of concern; he does not affect the platform, the throw, or the read.
+
+**Calling that tick dirty means the pocket is never clean while any rusher is alive and moving —
+which is every tick of every dropback. ⛔ That is not a pressure model, it is a PRESENCE model.**
+
+⚠ **And it is the same ruling as ADR-032, one channel over.** There, *gaining ground is not pressure*
+removed a floor that short-circuited the counter. **`POS_INF` is the identical error in the arrival
+channel: a threshold set so wide that the classification carries no information. Consistency alone
+settles it.**
+
+### The value: **1e's derived `2.0`, ratified as derived — and explicitly NOT re-derived**
+
+Derived against the two neighbouring boundaries — `immediateWithinSeconds` (0.0) and
+`collapsingWithinSeconds` (1.0), width `1.0`, replicated once at the engine's own 0.5s quantum —
+**before the response curve was seen.** It passes all three provenance questions.
+
+> ⛔ **IT LANDED BADLY — 8.8% of an already-small budget — AND THAT IS THE ONLY AVAILABLE EVIDENCE A
+> DERIVATION WAS NOT FITTED.** Taking it anyway is the discipline. **Re-deriving it now that more is
+> known would be the fitted version wearing the derivation's clothes** (Charter §4.1).
+
+### Disposition — correctness, same as entry 73
+
+**No rate expectation** (1e already priced it: **−2.440pp of a 60.6pp gap**). **Severity is the
+outcome variable.** **Priced afterwards.** ⚠ **Entry 37 — name what is held:** this channel
+**interacts with supply and retirement, and BOTH were measured against it while unbounded.**
+
+### ⇒ This closes ruling 2's last confound
+
+| confound | status |
+|---|---|
+| the metric was blind to demotions | ✅ closed by the census — only a third demotes |
+| `retireOn`'s P2 ceiling | ✅ closed by 59-RESULT — **not a confound**; ADR-049 §8 excluded `RUSHER_WINS_REP` correctly |
+| ⛔ the unbounded horizon | ✅ **closed by this ruling** |
+
+**⇒ Ruling 2 re-measures on a fully de-confounded tree once this lands.**

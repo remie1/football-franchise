@@ -1096,6 +1096,40 @@ with an unwritten blind spot.
 > only ever establish that *someone answered the question*. **Only the author can answer it about the
 > right subject**, and only while they still remember what they chose not to cover.
 
+**Corollary — *"IS THIS A LEVER?"* AND *"IS THIS CORRECT?"* ARE DIFFERENT QUESTIONS, AND ANSWERING THE
+FIRST SILENTLY CLOSES THE SECOND.**
+
+> ### **A refused lever leaves its football question UNASKED — and the refusal reads like an answer to it.**
+
+**A lever is refused on a number.** The refusal is recorded, the queue moves on, and **the cell keeps
+its value** — not because anyone judged the value correct, but because **nothing in a lever refusal is
+about correctness at all.**
+
+**The worked case.** 1e swept `arrival.pressureWithinSeconds` and refused it: **−2.440pp against a
+60.6pp gap**, ~4% of the gap, not the pressure lever. Correct, and it settled one question while
+leaving the other untouched:
+
+| question | 1e's answer |
+|---|---|
+| is the horizon a **LEVER** for `pressure_rate`? | ✅ **answered — no** |
+| ⛔ is `POS_INF` **CORRECT FOOTBALL**? | ⛔ **never asked** |
+
+**And the second answer was obvious once stated:** `POS_INF` means **there is no horizon at all** — a
+rusher four seconds away and a rusher arriving next tick are the same fact to that channel. *"That is
+not a pressure model, it is a presence model."* ⚠ **The same ruling as ADR-032 one channel over**, and
+**consistency alone would have settled it without any measurement.**
+
+> ⛔ **THE OPERATIVE FORM: when a lever is refused, ASK EXPLICITLY WHETHER ITS CURRENT VALUE IS RIGHT.**
+> The sweep answered *"moving this does not help"*, which is **not** *"where it sits is correct."* The
+> two are trivially separable and are constantly conflated, **because a refusal feels like a
+> disposition of the whole subject.**
+
+**⇒ AND FOUR REFUSALS ON THIS SUBSYSTEM ARE NOW CANDIDATES FOR THE SAME RE-READING** —
+`blockerStructuralAdvantage`, `freeRunnerArrivalSeconds`, `RUSHER_GAINING`'s band map, and entry 40's
+supply arms. **Each was refused as a lever. None was ever asked whether its committed value is
+football.** ⚠ That is a *re-reading*, not a re-run: the question is answerable from the doc and the
+code.
+
 **Corollary — A RE-POINT IS NOT A RE-COUNT. AND AN UNCHANGED COUNT CAN BE THE EVIDENCE THAT A FIX WAS
 RIGHT — which inverts how a count normally reads.**
 
