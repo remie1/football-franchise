@@ -247,7 +247,64 @@ export type Provenance =
    */
   | "STRUCTURAL"
   /** Declared invention en bloc — the game loop, which `match-engine.md` does not specify at all. */
-  | "OUT_OF_SCOPE";
+  | "OUT_OF_SCOPE"
+  /**
+   * ⛔ **PROPOSED CONVENTION, FIRST USE — NOT YET RATIFIED.** Mirrors `docs/design/match-engine.md`
+   * §7.1's `DERIVED MECHANIC` marker (CALIBRATION-BACKLOG entry 73), which was itself introduced by
+   * the same discipline this entry follows: survey every existing value, state why each does not
+   * fit, propose one new value rather than stretch an old one, and flag it as proposed pending
+   * ratification.
+   *
+   * **THE SURVEY** (each of the other eight, and why none of them is honest here):
+   *  - `DOC_VERBATIM` — no. The doc's "two consecutive reps" prose is a RECORD of a derivation, not
+   *    that derivation's source; reading it as `DOC_VERBATIM` would have the doc cite the engine
+   *    citing the doc, the exact trap `route.contestGain.burstSteps` above names by name.
+   *  - `DOC_DERIVED` — no. That category is a re-encoding of ONE already-stated doc number for THE
+   *    SAME quantity (`minMargin: -19` restating "1-19"). This cell's value is not a restatement of
+   *    anything the doc says about itself; it is a NEW number computed from the relationship between
+   *    TWO OTHER, DIFFERENT already-ratified cells (`recoverySecondsByBand.BLOCKER_CONTAINS` and
+   *    `minTravelSeconds`), corroborated by a second, non-arithmetic structural argument (the model's
+   *    one-tick memory depth). Widening `DOC_DERIVED` to cover that would blur the very distinction
+   *    its own definition draws — an encoding of a stated number is a different risk from a value with
+   *    no stated number to encode.
+   *  - `DOC_UNIT_RESOLVED` — no. There is no unit ambiguity here; the doc's number and the engine's
+   *    number are not the same quantity in different units, there is no doc number at all.
+   *  - `INTERPRETATION` — no, and this is the closest miss, so it gets the longest answer.
+   *    `INTERPRETATION` is a declared KNOB — "the doc asked for a judgement and one was made in the
+   *    open." The doc's own words about THIS parameter are the opposite of that: "nobody chose it,"
+   *    "re-litigated by moving either anchor." A judgement call is re-argued on the football; this
+   *    parameter is re-derived by moving a cited number. Those are different failure modes and this
+   *    vocabulary has needed to tell them apart before (`qb.awarenessVariance.baseHalfWidth` is
+   *    `DOC_DERIVED` rather than `INTERPRETATION` for a related reason). Filing a "nobody chose it"
+   *    cell as a knob would make the note false of the one thing the doc went out of its way to say.
+   *  - `DOC_GAP` — no. `DOC_GAP` is "the doc has no rule here at all," and its own examples are
+   *    content-free engine bookkeeping (sack yardage, the game loop). The doc does not stay silent
+   *    here — §7.1 carries a dedicated, ratified, multi-paragraph note about this exact cell. The gap
+   *    that justified building the mechanic at all (§7.1's "That is a missing mechanic, not a
+   *    calibration knob") was closed by the same dispatch that added the note; nothing about this
+   *    cell is unaddressed by the document any more.
+   *  - `TABLE_SHAPE` — no. `TABLE_SHAPE` is a cell a table's RECTANGLE demanded where the doc gave
+   *    nothing (ADR-036's `DEAD.finalTargetNumber`). This is not filler; the value is independently
+   *    over-determined by two converging anchors, which is the opposite of arbitrary.
+   *  - `STRUCTURAL` — no. `STRUCTURAL` is bookkeeping with "no football content." This cell is
+   *    entirely football content — it is the retirement rule for a live pass-rush threat.
+   *  - `OUT_OF_SCOPE` — no. Nothing about this parameter is invented outside the document's remit;
+   *    §7.1 is exactly where a rusher's threat status is specified.
+   *
+   * **THE CATEGORY.** The cell's parent MECHANIC's existence is an OWNER RULING, cited beside the
+   * cell (`CALIBRATION-BACKLOG` entry 73, *"ruled on the football, regardless of price"*). The cell's
+   * VALUE is not — it is forced by two independent already-ratified anchors elsewhere in the same
+   * tree, and the doc states plainly that nobody chose it. Re-litigated by moving either cited
+   * anchor, never by re-reading a quoted number (there is none) and never by a football argument
+   * alone (that argument re-opens only the ruling half, which is cited separately for exactly this
+   * reason).
+   *
+   * ⚠ **THE NEXT CELL OF THIS SHAPE — an owner-ruled mechanic whose parameter is independently
+   * derived rather than chosen — REUSES THIS VALUE rather than inventing a fifth.** That instruction
+   * is what stops the vocabulary fragmenting, and mirrors the doc's own invitation for its next
+   * `DERIVED MECHANIC` case to reuse its heading.
+   */
+  | "DERIVED_MECHANIC";
 
 export interface RegisterRule {
   /**
@@ -563,13 +620,49 @@ export const REGISTER: readonly RegisterRule[] = [
       "the widest reading of the amended limb (a). Narrowing it is an open football question both " +
       "ADR-030 and ADR-031 declined.",
   },
+  /**
+   * ⚠ ENTRY 73's CELL, AND THE RULE THAT WOULD HAVE SILENTLY ABSORBED IT.
+   *
+   * `arrival.containRetiresAfterConsecutiveContains` landed under §7.1 (CALIBRATION-BACKLOG entry
+   * 73; see `docs/design/match-engine.md` §7.1's `DERIVED MECHANIC` note). Left unnamed, it would
+   * have fallen to the `arrival.*` catch-all below — a `UNIFORM_REGIONS` member whose note reads
+   * "the doc has no arrival model … every number in this block is engine structure filling that
+   * gap." That is false of this cell specifically: the doc is not silent here, it carries a
+   * dedicated, ratified, multi-paragraph derivation naming this exact parameter. Absorption would
+   * have reported it `classified` (via `classifiedUniform`) under a note describing a different
+   * cell's provenance — the ADR-048 shape, one dispatch later. Named here instead, ABOVE the
+   * catch-all, so `arrival.*`'s remaining membership (and its `UNIFORM` claim) is unchanged.
+   */
+  {
+    pattern: "arrival.containRetiresAfterConsecutiveContains",
+    provenance: "DERIVED_MECHANIC",
+    docRef: "§7.1 DERIVED MECHANIC (CALIBRATION-BACKLOG entry 73)",
+    note:
+      "2. §7.1's `DERIVED MECHANIC` note has two separately-cited halves and this cell inherits " +
+      "both. THAT A RETIREMENT ROUTE SHOULD EXIST AT ALL is an OWNER RULING — CALIBRATION-BACKLOG " +
+      "entry 73, 'ruled on the football, regardless of price.' THAT THE COUNT IS TWO is DERIVED, " +
+      "not chosen, on two independent anchors, both re-verified directly against " +
+      "`packages/engine/src/tunables.ts` rather than transcribed: (1) arithmetic — " +
+      "`arrival.recoverySecondsByBand.BLOCKER_CONTAINS` (0.5) × 2 = 1.0 = `arrival.minTravelSeconds` " +
+      "exactly, the model's own floor for how close any threat is ever allowed to be; (2) " +
+      "structural — `passRush.counterMoveAfterStalemate`'s `previousBand` is the model's only " +
+      "cross-tick memory (a single carried slot), so the smallest pattern expressible at that depth " +
+      "that is not merely 'any one rep' is the same result twice running. NOT `DOC_VERBATIM`: the " +
+      "doc's 'two consecutive reps' prose is a RECORD of this derivation, not its source. NOT " +
+      "`INTERPRETATION`: the doc explicitly disclaims a judgement here ('nobody chose it'). See the " +
+      "`DERIVED_MECHANIC` provenance value's own comment for the full survey against every other " +
+      "category.",
+  },
   {
     pattern: "arrival.*",
     provenance: "INTERPRETATION",
     docRef: "§7.2 KNOWN ISSUE (missing time-of-arrival model)",
     note:
       "The doc has no arrival model — its own KNOWN ISSUE box says so. Every number in this block " +
-      "is engine structure filling that gap, declared as such in tunables.",
+      "is engine structure filling that gap, declared as such in tunables. ⚠ EXCEPT " +
+      "`containRetiresAfterConsecutiveContains`, named individually above: §7.1's `DERIVED " +
+      "MECHANIC` note addresses that cell directly, so 'the doc has no arrival model' is not true " +
+      "of it and this catch-all's `UNIFORM` claim never reaches it.",
   },
 
   // ---- §7.2 pocket -----------------------------------------------------------------------------

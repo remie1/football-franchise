@@ -121,17 +121,22 @@ import {
  * SAME `resultTierLadder.*` rule as before, so the eight new rungs are eight new numeric leaves
  * with nowhere new to be classified — `resultTierLadder.*` is a `UNIFORM_REGIONS` entry (below)
  * whose `why` already reads "True of any rung added later", so no rule text changed either.
+ *
+ * **714 → 715 at CALIBRATION-BACKLOG entry 73.** One new leaf,
+ * `arrival.containRetiresAfterConsecutiveContains`. Named individually below (`ENTRY_73_ADDED_PATH`)
+ * and classified by a rule written about it — see that rule's comment and the new `DERIVED_MECHANIC`
+ * provenance value for why neither `arrival.*`'s catch-all nor any of the other seven categories fit.
  */
-const RECORDED_NUMERIC_CENSUS = 714;
+const RECORDED_NUMERIC_CENSUS = 715;
 
 /**
  * The same subject as a SET rather than a size. Re-cut at ADR-040 (`d20Offset` → `baseHalfWidth`),
  * again at ADR-048 (`route.contestGain.*`, +7), again at ADR-052/053 (`resultTierLadder`, +8 new
- * rung indices).
+ * rung indices), again at CALIBRATION-BACKLOG entry 73 (`arrival.containRetiresAfterConsecutiveContains`, +1).
  * When this reddens and the count does not, a cell was SWAPPED: diff `numericLeafPaths()` against
  * `git diff packages/engine/src/tunables.ts` and re-read the affected rule against the doc.
  */
-const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:1c7c075d";
+const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:66543cf7";
 
 /**
  * ⚠ **THE RE-RECORD, AS A SET AND NOT AS A COUNT** — §4.1's count-blindness corollary applied to the
@@ -155,6 +160,14 @@ const ADR_048_ADDED_PATHS: readonly string[] = [
   "route.contestGain.byContest.TRAILING.burst",
   "route.contestGain.byContest.TRAILING.steady",
 ];
+
+/**
+ * CALIBRATION-BACKLOG entry 73's single cell, named the same way ADR-048's seven were — a `+1` next
+ * to a re-typed digest would be a transcription; a named path with a rule written about it is a
+ * reading. See `docs/design/match-engine.md` §7.1's `DERIVED MECHANIC` note and this cell's rule in
+ * `REGISTER` for the classification argument.
+ */
+const ENTRY_73_ADDED_PATH = "arrival.containRetiresAfterConsecutiveContains";
 
 describe("doc-conformance register", () => {
   it("accounts for every numeric leaf — and no longer calls a PREFIX MATCH a classification", () => {
@@ -183,7 +196,11 @@ describe("doc-conformance register", () => {
     // invisible. The number goes DOWN when a rule earns `UNIFORM` with a written argument, or when
     // its cells are named individually. It goes UP when a new catch-all is written, and it should.
     const audit = auditRegister();
-    expect(audit.classifiedNarrow).toBe(227);
+    // 227 → 228 at CALIBRATION-BACKLOG entry 73: one narrow rule added for
+    // `arrival.containRetiresAfterConsecutiveContains`, named ABOVE the `arrival.*` catch-all so it
+    // does not fall into `classifiedUniform` instead (see that rule's comment). `classifiedUniform`
+    // below is UNCHANGED by this cell for exactly that reason.
+    expect(audit.classifiedNarrow).toBe(228);
     // 273 → 281 at ADR-052/053: `resultTierLadder.*` is a `UNIFORM_REGIONS` entry (its `why` already
     // covers "any rung added later"), so the eight new rungs from the seventeen-rung ladder land
     // here rather than in `classifiedNarrow` or `absorbed`. `classifiedNarrow` and `absorbed` are
@@ -310,6 +327,24 @@ describe("doc-conformance register", () => {
     expect([...new Set(ADR_048_ADDED_PATHS.map((p) => classify(p)?.provenance))]).toEqual([
       "INTERPRETATION",
     ]);
+  });
+
+  it("names entry 73's cell individually, not left to the arrival.* catch-all", () => {
+    // Left unnamed, this cell would fall to `arrival.*` — a `UNIFORM_REGIONS` member whose note reads
+    // "the doc has no arrival model … every number in this block is engine structure filling that
+    // gap." That is false of THIS cell: §7.1 carries a dedicated, ratified derivation naming it.
+    const paths = new Set(numericLeafPaths());
+    expect(paths.has(ENTRY_73_ADDED_PATH)).toBe(true);
+    const rule = classify(ENTRY_73_ADDED_PATH);
+    expect(rule?.pattern).toBe(ENTRY_73_ADDED_PATH);
+    expect(rule?.pattern).not.toBe("arrival.*");
+    // A brand-new provenance value, PROPOSED and first-used here — see its own comment in
+    // `docConformance.ts` for the eight-category survey that justifies adding rather than stretching.
+    expect(rule?.provenance).toBe("DERIVED_MECHANIC");
+    // And the catch-all it was pulled out of still owns exactly what it owned before this cell
+    // existed — the absorption pin below is the structural proof of that, not this line.
+    const uniformArrival = UNIFORM_REGIONS.find((r) => r.pattern === "arrival.*");
+    expect(uniformArrival).toBeDefined();
   });
 
   it("declares its exclusion TOTALLY — every leaf lands in one of the three buckets", () => {
