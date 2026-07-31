@@ -1112,6 +1112,27 @@ reviewable one."* That clause **assumed something invokes the script.** Nothing 
 >
 > **This is the count-blindness reflex applied to a process rather than to a register:** *"seven
 > caught"* reads as a problem; **the rate is the finding, and the rate makes silence the anomaly.**
+>
+> #### ⛔ GUARD ON THE INVERSION — IT HAS A CHEAP FAILURE MODE, AND IT IS THE ONE THIS PROJECT KEEPS NAMING
+>
+> **If a clean report becomes the anomaly, the cheapest way to satisfy the expectation is to report
+> something trivial found in passing.** That is the **artefact-exists-because-it-was-demanded** shape
+> — a fixture manufactured to produce a measurable population, an instrument built to make a brief
+> true — **arriving at a REPORT.**
+>
+> ⛔ **SO THE QUESTION ASKED AGAINST SILENCE IS NOT *"did you find one?"*** — which creates exactly
+> that pressure — **but:**
+>
+> > ### **"WHICH PREMISES DID YOU COMPUTE, AND WHAT DID THEY COME OUT AS?"**
+>
+> | report | reading |
+> |---|---|
+> | lists premises verified, **all confirming** | ✅ **a clean result** — and a real one |
+> | ⛔ **silent about premises** | **the anomaly** — the premises were probably not checked |
+>
+> **That distinguishes a clean brief from an unchecked one WITHOUT creating pressure to manufacture a
+> finding.** ⚠ The signal was never *"a failure was found"*; it is *"the premises were computed."*
+> **Confirmation is a result, and it only counts when it is reported as one.**
 
 **⇒ SO THE RED-TRIGGER FIELD HAS TWO HALVES, AND THE SECOND IS A PROHIBITION:**
 
