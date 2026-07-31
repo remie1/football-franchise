@@ -3968,3 +3968,85 @@ event.
 > runs of the same committed tree would mean something moved that nobody moved.
 
 Cheap: re-run one measurement on the other's seed lists. **Do not close it by inspection.**
+
+---
+
+## 1f-RESULT. ⛔⛔ THE ENUMERATION LANDED, AND "THREE INDEPENDENT CHANNELS" WAS WRONG
+
+**The dispatch read to the leaves and proposed nothing, as ruled.** Three structural findings, and the
+first two invalidate framing that 1d, 1e and 1f were all written on top of.
+
+### ⛔ FINDING 1 — `COLLAPSING` is reachable through ALL THREE channels, not just arrival
+
+1f was written as though COLLAPSING were an arrival-channel phenomenon. **It is not.**
+`pocket.minimumStatusByBand.RUSHER_WINS_REP → "COLLAPSING"` (`tunables.ts:778`) drives the **band
+floor** straight to COLLAPSING, and the counter's threshold table has its own COLLAPSING rung at 5
+(`tunables.ts:826-831`). **My framing narrowed the subject before the reading was done** — the same
+error one level further along.
+
+### ⛔⛔ FINDING 2 — CHANNELS 1 AND 2 ARE NOT INDEPENDENT. THEY READ TWO TABLES OFF **ONE SHARED ROLL**.
+
+`pocketStatusFromPressure` and `pocketFloorFor` both key on `band`, the output of a **single**
+`resolvePassRushTick` call (`resolve/passRush.ts:33-109`). One die, two tables:
+`pressureProgressByBand` and `minimumStatusByBand`.
+
+> **"The worst of three independently-derived channels" is the description this project has been
+> using since 1d. It is wrong. There is one roll feeding two views, plus a clock that the SAME roll
+> starts.**
+
+### ⛔⛔⛔ FINDING 3 — CHANNEL 2's COLLAPSING TRIGGER AND CHANNEL 3's CLOCK ARE THE SAME EVENT, AND FOR INTERIOR RUSHERS THE TIMING COINCIDES **EXACTLY**
+
+`RUSHER_WINS_REP` is simultaneously:
+- the **only** band that maps to `COLLAPSING` on the band floor, and
+- the event that **creates or refreshes** the arrival clock (`startsThreat`).
+
+**And the two constants meet exactly.** INTERIOR travel time is **1.0s for every move**
+(`tunables.ts:602`); `collapsingWithinSeconds` is **1.0** (`tunables.ts:657`). Since
+`pocketFloorFromArrival` tests `minTta <= collapsingWithinSeconds`, an INTERIOR won rep produces
+`minTta = 1.0` **at creation** — which is **already COLLAPSING, on the same tick the band floor
+independently says COLLAPSING.**
+
+> ### **On an interior win, the two largest channels report the SAME FACT TWICE, on the same tick, from one roll.**
+
+⇒ **This is the mechanism behind the tie structure**: `arrival + bandFloor` together is **77,283 of
+182,367 dirty ticks — 42.378%**, the single largest subset. ⚠ *Reported as the reading's explanation
+of numbers already in hand; the tie share was NOT decomposed by alignment, and whether EDGE
+(travel 1.5–2.0s) behaves differently is unmeasured.*
+
+### The threat set branches TEN ways, not one
+
+`minTta` is a **minimum over the live threat set**, so every path that changes the set or any
+member's ETA is a determinant. **Creation:** won rep (roll-driven, ETA shaved by margin, clamped
+`[1.0, 3.0]`); free runner at snap (deterministic ETA, but *which* rushers are free is decided by
+three upstream rolls — `blitz_recognition`, `blitz_pickup`, `stunt_communication` — plus the
+protection call, an external input); the pursuit clock (replaces the **entire** set).
+**Retirement:** `BLOCKER_RESETS`; scramble force-reset; arrival ending the play; the pursuit deadline
+ending it as a run. ⚠ **Nothing else retires a threat** — a stalemate, gain or contain only *delays*.
+**In-place mutation:** `soonerThreat` (downward only); `delayThreat` — ⚠ **zero for every band except
+`BLOCKER_CONTAINS` (0.5s)**; `STEP_UP`'s `edgeThreatDelaySeconds` (EDGE only, capped 2/play);
+`arrivedAt` on `CAUGHT_FROM_BEHIND` (downward only, ends the play).
+
+### 🚧 THE ABSTENTION THAT GATES THE NEXT DISPATCH
+
+⛔ **`pocketChannelShares.ts` partitions dirty ticks by WINNING CHANNEL, never by OUTPUT STATUS.** So
+of arrival's **43.9% exclusive-of-dirty**, *how much is COLLAPSING versus IMMEDIATE versus PRESSURE*
+is **not known and not derivable from the existing instrument.**
+
+> ⚠ **1f's premise — "COLLAPSING is ~51% of ticks" — and the exclusive-share table ARE NOT YET
+> CONNECTED.** Anything that reads the 43.9% as a COLLAPSING budget is making an unmeasured
+> assumption. **That connection is the next measurement, and it is small: partition the existing fold
+> by emitted status.**
+
+### ✅ ENTRY 66 — ATTRIBUTED, AND IT IS SEEDS
+
+Both instruments re-run. `pocketChannelShares` at `SETS=0,1` reproduces **257,598 / 43.676% / 3.815%
+/ 0.004%** digit for digit; `pressureHorizonChannelShares` at `SETS=0,1` reproduces **259,737 /
+43.893% / 3.716% / 0.001%** digit for digit. **Set 0 is byte-identical between them**
+(`fnv1a:020c1dcb#496`); **set 1 differs** (`fnv1a:42c437d5` vs `fnv1a:34c01c6d`) because the two
+harness files derive it from **different label strings** — `"…/pcs-set-1"` versus `"…/phcs-set-1"`.
+
+**Two legitimate, individually reproducible populations. Nothing moved that nobody moved.** ⚠ Worth a
+**shared canonical seed-set constant** if these two files are ever meant to be exact replicates —
+which is entry 47's *restated constant* shape in a seed label. Noted, not proposed.
+
+**⇒ Closed. And it cost one re-run, which is what "attribute it, do not close it by inspection" buys.**
