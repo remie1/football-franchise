@@ -362,7 +362,28 @@ quarterback's position**, or **whose remaining travel exceeds the time left in t
 
 ---
 
-## 1d. ⚡⚡⚡ THE BAND FLOOR IS THE LEVER — `pocket.minimumStatusByBand`. RULED (owner, July 2026). TOP OF THE QUEUE.
+## 1d. 🔧 `pocket.minimumStatusByBand` — RECLASSIFIED (owner, July 2026): **A CORRECTNESS FIX, NOT A RATE FIX. And it is TWO changes.**
+
+> ### ⛔ **THE BAND FLOOR IS EXCLUSIVE ON 2.701% OF ALL TICKS. That is the CEILING on everything the whole channel does alone — and `BLOCKER_BEATEN` is only part of it.**
+
+**Measured before pricing, which is the point** (`pocketChannelShares.ts`, canonical N, 0 of 257,598
+identity mismatches). The band floor's **50.431% share overstates its standalone leverage by ~13×**
+against its **3.815% exclusive-of-dirty**: 42.4 of those 50.4 share-points are **ties with arrival**,
+not sole determination.
+
+**⇒ SO 1d IS RULED AND PRICED AS CORRECTNESS, WITH NO RATE EXPECTATION ATTACHED.** The football
+argument below stands entirely on its own terms — *a beaten blocker is not a pressured passer* — and
+it is worth doing for that reason. **It is not the pressure lever and must not be reported as one.**
+
+> ### ⛔ AND IT IS TWO CHANGES. THE SECOND IS THE LARGER. DO NOT LET IT RIDE AS A SIDE EFFECT.
+>
+> **The counter is INERT, not mis-tuned — 0.004% of dirty ticks, 7 ticks in 257,598.** So moving
+> `BLOCKER_BEATEN` off the floor and onto `pressureProgressByBand` is **not a redistribution. It is a
+> DELETION**, unless the counter is re-derived first. The owner's original constraint ("expect the
+> counter's rate to need re-derivation") is confirmed and quantified: **the counter is not a
+> destination until it is one.** ⇒ **entry 61.**
+
+**Original ruling and its football argument, unchanged and still correct:**
 
 > ### **THE PRESSURE RATE IS DETERMINED BY A TABLE, NOT BY A MECHANISM.**
 
@@ -3674,3 +3695,100 @@ rule is written the first time the class is seen, the class is larger than the i
 it, and the next instance lands **in the rule's own blind spot — the one place nobody re-examines
 because a rule now exists there.** ⇒ **OWED: retrofit entry 55's red-trigger field to every
 instrument that predates it.**
+
+---
+
+## 1e. ⚡⚡⚡ `arrival.pressureWithinSeconds` IS `POS_INF` — THE UNBOUNDED DEFAULT ON THE DOMINANT CHANNEL. TOP OF THE ROADMAP (owner, July 2026).
+
+> ### **There is no horizon. A rusher four seconds away and a rusher arriving next tick are THE SAME FACT to this channel.**
+
+`tunables.ts:700`. **Any live threat, at any ETA, floors the pocket at `PRESSURE`.**
+
+**And it sits on the channel that dominates both measures**: arrival is **91.997% share** and
+**43.676% exclusive-of-dirty** — the largest ceiling of the three by an order of magnitude
+(`pocketChannelShares.ts`, canonical N, 0 of 257,598 identity mismatches).
+
+**⇒ THIS EXPLAINS THE SHAPE OF EVERYTHING.** `pressure_rate = 1 − P(every tick CLEAN)` **collapses**
+when one channel declares every tick with a live threat dirty. It is **not a tuning value** — it is an
+**unbounded default sitting on the dominant channel**, which is §4.1's own subject arriving at the
+largest quantity in the model.
+
+⚠ **AND IT IS THE CONSTANT ADR-031 CREATED SPECIFICALLY SO THAT IT COULD BE SWEPT** (`tunables.ts:290`
+names it *"the ONE remaining named candidate"*). **It has never been swept.** A name was given to a
+thing precisely so it could be measured, and then it was not measured — for nine dispatches, while
+four levers were priced *behind* it.
+
+### ⛔ Constraints on the sweep
+
+1. **MAP THE RESPONSE CURVE FIRST**, at **play scope**, affected-play count **raw and exclusive**
+   (§5.3). ⚠ **Tick-level shares do NOT translate linearly to a per-play rate over ~2.98 ticks** — the
+   exclusive share bounds what a lever can *reach* and promises nothing about the *rate*. Given
+   ADR-049's measured compression, **expect the curve to be steep somewhere and flat elsewhere rather
+   than proportional**, and report where the knee is.
+2. **DERIVE THE HORIZON'S FOOTBALL MEANING; DO NOT PICK IT.** A threat should floor the pocket
+   **when it is close enough to affect the throw**, and `collapsingWithinSeconds` (1.0) and
+   `immediateWithinSeconds` (0.0) **already exist as the neighbouring boundaries** — derive the new
+   one **against them**, never to hit a rate. Same discipline as ADR-052's ladder.
+3. **NAME WHAT IS HELD** (entry 37). ⚠ **This channel interacts with supply and retirement, and BOTH
+   WERE MEASURED AGAINST IT WHILE IT WAS UNBOUNDED.** Every prior price on this subsystem was taken
+   behind this default.
+
+---
+
+## 61. ⛔ THE ACCUMULATED-PRESSURE MECHANIC DOES NOT EXIST IN PRACTICE — 7 ticks in 257,598
+
+**`pocketStatusFromPressure` is binding on 0.076% of ticks and EXCLUSIVE on 0.004% of dirty ticks —
+seven ticks out of 257,598** (`pocketChannelShares.ts`, canonical N, `DEFAULT_TUNABLES`).
+
+**This is not a mis-tuned rate. It is a specified mechanic with no measurable presence.** §7.2's
+accumulated pressure — **pressure BUILDING over a rep, which is one of the more football-true things
+in the whole section** — is, in the shipping tree, indistinguishable from absent.
+
+> **Same class as entry 50** (the tipped-ball subsystem having no attribute surface): the design
+> document specifies a mechanic, the engine implements it, and **nothing it does is observable in the
+> output.** Not a bug in any line of code — a mechanic whose effect is entirely absorbed by another
+> channel.
+
+**⚠ Why it is filed SEPARATELY from 1d, on the owner's ruling:** 1d proposes moving `BLOCKER_BEATEN`
+onto this counter. **A destination that is inert is not a destination**, so the re-derivation is a
+prerequisite rather than a consequence — **and it is the larger of the two changes.** Filing it apart
+stops it riding along as a side effect of a table correction.
+
+**What it needs:** not a tuning pass. A ruling on **whether accumulated pressure should be a channel
+at all**, given that the arrival horizon currently answers the same question sooner and louder — and
+if it should, a re-derivation of its rate against a *bounded* arrival channel, since it has only ever
+been measured behind an unbounded one.
+
+---
+
+## 62. 📌 THE IDENTITY CHECK HAS NOW PAID THREE TIMES, EACH ON AN UNPUBLISHED FACT
+
+**The instrument shape:** *"with my rules disabled, I reproduce the engine's own stream tick for
+tick."* Not a correctness check on outputs — **an identity requirement.**
+
+| # | what it found | how it presented |
+|---|---|---|
+| 1 | §8.8's pursuit clock publishes **no `RUSH_THREAT` at all** | 463 mismatches of 2,142 → ADR-054 |
+| 2 | the pursuit-clock reconstruction after `QB_PURSUIT` landed | **0 of 258,376** — the check confirming its own fix at full population |
+| 3 | `STEP_UP` **zeroes an EDGE rusher's pressure counter** as a side effect (`pocketMovement.stepUp.resetsEdgePressure`), published nowhere and only inferable from a co-occurring `RUSH_THREAT{state:"DELAYED"}` | 1 mismatch of 5,262 at smoke scale |
+
+> ### **All three are UNPUBLISHED FACTS — game state that decides an outcome and reaches no consumer. A correctness check on the reconstruction's OUTPUT would have been green for every one of them, because the outputs were plausible.**
+
+**⇒ STANDING: prefer an identity requirement to an agreement requirement wherever identity is
+available.** Agreement asks *"is this answer reasonable?"* — a question a wrong answer can pass.
+Identity asks *"is this the same?"* — which nothing can pass by being plausible. ⚠ **And note the
+pattern in what it finds: every hit so far has been Charter §3's single-source-of-truth rule leaking**,
+not an arithmetic error. That is the class this instrument is actually sensitive to.
+
+---
+
+## 63. 🔧 `ruling2Dispatch.test.ts`'s `SIZE NOTE` asserts something nothing checks
+
+The printed note is a **hardcoded string** always reading *"This is BELOW the package's canonical
+496-game standard"* — **regardless of the actual `GAMES` value.** At `GAMES=496` it is **false**.
+
+**Flagged rather than silently corrected**, and it is worth the entry rather than a quiet fix: this is
+**prose with zero enforcement inside an instrument** — §4.1's weakest medium in the place readers
+trust most — and it is the *sibling* of the reassurance defect entry 60 found in ADR-038. **A message
+that asserts a fact about the run it is printed in should be derived from that run, or it should not
+make the claim.**
