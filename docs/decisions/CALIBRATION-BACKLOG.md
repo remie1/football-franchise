@@ -3879,3 +3879,92 @@ absent — report the count, do not threshold it silently); a mechanic absorbed 
 `DEFAULT_TUNABLES` but live on another tree (⚠ **state the tree**); or a mechanic with no observable
 channel at all, which this instrument cannot see and which is entry 50's actual shape. **Nothing
 enforces coverage of that last case** — recorded as a gap, not a guarded one.
+
+---
+
+## 1f. ⚡⚡⚡ `collapsingWithinSeconds` IS WHERE THE RATE LIVES — but the ENUMERATION COMES FIRST, and that is a precondition
+
+> ### **COLLAPSING is ~51% of all ticks, FLAT ACROSS THE ENTIRE 1e SWEEP GRID, governed by a finite `1.0` that 1e's lever never touched.**
+
+**1e's conditional table is what decides this** (`pressureHorizonChannelShares.test.ts`, identity-checked
+0 of 259,737 and 0 of 259,141):
+
+| exclusive / dirty | unbounded | H=2.0 | H=1.0 floor |
+|---|---|---|---|
+| counter | 0.001% | 0.002% | 0.002% |
+| band floor | 3.716% | 3.906% | 9.196% |
+| **arrival** | **43.893%** | **43.541%** | **38.577%** |
+
+**Arrival remains the largest exclusive channel by 4× even at the floor** — so bounding
+`pressureWithinSeconds` hands control **nowhere**. The rate lives in COLLAPSING.
+
+### ⛔ PRECONDITION BEFORE ANY SWEEP — ENUMERATE WHAT DETERMINES COLLAPSING, ALL THE WAY DOWN
+
+**Three instances of the same error is enough to make this a precondition rather than a preference**
+(Charter §4.1, *the enumeration must recurse*). 1e was dispatched because one level of enumeration
+found the binding **channel** and stopped short of the binding **determinant**.
+
+**COLLAPSING is fed by at least two things and they were measured against each other in
+configurations we now know were confounded:**
+
+- **the horizon** (`collapsingWithinSeconds = 1.0`) — how close a threat must be;
+- **the SUPPLY of threats that populate it** — ADR-049's 63.581pp mechanism on the isolated base.
+
+⚠ **Both were measured with the OTHER unbounded or uncorrected.** Every ADR-049 supply and
+persistence figure was taken with `pressureWithinSeconds = POS_INF`; 1e's horizon curve was taken
+with supply committed at 15.
+
+> **⇒ READ THE BRANCH STRUCTURE. REPORT IT. PROPOSE NOTHING.** At each level ask *does this
+> determinant itself branch?* and keep descending while the answer is yes. **Only after the leaves are
+> on the page does a lever get proposed** — and the proposal is a separate dispatch.
+
+**Owed alongside it:** the **re-price of supply and persistence on a bounded-horizon tree.** 1e
+declared the expectation that ADR-049's numbers reproduce closely as **a prediction, not a
+measurement** — correctly. It stays a prediction until someone runs it.
+
+---
+
+## 65. 📌 THE 1e CURVE FALSIFIED A PRIOR ABOUT THIS SUBSYSTEM'S SHAPE — carry it forward
+
+**Predicted:** steep somewhere, flat elsewhere — a lever that saturates.
+**Measured:** **flat, then increasingly steep, with the LAST step the LARGEST and no flattening below the knee.**
+
+Marginal Δ per half-tick, committed base: `INF→4.0→3.5→3.0` = **0, 0, 0 (byte-identical)**;
+`3.0→2.5` = −0.002; `2.5→2.0` = −0.213; `2.0→1.5` = −0.964; **`1.5→1.0` = −1.261.** On the mechanism
+base, **72.8% of the entire reachable range sits in the single final half-tick.**
+
+**⇒ THE KNEE IS AN ONSET, NOT A SATURATION.** Above ~2.5s the lever is *exactly* inert — not small,
+**inert**, with byte-identical digests. Below it the curve steepens monotonically to the domain floor.
+
+**Why it is worth carrying rather than filing:** the *shape* of a response curve is a prior that gets
+reused when planning the next sweep — grid spacing, where to spend runs, when to stop. **This prior
+has now been falsified once on this subsystem**, and the mechanism suggests why: these horizons are
+**thresholds against a discrete tick quantum**, so a lever does nothing at all until it crosses into
+the populated part of the distribution, then bites harder each step as it eats denser mass.
+
+⚠ **Expect onset-shaped curves from any threshold-against-a-quantised-distribution lever here**, and
+**grid the endpoints first** — 1e spent three of eight grid points in a region that was byte-identical
+to the baseline.
+
+---
+
+## 66. 🔧 ATTRIBUTE THE CHANNEL-SHARE DISCREPANCY — small, and it is either seeds or a finding
+
+Two independent measurements of the same quantity on the committed tree disagree slightly:
+
+| source | ticks | arrival | band floor | counter |
+|---|---|---|---|---|
+| `pocketChannelShares.test.ts` (1d) | 257,598 | 43.676% | 3.815% | 0.004% |
+| `pressureHorizonChannelShares.test.ts` (1e) | 259,737 | 43.893% | 3.716% | 0.001% |
+
+**Both are identity-checked at 0 mismatches**, so neither is reconstructing wrongly. The differences
+are 0.1–0.2pp on the two large channels; the counter differs by a handful of ticks on a genuinely rare
+event.
+
+> ⛔ **ATTRIBUTE IT, DO NOT ASSUME IT.** The likely cause is **seed-list composition** (1d used sets
+> 0+1; 1e's channel-share run used a different pairing) — **but "likely" is the word that has cost
+> this project two dispatches.** ⚠ **If it is seeds, say so WITH THE SEEDS and show the same seeds
+> reproduce. If it is not seeds, it is a finding** — a tick population that changed size between two
+> runs of the same committed tree would mean something moved that nobody moved.
+
+Cheap: re-run one measurement on the other's seed lists. **Do not close it by inspection.**

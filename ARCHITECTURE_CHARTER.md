@@ -1111,6 +1111,46 @@ or even the binding thing, that sets the number.**
 > entire dispatch.** A lever's measured size on a base where it is the *only* live cause says nothing
 > about its size on a tree where it is *one of several*.
 
+### ⛔⛔ AND THE ENUMERATION MUST RECURSE. FINDING THE BINDING CHANNEL IS NOT FINDING THE BINDING DETERMINANT IF THE CHANNEL ITSELF BRANCHES.
+
+**Third instance, and the first committed AFTER this corollary was written** — by its author, in the
+dispatch the corollary was supposed to protect.
+
+The three channels *were* enumerated. Arrival came back dominant at **43.9% exclusive-of-dirty**,
+`arrival.pressureWithinSeconds` was sitting on it at `POS_INF`, and that was called the answer.
+**But `pocketFloorFromArrival` branches too** — three horizons tested **in order**:
+
+```ts
+if (minTta <= t.immediateWithinSeconds) return "IMMEDIATE";   // 0.0
+if (minTta <= t.collapsingWithinSeconds) return "COLLAPSING";  // 1.0
+if (minTta <= t.pressureWithinSeconds)  return "PRESSURE";     // POS_INF
+```
+
+**So the unbounded default governs ONLY threats more than 1.0s out.** Arrival's dominance is a
+**COLLAPSING** phenomenon — ~51% of ticks, **flat across the entire sweep grid**, governed by a
+*finite* `1.0` the lever never touches. PRESSURE-severity ticks are ~9%. The measured ceiling on the
+"cleanest finding in months" was **−2.440pp of a 60.6pp gap.**
+
+> ### **One level of enumeration has now produced a confident wrong answer three times — and every time, the next level down was CHEAP TO READ.** Eleven lines the first time. **Three lines here.**
+
+**⇒ PRECONDITION, not preference: enumerate to the leaves. At each level ask *does this determinant
+itself branch?* and keep descending while the answer is yes.** The cost is reading a function. The
+demonstrated cost of stopping early is a dispatch.
+
+### ✅ AND THE CONVERSE IS WORTH KEEPING: A DERIVED BOUNDARY THAT LANDS BADLY IS THE PROOF THE DERIVATION WAS HONEST.
+
+`2.0` was derived from the table's own geometry — COLLAPSING's width `1.0 − 0.0`, replicated once, at
+the engine's 0.5s quantum — **before the curve was examined.** It landed at the curve's *onset* and
+captured **8.8%** of an already-small budget.
+
+> **A fitted number lands well. That one landing badly is what proves it was not fitted** — and that
+> is worth more than the measurement it produced, because it is the only evidence available that a
+> derivation was real rather than a rate-chase wearing a derivation's name.
+
+⚠ **Corollary for readers: do not treat a derived value that lands poorly as a failed derivation.**
+It is a *successful* derivation reporting that the mechanism is small — which is exactly the signal a
+fitted number would have destroyed.
+
 **⚠ KEEP THIS DISTINCT FROM THE REFERENT PROBLEM. They look alike and they fail differently:**
 
 | | the referent problem | **this** |
