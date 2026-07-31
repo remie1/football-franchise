@@ -401,3 +401,22 @@ manifest {source, season, fetchedAt, schemaHash}.
    (Charter §4.1), and the diagnostic that would have caught it is the one already standing: ***what,
    exactly, is the subject?*** A green suite is evidence about the package it ran in and about nothing
    else. **It is cheap to state and it would have caught this.**
+10. **Stage explicit paths whenever a dispatch is live. `git add -A` NEVER, while an agent is running.**
+    Standing rule, owner, July 2026, **on the second occurrence of the same cause** — which is where
+    a slip becomes a habit.
+
+    **What happens:** a background agent is mid-edit; the Orchestrator commits an unrelated
+    documentation change with `git add -A`; **a partially-written instrument lands inside a docs
+    commit** under a message that says nothing about it. It happened twice — once sweeping in a
+    half-written `pocketChannelShares.ts`, once sweeping in four in-flight engine files.
+
+    **The repair is `git reset --soft HEAD~1`, then re-stage the intended paths** — it does not touch
+    the working tree, so nothing of the agent's is lost. ⚠ **But the repair only runs if the mistake
+    is NOTICED, and a commit that succeeded looks identical to one that staged what it meant to.**
+
+    > ### **`git add <explicit paths>` always. `-A` only when no dispatch is live, and checking is cheaper than remembering.**
+
+    **Why unconditional rather than careful:** the failure is silent by construction — the commit
+    succeeds, the tests still pass, and the only symptom is a file appearing in a diff that has nothing
+    to do with the message. **A rule that fires on "is an agent running?" is checkable; one that fires
+    on "was I careful?" is not.**

@@ -44,6 +44,28 @@ For every number, table shape, call site or invariant this ADR asserts, say **wh
 > corollary (Charter §4.1). **Uniformity in a field whose whole purpose is to record difference is
 > the signal, not the reassurance.**
 
+## Implied scope — REQUIRED
+**Name the cells, checks or channels this reasoning APPLIES TO but which this ADR does NOT change.**
+One line each, marked `unruled`. If genuinely none, say `none` — but look first.
+
+> ⛔ **WHY THIS FIELD EXISTS.** *A ruling's reach is recorded only at the cell that provoked it, never
+> at the cells it implies.* **Every ADR here is complete about its subject and silent about its
+> scope** — so an implication exists in the corpus and **is indexed nowhere**, which is how a correct,
+> ratified ruling sits inert beside the identical case next door.
+>
+> **The worked cost:** ADR-032 ruled *gaining ground is not pressure* and removed a floor that carried
+> no information. **`arrival.pressureWithinSeconds = POS_INF` was the identical error one channel
+> over.** Nothing connected them. **Four dispatches later** it was settled by exactly ADR-032's
+> reasoning, with no new measurement (backlog entries 76–78).
+>
+> **ADR-032 would have written:** *"this reasoning applies to the arrival channel's `PRESSURE`
+> horizon — unruled."* **One line, at authoring time, when the author already knows where else the
+> argument reaches.**
+>
+> ⚠ **This is the field-versus-habit test passing** (Charter §4.1): *free at authoring time, expensive
+> afterwards.* Naming an implication later requires reconstructing an argument someone else made about
+> a different cell.
+
 ## Need
 What type / event / channel is needed, by which domain, and why. Reference the spec section that motivates it.
 
