@@ -4444,3 +4444,75 @@ discarding half of what it computes.
 
 ⚠ **Raise it whenever the pressure work reaches a natural break.** Not urgent enough to interrupt a
 live thread; too cheap to keep deferring behind one.
+
+---
+
+## 71-RESULT. ⛔ **THE FORK RESOLVES TO *RE-MEASURED*.** The prediction is falsified in the half that decides.
+
+**Recorded BESIDE entry 71's pre-registration, which stands unamended.**
+
+**Canonical N and then some: 4 seed sets × 496 games = 1,984 games, 1,640,905 `pass_rush_tick` reps.**
+Own seed prefix `bc-` per entry 70. Partition check `sum(byBand) = 1,640,905`: **MATCH**.
+
+### The six-band table
+
+| band | share of all reps | P2-eligible? | floor |
+|---|---|---|---|
+| `BLOCKER_RESETS` | 41.910% | no — already retires | `CLEAN` |
+| `RUSHER_WINS_REP` | **31.872%** | ⚠ no — **the ordering bug** (entry 59) | `COLLAPSING` |
+| `BLOCKER_CONTAINS` | 13.156% | yes | `CLEAN` |
+| **`BLOCKER_BEATEN`** | **8.448%** (SD 0.026pp) | yes | ⛔ **`PRESSURE`** |
+| `RUSHER_GAINING` | 3.667% | yes | `CLEAN` |
+| `STALEMATE` | 0.948% | yes | `CLEAN` |
+
+**`BLOCKER_BEATEN` is 69.734% of the pre-split 1–14 range** — **seven in ten** of the reps that used to
+be one band now land in the dirty-floor half.
+
+### ⛔ THE DECOMPOSITION — and it goes the other way
+
+| | retirements | share |
+|---|---|---|
+| ⛔ **DEMOTING** (`BLOCKER_BEATEN`) | 27,521 | **32.437%** |
+| ✅ **CLEARING** (other three) | 57,323 | **67.563%** |
+| total P2-eligible | 84,844 | closed: `27,521 + 57,323 = 84,844` |
+
+> ### **MOSTLY CLEARING, roughly two to one. Per entry 71's pre-registered fork, that is RE-MEASURED — not re-ruled.**
+
+**⇒ The owner's expectation is CONFIRMED IN MECHANISM AND FALSIFIED IN MAGNITUDE.** 68-RESULT
+established that `BLOCKER_BEATEN`-triggered retirements demote; the census establishes they are **a
+third, not the bulk.** So **the metric was NOT blind to two-thirds of ruling 2**, and **the small
+number largely means what it appeared to mean.**
+
+⚠ **Order-of-magnitude only, stated as such:** if the demoting third contributed nothing visible, the
+severity-complete figure is around `0.108 / 0.676 ≈ 0.16pp` — **a correction of roughly 50% on a
+number that is 0.18% of the gap.** ⛔ **This is arithmetic on a blend, NOT a measurement**, and it does
+not license skipping the re-measurement; it says what the re-measurement is likely to find.
+
+**⇒ Ruling 2's other two confounds are now the live questions** — entry 59's dead-branch P2 ceiling and
+the unbounded horizon — **rather than the metric.**
+
+### ✅ The football argument is untouched, as pre-registered
+
+**A contained rusher staying live forever with an unchanged ETA is a missing mechanic regardless of
+its price.** The census does not weaken it: `BLOCKER_CONTAINS` alone is **13.156% of all reps and
+50.024% of P2-eligible retirements** — the largest single clearing route, and today it only *delays*,
+by `0.5s`.
+
+### 📌 CROSS-VALIDATION, AND ENTRY 70's RULING PAID INSIDE ONE DISPATCH
+
+The six measured shares agree with **ADR-050 §4a's independently *derived* `PASS_RUSH_MIXTURE`**
+(arithmetic, no corpus) to **0.01–0.04pp on every row** — `RUSHER_WINS_REP` **31.872% measured vs
+31.871% derived**; `BLOCKER_BEATEN` **8.448% vs 8.458%**.
+
+> **A corpus measurement on a fourth disjoint seed population agreeing with a closed-form derivation
+> is the strongest form of agreement available here — two arms with genuinely independent sources.**
+
+⚠ **Entry 70 ruled the `bc-` prefix must be its own** rather than sharing a constant. **One dispatch
+later, that is what makes this agreement evidence rather than tautology.**
+
+### Abstentions carried
+
+**Post-hoc reclassification of the committed stream — a LOWER BOUND**, holding every QB decision fixed
+(the same declared limit as ruling 2's own instrument). *"Live arrival clock"* means
+`m.threat !== undefined`, **not cross-referenced against channel 3's status**, so a coincidence does
+not imply channel 3 was dirty. Flat-60 only. No SACK/COMPLETION claim.
