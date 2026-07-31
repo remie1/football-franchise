@@ -1169,8 +1169,27 @@ computed it.
 
 **Note what it costs and what it buys:** the annotation is a paragraph, and it converts a decision
 that was *right for reasons it could not demonstrate* into one that is **demonstrated in place.**
-⛔ **And it applies symmetrically — a measurement that UNDERMINES a ratified decision gets annotated
-there too**, which is the harder half and the one that will be skipped first.
+
+#### ⛔ THE PRACTICAL FORM — ANNOTATE REGARDLESS OF DIRECTION, AND STATE THE DIRECTION EXPLICITLY
+
+> **"This STRENGTHENS ADR-033" and "this WEAKENS ADR-046's justification" must look the same in the
+> record** — same placement, same prominence, same standing obligation.
+
+⚠ **The undermining half is the one that costs something to write, and it is the one that matters
+more** — because **the drift-versus-inertness lookup cannot catch it.** A ruling with weakened support
+**still has consumers, still reads as current, and nothing about it changes except that the reason is
+worse.** It passes *"does anything mechanically depend on this?"* and it passes *"does anything consume
+this?"*. **It is a third register failure and neither existing question sees it.**
+
+> ### ⛔ AND IF ONLY THE STRENGTHENING ANNOTATIONS EVER GET WRITTEN, THE ADR CORPUS READS AS UNIFORMLY WELL-SUPPORTED.
+>
+> **That is the uniform-provenance-table failure arriving at a different artefact** (`ADR-TEMPLATE.md`:
+> *a provenance table that only ever says `COMPUTED` is one nobody filled in honestly*). **Uniformity
+> in a field whose whole purpose is to record difference is the signal, not the reassurance** — and a
+> corpus of decisions every one of which acquired *more* support over time is not a well-run project,
+> it is **a corpus with a selection effect in its annotations.**
+>
+> ⚠ **So the absence of weakening annotations is itself evidence, and it should be read that way.**
 
 > ### **So a register can be WRONG AND LOAD-BEARING, or RIGHT AND INERT — and NEITHER STATE SHOWS ON INSPECTION.**
 >
