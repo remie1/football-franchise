@@ -1151,6 +1151,21 @@ captured **8.8%** of an already-small budget.
 It is a *successful* derivation reporting that the mechanism is small — which is exactly the signal a
 fitted number would have destroyed.
 
+> ### ⛔ AND THE INVERSE, WHICH IS THE UNCOMFORTABLE HALF: **A DERIVED VALUE THAT LANDS WELL DESERVES MORE SCRUTINY, NOT LESS.**
+>
+> If landing badly is the *only* available evidence that a value was not fitted, then **landing well
+> is the case where a real derivation and a rate-chase are INDISTINGUISHABLE BY THEIR RESULT.** The
+> number is the same either way; only the process differs, and the process leaves no trace in the
+> number.
+>
+> **⇒ So the comfortable outcome is the one where PROVENANCE HAS TO CARRY THE WHOLE WEIGHT** — what
+> the boundary was derived *against*, whether that anchor existed before the target rate was known,
+> and whether the derivation was written down before the curve was examined. ⚠ **Ask for those three
+> things hardest when the answer is pleasing**, because that is precisely when nobody wants to.
+>
+> This is the ratified-claim sub-corollary in another costume: **a result that confirms what we
+> hoped removes the reviewers**, exactly as ratification does.
+
 **⚠ KEEP THIS DISTINCT FROM THE REFERENT PROBLEM. They look alike and they fail differently:**
 
 | | the referent problem | **this** |
