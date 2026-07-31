@@ -4941,3 +4941,65 @@ use, and **naming it is worth more than the note it replaces.**
 
 ⚠ **Do not weaken the corpus-scale assertions to make the signature uniform.** A green suite bought by
 loosening a check is worse than the residual.
+
+---
+
+## 80. ⛔ A LEVER PRICED AS ONE THING WHEN IT WAS TWO — an average over heterogeneous mechanisms is uninterpretable, and nothing in the price shows it
+
+**New class, and the diagnostic is DIFFERENT from entry 67's blind-metric case.** There, the metric
+could not see what the lever did. **Here the metric was fine and the SUBJECT was two things.**
+
+**The instance.** Ruling 2 asked for retirement by **geometry** *and* by **time**, and was priced at
+**`0.108pp`** — one number, one refusal. Re-measured on the de-confounded tree, canonical N,
+identity falsifier `0 of 517,753`:
+
+| arm | CLEAN ticks | Δ |
+|---|---|---|
+| geometry only | 29.834% | **+0.298pp** |
+| ⛔ **time only** | **36.104%** | ⛔ **+6.568pp** |
+| joint | 36.124% | +6.588pp |
+
+> ### **TWENTY-TWO TO ONE. The aggregate was never about either mechanism.**
+
+### Why nothing in the price showed it
+
+⚠ **An average over heterogeneous mechanisms LOOKS EXACTLY LIKE a small effect.** `0.108pp` carries
+no signal that it is a blend — **no variance, no shape, no residual.** The report was honest, the
+measurement was correct, and **the number was uninterpretable in a way the number cannot express.**
+
+**⇒ THE DIAGNOSTIC, and it is cheap: when a ruling names TWO mechanisms with the conjunction "and",
+PRICE THEM SEPARATELY BEFORE PRICING THEM TOGETHER.** ⚠ The conjunction in a ruling's own text is the
+tell — *"retirement by geometry **and** by time"*, *"gaining ground **and** winning a rep"*. **A
+ruling that says "and" is a candidate for two dispatches, or one dispatch with three arms.**
+
+⛔ **AND THE INTERACTION MAY BE NEGATIVE, WHICH IS WHY SEPARATE ARMS ARE NOT OPTIONAL.** Here it is:
+joint's geometry retirements collapse **104.683 → 37.202 per 1,000 dropbacks**, because **TIME fires
+first for most of the same threats.** ⚠ **A joint arm alone would have shown a large effect and
+attributed it to both.**
+
+### ⇒ RULED (owner, July 2026): implement TIME. Leave GEOMETRY unimplemented.
+
+**Correctness disposition, same as entry 73** — the football stands alone: *a threat whose whole-life
+ETA exceeds the play's terminal tick cannot arrive, and calling it live is a presence model rather
+than a pressure model.* ⚠ **Same reasoning as entry 76's horizon ruling one channel over, and it
+would be right at 0.1pp. The size is not the justification.**
+
+**Geometry buys `0.020pp` on top of TIME and costs a second mechanic for it.** ⛔ **Left unimplemented
+with the competition recorded, to be re-argued on its own football merits rather than inheriting
+TIME's ruling.**
+
+### ⛔ THE CAVEAT BELONGS IN THE SAME SENTENCE AS THE FIGURE, NOT BENEATH IT
+
+> **`+6.568pp` is a LOWER BOUND from a post-hoc reclassifier that holds every quarterback decision
+> fixed.** A live rule changes later `STEP_UP`/`HOLD`/`SCRAMBLE` choices and which reps are rolled at
+> all.
+
+⚠ **With a number this size, repetition is exactly when a caveat gets dropped** — so it travels
+attached, and **a live implementation landing somewhere other than 6.568pp is not a defect.**
+
+### 🚫 PROHIBITION — recorded here because the number will outlive every report
+
+⛔ **NOTHING MAY CITE `63.876%` AS PROGRESS TOWARD `29.225%`.** The column it came from was labelled
+`pressure_rate` and **is not the pressure rate** — it is `100 − CLEAN%`, the **dirty-tick share**
+(~70.5% committed), while `pressure_rate` is `1 − P(every tick CLEAN)` **per play** (~90%).
+**Two quantities about 20pp apart.** The severity numbers stand; **the comparison does not exist.**
