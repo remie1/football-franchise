@@ -84,6 +84,29 @@ projection of the universal ladder rather than a private set of numbers, and
 | `RUSHER_GAINING` | 1–4 | `MARGINAL_SUCCESS` | gained a step; the blocker is still in front of him | **CLEAN** |
 | `STALEMATE` | 0 | `TIE` | — | CLEAN |
 
+> ### ➕ ANNOTATED July 2026 — THE SPLIT'S ACTUAL SHARE, WHICH THIS ADR COULD NOT STATE AT THE TIME
+>
+> The census this ADR needed did not exist when it was ratified. It does now
+> (`bandCensus.ts`, 4 disjoint seed sets × 496 games, **1,640,905 reps**, corpus scope,
+> `DEFAULT_TUNABLES`):
+>
+> | band | share of ALL reps | share of the PRE-SPLIT 1–14 range |
+> |---|---|---|
+> | **`BLOCKER_BEATEN` (5–14)** | **8.448%** (SD 0.026pp) | ⛔ **69.734%** |
+> | `RUSHER_GAINING` (1–4) | 3.667% | 30.266% |
+> | *(combined, the old single band)* | *12.115%* | *100%* |
+>
+> **⇒ SEVEN IN TEN of the reps that used to be one band land in the DIRTY-FLOOR half.** This ADR
+> reasoned that *"a one-point edge on a hundred-point scale is not a disturbed platform"* and split on
+> **football grounds alone, with no population figure available** — the split turns out to have
+> reallocated **8.448% of all pass-rush reps** from `PRESSURE` to a boundary that now carries most of
+> the old band's mass. **The ruling was right and it mattered more than it could be shown to at the
+> time.**
+>
+> ⚠ **Recorded here rather than only in the backlog** because this ADR's own record could not state
+> the share, and a reader arriving at the split's justification should not have to know that a census
+> happened three months later. Source: `CALIBRATION-BACKLOG.md` entry **71-RESULT**.
+
 **Rejected, and why:**
 
 - **1** — the committed value, and the thing the amendment overturns. A one-point

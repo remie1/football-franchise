@@ -4516,3 +4516,75 @@ later, that is what makes this agreement evidence rather than tautology.**
 (the same declared limit as ruling 2's own instrument). *"Live arrival clock"* means
 `m.threat !== undefined`, **not cross-referenced against channel 3's status**, so a coincidence does
 not imply channel 3 was dirty. Flat-60 only. No SACK/COMPLETION claim.
+
+---
+
+## 72. ⛔ RULED — **RE-MEASURE RULING 2 ONLY AFTER ITS OTHER TWO CONFOUNDS ARE CLEARED, NOT BEFORE**
+
+**The census moved the METRIC question off the critical path and left the real ones.** Ruling 2's
+`0.108pp` carries **three** named confounds; the census resolved **one**:
+
+| confound | status |
+|---|---|
+| the metric was blind to demotions | ✅ **RESOLVED** — only a third demotes; the metric saw two-thirds |
+| ⛔ `retireOn`'s P2 ceiling is an **artefact of statement order** (entry 59) | **OPEN — goes first** |
+| ⛔ the pressure horizon was **unbounded** during the measurement | **OPEN** |
+
+> ### **A severity-complete re-measurement on a still-confounded lever would produce a FOURTH number that also cannot be trusted.**
+
+**⇒ Entry 59's dead branch is fixed FIRST.** It is **independent**, already logged as waiting on
+nothing, and it is **the confound that makes P2's reach an artefact of statement order rather than a
+mechanism's size** — the one that most directly corrupts what the re-measurement is trying to
+measure.
+
+⚠ **And the `≈0.16pp` figure holds the other two confounds FIXED** (entry 37: *name what is held*).
+**That is exactly what makes it a prediction and not a result**, and it is why it does not license
+skipping the re-measurement.
+
+---
+
+## 73. ⚡ RULED ON THE FOOTBALL, REGARDLESS OF PRICE — **`BLOCKER_CONTAINS` NEEDS A RETIREMENT ROUTE, NOT A 0.5s DELAY**
+
+> ### **A contained rusher who stays live with a barely-shifted ETA is a MISSING MECHANIC at any price.**
+
+**And the census made it the largest single clearing route rather than an incidental one:**
+
+- **13.156% of all pass-rush reps**
+- ⛔ **50.024% of all P2-eligible retirements** — *the biggest one*
+- and today it **only delays, by `0.5s`** (`recoverySecondsByBand`, the **only** band with a non-zero
+  delay at all)
+
+**⇒ DISPOSITION, per entry 71's pre-registered fork: IMPLEMENT AS CORRECTNESS, WITH SEVERITY AS THE
+OUTCOME VARIABLE.**
+
+- ⛔ **No rate expectation attached.** 1d's exact mistake was a correctness fix acquiring a rate
+  expectation it was never going to meet; ruled out there and ruled out here **in advance**.
+- ⛔ **Priced AFTERWARDS, not justified beforehand.** The football argument stands on its own and does
+  not need a number to authorise it — and a number produced to authorise it would be a rate-chase
+  wearing a derivation's name.
+- **Sequenced after entry 59**, which changes the branch chain this mechanic lives in.
+
+---
+
+## 74. 📌 CITABLE PRECEDENT — ENTRY 70's RULING PAID INSIDE ONE DISPATCH, IN THE EXACT WAY ITS REJECTED ALTERNATIVE WOULD HAVE DESTROYED
+
+**Cite this the next time someone proposes homogenising two instruments for comparability.**
+
+Entry 70 ruled that `bandCensus`'s seed prefix must be **its own** (`bc-`) rather than shared with
+`pcs-`/`phcs-`. **One dispatch later**, the census's six corpus-measured band shares agreed with
+**ADR-050 §4a's closed-form derived `PASS_RUSH_MIXTURE`** — arithmetic, no corpus — to **0.01–0.04pp
+on every row**:
+
+| band | measured (corpus, `bc-`) | derived (closed form) |
+|---|---|---|
+| `RUSHER_WINS_REP` | **31.872%** | **31.871%** |
+| `BLOCKER_BEATEN` | 8.448% | 8.458% |
+
+> ### **That agreement is EVIDENCE ONLY BECAUSE THE SEED POPULATIONS ARE DISJOINT. Option A — a shared canonical seed constant — would have made it a TAUTOLOGY.**
+
+**The general form, and it is the reusable part:** *comparability* and *independence* are **traded
+against each other**, and the trade is usually made in the direction that feels tidier. **A ruling
+that preserved independence paid off within a single dispatch, in precisely the way the tidier option
+would have foreclosed.** ⚠ **Two arms with a shared source cannot corroborate each other — in code
+(`ladderTail`'s live reader), in seeds (this), or in citation (ADR-046's quoted constant). Same defect,
+three media.**
