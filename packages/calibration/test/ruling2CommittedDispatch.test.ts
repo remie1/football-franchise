@@ -25,8 +25,20 @@
  *
  * ================== THE OUTCOME VARIABLE IS SEVERITY (entries 67-RESULT/68), NOT THE RATE ==================
  *
- * `pocket_status_distribution` leads every table below. `pressure_rate` is derived from the same
- * distribution and reported ALONGSIDE it, never as the criterion a lever is priced against.
+ * `pocket_status_distribution` leads every table below. `dirtyTickShare` (`100 − CLEAN%`, PER TICK) is
+ * derived from the same distribution and reported ALONGSIDE it, never as the criterion a lever is
+ * priced against.
+ *
+ * ⛔ RENAME RECORD (entry 69's discipline; backlog entry 80's standing prohibition): this column was
+ * previously rendered and labelled `pressure_rate`. It is NOT `pressure_rate` — that metric
+ * (`tier1.ts`, `pocketLadder.ts`) is `1 − P(every tick CLEAN)` PER PLAY (~90% on the canonical corpus);
+ * this column is `100 − CLEAN%` PER TICK, the DIRTY-TICK SHARE (~63.9–70.5% across arms on the same
+ * corpus). The two are ~20pp apart because one dirty tick anywhere in a multi-tick dropback is enough
+ * to make the whole PLAY count as pressured, so the play-level rate is always ≥ the tick-level share.
+ * The old label invited the exact tier-vs-cumulative conflation ADR-050 named. ⛔ Nothing may cite this
+ * column's `63.876%` (joint arm) as progress toward `pressure_rate`'s real-NFL comparison `29.225%` —
+ * they are different quantities; see CALIBRATION-BACKLOG entry 80's prohibition, restated here because
+ * the column carried the old name, not just the report's prose.
  *
  * ================== ⛔ THE LOWER-BOUND CAVEAT, AT FULL STRENGTH — RESTATED, NOT WEAKENED BY THE RE-READ ==================
  *
@@ -213,13 +225,16 @@ function renderSeverityDistribution(rows: readonly Measured[]): void {
   for (const r of rows) mergeRuling2Fold(merged, r.r2);
   const total = severityTotal(merged.published);
 
-  say("| stream | CLEAN | PRESSURE | COLLAPSING | IMMEDIATE | pressure_rate (non-CLEAN, reported alongside — NOT the criterion) |");
+  say(
+    "| stream | CLEAN | PRESSURE | COLLAPSING | IMMEDIATE | dirtyTickShare (100 − CLEAN%, PER TICK — " +
+      "NOT pressure_rate, reported alongside — NOT the criterion) |",
+  );
   say("|---|---|---|---|---|---|");
   const renderRow = (label: string, s: typeof merged.published): void => {
-    const nonClean = s.PRESSURE + s.COLLAPSING + s.IMMEDIATE;
+    const dirtyTickShare = s.PRESSURE + s.COLLAPSING + s.IMMEDIATE;
     say(
       `| ${label} | ${pct(s.CLEAN, total)} | ${pct(s.PRESSURE, total)} | ${pct(s.COLLAPSING, total)} | ` +
-        `${pct(s.IMMEDIATE, total)} | ${pct(nonClean, total)} |`,
+        `${pct(s.IMMEDIATE, total)} | ${pct(dirtyTickShare, total)} |`,
     );
   };
   renderRow("published (committed tree, as shipped — entry 73 already inside this)", merged.published);

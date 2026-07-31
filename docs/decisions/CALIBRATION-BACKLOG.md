@@ -5004,6 +5004,17 @@ attached, and **a live implementation landing somewhere other than 6.568pp is no
 (~70.5% committed), while `pressure_rate` is `1 − P(every tick CLEAN)` **per play** (~90%).
 **Two quantities about 20pp apart.** The severity numbers stand; **the comparison does not exist.**
 
+**The prohibition stands regardless of what the field is called.** ⚠ This entry recorded the reasoning
+before the code caught up: the report column and the module header in
+`ruling2CommittedRetirement.ts` still read `pressure_rate` after this entry landed. **Renamed to
+`dirtyTickShare`** (field, report column, and both doc comments — `ruling2CommittedRetirement.ts` and
+`ruling2CommittedDispatch.test.ts`, the only two places in the package that computed this quantity
+under the old name; every sibling instrument that already folds a non-CLEAN tick count
+(`pocketChannelShares.ts`, `pocketBandSweep.test.ts`, `pressureHorizonChannelShares.test.ts`) already
+called it `dirtyTicks` and was never mislabeled). The rename does not touch this prohibition — the
+figures above (`63.876%`, `70.5%`, `29.225%`) are unchanged; only the name a reader would search for is
+new.
+
 ### ✅ THE CORPUS PASS, RUN — two conjunctions in ruling text, ONE was the defect
 
 **Cheap insurance, run immediately rather than queued**, since ruling 2 sat refused for four

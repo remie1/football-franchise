@@ -57,10 +57,28 @@
  * ================== THE OUTCOME VARIABLE IS SEVERITY, NOT THE RATE (entries 67-RESULT/68) ==================
  *
  * Every fold below is keyed by the four-rung `CLEAN | PRESSURE | COLLAPSING | IMMEDIATE` distribution,
- * for `published` and for each arm. `pressure_rate` (the non-CLEAN share) is DERIVABLE from either
- * distribution at render time and is reported ALONGSIDE it in the dispatch, never as the criterion —
- * per entry 68's ruling, a rate counting any non-CLEAN tick is blind to a change that only reshuffles
- * severity, which is exactly what retiring a threat that keeps another channel's floor dirty would do.
+ * for `published` and for each arm. The non-CLEAN share of TICKS (`dirtyTickShare`, `100 − CLEAN%`) is
+ * DERIVABLE from either distribution at render time and is reported ALONGSIDE it in the dispatch, never
+ * as the criterion — per entry 68's ruling, a share counting any non-CLEAN tick is blind to a change
+ * that only reshuffles severity, which is exactly what retiring a threat that keeps another channel's
+ * floor dirty would do.
+ *
+ * ⛔ RENAME RECORD (entry 69's "close the arithmetic before reporting it" discipline, applied to this
+ * module's own report column): this quantity used to be labelled `pressure_rate`, in the dispatch's
+ * rendered report column (`ruling2CommittedDispatch.test.ts`) and in this header. It is NOT
+ * `pressure_rate` — the metric of that name (`tier1.ts`, `pocketLadder.ts`) is `1 − P(every tick CLEAN)`
+ * PER PLAY, over a mean ~2.98 ticks/dropback, and measures ~90% on the canonical corpus. This quantity
+ * is `100 − CLEAN%` PER TICK — the DIRTY-TICK SHARE. Arithmetic, per arm, canonical N: published
+ * 29.536% CLEAN → 70.464% dirty; geometryOnly 29.834% → 70.166%; timeOnly 36.104% → 63.896%; joint
+ * 36.124% → **63.876%**. Both quantities are correctly computed; they differ because a play with
+ * several ticks needs only ONE dirty tick to count toward the play-level rate, so the play-level rate
+ * is always ≥ the tick-level share on the same corpus — here by ~20pp. The old name invited exactly the
+ * tier-vs-cumulative conflation ADR-050 named: a reader would price this column against
+ * `pressure_rate`'s own band/target figures (its real-NFL comparison is 29.225%), which describe a
+ * different population (plays, not ticks). ⛔ **Nothing may cite `63.876%` as progress toward
+ * `29.225%` — they are different quantities. The severity numbers stand; the comparison does not
+ * exist.** Prohibition recorded standing in CALIBRATION-BACKLOG entry 80 (the report this rename
+ * corrects) and repeated here because the field itself, not just the report, carried the old name.
  *
  * ================== DEMOTE-VERSUS-CLEAR, THE SAME QUESTION ENTRY 71-RESULT ASKED OF P2 ==================
  *
