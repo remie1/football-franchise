@@ -139,17 +139,32 @@ import type { Tunables } from "@ff/engine";
  * behaviour. This is the same property this project has already paid for in three other media: CODE
  * (`ladderTail.ts`'s live reader, re-derived rather than imported), SEEDS (entry 70's divergent
  * `batchSeedFor` labels between the two channel-share harnesses), and CITATION (ADR-046's quoted
- * constant, re-typed rather than referenced). The cost is that THIS copy must be updated BY HAND
- * whenever the engine's ladder changes — entry 76's `2.0` landing here is exactly that update, made
- * BECAUSE this comment says the update is expected, not despite it.
+ * constant, re-typed rather than referenced). The cost is that THIS copy must be updated BY HAND when
+ * the engine's ladder changes STRUCTURE — a new rung, a reordered branch, a new `arrival` field — NOT
+ * when a threshold VALUE changes: `floorFromArrival` reads `tunables.arrival.{immediateWithinSeconds,
+ * collapsingWithinSeconds, pressureWithinSeconds}` dynamically off whatever `Tunables` it is handed,
+ * so a value change propagates with zero edit here.
+ *
+ * ⚠ **NARROWED, RECORDED RATHER THAN SILENTLY TIGHTENED** (Charter §4.1: a reader who finds a
+ * tightened comment with no record of the tightening cannot tell whether the PROPERTY was reduced or
+ * the DESCRIPTION was). This clause used to read *"entry 76's `2.0` landing here is exactly that
+ * update, made BECAUSE this comment says the update is expected"* — as if entry 76's value change
+ * (`POS_INF` → `2.0`) had required a hand-edit to this file. **It did not.** Entry 76's landing
+ * commit touched zero lines of this module — `floorFromArrival`'s body has been unchanged since it
+ * was first written — and the three test failures that dispatch produced were FIXTURE staleness
+ * (hand-built fixtures assuming the old unbounded default), not a code update to this function, as
+ * the follow-up dispatch (`1a2fa83`) established. **The PROPERTY — a real hand-maintenance cost
+ * exists — is unchanged. What was too broad was the DESCRIPTION of what triggers it**, and it is
+ * narrowed above from "the engine's ladder changes" to "the engine's ladder changes STRUCTURE".
  *
  * ⚠ **DIVERGENCE BETWEEN THE TWO COPIES IS EXPECTED TO REDDEN THE IDENTITY CHECK — that is the
- * mechanism WORKING, not a maintenance burden.** When the engine's ladder moves and this copy is not
- * updated to match, `identityMismatches` is exactly what is supposed to catch it, at whatever
- * population the next full run covers. A red identity check after an engine change is this
- * instrument doing its job; the fix is to update this copy, never to relax the assertion or narrow
- * the population being checked (CALIBRATION-BACKLOG entry 76's own dispatch, "do not narrow the
- * population to reach it").
+ * mechanism WORKING, not a maintenance burden.** When the engine's ladder changes STRUCTURE and this
+ * copy is not updated to match, `identityMismatches` is exactly what is supposed to catch it, at
+ * whatever population the next full run covers. A VALUE change cannot produce this scenario by
+ * construction (above) — there is nothing for this copy to fail to keep in sync with. A red identity
+ * check after a structural engine change is this instrument doing its job; the fix is to update this
+ * copy, never to relax the assertion or narrow the population being checked (CALIBRATION-BACKLOG
+ * entry 76's own dispatch, "do not narrow the population to reach it").
  */
 export function floorFromArrival(tunables: Tunables, minTta: number | undefined): PocketStatus {
   if (minTta === undefined) return "CLEAN";

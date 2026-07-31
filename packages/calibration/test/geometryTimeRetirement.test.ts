@@ -6,8 +6,8 @@
  */
 import { describe, expect, it } from "vitest";
 import type { GameId, MatchEventEnvelope, PlayerId, PlayId } from "@ff/contracts";
-import { DEFAULT_TUNABLES } from "@ff/engine";
-import { reclassifyGame } from "../src/knownTruth/geometryTimeRetirement.js";
+import { DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
+import { reclassifyGame, type DropbackReclass } from "../src/knownTruth/geometryTimeRetirement.js";
 
 const AT = { season: 2024, phase: "REGULAR_SEASON", week: 1, day: 1 } as const;
 const GAME_ID = "g1" as GameId;
@@ -90,6 +90,56 @@ function endPlay(): MatchEventEnvelope {
 // CALIBRATION-BACKLOG entry 76 — no longer POS_INF).
 const T = DEFAULT_TUNABLES;
 
+/**
+ * ITEM 2's STRUCTURAL CLOSURE. Every fixture-building test in this file gets its single dropback's
+ * `DropbackReclass` through this helper, and NEVER through a bare `reclassifyGame(events, T).plays`
+ * destructure. `expectedIdentityMismatches` has NO DEFAULT, so a call site that does not decide what
+ * the identity check should read CANNOT COMPILE — the assertion is inside the helper, not left to a
+ * caller who might forget it exists.
+ *
+ * ⚠ **THE DERIVATION FOUND THREE, NOT TWO.** The dispatching brief named two latent mismatches
+ * ("does not retire an INTERIOR threat on STEP_UP" and the second TIME test). A structural derivation
+ * over this file's own source — every `it()` block whose fixture calls `pocket(...)` at least once,
+ * cross-referenced against whether its body ever mentions `identityMismatches` — found a THIRD:
+ * "a fresh win (TRAVELLING) after a geometry retirement re-establishes the threat", which carried TWO
+ * unasserted mismatches at full computation (`identityChecks: 3, identityMismatches: 2`), not one. All
+ * three are fixed below. This is exactly the outcome CALIBRATION-BACKLOG's standing method warns
+ * about: a hand-enumerated list, even a careful one, is not the same claim as a derived set, and this
+ * dispatch is the third such gap the derivation-not-survey rule has caught closing.
+ *
+ * 🔴 RED-TRIGGER, BOTH DIRECTIONS:
+ * REDDENS FOR: any fixture, in this file or added to it later through this helper, whose
+ * reconstructed `POCKET_STATUS` stream disagrees with its published one a different number of times
+ * than the caller declared — including a caller who declares 0 and is wrong, and a caller who
+ * declares a nonzero count that has since changed (the assertion is exact equality, not a ceiling).
+ * DOES NOT REDDEN FOR: a fixture that produces no dropback at all (`plays.length === 0`, e.g. the
+ * non-pass-play test below) — there is no `DropbackReclass` for the helper to read, so that test
+ * correctly bypasses it entirely rather than calling it with a fabricated value; nor for a
+ * deliberately nonzero declared count, which is not a defect but a stated exception (none of this
+ * file's fixtures currently declare one, and the residual below is exactly what happens if a future
+ * one wants to).
+ *
+ * ⛔ THE RESIDUAL, STATED RATHER THAN PAPERED OVER: this closes the gap for every call site inside
+ * THIS file, because every one of them has been converted to go through it. It does NOT close the
+ * gap at the type level — `reclassifyGame` remains a public export of the module (the corpus-scale
+ * harnesses `pocketChannelShares.ts`, `bandCensus.ts`, and `ruling2Dispatch.test.ts` all call it
+ * directly and correctly assert `identityMismatches` themselves at population scale, so it cannot be
+ * hidden from them). A future test added to THIS file that imports `reclassifyGame` directly instead
+ * of using `replay` would silently reopen exactly the gap this closes, and nothing stops that at
+ * compile time or at review time beyond the convention this comment states. Nothing enforces it
+ * beyond that — recorded as a gap, not a guarded one, per entry 60's prohibition on papering over.
+ */
+function replay(
+  events: readonly MatchEventEnvelope[],
+  tunables: Tunables,
+  expectedIdentityMismatches: number,
+): DropbackReclass {
+  const [play] = reclassifyGame(events, tunables).plays;
+  expect(play).toBeDefined();
+  expect(play?.identityMismatches).toBe(expectedIdentityMismatches);
+  return play as DropbackReclass;
+}
+
 describe("geometryTimeRetirement — identity reproduction", () => {
   it("reproduces the real pocket-status stream when nothing is retired", () => {
     // CALIBRATION-BACKLOG entry 76 / ADR-033's `DERIVED MECHANIC` block bounded
@@ -114,11 +164,9 @@ describe("geometryTimeRetirement — identity reproduction", () => {
       pocket("PRESSURE"),
       endPlay(),
     ];
-    const [play] = reclassifyGame(events, T).plays;
-    expect(play).toBeDefined();
-    expect(play?.identityMismatches).toBe(0);
-    expect(play?.identityChecks).toBe(3);
-    expect(play?.identityPressured).toBe(true);
+    const play = replay(events, T, 0);
+    expect(play.identityChecks).toBe(3);
+    expect(play.identityPressured).toBe(true);
   });
 });
 
@@ -148,11 +196,10 @@ describe("geometryTimeRetirement — GEOMETRY", () => {
       tick(4.0),
       endPlay(),
     ];
-    const [play] = reclassifyGame(events, T).plays;
-    expect(play?.identityMismatches).toBe(0); // identity still tracks the real (undelayed-by-us) stream
-    expect(play?.identityPressured).toBe(true);
-    expect(play?.counterfactualPressured).toBe(false); // the only threat was geometry-retired
-    expect(play?.geometryRetiredThreats).toBe(1);
+    const play = replay(events, T, 0); // identity still tracks the real (undelayed-by-us) stream
+    expect(play.identityPressured).toBe(true);
+    expect(play.counterfactualPressured).toBe(false); // the only threat was geometry-retired
+    expect(play.geometryRetiredThreats).toBe(1);
   });
 
   it("pushes a live EDGE threat past the pressure horizon on STEP_UP — reads CLEAN with no RESET (entry 76, football not a bug)", () => {
@@ -186,16 +233,21 @@ describe("geometryTimeRetirement — GEOMETRY", () => {
       tick(4.0),
       endPlay(),
     ];
-    const [play] = reclassifyGame(events, T).plays;
+    const play = replay(events, T, 0);
     // The falsifier: if the reconstruction still assumed an unbounded horizon it would predict
     // PRESSURE here and mismatch against the published CLEAN.
-    expect(play?.identityMismatches).toBe(0);
-    expect(play?.identityPressured).toBe(false); // the only published check is CLEAN
-    expect(play?.counterfactualPressured).toBe(false); // geometry retirement agrees, redundantly
-    expect(play?.geometryRetiredThreats).toBe(1); // Ruling 2 still retires him in the counterfactual
+    expect(play.identityPressured).toBe(false); // the only published check is CLEAN
+    expect(play.counterfactualPressured).toBe(false); // geometry retirement agrees, redundantly
+    expect(play.geometryRetiredThreats).toBe(1); // Ruling 2 still retires him in the counterfactual
   });
 
   it("does not retire an INTERIOR threat on STEP_UP", () => {
+    // FIXTURE FIX (dispatch owed at entry 76's own follow-up, found by ITEM 2's derivation, not by
+    // this test's own assertions — it never checked `identityMismatches` before this dispatch). At
+    // curTick 1.5 the only live threat (int1, etaTick 1.5) has minTta 0, which
+    // `floorFromArrival` reads as IMMEDIATE (`minTta <= immediateWithinSeconds(0.0)`), not PRESSURE.
+    // The published status below is now the real prediction, not a stand-in; `replay`'s third
+    // argument makes that an assertion instead of an assumption.
     const events = [
       playStart(),
       tick(0.5),
@@ -203,32 +255,40 @@ describe("geometryTimeRetirement — GEOMETRY", () => {
       tick(1.0),
       stepUp(),
       tick(1.5),
-      pocket("PRESSURE"),
+      pocket("IMMEDIATE"), // real: minTta = 1.5 - 1.5 = 0 <= immediateWithinSeconds(0.0)
       endPlay(),
     ];
-    const [play] = reclassifyGame(events, T).plays;
-    expect(play?.counterfactualPressured).toBe(true);
-    expect(play?.geometryRetiredThreats).toBe(0);
+    const play = replay(events, T, 0);
+    expect(play.counterfactualPressured).toBe(true);
+    expect(play.geometryRetiredThreats).toBe(0);
   });
 
   it("a fresh win (TRAVELLING) after a geometry retirement re-establishes the threat", () => {
+    // FIXTURE FIX, same provenance as the INTERIOR test above: the two POCKET_STATUS values after
+    // tick 1.0 used to be picked to illustrate the counterfactual only, with a comment admitting the
+    // real side was not realistic ("would still be dirty in practice; not asserted here"). Geometry
+    // retirement only touches the COUNTERFACTUAL mirror (`cf`) — QB_DECISION never mutates `real` —
+    // so the actual real-stream prediction is unaffected by STEP_UP and is straightforward to state
+    // exactly: at tick 1.0 the live threat is still etaTick 2.0 (minTta 1.0, COLLAPSING); at tick 1.5,
+    // after the fresh TRAVELLING re-publication at etaTick 2.5, minTta is again 1.0 (COLLAPSING). The
+    // "not asserted here" hedge is removed because the values are now accurate rather than expedient.
     const events = [
       playStart(),
       tick(0.5),
       threat({ rusher: "edge1", alignment: "EDGE", etaTick: 2.0, state: "TRAVELLING" }),
       pocket("PRESSURE"),
       tick(1.0),
-      stepUp(), // geometry-retires edge1 in the counterfactual
-      pocket("CLEAN"), // (real stream would still be dirty in practice; not asserted here)
+      stepUp(), // geometry-retires edge1 in the counterfactual only — the real mirror is untouched
+      pocket("COLLAPSING"), // real: minTta = 2.0 - 1.0 = 1.0 <= collapsingWithinSeconds(1.0)
       tick(1.5),
       threat({ rusher: "edge1", alignment: "EDGE", etaTick: 2.5, state: "TRAVELLING" }), // beats his man again
-      pocket("PRESSURE"),
+      pocket("COLLAPSING"), // real: minTta = 2.5 - 1.5 = 1.0 <= collapsingWithinSeconds(1.0)
       tick(4.0),
       endPlay(),
     ];
-    const [play] = reclassifyGame(events, T).plays;
-    expect(play?.geometryRetiredThreats).toBe(1);
-    expect(play?.counterfactualPressured).toBe(true); // the fresh win re-dirties the counterfactual pocket
+    const play = replay(events, T, 0);
+    expect(play.geometryRetiredThreats).toBe(1);
+    expect(play.counterfactualPressured).toBe(true); // the fresh win re-dirties the counterfactual pocket
   });
 });
 
@@ -249,26 +309,31 @@ describe("geometryTimeRetirement — TIME", () => {
       pocket("PRESSURE"),
       endPlay(), // the play's own terminal tick is 1.0 — he could never have arrived by 2.5
     ];
-    const [play] = reclassifyGame(events, T).plays;
-    expect(play?.identityMismatches).toBe(0);
-    expect(play?.identityPressured).toBe(true); // the real stream is unaffected
-    expect(play?.counterfactualPressured).toBe(false); // TIME retires him for his whole life
-    expect(play?.timeRetiredThreats).toBe(1);
+    const play = replay(events, T, 0);
+    expect(play.identityPressured).toBe(true); // the real stream is unaffected
+    expect(play.counterfactualPressured).toBe(false); // TIME retires him for his whole life
+    expect(play.timeRetiredThreats).toBe(1);
   });
 
   it("does not retire a threat whose etaTick lands at or before the terminal tick", () => {
+    // FIXTURE FIX, same provenance as the two GEOMETRY fixes above, found by the same derivation.
+    // At tick 0.5 the only live threat (ontime1, etaTick 1.0) has minTta 0.5, which
+    // `floorFromArrival` reads as COLLAPSING (`minTta <= collapsingWithinSeconds(1.0)`, and
+    // `minTta > immediateWithinSeconds(0.0)`), not PRESSURE — a COLLAPSING/IMMEDIATE-boundary error
+    // predating entry 76's horizon change, same as the INTERIOR fixture above. The tick-1.0 check
+    // was already correct (minTta 0 -> IMMEDIATE) and is unchanged.
     const events = [
       playStart(),
       tick(0.5),
       threat({ rusher: "ontime1", alignment: "EDGE", etaTick: 1.0, state: "TRAVELLING" }),
-      pocket("PRESSURE"),
+      pocket("COLLAPSING"), // real: minTta = 1.0 - 0.5 = 0.5 <= collapsingWithinSeconds(1.0), > 0.0
       tick(1.0),
       pocket("IMMEDIATE"),
       endPlay(),
     ];
-    const [play] = reclassifyGame(events, T).plays;
-    expect(play?.counterfactualPressured).toBe(true);
-    expect(play?.timeRetiredThreats).toBe(0);
+    const play = replay(events, T, 0);
+    expect(play.counterfactualPressured).toBe(true);
+    expect(play.timeRetiredThreats).toBe(0);
   });
 });
 
@@ -283,10 +348,9 @@ describe("geometryTimeRetirement — RESET clears both mirrors", () => {
       pocket("CLEAN"),
       endPlay(),
     ];
-    const [play] = reclassifyGame(events, T).plays;
-    expect(play?.identityMismatches).toBe(0);
-    expect(play?.identityPressured).toBe(false);
-    expect(play?.counterfactualPressured).toBe(false);
+    const play = replay(events, T, 0);
+    expect(play.identityPressured).toBe(false);
+    expect(play.counterfactualPressured).toBe(false);
   });
 });
 
@@ -318,14 +382,12 @@ describe("geometryTimeRetirement — the §8.8 pursuit clock (ADR-054)", () => {
       pocket("IMMEDIATE"), // minTta = 2.5 - 2.5 = 0.0 <= immediateWithinSeconds(0.0)
       endPlay(),
     ];
-    const result = reclassifyGame(events, T);
-    expect(result.plays.length).toBe(1);
-    const [play] = result.plays;
+    expect(reclassifyGame(events, T).plays.length).toBe(1);
     // The identity check is the falsifier: the reconstruction must match the published stream
     // exactly, tick for tick, once QB_PURSUIT is on the record — no exclusion, no guess.
-    expect(play?.identityChecks).toBe(4);
-    expect(play?.identityMismatches).toBe(0);
-    expect(play?.identityPressured).toBe(true);
+    const play = replay(events, T, 0);
+    expect(play.identityChecks).toBe(4);
+    expect(play.identityPressured).toBe(true);
   });
 
   it("agrees with the engine's own arrival floor at every pursuit tick (exact identity)", () => {
@@ -346,10 +408,9 @@ describe("geometryTimeRetirement — the §8.8 pursuit clock (ADR-054)", () => {
       pocket("IMMEDIATE"), // minTta = 0.0 -> <= immediateWithinSeconds
       endPlay(),
     ];
-    const [play] = reclassifyGame(events, T).plays;
-    expect(play?.identityChecks).toBe(3);
-    expect(play?.identityMismatches).toBe(0);
-    expect(play?.identityPressured).toBe(true);
+    const play = replay(events, T, 0);
+    expect(play.identityChecks).toBe(3);
+    expect(play.identityPressured).toBe(true);
   });
 });
 
