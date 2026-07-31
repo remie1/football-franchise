@@ -5003,3 +5003,26 @@ attached, and **a live implementation landing somewhere other than 6.568pp is no
 `pressure_rate` and **is not the pressure rate** — it is `100 − CLEAN%`, the **dirty-tick share**
 (~70.5% committed), while `pressure_rate` is `1 − P(every tick CLEAN)` **per play** (~90%).
 **Two quantities about 20pp apart.** The severity numbers stand; **the comparison does not exist.**
+
+### ✅ THE CORPUS PASS, RUN — two conjunctions in ruling text, ONE was the defect
+
+**Cheap insurance, run immediately rather than queued**, since ruling 2 sat refused for four
+dispatches on a number covering a 22:1 asymmetry. Derived by grep over every `RULED` / `Ruled:` line
+in `docs/decisions/`, not by recollection.
+
+| ruling | conjunction | verdict |
+|---|---|---|
+| entry 40 / ADR-049 ruling 2 — *"add retirement by **GEOMETRY and by TIME**"* | two mechanisms | ⛔ **THE DEFECT** — 22:1, priced as one number |
+| entry 1a / ADR-050 — *"bound the two extreme rungs, **and** add a rung above and below"* | ✅ **ONE OPERATION IN TWO CLAUSES** | **not the defect** |
+
+**ADR-050's halves are structurally inseparable:** ⛔ **you cannot bound an open extreme rung without
+adding a rung to hold what it was absorbing.** `ladderTail.ts` had already recorded exactly this —
+*"the two instructions are one operation"* — before the diagnostic existed.
+
+> ### ⇒ SO THE TEST IS NOT *"DOES IT SAY AND"*. IT IS ***"ARE THE CONJOINED THINGS SEPARATELY PRICEABLE?"***
+>
+> ⚠ **A conjunction is a PROMPT TO ASK THE QUESTION, not an answer to it.** A grammar check finds
+> candidates; **only the football decides which are real.**
+
+**Result: no third instance in the corpus.** ⚠ **Recorded as a null with its method**, so a future
+reader knows the pass ran and what it covered rather than assuming it is still owed.

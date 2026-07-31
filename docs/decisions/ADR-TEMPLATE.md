@@ -44,6 +44,29 @@ For every number, table shape, call site or invariant this ADR asserts, say **wh
 > corollary (Charter §4.1). **Uniformity in a field whose whole purpose is to record difference is
 > the signal, not the reassurance.**
 
+## Conjoined mechanisms — REQUIRED if this ADR rules on more than one thing
+**If the ruling's own text joins two mechanisms with "and", say whether they are SEPARATELY
+PRICEABLE.** If they are, ⛔ **they must be measured in THREE ARMS — each alone, then jointly** — and
+this ADR names that as a precondition. If they are not, **say why**, in one line.
+
+> ⛔ **WHY.** Ruling 2 said *"add retirement by GEOMETRY **and** by TIME"* and was priced at **one
+> number, `0.108pp`**, and refused. Re-measured in three arms: **geometry `+0.298pp`, time
+> `+6.568pp` — twenty-two to one.** ⚠ **An average over heterogeneous mechanisms LOOKS EXACTLY LIKE A
+> SMALL EFFECT** — no variance, no shape, no residual — so **nothing in the price could show it.** It
+> sat refused for four dispatches (backlog entry 80).
+>
+> ⛔ **AND THE JOINT ARM ALONE IS NOT ENOUGH: the interaction may be NEGATIVE.** Here it is —
+> joint's geometry retirements collapse **104.683 → 37.202 per 1,000 dropbacks** because TIME fires
+> first for the same threats. **A joint arm would have shown a large effect and handed it to both**,
+> ratifying geometry on TIME's evidence.
+>
+> ⚠ **THE TEST IS NOT "DOES IT SAY *AND*" — it is "ARE THE CONJOINED THINGS SEPARATELY PRICEABLE?"**
+> A corpus pass found two conjunctions in ruling text. Only one was the defect. ADR-050's *"bound the
+> two extreme rungs, **and** add a rung above and below"* names **one operation in two clauses** —
+> you cannot bound an open extreme without adding a rung to hold what it absorbed, and `ladderTail.ts`
+> had already recorded that *"the two instructions are one operation."* ⛔ **A conjunction is a
+> prompt to ask the question, not an answer to it.**
+
 ## Implied scope — REQUIRED
 **Name the cells, checks or channels this reasoning APPLIES TO but which this ADR does NOT change.**
 One line each, marked `unruled`. If genuinely none, say `none` — but look first.
