@@ -3780,6 +3780,29 @@ Identity asks *"is this the same?"* — which nothing can pass by being plausibl
 pattern in what it finds: every hit so far has been Charter §3's single-source-of-truth rule leaking**,
 not an arithmetic error. That is the class this instrument is actually sensitive to.
 
+> ### ⛔ AND THE THREE HITS ARE NOT LUCK — the sensitivity is STRUCTURAL, which is what makes the negative half predictable
+>
+> **An identity check over a stream is structurally a DETECTOR FOR FACTS THE STREAM DOES NOT CARRY**,
+> because any such fact shows up as **a reconstruction that cannot close.** It is not a general-purpose
+> correctness instrument that happened to find three unpublished facts; **finding unpublished facts is
+> the only thing its mechanism can do.**
+>
+> #### 🔴 RED-TRIGGER FIELD (entry 55, stated in BOTH directions per entry 60's ruling)
+>
+> **It reddens for:** a game fact that decides an outcome and reaches no consumer — the reconstruction
+> diverges from the published stream at the tick where the missing fact acts.
+>
+> ⚠ **IT WILL NEVER FIND A VALUE THAT IS PUBLISHED AND WRONG.** If the engine computes `7` where the
+> doc says `5`, publishes the `7`, and the reconstruction reads the same published `7` — **both sides
+> agree perfectly and the check is green.** Identity is a claim about *transport*, never about
+> *correctness*: it proves the consumer sees what the producer produced, and says nothing whatever
+> about whether the producer was right.
+>
+> ⛔ **And nothing else covers that case** — per entry 60's prohibition, that is stated rather than
+> papered over with a claim about the scale audit or the doc-conformance register catching it. **A
+> recorded gap, not a guarded one.** The doc-conformance register is the nearest thing, and its
+> subject is *cells against the doc*, not *values against behaviour*.
+
 ---
 
 ## 63. 🔧 `ruling2Dispatch.test.ts`'s `SIZE NOTE` asserts something nothing checks
@@ -3792,3 +3815,49 @@ The printed note is a **hardcoded string** always reading *"This is BELOW the pa
 trust most — and it is the *sibling* of the reassurance defect entry 60 found in ADR-038. **A message
 that asserts a fact about the run it is printed in should be derived from that run, or it should not
 make the claim.**
+
+---
+
+## 64. ⛔ THE ABSORBED MECHANIC — a defect class, now with two instances and a cheap standing check
+
+> ### **A doc specifies a mechanic. The engine implements it CORRECTLY. Nothing it does is observable — because a neighbouring channel or roll was sufficient on its own, so the correct implementation never got to decide anything.**
+
+**Absorbed, not mis-tuned.** That distinction is the whole entry: there is no wrong number, no wrong
+line, and nothing a code review or a scale audit can find. **The implementation is right and it is
+irrelevant**, and those two states are indistinguishable from any test that checks the mechanic's own
+behaviour in isolation.
+
+**Two instances, and the cause is identical in both:**
+
+| instance | the mechanic | what absorbed it |
+|---|---|---|
+| **entry 50** | the tipped-ball subsystem's attribute surface | §12's rolls decided the outcome before any attribute could matter |
+| **entry 61** | §7.2's accumulated pressure — *pressure building over a rep* | the arrival channel floors the pocket first, on **43.676%** of dirty ticks against the counter's **0.004%** |
+
+**Both are football-true mechanics.** That is what makes the class expensive: **an absorbed mechanic
+is exactly the kind of thing someone will later spend a dispatch TUNING**, because it reads as
+under-powered rather than as unreachable. Entry 61 was one ruling away from that — 1d proposed moving
+`BLOCKER_BEATEN` onto a counter that binds seven ticks in 257,598.
+
+### ✅ THE STANDING CHECK, AND THE INSTRUMENT ALREADY EXISTS (owner, July 2026)
+
+> **For each specified mechanic: DOES IT EVER SOLELY DETERMINE AN OUTCOME?**
+
+`pocketChannelShares.ts`'s **exclusive-share** column answers exactly that question, and it is built.
+Running it across the **mechanic inventory** — rather than against one subsystem at a time — **would
+find the third instance before a dispatch is spent tuning something inert.**
+
+**⇒ Same move as entry 53's null sweep, aimed at MECHANICS rather than at MEASUREMENTS.** Entry 53
+asks *"was this null measured with an instrument that could have returned a non-null?"*; this asks
+*"was this mechanic ever in a position to change the answer?"* Both convert a silent absence into a
+listed one.
+
+**Cheap, because the hard part is done.** The instrument needs a subject list, not new machinery.
+
+🔴 **What would make this sweep go red:** a specified mechanic whose exclusive share is **zero or
+indistinguishable from zero** across a canonical corpus.
+⚠ **It does NOT redden for:** a mechanic that is exclusive rarely but *decisively* (rare is not
+absent — report the count, do not threshold it silently); a mechanic absorbed only under
+`DEFAULT_TUNABLES` but live on another tree (⚠ **state the tree**); or a mechanic with no observable
+channel at all, which this instrument cannot see and which is entry 50's actual shape. **Nothing
+enforces coverage of that last case** — recorded as a gap, not a guarded one.
