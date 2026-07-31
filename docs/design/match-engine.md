@@ -606,6 +606,70 @@ Results per Tick:
 > which restores symmetry in attributes rather than in a constant) and keeping the flat
 > term. See `docs/decisions/CALIBRATION-BACKLOG.md` §3.
 
+> **DERIVED MECHANIC (July 2026, CALIBRATION-BACKLOG entry 73) — sustained containment retires a
+> threat; the "Blocker wins by 1-14" row above is not the whole story across ticks.**
+>
+> ⚠ **PROVENANCE MARKER — PROPOSED CONVENTION, first use.** Every other annotation in this section
+> (`AMENDMENT`, `KNOWN ISSUE`, `AUTHORING CORRECTION`) documents something the owner wrote, ruled
+> on, or corrected directly. **This is the first mechanic in the engine whose *shape* — not merely
+> its implementation — was derived from the model's own already-ratified structure, after the fact,
+> rather than specified by the design or picked by the owner.** The *decision to build a retirement
+> route at all* was an owner ruling (entry 73: "ruled on the football, regardless of price"); the
+> *count below* was not — nobody chose it, it was derived from two independent anchors already
+> ratified elsewhere in this document, for other reasons. That is a different epistemic status from
+> every other note in §7, and this document had no way to mark the difference before now. `§7` had
+> no prior convention for this; **`DERIVED MECHANIC` is proposed here to fill that gap**, and the
+> next mechanic with the same provenance (design-silent, engine-derived, owner-ratified after the
+> fact) should reuse this heading rather than inventing a third one.
+>
+> **The mechanic.** A rusher whose blocker posts `BLOCKER_CONTAINS` (margin 1–14, "contained, no
+> progress") against him on **two reps in a row**, with no other band in between, has his threat
+> retired — the blocker publishes `RESET`, the same already-generic event `BLOCKER_RESETS` (margin
+> 15+) publishes today (ADR-007), not a new event shape or pocket-status row. **The single contained
+> rep is unchanged**: it still only delays the threat's arrival by 0.5s
+> (`recoverySecondsByBand.BLOCKER_CONTAINS`), exactly as this table has always specified. Retirement
+> is a second-rep-in-a-row event only; a rusher who wins his rep again, or merely gains a step, before
+> the second contain resets the streak to zero, matching the football read below.
+>
+> **Why the row needed this at all.** As specified, a rusher contained on *every* remaining tick keeps
+> an ETA that recedes at exactly the rate the clock advances (`recoverySecondsByBand.BLOCKER_CONTAINS`
+> equals `clock.tickStepSeconds`, both 0.5s) — he therefore never gets closer, never arrives, and
+> never goes away. That is a missing mechanic, not a calibration knob.
+>
+> **Why two, not one and not three — the two independent anchors, not a picked number:**
+>
+> 1. **The design's own memory depth is one tick.** The only cross-tick memory this section specifies
+>    is the counter-move modifier above ("+15 if previous tick was stalemate") — a single carried
+>    slot, `previousBand`, used for exactly that one purpose. The smallest pattern expressible at
+>    that depth that is not simply "any one rep" is *the same result twice running*; reaching for
+>    three would invent a memory this design does not otherwise have.
+> 2. **The arithmetic agrees independently.** `recoverySecondsByBand.BLOCKER_CONTAINS` (0.5s) × 2 =
+>    1.0s, exactly `arrival.minTravelSeconds` — the model's own floor for how close any threat is
+>    ever allowed to be, however dominant the rep that created it. Two consecutive contains buy back
+>    the *entire* closest-possible cushion; delaying a threat past that point has no physical
+>    referent left to describe.
+>
+> **What is deliberately NOT changed, and why.** The single contained rep still only delays (kept at
+> 0.5s, this table's original row, untouched). Retiring on the *first* contain would delete the rep
+> the counter-move rule exists to let a rusher answer with on his very next snap — a rusher held once
+> is a real football event, not a beaten block, and this table's own next line already gives him a
+> mechanism to fight back on the immediately following tick. Also untouched: the per-rusher pressure
+> counter (`pressureProgressByBand`) — it measures cumulative disruption over the whole rep, a
+> different question from "is this threat still travelling," and this mechanic does not touch it.
+>
+> **The measurement that justifies the threshold, computed directly against the current engine (not
+> transcribed from an earlier report): across 36,030 simulated pass plays, only 1.480% of
+> `BLOCKER_CONTAINS` reps (444 of 30,000) reach a second consecutive one and retire.** The remainder
+> are exactly the single-tick recoveries the caution above describes. No rate expectation is or was
+> attached to this figure — it is reported as evidence the threshold is not silently overcorrecting,
+> not as a target. (An earlier, smaller-sample informal count on a different seed population reported
+> 53 of 3310 / 1.601% for the same quantity; both samples agree on the same order of magnitude and the
+> same qualitative read — the recomputed, larger-sample figure is the one carried here per this
+> project's standing rule that a claim is unverified until something computes it.)
+>
+> `TUNABLES.arrival.containRetiresAfterConsecutiveContains: 2` is the tunable; see `packages/engine/
+> src/tunables.ts` for the implementation-level derivation this note summarises.
+
 ### 7.2 Pocket Status
 
 ```
@@ -669,6 +733,15 @@ SACK:
 > treated as being on the quarterback immediately, rather than needing time to cover the
 > ground. Sack rate cannot be calibrated at any dial setting until that exists.
 > See `docs/decisions/CALIBRATION-BACKLOG.md` §2.
+
+> **CONSEQUENCE OF §7.1's DERIVED MECHANIC (July 2026, CALIBRATION-BACKLOG entry 73) — a threat can
+> now clear without a `BLOCKER_RESETS` (15+) rep.** §7.1's sustained-containment retirement (see the
+> `DERIVED MECHANIC` note there) publishes the same `RESET` a 15+ margin rep already publishes, so no
+> new POCKET STATUS row is added here and none of the four states above change definition. The only
+> observable effect at this level is timing: a matchup that would otherwise have held a stale, never-
+> arriving threat open indefinitely (the missing-arrival-model gap described immediately above) can
+> now return the affected rusher's matchup to CLEAN two contained reps after the block actually held,
+> rather than never.
 
 ### 7.3 Stunts and Twists
 
