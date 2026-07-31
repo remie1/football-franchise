@@ -1098,6 +1098,24 @@ place nobody re-examines *because a rule now exists there.*
 > **Here the author had just written it down.** ⛔ **So the defence is never awareness — it is the
 > mechanical step: derive, compute, enumerate to the leaves.** ⚠ **Awareness is what produced the
 > instruction; it did not produce compliance.**
+>
+> #### ⚠ THE QUALIFIER, WITHOUT WHICH THIS READS AS AN ARGUMENT AGAINST WRITING RULES AT ALL
+>
+> > ### **Awareness sets the mechanism. The mechanism does the work.**
+>
+> **Every mechanical step in this document exists BECAUSE someone was aware of a class** — the premise
+> ledger, the compile-error helper with no default, the provenance field, the red-trigger field, the
+> monotonicity gate. ⛔ **None of them would exist without the awareness that produced them.**
+>
+> **What the ninth case proves is narrower and more useful: awareness is NECESSARY and
+> NON-TRANSFERABLE TO THE MOMENT OF ACTION.** ⚠ **The failure is not in knowing. It is in expecting
+> knowledge to be present at the point where it is needed** — which is a point the knower does not
+> control, and often does not notice passing.
+>
+> **⇒ WHICH IS WHY EVERY GOOD RULE HERE HAS THE SAME SHAPE: it converts a thing you must REMEMBER
+> into a thing you cannot SKIP.** A field on a form. A parameter with no default. A gate that reddens.
+> ⚠ **A rule that still requires remembering at the moment of action has not been converted yet — it
+> is an intention with a citation.**
 
 > ⛔ **THE OPERATIVE FORM: an instrument's blind spot must be written down BY ITS AUTHOR, WHILE THEY
 > ARE BUILDING IT.** Entry 55's *"what would make this go red?"* field exists for exactly this, and it
@@ -1438,6 +1456,26 @@ is observable), an absorbed *lever* (it moves the game and the metric cannot see
 > **⇒ Same anatomy as ADR-049's severity table sitting inert in one ADR, one medium down: a correct
 > observation recorded where nothing can act on it.** ⛔ **Declaring a gap in prose is not covering it.
 > It is a note that the gap exists, addressed to nobody.**
+>
+> #### ⛔ AND THE TEST APPLIES REFLEXIVELY — ***WHAT READS THIS?*** ASKED OF OUR OWN RECORDS. SOME ANSWER "NOTHING."
+>
+> **This register, the backlog's honest gaps, the named residuals — all prose, all addressed to
+> whoever happens to arrive.** ⚠ **Being TRUE and being RECORDED AT THE RIGHT PLACE does not make a
+> note reachable.**
+>
+> **The distinction that saves one and not another is whether something ROUTES THE READER THERE:**
+>
+> | record | reach |
+> |---|---|
+> | `reclassifyGame`'s named residual | ⛔ **stated in a place a future importer will not look** — reachable only by someone already reading the file that names it |
+> | the `replay` helper's missing default | ✅ **a compile error in a place they cannot avoid** |
+>
+> **Same information. Different reach. Only one of them is a guard.**
+>
+> ⇒ **So the honest-gap standard has a second clause: a recorded gap is worth more than a partial
+> closure — AND a recorded gap that nothing routes to is worth less than it appears.** ⚠ **Record it
+> anyway; the alternative is worse. But do not count it as coverage**, and where the gap can be routed
+> to instead of merely named, **route it.**
 
 > ### ⛔ AND AN ABSORBED MECHANIC CAN HIDE A TRANSCRIPTION DEFECT INSIDE ITSELF — because the doc-conformance register has nothing to check.
 >
