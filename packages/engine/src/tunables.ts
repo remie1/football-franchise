@@ -29,9 +29,12 @@ const NEG_INF = Number.NEGATIVE_INFINITY;
 /**
  * The other end of the same idea as `NEG_INF`: a horizon that never runs out.
  *
- * Used by `arrival.pressureWithinSeconds`, where it reproduces "any live threat
- * at any distance" as a DECLARED value rather than as a missing branch. It is a
- * number and it is patchable — which is the whole point of writing it down.
+ * WAS the default for `arrival.pressureWithinSeconds`, reproducing "any live
+ * threat at any distance" as a DECLARED value rather than as a missing branch.
+ * Owner ruling (July 2026, same reasoning as ADR-032, one channel over) bounded
+ * that field at `2.0` — see its `DERIVED MECHANIC` comment. Kept defined and
+ * exported to nothing but the module scope so a null-arm or reproduction sweep
+ * can still patch the field back to it by name.
  */
 const POS_INF = Number.POSITIVE_INFINITY;
 
@@ -287,10 +290,13 @@ export const TUNABLES = {
      * with 88.3% of the divergence surviving EVERY §7.2 classification threshold
      * being extinguished. ADR-033 then changed that row on football grounds and
      * banked a delta inside that envelope — a definition correction, not a lever.
-     * The ONE remaining named candidate is `arrival.pressureWithinSeconds`, which
-     * ADR-031 named so that it could be swept at all and which is still at
-     * `POS_INF`. The rate is a SUPPLY problem (§7.1/§7.3/§7.4 threat creation),
-     * not a classification problem; see `CALIBRATION-BACKLOG.md` entry 40.
+     * The ONE remaining named candidate was `arrival.pressureWithinSeconds`,
+     * which ADR-031 named so that it could be swept at all. Entry 1e swept it —
+     * see `arrival.pressureWithinSeconds`'s own `DERIVED MECHANIC` comment for
+     * the ruling and the bound it landed at (2.0, no longer `POS_INF`) — and
+     * refused it as a `pressure_rate` lever, same as every candidate before it.
+     * The rate is a SUPPLY problem (§7.1/§7.3/§7.4 threat creation), not a
+     * classification problem; see `CALIBRATION-BACKLOG.md` entry 40.
      */
     blockerStructuralAdvantage: 0,
     /** "Counter move: +15 if previous tick was stalemate". */
@@ -734,48 +740,76 @@ export const TUNABLES = {
     immediateWithinSeconds: 0.0,
     collapsingWithinSeconds: 1.0,
     /**
-     * THE THIRD HORIZON — how far out a travelling rusher still dirties the
-     * pocket. **`POS_INF` REPRODUCES TODAY'S BEHAVIOUR EXACTLY** and is not a
-     * behaviour change of any kind: `pocketFloorFromArrival` returned `PRESSURE`
-     * for any live threat at any distance, so the constant was already there —
-     * it was spelled as a missing branch instead of as a value.
+     * DERIVED MECHANIC (July 2026, owner ruling — same reasoning as ADR-032, one
+     * channel over) — THE THIRD HORIZON IS NOW BOUNDED. See `match-engine.md`
+     * §7.2 for the doc-facing block; this is the implementation-level derivation
+     * it summarises. `containRetiresAfterConsecutiveContains` above is the FIRST
+     * use of the `DERIVED MECHANIC` marker; this is the second, and it reuses
+     * the heading rather than inventing a new one, per that entry's own
+     * instruction.
      *
-     * WHY IT IS WRITTEN DOWN (ADR-031 change 2, on `calibration`'s petition).
-     * A constant-by-omission is observable and UNSWEEPABLE. A free runner's
-     * threat is created at the snap, so with no third horizon **100.000% of
-     * governed dropbacks are pressured at every rung of the arrival grid,
-     * including the rung where the rusher provably never arrives** (ADR-030 §1a,
-     * measured, ± 0.000). That floor is the last unswept candidate for the
-     * 89.4%-versus-29.2% pressure divergence, alongside
-     * `pocket.minimumStatusByBand.RUSHER_GAINING`, after both previously-named
-     * suspects were swept and refuted (ADR-028, ADR-030). It could not be
-     * measured until it had a name, and giving it one is the change.
+     * THE TWO HALVES HAVE DIFFERENT STATUS, same convention as above:
      *
-     * WHAT A FINITE VALUE WOULD MEAN, so a sweep knows what it is sweeping: a
-     * rusher further out than this is TRAVELLING but not yet dirtying the pocket
-     * — he is in the stream, he still arrives on his own clock, and until he
-     * closes to this horizon he sets no floor. `CLEAN` becomes reachable with a
-     * live threat on the field, which today it is not.
+     *   half                                    status         re-litigate by
+     *   ------------------------------------------------------------------------
+     *   that this channel gets a horizon at all  OWNER RULING   a football
+     *                                                            argument to the
+     *                                                            owner (this
+     *                                                            ruling; ADR-032's
+     *                                                            reasoning, one
+     *                                                            channel over)
+     *   that the value is 2.0                    DERIVED        move
+     *                                                            `immediateWithinSeconds`
+     *                                                            or
+     *                                                            `collapsingWithinSeconds`
      *
-     * NOT A FOOTBALL CLAIM EITHER WAY. An unblocked blitzer IS pressure by most
-     * charting conventions, which is the argument for leaving it at infinity;
-     * a man who will not arrive for three seconds is not, which is the argument
-     * for a finite value. ADR-030 declined to answer it and so does this.
+     * ⛔ THE FOOTBALL (the ruling half). `POS_INF` meant "any live threat, at any
+     * distance, floors the pocket" — a rusher four seconds away and one arriving
+     * next tick were the same fact to this channel. That is not a pressure model,
+     * it is a PRESENCE model: it made the pocket never clean while any rusher was
+     * alive and moving, which is every tick of every dropback. Pressure means the
+     * passer's platform, vision or timing was disturbed — arriving, or close
+     * enough to force the throw — the same reading §7.2's ADR-032 amendment
+     * already gave the band map (limb (b) of that amendment); this is limb (a),
+     * closing on the identical error one channel over. ADR-030 and ADR-031 both
+     * declined to answer this question and left the field at its widest possible
+     * form (`POS_INF`); this ruling answers it.
      *
-     * ADR-033 — THIS FIELD IS LIMB (a) OF §7.2's AMENDMENT, AND IT IS STILL
-     * `POS_INF`. The amended §7.2 reads "PRESSURE requires either (a) a WON rep
-     * whose arrival falls inside the pressure horizon, or (b) a margin high enough
-     * that the blocker is beaten". This field IS that horizon, so at `POS_INF`
-     * limb (a) is satisfied in its widest form — every won rep, at every distance
-     * — and the amendment is implemented at the committed default with no change
-     * here. Narrowing it is a distinct question the ruling did not decide and this
-     * dispatch did not answer: it is a football claim ADR-030 and ADR-031 both
-     * declined, its budget is measured in tens of points of pressure rate rather
-     * than the 2.382pp ADR-032 priced the band map at, and it is a SWEEP that
-     * belongs to `packages/calibration`. Moving it here would have smuggled the
-     * largest unswept dial in §7 into a definition correction.
+     * 🧮 THE VALUE (the derived half), against its two neighbouring boundaries,
+     * NOT picked to hit a rate. `immediateWithinSeconds` (0.0) and
+     * `collapsingWithinSeconds` (1.0) already existed and give the horizon its
+     * own width: `1.0 − 0.0 = 1.0`. PRESSURE sits one more of that same width
+     * beyond COLLAPSING — `1.0 + 1.0 = 2.0` — the next step of a sequence the doc
+     * already started (0.0, 1.0, …), replicating the interval once rather than
+     * inventing a new one. It lands on the engine's own tick quantum
+     * (`quantizeSeconds`, 0.5s) without rounding.
+     *
+     * ⛔ NO RATE EXPECTATION IS ATTACHED. `CALIBRATION-BACKLOG.md` entry 1e swept
+     * this exact channel and refused it as a `pressure_rate` lever (−2.440pp of a
+     * 60.6pp gap); `pocket_status_distribution` — SEVERITY, the standing Tier-1
+     * metric — is the outcome this bound is priced against, not the rate. Priced
+     * afterwards, in the calibration dispatch that follows this one, not
+     * justified beforehand here.
+     *
+     * WHAT IS HELD. This channel interacts with SUPPLY (`startsThreat`'s
+     * rep-win rate, ADR-032 §6b's redirect — "the pressure rate is a SUPPLY
+     * problem") and with RETIREMENT (`containRetiresAfterConsecutiveContains`
+     * above, entry 73) — BOTH were measured against this horizon while it was
+     * unbounded. Any price taken against either mechanism before this change
+     * describes a configuration this default no longer reproduces.
+     *
+     * WHAT A FINITE VALUE MEANS. A rusher further out than 2.0s is TRAVELLING but
+     * not yet dirtying the pocket — he is in the stream, he still arrives on his
+     * own clock, and until he closes to this horizon he sets no floor. `CLEAN` is
+     * now reachable with a live threat still on the field, which it was not at
+     * `POS_INF`. ADR-033's limb (a) of the amended §7.2 ("a WON rep whose arrival
+     * falls inside the pressure horizon") is now satisfied at a genuine horizon
+     * rather than at its widest possible form.
+     *
+     * `POS_INF` remains defined above (used by nothing else today) so a null-arm
+     * or reproduction sweep can still patch this field back to it by name.
      */
-    pressureWithinSeconds: POS_INF,
+    pressureWithinSeconds: 2.0,
     /**
      * WHO GETS THE SACK IN A DEAD HEAT. When a quarterback goes down to a rusher
      * he ran into rather than one who ran him down (§8.8's `CAUGHT_FROM_BEHIND`),

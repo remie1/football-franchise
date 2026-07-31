@@ -733,6 +733,52 @@ SACK:
 > **definition correction**, banked because it is directionally right and buys nothing
 > downstream. The gap itself is `CALIBRATION-BACKLOG.md` entry 40, and remains open.
 
+> **DERIVED MECHANIC (July 2026, CALIBRATION-BACKLOG entry 1e) — the pressure horizon in
+> limb (a) above is now FINITE.** §7.1's `containRetiresAfterConsecutiveContains` note is
+> this marker's first use and states the convention: `DERIVED MECHANIC` names the
+> **parameter's provenance**, and the authorising ruling is cited beside it because the two
+> halves — that a mechanic/bound exists at all, and what its number is — have different
+> status and are re-litigated differently. This is the marker's second use, reusing the
+> heading rather than inventing a new one, per that entry's own instruction.
+>
+> | half | status | re-litigate by |
+> |---|---|---|
+> | that the arrival channel gets a horizon at all | ⚖️ **OWNER RULING** — this dispatch, the same reasoning as ADR-032's amendment above, one channel over | a football argument to the owner |
+> | that the horizon is **2.0 seconds** | 🧮 **DERIVED — nobody chose it** | move `immediateWithinSeconds` (0.0) or `collapsingWithinSeconds` (1.0) |
+>
+> **The football (the ruled half).** Before this, limb (a)'s "pressure horizon" was
+> unbounded (`arrival.pressureWithinSeconds = +∞`): any won rep with a live, travelling
+> threat floored the pocket at PRESSURE regardless of how far out that rusher still was. A
+> rusher four seconds away and one arriving next tick were the same fact to that channel.
+> That is not a pressure model, it is a **presence** model — it keeps the pocket dirty
+> while any rusher is alive and moving, which is every tick of every dropback — and it is
+> the identical error the amendment above already ruled out of the band map: a threshold so
+> wide the classification carries no information. A rusher should floor the pocket **when he
+> is close enough to affect the throw**, not merely because he exists.
+>
+> **The value (the derived half), against its two neighbouring boundaries, not picked to hit
+> a rate.** `immediateWithinSeconds` (0.0) and `collapsingWithinSeconds` (1.0) already existed
+> above and fix the horizon's own width: `1.0 − 0.0 = 1.0`. PRESSURE sits one more of that
+> same width beyond COLLAPSING — `1.0 + 1.0 = 2.0` — the next step of a sequence this section
+> already started (0.0, 1.0, …), replicating the interval once rather than inventing a new
+> one, and it lands on the engine's own 0.5s tick quantum without rounding.
+> `TUNABLES.arrival.pressureWithinSeconds: 2.0` is the tunable; see
+> `packages/engine/src/tunables.ts`'s comment on that field for this note's
+> implementation-level derivation.
+>
+> **No rate expectation is attached.** `CALIBRATION-BACKLOG.md` entry 1e swept this exact
+> channel across its full response curve and refused it as a `pressure_rate` lever
+> (−2.440pp of a 60.6pp gap, the same shape ADR-032 found for the band map above); the Tier-1
+> metric this bound is priced against is **severity** — `pocket_status_distribution` — not the
+> rate, and it is priced in the calibration dispatch that follows this one, not justified here.
+>
+> **What is held.** This channel interacts with the **supply** of threats
+> (`startsThreat`'s rep-win rate — ADR-032 §6b's redirect, "the pressure rate is a SUPPLY
+> problem") and with **retirement** (§7.1's `containRetiresAfterConsecutiveContains`,
+> entry 73) — both were measured **against this horizon while it was unbounded**. Any price
+> taken against either mechanism before this amendment describes a configuration this
+> default no longer reproduces.
+
 > **KNOWN ISSUE (logged July 2026, Phase 1 slice) — the missing "move" branch.**
 > COLLAPSING gives the quarterback three options: "throw, **move**, or take hit." The
 > Phase 1 engine implements *throw* and *take hit* only — step-up and scramble (§8.8) are

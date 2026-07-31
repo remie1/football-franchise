@@ -16,10 +16,19 @@
  * `PRESSURE` for any live threat at any distance, so every governed dropback was
  * pressured at every rung of ADR-030's arrival grid — including the rung where
  * the rusher provably never arrives, measured at 100.000% ± 0.000. That constant
- * is now `arrival.pressureWithinSeconds`, it defaults to `POS_INF`, and the
- * default reproduces the old behaviour EXACTLY. The exhaustive test below is the
- * proof, and it is exhaustive rather than sampled on purpose: the claim is that
- * a total function did not change, so a sample would not be a proof of it.
+ * is `arrival.pressureWithinSeconds`, and AT THE TIME THIS FILE WAS FIRST WRITTEN
+ * it defaulted to `POS_INF`, reproducing the old (missing-branch) behaviour
+ * EXACTLY — the first test below is that historical identity, still checked
+ * against `POS_INF` by explicit patch rather than against the committed default.
+ *
+ * ⚠ SUPERSEDED (July 2026, owner ruling — same reasoning as ADR-032, one channel
+ * over; `CALIBRATION-BACKLOG.md` entry 1e; `match-engine.md` §7.2's
+ * `DERIVED MECHANIC` note). The committed default is no longer `POS_INF` — it is
+ * `2.0`, derived against `immediateWithinSeconds` (0.0) and
+ * `collapsingWithinSeconds` (1.0). The tests below are split accordingly: one
+ * proves the OLD function is still reachable by explicit patch (so a
+ * reproduction or null-arm sweep can still ask for it by name), the rest assert
+ * the CURRENT committed behaviour.
  */
 import { describe, expect, it } from "vitest";
 import type { Position } from "@ff/contracts";
@@ -361,48 +370,72 @@ function legacyPocketFloorFromArrival(minTta: number | undefined): PocketStatus 
   return "PRESSURE";
 }
 
-describe("the arrival floor's third horizon (ADR-031 change 2)", () => {
+describe("the arrival floor's third horizon (ADR-031 change 2, superseded by the July 2026 owner ruling)", () => {
   /**
    * EXHAUSTIVE OVER THE REACHABLE DOMAIN, deliberately. A time to arrival is
    * `etaTick − tick` on a 0.5s grid, both ends bounded by `clock.maxTick`, so
    * the whole input space of this function is the grid below plus `undefined`.
    * Every point of it, not a sample: the claim is that a total function did not
    * change, and a sample cannot say that.
+   *
+   * ⚠ NO LONGER THE COMMITTED TREE (see the file header). Explicitly patched
+   * back to `POS_INF` so this remains a comparison against the OLD CODE, proving
+   * the unbounded behaviour is still reachable by name for a reproduction or
+   * null-arm sweep — not a claim about what ships today.
    */
-  it("at the committed horizon it is byte-for-byte the function it replaced", () => {
-    expect(pocketFloorFromArrival(TUNABLES, undefined)).toBe(legacyPocketFloorFromArrival(undefined));
+  it("patched back to POS_INF, it is byte-for-byte the function it replaced", () => {
+    const unbounded = applyTunablePatch(TUNABLES, {
+      tunableId: "arrival.pressureWithinSeconds",
+      currentValue: TUNABLES.arrival.pressureWithinSeconds,
+      proposedValue: Number.POSITIVE_INFINITY,
+      evidence: "unit test — the legacy-equivalence proof, held fixed at POS_INF",
+      expectedEffect: "reproduces the pre-ADR-031 missing-branch behaviour exactly",
+    });
+    expect(pocketFloorFromArrival(unbounded, undefined)).toBe(legacyPocketFloorFromArrival(undefined));
     const step = TUNABLES.clock.tickStepSeconds;
     for (let tta = -TUNABLES.clock.maxTick; tta <= TUNABLES.clock.maxTick + step; tta += step) {
       const at = Number(tta.toFixed(1));
-      expect(pocketFloorFromArrival(TUNABLES, at)).toBe(legacyPocketFloorFromArrival(at));
+      expect(pocketFloorFromArrival(unbounded, at)).toBe(legacyPocketFloorFromArrival(at));
     }
-  });
-
-  it("the committed horizon is infinite, which is what 'any distance' means", () => {
-    expect(TUNABLES.arrival.pressureWithinSeconds).toBe(Number.POSITIVE_INFINITY);
     // The rung ADR-030 called extinction: a rusher who will never arrive.
-    expect(pocketFloorFromArrival(TUNABLES, 999)).toBe("PRESSURE");
+    expect(pocketFloorFromArrival(unbounded, 999)).toBe("PRESSURE");
   });
 
   /**
-   * THE POINT OF THE CHANGE. `CLEAN` with a live threat on the field is
-   * unreachable today and that is exactly why the floor could be observed and
-   * not swept: ADR-030 measured 100.000% ± 0.000 of governed dropbacks pressured
-   * at every rung of the arrival grid. A finite horizon makes the state
-   * reachable, which is what a sweep needs.
+   * THE COMMITTED VALUE (July 2026 owner ruling; `CALIBRATION-BACKLOG.md` entry
+   * 1e; `match-engine.md` §7.2's `DERIVED MECHANIC` note). Derived against
+   * `immediateWithinSeconds` (0.0) and `collapsingWithinSeconds` (1.0): their
+   * width is `1.0 − 0.0 = 1.0`, and PRESSURE sits one more of that width beyond
+   * COLLAPSING — `1.0 + 1.0 = 2.0`.
    */
-  it("a finite horizon makes CLEAN reachable with a rusher still travelling", () => {
-    const swept = applyTunablePatch(TUNABLES, {
+  it("the committed horizon is 2.0, not infinite — CLEAN is now reachable with a live threat", () => {
+    expect(TUNABLES.arrival.pressureWithinSeconds).toBe(2.0);
+    // The rung ADR-030 called extinction: a rusher who will never arrive no
+    // longer floors the pocket at all, which is the whole point of the bound.
+    expect(pocketFloorFromArrival(TUNABLES, 999)).toBe("CLEAN");
+    expect(pocketFloorFromArrival(TUNABLES, 2.5)).toBe("CLEAN");
+    expect(pocketFloorFromArrival(TUNABLES, 2.0)).toBe("PRESSURE");
+    expect(pocketFloorFromArrival(TUNABLES, 1.0)).toBe("COLLAPSING");
+    expect(pocketFloorFromArrival(TUNABLES, 0.0)).toBe("IMMEDIATE");
+  });
+
+  /**
+   * THE SWEEP INTERFACE ITSELF STILL WORKS. `2.0` is now the default, but the
+   * field remains an ordinary patchable tunable — this proves a different rung
+   * is still reachable by patch, same mechanism `pressureHorizonPatches.ts`
+   * (`packages/calibration`) uses.
+   */
+  it("a wider patched horizon still reaches further than the committed one", () => {
+    const wider = applyTunablePatch(TUNABLES, {
       tunableId: "arrival.pressureWithinSeconds",
-      currentValue: Number.POSITIVE_INFINITY,
-      proposedValue: 2.0,
-      evidence: "unit test — the sweep this tunable exists for",
-      expectedEffect: "a threat further out than 2.0s stops flooring the pocket",
+      currentValue: TUNABLES.arrival.pressureWithinSeconds,
+      proposedValue: 3.0,
+      evidence: "unit test — the sweep interface this tunable exists for",
+      expectedEffect: "a threat further out than 3.0s stops flooring the pocket",
     });
-    expect(pocketFloorFromArrival(swept, 2.5)).toBe("CLEAN");
-    expect(pocketFloorFromArrival(swept, 2.0)).toBe("PRESSURE");
-    expect(pocketFloorFromArrival(swept, 1.0)).toBe("COLLAPSING");
-    expect(pocketFloorFromArrival(swept, 0.0)).toBe("IMMEDIATE");
+    expect(pocketFloorFromArrival(wider, 2.5)).toBe("PRESSURE");
+    expect(pocketFloorFromArrival(wider, 3.0)).toBe("PRESSURE");
+    expect(pocketFloorFromArrival(wider, 3.5)).toBe("CLEAN");
   });
 
   it("the three horizons stay ordered — a narrower one cannot outrank a nearer one", () => {

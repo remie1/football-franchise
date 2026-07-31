@@ -230,13 +230,21 @@ describe("§7.2 the arrival floor", () => {
     expect(pocketFloorFromArrival(TUNABLES, undefined)).toBe("CLEAN");
   });
 
-  it("a distant threat is pressure, a near one collapsing, an arrived one immediate", () => {
+  it("a threat inside the 2.0s horizon is pressure, a near one collapsing, an arrived one immediate", () => {
+    // Owner ruling, July 2026 (same reasoning as ADR-032, one channel over) —
+    // `arrival.pressureWithinSeconds` is now 2.0, not POS_INF. See its
+    // `DERIVED MECHANIC` comment in tunables.ts and match-engine.md §7.2.
     expect(pocketFloorFromArrival(TUNABLES, 2.0)).toBe("PRESSURE");
     expect(pocketFloorFromArrival(TUNABLES, 1.5)).toBe("PRESSURE");
     expect(pocketFloorFromArrival(TUNABLES, 1.0)).toBe("COLLAPSING");
     expect(pocketFloorFromArrival(TUNABLES, 0.5)).toBe("COLLAPSING");
     expect(pocketFloorFromArrival(TUNABLES, 0.0)).toBe("IMMEDIATE");
     expect(pocketFloorFromArrival(TUNABLES, -0.5)).toBe("IMMEDIATE");
+  });
+
+  it("a threat further out than the horizon does not dirty the pocket at all", () => {
+    expect(pocketFloorFromArrival(TUNABLES, 2.5)).toBe("CLEAN");
+    expect(pocketFloorFromArrival(TUNABLES, 999)).toBe("CLEAN");
   });
 
   it("urgency rises as the arrival closes and is zero when nobody is coming", () => {
@@ -354,6 +362,22 @@ describe("§7.2 the emergent claim: interior pressure outweighs edge pressure", 
   it("a threat outlives the rep that created it — a beaten tackle stays beaten", () => {
     // A won rep at tick T must not produce a CLEAN pocket at T+0.5 merely
     // because the rusher's next rep was a stalemate.
+    //
+    // ⚠ THIRD ESCAPE VALVE, ADDED July 2026 (owner ruling — same reasoning as
+    // ADR-032, one channel over; `CALIBRATION-BACKLOG.md` entry 1e;
+    // `match-engine.md` §7.2's `DERIVED MECHANIC` note). `BLOCKER_RESETS` and
+    // sustained-containment retirement (entry 73) both END a threat; a `STEP_UP`
+    // does something different and equally legitimate now that the arrival
+    // horizon is finite (`arrival.pressureWithinSeconds: 2.0`, was `POS_INF`):
+    // §8.8's `pocketMovement.stepUp.edgeThreatDelaySeconds` (1.0s) pushes an
+    // EDGE threat's ETA back ON TOP OF any §7.1 contain delay, and the two can
+    // stack in a single tick to push a still-live, never-reset threat's
+    // remaining time-to-arrival past the horizon — CLEAN, correctly, because he
+    // is now too far away to be affecting the throw. Before this ruling that
+    // state was unreachable (the horizon was infinite), which is exactly why
+    // this test could assert "never CLEAN without a reset" unconditionally; now
+    // a live threat CAN recede out of pressure without ending, so a `STEP_UP` in
+    // the window is as valid an escape as a reset is.
     let checked = 0;
     for (let i = 0; i < 300; i++) {
       const { state, calls } = buildScenario();
@@ -361,6 +385,7 @@ describe("§7.2 the emergent claim: interior pressure outweighs edge pressure", 
       const statuses = new Map<number, string>();
       const wonAt: number[] = [];
       const clearedAt: number[] = [];
+      const steppedUpAt: number[] = [];
       // CALIBRATION-BACKLOG entry 73 — same per-rusher streak this test's
       // `escape valve` (`resetInBetween`, below) has to know about: a threat
       // sustained containment retires is just as much a reset, for the
@@ -369,6 +394,9 @@ describe("§7.2 the emergent claim: interior pressure outweighs edge pressure", 
       const streaks = new Map<string, number>();
       for (const { event } of events) {
         if (event.type === "POCKET_STATUS") statuses.set(event.tick ?? -1, event.payload.status);
+        if (event.type === "QB_DECISION" && event.payload.choice === "STEP_UP") {
+          steppedUpAt.push(event.tick ?? -1);
+        }
         if (event.type === "CHECK" && event.payload.checkKind === "pass_rush_tick") {
           const rusher = String(event.payload.actors[0]);
           const band = bandFor(TUNABLES.passRush.bands, event.payload.margin).label;
@@ -378,17 +406,43 @@ describe("§7.2 the emergent claim: interior pressure outweighs edge pressure", 
         }
       }
       for (const tick of wonAt) {
-        // Two ticks on: unless every rusher was reset in between, the pocket
+        // Two ticks on: unless every rusher was reset — or a step-up pushed a
+        // live EDGE threat past the pressure horizon — in between, the pocket
         // cannot have returned to CLEAN.
         const later = Number((tick + 2 * TUNABLES.clock.tickStepSeconds).toFixed(1));
         const status = statuses.get(later);
         if (status === undefined) continue;
         const resetInBetween = clearedAt.some((t) => t > tick && t < later);
-        if (resetInBetween) continue;
+        const steppedUpInBetween = steppedUpAt.some((t) => t > tick && t < later);
+        if (resetInBetween || steppedUpInBetween) continue;
         checked += 1;
         expect(status).not.toBe("CLEAN");
       }
     }
     expect(checked).toBeGreaterThan(50);
+  });
+
+  it("a step-up can push a live, un-reset EDGE threat past the horizon — CLEAN, legitimately", () => {
+    // The positive control for the escape valve just added: this state must
+    // actually be reachable, or the valve above is silently papering over a
+    // real regression instead of naming a real mechanic.
+    let sawStepUpClearedPocket = false;
+    for (let i = 0; i < 300 && !sawStepUpClearedPocket; i++) {
+      const { state, calls } = buildScenario();
+      const { events } = simulatePassPlay(state, calls, `persist-${i}`);
+      const statuses = new Map<number, string>();
+      const steppedUpAt: number[] = [];
+      for (const { event } of events) {
+        if (event.type === "POCKET_STATUS") statuses.set(event.tick ?? -1, event.payload.status);
+        if (event.type === "QB_DECISION" && event.payload.choice === "STEP_UP") {
+          steppedUpAt.push(event.tick ?? -1);
+        }
+      }
+      for (const tick of steppedUpAt) {
+        const later = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
+        if (statuses.get(later) === "CLEAN") sawStepUpClearedPocket = true;
+      }
+    }
+    expect(sawStepUpClearedPocket).toBe(true);
   });
 });
