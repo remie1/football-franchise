@@ -482,6 +482,24 @@ a class is eliminated, name what remains beside it.
   > comment-shaped and value-shaped — and every one of them terminates in *a person reading something
   > against what it was meant to be.* ⚠ **Cross-reference them to each other**, because each looks
   > like a local problem in its own entry and is not.
+  >
+  > #### ⚠ WHY IT TOOK THREE ENTRIES AND A PROHIBITION TO SEE — a hazard of a WELL-INDEXED record
+  >
+  > **A backlog entry that is complete in itself is exactly what makes it useful, and exactly what
+  > keeps it from being read alongside its siblings.** Each of the three states its own gap fully,
+  > cites its own evidence, and closes. **Nothing in a self-contained entry ever prompts the question
+  > *"is this the same hole as one of the others?"*** — the completeness that makes the record
+  > trustworthy is what makes it resist cross-reading.
+  >
+  > **What actually surfaced it was §4.1's prohibition** (*name the enforcing thing, or say nothing*):
+  > entry 62 was forced to state what covers the published-and-wrong case, **the honest answer was
+  > *nothing*, and the plain answer is what exposed the shared surface.** A reassuring sentence about
+  > the scale audit probably catching it would have closed the question **and hidden the connection.**
+  >
+  > ⇒ **That is twice in three dispatches the prohibition has paid, and both times by producing a
+  > "nothing" that turned out to be INFORMATIVE rather than embarrassing.** ⚠ **Treat an honest
+  > *"nothing covers this"* as a POINTER, not as an admission** — it is the only sentence in the
+  > register that reliably names an unexplored surface.
 
   Mark anything that joins
   this line the same way: not "we have not built the instrument yet", but **"no instrument is
