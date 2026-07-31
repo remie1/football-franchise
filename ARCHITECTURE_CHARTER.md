@@ -1149,6 +1149,27 @@ if (minTta <= t.pressureWithinSeconds)  return "PRESSURE";     // POS_INF
 
 > ### **One level of enumeration has now produced a confident wrong answer three times — and every time, the next level down was CHEAP TO READ.** Eleven lines the first time. **Three lines here.**
 
+#### ⛔⛔ FOUR INSTANCES IN ONE WEEK, AND THEY DESCEND ONE LEVEL EACH TIME
+
+| # | the question that was answered | the question that decided the quantity |
+|---|---|---|
+| 1 | which **TABLE**? — the tier ladder | `RUSHER_WINS_REP` lives on a **separate `minMargin` table**, invariant under every ladder change |
+| 2 | which **CHANNEL**? — threat supply, −71pp isolated | the rate is the **worst of three**; supply reaches one → **−0.130pp** shipping |
+| 3 | which **BRANCH** within the channel? — `pressureWithinSeconds` at `POS_INF` | it gates only `minTta > 1.0`; **COLLAPSING is a different branch** → **−2.440pp of 60.6** |
+| 4 | which **QUANTITY** within the branch? — arrival's 43.9% exclusive-of-dirty | ⛔ **that is a DIRTY-TICK budget across three severities, not a COLLAPSING budget.** Read as COLLAPSING **by both the Orchestrator and the owner** |
+
+> ### **The error does not repeat at one level. It DESCENDS — table, channel, branch, quantity — and each time it wears the previous level's correctness as evidence.**
+
+**That is the part worth internalising: every one of the four was reached BY DOING THE PREVIOUS STEP
+RIGHT.** The tier ladder really was re-banded; supply really is worth −71pp isolated; arrival really
+is the dominant channel; 43.9% really is its exclusive share. **A correct answer to the previous
+question is what makes the next question feel already answered** — which is the reviewer-removing
+mechanism above, arriving inside a single investigation instead of across documents.
+
+⚠ **So the recursion has no natural stopping point that "it looks settled" can supply.** Descend until
+a determinant is a **constant, a roll, or an input from outside the subsystem** — that is the only
+termination condition that is not a feeling.
+
 **⇒ PRECONDITION, not preference: enumerate to the leaves. At each level ask *does this determinant
 itself branch?* and keep descending while the answer is yes.** The cost is reading a function. The
 demonstrated cost of stopping early is a dispatch.

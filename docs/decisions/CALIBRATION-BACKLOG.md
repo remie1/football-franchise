@@ -4050,3 +4050,59 @@ harness files derive it from **different label strings** — `"…/pcs-set-1"` v
 which is entry 47's *restated constant* shape in a seed label. Noted, not proposed.
 
 **⇒ Closed. And it cost one re-run, which is what "attribute it, do not close it by inspection" buys.**
+
+---
+
+## 1g. 🧭 REFRAME (owner, July 2026) — **THE CHANNEL STRUCTURE IS MOSTLY BOOKKEEPING.** The last four dispatches were solving a different problem.
+
+⚠ **This is a REFRAME, not a finding.** No recorded number changes. **The channel-share table stays
+valid; its INTERPRETATION changes**, and the interpretation is what the queue has been steering on.
+
+### What the enumeration forces
+
+Channels 1 and 2 both key on `band`, from a **single** `resolvePassRushTick` call. `RUSHER_WINS_REP`
+is *simultaneously* the only band mapping to `COLLAPSING` on the band floor **and** the event that
+creates the arrival clock — and INTERIOR travel (**1.0s**) meets `collapsingWithinSeconds` (**1.0**)
+exactly, so an interior won rep is COLLAPSING on **both** channels, on the **same tick, from one
+roll**.
+
+> ### **That is not redundancy between two MECHANISMS. It is ONE EVENT COUNTED TWICE BY TWO READERS.**
+>
+> ⇒ **The exclusive-share instrument — which is correct and whose numbers stand — has been measuring
+> redundancy between two VIEWS OF ONE FACT, not between two CAUSES.**
+
+### ⇒ The search has been aimed one level too high
+
+**We have been hunting a lever AMONG CHANNELS.** If two of the three are one roll read twice, then:
+
+> ### **The pressure rate is largely a function of HOW OFTEN `RUSHER_WINS_REP` FIRES, and WHAT HAPPENS AFTERWARDS. The channel structure is mostly bookkeeping over that.**
+
+⚠ **This does not resurrect entry 40's supply lever.** That moved the *threshold* and the reps
+reclassified to `BLOCKER_BEATEN`, which floors at `PRESSURE` — **still dirty**, so a rate counting any
+non-CLEAN tick did not move. **The reframe says where to look, not that a refused lever was wrong.**
+
+### ⛔ AND ENTRY 40'S RULING 2 ARRIVES FROM A COMPLETELY DIFFERENT DIRECTION — this time with the mechanism VISIBLE
+
+The enumeration establishes, by reading rather than by inference:
+
+- **Nothing retires a threat** except `BLOCKER_RESETS`, the scramble force-reset, arrival ending the
+  play, and the pursuit deadline ending it as a run.
+- **A stalemate, a gain, or a contain does NOT retire — it only DELAYS.**
+- ⛔ **And `delayThreat` is ZERO FOR EVERY BAND EXCEPT `BLOCKER_CONTAINS` (0.5s)** (`tunables.ts:626-633`).
+
+> **So a rusher who is contained, gained on, or stalemated stays a LIVE THREAT WITH AN UNCHANGED ETA.**
+
+**That is exactly the owner's ruling 2** — *a beaten rusher must be able to stop being a threat
+without a reset* — **reached from the code instead of from the football**, and now with the mechanism
+named rather than inferred from the 55.756%-still-live / 7.040%-ever-arrive pair.
+
+⚠ **It was priced at 0.108pp and refused** — but that price was taken **behind `retireOn`'s P2
+ceiling, which exists only because of `passPlay.ts:528`'s dead branch** (entry 59), **and** with
+`pressureWithinSeconds` unbounded. **Two confounds, both now named.** ⇒ **Ruling 2's price is owed a
+re-run; the refusal does not stand on the number it was refused on.**
+
+### 🚧 GATE
+
+**Nothing above may be acted on until the fold is partitioned by emitted status** (1f-RESULT's
+abstention, owner-held). **A lever that demotes COLLAPSING to PRESSURE moves nothing** on a rate that
+counts any non-CLEAN tick, and **the current table cannot tell those apart.**
