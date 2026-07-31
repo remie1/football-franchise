@@ -609,18 +609,29 @@ Results per Tick:
 > **DERIVED MECHANIC (July 2026, CALIBRATION-BACKLOG entry 73) — sustained containment retires a
 > threat; the "Blocker wins by 1-14" row above is not the whole story across ticks.**
 >
-> ⚠ **PROVENANCE MARKER — PROPOSED CONVENTION, first use.** Every other annotation in this section
-> (`AMENDMENT`, `KNOWN ISSUE`, `AUTHORING CORRECTION`) documents something the owner wrote, ruled
-> on, or corrected directly. **This is the first mechanic in the engine whose *shape* — not merely
-> its implementation — was derived from the model's own already-ratified structure, after the fact,
-> rather than specified by the design or picked by the owner.** The *decision to build a retirement
-> route at all* was an owner ruling (entry 73: "ruled on the football, regardless of price"); the
-> *count below* was not — nobody chose it, it was derived from two independent anchors already
-> ratified elsewhere in this document, for other reasons. That is a different epistemic status from
-> every other note in §7, and this document had no way to mark the difference before now. `§7` had
-> no prior convention for this; **`DERIVED MECHANIC` is proposed here to fill that gap**, and the
-> next mechanic with the same provenance (design-silent, engine-derived, owner-ratified after the
-> fact) should reuse this heading rather than inventing a third one.
+> ✅ **PROVENANCE MARKER — `DERIVED MECHANIC` IS A RATIFIED CONVENTION** (owner, July 2026). First
+> use, and the definition below governs every later one.
+>
+> ### **`DERIVED MECHANIC` marks THE PARAMETER'S PROVENANCE, and cites the ruling that authorised the mechanic alongside it.**
+>
+> ⛔ **THE TWO HALVES HAVE DIFFERENT STATUS AND MUST BE READ SEPARATELY:**
+>
+> | half | status here | how to re-litigate it |
+> |---|---|---|
+> | **that a retirement route should exist at all** | ⚖️ **OWNER RULING** — `CALIBRATION-BACKLOG` entry 73, *"ruled on the football, regardless of price"* | a football argument to the owner |
+> | ⛔ **that the count is TWO** | 🧮 **DERIVED — nobody chose it** | **move either anchor** and the count moves with it |
+>
+> **`"derived rather than designed"` is ambiguous about WHICH PART was derived, and almost every
+> future case will be mixed in exactly this way — a RULED decision with a DERIVED parameter.** So the
+> marker's scope is the *parameter*, and the authorising ruling is always cited beside it. **A reader
+> then knows which half to re-litigate if either anchor moves.**
+>
+> Every other annotation in this section (`AMENDMENT`, `KNOWN ISSUE`, `AUTHORING CORRECTION`, and
+> Appendix C's unrelated `DERIVED, NOT AUTHORITATIVE`) documents something the owner **wrote, ruled
+> on, or corrected directly** — a survey confirmed **none of them fits this status**, which is why a
+> fourth marker was added rather than an existing one stretched. ⚠ **The next mechanic with this
+> provenance — design-silent, engine-derived, owner-ratified after the fact — REUSES THIS HEADING
+> rather than inventing a fifth.**
 >
 > **The mechanic.** A rusher whose blocker posts `BLOCKER_CONTAINS` (margin 1–14, "contained, no
 > progress") against him on **two reps in a row**, with no other band in between, has his threat

@@ -351,6 +351,17 @@ manifest {source, season, fetchedAt, schemaHash}.
 
    > ### **The briefs that failed were not the ones that felt risky.**
 
+   ⛔ **EXTENSION, July 2026 — THE RULE IS BROADER THAN IT WAS WRITTEN FOR.** It was aimed at
+   **quoted constants**: a number transcribed out of a ratified document. It has now caught something
+   else entirely — **freshly written code producing `7.971%` because a reimplementation forgot to gate
+   on a live threat existing.** ⚠ **No amount of re-reading the quotation would have found that**;
+   the quotation was fine and the *new* work was wrong.
+
+   > ### **Recomputing a claim independently checks the claim's DERIVATION as well as its TRANSCRIPTION — and the derivation is where the NEW errors live.**
+
+   **So "compute, do not transcribe" is not only a defence against inherited numbers. It is a defence
+   against your own fresh ones**, and an implementer who recomputes gets both checks for one cost.
+
    Every one read as routine — quoted numbers from ratified documents, in dispatches nobody flagged as
    uncertain. **So this goes on EVERY dispatch carrying a quoted number, permanently, and is never
    attached selectively when a brief "feels" like it needs it.** A sense of risk is **not correlated
