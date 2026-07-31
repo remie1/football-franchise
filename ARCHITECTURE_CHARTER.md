@@ -908,13 +908,29 @@ naming values, comments, notes. They are the ones that **can be wrong indefinite
 **Prose is the extreme case** — zero enforcement, maximum authority (see the corollary above, and
 `CALIBRATION-BACKLOG.md` roadmap item **2b**, which exists for exactly this reason).
 
-**Sub-corollary — A RATIFIED CLAIM IS UNVERIFIED UNTIL SOMETHING COMPUTES IT. Not distrusted.
-UNVERIFIED.**
+**Sub-corollary — A CLAIM IS UNVERIFIED UNTIL SOMETHING COMPUTES IT. Not distrusted. UNVERIFIED.**
 
 > ### **RATIFICATION DOES NOT ADD EVIDENCE; IT ONLY REMOVES REVIEWERS.**
 
-That is the general statement. Everything below is instance. **Ratification converts a claim into an
-assumption, and the author is the last person who will re-open it.**
+⚠ **AND RATIFICATION IS ONLY THE FIRST TRIGGER WE FOUND, NOT THE CATEGORY.** The general rule is
+wider, and stating it wider is what lets the next instance be recognised:
+
+> ### **ANYTHING THAT MAKES RE-EXAMINATION FEEL UNNECESSARY REMOVES REVIEWERS AS EFFECTIVELY AS RATIFICATION DOES — and none of them adds evidence.**
+
+| trigger | why nobody looks again | status |
+|---|---|---|
+| **a ratified claim** | the ruling *is* the review's output; the author is the last to re-open it | ⛔ **two instances**: ADR-046's constant, ADR-050's accepting ruling |
+| **a pleasing result** | a real derivation and a rate-chase are **indistinguishable by their result**; only the process differs, and it leaves no trace in the number | ⛔ **live** — see the derived-boundary corollary below |
+| a number that **matches a published source** | agreement reads as corroboration, though both sides may share an ancestor | ⚠ predicted, not yet observed here |
+| a fix that turns a **red gate green** | green is treated as *resolved* rather than as *no longer failing in the way it failed* | ⚠ predicted |
+| a measurement that **agrees with the previous one** | consistency reads as reliability, though two runs sharing a source are not two measurements | ⚠ predicted — and note the one-live-reader corollary is exactly this failure in code |
+
+**The last three are written down BEFORE they have bitten**, deliberately: the whole lesson of this
+register is that a class is larger than the instance that reveals it, so naming the shape in advance
+is the only cheap move available.
+
+**Everything below is instance.** **Ratification converts a claim into an assumption, and the author
+is the last person who will re-open it.**
 
 A ratified ruling is the artefact **review cannot catch**, because review is *structurally absent* by
 the time it exists: the ruling **is** the review's output. Worse, when a ruling is issued by the
