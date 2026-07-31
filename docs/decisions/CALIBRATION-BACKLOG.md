@@ -4438,6 +4438,28 @@ that:
 
 > ### **Same lookup, opposite failures — and NEITHER shows on inspection of the entry itself.**
 
+### 🔴 THE SWEEP'S RED-TRIGGER FIELD — and the negative half names a class it CANNOT find
+
+**Reddens for:** a stored ruling with **no mechanical consumer** (the drift exposure), and a stored
+finding with **no consumer at all** (the inert exposure).
+
+⛔ **IT CANNOT FIND A RULING WHOSE SUPPORT HAS WEAKENED**, and this is structural rather than an
+oversight. **Both consumer-side questions return YES:** the ruling still has consumers, so *"does
+anything mechanically depend on this?"* passes; it is still consumed, so *"does anything consume
+this?"* passes. **Nothing about it changes except that the REASON IS WORSE** — and **no lookup over
+consumers can see the quality of a reason.**
+
+**⇒ That is a THIRD register failure, and neither of this sweep's two questions detects it.** Its only
+counter-measure is the **annotate-at-the-decision practice, applied symmetrically** (Charter §4.1) —
+*"this weakens ADR-046's justification"* recorded **at ADR-046**, with the same prominence as a
+strengthening note. ⚠ **Nothing enforces that**, per entry 60's prohibition: **stated as an uncovered
+class, not papered over with a claim that review will catch it.**
+
+> **📌 FIRST PROSPECTIVE USE OF THE NEGATIVE HALF.** The field was created because ADR-038 **asserted
+> what happened on the other side of its boundary** and was wrong. Here the same field is being used
+> to **record an uncovered class before anything has slipped through it** — which is what it was
+> supposed to become, and the first time it has been used that way rather than as a correction.
+
 **⇒ The only change needed is to RECORD THE EMPTY-CONSUMER CASE AS A FINDING rather than skipping
 it.** The pass already visits every entry, so the marginal cost is **zero** — it is currently
 discarding half of what it computes.
@@ -4588,3 +4610,129 @@ that preserved independence paid off within a single dispatch, in precisely the 
 would have foreclosed.** ⚠ **Two arms with a shared source cannot corroborate each other — in code
 (`ladderTail`'s live reader), in seeds (this), or in citation (ADR-046's quoted constant). Same defect,
 three media.**
+
+---
+
+## 59-RESULT. ✅ **(b) — THE ORDERING IS RIGHT FOOTBALL. THE CONFIG WAS ALREADY THE ONLY COHERENT VALUE, AND IT IS NOW ENFORCED, NOT FIXED.**
+
+**Not the cheap resolution the owner warned against.** No branch was reordered. `sim/passPlay.ts`'s
+if/else-if chain is byte-for-byte what it was before this entry.
+
+### The argument
+
+`resolve/passRush.ts`'s `bandFor` assigns **exactly one band per tick from one margin** — a rusher
+cannot post `RUSHER_WINS_REP` and `BLOCKER_RESETS` on the same rep; they are the two opposite ends of
+the same margin scale. §7.1's own table (`match-engine.md` §7.1) names **exactly one** row that resets
+a rusher — *"Blocker wins by 15+: Rusher reset, starts fresh next tick"* — and it is not the row that
+says he won. So `pressureProgressByBand.RUSHER_WINS_REP.reset === true` has no football reading: it
+would assert that the same roll which just started a rusher travelling **also retired the threat that
+roll just created**, off the same die, on the same tick. §7.1 has no such rep, at any margin.
+
+**⇒ `startsThreat` firing first is not a workaround for `clearsThreat` — the two predicates are
+mutually exclusive by construction of `bandFor`, and only one of them was ever going to be true for a
+given tick's band.** The chain reads correctly the moment that is stated. Entry 59's alternative
+framing — "a rusher who keeps winning his rep can never reach the retirement branch on a tick he wins"
+— is true and is not a defect: there is no tick on which a win and a retirement are both the honest
+description of what happened.
+
+### Reachability table — the WHOLE `pressureProgressByBand` structure, not just the one row
+
+`startsThreat(band)` is `band === "RUSHER_WINS_REP"`, full stop — so it is `true` for exactly one band
+and `false` for the other five. That single fact decides reachability for every row:
+
+| band | `startsThreat`? | reaches `clearsThreat` in the chain? | `.reset` today | consequence |
+|---|---|---|---|---|
+| `RUSHER_WINS_REP` | **true** | ⛔ **NO — structurally, for any config** | `false` | the only genuinely dead cell; **correctly** dead (see argument above) |
+| `BLOCKER_BEATEN` | false | ✅ yes | `false` | live knob — currently routes to the `DELAYED` arm |
+| `RUSHER_GAINING` | false | ✅ yes | `false` | live knob — currently routes to `DELAYED` |
+| `STALEMATE` | false | ✅ yes | `false` | live knob — currently routes to `DELAYED` (0s recovery, so a no-op delay) |
+| `BLOCKER_CONTAINS` | false | ✅ yes | `false` | live knob — currently routes to `DELAYED` (0.5s recovery) — **entry 73's target** |
+| `BLOCKER_RESETS` | false | ✅ yes, and **fires today** | `true` | live and active — the only band that reaches `RESET` |
+
+**⇒ Answering the "check every other band" instruction directly: no other row is unreachable for this
+or any related reason.** `BLOCKER_CONTAINS.reset` — entry 73's proposed fix — is a real, live,
+already-reachable knob today; nothing about entry 59 stood in front of it, and nothing about this
+resolution needs to touch the chain for entry 73 to proceed. **This corrects entry 73's own stated
+sequencing** ("Sequenced after entry 59, which changes the branch chain this mechanic lives in") — the
+branch chain is not changing, so entry 73 is not blocked on this entry's mechanics; it never was.
+
+### What enforces the unreachable-path-cannot-exist property
+
+`resolve/rushThreat.ts` now carries a compile-time assertion, same idiom as `resolve/pocket.ts`'s
+`AssertEmptyUnion` pair (`_EveryRungIsAPocketStatus` / `_EveryPocketStatusIsARung`):
+
+```ts
+export type AssertFalse<T extends false> = T;
+export type _WinningBandNeverClearsItsOwnThreat = AssertFalse<
+  Tunables["passRush"]["pressureProgressByBand"][typeof WINNING_BAND]["reset"]
+>;
+```
+
+`TUNABLES` is `as const`, so `...["RUSHER_WINS_REP"]["reset"]` is the **literal** `false`, not
+`boolean` — verified directly (a throwaway probe flipping the literal to `true` produced `TS2344: Type
+'true' does not satisfy the constraint 'false'.`; flipping it back compiled clean). `WINNING_BAND` was
+changed from `: PassRushBandLabel` to `"RUSHER_WINS_REP" satisfies PassRushBandLabel`, so the type
+position can read the literal back out of the one place the string is written, rather than a second
+hand-typed copy of it.
+
+**🔴 RED TRIGGER, both directions (entry 55 / entry 60's rule):**
+
+- **FIRES** — fails `tsc -p tsconfig.test.json` (which `package.json`'s `test` script runs before
+  `vitest`, so this is a build failure, not a runtime one) — the instant
+  `pressureProgressByBand.RUSHER_WINS_REP.reset` becomes anything but the literal `false`, for EITHER
+  of its two readers (`advancePressure`'s pressure-counter reset, or `clearsThreat`'s threat
+  retirement) — one field feeds both and neither reading is coherent for this band. **Proved to fire**:
+  `test/rushThreat.test.ts` instantiates the same generic on the real `Tunables` path unioned with a
+  deliberately wrong member (mirroring `test/pocketStatus.test.ts`'s `| "PANICKED"`) under
+  `@ts-expect-error`, and the suite fails if that stops erroring.
+- **Does NOT fire, and must not**, for any of the other five bands — their `.reset` values are live
+  tuning knobs today (table above), and this assertion is scoped to exactly one key
+  (`typeof WINNING_BAND`). Nothing here constrains `BLOCKER_CONTAINS.reset` or any other row.
+
+A runtime unit test already existed (`expect(clearsThreat(TUNABLES, "RUSHER_WINS_REP")).toBe(false)`,
+`test/rushThreat.test.ts:132`) and still passes — kept, because it documents the same fact for a reader
+who is not thinking in types. The compile-time assertion is the one that cannot be skipped by not
+running the test file.
+
+### Determinism evidence — a no-op, computed, not asserted
+
+Per the standing note, behaviour that does not change gets a byte-identical stream as proof rather than
+a claim. The branch order was mechanically swapped (`clearsThreat` checked before `startsThreat`) in a
+disposable copy of `sim/passPlay.ts`'s tick loop, 2,000 pass plays were simulated across varied
+scenarios and seeds (`entry59-probe-0`…`entry59-probe-1999`, via the same `buildScenario()` fixture the
+suite already uses) with every event stream concatenated and hashed:
+
+```
+before the swap: sha256 483e5110d6a150a05d071f8f38038b87cbf9d1c4a10311438c0032fd6285f29d
+after the swap:  sha256 483e5110d6a150a05d071f8f38038b87cbf9d1c4a10311438c0032fd6285f29d
+```
+
+**Byte-identical.** 2,000 plays at ~31.87% `RUSHER_WINS_REP` incidence per rep (ADR-050/71-RESULT) is a
+meaningfully powered sample, not a fluke pass. The probe file and the swapped `passPlay.ts` were both
+discarded after the hash comparison; `git status`/`git diff` on `src/sim/passPlay.ts` show no residual
+change from this entry beyond the explanatory comment added at the chain itself.
+
+### Correction owed to entries 72 and 73 — read before acting on either
+
+Both entries were written expecting resolution (a) (a chain restructure) and their sequencing language
+says so explicitly. Neither premise holds:
+
+- **Entry 72's confound table** lists *"`retireOn`'s P2 ceiling is an artefact of statement order (entry
+  59) — OPEN, goes first."* **This is now RESOLVED, and resolved as "not a confound."** ADR-049 §8
+  already excluded `RUSHER_WINS_REP` from the P2 arm *because* it could never reach the retirement
+  branch — that exclusion was the **correct** way to state the arm, not a workaround for a bug, since no
+  config value could ever have made it reachable. `0.108pp` is therefore the **true reachable ceiling**
+  of persistence-retirement as the doc defines it, not an undercount waiting on a fix. **Only one
+  confound remains open on ruling 2**: the unbounded pressure horizon. A re-measurement of ruling 2 does
+  not need to wait on any further change here.
+- **Entry 73's sequencing** ("after entry 59, which changes the branch chain this mechanic lives in")
+  does not apply — see the reachability table above. `BLOCKER_CONTAINS.reset` was always a live,
+  reachable knob; entry 73 can proceed on its own schedule.
+
+### Files
+
+`packages/engine/src/resolve/rushThreat.ts` (the assertion, and `WINNING_BAND`'s `satisfies`
+declaration), `packages/engine/test/rushThreat.test.ts` (the `@ts-expect-error` proof, alongside the
+pre-existing runtime check), `packages/engine/src/sim/passPlay.ts` (comment only, at the chain itself —
+no logic changed). Full `pnpm --filter @ff/engine test` (47 files, 796 tests) and `pnpm -r build` both
+pass on the changed tree.
