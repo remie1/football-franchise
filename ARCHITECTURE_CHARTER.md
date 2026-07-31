@@ -1238,6 +1238,51 @@ with an unwritten blind spot.
 > only ever establish that *someone answered the question*. **Only the author can answer it about the
 > right subject**, and only while they still remember what they chose not to cover.
 
+**Corollary — A COUNTERFACTUAL CAN PRICE A RULE THAT CANNOT EXIST. THE MEASUREMENT IS SOUND, THE
+ARITHMETIC CLOSES, AND THE SUBJECT IS UNIMPLEMENTABLE.**
+
+> ### **A reconstruction has the WHOLE STREAM. A live rule has the PRESENT TICK.**
+
+**The instance.** Ruling 2's TIME retirement was priced at **`+6.568pp`** by a post-hoc reclassifier
+that compared each threat's ETA against ***that play's own actual resolution tick*** — ⛔ **a quantity
+knowable only AFTER the play ends.** A live rule cannot do that causally; it can only compare against
+the play's **fixed outer ceiling** (`clock.maxTick`). **Two different rules.** The implementable one
+fires on **0.0125% of plays.**
+
+⚠ **Nothing in the number showed it.** The reclassifier was correct, the identity falsifier was
+`0 of 517,753`, the arithmetic closed. **The figure was a sound measurement OF AN ORACLE.**
+
+### ⇒ THE THIRD VARIETY OF *"A PRICE THAT DOES NOT MEAN WHAT IT APPEARS TO"*
+
+| variety | what was wrong | worked case |
+|---|---|---|
+| **the metric could not see it** | `pressure_rate` is blind to `COLLAPSING → PRESSURE` | backlog entry 67 |
+| **the subject was two things** | an average over mechanisms differing 22:1 | backlog entry 80 |
+| ⛔ **the subject cannot exist** | the rule priced needs information unavailable when it must fire | **this** |
+
+**All three produce a number that is honest, reproducible, and about something other than what the
+reader will take it to be.**
+
+> ⛔ **THE THIRD PRE-DISPATCH QUESTION, AND IT IS THE CHEAPEST OF THE THREE: CAN THE RULE BEING PRICED
+> BE EVALUATED WITH INFORMATION AVAILABLE AT THE MOMENT IT MUST FIRE?**
+>
+> ⚠ **Any counterfactual computed over a COMPLETED play must state which quantities it used that the
+> engine would not have had.** Terminal tick, final outcome, whether a throw eventually happened —
+> each is free to a reconstruction and unavailable to a decision.
+
+### ✅ AND THE DISPOSITION CHOICE — NOT THE FOOTBALL — IS WHAT SAVED THE RULING
+
+**TIME retirement was ruled as CORRECTNESS, with the football standing alone and the size explicitly
+not the justification.** ⇒ **When the size evaporated, the ruling survived unchanged.**
+
+> ⛔ **HAD IT BEEN RULED AS A LEVER, IT WOULD NOW BE VOID** — ratified on a number about a rule that
+> cannot be built.
+
+⚠ **That makes the correctness-versus-lever distinction LOAD-BEARING rather than procedural.** It is
+not a way of describing a change; **it determines what happens to the change when its number turns
+out to be wrong** — and on this subsystem, numbers have turned out wrong three times in three
+different ways.
+
 **Corollary — A REPAIR THAT REMOVES THE SYMPTOM ALSO REMOVES THE RECORD THAT THERE WAS ONE.**
 
 > ### **This is log-don't-smooth arriving at the act of FIXING rather than the act of REPORTING.**

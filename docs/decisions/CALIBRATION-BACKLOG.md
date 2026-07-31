@@ -4959,7 +4959,47 @@ identity falsifier `0 of 517,753`:
 | ⛔ **time only** | **36.104%** | ⛔ **+6.568pp** |
 | joint | 36.124% | +6.588pp |
 
-> ### **TWENTY-TWO TO ONE. The aggregate was never about either mechanism.**
+> ### ~~**TWENTY-TWO TO ONE. The aggregate was never about either mechanism.**~~
+>
+> ⛔ **STRUCK — SEE THE AMENDMENT BELOW. The 22:1 headline compares an ORACLE arm to an implementable
+> one.** Kept rather than deleted, because it is the claim this entry now also exists to correct.
+
+### ⛔⛔ AMENDED (July 2026) — **TIME's ARM WAS AN ORACLE. The 22:1 evidence does not survive; the diagnostic does.**
+
+**The reclassifier compared each threat's ETA against *that play's own actual resolution tick*** — a
+quantity **knowable only after the play ends.** ⛔ **A live rule cannot do that causally.** The
+implemented rule compares against the play's **fixed outer ceiling** (`clock.maxTick`), and fires on
+**0.0125% of plays — 6 of 40,000** (commit `a9cead7`).
+
+> **So `+6.568pp` was never a lower bound on the implementable rule. It priced a DIFFERENT rule —
+> one that requires future knowledge at decision time** (Charter §4.1, *a counterfactual can price a
+> rule that cannot exist*).
+
+**⇒ WHAT SURVIVES AND WHAT DOES NOT:**
+
+| claim | status |
+|---|---|
+| **the "and"-conjunction diagnostic** — a ruling naming two mechanisms must be priced in three arms | ✅ **SURVIVES.** Geometry and time *are* separately priceable; that was right |
+| the **22:1 ratio** as its evidence | ⛔ **VOID** — it compares an oracle arm to a real one |
+| the **negative interaction** (geometry `104.683 → 37.202`) | ⚠ **RE-READ OWED** — both arms were reclassifier arms, so the competition may not hold between the *implementable* versions |
+| ⛔ **the ruling to implement TIME** | ✅ **SURVIVES UNCHANGED** — see below |
+
+⚠ **The geometry-versus-time asymmetry that motivated separate arms may not hold between the
+implementable versions.** ⛔ **It has not been re-measured, and nothing may cite the 22:1 for
+anything.**
+
+### ✅ WHY THE RULING SURVIVES — and it is the disposition, not the football
+
+**TIME was ruled as CORRECTNESS**: the football standing alone, and **the size explicitly not the
+justification.** ⇒ **When the size evaporated, the ruling did not move.**
+
+> ⛔ **HAD IT BEEN RULED AS A LEVER IT WOULD NOW BE VOID.** ⚠ **That makes the correctness-versus-lever
+> distinction LOAD-BEARING rather than procedural** — it decides what happens to a change when its
+> number turns out to be wrong, and on this subsystem numbers have now turned out wrong **three times
+> in three different ways** (entries 67, 80, and this).
+
+**⇒ And the Orchestrator carried `+6.568pp` forward as a lower bound — into the brief and into this
+entry's own headline. That is where the defect entered.**
 
 ### Why nothing in the price showed it
 
