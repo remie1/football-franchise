@@ -4907,3 +4907,37 @@ per lever.
 
 **Worth citing whenever a lever's price looks cheap to obtain:** the *measurement* is rarely the cost.
 **Establishing that the measurement means what it appears to mean** is.
+
+---
+
+## 79. 🔧 ROUTE `reclassifyGame`'s RESIDUAL INSTEAD OF NAMING IT — the first test of the routing clause
+
+**The residual, stated honestly by the dispatch that created it:** the `replay` helper closes the
+identity-assertion gap for every call site **inside `geometryTimeRetirement.test.ts`**, but
+`reclassifyGame` **remains a public export** — `pocketChannelShares.ts`, `bandCensus.ts` and
+`ruling2Dispatch.test.ts` all need it, and all assert `identityMismatches` themselves at corpus
+scale. **So a future test importing it directly reopens the gap, and nothing but convention stops
+that.**
+
+> ### ⛔ AND THAT NOTE IS REACHABLE ONLY BY SOMEONE ALREADY READING THE FILE THAT NAMES IT — which a future importer, by definition, is not.
+
+**Same information as the `replay` helper's missing default. Different reach. Only one is a guard**
+(Charter §4.1's routing clause).
+
+### The shape that is probably available
+
+> **If the public export can require the same identity parameter its internal callers do, the residual
+> stops being a note and becomes a COMPILE ERROR AT THE IMPORT SITE.**
+
+**Check whether the three corpus-scale consumers can supply it.** ⚠ **They already compute it** — each
+asserts `identityMismatches` on its own — **so the question is whether they can pass it IN rather than
+check it AFTER.**
+
+⛔ **AND IF THEY CANNOT, THAT IS A FINDING ABOUT WHY, NOT A REASON TO LEAVE THE NOTE.** The likely
+obstacle is that corpus-scale consumers do not know the expected count in advance — they *discover*
+it. **If so, say that plainly: the parameter cannot be required because the honest value is unknown
+until after the call**, which is a real structural asymmetry between fixture-scale and corpus-scale
+use, and **naming it is worth more than the note it replaces.**
+
+⚠ **Do not weaken the corpus-scale assertions to make the signature uniform.** A green suite bought by
+loosening a check is worse than the residual.

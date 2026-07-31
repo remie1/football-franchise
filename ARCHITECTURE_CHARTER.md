@@ -1116,6 +1116,22 @@ place nobody re-examines *because a rule now exists there.*
 > into a thing you cannot SKIP.** A field on a form. A parameter with no default. A gate that reddens.
 > ⚠ **A rule that still requires remembering at the moment of action has not been converted yet — it
 > is an intention with a citation.**
+>
+> #### 📋 OWED — RUN THAT CRITERION OVER THIS REGISTER. **THREE BUCKETS, NOT TWO.**
+>
+> | bucket | meaning | what it is |
+> |---|---|---|
+> | ✅ **CONVERTED** | a field, a parameter with no default, a gate that reddens | done |
+> | ⚠ **CONVERTIBLE** | **a mechanism exists in principle and nobody has built it** | ⛔ **a backlog** |
+> | 🚫 **IRREDUCIBLE** | **no mechanism is possible** — the doc→table reading, the three-faced value-vs-intent surface | **honest, and already named as such** |
+>
+> ⛔ **The two-bucket version is the trap:** it makes *convertible* and *irreducible* look alike, and
+> **the entries that fail the criterion are not WRONG — they are UNCONVERTED.** ⚠ **Each convertible
+> entry is a candidate for a mechanism that does not exist yet**, which is why the middle bucket is
+> the output that matters. **Knowing WHICH fail is worth more than knowing how many.**
+>
+> ⇒ **Run it at a natural break. Pair it with the red-trigger retrofit sweep** — same pass, same
+> reading, and both partition this document by what enforces itself.
 
 > ⛔ **THE OPERATIVE FORM: an instrument's blind spot must be written down BY ITS AUTHOR, WHILE THEY
 > ARE BUILDING IT.** Entry 55's *"what would make this go red?"* field exists for exactly this, and it
