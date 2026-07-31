@@ -342,6 +342,19 @@ manifest {source, season, fetchedAt, schemaHash}.
    structurally invariant). **Neither came from review**, because by the time a ruling is ratified
    there is no reviewer left. Point the instruction at the brief's own numbers explicitly, including
    the Orchestrator's — that is where both errors were.
+
+   ⛔ **UNCONDITIONAL, NOT RISK-TRIGGERED — earned rather than argued.** In one week **four briefs had
+   their premise fail**, and every one was caught by an implementer **computing** the claim rather
+   than reviewing it: a ladder conflated with a separate `minMargin` table; a channel mistaken for the
+   determinant; a branch mistaken for the channel; and a dead cell reported as a confound that
+   ADR-049 had already excluded correctly.
+
+   > ### **The briefs that failed were not the ones that felt risky.**
+
+   Every one read as routine — quoted numbers from ratified documents, in dispatches nobody flagged as
+   uncertain. **So this goes on EVERY dispatch carrying a quoted number, permanently, and is never
+   attached selectively when a brief "feels" like it needs it.** A sense of risk is **not correlated
+   with the failure**, and using it as the trigger would have missed all four.
 9. **Before committing a change to a SHARED artefact, name the packages that read it and run those.**
    Standing rule, owner, July 2026, after a red tree shipped and survived a review. **For
    `packages/contracts` and `packages/engine/src/tunables.ts` the answer is "all of them"** — so the

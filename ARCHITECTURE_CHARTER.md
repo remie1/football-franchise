@@ -1119,6 +1119,23 @@ it.** Three victims of one shape now — an absorbed *mechanic* (the engine impl
 is observable), an absorbed *lever* (it moves the game and the metric cannot see it), and an absorbed
 *finding* (it is measured and recorded and nothing reuses it).
 
+> ### ⛔ AND AN ABSORBED MECHANIC CAN HIDE A TRANSCRIPTION DEFECT INSIDE ITSELF — because the doc-conformance register has nothing to check.
+>
+> `pressureProgressByBand.RUSHER_WINS_REP.reset` contradicted §7.1's own table for its whole life.
+> §7.1 says ***"Blocker wins by 15+: Rusher reset"*** — and `RUSHER_WINS_REP` is the row where **the
+> RUSHER won.** A `true` there asserts that the roll which started a rusher travelling **also retired
+> the threat it just created, off the same die, on the same tick.** Incoherent **on the doc's own
+> terms**, and it sat there unnoticed.
+>
+> **⇒ It escaped the doc-conformance register for a structural reason: THE REGISTER CHECKS CELLS
+> AGAINST THE DOC, AND A DEAD BRANCH HAS NO OBSERVABLE BEHAVIOUR TO CONFORM.** The cell was checked
+> against **nothing anyone could run.**
+>
+> ⚠ **So an absorbed mechanic is not merely inert — it is a REGION WHERE OTHER DEFECTS ARE INVISIBLE.**
+> Anything inside it is exempt from every behavioural check by construction, which makes the
+> exclusive-share sweep (entry 64) worth more than "find the inert mechanics": **it finds the regions
+> where the other instruments cannot see.**
+
 ### ⛔ THE OPERATIVE FORM, AND THE TEST IS CHEAP
 
 > **When a dispatch measures something the standing metrics cannot see, that is a PETITION FOR A
