@@ -829,6 +829,24 @@ one dispatch, arrived at from opposite directions:
 | **from the prose direction** | *"re-scope ADR-032's monotonicity gate"* — ADR-032 is real, and it **does** rule a monotonicity gate | that gate is over the **`PocketStatus` severity ladder**. The tail-occupancy property belongs to ADR-050/052, lives in `calibration`, and **was already correctly scoped.** `packages/engine` has no such gate at all. |
 | **from the type direction** | `minimumStatusByBand` listed among the `PocketStatus`-keyed tables — it is real, and `PocketStatus` **does** appear in it | as its **VALUES**. Its keys are `PassRushBandLabel`. A mapped type over `PocketStatus` would have constrained **the wrong axis.** |
 | **from the scope direction** ⇒ **the one with a measured cost** | *"`resultTierLadder` is structurally outside the band-table gate's scope"* — **true**, and about **one of that gate's two tiers** | true of the **monotonicity check** (no columns beyond `label`/`minMargin`, so nothing for Tier B to order); **false of the CENSUS**, which counts raw rows and had `resultTierLadder` among its 26 tables all along — `discoverBandTables` recognises *any* array of `{label, minMargin}`. **Cost: 119 → 127.** |
+| **from the coordinate direction** ⇒ **the smallest instance** | *"`pocketFloorFromArrival` at `rushThreat.ts:402`"* — **right file, right function** | it is at **519**. Line **402** is inside the docstring of a **different function**, `arrivedAt`. ⚠ **Two of three components verified.** |
+
+> ### ⛔ **A CITATION IS NOT ONE CLAIM. IT IS AS MANY CLAIMS AS IT HAS COMPONENTS, AND THEY FAIL INDEPENDENTLY.**
+>
+> *"`pocketFloorFromArrival` at `rushThreat.ts:402`"* is **three** claims — a file, a symbol, a
+> coordinate. **Two were right. All three read as one atom**, and ⚠ **anyone spot-checking would have
+> confirmed the file, confirmed the function, and stopped.**
+>
+> **⇒ THIS IS THE ARGUMENT FOR CHECKING UNCONDITIONALLY RATHER THAN IN PROPORTION TO HOW RISKY A
+> CITATION LOOKS.** A citation that is 2/3 correct **looks more trustworthy than one that is wholly
+> unverified**, because the parts that are easy to check are the parts that verify. **Checking the
+> easy components is precisely how the hard one survives.**
+>
+> ⚠ **And note where it would have landed:** the comment would have gone into `arrivedAt`'s docstring —
+> **a correct sentence, attached to the wrong subject, in a file where every other comment is
+> trustworthy.** That is the **placeholder-in-an-honest-neighbourhood** shape (below) **arriving in
+> prose instead of in a field**: there, a fabricated value among honest values; here, **a true sentence
+> among true sentences.** ⛔ **The neighbourhood vouches for it either way.**
 
 **Both would have produced a guard that compiles, reads as coverage, and checks a property its
 subject does not have** — the *apparently-instrumented* failure, reached not by a blind instrument
@@ -1081,6 +1099,19 @@ ADR-038 drew its line correctly and then added *"a lying script is a different f
 reviewable one."* That clause **assumed something invokes the script.** Nothing did, and:
 
 > ### **An uninvoked script's failure is exactly as silent as a missing one — and the gate reports both states identically.**
+
+> ### ⛔ SEVEN PREMISE FAILURES IN TWO WEEKS, AND THE SAMPLE IS NOW LARGE ENOUGH TO INVERT WHAT COUNTS AS A SIGNAL.
+>
+> **Every one was a claim written into a brief from a document or a reading. Every one was caught by
+> someone COMPUTING rather than REVIEWING. NONE was caught by care.**
+>
+> **⇒ So an individual instance has stopped being notable, and the thing worth noticing is now the
+> opposite: A DISPATCH THAT REPORTS NO CAUGHT PREMISE FAILURE.** ⚠ That is not evidence the brief was
+> clean — **at this base rate it is more likely evidence the premises were not checked**, and it
+> should prompt the question rather than pass without comment.
+>
+> **This is the count-blindness reflex applied to a process rather than to a register:** *"seven
+> caught"* reads as a problem; **the rate is the finding, and the rate makes silence the anomaly.**
 
 **⇒ SO THE RED-TRIGGER FIELD HAS TWO HALVES, AND THE SECOND IS A PROHIBITION:**
 
