@@ -348,6 +348,28 @@ manifest {source, season, fetchedAt, schemaHash}.
 
    > ### **Recomputing a claim independently checks the claim's DERIVATION as well as its TRANSCRIPTION — and the derivation is where the NEW errors live.**
 
+   ⛔ **THE OPERATIONAL FORM — A PREMISE LEDGER, REPORTED EITHER WAY.** Every dispatch states **what it
+   computed and what each came out as**, including the ones that **confirmed**.
+
+   | report | reading |
+   |---|---|
+   | a ledger of premises, **all confirming** | ✅ a clean dispatch — **and a real result** |
+   | ⛔ **silent about premises** | **the anomaly** — they were probably not checked |
+
+   ⚠ **The question against silence is *"which premises did you compute?"*, never *"did you find
+   one?"*** — the second creates pressure to report something trivial found in passing, which is the
+   **artefact-exists-because-it-was-demanded** shape arriving at a report. **The signal was never *a
+   failure was found*; it is *the premises were computed*.**
+
+   **Settled by demonstration:** the first dispatch to run under this form was asked to verify a claim
+   *about a correction to an earlier wrong premise* — it read the function, **confirmed it, and said
+   so.** ⚠ **A confirming ledger proves the form cannot be satisfied by silence**, which a caught
+   defect would not have shown.
+
+   ⛔ **AND A CLAIM ABOUT A CORRECTION GETS NO EXEMPTION.** It is still quoted, still one layer from
+   the code, still travelling upward. **The correction that follows a premise failure is exactly as
+   unverified as the premise was.**
+
    **So "compute, do not transcribe" is not only a defence against inherited numbers. It is a defence
    against your own fresh ones**, and an implementer who recomputes gets both checks for one cost.
 
