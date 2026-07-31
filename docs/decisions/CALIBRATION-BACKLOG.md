@@ -4388,3 +4388,59 @@ stops a future "fix": the first two read as an accident someone chose not to cle
 ⚠ **And the derive-don't-restate reflex is marked as NOT APPLYING here** — a rare honest exception,
 recorded so it is not re-litigated. **There is nothing to derive from, because independence is the
 point**; a derived label would reintroduce the shared source the divergence exists to avoid.
+
+---
+
+## 71. 🔮 PRE-REGISTERED — what the `BLOCKER_BEATEN` census decides about ruling 2
+
+**Written BEFORE the census reports.** ⚠ **Do not amend after; amend beside.**
+
+Ruling 2's `0.108pp` is **a blend of two opposite behaviours in unknown proportion**, because
+`passPlay.ts:524` sets `previousBand` unconditionally before the branch dispatch:
+
+- a **`BLOCKER_BEATEN`**-triggered retirement removes the arrival clock **and re-dirties the same tick
+  via the band floor** → ⛔ **DEMOTION, invisible to `pressure_rate`**;
+- a retirement via `RUSHER_GAINING` / `STALEMATE` / `BLOCKER_CONTAINS` (all `CLEAN` floors) →
+  ✅ **CLEAR, fully visible.**
+
+### The fork, and each branch resolves differently
+
+| if the `0.108pp` is mostly… | verdict | why |
+|---|---|---|
+| ⛔ **DEMOTING** (`BLOCKER_BEATEN`-triggered) | **RE-RULED, not re-measured** | The football case was **always sound**; the price was taken on a **blind metric**. Correct disposition: **implement it on its merits, with severity as the outcome variable.** Re-measuring on `pressure_rate` would reproduce the same near-null and teach nothing. |
+| ✅ **CLEARING** (the other three bands) | **RE-MEASURED** | The metric **was not blind to it**, so **the small number means what it appeared to mean** — and the two other confounds (entry 59's dead-branch P2 ceiling, the unbounded horizon) are then the live questions rather than the metric. |
+
+### ⛔ AND THE FOOTBALL ARGUMENT SURVIVES EITHER WAY — state this plainly so neither branch reads as a reprieve
+
+> **A contained rusher staying live forever with an unchanged ETA is a MISSING MECHANIC regardless of
+> what it is worth in pressure points.**
+
+The enumeration established it from the code independently of any price: **nothing retires a threat**
+except four routes, **a stalemate/gain/contain only DELAYS**, and **`delayThreat` is zero for every
+band except `BLOCKER_CONTAINS`.**
+
+**⇒ So the census does not decide WHETHER ruling 2 is right. It decides WHETHER WE IMPLEMENT IT AS
+CORRECTNESS OR PRICE IT AS A LEVER** — which are different dispatches with different success
+conditions, and conflating them is how a correctness fix acquires a rate expectation it was never
+going to meet (1d's exact mistake, ruled out there and worth ruling out here in advance).
+
+---
+
+## 47-PRIORITY. ⚡ THE STALENESS SWEEP IS THE ONLY INSTRUMENT THAT CAN DETECT **EITHER** REGISTER FAILURE — raise it
+
+**Entry 47 was queued as a staleness audit.** The absorbed-finding corollary reveals it is more than
+that:
+
+| failure | question | detectable by |
+|---|---|---|
+| a stored ruling **drifts** and keeps being cited | *does anything mechanically depend on this?* | ⛔ **this sweep** |
+| a stored finding is **correct and inert** | *does anything consume this?* | ⛔ **this sweep** |
+
+> ### **Same lookup, opposite failures — and NEITHER shows on inspection of the entry itself.**
+
+**⇒ The only change needed is to RECORD THE EMPTY-CONSUMER CASE AS A FINDING rather than skipping
+it.** The pass already visits every entry, so the marginal cost is **zero** — it is currently
+discarding half of what it computes.
+
+⚠ **Raise it whenever the pressure work reaches a natural break.** Not urgent enough to interrupt a
+live thread; too cheap to keep deferring behind one.

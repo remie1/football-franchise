@@ -1127,7 +1127,20 @@ right.** ⚠ **Every ordinary review method asks *"is this correct?"* — and al
 
 **All three answer the same way, and the question is cheap enough to ask AT AUTHORING TIME** — which
 is the only moment it costs nothing, because the author already knows what they built and what
-consumes it.
+consumes it. **Asked later it requires reconstructing both** — which is precisely why **every
+instance of this class was found by ACCIDENT rather than by AUDIT.**
+
+> ### ⛔ **A QUESTION THAT IS FREE AT AUTHORING TIME AND EXPENSIVE AFTERWARDS SHOULD BE A FIELD, NOT A HABIT.**
+>
+> A habit is a rule that holds until someone is in a hurry — and *"in a hurry"* is exactly when a new
+> instrument ships. **A field is answered because the form has a blank in it.** This is the same
+> reasoning that put the **red-trigger field** in `ADR-TEMPLATE.md` and the **provenance table** beside
+> it, and it generalises: **the asymmetry between authoring-time and afterwards cost is the signal
+> that something belongs in a template rather than in a discipline.**
+>
+> ⚠ **Cost check before adding one:** a field is only free if its honest answer is short. *"What reads
+> this?"* passes — the answer is a name, a metric id, or **the word "nothing"**, and *"nothing"* is
+> the answer that matters most.
 
 ### The two-sided failure around one artefact
 
