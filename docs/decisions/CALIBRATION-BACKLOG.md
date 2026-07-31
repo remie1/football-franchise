@@ -4240,3 +4240,64 @@ reported as a discrepancy.** Both denominators should be stated wherever this fi
 ruling. ⇒ **Still owed as a decision, not a task:** if `pocketChannelShares` and
 `pressureHorizonChannelShares` are meant to be exact replicates, the shared constant is the honest
 fix; if they are not, the differing labels are correct and should say so.
+
+---
+
+## 68. ⚡⚡ RULED (owner, July 2026) — **A SEVERITY-PARTITIONED METRIC BECOMES THE PRIMARY OUTCOME VARIABLE FOR THE POCKET SUBSYSTEM**
+
+> ### **`pressure_rate` is the wrong outcome variable for every lever on this subsystem — not wrong as a number, wrong as a MEASURE OF WHAT LEVERS DO.**
+
+**⚠ `pressure_rate` STAYS.** It is the figure comparable to real football and remains the headline
+against **29.225%**. **The ruling is that no pocket lever may be priced on it ALONE again.**
+
+**The shape:** the tick-status distribution — `CLEAN` / `PRESSURE` / `COLLAPSING` / `IMMEDIATE` —
+reported **alongside** the rate, so **a demotion registers as movement rather than as silence.**
+Cheap: **the fold already exists** (`pocketChannelShares.ts`), and building a second reconstruction
+would be a comparison whose arms share a source, or two sources that drift.
+
+**⇒ Per entry 64's taxonomy, this is the instrument that makes the ABSORBED-LEVER class visible** —
+the measurement-side twin of the absorbed *mechanic*.
+
+### ⛔ THE `IMMEDIATE` CONTRAST IS WHAT MAKES THIS DIAGNOSTIC RATHER THAN MERELY INCONVENIENT
+
+Arrival clears **99.996%** on `IMMEDIATE` and **36.371%** on `COLLAPSING`. **So the blindness is not a
+property of the metric in general — it is specific to the severity that dominates.**
+
+> **⇒ AND THE CONVERSE IS EVIDENCE ALREADY IN HAND: a lever that moved `IMMEDIATE` ticks WOULD have
+> shown up in `pressure_rate`. NONE DID. That is information, not absence** — it rules out any story
+> in which a refused lever was quietly clearing the most severe ticks.
+
+### The re-read, not a re-run
+
+**Re-running the four refusals costs dispatches. Re-reading tells us which COULD have demoted severity
+given what they touch**, and only those need re-measurement.
+
+**Owner's expectation, pre-registered and to be CHECKED rather than assumed:** *ruling 2's threat
+retirement is the most likely to have been demoting, because retiring a threat **removes an ETA from
+`minTta` entirely** rather than shifting a threshold.* ⚠ **A falsified owner expectation is a result
+and gets recorded beside the prediction.**
+
+---
+
+## 69. 🔧 A FLAGGED DISCREPANCY MUST BE ARITHMETICALLY CLOSED BEFORE IT IS REPORTED AS ONE
+
+**§5.3 trains the instinct — *a share is meaningless without its denominator* — and the instinct
+generates FALSE POSITIVES.**
+
+**The instance:** entry 67-RESULT's dispatch flagged 1f's *"COLLAPSING is ~51% of ticks"* against its
+own **72.2%**. Both are correct and **they are the same number**:
+
+- `131,711 / 257,598` = **51.13% of ALL ticks** ← 1f's figure, correct as written
+- `131,711 / 182,367` = **72.22% of DIRTY ticks**
+
+> **Right instinct. Wrong conclusion. And an unclosed flag costs the NEXT reader the same work
+> twice** — which is the actual cost, because the flag reads as a finding until someone divides.
+
+**⇒ STANDING: close the arithmetic, then report either the discrepancy or nothing.** ⚠ **And state
+both denominators wherever a share of this population appears** — the two figures will otherwise keep
+colliding, since both describe "COLLAPSING" and differ by 21pp.
+
+**Note the shape:** this is the *raw-versus-exclusive* discipline generating a false positive in the
+same week it generated its most valuable true positive (entry 67's demote-versus-clear). **A
+discipline sharp enough to be worth having is sharp enough to misfire; the fix is closure, not
+softening the instinct.**
