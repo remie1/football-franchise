@@ -86,21 +86,31 @@ function endPlay(): MatchEventEnvelope {
 }
 
 // The arrival-only-base classification `floorFromArrival` reads:
-// immediateWithinSeconds 0.0, collapsingWithinSeconds 1.0, pressureWithinSeconds POS_INF (default).
+// immediateWithinSeconds 0.0, collapsingWithinSeconds 1.0, pressureWithinSeconds 2.0 (default,
+// CALIBRATION-BACKLOG entry 76 — no longer POS_INF).
 const T = DEFAULT_TUNABLES;
 
 describe("geometryTimeRetirement — identity reproduction", () => {
   it("reproduces the real pocket-status stream when nothing is retired", () => {
-    // eta far beyond every check tick, so `pressureWithinSeconds` (POS_INF) keeps every check at
-    // PRESSURE and the test is not incidentally exercising the COLLAPSING/IMMEDIATE boundaries.
+    // CALIBRATION-BACKLOG entry 76 / ADR-033's `DERIVED MECHANIC` block bounded
+    // `arrival.pressureWithinSeconds` from `POS_INF` to `2.0`. A single unmoving threat can no
+    // longer be "far away and always PRESSURE" the way this fixture used to model it (etaTick
+    // 100.0 is now CLEAN — exactly entry 76's point: a rusher seconds away is not pressure). So the
+    // threat is instead re-published at each tick with a growing `etaTick`, holding
+    // `minTta` pinned at 1.5s throughout — inside `pressureWithinSeconds` (2.0), outside
+    // `collapsingWithinSeconds` (1.0), so the test still is not incidentally exercising those
+    // boundaries. Re-publication itself is realistic: it is what the engine does whenever a
+    // rusher keeps contesting the rep (a fresh `TRAVELLING`/`DELAYED` transition, §7.1).
     const events = [
       playStart(),
       tick(0.5),
-      threat({ rusher: "p1", alignment: "EDGE", etaTick: 100.0, state: "TRAVELLING" }),
+      threat({ rusher: "p1", alignment: "EDGE", etaTick: 2.0, state: "TRAVELLING" }), // minTta 1.5
       pocket("PRESSURE"),
       tick(1.0),
+      threat({ rusher: "p1", alignment: "EDGE", etaTick: 2.5, state: "DELAYED" }), // minTta 1.5
       pocket("PRESSURE"),
       tick(1.5),
+      threat({ rusher: "p1", alignment: "EDGE", etaTick: 3.0, state: "DELAYED" }), // minTta 1.5
       pocket("PRESSURE"),
       endPlay(),
     ];
@@ -114,18 +124,26 @@ describe("geometryTimeRetirement — identity reproduction", () => {
 
 describe("geometryTimeRetirement — GEOMETRY", () => {
   it("retires an EDGE threat on STEP_UP, but leaves the identity stream (and INTERIOR threats) alone", () => {
+    // CALIBRATION-BACKLOG entry 76 bounded `pressureWithinSeconds` to 2.0. Chosen so the STEP_UP
+    // delay (`pocketMovement.stepUp.edgeThreatDelaySeconds`, 1.0s) still leaves the REAL stream
+    // inside the horizon (minTta 1.5 <= 2.0) — this fixture isolates "does geometry retirement
+    // clear an otherwise-dirty pocket" from "was it ever dirty at all"; the sibling case below
+    // ("...pushes a live EDGE threat past the pressure horizon...") is where the delay itself
+    // clears the REAL pocket, and the two are deliberately kept separate.
+    //
     // The play runs to tick 4.0, well past every eta below, so TIME retirement cannot be what is
     // observed here — only GEOMETRY is live in this fixture. No POCKET_STATUS check is published
-    // before the STEP_UP, so the ONLY check on the record post-dates the retirement: this isolates
-    // "does geometry retirement clear an otherwise-dirty pocket" from "was it ever dirty at all".
+    // before the STEP_UP, so the ONLY check on the record post-dates the retirement.
     const events = [
       playStart(),
       tick(0.5),
-      threat({ rusher: "edge1", alignment: "EDGE", etaTick: 2.5, state: "TRAVELLING" }),
+      threat({ rusher: "edge1", alignment: "EDGE", etaTick: 1.5, state: "TRAVELLING" }),
       tick(1.0),
       stepUp(),
-      // real engine would DELAY the edge threat here; the counterfactual instead drops him
-      threat({ rusher: "edge1", alignment: "EDGE", etaTick: 3.5, state: "DELAYED" }),
+      // real engine would DELAY the edge threat here (+1.0s edgeThreatDelaySeconds: 1.5 -> 2.5);
+      // the counterfactual instead drops him. minTta = 2.5 - 1.0 = 1.5, inside pressureWithinSeconds
+      // (2.0), so the real pocket stays dirty — this delay alone does not clear it.
+      threat({ rusher: "edge1", alignment: "EDGE", etaTick: 2.5, state: "DELAYED" }),
       pocket("PRESSURE"), // real stream still dirty — identity must say so
       tick(4.0),
       endPlay(),
@@ -135,6 +153,46 @@ describe("geometryTimeRetirement — GEOMETRY", () => {
     expect(play?.identityPressured).toBe(true);
     expect(play?.counterfactualPressured).toBe(false); // the only threat was geometry-retired
     expect(play?.geometryRetiredThreats).toBe(1);
+  });
+
+  it("pushes a live EDGE threat past the pressure horizon on STEP_UP — reads CLEAN with no RESET (entry 76, football not a bug)", () => {
+    // ⚠ THE FOOTBALL CONSEQUENCE `docs/design/match-engine.md` §7.2's `DERIVED MECHANIC` block and
+    // CALIBRATION-BACKLOG entry 76 name directly: `pocketMovement.stepUp.edgeThreatDelaySeconds`
+    // (1.0s) can STACK, in the same tick, with §7.1's `BLOCKER_CONTAINS` recovery delay
+    // (`recoverySecondsByBand.BLOCKER_CONTAINS`, 0.5s) — a rusher who was just contained AND is then
+    // climbed past. The two delays are published as two separate `RUSH_THREAT{state:"DELAYED"}`
+    // events on the SAME tick (the contain delay from the §7.1 line battle, then the STEP_UP delay
+    // from the movement decision, which runs later in the same tick's resolution order), and
+    // together they can push the threat's `etaTick` far enough out that `minTta` exceeds
+    // `pressureWithinSeconds` (2.0). The pocket then LEGITIMATELY reads CLEAN — with no `RESET`
+    // published, because the threat was never retired, only delayed twice past the horizon that
+    // now bounds what counts as pressure. This is entry 76's own point applied to a moving target:
+    // a rusher who is not close enough to affect the throw is not pressure, whether he is far away
+    // from birth or delayed there mid-play. The reconstruction must reproduce this exactly — it is
+    // not a case to dodge by picking numbers that avoid the horizon.
+    const events = [
+      playStart(),
+      tick(0.5),
+      threat({ rusher: "edge1", alignment: "EDGE", etaTick: 2.0, state: "TRAVELLING" }),
+      tick(1.0),
+      // §7.1's line battle resolves first in the tick: a BLOCKER_CONTAINS rep delays him +0.5s.
+      threat({ rusher: "edge1", alignment: "EDGE", etaTick: 2.5, state: "DELAYED" }),
+      stepUp(),
+      // Then STEP_UP's own +1.0s edgeThreatDelaySeconds stacks on top: 2.5 -> 3.5.
+      threat({ rusher: "edge1", alignment: "EDGE", etaTick: 3.5, state: "DELAYED" }),
+      // minTta = 3.5 - 1.0 = 2.5, past pressureWithinSeconds (2.0). Real engine reads CLEAN here —
+      // no RESET was published, the threat is still live, just too far out to dirty the pocket.
+      pocket("CLEAN"),
+      tick(4.0),
+      endPlay(),
+    ];
+    const [play] = reclassifyGame(events, T).plays;
+    // The falsifier: if the reconstruction still assumed an unbounded horizon it would predict
+    // PRESSURE here and mismatch against the published CLEAN.
+    expect(play?.identityMismatches).toBe(0);
+    expect(play?.identityPressured).toBe(false); // the only published check is CLEAN
+    expect(play?.counterfactualPressured).toBe(false); // geometry retirement agrees, redundantly
+    expect(play?.geometryRetiredThreats).toBe(1); // Ruling 2 still retires him in the counterfactual
   });
 
   it("does not retire an INTERIOR threat on STEP_UP", () => {
@@ -176,17 +234,23 @@ describe("geometryTimeRetirement — GEOMETRY", () => {
 
 describe("geometryTimeRetirement — TIME", () => {
   it("retires a threat whose etaTick exceeds the play's actual terminal tick, from birth", () => {
+    // CALIBRATION-BACKLOG entry 76: etaTick must stay inside `pressureWithinSeconds` (2.0) at BOTH
+    // check ticks for the real stream to still read PRESSURE (2.0s travel: eta 2.5, not the old
+    // 3.0s/eta-3.5 which is now beyond the horizon at tick 0.5 — minTta 3.0 would read CLEAN, and
+    // the fixture's own `identityMismatches` assertion below is the falsifier that would catch it).
     const events = [
       playStart(),
       tick(0.5),
-      // Created at 0.5 with a 3.0s travel (the engine's own clamp ceiling): eta 3.5.
-      threat({ rusher: "late1", alignment: "EDGE", etaTick: 3.5, state: "TRAVELLING" }),
+      // Created at 0.5 with a 2.0s travel: eta 2.5. minTta = 2.0 at this tick, 1.5 at tick 1.0 —
+      // both inside pressureWithinSeconds (2.0) and outside collapsingWithinSeconds (1.0).
+      threat({ rusher: "late1", alignment: "EDGE", etaTick: 2.5, state: "TRAVELLING" }),
       pocket("PRESSURE"), // real: dirty from the moment he is created
       tick(1.0),
       pocket("PRESSURE"),
-      endPlay(), // the play's own terminal tick is 1.0 — he could never have arrived by 3.5
+      endPlay(), // the play's own terminal tick is 1.0 — he could never have arrived by 2.5
     ];
     const [play] = reclassifyGame(events, T).plays;
+    expect(play?.identityMismatches).toBe(0);
     expect(play?.identityPressured).toBe(true); // the real stream is unaffected
     expect(play?.counterfactualPressured).toBe(false); // TIME retires him for his whole life
     expect(play?.timeRetiredThreats).toBe(1);
@@ -232,15 +296,16 @@ describe("geometryTimeRetirement — the §8.8 pursuit clock (ADR-054)", () => {
     // §7.1 threat (RESET published the moment the escape succeeds), then QB_PURSUIT is published,
     // then every later POCKET_STATUS is the pursuit clock ALONE — `activeThreats` has discarded
     // the matchup entirely (module header). immediateWithinSeconds 0.0, collapsingWithinSeconds
-    // 1.0, pressureWithinSeconds POS_INF (DEFAULT_TUNABLES).
+    // 1.0, pressureWithinSeconds 2.0 (DEFAULT_TUNABLES, CALIBRATION-BACKLOG entry 76 — no longer
+    // POS_INF, so the pre-scramble threat's etaTick must sit inside the horizon, not "far away").
     const events = [
       playStart(),
       tick(0.5),
-      threat({ rusher: "p1", alignment: "EDGE", etaTick: 100.0, state: "TRAVELLING" }),
-      pocket("PRESSURE"), // pre-scramble: read off the §7.1 threat, far away, PRESSURE by POS_INF horizon
+      threat({ rusher: "p1", alignment: "EDGE", etaTick: 2.0, state: "TRAVELLING" }),
+      pocket("PRESSURE"), // pre-scramble: read off the §7.1 threat; minTta 1.5, inside the 2.0s horizon
       tick(1.0),
       scrambleCheck(),
-      threat({ rusher: "p1", alignment: "EDGE", etaTick: 100.0, state: "RESET" }), // every threat resets
+      threat({ rusher: "p1", alignment: "EDGE", etaTick: 2.0, state: "RESET" }), // every threat resets
       qbPursuit(1.0, 2.5), // sinceTick 1.0, deadlineTick 2.5 (1.5s pursuit)
       scramble(),
       tick(1.5),
@@ -264,7 +329,8 @@ describe("geometryTimeRetirement — the §8.8 pursuit clock (ADR-054)", () => {
   });
 
   it("agrees with the engine's own arrival floor at every pursuit tick (exact identity)", () => {
-    // immediateWithinSeconds 0.0, collapsingWithinSeconds 1.0, pressureWithinSeconds POS_INF.
+    // No RUSH_THREAT in this fixture, so pressureWithinSeconds never enters — only
+    // immediateWithinSeconds (0.0) and collapsingWithinSeconds (1.0), unaffected by entry 76.
     const events = [
       playStart(),
       tick(1.0),

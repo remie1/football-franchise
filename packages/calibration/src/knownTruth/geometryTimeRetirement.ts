@@ -107,6 +107,49 @@ import type { Tunables } from "@ff/engine";
  * DERIVATION off the same three PUBLIC tunables fields (`arrival.immediateWithinSeconds`,
  * `collapsingWithinSeconds`, `pressureWithinSeconds`), asserted to agree with the engine's own
  * function by the identity self-check in `reclassifyGame` — never trusted by construction.
+ *
+ * ================== WHY THE DUPLICATION EXISTS, RECORDED HERE THE WAY ENTRY 70 RECORDED THE SEED
+ * CONSTANTS — so a future author finds the reason before finding the temptation to merge ==========
+ *
+ * **1. WHAT this duplicates.** `packages/engine/src/resolve/rushThreat.ts`'s exported
+ * `pocketFloorFromArrival(tunables, minTta)` — same three-branch ladder off the same three
+ * `tunables.arrival` fields (`immediateWithinSeconds`, `collapsingWithinSeconds`,
+ * `pressureWithinSeconds`), same `CLEAN`/`IMMEDIATE`/`COLLAPSING`/`PRESSURE` result. That file's own
+ * comment on `pocketFloorFromArrival` ("DUPLICATED ON PURPOSE") is the mirror of this one, written in
+ * the same dispatch that bounded `pressureWithinSeconds` from `POS_INF` to `2.0`
+ * (CALIBRATION-BACKLOG entry 76; `docs/design/match-engine.md` §7.2's `DERIVED MECHANIC` block).
+ *
+ * **2. THAT the duplication is DELIBERATE — not drift, not an oversight left for someone to tidy
+ * up.** `packages/calibration` consumes `@ff/engine` through its public API only (Charter — ADR-012);
+ * the resolver this reconstructs is not on that surface, so restating the ladder off the public
+ * `Tunables` fields is the ONLY way to reconstruct `POCKET_STATUS` from the published event stream at
+ * all. A shared helper exported for both sides to call would not be a public-API violation by itself,
+ * but it would collapse the thing this module exists to prove (below) into an import.
+ *
+ * **3. ⛔ WHAT THE DUPLICATION BUYS — the clause that stops the "fix".** `reclassifyGame`'s identity
+ * self-check compares THIS function's output against the engine's own published `POCKET_STATUS`
+ * stream on every dropback, at full population (CALIBRATION-BACKLOG entry 62: "prefer an identity
+ * requirement to an agreement requirement wherever identity is available"). That check is only a REAL
+ * check because the two arms have genuinely INDEPENDENT sources — one reimplementation reading the
+ * public tunables, one live computation inside the engine reading the same fields internally.
+ * **Agreement between them is then evidence the reconstruction is correct, not an echo of a shared
+ * function.** Consolidate the two into one shared implementation and the identity check becomes a
+ * TAUTOLOGY that can never go red — it would compare a function's output against itself, mediated by
+ * the event stream, and pass regardless of whether the reconstruction actually models the engine's
+ * behaviour. This is the same property this project has already paid for in three other media: CODE
+ * (`ladderTail.ts`'s live reader, re-derived rather than imported), SEEDS (entry 70's divergent
+ * `batchSeedFor` labels between the two channel-share harnesses), and CITATION (ADR-046's quoted
+ * constant, re-typed rather than referenced). The cost is that THIS copy must be updated BY HAND
+ * whenever the engine's ladder changes — entry 76's `2.0` landing here is exactly that update, made
+ * BECAUSE this comment says the update is expected, not despite it.
+ *
+ * ⚠ **DIVERGENCE BETWEEN THE TWO COPIES IS EXPECTED TO REDDEN THE IDENTITY CHECK — that is the
+ * mechanism WORKING, not a maintenance burden.** When the engine's ladder moves and this copy is not
+ * updated to match, `identityMismatches` is exactly what is supposed to catch it, at whatever
+ * population the next full run covers. A red identity check after an engine change is this
+ * instrument doing its job; the fix is to update this copy, never to relax the assertion or narrow
+ * the population being checked (CALIBRATION-BACKLOG entry 76's own dispatch, "do not narrow the
+ * population to reach it").
  */
 export function floorFromArrival(tunables: Tunables, minTta: number | undefined): PocketStatus {
   if (minTta === undefined) return "CLEAN";

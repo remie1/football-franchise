@@ -305,6 +305,10 @@ export type Provenance =
    * derived rather than chosen — REUSES THIS VALUE rather than inventing a fifth.** That instruction
    * is what stops the vocabulary fragmenting, and mirrors the doc's own invitation for its next
    * `DERIVED MECHANIC` case to reuse its heading.
+   *
+   * ✅ **FOLLOWED (July 2026, CALIBRATION-BACKLOG entry 76).** `arrival.pressureWithinSeconds`
+   * re-surveyed and landed here rather than fragmenting the vocabulary — see its own rule's
+   * block comment for the full re-survey. The union stayed at eight values plus this one.
    */
   | "DERIVED_MECHANIC";
 
@@ -613,14 +617,85 @@ export const REGISTER: readonly RegisterRule[] = [
   },
 
   // ---- §7.2 arrival ----------------------------------------------------------------------------
+  /**
+   * ⚠ RE-SURVEYED (July 2026, CALIBRATION-BACKLOG entry 76). The previous entry here — `POS_INF`
+   * under `INTERPRETATION`, "narrowing it is an open football question both ADR-030 and ADR-031
+   * declined" — is now FALSE ON BOTH HALVES. The horizon is no longer `POS_INF` (it is `2.0`,
+   * `packages/engine/src/tunables.ts`'s `pressureWithinSeconds: 2.0`), and narrowing it is no
+   * longer undecided: `docs/design/match-engine.md` §7.2's `DERIVED MECHANIC` block is an OWNER
+   * RULING, the SECOND use of that heading (the first is §7.1's, CALIBRATION-BACKLOG entry 73,
+   * cited below at `arrival.containRetiresAfterConsecutiveContains`). Re-surveyed with the same
+   * discipline entry 73's cell got — every other category read and rejected in turn, not just the
+   * newest one reached for.
+   *
+   * **THE SURVEY** (each of the other eight, and why none of them is honest here):
+   *  - `DOC_VERBATIM` — no. `2.0` appears nowhere in the doc as a number for this cell; §7.2's block
+   *    explicitly frames it as DERIVED against two OTHER cells, not transcribed from prose.
+   *  - `DOC_DERIVED` — no, and this is the closest miss for the same reason it was entry 73's:
+   *    `DOC_DERIVED` re-encodes ONE already-stated doc number for THE SAME quantity (`minMargin:
+   *    -19` restating "1-19"). This cell's `2.0` is not a restatement of anything the doc says about
+   *    `pressureWithinSeconds` itself — it is a NEW number computed from the relationship between
+   *    TWO OTHER, DIFFERENT already-ratified cells one width over (`immediateWithinSeconds` 0.0 and
+   *    `collapsingWithinSeconds` 1.0: width 1.0, replicated once — `1.0 + 1.0 = 2.0`). Widening
+   *    `DOC_DERIVED` to cover an inter-cell derivation would blur the distinction its own definition
+   *    draws, exactly as entry 73's survey found for its own cell.
+   *  - `DOC_UNIT_RESOLVED` — no. No unit ambiguity: the doc states no number for this quantity in
+   *    any unit for this cell to resolve.
+   *  - `INTERPRETATION` — no, and this is the classification being CORRECTED, so it gets the
+   *    longest answer. `INTERPRETATION` is a declared KNOB — "the doc asked for a judgement and one
+   *    was made in the open." §7.2's `DERIVED MECHANIC` block says the opposite of that about the
+   *    VALUE half in so many words: "DERIVED — nobody chose it," re-litigated "by moving either
+   *    anchor," never by football argument alone. The PREVIOUS note here ("narrowing it is an open
+   *    football question... declined") described a knob nobody had turned yet; the ruling closed
+   *    that door on the EXISTENCE half (a football argument, entry 76, "the same reasoning as
+   *    ADR-032's amendment, one channel over") and the VALUE half was never a knob to begin with —
+   *    it was derived the moment the existence question was settled, off two cells that already
+   *    existed. A judgement call is re-argued on the football; this parameter's value is re-derived
+   *    by moving a cited anchor. Filing it as a knob would make the note false of the one thing the
+   *    doc went out of its way to say about it.
+   *  - `DOC_GAP` — no. The doc does not stay silent here — §7.2 carries a dedicated, ratified,
+   *    multi-paragraph `DERIVED MECHANIC` note naming this exact parameter, with a two-half table
+   *    separating what is ruled from what is derived. Nothing about this cell is unaddressed.
+   *  - `TABLE_SHAPE` — no. Not a cell a table's rectangle demanded where the doc gave nothing; the
+   *    value is independently over-determined by two converging, already-ratified anchors, which is
+   *    the opposite of arbitrary filler.
+   *  - `STRUCTURAL` — no. Entirely football content — it is the boundary past which a travelling
+   *    rusher is close enough to affect the throw, the same rung this section already ranks.
+   *  - `OUT_OF_SCOPE` — no. §7.2 is exactly where the arrival channel's pressure classification is
+   *    specified; nothing about this parameter is invented outside the document's remit.
+   *
+   * **THE CATEGORY.** `DERIVED_MECHANIC`, reused rather than a fourth value invented — per its own
+   * comment's instruction ("the next cell of this shape... reuses this value") and per §7.2's own
+   * block explicitly naming itself the marker's SECOND use. The cell's EXISTENCE (a horizon at all,
+   * as opposed to `POS_INF`'s "any live threat, at any distance") is an OWNER RULING —
+   * CALIBRATION-BACKLOG entry 76, the same football reasoning ADR-032's band-map amendment used one
+   * channel over. The cell's VALUE (`2.0`) is not — it is forced by two independent already-ratified
+   * anchors elsewhere in the same tree (`immediateWithinSeconds`, `collapsingWithinSeconds`), and
+   * the doc states plainly nobody chose it. Re-litigated by moving either cited anchor, never by a
+   * football argument alone (that argument re-opens only the ruling half, cited separately).
+   *
+   * ⚠ **MANUFACTURING A CATEGORY TO DEMONSTRATE RIGOUR WOULD BE THE FOURTH SHAPE ARRIVING AT A
+   * VOCABULARY, NOT THE THIRD.** `DERIVED_MECHANIC` is taken here because the survey above finds it
+   * fits — an owner-ruled mechanic whose parameter is independently derived rather than chosen — not
+   * because it is the newest value in the union.
+   */
   {
     pattern: "arrival.pressureWithinSeconds",
-    provenance: "INTERPRETATION",
-    docRef: "§7.2 as amended (limb a)",
+    provenance: "DERIVED_MECHANIC",
+    docRef: "§7.2 DERIVED MECHANIC (CALIBRATION-BACKLOG entry 76)",
     note:
-      "ADR-031 named a constant-by-omission. POS_INF reproduces the prior behaviour exactly and is " +
-      "the widest reading of the amended limb (a). Narrowing it is an open football question both " +
-      "ADR-030 and ADR-031 declined.",
+      "§7.2's `DERIVED MECHANIC` note has two separately-cited halves and this cell inherits both. " +
+      "THAT THE ARRIVAL CHANNEL GETS A FINITE HORIZON AT ALL is an OWNER RULING — CALIBRATION-" +
+      "BACKLOG entry 76, the same reasoning as ADR-032's amendment above, one channel over: a " +
+      "threshold so wide the classification carries no information is not a pressure model, it is a " +
+      "presence model. THAT THE VALUE IS 2.0 is DERIVED, not chosen: `immediateWithinSeconds` (0.0) " +
+      "and `collapsingWithinSeconds` (1.0) fix the horizon's own width at 1.0, and PRESSURE sits one " +
+      "more of that same width beyond COLLAPSING (1.0 + 1.0 = 2.0) — replicating the interval once " +
+      "rather than inventing a new one, landing on the engine's own 0.5s tick quantum without " +
+      "rounding. No rate expectation is attached (CALIBRATION-BACKLOG entry 1e swept this exact " +
+      "channel and refused it as a `pressure_rate` lever, -2.440pp of a 60.6pp gap); the metric this " +
+      "bound is priced against is severity, not the rate. See the `DERIVED_MECHANIC` provenance " +
+      "value's own comment for the full eight-category survey this entry repeats.",
   },
   /**
    * ⚠ ENTRY 73's CELL, AND THE RULE THAT WOULD HAVE SILENTLY ABSORBED IT.
