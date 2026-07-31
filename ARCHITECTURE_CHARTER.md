@@ -1111,9 +1111,37 @@ is observable), an absorbed *lever* (it moves the game and the metric cannot see
   different reach** — and the reach, not the accuracy, is what determines whether a finding does
   anything.
 
+### ⛔ THE STANDING QUESTION THAT CATCHES ALL THREE — ***WHAT READS THIS?***
+
+**The three absorbed victims share one property, and it is the diagnostic: they are CORRECT THINGS
+PRODUCING NO DOWNSTREAM EFFECT, and none is detectable by checking whether the thing itself is
+right.** ⚠ **Every ordinary review method asks *"is this correct?"* — and all three pass it.**
+
+> ### **So ask instead: WHAT READS THIS? Of a mechanic, of a lever's price, and of a finding alike.**
+
+| subject | the answer that condemns it |
+|---|---|
+| **a mechanic** | nothing **solely determines** an outcome through it (entry 64's exclusive-share test) |
+| **a lever's price** | it was measured on a metric **structurally blind** to what the lever does |
+| **a finding** | **no instrument inherits it** — it lives in one document and is consumed by nobody |
+
+**All three answer the same way, and the question is cheap enough to ask AT AUTHORING TIME** — which
+is the only moment it costs nothing, because the author already knows what they built and what
+consumes it.
+
+### The two-sided failure around one artefact
+
 **Charter §4.1's audit-priority corollary said a stored ruling that drifts keeps being cited. This is
 the complement: a stored finding that is CORRECT can fail to be cited at all.** Both failures are
 invisible in the document itself, which reads exactly the same either way.
+
+> ### **So a register can be WRONG AND LOAD-BEARING, or RIGHT AND INERT — and NEITHER STATE SHOWS ON INSPECTION.**
+>
+> ⛔ **The only distinguishing evidence, in both directions, is DOWNSTREAM: what cites it, and whether
+> what cites it is current.** Reading the entry harder tells you nothing about either. **That is why
+> the cheap triage is a consumer question rather than a content question** — *does anything
+> mechanically depend on this?* for the drift direction, *does anything consume this?* for the inert
+> direction. **Same lookup, opposite failures.**
 
 **Corollary — A FIELD THAT IS A PLACEHOLDER IN ONE EVENT TYPE AND A FACT IN ALL THE OTHERS IS WORSE
 THAN A SENTINEL, BECAUSE THE SURROUNDING ROWS VOUCH FOR IT.**
