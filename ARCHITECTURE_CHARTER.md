@@ -1096,6 +1096,35 @@ with an unwritten blind spot.
 > only ever establish that *someone answered the question*. **Only the author can answer it about the
 > right subject**, and only while they still remember what they chose not to cover.
 
+**Corollary — EXTENDING A VOCABULARY IS WIDEN-OR-ADD, AND IT NEEDS THE SAME SURVEY. A SURVEYED
+EXTENSION IS A PRACTICE; AN UNSURVEYED ONE IS DRIFT — AND THEY ARE INDISTINGUISHABLE A MONTH LATER.**
+
+> ### **Check whether an existing term fits BEFORE proposing another. Write the survey down. Flag the proposal as a proposal. Instruct the next case to reuse it.**
+
+**This is Charter §4's widen-or-add rule applied to the vocabularies documents use about themselves** —
+annotation markers, register categories, status labels — **and it matters for the same reason it
+matters in types: a term added because the nearest one *felt* wrong is indistinguishable, afterwards,
+from a term added because none fits.** Only the survey separates them, and **only if it was written
+down at the time.**
+
+**The worked instance:** `docs/design/match-engine.md` needed a provenance marker for a mechanic whose
+*parameter* was derived though its *existence* was ruled. The dispatch **enumerated every existing
+annotation** — `AMENDMENT`, `KNOWN ISSUE`, `AUTHORING CORRECTION`, and Appendix C's unrelated
+`DERIVED, NOT AUTHORITATIVE` — **said why each did not fit**, proposed `DERIVED MECHANIC`, marked it
+**PROPOSED CONVENTION, first use**, and **instructed the next case to reuse it rather than invent a
+fifth.** Ratified on that basis.
+
+**The four steps, and the last two are the ones that get dropped:**
+
+1. **Enumerate the existing terms and say why each does not fit** — one line each. ⚠ **The enumeration
+   IS the evidence that the addition was necessary rather than convenient.**
+2. **Propose; do not adopt.** It goes to ratification like any other petition.
+3. ⛔ **Instruct the next case to REUSE it.** Without this, every subsequent author faces the same
+   empty vocabulary and adds a fifth.
+4. ⚠ **The null result is equally valuable: *"I surveyed and `X` fits"* is a complete, good, and MORE
+   LIKELY answer.** ⛔ **Do not manufacture a term to demonstrate rigour** — that is the fourth shape
+   arriving at a vocabulary.
+
 **Corollary — THE ABSORBED FINDING: A CORRECT MEASUREMENT CAN BE MADE INERT BY ITS DELIVERY MEDIUM.**
 
 > ### **A finding in a document is available to whoever reads that document. A metric is available to everyone who runs anything.**
