@@ -358,8 +358,26 @@ manifest {source, season, fetchedAt, schemaHash}.
 9. **Before committing a change to a SHARED artefact, name the packages that read it and run those.**
    Standing rule, owner, July 2026, after a red tree shipped and survived a review. **For
    `packages/contracts` and `packages/engine/src/tunables.ts` the answer is "all of them"** — so the
-   standing verification for a shared-tunable or contracts change is **the full workspace suite**,
-   not `typecheck` plus the owning package.
+   standing verification for a shared-tunable or contracts change is the whole workspace, not
+   `typecheck` plus the owning package.
+
+   > ### ⛔ NAME THE COMMAND, NOT THE INTENT. All three, literally:
+   > ```
+   > pnpm -r build     # ⚠ does NOT run tests
+   > pnpm -r test
+   > pnpm typecheck
+   > ```
+   >
+   > **Amended July 2026 after the phrase *"the full workspace suite"* was satisfied by a dispatch that
+   > ran `pnpm -r build` across eight packages plus its own package's tests — and shipped a tree with
+   > four calibration failures.** The reading was defensible; the phrase was ambiguous. ⚠ **`build`
+   > does not run tests, so a green build across every package says NOTHING about any package's
+   > behaviour.**
+   >
+   > **This is the same class as a red-trigger asserting what happens on the other side of its
+   > boundary (ADR-038) — arriving at a BRIEF instead of at an INSTRUMENT.** An instruction that names
+   > an *intent* delegates the choice of command to the reader, and **a defensible wrong choice is
+   > indistinguishable from compliance.**
 
    **What went wrong is worth keeping, because the verification that failed was not sloppy — it was
    CORRECT, COMPLETE, AND ABOUT THE WRONG SUBJECT.** The seventeen-rung `resultTierLadder` landed
