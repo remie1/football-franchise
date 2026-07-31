@@ -4106,3 +4106,47 @@ re-run; the refusal does not stand on the number it was refused on.**
 **Nothing above may be acted on until the fold is partitioned by emitted status** (1f-RESULT's
 abstention, owner-held). **A lever that demotes COLLAPSING to PRESSURE moves nothing** on a rate that
 counts any non-CLEAN tick, and **the current table cannot tell those apart.**
+
+---
+
+## 67. 🔮 PRE-REGISTERED BEFORE THE PARTITION LANDS — is `pressure_rate` the wrong outcome variable?
+
+**Written down BEFORE the status-partitioned fold reports**, per the expected-movement discipline
+(ADR-033's rule: *a stated expectation is falsifiable and an unstated one silently steers the
+measurement*). ⚠ **Do not amend this entry after the partition arrives — amend it BESIDE the result.**
+
+### The conditional, stated by the owner in advance
+
+> ### **"If the partition shows most of arrival's exclusive share is COLLAPSING, then every lever priced on `pressure_rate` alone has been measuring the wrong outcome variable."**
+
+**The mechanism:** `pressure_rate = 1 − P(every tick CLEAN)` counts **any** non-CLEAN tick. So a
+change that moves a tick from `COLLAPSING` to `PRESSURE` — **a real, large, football-meaningful
+improvement in the pocket** — **is invisible to it.**
+
+> **A lever could be working correctly and reporting nothing.**
+
+⇒ **That is the ABSORBED-MECHANIC shape (entry 64) arriving at a MEASUREMENT instead of at a
+mechanism.** Entry 64's class is *the engine implements it correctly and nothing it does is
+observable*; this is *the lever moves the game correctly and the metric cannot see it.* **Same
+structure, different victim** — and the metric case is worse, because a refused lever leaves a
+recorded number that looks like evidence of a small mechanism.
+
+### What it would mean if it holds
+
+⚠ **Every refusal on this subsystem would need re-reading** — not re-running, *re-reading*: the
+question would become *"did this lever move severity without moving the rate?"*, which **none of the
+recorded prices can answer**, because none of them partitioned by status.
+
+**Candidates immediately affected:** entry 40's supply arms, ruling 2's `0.108pp`, 1e's `−2.440pp`,
+and the four levers refused before ADR-049.
+
+### 🔴 What would falsify it
+
+**Arrival's exclusive share turning out to be mostly `IMMEDIATE`, or mostly `PRESSURE`, rather than
+`COLLAPSING`.** In either of those cases the rate is measuring roughly the thing everyone assumed,
+the recorded prices stand as-is, and this entry closes with no consequence.
+
+⚠ **A partial result is possible and should be reported as partial** — e.g. COLLAPSING dominating on
+INTERIOR ticks while EDGE splits differently, given INTERIOR travel (1.0s) meets
+`collapsingWithinSeconds` (1.0) exactly while EDGE is 1.5–2.0s. **Do not round a split answer to
+whichever side is larger.**

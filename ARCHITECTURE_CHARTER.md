@@ -921,13 +921,21 @@ wider, and stating it wider is what lets the next instance be recognised:
 |---|---|---|
 | **a ratified claim** | the ruling *is* the review's output; the author is the last to re-open it | ⛔ **two instances**: ADR-046's constant, ADR-050's accepting ruling |
 | **a pleasing result** | a real derivation and a rate-chase are **indistinguishable by their result**; only the process differs, and it leaves no trace in the number | ⛔ **live** — see the derived-boundary corollary below |
+| ⛔ **A CORRECT PRIOR STEP** — *the most concealed of the three* | the previous answer was **right**, so the next question reads as a **continuation** rather than as a new question. **There is no ratification event, no pleasing result, nothing to notice — just a chain of correct answers** | ⛔ **four instances in one week**, descending table → channel → branch → quantity |
 | a number that **matches a published source** | agreement reads as corroboration, though both sides may share an ancestor | ⚠ predicted, not yet observed here |
 | a fix that turns a **red gate green** | green is treated as *resolved* rather than as *no longer failing in the way it failed* | ⚠ predicted |
 | a measurement that **agrees with the previous one** | consistency reads as reliability, though two runs sharing a source are not two measurements | ⚠ predicted — and note the one-live-reader corollary is exactly this failure in code |
 
-**The last three are written down BEFORE they have bitten**, deliberately: the whole lesson of this
+**Three of these are written down BEFORE they have bitten**, deliberately: the whole lesson of this
 register is that a class is larger than the instance that reveals it, so naming the shape in advance
 is the only cheap move available.
+
+> ⚠ **THE CORRECT-PRIOR-STEP TRIGGER IS THE HARDEST OF THE THREE TO DEFEND AGAINST, and the defence
+> is NOT vigilance.** The alternative to trusting a correct prior step is **re-deriving everything**,
+> which is unaffordable and would itself be a new instrument with its own blind spot. **So for this
+> trigger the TERMINATION CONDITION matters more than the warning does** — descend until a
+> determinant is *a constant, a roll, or an input from outside the subsystem*, and stop there because
+> the structure says so, **never because the chain feels settled.**
 
 **Everything below is instance.** **Ratification converts a claim into an assumption, and the author
 is the last person who will re-open it.**
