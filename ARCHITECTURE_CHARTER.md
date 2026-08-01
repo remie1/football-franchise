@@ -1333,6 +1333,20 @@ model of the wrong quantity **passes every gate in this document.**
 what the real column charters, what the sim column counts, and **why those are the same event.**
 ⚠ **Absent that, a green cell is a statement about arithmetic, not about football.**
 
+> ### ✅ **THIS IS THE FIRST INSTRUMENT IN THE PROJECT THAT CAN FAIL BECAUSE THE MODEL IS WRONG ABOUT FOOTBALL, rather than because it is inconsistent with itself.** Every other gate in this document is a closure check.
+
+⛔ **AND IT APPLIES RETROACTIVELY TO EVERY TIER 1 METRIC WITH A REAL SIDE — not only to the one that
+surfaced it** (owner ruling, August 2026).
+
+> **If that boundary was silent for one metric, IT WAS SILENT FOR ALL OF THEM.** ⚠ `blitz_rate`,
+> `int_rate` and every other real-side row **are passing on the same unexamined basis** — not
+> suspected of being wrong, but **never asked the question**, which is a different and worse state.
+
+⚠ **Note what makes the retroactive scope non-negotiable rather than thorough:** the silence was
+**structural, not incidental.** ⛔ **No instrument existed to ask**, so no metric was ever asked, so a
+metric that happens to be correct and one that is wrong **are currently indistinguishable from
+inside the corpus.** **The audit is what creates the distinction; it does not merely check for it.**
+
 **Corollary — WHEN A SWEEP AND A CENSUS COST THE SAME, RUN THE CENSUS.**
 
 > ### **A sweep can only answer the question it was aimed at. A census reports the shape of a population, INCLUDING THE PARTS NOBODY ASKED ABOUT.**
