@@ -89,6 +89,52 @@ One line each, marked `unruled`. If genuinely none, say `none` — but look firs
 > afterwards.* Naming an implication later requires reconstructing an argument someone else made about
 > a different cell.
 
+## Subject condition — REQUIRED **only** when this ADR ratifies something it does not instantiate
+
+**If this ADR approves a shape, a type, a mechanism or a rule that NOTHING USES YET: name what would
+constitute a SUBJECT.** One line. **What would have to appear in the tree for someone to say "that is
+the thing this was for"?**
+
+⛔ **OMIT THIS SECTION ENTIRELY when the ADR instantiates what it ratifies** — which is most of them.
+
+> ⛔ **WHY THIS FIELD EXISTS.** *A correct decision with no expiry condition.*
+>
+> **ADR-053 ratified `ByTier<T>` as shape and rule, INSTANTIATED NOWHERE, and that was RIGHT** — a
+> mapped type with no subject would have been a guard with no subject, which is the exact shape this
+> register keeps cataloguing. ⚠ **The failure was not the ruling. It was that the ruling HAD NO WAY TO
+> SAY WHAT WOULD CHANGE IT.**
+>
+> **The worked cost:** `packages/engine/src/tunables.ts` carries ~15 records keyed on a contract union
+> with **no possible compile-time guard**, because `Tunables` is inferred from the object. ⛔ **A
+> declared mapped type is exactly the fix, and `ByTier<T>` had been the ratified pattern for it the
+> whole time.** **Nobody connected the two, because nothing said what to look for** (ADR-057, backlog
+> entry 99).
+>
+> **ADR-053 would have written:** *"a subject appears when any record must be keyed by every member of
+> a contract union and checked against it."* **One line, at authoring time, when the author already
+> knows what the shape is for.**
+>
+> ⚠ **THIS IS THE OTHER AXIS FROM `Implied scope`, AND THE PAIR IS THE POINT:**
+>
+> | field | direction | question |
+> |---|---|---|
+> | **Implied scope** | **SIDEWAYS**, at ruling time | *what does this decision ALREADY touch?* |
+> | **Subject condition** | ⛔ **FORWARD** | *what would make this shape LIVE?* |
+>
+> **Same reasoning as an expiring test pin, which this corpus already solved once:** ⛔ **state the
+> condition WHERE THE PERSON WHO NEEDS IT WILL BE STANDING.** ⚠ **A pin puts its expiry in the failure
+> message, because that is what a reader sees at the moment it matters. A shape-only ratification puts
+> its subject condition in the ADR, because that is what a future author greps.**
+>
+> ⚠ **CONDITIONAL RATHER THAN UNIVERSAL, DELIBERATELY.** ⛔ **Most ADRs instantiate what they ratify,
+> so a universally required field would be blank on nearly every one — and a field that is usually
+> blank erodes into ceremony.** **Keeping the population small is what makes a FILLED row mean
+> something.**
+>
+> ⚠ **Adoption is measured FROM THIS FIELD'S OWN BIRTH** (Charter — *a rate over a corpus that predates
+> its own instrument is not a rate*), **and no percentage is reported until the denominator supports
+> one.**
+
 ## Need
 What type / event / channel is needed, by which domain, and why. Reference the spec section that motivates it.
 
