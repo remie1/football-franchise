@@ -1663,6 +1663,21 @@ five reports of accumulated history.
 
 > ### ⚠ **WHOEVER WIRES RATCHET PROPOSALS INTO A RUN NEEDS AN INDEPENDENT CORRECTNESS GATE FIRST — PRECISELY BECAUSE THIS DISPATCH DEMONSTRATED THAT A GREEN CAN BE COMFORTABLE FOR A DEFECT REASON.**
 
+#### ⛔ NAMED EXCLUSIONS — ROWS THE RATCHET MUST NEVER BE WIRED AGAINST
+
+**Kept here rather than in the backlog because it constrains a FUTURE architectural action, and the
+person who wires the ratchet will read this document and not that one.**
+
+| row | why excluded | until |
+|---|---|---|
+| ⛔ **`points_per_drive`** | **Its real side is an ESTIMATE, not a join** — real points are inferred from `fixedDriveResult` via a fixed `Touchdown: 6.95` lookup rather than joined to the actual PAT/2PT row. **It is comfortable and green** *(`PASS+`, `baseline-0007` arm)*, which makes it a PRIME ratchet candidate. | **the estimator is replaced by a join** |
+
+> ### ⛔ **A BAND TIGHTENING AROUND AN ESTIMATE LOCKS IN THE ESTIMATE'S ERROR AS THE TOLERANCE.**
+
+⚠ **And it does so INVISIBLY: the ratchet reads comfort, comfort is real, and nothing in the mechanism
+can see that the thing being agreed with is an approximation.** ⛔ **The list is a floor, not a
+ceiling — a row missing from it has not been cleared, only not yet examined.**
+
 ⚠ **And note the shape of the thing itself: a mechanism fully specified, rendered in every report, and
 INERT.** ⛔ **That is this corpus's own absorbed class in miniature — something that looks like a
 working instrument, is read as one, and cannot fire.**

@@ -96,6 +96,40 @@ rather than removing or weakening it.**
 forever, to solve a representation problem `QB_DECISION` already solves.** **C is the honest form of
 what B was reaching for and costs a new member instead of a weakened invariant.**
 
+## ⛔ AMENDED BESIDE THE RATIFICATION — **Option C carries a REQUIRED `cause`**
+
+**Ratified: Option C. This amendment adds one field before the patch is applied.** ⚠ **It is NOT an
+expansion of the ratified option — it is THE OPTION DONE COMPLETELY.**
+
+### The finding
+
+**There are TWO throwaway paths and they are DIFFERENT FOOTBALL EVENTS:**
+
+| path | site | the engine's own words |
+|---|---|---|
+| **pocket duress** | `passPlay.ts:1077` | inside the `forcesDecision(pocket)` branch; *"the pocket_movement CHECK above carries the roll that produced this choice"* |
+| **clock/reads exhausted** | `passPlay.ts:1096` | ⛔ ***"The clock ran out rather than the pocket: no duress, so no movement check."*** |
+
+> ### ⛔ **SHIPPING C WITHOUT THIS MEANS A CONSUMER WANTING THE DISTINCTION INFERS IT AGAIN — WHICH IS THE EXACT DEFECT THIS ADR EXISTS TO REMOVE, REINTRODUCED ONE LEVEL DOWN.**
+
+### ⛔ `cause` IS REQUIRED, NOT OPTIONAL
+
+**Both emit sites KNOW which they are.** ⛔ **An optional field would recreate the
+NOT-PUBLISHED / NOT-APPLICABLE ambiguity for a fact that is ALWAYS AVAILABLE** — the same ambiguity
+`playId?: never` was introduced to prevent (ADR-014 item 13).
+
+### ⛔ AND IT IS A CLOSED UNION OF THE TWO KNOWN PATHS
+
+**`ThrowawayCause = "POCKET_DURESS" | "CLOCK_EXPIRED"`.** ⚠ **If a third throwaway path ever exists,
+THAT IS A WIDENING PETITION, NOT A DEFAULT.**
+
+### ✅ WHY `rollRef` STAYS OPTIONAL — the contrast justifies both dispositions
+
+⛔ **`POCKET_DURESS` has a `pocket_movement` CHECK behind it. `CLOCK_EXPIRED` HAS NO ROLL AT ALL** —
+the engine comment says so explicitly, and ADR-005 forbids reporting a tier where no roll ran.
+
+> ### ⇒ **`cause` IS ALWAYS KNOWN, SO IT IS REQUIRED. `rollRef` IS GENUINELY ABSENT ON ONE PATH, SO IT IS OPTIONAL.** ⚠ **Two fields, two dispositions, each earned — rather than one convention applied to both.**
+
 ## Impact
 
 **`calibration`** reads the throwaway signal today via `QB_DECISION` (`17c2bd4`) and is correct under
