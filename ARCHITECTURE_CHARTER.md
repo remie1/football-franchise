@@ -1509,6 +1509,36 @@ was reachable by measurement, and ALL THREE were found by asking a STRUCTURAL qu
 
 > ### ⇒ **THE CLASS IS *"DEFECTS WITH A NULL NUMERICAL TRACE."* THE SIM/REAL BOUNDARY WAS ONE INSTANCE OF IT. THIS CORPUS STILL HAS NO INSTRUMENT AIMED AT THE CLASS.**
 
+### ⛔ THE PLACEMENT INVENTORY — **EIGHT, AND THE LAST THREE ARE NOT REACHABLE BY ANY SWEEP**
+
+**Recorded as the current state of the class, because the SPAN is what makes it a class rather than a
+run of coincidences.** ⚠ **Each was found separately; none was predicted from the last.**
+
+| # | placement | the shape |
+|---|---|---|
+| 1 | **a MECHANIC** | implemented correctly, a neighbour always decides first *(entries 50, 61)* |
+| 2 | **a GUARD** | fully specified, wired to nothing *(the band ratchet)* |
+| 3 | **a FORM FIELD** | required, on a carrier that has no form *(rulings via backlog/brief)* |
+| 4 | **DOC PROSE** | true when written, falsified by a change one day later *(ADR-033)* |
+| 5 | **a CONTRACT MEMBER** | a promise nothing keeps *(ADR-056)* |
+| 6 | ⛔ **a SEARCH** | resolves without answering — the grep hits a test fixture and stops |
+| 7 | ⛔ **a HABIT** | its success leaves no witness, so the felt evidence favours skipping |
+| 8 | ⛔ **an INFERRED TYPE** | ⚠ **not a check that fails — A CHECK THAT CANNOT EXIST** |
+
+> ## ⛔ **#8 IS A DIFFERENT KIND AND IS WORTH SEPARATING: 1-7 ARE THINGS THAT EXIST AND DO NOT FIRE. #8 IS A GUARD THAT COULD NEVER BE BUILT.**
+
+**`export type Tunables = typeof TUNABLES` — the type is INFERRED FROM the object, so the object
+cannot disagree with its own type.** ⛔ **Every enumeration inside `TUNABLES` is a restated constant
+with NO POSSIBLE GUARD, and no amount of discipline changes that while the direction is inferred.**
+
+⚠ **The contrast is exact and is what makes it legible: `tippedBall.test.ts`'s literal restated the
+SAME union, in the SAME direction, and BROKE — because it was checked AGAINST `ThrowType`.** ⛔ **The
+tunables literal is checked against NOTHING, because it DEFINES what it would be checked against.**
+
+**⇒ #6 and #7 are unreachable by any sweep because the sweep is the thing that fails.** ⛔ **#8 is
+unreachable because there is nothing to sweep — the only fix is to INVERT THE DIRECTION so a check
+becomes possible at all.**
+
 **Corollary — ⛔ A CLAIM PLACED AMONG MEASUREMENTS IS READ AS ONE.**
 
 **ADR-033 reports a 400-sack sample and introduces its findings as *"the terminal status is ALWAYS one
