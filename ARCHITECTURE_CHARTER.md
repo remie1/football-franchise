@@ -1297,6 +1297,42 @@ with an unwritten blind spot.
 > only ever establish that *someone answered the question*. **Only the author can answer it about the
 > right subject**, and only while they still remember what they chose not to cover.
 
+**Corollary — ⛔ EVERY INSTRUMENT HERE CHECKS THE CORPUS AGAINST ITSELF. NONE CHECKS IT AGAINST THE
+THING IT CLAIMS TO MODEL.**
+
+> ### **This register is scrupulous about internal consistency and silent at exactly one boundary — SIM VERSUS REAL — and that silence is where an error lived undetected for the length of a phase.**
+
+⚠ **Recorded August 2026 from an EXTERNAL cold read of the repo.** ⛔ **The strong factual form is under
+verification and this entry will be amended beside, not rewritten, when that reports.** **The
+structural observation stands on its own and is why it is recorded now.**
+
+**Read the register's own instruments and the pattern is unmistakable:**
+
+| instrument | what it compares |
+|---|---|
+| the doc-conformance register | cells **against the doc** |
+| the band-table gate | a table **against its own ordering** |
+| identity checks | a reconstruction **against the engine's own stream** |
+| the monotonicity gate | a ladder **against its own occupancy** |
+| provenance / red-trigger / premise ledger | claims **against their own derivations** |
+| the ruling-search | a cell **against our own prior rulings** |
+
+⛔ **Every one is a closure check. Not one of them can fail because the model is wrong about
+football** — **only because the model is inconsistent with itself.**
+
+**⇒ AND THAT IS EXACTLY THE SURFACE WHERE THIS PROJECT'S HARDEST-WON DISCIPLINES DO NOT REACH.**
+*Compute-don't-transcribe*, *derive-don't-restate*, *what-reads-this* — ⚠ **all of them make the corpus
+more coherent, and NONE of them makes it more correct about the sport.** A perfectly self-consistent
+model of the wrong quantity **passes every gate in this document.**
+
+> ⛔ **THE OPERATIVE QUESTION, AND IT HAS NO INSTRUMENT: DOES THE SIM SIDE OF THIS METRIC COUNT THE
+> SAME EVENT THE REAL SIDE COUNTS?** ⚠ **A metric with a real-world column asserts a comparability
+> claim, and that claim is the one thing here nothing checks.**
+
+**⇒ Any metric carrying a real-side comparison owes a PROVENANCE ROW FOR THE COMPARABILITY ITSELF** —
+what the real column charters, what the sim column counts, and **why those are the same event.**
+⚠ **Absent that, a green cell is a statement about arithmetic, not about football.**
+
 **Corollary — WHEN A SWEEP AND A CENSUS COST THE SAME, RUN THE CENSUS.**
 
 > ### **A sweep can only answer the question it was aimed at. A census reports the shape of a population, INCLUDING THE PARTS NOBODY ASKED ABOUT.**
