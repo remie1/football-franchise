@@ -1497,6 +1497,26 @@ was reachable by measurement, and ALL THREE were found by asking a STRUCTURAL qu
 
 > ### ⇒ **THE CLASS IS *"DEFECTS WITH A NULL NUMERICAL TRACE."* THE SIM/REAL BOUNDARY WAS ONE INSTANCE OF IT. THIS CORPUS STILL HAS NO INSTRUMENT AIMED AT THE CLASS.**
 
+**Corollary — ⛔ A CLAIM PLACED AMONG MEASUREMENTS IS READ AS ONE.**
+
+**ADR-033 reports a 400-sack sample and introduces its findings as *"the terminal status is ALWAYS one
+`sackWhenNoTarget` names, and BOTH VALUES occur."*** ⛔ **The sentence promises TWO. THREE BULLETS
+FOLLOW.** **The third — *"a coverage sack at the tick horizon keeps whatever status it had, frequently
+`CLEAN`"* — describes what the RULE DOES, which is TRUE, and it sits in a list of things that were
+COUNTED.**
+
+> ### ⚠ **NOTHING MARKED IT AS THE ONE ITEM WITH NO ARM. The formatting made a rule-description indistinguishable from an observation, and it was cited as an observation for a year.**
+
+⛔ **AND IT PROPAGATED:** into a Tier 1 metric's `definition` string, into a dispatch brief, and into
+the framing of a multi-dispatch investigation — ⚠ **every consumer inheriting it as measured because
+of where it sat on the page.**
+
+**⇒ Provenance attaches to a CLAIM, not to a DOCUMENT.** ⛔ **A ratified ADR is not uniformly
+evidenced: the measured and the asserted can sit in one list, and the reader cannot tell them apart
+unless the writer says which is which.**
+
+> ### ⇒ **THE QUALITATIVE TWIN OF *"EVERY FIGURE NAMES ITS ARM"*: EVERY CLAIM NAMES ITS STATUS — MEASURED, DERIVED, OR ASSERTED.** ⚠ **A bullet among counted bullets that was never counted is the cheapest possible way to launder an assertion into evidence, and it requires no bad faith whatsoever.**
+
 **Corollary — ⛔ A TOLERANCE THAT TIGHTENS ON COMFORT ASSUMES THE COMFORT IS EARNED.**
 
 **The band table ratchets after two comfortable reports.** ⚠ **We have now established that at least

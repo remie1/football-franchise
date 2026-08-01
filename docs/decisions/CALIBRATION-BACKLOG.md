@@ -6059,3 +6059,82 @@ executes is EITHER a tuning consequence OR a missing branch — and those are di
 ⚠ **And note the placement: the addendum's cheap GUARD question is answerable by inspection, but this
 is a MECHANIC again** — ⛔ **it needed the corpus to establish the count, and inspection alone would
 have shown only that the branch is reachable in principle.** **Both questions were required.**
+
+---
+
+## 92. ⛔⛔ ADR-033's *"frequently CLEAN"* WAS NEVER A MEASUREMENT — its own introducing sentence EXCLUDES it
+
+**`match-engine`'s trace of entry 91, August 2026. ⛔ READ-ONLY: no engine code, tunable or ADR
+touched.** ⚠ **The verdict on question 4 — *regression or mischaracterisation?* — is BOTH, in
+different proportions, and the documentary half is decisive.**
+
+### ⛔ THE TEXTUAL FINDING — a THREE-item list introduced as TWO
+
+**ADR-033 `:224-236` reads:**
+
+> *"Measured over 400 sacks on the lopsided fixture, the terminal status is **ALWAYS** one
+> `sackWhenNoTarget` names, and **BOTH VALUES** occur:"*
+
+**`sackWhenNoTarget` names exactly `IMMEDIATE` and `COLLAPSING`** (`tunables.ts:1091`). ⛔ **THE
+SENTENCE PROMISES TWO. THREE BULLETS FOLLOW.** The third is *"a coverage sack at the tick horizon
+keeps whatever status it had, frequently `CLEAN`."*
+
+> ### ⛔ **SO THE THIRD BULLET IS NOT MERELY UNCOUNTED — IT IS EXCLUDED BY THE MEASUREMENT'S OWN SENTENCE. If the terminal status was ALWAYS `IMMEDIATE` or `COLLAPSING` across 400 sacks, NO `CLEAN` SACK WAS OBSERVED.**
+
+⚠ **The bullet describes what the RULE DOES — a horizon sack does not rewrite the tick — and that is
+TRUE.** ⛔ **It was placed in a list of MEASUREMENTS, where it reads as a third observed case.**
+
+### ⛔ AND THE MECHANISM CONFIRMS THE TEXT: population A WAS ALREADY IMPOSSIBLE
+
+**A truly clean pocket that runs the clock out CANNOT REACH THE HORIZON, provably:**
+
+```
+budgetSeconds = 2.5 + (patience − 70)/20 + sensing(≤0.5) + readSystem.budgetDelta(≤1.0)
+ATTR_SCALE.max = 99  (hard clamp in setAttr, contracts/src/registry.ts:27,38)
+⇒ MAX budgetSeconds = 2.5 + 1.45 + 0.5 + 1.0 = 5.45  <  clock.maxTick = 6.0
+   and 5.45 > throwawayEarliestSeconds = 2.0
+```
+
+⛔ **So `mustDecide && throwawayAvailable` is GUARANTEED to fire a `THROWAWAY` break strictly before
+the loop exhausts, on any clean pocket, under ANY LEGAL PLAYER.**
+
+> ### ⚠ **THAT CEILING (`cb21523`, Jul 27) PREDATES ADR-033 (`6c201c4`, Jul 29) UNCHANGED. Population A was closed on DAY ONE — BEFORE the ADR characterised it as frequent.**
+
+### ⚠ THE GENUINE NARROWING IS REAL BUT SECONDARY — and nobody cross-checked it
+
+**Population B — a live threat that never arrives, riding a dirty pocket to the horizon — WAS
+reachable when ADR-033 was ratified:** `pressureWithinSeconds` was `POS_INF` **by ADR-033's own
+ruling**, and no `retireIfBeyondClock` existed.
+
+⛔ **Closed by `a9cead7` (Jul 31), TWO DAYS AFTER ADR-033**, and by `21cedc5` (entry 73, Jul 30).
+**`a9cead7` measured its own live reachability at `6 of 40,000` = `0.0125%`** — ⚠ *a DIFFERENT ARM
+from entry 91's `flat-60-32t` corpus; cited as historical evidence, NOT compared like-for-like.*
+⚠ **That commit does not report those plays' terminal status, so it cannot be confirmed they were
+`CLEAN`.**
+
+> **⇒ TWO INDEPENDENTLY-CORRECT FIXES NARROWED A PATH A RATIFIED ADR DESCRIBED AS FREQUENT, one and
+> two days after it was written, AND NEITHER WAS CROSS-CHECKED AGAINST IT.**
+
+### ✅ ANSWER TO THE ROUTED QUESTION: **A TUNING CONSEQUENCE, NOT A MISSING BRANCH** — branch (a)
+
+⛔ **The horizon is REACHABLE IN PRINCIPLE, NOT STRUCTURALLY DEAD.** One channel survives both
+closures: **the per-rusher pressure counter resets ONLY on `BLOCKER_RESETS`** (`tunables.ts:702-708`,
+`reset:false` everywhere else **by explicit design**). So a matchup can accumulate to
+`COLLAPSING`/`IMMEDIATE` **with no live threat at all** — `hasArrived` false forever, path-1 never
+fires, `urgencySteps = 0` — and that state **has no decay of its own.**
+
+⚠ **NOT DEMONSTRATED: a code-level reachability argument, not a worked play.** ⛔ **Requires a narrow
+composite** (marginal or contained-and-retired pressure, a long run of `STAND_IN`/`STEP_UP`, every
+other rusher quiet, no receiver clearing threshold) — **vanishing at `DEFAULT_TUNABLES`, and it would
+reopen under `timeRetirementEnabled: false` or a higher `pressureWithinSeconds`.**
+
+### ⇒ THE DISPOSITION, NOW EXACT
+
+| | |
+|---|---|
+| ✅ **ADR-033's RULE** | **SOUND. UNCHANGED. NOT AT ISSUE.** *Do not rewrite a tick's already-emitted status.* |
+| ⛔ **its *"frequently CLEAN"*** | ⛔ **NEVER A MEASUREMENT.** Excluded by its own introducing sentence; population A was already impossible when written |
+| ⚠ **the narrowing since** | **REAL, SECONDARY, and unremarked** — two correct fixes, one and two days later |
+
+**⇒ NOT A REGRESSION IN THE PRIMARY SENSE.** ⚠ **The claim was never true of the tree it was written
+against; the tree then narrowed further.**
