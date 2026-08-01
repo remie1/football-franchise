@@ -2,18 +2,30 @@
 
 > ## ▶ NEXT SESSION STARTS HERE
 >
-> **Phase 1 complete; the pocket subsystem is mid-correction.** ADR-054 ratified, backlog through
-> entry 78, ~3,600 tests, CI gating `build` + `test` + `typecheck`.
+> **Phase 1 complete; the pocket subsystem is mid-correction.** ADR-055 ratified and implemented,
+> backlog through entry 86, ~3,640 tests, CI gating `build` + `test` + `typecheck`.
 >
 > ### The immediate next dispatch
 >
-> **Re-point calibration's `geometryTimeRetirement` reconstruction** — 3 failures, `identityMismatches`
-> `3/1/1`. Calibration keeps **its own copy** of `pocketFloorFromArrival`, pinned while
-> `arrival.pressureWithinSeconds` was `POS_INF`; entry 76 bounded it at `2.0`. Also stale:
-> `docConformance.ts`'s `arrival.pressureWithinSeconds` entry, which still classifies it
-> `INTERPRETATION` with prose claiming `POS_INF` reproduces prior behaviour.
+> ⛔ **Entry 40's SUPPLY RE-PRICE, on the bounded-horizon base.** It has been queued behind three
+> base-moving changes and they have all landed: the horizon bounded at `2.0` (entry 76), `TIME`
+> retirement (entry 80), and ADR-055's pursuit reclassification. ⚠ **Every ADR-049 supply and
+> persistence figure was measured with `pressureWithinSeconds = POS_INF` and describes a configuration
+> the tree no longer reproduces.**
 >
-> **Then ruling 2's re-measurement**, on a tree with all three confounds closed (entry 72).
+> ⚠ **And read entry 82-RESULT first** — the census says the threat population is **NOT saturated**
+> (32.3% of ticks carry no live threat within 2.0s; 76.3% of dropbacks have such a moment), **which is
+> why supply is a live frame rather than a lever inside a saturated space.**
+>
+> ### ⛔ Two things are OWED to the owner before they are cited
+>
+> - **`scramble.accuracyModifier = -10` / `readCapacityDelta = -1`** are marked `RULED, NOT DERIVED`.
+>   **Existence is ruled; the MAGNITUDE is carried from `pocket.*.PRESSURE` and is provisional.**
+>   ⛔ **Neither may be cited as evidence about scramble accuracy until it has a derivation or a
+>   football argument of its own.**
+> - ⚠ **Every recorded pocket-severity number folds the 20.809% of ticks ADR-055 reclassified** —
+>   `dirtyTickShare`, the channel shares, entries 81 and 82. **They are stale and must be re-read
+>   before citation.**
 >
 > ### Where the roadmap lives — do not restate it here
 >
@@ -32,6 +44,11 @@
 > 3. ⚠ **Every number priced before entry 76 was measured against an unbounded horizon**, and supply
 >    and retirement were both priced that way. **They describe a configuration the tree no longer
 >    reproduces.**
+> 4. ⛔ **THE LAST NAMED THRESHOLD CANDIDATE IS CLOSED** (entry 81). All three arrival horizons have now
+>    been examined — `immediate` `0.0`, `collapsing` `1.0`, `pressure` `2.0` — and
+>    `collapsingWithinSeconds` is **structurally incapable of moving the rate**: it slides 23.7pp
+>    between `COLLAPSING` and `PRESSURE` while their **sum stays constant**, so `pressure_rate` moves
+>    `0.035pp` across the whole domain. ⚠ **No horizon lever remains. Do not propose one.**
 >
 > ### Standing operational rules
 >
@@ -39,15 +56,22 @@
 >   `-dirty` stamp **never compares equal, including to itself** (ADR-025) — a baseline from a dirty
 >   tree is honest and useless. Commit first, then measure:
 >   ```
->   FF_BASELINE=1 FF_ENGINE_COMMIT=$(git rev-parse HEAD) >     FF_BASELINE_OUT=reports/baseline-000N.md pnpm --filter @ff/calibration test baselineTool
+>   FF_BASELINE=1 FF_ENGINE_COMMIT=$(git rev-parse HEAD) FF_BASELINE_OUT=reports/baseline-000N.md pnpm --filter @ff/calibration test baselineTool
 >   ```
+>   ⚠ **One line, no continuation.** A July 2026 rewrite of this block turned the line-continuation
+>   backslash into a `>`, which would have **redirected output into a file named
+>   `FF_BASELINE_OUT=reports/…`** instead of continuing the command. ⛔ **Introduced by the
+>   Orchestrator, in the one document whose readers cannot check it** — the exact failure this block's
+>   closing note describes. Recorded rather than silently repaired.
 > - **Never buy CI time by reducing `n`** on a known-truth ladder (backlog §22c). `db-coverage` needs
 >   ~5× the sample of any other family and its SE estimate is itself unstable.
 > - **Contracts is write-protected and the deny applies to the Orchestrator too.** Lift → amend →
 >   restore in one window, with the audit trail in the commit message (habit 7). A `commit-msg` hook
 >   rejects any commit staging `packages/contracts/**` without an `ADR-0NN` reference.
-> - ⚠ **The working habits in PART 5 are not optional colour** — habits 8, 9 and 10 each exist because
->   something shipped broken. Read them before the first dispatch.
+> - ⚠ **The working habits in PART 5 are not optional colour** — **habits 8 through 11 each exist
+>   because something shipped broken or was rediscovered for the fifth time.** Read them before the
+>   first dispatch. ⛔ **Habit 10a is the cheapest: one grep, before proposing to move any committed
+>   value.** It was run over four "refused levers" and **all four turned out already ruled.**
 >
 > ### ⛔ THIS BLOCK IS UPDATED BY THE DISPATCH THAT MAKES IT STALE
 >
