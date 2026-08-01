@@ -5563,7 +5563,28 @@ dispatch brief asks for incidental observations** (`HANDOFF` habit 11) — **not
 remember.**
 
 ⛔ **Nothing routes a reader here from the place they would notice a recurrence.** That gap is real and
-is not closed by this section.
+is not closed by this section. ⚠ **That is the routing clause pointed at itself** — and it is the same
+gap as `reclassifyGame`'s residual: **a record that exists in a place its reader will not be
+standing.** ⛔ **The mitigation is a habit, and habits do not route.**
+
+> ### ⛔ AND THE FAILURE MODE OF THIS SECTION IS **HARDER TO NOTICE THAN THE ONE IT REPLACES**, because the file now LOOKS LIKE THE MITIGATION.
+>
+> **Appending without reading produces five footnotes in ONE file instead of five in five.** ⚠ **Same
+> failure, tidier location** — and **worse**, because five bullets in an accumulator read as *"the
+> mechanism is working"* while five footnotes across five reports read as nothing at all.
+>
+> ⇒ **This is the apparently-instrumented shape arriving at the instrument built to prevent it.**
+> ⛔ **The red-trigger, stated in both directions: this section reddens for NOTHING. There is no gate.
+> Its only enforcement is habit 11's required report line, and that enforces WRITING, never READING.**
+
+### 📌 THE HONEST STATE, so it is not over-read
+
+> **This converts a class from *"nowhere to put it"* to *"somewhere to put it if you remember."***
+
+⚠ **That is an improvement WITHOUT being a closure.** ⛔ **Habit 11's required report line is the only
+part that does not rely on someone remembering** — which, by the field-not-habit test, **is the only
+part that will work.** ✅ **Everything else here is a convention, and conventions hold until someone is
+in a hurry.**
 
 ---
 
@@ -5572,3 +5593,8 @@ is not closed by this section.
 - **2026-07 · five dispatches** — `tippedBall`'s structural half reads `0/0/0/0/0` on every re-baseline
   while every football digit moves. ⇒ ⛔ **PROMOTED — entry 85.** *(Retained as the worked example of
   what this section exists to catch.)*
+
+> ⚠ **THE SEED IS DELIBERATE, AND NOT ONLY AS AN EXAMPLE.** ⛔ **An empty accumulator reads as *"nothing
+> has recurred"* — a FALSE NEGATIVE on day one**, and the most likely state for a reader to meet it in.
+> **A section whose emptiness is indistinguishable from a clean result is the worst possible starting
+> condition for an instrument whose whole subject is repetition.**
