@@ -2,7 +2,7 @@
 
 **Date:** July 2026
 **Proposed by:** Orchestrator, on the owner's football ruling (backlog entry 82-RESULT)
-**Status:** PROPOSED — football petition, not a tunable change
+**Status:** ✅ **RATIFIED** (owner, July 2026) — ⚠ **shape re-ruled after the survey; see §6**
 **Category:** mechanic / vocabulary. ⚠ **May reach `packages/contracts` — see §4.**
 
 ---
@@ -95,10 +95,54 @@ defect is relational.
 
 ---
 
-## 6. Decision
+## 6. Decision — ✅ **SHAPE 1, and the disqualification in §3 was WRONG ON ITS PREMISE**
 
-*Owner ruling pending on the SHAPE. The football is already ruled (entry 82-RESULT): the arrival
-channel should not apply to a scrambling quarterback.*
+**RULED (owner, July 2026), after the vocabulary survey (backlog entry 84).**
 
-⚠ **Sequencing:** entry 40's re-price is queued behind this. **If this petition lands first, the
-re-price waits** — it would otherwise be measured on a base this ADR moves.
+### ⛔ THE CORRECTION, RECORDED RATHER THAN SMOOTHED
+
+**§3 disqualified Shape 1 because *"silence forces every consumer to guess"* — the
+not-published-versus-not-applicable ambiguity.** ⛔ **That premise does not hold.**
+
+**`QB_PURSUIT` (ADR-054) already publishes `deadlineTick`, and the deadline never moves once set** —
+so `deadlineTick − tick` **reconstructs exactly the quantity `pocketFloorFromArrival` uses to floor
+the status.**
+
+> ### **`POCKET_STATUS` during pursuit carries ZERO BITS that `QB_PURSUIT` + `tick` do not already carry. There is no fact to guess at.**
+
+**And the silence is BRACKETED — delimited at both ends by a dated `QB_PURSUIT` and the play's
+terminal event.**
+
+⚠ **The owner's own diagnosis of the error is the part worth keeping:** *"That inverts the ADR-042
+reasoning I applied. There, an OPTIONAL FIELD left a consumer unable to distinguish not-published
+from not-applicable. Here the not-applicable is STRUCTURAL and DATED AT BOTH ENDS, which is ADR-036's
+own remedy applied at EVENT CADENCE rather than at a field. Same principle, and I read it backwards
+because I was thinking in fields."*
+
+⛔ **This ADR's own §3 is left standing with its error, not rewritten** — the disqualification is the
+reasoning the survey had to overturn, and deleting it would remove the record that it was overturned.
+
+### And the deeper answer came from the PRIOR question, not from the three shapes
+
+**`PocketStatus` is the wrong home.** A fifth member would have been **a widening to express a state
+that is not a pocket status at all.** ⚠ **Leading the survey with *"is this even the right home?"*
+produced a better answer than any of the three shapes on offer.**
+
+### ✅ WHAT IS RATIFIED — the survey's proposal, narrower than all three shapes, NO CONTRACTS CHANGE
+
+1. **Stop feeding the pursuit clock into `pocketFloorFromArrival` / `pocketStatusFor`.**
+2. **Stop emitting `POCKET_STATUS` while `scramble !== undefined`.**
+3. **Give pursuit its OWN accuracy and read-capacity constants under `tunables.scramble`.**
+4. **`forcesDecision`'s single live reach during pursuit gets its own condition**, not borrowed list membership.
+
+⛔ **Two constraints on implementation:**
+
+- ⛔ **THE NEW CONSTANTS ARE DERIVED, NOT PICKED** — against existing anchors, the way entry 73's
+  contain count was derived from the model's one-tick memory depth and `minTravelSeconds`. ⚠ **If no
+  anchor exists, THAT IS A FOOTBALL QUESTION, not a value to choose.**
+- ⛔ **THE POSITIVE CONTROL APPLIES.** Tests that fail when `POCKET_STATUS` stops publishing during
+  scrambles get **fixture accuracy, or a named exception WITH a reachability control.** ⚠ **Never a
+  widened assertion.**
+
+⚠ **Sequencing:** entry 40's re-price is queued behind this and **waits** — it would otherwise be
+measured on a base this ADR moves.

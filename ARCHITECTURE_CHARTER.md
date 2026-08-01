@@ -865,6 +865,21 @@ one dispatch, arrived at from opposite directions:
 > unverified**, because the parts that are easy to check are the parts that verify. **Checking the
 > easy components is precisely how the hard one survives.**
 >
+> ### ⛔ AND THE COMPONENT THAT FAILS IS OFTEN THE ONE A CORRECT CONCLUSION RESTS ON.
+>
+> **A vocabulary survey — a dispatch whose entire job was verification — reported *"ADR-055 never
+> mentions `QB_PURSUIT` — zero occurrences."*** ⛔ **It mentions it once, in the implied-scope section.**
+> **The substantive point survived** (the ADR treated it as *adjacent* rather than as the thing that
+> already publishes the state) **and the ruling it produced was correct.**
+>
+> ⚠ **But *"never mentions"* is a component a grep disproves in ONE SECOND, and it was reported as a
+> null.**
+>
+> > ### **A correct conclusion resting on a false component is the shape that gets cited later** — because the conclusion is right, so nobody re-derives it, and the false component travels attached to it as evidence.
+>
+> ⛔ **So a component failure is worth recording EVEN WHEN THE ARGUMENT SURVIVES.** ⚠ Waving it through
+> *because the answer was right* is exactly how a false premise acquires a track record.
+
 > ⚠ **And note where it would have landed:** the comment would have gone into `arrivedAt`'s docstring —
 > **a correct sentence, attached to the wrong subject, in a file where every other comment is
 > trustworthy.** That is the **placeholder-in-an-honest-neighbourhood** shape (below) **arriving in
