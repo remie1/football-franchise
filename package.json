@@ -5,7 +5,8 @@
   "scripts": {
     "build": "node scripts/check-workspace-coverage.mjs && pnpm -r build",
     "test": "node scripts/check-workspace-coverage.mjs && pnpm -r test",
-    "typecheck": "node scripts/check-workspace-coverage.mjs && pnpm -r typecheck"
+    "typecheck": "node scripts/check-workspace-coverage.mjs && pnpm -r typecheck",
+    "verify": "node scripts/verify.mjs"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

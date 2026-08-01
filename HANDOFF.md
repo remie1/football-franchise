@@ -446,6 +446,47 @@ manifest {source, season, fetchedAt, schemaHash}.
    > summary line PER PACKAGE.** ⚠ **A pipeline's exit status belongs to its LAST command — piping any
    > verification through `tail`, `head` or `grep` silently discards the only unambiguous signal it
    > produced.**
+   >
+   > ### ⛔⛔ SUPERSEDED, August 2026 — **THE HABIT IS NOW A SCRIPT. ONE COMMAND:**
+   >
+   > ```
+   > pnpm verify
+   > ```
+   >
+   > **THE THIRD FAILURE is what forced this: `pnpm -r build` and `pnpm -r test` were run and reported
+   > green — and `pnpm typecheck` was not.** ⛔ **A tree shipped to `main` with six files failing to
+   > compile** (ADR-056 narrowed a union; only `tsc` could see the dead comparisons).
+   >
+   > **Three variants, each correct in form and short in a NEW way:**
+   >
+   > | # | what was run | what was missed |
+   > |---|---|---|
+   > | 1 | `pnpm -r build`, called *"the full workspace suite"* | ⛔ **build runs no tests** |
+   > | 2 | `pnpm -r test` **piped to `tail`** | ⛔ **took the PIPE's exit status; hid 3 of 4 packages** |
+   > | 3 | build + test, reported green | ⛔ **`typecheck` never ran** |
+   >
+   > > ### ⛔ **THE NAMING WAS NOT THE DEFECT. A LIST IS SOMETHING A PERSON EXECUTES FROM MEMORY, AND ALL THREE MISSES SHARED THAT CONDITION.**
+   >
+   > ⚠ **This is the FIELD-NOT-HABIT TEST (Charter §4.1) applied to a habit that had ALREADY FAILED
+   > THREE TIMES AND BEEN AMENDED TWICE.** ⛔ **A rule still requiring RECALL AT THE MOMENT OF ACTION
+   > after two amendments has not been converted — and that is as clear a signal as this register
+   > produces.**
+   >
+   > **What `pnpm verify` guarantees, so the claim cannot be partially true:** all three steps in order,
+   > always; **stops at the first non-zero** so a later step cannot mask an earlier one; **its own exit
+   > code IS the verdict**, with no pipe to lose it in; a summary line per package; and ⛔ **unrun steps
+   > printed as `NOT RUN — UNKNOWN, not green`**, which is exactly the ambiguity variant 3 exploited.
+   >
+   > ⚠ **It takes no `--skip` or `--only` flag, deliberately** — a partial verification reporting
+   > through this script would recreate the ambiguity it exists to remove.
+   >
+   > ✅ **PROVEN IN BOTH DIRECTIONS BEFORE SHIPPING** (*a guard nobody has seen fail is a guard nobody
+   > has seen work*): the pass path observed at exit 0 across all three steps, and the fail path
+   > observed on a copy with an induced failing step — **fail-fast, exit 1, and the `NOT RUN` list
+   > printed.**
+   >
+   > ⇒ **"I ran `pnpm verify`, exit 0" is now the whole claim.** ⛔ **Anything less specific is not a
+   > verification report.**
 
    **What went wrong is worth keeping, because the verification that failed was not sloppy — it was
    CORRECT, COMPLETE, AND ABOUT THE WRONG SUBJECT.** The seventeen-rung `resultTierLadder` landed
