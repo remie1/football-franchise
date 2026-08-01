@@ -1542,6 +1542,28 @@ tree.** ⚠ **The cheap approximate form — when a change narrows or removes a 
 INSTRUMENT.** ⛔ **It is not built, and calling it a guard would be this document's own absorbed
 class.**
 
+#### ⚠ AND THE REACH PROBLEM OPERATES EVEN WHEN THE OUTCOME IS RIGHT
+
+**A contract change was held back so it and its consumers would ship as one green commit.** ⛔ **The
+reasoning offered was bisect hygiene. THE ACTUAL AUTHORITY ALREADY EXISTED — ADR-004: *"never leave
+the schema and its only producer disagreeing."*** ⚠ **Right disposition, reached by RE-DERIVATION
+instead of LOOKUP.**
+
+> ### ⛔ **THAT IS THE RULING-SEARCH PROBLEM AT ITS CHEAPEST SCALE: not a CELL nobody looked up, but a RULE nobody looked up — and the answer came out right anyway.**
+
+⛔ **AND IT IS ANOTHER NULL-TRACE DEFECT, WHICH IS WHY IT IS RECORDED HERE RATHER THAN SHRUGGED OFF:**
+
+> ## ⚠ **A REACH FAILURE THAT LANDS ON THE CORRECT ANSWER LEAVES NOTHING TO FIND. AUDITING OUTCOMES CANNOT DETECT IT — the outcome is right.**
+
+**It surfaces only when someone happens to know the rule and says so.** ⛔ **So the observable rate of
+reach failures is bounded below by the ones that went WRONG, and the true rate is unknowable from
+here.** ⚠ **Every instance where re-derivation happened to agree with the ratified rule is invisible,
+and there is no reason to think this was the first.**
+
+**⇒ Which is an argument for the LOOKUP BEING CHEAP rather than for the search being thorough.** ⛔ **A
+discipline that only pays when it changes the answer will be skipped exactly when it is hardest to
+notice.**
+
 **Corollary — ⛔ WHEN A RULING CHANGES WHAT A METRIC TABLE *CONTAINS*, THE REPORT CARRIES BEFORE-AND-AFTER, NOT JUST AFTER.**
 
 ⚠ **A table whose MEMBERSHIP changed reports a different quantity under the same name.** ⛔ **Without
