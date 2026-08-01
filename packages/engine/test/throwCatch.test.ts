@@ -87,6 +87,18 @@ describe("ADR-055 §6 point 3 — accuracyPenaltyForPocket / accuracyPenaltyForP
     // asserted to be under any particular pocket status (ADR-055 §6).
     expect(Object.keys(TUNABLES.pocket.severity)).not.toContain(penalty.label);
   });
+
+  it("scramble.readCapacityDelta is pinned to pocket.readCapacityDelta.PRESSURE the same way", () => {
+    // Ruled, not derived (this dispatch): carried from the pocket ladder's own
+    // PRESSURE row rather than invented, and marked as owed a derivation.
+    expect(
+      TUNABLES.scramble.readCapacityDelta,
+      "scramble.readCapacityDelta is a carried value, not a derived one (ADR-055 §6, `RULED, NOT DERIVED` marker in tunables.ts). " +
+        "This pin exists only to catch an ACCIDENTAL divergence between the carry and the PRESSURE row while the carry still applies. " +
+        "If this fires because pursuit read-capacity has been given its own derived value, DELETE THIS PIN — do not edit either " +
+        "constant to restore the equality.",
+    ).toBe(TUNABLES.pocket.readCapacityDelta.PRESSURE);
+  });
 });
 
 describe("§10.4 accuracy", () => {

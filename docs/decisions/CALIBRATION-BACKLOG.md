@@ -5605,6 +5605,10 @@ in a hurry.**
   **Both were ruled in the same breath (ADR-055 §6) and both are equally provisional.** ⇒ *One carry is
   defended and one is documented; prose has no consumer.* **Not fixed — the dispatch correctly refused
   to add new logic outside its scope, and reported the asymmetry instead.**
+  - **2026-08 · owner ruling, same-shape pin dispatch** — ✅ **CLOSED.** `scramble.readCapacityDelta`
+    is now pinned structurally beside its sibling (`throwCatch.test.ts`, same describe block,
+    asserting equality with `pocket.readCapacityDelta.PRESSURE`, same expiry message shape). Both
+    carries are defended the same way; nothing else moved.
 
 > ⚠ **THE SEED IS DELIBERATE, AND NOT ONLY AS AN EXAMPLE.** ⛔ **An empty accumulator reads as *"nothing
 > has recurred"* — a FALSE NEGATIVE on day one**, and the most likely state for a reader to meet it in.
