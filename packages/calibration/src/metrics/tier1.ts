@@ -157,6 +157,22 @@ export const sackRate: Metric = registerMetric({
   },
 });
 
+/**
+ * ⛔ COMPARABILITY NOTE (backlog entry 87 item 4 / entry 88), NOT A METRIC CHANGE — read before
+ * citing this row's real side as ground truth for a pocket-mechanics claim:
+ *
+ * whether the real side's `was_pressure` and this metric's sim side count the SAME event is
+ * UNESTABLISHED. See the vendored nflverse-dictionary / NGS text and the comparability provenance
+ * row in `../ingest/sources/participation.ts` (above `ParticipationRow.wasPressure`). Checked
+ * directly against the engine's own public spec: if the NGS description of its pressure product
+ * governs `was_pressure`, the real side counts QB-initiated pressure on an otherwise-clean pocket
+ * (bailing early / holding too long), which `POCKET_STATUS` cannot count — it is derived purely
+ * from the blocker/rusher contest and is not even published while the quarterback is out of the
+ * pocket. Whether that NGS description in fact governs the seasons ingested here (2022-2025) is
+ * NOT established either way. Season-coverage check (same file): the real-side rate, joined to
+ * pbp dropbacks exactly as below, is stable across 2022-2025 (28.48%-30.11%) — evidence against a
+ * rate-moving definition change, not proof of identity.
+ */
 export const pressureRate: Metric = registerMetric({
   id: "pressure_rate",
   tier: 1,
