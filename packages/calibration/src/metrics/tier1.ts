@@ -86,7 +86,17 @@ export const completionPct: Metric = registerMetric({
     "play_type=pass, and neither is a throw); kneels and spikes are excluded league-wide.",
   unit: "%",
   toleranceBand: relativeBand(0.15),
-  knownDivergences: ["backlog 1 (accuracy bands)", "backlog 3 (§7.1 term asymmetry, closed by ADR-028)", "backlog 18"],
+  knownDivergences: [
+    "backlog 1 (accuracy bands)",
+    "backlog 3 (§7.1 term asymmetry, closed by ADR-028)",
+    "backlog 18",
+    // Backlog entry 94/95: `passAttempts` now includes throwaways (it always should have — the
+    // real side always did, via `isPassAttempt` below). This made the FAIL LARGER on the
+    // canonical arm (-38.64pp → -42.24pp relative, baseline-0007 vs the post-fix re-run): a
+    // denominator fix, not a new mechanic regression.
+    "backlog 95: denominator now includes throwaways (backlog 94); FAIL widened on the canonical " +
+      "arm as a direct, correct consequence — not a new mechanic",
+  ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;
     return p.passAttempts === 0
@@ -112,7 +122,18 @@ export const interceptionRate: Metric = registerMetric({
   unit: "%",
   direction: "LOWER_IS_BETTER",
   toleranceBand: relativeBand(0.15),
-  knownDivergences: ["backlog 6 (§12.4 recovery roll)", "backlog 7 (zone defender reads the QB)"],
+  knownDivergences: [
+    "backlog 6 (§12.4 recovery roll)",
+    "backlog 7 (zone defender reads the QB)",
+    // Backlog entry 94/95: this row's VERDICT FLIPPED, PASS → FAIL (known), between
+    // `baseline-0007` and the post-fix re-run on the identical arm — sim 2.04%→1.92%, real
+    // unchanged 2.28%, relative deviation -10.5%→-15.47%, crossing the ±15% band. The numerator
+    // (interceptions) did not change; the denominator grew because throwaways (never intercepted)
+    // now count as attempts. The flip is a direct, correct consequence of the population fix, not
+    // a new interception mechanic — read this note before treating the FAIL as news.
+    "backlog 95: verdict flipped PASS→FAIL(known) purely from the backlog 94 denominator fix " +
+      "(interceptions unchanged; throwaways, never intercepted, now count as attempts)",
+  ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;
     return p.passAttempts === 0
@@ -599,6 +620,18 @@ export const pressureToSackRate: Metric = registerMetric({
   knownDivergences: [
     "backlog 2 (rusher time-of-arrival + missing move branch)",
     "backlog 3 (§7.1 term asymmetry, closed by ADR-028)",
+    // Backlog entry 94 finding 4 / ruling 3: the caveat moves from the footer `definition` prose
+    // into THIS list so it renders in the Tier 1 table's per-row notes column, not only in
+    // source. GRADE UNCHANGED (owner-ruled) — this states the mechanism, not a generic warning.
+    "backlog 88/94: real side conditions on `was_pressure`, whose governing semantics are " +
+      "UNESTABLISHED (backlog 87 item 4, vendored in participation.ts); if NGS's own pressure " +
+      "description governs it, the real pressured population includes QB-bail and coverage-hold " +
+      "causes the sim's POCKET_STATUS-derived pressured population is structurally incapable of " +
+      "containing (no coverage-separation input, and not published at all while the QB is out of " +
+      "the pocket) — a conditional rate over a different conditioning set is a different quantity " +
+      "(backlog 88, one level up). Lift condition: an nflverse/NGS artefact, at a stated revision, " +
+      "establishing what `was_pressure` charters (participation.ts item 4). Absent that, treat " +
+      "this row's real side as conditioned on an unverified population.",
   ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;
@@ -752,7 +785,15 @@ export const yardsPerAttempt: Metric = registerMetric({
   definition: "Passing yards ÷ pass attempts, counting incompletions as zero.",
   unit: "yards",
   toleranceBand: relativeBand(0.15),
-  knownDivergences: ["backlog 1", "backlog 15 (accuracy→YAC double-count)"],
+  knownDivergences: [
+    "backlog 1",
+    "backlog 15 (accuracy→YAC double-count)",
+    // Backlog entry 94/95: throwaways (zero yards, per the incompletion branch) now populate
+    // `passAttemptYards` too, widening the denominator. FAIL grew, -44.62pp → -47.86pp relative
+    // on the canonical arm (baseline-0007 vs the post-fix re-run) — expected, not a new mechanic.
+    "backlog 95: denominator now includes zero-yard throwaways (backlog 94); FAIL widened as a " +
+      "direct, correct consequence",
+  ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     return meanOfNumbers(accumulator.play.passAttemptYards, "pass attempts");
   },
@@ -767,12 +808,29 @@ export const timeToThrow: Metric = registerMetric({
   id: "time_to_throw",
   tier: 1,
   definition:
-    "Mean seconds from snap to release, over throws only (sacks, scrambles and throwaways " +
-    "excluded from both sides). Sim side reads TICK.payload.tick, which is already in seconds " +
-    "on a 0.5s grid; real side is participation's per-play `time_to_throw`.",
+    "Mean seconds from snap to release, over pass ATTEMPTS — sacks and scrambles excluded (" +
+    "neither is a release), throwaways INCLUDED on both sides (a throwaway is a release too, " +
+    "just not to a receiver; backlog entry 94 ruling 2 — this string used to claim throwaways " +
+    "were excluded 'from both sides', which was false of the real-side join even before this " +
+    "dispatch, since `isPassAttempt` never excluded them). Sim side reads the tick of whichever " +
+    "event fired — a THROW, or a THROWAWAY QB_DECISION when no THROW occurred — off the SAME " +
+    "0.5s-grid `TICK.payload.tick` either way. Real side is participation's per-play " +
+    "`time_to_throw`, joined to every `isPassAttempt` row (throwaway-inclusive by the identical " +
+    "population `completion_pct`/`int_rate`/etc. share); whether NGS's release-time value for a " +
+    "throwaway is measured the same way as for a targeted throw is not determinable from inside " +
+    "this repo (no vendored NGS dictionary, backlog entry 87 item 4).",
   unit: "seconds",
   toleranceBand: relativeBand(0.15),
-  knownDivergences: ["backlog 2b (progression + anticipation)", "backlog 2"],
+  knownDivergences: [
+    "backlog 2b (progression + anticipation)",
+    "backlog 2",
+    "backlog 95: sim population widened to include throwaway release ticks (previously threw-" +
+      "only, backlog 94) so both sides share the pass-attempt population. This is the one metric " +
+      "of the five where the fix REDUCED the FAIL: -58.12pp → -55.89pp relative on the canonical " +
+      "arm (baseline-0007 vs the post-fix re-run) — sim rose 1.123s→1.183s (throwaways average a " +
+      "longer hold than a completed/incomplete throw in this engine), real unchanged at 2.682s. " +
+      "Still FAIL(known); backlog 2/2b's progression+anticipation gap dominates either way.",
+  ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     return meanOfNumbers(accumulator.play.throwTicks, "throws");
   },
@@ -801,7 +859,15 @@ export const explosivePassRate: Metric = registerMetric({
   unit: "%",
   toleranceBand: relativeBand(0.15),
   // Downstream of completion percentage: an explosive pass has to be completed first.
-  knownDivergences: ["backlog 1 (completion rate)", "backlog 3"],
+  knownDivergences: [
+    "backlog 1 (completion rate)",
+    "backlog 3",
+    // Backlog entry 94/95: a throwaway is never explosive (never caught) but now counts in the
+    // denominator. FAIL widened, -50.67pp → -53.56pp relative on the canonical arm (baseline-0007
+    // vs the post-fix re-run) — a direct, correct consequence of the population fix.
+    "backlog 95: denominator now includes throwaways, never explosive (backlog 94); FAIL widened " +
+      "as a direct, correct consequence",
+  ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;
     return p.passAttempts === 0

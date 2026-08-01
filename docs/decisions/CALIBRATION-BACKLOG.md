@@ -6347,6 +6347,23 @@ the audit overdue rather than optional.**
 | **sim** | `collect.ts:671` — `if (throwType === "THROWAWAY") current.threw = false` | ⛔ **EXCLUDED** from `passAttempts` |
 | **real** | `realInput.ts:175-177` — `isCountablePlay && passAttempt === true && sack !== true` | ⛔ **INCLUDED** — nflverse codes a throwaway as an ordinary incomplete attempt, and **no `qb_throwaway`-equivalent column exists in the ingested `PbpRow` schema to exclude one even if the code wanted to** |
 
+#### ⛔ CORRECTED BESIDE (entry 95) — **THE EFFECT WAS RIGHT; THE DEFECT SITE NAMED ABOVE IS WRONG**
+
+⛔ **`collect.ts:671` IS DEAD CODE.** ⚠ **`selectThrowType` never returns `"THROWAWAY"`, and the only
+`throwBall` call site is `passPlay.ts:1217` — BOTH throwaway paths (`:1077-1081`, `:1100`) call
+`log.qbDecision("THROWAWAY")` and break WITHOUT emitting a `THROW` at all.**
+
+**So the exclusion happened by a DIFFERENT mechanism than this entry claimed: a throwaway emits NO
+`THROW` EVENT, so `threw` was never set true in the first place.** ✅ **The measured effect —
+throwaways absent from `passAttempts` — stands unchanged.**
+
+> ### ⛔ AND THE DEAD BRANCH EXISTS FOR A REASON WORTH ITS OWN LINE: **`ThrowType` (`contracts/src/events.ts:130`) DECLARES A `"THROWAWAY"` MEMBER THAT NOTHING EVER PRODUCES.**
+
+⚠ **A consumer wrote a branch for a variant the contract ADVERTISED and the engine never emits.**
+⛔ **That is the absorbed class arriving in the CONTRACT SURFACE — a type member is a promise, and an
+unreachable one costs a reader a branch that can never run.** **UNRULED: `packages/contracts` is
+write-protected and a change there is a petition, not a fix.**
+
 **Scale, from `baseline-0007`'s own printed counts:**
 `dropbacks 43,370 − sacks 6,593 − passAttempts 26,573` = ⛔ **`10,204` sim dropbacks** (scrambles +
 throwaways) **outside the sim's attempt population, against a real side where every non-sack
@@ -6423,3 +6440,216 @@ when it is applied at authoring time.**
 
 ⚠ **Plus the two forward-looking expectation-model gaps.** ⛔ **A defect class concentrates where the
 real source's convention is RICHEST and least documented — not uniformly across the library.**
+
+---
+
+## 95. ⛔⛔ THE THREE OWNER RULINGS EXECUTED — throwaways ARE attempts, `time_to_throw`'s prose is now
+true of its code, `pressure_to_sack`'s caveat renders in the report row
+
+**Dispatch on the three rulings from the comparability audit (entry 94), August 2026. `packages/
+calibration` only. ⛔ NO ENGINE CODE, NO TUNABLE TOUCHED — one adjacent engine-side instance of the
+identical defect was FOUND and is ROUTED, not fixed here.** `threat_creation_rate`, `qb_disruption_
+rate`, `threat_entry_exit_ratio` — untouched, per standing. `blitz_rate`'s `UNESTABLISHED` and the
+Tier 3/4 expectation gaps — untouched, unruled, not mine today. No retirement or rename proposed.
+
+**Canonical arm for every before/after figure below: `flat-60-32t`, 32 teams, one round-robin round,
+season 2024, batch seed `baseline-0001`, 496 games, seed digest `fnv1a:020c1dcb#496`,
+`DEFAULT_TUNABLES`, `FROZEN_TENDENCIES`/`FROZEN_FOURTH_DOWN`.** BEFORE = `reports/baseline-0007.md`
+(the committed report, pre-this-dispatch tree). AFTER = the identical arm/seeds re-run against this
+dispatch's tree, via a throwaway verification probe (`test/_backlog94Verification.test.ts`, written,
+run, its numbers copied below, then DELETED — scratch code in the same spirit as `attribution.test
+.ts`, not a permanent fixture). Real-side figures are UNCHANGED and re-quoted from `baseline-0007`
+rather than re-derived, because no real-side code was touched by ruling 1 (verified: `realInput.ts`'s
+`isPassAttempt` was not edited) — confirmed identical on the re-run (`pressure_to_sack`, whose real
+side this dispatch also left alone, reproduced `baseline-0007`'s figures bit-for-bit, see below).
+
+### ⛔ PREMISE CORRECTION ON RULING 1 ITSELF — the named defect LINE was never the operative one
+
+**Reported against the ruling's own claim, per the standing premise-ledger rule.** The ruling names
+`collect.ts:671` — `if (event.payload.throwType === "THROWAWAY") current.threw = false;` — as *"the
+defect site."* ⛔ **That line was DEAD CODE.** Traced, not assumed: the ONLY `log.throwBall` call in
+`packages/engine` is `passPlay.ts:1217`, whose `throwType` comes from `selectThrowType`
+(`throwExecution.ts`), which returns only `BULLET`/`TOUCH` (`BACK_SHOULDER` is wired-and-dormant per
+`tunables.ts:78`). **A `THROW` event's `throwType` is never `"THROWAWAY"` at that call site** — a
+throwaway never reaches `case "THROW"` at all, because both throwaway paths in `passPlay.ts` (the
+duress movement response at `:1077-1088`, and `mustDecide && throwawayAvailable` at `:1096-1107`) log
+`qbDecision("THROWAWAY")` — a `QB_DECISION` event — and neither ever calls `throwBall`.
+
+⚠ **So the exclusion the ruling's named line APPEARED to implement was actually accomplished
+structurally**, by `current.threw` simply never being set `true` for a throwaway dropback — same
+observable outcome (`passAttempts` excluded them), invisible mechanism, and the line that LOOKED like
+the exclusion was not it. **The diagnosis of the DEFECT (throwaways excluded from `passAttempts`) was
+correct; the diagnosis of the MECHANISM was not.** This mattered practically: deleting or inverting
+that line alone would have changed NOTHING, because it never ran. The actual fix needed a new listener
+on `QB_DECISION` reading the signal the engine actually emits for a throwaway — implemented below.
+
+### ✅ RULING 1, EXECUTED — `passAttempts` now includes throwaways; per-metric NEEDS, not one flag
+
+`collect.ts`'s `flush()` now gates `passAttempts` on `play.threw || play.throwaway`, where
+`play.throwaway` is set from the real signal (`QB_DECISION.payload.choice === "THROWAWAY"`, both
+paths). `play.threw` and `play.throwaway` are mutually exclusive by construction (one QB_DECISION
+terminal choice per dropback) — no double count. The sack/throwaway split at `flush()` was also
+changed from an INFERENCE (`(resultYards ?? 0) < 0` meant sack, else throwaway) to a direct read of
+`play.throwaway` — same population on this corpus (verified: identical sack/throwaway counts before
+and after), sturdier signal, no longer dependent on yardage sign as a proxy for a fact the stream
+already states outright.
+
+**What each of the five metrics NEEDED, stated separately per the ruling's own instruction:**
+
+| metric | NEEDED | done |
+|---|---|---|
+| `completion_pct` | denominator wider, numerator (completions) untouched — a throwaway is never caught | ✅ gated inside `if (play.caught)`, unreachable for a throwaway |
+| `int_rate` | denominator wider, numerator (interceptions) untouched — a throwaway is never intercepted (engine hardcodes `turnover: false` for both throwaway paths, `passPlay.ts`) | ✅ interception branch reads `play.intercepted`, independent of the attempts gate |
+| `yards_per_attempt` | denominator wider, throwaway contributes exactly 0 yards | ✅ `play.resultYards` is hardcoded `0` for a throwaway outcome; falls into the same `passAttemptYards.push(0)` branch an incompletion does |
+| `explosive_pass_rate` | denominator wider, throwaway never explosive (never caught, so the `>= 20` check inside `if (play.caught)` never runs for it) | ✅ same containment as completion_pct |
+| `time_to_throw` | a DIFFERENT need — not a rate, a MEAN over release ticks. A throwaway IS a release (the QB let go of the ball, just not to a receiver), and the real side's `isPassAttempt` join already included throwaway release times (this was finding 3's whole point). Sim needed a release-tick signal for the same population | ✅ `QB_DECISION`'s `THROWAWAY` case reads the same mirrored `tick` local `THROW` already used, pushed into `throwTicks` alongside real throws |
+
+⚠ **`time_to_throw` is NOT covered by ruling 1's "denominator without corrupting numerator" framing
+— it has no denominator in that sense.** Reasoned separately: since the real side already measures a
+throwaway's release time (via the `isPassAttempt` join, unchanged since entry 87), leaving the sim
+side silent on it would have widened, not closed, the entry-94-finding-3 gap after fixing everything
+else. Both engine paths carry the tick on `MatchEventBase` exactly as `THROW` does (`events.ts`'s
+`base()`), so no engine change was needed to read it — this is straight consumption of an
+already-public field, same footing as reading `event.payload.status` on `POCKET_STATUS`.
+
+### ⛔ BEFORE / AFTER, ALL FIVE, SIM SIDE ONLY (real side unchanged, quoted from `baseline-0007`)
+
+| metric | sim BEFORE (n) | sim AFTER (n) | real (n, unchanged) | verdict BEFORE | verdict AFTER |
+|---|---|---|---|---|---|
+| `completion_pct` | 39.62% (26,573) | **37.30%** (28,226) | 64.58% (54,263) | FAIL (known) | FAIL (known) — **wider**: −38.64pp → **−42.24pp** relative |
+| `int_rate` | 2.04% (26,573) | **1.92%** (28,226) | 2.28% (54,263) | **PASS** | **FAIL (known)** — −10.22pp (`baseline-0007`'s own printed deviation) → **−15.47pp** relative, crosses the ±15% band |
+| `yards_per_attempt` | 3.905 (26,573) | **3.676** (28,226) | 7.051 (54,263) | FAIL (known) | FAIL (known) — wider: −44.62pp → **−47.86pp** relative |
+| `explosive_pass_rate` | 4.37% (26,573) | **4.11%** (28,226) | 8.86% (54,263) | FAIL (known) | FAIL (known) — wider: −50.67pp → **−53.56pp** relative |
+| `time_to_throw` | 1.123s (26,573) | **1.183s** (28,226) | 2.682s (54,014) | FAIL (known) | FAIL (known) — **narrower**: −58.12pp → **−55.89pp** relative |
+| `pressure_to_sack` (control — untouched by this dispatch) | 16.94% (38,914) | 16.94% (38,914) | 16.37% (16,627) | PASS+ | PASS+ — **bit-identical**, confirms nothing else moved |
+
+⛔ **`int_rate` FLIPS, PASS → FAIL (known).** Ruling 1 asked plainly whether it still "reads PASS": **it
+does not.** The numerator (interceptions) is unchanged; the denominator grew because throwaways —
+never intercepted — now count as attempts, which can only ever shrink a rate whose numerator did not
+move. This is the mirror-image case the ruling warned about, now measured rather than predicted: a
+row that was hiding behind an artificially narrow denominator crossed into failing territory the
+moment the denominator was corrected. **Both metrics' own `knownDivergences` now carry a citation
+naming this dispatch, so the notes column explains the flip/widening rather than reading as new
+news** (see `tier1.ts`).
+
+⚠ **`time_to_throw` is the one exception — its fail got SMALLER**, because throwaway release ticks
+in this engine average a LONGER hold than a completed-or-incomplete throw's (a QB does not throw the
+ball away until forced), which pulls the sim mean toward the real one. Still `FAIL (known)`; backlog
+2/2b's progression-and-anticipation gap dominates either arm.
+
+**`pressure_to_sack` reproduced `baseline-0007` bit-for-bit** (16.9425%/16.3710%, n 38,914/16,627,
+deviation 0.0349) — direct evidence that ruling 1's fix did not disturb the pressure/sack pipeline at
+all, exactly as the mutual-exclusion argument above predicts (nothing about `pressuredDropbacks` or
+`pressuredSacks` reads `play.threw`/`play.throwaway`).
+
+### ✅ RULING 2, EXECUTED — `time_to_throw`'s `definition` now describes the code beside it
+
+The old string claimed throwaways were *"excluded from both sides."* ⛔ **That was false of the
+real-side join even BEFORE this dispatch** — `isPassAttempt` (`realInput.ts`) never excluded a
+throwaway, and nothing in ruling 1 changed that function. The new string (`tier1.ts`) states plainly
+that throwaways are INCLUDED on both sides, states why (a throwaway is a release), states exactly
+which event the sim reads for it, and names the one thing still not determinable from inside this
+repo — whether NGS measures a throwaway's release time the same way it measures a targeted throw's
+(no vendored NGS dictionary, backlog entry 87 item 4). Per the ruling's broader instruction, every
+OTHER definition string this dispatch touched was re-read against its own code before being left
+alone or extended (`completion_pct`, `int_rate`, `yards_per_attempt`, `explosive_pass_rate`,
+`pressure_to_sack`) — none made a claim the code beside it could not support; only `time_to_throw`'s
+did, and it is fixed. The `passAttempts`, `sacks` and `throwTicks` field-level doc comments in
+`collect.ts` were also corrected — the `passAttempts` comment used to read *"Dropbacks where a THROW
+event was emitted. Throwaways emit none"*, which is now the premise-corrected history above, not the
+current mechanism.
+
+### ✅ RULING 3, EXECUTED — `pressure_to_sack`'s caveat now renders in the Tier 1 table's own row
+
+**Grade UNCHANGED, not reopened** — confirmed bit-identical above. The caveat text (added to
+`pressureToSackRate`'s `knownDivergences` in `tier1.ts`, which is what `notesCell` — `report/
+baseline.ts` — prints in the per-row notes column) states: the real side conditions on
+`was_pressure`; that its governing semantics are UNESTABLISHED (backlog 87 item 4, vendored in
+`participation.ts`); that if NGS's own pressure description governs it, the real pressured population
+includes QB-bail and coverage-hold causes the sim's POCKET_STATUS-derived pressured population is
+structurally incapable of containing (no coverage-separation input, and not published at all while
+the QB is out of the pocket); that a conditional rate over a different conditioning set is a
+different quantity (**entry 88, cited one level up, as instructed**); and the lift condition — an
+nflverse/NGS artefact, at a stated revision, establishing what `was_pressure` charters
+(`participation.ts` item 4). Absent that, the row's real side is stated as conditioned on an
+unverified population. A future `baseline-NNNN.md`'s Tier 1 table will show this text in
+`pressure_to_sack`'s own `notes` cell, not only in this file or in `tier1.ts`'s header prose.
+
+### ⛔ A PARALLEL, ALREADY-DOCUMENTED ENGINE-SIDE INSTANCE OF THE IDENTICAL DEFECT — FOUND, ROUTED, NOT FIXED
+
+**`packages/engine/src/stats/statline.ts`'s own header comment states, verbatim:** *"Throwaways are
+not attempts. The engine emits no `THROW` for a throwaway (correctly — no target, no accuracy roll),
+so it does not appear as a pass attempt. Real NFL scoring counts it. Logged, not patched: the fix is
+a `THROWAWAY` producer decision, not a reducer decision."* ⛔ **This is the SAME defect ruling 1 fixed
+in this package, ALREADY self-diagnosed in the engine, and left unfixed there** — `StatLine.passing
+.attempts` still excludes throwaways. **NOT fixed here** — `packages/engine` is outside this
+standing dispatch's scope (*"CHANGE NO ENGINE CODE, NO TUNABLE. If the engine looks wrong, REPORT —
+do not reach"*), and the file's own comment already routes its fix to a `THROWAWAY` producer
+decision, which is `match-engine`'s domain, not calibration's. ⚠ **Flagged for the Orchestrator**:
+any consumer of `StatLine.passing.attempts` (fantasy scoring, `packages/attributes`' importer, a box
+score) undercounts pass attempts against real NFL scoring by the same margin this dispatch just
+corrected in the Tier 1 library. `test/metrics.test.ts`'s reconciliation check against this reducer
+(`"agrees with the engine's own statline reducer on every commensurable quantity"`) now compares
+`p.passAttempts - p.throwaways` to `sum(l.passing.attempts)` rather than `p.passAttempts` directly,
+with a comment naming this exact divergence and its cause — the two are EXPECTED to disagree on the
+raw quantity now, by exactly the throwaway count, and asserting equality through that would either
+mask this package's fix or re-hide the engine's.
+
+### ⛔ ONE MORE TEST HAD TO CHANGE — the four-way dropback partition became a three-way one
+
+`test/metrics.test.ts`'s `"accounts for every dropback exactly once"` asserted `p.passAttempts +
+p.sacks + p.throwaways + p.scrambles === p.dropbacks`. ⛔ **`throwaways` is now a SUBSET of
+`passAttempts`, not a fourth disjoint term** — summing it again double-counts every throwaway
+(measured directly: 45,023 vs 43,370 dropbacks on the canonical arm, off by exactly 1,653, the
+throwaway count). Rewritten to `p.passAttempts + p.sacks + p.scrambles === p.dropbacks` (verified:
+28,226 + 6,593 + 8,551 = 43,370, exact) plus `p.throwaways <= p.passAttempts` as the containment the
+old test was really asserting as disjointness.
+
+### ⚠ A TRACED RIPPLE, VERIFIED CONTAINED — `knownTruth/pocketLadder.ts`'s own `attempts`/`completion_rate`
+
+`LadderSample.attempts` (`pocketLadder.ts:1071`) reads `p.passAttempts` directly and now widens the
+same way `tier1.ts`'s `completion_pct` does; its own `completion_rate` diagnostic (`completions /
+attempts`) and `throwTicks`-based mean-time-to-throw diagnostic move accordingly. **Traced, not
+assumed, that nothing broke**: `statlineDropbacks` (the field explicitly documented as *"`NET_YARDS_
+PER_DROPBACK`'s denominator"*) sums `line.passing.attempts` off the ENGINE's statlines in its own
+local loop, never `p.passAttempts` — untouched by this dispatch, and correctly so, since it is the
+same engine-side count the routed item above concerns. `test/knownTruth.pocket-status-ladder.test.ts`
+(15 tests, including the monotonicity gate — *"never produces a strictly better outcome from a
+strictly worse pocket"*) and `test/attributeClaims.test.ts` both ran green on the full suite below,
+confirming the widened denominator does not invert any ladder-monotonicity property this dispatch did
+not intend to touch.
+
+### VERIFICATION
+
+`pnpm --filter @ff/calibration typecheck` — clean. `pnpm --filter @ff/calibration test -- --run` —
+**552 passed, 0 failed, 50 skipped (env-gated real-cache/known-truth tests), 34 files.** `pnpm -r
+test` (whole workspace, exit code captured directly, not through a pipe, per Habit 9) — **exit 0**:
+`contracts` 1 file/12 tests, `playbook` 10 files/1,267 tests, `engine` 47 files/814 passed + 1
+skipped, `calibration` 34 files/552 passed + 50 skipped — all passed, 0 failed anywhere.
+
+### PREMISE LEDGER
+
+- ⛔ **Ruling 1's named defect LINE (`collect.ts:671`) was not the operative mechanism** — see above.
+  The defect it named (throwaways excluded from `passAttempts`) was correctly diagnosed.
+- ✅ Entry 94 finding 1's arithmetic reproduced exactly: `dropbacks 43,370 − sacks 6,593 −
+  passAttempts(before) 26,573 = 10,204`, matching `scrambles 8,551 + throwaways 1,653 = 10,204` on
+  this dispatch's own re-derivation of the canonical arm.
+- ✅ Entry 94 finding 2's prediction — *"correcting `completion_pct`'s denominator would make its FAIL
+  LARGER"* — confirmed, and the same direction held for `yards_per_attempt` and `explosive_pass_rate`.
+  ⚠ **`time_to_throw` is the one metric where the analogous fix went the OTHER way** (fail narrowed)
+  — not a premise failure, since entry 94 never predicted a direction for it, but worth recording
+  because a reader pattern-matching "the fix always widens the fail" from findings 1/2 would be wrong.
+- ✅ Entry 94 finding 3 (`time_to_throw`'s prose false about its own real-side join) and finding 4
+  (`pressure_to_sack`'s caveat not in the per-row notes) both reproduced exactly as stated, and both
+  are now closed by rulings 2/3 above.
+- ✅ Entry 93's `pressure_to_sack` fix (`6019f0f`) and out-of-scope status both held: bit-identical
+  figures before and after this dispatch confirm nothing this dispatch did touched it.
+
+### STANDING, RESPECTED
+
+`threat_creation_rate`, `qb_disruption_rate`, `threat_entry_exit_ratio` — untouched. `blitz_rate`'s
+`UNESTABLISHED` and the Tier 3/4 expectation-model gaps (entry 94 finding 5) — untouched, unruled, not
+mine today. No retirement or rename proposed. No engine code, no tunable, changed — one adjacent
+engine-side defect FOUND and ROUTED to `match-engine`, per the standing instruction to report rather
+than reach. Every figure above names its arm. No commit made — Charter §4.1, compute and bring
+conflicts; the owner reviews and commits.

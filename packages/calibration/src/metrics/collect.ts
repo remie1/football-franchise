@@ -41,7 +41,25 @@ export interface PlayFold {
   scrimmagePlays: number;
 
   dropbacks: number;
-  /** Dropbacks where a THROW event was emitted. Throwaways emit none — see the statline note. */
+  /**
+   * ================== BACKLOG ENTRY 94 FINDING 1/2: THROWAWAYS ARE ATTEMPTS ==================
+   *
+   * Dropbacks where the QB either threw to a receiver (a THROW event) OR threw the ball away
+   * (a QB_DECISION event with `choice: "THROWAWAY"`). Both are pass attempts in the scoring
+   * sense nflverse uses: `isPassAttempt` (`realInput.ts`) is `passAttempt === true && sack !==
+   * true`, and nflverse codes a throwaway `pass_attempt = 1`, `sack = 0` — an ordinary incomplete
+   * attempt. There is no `qb_throwaway`-equivalent column in the ingested `PbpRow` schema to
+   * exclude one even if a metric wanted to, so the real side has always included them; this field
+   * used to NOT (a THROW-event-only count), which was the defect entry 94 named. It still excludes
+   * sacks and scrambles, exactly as `isPassAttempt` does.
+   *
+   * NOT the same population as `packages/engine`'s own `StatLine.passing.attempts`
+   * (`statline.ts`'s own comment: *"Throwaways are not attempts... Real NFL scoring counts it.
+   * Logged, not patched"*) — that is a DIFFERENT, ALREADY-DOCUMENTED engine-side instance of the
+   * identical gap, in a file this package may only consume (ADR-012), not fix. `test/metrics.test
+   * .ts`'s reconciliation check against the reducer now expects this NAMED divergence rather than
+   * asserting equality through it — see that test.
+   */
   passAttempts: number;
   completions: number;
   interceptions: number;
@@ -81,8 +99,10 @@ export interface PlayFold {
    *   (2) a `POCKET_STATUS` was ever a status in `DEFAULT_TUNABLES.pocket.forcesDecision`
    *       (`COLLAPSING`/`IMMEDIATE` today, read from tunables rather than restated — see
    *       `FORCES_DECISION_STATUSES` below) — set by `forcedDecision`;
-   *   (3) the dropback ended in a sack — the SAME inference `sacks` above already makes (no
-   *       THROW, no scramble, no interception, negative result yards); no second sack rule.
+   *   (3) the dropback ended in a sack — the SAME dichotomy `sacks` above already makes (no
+   *       THROW, no scramble, no throwaway, no interception); no second sack rule. (Backlog entry
+   *       94: this used to be inferred from negative result yards rather than read off a
+   *       `throwaway` flag; the population it selects is unchanged.)
    *
    * A FOURTH disjunct in the drafted shape — "the QB was hit" — is DROPPED. `@ff/contracts`
    * publishes no event for a quarterback being hit as distinct from being sacked; inventing one
@@ -158,7 +178,9 @@ export interface PlayFold {
   airYards: number;
   yardsAfterCatch: number;
   /**
-   * When the ball was released, one entry per THROW. `TICK.payload.tick` is expressed in
+   * When the ball was released, one entry per THROW or per THROWAWAY (backlog entry 94: a
+   * throwaway is a release too, just not to a receiver, and the real side's `time_to_throw` join
+   * already includes it — see `passAttempts` above). `TICK.payload.tick` is expressed in
    * SECONDS on a 0.5s grid (`TUNABLES.tickStepSeconds`; the design doc's tick labels are 1.0,
    * 1.5, 2.0), so these are directly comparable to NGS time-to-throw with no conversion — and
    * a conversion factor is exactly the sort of constant that would rot silently.
@@ -448,6 +470,21 @@ interface PlayState {
   forcedDecision: boolean;
   threw: boolean;
   throwTick: number | null;
+  /**
+   * Backlog entry 94: set from `QB_DECISION.payload.choice === "THROWAWAY"`, which fires whether
+   * the throwaway was forced by duress (a pocket-movement decision) or by the clock (`mustDecide
+   * && throwawayAvailable`) — both paths log it, neither emits a `THROW` event (`passPlay.ts`).
+   * Mutually exclusive with `threw`/`scramble`/`intercepted` by construction: a dropback resolves
+   * to exactly one QB_DECISION terminal choice.
+   */
+  throwaway: boolean;
+  /**
+   * The tick at which the THROWAWAY decision fired, read off the SAME per-tick `tick` local this
+   * file already tracks for `throwTick` — `QB_DECISION` carries `tick` on `MatchEventBase` like
+   * every other event, but this reads the mirrored local rather than `event.tick` to match the
+   * existing convention (`case "THROW"` below does the same).
+   */
+  throwawayTick: number | null;
   caught: boolean;
   intercepted: boolean;
   intSource: IntSource | null;
@@ -483,6 +520,8 @@ function blankPlay(): PlayState {
     forcedDecision: false,
     threw: false,
     throwTick: null,
+    throwaway: false,
+    throwawayTick: null,
     caught: false,
     intercepted: false,
     intSource: null,
@@ -557,9 +596,21 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
         originsSeen.add(origin);
       }
       for (const origin of originsSeen) bumpKey(p.threatOriginDropbacks, origin);
-      if (play.threw) {
+      // ================== BACKLOG ENTRY 94 (RULING 1): passAttempts NEEDS THROWAWAYS ==================
+      // A throwaway is an ATTEMPT (nflverse: pass_attempt=1, sack=0) but is NEVER a completion,
+      // carries ZERO yards, and is NEVER explosive — so it must move this DENOMINATOR without
+      // touching any of the four numerators nested inside `if (play.caught)` below. `play.threw`
+      // and `play.throwaway` are mutually exclusive (exactly one QB_DECISION terminal choice per
+      // dropback), so this cannot double-count a play `p.throwaways` below also counts.
+      if (play.threw || play.throwaway) {
         p.passAttempts++;
-        if (play.throwTick !== null) p.throwTicks.push(play.throwTick);
+        // time_to_throw NEEDS a release tick, not a target: a throwaway IS a release (the QB let
+        // go of the ball), just not to a receiver, and the real side's `time_to_throw` join
+        // (`isPassAttempt`, tier1.ts) already includes it — this was entry 94 finding 3's false
+        // "excluded from both sides" claim, and the fix is to make the sim side true of it rather
+        // than leave the doc string true of neither side.
+        const releaseTick = play.threw ? play.throwTick : play.throwawayTick;
+        if (releaseTick !== null) p.throwTicks.push(releaseTick);
         p.airYards += play.air;
         if (play.caught) {
           p.completions++;
@@ -568,6 +619,11 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
           p.yardsAfterCatch += play.yac;
           if ((play.resultYards ?? 0) >= 20) p.explosivePasses++;
         } else {
+          // Covers both a genuine incompletion and a throwaway — both are zero yards, neither is
+          // explosive, and `play.resultYards` is already 0 for a throwaway (the engine's
+          // `outcome.yards` for both throwaway paths is hardcoded 0, `passPlay.ts`), so pushing
+          // the literal rather than `play.resultYards ?? 0` changes nothing observable and keeps
+          // the incompletion case exactly as it read before this dispatch.
           p.passAttemptYards.push(0);
         }
       }
@@ -576,15 +632,20 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
         bumpKey(p.intSources, play.intSource ?? "DIRECT");
       }
       if (play.scramble) p.scrambles++;
-      else if (!play.threw && !play.intercepted) {
-        // No throw, no scramble: either a sack or a throwaway. A throwaway does not lose yards.
-        if ((play.resultYards ?? 0) < 0) {
-          p.sacks++;
-          // backlog 87: the SAME `pressured` flag `pressuredDropbacks` already set above for
-          // this dropback, read again rather than re-derived, so the two can never disagree.
-          if (play.pressured) p.pressuredSacks++;
-          sacked = true;
-        } else p.throwaways++;
+      else if (play.throwaway) {
+        // Already counted in `passAttempts` above; this is the separate diagnostic population
+        // `pocketLadder.ts`'s `throwaway_rate` reads (denominator `dropbacks`, not `passAttempts`).
+        p.throwaways++;
+      } else if (!play.threw && !play.intercepted) {
+        // No throw, no scramble, no throwaway: a sack. Entry 94 removed the old inference by
+        // yardage sign (`(play.resultYards ?? 0) < 0`) in favour of this directly-observed
+        // dichotomy — `play.throwaway` is now a real flag fed by QB_DECISION, not a side effect of
+        // a throwaway happening to carry non-negative yards. Same population, sturdier signal.
+        p.sacks++;
+        // backlog 87: the SAME `pressured` flag `pressuredDropbacks` already set above for
+        // this dropback, read again rather than re-derived, so the two can never disagree.
+        if (play.pressured) p.pressuredSacks++;
+        sacked = true;
       }
       // Backlog dispatch C: the exit predicate — see PlayFold.disruptedDropbacks for the full
       // derivation and the subset-relation argument. Evaluated once, after every disjunct is
@@ -668,7 +729,27 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
         if (current !== null) {
           current.threw = true;
           current.throwTick = tick;
-          if (event.payload.throwType === "THROWAWAY") current.threw = false;
+          // Entry 94: the OLD defect site. `throwType` here is drawn from `selectThrowType`
+          // (`throwExecution.ts`), which only ever returns `BULLET`/`TOUCH` (`BACK_SHOULDER` is
+          // wired and dormant per `tunables.ts:78`) — a `THROW` event's `throwType` is never
+          // actually `"THROWAWAY"` at this call site (`passPlay.ts:1217`, the only `log.throwBall`
+          // call in the file). This branch was therefore DEAD: a throwaway never reaches here at
+          // all, because the engine logs it as a `QB_DECISION` (see that case below), never a
+          // `THROW`. The exclusion this line APPEARED to implement was actually accomplished
+          // structurally, by `current.threw` simply never being set for a throwaway — same
+          // outcome, invisible mechanism, which is why entry 94 still names this line the defect
+          // site: it read as the exclusion and was not one.
+        }
+        break;
+      case "QB_DECISION":
+        // Entry 94, ruling 1: the ACTUAL throwaway signal. Both throwaway paths in `passPlay.ts`
+        // (duress movement response, and `mustDecide && throwawayAvailable`) log
+        // `qbDecision("THROWAWAY")` and neither ever calls `throwBall` — so this is the only event
+        // a throwaway dropback emits that names it. Read the mirrored `tick` local (not
+        // `event.tick`) to match the `THROW` case's own convention just above.
+        if (current !== null && event.payload.choice === "THROWAWAY") {
+          current.throwaway = true;
+          current.throwawayTick = tick;
         }
         break;
       case "CATCH_RESOLUTION":

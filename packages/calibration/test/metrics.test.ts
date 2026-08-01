@@ -175,7 +175,17 @@ describe("the event fold", () => {
       // the defect above moved both at once. Checking one would have found it; checking the pair
       // says WHICH ledger lost the play.
       const checks: readonly (readonly [string, number, number])[] = [
-        ["passAttempts", p.passAttempts, sum((l) => l.passing.attempts)],
+        // Backlog entry 94/95: NOT `p.passAttempts` directly any more. `packages/engine`'s own
+        // `StatLine.passing.attempts` excludes throwaways — its own comment says so verbatim
+        // (`statline.ts`: *"Throwaways are not attempts... Real NFL scoring counts it. Logged,
+        // not patched: the fix is a THROWAWAY producer decision, not a reducer decision"*) — a
+        // parallel, already-documented instance of the identical gap entry 94 fixed on this
+        // package's side, living in a file this package may only consume (ADR-012). So the fold
+        // and the reducer are now EXPECTED to disagree on raw `passAttempts` by exactly the
+        // throwaway count, and asserting equality through that would either mask this fold's own
+        // fix or re-hide the engine's — the adjustment makes the named divergence the thing
+        // checked, rather than papering over it.
+        ["passAttempts (adjusted for throwaway, entry 94)", p.passAttempts - p.throwaways, sum((l) => l.passing.attempts)],
         ["completions", p.completions, sum((l) => l.passing.completions)],
         ["receptions", p.completions, sum((l) => l.receiving.receptions)],
         ["passYards", p.passYards, sum((l) => l.passing.yards)],
@@ -301,7 +311,13 @@ describe("the event fold", () => {
 
   it("accounts for every dropback exactly once", () => {
     const p = acc.play;
-    expect(p.passAttempts + p.sacks + p.throwaways + p.scrambles).toBe(p.dropbacks);
+    // Backlog entry 94/95: `throwaways` is now a SUBSET of `passAttempts` (a throwaway is a pass
+    // attempt, nflverse-style), not a fourth disjoint partition member — so it is no longer
+    // summed into this identity, and `p.throwaways <= p.passAttempts` is the containment this
+    // test used to assert as disjointness. The four-way exhaustive dichotomy at `flush()`
+    // (`collect.ts`) is still {threw-or-threw-away, sack, scramble}; only three terms now.
+    expect(p.passAttempts + p.sacks + p.scrambles).toBe(p.dropbacks);
+    expect(p.throwaways).toBeLessThanOrEqual(p.passAttempts);
   });
 
   it(
