@@ -6653,3 +6653,93 @@ mine today. No retirement or rename proposed. No engine code, no tunable, change
 engine-side defect FOUND and ROUTED to `match-engine`, per the standing instruction to report rather
 than reach. Every figure above names its arm. No commit made — Charter §4.1, compute and bring
 conflicts; the owner reviews and commits.
+
+---
+
+## 96. ⛔ THE HONEST GREEN COUNT — **5 → 4, AND EXACTLY ONE OF THE FOUR HAS NO COMPARABILITY QUALIFIER**
+
+**Citable now because the audit ran (entry 94) and the throwaway fix landed (entry 95). It was not
+citable before, which is why the stale count travelled.**
+
+**Arm: canonical `flat-60-32t`, 496 games, batch seed `baseline-0001`, seed digest
+`fnv1a:020c1dcb#496`, `DEFAULT_TUNABLES`. Before = `baseline-0007`; after = same arm on the current
+tree.**
+
+| row | before | after | comparability verdict (entry 94) |
+|---|---|---|---|
+| `int_rate` | **PASS** | ⛔ **FAIL** | ⛔ **CONSTRUCT MISMATCH — it was green FOR THE DEFECT REASON** |
+| `blitz_rate` | PASS+ | PASS+ | ⚠ **UNESTABLISHED** — and the distributions diverge (below) |
+| `pressure_to_sack` | PASS+ | PASS+ | ⛔ **CONSTRUCT MISMATCH**, caveated at `17c2bd4` |
+| `points_per_drive` | PASS+ | PASS+ | ⚠ **SAME**, but the real side is an APPROXIMATION, not a join |
+| `field_goal_pct` | PASS | PASS | ✅ **SAME — clean** |
+
+> ## ⛔ **FOUR PASSING ROWS. ONE — `field_goal_pct` — IS A CLEAN COMPARISON WITH NO QUALIFIER.**
+
+⚠ **`points_per_drive` is honestly comparable in CONSTRUCT but is graded against an ESTIMATE** (real
+points inferred from `fixedDriveResult` via a fixed `Touchdown: 6.95` lookup rather than joined to the
+actual PAT/2PT row). ⛔ **It is also a ratchet candidate, which would tighten a band around an
+estimate.**
+
+### ⛔ WHY THIS ENTRY EXISTS AT ALL
+
+**A count of passing rows travelled through progress reports for weeks.** ⚠ **It was never wrong when
+stated — it was ARITHMETICALLY CORRECT AND ABOUT SOMETHING OTHER THAN WHAT IT APPEARED TO BE**, which
+is the class this corpus has been cataloguing all along.
+
+> ### ⛔ **"FOUR METRICS PASSING" AND "FOUR METRICS WHOSE SIM AND REAL SIDES COUNT THE SAME EVENT" ARE DIFFERENT CLAIMS. NOTHING DISTINGUISHED THEM UNTIL THE AUDIT RAN.**
+
+⚠ **Per the citable-count corollary: this table exists so the number can be CITED rather than
+CARRIED.** ⛔ **The summary layer has no instrument; the record now offers one.**
+
+---
+
+## 97. 📒 ROUTED, NOT CHASED — two findings from the `n_pass_rushers` vendoring
+
+**Recorded per the owner's ruling: record both, chase neither yet.**
+
+### ⚠ 97a — THE SIM CANNOT PRODUCE FEWER THAN 3 OR MORE THAN 6 RUSHERS → **`playbook` (card library)**
+
+| | support | mean | variance |
+|---|---|---|---|
+| **sim** (`rush.length`, canonical arm, n=43,370) | ⛔ **{3,4,5,6} ONLY** | 4.309 | **0.351** |
+| **real** (FTN pooled TUNING) | **{0..10}** | 4.224 | **0.587** |
+
+⛔ **Total variation distance `7.74%`; sim variance ~40% lower; ~2% of real mass sits OUTSIDE the sim's
+entire possible support.**
+
+> ### ⚠ **AND THE GRADED THRESHOLD AGREES TO `0.06pp` — sim `24.16%` vs real `24.22%`. THE AGREEMENT THAT STOPS PEOPLE LOOKING, MADE CONCRETE.**
+
+⛔ **NOT A DEFECT VERDICT.** ⚠ **A narrower call generator and a called-vs-observed construct mismatch
+produce THE SAME SIGNATURE, and this test cannot separate them** — which is why `blitz_rate`'s
+comparability stays `UNESTABLISHED` rather than being upgraded. **A drop-8 (0-2 rushers) and a 7-man
+pressure are real football the card library currently cannot express.** **`playbook`'s owner to
+judge; not a fix.**
+
+### ⚠ 97b — 2022's BLITZ RATE IS A LIVE DEFINITION-CHANGE SIGNAL → **ingest**
+
+| season | joined blitz rate |
+|---|---|
+| ⛔ **2022** | **20.235%** |
+| 2023-2025 | **25.66% - 27.02%** |
+
+⛔ **A gap above `5pp`, and 2022 is the ALSO the only season with incomplete FTN-to-dropback join
+coverage (`99.64%`).**
+
+> ### ⚠ **THIS IS THE OPPOSITE OF WHAT THE `was_pressure` SEASON CHECK FOUND.** **There, stability across 2022-2025 (`1.63pp`) argued AGAINST a rate-moving redefinition. Here the instability argues FOR one.**
+
+⛔ **Pooled TUNING reproduces `baseline-0007`'s printed figure to three decimals (58,202 joined
+dropbacks, `24.222%`), so this is not a harness artefact.** ⚠ **UNRULED: whether to exclude 2022, or
+to establish what changed, is an owner call and a lift condition is already recorded in `ftn.ts`.**
+
+---
+
+## 94-DISPOSITION. ⚠ THE TWO TIER 3/4 EXPECTATION GAPS ARE **DEFERRED WITH REASON, NOT OWED**
+
+**`qb_accuracy_residual_spread` and `rb_yards_over_expected_spread` are `CONSTRUCT MISMATCH`** — NGS
+CPOE and YOE are **expectation-adjusted residuals**; both sim sides are **raw, unadjusted spreads.**
+
+> ### ⛔ **DEFERRED, AND THE REASON IS STRUCTURAL: Tier 3 and Tier 4 are `NOT_APPLICABLE` ON A FLAT LEAGUE BY CONSTRUCTION. Their comparability CANNOT BE RESOLVED BEFORE ATTRIBUTES EXIST.**
+
+⚠ **Recorded as DEFERRED rather than OWED so that a later reader does not mistake a structural wait
+for an unpaid debt.** ⛔ **The gate lifts when `@ff/attributes` lands — and they must be settled
+BEFORE those rows are first graded, not after.**
