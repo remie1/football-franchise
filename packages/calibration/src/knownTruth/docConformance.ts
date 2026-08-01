@@ -310,7 +310,67 @@ export type Provenance =
    * re-surveyed and landed here rather than fragmenting the vocabulary — see its own rule's
    * block comment for the full re-survey. The union stayed at eight values plus this one.
    */
-  | "DERIVED_MECHANIC";
+  | "DERIVED_MECHANIC"
+  /**
+   * ⚠ **PROPOSED, FIRST USE** — not yet an owner-ratified convention the way `DERIVED_MECHANIC` is
+   * (that value's own comment records its ratification explicitly; this one does not have that yet).
+   * Named to MATCH, verbatim, the marker `packages/engine/src/tunables.ts`'s `scramble.accuracyModifier`
+   * / `scramble.readCapacityDelta` comment coins for itself — `RULED, NOT DERIVED` — rather than
+   * inventing a differently-spelled synonym for the same fact in the two vocabularies that both have
+   * to describe it.
+   *
+   * **THE SURVEY** (each of the other nine, and why none is honest for
+   * `scramble.accuracyModifier` / `scramble.readCapacityDelta`, ADR-055 §6 / CALIBRATION-BACKLOG
+   * entry 84):
+   *  - `DOC_VERBATIM` — no. Neither number appears in the doc for this cell, or for any cell.
+   *  - `DOC_DERIVED` — no. Not a re-encoding of ONE already-stated doc number for THIS quantity —
+   *    there is no doc number here to re-encode.
+   *  - `DOC_UNIT_RESOLVED` — no. No unit ambiguity; there is no doc number in any unit to resolve.
+   *  - `INTERPRETATION` — no, and this is the closest miss, so it gets the longest answer, as it did
+   *    for `DERIVED_MECHANIC` and for this same discipline at entries 73 and 76. `INTERPRETATION` is
+   *    a declared KNOB — "the doc asked for a judgement and one was made in the open." §8.8 does not
+   *    ask for a throw-accuracy judgement at all; its only stated penalty during a scramble is on the
+   *    READ (`visionConeByDepthClass`, already classified separately, above). And the MAGNITUDE was
+   *    not "made" as a free knob — `tunables.ts`'s own comment says the two numbers are "the smallest
+   *    claim available that is not false," carried from `pocket.accuracyModifier.PRESSURE` /
+   *    `pocket.readCapacityDelta.PRESSURE` while explicitly refusing to assert anything new about
+   *    magnitude. A knob turned in the open and a value carried while declining to assert are
+   *    different epistemic acts, the same distinction `INTERPRETATION`'s rejection drew for entry 76.
+   *  - `DOC_GAP` — no. `DOC_GAP`'s own examples are content-free bookkeeping (sack yardage, the game
+   *    loop). This cell is entirely football content — a throw-accuracy and read-capacity penalty on
+   *    a live §8.8 mechanic — and its EXISTENCE carries a dedicated, ratified argument (ADR-055 §6,
+   *    closing backlog entry 84's flagged question), so nothing about it is unaddressed the way
+   *    `DOC_GAP`'s silence is.
+   *  - `TABLE_SHAPE` — no. No table's rectangle demanded this cell; nothing here is filler forced by a
+   *    fixed row count.
+   *  - `STRUCTURAL` — no. Not bookkeeping with "no football content" — the opposite: ADR-055 §6 ruled
+   *    on football grounds that a pursued passer's throw IS less accurate than a clean one.
+   *  - `OUT_OF_SCOPE` — no. Not invented outside the document's remit; §8.8 is exactly where scramble
+   *    behaviour belongs, and this is the throw side of the same drill the READ side already occupies.
+   *  - `DERIVED_MECHANIC` — no, and THIS IS THE ONE TO GUARD AGAINST BY NAME, because it is the
+   *    closest-shaped existing value and asserting it would be false. `DERIVED_MECHANIC` requires
+   *    BOTH halves answerable: existence ruled on football grounds AND magnitude reached by two
+   *    independent structural facts converging (entry 73's arithmetic-plus-structural pair; entry
+   *    76's width-replication). Only the first half is true here. `tunables.ts`'s own comment is
+   *    explicit that the magnitude is "DELIBERATELY NOT... this number... reached by two independent
+   *    structural facts converging" and is logged as OWED a derivation, not holding one. Filing this
+   *    `DERIVED_MECHANIC` would assert a derivation that does not exist — the wrong answer named so
+   *    the next reader does not reach for it out of vocabulary-fatigue.
+   *
+   * **THE CATEGORY**, mirroring `tunables.ts`'s own two-half table exactly: EXISTENCE (that a
+   * scrambling passer's throw carries a penalty at all) is ⚖️ **OWNER RULING** (ADR-055 §6, closing
+   * backlog entry 84), re-litigated only by a football argument to the owner. MAGNITUDE (the specific
+   * −10 / −1) is ⚠ **PROVISIONAL — CARRIED, NOT DERIVED**, borrowed from `pocket.*.PRESSURE` as the
+   * smallest non-false claim available, re-litigated only by an actual derivation (the
+   * `DERIVED_MECHANIC` bar) or a fresh football argument — never by re-reading a quoted doc number,
+   * because there is none.
+   *
+   * ⚠ **THE NEXT CELL OF THIS SHAPE — an owner-ruled mechanic whose magnitude is carried rather than
+   * derived or chosen — REUSES THIS VALUE**, per the same instruction `DERIVED_MECHANIC`'s comment
+   * carries and per this file's own header ("state what you rejected... the next reader will
+   * otherwise re-derive the same dead ends").
+   */
+  | "RULED_NOT_DERIVED";
 
 export interface RegisterRule {
   /**
@@ -822,6 +882,46 @@ export const REGISTER: readonly RegisterRule[] = [
     docRef: "§8.8 / §1.3",
     note: "Improvisation ÷5 + Mobility ÷5 — the QB half of the doc's contest.",
   },
+  /**
+   * ⚠ ADR-055 §6's TWO CELLS, AND THE RULE THAT WOULD HAVE SILENTLY ABSORBED THEM.
+   *
+   * `scramble.accuracyModifier` and `scramble.readCapacityDelta` (backlog entries 84/85, ADR-055 §6,
+   * shipped `03279c8`) landed under `scramble`. Left unnamed, both would have fallen to the
+   * `scramble.*` catch-all below — an `INTERPRETATION` member whose note reads "§8.8 specifies
+   * NOTHING here... so every remaining `scramble` leaf is engine judgement." That is false of these
+   * two specifically: `tunables.ts`'s own `RULED, NOT DERIVED` block is a dedicated, multi-paragraph
+   * note naming both cells, separating an owner-ruled EXISTENCE from a carried, provisional
+   * MAGNITUDE — neither half of which is "engine judgement made in the open" in the sense
+   * `INTERPRETATION` means. Absorption would have reported both `classified` (via `classifiedUniform`)
+   * under a note describing a different pair of cells' provenance — the ADR-048 shape, recurring a
+   * third time. Named here instead, ABOVE the catch-all, so `scramble.*`'s remaining membership is
+   * unchanged (still 9 — this pin holding steady is the check that the fix pulled these two OUT
+   * rather than merely re-typing the count after they were absorbed IN).
+   */
+  {
+    pattern: "scramble.accuracyModifier",
+    provenance: "RULED_NOT_DERIVED",
+    docRef: "§8.8 (silent on the throw side) — ADR-055 §6 / CALIBRATION-BACKLOG entry 84",
+    note:
+      "−10. THAT A PURSUED PASSER'S THROW IS LESS ACCURATE AT ALL is an OWNER RULING (ADR-055 §6, " +
+      "closing backlog entry 84's flagged question): 'throwing on the run, pursued inside 1.5s, is " +
+      "less accurate than throwing from a clean pocket — true independent of any measurement.' THAT " +
+      "THE VALUE IS −10 IS NOT DERIVED — `tunables.ts`'s own comment states it is carried from " +
+      "`pocket.accuracyModifier.PRESSURE`, 'the smallest claim available that is not false,' and is " +
+      "explicitly flagged as NOT reached by two independent structural facts converging (the " +
+      "`DERIVED_MECHANIC` bar), so it may not be cited as evidence about scramble accuracy until it " +
+      "has an actual derivation or a fresh football argument. See the `RULED_NOT_DERIVED` " +
+      "provenance value's own comment for the full ten-category survey.",
+  },
+  {
+    pattern: "scramble.readCapacityDelta",
+    provenance: "RULED_NOT_DERIVED",
+    docRef: "§8.8 (silent on the throw side) — ADR-055 §6 / CALIBRATION-BACKLOG entry 84",
+    note:
+      "−1. Same ruling, same cell pair, same `RULED, NOT DERIVED` marking as `scramble" +
+      ".accuracyModifier` immediately above — carried from `pocket.readCapacityDelta.PRESSURE` rather " +
+      "than derived. See that rule's note and the `RULED_NOT_DERIVED` provenance value's own comment.",
+  },
   {
     pattern: "scramble.*",
     provenance: "INTERPRETATION",
@@ -834,7 +934,10 @@ export const REGISTER: readonly RegisterRule[] = [
       "`maxOpenness: 85` — an 85 cap on §8.4's 0-100 scale, which the earlier note omitted. ⚠ " +
       "`scramble.opennessGainPerTick` is the flat gain ADR-046's argument applies to verbatim; " +
       "ADR-048 §7.6 NAMED it and deliberately did not expand into it, because §8.8's receiver has " +
-      "abandoned his route and there may be no rep to condition on. Named here, not owed.",
+      "abandoned his route and there may be no rep to condition on. Named here, not owed. ⚠ EXCEPT " +
+      "`accuracyModifier` and `readCapacityDelta`, named individually above: ADR-055 §6's `RULED, " +
+      "NOT DERIVED` note addresses those two cells directly, so 'every remaining leaf is engine " +
+      "judgement' is not true of them and this catch-all's membership never reaches them.",
   },
 
   // ---- §9.1 release ----------------------------------------------------------------------------

@@ -126,8 +126,14 @@ import {
  * `arrival.containRetiresAfterConsecutiveContains`. Named individually below (`ENTRY_73_ADDED_PATH`)
  * and classified by a rule written about it — see that rule's comment and the new `DERIVED_MECHANIC`
  * provenance value for why neither `arrival.*`'s catch-all nor any of the other seven categories fit.
+ *
+ * **715 → 717 at ADR-055 §6 (CALIBRATION-BACKLOG entries 84/85, `03279c8`).** Two new leaves,
+ * `scramble.accuracyModifier` and `scramble.readCapacityDelta`. Named individually below
+ * (`ADR_055_S6_ADDED_PATHS`) and classified by a rule written about each — see those rules' comments
+ * and the new `RULED_NOT_DERIVED` provenance value for why neither `scramble.*`'s catch-all nor any
+ * of the other nine categories (including `DERIVED_MECHANIC`, the closest miss) fit.
  */
-const RECORDED_NUMERIC_CENSUS = 715;
+const RECORDED_NUMERIC_CENSUS = 717;
 
 /**
  * The same subject as a SET rather than a size. Re-cut at ADR-040 (`d20Offset` → `baseHalfWidth`),
@@ -136,7 +142,7 @@ const RECORDED_NUMERIC_CENSUS = 715;
  * When this reddens and the count does not, a cell was SWAPPED: diff `numericLeafPaths()` against
  * `git diff packages/engine/src/tunables.ts` and re-read the affected rule against the doc.
  */
-const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:66543cf7";
+const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:17e021c9";
 
 /**
  * ⚠ **THE RE-RECORD, AS A SET AND NOT AS A COUNT** — §4.1's count-blindness corollary applied to the
@@ -169,6 +175,18 @@ const ADR_048_ADDED_PATHS: readonly string[] = [
  */
 const ENTRY_73_ADDED_PATH = "arrival.containRetiresAfterConsecutiveContains";
 
+/**
+ * ADR-055 §6's two cells (CALIBRATION-BACKLOG entries 84/85, `03279c8`), named the same way — a `+2`
+ * next to a re-typed digest would be a transcription that certifies whichever population absorbed
+ * them, correctly or not; a named set with a rule per member is a reading. Both would otherwise fall
+ * to the `scramble.*` catch-all (`INTERPRETATION`, *"every remaining `scramble` leaf is engine
+ * judgement"*), which is false of both — see the `RULED_NOT_DERIVED` provenance value's own comment.
+ */
+const ADR_055_S6_ADDED_PATHS: readonly string[] = [
+  "scramble.accuracyModifier",
+  "scramble.readCapacityDelta",
+];
+
 describe("doc-conformance register", () => {
   it("accounts for every numeric leaf — and no longer calls a PREFIX MATCH a classification", () => {
     // ⛔ OWNER RULING, July 2026: "a prefix rule is a classification that cannot be wrong, which
@@ -200,11 +218,17 @@ describe("doc-conformance register", () => {
     // `arrival.containRetiresAfterConsecutiveContains`, named ABOVE the `arrival.*` catch-all so it
     // does not fall into `classifiedUniform` instead (see that rule's comment). `classifiedUniform`
     // below is UNCHANGED by this cell for exactly that reason.
-    expect(audit.classifiedNarrow).toBe(228);
-    // 273 → 281 at ADR-052/053: `resultTierLadder.*` is a `UNIFORM_REGIONS` entry (its `why` already
-    // covers "any rung added later"), so the eight new rungs from the seventeen-rung ladder land
-    // here rather than in `classifiedNarrow` or `absorbed`. `classifiedNarrow` and `absorbed` are
-    // untouched — neither population's membership depends on `resultTierLadder`'s arity.
+    // 228 → 230 at ADR-055 §6 (backlog entries 84/85): two narrow rules added for
+    // `scramble.accuracyModifier` / `scramble.readCapacityDelta`, named ABOVE the `scramble.*`
+    // catch-all for the identical reason. ⚠ THE AVAILABLE WRONG SHAPE HERE WAS
+    // `classifiedUniform: 281 → 283` — accepting the absorption and re-typing the pin, which is
+    // exactly the ADR-048 defect recurring a third time (see `scramble.accuracyModifier`'s rule
+    // comment). This population moving INSTEAD of that one is the evidence the fix pulled the two
+    // cells OUT of the catch-all rather than merely re-counting them inside it.
+    expect(audit.classifiedNarrow).toBe(230);
+    // UNCHANGED by ADR-055 §6, and deliberately so — see the comment on the assertion above. A count
+    // that does not move here is not an oversight; it is what "the two cells were pulled out of the
+    // catch-all" looks like from this side of the identity.
     expect(audit.classifiedUniform).toBe(281);
     expect(audit.absorbed).toHaveLength(206);
     // The SET, not the size — a swap inside the absorbed region holds the count and moves this.
@@ -345,6 +369,29 @@ describe("doc-conformance register", () => {
     // existed — the absorption pin below is the structural proof of that, not this line.
     const uniformArrival = UNIFORM_REGIONS.find((r) => r.pattern === "arrival.*");
     expect(uniformArrival).toBeDefined();
+  });
+
+  it("names ADR-055 §6's two cells individually, not left to the scramble.* catch-all", () => {
+    // ⛔ THIS IS THE TEST THAT WOULD HAVE PASSED ON THE WRONG FIX. Left unnamed, both cells classify
+    // via `scramble.*` (`INTERPRETATION`) and every OTHER gate in this file — `unclassified`,
+    // `deadRules`, the totality identity — stays green, exactly as it did for ADR-048's seven cells
+    // and entry 73's one. Only re-reading `scramble.*`'s note against these two cells (it is false of
+    // both — see that rule's comment) finds the defect; no census catches a correct-shaped absorption.
+    const paths = new Set(numericLeafPaths());
+    for (const p of ADR_055_S6_ADDED_PATHS) {
+      expect(paths.has(p)).toBe(true);
+      const rule = classify(p);
+      expect(rule?.pattern).toBe(p);
+      expect(rule?.pattern).not.toBe("scramble.*");
+      // Neither `DERIVED_MECHANIC` (would assert a derivation these cells' own comment says they do
+      // not have) nor any of the other nine surveyed categories — a brand-new value, PROPOSED and
+      // first-used here. See its own comment in `docConformance.ts` for the ten-category survey.
+      expect(rule?.provenance).toBe("RULED_NOT_DERIVED");
+    }
+    // And the catch-all they were pulled out of still owns exactly what it owned before these two
+    // cells existed — the absorption pin below is the structural proof of that, not this line.
+    const uniformScramble = UNIFORM_REGIONS.find((r) => r.pattern === "scramble.*");
+    expect(uniformScramble).toBeDefined();
   });
 
   it("declares its exclusion TOTALLY — every leaf lands in one of the three buckets", () => {
