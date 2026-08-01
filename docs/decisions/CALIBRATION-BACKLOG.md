@@ -5523,3 +5523,52 @@ has waited correctly behind the pressure work — but it should stop being redis
 dispatch and re-recorded as if new.** ⛔ **Five rediscoveries of one fact is itself the finding:
 nothing routes the observation anywhere, so each dispatch meets it fresh** (the *absorbed finding*,
 Charter §4.1).
+
+---
+
+## 86. 📒 THE ACCUMULATOR — a place for observations that are not yet findings
+
+**Created because the fix for a recurring observation is A PLACE, NOT A HABIT** (Charter §4.1, *when a
+finding recurs, the recurrence is the finding*).
+
+⚠ **The five `tippedBall` sightings were all RECORDED** — in dispatch reports and commit messages.
+⛔ **They were never CO-LOCATED**, so no author could see they were the same observation, and the sixth
+would have met it fresh too.
+
+### What goes here
+
+**Anything a dispatch noticed that is TRUE, INCIDENTAL to its subject, and NOT worth an entry on its
+own.** ⚠ The exact class that currently dies in a report's closing paragraph.
+
+⛔ **One line. Date, dispatch, observation.** **Do not write it up** — writing it up is what makes an
+entry, and the point of this section is the things that do not merit one.
+
+> ### **A second line under an existing observation is worth more than a new observation. THE REPEAT IS THE SIGNAL.**
+
+### The rule that makes it work
+
+⛔ **Before appending, READ THE LIST.** ⚠ If the observation is already here, **add a line beneath it
+rather than a new bullet** — that is the entire mechanism, and skipping it returns this section to
+being five footnotes in five places.
+
+**When a line accumulates three or more sightings, it is promoted to an entry** — not because three is
+principled, but because ⚠ **the tippedBall case shows individual sightings read as bookkeeping and the
+sequence reads as a property**, and three is the smallest sequence.
+
+### ⚠ HONEST LIMIT, stated rather than assumed
+
+⛔ **This is a PARTIAL mitigation and it depends on dispatches writing here.** A place with nothing in
+it is worse than no place, because it reads as coverage. ⚠ **The enforcing mechanism is that every
+dispatch brief asks for incidental observations** (`HANDOFF` habit 11) — **not a hope that authors
+remember.**
+
+⛔ **Nothing routes a reader here from the place they would notice a recurrence.** That gap is real and
+is not closed by this section.
+
+---
+
+### The list
+
+- **2026-07 · five dispatches** — `tippedBall`'s structural half reads `0/0/0/0/0` on every re-baseline
+  while every football digit moves. ⇒ ⛔ **PROMOTED — entry 85.** *(Retained as the worked example of
+  what this section exists to catch.)*

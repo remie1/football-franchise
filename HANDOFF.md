@@ -412,6 +412,24 @@ manifest {source, season, fetchedAt, schemaHash}.
    (Charter §4.1), and the diagnostic that would have caught it is the one already standing: ***what,
    exactly, is the subject?*** A green suite is evidence about the package it ran in and about nothing
    else. **It is cheap to state and it would have caught this.**
+11. ⛔ **EVERY BRIEF ASKS FOR INCIDENTAL OBSERVATIONS, AND THEY GO TO THE ACCUMULATOR** —
+    `CALIBRATION-BACKLOG.md` entry **86**. ⚠ **Not a hope that authors remember: a required line in the
+    report.**
+
+    **Why a PLACE and not a HABIT:** `tippedBall`'s structural half read `0/0/0/0/0` across **five**
+    re-baselines. ⛔ **All five were RECORDED** — in reports and commit messages — **and never
+    CO-LOCATED**, so five authors each wrote a true observation and none could see it was the same one.
+    **The sixth would have met it fresh too.**
+
+    > ### **When a finding recurs, the recurrence is the finding — but only if the sightings land in one place.**
+
+    ⛔ **The rule that makes it work: READ THE LIST BEFORE APPENDING.** ⚠ If the observation is already
+    there, **add a line beneath it rather than a new bullet.** **Skipping that returns the section to
+    being five footnotes in five places.** ⚠ **Three sightings promotes to an entry.**
+
+    ⚠ **Honest limit:** ⛔ **nothing routes a reader to the accumulator from the place they would
+    notice a recurrence.** A place with nothing in it reads as coverage. **This is partial.**
+
 10a. ⛔ **A BRIEF PROPOSING TO MOVE A COMMITTED VALUE STATES WHETHER THE CELL HAS A RULING — WITH THE
     SEARCH SHOWN.** One grep, before anything else. ⚠ **Assume the answer is YES until the search says
     otherwise.**
