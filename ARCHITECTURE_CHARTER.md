@@ -1011,6 +1011,36 @@ naming values, comments, notes. They are the ones that **can be wrong indefinite
 > onboarding document is the **restated-constant family's fourth medium** arriving where it is least
 > checkable — a copy that will drift, read by the one audience that cannot tell.
 
+**Corollary — ⛔ AMENDING A RECALL-BASED RULE IMPROVES ITS SPECIFICATION, NOT ITS RELIABILITY.**
+
+> ### ⚠ **AND THE AMENDMENT COUNT IS ITSELF THE SIGNAL THAT CONVERSION IS OWED.**
+
+**Habit 9 failed THREE TIMES and was amended TWICE, each amendment closing the specific hole the last
+failure had opened:**
+
+| # | what was run | the miss | the amendment it produced |
+|---|---|---|---|
+| 1 | `pnpm -r build` as *"the full workspace suite"* | build runs no tests | ⚠ **name the commands literally, not the intent** |
+| 2 | `pnpm -r test` **piped to `tail`** | took the PIPE's exit status; hid 3 of 4 packages | ⚠ **capture the exit code; read a summary PER PACKAGE** |
+| 3 | build + test, reported green | ⛔ **`typecheck` never ran** | ⛔ **STOP AMENDING. CONVERT.** |
+
+⛔ **Both amendments were CORRECT and neither prevented the next failure**, because each addressed the
+INSTANCE while the mechanism went untouched:
+
+> ## ⛔ **A LIST IS SOMETHING A PERSON EXECUTES FROM MEMORY. ALL THREE MISSES SHARED THAT CONDITION, AND A BETTER-SPECIFIED LIST IS STILL A LIST.**
+
+### ⇒ THE OPERATIVE TRIGGER, so this is a FIELD rather than a judgement
+
+> ### ⛔ **A RULE THAT HAS BEEN AMENDED TWICE AND STILL REQUIRES RECALL AT THE MOMENT OF ACTION SHOULD BE CONVERTED, NOT AMENDED A THIRD TIME.**
+
+⚠ **TWO WAS ALREADY ENOUGH HERE. It took a third failure to see it** — and the third failure shipped a
+tree to `main` that could not compile, which is the most expensive of the three.
+
+⛔ **The conversion is cheap and was available the whole time:** `pnpm verify` — one command, three
+steps, fail-fast, its own exit code as the verdict, and **unrun steps printed as `UNKNOWN, not
+green`** rather than omitted. ⚠ **Nothing was learned in amendment 3 that was not available at
+amendment 2; what changed was only the willingness to stop patching.**
+
 **Sub-corollary — A CLAIM IS UNVERIFIED UNTIL SOMETHING COMPUTES IT. Not distrusted. UNVERIFIED.**
 
 > ### **RATIFICATION DOES NOT ADD EVIDENCE; IT ONLY REMOVES REVIEWERS.**
