@@ -1302,6 +1302,35 @@ THING IT CLAIMS TO MODEL.**
 
 > ### **This register is scrupulous about internal consistency and silent at exactly one boundary — SIM VERSUS REAL — and that silence is where an error lived undetected for the length of a phase.**
 
+### ⛔ THE WORKED EXAMPLE, PLACED FIRST BECAUSE IT DOES MORE WORK THAN THE ABSTRACT STATEMENT
+
+**ADR-055 ruled that a vacated pocket has no status, so `POCKET_STATUS` is no longer published while
+the passer is out of the pocket.** ⚠ **NGS's own description of pressure — if it governs
+`was_pressure` — names *"a quarterback bailing out of a clean pocket"* as a pressure cause.**
+
+> ⛔ **SO THE REAL COLUMN ADDS PRESSURE AT EXACTLY THE MOMENT OUR SIM COLUMN STOPPED REPORTING ANY.**
+
+**A ruling that is CORRECT ON ITS OWN FOOTBALL TERMS moved the sim construct FURTHER FROM the real
+one.** ⛔ **And the instrument reported nothing: the adoption measurement returned `wouldFlip = 0`** —
+every pursuit dropback was already non-`CLEAN` before the escape, so the per-dropback worst-status
+metric absorbed the entire change.
+
+> # ⛔ **THE CONSTRUCT DIVERGED WHILE THE MEASUREMENT STOOD STILL.**
+
+⛔ **THAT IS THE COMPARABILITY GAP'S MECHANISM, NOT MERELY ITS EXISTENCE:**
+
+> ### ⚠ **A METRIC CAN DECAY IN CORRECTNESS WITH NO OBSERVABLE TRACE, BECAUSE THE ONLY THING OBSERVED IS THE NUMBER.**
+
+**Two columns drift apart on football grounds; the comparison cell shows no change; nothing in this
+document can fire.** ⚠ **A stable figure is therefore not evidence that a metric still means what it
+meant — stability is exactly as consistent with a construct that moved as with one that did not.**
+
+⛔ **THIS IS NOT A REASON TO REVISIT ADR-055. THE RULING STANDS; THE METRIC IS WHAT IS WRONG.** ⚠ **The
+example is here because it shows the failure arriving through a CORRECT decision, which is the case no
+review process catches by looking for mistakes.**
+
+---
+
 ⚠ **Recorded August 2026 from an EXTERNAL cold read of the repo.** ⛔ **The strong factual form is under
 verification and this entry will be amended beside, not rewritten, when that reports.** **The
 structural observation stands on its own and is why it is recorded now.**
@@ -1334,6 +1363,59 @@ what the real column charters, what the sim column counts, and **why those are t
 ⚠ **Absent that, a green cell is a statement about arithmetic, not about football.**
 
 > ### ✅ **THIS IS THE FIRST INSTRUMENT IN THE PROJECT THAT CAN FAIL BECAUSE THE MODEL IS WRONG ABOUT FOOTBALL, rather than because it is inconsistent with itself.** Every other gate in this document is a closure check.
+
+### ✅ AMENDED BESIDE — the verification promised above has now reported (August 2026)
+
+**The entry above is left as written. What came back:**
+
+- ⛔ **The comparability claim has NO provenance anywhere — CONFIRMED.**
+- ⚠ **But *"a corpus that demands provenance everywhere else"* was OVERSTATED — mine as much as the
+  reviewer's.** The convention exists in **3 of 57** decision files and is **recent**. **The finding
+  holds; the contrast that made it damning does not.**
+- ⛔ **The semantics were UNRESOLVABLE from inside the repo — CONFIRMED, and now closed by vendoring**
+  the dictionary and NGS text with a provenance row reading **`UNESTABLISHED`**, which is the correct
+  value rather than a placeholder.
+- ⛔ **AND THE INSTRUMENT FOUND A SECOND DEFECT THE EXTERNAL READ DID NOT HAVE: `pressure_to_sack`
+  compares a CONDITIONAL rate against a NON-CONDITIONAL one** — the real side conditions on
+  `was_pressure` before counting sacks; the sim side divides **every** sack, coverage sacks on `CLEAN`
+  pockets included, by a pressured-only denominator. ⚠ **This needs NO dictionary and would hold even
+  if the semantics matched perfectly.**
+
+> ### ⇒ **TWO INDEPENDENT DEFECTS SHARE ONE CELL. Finding the first is what made anyone read the estimator that exposed the second.**
+
+**Corollary — ⛔ A GREEN CELL IS THE STATE IN WHICH NOBODY READS THE ESTIMATOR.**
+
+> ### ⚠ **A FALSE RED GETS INVESTIGATED. A GREEN HOLDING FOR THE WRONG REASON IS SELF-PROTECTING.**
+
+**The conditional/non-conditional defect was catchable from day one by reading two implementations
+side by side. Nothing hid it.** ⛔ **It survived because the row PASSED — and because the inflation
+pushed the sim figure TOWARD real, which is the direction that suppresses investigation rather than
+inviting it.**
+
+**⇒ A passing row is not evidence its estimator is sound. It is evidence nobody has had a reason to
+look.**
+
+**Corollary — ⛔ A TOLERANCE THAT TIGHTENS ON COMFORT ASSUMES THE COMFORT IS EARNED.**
+
+**The band table ratchets after two comfortable reports.** ⚠ **We have now established that at least
+one green was comfortable FOR THE WRONG REASON.**
+
+> ### ⛔ **SO A DEFECT-INFLATED GREEN CAN NARROW THE VERY TOLERANCE THAT WOULD LATER CATCH IT.**
+
+**⇒ The ratchet is BLOCKING for any metric whose estimator is under revision.** ⚠ **`pressure_to_sack`
+is clear — empty `history` — but that is LUCK RATHER THAN DESIGN, and luck is not a property the next
+metric inherits.**
+
+**Corollary — ⛔ WRITE CLAIMS SHARPLY ENOUGH TO BE FALSIFIABLE EVEN IN DRAFTS NOBODY WILL PUBLISH.**
+
+**The estimator defect was not found by reasoning about the two sides.** ⛔ **It was found because a
+draft entry asserted *"a sack implies non-`CLEAN` in the sim — true by construction"*, and that claim
+was sharp enough to be worth checking. It was FALSE, and going to verify it is what opened the code.**
+
+> ### ⚠ **A VAGUER DRAFT WOULD HAVE PASSED UNCHECKED. A HEDGE COSTS NOTHING TO WRITE AND CATCHES NOTHING.**
+
+**⇒ Hedging in private drafts is not caution — it is the removal of the only thing that makes a draft
+useful.** ⛔ **The wrong claim, stated plainly, is what pointed at the defect.**
 
 ⛔ **AND IT APPLIES RETROACTIVELY TO EVERY TIER 1 METRIC WITH A REAL SIDE — not only to the one that
 surfaced it** (owner ruling, August 2026).
