@@ -97,7 +97,13 @@ import {
   resolveRecoveryAttempt,
 } from "../resolve/tippedBall.js";
 import type { PocketStatusRung } from "../resolve/pocket.js";
-import { advancePressure, forcesDecision, pocketStatusFor, sacksWithoutTarget } from "../resolve/pocket.js";
+import {
+  advancePressure,
+  forcesDecision,
+  pocketStatusFor,
+  readCapacityDeltaFor,
+  sacksWithoutTarget,
+} from "../resolve/pocket.js";
 import { resolvePocketMovement } from "../resolve/pocketMovement.js";
 import { resolvePassRushTick } from "../resolve/passRush.js";
 import type { PassRushBandLabel } from "../resolve/passRush.js";
@@ -130,13 +136,17 @@ import {
 } from "../resolve/rushThreat.js";
 import {
   pursuitDeadline,
+  pursuitForcesDecision,
   resolveScramble,
   scrambleOpennessAt,
   visionConeRollModifier,
 } from "../resolve/scramble.js";
 import { selectTarget } from "../resolve/targetSelection.js";
 import type { TargetCandidate } from "../resolve/targetSelection.js";
+import type { AccuracyPenalty } from "../resolve/throwExecution.js";
 import {
+  accuracyPenaltyForPocket,
+  accuracyPenaltyForPursuit,
   armStrengthShortfall,
   laneDefenderEligible,
   resolveAccuracy,
@@ -518,8 +528,9 @@ export function simulatePassPlay(
     // §7.2 — every input is last tick's: the bands each rusher posted (the doc's
     // single-rep rule), how far the nearest travelling rusher still has to come,
     // and the pressure each has accumulated. `previousBand` is exactly tick−0.5.
+    // ADR-055 §6 — `activeThreats` no longer synthesises a threat out of the
+    // pursuit clock once the pocket is vacated; see its own comment.
     const threats = activeThreats(matchups, scramble);
-    const minTta = minTimeToArrival(threats, tick);
 
     // ADR-007 — he is here. Published before the status it produces, because the
     // arrival is the CAUSE of the IMMEDIATE the next line reports.
@@ -532,10 +543,30 @@ export function simulatePassPlay(
       }
     }
 
-    const highest = matchups.reduce((max, m) => Math.max(max, m.pressure), 0);
-    const previousBands = matchups.flatMap((m) => (m.previousBand === undefined ? [] : [m.previousBand]));
-    const pocket: PocketStatusRung = pocketStatusFor(tunables, highest, previousBands, minTta);
-    log.pocketStatus(pocket);
+    /**
+     * §7.2's status — `undefined` for exactly as long as `scramble` is
+     * defined.
+     *
+     * ADR-055 §6 (backlog entry 84): a vacated pocket has no status.
+     * `POCKET_STATUS` is not published while the quarterback is out of the
+     * pocket (point 2 below), and the channel that used to make every
+     * pursuit tick dirty by construction — feeding `deadlineTick − tick`
+     * into `pocketFloorFromArrival` — is not fed at all any more (point 1):
+     * `threats` is `[]` throughout a scramble, so `minTimeToArrival` reads
+     * `undefined` and there is nothing here to floor a status with. Nothing
+     * is lost: `QB_PURSUIT` (ADR-054) already carries `sinceTick` and
+     * `deadlineTick`, the deadline never moves once set, and `deadlineTick −
+     * tick` reconstructs exactly what this channel used to compute — the
+     * silence is bracketed by that event and the play's terminal event, not
+     * ambiguous (backlog entry 84's re-opening of ADR-055 §6).
+     */
+    let pocket: PocketStatusRung | undefined;
+    if (scramble === undefined) {
+      const highest = matchups.reduce((max, m) => Math.max(max, m.pressure), 0);
+      const previousBands = matchups.flatMap((m) => (m.previousBand === undefined ? [] : [m.previousBand]));
+      pocket = pocketStatusFor(tunables, highest, previousBands, minTimeToArrival(threats, tick));
+      log.pocketStatus(pocket);
+    }
 
     // ---- §7.1 line battle (feeds the NEXT tick's pocket status) -------------
     // Suspended once the QB is out of the pocket: the protection is broken and
@@ -698,7 +729,11 @@ export function simulatePassPlay(
       return read.effectiveOpenness;
     };
 
-    readAccumulator += readCapacityPerTick(tunables, qb, system, pocket);
+    // ADR-055 §6 point 3 — pursuit's own read-capacity constant, not
+    // `pocket.readCapacityDelta` borrowed through a rung it no longer has.
+    const capacityDelta =
+      pocket === undefined ? tunables.scramble.readCapacityDelta : readCapacityDeltaFor(tunables, pocket);
+    readAccumulator += readCapacityPerTick(tunables, qb, system, capacityDelta);
     let reads = Math.floor(readAccumulator);
     readAccumulator -= reads;
     while (reads > 0 && readsUsed < maxReads) {
@@ -758,7 +793,18 @@ export function simulatePassPlay(
       list.reduce((max, c) => Math.max(max, c.effectiveOpenness), Number.NEGATIVE_INFINITY);
 
     let candidates = readCandidates();
-    const mustDecide = forcesDecision(tunables, pocket) || tick >= budgetSeconds || readsUsed >= maxReads;
+    // ADR-055 §6 point 4 — pursuit's own condition, not `pocket.forcesDecision`'s
+    // list membership borrowed through a rung pursuit no longer has. See
+    // `resolve/scramble.ts`'s `pursuitForcesDecision` for the derivation.
+    const mustDecide =
+      pocket === undefined
+        ? scramble !== undefined && pursuitForcesDecision(tunables, tick, scramble.pursuitAtTick)
+        : forcesDecision(tunables, pocket) || tick >= budgetSeconds || readsUsed >= maxReads;
+    // ADR-055 §6 point 3 — pursuit's own accuracy constant for any throw released
+    // this tick, not `pocket.accuracyModifier` borrowed through a rung it no
+    // longer has (`resolveAccuracy`'s consumer, `throwTo`, below).
+    const accuracyPenalty: AccuracyPenalty =
+      pocket === undefined ? accuracyPenaltyForPursuit(tunables) : accuracyPenaltyForPocket(tunables, pocket);
 
     const throwTo = (selection: ReturnType<typeof selectTarget>, outletId: PlayerId | undefined): PlayOutcome => {
       const track = tracks.find((t) => t.receiver.bio.id === selection.selected.receiver);
@@ -779,7 +825,7 @@ export function simulatePassPlay(
         qb,
         track,
         tick,
-        pocket,
+        accuracyPenalty,
         effectiveOpenness: selection.selected.effectiveOpenness,
         chemistry: chemistryLevel(tunables, state.chemistry, state.quarterback, track.assignment.receiver),
         coverageRng,
@@ -880,14 +926,30 @@ export function simulatePassPlay(
     // §7.2 SACK — "rusher reaches QB before ball released". Arrival is now a
     // NECESSARY condition: the status list alone used to sack a quarterback one
     // second into his drop for a rep lost fifty feet away.
-    if (hasArrived(tunables, threats, tick) && sacksWithoutTarget(tunables, pocket)) {
+    //
+    // `pocket !== undefined` is never false here in practice — every branch of
+    // the `scramble !== undefined` block above (§8.8's tuck-or-hold) either
+    // `break`s or `continue`s, so this line is reached only on a tick where
+    // `scramble` (and therefore `pocket`) is still undefined-of-pursuit, i.e.
+    // pocket-defined. The guard states that invariant in a form the type
+    // checker can see rather than asking a reader to re-derive it, and it is
+    // also the answer to backlog entry 84's traced finding: `sackWhenNoTarget`
+    // was ALREADY structurally unreachable during pursuit before this change
+    // (the scramble branch's own control flow never falls through to here). Its
+    // absence here asserts nothing new — a pursuing quarterback who gets run
+    // down still goes down, via §8.8's own `CAUGHT_FROM_BEHIND` sack path a few
+    // dozen lines below, which has always been the only route to that outcome
+    // once he has left the pocket.
+    if (pocket !== undefined && hasArrived(tunables, threats, tick) && sacksWithoutTarget(tunables, pocket)) {
       outcome = sack(tick);
       break;
     }
 
     // §7.2's "move" branch. Reached only when he is not throwing and nobody has
     // arrived: stand in, climb, leave, or eat it — chosen on his own attributes.
-    if (forcesDecision(tunables, pocket)) {
+    // Same reachability invariant as the guard above: `pocket` is defined on
+    // every tick this line is reached.
+    if (pocket !== undefined && forcesDecision(tunables, pocket)) {
       const movement = resolvePocketMovement({
         tunables,
         qb,
@@ -1092,7 +1154,14 @@ interface ThrowArgs {
   readonly qb: PlayerState;
   readonly track: ReceiverTrack;
   readonly tick: number;
-  readonly pocket: PocketStatusRung;
+  /**
+   * ADR-055 §6 — the label and magnitude the accuracy check charges for the
+   * conditions the passer released under; the pocket ladder's value for one
+   * still in the pocket, pursuit's own constant for one who is not. Never a
+   * `PocketStatusRung` directly (backlog entry 84 — "PocketStatus is the
+   * wrong home" for a state that is not a pocket status).
+   */
+  readonly accuracyPenalty: AccuracyPenalty;
   readonly effectiveOpenness: number;
   /** ADR-008 — this pair's resolved 0-100 rapport. */
   readonly chemistry: number;
@@ -1110,7 +1179,7 @@ interface ThrowArgs {
 }
 
 function resolveThrow(args: ThrowArgs): PlayOutcome {
-  const { log, qb, track, tick, pocket, effectiveOpenness, throwRng, catchRng, scramble, tunables } = args;
+  const { log, qb, track, tick, accuracyPenalty, effectiveOpenness, throwRng, catchRng, scramble, tunables } = args;
   // The window the ball actually arrives into. On an anticipation throw that is
   // the window at the BREAK, not at the release — the receiver is still running.
   const actualOpenness = readOpenness(tunables, track, tick, scramble);
@@ -1137,7 +1206,7 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
     qb,
     airYards: track.assignment.airYards,
     throwType,
-    pocket,
+    accuracyPenalty,
     armShortfall: shortfall,
     chemistryLevel: args.chemistry,
     throwRng,
@@ -1560,32 +1629,33 @@ function liveThreats(matchups: readonly RushMatchup[]): RushThreat[] {
 }
 
 /**
- * Every rusher currently on his way to the passer. Once he is out of the
- * pocket, the only clock that matters is pursuit's — modelled as a single
- * threat so status derivation and arrival stay one code path.
+ * Every rusher currently on his way to the passer — and nothing, once the
+ * pocket is vacated.
+ *
+ * ADR-055 §6 DELETED the pursuit-clock synthesis this used to return while
+ * `scramble` was defined (a single fabricated "chaser" `ArrivalClock` built
+ * from `matchups[0]` — array order, never "the man chasing him" — carrying
+ * `scramble.pursuitAtTick` as its ETA). That existed for exactly one
+ * consumer, `pocketFloorFromArrival` via `pocketStatusFor`, and that consumer
+ * is gone (`sim/passPlay.ts`'s tick loop only computes `pocket` — and only
+ * calls this function's result into `minTimeToArrival` — while `scramble ===
+ * undefined`). Nothing else ever read the fabricated threat: `hasArrived`/
+ * `sacksWithoutTarget` and `resolvePocketMovement`'s `threats` argument are
+ * both reached only on the same `scramble === undefined` ticks (backlog entry
+ * 84 traced this by hand — `sackWhenNoTarget`'s pursuit membership was
+ * already structurally unreachable, the scramble branch's own `continue`/
+ * `break` exits the tick before that code runs). Keeping the synthesis around
+ * for a consumer that no longer exists would be exactly the "dead cell and
+ * dead code are not the same exemption" trap (ADR-035) one level down: an
+ * `ArrivalClock` nobody reads is not a null risk, it is a landmine for the
+ * next person who wires up a new consumer of `threats` without checking
+ * whether it means what it used to.
  */
 function activeThreats(
   matchups: readonly RushMatchup[],
   scramble: ScrambleState | undefined,
 ): ArrivalClock[] {
-  if (scramble !== undefined) {
-    const chaser = matchups[0];
-    if (chaser === undefined) return [];
-    return [
-      {
-        rusher: chaser.rusher.bio.id,
-        alignment: "EDGE",
-        wonAtTick: scramble.sinceTick,
-        etaTick: scramble.pursuitAtTick,
-        // Not a pass-rush rep, so it is never published as a RUSH_THREAT and it
-        // has no `ThreatOrigin` — which is why this function returns the weaker
-        // `ArrivalClock`: the pursuit clock cannot reach a publisher that would
-        // have to invent one for it. It still names the roll that put the
-        // quarterback on this clock.
-        rollRef: scramble.escapeRollRef,
-      },
-    ];
-  }
+  if (scramble !== undefined) return [];
   return liveThreats(matchups);
 }
 

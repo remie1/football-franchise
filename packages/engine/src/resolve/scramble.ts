@@ -134,3 +134,39 @@ export function scrambleOpennessAt(
 export function pursuitDeadline(tunables: Tunables, escapeTick: number): number {
   return Number((escapeTick + tunables.scramble.pursuitSeconds).toFixed(1));
 }
+
+/**
+ * ADR-055 §6 point 4 — pursuit's OWN condition for forcing a decision, not
+ * `pocket.forcesDecision`'s list membership borrowed through a rung pursuit
+ * no longer has (backlog entry 84).
+ *
+ * TRUE ON EXACTLY THE LAST TICK BEFORE `pursuitDeadline` FORCES THE TUCK
+ * ANYWAY (`sim/passPlay.ts`'s own `tick >= scramble.pursuitAtTick` branch) —
+ * the one tick left in which taking a mediocre-but-live target (§8.5's
+ * DESPERATION threshold, below the ordinary `throwThreshold`) is worth more
+ * than running mechanically out of the chance to throw at all. Every EARLIER
+ * pursuit tick still reaches a genuinely open target through the ordinary
+ * `throwThreshold` check unconditionally — that check never reads
+ * `mustDecide` — so this narrows WHEN the bar drops, not whether the
+ * quarterback can throw.
+ *
+ * ZERO NEW MAGNITUDE. `pursuitSeconds` and `clock.tickStepSeconds` are both
+ * already ratified elsewhere; this reads them, it adds no third number.
+ *
+ * ⚠ AN EARLIER DRAFT READ THIS UNCONDITIONALLY TRUE for every pursuit tick,
+ * derived from "`nextReadable` already replaces `progressionStep` the instant
+ * `scramble` is defined — there is no held read order left to protect, so
+ * there is no tick on which holding is the answer." That derivation is not
+ * wrong on its own terms, but it proved too strong: `test/pressureMetrics
+ * .test.ts`'s protected ordering ("a MISSED blitz is more dangerous than a
+ * seen one, and than no blitz at all") caught it. Forcing the desperation bar
+ * from the FIRST pursuit tick measurably let missed-blitz scrambles complete,
+ * or check down to a mediocre target, instead of eventually being run down —
+ * moving that bucket's sack rate BELOW the no-blitz baseline and inverting a
+ * relationship the corpus is supposed to preserve. Recorded rather than
+ * silently narrowed to the version below, per this dispatch's own standing
+ * instruction to report a premise that turned out wrong rather than erase it.
+ */
+export function pursuitForcesDecision(tunables: Tunables, tick: number, deadlineTick: number): boolean {
+  return tick + tunables.clock.tickStepSeconds >= deadlineTick;
+}

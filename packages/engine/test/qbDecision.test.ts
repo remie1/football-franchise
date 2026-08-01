@@ -183,14 +183,19 @@ describe("§8.4 effective openness", () => {
 
 describe("§8.1/§8.2 processing capacity and §8.7 time budget", () => {
   it("reads per tick = system base + (Decision Making − 70) ÷ 20, minus pressure", () => {
-    expect(readCapacityPerTick(TUNABLES, eliteQb, "HALF_FIELD", "CLEAN")).toBe(2);
-    expect(readCapacityPerTick(TUNABLES, eliteQb, "HALF_FIELD", "PRESSURE")).toBe(1);
-    expect(readCapacityPerTick(TUNABLES, averageQb, "HALF_FIELD", "CLEAN")).toBe(1);
-    expect(readCapacityPerTick(TUNABLES, averageQb, "FULL_FIELD", "CLEAN")).toBe(0.5);
-    expect(readCapacityPerTick(TUNABLES, averageQb, "CONCEPT", "CLEAN")).toBe(2);
+    // ADR-055 §6 point 3 — `readCapacityPerTick` takes the raw delta rather
+    // than a `PocketStatusRung` now, so the pocket ladder's own table is read
+    // here explicitly rather than passed as a rung for the function to look
+    // up itself.
+    const delta = TUNABLES.pocket.readCapacityDelta;
+    expect(readCapacityPerTick(TUNABLES, eliteQb, "HALF_FIELD", delta.CLEAN)).toBe(2);
+    expect(readCapacityPerTick(TUNABLES, eliteQb, "HALF_FIELD", delta.PRESSURE)).toBe(1);
+    expect(readCapacityPerTick(TUNABLES, averageQb, "HALF_FIELD", delta.CLEAN)).toBe(1);
+    expect(readCapacityPerTick(TUNABLES, averageQb, "FULL_FIELD", delta.CLEAN)).toBe(0.5);
+    expect(readCapacityPerTick(TUNABLES, averageQb, "CONCEPT", delta.CLEAN)).toBe(2);
     // pressure removes ADDITIONAL reads; the QB always still sees his current read
-    expect(readCapacityPerTick(TUNABLES, poorQb, "HALF_FIELD", "IMMEDIATE")).toBe(1);
-    expect(readCapacityPerTick(TUNABLES, averageQb, "FULL_FIELD", "IMMEDIATE")).toBe(0.5);
+    expect(readCapacityPerTick(TUNABLES, poorQb, "HALF_FIELD", delta.IMMEDIATE)).toBe(1);
+    expect(readCapacityPerTick(TUNABLES, averageQb, "FULL_FIELD", delta.IMMEDIATE)).toBe(0.5);
   });
 
   it("progression depth comes from the reading system", () => {

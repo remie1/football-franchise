@@ -15,7 +15,7 @@ import {
   chemistryLevel,
   chemistrySupportsBackShoulder,
 } from "../src/chemistry.js";
-import { resolveAccuracy } from "../src/resolve/throwExecution.js";
+import { accuracyPenaltyForPocket, resolveAccuracy } from "../src/resolve/throwExecution.js";
 import { simulatePassPlay } from "../src/index.js";
 import { TUNABLES } from "../src/tunables.js";
 import type { MatchGameState } from "../src/types.js";
@@ -53,7 +53,7 @@ describe("ADR-008 — §10.4's '+5 chemistry with receiver' is live", () => {
       qb: QB,
       airYards: 14,
       throwType: "BULLET",
-      pocket: "CLEAN",
+      accuracyPenalty: accuracyPenaltyForPocket(TUNABLES, "CLEAN"),
       armShortfall: false,
       ...(chemistryLevel === undefined ? {} : { chemistryLevel }),
       throwRng: createRng("acc", "throw"),
@@ -85,7 +85,7 @@ describe("ADR-008 — §10.2's back-shoulder −10 is wired and dormant", () => 
       qb: QB,
       airYards: 14,
       throwType: "BACK_SHOULDER",
-      pocket: "CLEAN",
+      accuracyPenalty: accuracyPenaltyForPocket(TUNABLES, "CLEAN"),
       armShortfall: false,
       chemistryLevel: 20,
       throwRng: createRng("bs", "throw"),
@@ -99,7 +99,7 @@ describe("ADR-008 — §10.2's back-shoulder −10 is wired and dormant", () => 
       qb: QB,
       airYards: 14,
       throwType: "BACK_SHOULDER",
-      pocket: "CLEAN",
+      accuracyPenalty: accuracyPenaltyForPocket(TUNABLES, "CLEAN"),
       armShortfall: false,
       chemistryLevel: 90,
       throwRng: createRng("bs", "throw"),

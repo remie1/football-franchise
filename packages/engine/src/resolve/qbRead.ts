@@ -5,8 +5,6 @@ import { ATTR, TRAIT } from "../attrs.js";
 import { clamp, compact, flatModifier, rollD20Shaped } from "../rolls.js";
 import type { Tunables } from "../tunables.js";
 import type { ReadSystem } from "../types.js";
-import type { PocketStatusRung } from "./pocket.js";
-import { readCapacityDeltaFor } from "./pocket.js";
 
 export interface QbReadOutcome {
   readonly actualOpenness: number;
@@ -143,12 +141,23 @@ export function windowModifierFor(tunables: Tunables, qb: PlayerState): number {
   );
 }
 
-/** §8.1 + §8.2 — reads available this tick, before the fractional carry. */
+/**
+ * §8.1 + §8.2 — reads available this tick, before the fractional carry.
+ *
+ * `capacityDelta` is supplied by the caller rather than looked up here from a
+ * `PocketStatusRung`, so this function is blind to WHERE the delta came from.
+ * ADR-055 §6 point 3: a passer still in the pocket is charged
+ * `pocket.readCapacityDelta[status]` (`resolve/pocket.ts`'s
+ * `readCapacityDeltaFor`); a passer in pursuit is charged
+ * `tunables.scramble.readCapacityDelta` instead — its own constant, not a
+ * `PocketStatusRung` borrowed for a state that is not a pocket status
+ * (backlog entry 84). `sim/passPlay.ts` picks which at the one call site.
+ */
 export function readCapacityPerTick(
   tunables: Tunables,
   qb: PlayerState,
   system: ReadSystem,
-  pocket: PocketStatusRung,
+  capacityDelta: number,
 ): number {
   const t = tunables.qb;
   const extra = Math.floor(
@@ -157,7 +166,7 @@ export function readCapacityPerTick(
   const systemRate = t.readSystem[system].readsPerTick;
   const floor = Math.min(systemRate, t.minReadsPerTick);
   const base = systemRate + Math.max(0, extra);
-  return Math.max(floor, base + readCapacityDeltaFor(tunables, pocket));
+  return Math.max(floor, base + capacityDelta);
 }
 
 export function maxReadsFor(tunables: Tunables, system: ReadSystem): number {

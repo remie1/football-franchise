@@ -5,6 +5,7 @@ import type { PlayerState } from "@ff/contracts";
 import { simulatePassPlay } from "../src/index.js";
 import {
   pursuitDeadline,
+  pursuitForcesDecision,
   resolveScramble,
   scrambleOpennessAt,
   visionConeModifier,
@@ -132,6 +133,20 @@ describe("§8.8 the scramble drill", () => {
 
   it("pursuit gives the quarterback a fixed window outside the pocket", () => {
     expect(pursuitDeadline(TUNABLES, 2.0)).toBe(2.0 + TUNABLES.scramble.pursuitSeconds);
+  });
+
+  /**
+   * ADR-055 §6 point 4 — pursuit's own condition for `mustDecide`, expressed
+   * as "true on exactly the last tick before the deadline forces the tuck
+   * anyway". Zero new magnitude: only `clock.tickStepSeconds`, already
+   * ratified, feeds it.
+   */
+  it("forces a decision only on the tick immediately before the pursuit deadline", () => {
+    const step = TUNABLES.clock.tickStepSeconds;
+    const deadline = pursuitDeadline(TUNABLES, 2.0); // 3.5
+    expect(pursuitForcesDecision(TUNABLES, deadline - 2 * step, deadline)).toBe(false);
+    expect(pursuitForcesDecision(TUNABLES, deadline - step, deadline)).toBe(true);
+    expect(pursuitForcesDecision(TUNABLES, deadline, deadline)).toBe(true);
   });
 });
 

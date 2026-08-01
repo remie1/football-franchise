@@ -7,7 +7,7 @@ import {
 } from "../src/index.js";
 import type { MatchGameState, PlayCalls } from "../src/types.js";
 import { TUNABLES } from "../src/tunables.js";
-import { buildScenario, endedInSack, makePlayer } from "./fixtures.js";
+import { buildScenario, buildScramblerScenario, endedInSack, makePlayer } from "./fixtures.js";
 
 const types = (events: readonly MatchEventEnvelope[]): string[] => events.map((e) => e.event.type);
 
@@ -165,14 +165,55 @@ describe("pass play integration", () => {
     });
   });
 
-  it("emits a TICK and a POCKET_STATUS for every tick of the play", () => {
+  it("emits a TICK and a POCKET_STATUS for every tick the QB is still in the pocket", () => {
     const { state, calls } = buildScenario();
     const { events } = simulatePassPlay(state, calls, "ticks");
     const ticks = events.flatMap(({ event }) => (event.type === "TICK" ? [event.payload.tick] : []));
     expect(ticks[0]).toBe(0.5);
     ticks.forEach((t, i) => expect(t).toBeCloseTo(0.5 + i * 0.5, 5));
-    const pocketCount = events.filter(({ event }) => event.type === "POCKET_STATUS").length;
-    expect(pocketCount).toBeGreaterThanOrEqual(ticks.length);
+
+    // ADR-055 §6 — `POCKET_STATUS` is not published once the quarterback has
+    // left the pocket. `QB_PURSUIT.sinceTick` is the tick he escaped, and that
+    // tick's status was already computed and logged (§7.2's inputs are last
+    // tick's) BEFORE the escape resolves within it — so it still carries a
+    // status, and only ticks STRICTLY AFTER it do not. `buildScenario`'s
+    // pocket passer is not expected to reach `ESCAPE` at all here (its own
+    // reachability is proved separately below); this assertion holds either
+    // way, which is the point — it is the accurate invariant, not a coincidence
+    // of a fixture that happens not to scramble.
+    const pursuit = events.find(({ event }) => event.type === "QB_PURSUIT");
+    const sinceTick = pursuit?.event.type === "QB_PURSUIT" ? pursuit.event.payload.sinceTick : undefined;
+    const pocketStatusTicks = events.flatMap(({ event }) =>
+      event.type === "POCKET_STATUS" ? [event.tick ?? -1] : [],
+    );
+    const expectedTicks = sinceTick === undefined ? ticks : ticks.filter((t) => t <= sinceTick);
+    expect(pocketStatusTicks).toEqual(expectedTicks);
+  });
+
+  /**
+   * THE POSITIVE CONTROL for the test above (ADR-055 §6, per this dispatch's
+   * standing instruction: a narrowed assertion needs a reachability control
+   * proving the state it excuses actually occurs, never just a widened one).
+   * `buildScramblerScenario` is built specifically to exercise §7.2's ESCAPE
+   * branch, so this proves a tick after `QB_PURSUIT.sinceTick` really does
+   * carry no `POCKET_STATUS` — the silence above is a reached state, not a
+   * valve nobody's fixture ever trips.
+   */
+  it("ADR-055 §6 — a pursuit tick carries no POCKET_STATUS, and this is reached", () => {
+    let sawPursuitTickWithNoStatus = false;
+    for (let i = 0; i < 100 && !sawPursuitTickWithNoStatus; i++) {
+      const { state, calls } = buildScramblerScenario();
+      const { events } = simulatePassPlay(state, calls, `scramble-status-${i}`);
+      const pursuit = events.find(({ event }) => event.type === "QB_PURSUIT");
+      if (pursuit === undefined || pursuit.event.type !== "QB_PURSUIT") continue;
+      const sinceTick = pursuit.event.payload.sinceTick;
+      const statusTicks = new Set(
+        events.flatMap(({ event }) => (event.type === "POCKET_STATUS" ? [event.tick ?? -1] : [])),
+      );
+      const tickTicks = events.flatMap(({ event }) => (event.type === "TICK" ? [event.payload.tick] : []));
+      if (tickTicks.some((t) => t > sinceTick && !statusTicks.has(t))) sawPursuitTickWithNoStatus = true;
+    }
+    expect(sawPursuitTickWithNoStatus).toBe(true);
   });
 
   it("resolves the pressed receiver's release before his route breaks", () => {

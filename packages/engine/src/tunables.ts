@@ -1237,6 +1237,85 @@ export const TUNABLES = {
     maxOpenness: 85,
     /** Seconds outside the pocket before pursuit forces the ball down. */
     pursuitSeconds: 1.5,
+
+    /**
+     * ADR-055 §6 (backlog entry 84) — pursuit's OWN accuracy and
+     * read-capacity constants. Before this ruling, a scrambling quarterback's
+     * `POCKET_STATUS` was derived by feeding the pursuit clock's
+     * `deadlineTick − tick` into `pocketFloorFromArrival` — the SAME channel
+     * a passer still in the pocket uses. That was wrong on two counts,
+     * independently fatal: `pursuitSeconds` (1.5) is less than
+     * `arrival.pressureWithinSeconds` (2.0), so every pursuit tick was
+     * arrival-dirty BY ARITHMETIC (backlog entry 82-RESULT — 20.809% of all
+     * ticks in the corpus, unconditionally); and `PocketStatus` itself is the
+     * wrong home for the state, because ADR-033's own definition — "a pocket
+     * status describes the space the passer is working in" — has no referent
+     * once the pocket is vacated (backlog entry 84's survey). So `pocket
+     * .accuracyModifier`/`readCapacityDelta` no longer apply to a scrambling
+     * quarterback at all (`resolve/pocket.ts`'s tables are keyed on real
+     * pocket-space facts a pursuing passer does not have), and these two
+     * fields are what replace them — read directly, never through a
+     * `PocketStatusRung`.
+     *
+     * ⛔ DERIVED MECHANIC (fourth use; see `arrival.pressureWithinSeconds` and
+     * `arrival.containRetiresAfterConsecutiveContains` above for the first
+     * three and what the marker means) — TWO HALVES, DIFFERENT STATUS:
+     *
+     *   half                                         status         re-litigate by
+     *   --------------------------------------------------------------------------
+     *   that pursuit gets its OWN accuracy/read-      RULED          reopening
+     *   capacity constants, distinct from the pocket                  ADR-055 §6
+     *   ladder's                                                      point 3
+     *   what those constants' VALUES are              ⛔ NEITHER —    a football
+     *                                                  no anchor       ruling from
+     *                                                  found           the owner
+     *
+     * ⛔ SEARCHED FOR AN ANCHOR AND FOUND NONE — reported per this dispatch's
+     * standing instruction rather than picked. A legitimate derivation here
+     * would look like `containRetiresAfterConsecutiveContains`'s (the model's
+     * one-tick memory depth AND `recoverySecondsByBand.BLOCKER_CONTAINS × 2 =
+     * minTravelSeconds` agreeing) or `pressureWithinSeconds`'s (replicating
+     * the doc's own 0.0/1.0 interval once more) — two INDEPENDENT structural
+     * facts already in the model, converging on one number. Nothing
+     * comparable exists for "how much does throwing while a pursuer closes
+     * cost a quarterback's accuracy" or "how many fewer receivers can he
+     * process a tick while doing it": §8.8 states a vision-cone penalty on
+     * the READ (`visionConeByDepthClass`, already wired) and states nothing
+     * about the THROW or about CAPACITY. Reaching for `pocket
+     * .accuracyModifier.IMMEDIATE` / `.readCapacityDelta.IMMEDIATE` "because
+     * pursuit feels at least that bad" would be exactly the borrowed-list-
+     * membership pattern ADR-055 §6 point 4 names and refuses for
+     * `forcesDecision` — refused here for the same reason.
+     *
+     * SET TO 0 — THE NEUTRAL ELEMENT, NOT A GUESS. Zero is the modifier value
+     * that asserts nothing beyond what pursuit already models elsewhere (the
+     * vision cone above, `armStrengthShortfall`, `alwaysForcesDecision`
+     * below): it does not claim pursuit throws exactly as easily as a CLEAN
+     * pocket — ADR-055 §3's option C warned explicitly that expressing
+     * pursuit through the existing channels "risks asserting the passer is
+     * unpressured, which is also false" — it simply declines to invent a
+     * magnitude nobody has ruled on. FLAGGED FOR THE OWNER: the football
+     * question is open; this is not a calibration default to tune quietly
+     * while it stays unrigorous.
+     */
+    accuracyModifier: 0,
+    /** See `accuracyModifier`'s comment immediately above — same ruling, same open question, same 0. */
+    readCapacityDelta: 0,
+    /**
+     * ADR-055 §6 point 4 — pursuit's OWN condition for forcing a decision, not
+     * `pocket.forcesDecision`'s list membership (backlog entry 84:
+     * `forcesDecision`'s "single live reach" during pursuit was reading a
+     * `pocket` value derived from the very clock this ADR stops feeding it).
+     *
+     * NOT A FIELD HERE — the condition takes no new magnitude, so there is no
+     * value to put under this key. `resolve/scramble.ts`'s `pursuitForcesDecision`
+     * implements it directly off `pursuitSeconds` (above) and `clock
+     * .tickStepSeconds`, both already ratified elsewhere; see that function's
+     * comment for the derivation AND for the reading it replaced (an
+     * unconditional `true` on every pursuit tick) and the corpus evidence
+     * (`test/pressureMetrics.test.ts`) that the unconditional reading was too
+     * strong.
+     */
   },
 
   /** §9.1 — release vs. press at tick 0.5. */

@@ -649,11 +649,35 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
    *   0 / 0 / 0 / 0 / 0 and §12.2's five real thresholds, over a corpus in which
    *   every football digit AND every tip digit moved. That is the strongest
    *   version of ADR-036's claim this fence has produced.
+   *
+   * ⚠ RE-BASELINED A FIFTH TIME, July 2026, ADR-055 §6 — a vacated pocket has no
+   *   status. `POCKET_STATUS` stops publishing while `scramble` is defined, the
+   *   pursuit clock no longer floors it, a throw released mid-pursuit now takes
+   *   pursuit's own accuracy/read-capacity constants (`0`, pending the owner's
+   *   ruling on their magnitude — see `tunables.ts`'s comment on
+   *   `scramble.accuracyModifier`) rather than the pocket ladder's escalating
+   *   ones, and `mustDecide` during pursuit is forced only on the tick before
+   *   the mechanical tuck (`resolve/scramble.ts`'s `pursuitForcesDecision`) not
+   *   the pocket ladder's `forcesDecision` list. Every dropback that ever
+   *   reaches pursuit now reads a different accuracy roll and a different
+   *   hold/throw/scramble decision, so the corpus moves again.
+   *
+   *   digit           ADR-035/036     ADR-040        ADR-045      §2.3a    ADR-048    ADR-055
+   *   plays              3,420          3,421          3,420      3,415      3,410      3,405
+   *   yards             20,047         21,107         20,953     20,922     20,275     20,758
+   *   turnovers            107            113            109        107        107        109
+   *   points             1,545          1,683          1,655      1,663      1,588      1,608
+   *   tips                 271            270            273        273        249        271
+   *   deadTips             163            164            166        166        149        162
+   *
+   * ⚠ THE STRUCTURAL HALF STILL DID NOT MOVE — FIFTH INDEPENDENT CONFIRMATION.
+   *   0 / 0 / 0 / 0 / 0 and §12.2's five real thresholds, over a corpus in which
+   *   every football digit moved and `tips − deadTips` (below) moved with them.
    */
-  it("the corpus totals, on every digit (re-baselined by ADR-048)", () => {
+  it("the corpus totals, on every digit (re-baselined by ADR-055)", () => {
     expect([
       base.plays, base.yards, base.turnovers, base.points, base.tips, base.deadTips,
-    ]).toEqual([3410, 20275, 107, 1588, 249, 149]);
+    ]).toEqual([3405, 20758, 109, 1608, 271, 162]);
   });
 
   it("still never consults a target on a dead ball", () => {
@@ -697,8 +721,8 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
     // deflection carries its band's genuine target.
     expect(base.liveMissingTheKey).toBe(0);
     expect(base.liveTargets).toEqual([20, 35, 55, 75, 90]);
-    // 108 → 106 (ADR-040) → 107 (ADR-045) → 100 (ADR-048)
-    expect(base.tips - base.deadTips).toBe(100);
+    // 108 → 106 (ADR-040) → 107 (ADR-045) → 100 (ADR-048) → 109 (ADR-055)
+    expect(base.tips - base.deadTips).toBe(109);
   });
 
   it("the cell is not addressable, because the cell does not exist", () => {

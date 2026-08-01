@@ -10,6 +10,42 @@ import type { ContestPosition, RouteDepthClass, ThrowType } from "../types.js";
 import type { PocketStatusRung } from "./pocket.js";
 import { accuracyModifierFor } from "./pocket.js";
 
+/**
+ * The label AND the magnitude a throw's accuracy check charges for the
+ * conditions the passer released under.
+ *
+ * A struct rather than `PocketStatusRung` itself, deliberately: ADR-055 §6
+ * ruled that `PocketStatus` is the wrong home for a quarterback who has left
+ * the pocket (backlog entry 84 — *"a `PURSUING` member would assert pursuit
+ * is a kind of pocket space"*, the same category error ADR-033 ruled against
+ * for `SACK`, inverted). This is the narrowest thing `resolveAccuracy`
+ * actually needs — a number and a name for it — so a pursuing quarterback's
+ * throw is never asserted to be under any particular pocket status, real or
+ * invented. `accuracyPenaltyForPocket` and `accuracyPenaltyForPursuit` below
+ * are the two ways to build one; `sim/passPlay.ts` picks between them per
+ * tick on whether `scramble` is defined.
+ */
+export interface AccuracyPenalty {
+  readonly label: string;
+  readonly value: number;
+}
+
+/** §10.4's pocket-status accuracy table, labelled for the CHECK's own printout. */
+export function accuracyPenaltyForPocket(tunables: Tunables, status: PocketStatusRung): AccuracyPenalty {
+  return { label: `Pocket: ${status}`, value: accuracyModifierFor(tunables, status) };
+}
+
+/**
+ * ADR-055 §6 point 3 — pursuit's OWN accuracy constant, not the pocket
+ * ladder's. See `tunables.ts`'s comment on `scramble.accuracyModifier` for
+ * what is ruled here (that pursuit gets its own constant, distinct from
+ * `pocket.accuracyModifier`) versus what is NOT (the constant's magnitude —
+ * no anchor for it was found in the model; flagged there for the owner).
+ */
+export function accuracyPenaltyForPursuit(tunables: Tunables): AccuracyPenalty {
+  return { label: "Pursuit", value: tunables.scramble.accuracyModifier };
+}
+
 export type AccuracyBandLabel = (Tunables["throwExec"]["accuracy"]["bands"])[number]["label"];
 export type AccuracyBand = (Tunables["throwExec"]["accuracy"]["bands"])[number];
 
@@ -50,7 +86,7 @@ export interface AccuracyArgs {
   readonly qb: PlayerState;
   readonly airYards: number;
   readonly throwType: ThrowType;
-  readonly pocket: PocketStatusRung;
+  readonly accuracyPenalty: AccuracyPenalty;
   readonly armShortfall: boolean;
   /**
    * ADR-008 — this pair's 0-100 rapport, already resolved by the caller.
@@ -61,11 +97,11 @@ export interface AccuracyArgs {
 }
 
 export function resolveAccuracy(args: AccuracyArgs): AccuracyOutcome {
-  const { qb, airYards, throwType, pocket, armShortfall, throwRng, tunables } = args;
+  const { qb, airYards, throwType, accuracyPenalty, armShortfall, throwRng, tunables } = args;
   const t = tunables.throwExec.accuracy;
   const chemistry = args.chemistryLevel ?? tunables.chemistry.neutralLevel;
 
-  const pocketPenalty = accuracyModifierFor(tunables, pocket);
+  const pocketPenalty = accuracyPenalty.value;
   const poiseRefundRaw = Math.max(
     0,
     Math.round((getAttr(qb.attributes.values, ATTR.poise) - tunables.qb.poise.baseline) / tunables.qb.poise.divisor),
@@ -82,7 +118,7 @@ export function resolveAccuracy(args: AccuracyArgs): AccuracyOutcome {
 
   const mods = compact([
     actorAttrModifier(qb, "Accuracy", ATTR.accuracy, t.attrDivisor),
-    flatModifier(`Pocket: ${pocket}`, pocketPenalty),
+    flatModifier(accuracyPenalty.label, pocketPenalty),
     pocketPenalty < 0
       ? { source: `${qb.bio.position} Poise (pressure resistance)`, attr: ATTR.poise, value: poiseRefund }
       : undefined,

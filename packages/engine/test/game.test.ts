@@ -270,10 +270,23 @@ describe("the clock", () => {
  * (`ot-0`…`ot-1228`), twenty-five overtimes and three ties (`ot-891`, `ot-1027`,
  * `ot-1228`). **The TIE seed `ot-891` survived a second time**, and that is still
  * luck rather than evidence. Nothing about the overtime branch changed.
+ *
+ * RE-SCANNED AGAIN for ADR-055 §6 (a vacated pocket has no status: the pursuit
+ * clock no longer floors `POCKET_STATUS`, the event is not published while
+ * `scramble` is defined, and a throw released mid-pursuit now takes pursuit's
+ * own accuracy/read-capacity constants — `0`, pending the owner's ruling on
+ * their magnitude — rather than the pocket ladder's). This moves the hold/
+ * throw/scramble decision and the accuracy roll on every dropback that ever
+ * reaches pursuit, so both seeds moved: `ot-125` is no longer an overtime and
+ * `ot-891` is no longer a tie. The OT seed moves to `ot-117` and the tie seed
+ * to `ot-804` — 1,229 seeds scanned (`ot-0`…`ot-1228`), twenty overtimes and
+ * three ties (`ot-804`, `ot-971`, `ot-1053`). As before: a seed chosen by
+ * scanning for a whole-game outcome is not a property of the overtime branch,
+ * and nothing about that branch changed.
  */
 describe("overtime, to the extent a tie requires one", () => {
-  const overtime = simulateGameFor("ot-125");
-  const tie = simulateGameFor("ot-891");
+  const overtime = simulateGameFor("ot-117");
+  const tie = simulateGameFor("ot-804");
 
   it("a tie at the end of regulation opens a fifth period", () => {
     const starts = eventsOf(overtime.events, "PERIOD_START").map((e) => e.payload.period);

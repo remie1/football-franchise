@@ -2,6 +2,8 @@ import { createRng } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import { catchTypeFor, resolveCatch } from "../src/resolve/catchResolution.js";
 import {
+  accuracyPenaltyForPocket,
+  accuracyPenaltyForPursuit,
   armStrengthShortfall,
   laneDefenderEligible,
   resolveAccuracy,
@@ -51,7 +53,7 @@ describe("§10.1 arm strength gate", () => {
 
   it("costs the documented accuracy penalty when it fires", () => {
     const out = resolveAccuracy({ tunables: TUNABLES,
-      qb: weakArmQb, airYards: 30, throwType: "BULLET", pocket: "CLEAN",
+      qb: weakArmQb, airYards: 30, throwType: "BULLET", accuracyPenalty: accuracyPenaltyForPocket(TUNABLES, "CLEAN"),
       armShortfall: true, throwRng: createRng("s", "throw"),
     });
     const penalty = out.roll.modifiers.find((m) => m.source.includes("arm-strength"));
@@ -59,10 +61,29 @@ describe("§10.1 arm strength gate", () => {
   });
 });
 
+describe("ADR-055 §6 point 3 — accuracyPenaltyForPocket / accuracyPenaltyForPursuit", () => {
+  it("the pocket constructor reads pocket.accuracyModifier and labels it as a pocket status", () => {
+    expect(accuracyPenaltyForPocket(TUNABLES, "CLEAN")).toEqual({ label: "Pocket: CLEAN", value: 0 });
+    expect(accuracyPenaltyForPocket(TUNABLES, "COLLAPSING")).toEqual({ label: "Pocket: COLLAPSING", value: -20 });
+    expect(accuracyPenaltyForPocket(TUNABLES, "IMMEDIATE")).toEqual({
+      label: "Pocket: IMMEDIATE",
+      value: TUNABLES.pocket.accuracyModifier.IMMEDIATE,
+    });
+  });
+
+  it("the pursuit constructor reads scramble.accuracyModifier and never names a pocket status", () => {
+    const penalty = accuracyPenaltyForPursuit(TUNABLES);
+    expect(penalty).toEqual({ label: "Pursuit", value: TUNABLES.scramble.accuracyModifier });
+    // Never one of the four rungs — a pursuing quarterback's throw is not
+    // asserted to be under any particular pocket status (ADR-055 §6).
+    expect(Object.keys(TUNABLES.pocket.severity)).not.toContain(penalty.label);
+  });
+});
+
 describe("§10.4 accuracy", () => {
   it("rolls d100 + Accuracy ÷ 5 vs. target 60", () => {
     const out = resolveAccuracy({ tunables: TUNABLES,
-      qb, airYards: 14, throwType: "BULLET", pocket: "CLEAN", armShortfall: false,
+      qb, airYards: 14, throwType: "BULLET", accuracyPenalty: accuracyPenaltyForPocket(TUNABLES, "CLEAN"), armShortfall: false,
       throwRng: createRng("s", "throw"),
     });
     expect(out.check.target).toBe(60);
@@ -73,24 +94,40 @@ describe("§10.4 accuracy", () => {
 
   it("applies pocket penalties and refunds part of them for poise", () => {
     const pressured = resolveAccuracy({ tunables: TUNABLES,
-      qb, airYards: 14, throwType: "BULLET", pocket: "COLLAPSING", armShortfall: false,
+      qb, airYards: 14, throwType: "BULLET", accuracyPenalty: accuracyPenaltyForPocket(TUNABLES, "COLLAPSING"), armShortfall: false,
       throwRng: createRng("s", "throw"),
     });
     expect(pressured.roll.modifiers.find((m) => m.source === "Pocket: COLLAPSING")?.value).toBe(-20);
     expect(pressured.roll.modifiers.find((m) => m.source.includes("Poise"))?.value).toBe(2);
 
     const clean = resolveAccuracy({ tunables: TUNABLES,
-      qb, airYards: 14, throwType: "BULLET", pocket: "CLEAN", armShortfall: false,
+      qb, airYards: 14, throwType: "BULLET", accuracyPenalty: accuracyPenaltyForPocket(TUNABLES, "CLEAN"), armShortfall: false,
       throwRng: createRng("s", "throw"),
     });
     expect(clean.roll.modifiers.some((m) => m.source.startsWith("Pocket"))).toBe(false);
     expect(clean.roll.modifiers.some((m) => m.source.includes("Poise"))).toBe(false);
   });
 
+  it("ADR-055 §6 — a throw released mid-pursuit is never charged a pocket-status modifier", () => {
+    const pursuit = resolveAccuracy({
+      tunables: TUNABLES,
+      qb, airYards: 14, throwType: "BULLET", accuracyPenalty: accuracyPenaltyForPursuit(TUNABLES), armShortfall: false,
+      throwRng: createRng("s", "throw"),
+    });
+    expect(pursuit.roll.modifiers.some((m) => m.source.startsWith("Pocket"))).toBe(false);
+    // `scramble.accuracyModifier` is `0` today (the open football question —
+    // see `tunables.ts`), so a zero-valued "Pursuit" modifier is elided by
+    // `compact` exactly as a zero-valued "Pocket: CLEAN" one is above. If the
+    // owner rules a non-zero magnitude, this line is the one that starts
+    // asserting the label is present rather than merely never "Pocket".
+    expect(TUNABLES.scramble.accuracyModifier).toBe(0);
+    expect(pursuit.roll.modifiers.some((m) => m.source === "Pursuit")).toBe(false);
+  });
+
   it("applies the depth modifier ladder", () => {
     const depth = (airYards: number): number | undefined =>
       resolveAccuracy({ tunables: TUNABLES,
-        qb, airYards, throwType: "BULLET", pocket: "CLEAN", armShortfall: false,
+        qb, airYards, throwType: "BULLET", accuracyPenalty: accuracyPenaltyForPocket(TUNABLES, "CLEAN"), armShortfall: false,
         throwRng: createRng("s", "throw"),
       }).roll.modifiers.find((m) => m.source.startsWith("Depth"))?.value;
     expect(depth(6)).toBe(10);

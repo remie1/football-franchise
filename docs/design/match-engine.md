@@ -864,6 +864,27 @@ SACK:
 > the missing-arrival-model gap described two paragraphs above, from its other side. A rusher whose
 > whole-life ETA is beyond `clock.maxTick` no longer floors PRESSURE/COLLAPSING/IMMEDIATE for a play
 > that was always going to end before he arrived.
+>
+> **AMENDMENT (July 2026, owner ruling — ADR-055 §6, "a vacated pocket has no status") — NONE OF THE
+> FOUR STATES ABOVE APPLY ONCE THE QUARTERBACK HAS LEFT THE POCKET.** This section's whole subject is,
+> in its own words, "the space the passer is working in." §8.8's pursuit clock describes a different
+> situation — a passer who has left that space, with a defender closing on him in the open field — and
+> it used to be run through this section's own arrival channel anyway: `pursuitSeconds` (1.5s) is less
+> than the PRESSURE horizon derived two notes above (2.0s), so **every tick of every scramble was
+> arrival-dirty by arithmetic**, regardless of anything a threat actually did (`CALIBRATION-BACKLOG.md`
+> entry 82-RESULT). *"The pocket is collapsing"* became the model's only way to say *"the quarterback
+> left and someone is chasing him"* — the same POS_INF-shaped error the amendments above already ruled
+> out of the band map and the arrival horizon, arriving through the RELATIONSHIP between two
+> individually-correct constants rather than through either one.
+>
+> **What changed.** `POCKET_STATUS` is not published for any tick on which the quarterback is out of
+> the pocket, and the arrival channel above is not fed the pursuit clock. Nothing is lost: §8.8's own
+> `QB_PURSUIT` event (ADR-054) already states `sinceTick` and `deadlineTick`, the deadline never moves
+> once set, and `deadlineTick − tick` reconstructs exactly what this section's arrival floor used to
+> compute — the silence is bracketed by that event and the play's terminal event, not ambiguous.
+>
+> **What replaces PRESSURE/COLLAPSING/IMMEDIATE's accuracy and read-capacity rows during pursuit** is
+> §8.8's own note below, not this table.
 
 ### 7.3 Stunts and Twists
 
@@ -1243,6 +1264,43 @@ Scramble Resolution:
   QB Improvisation + Mobility vs. Pursuit
   See Phase 6 for full resolution
 ```
+
+> **AMENDMENT (July 2026, owner ruling — ADR-055 §6) — PURSUIT HAS ITS OWN ACCURACY, READ-CAPACITY AND
+> DECISION-FORCING RULES, NOT §7.2's.** Once the escape succeeds, the passer is out of the space §7.2
+> classifies, and §7.2's `POCKET_STATUS` stops being published for the rest of the play (see §7.2's own
+> amendment note). A throw released mid-pursuit, and the reads that lead to it, are still governed by
+> real mechanics — they are just pursuit's own, not the pocket ladder's:
+>
+> | quantity | rule during pursuit | anchor |
+> |---|---|---|
+> | accuracy penalty on a throw released mid-pursuit | flat, not escalating with the pocket ladder | ⛔ **NONE FOUND — open football question, see below** |
+> | QB read capacity per tick | flat, not escalating with the pocket ladder | ⛔ **NONE FOUND — open football question, see below** |
+> | when the desperation (lower-bar) throw threshold applies | exactly the tick before the pursuit deadline forces the ball down anyway | 🧮 **DERIVED — zero new magnitude** |
+>
+> **The two open questions, reported rather than guessed at.** A legitimate derivation here would look
+> like `containRetiresAfterConsecutiveContains`'s (§7.1) or `pressureWithinSeconds`'s (§7.2 above) —
+> two independent structural facts already in the model, converging on one number. No such convergence
+> exists for "how much does throwing on the run with a pursuer closing cost a quarterback's accuracy"
+> or "how many fewer receivers can he process a tick while doing it": this section states a vision-cone
+> penalty on the READ (the −20/−40 above, already wired) and states nothing about the THROW or about
+> CAPACITY. Reaching for §7.2's `IMMEDIATE` row "because pursuit feels at least that bad" would be
+> exactly the borrowed-rule pattern the ruling below refuses. Both constants are therefore set to **0**
+> — the neutral value, not a picked one — pending the owner's ruling on their magnitude. See
+> `packages/engine/src/tunables.ts`'s comment on `scramble.accuracyModifier` for the full accounting.
+>
+> **The derived one.** Every pursuit tick still reaches a genuinely open target through the ordinary
+> throw threshold, unconditionally — that check does not change during pursuit. The lower, DESPERATION
+> bar (§8.5) is available starting on the single tick immediately before the pursuit clock would force
+> the ball down anyway (`sim/passPlay.ts`'s own tuck rule), giving the passer exactly one last chance at
+> a mediocre-but-live target before the mechanical run-it-out takes the decision away from him. This
+> reads only `pursuitSeconds` (above) and the engine's own tick step, both already ratified elsewhere —
+> no third number was added to produce it. An earlier draft forced the lower bar on EVERY pursuit tick
+> (derived from "the progression order is already gone the instant he leaves the pocket, so there is no
+> tick on which holding is the answer") and that reading proved too strong: it measurably let a
+> quarterback who missed a disguised blitz complete or check down instead of eventually being run down,
+> inverting §5.3's own protected finding that a missed blitz is the most dangerous snap in the sample.
+> See `resolve/scramble.ts`'s `pursuitForcesDecision` for the full account, kept rather than smoothed
+> over per this project's standing rule that a wrong premise is reported, not erased.
 
 ---
 
