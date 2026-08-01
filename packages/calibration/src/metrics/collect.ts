@@ -69,6 +69,60 @@ export interface PlayFold {
    */
   pressuredSacks: number;
   /**
+   * ================== BACKLOG DISPATCH C: PIPELINE EXIT (`qb_disruption_rate`) ==================
+   *
+   * `threat_creation_rate` counts PIPELINE ENTRY — a dropback where the pocket was ever anything
+   * other than CLEAN. Nothing before this field counted EXIT: whether that entry ever converted
+   * into something that actually disrupted the passer, as opposed to a pocket that dirtied for one
+   * tick and cleared. This is that count. A dropback is "disrupted" iff ANY of three PUBLISHED
+   * signals fired during it:
+   *
+   *   (1) a `RUSH_THREAT` reached `state: "ARRIVED"` — set by `threatArrived` below;
+   *   (2) a `POCKET_STATUS` was ever a status in `DEFAULT_TUNABLES.pocket.forcesDecision`
+   *       (`COLLAPSING`/`IMMEDIATE` today, read from tunables rather than restated — see
+   *       `FORCES_DECISION_STATUSES` below) — set by `forcedDecision`;
+   *   (3) the dropback ended in a sack — the SAME inference `sacks` above already makes (no
+   *       THROW, no scramble, no interception, negative result yards); no second sack rule.
+   *
+   * A FOURTH disjunct in the drafted shape — "the QB was hit" — is DROPPED. `@ff/contracts`
+   * publishes no event for a quarterback being hit as distinct from being sacked; inventing one
+   * here would be reaching past the public stream into a fact the engine never states. Dropped,
+   * not silently narrowed: this comment is where that is said.
+   *
+   * ================== THE SUBSET RELATION, VERIFIED NOT INHERITED ==================
+   *
+   * `disruptedDropbacks <= pressuredDropbacks` always, under `DEFAULT_TUNABLES`:
+   *   - (1) and (2) hold BY CONSTRUCTION. `pocket.severity` ranks `CLEAN: 0 < COLLAPSING: 2 <
+   *     IMMEDIATE: 3` (`tunables.ts`), `forcesDecision` names exactly `COLLAPSING`/`IMMEDIATE`
+   *     (both non-CLEAN by that ranking), and `pocketFloorFromArrival` (`rushThreat.ts`) returns
+   *     `IMMEDIATE` on the IDENTICAL comparison (`minTta <= immediateWithinSeconds`) `hasArrived`
+   *     uses to decide arrival — so an ARRIVED threat or a forcesDecision status is, this tick,
+   *     never CLEAN, which is exactly the condition that sets `pressured = true` below. Neither
+   *     disjunct can fire on a dropback whose worst status stayed CLEAN.
+   *   - (3) is MEASURED, not proven for every code path: backlog entries 87/88 measured 0 of 6,593
+   *     sim sacks landing on a CLEAN-worst dropback on the canonical corpus, and entries 91/92
+   *     traced why — two of the three sack paths require non-CLEAN by construction or by a
+   *     separately measured population, and the third (the only one that COULD be CLEAN-worst)
+   *     never fires under `DEFAULT_TUNABLES`. So (3) does not add a counterexample on this corpus,
+   *     but is not asserted to hold under every future tunable value the way (1)/(2) are.
+   *
+   * Pinned: `test/metrics.test.ts` asserts `disruptedDropbacks <= pressuredDropbacks` across the
+   * fold's own 30-game corpus, so a future change that breaks the relation fails a test rather
+   * than shipping a ratio that silently exceeds 100%.
+   *
+   * ================== THE IDENTITY CHECK (backlog dispatch C item 2) — NEGATIVE ==================
+   *
+   * Checked against every existing `PlayFold` field before adding this one: `pressuredDropbacks`
+   * is a per-dropback worst-status boolean with no per-signal breakdown; `pressuredSacks`/`sacks`
+   * carry sacks only, not arrival or forcesDecision; `pocketStatusTicks` is a per-TICK tally, not a
+   * per-DROPBACK boolean, and folds three channels together with no dropback-level flag recoverable
+   * from it; `threatOrigins`/`threatOriginDropbacks` carry HOW a rusher came free, never WHETHER he
+   * arrived. None of them is an algebraic rearrangement of `disruptedDropbacks`, and none of them
+   * can reconstruct it after the fact. Result: NO IDENTITY FOUND — a genuinely new tally, reported
+   * as a null result rather than left unstated.
+   */
+  disruptedDropbacks: number;
+  /**
    * ================== THE SEVERITY PARTITION (backlog 67/67-RESULT, ADR-049) ==================
    *
    * `threat_creation_rate` (`pressuredDropbacks / dropbacks`; renamed from `pressure_rate`,
@@ -259,6 +313,7 @@ export function emptyAccumulator(): SimAccumulator {
       scrambles: 0,
       pressuredDropbacks: 0,
       pressuredSacks: 0,
+      disruptedDropbacks: 0,
       pocketStatusTicks: {},
       passYards: 0,
       passAttemptYards: [],
@@ -354,6 +409,17 @@ interface PlayStartShape {
 export const BLITZ_MIN_RUSHERS = 5;
 
 /**
+ * BACKLOG DISPATCH C, disjunct (2) of the exit predicate — DERIVED from `DEFAULT_TUNABLES`, never
+ * restated as a literal, for the same reason `RUSHER_WINS_REP_FLOOR` above reads its floor off the
+ * table rather than copying a number: a rung added to or removed from `pocket.forcesDecision`
+ * moves this set automatically instead of silently going stale beside a hand-written copy.
+ * `DEFAULT_TUNABLES` is the permitted surface ADR-012 item 3 names; this reads a value off it, the
+ * same way `RUSHER_WINS_REP_FLOOR` and `RUSHER_WON_BANDS` already do — no resolver function
+ * (`forcesDecision` itself, `packages/engine/src/resolve/pocket.ts`) is called or imported.
+ */
+const FORCES_DECISION_STATUSES: ReadonlySet<string> = new Set(DEFAULT_TUNABLES.pocket.forcesDecision);
+
+/**
  * `PLAY_START.payload` is `unknown` in contracts — a deliberately open slot the engine fills
  * with its own shape and does not export. Reading it structurally is the sanctioned route (it is
  * the event stream), and everything read is optional-chained: a payload that changes shape
@@ -376,6 +442,10 @@ interface PlayState {
   down: number;
   ballOn: number;
   pressured: boolean;
+  /** Backlog dispatch C, disjunct (1): a RUSH_THREAT reached `state: "ARRIVED"` this dropback. */
+  threatArrived: boolean;
+  /** Backlog dispatch C, disjunct (2): a POCKET_STATUS this dropback was in `forcesDecision`. */
+  forcedDecision: boolean;
   threw: boolean;
   throwTick: number | null;
   caught: boolean;
@@ -409,6 +479,8 @@ function blankPlay(): PlayState {
     down: 0,
     ballOn: 0,
     pressured: false,
+    threatArrived: false,
+    forcedDecision: false,
     threw: false,
     throwTick: null,
     caught: false,
@@ -476,6 +548,9 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
     if (play.isPass) {
       p.dropbacks++;
       if (play.pressured) p.pressuredDropbacks++;
+      // Backlog dispatch C: whether this dropback ends in a sack is not known until the branch
+      // below runs, so the exit tally is finished after it rather than started here.
+      let sacked = false;
       const originsSeen = new Set<string>();
       for (const origin of play.threats.values()) {
         bumpKey(p.threatOrigins, origin);
@@ -508,8 +583,13 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
           // backlog 87: the SAME `pressured` flag `pressuredDropbacks` already set above for
           // this dropback, read again rather than re-derived, so the two can never disagree.
           if (play.pressured) p.pressuredSacks++;
+          sacked = true;
         } else p.throwaways++;
       }
+      // Backlog dispatch C: the exit predicate — see PlayFold.disruptedDropbacks for the full
+      // derivation and the subset-relation argument. Evaluated once, after every disjunct is
+      // known: arrival and forcesDecision are set as the stream is read; sacked is set just above.
+      if (play.threatArrived || play.forcedDecision || sacked) p.disruptedDropbacks++;
     } else if (play.designedRun) {
       p.rushAttempts++;
       p.rushYards += play.runYards;
@@ -565,6 +645,9 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
       case "POCKET_STATUS":
         if (current !== null && current.isPass) {
           if (event.payload.status !== "CLEAN") current.pressured = true;
+          // Backlog dispatch C, disjunct (2): DERIVED off DEFAULT_TUNABLES.pocket.forcesDecision
+          // (FORCES_DECISION_STATUSES above), not restated.
+          if (FORCES_DECISION_STATUSES.has(event.payload.status)) current.forcedDecision = true;
           // Tallied per TICK, immediately, not deferred to `flush()`: unlike `pressured` (a
           // per-DROPBACK worst-status flag), the severity partition is a per-TICK count and needs
           // no play-level reduction — see the `pocketStatusTicks` field comment.
@@ -575,6 +658,10 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
         if (current !== null) {
           const key = String(event.payload.rusher);
           if (!current.threats.has(key)) current.threats.set(key, event.payload.origin);
+          // Backlog dispatch C, disjunct (1). Not gated on `current.isPass`, matching `threats`
+          // above: a run play's RUSH_THREAT (if any) is harmless to record since `flush()` only
+          // reads `threatArrived` inside the `isPass` branch.
+          if (event.payload.state === "ARRIVED") current.threatArrived = true;
         }
         break;
       case "THROW":
@@ -879,6 +966,7 @@ export function mergeAccumulators(a: SimAccumulator, b: SimAccumulator): SimAccu
     scrambles: a.play.scrambles + b.play.scrambles,
     pressuredDropbacks: a.play.pressuredDropbacks + b.play.pressuredDropbacks,
     pressuredSacks: a.play.pressuredSacks + b.play.pressuredSacks,
+    disruptedDropbacks: a.play.disruptedDropbacks + b.play.disruptedDropbacks,
     pocketStatusTicks: mergeCounters(a.play.pocketStatusTicks, b.play.pocketStatusTicks),
     passYards: a.play.passYards + b.play.passYards,
     passAttemptYards: [...a.play.passAttemptYards, ...b.play.passAttemptYards].sort((x, y) => x - y),

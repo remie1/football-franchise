@@ -342,6 +342,180 @@ export const pocketStatusDistribution: Metric = registerMetric({
 });
 
 /**
+ * ================== BACKLOG DISPATCH C — PIPELINE EXIT (`qb_disruption_rate`) ==================
+ *
+ * `threat_creation_rate` counts PIPELINE ENTRY: a dropback where the pocket was ever anything
+ * other than CLEAN. Nothing in this project counted EXIT until this row — whether that entry
+ * ever converted into something that actually disrupted the passer, as against a pocket that
+ * dirtied for one tick and cleared. Dispatch C's whole point is making that entry:exit ratio
+ * legible (see `threat_entry_exit_ratio`, below); this is the exit half of it.
+ *
+ * ================== C WAS RE-RULED MID-DRAFT — READ THIS BEFORE READING THE REST ==============
+ *
+ * C was drafted as *"build `qb_disruption_rate`; the real side transfers verbatim from
+ * `pressure_rate`."* THAT PREMISE IS DEAD. Transferring the real side would assert exactly the
+ * `was_pressure` comparability claim backlog entry 93 retired UNESTABLISHED (see
+ * `threat_creation_rate`'s own header and the comparability provenance row in
+ * `../ingest/sources/participation.ts` above `ParticipationRow.wasPressure`). So this metric ships
+ * SIM-SIDE-ONLY, as an OBSERVATION, and acquires a real side only when `was_pressure`'s semantics
+ * are established at a stated revision — a FUTURE OWNER RULING, not a follow-up task here.
+ *
+ * ================== THE PREDICATE — ONE EXPLICIT DISJUNCTION, EACH DISJUNCT JUSTIFIED ==========
+ *
+ * A dropback is "disrupted" iff, anywhere during it, ONE of three things the PUBLIC event stream
+ * actually states became true (`PlayFold.disruptedDropbacks`'s own comment in `collect.ts` carries
+ * the full derivation; this is the summary a reader of `tier1.ts` should not have to leave it for):
+ *
+ *   (1) a `RUSH_THREAT` reached `state: "ARRIVED"` — a rusher actually got there, not merely that
+ *       the pocket's status implied someone was travelling.
+ *   (2) a `POCKET_STATUS` was ever a status in `DEFAULT_TUNABLES.pocket.forcesDecision`
+ *       (`COLLAPSING`/`IMMEDIATE` today) — the pocket got severe enough, from ANY channel
+ *       (counter, band floor, or arrival), to force the quarterback to decide THIS tick.
+ *   (3) the dropback ended in a sack — the IDENTICAL inference `sack_rate`'s own numerator uses
+ *       (no THROW, no scramble, no interception, negative result yards); no second sack rule.
+ *
+ * The DRAFTED shape also named a fourth disjunct — "the QB was hit" — and it is DROPPED here,
+ * not silently narrowed: `@ff/contracts`' `MatchEvent` union (`packages/contracts/src/events.ts`)
+ * publishes no event for a quarterback being hit as distinct from being sacked. There is no `HIT`
+ * event, and inventing a proxy for one would be reaching past the public stream into a fact the
+ * engine never states — exactly what this dispatch's standing instruction forbids.
+ *
+ * ================== THE SUBSET RELATION — VERIFIED, NOT INHERITED (dispatch C item 3) =========
+ *
+ * The dispatch's own premise — "arrival forces IMMEDIATE; forcesDecision requires
+ * COLLAPSING/IMMEDIATE; every sack was measured non-CLEAN" — was checked rather than assumed, and
+ * it HOLDS under `DEFAULT_TUNABLES`, with two disjuncts proven and one measured:
+ *
+ *   - (1) and (2) are proven BY CONSTRUCTION off values on the permitted `DEFAULT_TUNABLES`
+ *     surface: `pocket.severity` ranks `CLEAN: 0 < COLLAPSING: 2 < IMMEDIATE: 3`
+ *     (`packages/engine/src/tunables.ts`), `forcesDecision` names exactly those two non-CLEAN
+ *     rungs, and `pocketFloorFromArrival` (`rushThreat.ts`) returns `IMMEDIATE` on the IDENTICAL
+ *     comparison `hasArrived` uses to decide arrival. So neither disjunct can fire on a tick whose
+ *     status stayed CLEAN, which means neither can fire on a dropback whose WORST tick stayed
+ *     CLEAN — exactly the condition `threat_creation_rate`'s `pressuredDropbacks` flag tests.
+ *   - (3) is MEASURED, not proven for every code path: backlog 87/88 measured 0 of 6,593 sim
+ *     sacks landing on a CLEAN-worst dropback on the canonical corpus, and entries 91/92 traced
+ *     why (two sack paths are non-CLEAN by construction or by a separately measured population;
+ *     the third, the only one that COULD be CLEAN-worst, never fires under `DEFAULT_TUNABLES`).
+ *
+ * ⇒ `disruptedDropbacks <= pressuredDropbacks` always, on this tree, under `DEFAULT_TUNABLES`.
+ * PINNED: `test/metrics.test.ts` asserts the inequality across the fold's own 30-game corpus, so
+ * a future change that breaks it fails a test rather than shipping a ratio that silently exceeds
+ * 100%. See `threat_entry_exit_ratio` for where that ratio is reported.
+ *
+ * ================== THE IDENTITY CHECK (dispatch C item 2) — NEGATIVE, REPORTED AS SUCH =======
+ *
+ * Checked against every existing `PlayFold` accumulator field before this one was added:
+ * `pressuredDropbacks` is a per-dropback worst-status boolean with no per-signal breakdown;
+ * `pressuredSacks`/`sacks` carry sacks only; `pocketStatusTicks` is a per-TICK tally, not a
+ * per-dropback boolean, and folds three channels together with no dropback-level flag recoverable
+ * from it; `threatOrigins`/`threatOriginDropbacks` carry HOW a rusher came free, never WHETHER he
+ * arrived. None is an algebraic rearrangement of `disruptedDropbacks`, and none can reconstruct it
+ * after the fact. Result: NO IDENTITY FOUND. Unlike entry 88's `pressure_to_sack` — where the
+ * answer SHOULD have been no and the failure was that nobody checked — this is the check run and
+ * the answer genuinely IS no, reported rather than left implicit.
+ */
+export const qbDisruptionRate: Metric = registerMetric({
+  id: "qb_disruption_rate",
+  tier: 1,
+  definition:
+    "SIM SIDE ONLY, never graded — see this metric's own header (above, `tier1.ts`) for the full " +
+    "predicate derivation, the subset-relation proof, and the identity check. Counts PIPELINE " +
+    "EXIT: dropbacks on which a RUSH_THREAT reached ARRIVED, OR a POCKET_STATUS was ever in " +
+    "DEFAULT_TUNABLES.pocket.forcesDecision (COLLAPSING/IMMEDIATE), OR the dropback ended in a " +
+    "sack (sack_rate's own inference) — ÷ dropbacks. NO REAL SIDE, BY DESIGN, NOT MERELY " +
+    "UNMEASURED: transferring threat_creation_rate's former real side here would assert the exact " +
+    "was_pressure comparability retired UNESTABLISHED by backlog entry 93 (see the comparability " +
+    "provenance row above ParticipationRow.wasPressure in ../ingest/sources/participation.ts). " +
+    "This metric acquires a real side only when was_pressure's governing semantics are " +
+    "established at a stated revision — a future owner ruling, not a follow-up task.",
+  unit: "%",
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
+  knownDivergences: [
+    "backlog dispatch C: exit measure, built alongside threat_creation_rate's entry measure",
+    "backlog 93 (threat_creation_rate's real side retirement, the reason this metric never had one)",
+  ],
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const p = accumulator.play;
+    return p.dropbacks === 0
+      ? noObservations("no dropbacks")
+      : rate(p.disruptedDropbacks, p.dropbacks);
+  },
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations(
+      "NO REAL SIDE BY DESIGN, not merely unmeasured (backlog dispatch C, ruled differently from " +
+        "its original draft). Transferring threat_creation_rate's former real side here would " +
+        "assert the exact was_pressure comparability backlog entry 93 retired UNESTABLISHED — see " +
+        "the comparability provenance row above ParticipationRow.wasPressure in " +
+        "../ingest/sources/participation.ts. This metric acquires a real side only when " +
+        "was_pressure's governing semantics are established at a stated revision (participation.ts " +
+        "section 4 states the exact bar); that is a future owner ruling, not something this " +
+        "dispatch may substitute in the meantime.",
+    );
+  },
+});
+
+/**
+ * ================== THE ENTRY:EXIT RATIO — A DECLARED QUOTIENT, RULED ON MID-DISPATCH ==========
+ *
+ * Owner steer, mid-dispatch: a ratio of two existing rows sharing a denominator is an identity BY
+ * DEFINITION, and no amount of population-conditioning removes that the way it did for
+ * `pressure_to_sack` (backlog 88) — because THIS ratio has no real side to condition differently
+ * in the first place. Entry 88's defect was never that a row was a quotient; it was that NOTHING
+ * SAID SO, and that the quotient was graded against a real side as though it were an independent
+ * measurement. The ruling: ship the ratio ONLY if its own `definition` DECLARES it is a derived
+ * quotient of two named rows already in the report, not independent evidence. This is that
+ * declaration.
+ *
+ * `threat_entry_exit_ratio` IS `qb_disruption_rate ÷ threat_creation_rate`, computed directly as
+ * `disruptedDropbacks ÷ pressuredDropbacks` (both rows already in this report; `dropbacks` is the
+ * shared denominator both of THOSE rows divide by, and it cancels algebraically — this metric IS
+ * that cancellation, named rather than hidden). It reads no accumulator field neither of its two
+ * inputs already reads, so there is nothing here for the item-2 identity check to find that
+ * wasn't already known and stated: unlike `qb_disruption_rate` and `threat_creation_rate`
+ * themselves — each independently checked against every other accumulator field and found NOT to
+ * be a rearrangement of anything, entries above — this row's whole content is that rearrangement.
+ *
+ * P(pipeline exit | pipeline entry): of dropbacks whose pocket ever left CLEAN, the share that
+ * went on to a published disruption signal. This is the FIRST instrument in this project that
+ * could show a supply lever doing something a mere entry/exit count could not — every named
+ * threshold lever previously refused because `threat_creation_rate` alone reads only WHETHER any
+ * threat existed, never how much of it converted (backlog 81, 89).
+ */
+export const threatEntryExitRatio: Metric = registerMetric({
+  id: "threat_entry_exit_ratio",
+  tier: 1,
+  definition:
+    "DERIVED QUOTIENT, DECLARED AS ONE — not an independent measurement (see this metric's own " +
+    "header for the owner's mid-dispatch ruling on why declaring, rather than avoiding, is the " +
+    "correct disposition here). This row equals qb_disruption_rate ÷ threat_creation_rate " +
+    "exactly, computed directly as disruptedDropbacks ÷ pressuredDropbacks (both accumulator " +
+    "fields already read by those two rows; dropbacks, their shared denominator, cancels " +
+    "algebraically). P(pipeline exit | pipeline entry): of dropbacks whose pocket ever left CLEAN, " +
+    "the share that also produced a published disruption signal (RUSH_THREAT ARRIVED, a " +
+    "forcesDecision pocket status, or a sack — see qb_disruption_rate's definition for the full " +
+    "predicate). SIM SIDE ONLY; never graded, for the same reason its two inputs are not.",
+  unit: "%",
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
+  knownDivergences: [
+    "backlog dispatch C: declared quotient of qb_disruption_rate and threat_creation_rate",
+  ],
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const p = accumulator.play;
+    return p.pressuredDropbacks === 0
+      ? noObservations("no pressured dropbacks")
+      : rate(p.disruptedDropbacks, p.pressuredDropbacks);
+  },
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations(
+      "NO REAL SIDE: a declared quotient of two sim-side-only rows (qb_disruption_rate, " +
+        "threat_creation_rate) has no real counterpart to compare against — see both metrics' own " +
+        "headers for why neither has one.",
+    );
+  },
+});
+
+/**
  * ============================ THE THREE PRESSURE METRICS ============================
  *
  * ADR-022's impact table says, in its own words, that calibration *"can measure blitz, stunt and
@@ -1122,6 +1296,8 @@ export const TIER_1_METRICS: readonly Metric[] = [
   sackRate,
   threatCreationRate,
   pocketStatusDistribution,
+  qbDisruptionRate,
+  threatEntryExitRatio,
   pressureToSackRate,
   blitzRate,
   hotRouteRate,

@@ -1,5 +1,6 @@
 /** The metric library: statistics, the fold, and both sides of the Tier 1 computations. */
 import { describe, expect, it } from "vitest";
+import { DEFAULT_TUNABLES } from "@ff/engine";
 import { collectGames, emptyAccumulator, foldGame, mergeAccumulators } from "../src/metrics/collect.js";
 import { allMetrics, getMetric, metricsInTier } from "../src/metrics/registry.js";
 import {
@@ -303,6 +304,46 @@ describe("the event fold", () => {
     expect(p.passAttempts + p.sacks + p.throwaways + p.scrambles).toBe(p.dropbacks);
   });
 
+  it(
+    "never lets the exit count (qb_disruption_rate's numerator) exceed the entry count " +
+      "(threat_creation_rate's numerator) — the subset relation, pinned (backlog dispatch C item 3)",
+    () => {
+      // disruptedDropbacks is a STRICTER predicate than pressuredDropbacks: an ARRIVED RUSH_THREAT
+      // or a forcesDecision POCKET_STATUS is never CLEAN by construction, and on this tree every
+      // sim sack measured landed on a non-CLEAN-worst dropback (backlog 87/88, 0 of 6,593) — see
+      // `PlayFold.disruptedDropbacks`'s own comment in `collect.ts` for the full proof. Checked
+      // across the fold's own 30-game corpus, not one lucky seed, so a future change that breaks
+      // the relation fails here rather than shipping a ratio that silently exceeds 100%.
+      for (const [i, observed] of CORPUS.entries()) {
+        const p = collectGames([observed]).play;
+        expect(p.disruptedDropbacks, `seed agree-${i}`).toBeLessThanOrEqual(p.pressuredDropbacks);
+      }
+      expect(acc.play.disruptedDropbacks).toBeLessThanOrEqual(acc.play.pressuredDropbacks);
+    },
+  );
+
+  it(
+    "keeps the two BY-CONSTRUCTION disjuncts of qb_disruption_rate's exit predicate provably " +
+      "non-CLEAN under DEFAULT_TUNABLES, rather than trusting the comment (backlog dispatch C item 3)",
+    () => {
+      // The subset-relation argument for disjuncts (1) (RUSH_THREAT ARRIVED) and (2) (a
+      // forcesDecision POCKET_STATUS) rests on `pocket.severity` ranking every status those two
+      // disjuncts can produce STRICTLY above CLEAN. Read off DEFAULT_TUNABLES (the permitted
+      // surface, ADR-012 item 3) rather than asserted from the source comment alone.
+      const severity: Readonly<Record<string, number>> = DEFAULT_TUNABLES.pocket.severity;
+      const clean = severity["CLEAN"];
+      expect(clean).toBe(0);
+      // Disjunct (2): every status forcesDecision names is non-CLEAN.
+      for (const status of DEFAULT_TUNABLES.pocket.forcesDecision) {
+        expect(severity[status], `forcesDecision status "${status}"`).toBeGreaterThan(clean!);
+      }
+      // Disjunct (1): pocketFloorFromArrival returns exactly "IMMEDIATE" on arrival, so arrival
+      // can only ever raise a tick's status to something ranked above CLEAN if IMMEDIATE itself
+      // outranks CLEAN — the one fact this checks.
+      expect(severity["IMMEDIATE"]).toBeGreaterThan(clean!);
+    },
+  );
+
   it("counts a tipped ball the offence recovered as a completion, as real scoring does", () => {
     // Same rule `reduceStatlines` applies. The two agreeing is asserted above; this states why.
     expect(acc.play.tippedRecoveredByOffense).toBeGreaterThanOrEqual(0);
@@ -561,6 +602,62 @@ describe("Tier 1 real-side computations", () => {
     const bareOutcome = getMetric("threat_creation_rate").computeFromReal(realInput([pbpRow({})], [scheduleRow({})]));
     expect(isInapplicable(bareOutcome)).toBe(true);
     if (isInapplicable(bareOutcome)) expect(bareOutcome.detail).toContain("RETIRED");
+  });
+
+  /**
+   * BACKLOG DISPATCH C — `qb_disruption_rate` NEVER HAD A REAL SIDE, and this is the distinction
+   * from `threat_creation_rate`'s retirement worth pinning: that metric's real side was measured,
+   * graded and THEN retired (entry 93 names the last graded figures). This one never had a real
+   * side to retire — ships SIM-SIDE-ONLY from day one, and its `computeFromReal` says so instead
+   * of naming a figure that never existed.
+   */
+  it("gives qb_disruption_rate no real side, by design, on every input", () => {
+    const outcome = getMetric("qb_disruption_rate").computeFromReal(input);
+    expect(isInapplicable(outcome)).toBe(true);
+    if (isInapplicable(outcome)) {
+      expect(outcome.detail).toContain("NO REAL SIDE");
+      expect(outcome.detail).toContain("was_pressure");
+      expect(outcome.detail).toContain("UNESTABLISHED");
+    }
+    const bare = getMetric("qb_disruption_rate").computeFromReal(realInput([pbpRow({})], [scheduleRow({})]));
+    expect(isInapplicable(bare)).toBe(true);
+    expect(Number.isFinite(getMetric("qb_disruption_rate").toleranceBand.width)).toBe(false);
+  });
+
+  /**
+   * THE RATIO — declared, not avoided (owner steer, mid-dispatch). Asserted here rather than
+   * inferred from the definition string: it is EXACTLY `disruptedDropbacks / pressuredDropbacks`,
+   * and it is EXACTLY `qb_disruption_rate / threat_creation_rate` on any accumulator (both share
+   * `dropbacks` as their denominator, which is what makes it an identity rather than a coincidence).
+   */
+  it("computes threat_entry_exit_ratio as the declared quotient, and it has no real side either", () => {
+    const outcome = getMetric("threat_entry_exit_ratio").computeFromReal(input);
+    expect(isInapplicable(outcome)).toBe(true);
+    if (isInapplicable(outcome)) expect(outcome.detail).toContain("NO REAL SIDE");
+    expect(Number.isFinite(getMetric("threat_entry_exit_ratio").toleranceBand.width)).toBe(false);
+
+    const ratioAcc = collectGames([game("ratio-check")]);
+    const p = ratioAcc.play;
+    if (p.pressuredDropbacks > 0 && p.dropbacks > 0) {
+      const ratioOutcome = getMetric("threat_entry_exit_ratio").computeFromEvents({
+        accumulator: ratioAcc,
+        provenance: "FLAT_SYNTHETIC",
+      });
+      const disruptionOutcome = getMetric("qb_disruption_rate").computeFromEvents({
+        accumulator: ratioAcc,
+        provenance: "FLAT_SYNTHETIC",
+      });
+      const entryOutcome = getMetric("threat_creation_rate").computeFromEvents({
+        accumulator: ratioAcc,
+        provenance: "FLAT_SYNTHETIC",
+      });
+      if (!isInapplicable(ratioOutcome) && !isInapplicable(disruptionOutcome) && !isInapplicable(entryOutcome)) {
+        const ratio = pointEstimate(ratioOutcome);
+        const identity = pointEstimate(disruptionOutcome)! / pointEstimate(entryOutcome)!;
+        expect(ratio).toBeCloseTo(identity, 10);
+        expect(ratio).toBeLessThanOrEqual(1);
+      }
+    }
   });
 
   /**
