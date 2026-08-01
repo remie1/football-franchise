@@ -5281,3 +5281,81 @@ each refusal narrowed the space, and the last one closed it.
 
 ⚠ **The census is a CENSUS. It proposes nothing.** Whichever way it falls, **the ruling on what
 replaces the hypothesis is the owner's**, and this entry does not pre-empt it.
+
+---
+
+## 82-RESULT. ✅ **THE HYPOTHESIS IS NOT RETIRED. The census lands on the SECOND branch.**
+
+**Recorded beside entry 82's pre-registration, which stands unamended.**
+
+### Part 1 — §22a paid. The structural claim replicates tightly.
+
+Second independent list (`"baseline-0001/chs-set-1"`, digest `fnv1a:0d521c00#496`), same five grid
+points, 0 identity mismatches, control digest asserted equal to `DEFAULT_TUNABLES`.
+
+> ⛔ **THE LOAD-BEARING CLAIM HOLDS: the COLLAPSING+PRESSURE sum replicates within 0.1pp AT EVERY
+> POINT** — deltas `0.008 / 0.098 / 0.096 / 0.025 / 0.096`. **The pure transfer is structural, on two
+> independent lists.**
+
+Opposition ranges replicate within ~0.1pp; CLEAN range `0.246` vs `0.277`.
+
+⚠ **ONE NUMBER DID NOT TIGHTLY REPRODUCE, AND IT IS REPORTED RATHER THAN ROUNDED AWAY:**
+`pressure_rate`'s range moved **`0.035pp → 0.135pp`** — about **4×** — and its non-monotonic shape
+differs. ⛔ **That is what a noise-dominated statistic does under resampling**, and it remains **~175×
+smaller** than the severity swings, so it does not touch the structural claim. **But the point estimate
+moved by more than a factor of three, and entry 81's own caveat anticipated exactly this.**
+
+### Part 2 — the census. ⛔ **NOT SATURATED.**
+
+**Falsifier: 0 mismatches of 128,528.** `DEFAULT_TUNABLES`, canonical N, own prefix.
+
+| question | answer |
+|---|---|
+| ticks with a live threat ≤2.0s | **67.701%** overall |
+| — non-pursuit ticks | **59.214%** (of 79.191% of all ticks) |
+| — pursuit ticks | **100.000%** — ⚠ **by construction, see below** |
+| live-threat count **0** per non-pursuit tick | ⛔ **40.094%** |
+| distinct threats per dropback | mean **2.620** |
+| ⛔ **dropbacks with ≥1 tick having NO live threat within 2.0s** | ⛔ **76.347%** |
+
+> ### **32.3% of ticks carry zero live threat within 2.0s, and 76.3% of dropbacks contain such a moment. That is NOT *"nearly every tick of nearly every dropback."*** ⇒ **SECOND BRANCH: thresholds are not the whole story, SUPPLY IS A LIVE FRAME, and entry 40's owed re-price on the bounded-horizon base is the next legitimate question.**
+
+**⇒ Entry 82's retirement does not fire.** *"The pressure model is mistuned"* **survives as the working
+hypothesis** — now tested rather than assumed.
+
+### ⛔ A NEW STRUCTURAL FINDING NOBODY ASKED FOR — two constants nobody compared
+
+**`scramble.pursuitSeconds = 1.5`** (`tunables.ts:1239`) and **`arrival.pressureWithinSeconds = 2.0`**
+(entry 76). `pursuitDeadline = escapeTick + 1.5`, so **while pursuit is live `minTta ≤ 1.5 < 2.0` at
+every tick, by arithmetic.**
+
+> ⛔ **SO 20.809% OF ALL TICKS ARE ARRIVAL-DIRTY UNCONDITIONALLY — a fifth of the corpus, dirty by the
+> relationship between two constants, not by anything a threat does.**
+
+⚠ **Neither constant was set with reference to the other.** `pursuitSeconds` predates the horizon
+ruling; entry 76 derived `2.0` from `collapsingWithinSeconds`, **never from the pursuit clock.**
+⛔ **The 100.000% row is arithmetic landing exactly — it is NOT evidence that threats happen to stay
+close during a scramble**, and the dispatch flagged it as such rather than reporting it as a finding
+about threat behaviour.
+
+**Whether a scrambling quarterback's pocket SHOULD be unconditionally non-CLEAN is a football question
+that has never been asked.** ⇒ **Owed as its own item.**
+
+### Caveats carried, not dropped
+
+- ⚠ **The census is SINGLE-SEED-LIST.** Deliberate — a population census, not a curve-shape or ranking
+  claim, so §22a's rule does not target it. **Flagged so it is not treated as equivalent-strength
+  evidence to a replicated finding.** The margin (76.3% against a near-0% saturated alternative) is
+  large, **but that is a judgement, not a measured guarantee.**
+- ⚠ **Threat lifetime's `PLAY_END` category (49.384%) is RIGHT-CENSORED** by the play ending, not
+  retired by anything threat-intrinsic. ⛔ **Mean 0.467s understates the true lifetime and must not be
+  read as *"half of threats naturally last ~0.5s."***
+- ⚠ **This census speaks to the ARRIVAL CHANNEL ONLY.** The whole pocket runs ~70.4% dirty against
+  arrival's 67.7%, so **band-floor and counter do some of the work**; the other two channels'
+  populations are not decomposed here.
+
+### ✅ Cross-validation, on disjoint seeds and a different method
+
+**2.620 threats/dropback** against entry 40's independently measured **2.711** — different seed list,
+different (mutually-exclusive) accounting. **~3% agreement is evidence, not tautology** (entries
+66/70).
