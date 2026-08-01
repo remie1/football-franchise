@@ -375,6 +375,18 @@ describe("the event fold", () => {
     }
   });
 
+  it("decomposes throwaways by cause with no residual bucket (ADR-056 amended beside)", () => {
+    // Same shape as the interception decomposition above, for the same reason: `throwawaysByCause`
+    // is read directly off `THROWAWAY.payload.cause` in `case "THROWAWAY"`, bumped in the same
+    // `flush()` branch that bumps `throwaways` itself, so the two cannot disagree without a code
+    // change touching both — this is the identity `collect.ts`'s own field comment cites.
+    const total = Object.values(acc.play.throwawaysByCause).reduce((a, b) => a + b, 0);
+    expect(total).toBe(acc.play.throwaways);
+    for (const cause of Object.keys(acc.play.throwawaysByCause)) {
+      expect(["POCKET_DURESS", "CLOCK_EXPIRED"]).toContain(cause);
+    }
+  });
+
   it("merges associatively and commutatively, so worker count cannot move a number", () => {
     const a = foldGame(emptyAccumulator(), game("fold-a"));
     const b = foldGame(emptyAccumulator(), game("fold-b"));

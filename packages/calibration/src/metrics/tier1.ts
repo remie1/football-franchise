@@ -1271,6 +1271,193 @@ export const interceptionSourceMix: Metric = registerMetric({
   },
 });
 
+// ---------------------------------------------------------------------------
+// throwaway cause partition (backlog entry 100; ADR-056 amended beside Option C)
+// ---------------------------------------------------------------------------
+
+/**
+ * ⛔ **WHY THIS EXISTS: `THROWAWAY.payload.cause` WAS SHIPPED (ADR-056's amendment) AND NOTHING
+ * READ IT.** `pocketLadder.ts`'s `throwaway_rate` diagnostic — the only place a throwaway rate
+ * was reported anywhere in this package before this dispatch — folds `POCKET_DURESS` (the pocket
+ * beat him) and `CLOCK_EXPIRED` (nobody got open; the clock ran out with no duress at all) into
+ * one number, and its own header already says why that is dangerous: *"A throwaway is produced
+ * either by urgency … or by the clock expiring with nobody open. Those are opposite mechanisms
+ * wearing the same event."* No metric anywhere separated them. This does.
+ *
+ * ================== PRE-REGISTRATION (written before the canonical-arm figures below) ==================
+ *
+ * Three branches, and what each would say about the model:
+ *
+ *  - **HEAVY `CLOCK_EXPIRED` SKEW** (mostly route/coverage-side): would mean the undifferentiated
+ *    rate is, in the main, a statement about opening quality and read timing, not about
+ *    protection — pocket levers (arrival horizons, band floors, `forcesDecision`) would have
+ *    little leverage over it, and it would corroborate `pocketLadder.ts`'s own recorded-red note
+ *    (that ladder's throwaway rise at its one measured rung was clock-driven) as the GENERAL case
+ *    rather than an artefact of that one induced rung.
+ *  - **HEAVY `POCKET_DURESS` SKEW** (mostly protection-side): would mean the undifferentiated rate
+ *    IS, contra the diagnostic's own caution, mostly a pocket-integrity signal on this arm — and
+ *    would flag that `pocketLadder.ts`'s recorded note (clock-driven at ITS rung) does not
+ *    generalise to the canonical arm under `DEFAULT_TUNABLES`: that note describes one induced
+ *    rung of a synthetic ladder walk, not this baseline's default-tunables population, and the two
+ *    corpora would be shown to disagree about which mechanism dominates.
+ *  - **ROUGHLY EVEN SPLIT**: would mean the mixed-mechanism caution holds even off the ladder walk
+ *    — the undifferentiated rate is unusable for mechanism attribution under default tunables too,
+ *    not only at an induced extreme, and this split becomes a required instrument for every future
+ *    dispatch that reads a throwaway number.
+ *
+ * ================== THE MEASUREMENT — canonical arm, named ==================
+ *
+ * **Arm: canonical `flat-60-32t`, 496 games, batch seed `baseline-0001`, seed digest
+ * `fnv1a:020c1dcb#496`, `DEFAULT_TUNABLES`, frozen caller v2/v1** — the same arm `baseline-0007`
+ * and backlog entries 94–99 cite; `dropbacks 43,370`, `throwaways 1,653` reproduce those entries'
+ * own printed counts exactly, which is the check that this ran on the arm it claims to.
+ *
+ * **`POCKET_DURESS` 1,343 of 1,653 (81.25% of throwaways; 3.097% of dropbacks).
+ * `CLOCK_EXPIRED` 310 of 1,653 (18.75% of throwaways; 0.715% of dropbacks).**
+ *
+ * ⇒ **THE SECOND BRANCH.** A heavy `POCKET_DURESS` skew, four-to-one. On the canonical arm, under
+ * default tunables, the undifferentiated `throwaway_rate` (below) is predominantly a
+ * PROTECTION-SIDE signal, not a route/coverage one — the pocket is, in the large majority of
+ * cases, the reason the ball came out with no target. This is the OPEN prediction resolving
+ * against the branch this dispatch's own brief called unexpected relative to
+ * `pocketLadder.ts`'s prose: that file's recorded note describes a `CLOCK_EXPIRED`-driven rise at
+ * ONE INDUCED RUNG of a synthetic ladder walk (a corpus built to isolate the pocket mechanic in
+ * isolation), not the canonical arm's default-tunables population — and the two corpora do not
+ * agree about which mechanism dominates. Neither figure is wrong; they are measurements of
+ * different populations, and this is the first time that has been checked rather than assumed.
+ *
+ * ================== THE IDENTITY CHECK (backlog entry 88's rule, ADR-056's brief) ==================
+ *
+ * `throwaway_rate` (below) is NOT a fourth independent quantity. `throwawaysByCause` sums to
+ * `throwaways` by construction (`collect.ts`'s own field comment; pinned by
+ * `test/metrics.test.ts`'s "decomposes throwaways by cause" case), so `throwaway_rate ==
+ * throwaway_rate_pocket_duress + throwaway_rate_clock_expired` always. It is shipped anyway, as a
+ * DECLARED DERIVED ROW, because the undifferentiated rate already has a name and a citation
+ * history in this project (`pocketLadder.ts`'s `DIAGNOSTIC_MEASURES`, and backlog entries
+ * referencing its movement, e.g. "+2.78pp") — dropping it here would leave a reader summing two
+ * Tier 1 rows by hand to reconstruct a number this project has been citing as one figure for
+ * months. Its `definition` says so and names both rows, per the rule that an undeclared derived
+ * row is the defect and a declared one is not.
+ *
+ * ================== WHY SIM SIDE ONLY, PERMANENTLY (comparability provenance) ==================
+ *
+ * `THROWAWAY.payload.cause` is a fact the ENGINE publishes about ITS OWN decision process — which
+ * branch of `passPlay.ts` fired. No ingested source could ever carry this, for the same reason
+ * `int_source_mix` above has none: the ingestion layer shipped eleven sources (`calibration.md`
+ * §2 — nflverse schedules/pbp, participation, three NGS tables, ESPN win rates, FTN charting,
+ * rosters, depth charts, injuries, snap counts) and nflverse codes a throwaway as an ordinary
+ * incomplete `pass_attempt` with no cause column of any kind (backlog entry 94 finding 1). This is
+ * not a gap an engine change or a future ingest could close; it is a fact about what a broadcast
+ * box score can state. `computeFromReal` says so on every one of the three rows below rather than
+ * leaving the absence silent (item 3 of this dispatch's brief).
+ */
+export const throwawayRatePocketDuress: Metric = registerMetric({
+  id: "throwaway_rate_pocket_duress",
+  tier: 1,
+  definition:
+    "SIM SIDE ONLY — no real column exists for this quantity and none ever will; see " +
+    "computeFromReal for the comparability provenance. Throwaways whose THROWAWAY.payload.cause " +
+    "is POCKET_DURESS (passPlay.ts's forcesDecision(pocket) branch — the pocket forced the " +
+    "decision) ÷ dropbacks. One of two rows that PARTITION throwaway_rate (below) by mechanism; " +
+    "see that row for the identity and throwaway_rate_clock_expired for the other cause.",
+  unit: "%",
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
+  knownDivergences: [
+    "ADR-056 (amended beside Option C) — backlog entry 100",
+    "canonical arm (baseline-0001, 496 games): 1,343/43,370 = 3.097% (81.25% of all throwaways)",
+  ],
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const p = accumulator.play;
+    return p.dropbacks === 0
+      ? noObservations("no dropbacks")
+      : rate(p.throwawaysByCause["POCKET_DURESS"] ?? 0, p.dropbacks);
+  },
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations(
+      "COMPARABILITY PROVENANCE: no real side, structurally, not merely unmeasured. " +
+        "THROWAWAY.payload.cause states WHY the engine's own decision process produced a " +
+        "throwaway, and no broadcast box score records a quarterback's reason for throwing the " +
+        "ball away — nflverse codes a throwaway as an ordinary incomplete pass_attempt with no " +
+        "cause column at all (backlog entry 94 finding 1), and none of the eleven ingested " +
+        "sources (calibration.md §2) charts it either. This is not a gap the engine or a future " +
+        "ingest could close; see this metric's own header comment for the full argument. Do not " +
+        "substitute any other real-side figure here.",
+    );
+  },
+});
+
+export const throwawayRateClockExpired: Metric = registerMetric({
+  id: "throwaway_rate_clock_expired",
+  tier: 1,
+  definition:
+    "SIM SIDE ONLY — no real column exists for this quantity and none ever will; see " +
+    "computeFromReal for the comparability provenance. Throwaways whose THROWAWAY.payload.cause " +
+    "is CLOCK_EXPIRED (passPlay.ts's other throwaway path — the clock/reads ran out with NO " +
+    "pocket duress at all: 'nobody got open') ÷ dropbacks. The other of the two rows that " +
+    "PARTITION throwaway_rate (below) by mechanism; see that row for the identity and " +
+    "throwaway_rate_pocket_duress for the other cause.",
+  unit: "%",
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
+  knownDivergences: [
+    "ADR-056 (amended beside Option C) — backlog entry 100",
+    "canonical arm (baseline-0001, 496 games): 310/43,370 = 0.715% (18.75% of all throwaways)",
+  ],
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const p = accumulator.play;
+    return p.dropbacks === 0
+      ? noObservations("no dropbacks")
+      : rate(p.throwawaysByCause["CLOCK_EXPIRED"] ?? 0, p.dropbacks);
+  },
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations(
+      "COMPARABILITY PROVENANCE: no real side, structurally, not merely unmeasured. " +
+        "THROWAWAY.payload.cause states WHY the engine's own decision process produced a " +
+        "throwaway, and no broadcast box score records a quarterback's reason for throwing the " +
+        "ball away — nflverse codes a throwaway as an ordinary incomplete pass_attempt with no " +
+        "cause column at all (backlog entry 94 finding 1), and none of the eleven ingested " +
+        "sources (calibration.md §2) charts it either. This is not a gap the engine or a future " +
+        "ingest could close; see throwaway_rate_pocket_duress's header comment for the full " +
+        "argument. Do not substitute any other real-side figure here.",
+    );
+  },
+});
+
+export const throwawayRate: Metric = registerMetric({
+  id: "throwaway_rate",
+  tier: 1,
+  definition:
+    "SIM SIDE ONLY — no real column exists for this quantity and none ever will (same " +
+    "comparability provenance as its two components; see computeFromReal). DECLARED DERIVED ROW: " +
+    "throwaway_rate_pocket_duress + throwaway_rate_clock_expired, i.e. every throwaway (either " +
+    "cause) ÷ dropbacks — an undifferentiated mix of the two mechanisms named above, not new " +
+    "information beyond them. Carried because the undifferentiated rate already has a name and a " +
+    "citation history in this project: pocketLadder.ts's DIAGNOSTIC_MEASURES computes the " +
+    "identical shape (throwaways ÷ dropbacks) on that instrument's own ladder-walk corpus rather " +
+    "than this baseline arm — a DIFFERENT population under the SAME name, deliberately kept in " +
+    "sync (backlog entry 93's naming precedent) rather than left to silently diverge.",
+  unit: "%",
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
+  knownDivergences: [
+    "ADR-056 (amended beside Option C) — backlog entry 100",
+    "DECLARED DERIVED from throwaway_rate_pocket_duress + throwaway_rate_clock_expired",
+    "canonical arm (baseline-0001, 496 games): 1,653/43,370 = 3.811%; 81.25% POCKET_DURESS / 18.75% CLOCK_EXPIRED",
+  ],
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const p = accumulator.play;
+    return p.dropbacks === 0 ? noObservations("no dropbacks") : rate(p.throwaways, p.dropbacks);
+  },
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations(
+      "COMPARABILITY PROVENANCE: no real side, structurally, not merely unmeasured — same " +
+        "reason as its two components (throwaway_rate_pocket_duress, throwaway_rate_clock_expired): " +
+        "nflverse codes a throwaway as an ordinary incomplete pass_attempt with no cause column, " +
+        "and none of the eleven ingested sources (calibration.md §2) charts WHY a quarterback " +
+        "threw the ball away. See throwaway_rate_pocket_duress's header comment for the full " +
+        "argument. Do not substitute any other real-side figure here.",
+    );
+  },
+});
+
 /**
  * A STRUCTURAL metric, and it is registered through the `allowStructural` gate on purpose.
  *
@@ -1403,6 +1590,9 @@ export const TIER_1_METRICS: readonly Metric[] = [
   fieldGoalPct,
   extraPointPct,
   interceptionSourceMix,
+  throwawayRatePocketDuress,
+  throwawayRateClockExpired,
+  throwawayRate,
   structuralCoverageShellMix,
   realSideCoverageSeparation,
 ];

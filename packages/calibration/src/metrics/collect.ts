@@ -22,7 +22,7 @@
  * a distribution cannot be folded into a counter. They are kept, and they are the reason
  * `SimAccumulator` grows linearly with plays rather than staying constant.
  */
-import type { MatchEventEnvelope, PlayerId, TeamId } from "@ff/contracts";
+import type { MatchEventEnvelope, PlayerId, TeamId, ThrowawayCause } from "@ff/contracts";
 import { DEFAULT_TUNABLES } from "@ff/engine";
 import type { GameSummary, StatLine } from "@ff/engine";
 
@@ -65,6 +65,24 @@ export interface PlayFold {
   interceptions: number;
   sacks: number;
   throwaways: number;
+  /**
+   * ================== POCKET DURESS vs CLOCK EXPIRED (ADR-056 AMENDED BESIDE) ==================
+   *
+   * `throwaways` above is ONE population produced by TWO different football events, and ADR-056's
+   * amendment beside Option C exists precisely so a consumer can tell them apart instead of
+   * inferring it again: `POCKET_DURESS` (the `forcesDecision(pocket)` branch, `passPlay.ts:1077`
+   * — the pocket beat him) and `CLOCK_EXPIRED` (the clock/reads ran out with **no** duress,
+   * `passPlay.ts:1096` — nobody got open). Keyed by `THROWAWAY.payload.cause`, READ DIRECTLY OFF
+   * THE EVENT — never re-derived from `pressured`, `forcedDecision`, or any other pocket-status
+   * fact this fold already tracks. That is the entire point of the field: the engine already
+   * knows which is which, and re-deriving it from a correlated-but-distinct signal would
+   * reintroduce the exact inference ADR-056 shipped `cause` to make unnecessary.
+   *
+   * `Object.values(...)` sums back to `throwaways` above by construction — both are bumped in the
+   * same branch of `flush()`, once per throwaway, so `throwaways === Σ throwawaysByCause` on every
+   * fold. `test/metrics.test.ts` asserts the identity directly.
+   */
+  throwawaysByCause: Record<string, number>;
   scrambles: number;
   /** Dropbacks whose worst POCKET_STATUS was anything other than CLEAN. */
   pressuredDropbacks: number;
@@ -332,6 +350,7 @@ export function emptyAccumulator(): SimAccumulator {
       interceptions: 0,
       sacks: 0,
       throwaways: 0,
+      throwawaysByCause: {},
       scrambles: 0,
       pressuredDropbacks: 0,
       pressuredSacks: 0,
@@ -487,6 +506,12 @@ interface PlayState {
    * existing convention (`case "THROW"` below does the same).
    */
   throwawayTick: number | null;
+  /**
+   * `THROWAWAY.payload.cause`, read directly off the event — see `PlayFold.throwawaysByCause`.
+   * `null` only before the event has fired; the contract makes `cause` required on the payload,
+   * so it is never `null` at the point `flush()` reads it for a play with `throwaway === true`.
+   */
+  throwawayCause: ThrowawayCause | null;
   caught: boolean;
   intercepted: boolean;
   intSource: IntSource | null;
@@ -524,6 +549,7 @@ function blankPlay(): PlayState {
     throwTick: null,
     throwaway: false,
     throwawayTick: null,
+    throwawayCause: null,
     caught: false,
     intercepted: false,
     intSource: null,
@@ -638,6 +664,11 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
         // Already counted in `passAttempts` above; this is the separate diagnostic population
         // `pocketLadder.ts`'s `throwaway_rate` reads (denominator `dropbacks`, not `passAttempts`).
         p.throwaways++;
+        // The partition (see `PlayFold.throwawaysByCause`). `?? "UNKNOWN_CAUSE"` is unreachable
+        // given the contract's required `cause` field and the invariant that both fields are set
+        // together in `case "THROWAWAY"` below — kept for type safety only, same convention as
+        // `play.intSource ?? "DIRECT"` above.
+        bumpKey(p.throwawaysByCause, play.throwawayCause ?? "UNKNOWN_CAUSE");
       } else if (!play.threw && !play.intercepted) {
         // No throw, no scramble, no throwaway: a sack. Entry 94 removed the old inference by
         // yardage sign (`(play.resultYards ?? 0) < 0`) in favour of this directly-observed
@@ -752,6 +783,8 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
         if (current !== null) {
           current.throwaway = true;
           current.throwawayTick = tick;
+          // Read directly off the event, per ADR-056's amendment — see PlayFold.throwawaysByCause.
+          current.throwawayCause = event.payload.cause;
         }
         break;
       case "CATCH_RESOLUTION":
@@ -1046,6 +1079,7 @@ export function mergeAccumulators(a: SimAccumulator, b: SimAccumulator): SimAccu
     interceptions: a.play.interceptions + b.play.interceptions,
     sacks: a.play.sacks + b.play.sacks,
     throwaways: a.play.throwaways + b.play.throwaways,
+    throwawaysByCause: mergeCounters(a.play.throwawaysByCause, b.play.throwawaysByCause),
     scrambles: a.play.scrambles + b.play.scrambles,
     pressuredDropbacks: a.play.pressuredDropbacks + b.play.pressuredDropbacks,
     pressuredSacks: a.play.pressuredSacks + b.play.pressuredSacks,

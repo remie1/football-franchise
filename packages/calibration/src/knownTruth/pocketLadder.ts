@@ -631,6 +631,13 @@ export interface LadderSample {
   readonly completions: number;
   readonly scrambles: number;
   readonly throwaways: number;
+  /**
+   * `throwaways` above, partitioned by `THROWAWAY.payload.cause` (ADR-056 amended beside; backlog
+   * entry 100). Read straight off `PlayFold.throwawaysByCause` — no re-derivation on this side
+   * either. `Object.values(...)` sums to `throwaways` by the same construction `collect.ts`
+   * documents and `test/metrics.test.ts` pins.
+   */
+  readonly throwawaysByCause: Readonly<Record<string, number>>;
   readonly pressuredDropbacks: number;
   /** Seconds from snap to release, one entry per throw. */
   readonly throwTicks: readonly number[];
@@ -691,6 +698,15 @@ export interface UrgencyMeasure {
  *    opposite mechanisms wearing the same event, and at the recorded red it is the second one:
  *    throwaways rise +2.78pp *because* the pocket forced nothing and the play simply ran out.
  *    An axis whose sign depends on which mechanism produced the event cannot police an ordering.
+ *    ⚠ Backlog entry 100 (ADR-056 amended beside) partitioned this by `THROWAWAY.payload.cause` —
+ *    `throwaway_rate_pocket_duress` / `throwaway_rate_clock_expired` in `DIAGNOSTIC_MEASURES`
+ *    below — so a reader no longer has to take "which mechanism" on faith. On the CANONICAL
+ *    baseline arm (a different corpus from this ladder walk) the split runs the other way from
+ *    this file's own recorded red: 81.25% `POCKET_DURESS`, 18.75% `CLOCK_EXPIRED` (496 games,
+ *    batch seed `baseline-0001`) — see `tier1.ts`'s `throwaway_rate_pocket_duress` header for the
+ *    full measurement. The two corpora disagreeing is expected, not a contradiction: this walk
+ *    imposes a single rung on a flat-2-team league, the baseline arm runs `DEFAULT_TUNABLES` on
+ *    32 teams, and neither claims to describe the other.
  *  - **`completion_rate` — EXCLUDED**, on the same grounds `db-coverage-net-yards-per-dropback`
  *    excludes it (see its measurement's doc comment): pocket urgency changes WHICH throws happen,
  *    not only how they end, so completion rate can rise as the pocket worsens purely through
@@ -813,6 +829,21 @@ export const URGENCY_MEASURES: readonly UrgencyMeasure[] = [
  * reported and never graded, same as the rest of this list. Renamed for consistency so a reader
  * grepping for the old name after the Tier 1 metric's strip does not find one instance retired and
  * a second, identically-computed one still answering to the old name.
+ *
+ * ⛔⛔ `throwaway_rate` PARTITIONED, backlog entry 100 (ADR-056 amended beside). This axis's own
+ * header above already named the problem — a throwaway is produced by two opposite mechanisms
+ * wearing the same event — and until this dispatch nothing here separated them either.
+ * `throwaway_rate_pocket_duress` and `throwaway_rate_clock_expired` are the partition, read off
+ * `LadderSample.throwawaysByCause` (itself read straight off `THROWAWAY.payload.cause`, never
+ * re-derived); `throwaway_rate` stays as a DECLARED DERIVED ROW — their sum, kept because this
+ * exact name is what every existing reference to "the throwaway rate" in this file's own prose and
+ * in the backlog already means, and because `tier1.ts` registers the identical three-row shape
+ * (same ids) on the canonical baseline arm — a DIFFERENT corpus (that arm's default tunables
+ * rather than this file's imposed-rung walk), kept in sync by name on purpose (backlog entry 93's
+ * naming precedent), not by accident.
+ *
+ * Still REPORTED, NOT ASSERTED, same as before and for the same reason — nothing here claims the
+ * split is monotone across the ladder; it only stops merging two mechanisms into one number.
  */
 export const DIAGNOSTIC_MEASURES: readonly {
   readonly id: string;
@@ -820,6 +851,16 @@ export const DIAGNOSTIC_MEASURES: readonly {
 }[] = [
   { id: "scramble_rate", measure: (s) => (s.dropbacks === 0 ? null : s.scrambles / s.dropbacks) },
   { id: "throwaway_rate", measure: (s) => (s.dropbacks === 0 ? null : s.throwaways / s.dropbacks) },
+  {
+    id: "throwaway_rate_pocket_duress",
+    measure: (s) =>
+      s.dropbacks === 0 ? null : (s.throwawaysByCause["POCKET_DURESS"] ?? 0) / s.dropbacks,
+  },
+  {
+    id: "throwaway_rate_clock_expired",
+    measure: (s) =>
+      s.dropbacks === 0 ? null : (s.throwawaysByCause["CLOCK_EXPIRED"] ?? 0) / s.dropbacks,
+  },
   { id: "completion_rate", measure: (s) => (s.attempts === 0 ? null : s.completions / s.attempts) },
   {
     id: "threat_creation_rate",
@@ -1072,6 +1113,7 @@ export function sampleOf(result: BatchResult): LadderSample {
     completions: p.completions,
     scrambles: p.scrambles,
     throwaways: p.throwaways,
+    throwawaysByCause: p.throwawaysByCause,
     pressuredDropbacks: p.pressuredDropbacks,
     throwTicks: p.throwTicks,
     passYards,
