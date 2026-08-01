@@ -6859,3 +6859,63 @@ a different axis.**
 | ⛔ **`COIN_TOSS.choice: "DEFER"`** | **UNPRODUCED, self-acknowledged** | both callers hardcode `"RECEIVE"`; `frozen.ts:516` says *"Deferring is a tendency, and this caller has exactly the tendencies it was fitted."* ⚠ **Declared — so DORMANT, not dead.** |
 
 ⛔ **UNRULED. Each is a petition if anyone intends to close it, and none is chased here.**
+
+---
+
+## 99. ⛔ THE RESTATEMENT SWEEP — **a restated constant is only caught if it is CHECKED AGAINST the thing it restates**
+
+**Ruled off ADR-056's engine dispatch, which was asked to derive whether `tippedBall.test.ts`'s literal
+restatement of `ThrowType` had siblings.** ⛔ **REPORTED EITHER WAY. It is NOT empty.**
+
+### ⚠ SEVEN LITERAL RE-ENUMERATIONS OF A `@ff/contracts` UNION, ALL IN `packages/engine/test`
+
+| union | restated at |
+|---|---|
+| `RunScheme` | `attrReferences.test.ts:70`, `rollAccounting.test.ts:110`, `resultBands.test.ts:133` |
+| `ReadSystem` | `determinism.test.ts:60`, `opennessGainPlayScope.test.ts:80` |
+| `RushMove` | `passRush.test.ts:195` |
+| `RushAlignment` | `rushThreat.test.ts:86` |
+| `RunSide` | `unblockedProtector.test.ts:136` *(plus a "no slide" sentinel)* |
+| `RouteDepthClass` | `tippedBall.test.ts:95` |
+| ⛔ **`ThrowType`** | **`tippedBall.test.ts:97` — THE ONE THAT BROKE** |
+
+⚠ **Partial subsets and engine-local unions were correctly EXCLUDED and listed** — `ContestPosition`
+is engine-owned, the band-label arrays key a free-text `band?: string`. ⛔ **Not everything that looks
+like an enumeration is one.**
+
+### ✅ THE REMEDY THAT SHIPPED, AND IT IS BIDIRECTIONAL
+
+```ts
+const THROW_TYPES = ["BULLET", "TOUCH", "BACK_SHOULDER"] as const satisfies readonly ThrowType[];
+type _ThrowTypesComplete = ThrowType extends (typeof THROW_TYPES)[number] ? true : never;
+const _throwTypesComplete: _ThrowTypesComplete = true;
+```
+
+⚠ **`satisfies` catches a member REMOVED — that is what fired today.** ⛔ **It does NOT catch a member
+ADDED: the list would silently under-enumerate and the test would quietly exercise a strict subset.**
+✅ **The `extends` line closes that direction.**
+
+> ### ⇒ **A ONE-DIRECTIONAL GUARD ON A TWO-DIRECTIONAL FAILURE IS HALF AN INSTRUMENT — and the half it lacks is the SILENT one.**
+
+### ⛔⛔ AND THE STRUCTURAL FINDING: `tunables.ts` CARRIES THE SAME DEFECT WHERE **NO CHECK IS POSSIBLE**
+
+**Five records still key a DEAD `THROWAWAY` after the member was removed from the contract:**
+`velocityModifier` (`:1990`, `:2214`), `throwTypeModifier` (`:2034`), `heightStepsByThrowType`
+(`:2212`), `byThrowType` (`:2553`).
+
+⛔ **NO COMPILE ERROR FIRED, AND NONE EVER COULD:**
+
+> ## ⛔ **`export type Tunables = typeof TUNABLES` — THE TYPE IS INFERRED FROM THE OBJECT, SO THE OBJECT CANNOT DISAGREE WITH ITS OWN TYPE.**
+
+⚠ **The test's literal was checked AGAINST `ThrowType` and therefore broke. The tunables literal is
+checked against NOTHING, because it DEFINES what it is checked against.** ⛔ **The restatement is
+invisible BY CONSTRUCTION, not by oversight.**
+
+> ### ⇒ **THE GENERAL RULE: A RESTATED CONSTANT IS ONLY CAUGHT IF IT IS CHECKED AGAINST THE THING IT RESTATES. An inferred type checks against nothing, so every enumeration inside `TUNABLES` is a restatement with NO POSSIBLE GUARD.**
+
+**Confirmed inert for now** — ⚠ **calibration reads no `THROWAWAY` key off any of those records
+(verified), and a lookup typed `ThrowType` still resolves, since the record's key set is now merely
+WIDER than the union.** ⛔ **Inert is not the same as correct, and "wider than the union" is exactly
+the state `tippedBall.test.ts` was in before it broke — the difference is only that one was checkable.**
+
+⛔ **UNRULED, and `packages/engine`'s path.** ⚠ **Not fixed here.**
