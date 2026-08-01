@@ -6138,3 +6138,189 @@ reopen under `timeRetirementEnabled: false` or a higher `pressureWithinSeconds`.
 
 **⇒ NOT A REGRESSION IN THE PRIMARY SENSE.** ⚠ **The claim was never true of the tree it was written
 against; the tree then narrowed further.**
+
+---
+
+## 93. ⚡ OWNER RULING, EXECUTED — `pressure_rate` → `threat_creation_rate`. REAL SIDE STRIPPED. ENTRY 68's CLAUSE SUPERSEDED.
+
+**Dispatch B, August 2026. ⛔ NO ENGINE CODE, NO TUNABLE TOUCHED.** `pressure_to_sack` untouched
+(fixed at `6019f0f`, out of scope per the dispatch). `qb_disruption_rate` NOT built (dispatch C,
+not mine).
+
+### ⛔ THE RULING, STATED SO THE SUPERSESSION IS EXPLICIT
+
+Entry 68 ruled: *"`pressure_rate` STAYS. It is the figure comparable to real football and remains
+the headline against 29.225%."* **THAT CLAUSE IS STRUCK, BY OWNER RULING, NOT BY A QUIET EDIT.**
+Entry 87 item 3 found it had no derivation, citation or provenance row anywhere; entry 92 found the
+identical pattern in ADR-033 — a claim placed among measurements is read as one. The comparability
+is recorded `UNESTABLISHED` in `participation.ts`'s comparability provenance row (above
+`ParticipationRow.wasPressure`): if NGS's own description of its pressure product governs
+nflverse's `was_pressure`, the real column counts QB-bail-and-coverage causes this metric's sim
+side is structurally incapable of producing.
+
+`pressure_rate` is renamed `threat_creation_rate`. It stays useful as an **internal
+protection-integrity diagnostic** — `pocket_status_distribution` and every pocket dispatch still
+read it, unchanged. What it stops doing is claiming a real-football comparison it cannot support.
+The metric's own header in `tier1.ts` states the prohibition, the reason (comparability
+`UNESTABLISHED`, see `participation.ts`), and what would lift it (an nflverse/NGS artefact, at a
+stated revision, establishing `was_pressure`'s governing semantics).
+
+### ⛔ THE DISAPPEARING RED, NAMED SO STRIPPING IS NOT MISTAKEN FOR A FIX
+
+Through `baseline-0007` (canonical `flat-60-32t` arm, 496 games, batch seed `baseline-0001`, seed
+digest `fnv1a:020c1dcb#496`) this metric graded **FAIL (known): sim 89.73% vs real 29.23%**, n
+43,370/56,893. Stripping the real side deletes that failing row from every future report's tally.
+**THE GAP IS UNEXPLAINED AND UNCHANGED. It is RETIRED AS A COMPARISON, NOT CLOSED.**
+
+### ⛔ THE REPORT STUB — a mid-dispatch owner addition, addressed
+
+An absence would read as *"this was never measured."* What happened is stronger: it WAS measured,
+and the comparison was found not to be one. So `threat_creation_rate.computeFromReal` does not
+return a generic `NO_OBSERVATIONS` — it returns one whose `detail` NAMES the retirement, the
+superseded entry (68), the superseding entry (93), and the last graded figures (`89.73%` vs
+`29.23%`, `baseline-0007`, `n 43,370/56,893`), and states why (comparability `UNESTABLISHED`,
+`participation.ts`) and what would lift it. That text renders in every future report's Tier 1 row
+for this metric, in the notes column, exactly the way `NO_OBSERVATIONS`/`OBSERVATION`/`REFUSED`
+already render distinguishable markers rather than blanks — **the existing convention was matched,
+not reinvented**: `evaluateMetric` (`bands.ts`) already turns "real side inapplicable + infinite
+band" into verdict `OBSERVATION` with `detail = "real: " + <the noObservations message>` for
+exactly this shape (`hot_route_rate`, `unaccounted_rusher_rate`, `pocket_status_distribution` all
+already render this way). No new verdict was needed or invented; the retirement text simply had to
+be rich rather than terse, and it now is. Enforced by
+`test/metrics.test.ts`'s `"retires threat_creation_rate's real side loudly, naming the last graded
+figures"`, which asserts the detail contains `RETIRED`, `entry 93`, `entry 68`, `89.73%`, `29.23%`,
+`baseline-0007` and `UNESTABLISHED`, both with participation loaded and with a bare input (the
+retirement is unconditional, not gated on a missing optional source).
+
+### ⛔ THE TIER 1 PASS/FAIL COUNT CHANGES — old vs new, arm named
+
+**Arm: `baseline-0007`, canonical `flat-60-32t`, 496 games, batch seed `baseline-0001`, seed digest
+`fnv1a:020c1dcb#496`.** Counted directly off `reports/baseline-0007.md`'s Tier 1 table (29 rows):
+
+| verdict | BEFORE (this dispatch) | AFTER | why |
+|---|---|---|---|
+| PASS_COMFORTABLE | 3 | 3 | unchanged |
+| PASS | 2 | 2 | unchanged |
+| FAIL (known) | **17** | **16** | `pressure_rate`/`threat_creation_rate`'s row moves out |
+| OBSERVATION | 7 | **8** | the same row moves in |
+| FAIL (new) | 0 | 0 | unchanged |
+
+**Only this one row moves.** Not re-run — proved structurally: `evaluateMetric` grades each metric
+independently off its own `computeFromEvents`/`computeFromReal`, and this dispatch changed neither
+function on any OTHER Tier 1 metric, no tunable, and no engine code. The sim-side numbers every
+other row would report on a re-run of this exact arm are bit-identical to `baseline-0007`'s. A
+reader diffing `-0007` against the next report on this arm should expect to see exactly one row's
+verdict change, for exactly this reason — not an unexplained shift.
+
+### THE CARRY-FORWARD / TREND PROBLEM — decided per file, not discovered
+
+A rename orphans a carry-forward key: `withTrend` (`report/baseline.ts`) looks up
+`previous.sim[metric.id]`, and `metric.id` changed. Two different files, two different decisions,
+both stated:
+
+- **`reports/*.carry-forward.json` (baseline-0002 through -0007) — LEFT UNCHANGED, discontinuity
+  ACCEPTED and recorded here.** These are immutable snapshots of specific past runs; rewriting a
+  committed artefact's key to a name that did not exist when it was written would be revisionist.
+  ⚠ **Verified, not assumed, that this does not silently orphan a single row**: `identity.ts`'s
+  `compareIdentity` refuses a trend on ANY `engineCommit` mismatch, over the WHOLE table, before any
+  per-metric lookup runs — and `engineCommit` is a whole-tree monorepo commit, so this dispatch's
+  own commit already makes every future run's `engineCommit` differ from all six of these files'
+  stamps forever. A reader pointing a future report at any of them gets a blanket **`REFUSED`**
+  banner naming `engineCommit` as the mismatched field (see `renderTrend`'s `REFUSED` case) — not a
+  silent em-dash on this one row. The per-metric orphan this problem could in principle cause is
+  real in the abstract but structurally unreachable in this corpus, because no carry-forward ever
+  survives an engine commit boundary regardless of any metric rename.
+- **`src/report/previous.ts` (`PREVIOUS_BASELINE`, baseline-0001's reconstruction) — KEY RENAMED,
+  history CARRIED FORWARD.** Different disposition because it is a different kind of artefact: a
+  *maintained* reconstruction, enforced live by `test/report.test.ts`'s *"the reconstructed
+  predecessor"* suite, which asserts every key in `PREVIOUS_BASELINE.sim` is a currently registered
+  metric id. That test went RED the instant the rename landed (`isRegistered("pressure_rate")` is
+  now false) — found by running the suite, not asserted. So the key is now `threat_creation_rate`,
+  the value (`0.87`, entry 21's sim-side figure) is unchanged, and a comment records that entry 21
+  called it `pressure_rate` at the time. This reconstruction is unreachable in practice regardless
+  (`reconstructedTrend` refuses unless `callerVersion` starts `"v1/"`, and every caller since
+  ADR-024 is v2), so the rename changes no report cell today — only this module's own consistency
+  gate, which is exactly what it exists to enforce.
+
+### THE CONSUMER SET — derived by repo-wide search, not recalled; disposition per file
+
+Searched `src`, `test`, `reports`, `docs/`, root docs, and `packages/engine` for `pressure_rate` /
+`pressureRate`. **Edited** (calibration's own domain, live consumers or load-bearing provenance):
+
+- `src/metrics/tier1.ts` — the metric itself: id, export name, real side, header, prohibition,
+  `pocket_status_distribution`'s header (which quoted entry 68's clause directly), two small
+  cross-reference comments, `TIER_1_METRICS`.
+- `src/ingest/sources/participation.ts` — the comparability provenance row this dispatch's header
+  points readers at by name; updated the sim-column citation, the season-coverage-check paragraph
+  (that join no longer lives in any registered metric — stated rather than left to be discovered),
+  and `ParticipationRow.wasPressure`'s doc comment.
+- `src/metrics/collect.ts`, `src/metrics/tier34.ts`, `src/metrics/absence.ts` — comments/prose
+  describing the CURRENT registry in the present tense (not historical quotes); updated for
+  accuracy. `absence.ts`'s forbidden-substitute alias renamed
+  `pressure_rate_as_prwr` → `threat_creation_rate_as_prwr`, and its note strengthened: the
+  substitution is now wrong for a SECOND reason (no real side to point at, in addition to the
+  original per-rep/per-dropback confound).
+- `src/knownTruth/pocketLadder.ts` — `DIAGNOSTIC_MEASURES`'s own `pressure_rate` entry (a SEPARATE
+  registry, sim-side-only already) renamed to `threat_creation_rate` for naming consistency: same
+  computation, same file family, and leaving one renamed and one not would let a reader find "the
+  metric" apparently still answering to its old name. `test/pocketChannelShares.test.ts`'s
+  cross-reference comment updated to match.
+- `src/report/previous.ts` — see the carry-forward section above.
+- `test/metrics.test.ts` — the two `getMetric("pressure_rate")` call sites. The
+  "missing optional source" test was replaced (the retirement is unconditional, not gated on
+  participation) with a test asserting the retirement text's required content; the
+  `knownDivergences` staleness test updated to the new id and extended to check the rename is
+  itself traceable from the metric's own divergence list.
+- `test/pressureSweep.test.ts` — the one dispatch-probe file that imports the registered metric
+  object directly (`tier1.pressureRate` → `tier1.threatCreationRate`); its own historical
+  `REAL.pressureRate` constant and the many independently-computed local `pressureRate` fields
+  elsewhere in the same file were LEFT ALONE (see below).
+
+**Found, and deliberately left unchanged**, with reasoning:
+
+- `reports/*.md`, `reports/*.carry-forward.json` (baseline-0002 through -0007, plus the superseded
+  `-0002.json`) — historical, immutable snapshots of past runs. See the carry-forward section.
+- `docs/decisions/ADR-027`, `ADR-028`, `ADR-030`, `ADR-032`, `ADR-049` — ratified historical
+  rulings that cite the metric by the name it had when each was written. Rewriting a ratified ADR's
+  own citations after the fact would be the same revisionism the carry-forward files are protected
+  from. None asserts a load-bearing rule keyed on the string `"pressure_rate"` that this rename
+  breaks — checked, not assumed, by reading each hit.
+- `src/knownTruth/docConformance.ts`, `src/knownTruth/threatPopulationCensus.ts`,
+  `src/knownTruth/ruling2CommittedRetirement.ts` — prose citing a PAST finding's own language
+  (*"entry 81... refused it as a `pressure_rate` lever"*, *"this used to be rendered and labelled
+  `pressure_rate`"*). These are historical citations of what was concluded at the time, not live
+  claims about the current registry; same house style as `tier1.ts`'s own rule that *"a paragraph
+  about what the first report was expected to do should not be edited to describe the fifth."*
+- `test/collapsingHorizonSweep.test.ts`, `test/ruling2CommittedDispatch.test.ts`,
+  `test/pressureHorizonSweep.test.ts`, `test/ruling2Dispatch.test.ts`,
+  `test/threatSupplySweep.test.ts`, `test/freeRunnerSweep.test.ts`, `test/pocketBandSweep.test.ts`,
+  `test/anticipation.test.ts`, and the rest of `test/pressureSweep.test.ts` — dispatch-specific,
+  already-ratified probe files (entry 40, ADR-028, ruling 2, etc.), each with its OWN
+  independently-computed local `pressureRate` field/interface and its OWN hardcoded `REAL`
+  constant. None of these import the tier1 export except the one call site fixed above (verified
+  by grep and by `tsc`/`vitest` both passing clean). Renaming every internal field across seven
+  historical dispatch files would be a large, out-of-scope refactor of already-closed findings, not
+  a consequence of this rename; they are left exactly as ratified.
+- `ARCHITECTURE_CHARTER.md`, `HANDOFF.md`, `docs/design/match-engine.md`,
+  `packages/engine/src/tunables.ts`, `packages/engine/test/pressureMetrics.test.ts` — **outside
+  `packages/calibration`, not touched, per this agent's standing scope** (root docs and `engine`
+  are other agents'/the Orchestrator's domain; `CHANGE NO ENGINE CODE` was also explicit in this
+  dispatch). ⚠ **Flagged for the Orchestrator: `HANDOFF.md` lines 38-41 currently restate entry
+  68's clause NEARLY VERBATIM** — *"`pressure_rate` stays as the figure comparable to real
+  football"* — as one of "the three things that change how you read everything else." That
+  sentence is now WRONG and sits at the top of the file whose own header says *"NEXT SESSION
+  STARTS HERE."* Left unedited because it is not this agent's path to write; the Orchestrator
+  should update it before the next session reads it as current.
+
+### VERIFICATION
+
+`pnpm --filter @ff/calibration typecheck` — clean. `pnpm --filter @ff/calibration test -- --run` —
+**548 passed, 0 failed, 49 skipped (env-gated real-cache tests), 34 files.** `pnpm -r test` (whole
+workspace, exit code captured directly, not through a pipe) — **exit 0**, `contracts` 1 file,
+`playbook` 10 files, `engine` 47 files, `calibration` 34 files, all passed, 0 failed anywhere.
+
+### STANDING, RESPECTED
+
+Dispatch C (`qb_disruption_rate`) not built. `pressure_to_sack` not touched (fixed at `6019f0f`).
+No engine code, no tunable, changed. No commit made — Charter §4.1, compute and bring conflicts;
+the owner reviews and commits.

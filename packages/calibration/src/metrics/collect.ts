@@ -71,12 +71,12 @@ export interface PlayFold {
   /**
    * ================== THE SEVERITY PARTITION (backlog 67/67-RESULT, ADR-049) ==================
    *
-   * `pressure_rate` (`pressuredDropbacks / dropbacks`) is `1 − P(every tick CLEAN)`: it counts a
-   * dropback once its WORST tick leaves CLEAN and never again, so a lever that moves a tick from
-   * COLLAPSING to PRESSURE — a real, football-meaningful de-escalation — is invisible to it.
-   * Measured: on the channel that dominates dirty ticks, a demotion off COLLAPSING is invisible to
-   * `pressure_rate` 63.629% of the time; off the band floor, 94.226% (67-RESULT, canonical N,
-   * identity falsifier 0 of 257,598).
+   * `threat_creation_rate` (`pressuredDropbacks / dropbacks`; renamed from `pressure_rate`,
+   * backlog entry 93) is `1 − P(every tick CLEAN)`: it counts a dropback once its WORST tick
+   * leaves CLEAN and never again, so a lever that moves a tick from COLLAPSING to PRESSURE — a
+   * real, football-meaningful de-escalation — is invisible to it. Measured: on the channel that
+   * dominates dirty ticks, a demotion off COLLAPSING is invisible to this rate 63.629% of the
+   * time; off the band floor, 94.226% (67-RESULT, canonical N, identity falsifier 0 of 257,598).
    *
    * `pocketStatusTicks` is every `POCKET_STATUS.payload.status` published during a pass dropback,
    * tallied by value — CLEAN/PRESSURE/COLLAPSING/IMMEDIATE (`@ff/contracts`' `PocketStatus`

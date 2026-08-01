@@ -209,7 +209,8 @@ export const passRushWinRateSim: Metric = registerMetric({
   computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
     return noObservations(
       "ESPN pass-rush/pass-block win rates are not an ingested source. See the declared absence " +
-        "pbwr_prwr_real_target. Do NOT substitute sack rate or pressure rate — they are " +
+        "pbwr_prwr_real_target. Do NOT substitute sack rate or threat_creation_rate (renamed from " +
+        "pressure_rate, backlog entry 93, and now sim-side-only in any case) — they are " +
         "per-dropback and quarterback-mediated, and backlog entry 2 shows they are not even " +
         "monotonically linked to the won-rep rate.",
     );

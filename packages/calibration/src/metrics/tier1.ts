@@ -158,50 +158,75 @@ export const sackRate: Metric = registerMetric({
 });
 
 /**
- * ⛔ COMPARABILITY NOTE (backlog entry 87 item 4 / entry 88), NOT A METRIC CHANGE — read before
- * citing this row's real side as ground truth for a pocket-mechanics claim:
+ * ⛔⛔ RENAMED FROM `pressure_rate`; REAL SIDE STRIPPED (owner ruling, dispatch B — CALIBRATION-
+ * BACKLOG entry 93). READ THIS BEFORE CITING EITHER SIDE.
  *
- * whether the real side's `was_pressure` and this metric's sim side count the SAME event is
- * UNESTABLISHED. See the vendored nflverse-dictionary / NGS text and the comparability provenance
- * row in `../ingest/sources/participation.ts` (above `ParticipationRow.wasPressure`). Checked
- * directly against the engine's own public spec: if the NGS description of its pressure product
- * governs `was_pressure`, the real side counts QB-initiated pressure on an otherwise-clean pocket
- * (bailing early / holding too long), which `POCKET_STATUS` cannot count — it is derived purely
- * from the blocker/rusher contest and is not even published while the quarterback is out of the
- * pocket. Whether that NGS description in fact governs the seasons ingested here (2022-2025) is
- * NOT established either way. Season-coverage check (same file): the real-side rate, joined to
- * pbp dropbacks exactly as below, is stable across 2022-2025 (28.48%-30.11%) — evidence against a
- * rate-moving definition change, not proof of identity.
+ * ================== THE SUPERSESSION, STATED EXPLICITLY (not a silent edit) ==================
+ *
+ * Backlog entry 68 ruled: *"`pressure_rate` STAYS. It is the figure comparable to real football
+ * and remains the headline against 29.225%."* ⛔ **THAT CLAUSE IS STRUCK BY OWNER RULING.** It had
+ * no derivation, citation or provenance row anywhere in this corpus (entry 87 item 3), and entry
+ * 92 found the identical pattern in ADR-033: a claim placed among measurements is read as one.
+ *
+ * The comparability itself is recorded UNESTABLISHED, not merely unmeasured — see the
+ * comparability provenance row in `../ingest/sources/participation.ts` (above
+ * `ParticipationRow.wasPressure`): if NGS's own description of its pressure product governs
+ * nflverse's `was_pressure`, the real column counts QB-bail-and-coverage causes this metric's sim
+ * side is STRUCTURALLY INCAPABLE of producing — `POCKET_STATUS` is derived purely from the
+ * blocker/rusher contest and is not even published while the quarterback is out of the pocket.
+ *
+ * ⛔ PROHIBITION: DO NOT COMPARE THIS METRIC TO nflverse `was_pressure` OR ANY OTHER REAL PRESSURE
+ * FIGURE. WHY: the comparability is UNESTABLISHED (see the provenance row cited above), and no
+ * amount of re-running this corpus closes that from inside this repo. WHAT WOULD LIFT IT: an
+ * nflverse/NGS artefact, at a stated revision, that states which NGS pressure product populates
+ * `was_pressure` and since when, or documents a source/methodology change across seasons —
+ * `participation.ts` §4 states the exact bar. Absent that, this metric's real side stays retired.
+ *
+ * ================== THE RED THIS STRIPPING DELETES — NAMED SO IT IS NOT MISTAKEN FOR A FIX ======
+ *
+ * Through `baseline-0007` (canonical `flat-60-32t` arm, 496 games, batch seed `baseline-0001`,
+ * seed digest `fnv1a:020c1dcb#496`) this metric — then named `pressure_rate` — graded
+ * **FAIL (known): sim 89.73% vs real 29.23%**, n 43,370/56,893. Stripping the real side deletes
+ * that failing row from every future report's tally. **THE GAP IS UNEXPLAINED AND UNCHANGED — it
+ * is being RETIRED AS A COMPARISON, NOT CLOSED**, and `computeFromReal` below says so, with those
+ * exact figures, on every render, rather than quietly returning an unexplained absence.
+ *
+ * ================== WHY THE OLD NAME HAD TO GO, AND WHAT THE NEW ONE DOES NOT CLAIM =============
+ *
+ * `pressure_rate` implied a real-football comparison this metric cannot support. It remains
+ * useful as an INTERNAL PROTECTION-INTEGRITY DIAGNOSTIC — `pocket_status_distribution` and every
+ * pocket dispatch still read it, unchanged, for the reasons the mechanic prose below states. What
+ * it STOPS doing is claiming a comparison it cannot support.
+ *
+ * ================== THE MECHANIC PROSE BELOW IS UNCHANGED FOOTBALL, NOT RE-DERIVED ==============
+ *
+ * `knownDivergences` below still cites backlog 2/3 and the ADR-024 caller note: those are about
+ * what DRIVES the sim-side number, not about a real comparison, and remain accurate.
  */
-export const pressureRate: Metric = registerMetric({
-  id: "pressure_rate",
+export const threatCreationRate: Metric = registerMetric({
+  id: "threat_creation_rate",
   tier: 1,
   definition:
-    "Dropbacks on which the pocket was ever anything other than CLEAN ÷ dropbacks. Real side is " +
-    "nflverse participation's `was_pressure`, which is NGS-derived. Which seasons it covers is a " +
-    "property of the CACHE, not of this metric — read the manifest list the report prints.",
+    "SIM SIDE ONLY, never graded against real football — see the header above for the ruling and " +
+    "why. Dropbacks on which the pocket was ever anything other than CLEAN ÷ dropbacks: an " +
+    "internal protection-integrity diagnostic, not a claim about a real pressure rate.",
   unit: "%",
-  direction: "LOWER_IS_BETTER",
-  toleranceBand: relativeBand(0.15),
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
   /**
-   * ★ THE THIRD CLAUSE WAS STALE AND IS CORRECTED HERE (backlog 28's note). ★
+   * ★ THE CALLER NOTE WAS STALE ONCE ALREADY AND IS KEPT CORRECTED HERE (backlog 28's note). ★
    *
-   * It read *"frozen caller: protection is perfectly informed"*. That was true at `callerVersion`
-   * v1 and became FALSE at v2 (ADR-024): the caller now builds protection against an ANTICIPATED
-   * front and is wrong about roughly a quarter of rushers — `unaccounted_rusher_rate` is 26.08%
-   * in `baseline-0005`, against 0.13% at v1.
-   *
-   * The row is still correctly `FAIL (known)` against entries 2 and 3; only the clause naming the
-   * caller was wrong, and a wrong clause on a failing row is worse than none, because it offers a
-   * reader a spare explanation for a gap that no longer has one. Rewritten rather than deleted:
-   * the caller IS still a confound, it is simply the opposite confound. Perfectly-informed
-   * protection biased pressure DOWN; a caller that guesses biases it up, by the 1.54pp ADR-024
-   * measured, which is a rounding error against 89.14% versus a real 29.23%.
+   * It used to read *"frozen caller: protection is perfectly informed"*. That was true at
+   * `callerVersion` v1 and became FALSE at v2 (ADR-024): the caller now builds protection against
+   * an ANTICIPATED front and is wrong about roughly a quarter of rushers — `unaccounted_rusher_rate`
+   * is 26.08% in `baseline-0005`, against 0.13% at v1. Kept as mechanic context for the SIM number
+   * even though the metric is no longer graded: it is still true that a caller which guesses
+   * biases this rate up, by the 1.54pp ADR-024 measured.
    */
   knownDivergences: [
     "backlog 2",
     "backlog 3",
     "frozen caller v2: protection is built against an ANTICIPATED front and misses ~26% of rushers (ADR-024) — biases this UP, by 1.54pp when measured",
+    "backlog 93: renamed from pressure_rate, real side retired — see this metric's own header",
   ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;
@@ -209,65 +234,54 @@ export const pressureRate: Metric = registerMetric({
       ? noObservations("no dropbacks")
       : rate(p.pressuredDropbacks, p.dropbacks);
   },
-  computeFromReal<E extends Eligibility>(input: RealInput<E>): MetricOutcome {
-    const participation = input.participation;
-    if (participation === undefined) {
-      return noObservations("participation not loaded (open the real input with withParticipation)");
-    }
-    /**
-     * JOINED TO PLAY-BY-PLAY, and the join is load-bearing rather than tidy.
-     *
-     * `was_pressure` is populated on rows that are not dropbacks at all — the participation file
-     * carries a row per play, and a run play reads `false`. Counting non-null rows gave 111,016
-     * "dropbacks" across two seasons against roughly 38,000 real ones a season, and a pressure
-     * rate of 17.5% against a published figure near a third. That number was wrong in the
-     * direction that would have made the engine's 87% look worse than it is, which is the sort
-     * of real-side error that survives review because it makes the sim look bad.
-     */
-    const dropbackKeys = new Set<string>();
-    for (const row of input.pbp.rows) {
-      if (isDropback(row)) dropbackKeys.add(`${row.gameId}|${row.playId}`);
-    }
-    let dropbacks = 0;
-    let pressured = 0;
-    for (const row of participation.rows) {
-      if (row.wasPressure === null) continue;
-      if (!dropbackKeys.has(`${row.gameId}|${row.playId}`)) continue;
-      dropbacks++;
-      if (row.wasPressure) pressured++;
-    }
-    return dropbacks === 0
-      ? noObservations(
-          "no participation row joined to a pbp dropback for these seasons. Participation is " +
-            "ingested per season and its coverage has changed over time; check the manifest " +
-            "list rather than assuming a season range",
-        )
-      : rate(pressured, dropbacks);
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations(
+      "RETIRED comparison, not a passing metric (owner ruling, CALIBRATION-BACKLOG entry 93, " +
+        "superseding entry 68's clause \"pressure_rate stays as the figure comparable to real " +
+        "football\"). Through baseline-0007 (canonical flat-60-32t arm, 496 games, batch seed " +
+        "baseline-0001, seed digest fnv1a:020c1dcb#496) this metric, then named pressure_rate, " +
+        "graded FAIL (known): sim 89.73% vs real 29.23%, n 43,370/56,893. That gap is UNEXPLAINED " +
+        "AND UNCHANGED; retiring the comparison does not close it. WHY RETIRED: whether nflverse " +
+        "participation's was_pressure charters the same event this metric's sim side counts is " +
+        "UNESTABLISHED, not merely unmeasured — see the comparability provenance row above " +
+        "ParticipationRow.wasPressure in ../ingest/sources/participation.ts. WHAT WOULD LIFT " +
+        "THIS: an nflverse/NGS artefact, at a stated revision, establishing was_pressure's " +
+        "governing semantics (participation.ts section 4 states the exact bar). Until then: do " +
+        "not substitute any other real pressure figure here, and do not read this row's absence " +
+        "as the gap having closed.",
+    );
   },
 });
 
 /**
- * ============ THE SEVERITY PARTITION — PRIMARY, ALONGSIDE `pressure_rate` (backlog 67/67-RESULT) ============
+ * ============ THE SEVERITY PARTITION — PRIMARY, ALONGSIDE `threat_creation_rate` (backlog 67/67-RESULT) ============
  *
- * `pressure_rate` is `1 − P(every tick CLEAN)` over a dropback: it counts a dropback the instant
+ * `threat_creation_rate` is `1 − P(every tick CLEAN)` over a dropback: it counts a dropback the instant
  * its worst tick leaves CLEAN, and never again. A lever that demotes a tick from COLLAPSING to
  * PRESSURE — a real, football-meaningful reduction in how bad the pocket got — moves nothing on
  * that rate, because PRESSURE is still non-CLEAN. Measured on the canonical corpus (`baseline-0001`
  * + `baseline-0001/pcs-set-1`, 992 games, 86,291 dropbacks, 257,598 ticks, identity falsifier 0):
  * on `COLLAPSING` — 72.2% of every dirty tick — a lever acting on the arrival channel alone is
- * invisible to `pressure_rate` 63.629% of the time; on the band floor, 94.226% of the time.
+ * invisible to `threat_creation_rate` 63.629% of the time; on the band floor, 94.226% of the time.
+ * (Measured under this metric's former name, `pressure_rate` — the SIM-SIDE number is unchanged by
+ * the rename; see that metric's own header for the renamed/stripped disposition, backlog entry 93.)
  *
- * ⛔ THE RULING THIS METRIC EXISTS TO ENFORCE (owner, following 67-RESULT): `pressure_rate` STAYS —
- * it is the figure comparable to real football (nflverse `was_pressure`) and remains the headline
- * against the real 29.225%. But **no pocket lever may be priced on it ALONE again.** Every pocket
- * dispatch reads this row beside `pressure_rate`; a lever that moves this distribution but not the
- * rate is evidence of a real, mis-priced effect, not evidence of nothing.
+ * ⚠ ENTRY 68's RULING IS PARTIALLY SUPERSEDED (dispatch B, backlog entry 93). It read: *"`pressure_
+ * rate` STAYS — it is the figure comparable to real football (nflverse `was_pressure`) and remains
+ * the headline against the real 29.225%. But no pocket lever may be priced on it ALONE again."*
+ * ⛔ **THE FIRST HALF IS STRUCK** — `threat_creation_rate` (that metric's new name) has its real side
+ * retired; it is no longer a headline against 29.225% or against anything real. **THE SECOND HALF
+ * STANDS, UNCHANGED**: every pocket dispatch still reads this row beside `threat_creation_rate`; a
+ * lever that moves this distribution but not the rate is evidence of a real, mis-priced effect, not
+ * evidence of nothing. That discipline was never about the real-side comparison — it was about the
+ * rate's OWN blindness to severity, which the rename does not touch.
  *
  * SIM SIDE ONLY, deliberately: no ingested source charts pocket severity tick-by-tick.
- * nflverse/NGS `was_pressure` is the single boolean `pressure_rate` already compares against; FTN
- * charts `is_qb_out_of_pocket` and blitz/rusher counts, neither of which is a severity ladder. A
- * real-side target for this shape does not exist and is not invented here (declared absence:
- * `pocket_status_distribution_real_side`, same shape as `hot_route_rate`'s).
+ * nflverse/NGS `was_pressure` is the single boolean `threat_creation_rate` used to be compared
+ * against, before that comparison was retired (backlog entry 93); FTN charts `is_qb_out_of_pocket`
+ * and blitz/rusher counts, neither of which is a severity ladder. A real-side target for this shape
+ * does not exist and is not invented here (declared absence: `pocket_status_distribution_real_side`,
+ * same shape as `hot_route_rate`'s).
  *
  * WHERE THIS LIVES, AND WHY (stated per the ruling that promoted it): the exclusive-share,
  * WHICH-CHANNEL-DID-IT diagnosis (`pocketChannelShares.ts`) stays a Tier 3, env-gated,
@@ -275,15 +289,15 @@ export const pressureRate: Metric = registerMetric({
  * pays for a per-tick identity check, which is the right cost for a disambiguation tool run by
  * choice. This row is different: it is a tally of one field the stream already publishes verbatim
  * (`POCKET_STATUS.payload.status`), needs no `Tunables`, cannot throw on a tunables/stream
- * mismatch, and costs nothing beyond what `pressure_rate` already pays to fold the same event.
- * That is why it is promoted to Tier 1 and made standing rather than left beside its diagnostic
- * sibling: the ruling makes it something every report must show, and a Tier-3 env-gated row is
- * something a report can go without showing.
+ * mismatch, and costs nothing beyond what `threat_creation_rate` already pays to fold the same
+ * event. That is why it is promoted to Tier 1 and made standing rather than left beside its
+ * diagnostic sibling: the ruling makes it something every report must show, and a Tier-3 env-gated
+ * row is something a report can go without showing.
  *
  * 🔴 RED-TRIGGER, BOTH DIRECTIONS (entry 55's required field, entry 60's prohibition — named
  * rather than left silent):
  *   - It reddens (the count for a status is WRONG) if `collect.ts`'s `POCKET_STATUS` handler ever
- *     tallies a tick this metric's dropback-level sibling `pressure_rate` does not agree is
+ *     tallies a tick this metric's dropback-level sibling `threat_creation_rate` does not agree is
  *     pass-dropback-scoped — enforced structurally, not by a separate gate: both read the same
  *     `current.isPass` guard in `foldGame`'s `POCKET_STATUS` case, so the two cannot disagree about
  *     WHICH ticks count without a code change touching both in the same edit.
@@ -294,19 +308,19 @@ export const pressureRate: Metric = registerMetric({
  *     the two folds drifted from the stream, not that pocket behaviour changed.
  *   - ⛔ IT WILL NEVER FLAG A DEMOTION AS A PROBLEM — that is the metric working. It reddens on a
  *     COUNTING defect, never on a football one; whether a given distribution is GOOD is a judgement
- *     this row supplies the evidence for and does not make itself, exactly as `pressure_rate` does
- *     not judge its own 89.9% either. Nothing computes "is this shift beneficial" — that is still a
- *     per-lever, per-dispatch reading.
+ *     this row supplies the evidence for and does not make itself, exactly as `threat_creation_rate`
+ *     does not judge its own ~90% either. Nothing computes "is this shift beneficial" — that is
+ *     still a per-lever, per-dispatch reading.
  */
 export const pocketStatusDistribution: Metric = registerMetric({
   id: "pocket_status_distribution",
   tier: 1,
   definition:
     "SIM SIDE ONLY. Every in-pocket tick of every pass dropback, tallied by its published " +
-    "POCKET_STATUS (CLEAN / PRESSURE / COLLAPSING / IMMEDIATE). Report ALONGSIDE pressure_rate, " +
-    "never in place of it: pressure_rate is 1 - P(every tick CLEAN) and cannot see a demotion " +
-    "between two non-CLEAN statuses (backlog 67/67-RESULT) — this row is where that demotion " +
-    "shows up. No pocket lever may be priced on pressure_rate alone.",
+    "POCKET_STATUS (CLEAN / PRESSURE / COLLAPSING / IMMEDIATE). Report ALONGSIDE " +
+    "threat_creation_rate, never in place of it: threat_creation_rate is 1 - P(every tick CLEAN) " +
+    "and cannot see a demotion between two non-CLEAN statuses (backlog 67/67-RESULT) — this row " +
+    "is where that demotion shows up. No pocket lever may be priced on threat_creation_rate alone.",
   unit: "share",
   toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
   knownDivergences: ["backlog 67", "backlog 67-RESULT", "backlog 1g", "backlog 1f-RESULT", "ADR-049"],
@@ -318,9 +332,11 @@ export const pocketStatusDistribution: Metric = registerMetric({
   computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
     return noObservations(
       "no ingested source charts pocket severity tick-by-tick. nflverse/NGS was_pressure is the " +
-        "single boolean pressure_rate already compares against; FTN charts rusher counts and " +
-        "is_qb_out_of_pocket, neither a severity ladder. Do NOT substitute pressure_rate's real " +
-        "side here — a boolean has no distribution to compare a four-way split against.",
+        "single boolean threat_creation_rate USED TO BE compared against, before backlog entry 93 " +
+        "retired that comparison; FTN charts rusher counts and is_qb_out_of_pocket, neither a " +
+        "severity ladder. Do NOT substitute threat_creation_rate's (former) real side here — a " +
+        "boolean has no distribution to compare a four-way split against, and that comparison no " +
+        "longer exists to substitute in any case.",
     );
   },
 });
@@ -361,8 +377,8 @@ export const blitzRate: Metric = registerMetric({
     if (ftn === undefined) {
       return noObservations("ftn_charting not loaded (open the real input with withFtn)");
     }
-    // Joined for exactly the reason `pressure_rate` is: FTN carries a row per charted play, and
-    // a run play has a pass-rusher count too.
+    // Joined for exactly the reason `pressure_to_sack`'s real side is (`tier1.ts`, below): FTN
+    // carries a row per charted play, and a run play has a pass-rusher count too.
     const dropbackKeys = new Set<string>();
     for (const row of input.pbp.rows) {
       if (isDropback(row)) dropbackKeys.add(`${row.gameId}|${row.playId}`);
@@ -591,8 +607,9 @@ export const timeToThrow: Metric = registerMetric({
     if (participation === undefined) {
       return noObservations("participation not loaded (open the real input with withParticipation)");
     }
-    // Joined to attempts for the same reason `pressure_rate` is joined to dropbacks: a
-    // non-null `time_to_throw` on a row that was not a throw would put a zero in the mean.
+    // Joined to attempts for the same reason `pressure_to_sack`'s real side joins to dropbacks
+    // (`tier1.ts`, above): a non-null `time_to_throw` on a row that was not a throw would put a
+    // zero in the mean.
     const attemptKeys = new Set<string>();
     for (const row of input.pbp.rows) {
       if (isPassAttempt(row)) attemptKeys.add(`${row.gameId}|${row.playId}`);
@@ -1103,7 +1120,7 @@ export const TIER_1_METRICS: readonly Metric[] = [
   completionPct,
   interceptionRate,
   sackRate,
-  pressureRate,
+  threatCreationRate,
   pocketStatusDistribution,
   pressureToSackRate,
   blitzRate,

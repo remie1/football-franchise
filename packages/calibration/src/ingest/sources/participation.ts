@@ -53,7 +53,7 @@ import { nflverseAsset, type SourceDefinition } from "./types.js";
  * | | |
  * |---|---|
  * | **real column charters** | A boolean, "was the QB pressured on a play" (nflverse dictionary). Per NGS's own description of its pressure product, at least for the model named to the 2023 season, that construct is DISJUNCTIVE across three causes: (a) a rusher beating his blocker cleanly, (b) the QB bailing a clean pocket, (c) the QB holding the ball too long because of coverage / lack of separation. (b) and (c) can both fire on a play where no blocker ever lost his rep. |
- * | **sim column counts** (`pressureRate` / `pocket_status_distribution`, `packages/calibration/src/metrics/tier1.ts`) | A dropback whose worst `POCKET_STATUS` tick was ever non-CLEAN. `POCKET_STATUS` is derived purely from the pass-rush/blocker contest (`docs/design/match-engine.md` §7.1-§7.2's band table) — it has no coverage-separation input and, per §7.2's pursuit note, is **not published at all** for any tick where the quarterback is out of the pocket (i.e. exactly the "QB bailing a clean pocket" case). |
+ * | **sim column counts** (`threatCreationRate` / `pocket_status_distribution`, `packages/calibration/src/metrics/tier1.ts` — renamed from `pressureRate`/`pressure_rate`, backlog entry 93, precisely BECAUSE this row could never establish the comparison the old name implied) | A dropback whose worst `POCKET_STATUS` tick was ever non-CLEAN. `POCKET_STATUS` is derived purely from the pass-rush/blocker contest (`docs/design/match-engine.md` §7.1-§7.2's band table) — it has no coverage-separation input and, per §7.2's pursuit note, is **not published at all** for any tick where the quarterback is out of the pocket (i.e. exactly the "QB bailing a clean pocket" case). |
  * | **same event?** | ⛔ **UNESTABLISHED, and on the mechanism actually checkable here, LIKELY NOT IDENTICAL.** The dictionary alone cannot decide this (no operational definition). If the NGS description governs `was_pressure`, the real column counts at least one cause (QB-initiated pressure with a clean pocket) that the sim column is structurally incapable of counting, because the engine has no mechanism for it and explicitly suppresses `POCKET_STATUS` during exactly that circumstance. This is a statement about the SIM SIDE's mechanism, checked directly against the engine's own public spec; it is NOT a statement that the NGS description governs the REAL side's `was_pressure` in the seasons ingested here, which remains unestablished. |
  *
  * ---- 4. WHAT WOULD CLOSE THE GAP ----
@@ -68,7 +68,16 @@ import { nflverseAsset, type SourceDefinition } from "./types.js";
  * ---- 5. SEASON-COVERAGE CHECK (this package can compute this; the dispatching agent could not) ----
  *
  * Computed directly off the cached rows (`data-cache/pbp_participation/{2022..2025}`), joined to
- * `pbp` dropbacks exactly as `pressureRate.computeFromReal` joins them (`tier1.ts`):
+ * `pbp` dropbacks the same way `pressureRate.computeFromReal` joined them at the time this table
+ * was measured (`tier1.ts`). ⛔ That join no longer lives in a registered metric: backlog entry 93
+ * renamed `pressureRate` to `threatCreationRate` and retired its real side entirely (owner ruling,
+ * superseding entry 68's clause), so this exact computation — count every participation row that
+ * joins to a pbp dropback, rate `wasPressure` over that population — is not currently reproducible
+ * by calling any metric in `tier1.ts`. The table below is preserved as a historical, one-off
+ * computation; `pressureToSackRate.computeFromReal` (`tier1.ts`) still joins participation to
+ * dropbacks by the identical pattern, but over a DIFFERENT population (pressured rows only, per
+ * backlog entry 88), so it cannot reproduce this table either. Re-deriving it would need a
+ * purpose-built script over the cache, not a call to a Tier 1 metric.
  *
  * | season | joined dropbacks | pressured | rate |
  * |---|---|---|---|
@@ -111,9 +120,12 @@ export interface ParticipationRow {
   readonly timeToThrow: number | null;
   /**
    * "A boolean indicating whether or not the QB was pressured on a play" (nflverse data
-   * dictionary, quoted verbatim above). Comparability to the sim's `pressureRate` is
-   * UNESTABLISHED — see the vendored block above this interface before citing this field as
-   * ground truth for a pocket-mechanics claim.
+   * dictionary, quoted verbatim above). Comparability to the sim's `threatCreationRate` (renamed
+   * from `pressureRate`, backlog entry 93 — the comparison this field would support is RETIRED,
+   * not merely unproven) is UNESTABLISHED — see the vendored block above this interface before
+   * citing this field as ground truth for a pocket-mechanics claim. `pressureToSackRate` still
+   * reads this field on its real side (a different comparison — a conversion rate conditioned on
+   * pressure, not a pressure rate itself), so the field stays live in this interface.
    */
   readonly wasPressure: boolean | null;
   readonly route: string | null;

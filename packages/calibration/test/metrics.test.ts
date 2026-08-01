@@ -536,18 +536,40 @@ describe("Tier 1 real-side computations", () => {
     expect(pointEstimate(sample)).toBeCloseTo((24 + 17) / 2);
   });
 
-  it("says WHICH optional source is missing rather than returning a silent zero", () => {
-    const outcome = getMetric("pressure_rate").computeFromReal(input);
+  /**
+   * ⛔ backlog entry 93: `pressure_rate` was renamed `threat_creation_rate` and its real side was
+   * RETIRED (not merely gated on a missing optional source, which is what this test used to
+   * check). It now returns NO_OBSERVATIONS unconditionally, on every input — see the metric's own
+   * header in `tier1.ts` for why. This asserts the retirement is loud rather than silent: the
+   * detail names the retirement, the superseded backlog entry, and the last graded figures, so a
+   * reader of the rendered report (not just this test) sees a comparison was RETIRED rather than a
+   * metric that quietly stopped failing.
+   */
+  it("retires threat_creation_rate's real side loudly, naming the last graded figures", () => {
+    const outcome = getMetric("threat_creation_rate").computeFromReal(input);
     expect(isInapplicable(outcome)).toBe(true);
-    if (isInapplicable(outcome)) expect(outcome.detail).toContain("participation");
+    if (isInapplicable(outcome)) {
+      expect(outcome.detail).toContain("RETIRED");
+      expect(outcome.detail).toContain("entry 93");
+      expect(outcome.detail).toContain("entry 68");
+      expect(outcome.detail).toContain("89.73%");
+      expect(outcome.detail).toContain("29.23%");
+      expect(outcome.detail).toContain("baseline-0007");
+      expect(outcome.detail).toContain("UNESTABLISHED");
+    }
+    // And unconditionally — no participation, no ftn, still retired, not "missing source".
+    const bareOutcome = getMetric("threat_creation_rate").computeFromReal(realInput([pbpRow({})], [scheduleRow({})]));
+    expect(isInapplicable(bareOutcome)).toBe(true);
+    if (isInapplicable(bareOutcome)) expect(bareOutcome.detail).toContain("RETIRED");
   });
 
   /**
    * The ADR-022 rows. Both real sides are JOINS, and the join is the load-bearing part in exactly
-   * the way `pressure_rate`'s header records: FTN and participation both carry a row per charted
-   * play, so counting non-null values without joining to the dropback set puts run plays into a
-   * passing-game denominator. That error already happened once on `pressure_rate` and produced a
-   * number wrong in the direction that made the engine look worse than it is.
+   * the way `pressure_to_sack`'s header records (`tier1.ts`): FTN and participation both carry a
+   * row per charted play, so counting non-null values without joining to the dropback set puts
+   * run plays into a passing-game denominator. That error already happened once on the metric now
+   * named `threat_creation_rate` and produced a number wrong in the direction that made the engine
+   * look worse than it is.
    */
   it("counts blitzes only on rows that joined to a dropback", () => {
     const dropbacks = [
@@ -649,25 +671,29 @@ describe("the registry", () => {
   /**
    * ★ A KNOWN-DIVERGENCE CLAUSE ROTS SILENTLY, AND THIS ONE DID. ★
    *
-   * `pressure_rate` carried *"frozen caller: protection is perfectly informed"* from the first
-   * baseline. ADR-024 made it false — the caller anticipates the front at v2 and misses roughly a
-   * quarter of rushers — and nothing detected it for two dispatches, because the row was still
-   * correctly `FAIL (known)` and the verdict is what anybody checks.
+   * `threat_creation_rate` (renamed from `pressure_rate`, backlog entry 93 — the metric is no
+   * longer graded against real football, but `knownDivergences` still carries mechanic context
+   * for the SIM-side number) carried *"frozen caller: protection is perfectly informed"* from the
+   * first baseline. ADR-024 made it false — the caller anticipates the front at v2 and misses
+   * roughly a quarter of rushers — and nothing detected it for two dispatches, because the row was
+   * still correctly `FAIL (known)` and the verdict is what anybody checks.
    *
-   * That is the failure mode worth a test: a stale clause on a FAILING row is worse than no
-   * clause, because it hands the reader a spare explanation for a gap that no longer has one, and
-   * the row's own verdict cannot contradict it. `backlog 28` recorded the correction as a note;
-   * this is the note made mechanical. It asserts the DIRECTION too, because "the caller is a
-   * confound" survived the fix while the sign of the confound flipped.
+   * That is the failure mode worth a test: a stale clause on a row is worse than no clause,
+   * because it hands the reader a spare explanation for a fact that no longer has one, and the
+   * row's own verdict cannot contradict it. `backlog 28` recorded the correction as a note; this
+   * is the note made mechanical. It asserts the DIRECTION too, because "the caller is a confound"
+   * survived the fix while the sign of the confound flipped.
    */
   it("does not still claim the frozen caller has perfect protection information", () => {
-    const pressure = getMetric("pressure_rate");
+    const pressure = getMetric("threat_creation_rate");
     const clauses = pressure.knownDivergences ?? [];
     expect(clauses.join(" ")).not.toContain("perfectly informed");
     expect(clauses.some((c) => c.includes("ADR-024"))).toBe(true);
     // Still claimed by the two entries that own the divergence; only the caller clause moved.
     expect(clauses.some((c) => c.includes("backlog 2"))).toBe(true);
     expect(clauses.some((c) => c.includes("backlog 3"))).toBe(true);
+    // And the rename/strip itself is traceable from the metric's own knownDivergences.
+    expect(clauses.some((c) => c.includes("93"))).toBe(true);
   });
 });
 

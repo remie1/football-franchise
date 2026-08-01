@@ -324,13 +324,18 @@ export const ESPN_WIN_RATE_ABSENCE: MetricAbsence = {
   forbiddenSubstitutes: [
     {
       name: "sack rate as a win-rate proxy",
-      aliases: ["sack_rate_as_pbwr", "pressure_rate_as_prwr"],
-      whereItLives: "Tier 1's sack and pressure rates, which are computed and available.",
+      aliases: ["sack_rate_as_pbwr", "threat_creation_rate_as_prwr"],
+      whereItLives:
+        "Tier 1's sack rate and threat_creation_rate (renamed from pressure_rate, backlog entry " +
+        "93 — now sim-side-only, which makes it a WORSE real-world proxy than before, not a " +
+        "better one), both computed and available.",
       whyItIsWrong:
         "A win rate is per-REP; a sack rate is per-DROPBACK and is mediated by the quarterback, " +
         "the concept and the protection scheme. Substituting one for the other would attribute " +
         "quarterback behaviour to linemen, which is exactly the confound Tier 4 exists to avoid " +
-        "(§4: 'volume stats excluded — usage is a coaching artefact').",
+        "(§4: 'volume stats excluded — usage is a coaching artefact'). threat_creation_rate has " +
+        "no real side at all as of backlog entry 93, so it cannot even be pointed at a real PRWR " +
+        "figure to substitute for one.",
       evidence:
         "CALIBRATION-BACKLOG 2: sack rate moved 56.1% → 39.7% under a blocker-advantage sweep " +
         "while the driver was tick-1.0 timing, not the won-rep rate. The two numbers are not " +

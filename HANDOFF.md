@@ -35,10 +35,17 @@
 >
 > ### The three things that change how you read everything else
 >
-> 1. ⛔ **`pressure_rate` is NOT the outcome variable for pocket levers** (entry 68). It counts any
->    non-CLEAN tick, so a `COLLAPSING → PRESSURE` demotion is invisible to it — **63.6%** of what the
->    dominant channel does. Use `pocket_status_distribution` alongside it. `pressure_rate` stays as the
->    figure comparable to real football.
+> 1. ⛔ **`threat_creation_rate`** *(renamed from `pressure_rate`, entry 93)* **is NOT the outcome
+>    variable for pocket levers** (entry 68). It counts any non-CLEAN tick, so a
+>    `COLLAPSING → PRESSURE` demotion is invisible to it — **63.6%** of what the dominant channel
+>    does. Use `pocket_status_distribution` alongside it.
+>    ⛔ **AND IT IS NO LONGER COMPARED TO REAL FOOTBALL AT ALL.** ⚠ **Entry 68's clause — *"stays as
+>    the figure comparable to real football"* — is SUPERSEDED BY OWNER RULING (entry 93).** It had no
+>    provenance, no derivation and no citation anywhere (entry 87 item 3), and whether nflverse's
+>    `was_pressure` charters the same event is recorded **`UNESTABLISHED`**. **The metric is now
+>    sim-side-only: an internal protection-integrity diagnostic.**
+>    ⚠ **The `89.73%` vs `29.23%` gap is UNEXPLAINED AND UNCHANGED — retired as a comparison, NOT
+>    closed as a gap.**
 > 2. ⛔ **The rate lives in `COLLAPSING`** (~51% of all ticks, ~72% of dirty ticks), **not `PRESSURE`**,
 >    and the three `pocketStatusFor` channels are **not independent** — two read one roll (entry 1g).
 > 3. ⚠ **Every number priced before entry 76 was measured against an unbounded horizon**, and supply

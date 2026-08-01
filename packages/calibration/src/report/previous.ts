@@ -39,7 +39,23 @@ import { refusalMessage, type BaselineIdentity, type PreviousReport, type TrendD
  */
 const RECONSTRUCTED_CALLER_VERSION = "v1";
 
-/** Where each figure came from, printed nowhere and read by whoever doubts one of them. */
+/**
+ * Where each figure came from, printed nowhere and read by whoever doubts one of them.
+ *
+ * ⛔ KEY CARRIED FORWARD UNDER THE NEW ID, NOT LEFT ORPHANED (backlog entry 93): `report.test.ts`'s
+ * "the reconstructed predecessor" suite asserts every key here is a CURRENTLY REGISTERED metric
+ * id, so a key frozen at its old name would fail that gate the moment the metric was renamed —
+ * checked, not assumed (`isRegistered("pressure_rate")` is false as of this rename). So the key
+ * below is `threat_creation_rate`, the value is unchanged (entry 21's sim-side figure, quoted under
+ * the name it had at the time), and this comment records the rename so a reader does not mistake
+ * the key for having always been called that. This is the OPPOSITE disposition from the frozen
+ * `reports/*.carry-forward.json` artefacts (which are immutable snapshots of past runs and are
+ * NOT renamed): this constant is a maintained reconstruction, enforced live by a test, not a
+ * point-in-time file. In practice the whole reconstruction is unreachable for any current or
+ * future run regardless: `reconstructedTrend` refuses unless `current.callerVersion` starts with
+ * `"v1/"`, and every caller since ADR-024 is v2 — so this key change affects no report cell today,
+ * only this module's own internal consistency gate.
+ */
 export const PREVIOUS_BASELINE_CITATIONS: Readonly<Record<string, string>> = {
   yards_per_carry:
     "CALIBRATION-BACKLOG.md, FIRST BASELINE REPORT table ('16.28') and entry 23, which states " +
@@ -54,7 +70,9 @@ export const PREVIOUS_BASELINE_CITATIONS: Readonly<Record<string, string>> = {
   int_rate: "FIRST BASELINE REPORT, third bullet: 'int_rate passing at 2.25%'.",
   sack_rate:
     "Entry 21: 'they are still 13.0% and 87.0% against real 6.9% and 29.2%'. The first of the pair.",
-  pressure_rate: "Entry 21, the second of the same pair.",
+  // Entry 21 named this `pressure_rate` at the time; carried forward here under the current
+  // registry id (backlog entry 93) so `isRegistered` stays true. See this constant's header.
+  threat_creation_rate: "Entry 21, the second of the same pair.",
 };
 
 /**
@@ -73,7 +91,7 @@ export const PREVIOUS_BASELINE: PreviousReport = {
     points_per_drive: 2.011,
     int_rate: 0.0225,
     sack_rate: 0.13,
-    pressure_rate: 0.87,
+    threat_creation_rate: 0.87,
   },
   comfortableStreak: {},
 };

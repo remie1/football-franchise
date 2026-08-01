@@ -147,11 +147,19 @@ const REAL = {
 } as const;
 
 /**
- * Verified against the cache by this file's own `real` test rather than trusted:
- * `pressure_rate` 0.29225 (n=56,893) · `sack_rate` 0.06898 (58,277) · `pressure_to_sack` 0.16371
- * (16,627) · `completion_pct` 0.64578 (54,263) · `int_rate` 0.02276 · `time_to_throw` 2.68209 ·
- * `yards_per_attempt` 7.05123. The quote above was wrong on the last one by 0.05 and the check
- * caught it, which is the entire reason the check exists.
+ * Verified against the cache by this file's own `real` test rather than trusted, AT THE TIME THIS
+ * WAS WRITTEN, when `pressure_rate` still had a real side: `pressure_rate` 0.29225 (n=56,893) ·
+ * `sack_rate` 0.06898 (58,277) · `pressure_to_sack` 0.16371 (16,627) · `completion_pct` 0.64578
+ * (54,263) · `int_rate` 0.02276 · `time_to_throw` 2.68209 · `yards_per_attempt` 7.05123. The quote
+ * above was wrong on the last one by 0.05 and the check caught it, which is the entire reason the
+ * check exists.
+ *
+ * ⛔ Backlog entry 93 retired that metric's real side (renamed `threat_creation_rate`). The `real`
+ * test below now restates it as NO_OBSERVATIONS rather than re-verifying `0.29225` — that is
+ * expected, not a regression in this file's check. `REAL.pressureRate` above is kept as this
+ * file's OWN frozen historical constant (what the earlier stages of this sweep compare their sim
+ * values against); it is no longer checkable against the registered metric and is cited from
+ * `baseline-0005.md` only.
  */
 
 // ---------------------------------------------------------------------------
@@ -1108,8 +1116,14 @@ describe.skipIf(!enabled)("ADR-027 blockerStructuralAdvantage sweep", () => {
       say("");
       say("| metric | real | n | quoted at the top of this file |");
       say("|---|---|---|---|");
+      // `threat_creation_rate` (formerly `pressure_rate`, backlog entry 93) has no real side any
+      // more — its `computeFromReal` always returns NO_OBSERVATIONS. Still listed below so this
+      // restatement shows that explicitly rather than silently dropping the row; `quoted` keeps
+      // the historical constant this file's other stages still compare their OWN sim-side sweep
+      // values against (that comparison is this file's, not the registered metric's, and is
+      // unaffected by the strip — see backlog entry 93 for why the two are different things).
       const quoted: Readonly<Record<string, number>> = {
-        pressure_rate: REAL.pressureRate,
+        threat_creation_rate: REAL.pressureRate,
         sack_rate: REAL.sackRate,
         pressure_to_sack: REAL.pressureToSack,
         completion_pct: REAL.completionPct,
@@ -1118,7 +1132,7 @@ describe.skipIf(!enabled)("ADR-027 blockerStructuralAdvantage sweep", () => {
         yards_per_attempt: REAL.yardsPerAttempt,
       };
       for (const metric of [
-        tier1.pressureRate,
+        tier1.threatCreationRate,
         tier1.sackRate,
         tier1.pressureToSackRate,
         tier1.completionPct,

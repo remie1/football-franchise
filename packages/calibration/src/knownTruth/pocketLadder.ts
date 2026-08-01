@@ -803,7 +803,17 @@ export const URGENCY_MEASURES: readonly UrgencyMeasure[] = [
   },
 ];
 
-/** Reported beside every failure and asserted by nothing. See `URGENCY_MEASURES`'s header. */
+/**
+ * Reported beside every failure and asserted by nothing. See `URGENCY_MEASURES`'s header.
+ *
+ * ⛔ Renamed `pressure_rate` → `threat_creation_rate` alongside `tier1.ts`'s registered metric of
+ * the same computation (backlog entry 93): this entry computes the identical sim-side quantity
+ * (`pressuredDropbacks / dropbacks`) under the name that used to imply a real-football comparison
+ * this known-truth diagnostic never made in the first place — it was already SIM SIDE ONLY,
+ * reported and never graded, same as the rest of this list. Renamed for consistency so a reader
+ * grepping for the old name after the Tier 1 metric's strip does not find one instance retired and
+ * a second, identically-computed one still answering to the old name.
+ */
 export const DIAGNOSTIC_MEASURES: readonly {
   readonly id: string;
   readonly measure: (s: LadderSample) => number | null;
@@ -812,7 +822,7 @@ export const DIAGNOSTIC_MEASURES: readonly {
   { id: "throwaway_rate", measure: (s) => (s.dropbacks === 0 ? null : s.throwaways / s.dropbacks) },
   { id: "completion_rate", measure: (s) => (s.attempts === 0 ? null : s.completions / s.attempts) },
   {
-    id: "pressure_rate",
+    id: "threat_creation_rate",
     measure: (s) => (s.dropbacks === 0 ? null : s.pressuredDropbacks / s.dropbacks),
   },
 ];

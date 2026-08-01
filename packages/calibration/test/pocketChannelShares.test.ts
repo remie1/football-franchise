@@ -365,26 +365,28 @@ describe.skipIf(!ENABLED)("roadmap 1d step 1 — the three channels' shares, tie
       }
 
       // ---- THE DEMOTE-VS-CLEAR DISTINCTION, PER CHANNEL, PER STATUS ---------
-      // `pressure_rate` (a DIAGNOSTIC_MEASURES entry elsewhere in this package, see
-      // pocketLadder.ts) counts ANY non-CLEAN tick. So within one channel's STATUS = COLLAPSING
-      // table above: its ALONE count is ticks that would go fully CLEAR if that channel alone
-      // were neutralised (nothing else is non-CLEAN on those ticks); its TIED+DOMINATED count
-      // ("not ALONE") is ticks where at least one other channel is independently non-CLEAN, so
-      // neutralising this channel's OWN contribution would still leave the tick at whatever THAT
-      // other channel reads — which this fold does not further resolve (see the report's
-      // abstention: it would require re-deriving each channel's own status distribution
-      // conditional on being dominated, which this cross-cut does not compute).
+      // `threat_creation_rate` (renamed from `pressure_rate`, backlog entry 93; a
+      // DIAGNOSTIC_MEASURES entry elsewhere in this package, see pocketLadder.ts) counts ANY
+      // non-CLEAN tick. So within one channel's STATUS = COLLAPSING table above: its ALONE count
+      // is ticks that would go fully CLEAR if that channel alone were neutralised (nothing else is
+      // non-CLEAN on those ticks); its TIED+DOMINATED count ("not ALONE") is ticks where at least
+      // one other channel is independently non-CLEAN, so neutralising this channel's OWN
+      // contribution would still leave the tick at whatever THAT other channel reads — which this
+      // fold does not further resolve (see the report's abstention: it would require re-deriving
+      // each channel's own status distribution conditional on being dominated, which this
+      // cross-cut does not compute).
       say("");
       say("### THE DEMOTE-VS-CLEAR DISTINCTION, PER CHANNEL, READ OFF THE STATUS TABLES ABOVE");
       say("");
       say(
-        "`pressure_rate` counts any non-CLEAN tick, so it is BLIND to a channel change that moves a " +
-          "tick from COLLAPSING to PRESSURE (both non-CLEAN) and can only ever see a change that " +
-          "moves a tick to or from CLEAN. For each channel, on STATUS = COLLAPSING and STATUS = " +
-          "IMMEDIATE ticks: ALONE is the count that would go fully CLEAR (and therefore move " +
-          "`pressure_rate`) if that channel's own contribution were removed; TIED+DOMINATED is the " +
-          "count that would NOT (another channel is independently non-CLEAN on the same tick, so " +
-          "`pressure_rate` stays put regardless of what happens to THIS channel).",
+        "`threat_creation_rate` counts any non-CLEAN tick, so it is BLIND to a channel change " +
+          "that moves a tick from COLLAPSING to PRESSURE (both non-CLEAN) and can only ever see a " +
+          "change that moves a tick to or from CLEAN. For each channel, on STATUS = COLLAPSING and " +
+          "STATUS = IMMEDIATE ticks: ALONE is the count that would go fully CLEAR (and therefore " +
+          "move `threat_creation_rate`) if that channel's own contribution were removed; " +
+          "TIED+DOMINATED is the count that would NOT (another channel is independently non-CLEAN " +
+          "on the same tick, so `threat_creation_rate` stays put regardless of what happens to " +
+          "THIS channel).",
       );
       say("");
       say("| channel | status | would CLEAR (ALONE) | would NOT clear (TIED+DOMINATED) |");
