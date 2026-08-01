@@ -1602,6 +1602,32 @@ report reaches someone who can act.**
 ⚠ **A rule that only prevented would never have surfaced that.** **⇒ The obligation to report outside
 one's path is not a courtesy attached to the restriction — IT IS HALF THE RULE.**
 
+**Corollary — ⛔ A RATE OVER A CORPUS THAT PREDATES ITS OWN INSTRUMENT IS NOT A RATE.**
+
+> ### ⚠ **MEASURE ADOPTION FROM THE INSTRUMENT'S BIRTH. And if the resulting denominator is too small to support a claim, SAY THAT — do not report the percentage.**
+
+⛔ **THIS DEFECT CAUGHT BOTH PARTICIPANTS, IN OPPOSITE DIRECTIONS, FOUR HOURS APART:**
+
+| claim | direction | the defect |
+|---|---|---|
+| *"a corpus that demands provenance everywhere"* — **3 of 57** | ⛔ **OVERSTATED the norm** | counted 54 files written **before** the convention existed |
+| *"a REQUIRED field reached by 1 of 55"* — the inertness charge | ⛔ **UNDERSTATED compliance** | **the identical error**, inverted |
+
+**Measured correctly — ADRs created AFTER each field entered the template:** ✅ **provenance 2 of 2,
+implied scope 1 of 1, conjoined mechanisms 1 of 1.** ⛔ **NOTHING SUPPORTS THE INERTNESS CHARGE, and
+the ruling built on it was WITHDRAWN.**
+
+### ⚠ AND THE CAVEAT ON THE CORRECTION IS PART OF THE COROLLARY, NOT A FOOTNOTE
+
+> ### ⛔ **DENOMINATORS OF 1, 1 AND 2 ARE NOT EVIDENCE OF A HEALTHY NORM. They are AN ABSENCE OF EVIDENCE OF FAILURE.**
+
+⚠ **The fields are DAYS OLD.** ⛔ **The honest claim is that COMPLIANCE IS UNDEMONSTRATED, NOT
+DEMONSTRATED** — and that distinction erodes silently unless it is written down at the moment it is
+true, because *"2 of 2"* reads like a norm the instant its age is forgotten.
+
+**⇒ A percentage is a claim about a POPULATION. When the population is three documents, report the
+COUNT AND THE AGE, and refuse the percentage.**
+
 **Discipline at the un-instrumented layer is the weakest available control** — ⚠ **it must hold every
 time, cannot be tested, and its failures are invisible to every sweep this project owns.** ⛔ **Making
 the correct figure CITABLE is strictly stronger than requiring the summariser to remember it, because
