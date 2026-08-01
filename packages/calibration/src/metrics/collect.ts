@@ -51,6 +51,24 @@ export interface PlayFold {
   /** Dropbacks whose worst POCKET_STATUS was anything other than CLEAN. */
   pressuredDropbacks: number;
   /**
+   * ================== BACKLOG 87 DISPATCH A: THE SACK NUMERATOR ==================
+   *
+   * Sacks whose dropback ALSO set the `pressuredDropbacks` flag — the identical per-play
+   * `pressured` boolean (worst POCKET_STATUS not CLEAN), read at the SAME `flush()`, never a
+   * second notion of "pressured" invented for this field. `pressure_to_sack`'s numerator was
+   * `sacks` (every sack, ADR-033's coverage sacks included) over a denominator of PRESSURED
+   * dropbacks only — a conditional rate compared with a non-conditional one, independent of
+   * whatever `was_pressure` turns out to mean on the real side. This field conditions the
+   * numerator to match: it is `sacks` restricted to dropbacks where `pressured === true`, so
+   * `pressureToSackRate` can finally read `P(sack | pressured)` on the sim side instead of
+   * `P(sack) / P(pressured)`.
+   *
+   * A sack can only ever be a subset of `sacks` here — same play, same flag, same instant — so
+   * `pressuredSacks <= sacks` always, and the two cannot disagree about what "pressured" means
+   * because there is exactly one `pressured` boolean per dropback and both consumers read it.
+   */
+  pressuredSacks: number;
+  /**
    * ================== THE SEVERITY PARTITION (backlog 67/67-RESULT, ADR-049) ==================
    *
    * `pressure_rate` (`pressuredDropbacks / dropbacks`) is `1 − P(every tick CLEAN)`: it counts a
@@ -240,6 +258,7 @@ export function emptyAccumulator(): SimAccumulator {
       throwaways: 0,
       scrambles: 0,
       pressuredDropbacks: 0,
+      pressuredSacks: 0,
       pocketStatusTicks: {},
       passYards: 0,
       passAttemptYards: [],
@@ -484,8 +503,12 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
       if (play.scramble) p.scrambles++;
       else if (!play.threw && !play.intercepted) {
         // No throw, no scramble: either a sack or a throwaway. A throwaway does not lose yards.
-        if ((play.resultYards ?? 0) < 0) p.sacks++;
-        else p.throwaways++;
+        if ((play.resultYards ?? 0) < 0) {
+          p.sacks++;
+          // backlog 87: the SAME `pressured` flag `pressuredDropbacks` already set above for
+          // this dropback, read again rather than re-derived, so the two can never disagree.
+          if (play.pressured) p.pressuredSacks++;
+        } else p.throwaways++;
       }
     } else if (play.designedRun) {
       p.rushAttempts++;
@@ -855,6 +878,7 @@ export function mergeAccumulators(a: SimAccumulator, b: SimAccumulator): SimAccu
     throwaways: a.play.throwaways + b.play.throwaways,
     scrambles: a.play.scrambles + b.play.scrambles,
     pressuredDropbacks: a.play.pressuredDropbacks + b.play.pressuredDropbacks,
+    pressuredSacks: a.play.pressuredSacks + b.play.pressuredSacks,
     pocketStatusTicks: mergeCounters(a.play.pocketStatusTicks, b.play.pocketStatusTicks),
     passYards: a.play.passYards + b.play.passYards,
     passAttemptYards: [...a.play.passAttemptYards, ...b.play.passAttemptYards].sort((x, y) => x - y),

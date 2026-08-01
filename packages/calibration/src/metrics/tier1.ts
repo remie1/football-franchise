@@ -385,9 +385,24 @@ export const pressureToSackRate: Metric = registerMetric({
   id: "pressure_to_sack",
   tier: 1,
   definition:
-    "Sacks ÷ PRESSURED dropbacks — how often pressure is converted, as distinct from how often " +
-    "it happens. Sim side: dropbacks whose worst POCKET_STATUS was not CLEAN. Real side: " +
-    "participation's `was_pressure`, joined to play-by-play dropbacks, against `sack`.",
+    "P(sack | pressured) on BOTH sides — how often pressure is converted, as distinct from how " +
+    "often it happens. Both the numerator and the denominator are conditioned on the SAME " +
+    "pressure definition on each side (backlog 87 dispatch A): a sack that occurred on an " +
+    "otherwise-CLEAN dropback is excluded from the numerator, on both sides, because it never " +
+    "entered the pressured population the rate is a share of. Sim side: numerator is sacks " +
+    "whose dropback's worst POCKET_STATUS was not CLEAN (the identical flag `pressuredDropbacks` " +
+    "itself uses — not a second notion of 'pressured'). The rule excludes a sack on a CLEAN-worst " +
+    "dropback (an ADR-033 coverage sack) from the numerator UNCONDITIONALLY — the exclusion is " +
+    "arithmetic and neither depends on nor asserts how often that case occurs. Measured, not " +
+    "assumed: 0 of 6,593 sim sacks were CLEAN-worst on the canonical baseline-0007 arm (496 " +
+    "games, batch seed `baseline-0001`, seed digest `fnv1a:020c1dcb#496`; backlog 87 dispatch A) " +
+    "— one arm's count, not a claim about the general rate. Denominator is " +
+    "dropbacks whose worst POCKET_STATUS was not CLEAN. Real side: numerator is `sack` among " +
+    "participation rows where `was_pressure` is true, joined to play-by-play dropbacks; " +
+    "denominator is those same `was_pressure`-true participation rows. Only the two sides' " +
+    "underlying definition of 'pressure' may still differ from each other — `was_pressure`'s " +
+    "own semantics are not determinable from inside this repo (backlog 87 item 4) — but within " +
+    "each side, numerator and denominator now share one population by construction.",
   unit: "%",
   direction: "LOWER_IS_BETTER",
   toleranceBand: relativeBand(0.15),
@@ -399,7 +414,7 @@ export const pressureToSackRate: Metric = registerMetric({
     const p = accumulator.play;
     return p.pressuredDropbacks === 0
       ? noObservations("no pressured dropbacks")
-      : rate(p.sacks, p.pressuredDropbacks);
+      : rate(p.pressuredSacks, p.pressuredDropbacks);
   },
   computeFromReal<E extends Eligibility>(input: RealInput<E>): MetricOutcome {
     const participation = input.participation;
