@@ -5171,3 +5171,73 @@ other number is checked** — and it will read as current.
 `2.395pp`, `−0.111pp`, `−0.130pp` measure **lever SIZE, not CORRECTNESS** — and a ruling citation is
 **a quoted disposition checked against the live tree**, not a metric price, so none of the three
 varieties applies to the citations themselves.
+
+---
+
+## 81. ⛔⛔ `collapsingWithinSeconds` — **THE THIRD OUTCOME. The football is correct AND the channel is STRUCTURALLY INCAPABLE of moving the rate.**
+
+**Step one ran first and returned UNRULED** — the first of five consecutive lookups to do so.
+`tunables.ts`'s comment for this cell carries **no two-half table**, which is exactly the state
+`pressureWithinSeconds` was in before entry 76. **Boundary stated:** a ruling reaching this cell
+through reasoning naming neither the identifier nor *"collapsing"* / *"within … seconds"* would not
+have surfaced; none was found indirectly either.
+
+⚠ **Every prior hit was this cell being USED, never EXAMINED** — entry 76 derived
+`pressureWithinSeconds = 2.0` **by replicating this boundary's own width**, treating it as settled
+without ever asking whether it was.
+
+**The football holds.** `1.0s` is **bounded**, sits between two ratified horizons (`0.0` and `2.0`),
+and discriminates. ⛔ **It is not `POS_INF`'s presence-model defect.**
+
+### THE SWEEP — endpoints first per entry 65, isolated, 0 identity mismatches at all five points
+
+| `collapsingWithinSeconds` | CLEAN | PRESSURE | COLLAPSING | `pressure_rate` |
+|---|---|---|---|---|
+| 0.0 (floor) | 29.731% | 26.604% | 32.969% | 89.790% |
+| 0.5 | 29.593% | 19.273% | 40.801% | 89.825% |
+| **1.0 (committed)** | 29.491% | 8.886% | 51.152% | **89.795%** |
+| 1.5 | 29.609% | 5.588% | 54.235% | 89.813% |
+| 2.0 (ceiling) | 29.768% | 2.919% | 56.643% | 89.805% |
+
+> ### ⛔ **CLEAN spans 0.277pp. `pressure_rate` spans 0.035pp — NOISE, AND NON-MONOTONIC. Meanwhile COLLAPSING swings 23.674pp and PRESSURE swings 23.685pp IN EXACT OPPOSITION.**
+
+**And the two dirty rungs SUM to a near-constant across the whole domain** — `59.573 / 60.074 /
+60.038 / 59.823 / 59.562`. ⛔ **That is the mechanical proof: it is a PURE TRANSFER between two
+already-dirty rungs.**
+
+**Structurally, from the channel shares:** at the floor the arrival channel's COLLAPSING branch has
+**zero width** and its exclusive share there drops to **0.000%**; at the ceiling the PRESSURE branch
+has zero width and `bandFloor` picks up **99.654%** of PRESSURE alone.
+
+> ### ⇒ **THE CLEAN/DIRTY BOUNDARY BELONGS TO `pressureWithinSeconds` — ALREADY RULED (entry 76), WORTH −2.440pp. THIS LEVER NEVER TOUCHES IT.**
+
+### 🚫 THE PRE-REGISTERED THIRD OUTCOME, AND IT LANDED EXACTLY
+
+**No value of `collapsingWithinSeconds` can close any part of the ~60pp gap — BY CONSTRUCTION, not by
+measurement accident.** ⚠ **This is the largest metric-blindness instance the subsystem has produced:**
+entry 67's arrival-COLLAPSING case was **63.6% invisible**; **this is ~100% invisible at every point
+in the domain.**
+
+⛔ **AND NO HORIZON LEVER REMAINS.** All three arrival boundaries are now examined: `immediate` (0.0),
+`collapsing` (1.0, here), `pressure` (2.0, entry 76). **The last named candidate is closed.**
+
+### ⇒ WHAT THIS LEAVES, AND IT IS NOT A NEW CANDIDATE
+
+**A tick is CLEAN only if all three channels say CLEAN**, and arrival says CLEAN only when **no live
+threat is within 2.0s.** ⛔ **So the rate is set by the POPULATION OF LIVE THREATS — how many exist
+and for how long — not by where the rungs sit inside it.**
+
+**That is entry 40's supply-and-persistence question** — ⚠ **and every number on it was measured with
+`pressureWithinSeconds = POS_INF`**, which entry 76 already recorded as owed under *"name what is
+held."* ⛔ **Not a new lever: an OWED RE-PRICE of an old one on a base that has since changed.**
+
+### ⚠ Caveat, stated rather than dropped
+
+**One seed list (`SETS=0`).** §22a asks for independent replication before a **ranking** claim; this is
+a **magnitude-vs-noise** claim, and the null (`≤0.035pp`) is small relative to what a second list could
+move. ⛔ **A second independent list is owed before this closes formally** — though a 23pp severity
+effect against a sub-0.04pp rate effect is not a close call.
+
+**Class-sentence check, all three varieties answered:** metric-blindness — **confirmed, and it is the
+finding itself rather than a confound to correct for**. Subject-is-one-thing — yes, single tunable,
+single read site. Oracle — no: `minTta` is causally available at evaluation time.
