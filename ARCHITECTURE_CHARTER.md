@@ -501,6 +501,29 @@ a class is eliminated, name what remains beside it.
   > *"nothing covers this"* as a POINTER, not as an admission** — it is the only sentence in the
   > register that reliably names an unexplored surface.
 
+  > #### ⛔ SECOND ENTRY ON THIS LINE (July 2026) — **A DEFECT IN THE RELATIONSHIP BETWEEN TWO INDIVIDUALLY-CORRECT CONSTANTS.**
+  >
+  > **Two instances, both ratified, both defensible alone:** `pressureWithinSeconds = POS_INF` against
+  > `collapsingWithinSeconds` (entry 76), and `scramble.pursuitSeconds = 1.5` against
+  > `pressureWithinSeconds = 2.0` (ADR-055) — **the second making 20.809% of all ticks non-`CLEAN` by
+  > arithmetic.**
+  >
+  > ⛔ **NO INSTRUMENT HERE CAN FIND IT, and each misses for its own reason:** the doc-conformance
+  > register checks **cells against the doc** and both conform; a sensitivity sweep prices **one cell
+  > at a time** and each is correct where it sits; the band-table gate checks ordering **within** a
+  > table and these sit in different tables; the exclusive-share sweep finds an **inert** mechanic, not
+  > two live ones whose **product** is wrong; and habit 10a's ruling-search asks *"has this cell been
+  > ruled on?"* — ⚠ **answering YES, correctly, for all four constants.**
+  >
+  > **The partial mitigation, with its own limit stated:** when a constant is derived *against* another,
+  > **pin the relation rather than only the value.** ⛔ **That would not have caught ADR-055** — nobody
+  > derived `1.5` against `2.0`; **the two constants never met until a census counted ticks.**
+  >
+  > > ### **A pin records a relation someone NOTICED. It cannot record one nobody did.**
+  >
+  > ⚠ **Both were found by MEASURING SOMETHING ELSE** — one by sweeping a channel, one by censusing a
+  > population. **That is a habit that stumbles into the class, not an instrument that detects it.**
+
   Mark anything that joins
   this line the same way: not "we have not built the instrument yet", but **"no instrument is
   possible"** — the two look identical in a backlog and are opposites in a plan.
@@ -1237,6 +1260,28 @@ with an unwritten blind spot.
 > **Which is why the field must be written by the instrument's AUTHOR, at build time.** A sweep can
 > only ever establish that *someone answered the question*. **Only the author can answer it about the
 > right subject**, and only while they still remember what they chose not to cover.
+
+**Corollary — WHEN A SWEEP AND A CENSUS COST THE SAME, RUN THE CENSUS.**
+
+> ### **A sweep can only answer the question it was aimed at. A census reports the shape of a population, INCLUDING THE PARTS NOBODY ASKED ABOUT.**
+
+**This is a method preference earned by observation, not by theory. Twice now, a census has produced
+the dispatch's most valuable finding WHILE ANSWERING A DIFFERENT QUESTION:**
+
+| dispatch | what it was asked | ⛔ what it found |
+|---|---|---|
+| entry 76's channel sweep | *is the horizon a lever?* (**no** — 4% of the gap) | **`POS_INF` is not correct football** — a relational defect |
+| entry 82's population census | *is the threat population saturated?* (**no**) | ⛔ **`1.5 < 2.0` makes 20.809% of ticks dirty by arithmetic** |
+
+**In both cases the ANSWER to the question asked was a refusal, and the finding was a by-product.**
+
+⚠ **And it is the closest thing this project has to a mitigation for the relational-defect class
+above** — ⛔ **not an instrument that FINDS such defects, but a habit that keeps STUMBLING INTO them.**
+That is worth preferring deliberately, precisely because the class has **no path to elimination.**
+
+**⇒ The operational form: when the marginal cost is comparable, prefer the measurement that DESCRIBES
+A POPULATION over the one that PRICES A CHANGE.** ⚠ A sweep's output is bounded by its hypothesis; a
+census's is not.
 
 **Corollary — A COUNTERFACTUAL CAN PRICE A RULE THAT CANNOT EXIST. THE MEASUREMENT IS SOUND, THE
 ARITHMETIC CLOSES, AND THE SUBJECT IS UNIMPLEMENTABLE.**
