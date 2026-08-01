@@ -3915,6 +3915,29 @@ shows the mirror is equally true: A MECHANIC WIRED BUT NEVER REACHED IS ALSO THE
 guard-vs-mechanic — it is INSPECTION-ANSWERABLE vs CORPUS-ANSWERABLE, and every subject has one of
 each.**
 
+#### ⛔ AMENDED AGAIN (entry 98) — **THE GUARD QUESTION TAKES THREE OUTCOMES, NOT TWO**
+
+**The question above is posed as a BINARY — wired or not.** ⛔ **The contract-surface sweep found a
+member that is UNWIRED AND NOT A DEFECT, and the distinction is the whole finding:**
+
+| outcome | example | verdict |
+|---|---|---|
+| ✅ **PRODUCED** | `ThrowType.BULLET` | fine |
+| ✅ **DECLARED DORMANT** | ⚠ **`ThrowType.BACK_SHOULDER`** — `throwExecution.ts:137` says *"WIRED AND DORMANT … placed here rather than held in reserve so that the day it does, the penalty is already correct and already in the printout"*, **and a test NAMED for the dormancy pins the count at 0** | ⛔ **NOT A DEFECT — the strongest form available** |
+| ⛔ **UNDECLARED DEAD** | **`ThrowType.THROWAWAY`** — nothing said it was dormant, and **a consumer wrote a LIVE BRANCH against it** that never ran | ⛔ **THE ADR-056 DEFECT** |
+
+> ## ⛔ **A DORMANT PROMISE THAT SAYS SO, AND IS PINNED BY A TEST, IS A RECORDED GAP WITH A CONSUMER — WHICH IS THE BEST STATE ANYTHING UNBUILT CAN BE IN.**
+
+⚠ **ONLY THE THIRD ROW IS THE DEFECT.** ⛔ **A sweep that reports "unproduced" without this partition
+would have flagged `BACK_SHOULDER` — deliberate, documented, test-pinned foresight — as the same
+finding as a promise nobody kept.**
+
+### ⚠ AND A FOURTH STATE, WORSE THAN UNPRODUCED WHEN UNDECLARED
+
+⛔ **PRODUCED ONLY IN TESTS.** **A test fixture makes a member LOOK reachable to anyone grepping for
+producers.** ⚠ **`BACK_SHOULDER` escapes it only because the test is NAMED for the dormancy and
+ASSERTS it** — **the fixture is the documentation rather than the disguise.**
+
 ### THE WORKED EXAMPLE — the band ratchet, verified August 2026
 
 **Fully specified: `RATCHET_AFTER_REPORTS`, `proposeRatchets`, `ratchetBand`.** **Computed every
