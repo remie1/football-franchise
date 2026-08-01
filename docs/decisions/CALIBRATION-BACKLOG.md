@@ -5599,6 +5599,13 @@ in a hurry.**
     Orchestrator, who had just written it. That is not evidence it will hold for an author who has
     not.**
 
+- **2026-07 · pursuit-penalty pin dispatch** — ⛔ **`scramble.accuracyModifier`'s carry is pinned
+  structurally** (`throwCatch.test.ts:79`, asserting equality with `pocket.accuracyModifier.PRESSURE`);
+  ⚠ **`scramble.readCapacityDelta`'s carry is NOT** — it exists only in prose, in two test comments.
+  **Both were ruled in the same breath (ADR-055 §6) and both are equally provisional.** ⇒ *One carry is
+  defended and one is documented; prose has no consumer.* **Not fixed — the dispatch correctly refused
+  to add new logic outside its scope, and reported the asymmetry instead.**
+
 > ⚠ **THE SEED IS DELIBERATE, AND NOT ONLY AS AN EXAMPLE.** ⛔ **An empty accumulator reads as *"nothing
 > has recurred"* — a FALSE NEGATIVE on day one**, and the most likely state for a reader to meet it in.
 > **A section whose emptiness is indistinguishable from a clean result is the worst possible starting
