@@ -643,6 +643,27 @@ day before entered the tree wearing a `DOC_VERBATIM` note written about a differ
 register reddened on a *string* count that same day, and was blind to the substitution that actually
 mattered. Fixed by pinning the subject's identity (`numericLeafPathDigest()`), not its cardinality.
 
+### ⛔ AND THE INVERSION — **IDENTICAL OBSERVATIONS THAT ARRIVE AS SEPARATE EVENTS NEVER GET COUNTED AT ALL.**
+
+**The corollary above is a count blind to substitution. This is the reverse: a SUBSTITUTE for a count
+that nobody ever formed.**
+
+**`tippedBall`'s structural half read `0 / 0 / 0 / 0 / 0` across FIVE re-baselines**, on a corpus where
+every football digit moved every time. ⚠ **Each arrived inside a different dispatch, about a different
+subject, and each was written up as a footnote — *"the corpus moved, re-pin it."***
+
+> ### **Each individual observation read as BOOKKEEPING. The sequence reads as a PROPERTY: a subsystem whose numbers move under every change EXCEPT the one that should move them is not noisy — IT IS UNATTACHED.**
+
+⛔ **Nobody counted, because there was nothing to count against — the five sightings were never
+co-located.** ⚠ **This is the ABSORBED FINDING appearing five consecutive times without anyone noticing
+it was the same one**, which is a stronger argument for the routing clause than any single instance
+was: **five authors each recorded a true observation in the only place available, and no place
+aggregated them.**
+
+**⇒ THE TELL: a note you have written before, in a different dispatch, about a different subject.**
+⚠ **Repetition across contexts is the signal — and it is invisible from inside any one of them.**
+⛔ **When a finding recurs, the recurrence is the finding.**
+
 **This is the third distinct blindness class found INSIDE an instrument built to find blindnesses**
 — after the implicit-coverage family and the doc→table direction. That is the argument for **keeping
 the register itself under review rather than trusting it once it is green**: the instruments in this
