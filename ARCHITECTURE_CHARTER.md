@@ -1383,6 +1383,25 @@ what the real column charters, what the sim column counts, and **why those are t
 
 > ### ⇒ **TWO INDEPENDENT DEFECTS SHARE ONE CELL. Finding the first is what made anyone read the estimator that exposed the second.**
 
+#### ⚠ PROVENANCE ON THE PRECEDING CLAIM — separating what is ESTABLISHED from what is UNDER MEASUREMENT
+
+⛔ **This entry and the corollary below narrate the estimator defect as fact. Two different claims are
+being made and they do NOT have the same standing:**
+
+| claim | standing |
+|---|---|
+| **The two sides use different estimators** — real conditions on `was_pressure` before counting sacks; sim divides **every** sack by a pressured-only denominator | ✅ **ESTABLISHED. READ FROM SOURCE** (`tier1.ts:386` vs `:401-409`), **and it holds regardless of what follows** |
+| **That the asymmetry MATERIALLY INFLATES the sim figure** | ⛔ **UNDER MEASUREMENT. The coverage-sack share has NEVER been computed** |
+
+> ⚠ **If the measurement's third branch fires — the figure does not move, contradicting ADR-033's
+> *"frequently"* — THE ASYMMETRY IS STILL REAL, but its framing as a METRIC problem shifts toward the
+> ENGINE.** ⛔ **Amend this beside when it reports. Do not delete it.**
+
+⛔ **THIS IS THE PROVENANCE DISCIPLINE APPLIED TO THE CHARTER ITSELF — which had never been done.**
+⚠ **This document has always demanded provenance of the corpus and carried none on its own claims.**
+**A corollary is as citable as a metric, and a corollary resting on an unmeasured premise fails the
+same way a green cell does.**
+
 **Corollary — ⛔ A GREEN CELL IS THE STATE IN WHICH NOBODY READS THE ESTIMATOR.**
 
 > ### ⚠ **A FALSE RED GETS INVESTIGATED. A GREEN HOLDING FOR THE WRONG REASON IS SELF-PROTECTING.**
