@@ -5088,3 +5088,73 @@ adding a rung to hold what it was absorbing.** `ladderTail.ts` had already recor
 
 **Result: no third instance in the corpus.** ⚠ **Recorded as a null with its method**, so a future
 reader knows the pass ran and what it covered rather than assuming it is still owed.
+
+---
+
+## 77-RESULT. ⛔ **ZERO OF FOUR SURVIVE STEP ONE. All four were already decided — four citations, not four petitions.**
+
+**The ruling-search was exhausted before any football argument was written, and none was needed.**
+Method stated with its boundary: mechanical grep over `docs/decisions/` for the tunable identifiers
+*and* for the reasoning-shape phrases, every hit read, then **every disposition checked against the
+live tree rather than quoted.** ⚠ **Boundary: a ruling reaching one of these cells through reasoning
+using none of those words and never naming the tunable would not have surfaced.** For these four the
+search terminated in direct hits, so the boundary was not tested at its edge.
+
+| subject | already decided by | committed value, verified |
+|---|---|---|
+| `blockerStructuralAdvantage` | **ADR-028**, ratified — value **changed 15 → 0** and an `anchor` attribute term added | ⛔ **`0`**, not 15 (`tunables.ts:301`) |
+| `freeRunnerArrivalSeconds` | **ADR-030**, structural petition ratified — **1.5 explicitly KEPT as correct**, the defect fixed by adding a path term | **`1.5`** (`:476`) |
+| `RUSHER_GAINING`'s band map | **ADR-033 Ruling 1** — *"a rusher gaining by a single point against a blocker still in front of him is a CLEAN pocket"* | ⛔ **`"CLEAN"`**, not `PRESSURE` (`:968`) |
+| `RUSHER_WINS_REP.minMargin` | **entry 1a** — *"RULED TO STAY AT 15"*, restated after its justification was struck | **`15`** (`:346`) |
+
+### ⛔⛔ THE FINDING IS WORSE THAN ENTRY 76's, AND IT INVERTS THE DIAGNOSIS
+
+**ADR-033 is not an unrecorded implication. It is a NAMED, DATED, RATIFIED RULING ON THE EXACT CELL** —
+approved 2026-07-29, titled *"gaining ground is not pressure"*, with the band split implemented and
+tested — **and nothing in entries 74–80 cross-referenced it.**
+
+> ### **Entry 76's lesson was *"a ruling's reach is recorded only at the cell that provoked it."* This is one level more direct and worse: THE RULING WAS AT THE CELL, AND NOBODY LOOKED IT UP.**
+
+⚠ **So the ruling-search is not only for implications. It is for DIRECT HITS nobody searched for** —
+which means the failure mode is not subtle inference, it is **not asking.**
+
+### ⛔ TWO PREMISE CONFLICTS, BOTH IN ENTRY 77's OWN TABLE, BOTH MINE
+
+**Entry 77 framed all four as still-standing refusals of unchanged values. Two are not:**
+
+- ⛔ **`blockerStructuralAdvantage`** — ADR-028 **changed the value and the mechanism.** The **4.70pp**
+  figure is a lever-size measurement from *before* that ratification and **is not evidence about the
+  current value's correctness in either direction.**
+- ⛔ **`RUSHER_GAINING`** — entry 77 cited **ADR-032**, which explicitly **REFUSED to touch this cell**
+  and routed the football objection to the owner. **ADR-033 is the owner's answer.** Citing ADR-032
+  inherited a value that is stale.
+
+### 📌 A STALE CLAIM INSIDE A RATIFIED ADR — the audit-priority corollary's exact case
+
+**ADR-032 states:** *"`TUNABLES.pocket.minimumStatusByBand.RUSHER_GAINING` is `"PRESSURE"` before and
+after this ADR."* ⚠ **True when written. FALSE TODAY** — ADR-033 changed it to `CLEAN`. ⛔ *A pin that
+drifts stops the build; a stored ruling that drifts keeps being cited* — **and this one was cited, by
+the Orchestrator, into entry 77.**
+
+### ⚠ THE ONE CAVEAT WORTH THE OWNER'S EYES — `minMargin: 15`
+
+**The disposition holds; its original justification does not.** The *"10–15% of snaps"* reasoning was
+the tier/cumulative conflation, **struck** in entry 1a. **The value was restated, not reversed** — and
+a later dispatch tested a football-derived alternative (`15 → 45`) and found **−0.130pp on a flat
+shelf**, closing the question of whether another finite value does better.
+
+⛔ **This is the least clean of the four citations**, and it is flagged as such rather than presented
+as equal to the other three.
+
+### 🔧 SMALL FIND — a stale example in a type-doc comment
+
+`tunables.ts:3014` illustrates literal typing with **`blockerStructuralAdvantage: 15`**. The value is
+**`0`**. ⚠ Illustrative rather than load-bearing, **but it is the prose class in a file where every
+other number is checked** — and it will read as current.
+
+### ✅ THE GATE, ADDRESSED
+
+**No refusal's price is cited anywhere as evidence of football correctness.** `4.70pp`, `0.406pp`,
+`2.395pp`, `−0.111pp`, `−0.130pp` measure **lever SIZE, not CORRECTNESS** — and a ruling citation is
+**a quoted disposition checked against the live tree**, not a metric price, so none of the three
+varieties applies to the citations themselves.
