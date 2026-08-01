@@ -5359,3 +5359,48 @@ that has never been asked.** ⇒ **Owed as its own item.**
 **2.620 threats/dropback** against entry 40's independently measured **2.711** — different seed list,
 different (mutually-exclusive) accounting. **~3% agreement is evidence, not tautology** (entries
 66/70).
+
+---
+
+## 83. ⛔ TWO RATIFIED CONSTANTS WHOSE **RELATIONSHIP** NOBODY EXAMINED — second instance, and it is now a class
+
+**Entry 76 was the first.** `pressureWithinSeconds = POS_INF` was individually defensible as *"today's
+behaviour, exactly"* and was wrong **against `collapsingWithinSeconds`**, whose bounded width made the
+unbounded neighbour visible as a defect. ⛔ **Neither constant was wrong alone.**
+
+**ADR-055 is the second.** `scramble.pursuitSeconds = 1.5` and `arrival.pressureWithinSeconds = 2.0`
+are **each honestly derived and each independently defensible.** ⛔ **`1.5 < 2.0` makes 20.809% of all
+ticks non-`CLEAN` unconditionally** — and *"the pocket is collapsing"* becomes the model's description
+of *"the quarterback left and someone is chasing him."*
+
+> ### **A sweep cannot find this. Sweeping either constant alone moves a value that is correct, and the report reads as a refusal.**
+
+### Why the class is invisible to everything this project has built
+
+| instrument | why it misses a relational defect |
+|---|---|
+| the **doc-conformance register** | checks **cells against the doc**. Both cells conform. |
+| a **sensitivity sweep** | prices **one cell at a time**; each is correct where it sits |
+| the **band-table gate** | checks **ordering within a table**; these are in different tables |
+| the **exclusive-share** instrument | finds an inert mechanic, not **two live ones whose product is wrong** |
+| ⛔ **the ruling-search (habit 10a)** | asks *"has this cell been ruled on?"* — ⚠ **both had been, correctly** |
+
+### ⇒ What would catch it, stated as a candidate rather than a rule
+
+**A relation is only checkable if someone writes it down.** ⚠ **The two known instances are both
+`A < B` comparisons between constants in DIFFERENT tables with DIFFERENT owners.**
+
+**Candidate:** when a constant is derived **against** another (entry 76 derived `2.0` from
+`collapsingWithinSeconds`), ⛔ **record the relation as a pin, not just the value** — a compile-time or
+gate-level assertion that the derived relationship still holds. ⚠ **Entry 76 recorded the derivation in
+PROSE; prose has no consumer.**
+
+⛔ **BUT THIS WOULD NOT HAVE CAUGHT ADR-055**, and that must be said plainly: **nobody derived `1.5`
+against `2.0`.** The two constants **never met** until a census counted ticks. **A pin records a
+relation someone noticed. It cannot record one nobody did.**
+
+> ### 🚫 **RECORDED AS AN UNCOVERED CLASS, NOT A SOLVED ONE.** Two instances, one candidate partial mitigation, **and no mechanism that would have found either from the code alone.** ⚠ **Both were found by MEASURING SOMETHING ELSE** — entry 76 by sweeping a channel, ADR-055 by censusing a population.
+
+**⇒ The honest operational note: relational defects have been found, twice, by counting things nobody
+was suspicious of.** ⛔ **That is an argument for censuses over targeted sweeps**, and it is the second
+time a census has produced the dispatch's most valuable finding while answering a different question.
