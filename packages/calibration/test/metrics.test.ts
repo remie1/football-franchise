@@ -175,17 +175,16 @@ describe("the event fold", () => {
       // the defect above moved both at once. Checking one would have found it; checking the pair
       // says WHICH ledger lost the play.
       const checks: readonly (readonly [string, number, number])[] = [
-        // Backlog entry 94/95: NOT `p.passAttempts` directly any more. `packages/engine`'s own
-        // `StatLine.passing.attempts` excludes throwaways — its own comment says so verbatim
-        // (`statline.ts`: *"Throwaways are not attempts... Real NFL scoring counts it. Logged,
-        // not patched: the fix is a THROWAWAY producer decision, not a reducer decision"*) — a
-        // parallel, already-documented instance of the identical gap entry 94 fixed on this
-        // package's side, living in a file this package may only consume (ADR-012). So the fold
-        // and the reducer are now EXPECTED to disagree on raw `passAttempts` by exactly the
-        // throwaway count, and asserting equality through that would either mask this fold's own
-        // fix or re-hide the engine's — the adjustment makes the named divergence the thing
-        // checked, rather than papering over it.
-        ["passAttempts (adjusted for throwaway, entry 94)", p.passAttempts - p.throwaways, sum((l) => l.passing.attempts)],
+        // Backlog entry 94/95/ADR-056: back to `p.passAttempts` DIRECTLY, no compensation.
+        // Entries 94/95 found `packages/engine`'s `StatLine.passing.attempts` excluding
+        // throwaways while this fold's `passAttempts` (correctly) included them, and bridged the
+        // gap here by subtracting `p.throwaways` from this fold's count before comparing — a
+        // NAMED, temporary divergence, not a permanent one, per that test's own comment. ADR-056
+        // (Option C) closed it from the engine side: `statline.ts` now counts `hadThrow ||
+        // hadThrowaway` into `passing.attempts` (its own comment cites ADR-056 verbatim), so the
+        // two sides count the SAME population again and the compensation would now OVER-subtract
+        // — this is the divergence closing, not a new one to bridge a second time.
+        ["passAttempts", p.passAttempts, sum((l) => l.passing.attempts)],
         ["completions", p.completions, sum((l) => l.passing.completions)],
         ["receptions", p.completions, sum((l) => l.receiving.receptions)],
         ["passYards", p.passYards, sum((l) => l.passing.yards)],

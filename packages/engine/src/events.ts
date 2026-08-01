@@ -20,6 +20,7 @@ import type {
   RushAlignment,
   RushThreatState,
   ThreatOrigin,
+  ThrowawayCause,
   ThrowType,
 } from "@ff/contracts";
 import type { PocketStatusRung } from "./resolve/pocket.js";
@@ -315,6 +316,23 @@ export class PlayEventLog {
     this.push({
       type: "THROW",
       payload: { target, throwType, accuracyTier, rollRef },
+      ...this.base(),
+    });
+  }
+
+  /**
+   * ADR-056 Option C — THE ACT, not the decision. `QB_DECISION{choice:"THROWAWAY"}`
+   * stays as the decision; this is the ball leaving his hand with no target.
+   *
+   * `cause` is required (both emit sites always know which of the two closed
+   * paths they are on). `rollRef` is present only for `POCKET_DURESS`, which has
+   * the `pocket_movement` CHECK behind it; `CLOCK_EXPIRED` has no roll at all
+   * (ADR-005), so it must be omitted, never invented.
+   */
+  throwaway(cause: ThrowawayCause, rollRef?: string): void {
+    this.push({
+      type: "THROWAWAY",
+      payload: { cause, ...(rollRef === undefined ? {} : { rollRef }) },
       ...this.base(),
     });
   }

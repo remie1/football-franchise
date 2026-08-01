@@ -127,7 +127,24 @@ export type CheckKind =
  * this crosses a package boundary, and the type cannot bind a caller arriving from JavaScript.
  */
 export type PocketStatus = "CLEAN" | "PRESSURE" | "COLLAPSING" | "IMMEDIATE";
-export type ThrowType = "BULLET" | "TOUCH" | "BACK_SHOULDER" | "THROWAWAY";
+export type ThrowType = "BULLET" | "TOUCH" | "BACK_SHOULDER";
+
+/**
+ * WHY A THROWAWAY HAS A CAUSE (ADR-056).
+ *
+ * Two paths reach a throwaway and they are DIFFERENT FOOTBALL. `POCKET_DURESS` is §7.2's
+ * pocket forcing him out of the play, and it carries the `pocket_movement` CHECK that
+ * produced the choice. `CLOCK_EXPIRED` is the clock or the read budget running out with
+ * nobody open — "the clock ran out rather than the pocket: no duress, so no movement
+ * check" (`sim/passPlay.ts`) — and therefore has no roll behind it at all.
+ *
+ * REQUIRED, not optional: both emit sites know which they are, so an optional field would
+ * make "not published" and "not applicable" arrive identically — the same ambiguity
+ * `playId?: never` was introduced to prevent (ADR-014 item 13).
+ *
+ * CLOSED at two. A third throwaway path is a widening petition, not a default.
+ */
+export type ThrowawayCause = "POCKET_DURESS" | "CLOCK_EXPIRED";
 export type RushAlignment = "EDGE" | "INTERIOR";
 export type RushThreatState = "TRAVELLING" | "DELAYED" | "RESET" | "ARRIVED";
 
@@ -303,6 +320,24 @@ export type MatchEvent =
         throwType: ThrowType;
         accuracyTier: ResultTier;
         /** The accuracy CHECK's rngLabel — §10.4's placement band lives there (ADR-011). */
+        rollRef?: string;
+      } } & MatchEventBase)
+  /**
+   * THE ACT, not the decision (ADR-056 Option C). `QB_DECISION{choice:"THROWAWAY"}` stays as
+   * the DECISION; this is the ball leaving his hand.
+   *
+   * It is its own event rather than a `ThrowType` member because a throwaway HAS NO TARGET
+   * and `THROW.target` is a required `PlayerId`. Carrying it on `THROW` would have forced
+   * `target?: PlayerId` — weakening an invariant for every `THROW` consumer forever, to
+   * represent one case this event represents exactly.
+   */
+  | ({ type: "THROWAWAY"; payload: {
+        cause: ThrowawayCause;
+        /**
+         * The `pocket_movement` CHECK behind a `POCKET_DURESS` throwaway. ABSENT on
+         * `CLOCK_EXPIRED`, where no roll ran at all — ADR-005 forbids reporting a tier
+         * where nothing was rolled, and the same reasoning governs a roll reference.
+         */
         rollRef?: string;
       } } & MatchEventBase)
   | ({ type: "CATCH_RESOLUTION"; payload: {

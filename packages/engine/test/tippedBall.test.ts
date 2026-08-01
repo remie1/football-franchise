@@ -8,7 +8,7 @@
  */
 import { createHash } from "node:crypto";
 import { createRng } from "@ff/contracts";
-import type { MatchEvent, MatchEventEnvelope, PlayerState } from "@ff/contracts";
+import type { MatchEvent, MatchEventEnvelope, PlayerState, ThrowType } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import { simulatePassPlay } from "../src/index.js";
 import { simulateGame } from "../src/game/simulateGame.js";
@@ -31,6 +31,25 @@ import type {
 import { TUNABLES, TunablePatchError } from "../src/tunables.js";
 import type { FieldZone } from "../src/types.js";
 import { buildDeflectionScenario, buildScenario, makePlayer } from "./fixtures.js";
+
+/**
+ * The one enumeration of `ThrowType`'s members this file needs (§12.2's height
+ * ladder walks every one). A restated literal tuple is exactly the shape that
+ * went stale under ADR-056 — `THROWAWAY` sat here after the contract dropped
+ * it, and the compiler caught it because `throwHeightFor` takes `ThrowType`.
+ *
+ * That guard only fires in ONE direction: a member REMOVED from the contract
+ * is a type error here (the excess literal is no longer assignable), but a
+ * member ADDED would silently under-enumerate, which is the same class of bug
+ * `ADR-056`'s petition names in its "implied scope" sweep. `_ThrowTypesComplete`
+ * closes the other direction: if `ThrowType` ever gains a member not listed
+ * below, it stops being assignable to `(typeof THROW_TYPES)[number]` and this
+ * file fails to compile instead of quietly testing a strict subset.
+ */
+const THROW_TYPES = ["BULLET", "TOUCH", "BACK_SHOULDER"] as const satisfies readonly ThrowType[];
+type _ThrowTypesComplete = ThrowType extends (typeof THROW_TYPES)[number] ? true : never;
+const _throwTypesComplete: _ThrowTypesComplete = true;
+void _throwTypesComplete;
 
 const DEFLECTOR = makePlayer("db-tip", "Swat", "CB", { ballSkills: 90, reaction: 88 });
 const HERE: FieldZone = { horizontal: "C", vertical: "INTERMEDIATE" };
@@ -93,7 +112,7 @@ describe("§12.2 throw height — the derived input (INTERPRETATION)", () => {
     expect(throwHeightFor(TUNABLES, "CATCH_POINT", "QUICK", "BULLET")).toBe("LOW");
     expect(throwHeightFor(TUNABLES, "CATCH_POINT", "DEEP", "TOUCH")).toBe("JUMP_BALL");
     for (const depth of ["QUICK", "SHORT", "INTERMEDIATE", "DEEP"] as const) {
-      for (const throwType of ["BULLET", "TOUCH", "BACK_SHOULDER", "THROWAWAY"] as const) {
+      for (const throwType of THROW_TYPES) {
         expect(ladder).toContain(throwHeightFor(TUNABLES, "CATCH_POINT", depth, throwType));
       }
     }

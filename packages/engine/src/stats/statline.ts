@@ -33,10 +33,13 @@
  *     rusher published as `ARRIVED` on `RUSH_THREAT`. A coverage sack (nobody
  *     arrived) is credited to nobody, which is honest and is why team sacks can
  *     exceed the sum of individual ones.
- *  3. **Throwaways are not attempts.** The engine emits no `THROW` for a
- *     throwaway (correctly — no target, no accuracy roll), so it does not appear
- *     as a pass attempt. Real NFL scoring counts it. Logged, not patched: the
- *     fix is a `THROWAWAY` producer decision, not a reducer decision.
+ *  3. **Throwaways ARE attempts (ADR-056).** The engine emits no `THROW` for a
+ *     throwaway — correctly, since there is no target and no accuracy roll —
+ *     but it now emits its own `THROWAWAY` event (Option C: the ACT, distinct
+ *     from the `QB_DECISION` that chose it). Real NFL scoring counts a
+ *     throwaway as a pass attempt, so `passing.attempts` counts `hadThrow` OR
+ *     `hadThrowaway`. This was blocked on a producer decision, not a reducer
+ *     one; the producer now exists.
  */
 import type { PlayerId, TeamId } from "@ff/contracts";
 import { isGameScoped } from "../game/events.js";
@@ -242,6 +245,8 @@ interface PlayScratch {
   runCarrier: PlayerId | undefined;
   runCarryType: string | undefined;
   hadThrow: boolean;
+  /** ADR-056 — a throwaway is its own event, and it IS a pass attempt. */
+  hadThrowaway: boolean;
 }
 
 const TACKLE_KINDS = new Set(["tackle", "yac_tackle", "break_tackle"]);
@@ -406,6 +411,7 @@ function applyPlayEvent(
       runCarrier: undefined,
       runCarryType: undefined,
       hadThrow: false,
+      hadThrowaway: false,
     };
   }
   if (play === undefined) return play;
@@ -415,6 +421,12 @@ function applyPlayEvent(
     case "THROW":
       play.hadThrow = true;
       play.throwTarget = event.payload.target;
+      return play;
+
+    case "THROWAWAY":
+      // ADR-056 Option C: the ACT. No target, no accuracy roll, no reception —
+      // but a real pass attempt (nflverse and football both count it as one).
+      play.hadThrowaway = true;
       return play;
 
     case "CATCH_RESOLUTION":
@@ -472,7 +484,8 @@ function applyPlayEvent(
       if (isPass && passer !== undefined) {
         const line = touch(passer, play.view.offenseTeam);
         if (line !== undefined) {
-          if (play.hadThrow) line.passing.attempts += 1;
+          // ADR-056: a throwaway is its own event and IS a pass attempt.
+          if (play.hadThrow || play.hadThrowaway) line.passing.attempts += 1;
           if (receiver !== undefined) {
             line.passing.completions += 1;
             line.passing.yards += yards;

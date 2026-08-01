@@ -147,17 +147,53 @@ describe("the columns are derived, not zero", () => {
   });
 });
 
-describe("the documented gaps are gaps, not silent wrongness", () => {
-  it("a throwaway is not counted as a pass attempt (the engine emits no THROW)", () => {
-    const throwaways = result.events
+describe("ADR-056 — a throwaway IS a pass attempt", () => {
+  it("passing.attempts counts THROW and THROWAWAY together (invariant, this fixture's own game)", () => {
+    const throwaways = eventsOf(result.events, "THROWAWAY").length;
+    const throws = eventsOf(result.events, "THROW").length;
+    const attempts = result.statlines.reduce((a, l) => a + l.passing.attempts, 0);
+    // This particular fixture happens to produce no throwaways this game —
+    // the identity must hold regardless (it degrades to `attempts === throws`
+    // when `throwaways === 0`, which is not a separate case in the reducer).
+    // `test/throwaway.test.ts` exercises the `throwaways > 0` case directly,
+    // at the play level, for both causes.
+    expect(attempts).toBe(throws + throwaways);
+  });
+
+  it("some game produces a throwaway, and there passing.attempts counts it (not a vacuous invariant)", () => {
+    let found: { throws: number; throwaways: number; attempts: number } | undefined;
+    for (let i = 0; i < 20 && found === undefined; i++) {
+      const fixture = buildGameFixture({ seed: `adr056-attempts-${i}` });
+      const g = simulateGame(fixture.state, fixture.inputs, fixture.seed);
+      const throwaways = eventsOf(g.events, "THROWAWAY").length;
+      if (throwaways === 0) continue;
+      const throws = eventsOf(g.events, "THROW").length;
+      const attempts = g.statlines.reduce((a, l) => a + l.passing.attempts, 0);
+      found = { throws, throwaways, attempts };
+    }
+    expect(found).toBeDefined();
+    expect(found?.throwaways ?? 0).toBeGreaterThan(0);
+    expect(found?.attempts).toBe((found?.throws ?? 0) + (found?.throwaways ?? 0));
+  });
+
+  it("QB_DECISION{choice:THROWAWAY} and THROWAWAY are both published, once each, per throwaway", () => {
+    const decisionThrowaways = result.events
       .map((e) => e.event)
       .filter((e) => e.type === "QB_DECISION" && e.payload.choice === "THROWAWAY").length;
-    const throws = result.events.map((e) => e.event).filter((e) => e.type === "THROW").length;
-    const attempts = result.statlines.reduce((a, l) => a + l.passing.attempts, 0);
-    expect(attempts).toBe(throws);
-    // Documented divergence from real scoring, asserted so it cannot drift
-    // silently into being "fixed" in the reducer instead of at the producer.
-    expect(throwaways).toBeGreaterThanOrEqual(0);
+    const actThrowaways = eventsOf(result.events, "THROWAWAY").length;
+    expect(actThrowaways).toBe(decisionThrowaways);
+  });
+
+  it("POCKET_DURESS carries the pocket_movement CHECK's rollRef; CLOCK_EXPIRED carries none", () => {
+    const throwaways = eventsOf(result.events, "THROWAWAY");
+    for (const t of throwaways) {
+      if (t.payload.cause === "POCKET_DURESS") {
+        expect(t.payload.rollRef).toBeDefined();
+      } else {
+        expect(t.payload.cause).toBe("CLOCK_EXPIRED");
+        expect(t.payload.rollRef).toBeUndefined();
+      }
+    }
   });
 
   it("team sacks may exceed credited individual sacks — a coverage sack has no sacker", () => {

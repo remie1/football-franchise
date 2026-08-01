@@ -44,21 +44,21 @@ export interface PlayFold {
   /**
    * ================== BACKLOG ENTRY 94 FINDING 1/2: THROWAWAYS ARE ATTEMPTS ==================
    *
-   * Dropbacks where the QB either threw to a receiver (a THROW event) OR threw the ball away
-   * (a QB_DECISION event with `choice: "THROWAWAY"`). Both are pass attempts in the scoring
-   * sense nflverse uses: `isPassAttempt` (`realInput.ts`) is `passAttempt === true && sack !==
-   * true`, and nflverse codes a throwaway `pass_attempt = 1`, `sack = 0` — an ordinary incomplete
-   * attempt. There is no `qb_throwaway`-equivalent column in the ingested `PbpRow` schema to
-   * exclude one even if a metric wanted to, so the real side has always included them; this field
-   * used to NOT (a THROW-event-only count), which was the defect entry 94 named. It still excludes
-   * sacks and scrambles, exactly as `isPassAttempt` does.
+   * Dropbacks where the QB either threw to a receiver (a THROW event) OR threw the ball away (a
+   * `THROWAWAY` event — ADR-056 Option C; entry 94/95 read this off `QB_DECISION{choice:
+   * "THROWAWAY"}` before the ADR-056 event existed, entry 98 switched the signal, see `case
+   * "THROWAWAY"` below). Both are pass attempts in the scoring sense nflverse uses: `isPassAttempt`
+   * (`realInput.ts`) is `passAttempt === true && sack !== true`, and nflverse codes a throwaway
+   * `pass_attempt = 1`, `sack = 0` — an ordinary incomplete attempt. There is no
+   * `qb_throwaway`-equivalent column in the ingested `PbpRow` schema to exclude one even if a
+   * metric wanted to, so the real side has always included them; this field used to NOT (a
+   * THROW-event-only count), which was the defect entry 94 named. It still excludes sacks and
+   * scrambles, exactly as `isPassAttempt` does.
    *
-   * NOT the same population as `packages/engine`'s own `StatLine.passing.attempts`
-   * (`statline.ts`'s own comment: *"Throwaways are not attempts... Real NFL scoring counts it.
-   * Logged, not patched"*) — that is a DIFFERENT, ALREADY-DOCUMENTED engine-side instance of the
-   * identical gap, in a file this package may only consume (ADR-012), not fix. `test/metrics.test
-   * .ts`'s reconciliation check against the reducer now expects this NAMED divergence rather than
-   * asserting equality through it — see that test.
+   * `packages/engine`'s own `StatLine.passing.attempts` USED TO exclude throwaways (`statline.ts`'s
+   * own comment recorded it as a routed, unfixed gap) — ADR-056 closed that too, so the two are the
+   * SAME population again as of this dispatch (entry 98) and `test/metrics.test.ts`'s reconciliation
+   * check against the reducer asserts equality directly, with no compensating subtraction.
    */
   passAttempts: number;
   completions: number;
@@ -471,16 +471,18 @@ interface PlayState {
   threw: boolean;
   throwTick: number | null;
   /**
-   * Backlog entry 94: set from `QB_DECISION.payload.choice === "THROWAWAY"`, which fires whether
-   * the throwaway was forced by duress (a pocket-movement decision) or by the clock (`mustDecide
-   * && throwawayAvailable`) — both paths log it, neither emits a `THROW` event (`passPlay.ts`).
-   * Mutually exclusive with `threw`/`scramble`/`intercepted` by construction: a dropback resolves
-   * to exactly one QB_DECISION terminal choice.
+   * Set from the `THROWAWAY` event (ADR-056 Option C; backlog entry 98 switched this fold from
+   * `QB_DECISION.payload.choice === "THROWAWAY"`, entry 94/95's original signal, to this event —
+   * see `case "THROWAWAY"` below for why the switch is provably a no-op). Fires whether the
+   * throwaway was forced by duress (`cause: "POCKET_DURESS"`) or by the clock (`cause:
+   * "CLOCK_EXPIRED"`) — this fold does not yet distinguish the two (see that case). Mutually
+   * exclusive with `threw`/`scramble`/`intercepted` by construction: a dropback resolves to
+   * exactly one terminal act.
    */
   throwaway: boolean;
   /**
-   * The tick at which the THROWAWAY decision fired, read off the SAME per-tick `tick` local this
-   * file already tracks for `throwTick` — `QB_DECISION` carries `tick` on `MatchEventBase` like
+   * The tick at which the THROWAWAY event fired, read off the SAME per-tick `tick` local this
+   * file already tracks for `throwTick` — `THROWAWAY` carries `tick` on `MatchEventBase` like
    * every other event, but this reads the mirrored local rather than `event.tick` to match the
    * existing convention (`case "THROW"` below does the same).
    */
@@ -639,8 +641,9 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
       } else if (!play.threw && !play.intercepted) {
         // No throw, no scramble, no throwaway: a sack. Entry 94 removed the old inference by
         // yardage sign (`(play.resultYards ?? 0) < 0`) in favour of this directly-observed
-        // dichotomy — `play.throwaway` is now a real flag fed by QB_DECISION, not a side effect of
-        // a throwaway happening to carry non-negative yards. Same population, sturdier signal.
+        // dichotomy — `play.throwaway` is now a real flag fed by a published event (`QB_DECISION`
+        // originally, the `THROWAWAY` event as of entry 98), not a side effect of a throwaway
+        // happening to carry non-negative yards. Same population, sturdier signal.
         p.sacks++;
         // backlog 87: the SAME `pressured` flag `pressuredDropbacks` already set above for
         // this dropback, read again rather than re-derived, so the two can never disagree.
@@ -729,25 +732,24 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
         if (current !== null) {
           current.threw = true;
           current.throwTick = tick;
-          // Entry 94: the OLD defect site. `throwType` here is drawn from `selectThrowType`
+          // Entry 94's historical note: `throwType` here is drawn from `selectThrowType`
           // (`throwExecution.ts`), which only ever returns `BULLET`/`TOUCH` (`BACK_SHOULDER` is
-          // wired and dormant per `tunables.ts:78`) — a `THROW` event's `throwType` is never
-          // actually `"THROWAWAY"` at this call site (`passPlay.ts:1217`, the only `log.throwBall`
-          // call in the file). This branch was therefore DEAD: a throwaway never reaches here at
-          // all, because the engine logs it as a `QB_DECISION` (see that case below), never a
-          // `THROW`. The exclusion this line APPEARED to implement was actually accomplished
-          // structurally, by `current.threw` simply never being set for a throwaway — same
-          // outcome, invisible mechanism, which is why entry 94 still names this line the defect
-          // site: it read as the exclusion and was not one.
+          // wired and dormant per `tunables.ts:78`) — a `THROW` event's `throwType` was never
+          // actually `"THROWAWAY"` even before ADR-056 removed that union member entirely. A
+          // throwaway never reaches this case; it reaches `case "THROWAWAY"` below instead.
         }
         break;
-      case "QB_DECISION":
-        // Entry 94, ruling 1: the ACTUAL throwaway signal. Both throwaway paths in `passPlay.ts`
-        // (duress movement response, and `mustDecide && throwawayAvailable`) log
-        // `qbDecision("THROWAWAY")` and neither ever calls `throwBall` — so this is the only event
-        // a throwaway dropback emits that names it. Read the mirrored `tick` local (not
-        // `event.tick`) to match the `THROW` case's own convention just above.
-        if (current !== null && event.payload.choice === "THROWAWAY") {
+      case "THROWAWAY":
+        // ADR-056 Option C / backlog entry 98: THE ACT, read directly, rather than inferred from
+        // `QB_DECISION{choice:"THROWAWAY"}` (entry 94/95's original signal — now the DECISION,
+        // kept live on the stream but no longer this fold's source). Both engine emit sites
+        // (`passPlay.ts:1081`/`:1085` and `:1104`/`:1107`) log `qbDecision("THROWAWAY")`
+        // immediately followed by `log.throwaway(...)` on the next line, unconditionally, at the
+        // same tick — so the two signals fire on exactly the same plays BY CONSTRUCTION, and the
+        // switch is a pure signal-source change: pre-registered and measured to move no number
+        // (see the dispatch report; canonical-arm figures bit-identical before/after). Read the
+        // mirrored `tick` local (not `event.tick`) to match the `THROW` case's own convention.
+        if (current !== null) {
           current.throwaway = true;
           current.throwawayTick = tick;
         }

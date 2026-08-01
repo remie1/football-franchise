@@ -1079,6 +1079,10 @@ export function simulatePassPlay(
         // (ADR-005). The pocket_movement CHECK above carries the roll that
         // produced this choice.
         log.qbDecision("THROWAWAY");
+        // ADR-056 Option C — the ACT, distinct from the decision above. This is
+        // the POCKET_DURESS path: the pocket_movement CHECK just logged is the
+        // roll that produced it, so its rngLabel travels as `rollRef`.
+        log.throwaway("POCKET_DURESS", movement.check.roll.rngLabel);
         outcome = {
           yards: 0,
           turnover: false,
@@ -1098,6 +1102,9 @@ export function simulatePassPlay(
       // check. No decision-quality roll runs on a throwaway either — there was
       // nobody to pick between — so no tier (ADR-005), and no THROW event.
       log.qbDecision("THROWAWAY");
+      // ADR-056 Option C — the ACT. CLOCK_EXPIRED: no roll ran at all, so
+      // `rollRef` is omitted entirely rather than invented (ADR-005).
+      log.throwaway("CLOCK_EXPIRED");
       outcome = {
         yards: 0,
         turnover: false,
