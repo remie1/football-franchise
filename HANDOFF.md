@@ -2,22 +2,45 @@
 
 > ## ▶ NEXT SESSION STARTS HERE
 >
-> **Phase 1 complete; the pocket subsystem is mid-correction.** ADR-055 ratified and implemented,
-> backlog through entry 86, ~3,640 tests, CI gating `build` + `test` + `typecheck`.
+> **Phase 1 complete; the METRIC LIBRARY is mid-correction and the pocket subsystem is parked.**
+> ADR-056 ratified and shipped; ADR-057 filed, shape ruled, patch held. Backlog through **entry 101**.
+> ~3,700 tests.
+>
+> ### ⛔ VERIFICATION IS ONE COMMAND NOW
+>
+> ```
+> pnpm verify
+> ```
+>
+> **Build, test, typecheck — in order, fail-fast, its own exit code is the verdict, unrun steps printed
+> as `UNKNOWN, not green`.** ⛔ **Habit 9 failed THREE times as a list of three commands and was
+> amended twice; the third miss shipped a non-compiling tree to `main`.** ⚠ **"I ran `pnpm verify`,
+> exit 0" is the whole claim. Anything less specific is not a verification report.**
+>
+> ### ⛔ READ ENTRY 100 BEFORE ANYTHING ELSE ON PRESSURE
+>
+> **`docs/decisions/CALIBRATION-BACKLOG.md` entry 100 is the consolidated state of the pressure
+> question** — what is ruled out, what is refuted, and what remains. ⚠ **It exists so you do not
+> reconstruct it from fifteen entries. The short form:**
+>
+> ⛔ **THE GAP IS STILL UNEXPLAINED, AND BOTH HALVES OF THE COMPARISON ARE OPEN.** Sim exit disruption
+> is **85.603%**; the real figure near **29.23%** rests on `was_pressure`, whose semantics are recorded
+> **`UNESTABLISHED`**. ⚠ **Entry/exit — the external review's central claim — is REFUTED: it closes
+> `4.123pp` of a ~60pp gap.**
 >
 > ### The immediate next dispatch
 >
-> ⛔ **Entry 40's SUPPLY RE-PRICE, on the bounded-horizon base.** It has been queued behind three
-> base-moving changes and they have all landed: the horizon bounded at `2.0` (entry 76), `TIME`
-> retirement (entry 80), and ADR-055's pursuit reclassification. ⚠ **Every ADR-049 supply and
-> persistence figure was measured with `pressureWithinSeconds = POS_INF` and describes a configuration
-> the tree no longer reproduces.**
+> ⛔ **ADR-057's CHEAP FORM.** Six declared mapped types over contract unions (`ByTier<T>`'s shape),
+> ~15 annotations in `tunables.ts`. ⚠ **RE-DERIVE the record list — the `~15` in the ADR is marked
+> `PRELIMINARY, GREP-BASED` and must not be trusted.** **Contracts unlock protocol; `ADR-057` in the
+> commit message.**
 >
-> ⚠ **And read entry 82-RESULT first** — the census says the threat population is **NOT saturated**
-> (32.3% of ticks carry no live threat within 2.0s; 76.3% of dropbacks have such a moment), **which is
-> why supply is a live frame rather than a lever inside a saturated space.**
+> **Then, in order:** `blitz_rate`'s 2022 signal *(entry 97b — `20.235%` against `25.66-27.02%`, in the
+> only season with incomplete join coverage; a live definition-change indicator on a row still reading
+> `PASS+`)*, then the **seven remaining restatements** *(entry 101 — four in calibration, three in
+> playbook, listed and unfixed)*.
 >
-> ### ⛔ Two things are OWED to the owner before they are cited
+> ### ⛔ Three things are OWED to the owner before they are cited
 >
 > - **`scramble.accuracyModifier = -10` / `readCapacityDelta = -1`** are marked `RULED, NOT DERIVED`.
 >   **Existence is ruled; the MAGNITUDE is carried from `pocket.*.PRESSURE` and is provisional.**
@@ -26,6 +49,11 @@
 > - ⚠ **Every recorded pocket-severity number folds the 20.809% of ticks ADR-055 reclassified** —
 >   `dirtyTickShare`, the channel shares, entries 81 and 82. **They are stale and must be re-read
 >   before citation.**
+> - ⛔ **THE GREEN COUNT IS FOUR, AND ONE OF THE FOUR IS UNQUALIFIED** (entry 96). `int_rate` went
+>   `PASS → FAIL` when its denominator was corrected; `blitz_rate` is `UNESTABLISHED`;
+>   `pressure_to_sack` is a construct mismatch carrying a caveat; `points_per_drive` is graded against
+>   an ESTIMATE. ⚠ **Only `field_goal_pct` is a clean comparison.** **Do not cite a pass count without
+>   citing entry 96.**
 >
 > ### Where the roadmap lives — do not restate it here
 >

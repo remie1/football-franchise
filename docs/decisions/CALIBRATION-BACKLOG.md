@@ -6919,3 +6919,163 @@ WIDER than the union.** ⛔ **Inert is not the same as correct, and "wider than 
 the state `tippedBall.test.ts` was in before it broke — the difference is only that one was checkable.**
 
 ⛔ **UNRULED, and `packages/engine`'s path.** ⚠ **Not fixed here.**
+
+---
+
+## 100. ⛔⛔ THE STANDING STATE OF THE PRESSURE QUESTION — **STILL UNEXPLAINED, AND THE QUESTION IS SHARPER THAN WHEN WE STARTED**
+
+**Written as the citable statement of where entries 40-99 leave this.** ⚠ **Nothing here is new
+measurement; it is the honest consolidated state, so that a cold reader — or a returning external
+reviewer — gets it in one place rather than reconstructing it from thirteen entries.**
+
+### ⛔ THE GAP, STATED IN THE ONLY TERMS THAT SURVIVE
+
+| quantity | sim | real | arm |
+|---|---|---|---|
+| **entry** (`threat_creation_rate`) | **89.726%** | ⚠ **real side RETIRED** | canonical `flat-60-32t`, 496 games, `fnv1a:020c1dcb#496` |
+| ⛔ **exit** (`qb_disruption_rate`) | ⛔ **85.603%** | **no real side exists** | same |
+| *(the retired comparison)* | *89.73%* | *29.23%* | *`baseline-0007`* |
+
+> ## ⛔ **THE MECHANISM PRODUCING ~85.6% EXIT DISRUPTION AGAINST A REAL FIGURE NEAR 29.2% IS UNACCOUNTED FOR.**
+
+⚠ **`pressure_rate`'s comparison was RETIRED (entry 93), NOT CLOSED. Retiring a comparison does not
+explain a gap** — it stops asserting that the two sides measure the same thing. ⛔ **The ~56-60pp
+remains, and nothing in entries 87-99 explains it.**
+
+### ✅ WHAT HAS BEEN RULED OUT — and this is the value of the stretch
+
+| hypothesis | disposition |
+|---|---|
+| **a threshold is mistuned** | ⛔ **EXHAUSTED.** Entry 40's supply (−0.130pp), 1e's horizon (−2.440pp), entry 81's `collapsingWithinSeconds` (**structurally incapable** — a pure transfer between two already-dirty rungs) |
+| **the metric is saturated** | ⛔ **REJECTED** by entry 82's census — 32.3% of ticks carry zero live threat within 2.0s |
+| ⛔ **ENTRY-vs-EXIT — the review's central claim** | ⛔ **REFUTED. Our own exit measure closes `4.123pp` of a ~60pp gap — UNDER 7%.** ⚠ *Limit: the predicate is deliberately inclusive; a narrower one needs a `HIT` event the contract lacks.* |
+| **the estimator was wrong** | ✅ **TRUE, AND WORTH ZERO.** The conditional/non-conditional asymmetry was real and fixed; magnitude on this corpus was **exactly zero** |
+
+### ⛔ AND THE TARGET ITSELF IS NOT ESTABLISHED — which is what sharpens the question
+
+⚠ **The `29.23%` is not a known-good number.** ⛔ **It rests on nflverse `was_pressure`, whose
+semantics are recorded `UNESTABLISHED` (vendored, `b0bef1d`).** **If NGS's public description governs,
+it counts QB-bail and coverage-hold causes our `POCKET_STATUS` STRUCTURALLY CANNOT PRODUCE.**
+
+> ### ⇒ **SO THE GAP IS BETWEEN A MEASURED SIM QUANTITY AND A REAL QUANTITY WE CANNOT CHARACTERISE. Both halves are open — and that is a HARDER question than the one we started with, not an easier one.**
+
+### 📋 WHAT A RETURNING REVIEWER SHOULD BE TOLD, PLAINLY
+
+1. ⛔ **Your central claim — entry/exit explains the gap — IS REFUTED BY OUR OWN EXIT MEASURE.** `4.123pp` of ~60.
+2. ✅ **Your method finding was RIGHT AND WORTH MORE THAN THE DIAGNOSIS:** *the corpus is scrupulous about internal consistency and silent at exactly one boundary — sim/real comparability.*
+3. ⛔ **THAT SILENCE, ONCE INSTRUMENTED, FOUND THINGS THE DIAGNOSIS DID NOT PREDICT:** an estimator asymmetry; **a defect class with NO NUMERICAL TRACE** (8 placements); and ⛔ **`int_rate` turning PASS→FAIL on a row nobody had connected to any of it.**
+4. ⛔ **THE PRESSURE GAP IS STILL UNEXPLAINED, AND THE TARGET IS UNESTABLISHED.**
+
+> ## ⚠ **WHICH IS THE HONEST SIGNAL ABOUT WHAT A COLD READ BUYS: NOT THE ANSWER — A QUESTION THE INSIDE COULD NOT ASK ITSELF.**
+
+⛔ **Testimony wrong on its central claim and right that the corpus was silent where it mattered is a
+MORE USEFUL RESULT than a confirmation would have been**, and it should be reported that way rather
+than scored.
+
+### ⛔⛔ AND THE ITEM THE REVIEWER WOULD MOST WANT — **which neither side could have reached alone**
+
+> ## **THE VALUE-PRESERVING DEFECT CLASS: a correctness defect with NO NUMERICAL TRACE, now at EIGHT PLACEMENTS.**
+
+⚠ **The reviewer's instance was the sim/real boundary.** ⛔ **THE CLASS IS LARGER AND INCLUDES DEFECTS
+ENTIRELY INSIDE THE SIM** — a construct that drifted while its measurement stood still; a wrong
+estimator returning the right number; a correct mechanism that never executes; a guard wired to
+nothing; **a check that cannot exist.**
+
+### ⇒ ITS PROVENANCE IS THE ARGUMENT, AND IT MUST BE STATED
+
+⛔ **THE CLASS CAME FROM CORRECTING A MECHANISM WE HAD ASSERTED INSIDE THE REVIEWER'S OWN DIAGNOSIS.**
+
+**We wrote — and the owner endorsed — that the estimator defect survived because *"the inflation
+pushed the sim figure TOWARD real, which is the direction that suppresses investigation."*** ⛔ **THAT
+WAS FALSE. `pressuredSacks == sacks == 6,593`; the corrected estimator returned a BIT-IDENTICAL
+`16.942%`. There was no inflation, nothing to camouflage, and no direction to move in.**
+
+⚠ **The camouflage account was REASONED, NOT MEASURED, and it rested on a premise the measurement
+refuted at exactly zero.** ⛔ **And the true account is WORSE, which is why the correction was
+productive rather than merely tidy:**
+
+> ### ⛔ **NOT HIDDEN BY MOVING THE RIGHT WAY — INVISIBLE BECAUSE IT DID NOT MOVE.**
+
+**⇒ NEITHER SIDE HAD THIS ALONE.** ⚠ **The outside read supplied the instance and the method finding;
+the inside supplied the measurement that refuted its own endorsed explanation.** ⛔ **The class exists
+because BOTH happened, in that order.**
+
+> ## ⚠ **THAT IS THE BEST AVAILABLE EVIDENCE FOR DOING THIS AGAIN AT THE NEXT PHASE BOUNDARY — not that the reviewer was right, but that an outside read plus an inside correction produced something neither could have produced by itself.**
+
+---
+
+## 101. ⛔ **DERIVE THE SUBJECT SET, NOT JUST THE ENUMERATION OVER IT** — entry 99 swept 1 package of 3
+
+**Entry 99's restatement sweep WAS derived. It reported SEVEN. It was wrong in two different ways, one
+coarse and one fine, and neither was a failure of derivation.**
+
+### ⛔ THE COARSE ERROR — the scope was CHOSEN while the enumeration was DERIVED
+
+**Entry 99 swept `packages/engine`. The complete subject set is THREE packages.**
+
+**Derived from `from "@ff/contracts"` across the tree** (`*.ts`, excluding `node_modules`, `dist`,
+`*.d.ts`):
+
+| package | files importing contracts |
+|---|---|
+| `packages/engine` | **81** — *the only one entry 99 looked at* |
+| `packages/calibration` | **48** |
+| `packages/playbook` | **19** |
+
+⚠ **And the four non-consumers were verified by READING them, not by trusting the grep's silence:**
+`attributes`, `franchise`, `narrative`, `apps/game` each contain a single `src/index.ts` reading
+`export {};` — Charter §6 phase stubs. ⛔ **`packages/contracts` DEFINES the unions and is not a
+consumer.**
+
+> ## ⛔ **A DERIVED SWEEP OVER AN INCOMPLETE SUBJECT SET IS A NULL THAT READS AS CLEAN.**
+
+⛔ **DERIVATION DID NOT PROTECT AGAINST THIS, AND THAT IS THE CORRECTION:** ⚠ **derivation guarantees
+the ANSWER MATCHES THE QUESTION. It says nothing about whether the QUESTION COVERED THE SUBJECT.**
+**The enumeration was derived; the scope was chosen.**
+
+### ⚠ THE FINE ERROR — a sweep that finds ONE instance in a file and STOPS
+
+**The re-derivation found NINE, not seven. The two extra:**
+
+- **`rushThreat.test.ts:41`** — `const MOVES: RushMove[] = [...]`. ⚠ **Same defect via a TYPE
+  ANNOTATION rather than `as const`** — removal would error, addition would silently under-enumerate.
+  **A sweep keyed on `as const` misses it.**
+- ⛔ **`tippedBall.test.ts:114` — a SECOND, independent restatement of `RouteDepthClass` IN THE FILE
+  ENTRY 99 HAD ALREADY FLAGGED** (at `:95`).
+
+> ### ⛔ **A SWEEP THAT VISITS THE RIGHT FILE, FINDS THE RIGHT DEFECT, AND STOPS IS ITS OWN SMALL VERSION OF *THE SEARCH THAT RESOLVES WITHOUT ANSWERING.*** ⚠ **Same shape one level down — and it is why the count moved 7 → 9 rather than staying put.**
+
+### 📒 SEVEN REMAINING INSTANCES — LISTED, NOT FIXED, and NOT all the same severity
+
+**`packages/calibration`** *(swept in full; the six dead `ThrowType` comparisons are fixed at `30493bf`)*:
+
+| site | shape | severity |
+|---|---|---|
+| `test/sackAttribution.test.ts:114` | `readonly ThreatOrigin[]` literal, no `satisfies`/`extends` pair | ⚠ **the exact entry-99 shape, one-for-one** |
+| `test/geometryTimeRetirement.test.ts:28,35`, `test/ruling2CommittedRetirement.test.ts:35,42` | inline literal TYPES for `PocketStatus`/`RushThreatState` — ⛔ **neither file imports either union at all** | ⚠ **no tie to the contract whatsoever** |
+| `src/knownTruth/ladderOccupancy.ts:243-247` | `PASS_RUSH_VARIANTS` restates `RushMove`, typed plain `string` | ⛔ **weakest — no union tie** |
+| `src/knownTruth/ruling2CommittedRetirement.ts:153-158,225` | `SeverityCounts` + `SEVERITY_KEYS` restate `PocketStatus` | ✅ **LOWEST — `bumpSeverity` throws `RangeError` on an unknown status, so an ADDED member FAILS LOUDLY at runtime.** ⚠ **That is the sanctioned *loud failure over silent default* pattern and should NOT be lumped with the rest** — it is unguarded at COMPILE time only |
+
+**`packages/playbook`** *(RECONNAISSANCE ONLY — not calibration's path to fix)*:
+
+- `src/alignment.ts:31` — `LANES: readonly HorizontalZone[]` — entry-99 shape
+- `src/coverage.ts:66-72` — `DEPTH_BANDS: readonly VerticalZone[]` — entry-99 shape
+- ⚠ **`test/breakZone.test.ts:34-35` — restates BOTH of the above A SECOND TIME**, independently
+
+### ⚠ THE HEURISTIC'S LIMIT, STATED RATHER THAN LEFT IMPLIED
+
+⛔ **The sweep finds CONTIGUOUS LITERAL ARRAYS.** ⚠ **It would MISS a restatement assembled by other
+means — `.map()`, a `Set`, scattered non-contiguous cases.** ⛔ **And NO semantic *"dead comparison
+against a producible-but-unproduced value"* pass was run over `playbook`**, which needs knowing what
+each function can emit and is materially larger than this dispatch.
+
+> ⚠ **A stated partial is a RESULT. A silent partial is entry 99's defect repeating one dispatch after
+> it was recorded.**
+
+### ⇒ THE COROLLARY
+
+> ## ⛔ **DERIVE THE SUBJECT SET, NOT JUST THE ENUMERATION OVER IT — and say WHY the set is complete, not merely what was found.**
+
+⚠ **"I swept calibration" is not an answer.** ✅ **"Every package importing `@ff/contracts`, derived
+from the import graph, which is {calibration, engine, playbook}" is.** ⛔ **And an EXCLUSION THAT IS
+STATED is fine; one that is SILENT is the same defect.**
