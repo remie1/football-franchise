@@ -3938,6 +3938,25 @@ finding as a promise nobody kept.**
 producers.** ⚠ **`BACK_SHOULDER` escapes it only because the test is NAMED for the dormancy and
 ASSERTS it** — **the fixture is the documentation rather than the disguise.**
 
+> ### ⛔ **AND THE FAILURE MODE IS SPECIFIC: THE SEARCH THAT WOULD HAVE FOUND THE DEFECT RETURNS A HIT AND STOPS.**
+
+⚠ **This is the apparently-instrumented shape arriving at a PROVENANCE SEARCH rather than at a guard
+or a mechanic — a SIXTH placement.** ⛔ **The grep works. It is answering a different question than
+the one asked: *"does this literal appear in a producing position?"* rather than *"does the SHIPPING
+ENGINE ever produce this?"***
+
+### ⛔ SO THE PARTITION NOW DEPENDS ON READING THE TEST'S **INTENT**, NOT ITS EXISTENCE
+
+> ## ⚠ **A TEST THAT PRODUCES A MEMBER INCIDENTALLY AND A TEST THAT PINS IT AS DORMANT ARE IDENTICAL TO A GREP AND OPPOSITE IN MEANING.**
+
+⛔ **One is a fixture that happened to need a value. The other is a STANDING ASSERTION THAT THE VALUE
+IS UNREACHABLE.** ⚠ **Nothing structural separates them — only the test's NAME and what it ASSERTS.**
+
+**⇒ A sweep for unproduced members CANNOT be fully mechanised.** ⛔ **Its final step is a READ, and any
+future run of this check must say so rather than reporting a grep's output as a verdict.** ⚠ **That is
+a limit on the instrument, recorded WITH the instrument, so a later reader does not mistake the
+cheapness of the search for the completeness of the answer.**
+
 ### THE WORKED EXAMPLE — the band ratchet, verified August 2026
 
 **Fully specified: `RATCHET_AFTER_REPORTS`, `proposeRatchets`, `ratchetBand`.** **Computed every
