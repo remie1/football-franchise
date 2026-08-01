@@ -6324,3 +6324,102 @@ workspace, exit code captured directly, not through a pipe) — **exit 0**, `con
 Dispatch C (`qb_disruption_rate`) not built. `pressure_to_sack` not touched (fixed at `6019f0f`).
 No engine code, no tunable, changed. No commit made — Charter §4.1, compute and bring conflicts;
 the owner reviews and commits.
+
+---
+
+## 94. ⛔⛔ THE RETROACTIVE COMPARABILITY AUDIT — **32 GRADED ROWS: 22 SAME, 8 CONSTRUCT MISMATCH, 2 UNESTABLISHED**
+
+**Ruled when the provenance corollary was made retroactive; NEVER RUN until now. ⛔ READ-ONLY — the
+audit wrote nothing; every disposition below is UNRULED and awaits the owner.**
+
+⚠ **It ran because the same gap surfaced TWICE BY ACCIDENT** — `threat_creation_rate` (retired, entry
+93) and `pressure_to_sack` (still graded, found by a grep). **Per the recurrence corollary that made
+the audit overdue rather than optional.**
+
+> ### ⛔ **AND THE BRIEF'S OPERATIVE INSTRUCTION WAS THAT THE TWO KNOWN CASES WERE *WHERE WE HAPPENED TO LOOK, NOT A BOUND ON WHERE THE GAP IS.* IT PAID: the largest finding is in a metric nobody had connected to any of this.**
+
+### ⛔ FINDING 1 — `int_rate` IS **GREEN ON A MISMATCHED DENOMINATOR**
+
+**Verified in code, not inferred:**
+
+| side | rule | throwaways |
+|---|---|---|
+| **sim** | `collect.ts:671` — `if (throwType === "THROWAWAY") current.threw = false` | ⛔ **EXCLUDED** from `passAttempts` |
+| **real** | `realInput.ts:175-177` — `isCountablePlay && passAttempt === true && sack !== true` | ⛔ **INCLUDED** — nflverse codes a throwaway as an ordinary incomplete attempt, and **no `qb_throwaway`-equivalent column exists in the ingested `PbpRow` schema to exclude one even if the code wanted to** |
+
+**Scale, from `baseline-0007`'s own printed counts:**
+`dropbacks 43,370 − sacks 6,593 − passAttempts 26,573` = ⛔ **`10,204` sim dropbacks** (scrambles +
+throwaways) **outside the sim's attempt population, against a real side where every non-sack
+non-scramble dropback counts.**
+
+⚠ **The NUMERATOR is fine — an interception is the same event on both sides.** ⛔ **The DENOMINATOR is
+not the same population.** **`int_rate` reads `PASS` (sim `2.04%` vs real `2.28%`, `baseline-0007`).**
+
+### ⛔ FINDING 2 — THE SAME DEFECT FEEDS **FIVE** METRICS, AND IT IS MAKING REDS LOOK SMALLER
+
+**`completion_pct`, `int_rate`, `yards_per_attempt`, `explosive_pass_rate`, `time_to_throw`** all
+share the pass-attempt denominator.
+
+> ### ⛔ **CORRECTING `completion_pct`'s DENOMINATOR WOULD MAKE ITS `FAIL` *LARGER*, NOT SMALLER.**
+
+⚠ **This is the MIRROR of the green-holding-for-the-wrong-reason class: a RED THAT IS SMALLER THAN IT
+SHOULD BE.** ⛔ **A defect can flatter a failing row as easily as a passing one, and the failing case
+attracts investigation that then measures the wrong shortfall.**
+
+### ⛔ FINDING 3 — `time_to_throw`'s `definition` STRING IS **FALSE ABOUT ITS OWN IMPLEMENTATION**
+
+**It claims throwaways are excluded *"from both sides."*** ⛔ **Its real-side join is
+`isPassAttempt(row)` (`tier1.ts`, `attemptKeys`), WHICH DOES NOT EXCLUDE THEM. Verified by reading
+both.**
+
+⚠ **Not a stale claim that drifted — a claim that was NEVER TRUE OF THE CODE BESIDE IT.** ⛔ **The
+entry-92 class (*a claim placed among measurements is read as one*) arriving in a `definition` string,
+where the reader's natural check — compare the prose to the code — is EXACTLY THE CHECK THAT WAS
+SKIPPED.**
+
+### ⚠ FINDING 4 — `pressure_to_sack`'s CAVEAT IS IN THE WRONG PLACE
+
+**The caveat EXISTS** (`tier1.ts` — *"the two sides' underlying definition of 'pressure' may still
+differ … not determinable from inside this repo"*). ⛔ **It lives in the metric-definitions FOOTER
+PROSE. It is NOT in the Tier 1 table's per-row `notes` column, which is what a reader scans first** —
+`baseline-0007.md` shows `PASS+` with notes citing only backlog 2/3.
+
+⚠ **Owner has already ruled the disposition — KEEP IT GRADED WITH THE CAVEAT ATTACHED. This finding is
+about WHERE the caveat renders, not whether it exists.**
+
+### ⚠ FINDING 5 — TWO TIER 3/4 EXPECTATION-MODEL MISMATCHES THAT MATTER **WHEN ATTRIBUTES LAND**
+
+| metric | real | sim | verdict |
+|---|---|---|---|
+| `qb_accuracy_residual_spread` | **NGS CPOE** — a residual against EXPECTED completion probability, difficulty-adjusted | raw completion-rate spread around the league mean, **no adjustment** | ⛔ **CONSTRUCT MISMATCH** |
+| `rb_yards_over_expected_spread` | **NGS YOE** — adjusted for box count / blocking | raw YPC spread, **unadjusted** | ⛔ **CONSTRUCT MISMATCH** |
+
+⛔ **These render `n/a` today (`PROVENANCE`-gated on a flat league) and are DIFFERENT QUANTITIES even
+under a fully derived league** — unless every player faces an identical difficulty distribution.
+⚠ **The gate lifts the moment `@ff/attributes` lands. Caught BEFORE Phase 2 rather than after.**
+
+### ✅ THE NULLS — 22 ROWS ARE HONESTLY COMPARABLE, AND THAT IS A RESULT
+
+**Reported per the standing clause: an audit listing only problems is indistinguishable from one that
+stopped early.**
+
+⚠ **Most of the library's numerators and denominators ARE the same event on both sides** — and the
+strongest single null is worth naming: ⛔ **`sack_rate`, the biggest `FAIL` in the table, is
+`✅ SAME`.** **Its gap is MECHANIC (backlog 2/3), not comparability.** ⚠ **The most alarming number in
+the corpus is also its most honestly compared one.**
+
+**And `third_down_conversion` is `SAME` because it was DELIBERATELY BUILT that way** — comparing yards
+gained against distance on both sides rather than trusting a first-down flag. **The discipline works
+when it is applied at authoring time.**
+
+### ⇒ THE CLUSTERING IS THE STRUCTURAL FINDING
+
+⛔ **The 8 mismatches are NOT scattered. They cluster in exactly two places:**
+
+1. **PRESSURE-ADJACENT CONSTRUCTS** — `pressure_to_sack`, `blitz_rate` *(⚠ `UNESTABLISHED`: FTN's
+   `n_pass_rushers` has no vendored dictionary; whether it charts the CALLED or the OBSERVED rush is
+   not determinable here)*
+2. **THE PASS-ATTEMPT DENOMINATOR** — five metrics, one of them green
+
+⚠ **Plus the two forward-looking expectation-model gaps.** ⛔ **A defect class concentrates where the
+real source's convention is RICHEST and least documented — not uniformly across the library.**
