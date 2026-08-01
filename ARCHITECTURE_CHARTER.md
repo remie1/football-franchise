@@ -1462,6 +1462,23 @@ trace. Per the recurrence corollary, THE RECURRENCE IS THE FINDING:** ⚠ **this
 are not merely silent at the sim/real boundary — they are silent wherever a defect happens to be
 value-preserving, which is a LARGER class and includes defects entirely inside the sim.**
 
+⚠ **PROVENANCE OF THAT WIDENING, recorded because it is unlike the entry it amends:**
+
+> ### ⛔ **THE EXTERNAL REVIEW NAMED THE INSTANCE. THE CLASS WAS REACHED HERE, BY THIS PROJECT'S OWN INSTRUMENTS, CORRECTING THIS PROJECT'S OWN RECORD.**
+
+**The entry at the head of this section was recorded from TESTIMONY and marked as such.** ⛔ **This
+widening is not testimony: it came from a measurement we ran, refuting a mechanism WE had written into
+this document and the owner had endorsed.**
+
+⚠ **And note what that means about the state the corpus was in when this began.** ⛔ **Verification
+established that *"the model is mistuned"* and *"the comparison measures two different things"* were
+INDISTINGUISHABLE from inside this corpus.** ⚠ **The corpus has now produced a finding that is neither
+— a defect class defined by having no numerical signature at all, which no amount of re-tuning and no
+resolution of the comparability question would have surfaced.**
+
+**⇒ A materially larger claim than the one that prompted it, and the larger claim carries the better
+provenance.**
+
 **Corollary — ⛔ A TOLERANCE THAT TIGHTENS ON COMFORT ASSUMES THE COMFORT IS EARNED.**
 
 **The band table ratchets after two comfortable reports.** ⚠ **We have now established that at least

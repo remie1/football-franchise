@@ -3880,6 +3880,46 @@ absent — report the count, do not threshold it silently); a mechanic absorbed 
 channel at all, which this instrument cannot see and which is entry 50's actual shape. **Nothing
 enforces coverage of that last case** — recorded as a gap, not a guarded one.
 
+### ⛔ ADDENDUM (owner, August 2026) — **THE CLASS ARRIVES AT A GUARD. A placement this inventory had not seen.**
+
+**Instances 50 and 61 are both MECHANICS — things that compute a football outcome.** ⚠ **The third is
+a GUARD — a thing that exists to CATCH something.** ⛔ **Same shape, different subject, and the
+question that detects it is the structural twin of the one above:**
+
+| subject | the question | how it is answered |
+|---|---|---|
+| **a MECHANIC** | **does it ever SOLELY DETERMINE an outcome?** | ⚠ exclusive-share column, **over a canonical corpus** |
+| ⛔ **a GUARD** | ⛔ **IS IT WIRED TO ANYTHING AT ALL?** | ✅ **by INSPECTION — a call-graph read** |
+
+> ### ⇒ **THE GUARD QUESTION IS THE CHEAPER OF THE TWO. It needs no corpus, no batch and no seed — only a search for who consumes the guard's output.**
+
+### THE WORKED EXAMPLE — the band ratchet, verified August 2026
+
+**Fully specified: `RATCHET_AFTER_REPORTS`, `proposeRatchets`, `ratchetBand`.** **Computed every
+report. Rendered under its own heading in every baseline.** ⛔ **AND CONSUMED BY NOTHING.**
+
+- `buildBaselineReport` takes `bands` as an **optional** parameter; **the only production caller omits
+  it**, so every report rebuilds fresh from each metric's source-declared `toleranceBand`.
+- **`ratchetBand`'s only call sites are its definition and three unit tests** that exercise it in
+  vacuum — **never inside a report-building flow.**
+- **Empirically:** every band in `baseline-0007` shows `locked by —` and `history —` across **five
+  reports** of accumulated history.
+
+> ### ⛔ **NO METRIC HAS EVER RATCHETED, ANYWHERE IN THIS REPOSITORY'S HISTORY. A reader sees the proposals section in every report and reasonably concludes the mechanism is live.**
+
+⚠ **That is the absorbed class exactly: it READS as a working instrument, is CITED as one, and CANNOT
+FIRE.** ⛔ **And a guard is the worse placement, because an absorbed mechanic merely fails to
+contribute — an absorbed GUARD supplies false assurance that something is being watched.**
+
+🔴 **What would make the guard sweep go red:** a declared guard, gate, or proposal whose output **no
+code path consumes**.
+⚠ **It does NOT redden for:** a guard wired but never yet TRIGGERED on this corpus (⚠ **that is the
+mechanic question, and it needs the corpus** — report the count, do not conflate the two); or a guard
+consumed only by tests, **provided the test is itself the intended consumer and says so.**
+
+**⇒ SUBJECT LIST FOR THE SWEEP: every `propose*`, every `*Trigger`, every red-trigger clause, every
+conformance register, and every gate in `knownTruth/`.** ⛔ **Derive it; do not recall it.**
+
 ---
 
 ## 1f. ⚡⚡⚡ `collapsingWithinSeconds` IS WHERE THE RATE LIVES — but the ENUMERATION COMES FIRST, and that is a precondition
