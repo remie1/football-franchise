@@ -3893,6 +3893,28 @@ question that detects it is the structural twin of the one above:**
 
 > ### ⇒ **THE GUARD QUESTION IS THE CHEAPER OF THE TWO. It needs no corpus, no batch and no seed — only a search for who consumes the guard's output.**
 
+#### ⛔ AMENDED BESIDE (owner, August 2026) — **"CHEAPER" IMPLIED A HIERARCHY, AND ENTRY 91 REFUTES IT WITHIN ONE DISPATCH**
+
+⚠ **The sentence above reads as though the guard question SUBSTITUTES for the mechanic question. IT
+DOES NOT.**
+
+**Entry 91's horizon coverage sack is REACHABLE IN PRINCIPLE** — the branch is wired, the control flow
+admits it, **and a call-graph read PASSES IT.** ⛔ **Only the corpus established that it NEVER
+EXECUTES: `0` of `6,593`.**
+
+> ### ⛔ **STRUCTURAL REACHABILITY AND EMPIRICAL REACHABILITY ARE DIFFERENT FACTS, AND THE CHEAP READ SETTLES ONLY THE FIRST.**
+
+**⇒ BOTH QUESTIONS ARE REQUIRED. The guard question is CHEAPER; it is NOT A REPLACEMENT.** ⚠ **Run it
+first because it is cheap and can only ever return a subset — never instead.**
+
+#### ⛔ AND THE EXCLUSION SHARPENS SYMMETRICALLY
+
+**The exclusion below says a GUARD wired but never triggered is the mechanic question.** ⛔ **Entry 91
+shows the mirror is equally true: A MECHANIC WIRED BUT NEVER REACHED IS ALSO THE MECHANIC QUESTION.**
+⚠ **Wiring is not execution for either subject.** **The distinction that matters is not
+guard-vs-mechanic — it is INSPECTION-ANSWERABLE vs CORPUS-ANSWERABLE, and every subject has one of
+each.**
+
 ### THE WORKED EXAMPLE — the band ratchet, verified August 2026
 
 **Fully specified: `RATCHET_AFTER_REPORTS`, `proposeRatchets`, `ratchetBand`.** **Computed every
