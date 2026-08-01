@@ -562,7 +562,25 @@ export const blitzRate: Metric = registerMetric({
     "question the engine's rush list cannot answer.",
   unit: "%",
   toleranceBand: relativeBand(0.15),
-  // Not a divergence claimed by any entry yet: this row is measured for the first time here.
+  knownDivergences: [
+    // Backlog entry 94 finding (clustering section) / dispatch on it: the real side's `n_pass_
+    // rushers` has no vendored operational definition (`ftn.ts`, above `FtnChartingRow.
+    // nPassRushers`). GRADE UNCHANGED (owner-ruled, standing) — this states the open question,
+    // not a claimed defect.
+    "backlog 94/[n_pass_rushers dispatch]: real side reads FTN's `n_pass_rushers`, hand-charted " +
+      "from film within 48 hours of the game (vendored in ftn.ts); no retrieved source states " +
+      "whether that count is the defensive CALL or the OBSERVED rush, and the sim side is " +
+      "structurally a CALLED quantity only (PLAY_START.defense.rush is assigned once, pre-play, " +
+      "with no post-snap add/remove mechanism). Verdict UNESTABLISHED, not upgraded: a computed " +
+      "distribution-shape check (ftn.ts item 6) found the real side's variance ~40% higher than " +
+      "the sim's, and ~2% of real mass outside the sim's exact rusher-count support {3,4,5,6} — " +
+      "consistent with an observed-vs-called gap but equally consistent with the engine's call " +
+      "generator simply sampling a narrower range than real defensive coordinators do, which the " +
+      "test cannot separate. Lift condition: an FTN/nflverse artefact, at a stated revision, " +
+      "stating which `n_pass_rushers` charts (ftn.ts item 4). Also unstable across seasons: the " +
+      "pooled 24.22% real figure (2022-2024) masks a 20.24%-26.76% spread by season, wider than " +
+      "`was_pressure`'s 1.63pp spread over the same seasons (ftn.ts item 5).",
+  ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;
     return p.dropbacks === 0 ? noObservations("no dropbacks") : rate(p.blitzDropbacks, p.dropbacks);
