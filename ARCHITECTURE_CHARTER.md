@@ -1438,6 +1438,30 @@ inviting it.**
 **⇒ A passing row is not evidence its estimator is sound. It is evidence nobody has had a reason to
 look.**
 
+#### ⛔ AMENDED BESIDE — THE ATTRIBUTED MECHANISM ABOVE IS REFUTED. The corollary is STRONGER without it.
+
+⛔ **"THE INFLATION PUSHED THE SIM FIGURE TOWARD REAL" IS FALSE. THERE WAS NO INFLATION.**
+**`pressuredSacks == sacks == 6,593`; the corrected estimator returns a BIT-IDENTICAL `16.942%`.**
+
+⚠ **The camouflage account was reasoned, not measured, and it rested on a premise — that coverage
+sacks exist in this corpus — that the measurement refuted at exactly zero.** ⛔ **It is left standing
+above with this beside it.**
+
+**The core claim is untouched: the row passed, and nobody read the estimator. What was wrong was the
+ACCOUNT OF WHY IT WENT UNREAD.** ⛔ **And the true account is worse:**
+
+> ### ⚠ **THE DEFECT HAD NO NUMERICAL SIGNATURE AT ALL. Not hidden by moving the right way — INVISIBLE BECAUSE IT DID NOT MOVE.**
+
+⛔ **A wrong estimator returning the right number is not detectable by ANY amount of attention paid to
+the number.** ⚠ **Camouflage would at least imply a signal pointed the wrong way; there was no signal.**
+
+> ### ⇒ **THIS IS THE SAME SHAPE AS THE WORKED EXAMPLE AT THE HEAD OF THIS COROLLARY — *the construct diverged while the measurement stood still.* Arrived at independently, from the opposite direction, and it converges on the same sentence.**
+
+⛔ **Two instances now, in two different subsystems, of a correctness defect with a null numerical
+trace. Per the recurrence corollary, THE RECURRENCE IS THE FINDING:** ⚠ **this corpus's instruments
+are not merely silent at the sim/real boundary — they are silent wherever a defect happens to be
+value-preserving, which is a LARGER class and includes defects entirely inside the sim.**
+
 **Corollary — ⛔ A TOLERANCE THAT TIGHTENS ON COMFORT ASSUMES THE COMFORT IS EARNED.**
 
 **The band table ratchets after two comfortable reports.** ⚠ **We have now established that at least
