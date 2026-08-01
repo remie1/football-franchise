@@ -1256,6 +1256,18 @@ reviewable one."* That clause **assumed something invokes the script.** Nothing 
 > cost that does not vary.** ⛔ **And the selection criterion would be the thing this project has
 > already measured as uncorrelated with failure: the briefs that failed were not the ones that felt
 > risky.**
+>
+> #### 🔗 SAME ARGUMENT, DIFFERENT SUBJECT — see *"a reach failure that lands on the correct answer"*
+>
+> **The RULING-LOOKUP has the identical structure: looking a rule up costs the same whether it changes
+> the disposition or merely confirms it.** ⛔ **So *"I can reason this out"* is triage against a
+> non-varying cost, exactly as *"this brief looks routine"* is.**
+>
+> > ### ⚠ **AND BOTH ARE INVISIBLE WHEN THEY SUCCEED. A premise check that CONFIRMS leaves no trace unless it is reported; a lookup that AGREES leaves no trace at all.**
+>
+> ⛔ **THAT is why both get skipped — not because anyone judged them unnecessary, but because THE
+> SUCCESSFUL CASE HAS NO WITNESS.** ⚠ **Which is the null-trace class arriving at the level of
+> WORKING HABITS rather than at code or documents.**
 
 **⇒ SO THE RED-TRIGGER FIELD HAS TWO HALVES, AND THE SECOND IS A PROHIBITION:**
 
@@ -1563,6 +1575,19 @@ and there is no reason to think this was the first.**
 **⇒ Which is an argument for the LOOKUP BEING CHEAP rather than for the search being thorough.** ⛔ **A
 discipline that only pays when it changes the answer will be skipped exactly when it is hardest to
 notice.**
+
+> ### 🔗 **THIS IS THE SAME ARGUMENT AS THE PREMISE-LEDGER'S COST SYMMETRY** — *"a check whose confirming and disconfirming cases cost the SAME has no threshold to reason about."*
+
+⚠ **Both defeat the identical instinct to TRIAGE, and they defeat it the same way: the cost does not
+vary with the outcome, so any selection rule is reasoning about a constant.** ⛔ **And both share the
+deeper property that makes triage feel reasonable in the first place —**
+
+> ## ⛔ **THE SUCCESSFUL CASE HAS NO WITNESS. A premise check that CONFIRMS leaves no trace unless reported; a lookup that AGREES leaves none at all.**
+
+⚠ **So the felt evidence always favours skipping: every remembered instance of doing it is one where
+it seemed unnecessary, because the ones where it mattered are indistinguishable from never having
+needed it.** ⛔ **This is the null-trace class operating on WORKING HABITS — which is the one place it
+cannot be fixed by an instrument, only by making the habit cost nothing.**
 
 **Corollary — ⛔ WHEN A RULING CHANGES WHAT A METRIC TABLE *CONTAINS*, THE REPORT CARRIES BEFORE-AND-AFTER, NOT JUST AFTER.**
 
