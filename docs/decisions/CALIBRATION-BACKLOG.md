@@ -6743,3 +6743,77 @@ CPOE and YOE are **expectation-adjusted residuals**; both sim sides are **raw, u
 ⚠ **Recorded as DEFERRED rather than OWED so that a later reader does not mistake a structural wait
 for an unpaid debt.** ⛔ **The gate lifts when `@ff/attributes` lands — and they must be settled
 BEFORE those rows are first graded, not after.**
+
+---
+
+## 98. ⛔ THE CONTRACT-SURFACE SWEEP — **a third classification was needed, and the worst finding is in a GATE DOCUMENT**
+
+**Ruled off ADR-056's implied-scope field, which asked the question this entry answers: *is any other
+union member never produced?*** ⛔ **READ-ONLY; `contracts-guardian` wrote nothing.** ⚠ **~40 unions
+derived by reading every `.ts` in `packages/contracts/src`, not enumerated by hand.**
+
+### ⛔ THE METHODOLOGICAL FINDING: **PRODUCED / UNPRODUCED WAS THE WRONG PARTITION**
+
+**The sweep found `ThrowType.BACK_SHOULDER` unproduced — and it is NOT the same defect as
+`THROWAWAY`:**
+
+| member | state | evidence |
+|---|---|---|
+| ⛔ **`THROWAWAY`** | **UNDECLARED DEAD** | nothing said it was dormant; **a consumer wrote a live branch against it** (`collect.ts:671`) that never ran, and backlog 94 then named that branch as a defect site it was not |
+| ✅ **`BACK_SHOULDER`** | **DECLARED DORMANT** | `throwExecution.ts:137` — *"WIRED AND DORMANT … placed here rather than held in reserve so that the day it does, the penalty is already correct and already in the printout"*, **plus a test asserting the count stays 0** (`chemistry.test.ts:111`) |
+
+> ## ⛔ **A DORMANT PROMISE THAT SAYS SO, AND IS PINNED BY A TEST, IS NOT A DEFECT. IT IS THE STRONGEST FORM AVAILABLE — a recorded gap with a consumer.**
+
+⚠ **So the guard question needs THREE outcomes, not two:** ✅ **PRODUCED** / ✅ **DECLARED DORMANT** /
+⛔ **UNDECLARED DEAD.** **Only the third is the ADR-056 defect.**
+
+⛔ **AND *"PRODUCED ONLY IN TESTS" IS ITS OWN STATE AND IS WORSE THAN UNPRODUCED WHEN UNDECLARED* — a
+test fixture makes a member LOOK reachable.** ⚠ **`BACK_SHOULDER` escapes that only because the test
+is NAMED for the dormancy and asserts it.**
+
+### ⛔⛔ THE WORST FINDING — **A GATE DOCUMENT RESTS ON A PRECEDENT THAT DOES NOT EXIST**
+
+**`docs/decisions/FANTASY-GATE-PHASE1.md:136`:**
+
+> *"State the engine derives in-game leaves as events; franchise applies it. **`STAMINA_DELTA` is the
+> existing precedent.**"*
+
+⛔ **`STAMINA_DELTA` HAS NO PRODUCER ANYWHERE.** ⚠ **Verified: zero occurrences across
+`packages/*/src` outside `contracts/src/events.ts` itself. Same for `ENV_APPLIED`.** **No stamina or
+weather mechanic exists in the engine.**
+
+> ### ⇒ **THE ARCHITECTURAL PATTERN THAT GATE ITEM CITES AS ESTABLISHED HAS NEVER BEEN EXERCISED. It is not a precedent; it is a type declaration.**
+
+⛔ **This is ADR-033's class arriving in a PHASE-GATE DOCUMENT — the artefact whose whole purpose is to
+be relied on at a boundary.** ⚠ **And `docs/design/contracts.md:256-257` lists both events in its table
+as though shipped.**
+
+### ✅ THE NULLS, AND A CROSS-VALIDATION WORTH MORE THAN THE FINDINGS
+
+- **`ResultTier`: ALL 17 RUNGS PRODUCED** — via `tierFor`'s threshold walk over the ladder, not by
+  literals. ⚠ **The instructed false-positive trap was correctly avoided**, and the extreme rungs are
+  measured in batch by `ladderOccupancy`/`ladderTail`.
+- **`MatchEvent`: 29 of 32 tags produced.** `PENALTY` is unproduced **and already self-documented** in
+  `absence.ts` Entry 3 — known, tracked, not new.
+- ⛔ **`CheckKind`: 13 of 44 unproduced — AN EXACT MATCH to ADR-039 §5.1 and ADR-050 §7, which name the
+  identical 13.** ⚠ **Two independent instruments — a prior manual audit and this session's derived
+  grep — agree exactly. That is a stronger result than a new finding: THE METHOD IS VALIDATED.**
+- **All of `playcalls.ts`'s vocabulary produced**, extensively, in `packages/playbook/src`.
+
+### ⚠ SCHEDULED ABSENCE IS ITS OWN CATEGORY, AND WAS NOT MIXED IN
+
+**`FranchiseEvent`'s 23 tags, `NarrativeEffect`, `StaffRole`, `CalendarPhase`, `Authority.GM`/
+`PRESIDENT` and others are unproduced BECAUSE THEIR OWNING PACKAGES ARE STUBS** (`export {}`,
+verified). ⛔ **That is Charter §6 phase order, NOT a broken promise.** ⚠ **Reported separately rather
+than inflating the defect count — which is the denominator discipline of the previous entry applied to
+a different axis.**
+
+### 📒 THREE NEW UNDECLARED-DEAD MEMBERS — recorded, UNRULED, not chased
+
+| member | state | note |
+|---|---|---|
+| ⛔ **`ScoreKind.TWO_POINT`** | **UNPRODUCED, zero occurrences incl. tests** | ⚠ **`addScore`'s own local param type (`simulateGame.ts:219`) is a NARROWER RESTATEMENT that structurally cannot pass it through** — the restated-constant family arriving in a type signature. No two-point path exists; `CoachDecisionKind` has no member for it either. |
+| ⛔ **`BlockType.CRACK`** | **UNPRODUCED** | ⚠ **MIRROR IMAGE of the others: the ENGINE side is fully built** — `tunables.ts:2736` carries a complete modifier row — **and no playbook card ever authors it.** A data-authoring gap, not a missing mechanic. |
+| ⛔ **`COIN_TOSS.choice: "DEFER"`** | **UNPRODUCED, self-acknowledged** | both callers hardcode `"RECEIVE"`; `frozen.ts:516` says *"Deferring is a tendency, and this caller has exactly the tendencies it was fitted."* ⚠ **Declared — so DORMANT, not dead.** |
+
+⛔ **UNRULED. Each is a petition if anyone intends to close it, and none is chased here.**

@@ -137,6 +137,27 @@ Items marked ★ are the F-findings above.
    and franchise applies — the engine must never write back authoritative persistent player
    condition. Otherwise "does a real injury happen in your world?" stops being a re-sync policy
    decision and becomes an engine behaviour.
+
+   > ### ⛔ CORRECTED BESIDE (backlog entry 98, August 2026) — **THERE IS NO PRECEDENT.**
+   >
+   > **`STAMINA_DELTA` HAS NO PRODUCER ANYWHERE.** ⚠ Verified by a derived sweep of the whole
+   > contract surface: **zero occurrences across `packages/*/src` outside `contracts/src/events.ts`
+   > itself.** Same for `ENV_APPLIED`. **No stamina or weather mechanic exists in the engine.**
+   > *(`docs/design/contracts.md:256-257` also lists both in its event table as though shipped.)*
+   >
+   > ⛔ **THE ARCHITECTURAL PATTERN THIS ITEM CITES AS ESTABLISHED HAS NEVER BEEN EXERCISED — it is a
+   > TYPE DECLARATION, not a precedent.**
+   >
+   > ⚠ **The GATE ITEM ITSELF STANDS: "the engine emits, franchise applies" is still the right rule,
+   > and the red line it draws is unaffected.** ⛔ **What is withdrawn is the claim that it has been
+   > DONE BEFORE.** **Whoever implements in-game injuries will be establishing the pattern, not
+   > following it — which is a materially different amount of design work and is the reason this
+   > correction matters at a phase boundary.**
+   >
+   > **Left standing rather than rewritten:** the wrong claim is the useful part, and this is the
+   > class ADR-033's *"frequently `CLEAN`"* named — **an assertion that reads as established fact
+   > because of where it sits.** ⚠ **Here it sits in a GATE DOCUMENT, whose entire purpose is to be
+   > relied on at a boundary.**
 9. **In-game decision points carry an `authority` tag.** Timeouts, fourth-down calls, two-point
    decisions, kick/receive, challenges — typed decision requests carrying `authority: "COACH"`,
    not a single untagged `onDecision(state)` callback. The tag is inert in v1 and costs one
