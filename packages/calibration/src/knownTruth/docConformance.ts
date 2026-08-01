@@ -312,8 +312,15 @@ export type Provenance =
    */
   | "DERIVED_MECHANIC"
   /**
-   * ⚠ **PROPOSED, FIRST USE** — not yet an owner-ratified convention the way `DERIVED_MECHANIC` is
-   * (that value's own comment records its ratification explicitly; this one does not have that yet).
+   * ✅ **RATIFIED CONVENTION** (owner, August 2026). **The reason it was ratified rather than an
+   * existing value stretched is the GUARD AGAINST THE CLOSEST MISS**: `DERIVED_MECHANIC` requires
+   * BOTH a ruled existence AND a magnitude reached by two independent structural facts converging.
+   * ⛔ **Only the existence half is true here** — `tunables.ts` states the magnitude was *deliberately
+   * not* so reached and logs it as **owed** — so asserting `DERIVED_MECHANIC` **would claim a
+   * derivation that does not exist.**
+   *
+   * ⚠ **And the naming is load-bearing, not cosmetic: two vocabularies with different words for the
+   * same fact is the RESTATED-CONSTANT FAMILY ARRIVING AT NOMENCLATURE.**
    * Named to MATCH, verbatim, the marker `packages/engine/src/tunables.ts`'s `scramble.accuracyModifier`
    * / `scramble.readCapacityDelta` comment coins for itself — `RULED, NOT DERIVED` — rather than
    * inventing a differently-spelled synonym for the same fact in the two vocabularies that both have
