@@ -1479,6 +1479,24 @@ resolution of the comparability question would have surfaced.**
 **⇒ A materially larger claim than the one that prompted it, and the larger claim carries the better
 provenance.**
 
+#### ✅ AMENDED BESIDE — **THREE** INSTANCES NOW, NOT TWO. *(Recorded at two; left standing.)*
+
+⛔ **Backlog entry 91 is the third, and it arrived WITHIN ONE DISPATCH of the widening being written:**
+**the horizon coverage sack — specified, correctly implemented, and NEVER REACHED** (`0` of `6,593`
+canonical-corpus sacks carry its signature, residual measured at zero).
+
+| # | the defect | why NO measurement could see it |
+|---|---|---|
+| **1** | ADR-055 — a vacated pocket has no status, where NGS (if it governs) ADDS pressure | ⛔ the construct moved; **`wouldFlip = 0`** |
+| **2** | a non-conditional estimator where a conditional was owed | ⛔ returned a **BIT-IDENTICAL** number |
+| **3** | the horizon coverage sack, unreachable under current tunables | ⛔ **a path that never executes emits NOTHING to measure** |
+
+⚠ **The three differ IN KIND** — a construct that drifted, a wrong computation returning the right
+answer, a correct implementation that never runs. ⛔ **They share the one property that matters: NONE
+was reachable by measurement, and ALL THREE were found by asking a STRUCTURAL question.**
+
+> ### ⇒ **THE CLASS IS *"DEFECTS WITH A NULL NUMERICAL TRACE."* THE SIM/REAL BOUNDARY WAS ONE INSTANCE OF IT. THIS CORPUS STILL HAS NO INSTRUMENT AIMED AT THE CLASS.**
+
 **Corollary — ⛔ A TOLERANCE THAT TIGHTENS ON COMFORT ASSUMES THE COMFORT IS EARNED.**
 
 **The band table ratchets after two comfortable reports.** ⚠ **We have now established that at least

@@ -5770,3 +5770,270 @@ are properly arm-labelled at source** — `8.634%` under *"Supply→45"*, and th
 *"with entry 12 fully deleted…"* with the committed `DEFAULT` (`16.234`) stated beside them.
 
 > ### ⛔ **THE COMMITTED RECORD IS NOT THE LEAK. The arm-stripping happened in an out-of-band channel — conversation, summary, progress reporting — that no sweep over this file can see.**
+
+---
+
+## 88. ⛔ THE `pressure_to_sack` ROW COMPARES **TWO DIFFERENT KINDS OF QUANTITY**
+
+**Split out of entry 87 item 1 on the owner's ruling: the review had the sim half; the real half is
+ours and it is the sharper one.**
+
+### The sim side: an identity, not a measurement
+
+`sackRate`, `pressureRate` and `pressureToSackRate` read the **same three fields** off the **same
+`PlayFold`**, from the **same `flush()`**, under the **same `play.isPass` scope.** `dropbacks` cancels
+algebraically. **Gap `0.000pp`, every batch, by construction.**
+
+⚠ **The sim's `pressure_to_sack` cannot disagree with the other two rows. It is not independent
+evidence about the engine — it is the other two rows rearranged.**
+
+### ⛔ The real side: the same construction is NOT AVAILABLE, EVEN IN PRINCIPLE
+
+The three real metrics are measured over **three different populations**:
+
+| real metric | denominator | population |
+|---|---|---|
+| `sack_rate` | **58,277** | every `pbp` dropback |
+| `pressure_rate` | **56,893** | participation rows joined to those dropbacks |
+| `pressure_to_sack` | **16,627** | pressured plays only |
+
+⛔ **So `6.90 / 29.23 = 23.606%` IS NOT A SLIGHTLY-WRONG `pressure_to_sack`. IT IS NOT A QUANTITY AT
+ALL** — it divides two rates taken over different denominators. **The `7.24pp` "gap" is the distance
+between a real measurement and a construction that has no referent.**
+
+> ### ⇒ **THE IDENTITY IS AN ARTEFACT OF SHARED-FOLD CONSTRUCTION ON ONE SIDE, AND HAS NO COUNTERPART ON THE OTHER. The two halves of the `PASS+` cell are not the same kind of number.**
+
+### ⛔⛔ AND CHASING THAT EXPOSED A SEPARATE, LARGER DEFECT — **THE TWO SIDES USE DIFFERENT ESTIMATORS**
+
+⚠ **A claim in this entry's first draft was WRONG and the correction is the finding.** I wrote that a
+sack implies non-`CLEAN` in the sim. ⛔ **It does not.** `passPlay.ts:505-516` (**ADR-033**) preserves
+the tick's real status and says so explicitly — *"whatever it was on a coverage sack, **which is
+frequently CLEAN and correctly so**."*
+
+**So I read both implementations instead of reasoning about them:**
+
+| side | code | numerator | conditioned on pressure? |
+|---|---|---|---|
+| **real** | `tier1.ts:401-409` — `if (row.wasPressure !== true) continue;` **then** count sacks | sacks **among pressured plays** | ⛔ **YES** |
+| **sim** | `tier1.ts:386` — `rate(p.sacks, p.pressuredDropbacks)` | ⛔ **EVERY sack** | ⛔ **NO** |
+
+> ### ⛔ **THE REAL SIDE ESTIMATES `P(sack | pressured)`. THE SIM SIDE DOES NOT — ITS NUMERATOR CARRIES EVERY `CLEAN`-POCKET COVERAGE SACK, DIVIDED BY A PRESSURED-ONLY DENOMINATOR.**
+
+⚠ **It is not a conditional probability at all, and it is biased UPWARD by exactly the coverage-sack
+share.** ⛔ **The metric's own `definition` string discloses that the two denominators come from
+different sources — it does NOT disclose that the numerators differ in KIND.** The prose *"how often
+pressure is converted"* describes only the real side.
+
+### ⛔ THIS ONE NEEDS NO DICTIONARY
+
+**Unlike entry 87 item 4, this is checkable entirely in-repo and is INDEPENDENT of what `was_pressure`
+charters.** ⚠ **Even with the dictionary in hand and the semantics matching perfectly, this row would
+still compare a conditional rate against a non-conditional one.**
+
+### ✅ MEASURED — **THE MAGNITUDE IS ZERO, AND THAT IS THE ENTRY'S REAL SUBJECT**
+
+**Canonical corpus** (`flat-60-32t`, 496 games, seed digest `fnv1a:020c1dcb#496`, `DEFAULT_TUNABLES`):
+⛔ **`0` of `6,593` sim sacks landed on a `CLEAN`-worst dropback.** `pressuredSacks == sacks`, so
+**`pressure_to_sack` is BIT-IDENTICAL before and after — `16.942%`.**
+
+> # ⛔ **THE ESTIMATORS DIFFER IN KIND, AND ON THIS CORPUS THE DIFFERENCE IS WORTH NOTHING.**
+
+⚠ **That is a stronger claim than the inflation claim would have been.** ⛔ **It separates the defect
+from its current magnitude, and it makes explicit that ZERO IS A PROPERTY OF THIS CORPUS, NOT OF THE
+ARITHMETIC.**
+
+### ⛔ AND THE ZERO WILL NOT SURVIVE — which is the argument for fixing it NOW
+
+**A flat-60 league at `pressure_rate` `89.73%` is EXACTLY the condition under which a conditional and
+a non-conditional rate coincide:** ⚠ **when almost every dropback is pressured, "sacks" and "sacks
+among pressured dropbacks" are nearly the same set, and here they are EXACTLY the same set.**
+
+> ### ⛔ **NEITHER PROPERTY SURVIVES ATTRIBUTES LANDING.** **Real rosters break the flat distribution; a corrected `pressure_rate` breaks the saturation. Both move `pressuredSacks` off `sacks`.**
+
+**⇒ THE FIX IS CORRECT ARITHMETIC WHOSE VALUE IS CURRENTLY ZERO AND WILL NOT STAY ZERO.** ⚠ **Shipped
+now rather than when it starts to matter, because the corpus that would reveal it is the same corpus
+that would make it expensive to find.**
+
+### ✅ OWNER RULING — CONDITION THE SIM NUMERATOR ON THE SAME POPULATION
+
+> ⛔ **A sack on a `CLEAN` pocket does not belong in the numerator of a rate whose denominator is
+> pressured dropbacks. That is ARITHMETIC, NOT FOOTBALL.**
+
+⚠ **ADR-033's preservation of coverage sacks as `CLEAN` is CORRECT AND STAYS.** ⛔ **The defect is
+entirely in the metric.** **Re-measure after; the green is expected to move.**
+
+### ⛔⛔ A NEW FAILURE CLASS: **A GREEN HOLDING FOR A REASON OTHER THAN THE STATED ONE**
+
+**Distinct from every variety in the *"a price can be honest and be about something else"* family,
+and ⛔ WORSE THAN ALL OF THEM:**
+
+> ### ⛔ **A FALSE RED GETS INVESTIGATED. A GREEN CELL IS THE STATE IN WHICH NOBODY READS THE ESTIMATOR.**
+
+⚠ **This defect was catchable from day one by reading two implementations side by side. Nothing hid
+it. It survived because the row passed.**
+
+⛔ **AND THE ACCOUNT OF *WHY* IT WENT UNREAD WAS ITSELF WRONG.** ⚠ **I reasoned that the inflation
+pushed sim TOWARD real — camouflage by moving the right way. The measurement refutes it: there was no
+inflation, the number was bit-identical.**
+
+> ### ⛔ **THE DEFECT HAD NO NUMERICAL SIGNATURE AT ALL. Not hidden by moving the right way — INVISIBLE BECAUSE IT DID NOT MOVE.** ⚠ **A wrong estimator returning the right number is undetectable by ANY amount of attention paid to the number.**
+
+### ⛔ AND THE WIDENING NOW HAS **THREE** INSTANCES, NOT TWO
+
+**The Charter records that these instruments are silent NOT ONLY at the sim/real boundary but
+WHEREVER A DEFECT IS VALUE-PRESERVING.** ⚠ **That was recorded on two instances. Entry 91 is the
+third, and it arrived within one dispatch:**
+
+| # | the defect | why no measurement could see it |
+|---|---|---|
+| **1** | **ADR-055** — a vacated pocket has no status, while NGS (if it governs) ADDS pressure there | ⛔ the construct moved; `wouldFlip = 0` |
+| **2** | **this entry** — a non-conditional estimator where a conditional was owed | ⛔ returned a BIT-IDENTICAL number |
+| **3** | ⛔ **entry 91** — the horizon coverage sack, specified and unreachable | ⛔ **a path that never executes emits nothing to measure** |
+
+⚠ **The three differ IN KIND** — a construct that drifted, a wrong computation returning the right
+answer, and a correct implementation that never runs. ⛔ **They share the only property that matters
+here: NO MEASUREMENT COULD HAVE REVEALED ANY OF THEM, and all three were found by asking a STRUCTURAL
+question instead.**
+
+> ### ⇒ **THE SIM/REAL BOUNDARY WAS THE INSTANCE. THE CLASS IS *"DEFECTS WITH A NULL NUMERICAL TRACE"*, AND THIS CORPUS HAS NO INSTRUMENT AIMED AT IT.**
+
+⛔ **Corollary: a passing row is not evidence its estimator is sound. It is evidence nobody has had a
+reason to look.**
+
+### ⇒ CONSEQUENCE FOR THE HELD DISPATCH D
+
+**D pre-registered a re-base of `pressure_to_sack` onto the exit population (~40% ⇒ conversion broken;
+~16% ⇒ conversion calibrated).** ⛔ **BOTH BRANCHES ARE COMPUTED FROM THE UNCONDITIONED SIM
+NUMERATOR.** ⚠ **The numerator fix is PRIOR to the re-base and changes what either branch would mean.
+D cannot be read as pre-registered until this is settled.**
+
+---
+
+## 89. ⛔ A 20.8%-OF-TICKS CHANGE MOVED **ZERO** DROPBACKS — a statement about the METRIC, not the change
+
+**Entry 87 item 5, split out on the owner's ruling as the strongest structural evidence in the file —
+⚠ and produced by our own instrument rather than inherited from the review.**
+
+Canonical corpus, `dropbacks = 43,370`: `pursuitDropbacks` **9,149 (21.10%)**, ⛔ `wouldFlip` **0**,
+`zeroTickPursuits` **0**.
+
+**Every dropback that ever entered pursuit was ALREADY non-`CLEAN` before the scramble began.**
+
+> ### ⛔ **A PER-DROPBACK WORST-STATUS METRIC ABSORBED THE ENTIRE REMOVAL. The floor was already set by an earlier tick, so removing a fifth of all dirty ticks changed nothing it reports.**
+
+⚠ **This is the same shape as entry 81's structural refusal** (23.7pp sliding between `COLLAPSING` and
+`PRESSURE` while their **sum** held near-constant). **Second independent instance ⇒ per the recurrence
+corollary, the recurrence is the finding: `pressure_rate` is insensitive to WHERE and HOW MUCH threat
+exists, responding only to WHETHER ANY existed.**
+
+**⛔ Pre-registered as a finding, not a null.** ⚠ **And it explains why every named threshold lever
+refused: they all move threat's timing or severity, and the metric reads neither.**
+
+---
+
+## 90. ⛔ THE ARM-STRIPPING LEAK IS **OUT-OF-BAND**, AND NO SWEEP OVER THE RECORD CAN SEE IT
+
+**Entry 87 item 7 established the committed record is CLEAN** — 1 of 37 flagged, a false positive;
+both of the owner's named examples properly arm-labelled at source.
+
+⛔ **So the defect is not in the record. It is in the channel that SUMMARISES the record:** conversation,
+progress reports, dispatch briefs, handoff prose. **Probe-arm figures enter there stripped of their
+arm and are then reasoned from as tree state.**
+
+**Two confirmed instances, both in reporting, neither in the file:**
+
+| figure | actual arm | reported as | corrected to |
+|---|---|---|---|
+| `1.601%` `BLOCKER_CONTAINS` inertness | entry 73's **4,000-play probe** | tree state | ⛔ **`0.685%`** canonical |
+| `+6.568pp` | an **oracle** rule needing the play's resolution tick | a shippable lower bound | ⛔ **not implementable** |
+
+> ### ⛔ **THIS IS A CLASS WITH NO INSTRUMENT. Every check in this corpus reads committed files. The leak happens in the summary layer, which is exactly where BOTH participants form their picture of tree state.**
+
+### THE RULE (owner-ruled, binding on the Orchestrator)
+
+> ## ⛔ **ANY FIGURE CITED IN A PROGRESS REPORT NAMES ITS ARM, OR IS NOT CITED.**
+
+**The same discipline the record already keeps, applied to the surface that was exempt from it.**
+⚠ **"Arm" means: which corpus, which tree, which branch of a probe — `DEFAULT`, `canonical 496-game`,
+`entry NN probe (N plays)`, `oracle/not-implementable`.** ⛔ **A bare number with no arm is now a defect
+in the report, not a shorthand.**
+
+⚠ **Note the asymmetry that makes this necessary: the record is checkable and was checked and passed.
+The summary layer is not checkable by any dispatch — its only enforcement is the discipline of whoever
+writes it.**
+
+---
+
+## 91. ⛔ THE HORIZON COVERAGE SACK **NEVER FIRES**. ADR-033's rule is SOUND; its CHARACTERISATION describes an EMPTY SET.
+
+**An ENGINE finding, produced by a calibration dispatch. ⛔ REPORTED, NOT REPAIRED — `packages/engine`
+was not touched. Routed to `match-engine` as owner.**
+
+### HOW IT WAS FOUND — a review claim that was wrong pointed at the code
+
+**Dispatch E measured `0` of `6,593` sim sacks on a `CLEAN`-worst dropback and offered a SAMPLING
+explanation** (*"a vanishingly small population… this batch drew none"*). ⚠ **Tracing the sack paths
+refuted that account: two of the three are excluded STRUCTURALLY, not by sampling.**
+
+| path | site | status |
+|---|---|---|
+| **1. §7.2 pocket sack** | `passPlay.ts:943` | ⛔ **CANNOT be `CLEAN`. PROVABLE:** requires `hasArrived`, and `rushThreat.ts:544` tests `min <= immediateWithinSeconds` — **the IDENTICAL comparison** `pocketFloorFromArrival:595` uses to return `IMMEDIATE` |
+| **2. pursuit / `CAUGHT_FROM_BEHIND`** | `passPlay.ts:995`, `:1036` | ⚠ **excluded by entry 87 item 5's measured `wouldFlip = 0` — MEASUREMENT, NOT PROOF** |
+| **3. horizon coverage sack** | `passPlay.ts:1115-1126` | ✅ **the ONLY path that can be `CLEAN`** — its own comment: *"the space genuinely was clean and the quarterback went down anyway, which is what a coverage sack IS"* |
+
+> ⛔ **SO ADR-033's CLAIM IS ABOUT PATH 3 ALONE, and `0 of 6,593` was consistent with TWO DIFFERENT FINDINGS: (a) path 3 never fires, or (b) it fires only on already-dirty dropbacks.** ⚠ **Different owners, different dispositions. Collapsing them would be entry 80's shape.**
+
+### THE MEASUREMENT — a PUBLIC-SURFACE signature, with the residual NAMED AND MEASURED
+
+⛔ **No engine change was needed.** `passPlay.ts:1115-1126` is the **only** sack path whose
+`clockRunoff` uses the **fixed** `clock.maxTick` rather than the tick variable, so it always emits
+exactly `clock.maxTick + result.clockRunoff.sack` = **`6.0 + 5 = 11`** under `DEFAULT_TUNABLES`.
+
+⚠ **Paths 1/2 call `sack(tick)` and CAN collide with that signature — but only at `tick === 6.0`,
+since `tickStepSeconds` is `0.5` and the loop runs `tick <= maxTick`.** ⛔ **That residual was NAMED
+AND MEASURED rather than assumed away**, by cross-checking every signature hit against whether any
+`RUSH_THREAT` reached `ARRIVED` on that dropback.
+
+**Canonical arm** (`flat-60-32t`, 496 games, batch seed `baseline-0001`, seed digest
+`fnv1a:020c1dcb#496`, `DEFAULT_TUNABLES`):
+
+```
+dropbacks = 43,370   sacks = 6,593
+horizon-signature sacks  = 0 of 6,593 = 0.000%
+  CLEAN-worst            = 0
+  already-dirty          = 0
+  residual (ARRIVED)     = 0
+```
+
+> ### ⛔ **BRANCH (a). AND STRONGER THAN "PATH 3 NEVER FIRES" — with the residual also zero, NO SACK OCCURS AT THE HORIZON AT ALL.**
+
+⚠ **The `CLEAN`-vs-dirty split is `0/0` — AN EMPTY POPULATION, NOT A SATURATION ARTEFACT.** ⛔ **All
+6,593 sacks arose via path 1 or path 2.** *(Splitting those two was not asked and needs engine-internal
+signals beyond the event stream's public surface.)*
+
+### ⛔ THE DISPOSITION ON ADR-033 — a SOUND RULE with a FALSE CHARACTERISATION
+
+> ## ⚠ **THIS IS A DISTINCT DISPOSITION FROM "THE RULE IS WRONG", AND COLLAPSING THEM WOULD PUT ADR-033 IN QUESTION WHEN NOTHING ABOUT IT IS.**
+
+- ✅ **THE RULE STANDS, UNCHANGED:** *do not rewrite a tick's already-emitted status.* ⛔ **Correct, and
+  not at issue.**
+- ⛔ **THE EMPIRICAL CLAUSE — *"a coverage sack… is frequently `CLEAN`"* — DESCRIBES A PATH THAT NEVER
+  EXECUTES under current tunables.** ⚠ **Not false football; false about THIS ENGINE.**
+
+### 🔀 ROUTED TO `match-engine` — THE QUESTION IS A FOOTBALL ONE
+
+> **SHOULD A COVERAGE SACK AT THE HORIZON BE REACHABLE?**
+
+⚠ **If ADR-033 describes it as frequent, THE DOC EXPECTS IT TO HAPPEN.** ⛔ **A path that never
+executes is EITHER a tuning consequence OR a missing branch — and those are different repairs.**
+**Theirs to trace; the owner's to rule.** ⛔ **NOT REPAIRED HERE.**
+
+### ⇒ FOURTH INSTANCE OF ENTRY 64, found by ENTRY 64's OWN QUESTION one dispatch after the addendum
+
+**Same anatomy as the ratchet, and the addendum working immediately:**
+
+> ### ⛔ **FULLY SPECIFIED, CORRECTLY IMPLEMENTED, NEVER REACHED — because a prior loop always resolves first. ITS INERTNESS IS A FACT ABOUT CONTROL FLOW, NOT ABOUT ITS OWN CORRECTNESS.**
+
+⚠ **And note the placement: the addendum's cheap GUARD question is answerable by inspection, but this
+is a MECHANIC again** — ⛔ **it needed the corpus to establish the count, and inspection alone would
+have shown only that the branch is reachable in principle.** **Both questions were required.**

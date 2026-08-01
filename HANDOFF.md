@@ -424,6 +424,21 @@ manifest {source, season, fetchedAt, schemaHash}.
    > boundary (ADR-038) — arriving at a BRIEF instead of at an INSTRUMENT.** An instruction that names
    > an *intent* delegates the choice of command to the reader, and **a defensible wrong choice is
    > indistinguishable from compliance.**
+   >
+   > ### ⛔ AMENDED AGAIN, August 2026 — **RUNNING THE RIGHT COMMAND IS NOT ENOUGH IF YOU DISCARD ITS ANSWER.**
+   >
+   > **The literal command was run — `pnpm -r test` — and PIPED TO `tail -30`.** ⛔ **That took the exit
+   > code of `tail`, not of `pnpm`, and showed ONE package's summary out of four.** ⚠ **The output
+   > looked green and the run was, but NOTHING IN WHAT WAS READ ESTABLISHED IT.**
+   >
+   > ⛔ **SAME SHAPE AS THE ORIGINAL MISS, WITH A DIFFERENT MASK: verification correct in form,
+   > scoped down to one package by accident rather than by reading.** **Caught before committing, which
+   > is the habit working rather than the habit failing.**
+   >
+   > **⇒ So the rule extends to the OUTPUT, not just the invocation: CAPTURE THE EXIT CODE, and read a
+   > summary line PER PACKAGE.** ⚠ **A pipeline's exit status belongs to its LAST command — piping any
+   > verification through `tail`, `head` or `grep` silently discards the only unambiguous signal it
+   > produced.**
 
    **What went wrong is worth keeping, because the verification that failed was not sloppy — it was
    CORRECT, COMPLETE, AND ABOUT THE WRONG SUBJECT.** The seventeen-rung `resultTierLadder` landed
