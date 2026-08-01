@@ -1240,7 +1240,7 @@ export const TUNABLES = {
 
     /**
      * ADR-055 §6 (backlog entry 84) — pursuit's OWN accuracy and
-     * read-capacity constants. Before this ruling, a scrambling quarterback's
+     * read-capacity constants. Before that ruling, a scrambling quarterback's
      * `POCKET_STATUS` was derived by feeding the pursuit clock's
      * `deadlineTick − tick` into `pocketFloorFromArrival` — the SAME channel
      * a passer still in the pocket uses. That was wrong on two counts,
@@ -1257,50 +1257,77 @@ export const TUNABLES = {
      * fields are what replace them — read directly, never through a
      * `PocketStatusRung`.
      *
-     * ⛔ DERIVED MECHANIC (fourth use; see `arrival.pressureWithinSeconds` and
-     * `arrival.containRetiresAfterConsecutiveContains` above for the first
-     * three and what the marker means) — TWO HALVES, DIFFERENT STATUS:
+     * ⛔ RULED, NOT DERIVED (owner ruling, July 2026, closing ADR-055 §6's own
+     * flagged question — see that section's "SEARCHED FOR AN ANCHOR AND FOUND
+     * NONE" paragraph, kept below rather than deleted, for what was tried and
+     * refused before this ruling landed).
      *
-     *   half                                         status         re-litigate by
-     *   --------------------------------------------------------------------------
-     *   that pursuit gets its OWN accuracy/read-      RULED          reopening
-     *   capacity constants, distinct from the pocket                  ADR-055 §6
-     *   ladder's                                                      point 3
-     *   what those constants' VALUES are              ⛔ NEITHER —    a football
-     *                                                  no anchor       ruling from
-     *                                                  found           the owner
+     * FIRST USE OF THIS MARKER. Surveyed against every existing provenance
+     * marker in this file before adding a fifth: `DERIVED MECHANIC` (see
+     * `arrival.pressureWithinSeconds` above for its definition) requires BOTH
+     * halves to be answerable — that a mechanic exists AND a magnitude reached
+     * by independent structural convergence — and asserting that would claim a
+     * derivation this value does not have. `INTERPRETATION` is not sectioned
+     * into two halves at all and would bury the fact that existence and
+     * magnitude were ruled on separately, on different evidence. Neither fits,
+     * so a new marker is named rather than either stretched:
      *
-     * ⛔ SEARCHED FOR AN ANCHOR AND FOUND NONE — reported per this dispatch's
-     * standing instruction rather than picked. A legitimate derivation here
-     * would look like `containRetiresAfterConsecutiveContains`'s (the model's
-     * one-tick memory depth AND `recoverySecondsByBand.BLOCKER_CONTAINS × 2 =
-     * minTravelSeconds` agreeing) or `pressureWithinSeconds`'s (replicating
-     * the doc's own 0.0/1.0 interval once more) — two INDEPENDENT structural
-     * facts already in the model, converging on one number. Nothing
-     * comparable exists for "how much does throwing while a pursuer closes
-     * cost a quarterback's accuracy" or "how many fewer receivers can he
-     * process a tick while doing it": §8.8 states a vision-cone penalty on
-     * the READ (`visionConeByDepthClass`, already wired) and states nothing
-     * about the THROW or about CAPACITY. Reaching for `pocket
-     * .accuracyModifier.IMMEDIATE` / `.readCapacityDelta.IMMEDIATE` "because
-     * pursuit feels at least that bad" would be exactly the borrowed-list-
-     * membership pattern ADR-055 §6 point 4 names and refuses for
-     * `forcesDecision` — refused here for the same reason.
+     * ### `RULED, NOT DERIVED` marks a parameter whose EXISTENCE the owner has
+     * ### ruled on football grounds, but whose MAGNITUDE has no anchor in the
+     * ### model — carried from elsewhere as the smallest non-false claim
+     * ### available, and owed a derivation or a football argument of its own.
      *
-     * SET TO 0 — THE NEUTRAL ELEMENT, NOT A GUESS. Zero is the modifier value
-     * that asserts nothing beyond what pursuit already models elsewhere (the
-     * vision cone above, `armStrengthShortfall`, `alwaysForcesDecision`
-     * below): it does not claim pursuit throws exactly as easily as a CLEAN
-     * pocket — ADR-055 §3's option C warned explicitly that expressing
-     * pursuit through the existing channels "risks asserting the passer is
-     * unpressured, which is also false" — it simply declines to invent a
-     * magnitude nobody has ruled on. FLAGGED FOR THE OWNER: the football
-     * question is open; this is not a calibration default to tune quietly
-     * while it stays unrigorous.
+     *   half                                    status              re-litigate by
+     *   -----------------------------------------------------------------------------
+     *   that a penalty exists at all            ⚖️ OWNER RULING      a football
+     *   (throwing on the run, pursued inside                          argument to the
+     *   1.5s, is LESS ACCURATE than throwing                          owner
+     *   from a clean pocket — true independent
+     *   of any measurement)
+     *   the MAGNITUDE below                     ⚠ PROVISIONAL —      a derivation (two
+     *                                             CARRIED, NOT         independent
+     *                                             DERIVED              structural facts
+     *                                                                  converging, the
+     *                                                                  `DERIVED
+     *                                                                  MECHANIC` bar) or
+     *                                                                  a fresh football
+     *                                                                  argument
+     *
+     * WHY THE POCKET LADDER'S `PRESSURE` ROW, AND WHY THAT IS NOT A
+     * DERIVATION. A scrambling passer is DISTURBED but not COLLAPSED-UPON —
+     * he got out, so he is not in the worst space on the ladder, but he is
+     * being run down, so he is not in a clean one either. The pocket ladder's
+     * own vocabulary already prices "disturbed" at `pocket.accuracyModifier
+     * .PRESSURE` (−10) and `pocket.readCapacityDelta.PRESSURE` (−1). Reusing
+     * those two numbers asserts NOTHING NEW about magnitude — it is not a
+     * claim that pursuit and PRESSURE cost the same amount for the same
+     * reason — while refusing to assert that scrambling is free, which `0`
+     * did. It is the smallest claim available that is not false. This is
+     * DELIBERATELY NOT `containRetiresAfterConsecutiveContains`'s or
+     * `pressureWithinSeconds`'s shape: neither number below was reached by two
+     * independent structural facts converging, so neither may be cited as
+     * evidence about scramble accuracy or scramble read capacity until it has
+     * an actual derivation, which is what the table above logs as owed.
+     *
+     * WHY A NUMBER AT ALL, RATHER THAN CONTINUING TO REPORT AND WAIT.
+     * §8.8 states a vision-cone penalty on the READ (`visionConeByDepthClass`,
+     * already wired) and states nothing about the THROW — but that silence
+     * governs the READ, not the THROW, and the doc's own §8.8 vocabulary
+     * therefore already commits to a non-zero read cost during pursuit; `0`
+     * there did not merely decline a magnitude, it contradicted the section
+     * directly. `0` on the accuracy side was not a neutral abstention either:
+     * before ADR-055 a scrambling passer carried `pocket.accuracyModifier`'s
+     * `PRESSURE`/`COLLAPSING`/`IMMEDIATE` row (−10/−20/−30 depending on the
+     * nearest threat) on every throw; shipping `0` quietly removed a
+     * ten-to-thirty-point accuracy penalty from every scramble throw in a
+     * subsystem measured completing 39.6% against a real ~64.6% — a number
+     * that moved in the right direction for a reason nobody had ruled on,
+     * which is the compensation pattern arriving through an implementation
+     * default rather than through a ruling.
      */
-    accuracyModifier: 0,
-    /** See `accuracyModifier`'s comment immediately above — same ruling, same open question, same 0. */
-    readCapacityDelta: 0,
+    accuracyModifier: -10,
+    /** See `accuracyModifier`'s comment immediately above — same ruling, same `RULED, NOT DERIVED` marking, same carried-from-`PRESSURE` reasoning. */
+    readCapacityDelta: -1,
     /**
      * ADR-055 §6 point 4 — pursuit's OWN condition for forcing a decision, not
      * `pocket.forcesDecision`'s list membership (backlog entry 84:

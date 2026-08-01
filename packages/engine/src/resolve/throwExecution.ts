@@ -38,9 +38,10 @@ export function accuracyPenaltyForPocket(tunables: Tunables, status: PocketStatu
 /**
  * ADR-055 §6 point 3 — pursuit's OWN accuracy constant, not the pocket
  * ladder's. See `tunables.ts`'s comment on `scramble.accuracyModifier` for
- * what is ruled here (that pursuit gets its own constant, distinct from
- * `pocket.accuracyModifier`) versus what is NOT (the constant's magnitude —
- * no anchor for it was found in the model; flagged there for the owner).
+ * the `RULED, NOT DERIVED` accounting: that pursuit gets its own constant,
+ * distinct from `pocket.accuracyModifier`, is ruled; the constant's magnitude
+ * (`-10`, carried from the pocket ladder's own `PRESSURE` row) is provisional
+ * and owed a derivation of its own.
  */
 export function accuracyPenaltyForPursuit(tunables: Tunables): AccuracyPenalty {
   return { label: "Pursuit", value: tunables.scramble.accuracyModifier };

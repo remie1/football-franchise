@@ -5495,13 +5495,13 @@ narrowing is live in contracts and later ADRs treat it as done. **An unclosed lo
 
 ## 85. ⛔ ENTRY 50 HAS NOW BEEN CONFIRMED FIVE TIMES AND STOPS BEING A FOOTNOTE
 
-**`tippedBall`'s 24-game corpus has been re-baselined FIVE times** — ADR-045, ADR-048, the ladder
-re-banding, entry 76's horizon, and ADR-055's pursuit change. **Every football digit moved on every
-occasion.**
+**`tippedBall`'s 24-game corpus has been re-baselined SIX times** — ADR-045, ADR-048, the ladder
+re-banding, entry 76's horizon, ADR-055's pursuit change, and ⛔ **the pursuit-penalty ruling, which
+landed while this entry was being written.** **Every football digit moved on every occasion.**
 
-> ### **And the STRUCTURAL half read `0 / 0 / 0 / 0 / 0` across five real thresholds, every single time.**
+> ### **And the STRUCTURAL half held at zero across five real thresholds, every single time.**
 
-⚠ **That is five independent confirmations on a FULLY MOVED CORPUS** — the strongest available form of
+⚠ **That is six independent confirmations on a FULLY MOVED CORPUS** — the strongest available form of
 ADR-036's claim, since a structural invariant surviving a corpus in which every other digit changed
 **is not being propped up by a stable population.**
 
@@ -5593,6 +5593,11 @@ in a hurry.**
 - **2026-07 · five dispatches** — `tippedBall`'s structural half reads `0/0/0/0/0` on every re-baseline
   while every football digit moves. ⇒ ⛔ **PROMOTED — entry 85.** *(Retained as the worked example of
   what this section exists to catch.)*
+  - **2026-07 · pursuit-penalty ruling** — ⛔ **sixth sighting.** Corpus moved again
+    (`tips − deadTips` `109 → 105`); structural half held. ✅ **Appended as a line beneath, not as a new
+    bullet — the section's own rule, on its first live test.** ⚠ **The rule was followed by the
+    Orchestrator, who had just written it. That is not evidence it will hold for an author who has
+    not.**
 
 > ⚠ **THE SEED IS DELIBERATE, AND NOT ONLY AS AN EXAMPLE.** ⛔ **An empty accumulator reads as *"nothing
 > has recurred"* — a FALSE NEGATIVE on day one**, and the most likely state for a reader to meet it in.

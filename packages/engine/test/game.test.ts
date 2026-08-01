@@ -283,9 +283,24 @@ describe("the clock", () => {
  * three ties (`ot-804`, `ot-971`, `ot-1053`). As before: a seed chosen by
  * scanning for a whole-game outcome is not a property of the overtime branch,
  * and nothing about that branch changed.
+ *
+ * RE-SCANNED AGAIN this dispatch (owner ruling, `RULED, NOT DERIVED` —
+ * `scramble.accuracyModifier` `0 → -10`, `scramble.readCapacityDelta` `0 → -1`,
+ * carried from `pocket.accuracyModifier`/`readCapacityDelta`'s own `PRESSURE`
+ * row). Every throw released mid-pursuit is now less accurate and reads one
+ * fewer receiver per tick, moving the hold/throw/scramble decision and the
+ * accuracy roll on every dropback that ever reaches pursuit — the same class
+ * of change as ADR-055 §6 above, so both seeds were re-scanned rather than
+ * assumed: `ot-117` is no longer an overtime; **`ot-804` survived as the tie
+ * seed for the first time** (it was the OT seed's own tie partner before and
+ * after ADR-055 §6, and now ties again after this ruling too). The OT seed
+ * moves to `ot-96` — 1,229 seeds scanned (`ot-0`…`ot-1228`), twenty-three
+ * overtimes and two ties (`ot-804`, `ot-891`). As before: a seed chosen by
+ * scanning for a whole-game outcome is not a property of the overtime branch,
+ * and nothing about that branch changed.
  */
 describe("overtime, to the extent a tie requires one", () => {
-  const overtime = simulateGameFor("ot-117");
+  const overtime = simulateGameFor("ot-96");
   const tie = simulateGameFor("ot-804");
 
   it("a tie at the end of regulation opens a fifth period", () => {

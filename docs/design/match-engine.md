@@ -1273,20 +1273,31 @@ Scramble Resolution:
 >
 > | quantity | rule during pursuit | anchor |
 > |---|---|---|
-> | accuracy penalty on a throw released mid-pursuit | flat, not escalating with the pocket ladder | ⛔ **NONE FOUND — open football question, see below** |
-> | QB read capacity per tick | flat, not escalating with the pocket ladder | ⛔ **NONE FOUND — open football question, see below** |
+> | accuracy penalty on a throw released mid-pursuit | flat `-10`, not escalating with the pocket ladder | ⛔ **`RULED, NOT DERIVED` — see below** |
+> | QB read capacity per tick | flat `-1`, not escalating with the pocket ladder | ⛔ **`RULED, NOT DERIVED` — see below** |
 > | when the desperation (lower-bar) throw threshold applies | exactly the tick before the pursuit deadline forces the ball down anyway | 🧮 **DERIVED — zero new magnitude** |
 >
-> **The two open questions, reported rather than guessed at.** A legitimate derivation here would look
-> like `containRetiresAfterConsecutiveContains`'s (§7.1) or `pressureWithinSeconds`'s (§7.2 above) —
-> two independent structural facts already in the model, converging on one number. No such convergence
-> exists for "how much does throwing on the run with a pursuer closing cost a quarterback's accuracy"
-> or "how many fewer receivers can he process a tick while doing it": this section states a vision-cone
-> penalty on the READ (the −20/−40 above, already wired) and states nothing about the THROW or about
-> CAPACITY. Reaching for §7.2's `IMMEDIATE` row "because pursuit feels at least that bad" would be
-> exactly the borrowed-rule pattern the ruling below refuses. Both constants are therefore set to **0**
-> — the neutral value, not a picked one — pending the owner's ruling on their magnitude. See
-> `packages/engine/src/tunables.ts`'s comment on `scramble.accuracyModifier` for the full accounting.
+> **RULED (owner, July 2026), AFTER THIS SECTION REPORTED THE QUESTION AS OPEN.** ⚠ **The two-halves
+> convention applies, and the halves have different status.** That a penalty exists at all is now
+> ⚖️ **OWNER RULING**: *a quarterback throwing while scrambling, with a pursuer inside 1.5 seconds, is
+> LESS ACCURATE than one throwing from a clean pocket — true independent of any measurement.* Shipping
+> `0` was not a neutral abstention; it was a claim, and the claim was false — before this ruling a
+> scrambling passer carried `pocket.accuracyModifier`'s `-10`/`-20`/`-30` on every throw, so `0` quietly
+> **removed a 10-to-30 point accuracy penalty from every scramble throw**, in a subsystem measured
+> completing 39.6% against a real ~64.6%. The MAGNITUDE, by contrast, is ⚠ **PROVISIONAL — CARRIED, NOT
+> DERIVED**: no anchor of the shape `containRetiresAfterConsecutiveContains`'s or `pressureWithinSeconds`'s
+> (two independent structural facts already in the model, converging on one number) exists for "how much
+> does throwing on the run with a pursuer closing cost a quarterback's accuracy" or "how many fewer
+> receivers can he process a tick while doing it" — this section states a vision-cone penalty on the READ
+> (the −20/−40 above, already wired) and states nothing about the THROW or CAPACITY. Both constants are
+> set to the pocket ladder's own `PRESSURE` row (`-10` accuracy, `-1` read capacity): a scrambling passer
+> is DISTURBED but not COLLAPSED-UPON, and reusing PRESSURE's numbers asserts nothing new about
+> magnitude while refusing to assert that scrambling is free — the smallest claim available that is not
+> false. Marked `RULED, NOT DERIVED` rather than `DERIVED MECHANIC` for exactly that reason: the
+> mechanic's existence is ruled, but the magnitude is carried, not derived, and may not be cited as
+> evidence about scramble accuracy until it earns a derivation or a football argument of its own. See
+> `packages/engine/src/tunables.ts`'s comment on `scramble.accuracyModifier` for the full accounting and
+> the marker survey that produced `RULED, NOT DERIVED`.
 >
 > **The derived one.** Every pursuit tick still reaches a genuinely open target through the ordinary
 > throw threshold, unconditionally — that check does not change during pursuit. The lower, DESPERATION

@@ -653,8 +653,8 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
    * ⚠ RE-BASELINED A FIFTH TIME, July 2026, ADR-055 §6 — a vacated pocket has no
    *   status. `POCKET_STATUS` stops publishing while `scramble` is defined, the
    *   pursuit clock no longer floors it, a throw released mid-pursuit now takes
-   *   pursuit's own accuracy/read-capacity constants (`0`, pending the owner's
-   *   ruling on their magnitude — see `tunables.ts`'s comment on
+   *   pursuit's own accuracy/read-capacity constants (`0` at the time, pending
+   *   the owner's ruling on their magnitude — see `tunables.ts`'s comment on
    *   `scramble.accuracyModifier`) rather than the pocket ladder's escalating
    *   ones, and `mustDecide` during pursuit is forced only on the tick before
    *   the mechanical tuck (`resolve/scramble.ts`'s `pursuitForcesDecision`) not
@@ -673,11 +673,33 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
    * ⚠ THE STRUCTURAL HALF STILL DID NOT MOVE — FIFTH INDEPENDENT CONFIRMATION.
    *   0 / 0 / 0 / 0 / 0 and §12.2's five real thresholds, over a corpus in which
    *   every football digit moved and `tips − deadTips` (below) moved with them.
+   *
+   * ⚠ RE-BASELINED A SIXTH TIME, July 2026, owner ruling — `RULED, NOT DERIVED`.
+   *   `scramble.accuracyModifier` moved `0 → -10` and `scramble.readCapacityDelta`
+   *   moved `0 → -1` (carried from `pocket.accuracyModifier`/`readCapacityDelta`'s
+   *   own `PRESSURE` row; see `tunables.ts`). Every throw released mid-pursuit is
+   *   now less accurate and reads one fewer receiver per tick than it did under
+   *   the interim `0`, so completions, yards, points and turnovers on any dropback
+   *   that ever reaches pursuit move again — the fixture below is re-cut against
+   *   the new stream, exactly as the ADR-055 §6 re-baseline above was.
+   *
+   *   digit           ADR-035/036   ADR-040   ADR-045   §2.3a   ADR-048   ADR-055   this dispatch
+   *   plays              3,420       3,421      3,420    3,415    3,410     3,405        3,409
+   *   yards             20,047      21,107     20,953   20,922   20,275    20,758       20,028
+   *   turnovers            107         113        109      107      107       109          105
+   *   points             1,545       1,683      1,655    1,663    1,588     1,608        1,576
+   *   tips                 271         270        273      273      249       271          271
+   *   deadTips             163         164        166      166      149       162          166
+   *
+   * ⚠ THE STRUCTURAL HALF STILL DID NOT MOVE — SIXTH INDEPENDENT CONFIRMATION.
+   *   0 / 0 / 0 / 0 / 0 and §12.2's five real thresholds, over a corpus in which
+   *   every football digit moved again (including `plays`, which had held flat
+   *   across every prior re-baseline) and `tips − deadTips` (below) moved with them.
    */
-  it("the corpus totals, on every digit (re-baselined by ADR-055)", () => {
+  it("the corpus totals, on every digit (re-baselined this dispatch, owner ruling on scramble.accuracyModifier/readCapacityDelta)", () => {
     expect([
       base.plays, base.yards, base.turnovers, base.points, base.tips, base.deadTips,
-    ]).toEqual([3405, 20758, 109, 1608, 271, 162]);
+    ]).toEqual([3409, 20028, 105, 1576, 271, 166]);
   });
 
   it("still never consults a target on a dead ball", () => {
@@ -721,8 +743,9 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
     // deflection carries its band's genuine target.
     expect(base.liveMissingTheKey).toBe(0);
     expect(base.liveTargets).toEqual([20, 35, 55, 75, 90]);
-    // 108 → 106 (ADR-040) → 107 (ADR-045) → 100 (ADR-048) → 109 (ADR-055)
-    expect(base.tips - base.deadTips).toBe(109);
+    // 108 → 106 (ADR-040) → 107 (ADR-045) → 100 (ADR-048) → 109 (ADR-055) →
+    // 105 (this dispatch, owner ruling on scramble.accuracyModifier/readCapacityDelta)
+    expect(base.tips - base.deadTips).toBe(105);
   });
 
   it("the cell is not addressable, because the cell does not exist", () => {

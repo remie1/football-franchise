@@ -74,6 +74,9 @@ describe("ADR-055 §6 point 3 — accuracyPenaltyForPocket / accuracyPenaltyForP
   it("the pursuit constructor reads scramble.accuracyModifier and never names a pocket status", () => {
     const penalty = accuracyPenaltyForPursuit(TUNABLES);
     expect(penalty).toEqual({ label: "Pursuit", value: TUNABLES.scramble.accuracyModifier });
+    // Ruled, not derived (this dispatch): carried from the pocket ladder's own
+    // PRESSURE row rather than invented, and marked as owed a derivation.
+    expect(TUNABLES.scramble.accuracyModifier).toBe(TUNABLES.pocket.accuracyModifier.PRESSURE);
     // Never one of the four rungs — a pursuing quarterback's throw is not
     // asserted to be under any particular pocket status (ADR-055 §6).
     expect(Object.keys(TUNABLES.pocket.severity)).not.toContain(penalty.label);
@@ -108,20 +111,21 @@ describe("§10.4 accuracy", () => {
     expect(clean.roll.modifiers.some((m) => m.source.includes("Poise"))).toBe(false);
   });
 
-  it("ADR-055 §6 — a throw released mid-pursuit is never charged a pocket-status modifier", () => {
+  it("ADR-055 §6 — a throw released mid-pursuit is never charged a pocket-status modifier, but is charged a Pursuit one", () => {
     const pursuit = resolveAccuracy({
       tunables: TUNABLES,
       qb, airYards: 14, throwType: "BULLET", accuracyPenalty: accuracyPenaltyForPursuit(TUNABLES), armShortfall: false,
       throwRng: createRng("s", "throw"),
     });
     expect(pursuit.roll.modifiers.some((m) => m.source.startsWith("Pocket"))).toBe(false);
-    // `scramble.accuracyModifier` is `0` today (the open football question —
-    // see `tunables.ts`), so a zero-valued "Pursuit" modifier is elided by
-    // `compact` exactly as a zero-valued "Pocket: CLEAN" one is above. If the
-    // owner rules a non-zero magnitude, this line is the one that starts
-    // asserting the label is present rather than merely never "Pocket".
-    expect(TUNABLES.scramble.accuracyModifier).toBe(0);
-    expect(pursuit.roll.modifiers.some((m) => m.source === "Pursuit")).toBe(false);
+    // Owner ruling (this dispatch): `scramble.accuracyModifier` is `-10`, RULED
+    // NOT DERIVED — carried from `pocket.accuracyModifier.PRESSURE`, not
+    // invented. A non-zero modifier is no longer elided by `compact`, so the
+    // "Pursuit" label is now present on the roll — the converse of the CLEAN
+    // pocket case above, which stays elided because it is genuinely zero.
+    expect(TUNABLES.scramble.accuracyModifier).toBe(-10);
+    const pursuitModifier = pursuit.roll.modifiers.find((m) => m.source === "Pursuit");
+    expect(pursuitModifier?.value).toBe(-10);
   });
 
   it("applies the depth modifier ladder", () => {
