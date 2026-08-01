@@ -1517,6 +1517,31 @@ unless the writer says which is which.**
 
 > ### ⇒ **THE QUALITATIVE TWIN OF *"EVERY FIGURE NAMES ITS ARM"*: EVERY CLAIM NAMES ITS STATUS — MEASURED, DERIVED, OR ASSERTED.** ⚠ **A bullet among counted bullets that was never counted is the cheapest possible way to launder an assertion into evidence, and it requires no bad faith whatsoever.**
 
+**⚠ THE PROPAGATION SITES, LISTED BECAUSE THE COUNT IS THE ARGUMENT.** ⛔ **One unmeasured bullet
+reached FOUR places:** the ADR itself; **`passPlay.ts:505-516`'s source comment** (*"which is
+frequently `CLEAN` and correctly so"*); a **Tier 1 `definition` string**; and **a dispatch brief that
+quoted the source comment back as EVIDENCE.**
+
+> ### ⛔ **THE ENGINE COMMENT IS THE WORST OF THE FOUR — an unmeasured claim sitting in the implementation, where a reader checking the code against the doc finds AGREEMENT and reads it as CORROBORATION.** ⚠ **Two copies of one unevidenced sentence are not two sources.**
+
+**Corollary — ⛔ THE RULING-SEARCH ASKS *"WHICH CELLS DOES THIS RULING IMPLY?"* NOBODY ASKS *"WHICH RATIFIED DESCRIPTIONS DOES THIS CHANGE FALSIFY?"***
+
+⚠ **The first runs SIDEWAYS at ruling time and this project does it well. The second runs FORWARD IN
+TIME and no instrument asks it.**
+
+**Worked example, dated:** `21cedc5` (Jul 30) and `a9cead7` (Jul 31) each narrowed the reachability of
+the horizon coverage sack. ⛔ **ADR-033 (Jul 29) described that path as *"frequently `CLEAN`."***
+⚠ **Both commits are INDEPENDENTLY CORRECT. NEITHER WAS CROSS-CHECKED AGAINST THE ADR, AND THE ADR'S
+DESCRIPTION SILENTLY BECAME FALSE.**
+
+> ### ⛔ **NOBODY WAS WRONG AT ANY STEP. A ratified document's EMPIRICAL PROSE went stale because a change one day later removed the behaviour it described, and the document has no mechanism for noticing.**
+
+**⇒ Doc-conformance checks CELLS against the doc.** ⛔ **Nothing checks the doc's PROSE against the
+tree.** ⚠ **The cheap approximate form — when a change narrows or removes a behaviour, search
+`docs/decisions/` for prose describing that behaviour — is stated here as a PROPOSAL, NOT AN
+INSTRUMENT.** ⛔ **It is not built, and calling it a guard would be this document's own absorbed
+class.**
+
 **Corollary — ⛔ A TOLERANCE THAT TIGHTENS ON COMFORT ASSUMES THE COMFORT IS EARNED.**
 
 **The band table ratchets after two comfortable reports.** ⚠ **We have now established that at least
