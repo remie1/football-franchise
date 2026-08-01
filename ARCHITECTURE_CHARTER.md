@@ -1563,6 +1563,45 @@ in what the record FAILED TO OFFER.**
 
 > ## ⛔ **WHEN A DEFECT LIVES IN A LAYER THAT HAS NO INSTRUMENT, FIX IT IN THE LAYER THAT HAS ONE.**
 
+**Corollary — ⛔ A DERIVED ROW IS LEGITIMATE. AN UNDECLARED DERIVED ROW IS NOT.**
+
+> ### ⚠ **PROVENANCE FOR METRICS, THE SAME AS FOR CLAIMS.**
+
+⛔ **Entry 88's defect was NOT that `pressure_to_sack` was a quotient.** ⚠ **It was that NOTHING SAID
+SO — and that it was GRADED AGAINST A REAL SIDE AS THOUGH IT WERE MEASURED.** A row that is
+`metricA ÷ metricB` cannot disagree with its own inputs; **presenting it beside them implies a third
+observation where there are only two.**
+
+**⇒ Two dispositions, and they must not be confused:**
+
+| row | identity check | disposition |
+|---|---|---|
+| **a BASE metric** | ⛔ **answer must be NO** | ⚠ **a positive result is a DEFECT** |
+| **a DERIVED metric** | ✅ **answer is a known YES** | ⛔ **must be DECLARED in its own definition, naming both source rows** |
+
+⚠ **A derived row that cannot write that declaration cleanly should not ship** — render the parts
+adjacently and let the reader form the quotient.
+
+**Corollary — ⛔ *"REPORT THE NULL"* IS NOT POLITENESS. IT IS THE INSTRUMENT.**
+
+**A structural check that returns nothing has produced a RESULT.** ⛔ **Left unreported, the question
+reads as never asked — which is the exact state the comparability claim sat in for a phase.**
+
+⚠ **Three consecutive dispatches turned on this clause:** the ratchet null *(the mechanism exists and
+is inert)*, the identity check on a new metric *(negative, and worth knowing)*, and entry 91's empty
+population *(`0/0`, which is not the same as a small number)*.
+
+**Corollary — ⛔ THE SCOPE RULE HAS A PRODUCTIVE DIRECTION, NOT ONLY A PREVENTIVE ONE.**
+
+**It is usually stated as a prohibition: do not let a dispatch write outside its path.** ⚠ **It also
+PRODUCES findings — a dispatch that notices a defect it is FORBIDDEN TO TOUCH must REPORT it, and the
+report reaches someone who can act.**
+
+> ### ⛔ **`HANDOFF.md`'s superseded clause was found exactly this way — in the block a cold reader loads FIRST, in the document with MAXIMUM AUTHORITY AND MINIMUM CHECKABILITY, by an agent that could not edit it.**
+
+⚠ **A rule that only prevented would never have surfaced that.** **⇒ The obligation to report outside
+one's path is not a courtesy attached to the restriction — IT IS HALF THE RULE.**
+
 **Discipline at the un-instrumented layer is the weakest available control** — ⚠ **it must hold every
 time, cannot be tested, and its failures are invisible to every sweep this project owns.** ⛔ **Making
 the correct figure CITABLE is strictly stronger than requiring the summariser to remember it, because
