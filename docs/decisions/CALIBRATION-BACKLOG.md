@@ -5614,3 +5614,119 @@ in a hurry.**
 > has recurred"* — a FALSE NEGATIVE on day one**, and the most likely state for a reader to meet it in.
 > **A section whose emptiness is indistinguishable from a clean result is the worst possible starting
 > condition for an instrument whose whole subject is repetition.**
+
+---
+
+## 87. ⛔⛔ VERIFICATION OF THE EXTERNAL REVIEW — the decisive item is **UNRESOLVABLE FROM INSIDE THIS REPO**
+
+**Dispatch A, August 2026. Nothing was fixed, renamed or proposed.** The review's central claim was
+treated as **testimony** and computed.
+
+### ⛔ ITEM 4 LEADS, AND IT IS A NULL WITH TEETH: what `was_pressure` charters is NOT DETERMINABLE HERE
+
+**Searched the ingest source, every cached manifest, the fixture CSV header, and the manifest schema
+itself.** All four give the column's **name**, **type** (`boolean`) and **population status.**
+⛔ **None gives its SEMANTICS** — and `manifest.ts`'s own doc comment confirms this is **structural,
+not an oversight**: the schema has a field for a column's *shape*, none for its *meaning*.
+
+**No nflverse data dictionary is vendored anywhere in the repo.**
+
+> ### ⛔ **SO *"the model is mistuned"* AND *"the comparison is measuring two different things"* ARE INDISTINGUISHABLE FROM INSIDE THIS CORPUS.**
+
+⚠ **The review's diagnosis cannot be confirmed OR refused here.** ⛔ **What would resolve it: nflverse's
+own participation data-dictionary text vendored into the ingest layer, or at minimum cited by URL and
+revision.** **Until then no one can say `pressure_rate`'s real side measures the same construct as its
+sim side.**
+
+### ✅ ITEM 1 — CONFIRMED ON THE SIM SIDE **AND FALSE ON THE REAL SIDE**. The asymmetry is the finding.
+
+**At the accumulator, not the quotient:** `sackRate`, `pressureRate` and `pressureToSackRate` read the
+**same three fields** off the **same `PlayFold`**, from the **same `flush()`**, under the **same
+`play.isPass` scope.** `dropbacks` cancels algebraically. ⛔ **Identity by construction, every batch.**
+Verified: sim `15.20 / 89.73 = 16.94` against a recorded `16.94` — **gap `0.000pp`.**
+
+⛔ **BUT THE REAL SIDE IS NOT IDENTICAL**, and the dispatch computed it rather than assuming symmetry:
+
+| side | `sack ÷ pressure` | recorded `pressure_to_sack` | gap |
+|---|---|---|---|
+| **sim** | `15.20 / 89.73` = **16.94%** | **16.94%** | ⛔ **0.000pp — identity** |
+| **real** | `6.90 / 29.23` = **23.606%** | **16.37%** | ⚠ **7.24pp — NOT identity** |
+
+**Because the three real populations differ** — `sack_rate`'s denominator is every `pbp` dropback
+(**58,277**); `pressure_rate`'s and `pressure_to_sack`'s are participation rows joined to those
+dropbacks (**56,893** / **16,627**).
+
+> ### ⇒ **THE `PASS+` GREEN CELL COMPARES A FORCED SIM RATIO AGAINST AN INDEPENDENTLY MEASURED REAL ONE.** ⚠ **A reader shown the sim identity would reasonably assume it holds on both sides. It does not.**
+
+### ✅ ITEM 2 — `baseline-0006` IS TESTIMONY ABOUT A DEAD TREE. Re-run completed.
+
+**Both ADR-025 identity fields differ**, and **127+ commits** separate them. ⛔ **Re-run rather than
+diffed**, to `baseline-0007` (`0006` left readable — the review reasoned from it):
+
+| metric | `-0006` | ⛔ **`-0007` (current tree)** |
+|---|---|---|
+| `pressure_rate` | 89.51% | **89.73%** |
+| `sack_rate` | 14.52% | **15.20%** |
+| `pressure_to_sack` | 16.22% | **16.94%** |
+| `completion_pct` | 39.72% | **39.62%** |
+| `yards_per_carry` | 15.818 | **15.750** |
+
+### ⛔ ITEM 5 — ADR-055 MOVED **ZERO** DROPBACKS. The second branch of the pre-registered fork.
+
+**Isolated by reclassifying one rule on the current stream** rather than diffing across trees, so the
+other 126 commits cannot confound it. Canonical corpus, `dropbacks = 43,370`:
+
+- `pursuitDropbacks` = **9,149 (21.10%)**
+- ⛔ `wouldFlip` (pursuit **and** not otherwise pressured) = **0**
+- `zeroTickPursuits` = **0**
+
+> **Every dropback that ever entered pursuit was ALREADY non-CLEAN before the scramble began. A
+> per-dropback worst-status metric absorbed the entire removal.**
+
+⚠ **The `89.51 → 89.73` rise is attributable to the other 126 commits, NOT to ADR-055.** ⛔ **And this
+was pre-registered as a finding rather than a null** — a 20.809%-of-ticks change absorbing to exactly
+zero **is a statement about the metric's shape.**
+
+### ⚠ ITEM 3 — no provenance, **plus two corrections, one of them to my own framing**
+
+**The claim *"`pressure_rate` stays as the figure comparable to real football"* has NO provenance row,
+derivation or citation anywhere.** Two hits only: the backlog and `tier1.ts:245` quoting it verbatim.
+
+- ⛔ **CITATION CORRECTION: it is ENTRY 68's sentence, not 67-RESULT's.** 67-RESULT is the *measurement
+  that motivated* the ruling; the claim is entry 68's, and pivots off a **different** finding (that the
+  rate is blind to severity demotion).
+- ⛔ **AND THE "CORPUS THAT DEMANDS PROVENANCE EVERYWHERE" FRAMING IS OVERSTATED — mine as well as the
+  reviewer's.** The provenance-table convention exists in **3 of 57** `docs/decisions/*.md` files. It
+  is **very recent**, not a corpus norm. ⚠ **The underlying finding holds; the contrast that made it
+  sound damning does not.**
+- ⚠ Structural note: `docConformance`'s provenance register covers **`Tunables` cells only** — dotted
+  paths into the tunables tree. **A metric-selection claim could never have carried a tag there**, even
+  retroactively.
+
+### ⚠ ITEM 6 — both retirement paths ship, and **the inertness figure I quoted was wrong**
+
+**Both confirmed shipped:** `retiresBySustainedContainment` (`21cedc5`) and TIME (`a9cead7`).
+**TIME's `0.0125%` is corpus-cited.**
+
+⛔ **`BLOCKER_CONTAINS`' "~1.6%" HAS NO CITATION ANYWHERE IN THE CORPUS.** Computed on the canonical
+496-game corpus, mirroring the shipped branch logic including the live-threat gate: **`370` retirements
+on `54,013` contain reps = `0.685%`** — **not 1.6%.** *(An ungated proxy gives 7.111%; neither is
+1.6%.)*
+
+⚠ **The `1.601%` came from entry 73's 4,000-play probe and I carried it forward as tree state.**
+⛔ **That is precisely the class the owner's own premise audit was aimed at, found in my reporting
+rather than in the record.** **Near-inertness holds — it is smaller than claimed — so the review's
+conclusion survives its second wrong number.**
+
+### ✅ ITEM 7 — the backlog is CLEAN. The leakage is out-of-band.
+
+**Derived sweep** (entries split programmatically; 37 carry a `%`/`pp` figure; flagged any with no
+arm token **anywhere in its body** — ⚠ *a naive line-proximity pass produced 66 false positives,
+because this corpus names an arm once per block and reuses it downward; learning that before trusting
+the sweep is itself the finding*).
+
+**Result: 1 of 37 flagged, and it is a false positive.** ⛔ **Both of the owner's own named examples
+are properly arm-labelled at source** — `8.634%` under *"Supply→45"*, and the YPC figures under
+*"with entry 12 fully deleted…"* with the committed `DEFAULT` (`16.234`) stated beside them.
+
+> ### ⛔ **THE COMMITTED RECORD IS NOT THE LEAK. The arm-stripping happened in an out-of-band channel — conversation, summary, progress reporting — that no sweep over this file can see.**
