@@ -227,7 +227,10 @@ function foldPlayScope(fold: PlayScopeFold, events: readonly MatchEventEnvelope[
         if (event.payload.status !== "CLEAN") anyNonClean = true;
         break;
       case "THROW":
-        threw = event.payload.throwType !== "THROWAWAY";
+        // Dead comparison removed (backlog entry 101): a THROW event is never a throwaway — never
+        // was (entry 94) and structurally cannot be now (ADR-056) — so this was already
+        // unconditionally true.
+        threw = true;
         break;
       case "RUN_RESOLUTION":
         if (event.payload.carryType === "SCRAMBLE") scrambled = true;

@@ -611,8 +611,11 @@ function foldEvents(fold: Fold, events: readonly MatchEventEnvelope[], decompose
         if (play !== null && event.payload.choice === "SCRAMBLE") play.postEscape = true;
         break;
       case "THROW":
+        // Dead comparison removed (backlog entry 101): a THROW event is never a throwaway — never
+        // was (entry 94) and structurally cannot be now (ADR-056) — so this was already
+        // unconditionally true.
         if (play !== null) {
-          play.threw = event.payload.throwType !== "THROWAWAY";
+          play.threw = true;
           play.throwTick = tick;
         }
         break;

@@ -327,7 +327,10 @@ function foldRush(fold: RushFold, events: readonly MatchEventEnvelope[]): void {
         }
         break;
       case "THROW":
-        if (play !== null && event.payload.throwType !== "THROWAWAY") play.threw = true;
+        // Dead comparison removed (backlog entry 101): a THROW event is never a throwaway — never
+        // was (entry 94) and structurally cannot be now (ADR-056) — so this was already
+        // unconditionally true.
+        if (play !== null) play.threw = true;
         break;
       case "QB_DECISION":
         if (play !== null && event.payload.choice === "SCRAMBLE") play.scrambled = true;

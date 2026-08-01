@@ -581,14 +581,17 @@ function foldDropbacks(fold: PassFold, events: readonly MatchEventEnvelope[]): v
         }
         break;
       case "THROW":
+        // A THROW event never carries a throwaway — it never did (entry 94: `selectThrowType`
+        // never returned it) and it structurally cannot now (ADR-056 Option C: a throwaway is
+        // its own event, `THROWAWAY`, not a `ThrowType`). The dead `throwType === "THROWAWAY"`
+        // branch this used to guard is removed; `play.throwaway` (set only there) is never read
+        // downstream by anything a real throwaway could reach through the `THROW` case, so this
+        // is a pure dead-code deletion, not a behaviour change — see the coordinator dispatch
+        // that asked for it, backlog entry 101.
         if (play !== null) {
-          if (event.payload.throwType === "THROWAWAY") {
-            play.throwaway = true;
-          } else {
-            play.threw = true;
-            play.throwTick = play.tick;
-            play.target = String(event.payload.target);
-          }
+          play.threw = true;
+          play.throwTick = play.tick;
+          play.target = String(event.payload.target);
         }
         break;
       case "QB_DECISION":

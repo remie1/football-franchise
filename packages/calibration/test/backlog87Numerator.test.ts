@@ -179,7 +179,11 @@ function foldForHorizonCensus(census: HorizonCensus, events: readonly MatchEvent
         if (current !== null && event.payload.state === "ARRIVED") current.everArrived = true;
         break;
       case "THROW":
-        if (current !== null) current.threw = event.payload.throwType !== "THROWAWAY";
+        // A THROW event is never a throwaway — never was (entry 94) and structurally cannot be
+        // now (ADR-056: a throwaway is its own event). `throwType !== "THROWAWAY"` was already
+        // unconditionally true; `current.threw = true` is the same fact with the dead comparison
+        // removed, not a behaviour change (backlog entry 101).
+        if (current !== null) current.threw = true;
         break;
       case "CATCH_RESOLUTION":
         if (current !== null && event.payload.caught) current.caught = true;
