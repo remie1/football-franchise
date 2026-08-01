@@ -36,6 +36,20 @@ import type {
 } from "../src/types.js";
 import { buildScenario, makePlayer } from "./fixtures.js";
 
+/**
+ * CALIBRATION-BACKLOG entry 99 — `RunSide` has exactly one restatement in this
+ * file (the "no slide" sentinel below is a third grid dimension, `undefined`,
+ * that has no member in the contract union to omit or add; the gate covers
+ * only the two real `RunSide` members).
+ */
+const RUN_SIDES = ["LEFT", "RIGHT"] as const satisfies readonly RunSide[];
+type _RunSidesComplete = RunSide extends (typeof RUN_SIDES)[number] ? true : never;
+const _runSidesComplete: _RunSidesComplete = true;
+void _runSidesComplete;
+
+/** The grid's own third slide state — "declared no slide" — is not a `RunSide` member. */
+const SLIDE_OPTIONS = [undefined, ...RUN_SIDES] as const;
+
 // --- the grid ---------------------------------------------------------------
 
 interface FrontOptions {
@@ -133,7 +147,7 @@ function grid(): { label: string; options: FrontOptions }[] {
   for (const wrongGuesses of [0, 1, 2] as const) {
     for (const phantomRushers of [0, 1, 2] as const) {
       for (const backsKeptIn of [0, 1, 2] as const) {
-        for (const slide of [undefined, "LEFT", "RIGHT"] as const) {
+        for (const slide of SLIDE_OPTIONS) {
           // A front with nobody in it is a different play, not this question.
           if (wrongGuesses === 2 && phantomRushers === 0) continue;
           out.push({

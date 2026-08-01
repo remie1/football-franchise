@@ -14,11 +14,45 @@ import type {
   ReadSystem,
   RunPlayCalls,
   RunScheme,
+  RushMove,
 } from "../src/types.js";
 
 const PERSONALITY: PersonalitySheet = { needs: {}, type: "quiet" };
 
 export const STAMP: CalendarStamp = { season: 2026, phase: "REGULAR_SEASON", week: 4, day: 7 };
+
+/**
+ * CALIBRATION-BACKLOG entry 99 — the restatement sweep off ADR-056's engine
+ * dispatch. `RunScheme` was re-enumerated by hand in three test files,
+ * `ReadSystem` in two, `RushMove` in two: the same one-directional gap
+ * `tippedBall.test.ts` had for `ThrowType` before this — `satisfies` catches a
+ * member REMOVED (the excess literal stops being assignable) but not a member
+ * ADDED (the list silently under-enumerates and every caller quietly exercises
+ * a strict subset forever). The `extends` line below closes that direction.
+ *
+ * These three live here, once, rather than as seven copies of the same six
+ * lines, because `fixtures.ts` is already the common import for every site
+ * that needed one — not because the unions are related to each other. A site
+ * that needs only one of the three should import only that one.
+ */
+export const RUN_SCHEMES = ["ZONE", "GAP"] as const satisfies readonly RunScheme[];
+type _RunSchemesComplete = RunScheme extends (typeof RUN_SCHEMES)[number] ? true : never;
+const _runSchemesComplete: _RunSchemesComplete = true;
+void _runSchemesComplete;
+
+export const READ_SYSTEMS = [
+  "HALF_FIELD",
+  "FULL_FIELD",
+  "CONCEPT",
+] as const satisfies readonly ReadSystem[];
+type _ReadSystemsComplete = ReadSystem extends (typeof READ_SYSTEMS)[number] ? true : never;
+const _readSystemsComplete: _ReadSystemsComplete = true;
+void _readSystemsComplete;
+
+export const RUSH_MOVES = ["SPEED", "POWER", "FINESSE"] as const satisfies readonly RushMove[];
+type _RushMovesComplete = RushMove extends (typeof RUSH_MOVES)[number] ? true : never;
+const _rushMovesComplete: _RushMovesComplete = true;
+void _rushMovesComplete;
 
 export function makePlayer(
   id: string,

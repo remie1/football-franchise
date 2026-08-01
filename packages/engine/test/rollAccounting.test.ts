@@ -17,6 +17,7 @@ import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
 import { simulateGame, simulatePassPlay, simulateRunPlay } from "../src/index.js";
 import { buildGameFixture } from "./gameFixtures.js";
 import {
+  RUN_SCHEMES,
   buildDeflectionScenario,
   buildLopsidedRushScenario,
   buildRunScenario,
@@ -107,7 +108,7 @@ describe("ADR-004 roll accounting", () => {
    */
   it("no RollDetail appears twice on a run either, ZONE or GAP", () => {
     const kinds = new Set<string>();
-    for (const scheme of ["ZONE", "GAP"] as const) {
+    for (const scheme of RUN_SCHEMES) {
       for (let i = 0; i < 150; i++) {
         const { state, calls } = buildRunScenario(scheme);
         const { events } = simulateRunPlay(state, calls, `run-accounting-${scheme}-${i}`);

@@ -10,7 +10,7 @@ import {
   readCapacityDeltaFor,
 } from "../src/resolve/pocket.js";
 import { TUNABLES, applyTunablePatch } from "../src/tunables.js";
-import { makePlayer } from "./fixtures.js";
+import { RUSH_MOVES, makePlayer } from "./fixtures.js";
 
 const eliteRusher = makePlayer("r-elite", "Elite Rusher", "DE", {
   passRush: 99, firstStep: 99, powerMove: 99, finesseMove: 99, strength: 99,
@@ -192,7 +192,7 @@ describe("§7.1 pass rush per tick", () => {
      * without appearing in `testsAttrs` is invisible to progression.
      */
     it("anchor is in testsAttrs, so the rep counts as exposure for it", () => {
-      for (const move of ["SPEED", "POWER", "FINESSE"] as const) {
+      for (const move of RUSH_MOVES) {
         const out = resolvePassRushTick({
           tunables: TUNABLES, rusher: eliteRusher, blocker: blockerWithAnchor(70), move,
           tickRng: createRng("tests", "t"),

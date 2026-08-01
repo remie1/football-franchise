@@ -21,6 +21,7 @@ import { gameId, playId, playerId } from "@ff/contracts";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
 import { renderPlay, simulatePassPlay, simulateRunPlay } from "../src/index.js";
 import {
+  RUN_SCHEMES,
   STAMP,
   buildDeflectionScenario,
   buildLopsidedRushScenario,
@@ -130,7 +131,7 @@ function everyStream(seedPrefix: string, n: number): MatchEventEnvelope[][] {
       out.push([...simulatePassPlay(state, calls, `${seedPrefix}-pass-${i}`).events]);
     }
   }
-  for (const scheme of ["ZONE", "GAP"] as const) {
+  for (const scheme of RUN_SCHEMES) {
     for (let i = 0; i < n; i++) {
       const { state, calls } = buildRunScenario(scheme);
       out.push([...simulateRunPlay(state, calls, `${seedPrefix}-run-${scheme}-${i}`).events]);

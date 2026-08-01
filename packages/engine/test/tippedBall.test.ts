@@ -29,7 +29,7 @@ import type {
   RecoveryCandidate,
 } from "../src/resolve/tippedBall.js";
 import { TUNABLES, TunablePatchError } from "../src/tunables.js";
-import type { FieldZone } from "../src/types.js";
+import type { FieldZone, RouteDepthClass } from "../src/types.js";
 import { buildDeflectionScenario, buildScenario, makePlayer } from "./fixtures.js";
 
 /**
@@ -50,6 +50,25 @@ const THROW_TYPES = ["BULLET", "TOUCH", "BACK_SHOULDER"] as const satisfies read
 type _ThrowTypesComplete = ThrowType extends (typeof THROW_TYPES)[number] ? true : never;
 const _throwTypesComplete: _ThrowTypesComplete = true;
 void _throwTypesComplete;
+
+/**
+ * CALIBRATION-BACKLOG entry 99 — the §12.2 height ladder walk below (both the
+ * function-parameter spelling and the loop a few tests down it) restated
+ * `RouteDepthClass` by hand twice in this file. Same gate, same reasoning as
+ * `_ThrowTypesComplete` above: `satisfies` alone only catches a member
+ * REMOVED, not one ADDED.
+ */
+const ROUTE_DEPTH_CLASSES = [
+  "QUICK",
+  "SHORT",
+  "INTERMEDIATE",
+  "DEEP",
+] as const satisfies readonly RouteDepthClass[];
+type _RouteDepthClassesComplete = RouteDepthClass extends (typeof ROUTE_DEPTH_CLASSES)[number]
+  ? true
+  : never;
+const _routeDepthClassesComplete: _RouteDepthClassesComplete = true;
+void _routeDepthClassesComplete;
 
 const DEFLECTOR = makePlayer("db-tip", "Swat", "CB", { ballSkills: 90, reaction: 88 });
 const HERE: FieldZone = { horizontal: "C", vertical: "INTERMEDIATE" };
@@ -93,7 +112,7 @@ describe("§12.2 throw height — the derived input (INTERPRETATION)", () => {
 
   it("at the catch point the ball arrives higher the further it travelled", () => {
     const ladder: readonly string[] = TUNABLES.tippedBall.heightLadder;
-    const at = (d: "QUICK" | "SHORT" | "INTERMEDIATE" | "DEEP"): number =>
+    const at = (d: (typeof ROUTE_DEPTH_CLASSES)[number]): number =>
       ladder.indexOf(throwHeightFor(TUNABLES, "CATCH_POINT", d, "BACK_SHOULDER"));
     expect(at("QUICK")).toBeLessThan(at("SHORT"));
     expect(at("SHORT")).toBeLessThan(at("INTERMEDIATE"));
@@ -111,7 +130,7 @@ describe("§12.2 throw height — the derived input (INTERPRETATION)", () => {
     const ladder: readonly string[] = TUNABLES.tippedBall.heightLadder;
     expect(throwHeightFor(TUNABLES, "CATCH_POINT", "QUICK", "BULLET")).toBe("LOW");
     expect(throwHeightFor(TUNABLES, "CATCH_POINT", "DEEP", "TOUCH")).toBe("JUMP_BALL");
-    for (const depth of ["QUICK", "SHORT", "INTERMEDIATE", "DEEP"] as const) {
+    for (const depth of ROUTE_DEPTH_CLASSES) {
       for (const throwType of THROW_TYPES) {
         expect(ladder).toContain(throwHeightFor(TUNABLES, "CATCH_POINT", depth, throwType));
       }

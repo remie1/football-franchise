@@ -23,6 +23,7 @@ import { describe, expect, it } from "vitest";
 import { TUNABLES, applyTunablePatch } from "../src/tunables.js";
 import type { Tunables } from "../src/tunables.js";
 import {
+  READ_SYSTEMS,
   buildCleanPocketScenario,
   buildMixedCoverageScenario,
   buildScenario,
@@ -76,8 +77,6 @@ const CARDS: readonly (readonly [string, () => Scenario])[] = [
   ["short-concept", () => buildShortConceptScenario()],
   ["stalled-pocket", () => buildStalledPocketScenario()],
 ];
-
-const READ_SYSTEMS = ["HALF_FIELD", "FULL_FIELD", "CONCEPT"] as const;
 
 export function opennessCorpus(plays: number): PlayCase[] {
   const built = CARDS.map(([label, make]) => [label, make()] as const);

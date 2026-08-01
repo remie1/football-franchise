@@ -35,11 +35,27 @@ import type { PassRushBandLabel } from "../src/resolve/passRush.js";
 import { bandFor } from "../src/rolls.js";
 import { applyTunablePatch, TUNABLES } from "../src/tunables.js";
 import type { Tunables } from "../src/tunables.js";
-import type { RushMove } from "../src/types.js";
-import { buildScenario, sackTick as sackTickOf } from "./fixtures.js";
+import type { RushAlignment, RushMove } from "../src/types.js";
+import { RUSH_MOVES, buildScenario, sackTick as sackTickOf } from "./fixtures.js";
 
-const MOVES: RushMove[] = ["SPEED", "POWER", "FINESSE"];
+/**
+ * CALIBRATION-BACKLOG entry 99 — `RUSH_MOVES` (`fixtures.ts`) already carries
+ * the bidirectional completeness gate against `RushMove`, so this file's own
+ * restatement (formerly `const MOVES: RushMove[] = [...]`, which only caught a
+ * member REMOVED and not one ADDED) is retired in favour of the checked one.
+ */
+const MOVES = RUSH_MOVES;
 const WIN_MARGIN = 15;
+
+/**
+ * `RushAlignment` has exactly one restatement in this file (line ~86 below);
+ * unlike `RunScheme`/`ReadSystem`/`RushMove` it has no other test site, so the
+ * gate lives here rather than in the shared fixture module.
+ */
+const RUSH_ALIGNMENTS = ["EDGE", "INTERIOR"] as const satisfies readonly RushAlignment[];
+type _RushAlignmentsComplete = RushAlignment extends (typeof RUSH_ALIGNMENTS)[number] ? true : never;
+const _rushAlignmentsComplete: _RushAlignmentsComplete = true;
+void _rushAlignmentsComplete;
 
 describe("§7.2 alignment", () => {
   it("derives interior from the rusher's position when the call does not state it", () => {
@@ -83,7 +99,7 @@ describe("§7.2 travel time", () => {
 
   it("nobody teleports: travel never drops below the floor, at any margin", () => {
     for (const move of MOVES) {
-      for (const alignment of ["INTERIOR", "EDGE"] as const) {
+      for (const alignment of RUSH_ALIGNMENTS) {
         expect(travelSecondsFor(TUNABLES, alignment, move, 99)).toBeGreaterThanOrEqual(
           TUNABLES.arrival.minTravelSeconds,
         );

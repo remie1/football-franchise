@@ -3,6 +3,7 @@ import { simulatePassPlay } from "../src/index.js";
 import { bandFor } from "../src/rolls.js";
 import { TUNABLES } from "../src/tunables.js";
 import {
+  READ_SYSTEMS,
   buildDeflectionScenario,
   buildLopsidedRushScenario,
   buildMixedCoverageScenario,
@@ -57,7 +58,7 @@ describe("determinism (Charter pillar 5)", () => {
     // proves nothing about them.
     let anticipation = 0;
     let checkdowns = 0;
-    for (const system of ["HALF_FIELD", "FULL_FIELD", "CONCEPT"] as const) {
+    for (const system of READ_SYSTEMS) {
       for (let i = 0; i < 60; i++) {
         const a = withReadSystem(buildScenario(), system);
         const b = withReadSystem(buildScenario(), system);

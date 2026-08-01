@@ -33,6 +33,7 @@ import { simulateGame, simulatePassPlay, simulateRunPlay } from "../src/index.js
 import { buildGameFixture } from "./gameFixtures.js";
 import { TUNABLES } from "../src/tunables.js";
 import {
+  RUN_SCHEMES,
   buildDeflectionScenario,
   buildMixedCoverageScenario,
   buildRunScenario,
@@ -67,7 +68,7 @@ function everyStream(prefix: string, n: number): MatchEventEnvelope[][] {
       out.push([...simulatePassPlay(state, calls, `${prefix}-pass-${i}`).events]);
     }
   }
-  for (const scheme of ["ZONE", "GAP"] as const) {
+  for (const scheme of RUN_SCHEMES) {
     for (let i = 0; i < n; i++) {
       const { state, calls } = buildRunScenario(scheme);
       out.push([...simulateRunPlay(state, calls, `${prefix}-run-${scheme}-${i}`).events]);
