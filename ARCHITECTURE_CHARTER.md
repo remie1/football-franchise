@@ -1542,6 +1542,32 @@ tree.** ⚠ **The cheap approximate form — when a change narrows or removes a 
 INSTRUMENT.** ⛔ **It is not built, and calling it a guard would be this document's own absorbed
 class.**
 
+**Corollary — ⛔ WHEN A RULING CHANGES WHAT A METRIC TABLE *CONTAINS*, THE REPORT CARRIES BEFORE-AND-AFTER, NOT JUST AFTER.**
+
+⚠ **A table whose MEMBERSHIP changed reports a different quantity under the same name.** ⛔ **Without
+the prior value beside it, the next reader sees A MOVED COUNT WITH NO ATTRIBUTION and either ignores
+it or blames the engine — neither of which is what happened.**
+
+### ⛔ AND THIS IS THE MECHANISM OF THE OUT-OF-BAND LEAK, WHICH IS NOT A DISCIPLINE FAILURE
+
+**The rule *"every figure in a progress report names its arm"* is binding — ⚠ BUT A FIGURE CAN ONLY
+NAME ITS ARM IF THE RECORD CARRIES ONE TO NAME.**
+
+> ### ⛔ **THE STALE COUNT WAS UNCITABLE, SO IT GOT CARRIED INSTEAD OF QUALIFIED. The summary layer had NOTHING TO CITE.**
+
+⚠ **That explains the leak without attributing it to anyone's carelessness, and it explains why a
+sweep over the committed record found the record CLEAN: the defect was never in the record — it was
+in what the record FAILED TO OFFER.**
+
+### ⇒ THE GENERAL FORM, AND IT IS THE DIRECTION OF ATTACK FOR THIS WHOLE CLASS
+
+> ## ⛔ **WHEN A DEFECT LIVES IN A LAYER THAT HAS NO INSTRUMENT, FIX IT IN THE LAYER THAT HAS ONE.**
+
+**Discipline at the un-instrumented layer is the weakest available control** — ⚠ **it must hold every
+time, cannot be tested, and its failures are invisible to every sweep this project owns.** ⛔ **Making
+the correct figure CITABLE is strictly stronger than requiring the summariser to remember it, because
+it converts a habit into a lookup.**
+
 **Corollary — ⛔ A TOLERANCE THAT TIGHTENS ON COMFORT ASSUMES THE COMFORT IS EARNED.**
 
 **The band table ratchets after two comfortable reports.** ⚠ **We have now established that at least
