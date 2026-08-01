@@ -1397,6 +1397,30 @@ being made and they do NOT have the same standing:**
 > *"frequently"* — THE ASYMMETRY IS STILL REAL, but its framing as a METRIC problem shifts toward the
 > ENGINE.** ⛔ **Amend this beside when it reports. Do not delete it.**
 
+#### ✅ AMENDED BESIDE — IT REPORTED, AND THE TWO ROWS RESOLVED DIFFERENTLY
+
+**The third branch fired.** Canonical corpus (`flat-60-32t`, 496 games, seed digest `fnv1a:020c1dcb#496`):
+⛔ **`0` of `6,593` sim sacks occurred on a dropback whose worst `POCKET_STATUS` stayed `CLEAN`.**
+**`pressure_to_sack` is BIT-IDENTICAL before and after the fix — `16.942%`.**
+
+| row | resolution |
+|---|---|
+| **the two sides use different estimators** | ✅ **HOLDS, UNCHANGED. It was read from source and never depended on the measurement.** |
+| **that it materially inflates the sim figure** | ⛔ **RESOLVED: IT DOES NOT. Zero magnitude on this corpus.** |
+
+> ### ⇒ **BOTH CLAIMS WERE TRUE, AT DIFFERENT STANDINGS, AND SEPARATING THEM BEFOREHAND IS WHAT LET ONE BE REFUTED WITHOUT TAKING THE OTHER DOWN WITH IT.**
+
+⚠ **Had they been recorded as one claim, a zero-magnitude result would have read as "the defect was
+imaginary."** ⛔ **It is not. The estimator asymmetry is real, was fixed, and the fix is correct
+arithmetic that happens to move nothing on THIS corpus — which is not a property the next corpus
+inherits.**
+
+⛔ **DELIBERATELY NOT RECORDED HERE: anything about ADR-033.** ⚠ **The engine has THREE sack paths in
+three different states — one structurally incapable of a `CLEAN` sack (provable), one excluded by
+measurement, and ONE that is the only path ADR-033's claim is even about, whose firing count has never
+been measured.** ⛔ **"ADR-033 is contradicted" and "that path never fires" are BOTH LIVE, are
+DIFFERENT FINDINGS WITH DIFFERENT OWNERS, and neither enters this document until the count reports.**
+
 ⛔ **THIS IS THE PROVENANCE DISCIPLINE APPLIED TO THE CHARTER ITSELF — which had never been done.**
 ⚠ **This document has always demanded provenance of the corpus and carried none on its own claims.**
 **A corollary is as citable as a metric, and a corollary resting on an unmeasured premise fails the
@@ -1424,6 +1448,29 @@ one green was comfortable FOR THE WRONG REASON.**
 **⇒ The ratchet is BLOCKING for any metric whose estimator is under revision.** ⚠ **`pressure_to_sack`
 is clear — empty `history` — but that is LUCK RATHER THAN DESIGN, and luck is not a property the next
 metric inherits.**
+
+#### ✅ AMENDED BESIDE — the blocking check reported, and it CORRECTS THE PARAGRAPH ABOVE
+
+⛔ **"LUCK RATHER THAN DESIGN" WAS WRONG.** ⚠ **The correction is recorded rather than the sentence
+edited, because the wrong reasoning is the useful part.**
+
+**There is NO runtime ratcheting anywhere in this codebase's execution path.** The mechanism is
+**fully specified** — `RATCHET_AFTER_REPORTS`, `proposeRatchets`, `ratchetBand` — **and never wired to
+apply.** `buildBaselineReport` takes `bands` as an **optional** parameter and the only production
+caller **omits it**, so every report rebuilds fresh from each metric's source-declared
+`toleranceBand`. ⛔ **Proposals are computed, rendered under a heading, and consumed by NOTHING.**
+Corroborated empirically: every band in `baseline-0007` shows `locked by —` and `history —` across
+five reports of accumulated history.
+
+> ### ⇒ **NO METRIC HAS EVER RATCHETED, ANYWHERE. `pressure_to_sack` IS NOT DISTINGUISHED FROM THE OTHERS AT ALL — there was no luck involved because there was no draw.**
+
+⛔ **THE HAZARD IS REAL AND STRICTLY PROSPECTIVE. The sharper operative form:**
+
+> ### ⚠ **WHOEVER WIRES RATCHET PROPOSALS INTO A RUN NEEDS AN INDEPENDENT CORRECTNESS GATE FIRST — PRECISELY BECAUSE THIS DISPATCH DEMONSTRATED THAT A GREEN CAN BE COMFORTABLE FOR A DEFECT REASON.**
+
+⚠ **And note the shape of the thing itself: a mechanism fully specified, rendered in every report, and
+INERT.** ⛔ **That is this corpus's own absorbed class in miniature — something that looks like a
+working instrument, is read as one, and cannot fire.**
 
 **Corollary — ⛔ WRITE CLAIMS SHARPLY ENOUGH TO BE FALSIFIABLE EVEN IN DRAFTS NOBODY WILL PUBLISH.**
 
