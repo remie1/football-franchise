@@ -1364,6 +1364,24 @@ measurement.
 > football, and **it is how this one would have been caught.** ⚠ A ruling's reach is almost never
 > recorded at the cells it implies — only at the cell that provoked it.
 
+### ⛔⛔ CORRECTED — THERE ARE **TWO** FAILURES HERE, AND THEY NEED DIFFERENT FIXES
+
+**The diagnosis above is about IMPLICATIONS. Running the search found something worse and simpler.**
+
+| failure | what happened | the fix |
+|---|---|---|
+| **the implication** | ADR-032's reasoning reached the arrival horizon; **it never named it**, so nothing connected them | ⚠ **prospective** — the ADR form's *implied scope* field, naming what a ruling reaches but does not change |
+| ⛔ **THE DIRECT HIT** | **ADR-033 ruled ON THE EXACT CELL** — named, dated, approved 2026-07-29, implemented, tested — **and nothing in eight subsequent dispatches looked it up** | ⛔ **a LOOKUP before any lever is proposed** |
+
+> ### **The first needed an inference nobody drew. The second needed a grep nobody ran. THE FAILURE WAS NOT ASKING.**
+
+⚠ **And the base rate settles the priority: the search was run over four "refused levers" and returned
+FOUR FOR FOUR already decided.** ⛔ **Not one survived to need a football argument.**
+
+> **⇒ SO IT IS A REQUIRED STEP, NOT A DIAGNOSTIC APPLIED AFTER FOUR DISPATCHES: any brief proposing to
+> move a committed value STATES WHETHER THE CELL HAS A RULING, WITH THE SEARCH SHOWN.** ⚠ **One grep.
+> Assume the answer is YES until the search says otherwise.**
+
 **A lever is refused on a number.** The refusal is recorded, the queue moves on, and **the cell keeps
 its value** — not because anyone judged the value correct, but because **nothing in a lever refusal is
 about correctness at all.**

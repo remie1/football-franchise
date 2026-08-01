@@ -5105,7 +5105,20 @@ search terminated in direct hits, so the boundary was not tested at its edge.
 | `blockerStructuralAdvantage` | **ADR-028**, ratified — value **changed 15 → 0** and an `anchor` attribute term added | ⛔ **`0`**, not 15 (`tunables.ts:301`) |
 | `freeRunnerArrivalSeconds` | **ADR-030**, structural petition ratified — **1.5 explicitly KEPT as correct**, the defect fixed by adding a path term | **`1.5`** (`:476`) |
 | `RUSHER_GAINING`'s band map | **ADR-033 Ruling 1** — *"a rusher gaining by a single point against a blocker still in front of him is a CLEAN pocket"* | ⛔ **`"CLEAN"`**, not `PRESSURE` (`:968`) |
-| `RUSHER_WINS_REP.minMargin` | **entry 1a** — *"RULED TO STAY AT 15"*, restated after its justification was struck | **`15`** (`:346`) |
+| `RUSHER_WINS_REP.minMargin` | **entry 1a** — ⚠ **RULED, JUSTIFICATION VOID** (see below) | **`15`** (`:346`) |
+
+> ### ⚠ **`minMargin: 15` IS MARKED *RULED, JUSTIFICATION VOID* — NOT SIMPLY *RULED*. The two differ if anyone reopens it.**
+>
+> **The disposition holds** — the value was **restated, not reversed**, and a football-derived
+> alternative (`15 → 45`) was later tested and found **−0.130pp on a flat shelf.**
+>
+> ⛔ **But the reasoning that originally carried it is STRUCK**: the *"10–15% of snaps"* argument was
+> the **tier/cumulative conflation**, and the cumulative band rate is **invariant under any re-banding
+> above 15**. ⚠ **So a reopener inherits a ruling with no surviving argument beneath it** — and would
+> otherwise assume one exists.
+>
+> **⇒ Anyone reopening this cell must build the football case from scratch. There is a decision, and
+> there is no longer a reason on file.**
 
 ### ⛔⛔ THE FINDING IS WORSE THAN ENTRY 76's, AND IT INVERTS THE DIAGNOSIS
 

@@ -412,6 +412,25 @@ manifest {source, season, fetchedAt, schemaHash}.
    (Charter §4.1), and the diagnostic that would have caught it is the one already standing: ***what,
    exactly, is the subject?*** A green suite is evidence about the package it ran in and about nothing
    else. **It is cheap to state and it would have caught this.**
+10a. ⛔ **A BRIEF PROPOSING TO MOVE A COMMITTED VALUE STATES WHETHER THE CELL HAS A RULING — WITH THE
+    SEARCH SHOWN.** One grep, before anything else. ⚠ **Assume the answer is YES until the search says
+    otherwise.**
+
+    **The base rate that made this required rather than advisory:** the search was run over **four**
+    values previously refused as levers. ⛔ **All four were already decided by ratified rulings. None
+    survived to need a football argument.**
+
+    ⚠ **And the worst case needed no inference at all.** `RUSHER_GAINING`'s band map was ruled by
+    **ADR-033 — named, dated, approved 2026-07-29, implemented and tested** — and **eight subsequent
+    dispatches never looked it up**, one of them citing ADR-032 instead and inheriting a value that
+    had been stale for twenty-one ADRs.
+
+    > ### **The failure was not subtle inference. It was NOT ASKING.**
+
+    **Search for the identifier AND the reasoning-shape** — *"X is not pressure"*, threshold-width
+    language, band-floor semantics — because **a ruling's reach is recorded only at the cell that
+    provoked it.** ⛔ **State the search's boundary**: what a grep of that shape would have missed.
+
 10. **Stage explicit paths whenever a dispatch is live. `git add -A` NEVER, while an agent is running.**
     Standing rule, owner, July 2026, **on the second occurrence of the same cause** — which is where
     a slip becomes a habit.

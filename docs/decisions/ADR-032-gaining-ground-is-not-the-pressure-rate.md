@@ -15,8 +15,29 @@
   alone reads 89.508 / 14.518 / 16.220 / 39.721 against `baseline-0006`'s recorded 89.51 / 14.52 /
   16.22 / 39.72.
 - **Nothing on disk moved.** Every value below is an in-memory `applyTunablePatch`.
-  `TUNABLES.pocket.minimumStatusByBand.RUSHER_GAINING` is **`"PRESSURE"`** before and after this
-  ADR, and `TUNABLES.arrival.pressureWithinSeconds` is **`+∞`**.
+  ~~`TUNABLES.pocket.minimumStatusByBand.RUSHER_GAINING` is **`"PRESSURE"`** before and after this
+  ADR, and `TUNABLES.arrival.pressureWithinSeconds` is **`+∞`**.~~
+
+  > ### ⛔ ANNOTATED July 2026 — **BOTH CLAIMS IN THE STRUCK LINE ARE NOW FALSE.** True when written; superseded since.
+  >
+  > | claim | then | **now** | superseded by |
+  > |---|---|---|---|
+  > | `minimumStatusByBand.RUSHER_GAINING` | `"PRESSURE"` | ⛔ **`"CLEAN"`** (`tunables.ts:968`) | **ADR-033 Ruling 1** — *"gaining ground is not pressure"*, approved 2026-07-29 |
+  > | `arrival.pressureWithinSeconds` | `+∞` | ⛔ **`2.0`** (`tunables.ts:812`) | **backlog entry 76**, on this ADR's own reasoning one channel over |
+  >
+  > ⚠ **THIS IS THE WEAKENING DIRECTION — the annotation nobody volunteers for** (Charter §4.1). It
+  > does not strengthen this ADR; it records that two of its stated facts expired. **Written because
+  > the symmetric obligation is the half that gets skipped, and a corpus where every decision only
+  > ever gained support has a selection effect in its annotations.**
+  >
+  > ⛔ **AND THE COST IS MEASURED, NOT HYPOTHETICAL.** This line was **cited forward by the
+  > Orchestrator into backlog entry 77** as evidence that `RUSHER_GAINING` was still an open,
+  > unchanged, refused cell. **It was not** — ADR-033 had ruled on it directly, nine ADRs earlier.
+  > *A pin that drifts stops the build; a stored ruling that drifts keeps being cited.*
+  >
+  > ⇒ **Nothing here invalidates this ADR's REFUSAL or its redirect** — the band map was correctly
+  > refused as a *rate lever*, and §6's redirect to supply stands. **What expired is the two-line
+  > statement of the tree's state**, which is exactly the class of claim that ages without notice.
 
 ## Need
 
