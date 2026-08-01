@@ -1401,6 +1401,31 @@ assertion**, and nothing in the repo could tell the difference afterwards.
 > exception says *"this state is legitimate"*; the control says *"and it happens."* **The first
 > without the second is a claim; the pair is a finding.**
 
+### ✅ AND IT RUNS IN THE OTHER DIRECTION — **AN OLD CONTROL REFUSING A NEW CLAIM.** First instance, July 2026.
+
+**The discipline above is designed forward: a NEW control proving a NEW exception is reachable.**
+⚠ **This is the reverse, and nobody designs for it.**
+
+**ADR-055's implementation drafted `pursuitForcesDecision` as UNCONDITIONALLY true**, reasoning that
+*"`nextReadable` already replaces the progression the instant `scramble` is defined."* ⛔ **Not wrong
+on its own terms — TOO STRONG.**
+
+**It broke a protected invariant that had nothing to do with the change:**
+`pressureMetrics.test.ts`'s ***"a MISSED blitz is more dangerous than a seen one, and than no blitz at
+all"*** — by letting missed-blitz scrambles complete or check down instead of being run down.
+
+> ### **A finding protected years-of-dispatches earlier refused a premise written today.**
+
+**The premise was then isolated empirically** (toggling accuracy against the forcing condition),
+**corrected to a zero-new-magnitude form**, and ⛔ **the wrong premise was RECORDED IN CODE rather than
+silently narrowed** — per the repair-consumes-evidence corollary.
+
+**⇒ THE STANDING VALUE THIS DEMONSTRATES: a protected finding is not only a regression guard on the
+thing it names. It is a CONSTRAINT ON FUTURE CLAIMS ANYWHERE THAT CAN REACH IT** — and it pays out
+without anyone anticipating the reach. ⚠ **That is an argument for protecting findings that look
+narrow**, since their value is in the claims they will refuse, **not in the regressions they will
+catch.**
+
 ⚠ **And note which direction the cheap path runs:** widening an assertion until it passes is always
 available, always defensible in the moment, and **leaves no trace that the assertion is now weaker
 than its name.** That is the same shape as re-pointing a census pin without re-deriving its set.

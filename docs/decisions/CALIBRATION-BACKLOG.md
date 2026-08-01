@@ -5490,3 +5490,36 @@ for five.**
 
 **ADR-034's Decision section still reads *"Awaiting the project owner"*** (line 137) though the
 narrowing is live in contracts and later ADRs treat it as done. **An unclosed loop, not a blocker.**
+
+---
+
+## 85. ⛔ ENTRY 50 HAS NOW BEEN CONFIRMED FIVE TIMES AND STOPS BEING A FOOTNOTE
+
+**`tippedBall`'s 24-game corpus has been re-baselined FIVE times** — ADR-045, ADR-048, the ladder
+re-banding, entry 76's horizon, and ADR-055's pursuit change. **Every football digit moved on every
+occasion.**
+
+> ### **And the STRUCTURAL half read `0 / 0 / 0 / 0 / 0` across five real thresholds, every single time.**
+
+⚠ **That is five independent confirmations on a FULLY MOVED CORPUS** — the strongest available form of
+ADR-036's claim, since a structural invariant surviving a corpus in which every other digit changed
+**is not being propped up by a stable population.**
+
+**⇒ BUT THE SAME FIVE RUNS CONFIRM ENTRY 50'S DEFECT, WHICH IS THE POINT.** The tipped-ball subsystem's
+digits move under **every** unrelated engine change and under **no** attribute. ⛔ **It has no attribute
+surface at all** — the outcome is decided by §12's rolls before any rating can matter (entry 64's
+**absorbed mechanic**, first instance).
+
+### Why five is the threshold for promotion
+
+**Each individual re-baseline read as bookkeeping** — *"the corpus moved, re-pin it."* ⚠ **Five reads
+as a property of the subsystem.**
+
+> ⛔ **A subsystem whose numbers move under every change except the one that should move them is not
+> noisy. It is unattached.**
+
+**Promoted from a footnote in each dispatch's report to a standing item.** ⚠ **It is not urgent — it
+has waited correctly behind the pressure work — but it should stop being rediscovered once per
+dispatch and re-recorded as if new.** ⛔ **Five rediscoveries of one fact is itself the finding:
+nothing routes the observation anywhere, so each dispatch meets it fresh** (the *absorbed finding*,
+Charter §4.1).
