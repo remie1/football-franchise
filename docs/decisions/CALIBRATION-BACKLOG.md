@@ -5241,3 +5241,43 @@ effect against a sub-0.04pp rate effect is not a close call.
 **Class-sentence check, all three varieties answered:** metric-blindness — **confirmed, and it is the
 finding itself rather than a confound to correct for**. Subject-is-one-thing — yes, single tunable,
 single read site. Oracle — no: `minTta` is causally available at evaluation time.
+
+---
+
+## 82. 🔮 PRE-REGISTERED — **the point at which *"the pressure model is mistuned"* would be RETIRED as the working hypothesis**
+
+**Written BEFORE the population census reports.** ⚠ **Do not amend after; amend beside.**
+
+### The working hypothesis, stated so it can be retired rather than quietly abandoned
+
+**Every dispatch on this subsystem since entry 40 has assumed the pressure model is MISTUNED** — that
+some committed value is wrong and a correct one exists. **That assumption has never been stated as a
+hypothesis, which is why it has never been tested.**
+
+### What would retire it
+
+**Entry 81 closed the last named threshold candidate**, and all three arrival horizons are now
+examined. **A tick is `CLEAN` only if all three channels agree; arrival says `CLEAN` only when no live
+threat sits within `2.0s`; a play is ~2.98 ticks.**
+
+> **⇒ If the census finds that nearly every tick of nearly every dropback carries a live threat inside
+> `2.0s`, then a 29.2% `pressure_rate` is UNREACHABLE BY ANY THRESHOLD — and *"mistuned"* is the wrong
+> frame.** The model would need a **different shape**: threats created too often, persisting too long,
+> or the pocket needing a concept the model does not have.
+
+⚠ **The alternative is equally real and is not a lesser outcome:** if a substantial share of ticks are
+unpopulated, **thresholds are not the whole story, supply IS a live frame**, and entry 40's re-price
+becomes the next question.
+
+### ⛔ AND THE RETIREMENT WOULD BE A RESULT, NOT A FAILURE
+
+**Fifteen dispatches produced it, and it was not available earlier.** ⚠ **A conclusion of the form
+*"this class of fix cannot work"* only becomes reachable AFTER the named candidates are exhausted** —
+each refusal narrowed the space, and the last one closed it.
+
+> **That is what the instrument stretch bought.** ⛔ **Recorded here so that, if it lands, it is read as
+> the end of a search rather than the failure of one** — and so the retirement is a stated decision
+> rather than a hypothesis everyone quietly stops citing.
+
+⚠ **The census is a CENSUS. It proposes nothing.** Whichever way it falls, **the ruling on what
+replaces the hypothesis is the owner's**, and this entry does not pre-empt it.
