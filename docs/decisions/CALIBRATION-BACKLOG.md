@@ -5404,3 +5404,89 @@ relation someone noticed. It cannot record one nobody did.**
 **⇒ The honest operational note: relational defects have been found, twice, by counting things nobody
 was suspicious of.** ⛔ **That is an argument for censuses over targeted sweeps**, and it is the second
 time a census has produced the dispatch's most valuable finding while answering a different question.
+
+---
+
+## 84. ⛔ ADR-055's SURVEY: **the union is the wrong home, and the fact ALREADY HAS A PUBLISHER.** Re-ruling owed.
+
+**Read-only survey; the prototype that derived the consumer list was fully reverted (`git diff` zero).**
+
+### The prior question, answered: `PocketStatus` is NOT the right home — three independent reasons
+
+1. **ADR-033's own definition excludes it.** *"A pocket status describes THE SPACE THE PASSER IS
+   WORKING IN."* §8.8 suspends the pocket, so **there is no pocket-space fact to classify.** ⚠ A
+   `PURSUING` member would assert pursuit is *a kind of pocket space* — **the same category error
+   ADR-033 ruled against for `SACK`, inverted.**
+2. **The ladder is a three-channel reconciliation pursuit does not have.** Two channels are pinned
+   `CLEAN` by construction during a scramble. ⛔ Putting `PURSUING` on the ladder **forces an answer to
+   *"is pursuit worse than COLLAPSING?"*** — a comparison no football rule produces. **That is
+   ADR-055's own diagnosed defect recreated one level up**, as an explicit member instead of an
+   implicit coincidence.
+3. ⛔ **THE FACT ALREADY HAS A PUBLISHER.** `QB_PURSUIT` (ADR-054) carries `sinceTick`, `deadlineTick`,
+   `rollRef`, and the deadline **never moves once set.** So `deadlineTick − tick` **reconstructs
+   exactly the quantity `pocketFloorFromArrival` uses to floor the status.**
+
+> ### **`POCKET_STATUS` during pursuit carries ZERO BITS that `QB_PURSUIT` + `tick` do not already carry.**
+
+### ⇒ WHICH RE-OPENS THE SHAPE RULING — Shape 1 was disqualified on a premise that does not hold
+
+**Shape 1 (do not publish) was rejected because *"silence forces every consumer to guess"* — the
+not-published-versus-not-applicable ambiguity.** ⛔ **But the silence is BRACKETED**: a consumer sees
+no `POCKET_STATUS` across a tick range **delimited by a real, dated `QB_PURSUIT` and the play's
+terminal event.** ⚠ **That is ADR-036's own remedy — *make "not applicable" structural* — applied at
+event cadence rather than at a field.**
+
+**⇒ OWED: a re-ruling on the shape.** The survey's proposal is **narrower than any of the three**, and
+**needs no contracts change at all.**
+
+### The survey of existing members — one line each, and none is *mistuned*, each is *about something else*
+
+| member | why it does not describe a QB who left the pocket with a pursuer closing |
+|---|---|
+| `CLEAN` | asserts the passer is **unpressured** — false at 100% of pursuit ticks |
+| `PRESSURE` | describes **a beaten blocker whose rep is still resolving** — no rep exists once the line battle is suspended |
+| `COLLAPSING` | describes **the pocket's interior geometry closing** — there is no interior once he has left |
+| `IMMEDIATE` | describes **a rusher arriving at the launch point inside the pocket** — pursuit is a man closing on a **moving target in the open field** |
+
+### The compiler-derived consumer list — and ⛔ MY BRIEF OVERSTATED THE GUARD
+
+**Widening the union produced exactly FOUR errors:** `pocket.severity`, `accuracyModifier`,
+`readCapacityDelta`, and **`events.ts`'s event-construction boundary** — the real contracts edge.
+
+⛔ **NOT compile-forced, contrary to my brief:** `forcesDecision`, `sackWhenNoTarget`,
+`minimumStatusByBand`'s value type, `worsePocketStatus`, `pocketSeverityOfEmitted`. ⚠ **I claimed a
+fifth member "will fail to compile until each supplies a football value." True for four sites, false
+for five.**
+
+**Two findings the compiler could not give, traced by hand:**
+- ⛔ **`readCapacityPerTick` is a LIVE consumer on every scramble tick** — a scrambling QB's read
+  capacity is governed by `pocket.readCapacityDelta` right now.
+- ⛔ **`sackWhenNoTarget` is STRUCTURALLY UNREACHABLE during pursuit** — the sack check sits after the
+  scramble branch's own `break`/`continue`. A `PURSUING` row there would be **permanently vacuous.**
+
+### The proposal — engine-internal, no contracts petition
+
+1. **Stop feeding the pursuit clock into `pocketFloorFromArrival`.** `QB_PURSUIT` keeps emitting unchanged.
+2. **Stop emitting `POCKET_STATUS` while `scramble !== undefined`** — bracketed, per above.
+3. **Give pursuit its own accuracy and read-capacity constants under `tunables.scramble`** — real
+   football quantities, **wrong table.**
+4. **`forcesDecision`'s single live reach during pursuit needs its own condition**, not borrowed list membership.
+
+⚠ **Fallback named if the owner rejects point 2:** a **new single-channel event** — *not* a
+`PocketStatus` member. **Not designed, because the survey did not find it necessary.**
+
+### 📌 THREE CORRECTIONS, TWO OF THEM MINE
+
+- ⛔ **My brief cited ADR-054 for the `satisfies ByPocketStatus<T>` constraint. It is ADR-053 §6 ruling
+  2** (`types.ts:66`). Two correctly-numbered ADRs conflated.
+- ⛔ **My brief overstated the compile-forcing** — see above.
+- ⚠ **AND THE SURVEY'S OWN NULL IS WRONG:** it reported *"ADR-055 never mentions `QB_PURSUIT` — zero
+  occurrences."* ⛔ **It mentions it once, at line 90, in IMPLIED SCOPE, as an adjacent unruled item.**
+  **The substantive point stands — the ADR treated it as adjacent rather than as the thing that
+  already publishes the state — but the claim as stated is false.** ⚠ *A citation is as many claims as
+  it has components*, and *"never mentions"* is a component a grep disproves in one second.
+
+### 🔧 Doc staleness, unrelated
+
+**ADR-034's Decision section still reads *"Awaiting the project owner"*** (line 137) though the
+narrowing is live in contracts and later ADRs treat it as done. **An unclosed loop, not a blocker.**
