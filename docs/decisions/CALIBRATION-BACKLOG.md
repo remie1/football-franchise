@@ -4981,7 +4981,7 @@ implemented rule compares against the play's **fixed outer ceiling** (`clock.max
 |---|---|
 | **the "and"-conjunction diagnostic** — a ruling naming two mechanisms must be priced in three arms | ✅ **SURVIVES.** Geometry and time *are* separately priceable; that was right |
 | the **22:1 ratio** as its evidence | ⛔ **VOID** — it compares an oracle arm to a real one |
-| the **negative interaction** (geometry `104.683 → 37.202`) | ⚠ **RE-READ OWED** — both arms were reclassifier arms, so the competition may not hold between the *implementable* versions |
+| the **negative interaction** (geometry `104.683 → 37.202`) | ⚠ **RE-READ CONDITIONAL — NOT AN OPEN OBLIGATION.** See below |
 | ⛔ **the ruling to implement TIME** | ✅ **SURVIVES UNCHANGED** — see below |
 
 ⚠ **The geometry-versus-time asymmetry that motivated separate arms may not hold between the
@@ -5000,6 +5000,17 @@ justification.** ⇒ **When the size evaporated, the ruling did not move.**
 
 **⇒ And the Orchestrator carried `+6.568pp` forward as a lower bound — into the brief and into this
 entry's own headline. That is where the defect entered.**
+
+> ### 🚫 THE INTERACTION RE-READ IS **CONDITIONAL ON GEOMETRY EVER BEING IMPLEMENTED — AND GEOMETRY IS CURRENTLY UNRULED AND UNMOTIVATED.**
+>
+> **Its evidence is void** (the `0.020pp` marginal figure came from the same oracle arm), and **no
+> ruling exists to build it.** ⛔ **So this is NOT an open obligation** — it is a **prerequisite of a
+> change nobody has decided to make.**
+>
+> ⚠ **Recorded explicitly so it does not sit in the queue as owed work.** An unconditional *"re-read
+> owed"* would accumulate as a debt against a decision that was never taken — which is the shape of a
+> backlog entry that outlives its own subject. **If geometry is ever ruled, this re-read is its
+> precondition. Until then it is closed.**
 
 ### Why nothing in the price showed it
 

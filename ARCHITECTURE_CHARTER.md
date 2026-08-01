@@ -1260,6 +1260,16 @@ fires on **0.0125% of plays.**
 | **the subject was two things** | an average over mechanisms differing 22:1 | backlog entry 80 |
 | ⛔ **the subject cannot exist** | the rule priced needs information unavailable when it must fire | **this** |
 
+> ### ⛔ **THE COMMON PROPERTY IS THE GATE, AND IT OUTRANKS THE THREE QUESTIONS: A PRICE CAN BE HONEST, REPRODUCIBLE, AND ABOUT SOMETHING OTHER THAN WHAT THE READER WILL TAKE IT TO BE.**
+>
+> **Every one of the three is honest.** No arithmetic was wrong, no run was contaminated, no report
+> overclaimed. ⚠ **The failure is entirely in the gap between what was measured and what it will be
+> read as** — and that gap is invisible from inside the number.
+>
+> **⇒ A DISPATCH MUST MEET THIS SENTENCE BEFORE IT PRICES ANYTHING**, and it is a **better gate than
+> any of the three questions individually** — because **a fourth variety we have not seen yet still
+> fails it.** ⛔ The three questions are the known instances; **the sentence is the class.**
+
 **All three produce a number that is honest, reproducible, and about something other than what the
 reader will take it to be.**
 
