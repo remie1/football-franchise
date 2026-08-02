@@ -1912,6 +1912,32 @@ form of scrutiny that consults a source, because EVERY SOURCE HAD THE SAME NUMBE
 
 > ### ⛔ **DERIVATION IS NOT ONE VERIFICATION TECHNIQUE AMONG SEVERAL. Against a carried figure it is THE ONLY ONE THAT WORKS, because everything else asks something that has already been told.**
 
+**Corollary — ⛔ A CLAIM CAN SURVIVE TWO CORRECTIONS AND STILL BE WRONG IN THE SAME PLACE.**
+
+**One claim about one constant, corrected three times, each version NARROWER than the last:**
+
+| # | the claim | how it failed |
+|---|---|---|
+| 1 | *"a razor's edge — moving `C` EITHER WAY breaks the tie"* | ⛔ `floorFromArrival` uses `<=`; **it is one-sided** |
+| 2 | *"one-sided: any `C >= 1.0` reproduces it, only `C < 1.0` breaks it"* | ⛔ **the BOUNDARY is wrong** — `minTta` at the deciding tick is `travel − 0.5`, so the tie holds from `0.5` |
+| 3 | **"the boundary is `0.5`"** | ⚠ **DERIVED, NOT MEASURED — `C=0.5` remains untested** |
+
+> ## ⛔ **EACH CORRECTION MADE THE CLAIM MORE SPECIFIC AND NO MORE VERIFIED. Precision increased monotonically; evidence did not increase at all.**
+
+⚠ **And the error survived because every correction ADDRESSED THE PREVIOUS CORRECTION'S MISTAKE rather
+than re-deriving the quantity.** ⛔ **Correction 1 fixed the DIRECTION and inherited the VALUE.
+Correction 2 fixed the SIDEDNESS and inherited the VALUE. The value — `1.0` — was the travel constant
+the whole time, never the live `minTta`, and NOBODY RE-DERIVED IT UNTIL THE FOURTH READING.**
+
+**⇒ THE SHAPE, worth naming because it is invisible from inside a correction sequence:**
+
+> ### ⛔ **A CORRECTION INHERITS EVERYTHING IT DOES NOT EXPLICITLY RE-DERIVE — and it inherits it with the ADDED AUTHORITY of having just been reviewed.**
+
+⚠ **A twice-corrected claim FEELS more reliable than an uncorrected one. It is more PRECISE, and its
+unexamined parts have been carried through two rounds of scrutiny that never looked at them.**
+⛔ **Same family as *ratification does not add evidence, it only removes reviewers* — arriving at a
+CORRECTION rather than at an APPROVAL.**
+
 **Corollary — ⛔ A LEVER CAN MOVE ITS TARGET METRIC THE RIGHT WAY WHILE MOVING THE SYSTEM THE WRONG WAY.**
 
 **Backlog entry 104, measured on the canonical arm.** Raising the win threshold `T=15→90` moves
