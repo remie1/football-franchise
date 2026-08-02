@@ -1800,6 +1800,22 @@ INDEPENDENT** — a separate author, a separate tree, a separate read. ⛔ **Eve
 
 > ### ⛔ **AGREEMENT IS NOT CORROBORATION UNLESS THE DERIVATIONS ARE INDEPENDENT.** ⚠ **When an external source cites a figure matching ours, ASK WHETHER THEY DERIVED IT OR READ IT FROM US — and if that cannot be established, the figure has ONE source, not two.**
 
+#### ⛔ AND THE DEFAULT WHEN IT CANNOT BE ESTABLISHED — the half that will otherwise be skipped
+
+> ## ⛔ **AMBIGUOUS PROVENANCE RESOLVES TOWARD THE WEAKER READING, NOT THE FLATTERING ONE.**
+
+⚠ **This is not caution for its own sake. THE DEFAULT IS NOT NEUTRAL:** ⛔ **if unresolvable cases
+settle toward "independent", then EVERY CASE NOBODY CAN TRACE QUIETLY BECOMES CORROBORATION — and
+uncertainty SYSTEMATICALLY INFLATES CONFIDENCE instead of withholding it.**
+
+**⇒ One source until shown otherwise.** ⚠ **The burden sits on the claim of independence, because
+independence is the thing that ADDS evidence — and a claim that adds evidence is the one that must be
+established rather than assumed.**
+
+⛔ **Note this is the same asymmetry the entry above names, applied one level down: an external
+citation raises apparent standing for free, and a permissive default lets it do so REPEATEDLY, without
+anyone ever deciding that it should.**
+
 ⚠ **Note the asymmetry that makes this dangerous rather than merely untidy: an external citation
 RAISES a figure's apparent standing while adding NOTHING to its evidence.** ⛔ **The unarmed number
 comes back looking better than it left.**
