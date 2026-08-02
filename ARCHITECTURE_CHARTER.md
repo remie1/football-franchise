@@ -1936,7 +1936,21 @@ the whole time, never the live `minTta`, and NOBODY RE-DERIVED IT UNTIL THE FOUR
 ⚠ **A twice-corrected claim FEELS more reliable than an uncorrected one. It is more PRECISE, and its
 unexamined parts have been carried through two rounds of scrutiny that never looked at them.**
 ⛔ **Same family as *ratification does not add evidence, it only removes reviewers* — arriving at a
-CORRECTION rather than at an APPROVAL.**
+CORRECTION rather than at an APPROVAL.** ⚠ **A correction removes reviewers FROM THE PARTS IT DID NOT
+TOUCH, while appearing to have reviewed the whole.**
+
+### ⇒ THE OPERATIVE FORM, and it is cheap enough to be a field
+
+> ## ⛔ **WHEN CORRECTING A CLAIM, STATE WHICH OF ITS COMPONENTS YOU RE-DERIVED AND WHICH YOU CARRIED.**
+
+⚠ **That is the PROVENANCE TABLE pointed at a CORRECTION rather than at an ADR** — the same discipline
+this register already requires of a ratified document, applied to the artefact that REPLACES one.
+
+⛔ **AND IT WOULD HAVE CAUGHT THIS ON THE FIRST PASS.** ⚠ **Correction 1 would have had to write
+*"re-derived: the comparison operator. Carried: the value `1.0`."*** **The carried half is the half
+that was wrong, and naming it is free at the moment of writing and invisible afterward.**
+
+**⇒ Same test every field in this register passes:** *free at authoring time, expensive afterwards.*
 
 **Corollary — ⛔ A LEVER CAN MOVE ITS TARGET METRIC THE RIGHT WAY WHILE MOVING THE SYSTEM THE WRONG WAY.**
 
