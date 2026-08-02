@@ -28,17 +28,45 @@
 > **`UNESTABLISHED`**. ⚠ **Entry/exit — the external review's central claim — is REFUTED: it closes
 > `4.123pp` of a ~60pp gap.**
 >
-> ### The immediate next dispatch
+> ### ⛔ A SECOND EXTERNAL COLD READ ARRIVED AND REORDERED THE QUEUE
 >
-> ⛔ **ADR-057's CHEAP FORM.** Six declared mapped types over contract unions (`ByTier<T>`'s shape),
-> ~15 annotations in `tunables.ts`. ⚠ **RE-DERIVE the record list — the `~15` in the ADR is marked
-> `PRELIMINARY, GREP-BASED` and must not be trusted.** **Contracts unlock protocol; `ADR-057` in the
-> commit message.**
+> **`docs/decisions/EXTERNAL-COLD-READ-2026-08-pressure-gap.md`** — reproduced **VERBATIM**, marked
+> **EXTERNAL TESTIMONY, NOT RATIFIED**, with a **PER-CLAIM provenance table naming the tree each claim
+> ran on.** ⚠ **Read the intake header before the body. Its claims sit at THREE different standings
+> and must not be flattened.**
 >
-> **Then, in order:** `blitz_rate`'s 2022 signal *(entry 97b — `20.235%` against `25.66-27.02%`, in the
-> only season with incomplete join coverage; a live definition-change indicator on a row still reading
-> `PASS+`)*, then the **seven remaining restatements** *(entry 101 — four in calibration, three in
-> playbook, listed and unfixed)*.
+> ⛔ **IT CLAIMS TO OVERTURN TWO OWNER RULINGS** — that entry/exit IS the cause *(counterfactual: with
+> supply extinguished, entry holds at `89.5%` while exit collapses to `21.2%`)*, and that the four
+> historical threshold refusals inherit the old metric's blindness *(against exit the threshold
+> transfers `86 → 34` across `T=15→75`)*.
+>
+> > ### ⛔ **NOTHING IN IT IS VERIFIED. NOTHING IN IT IS ACTED ON.**
+>
+> ### The immediate next dispatch — **IN THIS ORDER**
+>
+> 1. ⛔ **THE `C2` INVARIANT, IN AN ISOLATED WORKTREE.** Their rig patch is claimed **stream-identical
+>    to pristine when its flag is unset.** ⚠ **§1, §2, §4 and every `iid` row rest on that sentence —
+>    if it is false they are all invalid.** ⛔ **TEST BOTH DIRECTIONS: unset for identity, SET FOR
+>    DIVERGENCE — a rig that does not diverge when set means §5 measured nothing.** **Compare full
+>    event streams, not summary metrics.**
+> 2. **Intake `gapProbe.arms` / `corr` / `ttt`** *(bundle at `C:\Users\Conta\Downloads\football-stuff`)*.
+>    ⚠ **`gapProbe.dropback` is ALREADY LANDED and gated (`FF_GAP_DROPBACK`); match it.**
+> 3. ⛔ **REPRODUCTION AT OUR HEAD, with the commit gap treated as a LIVE TEST rather than a caveat.**
+>    They pinned `a7b2a6b`. ⚠ **We believe nothing since changed SIM behaviour — if a sim figure
+>    MOVES, a commit we believed inert changed the simulation, AND THAT OUTRANKS THE ENTIRE REPORT.**
+> 4. **`EXT-1` — re-price the four refused levers against `qb_disruption_rate`.** ⛔ **HELD until 1-3
+>    report.**
+>
+> ⚠ **A worktree at `.claude/worktrees/` may still hold the rig patch APPLIED. It is gitignored
+> (deliberately — see `.gitignore`), and it is a KNOWINGLY-BROKEN TREE. Do not stage from it.**
+>
+> ### Then, previously queued and NOT superseded
+>
+> **ADR-057's cheap form** *(six declared mapped types, ~15 annotations in `tunables.ts`; ⚠ **RE-DERIVE
+> the list — the `~15` is marked `PRELIMINARY, GREP-BASED`**; contracts unlock protocol, `ADR-057` in
+> the commit message)*, then `blitz_rate`'s 2022 signal *(entry 97b)*, then the **seven remaining
+> restatements** *(entry 101)*, then the **ingested-and-unread sweep** *(entry 102 — `qb_dropback` was
+> found by accident; the cache's own columns are the reference set)*.
 >
 > ### ⛔ Three things are OWED to the owner before they are cited
 >
