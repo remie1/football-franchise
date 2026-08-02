@@ -7445,3 +7445,89 @@ entry 37 warns about rather than hiding it.**
 
 **Gaps named:** ⚠ **single seed set, no resample cross-validation; and COMMITTED `T=15` ONLY — whether
 the exclusive arrival share moves under a different `T` is UNMEASURED.**
+
+---
+
+## 106. ⛔⛔ THE JOINT SWEEP — and **THE ARCHITECTURAL OUTCOME VARIABLE IS CONFOUNDED**
+
+**27-arm full factorial at `n=150`, four arms confirmed at canonical `n=496`.** ⚠ **Nothing here is a
+ruling.** ⛔ **AND THE MOST IMPORTANT ITEM IS A METHODOLOGICAL CAVEAT THE DISPATCH FOUND AND FLAGGED
+ITSELF — read it before the numbers.**
+
+### ⛔⛔ THE CAVEAT FIRST: **MULTI-CHANNEL SHARE IS PARTLY MEASURING A TIE-BREAK, NOT REDUNDANCY**
+
+**I specified `multi-channel share` as the ARCHITECTURAL outcome variable — the number that says
+whether the stacking changed rather than whether the metrics moved.** ⛔ **IT IS CONFOUNDED.**
+
+**Narrowing `collapsingWithinSeconds` to `0.0` ALONE — `T` and the counter held committed — collapses
+multi-channel share `90.32% → 14.89%` while BARELY MOVING THE TRIPLE** *(exit `85.62 → 83.34`,
+conversion `17.84 → 19.13`)*.
+
+⛔ **THE CAUSE IS AN EXACT NUMERIC COINCIDENCE IN THE COMMITTED TREE, VERIFIED INDEPENDENTLY:**
+
+| | value | line |
+|---|---|---|
+| `travelSecondsByAlignmentAndMove.INTERIOR` *(all moves)* | **`1.0`** | `tunables.ts:641` |
+| `arrival.collapsingWithinSeconds` | **`1.0`** | `tunables.ts:774` |
+
+> ## ⛔ **AN INTERIOR WON REP'S TRAVEL TIME EQUALS THE COLLAPSING HORIZON EXACTLY. Band-floor and arrival therefore TIE AT THE SAME INSTANT on a large share of plays — and moving `C` off `1.0` IN EITHER DIRECTION mechanically reassigns WHICH CHANNEL GETS SOLE CREDIT.**
+
+⚠ **So the `90% → 9-15%` collapses reported below are NOT PURELY *"the stack loosened."* Part of each
+is a single-tick coincidence being broken.** ⛔ **THE TWO EFFECTS WERE NOT SEPARATED — that needs a
+sixth instrument, and it is NAMED AS UNEXPLORED RATHER THAN BUILT.**
+
+⚠ **The corpus already documented these "dead heats" elsewhere** (`pocketChannelShares.ts`,
+`collapsingHorizonSweep.test.ts`, and `tunables.ts:937`). ⛔ **What was NOT known is that they
+contaminate the redundancy measure.**
+
+### THE FOUR CONFIRMED ARMS (`n=496`), against real `exit ≈29.2` / `conversion ≈23-25`
+
+| arm | exit | vs real | conversion | vs real | multi-channel |
+|---|---|---|---|---|---|
+| **BASELINE** `(15, 1.0, 1.0)` | 85.60 | **+56.40** | 17.76 | −6.24 | **90.41%** |
+| `T=90` ALONE | 23.62 | −5.58 | ⛔ **9.16** | ⛔ **−14.84** | 10.58% |
+| ⛔ **`(90, 0.5, 0.0)` — PRE-REGISTERED** | ⛔ **12.36** | ⛔ **−16.84** | ⛔ **44.95** | ⛔ **+20.95** | 2.95% |
+| ⚠ **`(90, 2.0, 0.0)` — POST-HOC** | **27.69** | **−1.51** | 19.84 | −4.16 | 9.32% |
+
+### ⛔ THE PRE-REGISTERED JOINT CORNER WAS **WRONG ABOUT DIRECTION** — headlined, not buried
+
+**The dispatch's own pre-registered arm assumed a SLOWER counter would help.** ⛔ **It produced a NEW
+FAILURE MODE: conversion OVERSHOOTS real by `+20.95pp` while exit COLLAPSES `16.84pp` BELOW it.**
+⚠ **The grid shows the opposite lever direction matters — a FASTER counter (`m=2.0`) is what recovers
+conversion.**
+
+### ✅ AND THE ESCALATOR HAND-OFF IS **DIRECTLY VISIBLE IN THE DECOMPOSITION**
+
+**At `T=90` with `C`/`m` committed:** ⛔ **band-floor's sole share nearly VANISHES — `3` of `12,472`**
+*(`RUSHER_WINS_REP` is almost unreachable above margin 90)* — ⛔ **while arrival's sole share BALLOONS
+to `10,734` of `12,472` = `86%`.**
+
+> ### ⚠ **THE SAME POPULATION THAT WAS JOINTLY FORCED IS NOW FORCED BY ARRIVAL ALONE — and per entry 105, arrival-sole plays convert at ≈`7%`.** ⛔ **THAT IS THE MECHANISTIC REASON RAISING `T` TANKS CONVERSION, measured rather than inferred.**
+
+**Doubling the counter rate at `T=90` then gives the counter reach over the now-common
+`BLOCKER_BEATEN` reps, and it picks up `8,113` of `14,566` = `56%` sole share.** ⛔ **A DIRECT,
+MEASURED INSTANCE OF ONE ESCALATOR ABSORBING THE WORK WHEN ANOTHER IS WEAKENED.**
+
+### ⚠ PRE-REGISTRATION OUTCOME: **NONE OF THE THREE BRANCHES FITS, AND IT WAS FLAGGED RATHER THAN FORCED**
+
+⛔ **Arm `(90, 0.5, 0.0)`: architecture DID collapse, but the triple moved to a WORSE place.** **That
+is neither branch (i) *"lands the triple AND collapses over-determination"*, nor (ii) *"lands it but
+over-determination stays ~90%"*, nor (iii) *"neither moves."***
+
+⚠ **The grid's best point is closer to (i) but is POST-HOC — found by scanning 27 arms, not
+predicted — and STILL `~4pp` SHORT ON CONVERSION.** ⛔ **It is a LOOK-ELSEWHERE-AFFECTED observation
+and is labelled as one.**
+
+### VERIFIED, HELD, AND UNEXPLORED
+
+✅ **Cross-validation: the `n=496` baseline reproduces entry 105 DIGIT-FOR-DIGIT** *(forced `37,126`;
+sole-bandFloor `1,421`; sole-arrival `2,140`; multi `33,565` = `90.41%`)*, **and `T=90` reproduces
+entry 104's point exactly.** ⚠ **Every arm's identity and sole-ambiguity falsifiers at `0`.**
+
+**Every constant in the brief was checked and held true** — `minMargin 15`, deltas `1`, `COLLAPSING`
+`minProgress 5`, `tickStep 0.5` ⇒ **`2.5s`, exactly the review's testimony.**
+
+⛔ **HELD, per entry 37:** `arrival.pressureWithinSeconds` at `2.0` in EVERY arm *(structurally inert
+— `forcesDecision` never contains `PRESSURE`)*; `pocket.thresholds` values fixed, only the RATE swept.
+⚠ **UNEXPLORED AND NAMED:** single seed list; lever interior points (`T` 30/40/60/75, `m`
+0.25/0.75/1.5/3, `C` 0.5/1.5); and ⛔ **the tie-break/redundancy separation above.**
