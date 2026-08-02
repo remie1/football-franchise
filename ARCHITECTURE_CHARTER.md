@@ -1851,6 +1851,39 @@ form of scrutiny that consults a source, because EVERY SOURCE HAD THE SAME NUMBE
 
 > ### ⛔ **DERIVATION IS NOT ONE VERIFICATION TECHNIQUE AMONG SEVERAL. Against a carried figure it is THE ONLY ONE THAT WORKS, because everything else asks something that has already been told.**
 
+**Corollary — ⛔ A LEVER CAN MOVE ITS TARGET METRIC THE RIGHT WAY WHILE MOVING THE SYSTEM THE WRONG WAY.**
+
+**Backlog entry 104, measured on the canonical arm.** Raising the win threshold `T=15→90` moves
+`qb_disruption_rate` **`85.60 → 23.62`** — straight toward the real `~29`. ⛔ **Over the same sweep,
+CONVERSION (`sack ÷ exit`) falls `17.76% → 9.14%`, AWAY from a real `23-25%` it was ALREADY BELOW.**
+
+> ## ⛔ **THE EXIT COLUMN ALONE READS AS A CLEAN SUCCESS STORY. Only the third column shows the lever making the model worse while hitting its target.**
+
+### ⇒ THIS IS ENTRY 67's BLINDNESS ONE LAYER UP, AND IT IS THE WORSE FORM
+
+| | entry 67 | ⛔ **entry 104** |
+|---|---|---|
+| the metric | **COULD NOT SEE** the change *(a `COLLAPSING→PRESSURE` demotion was invisible)* | ⛔ **SEES IT AND REPORTS IT AS SUCCESS** |
+| failure mode | ⚠ fails to DETECT | ⛔ **actively MISLEADS** |
+| who notices | someone asking why nothing moved | ⛔ **NOBODY — the lever did exactly what it was aimed at** |
+
+⛔ **A metric that cannot see a change eventually prompts someone to ask why. A metric that moves the
+right way while the system moves the wrong way prompts NOBODY, because every check anyone would think
+to run comes back green.**
+
+### ⇒ TWO STANDING CONSTRAINTS, RATIFIED AT ENTRY 104
+
+> ### ⛔ **1. THE TRIPLE IS THE OUTCOME VARIABLE FOR PRESSURE WORK — `exit`, `sack`, `conversion`. A REPORT SHOWING ONE COLUMN IS *INCOMPLETE*, NOT *PARTIAL*.**
+
+⚠ **The distinction is deliberate: a partial report is a smaller true thing; an incomplete one can be
+READ WRONG. The exit-only curve is the second.**
+
+> ### ⛔ **2. ANY COUNTERFACTUAL NAMES WHAT IS HELD (entry 37).** ⚠ **`pocketStatusFor` is a WORST-OF over three channels, so these mechanisms INTERACT BY CONSTRUCTION and removing one can be wholly absorbed by another.**
+
+⛔ **The last time interacting mechanisms were priced separately here, the result was a `22:1`
+asymmetry that turned out to be an ORACLE RULE.** **An exclusive-share number that does not say what
+was held is not a result.**
+
 **Corollary — ⛔ THE RULING-SEARCH ASKS *"WHICH CELLS DOES THIS RULING IMPLY?"* NOBODY ASKS *"WHICH RATIFIED DESCRIPTIONS DOES THIS CHANGE FALSIFY?"***
 
 ⚠ **The first runs SIDEWAYS at ruling time and this project does it well. The second runs FORWARD IN
