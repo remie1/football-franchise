@@ -1595,6 +1595,46 @@ tunables literal is checked against NOTHING, because it DEFINES what it would be
 unreachable because there is nothing to sweep — the only fix is to INVERT THE DIRECTION so a check
 becomes possible at all.**
 
+### ⛔ #9 — **THE INVERSE: A FACT NOTHING READS, BESIDE A RESTATEMENT THAT REACHED EVERYTHING**
+
+⚠ **This is NOT the absorbed class. It is its mirror, and it needs a DIFFERENT DETECTING QUESTION.**
+
+| | absorbed (#1-#5) | ⛔ **#9 — the inverse** |
+|---|---|---|
+| **what is idle** | a MECHANISM nothing reaches | ⛔ **a FACT nothing reads** |
+| **is the idle thing correct?** | yes, and irrelevant | ⛔ **YES, AND AUTHORITATIVE** |
+| **the question** | *what reads this?* → "nothing", **and that is the defect** | ⛔ *what was consulted INSTEAD?* — "nothing reads it" is TRUE and is NOT the defect |
+
+**Worked instance:** `PbpRow.qbDropback` — **nflverse's own `qb_dropback` column** — was ingested at
+`pbp.ts:214` and **READ ZERO TIMES.** ⛔ **Meanwhile `isDropback` keyed on `playType === "pass"` under
+a comment claiming *"nflverse types [sacks and scrambles] as `pass`"* — FALSE for scrambles, which
+type as `run`.**
+
+> ## ⛔ **THE AUTHORITATIVE ANSWER WAS IN THE CACHE THE WHOLE TIME. A RESTATEMENT WAS CONSULTED INSTEAD, AND IT WAS WRONG.**
+
+⚠ **And the sign that the right key was found rather than a convenient one: keying on `qbDropback`
+disposed of the `no_play` penalty bucket WITHOUT bespoke logic** — the source's own flag already
+excluded it. ⛔ **A convenient key needs a special case; the correct one does not.**
+
+**⇒ SO THE SWEEP FOR #9 IS NOT *"what is unread?"*** — plenty is legitimately unread. ⛔ **It is
+*"where a fact was NEEDED, what supplied it — the source, or a restatement of the source?"***
+
+### ⚠ AND THE FALSE-PROSE COUNT IS NOW THE ARGUMENT
+
+**Four DISTINCT sites where prose in or beside the implementation contradicts the implementation:**
+
+| # | site | the false claim |
+|---|---|---|
+| 1 | `passPlay.ts:505-516` | *"a coverage sack… frequently `CLEAN`"* — describes a path that never executes |
+| 2 | `time_to_throw`'s `definition` | *"throwaways excluded from both sides"* — the real join never excluded them |
+| 3 | `realInput.ts:169` | *"nflverse types [scrambles] as `pass`"* — **zero of 1,118 do** |
+| 4 | `sack_rate`'s `definition` | ⛔ **the same false claim as #3, independently** |
+
+> ### ⛔ **ALL FOUR READ AS CORROBORATION TO ANYONE CHECKING CODE AGAINST DOC — which is the check a careful reader performs, and the one that fails silently when both say the same wrong thing.**
+
+⚠ **One instance is a slip. FOUR IS A PROPERTY OF THE MEDIUM: prose adjacent to code is written once,
+reviewed as narrative, and never re-derived — while the code beside it moves.**
+
 **Corollary — ⛔ A CLAIM PLACED AMONG MEASUREMENTS IS READ AS ONE.**
 
 **ADR-033 reports a 400-sack sample and introduces its findings as *"the terminal status is ALWAYS one
