@@ -1635,6 +1635,35 @@ excluded it. ⛔ **A convenient key needs a special case; the correct one does n
 ⚠ **One instance is a slip. FOUR IS A PROPERTY OF THE MEDIUM: prose adjacent to code is written once,
 reviewed as narrative, and never re-derived — while the code beside it moves.**
 
+**Corollary — ⛔ A CONSUMER SET DERIVED BY CALL-GRAPH CANNOT FIND A CONSUMER THAT COPIED THE OUTPUT.**
+
+**`3019dd8` changed `isDropback`. Its consumer set was derived — `grep -rn "isDropback"` — and found
+THREE call sites, all in `tier1.ts`. ⚠ That answer is CORRECT AND COMPLETE as a call-graph answer.**
+
+⛔ **AND IT MISSED TWO PROVENANCE TABLES THAT HARDCODE THE FUNCTION'S PRIOR OUTPUT:**
+
+- **`participation.ts` §5** — a season-coverage table over `56,893` joined dropbacks, computed via the
+  **pre-change** `isDropback`, inviting future re-derivation and never saying the join has moved.
+- ⛔ **`ftn.ts` §5-6 — the more consequential.** The whole distribution-shape test *(mean `4.2238`,
+  variance `0.5869`, TVD `7.74%`, `1.99%` of mass outside sim support)* rests on the pre-change join.
+  ⚠ **`blitz_rate`'s live caveat WAS updated; the file carrying its SUPPORTING EVIDENCE was not — so
+  the two now describe different populations without saying so.**
+
+> ## ⛔ **"WHO CALLS X" AND "WHOSE NUMBERS CAME FROM X" ARE DIFFERENT QUESTIONS — and documentation lives almost entirely in the second.**
+
+⚠ **A grep for the identifier excludes transcribed results BY CONSTRUCTION.** ⛔ **They are consumers
+in every sense that matters — they will be read, cited and re-derived from — and in no sense the tool
+can see.**
+
+### ⇒ THE PRACTICAL FORM
+
+> ### ⛔ **WHEN A FUNCTION'S BEHAVIOUR CHANGES, SWEEP FOR ITS OUTPUT AS WELL AS ITS CALL SITES.** ⚠ **The old FIGURES are the search key — grep the numbers, not just the name.**
+
+**This refines *derive the subject set, not just the enumeration over it* (backlog entry 101).**
+⛔ **There the scope was chosen while the enumeration was derived. HERE THE SCOPE WAS DERIVED TOO —
+and the derivation answered a narrower question than the one that mattered.** ⚠ **Derivation is not a
+guarantee that the question was right; it is only a guarantee that the answer matches it.**
+
 **Corollary — ⛔ A CLAIM PLACED AMONG MEASUREMENTS IS READ AS ONE.**
 
 **ADR-033 reports a 400-sack sample and introduces its findings as *"the terminal status is ALWAYS one
