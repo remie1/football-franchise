@@ -7716,3 +7716,101 @@ the dispatch supplies the price list and is forbidden to recommend.**
 `C` IN EITHER DIRECTION would break.** ⛔ **WRONG. `floorFromArrival` uses `<=`, so ANY `C >= 1.0`
 reproduces the full tie; ONLY NARROWING breaks it.** ⚠ **The committed `1.0` is the LOWER BOUNDARY OF
 A ONE-SIDED REGION, not an isolated point — a materially different fact about how fragile it is.**
+
+---
+
+## 109. ⛔ THE MECHANISM READ — the price list for the won-rep ruling, and **A THIRD CORRECTION TO THE BOUNDARY CLAIM**
+
+**Read-only. Nothing changed.** ⚠ **The owner asked for the mechanism, not a recommendation, and none
+is offered.**
+
+### ✅ FIRST: THE DIVERGENCE RISK IS CLEARED
+
+**Entry 107's `<=` finding came from calibration's REIMPLEMENTATION. I flagged that if the engine and
+the reconstruction disagreed, THAT would outrank this dispatch's subject.** ⛔ **THEY DO NOT.**
+**`rushThreat.ts:589-602` and `geometryTimeRetirement.ts:169-174` are TEXTUALLY IDENTICAL** — both
+`minTta <= immediate → IMMEDIATE`, `<= collapsing → COLLAPSING`, `<= pressure → PRESSURE`.
+⚠ **Every channel-share number in entries 105-107 flows through a faithful reconstruction.**
+
+### ⛔ THE CORRECTION — **`minTta` AT THE DECIDING TICK IS `0.5`, NOT `1.0`**
+
+**`pocketStatusFor` is computed at the TOP of each tick from the PREVIOUS iteration's rep roll — the
+loop says so itself: *"every input is last tick's… `previousBand` is exactly tick−0.5"*
+(`passPlay.ts:525-530`).**
+
+**A rep won at tick `T` publishes `etaTick = T + travel`. The FIRST tick that is ever read is
+`T+0.5`.** ⛔ **So for INTERIOR: `minTta = 1.0 − 0.5 = 0.5`.**
+
+⚠ **The tie is REAL and reproduces — `0.5 <= 1.0` holds.** ⛔ **BUT THE QUANTITY ENTRIES 106-108 CALLED
+`1.0` IS THE TRAVEL CONSTANT, NOT THE LIVE `minTta` EVALUATED AT THE DECIDING TICK.**
+
+> ## ⛔ **CONSEQUENCE: *"only `C < 1.0` breaks the tie"* IS UNVERIFIED OVER ITS MOST RELEVANT INTERVAL. By the arithmetic — no dice anywhere in it — THE TIE SHOULD HOLD FOR ANY `C >= 0.5`. And entry 106 LISTS `C=0.5` AS UNEXPLORED.**
+
+**THIRD CORRECTION TO ONE CLAIM, each narrower than the last:**
+
+| # | claim | status |
+|---|---|---|
+| 1 | *"razor's edge — moving `C` EITHER WAY breaks it"* | ⛔ **WRONG** (entry 107: `<=` makes it one-sided) |
+| 2 | *"one-sided; any `C >= 1.0` reproduces, only `C < 1.0` breaks"* | ⛔ **BOUNDARY IS WRONG** — arithmetic says `0.5` |
+| 3 | **"the boundary is `0.5`"** | ⚠ **DERIVED, NOT MEASURED — `C=0.5` IS UNTESTED** |
+
+⚠ **This refines the mechanism's stated arithmetic. It does NOT refute entry 107's measured
+percentages, which came from real runs.**
+
+### A — WHAT EACH CHANNEL CLAIMS, FROM THE RATIFIED RECORD
+
+| | `pocketFloorFor` (bandFloor) | `pocketFloorFromArrival` |
+|---|---|---|
+| **spec** | §7.2: *"1+ rushers won (winning by 15+) PREVIOUS TICK"* | §7.2's amendment: *"Winning a rep and pressuring the passer are NOT THE SAME EVENT"* |
+| **ADR** | ADR-033: *"ONE won rep is sufficient — it is not a quantity that has to accumulate"* | *"a won rep produces a threat with an ETA, and the passer has the intervening ticks"* |
+| **shape** | ⛔ **CATEGORICAL, single-rep, ONE TICK of memory.** No alignment, no magnitude, no time term | ⛔ **CONTINUOUS, physical-distance, three named horizons** |
+| **answers** | *did this rusher win his rep last tick* | *how close is the nearest travelling threat RIGHT NOW* |
+
+### B — NEITHER HAS AN EMPTY POPULATION. THEY STAND ALONE ON **DISJOINT** ONES.
+
+- ⛔ **ARRIVAL COVERS WHAT BANDFLOOR STRUCTURALLY CANNOT REACH AT ALL.** `RushPlan` is a discriminated
+  union: a matchup has **either** `blocker` **or** `free`. The rep loop SKIPS `m.blocker === undefined`,
+  so `previousBand` stays `undefined` for the play's life. ⚠ **BandFloor has ZERO contribution, EVER,
+  for a free runner, stunt looper, or lost pickup.**
+- ⚠ **BANDFLOOR COVERS WON REPS ARRIVAL CANNOT SEE.** `m.previousBand = rush.band` is set
+  UNCONDITIONALLY (`:592`), while `retireIfBeyondClock` may already have retired the threat. **Next
+  tick bandFloor floors `COLLAPSING`; arrival sees nothing.** *(Rare — §7.1 dates it at 6 occurrences in
+  40,000 plays.)*
+- ⛔ **ARRIVAL CARRIES A WON REP FORWARD THROUGH TIME; BANDFLOOR CANNOT.** If the same matchup posts
+  `STALEMATE` next tick, `minimumStatusByBand` maps it to `CLEAN` — **bandFloor's contribution
+  REVERTS** — while the live threat keeps closing. **`tunables.ts:950`: *"a rusher who won at 1.0 and
+  stalemates at 1.5 has NOT un-beaten his block, he is still coming."***
+- ⛔ **AND BANDFLOOR STRUCTURALLY CANNOT REACH `IMMEDIATE`** — `minimumStatusByBand`'s only non-`CLEAN`
+  values are `PRESSURE` and `COLLAPSING`. **Every `IMMEDIATE` tick a won rep produces is arrival's.**
+
+### C — THEY DO DISAGREE, AND WHERE IS DERIVABLE FROM THE CONSTANTS
+
+- ⛔ **INTERIOR: TIE EXACTLY, AT EVERY MARGIN.** `travel` is `1.0` for all three moves AND
+  `arrival.minTravelSeconds` is `1.0`, so the dominance shave is **clamped back to `1.0` regardless of
+  margin.** ⚠ **Matches entry 107's `85.15%`.**
+- ⛔ **EDGE `SPEED` (`travel 2.0`): THEY DISAGREE.** `minTta = 1.5` at the deciding tick — **`> collapsing(1.0)`
+  but `<= pressure(2.0)`** ⇒ ⛔ **arrival floors `PRESSURE` while bandFloor floors `COLLAPSING`.**
+  ⚠ **BandFloor is the MORE SEVERE reading.** *(Faster EDGE wins land back on the tie.)*
+
+### E — ⛔ THE PRICE LIST. **THE OWNER RULES; THIS IS WHAT IT COSTS EITHER WAY.**
+
+**IF `bandFloor` IS AUTHORITATIVE FOR A WON REP:**
+- ⛔ **The distance gradation becomes COSMETIC on won reps** — every EDGE win forces `COLLAPSING`
+  immediately, despite §7.2's own commentary that the 10-12-yard arc makes edge pressure *"worth
+  less."*
+- ⛔ **"The beaten tackle stays beaten" DISAPPEARS** unless bandFloor gains more than one tick of
+  memory — a won rep followed by a stalemate reads `CLEAN` again, **the exact failure mode arrival was
+  added to prevent.**
+- ⛔ **`IMMEDIATE` must come from somewhere else entirely** — bandFloor cannot supply it, and the
+  counter contributes `0.00%` (entry 107).
+
+**IF `arrival` IS AUTHORITATIVE FOR A WON REP:**
+- ⛔ **ADR-033's *"one won rep is sufficient"* stops being an independent guarantee** — a decisively won
+  EDGE rep sits at `PRESSURE` for up to `1.5s` before arrival catches up, **contradicting §7.2's
+  literal unqualified sentence.**
+- ⛔ **Everything runs through `travelSecondsFor`'s dominance-shave heuristic — MARKED `INTERPRETATION`,
+  EXPLICITLY NOT DOCTRINE (ADR-031 §1c/1d).** ⚠ **What forces a decision on a won rep becomes a
+  function of an UNRATIFIED table rather than the doc's own stated rule.**
+
+**UNCHANGED EITHER WAY:** the free-runner/looper/pickup-loss population *(arrival is already sole
+there)*, and the counter's established zero contribution.
