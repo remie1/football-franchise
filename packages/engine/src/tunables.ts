@@ -276,6 +276,39 @@ export const TUNABLES = {
      * response to line quality is ~2.9× as steep. Tier 1 means are recoverable
      * later; structural insensitivity is not.
      *
+     * ⚠ CORRECTION, August 2026 — the `16.371%` real just above is STALE. Not
+     * because anything in the engine or the sweep changed: commit `3019dd8`
+     * corrected `isDropback` on the calibration side to key on nflverse's own
+     * `qbDropback` flag instead of a false claim that scrambles type as
+     * `pass`. Pooled 2022-2024, `pressure_to_sack`'s real moves
+     * 16.371%→15.464% on 17,602 pressured rows (was 16,627 — the numerator
+     * grew too; scrambles are pressured at roughly the base rate). Nothing
+     * else on this page moved.
+     *
+     * Re-signed against the corrected real, THE COMPARISON INVERTS: pre-change
+     * 15.191% is now 0.273pp from real (was 1.180pp away); post-change
+     * 16.264% is now 0.800pp from real (was 0.107pp away). The change that
+     * read as an improvement of 1.073pp against the old real reads as a
+     * worsening of 0.527pp against the corrected one. "The best measured
+     * anywhere in the sweep" is retracted — it is now the worse of the two
+     * values on this row, on this metric.
+     *
+     * ADR-028's conclusion is NOT what the retraction touches, and arguably
+     * strengthens: the argument for petition 1 was explicitly structural
+     * ("Tier 1 means are recoverable later; structural insensitivity is
+     * not"), and it already conceded pressure and sack both moved the wrong
+     * way. `pressure_to_sack` was its one consolation row; with the corrected
+     * real, all three Tier 1 rows now move the wrong way, so "this is not the
+     * pressure-rate lever" holds harder, not less. Read the superlative
+     * sentence above as historical — it was true of the comparison as it
+     * stood when written — and read this note as the current one.
+     *
+     * WHY THIS ONE WASN'T FOUND BY GREPPING WHAT A COMMIT TOUCHED: no line in
+     * `packages/engine` changed. The prose was accurate about a comparison
+     * whose other side — a real-NFL denominator computed in
+     * `packages/calibration` — moved out from under it. See ADR-028 for the
+     * original sweep and `3019dd8` for the denominator fix.
+     *
      * It remains a live dial and a legal patch target — it is simply no longer
      * the pressure-rate lever.
      *
