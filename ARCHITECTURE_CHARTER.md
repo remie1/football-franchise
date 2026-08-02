@@ -1041,6 +1041,32 @@ steps, fail-fast, its own exit code as the verdict, and **unrun steps printed as
 green`** rather than omitted. ⚠ **Nothing was learned in amendment 3 that was not available at
 amendment 2; what changed was only the willingness to stop patching.**
 
+**Corollary — ⛔ A COMMAND'S OUTPUT IS EVIDENCE ABOUT THE DIRECTORY IT RAN IN, AND THAT DIRECTORY IS NOT ALWAYS THE ONE YOU THINK.**
+
+> ### ⚠ **SAME FORM AS: *a green suite is evidence about the package it ran in and nothing else.***
+
+**Worked instance, August 2026.** A compound `cd` into `data-cache/pbp/2023` **PERSISTED ACROSS TOOL
+CALLS**. Four subsequent checks reported `.gitignore`, `packages/calibration/reports/`,
+`baseline-0007.md` and `baselineTool.test.ts` as **NOT EXISTING** — ⛔ **and a missing baseline report
+was very nearly written up as a finding, on a session whose every arm citation names that file.**
+
+> ## ⛔ **THE RESULTS WERE ALL REAL. THE SUBJECT WAS WRONG.**
+
+⚠ **This is the provenance failure arriving in the TOOLING rather than in a document or a metric** —
+the same shape as an unarmed figure, a stale docstring, or a sweep over the wrong package set.
+⛔ **Nothing about the output was false; it answered a question about a directory nobody intended to
+ask about.**
+
+### ⇒ THE PRACTICAL FORM, and it is one clause
+
+> ### ⛔ **A NEGATIVE RESULT ABOUT THE FILESYSTEM MUST CARRY ITS `pwd` IN THE SAME COMMAND.**
+
+⚠ **"X does not exist" is the claim most sensitive to this and the least self-evidencing** — an
+absence looks identical whether the subject is missing or the observer is standing somewhere else.
+⛔ **A positive hit at least names its own path; a negative names nothing.**
+
+**⇒ And prefer absolute paths over `cd` in any command whose result will be reasoned from later.**
+
 **Sub-corollary — A CLAIM IS UNVERIFIED UNTIL SOMETHING COMPUTES IT. Not distrusted. UNVERIFIED.**
 
 > ### **RATIFICATION DOES NOT ADD EVIDENCE; IT ONLY REMOVES REVIEWERS.**
