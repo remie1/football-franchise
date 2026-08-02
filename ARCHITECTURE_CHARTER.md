@@ -1824,6 +1824,33 @@ comes back looking better than it left.**
 derivation returns FOUR, the count was right however it travelled. ⛔ IF IT RETURNS FIVE, IT WAS
 CARRIED — IN BOTH DIRECTIONS.**
 
+#### ⛔ RESULT (backlog entry 103): **SIX candidates, THREE genuine refusals. NEITHER IS FOUR.**
+
+**And the list was wrong in COMPOSITION, not merely in count** — three of the named levers had their
+values CHANGED by ratified rulings and were never refusals at all.
+
+> ## ⛔ **THIS IS THE FIRST TIME THE OUT-OF-BAND LEAK HAS BEEN OBSERVED COMPLETING A FULL CIRCUIT.**
+
+| step | what happened | why it looked fine |
+|---|---|---|
+| 1 | a count is recalled into a **progress summary** | ⚠ conversational, not a record |
+| 2 | it is read by an external reviewer | ⚠ **it is the only ledger on offer** |
+| 3 | their report cites *"the four historical threshold refusals"* | ⚠ **a separate author, tree and read** |
+| 4 | it returns to us as **apparent corroboration** | ⛔ **every surface cue says independent** |
+| 5 | ⛔ **it is still wrong** | ⛔ **nothing at any step could have shown that** |
+
+⚠ **NOBODY LIED AND NO STEP WAS UNREASONABLE.** ⛔ **Entry 90 IDENTIFIED this leak. THIS IS THE FIRST
+MEASUREMENT OF WHAT IT COSTS: a wrong ledger shaped two owner rulings and an external review's
+framing, and travelled a full round trip gaining apparent standing at every hop.**
+
+### ⇒ AND THE ONLY THING THAT CAUGHT IT
+
+⛔ **A DISPATCH INSTRUCTED TO DERIVE THE SUBJECT SET RATHER THAN INHERIT IT.** ⚠ **Not a review, not a
+second opinion, not the external read — all three had the wrong number.** **The count survived every
+form of scrutiny that consults a source, because EVERY SOURCE HAD THE SAME NUMBER.**
+
+> ### ⛔ **DERIVATION IS NOT ONE VERIFICATION TECHNIQUE AMONG SEVERAL. Against a carried figure it is THE ONLY ONE THAT WORKS, because everything else asks something that has already been told.**
+
 **Corollary — ⛔ THE RULING-SEARCH ASKS *"WHICH CELLS DOES THIS RULING IMPLY?"* NOBODY ASKS *"WHICH RATIFIED DESCRIPTIONS DOES THIS CHANGE FALSIFY?"***
 
 ⚠ **The first runs SIDEWAYS at ruling time and this project does it well. The second runs FORWARD IN
