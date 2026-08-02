@@ -1089,6 +1089,39 @@ IRRELEVANT, and the path alone cannot say which.**
 **⇒ Same discipline as `REFUSED` over an em dash, and as `NOT RUN — UNKNOWN, not green`:** ⛔ **a
 marker that states its own reason survives a reader who did not write it.**
 
+**Corollary — ⛔ FOR AN EXTERNAL ARTEFACT, AUTHORISATION IS NOT CONTAINMENT. VERIFY CONTAINMENT AFTERWARD.**
+
+**An external measurement rig — code from outside the repo, never authored here — was applied and
+executed against the engine.** ⚠ **It was owner-directed and it was the ONLY way to test the claim it
+existed to test.** ⛔ **NEITHER FACT MAKES IT CONTAINED.**
+
+> ### ⚠ **"THE OWNER ASKED FOR IT" ANSWERS *SHOULD THIS RUN*. IT DOES NOT ANSWER *WHERE DID IT GET TO*.**
+
+**⇒ THE STANDARD, for any future external artefact:** ⛔ **isolated worktree; the holding directory
+GITIGNORED WITH ITS REASON; and afterward, MEASURED containment — `main` shows zero diff in the
+touched package, the artefact exists only in the ignored tree, nothing committed, nothing pushed.**
+⚠ **Checked, not asserted.**
+
+**Corollary — ⛔ `skipIf` DOES NOT GATE `tsc`.**
+
+**A runtime-gated external probe still failed typecheck** — the gate decides whether a test *runs*,
+not whether it *compiles*. ⚠ **A file that can never execute can still redden the tree.**
+
+**⇒ Which is the argument for `pnpm verify` running typecheck as a peer of test rather than a
+follow-up:** ⛔ **the two answer different questions and neither implies the other.**
+
+**Corollary — ✅ `fork()` IS SIDE-EFFECT-FREE ON ITS PARENT, AND THAT IS WHY EXTERNAL RIGS ARE TESTABLE HERE.**
+
+**`Rng.fork(childLabel)` returns `createRng(seed, "parent/child")` — a NEW `mulberry32` seeded by
+HASHING THE COMPOSED LABEL, sharing no mutable counter with its parent.**
+
+> ### ⛔ **SO A SPURIOUS FORK CANNOT DESYNC SIBLING DRAWS — unlike a position-based PRNG, where *"a fork consumes a slot"* is the classic instrumentation hazard.**
+
+⚠ **Recorded as a SAFETY PROPERTY OF THE DESIGN, not as an excuse to skip the check** — the rig's
+invariant was still established by TRACING every draw and finding **zero** `latent:*` forks, which
+proves the guard is never ENTERED rather than that its effects CANCELLED. ⛔ **The property explains
+why the design is robust; the trace is what verified this instance.**
+
 **Sub-corollary — A CLAIM IS UNVERIFIED UNTIL SOMETHING COMPUTES IT. Not distrusted. UNVERIFIED.**
 
 > ### **RATIFICATION DOES NOT ADD EVIDENCE; IT ONLY REMOVES REVIEWERS.**
@@ -1719,6 +1752,26 @@ of where it sat on the page.**
 **⇒ Provenance attaches to a CLAIM, not to a DOCUMENT.** ⛔ **A ratified ADR is not uniformly
 evidenced: the measured and the asserted can sit in one list, and the reader cannot tell them apart
 unless the writer says which is which.**
+
+### ⛔ AND THE INVERSE, WHICH COSTS MORE: **A FINDING PLACED AMONG CONTEXT IS READ AS CONTEXT**
+
+**A dispatch re-priced the external counterfactual on our own tree and printed the result under
+*"reported here only as arm-named context, not graded against anything."*** ⛔ **It was the most
+consequential measurement this project has produced: extinguishing supply moves entry `0.10pp` and
+exit `64.17pp` — the evidence that OVERTURNED AN OWNER RULING.**
+
+> ## ⛔ **THE SAME MECHANISM AS *A CLAIM PLACED AMONG MEASUREMENTS*, RUNNING THE OTHER DIRECTION. Position on the page assigns weight, and it does so WHETHER OR NOT THE WRITER INTENDED IT.**
+
+⚠ **Both failures are honest. The first promotes an assertion by seating it among counts; the second
+demotes a result by seating it among background.** ⛔ **Neither requires anyone to be careless — the
+formatting does the work.**
+
+**⇒ So the rule is symmetric, and neither half is sufficient alone:**
+
+> ### ⛔ **EVERY CLAIM NAMES ITS STATUS — *and* EVERY RESULT NAMES ITS WEIGHT.** ⚠ **A dispatch that answers the question it was sent to answer must say so, not leave the reader to notice.**
+
+⚠ **The cheap form: if a measurement would change a ruling, IT IS NOT CONTEXT, and the report says
+which ruling.**
 
 > ### ⇒ **THE QUALITATIVE TWIN OF *"EVERY FIGURE NAMES ITS ARM"*: EVERY CLAIM NAMES ITS STATUS — MEASURED, DERIVED, OR ASSERTED.** ⚠ **A bullet among counted bullets that was never counted is the cheapest possible way to launder an assertion into evidence, and it requires no bad faith whatsoever.**
 
