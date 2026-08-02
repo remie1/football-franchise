@@ -7215,3 +7215,94 @@ typecheck, all exit 0, all 8 packages.
 
 No engine code, tunable, or contract touched. No metric retired or renamed. This is a denominator
 correction (real side only) and a false-comment fix, exactly as scoped.
+
+---
+
+## 103. ⛔⛔ RULING 1 OVERTURNED. RULING 2 **PARTIALLY** OVERTURNED — and the ledger it rested on was MIS-SPECIFIED
+
+**Both rulings land in one entry rather than an amendment chain, because the second's SCOPE depends on
+the first's instrument.** ⚠ **Every figure below was measured ON OUR TREE. Nothing is inherited.**
+
+### ✅ RULING 1 — **OVERTURNED. The entry/exit distinction IS the cause.**
+
+**The owner ruled it real-but-not-the-cause on a `4.123pp` entry→exit delta at committed tunables.**
+⛔ **That delta measured SATURATION, not irrelevance.**
+
+**§4's counterfactual REPLICATES on our tree at 496 games against the review's 150, all three arms
+within ~0.3pp:**
+
+| arm | entry | exit |
+|---|---|---|
+| **committed** | `89.73` | `85.60` |
+| ⛔ **supply extinguished** | **`89.63`** | ⛔ **`21.43`** |
+
+> ## ⛔ **EXTINGUISHING SUPPLY MOVES ENTRY `0.10pp` AND EXIT `64.17pp`.**
+
+**⇒ THE CORRECT READING, and it is not a concession:** ⚠ **the distinction did not move the committed
+number, and BUILDING IT PRODUCED THE INSTRUMENT THAT SEES THE CAUSE.** ⛔ **`threat_creation_rate` was
+BLIND TO THE LARGEST LEVER IN THE SUBSYSTEM. `qb_disruption_rate` SEES IT.**
+
+### ⛔ THE LEDGER WAS WRONG — **SIX candidates, not four; only THREE are genuine refusals**
+
+**`EXT-1` was told to DERIVE the ledger rather than inherit the owner's recalled list. It did, and the
+list was wrong in COMPOSITION, not merely in count.** ⚠ **Two conflicting "four levers" lists already
+existed in the backlog, and the project's own entry 77-RESULT had already caught and corrected this.**
+
+| lever | disposition |
+|---|---|
+| ⛔ `blockerStructuralAdvantage` | **DISQUALIFIED** — ADR-028 changed it `15→0`. The `4.70pp` figure is PRE-RATIFICATION |
+| ⛔ `minimumStatusByBand.RUSHER_GAINING` | **DISQUALIFIED** — ADR-033 Ruling 1 changed it `PRESSURE→CLEAN`; entry 77 cited ADR-032, which is stale |
+| ⛔ `arrival.pressureWithinSeconds` | **DISQUALIFIED as an unchanged refusal** — entry 76 changed it `POS_INF→2.0` by football ruling |
+| ✅ `passRush.bands[RUSHER_WINS_REP].minMargin` | **GENUINE**, value unchanged at `15` |
+| ✅ `arrival.collapsingWithinSeconds` | **GENUINE**, value unchanged at `1.0` |
+| ✅ `blitzPickup.freeRunnerArrivalSeconds` | **GENUINE**, value unchanged at `1.5` |
+
+> ### ⛔ **A "REFUSAL" WHOSE VALUE HAS SINCE CHANGED UNDER A RATIFIED RULING IS NOT A REFUSAL. It answers a different question — *"was the NEW value distinguishable"* — and re-pricing it as though it were a standing refusal would compare two things that were never the same.**
+
+### ⚠ RULING 2 — **PARTIALLY OVERTURNED. The STRONG FORM IS REFUTED.**
+
+**The review claims the historical refusals *"inherit the old metric's blindness."*** ⛔ **Of the THREE
+genuine refusals, the outcomes are THREE DIFFERENT THINGS:**
+
+| lever | entry today | ⛔ **exit today** | sack today | verdict |
+|---|---|---|---|---|
+| ⛔ **win threshold** `T=15→75` | **flat `89.3-89.6`** | ⛔ **`85.62 → 34.30`** | `15.28 → 3.61` | ✅ **TRANSFERS. The review's `86→34` reproduced on our tree, iid, NO RIG PATCH** |
+| ⛔ **`pressureWithinSeconds`** | small at the tight end | ⛔ **FLAT NULL — `Δ ≤ 0.09pp`** | flat `15.29/15.28/15.43` | ⛔ **DOES NOT TRANSFER. Was never blind — GENUINELY INERT** |
+| ⚠ **`collapsingWithinSeconds`** | still null | ⚠ **small: `83.34 / 85.62 / 87.93`** | ⛔ **floor `+0.66` — OPPOSITE SIGN to exit's `−2.28`** | ⚠ **NEITHER a clean confirmation NOR a clean null** |
+
+> ## ⛔ **ONE OF THREE GENUINE REFUSALS STAYS INERT ON EXIT TOO. So *"the refusals inherit the old metric's blindness"* IS FALSE AS A GENERAL CLAIM — it is true of ONE lever, and that lever is the one ADR-049 had ALREADY IDENTIFIED as the found mechanism.**
+
+⚠ **And `collapsingWithinSeconds` is the most interesting of the three: at the floor, EXIT FALLS WHILE
+SACK RISES.** ⛔ **Opposite signs. Reported separately per the standing instruction not to collapse
+exit and sack — a lever moving exit WITHOUT moving sack is a different result from one moving both.**
+*(`freeRunnerArrivalSeconds`, disqualified-adjacent but measured: small on entry and exit, but sack
+moves **`+5.91`** at `0.5s` — its own shape again.)*
+
+### ⛔ THE HARNESS PROVENANCE, BECAUSE IT CHANGES WHAT THESE NUMBERS ARE
+
+**NONE of the five original sweep harnesses computes `qb_disruption_rate` or anything exit-shaped** —
+verified by grep, zero hits in four of five. ⛔ **`qb_disruption_rate` POSTDATES ALL OF THEM.**
+
+⚠ **So every exit re-price here EXCEPT the win threshold is a NEW, hand-written harness — not the
+original re-run.** ✅ **Built by copying `measure()` VERBATIM from the already-landed, already-reproduced
+`gapProbe.arms.test.ts` and changing only which tunable is patched: SAME INSTRUMENT, NEW ARMS.**
+⛔ **The win threshold used the ORIGINAL exit-computing harness, re-run fresh rather than trusted from
+a commit message.**
+
+**Arm for the whole table: `n=150`, seed `baseline-0001`, `flat-60-32t`, matching the review's own arm
+— NOT the canonical 496.** ⚠ **`pressureSweep.test.ts` confirmed `SPENT` by reading it, not assumed.**
+
+### ⛔⛔ AND THE QUOTED-BACK TEST IS ANSWERED: **THE COUNT WAS CARRIED**
+
+**The owner named *"the four refused levers"* from memory in a progress summary. The review then said
+*"the four historical threshold refusals."*** ⚠ **The pre-registered test: FOUR means the count was
+right however it travelled; FIVE means it was carried.**
+
+> ## ⛔ **THE DERIVATION RETURNS SIX CANDIDATES AND THREE GENUINE REFUSALS. "FOUR" MATCHES NEITHER.**
+
+⛔ **So the number was not derived by either party. It was recalled here, published in an out-of-band
+channel with no arm, and RETURNED CITED AS ESTABLISHED.** ⚠ **Per the default just ratified —
+*ambiguous provenance resolves toward the weaker reading* — this figure has **ONE SOURCE, NOT TWO**,
+and the external citation added apparent standing while adding no evidence.**
+
+**⇒ THE UNARMED NUMBER CAME BACK LOOKING BETTER THAN IT LEFT, AND IT WAS WRONG THE WHOLE TIME.**
