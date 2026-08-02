@@ -1629,11 +1629,27 @@ excluded it. ⛔ **A convenient key needs a special case; the correct one does n
 | 2 | `time_to_throw`'s `definition` | *"throwaways excluded from both sides"* — the real join never excluded them |
 | 3 | `realInput.ts:169` | *"nflverse types [scrambles] as `pass`"* — **zero of 1,118 do** |
 | 4 | `sack_rate`'s `definition` | ⛔ **the same false claim as #3, independently** |
+| 5 | ⛔ **`tunables.ts:~272`, ADR-028's history comment** | *"`pressure_to_sack`… against a real `16.371%`, **the best measured anywhere in the sweep**"* — ⛔ **the corrected real is `15.464%`, and the characterisation INVERTS** |
 
-> ### ⛔ **ALL FOUR READ AS CORROBORATION TO ANYONE CHECKING CODE AGAINST DOC — which is the check a careful reader performs, and the one that fails silently when both say the same wrong thing.**
+> ### ⛔ **ALL FIVE READ AS CORROBORATION TO ANYONE CHECKING CODE AGAINST DOC — which is the check a careful reader performs, and the one that fails silently when both say the same wrong thing.**
 
-⚠ **One instance is a slip. FOUR IS A PROPERTY OF THE MEDIUM: prose adjacent to code is written once,
+⚠ **One instance is a slip. FIVE IS A PROPERTY OF THE MEDIUM: prose adjacent to code is written once,
 reviewed as narrative, and never re-derived — while the code beside it moves.**
+
+### ⛔ #5 HAS A DIFFERENT MECHANISM, AND IT IS THE ONE NO COMMIT-SCOPED SEARCH CAN REACH
+
+> ## ⚠ **THE PROSE WAS ACCURATE ABOUT A COMPARISON WHOSE **OTHER SIDE** MOVED. NOTHING IN THE SIM CHANGED.**
+
+⛔ **Every previous instance had a CODE CHANGE underneath it — so every previous instance was at least
+findable by asking *what did this commit touch?*** ⚠ **THIS ONE WAS NOT.** **`3019dd8` changed a REAL-side
+denominator in `packages/calibration`; the falsified sentence sits in `packages/engine`'s tunables,
+in a comment about a sweep run months earlier, and NO FILE IN THE COMMIT'S DIFF IS ANYWHERE NEAR IT.**
+
+**⇒ So a claim comparing sim to real can be falsified by a change to EITHER SIDE, and only one of
+those two is visible in the diff that caused it.** ⛔ **A correction sweep scoped to *"what did I just
+change?"* finds half the class by construction.**
+
+> ### ⇒ **WHICH IS THE SAME ANSWER AS THE CALL-GRAPH COROLLARY, ARRIVING FROM THE OTHER DIRECTION: GREP THE NUMBERS. A figure is the only handle that survives both a transcription and a cross-package boundary.**
 
 **Corollary — ⛔ A CONSUMER SET DERIVED BY CALL-GRAPH CANNOT FIND A CONSUMER THAT COPIED THE OUTPUT.**
 

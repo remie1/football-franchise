@@ -5,6 +5,19 @@
 > were being re-typed from memory into every brief — which means they were present when the author
 > happened to remember them.** See `BACKLOG-ENTRY-TEMPLATE.md` for the worked cost.
 
+## ⛔ NUMBERING — read before writing anything else
+
+**A brief's OWN work items are LETTERED: `A`, `B`, `C`.** ⛔ **Items belonging to a HELD EXTERNAL QUEUE
+carry an `EXT-` prefix: `EXT-1`, `EXT-2`.** ⚠ **They must never share a numbering space.**
+
+> ⛔ **WHY.** *A brief once said "THE WORK: items 1-4" and, in its STANDING section, "items 1, 3 and 4
+> of the queue remain HELD — none is yours."* **Two different sets, both numbered 1-4, in one
+> message.** ⚠ **The dispatch resolved it correctly AND FLAGGED IT — but the other reading was equally
+> defensible, and a defensible wrong choice is indistinguishable from compliance.**
+>
+> **Same shape as habit 9's original defect:** ⛔ **an instruction that requires the reader to
+> disambiguate is an instruction that will eventually be disambiguated wrongly.**
+
 ## The ruling being executed
 
 **Quote it.** ⚠ **Name what is ALREADY RULED and must NOT be reopened**, so the dispatch does not
