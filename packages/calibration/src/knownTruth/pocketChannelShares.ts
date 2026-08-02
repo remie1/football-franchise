@@ -36,7 +36,14 @@
  * `tunables.pocket.thresholds` against the maximum counter across rushers.
  *
  * **Channel 2 (band floor).** The same `pass_rush_tick` CHECK's `band`, worst-of across rushers
- * through the PUBLIC `tunables.pocket.minimumStatusByBand`.
+ * through the PUBLIC `tunables.pocket.minimumStatusByBand` — WITH ONE NARROWING SINCE ADR-058
+ * (August 2026, "arrival is authoritative for a won rep"): a `"RUSHER_WINS_REP"` band is excluded
+ * from this channel's own worst-of whenever that rusher's threat is STILL LIVE (tracked by the
+ * SAME `real` map channel 3 already maintains — see below), because arrival floors that tick
+ * instead. This mirrors `sim/passPlay.ts`'s own `previousBands` filter at its call site
+ * EXACTLY — see `reconstructPlay`'s `POCKET_STATUS` case for the one-line test and its citation
+ * of `pocketStatus.test.ts`'s dormancy suite. A won rep whose threat was TIME-RETIRED the same
+ * tick (arrival cannot see it) still reaches this channel, per ADR-058's own carve-out.
  *
  * **Channel 3 (arrival).** Unchanged from `geometryTimeRetirement.ts`'s `real` mirror:
  * `RUSH_THREAT` (`etaTick`) plus, since ADR-054, `QB_PURSUIT` (`deadlineTick`) once a scramble is
@@ -58,6 +65,7 @@
  * |---|---|
  * | the three-channel reconstruction reproduces the published stream | `identityMismatches > 0` |
  * | channels 1/2 are CLEAN for the rest of the play once QB_PURSUIT fires | a mismatch on a tick after `QB_PURSUIT` that only a live counter/band-floor value could explain |
+ * | channel 2 narrows exactly the way `sim/passPlay.ts` narrows it (ADR-058) | a mismatch on a won-rep tick — the signature this narrowing was added to eliminate; see CALIBRATION-BACKLOG entries 105-109 and ADR-058 for the pre-narrowing baseline these figures are compared against |
  * | a rusher's counter is read only where he has a blocker | a `pass_rush_tick` CHECK with no matching matchup — cannot happen structurally, since the CHECK IS the matchup's own publication |
  */
 import type { MatchEventEnvelope, PocketStatus, RushAlignment } from "@ff/contracts";
@@ -130,6 +138,13 @@ function statusFromCounter(tunables: Tunables, highestPressure: number): PocketS
   return "CLEAN";
 }
 
+/**
+ * Worst-of across whatever bands are HANDED to it. Since ADR-058, the caller (the `POCKET_STATUS`
+ * case in `reconstructPlay`, below) is responsible for OMITTING a live won rep's band before
+ * calling this — this function itself is untouched by the ADR and has no way to know about
+ * liveness on its own, exactly the division of labour `resolve/pocket.ts`'s own `pocketFloorFor`
+ * doc comment describes for the engine's identical function.
+ */
 function statusFromBandFloor(tunables: Tunables, previousBands: readonly string[]): PocketStatus {
   const table = tunables.pocket.minimumStatusByBand as Readonly<Record<string, PocketStatus>>;
   let floor: PocketStatus = "CLEAN";
@@ -245,9 +260,28 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
           arrivalAlignment = undefined;
         } else {
           const highest = [...rushers.values()].reduce((m, r) => Math.max(m, r.pressure), 0);
-          const previousBands = [...rushers.values()].flatMap((r) =>
-            r.previousBand === undefined ? [] : [r.previousBand],
-          );
+          // ADR-058 — ARRIVAL IS AUTHORITATIVE FOR A WON REP IT CAN SEE. Mirrors
+          // `sim/passPlay.ts`'s own `previousBands` filter exactly: a won rep
+          // (band `"RUSHER_WINS_REP"`) whose threat is STILL LIVE is omitted from
+          // what feeds `statusFromBandFloor`, because channel 3 (`arrival`, below)
+          // already floors that tick off the actual time-to-arrival — finer-grained
+          // than this channel's blanket COLLAPSING, and sometimes lower (a slower
+          // EDGE win) or higher (an interior win, IMMEDIATE). `real.has(id)` is
+          // EXACTLY the liveness test the engine reads as `m.threat !== undefined`:
+          // both are populated by the identical `RUSH_THREAT`
+          // TRAVELLING/DELAYED-sets, RESET-deletes rule (see the `RUSH_THREAT` case
+          // below), so this invents no second notion of "live" — it is the same
+          // `liveAtTick` reconstruction `engine/test/pocketStatus.test.ts`'s ADR-058
+          // dormancy suite builds, mirrored rather than reinvented (Charter §4.1).
+          // Only a won rep whose threat was TIME-RETIRED the same tick it was won
+          // (`real.has(id)` false again by the time this fires) still reaches the
+          // array — the carve-out `tunables.pocket.minimumStatusByBand
+          // .RUSHER_WINS_REP`'s own comment names, measured at 6-in-40,000 plays.
+          const previousBands = [...rushers.entries()].flatMap(([id, r]) => {
+            if (r.previousBand === undefined) return [];
+            if (r.previousBand === "RUSHER_WINS_REP" && real.has(id)) return [];
+            return [r.previousBand];
+          });
           counter = statusFromCounter(tunables, highest);
           bandFloor = statusFromBandFloor(tunables, previousBands);
           const minThreat = minThreatOf();

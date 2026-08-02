@@ -733,11 +733,35 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
    *   0 / 0 / 0 / 0 / 0 and §12.2's five real thresholds, over a corpus in which
    *   every football digit moved again (including `plays`, which had held flat
    *   across every prior re-baseline) and `tips − deadTips` (below) moved with them.
+   *
+   * ⚠ RE-BASELINED A SEVENTH TIME, August 2026, ADR-058 — "arrival is authoritative
+   *   for a won rep." `pocket.minimumStatusByBand.RUSHER_WINS_REP` no longer floors
+   *   a tick at COLLAPSING when arrival can already see the same threat (a live
+   *   `RUSH_THREAT`) — that tick now reads whatever `pocketFloorFromArrival` says,
+   *   which is sometimes lower (a slower EDGE win, PRESSURE instead of COLLAPSING)
+   *   and sometimes higher (an imminent INTERIOR win, IMMEDIATE, a rung the band
+   *   floor could never reach at all). `POCKET_STATUS` moves on every dropback that
+   *   ever posts a won rep with a surviving threat, which cascades into accuracy,
+   *   read capacity and `forcesDecision`/`sackWhenNoTarget` exactly as every prior
+   *   re-baseline in this fence describes — the corpus moves again, and the fence
+   *   is re-cut against the new stream rather than widened to absorb it.
+   *
+   *   digit         ADR-040   ADR-045   §2.3a   ADR-048   ADR-055   ADR-055(b)   ADR-058
+   *   plays           3,421      3,420    3,415    3,410     3,405        3,409     3,411
+   *   yards          21,107     20,953   20,922   20,275    20,758       20,028    20,243
+   *   turnovers          113        109      107      107      109          105       106
+   *   points           1,683      1,655    1,663    1,588    1,608        1,576     1,603
+   *   tips               270        273      273      249      271          271       274
+   *   deadTips           164        166      166      149      162          166       168
+   *
+   * ⚠ THE STRUCTURAL HALF STILL DID NOT MOVE — SEVENTH INDEPENDENT CONFIRMATION.
+   *   0 / 0 / 0 / 0 / 0 and §12.2's five real thresholds, over a corpus in which
+   *   every football digit moved again and `tips − deadTips` (below) moved with them.
    */
-  it("the corpus totals, on every digit (re-baselined this dispatch, owner ruling on scramble.accuracyModifier/readCapacityDelta)", () => {
+  it("the corpus totals, on every digit (re-baselined this dispatch, ADR-058 — arrival is authoritative for a won rep)", () => {
     expect([
       base.plays, base.yards, base.turnovers, base.points, base.tips, base.deadTips,
-    ]).toEqual([3409, 20028, 105, 1576, 271, 166]);
+    ]).toEqual([3411, 20243, 106, 1603, 274, 168]);
   });
 
   it("still never consults a target on a dead ball", () => {
@@ -782,8 +806,9 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
     expect(base.liveMissingTheKey).toBe(0);
     expect(base.liveTargets).toEqual([20, 35, 55, 75, 90]);
     // 108 → 106 (ADR-040) → 107 (ADR-045) → 100 (ADR-048) → 109 (ADR-055) →
-    // 105 (this dispatch, owner ruling on scramble.accuracyModifier/readCapacityDelta)
-    expect(base.tips - base.deadTips).toBe(105);
+    // 105 (owner ruling on scramble.accuracyModifier/readCapacityDelta) →
+    // 106 (this dispatch, ADR-058 — arrival is authoritative for a won rep)
+    expect(base.tips - base.deadTips).toBe(106);
   });
 
   it("the cell is not addressable, because the cell does not exist", () => {

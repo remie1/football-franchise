@@ -563,7 +563,25 @@ export function simulatePassPlay(
     let pocket: PocketStatusRung | undefined;
     if (scramble === undefined) {
       const highest = matchups.reduce((max, m) => Math.max(max, m.pressure), 0);
-      const previousBands = matchups.flatMap((m) => (m.previousBand === undefined ? [] : [m.previousBand]));
+      // ADR-058 — ARRIVAL IS AUTHORITATIVE FOR A WON REP IT CAN SEE. A won rep
+      // (`startsThreat(m.previousBand)`) with a live threat (`m.threat !==
+      // undefined`) is already inside `threats` below, so `pocketFloorFromArrival`
+      // floors it off the actual time-to-arrival — finer-grained than bandFloor's
+      // blanket COLLAPSING, and sometimes lower (a slower EDGE win) or higher (an
+      // interior win at `minTta 0.5`, IMMEDIATE). Handing bandFloor that same band
+      // would either duplicate arrival's answer or override it with a coarser one,
+      // which is the crossing ADR-058 closes. bandFloor keeps flooring a won rep
+      // ONLY when arrival cannot see it: `m.threat === undefined` means this
+      // matchup's just-won threat was already time-retired
+      // (`retireIfBeyondClock`, §7.2 TIME RETIREMENT) because its whole-life ETA
+      // was beyond `clock.maxTick` — arrival has nothing to floor with there
+      // (§7.1 dates this population at 6 occurrences in 40,000 plays), and this is
+      // the "keeps" carve-out `resolve/pocket.ts`'s `pocketFloorFor` doc names.
+      const previousBands = matchups.flatMap((m) => {
+        if (m.previousBand === undefined) return [];
+        if (startsThreat(m.previousBand) && m.threat !== undefined) return [];
+        return [m.previousBand];
+      });
       pocket = pocketStatusFor(tunables, highest, previousBands, minTimeToArrival(threats, tick));
       log.pocketStatus(pocket);
     }

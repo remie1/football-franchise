@@ -9,10 +9,19 @@
  *
  * The doc states the status per rusher, per tick: "1+ rushers won (winning by
  * 15+) previous tick" is COLLAPSING. ONE won rep is sufficient — it is not a
- * quantity that has to accumulate. That rule is the floor:
- * `pocketFloorFor(previousTickBands)`. §7.2's PRESSURE sentence ("winning by
- * 1-14") was overturned in July 2026 and now requires a beaten blocker or a won
- * rep inside the arrival horizon; the band table carries that, not this file.
+ * quantity that has to accumulate. That used to be, unconditionally, the floor
+ * `pocketFloorFor(previousTickBands)` supplies. ADR-058 (August 2026) NARROWED
+ * it: a won rep with a threat arrival can see is floored by arrival alone
+ * (`pocketFloorFromArrival`, below) — finer-grained than this floor's blanket
+ * COLLAPSING, and occasionally lower (a slower EDGE win) or higher (arrival
+ * reaches IMMEDIATE, which this floor structurally cannot). `pocketFloorFor`
+ * keeps supplying COLLAPSING only for a won rep arrival cannot see — one whose
+ * threat was time-retired the instant it was created (`sim/passPlay.ts` omits
+ * it from `previousBands` otherwise; see that call site and `tunables.ts`'s
+ * `minimumStatusByBand.RUSHER_WINS_REP` comment for the mechanism). §7.2's
+ * PRESSURE sentence ("winning by 1-14") was overturned in July 2026 and now
+ * requires a beaten blocker or a won rep inside the arrival horizon; the band
+ * table carries that, not this file.
  *
  * On top of it each rusher carries a pressure counter fed by his band result,
  * which is what escalates a sustained rush past COLLAPSING to IMMEDIATE and
@@ -160,6 +169,15 @@ export function worsePocketStatus(
 /**
  * §7.2's single-rep rule. The worst floor any one rusher's previous-tick band
  * imposes — a matchup that held does not soften a matchup that was lost.
+ *
+ * The mapping itself is unchanged and untouched by ADR-058 (every band still
+ * floors exactly what `tunables.pocket.minimumStatusByBand` says it does,
+ * `RUSHER_WINS_REP` included). What changed is what the CALLER hands this
+ * function: `sim/passPlay.ts`'s `previousBands` no longer includes a
+ * `RUSHER_WINS_REP` entry for a matchup whose threat is still live, because
+ * arrival is now authoritative for a won rep it can see. This function has no
+ * way to know that on its own — it only ever sees the band labels it is
+ * given — so the narrowing lives entirely at the call site, not here.
  */
 export function pocketFloorFor(
   tunables: Tunables,

@@ -18,7 +18,7 @@
  * the way §17 does.
  */
 import { describe, expect, it } from "vitest";
-import type { MatchEventEnvelope, PocketStatus } from "@ff/contracts";
+import type { MatchEventEnvelope, PocketStatus, RushAlignment } from "@ff/contracts";
 import { simulatePassPlay } from "../src/index.js";
 import {
   pocketFloorFor,
@@ -32,7 +32,7 @@ import type { AssertEmptyUnion, PocketStatusRung } from "../src/resolve/pocket.j
 import type { PassRushBandLabel } from "../src/resolve/passRush.js";
 import { isGameScoped } from "../src/game/events.js";
 import { bandFor } from "../src/rolls.js";
-import { TUNABLES } from "../src/tunables.js";
+import { TUNABLES, applyTunablePatch } from "../src/tunables.js";
 import {
   buildLopsidedRushScenario,
   buildScenario,
@@ -40,36 +40,65 @@ import {
   endedInSack,
 } from "./fixtures.js";
 
+/** One rusher's band on one tick — kept per-rusher (not just per-band) so a
+ * `RUSHER_WINS_REP` row can be traced back to the matchup's own alignment
+ * (ADR-058: EDGE and INTERIOR no longer force the same floor). */
+interface WonRepRow {
+  readonly rusher: string;
+  readonly band: PassRushBandLabel;
+}
+
 /** Per-tick view of the stream: what each rusher did, and the status that followed. */
 interface TickRow {
   readonly tick: number;
   readonly status: PocketStatus;
   readonly bands: PassRushBandLabel[];
+  readonly rows: WonRepRow[];
 }
 
 function tickRows(events: readonly MatchEventEnvelope[]): TickRow[] {
-  const rows = new Map<number, { status?: PocketStatus; bands: PassRushBandLabel[] }>();
+  const rows = new Map<number, { status?: PocketStatus; bands: PassRushBandLabel[]; rows: WonRepRow[] }>();
   for (const { event } of events) {
     // ADR-014 item 13: `tick` is on the PLAY-scoped base only. A game-scoped
     // event has no `playId` and no `tick`, and this loop is about ticks.
     if (isGameScoped(event)) continue;
     const tick = event.tick;
     if (tick === undefined) continue;
-    const row = rows.get(tick) ?? { bands: [] };
+    const row = rows.get(tick) ?? { bands: [], rows: [] };
     if (event.type === "POCKET_STATUS" && row.status === undefined) {
       row.status = event.payload.status;
     }
     if (event.type === "CHECK" && event.payload.checkKind === "pass_rush_tick") {
-      row.bands.push(bandFor(TUNABLES.passRush.bands, event.payload.margin).label);
+      const label = bandFor(TUNABLES.passRush.bands, event.payload.margin).label;
+      row.bands.push(label);
+      const rusher = event.payload.actors[0];
+      if (rusher !== undefined) row.rows.push({ rusher: String(rusher), band: label });
     }
     rows.set(tick, row);
   }
   return [...rows.entries()]
-    .filter((entry): entry is [number, { status: PocketStatus; bands: PassRushBandLabel[] }] =>
+    .filter((entry): entry is [number, { status: PocketStatus; bands: PassRushBandLabel[]; rows: WonRepRow[] }] =>
       entry[1].status !== undefined,
     )
-    .map(([tick, row]) => ({ tick, status: row.status, bands: row.bands }))
+    .map(([tick, row]) => ({ tick, status: row.status, bands: row.bands, rows: row.rows }))
     .sort((a, b) => a.tick - b.tick);
+}
+
+/**
+ * A matchup's alignment never changes across a play (§7.1's rush assignment is
+ * fixed at PLAY_START), so one pass over every `RUSH_THREAT` the whole play
+ * published — not just the tick a particular rep was won — is enough to
+ * recover "which alignment was this rusher" for the `RUSHER_WINS_REP` rows
+ * above. Rushers §7.1 never publishes a threat for (nobody blocking them, or a
+ * rep that never won) are simply absent from the map; nothing here needs them.
+ */
+function rusherAlignments(events: readonly MatchEventEnvelope[]): Map<string, RushAlignment> {
+  const out = new Map<string, RushAlignment>();
+  for (const { event } of events) {
+    if (event.type !== "RUSH_THREAT") continue;
+    out.set(String(event.payload.rusher), event.payload.alignment);
+  }
+  return out;
 }
 
 describe("§7.2 the single-rep rule (B1)", () => {
@@ -235,40 +264,191 @@ describe("§7.2 the single-rep rule (B1)", () => {
   type _StatusWithNoRung = AssertEmptyUnion<Exclude<PocketStatus | "PANICKED", keyof typeof TUNABLES.pocket.severity>>;
 });
 
+/**
+ * ADR-058 NARROWED this invariant rather than preserving it whole, and the two
+ * tests below are split on exactly the line the ADR draws.
+ *
+ * Before ADR-058, ANY won rep — EDGE or INTERIOR — forced COLLAPSING-or-worse
+ * the following tick, because `pocketFloorFor` applied the same blanket floor
+ * regardless of alignment. That is Cost 1 of the ADR, named explicitly there:
+ * "ADR-033's 'one won rep is sufficient' stops being a STRUCTURAL guarantee."
+ * Arrival is now authoritative for a won rep it can see, and arrival's own
+ * floor depends on travel time, which is NOT the same for every alignment
+ * (`arrival.travelSecondsByAlignmentAndMove`).
+ *
+ * The bound that DOES still hold universally, derived rather than picked to
+ * make the test pass: `travelSecondsFor` is clamped to
+ * `[arrival.minTravelSeconds, arrival.maxTravelSeconds]` but a fresh win's
+ * UN-shaved base never exceeds `EDGE.SPEED`'s 2.0s (the largest entry in
+ * `travelSecondsByAlignmentAndMove`; the dominance shave only ever reduces
+ * it). At tick N+1 (0.5s after the win), `minTta = travel − 0.5 ≤ 1.5`, which
+ * is always ≤ `arrival.pressureWithinSeconds` (2.0) — so PRESSURE-or-worse is
+ * still a structural guarantee for every alignment. COLLAPSING-or-worse is
+ * NOT: it requires `minTta ≤ arrival.collapsingWithinSeconds` (1.0), which an
+ * unshaved `EDGE.SPEED` win (travel 2.0 ⇒ minTta 1.5) does not satisfy — the
+ * exact crossing case ADR-058's Need section names.
+ */
 describe("§7.2 invariant over real event streams", () => {
-  const invariant = (build: () => { state: ReturnType<typeof buildScenario>["state"]; calls: ReturnType<typeof buildScenario>["calls"] }, seedPrefix: string): void => {
-    let sawWonRep = 0;
+  const invariant = (
+    build: () => { state: ReturnType<typeof buildScenario>["state"]; calls: ReturnType<typeof buildScenario>["calls"] },
+    seedPrefix: string,
+  ): { sawInterior: number; sawEdge: number; sawGaining: number } => {
+    let sawInterior = 0;
+    let sawEdge = 0;
     let sawGaining = 0;
     for (let i = 0; i < 200; i++) {
       const { state, calls } = build();
       const { events } = simulatePassPlay(state, calls, `${seedPrefix}-${i}`);
       const rows = tickRows(events);
+      const alignments = rusherAlignments(events);
       rows.forEach((row, index) => {
         const next = rows[index + 1];
         if (next === undefined) return;
         expect(next.tick).toBeCloseTo(row.tick + TUNABLES.clock.tickStepSeconds, 5);
 
-        if (row.bands.includes("RUSHER_WINS_REP")) {
-          sawWonRep += 1;
-          expect(pocketSeverity(TUNABLES, next.status)).toBeGreaterThanOrEqual(pocketSeverity(TUNABLES, "COLLAPSING"));
-        } else if (row.bands.includes("BLOCKER_BEATEN")) {
+        for (const wonRep of row.rows) {
+          if (wonRep.band !== "RUSHER_WINS_REP") continue;
+          const alignment = alignments.get(wonRep.rusher);
+          // PRESSURE-or-worse holds regardless of whether the alignment could be
+          // attributed — it depends only on the travel-time bound above, not on
+          // which rusher it was.
+          expect(pocketSeverity(TUNABLES, next.status)).toBeGreaterThanOrEqual(pocketSeverity(TUNABLES, "PRESSURE"));
+          if (alignment === "INTERIOR") {
+            sawInterior += 1;
+            // The tie ADR-058 names explicitly: INTERIOR travel (1.0s) and
+            // `collapsingWithinSeconds` (1.0s) meet exactly, so arrival alone
+            // still floors an INTERIOR won rep at COLLAPSING-or-worse.
+            expect(pocketSeverity(TUNABLES, next.status)).toBeGreaterThanOrEqual(pocketSeverity(TUNABLES, "COLLAPSING"));
+          } else if (alignment === "EDGE") {
+            sawEdge += 1;
+          }
+        }
+        if (row.bands.includes("BLOCKER_BEATEN")) {
           sawGaining += 1;
+          // Untouched by ADR-058 — this floor comes off `BLOCKER_BEATEN`'s own
+          // row in `minimumStatusByBand`, never `RUSHER_WINS_REP`'s.
           expect(pocketSeverity(TUNABLES, next.status)).toBeGreaterThanOrEqual(pocketSeverity(TUNABLES, "PRESSURE"));
         }
       });
     }
-    expect(sawWonRep).toBeGreaterThan(0);
-    expect(sawGaining).toBeGreaterThan(0);
+    return { sawInterior, sawEdge, sawGaining };
   };
 
-  it("any rusher winning by 15+ on tick N ⇒ COLLAPSING or worse on tick N+1", () => {
-    invariant(buildScenario, "inv-base");
+  it("any rusher winning by 15+ on tick N ⇒ PRESSURE or worse on tick N+1 (ADR-058 narrowed this from COLLAPSING)", () => {
+    const { sawInterior, sawEdge, sawGaining } = invariant(buildScenario, "inv-base");
+    expect(sawInterior + sawEdge).toBeGreaterThan(0);
+    expect(sawGaining).toBeGreaterThan(0);
+  });
+
+  it("an INTERIOR won rep specifically is still COLLAPSING or worse — arrival and bandFloor tie there exactly (ADR-058)", () => {
+    const { sawInterior } = invariant(buildScenario, "inv-base-interior");
+    // Not vacuous: `buildScenario`'s DT rush is INTERIOR/POWER (travel 1.0s),
+    // reachability checked directly rather than assumed.
+    expect(sawInterior).toBeGreaterThan(0);
   });
 
   it("holds when one matchup is dominated and the other holds (B3)", () => {
-    invariant(buildLopsidedRushScenario, "inv-lopsided");
+    const { sawInterior, sawEdge, sawGaining } = invariant(buildLopsidedRushScenario, "inv-lopsided");
+    expect(sawInterior + sawEdge).toBeGreaterThan(0);
+    expect(sawGaining).toBeGreaterThan(0);
   });
 
+});
+
+/**
+ * ============ ADR-058 — WIRED AND DORMANT (for a won rep arrival can see) ============
+ *
+ * `tunables.pocket.minimumStatusByBand.RUSHER_WINS_REP` is NOT deleted (ADR-056's
+ * unproduced-member trap) but is now unreachable for the population it used to
+ * dominate: a won rep whose threat arrival can still see. Two positive controls,
+ * matching the shape of `throwExecution.ts`'s `BACK_SHOULDER` accuracy penalty
+ * (pinned by `chemistry.test.ts`'s "wired and dormant" suite) — a term proven to
+ * exist AND proven (un)reachable, rather than one asserted from either side alone.
+ */
+describe("ADR-058 — arrival is authoritative for a won rep", () => {
+  it("DORMANT for the common case: a live EDGE/SPEED won rep is NOT forced to COLLAPSING by the band table alone", () => {
+    // The exact crossing case the ADR names: EDGE.SPEED's un-shaved travel is
+    // 2.0s, so at tick N+1 arrival reads `minTta` 1.5 — inside PRESSURE's 2.0s
+    // horizon but past COLLAPSING's 1.0s one. Before ADR-058 this tick was
+    // forced to COLLAPSING regardless; searched for here rather than
+    // constructed, because "the band table no longer decides this tick" is a
+    // property of the live engine, not of a hand-built fixture.
+    let sawEdgePressureNotCollapsing = false;
+    for (let i = 0; i < 300 && !sawEdgePressureNotCollapsing; i++) {
+      const { state, calls } = buildScenario();
+      const { events } = simulatePassPlay(state, calls, `dormant-edge-${i}`);
+      const rows = tickRows(events);
+      const alignments = rusherAlignments(events);
+      rows.forEach((row, index) => {
+        const next = rows[index + 1];
+        if (next === undefined) return;
+        const edgeWin = row.rows.some(
+          (r) => r.band === "RUSHER_WINS_REP" && alignments.get(r.rusher) === "EDGE",
+        );
+        if (edgeWin && next.status === "PRESSURE") sawEdgePressureNotCollapsing = true;
+      });
+    }
+    expect(sawEdgePressureNotCollapsing).toBe(true);
+  });
+
+  /**
+   * REACHABLE for the carve-out: a won rep whose threat was TIME-RETIRED
+   * (§7.1 TIME RETIREMENT) the instant it was created. Arrival cannot see it —
+   * there is no live `RUSH_THREAT` to floor a status with — so if the next
+   * tick is still non-CLEAN, the band table supplied it. Same `shortClock`
+   * technique as `rushThreat.test.ts`'s time-retirement positive control:
+   * `clock.maxTick` is patched down so a fresh win from tick 1.0 onward
+   * cannot possibly arrive before the play's own clock, making the otherwise
+   * rare (6-in-40,000) population reliable to find.
+   */
+  it("REACHABLE for the carve-out: a time-retired won rep still floors COLLAPSING with no live threat to explain it", () => {
+    const shortClock = applyTunablePatch(TUNABLES, {
+      tunableId: "clock.maxTick",
+      currentValue: TUNABLES.clock.maxTick,
+      proposedValue: 1.5,
+      evidence: "unit test — positive control for the ADR-058 bandFloor carve-out",
+      expectedEffect: "a fresh win late enough to be retired the same tick it is won",
+    });
+
+    let sawCarveOut = false;
+    for (let i = 0; i < 300 && !sawCarveOut; i++) {
+      const { state, calls } = buildScenario();
+      const { events } = simulatePassPlay(state, calls, `dormant-carveout-${i}`, shortClock);
+      const rows = tickRows(events);
+      // Rushers with a live threat AT EACH TICK — a threat is live from its
+      // TRAVELLING/DELAYED publication until its RESET, so this reconstructs
+      // exactly the `m.threat !== undefined` state `sim/passPlay.ts` reads.
+      const liveAtTick = new Map<number, Set<string>>();
+      const live = new Set<string>();
+      let curTick = 0;
+      for (const { event } of events) {
+        if (event.type === "TICK") curTick = event.payload.tick;
+        if (event.type !== "RUSH_THREAT") continue;
+        const rusher = String(event.payload.rusher);
+        if (event.payload.state === "RESET") live.delete(rusher);
+        else live.add(rusher);
+        liveAtTick.set(curTick, new Set(live));
+      }
+      rows.forEach((row, index) => {
+        const next = rows[index + 1];
+        if (next === undefined) return;
+        const wonThisTick = row.rows.filter((r) => r.band === "RUSHER_WINS_REP");
+        for (const won of wonThisTick) {
+          const liveNextTick = liveAtTick.get(next.tick) ?? new Set<string>();
+          // Time-retired: won this tick, but no live threat survives into the
+          // next one — arrival has nothing to floor with there.
+          if (liveNextTick.has(won.rusher)) continue;
+          if (pocketSeverity(TUNABLES, next.status) >= pocketSeverity(TUNABLES, "COLLAPSING")) {
+            sawCarveOut = true;
+          }
+        }
+      });
+    }
+    expect(sawCarveOut).toBe(true);
+  });
+});
+
+describe("§7.2 invariant over real event streams — tick shape", () => {
   it("a tick has EXACTLY ONE pocket status, sack ticks included", () => {
     // A sack used to emit COLLAPSING and then SACK for the same tick: harmless
     // for rendering, a double count for anything tallying status-ticks. Since

@@ -997,6 +997,36 @@ export const TUNABLES = {
      * key here) rather than restated as a second literal union.
      */
     minimumStatusByBand: {
+      /**
+       * WIRED AND DORMANT FOR A WON REP ARRIVAL CAN SEE (ADR-058, August 2026).
+       * This row used to floor EVERY tick after a won rep at COLLAPSING,
+       * unconditionally. Since ADR-058, `sim/passPlay.ts`'s `previousBands`
+       * construction omits a `RUSHER_WINS_REP` entry from what it hands
+       * `pocketFloorFor` whenever the matchup's threat is still live
+       * (`m.threat !== undefined`) — arrival already floors that tick off the
+       * actual time-to-arrival (`pocketFloorFromArrival`), finer-grained than
+       * this row's blanket COLLAPSING and sometimes lower (a slower EDGE win)
+       * or higher (an interior win at `minTta` 0.5, IMMEDIATE — a rung this
+       * row structurally cannot reach at all).
+       *
+       * NOT DELETED (ADR-056's unproduced-member trap): this row is still the
+       * floor for the one population arrival cannot see — a won rep whose
+       * threat was time-retired the instant it was created (§7.1 TIME
+       * RETIREMENT, `resolve/rushThreat.ts`'s `retiresByTime`) because its
+       * whole-life ETA already exceeded `clock.maxTick`. There, `m.threat` is
+       * `undefined` again by the time `previousBands` is built, so it is NOT
+       * filtered out, and this row is the only supplier left. Measured at 6
+       * occurrences across 40,000 simulated plays (§7.1's own figure).
+       *
+       * WHAT WOULD MAKE IT LIVE AGAIN FOR THE COMMON CASE: a ruling that
+       * reverses ADR-058 (bandFloor authoritative over arrival again), or a
+       * change to `pocketFloorFromArrival`'s horizons that makes it stop
+       * covering a won rep at all. Its disposition is `unruled` pending either.
+       * See `docs/decisions/ADR-058-arrival-is-authoritative-for-a-won-rep.md`
+       * and `test/rushThreat.test.ts`'s dormancy test, pinned the same way
+       * `throwExecution.ts`'s `BACK_SHOULDER` accuracy penalty is
+       * (`chemistry.test.ts`'s "wired and dormant" suite).
+       */
       RUSHER_WINS_REP: "COLLAPSING",
       BLOCKER_BEATEN: "PRESSURE",
       RUSHER_GAINING: "CLEAN",

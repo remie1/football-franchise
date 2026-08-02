@@ -834,6 +834,48 @@ SACK:
 > taken against either mechanism before this amendment describes a configuration this
 > default no longer reproduces.
 
+> **AMENDMENT (August 2026, owner ruling — ADR-058, "arrival is authoritative for a won rep") —
+> THE COLLAPSING ROW'S LITERAL *"1+ rushers won (winning by 15+) previous tick"* NO LONGER
+> DESCRIBES THE IMPLEMENTATION FOR A WON REP ARRIVAL CAN SEE.**
+>
+> Two channels were reading one event. `pocketFloorFor` (this row) floors instantly off the
+> §7.1 band table; `pocketFloorFromArrival` (the DERIVED MECHANIC two notes above) floors on
+> the nearest travelling threat's time-to-arrival. For an INTERIOR rusher these cross
+> together — not by design, but because `travelSecondsByAlignmentAndMove.INTERIOR` and
+> `arrival.collapsingWithinSeconds` were independently derived and landed on the same value.
+>
+> **The decisive fact.** `pocketFloorFor` structurally cannot reach IMMEDIATE — its table's
+> only non-CLEAN values are PRESSURE and COLLAPSING — so every IMMEDIATE tick on a won rep was
+> *already* arrival's. Making this row authoritative over arrival, rather than the reverse,
+> would leave the most severe status with no supplier: that is not a channel choice, it is
+> removing the top of the ladder.
+>
+> **The football.** A won rep is a rusher who is past his man and travelling. What matters
+> after that is how much time the passer has, which is exactly what the arrival channel
+> computes; distance gradation on a won rep is the mechanic, not a cosmetic detail, and
+> arrival is the channel that has it.
+>
+> **The rule, narrowed.** A won rep with a threat arrival can see (a live `RUSH_THREAT`) is
+> floored by arrival alone — `pocketFloorFromArrival`, not this row. This row keeps flooring
+> COLLAPSING for a won rep **arrival structurally cannot see**: one whose threat was time-
+> retired the instant it was created (§7.1's TIME RETIREMENT note above) because its whole-
+> life ETA already exceeded the play's clock. That population is rare — 6 occurrences across
+> 40,000 simulated plays — and is the only one left where this row still supplies the floor.
+> Every other row's mapping (BLOCKER_BEATEN → PRESSURE, etc.) is untouched.
+>
+> **Cost, recorded rather than absorbed silently.** ADR-033's "one won rep is sufficient" stops
+> being a *structural* guarantee against a rusher past his man while the pocket reads CLEAN —
+> arrival at its nearest horizon (`minTta` ≤ `immediateWithinSeconds`) does not produce that
+> state, so the guarantee survives in substance, but as a *consequence* of the arrival horizons
+> rather than an independent floor. Won-rep forcing now routes through `travelSecondsFor`'s
+> dominance-shave heuristic, which ADR-031 marks `INTERPRETATION` and explicitly not doctrine;
+> that marking is now load-bearing in a way it was not, and is the next item to revisit on its
+> own terms, not inherited by this ruling.
+>
+> See `docs/decisions/ADR-058-arrival-is-authoritative-for-a-won-rep.md` for the full record,
+> and `packages/engine/src/resolve/pocket.ts`'s `pocketFloorFor` / `packages/engine/src/sim/
+> passPlay.ts`'s `previousBands` construction for the implementation this note summarises.
+
 > **KNOWN ISSUE (logged July 2026, Phase 1 slice) — the missing "move" branch.**
 > COLLAPSING gives the quarterback three options: "throw, **move**, or take hit." The
 > Phase 1 engine implements *throw* and *take hit* only — step-up and scramble (§8.8) are
