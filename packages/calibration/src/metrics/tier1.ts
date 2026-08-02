@@ -665,26 +665,52 @@ export const pressureToSackRate: Metric = registerMetric({
     // Backlog entry 94 finding 4 / ruling 3: the caveat moves from the footer `definition` prose
     // into THIS list so it renders in the Tier 1 table's per-row notes column, not only in
     // source. GRADE UNCHANGED (owner-ruled) — this states the mechanism, not a generic warning.
+    //
+    // CAVEAT COMPLETENESS CORRECTION (post-`3019dd8`): the "Lift condition" sentence below used to
+    // name only the `was_pressure`-semantics artefact. `3019dd8` (dropback/scramble denominator
+    // fix, see the dispatch note immediately below) changed the REAL CONDITIONING SET this caveat
+    // is about — dropback/scramble denominator dispatch, below, is the one that moved — so the
+    // lift condition now states BOTH bars a future re-derivation must clear, not only the first.
     "backlog 88/94: real side conditions on `was_pressure`, whose governing semantics are " +
       "UNESTABLISHED (backlog 87 item 4, vendored in participation.ts); if NGS's own pressure " +
       "description governs it, the real pressured population includes QB-bail and coverage-hold " +
       "causes the sim's POCKET_STATUS-derived pressured population is structurally incapable of " +
       "containing (no coverage-separation input, and not published at all while the QB is out of " +
       "the pocket) — a conditional rate over a different conditioning set is a different quantity " +
-      "(backlog 88, one level up). Lift condition: an nflverse/NGS artefact, at a stated revision, " +
-      "establishing what `was_pressure` charters (participation.ts item 4). Absent that, treat " +
-      "this row's real side as conditioned on an unverified population.",
-    // Dropback/scramble denominator dispatch: isDropback's fix widens the dropbackKeys set this
-    // row's real side joins participation against. Pooled 2022-2024: pressured (was_pressure=true,
-    // joined) 16,627 -> 17,602 (+975 — fewer than the +3,002 dropback delta, so most of the newly
-    // included run-typed scrambles are NOT charted was_pressure=true), sacks-within-pressured
-    // unchanged at 2,722 (a sack is never scramble-typed, so sackedKeys is identical old/new), real
-    // pressure_to_sack 16.371% -> 15.464%. Sim side UNCHANGED. Verdict unaffected: old relative
-    // deviation 0.0349, new 0.0956, both well inside the 0.15 band — still PASS+ with the
-    // was_pressure-semantics caveat above, which this fix does not touch.
-    "backlog [dropback/scramble denominator]: real pressured (joined) 16,627->17,602 (+975), " +
-      "sacks-within-pressured unchanged 2,722, real pressure_to_sack 16.371%->15.464%; verdict " +
-      "unchanged (PASS+, still well inside band)",
+      "(backlog 88, one level up). Lift condition, TWO BARS, NEITHER SATISFIES THE OTHER: (1) an " +
+      "nflverse/NGS artefact, at a stated revision, establishing what `was_pressure` charters " +
+      "(participation.ts item 4) — UNCHANGED and STILL OPEN as of `3019dd8`; see the dropback/" +
+      "scramble denominator note below, which moved a different fact and does not touch this one. " +
+      "(2) any future re-derivation of this row must join against the CURRENT `isDropback` " +
+      "(nflverse's own `qb_dropback` flag, `realInput.ts`, since `3019dd8`), not the " +
+      "`playType === \"pass\"` definition every pre-`3019dd8` figure in this corpus — including " +
+      "this row's own before-figures in the note below — used. Absent (1), treat this row's real " +
+      "side as conditioned on an unverified population regardless of which dropback definition " +
+      "supplies it; (2) alone never closes (1).",
+    // Dropback/scramble denominator dispatch (`3019dd8`): this row's real-side CONDITIONING SET
+    // changed, not merely its size. WAS: `dropbackKeys` (this row's `computeFromReal`, below) built
+    // from `isDropback` keyed on `playType === "pass"`, which silently excluded every REG run-typed
+    // scramble. IS, since `3019dd8`: `isDropback` keys on nflverse's own `qb_dropback` flag
+    // (`realInput.ts`), which includes those scrambles. Pooled 2022-2024: pressured
+    // (was_pressure=true, joined) 16,627 -> 17,602 (+975 — fewer than the +3,002 dropback delta, so
+    // most of the newly included run-typed scrambles are NOT charted was_pressure=true),
+    // sacks-within-pressured unchanged at 2,722 (a sack is never scramble-typed, so sackedKeys is
+    // identical old/new), real pressure_to_sack 16.371% -> 15.464%. Sim side UNCHANGED. Verdict
+    // unaffected: old relative deviation 0.0349, new 0.0956, both well inside the 0.15 band — still
+    // PASS+.
+    //
+    // TWO SEPARATE FACTS. DO NOT LET ONE READ AS PROGRESS ON THE OTHER: the POPULATION this row
+    // conditions on MOVED (measured, above, and it is this fact alone that this dispatch
+    // establishes). The MEANING of `was_pressure` did NOT become any more established by that move
+    // — the semantics question in the caveat above is UNCHANGED and STILL OPEN. This fix changed
+    // which pbp rows this side's join admits; it did not touch, and could not touch, what
+    // `was_pressure` charters.
+    "backlog [dropback/scramble denominator, extended post-3019dd8]: real side's CONDITIONING SET " +
+      "changed — WAS dropbackKeys via isDropback(playType===\"pass\"), IS (since 3019dd8) via " +
+      "isDropback(qb_dropback). Pressured (joined) 16,627->17,602 (+975), sacks-within-pressured " +
+      "unchanged 2,722, real pressure_to_sack 16.371%->15.464%; verdict unchanged (PASS+, still " +
+      "well inside band). The population moved; was_pressure's semantics did NOT — that question " +
+      "(caveat above) is unchanged and still open; do not read this note as progress on it.",
   ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;
