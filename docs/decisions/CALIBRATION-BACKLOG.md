@@ -7369,3 +7369,79 @@ its final `1.0s`.** ⚠ **Priced against the triple, never one row.**
 crossing-point question *"does the `T` where exit crosses real shift between arms?"* CANNOT be
 answered same-vs-same.** ⚠ **The `T≈83` crossing is interpolated from the 496 data ALONE, between
 `T=75` (34.71) and `T=90` (23.62). No 150-game counterpart exists and none was fabricated.**
+
+---
+
+## 105. ⛔⛔ THE OWNER'S ARRIVAL-FLOOR HYPOTHESIS IS **REFUTED** — and the shortfall is OVER-DETERMINED, not channelled
+
+**Headlined rather than buried, per the requirement ratified one commit before this dispatch ran.**
+⚠ **The hypothesis was the owner's own, offered explicitly as *"unruled and worth nothing without
+measurement."*** ⛔ **It failed its OWN pre-registered falsifier, on BOTH readings of *"arrival floor."***
+
+**Arm: canonical `flat-60-32t`, 496 games, batch seed `baseline-0001`, seed digest
+`fnv1a:020c1dcb#496`, `tunablesDigest fnv1a:a11fa1b9`, `DEFAULT_TUNABLES` UNPATCHED throughout.**
+
+### ⛔ THE FALSIFIER, STATED IN ADVANCE: *"large AND depressed ⇒ supported; small, or converting at/above ⇒ refuted"*
+
+| reading of "arrival floor" | size | internal sack rate | verdict |
+|---|---|---|---|
+| **narrow** — sole-necessity *(play would NOT have forced without it)* | ⛔ **`2,140` = 4.93% of dropbacks, 5.76% of exit — SMALL** | `7.10%` vs overall `17.76%` — **depressed ✓** | ⛔ **FAILS the LARGE half** |
+| **broad** — channel reaches forcing severity on ANY tick | **`35,705` = 82.33% of dropbacks, 96.17% of forced — LARGE ✓** | ⛔ **`18.43%` — AT/ABOVE overall `17.76%`** | ⛔ **FAILS the DEPRESSED half** |
+
+> ## ⛔ **NEITHER OPERATIONALISATION SATISFIES BOTH CONDITIONS. The mechanism is real at the margin — the 4.93% exclusive slice DOES convert low — but it is NOT the shortfall's driver.**
+
+### ⛔ AND THE DIRECTION IS THE OPPOSITE OF WHAT THE HYPOTHESIS PREDICTS
+
+| bucket | plays | sack rate |
+|---|---|---|
+| arrival channel forcing on ≥1 tick | 35,705 | **18.43%** |
+| ⛔ **arrival channel NEVER forcing** | 1,421 | ⛔ **`0.99%`** |
+
+⛔ **PLAYS WHERE ARRIVAL NEVER ENTERS CONVERT ~18× LOWER, NOT HIGHER.** ⚠ **The hypothesis predicts
+arrival inflates exit without sack following; the data shows arrival's presence is associated with
+HIGHER conversion, and its absence with near-zero.**
+
+### ⛔ THE ACTUAL SHAPE: **90.41% OF FORCED PLAYS ARE OVER-DETERMINED**
+
+**Exclusive share at PLAY grain — would the dropback have gone non-forced with this channel held
+`CLEAN` and the other two unchanged:**
+
+| channel | sole-forced | share of forced |
+|---|---|---|
+| `pocketStatusFromPressure` (counter) | ⛔ **0** | **0.00%** |
+| `pocketFloorFor` (band floor) | 1,421 | 3.83% |
+| `pocketFloorFromArrival` | 2,140 | 5.76% |
+| ⛔ **MULTI-CHANNEL — no single channel necessary** | ⛔ **33,565** | ⛔ **90.41%** |
+
+> ## ⛔ **NO SINGLE CHANNEL IS A SMOKING GUN FOR THE BULK OF EXIT. This is entry 49's OVER-DETERMINATION, now confirmed at PLAY grain rather than tick grain — and the counter channel NEVER independently forces a play on this arm.**
+
+⚠ **⇒ Which explains every single-lever refusal in the ledger without appeal to metric blindness: THE
+NEXT ESCALATOR TAKES OVER.**
+
+### ⚠ A CONCEPTUAL FINDING: **TWO DIFFERENT THINGS ARE CALLED "THE ARRIVAL FLOOR"**
+
+| quantity | share of dropbacks |
+|---|---|
+| the raw `RUSH_THREAT{state:"ARRIVED"}` EVENT *(what §2's decomposition counts)* | **~3%** |
+| the `pocketFloorFromArrival` CHANNEL *(a continuous time-to-arrival floor reaching forcing severity long before any arrival event)* | ⛔ **82%** |
+
+⛔ **THESE ARE DIFFERENT QUANTITIES AND CONFLATING THEM IS WHY THE TWO READINGS DISAGREE.** ⚠ **Any
+future discussion of "the arrival floor" must say WHICH.**
+
+### ✅ PART A — THE REVIEW'S §2 DECOMPOSITION REPRODUCES **EXACTLY, DIGIT FOR DIGIT**
+
+**forced-status-only `67.36%` · arrival-without-sack `3.04%` · sacks `15.20%` · arrival-only `0.00%`.**
+⛔ **All four exact.** ⚠ **Reproduced on our arm, not inherited.** **Falsifiers green: channel-
+reconstruction identity `0` mismatches of `102,487`; sole-attribution ambiguity `0`.**
+
+### ⚠ SCOPE, NAMED PER ENTRY 37
+
+⛔ **NOTHING WAS RE-SIMULATED.** *"Would this play be non-forced without channel X"* recomputes
+`worst-of(other two channels' ACTUAL per-tick values)` against the **same observed trajectory**.
+⚠ **It answers the FORCING-STATUS question only — it cannot say what QB decisions or final outcomes
+would have been had the channel been absent from the physics.** ⛔ **It classifies a play
+`multi-channel` whenever any two channels are independently sufficient, which ABSORBS the interaction
+entry 37 warns about rather than hiding it.**
+
+**Gaps named:** ⚠ **single seed set, no resample cross-validation; and COMMITTED `T=15` ONLY — whether
+the exclusive arrival share moves under a different `T` is UNMEASURED.**
