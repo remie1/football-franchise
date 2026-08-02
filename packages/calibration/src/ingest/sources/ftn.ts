@@ -84,11 +84,27 @@ import { nflverseAsset, type SourceDefinition } from "./types.js";
  *
  * Computed directly off the cached rows (`data-cache/pbp/{2022..2025}`,
  * `data-cache/ftn_charting/{2022..2025}`), joining FTN rows to `pbp` dropbacks by
- * `gameId|playId` — the identical join `blitzRate.computeFromReal` uses (`tier1.ts`). This
- * exact per-season breakdown is NOT reproducible by calling `blitz_rate` itself: the registered
- * metric pools whatever seasons its `RealInput` was opened with into one rate and has no
- * per-season or per-value output, so the table below needed a purpose-built script over the
+ * `gameId|playId` — the join `blitzRate.computeFromReal` used AT THE TIME this table was measured
+ * (`tier1.ts`). This exact per-season breakdown is NOT reproducible by calling `blitz_rate` itself:
+ * the registered metric pools whatever seasons its `RealInput` was opened with into one rate and
+ * has no per-season or per-value output, so the table below needed a purpose-built script over the
  * cache, not a metric call — same situation `participation.ts` §5 records for `was_pressure`.
+ *
+ * ⚠ **A SECOND, MORE PRESSING REASON THIS TABLE IS NOT REPRODUCIBLE TODAY (post-`3019dd8`), NOT
+ * PREVIOUSLY STATED HERE:** "the identical join `blitzRate.computeFromReal` uses" was true when
+ * written and is FALSE NOW. This table's dropback-side join keyed `isDropback` on
+ * `playType === "pass"` — the definition `isDropback` (`../../metrics/realInput.ts`) carried before
+ * `3019dd8` ("The dropback denominator: nflverse's own flag was ingested and never read").
+ * `3019dd8` changed `isDropback` to key on nflverse's own `qb_dropback` flag (`PbpRow.qbDropback`)
+ * instead, admitting every REG run-typed scramble the old test silently excluded, and
+ * `blitzRate.computeFromReal` reads that same live `isDropback` function (`tier1.ts`) — so calling
+ * it today no longer reproduces the table below at all: `tier1.ts`'s own `blitzRate.
+ * knownDivergences` records the pooled 2022-2024 FTN-joined count moving from 58,202 (this table's
+ * figure) to 61,204 under the current join, a +3,002 widening from the newly-admitted scrambles.
+ * Every count and rate in the table and pooled figure immediately below is therefore the OLD,
+ * narrower-join number; reproducing it today would require deliberately re-keying the join on the
+ * RETIRED `playType === "pass"` test rather than calling any live code path, since every live path
+ * (`blitzRate` included) now uses the current flag-based `isDropback`.
  *
  * | season | pbp dropbacks | FTN rows joined to a dropback | join coverage | blitzes (≥5) | rate |
  * |---|---|---|---|---|---|
@@ -147,6 +163,32 @@ import { nflverseAsset, type SourceDefinition } from "./types.js";
  * absolute difference, ~2.0% relative); variance is not (sim's is 59.9% of real's — a ~40%
  * reduction).
  *
+ * ⛔ **THIS REAL-SIDE POPULATION IS STALE (post-`3019dd8`), STATED HERE BECAUSE IT WAS NOT WHEN
+ * WRITTEN.** "Real side pooled over the TUNING seasons (2022-2024, 58,202 joined dropbacks per §5)"
+ * above used the SAME pre-`3019dd8` join §5 now flags: `isDropback` keyed on `playType === "pass"`,
+ * which silently excluded every REG run-typed scramble. `3019dd8` changed `isDropback`
+ * (`../../metrics/realInput.ts`) to key on nflverse's own `qb_dropback` flag instead, and per
+ * `blitzRate.knownDivergences` (`tier1.ts`) the pooled FTN-joined population under that current
+ * join is 61,204, not 58,202 — a gain of roughly 3,000 dropbacks (the two miscoded rows excluded
+ * here are a rounding error against that gain, not a correction to it). **THE MEAN, VARIANCE, TVD
+ * AND OUTSIDE-SUPPORT FIGURES IN THE TABLE AND PARAGRAPH ABOVE ARE NOT CURRENT** — they describe a
+ * real population that has since grown by roughly 3,000 dropbacks, every one of them a run-typed
+ * scramble the old join dropped. This is not a rounding-level staleness: a scramble is a
+ * quarterback's live decision to abandon the pocket, made in reaction to what the pass rush and
+ * coverage already look like on that snap, and there is no reason to assume its charted
+ * `n_pass_rushers` is distributed the same way the pocket-passing population's is — the newly
+ * admitted rows could as easily concentrate the distribution (a QB scrambles most often when he
+ * already reads the rush as heavy or already beaten, i.e. away from the tails) as widen it (a
+ * scramble drawn out by a coverage breakdown behind an ordinary rush). Neither is measured here.
+ * **THIS IS NOT RECOMPUTED.** A current re-run would need: (1) the real-side join re-run against the
+ * CURRENT `isDropback` (the `qb_dropback` flag) over the same 2022-2024 TUNING seasons, joining
+ * FTN's `n_pass_rushers` to the now-larger dropback set exactly as §5's corrected join describes;
+ * (2) the same miscoded-row check repeated over the larger population, since two known-bad rows
+ * were found in 58,202 and the larger population has not been checked for its own; (3) mean/
+ * variance/histogram recomputed over that population. The sim-side arm and its own histogram are
+ * UNAFFECTED — `blitzRate.knownDivergences` records the sim side as unchanged by `3019dd8` (the fix
+ * is real-side only) — and do not need to be redone.
+ *
  * ⛔ **WHAT THIS DOES AND DOES NOT SHOW, stated against the hypothesis itself, per the standing
  * premise-ledger rule.** The shape difference is REAL and COMPUTED, and it is CONSISTENT WITH the
  * dispatching agent's hypothesis: an observed count plausibly picks up tail cases a called number
@@ -159,6 +201,21 @@ import { nflverseAsset, type SourceDefinition } from "./types.js";
  * to alter or re-derive here) may never sample a call below 3 or above 6 rushers, independent of
  * whatever FTN's charter is doing. A variance gap is what BOTH stories predict; this test cannot
  * separate them, and is not reported as having done so. The verdict stays `UNESTABLISHED`.
+ *
+ * ⚠ **DOES THIS VERDICT SURVIVE THE STALENESS ABOVE? STATED SEPARATELY BECAUSE STALE FIGURES AND A
+ * WRONG FINDING ARE NOT THE SAME THING AND MUST NOT BE CONFLATED.** Almost certainly yes, though
+ * this is not re-verified by a re-run. The `UNESTABLISHED` verdict rests on a STRUCTURAL argument,
+ * not a sample-size-dependent one: the engine's `PLAY_START.defense.rush` list is assigned once,
+ * pre-play, with no post-snap add/remove mechanism (a fact about the event's emission, checked by
+ * reading the engine's public event stream, not by counting rows), and no retrieved FTN/nflverse
+ * artefact states whether `n_pass_rushers` charts the call or the observed outcome (§1-§4 above,
+ * unchanged by `3019dd8`, which touched only the pbp/`isDropback` join and nothing FTN publishes).
+ * Both of those facts hold independent of how many real dropbacks are in the pooled population.
+ * What the staleness above puts in question is only the PRECISE shape numbers this section reports
+ * (the exact mean, variance, TVD and outside-support share) — not the qualitative finding that a
+ * shape gap exists between a called-only sim distribution and a real one, and not the
+ * disambiguation argument itself, which never cited population size as evidence for either the
+ * construct-mismatch or the narrow-tunable-range story. Figures stale; finding not thereby wrong.
  */
 export interface FtnChartingRow {
   readonly gameId: string;

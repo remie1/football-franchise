@@ -79,6 +79,28 @@ import { nflverseAsset, type SourceDefinition } from "./types.js";
  * backlog entry 88), so it cannot reproduce this table either. Re-deriving it would need a
  * purpose-built script over the cache, not a call to a Tier 1 metric.
  *
+ * ⚠ **SECOND, INDEPENDENT REASON THIS TABLE IS STALE (post-`3019dd8`), NOT PREVIOUSLY STATED HERE:**
+ * "joined the same way `pressureRate.computeFromReal` joined them at the time this table was
+ * measured" (above) means this table's dropback join used `isDropback` AS IT STOOD AT MEASUREMENT
+ * TIME (August 2026, pre-`3019dd8`) — keyed on `playType === "pass"`. `3019dd8` ("The dropback
+ * denominator: nflverse's own flag was ingested and never read") changed `isDropback`
+ * (`../../metrics/realInput.ts`) to key on nflverse's own `qb_dropback` flag (`PbpRow.qbDropback`)
+ * instead, which additionally admits every REG run-typed scramble that the old `playType === "pass"`
+ * test silently excluded. That widens the real dropback population — measured elsewhere in this
+ * corpus at pooled 2022-2024 TUNING dropbacks going from 58,277 to 61,279 for the plain dropback
+ * count (`tier1.ts`'s `sackRate.knownDivergences`) and 58,202 to 61,204 for the FTN-joined count
+ * (`tier1.ts`'s `blitzRate.knownDivergences`) — so the population this participation-join table
+ * counts is narrower than what today's `isDropback` would produce. The invitation two paragraphs up
+ * to re-derive this table "via a purpose-built script over the cache" did not say which `isDropback`
+ * to key that script on; said plainly now: it must be the CURRENT one (the `qb_dropback` flag), not
+ * `playType === "pass"`, or the re-derivation reproduces a population that no longer matches what
+ * this package means by "dropback" anywhere else. This table's own counts below are NOT
+ * reproducible by today's join, for this reason IN ADDITION to the retired-metric reason above.
+ * Whether the resulting RATE (as opposed to the row counts) would move much is not established
+ * here — the dropback-joined pressure rate was stable at 28.48%-30.11% across all four seasons
+ * under the OLD join (below), and the newly-admitted scrambles are a small share of any season's
+ * dropbacks — but that is a plausibility note, not a computed bound; it has not been re-run.
+ *
  * | season | joined dropbacks | pressured | rate |
  * |---|---|---|---|
  * | 2022 | 18,008 | 5,239 | 29.093% |
