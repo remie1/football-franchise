@@ -1773,6 +1773,29 @@ formatting does the work.**
 ⚠ **The cheap form: if a measurement would change a ruling, IT IS NOT CONTEXT, and the report says
 which ruling.**
 
+### ⛔ AND THE SHARPEST CASE OF IT: **A REFUTATION OF THE PERSON WHO BRIEFED YOU**
+
+> ## ⛔ **AN OWNER HYPOTHESIS THAT FAILS IS WORTH MORE THAN A DISPATCH THAT FINDS A WAY TO MAKE IT WORK — SO IT IS THE HEADLINE, NOT A LEDGER LINE.**
+
+⚠ **A hypothesis handed down carries AUTHORITY. That is precisely the condition under which a dispatch
+finds supporting evidence** — ⛔ **not by dishonesty, but by looking harder for confirmation than for
+refutation, and by placing a refutation somewhere it reads as a caveat.**
+
+**The premise ledger already requires reporting either way.** ⛔ **THAT IS NOT SUFFICIENT: a refutation
+IN THE LEDGER, with the tables leading, IS DEMOTED BY POSITION.** ⚠ **Same mechanism as *a finding
+placed among context is read as context* — the content is honest and the PLACEMENT does the damage.**
+
+**⇒ So the requirement is positional, not merely factual:**
+
+| outcome | where it goes |
+|---|---|
+| ✅ **supported** | with the numbers |
+| ⛔ **REFUTED** | ⛔ **FIRST LINE. PLAINLY. UNSOFTENED.** |
+| ⚠ **neither** | ⛔ **stated as neither — NOT rounded toward the hypothesis** — plus what would separate the cases |
+
+⚠ **And if the measurement cannot decide it at all, THAT is said too** — ⛔ **an absent answer is not a
+null, and a dispatch that cannot settle a question leaves it exactly where it was.**
+
 > ### ⇒ **THE QUALITATIVE TWIN OF *"EVERY FIGURE NAMES ITS ARM"*: EVERY CLAIM NAMES ITS STATUS — MEASURED, DERIVED, OR ASSERTED.** ⚠ **A bullet among counted bullets that was never counted is the cheapest possible way to launder an assertion into evidence, and it requires no bad faith whatsoever.**
 
 **⚠ THE PROPAGATION SITES, LISTED BECAUSE THE COUNT IS THE ARGUMENT.** ⛔ **One unmeasured bullet
