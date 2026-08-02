@@ -1067,6 +1067,28 @@ absence looks identical whether the subject is missing or the observer is standi
 
 **⇒ And prefer absolute paths over `cd` in any command whose result will be reasoned from later.**
 
+**Corollary — ⛔ ANY LOCATION THAT CAN HOLD A DELIBERATELY-BROKEN TREE MUST BE IGNORED, AND THE IGNORE MUST SAY WHY.**
+
+> ### ⚠ **THE DANGER IS NOT THE PATCH. It is that a BROKEN TREE IN AN UNTRACKED DIRECTORY IS INDISTINGUISHABLE FROM SCRATCH OUTPUT.**
+
+**Worked instance, August 2026.** An isolated worktree was used to test an external measurement rig —
+a patch that **DELIBERATELY BREAKS ADR-004 roll accounting**, computing band margins from a latent the
+logged rolls cannot reproduce. ⛔ **The dispatch was killed mid-flight and left the patch APPLIED, in
+`.claude/worktrees/`, WHICH WAS NOT GITIGNORED.**
+
+⛔ **A knowingly-broken engine, untracked, ONE `git add -A` FROM `main`.** ⚠ **This is habit 10's
+failure mode — *stage explicit paths whenever an agent is running* — with a far worse payload: not a
+stray doc edit but a tree built to violate an invariant.**
+
+### ⇒ AND THE IGNORE ENTRY CARRIES ITS REASON, NOT JUST ITS PATH
+
+⚠ **A bare ignore line INVITES REMOVAL BY ANYONE TIDYING** — it looks like build noise. ⛔ **The next
+reader needs to know the entry is SHIELDING SOMETHING DANGEROUS rather than FILTERING SOMETHING
+IRRELEVANT, and the path alone cannot say which.**
+
+**⇒ Same discipline as `REFUSED` over an em dash, and as `NOT RUN — UNKNOWN, not green`:** ⛔ **a
+marker that states its own reason survives a reader who did not write it.**
+
 **Sub-corollary — A CLAIM IS UNVERIFIED UNTIL SOMETHING COMPUTES IT. Not distrusted. UNVERIFIED.**
 
 > ### **RATIFICATION DOES NOT ADD EVIDENCE; IT ONLY REMOVES REVIEWERS.**
@@ -1808,6 +1830,23 @@ reads as never asked — which is the exact state the comparability claim sat in
 ⚠ **Three consecutive dispatches turned on this clause:** the ratchet null *(the mechanism exists and
 is inert)*, the identity check on a new metric *(negative, and worth knowing)*, and entry 91's empty
 population *(`0/0`, which is not the same as a small number)*.
+
+### ⛔ AND ITS INVERSE, WHICH MATTERS BECAUSE THEY LOOK IDENTICAL IN A REPORT
+
+> ## ⛔ **A DISPATCH DYING IS NOT A NULL RESULT. IT IS AN ABSENT ONE.**
+
+**Two dispatches were killed mid-flight by a session limit.** ⚠ **Both had run, both had produced
+partial work, and NEITHER had verified anything.** ⛔ **If that reads as *"checked, nothing found,"*
+a held item unblocks on evidence that was never gathered.**
+
+| | what happened | what it licenses |
+|---|---|---|
+| ✅ **a NULL** | the check RAN and returned nothing | ⚠ **a conclusion** — the question is answered |
+| ⛔ **an ABSENCE** | the check DID NOT COMPLETE | ⛔ **nothing. The question is exactly where it was.** |
+
+**⇒ A dispatch that dies leaves its subject in the state it was BEFORE the dispatch.** ⛔ **Record it
+that way, and DO NOT let elapsed effort soften a standing** — ⚠ **the temptation is real precisely
+because the work FELT expensive.**
 
 **Corollary — ⛔ THE SCOPE RULE HAS A PRODUCTIVE DIRECTION, NOT ONLY A PREVENTIVE ONE.**
 
