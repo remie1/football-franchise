@@ -7518,6 +7518,30 @@ over-determination stays ~90%"*, nor (iii) *"neither moves."***
 predicted — and STILL `~4pp` SHORT ON CONVERSION.** ⛔ **It is a LOOK-ELSEWHERE-AFFECTED observation
 and is labelled as one.**
 
+### ⛔ WHICH RESULTS SURVIVE THE CAVEAT — because it is NARROWER than "discount entry 106"
+
+**The tie between `INTERIOR` travel and `collapsingWithinSeconds` EXISTS IDENTICALLY IN EVERY ARM WHERE
+`C` IS COMMITTED AT `1.0`.** ⛔ **So it CANNOT distort comparisons taken at FIXED `C`. It distorts only
+comparisons in which `C` ITSELF MOVES.**
+
+| result | affected? |
+|---|---|
+| ⛔ **the TRIPLE, every arm** *(entry/exit/sack/conversion)* | ✅ **NO — it does not use the decomposition at all** |
+| ⛔ **the ESCALATOR HAND-OFF at `T=90`** *(band-floor sole `3` of `12,472`; arrival sole `10,734`)* | ✅ **NO — baseline and `T=90` are BOTH at `C=1.0`, so the tie is present in both and cancels** |
+| **arrival-sole conversion ≈`7%`** *(entry 105)* | ✅ **NO — measured at committed `C`** |
+| **both refuted hypotheses** | ✅ **NO — both are triple-based** |
+| ⛔ **any claim that moving `C` LOOSENED THE STACK** | ⛔ **YES — this is the contaminated claim** |
+| ⛔ **multi-channel share on the `C=0.0` arms** | ⛔ **YES — partly tie-break, partly redundancy, UNSEPARATED** |
+
+> ### ⇒ **THE HAND-OFF AND BOTH REFUTATIONS STAND REGARDLESS. What is suspended is the ARCHITECTURAL VERDICT — precisely the thing the sweep was commissioned to settle.**
+
+### ⛔ AND `(90, 2.0, 0.0)` IS **NOT A CANDIDATE CONFIGURATION**
+
+⚠ **It was found by SCANNING 27 ARMS AFTER the pre-registration FAILED. It is look-elsewhere-affected,
+its multi-channel figure sits on the contaminated side of the table above, and it is STILL ~`4pp`
+SHORT ON CONVERSION.** ⛔ **It is recorded as a MEASUREMENT, not a TARGET. Do not optimise toward it
+and do not cite it as a proposal.**
+
 ### VERIFIED, HELD, AND UNEXPLORED
 
 ✅ **Cross-validation: the `n=496` baseline reproduces entry 105 DIGIT-FOR-DIGIT** *(forced `37,126`;
