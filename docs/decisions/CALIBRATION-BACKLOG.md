@@ -7650,3 +7650,69 @@ look-elsewhere-affected, and ~`4pp` short on conversion. NOT A CANDIDATE.**
 
 **Falsifiers: identity mismatches `0` across all six arms (`267k+` ticks); sole-ambiguity `0`; baseline
 and `T=90` reproduce entries 105/106 DIGIT-FOR-DIGIT.**
+
+---
+
+## 108. ✅ OWNER RULING — **THE ARCHITECTURE IS NOT THREE ESCALATORS. COLLAPSE THE READING, DO NOT LOOSEN THE STACK.**
+
+**A RULING, not a measurement.** ⚠ **Grounded in entries 105-107, all measured on the canonical
+`n=496` arm.**
+
+### ⛔ THE RULING
+
+> ## **"The architecture is not three escalators. It is TWO CHANNELS READING ONE EVENT, plus a third that does nothing."**
+
+> ## ⛔ **"A won rep should force through ONE path, not be counted twice because two formulas describe it."**
+
+### ⛔ WHAT THE RULING RESTS ON
+
+**`statusFromBandFloor` floors instantly off the band table. `pocketFloorFromArrival` floors when
+`minTta <= C`. For an INTERIOR rusher, `minTta` on the winning tick IS `1.0` — and `C` IS `1.0`.**
+
+⛔ **THE SAME REP IS READ BY TWO FORMULAS THAT CROSS THEIR THRESHOLDS TOGETHER, and the necessity
+counterfactual cannot see that arrival's value was DERIVED FROM the same rep rather than independently
+arrived at.**
+
+> ## ⛔ **SO IT IS NOT REDUNDANCY IN THE DESIGN. IT IS DOUBLE-COUNTING IN THE MEASUREMENT OF IT — AND THAT HAS BEEN THE FRAME FOR THIS ENTIRE INVESTIGATION.**
+
+### ⛔ WHAT IS THEREBY FALSE
+
+**The claim this sweep was commissioned to test — *"three independently sufficient escalators are
+stacked, so they must move jointly or the refusals return"* — IS FALSE.**
+
+⚠ **Two of the three are ONE THING DESCRIBED TWICE. The third is INERT.** ⛔ **The over-determination
+story that motivated the joint sweep, entry 49's framing forward, rested substantially on a
+measurement artefact.**
+
+### ⛔ AND ENTRY 61 CLOSES HARDER THAN IT WAS CLOSED
+
+**§7.2's accumulated pressure — the counter:**
+
+| instrument | finding |
+|---|---|
+| entry 105 *(whole-duration necessity)* | **solely necessary on ZERO plays** |
+| ⛔ entry 107 *(deciding-instant)* | ⛔ **`0.00%` of over-determination — not even a REDUNDANT contributor** |
+
+> ### ⛔ **ESTABLISHED TWICE, BY DIFFERENT INSTRUMENTS. IT DOES NOT EXIST IN PRACTICE AT ALL — AND IT SHOULD STOP BEING DESCRIBED AS A CHANNEL.**
+
+⚠ **Entry 61 recorded it as ABSORBED. This is stronger: an absorbed mechanic still contributes when
+its neighbour is removed. THIS ONE CONTRIBUTES NOTHING AT THE MOMENT THAT DECIDES THE PLAY, EVEN AS A
+TIE.**
+
+### ⚠ WHAT SURVIVES, AND WHAT IS NOW OPEN
+
+**SURVIVES** *(per entry 106's own scope note — the tie is identical at committed `C`, so it cancels
+in fixed-`C` comparisons)*: ✅ **the triple on every arm; the escalator hand-off at `T=90`; entry 105's
+arrival-sole conversion ≈`7%`; and BOTH refuted hypotheses.**
+
+⛔ **OPEN, AND NOW THE NEXT QUESTION:** ⚠ **WHICH CHANNEL IS AUTHORITATIVE FOR A WON REP.** **A
+FOOTBALL question. Dispatched as a MECHANISM READ — what each channel claims to represent, where they
+overlap, whether they ever DISAGREE on a won rep, and WHAT EACH CHOICE COSTS.** ⛔ **The owner rules;
+the dispatch supplies the price list and is forbidden to recommend.**
+
+### 📒 AND A CORRECTION BOTH PARTIES CARRIED
+
+**Entry 106 AND the Orchestrator both described the constant coincidence as a razor's edge that moving
+`C` IN EITHER DIRECTION would break.** ⛔ **WRONG. `floorFromArrival` uses `<=`, so ANY `C >= 1.0`
+reproduces the full tie; ONLY NARROWING breaks it.** ⚠ **The committed `1.0` is the LOWER BOUNDARY OF
+A ONE-SIDED REGION, not an isolated point — a materially different fact about how fragile it is.**
