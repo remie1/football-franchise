@@ -7079,3 +7079,139 @@ each function can emit and is materially larger than this dispatch.
 ⚠ **"I swept calibration" is not an answer.** ✅ **"Every package importing `@ff/contracts`, derived
 from the import graph, which is {calibration, engine, playbook}" is.** ⛔ **And an EXCLUSION THAT IS
 STATED is fine; one that is SILENT is the same defect.**
+
+---
+
+## 102. ⛔⛔ `isDropback` EXCLUDED EVERY RUN-TYPED SCRAMBLE — A FALSE COMMENT, MEASURED AND FIXED
+
+**Dispatch: the comment at `realInput.ts:169` claimed *"scrambles… which nflverse types as
+`pass`."*** ⛔ **MEASURED FALSE, and the false comment is a THIRD instance of the site class entries
+94/95 already catalogued — implementation prose contradicting the implementation beside it, read as
+corroboration because it agrees with the code it is wrong about.**
+
+### 🔮 PRE-REGISTRATION (recorded before the pooled recompute ran)
+
+Predicted, in order, before running `pooled_real_recompute.js` against 2022-2024:
+
+1. `sacks` numerator UNCHANGED on all three metrics — a sack is never scramble-typed, so widening
+   the dropback population by adding scrambles cannot move a sack count. **OPEN prediction** (not
+   determinable by inspection alone before running).
+2. `sack_rate`, `pressure_to_sack`: real-side RATE DECREASES (denominator grows, numerator flat).
+3. `blitz_rate`: direction NOT predicted with confidence — **the outcome I did not expect to be
+   able to call**, since it depends on whether FTN's charting covers the newly-joined rows at the
+   same rate as the old population.
+4. No verdict flips on any of the three, given the size of the added population (~5% of the old
+   denominator) against each row's current margin to its band. **This is the one figure NOT fully
+   determined by arithmetic before running** — it depends on where each row currently sits inside
+   `relativeBand(0.15)`, which requires the actual numbers.
+5. `blitz_rate`'s `UNESTABLISHED` qualifier (backlog 94/97b, `n_pass_rushers` semantics) is
+   untouched by this fix — it is a fix to WHICH rows join, not to what FTN's column means.
+
+### ⛔ THE COUNT, VERIFIED IN CODE, NOT INFERRED
+
+Raw scan of cached 2023 `pbp` (49,665 rows, no filter at all): **`qb_scramble === true` → 1,182
+rows, `play_type` breakdown `run: 1,096`, `no_play: 86`, `pass: 0`.** ⚠ **This is where the
+dispatch's own `1,182`/`1,096`/`86` figures came from, and they check out exactly.**
+
+**The external review's `1,035` is a DIFFERENT, ALSO-CORRECT filter, named:** `isCountablePlay(row)
+&& row.playType === "run" && row.qbScramble === true` — i.e. REG season only. Traced exactly:
+`1,096` run-typed scrambles = `1,035` REG + `61` POST; `isCountablePlay` drops the POST plays
+(`seasonType !== "REG"`), landing on `1,035` precisely. ⛔ **NEITHER SIDE WAS WRONG — one counted
+every season, the other counted the REG-only population every other Tier 1 metric already uses.**
+The apparent discrepancy was a scope difference, not a disagreement, and the direction matters not
+at all here since both filters agree scrambles are `run`/`no_play`-typed, never `pass`-typed.
+
+### ✅ THE FOOTBALL QUESTION, ANSWERED BY A COLUMN ALREADY IN THE CACHE, NOT BY ARGUMENT
+
+**Is a scramble a dropback?** `PbpRow.qbDropback` (nflverse's own `qb_dropback` column, already
+ingested, unread by this function before now) answers it directly. Verified against the 2023 cache,
+`isCountablePlay`-gated:
+
+| population | n | `qb_dropback` |
+|---|---|---|
+| `playType === "pass"` | 19,734 | **100% `true`** |
+| `playType === "run"`, `qbScramble === true` (REG) | 1,035 | **100% `true`** |
+| `playType === "no_play"`, `qbScramble === true` (REG) | 83 | **100% `false`, none `null`** |
+
+⇒ **nflverse's own convention already treats a run-typed scramble as a dropback and a penalty-
+nullified (`no_play`) scramble as NOT one.** The fix keys `isDropback` on `row.qbDropback === true`
+(gated by `isCountablePlay`, unchanged) instead of re-deriving the answer from `playType`.
+
+### ⛔ ITEM 5 — THE THIRD POPULATION, DECIDED EXPLICITLY
+
+`no_play` scrambles are penalties on scramble plays (of the 83 REG `no_play` scrambles, 78 carry
+`penalty === true`, 5 do not — pre-snap/other no-play causes). ⛔ **They do NOT belong in the
+dropback population, and the reason is not asserted here: nflverse's own `qb_dropback` flag already
+says so for all 83, unanimously.** No bespoke third-bucket logic was written; the flag already
+partitions it correctly.
+
+### ⛔ THE CONSUMER SET — DERIVED, NOT RECALLED
+
+`grep -rn "isDropback" packages/calibration/src` → **exactly three call sites, all in `tier1.ts`**:
+`sack_rate` (line 173, direct numerator/denominator), `blitz_rate` (dropback-key join, line 597),
+`pressure_to_sack` (dropback-key join, line 668). **`threat_creation_rate`'s real side — a named
+candidate in the dispatch — is REFUTED as a consumer**: its `computeFromReal` is a hard-coded
+`noObservations(...)` string (backlog entry 93's retirement); it reads no `PbpRow` and calls
+`isDropback` zero times. No other file in `packages/calibration/src` or `/test` calls it.
+
+### ⛔ BEFORE / AFTER, ALL THREE AFFECTED ROWS, ARM NAMED
+
+**Arm: pooled real TUNING seasons 2022-2024 (the canonical arm `baseline-0007` itself reports these
+same real seasons), computed directly from cached `pbp`/`ftn_charting`/`pbp_participation`, mirroring
+`tier1.ts`'s exact join logic. Sim side is UNCHANGED by this dispatch — no engine or accumulator code
+was touched — so only the real side moves.**
+
+| metric | side | before | after | Δ |
+|---|---|---|---|---|
+| `sack_rate` | real dropbacks | 58,277 *(matches `baseline-0007`'s cited n exactly)* | 61,279 | **+3,002** |
+| `sack_rate` | real sacks | 4,020 | 4,020 | **0 — prediction 1 CONFIRMED** |
+| `sack_rate` | real rate | 6.898% | 6.560% | **−0.338pp — prediction 2 CONFIRMED (decrease)** |
+| `sack_rate` | sim (unchanged) | 15.20% | 15.20% | — |
+| `sack_rate` | verdict | FAIL (known) | FAIL (known) | ⛔ **NO FLIP — prediction 4 CONFIRMED; gap widens (sim over-predicts sacks; smaller real denominator now even smaller relatively)** |
+| `blitz_rate` | real (FTN-joined) dropbacks | 58,202 *(matches `baseline-0007`'s cited n exactly)* | 61,204 | **+3,002 — full join coverage: every added pbp key found a non-null `nPassRushers` row** |
+| `blitz_rate` | real blitzes | 14,096 | 14,642 | +546 |
+| `blitz_rate` | real rate | 24.219% | 23.923% | −0.296pp — **direction was the outcome I did not predict; it decreased** |
+| `blitz_rate` | sim (unchanged) | 24.16% | 24.16% | — |
+| `blitz_rate` | verdict | PASS+ (`UNESTABLISHED` comparability) | PASS+ (`UNESTABLISHED` comparability) | ⛔ **NO FLIP — prediction 4 and 5 CONFIRMED; still deep inside the 0.15 band (old deviation −0.0025, new −0.0099)** |
+| `pressure_to_sack` | real pressured (joined) | 16,627 *(matches `baseline-0007`'s cited n exactly)* | 17,602 | **+975 — LESS than the full +3,002 dropback delta: most newly-included scrambles are NOT `was_pressure = true`** |
+| `pressure_to_sack` | real sacks-within-pressured | 2,722 | 2,722 | **0 — a sack is never scramble-typed, sackedKeys identical old/new** |
+| `pressure_to_sack` | real rate | 16.371% | 15.464% | −0.907pp — prediction 2 CONFIRMED (decrease) |
+| `pressure_to_sack` | sim (unchanged) | 16.94% | 16.94% | — |
+| `pressure_to_sack` | verdict | PASS+ (`was_pressure` semantics caveat) | PASS+ (`was_pressure` semantics caveat) | ⛔ **NO FLIP — old relative deviation 0.0349, new 0.0956, both inside 0.15** |
+
+⇒ **NO ROW CHANGES VERDICT.** The three matches against `baseline-0007`'s own cited real-`n` values
+(`58,277`; `58,202`; `16,627`) are a cross-check that the recompute script mirrors the shipped code
+exactly, not a new coincidence.
+
+### ⛔ THE COMMENT FIX
+
+`realInput.ts:169`'s comment (*"…which nflverse types as `pass`"*) is corrected in place, with the
+measured counts and the season cited, and `sack_rate`'s `definition` string in `tier1.ts` (which
+carried the identical false claim, a fourth site of the same class, found while fixing this one) is
+corrected to point at `isDropback`/`qb_dropback` rather than restate the false claim independently.
+
+### VERIFICATION
+
+`pnpm --filter @ff/calibration test`: 555 passed, 50 skipped (34 test files), including two new
+tests (`counts a run-typed scramble as a dropback`, `excludes a penalty-nullified (no_play) scramble
+from dropbacks`) and three fixture rows corrected to carry `qbDropback: false` where they represent
+a designed run (they previously relied on the test factory's `qbDropback: true` default, which was
+harmless only because the OLD `isDropback` never read that field). `pnpm verify`: build, test,
+typecheck, all exit 0, all 8 packages.
+
+### PREMISE LEDGER
+
+| premise | computed | result |
+|---|---|---|
+| the dispatch's raw-scan counts (1,182 / 1,096 / 86) | re-derived independently from the 2023 cache | ✅ CONFIRMED exactly |
+| the external review's `1,035` | re-derived by testing the `isCountablePlay && playType==='run'` filter | ✅ CONFIRMED exactly — REG-only run-typed scrambles |
+| sim dropbacks already include scrambles (`p.dropbacks = p.passAttempts + p.sacks + p.scrambles`) | read `collect.ts`, cross-checked against the pinned test at `metrics.test.ts:318` | ✅ CONFIRMED |
+| `isDropback` has exactly 3 consumers | `grep -rn "isDropback" packages/calibration/src` | ✅ CONFIRMED — 3, all in `tier1.ts` |
+| `threat_creation_rate`'s real side is a consumer | read `computeFromReal` | ⛔ REFUTED — retired, hard-coded, no `PbpRow` read |
+| a sack can be scramble-typed (would move the numerator) | checked cached data: 0 rows with both `sack===true` and `qbScramble===true` | ✅ CONFIRMED false (sacks numerator provably unchanged) |
+| `no_play` scrambles need bespoke exclusion logic | checked `qbDropback` on all 83 REG `no_play` scrambles | ⛔ REFUTED — nflverse's own flag already excludes all 83, no bespoke logic needed |
+
+### STANDING, RESPECTED
+
+No engine code, tunable, or contract touched. No metric retired or renamed. This is a denominator
+correction (real side only) and a false-comment fix, exactly as scoped.

@@ -166,9 +166,30 @@ export function isScrimmagePlay(row: PbpRow): boolean {
   return isCountablePlay(row) && (row.playType === "pass" || row.playType === "run");
 }
 
-/** A dropback: pass plays including sacks and scrambles, which nflverse types as `pass`. */
+/**
+ * A dropback: the offence actually dropped back to throw, whether it ended in a completion, an
+ * incompletion, an interception, a sack, or a scramble.
+ *
+ * ⛔ THIS USED TO KEY ON `playType === "pass"`, ON THE CLAIMED GROUND THAT "nflverse types [sacks
+ * and scrambles] as `pass`." THAT CLAIM WAS FALSE FOR SCRAMBLES, MEASURED, NOT ASSUMED (calibration
+ * backlog, dropback/scramble denominator dispatch): on the cached 2023 `pbp` (49,665 rows,
+ * `isCountablePlay`-gated), every `qb_scramble === true` row types `play_type` as **`run`
+ * (1,035 rows) or `no_play` (83 rows) — ZERO type `pass`.** Keying on `playType === "pass"` silently
+ * excluded every one of the 1,035 REG-season run-typed scrambles from the real dropback population
+ * while the sim's `dropbacks` accumulator (`collect.ts`) always included them — `p.passAttempts +
+ * p.sacks + p.scrambles === p.dropbacks` is a pinned sim-side invariant (`metrics.test.ts`).
+ *
+ * THE FIX: nflverse ships its own dropback flag, `qb_dropback` (`PbpRow.qbDropback`), and it
+ * already resolves the football question this function exists to answer. Verified directly against
+ * the same 2023 cache: every `playType === "pass"` row has `qbDropback === true` (19,734 of them);
+ * every REG run-typed scramble ALSO has `qbDropback === true` (1,035 of them); and every REG
+ * no-play scramble — a play whistled dead by penalty before it could develop, a third population
+ * distinct from both of the above — has `qbDropback === false` (all 83, none null). So nflverse's
+ * own convention already treats a scramble as a dropback and a penalty-nullified scramble as NOT
+ * one, and this function now defers to that flag rather than re-deriving it from `playType`.
+ */
 export function isDropback(row: PbpRow): boolean {
-  return isCountablePlay(row) && row.playType === "pass";
+  return isCountablePlay(row) && row.qbDropback === true;
 }
 
 /** A pass ATTEMPT in the scoring sense: thrown, not sacked, not scrambled. */

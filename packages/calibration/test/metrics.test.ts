@@ -553,7 +553,45 @@ describe("shared real-side filters", () => {
 
   it("excludes a scramble from designed rushes", () => {
     expect(isDesignedRush(pbpRow({ rushAttempt: true, qbScramble: true }))).toBe(false);
-    expect(isDesignedRush(pbpRow({ playType: "run", rushAttempt: true, passAttempt: false }))).toBe(true);
+    expect(
+      isDesignedRush(
+        pbpRow({ playType: "run", rushAttempt: true, passAttempt: false, qbDropback: false }),
+      ),
+    ).toBe(true);
+  });
+
+  // Dropback/scramble denominator dispatch: isDropback used to key on play_type === "pass", which
+  // silently excluded every run-typed scramble (measured against the cached 2023 pbp: 1,035 REG
+  // run-typed scrambles, 0 pass-typed) from the real dropback population while the sim's
+  // `dropbacks` accumulator always included them. Fixed to key on nflverse's own `qb_dropback` flag.
+  it("counts a run-typed scramble as a dropback — nflverse's qb_dropback, not play_type", () => {
+    const scramble = pbpRow({
+      playType: "run",
+      qbScramble: true,
+      qbDropback: true,
+      passAttempt: false,
+      rushAttempt: true,
+      completePass: false,
+      yardsGained: 6,
+    });
+    expect(isDropback(scramble)).toBe(true);
+  });
+
+  // The third population (backlog: no_play scrambles are penalties on scramble plays, distinct
+  // from both a completed dropback and a designed run). Measured against the cached 2023 pbp: all
+  // 83 REG no_play scrambles carry qb_dropback === false (never null) — nflverse's own convention
+  // already excludes a penalty-nullified scramble from the dropback population, and this function
+  // now defers to that rather than needing its own special case for the third bucket.
+  it("excludes a penalty-nullified (no_play) scramble from dropbacks", () => {
+    const noPlayScramble = pbpRow({
+      playType: "no_play",
+      qbScramble: true,
+      qbDropback: false,
+      passAttempt: false,
+      rushAttempt: false,
+      penalty: true,
+    });
+    expect(isDropback(noPlayScramble)).toBe(false);
   });
 });
 
@@ -566,7 +604,14 @@ describe("Tier 1 real-side computations", () => {
       pbpRow({ sack: true, passAttempt: false, completePass: false, yardsGained: -7 }),
     ),
     ...Array.from({ length: 50 }, () =>
-      pbpRow({ playType: "run", passAttempt: false, rushAttempt: true, completePass: false, yardsGained: 4 }),
+      pbpRow({
+        playType: "run",
+        passAttempt: false,
+        rushAttempt: true,
+        completePass: false,
+        yardsGained: 4,
+        qbDropback: false,
+      }),
     ),
   ];
   const input = realInput(rows, [scheduleRow({})]);
@@ -701,7 +746,9 @@ describe("Tier 1 real-side computations", () => {
       pbpRow({ playId: 2 }),
       pbpRow({ playId: 3, sack: true, passAttempt: false, completePass: false, yardsGained: -7 }),
     ];
-    const runs = [pbpRow({ playId: 9, playType: "run", passAttempt: false, rushAttempt: true })];
+    const runs = [
+      pbpRow({ playId: 9, playType: "run", passAttempt: false, rushAttempt: true, qbDropback: false }),
+    ];
     const input = realInput([...dropbacks, ...runs], [scheduleRow({})], {
       ftn: [
         ftnRow({ playId: 1, nPassRushers: 6 }),

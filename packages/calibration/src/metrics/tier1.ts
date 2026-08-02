@@ -156,12 +156,26 @@ export const sackRate: Metric = registerMetric({
   id: "sack_rate",
   tier: 1,
   definition:
-    "Sacks ÷ dropbacks. A dropback is every play_type=pass, which includes sacks, scrambles and " +
-    "throwaways — the denominator is the number of times the offence chose to drop back.",
+    "Sacks ÷ dropbacks. A dropback is nflverse's own qb_dropback flag (isDropback, realInput.ts), " +
+    "not play_type=pass — a scramble types play_type=run or no_play, never pass, and qb_dropback " +
+    "is what actually carries whether the offence dropped back to throw.",
   unit: "%",
   direction: "LOWER_IS_BETTER",
   toleranceBand: relativeBand(0.15),
-  knownDivergences: ["backlog 2 (rusher time-of-arrival + missing move branch)", "backlog 3"],
+  knownDivergences: [
+    "backlog 2 (rusher time-of-arrival + missing move branch)",
+    "backlog 3",
+    // Dropback/scramble denominator dispatch: isDropback previously keyed on play_type=pass, which
+    // silently excluded every REG run-typed scramble (1,035 of 2023's 2,916 total dropbacks under
+    // the corrected definition, cache-measured) from the real-side population. Pooled 2022-2024
+    // (the canonical TUNING arm): real dropbacks 58,277 -> 61,279 (+3,002, sacks unchanged at
+    // 4,020 — a sack is never scramble-typed), real sack_rate 6.898% -> 6.560%. Sim side (dropbacks,
+    // sacks) is UNCHANGED — this is a real-side-only fix. FAIL(known) verdict does not flip; the
+    // gap widens slightly because the sim was already over-predicting sacks and the corrected real
+    // denominator is larger, not smaller.
+    "backlog [dropback/scramble denominator]: real dropbacks 58,277->61,279 (+3,002), sacks " +
+      "unchanged 4,020, real sack_rate 6.898%->6.560%; verdict unchanged (FAIL known, gap widens)",
+  ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;
     return p.dropbacks === 0 ? noObservations("no dropbacks") : rate(p.sacks, p.dropbacks);
@@ -580,6 +594,16 @@ export const blitzRate: Metric = registerMetric({
       "stating which `n_pass_rushers` charts (ftn.ts item 4). Also unstable across seasons: the " +
       "pooled 24.22% real figure (2022-2024) masks a 20.24%-26.76% spread by season, wider than " +
       "`was_pressure`'s 1.63pp spread over the same seasons (ftn.ts item 5).",
+    // Dropback/scramble denominator dispatch: isDropback's fix (real-side only) widens the join
+    // population here too, since this row keys dropbackKeys off isDropback. Pooled 2022-2024:
+    // FTN-joined dropbacks 58,202 -> 61,204 (+3,002, full coverage — every added pbp dropback key
+    // found a non-null nPassRushers row), blitzes 14,096 -> 14,642, real blitz_rate 24.219% ->
+    // 23.923%. Sim side UNCHANGED. Verdict unaffected: still well inside the 0.15 relative band
+    // (old deviation -0.0025, new -0.0099), and the UNESTABLISHED comparability qualifier above is
+    // untouched — this fix changed which rows join, not what n_pass_rushers means.
+    "backlog [dropback/scramble denominator]: real (FTN-joined) dropbacks 58,202->61,204 (+3,002), " +
+      "blitzes 14,096->14,642, real blitz_rate 24.219%->23.923%; verdict unchanged (PASS+, still " +
+      "well inside band)",
   ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;
@@ -650,6 +674,17 @@ export const pressureToSackRate: Metric = registerMetric({
       "(backlog 88, one level up). Lift condition: an nflverse/NGS artefact, at a stated revision, " +
       "establishing what `was_pressure` charters (participation.ts item 4). Absent that, treat " +
       "this row's real side as conditioned on an unverified population.",
+    // Dropback/scramble denominator dispatch: isDropback's fix widens the dropbackKeys set this
+    // row's real side joins participation against. Pooled 2022-2024: pressured (was_pressure=true,
+    // joined) 16,627 -> 17,602 (+975 — fewer than the +3,002 dropback delta, so most of the newly
+    // included run-typed scrambles are NOT charted was_pressure=true), sacks-within-pressured
+    // unchanged at 2,722 (a sack is never scramble-typed, so sackedKeys is identical old/new), real
+    // pressure_to_sack 16.371% -> 15.464%. Sim side UNCHANGED. Verdict unaffected: old relative
+    // deviation 0.0349, new 0.0956, both well inside the 0.15 band — still PASS+ with the
+    // was_pressure-semantics caveat above, which this fix does not touch.
+    "backlog [dropback/scramble denominator]: real pressured (joined) 16,627->17,602 (+975), " +
+      "sacks-within-pressured unchanged 2,722, real pressure_to_sack 16.371%->15.464%; verdict " +
+      "unchanged (PASS+, still well inside band)",
   ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;
