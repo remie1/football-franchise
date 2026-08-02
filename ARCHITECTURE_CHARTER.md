@@ -1782,6 +1782,32 @@ quoted the source comment back as EVIDENCE.**
 
 > ### ⛔ **THE ENGINE COMMENT IS THE WORST OF THE FOUR — an unmeasured claim sitting in the implementation, where a reader checking the code against the doc finds AGREEMENT and reads it as CORROBORATION.** ⚠ **Two copies of one unevidenced sentence are not two sources.**
 
+### ⛔ AND THE WORST PLACE FOR THAT PROBLEM IS AN **ORGANISATIONAL** BOUNDARY
+
+> ## ⛔ **A FIGURE WITH NO ARM DOES NOT BECOME ARMED BY BEING QUOTED BACK. IT GAINS STANDING WITHOUT GAINING EVIDENCE.**
+
+**Live instance, under test as this is written.** ⚠ **The owner named *"the four refused levers"* from
+memory in a PROGRESS SUMMARY — the out-of-band channel entry 90 identifies as having no instrument.**
+⛔ **An external reviewer's report then says *"the four historical threshold refusals."*** **If they
+took the count from our reporting rather than deriving it, an UNARMED FIGURE LEFT THE CORPUS AND
+RETURNED CITED AS ESTABLISHED.**
+
+⚠ **This is the two-copies-one-source problem AT THE BOUNDARY WHERE THE COPIES LOOK MAXIMALLY
+INDEPENDENT** — a separate author, a separate tree, a separate read. ⛔ **Every surface cue says
+"independent confirmation." The number is the same number.**
+
+**⇒ THE OPERATIVE RULE:**
+
+> ### ⛔ **AGREEMENT IS NOT CORROBORATION UNLESS THE DERIVATIONS ARE INDEPENDENT.** ⚠ **When an external source cites a figure matching ours, ASK WHETHER THEY DERIVED IT OR READ IT FROM US — and if that cannot be established, the figure has ONE source, not two.**
+
+⚠ **Note the asymmetry that makes this dangerous rather than merely untidy: an external citation
+RAISES a figure's apparent standing while adding NOTHING to its evidence.** ⛔ **The unarmed number
+comes back looking better than it left.**
+
+**And the test here is clean, which is why it is worth stating now rather than after:** ⚠ **if the
+derivation returns FOUR, the count was right however it travelled. ⛔ IF IT RETURNS FIVE, IT WAS
+CARRIED — IN BOTH DIRECTIONS.**
+
 **Corollary — ⛔ THE RULING-SEARCH ASKS *"WHICH CELLS DOES THIS RULING IMPLY?"* NOBODY ASKS *"WHICH RATIFIED DESCRIPTIONS DOES THIS CHANGE FALSIFY?"***
 
 ⚠ **The first runs SIDEWAYS at ruling time and this project does it well. The second runs FORWARD IN
