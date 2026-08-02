@@ -1952,6 +1952,37 @@ that was wrong, and naming it is free at the moment of writing and invisible aft
 
 **⇒ Same test every field in this register passes:** *free at authoring time, expensive afterwards.*
 
+**Corollary — ⛔ NEVER WIDEN AN ASSERTION TO ACCOMMODATE A CHANGE. SPLIT IT.**
+
+> ## ⚠ **A LOOSENED TOLERANCE IS A PERMANENT LOSS OF RESOLUTION PAID TO MAKE ONE DISPATCH GREEN.**
+
+⛔ **The asymmetry is what makes it a PROHIBITION rather than a preference: the COST IS PERMANENT and
+the BENEFIT IS ONE DISPATCH.** ⚠ **The widened bound then fails to catch the NEXT change — the one
+nobody is watching for.**
+
+### ✅ THE WORKED INSTANCE — ADR-058, August 2026
+
+**ADR-058 narrowed `bandFloor` and genuinely broke `pocketStatus.test.ts`'s invariant *"any rusher
+winning by 15+ ⇒ `COLLAPSING` or worse."*** ⛔ **The tempting move was to widen it. IT WAS NOT WIDENED.**
+
+**It was SPLIT:**
+
+| | what shipped |
+|---|---|
+| **the universal bound** | ⛔ **NARROWED TO THE TRUE ONE — `PRESSURE`-or-worse — and DERIVED from `arrival.maxTravelSeconds` / `pressureWithinSeconds`** *(a fresh win's ETA is always `<= 2.0`)*, ⚠ **not picked because it passed** |
+| **the stronger bound** | ✅ **KEPT as a POSITIVE CONTROL where it still holds — *"an INTERIOR won rep specifically is still `COLLAPSING` or worse"*** |
+
+### ⇒ AND SPLITTING IS NOT MERELY STRICTER — IT **STRICTLY DOMINATES** WIDENING
+
+⛔ **A broken invariant usually means it was TOO STRONG FOR THE GENERAL CASE AND STILL TRUE FOR A
+SUBSET.**
+
+> ### ⛔ **WIDENING DISCARDS BOTH FACTS — you lose the true general bound AND the subset bound. SPLITTING KEEPS BOTH, AND THE SUBSET TEST BECOMES A POSITIVE CONTROL THAT WOULD CATCH THE CHANGE BEING UNDONE.**
+
+⚠ **So the honest question at a failing assertion is never *"how much do I relax this"* — it is
+⛔ **"WHAT IS THE TRUE BOUND, AND WHERE DOES THE OLD ONE STILL HOLD?"** **Two derivations instead of
+one arbitrary number.**
+
 **Corollary — ⛔ A LEVER CAN MOVE ITS TARGET METRIC THE RIGHT WAY WHILE MOVING THE SYSTEM THE WRONG WAY.**
 
 **Backlog entry 104, measured on the canonical arm.** Raising the win threshold `T=15→90` moves
