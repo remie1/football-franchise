@@ -1945,6 +1945,47 @@ READ WRONG. The exit-only curve is the second.**
 asymmetry that turned out to be an ORACLE RULE.** **An exclusive-share number that does not say what
 was held is not a result.**
 
+**Corollary — ⛔ A TERM WITH TWO REFERENTS IN ACTIVE USE GIVES EVERY CLAIM THAT USES IT TWO TRUTH VALUES.**
+
+**"The arrival floor" names TWO DIFFERENT QUANTITIES in this corpus, both live, both used in the same
+discussions:**
+
+| what is meant | share of dropbacks |
+|---|---|
+| the raw `RUSH_THREAT{state:"ARRIVED"}` EVENT | **~3%** |
+| the `pocketFloorFromArrival` CHANNEL — a continuous time-to-arrival floor reaching forcing severity long before any arrival | ⛔ **82%** |
+
+> ## ⛔ **ONE REFERENT IS ~27× THE OTHER, AND NOBODY NOTICED UNTIL A HYPOTHESIS ABOUT "THE ARRIVAL FLOOR" RETURNED TWO OPPOSITE ANSWERS DEPENDING ON WHICH WAS MEANT.**
+
+⚠ **Same family as the census's RAW-vs-EXCLUSIVE distinction — arriving in VOCABULARY rather than in a
+count.** ⛔ **And it is harder to see there: a count can be re-derived, but a WORD carries its ambiguity
+into every sentence that uses it, including the one that states the hypothesis and the one that
+reports the result.**
+
+**⇒ The disagreement looked like a MEASUREMENT question and was a DEFINITIONAL one.** ⛔ **Before
+pricing a mechanism, establish that its NAME has one referent.**
+
+**Corollary — ⛔ A STATEMENT ABOUT THE LEAK, MADE IN THE LEAKY CHANNEL, IS SUBJECT TO THE LEAK.**
+
+**The out-of-band channel was characterised in a progress summary as producing testimony *"reliable in
+direction and unreliable in detail."*** ⛔ **THE FOUR REPRODUCTIONS DO NOT SUPPORT THAT.**
+
+| what reproduced | result |
+|---|---|
+| TTT, both populations | ✅ **exact to 16 significant digits** |
+| the §4 counterfactual at 496 | ✅ **within `0.3pp`, all three arms** |
+| §2's four-bucket decomposition | ✅ **EXACT, digit for digit** |
+| ⛔ **the ledger count** | ⛔ **WRONG — and it was OURS, carried from a progress summary** |
+
+> ### ⛔ **THEIR INSTRUMENTS WERE EXACT THREE TIMES FOR THREE. THE ONE FIGURE THAT FAILED IS THE ONE THEY READ FROM US.**
+
+⚠ **So the conclusion points at OUR out-of-band channel, not at their rigour — a materially different
+answer to *"how much verification does the next external artefact need."*** ⛔ **AND THE MISCHARACTERI-
+SATION WAS ITSELF MADE IN A PROGRESS SUMMARY — the same unarmed channel it was describing.**
+
+**⇒ The class is recursive, and that is not a curiosity:** ⛔ **the channel with no instrument is also
+the channel in which claims about that channel get made.**
+
 **Corollary — ⛔ THE RULING-SEARCH ASKS *"WHICH CELLS DOES THIS RULING IMPLY?"* NOBODY ASKS *"WHICH RATIFIED DESCRIPTIONS DOES THIS CHANGE FALSIFY?"***
 
 ⚠ **The first runs SIDEWAYS at ruling time and this project does it well. The second runs FORWARD IN
