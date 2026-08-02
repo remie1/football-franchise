@@ -7306,3 +7306,66 @@ channel with no arm, and RETURNED CITED AS ESTABLISHED.** ⚠ **Per the default 
 and the external citation added apparent standing while adding no evidence.**
 
 **⇒ THE UNARMED NUMBER CAME BACK LOOKING BETTER THAN IT LEFT, AND IT WAS WRONG THE WHOLE TIME.**
+
+---
+
+## 104. ⛔⛔ THE WIN THRESHOLD CANNOT LAND THE TRIPLE — conversion moves **AWAY** from real as exit moves toward it
+
+**The canonical-arm re-run the owner made a precondition for the next football ruling.** ⚠ **`EXT-1`'s
+grid was `n=150`, matching the external review's arm rather than ours. This is `n=496`.**
+
+**Arm: `flat-60-32t`, 496 games, `SYNTHETIC_ROUND_ROBIN` 2024, batch seed `baseline-0001`, seed digest
+`fnv1a:020c1dcb#496`, `DEFAULT_TUNABLES` otherwise.** ⛔ **The digest and fixture count were ASSERTED
+BY THE HARNESS, not assumed.**
+
+### ✅ THE CURVE HOLDS AT 496 — pre-registration confirmed
+
+**Every point with a 150-game comparator reproduces within `0.52pp` on exit and `0.12pp` on sack.**
+
+| `T` | entry | exit | sack | ⛔ **conversion** |
+|---|---|---|---|---|
+| **15** *(committed)* | 89.73 | **85.60** | 15.20 | **17.76%** |
+| 30 | 89.77 | 80.32 | 11.94 | 14.87% |
+| 40 | 89.64 | 74.12 | 9.53 | 12.86% |
+| 45 | 89.89 | 70.22 | 8.67 | 12.35% |
+| 60 | 89.69 | 53.47 | 5.69 | 10.64% |
+| 75 | 89.72 | 34.71 | 3.51 | 10.11% |
+| 90 | 89.73 | **23.62** | 2.16 | **9.14%** |
+| **extinguished** | 89.63 | 21.43 | 1.86 | 8.68% |
+
+⚠ **Entry stays `89.63-89.89` across all eight arms — a `0.26pp` range while exit sweeps `64pp`.**
+⛔ **THAT CONTRAST IS THE FINDING, and it is why `threat_creation_rate` could never have priced this
+lever.** *(Named honestly: the 496 entry band sits ~0.2-0.3pp above the 150 band. Inside noise for
+this base rate, but a real shift, not zero.)*
+
+### ⛔⛔ AND THE TRIPLE REFUTES THE SINGLE-LEVER PATH
+
+**Real conversion is ≈`23-25%`** *(external review §5.3, real side)*. ⛔ **EVERY ARM IS BELOW IT —
+INCLUDING THE COMMITTED ONE, WHICH IS ALREADY AT `17.76%`.**
+
+> ## ⛔ **CONVERSION FALLS MONOTONICALLY AS `T` RISES. Exit moves TOWARD real; conversion moves AWAY from it. The two cannot be satisfied by this lever at any value.**
+
+**At the interpolated crossing where exit meets real ~29 — `T≈83` — conversion is ≈`9-10%`, roughly
+`2.5×` TOO LOW, and WORSE than at the committed `T=15`.**
+
+⚠ **This is EXACTLY the divergence §5.3 warned a single-row curve would hide, now MEASURED ON OUR
+CANONICAL ARM rather than inferred.** ⛔ **The instruction to report the triple rather than the curve
+is what surfaced it; the exit column alone reads as a clean success story.**
+
+### ⇒ WHAT THIS CONSTRAINS FOR THE NEXT RULING
+
+⛔ **THE WIN THRESHOLD IS THE ONLY LEVER WITH A DEMONSTRATED TRANSFER (entry 103) AND IT STILL CANNOT
+LAND THE MODEL ALONE.** ⚠ **Raising it buys exit at the cost of conversion, and conversion is already
+short before the lever is touched.**
+
+**⇒ So the next ruling is NOT *"pick a `T`"*.** ⛔ **Any `T` that fixes exit makes conversion worse,
+which means a second mechanism must move conversion UP — the review names rep persistence, the
+pressure counter's time constants, and the arrival floor's auto-conversion of every surviving win for
+its final `1.0s`.** ⚠ **Priced against the triple, never one row.**
+
+### ⚠ ONE GAP, NAMED RATHER THAN PAPERED OVER
+
+**`T=30` and `T=90` have NO 150-game citation anywhere** — grepped, zero hits. ⛔ **So the
+crossing-point question *"does the `T` where exit crosses real shift between arms?"* CANNOT be
+answered same-vs-same.** ⚠ **The `T≈83` crossing is interpolated from the 496 data ALONE, between
+`T=75` (34.71) and `T=90` (23.62). No 150-game counterpart exists and none was fabricated.**

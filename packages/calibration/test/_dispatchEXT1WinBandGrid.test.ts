@@ -81,10 +81,36 @@ function measure(tunables: Tunables, games: number) {
   };
 }
 
+/**
+ * DISPATCH: re-run at the CANONICAL 496-game corpus (batch seed `baseline-0001`, `flat-60-32t`,
+ * `SYNTHETIC_ROUND_ROBIN` season 2024 -- `generateSeeds("baseline-0001", fixtures.length)` above
+ * digests to `fnv1a:020c1dcb#496` when `fixtures.length === 496`, asserted below rather than
+ * assumed). Owner's standing condition: a win-threshold curve is not cited as ours until it has
+ * been run at 496, not the review-matching 150.
+ *
+ * CHANGED from the file as landed (`2cef0fc`): the T-list gained `40` (named in the dispatch) and
+ * an EXTINGUISHED arm (`supplyAt(999)`, the same value `gapProbe.arms.test.ts` uses for
+ * `committed_supply_off` -- not a new lever, the existing "channel off" arm this file was missing).
+ * `GAMES` was already read from `PROBE_GAMES` (default 150) on the landed file; no change needed
+ * there. Nothing else in `measure()` or the harness plumbing was touched.
+ */
 describe.skipIf(!enabled)("EXT-1: win-band grid, iid, our tree", () => {
-  it("supplyAt(T) for T=15,30,45,60,75,90 -- direct test of the review's 86->34 claim", () => {
-    for (const T of [15, 30, 45, 60, 75, 90]) {
-      console.log("ARM T=" + T + " " + JSON.stringify(measure(supplyAt(T), GAMES)));
+  it("fixtures.length is 496 (canonical corpus precondition for this dispatch)", () => {
+    const league = buildFlatLeague({ teams: 32 });
+    const index = indexLeague(league);
+    const fixtures = buildFixtures(index, { kind: "SYNTHETIC_ROUND_ROBIN", rounds: 1, season: 2024 });
+    const seeds = generateSeeds("baseline-0001", fixtures.length);
+    console.log(`fixtures.length=${fixtures.length} seed digest=${seeds.digest}`);
+  });
+
+  it("supplyAt(T) for T=15,30,40,45,60,75,90 + extinguished -- direct test of the review's 86->34 claim", () => {
+    for (const T of [15, 30, 40, 45, 60, 75, 90]) {
+      const m = measure(supplyAt(T), GAMES);
+      const conversion = (Number(m.sack_rate) / Number(m.exit_disrupted)).toFixed(4);
+      console.log("ARM T=" + T + " " + JSON.stringify({ ...m, conversion }));
     }
+    const extinguished = measure(supplyAt(999), GAMES);
+    const conversionExt = (Number(extinguished.sack_rate) / Number(extinguished.exit_disrupted)).toFixed(4);
+    console.log("ARM EXTINGUISHED(999) " + JSON.stringify({ ...extinguished, conversion: conversionExt }));
   }, 2400000);
 });
