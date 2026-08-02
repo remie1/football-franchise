@@ -1814,6 +1814,26 @@ field, the premise ledger, *derive-don't-inherit*, and now *refutation-goes-firs
 anyone to be less biased. Each makes the biased outcome MORE EXPENSIVE TO PRODUCE than the honest
 one.**
 
+> ### ⇒ **AND THAT IS A TEST FOR ANY FUTURE RULE: if a proposed remedy asks for MORE CARE rather than CHANGING RELATIVE COST, IT IS THE WRONG SHAPE.** ⚠ **Checkable against a proposal at the moment it is made.**
+
+### ⛔ THE MECHANISM UNDER THE *FIELD-NOT-HABIT* TEST — which until now was an observation
+
+> ## ⛔ **A RULE THAT ONLY WORKS WHEN SOMEONE REMEMBERS IT FAILS EXACTLY WHEN THE BIAS IS STRONGEST — BECAUSE BOTH ARE FUNCTIONS OF PRESSURE.**
+
+⚠ **Recall DEGRADES under load. Bias INCREASES under load.** ⛔ **So a recall-dependent rule has its
+failure rate CORRELATED WITH THE CONDITIONS THAT MAKE IT NECESSARY — it is reliably present when it is
+not needed and reliably absent when it is.**
+
+**⇒ AND THE CORRELATION HAS A SECOND CONSEQUENCE, WORSE THAN THE FIRST:** ⛔ **the observed failure
+rate UNDERSTATES THE COST, because the failures are not distributed evenly across cases — they
+CONCENTRATE IN THE HIGH-STAKES ONES.** ⚠ **Counting how often a habit was skipped measures the wrong
+thing; what matters is WHICH cases it was skipped on, and those are systematically the ones that
+mattered most.**
+
+⛔ **This is why *"it has failed three times"* was already the wrong frame for habit 9** — ⚠ **the count
+was never the argument. The argument was that the three failures shared a CONDITION, and the condition
+recurs.**
+
 > ### ⇒ **THE QUALITATIVE TWIN OF *"EVERY FIGURE NAMES ITS ARM"*: EVERY CLAIM NAMES ITS STATUS — MEASURED, DERIVED, OR ASSERTED.** ⚠ **A bullet among counted bullets that was never counted is the cheapest possible way to launder an assertion into evidence, and it requires no bad faith whatsoever.**
 
 **⚠ THE PROPAGATION SITES, LISTED BECAUSE THE COUNT IS THE ARGUMENT.** ⛔ **One unmeasured bullet
