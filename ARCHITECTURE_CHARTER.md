@@ -1796,6 +1796,24 @@ placed among context is read as context* — the content is honest and the PLACE
 ⚠ **And if the measurement cannot decide it at all, THAT is said too** — ⛔ **an absent answer is not a
 null, and a dispatch that cannot settle a question leaves it exactly where it was.**
 
+#### 🔗 SAME MECHANISM AS THE *RATIFIED-PLAN* COROLLARY, ONE RELATIONSHIP OVER
+
+| | what it removes | how |
+|---|---|---|
+| **ratified-plan** *(§ above)* | ⛔ **REVIEWERS** | *approval* — the ruling **is** the review's output, so review is structurally absent by the time it exists |
+| ⛔ **this corollary** | ⛔ **SYMMETRY IN THE SEARCH** | *provenance* — the hypothesis came from the briefing authority, so confirmation is looked for harder than refutation |
+
+> ## ⛔ **BOTH WORK BY MAKING ONE ANSWER FEEL LIKE THE EXPECTED ONE. Neither requires anybody to intend it, and neither leaves a trace in the work product.**
+
+⚠ **The unified form, and it is the reason both need STRUCTURAL remedies rather than diligence:**
+
+> ### ⛔ **AN EXPECTATION ATTACHED TO AN ANSWER IS A BIAS THAT DOES ITS WORK BEFORE ANY EVIDENCE IS EXAMINED.** ⚠ **By the time the evidence is in hand, the asymmetry has already been applied — to where you looked, how long you looked, and what you called sufficient.**
+
+**⇒ Which is why the remedies are POSITIONAL and PROCEDURAL rather than exhortations:** the provenance
+field, the premise ledger, *derive-don't-inherit*, and now *refutation-goes-first*. ⛔ **None asks
+anyone to be less biased. Each makes the biased outcome MORE EXPENSIVE TO PRODUCE than the honest
+one.**
+
 > ### ⇒ **THE QUALITATIVE TWIN OF *"EVERY FIGURE NAMES ITS ARM"*: EVERY CLAIM NAMES ITS STATUS — MEASURED, DERIVED, OR ASSERTED.** ⚠ **A bullet among counted bullets that was never counted is the cheapest possible way to launder an assertion into evidence, and it requires no bad faith whatsoever.**
 
 **⚠ THE PROPAGATION SITES, LISTED BECAUSE THE COUNT IS THE ARGUMENT.** ⛔ **One unmeasured bullet
