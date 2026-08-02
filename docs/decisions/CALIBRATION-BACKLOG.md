@@ -7555,3 +7555,98 @@ entry 104's point exactly.** ⚠ **Every arm's identity and sole-ambiguity falsi
 — `forcesDecision` never contains `PRESSURE`)*; `pocket.thresholds` values fixed, only the RATE swept.
 ⚠ **UNEXPLORED AND NAMED:** single seed list; lever interior points (`T` 30/40/60/75, `m`
 0.25/0.75/1.5/3, `C` 0.5/1.5); and ⛔ **the tie-break/redundancy separation above.**
+
+---
+
+## 107. ⛔⛔ THE CAVEAT HOLDS — and the "THREE STACKED ESCALATORS" STORY IS **WRONG AT BASELINE**
+
+**Both fast paths refuted: the owner's *"maybe the measure was sound"* AND his *"temporal scoping is the
+fix."*** ⚠ **Reported as the dispatch's headline, unsoftened, per the ratified requirement.**
+
+### ✅ ITEM A — THE METHOD IS SOUND. THE SIGNAL IS STILL MISLEADING.
+
+⛔ **`wouldStillForceWithout` IS a genuine counterfactual sole-necessity test** — confirmed FROM THE
+CODE, not from anyone's characterisation. **A same-tick tie IS classified `multi-channel`, and that is
+the CORRECT output of a sound test.**
+
+> ## ⛔ **BUT A CORRECT NECESSITY TEST APPLIED TO TWO FORMULAS THAT ARE STRUCTURALLY COUPLED BY AN ACCIDENTAL CONSTANT MATCH STILL PRODUCES A MISLEADING ARCHITECTURAL SIGNAL.**
+
+**The mechanism, precisely — and it is subtler than *"a tie"*:**
+
+- `statusFromBandFloor` floors **instantly** off `minimumStatusByBand.RUSHER_WINS_REP → COLLAPSING`
+- `floorFromArrival` floors when `minTta <= collapsingWithinSeconds`
+- ⛔ **For an INTERIOR rusher, `minTta` ON THE WINNING TICK *IS* `1.0` — and `C` IS `1.0`**
+
+⚠ **So the SAME REP is read by TWO FORMULAS that cross their thresholds together.** ⛔ **The
+counterfactual has no way to see that arrival's value at that tick was DERIVED FROM the same rep
+bandFloor read, rather than independently arrived at.** **Two readings of one event, counted as two
+channels.**
+
+### ⚠ THE OWNER'S SECOND HYPOTHESIS — **PART OF THE ANSWER, NOT THE FIX**
+
+**Restricting the counterfactual to the single DECIDING INSTANT rather than the whole dropback:**
+
+| | whole-duration | deciding-instant | gap |
+|---|---|---|---|
+| baseline multi-channel | **90.41%** | **79.94%** | **10.47pp** |
+
+⛔ **A REAL EFFECT, AND A MINORITY ONE.** ⚠ **And `85.15%` of what SURVIVES the narrowing is STILL the
+identical INTERIOR coincidence — now caught at the exact instant it matters rather than somewhere later
+in the play.**
+
+### ⛔⛔ THE REFRAMING: AT THE DECIDING INSTANT, **THE COUNTER CONTRIBUTES NOTHING**
+
+**Baseline `n=496`, deciding-instant multi-channel = `79.94%` of forced plays, decomposed:**
+
+| what is tying | share of DI-multi | of all forced |
+|---|---|---|
+| **bandFloor + arrival, INTERIOR** | **85.15%** | **68.07%** |
+| **bandFloor + arrival, EDGE** | 14.85% | 11.87% |
+| ⛔ **anything involving the COUNTER** | ⛔ **`0.00%`** | ⛔ **`0.00%`** |
+
+> ## ⛔ **100% OF OVER-DETERMINATION AT THE DECIDING INSTANT IS THE bandFloor/arrival PAIR. THE PRESSURE COUNTER CONTRIBUTES ZERO.**
+
+⚠ **So *"three independently sufficient escalators stacked"* is NOT what the committed tree has.**
+⛔ **It has TWO channels that coincide — and their coincidence is largely an ACCIDENT OF TWO
+CONSTANTS.** **Entry 105 already found the counter solely necessary on ZERO plays; this shows it is
+not even a redundant contributor at the moment that decides the play.**
+
+### ⛔ A SHARPER CORRECTION — TO ENTRY 106 **AND TO MY OWN FRAMING**
+
+**Entry 106 and I both described the coincidence as a razor's-edge equality that *"moving `C` off
+`1.0` IN EITHER DIRECTION"* would break.** ⛔ **THAT IS WRONG.**
+
+⚠ **`floorFromArrival` uses `<=`.** ⛔ **So ANY `C >= 1.0` REPRODUCES THE FULL TIE for INTERIOR reps —
+`C=2.0` still measures `90.20%` whole-duration / `73.02%` deciding-instant, `76.48%` INTERIOR. Only
+`C < 1.0` breaks it** *(`C=0.0` collapses to `1.44%` DI)*.
+
+> ### ⇒ **THE COMMITTED `1.0` SITS AT THE LOWER BOUNDARY OF A ONE-SIDED REDUNDANCY REGION, NOT AT AN ISOLATED POINT.** ⚠ **A widening nudge changes nothing; only narrowing does.**
+
+### ⚠ ITEM C — ENTRY 83's RELATIONAL CLASS, THIRD INSTANCE, **ACCIDENTAL**
+
+**`travelSecondsByAlignmentAndMove.INTERIOR = 1.0` was derived from a PHYSICAL-DISTANCE argument
+(a rusher ~4-5 yards from the launch point). `collapsingWithinSeconds = 1.0` was derived from
+POCKET-STATUS SEMANTICS (what *"collapsing"* should mean).** ⛔ **NEITHER COMMENT REFERENCES THE OTHER.
+NOTHING IN THE TREE PINS THE RELATIONSHIP.**
+
+⚠ **Exactly entry 83's pattern — *"each honestly derived and each independently defensible… the two
+constants never met until a census counted ticks"* — and its own diagnosis that NO existing instrument
+would catch it.**
+
+### ✅ AND MY SPECULATION ABOUT `tunables.ts:937` IS **REFUTED**
+
+**I suggested the *"dead heats"* note might anticipate this tie — which would have made it a recorded
+observation that reached nothing, sitting beside the constant that caused it.** ⛔ **IT DOES NOT.**
+⚠ **That comment resolves which of TWO RUSHERS with equal arrival ETAs gets sack attribution. It says
+nothing about ONE rusher's OWN bandFloor and arrival channels crossing a severity threshold together,
+and cannot be re-read to cover it.** **Checked by direct read, not inferred.**
+
+### 📒 ONE UNCONTAMINATED ARM, REPORTED AS MEASUREMENT ONLY
+
+⚠ **`(90, 2.0, 0.0)`'s residual DI-multi (`7.74%`) is `94.68%` *"other"* — the COUNTER tying with
+another channel, NOT the bandFloor/arrival coincidence.** ⛔ **So that arm's multi figure is largely
+UNCONTAMINATED by this caveat.** ⛔ **THIS IS NOT REHABILITATION. It remains post-hoc,
+look-elsewhere-affected, and ~`4pp` short on conversion. NOT A CANDIDATE.**
+
+**Falsifiers: identity mismatches `0` across all six arms (`267k+` ticks); sole-ambiguity `0`; baseline
+and `T=90` reproduce entries 105/106 DIGIT-FOR-DIGIT.**
