@@ -48,6 +48,7 @@
  * NOTHING here changes `packages/engine`. This is a report, not a repair, per the coordinator's
  * standing instruction.
  */
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import { DEFAULT_TUNABLES } from "@ff/engine";
@@ -58,13 +59,58 @@ import { runOneGame } from "../src/harness/runGame.js";
 import { buildFixture, buildFixtures } from "../src/harness/schedule.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import { indexLeague } from "../src/league/snapshot.js";
+import { fsCacheStore } from "../src/ingest/cache.js";
+import { TUNING_SEASONS } from "../src/ingest/seasons.js";
+import { openRealForTuning } from "../src/metrics/realInput.js";
+import { pressureToSackRate } from "../src/metrics/tier1.js";
+import { isInapplicable, pointEstimate, sampleSize } from "../src/metrics/types.js";
 
 const enabled = process.env["FF_B87"] === "1";
 
-const REAL_PRESSURE_TO_SACK = 0.1637; // reports/baseline-0007.md, n=16627 — unaffected by this fix
 const BAND_WIDTH = 0.15;
-const FLOOR = REAL_PRESSURE_TO_SACK * (1 - BAND_WIDTH);
-const CEILING = REAL_PRESSURE_TO_SACK * (1 + BAND_WIDTH);
+
+/**
+ * ⛔ THE REAL SIDE IS DERIVED, NOT TRANSCRIBED — read this before touching either number below.
+ *
+ * This used to be `const REAL_PRESSURE_TO_SACK = 0.1637` (`reports/baseline-0007.md`, n=16,627),
+ * copied out of a report and commented "unaffected by this fix" — true of backlog 87's numerator
+ * change, at the time it was written, and FALSE as a general claim: `3019dd8` (the dropback/
+ * scramble denominator dispatch) moved `isDropback` from `playType === "pass"` to nflverse's own
+ * `qb_dropback` flag, which grew the real `pressured` population 16,627 -> 17,602 and moved the
+ * real rate to 15.464% (`tier1.ts`'s own `pressure_to_sack` knownDivergences note). The copied
+ * `0.1637` did not move with it, so the band this file built was silently grading the NEW sim
+ * figure against the OLD real population — a constant that was wrong once and would be wrong
+ * again at the next denominator change, with nothing here to notice.
+ *
+ * THE FIX: call the registered metric's own `computeFromReal` on the same 2022-2024 TUNING cache
+ * `pressureSweep.test.ts`'s `real` test opens (`openRealForTuning` + `withParticipation`), exactly
+ * as a baseline report would. The band below now tracks `pressure_to_sack`'s DEFINITION, not a
+ * transcription of one past evaluation of it — the next time the real-side population moves, this
+ * band moves with it for free, and the test fails loudly (`isInapplicable`) rather than falling
+ * back to a stale hardcode if the cache or the join ever stops producing a rate.
+ */
+async function loadRealPressureToSack(): Promise<{ readonly rate: number; readonly n: number }> {
+  const store = fsCacheStore(resolve(import.meta.dirname, "..", "data-cache"));
+  const real = await openRealForTuning(store, TUNING_SEASONS, { withParticipation: true });
+  const outcome = pressureToSackRate.computeFromReal(real);
+  if (isInapplicable(outcome)) {
+    throw new Error(
+      `pressure_to_sack's real side returned ${outcome.reason} (${outcome.detail}) on the ` +
+        "2022-2024 TUNING cache. This test derives its band from the registered metric's own " +
+        "computeFromReal and refuses to fall back to a hardcoded figure silently — if the cache " +
+        "is genuinely unavailable in this context, that must be stated explicitly here, not papered " +
+        "over with a stale number.",
+    );
+  }
+  const value = pointEstimate(outcome);
+  if (value === null) {
+    throw new Error(
+      "pressure_to_sack's real side produced an applicable outcome with a null point estimate " +
+        "(zero trials) on the 2022-2024 TUNING cache — cannot build a band from it.",
+    );
+  }
+  return { rate: value, n: sampleSize(outcome) };
+}
 
 /** The exact `clockRunoff` value ONLY the horizon fallback (`passPlay.ts:1115-1126`) can produce. */
 const HORIZON_CLOCK_RUNOFF_SIGNATURE =
@@ -234,6 +280,11 @@ describe.skipIf(!enabled)("backlog 87 — pressure_to_sack numerator fix and hor
     const oldRate = p.pressuredDropbacks === 0 ? Number.NaN : oldNumerator / p.pressuredDropbacks;
     const newRate = p.pressuredDropbacks === 0 ? Number.NaN : newNumerator / p.pressuredDropbacks;
 
+    // DERIVED, not hardcoded — see `loadRealPressureToSack`'s own header for why.
+    const { rate: REAL_PRESSURE_TO_SACK, n: REAL_N } = await loadRealPressureToSack();
+    const FLOOR = REAL_PRESSURE_TO_SACK * (1 - BAND_WIDTH);
+    const CEILING = REAL_PRESSURE_TO_SACK * (1 + BAND_WIDTH);
+
     say("");
     say("=======================================================================");
     say("BACKLOG 87 DISPATCH A — pressure_to_sack numerator, canonical corpus");
@@ -256,9 +307,9 @@ describe.skipIf(!enabled)("backlog 87 — pressure_to_sack numerator fix and hor
         `= ${(newRate * 100).toFixed(3)}%`,
     );
     say(
-      `real (reports/baseline-0007.md, participation was_pressure, TUNING 2022-2024, n=16627) = ` +
-        `${(REAL_PRESSURE_TO_SACK * 100).toFixed(2)}%  band ±15% relative = ` +
-        `[${(FLOOR * 100).toFixed(2)}%, ${(CEILING * 100).toFixed(2)}%]`,
+      `real (DERIVED live from pressure_to_sack.computeFromReal, participation was_pressure, ` +
+        `TUNING 2022-2024 cache, n=${REAL_N}) = ${(REAL_PRESSURE_TO_SACK * 100).toFixed(3)}%  ` +
+        `band ±15% relative = [${(FLOOR * 100).toFixed(2)}%, ${(CEILING * 100).toFixed(2)}%]`,
     );
     say(
       `NEW figure ${newRate >= FLOOR && newRate <= CEILING ? "STAYS INSIDE" : "FALLS THROUGH"} the band` +
@@ -279,6 +330,7 @@ describe.skipIf(!enabled)("backlog 87 — pressure_to_sack numerator fix and hor
           oldRate,
           newRate,
           real: REAL_PRESSURE_TO_SACK,
+          realN: REAL_N,
           floor: FLOOR,
           ceiling: CEILING,
         }),
@@ -341,5 +393,9 @@ describe.skipIf(!enabled)("backlog 87 — pressure_to_sack numerator fix and hor
     // This corpus DID measure 6,593 sacks (backlog 87 dispatch A) — sacks existing at all is the
     // precondition for this census to say anything, sim-side and independent of the horizon split.
     expect(census.sacks).toBeGreaterThan(0);
-  }, 600_000);
+    // Timeout raised from 10 to 30 minutes: this test now also opens the 2022-2024 TUNING cache
+    // (pbp + participation, ~500MB) to derive the real-side figure, on top of the 496-game batch
+    // and the full per-game horizon re-run it already ran. `pressureSweep.test.ts`'s own cache-only
+    // `real` test budgets 30 minutes for the load alone.
+  }, 1_800_000);
 });
