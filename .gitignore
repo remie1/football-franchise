@@ -5,3 +5,9 @@ dist/
 packages/calibration/data-cache/
 assets/generated/
 .claude/settings.local.json
+
+# Agent worktrees. These are scratch clones on their own branches, and they can
+# hold DELIBERATELY BROKEN trees — the ADR-056/corr rig patch breaks ADR-004 roll
+# accounting and exists only as a measurement instrument. Untracked, one `git add
+# -A` away from landing on main. Ignored so that cannot happen by accident.
+.claude/worktrees/
