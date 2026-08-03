@@ -270,6 +270,18 @@ RATED.**
 **APPROVED** by project owner + Orchestrator, August 2026. ⛔ **Contracts are NOT amended by this
 ratification** — see condition 1.
 
+> ## ⛔ **AND THE ADR BOUNDARY IS NOT THE COMMIT BOUNDARY.** *(Recorded August 2026, on landing.)*
+>
+> **ADR-059's shape-only condition was CORRECT — and it means ADR-059 CANNOT LAND ALONE.**
+> ⚠ **Those are not in tension.** ⛔ **This ADR asserts no football content; the COMMIT needs a
+> football ruling to be green.** **Two different lines, and treating them as one is how a correct
+> shape-only ratification gets read as permission to ship.**
+>
+> **The worked case:** landing the rep structure alone eliminated coverage sacks — `6/101` → `0/1,009`
+> — a property **ADR-033 explicitly ratified** *("`CLEAN` — which is correct, and is what a coverage
+> sack IS", ADR-033:236)*. ⛔ **Nothing in ADR-059 asserted that would happen, and nothing in ADR-059
+> is wrong. The commit was simply not landable on this ADR's authority alone.**
+
 ⛔ **Two conditions ATTACHED, both from precedent. The first is NON-NEGOTIABLE (owner).**
 
 **1. The contracts commit lands WITH the engine adaptation, in one commit.** ADR-004 set this

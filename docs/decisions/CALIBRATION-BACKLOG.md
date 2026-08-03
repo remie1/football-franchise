@@ -8392,3 +8392,77 @@ not visible from either end.
 | the template rule | ✅ **LANDED** in `DISPATCH-BRIEF-TEMPLATE.md` |
 | ⛔ **auditing PRIOR briefs for the same clause** | ⛔ **NOT QUEUED** — ⚠ **they are spent; the rule binds future briefs.** **Per entry 115's null, a sweep of this shape may return nothing** |
 | habit 10's generalization | ⚠ `unruled` — **the connection is recorded; no rewrite proposed** |
+
+---
+
+## 118. ⛔⛔ ADR-059's STRUCTURE ELIMINATED A **RATIFIED FOOTBALL PROPERTY** — coverage sacks, `5.9%` → `0`
+
+**Found landing ADR-059. ⛔ MEASURED. ⚠ DISPOSITION PENDING — a counter dispatch is live; this entry
+records what is SETTLED, not what will be decided.**
+
+### ⛔ THE REGRESSION
+
+| property | pre-ADR-059 | ⛔ **post** | arm |
+|---|---|---|---|
+| coverage sacks | **`6/101`** *(`5.9%`, matching `sackCredit.test.ts`'s own module comment and its 496-game batch figure)* | ⛔ **`0 / 1,009`** | 96-game diagnostic, 8,556 plays |
+| step-up clears a live EDGE threat to `CLEAN` | reachable | ⛔ **`0 / 1,873`** | 20,000-play sweep |
+
+> ## ⛔ **ADR-033:236 RATIFIED THE PROPERTY IN WORDS: *"`CLEAN` — which is correct, and is what a coverage sack IS."*** ⚠ **ADR-059 asserted nothing about it and eliminated it anyway.**
+
+### ✅ THE CAUSE, NAMED RATHER THAN GUESSED
+
+⛔ **`BLOCKER_RESETS` (margin ≤ −15) is the ONLY band that zeroes the pressure counter.**
+
+⚠ **Under iid ticks, a matchup wandered across that boundary regularly. Under correlated reps it
+STAYS TIPPED** — so the counter climbs near-monotonically, the accumulated-pressure channel dominates
+`pocketStatusFor`'s worst-of, and the pocket is never `CLEAN` at sack time. ⛔ **No `CLEAN` pocket, no
+coverage sack.**
+
+> ### ⇒ **NOT A MIS-TUNED COUNTER. A counter with ONE reset condition that was survivable ONLY because the contest was re-drawn each tick.** ⛔ **THE iid TICKS WERE DOING THE RESETTING, AND WE REMOVED THEM.**
+
+### ✅✅ AND THIS IS §5's JOINT-LANDING CLAIM, REPRODUCED ON OUR OWN TREE
+
+**External §5 finding 3: land *(rep structure, counter constants, arrival horizon)* JOINTLY.**
+⛔ **We landed rep structure ALONE and the thing that broke is PRECISELY THE COUNTER.**
+
+> ## ✅ **THE STRONGEST EVIDENCE YET THAT THE JOINT-CONSTRAINT FRAMING IS RIGHT** — ⚠ **and it arrived as a MEASURED CONSEQUENCE on our corpus, not as a prediction inherited from an arm we never ran.**
+
+### ⛔ THE BOUNDARY THIS ESTABLISHES — recorded in ADR-059 too
+
+> ## **THE ADR BOUNDARY IS NOT THE COMMIT BOUNDARY.**
+
+**ADR-059's shape-only condition was CORRECT, and it means ADR-059 CANNOT LAND ALONE.** ⚠ **Not in
+tension.** ⛔ **The ADR asserts no football content; the COMMIT needs a football ruling to be green.**
+**Treating them as one line is how a correct shape-only ratification gets read as permission to ship.**
+
+### ⛔ AND A SHARPER FORM OF ENTRY 117's CLASS — **verification decays in a shared tree**
+
+**Entry 117 recorded a CONSTRAINT becoming ambiguous with more actors.** ⛔ **This is worse:
+VERIFICATION ITSELF decaying.**
+
+**What happened:** a `calibration` dispatch reported reading `tunables.ts` and confirming
+`passRush.repJitter.divisor = 4`. ⛔ **The Orchestrator checked minutes later and the leaf WAS NOT
+THERE** — the concurrent engine dispatch was mid-write. ⚠ **The Orchestrator raised the possibility
+the verification claim did not hold. IT DID HOLD; the leaf is present in the final tree.**
+
+> ## ⛔ **"I READ IT AND CONFIRMED IT" ACQUIRES A TIMESTAMP IN A SHARED MUTATING TREE. A VERIFICATION WITHOUT ONE IS NOT REPRODUCIBLE.**
+
+⚠ **Worse than an ambiguous clause, because THE REPORT READS AS DILIGENCE AND THE ARTIFACT CAN STILL
+BE WRONG** — and the reverse also fired here: **a correct verification was doubted on the strength of
+a mid-flight snapshot.** ⛔ **Both directions are available and neither is visible from the report.**
+
+📒 **AND THE ORCHESTRATOR'S OWN ERROR IN THE SAME EPISODE:** a mid-flight message told a dispatch it
+had added `NEITHER_RULED_NOR_DERIVED` *"earlier this session."* ⛔ **It had not — a DIFFERENT dispatch
+did.** ⚠ **Sub-agents do not share memory; RECALL ACROSS DISPATCHES IS INHERENTLY A CARRIED FIGURE.**
+✅ **Both live dispatches independently refused to trust that message and verified against source
+before acting. The right instinct, fired twice.**
+
+### DISPOSITION
+
+| item | disposition |
+|---|---|
+| the regression | ⛔ **MEASURED. Both tests LEFT RED — not loosened** |
+| the cause | ✅ **ESTABLISHED** |
+| ⛔ **which bands reset / whether decay is the better shape** | ⛔ **OWNER RULED "more bands"; MECHANISM READ DISPATCHED, live** |
+| `counterMoveAfterStalemate` dead code | ⚠ **coupled to the counter question, brought with it** |
+| the commit | ⛔ **HELD. Not landable while two correct tests are red** |
