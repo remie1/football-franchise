@@ -377,7 +377,80 @@ export type Provenance =
    * carries and per this file's own header ("state what you rejected... the next reader will
    * otherwise re-derive the same dead ends").
    */
-  | "RULED_NOT_DERIVED";
+  | "RULED_NOT_DERIVED"
+  /**
+   * ✅ **RATIFIED CONVENTION** (owner, August 2026), added on the OWNER'S OWN DIRECTION rather than by
+   * an existing value stretched: *"If the register has no provenance value meaning 'nobody ever
+   * justified this,' that is the finding. A scheme missing that box cannot record the answer nobody
+   * wanted."* CALIBRATION-BACKLOG entry 111's archaeology — full-repo `git log -S` on the identifier,
+   * the introducing commit's full message, every commit touching it in `docs/`, every ADR/backlog
+   * entry those point to, **READ-ONLY** — found `arrival.immediateWithinSeconds` (`0.0`) and
+   * `arrival.collapsingWithinSeconds` (`1.0`) had **NEITHER a derivation NOR a ruling, anywhere,
+   * ever.** Only a shared descriptive comment survives, and it is about what the three-rung LADDER
+   * MEANS (arrived / about to arrive / still real pressure), never about why these two NUMBERS. The
+   * word **NEITHER** is entry 111's own — its heading is *"NEITHER, THREE TIMES"* — not invented for
+   * this comment.
+   *
+   * **THE SURVEY** (each of the other nine, and why none is honest for either cell):
+   *  - `DOC_VERBATIM` — no. Neither number appears in the doc for this cell, or for any cell; §7.2's
+   *    own KNOWN ISSUE box says the doc has no arrival model at all.
+   *  - `DOC_DERIVED` — no. Not a re-encoding of ONE already-stated doc number for THIS quantity — there
+   *    is no doc number here to re-encode, and (unlike `arrival.pressureWithinSeconds`, which genuinely
+   *    re-encodes THESE two cells) no other already-committed cell computes either of these two either.
+   *  - `DOC_UNIT_RESOLVED` — no. No unit ambiguity; there is no doc number in any unit to resolve.
+   *  - `INTERPRETATION` — no, and this is the closest miss, so it gets the longest answer, as it has at
+   *    every prior addition to this union. `INTERPRETATION` is a declared KNOB — "the doc asked for a
+   *    judgement and one was made **in the open**." Entry 111's exhaustive search found no such
+   *    declaration for either cell: no comment framing `0.0` or `1.0` as a chosen value, no sweep run
+   *    to justify the choice (a sweep DOES exist for `collapsingWithinSeconds` — entry 81 — and entry
+   *    81 says of ITSELF that it tests the lever's INERTNESS against `pressure_rate`, never why `1.0`
+   *    rather than `0.8`), nothing. Filing these as `INTERPRETATION` would assert an act — a judgement,
+   *    made in the open — that the exhaustive search found never happened. A judgement nobody can
+   *    point to is not a knob quietly turned; it is the thing this value exists to name instead.
+   *  - `DOC_GAP` — no, and this is the SECOND-closest miss: `arrival.*`'s own catch-all note is shaped
+   *    exactly like `DOC_GAP`'s definition (*"the doc has no rule here at all"*). But `DOC_GAP`'s own
+   *    examples are content-free engine bookkeeping (§16's sack yardage, the game loop) — filler where
+   *    any reasonable number serves the same structural role equally well. These two cells are NOT
+   *    content-free: `0.0` and `1.0` are the boundaries of a football distinction (arrived / about to
+   *    arrive), and ADR-058 has since made `collapsingWithinSeconds` the SOLE determinant of whether a
+   *    won INTERIOR rep floors `COLLAPSING` or `PRESSURE` — football content with a live consequence,
+   *    not bookkeeping.
+   *  - `TABLE_SHAPE` — no. Not a cell a table's rectangle demanded where the doc gave nothing; there is
+   *    no table here, only two scalar horizons.
+   *  - `STRUCTURAL` — no. Not bookkeeping with "no football content" — the opposite, per the `DOC_GAP`
+   *    rejection immediately above.
+   *  - `OUT_OF_SCOPE` — no. Nothing about these cells is invented outside the document's remit; §7.2 is
+   *    exactly where the arrival channel belongs, and the doc simply never reached it (its own KNOWN
+   *    ISSUE box says so).
+   *  - `DERIVED_MECHANIC` — no. That value requires BOTH an owner-ruled EXISTENCE and a magnitude
+   *    reached by two independent structural facts converging. Entry 111 found neither half for either
+   *    cell: no ruling naming these two magnitudes, and — for `collapsingWithinSeconds` — a SWEEP
+   *    exists but a sweep tests inertness, which is not the same claim as structural convergence on a
+   *    value. Contrast `arrival.pressureWithinSeconds`, which genuinely has both halves (entry 76's
+   *    ruling; width-replication off THESE two cells) — which is exactly why ITS derivation chains off
+   *    two anchors that are themselves unjustified (see that rule's amended note).
+   *  - `RULED_NOT_DERIVED` — no, and this is the closest-shaped existing value, so it is named
+   *    explicitly. `RULED_NOT_DERIVED` requires the EXISTENCE half to be true — an owner ruling that
+   *    the mechanic should exist at all (ADR-055 §6, for `scramble.accuracyModifier`), with only the
+   *    MAGNITUDE left underived. Entry 111 found NEITHER half here for either cell: no owner ruling
+   *    was ever made about either magnitude, and no derivation reaches it either. Asserting
+   *    `RULED_NOT_DERIVED` would overclaim the EXISTENCE half a `RULED_NOT_DERIVED` cell is required to
+   *    have; that overclaim is why this is a DIFFERENT value and not a re-use of that one.
+   *
+   * **THE CATEGORY.** Neither half of the two-half table `DERIVED_MECHANIC` and `RULED_NOT_DERIVED`
+   * both use is answerable here: EXISTENCE was never argued by an owner ruling, and MAGNITUDE was
+   * never reached by a derivation, a sweep (entry 81's sweep tests inertness, not magnitude), or a
+   * declared interpretation. What exists is a comment describing the CONCEPT the ladder encodes, not a
+   * reason for these two NUMBERS. Re-litigated the only way anything genuinely unjustified can be — by
+   * an owner ruling that supplies one from scratch — and that obligation is sharper for
+   * `collapsingWithinSeconds` now that ADR-058 has made it load-bearing rather than cosmetic.
+   *
+   * ⚠ **THE NEXT CELL OF THIS SHAPE — a magnitude with no derivation, no sweep, and no ruling behind
+   * it, discovered only by exhaustive archaeology rather than assumed — REUSES THIS VALUE** rather than
+   * inventing an eleventh, per the same instruction every value in this union has carried since
+   * `DERIVED_MECHANIC`.
+   */
+  | "NEITHER_RULED_NOR_DERIVED";
 
 export interface RegisterRule {
   /**
@@ -702,10 +775,14 @@ export const REGISTER: readonly RegisterRule[] = [
    *    `DOC_DERIVED` re-encodes ONE already-stated doc number for THE SAME quantity (`minMargin:
    *    -19` restating "1-19"). This cell's `2.0` is not a restatement of anything the doc says about
    *    `pressureWithinSeconds` itself — it is a NEW number computed from the relationship between
-   *    TWO OTHER, DIFFERENT already-ratified cells one width over (`immediateWithinSeconds` 0.0 and
-   *    `collapsingWithinSeconds` 1.0: width 1.0, replicated once — `1.0 + 1.0 = 2.0`). Widening
-   *    `DOC_DERIVED` to cover an inter-cell derivation would blur the distinction its own definition
-   *    draws, exactly as entry 73's survey found for its own cell.
+   *    TWO OTHER, DIFFERENT cells one width over (`immediateWithinSeconds` 0.0 and
+   *    `collapsingWithinSeconds` 1.0: width 1.0, replicated once — `1.0 + 1.0 = 2.0`). ⚠ **NAMED
+   *    PRECISELY, NOT "ALREADY-RATIFIED"**: CALIBRATION-BACKLOG entry 111 found those two anchors
+   *    themselves carry NO ruling and NO derivation of their own (`NEITHER_RULED_NOR_DERIVED` — see
+   *    their own rules, above the `arrival.*` catch-all) — the arithmetic here is sound ON the two
+   *    numbers AS COMMITTED, but it inherits no justification for why those two numbers are `0.0` and
+   *    `1.0` in the first place. Widening `DOC_DERIVED` to cover an inter-cell derivation would blur
+   *    the distinction its own definition draws, exactly as entry 73's survey found for its own cell.
    *  - `DOC_UNIT_RESOLVED` — no. No unit ambiguity: the doc states no number for this quantity in
    *    any unit for this cell to resolve.
    *  - `INTERPRETATION` — no, and this is the classification being CORRECTED, so it gets the
@@ -736,10 +813,15 @@ export const REGISTER: readonly RegisterRule[] = [
    * block explicitly naming itself the marker's SECOND use. The cell's EXISTENCE (a horizon at all,
    * as opposed to `POS_INF`'s "any live threat, at any distance") is an OWNER RULING —
    * CALIBRATION-BACKLOG entry 76, the same football reasoning ADR-032's band-map amendment used one
-   * channel over. The cell's VALUE (`2.0`) is not — it is forced by two independent already-ratified
-   * anchors elsewhere in the same tree (`immediateWithinSeconds`, `collapsingWithinSeconds`), and
-   * the doc states plainly nobody chose it. Re-litigated by moving either cited anchor, never by a
-   * football argument alone (that argument re-opens only the ruling half, cited separately).
+   * channel over. The cell's VALUE (`2.0`) is not — it is forced by two other cells elsewhere in the
+   * same tree (`immediateWithinSeconds`, `collapsingWithinSeconds`), and the doc states plainly
+   * nobody chose it. ⚠ **THOSE TWO CELLS ARE NOT "ALREADY-RATIFIED"** — CALIBRATION-BACKLOG entry
+   * 111's archaeology found neither a ruling nor a derivation behind either one (see their own
+   * rules, `NEITHER_RULED_NOR_DERIVED`), so this derivation is an arithmetic fact ABOUT two committed
+   * numbers, not a claim that those numbers were themselves earned. Re-litigated by moving either
+   * cited anchor, never by a football argument alone (that argument re-opens only the ruling half,
+   * cited separately) — and moving either anchor now also means moving a value entry 111 found
+   * nobody has ever justified.
    *
    * ⚠ **MANUFACTURING A CATEGORY TO DEMONSTRATE RIGOUR WOULD BE THE FOURTH SHAPE ARRIVING AT A
    * VOCABULARY, NOT THE THIRD.** `DERIVED_MECHANIC` is taken here because the survey above finds it
@@ -759,7 +841,11 @@ export const REGISTER: readonly RegisterRule[] = [
       "and `collapsingWithinSeconds` (1.0) fix the horizon's own width at 1.0, and PRESSURE sits one " +
       "more of that same width beyond COLLAPSING (1.0 + 1.0 = 2.0) — replicating the interval once " +
       "rather than inventing a new one, landing on the engine's own 0.5s tick quantum without " +
-      "rounding. No rate expectation is attached (CALIBRATION-BACKLOG entry 1e swept this exact " +
+      "rounding. ⚠ THOSE TWO ANCHORS ARE THEMSELVES UNJUSTIFIED (CALIBRATION-BACKLOG entry 111: " +
+      "`NEITHER_RULED_NOR_DERIVED` — no ruling and no derivation behind either) — this derivation is " +
+      "sound arithmetic ON the two committed numbers, not a claim that inherits any backing FOR them; " +
+      "a future ruling that moves either anchor moves this cell too, for that reason as well as the " +
+      "arithmetic one. No rate expectation is attached (CALIBRATION-BACKLOG entry 1e swept this exact " +
       "channel and refused it as a `pressure_rate` lever, -2.440pp of a 60.6pp gap); the metric this " +
       "bound is priced against is severity, not the rate. See the `DERIVED_MECHANIC` provenance " +
       "value's own comment for the full eight-category survey this entry repeats.",
@@ -797,6 +883,57 @@ export const REGISTER: readonly RegisterRule[] = [
       "`DERIVED_MECHANIC` provenance value's own comment for the full survey against every other " +
       "category.",
   },
+  /**
+   * ⚠ CALIBRATION-BACKLOG ENTRY 111's ARCHAEOLOGY, AND THE CATCH-ALL THAT WAS SILENTLY ABSORBING IT.
+   *
+   * `arrival.immediateWithinSeconds` and `arrival.collapsingWithinSeconds` were, until this dispatch,
+   * classified only by falling through to `arrival.*` below — a `UNIFORM_REGIONS` member whose note
+   * reads "the doc has no arrival model … every number in this block is engine structure filling that
+   * gap." Entry 110 first read that as "no provenance marker of any kind"; entry 111 corrected it —
+   * the marker exists, machine-checked, in a red/green gate — but it is a statement about the
+   * NEIGHBOURHOOD (§7.2's KNOWN ISSUE box), not about either CELL: it says nothing about why `0.0`
+   * and `1.0` specifically, versus any other pair. Entry 111's exhaustive search (`git log -S` on each
+   * identifier, every commit touching it, every ADR/backlog entry those point to) found **NEITHER a
+   * derivation NOR a ruling, anywhere, ever**, for either cell — "one shared descriptive comment"
+   * (`tunables.ts`, the prose above both fields explaining what the three-rung LADDER means, never why
+   * these two NUMBERS) is the entire record. Named individually, ABOVE the catch-all, so
+   * `arrival.*`'s remaining membership is unchanged and neither cell is reported `classified` under a
+   * note that was never about it.
+   */
+  {
+    pattern: "arrival.immediateWithinSeconds",
+    provenance: "NEITHER_RULED_NOR_DERIVED",
+    docRef: "§7.2 KNOWN ISSUE (missing time-of-arrival model) — CALIBRATION-BACKLOG entry 111",
+    note:
+      "0.0. NEITHER an owner ruling NOR a derivation exists for this value, at any point in the " +
+      "project's history — CALIBRATION-BACKLOG entry 111's exhaustive archaeology found nothing but " +
+      "the comment shared with `collapsingWithinSeconds` describing the three-rung ladder's CONCEPT " +
+      "(arrived / about to arrive / still real pressure), which says nothing about why the ARRIVED " +
+      "rung sits at exactly `0.0` rather than any other floor. Not `INTERPRETATION`: that value " +
+      "asserts a judgement was made in the open, and the search found none. Not `DOC_GAP`: that " +
+      "value's own examples are content-free bookkeeping, and this cell is football content — the " +
+      "boundary at which a rusher is already in the QB's face. See the `NEITHER_RULED_NOR_DERIVED` " +
+      "provenance value's own comment for the full ten-category survey.",
+  },
+  {
+    pattern: "arrival.collapsingWithinSeconds",
+    provenance: "NEITHER_RULED_NOR_DERIVED",
+    docRef:
+      "§7.2 KNOWN ISSUE (missing time-of-arrival model) — CALIBRATION-BACKLOG entries 81/111, ADR-058",
+    note:
+      "1.0. NEITHER an owner ruling NOR a derivation exists for this value either. A SWEEP does exist " +
+      "(CALIBRATION-BACKLOG entry 81, `0.0`-`2.0`) and entry 111 is explicit that a sweep is not a " +
+      "derivation: entry 81 found the lever 'STRUCTURALLY INCAPABLE of moving' `pressure_rate` — that " +
+      "tests the boundary's INERTNESS against one metric, and entry 81 says of itself 'every prior " +
+      "hit was this cell being USED, never EXAMINED.' It never establishes why `1.0` rather than " +
+      "`0.8` against the football distinction the boundary is meant to draw. ADR-058 has since made " +
+      "this cell the SOLE determinant of whether a won INTERIOR rep floors `COLLAPSING` or " +
+      "`PRESSURE` (its Implied Scope section logs the value `unruled`), so the absence of any " +
+      "justification is now load-bearing rather than the cosmetic gap it was when this sat inert " +
+      "inside `arrival.*`. Not `INTERPRETATION`: no judgement in the open was ever found, only the " +
+      "comment shared with `immediateWithinSeconds` describing the ladder's concept. See the " +
+      "`NEITHER_RULED_NOR_DERIVED` provenance value's own comment for the full ten-category survey.",
+  },
   {
     pattern: "arrival.*",
     provenance: "INTERPRETATION",
@@ -806,7 +943,12 @@ export const REGISTER: readonly RegisterRule[] = [
       "is engine structure filling that gap, declared as such in tunables. ⚠ EXCEPT " +
       "`containRetiresAfterConsecutiveContains`, named individually above: §7.1's `DERIVED " +
       "MECHANIC` note addresses that cell directly, so 'the doc has no arrival model' is not true " +
-      "of it and this catch-all's `UNIFORM` claim never reaches it.",
+      "of it and this catch-all's `UNIFORM` claim never reaches it. ⚠ AND EXCEPT " +
+      "`immediateWithinSeconds` / `collapsingWithinSeconds`, also named individually above " +
+      "(CALIBRATION-BACKLOG entry 111): this note describes the BLOCK's provenance CLASS, not why " +
+      "those two specific numbers are what they are, and entry 111 found no ruling and no derivation " +
+      "behind either one — `NEITHER_RULED_NOR_DERIVED`, a different finding from 'the doc has no " +
+      "arrival model' even though both cells happen to sit in a doc-silent block.",
   },
 
   // ---- §7.2 pocket -----------------------------------------------------------------------------

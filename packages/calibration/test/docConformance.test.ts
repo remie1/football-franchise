@@ -187,6 +187,18 @@ const ADR_055_S6_ADDED_PATHS: readonly string[] = [
   "scramble.readCapacityDelta",
 ];
 
+/**
+ * CALIBRATION-BACKLOG entry 111's two cells — not additions to the tree (both predate this dispatch),
+ * but a RE-CLASSIFICATION out of the `arrival.*` catch-all's `INTERPRETATION`, named the same way the
+ * additions above are: a bare digest move would certify whichever population absorbed them, correctly
+ * or not; a named pair with a rule per member is a reading. See the `NEITHER_RULED_NOR_DERIVED`
+ * provenance value's own comment for the ten-category survey.
+ */
+const ENTRY_111_RECLASSIFIED_PATHS: readonly string[] = [
+  "arrival.immediateWithinSeconds",
+  "arrival.collapsingWithinSeconds",
+];
+
 describe("doc-conformance register", () => {
   it("accounts for every numeric leaf — and no longer calls a PREFIX MATCH a classification", () => {
     // ⛔ OWNER RULING, July 2026: "a prefix rule is a classification that cannot be wrong, which
@@ -225,11 +237,15 @@ describe("doc-conformance register", () => {
     // exactly the ADR-048 defect recurring a third time (see `scramble.accuracyModifier`'s rule
     // comment). This population moving INSTEAD of that one is the evidence the fix pulled the two
     // cells OUT of the catch-all rather than merely re-counting them inside it.
-    expect(audit.classifiedNarrow).toBe(230);
-    // UNCHANGED by ADR-055 §6, and deliberately so — see the comment on the assertion above. A count
-    // that does not move here is not an oversight; it is what "the two cells were pulled out of the
-    // catch-all" looks like from this side of the identity.
-    expect(audit.classifiedUniform).toBe(281);
+    // 230 → 232 at CALIBRATION-BACKLOG entry 111: two more narrow rules added, for
+    // `arrival.immediateWithinSeconds` / `arrival.collapsingWithinSeconds`, named ABOVE the
+    // `arrival.*` catch-all for the identical reason as the two pairs above.
+    expect(audit.classifiedNarrow).toBe(232);
+    // 281 → 279 at CALIBRATION-BACKLOG entry 111 — UNLIKE the two entries above, this one DOES move,
+    // because the two cells pulled out this time were previously inside `arrival.*`'s UNIFORM
+    // population rather than its absorbing one. A count that did NOT move here would mean the pair
+    // was re-typed inside the catch-all rather than actually pulled out of it.
+    expect(audit.classifiedUniform).toBe(279);
     expect(audit.absorbed).toHaveLength(206);
     // The SET, not the size — a swap inside the absorbed region holds the count and moves this.
     expect(absorbedCellDigest()).toBe("fnv1a:f159870b");
@@ -394,6 +410,40 @@ describe("doc-conformance register", () => {
     expect(uniformScramble).toBeDefined();
   });
 
+  it("names entry 111's two cells individually — classification by wildcard fallback, corrected", () => {
+    // ⛔ THIS IS THE TEST THAT WOULD HAVE PASSED ON THE OLD FIX. Left to `arrival.*`, both cells read
+    // `INTERPRETATION` and every OTHER gate in this file stays green — `unclassified`, `deadRules`,
+    // the totality identity all pass on a note that is a claim about the NEIGHBOURHOOD ("the doc has
+    // no arrival model"), not about why `0.0` or `1.0` specifically. Only re-reading `arrival.*`'s
+    // note against these two cells — which entry 111's archaeology did — finds that.
+    const paths = new Set(numericLeafPaths());
+    for (const p of ENTRY_111_RECLASSIFIED_PATHS) {
+      expect(paths.has(p)).toBe(true);
+      const rule = classify(p);
+      expect(rule?.pattern).toBe(p);
+      expect(rule?.pattern).not.toBe("arrival.*");
+      // Not `INTERPRETATION` (would assert a judgement entry 111's search never found), not
+      // `RULED_NOT_DERIVED` (would assert an owner-ruled existence that was never made) and not any
+      // of the other eight surveyed categories — a brand-new value, PROPOSED and first-used here.
+      // See its own comment in `docConformance.ts` for the full ten-category survey.
+      expect(rule?.provenance).toBe("NEITHER_RULED_NOR_DERIVED");
+    }
+    // And the catch-all they were pulled out of still owns exactly what it owned before, minus these
+    // two — the absorption pin below (18 → 16) is the structural proof of that, not this line.
+    const uniformArrival = UNIFORM_REGIONS.find((r) => r.pattern === "arrival.*");
+    expect(uniformArrival).toBeDefined();
+  });
+
+  it("keeps pressureWithinSeconds's DERIVED_MECHANIC classification, with its anchors' status named", () => {
+    // Entry 111 confirmed `pressureWithinSeconds` IS derived — arithmetically, off the two cells
+    // above — but on anchors that are themselves `NEITHER_RULED_NOR_DERIVED`. The classification does
+    // not change; the note must no longer read as an unqualified derivation.
+    const rule = classify("arrival.pressureWithinSeconds");
+    expect(rule?.provenance).toBe("DERIVED_MECHANIC");
+    expect(rule?.note).toContain("NEITHER_RULED_NOR_DERIVED");
+    expect(rule?.note).not.toContain("already-ratified");
+  });
+
   it("declares its exclusion TOTALLY — every leaf lands in one of the three buckets", () => {
     const census = leafCensus();
     // The derived form of "the walk did not narrow": a leaf the typology cannot place is named at
@@ -552,7 +602,9 @@ describe("doc-conformance register", () => {
       "blitzPickup.freeRunnerPath.* :: INTERPRETATION :: 8 :: fnv1a:5cd36578",
       "blitzPickup.bands.* :: INTERPRETATION :: 6 :: fnv1a:678eeb63",
       "blitzPickup.* :: DOC_VERBATIM :: 2 :: fnv1a:b994fb1e",
-      "arrival.* :: INTERPRETATION :: 18 :: fnv1a:924db233",
+      // 18 → 16 at CALIBRATION-BACKLOG entry 111: `immediateWithinSeconds` and
+      // `collapsingWithinSeconds` pulled out to their own narrow rules, above.
+      "arrival.* :: INTERPRETATION :: 16 :: fnv1a:102737ce",
       "pocket.accuracyModifier.* :: DOC_VERBATIM :: 4 :: fnv1a:2edef696",
       "pocket.readCapacityDelta.* :: TABLE_SHAPE :: 2 :: fnv1a:ae9bbb70",
       "pocket.severity.* :: STRUCTURAL :: 4 :: fnv1a:384a330e",
