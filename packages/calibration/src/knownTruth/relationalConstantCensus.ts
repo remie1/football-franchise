@@ -208,7 +208,6 @@ const FIELD_OVERRIDES: Readonly<Record<string, string>> = {
   // ---- flat per-band bonus tables with no unit word in the field name ----
   backShoulderWithoutChemistry: "modifierPoints",
   blockerStructuralAdvantage: "modifierPoints",
-  counterMoveAfterStalemate: "modifierPoints",
   disguise: "modifierPoints",
   complexity: "modifierPoints",
   situational: "modifierPoints",

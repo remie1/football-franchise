@@ -132,17 +132,31 @@ import {
  * (`ADR_055_S6_ADDED_PATHS`) and classified by a rule written about each — see those rules' comments
  * and the new `RULED_NOT_DERIVED` provenance value for why neither `scramble.*`'s catch-all nor any
  * of the other nine categories (including `DERIVED_MECHANIC`, the closest miss) fit.
+ *
+ * **718 → 717 at ADR-059 landing (`3dddcbd`), a REMOVAL.** `passRush.counterMoveAfterStalemate` was
+ * deleted from `Tunables` — owner ruling: dead by construction, fired zero times (`previousBand` was
+ * structurally always `undefined` at its one call site). This is the first entry in this history that
+ * SHRINKS the tree rather than growing it. Deleting a leaf does not by itself redden the register — it
+ * reddens `deadRules`, because the leaf's per-cell rule (`passRush.counterMoveAfterStalemate`,
+ * `DOC_VERBATIM`) is left pointing at a cell that no longer exists. That rule is removed here, along
+ * with two more references to the same deleted leaf found by direct grep rather than assumed: a note
+ * under `arrival.containRetiresAfterConsecutiveContains`'s `DERIVED_MECHANIC` classification that cited
+ * it as "the model's only cross-tick memory" (reworded, marked retired, anchor (1) alone still carries
+ * that classification), and a `relationalConstantCensus.ts` `FIELD_OVERRIDES` entry (env-gated, so it
+ * could not have gone red on its own). `deadRules` returns to `[]` once all three are gone — verified
+ * by running the suite, not assumed.
  */
-const RECORDED_NUMERIC_CENSUS = 718;
+const RECORDED_NUMERIC_CENSUS = 717;
 
 /**
  * The same subject as a SET rather than a size. Re-cut at ADR-040 (`d20Offset` → `baseHalfWidth`),
  * again at ADR-048 (`route.contestGain.*`, +7), again at ADR-052/053 (`resultTierLadder`, +8 new
- * rung indices), again at CALIBRATION-BACKLOG entry 73 (`arrival.containRetiresAfterConsecutiveContains`, +1).
+ * rung indices), again at CALIBRATION-BACKLOG entry 73 (`arrival.containRetiresAfterConsecutiveContains`, +1),
+ * again at ADR-059 landing (`passRush.counterMoveAfterStalemate` removed, −1).
  * When this reddens and the count does not, a cell was SWAPPED: diff `numericLeafPaths()` against
  * `git diff packages/engine/src/tunables.ts` and re-read the affected rule against the doc.
  */
-const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:ab3ebfdf";
+const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:2fb37479";
 
 /**
  * ⚠ **THE RE-RECORD, AS A SET AND NOT AS A COUNT** — §4.1's count-blindness corollary applied to the
@@ -240,7 +254,7 @@ describe("doc-conformance register", () => {
     // 230 → 232 at CALIBRATION-BACKLOG entry 111: two more narrow rules added, for
     // `arrival.immediateWithinSeconds` / `arrival.collapsingWithinSeconds`, named ABOVE the
     // `arrival.*` catch-all for the identical reason as the two pairs above.
-    expect(audit.classifiedNarrow).toBe(232);
+    expect(audit.classifiedNarrow).toBe(231);
     // 281 → 279 at CALIBRATION-BACKLOG entry 111 — UNLIKE the two entries above, this one DOES move,
     // because the two cells pulled out this time were previously inside `arrival.*`'s UNIFORM
     // population rather than its absorbing one. A count that did NOT move here would mean the pair

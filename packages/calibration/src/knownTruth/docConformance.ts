@@ -633,12 +633,6 @@ export const REGISTER: readonly RegisterRule[] = [
       "it. Not a doc number in either direction.",
   },
   {
-    pattern: "passRush.counterMoveAfterStalemate",
-    provenance: "DOC_VERBATIM",
-    docRef: "§7.1",
-    note: "'Counter move: +15 if previous tick was stalemate'.",
-  },
-  {
     pattern: "passRush.bands.*",
     provenance: "DOC_DERIVED",
     docRef: "§7.1 as amended (ADR-033)",
@@ -906,14 +900,19 @@ export const REGISTER: readonly RegisterRule[] = [
       "not chosen, on two independent anchors, both re-verified directly against " +
       "`packages/engine/src/tunables.ts` rather than transcribed: (1) arithmetic — " +
       "`arrival.recoverySecondsByBand.BLOCKER_CONTAINS` (0.5) × 2 = 1.0 = `arrival.minTravelSeconds` " +
-      "exactly, the model's own floor for how close any threat is ever allowed to be; (2) " +
-      "structural — `passRush.counterMoveAfterStalemate`'s `previousBand` is the model's only " +
-      "cross-tick memory (a single carried slot), so the smallest pattern expressible at that depth " +
-      "that is not merely 'any one rep' is the same result twice running. NOT `DOC_VERBATIM`: the " +
-      "doc's 'two consecutive reps' prose is a RECORD of this derivation, not its source. NOT " +
-      "`INTERPRETATION`: the doc explicitly disclaims a judgement here ('nobody chose it'). See the " +
-      "`DERIVED_MECHANIC` provenance value's own comment for the full survey against every other " +
-      "category.",
+      "exactly, the model's own floor for how close any threat is ever allowed to be. (2) structural, " +
+      "AS ORIGINALLY ARGUED AND NOW RETIRED: this anchor cited `passRush.counterMoveAfterStalemate`'s " +
+      "`previousBand` as the model's only other cross-tick memory (a single carried slot), reasoning " +
+      "that the smallest pattern expressible at that depth that is not merely 'any one rep' is the " +
+      "same result twice running. That leaf was deleted (owner ruling: dead by construction, fired " +
+      "zero times — commit `3dddcbd`), so the cited cell no longer exists and this anchor is no " +
+      "longer live; it is left here, marked retired, rather than silently dropped, because entry 73's " +
+      "classification is a historical record and a reader following its citation should not find a " +
+      "dangling one. Anchor (1) alone is arithmetic and sufficient to carry the DERIVED_MECHANIC " +
+      "classification on its own. NOT `DOC_VERBATIM`: the doc's 'two consecutive reps' prose is a " +
+      "RECORD of this derivation, not its source. NOT `INTERPRETATION`: the doc explicitly disclaims " +
+      "a judgement here ('nobody chose it'). See the `DERIVED_MECHANIC` provenance value's own " +
+      "comment for the full survey against every other category.",
   },
   /**
    * ⚠ CALIBRATION-BACKLOG ENTRY 111's ARCHAEOLOGY, AND THE CATCH-ALL THAT WAS SILENTLY ABSORBING IT.
