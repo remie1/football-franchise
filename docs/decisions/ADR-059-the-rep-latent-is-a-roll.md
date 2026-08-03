@@ -43,7 +43,11 @@ neither is a lever: no arm measures a schema. The three-arm precondition does no
 > ⛔ **AND THE PRICEABLE CONJUNCTION IS ELSEWHERE, WHERE IT BINDS EXT-4 RATHER THAN THIS ADR.**
 > **External §5 finding 3 says land *"(rep structure, counter constants, arrival horizon) JOINTLY
 > against the triple."*** ⚠ **THREE mechanisms, joined by "and", ALL separately priceable.** ⛔ **Per
-> this template's own rule that is FOUR ARMS MINIMUM — each alone, then jointly — and the ADR-050
+> this template's own rule that is FOUR ARMS MINIMUM — each alone, then jointly — and the ~~ADR-050~~
+> ⛔ **[CORRECTED BESIDE, August 2026: the worked example is `ADR-TEMPLATE.md`'s GEOMETRY-AND-TIME
+> case (backlog entry 80), NOT ADR-050. ADR-050 is about ladder TIER vs CUMULATIVE occupancy and
+> appears in that template as the COUNTER-example — "one operation in two clauses." The citation was
+> wrong in ratified text and was caught by a dispatch's premise ledger, not by review.]** ADR-050
 > worked example says the joint arm alone would ratify all three on whichever one's evidence.**
 > **Named here as a PRECONDITION ON EXT-4's DISPATCH, not on this ratification.**
 

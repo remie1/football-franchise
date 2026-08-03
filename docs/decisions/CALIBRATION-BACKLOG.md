@@ -9109,3 +9109,107 @@ population.
 | population instrument | ⛔ **DELIBERATELY NOT KEPT.** ⚠ **A smaller search reproduces the same power defect at smaller scale** |
 | `pnpm verify` | ✅ **GREEN — build, test, typecheck, exit 0. Verified by the Orchestrator directly, not taken from the report** |
 | ⛔ **is `1-in-940` the RIGHT rate?** | ⛔ **QUEUED as its own football question.** ⚠ **Nobody has ever asked, in either direction, and pre-ADR-059 the answer was structurally NEVER.** **First time this mechanic has had a measurable rate at all** |
+
+---
+
+## 125. ⛔⛔⛔ THE FORECAST COULD NEVER HAVE BEEN SCORED — **and the falsifiability discipline had no step checking that**
+
+**EXT-4's pre-registration was written against real-side figures THIS REGISTRY HAD ALREADY RULED
+INADMISSIBLE.** ⛔ **Nobody noticed while writing it, reviewing it, or binding it to a dispatch.**
+
+### ⛔ WHAT THE FORECAST NEEDED, AND WHAT THE REGISTRY HOLDS
+
+| the prediction was scored against | ⛔ **what `tier1.ts` says** |
+|---|---|
+| real `conversion` **`23-25%`** | ⛔ **`:546` — *"NO REAL SIDE: a declared quotient of two sim-side-only rows… has no real counterpart to compare against"*** |
+| real `exit` *(for "closes a large fraction of its gap")* | ⛔ **`qb_disruption_rate` is SIM-SIDE-ONLY, as an OBSERVATION** *(entry 93, dispatch C)*. **There is no gap defined** |
+| real `sack` **`6.9%`** | ✅ **EXISTS — `6.560%` on our own side**, post the scramble-denominator fix made the same session |
+
+⛔ **TWO OF THREE CLAUSES WERE UNSCOREABLE BY CONSTRUCTION.** ⚠ **The `23-25%` and the exit gap are
+external §5 figures — from an 80-game arm on a patched clone — and entry 93 plus dispatch C ruled the
+real side OUT of this registry weeks earlier.**
+
+> ## ⛔ **THE FORECAST WAS WRITTEN AGAINST NUMBERS THE AUTHORS HAD THEMSELVES RULED INADMISSIBLE, IN THIS REGISTRY, EARLIER.**
+
+### ⇒ THE FINDING, AND IT IS NOT A BRIEF ERROR
+
+> ## ⛔ **A PRE-REGISTRATION IS ONLY AS GOOD AS THE REGISTRY THAT WOULD SCORE IT.**
+
+⚠ **The whole falsifiability apparatus was built and applied correctly** — forecast fixed before
+implementation, falsifier written, right-for-the-wrong-reason case named, scoring appended below a
+line so it could not be improved retroactively, direction withheld from the dispatch.
+
+⛔ **AND NOT ONE STEP OF IT ASKED WHETHER THE SCORING QUANTITIES EXISTED.**
+
+**⇒ The missing step is one question, asked before binding:** ⛔ ***"For each clause, WHAT WILL IT BE
+COMPARED AGAINST, and does that quantity EXIST IN THIS REGISTRY TODAY?"*** ⚠ **Free at authoring time.
+Unrecoverable afterwards — a forecast discovered to be unscoreable AFTER the measurement cannot be
+re-run, because the measurement has already been seen.**
+
+### 📒 AND IT COMPOUNDS THE ABSORBED CLASS
+
+⚠ **Entry 93's ruling was CORRECT, RECORDED, RATIFIED — and did not reach the people writing a
+forecast that depended on it.** ⛔ **Including the one who ran the dispatch that executed it.**
+
+**Not a fact nothing reads, not a correction nothing reads, not an entry nothing can read —**
+⛔ **A RULING ITS OWN AUTHOR DID NOT APPLY.**
+
+---
+
+## ⛔ THE PREDICTION IS SCORED A LOSS. UNHEDGED.
+
+**The one clause that could be scored:**
+
+> **`sack` lands nearer `6.9%`.**
+
+| | |
+|---|---|
+| real, our own side | **`6.560%`** |
+| pre-ADR-059 | `15.20%` |
+| ⛔ **measured** | ⛔ **`16.509%`** |
+
+> ## ⛔ **IT MOVED AWAY FROM REAL. THE PREDICTION LOST.**
+
+⚠ **This is the first prediction this project made that could lose, and it lost.** ✅ **Recorded
+without hedging, which is the only thing that makes the next one worth writing.**
+
+### ⚠ THE RIGHT-FOR-THE-WRONG-REASON CLAUSE **OBTAINED — exactly as written**
+
+**`conversion` rose `17.76% → 21.01%` since entry 104** *(same corpus, same seed digest)*.
+
+⛔ **BUT: `exit` FELL `85.60 → 78.564` while `sack` ROSE `15.20 → 16.509`.** ⚠ **THE RATIO IMPROVED
+FROM BOTH ENDS.**
+
+> ## ✅ **THE CLAUSE EXISTED TO CATCH EXACTLY THIS, AND IT CAUGHT IT.** ⛔ **Reported as a ratio alone, `17.76% → 21.01%` would have read as progress toward real `23-25%`.**
+
+⚠ **AND NEITHER SWEPT ARM TOUCHED IT** — conversion is flat to four decimals across all four arms.
+**Whatever moved it was rep cadence, the floor, not the levers under test.**
+
+---
+
+## ✅ WHAT SURVIVES — **the counter is closed by CEILING, not by argument**
+
+⛔ **Fully extinguishing `pocket.thresholds` reproduces arm 2 BIT-IDENTICALLY** — dropbacks `43,789`,
+sacks `7,222`, `disruptedDropbacks` `34,369`, exact match.
+
+> ## ✅ **A LARGER SHIFT CANNOT MOVE THE TRIPLE FURTHER. THAT IS A STRONGER CLOSURE THAN ANY SWEEP COULD GIVE** — a sweep leaves "maybe the step was too small"; extinction does not.
+
+**And the decomposition says why:** ⛔ **`arrival` alone decides `COLLAPSING` on `99.05%` of ticks and
+`IMMEDIATE` on `99.83%`; the counter alone, `0.078%` and `0.080%`.** ✅ **Entries 118-120 hold, now by
+ceiling.**
+
+### ⛔ AND HALF THE MEASUREMENT WAS VOID — the Orchestrator's brief
+
+**Arm 3 was specified as `immediateWithinSeconds 0.0` / `collapsingWithinSeconds 1.0` /
+`pressureWithinSeconds 2.0`.** ⛔ **THOSE ARE THE COMMITTED VALUES.** ⚠ **The constants were READ and
+CITED ACCURATELY and then listed as the INTERVENTION rather than as the thing to change.**
+
+**Confirmed a no-op two ways: identical `tunablesDigest`, and `0 of 43,777` dropbacks differing.**
+⛔ **So arm 4 was arm 2. Four arms were two, and the joint arm measured nothing joint.**
+
+⚠ **Fifth specification error of the session, same shape as the `IMMEDIATE`/`CLEAN` brief, on the most
+expensive dispatch.** ⛔ **And the ruling that approved it carried the same gap: *"arrival horizon
+swept"* was approved without anyone asking SWEPT TO WHAT.**
+
+**Arm 2's value was also unspecified; the dispatch chose `+3` and flagged it as its own interpretive
+choice.** ✅ **Correct handling of the gap. Now ratified — see the re-run.**
