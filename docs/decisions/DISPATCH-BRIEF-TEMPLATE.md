@@ -50,6 +50,36 @@ continue."**
 identical concurrency assumption, arriving at BRIEF LANGUAGE rather than at `git add`.** **Habit 10
 solved it for the index and nobody generalized it to the prose.**
 
+## ⛔ NAMED CONSTANTS — **say you READ it, and WHERE**
+
+**When a brief names a constant, a threshold, a line number, a table or a field, STATE THAT YOU READ
+IT AND CITE WHERE.** ⚠ **One clause: *"`pocket.thresholds`, read at `tunables.ts:1146-1149`."***
+
+> ## ⛔ **A DISPATCH EXECUTES THE BRIEF FAITHFULLY. A BRIEF THAT NAMES THE WRONG CONSTANT THEREFORE PRODUCES A FAITHFUL, INTERNALLY CONSISTENT MEASUREMENT OF THE WRONG THING — AND IT READS AS DECISIVE.**
+
+⛔ **The dispatch cannot catch this.** ⚠ **It has no way to know the brief meant a different cell, and
+every check it runs will pass.** **The only place the error is catchable is at authoring time, by the
+author, by reading the thing before naming it.**
+
+> ⛔ **THE WORKED COST — TWICE IN ONE SESSION, SAME CAUSE (ADR-059's landing, August 2026).**
+>
+> **1.** A brief said *"price the `IMMEDIATE` threshold."* ⛔ **The question was `CLEAN`-gated** — both
+> acceptance criteria required a `CLEAN` pocket. **The ladder is four lines** *(`IMMEDIATE 7`,
+> `COLLAPSING 5`, `PRESSURE 3`, `CLEAN −∞`)* **and the author did not read them before writing the
+> brief.** ⚠ **The sweep moved the top rung while the two rungs that deny `CLEAN` sat fixed, so the
+> arm labelled *"counter effectively disabled"* never disabled the counter.** ⛔ **Six arms, every
+> aggregate identical to three decimals, one play in 2,000 diverging — and it would have read as a
+> decisive null sending the question to a new mechanic.**
+>
+> **2.** A mid-flight message told a dispatch it had added a vocabulary term *"earlier this session."*
+> ⛔ **A DIFFERENT dispatch had.** ⚠ **Sub-agents do not share memory; recall across dispatches is
+> inherently a carried figure.**
+
+⚠ **SAME SHAPE AS `ADR-TEMPLATE.md`'s provenance field, aimed at THE BRIEF rather than at the
+ruling.** ⛔ **That field exists because *ratification does not add evidence, it only removes
+reviewers.* A brief is worse: **DISPATCH does not add evidence either, and it adds APPARENT
+evidence** — a table of numbers with an arm attached.
+
 ## The ruling being executed
 
 **Quote it.** ⚠ **Name what is ALREADY RULED and must NOT be reopened**, so the dispatch does not
