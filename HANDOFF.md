@@ -633,3 +633,35 @@ manifest {source, season, fetchedAt, schemaHash}.
     succeeds, the tests still pass, and the only symptom is a file appearing in a diff that has nothing
     to do with the message. **A rule that fires on "is an agent running?" is checkable; one that fires
     on "was I careful?" is not.**
+11. **When a commit is HELD for a ruling, BRANCH IT. ⛔ HELD IS NOT SAVED.** Standing rule, owner,
+    August 2026.
+
+    ⚠ **A commit correctly withheld from `main` — red tests, a pending football ruling, an unratified
+    petition — is still UNPROTECTED WORK sitting in a working tree.** ⛔ **"We are not committing yet"
+    answers *where it should go* and says NOTHING about *whether it survives*.** **Two different
+    requirements, and one of them is silently unmet the whole time.**
+
+    > ### ⛔ **`git checkout -b <topic>`, commit the tree AS IT STANDS, red tests and all. `main` stays clean and green; the branch carries the mess honestly.**
+
+    **Condition-1-style atomicity is NOT violated by this.** ⚠ **Contracts-plus-engine atomicity is
+    about WHAT REACHES `main`, not about how many times the work is saved along the way.** **One green
+    commit merges when the ruling lands.**
+
+    ⛔ **NAME THE RED TESTS IN THE BRANCH COMMIT MESSAGE AND SAY WHY THEY ARE RED.** **A future reader
+    who finds a branch with failing tests must not have to reconstruct whether it was abandoned,
+    broken, or deliberately parked.** *"The engine is correct about mechanics and wrong about football
+    pending ruling X"* is three seconds to write and unrecoverable later.
+
+    ⚠ **AND IF A DISPATCH IS MEASURING AGAINST THE UNCOMMITTED TREE, `checkout -b` CARRIES THE TREE —
+    do NOT `checkout main` afterwards while that dispatch is live.** ⛔ **Switching back pulls the
+    subject out from under a running measurement.**
+
+    **The evidence:** three dead turns in one session, with **three different residues** — stopped
+    agents left a modified file, an API stall left an instrument with no analysis, a mid-stream stall
+    left nothing because the push had completed. ⛔ **The residue is not predictable from the failure
+    mode.** ⚠ **The near-miss that produced this rule was 18 modified files across three dispatches
+    plus a football finding that would have had to be rediscovered.** **One command, and the cost of
+    not having it is exactly what was nearly paid.**
+
+    > **Same reasoning as habit 10, aimed at the OTHER failure.** ⚠ **Habit 10 stops the tree
+    > contaminating a commit. This one stops a commit's absence losing the tree.**
