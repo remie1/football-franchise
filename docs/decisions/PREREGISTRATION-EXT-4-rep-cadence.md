@@ -70,6 +70,26 @@ right-for-the-wrong-reason outcome, and is therefore not a result.**
 
 ---
 
+## ⛔ SECOND BINDING REQUIREMENT — **THE AFFECTED-PLAY COUNT, RAW AND EXCLUSIVE, PER ARM**
+
+> ## ⛔ **REPORT BOTH COUNTS SEPARATELY FOR EVERY ARM. A RAW COUNT ALONE IS NOT A REACH FIGURE HERE.**
+
+⚠ **Cadence changes what happens on EVERY REP.** ⛔ **So raw reach will be NEAR-TOTAL BY CONSTRUCTION,
+and a near-total raw count carries almost no information** — it will look like overwhelming reach on
+every arm, including arms that changed nothing that mattered.
+
+> ### ⇒ **EXCLUSIVE IS THE NUMBER THAT MEANS ANYTHING** — plays this arm affected **that the other arms did not.**
+
+⛔ **Per external §5.3: A COUNT THAT CLEARS A PRECONDITION CAN STILL BE THE WRONG COUNT.** ⚠ **Clearing
+a threshold is not the same as being the quantity the question was about, and a raw count that clears
+easily is the most persuasive wrong number available.**
+
+**This matters most for the four-arm decomposition.** ⛔ **Three mechanisms whose RAW reaches are each
+near-total will look identically decisive.** ✅ **Their EXCLUSIVE counts are what separates them — and
+separating them is the entire purpose of running four arms instead of one.**
+
+---
+
 ## Provenance of the figures quoted above
 
 | figure | status | arm |
