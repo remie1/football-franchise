@@ -24,7 +24,7 @@
 | 8 | ~~`pass_rush_tick` is the ONLY `checkKind` drawn from a tick-scoped RNG~~ | ⛔⛔ **REFUTED — re-derived by control flow, August 2026.** **`scramble` is a SECOND persistent contest re-drawn per tick.** ⚠ **The original grep-for-`tickRng` pattern missed it EXACTLY as its own blind-spot note predicted: `scramble` forks under `movementRng`, not `tickRng`. See Implied scope.** |
 | 9 | ⚠ **Coverage is drawn ONCE PER PLAY** — *conclusion* | ✅ **CONFIRMED, by a DIFFERENT MECHANISM than claimed.** ⛔ **The original reason — *"called BEFORE the tick loop opens"*, from call-site LINE POSITIONS — IS WRONG.** `:472`/`:497` are the function BODIES; the only call sites are `resolveBreakPoint` at `:705`/`:794`, **both INSIDE the loop.** ✅ **Once-per-play comes from the MEMOIZATION GUARD at `:466` (`if (track.baseOpenness !== undefined) return;`), not from position.** |
 | 10 | The name `pass_rush_rep` | ⛔ **CHOSEN — provenance NONE.** *Event and check names are named by someone; there is no derivation available.* |
-| 11 | Which attributes the latent should test | ⛔ **UNDECIDED — see Impact.** Not asserted here. |
+| 11 | Which attributes the latent tests | ✅ **DECIDED — owner ruling, August 2026. See below.** |
 
 > ⚠ **Rows 1-4 are the substance and every one is `REPORTED`.** ⛔ **This ADR ratifies a CONTRACT SHAPE
 > on the strength of measurements taken on someone else's tree with a rig that breaks ADR-004. That is
@@ -207,6 +207,40 @@ from is the rule working as intended.**
 **3. `testsAttrs` follows the contest.** Today the mods are applied per tick (claim 5). Under the rep
 model the attribute contest happens at the rep and the tick is jitter. ⛔ **So `testsAttrs` moves to
 the `pass_rush_rep` `CHECK`.**
+
+### ✅ CLAIM 11 RESOLVED — **the MINIMAL reading. Owner ruling, August 2026.**
+
+> ## **THE LATENT TESTS EXACTLY WHAT THE TICK TESTS TODAY. THE JITTER TESTS NOTHING.**
+
+| side | attributes, moving to `pass_rush_rep` |
+|---|---|
+| rusher | `passRush`, `powerMove`, `finesseMove`, `firstStep` |
+| blocker | `passBlock`, `footwork`, `anchor` |
+
+**The same contest, drawn once, with the mods moving to it.** ✅ **This makes the tick GENUINELY
+ATTRIBUTE-FREE — which is what makes `determinism.test.ts`'s exception TRUE and unblocks the paired
+edit.**
+
+### ⛔ AND THE ALTERNATIVE IS REFUSED **ON PURPOSE, NOT BY OMISSION**
+
+**Refused: giving the tick a stamina- or motor-shaped attribute so TICK-TO-TICK VARIANCE IS ITSELF
+RATED.**
+
+> ⚠ **RECORDED SO NOBODY RE-PROPOSES IT AS AN OBVIOUS COMPLETION OF THE DESIGN.** ⛔ **It is the
+> natural next thought, and it is out of scope for reasons that are NOT "we forgot."**
+
+**Three reasons, and the first two are dispositive:**
+
+1. ⛔ **IT WOULD MAKE THE CHANGE UNTESTABLE AGAINST THE PRE-REGISTRATION.** ⚠ **A new rated term moves
+   outcomes FOR REASONS CADENCE DID NOT CAUSE** — and the prediction at
+   `PREREGISTRATION-EXT-4-rep-cadence.md` is scored on cadence's effect. **The confound would be
+   introduced by the same commit that is supposed to measure past it.**
+2. ⛔ **IT VIOLATES THIS ADR's OWN SHAPE-ONLY CONDITION.** **ADR-059 ratifies STRUCTURE and adds NO
+   FOOTBALL CONTENT.** **A new rated term is football content.**
+3. **§7.1 has no such term today**, so it is an ADDITION rather than a preservation. ⚠ **ADR-059 does
+   not require it.**
+
+> ### ⇒ **IF PER-TICK VARIANCE SHOULD BE RATED, THAT IS A SEPARATE FOOTBALL QUESTION WITH ITS OWN EVIDENCE.** ⛔ **`unruled`. Cheaper to refuse now than to remove later.**
 
 ## Impact
 
