@@ -47,6 +47,37 @@ a defect in the entry.**
 > Left unreported, the question reads as **never asked** — which is the state the sim/real
 > comparability claim sat in for a phase.
 
+## What remains unjustified — REQUIRED when the entry records a REFUSAL
+
+**A lever refused. State what is STILL UNJUSTIFIED about the value you did not change.**
+
+⛔ **A refusal reports REACH — *"this lever does not move the metric."*** ⚠ **It must ALSO report
+whether the value was ever DERIVED.** **Those are different questions and this register has treated
+the first as partial credit toward the second.**
+
+> ⛔ **WHY THIS FIELD EXISTS.** *A sweep answers "does this value matter." A derivation answers "why
+> this value." Inertness feels like permission to stop asking — at exactly the moment the answer is
+> cheapest, because the ruling-search has just been run and the record is open.*
+>
+> **The worked cost:** backlog entry 81 swept `arrival.collapsingWithinSeconds` across `0.0-2.0` and
+> found it **structurally incapable** of moving the rate. ⚠ **Its opening even said *"step one returned
+> UNRULED… every prior hit was this cell being USED, never EXAMINED"* — the fact was recorded, IN
+> PROSE, and was lost downstream anyway.**
+>
+> **Then ADR-058 made that cell THE SOLE SWITCH** deciding whether an INTERIOR won rep floors
+> `COLLAPSING` or `PRESSURE`. ⛔ **The justification was suddenly load-bearing, and had never existed —
+> and the archaeology to establish that took a dedicated dispatch (entry 111) months later.**
+>
+> ⚠ **A VALUE PROVEN INERT TODAY IS A VALUE WHOSE JUSTIFICATION IS NEEDED THE DAY SOMETHING ELSE MAKES
+> IT LIVE.** ⛔ **Recording it in prose was not enough; a NAMED SECTION is what survives a reader who
+> is scanning for the verdict.**
+>
+> **⇒ Free at refusal time — the ruling-search has already run — and expensive afterwards, which is
+> the test every field in this register has had to pass.**
+
+**One line per unjustified component.** Use the same vocabulary as the provenance archaeology:
+✅ `DERIVED` *(cite it)* / ⚠ `RULED` *(cite where)* / ⛔ `NEITHER` *(say so plainly — do not invent one)*.
+
 ## Finding
 
 What was measured or established, with the arm named.
