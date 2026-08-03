@@ -8264,3 +8264,74 @@ entry 113 asked for relational defects, found its own instrument was the wrong s
 genuinely what the football questions turned up.**
 
 > ### ✅ **THIS DISPATCH IS THE FIRST OF THE FIVE TO RETURN A FOOTBALL ITEM.** ⚠ **Recorded as a data point on entry 78's pattern, NOT as evidence the pattern has broken. One is not a trend.**
+
+---
+
+## 116. ⛔⛔ A GUARD SATISFIABLE BY **DECLARING** WHAT IT DETECTS — two instances, one dispatch apart
+
+**Found while writing ADR-059's landing checklist. ⚠ NOT A MEASUREMENT — this entry PROPOSES A DESIGN
+RULE and ratifies nothing.** ⛔ **The rule below is a CANDIDATE Charter §4.1 corollary, UNRATIFIED.**
+
+### ⛔ THE GENERAL FORM, FIRST
+
+> ## ⛔ **A RED IS A PROMPT, NOT A GUARANTEE.**
+
+⚠ **We have been treating a failing guard as evidence THE RIGHT FIX WILL HAPPEN.** ⛔ **It is only
+evidence that A FIX WILL HAPPEN.** **The satisfying move is whichever is cheapest** — and ⛔ **a
+DECLARATION FIELD IS ALWAYS CHEAPER THAN A RELOCATION.**
+
+> ### ⇒ **SAME ASYMMETRY AS WIDENING-VERSUS-SPLITTING, ARRIVING AT A GUARD'S *SATISFACTION PATH* RATHER THAN ITS TOLERANCE.**
+
+### ⛔⛔ AND THE DESIGN RULE IT YIELDS
+
+> ## ⛔ **AN ASSERTION SATISFIABLE BY *DECLARING* THE THING IT EXISTS TO DETECT IS A GUARD WITH A BYPASS BUILT IN.**
+
+⚠ **A property to LOOK FOR when the next declaration-backed assertion is written** — not a defect to
+go hunt retroactively.
+
+### THE TWO INSTANCES — both found landing ONE ADR
+
+| guard | its escape hatch | the cheap wrong fix |
+|---|---|---|
+| `engine/test/determinism.test.ts:284-307` — *every `CHECK` populates `testsAttrs`* | the hand-named `checkKind` exception list *(today: `deflection_quality`)* | ⛔ **add `pass_rush_tick` to the list** — green, and coverage silently dropped at the exact cell the guard protects |
+| `calibration/test/attributeClaims.test.ts:59-91` — *every laddered attribute is read by its declared mechanism* | `scenarios.ts`'s `attributesNotReadByMechanism` field | ⛔ **list `passBlock`/`footwork`/`anchor` as not-read** — green, **and FALSE: they ARE read, just at the rep** |
+
+### ⇒ AND THE HATCHES ARE **LEGITIMATE**, WHICH IS THE WHOLE POINT
+
+⛔ **NEITHER escape hatch is a design error.** ✅ **`deflection_quality` genuinely exercises no rating —
+the doc's Roll 1 is a bare `d100` and claiming an attribute would corrupt the exposure channel.**
+✅ **`attributesNotReadByMechanism` genuinely records attributes a mechanism does not read, and the
+field is a CHECKED CLAIM by construction.**
+
+> ## ⛔ **THE DEFECT IS NOT THAT THE HATCH EXISTS. It is that THE HATCH ALSO VOIDS THE CHECK, and NOTHING DISTINGUISHES HONEST USE FROM BYPASS USE.**
+
+⚠ **Both fields are *"I have considered this cell and it is exempt."*** ⛔ **Under a red suite, that
+sentence is ALSO the cheapest available lie, and it is indistinguishable from the truth at the point
+of use.**
+
+### ⚠ WHAT WOULD ACTUALLY DISTINGUISH THEM — `unruled`, and NOT proposed as work
+
+**Both correct fixes are RELOCATIONS** *(point the assertion at `pass_rush_rep`; declare
+`mechanismCheckKinds: ["pass_rush_rep"]`)*. **Both wrong fixes are DECLARATIONS.** ⚠ **A guard that
+required its exemption to CITE something — an ADR, a ruling, a measured null — would raise the price
+of the bypass to roughly the price of the relocation.** ⛔ **NOT PROPOSED HERE. Recorded because the
+asymmetry is a PRICE asymmetry, and pricing is the lever.**
+
+### DISPOSITION
+
+| item | disposition |
+|---|---|
+| the general form *(red is a prompt)* | ⚠ **candidate Charter §4.1 corollary — UNRATIFIED** |
+| the design rule *(declarable ⇒ bypassable)* | ⚠ **candidate corollary — UNRATIFIED** |
+| the two instances | ✅ **both recorded in ADR-059's landing checklist as traps, with the paired/correct edit named** |
+| a citation requirement on exemptions | ⛔ `unruled` — **not proposed as work** |
+| **hunting further instances** | ⛔ **NOT QUEUED.** ⚠ **Two is a class, not a census** — and per entry 115's null, a corpus sweep may find one hit or none |
+
+### 📒 IMPLIED SCOPE — derived, not recalled
+
+⚠ **Derived by asking, of each guard touched while landing ADR-059, whether it has a declaration-shaped
+satisfaction path.** ⛔ **The set searched is ADR-059's OWN consumer list (four guards), NOT the
+corpus.** **The other two — `passRush.test.ts`'s direct assertion and `ladderRerung.test.ts`'s printed
+verdict — have NO declaration hatch: one must be moved, the other asserts nothing.**
+⛔ **`docConformance.ts`'s provenance registers are the obvious next candidate and were NOT examined —
+`unruled`.**

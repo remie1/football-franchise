@@ -90,6 +90,33 @@ separating them is the entire purpose of running four arms instead of one.**
 
 ---
 
+---
+
+## ⛔⛔ THIRD BINDING REQUIREMENT — **THE SCRAMBLE RATE IS CONFOUNDED. DECLARED BEFORE THE RUN.**
+
+**Added August 2026, BEFORE implementation, on the claim-8 re-derivation.**
+
+> ## ⛔ **A SCRAMBLE FIGURE THAT MOVES LESS THAN EXPECTED IS *NOT* EVIDENCE ABOUT CADENCE.**
+
+⛔ **`scramble` is a SECOND, UNCORRECTED instance of the very defect EXT-4 is fixing** — a persistent
+contest re-drawn per tick with **no per-play cap** *(`STEP_UP` has `stepUpsUsed`/`maxPerPlay`; `ESCAPE`
+has no counterpart)* and no rep memory. ⚠ **ADR-059 does NOT fix it; it is `unruled` and queued.**
+
+**But external §5 carries a `scr` column, and its finding 3 lands *"scramble 8.2 vs ~5"* as part of the
+terminal mix.** ⛔ **So EXT-4 will produce a scramble number, and that number sits in a path containing
+an unfixed instance of the mechanism under test.**
+
+### ⇒ WHAT IS REQUIRED
+
+1. ⛔ **REPORT the scramble rate PER ARM** — it is not omitted.
+2. ⛔ **REPORT IT WITH THIS CONFOUND NAMED**, every time.
+3. ⛔ **DO NOT ATTRIBUTE ITS MOVEMENT — OR ITS FAILURE TO MOVE — TO REP CADENCE.** ⚠ **The two
+   mechanisms are not separable at this arm, and no arm in EXT-4's plan separates them.**
+
+> ### ⚠ **DECLARED BEFOREHAND RATHER THAN DISCOVERED AFTERWARD, WHICH IS THE DIFFERENCE BETWEEN A CAVEAT AND AN EXCUSE.** ⛔ **Left unstated, the prediction would be scored against a number that CANNOT ANSWER IT** — and a scramble rate that moved less than hoped would read as evidence against cadence when it is evidence about nothing.
+
+---
+
 ## Provenance of the figures quoted above
 
 | figure | status | arm |

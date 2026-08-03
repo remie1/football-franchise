@@ -107,28 +107,35 @@ commit must not land alone.**
 
 ## Need
 
-> # ⛔ **THE ENGINE ALREADY DRAWS CONTESTS ONCE PER PLAY. THE PASS RUSH IS THE ONLY ONE THAT DOES NOT.**
+> # ✅ **THE SHAPE THIS ADR ASKS FOR IS ALREADY SHIPPING, ONE SUBSYSTEM OVER.**
 
-**Coverage is drawn ONCE PER PLAY and the play lives with the result** — claim 9.
-**`resolvePassRushTick` (`:600`) sits inside the tick loop and re-draws every half-tick.**
+**`resolveBreakPoint` (`:465`) draws a receiver's coverage contest ONCE, LAZILY, ON THE TICK IT IS
+FIRST NEEDED, and MEMOIZES it for the rest of the play** — the guard is
+`if (track.baseOpenness !== undefined) return;` at **`:466`**.
 
-> ⛔ **CORRECTION, RECORDED BESIDE. The first draft of this section gave the WRONG REASON.** It said
-> coverage *"is called BEFORE the tick loop opens"*, from call-site line positions (`:472`/`:497` vs
-> `:525`). ⚠ **Those are the function BODIES.** **The only call sites are through `resolveBreakPoint`
-> at `:705` and `:794` — BOTH INSIDE THE LOOP.** ✅ **Coverage's once-per-play property is REAL and
-> comes from the MEMOIZATION GUARD at `:466` — `if (track.baseOpenness !== undefined) return;`.**
+> ## ⇒ **THAT IS NOT AN ANALOGY. It is STRUCTURALLY the rep latent, already implemented, already shipping.** ⛔ **The rep latent should FOLLOW THIS SHAPE rather than invent one** — which settles the implementation question before it is asked.
+
+**`resolvePassRushTick` (`:600`) sits inside the tick loop and re-draws every half-tick.** ⛔ **It has
+no such guard and no such memo.**
+
+> ⚠ **CORRECTION, RECORDED BESIDE — AND THE HEADLINE ABOVE IS THE SECOND DRAFT.**
 >
-> ⛔ **THE CONCLUSION SURVIVED ITS OWN DERIVATION BEING WRONG, WHICH IS THE FAILURE MODE THIS REGISTER
-> KEEPS RECORDING** *(entry 114's constant: the argument was well-made and carried a wrong number)*.
-> ⚠ **It was caught only because claim 9 was marked `COMPUTED FROM LINE POSITIONS` and flagged for
-> re-verification. An unmarked row would have passed.**
-
-### ⇒ AND THE CORRECTED MECHANISM IS A **BETTER** PRECEDENT, NOT A WEAKER ONE
-
-✅ **`resolveBreakPoint` draws a persistent contest ONCE, LAZILY, ON THE TICK IT IS FIRST NEEDED, and
-memoizes it for the rest of the play.** ⛔ **That is not merely "the same idea elsewhere" — it is
-STRUCTURALLY THE THING ADR-059 ASKS FOR, already implemented, already shipping, one subsystem over.**
-⚠ **The rep latent should follow this shape rather than invent one.**
+> **The first draft claimed *"the engine already draws contests once per play; THE PASS RUSH IS THE
+> ONLY ONE THAT DOES NOT,"* on the reasoning that coverage is *"called BEFORE the tick loop opens"*
+> (`:472`/`:497` vs `:525`).** ⛔ **BOTH HALVES WERE WRONG.**
+>
+> ⛔ **The MECHANISM was wrong:** `:472`/`:497` are the function BODIES; the only call sites are
+> `resolveBreakPoint` at `:705`/`:794`, **both INSIDE the loop.** ✅ **The once-per-play property is
+> real and comes from MEMOIZATION, not from position** — which is the stronger precedent, not a
+> weaker one.
+>
+> ⛔ **And *"the ONLY one"* was wrong:** **`scramble` re-draws per tick too** *(claim 8, refuted — see
+> Implied scope)*. **Two subsystems deviate; this ADR fixes one.**
+>
+> ⚠ **THE CONCLUSION SURVIVED ITS OWN DERIVATION BEING WRONG, WHICH IS ENTRY 114's EXACT FAILURE
+> MODE.** **Caught ONLY because the row was marked `COMPUTED FROM LINE POSITIONS` and flagged for
+> re-verification** — ⛔ **and it was a row whose CONCLUSION WAS RIGHT, which is the case nobody would
+> have re-checked.**
 
 > ## ⇒ **SO THIS ADR IS NOT IMPORTING AN EXTERNAL DESIGN. It brings ONE SUBSYSTEM INTO LINE with a pattern this engine already uses everywhere else.**
 
