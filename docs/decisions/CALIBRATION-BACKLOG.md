@@ -9213,3 +9213,93 @@ swept"* was approved without anyone asking SWEPT TO WHAT.**
 
 **Arm 2's value was also unspecified; the dispatch chose `+3` and flagged it as its own interpretive
 choice.** ✅ **Correct handling of the gap. Now ratified — see the re-run.**
+
+---
+
+## 126. ✅ EXT-4's ARRIVAL ARMS — **the arrival channel IS the lever, and narrowing it moves `sack` AWAY from real**
+
+**The re-run with values specified. ⛔ 34 arms × 496 games, run in-turn.**
+
+**Arm: flat-60-32t, `SYNTHETIC_ROUND_ROBIN` 2024, 496 games, batch seed `baseline-0001`, seed digest
+`fnv1a:020c1dcb#496` — the identical corpus entries 104/118/119/124/125 cite.**
+✅ **`identityMismatches: 0` on ALL 34 arms** *(~3.9M ticks)* — the falsifier that would have
+invalidated the whole channel decomposition never fired.
+
+### ✅ DETERMINISM, STATED AS A RESULT
+
+⛔ **Two independent executions — different processes, one backgrounded and one foreground/chunked —
+produced BIT-IDENTICAL output on all 34 arms.** **Every `tunablesDigest`, `seedDigest`, triple and
+channel count matched exactly.**
+
+### ⛔ THE RESULT — `sack` is the only metric with a real target, and it moves the WRONG WAY
+
+**Real `sack` = `6.560%` (our own side).** ⚠ **Every other metric here has NO real side; reported as
+direction and magnitude only.**
+
+| cell | `sack` | vs real |
+|---|---|---|
+| committed `C1.0/P2.0` | `16.51%` | `+9.95pp` |
+| `C0.5` | `16.95%` | ⚠ **barely moves** |
+| ⛔ **`C0.25` / `C0.0`** | ⛔ **`~29.3%`** | ⛔ **NEARLY DOUBLES — further away** |
+| arrival-extinct | **`0.974%`** | ⚠ **UNDERSHOOTS** |
+
+⛔ **`P` alone at fixed `C` moves `sack` by ≤`0.12pp`** — a near-null, **reproducing entry 103's flat
+result for `pressureWithinSeconds`.**
+
+**And the mechanism is legible from the decomposition, not assumed:** at `C=1.0` arrival is
+`99.05%`-alone at `COLLAPSING` and `99.82%`-alone at `IMMEDIATE` — ✅ **reproducing entries 118-120's
+figures almost exactly, CONFIRMED rather than inherited.** ⛔ **Once `C ≤ 0.25`, arrival's reach at
+`COLLAPSING` collapses to `0.000%`** *(COLLAPSING dirty ticks fall ~40,800 → ~1,400)*. **The pocket
+stops giving a `COLLAPSING`-tier early warning and jumps straight `PRESSURE → IMMEDIATE`: the QB is
+forced LATER and LESS OFTEN, and more of what is forced resolves as a sack.**
+
+### ⛔⛔ AND THE DISCONTINUITY IS ON AN AXIS THE BRIEF DID NOT SWEEP
+
+**`sack` climbs to `29.3%` as `C` narrows, then COLLAPSES to `0.974%` at extinction.** ⛔ **That jump
+is on NEITHER swept axis.**
+
+⚠ **At `C=0.0/P=0.0` an arrived threat STILL floors `IMMEDIATE`, because `minTta <= 0.0` matches and
+`immediateWithinSeconds` was HELD FIXED AT `0.0` throughout.** ⛔ **Only the extinction row moves it.**
+
+> ## ⇒ ⛔ **THE THIRD HORIZON IS DOING THE WORK, AND IT IS THE ONE AXIS THE ORCHESTRATOR'S BRIEF LEFT OUT.**
+
+✅ **Extinction UNDERSHOOTS real and committed OVERSHOOTS it, so a crossing EXISTS** — ⚠ **and it is
+most likely on the omitted axis.** ⛔ **INFERENCE from the row definitions, NOT a measured arm.
+Queued to be measured rather than assumed.**
+
+### 📒 A GRID-RESOLUTION FINDING — `C = 0.25` IS `C = 0.0`
+
+⛔ **Every `C=0.25` row is BIT-IDENTICAL in outcome to its `C=0.0` counterpart** *(different
+`tunablesDigest`, identical dropbacks/sacks/every channel count)*, at every `P`, in both arms.
+
+**Mechanism, not coincidence: `arrival.quantizeSeconds = 0.5` (`tunables.ts:828`), so `minTta` never
+lands in `(0.0, 0.25]`.** ⇒ ⛔ **ANY `C` in `[0, 0.5)` IS BEHAVIOURALLY IDENTICAL ON THIS ENGINE.**
+
+⚠ **A statement about the GRID's resolution, not about the tunable — and it BOUNDS EVERY FUTURE SWEEP
+ON THAT AXIS.**
+
+### ⛔ FINDING 8 — **a comment true at the committed point and false everywhere else**
+
+**`collect.ts:136` states `pocketFloorFromArrival` returns `IMMEDIATE` on *"the IDENTICAL comparison
+(`minTta <= immediateWithinSeconds`) `hasArrived` uses."***
+
+⛔ **THAT IDENTITY HOLDS ONLY AT THE COMMITTED VALUE.** ⚠ **Move the tunable and the status LABEL
+decouples from the arrival EVENT.**
+
+**Proved by the extinction arm:** ⛔ **`disruptedDropbacks = 27,944` with `sacks = 0` and ZERO
+`COLLAPSING`/`IMMEDIATE` ticks.** ✅ **Arrival events still fire and produce no sacks — because
+SACKING REQUIRES `forcesDecision`, NOT PHYSICAL ARRIVAL.**
+
+> ## ⛔ **SIXTH SITE OF THE FALSE-PROSE CLASS — AND THE FIRST WHERE THE CLAIM IS TRUE AT THE COMMITTED POINT AND FALSE EVERYWHERE ELSE.**
+>
+> ⚠ **Same shape as the committed-point-relationship class** *(a relationship read off the committed
+> point and mistaken for a property of the system)* — ⛔ **now arriving in PROSE rather than in a
+> ruling.** **`unruled`; offered to the engine/contracts side to reconcile.**
+
+### 📒 AND THE EXTINCTION SENTINEL NEEDED RECALIBRATING — reported, not hidden
+
+⛔ **`-1.0` was measured INSUFFICIENT** — 8 ticks still read `IMMEDIATE` via arrival, because §8.8's
+pursuit clock `deadlineTick - curTick` can go below `-1.0`. ✅ **`-10.0` used instead** *(`clock.maxTick
+= 6.0` bounds any reachable value)*, **re-measured `arrivalAllClean = true` on every extinction row** —
+⚠ **a DETERMINISTIC check, not a sampled zero, and stated as such rather than given a spurious power
+calculation.**

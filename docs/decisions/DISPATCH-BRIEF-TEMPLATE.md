@@ -80,6 +80,37 @@ ruling.** ⛔ **That field exists because *ratification does not add evidence, i
 reviewers.* A brief is worse: **DISPATCH does not add evidence either, and it adds APPARENT
 evidence** — a table of numbers with an arm attached.
 
+## ⛔ WHERE THE AUTHOR STOPPED READING — REQUIRED
+
+**State, in one clause, WHERE YOU STOPPED.** ⚠ **What you read, and what you did NOT.**
+
+> **"I read the assertion at `x.ts:646-668` and the seven-consumer enumeration. I have NOT read
+> `retiresBySustainedContainment`, `delayThreat`, `startsThreat`, or `continuesContainStreak`."**
+
+⛔ **AND SAY WHAT FOLLOWS FROM IT:** *"If any of them contradicts the framing above, THAT IS THE
+FINDING and it leads your report."*
+
+> ## ⚠ **`read far enough` IS UNBOUNDED — in exactly the way `read the backlog first` is.** ⛔ **`here is where I stopped` IS ONE SENTENCE AND IS CHECKABLE.**
+
+**It does NOT guarantee sufficiency. Nothing does.** ✅ **It converts an INVISIBLE boundary into a
+STATED one — which lets a dispatch know WHERE TO LOOK for the contradiction rather than guess whether
+one exists.**
+
+### ⛔ WHY IT IS A FIELD AND THE `WHERE DID YOU READ IT` FIELD IS NOT ENOUGH
+
+⚠ **Both failures it caught had ACCURATE CITATIONS.** ⛔ **The brief-form field asks *where did you
+read it*; the failure mode is *what would have contradicted it*, and those are different questions.**
+
+**Three instances, promoted on the third:**
+
+| # | flagged | outcome |
+|---|---|---|
+| 1 | *"I have not read `foldSacks`, `SackRecord`, `everArrived`"* | ⚠ no contradiction; boundary stated and clear |
+| 2 | *"I have not read whether `docConformance.ts:910`'s note is load-bearing"* | ⛔ **IT WAS** — one of two anchors for a still-classified cell, **and no pin reads the note's text, so a silent delete would have PASSED CI** |
+| 3 | ⛔ **the cleanest** — *"I am quoting the owner's summary of entry 107"* | ⛔ **THE FIGURE WAS WRONG.** Entry 107 puts the tie at `C = 1.0`, not `0.5`. **The flag did not make the author read further; it told the dispatch where the contradiction would be, and there was one** |
+
+> ### 📒 **AND HOW IT WAS PROMOTED IS THE POINT.** ⚠ **This week produced two register rules on their FIRST instance, one of which already has a known gap.** ✅ **This one was HELD AT PRACTICE through two, and the promotion criterion — *"a third makes it a field"* — WAS WRITTEN BEFORE THE THIRD ARRIVED.** ⛔ **First time that pattern has been followed here.**
+
 ## The ruling being executed
 
 **Quote it.** ⚠ **Name what is ALREADY RULED and must NOT be reopened**, so the dispatch does not
