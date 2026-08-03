@@ -100,7 +100,17 @@ do not recall it — and name the derivation** (the grep, the registry walk, the
 - ⛔ **PREMISE LEDGER, REPORTED EITHER WAY** — including against the brief's own claims. ⚠ **The
   briefing agent has had premise failures; say so.**
 - ⛔ **EVERY FIGURE NAMES ITS ARM.**
-- ⛔ **REPORT THE NULL.** ⚠ **A structural check that comes back negative is a RESULT and must appear.**
+- ⛔ **REPORT THE NULL — AND REPORT WHAT THE NULL WOULD HAVE LOOKED LIKE IF THE THING WERE TRUE.**
+  ⚠ **A structural check that comes back negative is a RESULT and must appear.** ⛔ **AND `0 of N`
+  MEANS NOTHING UNTIL SOMEONE STATES `P(0 | the effect exists)`.**
+
+  > ⛔ **A REPORTED NULL WITH NO STATED POWER IS MORE MISLEADING THAN AN UNREPORTED ONE** — it
+  > arrives dressed as diligence and gets cited. ⚠ **`0/1,873 step-ups` travelled through THREE
+  > briefs as evidence of a broken mechanic. At the measured rate it was a `14%` event — a routine
+  > null.** **The mechanic was fine; the figure had never been asked what it was probable under**
+  > (backlog entries 123-124).
+  >
+  > **An AMENDMENT to a constraint that already existed and already fired, not a new rule.**
 - **Verification, named literally — not by intent:**
   ```
   pnpm -r test        # ⛔ CAPTURE THE EXIT CODE; read a summary line PER PACKAGE

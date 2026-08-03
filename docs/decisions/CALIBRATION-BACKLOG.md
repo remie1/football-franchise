@@ -8905,3 +8905,207 @@ stays RED.** ⚠ **A reversal that generalises itself is how one correct re-read
 note.**
 
 > ## ⚠ **THE ORCHESTRATOR HAS REQUIRED *"BOTH TERMS, NEVER THE RATIO"* THREE TIMES TODAY AND THEN COLLAPSED TWO DENOMINATORS INTO ONE RATIO IN A BRIEF.** ⛔ **The rule is right and knowing it is not the same as applying it.**
+
+---
+
+## 123. 📒 TWO RECORDS FROM THE RE-PIN — **a third absorbed shape with NO behavioural remedy**, and a practice that has now paid twice
+
+**Neither is a measurement. ⚠ Both surfaced doing mechanical work, which is where this register's
+better findings keep coming from.**
+
+### ⛔ 1. THE THIRD PLACEMENT — **an entry nothing CAN read**
+
+**Deleting the `passRush.counterMoveAfterStalemate` leaf orphaned three references. Two were
+catchable; one was not, and not for want of trying:**
+
+| reference | caught by |
+|---|---|
+| `docConformance.ts:636` — the `RegisterRule` | ✅ **`deadRules` went `[] → ["passRush.counterMoveAfterStalemate"]`.** The gate working. |
+| `docConformance.ts:910` — a prose note citing it as an anchor | ⚠ **NOTHING.** Caught only because a brief said *"I have not read whether this is load-bearing"* |
+| ⛔ **`relationalConstantCensus.ts:211` — a `FIELD_OVERRIDES` entry** | ⛔ **NOTHING, AND NOTHING COULD** |
+
+**Why the third is structurally uncatchable:** ⛔ **`classifyLeaf` ITERATES THE LIVE TUNABLES TREE AND
+LOOKS *UP* AN OVERRIDE BY KEY.** ⚠ **A stale key with no matching leaf is NEVER VISITED.** **The test
+asserts positive controls and totals OVER THE TREE — never over the override map's own keys.**
+**Env-gated as well, so it would not have run regardless.**
+
+> ## ⛔ **ENTRY 64's ABSORBED CLASS, THIRD SHAPE:**
+>
+> | shape | example |
+> |---|---|
+> | a FACT nothing reads | the inverse case, entry 64 |
+> | a CORRECTION nothing reads | entry 119, unread by the dispatch it existed to correct *(entry 120)* |
+> | ⛔ **an ENTRY NOTHING *CAN* READ** | ⛔ **this — by the SHAPE OF THE LOOKUP** |
+
+⛔ **AND THIS ONE HAS NO BEHAVIOURAL REMEDY.** ⚠ **The first two are bounded by attention: someone
+could have read the note, someone could have read the corrective.** ⛔ **Here the gate would have to
+ITERATE THE OVERRIDES RATHER THAN THE TREE — which is A DIFFERENT INSTRUMENT, not a fix to this one.**
+
+**⇒ `unruled`, and NOT queued as work.** ⚠ **Recorded because the next stale override will be equally
+invisible, and knowing that is cheaper than rediscovering it.**
+
+### ✅ 2. THE WHERE-I-STOPPED PRACTICE — **second instance, and it has now paid twice on cases the fields would not have caught**
+
+**The practice** *(not a rule, deliberately)*: ⛔ **a brief states WHERE ITS AUTHOR STOPPED READING.**
+
+> ⚠ **`read far enough` is UNBOUNDED, in exactly the way `read the backlog first` is.**
+> ⛔ **`here is where I stopped` is ONE SENTENCE AND IS CHECKABLE.**
+
+**It does not guarantee sufficiency — nothing does. It converts an INVISIBLE boundary into a STATED
+one, which lets a dispatch know WHERE TO LOOK for the contradiction rather than guessing whether one
+exists.**
+
+| instance | outcome |
+|---|---|
+| **1** — *"I have not read `foldSacks`, `SackRecord`, `everArrived`"* | ⚠ no contradiction found; the boundary was stated and clear |
+| ⛔ **2** — *"I have not read whether `docConformance.ts:910`'s note is load-bearing"* | ⛔ **IT WAS.** One of TWO independent anchors for a still-classified cell. **No pin reads the note's TEXT, so a silent delete would have PASSED CI leaving a false citation inside a live justification** |
+
+> ## ⛔ **IT HAS NOW PAID TWICE ON CASES NEITHER FIELD WRITTEN THIS MORNING WOULD HAVE CAUGHT.**
+>
+> ⚠ **The brief-form field asks *WHERE DID YOU READ IT*. Both failures had accurate citations.**
+> ⛔ **The failure mode is *WHAT WOULD HAVE CONTRADICTED IT*, and that has no cheap form.**
+> ✅ **Stating the boundary is the tractable HALF of an intractable thing.**
+
+**⇒ STILL NOT A RULE.** ⛔ **Recorded as a practice with two instances.** ⚠ **A third would make it a
+field; two makes it worth doing and worth watching.**
+
+### 📒 AND THE DISPOSAL FOLLOWED AN EXISTING DISCIPLINE RATHER THAN INVENTING ONE
+
+**The load-bearing note was REWORDED as retired-with-provenance, not deleted** — following
+`pocketLadder.ts`'s existing `retiredRed` convention. ✅ **The survey rule holding on a disposal:
+enumerate what exists before adding a shape.**
+
+### ⛔ 3. NAMING A BIAS DOES NOT NEUTRALISE IT — **the strongest argument yet for withholding**
+
+**The Orchestrator pre-registered a bet on the step-up control, outside the repo, withheld from the
+dispatch.** ⛔ **The bet was WRONG** *(predicted unreachable; measured reachable, 20 genuine instances
+in 200,000 plays)*.
+
+⚠ **AND THE BET'S FILE CONTAINED, IN WRITING, BEFORE THE MEASUREMENT:**
+
+> *"We retired `sackCredit.test.ts`'s assertion as an artifact THREE HOURS AGO. My expectation here is
+> the same conclusion applied to the next case, and the shape rhyming is not evidence… I am aware of
+> the pull and betting in its direction anyway."*
+
+> ## ⛔ **THE PULL WAS IDENTIFIED, WRITTEN DOWN, AND FOLLOWED ANYWAY.**
+
+⚠ **That is a sharper finding than the bet's outcome.** ⛔ **If naming a bias were sufficient to
+correct for it, that file would have produced a different bet. It did not.**
+
+> ### ⇒ **SO WITHHOLDING DIRECTION FROM DISPATCHES IS NOT A COURTESY — IT IS THE ONLY PART OF THE MECHANISM THAT WORKS.** ⚠ **Declaring the bias is a record; withholding it is a control.** ⛔ **This session has now demonstrated that the first does not substitute for the second.**
+
+### 📒 4. AND `P(0 in 1,873) ≈ 14%` — a routine null carried as a fact through THREE dispatches
+
+⛔ **The figure `0/1,873` drove entries 118, 119 and 120's framing as evidence of a broken mechanic.**
+⚠ **At the measured genuine rate it is an unremarkable outcome — a `14%` event.**
+
+**Same class as the coverage-sack `6`:** ⛔ **a small-sample figure carried as a fact.** ⚠ **The
+difference is that this one shaped THREE DISPATCHES of reasoning before anyone computed what it was
+probable under.**
+
+> ## ⇒ **A NULL WITHOUT ITS POWER IS NOT A RESULT.** ⛔ **`0 of N` means nothing until someone states what `P(0 | the effect exists)` is** — and nobody did, for three dispatches, on a number in a test comment where it read as established.
+
+### ⇒ **THIS AMENDS `REPORT THE NULL` RATHER THAN JOINING IT** *(owner, August 2026)*
+
+**The standing constraint in `DISPATCH-BRIEF-TEMPLATE.md` reads: *"REPORT THE NULL. A structural check
+that comes back negative is a RESULT and must appear."***
+
+> ## ⛔ **AMENDED: REPORT THE NULL, AND REPORT WHAT THE NULL WOULD HAVE LOOKED LIKE IF THE THING WERE TRUE.**
+
+⚠ **The second half is what makes the first half informative.** ⛔ **A reported null with no stated
+power is exactly as misleading as an unreported one — MORE so, because it arrives dressed as
+diligence and gets cited.** *(`0/1,873` was cited in three briefs.)*
+
+✅ **AN AMENDMENT, NOT A NEW RULE** — it strengthens a constraint that already exists and already
+fires, rather than adding a fourth thing to remember on a day that produced three.
+
+### 📒 5. THE PAIR, RECORDED WITHOUT A SECOND INSTANCE
+
+**Entry 116: a guard with a bypass** — an assertion satisfiable by declaring what it detects.
+**Its inverse: a bypass with no guard** — an escape valve firing with nothing validating it.
+
+⚠ **Same failure from opposite ends.** ✅ **NOT INSTANTIATED HERE — the valve has 20 confirmed
+subjects and fires as designed.** ⛔ **Recorded as a pairing, with the second cell empty, so a future
+instance is recognised rather than discovered.**
+
+---
+
+## 124. ⛔⛔⛔ THE POSITIVE CONTROL WAS GREEN FOR ITS ENTIRE LIFE — **and the mechanic it controlled for had NEVER FIRED**
+
+**The last red assertion, resolved. ⛔ The merge-blocking worry was raised by the Orchestrator,
+briefed as merge-blocking, and INVERTED BY THE MEASUREMENT.**
+
+**Arms: pre = `main` @ `731370c`; post = `adr-059-landing`. `N=200,000` plays EACH, fresh seed
+families, genuine/coincidental classification identical across trees and cross-validated against the
+established post figures before the pre-tree number was trusted.**
+
+### ⛔ THE RATES
+
+| | pre-ADR-059 | post-ADR-059 |
+|---|---|---|
+| step-ups observed | 12,166 | 18,799 |
+| step-ups that DELAYED A LIVE EDGE THREAT *(the opportunity)* | **7,504** | — |
+| ⛔ **GENUINE** — that delay cleared the pocket to `CLEAN` | ⛔ **`0`** | **20** *(`0.106%`, ≈1-in-940)* |
+| ⚠ **COINCIDENTAL** — threat already reset; `STEP_UP` touched nothing | ⚠ **`2,249` = `18.5%` of step-ups** | `33` = `0.176%` |
+
+⛔ **ZERO IS NOT FOR LACK OF OPPORTUNITY.** ⚠ **In all `7,504` pre-change plays where a step-up
+delayed a live EDGE threat, the resulting status was `PRESSURE` (4,259) or `COLLAPSING` (3,245) —
+**NEVER `CLEAN`, not once.** **Rule of three: 95% upper bound ≈ `0.04%`, BELOW post's own rate. At
+parity, 8-13 hits were expected.**
+
+> ## ⛔ **ADR-059 DID NOT MAKE THIS MECHANIC RARER. IT MADE IT POSSIBLE.** ⚠ **The escape valve `rushThreat.ts:589-602` describes had NEVER FIRED ONCE.**
+
+### ⛔⛔ AND THEREFORE — **the test inverted its own meaning and nothing could detect it**
+
+**The old assertion checked *"any `STEP_UP` followed one tick later by `CLEAN`"* — ⛔ WITH NO CHECK
+THAT A THREAT WAS LIVE.**
+
+⚠ **So it was satisfied by the COINCIDENTAL population, running at `18.5%` of step-ups pre-change — a
+CERTAINTY in 300 scenarios.**
+
+> ## ⛔⛔ **THE POSITIVE CONTROL WAS GREEN FOR ITS ENTIRE LIFE. THE MECHANIC IT EXISTED TO CONTROL FOR HAD NEVER FIRED.**
+
+⛔ **It went red NOT because the valve broke** — it went red because **the COINCIDENTAL population
+collapsed `18.5% → 0.176%`, while the GENUINE population rose `0 → 0.106%`.** ⚠ **The two moved in
+OPPOSITE DIRECTIONS and the test could not tell, because its pass condition never distinguished
+them.**
+
+### ⇒ THIS FILLS ENTRY 116's PAIR — **and with a worse shape than the one predicted**
+
+| | |
+|---|---|
+| entry 116 | **a guard with a bypass** — an assertion satisfiable by DECLARING what it detects |
+| predicted inverse | a valve with NO guard |
+| ⛔ **ACTUAL** | ⛔ **A VALVE WITH A GUARD — GREEN THE WHOLE TIME, WATCHING THE WRONG THING** |
+
+⚠ **The predicted shape is bounded: an unguarded valve is at least VISIBLY unguarded.** ⛔ **This one
+carried a passing test whose greenness was affirmative evidence for a claim that was false.**
+
+### ⛔ THE ORCHESTRATOR'S MERGE-BLOCKING WORRY WAS EXACTLY BACKWARDS — **and measuring it was still right**
+
+**Raised as:** *"if the pre-rate was materially higher, ADR-059 made the mechanic rarer, and that is a
+real consequence of the change we are about to merge."*
+
+⛔ **THE PRE-RATE WAS ZERO. The change made the mechanic EXIST.**
+
+> ## ✅ **AND THIS IS THE STRONGEST POSSIBLE VINDICATION OF MEASURING IT.** ⚠ **The question was worth answering AND THE EXPECTED ANSWER WAS WRONG IN THE DIRECTION NOBODY WAS WATCHING.** ⛔ **A cheap check against an unbounded exposure, twice in one session, and both times the premise was wrong and the check was right.**
+
+### 📒 FOURTH INSTANCE — and the first that reading could not have caught
+
+⛔ **This is the FOURTH time this session a test was found asserting something other than what it
+claimed.** ⚠ **The other three were caught BY READING THE ASSERTION.**
+
+> ## ⛔ **THIS ONE WAS VISIBLE ONLY BECAUSE SOMEONE MEASURED WHAT IT WAS PASSING ON.**
+
+**The assertion's text was accurate about what it CHECKED. It was silent about what SATISFIED it** —
+and no amount of careful reading distinguishes those two without a measurement of the passing
+population.
+
+### DISPOSITION
+
+| item | disposition |
+|---|---|
+| the instrument | ✅ **REPLACED** — deterministic; constructs a live EDGE threat via `threatFromWonRep`, asserts it live and inside the horizon BEFORE the step-up, applies `delayThreat` exactly as the `STEP_UP` branch does, and asserts the full worst-of-three reads `CLEAN`. **Old assertion preserved verbatim beside it with all four measured figures** |
+| population instrument | ⛔ **DELIBERATELY NOT KEPT.** ⚠ **A smaller search reproduces the same power defect at smaller scale** |
+| `pnpm verify` | ✅ **GREEN — build, test, typecheck, exit 0. Verified by the Orchestrator directly, not taken from the report** |
+| ⛔ **is `1-in-940` the RIGHT rate?** | ⛔ **QUEUED as its own football question.** ⚠ **Nobody has ever asked, in either direction, and pre-ADR-059 the answer was structurally NEVER.** **First time this mechanic has had a measurable rate at all** |
