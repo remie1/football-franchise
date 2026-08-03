@@ -1976,6 +1976,51 @@ that was wrong, and naming it is free at the moment of writing and invisible aft
 
 **⇒ Same test every field in this register passes:** *free at authoring time, expensive afterwards.*
 
+**Corollary — ⛔ A FORMAL PROVENANCE MARKER TERMINATES THE SEARCH ONE STEP TOO EARLY.**
+
+**`arrival.pressureWithinSeconds` carries `DERIVED MECHANIC` and a real derivation: `1.0 + (1.0 − 0.0)
+= 2.0`, replicating the width between the other two horizons.** ⛔ **BOTH ANCHORS CARRY NO MARKING AT
+ALL — no derivation, no sweep, no ADR, no marker, since the commit that introduced them.**
+
+> ## ⛔ **A READER TRACING THE MARKED CONSTANT FINDS A PROPER DERIVATION, FOLLOWS IT TO ITS ANCHORS, AND FINDS TWO BARE NUMBERS NO DOCUMENT HAS EVER JUSTIFIED.**
+
+⚠ **The marking makes the chain look BETTER THAN IT IS. It certifies the LAST STEP while inheriting
+every unexamined one beneath it** — ⛔ **and a reader who sees a formal marker STOPS, because a marker
+is exactly the signal that provenance has been handled.**
+
+**⇒ Same shape as *a correction inherits everything it does not explicitly re-derive*, one artefact
+over:** ⛔ **a MARKING inherits everything it does not ANCHOR.**
+
+### ⇒ THE OPERATIVE FORM
+
+> ### ⛔ **A PROVENANCE MARKER NAMES ITS ANCHORS' STATUS, NOT ONLY ITS OWN.** ⚠ **`DERIVED MECHANIC — from two constants that are themselves unmarked` is a different and more honest claim than `DERIVED MECHANIC`.**
+
+⛔ **AND AN UNMARKED CONSTANT IS AN INTERPRETATION NOBODY LABELLED.** ⚠ **It reads as doctrine
+precisely because nothing says otherwise — a marked interpretation at least announces itself as a
+choice.**
+
+**Corollary — ⛔ FOUR INSTANCES OF THE RELATIONAL CLASS, AND EVERY ONE WAS FOUND WHILE LOOKING FOR SOMETHING ELSE.**
+
+**Entry 83's class — two ratified constants whose RELATIONSHIP nobody examined — now has four
+instances.** ⛔ **NOT ONE WAS FOUND BY LOOKING FOR IT.**
+
+| instance | found while |
+|---|---|
+| `pursuitSeconds` `1.5` vs `pressureWithinSeconds` `2.0` | ⚠ investigating a pressure-rate lever |
+| `maxTravelSeconds` `3.0` vs `pressureWithinSeconds` `2.0` | ⚠ reading a sweep's boundary |
+| ⛔ **`INTERIOR travel` `1.0` = `collapsingWithinSeconds` `1.0`** | ⚠ **diagnosing why a redundancy measure moved** |
+| ⛔ **`EDGE.SPEED` `2.0` = `pressureWithinSeconds` `2.0`** | ⚠ **discharging an unrelated obligation** |
+
+> ## ⛔ **SO THE CLASS HAS NO DETECTOR. FOUR FOR FOUR ARE BYPRODUCTS — and entry 83's own diagnosis said no existing instrument would catch it, which four instances have now confirmed rather than merely predicted.**
+
+⚠ **AND THE CONSEQUENCE IS ABOUT THE DENOMINATOR, NOT THE COUNT:** ⛔ **with no detector, FOUR IS A
+LOWER BOUND WITH UNKNOWN SLACK.** **We know of four because four investigations happened to trip over
+them. Nothing bounds how many sit in constants nobody has had a reason to look at.**
+
+**⇒ The cheap form, and it is a CENSUS rather than a habit:** ⚠ **enumerate every constant sharing a
+unit, and compare them pairwise.** ⛔ **The comparison is arithmetic, the subject set is finite and
+derivable from the tunables tree, and NO INSTANCE FOUND SO FAR WOULD HAVE SURVIVED IT.**
+
 **Corollary — ⛔ NEVER WIDEN AN ASSERTION TO ACCOMMODATE A CHANGE. SPLIT IT.**
 
 > ## ⚠ **A LOOSENED TOLERANCE IS A PERMANENT LOSS OF RESOLUTION PAID TO MAKE ONE DISPATCH GREEN.**
