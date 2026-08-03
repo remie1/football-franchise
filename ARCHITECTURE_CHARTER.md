@@ -1912,6 +1912,30 @@ form of scrutiny that consults a source, because EVERY SOURCE HAD THE SAME NUMBE
 
 > ### ⛔ **DERIVATION IS NOT ONE VERIFICATION TECHNIQUE AMONG SEVERAL. Against a carried figure it is THE ONLY ONE THAT WORKS, because everything else asks something that has already been told.**
 
+**Corollary — ⛔ *"DERIVED"* NEEDS THE SAME TREATMENT *"VERIFIED"* GOT: **DERIVED BY WHOM, AGAINST WHAT, AND CHECKED BY WHAT.**
+
+**ADR-058's consumer set WAS derived — a real search, by a competent dispatch, reported with citations.**
+⛔ **A SECOND DISPATCH DERIVED IT AGAIN AND FOUND TWO ERRORS:**
+
+| error | how it was caught |
+|---|---|
+| ⛔ **`jointForcingSweep` MISCLASSIFIED as *"checked and not invalidated"*** | ⚠ **it imports `reconstructPlay` directly. Caught by STASHING THE FIX and reproducing the identical `3,638` mismatch signature — VERIFICATION, not inspection** |
+| ⛔ **`threatPopulationCensus` MISSING ENTIRELY** | ⚠ **neither invalidated, nor cleared, nor deferred. It was subject to the same defect class and NOBODY HAD LOOKED** |
+
+> ## ⛔ **DERIVING THE SUBJECT SET ONCE IS NOT SUFFICIENT WHEN THE DERIVATION ITSELF CAN BE INCOMPLETE.**
+
+⚠ **This is backlog entry 101 AT THE NEXT LEVEL UP.** ⛔ **There, the SCOPE was chosen while the
+ENUMERATION was derived. Here BOTH were derived — and the derivation still had a hole, because a
+derivation is a PROCEDURE RUN BY SOMEONE, and it inherits their reading of what counts as a consumer.**
+
+### ⇒ AND NOTE WHICH TECHNIQUE ACTUALLY CAUGHT IT
+
+⛔ **The misclassification was NOT caught by re-reading the list. It was caught by STASHING THE FIX AND
+REPRODUCING THE FAILURE SIGNATURE.** ⚠ **An inspection would have agreed with the first inspection —
+the file *looks* like the others that were cleared.**
+
+> ### ⇒ **SAME SHAPE AS *"A GUARD NOBODY HAS SEEN FAIL IS A GUARD NOBODY HAS SEEN WORK"*: a consumer nobody has seen BREAK is a consumer nobody has confirmed is AFFECTED.** ⛔ **Where it is cheap, establish membership by INDUCING THE FAILURE, not by reading for it.**
+
 **Corollary — ⛔ A CLAIM CAN SURVIVE TWO CORRECTIONS AND STILL BE WRONG IN THE SAME PLACE.**
 
 **One claim about one constant, corrected three times, each version NARROWER than the last:**
