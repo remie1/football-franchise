@@ -8162,3 +8162,105 @@ predicted: lowering the threshold reclassifies EDGE `SPEED` wins OUT of disagree
 37,157; tie 29,655; bandFloor-sole 2,836; disagreement 2,657)*. **Identity `0` mismatches at every
 arm. The structural falsifier holds: `EDGE_SPEED_NONDOMINANT` in the tie population is `0` at every
 arm — a disagreement is never a tie, by construction.**
+
+---
+
+## 115. ✅ THE SIBLING SEARCH — **ONE HIT, NOT A CLASS**, and its positive control changes what the class *is*
+
+**Commissioned by backlog entry 114's transferable form.** ⛔ **REPORT-ONLY dispatch — nothing
+corrected, because measuring each hit is its own work.** ⚠ **Read-only across `packages/engine/src`
+and `packages/calibration/src` source comments.**
+
+### THE FORM THAT DROVE THE SEARCH
+
+> ## **"A probability in a comment, derived from die shape, is a PREDICTION — not a MEASUREMENT."**
+
+⚠ **The second clause is what made it worth running:** in both known instances *(entry 114's
+`dominanceMarginPerHalfTick`, and `pressureWithinSeconds`)* **the THEORETICAL figure is the one written
+down, and the REALISED one was never written anywhere.**
+
+### ✅ THE NULL IS THE HEADLINE, AND IT IS REPORTED AS ONE
+
+> ## ✅ **ONE genuine hit. NOT a systemic pattern.**
+
+⛔ **Reporting this null is the point.** ⚠ **Two known instances made the shape look like a class.
+Unreported, the next reader assumes a systemic problem that ISN'T THERE** — and pays for a sweep that
+has nothing to find. **Four near-misses were examined and EXCLUDED WITH STATED REASONS** *(closed-form
+ladder tails, an exact 6-card combinatorial fact, a computed span ratio, a real-world XP constant
+applied to real data)* — **read for their reasoning, not matched on a token.**
+
+### ⛔⛔ AND THE POSITIVE CONTROL — FOUND UNASKED — RESHAPES THE CLASS
+
+| instance | die-shape argument | realised figure written back? |
+|---|---|---|
+| `dominanceMarginPerHalfTick` `50` | *"`P(margin ≥ 65) ≈ .06`… top sixth of won reps"* | ⛔ **NO** — entry 114 found the stated rejection FALSE |
+| ⛔ **`fieldGoal.baseTarget`** | *"roughly 95% from 30, 80% from 40, 65% from 50"* | ⛔ **NO** |
+| ✅ **`BROKEN_TACKLE.minMargin` `15`** | *"a ~36% event BY CONSTRUCTION"* | ✅ **YES — `36.70%` of `24,953` checks, written back INTO the module that made the prediction** |
+
+> ### ⇒ **SO THE FINDING IS *NOT* "DIE-SHAPE ARGUMENTS ARE UNSOUND."** ⚠ **The argument is fine — it is a LEGITIMATE way to reach a value, and `scaleSurface.ts` proves it by doing it correctly.** ⛔ **THE DEFECT IS AN UNCLOSED LOOP, NOT A BAD METHOD.**
+
+**What separates the instances is ONE THING: whether anyone wrote the realised figure back.**
+⚠ **An entry that implied the technique was suspect would have been read as a reason to stop using
+it — which would be the wrong lesson from its own evidence.**
+
+### ⇒ THE STANDING FORM THIS BUYS, AND IT IS CHEAP
+
+> ## **A comment predicting a rate from die shape SHALL carry its measured counterpart — or SAY IT HAS NONE.**
+
+⚠ **Identical in shape to `UNESTABLISHED` being a LEGITIMATE provenance value** *(the participation
+comparability row)*. ⛔ **THE GAP IS FINE. THE SILENCE ABOUT THE GAP IS NOT.** **A stated `no measured
+counterpart` costs one line and converts an invisible hole into a visible one.**
+
+### ⛔ THE HIT ITSELF IS A **FOOTBALL** ITEM — and it lands on a row we have been citing as passing
+
+**`packages/engine/src/game/specialTeams.ts:96`, restated at `packages/engine/src/tunables.ts:3002`:**
+
+> *"Calibrated against real NFL make rates for a 70/70 kicker (+28 of modifier): roughly 95% from 30,
+> 80% from 40, 65% from 50."*
+
+⛔ **A falsifiable three-point prediction with NO measured counterpart.** ⚠ **And the sharper half is
+what DOES exist:**
+
+> ## ⛔ **`field_goal_pct`'s OWN DEFINITION READS *"all distances pooled."***
+
+⛔ **THE ONLY REALISED FIGURE IS POOLED OVER EXACTLY THE DIMENSION THE PREDICTION IS ABOUT.**
+
+⚠ **A metric that averages away the variable a claim is about CANNOT TEST THAT CLAIM** — and **it can
+PASS while the underlying curve is wrong at every distance.** ⛔ **One pooled aggregate has ONE degree
+of freedom against a THREE-POINT claim.** **A reader who checks `field_goal_pct`, finds it green, and
+concludes the comment is vindicated has confirmed NOTHING.**
+
+> ### ⇒ **THIS IS WORSE THAN `dominanceMarginPerHalfTick`'s POSITION, WHERE AT LEAST NOTHING GAVE FALSE ASSURANCE.**
+
+### 📒 TENTH PLACEMENT FOR ENTRY 64's ABSORBED CLASS — **and the first on a PASSING row**
+
+**Prior nine:** mechanic, guard, form field, doc prose, contract member, search, habit, inferred type,
+and the inverse *(a fact nothing reads)*. ⛔ **TENTH: a cell absorbed by a POOLED METRIC that is
+GREEN.** ⚠ **Every prior placement hid an UNANSWERED question. This one hides an ANSWERED-LOOKING
+one, on a row cited repeatedly as unqualified-passing.**
+
+**And a minor eleventh, in the same hit:** the prediction is **written at TWO sites with DIFFERENT
+WORDING** *(`"roughly 95%"` vs `"~95%"`)* — ⛔ **a grep for either phrasing finds ONE of them.**
+
+### DISPOSITION
+
+| item | disposition |
+|---|---|
+| the search | ✅ **COMPLETE. One hit, null reported as a result.** |
+| the class's shape | ✅ **CORRECTED — unclosed loop, not bad method** |
+| the standing form | ⚠ **PROPOSED, unratified** |
+| ⛔ **per-distance FG metric** | ⛔ **QUEUED BEHIND EXT-4 — real, and football, and a NEW THREAD** |
+| the two-site duplication | ⚠ `unruled` |
+
+> ⚠ **QUEUED BEHIND, NOT AHEAD, DELIBERATELY.** ⛔ **EXT-4 is the test of whether the register pause
+> holds; letting a fresh thread — however real — jump it would answer that test by avoiding it.**
+
+### ⇒ AND ONE OBSERVATION ABOUT THE DISPATCH ITSELF
+
+**The last four dispatches were each COMMISSIONED to answer a football question and each RETURNED an
+answer about the REGISTER** *(entry 111 asked where five constants came from, found the catch-all;
+entry 113 asked for relational defects, found its own instrument was the wrong shape)*.
+⛔ **That is not fixable by queuing better, and nobody chose wrong — the register findings are
+genuinely what the football questions turned up.**
+
+> ### ✅ **THIS DISPATCH IS THE FIRST OF THE FIVE TO RETURN A FOOTBALL ITEM.** ⚠ **Recorded as a data point on entry 78's pattern, NOT as evidence the pattern has broken. One is not a trend.**
