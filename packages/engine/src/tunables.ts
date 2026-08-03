@@ -653,6 +653,45 @@ export const TUNABLES = {
      * won reps, not the top half of them. At 25 it fired on more than half of all
      * won reps and turned "beat his man" into "unblocked", which is what a value
      * chosen by feel does.
+     *
+     * MEASURED (backlog entry 114; canonical n=496, seedDigest
+     * fnv1a:020c1dcb#496; every figure below names the full threshold,
+     * winMinMargin(15) + dominanceMarginPerHalfTick(v)) — the theoretical
+     * paragraph above was itself checked, not just its conclusion:
+     *
+     *  - ⇒ THE CAUSE IS THE CHECK, NOT THE RATINGS. Measured on
+     *    `buildFlatLeague` (every attribute identical, zero rating
+     *    differential anywhere), the fired share sits 2.6-3.0pp BELOW this
+     *    comment's own "evenly-matched" shift-0 math at every arm, while
+     *    tracking the §7.1 MIXTURE figure (ADR-050's SPEED/FINESSE −12
+     *    branch) to within 0.19pp everywhere. Flat ratings do not rescue
+     *    the theoretical math — they only remove the OTHER possible source
+     *    of divergence (rating dispersion), and the gap persists anyway.
+     *    That a zero-rating-differential corpus still diverges 2.6-3.0pp
+     *    is what makes the attribution to the mechanic sound rather than
+     *    merely suggestive: "evenly-matched" in the original argument meant
+     *    "symmetric contest", and §7.1's check is not symmetric between the
+     *    two sides of a won rep. Real rating dispersion, unrun here, would
+     *    be an ADDITIONAL contributor on top of this, not the explanation
+     *    for it.
+     *  - ⛔ SEPARATELY, THE REJECTION CLAIM'S STATED NUMBER IS FALSE AS
+     *    MEASURED. "At 25 it fired on more than half of all won reps" reads
+     *    47.436% at v=25 (threshold 40) — UNDER half, not over. The
+     *    theoretical P(margin ≥ 65) ≈ .06 above (which is what the "more
+     *    than half" line is restating from the other end) does not survive
+     *    contact with the sim either.
+     *  - ⚠ THE "TOP SIXTH" TARGET IS ALSO SLIGHTLY OFF: at the committed
+     *    v=50 (threshold 65) the fired share is 14.204%, nearer one in
+     *    SEVEN than one in six.
+     *  - ✅ THE DECISION SURVIVES ANYWAY, AND THE CONSTANT IS NOT CLAIMED
+     *    WRONG. 47.436% vs 14.204% is still a 3.3x gap and the ordering (25
+     *    is far less selective than 50) is unchanged. Nothing above argues
+     *    for moving the value off 50 — the rejection of 25 was reached
+     *    honestly, its stated number was just wrong.
+     *  - No longer an unmeasured constant: MEASURED-AND-RETAINED at 50, and
+     *    swept across `v` in
+     *    `packages/calibration/test/dominanceMarginPerHalfTickSweep.test.ts`
+     *    (gated `FF_DMS`).
      */
     dominanceMarginPerHalfTick: 50,
     /**
