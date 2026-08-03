@@ -1691,6 +1691,46 @@ excluded it. ⛔ **A convenient key needs a special case; the correct one does n
 ⚠ **One instance is a slip. FIVE IS A PROPERTY OF THE MEDIUM: prose adjacent to code is written once,
 reviewed as narrative, and never re-derived — while the code beside it moves.**
 
+### ⛔ SITE #6 — **A NARRATIVE THAT STOPS SHORT AND LETS THE READER FINISH IT.** *Nothing stated is false.*
+
+**`travelSecondsByAlignmentAndMove`'s comment gives the physical scenario — interior *"~4-5 yards from
+a shotgun launch point,"* edge *"10-12 yards… arc."*** ⛔ **AND THERE IS NO CONVERSION FROM THOSE
+YARDAGES TO THOSE SECONDS. No speed constant. No distance-over-rate step. Nowhere.**
+
+> ## ⛔ **EVERY SENTENCE IS TRUE. THE DERIVATION IS ABSENT. THE READER SUPPLIES THE MISSING ARITHMETIC AND NEVER NOTICES THEY DID.**
+
+⚠ **This is a DIFFERENT FAILURE MODE from sites 1-5, and it is worse in one specific way:**
+
+| | sites 1-5 | ⛔ **site 6** |
+|---|---|---|
+| the defect | ⛔ **a claim that is FALSE** | ⚠ **a story that STOPS SHORT** |
+| how to find it | ✅ **check the claim against the code** | ⛔ **THAT CHECK PASSES — every statement is true** |
+| what completes it | — | ⛔ **THE READER, silently** |
+
+⛔ **THE TECHNIQUE THAT FOUND THE OTHER FIVE CANNOT FIND THIS ONE.** ⚠ **You cannot catch it by
+verifying claims, because there is no false claim to catch — only an inference the prose invites and
+never makes.**
+
+**⇒ The question that finds it is different:** ⛔ ***"does this comment's argument REACH its own
+number?"*** ⚠ **A physical narrative beside a constant is a HYPOTHESIS ABOUT WHY, not a derivation OF
+WHAT — unless the arithmetic connecting them is written down.**
+
+**Corollary — ⛔ INERTNESS UNDER SWEEP IS EVIDENCE ABOUT A LEVER'S REACH, NOT ABOUT ITS VALUE'S JUSTIFICATION.**
+
+**Entry 81 swept `collapsingWithinSeconds` across `0.0-2.0` and found it *"structurally incapable of
+moving the rate."*** ⛔ **THAT ESTABLISHES THE LEVER IS INERT. IT SAYS NOTHING ABOUT WHY `1.0` RATHER
+THAN `0.8`.**
+
+⚠ **Entry 81 said this about ITSELF — *"step one returned UNRULED… every prior hit was this cell being
+USED, never EXAMINED"* — and the distinction was still lost downstream.**
+
+> ### ⛔ **A SWEEP ANSWERS *"DOES THIS VALUE MATTER?"* A DERIVATION ANSWERS *"WHY THIS VALUE?"* THEY ARE NOT DEGREES OF THE SAME THING, AND THIS PROJECT HAS TREATED THE FIRST AS PARTIAL CREDIT TOWARD THE SECOND MORE THAN ONCE.**
+
+⚠ **And the trap is that inertness feels REASSURING:** ⛔ **if the value does not matter, the question
+of why it is that value feels less urgent — exactly when it is cheapest to answer and exactly when
+nobody will.** **A value proven inert TODAY is a value whose justification will be needed the day
+something else makes it live** *(which is what ADR-058 just did to `collapsingWithinSeconds`)*.
+
 ### ⛔ #5 HAS A DIFFERENT MECHANISM, AND IT IS THE ONE NO COMMIT-SCOPED SEARCH CAN REACH
 
 > ## ⚠ **THE PROSE WAS ACCURATE ABOUT A COMPARISON WHOSE **OTHER SIDE** MOVED. NOTHING IN THE SIM CHANGED.**
