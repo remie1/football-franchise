@@ -1731,6 +1731,39 @@ of why it is that value feels less urgent — exactly when it is cheapest to ans
 nobody will.** **A value proven inert TODAY is a value whose justification will be needed the day
 something else makes it live** *(which is what ADR-058 just did to `collapsingWithinSeconds`)*.
 
+### ⛔ AND A THIRD VARIETY OF THE ABSORBED FINDING: **POSITION INSIDE A DOCUMENT**
+
+**Entry 81 RECORDED the fact — *"step one returned UNRULED… every prior hit was this cell being USED,
+never EXAMINED"* — IN ITS OPENING PARAGRAPH.** ⛔ **AND IT WAS LOST ANYWAY.**
+
+| variety | the finding | why it did not reach |
+|---|---|---|
+| 1 | a guard wired to nothing | ⚠ **nothing READS it** |
+| 2 | a required field on a carrier with no form | ⚠ **nothing ROUTED to it** |
+| ⛔ **3** | ⛔ **entry 81's `UNRULED` note** | ⛔ **it sat in NARRATIVE, where a reader scanning for the VERDICT never passes** |
+
+⚠ **This is *a finding placed among context is read as context* — ONE STEP EARLIER.** ⛔ **There the
+finding was DEMOTED. Here it was NOT ENCOUNTERED AT ALL: a reader looking for what a sweep concluded
+reads the verdict, not the preamble.**
+
+> ### ⇒ **PLACEMENT IS NOT ONLY *WHICH DOCUMENT*. IT IS *WHERE INSIDE IT*, MEASURED AGAINST HOW THAT DOCUMENT IS ACTUALLY READ.**
+
+⛔ **AND THE COST IS MEASURED, NOT ARGUED: establishing what entry 81 HAD ALREADY STATED took a
+dedicated dispatch months later** *(entry 111)*. ⚠ **That is the number to cite when someone asks
+whether a named field is worth its friction.**
+
+**Corollary — ⛔ A VOCABULARY INVENTED AT THE MOMENT OF NEED HAS EXACTLY THE CATEGORIES THAT FLATTER THE CURRENT CASE.**
+
+**The refusal field borrows the provenance archaeology's own terms — `DERIVED` / `RULED` / `NEITHER` —
+rather than minting new ones.** ⚠ **Same reason `UNESTABLISHED` was the correct value for
+`was_pressure` rather than a placeholder invented to fit.**
+
+> ## ⚠ **AT THE MOMENT OF NEED YOU ALREADY KNOW WHICH ANSWER YOU WANT, AND THE CATEGORIES GET DRAWN AROUND IT.** ⛔ **A scheme with no box for *"nobody ever justified this"* is not a neutral scheme — it is one that cannot record the answer its author was hoping not to give.**
+
+**⇒ So: BORROW A VOCABULARY ESTABLISHED BEFORE THE CURRENT QUESTION.** ⛔ **If you must invent one,
+SAY THAT YOU ARE INVENTING IT AND WHY — and check it has a category for the outcome you would least
+like to report.**
+
 ### ⛔ #5 HAS A DIFFERENT MECHANISM, AND IT IS THE ONE NO COMMIT-SCOPED SEARCH CAN REACH
 
 > ## ⚠ **THE PROSE WAS ACCURATE ABOUT A COMPARISON WHOSE **OTHER SIDE** MOVED. NOTHING IN THE SIM CHANGED.**
