@@ -61,7 +61,7 @@
  *   FF_FDI=1 FF_FDI_GAMES=150 ...                      (faster, smaller corpus)
  */
 import { describe, expect, it } from "vitest";
-import type { MatchEventEnvelope } from "@ff/contracts";
+import type { MatchEventEnvelope, PocketStatus } from "@ff/contracts";
 import { DEFAULT_TUNABLES, applyTunablePatch, type Tunables } from "@ff/engine";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { runOneGame } from "../src/harness/runGame.js";
@@ -72,8 +72,11 @@ import { buildFlatLeague } from "../src/league/flat.js";
 import { indexLeague } from "../src/league/snapshot.js";
 import {
   CHANNEL_IDS,
+  classifyMoveCell,
+  dominanceThresholdMarginFor,
   reconstructPlay,
   type ChannelId,
+  type MoveCell,
   type TickChannels,
 } from "../src/knownTruth/pocketChannelShares.js";
 import { severityOf } from "../src/knownTruth/pocketLadder.js";
@@ -201,6 +204,119 @@ function classify(soleFor: readonly ChannelId[]): Classification {
 }
 
 // ---------------------------------------------------------------------------
+// ⛔ MEASUREMENT ONLY — ENTRY 110's SIX-CELL CENSUS, ADDED BESIDE THE EXISTING ATTRIBUTION.
+//
+// Backlog entry 110 verified entry 109's "INTERIOR ties / EDGE disagrees" mixes tying and
+// disagreeing populations inside its 14.85% EDGE bucket, and ordered the fix as a decomposition
+// BY MOVE, not just alignment, of the SAME bandFloor+arrival tie `diMultiBandArrival{Interior,Edge}`
+// already attributes above — no eighth harness, the SAME `soleChannelsOverRange`/`classify`
+// algorithm, reused on a RELABELLED view of the SAME ticks.
+//
+// THE RELABELLING, AND WHY IT IS NECESSARY. ADR-058 is already committed (`653d425`): the tree's
+// OWN `bandFloor` field on every `TickChannels` is already the NARROWED, POST-ADR-058 value, so a
+// deciding-instant scan of `bandFloor`/`published` as they stand would mostly find arrival-SOLE, not
+// the bandFloor+arrival TIE entries 105-109 measured and priced — that tie is a fact about the
+// SUPERSEDED mechanism, and pricing ADR-058 (Part C, below) requires seeing it. `oldStyleTicks`
+// rebuilds exactly that superseded reading from fields `pocketChannelShares.ts` now carries
+// specifically for this purpose (`bandFloorUnnarrowed`) — same reconstruction, no new event reads,
+// the counterfactual restricted to swapping which of the ALREADY-COMPUTED bandFloor values is
+// "current".
+// ---------------------------------------------------------------------------
+
+function worstOfThree(tunables: Tunables, a: PocketStatus, b: PocketStatus, c: PocketStatus): PocketStatus {
+  let best = a;
+  if (severityOf(b, tunables) > severityOf(best, tunables)) best = b;
+  if (severityOf(c, tunables) > severityOf(best, tunables)) best = c;
+  return best;
+}
+
+/**
+ * The SAME `TickChannels` array `reconstructPlay` produced, reread under the rule ADR-058
+ * superseded: `bandFloor` replaced by `bandFloorUnnarrowed` (no won-rep-liveness omission) and
+ * `published` recomputed as the worst-of-three over `{counter, bandFloorUnnarrowed, arrival}` —
+ * exactly what `pocketStatusFor` computed before ADR-058 narrowed it (`resolve/pocket.ts` pre-
+ * `653d425`). `soleChannelsOverRange`/`classify` above run UNCHANGED on this array; only the
+ * `bandFloor`/`published` fields differ from the tree's ACTUAL, currently-published ticks.
+ */
+function oldStyleTicks(ticks: readonly TickChannels[], tunables: Tunables): readonly TickChannels[] {
+  return ticks.map((t) => ({
+    ...t,
+    bandFloor: t.bandFloorUnnarrowed,
+    published: worstOfThree(tunables, t.counter, t.bandFloorUnnarrowed, t.arrival),
+  }));
+}
+
+/**
+ * The eight buckets a bandFloor+arrival tie can fall into, attributed to the SAME argmin-arrival
+ * rusher `arrivalAlignment` already names (same caveat as that field's own doc: this is NOT proven
+ * to be the SAME rusher who supplied the tying bandFloor value — see `RealThreat`'s header in
+ * `pocketChannelShares.ts`). `edgeNoWonRepAttribution` and `noAlignment` are the two buckets that
+ * caveat can actually produce; both are reported, never silently folded into a move cell.
+ */
+interface CellCounts {
+  interior: number;
+  edgeNotSpeed: number;
+  edgeSpeedDominant: number;
+  edgeSpeedNonDominant: number;
+  edgeAmbiguous: number;
+  edgeUnreconciled: number;
+  edgeNoWonRepAttribution: number;
+  noAlignment: number;
+}
+
+function emptyCellCounts(): CellCounts {
+  return {
+    interior: 0,
+    edgeNotSpeed: 0,
+    edgeSpeedDominant: 0,
+    edgeSpeedNonDominant: 0,
+    edgeAmbiguous: 0,
+    edgeUnreconciled: 0,
+    edgeNoWonRepAttribution: 0,
+    noAlignment: 0,
+  };
+}
+
+function attributeCell(counts: CellCounts, tick: TickChannels, tunables: Tunables): void {
+  if (tick.arrivalAlignment === "INTERIOR") {
+    counts.interior += 1;
+    return;
+  }
+  if (tick.arrivalAlignment === "EDGE") {
+    if (tick.arrivalWonMargin !== undefined && tick.arrivalWonTravelSeconds !== undefined) {
+      const cell: MoveCell = classifyMoveCell(tunables, "EDGE", tick.arrivalWonMargin, tick.arrivalWonTravelSeconds);
+      if (cell === "EDGE_NOT_SPEED") counts.edgeNotSpeed += 1;
+      else if (cell === "EDGE_SPEED_DOMINANT") counts.edgeSpeedDominant += 1;
+      else if (cell === "EDGE_SPEED_NONDOMINANT") counts.edgeSpeedNonDominant += 1;
+      else if (cell === "EDGE_HIGH_MARGIN_AMBIGUOUS") counts.edgeAmbiguous += 1;
+      else if (cell === "EDGE_UNRECONCILED") counts.edgeUnreconciled += 1;
+      // "INTERIOR" is unreachable here: alignment is fixed EDGE above.
+    } else {
+      counts.edgeNoWonRepAttribution += 1;
+    }
+    return;
+  }
+  counts.noAlignment += 1;
+}
+
+function cellTotal(c: CellCounts): number {
+  return (
+    c.interior +
+    c.edgeNotSpeed +
+    c.edgeSpeedDominant +
+    c.edgeSpeedNonDominant +
+    c.edgeAmbiguous +
+    c.edgeUnreconciled +
+    c.edgeNoWonRepAttribution +
+    c.noAlignment
+  );
+}
+
+function emptyStatusTally(): Record<PocketStatus, number> {
+  return { CLEAN: 0, PRESSURE: 0, COLLAPSING: 0, IMMEDIATE: 0 };
+}
+
+// ---------------------------------------------------------------------------
 // PER-GAME PROCESSING — copied, unchanged in method, from arrivalForcingAttribution.test.ts's own
 // processGame (file-local there).
 // ---------------------------------------------------------------------------
@@ -315,6 +431,39 @@ interface ArmResult {
   readonly diMultiOther: number; // multi at deciding instant for a reason other than the bandFloor+arrival pair
   readonly identityChecks: number;
   readonly identityMismatches: number;
+
+  // =========================================================================
+  // ENTRY 110 — OLD-STYLE (PRE-ADR-058) DECIDING INSTANT, over the OLD-FORCED population: a play
+  // where ANY tick's PRE-ADR-058 reading (`oldStyleTicks`) is in `forcing`. This can differ from
+  // `forcedTotal` above (the tree's ACTUAL, currently-published forced count) — both are reported,
+  // never conflated, and `oldForcedTotal >= forcedTotal` always (old severity is never LESS than
+  // new at any tick, by construction: `bandFloorUnnarrowed` is a superset of `bandFloor`'s inputs).
+  // =========================================================================
+  readonly oldForcedTotal: number;
+  readonly oldDiSole: Record<ChannelId, number>;
+  readonly oldDiMulti: number;
+  readonly oldDiAmbiguous: number;
+  readonly oldDiMultiOther: number;
+  /** The bandFloor(unnarrowed)+arrival tie at the OLD deciding instant, by entry 110's six
+   *  (eight, with the two abstention buckets) cells. */
+  readonly oldDiMultiCells: CellCounts;
+  /** THE ANSWER PART B ASKS FOR: `oldDiSole.bandFloor` (bandFloor forces ALONE at the deciding
+   *  tick — arrival has not yet crossed `forcing` there), by the same six-cell attribution. A
+   *  genuine EDGE-SPEED-NONDOMINANT disagreement lives HERE, not in `oldDiMultiCells`, at any
+   *  arm where `collapsingWithinSeconds < 1.5` (the committed value, `1.0`, among them). */
+  readonly oldDiSoleBandFloorCells: CellCounts;
+
+  // =========================================================================
+  // ENTRY 110 PART C — every `POCKET_STATUS` tick of every PASS dropback (forced or not), old vs
+  // new published status, at TICK grain rather than play grain — the grain `653d425`'s own
+  // PRESSURE/COLLAPSING counts were measured at.
+  // =========================================================================
+  readonly tickCountsNew: Record<PocketStatus, number>;
+  readonly tickCountsOld: Record<PocketStatus, number>;
+  /** Ticks where the OLD status is strictly more severe than the NEW one — i.e. ADR-058 actually
+   *  changed this tick's published severity. */
+  readonly changedTicks: number;
+  readonly changedTickCells: CellCounts;
 }
 
 function emptyChannelRecord(): Record<ChannelId, number> {
@@ -344,6 +493,25 @@ function measureArm(setting: LeverSetting, games: number): ArmResult {
   let diMultiOther = 0;
   let identityChecksTotal = 0;
   let identityMismatchesTotal = 0;
+  let oldForcedTotal = 0;
+  const oldDiSole = emptyChannelRecord();
+  let oldDiMulti = 0;
+  let oldDiAmbiguous = 0;
+  let oldDiMultiOther = 0;
+  const oldDiMultiCells = emptyCellCounts();
+  // A genuine DISAGREEMENT at the deciding tick does NOT read as a TIE (both channels forcing) —
+  // it reads as bandFloor SOLE (arrival has not yet crossed into `forcing` at that exact tick,
+  // by definition of "disagrees"). `oldDiMultiCells` above can therefore never carry a nonzero
+  // `edgeSpeedNonDominant` UNLESS the arm's own `collapsingWithinSeconds` happens to be wide
+  // enough that arrival independently crosses into COLLAPSING at the SAME minTta too (a
+  // genuine, reportable fact about that specific arm, not a bug — see PART A's table). THIS is
+  // the bucket Part B actually needs: the SAME six-cell attribution, run over `oldDiSole.bandFloor`
+  // instead of the tie population.
+  const oldDiSoleBandFloorCells = emptyCellCounts();
+  const tickCountsNew = emptyStatusTally();
+  const tickCountsOld = emptyStatusTally();
+  let changedTicks = 0;
+  const changedTickCells = emptyCellCounts();
   const usedSeeds: string[] = [];
 
   for (let i = 0; i < limit; i++) {
@@ -367,6 +535,45 @@ function measureArm(setting: LeverSetting, games: number): ArmResult {
       const F = outcome.forcedRaw;
       const S = outcome.sacked;
       if (F || S) exitCount += 1;
+
+      // ============= ENTRY 110 PART C — every tick, old vs new, regardless of forcing =============
+      const oldTicksAll = oldStyleTicks(ticks, tunables);
+      for (let ti = 0; ti < ticks.length; ti++) {
+        const newTick = ticks[ti]!;
+        const oldTick = oldTicksAll[ti]!;
+        tickCountsNew[newTick.published] += 1;
+        tickCountsOld[oldTick.published] += 1;
+        if (severityOf(oldTick.published, tunables) > severityOf(newTick.published, tunables)) {
+          changedTicks += 1;
+          // `arrivalAlignment`/`arrivalWonMargin`/`arrivalWonTravelSeconds` are IDENTICAL on
+          // `newTick` and `oldTick` — `oldStyleTicks` only relabels `bandFloor`/`published`.
+          attributeCell(changedTickCells, newTick, tunables);
+        }
+      }
+
+      // ============= ENTRY 110 — OLD-STYLE (PRE-ADR-058) DECIDING INSTANT =============
+      const oldDecidingIdx = oldTicksAll.findIndex((t) => forcing.has(t.published));
+      if (oldDecidingIdx >= 0) {
+        oldForcedTotal += 1;
+        const oldDecidingTick = oldTicksAll[oldDecidingIdx]!;
+        const oldDi = classify(soleChannelsOverRange([oldDecidingTick], forcing, tunables));
+        if (oldDi.kind === "multi") {
+          oldDiMulti += 1;
+          const bandForces = forcing.has(oldDecidingTick.bandFloor);
+          const arrivalForces = forcing.has(oldDecidingTick.arrival);
+          if (bandForces && arrivalForces) {
+            attributeCell(oldDiMultiCells, oldDecidingTick, tunables);
+          } else {
+            oldDiMultiOther += 1;
+          }
+        } else if (oldDi.kind === "sole" && oldDi.sole !== undefined) {
+          oldDiSole[oldDi.sole] += 1;
+          if (oldDi.sole === "bandFloor") attributeCell(oldDiSoleBandFloorCells, oldDecidingTick, tunables);
+        } else {
+          oldDiAmbiguous += 1;
+        }
+      }
+
       if (!F) continue;
       forcedTotal += 1;
 
@@ -421,6 +628,17 @@ function measureArm(setting: LeverSetting, games: number): ArmResult {
     diMultiOther,
     identityChecks: identityChecksTotal,
     identityMismatches: identityMismatchesTotal,
+    oldForcedTotal,
+    oldDiSole,
+    oldDiMulti,
+    oldDiAmbiguous,
+    oldDiMultiOther,
+    oldDiMultiCells,
+    oldDiSoleBandFloorCells,
+    tickCountsNew,
+    tickCountsOld,
+    changedTicks,
+    changedTickCells,
   };
 }
 
@@ -458,6 +676,95 @@ function reportArm(r: ArmResult): void {
     `  GAP (whole-duration multi share MINUS deciding-instant multi share): ` +
       `${pct(r.wdMulti, r.forcedTotal)} - ${pct(r.diMulti, r.forcedTotal)}`,
   );
+
+  // ============================= ENTRY 110 — PARTS A/B/C =============================
+  const c = r.oldDiMultiCells;
+  const bandArrivalTie = cellTotal(c);
+  say("");
+  say(
+    `ENTRY 110 PART A — OLD-STYLE (PRE-ADR-058) deciding instant: forced ${String(r.oldForcedTotal)} ` +
+      `(vs ${String(r.forcedTotal)} ACTUAL/current-forced) = sole(counter ${String(r.oldDiSole.counter)}) + ` +
+      `sole(bandFloor[unnarrowed] ${String(r.oldDiSole.bandFloor)}) + sole(arrival ${String(r.oldDiSole.arrival)}) ` +
+      `+ multi ${String(r.oldDiMulti)} [ambiguous ${String(r.oldDiAmbiguous)}]`,
+  );
+  say(
+    `  of OLD-DI multi: bandFloor(unnarrowed)+arrival tie ${String(bandArrivalTie)} ` +
+      `(${pct(bandArrivalTie, r.oldDiMulti)} of OLD-DI-multi; other-multi ${String(r.oldDiMultiOther)})`,
+  );
+  say(
+    `  SIX-CELL CENSUS (of the tie population ${String(bandArrivalTie)}, and of ALL old-forced ${String(r.oldForcedTotal)}):`,
+  );
+  say(
+    `    INTERIOR (all 3 moves, move-invariant, arithmetic TIE)     ${String(c.interior)} ` +
+      `(${pct(c.interior, bandArrivalTie)} of tie; ${pct(c.interior, r.oldForcedTotal)} of old-forced)`,
+  );
+  say(
+    `    EDGE POWER/FINESSE (indistinguishable, arithmetic TIE)     ${String(c.edgeNotSpeed)} ` +
+      `(${pct(c.edgeNotSpeed, bandArrivalTie)} of tie; ${pct(c.edgeNotSpeed, r.oldForcedTotal)} of old-forced)`,
+  );
+  say(
+    `      EDGE SPEED DOMINANT (shave applies, TIE)                 ${String(c.edgeSpeedDominant)} ` +
+      `(${pct(c.edgeSpeedDominant, bandArrivalTie)} of tie; ${pct(c.edgeSpeedDominant, r.oldForcedTotal)} of old-forced)`,
+  );
+  say(
+    `      EDGE SPEED NON-DOMINANT (shave does not apply, DISAGREES) ${String(c.edgeSpeedNonDominant)} ` +
+      `(${pct(c.edgeSpeedNonDominant, bandArrivalTie)} of tie; ${pct(c.edgeSpeedNonDominant, r.oldForcedTotal)} of old-forced) ` +
+      `— expect 0 whenever collapsingWithinSeconds < 1.5 (a disagreement is NOT a tie; see below)`,
+  );
+  say(
+    `    EDGE high-margin ambiguous (SPEED/notSPEED candidates coincide) ${String(c.edgeAmbiguous)}; ` +
+      `EDGE unreconciled (falsifier, expect 0) ${String(c.edgeUnreconciled)}; ` +
+      `EDGE no-won-rep-attribution (free runner/looper argmin, abstention) ${String(c.edgeNoWonRepAttribution)}; ` +
+      `no-alignment (falsifier, expect 0) ${String(c.noAlignment)}`,
+  );
+  const sb = r.oldDiSoleBandFloorCells;
+  const soleBandTotal = cellTotal(sb);
+  say(
+    `  ⛔ PART B — bandFloor SOLE at the deciding tick (arrival not yet forcing there): ` +
+      `${String(r.oldDiSole.bandFloor)} total, six-cell census (${String(soleBandTotal)} attributed):`,
+  );
+  say(
+    `    INTERIOR ${String(sb.interior)} · EDGE not-SPEED ${String(sb.edgeNotSpeed)} · ` +
+      `EDGE SPEED dominant ${String(sb.edgeSpeedDominant)} · ` +
+      `EDGE SPEED NON-DOMINANT (the TRUE disagreement population) ${String(sb.edgeSpeedNonDominant)} ` +
+      `(${pct(sb.edgeSpeedNonDominant, r.oldDiSole.bandFloor)} of bandFloor-sole; ` +
+      `${pct(sb.edgeSpeedNonDominant, r.oldForcedTotal)} of old-forced; ` +
+      `${pct(sb.edgeSpeedNonDominant, r.dropbacks)} of dropbacks) <<< PART B'S NUMBER`,
+  );
+  say(
+    `    EDGE ambiguous ${String(sb.edgeAmbiguous)} · EDGE unreconciled (falsifier, expect 0) ${String(sb.edgeUnreconciled)} · ` +
+      `EDGE no-won-rep (abstention — e.g. the 6-in-40,000 time-retired carve-out) ${String(sb.edgeNoWonRepAttribution)} · ` +
+      `no-alignment ${String(sb.noAlignment)}`,
+  );
+  const pressureDelta = r.tickCountsNew.PRESSURE - r.tickCountsOld.PRESSURE;
+  const collapsingDelta = r.tickCountsNew.COLLAPSING - r.tickCountsOld.COLLAPSING;
+  say(
+    `ENTRY 110 PART C — TICK-GRAIN (all ticks, all dropbacks, forced or not; cross-check against ` +
+      `653d425's own PRESSURE 11,465->15,037 / COLLAPSING 48,093->45,176 at canonical n=496):`,
+  );
+  say(
+    `  PRESSURE   old ${String(r.tickCountsOld.PRESSURE)} -> new ${String(r.tickCountsNew.PRESSURE)} (delta ${pressureDelta >= 0 ? "+" : ""}${String(pressureDelta)})`,
+  );
+  say(
+    `  COLLAPSING old ${String(r.tickCountsOld.COLLAPSING)} -> new ${String(r.tickCountsNew.COLLAPSING)} (delta ${collapsingDelta >= 0 ? "+" : ""}${String(collapsingDelta)})`,
+  );
+  say(
+    `  IMMEDIATE  old ${String(r.tickCountsOld.IMMEDIATE)} -> new ${String(r.tickCountsNew.IMMEDIATE)}; ` +
+      `CLEAN old ${String(r.tickCountsOld.CLEAN)} -> new ${String(r.tickCountsNew.CLEAN)}`,
+  );
+  say(`  CHANGED TICKS (old severity > new severity) ${String(r.changedTicks)}, by cell:`);
+  const cc = r.changedTickCells;
+  say(
+    `    INTERIOR ${String(cc.interior)} · EDGE not-SPEED ${String(cc.edgeNotSpeed)} · ` +
+      `EDGE SPEED dominant ${String(cc.edgeSpeedDominant)} · EDGE SPEED NON-DOMINANT (disagreeing) ${String(cc.edgeSpeedNonDominant)} · ` +
+      `EDGE ambiguous ${String(cc.edgeAmbiguous)} · EDGE unreconciled ${String(cc.edgeUnreconciled)} · ` +
+      `EDGE no-won-rep ${String(cc.edgeNoWonRepAttribution)} · no-alignment ${String(cc.noAlignment)}`,
+  );
+  say(
+    `  CHECK: does EDGE-SPEED-NONDOMINANT's changed-tick count (${String(cc.edgeSpeedNonDominant)}) account ` +
+      `for the PRESSURE delta (${String(pressureDelta)}) and the |COLLAPSING delta| (${String(Math.abs(collapsingDelta))})? ` +
+      `${cc.edgeSpeedNonDominant === pressureDelta && cc.edgeSpeedNonDominant === Math.abs(collapsingDelta) ? "EXACTLY" : "NOT EXACTLY — see report text"}`,
+  );
   say(
     "##FDI##" +
       JSON.stringify({
@@ -479,6 +786,17 @@ function reportArm(r: ArmResult): void {
         diMultiBandArrivalInterior: r.diMultiBandArrivalInterior,
         diMultiBandArrivalEdge: r.diMultiBandArrivalEdge,
         diMultiOther: r.diMultiOther,
+        oldForcedTotal: r.oldForcedTotal,
+        oldDiSole: r.oldDiSole,
+        oldDiMulti: r.oldDiMulti,
+        oldDiAmbiguous: r.oldDiAmbiguous,
+        oldDiMultiOther: r.oldDiMultiOther,
+        oldDiMultiCells: r.oldDiMultiCells,
+        oldDiSoleBandFloorCells: r.oldDiSoleBandFloorCells,
+        tickCountsNew: r.tickCountsNew,
+        tickCountsOld: r.tickCountsOld,
+        changedTicks: r.changedTicks,
+        changedTickCells: r.changedTickCells,
       }),
   );
 }
@@ -492,6 +810,25 @@ function assertFalsifiers(r: ArmResult): void {
   const diSum = CHANNEL_IDS.reduce((a, c) => a + r.diSole[c], 0);
   expect(diSum + r.diMulti).toBe(r.forcedTotal);
   expect(r.diMultiBandArrivalInterior + r.diMultiBandArrivalEdge + r.diMultiOther).toBe(r.diMulti);
+
+  // ENTRY 110 falsifiers
+  expect(r.oldDiAmbiguous).toBe(0);
+  const oldDiSum = CHANNEL_IDS.reduce((a, c) => a + r.oldDiSole[c], 0);
+  expect(oldDiSum + r.oldDiMulti).toBe(r.oldForcedTotal);
+  expect(cellTotal(r.oldDiMultiCells) + r.oldDiMultiOther).toBe(r.oldDiMulti);
+  expect(cellTotal(r.oldDiSoleBandFloorCells)).toBe(r.oldDiSole.bandFloor);
+  expect(r.oldForcedTotal).toBeGreaterThanOrEqual(r.forcedTotal);
+  expect(cellTotal(r.changedTickCells)).toBe(r.changedTicks);
+  // Structural invariants entry 110/ADR-058 predict rather than merely hope for: the pursuit-clock
+  // dormancy (module header) means a bandFloor+arrival tie can never occur with NO attributable
+  // alignment, and the move-cell match (`classifyMoveCell`) should always resolve one of its named
+  // buckets on the committed tree — an "unreconciled" count is a genuine falsifier, not noise.
+  expect(r.oldDiMultiCells.noAlignment).toBe(0);
+  expect(r.oldDiMultiCells.edgeUnreconciled).toBe(0);
+  expect(r.oldDiSoleBandFloorCells.noAlignment).toBe(0);
+  expect(r.oldDiSoleBandFloorCells.edgeUnreconciled).toBe(0);
+  expect(r.changedTickCells.noAlignment).toBe(0);
+  expect(r.changedTickCells.edgeUnreconciled).toBe(0);
 }
 
 describe.skipIf(!ENABLED)("deciding-instant vs whole-duration necessity (measurement only)", () => {
@@ -505,6 +842,11 @@ describe.skipIf(!ENABLED)("deciding-instant vs whole-duration necessity (measure
         "DECIDING-INSTANT DISPATCH — flat-60-32t · SYNTHETIC_ROUND_ROBIN 2024 · batch seed " + BATCH_SEED,
       );
       say(`GAMES=${String(GAMES)} per arm · MEASUREMENT ONLY — no tunable moved on disk, no ruling proposed`);
+      say(
+        `ENTRY 110 DERIVED DOMINANCE THRESHOLD (winMinMargin + dominanceMarginPerHalfTick, NOT taken ` +
+          `from any report): margin >= ${String(dominanceThresholdMarginFor(DEFAULT_TUNABLES))} — identical ` +
+          `on every arm below, none of which patch arrival.dominanceMarginPerHalfTick or passRush.bands`,
+      );
       say("=======================================================================");
 
       const rows = ARMS.map((s) => measureArm(s, GAMES));
@@ -527,6 +869,43 @@ describe.skipIf(!ENABLED)("deciding-instant vs whole-duration necessity (measure
               (100 * r.diMulti) / r.forcedTotal
             ).toFixed(2)}pp | ${pct(r.diMultiBandArrivalInterior, r.diMulti)} | ` +
             `${pct(r.diMultiBandArrivalEdge, r.diMulti)} | ${pct(r.diMultiOther, r.diMulti)} |`,
+        );
+      }
+
+      say("");
+      say("=======================================================================");
+      say("ENTRY 110 PART A/B — SIX-CELL CENSUS, OLD-STYLE (PRE-ADR-058) DECIDING INSTANT, EVERY ARM");
+      say("=======================================================================");
+      say(
+        "| arm | old-forced | TIE population (INTERIOR / not-SPEED / SPEED-dom) | " +
+          "PART B — true disagreement, bandFloor-sole (of bandFloor-sole / of old-forced / of dropbacks) |",
+      );
+      say("|---|---|---|---|");
+      for (const r of rows) {
+        const c = r.oldDiMultiCells;
+        const tie = cellTotal(c);
+        const sb = r.oldDiSoleBandFloorCells;
+        say(
+          `| ${r.label} | ${String(r.oldForcedTotal)} | ${pct(c.interior, tie)} / ${pct(c.edgeNotSpeed, tie)} / ` +
+            `${pct(c.edgeSpeedDominant, tie)} (n=${String(tie)}) | ` +
+            `${pct(sb.edgeSpeedNonDominant, r.oldDiSole.bandFloor)} / ${pct(sb.edgeSpeedNonDominant, r.oldForcedTotal)} / ` +
+            `${pct(sb.edgeSpeedNonDominant, r.dropbacks)} (n=${String(sb.edgeSpeedNonDominant)}) |`,
+        );
+      }
+
+      say("");
+      say("=======================================================================");
+      say("ENTRY 110 PART C — TICK-GRAIN PRESSURE/COLLAPSING SHIFT, EVERY ARM");
+      say("=======================================================================");
+      say("| arm | PRESSURE old->new (delta) | COLLAPSING old->new (delta) | changed ticks | EDGE-SPEED-NONDOM changed ticks |");
+      say("|---|---|---|---|---|");
+      for (const r of rows) {
+        const pd = r.tickCountsNew.PRESSURE - r.tickCountsOld.PRESSURE;
+        const cd = r.tickCountsNew.COLLAPSING - r.tickCountsOld.COLLAPSING;
+        say(
+          `| ${r.label} | ${String(r.tickCountsOld.PRESSURE)}->${String(r.tickCountsNew.PRESSURE)} (${pd >= 0 ? "+" : ""}${String(pd)}) | ` +
+            `${String(r.tickCountsOld.COLLAPSING)}->${String(r.tickCountsNew.COLLAPSING)} (${cd >= 0 ? "+" : ""}${String(cd)}) | ` +
+            `${String(r.changedTicks)} | ${String(r.changedTickCells.edgeSpeedNonDominant)} |`,
         );
       }
 

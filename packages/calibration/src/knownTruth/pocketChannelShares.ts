@@ -68,7 +68,7 @@
  * | channel 2 narrows exactly the way `sim/passPlay.ts` narrows it (ADR-058) | a mismatch on a won-rep tick — the signature this narrowing was added to eliminate; see CALIBRATION-BACKLOG entries 105-109 and ADR-058 for the pre-narrowing baseline these figures are compared against |
  * | a rusher's counter is read only where he has a blocker | a `pass_rush_tick` CHECK with no matching matchup — cannot happen structurally, since the CHECK IS the matchup's own publication |
  */
-import type { MatchEventEnvelope, PocketStatus, RushAlignment } from "@ff/contracts";
+import type { MatchEventEnvelope, PocketStatus, RushAlignment, RushMove } from "@ff/contracts";
 import type { Tunables } from "@ff/engine";
 import { floorFromArrival } from "./geometryTimeRetirement.js";
 import { severityOf } from "./pocketLadder.js";
@@ -79,11 +79,49 @@ export type ChannelId = (typeof CHANNEL_IDS)[number];
 interface RusherState {
   pressure: number;
   previousBand: string | undefined;
+  /**
+   * The `margin` field of the SAME `pass_rush_tick` CHECK that produced `previousBand`, on the
+   * same tick (`resolve/passRush.ts:85-99` publishes both on one CHECK). Kept so a fresh
+   * `RUSH_THREAT{state:"TRAVELLING"}` for this rusher, seen immediately afterward in the same
+   * tick's block, can be attributed to the margin that won it — backlog entry 110's move-cell
+   * census below needs it and `margin` is not otherwise carried anywhere in `real`.
+   */
+  lastMargin: number | undefined;
 }
 
 interface RealThreat {
   alignment: RushAlignment;
   etaTick: number;
+  /**
+   * ============================================================================
+   * ENTRY 110's MOVE-CELL ATTRIBUTION — captured ONLY at the tick a WON REP freshly starts a
+   * threat (`RUSH_THREAT{state:"TRAVELLING"}` immediately following a `pass_rush_tick` CHECK
+   * banded `RUSHER_WINS_REP` for the same rusher), and left UNTOUCHED by a later `DELAYED`
+   * publication for the same id.
+   *
+   * WHY THIS SHAPE. `move` (`RushMove` — SPEED/POWER/FINESSE) is never published on any event
+   * (`packages/contracts/src/events.ts`'s `RUSH_THREAT` carries `alignment`, not `move`). But
+   * `resolve/rushThreat.ts`'s `travelSecondsFor(tunables, alignment, move, margin)` is a PURE
+   * function of three PUBLIC quantities — `tunables.arrival.travelSecondsByAlignmentAndMove`,
+   * `tunables.arrival.dominanceMarginPerHalfTick/quantizeSeconds/min|maxTravelSeconds`, and
+   * `tunables.passRush.bands` for `RUSHER_WINS_REP`'s own `minMargin` — so the ACTUAL travel this
+   * rep produced (`etaTick − wonAtTick`, both public) can be matched against each move's PUBLIC
+   * candidate to recover which one the engine used, the same reimplementation discipline
+   * `floorFromArrival` above already uses for `pocketFloorFromArrival` ("DUPLICATED ON PURPOSE",
+   * `resolve/rushThreat.ts`'s own comment). See `classifyMoveCell` below for the match.
+   *
+   * `wonMargin === undefined` for every threat this reconstruction cannot attribute to a live
+   * `pass_rush_tick` win it saw — a free runner or looper (no blocker, no CHECK ever fires for
+   * them, `sim/passPlay.ts:598`) or a `DELAYED` update for an id this reconstruction never saw
+   * TRAVELLING (should not occur, but left honestly undefined rather than guessed at). BandFloor
+   * had zero reach in the free-runner/looper population regardless (entry 109 item B), so
+   * excluding them from the move-cell census costs nothing this census claims to answer.
+   * ============================================================================
+   */
+  wonMargin: number | undefined;
+  /** `etaTick − wonAtTick` at the moment `wonMargin` was captured — the OBSERVED travel, in
+   *  seconds, that the move-cell match below compares against each move's PUBLIC candidate. */
+  wonTravelSeconds: number | undefined;
 }
 
 export interface TickChannels {
@@ -102,6 +140,26 @@ export interface TickChannels {
    * field read off state `reconstructPlay` already carries.
    */
   readonly arrivalAlignment: RushAlignment | undefined;
+  /**
+   * `RealThreat.wonMargin` / `.wonTravelSeconds` of the SAME argmin-arrival rusher `arrivalAlignment`
+   * names, read off the SAME `minThreatOf()` call — no second attribution, no new reconstruction.
+   * `undefined` under the identical conditions `arrivalAlignment` is (pursuit clock live, `real`
+   * empty, or the argmin threat has no attributable win — see `RealThreat`'s own doc). Entry 110's
+   * move-cell census (`classifyMoveCell`, below) is the sole consumer.
+   */
+  readonly arrivalWonMargin: number | undefined;
+  readonly arrivalWonTravelSeconds: number | undefined;
+  /**
+   * ENTRY 110 PART C — the bandFloor channel's PRE-ADR-058 value: `statusFromBandFloor` over EVERY
+   * `previousBand`, with none omitted for liveness. `bandFloor` (above) is the NARROWED,
+   * currently-authoritative value the engine actually publishes (ADR-058); this sibling field is
+   * the counterfactual "what would bandFloor have floored here under the superseded rule" —
+   * computed from the SAME `rushers` map, at zero extra event-stream reads, so the two can be
+   * compared tick-for-tick to price ADR-058's actual severity effect per cell without a second
+   * simulation. Identical to `bandFloor` on every tick where no live `RUSHER_WINS_REP` band was
+   * omitted (the overwhelming majority — non-won-rep ticks); differs only where ADR-058 bites.
+   */
+  readonly bandFloorUnnarrowed: PocketStatus;
 }
 
 export interface PlayChannelReclass {
@@ -183,17 +241,30 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
   // times are per-alignment constants, so two tied rushers of the SAME alignment agree on the
   // answer this field exists to give, and a tie ACROSS alignments is a separate, rarer question
   // this field does not claim to answer (see the report's abstention).
-  const minThreatOf = (): { readonly tta: number; readonly alignment: RushAlignment } | undefined => {
+  const minThreatOf = ():
+    | {
+        readonly tta: number;
+        readonly alignment: RushAlignment;
+        readonly wonMargin: number | undefined;
+        readonly wonTravelSeconds: number | undefined;
+      }
+    | undefined => {
     let min: number | undefined;
     let alignment: RushAlignment | undefined;
+    let wonMargin: number | undefined;
+    let wonTravelSeconds: number | undefined;
     for (const t of real.values()) {
       const tta = t.etaTick - curTick;
       if (min === undefined || tta < min) {
         min = tta;
         alignment = t.alignment;
+        wonMargin = t.wonMargin;
+        wonTravelSeconds = t.wonTravelSeconds;
       }
     }
-    return min === undefined || alignment === undefined ? undefined : { tta: min, alignment };
+    return min === undefined || alignment === undefined
+      ? undefined
+      : { tta: min, alignment, wonMargin, wonTravelSeconds };
   };
 
   for (const envelope of buf) {
@@ -229,9 +300,9 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
         if (!Array.isArray(actors) || actors.length === 0 || typeof band !== "string") break;
         const rusherId = String(actors[0]);
         const update = pressureUpdateFor(tunables, band);
-        const prior = rushers.get(rusherId) ?? { pressure: 0, previousBand: undefined };
+        const prior = rushers.get(rusherId) ?? { pressure: 0, previousBand: undefined, lastMargin: undefined };
         const pressure = update.reset ? 0 : Math.max(0, prior.pressure + update.delta);
-        rushers.set(rusherId, { pressure, previousBand: band });
+        rushers.set(rusherId, { pressure, previousBand: band, lastMargin: event.payload.margin });
         break;
       }
       case "RUSH_THREAT": {
@@ -241,23 +312,59 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
           real.delete(id);
           break;
         }
-        real.set(id, { alignment: event.payload.alignment, etaTick: event.payload.etaTick });
+        const alignment = event.payload.alignment;
+        const etaTick = event.payload.etaTick;
+        if (state === "DELAYED") {
+          // A recovering blocker's push (`delayThreat`) shifts `etaTick` without re-deriving from
+          // move/margin — the move identity this rep started with does not change, so it is
+          // CARRIED, not recomputed, from whatever `real.get(id)` already held (entry 110's own
+          // header: "the shove doesn't change which move he used").
+          const prior = real.get(id);
+          real.set(id, {
+            alignment,
+            etaTick,
+            wonMargin: prior?.wonMargin,
+            wonTravelSeconds: prior?.wonTravelSeconds,
+          });
+          break;
+        }
+        // TRAVELLING — a fresh threat. Attribute it to a won rep ONLY if this reconstruction saw
+        // the `pass_rush_tick` CHECK that produced it: `startsThreat` fires exclusively off
+        // `RUSHER_WINS_REP` (`sim/passPlay.ts:622-629`'s own compile-time-enforced claim), so a
+        // matching `rushers.get(id)` with that exact `previousBand`, on THIS tick, is the win.
+        // Anything else (a free runner/looper's first publication) has no matching CHECK by
+        // construction and is correctly left unattributed — see `RealThreat`'s own doc.
+        const rusherState = rushers.get(id);
+        const wonHere =
+          rusherState?.previousBand === "RUSHER_WINS_REP" ? rusherState.lastMargin : undefined;
+        real.set(id, {
+          alignment,
+          etaTick,
+          wonMargin: wonHere,
+          wonTravelSeconds: wonHere === undefined ? undefined : Number((etaTick - curTick).toFixed(1)),
+        });
         break;
       }
       case "POCKET_STATUS": {
         identityChecks += 1;
         let counter: PocketStatus;
         let bandFloor: PocketStatus;
+        let bandFloorUnnarrowed: PocketStatus;
         let arrival: PocketStatus;
         let arrivalAlignment: RushAlignment | undefined;
+        let arrivalWonMargin: number | undefined;
+        let arrivalWonTravelSeconds: number | undefined;
         if (pursuitDeadlineTick !== undefined) {
           // §8.8 live: channels 1 and 2 are pinned CLEAN by construction (module header). The
           // pursuit clock has no single rusher to attribute an alignment to (it replaces the
           // whole threat set), so `arrivalAlignment` is `undefined` here by construction too.
           counter = "CLEAN";
           bandFloor = "CLEAN";
+          bandFloorUnnarrowed = "CLEAN";
           arrival = floorFromArrival(tunables, pursuitDeadlineTick - curTick);
           arrivalAlignment = undefined;
+          arrivalWonMargin = undefined;
+          arrivalWonTravelSeconds = undefined;
         } else {
           const highest = [...rushers.values()].reduce((m, r) => Math.max(m, r.pressure), 0);
           // ADR-058 — ARRIVAL IS AUTHORITATIVE FOR A WON REP IT CAN SEE. Mirrors
@@ -282,15 +389,33 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
             if (r.previousBand === "RUSHER_WINS_REP" && real.has(id)) return [];
             return [r.previousBand];
           });
+          // ENTRY 110 PART C — the SAME `rushers` map, with NO liveness omission: the PRE-ADR-058
+          // reading, kept alongside the narrowed one above rather than instead of it. Costs one
+          // more `flatMap` over state already held; no new event reads.
+          const previousBandsUnnarrowed = [...rushers.values()].flatMap((r) =>
+            r.previousBand === undefined ? [] : [r.previousBand],
+          );
           counter = statusFromCounter(tunables, highest);
           bandFloor = statusFromBandFloor(tunables, previousBands);
+          bandFloorUnnarrowed = statusFromBandFloor(tunables, previousBandsUnnarrowed);
           const minThreat = minThreatOf();
           arrival = floorFromArrival(tunables, minThreat?.tta);
           arrivalAlignment = minThreat?.alignment;
+          arrivalWonMargin = minThreat?.wonMargin;
+          arrivalWonTravelSeconds = minThreat?.wonTravelSeconds;
         }
         const predicted = worstOf(tunables, worstOf(tunables, counter, bandFloor), arrival);
         if (predicted !== event.payload.status) identityMismatches += 1;
-        ticks.push({ published: event.payload.status, counter, bandFloor, arrival, arrivalAlignment });
+        ticks.push({
+          published: event.payload.status,
+          counter,
+          bandFloor,
+          arrival,
+          arrivalAlignment,
+          arrivalWonMargin,
+          arrivalWonTravelSeconds,
+          bandFloorUnnarrowed,
+        });
         break;
       }
       default:
@@ -527,4 +652,123 @@ export function foldTieAlignmentSplit(acc: TieAlignmentSplit, tick: TickChannels
   if (tick.arrivalAlignment === "INTERIOR") acc.interior += 1;
   else if (tick.arrivalAlignment === "EDGE") acc.edge += 1;
   else acc.unattributed += 1;
+}
+
+// ---------------------------------------------------------------------------
+// ENTRY 110's MOVE-CELL CENSUS — "INTERIOR TIES / EDGE DISAGREES" narrowed to the six
+// alignment×move cells, DERIVED from public tunables rather than taking any margin threshold
+// (e.g. entry 110's own report of "65") as given. Reuses ONLY `RealThreat.wonMargin` /
+// `.wonTravelSeconds`, already carried on `TickChannels` above — no new reconstruction.
+//
+// THE ARITHMETIC BEING MATCHED (`resolve/rushThreat.ts`'s `travelSecondsFor`, reimplemented here
+// off PUBLIC `Tunables` only — the same "DUPLICATED ON PURPOSE" discipline that function's own
+// comment states for `pocketFloorFromArrival`/`floorFromArrival`):
+//
+//   dominanceSteps = floor(max(0, margin − winMinMargin) / dominanceMarginPerHalfTick)
+//   raw            = travelSecondsByAlignmentAndMove[alignment][move] − dominanceSteps × quantizeSeconds
+//   travel         = clamp(round(raw / quantizeSeconds) × quantizeSeconds, minTravelSeconds, maxTravelSeconds)
+//
+// `winMinMargin` is `passRush.bands`' own `RUSHER_WINS_REP` row — the margin `startsThreat` requires
+// before any of this runs at all — so `dominanceThresholdMarginFor` below is `winMinMargin +
+// dominanceMarginPerHalfTick`, DERIVED, not the literal "65" entry 110 read off a report.
+//
+// WHY MOVE IS RECOVERABLE AT ALL. `move` is never published (see `RealThreat`'s doc above), but
+// `travelSecondsFor` is a pure function of PUBLIC `tunables` plus `(alignment, move, margin)`, and
+// `margin`/`alignment`/the OBSERVED travel (`etaTick − wonAtTick`) are all public. So for a given
+// `(alignment, margin)` this module can compute EVERY move's candidate travel and ask which one the
+// observed travel actually equals — recovering `move` by elimination rather than reading it.
+//
+// WHERE THIS IS GENUINELY AMBIGUOUS, STATED RATHER THAN HIDDEN.
+//   - POWER and FINESSE are publicly INDISTINGUISHABLE, ALWAYS: `travelSecondsByAlignmentAndMove`
+//     gives them the identical base at every alignment (INTERIOR 1.0/1.0, EDGE 1.5/1.5,
+//     `tunables.ts:641,643`), so their candidates coincide at every margin and no observation can
+//     ever separate them. `EDGE_NOT_SPEED` reports the two merged, honestly, rather than inventing
+//     a distinction the stream cannot support — and per entry 110's own table this costs nothing:
+//     both rows read "TIES" unconditionally, so the merge does not blur the tie/disagree question.
+//   - SPEED's and NOT_SPEED's EDGE candidates coincide too, but only once margin is high enough
+//     that BOTH have hit `minTravelSeconds`'s clamp floor — `EDGE_AMBIGUOUS` names that zone
+//     explicitly rather than folding it into either bucket silently.
+// ---------------------------------------------------------------------------
+
+/** `tunables.passRush.bands`'s own `RUSHER_WINS_REP.minMargin` — the margin floor `startsThreat`
+ *  requires before ANY threat in this census exists at all. `?? 15` only guards a shape the
+ *  registry's own type does not allow; the committed tree always has the row. */
+function winMinMarginFor(tunables: Tunables): number {
+  const bands = tunables.passRush.bands as readonly {
+    readonly label: string;
+    readonly minMargin: number;
+  }[];
+  return bands.find((b) => b.label === "RUSHER_WINS_REP")?.minMargin ?? 15;
+}
+
+/**
+ * ⛔ **THE DERIVED THRESHOLD** — replaces entry 110's "margin >= 65" (read off a report) with the
+ * arithmetic that produces it: `winMinMargin + dominanceMarginPerHalfTick`. At the committed tree
+ * (`15 + 50`) this is `65`, reproducing entry 110's figure, but as a computation rather than a
+ * citation — a future change to either constant moves this function's answer with it.
+ */
+export function dominanceThresholdMarginFor(tunables: Tunables): number {
+  return winMinMarginFor(tunables) + tunables.arrival.dominanceMarginPerHalfTick;
+}
+
+/** `travelSecondsFor`, reimplemented off public `Tunables` only (see the section header). */
+function reconstructedTravelSecondsFor(
+  tunables: Tunables,
+  alignment: RushAlignment,
+  move: RushMove,
+  margin: number,
+): number {
+  const t = tunables.arrival;
+  const table = t.travelSecondsByAlignmentAndMove as Readonly<
+    Record<RushAlignment, Readonly<Record<RushMove, number>>>
+  >;
+  const base = table[alignment][move];
+  const dominanceSteps = Math.floor(Math.max(0, margin - winMinMarginFor(tunables)) / t.dominanceMarginPerHalfTick);
+  const raw = base - dominanceSteps * t.quantizeSeconds;
+  const quantized = Math.round(raw / t.quantizeSeconds) * t.quantizeSeconds;
+  return Number(Math.min(t.maxTravelSeconds, Math.max(t.minTravelSeconds, quantized)).toFixed(1));
+}
+
+export type MoveCell =
+  | "INTERIOR"
+  | "EDGE_NOT_SPEED"
+  | "EDGE_SPEED_DOMINANT"
+  | "EDGE_SPEED_NONDOMINANT"
+  /** SPEED's and NOT_SPEED's candidates genuinely coincide at this margin (both clamped) — not a
+   *  bug, see the section header. */
+  | "EDGE_HIGH_MARGIN_AMBIGUOUS"
+  /** Observed travel matched NEITHER candidate — should never occur; a falsifier, not a bucket a
+   *  report should ever cite a nonzero count from. */
+  | "EDGE_UNRECONCILED";
+
+/**
+ * Classify one argmin-arrival won-rep threat into entry 110's six-cell table (INTERIOR merged,
+ * since it is move-invariant BY CONSTRUCTION — see below — and EDGE split SPEED / not-SPEED /
+ * DOMINANT / NON-DOMINANT).
+ *
+ * INTERIOR needs no move recovery at all: `travelSecondsByAlignmentAndMove.INTERIOR` is `1.0` for
+ * all three moves, and any dominance shave on a `1.0` base clamps straight back to
+ * `minTravelSeconds` (also `1.0`), so INTERIOR's travel is `1.0` at EVERY margin and EVERY move —
+ * arithmetic entry 109 item C already stated ("the dominance shave is clamped back to 1.0
+ * regardless of margin") and this function asserts as an identity below rather than re-deriving.
+ */
+export function classifyMoveCell(
+  tunables: Tunables,
+  alignment: RushAlignment,
+  margin: number,
+  observedTravelSeconds: number,
+): MoveCell {
+  if (alignment === "INTERIOR") return "INTERIOR";
+  const speedCandidate = reconstructedTravelSecondsFor(tunables, "EDGE", "SPEED", margin);
+  // FINESSE's candidate is identical to POWER's at every margin (section header) — one "not SPEED"
+  // candidate covers both.
+  const notSpeedCandidate = reconstructedTravelSecondsFor(tunables, "EDGE", "POWER", margin);
+  const isSpeed = observedTravelSeconds === speedCandidate;
+  const isNotSpeed = observedTravelSeconds === notSpeedCandidate;
+  if (isSpeed && isNotSpeed) return "EDGE_HIGH_MARGIN_AMBIGUOUS";
+  if (isSpeed) {
+    return margin >= dominanceThresholdMarginFor(tunables) ? "EDGE_SPEED_DOMINANT" : "EDGE_SPEED_NONDOMINANT";
+  }
+  if (isNotSpeed) return "EDGE_NOT_SPEED";
+  return "EDGE_UNRECONCILED";
 }

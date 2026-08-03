@@ -7979,3 +7979,78 @@ arrival model"*), and says nothing about why `0.0` and `1.0` versus any other pa
 ⚠ **A derivation made BEFORE its outcome was known is evidence it was not fitted to that outcome — and
 LANDING BADLY IS THE EVIDENCE.** ⛔ **A derivation that lands well is indistinguishable from a fitted
 one after the fact.** **That is pre-registration applied to a CONSTANT rather than to a measurement.**
+
+---
+
+## 112. ⛔ THE BY-MOVE CENSUS — **the disagreement was never in the bucket we were counting**, and the attribution has a named 16.5% hole
+
+**Canonical `n=496`, `DEFAULT_TUNABLES`, `tunablesDigest fnv1a:a11fa1b9`, `seedDigest
+fnv1a:020c1dcb#496`.** ⚠ **Measurement only; no ruling proposed.**
+
+### ⛔ THE CORRECTION FIRST, AND THE BAD FRAMING WAS THE ORCHESTRATOR'S
+
+**The dispatch was asked: *"what fraction of entry 109's `14.85%` EDGE bucket actually disagrees?"***
+⛔ **THAT QUESTION CANNOT BE ANSWERED, BECAUSE A DISAGREEMENT IS NOT A TIE BY DEFINITION.**
+
+⚠ **A disagreement means bandFloor forces `COLLAPSING` while arrival reads only `PRESSURE`
+(`minTta 1.5 > C 1.0`). Such a play is NOT in the tie population AT ALL** — ⛔ **it is in
+`bandFloor-SOLE`, a population entries 105-109's published figures NEVER DECOMPOSED.**
+
+> ### ⇒ **THE DISPATCH CORRECTED THE QUESTION RATHER THAN ANSWERING IT AS POSED. A census of the wrong bucket would have returned `0.00%` and read as *"the disagreement is negligible."***
+
+### ✅ PART A — THE SIX-CELL TIE CENSUS. Entry 110's arithmetic confirmed DIGIT FOR DIGIT.
+
+**Tie population `29,655` = 79.83% of old-forced `37,157`. Threshold DERIVED, not taken from the brief:
+`minMargin(15) + dominanceMarginPerHalfTick(50) = 65`** *(verified at `tunables.ts:379,657`)*.
+
+| cell | count | % of tie |
+|---|---|---|
+| INTERIOR, all three moves | 25,274 | **85.23%** |
+| EDGE `POWER`/`FINESSE` | 3,707 | 12.50% |
+| EDGE `SPEED`, dominant *(margin ≥ 65)* | 406 | 1.37% |
+| ⛔ **EDGE `SPEED`, NON-DOMINANT** | ⛔ **`0`** | ⛔ **`0.00%` — as the arithmetic requires** |
+| EDGE, no won rep *(free-runner/looper argmin)* | 268 | 0.90% |
+
+⚠ **Reproduces entry 107's `85.15`/`14.85` to within `0.08pp`** — the difference is that entry 107
+folded the no-won-rep ABSTENTION into *"EDGE"* wholesale. ⛔ **Bucket granularity, not error.**
+
+### ⛔ PART B — THE NUMBER THE RULING NEEDS
+
+**The true disagreement lives in `bandFloor-sole` (`2,836` plays), and is `93.69%` of it:**
+
+> ## ⛔ **`2,657` PLAYS — `7.15%` OF FORCED PLAYS, `6.13%` OF DROPBACKS.**
+
+**And an INDEPENDENT MECHANISM CONFIRMATION the dispatch found rather than was asked for:** ⛔ **the
+disagreement collapses to EXACTLY `0` the instant `C >= 1.5`** — mechanically forced, since an EDGE
+`SPEED` win's `minTta` is `1.5`, so `1.5 <= C` converts every disagreement into a tie. ⚠ **Verified
+arithmetically and measured at the `C=2.0` arm.**
+
+### ⛔⛔ PART C — THE "SOMETHING ELSE MOVED" CHECK **FIRED**, AND THE HOLE IS NAMED
+
+**Baseline reproduces `653d425`'s NEW-side counts EXACTLY — `PRESSURE 15,037`, `COLLAPSING 45,176`,
+to the digit. Changed ticks `3,638`, equal to the `COLLAPSING` delta.**
+
+| attributed cell | changed ticks | share |
+|---|---|---|
+| ✅ **EDGE `SPEED` non-dominant** | 3,038 | **83.5%** |
+| ⛔ **cells STRUCTURALLY INCAPABLE of disagreeing** | 340 | ⛔ **9.3%** |
+| ⛔ **no attributable won rep** | 260 | ⛔ **7.1%** |
+
+> ## ⛔ **`16.5%` OF THE SHIFT IS ATTRIBUTED TO CELLS THAT CANNOT HAVE CAUSED IT. THE ATTRIBUTION IS A PROXY AND IT IS WRONG THAT OFTEN.**
+
+⚠ **CAUSE, NAMED:** at a tick where **MULTIPLE THREATS ARE SIMULTANEOUSLY LIVE**, the reported cell
+belongs to the **ARGMIN-BY-ARRIVAL** rusher — who need not be the rusher whose OMITTED BAND actually
+caused the severity change. ⛔ **This is the same abstention `arrivalAlignment` already carries
+(*"not proven to be the SAME rusher who set the band floor"*), now QUANTIFIED.**
+
+**⇒ UNRESOLVED, AND STATED AS SUCH.** ⛔ **A heavier instrument would trace the omitted band to ITS OWN
+rusher rather than to the argmin-arrival proxy.** ⚠ **NOT BUILT. Every per-cell figure in this entry
+carries that `16.5%` caveat.**
+
+### ⚠ AND ONE LIMIT DISCLOSED RATHER THAN SMOOTHED
+
+**The OLD-side counts reproduce only APPROXIMATELY (`11,455`/`48,814` vs the commit's
+`11,465`/`48,093`, ~`1.5%`).** ⛔ **Because this reconstruction RELABELS THE SAME OBSERVED TRAJECTORY
+the already-ADR-058 engine produced — it cannot replay what a quarterback would have done differently
+under a genuinely different pocket read.** ⚠ **The identical limitation this module's own header
+already states for every counterfactual in it.**
