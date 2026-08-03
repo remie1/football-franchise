@@ -21,8 +21,8 @@
 | 5 | `passRush.ts:79-80` draws `rusherRoll`/`blockerRoll` via `tickRng.fork(...)` **with mods applied per tick**; emits `checkKind: "pass_rush_tick"` at `:93` | ✅ **READ** — this session, cited by line. |
 | 6 | `CheckKind` is a 44-member union at `events.ts:92-103`; `pass_rush_tick` is a member | ✅ **READ.** |
 | 7 | ADR-004: *a roll is recorded exactly once, in a `CHECK` or `PRESNAP_READ`*; summary events reference by `rollRef` (the `RollDetail.rngLabel`), **never by repeating `RollDetail`** | ✅ **READ** — ADR-004 in full. |
-| 8 | **`pass_rush_tick` is the ONLY `checkKind` drawn from a tick-scoped RNG** | ✅ **COMPUTED** — grep for `tickRng` across `resolve/*.ts` and `sim/*.ts`, then `checkKind` within the hits. ⛔ **Pattern named because it has a blind spot — see Implied scope.** |
-| 9 | ⛔ **`resolveManCoverage` (`:472`) and `resolveZoneCoverage` (`:497`) are called BEFORE the tick loop opens (`:525`)** — coverage already draws once per play | ⚠ **COMPUTED FROM CALL-SITE LINE POSITIONS, not from full control-flow tracing.** **Load-bearing for this ADR's argument — see Need. Worth re-verifying at implementation.** |
+| 8 | ~~`pass_rush_tick` is the ONLY `checkKind` drawn from a tick-scoped RNG~~ | ⛔⛔ **REFUTED — re-derived by control flow, August 2026.** **`scramble` is a SECOND persistent contest re-drawn per tick.** ⚠ **The original grep-for-`tickRng` pattern missed it EXACTLY as its own blind-spot note predicted: `scramble` forks under `movementRng`, not `tickRng`. See Implied scope.** |
+| 9 | ⚠ **Coverage is drawn ONCE PER PLAY** — *conclusion* | ✅ **CONFIRMED, by a DIFFERENT MECHANISM than claimed.** ⛔ **The original reason — *"called BEFORE the tick loop opens"*, from call-site LINE POSITIONS — IS WRONG.** `:472`/`:497` are the function BODIES; the only call sites are `resolveBreakPoint` at `:705`/`:794`, **both INSIDE the loop.** ✅ **Once-per-play comes from the MEMOIZATION GUARD at `:466` (`if (track.baseOpenness !== undefined) return;`), not from position.** |
 | 10 | The name `pass_rush_rep` | ⛔ **CHOSEN — provenance NONE.** *Event and check names are named by someone; there is no derivation available.* |
 | 11 | Which attributes the latent should test | ⛔ **UNDECIDED — see Impact.** Not asserted here. |
 
@@ -52,16 +52,46 @@ neither is a lever: no arm measures a schema. The three-arm precondition does no
 - ⚠ **`man_coverage` / `zone_coverage` — `unruled`, AND THEY ARE THE PRECEDENT, NOT A GAP.** They
   already draw once per play (claim 9). **This ADR does not change them; it makes the pass rush
   consistent with them.**
-- ⚠ **`qb_read`, `anticipation`, `pocket_movement`, `scramble`, `release_vs_press` — `unruled`.** All
-  resolve inside the tick loop, **but none is a persistent physical matchup re-contested each tick** —
-  they are per-tick decisions, which is a different object. ⛔ **Stated, not assumed: this distinction
-  was not measured.**
-- ⛔ **The RUN path — `run_block`, `second_level_climb`, `gap_battle` — `unruled` AND NOT EXAMINED.**
-  **Only the pass path was read.** ⚠ **If a run block is a persistent matchup re-contested per tick,
-  it has this defect and nothing here would find it.**
-- ⛔ **THE BLIND SPOT IN CLAIM 8's DERIVATION, STATED:** the grep finds checks drawn from an RNG handle
-  *named* tick-scoped. **A check that re-rolls per tick without using such a handle is invisible to
-  it.** ⚠ **The pattern is named so the next reader can see what it could not have found.**
+- ⚠ **`qb_read`, `anticipation`, `pocket_movement`, `release_vs_press` — `unruled`, and now CLASSIFIED
+  rather than assumed.** Control-flow re-derivation puts `qb_read`/`anticipation`/`pocket_movement` in
+  **per-tick DECISION** *(the situation genuinely changes tick to tick — `anticipation`'s `leadSeconds`
+  shrinks toward the break)* and `release_vs_press` in **gated-once** *(`tick === firstTick && pressed`)*.
+
+### ⛔⛔ `scramble` — **A SECOND INSTANCE OF THIS ADR's OWN DEFECT.** `unruled`.
+
+**Re-derivation verdict on claim 8: REFUTED as stated.** ⛔ **`scramble` is a persistent contest
+re-drawn per tick, and this ADR does NOT fix it.**
+
+| | `pass_rush_tick` | ⛔ **`scramble`** |
+|---|---|---|
+| re-drawn per tick | ✅ unconditionally | ⚠ **gated behind `pocket_movement` ranking `ESCAPE`** |
+| per-play cap | — | ⛔ **NONE.** `STEP_UP` has `stepUpsUsed`/`maxPerPlay` (`:411`, `:983`); **`ESCAPE` has NO counterpart** — verified |
+| rep memory | none *(this ADR's subject)* | ⛔ **none.** No analogue of `consecutiveContains` |
+| RNG handle | `tickRng` | ⛔ **`movementRng`** — **which is EXACTLY why the grep missed it** |
+
+⚠ **On a `CONTAINED` result the code logs `HOLD` and `continue`s with `scramble` still undefined** —
+nothing consumed, nothing capped. ⛔ **So a QB contained at `t=3.0` is, at `t=3.5`, contesting a fresh
+full-magnitude escape against the same converging rushers.** **"He lost that instant," never "they
+have him bottled."**
+
+> ### ⚠ **NARROWER THAN THE PASS RUSH, AND STATED AS SUCH.** It needs pressure forcing a decision, `ESCAPE` ranking highest, and a `CONTAINED` outcome — repeated. ⛔ **But claim 8's word was "ONLY," and that word does not survive.**
+
+⛔ **NOT MEASURED: reachability at committed tunables was established BY READING THE CODE, not by
+simulation.** **No guard prevents the retry; whether it fires often is unknown.**
+
+- ✅ **The RUN path — EXAMINED, and a DEFINITIVE NEGATIVE.** `runPlay.ts` read in full: **it has no
+  tick-incrementing loop at all.** `run_block`/`gap_battle` fire once per blocking assignment in a
+  single pass; `second_level_climb` at most once per engagement; the `log.tickStart` calls are
+  **fixed-phase LABELS, not a re-entered body.** ⛔ **The defect shape CANNOT structurally occur
+  there.** ⚠ **This is looked-and-found-nothing, not unexamined.**
+- ⛔ **CLAIM 8's BLIND SPOT FIRED, AND THE NAMING IS WHY IT WAS CAUGHT.** The original grep found
+  checks drawn from a handle *named* `tickRng`. ⚠ **`scramble` forks under `movementRng` and was
+  invisible to it — the precise failure the blind-spot note predicted in writing.** ✅ **A derivation
+  that names what it could not find is one a later pass can aim at.**
+- ✅ **THE `testsAttrs` AUDIT SURVIVES THIS REFUTATION.** ⚠ **It scoped itself by "which kind ADR-059
+  changes" — and this ADR changes `pass_rush_tick` ONLY, however many other checks are tick-scoped.**
+  ⛔ **The transitive dependency the audit disclosed was real but does not bite here. Stated so nobody
+  re-runs it on the strength of the refutation.**
 
 ## Subject condition — REQUIRED
 
@@ -79,9 +109,26 @@ commit must not land alone.**
 
 > # ⛔ **THE ENGINE ALREADY DRAWS CONTESTS ONCE PER PLAY. THE PASS RUSH IS THE ONLY ONE THAT DOES NOT.**
 
-**`resolveManCoverage` (`:472`) and `resolveZoneCoverage` (`:497`) are called BEFORE the tick loop
-opens (`:525`)** — claim 9. ⚠ **Coverage is drawn once per play and the play lives with the result.**
-**`resolvePassRushTick` (`:600`) sits inside that loop and re-draws every half-tick.**
+**Coverage is drawn ONCE PER PLAY and the play lives with the result** — claim 9.
+**`resolvePassRushTick` (`:600`) sits inside the tick loop and re-draws every half-tick.**
+
+> ⛔ **CORRECTION, RECORDED BESIDE. The first draft of this section gave the WRONG REASON.** It said
+> coverage *"is called BEFORE the tick loop opens"*, from call-site line positions (`:472`/`:497` vs
+> `:525`). ⚠ **Those are the function BODIES.** **The only call sites are through `resolveBreakPoint`
+> at `:705` and `:794` — BOTH INSIDE THE LOOP.** ✅ **Coverage's once-per-play property is REAL and
+> comes from the MEMOIZATION GUARD at `:466` — `if (track.baseOpenness !== undefined) return;`.**
+>
+> ⛔ **THE CONCLUSION SURVIVED ITS OWN DERIVATION BEING WRONG, WHICH IS THE FAILURE MODE THIS REGISTER
+> KEEPS RECORDING** *(entry 114's constant: the argument was well-made and carried a wrong number)*.
+> ⚠ **It was caught only because claim 9 was marked `COMPUTED FROM LINE POSITIONS` and flagged for
+> re-verification. An unmarked row would have passed.**
+
+### ⇒ AND THE CORRECTED MECHANISM IS A **BETTER** PRECEDENT, NOT A WEAKER ONE
+
+✅ **`resolveBreakPoint` draws a persistent contest ONCE, LAZILY, ON THE TICK IT IS FIRST NEEDED, and
+memoizes it for the rest of the play.** ⛔ **That is not merely "the same idea elsewhere" — it is
+STRUCTURALLY THE THING ADR-059 ASKS FOR, already implemented, already shipping, one subsystem over.**
+⚠ **The rep latent should follow this shape rather than invent one.**
 
 > ## ⇒ **SO THIS ADR IS NOT IMPORTING AN EXTERNAL DESIGN. It brings ONE SUBSYSTEM INTO LINE with a pattern this engine already uses everywhere else.**
 
