@@ -1764,6 +1764,8 @@ rather than minting new ones.** ⚠ **Same reason `UNESTABLISHED` was the correc
 SAY THAT YOU ARE INVENTING IT AND WHY — and check it has a category for the outcome you would least
 like to report.**
 
+> ### ⚠ **AND THE REASON BORROWING BEATS INVENTING IS NOT CONSISTENCY. It is that a vocabulary drawn BEFORE the current question WAS DRAWN WITHOUT KNOWING WHICH BOX ANYONE WOULD NEED — which is the only property that makes its categories trustworthy here.**
+
 ### ⛔ #5 HAS A DIFFERENT MECHANISM, AND IT IS THE ONE NO COMMIT-SCOPED SEARCH CAN REACH
 
 > ## ⚠ **THE PROSE WAS ACCURATE ABOUT A COMPARISON WHOSE **OTHER SIDE** MOVED. NOTHING IN THE SIM CHANGED.**
