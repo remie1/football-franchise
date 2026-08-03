@@ -69,29 +69,6 @@ describe("§7.1 pass rush rep (ADR-059 — the per-play attribute contest)", () 
     expect(sources(finesse).some((s) => s.includes("Finesse Move"))).toBe(true);
   });
 
-  /**
-   * ADR-059 CONSEQUENCE: `previousBand` is structurally always `undefined` at
-   * the real call site (`resolvePassRushRepFor` fires this exactly once per
-   * matchup, before any tick of it exists), so the counter-move bonus is now
-   * dead code in production. Exercised here directly anyway, because the
-   * FUNCTION still implements the mechanic faithfully — this test proves the
-   * modifier logic itself is unchanged by the split, not that it fires in a
-   * real play.
-   */
-  it("adds the counter-move bonus only after a stalemate", () => {
-    const rng = createRng("s", "t");
-    const after = resolvePassRushRep({ tunables: TUNABLES,
-      rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", previousBand: "STALEMATE", repRng: rng,
-    });
-    const counter = after.rusherRoll.modifiers.find((m) => m.source.includes("Counter move"));
-    expect(counter?.value).toBe(TUNABLES.passRush.counterMoveAfterStalemate);
-
-    const without = resolvePassRushRep({ tunables: TUNABLES,
-      rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", previousBand: "BLOCKER_CONTAINS", repRng: rng,
-    });
-    expect(without.rusherRoll.modifiers.some((m) => m.source.includes("Counter move"))).toBe(false);
-  });
-
   it("fires Quick Twitch only on speed rushes and Brick Wall only against power", () => {
     const rng = createRng("traits", "t");
     const speed = resolvePassRushRep({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", repRng: rng });

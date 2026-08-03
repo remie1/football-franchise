@@ -32,25 +32,6 @@ export interface PassRushRepArgs {
   readonly blocker: PlayerState;
   readonly move: RushMove;
   /**
-   * ADR-059 CONSEQUENCE, FLAGGED RATHER THAN SILENTLY DROPPED: this argument
-   * is structurally always `undefined` at the one call site that can ever
-   * reach it. `resolvePassRushRepFor` (`sim/passPlay.ts`) fires this function
-   * exactly once per matchup, lazily, on the FIRST tick it is needed — which
-   * is, by construction, before any tick of THIS matchup has posted a band.
-   * There is no "previous rep" within a play for the counter-move bonus
-   * (`counterMoveAfterStalemate`) to key on.
-   *
-   * Kept on the signature anyway, because ADR-059 moves EVERY mod the tick
-   * used to apply here wholesale ("the mods move here from the tick" is not
-   * attribute-selective — see the module comment) rather than hand-picking
-   * which ones survive, and because a future caller that DID have a genuine
-   * prior rep (there is none today) would have somewhere to hand it. The
-   * practical effect: `counterMoveAfterStalemate` is now DEAD CODE, a
-   * consequence of the rep model this ADR did not itself call out. See this
-   * file's report to the Orchestrator.
-   */
-  readonly previousBand?: PassRushBandLabel;
-  /**
    * Play-scoped, per-matchup fork — NOT tick-scoped (ADR-059's explicit
    * requirement). Callers fork this off the play's own "rush" bucket with a
    * label stable for the whole play (the rusher's id), the same way
@@ -76,7 +57,7 @@ export interface PassRushRepOutcome {
  * of on the tick.
  */
 export function resolvePassRushRep(args: PassRushRepArgs): PassRushRepOutcome {
-  const { rusher, blocker, move, previousBand, repRng, tunables } = args;
+  const { rusher, blocker, move, repRng, tunables } = args;
   const t = tunables.passRush;
 
   const moveMods =
@@ -95,9 +76,6 @@ export function resolvePassRushRep(args: PassRushRepArgs): PassRushRepOutcome {
   const rusherMods = compact([
     actorAttrModifier(rusher, "Pass Rush", ATTR.passRush, t.rusherAttrDivisor),
     ...moveMods,
-    previousBand === "STALEMATE"
-      ? flatModifier("Counter move after stalemate", t.counterMoveAfterStalemate)
-      : undefined,
   ]);
 
   /**

@@ -525,10 +525,6 @@ export function simulatePassPlay(
       rusher: m.rusher,
       blocker: m.blocker,
       move: m.move,
-      // ADR-059 note: this is always `undefined` here — see `passRush.ts`'s
-      // `PassRushRepArgs.previousBand` comment for why, and why the argument
-      // is kept anyway.
-      ...(m.previousBand === undefined ? {} : { previousBand: m.previousBand }),
       repRng: rushRng.fork(`${m.rusher.bio.id}:rep`),
     });
     log.check(rep.check);

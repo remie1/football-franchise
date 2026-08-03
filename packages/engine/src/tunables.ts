@@ -332,8 +332,6 @@ export const TUNABLES = {
      * classification problem; see `CALIBRATION-BACKLOG.md` entry 40.
      */
     blockerStructuralAdvantage: 0,
-    /** "Counter move: +15 if previous tick was stalemate". */
-    counterMoveAfterStalemate: 15,
     /** Which rush move each conditional trait bonus attaches to. */
     quickTwitchMove: "SPEED",
     brickWallMove: "POWER",
