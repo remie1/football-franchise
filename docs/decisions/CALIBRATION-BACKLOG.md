@@ -8732,3 +8732,151 @@ and it retires the question.**
 figures HAD been corrupted, everything in the pressure queue would have been reasoning from bad
 numbers.** ⛔ **The cost of checking was one dispatch; the cost of not checking was unbounded. A
 premise being wrong does not make the check wasted.**
+
+---
+
+## 122. ✅✅ THE COVERAGE-SACK COLLAPSE, **SOLVED** — one signal, two consumers, and we followed the wrong one for three dispatches
+
+**The `!somebodyGotThere` question, answered. ⛔ READ-ONLY measurement across BOTH trees via a
+temporary worktree, removed and containment verified.**
+
+**Arms: pre = `main` @ `d3e2e57`; post = `adr-059-landing` @ `a234de7`. `sackCredit.test.ts`'s own
+12-game corpus, `foldSacks`/`somebodyGotThere` lifted verbatim.**
+
+### ✅ BOTH TERMS — and the denominator moved the WRONG WAY for the easy explanation
+
+| | pre | post |
+|---|---|---|
+| total sacks *(denominator)* | 101 | **121** — ⚠ **GREW `+19.8%`** |
+| `!somebodyGotThere` *(numerator)* | 6 | ⛔ **`0`** |
+
+⛔ **A larger denominator with a stable per-sack rate would produce MORE coverage sacks, not fewer.**
+✅ **So the zero is a NUMERATOR effect. The ratio-artifact trap is ruled out by measurement, not by
+assertion.**
+
+### ⛔ THE PATH — all six, traced to ONE cell
+
+**`6/6` were `caughtEscaping = true`, `caughtByANamedRusher = false`** — the §8.8 escape branch, the
+sub-case where `caught` is `undefined`:
+
+- **`named` is snapshotted at the TOP of the tick**, before that tick's §7.1 line battle runs
+- **that same line battle then `clearsThreat`s every threat in `named`** *(`BLOCKER_RESETS`)*
+- **a threat starting in that same tick is `live` but not `named`**, and its ETA is necessarily in the
+  future — ⚠ **confirmed: every live entry shows `etaTick > endTick`**
+- ⇒ `caught === undefined` ⇒ no `ARRIVED` published ⇒ **sack fires, nobody credited**
+
+### ⛔⛔ WHICH CLAUSE CLOSED — and the mechanism is confirmed BY DIFF, not inferred
+
+| among ESCAPE-branch sacks | pre | post |
+|---|---|---|
+| `caughtByANamedRusher` | `42/48` = **87.5%** | ⛔ **`43/43` = 100%** |
+| ⛔ **`caughtEscaping && !caughtByANamedRusher`** *(the entire pre-tree coverage-sack population)* | **`6/48`** | ⛔ **`0/43`** |
+
+> ## ✅ **`git diff main adr-059-landing -- sim/passPlay.ts` TOUCHES ZERO LINES OF THE `named`/`caught` ELIGIBILITY LOGIC.** ⚠ **The code deciding coverage-vs-credited is BYTE-IDENTICAL. The change is entirely upstream in `resolve/passRush.ts`.**
+
+### ⛔⛔⛔ THE FINDING BEHIND THE FINDING — **one signal, two consumers**
+
+**`advancePressure` (`passPlay.ts:644`) and `clearsThreat` (`:686`) BOTH consume the same per-tick
+`rush.band`.**
+
+⛔ **Correlated reps stop matchups crossing `BLOCKER_RESETS`. Entries 118 and 119 followed that into
+`advancePressure` — THE PRESSURE COUNTER. The coverage-sack collapse runs through `clearsThreat` —
+THE THREAT LIFECYCLE.**
+
+> ## ⇒ **SAME ROOT, DIFFERENT CHANNEL. THREE DISPATCHES TRACED THE RIGHT CAUSE THROUGH THE WRONG CONSUMER.**
+
+⚠ **This is exactly why the counter kept measuring as NOT the binding denier while the cause was
+real.** ⛔ **It was real. It was not the channel.** **Entry 120's finding that the counter is never the
+sole denier (`0/121`) and entry 119's conditional collapse are BOTH correct and both were about the
+wrong consumer of a correctly-identified signal.**
+
+### ⛔ A DISTINCT CLASS — **nothing was wrong, and three dispatches produced no progress**
+
+**Every prior member of this family involves something being WRONG** — a false premise *(entry 121)*,
+an unread corrective *(entry 120)*, a misspecified brief *(the `IMMEDIATE`/`CLEAN` sweep)*.
+
+> ## ⛔ **HERE NOTHING WAS WRONG.** ⚠ **Three dispatches of ACCURATE work, each measuring what it said it measured, produced no progress — because the signal was traced into the wrong downstream consumer.**
+
+⛔ **Every measurement along the way comes back accurate AND UNHELPFUL, which is why it took three of
+them to notice.** ⚠ **A wrong number gets caught. A right number about the wrong thing does not.**
+
+### ✅ ⇒ AND THE DIAGNOSTIC IS CHEAP
+
+> ## ✅ **WHEN A SIGNAL CHANGES, ENUMERATE ITS CONSUMERS BEFORE TRACING ANY ONE OF THEM.**
+
+⚠ **Same shape as the channel enumeration that settled the pocket-status question** *(three channels
+listed, then decomposed — which is how entry 120 got a clean answer to the question it COULD answer)*.
+
+⛔ **WE HAVE NOW PAID TWICE FOR TRACING BEFORE ENUMERATING, AND THE SECOND TIME WAS THE EXACT LESSON
+OF THE FIRST.** ⚠ **`grep` for the changed value's readers is one command; three dispatches is not.**
+**Cheap at the start, and the whole cost is paid when it is skipped.**
+
+### ✅ NOT A SMALL-N ARTIFACT IN EITHER DIRECTION — checked both ends
+
+- **The ZERO** reproduces at three independent scales: `0/121` here, `0/121` re-derived by entry 120,
+  ⛔ **`0/1,009`** at 8× in the WIP diagnostic.
+- **The `5.9%`** is independently cited in `sackCredit.test.ts`'s own module comment **from a 496-game
+  baseline** — ~40× this corpus, same rate. ⚠ **`6/101` is a small sample OF A STABLE RATE, not a
+  number a bigger corpus would have moved.**
+
+### ⛔ THE RULING — **the engine should NOT produce uncredited sacks** *(owner, August 2026)*
+
+**Real NFL credits a sacker on every sack.** ⛔ **An uncredited sack is not a category in the record —
+*"coverage sack"* describes WHY pressure arrived, not a play where nobody made the tackle.**
+
+**The crediting RULE is sound and stays.** ⚠ **But its precondition is *every named rusher reset by
+his blocker inside a single half-second* — PRECISELY the wild swing ADR-059 exists to eliminate.**
+
+> ## ⇒ ⛔ **THE RULE IS RIGHT AND THE STATE IT HANDLED WAS BEING MANUFACTURED BY THE DEFECT.**
+
+**Disposition: the assertion is SPLIT, not deleted** — it now asserts the class is EMPTY, with the old
+expectation, its `5.9%`/`12.5%` measurements, and the cause recorded beside. ✅ **A test asserting a
+class is empty FOR A STATED REASON is a positive control on the fix.** ⛔ **Deleting it would discard
+the evidence the artifact ever existed.**
+
+### 📒 AND THE ORCHESTRATOR'S REVERSAL, FLAGGED RATHER THAN SWITCHED QUIETLY
+
+⛔ **The Orchestrator asserted repeatedly this session that *"the tests are correct and the engine is
+wrong about football."*** ⚠ **For THIS test, on this evidence, THAT IS BACKWARDS** — the assertion
+pinned a real measurement of a class that was real only because ticks were independent.
+
+✅ **NOT EXTENDED to `rushThreat.test.ts`'s step-up assertion.** ⛔ **That is a separate question and
+stays RED.** ⚠ **A reversal that generalises itself is how one correct re-reading becomes a licence.**
+
+### ✅ THE `everArrived` SATURATION — **TRACED. STATISTICAL, NOT STRUCTURAL. Merge unblocked.**
+
+**Two terminal sack sites exist, and only two** *(grep-confirmed on BOTH trees)*:
+
+| site | gate |
+|---|---|
+| `passPlay.ts:997` — §7.2 | ⛔ **`hasArrived(...)` — STRUCTURALLY arrival-only, in both trees** |
+| `passPlay.ts:1089` — §8.8 escape | ✅ **CONDITIONAL** — publishes `ARRIVED` only if `nearestThreat` finds a live named rusher; **can be `undefined`** |
+
+| | pre | post |
+|---|---|---|
+| §7.2 arrival path | 53 *(52.5%)* | 78 *(**64.5%**)* |
+| §8.8 escape path | 48 *(47.5%)* | 43 *(35.5%)* |
+| escape-path `everArrived` | `42/48` = 87.5% | `43/43` = **100%** |
+
+> ## ✅ **STATISTICAL. A sack CAN still occur with no arrival — the escape path is not gated. It simply did not in 121.** ⛔ **100% is the sample's state, NOT a guarantee the code enforces.**
+
+### ⛔ AND THE PRE-REGISTERED HYPOTHESIS WAS REAL **AND INSUFFICIENT** — which is the sharper half
+
+**The hypothesis:** correlated reps push more sacks through the always-arrived §7.2 path.
+✅ **TRUE AND MEASURED** — arrival share `52.5% → 64.5%`.
+
+⛔ **BUT IT DOES NOT ACCOUNT FOR THE ZERO.** ⚠ **Decompose: `coverage rate = escapeShare × escapeInternalRate`. At post's mix (`35.5%`), even the PRE-ADR-059 escape-internal rate (`12.5%`) predicts `~4.4%` — about FIVE of 121 — not zero.**
+
+> ### ⇒ ⛔ **THE DOMINANT FACTOR IS THE ESCAPE PATH'S OWN INTERNAL RATE COLLAPSING INDEPENDENTLY, `12.5% → 0%`.** ⚠ **A mix shift was real, visible, and would have been a satisfying-looking answer that was wrong by a factor of five.**
+
+**`P(0/43 | true rate 12.5%) ≈ 0.3%`** — ⛔ **a genuine rate shift, not small-sample luck** — and corroborated by the 96-game/1,009-sack diagnostic already on record.
+
+### 📒 THE BRIEF CONFLATED TWO DENOMINATORS, AND THE DISPATCH RECOMPUTED RATHER THAN TRUSTING IT
+
+⛔ **The Orchestrator's brief wrote *"`6/101` = `12.5%` of escape sacks."*** ⚠ **`6/101` is `5.9%`
+(ALL sacks); `12.5%` is `6/48` (ESCAPE sacks). Two different denominators, stated as one figure.**
+
+✅ **The dispatch caught it, recomputed both directly, and used the correct `6/48` in the retirement
+note.**
+
+> ## ⚠ **THE ORCHESTRATOR HAS REQUIRED *"BOTH TERMS, NEVER THE RATIO"* THREE TIMES TODAY AND THEN COLLAPSED TWO DENOMINATORS INTO ONE RATIO IN A BRIEF.** ⛔ **The rule is right and knowing it is not the same as applying it.**
