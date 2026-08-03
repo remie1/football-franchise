@@ -252,9 +252,19 @@ name — `attributes` / `franchise` / `narrative` / `apps/game` are 2-5 line `ex
 ✅ **Both edits, or neither.** **The exception alone converts a loud guard into a permanent silent one;
 the pair RELOCATES the guard, which is the same relocation principle every other finding here takes.**
 
-⚠ **AND THE PREMISE IS NOT YET SETTLED: claim 11 (*which attributes the latent tests*) is `UNDECIDED`.**
-⛔ **If the design keeps ANY per-tick modifier, the tick is NOT attribute-free and the exception is
-false after all. Settle claim 11 BEFORE editing this test.**
+### ⛔⛔ AND THE EXCEPTION IS **BLOCKED ON CLAIM 11** — not a step in the landing dispatch
+
+**Claim 11 (*which attributes the latent tests*) is `UNDECIDED`.** ⛔ **If the design keeps ANY per-tick
+modifier, the tick is NOT attribute-free and the exception asserts something FALSE.**
+
+> ## ⛔ **SO THIS EDIT CANNOT LAND UNTIL CLAIM 11 IS DECIDED. RECORDED AS BLOCKED, NOT AS A TASK.**
+
+⚠ **The distinction is the point.** ⛔ **An exception whose truth is CONTINGENT ON AN OPEN DESIGN
+QUESTION is the shape that quietly becomes wrong when the question resolves the other way** — and it
+becomes wrong SILENTLY, because an exception list is not re-read when an unrelated design decision is
+made. **A blocked item gets revisited; a checklist step gets executed.**
+
+✅ **Sequence: decide claim 11 → THEN the paired edit, or neither edit.**
 
 ### ⛔ THE ONE SILENT CONSUMER — **and it closes as a CONSEQUENCE, not as a chore**
 
@@ -263,13 +273,20 @@ asserting only `expect(usage.checksObserved).toBeGreaterThan(0)`** — which sta
 `CHECK` still fires and only its `testsAttrs` is empty. ⛔ **It goes GREEN while the pass-rush
 attribute claim has quietly gone inert.**
 
-✅ **But it needs NO edit of its own.** It derives its mechanism from `scenarios.ts`. ⛔ **Once
-`scenarios.ts:501` and `:553` relocate `mechanismCheckKinds` from `"pass_rush_tick"` to
-`"pass_rush_rep"`, this tool FOLLOWS THE RELOCATION AUTOMATICALLY and stops being silent.**
+✅ **It needs no edit of its OWN** — it derives its mechanism from `scenarios.ts`, so relocating
+`mechanismCheckKinds` there carries it automatically.
 
-⚠ **The window is what matters: it is a live silent gap UNTIL that scenario edit lands, and NO GATE
-FORCES THAT EDIT.** **⇒ Re-run `FF_LADDER=1 FF_LADDER_STAGE=usage` for both scenarios after landing
-and READ THE VERDICT LINE — as VERIFICATION that the relocation took, not as the fix.**
+> ## ⛔ **BUT THAT RELOCATION IS A REQUIRED EDIT OF THE LANDING DISPATCH, NOT A FOLLOW-ON.**
+>
+> **`scenarios.ts:501` and `:553` — `mechanismCheckKinds: ["pass_rush_tick"]` → `["pass_rush_rep"]`.**
+
+⚠ **A FIX THAT FOLLOWS AUTOMATICALLY ONLY FOLLOWS IF SOMEONE MAKES IT.** ⛔ **Filing it as a
+consequence is how it becomes nobody's task** — the window between landing and the scenario edit is a
+live silent gap, and **NO GATE FORCES IT CLOSED.** *(`attributeClaims.test.ts` goes red and pushes
+toward this same edit — but it is satisfiable other ways, so red is a prompt here, not a guarantee.)*
+
+**⇒ Then re-run `FF_LADDER=1 FF_LADDER_STAGE=usage` for both scenarios and READ THE VERDICT LINE — as
+VERIFICATION that the relocation took, not as the fix.**
 
 ### ⚠ SPEC #6 NEEDS AN **ADDITION**, NOT A FIX — and the distinction is the finding
 
@@ -286,9 +303,18 @@ exposure channel moved.** ⛔ **Someone implementing against it who copies the b
 other `pass_rush_tick` consumers use, and assumes attribute exposure rides the same `CHECK`, is wrong
 with nothing to correct them.**
 
-✅ **⇒ Add a line to Spec #6 stating pass-rush attribute exposure publishes on `pass_rush_rep`
-(post-ADR-059) — so the next implementer reads the rep ON PURPOSE, rather than by accident of the
-wording having been generic enough to survive.**
+> ## ⛔ **ELEVENTH PLACEMENT FOR ENTRY 64's ABSORBED CLASS — AND THE FIRST IN THE SPECIFICATION LAYER.**
+>
+> ⚠ **A DOCUMENT THAT STAYS TRUE WHILE ITS SUBJECT RELOCATES.** ⛔ **Every prior placement was a cell,
+> a guard, a field or a search. This one is a SPEC that survives the change by being general enough
+> not to notice it** — and staying true is exactly what stops anyone from re-reading it.
+
+⛔ **REQUIRED EDIT of the landing dispatch, not a suggestion: add a line to Spec #6 stating pass-rush
+attribute exposure publishes on `pass_rush_rep` (post-ADR-059)** — so the next implementer reads the
+rep **ON PURPOSE**, rather than by accident of the wording having been generic enough to survive.
+
+⚠ **THE ONLY THING THAT WOULD OTHERWISE HAVE CAUGHT THIS IS SOMEONE HAPPENING TO READ BOTH THE SPEC
+AND THE ADR.** ⛔ **That is not a mechanism.**
 
 ### 📒 AND A SEPARATE DEFECT FOUND IN PASSING — `unruled`
 
