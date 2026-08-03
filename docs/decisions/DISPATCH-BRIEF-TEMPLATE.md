@@ -18,6 +18,38 @@ carry an `EXT-` prefix: `EXT-1`, `EXT-2`.** ⚠ **They must never share a number
 > **Same shape as habit 9's original defect:** ⛔ **an instruction that requires the reader to
 > disambiguate is an instruction that will eventually be disambiguated wrongly.**
 
+## ⛔ EXCLUSIVE-ACCESS CLAUSES — **name WHOSE change, whenever dispatches run concurrently**
+
+**Any clause referencing *"your change," "the tree," "a pin moving," "if anything else changed,"* or
+*"the working tree"* SILENTLY ASSUMES EXCLUSIVE ACCESS.**
+
+> ## ⛔ **SINGLE-DISPATCH IT IS UNAMBIGUOUS. TWO-DISPATCH IT IS NOT — AND NOTHING ABOUT THE SENTENCE CHANGED.**
+
+⚠ **This is a class the register did not have: a CORRECTLY-WORDED constraint that becomes ambiguous
+only when THE NUMBER OF ACTORS changes.** ⛔ **The brief does not become wrong. It becomes
+under-specified, retroactively, by a fact outside it.**
+
+**⇒ So name the actor:** ~~*"if your change moves a pin, STOP"*~~ → **"if a pin moves AND THE CAUSE IS
+YOUR CHANGE, stop; if it moves because of a concurrent dispatch, that is expected — report it and
+continue."**
+
+> ⛔ **THE WORKED COST, CAUGHT BEFORE IT FIRED (ADR-059's landing, August 2026).** **A `calibration`
+> dispatch was told *"do not weaken or retune any existing pin; if your change moves one, STOP and
+> report."*** ⚠ **A CONCURRENT `match-engine` dispatch was adding a new `Tunables` leaf, which moves
+> `docConformance`'s census counts and path digest by construction.**
+>
+> ⛔ **IT WOULD HAVE STOPPED ON A LEGITIMATE MOVE AND REPORTED A FALSE PROBLEM.**
+>
+> ## ⛔⛔ **AND THAT IS THE WORST FAILURE MODE AVAILABLE: A FALSE STOP LOOKS LIKE DILIGENCE AND GETS BELIEVED.**
+>
+> ⚠ **A dispatch that halts and says *"a pin moved, I did not proceed"* reads as exemplary care.**
+> **Nothing in the report would signal that the halt was spurious** — and the reviewer, who wrote the
+> constraint, is the least likely person to question it.
+
+⚠ **SAME SHAPE AS HABIT 10's STAGING RULE** *(`git add -A` NEVER while an agent is running)* — ⛔ **the
+identical concurrency assumption, arriving at BRIEF LANGUAGE rather than at `git add`.** **Habit 10
+solved it for the index and nobody generalized it to the prose.**
+
 ## The ruling being executed
 
 **Quote it.** ⚠ **Name what is ALREADY RULED and must NOT be reopened**, so the dispatch does not

@@ -36,6 +36,25 @@ Every update is an event-driven delta to `{estimate, low, high, confidence}`. So
 | **Staff insight** | players your coaches previously coached | imported belief: hiring a coordinator imports his (high-confidence) beliefs about his former players — and when your coach leaves for a rival, that insight walks out the door *against* you. Both directions, per the design notes |
 | **Trait reveals** | anyone | traits are discrete: unknown until revealed by a qualifying moment (a Ball Hawk's second diving INT fires a reveal event), then known permanently |
 
+> ### ⚠ WHICH `CHECK` CARRIES PASS-RUSH EXPOSURE — read this before implementing "Game exposure"
+>
+> **Pass-rush attribute exposure publishes on `pass_rush_rep`, NOT on `pass_rush_tick`** (ADR-059,
+> ratified August 2026). The rep is the per-play contest and carries the `testsAttrs` — rusher
+> `passRush`/`powerMove`/`finesseMove`/`firstStep`, blocker `passBlock`/`footwork`/`anchor`.
+> **`pass_rush_tick` is unmodded jitter and its `testsAttrs` is legitimately EMPTY.**
+>
+> ⛔ **THIS NOTE EXISTS BECAUSE THE ROW ABOVE WOULD NOT HAVE CAUGHT THE CHANGE.** *"`CHECK` events
+> tagged with the attrs they tested"* is generic over the whole union, so it stayed **true** when the
+> pass-rush channel moved — and staying true is exactly what stops anyone re-reading it. **A
+> straightforward implementation of the row as written would pick up the rep automatically; an
+> implementer who instead keys on `pass_rush_tick` — copying the band/actors pattern its other
+> consumers use, and assuming exposure rides the same `CHECK` — would be wrong with nothing to
+> correct them.**
+>
+> ⚠ **A document that stays true while its subject relocates** *(backlog entry 64's absorbed class,
+> eleventh placement, first in the specification layer)*. **The only thing that would otherwise have
+> caught it is someone happening to read both this file and ADR-059, which is not a mechanism.**
+
 **The exposure gate (owner's rule, enforced):** *"arriving at solid numbers for a guy who didn't play a down all season shouldn't be real."* Confidence on skill/mental attributes is hard-capped for players below snap thresholds. Practice loosens the cap for your own roster only; nobody converges on a third-stringer's game speed from afar.
 
 ## 4. REVEAL CURVES (rookies and beyond)

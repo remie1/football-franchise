@@ -8335,3 +8335,60 @@ corpus.** **The other two — `passRush.test.ts`'s direct assertion and `ladderR
 verdict — have NO declaration hatch: one must be moved, the other asserts nothing.**
 ⛔ **`docConformance.ts`'s provenance registers are the obvious next candidate and were NOT examined —
 `unruled`.**
+
+---
+
+## 117. ⛔ A CONSTRAINT THAT BECOMES AMBIGUOUS WHEN **THE NUMBER OF ACTORS** CHANGES
+
+**Found while briefing ADR-059's landing. ⚠ CAUGHT BEFORE IT FIRED — no dispatch acted on it.**
+⛔ **NOT A MEASUREMENT. A class the register did not have.**
+
+### THE SHAPE
+
+**A `calibration` dispatch was told:** *"Do not weaken or retune any existing pin or count. If your
+change moves one, STOP and report rather than retuning."*
+
+⛔ **CORRECTLY WORDED. UNAMBIGUOUS AS WRITTEN.** ⚠ **And a CONCURRENT `match-engine` dispatch was
+adding a new `Tunables` leaf — which moves `docConformance`'s `classifiedNarrow`/`classifiedUniform`
+counts and the path digest BY CONSTRUCTION.**
+
+> ## ⛔ **SINGLE-DISPATCH THE SENTENCE IS UNAMBIGUOUS. TWO-DISPATCH IT IS NOT. NOTHING ABOUT THE SENTENCE CHANGED.**
+
+⚠ **The brief did not become WRONG. It became UNDER-SPECIFIED, RETROACTIVELY, BY A FACT OUTSIDE
+ITSELF** — the count of actors. ⛔ **Every prior ambiguity class in this register was a property OF THE
+TEXT. This one is a property of the WORLD THE TEXT RUNS IN.**
+
+### ⛔⛔ AND THE FAILURE IT WOULD HAVE PRODUCED IS THE WORST KIND
+
+**The dispatch would have halted on a LEGITIMATE move and reported a FALSE PROBLEM.**
+
+> ## ⛔ **A FALSE STOP LOOKS LIKE DILIGENCE AND GETS BELIEVED.**
+
+⚠ **A report saying *"a pin moved; I did not proceed"* reads as EXEMPLARY CARE.** ⛔ **Nothing in it
+would signal the halt was spurious — and the reviewer who WROTE the constraint is the least likely
+person to question it.** **Compare a false GREEN, which at least contradicts something later.**
+
+### ⇒ THE GENERALIZATION, PAST PINS
+
+⛔ **Any brief clause referencing *"your change," "the tree," "a pin moving," "if anything else
+changed," "the working tree"* ASSUMES EXCLUSIVE ACCESS.** ⚠ **Concurrent dispatches make EVERY ONE of
+them a defensible wrong reading** — and per `DISPATCH-BRIEF-TEMPLATE.md`'s numbering rule, **a
+defensible wrong choice is indistinguishable from compliance.**
+
+**⇒ Name the actor. `DISPATCH-BRIEF-TEMPLATE.md` amended with the rule and this worked cost.**
+
+### 📒 AND IT IS HABIT 10's PROBLEM, ONE LAYER UP
+
+**Habit 10:** *"Stage explicit paths whenever a dispatch is live. `git add -A` NEVER, while an agent is
+running."* ⛔ **THE IDENTICAL CONCURRENCY ASSUMPTION.** ⚠ **Habit 10 solved it for THE INDEX and nobody
+generalized it to THE PROSE** — the same author wrote both, one dispatch apart, and the connection was
+not visible from either end.
+
+### DISPOSITION
+
+| item | disposition |
+|---|---|
+| the class | ✅ **RECORDED. New — ambiguity from actor count, not from text** |
+| the template rule | ✅ **LANDED** in `DISPATCH-BRIEF-TEMPLATE.md` |
+| ⛔ **auditing PRIOR briefs for the same clause** | ⛔ **NOT QUEUED** — ⚠ **they are spent; the rule binds future briefs.** **Per entry 115's null, a sweep of this shape may return nothing** |
+| habit 10's generalization | ⚠ `unruled` — **the connection is recorded; no rewrite proposed** |
