@@ -223,7 +223,19 @@ function foldSacks(events: readonly MatchEventEnvelope[]): SackRecord[] {
  *     tick's line battle, leaving only a man who beat his block after the roll
  *     was made and is a full travel time (≥1.0s) away. Nobody the deciding roll
  *     considered was still coming, and the man who was cannot have made the
- *     tackle. 5.9% of sacks in the 496-game batch, and they stay uncredited.
+ *     tackle. THE RULE STILL GOVERNS — this reasoning is why `caught` below can
+ *     still be `undefined` and why nobody is credited when it is. ⛔ RETIRED AS
+ *     A CLASS, owner ruling August 2026 (ADR-059 landing): it fired 5.9% of
+ *     sacks in the 496-game batch and 6/101 on this file's own 12-game corpus,
+ *     pre-ADR-059; post-ADR-059 it has not fired once (0/121 here, 0/1,009 on a
+ *     96-game diagnostic). The cause was the independent-tick model itself —
+ *     "every named rusher reset by his blocker inside a single half-second" was
+ *     survivable only because a matchup's rep was redrawn from scratch every
+ *     tick. ADR-059's one-rep-per-matchup-per-play, gently jittered, is
+ *     precisely the wild swing that made this coincidence possible, removed.
+ *     See the retirement note beside `describe("a coverage sack still has no
+ *     sacker")` below for the full measurement and the football argument that
+ *     the rule is unchanged even though its subject is currently empty.
  */
 function somebodyGotThere(sack: SackRecord): boolean {
   if (sack.all.some((t) => t.everArrived)) return true;
@@ -285,50 +297,77 @@ describe("a coverage sack still has no sacker", () => {
    * credited when nobody rushed is a rating derived from fiction.
    */
   /**
-   * ⚠ RED AS OF ADR-059, LEFT RED RATHER THAN WORKED AROUND — read before touching.
+   * ⛔ THE ENGINE SHOULD NOT PRODUCE UNCREDITED SACKS — owner ruling, August
+   * 2026. Real NFL credits a sacker on every sack; "coverage sack" describes
+   * WHY pressure arrived, never a play where nobody made the tackle. The
+   * crediting RULE that produces an uncredited sack is football-sound (a §8.8
+   * escape whose named rushers were ALL reset in the same tick genuinely has
+   * nobody the deciding roll considered still coming, and cannot invent a
+   * sacker). What is retired here is not the rule — it is SPLIT below into two
+   * pieces, per the ruling: the class the rule used to catch is gone, and that
+   * is ADR-059 working, not the logic breaking.
    *
-   * Measured: over the pre-ADR-059 stream this 12-game corpus produced 6
-   * coverage sacks out of 101 (5.9%, matching this file's own module comment).
-   * Post-ADR-059, a diagnostic run of 96 games (8x `GAMES`, 8,556 plays, 1,009
-   * sacks) found ZERO coverage sacks — every single one had somebody genuinely
-   * arrive. Not sampling noise: at the ORIGINAL 12-game size this test uses,
-   * 0/121 is also what was observed, consistently.
+   * ============ THE OLD EXPECTATION, VERBATIM (kept for the record) ============
    *
-   * THE LIKELY MECHANISM, same root cause as the `rushThreat.test.ts` finding
-   * beside this one: `pressureProgressByBand` resets its counter only on
-   * `BLOCKER_RESETS` (margin ≤ −15). Under correlated reps (ADR-059) a
-   * matchup's rep is drawn once and jittered gently around, so a rusher whose
-   * rep is even mildly favourable posts a pressure-accruing band on very nearly
-   * every tick and essentially never rolls a fresh `BLOCKER_RESETS` to zero the
-   * counter (the old independent-per-tick model reset far more often, purely
-   * from full-magnitude die variance). Pressure now behaves as close to a
-   * one-way ratchet for the life of a live threat, which makes "every rusher on
-   * this play stayed silent for the entire dropback" (a coverage sack's
-   * precondition) dramatically rarer than before.
+   *   it("nobody was coming, so nobody is credited", () => {
+   *     const nobodyComing = SACKS.filter((s) => !somebodyGotThere(s));
+   *     expect(nobodyComing.length).toBeGreaterThan(0);
+   *     for (const sack of nobodyComing) {
+   *       expect(sack.credited).toBeUndefined();
+   *     }
+   *   });
    *
-   * THIS IS AN EMERGENT INTERACTION, NOT SOMETHING ADR-059 RATIFIED — same
-   * disposition as the sibling finding in `rushThreat.test.ts`: the ADR
-   * ratifies structure only and takes no position on the pressure counter's
-   * reset rule. Reported plainly rather than patched by loosening this
-   * assertion, enlarging `GAMES` (already tried at 8x: still zero), or changing
-   * `pocket.ts`'s reset condition unilaterally.
+   * ============ ITS MEASUREMENT, BOTH ARMS ============
+   *
+   * `5.9%` of sacks in the 496-game batch (this file's own module comment,
+   * unchanged above) is the ALL-SACKS arm. On THIS file's 12-game corpus,
+   * pre-ADR-059, that was `6/101 = 5.9%` of every sack — the same rate,
+   * because the corpus and the batch are measuring the same thing at two
+   * sizes. Read a second way, AGAINST THE ESCAPE-PATH ARM ONLY (the one path
+   * that can ever produce this class — the §7.2 arrival path structurally
+   * cannot, `hasArrived` is its own precondition): 48 of the 101 pre-ADR-059
+   * sacks took the §8.8 escape path, and the same 6 were `6/48 = 12.5%` of
+   * THAT population specifically. Post-ADR-059: 0/121 on this corpus, 0/1,009
+   * on a 96-game (8,556-play) diagnostic — zero on both arms, not a rounding
+   * artifact of a small sample.
+   *
+   * ============ THE REASON ============
+   *
+   * This class existed ONLY because ticks were independent. Under the old
+   * per-tick iid model, a matchup's band was redrawn from scratch every tick,
+   * so "every rusher an escape check named got reset by his blocker in the
+   * same half-second" was a real, if uncommon, coincidence — full-magnitude
+   * die variance landing on `BLOCKER_RESETS` for every named man at once.
+   * ADR-059 replaced that with one correlated rep per matchup per play,
+   * jittered gently tick to tick: the exact "wild swing" the ADR exists to
+   * eliminate. A matchup that is live stays live; simultaneous full resets
+   * across every named rusher stopped happening. Its disappearance is ADR-059
+   * WORKING, not the crediting logic failing at the thing it was built to
+   * handle.
    */
-  it("nobody was coming, so nobody is credited", () => {
+  it("the class an all-reset escape used to leave uncredited is empty — ADR-059 working, not the rule failing", () => {
     const nobodyComing = SACKS.filter((s) => !somebodyGotThere(s));
-    expect(nobodyComing.length).toBeGreaterThan(0);
+    // THE POSITIVE CONTROL (Charter §4.1): asserting empty, for a stated
+    // reason, is evidence the artifact is gone, not evidence it never existed.
+    // Deleting this test instead of inverting it would discard that evidence.
+    expect(nobodyComing.map(describeSack)).toEqual([]);
+    // Left in place, vacuously true today: if this class is ever produced
+    // again, the football rule above still says nobody named is credited.
     for (const sack of nobodyComing) {
       expect(sack.credited).toBeUndefined();
     }
   });
 
-  it("the two categories are distinguished by the stream, not by a tolerance", () => {
-    // Every sack falls in exactly one, and both are non-empty: the invariant
-    // above is a partition of the sacks, not a filter that happens to be empty.
+  it("the two categories still partition every sack, even though one is empty right now", () => {
+    // NARROWED FROM "and both are non-empty": that was the same artifact as
+    // the test above, stated a second way, and is retired for the same reason
+    // and by the same ruling — see the comment beside it. The PARTITION
+    // property (every sack is in exactly one bucket) is unaffected by which
+    // bucket is empty and still holds unconditionally.
     const reached = SACKS.filter(somebodyGotThere).length;
     const coverage = SACKS.filter((s) => !somebodyGotThere(s)).length;
     expect(reached + coverage).toBe(SACKS.length);
     expect(reached).toBeGreaterThan(0);
-    expect(coverage).toBeGreaterThan(0);
     // An escape that failed with every rusher it named already RESET is a
     // coverage sack and is on the correct side of the line: nobody the roll was
     // rolled against was still coming, so the roll cannot name a sacker.
