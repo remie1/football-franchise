@@ -8785,6 +8785,31 @@ THE THREAT LIFECYCLE.**
 
 > ## ⇒ **SAME ROOT, DIFFERENT CHANNEL. THREE DISPATCHES TRACED THE RIGHT CAUSE THROUGH THE WRONG CONSUMER.**
 
+> ## ⛔⛔ **ADDENDUM, ADDED AFTER THIS ENTRY WAS WRITTEN — IT IS NOT TWO CONSUMERS. IT IS SEVEN.**
+>
+> **The diagnostic below was applied immediately, and its first output corrects this entry's own
+> title.** ⛔ **`grep` for the readers of `rush.band` in `sim/passPlay.ts`, one command:**
+>
+> | line | consumer | examined? |
+> |---|---|---|
+> | `:644` | `advancePressure` — the pressure counter | ✅ entries 118 / 119 |
+> | `:645` | `m.previousBand` → feeds `pocketFloorFor` | ✅ entry 120 |
+> | `:686` | `clearsThreat` | ✅ this entry |
+> | `:650` | `continuesContainStreak` → `m.consecutiveContains` | ⛔ **NEVER** |
+> | `:666` | `startsThreat` | ⛔ **NEVER** |
+> | `:693` | `retiresBySustainedContainment` | ⛔ **NEVER** |
+> | `:705` | `delayThreat` / `recoverySecondsFor` | ⛔ **NEVER** |
+>
+> ⛔ **FIVE DISPATCHES SPENT ON THREE CONSUMERS. FOUR NEVER LOOKED AT.**
+>
+> ## ⚠ **AND FOUR OF THE FIVE UNEXAMINED ONES ARE THREAT-LIFECYCLE** — the machinery deciding whether a threat PERSISTS, which is what denies `CLEAN` through the ARRIVAL channel. ⛔ **The channel entry 120 measured as THE ONLY ONE whose removal changes anything.**
+>
+> **⇒ The evidence points squarely at the cells nobody has read.** ⚠ **`rushThreat.test.ts`'s step-up
+> assertion — `0/1,873` — is very likely the same root through a FOURTH consumer: step-up zeroes
+> `m.pressure`, but if the THREAT survives, arrival keeps the pocket dirty and `CLEAN` is unreachable
+> regardless.** ⛔ **`retiresBySustainedContainment` and `delayThreat` are the candidates and neither
+> has been examined.**
+
 ⚠ **This is exactly why the counter kept measuring as NOT the binding denier while the cause was
 real.** ⛔ **It was real. It was not the channel.** **Entry 120's finding that the counter is never the
 sole denier (`0/121`) and entry 119's conditional collapse are BOTH correct and both were about the
