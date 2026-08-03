@@ -665,3 +665,17 @@ manifest {source, season, fetchedAt, schemaHash}.
 
     > **Same reasoning as habit 10, aimed at the OTHER failure.** ⚠ **Habit 10 stops the tree
     > contaminating a commit. This one stops a commit's absence losing the tree.**
+
+    📒 **AND A NOTE ON HOW THIS RULE GOT ITS LAST CLAUSE, because it is the inverse of this project's
+    usual failure.** ⛔ **The "`checkout -b` carries the tree — do NOT `checkout main` while a dispatch
+    is live" clause WAS NOT IN THE PROPOSAL.** ⚠ **It surfaced only because the rule was EXECUTED ONCE
+    with a measurement running against the uncommitted tree, and switching back would have pulled the
+    subject out from under it.**
+
+    > ### ⇒ **THE RULE GOT BETTER BY BEING USED BEFORE IT WAS WRITTEN DOWN.**
+
+    ⛔ **Nearly every other correction in this repo runs the other way** — a rule is written, ratified,
+    and later found to have had a hole in it the whole time *(habit 7's self-lift; the `arrival.*`
+    catch-all; ADR-053's missing expiry condition)*. ⚠ **Worth remembering that the order is available:
+    executing a proposed rule once, on real work, before committing its text, costs one use and finds
+    the clause that a review of the text would not have.**

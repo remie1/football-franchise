@@ -8466,3 +8466,83 @@ before acting. The right instinct, fired twice.**
 | ⛔ **which bands reset / whether decay is the better shape** | ⛔ **OWNER RULED "more bands"; MECHANISM READ DISPATCHED, live** |
 | `counterMoveAfterStalemate` dead code | ⚠ **coupled to the counter question, brought with it** |
 | the commit | ⛔ **HELD. Not landable while two correct tests are red** |
+
+---
+
+## 119. ⛔⛔ THE COUNTER: **A RULING WITHDRAWN ON A FALSE PREMISE**, and a fix that fires 0% on its own target
+
+**The mechanism read ordered after entry 118. ⛔ READ-ONLY. ⚠ The owner ruling *"the counter resets on
+more bands"* WAS WITHDRAWN on this evidence.**
+
+**Arm for every figure: branch `adr-059-landing` @ `1b9d473`, flat-60 32-team `FLAT_SYNTHETIC`,
+`SYNTHETIC_ROUND_ROBIN` 2024, 496 games, seed `baseline-0001`, digest `fnv1a:020c1dcb#496`,
+`tunablesDigest fnv1a:42da7c44`.**
+
+### ⛔ THE PREMISE, CHECKED AND FALSE
+
+**The ruling rested on:** *"Under iid, `STALEMATE` and `BLOCKER_CONTAINS` did the resetting IMPLICITLY
+by breaking runs of losing ticks. Now nothing does."*
+
+| band | delta | reset |
+|---|---|---|
+| `STALEMATE` | 0 | ⛔ **false** |
+| `BLOCKER_CONTAINS` | 0 | ⛔ **false** |
+| `BLOCKER_RESETS` | 0 | ✅ true |
+
+⛔ **NEITHER HOLD BAND HAS EVER HAD `reset: true`** — and `pressureProgressByBand` is **BYTE-IDENTICAL
+to pre-ADR-059** *(verified by `git diff main`)*. ⚠ **They only ever PAUSED accrual. Nothing was
+removed from them because nothing was ever there.**
+
+> ## ⛔ **THE MECHANISM WAS INVENTED TO FIT AN INTUITION THAT WAS RIGHT ABOUT SOMETHING ELSE.**
+
+### ✅ AND THE SOMETHING ELSE IS THE REAL FINDING — **a CONDITIONAL frequency collapsed, not a property**
+
+| `BLOCKER_RESETS` | rate |
+|---|---|
+| unconditional share, post-ADR-059 | **44.206%** |
+| unconditional share, ADR-032's pre-ADR-059 figure | **41.95%** — ⚠ **essentially UNMOVED** |
+| ⛔ **conditional on counter already `> 0`** | ⛔ **`3.182%`** *(N=105,933)* |
+
+⚠ **Under iid, memorylessness put the conditional rate NEAR the unconditional ~42%.** ⛔ **ADR-059
+changed no margin distribution — only its CORRELATION ACROSS TICKS.**
+
+> ### ⇒ **ONE LINE OF THE TABLE BEHAVING DIFFERENTLY UNDER CORRELATION, NOT A TABLE LOSING A PROPERTY.** ⚠ **A population-level census would have shown NOTHING — `44.206%` vs `41.95%` reads as noise.**
+
+### ⛔⛔ WHY THE RULING WOULD NOT HAVE WORKED — **both pre-registered branches true, on different populations**
+
+| population | hold-band presence |
+|---|---|
+| all reps | **13.994%** — ✅ a band-reset WOULD mechanically fire |
+| ⛔ **matchups that reach `IMMEDIATE`** *(the broken population)* | ⛔ **`2.612%` ever post one; `97.388%` NEVER DO** |
+
+> ## ⛔ **A FIX THAT FIRES `13.994%` OF THE TIME POPULATION-WIDE AND `0%` ON THE POPULATION IT IS FOR.**
+
+⚠ **Their fixed rep margin sits far enough from the boundary that `±≈25` jitter never crosses it.**
+⛔ **Reporting only the population figure would have made the ruling look sound.** **The conditional
+census is the entire result.**
+
+### ⚠ DECAY — reaches it, and the cost is structural
+
+⛔ **Only a GENUINE per-tick, band-independent decay reaches the `97.4%`** — it drains continuously
+rather than waiting for a band that never comes.
+
+**The cost, named:** it subtracts from EVERY accumulating matchup EVERY tick, **including a rusher
+posting `RUSHER_WINS_REP` — `65.037%` of accumulating ticks.** ⛔ **So it suppresses a rusher who is
+genuinely, sustainedly winning, which is what `IMMEDIATE` exists to represent.**
+
+> ### ⇒ ⛔ **AND SCOPING IT TO SPARE CLIMBING BANDS RE-OPENS THE SAME `97.4%` HOLE — that population IS climbing-band traffic.** ⚠ **Unscoped is the only version that reaches the problem, and it is the version with the football cost.**
+
+**They INTERACT rather than compose:** `advancePressure` short-circuits on reset, and a hold-band tick
+already carries `delta: 0` — ⚠ **so any nonzero decay ALREADY produces a partial reset there with no
+flag.** ⛔ **If decay ships, a hard band-reset adds only an INSTANT zero instead of a gradual one, on
+the narrow population both can reach.**
+
+### DISPOSITION
+
+| item | disposition |
+|---|---|
+| *"resets on more bands"* | ⛔ **WITHDRAWN by the owner on this evidence** |
+| ⛔ **the `IMMEDIATE` threshold** | ⛔ **PRICED FIRST — dispatch live.** Existing constant, no new mechanic, §5's *"counter constants"* plainly includes it, and **UNMEASURED, which is the state that should not decide by default** |
+| decay | ⚠ **LIVE BUT SECOND.** ⛔ **Comes to the owner as a FOOTBALL ruling with the cost stated — not as a tuning change** |
+| `counterMoveAfterStalemate` | ✅ **DELETE (owner ruling).** Zero behaviour change; reviving it would need `m.rep` cleared on reset, a partial rollback of ADR-059's *"one rep per matchup per play"* |
+| the commit | ⛔ **STILL HELD** |
