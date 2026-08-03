@@ -384,6 +384,36 @@ export const TUNABLES = {
       { label: "BLOCKER_RESETS", minMargin: NEG_INF },
     ],
     /**
+     * ADR-059 — §7.1's PER-TICK JITTER MAGNITUDE, around the `pass_rush_rep`
+     * latent. `resolve/passRush.ts`'s `resolvePassRushTick` draws two UNMODDED
+     * d100s and divides their difference by this number to get the tick's
+     * offset from the rep's margin.
+     *
+     * PROVENANCE: `NEITHER_RULED_NOR_DERIVED` — the exact term this project's
+     * register uses (`packages/calibration/src/knownTruth/docConformance.ts`)
+     * for a value that is neither an owner ruling nor an arithmetic
+     * consequence of something already committed. It is deliberately NOT
+     * marked `REPORTED` as though that were a fourth thing: external §5's
+     * "±d100diff÷4" is REPORTED from an 80-game arm run on someone else's
+     * PATCHED CLONE, never reproduced on this tree — and BORROWING A NUMBER
+     * FROM AN UNREPRODUCED EXTERNAL ARM IS NOT A DERIVATION. A derivation
+     * would need an anchor already committed in THIS tree (the way
+     * `arrival.pressureWithinSeconds` derives from `immediateWithinSeconds`
+     * and `collapsingWithinSeconds`); nothing here is arithmetic on a
+     * committed value, it is a borrowed figure standing in until EXT-4 sweeps
+     * it on our own corpus. `4` is kept — not rounded, not re-derived — only
+     * because a placeholder that changed the external figure on the way in
+     * would make the "never reproduced on our tree" disclosure a lie about
+     * its own number.
+     *
+     * ADR-059 ratifies STRUCTURE only ("rep once + per-tick jitter") and
+     * refuses to ratify a football outcome; this cell is exactly the value
+     * that refusal is about. Re-litigated by EXT-4's sweep, never by feel.
+     */
+    repJitter: {
+      divisor: 4,
+    },
+    /**
      * §7.2 — pressure accrues per rusher. INTERPRETATION: the doc describes
      * statuses qualitatively; this counter is the mechanism that produces them.
      * A blocker win by 15+ ("rusher reset, starts fresh") zeroes the counter.

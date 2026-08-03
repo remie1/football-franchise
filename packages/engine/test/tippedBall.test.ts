@@ -757,11 +757,40 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
    * ⚠ THE STRUCTURAL HALF STILL DID NOT MOVE — SEVENTH INDEPENDENT CONFIRMATION.
    *   0 / 0 / 0 / 0 / 0 and §12.2's five real thresholds, over a corpus in which
    *   every football digit moved again and `tips − deadTips` (below) moved with them.
+   *
+   * ⚠ RE-BASELINED AN EIGHTH TIME, August 2026, ADR-059 — "the rep latent is a
+   *   roll." §7.1's rusher-vs-blocker attribute contest is now drawn ONCE per
+   *   matchup per play (`pass_rush_rep`) instead of independently, WITH MODS,
+   *   every tick; the tick jitters around it, unmodded. A pass rush that used to
+   *   re-decide from scratch every half-tick now has REPS in it — a matchup that
+   *   is fundamentally lopsided stays lopsided for the whole play instead of
+   *   randomly flipping band on the next independent draw — so the entire
+   *   pressure/arrival/scramble cascade downstream of §7.1 draws against a
+   *   differently-shaped stream on every dropback with a blocked rusher. This is
+   *   not a football-content change (ADR-059 ratifies structure only), but a
+   *   corpus this wide cannot fail to move when the mechanism producing every
+   *   pass-rush margin in it changes shape.
+   *
+   *   digit         ADR-045   §2.3a   ADR-048   ADR-055   ADR-055(b)   ADR-058   ADR-059
+   *   plays            3,420    3,415    3,410     3,405        3,409     3,411     3,399
+   *   yards           20,953   20,922   20,275    20,758       20,028    20,243    19,966
+   *   turnovers          109      107      107       109          105       106       103
+   *   points           1,655    1,663    1,588     1,608        1,576     1,603     1,584
+   *   tips               273      273      249       271          271       274       256
+   *   deadTips           166      166      149       162          166       168       158
+   *
+   * ⚠ THE STRUCTURAL HALF STILL DID NOT MOVE — EIGHTH INDEPENDENT CONFIRMATION.
+   *   0 / 0 / 0 / 0 / 0 and §12.2's five real thresholds, over a corpus in which
+   *   every football digit moved again and `tips − deadTips` (below) moved with
+   *   them — the STRONGEST version of ADR-036's claim this fence has produced,
+   *   because this re-baseline's cause is further from §12.2 than any prior one
+   *   (a pass-rush mechanic, not a coverage/perception/pocket one) and the
+   *   structural half still did not so much as twitch.
    */
-  it("the corpus totals, on every digit (re-baselined this dispatch, ADR-058 — arrival is authoritative for a won rep)", () => {
+  it("the corpus totals, on every digit (re-baselined this dispatch, ADR-059 — the rep latent is a roll)", () => {
     expect([
       base.plays, base.yards, base.turnovers, base.points, base.tips, base.deadTips,
-    ]).toEqual([3411, 20243, 106, 1603, 274, 168]);
+    ]).toEqual([3399, 19966, 103, 1584, 256, 158]);
   });
 
   it("still never consults a target on a dead ball", () => {
@@ -807,8 +836,9 @@ describe("§12.2 the DEAD row's recovery target (ADR-035 §6.1, ADR-036)", () =>
     expect(base.liveTargets).toEqual([20, 35, 55, 75, 90]);
     // 108 → 106 (ADR-040) → 107 (ADR-045) → 100 (ADR-048) → 109 (ADR-055) →
     // 105 (owner ruling on scramble.accuracyModifier/readCapacityDelta) →
-    // 106 (this dispatch, ADR-058 — arrival is authoritative for a won rep)
-    expect(base.tips - base.deadTips).toBe(106);
+    // 106 (ADR-058 — arrival is authoritative for a won rep) →
+    // 98 (this dispatch, ADR-059 — the rep latent is a roll)
+    expect(base.tips - base.deadTips).toBe(98);
   });
 
   it("the cell is not addressable, because the cell does not exist", () => {

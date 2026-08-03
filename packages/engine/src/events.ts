@@ -67,6 +67,14 @@ export interface CheckEmission {
   readonly band?: string;
   readonly margin: number;
   readonly testsAttrs: readonly AttrId[];
+  /**
+   * ADR-059 — the `RollDetail.rngLabel` of a PRIOR roll in the SAME play this
+   * check derives from. Today's one producer: `pass_rush_tick`, pointing at the
+   * `pass_rush_rep` CHECK whose latent margin it jitters around. Mirrors the
+   * contracts field of the same name (`events.ts`'s `CHECK.payload.rollRef`)
+   * exactly, so `checkPayload` below is a pass-through, not a translation.
+   */
+  readonly rollRef?: string;
 }
 
 /**
@@ -106,6 +114,7 @@ export function checkPayload(c: CheckEmission): Extract<MatchEvent, { type: "CHE
     ...(c.target === undefined ? {} : { target: c.target }),
     ...(c.opposedRoll === undefined ? {} : { opposedRoll: c.opposedRoll }),
     ...(c.band === undefined ? {} : { band: c.band }),
+    ...(c.rollRef === undefined ? {} : { rollRef: c.rollRef }),
   };
 }
 

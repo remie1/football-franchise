@@ -284,6 +284,35 @@ describe("a coverage sack still has no sacker", () => {
    * a lie in the ledger — the NFL has this category too, and a pass rush that is
    * credited when nobody rushed is a rating derived from fiction.
    */
+  /**
+   * ⚠ RED AS OF ADR-059, LEFT RED RATHER THAN WORKED AROUND — read before touching.
+   *
+   * Measured: over the pre-ADR-059 stream this 12-game corpus produced 6
+   * coverage sacks out of 101 (5.9%, matching this file's own module comment).
+   * Post-ADR-059, a diagnostic run of 96 games (8x `GAMES`, 8,556 plays, 1,009
+   * sacks) found ZERO coverage sacks — every single one had somebody genuinely
+   * arrive. Not sampling noise: at the ORIGINAL 12-game size this test uses,
+   * 0/121 is also what was observed, consistently.
+   *
+   * THE LIKELY MECHANISM, same root cause as the `rushThreat.test.ts` finding
+   * beside this one: `pressureProgressByBand` resets its counter only on
+   * `BLOCKER_RESETS` (margin ≤ −15). Under correlated reps (ADR-059) a
+   * matchup's rep is drawn once and jittered gently around, so a rusher whose
+   * rep is even mildly favourable posts a pressure-accruing band on very nearly
+   * every tick and essentially never rolls a fresh `BLOCKER_RESETS` to zero the
+   * counter (the old independent-per-tick model reset far more often, purely
+   * from full-magnitude die variance). Pressure now behaves as close to a
+   * one-way ratchet for the life of a live threat, which makes "every rusher on
+   * this play stayed silent for the entire dropback" (a coverage sack's
+   * precondition) dramatically rarer than before.
+   *
+   * THIS IS AN EMERGENT INTERACTION, NOT SOMETHING ADR-059 RATIFIED — same
+   * disposition as the sibling finding in `rushThreat.test.ts`: the ADR
+   * ratifies structure only and takes no position on the pressure counter's
+   * reset rule. Reported plainly rather than patched by loosening this
+   * assertion, enlarging `GAMES` (already tried at 8x: still zero), or changing
+   * `pocket.ts`'s reset condition unilaterally.
+   */
   it("nobody was coming, so nobody is credited", () => {
     const nobodyComing = SACKS.filter((s) => !somebodyGotThere(s));
     expect(nobodyComing.length).toBeGreaterThan(0);

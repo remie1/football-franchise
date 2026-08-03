@@ -498,7 +498,7 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
       "difference alternates, and the endpoints moved 0.0042 and 0.0001 (span 0.1762 → 0.1719). " +
       "The confound was real and small; it is now zero.",
     attributes: ["passBlock", "footwork", "anchor"],
-    mechanismCheckKinds: ["pass_rush_tick"],
+    mechanismCheckKinds: ["pass_rush_rep"],
     attributesNotReadByMechanism: [],
     positions: ["LT", "LG", "C", "RG", "RT"],
     rungs: [20, 45, 70, 95],
@@ -552,7 +552,7 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
       "note: the two scenarios measure the same rep from both sides, so a shape difference " +
       "between them is a property of the formula and cannot be a property of the die.",
     attributes: ["passRush", "powerMove", "finesseMove", "firstStep"],
-    mechanismCheckKinds: ["pass_rush_tick"],
+    mechanismCheckKinds: ["pass_rush_rep"],
     attributesNotReadByMechanism: [],
     positions: ["DE", "DT", "NT"],
     rungs: [20, 45, 70, 95],

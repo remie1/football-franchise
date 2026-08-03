@@ -47,6 +47,11 @@ import {
  * what makes this an invariant: the day a check is added, it must be classified.
  */
 const BANDED: readonly string[] = [
+  // ADR-059 — the per-play, per-matchup attribute contest. Carries the same
+  // §7.1 band table `pass_rush_tick` reads, informationally (the tick's own
+  // jittered margin, not the rep's bare one, is what actually decides a given
+  // tick's band).
+  "pass_rush_rep",
   "pass_rush_tick",       // §7.1 RUSHER_WINS_REP …
   "pocket_movement",      // §7.2 SOUND / RUSHED / PANICKED
   "scramble",             // §8.8 CLEAN_ESCAPE …

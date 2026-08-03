@@ -227,6 +227,12 @@ describe("determinism (Charter pillar 5)", () => {
     }
     expect(labels.some((l) => l.includes("/rush/"))).toBe(true);
     expect(labels.some((l) => l.includes("/coverage/"))).toBe(true);
+    // ADR-059 — the rep is forked off the play-scoped "rush" bucket with a
+    // stable per-matchup label (":rep"), NOT off a tick-scoped fork; the tick's
+    // own jitter roll is labelled ":jitter" so the two are distinguishable in
+    // the raw stream. Both must still resolve under the play's own prefix.
+    expect(labels.some((l) => l.includes("/rush/") && l.includes(":rep"))).toBe(true);
+    expect(labels.some((l) => l.includes("/rush/") && l.includes(":jitter"))).toBe(true);
   });
 
   /**
@@ -285,6 +291,7 @@ describe("determinism (Charter pillar 5)", () => {
     const { state, calls } = buildScenario();
     const { events } = simulatePassPlay(state, calls, "audit");
     let checks = 0;
+    let sawPassRushRep = false;
     for (const { event } of events) {
       if (event.type !== "CHECK") continue;
       checks += 1;
@@ -293,9 +300,25 @@ describe("determinism (Charter pillar 5)", () => {
       // situational target, and nothing about the deflector changes how the ball
       // bounces. An empty list is the honest answer, and claiming an attribute
       // would corrupt the perception exposure channel `testsAttrs` exists for.
-      if (event.payload.checkKind === "deflection_quality") {
+      //
+      // ADR-059 — `pass_rush_tick` joins this exception, PAIRED with the
+      // `pass_rush_rep` assertion just below: the attribute contest moved to
+      // the rep, drawn once per matchup per play, and the tick is now UNMODDED
+      // jitter around it. It legitimately tests no rating, same reasoning as
+      // `deflection_quality`. The exception is honest ONLY paired with the
+      // non-empty assertion on `pass_rush_rep` — adding one without the other
+      // would silently drop coverage at exactly the cell this guard exists for
+      // (ADR-059 landing checklist).
+      if (event.payload.checkKind === "deflection_quality" || event.payload.checkKind === "pass_rush_tick") {
         expect(event.payload.testsAttrs).toEqual([]);
       } else {
+        expect(event.payload.testsAttrs.length).toBeGreaterThan(0);
+      }
+      // THE PAIRED HALF: the rep is where the attribute contest now lives, and
+      // it must never be empty — a `pass_rush_rep` with `testsAttrs: []` would
+      // mean the exception above is silently discarding real coverage.
+      if (event.payload.checkKind === "pass_rush_rep") {
+        sawPassRushRep = true;
         expect(event.payload.testsAttrs.length).toBeGreaterThan(0);
       }
       expect(event.payload.actors.length).toBeGreaterThan(0);
@@ -304,6 +327,8 @@ describe("determinism (Charter pillar 5)", () => {
       }
     }
     expect(checks).toBeGreaterThan(0);
+    // Not vacuous: this scenario actually draws pass-rush reps.
+    expect(sawPassRushRep).toBe(true);
   });
 
   it("produces a resolved play across many seeds without throwing", () => {

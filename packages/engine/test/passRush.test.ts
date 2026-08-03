@@ -1,7 +1,7 @@
 import { createRng, setAttr } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import { ATTR, resolveAttr } from "../src/attrs.js";
-import { resolvePassRushTick } from "../src/resolve/passRush.js";
+import { resolvePassRushRep, resolvePassRushTick } from "../src/resolve/passRush.js";
 import {
   accuracyModifierFor,
   advancePressure,
@@ -36,24 +36,32 @@ function blockerWithAnchor(rating: number): typeof eliteBlocker {
   };
 }
 
-describe("§7.1 pass rush per tick", () => {
+/**
+ * §7.1 — ADR-059 split this into two resolvers. `resolvePassRushRep` is the
+ * per-play, per-matchup ATTRIBUTE CONTEST (drawn once, memoized by the caller);
+ * `resolvePassRushTick` is the per-tick UNMODDED JITTER around it. Every test
+ * that exercises a modifier, a trait, or `testsAttrs` moved onto the rep —
+ * MOVED, not duplicated (the ADR's own instruction) — because the tick
+ * genuinely tests nothing now.
+ */
+describe("§7.1 pass rush rep (ADR-059 — the per-play attribute contest)", () => {
   it("is an opposed roll: rusher roll, blocker opposedRoll, margin = difference", () => {
-    const out = resolvePassRushTick({ tunables: TUNABLES,
+    const out = resolvePassRushRep({ tunables: TUNABLES,
       rusher: eliteRusher,
       blocker: eliteBlocker,
       move: "SPEED",
-      tickRng: createRng("s", "t").fork("x"),
+      repRng: createRng("s", "t").fork("x"),
     });
-    expect(out.check.checkKind).toBe("pass_rush_tick");
+    expect(out.check.checkKind).toBe("pass_rush_rep");
     expect(out.check.opposedRoll).toBe(out.blockerRoll);
     expect(out.margin).toBe(out.rusherRoll.total - out.blockerRoll.total);
   });
 
   it("applies the move's attribute package (speed / power / finesse)", () => {
     const rng = createRng("s", "t");
-    const speed = resolvePassRushTick({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", tickRng: rng });
-    const power = resolvePassRushTick({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "POWER", tickRng: rng });
-    const finesse = resolvePassRushTick({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "FINESSE", tickRng: rng });
+    const speed = resolvePassRushRep({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", repRng: rng });
+    const power = resolvePassRushRep({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "POWER", repRng: rng });
+    const finesse = resolvePassRushRep({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "FINESSE", repRng: rng });
     const sources = (o: typeof speed): string[] => o.rusherRoll.modifiers.map((m) => m.source);
     expect(sources(speed).some((s) => s.includes("First Step"))).toBe(true);
     expect(sources(power).some((s) => s.includes("Power Move"))).toBe(true);
@@ -61,24 +69,33 @@ describe("§7.1 pass rush per tick", () => {
     expect(sources(finesse).some((s) => s.includes("Finesse Move"))).toBe(true);
   });
 
+  /**
+   * ADR-059 CONSEQUENCE: `previousBand` is structurally always `undefined` at
+   * the real call site (`resolvePassRushRepFor` fires this exactly once per
+   * matchup, before any tick of it exists), so the counter-move bonus is now
+   * dead code in production. Exercised here directly anyway, because the
+   * FUNCTION still implements the mechanic faithfully — this test proves the
+   * modifier logic itself is unchanged by the split, not that it fires in a
+   * real play.
+   */
   it("adds the counter-move bonus only after a stalemate", () => {
     const rng = createRng("s", "t");
-    const after = resolvePassRushTick({ tunables: TUNABLES,
-      rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", previousBand: "STALEMATE", tickRng: rng,
+    const after = resolvePassRushRep({ tunables: TUNABLES,
+      rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", previousBand: "STALEMATE", repRng: rng,
     });
     const counter = after.rusherRoll.modifiers.find((m) => m.source.includes("Counter move"));
     expect(counter?.value).toBe(TUNABLES.passRush.counterMoveAfterStalemate);
 
-    const without = resolvePassRushTick({ tunables: TUNABLES,
-      rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", previousBand: "BLOCKER_CONTAINS", tickRng: rng,
+    const without = resolvePassRushRep({ tunables: TUNABLES,
+      rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", previousBand: "BLOCKER_CONTAINS", repRng: rng,
     });
     expect(without.rusherRoll.modifiers.some((m) => m.source.includes("Counter move"))).toBe(false);
   });
 
   it("fires Quick Twitch only on speed rushes and Brick Wall only against power", () => {
     const rng = createRng("traits", "t");
-    const speed = resolvePassRushTick({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", tickRng: rng });
-    const power = resolvePassRushTick({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "POWER", tickRng: rng });
+    const speed = resolvePassRushRep({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "SPEED", repRng: rng });
+    const power = resolvePassRushRep({ tunables: TUNABLES, rusher: eliteRusher, blocker: eliteBlocker, move: "POWER", repRng: rng });
     expect(speed.rusherRoll.modifiers.some((m) => m.source.includes("Quick Twitch"))).toBe(true);
     expect(power.rusherRoll.modifiers.some((m) => m.source.includes("Quick Twitch"))).toBe(false);
     expect(power.blockerRoll.modifiers.some((m) => m.source.includes("Brick Wall"))).toBe(true);
@@ -90,8 +107,8 @@ describe("§7.1 pass rush per tick", () => {
     let blockerResets = 0;
     for (let i = 0; i < 100; i++) {
       const rng = createRng(`rush-${i}`, "t");
-      if (resolvePassRushTick({ tunables: TUNABLES, rusher: eliteRusher, blocker: poorBlocker, move: "POWER", tickRng: rng }).band === "RUSHER_WINS_REP") rusherWins++;
-      if (resolvePassRushTick({ tunables: TUNABLES, rusher: poorRusher, blocker: eliteBlocker, move: "FINESSE", tickRng: rng }).band === "BLOCKER_RESETS") blockerResets++;
+      if (resolvePassRushRep({ tunables: TUNABLES, rusher: eliteRusher, blocker: poorBlocker, move: "POWER", repRng: rng }).check.band === "RUSHER_WINS_REP") rusherWins++;
+      if (resolvePassRushRep({ tunables: TUNABLES, rusher: poorRusher, blocker: eliteBlocker, move: "FINESSE", repRng: rng }).check.band === "BLOCKER_RESETS") blockerResets++;
     }
     expect(rusherWins).toBeGreaterThan(70);
     expect(blockerResets).toBeGreaterThan(50);
@@ -109,9 +126,9 @@ describe("§7.1 pass rush per tick", () => {
   describe("ADR-028 — the blocker's three attribute terms and no constant", () => {
     it("Anchor is a NAMED modifier on the blocker's roll, at the blocker divisor", () => {
       const blocker = blockerWithAnchor(80);
-      const out = resolvePassRushTick({
+      const out = resolvePassRushRep({
         tunables: TUNABLES, rusher: eliteRusher, blocker, move: "SPEED",
-        tickRng: createRng("anchor", "t"),
+        repRng: createRng("anchor", "t"),
       });
       const anchor = out.blockerRoll.modifiers.find((m) => m.source.includes("Anchor"));
       expect(anchor).toBeDefined();
@@ -134,18 +151,18 @@ describe("§7.1 pass rush per tick", () => {
         expectedEffect: "every §7.1 blocker term halves",
       });
       expect(patched.blitzPickup.blockerAttrDivisor).toBe(5);
-      const out = resolvePassRushTick({
+      const out = resolvePassRushRep({
         tunables: patched, rusher: eliteRusher, blocker: blockerWithAnchor(80), move: "SPEED",
-        tickRng: createRng("divisor", "t"),
+        repRng: createRng("divisor", "t"),
       });
       const anchor = out.blockerRoll.modifiers.find((m) => m.source.includes("Anchor"));
       expect(anchor?.value).toBe(Math.round(80 / 10));
     });
 
     it("the blocker's stack is THREE attribute terms and nothing else", () => {
-      const out = resolvePassRushTick({
+      const out = resolvePassRushRep({
         tunables: TUNABLES, rusher: eliteRusher, blocker: blockerWithAnchor(60), move: "SPEED",
-        tickRng: createRng("stack", "t"),
+        repRng: createRng("stack", "t"),
       });
       // No trait fires (no Brick Wall, and the move is not POWER), so every
       // modifier on this roll must be attribute-backed. A flat term surviving
@@ -171,9 +188,9 @@ describe("§7.1 pass rush per tick", () => {
      */
     it("a better anchor is a better blocker, monotonically and by the right amount", () => {
       const totalFor = (rating: number): number =>
-        resolvePassRushTick({
+        resolvePassRushRep({
           tunables: TUNABLES, rusher: eliteRusher, blocker: blockerWithAnchor(rating),
-          move: "SPEED", tickRng: createRng("mono", "t"),
+          move: "SPEED", repRng: createRng("mono", "t"),
         }).blockerRoll.total;
       const at20 = totalFor(20);
       const at60 = totalFor(60);
@@ -190,12 +207,15 @@ describe("§7.1 pass rush per tick", () => {
      * Spec #6 updates perception from EXPOSURE, so a blocker whose anchor decided
      * a rep has to have that recorded on the check. An attribute that moves a roll
      * without appearing in `testsAttrs` is invisible to progression.
+     *
+     * ADR-059 MOVED this assertion here from the tick — `testsAttrs` now lives
+     * on `pass_rush_rep`, not `pass_rush_tick` (the tick's is legitimately `[]`).
      */
     it("anchor is in testsAttrs, so the rep counts as exposure for it", () => {
       for (const move of RUSH_MOVES) {
-        const out = resolvePassRushTick({
+        const out = resolvePassRushRep({
           tunables: TUNABLES, rusher: eliteRusher, blocker: blockerWithAnchor(70), move,
-          tickRng: createRng("tests", "t"),
+          repRng: createRng("tests", "t"),
         });
         expect(out.check.testsAttrs).toContain(ATTR.anchor);
         expect(out.check.testsAttrs).toContain(ATTR.passBlock);
@@ -218,6 +238,98 @@ describe("§7.1 pass rush per tick", () => {
     for (const band of TUNABLES.passRush.bands) {
       expect(TUNABLES.passRush.pressureProgressByBand[band.label]).toBeDefined();
     }
+  });
+});
+
+/**
+ * §7.1 — ADR-059's other half: the tick is UNMODDED JITTER around the rep's
+ * own margin, referencing the rep's roll by `rollRef` rather than repeating
+ * its `RollDetail` (ADR-004, extended CHECK→CHECK by ADR-059).
+ */
+describe("§7.1 pass rush tick (ADR-059 — unmodded jitter around the rep)", () => {
+  it("is unmodded: neither roll carries a single modifier", () => {
+    const out = resolvePassRushTick({
+      tunables: TUNABLES,
+      rusher: eliteRusher,
+      blocker: eliteBlocker,
+      repMargin: 0,
+      rollRef: "rep-label",
+      tickRng: createRng("s", "t").fork("x"),
+    });
+    expect(out.rusherRoll.modifiers).toEqual([]);
+    expect(out.blockerRoll.modifiers).toEqual([]);
+  });
+
+  it("testsAttrs is empty — the honest answer, not an omission (ADR-059 claim 11)", () => {
+    const out = resolvePassRushTick({
+      tunables: TUNABLES,
+      rusher: eliteRusher,
+      blocker: eliteBlocker,
+      repMargin: 20,
+      rollRef: "rep-label",
+      tickRng: createRng("s", "t").fork("x"),
+    });
+    expect(out.check.testsAttrs).toEqual([]);
+  });
+
+  it("carries the rep's rngLabel as rollRef, so the margin is reproducible from the stream", () => {
+    const out = resolvePassRushTick({
+      tunables: TUNABLES,
+      rusher: eliteRusher,
+      blocker: eliteBlocker,
+      repMargin: 20,
+      rollRef: "the-reps-own-label",
+      tickRng: createRng("s", "t").fork("x"),
+    });
+    expect(out.check.rollRef).toBe("the-reps-own-label");
+  });
+
+  it("margin is repMargin plus a jitter bounded by the divisor tunable", () => {
+    for (let i = 0; i < 100; i++) {
+      const repMargin = 20;
+      const out = resolvePassRushTick({
+        tunables: TUNABLES,
+        rusher: eliteRusher,
+        blocker: eliteBlocker,
+        repMargin,
+        rollRef: "rep-label",
+        tickRng: createRng(`jitter-${i}`, "t"),
+      });
+      const jitter = out.margin - repMargin;
+      // Two unmodded d100s (raw 1-100) differenced and divided by the tunable
+      // divisor: the maximum possible spread is ±99/divisor, rounded.
+      const bound = Math.ceil(99 / TUNABLES.passRush.repJitter.divisor);
+      expect(Math.abs(jitter)).toBeLessThanOrEqual(bound);
+    }
+  });
+
+  it("a large repMargin dominates: the band tracks the rep, not the jitter", () => {
+    let winsRep = 0;
+    for (let i = 0; i < 200; i++) {
+      const out = resolvePassRushTick({
+        tunables: TUNABLES,
+        rusher: eliteRusher,
+        blocker: eliteBlocker,
+        repMargin: 80,
+        rollRef: "rep-label",
+        tickRng: createRng(`dominant-${i}`, "t"),
+      });
+      if (out.band === "RUSHER_WINS_REP") winsRep += 1;
+    }
+    // A jitter this small cannot pull an 80-margin rep out of its own band.
+    expect(winsRep).toBe(200);
+  });
+
+  it("maps its (jittered) band to a pressure delta, same table the rep's band lives in", () => {
+    const out = resolvePassRushTick({
+      tunables: TUNABLES,
+      rusher: eliteRusher,
+      blocker: eliteBlocker,
+      repMargin: 0,
+      rollRef: "rep-label",
+      tickRng: createRng("s", "t").fork("x"),
+    });
+    expect(TUNABLES.passRush.pressureProgressByBand[out.band]).toBeDefined();
   });
 });
 

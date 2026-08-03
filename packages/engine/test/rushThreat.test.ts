@@ -609,6 +609,40 @@ describe("§7.2 the emergent claim: interior pressure outweighs edge pressure", 
     expect(checked).toBeGreaterThan(50);
   });
 
+  /**
+   * ⚠ RED AS OF ADR-059, LEFT RED RATHER THAN WORKED AROUND — read before touching.
+   *
+   * Measured (not assumed): under the pre-ADR-059 stream this fired within the
+   * loop below. Post-ADR-059, a diagnostic sweep of 20,000 plays (10x this
+   * loop's budget) found ZERO instances — every STEP_UP observed (1,873 of
+   * them) moved the pocket from COLLAPSING to PRESSURE, never to CLEAN.
+   *
+   * THE LIKELY MECHANISM, measured not guessed: `pocketStatusFor` takes the
+   * WORST of three channels (band floor, arrival, accumulated pressure). This
+   * escape valve only clears the ARRIVAL channel. Under correlated reps
+   * (ADR-059) a matchup whose rep even mildly favours the rusher posts the
+   * same or a similar band on EVERY tick — the jitter is too small to swing it
+   * back to `BLOCKER_RESETS` — so `pressureProgressByBand`'s counter now climbs
+   * almost monotonically for the life of a live threat instead of being
+   * corrected by the occasional independent-redraw reset the old model
+   * supplied. By the time a STEP_UP fires, the accumulated-pressure channel is
+   * usually already at PRESSURE-or-worse on its own and the arrival channel
+   * clearing does not bring the WORST-OF down to CLEAN.
+   *
+   * THIS IS AN EMERGENT INTERACTION, NOT SOMETHING ADR-059 RATIFIED: the ADR
+   * ratifies structure only ("rep once + per-tick jitter") and explicitly
+   * refuses to rule on football content. Whether the pressure counter should
+   * decay, or reset on bands other than `BLOCKER_RESETS`, under a correlated-rep
+   * model is a football question this dispatch does not have authority to
+   * answer — it is reported here, plainly, rather than patched by loosening
+   * this assertion, bumping the loop further (already tried: 0/1873 at 10x
+   * budget), or adding a decay mechanic unilaterally.
+   *
+   * NOT fixed by relocation, because there is nothing to relocate this at: the
+   * escape valve this test is the positive control FOR is still real code
+   * (`resolve/rushThreat.ts`'s arrival-past-horizon path); what changed is
+   * that the OTHER channel now almost always dominates it first.
+   */
   it("a step-up can push a live, un-reset EDGE threat past the horizon — CLEAN, legitimately", () => {
     // The positive control for the escape valve just added: this state must
     // actually be reachable, or the valve above is silently papering over a

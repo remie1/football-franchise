@@ -92,6 +92,20 @@ export type ByTier<T> = { [K in ResultTier]: T };
 export type CheckKind =
   | "coverage_read" | "blitz_recognition" | "audible"
   | "release_vs_press" | "route_break" | "man_coverage" | "zone_coverage" | "zone_read_qb" | "option_route"
+  /**
+   * ADR-059. The per-play, per-matchup pass-rush contest, drawn ONCE and lived with —
+   * `pass_rush_tick` becomes unmodded jitter around it and references it by `rollRef`.
+   *
+   * The attribute contest lives HERE, not on the tick (ADR-059 claim 11, owner ruling):
+   * rusher `passRush`/`powerMove`/`finesseMove`/`firstStep`, blocker
+   * `passBlock`/`footwork`/`anchor`. So `testsAttrs` on a `pass_rush_tick` is legitimately
+   * EMPTY — the tick tests nothing, by design, and that is the honest answer rather than
+   * an omission.
+   *
+   * Shape follows `resolveBreakPoint`'s coverage draw, which has always done this: draw the
+   * persistent contest once, lazily, on the tick it is first needed, and memoize it.
+   */
+  | "pass_rush_rep"
   | "pass_rush_tick" | "run_block" | "second_level_climb" | "stunt_communication" | "blitz_pickup"
   | "qb_read" | "anticipation" | "qb_decision" | "unseen_defender" | "hold_decision" | "pocket_movement" | "scramble"
   | "passing_lane" | "accuracy" | "dline_tip"
@@ -231,6 +245,20 @@ export type MatchEvent =
         band?: string;
         margin: number;
         testsAttrs: AttrId[];   // lets perception update from exposure (Spec #6 §3)
+        /**
+         * ADR-059. The `RollDetail.rngLabel` of a PRIOR roll in the same play that this
+         * check derives from — for `pass_rush_tick`, the `pass_rush_rep` whose latent it
+         * jitters around.
+         *
+         * Present so the deciding quantity is REPRODUCIBLE FROM THE STREAM. Without it the
+         * margin that selects a band exists only in engine memory, and Iron Rule 3 is not
+         * satisfied by a latent nothing else can read: calibration, UI replay and narrative
+         * would each see a band whose margin they cannot derive.
+         *
+         * Not a naming convention on `rngLabel` — Charter §4.1 prefers a compile error to a
+         * convention, and a parseable label survives exactly until someone renames a fork.
+         */
+        rollRef?: string;
       } } & MatchEventBase)
   | ({ type: "POCKET_STATUS"; payload: { status: PocketStatus } } & MatchEventBase)
   /**
@@ -527,6 +555,21 @@ export type FranchiseEvent =
  * Calibration counts rolls ONLY from CHECK/PRESNAP_READ — no double-counting.
  * Exception: QB_READ.varianceRoll is a perception roll, not a contested check,
  * and has no CHECK counterpart.
+ *
+ * GENERALIZED BY ADR-059 (owner ruling):
+ *   A `rollRef` MAY POINT AT ANY PRIOR ROLL IN THE SAME PLAY — not only from a
+ *   summary event to its own CHECK. A CHECK may reference another CHECK
+ *   (`pass_rush_tick` -> `pass_rush_rep`).
+ *
+ * This is the rule's SUBSTANCE, not an extension of it: the rule is "recorded
+ * exactly once, referenced thereafter," and the DIRECTION of the reference was
+ * never the point. A tick recording its own roll and pointing at the rep it
+ * derives from is the rule working as intended.
+ *
+ * Stated here rather than left implicit so the next author does not have to
+ * re-derive whether it is allowed. An implicit generalization gets re-litigated
+ * at every new site, and the re-derivation is what introduces the divergence —
+ * the same failure this codebase keeps recording as a restated constant.
  */
 export interface EventEnvelope<E> {
   seq: number;

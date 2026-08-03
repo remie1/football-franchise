@@ -105,7 +105,7 @@ import {
   sacksWithoutTarget,
 } from "../resolve/pocket.js";
 import { resolvePocketMovement } from "../resolve/pocketMovement.js";
-import { resolvePassRushTick } from "../resolve/passRush.js";
+import { resolvePassRushRep, resolvePassRushTick } from "../resolve/passRush.js";
 import type { PassRushBandLabel } from "../resolve/passRush.js";
 import {
   maxReadsFor,
@@ -184,6 +184,14 @@ interface RushMatchup {
   readonly side: RunSide | undefined;
   pressure: number;
   previousBand: PassRushBandLabel | undefined;
+  /**
+   * ADR-059 — the matchup's `pass_rush_rep`, drawn ONCE per matchup per play
+   * and memoized here exactly the way `ReceiverTrack.baseOpenness` memoizes
+   * `resolveBreakPoint`'s coverage contest: `undefined` until the first tick
+   * that needs it, set once, never redrawn. `undefined` permanently for a
+   * free runner (`blocker === undefined`) — there is no rep to roll (§7.3/§7.4).
+   */
+  rep: { readonly margin: number; readonly rollRef: string } | undefined;
   /** Set when he beats the block; cleared when the blocker resets him. */
   threat: RushThreat | undefined;
   /** Whether the CURRENT threat's arrival has already been published (ADR-007). */
@@ -502,6 +510,32 @@ export function simulatePassPlay(
   };
 
   /**
+   * ADR-059 — §7.1's attribute contest, drawn ONCE per matchup and memoized on
+   * `m.rep`. Same shape as `resolveBreakPoint` immediately above: guarded by an
+   * `undefined` check, forked off a PLAY-scoped RNG with a label stable for the
+   * whole play (the rusher's id) rather than the tick, so the same matchup
+   * cannot draw twice however many ticks call this. A free runner
+   * (`m.blocker === undefined`) has no rep — §7.3/§7.4 already gave him a
+   * threat at the snap — so this is a no-op for him.
+   */
+  const resolvePassRushRepFor = (m: RushMatchup): void => {
+    if (m.rep !== undefined || m.blocker === undefined) return;
+    const rep = resolvePassRushRep({
+      tunables,
+      rusher: m.rusher,
+      blocker: m.blocker,
+      move: m.move,
+      // ADR-059 note: this is always `undefined` here — see `passRush.ts`'s
+      // `PassRushRepArgs.previousBand` comment for why, and why the argument
+      // is kept anyway.
+      ...(m.previousBand === undefined ? {} : { previousBand: m.previousBand }),
+      repRng: rushRng.fork(`${m.rusher.bio.id}:rep`),
+    });
+    log.check(rep.check);
+    m.rep = { margin: rep.margin, rollRef: rep.check.roll.rngLabel };
+  };
+
+  /**
    * A SACK IS AN OUTCOME AND THE STREAM STATES IT AS ONE (ADR-033).
    *
    * This used to rewrite the tick's already-emitted `POCKET_STATUS` to `SACK`.
@@ -597,13 +631,18 @@ export function simulatePassPlay(
         // only the quarterback moving, or the clock, changes what happens next.
         if (m.blocker === undefined) continue;
         const blocker = m.blocker;
+        // ADR-059 — lazily draws and memoizes `m.rep` on the first tick this
+        // matchup is needed; every later tick is a no-op here and reuses it.
+        resolvePassRushRepFor(m);
+        const rep = m.rep;
+        if (rep === undefined) throw new Error("@ff/engine: pass_rush_rep did not resolve for a blocked matchup");
         const rush = resolvePassRushTick({
           tunables,
           rusher: m.rusher,
           blocker,
-          move: m.move,
+          repMargin: rep.margin,
+          rollRef: rep.rollRef,
           tickRng,
-          ...(m.previousBand === undefined ? {} : { previousBand: m.previousBand }),
         });
         log.check(rush.check);
         m.pressure = advancePressure(m.pressure, rush);
@@ -1772,6 +1811,7 @@ function buildMatchups(preSnap: PreSnapResult): RushMatchup[] {
     side: plan.side,
     pressure: 0,
     previousBand: undefined,
+    rep: undefined,
     threat: freeRunnerThreat(plan),
     announcedArrival: false,
     consecutiveContains: 0,

@@ -133,7 +133,7 @@ import {
  * and the new `RULED_NOT_DERIVED` provenance value for why neither `scramble.*`'s catch-all nor any
  * of the other nine categories (including `DERIVED_MECHANIC`, the closest miss) fit.
  */
-const RECORDED_NUMERIC_CENSUS = 717;
+const RECORDED_NUMERIC_CENSUS = 718;
 
 /**
  * The same subject as a SET rather than a size. Re-cut at ADR-040 (`d20Offset` → `baseHalfWidth`),
@@ -142,7 +142,7 @@ const RECORDED_NUMERIC_CENSUS = 717;
  * When this reddens and the count does not, a cell was SWAPPED: diff `numericLeafPaths()` against
  * `git diff packages/engine/src/tunables.ts` and re-read the affected rule against the doc.
  */
-const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:17e021c9";
+const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:ab3ebfdf";
 
 /**
  * ⚠ **THE RE-RECORD, AS A SET AND NOT AS A COUNT** — §4.1's count-blindness corollary applied to the
@@ -246,9 +246,13 @@ describe("doc-conformance register", () => {
     // population rather than its absorbing one. A count that did NOT move here would mean the pair
     // was re-typed inside the catch-all rather than actually pulled out of it.
     expect(audit.classifiedUniform).toBe(279);
-    expect(audit.absorbed).toHaveLength(206);
+    expect(audit.absorbed).toHaveLength(207);
     // The SET, not the size — a swap inside the absorbed region holds the count and moves this.
-    expect(absorbedCellDigest()).toBe("fnv1a:f159870b");
+    // 206 → 207, ADR-059: `passRush.repJitter.divisor` entered the tree and is claimed by the new
+    // `passRush.repJitter.*` narrow rule (NEITHER_RULED_NOR_DERIVED) rather than by the `passRush.*`
+    // catch-all — the digest moves because a new leaf joined the absorbed population, not because
+    // any existing cell was re-typed.
+    expect(absorbedCellDigest()).toBe("fnv1a:dbc6b0bf");
   });
 
   it("pins WHICH rules are absorbing — the register's own to-do list", () => {
@@ -263,6 +267,7 @@ describe("doc-conformance register", () => {
       "zoneModel.verticalUpperYards.*",
       "presnap.blitzRecognition.disguise.*",
       "passRush.bands.*",
+      "passRush.repJitter.*",
       "passRush.*",
       "stunt.complexity.*",
       "blitzPickup.*",
@@ -596,6 +601,7 @@ describe("doc-conformance register", () => {
       "presnap.blitzRecognition.disguise.* :: DOC_VERBATIM :: 4 :: fnv1a:89fabc1a",
       "passRush.bands.* :: DOC_DERIVED :: 6 :: fnv1a:becac752",
       "passRush.pressureProgressByBand.* :: INTERPRETATION :: 6 :: fnv1a:0f5eebe6",
+      "passRush.repJitter.* :: NEITHER_RULED_NOR_DERIVED :: 1 :: fnv1a:1b1d5a91",
       "passRush.* :: DOC_VERBATIM :: 2 :: fnv1a:c6fc134e",
       "stunt.complexity.* :: DOC_VERBATIM :: 4 :: fnv1a:76a0ded0",
       "blitzPickup.recognitionModifier.* :: INTERPRETATION :: 2 :: fnv1a:234a5112",

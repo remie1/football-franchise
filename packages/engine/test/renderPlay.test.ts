@@ -147,10 +147,21 @@ describe("§17.1 debug renderer", () => {
     // ...read two is the go route, which he cannot anticipate and does not skip.
     expect(text).toContain("Result: NOT_YET (-4)");
     expect(text).toContain("(DEEP route declares)");
-    // The rush is described by the stream, with real arrivals and no caveat.
-    expect(text).toContain("Kade Vance (DE) wins the rep → EDGE threat, 2.0s to travel, arrival 3.5");
-    expect(text).toContain("Marcus Bell (DT) wins the rep → INTERIOR threat, 1.0s to travel, arrival 2.5");
-    expect(text).toContain("Tick 2.0: THROW → Cole Rankin (WR)");
+    // The rush is described by the stream: a real per-tick line battle, whether
+    // or not THIS particular narrative happens to produce a won rep. (ADR-059
+    // reseeded this narrative — see the note below.) Real arrivals with no
+    // caveat are the dedicated claim of "reads time-of-arrival from RUSH_THREAT"
+    // above, which sweeps seeds specifically to exercise that branch; this test's
+    // subject is the progression/anticipation narrative, and the line battle is
+    // supporting colour, not its own claim.
+    expect(text).toContain("LINE BATTLE:");
+    expect(text).toMatch(/Tick \d\.\d: rush \d+ vs\. block \d+ → \w+ \([+-]\d+\)/);
+    // ADR-059 RESEED NOTE: this exact seed's pass-rush narrative changed (the
+    // rep is now drawn once per matchup rather than redrawn every tick), which
+    // moved the QB's eventual THROW from tick 2.0/Cole Rankin to tick 2.5/Dez
+    // Ellis for THIS seed — the progression/anticipation facts asserted above
+    // are unaffected, because neither depends on the pass rush stream.
+    expect(text).toContain("Tick 2.5: THROW → Dez Ellis (WR)");
     expect(text).not.toContain("undefined");
   });
 

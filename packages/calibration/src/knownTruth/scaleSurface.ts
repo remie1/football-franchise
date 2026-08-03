@@ -298,6 +298,17 @@ export const SURFACE: Record<CheckKind, CheckDescriptor> = {
       "Undeclared absence.",
   },
 
+  pass_rush_rep: {
+    form: "UNIMPLEMENTED",
+    docRef: "§7.1 (ADR-059)",
+    note:
+      "ADR-059's per-play, per-matchup pass-rush contest — a ratified CONTRACT SHAPE with no engine " +
+      "producer yet (the ADR's own Subject condition: 'pass_rush_rep is a union member nothing " +
+      "produces' until match-engine's split lands). Exactly the coverage_read/audible/route_break " +
+      "shape above: a CheckKind added to the vocabulary before its mechanism exists. Until the split " +
+      "lands, §7.1's actual contest is still drawn per-tick — see pass_rush_tick below, whose " +
+      "descriptor still describes the CURRENT engine and has not been moved here speculatively.",
+  },
   pass_rush_tick: {
     form: "OPPOSED",
     docRef: "§7.1",

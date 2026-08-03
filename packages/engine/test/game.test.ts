@@ -300,8 +300,16 @@ describe("the clock", () => {
  * and nothing about that branch changed.
  */
 describe("overtime, to the extent a tie requires one", () => {
-  const overtime = simulateGameFor("ot-96");
-  const tie = simulateGameFor("ot-804");
+  // ADR-059 RESEED, not a football change: the two seeds below were hand-picked
+  // against the pre-ADR-059 stream (independent per-tick pass-rush rolls). The
+  // rep split adds a new play-scoped fork ahead of every tick's rolls, so the
+  // SAME seed strings now walk a different RNG path end to end and neither
+  // produces a tied regulation any more. Re-searched against the current
+  // stream for the same two properties the tests below assert (sudden-death
+  // overtime; scoreless overtime ending in a tie) — nothing about the overtime
+  // MECHANIC changed.
+  const overtime = simulateGameFor("ot-search-39");
+  const tie = simulateGameFor("ot-search-118");
 
   it("a tie at the end of regulation opens a fifth period", () => {
     const starts = eventsOf(overtime.events, "PERIOD_START").map((e) => e.payload.period);

@@ -656,6 +656,21 @@ export const REGISTER: readonly RegisterRule[] = [
       "engine's mechanism for producing them; declared in tunables.",
   },
   {
+    pattern: "passRush.repJitter.*",
+    provenance: "NEITHER_RULED_NOR_DERIVED",
+    docRef: "§7.1 (ADR-059)",
+    note:
+      "`divisor: 4` — the per-tick jitter magnitude around the `pass_rush_rep` latent " +
+      "(`resolvePassRushTick` draws two unmodded d100s and divides their difference by this). " +
+      "BORROWED-FROM-AN-UNREPRODUCED-EXTERNAL-ARM IS NOT A DERIVATION: the figure is external " +
+      "cold-read §5's '±d100diff÷4', an 80-game arm run on a patched clone this tree has never " +
+      "run, carried in unchanged rather than re-derived. Not `INTERPRETATION` — nobody judged " +
+      "this cell in the open; it was inherited, and asserting a judgement that did not happen " +
+      "would be the dishonest reading `INTERPRETATION` exists to distinguish from. ADR-059 " +
+      "ratifies STRUCTURE only ('rep once + per-tick jitter') and explicitly refuses to ratify " +
+      "this magnitude; re-litigated only by EXT-4's own sweep on this tree, never by feel.",
+  },
+  {
     pattern: "passRush.*",
     provenance: "DOC_VERBATIM",
     docRef: "§7.1 / §1.3",
