@@ -74,6 +74,31 @@ MARKED `INTERPRETATION` AND EXPLICITLY NOT DOCTRINE (ADR-031 §1c/1d).**
 ⚠ **NOT as part of this change. AS THE NEXT ITEM AFTER IT.** ⛔ **Ratifying this without booking that
 obligation would be inheriting a marking the ruling just made load-bearing.**
 
+### ⛔ AMENDED BESIDE — **COST 2's PREMISE IS WRONG. THE OBLIGATION RELOCATES.** *(backlog entry 110)*
+
+**Discharging the obligation refuted its own premise. The error is the Orchestrator's; this ADR's text
+is mine. Left standing above with the correction here.**
+
+- ⛔ **`immediateWithinSeconds` and `collapsingWithinSeconds` CARRY NO MARKING AT ALL** — not
+  `INTERPRETATION`, not anything. ⚠ **An unmarked constant is an interpretation nobody labelled, and
+  reads as doctrine precisely because nothing says otherwise.**
+- ⚠ **`pressureWithinSeconds` carries `DERIVED MECHANIC`** — a DIFFERENT category from `INTERPRETATION`
+  by `match-engine.md`'s own convention table. ⛔ **And its derivation CHAINS OFF the two unmarked ones.**
+- ⛔ **The `INTERPRETATION` marking cited above belongs to `dominanceMarginPerHalfTick`** — a different
+  parameter. ⛔ **AND the citation *"ADR-031 §1c/1d"* is about `freeRunnerPath`, a function ADR-031
+  DELIBERATELY DISTINGUISHES from `travelSecondsFor`.** ⚠ **Three claims, three misses — *a citation
+  is as many claims as it has components.***
+
+✅ **THE OBLIGATION STANDS, RELOCATED:** ⛔ **the parameter needing revisit is `dominanceMarginPerHalfTick`
+and the `travelSecondsByAlignmentAndMove` table it shaves — NOT the horizons as a class.**
+
+### ⛔ AND THIS ADR's *"they disagree on slower EDGE wins"* IS TOO BROAD
+
+**At the deciding tick (`minTta = travel − 0.5`, `C = 1.0`): `EDGE POWER` and `EDGE FINESSE` (travel
+`1.5`) give `minTta = 1.0` and TIE.** ⛔ **FIVE OF SIX alignment×move combinations tie. Only
+`EDGE SPEED` — and only its non-dominant wins — disagrees.** ⚠ **The provenance row above should be
+read with that narrowing.**
+
 ## What `bandFloor` KEEPS — this is a narrowing, not a removal
 
 - ✅ **`BLOCKER_BEATEN → PRESSURE`** and every other band mapping. **Untouched.**

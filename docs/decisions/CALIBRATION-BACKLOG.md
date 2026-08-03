@@ -7814,3 +7814,88 @@ percentages, which came from real runs.**
 
 **UNCHANGED EITHER WAY:** the free-runner/looper/pickup-loss population *(arrival is already sole
 there)*, and the counter's established zero contribution.
+
+---
+
+## 110. ⛔⛔ THE COST-2 OBLIGATION — **ITS PREMISE IS WRONG, THE OBLIGATION RELOCATES, AND "EDGE DISAGREES" IS TOO BROAD**
+
+**ADR-058's Cost 2 was booked at ratification. Discharging it refutes its own premise.** ⚠ **Headlined
+per the ratified requirement. The error is the Orchestrator's — ADR-058's text is mine.**
+
+### ⛔ HEADLINE — THE `INTERPRETATION` MARKING IS NOT WHERE COST 2 SAYS IT IS
+
+| horizon | marking | verified |
+|---|---|---|
+| `immediateWithinSeconds` `0.0` | ⛔ **NONE. No marker of any kind.** | `tunables.ts:768-773` — one plain descriptive comment shared with the next line |
+| `collapsingWithinSeconds` `1.0` | ⛔ **NONE. Same comment, same absence.** | as above |
+| `pressureWithinSeconds` `2.0` | ⚠ **`DERIVED MECHANIC`** — a **DIFFERENT CATEGORY** from `INTERPRETATION` per `match-engine.md`'s own convention table | `tunables.ts:774+` |
+
+⛔ **THE `INTERPRETATION` MARKING COST 2 POINTS AT BELONGS TO `dominanceMarginPerHalfTick`** *(`tunables.ts:645`)* — **a different parameter, which the horizons are COMPARED AGAINST, not one any horizon carries.**
+
+### ⛔ AND THE CITATION CHAIN IS WRONG TOO
+
+**ADR-058 cites *"ADR-031 §1c/1d"* for the marking.** ⚠ **That text is about `freeRunnerPath` /
+`freeRunnerArrivalSecondsFor` — §7.4's free-runner clock.** ⛔ **A function ADR-031 ITSELF DELIBERATELY
+DISTINGUISHES from §7.2's `travelSecondsFor`:** *"DELIBERATELY NOT `travelSecondsFor` ABOVE… two
+different quantities that happen to share a unit"* (`rushThreat.ts:360-362`).
+
+> ### ⛔ **SO ADR-058 CITED THE WRONG MECHANISM'S MARKING FOR THE MECHANISM ACTUALLY IN PLAY, VIA AN ADR WHOSE WHOLE §1b TABLE EXISTS TO KEEP THOSE TWO APART.**
+
+⚠ **This is *a citation is as many claims as it has components, and they fail independently* — the
+marking, the parameter, and the ADR reference were three claims and all three missed.**
+
+### ✅ THE OBLIGATION IS **RELOCATED, NOT DISSOLVED**
+
+⛔ **`dominanceMarginPerHalfTick`'s `INTERPRETATION` marking IS real, IS independently sourced, and IS
+now load-bearing for won-rep travel times.** ⚠ **The parameter needing revisit is IT and the base
+`travelSecondsByAlignmentAndMove` table it shaves — NOT *"the arrival horizons"* as a class.**
+
+### ⛔⛔ AND TWO HORIZONS HAVE **NO PROVENANCE AT ALL**, WHICH IS WORSE THAN A MARKED INTERPRETATION
+
+**`immediateWithinSeconds` and `collapsingWithinSeconds` were introduced in `f5f4fe2` (Jul 2026)
+alongside `travelSecondsByAlignmentAndMove` — SAME COMMIT, NO CROSS-REFERENCE — and have carried no
+derivation, no sweep, no ADR, and no marker since.**
+
+> ## ⚠ **A MARKED INTERPRETATION ANNOUNCES ITSELF AS A CHOICE. AN UNMARKED CONSTANT IS AN INTERPRETATION NOBODY LABELLED — and it reads as doctrine precisely because nothing says otherwise.**
+
+⛔ **AND `pressureWithinSeconds`'s CHAIN BOTTOMS OUT IN THEM.** Entry 76 derived `2.0` by REPLICATING
+THE WIDTH between the other two (`1.0 + (1.0 − 0.0)`). ⚠ **The one horizon with a formal marking is
+DERIVED FROM THE TWO WITH NO PROVENANCE AT ALL.**
+
+### ⛔ THE LOAD CHANGE IS **NOT UNIFORM** — Cost 2's blanket framing is wrong per-horizon
+
+| horizon | load before ADR-058 | after |
+|---|---|---|
+| `immediate` | ⛔ **ALREADY SOLE** — `minimumStatusByBand` never mapped to `IMMEDIATE` | ⛔ **UNCHANGED. Cost 2 does not describe this horizon at all.** |
+| `collapsing` | ⚠ **inert at the DECIDING INSTANT while `≥0.5`** — bandFloor floored `COLLAPSING` regardless | ⛔ **SOLE. Real load change, isolated to this parameter.** |
+| `pressure` | ⛔ **could never be decisive for any won rep** — bandFloor's `≥COLLAPSING` always dominated | ⚠ **decisive on ONE SLICE: undominated `EDGE SPEED`** |
+
+⚠ **AND A CAVEAT STATED RATHER THAN GLOSSED:** *"redundant before"* holds **AT THE DECIDING INSTANT
+ONLY.** ⛔ **On later ticks where a matchup's band has reverted (`STALEMATE`) while the threat persists,
+`collapsingWithinSeconds` WAS ALREADY SOLE — before and after.** **The split between those populations
+is UNMEASURED.**
+
+### ⛔⛔ THE CORRECTION: **"INTERIOR TIES / EDGE DISAGREES" IS TOO BROAD**
+
+**ADR-058 and entry 109 both frame the disagreement as *"slower EDGE wins."*** ⛔ **VERIFIED
+ARITHMETIC AT THE DECIDING TICK (`minTta = travel − 0.5`, against `C = 1.0`):**
+
+| alignment | move | travel | `minTta` | verdict |
+|---|---|---|---|---|
+| INTERIOR | SPEED / POWER / FINESSE | 1.0 | 0.5 | ✅ **TIES** |
+| EDGE | **POWER** | 1.5 | **1.0** | ⛔ **TIES — `1.0 <= 1.0`** |
+| EDGE | **FINESSE** | 1.5 | **1.0** | ⛔ **TIES** |
+| EDGE | **SPEED** | 2.0 | 1.5 | ⚠ **DISAGREES — the ONLY one** |
+
+> ## ⛔ **FIVE OF SIX ALIGNMENT×MOVE COMBINATIONS TIE. THE DISAGREEMENT IS CONFINED TO `EDGE SPEED`, AND ONLY ITS NON-DOMINANT WINS (`margin < 65`, where the shave does not apply).**
+
+⚠ **So entry 109's `14.85%` *"EDGE"* bucket is a MIX of tying (`POWER`/`FINESSE`) and disagreeing
+(`SPEED` under 65) — NOT BROKEN OUT ANYWHERE.** ⛔ **Answering it needs a census by MOVE, not by
+alignment. None was taken.**
+
+### 📒 A FOURTH RELATIONAL INSTANCE, PREVIOUSLY UNEXAMINED
+
+⛔ **`travelSecondsByAlignmentAndMove.EDGE.SPEED = 2.0` EQUALS `pressureWithinSeconds = 2.0`.** ⚠ **Same
+commit, no cross-reference; entry 76's later derivation never mentions the travel table.** **Not a LIVE
+tie at the deciding tick (`minTta 1.5`), but the raw constants are equal and unexamined** — ⛔ **entry
+83's signature exactly, and its fourth instance.**
