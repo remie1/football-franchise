@@ -32,6 +32,7 @@ import {
 import type { AssertFalse } from "../src/resolve/rushThreat.js";
 import type { RushThreat } from "../src/resolve/rushThreat.js";
 import type { PassRushBandLabel } from "../src/resolve/passRush.js";
+import { pocketStatusFor } from "../src/resolve/pocket.js";
 import { bandFor } from "../src/rolls.js";
 import { applyTunablePatch, TUNABLES } from "../src/tunables.js";
 import type { Tunables } from "../src/tunables.js";
@@ -610,60 +611,133 @@ describe("§7.2 the emergent claim: interior pressure outweighs edge pressure", 
   });
 
   /**
-   * ⚠ RED AS OF ADR-059, LEFT RED RATHER THAN WORKED AROUND — read before touching.
+   * ⛔ REPLACED, ADR-059 landing dispatch (Task A, August 2026) — read before touching.
+   * SPLIT, NOT DELETED (same treatment as `sackCredit.test.ts`'s uncredited-sack
+   * retirement): the instrument below is new, but the old one's expectation,
+   * its measurement, and why that measurement condemned it are kept verbatim
+   * here rather than discarded.
    *
-   * Measured (not assumed): under the pre-ADR-059 stream this fired within the
-   * loop below. Post-ADR-059, a diagnostic sweep of 20,000 plays (10x this
-   * loop's budget) found ZERO instances — every STEP_UP observed (1,873 of
-   * them) moved the pocket from COLLAPSING to PRESSURE, never to CLEAN.
+   * ============ THE OLD INSTRUMENT, VERBATIM ============
    *
-   * THE LIKELY MECHANISM, measured not guessed: `pocketStatusFor` takes the
-   * WORST of three channels (band floor, arrival, accumulated pressure). This
-   * escape valve only clears the ARRIVAL channel. Under correlated reps
-   * (ADR-059) a matchup whose rep even mildly favours the rusher posts the
-   * same or a similar band on EVERY tick — the jitter is too small to swing it
-   * back to `BLOCKER_RESETS` — so `pressureProgressByBand`'s counter now climbs
-   * almost monotonically for the life of a live threat instead of being
-   * corrected by the occasional independent-redraw reset the old model
-   * supplied. By the time a STEP_UP fires, the accumulated-pressure channel is
-   * usually already at PRESSURE-or-worse on its own and the arrival channel
-   * clearing does not bring the WORST-OF down to CLEAN.
+   *   it("a step-up can push a live, un-reset EDGE threat past the horizon — CLEAN, legitimately", () => {
+   *     // The positive control for the escape valve just added: this state must
+   *     // actually be reachable, or the valve above is silently papering over a
+   *     // real regression instead of naming a real mechanic.
+   *     let sawStepUpClearedPocket = false;
+   *     for (let i = 0; i < 300 && !sawStepUpClearedPocket; i++) {
+   *       const { state, calls } = buildScenario();
+   *       const { events } = simulatePassPlay(state, calls, `persist-${i}`);
+   *       const statuses = new Map<number, string>();
+   *       const steppedUpAt: number[] = [];
+   *       for (const { event } of events) {
+   *         if (event.type === "POCKET_STATUS") statuses.set(event.tick ?? -1, event.payload.status);
+   *         if (event.type === "QB_DECISION" && event.payload.choice === "STEP_UP") {
+   *           steppedUpAt.push(event.tick ?? -1);
+   *         }
+   *       }
+   *       for (const tick of steppedUpAt) {
+   *         const later = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
+   *         if (statuses.get(later) === "CLEAN") sawStepUpClearedPocket = true;
+   *       }
+   *     }
+   *     expect(sawStepUpClearedPocket).toBe(true);
+   *   });
    *
-   * THIS IS AN EMERGENT INTERACTION, NOT SOMETHING ADR-059 RATIFIED: the ADR
-   * ratifies structure only ("rep once + per-tick jitter") and explicitly
-   * refuses to rule on football content. Whether the pressure counter should
-   * decay, or reset on bands other than `BLOCKER_RESETS`, under a correlated-rep
-   * model is a football question this dispatch does not have authority to
-   * answer — it is reported here, plainly, rather than patched by loosening
-   * this assertion, bumping the loop further (already tried: 0/1873 at 10x
-   * budget), or adding a decay mechanic unilaterally.
+   * ============ WHY IT WAS RED ~97% OF THE TIME ON A PERFECT ENGINE ============
    *
-   * NOT fixed by relocation, because there is nothing to relocate this at: the
-   * escape valve this test is the positive control FOR is still real code
-   * (`resolve/rushThreat.ts`'s arrival-past-horizon path); what changed is
-   * that the OTHER channel now almost always dominates it first.
+   * A dedicated dispatch measured this population directly (N=200,000 plays,
+   * fresh seed families, cross-validated across three) instead of trusting the
+   * loop's own pass/fail, and classified every `STEP_UP` against a live EDGE
+   * threat into two populations the old loop could not tell apart — both read
+   * as `statuses.get(later) === "CLEAN"` to it:
+   *
+   *   step-ups observed:                                                18,799
+   *   GENUINE — `STEP_UP` delayed a still-live EDGE threat past the
+   *     horizon (the mechanic this test exists to control for)               20  (0.106% of step-ups, ≈1-in-940)
+   *   COINCIDENTAL — threat already `undefined` that tick;
+   *     `STEP_UP` found nothing to touch                                     33  (0.176% of step-ups)
+   *
+   * TWO INDEPENDENT DEFECTS, NOT ONE:
+   *
+   *   1. POWER. P(≥1 genuine hit in the loop's 300 scenarios) ≈ 3% — the test
+   *      read red on a PERFECT engine roughly 97 runs in 100. And P(0 in 1,873)
+   *      ≈ 14%: the null result that drove three prior dispatches investigating
+   *      "is the valve inert" was itself a routine, unsurprising outcome, not
+   *      evidence of anything. No amount of raising the loop bound short of a
+   *      six-figure N fixes this cheaply enough for a unit test.
+   *   2. CLASSIFICATION. Of the 53 total possible passes the loop could ever
+   *      score (20 + 33), 33 of them — 62% — would have been FALSE POSITIVES:
+   *      the loop passing because a threat had already reset that tick for an
+   *      unrelated reason, crediting the arrival-horizon valve for work done by
+   *      `BLOCKER_RESETS` or entry 73's sustained-containment retirement. This
+   *      is not fixed by a bigger N either — it is a defect in WHAT the loop
+   *      checked, not how much of it.
+   *
+   * REPLACED, NOT TUNED. The instrument below constructs a live EDGE threat
+   * directly with the SAME production function a won rep uses
+   * (`threatFromWonRep`), asserts — not assumes — that it is genuinely live and
+   * inside `arrival.pressureWithinSeconds` BEFORE the step-up (closing defect
+   * 2: a reader can see this was never `undefined`), then pushes it with the
+   * exact call `sim/passPlay.ts`'s `STEP_UP` branch makes
+   * (`delayThreat(threat, tunables.pocketMovement.stepUp.edgeThreatDelaySeconds)`)
+   * and asserts the ETA clears the horizon and the pocket reads CLEAN — both
+   * through `pocketFloorFromArrival` directly and through `pocketStatusFor`'s
+   * full WORST-OF-THREE (closing defect 1: nothing here depends on a seed).
+   *
+   * A population instrument was considered and left out, per the owner's
+   * ruling that one is optional and only worth keeping with real power AND
+   * genuine-vs-coincidental detection: the N=200,000 measurement above already
+   * IS that instrument, already run, already classified, and re-deriving it at
+   * a CI-sized N would just reproduce defect 1 on a smaller class of the same
+   * mistake. The rate is recorded here rather than re-measured by a loop this
+   * file would then have to keep fast.
    */
-  it("a step-up can push a live, un-reset EDGE threat past the horizon — CLEAN, legitimately", () => {
-    // The positive control for the escape valve just added: this state must
-    // actually be reachable, or the valve above is silently papering over a
-    // real regression instead of naming a real mechanic.
-    let sawStepUpClearedPocket = false;
-    for (let i = 0; i < 300 && !sawStepUpClearedPocket; i++) {
-      const { state, calls } = buildScenario();
-      const { events } = simulatePassPlay(state, calls, `persist-${i}`);
-      const statuses = new Map<number, string>();
-      const steppedUpAt: number[] = [];
-      for (const { event } of events) {
-        if (event.type === "POCKET_STATUS") statuses.set(event.tick ?? -1, event.payload.status);
-        if (event.type === "QB_DECISION" && event.payload.choice === "STEP_UP") {
-          steppedUpAt.push(event.tick ?? -1);
-        }
-      }
-      for (const tick of steppedUpAt) {
-        const later = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1));
-        if (statuses.get(later) === "CLEAN") sawStepUpClearedPocket = true;
-      }
-    }
-    expect(sawStepUpClearedPocket).toBe(true);
+  it("a step-up delays a LIVE EDGE threat's ETA past the arrival horizon — CLEAN, deterministically", () => {
+    const tick = 1.0;
+    // Constructed with the SAME function a won rep uses to start a threat
+    // (`threatFromWonRep`, exercised on its own terms in "§7.2 threat
+    // lifecycle" above) — not a hand-typed literal standing in for it. EDGE,
+    // POWER, a bare win (`WIN_MARGIN`, no dominance shave): `travelSecondsFor`
+    // gives this combination 1.5s of travel (`arrival
+    // .travelSecondsByAlignmentAndMove.EDGE.POWER`), comfortably inside the
+    // horizon rather than sitting on its boundary.
+    const live = threatFromWonRep({
+      tunables: TUNABLES,
+      rusher: buildScenario().state.quarterback,
+      alignment: "EDGE",
+      move: "POWER",
+      margin: WIN_MARGIN,
+      tick,
+      rollRef: "test/rush-rep",
+    });
+
+    // PRECONDITION, asserted rather than assumed: GENUINE, not coincidental.
+    // This threat is live (not `undefined` — there is nothing here for a
+    // reader to mistake for the old defect) and already dirtying the pocket
+    // before the step-up runs, so a CLEAN afterward cannot be explained by "it
+    // was already clear."
+    const ttaBefore = timeToArrival(live, tick);
+    expect(ttaBefore).toBeGreaterThan(0); // still travelling, not yet arrived
+    expect(pocketFloorFromArrival(TUNABLES, ttaBefore)).not.toBe("CLEAN");
+    // And not a TIME-retirement artifact (`clock.maxTick`) either — this
+    // isolates the ARRIVAL-HORIZON valve specifically from the OTHER named
+    // escape (`retiresByTime`'s own file-level comment records why the two are
+    // not the same mechanic and only one of them is implemented).
+    expect(retiresByTime(TUNABLES, live)).toBe(false);
+
+    // THE MECHANIC ITSELF — the exact call `sim/passPlay.ts`'s `STEP_UP`
+    // branch makes on every live EDGE matchup.
+    const delayed = delayThreat(live, TUNABLES.pocketMovement.stepUp.edgeThreatDelaySeconds);
+
+    expect(delayed.etaTick - tick).toBeGreaterThan(TUNABLES.arrival.pressureWithinSeconds);
+    expect(retiresByTime(TUNABLES, delayed)).toBe(false); // still isolating the arrival channel
+    const ttaAfter = timeToArrival(delayed, tick);
+    expect(pocketFloorFromArrival(TUNABLES, ttaAfter)).toBe("CLEAN");
+    // And the WORST-OF-THREE the quarterback actually plays under
+    // (`pocketStatusFor`, `resolve/pocket.ts`) agrees, with the other two
+    // channels held at their own CLEAN floor (zero accumulated pressure, no
+    // previous-tick bands) so this specifically credits the arrival channel
+    // rather than a channel that happens to dominate it.
+    expect(pocketStatusFor(TUNABLES, 0, [], ttaAfter)).toBe("CLEAN");
   });
 });
