@@ -216,6 +216,95 @@ schema change.**
 
 ⚠ **A derived null is a result. "No consumers" is reportable — shown, not assumed.**
 
+## Landing checklist — **the `testsAttrs` audit, discharged**
+
+**Audit complete, read-only. Subject set DERIVED** *(every package's source READ, not inferred from its
+name — `attributes` / `franchise` / `narrative` / `apps/game` are 2-5 line `export {}` stubs)*.
+**Patterns named verbatim, blind spots named.**
+
+### ✅ THE HEADLINE: EVERY LIVE CONSUMER FAILS LOUD
+
+| consumer | population | behaviour |
+|---|---|---|
+| `engine/test/determinism.test.ts:284-307` | ⚠ **GENERIC over all `CHECK` kinds** | ✅ **FAILS LOUD** |
+| `calibration/test/attributeClaims.test.ts` *(via `attributeUsage.ts` + `scenarios.ts:501`)* | ⚠ **GENERIC** | ✅ **FAILS LOUD** |
+| `engine/test/passRush.test.ts:192-202` | specific by name | ✅ **FAILS LOUD** |
+| ⛔ **`calibration/test/ladderRerung.test.ts:129-153`** | GENERIC | ⛔ **SILENT** |
+
+> ⚠ **A RED SUITE AFTER THIS LANDS IS THE GUARD WORKING, NOT BREAKAGE.** ⛔ **All three are in default
+> `pnpm -r test`. They are named here so a landing dispatch does not read them as damage.**
+
+### ⚠ THE `determinism.test.ts` EXCEPTION — **the pairing is the requirement, not the refusal**
+
+**It asserts every `CHECK` populates `testsAttrs`, with EXACTLY ONE hand-named exception
+(`deflection_quality`), whose comment says it *"legitimately exercises NO rating."***
+
+> ⛔ **CORRECTION, RECORDED BESIDE RATHER THAN SILENTLY FIXED.** **The Orchestrator's first draft of
+> this checklist said *"DO NOT ADD `pass_rush_tick` to that exception list"*, on the reasoning that its
+> attributes MOVED rather than VANISHED.** ⛔ **THAT IS WRONG.** ⚠ **Under this ADR the tick becomes
+> UNMODDED jitter — so it genuinely exercises no rating, and the exception would assert something
+> TRUE.** **The audit's follow-up said so and was correct.**
+
+**What the refusal was actually reaching for, stated properly:**
+
+> ## ⛔ **THE EXCEPTION IS HONEST ONLY IF PAIRED. Adding `pass_rush_tick` to the list WITHOUT adding the matching non-empty assertion on `pass_rush_rep` silently DROPS COVERAGE at the exact cell the guard exists for.**
+
+✅ **Both edits, or neither.** **The exception alone converts a loud guard into a permanent silent one;
+the pair RELOCATES the guard, which is the same relocation principle every other finding here takes.**
+
+⚠ **AND THE PREMISE IS NOT YET SETTLED: claim 11 (*which attributes the latent tests*) is `UNDECIDED`.**
+⛔ **If the design keeps ANY per-tick modifier, the tick is NOT attribute-free and the exception is
+false after all. Settle claim 11 BEFORE editing this test.**
+
+### ⛔ THE ONE SILENT CONSUMER — **and it closes as a CONSEQUENCE, not as a chore**
+
+**`ladderRerung.test.ts` is env-gated (`FF_LADDER=1`, stage `usage`) and PRINTS its verdict while
+asserting only `expect(usage.checksObserved).toBeGreaterThan(0)`** — which stays true, because the
+`CHECK` still fires and only its `testsAttrs` is empty. ⛔ **It goes GREEN while the pass-rush
+attribute claim has quietly gone inert.**
+
+✅ **But it needs NO edit of its own.** It derives its mechanism from `scenarios.ts`. ⛔ **Once
+`scenarios.ts:501` and `:553` relocate `mechanismCheckKinds` from `"pass_rush_tick"` to
+`"pass_rush_rep"`, this tool FOLLOWS THE RELOCATION AUTOMATICALLY and stops being silent.**
+
+⚠ **The window is what matters: it is a live silent gap UNTIL that scenario edit lands, and NO GATE
+FORCES THAT EDIT.** **⇒ Re-run `FF_LADDER=1 FF_LADDER_STAGE=usage` for both scenarios after landing
+and READ THE VERDICT LINE — as VERIFICATION that the relocation took, not as the fix.**
+
+### ⚠ SPEC #6 NEEDS AN **ADDITION**, NOT A FIX — and the distinction is the finding
+
+**`docs/design/perception.md:31` specifies exposure updates deriving from *"`CHECK` events tagged with
+the attrs they tested"* — GENERIC over the whole union, never citing `pass_rush_tick`.**
+
+⛔ **So a straightforward implementation of it as written would ALREADY pick up `pass_rush_rep`, simply
+by folding every `CHECK` kind. The wording does not break.**
+
+> ### ⇒ ⛔ **AND THAT IS EXACTLY THE PROBLEM: THERE IS NO SENTENCE IN IT THAT A FUTURE IMPLEMENTER WOULD NOTICE HAS GONE STALE.**
+
+⚠ **The risk is not broken prose — it is that nothing in the spec EVER TOLD ANYONE the pass-rush
+exposure channel moved.** ⛔ **Someone implementing against it who copies the band/actors pattern the
+other `pass_rush_tick` consumers use, and assumes attribute exposure rides the same `CHECK`, is wrong
+with nothing to correct them.**
+
+✅ **⇒ Add a line to Spec #6 stating pass-rush attribute exposure publishes on `pass_rush_rep`
+(post-ADR-059) — so the next implementer reads the rep ON PURPOSE, rather than by accident of the
+wording having been generic enough to survive.**
+
+### 📒 AND A SEPARATE DEFECT FOUND IN PASSING — `unruled`
+
+⛔ **`perception.md:64` specifies `PERCEPTION_UPDATED {observer, subject, attrIds, cause}`.
+`contracts/src/events.ts:509` implements `attrs`.** ⚠ **THE SPEC AND THE CONTRACT DISAGREE ON THE
+FIELD NAME**, on a member with **zero producers and zero consumers** repo-wide *(verified by grep)*.
+**Dormant, so it bites nobody today — and it bites whoever implements `franchise` against the spec.**
+⛔ **`unruled`; not ADR-059's subject.**
+
+### ⚠ THE AUDIT'S OWN BLIND SPOT, NAMED BY IT AND CARRIED HERE
+
+⛔ **It TRUSTED claim 8** *(`pass_rush_tick` is the only tick-scoped check)* **rather than re-deriving
+it, and scoped itself by that framing.** ⚠ **So claim 8's blind spot is TRANSITIVE: if a second check
+kind is tick-scoped and invisible to the `tickRng` grep, this audit never looked at it either.**
+**Two derivations now rest on one unverified pattern.**
+
 Related: [ADR-004](ADR-004-roll-accounting.md) (the rule this extends),
 [ADR-056](ADR-056-throwtype-declares-a-member-nothing-emits.md) (the defect condition 1 avoids),
 [ADR-025](ADR-025-what-makes-two-baselines-comparable.md) (baseline invalidation),
