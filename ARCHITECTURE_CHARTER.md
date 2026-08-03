@@ -1987,6 +1987,38 @@ form of scrutiny that consults a source, because EVERY SOURCE HAD THE SAME NUMBE
 
 > ### ⛔ **DERIVATION IS NOT ONE VERIFICATION TECHNIQUE AMONG SEVERAL. Against a carried figure it is THE ONLY ONE THAT WORKS, because everything else asks something that has already been told.**
 
+**Corollary — ⛔ A QUESTION WHOSE SUBJECT SET CANNOT CONTAIN THE THING BEING COUNTED HAS A DETERMINED ANSWER, AND IT READS AS A MEASUREMENT.**
+
+**A census was commissioned to ask: *"what fraction of the EDGE TIE bucket actually DISAGREES?"***
+⛔ **A DISAGREEMENT IS NOT A TIE BY DEFINITION** — it means one channel forces `COLLAPSING` while the
+other reads only `PRESSURE`. ⚠ **Such a play was never in that bucket at all.**
+
+> ## ⛔ **THE ONLY POSSIBLE ANSWER WAS `0.00%` — AND `0.00%` WOULD HAVE READ AS *"THE DISAGREEMENT IS NEGLIGIBLE"* AND CLOSED THE INVESTIGATION.**
+
+⚠ **THIS IS A NEW CLASS, AND IT IS NOT THE FAMILIAR ONE:**
+
+| | the catalogued class | ⛔ **this one** |
+|---|---|---|
+| the defect | ⛔ a NUMBER meaning something other than it appears | ⛔ **a QUESTION that can return only one value** |
+| the answer | ⚠ arithmetically correct, wrongly framed | ⚠ **arithmetically correct AND DETERMINED BEFORE MEASURING** |
+| what it costs | a claim overstated | ⛔ **AN INVESTIGATION CLOSED ON EVIDENCE THAT WAS NEVER GATHERED** |
+
+⛔ **The measurement would not have been WRONG. It would have been VACUOUS AND INDISTINGUISHABLE FROM
+INFORMATIVE** — and `0.00%` is the most persuasive possible form of *"stop looking."*
+
+### ⇒ THE DIAGNOSTIC, AND IT COSTS ONE SENTENCE
+
+> ### ⛔ **BEFORE RUNNING A CENSUS, ASK WHETHER THE SUBJECT SET *CAN* CONTAIN THE THING BEING COUNTED.**
+
+⚠ **Free at briefing time — it is a property of the definitions, not of the data.** ⛔ **And it is the
+briefing author's job, not the dispatch's: the dispatch that received this one had to CORRECT THE
+QUESTION rather than answer it, and a less careful one would have returned the determined zero with a
+straight face.**
+
+**⇒ Note where the real number turned out to live:** ⛔ **`bandFloor-sole` — a population entries
+105-109 had never decomposed.** ⚠ **The thing being counted was in a bucket nobody had opened, and the
+ruling that preceded it was made without it.**
+
 **Corollary — ⛔ *"DERIVED"* NEEDS THE SAME TREATMENT *"VERIFIED"* GOT: **DERIVED BY WHOM, AGAINST WHAT, AND CHECKED BY WHAT.**
 
 **ADR-058's consumer set WAS derived — a real search, by a competent dispatch, reported with citations.**
