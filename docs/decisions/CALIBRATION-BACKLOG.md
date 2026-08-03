@@ -8420,6 +8420,23 @@ coverage sack.**
 
 > ### ⇒ **NOT A MIS-TUNED COUNTER. A counter with ONE reset condition that was survivable ONLY because the contest was re-drawn each tick.** ⛔ **THE iid TICKS WERE DOING THE RESETTING, AND WE REMOVED THEM.**
 
+> ## ⚠ **CORRECTION BESIDE — THE SENTENCE ABOVE OVERSTATES ITS POPULATION** *(Orchestrator, August 2026)*
+>
+> ⛔ ***"A matchup … STAYS TIPPED"* READS AS UNIVERSAL AND IS ABOUT A SUBSET.** **The mechanism stands;
+> the wording does not.**
+>
+> **Measured on the same tree:** `BLOCKER_RESETS` fires on **`42-44%` of ALL ticks** — the single most
+> common band — with per-matchup run-length between resets **median `0`, p90 `2`, max `10`**.
+> ⚠ **BIMODAL: most matchups reset constantly; a few never do.** ⛔ **It is the few that never reset
+> which reach `IMMEDIATE`, and the sentence above is about THEM.**
+>
+> **Entry 119 has the precise form:** unconditional `44.206%`, ⛔ **conditional on the counter already
+> being `> 0`, `3.182%`.** ✅ **Both figures are consistent and the conditional one is the finding.**
+>
+> ⛔ **THIS WORDING ALREADY MISLED A DISPATCH.** ⚠ **A later dispatch measured the `42%` unconditional
+> rate, read this sentence as a claim about all matchups, and reported entry 118's cause as REFUTED —
+> with entry 119 present in the tree it was working in.** **See entry 120.**
+
 ### ✅✅ AND THIS IS §5's JOINT-LANDING CLAIM, REPRODUCED ON OUR OWN TREE
 
 **External §5 finding 3: land *(rep structure, counter constants, arrival horizon)* JOINTLY.**
@@ -8546,3 +8563,172 @@ the narrow population both can reach.**
 | decay | ⚠ **LIVE BUT SECOND.** ⛔ **Comes to the owner as a FOOTBALL ruling with the cost stated — not as a tuning change** |
 | `counterMoveAfterStalemate` | ✅ **DELETE (owner ruling).** Zero behaviour change; reviving it would need `m.rep` cleared on reset, a partial rollback of ADR-059's *"one rep per matchup per play"* |
 | the commit | ⛔ **STILL HELD** |
+
+---
+
+## 120. ⛔ THE `CLEAN` DECOMPOSITION — **the population is EMPTY**, and a corrective entry sat unread beside the error it prevents
+
+**Ordered to decide whether entry 118's cause held. ⛔ READ-ONLY. ⚠ It did not resolve the question it
+was asked, and what it returned instead is larger.**
+
+**Arm: branch `adr-059-landing` @ `7608bb3`, `sackCredit.test.ts`'s own corpus (12 games,
+`buildGameFixture({seed: "sack-credit-0..11"})`), its own `foldSacks`/`somebodyGotThere` predicates
+verbatim. 121 sacks.**
+
+### ⛔ THE QUESTION COULD NOT BE ANSWERED — the population is a hard zero
+
+| definition | coverage sacks |
+|---|---|
+| the test's own predicate `!somebodyGotThere` | ⛔ **`0 / 121`** |
+| the engine's own mechanistic branch *(the `outcome === undefined` fallback ADR-033 calls "coverage sack at the horizon")* | ⛔ **fired `0` times** |
+
+⚠ **Twice-measured, after the dispatch found and fixed a defect in its own first instrument.**
+⛔ **So Parts 1 and 2 — decompose the channels on coverage-sack plays, then remove one channel at a
+time — HAVE NO DATA POINTS.** **The pre-registered fork assumed a non-empty candidate set. There is
+none.**
+
+### ✅ AND THE MECHANISM, WHICH **ENTRY 91 PREDICTED AND COULD NOT EXPLAIN**
+
+**Entry 91 already recorded that the horizon coverage sack NEVER FIRES and that ADR-033's
+characterisation describes an empty set.** ⛔ **This dispatch supplies the WHY, by control-flow trace,
+and it is an ORDERING OF THREE TUNABLES:**
+
+```
+throwawayEarliestSeconds  2.0
+timeBudget.baseSeconds    2.5     ⇒ mustDecide permanently true past here
+clock.maxTick             6.0
+```
+
+⚠ **Past `2.5s`, on every tick where the pocket is NOT forcing, the code takes the `THROWAWAY` branch
+immediately** — 0 yards, not a sack. ⛔ **It never reaches clock exhaustion.** **The only route to the
+fallback is a forcing pocket held to `maxTick`, in which case the terminal status is
+`COLLAPSING`/`IMMEDIATE` — so the branch STRUCTURALLY CANNOT produce the `CLEAN` outcome ADR-033
+describes.**
+
+> ## ⛔ **AND THIS IS NOT ADR-059-SPECIFIC.** ⚠ **It follows from the ordering of three tunables and held before the rep/tick split.**
+
+### ⛔⛔ SO WHAT ADR-059 BROKE IS **STILL UNIDENTIFIED**
+
+**The horizon branch was ALWAYS unreachable — it never supplied the pre-ADR-059 `6/101`.**
+⛔ **Those six came from ANOTHER path in the `!somebodyGotThere` population, and nothing yet names
+it.** ⚠ **We have established what the cause ISN'T. That is progress and it is not an answer.**
+
+### ⚠ THE SECONDARY DECOMPOSITION — different population, reported as such
+
+**All 121 sacks at the terminal tick** *(not the requested population; the closest measurable
+analogue)*:
+
+| channel, evaluated alone | result | sole denier | forcing it `CLEAN` restores `CLEAN` |
+|---|---|---|---|
+| pressure counter | `CLEAN 43 / PRESSURE 74 / COLLAPSING 4` — **never `IMMEDIATE`** | ⛔ **`0/121`** | ⛔ **`0/121`** |
+| band floor | `CLEAN 92 / PRESSURE 29` — **never worse** *(ADR-058's narrowing caps it)* | ⛔ **`0/121`** | ⛔ **`0/121`** |
+| ⚠ **arrival** | ⚠ **identical to the aggregate on `121/121`** | **`31/121`** | **`31/121`** |
+
+> ## ⛔ **`90 / 121` HAVE TWO OR THREE CHANNELS DENYING SIMULTANEOUSLY — OVER-DETERMINATION AT PLAY GRAIN, FOURTH INSTANCE ON THIS SUBSYSTEM.**
+
+**Per the standing form: on this subsystem, ask HOW MANY causes are sufficient before asking WHICH ONE
+is responsible.**
+
+### ⛔ THE DISPATCH'S HEADLINE REFUTATION OF ENTRY 118 **DOES NOT SURVIVE**
+
+**It reported `BLOCKER_RESETS` at `42.0%` of all ticks and called entry 118's mechanism contradicted.**
+
+⛔ **Entry 119 ALREADY REPORTED `44.206%` UNCONDITIONAL AND `3.182%` CONDITIONAL ON THE COUNTER BEING
+ABOVE ZERO.** ⚠ **`42.0%` is the unconditional figure. Same picture, not an opposing one.**
+
+**And its own run-length distribution confirms the reconciliation:** ⛔ **median `0`, p90 `2`, max
+`10`.** ⚠ **BIMODAL — most matchups reset constantly, a few never do — which is exactly what
+correlation produces, and the few that never reset are the ones that reach `IMMEDIATE`.**
+
+> ### ⇒ ⛔ **A CORRECTIVE ENTRY THAT EXISTS TO PREVENT ONE SPECIFIC ERROR, PRESENT IN THE TREE THE DISPATCH WAS WORKING IN, UNREAD BY THE DISPATCH THAT MADE THAT ERROR.**
+>
+> ⚠ **Same family as entry 64's absorbed class: recorded, available, and not reaching the person who
+> needed it.** ⛔ **The register's corrective power is bounded by whether anyone reads the corrective —
+> and nothing in a dispatch brief made entry 119 findable at the moment it mattered.**
+
+### 📒 AND THE ORCHESTRATOR'S WORDING INVITED IT — corrected beside in entry 118
+
+**Entry 118 says *"a matchup that tips toward the rusher STAYS TIPPED, so the counter climbs
+near-monotonically."*** ⛔ **That reads as UNIVERSAL and is about a SUBSET.** ⚠ **The mechanism stands;
+the sentence overstates its population.**
+
+### THE WITHHELD BET, SCORED — ⚠ **UNRESOLVED, not weak confirmation**
+
+**The Orchestrator pre-registered, outside the repo and withheld from the dispatch:** *"band floor
+and/or arrival floor denies `CLEAN`, not the counter."*
+
+| | |
+|---|---|
+| directional support | counter never sole denier `0/121`; arrival matches aggregate `121/121`; arrival the only intervention that moves anything `31/121` |
+| ⛔ **verdict** | ⛔ **UNRESOLVED.** **The population the bet was about is EMPTY.** ⚠ **Recorded as unresolved rather than as weak confirmation — the evidence is from a DIFFERENT population and calling it partial credit would be the ratio-improving-from-the-denominator move in a different dress.** |
+
+### DISPOSITION
+
+| item | disposition |
+|---|---|
+| entry 118's cause | ⚠ **NOT refuted; wording corrected beside** |
+| entry 91 | ✅ **CONFIRMED and EXPLAINED — the three-tunable ordering** |
+| the `6/101` → `0` regression's cause | ⛔ **STILL UNIDENTIFIED. The next football question.** |
+| the withheld bet | ⚠ **UNRESOLVED** |
+| ⛔ **`deriveGameId` collision** | ⛔ **SCOPING DISPATCHED — outranks all football work** |
+
+---
+
+## 121. ✅ THE `deriveGameId` COLLISION — **BLAST RADIUS ZERO**, and the premise was wrong
+
+**Ruled the top priority, ahead of all football work, on the Orchestrator's report that prior figures
+might be corrupted. ⛔ READ-ONLY audit. ✅ THE ANSWER IS A CLEAN NULL AND IT IS REPORTED AS A RESULT.**
+
+### ⛔ FIRST — THE ORCHESTRATOR'S PREMISE WAS WRONG. It is not a defect.
+
+**Reported as:** *"`deriveGameId` ignores the seed — a real defect with wide blast radius."*
+
+| what was claimed | what is true |
+|---|---|
+| an oversight | ⛔ **A RATIFIED DESIGN CHOICE with its own test block** — `game.test.ts:89-107`, `★3 — gameId is derived from schedule coordinates, not minted`, asserting it THREE ways |
+| no disambiguator | ✅ **`replay` is the sanctioned one**, and production uses it: `harness/schedule.ts:132-134`, `replay: i`, with a comment stating exactly why |
+| the seed is lost | ✅ **CARRIED AS ITS OWN FIELD** — `GameSummary.seed`, `GAME_END.payload.seed`, calibration's `TeamGameRow.seed` / `SimGameObservation.seed`. **A dedicated test asserts it is recorded because it is *"not derivable from the stream."*** |
+
+> ## ⛔ **THE ORCHESTRATOR READ FOUR LINES OF `deriveGameId` AND NOT THE TEST BLOCK THAT RATIFIES THEM.** ⚠ **Same failure as the `IMMEDIATE`/`CLEAN` brief, two dispatches earlier: reading the artifact but not far enough.**
+
+### ✅ AND THE BLAST RADIUS
+
+| | count |
+|---|---|
+| files matching the identifier search | **51** |
+| non-applicable *(id definitions, or real-NFL joins in a disjoint namespace)* | ~27 |
+| genuine per-play/per-game folds over an engine event stream | **24** |
+| ⛔ **AFFECTED** | ⛔ **`0`** |
+| ✅ **SAFE — per-game scoped** | ✅ **`24`** |
+
+⛔ **NO FIGURE IN `CALIBRATION-BACKLOG.md`, ANY ADR, OR ANY TEST PIN WAS BUILT ON AN OVERWRITTEN
+DATASET.** ⚠ **The idiom is uniform across the codebase** — either a `currentPlayId` sentinel plus
+`flush()` declared INSIDE a per-game fold, or a corpus-wide structure keyed by
+**band/bucket/channel/player**, never by `playId`.
+
+### ⚠ WHAT *IS* REAL, AND IT IS SMALL
+
+⛔ **The collision PRECONDITION genuinely exists** in several `packages/engine/test` corpora that loop
+`buildGameFixture({ seed: \`x-${i}\` })` without `replay` — `sackCredit`, `pressureMetrics`,
+`tippedBall`, `statline`, and every `buildScenario()` loop in `rushThreat`.
+
+⚠ **So a FUTURE instrument written against one of those corpora, aggregating cross-game by `playId`,
+will silently overwrite.** ⛔ **That is not theoretical: it is exactly what happened to the entry-120
+dispatch's own ad-hoc instrument, which it caught, fixed, and re-ran.** ✅ **A mistake in a temporary
+tool, not a property of the codebase.**
+
+**`unruled`, and deliberately not queued as work:** the corpora could pass `replay: i`, or instruments
+could keep scoping per game as all 24 already do. ⚠ **No published figure depends on it.**
+
+### 📒 THE SHAPE WORTH KEEPING
+
+> ## ✅ **A NULL RULED TOP PRIORITY, MEASURED, AND REPORTED AS A RESULT.**
+
+⚠ **The alternative reading of a quiet outcome is that nobody checked** — which is the state the
+sim/real comparability claim sat in for a phase. ⛔ **`0 of 24` is the finding. It cost one dispatch
+and it retires the question.**
+
+⚠ **AND IT WAS RULED TOP PRIORITY ON A FALSE PREMISE, WHICH WAS STILL THE RIGHT CALL.** **If prior
+figures HAD been corrupted, everything in the pressure queue would have been reasoning from bad
+numbers.** ⛔ **The cost of checking was one dispatch; the cost of not checking was unbounded. A
+premise being wrong does not make the check wasted.**
