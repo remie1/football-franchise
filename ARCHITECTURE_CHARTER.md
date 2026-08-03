@@ -1715,6 +1715,30 @@ never makes.**
 number?"*** ⚠ **A physical narrative beside a constant is a HYPOTHESIS ABOUT WHY, not a derivation OF
 WHAT — unless the arithmetic connecting them is written down.**
 
+**Corollary — ⛔ *"EVENLY MATCHED"* IS NOT THE SAME AS *"ZERO RATING DIFFERENTIAL."***
+
+**`dominanceMarginPerHalfTick`'s comment argues from *"an evenly-matched rep"* and computes
+`P(margin ≥ 65) ≈ .06` off a bare d100−d100.** ⛔ **Measured on `buildFlatLeague` — EVERY ATTRIBUTE
+IDENTICAL, ZERO RATING DIFFERENTIAL ANYWHERE — the realised figure sits `2.6-3.0pp` BELOW it at every
+arm.**
+
+⚠ **And it tracks the **§7.1 MIXTURE** figure — which accounts for the check's own `SPEED`/`FINESSE`
+`−12` branch (ADR-050) — to within `0.19pp` everywhere.**
+
+> ## ⛔ **SO THE ENTIRE GAP IS THE CHECK'S OWN TERM-ASYMMETRY. NOT RATINGS. THE ARGUMENT'S "EVENLY MATCHED" MEANT "SYMMETRIC CONTEST", AND THE CHECK IS NOT SYMMETRIC.**
+
+**⇒ ANY CONSTANT ARGUED FROM AN EVEN-CONTEST CALCULATION INHERITS THIS WHEREVER ITS CHECK HAS
+ASYMMETRIC TERMS** — a move modifier, a structural advantage, a one-sided floor. ⚠ **Flat ratings do
+not rescue it; they only remove the OTHER source of divergence.**
+
+### ⚠ SECOND INSTANCE, AND THE PATTERN IN BOTH IS THE SAME
+
+**After the ladder-occupancy work, this is the second time a theoretical die-shape figure has
+diverged from the realised distribution.** ⛔ **BOTH TIMES THE THEORETICAL FIGURE IS THE ONE WRITTEN
+IN THE COMMENT, AND THE REALISED ONE WAS NEVER WRITTEN DOWN ANYWHERE.**
+
+> ### ⇒ **A PROBABILITY IN A COMMENT, DERIVED FROM DIE SHAPE, IS A PREDICTION — NOT A MEASUREMENT.** ⛔ **It should be checked against the corpus before it is used to justify a value, and the check is cheap because the corpus already exists.**
+
 **Corollary — ⛔ INERTNESS UNDER SWEEP IS EVIDENCE ABOUT A LEVER'S REACH, NOT ABOUT ITS VALUE'S JUSTIFICATION.**
 
 **Entry 81 swept `collapsingWithinSeconds` across `0.0-2.0` and found it *"structurally incapable of
