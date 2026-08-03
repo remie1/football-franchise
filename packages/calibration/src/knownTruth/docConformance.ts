@@ -445,6 +445,23 @@ export type Provenance =
    * an owner ruling that supplies one from scratch — and that obligation is sharper for
    * `collapsingWithinSeconds` now that ADR-058 has made it load-bearing rather than cosmetic.
    *
+   * ⚠ **WHAT THE VALUE ASSERTS, AND WHAT IT DOES NOT.** The value asserts **NOT FOUND**, not **DOES
+   * NOT EXIST.** Entry 111's archaeology (full-repo `git log -S` per identifier, the introducing
+   * commit's full message, every commit touching them in `docs/`, and every ADR/backlog entry those
+   * point to) is a record of an exhaustive search coming up empty at a point in time — it is not, and
+   * cannot be, a proof that no justification exists anywhere or could ever be produced.
+   * **If someone later locates one, the correct move is to RECLASSIFY WITH A CITATION — not to argue
+   * the marker was wrong.** A later find does not retroactively make entry 111's search dishonest; it
+   * makes the classification STALE, and staleness and dishonesty call for different remedies — the
+   * former is fixed by re-reading and re-filing the one cell, the latter would call the whole scheme
+   * into question. This distinction belongs in the comment rather than left implicit because the
+   * failure mode is silent otherwise: a reader who finds a justification years from now, with no note
+   * telling them what the marker did and did not claim, has every reason to conclude the marking
+   * scheme was unreliable — when what actually happened is the scheme working exactly as designed,
+   * recording an honest search's result and standing ready to be superseded by a better one. **A
+   * provenance marker that cannot be safely superseded will instead be quietly ignored**, which
+   * defeats the marker more thoroughly than an occasional stale cell ever could.
+   *
    * ⚠ **THE NEXT CELL OF THIS SHAPE — a magnitude with no derivation, no sweep, and no ruling behind
    * it, discovered only by exhaustive archaeology rather than assumed — REUSES THIS VALUE** rather than
    * inventing an eleventh, per the same instruction every value in this union has carried since
