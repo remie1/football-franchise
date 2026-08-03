@@ -396,15 +396,37 @@ manifest {source, season, fetchedAt, schemaHash}.
 4. **Small increments.** A vertical slice, then breadth. A subsystem, then tests. Long agent runs without checkpoints are how architecture drifts.
 5. **The specs are living.** When a design decision changes, amend the spec in the same commit as the code. A spec that lies is worse than no spec.
 6. **Consult `@fantasy-advisor` at phase gates.** It writes memos, never code, and its whole job is catching decisions that would foreclose fantasy mode.
-7. **Every `packages/contracts` unlock states itself in the commit message.** The write-protection in
-   `.claude/settings.json` is lifted, the contracts edit is made, and the deny is restored **before
-   the commit** — which means the lift and the restore **net to zero and the diff shows nothing at
-   all.** So the commit message must record: **what was lifted, what changed, and that it was
-   restored.** Otherwise the guard's own history is the one thing in this repo that cannot be
-   reconstructed — every other change is recoverable from the diff, but a guard that was off for
-   one commit and back on by the next leaves no trace by construction. Name the ADR that authorised
-   it (the `commit-msg` hook already requires an `ADR-0NN` reference for contracts changes; this is
-   the *narrative* half the hook cannot enforce).
+7. **Every `packages/contracts` unlock states itself in the commit message.** **THE HUMAN PERFORMS THE
+   LIFT AND THE RESTORE.** The agent performs neither, ever, and does not attempt them. The human
+   empties the deny in `.claude/settings.json`, the agent makes the contracts edit, the human restores
+   the deny **before the commit** — which means the lift and the restore **net to zero and the diff
+   shows nothing at all.** So the commit message must record: **who lifted, what was lifted, what
+   changed, and that it was restored.** Otherwise the guard's own history is the one thing in this
+   repo that cannot be reconstructed — every other change is recoverable from the diff, but a guard
+   that was off for one commit and back on by the next leaves no trace by construction. Name the ADR
+   that authorised it (the `commit-msg` hook already requires an `ADR-0NN` reference for contracts
+   changes; this is the *narrative* half the hook cannot enforce).
+
+   **WHY THE HUMAN, AND IT IS NOT A PROJECT PREFERENCE.** Claude Code's own classifier refuses to let
+   an agent write a permissions file at all — an agent editing its own permissions is privilege
+   escalation regardless of what the file says, and that guard sits *above* anything this project can
+   configure. **It is categorical and was never ours to waive.** Stated explicitly because this
+   paragraph used to be written in the passive voice — *"the write-protection is lifted"* — and
+   **someone reading it later will otherwise try to automate the lift and read the refusal as a
+   malfunction.** It is the rule working. The friction is the feature: one message per contracts
+   change, and there have been six in the project's life.
+
+   *(The narrowing question was raised and DECLINED, August 2026: a deny narrowed to permit "an
+   Orchestrator amendment under a ratified ADR" would have to be evaluated by the writer at the moment
+   of writing, which is when that judgement is least reliable. **A constraint whose scope the
+   constrained party can widen is not a constraint** — backlog entry 116's shape exactly.)*
+
+   📒 **AND THE OBSERVATION WORTH KEEPING: AN EXTERNAL GUARD CAUGHT A HOLE IN AN INTERNAL ONE.** The
+   protocol as written *permitted* the agent to lift its own deny; the platform's classifier refused
+   anyway. **First time that has happened in this project** — every prior correction here came from
+   our own registers, dispatches, or reviews. ⚠ **Worth remembering the direction: our written rules
+   are not the outermost check, and this one had a bypass in it for the whole of its life until
+   something outside the project declined to use it.**
 8. **Every dispatch that carries a quoted number tells the implementer the number is unverified.**
    Standing rule, owner, July 2026 — it has caught **two ratified errors in one month.** A dispatch
    brief quotes constants and rates out of ADRs and design docs, and **ratification makes a quoted
