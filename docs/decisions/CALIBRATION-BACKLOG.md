@@ -8054,3 +8054,111 @@ carries that `16.5%` caveat.**
 the already-ADR-058 engine produced — it cannot replay what a quarterback would have done differently
 under a genuinely different pocket read.** ⚠ **The identical limitation this module's own header
 already states for every counterfactual in it.**
+
+---
+
+## 113. ⛔ THE RELATIONAL CENSUS — **PERFECT RECALL, NO PRECISION.** The instrument I proposed was underspecified.
+
+**Dispatch died on an API stall mid-report. The INSTRUMENT survived; the ANALYSIS did not.** ⚠ **Run by
+the Orchestrator to recover the findings — the dispatch's own premise ledger and disposition
+classification are ABSENT, not null.**
+
+### ✅ IT WORKS. COVERAGE AND POSITIVE CONTROL BOTH PASS.
+
+- **`717` numeric leaves, `717` classified, `0` unclassified**, across **28 unit groups**. *(Strings
+  `290` / booleans `127` out of scope — same boundary `docConformance` declares.)*
+- ⛔ **POSITIVE CONTROL: ALL FOUR known instances REDISCOVERED**, including the two that are ORDERING
+  relations rather than equalities. **The census does not fail its own control.**
+
+### ⛔⛔ AND IT IS UNUSABLE
+
+| output | count |
+|---|---|
+| equality pairs | **4,345** |
+| integer-multiple pairs | 2,791 |
+| sum triples | **39,673** |
+| boundary pairs computed | 20,819 |
+| ⛔ **TOTAL OUTPUT** | ⛔ **47,415 LINES** |
+
+> ## ⛔ **SIGNAL-TO-NOISE ON EQUALITY ALONE: 4 KNOWN-INTERESTING OF 4,345 = `0.092%`.**
+
+**The `seconds` group has `70` leaves ⇒ `2,415` unordered pairs BY ITSELF.** ⚠ **A pairwise census over
+"all constants sharing a unit" is `O(n²)` BY CONSTRUCTION, and the tree is big enough that `n²`
+swamps any finding in it.**
+
+**Sample of what it reports as a relation:**
+`arrival.pressureWithinSeconds=2` **vs** `result.clockRunoff.interception=0` ⛔ **— two numbers that
+differ by 2, in subsystems that never meet.**
+
+### ⛔ THE MISSING FILTER, AND IT IS NOT A THRESHOLD
+
+> ## ⛔ **DO THESE TWO CONSTANTS EVER *MEET* IN A COMPUTATION?**
+
+| pair | do they meet? |
+|---|---|
+| `collapsingWithinSeconds` / `INTERIOR travel` | ✅ **YES — compared directly in `floorFromArrival` (`rushThreat.ts:596`)** |
+| `pressureWithinSeconds` / `clockRunoff.interception` | ⛔ **NEVER. One floors a pocket status; the other is added to a tick to end a play.** |
+
+⚠ **THAT is the difference between entry 83's defect and a coincidence.** ⛔ **Entry 83's class is not
+*"two constants are equal"* — it is *"two constants that MEET are equal, and neither derivation
+mentions the other."*** **The census implements the first clause and none of the second.**
+
+### ⇒ AND THE PROPOSAL WAS THE ORCHESTRATOR'S, UNDERSPECIFIED
+
+**I proposed it as *"enumerate every constant sharing a unit, compare pairwise — the comparison is
+arithmetic, the subject set is finite and derivable."*** ⛔ **TRUE, AND INSUFFICIENT.** ⚠ **Finite and
+derivable does not mean SMALL, and `O(n²)` over 717 leaves is finite in the way a phone book is.**
+
+**⇒ NEXT PASS NEEDS A CO-OCCURRENCE FILTER** — ⛔ **derived from the CODE (which constants appear in a
+common expression), not from the tunables tree.** ⚠ **UNBUILT. The instrument is committed as a
+CANDIDATE GENERATOR with this limit stated, not as a detector.**
+
+---
+
+## 114. ⛔ `dominanceMarginPerHalfTick` MEASURED — **its rejection-justification is FALSE on the realised corpus**
+
+**ADR-058's relocated Cost-2 obligation, discharged.** ⚠ **The best-argued constant in its group had
+never been measured; `grep` across calibration returned zero hits.**
+
+**Canonical `n=496`, `seedDigest fnv1a:020c1dcb#496`.** ⛔ **Every figure names BOTH terms of the sum:
+the threshold is `winMinMargin(15) + dominanceMarginPerHalfTick(v)`.**
+
+### ⛔ THE CONSTANT'S OWN ARGUMENT, CHECKED
+
+| claim | theoretical *(its own "evenly matched" math)* | ⛔ **MEASURED** | verdict |
+|---|---|---|---|
+| *"a half-tick shave should be the top SIXTH of won reps"* `≈16.67%` | 17.237% | ⛔ **14.204%** | ⚠ **closer to one in SEVEN — slightly MORE selective than claimed** |
+| ⛔ ***"at 25 it fired on MORE THAN HALF of all won reps"*** *(the REJECTION)* | 50.068% — **barely supports it** | ⛔ **`47.436%` — UNDER HALF** | ⛔ **FALSE** |
+
+> ## ⛔ **THE SPECIFIC CLAIM USED TO REJECT `25` DOES NOT HOLD ON THE CORPUS. The direction survives — `14.2%` vs `47.4%` is `3.3×` and the ordering is right — but the rejection's own number is wrong.**
+
+### ⚠ AND THE DIVERGENCE IS **MECHANIC, NOT RATING** — which is the sharper half
+
+⛔ **The corpus is `buildFlatLeague`: EVERY attribute identical, ZERO rating differential anywhere.**
+⚠ **Yet measurement sits `2.6-3.0pp` below the constant's *"evenly matched"* shift-0 math at every
+arm — while tracking the **§7.1 MIXTURE** figure *(ADR-050's SPEED/FINESSE `−12` branch)* to within
+`0.19pp` everywhere.**
+
+> ### ⇒ **SO 100% OF THE GAP BETWEEN THE ARGUMENT AND THE CORPUS IS THE CHECK'S OWN TERM-ASYMMETRY — A MECHANIC FACT THE ARGUMENT NEVER ACCOUNTED FOR.** ⚠ **Real rating dispersion, unrun, would be an ADDITIONAL contributor on top.**
+
+### ✅ NOT A KILL CANDIDATE — it moves things, monotonically
+
+| `v` | threshold | entry | exit | sack | conversion | ⛔ **disagreement** |
+|---|---|---|---|---|---|---|
+| 10 | 25 | 89.835 | 85.211 | 15.980 | 94.853 | 707 (1.908%) |
+| 25 | 40 | 89.820 | 84.535 | 15.454 | 94.116 | 1,635 (4.403%) |
+| **50** | **65** | 89.811 | 83.888 | 15.170 | 93.405 | ⛔ **2,657 (7.151%)** |
+| 75 | 90 | 89.825 | 83.683 | 15.095 | 93.162 | 2,993 (8.046%) |
+| 100 | 115 | 89.825 | 83.683 | 15.095 | 93.162 | 2,993 (8.046%) |
+
+⚠ **`entry` FLAT within `0.02pp`** — as expected; it depends on whether a threat EXISTS, not on ETA
+fine-tuning. ⛔ **`exit`/`sack`/`conversion` move monotonically and SATURATE AT 75**, matching the
+prediction that `≤1.5%` of won reps ever reach margin 90.
+
+⛔ **AND IT MOVES THE DISAGREEMENT POPULATION OVER A `4×` RANGE — `707 → 2,993`** — exactly as
+predicted: lowering the threshold reclassifies EDGE `SPEED` wins OUT of disagreeing and INTO tying.
+
+✅ **Cross-validation: reproduces entry 112 DIGIT-FOR-DIGIT at the committed value** *(old-forced
+37,157; tie 29,655; bandFloor-sole 2,836; disagreement 2,657)*. **Identity `0` mismatches at every
+arm. The structural falsifier holds: `EDGE_SPEED_NONDOMINANT` in the tie population is `0` at every
+arm — a disagreement is never a tie, by construction.**
