@@ -7899,3 +7899,83 @@ alignment. None was taken.**
 commit, no cross-reference; entry 76's later derivation never mentions the travel table.** **Not a LIVE
 tie at the deciding tick (`minTta 1.5`), but the raw constants are equal and unexamined** — ⛔ **entry
 83's signature exactly, and its fourth instance.**
+
+---
+
+## 111. ⛔ THE PROVENANCE ARCHAEOLOGY — **NEITHER, THREE TIMES** — and a formal marking nobody was looking at
+
+**Exhaustive search: `git log -S` on each identifier repo-wide, the introducing commit's FULL message,
+every commit touching them in `docs/`, and every ADR/backlog entry those point to.** ⛔ **READ-ONLY.**
+
+### THE VERDICTS
+
+| constant | verdict | what exists |
+|---|---|---|
+| `immediateWithinSeconds` `0.0` | ⛔ **NEITHER** | **Nothing. No derivation, no sweep, no ruling — anywhere, ever.** One shared descriptive comment |
+| `collapsingWithinSeconds` `1.0` | ⛔ **NEITHER** | ⚠ **A SWEEP EXISTS (entry 81) AND IS NOT A DERIVATION** — see below |
+| `travelSecondsByAlignmentAndMove` | ⛔ **NEITHER** | ⚠ **A YARDAGE NARRATIVE with NO CONVERSION** — see below |
+| `pressureWithinSeconds` `2.0` | ✅ **DERIVED**, on unmarked anchors | confirms entry 110 exactly |
+| ⛔ **`dominanceMarginPerHalfTick` `50`** | ✅ **THE CLEAREST OF THE FIVE** | **and NEVER CHECKED** — see below |
+
+### ⛔ A SWEEP IS NOT A DERIVATION, AND ENTRY 81 SAYS SO ITSELF
+
+**Entry 81 swept `collapsingWithinSeconds` across `0.0-2.0` and found it *"STRUCTURALLY INCAPABLE of
+moving the rate."*** ⛔ **THAT TESTS THE LEVER'S INERTNESS. IT DOES NOT ESTABLISH WHY `1.0` AND NOT
+`0.8`.**
+
+⚠ **And entry 81's own opening already said it:** *"Step one ran first and returned **UNRULED**…
+`tunables.ts`'s comment for this cell carries no two-half table… **Every prior hit was this cell being
+USED, never EXAMINED.**"*
+
+### ⛔ AND THE TRAVEL TABLE HAS A STORY WITHOUT ARITHMETIC
+
+**Its comment gives the physical scenario — interior *"~4-5 yards from a shotgun launch point,"* edge
+*"10-12 yards… arc."*** ⛔ **THERE IS NO CONVERSION FROM THOSE YARDAGES TO THOSE SECONDS. No speed
+constant, no distance/rate step, nowhere.**
+
+> ### ⚠ **A PHYSICAL NARRATIVE THAT DOES NOT REACH ITS OWN NUMBERS READS AS A DERIVATION AND IS NOT ONE** — the reader supplies the missing arithmetic and never notices they did.
+
+### ✅ `dominanceMarginPerHalfTick` IS THE CLEAREST — AND HAS NEVER BEEN CHECKED
+
+**Marked `INTERPRETATION` in `tunables.ts` since introduction, WITH A REAL ARGUMENT:** *"Sized against
+the actual margin distribution, not by feel… `P(margin ≥ 65) ≈ .06` — a half-tick shave should be the
+top sixth of won reps, not the top half. **At 25 it fired on more than half of all won reps.**"*
+⚠ **A rejected alternative with a stated reason. That is the best provenance in this group.**
+
+⛔ **AND `grep -rn "dominanceMarginPerHalfTick" packages/calibration` RETURNS ZERO HITS.** **Never
+swept, never measured, never referenced by any test or `knownTruth` module — VERIFIED.**
+
+> ## ⇒ **THE PARAMETER ADR-058's OBLIGATION RELOCATED TO HAS THE BEST ARGUMENT AND THE LEAST EVIDENCE. Its derivation has never been checked against data, which is EXACTLY what the relocated obligation asks for.**
+
+### ⛔⛔ A FORMAL MARKING **DOES** EXIST — AND NOBODY HAS BEEN LOOKING AT IT
+
+**`docConformance.ts` carries a CATCH-ALL:**
+
+```
+pattern: "arrival.*"   provenance: "INTERPRETATION"
+docRef: "§7.2 KNOWN ISSUE (missing time-of-arrival model)"
+note: "The doc has no arrival model… every number in this block is engine structure filling that gap"
+```
+
+⛔ **SO `immediateWithinSeconds` AND `collapsingWithinSeconds` ARE FORMALLY CLASSIFIED `INTERPRETATION`
+TODAY, MACHINE-CHECKED, IN A RED/GREEN GATE.** ⚠ **Only `pressureWithinSeconds` and
+`containRetiresAfterConsecutiveContains` escape it, via specific `DERIVED_MECHANIC` overrides.**
+
+**⇒ THIS CORRECTS ENTRY 110's *"no provenance marker of any kind"* — which was TRUE OF `tunables.ts`
+and FALSE OF THE CORPUS.**
+
+### ⚠ BUT IT IS CLASSIFICATION **BY WILDCARD FALLBACK**, AND THAT IS A DIFFERENT THING
+
+⛔ **They are `INTERPRETATION` BECAUSE NOTHING MORE SPECIFIC CLAIMED THEM — not because anyone examined
+the cells and judged them.** ⚠ **The note describes A WHOLE BLOCK'S provenance CLASS (*"the doc has no
+arrival model"*), and says nothing about why `0.0` and `1.0` versus any other pair.**
+
+> ### ⇒ **A CATCH-ALL CLASSIFICATION IS A STATEMENT ABOUT THE NEIGHBOURHOOD, NOT ABOUT THE CELL.** ⚠ **It is machine-checked and it is real — and it is ALSO exactly the *"absorbed cell counted as classified"* risk `docConformance.ts`'s OWN HEADER already documents.**
+
+### 📒 AND ONE EPISTEMIC POINT WORTH KEEPING, FROM COMMIT `5768b5e`
+
+> **"`2.0` … was derived … BEFORE the response curve was seen. It landed badly at 8.8% of an already-small budget, and THAT REMAINS THE ONLY AVAILABLE EVIDENCE A DERIVATION WAS NOT FITTED."**
+
+⚠ **A derivation made BEFORE its outcome was known is evidence it was not fitted to that outcome — and
+LANDING BADLY IS THE EVIDENCE.** ⛔ **A derivation that lands well is indistinguishable from a fitted
+one after the fact.** **That is pre-registration applied to a CONSTANT rather than to a measurement.**
