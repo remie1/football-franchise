@@ -2,7 +2,7 @@
 
 - **Date:** August 2026
 - **Proposed by:** Orchestrator (petition, on behalf of `match-engine` + `calibration`; originating in the second external cold read, §5 and C2)
-- **Status:** proposed
+- **Status:** approved (owner + Orchestrator, August 2026) — **contracts NOT YET amended; see Decision condition 1**
 
 > ⚠ **NAMING TRAP, PINNED FIRST.** **`EXT-4` is the fourth external-originated DISPATCH, not owed-queue
 > item 4.** Its subject is **owed-queue item 2** — *"Entry-40's football ruling on rep persistence…
@@ -77,20 +77,33 @@ commit must not land alone.**
 
 ## Need
 
-**External §6 apportions ≈50pp of the 56.4pp gap to the sim side, "all in threat supply," and names
-the cause as §7.1's TIME GRANULARITY** — a per-tick **independent, full-magnitude** contest with a +15
-win band. ⛔ **A pass rush that is re-decided from scratch every half-tick has no reps in it.** A
-rusher who is losing at `t=1.0` is, at `t=1.5`, contesting a fresh matchup against the same blocker —
-so the engine cannot represent "he is being handled today," only "he lost that instant."
+> # ⛔ **THE ENGINE ALREADY DRAWS CONTESTS ONCE PER PLAY. THE PASS RUSH IS THE ONLY ONE THAT DOES NOT.**
+
+**`resolveManCoverage` (`:472`) and `resolveZoneCoverage` (`:497`) are called BEFORE the tick loop
+opens (`:525`)** — claim 9. ⚠ **Coverage is drawn once per play and the play lives with the result.**
+**`resolvePassRushTick` (`:600`) sits inside that loop and re-draws every half-tick.**
+
+> ## ⇒ **SO THIS ADR IS NOT IMPORTING AN EXTERNAL DESIGN. It brings ONE SUBSYSTEM INTO LINE with a pattern this engine already uses everywhere else.**
+
+⛔ **That reframing is the petition's actual argument, and it was NOT available from the review.** ⚠ **It
+came from reading the tree — the review proposes correlated reps as a CORRECTION to be adopted;
+the tree shows correlated reps are already this engine's NORM and the pass rush is the deviation.**
+**Reasoning from the review rather than from the code would have produced a weaker petition for the
+same change.**
+
+### And what the deviation costs, which is where the external evidence comes in
+
+⛔ **A pass rush re-decided from scratch every half-tick has no reps in it.** A rusher losing at
+`t=1.0` is, at `t=1.5`, contesting a fresh matchup against the same blocker — so the engine can
+represent *"he lost that instant"* but never *"he is being handled today."*
+
+**External §6 apportions ≈50pp of the 56.4pp gap to the sim side, "all in threat supply," naming
+§7.1's TIME GRANULARITY** as the cause — a per-tick independent, full-magnitude contest with a +15
+win band. ⚠ **REPORTED, on an arm we have never run (claims 1-3).** ⛔ **It is corroboration for a
+change the tree already argues for on consistency grounds. It is NOT the load-bearing premise, and
+this ADR would stand without it.**
 
 **The correction (claim 1) draws the matchup once per play and jitters the ticks around it.**
-
-> ### ⛔ AND THE ENGINE ALREADY DOES THIS ELSEWHERE.
->
-> **`resolveManCoverage` and `resolveZoneCoverage` are called before the tick loop opens (claim 9).**
-> ⚠ **Coverage is drawn ONCE PER PLAY and lives with the result.** ⛔ **So this ADR does not introduce
-> a novel rep structure — it makes the pass rush consistent with the structure the coverage path has
-> had all along.** **The pass rush is the outlier.**
 
 **What blocks landing it is ADR-004, correctly.** External C2 discloses that the rig *"computes band
 margins from a latent the logged rolls do not reproduce."*
@@ -120,9 +133,20 @@ rollRef?: string;   // the rngLabel of the `pass_rush_rep` CHECK this tick jitte
 ```
 
 ⛔ **This EXTENDS ADR-004's `rollRef` from *summary→`CHECK`* to *`CHECK`→`CHECK`*, which has never been
-done.** ⚠ **It is within the rule's letter and spirit — the tick records its OWN roll exactly once and
-REFERENCES the rep rather than repeating it — but it is a new pattern and is flagged rather than
-slipped in.**
+done.** ✅ **RATIFIED as within ADR-004's SUBSTANCE, not merely its letter** *(owner, August 2026)*:
+**the rule is *a roll is recorded exactly once and referenced thereafter*, and THE DIRECTION OF THE
+REFERENCE WAS NEVER THE POINT.** **A tick recording its own roll and pointing at the rep it derives
+from is the rule working as intended.**
+
+> ### ⇒ **THE GENERALIZATION, STATED RATHER THAN LEFT IMPLICIT** *(owner requirement)*
+>
+> ## **A `rollRef` MAY POINT AT ANY PRIOR ROLL IN THE SAME PLAY — not only from a summary event to its own `CHECK`.**
+>
+> ⛔ **This sentence exists so the next author does not have to RE-DERIVE whether it is allowed.**
+> ⚠ **An implicit generalization is re-litigated at every new site, and the re-derivation is what
+> introduces the divergence** — the same failure this register keeps recording as a restated
+> constant. **It belongs beside ADR-004's rule block in `events.ts`, where the person who needs it
+> is standing.**
 
 > ### ⚠ **WHY NOT A NAMING CONVENTION ON `rngLabel`?** ⛔ **Because Charter §4.1 prefers a compile error to a convention.** **A parseable label linking tick to rep is a convention that survives exactly until someone renames a fork. A field is checkable.**
 
@@ -155,9 +179,10 @@ the `pass_rush_rep` `CHECK`.**
 
 ## Decision
 
-**PROPOSED — awaiting owner ratification.**
+**APPROVED** by project owner + Orchestrator, August 2026. ⛔ **Contracts are NOT amended by this
+ratification** — see condition 1.
 
-⛔ **Two conditions the Orchestrator recommends attaching, both from precedent:**
+⛔ **Two conditions ATTACHED, both from precedent. The first is NON-NEGOTIABLE (owner).**
 
 **1. The contracts commit lands WITH the engine adaptation, in one commit.** ADR-004 set this
 precedent explicitly — *"so the tree is never in a state where the schema and its only producer
@@ -170,6 +195,26 @@ have never run.** ⚠ **The pre-registered prediction at
 `PREREGISTRATION-EXT-4-rep-cadence.md` is scored against OUR measurement, not against §5's table, and
 its binding clause stands: an EXT-4 report giving `conversion` without `pressuredSacks` and
 `disruptedDropbacks` separately is not a result.**
+
+**3. THE `testsAttrs` CONSUMER AUDIT IS A PRECONDITION OF LANDING, NOT A FOLLOW-UP.**
+
+⛔ **Because nothing will go red.** ⚠ **The field keeps existing, keeps type-checking, keeps
+validating — and starts arriving EMPTY.** **A perception consumer reading it off `pass_rush_tick`
+afterward sees `[]` and updates nothing.** ⛔ **That is a SILENT LOSS OF A PERCEPTION CHANNEL, not a
+schema change.**
+
+**The audit's binding question, per consumer:** ⛔ **does it FAIL LOUD, or SILENTLY DO NOTHING?**
+**The silent ones are the finding.**
+
+**Three constraints on its method, ratified with it:**
+
+| # | constraint | why |
+|---|---|---|
+| 1 | ⛔ **DERIVE the consumers, do not recall them** — name the pattern searched | a remembered list is what this register repeatedly records as the thing that misses cases |
+| 2 | ⛔ **DERIVE THE SUBJECT SET TOO** *(entry-101 refinement)* — **not just `calibration` and Spec #6; ANYTHING THAT READS ATTRIBUTE EXPOSURE**, dormant packages included | ⚠ **a sweep over one package when the subject set is three is entry 101's exact defect** |
+| 3 | ⛔ **GREP THE FIELD, NOT JUST THE CALL SITES** | ⚠ **a consumer that copies `testsAttrs` into ITS OWN structure under ITS OWN name is one a call-graph search will not return** |
+
+⚠ **A derived null is a result. "No consumers" is reportable — shown, not assumed.**
 
 Related: [ADR-004](ADR-004-roll-accounting.md) (the rule this extends),
 [ADR-056](ADR-056-throwtype-declares-a-member-nothing-emits.md) (the defect condition 1 avoids),
