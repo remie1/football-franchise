@@ -9303,3 +9303,79 @@ pursuit clock `deadlineTick - curTick` can go below `-1.0`. ✅ **`-10.0` used i
 = 6.0` bounds any reachable value)*, **re-measured `arrivalAllClean = true` on every extinction row** —
 ⚠ **a DETERMINISTIC check, not a sampled zero, and stated as such rather than given a spurious power
 calculation.**
+
+---
+
+## 127. ⛔⛔ AN ARTIFACT REACHED THE OWNER AND NOT THE TREE — **the first channel failure of its kind**
+
+**And: the committed-point class, with one instance confirmed and one PENDING VERIFICATION.**
+
+### ⛔ PART A — THE CHANNEL FAILURE
+
+**The `immediateWithinSeconds` sweep's report reached the OWNER — pasted into their conversation — and
+NEVER REACHED THE ORCHESTRATOR OR THE TREE.** ⚠ **The Orchestrator received no completion
+notification, and the file is not on disk** *(checked: `Downloads/football-stuff` holds the August 1
+cold-read bundle; `find -newermt 2026-08-03` across `Downloads` and `Desktop` returns nothing)*.
+
+> ## ⛔ **THE OWNER RULED FROM IT. THE ORCHESTRATOR COULD NOT VERIFY A SINGLE FIGURE IN IT.**
+
+**⇒ The Orchestrator REFUSED to ratify, write, or act on the findings**, and said so — ⛔ **including
+declining to confirm a refutation of entry 104 on relayed numbers.**
+
+### ⚠ WHY THIS IS A NEW SHAPE
+
+**Every prior instance in this register is a figure travelling OUT of the record into a summary** —
+`0/1,873` cited in three briefs, *"the four refused levers"* recalled into a progress note, ADR-033's
+*"frequently `CLEAN`"* propagating into an engine comment.
+
+> ## ⛔ **THIS ONE TRAVELLED INTO A RULING WITHOUT EVER ENTERING THE RECORD AT ALL.**
+
+⚠ **There is no version of it to audit, quote, or later find wrong.** ⛔ **A figure that is wrong in
+the record is correctable. A figure that was never in the record is not even locatable.**
+
+**⇒ And it is the SEVENTH dispatch-death-or-truncation shape today** *(stopped agents leaving a
+modified file; an API stall leaving an instrument with no analysis; a mid-stream stall leaving
+nothing; a session limit; a backgrounded sweep dying with its turn; a 20KB instrument with no run —
+and now a completed report delivered to a channel the tree cannot see)*. ⛔ **Habit 11's argument
+holds: the residue is not predictable from the failure mode.**
+
+### ✅ THE HANDLING, RECORDED BECAUSE IT IS THE POINT
+
+⛔ **The Orchestrator did not agree, did not hedge into partial agreement, and did not write an entry
+whose load-bearing claim was a measurement it had not seen.** ⚠ **This is the one failure mode the
+whole session has been about, arriving on the last dispatch of it.**
+
+---
+
+### ⛔ PART B — THE COMMITTED-POINT CLASS. **One instance confirmed, one PENDING.**
+
+> ## ⛔ **A RELATIONSHIP READ OFF THE COMMITTED POINT IS A FACT ABOUT THAT POINT UNTIL AN INTERVENTION SAYS OTHERWISE.**
+
+| instance | ruling | status |
+|---|---|---|
+| **entry 103** | entry/exit ruled *real-but-not-the-cause* on a **`4.123pp`** delta **at committed tunables** | ✅ **CONFIRMED OVERTURNED** — the counterfactual measured entry `0.10pp` / exit `64.17pp` under supply extinction. ⛔ **The delta had measured SATURATION, NOT IRRELEVANCE** |
+| ⚠ **entry 104** | the exit/conversion tension ruled a **JOINT CONSTRAINT** — conversion falls monotonically as forcing tightens — measured **on the win threshold, at committed horizons** | ⛔ **PENDING VERIFICATION.** ⚠ **Reported refuted; the Orchestrator has NOT seen the figures** *(Part A)*. **DO NOT CITE AS REFUTED UNTIL READ FROM AN AUDITABLE SOURCE** |
+
+⛔ **THE INTERPRETATION WAS PRE-COMMITTED**, outside the repo, BEFORE the measurement — precisely so
+it could not be fitted afterward:
+
+> *"If the falsifier fires, that tension was an artifact of measuring at committed tunables. And that
+> is the same error the `4.123pp` delta turned out to be. Same shape, one ruling later."*
+
+⚠ **It was ALSO recorded as able to be wrong on its own terms** — the falsifier could fire for reasons
+unrelated to committed-point measurement. ⛔ **That caveat still stands and is not retired by a
+relayed result.**
+
+### ⇒ WHAT MAKES IT A CLASS RATHER THAN TWO INCIDENTS — **stated conditionally**
+
+⛔ **IF entry 104 is confirmed overturned on verified figures**, then: **two rulings, SAME SUBSYSTEM,
+ONE APART, both reading a relationship off the committed point and mistaking it for a property of the
+system.**
+
+⚠ **The general form would then be worth more than either instance, and it is cheap to test:** ⛔ **a
+constraint observed at committed tunables has NOT been shown to be a property until an intervention
+moves the point.** ✅ **Auditable against past rulings without any new measurement — find the ones
+resting on a committed-point relationship that was never counterfactualled.**
+
+**⇒ `unruled` and NOT queued** — the register pause holds, and this is the one item that does not need
+new measurement to progress.
