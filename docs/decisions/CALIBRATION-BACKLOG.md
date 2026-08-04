@@ -9836,3 +9836,197 @@ nothing.**
 ⚠ **Refused five times across two days; correct five times.** ⛔ **The refusal is cheap and the
 alternative is a ruling built on figures nobody can find** — **and on this occasion the reasoning
 behind them was ALSO wrong, which the refusal surfaced rather than the relay.**
+
+---
+
+## 134. ⛔⛔ THE COMMITTED-POINT CLASS WAS DEFINED TOO NARROWLY — **and the arm-naming rule has a gap it did not know about**
+
+**Not a fifth instance. ⛔ A correction to what the class IS, prompted by the reverse direction
+appearing** *(entry 133)*.
+
+### ⛔ THE OLD FORM PRIVILEGED ONE CONFIGURATION
+
+**As recorded:** *"On this subsystem, `X never fires` means `X never fires AT COMMITTED VALUES` until
+an intervention says otherwise."*
+
+⚠ **Four instances, all generalising a COMMITTED-POINT fact OUTWARD** — entry 103's delta, entry 104's
+tension, the counter's ceiling, the `clock` path.
+
+⛔ **THEN THE REVERSE APPEARED** *(entry 133)*: **an OFF-committed fact generalised BACKWARD onto the
+committed point** — *"sack is invariant to the labelling layer,"* true at external read 3's `C2` arm,
+**vacuous at committed values where there is nothing to be invariant to.**
+
+> ## ⇒ ⛔ **THE REVERSE IS NOT A NEW MEMBER. IT IS EVIDENCE THE CLASS WAS DEFINED TOO NARROWLY.** ⚠ **Privileging the committed point as the special case is what let it through.**
+
+### ✅ THE CORRECTED FORM
+
+> ## ✅ **ANY MEASURED RELATIONSHIP CARRIES ITS CONFIGURATION. CITING IT ELSEWHERE REQUIRES ESTABLISHING THAT THE CONFIGURATION TRANSFERS.**
+
+⛔ **A finding's configuration is a PROPERTY OF THE FINDING, not context around it.** ✅ **Symmetric —
+no direction is the special case.**
+
+### ⛔ AND THE GUARD ATTACHES AT **CITATION** TIME, NOT AT READING TIME
+
+⚠ **The sentence is IDENTICAL in both places.** ⛔ ***"Sack is invariant to the labelling layer"* reads
+the same whether it is true or vacuous.** **So nothing about ENCOUNTERING it can flag it — only
+INVOKING it.**
+
+✅ **Same shape as the arm-naming requirement, one level up:**
+
+> ## ⛔ **A RELATIONSHIP CITED WITHOUT ITS CONFIGURATION IS THE SAME DEFECT AS A FIGURE CITED WITHOUT ITS ARM.**
+
+### ⛔⛔ WHICH EXPOSES A GAP IN THE ARM-NAMING DISCIPLINE ITSELF
+
+**`EVERY FIGURE NAMES ITS ARM` is a standing constraint on every dispatch brief in this project.**
+
+> ## ⛔ **IT BINDS FIGURES. IT SAYS NOTHING ABOUT RELATIONSHIPS.**
+
+⚠ **AND RELATIONSHIPS ARE WHAT RULINGS TURN ON.** ⛔ **Every ruling this project has made was on a
+relationship, not a figure** — entry 104's *"conversion falls as exit rises"*, ADR-049's
+over-determination, the four inertness claims, ADR-058's *"arrival is authoritative"*. **The
+arm-naming rule has never applied to any of them.**
+
+**⇒ The rule has been protecting the inputs and leaving the conclusions unguarded**, ⚠ **which is why
+four of the five committed-point instances were found by re-measurement rather than by review.**
+
+📒 **RECORDED AS A GAP, NOT PROPOSED AS A FIELD.** ⛔ **The obvious form — *"every relationship names
+its configuration"* — is tidy enough to be tempting and untested, and this week produced two rules on
+their first instance, one already carrying a known gap.**
+
+---
+
+## ⛔ AND A HABIT CONVERSION — commit messages go through a FILE, always
+
+**Third shell-quoting failure today.** ⛔ **An apostrophe inside a `git commit -m "…"` string split the
+message; the commit landed TRUNCATED MID-SENTENCE** *(repaired by amend before push — entry 133)*.
+⚠ **Earlier the same day: a heredoc that failed to parse and ran nothing, and a `git add` that
+received message fragments as pathspecs.**
+
+> ## ⛔ **HABIT 9's TRIGGER: A RECALL-BASED HABIT THAT FAILS THREE TIMES GETS CONVERTED, NOT REMEMBERED HARDER.**
+
+**Habit 9 became `pnpm verify` on exactly these grounds.** ✅ **The conversion here is trivial:**
+
+> ## ✅ **ANY COMMIT MESSAGE CONTAINING PROSE GOES THROUGH `-F <file>`. NOT *"when I remember there is an apostrophe."***
+
+⛔ **WRITTEN UP RATHER THAN JUST DONE, and the reason is the whole argument: DOING IT QUIETLY IS WHAT
+THE THIRD FAILURE WAS.** ⚠ **A habit fixed by better remembering has not been fixed.**
+
+---
+
+## 135. ✅ `travelSecondsByAlignmentAndMove` — **FIRST MEASUREMENT**, and `INTERIOR` is the supply-and-travel question
+
+**The constant under ruling, swept for the first time in the project's history.** ⛔ **Entry 132 found
+it had only ever had arithmetic behind it.**
+
+**Arm: `flat-60-32t`, `SYNTHETIC_ROUND_ROBIN` 2024, 496 games, `baseline-0001`, digest
+`fnv1a:020c1dcb#496`. `dominanceMarginPerHalfTick` held committed (`50`) on every arm. 20 arms.**
+
+### ⛔ `INTERIOR` IS THE LEVER — and it is not close
+
+**It carries ~85% of the won-rep population** *(entry 110's own finding)*.
+
+| `INTERIOR` | disagreement | `sack` | `exit` |
+|---|---|---|---|
+| `≤ 1.0` *(committed 1.0)* | `2,520` | `16.509%` | `78.56%` |
+| ⛔ **`2.0`** | ⛔ **`15,198`** *(`39.1%` of forced, vs `7.2%`)* | ⛔ **`7.599%`** | `72.02%` |
+
+⚠ **`entry` stays flat throughout.** ⛔ **A single half-tick of widening past committed does more than
+the full grid on all three EDGE axes combined.**
+
+> ## ⛔ **`7.599%` AGAINST REAL `6.560%` IS `+1.04pp` — THE CLOSEST ANY ARM IN THIS PROJECT HAS COME.**
+
+### ⛔⛔ AND IT IS NOT A CANDIDATE
+
+**Post-hoc, found by sweeping, and `exit` falls to `72.02` against a real side THAT DOES NOT EXIST.**
+⚠ **Same standing as the corridor and `(90, 2.0, 0.0)` — both refused, for these reasons.**
+
+> ### ⇒ ✅ **WHAT IT ESTABLISHES IS THAT THE AXIS IS LIVE AND THE REACH IS LARGE — worth more than the value.**
+
+### 📒 `INTERIOR ≤ 1.0` IS A DETERMINISTIC CLAMP-NULL — **fifth committed-point-empty instance, and the first STRUCTURAL one**
+
+⛔ **`v = 0.0` and `v = 0.5` are BIT-IDENTICAL to committed on every metric, every channel-fold count,
+every census cell.** ⚠ **Because `minTravelSeconds = 1.0` and `INTERIOR` IS COMMITTED AT ITS OWN FLOOR
+— narrowing is absorbed entirely.**
+
+✅ **Structural rather than measured, so no power statement is owed.**
+
+### ⚠ `EDGE.POWER` IS EFFECTIVELY INERT — **for a DISTRIBUTION reason, not an arithmetic one**
+
+**The triple is flat across its entire grid.** ⛔ **Not because the axis is structurally inert — the
+arithmetic is identical to every other axis.** ⚠ **Because of `3,632` committed-arm ties in the merged
+bucket, only **`12` are genuinely `POWER`** once decoupled — `0.4%`. **The rest are `FINESSE`.**
+
+> ## ⇒ **THE CONSTANT HAS ALMOST NO REACH, AND THE QUESTION IS MOVE SELECTION UPSTREAM** — a fact about `FROZEN_TENDENCIES` + `buildFlatLeague`, ⛔ **not necessarily true under a different caller or real ratings.**
+
+---
+
+## ⛔⛔ THE SIXTH FALSE-PROSE SITE — **and the worst placement yet: prose a GUARD IS BUILT ON**
+
+**`pocketChannelShares.ts:682-687`:**
+
+> ***"POWER and FINESSE are publicly INDISTINGUISHABLE, ALWAYS: `travelSecondsByAlignmentAndMove` gives
+> them the identical base at every alignment… no observation can ever separate them."***
+
+⛔ **A FACT ABOUT THE COMMITTED VALUES, ASSERTED WITH THE WORD `ALWAYS`.** ⚠ **Sweeping either off
+`1.5` makes it false for the untouched sibling's population.**
+
+> ## ⛔ **EVERY PRIOR FALSE-PROSE INSTANCE WAS PROSE BESIDE CODE. THIS IS PROSE A STANDING FALSIFIER DEPENDS ON.**
+
+**Run unmodified against the sweep, the classifier calls `3,170`-`3,624` ticks per off-committed arm
+`EDGE_UNRECONCILED`** — ⛔ **and `expect(edgeUnreconciled).toBe(0)` is a live assertion in
+`dominanceMarginPerHalfTickSweep.test.ts`. It would have gone red.**
+
+✅ **HANDLING, AND IT IS THE RIGHT ONE:** the dispatch **let the standing classifier run unmodified to
+QUANTIFY the defect**, then supplied a corrected three-way classifier computing SPEED/POWER/FINESSE
+independently. ⛔ **Its own falsifier held on ALL 20 ARMS.** ⚠ **Quantify rather than route around.**
+
+---
+
+## ⛔⛔ ENTRY 114's CROSS-VALIDATION IS STALE — **a NEW member of the committed-point class**
+
+| entry 112/114 published | ⛔ **measured now** |
+|---|---|
+| old-forced `37,157` | **`35,009`** |
+| bandFloor-sole `2,836` | **`2,653`** |
+| `edgeSpeedNonDominant` `2,657` | **`2,480`** |
+
+⛔ **AND THE STANDING, ALREADY-COMMITTED `dominanceMarginPerHalfTickSweep.test.ts`, RE-RUN UNMODIFIED,
+NOW MEASURES `35,009` TOO** — disagreeing with its own header's claimed reproduction of entry 112.
+✅ **`tunablesDigest` UNCHANGED (`fnv1a:81d0e64f`).**
+
+> ## ⇒ ⛔ **ENGINE-SIDE DRIFT, NOT INSTRUMENT ERROR.** ⚠ **Entry 122's fix, ADR-059 and ADR-060 all landed between.**
+
+**⇒ ENTRY 132's CLASSIFICATION OF ENTRY 114 AS ONE OF THE SIX SOUND CLOSURES IS REVISED.** ✅ **Its
+DIRECTION and MONOTONICITY claims stand — not re-run, not challenged.** ⛔ **Its *"cross-validated
+digit-for-digit against entry 112"* claim DOES NOT HOLD on the current tree.**
+
+### ⇒ THE NEW FORM, AND IT IS THE CLASS'S NEWEST MEMBER
+
+> ## ⛔ **A CROSS-VALIDATION THAT HELD AT ONE ENGINE COMMIT AND DOES NOT AT ANOTHER.**
+
+⚠ **The closure audit had NO WAY to see it** — ⛔ **a cross-validation reads as the STRONGEST POSSIBLE
+PROVENANCE right up until the tree moves under BOTH arms.**
+
+✅ **Same shape as ADR-025's trend refusal** *(`engineCommit` + `tunablesDigest`; `-dirty` never
+compares equal)*, **arriving at a VALIDATION rather than at a report.**
+
+> ## 📒 **AND IT IS THE ONLY MEMBER OF THIS CLASS SO FAR WHERE NOTHING WAS WRONG WHEN WRITTEN.** ⚠ **Entry 114's cross-validation was correct, rigorous, and digit-for-digit true on the tree that produced it.**
+
+---
+
+## 📒 FIFTH RELATIONAL INSTANCE — **and the first to arrive BY CONSTRUCTION**
+
+**At `EDGE.POWER = 2.0` and `EDGE.FINESSE = 2.0`, the swept value coincides with `EDGE.SPEED`'s
+COMMITTED `2.0`** — ⛔ **entry 83's accidental-equality class, CREATED BY AN ARM rather than found in
+the tree.**
+
+⚠ **It makes the corrected classifier's ATTRIBUTION ambiguous at exactly those points**
+*(`EDGE_SPEED_AMBIGUOUS_WITH_OTHER`: `2,489` / `5,481`)* — ⛔ **but ONLY the attribution, not the
+tie/disagree determination, which never touches `classifyMoveCell`.**
+
+✅ **The dispatch flagged that its own generalized-disagreement column UNDERCOUNTS at those two arms
+and supplied the corrected reading** *(`2,489` and `5,481`)* **rather than letting a reader take the
+column at face value.**
+
+> ⚠ **First time a sweep has MANUFACTURED an instance of a class this register catalogues.** ⛔ **Worth
+> knowing that arms can create the defects the tree is audited for.**
