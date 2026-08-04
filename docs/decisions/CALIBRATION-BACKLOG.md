@@ -9658,3 +9658,123 @@ each arm is an INDEPENDENT DRAW that happens to share a seed string, not a repla
 ✅ **Hence run as two independent samples rather than claimed as a paired design.** ⛔ **On a flat
 league this changes nothing — every roster is attribute-interchangeable — but the distinction is why
 the statistical line uses two-proportion tests rather than a paired one.**
+
+---
+
+## 131. ⛔ FOUR STALE COMMENTS FROM ONE PREDICATE SWAP — a sentence stale twice, and the code side of a gap with no rule
+
+⛔ **ADR-060 produced FOUR stale comments, in two packages.** ⚠ **Three were found by a `src`-scoped
+grep; THE FOURTH ONLY INCIDENTALLY, by a test-tree grep the brief never asked for** — the Orchestrator's
+scoping error, and the reach problem demonstrating itself inside the work about the reach problem.
+
+### ⛔ 1. A SENTENCE CAN BE STALE TWICE AND READS AS STALE ONCE
+
+**`collect.ts` and `tier1.ts` each assert an IDENTITY between two comparisons —
+`minTta <= immediateWithinSeconds` as used by `hasArrived`, against the arrival fact.**
+
+⛔ **THAT SENTENCE IS STALE FOR TWO INDEPENDENT REASONS:**
+
+| # | mechanism | established |
+|---|---|---|
+| 1 | ⛔ **the identity was ALREADY COMMITTED-POINT-ONLY** — it holds at `immediateWithinSeconds = 0.0` and nowhere else | **entry 126, finding 8** |
+| 2 | ⛔ **and it is NOW ALSO NOT THE SACK'S PREDICATE** — the re-anchoring removed that call site entirely | **this entry** |
+
+> ## ⛔ **A CORRECTION THAT FIXES THE VISIBLE STALENESS AND INHERITS THE INVISIBLE ONE IS THE CORRECTION-INHERITANCE DEFECT — ARRIVING IN PROSE RATHER THAN IN A VALUE.**
+
+⚠ **The second mechanism is the one a reader arrives with; the first is the one already in the
+register.** ⛔ **Correcting only the second leaves a sentence that reads FRESHLY CORRECTED and is still
+wrong** — and it now carries a dated correction beside it, which makes it MORE credible than before.
+
+✅ **Both dispatches were required to say WHICH mechanism applies WHERE rather than correcting once.**
+
+---
+
+### ⛔⛔ 2. THE OPEN GAP — we have named this class in BOTH directions and have a mitigation for ONE
+
+**Entry 129 named the fourth false-classification mechanism: *a note describing a superseded version of
+the document it cites*, and suggested a partial form:**
+
+> *"When a ratified amendment closes a documented gap, the classifications asserting that gap are the
+> things to re-read."*
+
+⛔ **THAT IS A RULE FOR DOC CHANGES.** ⚠ **What happened here is the CODE side of the same gap, and it
+has NO RULE AT ALL — only the habit of checking.**
+
+**The evidence that it is structural rather than a lapse:** ⛔ **ONE predicate swap produced THREE
+stale comments within the hour, in a different package from the change** — and it happened in the
+commit that NAMED the class.
+
+> ## ⇒ ⚠ **A LAPSE IS ONE COMMENT SOMEONE FORGOT. THREE, FROM ONE SWAP, IS A PROPERTY OF THE TOOLCHAIN.**
+
+⛔ **Nothing connects a code change to the prose that describes it.** ⚠ **Every change of this shape
+produces stale prose BY DEFAULT.** ✅ **The habit of checking caught it here.** ⛔ **It will not next
+time, and no field written this week would have.**
+
+**⇒ RECORDED AS AN OPEN GAP, NOT PROPOSED AS WORK.** ⚠ **Both halves of the class are now named; only
+the doc half has even a partial form.** ⛔ **Stating the asymmetry is the honest disposition — a
+register that names a class in both directions and mitigates one of them should say so, rather than
+letting the named-ness read as coverage.**
+
+📒 **AND IT IS THE THIRD IRREDUCIBLE ITEM** *(after "read far enough" and "the corrective nobody
+reads")* — ⚠ **all three about REACH rather than correctness, and all three surfaced this week.**
+
+---
+
+## 132. ✅ THE CLOSURE AUDIT — **six sound, three argument-only, and the precondition gap is NARROWER than the brief claimed**
+
+**Read-only. No runs, no instruments. ⛔ The first register work that RETIRES standing rather than adding it.**
+
+**Method: header index of all 130 entries** *(numbering is non-sequential in file position — the index was READ, not assumed contiguous)*, **the full `docs/decisions` listing, targeted reads, and CITATION GREP for the dependency column** *(`entry N` / `ADR-0NN` literals, pattern named)*.
+
+### ✅ THE NULL, REPORTED — **six closures are intervention-closed and sound**
+
+⛔ **The split is the product. A list where everything comes back weak is as uninformative as one where nothing does.**
+
+| closure | why sound |
+|---|---|
+| **ADR-049** — pressure rate over-determined | 4 seed lists × 496 games × 24 configs, digest-identical complements. ⚠ **28 citations — the widest-cited closure in the register** |
+| **ADR-060** — sack keys on physical arrival | pre-registered falsifier didn't fire; three independent verifications; checked directly rather than from a report |
+| **entry 130** — 12-vs-32 comparability | three independent lines; retires a sign disagreement rather than rounding it |
+| **entry 114** — `dominanceMarginPerHalfTick` | cross-validated digit-for-digit against entry 112 |
+| **entry 122**'s core diff | `git diff` showed byte-identical eligibility logic; cause isolated upstream. ✅ **Its own scope limit self-disclosed, not hidden** |
+| **entry 119**'s withdrawal | an intervention reversing an argument-only ruling |
+
+### ⛔ AND THE BRIEF'S OWN PREMISE WAS WRONG — the gap is NARROWER, not wider
+
+**The brief said ADR-058's relocated revisit obligation was one *"nobody has discharged."***
+
+⛔ **PARTIALLY FALSE. Entry 114's opening line reads *"ADR-058's relocated Cost-2 obligation, discharged."*** ✅ **The `dominanceMarginPerHalfTick` half WAS discharged, by measurement, at `n=496`.**
+
+> ## ⇒ **ONLY THE `travelSecondsByAlignmentAndMove` HALF REMAINS — and that changes the precondition list materially.**
+
+⚠ **An audit correcting its own brief TOWARD a smaller gap is worth noting: the pull in this work is toward finding more weakness, not less.**
+
+### ⛔⛔ THE SHARPEST PRECONDITION GAP — the travel table's base values have NEVER been swept
+
+**`travelSecondsByAlignmentAndMove` — `INTERPRETATION`-marked, and grep across `docs/decisions` for a sweep or measurement of it returns NOTHING.** ⚠ **Entry 110's tie/disagree table is ARITHMETIC ON THE CONSTANTS AS COMMITTED, never counterfactualled.**
+
+> ## ⛔ **ANY SUPPLY-AND-TRAVEL RULING THAT TREATS "THE OBLIGATION" AS DISCHARGED IS BUILDING ON AN ARGUMENT-ONLY FOUNDATION FOR THAT HALF.**
+
+✅ **ARM NAMED:** sweep `travelSecondsByAlignmentAndMove.{INTERIOR, EDGE.POWER, EDGE.FINESSE, EDGE.SPEED}` **independently of the shave**, canonical `flat-60-32t`, 496 games, `baseline-0001`, **re-running entry 112's disagreement census** *(currently `2,657` at committed)* **per arm.**
+
+### ⇒ THE PRECONDITION LIST FOR SUPPLY-AND-TRAVEL
+
+| dependency | rests on | standing |
+|---|---|---|
+| **entry 104's `T` curve** | ADR-049's over-determination *(sound)*; entry 103's overturn *(sound)*; the `qb_disruption_rate` instrument, which **postdates all five original sweep harnesses** | ✅ **foundations sound** |
+| ⛔ **`travelSecondsByAlignmentAndMove`** | ADR-058's routing *(intervention on the decisive fact, ARGUMENT on the football case)*; entry 110's correction *(sound argument)*; entry 114 **discharging only the SHAVE half** | ⛔ **base values ARGUMENT-ONLY. The gap.** |
+
+⚠ **AND ONE INFERENCE THE AUDIT FLAGGED AS ITS OWN RATHER THAN THE REGISTER'S:** that ADR-060's re-anchoring cannot change entry 104's numbers *(the `T`-sweep held `immediateWithinSeconds` at committed `0.0`, where label and physical anchors are definitionally identical)*. ⛔ **Nothing in the corpus states this. Marked as needing intervention rather than trusted.**
+
+### ⛔ TWO MORE ARGUMENT-ONLY CLOSURES, ARMS NAMED
+
+- **ADR-058's *"EDGE disagrees"*** — corrected by entry 110 to *"5 of 6 ties; only `EDGE SPEED` non-dominant disagrees."* ⚠ **The underlying `14.85%` EDGE bucket (entry 109) HAS NEVER BEEN SPLIT BY MOVE** — entry 110 says so itself *("None was taken")*. **ARM: a by-move census on the canonical arm.**
+- **Entry 122's four unexamined `rush.band` consumers** *(`continuesContainStreak`, `startsThreat`, `retiresBySustainedContainment`, `delayThreat`)* — ⚠ **the entry's own addendum shows *"SOLVED"* covers ONE OF SEVEN.** **ARM: the same before/after tree-diff instrument entry 122 used, applied to each** — and entry 122 flags the last two as the likeliest hit for `rushThreat.test.ts`'s still-unexplained step-up `0/1,873`.
+
+### ⛔ THE BLIND SPOT, NAMED — and it is the finding, not a caveat
+
+**A citation grep finds only LITERAL `entry N` / `ADR-0NN` tokens.** ⛔ **It cannot see a dependency stated in prose without the label** — and **ADR-058's own body restates entry 109's numbers inline rather than citing it.**
+
+⚠ **Entries 1-90 were not read individually; ADR-050/051/053/054/055/056/057/059 bodies and `PREREGISTRATION-EXT-4` were not read in full.** ⛔ **If the true closure set is larger it is most likely there.**
+
+✅ **Stated as a finding per the brief's own instruction, not as a formality.**
