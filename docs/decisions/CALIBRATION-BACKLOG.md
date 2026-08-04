@@ -10251,3 +10251,78 @@ configurability is fictional.**
 > 📒 **`unruled`, and NOT proposed as work.** ⚠ **The obvious remedy — instances index back to where the
 > class is named — is one instance old and this week already produced two rules on first sight.**
 > ⛔ **Recorded so the next split is recognised rather than rediscovered.**
+
+---
+
+## 139. ✅ HORN (c) DISCHARGED — **the label layer makes no arrival claim, so there was no unmet consumer**
+
+**ADR-060 left `hasArrived` dormant with its subject named and recorded the open question rather than
+resolving it: §7.2's `IMMEDIATE` promises *"rusher in QB's face"* and nothing tests whether that is
+true.** ⛔ **READ-ONLY mechanism read. No ruling was taken in the report; the rulings below are the
+owner's.**
+
+**Configuration** *(per entry 134)*: post-ADR-058, post-ADR-059, post-ADR-060, flat league, frozen
+caller, `packages/engine` at `3043d58`.
+
+### ⛔ THE ENUMERATION — and the brief UNDERCOUNTED, exactly as it warned it might
+
+**The brief named four entities and stated the list as A FLOOR, NOT A BOUND.** ⛔ **It omitted
+`sacksWithoutTarget` ENTIRELY — which turned out to be the ambiguous consumer — and named ONE
+`forcesDecision` call site when there are TWO** *(`passPlay.ts:854`, `:1012`)*.
+
+✅ **The floor-not-bound framing is what made that recoverable.** ⚠ **Fourth instance on this subsystem
+of a brief-shaped ceiling** *(after the counter's seven-when-two, the channel decomposition, and the
+falsifier in two files)* — **and the first where the framing caught it.**
+
+### ✅ EVERY CONSUMER IS BEHAVIOURALLY **PROXIMITY**
+
+| consumer | verdict | why |
+|---|---|---|
+| `readCapacityDeltaFor` | **PROXIMITY** | total map over all four rungs, **every tick**; `IMMEDIATE` is reachable by the pressure counter with **no rusher near arrival** |
+| `accuracyModifierFor` | **PROXIMITY** | ⛔ **structurally can only fire on a tick where a throw RELEASES** — by construction a tick the play was NOT terminated by arrival |
+| ⚠ **`forcesDecision`** | ⛔ **PROXIMITY — DESPITE THE VERB** | **reads arrival-shaped; triggers on `["COLLAPSING","IMMEDIATE"]`, and `COLLAPSING` is reachable with ZERO live threats.** ⚠ **It gates a behavioural choice and NEVER terminates a play** |
+| ⛔ **`sacksWithoutTarget`'s call** | ⛔ **GENUINELY MIXED** | **a PHYSICAL conjunct `minTta <= 0` ANDed with a LABEL conjunct in ONE expression** |
+
+> ## ⇒ ⛔ **JUDGED ON BEHAVIOUR, NOTHING IN THE LABEL LAYER MAKES AN ARRIVAL CLAIM.**
+
+⚠ **`forcesDecision` is the case worth keeping: the ONLY thing suggesting arrival is its NAME.**
+
+### ✅ SO HORN (c) IS DISCHARGED, NOT DEFERRED — **owner ruling**
+
+**External read 3 §4a already ruled the forcing gradient should derive from `minTta`.** ⛔ **What
+remained was whether anything should TEST that *"rusher in QB's face"* is true.**
+
+> ## ⇒ ⛔ **THERE IS NO UNMET CONSUMER. THE GAP WAS A QUESTION ABOUT A CLAIM THE MODEL DOES NOT MAKE.**
+
+✅ **`hasArrived` stays dormant with its subject named** — **unchanged, and now for a measured reason
+rather than a recorded one.** ⚠ **Recorded here so nobody reopens it from §7.2's WORDING: the doc's
+prose describes a rung; the engine's consumers of that rung all ask a proximity question.**
+
+### ⛔ AND THE MIXED SITE IS THE SAME LINE AS ADR-060's CORRECTION
+
+**`sacksWithoutTarget`'s call ANDs a physical conjunct with a label conjunct — the both-jobs case this
+read was looking for.** ⛔ **And at committed values the label conjunct is LOGICALLY REDUNDANT**
+*(`minTta <= 0` ⇒ `pocket = IMMEDIATE` ⇒ list membership)*.
+
+> ## ⇒ ⚠ **THE TWO FINDINGS ARE ONE: IT IS REDUNDANT *BECAUSE* IT IS MIXED.**
+
+**Ruled: CODE STAYS, ADR CORRECTED BESIDE.** ⛔ **A conjunct redundant at the committed point is not a
+conjunct that is redundant** *(entry 134)*; **removing it would assert that no configuration should
+distinguish them — a football claim nobody has made, hence a petition.**
+
+### ✅ QUESTION 4's NULL — **four splits, not five, and the fourth was already ruled**
+
+**The label/event split has been made three times before ADR-060** — **ADR-033** *(outcome ≠ status)*,
+**ADR-055** *(pursuit ≠ pocket)*, **the `ARRIVED` publication** *(event ≠ label)*.
+
+**Candidate fourth: ADR-058's `minimumStatusByBand`** — a categorical band label standing in for a
+continuous physical quantity, **the identical category mistake one rung up.** ⚠ **But ALREADY
+ADJUDICATED: narrowed rather than removed, with a deliberately-kept residual population of `6` in
+`40,000` plays that arrival cannot see.**
+
+⛔ **NULL REPORTED ON A SECOND FOURTH SITE — nothing else in `packages/engine` has the shape.**
+
+> ## ⇒ ✅ **SO THESE WERE GENUINE ONE-OFFS RATHER THAN ACCRETION.** ⛔ **NO GENERAL TREATMENT IS WARRANTED, and the next one gets fixed as it surfaces rather than pre-empted.**
+
+⚠ **Worth having BEFORE someone proposes a design pass on the label layer** — **the null is what makes
+that proposal unnecessary, and a null that arrives after the pass is worth nothing.**

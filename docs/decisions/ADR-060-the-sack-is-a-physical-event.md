@@ -89,6 +89,30 @@ if (pocket !== undefined && minTta !== undefined && minTta <= 0 && sacksWithoutT
 hard-coded to (`etaTick > tick`).** ✅ **So the sack and the published arrival event now test the same
 thing — ADR-007's cause-then-effect reading becomes TRUE of the sack rather than committed-point-true.**
 
+> ## ⛔ **CORRECTION BESIDE — HALF THIS LINE IS INERT AT COMMITTED VALUES, AND THIS ADR DID NOT SAY SO** *(Orchestrator, August 2026, on the horn-(c) mechanism read)*
+>
+> ⛔ **`sacksWithoutTarget(tunables, pocket)` CANNOT BE FALSE when `minTta <= 0` at committed values.**
+>
+> **The chain:** `immediateWithinSeconds` is committed at `0.0`, so `minTta <= 0` drives
+> `pocketFloorFromArrival` to `IMMEDIATE`; `pocketStatusFor` takes the WORST-OF, so `pocket` is
+> necessarily `IMMEDIATE`; and `sackWhenNoTarget` is `["COLLAPSING", "IMMEDIATE"]`.
+> ⚠ **The physical conjunct already guarantees the label conjunct.**
+>
+> ### ⛔ AND IT IS *NOT* DEAD CODE — the distinction is the ruling
+>
+> ⚠ **A sufficiently negative horizon DECOUPLES them, so the conjunct is redundant AT THE COMMITTED
+> POINT and not redundant in general.** ⛔ **Per backlog entry 134: *a conjunct that is redundant at
+> the committed point is not a conjunct that is redundant.***
+>
+> **Removing it would assert THAT NO CONFIGURATION SHOULD DISTINGUISH THEM** — ⛔ **a football claim
+> nobody has made, and therefore a PETITION rather than a cleanup, per the deletion rule.**
+>
+> > ## ⇒ ✅ **THE CODE STAYS. THE ADR IS CORRECTED.** ⚠ **This section showed the line as THE CHANGE and did not note that half of it now does nothing — so the next reader inherits a line that LOOKS like it does two things and does one.**
+>
+> 📒 **AND THE TWO FINDINGS ARE ONE:** ⛔ **this expression is the mixed PROXIMITY/ARRIVAL site the
+> horn-(c) read was looking for** — a physical conjunct ANDed with a label conjunct in a single `if`.
+> ⚠ **IT IS REDUNDANT BECAUSE IT IS MIXED.**
+
 ## Impact
 
 - **engine:** the predicate, plus `hasArrived`'s dormancy declaration *(comment-only, pure insertion)*.
