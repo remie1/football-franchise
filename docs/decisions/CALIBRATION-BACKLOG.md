@@ -10133,3 +10133,71 @@ tension, the four inertness claims, `classifyMoveCell`'s `ALWAYS`, entry 114's c
 
 ⛔ **One instance, and it proves nothing about the rate.** ⚠ **But every other measure of this
 register's value to date has been retrospective, and this one is not.**
+
+---
+
+## 138. ✅ MOVE SELECTION EXAMINED — **there is no selector**, and a no-op tunable one line from a live one
+
+**Entry 136 queued *"move selection"* as an unexamined subsystem. ⛔ READ-ONLY. This is its first
+examination, and it resolves entirely by reading `packages/playbook` — no run required.**
+
+### ⛔ FIRST, THE ORCHESTRATOR'S CENSUS WAS WRONG — it summed a corpus and a FIXTURE
+
+| file | what it is |
+|---|---|
+| `packages/playbook/src/defensiveCards.ts` | ✅ **THE CORPUS** — 22 cards, 29 literal `RUSH` entries *(98 duty instances expanded)*. **What calibration's frozen caller draws from** *(`caller/frozen.ts:333` → `selectDefensiveCard`)* |
+| `packages/engine/src/game/playbook.ts` | ⛔ **A TEST FIXTURE.** Header: **`THIS IS NOT THE PLAYBOOK`** — *"A MINIMAL, FIXTURE-GRADE PLAY-CARD CORPUS… eleven cards… so a game can be played at all."* **Imported by three ENGINE TEST files, nothing in calibration** |
+
+⛔ **So the operative denominator for entry 135's `12`-of-`3,632` is `packages/playbook`'s 29 ALONE.**
+⚠ **The fixture's EDGE entries are `SPEED`/`FINESSE` — it has ZERO `POWER+EDGE` — and are irrelevant
+to that figure entirely.**
+
+### ✅ THE TWO LAYERS ARE SEPARABLE FROM A READ — the brief's open question is ANSWERED
+
+| layer | finding |
+|---|---|
+| **AUTHORED** | ⛔ **`POWER` never appears on an EDGE duty except `GOAL_LINE_FRONT`** *(`defensiveCards.ts:832-838`)*. **20 of 22 cards hardcode DEs to `SPEED`/`FINESSE` via the shared `FOUR_MAN_RUSH`.** ⚠ **`POWER+EDGE` reaches exactly 2 of 22 cards** |
+| **CALLED** | ⛔ **Both carry `regions: ["GOAL_LINE"]`** — `ballOn > 94`, inside roughly the 5-6 yard line. ⚠ **And there they still compete on weight against every unrestricted card, applicable at any `ballOn`** |
+
+> ## ⇒ ✅ **AUTHORED ON 2 OF 22 × GATED TO A NARROW BAND × OUTWEIGHED THERE — a complete SOURCE-LEVEL explanation for entry 135's `0.4%`.**
+
+⚠ **The `12`/`3,632`/`0.4%` figures are CITED from entry 135, not re-derived.**
+
+**⇒ AND IT IS A PLAYBOOK QUESTION — but the brief's routing instinct was right for the WRONG REASON.**
+⚠ **Not because the layers are inseparable — they separate cleanly — but because BOTH LIVE IN
+`packages/playbook`**, *a domain calibration may read and must not touch.*
+
+### ⛔ `SPEED` DOES NOT COLLAPSE — and entry 135's finding lives in a different layer than assumed
+
+**`RushMove` is consumed at EXACTLY TWO points in the whole engine:**
+
+| layer | `SPEED` | `POWER` | `FINESSE` |
+|---|---|---|---|
+| **travel table** *(EDGE)* | `2.0` | `1.5` | `1.5` |
+| **attribute contest** *(`passRush.ts:63-91`)* | `firstStep` + **Quick Twitch** | ⛔ **`powerMove` AND `strength`** + **triggers blocker's Brick Wall** | `finesseMove` alone, **no trait either side** |
+
+⛔ **THREE CELLS, TWO DISTINCT VALUES at EDGE — the travel table LITERALLY CANNOT distinguish `POWER`
+from `FINESSE`.** ✅ **Which is why `classifyMoveCell` merges them BY CONSTRUCTION, not by choice.**
+
+> ## ⇒ ⛔ **ENTRY 135's *"`POWER` and `FINESSE` move outcomes differently"* IS THE ATTRIBUTE LAYER, NOT THE TRAVEL LAYER.** ⚠ **`POWER` is the richer roll; travel treats the two identically.**
+
+✅ **`SPEED` is distinct at EVERY layer: own travel constant, own attribute, own trait.**
+
+### ⛔⛔ AND A NO-OP TUNABLE, ONE LINE FROM A LIVE ONE
+
+```
+tunables.ts:336    quickTwitchMove: "SPEED"     ⛔ READ NOWHERE
+tunables.ts:337    brickWallMove:   "POWER"     ✅ read at passRush.ts:91 — `move === t.brickWallMove`
+```
+
+⛔ **The Quick Twitch bonus sits inside a HARDCODED `move === "SPEED"` branch and never consults its
+own tunable.** ⚠ **CHANGING `quickTwitchMove` DOES NOTHING.**
+
+> ## ⇒ **ENTRY 64's ABSORBED CLASS, NEW PLACEMENT: a fact nothing reads, ONE LINE from an identical fact that IS read.**
+
+⚠ **Worse than a plain unread constant, for the reason this class keeps producing: THE SIBLING MAKES
+THE PATTERN LOOK APPLIED.** ⛔ **A reader checking whether trait-move bindings are configurable sees
+`brickWallMove` consumed and reasonably concludes both are.**
+
+**`unruled`** — ⚠ **the BEHAVIOUR is correct** *(Quick Twitch does bind to `SPEED`)*; **only the
+configurability is fictional.**
