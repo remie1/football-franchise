@@ -1,0 +1,52 @@
+diff --git a/packages/engine/src/sim/passPlay.ts b/packages/engine/src/sim/passPlay.ts
+index 51606f3..cd51f1d 100644
+--- a/packages/engine/src/sim/passPlay.ts
++++ b/packages/engine/src/sim/passPlay.ts
+@@ -993,7 +993,21 @@ export function simulatePassPlay(
+     // down still goes down, via §8.8's own `CAUGHT_FROM_BEHIND` sack path a few
+     // dozen lines below, which has always been the only route to that outcome
+     // once he has left the pocket.
+-    if (pocket !== undefined && hasArrived(tunables, threats, tick) && sacksWithoutTarget(tunables, pocket)) {
++    // ---- PROBE PATCH (external read 3, sandbox clone only, not for merge) ----
++    // Flag unset: byte-for-byte the committed predicate. Flag set: the arrival
++    // conjunct is re-anchored to PHYSICAL arrival (minTta <= 0, the same fact the
++    // ARRIVED publication above is hard-coded to) instead of the horizon test.
++    // No roll is added or removed on either setting.
++    const probeArrivedConjunct =
++      (globalThis as { __FF_PHYS_SACK?: boolean }).__FF_PHYS_SACK === true
++        ? (() => {
++            const m = minTimeToArrival(threats, tick);
++            return m !== undefined && m <= 0;
++          })()
++        : hasArrived(tunables, threats, tick);
++    if (pocket !== undefined && probeArrivedConjunct && sacksWithoutTarget(tunables, pocket)) {
++      const c = (globalThis as { __FF_SACK_PATHS?: Record<string, number> }).__FF_SACK_PATHS;
++      if (c !== undefined) c["noTarget"] = (c["noTarget"] ?? 0) + 1;
+       outcome = sack(tick);
+       break;
+     }
+@@ -1086,6 +1100,12 @@ export function simulatePassPlay(
+               m.announcedArrival = true;
+             }
+           }
++          {
++            // PROBE PATCH: escape-failure sacks, split named/unnamed sacker.
++            const c = (globalThis as { __FF_SACK_PATHS?: Record<string, number> }).__FF_SACK_PATHS;
++            const key = caught !== undefined ? "escapeFailNamed" : "escapeFailNoSacker";
++            if (c !== undefined) c[key] = (c[key] ?? 0) + 1;
++          }
+           outcome = sack(tick);
+           break;
+         }
+@@ -1173,6 +1193,11 @@ export function simulatePassPlay(
+   }
+ 
+   if (outcome === undefined) {
++    {
++      // PROBE PATCH: clock-horizon coverage sacks.
++      const c = (globalThis as { __FF_SACK_PATHS?: Record<string, number> }).__FF_SACK_PATHS;
++      if (c !== undefined) c["clock"] = (c["clock"] ?? 0) + 1;
++    }
+     // Nobody got open and the pocket never broke: coverage sack at the horizon.
+     // The last tick's status STANDS (ADR-033) — this is the case where the space
+     // genuinely was clean and the quarterback went down anyway, which is what a

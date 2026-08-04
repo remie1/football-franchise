@@ -9290,6 +9290,37 @@ decouples from the arrival EVENT.**
 `COLLAPSING`/`IMMEDIATE` ticks.** ✅ **Arrival events still fire and produce no sacks — because
 SACKING REQUIRES `forcesDecision`, NOT PHYSICAL ARRIVAL.**
 
+> ## ⛔⛔ **CORRECTION BESIDE — THIS ENTRY MIXES TWO ARMS AND LABELS NEITHER** *(external read 3; Orchestrator, August 2026)*
+>
+> ⛔ **The table row above (`arrival-extinct → sack 0.974%`) is ARM 3 — arrival extinct, COUNTER LIVE.**
+> ⛔ **The prose here (`27,944` disrupted, `0` sacks, `0` `COLLAPSING`/`IMMEDIATE`) is ARM 4 — arrival
+> extinct AND COUNTER EXTINCT.** ⚠ **Two correct figures from two different configurations, presented
+> as one arm. NEITHER IS LABELLED.**
+>
+> **Found by external read 3 tripping over it.** ⚠ **Their D1 arm (`patchArrival` overrides only
+> `arrival.*`, so the counter stays LIVE) measured `63` sacks / `0.890%` and read it as refuting the
+> prose.** ⛔ **It does not — it REPRODUCES the TABLE ROW (`0.974%`).** **Their correction is aimed at
+> the wrong half; the defect it found is real and is the unlabelled arm-mixing.**
+>
+> ⚠ **The brief inherited the prose without the arm.** ⛔ **A figure travelled without its context into
+> the brief that warns about figures travelling without their context.**
+>
+> ### ✅ AND THE NARROW CLAIM SURVIVES, NOW VERIFIED RATHER THAN ASSERTED
+>
+> ⛔ **PHYSICAL ARRIVAL HAS NO MECHANICAL CONSUMER.** **With `hasArrived` structurally off, every sack
+> in the arm routes counter → `forcesDecision` → failed escape.** ⚠ **~28,000 rushers physically reach
+> the passer to no direct effect.**
+>
+> ### ⛔ AND ESTABLISHED #2 IS RESCOPED — **"closed by ceiling" is COMMITTED-POINT-TRUE**
+>
+> **The counter's ceiling is IMPOSED BY THE ARRIVAL CHANNEL ending plays before counters can climb.**
+> ⚠ **Extinguish arrival and the counter wakes up and becomes the main forcing channel.**
+>
+> > ## ⇒ **#1 AND #2 ARE ONE FACT: ARRIVAL DOMINATES BECAUSE IT ACTS FIRST, and every other channel's measured inertness is DOWNSTREAM OF THAT.**
+>
+> ⛔ **Third instance of the committed-point class** *(entries 103, 104, and now this)* — **a property
+> measured at the committed point and stated as a property of the system.**
+
 > ## ⛔ **SIXTH SITE OF THE FALSE-PROSE CLASS — AND THE FIRST WHERE THE CLAIM IS TRUE AT THE COMMITTED POINT AND FALSE EVERYWHERE ELSE.**
 >
 > ⚠ **Same shape as the committed-point-relationship class** *(a relationship read off the committed
