@@ -10672,3 +10672,99 @@ LIVE BRANCH BOTH OF WHOSE ARMS AGREE.**
 ⛔ **Should a power rush draw on more attributes than a finesse rush?** ⚠ **That is a claim about the
 sport, not about the code.** ✅ **The code currently says yes by 12 points on a flat league, and no
 ADR has ever said it.** **`unruled` — and it is the owner's.**
+
+---
+
+## 144. ⛔⛔ `FINESSE` IS THE ONLY CONTEST SIDE THAT READS ONE AXIS — **the ruling confirmed by a stronger argument, and my own extension refuted**
+
+**From the finesse-contest registry read** *(read-only, no attribute picked)*. ⛔ **The registry
+encodes the answer in a field nobody was looking at: `category`.**
+
+### ⛔ 1. THE AXIS TABLE — count the always-present `ATTR.passRush` base
+
+**Registry categories** *(`registry.ts:63-95`)*: `passRush` **skill**, `powerMove` **skill**,
+`finesseMove` **skill**, `firstStep` ⛔ **physical**, `strength` **physical**; blocker side
+`passBlock` **skill**, `footwork` **skill**, `anchor` ⛔ **physical**.
+
+| contest side | SKILL terms | PHYSICAL terms |
+|---|---|---|
+| **SPEED** | `passRush` | ✅ `firstStep` |
+| **POWER** | `passRush`, `powerMove` | ✅ `strength` |
+| ⛔ **FINESSE** | `passRush`, `finesseMove` | ⛔⛔ **NONE** |
+| **blocker** *(constant)* | `passBlock`, `footwork` | ✅ `anchor` |
+
+> ## ⛔ **`FINESSE` IS THE ONLY SIDE OF THE ENTIRE REP CONTEST — EITHER SIDE, ANY MOVE — THAT READS ONE AXIS ONLY.**
+
+✅ **AND `POWER` EXACTLY MIRRORS THE BLOCKER: two skill terms plus one physical, term for term,
+axis for axis.** ⚠ **The composition ADR-028 gave the blocker is POWER's composition.**
+
+**⇒ The owner's ruling is CONFIRMED, and by a stronger argument than the one it was made on.** ⛔
+**The defect is not that `FINESSE` sums FEWER TERMS. It is that `FINESSE` HAS NO PHYSICAL TERM AT
+ALL** — ⚠ **an arity gap is a magnitude; an axis gap is a KIND.**
+
+### ⛔ 2. MY EXTENSION TO `SPEED` IS REFUTED — **and by the base term I had already counted**
+
+**I raised it before the read, marked as mine and not the owner's:** *"if each move is quality plus
+physical, SPEED is missing one too."* ⛔ **FALSE.** `firstStep` is category **physical**, and the
+always-present `passRush` is category **skill** — ✅ **so SPEED carries BOTH AXES at 1+1.** **It has
+fewer terms than POWER; it is not missing a kind.**
+
+⚠ **And the error has a precise form: I counted MOVE-SPECIFIC terms while reasoning about axes,
+after having counted the base term correctly in entry 143's arity table one dispatch earlier.**
+⛔ **The same base term, dropped between two uses in the same investigation.**
+
+⚠ **The dispatch made the SAME error in its own question-4 answer** *(reporting SPEED as "missing
+its quality term")* — ⛔ **while its question-5 answer carried the category data that refutes it.**
+**Two readers, one error, and the refuting evidence inside the same report.**
+
+> ## ✅ **THE FLAG WORKED AGAIN. It was asked as MY question, separately from the ruling, and it came back FALSE — which is the second time this session that marking a claim as mine is what got it killed.**
+
+### ⛔ 3. THE BRIEF'S CENTRAL GUARD WAS EMPTY — **`description` is `""` for every attribute in this contest**
+
+**I instructed: *"quote registry descriptions VERBATIM — the owner is choosing from the registry's
+words."*** ⛔ **The registry has no words.** The `A()` builder defaults `description = ""`
+*(`registry.ts:47-52`)* and ⚠ **every attribute on both sides of this contest passes four
+arguments** — `passRush`, `firstStep`, `powerMove`, `strength`, `finesseMove`, `passBlock`,
+`footwork`, `anchor`, **all `""`.** *(Corpus-wide only `stamina` and `volatility` carry prose.)*
+
+> ## ⛔ **A GUARD BUILT ON A FIELD NOBODY POPULATED.** ⚠ **The safeguard against inventing football vocabulary was "use the registry's vocabulary," and the registry's vocabulary is the empty string.**
+
+✅ **But the registry DID carry the discriminator — in `category`, a STRUCTURED field, not prose.**
+⛔ **The guard reached for the documentation layer when the answer was in the type layer.**
+⚠ **Consistent with Charter §4.1: prefer a compile error to a convention. The prose was never
+written; the category was, because the category is load-bearing.**
+
+### ⛔ 4. CORRECTION TO THE DISPATCH'S OWN CONCLUSION — **the null is narrower than it reported**
+
+**Reported: *"supplying a term is new registry content, hence a contracts petition rather than a code
+patch."*** ⛔ **OVERSTATED.** `ALL` includes `DL` *(`registry.ts:54`)*, so `agility`,
+`acceleration`, `speed` and `durability` are ⚠ **already DL-eligible, already category `physical`,
+already in the registry.** ✅ **Reading one of them in the FINESSE branch is an ENGINE change against
+an existing registry ID — no contracts petition required.**
+
+**⇒ The accurate null is narrower and still real:** ⛔ **the registry DOCUMENTS no counterpart,
+because it documents NOTHING.** ⚠ **It CONTAINS several categorically-eligible ones.** **Selection is
+therefore a FOOTBALL judgement over a structurally-filtered candidate set — not a read, and not a
+petition either.**
+
+### ⚠ 5. THE DOC NEVER NAMED THIS ASYMMETRY — it named a different one and fixed that
+
+**§7.1's KNOWN ISSUE** *(`match-engine.md:594-607`)* **frames the gap as RUSHER vs BLOCKER** —
+*"the rusher carries two-to-three attribute terms ... against the blocker's two"* — **and its
+remediation names a BLOCKER-side fix only** *("adding a real blocker term (`Anchor` or `Strength`)")*.
+✅ **ADR-028 executed exactly that.**
+
+⛔ **§7.1 gives a COUNT, never a ROSTER for the finesse branch, and NOTHING in the doc or in ADR-028
+ever addresses the asymmetry AMONG THE RUSHER'S OWN THREE MOVES.** ⚠ **The doc measured the
+rusher against the blocker and never against itself** — **the enumeration failure arriving at a
+comparison's OTHER AXIS, which is the same shape as entry 141's field-neighbours case.**
+
+### ⇒ WHAT IS OWED, and to whom
+
+- ⛔ **Which physical attribute `FINESSE` reads: STILL THE OWNER'S.** ✅ **The candidate set is now
+  structurally filtered** *(DL-eligible, category `physical`, not already spoken for by another
+  branch)*, **which is the mechanism asked for — not the answer.**
+- ⚠ **`SPEED` needs nothing on this argument.** **`unruled` only in the sense that its 1+1 composition
+  vs POWER's 2+1 is a magnitude question, and the ruling explicitly refuses magnitude reasoning.**
+- ⛔ **The empty `description` field across the whole registry.** **`unruled`** — ⚠ **and it is the
+  reason a "quote the source" guard cannot be relied on in future briefs for this corpus.**
