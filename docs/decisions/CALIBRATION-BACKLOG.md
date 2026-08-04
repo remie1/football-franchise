@@ -10858,3 +10858,96 @@ fractional per-term contribution.**
   be two-sided contests too" — the blocker already brings `anchor` against all three.** ✅ **The
   question is: SHOULD A RUSHER FACE A PHYSICAL BLOCKER TERM WITH NO PHYSICAL TERM OF HIS OWN?**
   **`unruled`, no prior, larger than the cell that surfaced it.**
+
+---
+
+## 146. ✅ THE DEAD-LEAF SWEEP AUDIT RETURNS **NULL** — **nothing to retire, and the protection is entirely convention**
+
+**Entry 141's standing question, run.** ⛔ **Expected output was SUBTRACTIVE. It subtracted nothing.**
+
+### ✅ 1. THE THREE PRE-REGISTERED CONTROLS ALL REPRODUCED
+
+| control | required | got |
+|---|---|---|
+| `quickTwitchMove` @ `1abf3d6` | **UNREAD** | ✅ UNREAD — one hit corpus-wide, its own declaration |
+| `brickWallMove` @ HEAD | **READ** | ✅ READ — `passRush.ts:91` |
+| ⛔ `blockerStructuralAdvantage` | **READ** *(discriminating)* | ✅ READ — `passRush.ts:87` |
+
+⛔ **The third is the one that mattered: committed at `0`, dropped by `compact`'s zero-filter, and
+STILL READ — because the mechanism reads it unconditionally and any non-zero swept value survives to
+the roll.** ✅ **The method did not conflate *dead leaf* with *inert at the committed value*.**
+
+> ## ✅ **SO THE NULL COMES FROM A VALIDATED INSTRUMENT, NOT FROM ONE THAT CANNOT DETECT.** ⚠ **Which is the whole reason the controls were pre-registered.**
+
+### ✅ 2. THE ANSWER — **no recorded refusal rests on a leaf nothing reads**
+
+**Every path traceable to an ADR-level *swept-and-refused* claim is READ at HEAD:**
+`blockerStructuralAdvantage` *(ADR-027/028)*, `freeRunnerArrivalSeconds` *(ADR-030)*,
+`freeRunnerPath.offsetSecondsByAlignmentAndDepth` — all six cells *(ADR-031)*,
+`pocket.minimumStatusByBand` *(ADR-032)*, `arrival.pressureWithinSeconds` *(entry 1e)*,
+`arrival.collapsingWithinSeconds` *(entry 1f)*, `arrival.dominanceMarginPerHalfTick`, and ADR-049's
+full threat-supply vocabulary.
+
+✅ **And the dynamic-index trap was handled rather than tripped:** `freeRunnerPath...[alignment][depth]`
+is never named in source, ⛔ **and a naive grep would have reported all six cells dead.** ⚠ **ADR-031's
+own zeroed-control arm is the reachability proof.**
+
+### ⛔⛔ 3. THE ONE GENUINELY DEAD CELL WAS **NEVER SWEPT** — and the reason is the finding
+
+**`passRush.pressureProgressByBand.RUSHER_WINS_REP.reset` is dead** *(entry 59's byte-identical
+digest proof over 2,000 plays)*. ⛔ **No sweep ever targeted it.**
+
+**`threatSupplySweep.test.ts:129`:**
+
+```ts
+bands: BAND_LABELS.filter((b) => b !== "RUSHER_WINS_REP" && b !== "BLOCKER_RESETS"),
+```
+
+> ## ⛔ **THE HARNESS AUTHORS EXCLUDED THE DEAD CELL *BEFORE* ENTRY 59 FORMALLY PROVED IT DEAD.**
+
+✅ **So the failure entry 141 predicted is POSSIBLE and the project has NEVER COMMITTED IT.** ⛔ **But
+it was avoided by JUDGEMENT AT CONSTRUCTION TIME, not by any mechanism.**
+
+### ⛔ 4. THE MECHANISM IS CONFIRMED AND THE PROTECTION IS A CONVENTION
+
+**`applyTunablePatch` verified by direct read** *(`tunables.ts:3256-3304`)*: **four checks, all
+structural** — path exists, path resolves to a leaf not a branch, `currentValue` matches
+*(stale-patch guard)*, `proposedValue`'s type matches. ⛔ **Nothing asks whether any resolver reads
+the leaf.**
+
+> ## ⛔ **CHARTER §4.1 INVERTED: *prefer a compile error to a convention* — and here the ONLY thing standing between a sweep and a null-without-power is a convention.**
+
+⚠ **A clean audit is not a guard.** ⛔ **It is a statement about the past, and entry 141's shape
+remains reachable by the next harness author who does not happen to know which cells are dead.**
+
+### ⛔ 5. AND THE INSTRUMENT ALREADY EXISTS — **built, applied, and never connected to this question**
+
+**`DEAD_CELL_PROBES` / `scaleAudit.measure.test.ts` perturbs a cell to an absurd value, runs the full
+corpus, and compares the stream digest** — ⛔ **exactly the method control 3 requires.** ✅ **It
+already found and correctly classified SA-01 and SA-16 as `READ-BUT-UNREACHABLE`.**
+
+⚠ **So calibration BUILT the detector, APPLIED it to its own tables, LABELLED the results — and
+nothing connected it to sweep-target construction.** ⛔ **Same shape as ADR-053's `ByTier<T>`: the
+ratified pattern was already the fix and nobody looked for a subject.**
+
+**⇒ The cheap form is therefore a WIRING, not a new instrument:** ⛔ **pre-flight each sweep target
+through the probe the project already has.** **`unruled` — and it is the owner's.**
+
+### ⚠ 6. THE NULL IS SCOPED, AND THE REPORT SAID SO
+
+⛔ **NOT corpus-complete.** ⚠ **~140 backlog entries were not individually re-derived; several
+hundred calibration test files were not exhaustively enumerated; a batch of rows is marked SHALLOW
+— *field name consumed somewhere outside `tunables.ts`*, without per-cell reachability.**
+
+✅ **Recorded as: within traced ADR-level refusals plus calibration's own dead-cell register, NULL.**
+⛔ **A null whose coverage is stated is a result; a null whose coverage is silent is an absence.**
+⚠ **This is the second audit this session whose honest output was nothing, and the first whose
+nothing is the good news.**
+
+### 📒 AND THE PREMISE LEDGER — second inherited premise to hold today
+
+⛔ **My `applyTunablePatch`-has-no-read-check claim was INHERITED** *(entry 141's dispatch, not my own
+read)*, **flagged unverified, and came back CONFIRMED.** ⚠ **Second inherited premise to survive
+today, against two DERIVED premises that failed** *(the SPEED extension; ADR-062's forward
+citation)*. ✅ **Still n=4 across different kinds of claim — recorded as an observation, NOT as a
+rate, per entry 140's rule that an ordinal is a claim about a set.**
