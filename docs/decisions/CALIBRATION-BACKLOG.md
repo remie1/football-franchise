@@ -9379,3 +9379,84 @@ resting on a committed-point relationship that was never counterfactualled.**
 
 **⇒ `unruled` and NOT queued** — the register pause holds, and this is the one item that does not need
 new measurement to progress.
+
+---
+
+## 128. ⛔ THE HORIZONS ARE A **LABELLING LAYER** — a scope correction, and a "contradiction" that was a RETIRED figure
+
+**Three records from the mechanism question. ⛔ No football ruling was made and none was available.**
+
+### ⛔ 1. THE SCOPE CORRECTION — **and the correction itself needed correcting**
+
+**The Orchestrator's brief asked: *should `immediateWithinSeconds` and `collapsingWithinSeconds` hold
+these values?*** ⛔ **That names TWO CONSTANTS when the subject is THREE CHANNELS AND A DECOUPLED
+PREDICATE.**
+
+⚠ **A first attempt at this correction said *"four channels, three of which ignore the horizons."***
+⛔ **BOTH HALVES WERE WRONG, and checking took two greps:**
+
+| claimed | ⛔ **verified** |
+|---|---|
+| four channels | ⛔ **THREE.** `pocketStatusFor` (`pocket.ts:218-223`) reduces `pocketStatusFromPressure`, `pocketFloorFor`, `pocketFloorFromArrival`. There is no fourth |
+| pursuit reaches non-`CLEAN` without consulting the horizons | ⛔ **THE OPPOSITE.** `pocketChannelShares.ts:357-367` pins counter and bandFloor to `CLEAN` and computes `arrival = floorFromArrival(...)` — **pursuit is the ONE path that reaches non-`CLEAN` ONLY via the horizons** |
+
+> ## ⚠ **RECORDING A SCOPE CORRECTION WRONG IS THE SAME ERROR ONE LAYER DOWN.** ⛔ **Second scope error authored in two dispatches.**
+
+### ✅ 2. THE CONCLUSION SURVIVES BY A DIFFERENT ROUTE — and the route is stronger
+
+⛔ **The channel-count argument is not needed.** **Two pieces of evidence FROM THIS TREE establish it:**
+
+1. ⛔ **`passPlay.ts:567-574` — the `RUSH_THREAT` `ARRIVED` publication is a hard-coded
+   `if (m.threat.etaTick > tick) continue;`.** ⚠ **IT NEVER READS THE TUNABLE.** *(Verified by direct
+   read.)*
+2. ⛔ **Entry 126's extinction arm: `27,944` disrupted dropbacks, `0` sacks, `0` `COLLAPSING`/`IMMEDIATE`
+   ticks.** ⚠ **Arrival events fire and produce no sacks — sacking requires `forcesDecision`, not
+   physical arrival.**
+
+> ## ⇒ ⛔ **THE TWO CONSTANTS GOVERN A LABEL WHOSE RELATIONSHIP TO THE PHYSICAL EVENT IS ITSELF A TUNABLE.**
+
+**⇒ AND THAT REFRAMES THE QUESTION UNDERNEATH IT:** ⛔ **should severity derive from `minTta` AT ALL, or
+from WHAT HAPPENED TO THE PASSER?** ⚠ **Whatever configuration eventually lands, the corridor is a
+RELABELLING RESULT, not a change in what rushers do.**
+
+✅ **INVISIBLE TO EVERY SWEEP. It came only from reading the code** — which is the argument for the
+mechanism read as a distinct instrument, not a preamble to one.
+
+### ✅ 3. THE PURSUIT "CONTRADICTION" — **RESOLVED. It was a RETIRED figure read as current.**
+
+**Two of our own measurements appeared to disagree about whether a channel exists:**
+
+| source | claim |
+|---|---|
+| entry 82 | **`20.809%` of all ticks are pursuit ticks, `100.000%` arrival-dirty** |
+| the `immediateWithinSeconds` sweep | ⛔ **the pursuit branch is STRUCTURALLY UNREACHABLE post-ADR-055** |
+
+⛔ **BOTH ARE CORRECT.** ✅ **Entry 82 is ADR-055's OWN MOTIVATING MEASUREMENT** — the `20.809%` sits in
+that ADR's provenance table marked `COMPUTED` — **and ADR-055 is the ruling that ELIMINATED it:**
+
+> **"Once the pocket is vacated, POCKET STATUS IS THE WRONG CONCEPT. Pursuit is its own state."**
+
+**Shipped and verified: `passPlay.ts:593` gates the entire status computation on
+`if (scramble === undefined)`.** ⛔ **During pursuit NO STATUS IS PUBLISHED AT ALL.**
+
+> ## ⛔ **A MEASUREMENT CITED AS LIVE WHEN IT IS THE MOTIVATING MEASUREMENT OF A RULING THAT REMOVED ITS SUBJECT.**
+
+⚠ **Not a false figure — a RETIRED one, still readable as current, because entries are not struck when
+a ruling supersedes them.** ⛔ **Both parties read it as the present state; it describes the state that
+prompted the fix.**
+
+**📒 AND IT LEAVES AN ARTEFACT:** ⛔ **`pocketChannelShares.ts:357-367` is DEAD CODE** — a
+reconstruction branch for a state the engine no longer produces. ⚠ **`unruled`, not queued.**
+
+### 📒 4. ENTRY 104 REMAINS `PENDING VERIFICATION`
+
+⛔ **The `immediateWithinSeconds` sweep moves `sack` and `conversion` in OPPOSITE directions** — the
+cell nearest real `sack` (`8.277%`) has conversion furthest from context (`10.57%`); the cell nearest
+that context (`21.01%`) is `+9.949pp` on `sack`.
+
+> ## ⚠ **THAT IS ENTRY 104's CLAIM, NOT ITS REFUTATION.**
+
+⛔ **A "confirmed" was ruled three times on figures no instrument in this tree produced.** ✅ **Refused
+three times, each time with the specific mismatch stated.** ⚠ **The relayed `68pp` traces to the
+August 1 transcript's line 194 — *entry-versus-exit separation under supply extinction* — a different
+quantity, from a different document, at a stale commit.**
