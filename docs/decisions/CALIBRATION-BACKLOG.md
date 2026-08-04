@@ -10326,3 +10326,57 @@ ADJUDICATED: narrowed rather than removed, with a deliberately-kept residual pop
 
 ⚠ **Worth having BEFORE someone proposes a design pass on the label layer** — **the null is what makes
 that proposal unnecessary, and a null that arrives after the pass is worth nothing.**
+
+---
+
+## 140. ⛔ A NEW MEDIUM FOR THE FALSE-PROSE CLASS — **prose IN the code, not beside it** — and an ordinal series that was never derivable
+
+### ⛔ 1. `forcesDecision` IS FALSE PROSE, AND ITS MEDIUM IS AN IDENTIFIER
+
+**Entry 139 established it: `forcesDecision` is PROXIMITY by behaviour and ARRIVAL by name.** It
+triggers on `["COLLAPSING","IMMEDIATE"]`, `COLLAPSING` is reachable with zero live threats, it gates a
+behavioural choice, and **it never terminates a play.** ⛔ **The only thing suggesting arrival is the
+verb.**
+
+> ## ⛔ **EVERY PRIOR MEDIUM IS PROSE *BESIDE* CODE — comments, doc sections, ADR text, definition strings, a register note.** ⚠ **AN IDENTIFIER IS PROSE *IN* THE CODE.**
+
+**And it is the only medium a reader CANNOT CHECK WITHOUT READING THE BODY** — ⛔ **because THE NAME IS
+WHAT TELLS YOU WHETHER YOU NEED TO.** ⚠ **A comment that overclaims sits next to the thing that
+refutes it. A name that overclaims IS the thing you would consult instead of reading further.**
+
+### ⇒ AND IT HAS A PREDICTIVE FORM, which none of the prior media had
+
+> ## ✅ **ANY PREDICATE WHOSE VERB ASSERTS AN EVENT AND WHOSE IMPLEMENTATION TESTS A STATE.**
+
+⚠ **That is checkable and it names where the next one would be** — ⛔ **the first member of this class
+that predicts rather than only describes.**
+
+**`unruled`, and NOT proposed as a rename.** ⚠ **`forcesDecision`'s BEHAVIOUR is correct and ADR-058
+and ADR-060 both cite it by name; renaming is a change with consumers, not a correction.**
+
+### ⛔⛔ 2. AND THE ORDINAL SERIES WAS NEVER DERIVABLE
+
+**Deriving `forcesDecision`'s site number found the chain broken:**
+
+| line | claim | what it is |
+|---|---|---|
+| `:9324` | ⛔ **"SIXTH SITE OF THE FALSE-PROSE CLASS"** | entry 126's finding 8 — `collect.ts`'s committed-point-true identity |
+| `:9963` | ⛔ **"THE SIXTH FALSE-PROSE SITE"** | entry 135's `classifyMoveCell` `ALWAYS` |
+
+⛔ **TWO ENTRIES BOTH CLAIM SIXTH.** ⚠ **And NOTHING ENUMERATES SITES ONE THROUGH FIVE anywhere in the
+register.**
+
+> ## ⇒ **EACH "SIXTH" WAS AN ASSERTION WITH NO CHAIN BEHIND IT. THE SERIES WAS NEVER DERIVABLE, ONLY EVER CONTINUED.**
+
+⚠ **Same shape as the placement-count drift** *(entry 138's addendum — two taxonomies conflated,
+eleventh living in an ADR)*, ⛔ **but worse: the placements at least had entry 115's list of nine.
+This series has NO list at any point.**
+
+**⇒ SO NO ORDINAL IS ASSIGNED HERE.** ✅ **`forcesDecision` is recorded as A SITE, not as the Nth.**
+⛔ **Assigning a number would continue a series whose members cannot be enumerated — which is what
+produced two sixths.**
+
+📒 **AND THE GENERAL SHAPE, worth more than either instance:** ⚠ **AN ORDINAL IN THIS REGISTER IS A
+CLAIM ABOUT A SET, AND A CLAIM ABOUT A SET IS ONLY AS GOOD AS THE ENUMERATION BEHIND IT.** ⛔ **Twice
+now an ordinal has been asserted from recall and failed derivation — the placement count, and this.**
+**Both times the correction cost one grep and the assertion had sounded plausible to everyone.**
