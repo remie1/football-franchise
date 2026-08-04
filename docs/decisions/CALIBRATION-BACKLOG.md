@@ -10201,3 +10201,29 @@ THE PATTERN LOOK APPLIED.** ⛔ **A reader checking whether trait-move bindings 
 
 **`unruled`** — ⚠ **the BEHAVIOUR is correct** *(Quick Twitch does bind to `SPEED`)*; **only the
 configurability is fictional.**
+
+> ## 📒 ADDENDUM — **ROUTED, AND THE PLACEMENT ORDINAL DERIVED RATHER THAN RECALLED**
+>
+> ⛔ **ROUTED AS AN ENGINE ITEM** *(owner ruling)*. **`quickTwitchMove` lives in `tunables.ts` and its
+> consumer would be `resolve/passRush.ts` — `match-engine`'s domain, not calibration's.** ⚠ **`unruled`
+> and queued: the BEHAVIOUR is correct, only the CONFIGURABILITY is fictional.**
+>
+> ### ⛔ AND THE ORDINAL, DERIVED — because two taxonomies were being conflated
+>
+> **A relayed count of *"fifth medium"* did not survive a grep. There are TWO separate axes:**
+>
+> | axis | members |
+> |---|---|
+> | ⛔ **PLACEMENTS (media)** | **nine** listed at entry 115 *(mechanic, guard, form field, doc prose, contract member, search, habit, inferred type, the inverse)* · **TENTH** — a pooled metric on a passing row *(entry 115)* · **ELEVENTH** — the specification layer *(`ADR-059:410`)* |
+> | ⚠ **SHAPES** *(entry 123)* | a FACT nothing reads · a CORRECTION nothing reads · an ENTRY nothing CAN read |
+>
+> > ## ⇒ **`quickTwitchMove` IS THE TWELFTH PLACEMENT — a CONFIGURATION KNOB THAT CONFIGURES NOTHING.**
+>
+> ⚠ **Distinct from all eleven priors: not a mechanic, guard, form field, doc prose, contract surface,
+> search, habit, inferred type, the inverse, a pooled metric, or a spec.** ⛔ **A tunable whose value
+> is read by nothing and whose behaviour is hardcoded elsewhere.**
+>
+> 📒 **AND THE CHECK IS THE POINT.** ⚠ **The ordinal was relayed as *"fifth"*, matched NEITHER axis, and
+> the correction cost one grep.** ⛔ **Fifth relayed figure today that did not survive derivation** —
+> **and the two taxonomies had been conflated in conversation by BOTH parties, which is why the wrong
+> number sounded plausible to both.**
