@@ -679,15 +679,31 @@ export function foldTieAlignmentSplit(acc: TieAlignmentSplit, tick: TickChannels
 // observed travel actually equals — recovering `move` by elimination rather than reading it.
 //
 // WHERE THIS IS GENUINELY AMBIGUOUS, STATED RATHER THAN HIDDEN.
-//   - POWER and FINESSE are publicly INDISTINGUISHABLE, ALWAYS: `travelSecondsByAlignmentAndMove`
-//     gives them the identical base at every alignment (INTERIOR 1.0/1.0, EDGE 1.5/1.5,
-//     `tunables.ts:641,643`), so their candidates coincide at every margin and no observation can
-//     ever separate them. `EDGE_NOT_SPEED` reports the two merged, honestly, rather than inventing
-//     a distinction the stream cannot support — and per entry 110's own table this costs nothing:
-//     both rows read "TIES" unconditionally, so the merge does not blur the tie/disagree question.
-//   - SPEED's and NOT_SPEED's EDGE candidates coincide too, but only once margin is high enough
-//     that BOTH have hit `minTravelSeconds`'s clamp floor — `EDGE_AMBIGUOUS` names that zone
-//     explicitly rather than folding it into either bucket silently.
+//   - POWER and FINESSE are publicly INDISTINGUISHABLE AT THE COMMITTED TREE, and ONLY because of
+//     that tree's own values, NOT as a structural fact about `travelSecondsByAlignmentAndMove`'s
+//     shape: the table gives them the identical base at every alignment TODAY (INTERIOR 1.0/1.0,
+//     EDGE 1.5/1.5, `tunables.ts:669,671`), so their candidates coincide at every margin ON THIS
+//     TREE. Nothing in the classifier ASSUMES that coincidence — `classifyMoveCell` computes all
+//     three candidates (SPEED/POWER/FINESSE) independently and merges POWER and FINESSE into
+//     `EDGE_NOT_SPEED` only when their candidates actually agree at the observed travel. Move either
+//     cell (`EDGE.POWER` or `EDGE.FINESSE`) off `1.5` and the merge stops happening automatically:
+//     a POWER-only or FINESSE-only win reports as `EDGE_POWER` / `EDGE_FINESSE`, not folded into
+//     `EDGE_NOT_SPEED` or silently misclassified as `EDGE_UNRECONCILED`. Per entry 110's own table
+//     this costs nothing at the committed tree: both rows read "TIES" unconditionally there, so the
+//     merge does not blur the tie/disagree question ON THAT TREE.
+//   - SPEED's and the merged NOT_SPEED candidate coincide too, but only once margin is high enough
+//     that BOTH have hit `minTravelSeconds`'s clamp floor — `EDGE_HIGH_MARGIN_AMBIGUOUS` names that
+//     zone explicitly rather than folding it into either bucket silently.
+//   - A FIFTH, DISTINCT ambiguity a sweep of `travelSecondsByAlignmentAndMove` surfaces (entry 83's
+//     accidental-equality class, recurring): at an off-committed arm where `EDGE.POWER` or
+//     `EDGE.FINESSE` is swept to `2.0` — the value `EDGE.SPEED` is COMMITTED at — SPEED's candidate
+//     coincides with exactly one of POWER/FINESSE while the other still diverges. That is not the
+//     three-way clamp coincidence above; it is two of the three candidates landing on the same
+//     number by construction of the arm, and the third disagreeing. `EDGE_SPEED_AMBIGUOUS_WITH_OTHER`
+//     names that zone separately, rather than either (a) folding it into `EDGE_HIGH_MARGIN_AMBIGUOUS`
+//     (which would claim all three tied when only two did) or (b) resolving it to a bucket the
+//     stream cannot actually support (which would claim a separation that does not exist). This
+//     ambiguity is real and is reported, not classified away.
 // ---------------------------------------------------------------------------
 
 /** `tunables.passRush.bands`'s own `RUSHER_WINS_REP.minMargin` — the margin floor `startsThreat`
@@ -731,26 +747,53 @@ function reconstructedTravelSecondsFor(
 
 export type MoveCell =
   | "INTERIOR"
+  /** POWER's and FINESSE's candidates coincide at the observed travel, and SPEED's does not — the
+   *  merge is a CONSEQUENCE of the two committed values agreeing (`EDGE.POWER === EDGE.FINESSE`),
+   *  checked below rather than assumed. Splits into `EDGE_POWER` / `EDGE_FINESSE` the moment either
+   *  cell is moved off the other. */
   | "EDGE_NOT_SPEED"
+  /** POWER's candidate alone matches — POWER and FINESSE have DIVERGED (an off-committed arm) and
+   *  only POWER accounts for the observed travel. Never occurs at the committed tree, where POWER
+   *  and FINESSE always coincide. */
+  | "EDGE_POWER"
+  /** FINESSE's candidate alone matches — the mirror of `EDGE_POWER`. Never occurs at the committed
+   *  tree. */
+  | "EDGE_FINESSE"
   | "EDGE_SPEED_DOMINANT"
   | "EDGE_SPEED_NONDOMINANT"
-  /** SPEED's and NOT_SPEED's candidates genuinely coincide at this margin (both clamped) — not a
-   *  bug, see the section header. */
+  /** All three candidates (SPEED, POWER, FINESSE) coincide at the observed travel — the three-way
+   *  tie, typically both SPEED and the (coinciding) POWER/FINESSE pair having hit
+   *  `minTravelSeconds`'s clamp floor together. Not a bug, see the section header. */
   | "EDGE_HIGH_MARGIN_AMBIGUOUS"
-  /** Observed travel matched NEITHER candidate — should never occur; a falsifier, not a bucket a
-   *  report should ever cite a nonzero count from. */
+  /** SPEED's candidate coincides with EXACTLY ONE of POWER/FINESSE, which themselves still diverge
+   *  from each other — a genuinely separate ambiguity from `EDGE_HIGH_MARGIN_AMBIGUOUS` (that one
+   *  is a three-way tie; this one is a two-way tie with the third candidate still distinguishable).
+   *  Only reachable off the committed tree, e.g. sweeping `EDGE.POWER` or `EDGE.FINESSE` to `2.0`,
+   *  the value `EDGE.SPEED` is committed at (entry 83's accidental-equality class). Reported
+   *  honestly rather than folded into either neighbouring bucket — see the section header. */
+  | "EDGE_SPEED_AMBIGUOUS_WITH_OTHER"
+  /** Observed travel matched NONE of the three candidates — should never occur; a falsifier, not a
+   *  bucket a report should ever cite a nonzero count from. */
   | "EDGE_UNRECONCILED";
 
 /**
- * Classify one argmin-arrival won-rep threat into entry 110's six-cell table (INTERIOR merged,
- * since it is move-invariant BY CONSTRUCTION — see below — and EDGE split SPEED / not-SPEED /
- * DOMINANT / NON-DOMINANT).
+ * Classify one argmin-arrival won-rep threat into entry 110's move-cell table (INTERIOR merged,
+ * since it is move-invariant BY CONSTRUCTION — see below — and EDGE resolved by computing SPEED,
+ * POWER and FINESSE's candidates INDEPENDENTLY and asking which the observed travel actually
+ * equals — never by assuming any two of them coincide).
  *
  * INTERIOR needs no move recovery at all: `travelSecondsByAlignmentAndMove.INTERIOR` is `1.0` for
  * all three moves, and any dominance shave on a `1.0` base clamps straight back to
  * `minTravelSeconds` (also `1.0`), so INTERIOR's travel is `1.0` at EVERY margin and EVERY move —
  * arithmetic entry 109 item C already stated ("the dominance shave is clamped back to 1.0
  * regardless of margin") and this function asserts as an identity below rather than re-deriving.
+ *
+ * ⛔ **THE MERGE IS A CONSEQUENCE, NOT AN ASSUMPTION.** All three candidates are computed
+ * separately; `EDGE_NOT_SPEED` is returned only when the POWER and FINESSE candidates actually
+ * agree with each other (and with the observation) — which happens on the committed tree because
+ * `EDGE.POWER === EDGE.FINESSE === 1.5` there, not because this function takes it on faith. Move
+ * either value and the two split into `EDGE_POWER` / `EDGE_FINESSE` automatically. See the section
+ * header for the fifth ambiguity (`EDGE_SPEED_AMBIGUOUS_WITH_OTHER`) this independence surfaces.
  */
 export function classifyMoveCell(
   tunables: Tunables,
@@ -760,15 +803,26 @@ export function classifyMoveCell(
 ): MoveCell {
   if (alignment === "INTERIOR") return "INTERIOR";
   const speedCandidate = reconstructedTravelSecondsFor(tunables, "EDGE", "SPEED", margin);
-  // FINESSE's candidate is identical to POWER's at every margin (section header) — one "not SPEED"
-  // candidate covers both.
-  const notSpeedCandidate = reconstructedTravelSecondsFor(tunables, "EDGE", "POWER", margin);
+  const powerCandidate = reconstructedTravelSecondsFor(tunables, "EDGE", "POWER", margin);
+  const finesseCandidate = reconstructedTravelSecondsFor(tunables, "EDGE", "FINESSE", margin);
   const isSpeed = observedTravelSeconds === speedCandidate;
-  const isNotSpeed = observedTravelSeconds === notSpeedCandidate;
-  if (isSpeed && isNotSpeed) return "EDGE_HIGH_MARGIN_AMBIGUOUS";
+  const isPower = observedTravelSeconds === powerCandidate;
+  const isFinesse = observedTravelSeconds === finesseCandidate;
+
+  // POWER and FINESSE coincide with each other (and with the observation), SPEED does not: the
+  // merge, DERIVED from `powerCandidate === finesseCandidate === observedTravelSeconds` holding,
+  // not assumed from the tree's shape.
+  if (isPower && isFinesse && !isSpeed) return "EDGE_NOT_SPEED";
+  if (isSpeed && (isPower || isFinesse)) {
+    // SPEED coincides with at least one of POWER/FINESSE. If it coincides with BOTH, all three tie
+    // (the pre-existing clamp-floor ambiguity); if with exactly one, POWER and FINESSE have
+    // themselves diverged and only one of them also equals SPEED — the fifth, distinct ambiguity.
+    return isPower && isFinesse ? "EDGE_HIGH_MARGIN_AMBIGUOUS" : "EDGE_SPEED_AMBIGUOUS_WITH_OTHER";
+  }
   if (isSpeed) {
     return margin >= dominanceThresholdMarginFor(tunables) ? "EDGE_SPEED_DOMINANT" : "EDGE_SPEED_NONDOMINANT";
   }
-  if (isNotSpeed) return "EDGE_NOT_SPEED";
+  if (isPower) return "EDGE_POWER";
+  if (isFinesse) return "EDGE_FINESSE";
   return "EDGE_UNRECONCILED";
 }
