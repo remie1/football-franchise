@@ -11038,3 +11038,69 @@ swap and its reason kept** *(the file's most useful paragraph)*.
   unreachable alignment/depth combination in the classifier rather than a dead tunable — not
   adjudicated.**
 - ⚠ **Entry 146 §2/§3: corrected in place, or superseded?**
+
+---
+
+## 148. ✅ ADR-063 LANDS — **the boolean inversion, and a question recorded with NO instance**
+
+### ⛔ 1. THE INVERSION — **the probe needs a DIFFERENT value, not an ABSURD one**
+
+**Ruled, then withdrawn on the tree's evidence:** *"booleans are a domain the probe cannot handle —
+`!true` is `false`, which is the sweep's own arm rather than an absurd value."*
+
+> ## ⛔ **ABSURDITY IS A HEURISTIC FOR MAXIMISING DETECTABILITY ON NUMERICS. IT IS NOT A REQUIREMENT OF THE METHOD.**
+
+| type | probe | strength of a DEAD verdict |
+|---|---|---|
+| ⛔ **numeric** | one value out of a range | ⚠ **only as good as the value chosen** — a probe can land in a clamped region and read DEAD on a LIVE leaf |
+| ✅ **boolean** | one flip | ⛔ **EXHAUSTS THE DOMAIN — the verdict is COMPLETE** |
+
+**⇒ If any type warrants a caveat in the ADR it is NUMERICS.** ⛔ **The exact opposite of the
+ruling.** ✅ **And the demonstration was already in the register: `RUSHER_WINS_REP.reset` is a
+BOOLEAN, probed, LIVE — the sharpest finding of the day came from the type proposed for exclusion.**
+
+⚠ **The cost, had it landed: a STATED EXCLUSION in the ADR's own scope sentence, for a type the
+instrument demonstrably handles.** ⛔ **False prose in the sentence written to prevent false prose.**
+
+### ⛔ 2. FOUR SPECIFICS THAT DID NOT EXIST
+
+| claim | tree |
+|---|---|
+| `entry73ContainRetirement` sweeps a boolean | ⛔ **NO SUCH SYMBOL** anywhere in `packages/` |
+| `sensitivity.test.ts` routes around the guard | ⛔ **NO SUCH FILE** |
+| `bandTables.ts` routes around the guard | ⛔ **FALSE** — registered; its `KNOWN_INVERSIONS` are 6 of the 37 stated exclusions |
+| *"three of five"* harnesses | ⛔ **UNREPRODUCIBLE** — second unreproducible denominator in two messages |
+
+✅ **Derived figures stand: 21 files construct patch targets; 39 active / 37 excluded-with-reason /
+76 total; coverage established by construction-site reading across the 31 `applyTunablePatch`
+callers.** ⛔ **There is no five.**
+
+### 📒 3. THE QUESTION SURVIVES ITS CASE — **recorded with NO instance**
+
+> ## ✅ **"IS THIS DEFINED EVERYWHERE IT IS WIRED, NOT JUST WIRED EVERYWHERE?"**
+
+⚠ **It arrived attached to the boolean case, and the boolean case is refuted.** ⛔ **So it is recorded
+as A QUESTION WITHOUT AN INSTANCE — not as a finding, not as a pattern, and NOT promoted.**
+
+**Why that disposition and not a rule:** ⛔ **this project's promotion criterion is THREE INSTANCES,
+and a rule proposed on ZERO is weaker than one proposed on one.** ⚠ **Two rules were promoted this
+week on a third instance** *(the `Inertness proof` field; `where the author stopped reading`)*,
+**and entry 141 held a pattern at two rather than promote it early.** ✅ **Promoting on zero would
+make the criterion decorative.**
+
+⚠ **What would constitute an instance:** **a guard whose coverage is complete over its call sites
+but UNDEFINED over some subset of the values or types those sites produce.** ⛔ **None exists here:
+the wiring is complete, exclusions are stated with reasons, and the one type proposed for exclusion
+has TOTAL domain coverage.**
+
+### ✅ 4. WHAT ADR-063 ASSERTS
+
+⛔ **Its scope sentence is a MEASURED COUNT, not an unbounded claim:** **39 probed, 37 excluded with
+reasons, 76 total, method limit printed by the file at runtime.** ✅ **`Inertness proof` filled BOTH
+ways** — no file outside `packages/calibration` touched *(so the simulation cannot observe it)*, and
+`pnpm verify` green with no existing sweep's values or conclusions altered.
+
+⚠ **Four items carried into `Implied scope` as `unruled`:** the two DEAD targets and whether either
+retires a conclusion; entry 146 §2/§3's falsification, corrected-in-place vs superseded; and the
+registry NOT being self-extending — **a target added tomorrow is covered only if its author adds
+it.**
