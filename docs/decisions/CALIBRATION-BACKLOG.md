@@ -10079,3 +10079,57 @@ worked example records, arriving between subsystems rather than between cells.**
 **⚠ And the scope caveat stands with it:** ⛔ **`0.4%` is measured under `FROZEN_TENDENCIES` and a FLAT
 league. It is NOT NECESSARILY TRUE under a different caller or real ratings** — **which is itself part
 of why the question belongs upstream rather than here.**
+
+---
+
+## 137. 📒 THREE OBSERVATIONS FROM THE DAY'S RATE — **not a list, a measurement**
+
+### ⛔ 1. EVERY DISPATCH THAT CHECKED A BRIEF FOUND SOMETHING IN IT
+
+**Not one premise ledger came back clean.** ⚠ **Across the day: a mis-scoped grep, a mis-cited entry,
+a conflated denominator, a constant named from recall, an arm specified as its own committed value, an
+analogy that read as a claim, a falsifier searched for where it was expected rather than searched for.**
+
+> ## ⛔ **BRIEFS WRITTEN FROM A SESSION'S ACCUMULATED CONTEXT — ACCURATE, CAREFUL, BY SOMEONE WHO HAS READ THE ARTIFACTS — CARRY DEFECTS AT CLOSE TO 100%.**
+
+⛔ **THE CORRECTIVE IS NOT MORE CARE AT WRITING TIME.** ⚠ **It is that the check must be
+UNCONDITIONAL** — which the cost-symmetry argument already established *(cheap to check, unbounded to
+skip)* **and which this now MEASURES rather than argues.**
+
+📒 **And the sharpest single instance: the falsifier was SEARCHED FOR WHERE IT WAS EXPECTED rather than
+searched FOR.** ⛔ **Two files, five assertions; the brief named one.** ⚠ **The enumeration lesson
+arriving at the Orchestrator's own search — same shape as the counter's seven consumers.**
+
+### ✅ 2. THE SHAPE A CORRECTION SHOULD HAVE — **two instances, same construction**
+
+| | |
+|---|---|
+| **ADR-060** | sack re-anchored to physical arrival |
+| **`classifyMoveCell`** | the POWER/FINESSE merge made a consequence rather than an assumption |
+
+**Both:** ⛔ **proved BEHAVIOUR-IDENTICAL AT COMMITTED VALUES — algebraically AND empirically — BEFORE
+landing.**
+
+> ## ⇒ ✅ **THAT IS WHAT MAKES A CHANGE CORRECTNESS RATHER THAN TUNING, and it is the ONLY form of change this project has shipped WITHOUT A RATE EXPECTATION.**
+
+⚠ **The identity is not a pleasant side effect — it is the EVIDENCE.** ⛔ **Without it, "this is just a
+correction" is a claim about intent; with it, it is a measurement.**
+
+**⇒ HELD AT PATTERN, NOT PROMOTED TO A FIELD.** ⚠ **Two instances. The criterion is the one that
+promoted where-I-stopped AFTER TWO — and a third would make it a field.** ⛔ **Recorded so the third is
+recognised rather than rediscovered.**
+
+### 📒 3. THE FIRST PROSPECTIVE CATCH OF THE COMMITTED-POINT CLASS
+
+**Entry 135's `EDGE.POWER` finding — `12` genuine ties in `3,632` — carried its configuration IN THE
+SENTENCE THAT REPORTED IT**, unprompted: *"a fact about `FROZEN_TENDENCIES` + `buildFlatLeague`, not
+necessarily true under a different caller or real ratings."*
+
+⛔ **EVERY PRIOR INSTANCE OF THIS CLASS WAS FOUND RETROSPECTIVELY** — entry 103's delta, entry 104's
+tension, the four inertness claims, `classifyMoveCell`'s `ALWAYS`, entry 114's cross-validation.
+⚠ **All caught by something LATER going wrong.**
+
+> ## ⇒ ✅ **FIRST EVIDENCE THAT NAMING A CLASS DOES ANYTHING FOR THE NEXT INSTANCE RATHER THAN JUST FOR THE RECORD OF PAST ONES.**
+
+⛔ **One instance, and it proves nothing about the rate.** ⚠ **But every other measure of this
+register's value to date has been retrospective, and this one is not.**
