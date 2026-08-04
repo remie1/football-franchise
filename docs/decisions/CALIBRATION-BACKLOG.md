@@ -10227,3 +10227,27 @@ configurability is fictional.**
 > the correction cost one grep.** ⛔ **Fifth relayed figure today that did not survive derivation** —
 > **and the two taxonomies had been conflated in conversation by BOTH parties, which is why the wrong
 > number sounded plausible to both.**
+
+> ### 📒 AND WHY THE COUNT WAS UNHOLDABLE — **the taxonomy is split across two artifacts**
+>
+> ⛔ **Placements 1-10 live in `CALIBRATION-BACKLOG.md`. The ELEVENTH lives in `ADR-059`.** ⚠ **So
+> anyone counting must know to look in both, and nothing says so.**
+>
+> > ## ⛔ **A TAXONOMY SPLIT BETWEEN WHERE THE CLASS WAS NAMED AND WHERE ITS INSTANCES LAND.**
+>
+> ⚠ **The class was named in entry 64 and is catalogued in the backlog; the eleventh instance was
+> recorded where it was FOUND — inside an ADR's landing checklist — because that is where the work
+> was.** ⛔ **Both choices were locally correct. The count became underivable anyway.**
+>
+> ### ⇒ AND THE FAILURE MODE IT PRODUCED IS NEW
+>
+> **Every prior relayed figure that failed derivation this session was ONE-SIDED** — a recalled number
+> against a tree that disagreed. ⛔ **THIS ONE WAS A SHARED CONFLATION.** ⚠ **Both parties merged the
+> PLACEMENT axis with the SHAPE axis, both would have accepted *"fifth"*, and NEITHER WAS POSITIONED TO
+> CATCH IT.**
+>
+> > ## ⇒ **ONLY THE GREP WAS.** ⛔ **A disagreement between two people is checkable by either; an agreement between two people who share the same wrong model is checkable by neither.**
+>
+> 📒 **`unruled`, and NOT proposed as work.** ⚠ **The obvious remedy — instances index back to where the
+> class is named — is one instance old and this week already produced two rules on first sight.**
+> ⛔ **Recorded so the next split is recognised rather than rediscovered.**
