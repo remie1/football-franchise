@@ -10768,3 +10768,93 @@ comparison's OTHER AXIS, which is the same shape as entry 141's field-neighbours
   vs POWER's 2+1 is a magnitude question, and the ruling explicitly refuses magnitude reasoning.**
 - ⛔ **The empty `description` field across the whole registry.** **`unruled`** — ⚠ **and it is the
   reason a "quote the source" guard cannot be relied on in future briefs for this corpus.**
+
+---
+
+## 145. ⛔⛔ A LABEL'S PARENTHETICAL PRODUCED A FALSE PREMISE IN A RULING — **entry 140's class causing a downstream error for the first time**
+
+**Disposition ACCEPTED and unchanged: NO CODE CHANGE.** ⛔ **The ruling's stated REASON is refuted by
+the code, and what gets recorded is therefore not what the ruling described.** *(Cause outranks
+correction — the disposition survives, the premise does not.)*
+
+### ⛔ 1. THE FALSE PREMISE — **`anchor` is NOT `POWER`-gated**
+
+**Ruling text:** *"passBlock + footwork, plus **anchor on POWER only**. So POWER's `strength` isn't an
+extra term on the rusher's side; it's the rusher's half of a two-sided physical contest that the
+blocker's side already models. `strength` vs `anchor`."*
+
+**`passRush.ts:86-94`, exact:**
+
+```ts
+actorAttrModifier(blocker, "Pass Block", ATTR.passBlock, t.blockerAttrDivisor),
+actorAttrModifier(blocker, "Footwork",   ATTR.footwork, t.blockerAttrDivisor),
+actorAttrModifier(blocker, "Anchor",     ATTR.anchor,   t.blockerAttrDivisor),   // ⛔ UNCONDITIONAL
+move === t.brickWallMove                                                          // ⛔ THIS is POWER-gated
+  ? traitModifier("Trait: Brick Wall (anchor)", ...)
+  : undefined,
+```
+
+⛔ **`ATTR.anchor` is read on EVERY rep, all three moves** *(the only other read is
+`passRush.ts:120`, `testsAttrs`)*. ⚠ **The `POWER`-gated line is the BRICK WALL TRAIT — inactive on
+the flat corpus entirely, since `roster.ts:134` gives every flat player an empty trait set.**
+
+> ## ⛔ **THE TWO-SIDED-PHYSICAL-CONTEST REFRAME REQUIRES `anchor` TO BE POWER-SPECIFIC. IT IS NOT. THE REFRAME DOES NOT HOLD.**
+
+### ⛔⛔ 2. THE CAUSE — **the parenthetical in a stream-visible string**
+
+**The POWER-gated line's label is `"Trait: Brick Wall (anchor)"`.** ⛔ **It contains the word
+`anchor`, and it sits ONE LINE BELOW the unconditional `anchor` attribute term.**
+
+> ## ⛔ **A `POWER`-GATED LINE WHOSE LABEL SAYS *"(anchor)"* IS WHAT MADE `anchor` LOOK `POWER`-GATED.**
+
+⚠ **Entry 140 established the class — false prose whose medium is an identifier or a string, uncheckable
+without reading the body — and catalogued four media.** ✅ **This is the first recorded instance where
+a member of that class PRODUCED A DOWNSTREAM ERROR rather than being found and filed.**
+
+⛔ **And the error it produced was a RULING'S PREMISE.** ⚠ **The class's predicted cost was always
+"a reader consults the name instead of reading further." Here that reader was the project owner, the
+consequence was a reframe of the entire question, and the label was correct about the TRAIT it names
+while being misleading about the ATTRIBUTE that shares its word.**
+
+**`unruled`, and still NOT a rename** *(`RollModifier.source` reaches the event log — a change with
+consumers, per entry 140 and ADR-062's label check)*. ⛔ **But it is now a member with a MEASURED
+cost, not a hypothetical one.**
+
+### ✅ 3. THE CORRECTION MAKES THE FINDING SHARPER, NOT WEAKER
+
+**With `anchor` unconditional, entry 144's axis table reads differently on the FINESSE branch:**
+
+> ## ⛔ **ON A `FINESSE` REP THE BLOCKER BRINGS A PHYSICAL ATTRIBUTE (`anchor`) AND THE RUSHER BRINGS NONE.**
+
+⚠ **Not "a two-sided physical contest with one side missing" — ⛔ A PHYSICAL TERM OPPOSED BY
+NOTHING.** ✅ **`POWER` is the only move where the physical axis is contested on both sides.**
+
+### ⛔ 4. AND THE FLAT-CORPUS ARGUMENT IS HALF RIGHT
+
+**Ruling text:** *"with real ratings, `strength` vs `anchor` is a live contest that varies, and the
+fixed offset becomes a distribution."*
+
+✅ **TRUE that it acquires variance.** ⛔ **FALSE that the offset goes with it.** ⚠ **The rusher sums
+THREE attributes on `POWER` and TWO on `FINESSE` at ANY rating distribution — dispersion adds spread
+around the mean; it does not remove a term-count difference from the mean.**
+
+**⇒ The flat corpus does not MANUFACTURE the offset. It MEASURES it exactly, by removing the
+variance that would otherwise hide it.** ⛔ **Which is the opposite of an artifact** — ⚠ **and it
+means the recorded characterization *"looks like a defect because of the flat corpus"* would itself
+have been false prose in the register.**
+
+### ⚠ 5. THE NUMBER, corrected a second time
+
+⛔ **12, not `+13.4`.** `attrMod` is `Math.round(rating/divisor)` *(`registry.ts:42-45`)*; at
+`FLAT_RATING = 60` *(`flat.ts:32`)* and divisor `5` *(`tunables.ts:247-248`)* every term is exactly
+**12**, ⚠ **integer by construction — no committed configuration on this path can produce a
+fractional per-term contribution.**
+
+### ⇒ WHAT IS ACTUALLY RECORDED
+
+- ✅ **DISPOSITION STANDS: no code change.** **The move arity is an unexamined design property.**
+- ⛔ **The `strength`-vs-`anchor` reframe is NOT recorded** — it is refuted by `passRush.ts:90`.
+- ⛔ **The open football question is REPHRASED by the correction.** ⚠ **Not "should SPEED and FINESSE
+  be two-sided contests too" — the blocker already brings `anchor` against all three.** ✅ **The
+  question is: SHOULD A RUSHER FACE A PHYSICAL BLOCKER TERM WITH NO PHYSICAL TERM OF HIS OWN?**
+  **`unruled`, no prior, larger than the cell that surfaced it.**
