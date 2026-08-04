@@ -9778,3 +9778,61 @@ reads")* — ⚠ **all three about REACH rather than correctness, and all three 
 ⚠ **Entries 1-90 were not read individually; ADR-050/051/053/054/055/056/057/059 bodies and `PREREGISTRATION-EXT-4` were not read in full.** ⛔ **If the true closure set is larger it is most likely there.**
 
 ✅ **Stated as a finding per the brief's own instruction, not as a formality.**
+
+---
+
+## 133. ⛔⛔ SECOND CHANNEL FAILURE IN THREE DAYS — **and this one had no source at all**
+
+**Recorded because the standing rule was stated, agreed, and then broken — and the owner said so
+plainly rather than letting it stand.**
+
+### ⛔ WHAT HAPPENED
+
+**Findings were relayed to the Orchestrator as the closure audit's output — numbered closures, a
+supply-frame invalidation, a corridor ruled *"structurally void."*** ⛔ **THE AUDIT PRODUCED NONE OF
+THEM.** ⚠ **Its output is six clusters of rows, and no row says any of it.**
+
+> ## ⛔ **ENTRY 127's INSTANCE WAS A REAL REPORT THROUGH A BROKEN CHANNEL. THIS ONE WAS FINDINGS THAT DO NOT EXIST.**
+
+⚠ **Worse in the way that matters: entry 127's artifact could in principle be recovered and checked —
+it was, and it turned out to be about a different question entirely.** ⛔ **Here there is nothing to
+recover.**
+
+### ⛔ AND THE REASONING RESTED ON A FALSE PREMISE — checkable, and checked
+
+**The relayed claim: ADR-060 invalidated measurements taken before it — *"an experiment run in a
+configuration that no longer exists."***
+
+> ## ⛔ **FALSE. ADR-060 IS ACCUMULATOR-IDENTICAL AT COMMITTED VALUES.**
+
+✅ **The pre-registered falsifier did not fire** — `dropbacks`, `sacks`, `disruptedDropbacks`,
+`scrambles`, paths, `pocketStatusTicks`, **all identical, verified three independent ways** *(entry
+129)* **and re-verified by the Orchestrator before commit.** ⚠ **Label and physical anchors are THE
+SAME COMPARISON at `immediateWithinSeconds = 0.0`.**
+
+⛔ **So nothing measured at committed horizons is invalidated — ADR-049's supply experiment included,
+which would reproduce BIT-FOR-BIT.**
+
+### ⇒ THE SHAPE OF THE ERROR — **the committed-point class, RUNNING IN REVERSE**
+
+⚠ ***"The sack is invariant to the labelling layer"* is external read 3's `C2` arm, which lives at
+OFF-COMMITTED horizons.** ⛔ **At committed values there is nothing to be invariant to.**
+
+> ## ⛔ **A FINDING FROM ONE CONFIGURATION APPLIED TO ANOTHER.** ⚠ **Every prior instance of this class went the other way — a committed-point fact generalised. This one generalised an OFF-committed fact BACKWARD onto the committed point.**
+
+✅ **Same root, opposite direction, and the register had no instance of the reverse until now.**
+
+### ✅ AND THE AUDIT'S OWN HANDLING WAS CORRECT AND WAS OVERRIDDEN
+
+**The audit flagged *"ADR-060 cannot change entry 104's numbers"* as ITS OWN INFERENCE, not the
+register's, and marked it as NEEDING INTERVENTION rather than trust.** ⛔ **That was the right
+handling. The relay overrode it with a stronger claim in the opposite direction, sourced from
+nothing.**
+
+### ⇒ THE STANDING RULE, RESTATED BECAUSE IT WAS BROKEN
+
+> ## ⛔ **NOTHING GETS RULED FROM RELAY. BRING WHAT THE TREE PRODUCED, AND REFUSE ANYTHING CITED THAT CANNOT BE LOCATED.**
+
+⚠ **Refused five times across two days; correct five times.** ⛔ **The refusal is cheap and the
+alternative is a ruling built on figures nobody can find** — **and on this occasion the reasoning
+behind them was ALSO wrong, which the refusal surfaced rather than the relay.**
