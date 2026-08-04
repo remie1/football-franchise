@@ -135,6 +135,32 @@ the thing this was for"?**
 > its own instrument is not a rate*), **and no percentage is reported until the denominator supports
 > one.**
 
+## Inertness proof — REQUIRED when the ADR claims NO RATE EXPECTATION
+
+**If this ADR ships a change as a CORRECTION rather than a TUNING — *"this changes nothing today"* —
+⛔ PROVE IT BEFORE LANDING, and say which kind of proof you have:**
+
+- ✅ **ALGEBRAIC** — the two forms are the same expression at committed values *(e.g. `TUNABLES` is
+  `as const`, so a literal-typed field and a hardcoded literal are the SAME comparison, not two that
+  agree)*
+- ✅ **EMPIRICAL** — accumulator-identical on a named corpus, or the suite green with ZERO test changes
+- ⛔ **BOTH is the standard.** ⚠ **One alone is weaker and should say so.**
+
+> ## ⛔ **THE IDENTITY IS NOT A PLEASANT SIDE EFFECT — IT IS THE EVIDENCE.** ⚠ **Without it, *"this is just a correction"* is a claim about INTENT. With it, it is a MEASUREMENT.**
+
+> ⛔ **WHY THIS IS A FIELD.** **Three changes have now shipped with this construction and NO rate
+> expectation — the only form of change this project has shipped that way:**
+>
+> | change | proof |
+> |---|---|
+> | **ADR-060** — sack re-anchored to physical arrival | accumulator-identical, verified 3 ways; pre-registered falsifier did not fire |
+> | **`classifyMoveCell`** — the POWER/FINESSE merge made a consequence | algebraic *(candidates provably equal at committed)* + gated sweep unchanged on all arms |
+> | **ADR-062** — `quickTwitchMove` wired | ⛔ **algebraic and COMPILER-ENFORCED** — `as const` types the field to the literal `"SPEED"`; the hardcoded branch compares against that same literal |
+>
+> ⚠ **Held at PATTERN through two** *(backlog entry 137)* **and promoted on the third, by the criterion
+> that promoted `where the author stopped reading`.** ⛔ **Not proposed on first sight — this week
+> produced two rules that way and one already carries a known gap.**
+
 ## Need
 What type / event / channel is needed, by which domain, and why. Reference the spec section that motivates it.
 

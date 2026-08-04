@@ -10380,3 +10380,81 @@ produced two sixths.**
 CLAIM ABOUT A SET, AND A CLAIM ABOUT A SET IS ONLY AS GOOD AS THE ENUMERATION BEHIND IT.** ⛔ **Twice
 now an ordinal has been asserted from recall and failed derivation — the placement count, and this.**
 **Both times the correction cost one grep and the assertion had sounded plausible to everyone.**
+
+---
+
+## 141. ⛔⛔ A PATCH THAT CANNOT PRODUCE AN EFFECT, REPORTED AS A LEVER THAT DIDN'T — **a null without power, in a new medium**
+
+**From the `quickTwitchMove` mechanism read. ⛔ The disposition is the least of what it found.**
+
+### ✅ THE RULING — **WIRE IT** *(owner, disposition A)*
+
+**`tunables.ts:335-337`:**
+
+```
+/** Which rush move each conditional trait bonus attaches to. */
+quickTwitchMove: "SPEED",     ⛔ read NOWHERE
+brickWallMove:   "POWER",     ✅ read at passRush.ts:91
+```
+
+> ## ⛔ **ONE COMMENT, SINGULAR, COVERING BOTH. The pair is DOCUMENTED AS ONE MECHANISM WITH TWO INSTANCES, and only one instance exists.**
+
+⚠ **Deletion would have asserted that Quick Twitch's binding is FIXED BY DESIGN while Brick Wall's is a
+TUNABLE INTERPRETATION** — ⛔ **a football claim about an asymmetry that nothing supports, contradicted
+by the line directly above it.**
+
+✅ **And wiring is COMPILER-ENFORCED INERT:** `TUNABLES` is `as const`, so `quickTwitchMove` is typed to
+the **literal** `"SPEED"`, and the hardcoded branch compares against **that same literal.** ⛔ **Not
+two things that agree — one identity the compiler holds.**
+
+### ⛔⛔ THE FINDING THAT OUTRANKS IT — **patchable but inert**
+
+**`applyTunablePatch` (`tunables.ts:3256`) is a generic PATH-BASED leaf-patcher with NO
+*is-this-value-read* check.**
+
+> ## ⛔ **A SWEEP COULD TARGET `passRush.quickTwitchMove`, HAVE THE PATCH ACCEPTED WITHOUT ERROR, AND PRODUCE ZERO EFFECT — INDISTINGUISHABLE FROM A LEGITIMATELY SWEPT-AND-REFUTED LEVER.**
+
+⚠ **And `tunables.ts`'s own comment block documents SEVERAL genuine swept-and-refuted levers**
+*(`blockerStructuralAdvantage`, `freeRunnerArrivalSeconds`)* — **so the shelf a false null would sit on
+is already populated with true ones.**
+
+**⇒ A NULL WITHOUT POWER, IN A NEW MEDIUM.** ⛔ **Not a sample too small to detect an effect — A PATCH
+THAT CANNOT PRODUCE ONE, reported identically.** ⚠ **The amended null rule** *(entry 123: report what
+the null would look like if the thing were true)* **does not catch this: the honest answer to *"what
+would a real effect look like"* is *"exactly what you would see if the lever were wired,"* and nothing
+in the report distinguishes the two.**
+
+### ⇒ ⛔ AND THE STANDING QUESTION IT RAISES — **a second audit that could RETIRE entries**
+
+> ## ⛔ **HAS ANY RECORDED REFUSAL IN THIS PROJECT SWEPT A LEAF THAT NOTHING READS?**
+
+⚠ **Cheap to check — the patch targets are on record in the sweep harnesses and in the refusal entries
+themselves.** ✅ **And like the closure audit, it could RETIRE entries rather than add them: a refusal
+resting on a sweep of a dead leaf is not a refusal, it is a measurement of nothing.**
+
+**`unruled`, queued.** ⚠ **Second item in the register whose output would be subtractive.**
+
+### ✅ THE GENERAL FORM, NOW THAT THE CONDITIONAL FIRED
+
+**`traitBonuses.quickTwitch` — the MAGNITUDE — IS read** *(`passRush.ts:67`)*. ⛔ **So for Quick Twitch
+the magnitude is configurable and the move-binding is not; for Brick Wall both are.**
+
+> ## ⛔ **AN UNREAD FIELD IS A DIFFERENT FINDING DEPENDING ON WHETHER ITS SIBLINGS ARE READ.** ⚠ **Unread ALONE is dead configuration. Unread BESIDE LIVE SIBLINGS is a design that moved and left a piece behind.**
+
+⛔ **Entry 138 asked *"is this field read"* and got a CORRECT ANSWER TO A QUESTION TOO NARROW** — ⚠ **the
+enumeration failure arriving at a FIELD'S NEIGHBOURS rather than at a SIGNAL'S CONSUMERS.**
+
+### ✅ NULL REPORTED — the enumeration is exhaustive
+
+**Exactly TWO move-conditional trait bindings exist in the whole `traitBonuses` block** — `quickTwitch`
+and `brickWall`. ⛔ **Entry 138's pair is the COMPLETE SET. No third fictional binding.** ✅ **Reported
+as a result, per the rule.**
+
+### 📒 AND THE CORRECTION SHAPE IS PROMOTED TO A FIELD — third instance
+
+**ADR-060, the `classifyMoveCell` fix, and now this: three changes shipped with NO RATE EXPECTATION,
+each proved inert BEFORE landing.** ⛔ **Held at pattern through two** *(entry 137)*, **promoted on the
+third, by the criterion that promoted `where the author stopped reading`.**
+
+**⇒ `ADR-TEMPLATE.md` gains an `Inertness proof` field** — required when an ADR claims no rate
+expectation, naming whether the proof is **ALGEBRAIC**, **EMPIRICAL**, or ⛔ **BOTH (the standard)**.
