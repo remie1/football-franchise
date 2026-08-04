@@ -9609,3 +9609,52 @@ code implements horizon-arrival, coinciding only at `0.0`.**
 
 ✅ **Doc-vs-code, read at source rather than inferred from a paraphrase of a paraphrase.** ⛔ **That is
 what makes the re-anchoring a CORRECTION rather than an ADOPTION.**
+
+---
+
+## 130. ✅ THE 12-vs-32 COMPARABILITY TEST — **confirmed three ways, and it retires the sign question**
+
+**Ordered because external read 3's corpus differed from ours in TWO variables, not one — sample size
+AND league size — and their report scaled across both.** ⛔ **This bounds how much of that report we
+can cite at all.**
+
+### ✅ COMPARABLE. Three independent lines.
+
+| line | result |
+|---|---|
+| **STRUCTURAL** *(source read BEFORE running)* | ⛔ **Nothing downstream of `buildFlatLeague` reads team count except the loop bound.** `buildRosterSlots` is per-team; `POSITION_DEPTH` is a fixed table; `FROZEN_TENDENCIES` is a static down/distance table; `generateSeeds[k]` is identical whether `count=66` or `496`. **No home-field mechanism exists anywhere in `engine`/`contracts`** *(grep, zero hits)* |
+| **STATISTICAL** | ✅ **All EIGHT rates agree within sampling error.** Observed diffs `0.14-0.60pp` against a minimum-detectable floor of **`0.4-1.1pp`** |
+| **IDENTITY** | ✅ **Arm B's seed digest is `fnv1a:020c1dcb#496` — BIT-IDENTICAL to entry 129's.** Not a fresh baseline; the tree's own canonical corpus |
+
+### ⛔ AND IT RETIRES THE SIGN DISAGREEMENT
+
+**Entry 129 flagged the physically-anchored step as `−0.067pp` (ours) against `+0.06pp` (theirs) and
+declined to round it away.** ✅ **Both sit FAR INSIDE the `0.4-1.1pp` detection floor.**
+
+> ## ⇒ **SAMPLING NOISE, NOT A LEAGUE-SIZE EFFECT.** ⚠ **The right call was to flag it and not chase it; this is the measurement that says why.**
+
+### ✅ AND THEIR INSTRUMENT REPRODUCES BIT-IDENTICALLY
+
+**Arm A (`TEAMS=12`, 66 games): `dropbacks 5,840 · sacks 987 · disrupted 4,623 · scrambles 951`** —
+⛔ **bit-identical to external read 3's own pristine baseline.** ✅ **Their corpus and instrument were
+faithful; four external reads, four for four.**
+
+### ⇒ WHAT TRANSFERS, AND WHAT DOES NOT
+
+| ✅ **transfers** | ⛔ **does NOT** |
+|---|---|
+| **RATES** — sack%, disrupted%, scramble%, the four pocket-status-tick shares, the label-vs-physical comparison | **RAW COUNTS** *(≈`7.32×`, matching `66→496`)* |
+| | **anything keyed to schedule LENGTH rather than SHAPE** — home/away parity, bye structure, week-number metrics |
+
+⚠ **STANDING RULE FROM THIS: any single-corpus rate difference under ~`1pp` between the two reports is
+SAMPLING, not league size.** ⛔ **That floor is reusable and should be cited rather than re-derived.**
+
+### 📒 AND ONE CAVEAT THE DISPATCH FOUND RATHER THAN ASSUMED AWAY
+
+⛔ **Identical seed STRING ≠ identical simulated game.** ⚠ **`gameId` derives from the fixture, and the
+circle-method pairing sequence differs between a 12-team and a 32-team round-robin — so game `k` in
+each arm is an INDEPENDENT DRAW that happens to share a seed string, not a replay.**
+
+✅ **Hence run as two independent samples rather than claimed as a paired design.** ⛔ **On a flat
+league this changes nothing — every roster is attribute-interchangeable — but the distinction is why
+the statistical line uses two-proportion tests rather than a paired one.**
