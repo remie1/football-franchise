@@ -9491,3 +9491,121 @@ that context (`21.01%`) is `+9.949pp` on `sack`.
 three times, each time with the specific mismatch stated.** ⚠ **The relayed `68pp` traces to the
 August 1 transcript's line 194 — *entry-versus-exit separation under supply extinction* — a different
 quantity, from a different document, at a stale commit.**
+
+---
+
+## 129. ✅ EXTERNAL READ 3 REPRODUCED — **and a fourth false-classification mechanism: a note describing a SUPERSEDED version of the document it cites**
+
+**Their probe run on OUR canonical corpus, plus an independent instrument. ⛔ Nothing was cited from
+their report until this landed.**
+
+**Arm: `flat-60-32t`, `SYNTHETIC_ROUND_ROBIN` 2024, 496 games, seed `baseline-0001`, digest
+`fnv1a:020c1dcb#496`.** ⚠ **Their figures were `n=66` on a 12-TEAM league — two variables differ from
+ours, not one.**
+
+### ✅ BOTH INTAKE INVARIANTS HELD — as DETERMINISTIC identities, verified THREE ways
+
+| invariant | result |
+|---|---|
+| flag-unset ≡ pristine | ✅ **identical on every field**, confirmed by a pristine capture AND a zero-patch-code instrument |
+| ⛔ **flag-set at COMMITTED ≡ flag-unset** | ✅ **identical** — `dropbacks`, `sacks`, `disruptedDropbacks`, `scrambles`, paths, `pocketStatusTicks` |
+
+> ## ✅ **THE RE-ANCHORING IS A PROVABLE NO-OP AT COMMITTED VALUES.** ⛔ **That is what makes it CORRECTNESS rather than a tuning change, and it is a deterministic identity owing no power statement.**
+
+### ✅ `pathSum === sacks` ON ALL EIGHT ARMS at 496 games / 32 teams
+
+⛔ **No fourth sack site.** ⚠ **This is the attribution instrument the corridor question needed, and it
+OUTLIVES the ruling it was collected for** — the first thing in months that says WHERE sacks come from
+rather than how many.
+
+### ⚠ THE HEADLINE — **reproduced in SHAPE, not in SIGN**
+
+| | theirs (`n=66`, 12 teams) | ⛔ **ours (`n=496`, 32 teams)** |
+|---|---|---|
+| label-anchored `I=0.5` step | `+21.68pp` | **`+22.759pp`** *(matches entry 126 exactly)* |
+| physically-anchored step | `+0.06pp` | ⛔ **`−0.067pp`** |
+
+⚠ **The qualitative claim holds cleanly: an enormous label-anchored cliff against a near-zero physical
+move.** ⛔ **The sign disagrees, and is reported rather than rounded away.**
+
+### ⛔ AND THE `clock` PATH FIRED — **but only OFF-COMMITTED**
+
+**Twice in `59,124` sacks: once in `B2` (`I=0.5`, phys), once in `C1` (`I=−10`, label).**
+⛔ **BOTH COMMITTED ARMS: `clock = 0`.**
+
+> ## ⇒ ⚠ **ENTRY 91's *"the horizon coverage sack never fires"* IS NOT REFUTED — IT HOLDS AT COMMITTED VALUES.** ⛔ **What is refuted is that the path is STRUCTURALLY dead. It is COMMITTED-POINT-EMPTY and reachable elsewhere.**
+
+⛔ **FOURTH INSTANCE OF THE COMMITTED-POINT CLASS** *(after entry 103's `4.123pp` delta, entry 104's
+joint constraint, and the counter's ceiling)*. ⚠ **Every inertness claim this project has made about
+this subsystem has turned out to be a fact about ONE CONFIGURATION.**
+
+### 📒 THE SINGLE-SOURCE ARMS ARE CIRCULAR BY CONSTRUCTION — recorded so it is not misread later
+
+**Four arms independently confirmed** *(label-anchored: patch-free instrument + patched-flag-unset)*.
+**Four flagged SINGLE-SOURCE** *(physically-anchored)*.
+
+⛔ **THAT IS NOT UNEVEN RIGOUR. IT IS THE ONLY POSSIBLE ARRANGEMENT.** ⚠ **No independent instrument
+for physical anchoring can exist until the re-anchoring is implemented — measuring it requires the
+change it is evidence for.** **Stated here so a later reader does not read four verified and four
+flagged as sloppiness.**
+
+⚠ **And the label-anchored arms reproduce entry 126 almost to the decimal — which RE-CONFIRMS ENTRY
+126, NOT THE PROBE**, since label-anchored behaviour never touches the patch. ⛔ **Independent
+confirmation of the wrong thing would have read as validation.**
+
+---
+
+## ⛔⛔ THE REGISTER FINDING — a fourth false-classification MECHANISM
+
+**`docConformance.ts`'s `arrival.*` block carries `docRef: "§7.2 KNOWN ISSUE (missing time-of-arrival
+model)"` and the note *"The doc has no arrival model — its own KNOWN ISSUE box says so."***
+
+### ⛔ VERIFIED AT SOURCE — BOTH HALVES ARE FALSE
+
+| claim | ⛔ **`match-engine.md`** |
+|---|---|
+| §7.2 has a `KNOWN ISSUE` block | ⛔ **IT DOES NOT.** The doc's three are at `:594` *(term asymmetry)*, `:879` *(the missing "move" branch)*, `:988` *(`freeRunnerArrivalSeconds`' value)*. **None concerns arrival** |
+| the doc has no arrival model | ⛔ **§7.2 `:750-752` — `PRESSURE` is *"1+ rushers either (a) having WON a rep with an ARRIVAL INSIDE THE PRESSURE HORIZON…"*** — added by the **July 2026 AMENDMENT under ADR-032.** `IMMEDIATE` is *"Rusher in QB's face"* |
+
+> ## ⛔ **THE NOTE DESCRIBES §7.2 AS IT WAS BEFORE THE ADR-032 AMENDMENT.**
+
+**⇒ FOURTH MECHANISM, distinct from the other three:**
+
+| # | mechanism | example |
+|---|---|---|
+| 1 | **wildcard absorption** — classification by neighbourhood | entry 111, the horizons pre-fix |
+| 2 | **stale key** — a rule matching a leaf that no longer exists | entry 123, `counterMoveAfterStalemate` |
+| 3 | **a note predating its subject** | entry 120 |
+| ⛔ **4** | ⛔ **A NOTE DESCRIBING A SUPERSEDED VERSION OF THE DOCUMENT IT CITES** | **this** |
+
+⚠ **Worse than a wrong citation, because THE CITATION WAS CORRECT WHEN WRITTEN.** ⛔ **A ratified
+amendment closed the gap and nothing re-read the classification asserting it.** **Machine-checked and
+green for the life of the file.**
+
+> ### ⇒ **THE RETIRED-FIGURE SHAPE, ARRIVING IN THE REGISTER RATHER THAN THE BACKLOG** *(cf. entry 128's entry-82/ADR-055 case)*. ⚠ **Suggested partial form, NOT proposed on one instance: when a ratified amendment closes a documented gap, the classifications asserting that gap are the things to re-read.** ⛔ **Two sightings now.**
+
+### ⛔ AND THE PAIRED DEFECT — one note, two populations, true only of the minority
+
+**The two horizons IMPLEMENT §7.2's stated model with unstated values.**
+**`travelSecondsByAlignmentAndMove` is GENUINELY undocumented engine invention.**
+
+⛔ **Same block, same note, and the note is true only of the second.** ⚠ **The widen-versus-split rule
+arriving at a register entry.**
+
+### ✅ THE RULING — `NEITHER_RULED_NOR_DERIVED` HELD, note corrected and split *(owner, August 2026)*
+
+**§7.2 names the pressure horizon and conditions two rungs on arrival — but ASSIGNS NO VALUES.**
+⛔ **It says arrival matters, not that it matters at `0.0` and `1.0`.**
+
+> ## ⇒ ✅ **THE CONSTANTS ARE NOT DERIVABLE FROM THE DOC, WHICH IS WHAT `NEITHER_RULED_NOR_DERIVED` ASSERTS. THE CELL-LEVEL CLAIM SURVIVES ITS OWN NOTE BEING FALSE.**
+
+⚠ **`INTERPRETATION` is wrong for a DIFFERENT reason than the note is wrong: it asserts a judgement was
+made, and entry 111 established nobody made one.**
+
+### 📒 AND §7.2's `SACK` LINE, VERIFIED AT SOURCE — the re-anchoring's real grounds
+
+**`match-engine.md:766` — *"Rusher reaches QB before ball released."*** ⛔ **A PHYSICAL EVENT.** ⚠ **The
+code implements horizon-arrival, coinciding only at `0.0`.**
+
+✅ **Doc-vs-code, read at source rather than inferred from a paraphrase of a paraphrase.** ⛔ **That is
+what makes the re-anchoring a CORRECTION rather than an ADOPTION.**
