@@ -11104,3 +11104,78 @@ ways** — no file outside `packages/calibration` touched *(so the simulation ca
 retires a conclusion; entry 146 §2/§3's falsification, corrected-in-place vs superseded; and the
 registry NOT being self-extending — **a target added tomorrow is covered only if its author adds
 it.**
+
+---
+
+## 149. ⛔ ADR-063'S EXPIRY CONDITION — **a guard that depends on being remembered**, and the pattern that would fix it is already in the same file
+
+**Promoted out of ADR-063's `Implied scope` on the owner's flag.** ⛔ **It is not a scope line. It is
+the condition under which the ADR's own claim stops being true.**
+
+### ⛔ 1. THE SHAPE — **the pre-ADR-063 convention, one layer up**
+
+| | before ADR-063 | after ADR-063 |
+|---|---|---|
+| **what must be remembered** | *don't sweep a leaf nothing reads* | *register your target* |
+| **who must remember** | the harness author | ⛔ **the harness author** |
+| **failure mode** | a null-without-power, silent | ⛔ **a null-without-power, silent** |
+
+> ## ⛔ **A GUARD WHOSE COVERAGE DEPENDS ON THE PERSON IT IS GUARDING AGAINST REMEMBERING IT EXISTS.**
+
+⚠ **ADR-063 converted a convention into a check FOR TARGETS THAT EXIST.** ⛔ **For targets that do
+not exist yet, it converted a convention into a different convention.**
+
+### ✅ 2. BUT THE FILE IS HONEST ABOUT IT, AND THE ACCURATE STATEMENT IS NARROWER
+
+**The coverage-accounting test asserts THREE things, all INTERNAL CONSISTENCY:**
+
+```
+expect(overlap,     "a path claimed both ACTIVE and EXCLUDED is a contradiction")  .toEqual([]);
+expect(dupActive,   "ALL_TARGETS carries a duplicate tunableId")                   .toEqual([]);
+expect(dupExcluded, "EXCLUDED_TARGETS carries a duplicate path")                   .toEqual([]);
+```
+
+⚠ **And its own comment says so, unprompted:** ⛔ ***"This is NOT a claim that the union is complete
+— see the file header's own statement of method and its limits."***
+
+✅ **So this is NOT a hidden gap. It is a STATED one** — *a null whose coverage is stated is a
+result* — **and the finding is the CONDITION, not a concealment.**
+
+### ⛔⛔ 3. AND THE REGISTRY **IS** SELF-EXTENDING — for exactly ONE family
+
+**`sweepTargetPreflight.test.ts:178`:**
+
+```ts
+if (!BAND_LABELS.every((b) => excludedFromP2.has(b) || SHARED_MODULE_TARGETS.some((t) => t.tunableId === RESET_PATH_OF(b)))) {
+  throw new Error("...a band was added or removed and this file's restated target list was not updated.");
+}
+```
+
+> ## ✅ **THAT IS THE FIX, ALREADY WRITTEN, FOR ONE FAMILY.** ⛔ **It derives the expected set FROM THE SOURCE OF TRUTH and THROWS ON DIVERGENCE — so adding a band cannot silently escape the registry.**
+
+⚠ **Nothing does the equivalent for the registry as a whole.** ⛔ **The generalization is exact:
+derive the set of files calling `applyTunablePatch` and throw when one appears that the registry does
+not account for** — **the same operation, one level up from bands to construction sites.**
+
+### 📒 4. THE RECURSION — **this is ADR-063's own shape, applied to ADR-063**
+
+**ADR-063's decision reads:** *"a wiring rather than a new instrument — the detector existed, was
+validated, and had never been pointed at sweep-target construction."*
+
+> ## ⛔ **THE COMPLETENESS PATTERN EXISTS IN THE SAME FILE, IS VALIDATED ON ONE FAMILY, AND HAS NEVER BEEN POINTED AT THE FILE'S OWN COMPLETENESS.**
+
+⚠ **Third time this shape has been recorded** *(ADR-053's `ByTier<T>` and its tunables subject;
+`DEAD_CELL_PROBES` and sweep-target construction; this)* — ⛔ **and NO ordinal is claimed, per entry
+140: the members of that set have never been enumerated, and two entries once both claimed "sixth."**
+
+✅ **What makes this one different: the instrument and the subject are IN THE SAME FILE, forty lines
+apart.** ⚠ **The prior two were separated by packages and by months.**
+
+### ⇒ DISPOSITION
+
+⛔ **`unruled`, and it is the owner's** — ⚠ **but unlike the four items in ADR-063's `Implied scope`,
+this one has a NAMED CHEAP FORM and a WORKING PRECEDENT forty lines above it.**
+
+**And it is stated as ADR-063's EXPIRY CONDITION, in the register, where a future reader asking
+*"is this ADR still true?"* will be standing** — ⛔ **not in the ADR, whose own claim is what
+expires.**
