@@ -10550,3 +10550,125 @@ by dispatches or by earlier sessions.** ⚠ **This one is in `docs/decisions/`, 
 Orchestrator, in the commit that created the field it falsified.** ✅ **Recorded because the class
 has no exemption for its own author** — **and because the placement count, per entry 140, is a claim
 about a set: no ordinal is assigned here.**
+
+---
+
+## 143. ⛔⛔ THE MOVE ASYMMETRY IS ARITY, NOT RATING — **and it is a confound under ADR-061's inherited row**
+
+**From the POWER/FINESSE attribute-contest read** *(read-only, no ruling)*. ⛔ **The question was
+malformed and the dispatch said so. The answer is bigger than the question.**
+
+### ✅ 1. THE CONTEST DISTINGUISHES THE MOVES BY **HOW MANY TERMS THEY SUM**
+
+**`passRush.ts:63-71` — rusher attribute terms, including the always-present `ATTR.passRush` base:**
+
+| move | move-specific terms | total rusher terms |
+|---|---|---|
+| **SPEED** | `firstStep` | **2** |
+| ⛔ **POWER** | `powerMove` **+** `strength` | ⛔ **3** |
+| **FINESSE** | `finesseMove` | **2** |
+
+⛔ **The BLOCKER does not branch on `move` at all** *(`passRush.ts:86-94`)* — always `passBlock` +
+`footwork` + `anchor`, **three terms, constant.** *(The `brickWall` gate is trait-conditional and the
+flat corpus has empty trait sets — `roster.ts:134`.)*
+
+### ✅ 2. NO CLAMP — the escape hatch I named does not apply
+
+**I flagged this as the thing most likely to kill the consequence: a clamp could absorb the extra
+term.** ✅ **It does not exist on this path.** `rollD100` is `raw + sumModifiers` *(`rolls.ts:106-110`)*,
+`sumModifiers` is a plain reduce *(`rolls.ts:102-104`)*, `margin = rusherRoll.total −
+blockerRoll.total` *(`passRush.ts:98`)* is unclamped. **A `clamp` helper exists at `rolls.ts:141-143`
+and is never called in either rep or tick resolution.** ⛔ **The extra term passes straight into
+`margin`, and from there into `bandFor`.**
+
+### ⛔ 3. THE NUMBER, on `flat-60-32t`
+
+`FLAT_RATING = 60` *(`flat.ts:32`)*, `rusherAttrDivisor` = `blockerAttrDivisor` = `5`
+*(`tunables.ts:247-248`)*, `attrMod` = `round(rating/5)` ⇒ ⛔ **12 per term, identically, for every
+attribute.** `blockerStructuralAdvantage: 0` *(`tunables.ts:334`)* is dropped by `compact`'s
+zero-filter.
+
+| | rusher sum | blocker sum | **deterministic margin, before any die** |
+|---|---|---|---|
+| **SPEED** | 24 | 36 | ⛔ **−12** |
+| **POWER** | 36 | 36 | ✅ **0** |
+| **FINESSE** | 24 | 36 | ⛔ **−12** |
+
+⚠ **Against bands `RUSHER_WINS_REP ≥15 / BLOCKER_BEATEN ≥5 / RUSHER_GAINING ≥1 / STALEMATE ≥0 /
+BLOCKER_CONTAINS ≥−14`** *(`tunables.ts:377-382`)*, ⛔ **a 12-point shift of the whole distribution is
+a band-scale effect, not a rounding-scale one.**
+
+### ⛔⛔ 4. THE REFRAME — **ADR-028 compensated the blocker against the rusher's MAXIMUM case**
+
+**`tunables.ts:249-259`, the `blockerStructuralAdvantage` comment, FIRST SENTENCE:**
+
+> *"§7.1 gives the rusher **two or three** attribute terms; this flat term ... stood in for the
+> blocker's missing third term."*
+
+⛔ **The comment NAMES THE VARIANCE — *"two or three"* — and then compensates the blocker with a flat
+third term against ONE END OF IT.** ✅ **ADR-028's swept measurement was made against POWER's
+three-term case.**
+
+> ## ⛔ **SO THE ASYMMETRY IS NOT `POWER` vs `FINESSE`. IT IS: the blocker's post-ADR-028 three-term line is matched 3-FOR-3 AGAINST POWER ONLY. Against SPEED and FINESSE it is 3-vs-2.**
+
+⚠ **SPEED and FINESSE are MUTUALLY SYMMETRIC** — both −12 — **and both sit at the PRE-ADR-028
+disadvantage POWER no longer has.** ⛔ **Nothing in ADR-028's comment addresses the asymmetry it
+created among the rusher's OWN three moves.** *(The comment is emphatic about a different coupling:
+never restore a non-zero constant without removing `anchor`, or the blocker is compensated twice.)*
+
+### ⛔⛔ 5. THE CONFOUND — **`POWER` is EXCLUSIVELY `INTERIOR` in every shipped playbook**
+
+**`playbook.ts:344-347, 486-519` — `move` is assigned STATICALLY PER SLOT, eleven entries:**
+
+| slot | move | alignment |
+|---|---|---|
+| LE | SPEED | EDGE |
+| DT ×2 | ⛔ **POWER** | ⛔ **INTERIOR** |
+| RE | **FINESSE** | EDGE |
+| LB blitzers | SPEED | INTERIOR / EDGE |
+
+⛔ **EVERY `POWER` REP IS AN `INTERIOR` REP. There is no `POWER`+`EDGE` slot in the shipped set.**
+
+> ## ⛔ **ENTRY 110's *"`INTERIOR` carries ~85% of the won-rep population"* NOW HAS A SECOND CANDIDATE CAUSE.** ⚠ **Not "there are more interior rushers" — INTERIOR CONTAINS EVERY RUSHER CARRYING THE +12 ARITY ADVANTAGE.**
+
+✅ **ADR-061's MEASUREMENT STANDS.** *(`INTERIOR v=2.0` moving `sack` `16.509% → 7.599%` is empirical
+and does not depend on why INTERIOR carries the population.)* ⛔ **What is confounded is its
+RATIONALE — the ~85% share used to identify the lever is co-determined by move arity.**
+
+> ## ✅ **AND THE PROVENANCE FIELD FLAGGED EXACTLY THIS ROW.** ⛔ **ADR-061 row 1: *"~85% — ⚠ INHERITED — entry 110. Not re-derived here."***
+
+⚠ **First time a row marked `INHERITED` is the row that later needed re-derivation.** **The field was
+promoted on evidence that unmarked rows are where errors live; this is the weaker, more useful
+version — a MARKED row correctly predicting where the soft ground was.**
+
+### ⚠ 6. `FINESSE` APPEARS **ONCE** IN THE ENTIRE SHIPPED PLAYBOOK
+
+**One slot: RE** *(`playbook.ts:347`)*. ⛔ **And `move` is never chosen at runtime — it is a fixed
+property of the slot, not a decision.**
+
+**⇒ So the ORIGINAL question is nearly moot in practice.** ⚠ **The pairing that actually co-occurs on
+every dropback is LE(`SPEED`) vs RE(`FINESSE`)** — ⛔ **and those two are exactly the pair that is
+STRUCTURALLY IDENTICAL** *(both 24 vs 36)*. **They diverge only through `firstStep` vs `finesseMove`
+rating differences, which the flat corpus sets equal.**
+
+> ## ⛔ **THE MOVE ENUM PROMISES A THREE-WAY DISTINCTION. TRAVEL COLLAPSES POWER AND FINESSE; THE CONTEST COLLAPSES SPEED AND FINESSE. NO SINGLE CHANNEL SEPARATES ALL THREE.**
+
+### 📒 7. AND AN INERT BRANCH FOUND IN PASSING — `actorAttrModifier`
+
+**`rolls.ts:59`:** `const value = divisor === 5 ? attrMod(map, attr) : Math.round(getAttr(map, attr) / divisor);`
+
+⛔ **BOTH ARMS COMPUTE THE SAME EXPRESSION.** `attrMod` is `round(getAttr(map, id, 50)/5)`
+*(`registry.ts:42-45`)* and `getAttr`'s default fallback is **also `50`** *(`registry.ts:32`)*. ⚠ **At
+`divisor === 5` the two arms are algebraically identical; at any other divisor only one arm is
+reachable.** ✅ **The ternary cannot change behaviour at ANY divisor.**
+
+**`unruled`, not proposed as a change** — ⛔ **same standing as `forcesDecision`: correct behaviour,
+and the fix is a decision rather than a tidy.** ⚠ **Recorded because it is a THIRD shape of dead
+code in this register: not an unread leaf** *(entry 141)*, **not stale prose** *(entry 140)*, **but a
+LIVE BRANCH BOTH OF WHOSE ARMS AGREE.**
+
+### ⇒ THE FOOTBALL QUESTION, put and NOT answered
+
+⛔ **Should a power rush draw on more attributes than a finesse rush?** ⚠ **That is a claim about the
+sport, not about the code.** ✅ **The code currently says yes by 12 points on a flat league, and no
+ADR has ever said it.** **`unruled` — and it is the owner's.**
