@@ -10030,3 +10030,52 @@ column at face value.**
 
 > ⚠ **First time a sweep has MANUFACTURED an instance of a class this register catalogues.** ⛔ **Worth
 > knowing that arms can create the defects the tree is audited for.**
+
+---
+
+## 136. 📒 A GAP WHOSE REMEDY IS ALREADY BUILT — **and a football item queued upstream**
+
+### ⛔ 1. AN AGREEMENT BETWEEN TWO MEASUREMENTS CARRIES THE TREE IT WAS ESTABLISHED ON
+
+**Entry 135 recorded entry 114's cross-validation going stale: correct when written, digit-for-digit
+true on the tree that produced it, and no longer reproducing after entry 122's fix, ADR-059 and
+ADR-060 landed.** ⛔ **`tunablesDigest` unchanged throughout — engine-side drift.**
+
+> ## ⛔ **ADR-025 ALREADY GOVERNS THIS SHAPE, POINTED AT A DIFFERENT ARTIFACT.**
+
+**`engineCommit` + `tunablesDigest` is the baseline identity, and `-dirty` never compares equal.**
+⚠ **A CROSS-VALIDATION IS A CLAIM THAT TWO MEASUREMENTS AGREE — the same kind of claim a baseline
+comparison makes.** ⛔ **Nothing governs whether it still holds.**
+
+> ## ⇒ 📒 **THIS IS THE FIRST GAP IN THIS REGISTER WHOSE REMEDY IS ALREADY BUILT AND POINTED ELSEWHERE.**
+
+⚠ **Every other gap named this week needed something invented** — a new provenance value, a new field,
+a practice with no precedent. ⛔ **This one needs an existing mechanism applied to an artifact it was
+never aimed at.**
+
+**⇒ RECORDED AS A GAP WITH A KNOWN SHAPE, NOT PROPOSED AS A FIELD.** ⚠ **One instance. The criterion is
+the one that promoted where-I-stopped AFTER TWO** — and this week already produced two rules on first
+sight, one carrying a known gap.
+
+📒 **The shape, stated so a second instance is recognised rather than rediscovered:** ⛔ ***any recorded
+agreement between two measurements carries the tree it was established on, and ADR-025's refusal rule
+is the model for what would guard it.***
+
+### ⛔ 2. `EDGE.POWER`'s INERTNESS POINTS UPSTREAM — **queued as its own item**
+
+**Entry 135 measured it: of `3,632` committed-arm ties in the merged EDGE bucket, only `12` are
+genuinely `POWER` once decoupled — `0.4%`.**
+
+⛔ **SO THE CONSTANT HAS ALMOST NO REACH REGARDLESS OF ITS VALUE.** ⚠ **That is a fact about MOVE
+SELECTION, not about the travel table — and move selection is a different subsystem that has NOT BEEN
+EXAMINED AT ALL.**
+
+> ## ⇒ ⛔ **QUEUED AS ITS OWN FOOTBALL ITEM, NOT FOLDED INTO THE TRAVEL TABLE'S RULING.**
+
+⚠ **Folding it in would attach a finding about `FROZEN_TENDENCIES` + `buildFlatLeague` to a ruling
+about `arrival.travelSecondsByAlignmentAndMove`** — ⛔ **which is the implied-scope defect ADR-032's
+worked example records, arriving between subsystems rather than between cells.**
+
+**⚠ And the scope caveat stands with it:** ⛔ **`0.4%` is measured under `FROZEN_TENDENCIES` and a FLAT
+league. It is NOT NECESSARILY TRUE under a different caller or real ratings** — **which is itself part
+of why the question belongs upstream rather than here.**
