@@ -425,13 +425,22 @@ export const pocketStatusDistribution: Metric = registerMetric({
  *     surface: `pocket.severity` ranks `CLEAN: 0 < COLLAPSING: 2 < IMMEDIATE: 3`
  *     (`packages/engine/src/tunables.ts`), `forcesDecision` names exactly those two non-CLEAN
  *     rungs, and `pocketFloorFromArrival` (`rushThreat.ts`) returns `IMMEDIATE` on the IDENTICAL
- *     comparison `hasArrived` uses to decide arrival. So neither disjunct can fire on a tick whose
- *     status stayed CLEAN, which means neither can fire on a dropback whose WORST tick stayed
- *     CLEAN — exactly the condition `threat_creation_rate`'s `pressuredDropbacks` flag tests.
+ *     comparison `hasArrived` (`rushThreat.ts` — DORMANT since the no-target sack's re-anchoring
+ *     off it, zero production call sites; kept for the LABEL question) computes. So neither
+ *     disjunct can fire on a tick whose status stayed CLEAN, which means neither can fire on a
+ *     dropback whose WORST tick stayed CLEAN — exactly the condition `threat_creation_rate`'s
+ *     `pressuredDropbacks` flag tests. `collect.ts`'s `disruptedDropbacks` header carries the full
+ *     derivation, including CALIBRATION-BACKLOG entry 126 finding 8's caveat that this identity
+ *     holds only at the committed tunable value.
  *   - (3) is MEASURED, not proven for every code path: backlog 87/88 measured 0 of 6,593 sim
  *     sacks landing on a CLEAN-worst dropback on the canonical corpus, and entries 91/92 traced
  *     why (two sack paths are non-CLEAN by construction or by a separately measured population;
  *     the third, the only one that COULD be CLEAN-worst, never fires under `DEFAULT_TUNABLES`).
+ *     Entry 91's "by construction" for the no-target sack path read off that path calling
+ *     `hasArrived`; it is now re-anchored to `minTta <= 0` directly and no longer calls it. The
+ *     conclusion is unchanged at `DEFAULT_TUNABLES` and is now independently confirmed by entry
+ *     129's `pathSum === sacks` measurement (496 games / 32 teams, no fourth site) — see
+ *     `collect.ts`'s header for the full note.
  *
  * ⇒ `disruptedDropbacks <= pressuredDropbacks` always, on this tree, under `DEFAULT_TUNABLES`.
  * PINNED: `test/metrics.test.ts` asserts the inequality across the fold's own 30-game corpus, so

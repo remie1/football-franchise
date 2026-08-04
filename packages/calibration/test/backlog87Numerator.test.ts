@@ -14,13 +14,25 @@
  *     (`pressuredSacks`, conditioned on the same `pressured` flag `pressuredDropbacks` uses) —
  *     via `runBatch`'s folded accumulator, exactly as the registered metric computes it.
  *
- *  2. THE HORIZON-SACK CENSUS (coordinator review round 2). `passPlay.ts` has THREE sack paths:
+ *  2. THE HORIZON-SACK CENSUS (coordinator review round 2). `passPlay.ts` has THREE sack paths
+ *     (line numbers below re-verified against the current tree; the count itself — no fourth
+ *     site — is now also confirmed empirically, not just argued, by CALIBRATION-BACKLOG entry
+ *     129's `pathSum === sacks` on all eight measured arms, 496 games / 32 teams):
  *
- *       path 1  `sacksWithoutTarget` (`passPlay.ts:943`) — requires `hasArrived`, which requires
- *               an ARRIVED `RUSH_THREAT`. PROVABLY never CLEAN-worst.
- *       path 2  escape-fails-immediately / `CAUGHT_FROM_BEHIND` (`passPlay.ts:995,1036`) —
- *               measured (not proven) at `wouldFlip = 0` by backlog 87 item 5.
- *       path 3  the horizon fallback (`passPlay.ts:1115-1126`, `outcome === undefined` after the
+ *       path 1  `sacksWithoutTarget` (`passPlay.ts:1003`) — at the time this was written, required
+ *               calling `hasArrived`, which required an ARRIVED `RUSH_THREAT`; the no-target sack
+ *               was since re-anchored (`passPlay.ts`'s §7.2 SACK comment) to `minTta <= 0` directly
+ *               and no longer calls `hasArrived` (now dormant, kept for the LABEL question). The
+ *               CONCLUSION survives unchanged at `DEFAULT_TUNABLES` — `minTta <= 0` still implies
+ *               `minTta <= immediateWithinSeconds` (committed at `0`), so path 1 is still PROVABLY
+ *               never CLEAN-worst at the committed point — but "requires `hasArrived`" is no longer
+ *               an accurate description of how that is true; see CALIBRATION-BACKLOG entry 91's
+ *               table row for the superseded mechanism and entry 129 for the independent
+ *               confirmation of the count.
+ *       path 2  escape-fails-immediately / `CAUGHT_FROM_BEHIND` (`tunables.ts`'s escape-margin
+ *               label table; sack site now `passPlay.ts:1055-1097`) — measured (not proven) at
+ *               `wouldFlip = 0` by backlog 87 item 5.
+ *       path 3  the horizon fallback (`passPlay.ts:1182-1193`, `outcome === undefined` after the
  *               tick loop exhausts `clock.maxTick`) — the ONLY path whose own comment claims it
  *               CAN be CLEAN-worst ("the space genuinely was clean and the quarterback went down
  *               anyway, which is what a coverage sack IS").

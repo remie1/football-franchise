@@ -80,9 +80,13 @@
  * `POCKET_STATUS` once a scramble is live, because `activeThreats` (`sim/passPlay.ts:1489-1512`)
  * discards every §7.1 matchup entirely and substitutes one synthetic clock the instant
  * `scramble !== undefined`, and the tick loop never re-enters rep resolution, RUSH_THREAT
- * publication, or STEP_UP/ESCAPE logic once that branch is live (`sim/passPlay.ts:771-804` always
- * either `continue`s or `break`s before line 806's `hasArrived`/`forcesDecision` block is reached
- * again). So from the tick `QB_PURSUIT` is observed onward, this module stops reading the
+ * publication, or STEP_UP/ESCAPE logic once that branch is live (`sim/passPlay.ts`'s
+ * `scramble !== undefined` branch, currently lines 943-976, always either `continue`s or `break`s
+ * before the SACK/`forcesDecision` block below it (currently starting line 978) is reached again).
+ * This is a CONTROL-FLOW fact — which branch runs, not what either branch's predicate tests — so
+ * it is unaffected by the no-target sack's re-anchoring from `hasArrived` to `minTta <= 0` directly
+ * (`hasArrived` itself is now dormant, kept for the LABEL question; see that site's own comment).
+ * So from the tick `QB_PURSUIT` is observed onward, this module stops reading the
  * `RUSH_THREAT`-fed `real`/`cf` mirrors (which the engine itself has abandoned) and reconstructs
  * `POCKET_STATUS` from `floorFromArrival(tunables, deadlineTick − curTick)` instead — the same
  * function, the same inputs the engine's own `pocketFloorFromArrival` reads, only sourced from the

@@ -133,16 +133,31 @@ export interface PlayFold {
    *   - (1) and (2) hold BY CONSTRUCTION. `pocket.severity` ranks `CLEAN: 0 < COLLAPSING: 2 <
    *     IMMEDIATE: 3` (`tunables.ts`), `forcesDecision` names exactly `COLLAPSING`/`IMMEDIATE`
    *     (both non-CLEAN by that ranking), and `pocketFloorFromArrival` (`rushThreat.ts`) returns
-   *     `IMMEDIATE` on the IDENTICAL comparison (`minTta <= immediateWithinSeconds`) `hasArrived`
-   *     uses to decide arrival — so an ARRIVED threat or a forcesDecision status is, this tick,
-   *     never CLEAN, which is exactly the condition that sets `pressured = true` below. Neither
-   *     disjunct can fire on a dropback whose worst status stayed CLEAN.
+   *     `IMMEDIATE` on the same comparison (`minTta <= immediateWithinSeconds`) `hasArrived`
+   *     (`rushThreat.ts` — DORMANT since the no-target sack's re-anchoring off it, zero production
+   *     call sites; kept for the LABEL question, see `passPlay.ts`'s §7.2 SACK comment) computes —
+   *     so an ARRIVED threat or a forcesDecision status is, this tick, never CLEAN, which is
+   *     exactly the condition that sets `pressured = true` below. Neither disjunct can fire on a
+   *     dropback whose worst status stayed CLEAN. CALIBRATION-BACKLOG entry 126 finding 8: this
+   *     formula identity between `hasArrived` and `pocketFloorFromArrival` HOLDS ONLY AT THE
+   *     COMMITTED tunable value — the ARRIVED event is published off `etaTick <= tick`, never off
+   *     this formula, so moving `immediateWithinSeconds` decouples the two. (1)/(2) are proven
+   *     under `DEFAULT_TUNABLES` only, which is exactly what this header already claims, not under
+   *     every tunable value.
    *   - (3) is MEASURED, not proven for every code path: backlog entries 87/88 measured 0 of 6,593
    *     sim sacks landing on a CLEAN-worst dropback on the canonical corpus, and entries 91/92
    *     traced why — two of the three sack paths require non-CLEAN by construction or by a
    *     separately measured population, and the third (the only one that COULD be CLEAN-worst)
-   *     never fires under `DEFAULT_TUNABLES`. So (3) does not add a counterexample on this corpus,
-   *     but is not asserted to hold under every future tunable value the way (1)/(2) are.
+   *     never fires under `DEFAULT_TUNABLES`. Entry 91's "by construction" for the no-target sack
+   *     (path 1) read off that path CALLING `hasArrived`; the no-target sack is now re-anchored to
+   *     `minTta <= 0` directly (`passPlay.ts`'s §7.2 SACK comment) and no longer calls `hasArrived`.
+   *     The conclusion is unchanged at `DEFAULT_TUNABLES` (`immediateWithinSeconds = 0`, so
+   *     `minTta <= 0` still implies `minTta <= immediateWithinSeconds`, still IMMEDIATE, still
+   *     non-CLEAN) and CALIBRATION-BACKLOG entry 129 now confirms the underlying three-path count
+   *     independently (`pathSum === sacks` on 496 games / 32 teams, no fourth site) — but the
+   *     mechanism entry 91 named for path 1 no longer matches the code. So (3) does not add a
+   *     counterexample on this corpus, but is not asserted to hold under every future tunable value
+   *     the way (1)/(2) are.
    *
    * Pinned: `test/metrics.test.ts` asserts `disruptedDropbacks <= pressuredDropbacks` across the
    * fold's own 30-game corpus, so a future change that breaks the relation fails a test rather

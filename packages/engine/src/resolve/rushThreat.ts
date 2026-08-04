@@ -535,6 +535,60 @@ export function minTimeToArrival(
   return min;
 }
 
+/**
+ * ============ WIRED AND DORMANT — THE LABEL PREDICATE (ADR-056 pattern, third use) ============
+ *
+ * WHAT IT IS FOR. The predicate form of §7.2's `IMMEDIATE` question: is a
+ * rusher in the quarterback's face, by the horizon `tunables.arrival
+ * .immediateWithinSeconds` declares — the identical comparison
+ * `pocketFloorFromArrival`'s first branch runs inline (`minTta <=
+ * t.immediateWithinSeconds`) to produce the `IMMEDIATE` rung. This function
+ * is that same test, named, over the nearest of a set of threats rather than
+ * a single already-computed `minTta`.
+ *
+ * WHY NOTHING CALLS IT. `sim/passPlay.ts`'s no-target sack was re-anchored
+ * from this function to the physical fact `minTta <= 0` (owner ruling,
+ * August 2026; `match-engine.md` §7.2:766 — "rusher reaches QB before ball
+ * released" is a physical event, not a label crossing). That was this
+ * function's only production call site, and it was the WRONG consumer: the
+ * sack is what happened, not what the label says is happening. Removing that
+ * call site leaves this function with zero callers, but the re-anchoring is
+ * a statement about the SACK's predicate, not about this one — see the next
+ * paragraph for what the deletion of `hasArrived` itself would assert, which
+ * nothing has established.
+ *
+ * WHAT WOULD MAKE IT LIVE. A subject appears when some band or mechanic
+ * needs the LABEL question — is he inside the declared horizon, a tunable
+ * boundary that can move independently of physics — rather than the
+ * PHYSICAL one `minTta <= 0` answers with no tunable in it at all. The two
+ * coincide only at the committed default (`immediateWithinSeconds === 0.0`);
+ * anywhere else on that tunable they diverge, and something that means
+ * "test whether the `IMMEDIATE` label itself would fire" (as opposed to
+ * "test whether the man has physically arrived") is this function's actual
+ * subject. Nothing in the engine asks that question today.
+ *
+ * NOT A CANDIDATE FOR DELETION. Before removing a configuration, state what
+ * its absence asserts (the deletion rule this repeats). Deleting `hasArrived`
+ * would assert that no band or mechanic should ever key on the LABEL form of
+ * physical arrival — a football claim nobody has made. That is a petition,
+ * not a cleanup, so the function stays, named, with its subject stated above.
+ *
+ * THE PIN. `test/rushThreat.test.ts`'s existing cases (`hasArrived(TUNABLES,
+ * [threat(2.0)], 1.5/2.0)`, the empty-threats case) still exercise this
+ * function directly and are what keeps its behaviour honest while it has no
+ * production caller.
+ *
+ * THE GAP, RECORDED RATHER THAN RESOLVED. This dormancy is not the whole
+ * story external read 3 §4c raised (`docs/decisions
+ * /EXTERNAL-READ-3-REPORT-2026-08.md` §4, horn (c): severity "as the
+ * published record"). The LABEL predicate — this function — has NO
+ * CONSUMER anywhere in the engine, mechanical or diagnostic. If `IMMEDIATE`
+ * means something (§7.2: "rusher in QB's face... must decide THIS tick"),
+ * nothing in the stream or its readers ever tests whether that claim is
+ * TRUE of a given `IMMEDIATE` publication — the label is asserted and
+ * unchecked. The owner has not ruled on that horn. This comment records the
+ * gap; it does not close it.
+ */
 export function hasArrived(
   tunables: Tunables,
   threats: readonly ArrivalClock[],

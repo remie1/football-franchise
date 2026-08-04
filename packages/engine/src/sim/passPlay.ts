@@ -123,7 +123,6 @@ import {
   clearsThreat,
   continuesContainStreak,
   delayThreat,
-  hasArrived,
   minTimeToArrival,
   nearestThreat,
   recoverySecondsFor,
@@ -976,9 +975,16 @@ export function simulatePassPlay(
       continue;
     }
 
-    // §7.2 SACK — "rusher reaches QB before ball released". Arrival is now a
-    // NECESSARY condition: the status list alone used to sack a quarterback one
-    // second into his drop for a rep lost fifty feet away.
+    // §7.2 SACK — "rusher reaches QB before ball released". That is a PHYSICAL
+    // EVENT (a rusher's distance has closed to zero), not the `IMMEDIATE`
+    // label — `hasArrived` tests `minTta <= tunables.arrival.immediateWithinSeconds`,
+    // a tunable horizon that only coincides with arrival at its committed value
+    // (0.0, `tunables.ts`'s `immediateWithinSeconds`). Re-anchored directly to
+    // `minTta <= 0`, the same fact the `ARRIVED` publication above (`etaTick >
+    // tick`) is already hard-coded to, so a future move of that tunable cannot
+    // silently change when a quarterback with a live rusher and no target goes
+    // down. At the committed default this is the identical comparison — this is
+    // the code coming into line with §7.2's doc text, not a rule change.
     //
     // `pocket !== undefined` is never false here in practice — every branch of
     // the `scramble !== undefined` block above (§8.8's tuck-or-hold) either
@@ -993,7 +999,8 @@ export function simulatePassPlay(
     // down still goes down, via §8.8's own `CAUGHT_FROM_BEHIND` sack path a few
     // dozen lines below, which has always been the only route to that outcome
     // once he has left the pocket.
-    if (pocket !== undefined && hasArrived(tunables, threats, tick) && sacksWithoutTarget(tunables, pocket)) {
+    const minTta = minTimeToArrival(threats, tick);
+    if (pocket !== undefined && minTta !== undefined && minTta <= 0 && sacksWithoutTarget(tunables, pocket)) {
       outcome = sack(tick);
       break;
     }
