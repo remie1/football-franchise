@@ -10458,3 +10458,95 @@ third, by the criterion that promoted `where the author stopped reading`.**
 
 **⇒ `ADR-TEMPLATE.md` gains an `Inertness proof` field** — required when an ADR claims no rate
 expectation, naming whether the proof is **ALGEBRAIC**, **EMPIRICAL**, or ⛔ **BOTH (the standard)**.
+
+---
+
+## 142. ⛔ A CITATION THAT WAS FALSE ON A TIMER — **the first false-prose site that authoring made true later**, and the inheritance diagnosis refuted by the brief that flagged it
+
+**ADR-062 landed. `quickTwitchMove` is wired, four lines, one file. The disposition is again the
+least of what the dispatch returned.**
+
+### ✅ 1. THE `Inertness proof` FIELD'S FIRST USE — **it held**
+
+**Pre-registered before the dispatch ran:** ⛔ ***`pnpm verify` MUST be green with ZERO test changes,
+or the identity does not hold and the change is not the no-op it was ruled on.*** ✅ **Green. Zero
+test changes. Verified by the Orchestrator directly, not read from the report.**
+
+⚠ **Both halves of the proof, which is the standard:** **ALGEBRAIC** — `TUNABLES` is `as const`, so
+`quickTwitchMove` is typed to the literal `"SPEED"` and the replaced branch compared against that
+same literal; **one comparison the type system holds identical, not two values that agree.**
+**EMPIRICAL** — the suite, untouched.
+
+### ✅ 2. THE FALSE-PROSE CLASS CHECKED **BEFORE** IT FIRED — a new placement, and a null
+
+**The risk, named in the brief:** ⛔ **wiring the binding while leaving a MOVE-NAMED LABEL would put
+entry 140's defect in a STRING** — and `RollModifier.source` reaches the event log, ⚠ **so the
+placement is STREAM-VISIBLE, which no prior member of the class has been.**
+
+✅ **Result: `"Trait: Quick Twitch"`. Move-agnostic already. No defect, no rename.**
+
+> ## ✅ **THE FIRST TIME THIS CLASS HAS BEEN CHECKED BEFORE IT FIRED RATHER THAN FOUND AFTER.**
+
+⚠ **And the RESTRAINT was the load-bearing instruction, not the check.** ⛔ **Had the label encoded
+the move, renaming it would have been A CHANGE WITH CONSUMERS — the standing `forcesDecision` has,
+where the name is wrong and the fix is a decision rather than a tidy.** ✅ **Report verbatim and stop
+is correct in BOTH branches, which is why it was instructed unconditionally.**
+
+### ⛔ 3. THE INHERITANCE DIAGNOSIS IS REFUTED AS A SUFFICIENT CONDITION — **by the brief that flagged it**
+
+**The proposed mechanism** *(owner, this dispatch)*: **the premises that fail are the ones CARRIED
+FROM A PRIOR DISPATCH'S REPORT rather than read from the file. Not recall, not carelessness —
+INHERITANCE.**
+
+⛔ **This brief flagged exactly such a premise** — `rusherMods`'s `compact([...])` shape, named in the
+brief as second-hand — ✅ **and the dispatch verified it against the file and it HELD.** **Report:
+*"the prior dispatch's report was accurate here; no divergence found."***
+
+> ## ✅ **FIRST CLEAN PREMISE LEDGER OF THE SESSION.** ⛔ **So it is three of four, not four of four — and the counter-instance arrived inside the brief that named the pattern.**
+
+⚠ **What survives is weaker and more useful: inheritance marks WHERE TO LOOK, it does not predict a
+failure.** ⛔ **The flag is a SEARCH INSTRUCTION, not a diagnosis** — and its first null is the
+evidence that it is doing work rather than confirming a story. **A flag that only ever fires is
+indistinguishable from a flag that is always raised.**
+
+### ⛔⛔ 4. THE FINDING — **I COMMITTED A CITATION TO A DOCUMENT THAT DID NOT EXIST**
+
+**`ADR-TEMPLATE.md`'s new `Inertness proof` field carries a worked-examples table. Committed at
+`1abf3d6`, its third row reads:**
+
+| change | proof |
+|---|---|
+| **ADR-062** — `quickTwitchMove` wired | algebraic and COMPILER-ENFORCED — … |
+
+⛔ **`ADR-062` DID NOT EXIST WHEN THAT ROW WAS COMMITTED.** ⚠ **The field created to stop *"this is
+just a correction"* from being a claim about intent shipped with a row asserting evidence whose
+evidence is a FILENAME THAT RESOLVED TO NOTHING.**
+
+> ## ⛔ **EVERY PRIOR MEMBER OF THE FALSE-PROSE CLASS WAS FALSE AT AUTHORING AND STAYED FALSE.** ⚠ **THIS ONE WAS FALSE AT AUTHORING AND BECAME TRUE ONE COMMIT LATER — false ON A TIMER, and NOTHING IN THE REPO ENFORCES THE TIMER.**
+
+✅ **It closes with this commit.** ⛔ **It was live for one, and had the session ended at `1abf3d6`
+the template would permanently cite a nonexistent document as evidence for its own promotion.**
+
+### 📒 THE GENERAL SHAPE — **a rule whose evidence table is filled in ADVANCE**
+
+⛔ **The promotion criterion is *three instances*. The table IS the count.** ⚠ **So pre-filling a row
+does not merely cite a missing file — it SUPPLIES THE THIRD INSTANCE THAT AUTHORIZED THE
+PROMOTION.** **The field's own justification rested on a row that was not yet true.**
+
+> ## ⛔ **THIS IS `ratification does not add evidence` ONE LEVEL UP.** ⚠ **The template warns that a ratified ADR looks identical whether its claims were derived or transcribed. A PROMOTED FIELD looks identical whether its instance count was COUNTED or ANTICIPATED.**
+
+✅ **The promotion survives — ADR-062 landed and the row is now true, and the other two rows were
+true when written.** ⛔ **But it survived by follow-through, not by construction, and follow-through
+is not a property of the document.**
+
+**⇒ `unruled`, and the cheap form is a rule rather than an audit: A WORKED-EXAMPLES ROW CITING AN
+ADR MAY NOT BE COMMITTED BEFORE THE ADR IS.** ⚠ **Free at authoring time — reorder two commits —
+and expensive afterwards, which is the field-versus-habit test passing.** *(Charter §4.1)*
+
+### ⚠ AND THE NARROWER ONE: this was self-inflicted, in the register's own instrument
+
+⛔ **Entries 126, 135, 139 and 140 found false prose in code, comments, docs and identifiers written
+by dispatches or by earlier sessions.** ⚠ **This one is in `docs/decisions/`, authored by the
+Orchestrator, in the commit that created the field it falsified.** ✅ **Recorded because the class
+has no exemption for its own author** — **and because the placement count, per entry 140, is a claim
+about a set: no ordinal is assigned here.**

@@ -62,10 +62,7 @@ export function resolvePassRushRep(args: PassRushRepArgs): PassRushRepOutcome {
 
   const moveMods =
     move === "SPEED"
-      ? [
-          actorAttrModifier(rusher, "speed rush (First Step)", ATTR.firstStep, t.rusherAttrDivisor),
-          traitModifier("Trait: Quick Twitch", rusher.attributes.traits, TRAIT.quickTwitch, tunables.traitBonuses.quickTwitch),
-        ]
+      ? [actorAttrModifier(rusher, "speed rush (First Step)", ATTR.firstStep, t.rusherAttrDivisor)]
       : move === "POWER"
         ? [
             actorAttrModifier(rusher, "power rush (Power Move)", ATTR.powerMove, t.rusherAttrDivisor),
@@ -76,6 +73,9 @@ export function resolvePassRushRep(args: PassRushRepArgs): PassRushRepOutcome {
   const rusherMods = compact([
     actorAttrModifier(rusher, "Pass Rush", ATTR.passRush, t.rusherAttrDivisor),
     ...moveMods,
+    move === t.quickTwitchMove
+      ? traitModifier("Trait: Quick Twitch", rusher.attributes.traits, TRAIT.quickTwitch, tunables.traitBonuses.quickTwitch)
+      : undefined,
   ]);
 
   /**
