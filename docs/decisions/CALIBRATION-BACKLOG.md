@@ -10951,3 +10951,90 @@ read)*, **flagged unverified, and came back CONFIRMED.** ⚠ **Second inherited 
 today, against two DERIVED premises that failed** *(the SPEED extension; ADR-062's forward
 citation)*. ✅ **Still n=4 across different kinds of claim — recorded as an observation, NOT as a
 rate, per entry 140's rule that an ordinal is a claim about a set.**
+
+---
+
+## 147. ⛔⛔ THE GUARD IS COMPLETE, AND IT FALSIFIED ENTRY 146 **TWICE, IN OPPOSITE DIRECTIONS** — a claim about a family is not a claim about a member
+
+**Owner ruling: complete the wiring before the ADR lands.** ✅ **Done: 39 active / 37
+excluded-with-reason / 76 total.** ⛔ **The coverage number is the least of it.**
+
+### ✅ 1. THE METHOD, and its stated limit
+
+⛔ **Literal grep was insufficient and was rejected as the method.** `git grep "tunableId:"` finds only
+direct-object-literal call sites; it misses file-local `patch(base, path, cur, prop)` wrappers,
+template-literal loops over band tables, and array-of-tuples maps.
+
+✅ **What was used:** `git grep -l applyTunablePatch` *(31 files — a SUPERSET of the 21 that mention
+`tunableId`)* → **read every construction site and derive what it can produce.**
+
+⚠ **And the limit is printed BY THE FILE AT RUNTIME:** a construction site added after this read, a
+path built from data invisible in source, or anything outside `packages/calibration`. ✅ **A null
+whose coverage is stated.**
+
+### ⛔ 2. MY OWN FLOOR WAS WRONG IN **BOTH** DIRECTIONS
+
+**I supplied a "floor, not a bound" and told the dispatch not to trust it as complete.** ⛔ **It was
+not a floor.**
+
+| direction | what happened |
+|---|---|
+| **UNDER** | Missed the `pointOfAttack`/`contests`/`pursuitAngle` family *(6 paths)*, `passRush.blockerAttrDivisor`, three `pocket.thresholds.*.label` leaves, four `freeRunnerPath` leaves, five `SA-01` probes |
+| ⛔ **OVER** | *"Remaining `pressureProgressByBand.*.delta` bands"* — **ZERO exist.** Every site uses the same 3-band `COUNTER_BANDS` set already registered. *"Remaining `minimumStatusByBand.*`"* — **exactly ONE** (`BLOCKER_BEATEN`), not several |
+
+> ## ⛔ **A FLOOR THAT NAMES THINGS THAT ARE NOT THERE IS NOT A FLOOR. It is a guess with a disclaimer attached.**
+
+⚠ **And my `"11 targets"` was DIVERGENT — the registry already held 14.** ✅ **Third derived-by-me
+claim to fail today**, *against three inherited premises that held.*
+
+### ⛔⛔ 3. A SECOND DEAD TARGET — **and it refutes entry 146 line 10886**
+
+> ## ⛔ **`blitzPickup.freeRunnerPath.offsetSecondsByAlignmentAndDepth.INTERIOR.DEEP` (0.5 → 0) IS BYTE-IDENTICAL ON THE CORPUS — while `INTERIOR.LINE`, `EDGE.BOX` and `EDGE.DEEP` are all LIVE.**
+
+**Entry 146 listed `freeRunnerPath.offsetSecondsByAlignmentAndDepth` — ⛔ ALL SIX CELLS — as READ**,
+citing ADR-031's own control arm *(zero every offset, confirm the stream moves)* **as the reachability
+proof.**
+
+⛔ **That control zeroes the WHOLE TABLE AT ONCE. It proves the STRUCTURE is read. It cannot prove any
+CELL is reachable.** ⚠ **I recorded an aggregate proof as a per-cell one.**
+
+### ⛔⛔ 4. THE GENERAL SHAPE — **entry 146 made the SAME error TWICE, in OPPOSITE directions**
+
+| cell | entry 146 said | measured | the error |
+|---|---|---|---|
+| `pressureProgressByBand.RUSHER_WINS_REP.reset` | ⛔ **DEAD** | ✅ **LIVE** | ONE reader's unreachability *(`clearsThreat`)* read as **the CELL's** — the second reader *(`passRush.ts:171`)* fires every tick |
+| `freeRunnerPath...INTERIOR.DEEP` | ⛔ **READ** | ✅ **DEAD** | The FAMILY's aggregate proof *(ADR-031's zero-all arm)* read as **the MEMBER's** |
+
+> ## ⛔ **A CLAIM ABOUT A FAMILY IS NOT A CLAIM ABOUT A MEMBER — AND THE SAME ENTRY GOT IT WRONG IN BOTH DIRECTIONS, IN THE SAME TABLE.**
+
+⚠ **One generalized DOWN from a member to the cell; the other generalized UP from the family to a
+member.** ⛔ **Both were mine, both survived my own review, and both were found by MEASUREMENT rather
+than by re-reading** — ✅ **which is the argument for the instrument, made by the instrument.**
+
+### ✅ 5. REGISTERING EXCLUSIONS FOUND A CATEGORY OMISSION WOULD HAVE HIDDEN
+
+**The brief required exclusions be REGISTERED WITH A REASON rather than omitted** *(an omission and an
+exclusion look identical from inside the file)*. ⛔ **That requirement found a NEW exclusion category:
+`GATE_DEMONSTRATIONS` — a different gate's falsifiability injections, same shape as `SIZING_DEFECT`,
+and not previously catalogued anywhere.**
+
+⚠ **26 of the 37 exclusions are STRUCTURALLY UNPROBEABLE, not out-of-scope:** `KNOWN_INVERSIONS` *(6)*
+and `SCALE_AUDIT_FINDINGS` *(20)* are **no-op staleness checks where `proposedValue === currentValue`
+by construction** — ⛔ **a patch that cannot differ from the committed value cannot be probed, which is
+a THIRD state the audit's three-state vocabulary did not have.**
+
+### 📒 6. AND THE HEADER'S FALSE PROSE IS FIXED
+
+⛔ **The prior file shipped a header declaring `RUSHER_WINS_REP.reset` the known-dead control that
+"MUST classify DEAD", justified by "`clearsThreat` — the ONLY reader of this field for this band"** —
+**refuted by the same file's own measurement.** ✅ **Rewritten to state what the file does, with the
+swap and its reason kept** *(the file's most useful paragraph)*.
+
+### ⇒ OWED TO THE OWNER, unruled
+
+- ⛔ **Does `pocket.minimumStatusByBand.RUSHER_WINS_REP`'s dead arm retire `pocketBandSweep`'s
+  `"W:CLEAN"` conclusion?**
+- ⛔ **Does `freeRunnerPath...INTERIOR.DEEP` retire any part of ADR-031?** ⚠ **Plausibly an
+  unreachable alignment/depth combination in the classifier rather than a dead tunable — not
+  adjudicated.**
+- ⚠ **Entry 146 §2/§3: corrected in place, or superseded?**
