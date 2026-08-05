@@ -12049,3 +12049,83 @@ internally coherent, and the falsifier was the artifact's own claim applied to i
 ✅ **Not irony and not carelessness.** ⛔ **It is what happens when a register documents classes
 general enough to include the act of documenting them** — **the entries are inside the population
 they describe, and nothing about writing them carefully changes that.**
+
+---
+
+## 158. ✅ THE BLOCKED-PATH DEPTH MEASUREMENT — **prediction WIN** — and ⛔ **the fixture trap sprang a THIRD time, inside entry 143's confound**
+
+### ⛔ THE CONDITIONS, before any figure
+
+1. ⛔ **`flat-60-32t`, `SYNTHETIC_ROUND_ROBIN` 2024, 496 games, `baseline-0001`.** ✅ **Seed digest `fnv1a:020c1dcb#496` on BOTH arms — byte-identical to the digest ADR-061 cites for this same arm.**
+2. ⚠ **A FLAT LEAGUE.** Anything the attribute half would govern is unmeasurable here *(entry 49)*.
+3. ⛔ **THE LIVE SURFACE IS TWO CELLS, NOT FOUR.** `INTERIOR.LINE` **and** `INTERIOR.BOX` are BOTH clamped-inert against `minTravelSeconds = 1.0`. Only `EDGE.BOX` (+0.5) and `EDGE.DEEP` (+1.0) do anything.
+4. ⚠ **The offsets are a byte-identical copy of a table ratified for a DIFFERENT path**, against a different base and different bounds. **The values are not derived for this path.**
+5. ⛔ **THE ARITY CONFOUND HOLDS IN DIRECTION BUT ITS RECORDED FORM IS FALSE — see §3.**
+
+### ✅ 1. THE POPULATION — which is what makes the result readable
+
+| cell | reps | share of blocked won-reps *(n = 70,461)* |
+|---|---|---|
+| `INTERIOR.LINE` | 37,845 | **53.72%** — clamped-inert |
+| `EDGE.LINE` | 27,730 | **39.36%** — offset `0.0` |
+| `INTERIOR.BOX` | 3,683 | **5.23%** — clamped-inert |
+| ✅ **`EDGE.DEEP`** *(live, +1.0)* | **1,181** | **1.676%** |
+| ⚠ **`EDGE.BOX`** *(live, +0.5)* | **22** | ⛔ **0.031%** |
+
+⛔ **93.1% of the population sits on cells that cannot move.** ⚠ **`EDGE.BOX` at n=22 over 496 games
+is too small to distinguish a true near-zero effect from arithmetic** — **any movement attributed to
+it specifically is not evidence.** ✅ **`EDGE.DEEP` at n=1,181 IS large enough to support a real
+"barely moves" reading.**
+
+### ✅ 2. THE TRIPLE, and the prediction scored UNHEDGED
+
+| metric | HEAD | tree | Δ |
+|---|---|---|---|
+| **sack** | 16.5087% | 16.5080% | ✅ **−0.0007pp** |
+| **entry** | 86.7008% | 86.6046% | **−0.0962pp** |
+| **exit** | 78.5641% | 78.4568% | **−0.1073pp** |
+
+*(real `sack` = 6.560%, `tier1.ts`)* · streams `fnv2:fb17810c10aff664` → `fnv2:33f53000f4d40faa`
+
+> ## ✅ **PREDICTION: WIN.** *"Less than one percentage point on `sack`, `entry`/`exit` barely at all."* ⛔ **`sack` moved 0.0007pp — three orders of magnitude under the threshold.**
+
+⚠ **And the mechanism is CORROBORATED rather than merely consistent: the two live cells are 1.71% of
+the population, and the dominant cells are clamped or zero.** ⛔ **Play counts moved too** *(+14
+dropbacks, +48 plays, +617 events)* — **the change is real and propagates into sequencing; it simply
+nets to almost nothing.**
+
+### ⛔⛔ 3. THE FIXTURE TRAP, THIRD INSTANCE — **inside entry 143's own confound**
+
+**Entry 143 §5 reads: *"`POWER` is EXCLUSIVELY `INTERIOR` in every shipped playbook"*, citing
+`playbook.ts:344-347, 486-519` — ⛔ ELEVEN ENTRIES.**
+
+> ## ⛔ **ELEVEN IS THE FIXTURE'S OWN SELF-DECLARED CARD COUNT.** ⚠ **Entry 143's confound was derived ENTIRELY from the file whose header reads `THIS IS NOT THE PLAYBOOK`.**
+
+**In the operative corpus** *(`defensiveCards.ts`, which calibration simulates)*:
+
+```ts
+GOAL_LINE_FRONT.DE_L: { kind: "RUSH", move: "POWER", alignment: "EDGE", ... }   // :833
+GOAL_LINE_FRONT.DE_R: { kind: "RUSH", move: "POWER", alignment: "EDGE", ... }   // :837
+```
+
+⛔ **A `POWER`+`EDGE` slot EXISTS.** ✅ **Goal-line-only, low snap share, and it lands those rushers at
+`EDGE.LINE` — offset `0.0` — so it does NOT touch this measurement's live cells or its result.**
+
+**⇒ THE CORRECTION:** ⛔ **"exclusively" and "every shipped playbook" are FALSE.** ✅ **The confound's
+DIRECTION survives** — `POWER` carries the three-term arity and is *overwhelmingly* `INTERIOR` — ⚠
+**but the absolute form was wrong, and it was the load-bearing citation in every conditions block
+today, including this measurement's own brief.**
+
+### 📒 4. WHY THIS ONE IS WORSE THAN THE FIRST TWO
+
+⛔ **The author had ALREADY ESTABLISHED the contradicting fact.** Earlier in the same session:
+*"`POWER`+`EDGE` authored on 2 of 22 cards, gated to `regions: ["GOAL_LINE"]`."*
+
+> ## ⛔ **ENTRY 143 CONTRADICTED A FINDING ITS OWN AUTHOR HAD ALREADY MADE, AND NOBODY CAUGHT IT FOR AN AFTERNOON.**
+
+⚠ **Entry 157 recorded the trap as *"two readers, two questions."* ⛔ It is THREE, and the third was
+written by the reader who had already been caught by it once.** ✅ **Which is the strongest possible
+support for entry 157's own conclusion: the property is the ARTIFACT'S, not the reader's — knowing
+about the trap does not protect you from it.**
+
+⛔ **`unruled`: whether entry 143's §5 is corrected in place or superseded.**
