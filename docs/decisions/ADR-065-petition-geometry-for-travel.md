@@ -2,7 +2,7 @@
 
 - **Date:** August 2026
 - **Proposed by:** Orchestrator, on owner ruling (backlog entries 155, 158; ADR-064)
-- **Status:** **proposed** — this is a PETITION under Iron Rule 2. Nothing in `packages/contracts` changes until it is ratified.
+- **Status:** ✅ **P1 APPROVED AND LANDED** · ⛔ **P2 and P3 remain `proposed`** — a PETITION under Iron Rule 2, ratified in part.
 
 ---
 
@@ -144,6 +144,38 @@ inert changes before ADR-064 all filled it, and a silent omission would read as 
 
 ## Decision
 
-⛔ **AWAITING RATIFICATION.** ⚠ **Recommended order: Petition 1 first — it is precedented, needs no
-new authoring, and its subject already exists on every card.** ✅ **Petition 2 is the expensive half
-and should not be smuggled in behind it.**
+### ✅ PETITION 1 — **APPROVED AND LANDED** *(owner, August 2026)*
+
+**Owner's ruling:** *"The precedent settles it, and it settles it more sharply than a precedent
+usually does … ADR-018 carried `side` across this exact boundary for a justification that names the
+gap it didn't carry. That's not an analogous case — it's the same case, half-finished."*
+
+⛔ **AND `gap` IS ADDITIVE, NOT A REPLACEMENT** *(ruled before implementation, deliberately)*:
+`EDGE|INTERIOR` is a coarse classification the engine reads in several places; `A|B|C|D` plus a side
+is finer. ⚠ **Replacing `alignment` inside this petition would be a change with consumers dressed as
+a field addition.** ✅ **Whether `alignment` becomes redundant is ruled when there is a distance model
+to make it redundant — not on the strength of a projection.** **Same reasoning as the `Implied scope`
+note about the travel table possibly going dead: both are consequences of a model that does not
+exist, and ruling on them now would be ruling on a prediction.**
+
+**Landed in two edits, `pnpm verify` green with ZERO test changes:**
+- `contracts/src/playcalls.ts` — `readonly gap?: RunGap` on `RushAssignment`, optional, defaulting to today's behaviour.
+- `playbook/src/instantiate.ts` — `declaredRush` carries `gap: duty.gap`. ⛔ **That line is where it was previously lost.**
+
+⚠ **`DeclaredRush extends RushAssignment`, so nothing else needed touching.**
+
+> ## ⛔ **NOTHING READS `gap` YET — recorded here, in the field's own doc, and in `declaredRush`'s comment.** ✅ **This is `quickTwitchMove`'s anatomy with the subject condition stated in advance instead of discovered by an audit.** ⚠ **If the geometry is never built, this becomes dead configuration with a good excuse, and the honest time to say so is now.**
+
+**Precedent for landing it unread:** ⚠ **`declaredRush`'s pre-existing comment already made this
+argument for `side`** — *"§7.2's model reads `alignment` today and nothing reads `side`, but the call
+is what the stream records."*
+
+### ⛔ PETITIONS 2 AND 3 — **NOT RATIFIED, and explicitly not smuggled behind P1**
+
+**P2** *(drop depth)*: ⛔ **genuinely new state, every offensive card gains a value an author must
+choose, and it becomes a THIRD underived constant** alongside `minTravelSeconds` and
+`freeRunnerArrivalSeconds`. ⚠ **Owner: *"three underived constants in one subsystem is how this
+project got here"* — a reason for caution, not a formality.**
+
+**P3** *(attributes as declared inputs)*: ⛔ **ratified when there is a geometry for them to be an
+input to, not before.**

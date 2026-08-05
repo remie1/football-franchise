@@ -268,6 +268,31 @@ export interface RushAssignment {
    * Optional, defaulting to today's behaviour.
    */
   readonly side?: RunSide;
+  /**
+   * Which gap he comes through (ADR-065 §Petition 1). The other half of `side`'s own
+   * justification: that field exists so a card can say "left A-gap blitz", and until now
+   * only the `left` half crossed this boundary.
+   *
+   * `RushDuty.gap` has been authored on EVERY rush duty in the shipped corpus since the
+   * corpus was written — every front defender owns a gap in the run fit. It stopped at
+   * `instantiate.ts`'s `declaredRush`, which took `move`/`alignment`/`side` and dropped it.
+   * So this is a CARRY-ACROSS of existing data, not new information: no card gains a value
+   * an author has to choose.
+   *
+   * NOTHING READS IT YET, AND THAT IS THE POINT OF LANDING IT. A subject appears when a
+   * travel model computes a DISTANCE rather than looking one up: `alignment` is
+   * `EDGE|INTERIOR`, which is a classification, and a gap plus a side is a position. The
+   * category is not the distance.
+   *
+   * ADDITIVE, NOT A REPLACEMENT (owner ruling, ADR-065). `gap` and `alignment` overlap but
+   * are not the same fact — `alignment` is coarse and the engine reads it in several places,
+   * including `arrival.travelSecondsByAlignmentAndMove`, ratified by ADR-061 and extended by
+   * ADR-064. Whether `alignment` becomes redundant is ruled when there is a distance model
+   * to make it redundant, not on the strength of a projection.
+   *
+   * Optional, defaulting to today's behaviour.
+   */
+  readonly gap?: RunGap;
 }
 
 /** §7.3's four complexities, verbatim. */

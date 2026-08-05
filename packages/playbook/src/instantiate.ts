@@ -138,9 +138,19 @@ function zoneAssignment(defender: PlayerId, duty: ZoneDuty): ZoneAssignment {
  * time-of-arrival model reads `alignment` today and nothing reads `side`, but the
  * call is what the stream records, and a protection that pairs by geometry inside a
  * call whose rushers have no geometry would be unauditable from the outside.
+ *
+ * `gap` NOW RIDES ALONG TOO (ADR-065 §Petition 1, ratified). Same argument, and this
+ * line is where it was previously lost: `duty.gap` is authored on every rush duty and
+ * this function took `move`/`alignment`/`side` and dropped it. `RushAssignment.side`'s
+ * own doc says that field exists so a card can say "left A-gap blitz" — only the `left`
+ * half was crossing.
+ *
+ * Nothing reads `gap` yet either, for exactly the reason nothing read `side` when
+ * ADR-018 carried it: the consumer is a model that does not exist. A subject appears
+ * when travel computes a DISTANCE instead of looking one up.
  */
 function declaredRush(rusher: PlayerId, duty: RushDuty): DeclaredRush {
-  return { rusher, move: duty.move, alignment: duty.alignment, side: duty.side };
+  return { rusher, move: duty.move, alignment: duty.alignment, side: duty.side, gap: duty.gap };
 }
 
 /**
