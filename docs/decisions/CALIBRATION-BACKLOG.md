@@ -11179,3 +11179,27 @@ this one has a NAMED CHEAP FORM and a WORKING PRECEDENT forty lines above it.**
 **And it is stated as ADR-063's EXPIRY CONDITION, in the register, where a future reader asking
 *"is this ADR still true?"* will be standing** — ⛔ **not in the ADR, whose own claim is what
 expires.**
+
+### 📒 ADDENDUM — **the easy explanation is spent, and the two live hypotheses are named**
+
+⛔ **DISTANCE IS NO LONGER AVAILABLE AS THE EXPLANATION.** ⚠ **It was comfortable for the prior two —
+`ByTier<T>` and its tunables subject were packages apart and months apart; `DEAD_CELL_PROBES` and
+sweep-target construction likewise.** ✅ **Nobody could reasonably have held both in view.**
+
+> ## ⛔ **FORTY LINES REMOVES IT. The completeness pattern is ON SCREEN when a reader reaches the gap, and it still was not applied — so whatever produces this class is NOT VISIBILITY.**
+
+**The two remaining candidates, named now because naming them at the fourth instance means
+reconstructing an argument about a different file:**
+
+1. ⚠ **AN INSTRUMENT DOES NOT READ AS APPLICABLE TO ITS OWN FILE.** *A guard is written pointing
+   outward at the thing it checks; turning it on the document that contains it is a different motion
+   from using it.*
+2. ⚠ **COMPLETENESS OF A REGISTRY DOES NOT PRESENT AS THE SAME QUESTION AS COMPLETENESS OF A BAND
+   SET.** *`BAND_LABELS` is a closed enumeration with a visible source of truth. "Every construction
+   site in the package" is an open set with no declaration to diff against — so the two feel like
+   different kinds of question even though the operation is identical.*
+
+⛔ **NEITHER IS TESTABLE FROM HERE.** ✅ **Both are recorded as HYPOTHESES, not findings — and the
+fourth instance is what would discriminate them.** ⚠ **Which is the same discipline as entry 148's
+question-without-an-instance: state the condition where the person who needs it will be standing,
+and do not promote on zero.**
