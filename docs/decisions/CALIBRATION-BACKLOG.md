@@ -12129,3 +12129,90 @@ support for entry 157's own conclusion: the property is the ARTIFACT'S, not the 
 about the trap does not protect you from it.**
 
 ⛔ **`unruled`: whether entry 143's §5 is corrected in place or superseded.**
+
+---
+
+## 159. ⛔⛔ A MISSING STATE DISCRIMINANT — **`ARRIVED` runs the `TRAVELLING` branch**, and the comment claiming otherwise is what hid it
+
+**Root cause of the `wonTravelSeconds = 0.0` anomaly. ✅ ENGINE IS CLEAN. ✅ BLAST RADIUS EMPTY, and
+checked rather than assumed.**
+
+### ⛔ 1. THE MECHANISM
+
+**`RushThreatState` has FOUR members** *(`contracts/src/events.ts:163`)*:
+`"TRAVELLING" | "DELAYED" | "RESET" | "ARRIVED"`.
+
+**`reconstructPlay`'s `RUSH_THREAT` case handles `RESET` *(delete)* and `DELAYED` *(preserve prior)*,
+then falls into a block whose comment reads:**
+
+```
+// TRAVELLING — a fresh threat. Attribute it to a won rep ONLY if …
+```
+
+> ## ⛔ **THERE IS NO `if (state === "TRAVELLING")` GUARD. `ARRIVED` EXECUTES THE TRAVELLING CODE.**
+
+⚠ **An `ARRIVED` event is a RESTATEMENT of an already-known `etaTick`.** ⛔ **Treated as a fresh win,
+it recomputes `etaTick − curTick` — and at the tick a threat arrives, `curTick == etaTick` BY
+CONSTRUCTION** *(both on the 0.5s grid)*.
+
+✅ **Which is why the value is always EXACTLY `0.0` with no near-zero noise. The precision was the
+clue, not the anomaly.**
+
+### ⛔ 2. NONE OF THE THREE HYPOTHESES WAS RIGHT — it is a fourth thing
+
+| hypothesis | verdict |
+|---|---|
+| an initialization the fold never fills | ⛔ no |
+| a path that bypasses the clamp | ⛔ no — ⚠ **`travelSecondsFor` is never invoked here at all** |
+| a read ordered before the capture | ⛔ no — no ordering-of-capture bug |
+| ✅ **a MISSING STATE DISCRIMINANT** | ✅ **yes** |
+
+### 📒 3. AND THE FALSE COMMENT IS WHAT MADE IT INVISIBLE
+
+⛔ **A reader auditing *"does this handle all four states?"* reads `// TRAVELLING — a fresh threat`,
+sees the state named, and moves on.** ⚠ **The comment is not merely wrong — it is the thing standing
+where the missing guard should be, and it answers the exact question that would have found the
+defect.**
+
+> ## ⛔ **ENTRY 140's CLASS, WITH A MEASURED COST: false prose that did not just mislead, but CONCEALED A DATA CORRUPTION AT ONE TICK IN SIX.**
+
+### ✅ 4. THE ENGINE IS CLEAN — decisively, and this was the question that outranked the rest
+
+**`POCKET_STATUS`'s arrival channel computes `tta` FRESH each tick** *(`t.etaTick − curTick` inside
+`minThreatOf`)* — ⛔ **it never reads the frozen field.** ✅ **`identityMismatches` = **0** across
+17,361 and 29,381 checks in two live runs.**
+
+**⇒ The defect is 100% confined to `packages/calibration`'s reconstruction. Nothing in the published
+stream is wrong.**
+
+### ✅ 5. BLAST RADIUS — **empty, and the null is the useful half**
+
+| consumer | affected? |
+|---|---|
+| ⛔ **`INTERIOR`** *(the defect's HIGHEST rate, ~16-17%)* | ✅ **NO CONSUMER READS IT.** `classifyMoveCell` short-circuits — `if (alignment === "INTERIOR") return "INTERIOR"` — **before the field is touched** |
+| **entry 110 / ADR-061's "~85% `INTERIOR`"** | ✅ **UNAFFECTED** — it rests on the population count, not the corrupted field |
+| **`EDGE`** *(~1.2% at `LINE`, 0% at `BOX`/`DEEP`)* | ✅ **structurally cannot blend**: a corrupted `0.0` matches no candidate *(all clamp ≥ `1.0`)*, so it always falls to `EDGE_UNRECONCILED` — and both consumers carry `expect(edgeUnreconciled).toBe(0)` |
+| `counter`, `bandFloor`, `arrival`, `published`, `arrivalAlignment`, `arrivalDepth` | ✅ **none read it** — confirmed by grep, not assumed |
+
+⛔ **NO ADR CITES A FIGURE DERIVED FROM THE CORRUPTED VALUES.**
+
+⚠ **STATED LIMIT, not softened:** the `edgeUnreconciled = 0` result was measured at **n=80/arm, not
+the canonical n=496.** ✅ **That is an empirical result at reduced N, NOT structural immunity** — the
+`toBe(0)` assertions are the mechanism that would catch it if a canonical run intersected the ~1.2%
+`EDGE.LINE` population with the narrow subset those files select.
+
+### ⛔ 6. THE RATE IS A FUNCTION OF TRAVEL TIME — which explains the asymmetry
+
+**The defect fires when a matchup posts ANOTHER `RUSHER_WINS_REP` on the tick before its own
+`ARRIVED`** *(enabled by the already-documented sibling bug: `RUSHER_WINS_REP.reset` is dead because
+`startsThreat` is checked before `clearsThreat`)*.
+
+⛔ **`INTERIOR` is clamp-bound at exactly `1.0s` = TWO TICKS — the shortest possible win-to-arrival
+gap, leaving ONE intervening tick.** ⚠ **Margins are serially correlated, so that one tick is very
+often another win ⇒ ~16-17%.** ✅ **`EDGE`'s minimum is 3+ ticks, giving more chances to drift off
+the band ⇒ ~1.2%.**
+
+> ## ✅ **THE CLAMP THAT MAKES `INTERIOR.LINE` INERT IS THE SAME CLAMP THAT MAKES ITS CORRUPTION RATE THE HIGHEST.**
+
+**`unruled`** — the fix *(a `TRAVELLING` guard)* is one line, but whether `ARRIVED` should update
+anything at all is a design question, and the owner takes it.
