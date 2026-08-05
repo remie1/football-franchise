@@ -48,6 +48,7 @@ import {
   CHANNEL_IDS,
   emptyChannelFold,
   foldTick,
+  positionsFromSnapshot,
   reconstructGame,
   type ChannelFold,
   type ChannelId,
@@ -131,14 +132,15 @@ function measure(id: string, tunables: Tunables): TreeResult {
       const fixture = fixtures[i];
       const seed = seeds.seeds[i];
       if (fixture === undefined || seed === undefined) continue;
+      const built = buildFixture(index, fixture);
       const output = runOneGame({
-        built: buildFixture(index, fixture),
+        built,
         seed,
         tendencies: FROZEN_TENDENCIES,
         fourthDown: FROZEN_FOURTH_DOWN,
         tunables,
       });
-      const plays = reconstructGame(output.observation.events, tunables);
+      const plays = reconstructGame(output.observation.events, tunables, positionsFromSnapshot(built.snapshot));
       for (const play of plays) {
         result.dropbacks += 1;
         result.identityChecks += play.identityChecks;

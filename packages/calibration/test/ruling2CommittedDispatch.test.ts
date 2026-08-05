@@ -75,6 +75,7 @@ import {
   P2_RETIRE_ELIGIBLE_BANDS,
   type BandCensusFold,
 } from "../src/knownTruth/bandCensus.js";
+import { positionsFromSnapshot } from "../src/knownTruth/pocketChannelShares.js";
 
 const ENABLED = process.env["FF_R2C"] === "1";
 const GAMES = Number(process.env["FF_R2C_GAMES"] ?? "496");
@@ -184,15 +185,16 @@ function run(set: number): Measured {
     const fixture = fixtures[i];
     const seed = seeds.seeds[i];
     if (fixture === undefined || seed === undefined) continue;
+    const built = buildFixture(index, fixture);
     const output = runOneGame({
-      built: buildFixture(index, fixture),
+      built,
       seed,
       tendencies: FROZEN_TENDENCIES,
       fourthDown: FROZEN_FOURTH_DOWN,
       tunables: DEFAULT_TUNABLES,
     });
     acc = foldGame(acc, output.observation);
-    foldGameRuling2(r2, output.observation.events, DEFAULT_TUNABLES);
+    foldGameRuling2(r2, output.observation.events, DEFAULT_TUNABLES, positionsFromSnapshot(built.snapshot));
     foldGameBandCensus(bc, output.observation.events);
     used.push(seed);
   }

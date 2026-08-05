@@ -671,6 +671,57 @@ export const TUNABLES = {
       EDGE: { SPEED: 2.0, POWER: 1.5, FINESSE: 1.5 },
     },
     /**
+     * §7.2's BLOCKED PATH depth term — CALIBRATION-BACKLOG entry 155, restored
+     * after an owner reversal. DELIBERATE DUPLICATION, same standing pattern as
+     * `pocketFloorFromArrival`/`floorFromArrival` (`resolve/rushThreat.ts` vs.
+     * `packages/calibration/src/knownTruth/geometryTimeRetirement.ts`) and
+     * `reconstructedTravelSecondsFor` (`pocketChannelShares.ts`). Three clauses,
+     * per that standing pattern, so this does not get tidied back into one table:
+     *
+     *  1. WHAT IT DUPLICATES. `blitzPickup.freeRunnerPath
+     *     .offsetSecondsByAlignmentAndDepth` — §7.4's free-runner offsets. The
+     *     six cells below are BYTE-IDENTICAL to that table TODAY:
+     *     `INTERIOR: { LINE: -0.5, BOX: 0.0, DEEP: 0.5 }`,
+     *     `EDGE: { LINE: 0.0, BOX: 0.5, DEEP: 1.0 }`. Copied, not invented — no
+     *     new magnitude is asserted by this table existing.
+     *
+     *  2. THAT IT IS DELIBERATE. Not an oversight, and not pending
+     *     consolidation into a single shared table. `travelSecondsFor` below
+     *     reads THIS table, never `freeRunnerPath`'s.
+     *
+     *  3. WHAT THE SEPARATION BUYS. Sharing one table across the two paths
+     *     would make an edit intended for FREE RUNNERS silently change BLOCKED
+     *     rushers' arrivals too, with nothing to catch it — the two paths
+     *     already have different bases (`travelSecondsByAlignmentAndMove` vs.
+     *     `blitzPickup.freeRunnerArrivalSeconds`) and different bounds
+     *     (`minTravelSeconds`/`maxTravelSeconds` vs.
+     *     `freeRunnerPath.minArrivalSeconds`/`maxArrivalSeconds`). A constant
+     *     shared across two paths that behave differently is the
+     *     coincidental-equality shape `relationalConstantCensus.ts` already
+     *     enumerates four instances of; a fifth is not free just because the
+     *     numbers match today. Copying breaks that coincidence into two named
+     *     values that can diverge on their own evidence.
+     *
+     * ⚠ THE ASYMMETRY, RECORDED AND NOT JUSTIFIED. The offsets are shared
+     * (today, by copy) but the BASES and BOUNDS are not, so the same six cells
+     * land differently on the two paths: `INTERIOR.LINE`'s `-0.5` is
+     * CLAMPED-INERT here (`INTERIOR`'s base is `1.0`, `minTravelSeconds` is
+     * `1.0`, so `1.0 + -0.5 = 0.5` clamps back to `1.0`) while it is LIVE on
+     * the free-runner path against `freeRunnerArrivalSeconds` (`1.5`) and a
+     * lower floor (`minArrivalSeconds`, `0.5`). This is stated as a fact, not
+     * derived or defended: `blitzPickup.freeRunnerArrivalSeconds` is
+     * `DOC_UNIT_RESOLVED` with its VALUE recorded as unratified, and
+     * `arrival.minTravelSeconds` carries no dedicated provenance rule at all —
+     * the two bases are not even unexamined in the same way as each other, so
+     * no story about why `1.0` and `1.5` differ is offered here. Inventing one
+     * would be the reconstructed-derivation pattern this project already
+     * rejects elsewhere.
+     */
+    blockedDepthOffsetSecondsByAlignmentAndDepth: {
+      INTERIOR: { LINE: -0.5, BOX: 0.0, DEEP: 0.5 },
+      EDGE: { LINE: 0.0, BOX: 0.5, DEEP: 1.0 },
+    },
+    /**
      * INTERPRETATION: a rusher who obliterates a blocker is past him cleanly and
      * arrives sooner than one who scrapes a win. Every this many points of
      * margin ABOVE the RUSHER_WINS_REP threshold shaves one half-tick.

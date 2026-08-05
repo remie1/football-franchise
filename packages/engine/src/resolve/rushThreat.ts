@@ -315,19 +315,41 @@ export function resolvedRushAssignment(args: {
  * How long this rusher needs to cover the ground, given where he started, the
  * path his move takes, and how decisively he won. A rusher who wins by 60 is
  * cleanly past the blocker; one who scrapes a 15 is still fighting through.
+ *
+ * `position` is OPTIONAL and ADDITIVE — CALIBRATION-BACKLOG entry 155's
+ * mechanism half, `tunables.arrival.blockedDepthOffsetSecondsByAlignmentAndDepth`
+ * (see that field's comment in `tunables.ts` for the full three-clause
+ * duplication note — it is a DELIBERATE COPY of §7.4's free-runner offsets,
+ * not the same table, and not shared with it: sharing would let an edit meant
+ * for free runners silently move blocked rushers too). Omitting `position`
+ * reproduces the pre-155 arithmetic exactly (`depthOffset` below is `0` by
+ * construction only when `position` is omitted). Callers that have no
+ * `Position` in hand (every existing test in this suite) need change nothing.
+ *
+ * `depthOffset` is summed into `raw` BEFORE `Math.round`, alongside `base` and
+ * the dominance shave, rather than added after quantization — the same
+ * treatment those two already get, and required for the same reason: the
+ * table's cells are non-zero, so this placement is what keeps the ETA on the
+ * tick grid rather than merely quantizing base and dominance and leaving the
+ * depth term to drift off it.
  */
 export function travelSecondsFor(
   tunables: Tunables,
   alignment: RushAlignment,
   move: RushMove,
   margin: number,
+  position?: Position,
 ): number {
   const t = tunables.arrival;
   const base = t.travelSecondsByAlignmentAndMove[alignment][move];
   const dominanceSteps = Math.floor(
     Math.max(0, margin - winMinMargin(tunables)) / t.dominanceMarginPerHalfTick,
   );
-  const raw = base - dominanceSteps * t.quantizeSeconds;
+  const depthOffset =
+    position === undefined
+      ? 0
+      : t.blockedDepthOffsetSecondsByAlignmentAndDepth[alignment][freeRunnerDepthFor(tunables, position)];
+  const raw = base - dominanceSteps * t.quantizeSeconds + depthOffset;
   const quantized = Math.round(raw / t.quantizeSeconds) * t.quantizeSeconds;
   return Number(clamp(quantized, t.minTravelSeconds, t.maxTravelSeconds).toFixed(1));
 }
@@ -409,8 +431,21 @@ export function threatFromWonRep(args: {
   readonly tick: number;
   /** The `pass_rush_tick` roll that produced this win (ADR-004/007). */
   readonly rollRef: string;
+  /**
+   * OPTIONAL, threaded straight through to `travelSecondsFor`'s own
+   * `position` parameter — see that function's comment. Omitted by every
+   * existing call site in this suite; `sim/passPlay.ts`'s production caller
+   * supplies `m.rusher.bio.position` (CALIBRATION-BACKLOG entry 155).
+   */
+  readonly position?: Position;
 }): RushThreat {
-  const travel = travelSecondsFor(args.tunables, args.alignment, args.move, args.margin);
+  const travel = travelSecondsFor(
+    args.tunables,
+    args.alignment,
+    args.move,
+    args.margin,
+    args.position,
+  );
   return {
     rusher: args.rusher,
     alignment: args.alignment,

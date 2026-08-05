@@ -36,7 +36,7 @@ import { digestSeeds, generateSeeds } from "../src/harness/seeds.js";
 import { stableDigest } from "../src/harness/digest.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import { indexLeague } from "../src/league/snapshot.js";
-import { reconstructGame } from "../src/knownTruth/pocketChannelShares.js";
+import { positionsFromSnapshot, reconstructGame } from "../src/knownTruth/pocketChannelShares.js";
 import {
   DROPBACK_THREAT_CAP,
   LIFETIME_BUCKET_CAP_SECONDS,
@@ -103,15 +103,16 @@ describe.skipIf(!ENABLED)("threat population census", () => {
         const fixture = fixtures[i];
         const seed = seeds.seeds[i];
         if (fixture === undefined || seed === undefined) continue;
+        const built = buildFixture(index, fixture);
         const output = runOneGame({
-          built: buildFixture(index, fixture),
+          built,
           seed,
           tendencies: FROZEN_TENDENCIES,
           fourthDown: FROZEN_FOURTH_DOWN,
           tunables,
         });
         foldGameCensus(fold, output.observation.events, tunables);
-        for (const play of reconstructGame(output.observation.events, tunables)) {
+        for (const play of reconstructGame(output.observation.events, tunables, positionsFromSnapshot(built.snapshot))) {
           identityChecks += play.identityChecks;
           identityMismatches += play.identityMismatches;
         }

@@ -145,18 +145,35 @@ import {
  * that classification), and a `relationalConstantCensus.ts` `FIELD_OVERRIDES` entry (env-gated, so it
  * could not have gone red on its own). `deadRules` returns to `[]` once all three are gone — verified
  * by running the suite, not assumed.
+ *
+ * **717 → 723 at CALIBRATION-BACKLOG entry 155.** Six new leaves,
+ * `arrival.blockedDepthOffsetSecondsByAlignmentAndDepth.{INTERIOR,EDGE}.{LINE,BOX,DEEP}` — the
+ * blocked-path depth term `travelSecondsFor` now sums before `Math.round` (see that function's own
+ * comment in `packages/engine/src/resolve/rushThreat.ts`). Every cell is committed `0.0`; the engine
+ * dispatch's own comment on the tunable is explicit that pricing is a SEPARATE, unratified football
+ * question. None of the six is named individually below — all six fall through to the `arrival.*`
+ * catch-all (`UNIFORM_REGIONS`, "the doc has no arrival model … every number in this block is engine
+ * structure filling that gap"), and that note is true of these six exactly as it is of the block's
+ * other cells: nothing in `docs/design/match-engine.md` §7.2 addresses a blocked-path depth offset
+ * either, ratified or otherwise. DERIVED FROM A RUN
+ * (`npx vitest run test/docConformance.test.ts` inside `packages/calibration`, this dispatch), not
+ * computed by hand — the delta is EXACTLY the six new cells: `classifiedNarrow` (231) and `absorbed`
+ * (207, digest `fnv1a:dbc6b0bf`) are BOTH UNCHANGED, and every `blockRuleAbsorptionPins()` line below
+ * is unchanged except `arrival.*` itself (16 → 22 cells). Nothing else moved.
  */
-const RECORDED_NUMERIC_CENSUS = 717;
+const RECORDED_NUMERIC_CENSUS = 723;
 
 /**
  * The same subject as a SET rather than a size. Re-cut at ADR-040 (`d20Offset` → `baseHalfWidth`),
  * again at ADR-048 (`route.contestGain.*`, +7), again at ADR-052/053 (`resultTierLadder`, +8 new
  * rung indices), again at CALIBRATION-BACKLOG entry 73 (`arrival.containRetiresAfterConsecutiveContains`, +1),
- * again at ADR-059 landing (`passRush.counterMoveAfterStalemate` removed, −1).
+ * again at ADR-059 landing (`passRush.counterMoveAfterStalemate` removed, −1), again at
+ * CALIBRATION-BACKLOG entry 155 (the six `arrival.blockedDepthOffsetSecondsByAlignmentAndDepth.*`
+ * leaves, +6 — see `RECORDED_NUMERIC_CENSUS`'s own history comment above for the full accounting).
  * When this reddens and the count does not, a cell was SWAPPED: diff `numericLeafPaths()` against
  * `git diff packages/engine/src/tunables.ts` and re-read the affected rule against the doc.
  */
-const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:2fb37479";
+const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:2d201f1c";
 
 /**
  * ⚠ **THE RE-RECORD, AS A SET AND NOT AS A COUNT** — §4.1's count-blindness corollary applied to the
@@ -259,7 +276,14 @@ describe("doc-conformance register", () => {
     // because the two cells pulled out this time were previously inside `arrival.*`'s UNIFORM
     // population rather than its absorbing one. A count that did NOT move here would mean the pair
     // was re-typed inside the catch-all rather than actually pulled out of it.
-    expect(audit.classifiedUniform).toBe(279);
+    // 279 → 285 at CALIBRATION-BACKLOG entry 155: the six new
+    // `arrival.blockedDepthOffsetSecondsByAlignmentAndDepth.*` leaves fall through to `arrival.*`
+    // (UNIFORM_REGIONS — "the doc has no arrival model … every number in this block is engine
+    // structure filling that gap", still true of these six), NOT to `absorbed`. DERIVED FROM A RUN
+    // (`npx vitest run test/docConformance.test.ts`), not `279 + 6` by hand: `classifiedNarrow` and
+    // `absorbed` (next assertion) are BOTH pinned unchanged in this same dispatch, which is what
+    // confirms the six landed here and nowhere else moved.
+    expect(audit.classifiedUniform).toBe(285);
     expect(audit.absorbed).toHaveLength(207);
     // The SET, not the size — a swap inside the absorbed region holds the count and moves this.
     // 206 → 207, ADR-059: `passRush.repJitter.divisor` entered the tree and is claimed by the new
@@ -624,7 +648,13 @@ describe("doc-conformance register", () => {
       "blitzPickup.* :: DOC_VERBATIM :: 2 :: fnv1a:b994fb1e",
       // 18 → 16 at CALIBRATION-BACKLOG entry 111: `immediateWithinSeconds` and
       // `collapsingWithinSeconds` pulled out to their own narrow rules, above.
-      "arrival.* :: INTERPRETATION :: 16 :: fnv1a:102737ce",
+      // 16 → 22 at CALIBRATION-BACKLOG entry 155: the six new
+      // `blockedDepthOffsetSecondsByAlignmentAndDepth.{INTERIOR,EDGE}.{LINE,BOX,DEEP}` leaves land
+      // here, unnamed above — see `RECORDED_NUMERIC_CENSUS`'s history comment for why `arrival.*`'s
+      // note is still true of them. DERIVED FROM A RUN, not `16 + 6` by hand: every OTHER line in
+      // this pinned array is unchanged from before this dispatch (checked by running the suite and
+      // reading the failing diff, which named only this one line).
+      "arrival.* :: INTERPRETATION :: 22 :: fnv1a:075949fd",
       "pocket.accuracyModifier.* :: DOC_VERBATIM :: 4 :: fnv1a:2edef696",
       "pocket.readCapacityDelta.* :: TABLE_SHAPE :: 2 :: fnv1a:ae9bbb70",
       "pocket.severity.* :: STRUCTURAL :: 4 :: fnv1a:384a330e",

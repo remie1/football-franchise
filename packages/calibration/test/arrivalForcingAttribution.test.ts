@@ -33,7 +33,7 @@
  *   FF_AFA=1 pnpm --filter @ff/calibration exec vitest run test/arrivalForcingAttribution.test.ts
  */
 import { describe, expect, it } from "vitest";
-import type { MatchEventEnvelope } from "@ff/contracts";
+import type { MatchEventEnvelope, PlayerId, Position } from "@ff/contracts";
 import { DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { runOneGame } from "../src/harness/runGame.js";
@@ -42,7 +42,13 @@ import { digestSeeds, generateSeeds } from "../src/harness/seeds.js";
 import { stableDigest } from "../src/harness/digest.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import { indexLeague } from "../src/league/snapshot.js";
-import { CHANNEL_IDS, reconstructPlay, type ChannelId, type TickChannels } from "../src/knownTruth/pocketChannelShares.js";
+import {
+  CHANNEL_IDS,
+  positionsFromSnapshot,
+  reconstructPlay,
+  type ChannelId,
+  type TickChannels,
+} from "../src/knownTruth/pocketChannelShares.js";
 import { severityOf } from "../src/knownTruth/pocketLadder.js";
 
 const ENABLED = process.env["FF_AFA"] === "1";
@@ -97,6 +103,7 @@ function processGame(
   events: readonly MatchEventEnvelope[],
   tunables: Tunables,
   forcing: ReadonlySet<string>,
+  positions: ReadonlyMap<PlayerId, Position>,
 ): {
   readonly plays: readonly { outcome: PlayOutcome; ticks: readonly TickChannels[] }[];
   readonly identityChecks: number;
@@ -114,7 +121,7 @@ function processGame(
       isPass = false;
       return;
     }
-    const reclass = reconstructPlay(buf, tunables);
+    const reclass = reconstructPlay(buf, tunables, positions);
     identityChecks += reclass.identityChecks;
     identityMismatches += reclass.identityMismatches;
 
@@ -224,14 +231,20 @@ describe.skipIf(!ENABLED)("arrival-floor attribution for the conversion shortfal
         const fixture = fixtures[i];
         const seed = seeds.seeds[i];
         if (fixture === undefined || seed === undefined) continue;
+        const built = buildFixture(index, fixture);
         const { observation } = runOneGame({
-          built: buildFixture(index, fixture),
+          built,
           seed,
           tendencies: FROZEN_TENDENCIES,
           fourthDown: FROZEN_FOURTH_DOWN,
           tunables,
         });
-        const { plays, identityChecks, identityMismatches } = processGame(observation.events, tunables, forcing);
+        const { plays, identityChecks, identityMismatches } = processGame(
+          observation.events,
+          tunables,
+          forcing,
+          positionsFromSnapshot(built.snapshot),
+        );
         identityChecksTotal += identityChecks;
         identityMismatchesTotal += identityMismatches;
 

@@ -128,7 +128,7 @@
  * | time retirement is confined to arms with the rule enabled | `geometryOnly`'s `timeRetiredThreats` — structurally zero, `timeRetired` is computed as `flags.time && etaTick > finalTick` |
  * | no arm can register `touched` during the pursuit clock | not separately asserted; follows from all arms reading the identical `floorFromArrival(tunables, deadlineTick - curTick)` there, same as `published` |
  */
-import type { MatchEventEnvelope, PocketStatus, RushAlignment } from "@ff/contracts";
+import type { MatchEventEnvelope, PlayerId, PocketStatus, Position, RushAlignment } from "@ff/contracts";
 import type { Tunables } from "@ff/engine";
 import { floorFromArrival } from "./geometryTimeRetirement.js";
 import { reconstructPlay } from "./pocketChannelShares.js";
@@ -255,8 +255,9 @@ export function foldPlayRuling2(
   buf: readonly MatchEventEnvelope[],
   finalTick: number,
   tunables: Tunables,
+  positions: ReadonlyMap<PlayerId, Position>,
 ): void {
-  const channels = reconstructPlay(buf, tunables);
+  const channels = reconstructPlay(buf, tunables, positions);
   fold.identityChecks += channels.identityChecks;
   fold.identityMismatches += channels.identityMismatches;
 
@@ -399,13 +400,18 @@ export function foldPlayRuling2(
  * every sibling module in this package uses (`geometryTimeRetirement.reclassifyGame`,
  * `pocketChannelShares.reconstructGame`, `bandCensus.foldGameBandCensus`).
  */
-export function foldGameRuling2(fold: Ruling2Fold, events: readonly MatchEventEnvelope[], tunables: Tunables): void {
+export function foldGameRuling2(
+  fold: Ruling2Fold,
+  events: readonly MatchEventEnvelope[],
+  tunables: Tunables,
+  positions: ReadonlyMap<PlayerId, Position>,
+): void {
   let buf: MatchEventEnvelope[] = [];
   let isPass = false;
   let tick = 0;
 
   const flush = (): void => {
-    if (isPass && buf.length > 0) foldPlayRuling2(fold, buf, tick, tunables);
+    if (isPass && buf.length > 0) foldPlayRuling2(fold, buf, tick, tunables, positions);
     buf = [];
     isPass = false;
   };

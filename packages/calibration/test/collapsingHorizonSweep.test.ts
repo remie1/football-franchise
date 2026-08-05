@@ -94,6 +94,7 @@ import {
   CHANNEL_IDS,
   emptyStatusPartitionedFold,
   foldTickByStatus,
+  positionsFromSnapshot,
   reconstructGame,
   type ChannelId,
   type StatusPartitionedFold,
@@ -288,14 +289,15 @@ function measure(value: number): Measured {
       const fixture = fixtures[i];
       const seed = seeds.seeds[i];
       if (fixture === undefined || seed === undefined) continue;
+      const built = buildFixture(index, fixture);
       const output = runOneGame({
-        built: buildFixture(index, fixture),
+        built,
         seed,
         tendencies: FROZEN_TENDENCIES,
         fourthDown: FROZEN_FOURTH_DOWN,
         tunables,
       });
-      const plays = reconstructGame(output.observation.events, tunables);
+      const plays = reconstructGame(output.observation.events, tunables, positionsFromSnapshot(built.snapshot));
       for (const play of plays) {
         result.identityChecks += play.identityChecks;
         result.identityMismatches += play.identityMismatches;

@@ -82,7 +82,12 @@ const T: Tunables = DEFAULT_TUNABLES;
 
 function fold(events: readonly MatchEventEnvelope[]): Ruling2Fold {
   const f = emptyRuling2Fold();
-  foldGameRuling2(f, events, T);
+  // Synthetic streams publish `etaTick` directly (never via `travelSecondsFor`), so no rusher's
+  // `Position` is needed here — `arrivalDepth` (the only field it would feed) is not read by
+  // anything this unit test asserts. An empty map is honest, not a shortcut: every id below simply
+  // resolves to `arrivalDepth: undefined`, the same "cannot attribute" convention `wonMargin`
+  // already uses elsewhere in this reconstruction.
+  foldGameRuling2(f, events, T, new Map());
   return f;
 }
 

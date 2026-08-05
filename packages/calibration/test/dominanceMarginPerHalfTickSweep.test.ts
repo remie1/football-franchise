@@ -59,7 +59,7 @@
  * curve.
  */
 import { describe, expect, it } from "vitest";
-import type { MatchEventEnvelope, PocketStatus } from "@ff/contracts";
+import type { MatchEventEnvelope, PlayerId, PocketStatus, Position } from "@ff/contracts";
 import { DEFAULT_TUNABLES, applyTunablePatch, type Tunables } from "@ff/engine";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { runOneGame } from "../src/harness/runGame.js";
@@ -73,6 +73,7 @@ import {
   CHANNEL_IDS,
   classifyMoveCell,
   dominanceThresholdMarginFor,
+  positionsFromSnapshot,
   reconstructPlay,
   type ChannelId,
   type MoveCell,
@@ -232,8 +233,23 @@ function attributeCell(counts: CellCounts, tick: TickChannels, tunables: Tunable
     return;
   }
   if (tick.arrivalAlignment === "EDGE") {
-    if (tick.arrivalWonMargin !== undefined && tick.arrivalWonTravelSeconds !== undefined) {
-      const cell: MoveCell = classifyMoveCell(tunables, "EDGE", tick.arrivalWonMargin, tick.arrivalWonTravelSeconds);
+    // CALIBRATION-BACKLOG entry 155: `arrivalDepth` gates alongside the other two, folded into the
+    // SAME "no attribution" bucket as an unresolvable position — an unrostered/synthetic rusher id,
+    // never observed against a real `positionsFromSnapshot` map — rather than a new bucket every
+    // printer below this function would need to learn about for a case that does not arise in
+    // practice.
+    if (
+      tick.arrivalWonMargin !== undefined &&
+      tick.arrivalWonTravelSeconds !== undefined &&
+      tick.arrivalDepth !== undefined
+    ) {
+      const cell: MoveCell = classifyMoveCell(
+        tunables,
+        "EDGE",
+        tick.arrivalDepth,
+        tick.arrivalWonMargin,
+        tick.arrivalWonTravelSeconds,
+      );
       if (cell === "EDGE_NOT_SPEED") counts.edgeNotSpeed += 1;
       else if (cell === "EDGE_SPEED_DOMINANT") counts.edgeSpeedDominant += 1;
       else if (cell === "EDGE_SPEED_NONDOMINANT") counts.edgeSpeedNonDominant += 1;
@@ -306,6 +322,7 @@ function classify(soleFor: readonly ChannelId[]): Classification {
 function processGame(
   events: readonly MatchEventEnvelope[],
   tunables: Tunables,
+  positions: ReadonlyMap<PlayerId, Position>,
 ): {
   readonly plays: readonly { ticks: readonly TickChannels[] }[];
   readonly identityChecks: number;
@@ -323,7 +340,7 @@ function processGame(
       isPass = false;
       return;
     }
-    const reclass = reconstructPlay(buf, tunables);
+    const reclass = reconstructPlay(buf, tunables, positions);
     identityChecks += reclass.identityChecks;
     identityMismatches += reclass.identityMismatches;
     plays.push({ ticks: reclass.ticks });
@@ -358,7 +375,7 @@ interface CensusResult {
   readonly identityMismatches: number;
 }
 
-function measureCensus(events: readonly MatchEventEnvelope[], tunables: Tunables, acc: {
+function measureCensus(events: readonly MatchEventEnvelope[], tunables: Tunables, positions: ReadonlyMap<PlayerId, Position>, acc: {
   oldForcedTotal: number;
   oldDiSole: Record<ChannelId, number>;
   oldDiMulti: number;
@@ -370,7 +387,7 @@ function measureCensus(events: readonly MatchEventEnvelope[], tunables: Tunables
   identityMismatches: number;
 }): void {
   const forcing = new Set<string>(tunables.pocket.forcesDecision as readonly string[]);
-  const { plays, identityChecks, identityMismatches } = processGame(events, tunables);
+  const { plays, identityChecks, identityMismatches } = processGame(events, tunables, positions);
   acc.identityChecks += identityChecks;
   acc.identityMismatches += identityMismatches;
 
@@ -438,8 +455,9 @@ function runArm(v: number, games: number): ArmResult {
     const fixture = fixtures[i];
     const seed = seeds.seeds[i];
     if (fixture === undefined || seed === undefined) continue;
+    const built = buildFixture(index, fixture);
     const { observation } = runOneGame({
-      built: buildFixture(index, fixture),
+      built,
       seed,
       tendencies: FROZEN_TENDENCIES,
       fourthDown: FROZEN_FOURTH_DOWN,
@@ -449,7 +467,7 @@ function runArm(v: number, games: number): ArmResult {
     const scanned = scanWonReps(observation.events, threshold);
     wonReps += scanned.wonReps;
     shavedReps += scanned.shavedReps;
-    measureCensus(observation.events, tunables, censusAcc);
+    measureCensus(observation.events, tunables, positionsFromSnapshot(built.snapshot), censusAcc);
     usedSeeds.push(seed);
   }
 

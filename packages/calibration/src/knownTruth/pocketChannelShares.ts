@@ -68,13 +68,51 @@
  * | channel 2 narrows exactly the way `sim/passPlay.ts` narrows it (ADR-058) | a mismatch on a won-rep tick — the signature this narrowing was added to eliminate; see CALIBRATION-BACKLOG entries 105-109 and ADR-058 for the pre-narrowing baseline these figures are compared against |
  * | a rusher's counter is read only where he has a blocker | a `pass_rush_tick` CHECK with no matching matchup — cannot happen structurally, since the CHECK IS the matchup's own publication |
  */
-import type { MatchEventEnvelope, PocketStatus, RushAlignment, RushMove } from "@ff/contracts";
-import type { Tunables } from "@ff/engine";
+import type { MatchEventEnvelope, PlayerId, PocketStatus, Position, RushAlignment, RushMove } from "@ff/contracts";
+import type { GameSnapshot, Tunables } from "@ff/engine";
 import { floorFromArrival } from "./geometryTimeRetirement.js";
 import { severityOf } from "./pocketLadder.js";
 
 export const CHANNEL_IDS = ["counter", "bandFloor", "arrival"] as const;
 export type ChannelId = (typeof CHANNEL_IDS)[number];
+
+/**
+ * `PlayerId → Position`, off the SAME `GameSnapshot` every call site already builds a game from
+ * (`BuiltFixture.snapshot`) — never an engine internal. This is what makes the depth-offset mirror
+ * below possible at all: the event stream never publishes a rusher's `Position` (`RUSH_THREAT` and
+ * `PLAY_START.defense.rush`'s `ResolvedRushAssignment` carry `alignment`, never `position`), so the
+ * one place this module can get it honestly is the roster data calibration already owns.
+ */
+export function positionsFromSnapshot(snapshot: GameSnapshot): ReadonlyMap<PlayerId, Position> {
+  const map = new Map<PlayerId, Position>();
+  for (const team of [snapshot.home, snapshot.away]) {
+    for (const player of Object.values(team.players)) {
+      map.set(player.bio.id, player.bio.position);
+    }
+  }
+  return map;
+}
+
+/**
+ * §7.4's THREE STARTING DEPTHS, reimplemented off PUBLIC `Tunables` only —
+ * `resolve/rushThreat.ts`'s `freeRunnerDepthFor` is not on `@ff/engine`'s barrel (ADR-012; it is a
+ * resolver, category the barrel's own header explicitly trims), so this is the SAME "DUPLICATED ON
+ * PURPOSE" discipline `reconstructedTravelSecondsFor` below already follows, extended one function
+ * earlier in the chain: `tunables.blitzPickup.freeRunnerPath.{onLinePositions,deepPositions,
+ * defaultDepthClass}` are the exact three PUBLIC lists the engine's own resolver reads, verified
+ * against `packages/engine/src/resolve/rushThreat.ts`'s `freeRunnerDepthFor` line for line, not
+ * assumed to match because the names look similar.
+ */
+export type ReconstructedDepth = "LINE" | "BOX" | "DEEP";
+
+export function reconstructedDepthFor(tunables: Tunables, position: Position): ReconstructedDepth {
+  const t = tunables.blitzPickup.freeRunnerPath;
+  const onLine: readonly string[] = t.onLinePositions;
+  if (onLine.includes(position)) return "LINE";
+  const deep: readonly string[] = t.deepPositions;
+  if (deep.includes(position)) return "DEEP";
+  return t.defaultDepthClass;
+}
 
 interface RusherState {
   pressure: number;
@@ -149,6 +187,16 @@ export interface TickChannels {
    */
   readonly arrivalWonMargin: number | undefined;
   readonly arrivalWonTravelSeconds: number | undefined;
+  /**
+   * CALIBRATION-BACKLOG entry 155 — the SAME argmin-arrival rusher's `ReconstructedDepth`, resolved
+   * off the `positions` map `reconstructPlay` now takes (see that function's parameter doc). Needed
+   * because `travelSecondsFor`'s blocked-path depth-offset term makes `EDGE`'s three move candidates
+   * depend on depth as well as margin — `classifyMoveCell` cannot mirror the engine correctly
+   * without it. `undefined` under the identical conditions `arrivalWonMargin` is (no attributable
+   * win) OR when `positions` has no entry for the argmin rusher's id (an unresolvable position is
+   * left honestly undefined rather than guessed at, the same convention `wonMargin` already uses).
+   */
+  readonly arrivalDepth: ReconstructedDepth | undefined;
   /**
    * ENTRY 110 PART C — the bandFloor channel's PRE-ADR-058 value: `statusFromBandFloor` over EVERY
    * `previousBand`, with none omitted for liveness. `bandFloor` (above) is the NARROWED,
@@ -226,8 +274,20 @@ function worstOf(tunables: Tunables, a: PocketStatus, b: PocketStatus): PocketSt
  * Reconstruct every `POCKET_STATUS` tick of one PASS dropback's own event buffer into its three
  * channel values plus the published truth. `buf` is exactly one play's slice (see
  * `reclassifyPlaysInGame` below for how a game's stream is split into these).
+ *
+ * `positions` is REQUIRED, not optional-with-a-silent-default — CALIBRATION-BACKLOG entry 155's
+ * fix. It is the ONLY way this module can learn a rusher's `Position` (the event stream never
+ * publishes one; see `positionsFromSnapshot`'s own doc), and `arrivalDepth` — needed to mirror
+ * `travelSecondsFor`'s now-nonzero depth-offset term correctly — has no other source. An optional
+ * parameter here would let a caller silently keep the old (now-wrong) behaviour; per the owner's
+ * ruling this dispatch acts on, a reconstruction that can silently diverge is worse than one that
+ * does not exist, so every caller must supply real roster data or fail to compile.
  */
-export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tunables): PlayChannelReclass {
+export function reconstructPlay(
+  buf: readonly MatchEventEnvelope[],
+  tunables: Tunables,
+  positions: ReadonlyMap<PlayerId, Position>,
+): PlayChannelReclass {
   const rushers = new Map<string, RusherState>();
   const real = new Map<string, RealThreat>();
   let curTick = 0;
@@ -236,35 +296,39 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
   let identityMismatches = 0;
   const ticks: TickChannels[] = [];
 
-  // The argmin of `real` by time-to-arrival, plus its alignment. Ties broken by Map iteration
-  // order (insertion order); not disambiguated further because `passRush.bands`' §7.1 travel
-  // times are per-alignment constants, so two tied rushers of the SAME alignment agree on the
-  // answer this field exists to give, and a tie ACROSS alignments is a separate, rarer question
-  // this field does not claim to answer (see the report's abstention).
+  // The argmin of `real` by time-to-arrival, plus its alignment and (entry 155) its resolved
+  // depth. Ties broken by Map iteration order (insertion order); not disambiguated further because
+  // `passRush.bands`' §7.1 travel times are per-alignment constants, so two tied rushers of the SAME
+  // alignment agree on the answer this field exists to give, and a tie ACROSS alignments is a
+  // separate, rarer question this field does not claim to answer (see the report's abstention).
   const minThreatOf = ():
     | {
         readonly tta: number;
         readonly alignment: RushAlignment;
         readonly wonMargin: number | undefined;
         readonly wonTravelSeconds: number | undefined;
+        readonly depth: ReconstructedDepth | undefined;
       }
     | undefined => {
     let min: number | undefined;
     let alignment: RushAlignment | undefined;
     let wonMargin: number | undefined;
     let wonTravelSeconds: number | undefined;
-    for (const t of real.values()) {
+    let rusherId: string | undefined;
+    for (const [id, t] of real) {
       const tta = t.etaTick - curTick;
       if (min === undefined || tta < min) {
         min = tta;
         alignment = t.alignment;
         wonMargin = t.wonMargin;
         wonTravelSeconds = t.wonTravelSeconds;
+        rusherId = id;
       }
     }
-    return min === undefined || alignment === undefined
-      ? undefined
-      : { tta: min, alignment, wonMargin, wonTravelSeconds };
+    if (min === undefined || alignment === undefined) return undefined;
+    const position = rusherId === undefined ? undefined : positions.get(rusherId as unknown as PlayerId);
+    const depth = position === undefined ? undefined : reconstructedDepthFor(tunables, position);
+    return { tta: min, alignment, wonMargin, wonTravelSeconds, depth };
   };
 
   for (const envelope of buf) {
@@ -354,6 +418,7 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
         let arrivalAlignment: RushAlignment | undefined;
         let arrivalWonMargin: number | undefined;
         let arrivalWonTravelSeconds: number | undefined;
+        let arrivalDepth: ReconstructedDepth | undefined;
         if (pursuitDeadlineTick !== undefined) {
           // §8.8 live: channels 1 and 2 are pinned CLEAN by construction (module header). The
           // pursuit clock has no single rusher to attribute an alignment to (it replaces the
@@ -365,6 +430,7 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
           arrivalAlignment = undefined;
           arrivalWonMargin = undefined;
           arrivalWonTravelSeconds = undefined;
+          arrivalDepth = undefined;
         } else {
           const highest = [...rushers.values()].reduce((m, r) => Math.max(m, r.pressure), 0);
           // ADR-058 — ARRIVAL IS AUTHORITATIVE FOR A WON REP IT CAN SEE. Mirrors
@@ -403,6 +469,7 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
           arrivalAlignment = minThreat?.alignment;
           arrivalWonMargin = minThreat?.wonMargin;
           arrivalWonTravelSeconds = minThreat?.wonTravelSeconds;
+          arrivalDepth = minThreat?.depth;
         }
         const predicted = worstOf(tunables, worstOf(tunables, counter, bandFloor), arrival);
         if (predicted !== event.payload.status) identityMismatches += 1;
@@ -414,6 +481,7 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
           arrivalAlignment,
           arrivalWonMargin,
           arrivalWonTravelSeconds,
+          arrivalDepth,
           bandFloorUnnarrowed,
         });
         break;
@@ -430,17 +498,21 @@ export function reconstructPlay(buf: readonly MatchEventEnvelope[], tunables: Tu
  * Split one game's stream into PASS dropbacks and reconstruct each. Same PLAY_START/`kind` read as
  * `geometryTimeRetirement.ts`'s `reclassifyGame` — a structural read of an `unknown` payload
  * (§7 of the contracts spec), never a cast.
+ *
+ * `positions` — REQUIRED, threaded straight through to every `reconstructPlay` call this makes; see
+ * that function's own doc. `positionsFromSnapshot(built.snapshot)` is the sanctioned way to build it.
  */
 export function reconstructGame(
   events: readonly MatchEventEnvelope[],
   tunables: Tunables,
+  positions: ReadonlyMap<PlayerId, Position>,
 ): readonly PlayChannelReclass[] {
   const out: PlayChannelReclass[] = [];
   let buf: MatchEventEnvelope[] = [];
   let isPass = false;
 
   const flush = (): void => {
-    if (isPass && buf.length > 0) out.push(reconstructPlay(buf, tunables));
+    if (isPass && buf.length > 0) out.push(reconstructPlay(buf, tunables, positions));
     buf = [];
     isPass = false;
   };
@@ -727,20 +799,37 @@ export function dominanceThresholdMarginFor(tunables: Tunables): number {
   return winMinMarginFor(tunables) + tunables.arrival.dominanceMarginPerHalfTick;
 }
 
-/** `travelSecondsFor`, reimplemented off public `Tunables` only (see the section header). */
-function reconstructedTravelSecondsFor(
+/**
+ * `travelSecondsFor`, reimplemented off public `Tunables` only (see the section header).
+ *
+ * ✅ **CALIBRATION-BACKLOG entry 155's depth-offset term is MIRRORED, not ignored** — the prior
+ * version of this comment (and a runtime tripwire that lived here) documented the opposite; both
+ * were removed by the same dispatch that made the claim true rather than left standing beside code
+ * that had outgrown it (Charter §4.1: a stale comment surviving its own fix is a defect this
+ * register has catalogued repeatedly). `depth` is REQUIRED, not optional — mirroring
+ * `reconstructPlay`'s own "no silent old behaviour" rule one layer down: `raw` now sums
+ * `tunables.arrival.blockedDepthOffsetSecondsByAlignmentAndDepth[alignment][depth]` exactly where
+ * the engine's `travelSecondsFor` does, before `Math.round`, alongside `base` and the dominance
+ * shave. See `docConformance.test.ts` / the module header for the empirical agreement proof this
+ * mirror was checked against, corpus-wide, before being trusted.
+ */
+export function reconstructedTravelSecondsFor(
   tunables: Tunables,
   alignment: RushAlignment,
   move: RushMove,
   margin: number,
+  depth: ReconstructedDepth,
 ): number {
   const t = tunables.arrival;
   const table = t.travelSecondsByAlignmentAndMove as Readonly<
     Record<RushAlignment, Readonly<Record<RushMove, number>>>
   >;
+  const offsets = t.blockedDepthOffsetSecondsByAlignmentAndDepth as Readonly<
+    Record<RushAlignment, Readonly<Record<ReconstructedDepth, number>>>
+  >;
   const base = table[alignment][move];
   const dominanceSteps = Math.floor(Math.max(0, margin - winMinMarginFor(tunables)) / t.dominanceMarginPerHalfTick);
-  const raw = base - dominanceSteps * t.quantizeSeconds;
+  const raw = base - dominanceSteps * t.quantizeSeconds + offsets[alignment][depth];
   const quantized = Math.round(raw / t.quantizeSeconds) * t.quantizeSeconds;
   return Number(Math.min(t.maxTravelSeconds, Math.max(t.minTravelSeconds, quantized)).toFixed(1));
 }
@@ -782,11 +871,20 @@ export type MoveCell =
  * POWER and FINESSE's candidates INDEPENDENTLY and asking which the observed travel actually
  * equals — never by assuming any two of them coincide).
  *
- * INTERIOR needs no move recovery at all: `travelSecondsByAlignmentAndMove.INTERIOR` is `1.0` for
- * all three moves, and any dominance shave on a `1.0` base clamps straight back to
- * `minTravelSeconds` (also `1.0`), so INTERIOR's travel is `1.0` at EVERY margin and EVERY move —
- * arithmetic entry 109 item C already stated ("the dominance shave is clamped back to 1.0
- * regardless of margin") and this function asserts as an identity below rather than re-deriving.
+ * INTERIOR needs no move recovery at all, and — CALIBRATION-BACKLOG entry 155 — no depth recovery
+ * either, though for a narrower reason than before the depth-offset term existed. `depth` is still
+ * accepted (uniformly with the EDGE branch, so no caller needs an alignment-conditional call shape)
+ * but is unused here: `travelSecondsByAlignmentAndMove.INTERIOR` is `1.0` for all three moves, and
+ * on the REACHABLE INTERIOR depths — `LINE` (base `1.0` + offset `−0.5`, clamps to `minTravelSeconds`
+ * `1.0` at every dominance step) and `BOX` (offset `0.0`, `1.0 − dominanceSteps × 0.5` clamps to the
+ * same `1.0` floor) — the clamp binds identically either way, so INTERIOR's travel is `1.0` at every
+ * margin, move AND reachable depth. `DEEP` (offset `+0.5`) would NOT clamp (`1.0` or `1.5`,
+ * genuinely live) and would break this identity — but `INTERIOR ∩ DEEP` is empty at the data level
+ * (entry 151, re-derived for this exact table in `sweepTargetPreflight.test.ts`'s `EXCLUDED_TARGETS`
+ * entry for `arrival.blockedDepthOffsetSecondsByAlignmentAndDepth.INTERIOR.DEEP`): no
+ * `defensiveCards.ts` RUSH duty ever pairs `alignment: "INTERIOR"` with a position `DEEP` resolves
+ * to, so this function never observes it in practice. Stated as a fact about the REACHABLE domain,
+ * not re-derived as a universal one.
  *
  * ⛔ **THE MERGE IS A CONSEQUENCE, NOT AN ASSUMPTION.** All three candidates are computed
  * separately; `EDGE_NOT_SPEED` is returned only when the POWER and FINESSE candidates actually
@@ -798,13 +896,14 @@ export type MoveCell =
 export function classifyMoveCell(
   tunables: Tunables,
   alignment: RushAlignment,
+  depth: ReconstructedDepth,
   margin: number,
   observedTravelSeconds: number,
 ): MoveCell {
   if (alignment === "INTERIOR") return "INTERIOR";
-  const speedCandidate = reconstructedTravelSecondsFor(tunables, "EDGE", "SPEED", margin);
-  const powerCandidate = reconstructedTravelSecondsFor(tunables, "EDGE", "POWER", margin);
-  const finesseCandidate = reconstructedTravelSecondsFor(tunables, "EDGE", "FINESSE", margin);
+  const speedCandidate = reconstructedTravelSecondsFor(tunables, "EDGE", "SPEED", margin, depth);
+  const powerCandidate = reconstructedTravelSecondsFor(tunables, "EDGE", "POWER", margin, depth);
+  const finesseCandidate = reconstructedTravelSecondsFor(tunables, "EDGE", "FINESSE", margin, depth);
   const isSpeed = observedTravelSeconds === speedCandidate;
   const isPower = observedTravelSeconds === powerCandidate;
   const isFinesse = observedTravelSeconds === finesseCandidate;

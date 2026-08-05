@@ -671,6 +671,13 @@ export function simulatePassPlay(
             margin: rush.margin,
             tick,
             rollRef: rush.check.roll.rngLabel,
+            // CALIBRATION-BACKLOG entry 155 — the blocked path reads its own
+            // `arrival.blockedDepthOffsetSecondsByAlignmentAndDepth` (a
+            // deliberate copy of §7.4's free-runner offsets, not a shared
+            // table — see that field's comment in `tunables.ts`). Those
+            // offsets are non-zero on EDGE (BOX +0.5, DEEP +1.0), so this is
+            // now LIVE for blocked EDGE rushers at those depths, not inert.
+            position: m.rusher.bio.position,
           });
           m.threat = soonerThreat(before, won);
           // Winning again does not slow him down, so an existing sooner arrival

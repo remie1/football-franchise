@@ -894,6 +894,85 @@ const EXCLUDED_TARGETS: readonly ExcludedTarget[] = [
       "pocketLadder.ts POCKET_STATUS_LADDER_SCENARIO.probeBands (band absent from every probeBands " +
       "literal) + threatSupplyPatches.ts bandFloorOff() (no-op — already CLEAN, tunables.ts:1099-1102)",
   },
+
+  // ---------------------------------------------------------------------------
+  // FAMILY — `arrival.blockedDepthOffsetSecondsByAlignmentAndDepth.{INTERIOR,EDGE}.{LINE,BOX,DEEP}`
+  // (CALIBRATION-BACKLOG entry 155, ADR-063).
+  //
+  // Construction site: NONE. `git grep -l blockedDepthOffsetSecondsByAlignmentAndDepth -- src test`
+  // (re-run this dispatch) returns nothing under either `ALL_TARGETS` or a `*Sweep.test.ts`/
+  // `*PlayScope.test.ts` file — no existing sweep, patch helper or play-scope construction touches
+  // any of the six cells. The term itself is new this dispatch: `travelSecondsFor` (`rushThreat.ts`)
+  // now takes an optional `position` and sums
+  // `t.blockedDepthOffsetSecondsByAlignmentAndDepth[alignment][depth]` into `raw` before
+  // `Math.round`, wired through unconditionally from `sim/passPlay.ts`'s won-rep call site. Every
+  // cell is committed `0.0` — structure only, magnitudes owed to a future sweep (`tunables.ts`'s own
+  // comment on the field).
+  //
+  // REACHABILITY, RE-DERIVED FOR THIS TABLE RATHER THAN INHERITED FROM ENTRY 151 (backlog entry 134:
+  // a relationship carries its configuration — the free-runner table's own reachability finding does
+  // not transfer to this one merely because `freeRunnerDepthFor` is the shared resolver). Read
+  // directly: every `kind: "RUSH"` duty in `packages/playbook/src/defensiveCards.ts` is keyed by one
+  // of `DE_L`/`DE_R`/`DT_L`/`DT_R`/`NT`/`LB_W`/`LB_M`/`LB_S`/`CB_N`/`CB_D` (the full RUSH-duty roster
+  // — checked by grepping every `kind: "RUSH"` line in the file, not sampled), and
+  // `packages/playbook/src/roles.ts`'s `DEFENSE_ROLE_POSITION` — the ONE place role→position is
+  // decided for this package — resolves those to `DE`/`DE`/`DT`/`DT`/`NT`/`OLB`/`MLB`/`OLB`/`CB`/`CB`
+  // respectively, never to `FS`/`SS`. Cross-referenced against `tunables.ts`'s
+  // `onLinePositions: ["DE","DT","NT"]` / `deepPositions: ["CB","FS","SS"]` / `defaultDepthClass:
+  // "BOX"` — the same three lists `freeRunnerDepthFor` reads for BOTH the free-runner path (§7.4) and
+  // this dispatch's blocked path (§7.2), since alignment and position are fixed at DUTY-DECLARATION
+  // time (the defensive card) and are identical on whichever branch — free or blocked-and-won — a
+  // given rusher ends up on; only the blocker-assignment step downstream of that declaration decides
+  // which branch runs. `alignment: "INTERIOR"` is declared only on `DT_L`/`DT_R`/`NT`/`LB_W`/`LB_M`
+  // (→ `DT`/`NT`/`OLB`/`MLB`, never a `deepPositions` member) and `alignment: "EDGE"` only on
+  // `DE_L`/`DE_R`/`LB_S`/`CB_N`/`CB_D` (→ `DE`/`OLB`/`CB` — all three depth classes). So `INTERIOR`
+  // resolves only to `LINE` or `BOX`; `EDGE` resolves to all of `LINE`/`BOX`/`DEEP`. This is the SAME
+  // partition entry 151 found for the free-runner table (the underlying duty/position data is the
+  // same data), independently re-checked here rather than assumed to transfer.
+  // ---------------------------------------------------------------------------
+  {
+    paths: [
+      "arrival.blockedDepthOffsetSecondsByAlignmentAndDepth.INTERIOR.LINE",
+      "arrival.blockedDepthOffsetSecondsByAlignmentAndDepth.INTERIOR.BOX",
+      "arrival.blockedDepthOffsetSecondsByAlignmentAndDepth.EDGE.LINE",
+      "arrival.blockedDepthOffsetSecondsByAlignmentAndDepth.EDGE.BOX",
+      "arrival.blockedDepthOffsetSecondsByAlignmentAndDepth.EDGE.DEEP",
+    ],
+    reason:
+      "REACHABLE, PROBEABLE, NOT CURRENTLY A SWEEP TARGET — a STATED GAP, not a structural exclusion, " +
+      "same category as `INTERIOR.BOX`/`EDGE.LINE` and the three `pocket.minimumStatusByBand` rows " +
+      "above. Every one of these five (alignment, depth) pairs occurs in `defensiveCards.ts`'s RUSH " +
+      "duties (see the FAMILY comment above for the full re-derivation: `INTERIOR.LINE` — DT_L/DT_R/NT; " +
+      "`INTERIOR.BOX` — LB_W/LB_M; `EDGE.LINE` — DE_L/DE_R; `EDGE.BOX` — LB_S; `EDGE.DEEP` — CB_N/CB_D), " +
+      "and nothing about the blocked-vs-free branch is decided by alignment or position, so none is " +
+      "structurally excluded the way a no-op `KNOWN_INVERSIONS`/`SCALE_AUDIT_FINDINGS` patch is. Simply " +
+      "not patched by any sweep, helper or play-scope file that exists today — this dispatch's own job " +
+      "was making the term reachable in the engine, not sweeping it (CALIBRATION-BACKLOG entry 155).",
+    source:
+      "no construction site — `git grep -l blockedDepthOffsetSecondsByAlignmentAndDepth -- src test` " +
+      "(re-run this dispatch) returns only this file's own registry entry",
+  },
+  {
+    paths: ["arrival.blockedDepthOffsetSecondsByAlignmentAndDepth.INTERIOR.DEEP"],
+    reason:
+      "UNREACHABLE at the data level — the family's one genuinely empty cell, same shape as the " +
+      "free-runner table's own `INTERIOR.DEEP` (registered ACTIVE there — see `FREE_RUNNER_PATH_TARGETS` " +
+      "above — only because `zeroedPathTerm()` happens to construct a patch for it and reads it DEAD; no " +
+      "sweep constructs a patch for THIS cell at all, so it is EXCLUDED rather than a registered-but-" +
+      "doomed ACTIVE target). No `kind: \"RUSH\"` duty in `defensiveCards.ts` declares " +
+      "`alignment: \"INTERIOR\"` on a duty that resolves to a `deepPositions` member (`CB`/`FS`/`SS`) — " +
+      "every INTERIOR RUSH duty is `DT_L`/`DT_R`/`NT`/`LB_W`/`LB_M`, resolving via " +
+      "`playbook/src/roles.ts`'s `DEFENSE_ROLE_POSITION` to `DT`/`NT`/`OLB`/`MLB` only. Re-derived " +
+      "directly against the duty table and the role→position map (see the FAMILY comment above), not " +
+      "inherited from entry 151's identical finding about the free-runner table — per backlog entry " +
+      "134, a relationship carries its configuration, and this one was re-checked rather than assumed " +
+      "to transfer. It happens to agree with entry 151 because both tables share the same upstream " +
+      "duty/position data, not because one proof stands in for the other.",
+    source:
+      "defensiveCards.ts — every `kind: \"RUSH\"` duty grepped directly, cross-referenced against " +
+      "playbook/src/roles.ts DEFENSE_ROLE_POSITION and tunables.ts onLinePositions/deepPositions/" +
+      "defaultDepthClass",
+  },
 ];
 
 /** Every path any EXCLUDED entry names, flattened — for the coverage-accounting test below. */
