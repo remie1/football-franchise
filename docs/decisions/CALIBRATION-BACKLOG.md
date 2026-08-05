@@ -11648,3 +11648,79 @@ zoneCoverage.uncoveredContestPosition
   plausibly legitimate coverage gaps rather than errors.
 - ⚠ **Whether the closure check moves to the DEFAULT suite once the gap closes.** ✅ **It is
   structural and needs no corpus — 6ms — so it has no standing reason to stay env-gated.**
+
+---
+
+## 154. ⛔⛔ **THE GAP COUNT IS NON-MONOTONIC UNDER REGISTRATION** — the ratchet is falsified before it was written, and the first red closes by being FIXED
+
+**Ruling 2 executed: seven prose-only cells registered, each with its own reason.** ⛔ **The gap count
+fell by THREE, not seven — because registration CREATED TWO NEW GAPS.**
+
+### ⛔ 1. THE MEASUREMENT — derived by set difference, not by subtraction
+
+| | |
+|---|---|
+| **REMOVED** by registration | `passRush.blockerStructuralAdvantage` · `pressureProgressByBand.RUSHER_WINS_REP.reset` · `minimumStatusByBand.{STALEMATE, BLOCKER_CONTAINS, BLOCKER_RESETS}` — **5** |
+| ⛔ **ADDED** by registration | ⛔ **`pressureProgressByBand.BLOCKER_RESETS.delta`** · ⛔ **`pocket.thresholds.3.minProgress`** — **2** |
+| | **145 − 5 + 2 = 142** ✅ *(both added paths verified ABSENT from the 145 and PRESENT in the 142)* |
+
+### ⛔⛔ 2. THE RATCHET RATIFIED ONE MESSAGE AGO IS FALSIFIED
+
+**The ratified design: *"assert the gap count never exceeds a pinned baseline."***
+
+> ## ⛔ **REGISTERING A CELL CAN RAISE THE COUNT. A COUNT-PINNED RATCHET WOULD FIRE ON CORRECT BEHAVIOUR.**
+
+⚠ **Specifically: the moment anyone registers the FIRST member of a previously-untouched family, every
+unregistered sibling in that family becomes a gap.** ⛔ **The instrument would punish exactly the act
+it exists to encourage.**
+
+### ✅ 3. AND THE RULE DID NOT MISBEHAVE — this is stated Gap 1, working as declared
+
+**Gap 1: *families with no registered member are outside the rule entirely.*** ⛔ **So registering a
+family's first member PULLS THE WHOLE FAMILY INTO SCOPE.**
+
+- `BLOCKER_RESETS.reset` registered ⇒ sibling `BLOCKER_RESETS.delta` newly in scope, unregistered ⇒ **a gap**
+- `pocket.thresholds.3.label` registered ⇒ sibling `pocket.thresholds.3.minProgress` newly in scope ⇒ **a gap**
+
+> ## ⛔ **THE BOUNDARY WAS DECLARED, RATIFIED, AND VERIFIED — AND ITS CONSEQUENCE WAS DERIVED BY NOBODY.** ⚠ **Entry 153 tested that the rule FAILS WHERE IT SAYS IT WILL. It did. What went unasked is what happens when a family CROSSES that boundary.**
+
+### ⇒ 4. THEREFORE THE COUNT IS NOT "WORK REMAINING"
+
+✅ **It is *work remaining IN FAMILIES ALREADY TOUCHED*.** ⛔ **It RISES when work starts in a new
+area and FALLS as that area completes** — ⚠ **which is definitionally not ratchetable by count.**
+
+**⇒ WHAT IS MONOTONIC, and the proposed replacement:** ⛔ **ratchet on COMPLETED FAMILIES.** *Once
+every leaf under a parent is registered or excluded, that family must STAY complete.* ✅ **That is
+the property actually wanted — don't regress a family you finished — and it cannot be lowered by
+starting work elsewhere.** **Proposed, NOT implemented, and the owner's.**
+
+### ✅ 5. THE FIRST RED TO CLOSE BY BEING **FIXED**
+
+**`BAND_LABELS DISCLOSURE — unaccounted: (none)`.** ⛔ **Was red naming `RUSHER_WINS_REP` and
+`BLOCKER_RESETS`; both are now registered with reasons.** **Suite: `2 failed | 4 passed`, was
+`3 failed | 3 passed`.**
+
+> ## ✅ **EVERY OTHER RED TODAY CLOSED BY BEING RECORDED** *(the two DEAD targets → entry 151; the 145 → entry 153)*. ⛔ **THIS ONE CLOSED BECAUSE THE GAP IT NAMED GOT FILLED.**
+
+⚠ **Distinct from the collection abort, which was a defect IN the instrument rather than a finding
+BY it.** ✅ **This is the instrument's own output driving a change to the thing it measures.**
+
+### 📒 6. TWO CORRECTIONS FOUND ALONG THE WAY
+
+⛔ **A SHIPPED COMMENT WAS FACTUALLY FALSE.** The prose above `RESTATED_TARGETS` claimed
+`RUSHER_WINS_REP.reset` was *"used below ONLY as the falsifier's known-dead control"* — ⚠ **but that
+control was SWAPPED for SA-16 precisely because it measured LIVE.** **The sentence was never updated.
+Corrected on registration.** ✅ *(The file's own header documents the swap two hundred lines above the
+sentence that contradicts it.)*
+
+⚠ **AND A CORRECTION TO THE DISPATCH'S OWN ARITHMETIC:** it reports that entry 152's six *"missed 3
+valid prose-derivable items (the `minimumStatusByBand` trio)."* ⛔ **FALSE — the trio WAS in the six.**
+✅ **7 = 6 + `blockerStructuralAdvantage`; the prior read missed exactly ONE, and it was the priority
+case.**
+
+### ✅ 7. COUNTS, all derived
+
+**39 active + 46 excluded = 85 disposed.** **Gap 142.** ⚠ **`blockerStructuralAdvantage`'s
+registration also surfaced WHY it was never active: its owning sweep `pressureSweep.test.ts` is
+`it.skipIf(SPENT)`-retired against it, because ADR-028 moved the committed value out from under the
+patches that file was authored against.**

@@ -188,11 +188,19 @@ const SHARED_MODULE_TARGETS: readonly RegisteredTarget[] = [
 /**
  * `BLOCKER_RESETS.reset` is already `true` on the committed tree (`tunables.ts:429-434`), so
  * `retireOn` skips patching it (its own "a band already at `true` is skipped" rule) — it is never a
- * sweep target in the first place and does not belong in this registry. `RUSHER_WINS_REP.reset` is
- * likewise never a target — `threatSupplySweep.test.ts:129` deliberately excludes it from
- * `PERSIST_RUNGS`, which is entry 146's own finding (§3): the one genuinely dead cell was never
- * swept because harness authors already knew not to. It is used below ONLY as the falsifier's
- * known-dead control, never registered as a "sweep target" this file is vouching for.
+ * sweep target in the first place. `RUSHER_WINS_REP.reset` is likewise never an ACTIVE sweep target
+ * — `threatSupplySweep.test.ts:129` deliberately excludes it from `PERSIST_RUNGS`, which is entry
+ * 146's own finding (§3): the harness authors believed it dead and never swept it.
+ *
+ * ⚠ CORRECTED (this dispatch): this comment used to end here saying `RUSHER_WINS_REP.reset` "is
+ * used below ONLY as the falsifier's known-dead control, never registered as a 'sweep target' this
+ * file is vouching for." That sentence went STALE the moment the falsifier's control was swapped to
+ * SA-16 (see the header's own "CONTROL THAT DID NOT SURVIVE CONTACT" section) and was never updated
+ * to match — it shipped wrong. Today this cell is not the falsifier's control at all; it is probed
+ * in its own standalone FINDING `it` below and asserted LIVE. Both cells are now registered, each
+ * with its own accurate reason, in `EXCLUDED_TARGETS` (search for `BLOCKER_RESETS.reset` /
+ * `RUSHER_WINS_REP.reset` there) rather than being explained only here and left unaccounted for by
+ * the registry itself.
  *
  * TASK 2 (this dispatch, owner ruling): the mechanical accounting for that claim used to live right
  * here, as a check against a file-local `Set` — an ACCOUNTING device, not a DISCLOSURE one, and the
@@ -271,13 +279,21 @@ const RESTATED_TARGETS: readonly RegisteredTarget[] = [
 ];
 
 /**
- * ⚠ `passRush.blockerStructuralAdvantage` (`pressureSweep.test.ts`) is DELIBERATELY NOT in either
- * list above. Reading that file directly: `COMMITTED_BSA !== AUTHORED_AGAINST_BSA` (`0 !== 15`) makes
- * `SPENT === true`, which `it.skipIf(SPENT || ...)` uses to skip every stage past its own first
- * canary test — ADR-028 already moved the committed value out from under every patch the file was
- * authored against, and the file is a RETIRED record kept for provenance, not an active target
- * constructor today (its own header: "Do NOT 'fix' this by re-pointing the patches"). It supplies
- * this file's KNOWN-LIVE falsifier control below on its own terms, independent of that file's status.
+ * ⚠ `passRush.blockerStructuralAdvantage` (`pressureSweep.test.ts`) is DELIBERATELY NOT in
+ * `ALL_TARGETS` (not an ACTIVE probed target). Reading that file directly: `COMMITTED_BSA !==
+ * AUTHORED_AGAINST_BSA` (`0 !== 15`) makes `SPENT === true`, which `it.skipIf(SPENT || ...)` uses to
+ * skip every stage past its own first canary test — ADR-028 already moved the committed value out
+ * from under every patch the file was authored against, and the file is a RETIRED record kept for
+ * provenance, not an active target constructor today (its own header: "Do NOT 'fix' this by
+ * re-pointing the patches"). It supplies this file's KNOWN-LIVE falsifier control below on its own
+ * terms, independent of that file's status.
+ *
+ * ⚠ CORRECTED (this dispatch): "DELIBERATELY NOT in either list above" was previously true of both
+ * `ALL_TARGETS` and `EXCLUDED_TARGETS` — but a cell explained only in a comment and named in NEITHER
+ * list is exactly the disclosure gap this dispatch's ruling closes, and this cell is its priority
+ * case (the falsifier's own known-live discriminating control, unaccounted for by the instrument
+ * that discriminates it). It is now registered in `EXCLUDED_TARGETS` below, with this paragraph as
+ * its reason, so its absence from `ALL_TARGETS` is DISCLOSED rather than merely explained here.
  */
 
 // ---------------------------------------------------------------------------
@@ -309,7 +325,9 @@ const RESTATED_TARGETS: readonly RegisteredTarget[] = [
  * every row's `label` to `CLEAN`. Row 3 (already `CLEAN`) is a no-op skip by the file's own `patch()`
  * helper (`currentValue === proposedValue` returns the base untouched, per the file's own
  * `if (currentValue === proposedValue) return base;`), so only three leaves are ever actually
- * constructed. `counterOff()` is one third of `arrivalOnlyBase()`
+ * constructed. `pocket.thresholds.3.label` is now registered in `EXCLUDED_TARGETS` below on exactly
+ * this reason (structurally unprobeable via the only site that ever touches it), rather than left
+ * explained only here. `counterOff()` is one third of `arrivalOnlyBase()`
  * (`equalWinDelta(counterOff(bandFloorOff(DEFAULT_TUNABLES)))`), which is a REAL, executed base —
  * not a declaration — in `threatSupplySweep.test.ts`, `pressureHorizonSweep.test.ts`,
  * `ruling2Dispatch.test.ts` and `gapProbe.arms.test.ts`. Never surfaced by grepping `tunableId:`
@@ -346,8 +364,10 @@ const POCKET_THRESHOLD_TARGETS: readonly RegisteredTarget[] = DEFAULT_TUNABLES.p
  * either `["RUSHER_GAINING","RUSHER_WINS_REP"]` or this scenario's three; `bandFloorOff()` touches
  * all six rows but only the two already non-`CLEAN` — `RUSHER_WINS_REP`, `BLOCKER_BEATEN` — ever
  * produce a real patch, the rest are no-op skips at the committed tree) — so those three are not
- * sweep targets at HEAD and are not registered here; a future scenario or `bandFloorOff` change would
- * make them so.
+ * ACTIVE sweep targets at HEAD; a future scenario or `bandFloorOff` change would make them so, which
+ * is exactly why they are registered in `EXCLUDED_TARGETS` below as REACHABLE/PROBEABLE/not-currently
+ * a sweep target (the same category as `INTERIOR.BOX`/`EDGE.LINE` further down) rather than left
+ * explained only here with the registry silent about them.
  */
 const POCKET_LADDER_TARGETS: readonly RegisteredTarget[] = [
   {
@@ -775,6 +795,104 @@ const EXCLUDED_TARGETS: readonly ExcludedTarget[] = [
       "entry rather than 20 because the reason and the construction site are identical for every " +
       "path; every path is still named above, not folded into a wildcard.",
     source: "docConformance.ts auditFindingRulings(), run by docConformance.test.ts",
+  },
+
+  // ---------------------------------------------------------------------------
+  // THIS DISPATCH (owner ruling, entry 153) — the PROSE-ONLY set: paths this file's own comments
+  // already explain as deliberately not-a-target, that were never named in either list above. Derived
+  // by reading this file end to end (not relayed), each with the SPECIFIC reason its prose already
+  // states — not the shared "not a sweep target, reachable, unswept" line entry 153's other ~138
+  // mechanically-found gaps would all carry identically and uninformatively. Those ~138 stay
+  // unregistered here, in backlog entry 153, on the owner's own instruction: a registry entry's value
+  // is the REASON, and a reason nobody has stated yet is not this file's to invent.
+  // ---------------------------------------------------------------------------
+  {
+    paths: ["passRush.pressureProgressByBand.BLOCKER_RESETS.reset"],
+    reason:
+      "STRUCTURALLY UNPROBEABLE, via the only site that ever touches it — committed `true` " +
+      "(`tunables.ts:434`) is the ONLY value `threatSupplySweep.test.ts`'s `retireOn` ever proposes " +
+      "for a retiring band (`RESET_PATH_OF` always patches to `true`), and `retireOn`'s own rule " +
+      "(\"a band already at `true` is skipped\") skips this leaf before calling `patch()` at all, " +
+      "rather than constructing a redundant no-op call — so no construction site in the package ever " +
+      "attempts a non-identity patch on it. Also never a `pocketLadder.ts` `probeBands` member (a " +
+      "different table, `pocket.minimumStatusByBand`, not this one). Explained above (the comment " +
+      "immediately before `RESTATED_TARGETS`) but, before this dispatch, never named here.",
+    source:
+      "threatSupplyPatches.ts retireOn() — 'a band already at true is skipped' rule; " +
+      "COMMITTED_RETIRING = [BLOCKER_RESETS] (threatSupplyPatches.ts:126-128)",
+  },
+  {
+    paths: ["passRush.pressureProgressByBand.RUSHER_WINS_REP.reset"],
+    reason:
+      "REACHABLE, PROBEABLE, NOT CURRENTLY A SWEEP TARGET — deliberately excluded from " +
+      "`threatSupplySweep.test.ts`'s `PERSIST_RUNGS` P2 " +
+      "(`BAND_LABELS.filter(b => b !== \"RUSHER_WINS_REP\" && b !== \"BLOCKER_RESETS\")`, " +
+      "threatSupplySweep.test.ts:129), on the strength of entry 59/146's characterisation of the " +
+      "whole cell as dead. THAT CHARACTERISATION IS NOW KNOWN INCOMPLETE (see the header's 'CONTROL " +
+      "THAT DID NOT SURVIVE CONTACT' section and the standalone FINDING `it` below): the field has a " +
+      "second reader (`resolve/passRush.ts:171-179`'s `resetsPressure`) that IS live, so this cell is " +
+      "measured LIVE by this file's own instrument, not assumed dead. It remains unregistered as an " +
+      "ACTIVE `ALL_TARGETS` member because no EXISTING harness sweep (as opposed to this file's own " +
+      "falsifier/FINDING tests) constructs a patch for it — that is a fact about what is swept today, " +
+      "not a claim that the cell is inert.",
+    source:
+      "threatSupplySweep.test.ts:129 PERSIST_RUNGS (deliberately excluded band) — probed instead by " +
+      "this file's own FINDING `it` below, which asserts it LIVE",
+  },
+  {
+    paths: ["passRush.blockerStructuralAdvantage"],
+    reason:
+      "KNOWN-LIVE — the falsifier's own known-live discriminating control (see 'THE PRE-REGISTERED " +
+      "FALSIFIER' in the header and the first `it` below): committed `0` (`tunables.ts:334`), DROPPED " +
+      "from the modifier list by `compact()`'s zero-filter (`rolls.ts:98-100`), and NONETHELESS READ " +
+      "unconditionally at `resolve/passRush.ts:87` before `compact` ever runs — the cell that " +
+      "discriminates \"dead leaf\" from \"inert at the committed value\" (ADR-035). Its owning sweep, " +
+      "`pressureSweep.test.ts`, is `it.skipIf(SPENT)`-retired against it (ADR-028 moved the committed " +
+      "value out from under the patches the file was authored against), which is WHY it was never " +
+      "carried into `ALL_TARGETS` as an ACTIVE target. It WAS explained in a comment (the paragraph " +
+      "above `POCKET_THRESHOLD_TARGETS`) but, before this dispatch, never named in EITHER list — the " +
+      "instrument's own reference case, unaccounted for by the instrument, until now.",
+    source:
+      "pressureSweep.test.ts (retired, it.skipIf(SPENT)) — construction site; this file's own " +
+      "falsifier `it` below — the measurement (probeValue 77) that establishes LIVE",
+  },
+  {
+    paths: ["pocket.thresholds.3.label"],
+    reason:
+      "STRUCTURALLY UNPROBEABLE, via the only site that ever touches it — the CLEAN row. " +
+      "`threatSupplyPatches.ts`'s `counterOff()` proposes `\"CLEAN\"` for every row of " +
+      "`pocket.thresholds`, and this row's committed value is already `\"CLEAN\"` (`tunables.ts:1149`, " +
+      "the `NEG_INF minProgress` sentinel row — the classification a threshold table falls back to " +
+      "when nothing else matches), so `patch()`'s own `if (currentValue === proposedValue) return " +
+      "base;` guard returns the base untouched for this index every single time `counterOff()` runs. " +
+      "Same no-op-by-construction shape `KNOWN_INVERSIONS`/`SCALE_AUDIT_FINDINGS` are excluded for " +
+      "above, discovered here by reading `counterOff()`'s loop rather than a `ruledCells` table — " +
+      "`pocket.thresholds.3.minProgress`, this row's OTHER leaf, is never discussed anywhere in this " +
+      "file and is NOT registered here; only the leaf this file's own prose actually names is.",
+    source: "threatSupplyPatches.ts counterOff() — the one row of its `.forEach` that always no-ops",
+  },
+  {
+    paths: [
+      "pocket.minimumStatusByBand.STALEMATE",
+      "pocket.minimumStatusByBand.BLOCKER_CONTAINS",
+      "pocket.minimumStatusByBand.BLOCKER_RESETS",
+    ],
+    reason:
+      "REACHABLE, PROBEABLE, NOT CURRENTLY A SWEEP TARGET — same category as `INTERIOR.BOX`/" +
+      "`EDGE.LINE` above, grouped as one entry because the reason and both construction sites are " +
+      "identical for all three (the `POCKET_LADDER_TARGETS` family comment above re-derives this in " +
+      "full). Never a `pocketLadder.ts` `probeBands` member (every `probeBands:` literal in that file " +
+      "is either `[\"RUSHER_GAINING\",\"RUSHER_WINS_REP\"]` or `POCKET_STATUS_LADDER_SCENARIO`'s three " +
+      "— `BLOCKER_BEATEN`/`RUSHER_GAINING`/`RUSHER_WINS_REP` — none of which name any of these three " +
+      "bands), and `threatSupplyPatches.ts`'s `bandFloorOff()` — the only OTHER site that touches " +
+      "every row of `pocket.minimumStatusByBand` — always no-ops on all three too (each is already " +
+      "committed `\"CLEAN\"`, `tunables.ts:1099-1102`, the same value `bandFloorOff` proposes). Not a " +
+      "structural exclusion in the `KNOWN_INVERSIONS` sense: nothing prevents a future scenario, or a " +
+      "change to which rows `bandFloorOff` already finds non-CLEAN, from constructing a real " +
+      "(non-no-op) patch here — it is simply not done by any site that exists today.",
+    source:
+      "pocketLadder.ts POCKET_STATUS_LADDER_SCENARIO.probeBands (band absent from every probeBands " +
+      "literal) + threatSupplyPatches.ts bandFloorOff() (no-op — already CLEAN, tunables.ts:1099-1102)",
   },
 ];
 
