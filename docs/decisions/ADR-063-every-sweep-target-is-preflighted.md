@@ -8,7 +8,22 @@
 
 ## ⛔ THE SCOPE SENTENCE — read this before the claim
 
-> ## ✅ **39 TARGETS PROBED. 37 PATHS EXCLUDED WITH A STATED REASON. 76 TOTAL. THE METHOD'S LIMIT IS PRINTED BY THE FILE AT RUNTIME.**
+> ## ✅ **39 TARGETS PROBED. 39 PATHS EXCLUDED WITH A STATED REASON. 78 TOTAL. THE METHOD'S LIMIT IS PRINTED BY THE FILE AT RUNTIME.**
+
+> ### ⛔ CORRECTED, AND THE CORRECTION IS RECORDED RATHER THAN APPLIED SILENTLY
+>
+> **As first committed this document read `39 / 37 / 76`. It was wrong by two paths within one
+> commit of shipping.** ⛔ **`blitzPickup.freeRunnerPath.offsetSecondsByAlignmentAndDepth.INTERIOR.BOX`
+> and `...EDGE.LINE` existed at authoring time, are REACHABLE and PROBEABLE, and appeared in neither
+> `ALL_TARGETS` nor `EXCLUDED_TARGETS` — only in a prose comment.** *(Backlog entries 151, 152.)*
+>
+> ⚠ **This is NOT the expiry condition of backlog entry 149** *(which concerns targets added LATER)*.
+> **It is an incompleteness in the ORIGINAL enumeration — precisely what the coverage-accounting test
+> declines to check, and says so unprompted: *"This is NOT a claim that the union is complete."***
+>
+> ⛔ **The correction is stated because a corrected count with no record of the correction is
+> INDISTINGUISHABLE FROM A COUNT THAT WAS ALWAYS RIGHT** — ⚠ **and this one is evidence about how the
+> enumeration was built.** ✅ **A count is an assertion; the list behind it is the evidence.**
 
 ⛔ **That is the claim. It is not "every sweep target in the project" as an unbounded assertion** —
 ⚠ **it is a measured count against an enumeration whose method is stated and whose blind spots are
@@ -41,13 +56,13 @@ any instrument proved it.**
 | # | claim | provenance |
 |---|---|---|
 | 1 | `applyTunablePatch` has four structural checks and no read-check | ✅ **READ** — `tunables.ts:3256-3304`, by Orchestrator and by the implementing dispatch independently |
-| 2 | 39 active / 37 excluded / 76 total | ✅ **COMPUTED** — construction-site enumeration over the 31 files calling `applyTunablePatch` |
+| 2 | 39 active / 39 excluded / 78 total | ✅ **COMPUTED** — construction-site enumeration over the 31 files calling `applyTunablePatch` |
 | 3 | Literal grep is insufficient as the enumeration method | ✅ **COMPUTED** — it misses file-local `patch()` wrappers, template-literal band loops, array-of-tuples maps |
 | 4 | `pocket.minimumStatusByBand.RUSHER_WINS_REP` classifies DEAD | ✅ **MEASURED** — byte-identical digest, 160-game corpus and a 496-game / 93,979-play re-check |
 | 5 | `freeRunnerPath.offsetSecondsByAlignmentAndDepth.INTERIOR.DEEP` classifies DEAD | ✅ **MEASURED** — byte-identical at `0.5 → 0`, siblings LIVE |
 | 6 | `pressureProgressByBand.RUSHER_WINS_REP.reset` classifies LIVE | ✅ **MEASURED** — and the second reader confirmed by ⚠ **READ**, `passRush.ts:171` |
 | 7 | Booleans are fully probeable; one flip exhausts the domain | ✅ **DERIVED** — and demonstrated by claim 6, whose subject is a boolean |
-| 8 | 26 of 37 exclusions are structurally unprobeable | ✅ **READ** — `proposedValue === currentValue` by construction in `KNOWN_INVERSIONS` and `SCALE_AUDIT_FINDINGS` |
+| 8 | 26 of 39 exclusions are structurally unprobeable | ✅ **READ** — `proposedValue === currentValue` by construction in `KNOWN_INVERSIONS` and `SCALE_AUDIT_FINDINGS` |
 | 9 | Whether either DEAD target retires a recorded conclusion | ⛔ **NO PROVENANCE — unruled. See `Implied scope`** |
 
 ## Conjoined mechanisms — REQUIRED if this ADR rules on more than one thing
