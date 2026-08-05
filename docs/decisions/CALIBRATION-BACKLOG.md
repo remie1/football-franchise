@@ -12019,3 +12019,33 @@ a check nobody would have run if the classification felt done.**
 ✅ **Recorded as a correction rather than edited in place** — ⛔ **a test that was wrong for ten
 minutes and is silently right afterwards teaches nobody**, and this one is evidence about how the
 classification fails.
+
+### 📒 THE TRANSFERABLE FORM — **a test whose first clause feels conclusive will be run as a one-clause test**
+
+⛔ **A property of the TEST'S SHAPE, not of the person applying it.** ⚠ **When clause one delivers a
+verdict that sounds finished, clause two reads as optional diligence on top of a completed
+diagnosis** — *"the defect is in the name"* **is a diagnosis; *"and does the name have consumers"* is
+an extra grep.**
+
+**TWO INSTANCES, and the register already intuited this once:**
+
+| criterion | clauses | guarded? |
+|---|---|---|
+| ⛔ **the name-defect test** *(entry 157 addendum)* | name-defect **AND** consumers | ⛔ **NO — shipped one-clause, corrected within the hour by its own author** |
+| ✅ **`Inertness proof`** *(`ADR-TEMPLATE.md:147`)* | ALGEBRAIC **AND** EMPIRICAL | ✅ **YES** — *"BOTH is the standard. One alone is weaker and should say so."* |
+
+> ## ✅ **THE TEMPLATE FIELD ALREADY CARRIES THE GUARD. THE CLASSIFICATION TEST DID NOT — and the difference is that the field's author anticipated the skip while the test's author did not.**
+
+⛔ **Two, NOT PROMOTED.** ⚠ **The criterion here is three, and entry 141 held a pattern at two rather
+than promote early.** ✅ **What a third instance would look like: any multi-clause criterion in this
+corpus whose first clause returns a verdict on its own.**
+
+### ⇒ AND THE RECURSION, named rather than let pass
+
+⛔ **Second time today something written here was falsified BY THE THING IT WAS ABOUT** — entry 146 by
+the instrument it motivated, and this addendum by its own subject. ⚠ **Both times the artifact was
+internally coherent, and the falsifier was the artifact's own claim applied to itself.**
+
+✅ **Not irony and not carelessness.** ⛔ **It is what happens when a register documents classes
+general enough to include the act of documenting them** — **the entries are inside the population
+they describe, and nothing about writing them carefully changes that.**
