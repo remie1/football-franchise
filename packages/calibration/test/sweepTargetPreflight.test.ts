@@ -1007,6 +1007,59 @@ function siblingClosureGaps(registeredOrExcluded: ReadonlySet<string>, parentOf:
 }
 
 // ---------------------------------------------------------------------------
+// FAMILY-COMPLETENESS RATCHET (this dispatch, owner ruling, entry 154).
+//
+// COUNT-PINNING ON THE SIBLING-CLOSURE GAP IS FALSIFIED — by measurement, not by argument. Entry 153
+// registered seven prose-only cells; the gap fell from 145 to 142, not to 138. Two of the seven
+// (`passRush.pressureProgressByBand.BLOCKER_RESETS.reset`, `pocket.thresholds.3.label`) were the
+// FIRST registered member of a family the closure rule's own stated Gap 1 had been silent about
+// (`SIBLING CLOSURE`'s comment above: "a family with no registered member is outside the rule
+// entirely"). Registering that first member pulled the whole family into the rule's scope for the
+// first time and exposed its unregistered siblings (`passRush.pressureProgressByBand.
+// BLOCKER_RESETS.delta`, `pocket.thresholds.3.minProgress`) as two NEW gaps. Net: −5 removed, +2
+// added, 145 − 5 + 2 = 142. The gap count is "work remaining in families someone has already
+// touched" — it rises the moment anyone correctly registers the first member of an untouched family
+// and falls as a touched family completes, which is definitionally not a quantity a floor can be
+// pinned under: the very next correct registration can raise it.
+//
+// RATIFIED INSTEAD: ratchet on the number of COMPLETE FAMILIES — families where EVERY leaf sharing
+// one immediate parent (the same notion `siblingClosureGaps` already uses; `buildImmediateParentIndex`
+// is reused, not reimplemented) is registered or excluded. The SET of complete families is DERIVED
+// FROM THE TREE at check time, every run, never hand-enumerated here — a hand list is exactly what
+// undercounted twenty-four-fold this session (entry 153's hand-derived six against the mechanical
+// 145). Only the FLOOR — the minimum acceptable count — is a literal, pinned below with its
+// provenance stated, not reasoned to.
+// ---------------------------------------------------------------------------
+
+/** All leaves of `DEFAULT_TUNABLES`, grouped by immediate parent — the tree's family partition. */
+function familiesOf(parentOf: ReadonlyMap<string, string>): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const [leaf, parent] of parentOf) {
+    const siblings = out.get(parent);
+    if (siblings) siblings.push(leaf);
+    else out.set(parent, [leaf]);
+  }
+  return out;
+}
+
+/**
+ * Families with EVERY leaf in `registeredOrExcluded`. A family with ZERO accounted leaves never
+ * qualifies (it is out of scope entirely, the same Gap 1 the sibling-closure rule already states) —
+ * this function can only ever report on a family someone has already started accounting for.
+ */
+function completeFamilies(
+  registeredOrExcluded: ReadonlySet<string>,
+  families: ReadonlyMap<string, readonly string[]>,
+): string[] {
+  const complete: string[] = [];
+  for (const [parent, leaves] of families) {
+    const accounted = leaves.filter((l) => registeredOrExcluded.has(l)).length;
+    if (accounted > 0 && accounted === leaves.length) complete.push(parent);
+  }
+  return complete.sort();
+}
+
+// ---------------------------------------------------------------------------
 // THE FALSIFIER — must be shown to fire in both directions before the registry is trusted.
 //
 // ⚠ **THE RULING'S OWN "KNOWN-DEAD" CONTROL TURNED OUT TO BE LIVE, MEASURED.** The ruling offered
@@ -1240,5 +1293,133 @@ d("sweep-target preflight", () => {
       "band(s) whose pressureProgressByBand.<band>.reset leaf is neither a registered sweep target " +
         "(SHARED_MODULE_TARGETS) nor named in EXCLUDED_TARGETS with a reason",
     ).toEqual([]);
+  });
+});
+
+// =============================================================================
+// FAMILY-COMPLETENESS RATCHET — UNCONDITIONAL (this dispatch, owner ruling, entry 154).
+//
+// Deliberately OUTSIDE `d(...)`/`FF_SWEEP_PREFLIGHT`: unlike everything above, this costs no corpus
+// pass — it reads only `DEFAULT_TUNABLES` and this file's own two lists, the same structural
+// footprint as the sibling-closure check (which stays gated ONLY because it stays red at 142; see
+// that check's own comment). A ratchet that does not run in the default suite is not a ratchet — it
+// would guard nothing unless someone remembers to type the env var, which is the exact failure mode
+// Tier 3 gating exists to accept for a corpus pass and does NOT need to accept here. Verified GREEN
+// (both this describe's tests) before being placed here; if a future change makes either red, per the
+// dispatch's own instruction this block moves back under `d(...)` and stays gated until fixed — moving
+// it silently to hide a red would be the collection-abort failure mode this file's own history (entry
+// 153) already recorded once.
+// =============================================================================
+describe("family-completeness ratchet", () => {
+  it(
+    "FALSIFIER — registering an untouched family's first member does not lower the complete-family " +
+      "count; completing an in-scope family raises it",
+    () => {
+      const parentOf = new Map<string, string>();
+      buildImmediateParentIndex(DEFAULT_TUNABLES, "", parentOf);
+      const families = familiesOf(parentOf);
+      const registeredOrExcluded = new Set<string>([...ALL_TARGETS.map((t) => t.tunableId), ...EXCLUDED_PATHS]);
+      const baseline = completeFamilies(registeredOrExcluded, families).length;
+
+      // CASE A — hypothetically register the FIRST member of a family with ZERO accounted leaves
+      // today. Hypothetical only: nothing here touches ALL_TARGETS/EXCLUDED_TARGETS, per the ruling's
+      // "register nothing" instruction — this is arithmetic on a copy of the set, not a registration.
+      const untouched = [...families.entries()].find(
+        ([, leaves]) => !leaves.some((l) => registeredOrExcluded.has(l)),
+      );
+      if (untouched === undefined) {
+        throw new Error(
+          "CASE A is unconstructible: every family in DEFAULT_TUNABLES already has >=1 accounted " +
+            "leaf, so there is no untouched family left to hypothetically register into. The " +
+            "falsifier's premise (that such families exist) is itself false and must be reported, " +
+            "not routed around.",
+        );
+      }
+      const [untouchedParent, untouchedLeaves] = untouched;
+      const firstMember = untouchedLeaves[0];
+      if (firstMember === undefined) {
+        throw new Error(`familiesOf produced an empty family at "${untouchedParent}" — a defect in familiesOf, not in the claim under test.`);
+      }
+      const afterFirstMember = completeFamilies(new Set([...registeredOrExcluded, firstMember]), families).length;
+      say(
+        `CASE A  register 1st member of untouched family "${untouchedParent}" ` +
+          `(${String(untouchedLeaves.length)} leaves, e.g. "${firstMember}"): ` +
+          `${String(baseline)} -> ${String(afterFirstMember)}`,
+      );
+
+      // CASE B — hypothetically complete a family that is ALREADY in scope (>=1 accounted leaf) but
+      // not yet complete, by accounting for every remaining leaf at once.
+      const incomplete = [...families.entries()].find(([, leaves]) => {
+        const accounted = leaves.filter((l) => registeredOrExcluded.has(l)).length;
+        return accounted > 0 && accounted < leaves.length;
+      });
+      if (incomplete === undefined) {
+        throw new Error(
+          "CASE B is unconstructible: every in-scope family is already complete, so there is no " +
+            "incomplete-but-touched family left to hypothetically finish. Report this, do not route " +
+            "around it — it would mean the ratchet floor below is untested against its own claim.",
+        );
+      }
+      const [incompleteParent, incompleteLeaves] = incomplete;
+      const afterCompletion = completeFamilies(new Set([...registeredOrExcluded, ...incompleteLeaves]), families).length;
+      say(
+        `CASE B  complete in-scope family "${incompleteParent}" (${String(incompleteLeaves.length)} leaves): ` +
+          `${String(baseline)} -> ${String(afterCompletion)}`,
+      );
+
+      // THE CLAIM, TESTED — not assumed. Per the ruling: if either fails, the ratchet is exactly as
+      // unsound as the count pin it replaces, and that is reported here rather than patched around.
+      expect(
+        afterFirstMember,
+        "registering an untouched family's first member must not LOWER the complete-family count " +
+          "(it should leave it unchanged: the family enters scope incomplete, and was never complete " +
+          "before)",
+      ).toBeGreaterThanOrEqual(baseline);
+      expect(
+        afterCompletion,
+        "completing an in-scope family must RAISE the complete-family count",
+      ).toBeGreaterThan(baseline);
+    },
+  );
+
+  // ⛔ FLOOR PROVENANCE (owner ruling: "pin the floor at the derived complete-family count from an
+  // actual run — not a number given, not arrived at by reasoning; lowering it is a deliberate act
+  // that requires stating what was run"). This number was READ, not computed by hand or guessed: full
+  // unfiltered run, `FF_SWEEP_PREFLIGHT=1 pnpm --filter @ff/calibration exec vitest run
+  // test/sweepTargetPreflight.test.ts`, at HEAD `c93763c` plus this dispatch's ratchet addition (no
+  // registry changes — entry 154's "register nothing" held), 2026-08-05. The run printed
+  // `COMPLETE FAMILIES: 9`, verbatim:
+  //   ballCarrier.breakaway
+  //   blitzPickup.freeRunnerPath.offsetSecondsByAlignmentAndDepth.EDGE
+  //   blitzPickup.freeRunnerPath.offsetSecondsByAlignmentAndDepth.INTERIOR
+  //   catching
+  //   passRush.pressureProgressByBand.BLOCKER_BEATEN
+  //   passRush.pressureProgressByBand.RUSHER_GAINING
+  //   passRush.pressureProgressByBand.RUSHER_WINS_REP
+  //   pocket.minimumStatusByBand
+  //   qb.awarenessVariance
+  // An earlier draft of this floor guessed 20 by reasoning about which families "ought to" be
+  // complete, without running the check — exactly the practice this dispatch's own provenance rule
+  // forbids. Run first; it was 9, less than half the guess, and 9 is what is pinned. This list is
+  // NOT re-enumerated in the assertion below (that would be the hand-list failure mode this whole
+  // ratchet exists to avoid) — the assertion derives its own list from the tree, every run, and
+  // prints it.
+  const COMPLETE_FAMILY_FLOOR = 9;
+
+  it("RATCHET — the number of fully-accounted (complete) families never falls below the pinned floor", () => {
+    const parentOf = new Map<string, string>();
+    buildImmediateParentIndex(DEFAULT_TUNABLES, "", parentOf);
+    const families = familiesOf(parentOf);
+    const registeredOrExcluded = new Set<string>([...ALL_TARGETS.map((t) => t.tunableId), ...EXCLUDED_PATHS]);
+    const complete = completeFamilies(registeredOrExcluded, families);
+
+    say(`COMPLETE FAMILIES: ${String(complete.length)} (floor ${String(COMPLETE_FAMILY_FLOOR)})`);
+    for (const parent of complete) say(`COMPLETE FAMILY  ${parent}`);
+
+    expect(
+      complete.length,
+      "the complete-family count fell below the pinned floor — a regression in an already-finished " +
+        "family, or the floor needs a DELIBERATE, stated-provenance lowering, not a silent one",
+    ).toBeGreaterThanOrEqual(COMPLETE_FAMILY_FLOOR);
   });
 });

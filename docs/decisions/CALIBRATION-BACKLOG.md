@@ -11852,3 +11852,65 @@ merely blind to the effect — **there is no wiring for it to be blind to.**
   citation.**
 - ⚠ **`state.ballOn` is in scope of `simulatePassPlay` and never threaded to `travelSecondsFor`.**
   **Not a gap — an unused fact. `unruled`.**
+
+---
+
+## 156. ✅ THE FAMILY-COMPLETENESS RATCHET LANDS — **monotonicity held by MEASUREMENT**, and a dispatch caught itself guessing
+
+**Ruling: ratchet on completed families, derived at check time, floor pinned from a run.** ✅ **Built,
+green, and in the DEFAULT SUITE.**
+
+### ✅ 1. MONOTONICITY — pre-registered as a FALSIFIER, tested in BOTH directions
+
+**The claim the whole ruling rests on, and the last monotonicity assumption in this file was killed by
+measurement — so this one was run, not assumed:**
+
+| case | measured |
+|---|---|
+| **A — register the first member of an UNTOUCHED family** *(`chemistry`, 6 leaves)* | ✅ **9 → 9, unchanged** |
+| **B — COMPLETE an in-scope family** | ✅ **9 → 10, strictly increases** |
+
+> ## ✅ **BOTH DIRECTIONS HELD. THE FALSIFIER DID NOT FIRE.** ⛔ **Case A is the exact act that killed count-pinning — seven registrations removed five gaps and ADDED two. This invariant is INDIFFERENT to it.**
+
+### ✅ 2. IT IS UNCONDITIONAL, AND GREEN
+
+**`COMPLETE_FAMILY_FLOOR = 9`.** ⚠ **Placed OUTSIDE the `FF_SWEEP_PREFLIGHT` gate — in the default
+suite — because it costs no corpus pass.** ✅ **Verified directly: `2 passed | 6 skipped`, `COMPLETE
+FAMILIES: 9 (floor 9)`, 6ms.**
+
+⛔ **Ruling 3's intent satisfied WITHOUT the permanent red it forbade.** ⚠ **The count-ratchet would
+have been red on arrival at any pin** *(142 fails the next correct registration; 141 fails
+immediately)*. **This one is green because it measures the right quantity, not because the threshold
+was chosen kindly.**
+
+**The floor's provenance is in its own comment:** the run command, the HEAD commit, the date, and the
+verbatim list of the nine families at pin time — ⛔ **so lowering it requires stating what was run.**
+
+### 📒 3. AND THE DISPATCH CAUGHT ITSELF DOING THE THING THE DAY'S RULE FORBIDS
+
+> ## ⛔ **ITS FIRST PASS PINNED THE FLOOR AT `20`, BY REASONING, WITHOUT RUNNING THE CHECK.**
+
+✅ **It caught this itself before reporting, ran the check, got `9`, and pinned that.** ⛔ **And it
+left the correction STATED IN THE FLOOR'S PROVENANCE COMMENT rather than silently shipping the right
+number.**
+
+⚠ **That is entry 150's corollary applied by a dispatch to itself:** *a guessed number carries no
+signal that it was guessed* — **so `9` arrived at by running and `9` arrived at by luck would be
+indistinguishable in the file.** ✅ **Recording the correction is what makes the provenance claim
+checkable rather than decorative.**
+
+**The margin was not small: `20` against a true `9`.**
+
+### ✅ 4. STATE, all derived
+
+| | |
+|---|---|
+| active / excluded / total | **39 / 46 / 85** |
+| sibling-closure gap | ⛔ **142 — red, env-gated, unchanged.** *The census, deliberately untouched* |
+| complete families | ✅ **9, floor 9 — green, unconditional** |
+| DEAD targets | ⛔ **2, red, unchanged** |
+| falsifier · excluded register · BAND_LABELS disclosure | ✅ **green** |
+
+⚠ **Three pins held throughout: 145 stands as entry 153's enumerated provenance, the
+same-primitive-type refinement stays unimplemented with both numbers on record, and nothing beyond
+the seven derived paths was registered.**
