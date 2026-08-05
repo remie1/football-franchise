@@ -11914,3 +11914,52 @@ checkable rather than decorative.**
 ⚠ **Three pins held throughout: 145 stands as entry 153's enumerated provenance, the
 same-primitive-type refinement stays unimplemented with both numbers on record, and nothing beyond
 the seven derived paths was registered.**
+
+---
+
+## 157. ⛔⛔ A FIXTURE WHOSE HEADER DISCLAIMS ITS OWN NAME — **sprang twice today, on two readers, on two different questions**
+
+### ⛔ 1. THE ARTIFACT
+
+**`packages/engine/src/game/playbook.ts`, first eight lines:**
+
+```
+A MINIMAL, FIXTURE-GRADE PLAY-CARD CORPUS.
+================== THIS IS NOT THE PLAYBOOK ==================
+… eleven cards … so a game can be played at all …
+```
+
+✅ **The header is correct, emphatic, and first.** ⛔ **It was read past twice today.**
+
+### ⛔ 2. BOTH INSTANCES
+
+| reader | question | the error |
+|---|---|---|
+| **Orchestrator** | how many cards in the corpus? | ⛔ summed the fixture WITH the real corpus — **denominator 40 instead of 29** |
+| **a dispatch** | is `EDGE.DEEP` reachable? | ⛔ derived **"blitzing corners: DIVERGENT"** from the fixture. The operative corpus *(`packages/playbook/src/defensiveCards.ts`, which calibration simulates)* declares `CB_N`/`CB_D` as `RUSH` at `EDGE` — ✅ **the prediction was CONFIRMED, not divergent** |
+
+> ## ⛔ **TWO READERS. TWO UNRELATED QUESTIONS. THE SAME FILE. THE SAME ERROR.**
+
+⚠ **The dispatch found the right file and put it in a CAVEAT rather than the conclusion** — which is the near-miss version of the same failure.
+
+### ⛔⛔ 3. THE PROPERTY IS THE ARTIFACT'S, NOT THE READERS'
+
+> ## ⛔ **A FILE NAMED `playbook.ts`, IN A PACKAGE NAMED `engine`, EXPORTING PLAY CARDS, WILL BE READ AS THE PLAYBOOK REGARDLESS OF ITS HEADER.**
+
+⚠ **The name and the path are what a reader consults FIRST — and both assert exactly what the header denies.** ⛔ **A disclaimer cannot outrank the thing it is written inside, because the reader who needs it has already decided what the file is.**
+
+### 📒 4. ENTRY 140's CLASS, INVERTED
+
+**Entry 140: an identifier that OVER-CLAIMS, refuted by its own body** *(`forcesDecision` asserts arrival, tests a state)*.
+
+⛔ **Here the body is CORRECT and the NAME over-claims.** ⚠ **Same medium — an identifier — with the polarity reversed.** ✅ **And it strengthens entry 140's predictive form, which was: *any predicate whose verb asserts an event and whose implementation tests a state.*** ⛔ **The generalisation: ANY ARTIFACT WHOSE NAME ASSERTS A ROLE ITS OWN CONTENT DISCLAIMS.**
+
+⚠ **`unruled`, and NOT proposed as a rename** — the file has importers, so renaming is a change with consumers, the same standing `forcesDecision` and `"Trait: Brick Wall (anchor)"` hold.
+
+### ⛔ 5. AND THE CATCH CAME FROM RECALL, NOT FROM THE REGISTER
+
+**The second instance was caught because the Orchestrator had made the first one personally, hours earlier.** ⛔ **It was NOT a recorded finding reaching a later brief.**
+
+> ## ⚠ **WHICH IS THE MECHANISM ENTRY 140 SAYS IS UNRELIABLE — an assertion from recall — WORKING THIS TIME.**
+
+✅ **Recorded here so the next catch does not have to depend on the same reader being present.** ⛔ **Two of today's ordinal failures came from recall and were wrong; this one came from recall and was right. That is not a rate, it is a reason to write it down.**
