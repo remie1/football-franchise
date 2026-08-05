@@ -11340,3 +11340,71 @@ with the ACCURATE reason, not merely to register them.**
 
 ⚠ **Not wrong-about-a-member this time — SILENT about two.** ✅ **And silence is the state ADR-063
 exists to make impossible.**
+
+---
+
+## 152. ⛔⛔ THE SIBLING GAP IS **SYSTEMATIC** — the hand-derived list, recorded BEFORE the fix
+
+**Two cells registered with the accurate reason** *(owner ruling)*. ⛔ **And task 3 came back
+POSITIVE: at least three more families have the same shape.**
+
+### ✅ 1. THE RULED FIX — verified by RUNNING, not by reading the report
+
+**`INTERIOR.BOX` and `EDGE.LINE` registered in `EXCLUDED_TARGETS` as ⛔ REACHABLE, PROBEABLE, NOT
+CURRENTLY A SWEEP TARGET — a STATED GAP, not a structural exclusion.**
+
+⚠ **The reason string distinguishes THREE cases in one family, which this register has never had
+before:**
+
+| cell | status | why |
+|---|---|---|
+| `INTERIOR.DEEP` | **ACTIVE, measures DEAD** | ⛔ **UNREACHABLE** — no card gives a DB an `INTERIOR` rush duty *(re-derived independently: `CB_N`/`CB_D` both declare `EDGE`; no `FS`/`SS` rush duty exists)* |
+| `INTERIOR.BOX`, `EDGE.LINE` | **EXCLUDED** | ✅ **REACHABLE, PROBEABLE, UNSWEPT** — `EDGE.LINE` is the modal DE free-runner; `INTERIOR.BOX` any LB A-gap blitz |
+| the 26 no-op paths | **EXCLUDED** | ⛔ **UNPROBEABLE BY CONSTRUCTION** — `proposedValue === currentValue` |
+
+> ## ✅ **"NOT SWEPT" AND "UNSWEEPABLE" ARE DIFFERENT CLAIMS, AND THE FILE NOW STATES THE RIGHT ONE.** ⚠ **The operational difference: adding a sweep of either cell tomorrow is a NORMAL ACT that does not require correcting the registry first.**
+
+**Counts, confirmed by direct run:** `COVERAGE 39 active + 39 excluded = 78`, **both the computed
+line and the hardcoded method prose.** ✅ **Two DEAD targets unchanged; falsifier still green.**
+
+### ⛔⛔ 2. THE SYSTEMATIC GAP — **the hand-derived list, recorded before any fix**
+
+**Per the standing rule: the enumeration is recorded BEFORE the fix, because a list becomes a diff
+nobody reads one commit later.** ⛔ **A count is an assertion; a list is evidence.**
+
+| # | family | cells in NEITHER list | kind |
+|---|---|---|---|
+| **1** | `passRush.pressureProgressByBand.*.reset` | `BLOCKER_RESETS.reset` | prose-only; structural no-op |
+| **1b** | *(same family)* | ⛔ **`RUSHER_WINS_REP.reset`** | ⚠ **loudly probed by its own `it()` — and STILL contributes to neither the 39 nor the 39** |
+| **2** | `pocket.minimumStatusByBand.*` | `STALEMATE`, `BLOCKER_CONTAINS`, `BLOCKER_RESETS` | prose-only; structural no-ops |
+| **3** | `pocket.thresholds.*.label` | `pocket.thresholds.3.label` *(the `CLEAN` row)* | filtered programmatically by the family's own `.filter()`, explained in prose only |
+
+⛔ **FIVE named cells across three families, plus a sixth that is probed but unaccounted.**
+
+### ⛔ 3. WHY THE EXISTING GUARD DID NOT CATCH TWO OF THEM
+
+**The `BAND_LABELS` runtime guard** *(`:198`)* **checks that every band is ACCOUNTED FOR SOMEWHERE —
+registered, OR present in a file-local `excludedFromP2` `Set`.** ⛔ **It does NOT check that an
+excluded band appears in the printed `EXCLUDED_TARGETS` register with a reason.**
+
+> ## ⛔ **A GUARD THAT ACCEPTS "IN A PRIVATE SET" AS ACCOUNTING HAS AN ESCAPE HATCH ITS OWN AUTHOR WROTE.** ✅ **That is exactly how `BLOCKER_RESETS.reset` and `RUSHER_WINS_REP.reset` sat unregistered under a mechanical check that already existed for their family.**
+
+⚠ **Entry 149 named `BAND_LABELS` as the working precedent for closure.** ⛔ **It is the right
+PATTERN and an insufficient INSTANCE — it closes over membership, not over disclosure.**
+
+### 📒 4. PRE-REGISTRATION — **this list was derived by READING**
+
+⛔ **The table above is a HAND-DERIVED list, produced by a dispatch reading construction sites and
+prose comments.** ✅ **The ratified immediate-parent closure rule will derive the same set
+MECHANICALLY.**
+
+> ## ⛔ **PRE-REGISTERED: IF THE RULE'S RED ENUMERATES MORE THAN THESE, READING UNDERCOUNTED — which is entry 150's classification tested PROSPECTIVELY rather than found afterward.**
+
+⚠ **And if it enumerates the same set, that is a null worth having: it would mean careful reading and
+mechanical closure agree on this corpus, which nothing has yet shown.**
+
+### ⇒ SEQUENCING, ruled and recorded
+
+⛔ **The rule LANDS RED. The red ENUMERATES. Nothing above is fixed first** — ✅ **because a rule
+asserted over a set already made clean passes on day one and nobody ever learns whether the gap was
+five cells or fifty.** ⚠ **The count is the finding, and it exists only in the failure.**

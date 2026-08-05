@@ -442,12 +442,46 @@ const PRESSURE_SWEEP_RETIRED_TARGETS: readonly RegisteredTarget[] = [
  * `moves: readonly (readonly [string, number])[]` array literal — a THIRD construction shape beyond
  * a bare `patch()` call and a template-literal loop: here the path strings are built once as a
  * `${p}.INTERIOR.LINE`-style template against a shared prefix constant and collected into an array
- * that the loop destructures. `INTERIOR.BOX` and `EDGE.LINE` are already `0.0` on the committed tree
- * (the file's own comment: "the two are named here so the reader can see the table is fully covered
- * rather than partially patched") and are NOT constructed — `applyTunablePatch` is never called for
- * them, matching this file's own convention of only registering leaves an existing site actually
- * patches. This reconstructs ADR-031's control arm (the six-offset table zeroed) at PLAY scope; it is
- * a real, executed (env-gated `FF_PLAY_SCOPE=1`) measurement, not a declaration.
+ * that the loop destructures. That array covers four of the table's six cells — `INTERIOR.LINE`,
+ * `INTERIOR.DEEP`, `EDGE.BOX`, `EDGE.DEEP`, all four below — and reconstructs ADR-031's control arm
+ * (the six-offset table zeroed) at PLAY scope; it is a real, executed (env-gated `FF_PLAY_SCOPE=1`)
+ * measurement, not a declaration.
+ *
+ * ⚠ `INTERIOR.BOX` and `EDGE.LINE` are the other two cells and are NOT in that array — `zeroedPathTerm`
+ * never calls `applyTunablePatch` for them. **This is a GAP, not a structural exclusion, and the
+ * distinction is load-bearing** (see `EXCLUDED_TARGETS` below, where both are now registered with this
+ * exact reason): unlike a no-op patch (`KNOWN_INVERSIONS`/`SCALE_AUDIT_FINDINGS`, where
+ * `proposedValue === currentValue` by construction and a probe is impossible to construct at all), both
+ * cells are REACHABLE and PROBEABLE today — re-derived directly against `packages/playbook/src/
+ * defensiveCards.ts` (the real card corpus `BAND_GATE_CORPUS` games are called against, via
+ * `packages/calibration/src/league/snapshot.ts`'s `DEFENSE_CHAIN`/`take()`), not merely inherited from
+ * an earlier dispatch's prose:
+ *   - `EDGE.LINE` is the MODAL case for the game's most common rush duty. `FOUR_MAN_RUSH`'s `DE_L`/
+ *     `DE_R` (`defensiveCards.ts:75,78`, reused by nearly every base card) declare
+ *     `alignment: "EDGE"`; `DEFENSE_CHAIN.edge` (`snapshot.ts:126`) resolves that duty to a `DE` by
+ *     preference, and `DE` is in `onLinePositions` (`tunables.ts:610`), so `freeRunnerDepthFor`
+ *     (`rushThreat.ts:347-354`) returns `LINE` by default. No declared-depth override exists — depth
+ *     is derived from the rusher's own registry `Position`, unconditionally.
+ *   - `INTERIOR.BOX` is any LB A-gap blitz. `LB_W`/`LB_M`/`LB_S` duties (`defensiveCards.ts:451-452,
+ *     488-489,535-536,684` — `FIRE_ZONE`, `COVER_1` double-A and its variants) declare
+ *     `alignment: "INTERIOR"`; `DEFENSE_CHAIN.linebacker` (`snapshot.ts:128`) is `["MLB","ILB","OLB"]`
+ *     — none of which is in `onLinePositions` or `deepPositions` — so `freeRunnerDepthFor` falls
+ *     through to `defaultDepthClass: "BOX"` (`tunables.ts:619`).
+ * Neither fact depends on a future card; both duty shapes are in the corpus's own card set today.
+ * **Absent because no sweep patches them, not because the table cannot be probed there** — adding a
+ * sweep of either cell tomorrow is a NORMAL ACT, the same as adding one for any other live leaf, and
+ * does not require correcting this registry first (contrast a structural exclusion, which would).
+ *
+ * Contrast `INTERIOR.DEEP`, registered below as ACTIVE: it is the family's one genuinely UNREACHABLE
+ * cell. `depth: "DEEP"` requires the rusher's `Position` to be in `deepPositions` (`CB`/`FS`/`SS`), and
+ * the only defensive-back rush duties anywhere in `defensiveCards.ts` are the nickel/dime corner
+ * blitzes `CB_N` (line 147) and `CB_D` (line 755) — both declare `alignment: "EDGE"`, never
+ * `"INTERIOR"`, and no card gives a safety (`FS`/`SS`) a `RUSH` duty at all. `INTERIOR` ∩ `DEEP` is
+ * therefore empty at the data level — entry 151's finding, re-checked here rather than trusted, and
+ * it holds. (It is registered as an ACTIVE target below anyway because `zeroedPathTerm` constructs it;
+ * this file's own falsifier is what caught it reading DEAD on the corpus — see the standing finding
+ * in `docs/decisions/CALIBRATION-BACKLOG.md` entry 147 and the "two DEAD targets" this file's reds
+ * still carry.)
  */
 const FREE_RUNNER_PATH_TARGETS: readonly RegisteredTarget[] = [
   {
@@ -667,6 +701,32 @@ const EXCLUDED_TARGETS: readonly ExcludedTarget[] = [
       "(see the first `it` below). Listed here too so its status as \"not a target any calibration " +
       "sweep would spend games measuring\" is explicit rather than inferred from its dual role.",
     source: "scaleAudit.measure.test.ts DEAD_CELL_PROBES (SA-16) — also this file's falsifier control",
+  },
+  {
+    paths: [
+      "blitzPickup.freeRunnerPath.offsetSecondsByAlignmentAndDepth.INTERIOR.BOX",
+      "blitzPickup.freeRunnerPath.offsetSecondsByAlignmentAndDepth.EDGE.LINE",
+    ],
+    reason:
+      "REACHABLE, PROBEABLE, NOT CURRENTLY A SWEEP TARGET — a STATED GAP, not a structural exclusion. " +
+      "Both cells are live construction the `freeRunnerPathPlayScope.test.ts` FAMILY comment above " +
+      "documents in full: `EDGE.LINE` is the modal DE free-runner (`FOUR_MAN_RUSH`'s `DE_L`/`DE_R`, " +
+      "`defensiveCards.ts:75,78`, declared `alignment: \"EDGE\"`, resolved to a `DE` by " +
+      "`DEFENSE_CHAIN.edge` and defaulted to depth `LINE` by `freeRunnerDepthFor`); `INTERIOR.BOX` is " +
+      "any LB A-gap blitz (`LB_W`/`LB_M`/`LB_S`, e.g. `defensiveCards.ts:451-452`, declared " +
+      "`alignment: \"INTERIOR\"`, resolved to `MLB`/`ILB`/`OLB` and defaulted to depth `BOX`). Neither " +
+      "is a no-op by construction (unlike the two grouped entries below, where `proposedValue === " +
+      "currentValue` makes a probe impossible to build at all) and neither is unreachable the way the " +
+      "family's sixth cell, `INTERIOR.DEEP`, is (registered ACTIVE above — no card ever gives a " +
+      "defensive back an INTERIOR-alignment rush duty, so that combination is empty at the data " +
+      "level). These two are simply not patched by any sweep that exists today: `zeroedPathTerm()` " +
+      "constructs the other four cells of this table and stops there. Adding a sweep of either cell " +
+      "tomorrow is a NORMAL ACT — it does not require correcting this registry first, which is exactly " +
+      "what would be implied by calling this a structural exclusion instead of a gap.",
+    source:
+      "freeRunnerPathPlayScope.test.ts zeroedPathTerm() — the two cells of the six-cell table its " +
+      "loop does not construct; see the FREE_RUNNER_PATH_TARGETS family comment above for the full " +
+      "re-derivation",
   },
   {
     paths: [
@@ -892,7 +952,7 @@ d("sweep-target preflight", () => {
         "this package that call `applyTunablePatch` (`git grep -l applyTunablePatch -- src test`), " +
         "what its own construction site can produce — not by grepping for the literal string " +
         '`tunableId:`, which this dispatch\'s own audit showed undercounts (12 literals found vs. ' +
-        "39 active + 37 excluded = 76 paths this pass disposes of, printed exactly above). What " +
+        "39 active + 39 excluded = 78 paths this pass disposes of, printed exactly above). What " +
         "this method would " +
         "MISS: a construction site added after this file was last read; a helper that builds a " +
         "`tunableId` string from data not visible in source (an env var, a JSON fixture, a runtime " +
