@@ -11767,3 +11767,88 @@ MIS-RANKED.**
 ✅ **That is a stronger statement than *"the rule held today"*** — ⚠ **it says why no conditional
 version could work, rather than that this unconditional one happened to.** ⛔ **There is nothing to
 condition ON.**
+
+---
+
+## 155. ✅ THREAT TRAVEL TIME — the mechanism read. **The safety-vs-tackle claim is PATH-DEPENDENT**, and the petition line falls in a different place than expected
+
+**Read-only, no design, no ruling.** ⛔ **The decomposition question has THREE answers, not two.**
+
+### ✅ 1. THE NULL, REPORTED FLAT — **no attribute reaches travel time**
+
+**`travelSecondsFor`** *(`rushThreat.ts:319-333`)* **and `freeRunnerArrivalSecondsFor`** *(`:381-399`)*
+⛔ **take no `PlayerState`, call no `getAttr`, and import nothing from the registry.**
+
+> ## ⛔ **THE ONLY ATTRIBUTE-DERIVED QUANTITY REACHING TRAVEL TIME IS `margin` — AND IT IS THE WRONG KIND.**
+
+⚠ **`margin` comes from `resolvePassRushRep`, a TECHNIQUE-AND-BLOCK-SHEDDING contest** *(`passRush`,
+`firstStep`/`powerMove`+`strength`/`finesseMove`, against `passBlock`/`footwork`/`anchor`)*, ✅ **and
+it is consumed only as a `dominanceSteps` shave against `dominanceMarginPerHalfTick`.**
+⛔ **`ATTR.speed` and `ATTR.acceleration` exist in the registry and reach NEITHER function.**
+
+### ⛔⛔ 2. THE SAFETY-VS-TACKLE CLAIM IS **PATH-DEPENDENT** — divergent on one path, confirmed on the other
+
+**The two paths are MUTUALLY EXCLUSIVE by matchup, not layered** *(`RushPlan` is a discriminated
+union — a rusher is blocked or a free runner, never both)*:
+
+| path | does position distinguish a safety from a tackle? |
+|---|---|
+| **FREE RUNNER** *(`m.blocker === undefined`)* | ⛔ **YES — the claim is DIVERGENT.** `freeRunnerDepthFor` splits `LINE`/`BOX`/`DEEP` off `Position`; `SS`/`FS` → `DEEP`, `DT` → `LINE`, **and the offset table separates them by up to a full second** |
+| ⛔ **BLOCKED, wins the rep** *(the `travelSecondsByAlignmentAndMove` path)* | ✅ **NO — the claim is CONFIRMED.** ⛔ **`travelSecondsFor(tunables, alignment, move, margin)` HAS NO `Position` PARAMETER** *(verified)*. A blitzing safety and a nose tackle, both blocked, same alignment, same move ⇒ **identical travel time** |
+
+> ## ✅ **SO THE ENGINE ALREADY DISTINGUISHES DEFENDERS BY DEPTH — JUST NOT ON THE PATH THE QUESTION IS ABOUT.**
+
+### ⛔ 3. THE PETITION LINE — **and a middle path nobody named**
+
+| class | inputs | what it costs |
+|---|---|---|
+| ✅ **IN HAND** | `alignment`, `margin`, `Position`-as-label, `state.ballOn` *(exists on `MatchGameState`, simply never threaded down)* | **a patch** — plumbing an existing value through arguments |
+| ⛔ **NEW STATE** | numeric starting position, **launch point**, **dropback depth** | ⛔ **A CONTRACTS PETITION.** None exists in `PlayerBio`, `PlayCalls` or `MatchGameState`. `formation` is `string` and the engine is FORBIDDEN to parse football from it |
+| ⚠ **THE MIDDLE** | ⛔ **extend the EXISTING categorical depth-class machinery to the BLOCKED path** | ✅ **a same-shape code change, NOT a petition** — `freeRunnerDepthFor` already does exactly this for free runners |
+
+⚠ **The owner's decomposition assumed geometry-or-nothing.** ⛔ **There is a third option already
+implemented one path over.**
+
+### ✅ 4. `delayThreat` IS A FLAT TIME ADDITION — **not velocity**
+
+```ts
+return { ...threat, etaTick: Number((threat.etaTick + seconds).toFixed(1)) };
+```
+
+⛔ **No rate term, no distance term, no re-derivation.** ⚠ **Both call sites pass FIXED per-band
+constants** *(a recovering blocker; a QB step-up)*, **the same value regardless of how far along the
+threat already was.**
+
+**⇒ Only the flat-delay mechanic is implementable against what the code represents.** ⛔ **A chip
+that forces RE-ACCELERATION is not what this does, and would need a velocity representation that does
+not exist.**
+
+⚠ **The Orchestrator flagged `delayThreat` as possibly not existing. It exists** *(`rushThreat.ts:435-438`,
+exported and tested)*. ✅ **The flag cost one grep and returned a null — which is what a
+where-I-stopped-reading flag is for.**
+
+### ⛔ 5. THE ABSTENTION IS ALREADY RATIFIED — **but its scope is narrower than it was cited as**
+
+**`tunables.ts:602-606`:** *"a speed term would be a second petition, on a league that has no speed
+variance to measure it with. **ADR-031 records it as unclaimed.**"*
+
+⛔ **That comment sits inside the `freeRunnerPath` block.** ⚠ **It is ADR-031's ratification of the
+FREE-RUNNER path — not of `travelSecondsByAlignmentAndMove`.**
+
+> ## ⛔ **CITING IT FOR THE BLOCKED PATH IS EXACTLY THE TRANSFER ENTRY 134 GOVERNS:** *any measured relationship carries its configuration, and citing it elsewhere requires establishing that the configuration transfers.* ⚠ **Not established. `unruled`.**
+
+### ⚠ 6. ENTRY 49's CONSTRAINT, and it is CONSISTENT rather than limiting here
+
+⛔ **Whether a closing-speed attribute would matter is UNMEASURABLE on `flat-60-32t`** — every
+attribute equal by construction. ✅ **And the tree agrees for a structural reason rather than a
+sampling one: zero speed dispersion is CONSUMED by this mechanic at all**, so the flat corpus is not
+merely blind to the effect — **there is no wiring for it to be blind to.**
+
+### ⇒ WHAT IS OWED
+
+- ⛔ **The football question — should a blocked safety and a blocked tackle travel differently — is
+  the owner's.** ⚠ **The read says it is answerable WITHOUT a petition, via the middle path.**
+- ⚠ **Whether ADR-031's `unclaimed` covers the blocked path.** **`unruled` — a transfer, not a
+  citation.**
+- ⚠ **`state.ballOn` is in scope of `simulatePassPlay` and never threaded to `travelSecondsFor`.**
+  **Not a gap — an unused fact. `unruled`.**
