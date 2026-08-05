@@ -11991,3 +11991,31 @@ louder is the one fix already demonstrated not to work.**
 ⚠ **That distinction matters for how this register reads.** ⛔ **An `unruled` item that COULD be fixed
 cheaply and an `unruled` item that CANNOT are different obligations, and until now they have been
 recorded identically.**
+
+### ⛔ CORRECTION TO THE ADDENDUM ABOVE — **the test has TWO clauses, and the second is the one that gets skipped**
+
+**As committed, the addendum's test reads *"ask whether the defect is in the name."*** ⛔ **That is
+INCOMPLETE and would misclassify.**
+
+> ## ✅ **NAME-DEFECT *AND CONSUMERS* → standing warning.** ⚠ **NAME-DEFECT *WITHOUT* CONSUMERS → cheap fix.**
+
+**A name nothing depends on is cheaply renameable.** ⛔ **It is the CONSUMERS that make renaming a
+decision rather than a tidy** — ADRs cite `forcesDecision`; imports bind `playbook.ts`.
+
+### ⇒ AND `quickTwitchMove`'s LABEL IS THE PROOF, not an illustration
+
+⛔ **It sat ONE STEP from the second column.** Had `"Trait: Quick Twitch"` encoded the move, that
+would have been a name-defect **with** consumers — `RollModifier.source` reaches the event stream —
+✅ **and it would have flipped from *four lines, taken* to *unruled, no cheap fix.***
+
+> ## ⛔ **THE CHECK THAT CAME BACK CLEAN IS WHAT KEPT IT IN THE FIRST COLUMN. NOTHING ABOUT THE DEFECT'S *KIND* WOULD HAVE TOLD YOU WHICH.**
+
+### 📒 WHY THIS CLAUSE WILL BE THE ONE SKIPPED
+
+⚠ ***"The defect is in the name"* FEELS LIKE A COMPLETE DIAGNOSIS**, and the consumer check is an
+extra grep on top of a conclusion that already sounds finished. ⛔ **The two columns were separated by
+a check nobody would have run if the classification felt done.**
+
+✅ **Recorded as a correction rather than edited in place** — ⛔ **a test that was wrong for ten
+minutes and is silently right afterwards teaches nobody**, and this one is evidence about how the
+classification fails.
