@@ -11203,3 +11203,59 @@ reconstructing an argument about a different file:**
 fourth instance is what would discriminate them.** ⚠ **Which is the same discipline as entry 148's
 question-without-an-instance: state the condition where the person who needs it will be standing,
 and do not promote on zero.**
+
+---
+
+## 150. 📒 **WHEN A CLAIM'S FAILURE MODE WOULD NOT BE VISIBLE IN THE SOURCE THAT STATES IT, RE-READING IS NOT VERIFICATION**
+
+**A CLASSIFICATION, recorded in the register rather than promoted to a template field.**
+
+### ⛔ WHY THIS IS NOT A FIELD
+
+**Every field that earned promotion ATTACHES TO A MOMENT:** *what is the provenance of this figure*
+*(at authoring)*; *where did the author stop reading* *(at dispatch)*; *what would make this go red*
+*(at ratification)*. ⚠ **A form is filled at a point in time.**
+
+> ## ⛔ **THIS HAS NO MOMENT. IT IS WHAT YOU CONSULT WHEN DECIDING WHETHER ANOTHER READ WILL HELP** — ✅ **and a classification belongs where someone REASONS, not on a form where someone FILLS.**
+
+### ⛔ THE THREE INSTANCES — the shape has to be recognizable or the classification is unusable
+
+| # | the claim | why re-reading could not settle it |
+|---|---|---|
+| **1** | `pressureProgressByBand.RUSHER_WINS_REP.reset` recorded **DEAD** *(entry 146 §3)* | ⛔ **The contradicting evidence is in a DIFFERENT FILE.** `passRush.ts:171` is a second reader; entry 59's proof covered `clearsThreat` only. **Nothing on entry 146's page is wrong to a reader of entry 146.** |
+| **2** | `freeRunnerPath...` — **all six cells READ** *(entry 146's table)* | ⛔ **The citation SUPPORTS the claim.** ADR-031's control zeroes the whole table and the stream moves — which proves the STRUCTURE is read. **A careful reader checking the citation finds it correct.** Only a PER-CELL probe separates family from member. |
+| **3** | The uncovered-target **"floor"** I supplied *(entry 147)* | ⛔ **It named cells THAT DO NOT EXIST** — zero remaining `*.delta` bands, one remaining `minimumStatusByBand` not several. **Re-reading my own list shows a coherent list.** The contradiction lives in construction sites I had not read. |
+
+> ## ⛔ **WHAT ALL THREE SHARE: THE EVIDENCE THAT CONTRADICTS THEM WAS NEVER ON THE PAGE.** ⚠ **Each was internally coherent, carefully written, and wrong — and each needed something RUN or something GREPPED that the reader had no reason to suspect was in question.**
+
+### ✅ AND THE SELECTION EFFECT — **without which this reads as "reading is weak," and it is not**
+
+⛔ **Claims that fail to careful reading NEVER ENTER THIS SAMPLE.** ⚠ **They were caught before they
+were relayed — that is what the reading did.** ✅ **So what reached a grep or a run today is BY
+CONSTRUCTION the residue that had already survived reading.**
+
+> ## ✅ **NOT *"reading does not catch things."* ⛔ ***"Reading had already caught what it was going to catch, and the residue is exactly the class only measurement resolves."***
+
+⚠ **Reading and measurement are NOT RANKED. They are SEQUENTIAL FILTERS WITH DISJOINT CATCHES** —
+they answer different questions, and the second cannot be substituted for the first or vice versa.
+
+### ⛔ THE DEMONSTRATION — not an illustration
+
+**Entry 146 was falsified BY THE INSTRUMENT IT MOTIVATED.** ⚠ **Twice, in opposite directions, both
+errors the Orchestrator's own.**
+
+> ## ⛔ **THE GUARD DID NOT CHECK THE ENTRY'S REASONING. IT CHECKED THE WORLD THE ENTRY WAS ABOUT.**
+
+✅ **Which is why it could falsify an entry that was internally coherent, carefully written, and
+wrong** — ⛔ **the exact failure a further re-read of that entry would have confirmed rather than
+caught.**
+
+### ⇒ HOW TO USE IT
+
+**Before reaching for another read of a claim, ask: WOULD ITS FAILURE MODE BE VISIBLE IN THIS TEXT?**
+
+- ✅ **If yes** *(an arithmetic slip, a contradicted premise, a citation that does not say what it is
+  said to say)* — **read again.**
+- ⛔ **If no** *(a claim about what code reads, what a set contains, what a corpus does)* — **another
+  read is not verification, however careful.** ⚠ **Run it, grep it, or mark it `REPORTED` and say
+  nobody has checked.**
