@@ -193,14 +193,13 @@ const SHARED_MODULE_TARGETS: readonly RegisteredTarget[] = [
  * `PERSIST_RUNGS`, which is entry 146's own finding (§3): the one genuinely dead cell was never
  * swept because harness authors already knew not to. It is used below ONLY as the falsifier's
  * known-dead control, never registered as a "sweep target" this file is vouching for.
+ *
+ * TASK 2 (this dispatch, owner ruling): the mechanical accounting for that claim used to live right
+ * here, as a check against a file-local `Set` — an ACCOUNTING device, not a DISCLOSURE one, and the
+ * two are different: being in a `Set` nobody else reads is not the same as being named in the
+ * registry with a reason. That escape hatch is now closed — see "BAND_LABELS DISCLOSURE" below
+ * `EXCLUDED_PATHS`'s declaration (it has to live after that constant, not here).
  */
-const excludedFromP2 = new Set(["RUSHER_WINS_REP", "BLOCKER_RESETS"]);
-if (!BAND_LABELS.every((b) => excludedFromP2.has(b) || SHARED_MODULE_TARGETS.some((t) => t.tunableId === RESET_PATH_OF(b)))) {
-  throw new Error(
-    "sweepTargetPreflight.test.ts's registry has fallen out of sync with threatSupplyPatches.ts's " +
-      "BAND_LABELS — a band was added or removed and this file's restated target list was not updated.",
-  );
-}
 
 /**
  * Cells owned by `*.test.ts` files whose internals are not imported, per the header's rule.
@@ -783,6 +782,113 @@ const EXCLUDED_TARGETS: readonly ExcludedTarget[] = [
 const EXCLUDED_PATHS: readonly string[] = EXCLUDED_TARGETS.flatMap((e) => e.paths);
 
 // ---------------------------------------------------------------------------
+// TASK 2 — BAND_LABELS DISCLOSURE (this dispatch, owner ruling). Closes the escape hatch the old
+// `excludedFromP2` file-local `Set` was: a band sitting in a `Set` nobody outside this file reads is
+// ACCOUNTED FOR (the mechanical check passed) but not DISCLOSED (no reason, not in the registry a
+// reader consults). The two are different, and the old guard conflated them — which is exactly why
+// `RUSHER_WINS_REP` and `BLOCKER_RESETS` sat unregistered under a check that already existed for
+// their family. Now: a band's `.reset` leaf counts as accounted for only if it is a REAL registered
+// target (`SHARED_MODULE_TARGETS`) or is named in `EXCLUDED_TARGETS` WITH A STATED REASON
+// (`EXCLUDED_PATHS`, built from that list, declared just above). No local `Set` substitutes.
+//
+// ⚠ CORRECTED (owner-ruled follow-up): this used to be a top-level `if (ENABLED) { throw }` right
+// here. That is a COLLECTION-TIME abort, not a test failure — with `FF_SWEEP_PREFLIGHT=1` it threw
+// while vitest was still COLLECTING the file, before a single `it()` in this suite (this check, the
+// sibling closure, the falsifier, the FINDING test, the two DEAD-target probes) ever ran, and the
+// file reported `(0 test)` / "Tests: no tests" — indistinguishable, at a glance, from an empty file,
+// which is the opposite of a finding meant to be READ. `expect(...).toEqual([])` inside an `it()`,
+// found below, is a TEST FAILURE: it surfaces independently, alongside every other check in the same
+// run, instead of pre-empting all of them. Function body only stays where it was reasoned about
+// (`RESET_PATH_OF`, `SHARED_MODULE_TARGETS`, `EXCLUDED_PATHS` are all in scope here regardless of
+// where the assertion that reads them sits — `it()` callbacks are closures that run after the whole
+// module has finished loading, so this could equally sit anywhere below `EXCLUDED_PATHS`).
+// ---------------------------------------------------------------------------
+function unaccountedBandLabels(): readonly string[] {
+  return BAND_LABELS.filter(
+    (b) =>
+      !SHARED_MODULE_TARGETS.some((t) => t.tunableId === RESET_PATH_OF(b)) &&
+      !EXCLUDED_PATHS.includes(RESET_PATH_OF(b)),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// TASK 1 — IMMEDIATE-PARENT SIBLING CLOSURE (this dispatch, owner ruling).
+//
+// THE RULE: for every path registered in `ALL_TARGETS` or `EXCLUDED_PATHS`, every LEAF sharing its
+// IMMEDIATE PARENT OBJECT in `DEFAULT_TUNABLES` must also appear in one of those two lists. This is
+// the tightest closure that removes the ambiguity that produced this dispatch in the first place: a
+// cell whose SIBLINGS are registered but which is itself in neither list is indistinguishable from a
+// cell nobody ever considered.
+//
+// ⛔ TWO STATED GAPS — what this rule deliberately does NOT cover, stated here rather than left for a
+// later reader to guess at either extreme:
+//
+//   1. FAMILIES WITH NO REGISTERED MEMBER ARE OUTSIDE IT ENTIRELY. If NEITHER leaf sharing a given
+//      immediate parent is in `ALL_TARGETS`/`EXCLUDED_PATHS`, the rule never fires for that parent at
+//      all — it has nothing registered to close FROM. This is a stated gap, not a hole: the closure
+//      can only ever widen a family someone already started accounting for; it cannot, by itself,
+//      discover a family nobody has touched. (This is also why the BAND_LABELS disclosure check above
+//      still exists as a SEPARATE guard — `BLOCKER_RESETS`'s `pressureProgressByBand` row has neither
+//      `.delta` nor `.reset` registered anywhere, so THIS rule is silent about it; the disclosure
+//      check is what catches that family instead.)
+//
+//   2. CLOSURE IS IMMEDIATE-PARENT AND DOES NOT ASCEND. Registering a leaf says nothing about its
+//      PARENT's siblings. `pocket.thresholds.0.label` being registered obligates `pocket.thresholds.0`'s
+//      own leaf children (`label`, `minProgress`) — never `pocket.thresholds` itself (there is nothing
+//      to obligate there; it is an array, not a leaf) and never `pocket`'s other children
+//      (`minimumStatusByBand`, `severity`, ...). Any wider rule (grandparent, transitive-up-the-tree)
+//      has no natural stopping point short of the whole tunable tree — already rejected as absurd.
+// ---------------------------------------------------------------------------
+
+/** A node in `DEFAULT_TUNABLES` that has children — a plain object or an array, never a leaf itself. */
+function isContainer(v: unknown): v is Record<string, unknown> | readonly unknown[] {
+  return typeof v === "object" && v !== null;
+}
+
+/**
+ * Walks `DEFAULT_TUNABLES` and records, for every LEAF (a value that is not itself an object or
+ * array — a `number`, `string`, or `boolean`), the dotted path of its IMMEDIATE PARENT container.
+ * Array indices are path segments exactly the way this file's own restated targets already address
+ * them (`pocket.thresholds.0.label`, `blitzPickup.bands.2.arrivalDelaySeconds`), so no distinction is
+ * made here between an object key and an array index — both are "a container's named child".
+ */
+function buildImmediateParentIndex(node: unknown, path: string, out: Map<string, string>): void {
+  if (!isContainer(node)) return;
+  const entries = Array.isArray(node) ? node.entries() : Object.entries(node);
+  for (const [key, child] of entries) {
+    const childPath = path === "" ? String(key) : `${path}.${String(key)}`;
+    if (isContainer(child)) {
+      buildImmediateParentIndex(child, childPath, out);
+    } else {
+      out.set(childPath, path);
+    }
+  }
+}
+
+/**
+ * Every leaf that shares an immediate parent with a registered/excluded path, but is not itself
+ * registered or excluded. Implements the rule and its two stated gaps exactly as documented above —
+ * nothing here widens or narrows either boundary.
+ */
+function siblingClosureGaps(registeredOrExcluded: ReadonlySet<string>, parentOf: ReadonlyMap<string, string>): string[] {
+  const leavesByParent = new Map<string, string[]>();
+  for (const [leaf, parent] of parentOf) {
+    const siblings = leavesByParent.get(parent);
+    if (siblings) siblings.push(leaf);
+    else leavesByParent.set(parent, [leaf]);
+  }
+  const gaps = new Set<string>();
+  for (const path of registeredOrExcluded) {
+    const parent = parentOf.get(path);
+    if (parent === undefined) continue; // not a real leaf of DEFAULT_TUNABLES at all — a different defect, not this rule's
+    for (const sibling of leavesByParent.get(parent) ?? []) {
+      if (!registeredOrExcluded.has(sibling)) gaps.add(sibling);
+    }
+  }
+  return [...gaps].sort();
+}
+
+// ---------------------------------------------------------------------------
 // THE FALSIFIER — must be shown to fire in both directions before the registry is trusted.
 //
 // ⚠ **THE RULING'S OWN "KNOWN-DEAD" CONTROL TURNED OUT TO BE LIVE, MEASURED.** The ruling offered
@@ -963,5 +1069,58 @@ d("sweep-target preflight", () => {
     expect(overlap, "a path claimed both ACTIVE and EXCLUDED is a contradiction, not a coverage gap").toEqual([]);
     expect(dupActive, "ALL_TARGETS carries a duplicate tunableId").toEqual([]);
     expect(dupExcluded, "EXCLUDED_TARGETS carries a duplicate path").toEqual([]);
+  });
+
+  // -------------------------------------------------------------------------
+  // TASK 1 — IMMEDIATE-PARENT SIBLING CLOSURE, ASSERTED. STRUCTURAL: reads only `DEFAULT_TUNABLES`
+  // and this file's two lists, no corpus pass, so it costs nothing beyond CPU already spent importing
+  // the module. ⛔ It lands RED — nothing is registered here to make it pass; the enumeration below IS
+  // the finding. Env-gated for now alongside the rest of this file's assertions, per the same Tier 3
+  // reasoning the header states — but note, per the ruling's own instruction, that a STRUCTURAL check
+  // needing no corpus has no principled reason to stay gated once the enumerated gap is closed
+  // (registered or excluded-with-reason); at that point it belongs in the DEFAULT suite, not here.
+  // -------------------------------------------------------------------------
+  it("IMMEDIATE-PARENT SIBLING CLOSURE — every sibling of a registered/excluded leaf is itself accounted for", () => {
+    const parentOf = new Map<string, string>();
+    buildImmediateParentIndex(DEFAULT_TUNABLES, "", parentOf);
+
+    const registeredOrExcluded = new Set<string>([...ALL_TARGETS.map((t) => t.tunableId), ...EXCLUDED_PATHS]);
+
+    // Sanity check on the rule's own inputs, not the tree: every path this file claims (ACTIVE or
+    // EXCLUDED) should actually resolve to a leaf of DEFAULT_TUNABLES. A path that does not is a
+    // different defect (a stale or mistyped path) than a sibling-closure gap, and is reported
+    // separately so it is not silently folded into — or silently dropped from — the gap count below.
+    const unresolvedClaims = [...registeredOrExcluded].filter((p) => !parentOf.has(p)).sort();
+    if (unresolvedClaims.length > 0) {
+      say(`UNRESOLVED CLAIM(S) — registered/excluded path(s) not found as a leaf of DEFAULT_TUNABLES: ${unresolvedClaims.join(", ")}`);
+    }
+
+    const gaps = siblingClosureGaps(registeredOrExcluded, parentOf);
+    say(`SIBLING-CLOSURE GAP COUNT: ${String(gaps.length)}`);
+    for (const gap of gaps) {
+      say(`SIBLING-CLOSURE GAP  ${gap}  (parent: ${parentOf.get(gap) ?? "?"})`);
+    }
+
+    expect(unresolvedClaims, "a registered/excluded path that is not a real leaf of DEFAULT_TUNABLES").toEqual([]);
+    expect(gaps, "every leaf below is a sibling of a registered/excluded cell and is itself neither").toEqual([]);
+  });
+
+  // -------------------------------------------------------------------------
+  // TASK 2 — BAND_LABELS DISCLOSURE, ASSERTED (owner-ruled follow-up: converted from a top-level
+  // `if (ENABLED) { throw }` to this `it()` — see `unaccountedBandLabels()`'s header comment for why
+  // the collection-time throw was the wrong instrument: it aborted the WHOLE FILE before any other
+  // check in this suite — including the sibling closure directly above — ever ran, so the two reds
+  // could never be observed together in one run. As an `it()`, this surfaces INDEPENDENTLY alongside
+  // every other assertion in this file, in the same run, the way a finding meant to be read has to.
+  // ⛔ Lands RED — `RUSHER_WINS_REP` and `BLOCKER_RESETS` are named nowhere with a reason today.
+  // -------------------------------------------------------------------------
+  it("BAND_LABELS DISCLOSURE — every band's pressureProgressByBand reset leaf is registered or excluded with a reason", () => {
+    const unaccounted = unaccountedBandLabels();
+    say(`BAND_LABELS DISCLOSURE — unaccounted: ${unaccounted.length > 0 ? unaccounted.join(", ") : "(none)"}`);
+    expect(
+      unaccounted,
+      "band(s) whose pressureProgressByBand.<band>.reset leaf is neither a registered sweep target " +
+        "(SHARED_MODULE_TARGETS) nor named in EXCLUDED_TARGETS with a reason",
+    ).toEqual([]);
   });
 });

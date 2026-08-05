@@ -11408,3 +11408,243 @@ mechanical closure agree on this corpus, which nothing has yet shown.**
 ⛔ **The rule LANDS RED. The red ENUMERATES. Nothing above is fixed first** — ✅ **because a rule
 asserted over a set already made clean passes on day one and nobody ever learns whether the gap was
 five cells or fifty.** ⚠ **The count is the finding, and it exists only in the failure.**
+
+---
+
+## 153. ⛔⛔ MECHANICAL CLOSURE FINDS **145**. READING FOUND **6**. — the full list, recorded before any fix
+
+**Owner sequencing, honoured: the red enumerates, the list goes into the register, and NOTHING is
+fixed first.** ⛔ **A rule asserted over a set someone already cleaned passes on day one and nobody
+learns whether the gap was six cells or a hundred and forty-five.**
+
+### ⛔ 1. FIRST, THE DEFECT THAT MADE THE LIST UNOBTAINABLE — found by RUNNING
+
+**The disclosure guard shipped as a TOP-LEVEL `if (ENABLED) { throw }` at module scope.** ⛔ **It
+fired during COLLECTION, so the whole file reported `(0 test)` and `Tests: no tests`.** ⚠ **Sibling
+closure never executed. Neither did the falsifier, the FINDING test, or the two DEAD probes.**
+
+> ## ⛔ **AN IMPORT-TIME THROW IS THE WRONG INSTRUMENT FOR A FINDING YOU INTEND TO READ — a build break wearing a test's clothes.**
+
+⚠ **And its failure mode is ABSENCE, not noise: a suppressed enumeration and an empty file are
+INDISTINGUISHABLE from the runner's output.** ✅ **Converted to an `it()`. Both reds now surface
+independently in one pass.**
+
+⛔ **The two tasks were each verified with a `-t` filter and never together** — **the interaction was
+exactly what no individual verification could see.**
+
+### ✅ 2. THE JOINT RUN — derived, not read from the report
+
+```
+Test Files  1 failed (1)
+     Tests  3 failed | 3 passed (6)
+```
+
+| check | verdict |
+|---|---|
+| falsifier *(SA-16 dead / `blockerStructuralAdvantage` live)* | ✅ **green** |
+| FINDING — `RUSHER_WINS_REP.reset` is LIVE | ✅ **green** |
+| every enumerable target is LIVE | ⛔ **red — exactly TWO dead, unchanged** |
+| ⛔ **IMMEDIATE-PARENT SIBLING CLOSURE** | ⛔ **red — 145 gaps** |
+| BAND_LABELS DISCLOSURE | ⛔ **red — `RUSHER_WINS_REP`, `BLOCKER_RESETS`** |
+
+✅ **Count verified independently: the file DECLARES 145 and the enumeration yields 145 DISTINCT
+paths.** *(A declared count and a derived count agreeing is itself worth one line, given the day.)*
+
+### ⛔⛔ 3. READING UNDERCOUNTED BY A FACTOR OF TWENTY-FOUR
+
+| | |
+|---|---|
+| hand-derived *(entry 152, by reading)* | **6** |
+| ⛔ **mechanical closure** | ⛔ **145** |
+| **overlap** | ✅ **4** *(derived; entry 152's report said 3 in its summary and 4 in its own table — the table was right)* |
+| **found ONLY mechanically** | ⛔ **141** |
+| **found ONLY by reading** | **2** — *and the rule structurally CANNOT find them* |
+
+> ## ⛔ **PRE-REGISTERED AND CONFIRMED: *"if the rule enumerates more than these, reading undercounted."* IT ENUMERATED TWENTY-FOUR TIMES MORE.**
+
+### ✅ 4. THE RULE OBEYED ITS OWN DECLARED BOUNDARY — which was the actual test
+
+**Both cells reading found that closure MISSED were predicted, before the run, to miss for stated
+Gap 1** *(a family with NO registered member is outside the rule entirely)*:
+
+- `passRush.pressureProgressByBand.BLOCKER_RESETS.reset` — neither `.delta` nor `.reset` of that band is registered
+- `pocket.thresholds.3.label` — neither leaf of index 3 is registered
+
+⛔ **Missed BY DESIGN, not by narrowing.** ✅ **A rule that fails exactly where it says it will fail is
+a rule whose boundary is real** — ⚠ **and that, not the count, was the discriminator.**
+
+**The Orchestrator's prediction undercounted the fires at three, missing
+`pressureProgressByBand.RUSHER_WINS_REP.reset`, whose sibling `.delta` IS registered.** ⛔ **Reading
+versus mechanism, one more time, on the person checking the reading.**
+
+### 📒 5. TOP-LEVEL DISTRIBUTION, and three members worth naming
+
+`ballCarrier` **34** · `manCoverage` **24** · `zoneCoverage` **21** · `game` **11** · `tippedBall` **8**
+· `pocket` **8** · `arrival` **8** · `passRush` **7** · `blitzPickup` **6** · `throwExec` **5** ·
+`runGame` **5** · `release` **5** · `stunt` **2** · `catching` **1**
+
+- ⛔ **`passRush.blockerStructuralAdvantage`** — **the falsifier's OWN known-live control**, excluded by a comment and never named in `EXCLUDED_TARGETS`. **The instrument's own reference case is a disclosure gap.**
+- ⚠ **`passRush.quickTwitchMove`, `passRush.brickWallMove`** — ADR-062's subject, ratified today.
+- ⚠ **`arrival.immediateWithinSeconds`** — swept this session.
+
+### ⇒ 6. THE FULL LIST — 145 paths, verbatim, before any fix
+
+```
+arrival.containRetiresAfterConsecutiveContains
+arrival.defaultAlignment
+arrival.immediateWithinSeconds
+arrival.maxTravelSeconds
+arrival.minTravelSeconds
+arrival.quantizeSeconds
+arrival.simultaneousArrivalPriority
+arrival.timeRetirementEnabled
+ballCarrier.catchTransition.byAccuracyBand.ADEQUATE
+ballCarrier.catchTransition.byAccuracyBand.BAD
+ballCarrier.catchTransition.byAccuracyBand.EXCELLENT
+ballCarrier.catchTransition.byAccuracyBand.GOOD
+ballCarrier.catchTransition.byAccuracyBand.PERFECT
+ballCarrier.catchTransition.byAccuracyBand.POOR
+ballCarrier.contests.secondLevel.bands.0.broken
+ballCarrier.contests.secondLevel.bands.0.label
+ballCarrier.contests.secondLevel.bands.0.tackled
+ballCarrier.contests.secondLevel.bands.2.broken
+ballCarrier.contests.secondLevel.bands.2.label
+ballCarrier.contests.secondLevel.bands.2.minMargin
+ballCarrier.contests.secondLevel.bands.2.minYards
+ballCarrier.contests.secondLevel.bands.2.tackled
+ballCarrier.contests.yac.bands.0.broken
+ballCarrier.contests.yac.bands.0.label
+ballCarrier.contests.yac.bands.0.minMargin
+ballCarrier.contests.yac.bands.0.tackled
+ballCarrier.contests.yac.bands.3.broken
+ballCarrier.contests.yac.bands.3.label
+ballCarrier.contests.yac.bands.3.minMargin
+ballCarrier.contests.yac.bands.3.minYards
+ballCarrier.contests.yac.bands.3.tackled
+ballCarrier.pursuitAngle.speedAttr
+ballCarrier.yacMultiplierByAccuracyBand.ADEQUATE
+ballCarrier.yacMultiplierByAccuracyBand.BAD
+ballCarrier.yacMultiplierByAccuracyBand.EXCELLENT
+ballCarrier.yacMultiplierByAccuracyBand.GOOD
+ballCarrier.yacMultiplierByAccuracyBand.PERFECT
+ballCarrier.yacMultiplierByAccuracyBand.POOR
+ballCarrier.zones.0.zone
+ballCarrier.zones.1.zone
+ballCarrier.zones.2.zone
+ballCarrier.zones.3.zone
+blitzPickup.bands.2.blocked
+blitzPickup.bands.2.label
+blitzPickup.bands.2.minMargin
+blitzPickup.blockerAttrDivisor
+blitzPickup.rusherAttrDivisor
+blitzPickup.slideIsUncontested
+catching.routine.attrDivisor
+game.clockStopsOnIncompletion
+game.clockStopsOnPossessionChange
+game.clockStopsOnScore
+game.maxPlaysPerGame
+game.overtimePeriods
+game.overtimeSeconds
+game.overtimeSuddenDeath
+game.periodSeconds
+game.periodsInRegulation
+game.twoMinuteHuddleSeconds
+game.twoMinuteSeconds
+manCoverage.bands.0.contest
+manCoverage.bands.0.label
+manCoverage.bands.0.minMargin
+manCoverage.bands.1.contest
+manCoverage.bands.1.label
+manCoverage.bands.1.minMargin
+manCoverage.bands.2.contest
+manCoverage.bands.2.label
+manCoverage.bands.2.minMargin
+manCoverage.bands.3.contest
+manCoverage.bands.3.label
+manCoverage.bands.3.minMargin
+manCoverage.bands.4.contest
+manCoverage.bands.4.label
+manCoverage.bands.4.minMargin
+manCoverage.bands.5.contest
+manCoverage.bands.5.label
+manCoverage.bands.5.minMargin
+manCoverage.bands.6.contest
+manCoverage.bands.6.label
+manCoverage.bands.6.minMargin
+manCoverage.bands.7.contest
+manCoverage.bands.7.label
+manCoverage.bands.7.minMargin
+passRush.bands.0.label
+passRush.blockerStructuralAdvantage
+passRush.brickWallMove
+passRush.pressureProgressByBand.BLOCKER_CONTAINS.delta
+passRush.pressureProgressByBand.RUSHER_WINS_REP.reset
+passRush.pressureProgressByBand.STALEMATE.delta
+passRush.quickTwitchMove
+pocket.forcesDecision.0
+pocket.minimumStatusByBand.BLOCKER_CONTAINS
+pocket.minimumStatusByBand.BLOCKER_RESETS
+pocket.minimumStatusByBand.STALEMATE
+pocket.sackWhenNoTarget.0
+pocket.thresholds.0.minProgress
+pocket.thresholds.1.minProgress
+pocket.thresholds.2.minProgress
+release.bands.6.cbCoverageMod
+release.bands.6.disrupted
+release.bands.6.label
+release.bands.6.minMargin
+release.bands.6.wrCoverageMod
+runGame.pointOfAttack.bands.0.contact
+runGame.pointOfAttack.bands.0.label
+runGame.pointOfAttack.bands.1.contact
+runGame.pointOfAttack.bands.1.label
+runGame.pointOfAttack.bands.1.minMargin
+stunt.attrDivisor
+stunt.target
+throwExec.accuracy.bands.6.label
+throwExec.accuracy.bands.6.minMargin
+throwExec.lane.velocityModifier.BACK_SHOULDER
+throwExec.lane.velocityModifier.THROWAWAY
+throwExec.lane.velocityModifier.TOUCH
+tippedBall.qualityBands.5.giftZone
+tippedBall.qualityBands.5.label
+tippedBall.qualityBands.5.maxZoneDistance
+tippedBall.qualityBands.5.minMargin
+tippedBall.qualityBands.5.recoverable
+tippedBall.recovery.situational.alreadyTrackingBall
+tippedBall.recovery.situational.backWasTurned
+tippedBall.recovery.situational.giftZoneBonus
+zoneCoverage.bands.0.contest
+zoneCoverage.bands.0.label
+zoneCoverage.bands.0.minMargin
+zoneCoverage.bands.0.settled
+zoneCoverage.bands.1.contest
+zoneCoverage.bands.1.label
+zoneCoverage.bands.1.minMargin
+zoneCoverage.bands.1.settled
+zoneCoverage.bands.2.contest
+zoneCoverage.bands.2.label
+zoneCoverage.bands.2.minMargin
+zoneCoverage.bands.2.settled
+zoneCoverage.bands.3.contest
+zoneCoverage.bands.3.label
+zoneCoverage.bands.3.minMargin
+zoneCoverage.bands.3.settled
+zoneCoverage.defenderAttrDivisor
+zoneCoverage.receiverAttrDivisor
+zoneCoverage.settledDecayPerTick
+zoneCoverage.target
+zoneCoverage.uncoveredContestPosition
+```
+
+### ⇒ UNRULED
+
+- ⛔ **The refinement proposal: closure scoped to SAME-PRIMITIVE-TYPE siblings** *(a registered
+  `number` pulls in sibling `number`s, not a co-located `label: string`)*. ⚠ **~23 of the 145 are
+  `label` string leaves; the refinement lands near 122.** ✅ **It PASSES the ordering test — the
+  principle is stated independently of the count, and 122 is not a comfortable number.** **Not
+  implemented, not ruled.**
+- ⚠ **What, if anything, gets registered.** ⛔ **145 is a work item, not a defect list** — most are
+  plausibly legitimate coverage gaps rather than errors.
+- ⚠ **Whether the closure check moves to the DEFAULT suite once the gap closes.** ✅ **It is
+  structural and needs no corpus — 6ms — so it has no standing reason to stay env-gated.**
