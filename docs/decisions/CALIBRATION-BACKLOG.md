@@ -12216,3 +12216,80 @@ the band ⇒ ~1.2%.**
 
 **`unruled`** — the fix *(a `TRAVELLING` guard)* is one line, but whether `ARRIVED` should update
 anything at all is a design question, and the owner takes it.
+
+---
+
+## 160. ✅ ENTRY 159's OPEN LIMIT IS **RETIRED** — and the answer split: **half proved, half measured**
+
+**The question was: do the `edgeUnreconciled === 0` assertions hold at canonical n=496?** ✅ **They do,
+in every arm both files define.** ⛔ **But the useful part is that the distinction asked for came back
+SPLIT rather than uniform.**
+
+### ✅ 1. THE RUNS — and 496 is each file's OWN default
+
+**Both files default their games-count to 496 when the env var is unset** *(`dominanceMarginPerHalfTickSweep.test.ts:86`, `forcingDecidingInstant.test.ts:87`)*. ⚠ **So the
+earlier n=80 was an explicit OVERRIDE, and this run is each file's canonical N — not a substitution.**
+
+| file | arms | N/arm | `edgeUnreconciled` | `identityMismatches` |
+|---|---|---|---|---|
+| `dominanceMarginPerHalfTickSweep` *(v=10…100)* | 5 | 496 | ✅ **0** — 10/10 populations | ✅ **0** |
+| `forcingDecidingInstant` *(T=15/90 × m/C)* | 6 | 496 | ✅ **0** — 18/18 populations | ✅ **0** |
+
+⚠ **Verified off the raw `##DMS##`/`##FDI##` JSON, not merely off `expect().toBe(0)` passing** —
+**the underlying counts, not the assertion's verdict.**
+
+### ⛔⛔ 2. THE SPLIT — **and this is why the question was worth asking in that form**
+
+> ## ⛔ **"MEASURED ZERO" AND "CANNOT BE NONZERO" TURNED OUT TO BE THE ANSWER FOR *DIFFERENT SUB-POPULATIONS*.** ⚠ **A uniform answer would have concealed that.**
+
+**A — `bandFloor`-SOLE *(entry 110 Part B)* and `changedTickCells` *(Part C)*: ✅ STRUCTURALLY CANNOT
+BE NONZERO. A PROOF, HOLDING AT ANY N.**
+
+The corruption writes `wonTravelSeconds = 0` only at or after the tick an `ARRIVED` is misread. ⛔ **At
+that tick `arrival` is recomputed FRESH** *(`minThreatOf` derives `tta = etaTick − curTick` every
+`POCKET_STATUS` tick — it never reads the frozen field)*, **and `tta ≤ 0`, which is `IMMEDIATE`**
+*(`arrival.immediateWithinSeconds = 0.0`, `tunables.ts:891`)*, **and it stays ≤ 0 forever after**
+*(the entry is deleted only by `RESET`)*.
+
+✅ **`IMMEDIATE` is in `forcesDecision`** *(`tunables.ts:1244`)* **and is severity `3` — the TOP rung**
+*(`tunables.ts:1188`)*. **Two consequences follow DEDUCTIVELY:**
+
+- ⛔ **`arrival` is ALWAYS forcing whenever the corruption is live** ⇒ the *"arrival not yet forcing"*
+  population is **empty by construction**.
+- ⛔ **`arrival` at maximum severity dominates the old-style and new-style worst-of IDENTICALLY** ⇒ a
+  corrupted tick **can never be a "changed tick"** *(`old > new`)*.
+
+**B — the `TIE` population *(entry 112's six-cell census)*: ⚠ NOT structurally excluded. MEASURED
+zero, at canonical N, across all 11 arms.** **It would require `bandFloor` to independently force at
+the exact tick `arrival` is forcing off a corrupted threat — nothing rules that out a priori.**
+
+### ✅ 3. THE RATES, CONFIRMED AT n=496 — the prior figures were not small-sample artifacts
+
+| cell | n | zero-travel | rate |
+|---|---|---|---|
+| `INTERIOR.LINE` | 28,252 | 4,722 | **16.714%** |
+| `INTERIOR.BOX` | 621 | 100 | **16.103%** |
+| `EDGE.LINE` | 12,906 | 151 | **1.170%** |
+| `EDGE.BOX` | 2 | 0 | 0% |
+| `EDGE.DEEP` | 349 | 0 | 0% |
+
+✅ **All four prior figures CONFIRMED.** ⚠ **A reduced-N estimate that survives canonical-N
+re-derivation unchanged is worth one line, given how many counts failed today.**
+
+### ⇒ 4. ENTRY 159's LIMIT IS RETIRED
+
+⛔ **Entry 159 stated its own bound honestly: *"empirical at reduced N, NOT structural immunity."***
+✅ **That bound is now discharged — one sub-population by ARITHMETIC, the other by MEASUREMENT AT THE
+CANONICAL ARM.**
+
+⚠ **The `ARRIVED`-guard defect itself remains** *(`unruled`, engine clean, no ADR citing a derived
+figure)*. ⛔ **What is retired is the QUESTION OF ITS REACH, not the defect.**
+
+### 📒 5. THE FORM WORTH KEEPING
+
+> ## ✅ **ASKING "IS THIS MEASURED ZERO OR CANNOT-BE-NONZERO?" RETURNED A DIFFERENT ANSWER FOR EACH HALF OF THE SAME POPULATION.**
+
+⛔ **Had the brief asked only *"does it hold at 496?"*, the answer would have been a uniform yes — and
+the half that is PROVABLY immune would have been recorded with the same standing as the half that is
+merely measured clean.** ⚠ **Those decay differently: a proof survives a corpus change; a measurement
+does not.**
