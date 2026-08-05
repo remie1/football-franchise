@@ -11724,3 +11724,46 @@ case.**
 registration also surfaced WHY it was never active: its owning sweep `pressureSweep.test.ts` is
 `it.skipIf(SPENT)`-retired against it, because ADR-028 moved the committed value out from under the
 patches that file was authored against.**
+
+---
+
+## COROLLARY TO 150 — **selective checking is not verification when riskiness is not in the number**
+
+**Not a new entry: the same claim as entry 150, applied to a different filter.**
+
+| | entry 150 | this corollary |
+|---|---|---|
+| **the filter** | re-reading a claim | checking only the risky-looking numbers |
+| **why it fails** | the failure mode is not visible in the TEXT stating the claim | ⛔ **riskiness is not visible in the NUMBER** |
+
+> ## ⛔ **BOTH FAIL FOR ONE REASON: THE SIGNAL YOU WOULD TRIAGE ON IS ABSENT FROM THE ARTIFACT YOU WOULD TRIAGE.**
+
+### ⛔ THE LEDGER — four supplied figures, one command each, each would have shipped a defect
+
+| figure | truth | what it would have done |
+|---|---|---|
+| `+13.4` *(twice)* | ⛔ **12** — `Math.round(60/5)`, **integer by construction** | sized a fix against a value no configuration can produce |
+| *"one of five"* harnesses | **21** files construct patch targets | a ruling built on a denominator that does not exist |
+| *"three of five"* | **39** active targets | same |
+| ⛔ **`141`** | ⛔ **142** | ⛔ **a ratchet RED ON ARRIVAL** — `142 ≤ 141` is false |
+
+### ⛔⛔ AND PLAUSIBILITY RAN **BACKWARDS**
+
+> ## ⛔ **`13.4` LOOKS MORE DERIVED THAN `12`.** ⚠ **A fractional value carries the texture of something COMPUTED; `12` reads like a placeholder somebody typed.**
+
+⛔ **So a detector trained on apparent derivedness would not merely have MISSED it — it would have
+PREFERRED THE WRONG VALUE.** ⚠ **That is worse than having no detector at all.**
+
+- `141` vs `142` — ⛔ **indistinguishable by inspection.** Nothing about either is suspicious.
+- *"one of five"* — ⚠ **carried a tell, but one visible ONLY AFTER deriving the denominator** — **which is the check itself.**
+
+**⇒ ZERO OF FOUR would have been caught by a *does-this-look-risky* rule. ONE would have been actively
+MIS-RANKED.**
+
+### ⇒ WHY NO VERSION OF THE RULE CAN BE CONDITIONAL
+
+> ## ⛔ **A CONDITIONAL RULE NEEDS A DETECTOR. THE DETECTOR'S INPUT IS THE NUMBER. THE NUMBER CARRIES NO SIGNAL.**
+
+✅ **That is a stronger statement than *"the rule held today"*** — ⚠ **it says why no conditional
+version could work, rather than that this unconditional one happened to.** ⛔ **There is nothing to
+condition ON.**
