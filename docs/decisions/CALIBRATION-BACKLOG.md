@@ -11963,3 +11963,31 @@ A MINIMAL, FIXTURE-GRADE PLAY-CARD CORPUS.
 > ## ⚠ **WHICH IS THE MECHANISM ENTRY 140 SAYS IS UNRELIABLE — an assertion from recall — WORKING THIS TIME.**
 
 ✅ **Recorded here so the next catch does not have to depend on the same reader being present.** ⛔ **Two of today's ordinal failures came from recall and were wrong; this one came from recall and was right. That is not a rate, it is a reason to write it down.**
+
+### 📒 ADDENDUM — **the class's own property, not a fact about two instances**
+
+> ## ⛔ **A DEFECT IN A NAME CANNOT BE MITIGATED BY ANYTHING INSIDE THE ARTIFACT IT NAMES.**
+
+**Why it follows rather than being observed:** ⚠ **a disclaimer, a header, a comment, a doc block —
+every remedy available INSIDE the artifact reaches only a reader who ALREADY OPENED IT.** ⛔ **And the
+name is what decides who opens it.** ✅ **So the remedy is structurally addressed to people who are
+already past the point of failure.**
+
+⚠ **The evidence is in this entry rather than in argument: `playbook.ts`'s header is CORRECT,
+EMPHATIC, and FIRST — and it was read past TWICE, on two questions, by two readers.** ⛔ **Making it
+louder is the one fix already demonstrated not to work.**
+
+### ⇒ AND THIS PARTITIONS THE REGISTER BY A STRUCTURAL TEST
+
+| | cheap fix? | why |
+|---|---|---|
+| **`quickTwitchMove`** *(entry 141)* | ✅ **yes, and taken** | the defect was a missing binding; the fix was four lines and compiler-enforced inert |
+| **the `BAND_LABELS` disclosure hole** *(entry 152)* | ✅ **yes** | the fix was a working precedent **forty lines above the gap** |
+| ⛔ **`forcesDecision`** *(entry 140)* | ⛔ **NO** | the defect IS the name; renaming is a change with consumers |
+| ⛔ **`playbook.ts`** *(entry 157)* | ⛔ **NO** | identical, and the in-artifact remedy is disproved above |
+
+> ## ✅ **SO THE TEST IS MECHANICAL: ASK WHETHER THE DEFECT IS IN THE NAME.** ⛔ **If it is, no in-artifact remedy exists, and the item is a STANDING WARNING rather than a deferred task.**
+
+⚠ **That distinction matters for how this register reads.** ⛔ **An `unruled` item that COULD be fixed
+cheaply and an `unruled` item that CANNOT are different obligations, and until now they have been
+recorded identically.**
