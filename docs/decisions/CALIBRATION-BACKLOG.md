@@ -11259,3 +11259,84 @@ caught.**
 - ⛔ **If no** *(a claim about what code reads, what a set contains, what a corpus does)* — **another
   read is not verification, however careful.** ⚠ **Run it, grep it, or mark it `REPORTED` and say
   nobody has checked.**
+
+---
+
+## 151. ✅ BOTH DEAD TARGETS ARE **UNREACHABLE COMBINATIONS, NOT DEAD TUNABLES** — nothing retires, and ADR-058 predicted one of them a month ago
+
+**The only open item whose output could be subtractive.** ⛔ **It subtracted nothing** — ✅ **and that
+is the result, not the absence of one.**
+
+### ✅ 1. OUTCOME 3 RULED OUT ON BOTH — **by fresh probes, not by re-reading**
+
+⚠ **Entry 148 put a caveat on numeric DEAD verdicts: only as good as the probe value chosen.** ⛔
+**Neither original probe was adversarial, so both were re-probed.**
+
+| target | probes run | verdict |
+|---|---|---|
+| `pocket.minimumStatusByBand.RUSHER_WINS_REP` | ⛔ **`PRESSURE`, `IMMEDIATE`, `CLEAN` — the ENTIRE remaining domain** | all DEAD, identical digest |
+| `freeRunnerPath...INTERIOR.DEEP` | `0`, `50`, `-50`, `5` | all DEAD, identical digest |
+
+> ## ✅ **THE FIRST IS A CATEGORICAL EXHAUSTION — `PocketStatus` has four members, one is committed, three were tried. THERE IS NO FOURTH VALUE.** ⛔ **Which is entry 148's boolean argument generalised: a small closed domain gives a COMPLETE dead verdict, where a numeric gives only a probed one.**
+
+### ⛔ 2. TARGET 1 — **ADR-058 called this a month ago and filed it `unruled`**
+
+**`pocket.ts:188` reads `minimumStatusByBand[band]` generically** *(claim INHERITED from entry 146 and
+now CONFIRMED by direct read)* — **so the leaf is read whenever `RUSHER_WINS_REP` reaches that
+array.** ⛔ **ADR-058 stopped it reaching:** `passPlay.ts:609-613` filters a won rep's `previousBand`
+OUT when the threat is still travelling, because **arrival is authoritative.** It survives only for a
+threat time-retired on the same tick.
+
+**`ADR-058` line 113, written August 2026:**
+
+> ⚠ ***"`pocket.minimumStatusByBand.RUSHER_WINS_REP`'s value becomes unreachable-for-won-reps …
+> disposition `unruled`."***
+
+> ## ✅ **SO THE DEAD VERDICT DOES NOT RETIRE ANYTHING — IT CLOSES A PRE-EXISTING `unruled` ITEM BY MEASUREMENT.** ⛔ **ADR-058 PREDICTED it; this is the first evidence.**
+
+**And `ADR-032`'s `"W:CLEAN"` arm survives for two independent reasons:** ✅ **its own §5a already
+called the isolated arm *"a null"*** *(consistent with DEAD)*, **and ADR-058 already ruled that every
+pre-ADR-058 channel-share figure describes the OLD derivation — *"dated records, not to be
+revised."*** ⚠ **A record already marked as describing a superseded engine cannot be retired by
+finding that the engine changed.**
+
+### ⛔ 3. TARGET 2 — **empty at the DATA level, not the TYPE level**
+
+**`rushAlignmentFor`** *(`rushThreat.ts:275-283`)* **and `freeRunnerDepthFor`** *(`:347-354`)* **are
+INDEPENDENTLY typed — nothing forbids `INTERIOR`+`DEEP`.** ⛔ **The PLAYBOOK forbids it:** every
+`alignment: "INTERIOR"` duty in `defensiveCards.ts` is a `DT`/`NT`/`LB` role, and `DEEP` requires
+`CB`/`FS`/`SS` *(`tunables.ts:610-619`)*. **The two sets do not intersect on any authored card.**
+
+> ## ⚠ **THE MECHANISM COULD REPRESENT AN A-GAP SAFETY BLITZ. NO CARD EVER CALLS ONE.** ⛔ **That is a fact about the PLAYBOOK, not about the tunable — and it is not a defect unless the missing card is.**
+
+✅ **ADR-031 NEVER ISOLATES THIS CELL.** Its §2 null is measured with **all six offsets zeroed at
+once**, and §2d singles out only `INTERIOR.LINE` by name. ⛔ **Its conclusion rests on the table as a
+whole — exactly as ADR-063 characterised that control.** **NOTHING RETIRES.**
+
+### ⛔⛔ 4. AND A GAP IN THE REGISTRY I SHIPPED TODAY
+
+**The table has SIX cells. The registry holds FOUR.** ⛔ **`INTERIOR.BOX` and `EDGE.LINE` appear in
+NEITHER `ALL_TARGETS` NOR `EXCLUDED_TARGETS`** — **only in a prose comment at
+`sweepTargetPreflight.test.ts:445`.**
+
+> ## ⛔ **THAT IS THE EXACT FAILURE ADR-063'S OWN HEADER NAMES — *"an omission and an exclusion look identical from inside the file"* — IN ADR-063'S OWN FILE, ONE COMMIT AFTER IT SHIPPED.**
+
+⚠ **AND THE PROSE REASON IS IMPRECISE, which matters for the fix.** ⛔ **They are NOT structurally
+unprobeable like the 26 no-op families** *(where `proposedValue === currentValue` BY CONSTRUCTION of
+the harness)*. ✅ **Both are REACHABLE** — `EDGE.LINE` is the modal DE free-runner; `INTERIOR.BOX` is
+any LB A-gap blitz — **and either could be probed with a non-zero value.**
+
+**⇒ They are absent because NO SWEEP PATCHES THEM.** ⚠ **"Not a sweep target" and "unprobeable" are
+different exclusions, and the file states the wrong one.** **`unruled` — the fix is to register them
+with the ACCURATE reason, not merely to register them.**
+
+### 📒 5. THE FAMILY/MEMBER SHAPE, a third polarity
+
+| entry | family claim | member reality |
+|---|---|---|
+| **146 §3** | a cell is DEAD | ⛔ LIVE via a second reader |
+| **146 table** | all six cells READ | ⛔ one member DEAD |
+| ⛔ **151** | six cells in a family | ⛔ **two members in NEITHER list** |
+
+⚠ **Not wrong-about-a-member this time — SILENT about two.** ✅ **And silence is the state ADR-063
+exists to make impossible.**
