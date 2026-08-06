@@ -90,6 +90,8 @@ describe("ADR-065 §Petition 1 — gap crosses the boundary", () => {
         "WHERE EVERYTHING IS (you will not have context; this pin fires on a DATE, so it",
         "goes red on a day when nothing in the tree changed):",
         "",
+        "  the landing    commit 6496e4d — `git show 6496e4d`, or if the SHA has been",
+        "                 rewritten: `git log --grep='gap crosses the boundary'`",
         "  the petition   docs/decisions/ADR-065-petition-geometry-for-travel.md",
         "  the field      packages/contracts/src/playcalls.ts   (interface RushAssignment)",
         "  the carry      packages/playbook/src/instantiate.ts  (function declaredRush)",
