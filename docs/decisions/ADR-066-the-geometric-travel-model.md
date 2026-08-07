@@ -223,3 +223,49 @@ different fixes — defaulting them all to one hides which corpus is incomplete.
 | ⚠ **both** | **the table** | **The pre-ADR-066 path, entire.** ✅ **This is the only case where the fallback is a complete answer rather than a substitute** |
 
 > ## ⛔ **TWO OF THE THREE ROUTE TO THE SAME FALLBACK FOR OPPOSITE REASONS.** ⚠ **The implementation must DISTINGUISH them in whatever it reports, or a missing drop depth will be read as a missing gap and fixed on the wrong corpus.**
+
+⛔ **REPORT THEM SEPARATELY EVEN WHERE THEY RESOLVE IDENTICALLY** *(owner)*. ⚠ **Same failure mode as
+a raw count clearing a precondition: the number is right and the ATTRIBUTION is wrong.**
+
+---
+
+## ✅ SEQUENCING AND SCOPE — ruled
+
+### 1. ✅ THE DECOMPOSITION IS CARRIED. `RushThreat` gains `distance` and `speed`; `etaTick` is DERIVED.
+
+⛔ **And the reason is larger than the chip:** ⚠ ***anything*** **that acts on a rusher mid-flight
+needs the decomposition, and the whole point of the geometry is that distance and speed are
+SEPARABLE.**
+
+> ## ⛔ **A MODEL THAT COMPUTES THEM AND THEN DISCARDS THEM HAS THROWN AWAY ITS OWN DISTINGUISHING PROPERTY AT THE EMISSION SITE.**
+
+### 2. ⛔ `dropDepth` LANDS WITH ITS CONSUMER — not before
+
+**ADR-004's rule: never leave the schema and its only producer disagreeing.**
+
+⚠ **And a second reason specific to now: a field with no consumer is exactly what
+`gapCarryAcross.test.ts`'s expiry pin exists to fire on.** ⛔ **Landing a SECOND one in the same
+subsystem, deliberately, days later, would make that pin's subject AMBIGUOUS** — a 2027 reader could
+not tell which unread field it was complaining about.
+
+### 3. ⚠ THE FREE-RUNNER PATH STAYS ON THE OLD TABLE
+
+**It has its own bases, its own bounds and its own offsets.** ⛔ **Folding it in makes the
+measurement TWO CHANGES WEARING ONE NUMBER.**
+
+✅ **Blocked path first, measured. Then the free-runner path as its own change with its own
+before/after.**
+
+### 4. ⛔ THE FALLBACK IS UNTESTED BY CONSTRUCTION — accepted, and stated rather than papered
+
+**A fixture built to exercise it would be a fixture MANUFACTURED TO PRODUCE A MEASURABLE
+POPULATION** — ⛔ **the failure this project has refused three times.**
+
+✅ **So: the fallback exists for corpus states that do not currently occur, it is UNTESTED, and that
+is recorded here rather than hidden behind a synthetic case.**
+
+> ## ⛔ **AND IT IS SELF-RETIRING, WHICH IS WHAT KEEPS IT FROM BECOMING PERMANENT.** ⚠ **The fallback's subject condition is that GAP COVERAGE IS NOT TOTAL. `gapCarryAcross.test.ts` asserts that it IS total. So the fallback's own justification is ALREADY EXPIRED against the current tree.**
+
+**⇒ The fallback must carry a note saying its existence is conditional on a coverage claim the tree
+currently contradicts** — ⚠ **so it is removed when someone next looks, rather than inherited as
+furniture.**
