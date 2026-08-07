@@ -2,7 +2,7 @@
 
 - **Date:** August 2026
 - **Proposed by:** Orchestrator, on owner ratification of ADR-065 §Petitions 2 and 3
-- **Status:** **proposed** — DESIGN ONLY. Nothing is implemented. Brought for ruling before any code.
+- **Status:** ✅ **DESIGN RULED** *(owner, August 2026)* — **not yet implemented.** See `Decision`.
 
 ---
 
@@ -88,16 +88,33 @@ travel lever, and ADR-064 extended it three months later.
 - ⚠ **`blockedDepthOffsetSecondsByAlignmentAndDepth`** *(ADR-064, landed days ago)* **dies with it.**
   ✅ **Its expiry was never dated — this ADR is its subject condition arriving early.**
 
-## ⛔ RE-ACCELERATION — named, and explicitly NOT in this design
+## ⛔ RE-ACCELERATION — scoped OUT, and the reason belongs here rather than in a queue
 
 **A chip that forces a rusher to re-accelerate is a claim about how his speed changes over the
-remaining interval.** ⛔ **It requires either (a) distance-remaining plus a rate, or (b) explicit
-velocity state on the threat. NEITHER EXISTS** — a `RushThreat` carries one scalar `etaTick`, and
-`delayThreat` can only add flat seconds to it.
+remaining interval.** ⛔ **Today it requires state that does not exist:** a `RushThreat` carries one
+scalar `etaTick`, and `delayThreat` can only add flat seconds to it.
 
-⚠ **A distance model creates (a) as a SIDE EFFECT** — once travel is `distance / speed`, both terms
-exist and a chip could reduce the rate rather than push the clock. ⛔ **THAT IS NOT PROPOSED HERE.**
-✅ **It is named so a future author knows the capability arrived, rather than discovering it.**
+### ⚠ DOES THE GEOMETRY MAKE IT EXPRESSIBLE? **CONDITIONALLY — and the condition is a decision this ADR must take NOW.**
+
+> ## ⛔ **`etaTick = tick + distance / speed` THROWS THE DECOMPOSITION AWAY THE MOMENT IT IS COMPUTED.**
+
+**A chip at tick `t` must reduce the rate for the remaining interval. That requires recovering
+`distanceRemaining`** — and from `etaTick` alone it is **not recoverable**, because one `etaTick` is
+consistent with any (distance, speed) pair that divides to it.
+
+| what the threat stores | is a chip expressible? |
+|---|---|
+| ⛔ `etaTick` only *(today, and the naive port)* | ⛔ **NO.** The decomposition is gone; only a flat push remains |
+| ✅ `distance` **and** `speed`, with `etaTick` derived | ✅ **YES.** `remaining = speed × (etaTick − t)`, then `etaTick' = t + remaining / speed'` |
+
+⛔ **SO THE MODEL MUST DECIDE WHETHER TO CARRY THE DECOMPOSITION ON THE THREAT, AND IT MUST DECIDE IT
+NOW** — ⚠ **retrofitting it means revisiting every producer of a `RushThreat`, whereas carrying it
+from the start costs two fields.**
+
+✅ **RECOMMENDED: carry `distance` and `speed`; derive `etaTick`.** ⚠ **The chip stays OUT OF SCOPE —
+this is about not foreclosing it, not about building it.** ⛔ **A chip would still need its own
+football argument and its own ADR; what this decides is whether that argument is possible to make
+against the code.**
 
 ## Provenance of factual claims — REQUIRED
 
@@ -147,14 +164,62 @@ that pin should be DELETED, and its own failure message says so.**
 - ⚠ **`hasArrived` is already dormant** *(`rushThreat.ts:627-634`)*. **Whether a distance model
   revives or removes it. `unruled`.**
 
-## Decision
+## ✅ Decision — RULED *(owner, August 2026)*. Not yet implemented.
 
-⛔ **AWAITING RULING. NOTHING IS IMPLEMENTED.**
+### 1. ⛔ THE TABLE IS A FALLBACK, NOT A DELETION — with a stated expiry
 
-**Three questions I would want ruled before any code:**
-1. ⛔ **Does the model cover the FREE-RUNNER path too, or only the blocked path?** ⚠ **Only-blocked
-   leaves two travel models with different bases and bounds in one subsystem.**
-2. ⛔ **What anchors the yards-per-second scale, and is that anchor stated in the tunable's own
-   comment?**
-3. ⚠ **Does `travelSecondsByAlignmentAndMove` get deleted in the same change, or left dead for one
-   commit?** **ADR-063's registry and the completeness ratchet both have opinions.**
+**The model applies where a `gap` is authored. Where it is not, the table answers.** ⛔ **Both paths
+measured against each other BEFORE the fallback is retired.**
+
+**Owner's reasoning:** *"A clean cutover on 29 cards is a cutover on a corpus, not on the model — and
+I've been wrong about corpus completeness twice this week."*
+
+⚠ **The fallback carries a subject-condition note: it exists because coverage is not total, and it
+goes when it is.**
+
+> ## ⛔ **AND A HAZARD THIS DESIGN MUST ADDRESS: `packages/playbook/test/gapCarryAcross.test.ts` ASSERTS THAT EVERY RUSH DUTY IN THE SHIPPED CORPUS AUTHORS A GAP.** ⚠ **So on today's corpus the fallback is UNREACHABLE — a branch that never executes.**
+
+⛔ **A fallback that never fires is indistinguishable from a fallback that does not work.** ✅ **The
+implementation must state how it is exercised** *(a synthetic duty with no gap, a unit test, or an
+explicit acceptance that it is untested)* — **this register has catalogued the alternative all week.**
+
+### 2. ✅ PHYSICAL FOR THE LAUNCH POINT, PER-POSITION FOR THE START
+
+**Distance from a COORDINATE to a COORDINATE.**
+
+- **The QB's coordinate** is derived from **drop depth** — ⛔ **a physical fact, not approximated.**
+- **The rusher's coordinate** is derived from **`gap` + `side` by a STATED MAPPING** — ⚠ **because a
+  rusher's start is a category today, and inventing yard coordinates per POSITION would be a
+  derivation nobody has.**
+
+> ## ⛔ **THE GAP→LATERAL-OFFSET MAPPING IS THE ONE PIECE NEEDING A FOOTBALL ARGUMENT.** ✅ **It must be SMALL AND STATED, not tuned.** ⚠ **A mapping that gets swept is a mapping that has become a lever, which is the thing this model exists to replace.**
+
+### 3. ⛔ BOTH — geometry AND closing speed. This is what the model is FOR.
+
+**Owner's ruling, and it is the answer that decides the model's worth:**
+
+> ⛔ ***"A start position with a fixed closing speed reproduces the table with more cells. The point of
+> the geometry is that distance and speed are SEPARABLE — that's what makes a fast safety from depth
+> and a slow tackle from the A gap comparable, which is the case that motivated all of this."***
+
+✅ **Distance from geometry, time from distance ÷ closing speed, closing speed from attributes.**
+⚠ **Marked UNMEASURABLE on `flat-60-32t` per entry 49 — and built anyway**, ⛔ **because a model that
+computes a distance and then looks up a time is not the model.**
+
+### 4. ⚠ RE-ACCELERATION SCOPED OUT — see the section above for whether it stays possible
+
+⛔ **Not built. But the ADR states the condition rather than deferring it: expressible ONLY IF the
+threat carries `distance` and `speed` rather than the derived `etaTick` alone.**
+
+## ⛔ MISSING INPUTS — three cases, three answers, named before implementation
+
+**Required by the owner, and the reason is that these are three different failures with three
+different fixes — defaulting them all to one hides which corpus is incomplete.**
+
+| missing | what the model computes | why, and what it means |
+|---|---|---|
+| ⛔ **`gap`** *(a DEFENSIVE duty did not author one)* | **the table** | ⚠ **The ruled fallback. Currently UNREACHABLE — every shipped rush duty authors a gap.** Fixed by authoring on a defensive card |
+| ⛔ **`dropDepth`** *(an OFFENSIVE card did not author one)* | **the table** | ⛔ **A DIFFERENT failure with the same fallback:** the rusher's coordinate is known and the QB's is not, so there is no distance to compute. **Fixed on the offensive corpus, not the defensive one** |
+| ⚠ **both** | **the table** | **The pre-ADR-066 path, entire.** ✅ **This is the only case where the fallback is a complete answer rather than a substitute** |
+
+> ## ⛔ **TWO OF THE THREE ROUTE TO THE SAME FALLBACK FOR OPPOSITE REASONS.** ⚠ **The implementation must DISTINGUISH them in whatever it reports, or a missing drop depth will be read as a missing gap and fixed on the wrong corpus.**
