@@ -292,6 +292,72 @@ function is called with IS the change.**
 and `travelSecondsFor` becomes the FALLBACK rather than the primary path.** ⚠ **Consistent with
 ruling 1: carry the decomposition, derive the time.**
 
+## ⛔ WHAT AUTHORING A DROP DEPTH ACTUALLY COSTS — measured, and one claim RETRACTED
+
+**The canonical arm uses the REAL authored corpus.** `frozen.ts:352-354` calls `@ff/playbook`'s
+`selectPassConcept`/`selectRunConcept`, a weighted pick over `PASS_CONCEPTS` / `RUN_CONCEPTS`. ⛔ **It
+does not synthesise calls.**
+
+| | |
+|---|---|
+| **offensive concept cards** | ⛔ **44** — 28 pass *(`passConcepts.ts:672-701`)* + 16 run *(`runConcepts.ts:474-491`)* |
+| **base formations they bind to** | **12** *(`formations.ts:320-333`)* — every one referenced, none orphaned |
+| **authoring granularity** | ⚠ **44 concept sites OR 12 formation sites.** Those are the only two the corpus offers |
+
+### ⛔ RETRACTED: *"a model whose depth term never varies on the measuring corpus"*
+
+**That concern was raised, and the Orchestrator amplified it. ⛔ IT IS WRONG FOR THIS CORPUS.**
+
+⚠ **Of the 12 formations, SEVEN are `SHOTGUN` and FIVE are `UNDER_CENTER`** *(counted from each
+`FormationTemplate.quarterback`)*. **`FROZEN_TENDENCIES` fixes the run/pass RATIO per situation cell —
+it does NOT fix which formation is drawn within either family.**
+
+> ## ✅ **SO THE DEPTH AXIS WOULD VARY ON THE CANONICAL ARM, ACROSS AT LEAST TWO DISTINCT VALUES, ONCE AUTHORED.**
+
+⛔ **The axis is untested because the field HAS NEVER BEEN AUTHORED — not because the caller
+degenerates.** ⚠ **That is a different and far less alarming fact, and the two would have been
+recorded identically.**
+
+## ⛔ NO OVERRIDE MECHANISM EXISTS — the null that settles the measurement question
+
+**Traced end to end: `selectPassConcept` → `instantiatePass` *(building `OffensivePlayCall` directly
+from `concept.*`)* → `frozen.ts:452` returns it verbatim → `runGame.ts:52-57` hands it straight to
+`simulateGame`.** ⛔ **There is NO interception point, wrapper, or post-processing step anywhere in
+that chain.**
+
+⚠ **The three things named "override" in calibration are all unrelated:** `FlatLeagueSpec.overrides`
+patches **player attribute values** league-wide; `pocketLadder.ts:1134` overrides a **games count**;
+`relationalConstantCensus.ts` overrides a **documentation unit label**. ⛔ **None touches a play
+call.**
+
+**The only substitution surface `runOneGame` exposes is `tunables?: Tunables`** — **engine-wide scalar
+constants, not per-card fields.**
+
+**⇒ A drop depth CANNOT be varied for measurement without authoring it on the corpus, or building a
+substitution mechanism that does not exist.** ✅ **Both are design decisions, neither is available.**
+
+## ⚠ WHAT WAS AVAILABLE AND DECLINED — stated, because "nothing was there" would be false
+
+⛔ **`FormationTemplate.quarterback: QuarterbackSpot`** *(`alignment.ts:85` — `"UNDER_CENTER" |
+"SHOTGUN" | "PISTOL"`)* **IS a depth signal, and it is authored on all 12 formations.**
+
+**Two facts about it, checked rather than asserted:**
+- ⚠ **It is COARSE** — it separates shotgun from under-centre but **cannot distinguish a three-step
+  from a seven-step drop**, which this ADR's own example treats as different depths.
+- ⛔ **IT IS DISCARDED AT THE PLAYBOOK/CONTRACTS BOUNDARY.** `instantiate.ts:390` and `:569` write
+  `formation: concept.formation.name` — **a bare display string** — and **do not copy `quarterback`.**
+
+> ## ⛔ **THAT IS `gap`'s EXACT SHAPE AGAIN: a structured field, authored on every card, dropped by `instantiate.ts`.**
+
+✅ **AND IT DOES NOT OVERTURN THE RULING.** ⚠ **What was refused was deriving depth from
+`formation: string` — a free-text display label the engine is forbidden to parse.** **`quarterback` is
+a structured enum, which is a different object** — ⛔ **but it is still a CATEGORY, and a category is
+not a depth.** ✅ **It is recorded here as AVAILABLE AND DECLINED, so a future reader does not
+reopen this believing nothing existed.**
+
+⚠ **Footnote: `PISTOL` is declared in `QuarterbackSpot` and used by NO formation** — a dead enum
+member, found in passing, `unruled`.
+
 ## ✅ WHAT WILL *NOT* NEED UPDATING — a checked null, recorded so a red is not mistaken for one
 
 ⚠ **A concern was raised that `packages/calibration/src/knownTruth/attributeUsage.ts` carries a
