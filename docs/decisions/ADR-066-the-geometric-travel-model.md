@@ -269,3 +269,44 @@ is recorded here rather than hidden behind a synthetic case.**
 **⇒ The fallback must carry a note saying its existence is conditional on a coverage claim the tree
 currently contradicts** — ⚠ **so it is removed when someone next looks, rather than inherited as
 furniture.**
+
+### 5. ⚠ `dropDepth` IS PLAYBOOK-AUTHORED — **but check DERIVABILITY before adding a field**
+
+**The formation determines it: shotgun ≈5yd, three-step from under centre 3–5, seven-step 7–9.**
+⛔ **An author choosing "shotgun" has ALREADY chosen the depth** — so the field states something
+implied rather than posing a new decision.
+
+> ## ⛔ **THEREFORE: IF IT IS DERIVABLE FROM A FORMATION FIELD THE CARD ALREADY CARRIES, DERIVE IT INSTEAD OF ADDING IT.** ⚠ **A field duplicating something already stated is the RESTATED-CONSTANT family.**
+
+**The implementation must CHECK this before adding anything.** ⚠ **Note the engine cannot help here —
+`PlayCalls.formation` is `string` and the engine is forbidden to parse football from it — but the
+PLAYBOOK's own formation representation is richer, and that is where the derivation would live.**
+
+### 6. ⛔ THE SEAM IS AT THREAT CONSTRUCTION, NOT INSIDE `travelSecondsFor`
+
+**`travelSecondsFor(tunables, alignment, move, margin, position)` takes a CLASSIFICATION and a MOVE
+because it is a table lookup.** ⛔ **A distance model needs a POSITION and a TARGET. Changing what the
+function is called with IS the change.**
+
+✅ **So the geometry produces `(distance, speed)` at THREAT CREATION, `etaTick` is derived from them,
+and `travelSecondsFor` becomes the FALLBACK rather than the primary path.** ⚠ **Consistent with
+ruling 1: carry the decomposition, derive the time.**
+
+## ✅ WHAT WILL *NOT* NEED UPDATING — a checked null, recorded so a red is not mistaken for one
+
+⚠ **A concern was raised that `packages/calibration/src/knownTruth/attributeUsage.ts` carries a
+registered abstention asserting `speed`/`acceleration` are unread, which the model would falsify.**
+
+⛔ **CHECKED: IT DOES NOT.** **That file mentions neither attribute anywhere**, and no symbol
+`AttributesNotReadByMechanism` exists in the tree.
+
+✅ **Its header reads: *"WHICH ATTRIBUTES A SCENARIO'S MECHANIC ACTUALLY READS — DERIVED, NEVER
+WRITTEN DOWN"*, and it exports `deriveAttributeUsage`.**
+
+> ## ✅ **IT DERIVES USAGE RATHER THAN DECLARING IT. WHEN THE MODEL READS `speed`, THAT FILE WILL SIMPLY OBSERVE IT — nothing fires, nothing needs registering.**
+
+⚠ **AND THE TRAP THAT WAS FEARED IS THE ONE THAT FILE ALREADY DEFEATS.** ⛔ **Backlog entry 116 —
+*"a guard satisfiable by DECLARING what it detects"* — names the shape exactly, and
+`attributeUsage.ts` exists BECAUSE a `hypothesis` string claimed three successive wrong things about
+which attributes a mechanic read.** ✅ **Its answer was to stop declaring and start deriving. Entry
+116's rule is already satisfied here.**
