@@ -396,17 +396,43 @@ THE ENTIRE CORPUS, FOREVER** — because `quarterback` is a two-value-in-practic
 ✅ **Card level costs 44 sites and buys the distinction the model exists to compute. The cost is
 taken.**
 
-### ✅ AND CARD LEVEL *RESOLVES* THE CONFLATION RATHER THAN REQUIRING IT STATED
+### ⛔ CORRECTION — **card level does NOT resolve the conflation. It relocates it.**
 
-⚠ **The formation-level disposition needed a conflation note because a single number per formation
-could not separate where the formation puts him from where the drop takes him.** ⛔ **A CARD can say
-it directly.**
+**Claimed one commit earlier and WRONG:** *"a card authoring `8` states one fact rather than two
+summed, so the conflation note is retired."*
 
-**A card authoring `8` for a seven-step from under centre is stating WHERE THE THROW HAPPENS** — ✅
-**which is exactly what the geometry needs, and it is one fact rather than two summed.**
+⛔ **`8` IS A SUM, AND ITS COMPONENTS ARE NOT RECOVERABLE FROM IT.** ⚠ **Formation depth plus drop
+length happen to total 8; so do other pairs.**
 
-**⇒ The second-field subject condition is therefore RETIRED, not deferred.** ⚠ **A drop length would
-be a decomposition of a value the card already states, not a missing half of a pair.**
+> ## ⛔ **THIS IS THE SAME SHAPE AS `etaTick` DISCARDING `distance` AND `speed` — a resultant that throws away the decomposition a later mechanic needs.** ✅ **That argument was accepted for the threat; it applies here for the same reason.**
+
+**⇒ ONE FIELD, LAUNCH POINT ONLY, AND THE CONFLATION IS STATED** — ⛔ **in the FIELD'S OWN COMMENT,
+not here.** ⚠ **The person who needs it is the author choosing a number, not a reader of this
+decision.**
+
+### ⛔ THE MOVING LAUNCH POINT — a stated limit, and the offensive-side equivalent of P2
+
+**A quarterback travelling backward during his drop CHANGES THE DISTANCE MID-FLIGHT.** ⛔ **This model
+cannot express that: the launch point is STATIC.**
+
+**What it would need:** ⚠ **the QB must have a position that VARIES WITH TICK.** ✅ **The geometry
+could consume that — `distance` is already recomputed per tick once the decomposition is carried —
+but NOTHING PUBLISHES IT.**
+
+⛔ **Named here rather than discovered.** ⚠ **It is the same shape as ADR-065 §P2 on the defensive
+side: a fact the corpus does not state, which a model would need before it can be built.**
+
+### ⚠ AND THE PAIR IS A GAP, NOT A HALF-PAIR
+
+**Offered in support: *"`routeTiming` already carries the timing half, on 3 of 44 cards."*** ⛔
+**FALSE — `routeTiming` does not exist under any name.** `RouteAssignment` *(`playcalls.ts:63-76`)*
+carries `receiver`, `routeName` *(presentation only)*, `depthClass`, `airYards`, and an optional
+`breakZone`. ⛔ **No timing field, and a grep for `timing|breakAt|releaseAt|tick` across `playcalls.ts`
+returns nothing.**
+
+✅ **The correction STRENGTHENS the ruling: depth has NO counterpart at all.** ⚠ **A card currently
+cannot say where the launch point is OR when the ball comes out.** ⛔ **Adding depth completes a gap
+rather than balancing a pair.**
 
 ### ⛔ TWO PREMISES CORRECTED — the ruling stands without them
 
@@ -452,3 +478,27 @@ WRITTEN DOWN"*, and it exports `deriveAttributeUsage`.**
 `attributeUsage.ts` exists BECAUSE a `hypothesis` string claimed three successive wrong things about
 which attributes a mechanic read.** ✅ **Its answer was to stop declaring and start deriving. Entry
 116's rule is already satisfied here.**
+
+---
+
+## 📒 A PROPERTY OF THIS DESIGN'S CORRECTIONS — **every one has been UPWARD**
+
+| the design assumed | the tree had | direction |
+|---|---|---|
+| modify `travelSecondsFor` | ⛔ a new seam at threat construction | **larger** |
+| derive depth from `formation` | ⛔ author an explicit field | **larger** |
+| use a calibration override | ⛔ no override exists — author the corpus | **larger** |
+| 12 formation sites | ⛔ 44 card sites | **larger** |
+| a half-pair to complete | ⛔ no counterpart at all | **larger** |
+
+> ## ⛔ **FIVE CORRECTIONS, ALL IN THE SAME DIRECTION. NOTHING IN THIS SEQUENCE HAS COME BACK SMALLER.**
+
+⚠ **AND THE MECHANISM IS PLAUSIBLE RATHER THAN COINCIDENTAL:** every one arrived from checking
+whether a shape the design ASSUMED matched the shape the code HAS — ⛔ **and a wrong assumption about
+structure is almost always wrong toward SIMPLER.** ✅ **Nobody assumes a seam where a lookup would
+do; nobody assumes 44 sites where 12 would serve.**
+
+**⇒ THE CONSEQUENCE, stated rather than the tally:** ⛔ **ANY IMPLEMENTATION ESTIMATE FOR THIS MODEL
+IS A FLOOR, NOT AN ESTIMATE.** ⚠ **And the operative discipline is to check the assumption BEFORE it
+becomes a plan** — **all five were cheap greps that cost a round-trip each and would have cost a
+rewrite if found during implementation.**
