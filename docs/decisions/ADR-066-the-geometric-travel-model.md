@@ -502,3 +502,49 @@ do; nobody assumes 44 sites where 12 would serve.**
 IS A FLOOR, NOT AN ESTIMATE.** ⚠ **And the operative discipline is to check the assumption BEFORE it
 becomes a plan** — **all five were cheap greps that cost a round-trip each and would have cost a
 rewrite if found during implementation.**
+
+---
+
+## ⛔ AUTHORING SITES — **DERIVED, and the count moved twice**
+
+⚠ **`44` appeared in this document and was wrong. Both corrections came from deriving rather than
+reading.**
+
+| stage | count | why it moved |
+|---|---|---|
+| first read | `44` | ⛔ counted the SHIPPING corpus only |
+| derived, both families | `51` | ⛔ **+7 real spec literals in `test/types.test.ts`**, passed to the same factories |
+| ⛔ **derived, PASS-ONLY** *(owner ruled `OffensivePlayCall` only)* | ✅ **33** | **28 shipping + 5 test.** ⚠ **RE-DERIVED, not `51 − 16`** — a subtraction inherits whatever was wrong with `51` |
+
+**Method, reproducible:** `grep -cE '^export const [A-Z0-9_]+ = passConcept\(\{' src/passConcepts.ts`
+→ 28; `grep -cE 'passConcept\(\{' test/types.test.ts` → 5.
+
+⚠ **Authoring sites are the `export const X = passConcept({...})` DECLARATIONS.** ⛔ **`PASS_CONCEPTS`
+holds bare identifiers — an array entry carries no field and is not a site.**
+
+## ⛔ THE COMPILER IS **NOT** A COMPLETE ENUMERATION MECHANISM — and the residual is exactly 4, named
+
+**The `required` ruling rests on *"the compiler is the enumeration mechanism."*** ⛔ **It is complete
+for the CORPUS and incomplete for the TYPE-GUARANTEE TESTS.**
+
+> ## ⛔ **AN `@ts-expect-error` ANYWHERE INSIDE AN OBJECT LITERAL CONSUMES A MISSING-REQUIRED-PROPERTY ERROR.** ⚠ **The checker reports only the first innermost diagnostic; `TS2345` is never emitted and the file exits 0.**
+
+⚠ **PROVENANCE: verified on `tsc 5.9.3` against minimal scratchpad repros — a DISPATCH'S OWN FINDING,
+not read from the tree** — **reproduced for all three directive shapes present in the file** *(excess
+property; wrong value on a known property; nested literal missing its own required field)*.
+
+| | |
+|---|---|
+| ✅ **caught** | **29** — all 28 shipping cards *(`passConcepts.ts` carries **ZERO** directives)* + `types.test.ts:32`, the one clean positive |
+| ⛔ **SILENT** | ⛔ **4** — `types.test.ts` lines **49, 70, 282, 333** |
+
+✅ **THE SHIPPING CORPUS IS FULLY ENUMERATED.** ⛔ **The residual is four test-only sites that will
+become `PassConceptSpec` literals omitting a required field while their `@ts-expect-error` assertions
+keep passing FOR THEIR ORIGINAL REASONS.**
+
+**⇒ `required` STANDS** — ⚠ **optional would forfeit all 29 rather than 4.** ✅ **But the four are a
+CHECKLIST, not a hazard, and the implementation must visit them by line because no command in the
+build will ever name them.**
+
+⚠ **An earlier framing of this as *"88% mechanical, 12% manual"* OVERSTATED it: that spread it across
+the corpus, where the mechanism is in fact total.**
