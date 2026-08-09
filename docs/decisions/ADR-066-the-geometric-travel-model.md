@@ -383,14 +383,42 @@ seven-step end up ~4 and ~8 yards back from the same formation.**
 - ⛔ **`ReadSystem` is `"HALF_FIELD" | "FULL_FIELD" | "CONCEPT"`** *(`playcalls.ts:41`)* — **a
   PROGRESSION STRUCTURE, not a drop length. It says how he READS, not where he STANDS.**
 
-> ## ⇒ ✅ **ONE FIELD, ON THE FORMATION — AND THE CONFLATION IS STATED RATHER THAN HIDDEN.**
+> ## ⛔ **SUPERSEDED BY THE RULING BELOW. The formation-level disposition was ruled and then re-ruled to CARD level; both are kept so the reasoning is legible.**
 
-⛔ **The single number is a LAUNCH POINT, and it conflates two things the corpus cannot separate:
-where the FORMATION puts him, and how far the DROP takes him.** ⚠ **Under centre those differ by the
-whole drop; in shotgun they nearly coincide.**
+### ⛔⛔ RE-RULED: **`dropDepthYards` GOES ON THE PLAY CARD. 44 SITES, NOT 12.**
 
-✅ **That conflation goes in the field's own doc comment.** ⛔ **A second field becomes justified the
-moment any card expresses a drop length — which is that field's subject condition, stated now.**
+**Owner's decisive argument:** ⛔ **at formation level the depth term takes EXACTLY TWO VALUES ACROSS
+THE ENTIRE CORPUS, FOREVER** — because `quarterback` is a two-value-in-practice enum
+*(`SHOTGUN`/`UNDER_CENTER`; `PISTOL` is declared and used by nothing)*.
+
+> ## ⛔ **A SHOTGUN SCREEN AND A SHOTGUN SEVEN-STEP WOULD BE INDISTINGUISHABLE AT EXACTLY THE POINT THE MODEL MEASURES.**
+
+✅ **Card level costs 44 sites and buys the distinction the model exists to compute. The cost is
+taken.**
+
+### ✅ AND CARD LEVEL *RESOLVES* THE CONFLATION RATHER THAN REQUIRING IT STATED
+
+⚠ **The formation-level disposition needed a conflation note because a single number per formation
+could not separate where the formation puts him from where the drop takes him.** ⛔ **A CARD can say
+it directly.**
+
+**A card authoring `8` for a seven-step from under centre is stating WHERE THE THROW HAPPENS** — ✅
+**which is exactly what the geometry needs, and it is one fact rather than two summed.**
+
+**⇒ The second-field subject condition is therefore RETIRED, not deferred.** ⚠ **A drop length would
+be a decomposition of a value the card already states, not a missing half of a pair.**
+
+### ⛔ TWO PREMISES CORRECTED — the ruling stands without them
+
+**Offered in support, and both FALSE against the tree:**
+
+| claim | tree |
+|---|---|
+| *"`FORMATIONS` is a static table keyed only by name — not a fact about the quarterback"* | ⛔ **FALSE.** `FormationTemplate` *(`formations.ts:24-33`)* carries `id`, `name`, `personnel`, ⛔ **`quarterback: QuarterbackSpot`**, `strength`, `alignments`. **It IS a fact about the quarterback — which is why it was recorded as the natural home** |
+| *"`routeTiming` already carries the timing half"* | ⛔ **FALSE. `routeTiming` does not exist**, and `playcalls.ts` carries **no timing field at all** |
+
+✅ **The ruling does not rest on either.** ⛔ **The two-values-forever argument is sufficient and is
+checkable.**
 
 ## ⛔ RETRACTED BEFORE RECORDING — a conditional whose antecedent is false
 
