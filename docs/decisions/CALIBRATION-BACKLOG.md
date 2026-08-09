@@ -12293,3 +12293,60 @@ figure)*. ⛔ **What is retired is the QUESTION OF ITS REACH, not the defect.**
 the half that is PROVABLY immune would have been recorded with the same standing as the half that is
 merely measured clean.** ⚠ **Those decay differently: a proof survives a corpus change; a measurement
 does not.**
+
+---
+
+## 161. ✅ A TOOL THAT CANNOT READ NAMES IS IMMUNE TO A NAME THAT MISLEADS — **entry 157's class from the other side**
+
+**Found landing ADR-065 §P2's required field. ⛔ The first thing that MITIGATES entry 157's class
+rather than confirming it.**
+
+### ⛔ 1. WHAT HAPPENED
+
+**`packages/engine/src/game/playbook.ts` announces `THIS IS NOT THE PLAYBOOK` in its own header, and
+the header is TRUE.** ✅ **Every authoring sweep this week excluded it — CORRECTLY, on that
+instruction.** ⛔ **Every one of them missed FOUR authoring sites.**
+
+**Making `OffensivePlayCall.dropDepthYards` required produced exactly four errors, all in that file**
+*(lines 122, 156, 187, 220)* — **four dropback cards constructing the contracts type directly.**
+
+> ## ⛔ **THE HEADER IS TRUE AND IT IS NOT A DEFENCE AGAINST A TYPE.** ⚠ **The file is not the playbook, and it still constructs `OffensivePlayCall`.**
+
+### ✅ 2. THE MECHANISM — **the compiler did not see FURTHER. It asked BETTER.**
+
+| tool | question asked | what it returned |
+|---|---|---|
+| `grep` / a reader | ⚠ *"where are cards authored?"* | ⛔ **places that LOOK like cards** — and the fixture was excluded because its header says it isn't one |
+| ⛔ **`tsc`** | ✅ *"where does this type need a value?"* | ✅ **every construction site, regardless of what the file claims to be** |
+
+⛔ **THE SAME SET WAS AVAILABLE TO BOTH.** ⚠ **The difference is the question, not the reach.**
+
+> ## ✅ **THE COMPILER DID NOT RESPECT THE HEADER BECAUSE IT WAS NOT READING IT.**
+
+### 📒 3. WHY THIS IS ENTRY 157's CLASS FROM THE OTHER SIDE
+
+**Entry 157: *a defect in a name cannot be mitigated by anything inside the artifact it names*, because
+every in-artifact remedy reaches only a reader who already opened the file.** ⛔ **Its corollary was
+that the class has NO CHEAP FIX — the name is the defect and renaming is a change with consumers.**
+
+✅ **THIS IS THE FIRST MITIGATION THAT IS NOT "RENAME IT."** ⚠ **A misleading name harms readers who
+TRUST it. A tool that cannot read names is IMMUNE — not because it is careful, but because the
+channel the defect travels on does not exist for it.**
+
+### ⚠ 4. AND HOW MUCH OF IT IS APPLICABLE — **the immunity is not, the CHOICE is**
+
+⛔ **Nobody can decide to stop reading names.** **The immunity is a property of the tool, not a
+technique.**
+
+✅ **But CHOOSING THE TOOL is available, and that is the operative form:**
+
+> ## ✅ **WHEN ENUMERATING, PREFER A QUESTION THE TYPE SYSTEM ANSWERS OVER A QUESTION A GREP ANSWERS.**
+
+⚠ **This week's evidence, in one line each:** ⛔ **required parameter → 12 callers where a read found
+3.** ⛔ **sibling closure → 145 gaps where a read found 6.** ⛔ **required field → 4 fixture sites every
+sweep excluded.** ✅ **Three instances, all the same direction, all the same cause.**
+
+**⇒ `unruled` as a rule.** ⚠ **Recorded as an OBSERVATION with three instances — the promotion
+criterion is three, and this is the third, so it is eligible.** ⛔ **Held rather than promoted because
+the third arrived TODAY and this register's own discipline is that a pattern noticed at the moment
+of its third instance has not yet been tested against a fourth.**
