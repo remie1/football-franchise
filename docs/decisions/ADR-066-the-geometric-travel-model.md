@@ -358,6 +358,54 @@ reopen this believing nothing existed.**
 ⚠ **Footnote: `PISTOL` is declared in `QuarterbackSpot` and used by NO formation** — a dead enum
 member, found in passing, `unruled`.
 
+## ✅ RULED — **DROP DEPTH IS A PROPERTY OF THE FORMATION. 12 SITES, NOT 44.**
+
+**Owner's football argument:** ⛔ ***depth is where the quarterback starts, and the formation is what
+says where he starts.*** **Shotgun is ~5 yards behind centre whether the concept is four verticals or
+a screen; under centre is 0 with the drop coming after the snap.** ⚠ **A concept does not move the
+launch point — it changes what happens once he is there.**
+
+✅ **And the corpus agrees: the twelve formations already enumerate `SHOTGUN`/`UNDER_CENTER`, which IS
+the depth distinction, drawn by situational weight.** ⛔ **The field belongs where the distinction
+already lives.**
+
+### ⛔ THE REFINEMENT, CHECKED RATHER THAN ASSUMED — **drop length is expressed NOWHERE**
+
+**The ruling required checking whether the corpus expresses drop LENGTH before adding one field or
+two, since under centre the launch point is the DROP's and not the formation's — a three-step and a
+seven-step end up ~4 and ~8 yards back from the same formation.**
+
+⛔ **CHECKED: IT DOES NOT.**
+- **No `three-step`/`five-step`/`seven-step`/`drop length` anywhere in `packages/playbook` or
+  `packages/contracts`.**
+- ⚠ **Every `dropback` hit is about RUSHER COUNTS and PRESSURE RATES** *(`distribution.ts`,
+  `defensiveCards.ts`)* — **none is about how far back the quarterback goes.**
+- ⛔ **`ReadSystem` is `"HALF_FIELD" | "FULL_FIELD" | "CONCEPT"`** *(`playcalls.ts:41`)* — **a
+  PROGRESSION STRUCTURE, not a drop length. It says how he READS, not where he STANDS.**
+
+> ## ⇒ ✅ **ONE FIELD, ON THE FORMATION — AND THE CONFLATION IS STATED RATHER THAN HIDDEN.**
+
+⛔ **The single number is a LAUNCH POINT, and it conflates two things the corpus cannot separate:
+where the FORMATION puts him, and how far the DROP takes him.** ⚠ **Under centre those differ by the
+whole drop; in shotgun they nearly coincide.**
+
+✅ **That conflation goes in the field's own doc comment.** ⛔ **A second field becomes justified the
+moment any card expresses a drop length — which is that field's subject condition, stated now.**
+
+## ⛔ RETRACTED BEFORE RECORDING — a conditional whose antecedent is false
+
+**Proposed for the conditions block:** *"if the depth term is untested on the canonical arm, then any
+movement the model produces is attributable to the lateral geometry alone."*
+
+⛔ **THE ANTECEDENT FAILS.** **7 of 12 formations are `SHOTGUN` and 5 are `UNDER_CENTER`** *(counted
+directly)*, **and `FROZEN_TENDENCIES` fixes only the run/pass ratio** — ✅ **so once authored, depth
+varies on the measuring arm across at least two values.**
+
+⚠ **AND RECORDING IT WOULD HAVE DONE INVERSE DAMAGE.** ⛔ **It would sit in the conditions block,
+before any figure, telling a future reader NOT TO CREDIT DEPTH for a result depth COULD have
+caused** — **the exact inverse of entry 143's confound, which warns against crediting geometry for
+what arity caused.** **Same position in the document, pointing the opposite way.**
+
 ## ✅ WHAT WILL *NOT* NEED UPDATING — a checked null, recorded so a red is not mistaken for one
 
 ⚠ **A concern was raised that `packages/calibration/src/knownTruth/attributeUsage.ts` carries a
