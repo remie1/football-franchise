@@ -548,3 +548,39 @@ build will ever name them.**
 
 ⚠ **An earlier framing of this as *"88% mechanical, 12% manual"* OVERSTATED it: that spread it across
 the corpus, where the mechanism is in fact total.**
+
+---
+
+## ✅ THE VALUES — ruled
+
+| formation class | `dropDepthYards` | why |
+|---|---|---|
+| `SHOTGUN` | ✅ **5.0** | ⚠ **The LAUNCH POINT, not the alignment depth.** The QB drifts on most concepts; **5.0 is where the throw happens on rhythm** |
+| `UNDER_CENTER` | ✅ **7.0** | ⛔ **NOT 8.0.** Under centre covers three-, five- AND seven-step drops, and ⚠ **a corpus that cannot distinguish them must not author the deepest.** **7.0 is the mid-to-deep generic** |
+
+⛔ **A card that genuinely wants a seven-step can say `8.0` when someone authors one deliberately.**
+
+### ✅ AND THIS RECONCILES WITH THE CARD-LEVEL RULING RATHER THAN REVERSING IT
+
+⚠ **The field is on the CARD** *(33 sites)*. ⛔ **The two values above are how each card's INITIAL
+value is CHOSEN — read off the formation it binds to.**
+
+> ## ✅ **CARD-LEVEL FIELD, FORMATION-INFORMED INITIAL VALUES.** ⛔ **Formation-level would have made a shotgun screen and a shotgun seven-step identical FOREVER; card-level makes them identical UNTIL SOMEBODY AUTHORS THE DIFFERENCE.**
+
+**That is the refinement path, and it exists only because the field is on the card.**
+
+## ⛔ THE MISSING-INPUT MATRIX IS AMENDED — one row is now unreachable BY CONSTRUCTION
+
+**The three-row matrix earlier in this document was written when `dropDepthYards` was optional. It is
+now REQUIRED, and that changes what can happen at runtime.**
+
+| missing | status now |
+|---|---|
+| ⚠ **`gap`** | ✅ **STILL REACHABLE.** `RushAssignment.gap` is `gap?: RunGap` — optional. **Routes to the table** |
+| ⛔ **`dropDepthYards`** | ⛔ **UNREACHABLE BY CONSTRUCTION.** Required on the spec ⇒ **a card without one is a COMPILE ERROR, not a runtime state** |
+| ⛔ **both** | ⛔ **UNREACHABLE**, for the same reason |
+
+> ## ⛔ **SO THERE IS NO FALLBACK PATH FOR A MISSING DROP DEPTH, AND NONE MAY BE BUILT.** ⚠ **A branch handling a condition the type system forbids is a branch that can never run — the pattern this register has catalogued five ways.**
+
+✅ **The rows are AMENDED WITH THE REASON rather than deleted**, ⛔ **because a deleted row reads as an
+oversight and an amended one records that the condition was considered and eliminated.**
