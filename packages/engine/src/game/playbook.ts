@@ -99,6 +99,32 @@ function manProtection(
   return { kind: "MAN", center: offense.center, available };
 }
 
+/**
+ * `OffensivePlayCall.dropDepthYards` on all four dropbacks below — REQUIRED by
+ * contracts (ADR-066), and this file has one number for all of them.
+ *
+ * NOT DERIVED FROM THE CARD'S `formation` STRING. This file's own header says
+ * what these cards are: "eleven cards ... so a game can be played at all" —
+ * fixture-grade, structural, not football. `formation` is a display label a
+ * human reads ("Shotgun Trips Right"), and ADR-006 already forbids the engine
+ * parsing football out of it; deriving a drop depth from it here would invent
+ * a fact about a play that exists only to make the type check pass.
+ *
+ * UNIFORM AND MODAL. 5.0 is the SHOTGUN value ADR-066 ruled on the real
+ * corpus (`docs/decisions/ADR-066-the-geometric-travel-model.md`, "THE
+ * VALUES" table) — 21 of `packages/playbook`'s 28 shipped pass concepts bind
+ * to a shotgun formation, so 5.0 is the modal drop depth on the real corpus
+ * these fixtures stand in for. All four cards here happen to be shotgun
+ * formations too (`"Shotgun Trips Right"`, `"Shotgun Trey Right"`, `"Shotgun
+ * 2x2"`, `"Shotgun Trips Left"`), which is coincidence, not derivation: the
+ * value is the same 5.0 whichever of the eleven cards' formation strings a
+ * reader happens to be looking at, because THE VALUE IS ARBITRARY AND THE
+ * FIXTURE'S PURPOSE IS STRUCTURAL — it exists so §7.2's travel model has
+ * something to divide, not to state where any of these four quarterbacks
+ * actually stand.
+ */
+const FIXTURE_DROP_DEPTH_YARDS = 5.0;
+
 export interface PassCard {
   readonly name: string;
   build(offense: OffensivePersonnel, defense: DefensivePersonnel): OffensivePlayCall;
@@ -129,6 +155,7 @@ export const PASS_CARDS: readonly PassCard[] = [
         kind: "PASS",
         name: "Y Cross",
         formation: "Shotgun Trips Right",
+        dropDepthYards: FIXTURE_DROP_DEPTH_YARDS,
         readSystem: "FULL_FIELD",
         routes: [
           {
@@ -163,6 +190,7 @@ export const PASS_CARDS: readonly PassCard[] = [
         kind: "PASS",
         name: "Stick",
         formation: "Shotgun Trey Right",
+        dropDepthYards: FIXTURE_DROP_DEPTH_YARDS,
         readSystem: "CONCEPT",
         routes: [
           { receiver: slot, routeName: "Stick", depthClass: "SHORT", airYards: 6, breakZone: { horizontal: "RH", vertical: "SHORT" } },
@@ -194,6 +222,7 @@ export const PASS_CARDS: readonly PassCard[] = [
         kind: "PASS",
         name: "Four Verticals",
         formation: "Shotgun 2x2",
+        dropDepthYards: FIXTURE_DROP_DEPTH_YARDS,
         readSystem: "FULL_FIELD",
         routes: [
           { receiver: x, routeName: "Go", depthClass: "DEEP", airYards: 22, breakZone: { horizontal: "LW", vertical: "DEEP" } },
@@ -227,6 +256,7 @@ export const PASS_CARDS: readonly PassCard[] = [
         kind: "PASS",
         name: "Quick Slants",
         formation: "Shotgun Trips Left",
+        dropDepthYards: FIXTURE_DROP_DEPTH_YARDS,
         readSystem: "HALF_FIELD",
         routes: [
           { receiver: x, routeName: "Slant", depthClass: "QUICK", airYards: 6, breakZone: { horizontal: "LH", vertical: "SHORT" } },

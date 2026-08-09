@@ -722,6 +722,44 @@ export const TUNABLES = {
       EDGE: { LINE: 0.0, BOX: 0.5, DEEP: 1.0 },
     },
     /**
+     * ADR-066 — THE DECOMPOSITION, LANDED FIRST AND SEPARATELY FROM THE
+     * GEOMETRY (owner ruling, August 2026 — "take the decomposition, hold the
+     * geometry"). `resolve/rushThreat.ts`'s `threatFromWonRep` now publishes
+     * `distanceYards`/`closingSpeed` on every `RushThreat`, with `etaTick`
+     * DERIVED from them — but BOTH are back-computed from
+     * `travelSecondsByAlignmentAndMove` above via this ONE nominal constant,
+     * not from any geometry: `distanceYards = travelSecondsFor(...) ×
+     * nominalClosingSpeedYardsPerSecond`, so `distanceYards / closingSpeed`
+     * reduces to exactly `travelSecondsFor(...)` again — today's `etaTick` is
+     * UNCHANGED, for any non-zero value here. See `RushThreat.distanceYards`'s
+     * own comment (`resolve/rushThreat.ts`) for what this means about the
+     * field's provenance: a distance nobody measured, wearing honest units
+     * until the geometry (ADR-066's NEXT, separately-measured change) replaces
+     * this constant with `ATTR.speed`/`ATTR.acceleration`.
+     *
+     * ANCHOR — a MID-RANGE closing speed, chosen only so `distanceYards` reads
+     * as a plausible yardage rather than a travel time wearing yards' clothes.
+     * 7.5 yd/s is the pace of a ≈5.3s 40-yard dash — the midpoint between a
+     * lineman's straight-line burst (≈5.5 yd/s, a 7+s 40) and a skill
+     * player's short closing burst (≈9.5 yd/s, a sub-4.3s 40): the same two
+     * referents ADR-066's geometry design proposed as its own
+     * `minYardsPerSecond`/`maxYardsPerSecond` bounds, averaged rather than
+     * spread, because this constant has to stand in for EVERY alignment and
+     * every rusher at once rather than vary by either. PROPOSED; the owner
+     * rules.
+     *
+     * Also chosen for arithmetic cleanliness: 7.5 = 15/2 is an exact binary
+     * fraction, and every `travelSecondsFor` output lands on the 0.5s
+     * `quantizeSeconds` grid — also an exact binary fraction — so
+     * `travel × 7.5` and its reverse division are exactly representable in
+     * IEEE-754 double precision with no rounding error for the model to
+     * launder. A future value need not keep this property (the `.toFixed(1)`
+     * final rounding absorbs ordinary floating-point noise regardless), but
+     * it costs nothing to keep the algebra visibly exact rather than merely
+     * numerically close.
+     */
+    nominalClosingSpeedYardsPerSecond: 7.5,
+    /**
      * INTERPRETATION: a rusher who obliterates a blocker is past him cleanly and
      * arrives sooner than one who scrapes a win. Every this many points of
      * margin ABOVE the RUSHER_WINS_REP threshold shaves one half-tick.

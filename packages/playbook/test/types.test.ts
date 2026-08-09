@@ -34,6 +34,7 @@ describe("a route cannot be given to a role that is not on the field", () => {
       name: "T",
       formation: GUN_DOUBLES_RT, // 11 personnel: RB X Z SLOT TE_Y
       readSystem: "HALF_FIELD",
+      dropDepthYards: 5.0,
       routes: {
         Z: route("Slant", "QUICK", 6, "RH"),
         TE_Y: route("Flat", "QUICK", 2, "RW"),
@@ -51,6 +52,7 @@ describe("a route cannot be given to a role that is not on the field", () => {
       name: "T",
       formation: GUN_DOUBLES_RT,
       readSystem: "HALF_FIELD",
+      dropDepthYards: 5.0,
       routes: {
         Z: route("Slant", "QUICK", 6, "RH"),
         // 11 personnel has no second tight end.
@@ -72,6 +74,7 @@ describe("a progression cannot name somebody with no route", () => {
       name: "T",
       formation: GUN_TRIPS_RT,
       readSystem: "CONCEPT",
+      dropDepthYards: 5.0,
       routes: {
         Z: route("Slant", "QUICK", 6, "RH"),
         TE_Y: route("Flat", "QUICK", 2, "RW"),
@@ -284,6 +287,7 @@ describe("a route cannot omit its horizontal placement", () => {
       name: "T",
       formation: GUN_DOUBLES_RT,
       readSystem: "HALF_FIELD",
+      dropDepthYards: 5.0,
       routes: {
         // @ts-expect-error RouteSpec.breakZone is required in this package
         Z: { routeName: "Slant", depthClass: "QUICK", airYards: 6 },
@@ -335,6 +339,7 @@ describe("a hot conversion cannot omit its break zone", () => {
       name: "T",
       formation: GUN_DOUBLES_RT,
       readSystem: "HALF_FIELD",
+      dropDepthYards: 5.0,
       routes: {
         Z: {
           ...route("Post", "DEEP", 26, "RH"),

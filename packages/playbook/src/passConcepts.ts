@@ -102,6 +102,17 @@ export interface PassConceptSpec<F extends AnyFormation, R extends SkillRoleOf<F
   readonly name: string;
   readonly formation: F;
   readonly readSystem: ReadSystem;
+  /**
+   * How far behind the line the launch point is. Required: a card that does not
+   * state it would author a launch point by default, and the default is the thing
+   * the engine must not guess.
+   *
+   * The corpus states it by the formation's `quarterback` spot. SHOTGUN is 5.0. Any
+   * UNDER_CENTER card is 7.0 — deliberately not 8.0, because that class covers three-,
+   * five- and seven-step drops alike and a corpus that cannot tell them apart must
+   * author the mid-to-deep generic rather than the deepest of the three.
+   */
+  readonly dropDepthYards: number;
   readonly routes: { readonly [K in R]: RouteSpec };
   /** `NoInfer` so `R` is fixed by `routes` alone; a stray name here will not widen it. */
   readonly readOrder: readonly NoInfer<R>[];
@@ -115,6 +126,8 @@ export interface PassConcept {
   readonly name: string;
   readonly formation: AnyFormation;
   readonly readSystem: ReadSystem;
+  /** See `PassConceptSpec.dropDepthYards`. Survives erasure because instantiation reads it. */
+  readonly dropDepthYards: number;
   readonly routes: Readonly<Partial<Record<OffenseSkillRole, RouteSpec>>>;
   readonly readOrder: readonly OffenseSkillRole[];
   readonly protection: ProtectionScheme;
@@ -157,6 +170,7 @@ export const SLANT_FLAT = passConcept({
   name: "Slant-Flat",
   formation: F.GUN_DOUBLES_RT,
   readSystem: "HALF_FIELD",
+  dropDepthYards: 5.0,
   routes: {
     X: route("Hitch", "QUICK", 7, "LW"),
     SLOT: route("Slant", "QUICK", 6, "C"),
@@ -176,6 +190,7 @@ export const STICK = passConcept({
   name: "Stick",
   formation: F.GUN_TRIPS_RT,
   readSystem: "CONCEPT",
+  dropDepthYards: 5.0,
   routes: {
     SLOT: route("Stick", "SHORT", 6, "RH"),
     TE_Y: route("Flat", "QUICK", 2, "RW"),
@@ -193,6 +208,7 @@ export const SNAG = passConcept({
   name: "Snag",
   formation: F.GUN_BUNCH_RT,
   readSystem: "CONCEPT",
+  dropDepthYards: 5.0,
   routes: {
     Z: route("Spot", "QUICK", 6, "RH"),
     SLOT: route("Corner", "INTERMEDIATE", 18, "RW"),
@@ -209,6 +225,7 @@ export const BUBBLE_NOW = passConcept({
   name: "Bubble Now",
   formation: F.GUN_SPREAD_RT,
   readSystem: "CONCEPT",
+  dropDepthYards: 5.0,
   routes: {
     SLOT2: route("Bubble", "QUICK", -1, "RW"),
     Z: route("Hitch", "QUICK", 5, "RW"),
@@ -226,6 +243,7 @@ export const QUICK_OUTS = passConcept({
   name: "Quick Outs",
   formation: F.GUN_DOUBLES_12_RT,
   readSystem: "HALF_FIELD",
+  dropDepthYards: 5.0,
   routes: {
     Z: route("Out", "SHORT", 7, "RW"),
     TE_Y: route("Out", "SHORT", 6, "RW"),
@@ -243,6 +261,7 @@ export const THIRD_SHORT_STICK = passConcept({
   name: "Tight Stick",
   formation: F.SINGLEBACK_ACE_RT,
   readSystem: "CONCEPT",
+  dropDepthYards: 7.0,
   routes: {
     TE_Y: route("Stick", "SHORT", 5, "RH"),
     Z: route("Slant", "QUICK", 5, "RH"),
@@ -261,6 +280,7 @@ export const Y_CROSS = passConcept({
   name: "Y-Cross",
   formation: F.GUN_TRIPS_RT,
   readSystem: "FULL_FIELD",
+  dropDepthYards: 5.0,
   routes: {
     // The crosser IS the first read and he is sixteen yards away, so against pressure
     // he runs it shallow. A real conversion: new route, new depth, new band, same lane.
@@ -282,6 +302,7 @@ export const MESH = passConcept({
   name: "Mesh",
   formation: F.GUN_DOUBLES_RT,
   readSystem: "CONCEPT",
+  dropDepthYards: 5.0,
   routes: {
     SLOT: route("Shallow Cross", "QUICK", 4, "RH"),
     TE_Y: route("Shallow Cross", "QUICK", 4, "LH"),
@@ -299,6 +320,7 @@ export const CURL_FLAT = passConcept({
   name: "Curl-Flat",
   formation: F.SINGLEBACK_ACE_RT,
   readSystem: "HALF_FIELD",
+  dropDepthYards: 7.0,
   routes: {
     Z: route("Curl", "INTERMEDIATE", 12, "RW"),
     // "The flat is your hot." He is already running it; what changes is that the
@@ -317,6 +339,7 @@ export const DRIVE = passConcept({
   name: "Drive",
   formation: F.GUN_DOUBLES_12_RT,
   readSystem: "FULL_FIELD",
+  dropDepthYards: 5.0,
   routes: {
     TE_U: alreadyHot(route("Drag", "QUICK", 5, "RH")),
     X: route("Dig", "INTERMEDIATE", 15, "C"),
@@ -333,6 +356,7 @@ export const LEVELS = passConcept({
   name: "Levels",
   formation: F.GUN_TRIPS_RT,
   readSystem: "HALF_FIELD",
+  dropDepthYards: 5.0,
   routes: {
     SLOT: route("Dig", "INTERMEDIATE", 12, "C"),
     TE_Y: alreadyHot(route("Drag", "QUICK", 5, "C")),
@@ -350,6 +374,7 @@ export const FLOOD = passConcept({
   name: "Flood",
   formation: F.I_FORM_PRO_RT,
   readSystem: "HALF_FIELD",
+  dropDepthYards: 7.0,
   routes: {
     Z: route("Go", "DEEP", 24, "RW"),
     TE_Y: route("Out", "INTERMEDIATE", 14, "RW"),
@@ -366,6 +391,7 @@ export const SMASH = passConcept({
   name: "Smash",
   formation: F.GUN_DOUBLES_RT,
   readSystem: "HALF_FIELD",
+  dropDepthYards: 5.0,
   routes: {
     // Smash against pressure is the hitch, and it has been for forty years.
     Z: alreadyHot(route("Hitch", "QUICK", 7, "RW")),
@@ -384,6 +410,7 @@ export const FOLLOW = passConcept({
   name: "Follow",
   formation: F.SINGLEBACK_TWINS_RT,
   readSystem: "HALF_FIELD",
+  dropDepthYards: 7.0,
   routes: {
     TE_Y: route("Shallow Cross", "QUICK", 4, "LH"),
     TE_U: route("Dig", "INTERMEDIATE", 14, "C"),
@@ -400,6 +427,7 @@ export const SPOT_OPTION = passConcept({
   name: "Spot Option",
   formation: F.GUN_BUNCH_RT,
   readSystem: "CONCEPT",
+  dropDepthYards: 5.0,
   routes: {
     SLOT: optionRoute("Choice", "SHORT", 8, "RH"),
     Z: route("Whip", "QUICK", 5, "RW"),
@@ -416,6 +444,7 @@ export const SPLIT_BACKS_TEXAS = passConcept({
   name: "Texas",
   formation: F.GUN_SPLIT_BACKS_RT,
   readSystem: "HALF_FIELD",
+  dropDepthYards: 5.0,
   routes: {
     RB: route("Angle", "SHORT", 5, "C"),
     FB: route("Flat", "QUICK", 2, "RW"),
@@ -435,6 +464,7 @@ export const FOUR_VERTS = passConcept({
   name: "Four Verticals",
   formation: F.GUN_SPREAD_RT,
   readSystem: "FULL_FIELD",
+  dropDepthYards: 5.0,
   routes: {
     X: route("Go", "DEEP", 24, "LW"),
     // Nothing on this card is quick, so somebody has to break off, and it is the
@@ -454,6 +484,7 @@ export const DAGGER = passConcept({
   name: "Dagger",
   formation: F.GUN_DOUBLES_RT,
   readSystem: "FULL_FIELD",
+  dropDepthYards: 5.0,
   routes: {
     SLOT: route("Seam", "DEEP", 24, "LH"),
     X: route("Dig", "INTERMEDIATE", 16, "C"),
@@ -470,6 +501,7 @@ export const YANKEE = passConcept({
   name: "Yankee",
   formation: F.SINGLEBACK_TWINS_RT,
   readSystem: "HALF_FIELD",
+  dropDepthYards: 7.0,
   routes: {
     X: route("Post", "DEEP", 30, "C"),
     TE_U: route("Deep Cross", "INTERMEDIATE", 18, "RH"),
@@ -485,6 +517,7 @@ export const POST_WHEEL = passConcept({
   name: "Post-Wheel",
   formation: F.GUN_DOUBLES_RT,
   readSystem: "HALF_FIELD",
+  dropDepthYards: 5.0,
   routes: {
     TE_Y: route("Post", "DEEP", 26, "C"),
     // The back's wheel and the back's check release are the same decision made twice:
@@ -505,6 +538,7 @@ export const MILLS = passConcept({
   name: "Mills",
   formation: F.GUN_DOUBLES_12_RT,
   readSystem: "FULL_FIELD",
+  dropDepthYards: 5.0,
   routes: {
     // Post becomes slant: the canonical sight adjustment, and the one that most
     // obviously needs a new break zone — twenty-eight yards to six is two bands.
@@ -523,6 +557,7 @@ export const SHOT_POST_CORNER = passConcept({
   name: "Post-Corner Shot",
   formation: F.I_FORM_PRO_RT,
   readSystem: "HALF_FIELD",
+  dropDepthYards: 7.0,
   routes: {
     Z: route("Post-Corner", "DEEP", 24, "RW"),
     TE_Y: route("Seam", "DEEP", 20, "RH"),
@@ -547,6 +582,7 @@ export const RB_SLIP_SCREEN = passConcept({
   name: "RB Slip Screen",
   formation: F.GUN_DOUBLES_RT,
   readSystem: "CONCEPT",
+  dropDepthYards: 5.0,
   routes: {
     RB: route("Screen", "QUICK", -3, "LH"),
     X: route("Go", "DEEP", 20, "LW"),
@@ -567,6 +603,7 @@ export const HEAVY_RED_ZONE = passConcept({
   name: "Heavy Fade-Flat",
   formation: F.SINGLEBACK_HEAVY_RT,
   readSystem: "HALF_FIELD",
+  dropDepthYards: 7.0,
   routes: {
     TE_H: route("Fade", "INTERMEDIATE", 14, "RW"),
     TE_Y: alreadyHot(route("Flat", "QUICK", 3, "RW")),
@@ -583,6 +620,7 @@ export const RED_ZONE_RUB = passConcept({
   name: "Bunch Rub",
   formation: F.GUN_BUNCH_RT,
   readSystem: "CONCEPT",
+  dropDepthYards: 5.0,
   routes: {
     Z: route("Fade", "INTERMEDIATE", 12, "RW"),
     TE_Y: alreadyHot(route("Flat", "QUICK", 2, "RW")),
@@ -617,6 +655,7 @@ export const EMPTY_QUICK = passConcept({
   name: "Empty Stick",
   formation: F.GUN_EMPTY_RT,
   readSystem: "CONCEPT",
+  dropDepthYards: 5.0,
   routes: {
     SLOT: route("Stick", "SHORT", 7, "RH"),
     // The answer is to the RIGHT, so the line slides LEFT and covers the half he is
@@ -636,6 +675,7 @@ export const EMPTY_VERTS = passConcept({
   name: "Empty Verticals",
   formation: F.GUN_EMPTY_RT,
   readSystem: "FULL_FIELD",
+  dropDepthYards: 5.0,
   routes: {
     X: route("Go", "DEEP", 24, "LW"),
     // Five men running vertically and one rusher nobody blocked. The backside seam
@@ -655,6 +695,7 @@ export const TWO_MINUTE_SAIL = passConcept({
   name: "Two-Minute Sail",
   formation: F.GUN_DOUBLES_RT,
   readSystem: "HALF_FIELD",
+  dropDepthYards: 5.0,
   routes: {
     Z: route("Comeback", "INTERMEDIATE", 16, "RW"),
     // Same route, shorter. A twelve-yard out against pressure is a sack; a six-yard

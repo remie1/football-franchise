@@ -965,6 +965,62 @@ export const REGISTER: readonly RegisterRule[] = [
       "comment shared with `immediateWithinSeconds` describing the ladder's concept. See the " +
       "`NEITHER_RULED_NOR_DERIVED` provenance value's own comment for the full ten-category survey.",
   },
+  /**
+   * ⚠ ADR-066's SOLE NEW LEAF, AND WHY IT IS NOT LEFT TO THE `arrival.*` CATCH-ALL DESPITE LANDING ON
+   * THE SAME PROVENANCE VALUE.
+   *
+   * ADR-066 landed the STRUCTURAL half of a distance/closing-speed decomposition
+   * (`RushThreat.distanceYards`/`closingSpeed`, `resolve/rushThreat.ts`) while explicitly deferring
+   * the GEOMETRY — no gap threading, no lateral-offset mapping, no attribute-driven speed; that is a
+   * separate, future change. This constant is what stands in for the deferred geometry today.
+   *
+   * Named individually rather than folded into `arrival.*`'s `UNIFORM` claim for the same reason
+   * entries 73/76/84/85/111 all were: this cell carries a DEDICATED, multi-paragraph reasoned note
+   * (`tunables.ts`'s own comment on the field) that the catch-all's generic "engine structure filling
+   * the gap" note does not individually speak to — even though, unlike those five, the READING below
+   * lands on the SAME provenance value the catch-all would have assigned by default. Landing on the
+   * same value is not a reason to skip the reading; the register's whole argument (ADR-048) is that a
+   * catch-all classifying something correctly BY COINCIDENCE is indistinguishable, from inside the
+   * file, from classifying it correctly BY ARGUMENT — the only way to tell them apart is to read the
+   * cell and record which one happened. Here it is the latter.
+   */
+  {
+    pattern: "arrival.nominalClosingSpeedYardsPerSecond",
+    provenance: "INTERPRETATION",
+    docRef: "§7.2 KNOWN ISSUE (missing time-of-arrival / geometry model) — ADR-066",
+    note:
+      "7.5 yd/s. ANCHORED, not picked blind: `tunables.ts`'s own comment reasons it as the pace of a " +
+      "≈5.3s 40-yard dash — the midpoint of a lineman's straight-line burst (≈5.5 yd/s) and a skill " +
+      "player's short closing burst (≈9.5 yd/s), the SAME two referents ADR-066's own (deferred) " +
+      "geometry design proposed as its `minYardsPerSecond`/`maxYardsPerSecond` bounds. A declared " +
+      "knob, reasoned in the open — the `INTERPRETATION` shape, and the same value ADR-061 already " +
+      "recorded for its sibling `arrival.travelSecondsByAlignmentAndMove` (ADR-061 row 9: " +
+      "'INTERPRETATION-marked, with a physical narrative that never reaches its own arithmetic'). " +
+      "SURVEYED AND REJECTED: NOT `RULED_NOT_DERIVED` — that value's MAGNITUDE half requires a value " +
+      "CARRIED from another already-committed tunable (its own example borrows `pocket.*.PRESSURE`); " +
+      "this magnitude is not borrowed from anywhere in the tree, it is a fresh anchor to an EXTERNAL " +
+      "real-world fact, and `tunables.ts` itself marks it 'PROPOSED; the owner rules' rather than an " +
+      "owner ruling already made ON THIS NUMBER — ADR-066's owner ruling ('take the decomposition, " +
+      "hold the geometry') is about the STRUCTURAL DECOMPOSITION existing at all, not about 7.5 " +
+      "specifically. NOT `DERIVED_MECHANIC` either — that value requires magnitude reached by TWO " +
+      "already-ratified IN-TREE anchors converging arithmetically (as `pressureWithinSeconds` " +
+      "genuinely has); this is a single EXTERNAL anchor, not an arithmetic consequence of any other " +
+      "committed cell. NOT `NEITHER_RULED_NOR_DERIVED` — that value requires the archaeology to find " +
+      "NOTHING, and it does not: the anchor reasoning above is real, present and citable, unlike " +
+      "`immediateWithinSeconds`/`collapsingWithinSeconds`'s bare ladder-concept comment. ⚠ AND WHAT " +
+      "THE ANCHOR SCALES IS ITSELF UNGROUNDED: `distanceYards = travelSecondsByAlignmentAndMove × " +
+      "this constant` (`resolve/rushThreat.ts`), and ADR-061 records that `travelSecondsByAlignmentAndMove` " +
+      "was NEVER derived from a distance — its own physical narrative ('~4-5 yards from a shotgun " +
+      "launch point', 'edge 10-12 yards… arc') has no yards-to-seconds conversion behind it anywhere " +
+      "(ADR-061 Decision, backlog entry 111's archaeology). So a genuine real-world closing speed " +
+      "times an ungrounded travel time produces a `distanceYards` that reads in honest yards but is " +
+      "BACK-DERIVED rather than measured — this cell's own anchor is real, the quantity it multiplies " +
+      "is not, and multiplying an honest number by a fictitious one does not launder the second. " +
+      "`etaTick` itself is unaffected either way (`distanceYards / closingSpeed` reduces exactly to " +
+      "`travelSecondsFor(...)` for any non-zero value here — see this cell's own comment in " +
+      "`tunables.ts` and `blockedDepthOffsetAgreement.test.ts`, this package's empirical mirror, which " +
+      "stays green under this leaf unchanged).",
+  },
   {
     pattern: "arrival.*",
     provenance: "INTERPRETATION",
@@ -979,7 +1035,11 @@ export const REGISTER: readonly RegisterRule[] = [
       "(CALIBRATION-BACKLOG entry 111): this note describes the BLOCK's provenance CLASS, not why " +
       "those two specific numbers are what they are, and entry 111 found no ruling and no derivation " +
       "behind either one — `NEITHER_RULED_NOR_DERIVED`, a different finding from 'the doc has no " +
-      "arrival model' even though both cells happen to sit in a doc-silent block.",
+      "arrival model' even though both cells happen to sit in a doc-silent block. ⚠ AND EXCEPT " +
+      "`nominalClosingSpeedYardsPerSecond`, also named individually above (ADR-066): it lands on the " +
+      "SAME `INTERPRETATION` value this catch-all would assign, but for a reason specific to the " +
+      "cell (a real-world anchor, and the underived quantity it scales) that this catch-all's note " +
+      "does not itself state.",
   },
 
   // ---- §7.2 pocket -----------------------------------------------------------------------------

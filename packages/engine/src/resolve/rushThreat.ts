@@ -85,6 +85,51 @@ export interface ArrivalClock {
  */
 export interface RushThreat extends ArrivalClock {
   readonly origin: ThreatOrigin;
+  /**
+   * ADR-066 — THE DECOMPOSITION, LANDED SEPARATELY FROM THE GEOMETRY (owner
+   * ruling, August 2026: "take the decomposition, hold the geometry"). What
+   * `etaTick` was DIVIDED FROM: one `etaTick` is consistent with any
+   * `(distanceYards, closingSpeed)` pair that divides to it, and a mid-flight
+   * mechanic (a chip forcing re-acceleration — not built, not foreclosed)
+   * needs the pair back, not the quotient, so the pair is carried rather
+   * than thrown away at the moment it is computed.
+   *
+   * ⛔ THIS `distanceYards` IS BACK-DERIVED FROM THE TABLE, AND THE TABLE WAS
+   * NEVER DERIVED FROM A DISTANCE. `threatFromWonRep` computes it as
+   * `travelSecondsFor(...) × tunables.arrival
+   * .nominalClosingSpeedYardsPerSecond` — ONE nominal constant, not a
+   * measurement, not geometry, and not varying by rusher, alignment, or
+   * anything else. `travelSecondsByAlignmentAndMove` (ADR-061) has never
+   * itself been derived from a distance; its own comment gives a physical
+   * SCENARIO ("~4-5 yards", "an arc of 10-12 yards") with no stated
+   * conversion to seconds anywhere (entry 111). So this field carries HONEST
+   * UNITS — it really is yards, not seconds wearing yards' clothes — AND NO
+   * PROVENANCE: nobody measured this distance, and a reader who assumes
+   * somebody did would be wrong, naturally and reasonably.
+   *
+   * ✅ IT BECOMES A REAL DISTANCE WHEN THE GEOMETRY LANDS (ADR-066's NEXT,
+   * separately-measured change): `rushGeometryDistanceYards`-shaped, off
+   * `gap`/`side`/`dropDepthYards`/rusher depth, replacing this constant's
+   * product rather than extending it. That is this field's SUBJECT
+   * CONDITION — this value is a placeholder with the right units and the
+   * right shape, not yet the thing it is named for.
+   *
+   * `closingSpeed` is the SAME nominal constant on every threat today — not
+   * yet `ATTR.speed`/`ATTR.acceleration` — carried per-threat anyway because
+   * the point of landing the decomposition first is that the SHAPE does not
+   * change when the geometry replaces what fills it.
+   *
+   * BOTH ABSENT TOGETHER, NEVER ONE WITHOUT THE OTHER, and only ever present
+   * on a `WON_REP` threat `threatFromWonRep` built: the other three origins
+   * (`UNBLOCKED`, `PICKUP_LOST`, `STUNT_LOOPER`) are built directly by
+   * `sim/preSnap.ts`/`sim/passPlay.ts` off §7.4's own arrival clock, which
+   * this change does not touch. `delayThreat`/`arrivedAt` mutate `etaTick`
+   * only and leave these two untouched, so where present they describe the
+   * ORIGINAL computation at the moment the threat was created, not a
+   * running position.
+   */
+  readonly distanceYards?: number;
+  readonly closingSpeed?: number;
 }
 
 /**
@@ -298,6 +343,16 @@ export function rushAlignmentFor(
  * One owner, called from both `sim/passPlay.ts` and `sim/runPlay.ts`, because
  * two copies of "what PLAY_START says about a rusher" is how the pass and run
  * payloads drift apart.
+ *
+ * `gap` (ADR-065 §P1, `RushAssignment.gap`) is NOT threaded through here.
+ * ADR-066's decomposition (this file's `threatFromWonRep`) reads only
+ * `tunables.arrival.nominalClosingSpeedYardsPerSecond` — a single constant,
+ * not `gap` — so nothing downstream of this function would read a `gap` this
+ * function forwarded, and adding the parameter would be exactly the
+ * read-but-unused shape ADR-066's own register has catalogued repeatedly.
+ * `RushAssignment.gap` stays where ADR-065 §P1 landed it: crossing the
+ * play-call boundary, unread past this point, with its own dated expiry pin
+ * (`packages/playbook/test/gapCarryAcross.test.ts`).
  */
 export function resolvedRushAssignment(args: {
   readonly rusher: PlayerId;
@@ -420,7 +475,31 @@ export function freeRunnerArrivalSecondsFor(
   return Number(bounded.toFixed(1));
 }
 
-/** The threat a won rep creates. */
+/**
+ * The threat a won rep creates.
+ *
+ * ADR-066 — THE DECOMPOSITION, LANDED FIRST (owner ruling, August 2026: "take
+ * the decomposition, hold the geometry" — see `RushThreat.distanceYards`'s
+ * comment for the full reasoning and its subject condition). `etaTick` is
+ * still exactly `travelSecondsFor(...)`'s answer, DERIVED from a
+ * `distanceYards`/`closingSpeed` pair rather than stored as the pair's own
+ * quotient directly — the table is still the ONLY computation here, run
+ * once, then expressed two ways:
+ *
+ *   travel        = travelSecondsFor(...)                            (unchanged)
+ *   closingSpeed  = tunables.arrival.nominalClosingSpeedYardsPerSecond (ONE constant)
+ *   distanceYards = travel × closingSpeed
+ *   etaTick       = tick + distanceYards / closingSpeed  ≡  tick + travel
+ *
+ * ALGEBRAICALLY INERT for any non-zero `closingSpeed`: `distanceYards /
+ * closingSpeed` is `(travel × closingSpeed) / closingSpeed`, which reduces to
+ * `travel` exactly — this is multiplication immediately undone by division
+ * by the identical value, not two independent measurements that happen to
+ * agree. `nominalClosingSpeedYardsPerSecond` (7.5) and every `travel` value
+ * (multiples of `quantizeSeconds`, 0.5) are exact binary fractions, so the
+ * round trip is bit-exact in IEEE-754 double precision, not merely
+ * close-enough-after-rounding.
+ */
 export function threatFromWonRep(args: {
   /** Required, never defaulted: a missed call site must be a compile error. */
   readonly tunables: Tunables;
@@ -446,14 +525,20 @@ export function threatFromWonRep(args: {
     args.margin,
     args.position,
   );
+  const closingSpeed = args.tunables.arrival.nominalClosingSpeedYardsPerSecond;
+  const distanceYards = travel * closingSpeed;
   return {
     rusher: args.rusher,
     alignment: args.alignment,
     // §7.1's own rep, which is the one origin of the four that a tick produced.
     origin: "WON_REP",
     wonAtTick: args.tick,
-    etaTick: Number((args.tick + travel).toFixed(1)),
+    // DERIVED from the pair below, not the other way around (ADR-066 ruling
+    // 1) — and, this version, provably identical to `tick + travel`.
+    etaTick: Number((args.tick + distanceYards / closingSpeed).toFixed(1)),
     rollRef: args.rollRef,
+    distanceYards,
+    closingSpeed,
   };
 }
 

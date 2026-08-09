@@ -131,6 +131,85 @@ describe("§7.2 travel time", () => {
   });
 });
 
+describe("ADR-066 the decomposition (geometry held; back-derived from the table)", () => {
+  it("every won rep carries distanceYards/closingSpeed, computed off the table and one nominal constant", () => {
+    for (const alignment of RUSH_ALIGNMENTS) {
+      for (const move of MOVES) {
+        const t = threatFromWonRep({
+          tunables: TUNABLES,
+          rusher: buildScenario().state.quarterback,
+          alignment,
+          move,
+          margin: WIN_MARGIN,
+          tick: 1.0,
+          rollRef: "test/rush-rep-decomposition",
+        });
+        const travel = travelSecondsFor(TUNABLES, alignment, move, WIN_MARGIN);
+        expect(t.closingSpeed).toBe(TUNABLES.arrival.nominalClosingSpeedYardsPerSecond);
+        expect(t.distanceYards).toBeCloseTo(travel * TUNABLES.arrival.nominalClosingSpeedYardsPerSecond, 9);
+      }
+    }
+  });
+
+  it("is ALGEBRAICALLY INERT: distanceYards / closingSpeed reduces to travelSecondsFor(...) exactly, for any non-zero constant", () => {
+    // Not just the committed 7.5 — the identity holds for ANY non-zero
+    // constant, because it is multiplication immediately undone by division
+    // by the identical value, not two independent computations.
+    for (const nominal of [1, 3, 7.5, 12, 0.25]) {
+      const patched = applyTunablePatch(TUNABLES, {
+        tunableId: "arrival.nominalClosingSpeedYardsPerSecond",
+        currentValue: TUNABLES.arrival.nominalClosingSpeedYardsPerSecond,
+        proposedValue: nominal,
+        evidence: "unit test — algebraic inertness",
+        expectedEffect: "none: etaTick is unchanged for any non-zero constant",
+      });
+      const t = threatFromWonRep({
+        tunables: patched,
+        rusher: buildScenario().state.quarterback,
+        alignment: "EDGE",
+        move: "SPEED",
+        margin: WIN_MARGIN,
+        tick: 1.5,
+        rollRef: "test/rush-rep-inert",
+      });
+      expect(t.distanceYards! / t.closingSpeed!).toBeCloseTo(
+        travelSecondsFor(TUNABLES, "EDGE", "SPEED", WIN_MARGIN),
+        9,
+      );
+      // The published ETA — after the SAME rounding `travelSecondsFor` itself
+      // applies — is byte-identical to the pre-decomposition value, whatever
+      // the nominal constant is: this is the "provably inert" property.
+      expect(t.etaTick).toBe(1.5 + travelSecondsFor(TUNABLES, "EDGE", "SPEED", WIN_MARGIN));
+    }
+  });
+
+  it("today's etaTick is UNCHANGED from the pre-decomposition value — this is a shape change, not a rate change", () => {
+    const t = threatFromWonRep({
+      tunables: TUNABLES,
+      rusher: buildScenario().state.quarterback,
+      alignment: "INTERIOR",
+      move: "POWER",
+      margin: WIN_MARGIN,
+      tick: 1.5,
+      rollRef: "test/rush-rep-inert-default",
+    });
+    expect(t.etaTick).toBe(1.5 + travelSecondsFor(TUNABLES, "INTERIOR", "POWER", WIN_MARGIN));
+  });
+
+  it("is a pure function of its arguments — no die anywhere in this module (ADR-005)", () => {
+    const args = {
+      tunables: TUNABLES,
+      rusher: buildScenario().state.quarterback,
+      alignment: "EDGE" as const,
+      move: "SPEED" as const,
+      margin: WIN_MARGIN,
+      tick: 2.0,
+      rollRef: "test/rush-rep-repeat",
+    };
+    expect(threatFromWonRep(args)).toEqual(threatFromWonRep(args));
+  });
+});
+
 describe("§7.2 threat lifecycle", () => {
   const threat = (etaTick: number, alignment: "EDGE" | "INTERIOR" = "EDGE"): RushThreat => ({
     rusher: buildScenario().state.quarterback,

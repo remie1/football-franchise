@@ -389,6 +389,7 @@ export function instantiatePass(
     name: concept.name,
     formation: concept.formation.name,
     readSystem: concept.readSystem,
+    dropDepthYards: concept.dropDepthYards,
     routes,
     readOrder,
     protection,

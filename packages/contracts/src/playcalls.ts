@@ -141,6 +141,38 @@ export interface OffensivePlayCall {
   readonly protection: readonly ProtectionAssignment[];
   /** Omitted ⇒ MAN, i.e. exactly what a list of pairings already means (ADR-022). */
   readonly protectionScheme?: ProtectionCall;
+  /**
+   * Where the throw happens — the quarterback's distance behind the line of scrimmage at
+   * the moment of release, in yards (ADR-066 §Petition 2).
+   *
+   * ⛔ THIS CONFLATES TWO THINGS BY CONSTRUCTION, and the number cannot be decomposed back
+   * into them: where the FORMATION puts him, and how far the DROP takes him. Shotgun is
+   * ~5.0 with the drop adding little; under centre starts at 0 and the whole value comes
+   * from the drop. A seven-step from under centre and a shotgun play that drifts back both
+   * author ~8.0, and nothing here distinguishes them.
+   *
+   * REQUIRED, deliberately. A card that omits it is a compile error rather than a runtime
+   * state, so there is NO missing-value fallback and none may be built — a branch handling
+   * a condition the type system forbids can never run.
+   *
+   * ON THE CARD AND NOT THE FORMATION. At formation level this takes exactly two values
+   * across the whole corpus, so a shotgun screen and a shotgun seven-step would be
+   * identical at the point the travel model measures. Card level makes them identical only
+   * until somebody authors the difference. Initial values are still read off the formation
+   * — SHOTGUN 5.0, UNDER_CENTER 7.0 — and 7.0 rather than 8.0 because that class covers
+   * three-, five- and seven-step drops and a corpus that cannot distinguish them must not
+   * author the deepest.
+   *
+   * ⚠ THE LIMIT THIS CANNOT EXPRESS: a moving launch point. A quarterback travelling
+   * backward during his drop changes the distance mid-flight. That needs a QB position that
+   * VARIES WITH TICK — the geometry could consume it, and nothing publishes it. Named here
+   * rather than left to be discovered when someone asks why the drop does not matter.
+   *
+   * NOT on `RunPlayCall`: a run play has no launch point in the sense the model uses, and
+   * adding it there would author a value nothing reads. A mesh point for run fits would be
+   * a different field with a different football meaning, petitioned then.
+   */
+  readonly dropDepthYards: number;
 }
 
 // --- the run call -----------------------------------------------------------

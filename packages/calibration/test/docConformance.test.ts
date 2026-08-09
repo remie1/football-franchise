@@ -160,8 +160,23 @@ import {
  * computed by hand — the delta is EXACTLY the six new cells: `classifiedNarrow` (231) and `absorbed`
  * (207, digest `fnv1a:dbc6b0bf`) are BOTH UNCHANGED, and every `blockRuleAbsorptionPins()` line below
  * is unchanged except `arrival.*` itself (16 → 22 cells). Nothing else moved.
+ *
+ * **723 → 724 at ADR-066 (the decomposition half — `distanceYards`/`closingSpeed`, geometry deferred).**
+ * One new leaf, `arrival.nominalClosingSpeedYardsPerSecond`. DERIVED FROM A RUN
+ * (`npx vitest run test/docConformance.test.ts` inside `packages/calibration`, this dispatch), not
+ * `723 + 1` by hand: running against the register AS IT STOOD before this dispatch's classification
+ * edit (i.e. before the new leaf had its own rule) showed the cell falling through to `arrival.*`'s
+ * `UNIFORM` catch-all — `classifiedUniform` read `286` (not the `285` pinned below) and this census
+ * read `724` with path digest `fnv1a:c366ce2f`, with every OTHER number in this file unchanged. Named
+ * individually rather than left there (`ADR_066_ADDED_PATH` below; see that cell's own rule in
+ * `REGISTER` for why, even though it lands on the same `INTERPRETATION` value the catch-all would
+ * have assigned by default) — pulling it out moves `classifiedNarrow` (231 → 232) instead of
+ * `classifiedUniform`, and leaves `arrival.*`'s own absorption pin (22 cells) untouched, both
+ * confirmed by re-running after the classification edit landed. The path census (724) and digest
+ * (`fnv1a:c366ce2f`) are pure functions of the leaf SET and are identical either way — classification
+ * only decides which OTHER pin absorbs the delta, never these two.
  */
-const RECORDED_NUMERIC_CENSUS = 723;
+const RECORDED_NUMERIC_CENSUS = 724;
 
 /**
  * The same subject as a SET rather than a size. Re-cut at ADR-040 (`d20Offset` → `baseHalfWidth`),
@@ -172,8 +187,12 @@ const RECORDED_NUMERIC_CENSUS = 723;
  * leaves, +6 — see `RECORDED_NUMERIC_CENSUS`'s own history comment above for the full accounting).
  * When this reddens and the count does not, a cell was SWAPPED: diff `numericLeafPaths()` against
  * `git diff packages/engine/src/tunables.ts` and re-read the affected rule against the doc.
+ *
+ * **`fnv1a:2d201f1c` → `fnv1a:c366ce2f` at ADR-066** — `arrival.nominalClosingSpeedYardsPerSecond`
+ * joining the path set. READ off a run (see `RECORDED_NUMERIC_CENSUS`'s history comment for the
+ * command and dispatch), not re-derived by any hash arithmetic.
  */
-const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:2d201f1c";
+const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:c366ce2f";
 
 /**
  * ⚠ **THE RE-RECORD, AS A SET AND NOT AS A COUNT** — §4.1's count-blindness corollary applied to the
@@ -230,6 +249,17 @@ const ENTRY_111_RECLASSIFIED_PATHS: readonly string[] = [
   "arrival.collapsingWithinSeconds",
 ];
 
+/**
+ * ADR-066's single new leaf — the structural half of the distance/closing-speed decomposition,
+ * named the same way every prior addition to this file is: a `+1` next to a re-typed digest would be
+ * a transcription; a named path with a rule written about it is a reading. See
+ * `docs/decisions/ADR-066*.md`, `packages/engine/src/tunables.ts`'s own comment on the field, and
+ * this cell's rule in `REGISTER` for the classification argument (it lands on `INTERPRETATION` — the
+ * same value its catch-all would have assigned by default — but for a cell-specific reason the
+ * catch-all's note does not itself state, per that rule's own comment).
+ */
+const ADR_066_ADDED_PATH = "arrival.nominalClosingSpeedYardsPerSecond";
+
 describe("doc-conformance register", () => {
   it("accounts for every numeric leaf — and no longer calls a PREFIX MATCH a classification", () => {
     // ⛔ OWNER RULING, July 2026: "a prefix rule is a classification that cannot be wrong, which
@@ -268,10 +298,20 @@ describe("doc-conformance register", () => {
     // exactly the ADR-048 defect recurring a third time (see `scramble.accuracyModifier`'s rule
     // comment). This population moving INSTEAD of that one is the evidence the fix pulled the two
     // cells OUT of the catch-all rather than merely re-counting them inside it.
-    // 230 → 232 at CALIBRATION-BACKLOG entry 111: two more narrow rules added, for
+    // 230 → 231 at CALIBRATION-BACKLOG entry 111: two more narrow rules added, for
     // `arrival.immediateWithinSeconds` / `arrival.collapsingWithinSeconds`, named ABOVE the
     // `arrival.*` catch-all for the identical reason as the two pairs above.
-    expect(audit.classifiedNarrow).toBe(231);
+    // 231 → 231 at CALIBRATION-BACKLOG entry 155: unchanged (see `classifiedUniform` below — the six
+    // new leaves land there, not here).
+    // 231 → 232 at ADR-066: one narrow rule added for `arrival.nominalClosingSpeedYardsPerSecond`
+    // (`ADR_066_ADDED_PATH`), named ABOVE the `arrival.*` catch-all for the same reason as every
+    // entry above, even though it lands on the SAME `INTERPRETATION` value the catch-all would have
+    // assigned by default — see that rule's own comment for why a matching value is not a reason to
+    // skip the reading. DERIVED FROM A RUN (`npx vitest run test/docConformance.test.ts`), not
+    // `231 + 1` by hand: re-running after the classification edit landed showed exactly this one
+    // number move, with `classifiedUniform` (next assertion) confirmed unchanged. `classifiedUniform`
+    // below is UNCHANGED by this cell for exactly that reason.
+    expect(audit.classifiedNarrow).toBe(232);
     // 281 → 279 at CALIBRATION-BACKLOG entry 111 — UNLIKE the two entries above, this one DOES move,
     // because the two cells pulled out this time were previously inside `arrival.*`'s UNIFORM
     // population rather than its absorbing one. A count that did NOT move here would mean the pair
@@ -473,6 +513,33 @@ describe("doc-conformance register", () => {
     }
     // And the catch-all they were pulled out of still owns exactly what it owned before, minus these
     // two — the absorption pin below (18 → 16) is the structural proof of that, not this line.
+    const uniformArrival = UNIFORM_REGIONS.find((r) => r.pattern === "arrival.*");
+    expect(uniformArrival).toBeDefined();
+  });
+
+  it("names ADR-066's new leaf individually, even though its classification matches the catch-all", () => {
+    // ⛔ A DIFFERENT SHAPE FROM every prior addition to this file: entries 73/84-85/111 were pulled
+    // out because the catch-all's provenance value was WRONG for them. This one is pulled out even
+    // though the catch-all's value (`INTERPRETATION`) is RIGHT for it — see `ADR_066_ADDED_PATH`'s
+    // own rule comment for why a matching value is not a reason to skip the reading.
+    const paths = new Set(numericLeafPaths());
+    expect(paths.has(ADR_066_ADDED_PATH)).toBe(true);
+    const rule = classify(ADR_066_ADDED_PATH);
+    expect(rule?.pattern).toBe(ADR_066_ADDED_PATH);
+    expect(rule?.pattern).not.toBe("arrival.*");
+    expect(rule?.provenance).toBe("INTERPRETATION");
+    // The note must actually say what makes this cell different from an ordinary `arrival.*` member
+    // — the anchor, and the underived quantity it scales — not merely restate the catch-all's note.
+    expect(rule?.note).toContain("ANCHORED");
+    expect(rule?.note).toContain("travelSecondsByAlignmentAndMove");
+    // Not `RULED_NOT_DERIVED` (magnitude here is not CARRIED from another committed cell) and not
+    // `DERIVED_MECHANIC` (magnitude here is not an arithmetic consequence of two IN-TREE anchors) —
+    // asserted directly rather than only in prose, so a future edit that reclassifies this cell into
+    // either without updating this test is caught.
+    expect(rule?.provenance).not.toBe("RULED_NOT_DERIVED");
+    expect(rule?.provenance).not.toBe("DERIVED_MECHANIC");
+    // And the catch-all it was pulled out of still owns exactly what it owned before this cell
+    // existed (22 cells, unchanged) — the absorption pin below is the structural proof, not this line.
     const uniformArrival = UNIFORM_REGIONS.find((r) => r.pattern === "arrival.*");
     expect(uniformArrival).toBeDefined();
   });

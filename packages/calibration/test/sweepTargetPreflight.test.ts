@@ -973,6 +973,38 @@ const EXCLUDED_TARGETS: readonly ExcludedTarget[] = [
       "playbook/src/roles.ts DEFENSE_ROLE_POSITION and tunables.ts onLinePositions/deepPositions/" +
       "defaultDepthClass",
   },
+
+  // ---------------------------------------------------------------------------
+  // ADR-066 — `arrival.nominalClosingSpeedYardsPerSecond` (the decomposition half; geometry deferred).
+  // ---------------------------------------------------------------------------
+  {
+    paths: ["arrival.nominalClosingSpeedYardsPerSecond"],
+    reason:
+      "ALGEBRAICALLY INERT BY CONSTRUCTION, for EVERY non-zero value — not merely unswept, and a " +
+      "stronger claim than the STATED-GAP entries above. `resolve/rushThreat.ts`'s `threatFromWonRep` " +
+      "computes `distanceYards = travel * closingSpeed` and publishes " +
+      "`etaTick = tick + distanceYards / closingSpeed`, which is `tick + (travel * closingSpeed) / " +
+      "closingSpeed` — multiplication immediately undone by division by the SAME value, reducing to " +
+      "`tick + travel` for any non-zero `closingSpeed`, before any resolver downstream ever reads " +
+      "`distanceYards`/`closingSpeed` for anything else. A patch that moves this cell to any nonzero " +
+      "value is therefore GUARANTEED to reproduce the base run's stream digest exactly, by " +
+      "construction — the same certainty a no-op (`currentValue === proposedValue`) patch carries " +
+      "(the `KNOWN_INVERSIONS`/`SCALE_AUDIT_FINDINGS` entries above), generalised from ONE value to " +
+      "EVERY value rather than resting on an accident of the currently-committed number. Proved three " +
+      "ways, none of them a corpus pass this file would need to spend: ALGEBRAICALLY (above); by an " +
+      "engine unit test sweeping five nominal constants (`packages/engine/test/rushThreat.test.ts`, " +
+      "\"is ALGEBRAICALLY INERT: distanceYards / closingSpeed reduces to travelSecondsFor(...) " +
+      "exactly, for any non-zero constant\", constants `[1, 3, 7.5, 12, 0.25]`); and EMPIRICALLY — " +
+      "`blockedDepthOffsetAgreement.test.ts` (this package, ungated, default suite) stays " +
+      "byte-identical on a real corpus under this leaf unchanged, independently confirming `etaTick` " +
+      "did not move. A live probe here would be a null with no power by construction, exactly the " +
+      "shape ADR-063 exists to keep out of `ALL_TARGETS` — registering it ACTIVE would spend a corpus " +
+      "pass to re-prove what is already proved for free.",
+    source:
+      "packages/engine/src/resolve/rushThreat.ts threatFromWonRep (etaTick derivation) + tunables.ts's " +
+      "own comment on the field; packages/engine/test/rushThreat.test.ts (5-constant sweep); " +
+      "blockedDepthOffsetAgreement.test.ts (empirical mirror, this package)",
+  },
 ];
 
 /** Every path any EXCLUDED entry names, flattened — for the coverage-accounting test below. */

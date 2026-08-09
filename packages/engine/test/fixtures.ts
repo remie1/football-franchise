@@ -199,6 +199,13 @@ export function buildScenario(overrides: Partial<MatchGameState> = {}): Scenario
       kind: "PASS",
       name: "Y Cross",
       formation: "Shotgun Trips Right",
+      // ADR-066 — REQUIRED on `OffensivePlayCall`. Not yet read by anything in
+      // this package (§7.2's decomposition, landed so far, computes off the
+      // table and one nominal constant, not off this field) — see
+      // `src/game/playbook.ts`'s `FIXTURE_DROP_DEPTH_YARDS` for the identical
+      // reasoning (arbitrary, modal-shotgun value; this file's own cards are
+      // fixture-grade, not a football claim about this specific play).
+      dropDepthYards: 5.0,
       readSystem: "HALF_FIELD",
       routes: [
         { receiver: wr1.bio.id, routeName: "Go", depthClass: "DEEP", airYards: 24 },
