@@ -189,3 +189,60 @@ reads the movement as a defect.**
 **Different TARGET METRICS, not merely different magnitudes.** ⛔ **A joint arm would credit an
 interception effect to a pressure change** — ⚠ **the template's worked example in its harder form,
 where the two halves differ in KIND.**
+
+---
+
+# ⇒ SCOPE — **A and B**, brought for the lift
+
+## ⛔ A — the shown/played pair, **inert BY IDENTITY, not by coincidence**
+
+**Shape:** `DefensivePlayCall` gains **`shownAssignments: readonly CoverageAssignment[]`**, parallel to
+the existing `assignments`.
+
+**Producer, landing in the same commit per ADR-004:** `instantiateDefense`
+*(`playbook/instantiate.ts:215-302`)* builds **BOTH from the same `dutyList(card)` in the same pass.**
+
+> ## ⛔ **THE INERTNESS IS NOT "THE VALUES HAPPEN TO MATCH." IT IS "BOTH ARE BUILT FROM ONE SOURCE IN ONE PASS."** ✅ **Same construction that made ADR-062 compiler-enforced rather than coincidental — an identity, not an agreement that could drift.**
+
+⚠ **Per-ASSIGNMENT rather than a whole second call**, deliberately: a safety showing two-high and
+playing one-high is **one assignment differing**, not a different defence. ⛔ **A full second call
+would double the authoring burden to express a single-defender change.**
+
+**Falsifier:** ⛔ **`pnpm verify` green with ZERO test changes**, plus a test asserting
+`shownAssignments` deep-equals `assignments` for every shipped card. ✅ **When E lands, that test does
+not get deleted — it becomes the test that proves each divergence is DELIBERATE.**
+
+## ⛔ B — the vocabulary, **designed for E's scoreability rather than A's output**
+
+**Shape:** `PLAY_START`'s `defense` payload carries **the SHOWN state alongside the played one.**
+
+**Three decisions, each with its reason:**
+
+1. ⛔ **NOT A NEW EVENT.** ⚠ **Nothing precedes `PLAY_START` and that is a property worth keeping**
+   *(entry 165)*. **Both states in one payload also puts the comparison in one place.**
+2. ⛔ **NOT A `wasDisguised` FLAG.** ⚠ **That is a DECLARATION, and this project's own record says
+   deriving beats declaring** — `attributeUsage.ts` exists because a hypothesis string claimed three
+   successive wrong things *(entry 116)*. ✅ **A consumer computes divergence by DIFFING the two
+   lists. Nothing can declare itself honest.**
+3. ⛔ **PER-ASSIGNMENT, NOT PER-PLAY.** ⚠ **E's scoreability requires attributing a specific throw to
+   a specific receiver's divergent coverage** — **not merely to a play on which something diverged.**
+   ⛔ **A per-play flag cannot answer *"was THIS throw made against a look that lied?"***
+
+> ## ✅ **B'S INERTNESS IS EMPIRICALLY CHECKABLE, NOT CLAIMED: with `shown === played`, THE DIFF IS EMPTY ON EVERY PLAY OF THE CANONICAL CORPUS.** ⛔ **A run, not an assertion.**
+
+## ⚠ AND WHAT B BUYS THAT OUTLIVES THE PHASE
+
+⛔ **It makes a previously UNCOMPUTABLE quantity computable:** *which throws were made against a look
+that differed from what was played.* ⚠ **Today that question has no answer in the stream because the
+stream has no shown state to compare against.**
+
+✅ **If E moves `int_rate`, the movement is attributable per-throw rather than in aggregate** — **and
+per entry 143's confound, this subsystem has already paid for a measurement whose attribution was
+entangled.**
+
+## ⇒ C — deferred, and the reason is sequencing rather than difficulty
+
+**`runFit`'s consumption is the one place the phase touches an EXISTING declaration.** ⚠ **It is
+cleaner once the pair exists**, because a shown starting position and a played one are the thing
+`runFit` would feed. ⛔ **Landing it first would wire a gap+side into a model with no second state to
+distinguish it from.**
