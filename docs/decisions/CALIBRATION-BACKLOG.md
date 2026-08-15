@@ -12496,3 +12496,72 @@ because the correction pass will vouch for them by omission.**
 ✅ **DISTINCT FROM ENTRY 157.** ⛔ **That one says a defect in a NAME cannot be fixed from inside the
 artifact.** ⚠ **This one says a CORRECTION PASS creates false confidence in whatever it does not
 touch — a property of the FIX, not of the defect.**
+
+---
+
+## 165. ⛔⛔ **THERE IS ONE TRUTH, NOT A SHOWN-VS-PLAYED PAIR** — the pre-snap read, and the mechanism behind entry 163's gap
+
+**Read-only, no design.** ⚠ **The seam the pre-snap phase would occupy ALREADY EXISTS. What does not
+exist is the thing disguise requires.**
+
+### ✅ 1. THE SEAM IS REAL AND ALREADY DRAWS DICE
+
+**`resolvePreSnap` *(`sim/preSnap.ts:163`)* is called at `passPlay.ts:325` — BEFORE `log.playStart`
+*(`:395`)* and before `tick = clock.firstTick` *(`:417`)*.** ⛔ **It is not a gap; it is a built,
+RNG-consuming, single-shot stage:** blitz recognition, pickup contests, stunt communication.
+
+✅ **NO EVENT PRECEDES `PLAY_START`** — verified: `setTick` does not `push`, and nothing before
+`playStart` holds a `log` reference. ⚠ **And `PLAY_START` already publishes the pre-snap phase's
+OUTPUT rather than the raw card** — post-hot-conversion routes, post-recognition read order, the
+*resolved* rush.
+
+⛔ **`simulateRunPlay` has NO equivalent stage.**
+
+### ✅ 2. NO COORDINATES — re-derived, not inherited
+
+**Every grep hit was a false positive** *(`chemistry:`, `index:`, `progressionIndex:` — substrings
+ending in `x:`/`y:`)*. **The field model is `FieldZone`: a 5×5 categorical grid**, and its own comment
+reads: ⛔ ***"no yard lines, no motion; a player occupies one cell for the whole play."***
+
+### ⛔⛔ 3. THE FINDING — **the card and the truth are the same object by construction**
+
+> ## ⛔ **THERE IS NO SHOWN-VS-PLAYED PAIR ANYWHERE IN THE ENGINE.** ⚠ **The defensive card states duties; the duties ARE what happens. `resolvePreSnap` reads `defense.rush` as a FIXED input and never re-derives it.**
+
+**`blitzDisguise`** *(`preSnap.ts:180`, a scalar with a `?? "STANDARD"` default)* **feeds
+`resolveBlitzRecognition`.** ⛔ **It modulates THE PROBABILITY THE OFFENCE PERCEIVES an
+already-fixed rush.** ⚠ **It does not create a second, different defensive state that later resolves
+to something else.**
+
+**⇒ The engine models DEGRADED PERCEPTION OF A FIXED TRUTH. Football disguise is A TRUTH THAT DIFFERS
+FROM ITS APPEARANCE. Those are different mechanics.**
+
+### ⛔ 4. AND THAT EXPLAINS ENTRY 163's NUMBERS MECHANISTICALLY
+
+**Entry 163: disguise moves completion barely *(65.3% vs 64.2%)* and TD:INT enormously *(~1:1 vs
+~2.25:1)*.** ⚠ **Until now that was a measured fact with no explanation in this tree.**
+
+| mechanic | what it produces |
+|---|---|
+| ⛔ **the engine's**: fail to perceive a fixed rush ⇒ no hot conversion ⇒ unblocked rusher | **SACKS. PRESSURE.** |
+| ⛔ **football's**: a coverage that is not what it appeared ⇒ QB throws to a man he believes is open | ⛔ **INTERCEPTIONS** |
+
+> ## ✅ **THE ENGINE HAS THE FIRST AND NOT THE SECOND — WHICH IS EXACTLY WHY ITS DISGUISE CANNOT MOVE `int_rate`.** ⚠ **A perception failure has nothing to be WRONG about; you either see the rush or you do not. Being DECEIVED requires two states.**
+
+### ✅ 5. THE NULL, ADJUDICATED — nothing is card-declared conditional on what the other side shows
+
+| candidate | verdict |
+|---|---|
+| `ifAbsent` on a `MAN` duty *(~30 uses)* | ⛔ **conditional on PERSONNEL PRESENCE** — resolved from `SKILL_ROLES[formation.personnel]`, never from the opposing call |
+| `blitzDisguise` | ⛔ **a STATIC label**, one value per card, no branching. Consumed conditionally by the engine; not a conditional declaration |
+| a route's `hot` alternate | ⚠ **CLOSEST — and still not it.** The card states a PAIR OF OPTIONS unconditionally; the ENGINE picks post-roll |
+
+✅ **Nothing else branches on the opposing card. The null is the finding.**
+
+### 📒 6. AND A FIXTURE/CORPUS DIVERGENCE FOUND IN PASSING
+
+⛔ **`game/simulateGame.ts:552-576` orders OFFENSE-THEN-DEFENSE** *(`against: offenseCall`)*. ⛔ **The
+operative corpus orders DEFENCE-FIRST** *(`playbook/instantiate.ts:619-625`, because protection
+cannot pair until the rush is known)*.
+
+⚠ **Opposite orderings. `unruled`** — **and it is the fixture harness diverging from the corpus, not a
+second real ordering.**
