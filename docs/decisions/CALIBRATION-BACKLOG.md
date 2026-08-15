@@ -12565,3 +12565,72 @@ cannot pair until the rush is known)*.
 
 ⚠ **Opposite orderings. `unruled`** — **and it is the fixture harness diverging from the corpus, not a
 second real ordering.**
+
+---
+
+## 166. ⛔⛔ TWO OF THREE "INERT" CLAIMS ARE **FALSE, AND BOTH FAIL TOWARD LIVE** — derived before the ADR, not after
+
+**Three properties were to become falsifiers in a ratified pre-snap ADR.** ⛔ **Derived first, because a
+falsifier that is false when written cannot discriminate — it fires immediately or is quietly amended.**
+
+| claim | verdict |
+|---|---|
+| `runFit` never read | ✅ **TRUE.** Authored across `defensiveCards.ts`, touched only by `defense.ts`'s mirroring helpers, ⛔ **zero references in `packages/engine`** |
+| `blitzDisguise` never read | ⛔ **FALSE — LIVE** |
+| PRESS/OFF only picks a modifier | ⛔ **FALSE — IT IS A BRANCH** |
+
+### ⛔ 1. `blitzDisguise` — live, and it exposes a THIRD STATE
+
+**`blitz.ts:64`:** `const target = t.target + t.disguise[args.disguise];`
+**`tunables.ts`:** `target: 50`, `disguise: { STANDARD: 0, ZONE_BLITZ: 15, DELAYED: 20, ZERO: 25 }` — §5.3 verbatim.
+
+| value | recognition target |
+|---|---|
+| ⚠ **`STANDARD`** *(and absent — `?? "STANDARD"`)* | **50** — ⛔ **EXACTLY IDENTITY** |
+| `ZONE_BLITZ` | 65 |
+| `DELAYED` | 70 |
+| `ZERO` | 75 |
+
+> ## ⛔ **READ EVERY TIME. NUMERICALLY INERT FOR THE DEFAULT AND MAJORITY VALUE. LIVE, BY 15–25 POINTS, FOR THE MINORITY.**
+
+⚠ **Neither "read" nor "unread" describes this.** ✅ **Both rows are exercised in shipped cards**
+*(`playbook.ts:504` `STANDARD`, `:534` `ZONE_BLITZ` with a comment naming the +15)*.
+
+### ⛔ 2. AND THE STANDING CONCERN ABOUT THAT ROLL IS **FALSE**
+
+**Asserted: *"recognition operates on rushers protection has already accounted for, so a failed roll cannot fail informatively."***
+
+⛔ **NOT TRUE.** **A rusher protection DID name returns at `preSnap.ts:283` — `{ ...common, blocker }` — and NEVER ENTERS A PICKUP CONTEST.** ✅ **The roll's pickup consequence is confined EXACTLY to the unaccounted population that caused it to fire** *(`unaccounted.length > 0`, `:259`)*.
+
+⚠ **Its one reach beyond that population is hot-route conversion — receiver-side by design (§5.3), not a rusher already handled.**
+
+### ⛔⛔ 3. PRESS/OFF IS A BRANCH — four rolls deep
+
+**`passPlay.ts:732`:** `if (tick === firstTick && track.pressed && presser !== undefined)` ⇒ `resolveReleaseVsPress`.
+
+⛔ **`OFF` NEVER REACHES IT.** **Not run with a neutral modifier — SKIPPED.**
+
+**What `PRESS` gets that `OFF` structurally cannot:**
+- ⛔ **Its own opposed roll** with its own actors — `releaseWR`+`agility` vs `press`+`strength`+`Trait: Press Specialist (+15)` — and its own **7-row band table**.
+- ⛔ **A timing effect**: `jamDelaySeconds` → recomputes `readySeconds`.
+- ⛔ **A route phase `OFF` CAN NEVER PRODUCE**: `JAMMED` *(`route.ts:109`, gated on `jamDelaySeconds > 0`, which stays `0` for every unpressed track)*.
+- ⛔ **A CARRY-OVER INTO A FOURTH ROLL**: `releaseReceiverMod`/`releaseDefenderMod` enter `resolveManCoverage` as named flat modifiers.
+
+✅ **A modifier and a branch are different kinds of live. This is a branch.**
+
+### 📒 4. WHY THIS CHANGES THE DESIGN'S STARTING POINT
+
+> ## ⛔ **THE PRE-SNAP VOCABULARY ALREADY DOES THINGS. ONE OF THREE SUSPECTED DEAD FIELDS IS ACTUALLY DEAD.**
+
+⚠ **A phase specified against "inert declarations waiting to be wired" would have been specified
+against a tree that does not exist.** ✅ **`blitzDisguise` shifts a real target; PRESS gates a real
+sub-roll with its own attributes and its own timing.**
+
+⛔ **AND THE FALSIFIER DISCIPLINE IS WHAT CAUGHT IT — before a line was written.** ⚠ **Had the three
+gone into the ADR as stated, two would have fired on the first run and been amended into agreement
+with whatever the code did, which is the failure mode a falsifier exists to prevent.**
+
+### ⚠ 5. ONE GENUINELY DEAD THING, FOUND IN PASSING
+
+**`disrupted`, from the release outcome, is computed and never read outside its own check emission.**
+⛔ **Dead for gameplay. `unruled`.**
