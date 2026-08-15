@@ -584,3 +584,77 @@ now REQUIRED, and that changes what can happen at runtime.**
 
 ✅ **The rows are AMENDED WITH THE REASON rather than deleted**, ⛔ **because a deleted row reads as an
 oversight and an amended one records that the condition was considered and eliminated.**
+
+---
+
+# ⛔⛔ HALTED — **THE GEOMETRY CONSUMES ALIGNMENT AS THOUGH IT WERE SNAP POSITION**
+
+**Owner ruling, August 2026. ⛔ THE GEOMETRY IS STOPPED. ✅ The decomposition is LANDED and STANDS.**
+
+## ⛔ THE INVALIDATING FINDING, stated first
+
+> ## ⛔ **`gap`, `side`, and a rusher's depth class describe WHERE A DEFENDER LINES UP. THE MODEL NEEDS WHERE HE IS AT THE SNAP. THOSE ARE DIFFERENT FACTS, AND THE DIFFERENCE IS NOT NOISE — IT IS A MECHANIC.**
+
+⚠ **A gap→lateral-offset mapping computes a distance from a position the defender does not occupy
+when the ball is snapped.**
+
+## ⚠ THE RESEARCH — **PROVENANCE: OWNER, EXTERNAL. Not verifiable from this tree.**
+
+⛔ **Marked as such deliberately.** ⚠ **These are football facts from outside the repo; no dispatch
+derived them and none could.** ✅ **Recorded with that standing rather than laundered into
+`COMPUTED`.**
+
+1. ⛔ **ALIGNMENT IS NOT A CARD CONSTANT.** DL technique is `0–9` with inside shades. **LB depth runs
+   4–7 yards AND IS ITSELF THE PRIMARY TELL.** DB alignment is press *(1–2 yards)* or off *(5–8)*,
+   **with leverage that flips based on where the help is.**
+2. ⛔ **DEFENDERS MOVE PRE-SNAP, AND THE MOVEMENT IS THE POINT.** Creeping, mugging the A-gaps, safety
+   spin-down from two-high to one-high, press-bail. ⚠ **A SAFETY BLITZ ALMOST NEVER COMES FROM A
+   SAFETY'S ALIGNED DEPTH — he has crept forward.** **Disguise: 32.2% of pass plays league-wide in
+   2025, up from 26.8% in 2022.**
+3. ⛔ **THE PAYOFF OF DISGUISE IS TURNOVERS, NOT COMPLETIONS.** Against disguised coverage **65.3%
+   completion, ~1:1 TD:INT**; against static **64.2%, ~2.25:1**. ⚠ **Completion percentage barely
+   moves.** ✅ **THIS PROJECT HAS NO REPRESENTATION OF THAT MECHANIC AT ALL.**
+
+## ✅ WHAT SURVIVES, AND WHY NOTHING IS UNWOUND
+
+⛔ **DO NOT UNWIND P1 OR P2. Both are still correct as authored.** ✅ **A card SHOULD say which gap a
+rusher is assigned and where the quarterback's launch point is.**
+
+> ## ⚠ **WHAT CHANGES IS THEIR ROLE: they are the STARTING STATE OF A PHASE, not the state at the snap.** ⛔ **Inputs to alignment, not the positions a geometry consumes.**
+
+✅ **And the DECOMPOSITION stands unconditionally** — `distanceYards`/`closingSpeed` on the threat with
+`etaTick` derived. ⚠ **It is the right seam REGARDLESS of where the numbers come from.**
+
+## 📒 THE NARROWING IS WHY THIS IS CHEAP
+
+⛔ **Two days ago this ADR was ruled into two changes — the decomposition first, provably inert; the
+geometry second, separately measured — so that a moved number would have ONE candidate cause rather
+than two.**
+
+> ## ✅ **THE INVALIDATED HALF NEVER SHIPPED.** ⚠ **Had they landed together, this ruling would now be unwinding a BEHAVIOURAL change out of four packages instead of amending a document.**
+
+**The stated reason at the time was measurement attribution. The realised benefit was something
+else entirely.**
+
+## ⇒ THE SEQUENCE NOW
+
+1. ✅ **Decomposition — LANDED, inert, verified three ways.** ⛔ **Nothing further.**
+2. ⛔ **THE PRE-SNAP PHASE IS THE MAJOR DESIGN WORK, and it is larger than anything filed so far.**
+   ⚠ **SNAP POSITION IS AN OUTPUT OF THAT PHASE.**
+3. ⚠ **Geometry consumes snap position WHEN THERE IS ONE.** **Not before.**
+
+## ⛔ THE STATED LIMIT — recorded now, before anything builds on it
+
+> ## ⛔ **THE GEOMETRY AS SPECIFIED IN THIS DOCUMENT CONSUMES ALIGNMENT AS THOUGH IT WERE SNAP POSITION. ANY DISTANCE IT COMPUTES FOR A DEFENDER WHO MOVED PRE-SNAP IS A DISTANCE FROM SOMEWHERE HE ISN'T.**
+
+⚠ **Recorded HERE rather than after somebody computes a travel time from a safety's aligned depth on
+a blitz** — ⛔ **which is the case the research says is not an edge case but the DESIGNED one.**
+
+### ⚠ AND ONE CONSEQUENCE IN CODE, not just here
+
+**`RushThreat.distanceYards`'s comment states its subject condition as *"it becomes a real distance
+when the geometry lands … off `gap`/`side`/`dropDepthYards`/rusher depth."*** ⛔ **THAT IS NOW FALSE:
+those are the alignment inputs this ruling invalidates.**
+
+✅ **The subject condition is now A SNAP POSITION, not a geometry.** **`unruled`: whether the comment
+is corrected in place or the field's placeholder status is restated against the new sequence.**
