@@ -129,3 +129,63 @@ mechanisms having DIFFERENT TARGET METRICS rather than merely different sizes.**
 1. ⛔ **Shape (a) or (b) for the relocation** — playbook produces both states, or protection pairing moves into the engine?
 2. ⛔ **Does the first build target D or E?** ⚠ **E is the one with the anchor behind it; D is the one whose mechanism already half-exists.**
 3. ⚠ **Is a "shown" state a full defensive call, or a projection of one?** ⛔ **A full second call doubles the authoring burden; a projection needs rules for what is concealable.**
+
+---
+
+# ✅ RULED — **E FIRST.** *(owner, August 2026)*
+
+## ⛔ THE ORDERING, AND ITS REASONING
+
+⛔ **A, B, C first as inert scaffolding. THEN E ALONE. THEN D.**
+
+**Owner's reasoning, and it turns on SCOREABILITY rather than importance:**
+
+> ⛔ ***"D's success condition is 'protection now fails when it should,' and we have no metric that
+> scores that. Sack rate is 16.5% against a real 6.6%; a change that makes protection worse moves it
+> the wrong way. D would be RIGHT AND UNSCOREABLE — exactly the position ADR-064 ended in."***
+
+✅ **E has the anchor: `int_rate` is instrumented, has a real baseline, and the mechanism is absent.**
+⚠ **It is the only item in this project's history where THE MECHANISM IS MISSING AND THE MEASUREMENT
+ALREADY EXISTS.**
+
+## ⛔ A CORRECTION THAT STRENGTHENS THE RULING — **`int_rate` is FAILING, not passing**
+
+**The ruling described `int_rate` as *"currently passing."* ⛔ IT IS NOT.**
+
+**`tier1.ts`'s own `knownDivergences` records the flip:**
+
+| | |
+|---|---|
+| **real** | **2.28%** |
+| **sim** | ⛔ **1.92%** *(was 2.04%)* |
+| **relative deviation** | ⛔ **−15.47%**, against a **±15%** band |
+| **verdict** | ⛔ **FAIL (known)** |
+
+⚠ **Cause is documented and understood: backlog 94's denominator fix. The NUMERATOR never changed —
+throwaways, never intercepted, began counting as attempts.**
+
+> ## ✅ **SO THE SIM UNDER-PRODUCES INTERCEPTIONS, AND E PUSHES IN THE CORRECTING DIRECTION.**
+
+⛔ **THIS INVERTS THE RISK THE RULING WAS RESERVING AGAINST.** ⚠ **Had `int_rate` been PASSING, a
+mechanic that raises interceptions would risk pushing a green metric out of band.** ✅ **Failing LOW,
+by a known and explained margin, it is the correction rather than the hazard.**
+
+**⇒ E is better-targeted than the ruling claimed: an instrumented metric, a real baseline, a KNOWN
+failing direction, and a mechanic that moves toward real.**
+
+## ⛔ D's ADR MUST SAY THIS UP FRONT
+
+**When D lands, its ADR states BEFORE ANY FIGURE:**
+
+> ⛔ **THIS WILL MOVE `sack_rate` IN THE WRONG DIRECTION, AND THAT IS CORRECT.** ⚠ **A protection
+> that fails when deceived is right even when the metric it touches is already overshooting**
+> *(16.5% sim against 6.6% real)*. ⛔ **Read as a regression, it is not one.**
+
+⚠ **Recorded here, now, so the sentence exists before the measurement rather than after somebody
+reads the movement as a defect.**
+
+## ⛔ AND D AND E STILL MUST NOT LAND TOGETHER
+
+**Different TARGET METRICS, not merely different magnitudes.** ⛔ **A joint arm would credit an
+interception effect to a pressure change** — ⚠ **the template's worked example in its harder form,
+where the two halves differ in KIND.**
