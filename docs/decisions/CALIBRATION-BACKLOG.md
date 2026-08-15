@@ -12452,3 +12452,47 @@ for a KNOWN, DIRECTIONAL mis-estimate.**
 
 ⛔ **Recorded now rather than reconstructed the next time a two-change ruling looks like ceremony** —
 ⚠ **which is exactly when it will be needed and exactly when nobody will have this argument to hand.**
+
+---
+
+## 164. ⛔ CORRECTING THE FLAGGED INSTANCE **MANUFACTURES CREDIBILITY** FOR THE UNFLAGGED ONE — and the test that finds both
+
+**From ADR-066's halt.** `RushThreat.distanceYards` and `closingSpeed` sit in **ADJACENT PARAGRAPHS**
+of one doc comment. ⛔ **Each carried a forward claim naming the halted geometry. ONLY ONE WAS IN THE
+BRIEF.**
+
+### ⛔ 1. THE MECHANISM — worse than simply missing one
+
+> ## ⛔ **A COMMENT THAT SURVIVES A CORRECTION PASS READS AS VERIFIED.** ⚠ **An untouched error beside a corrected one has been IMPLICITLY ENDORSED.**
+
+**Had the brief's instance been fixed alone, a reader months later would find one paragraph freshly
+corrected and dated, and the next paragraph untouched** — ⛔ **and would reasonably conclude the
+second had been considered and found sound.**
+
+⚠ **That is a STRONGER false signal than the error carried on its own.** ✅ **Two errors read as two
+errors. One corrected and one not reads as one error and one CHECKED CLAIM.**
+
+**⇒ SO A PARTIAL CORRECTION PASS IS NOT A PARTIAL FIX. IT IS A FIX PLUS A NEW, FALSE ATTESTATION.**
+
+### ✅ 2. THE TEST — **does this describe the PRESENT or a PLAN?**
+
+**It decided both calls cleanly, and it is cheap enough to apply to every comment in a correction's
+blast radius:**
+
+| the text | verdict |
+|---|---|
+| *"`closingSpeed` is the same nominal constant on every threat today — not yet `ATTR.speed`/`ATTR.acceleration`"* | ✅ **PRESENT. Survives.** A statement about what the code does now, and the code still does it |
+| ⛔ *"the shape does not change when THE GEOMETRY replaces what fills it"* | ⛔ **PLAN. Fails.** Names a specification that has been halted |
+| ⛔ *"becomes a real distance when THE GEOMETRY lands, off `gap`/`side`/…"* | ⛔ **PLAN. Fails.** Same |
+
+> ## ✅ **A COMMENT DESCRIBING THE PRESENT IS FALSIFIED BY THE CODE CHANGING. A COMMENT DESCRIBING A PLAN IS FALSIFIED BY THE PLAN CHANGING — and nothing in the build ever checks the second.**
+
+### ⇒ THE OPERATIVE FORM
+
+⛔ **WHEN A PLAN IS WITHDRAWN, SWEEP EVERY COMMENT IN ITS BLAST RADIUS FOR FORWARD CLAIMS — not just
+the one that prompted the sweep.** ⚠ **The unflagged instances are the dangerous ones precisely
+because the correction pass will vouch for them by omission.**
+
+✅ **DISTINCT FROM ENTRY 157.** ⛔ **That one says a defect in a NAME cannot be fixed from inside the
+artifact.** ⚠ **This one says a CORRECTION PASS creates false confidence in whatever it does not
+touch — a property of the FIX, not of the defect.**
