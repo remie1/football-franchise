@@ -12634,3 +12634,66 @@ with whatever the code did, which is the failure mode a falsifier exists to prev
 
 **`disrupted`, from the release outcome, is computed and never read outside its own check emission.**
 ⛔ **Dead for gameplay. `unruled`.**
+
+---
+
+## 167. ⛔ THE COMPILER ENUMERATES COMPLETELY **ONLY IF YOU STOP IT BAILING** — the caveat entry 161 needed
+
+**Entry 161 recorded: *when enumerating, prefer a question the type system answers over a question a
+grep answers***, on three instances where a mechanical derivation beat a read. ⛔ **This is the
+caveat that technique was missing, and it was found by the technique failing.**
+
+### ⛔ 1. WHAT HAPPENED
+
+**A required field landed on `DefensivePlayCall`. `pnpm verify` was run to enumerate the construction
+sites. It reported ONE:** `playbook/src/instantiate.ts:277`.
+
+⛔ **THE ORCHESTRATOR REPORTED THAT AS DERIVED** — *"one site, not many … worth having derived rather
+than assumed"* — **and additionally concluded the engine fixture was NOT a construction site for this
+type.**
+
+**Both false. Re-run with `pnpm -r --no-bail typecheck`:**
+
+| | |
+|---|---|
+| `playbook/src/instantiate.ts` | **1** |
+| ⛔ `engine/src/game/playbook.ts` | ⛔ **6** *(417, 439, 464, 500, 530, 565)* |
+| ⛔ `engine/test/fixtures.ts` | ⛔ **5** *(221, 422, 478, 526, 712)* |
+| | ⛔ **12 TOTAL** |
+
+### ⛔ 2. THE MECHANISM — **`pnpm -r` BAILS AT THE FIRST FAILING PACKAGE**
+
+**`packages/playbook` failed first, so `packages/engine` was never compiled and never reported.**
+
+> ## ⛔ **THE TOOL DID NOT LIE. IT STOPPED.** ⚠ **And a STOPPED enumeration looks EXACTLY LIKE A COMPLETE one — same output shape, same exit, NO MARKER SAYING "there may be more."**
+
+### 📒 3. THIS IS ENTRY 164's MECHANISM, ARRIVING IN A TOOL
+
+**Entry 164: a correction pass VOUCHES FOR WHATEVER IT DOES NOT TOUCH — the untouched error beside
+the corrected one reads as checked.**
+
+⛔ **A TRUNCATED ENUMERATION VOUCHES FOR WHATEVER IT NEVER REACHED.** ⚠ **Same false attestation,
+same reason: absence of a report is read as a report of absence.**
+
+✅ **And it is WORSE here, because the tool's authority is the whole point.** ⛔ **The technique was
+adopted precisely BECAUSE the compiler cannot be talked out of an answer — which makes a partial
+answer from it more credible than a partial answer from a grep, not less.**
+
+### ⇒ 4. THE OPERATIVE FORM
+
+> ## ⛔ **WHEN USING THE COMPILER AS AN ENUMERATOR, DISABLE BAIL-ON-FIRST-FAILURE.** ✅ **`pnpm -r --no-bail typecheck`, not `pnpm verify`.**
+
+⚠ **`pnpm verify` is the right tool for *"is the tree green"* and the WRONG tool for *"where are all
+the sites"*** — ⛔ **it is optimised to stop early, which is the opposite of what an enumeration
+needs.**
+
+### ⚠ 5. AND A FALSIFIER THAT WAS TOO STRICT
+
+**The brief pre-registered *"`pnpm verify` green with ZERO changes to any existing test."*** ⛔ **That
+is the wrong falsifier for a REQUIRED-FIELD change.** ⚠ **A required field propagates to EVERY
+construction site, including test fixtures — which is the enumeration mechanism WORKING, not a
+violation of inertness.**
+
+✅ **The dispatch was right to REPORT rather than edit**, and right to distinguish **fixture BUILDERS**
+*(mechanical, no assertion changes meaning)* from **assertions** *(which must not move)*. ⛔ **The
+falsifier should have said "zero changes to any ASSERTION," not "any test."**
