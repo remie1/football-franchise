@@ -107,17 +107,19 @@ export interface RushThreat extends ArrivalClock {
    * PROVENANCE: nobody measured this distance, and a reader who assumes
    * somebody did would be wrong, naturally and reasonably.
    *
-   * ✅ IT BECOMES A REAL DISTANCE WHEN THE GEOMETRY LANDS (ADR-066's NEXT,
-   * separately-measured change): `rushGeometryDistanceYards`-shaped, off
-   * `gap`/`side`/`dropDepthYards`/rusher depth, replacing this constant's
-   * product rather than extending it. That is this field's SUBJECT
-   * CONDITION — this value is a placeholder with the right units and the
-   * right shape, not yet the thing it is named for.
+   * ✅ IT BECOMES A REAL DISTANCE WHEN A SNAP POSITION EXISTS. WHAT PRODUCES
+   * A SNAP POSITION IS UNDESIGNED — ADR-066's geometry was halted (owner
+   * ruling, August 2026) because it named `gap`/`side`/`dropDepthYards`/
+   * rusher depth as that source, and those describe ALIGNMENT — where a
+   * defender lines up — not snap position. That is this field's SUBJECT
+   * CONDITION: OPEN, not moved to a replacement mechanism — this value is a
+   * placeholder with the right units and the right shape, not yet the thing
+   * it is named for.
    *
    * `closingSpeed` is the SAME nominal constant on every threat today — not
    * yet `ATTR.speed`/`ATTR.acceleration` — carried per-threat anyway because
    * the point of landing the decomposition first is that the SHAPE does not
-   * change when the geometry replaces what fills it.
+   * change when a real value eventually fills it.
    *
    * BOTH ABSENT TOGETHER, NEVER ONE WITHOUT THE OTHER, and only ever present
    * on a `WON_REP` threat `threatFromWonRep` built: the other three origins
