@@ -12350,3 +12350,80 @@ sweep excluded.** ✅ **Three instances, all the same direction, all the same ca
 criterion is three, and this is the third, so it is eligible.** ⛔ **Held rather than promoted because
 the third arrived TODAY and this register's own discipline is that a pattern noticed at the moment
 of its third instance has not yet been tested against a fourth.**
+
+---
+
+## 162. 📒 A SPLIT JUSTIFIED ON MEASUREMENT CLARITY ALSO BUYS **REVOCABILITY** — and the second is invisible until something invalidates a half
+
+**ADR-066 was ruled into two changes: the decomposition first, provably inert; the geometry second,
+separately measured.** ⛔ **The stated reason was MEASUREMENT ATTRIBUTION — so a moved number would
+have one candidate cause rather than two, in a subsystem entry 143's confound already entangles.**
+
+**Six days later the geometry's premise was invalidated:** ⚠ *it consumes alignment as though it were
+snap position.*
+
+> ## ✅ **THE INVALIDATED HALF NEVER SHIPPED.** ⛔ **The ruling amended a DOCUMENT instead of unwinding a BEHAVIOURAL change across four packages.**
+
+### ⇒ THE GENERAL FORM
+
+⛔ **A split justified on measurement clarity ALSO buys revocability.** ⚠ **And the second benefit is
+INVISIBLE AT RULING TIME — it only exists if one half later turns out to be wrong, which is
+unknowable when the split is made.**
+
+**Neither party priced it that way. It turned out to be the larger of the two.**
+
+### ⚠ AND THE CAVEAT THAT KEEPS THIS FROM BECOMING "ALWAYS SPLIT"
+
+⛔ **The cost is real: two measurements, two commits, more coordination, and a longer window where
+the tree is half-changed.** ✅ **The finding is that the BENEFIT LEDGER WAS INCOMPLETE — not that
+splitting is free.**
+
+⚠ **What generalises: when weighing a split, the attribution benefit is countable and the
+revocability benefit is not, so the second gets left out of the reckoning by construction.** ⛔ **Its
+expected value is highest exactly where confidence is lowest — which is where a split is most likely
+to be judged not worth the overhead.**
+
+---
+
+## 163. ⛔⛔ THE DISGUISE FINDING — **the quantitative anchor for the pre-snap phase**, not a backlog item
+
+⚠ **PROVENANCE: OWNER, EXTERNAL RESEARCH. Not derived from this tree and not derivable from it.**
+
+### ⛔ THE NUMBERS
+
+| | disguised | static |
+|---|---|---|
+| **completion** | **65.3%** | **64.2%** |
+| ⛔ **TD:INT** | ⛔ **~1 : 1** | **~2.25 : 1** |
+
+**Usage: 32.2% of league-wide pass plays in 2025, up from 26.8% in 2022.**
+
+> ## ⛔ **COMPLETION BARELY MOVES. THE ENTIRE SIGNAL IS IN TURNOVERS.**
+
+### ⛔ WHY THIS IS AN ANCHOR AND NOT A FEATURE REQUEST
+
+**The engine has NO surface where a defender can SHOW ONE THING AND BE ANOTHER.** ⚠ **A defensive
+card states duties; the duties are what happens. There is no gap between the look and the call
+because there is no look.**
+
+⛔ **So this is not a refinement of the pressure chain. It is a MECHANIC WITH NO REPRESENTATION.**
+
+### ✅ AND THE METRIC ALREADY EXISTS — which makes the gap precise rather than rhetorical
+
+⛔ **`int_rate` — *"Interceptions ÷ pass attempts"* — is a TIER-1 METRIC with a real NFL baseline**
+*(`tier1.ts:118-121`)*.
+
+> ## ⛔ **THE METRIC IS THERE. THE BASELINE IS THERE. THE MECHANISM THAT WOULD MOVE IT IS NOT.**
+
+⚠ **A first hypothesis that the effect would be *"invisible to every metric this project measures"*
+was CHECKED AND IS FALSE** — ✅ **and the true version is stronger: the project can already SCORE this
+and cannot yet PRODUCE it.**
+
+### ⇒ THE CASE, in one line
+
+⛔ **A mechanic used on a third of NFL pass plays, whose measured effect is real, whose target metric
+is already instrumented against a real baseline, and whose representation here is ZERO.**
+
+✅ **That is the quantitative argument that the pre-snap phase is worth building** — ⚠ **and it is an
+argument about a MISSING SURFACE, which is a different kind of claim from every tuning question in
+this register.**
