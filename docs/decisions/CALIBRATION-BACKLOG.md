@@ -12427,3 +12427,28 @@ is already instrumented against a real baseline, and whose representation here i
 ✅ **That is the quantitative argument that the pre-snap phase is worth building** — ⚠ **and it is an
 argument about a MISSING SURFACE, which is a different kind of claim from every tuning question in
 this register.**
+
+### ⇒ ADDENDUM TO 162 — **the prescription, and why it does not need three instances**
+
+⛔ **THE PRESCRIPTION: SPLIT MORE READILY THAN THE ATTRIBUTION CASE ALONE JUSTIFIES.**
+
+⚠ **This is NOT an empirical pattern awaiting a third instance.** ✅ **It is a LOGICAL CONSEQUENCE of
+the asymmetry entry 162 records, and consequences have a different standard from patterns: the
+ARGUMENT must be sound, not the SAMPLE large.**
+
+### ⛔ AND THE BIAS RUNS BOTH DIRECTIONS AT ONCE
+
+| | when the split is decided |
+|---|---|
+| **the costs** — two measurements, two commits, a half-changed tree | ⛔ **FELT IMMEDIATELY. Over-salient** |
+| **attribution benefit** | ✅ countable in advance |
+| ⛔ **revocability benefit** | ⛔ **INVISIBLE until something invalidates a half. Un-salient** |
+
+> ## ⛔ **IT IS NOT MERELY THAT ONE BENEFIT GOES UNCOUNTED. THE COSTS ARE OVER-SALIENT AT THE SAME MOMENT THE BENEFIT IS UN-SALIENT — both biases fire at the exact point of decision, in the same direction.**
+
+✅ **So a split judged "not worth the overhead" on the felt evidence is being judged on a ledger that
+is wrong on both sides.** ⚠ **The correction is not a preference for splitting; it is an adjustment
+for a KNOWN, DIRECTIONAL mis-estimate.**
+
+⛔ **Recorded now rather than reconstructed the next time a two-change ruling looks like ceremony** —
+⚠ **which is exactly when it will be needed and exactly when nobody will have this argument to hand.**
