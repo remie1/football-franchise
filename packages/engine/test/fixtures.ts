@@ -194,6 +194,14 @@ export function buildScenario(overrides: Partial<MatchGameState> = {}): Scenario
     ...overrides,
   };
 
+  // ADR-067 §A: built once, referenced by both `assignments` and
+  // `shownAssignments` below — aliased, not copied.
+  const assignments: PlayCalls["defense"]["assignments"] = [
+    { kind: "MAN", defender: cb1.bio.id, covers: wr1.bio.id, technique: "PRESS" },
+    { kind: "MAN", defender: cb2.bio.id, covers: wr2.bio.id, technique: "OFF" },
+    { kind: "MAN", defender: lb.bio.id, covers: te.bio.id, technique: "PRESS" },
+  ];
+
   const calls: PlayCalls = {
     offense: {
       kind: "PASS",
@@ -221,11 +229,10 @@ export function buildScenario(overrides: Partial<MatchGameState> = {}): Scenario
     defense: {
       name: "Cover 1 Press",
       front: "Nickel Even",
-      assignments: [
-        { kind: "MAN", defender: cb1.bio.id, covers: wr1.bio.id, technique: "PRESS" },
-        { kind: "MAN", defender: cb2.bio.id, covers: wr2.bio.id, technique: "OFF" },
-        { kind: "MAN", defender: lb.bio.id, covers: te.bio.id, technique: "PRESS" },
-      ],
+      // ADR-067 §A: aliased to `assignments`, not copied — see `assignments`
+      // above `calls`, defined once and referenced by both fields.
+      assignments,
+      shownAssignments: assignments,
       rush: [
         { rusher: edge.bio.id, move: "SPEED" },
         { rusher: dt.bio.id, move: "POWER" },
@@ -409,6 +416,13 @@ export function buildZoneScenario(): Scenario {
     [String(lb)]: 74,
   });
 
+  // ADR-067 §A: aliased to `shownAssignments` below, not copied.
+  const spotDropAssignments: PlayCalls["defense"]["assignments"] = [
+    { kind: "ZONE", defender: cb1, zone: { horizontal: "RW", vertical: "DEEP" } },
+    { kind: "ZONE", defender: cb2, zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
+    { kind: "ZONE", defender: lb, zone: { horizontal: "RH", vertical: "SHORT" } },
+  ];
+
   const calls: PlayCalls = {
     offense: {
       ...base.calls.offense,
@@ -422,11 +436,8 @@ export function buildZoneScenario(): Scenario {
     defense: {
       name: "Cover 3 Spot Drop",
       front: "Nickel Even",
-      assignments: [
-        { kind: "ZONE", defender: cb1, zone: { horizontal: "RW", vertical: "DEEP" } },
-        { kind: "ZONE", defender: cb2, zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
-        { kind: "ZONE", defender: lb, zone: { horizontal: "RH", vertical: "SHORT" } },
-      ],
+      assignments: spotDropAssignments,
+      shownAssignments: spotDropAssignments,
       rush: base.calls.defense.rush,
     },
   };
@@ -466,6 +477,15 @@ export function buildOverlappingZoneScenario(): Scenario {
     throw new Error("bad fixture");
   }
 
+  // ADR-067 §A: aliased to `shownAssignments` below, not copied.
+  const overlappingAssignments: PlayCalls["defense"]["assignments"] = [
+    // Reaches the dig's cell from a cell away — and is listed FIRST.
+    { kind: "ZONE", defender: stretching, zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
+    // Standing in it.
+    { kind: "ZONE", defender: standingOnIt, zone: { horizontal: "RH", vertical: "INTERMEDIATE" }, laneSpan: 1 },
+    { kind: "ZONE", defender: underneath, zone: { horizontal: "RH", vertical: "SHORT" }, laneSpan: 1 },
+  ];
+
   const calls: PlayCalls = {
     offense: {
       ...base.calls.offense,
@@ -478,13 +498,8 @@ export function buildOverlappingZoneScenario(): Scenario {
     defense: {
       name: "Quarters, Overlapping Drops",
       front: "Nickel Even",
-      assignments: [
-        // Reaches the dig's cell from a cell away — and is listed FIRST.
-        { kind: "ZONE", defender: stretching, zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
-        // Standing in it.
-        { kind: "ZONE", defender: standingOnIt, zone: { horizontal: "RH", vertical: "INTERMEDIATE" }, laneSpan: 1 },
-        { kind: "ZONE", defender: underneath, zone: { horizontal: "RH", vertical: "SHORT" }, laneSpan: 1 },
-      ],
+      assignments: overlappingAssignments,
+      shownAssignments: overlappingAssignments,
       rush: base.calls.defense.rush,
     },
   };
@@ -521,16 +536,20 @@ export function buildMixedCoverageScenario(): Scenario {
 
   const players = withZoneRatings(base.state.players, { [String(cb1)]: 84, [String(lb)]: 74 });
 
+  // ADR-067 §A: aliased to `shownAssignments` below, not copied.
+  const robberAssignments: PlayCalls["defense"]["assignments"] = [
+    { kind: "MAN", defender: cb2, covers: flat.receiver, technique: "OFF" },
+    { kind: "ZONE", defender: lb, zone: { horizontal: "RH", vertical: "SHORT" } },
+    { kind: "ZONE", defender: cb1, zone: { horizontal: "LW", vertical: "DEEP" } },
+  ];
+
   const calls: PlayCalls = {
     ...base.calls,
     defense: {
       name: "Cover 1 Robber",
       front: base.calls.defense.front,
-      assignments: [
-        { kind: "MAN", defender: cb2, covers: flat.receiver, technique: "OFF" },
-        { kind: "ZONE", defender: lb, zone: { horizontal: "RH", vertical: "SHORT" } },
-        { kind: "ZONE", defender: cb1, zone: { horizontal: "LW", vertical: "DEEP" } },
-      ],
+      assignments: robberAssignments,
+      shownAssignments: robberAssignments,
       rush: base.calls.defense.rush,
     },
   };
@@ -688,6 +707,16 @@ export function buildRunScenario(scheme: RunScheme = "ZONE"): RunScenario {
     clockSeconds: 742,
   };
 
+  // ADR-067 §A: aliased to `shownAssignments` below, not copied.
+  const runDefenseAssignments: RunPlayCalls["defense"]["assignments"] = [
+    { kind: "MAN", defender: cb1.bio.id, covers: wr1.bio.id, technique: "OFF" },
+    { kind: "MAN", defender: cb2.bio.id, covers: wr2.bio.id, technique: "OFF" },
+    { kind: "ZONE", defender: mlb.bio.id, zone: { horizontal: "C", vertical: "SHORT" } },
+    { kind: "ZONE", defender: wlb.bio.id, zone: { horizontal: "LH", vertical: "SHORT" } },
+    { kind: "ZONE", defender: ss.bio.id, zone: { horizontal: "RH", vertical: "INTERMEDIATE" } },
+    { kind: "ZONE", defender: fs.bio.id, zone: { horizontal: "C", vertical: "DEEP" } },
+  ];
+
   const calls: RunPlayCalls = {
     offense: {
       kind: "RUN",
@@ -712,14 +741,8 @@ export function buildRunScenario(scheme: RunScheme = "ZONE"): RunScenario {
     defense: {
       name: "Under Front, Cover 3",
       front: "4-3 Under",
-      assignments: [
-        { kind: "MAN", defender: cb1.bio.id, covers: wr1.bio.id, technique: "OFF" },
-        { kind: "MAN", defender: cb2.bio.id, covers: wr2.bio.id, technique: "OFF" },
-        { kind: "ZONE", defender: mlb.bio.id, zone: { horizontal: "C", vertical: "SHORT" } },
-        { kind: "ZONE", defender: wlb.bio.id, zone: { horizontal: "LH", vertical: "SHORT" } },
-        { kind: "ZONE", defender: ss.bio.id, zone: { horizontal: "RH", vertical: "INTERMEDIATE" } },
-        { kind: "ZONE", defender: fs.bio.id, zone: { horizontal: "C", vertical: "DEEP" } },
-      ],
+      assignments: runDefenseAssignments,
+      shownAssignments: runDefenseAssignments,
       rush: [
         { rusher: deL.bio.id, move: "POWER", alignment: "EDGE" },
         { rusher: dtL.bio.id, move: "POWER", alignment: "INTERIOR" },

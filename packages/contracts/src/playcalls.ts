@@ -362,6 +362,33 @@ export interface DefensivePlayCall {
    * that cell he is uncovered, which is what a hole in a zone is.
    */
   readonly assignments: readonly CoverageAssignment[];
+  /**
+   * What the offence SEES before the snap, as against `assignments`, which is what
+   * actually resolves (ADR-067 §A).
+   *
+   * ⛔ IDENTICAL TO `assignments` TODAY, AND IDENTICAL BY CONSTRUCTION RATHER THAN BY
+   * COINCIDENCE: `instantiateDefense` builds both from the same `dutyList(card)` in the
+   * same pass. Not two values that happen to agree and could drift — one source read
+   * twice. A test asserts the deep equality for every shipped card, and when a card first
+   * declares a divergence that test does not get deleted: it becomes the test that proves
+   * each divergence is DELIBERATE.
+   *
+   * WHY THIS EXISTS. There is no shown-vs-played pair anywhere in the engine today
+   * (backlog entry 165): a defensive card states duties and the duties are what happens.
+   * `blitzDisguise` is NOT that pair — it shifts a recognition target (+0/15/20/25) about
+   * a rush that is already fixed and that protection has already paired against. It models
+   * DEGRADED PERCEPTION OF ONE TRUTH. Being deceived requires two.
+   *
+   * WHY PER-ASSIGNMENT RATHER THAN A SECOND CALL. A safety showing two-high and playing
+   * one-high is ONE ASSIGNMENT differing, not a different defence. A parallel second call
+   * would double the authoring burden to express a single-defender change.
+   *
+   * ⚠ NOTHING READS THIS YET, and that is deliberate — it lands inert so that the mechanic
+   * built on it can be measured on its own. Its SUBJECT CONDITION: a consumer appears when
+   * a coverage assignment is resolved against what the quarterback believed rather than
+   * against what was played. What produces a divergence is undesigned.
+   */
+  readonly shownAssignments: readonly CoverageAssignment[];
   readonly rush: readonly RushAssignment[];
 }
 

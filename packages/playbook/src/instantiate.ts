@@ -278,6 +278,37 @@ export function instantiateDefense(
     name: card.name,
     front: card.front,
     assignments,
+    /**
+     * ⛔ ONE ARRAY, TWO FIELDS. The shown/played pair is inert BY IDENTITY, NOT BY
+     * COINCIDENCE (ADR-067 §A).
+     *
+     * READ THIS LINE FOR WHAT IT IS AND NOT FOR WHAT IT LOOKS LIKE. `shownAssignments`
+     * is not a second list that currently agrees with `assignments`; it IS
+     * `assignments` — the same object, produced by the single traversal of
+     * `dutyList(card)` above, referenced twice. There is no second computation to fall
+     * out of step with the first, because there is no second computation.
+     *
+     * WHY NOT `[...assignments]`. A copy would also be built from one source today, and
+     * would also be deep-equal today — but it is a SECOND VALUE, and a second value is a
+     * thing a later edit can append to, filter, or reorder on one side only. That is
+     * precisely the drift this shape exists to make impossible. Two values that match
+     * are two values; one value read twice is one value. The contract types both fields
+     * `readonly CoverageAssignment[]`, so the aliasing costs nothing: no consumer can
+     * mutate one and surprise the other.
+     *
+     * WHAT THIS MAKES A DIVERGENCE COST. Today no card shows a different look from the
+     * one it plays, and none may be given one here — the deceiving MECHANIC is a
+     * separate build. When one is designed, it cannot arrive by omission (a branch that
+     * forgets to update the other list): it can only arrive by someone deliberately
+     * splitting this line into two constructions. That is the intended cost.
+     *
+     * ON MIRRORING. `mirrorDefensiveCard` flips DUTIES, upstream of this function, and
+     * this pass then builds both fields from whatever duties it is handed. A mirrored
+     * card therefore mirrors both fields by construction, and there is nothing for a
+     * mirror helper to remember to flip — which is the same argument as this one, one
+     * level up.
+     */
+    shownAssignments: assignments,
     rush,
     ...(stunts.length === 0 ? {} : { stunts }),
     // ABSENT WHERE THE CARD SAID NOTHING, and that is deliberate rather than lazy.

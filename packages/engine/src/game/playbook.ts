@@ -415,21 +415,28 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
   {
     name: "Cover 1 Press",
     build(offense, defense) {
+      // ADR-067 §A: `shownAssignments` is aliased to `assignments` below, not
+      // copied. These eleven fixture cards state no pre-snap disguise, so the
+      // shown look and the played look are THE SAME ASSIGNMENT LIST — one
+      // reference, not two lists that happen to agree today and could drift
+      // one card at a time tomorrow.
+      const assignments: DefensivePlayCall["assignments"] = [
+        { kind: "MAN", defender: at(defense.corners, 0, "CB1"), covers: at(offense.receivers, 0, "X"), technique: "PRESS" },
+        { kind: "MAN", defender: at(defense.corners, 1, "CB2"), covers: at(offense.receivers, 1, "Z"), technique: "OFF" },
+        { kind: "MAN", defender: at(defense.corners, 2, "NB"), covers: at(offense.receivers, 2, "slot"), technique: "OFF" },
+        { kind: "MAN", defender: at(defense.linebackers, 0, "LB1"), covers: offense.tightEnd, technique: "PRESS" },
+        { kind: "MAN", defender: at(defense.linebackers, 1, "LB2"), covers: offense.runningBack, technique: "OFF" },
+        // The single-high safety: the deep middle QUADRANT, which is what the
+        // "1" in Cover 1 names — everything over the top between the hashes.
+        { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
+        // The robber sits in the hole. A hole is a spot, so he states no span.
+        { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
+      ];
       return {
         name: "Cover 1 Press",
         front: "Nickel Even",
-        assignments: [
-          { kind: "MAN", defender: at(defense.corners, 0, "CB1"), covers: at(offense.receivers, 0, "X"), technique: "PRESS" },
-          { kind: "MAN", defender: at(defense.corners, 1, "CB2"), covers: at(offense.receivers, 1, "Z"), technique: "OFF" },
-          { kind: "MAN", defender: at(defense.corners, 2, "NB"), covers: at(offense.receivers, 2, "slot"), technique: "OFF" },
-          { kind: "MAN", defender: at(defense.linebackers, 0, "LB1"), covers: offense.tightEnd, technique: "PRESS" },
-          { kind: "MAN", defender: at(defense.linebackers, 1, "LB2"), covers: offense.runningBack, technique: "OFF" },
-          // The single-high safety: the deep middle QUADRANT, which is what the
-          // "1" in Cover 1 names — everything over the top between the hashes.
-          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
-          // The robber sits in the hole. A hole is a spot, so he states no span.
-          { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
-        ],
+        assignments,
+        shownAssignments: assignments,
         rush: baseRush(defense),
       };
     },
@@ -437,24 +444,27 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
   {
     name: "Cover 3 Spot Drop",
     build(_offense, defense) {
+      // ADR-067 §A: aliased, not copied — see the comment on Cover 1 Press above.
+      const assignments: DefensivePlayCall["assignments"] = [
+        // Three deep. A THIRD is a lane owned across every deep band, which is
+        // the case ADR-018 was filed on: as a single cell this corner did not
+        // touch a route breaking at INTERMEDIATE in his own third.
+        { kind: "ZONE", defender: at(defense.corners, 0, "CB1"), zone: { horizontal: "LW", vertical: "DEEP" }, depthSpan: 1 },
+        { kind: "ZONE", defender: at(defense.corners, 1, "CB2"), zone: { horizontal: "RW", vertical: "DEEP" }, depthSpan: 1 },
+        { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, depthSpan: 1 },
+        // Four under, on SPOTS — which is what this card is called. The seams
+        // at LH and RH deep are left open by three thirds across five lanes,
+        // and that hole is Cover 3's, not the model's.
+        { kind: "ZONE", defender: at(defense.corners, 2, "NB"), zone: { horizontal: "RH", vertical: "SHORT" } },
+        { kind: "ZONE", defender: at(defense.linebackers, 0, "LB1"), zone: { horizontal: "C", vertical: "SHORT" } },
+        { kind: "ZONE", defender: at(defense.linebackers, 1, "LB2"), zone: { horizontal: "LH", vertical: "SHORT" } },
+        { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
+      ];
       return {
         name: "Cover 3 Spot Drop",
         front: "Nickel Even",
-        assignments: [
-          // Three deep. A THIRD is a lane owned across every deep band, which is
-          // the case ADR-018 was filed on: as a single cell this corner did not
-          // touch a route breaking at INTERMEDIATE in his own third.
-          { kind: "ZONE", defender: at(defense.corners, 0, "CB1"), zone: { horizontal: "LW", vertical: "DEEP" }, depthSpan: 1 },
-          { kind: "ZONE", defender: at(defense.corners, 1, "CB2"), zone: { horizontal: "RW", vertical: "DEEP" }, depthSpan: 1 },
-          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, depthSpan: 1 },
-          // Four under, on SPOTS — which is what this card is called. The seams
-          // at LH and RH deep are left open by three thirds across five lanes,
-          // and that hole is Cover 3's, not the model's.
-          { kind: "ZONE", defender: at(defense.corners, 2, "NB"), zone: { horizontal: "RH", vertical: "SHORT" } },
-          { kind: "ZONE", defender: at(defense.linebackers, 0, "LB1"), zone: { horizontal: "C", vertical: "SHORT" } },
-          { kind: "ZONE", defender: at(defense.linebackers, 1, "LB2"), zone: { horizontal: "LH", vertical: "SHORT" } },
-          { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
-        ],
+        assignments,
+        shownAssignments: assignments,
         rush: baseRush(defense),
       };
     },
@@ -462,19 +472,22 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
   {
     name: "Cover 2 Man",
     build(offense, defense) {
+      // ADR-067 §A: aliased, not copied — see the comment on Cover 1 Press above.
+      const assignments: DefensivePlayCall["assignments"] = [
+        { kind: "MAN", defender: at(defense.corners, 0, "CB1"), covers: at(offense.receivers, 0, "X"), technique: "PRESS" },
+        { kind: "MAN", defender: at(defense.corners, 1, "CB2"), covers: at(offense.receivers, 1, "Z"), technique: "PRESS" },
+        { kind: "MAN", defender: at(defense.corners, 2, "NB"), covers: at(offense.receivers, 2, "slot"), technique: "OFF" },
+        { kind: "MAN", defender: at(defense.linebackers, 0, "LB1"), covers: offense.tightEnd, technique: "OFF" },
+        { kind: "MAN", defender: at(defense.linebackers, 1, "LB2"), covers: offense.runningBack, technique: "OFF" },
+        // Two deep HALVES: a quadrant each, split down the middle of the field.
+        { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "LW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
+        { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
+      ];
       return {
         name: "Cover 2 Man",
         front: "Nickel Even",
-        assignments: [
-          { kind: "MAN", defender: at(defense.corners, 0, "CB1"), covers: at(offense.receivers, 0, "X"), technique: "PRESS" },
-          { kind: "MAN", defender: at(defense.corners, 1, "CB2"), covers: at(offense.receivers, 1, "Z"), technique: "PRESS" },
-          { kind: "MAN", defender: at(defense.corners, 2, "NB"), covers: at(offense.receivers, 2, "slot"), technique: "OFF" },
-          { kind: "MAN", defender: at(defense.linebackers, 0, "LB1"), covers: offense.tightEnd, technique: "OFF" },
-          { kind: "MAN", defender: at(defense.linebackers, 1, "LB2"), covers: offense.runningBack, technique: "OFF" },
-          // Two deep HALVES: a quadrant each, split down the middle of the field.
-          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "LW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
-          { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
-        ],
+        assignments,
+        shownAssignments: assignments,
         rush: baseRush(defense),
       };
     },
@@ -498,19 +511,22 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
      */
     name: "Cover 1 Double A",
     build(offense, defense) {
+      // ADR-067 §A: aliased, not copied — see the comment on Cover 1 Press above.
+      const assignments: DefensivePlayCall["assignments"] = [
+        { kind: "MAN", defender: at(defense.corners, 0, "CB1"), covers: at(offense.receivers, 0, "X"), technique: "PRESS" },
+        { kind: "MAN", defender: at(defense.corners, 1, "CB2"), covers: at(offense.receivers, 1, "Z"), technique: "PRESS" },
+        { kind: "MAN", defender: at(defense.corners, 2, "NB"), covers: at(offense.receivers, 2, "slot"), technique: "OFF" },
+        { kind: "MAN", defender: at(defense.safeties, 1, "SS"), covers: offense.tightEnd, technique: "OFF" },
+        // Single high, and nothing else behind it. Six rushing plus five in
+        // coverage is eleven; there is no robber and no help.
+        { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
+      ];
       return {
         name: "Cover 1 Double A",
         front: "Nickel Double A Mug",
         blitzDisguise: "STANDARD",
-        assignments: [
-          { kind: "MAN", defender: at(defense.corners, 0, "CB1"), covers: at(offense.receivers, 0, "X"), technique: "PRESS" },
-          { kind: "MAN", defender: at(defense.corners, 1, "CB2"), covers: at(offense.receivers, 1, "Z"), technique: "PRESS" },
-          { kind: "MAN", defender: at(defense.corners, 2, "NB"), covers: at(offense.receivers, 2, "slot"), technique: "OFF" },
-          { kind: "MAN", defender: at(defense.safeties, 1, "SS"), covers: offense.tightEnd, technique: "OFF" },
-          // Single high, and nothing else behind it. Six rushing plus five in
-          // coverage is eleven; there is no robber and no help.
-          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
-        ],
+        assignments,
+        shownAssignments: assignments,
         rush: [
           ...baseRush(defense),
           { rusher: at(defense.linebackers, 0, "LB1"), move: "SPEED", alignment: "INTERIOR", side: "LEFT" },
@@ -528,19 +544,22 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
      */
     name: "Cover 3 Fire Zone",
     build(_offense, defense) {
+      // ADR-067 §A: aliased, not copied — see the comment on Cover 1 Press above.
+      const assignments: DefensivePlayCall["assignments"] = [
+        { kind: "ZONE", defender: at(defense.corners, 0, "CB1"), zone: { horizontal: "LW", vertical: "DEEP" }, depthSpan: 1 },
+        { kind: "ZONE", defender: at(defense.corners, 1, "CB2"), zone: { horizontal: "RW", vertical: "DEEP" }, depthSpan: 1 },
+        { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, depthSpan: 1 },
+        // Three under, one of whom had his hand in the dirt at the snap.
+        { kind: "ZONE", defender: at(defense.edges, 1, "RE"), zone: { horizontal: "RH", vertical: "SHORT" } },
+        { kind: "ZONE", defender: at(defense.corners, 2, "NB"), zone: { horizontal: "LH", vertical: "SHORT" } },
+        { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
+      ];
       return {
         name: "Cover 3 Fire Zone",
         front: "Nickel Fire",
         blitzDisguise: "ZONE_BLITZ",
-        assignments: [
-          { kind: "ZONE", defender: at(defense.corners, 0, "CB1"), zone: { horizontal: "LW", vertical: "DEEP" }, depthSpan: 1 },
-          { kind: "ZONE", defender: at(defense.corners, 1, "CB2"), zone: { horizontal: "RW", vertical: "DEEP" }, depthSpan: 1 },
-          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, depthSpan: 1 },
-          // Three under, one of whom had his hand in the dirt at the snap.
-          { kind: "ZONE", defender: at(defense.edges, 1, "RE"), zone: { horizontal: "RH", vertical: "SHORT" } },
-          { kind: "ZONE", defender: at(defense.corners, 2, "NB"), zone: { horizontal: "LH", vertical: "SHORT" } },
-          { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
-        ],
+        assignments,
+        shownAssignments: assignments,
         rush: [
           { rusher: at(defense.edges, 0, "LE"), move: "SPEED", alignment: "EDGE", side: "LEFT" },
           { rusher: at(defense.interior, 0, "DT"), move: "POWER", alignment: "INTERIOR", side: "LEFT" },
@@ -563,6 +582,16 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
      */
     name: "Cover 2 Man Twist",
     build(offense, defense) {
+      // ADR-067 §A: aliased, not copied — see the comment on Cover 1 Press above.
+      const assignments: DefensivePlayCall["assignments"] = [
+        { kind: "MAN", defender: at(defense.corners, 0, "CB1"), covers: at(offense.receivers, 0, "X"), technique: "PRESS" },
+        { kind: "MAN", defender: at(defense.corners, 1, "CB2"), covers: at(offense.receivers, 1, "Z"), technique: "PRESS" },
+        { kind: "MAN", defender: at(defense.corners, 2, "NB"), covers: at(offense.receivers, 2, "slot"), technique: "OFF" },
+        { kind: "MAN", defender: at(defense.linebackers, 0, "LB1"), covers: offense.tightEnd, technique: "OFF" },
+        { kind: "MAN", defender: at(defense.linebackers, 1, "LB2"), covers: offense.runningBack, technique: "OFF" },
+        { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "LW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
+        { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
+      ];
       return {
         name: "Cover 2 Man Twist",
         front: "Nickel Even (TE twist right)",
@@ -573,15 +602,8 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
             complexity: "T_E",
           },
         ],
-        assignments: [
-          { kind: "MAN", defender: at(defense.corners, 0, "CB1"), covers: at(offense.receivers, 0, "X"), technique: "PRESS" },
-          { kind: "MAN", defender: at(defense.corners, 1, "CB2"), covers: at(offense.receivers, 1, "Z"), technique: "PRESS" },
-          { kind: "MAN", defender: at(defense.corners, 2, "NB"), covers: at(offense.receivers, 2, "slot"), technique: "OFF" },
-          { kind: "MAN", defender: at(defense.linebackers, 0, "LB1"), covers: offense.tightEnd, technique: "OFF" },
-          { kind: "MAN", defender: at(defense.linebackers, 1, "LB2"), covers: offense.runningBack, technique: "OFF" },
-          { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "LW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
-          { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
-        ],
+        assignments,
+        shownAssignments: assignments,
         rush: baseRush(defense),
       };
     },
