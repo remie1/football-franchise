@@ -12697,3 +12697,59 @@ violation of inertness.**
 ✅ **The dispatch was right to REPORT rather than edit**, and right to distinguish **fixture BUILDERS**
 *(mechanical, no assertion changes meaning)* from **assertions** *(which must not move)*. ⛔ **The
 falsifier should have said "zero changes to any ASSERTION," not "any test."**
+
+---
+
+## 168. 📒 A CARRIER'S FIRING CONDITION MUST COVER ITS PAYLOAD'S DOMAIN — and a roll event cannot carry a state
+
+**From ADR-067 §B's placement. ⛔ Two rules, both general, both about event vocabulary, recorded
+BEFORE the vocabulary is built.**
+
+### ⛔ 1. AN EXISTING, ALREADY-READ EVENT IS AN ATTRACTIVE CARRIER FOR REASONS THAT DO NOT BEAR ON THE QUESTION
+
+**`PRESNAP_READ` was proposed to carry the shown defensive state. The reasoning: *it already exists
+and is already read*.** ✅ **Both TRUE.** ⛔ **Both IRRELEVANT.**
+
+**`PRESNAP_READ` fires only `if (preSnap.recognition !== undefined)` *(`passPlay.ts:400`)*, and
+recognition is gated on `unaccounted.length > 0` *(`preSnap.ts:259`)* — ⛔ A CONDITION ABOUT UNBLOCKED
+RUSHERS.**
+
+⚠ **Coverage disguise has nothing to do with unblocked rushers.** ⛔ **So the state would be ABSENT ON
+PRECISELY THE PLAYS THE MECHANIC IS ABOUT:** a receiver deceived by a safety spinning down against a
+four-man rush produces **no recognition roll ⇒ no event ⇒ no shown state ⇒ no computable diff.**
+
+> ## ⛔ **THE RULE: A CARRIER'S FIRING CONDITION MUST COVER ITS PAYLOAD'S DOMAIN.** ⚠ **"It exists" and "it is read" are facts about the CARRIER. Neither answers whether it fires WHEN THE PAYLOAD IS MEANINGFUL.**
+
+✅ **`PLAY_START` fires unconditionally and already carries the played state — so both states land in
+one payload on EVERY play.**
+
+### ⛔ 2. A ROLL EVENT CANNOT CARRY A STATE — the category error
+
+**`PRESNAP_READ`'s payload is `{ actor, kind, roll, target, tier, band? }`** — ⛔ **a ROLL.**
+
+> ## ⛔ **A STATE PUBLISHED INSIDE A ROLL EVENT READS AS AN OUTPUT OF THAT ROLL.** ✅ **It is not: it is a fact about the CALL, and the roll is a separate thing that happens AGAINST it.**
+
+⚠ **Nothing in the stream would mark the difference, and a consumer reconstructing the play would
+reasonably infer causation from containment.**
+
+### ✅ 3. AND THE CORRECT CARRIER MAKES THE FALSIFIER STRONGER
+
+⛔ **B's inertness check is "the diff is empty on every play of the canonical corpus."**
+
+⚠ **On `PRESNAP_READ` that would have meant *every play THAT HAPPENED TO PRODUCE A RECOGNITION ROLL*
+— a silent restriction of the sample to a population selected by an unrelated gate.** ✅ **On
+`PLAY_START` it means EVERY PLAY.**
+
+**⇒ The carrier choice changed what the falsifier is able to assert, not merely where the field
+lives.**
+
+### ⇒ THE OPERATIVE FORM
+
+⛔ **BEFORE REUSING AN EVENT AS A CARRIER, ASK TWO THINGS THAT ARE NOT "does it exist" OR "is it
+read":**
+1. ✅ **Does it fire everywhere the payload is meaningful?**
+2. ✅ **Is it the same KIND of thing as the payload** — a state on a state event, a roll on a roll
+   event?
+
+⚠ **Both were answerable in one grep here, and neither was asked until the placement was already
+chosen.**
