@@ -229,7 +229,7 @@ Ruled in part — §8's rulings, below. §4's petition is replaced by ADR-071's.
 | 4 | The disguise rate stays at 30–33%; corner masks change which disguise is worn, not how often | ✅ **YES** |
 
 Under ADR-071's words, Press-Bail is **Press** and Split-Field is **Split**; Phase 1's Two-High and
-Two-High Cover 2 look are **Show 2**, and Single-High is **Show 1** (pending ADR-071 §9 question 3).
+Two-High Cover 2 look are **Show 2**, and Single-High is **Show 1** (ruled yes, ADR-071 §9 question 3).
 
 ---
 

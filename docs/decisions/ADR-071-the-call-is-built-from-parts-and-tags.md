@@ -2,9 +2,10 @@
 
 - **Date:** 2026-10-14
 - **Proposed by:** Orchestrator, from the owner's answer to ADR-070 §8 question 3
-- **Status:** **proposed** — four questions in §9. Nothing here is built. Reviewed at draft by the
-  contracts guardian (MODIFY; its fixes are folded in below) and the fantasy advisor (nothing
-  foreclosed; its notes are in Implied scope).
+- **Status:** **approved** *(owner, 2026-10-14)* — all four questions in §9 answered yes; the
+  contracts petition in §6 is approved. Step 1 is next. Reviewed at draft by the contracts guardian
+  (MODIFY; its fixes are folded in below) and the fantasy advisor (nothing foreclosed; its notes are
+  in Implied scope).
 - **Replaces:** ADR-070 §4's contracts petition (a list of masks). ADR-070's approved rulings (1, 2
   and 4) stand, and are built under the shape below.
 - **Revisits:** ADR-069 ruling 5 (front and blitz stay on the card) — §7 says when it ends; and
@@ -368,7 +369,7 @@ export interface DefensivePlayCall {
 
 ## Decision
 
-Pending the owner — §9.
+Approved — §9's rulings, below. Build in §7's order, step 1 first.
 
 ---
 
@@ -387,3 +388,14 @@ Pending the owner — §9.
 4. **The order.** Names first, with nothing playing differently; then the corner looks; then pressure
    and front tags as their own draws, with Phase 3 (which ends ADR-069 ruling 5); then the call sheet
    by situation and the captain's live check, once coordinators and the leash exist. Yes?
+
+### ✅ Rulings *(owner, 2026-10-14)*
+
+The owner's answer: *"Yes to all."*
+
+| # | question | ruling |
+|---|---|---|
+| 1 | The call's shape: personnel, front, coverage, then tags; each tag a look, a pressure or a front tag. Replaces ADR-070's list of masks as the contracts change | ✅ **YES** — petition approved |
+| 2 | The tag rule: one look per position group; no two played tags on one man; a look may sit over a pressure; a pressure never moves the deep shell, Zero excepted | ✅ **YES** |
+| 3 | The words: Show 2, Show 1, Press, Split, Show 4 (Stem and Mug at Phase 3); Fire, Double A, Smoke, Zero; Tex, Twist, Delay, Triple | ✅ **YES** |
+| 4 | The order: names first; corner looks; pressure and front tags with Phase 3; the call sheet and the captain's check once coordinators and the leash exist | ✅ **YES** |
