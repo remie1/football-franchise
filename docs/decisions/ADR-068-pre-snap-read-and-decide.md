@@ -2,7 +2,7 @@
 
 - **Date:** October 2026
 - **Proposed by:** Orchestrator, on the owner's review of ADR-067 §E's design
-- **Status:** **proposed** — DESIGN ONLY. Nothing implemented. Brought for ruling.
+- **Status:** **ruled in part** *(owner, October 2026)* — see §8. Questions 1–5 ruled; 6 (motion) held for discussion.
 - **Reframes:** ADR-067 §E and §D. A, B and C stand as landed.
 
 ---
@@ -200,7 +200,7 @@ pressure read are separately priceable and have DIFFERENT target metrics** (`int
 
 ## Decision
 
-⛔ **AWAITING RULING** on the questions in §7 below.
+✅ **RULED IN PART** — see §8. Motion (§7 question 6) is held.
 
 ## 7. Questions for the owner
 
@@ -211,3 +211,41 @@ pressure read are separately priceable and have DIFFERENT target metrics** (`int
 4. **Misreads perceived against the shown coverage** (§5) instead of a new magnitude.
 5. **The build order** (§6), starting with step 1 on Cover 3 Sky and Cover 1 Rat.
 6. **Motion as an information action only**, so it needs no field positions.
+
+---
+
+# 8. ✅ RULINGS *(owner, October 2026)*
+
+| # | question | ruling |
+|---|---|---|
+| 1 | Read → decide → leash, coverage and pressure as two rolls sharing one decision step | ✅ **APPROVED** |
+| 2 | Add `discipline` (all positions, mental) to the registry | ✅ **YES** |
+| 3 | Leash as three levels | ⛔ **CHANGED: a 0–100 slider**, not three levels. The NONE / LIMITED / FULL menu in §4 is superseded; which decisions open at which point on the slider is part of step 2's design |
+| 4 | Misreads perceived against the shown coverage (§5) | ✅ **YES** |
+| 5 | Build order (§6), step 1 on Cover 3 Sky and Cover 1 Rat | ✅ **YES** |
+| 6 | Motion as an information action only | ⏸ **HELD.** The owner's objection: a receiver who motions across the formation changes the play, so motion does need positions. See below |
+
+## ⚠ ON MOTION — the claim in §3 was framed wrongly
+
+**§3 said motion "needs no coordinates" and treated it as an information action.** ⛔ **That is
+true only for motion that returns to its starting spot.** A receiver who motions across the
+formation changes the formation: who is #1/#2/#3 to each side, which lane he releases from, the
+strength of the set, and therefore which defender has him.
+
+**What the tree actually holds, and where:**
+- ✅ **Starting positions DO exist — in `playbook`, not the engine.** Every formation carries an
+  alignment (lane and side) for each skill role (`formations.ts`, `AlignmentMap`), and
+  `instantiateDefense`/`instantiateOffense` use it to resolve man targets ("#2 to the left") and route
+  lanes. Per ADR-006 the engine never sees an alignment; it sees the pairings they produced.
+- ⛔ **What does not exist is a SECOND formation per play** — the one after motion.
+
+**So motion splits in two:**
+1. **Return motion** (out and back, or a short shift that keeps the set) — the formation does not
+   change; the only modelled effect is the tell (man defender follows ⇒ man; defenders bump ⇒ zone).
+   A better coverage read and nothing else.
+2. **Relocating motion** — the formation changes from A to B at the line. In this tree that means
+   instantiating the play against formation B, so man targets and lanes re-resolve, and the defence's
+   RESPONSE to the motion is itself a shown-vs-played question (does the corner travel with him?).
+   It needs a starting cell, not coordinates: the alignment vocabulary `playbook` already has.
+
+`unruled` — brought back to the owner for discussion before either is scheduled.
