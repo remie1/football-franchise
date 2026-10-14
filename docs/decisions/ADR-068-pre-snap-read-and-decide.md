@@ -310,3 +310,12 @@ rise.** ✅ **The mechanism works per throw** — a throw to a receiver the QB m
    that hides a man, are the next authoring shapes.
 
 `int_rate`'s verdict is unchanged: FAIL (known), low.
+
+## ✅ OWNER'S RESPONSE *(2026-10-14)*
+
+- **Tightening stops.** ~1.8% is close enough for now; none of the three options above is taken.
+  The gate is left as it is (FAIL (known) against the repo's 2.28% baseline) — see ADR-069 §7.
+- **Option 2 is superseded by ADR-069.** More disguise is not more disguised cards: the mask
+  becomes its own named piece, drawn over any card it can legally sit on, at a rate calibrated to
+  the owner's 30–33% of pass snaps.
+- **Step 2 (`discipline` + the 0–100 leash) waits on ADR-069's build.**
