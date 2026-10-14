@@ -2,7 +2,9 @@
 
 - **Date:** 2026-10-14
 - **Proposed by:** Orchestrator, building ADR-069 §9.6 in the order the owner ruled (§10 ruling 3)
-- **Status:** **proposed** — four questions in §8. Nothing here is built.
+- **Status:** **ruled in part** *(owner, 2026-10-14)* — §8's questions 1, 2 and 4 approved; 3
+  answered *"build even more into it"*, and ADR-071 (the call built from parts and tags) replaces
+  §4's petition. §3's rule is built and measured alone (§9); nothing else here is built.
 - **Builds on:** ADR-069 (masks as named pieces; §9.3 the second lie; §9.4 combinations; §10's
   rulings), ADR-068 §5 (a misread is perceived against the SHOWN coverage — its "perception-only
   fork" was left to the build, and §3 below is that form). Neither is reopened.
@@ -156,7 +158,7 @@ yards per attempt, sack and throwaway rates, and throws to a hidden man.
    combinations stated and checked; the second pick. Tests as Phase 1's: every stated pairing
    against every formation, played coverage untouched, no die when nothing is legal.
 2. **Contracts + caller:** `masks` (on ruling); caller v4; the engine echoes `masks`.
-3. **Engine:** §3's rule, behind arm B first.
+3. **Engine:** §3's rule, behind arm B first. **Built; arm B is §9.**
 4. **Calibration:** the arms; the rate re-checked; results into this ADR.
 
 ---
@@ -176,21 +178,26 @@ yards per attempt, sack and throwaway rates, and throws to a hidden man.
 | The hitch is open under Quarters and covered under Cover 3 Sky | **COMPUTED** from zone spans (`playbook/src/coverage.ts`) and the cards' duties; the hitch's cell (short band, #1's own lane) **INFERRED** from the route table (`Hitch`: 4–9 air yards, no lane travel) |
 | Two-High + Press-Bail is the commonest modern two-high disguise | **REPORTED** — owner, ADR-069 §9.4 |
 | Completion falls more than `int_rate` moves | **CHOSEN** — a prediction, §5 |
+| Arm B's rates, reads, misreads and throws (§9) | **COMPUTED** — paired arm harness against ADR-069 §11's arm A, `adr-068:step1-arm`, 1,680 games, 2026-10-14 |
+| Single-High over Cover 2 Man reads come from the third receiver in trips | **INFERRED** — Cover 2 Man mans both #1s, both #2s and the back (`DEFENSIVE_CARDS`); B counts 7 hidden-man throws and no trap throws there |
 
 ## Conjoined mechanisms — REQUIRED
 
 Three mechanisms: **§3's rule, Press-Bail, Split-Field.** The rule is separately priceable — it
 changes Phase 1's masks on its own — so it gets arm B. **The corner masks are NOT priceable without
 the rule:** a pressed look shows somebody on the receiver, which today's trap test ignores, so
-corner masks without §3 are worn and inert (as Single-High over Cover 2 Man is, ADR-069 §11.3).
+corner masks without §3 are worn and inert (as Single-High over Cover 2 Man was before §3, ADR-069
+§11.3).
 Each corner mask is then priced alone (C, D) and jointly (E).
 
 ## Implied scope — REQUIRED
 
 - **The receiver is fooled by Press-Bail too** — he plans a release against press. ADR-068 step 4
   (receiver reads). Until then Press-Bail fools the quarterback only. `unruled`.
-- **Single-High over Cover 2 Man stays inert** under §3: every receiver is manned in both looks, by
-  the same man. What it hides is help over the top, which no read models. `unruled`.
+- ~~**Single-High over Cover 2 Man stays inert** under §3: every receiver is manned in both looks, by
+  the same man.~~ **Corrected by arm B (§9):** it is not inert. Cover 2 Man leaves a third receiver
+  to one side to its zones, and Single-High shows a defender over him that the play does not have.
+  What it also hides, help over the top, no read models. `unruled`.
 - **The reverse corner lie** — off coverage shown, press played — is not in the owner's catalogue.
   `unruled`.
 - **Run plays** wear corner masks too (the defence calls blind); nothing on a run reads them. `unruled`.
@@ -199,7 +206,7 @@ Each corner mask is then priced alone (C, D) and jointly (E).
 
 ## Decision
 
-Pending the owner — §8.
+Ruled in part — §8's rulings, below. §4's petition is replaced by ADR-071's.
 
 ---
 
@@ -211,3 +218,54 @@ Pending the owner — §8.
 3. **Contracts: the call carries a list of masks** (at most one per group) instead of one. Approve?
 4. **The disguise rate stays at 30–33%;** corner masks change which disguise is worn, not how
    often. Yes?
+
+### ✅ Rulings *(owner, 2026-10-14)*
+
+| # | question | ruling |
+|---|---|---|
+| 1 | Press-Bail over Cover 3, Fire Zone and Quarters; Split-Field over Cover 6 | ✅ **YES** |
+| 2 | A fooled quarterback believes the shown coverage's typical outcome, no extra die | ✅ **YES** — §3 stands as written |
+| 3 | Contracts: the call carries a list of masks | ⛔ **EXPANDED.** *"You're on the right path and we need to build even more into it."* The owner supplied a call sheet: every call is a base concept plus one-word tags — a mask, a blitz add-on, a stunt or front shift — said as package, front, coverage, mask tag. **ADR-071 is that shape, and its petition replaces §4's.** |
+| 4 | The disguise rate stays at 30–33%; corner masks change which disguise is worn, not how often | ✅ **YES** |
+
+Under ADR-071's words, Press-Bail is **Press** and Split-Field is **Split**; Phase 1's Two-High and
+Two-High Cover 2 look are **Show 2**, and Single-High is **Show 1** (pending ADR-071 §9 question 3).
+
+---
+
+## 9. Arm B — the belief rule alone, measured *(2026-10-14)*
+
+§3's rule is built: the typical outcomes in `engine/src/resolve/manCoverage.ts` and
+`resolve/zoneCoverage.ts` (`D100_MEAN` in `rolls.ts`), and the lies and the reorder in
+`engine/src/sim/passPlay.ts`. It is tested in `engine/test/coverageBelief.test.ts` (nine tests; ten
+deliberate breaks of the rule, each caught). Arm B against arm A on ADR-069 §11's seeds
+(`adr-068:step1-arm`, 1,680 games, caller v3, Phase 1's masks only):
+
+| | A — v3 | B — v3 + §3 | B − A |
+|---|---|---|---|
+| `int_rate` | 1.849% | 1.817% | −0.033pp (±0.060 SE) |
+| completion | 37.228% | 37.218% | −0.010pp (±0.216 SE) |
+| yards per attempt | 3.680 | 3.672 | −0.009 |
+| sacks per dropback | 16.408% | 16.430% | +0.022pp |
+| `disguise_rate` | 31.382% | 31.403% | the owner's 30–33% holds |
+| coverage reads rolled | 22,844 | 27,682 | +21% |
+
+The standard errors treat the arms as unpaired, so they overstate the noise a little.
+
+- **The misreads B names on `QB_READ`:** "nobody on him" (Phase 1's trap) 1,295; "a zone defender
+  on him" reading low (a hidden man) 363, and reading high (a trap under a weaker zone defender) 23.
+  Phase 1 shows no man, so the "a man on him" misread does not occur yet.
+- **Throws to a trap:** 1,153 (34.3% complete, 6.7% intercepted). **Throws to a hidden man:** 41 (23
+  complete, none intercepted), out of 99,787 attempts.
+- **Where the extra reads come from:** a receiver shown one zone defender and played by another is
+  now a lie when the two differ in rating. Reads under Single-High went from 5,060 to 8,126, under
+  Two-High from 14,660 to 15,949, and under the Cover 2 look from 3,124 to 3,607. Single-High over
+  Cover 2 Man went from no reads to 124 (32 fooled, 7 throws to a hidden man, no throws to a trap):
+  the third receiver in trips, whom Cover 2 Man leaves to its zones, is shown the walked-down safety
+  over his short routes (INFERRED from the card's duties and the mask's look).
+
+**Reading.** The rule alone moves nothing measurable: every aggregate change is inside one standard
+error. It rolls a fifth more reads, but Phase 1's safety looks rarely put a defender in front of a
+receiver the rotation leaves open, so they hide almost nobody. The hidden-man lie belongs to Press,
+as §3's worked example says, and arm C is where it gets measured. §5's prediction is about the
+corner masks and is untouched by B.

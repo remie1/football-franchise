@@ -82,13 +82,14 @@ import {
 import { anticipationAvailable, resolveAnticipation } from "../resolve/anticipation.js";
 import type { CatchOutcome } from "../resolve/catchResolution.js";
 import { catchTypeFor, resolveCatch } from "../resolve/catchResolution.js";
-import { resolveManCoverage } from "../resolve/manCoverage.js";
+import { resolveManCoverage, typicalManCoverage } from "../resolve/manCoverage.js";
 import { backfieldZone, routeZone, zoneDefenderFor } from "../resolve/zone.js";
 import {
   brokeOnBallContestModifier,
   resolveZoneCoverage,
   resolveZoneRead,
   settledOpennessAt,
+  typicalZoneCoverage,
 } from "../resolve/zoneCoverage.js";
 import type { DeflectionPoint, RecoveryCandidate } from "../resolve/tippedBall.js";
 import {
@@ -270,12 +271,13 @@ interface ReceiverTrack {
   /** §8.8 scramble drill: openness the receiver had when the QB left the pocket. */
   scrambleBaseOpenness: number | undefined;
   /**
-   * ADR-068 step 1 — the quarterback believed the shown coverage and it showed this
-   * receiver uncovered. His READS of him perceive a hole; the catch still resolves
-   * against the defender who is actually there. Never set out of structure: a
-   * scrambling passer is looking at the field as it is.
+   * ADR-068 step 1, generalized by ADR-070 §3 — set when the quarterback BELIEVED the
+   * shown coverage and it lies about this receiver: what he expects of him, which is the
+   * typical outcome of what the look showed on him. His READS of him perceive that; the
+   * catch still resolves against the defender who is actually there. Never applied out
+   * of structure: a scrambling passer is looking at the field as it is.
    */
-  misperceivedAsOpen: boolean;
+  belief: CoverageBelief | undefined;
 }
 
 function requirePlayer(state: MatchGameState, id: PlayerId): PlayerState {
@@ -349,12 +351,14 @@ export function simulatePassPlay(
   const budgetSeconds = timeBudgetSeconds(tunables, qb, system);
   const maxReads = maxReadsFor(tunables, system);
   const throwThreshold = throwThresholdFor(tunables, system);
-  // ---- ADR-068 step 1: the coverage read --------------------------------------
-  // A TRAP is a receiver the shown look leaves uncovered whom the played coverage has a
-  // defender on. With none there is nothing for the read to decide, so no die (ADR-005).
-  const traps = coverageTraps(tunables, state, calls, tracks);
+  // ---- ADR-068 step 1 / ADR-070 §3: the coverage read ---------------------------------
+  // The look LIES about a receiver when what it shows on him has a different typical
+  // outcome from what is played on him: higher, he is a TRAP (he looks more open than he
+  // is); lower, a HIDDEN MAN (he looks more covered than he is). With no lie there is
+  // nothing for the read to decide, so no die (ADR-005).
+  const lies = coverageLies(tunables, state, calls, tracks);
   const coverageRead: CoverageReadOutcome | undefined =
-    traps.size === 0
+    lies.beliefs.size === 0
       ? undefined
       : resolveCoverageRead({
           tunables,
@@ -363,11 +367,11 @@ export function simulatePassPlay(
           presnapRng,
         });
   if (coverageRead?.fooled === true) {
-    for (const t of tracks) if (traps.has(String(t.assignment.receiver))) t.misperceivedAsOpen = true;
+    for (const t of tracks) t.belief = lies.beliefs.get(String(t.assignment.receiver));
   }
   const readOrder = reorderForCoverageRead(
     preSnap.readOrder.filter((id) => tracks.some((t) => t.assignment.receiver === id)),
-    traps,
+    lies,
     coverageRead,
     new Set(preSnap.hotConversions.map((h) => String(h.receiver))),
   );
@@ -1905,7 +1909,7 @@ function buildReceiverTracks(
       lastRead: undefined,
       reachedInProgression: false,
       scrambleBaseOpenness: undefined,
-      misperceivedAsOpen: false,
+      belief: undefined,
     };
   });
 }
@@ -1932,66 +1936,134 @@ function trackCoverageFor(
 }
 
 /**
- * ADR-068 step 1 — the receivers the shown look lies about in the one way step 1 gives a
- * consequence: shown with nobody on him, played with somebody. Keyed by receiver id.
+ * ADR-070 §3 — what a quarterback expects of one route under one coverage before the snap:
+ * the band a rep would land in at the middle of the die, by the same tables the snap
+ * resolves with. Nobody there is the hole the engine already values
+ * (`zoneCoverage.uncoveredOpenness`, on the settled curve), exactly as step 1 valued it.
+ *
+ * NO DIE. The expectation is a fact about the look and the two men's ratings, so it needs
+ * no roll and publishes none; what is published is the misread modifier it produces.
+ */
+interface CoverageBelief {
+  /** What the look put on him. Names the misread, so the stream says which lie it was. */
+  readonly shown: "NOBODY" | "MAN" | "ZONE";
+  readonly openness: number;
+  readonly contestPosition: ContestPosition;
+  readonly settled: boolean;
+}
+
+function typicalOutcome(tunables: Tunables, receiver: PlayerState, coverage: TrackCoverage): CoverageBelief {
+  if (coverage.defender === undefined) {
+    return {
+      shown: "NOBODY",
+      openness: tunables.zoneCoverage.uncoveredOpenness,
+      contestPosition: tunables.zoneCoverage.uncoveredContestPosition,
+      settled: true,
+    };
+  }
+  if (coverage.kind === "MAN") {
+    const rep = typicalManCoverage(tunables, receiver, coverage.defender);
+    return { shown: "MAN", openness: rep.openness, contestPosition: rep.contestPosition, settled: false };
+  }
+  const rep = typicalZoneCoverage(tunables, receiver, coverage.defender);
+  return { shown: "ZONE", openness: rep.openness, contestPosition: rep.contestPosition, settled: rep.settled };
+}
+
+/** The receivers a look lies about, each keyed by receiver id. */
+interface CoverageLies {
+  /** Shown more open than he is played: he looks better than he is. */
+  readonly traps: ReadonlySet<string>;
+  /** Shown more covered than he is played: he looks worse than he is. */
+  readonly hidden: ReadonlySet<string>;
+  /** What the look makes the quarterback expect, for every receiver in either set. */
+  readonly beliefs: ReadonlyMap<string, CoverageBelief>;
+}
+
+const NO_LIES: CoverageLies = { traps: new Set(), hidden: new Set(), beliefs: new Map() };
+
+/**
+ * ADR-070 §3 — a receiver the look lies about is one whose SHOWN coverage has a different
+ * typical outcome from his PLAYED coverage. Above it, a trap: ADR-068 step 1's case, a
+ * receiver shown nobody and played somebody, is one (nobody is the highest expectation
+ * there is). Below it, a hidden man: shown covered, open, or covered by a weaker man than
+ * the look put on him. Equal expectations are no lie, whatever moved — the same man shown
+ * in another zone expects the same rep.
  *
  * Empty whenever `shownAssignments` IS `assignments` (every undisguised card), without
  * comparing anything: the same list cannot produce two coverages.
  */
-function coverageTraps(
+function coverageLies(
   tunables: Tunables,
   state: MatchGameState,
   calls: PlayCalls,
   tracks: readonly ReceiverTrack[],
-): ReadonlySet<string> {
+): CoverageLies {
+  if (calls.defense.shownAssignments === calls.defense.assignments) return NO_LIES;
   const traps = new Set<string>();
-  if (calls.defense.shownAssignments === calls.defense.assignments) return traps;
+  const hidden = new Set<string>();
+  const beliefs = new Map<string, CoverageBelief>();
   for (const track of tracks) {
     const shown = trackCoverageFor(tunables, state, calls.defense.shownAssignments, track.assignment, track.zone);
-    if (shown.defender === undefined && track.coverage.defender !== undefined) {
-      traps.add(String(track.assignment.receiver));
-    }
+    const belief = typicalOutcome(tunables, track.receiver, shown);
+    const truth = typicalOutcome(tunables, track.receiver, track.coverage);
+    if (belief.openness === truth.openness) continue;
+    const id = String(track.assignment.receiver);
+    (belief.openness > truth.openness ? traps : hidden).add(id);
+    beliefs.set(id, belief);
   }
-  return traps;
+  return { traps, hidden, beliefs };
 }
 
 /**
- * ADR-068 step 1's one decision lever: where the trapped receivers go in the
- * progression. Seeing through the disguise puts them LAST (the route is dead); being
- * fooled puts them FIRST (the shown hole is the best thing on the field). Hot
- * conversions keep the front either way — they answer a recognised blitz, which is a
- * separate read with a separate consequence. Any other band leaves the order as called.
+ * The coverage read's one decision lever (ADR-068 step 1, generalized by ADR-070 §3):
+ * where the receivers the look lies about go in the progression. FOOLED, he believes the
+ * look: the traps lead (the shown hole is the best thing on the field) and the hidden men
+ * go last (they look smothered). SEEING THROUGH it, the reverse: the hidden men lead and
+ * the traps are dead routes, read last. Hot conversions keep the front either way — they
+ * answer a recognised blitz, which is a separate read with a separate consequence. Any
+ * other band leaves the order as called.
+ *
+ * With no hidden man this is step 1's reorder exactly, because hot conversions already
+ * lead the called order whenever `presnap.hotRoute.movesToFrontOfProgression` is on.
  */
 function reorderForCoverageRead(
   order: readonly PlayerId[],
-  traps: ReadonlySet<string>,
+  lies: CoverageLies,
   read: CoverageReadOutcome | undefined,
   hot: ReadonlySet<string>,
 ): readonly PlayerId[] {
-  if (read === undefined || traps.size === 0) return order;
-  const isTrap = (id: PlayerId): boolean => traps.has(String(id)) && !hot.has(String(id));
-  if (read.seesThrough) return [...order.filter((id) => !isTrap(id)), ...order.filter(isTrap)];
+  if (read === undefined || lies.beliefs.size === 0) return order;
+  const isHot = (id: PlayerId): boolean => hot.has(String(id));
+  const isTrap = (id: PlayerId): boolean => lies.traps.has(String(id)) && !isHot(id);
+  const isHidden = (id: PlayerId): boolean => lies.hidden.has(String(id)) && !isHot(id);
+  const isRest = (id: PlayerId): boolean => !isHot(id) && !isTrap(id) && !isHidden(id);
+  if (read.seesThrough) {
+    return [...order.filter(isHot), ...order.filter(isHidden), ...order.filter(isRest), ...order.filter(isTrap)];
+  }
   if (read.fooled) {
-    return [
-      ...order.filter((id) => hot.has(String(id))),
-      ...order.filter(isTrap),
-      ...order.filter((id) => !hot.has(String(id)) && !isTrap(id)),
-    ];
+    return [...order.filter(isHot), ...order.filter(isTrap), ...order.filter(isRest), ...order.filter(isHidden)];
   }
   return order;
 }
 
+/** The misread's name, by what the look put on him. Step 1's is kept verbatim. */
+const COVERAGE_MISREAD_SOURCE: Readonly<Record<CoverageBelief["shown"], string>> = {
+  NOBODY: "Coverage misread: the shown look had nobody on him (ADR-068)",
+  MAN: "Coverage misread: the shown look had a man on him (ADR-070)",
+  ZONE: "Coverage misread: the shown look had a zone defender on him (ADR-070)",
+};
+
 /**
- * ADR-068 step 1 — what believing the shown coverage does to one §8.3 read: he sees the
- * hole the look promised. Valued exactly as the engine values a real hole
- * (`zoneCoverage.uncoveredOpenness`, on the settled curve), so the size of the lie is
- * the difference between two quantities the engine already computes, not a constant
- * chosen for it.
+ * What believing the shown coverage does to one §8.3 read (ADR-068 step 1, generalized by
+ * ADR-070 §3): he sees what the look led him to expect. The size of the lie is the
+ * believed openness minus the real one, both on the curves the engine already runs —
+ * POSITIVE for a trap, NEGATIVE for a hidden man — so it is the difference between two
+ * quantities the engine computes, not a constant chosen for it.
  *
  * A NAMED MODIFIER ON THE READ, NOT A SUBSTITUTED INPUT. `QB_READ` publishes the real
  * openness as `actual` and the misread as a line in the roll, so the stream says both
- * what was there and why he saw something else; feeding the phantom in as the input
- * would publish a hole as the truth.
+ * what was there and why he saw something else; feeding the belief in as the input
+ * would publish it as the truth.
  */
 function coverageMisreadModifier(
   tunables: Tunables,
@@ -1999,15 +2071,16 @@ function coverageMisreadModifier(
   tick: number,
   scramble: ScrambleState | undefined,
 ): RollModifier | undefined {
-  if (!track.misperceivedAsOpen || scramble !== undefined || track.baseOpenness === undefined) return undefined;
-  const hole: ReceiverTrack = {
+  const belief = track.belief;
+  if (belief === undefined || scramble !== undefined || track.baseOpenness === undefined) return undefined;
+  const believed: ReceiverTrack = {
     ...track,
-    baseOpenness: tunables.zoneCoverage.uncoveredOpenness,
-    contestPosition: tunables.zoneCoverage.uncoveredContestPosition,
-    settled: true,
+    baseOpenness: belief.openness,
+    contestPosition: belief.contestPosition,
+    settled: belief.settled,
   };
-  const delta = readOpenness(tunables, hole, tick, scramble) - readOpenness(tunables, track, tick, scramble);
-  return flatModifier("Coverage misread: the shown look had nobody on him (ADR-068)", delta);
+  const delta = readOpenness(tunables, believed, tick, scramble) - readOpenness(tunables, track, tick, scramble);
+  return flatModifier(COVERAGE_MISREAD_SOURCE[belief.shown], delta);
 }
 
 /**

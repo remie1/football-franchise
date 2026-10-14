@@ -22,15 +22,17 @@
  * `tunables.zoneCoverage.readQb.disguise` for what stands in and why.
  */
 import { getAttr } from "@ff/contracts";
-import type { AttrId, PlayerState, Rng, RollDetail } from "@ff/contracts";
+import type { AttrId, PlayerState, Rng, RollDetail, RollModifier } from "@ff/contracts";
 import { ATTR, TRAIT, resolveAttr } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import {
   actorAttrModifier,
   bandFor,
   compact,
+  D100_MEAN,
   flatModifier,
   rollD100,
+  sumModifiers,
   tierFor,
   traitModifier,
 } from "../rolls.js";
@@ -62,12 +64,10 @@ export interface ZoneCoverageOutcome {
 
 const ZONE_COVERAGE_ATTRS: readonly AttrId[] = [ATTR.routeRunning, ATTR.zoneCoverage];
 
-export function resolveZoneCoverage(args: ZoneCoverageArgs): ZoneCoverageOutcome {
-  const { receiver, defender, coverageRng, tunables } = args;
-  const t = tunables.zoneCoverage;
-
-  const receiverMods = compact([
-    actorAttrModifier(receiver, "Route Running", ATTR.routeRunning, t.receiverAttrDivisor),
+/** The receiver's side of the rep. Shared by the rolled rep and the typical one. */
+function zoneCoverageModifiers(tunables: Tunables, receiver: PlayerState): RollModifier[] {
+  return compact([
+    actorAttrModifier(receiver, "Route Running", ATTR.routeRunning, tunables.zoneCoverage.receiverAttrDivisor),
     traitModifier(
       "Trait: Route Technician",
       receiver.attributes.traits,
@@ -75,11 +75,52 @@ export function resolveZoneCoverage(args: ZoneCoverageArgs): ZoneCoverageOutcome
       tunables.traitBonuses.routeTechnician,
     ),
   ]);
+}
 
-  // The defender's rating is the TARGET, not a roll (see the module comment).
-  const target =
-    t.target +
-    Math.round(getAttr(defender.attributes.values, ATTR.zoneCoverage) / t.defenderAttrDivisor);
+/** The defender's rating is the TARGET, not a roll (see the module comment). */
+function zoneCoverageTarget(tunables: Tunables, defender: PlayerState): number {
+  const t = tunables.zoneCoverage;
+  return t.target + Math.round(getAttr(defender.attributes.values, ATTR.zoneCoverage) / t.defenderAttrDivisor);
+}
+
+export interface TypicalZoneCoverage {
+  readonly band: ZoneCoverageBandLabel;
+  readonly margin: number;
+  readonly openness: number;
+  readonly contestPosition: ContestPosition;
+  readonly settled: boolean;
+}
+
+/**
+ * ADR-070 §3 — the TYPICAL rep: the receiver's d100 at its mean (`D100_MEAN`) against the
+ * defender's target, with no die. What a quarterback expects of a route into a zone the look
+ * shows him before the snap.
+ *
+ * The margin is never a whole number (the mean is x.5) and every band boundary is one, so a
+ * typical rep never sits ON a boundary and no tie rule is needed.
+ */
+export function typicalZoneCoverage(
+  tunables: Tunables,
+  receiver: PlayerState,
+  defender: PlayerState,
+): TypicalZoneCoverage {
+  const margin = D100_MEAN + sumModifiers(zoneCoverageModifiers(tunables, receiver)) - zoneCoverageTarget(tunables, defender);
+  const band = bandFor(tunables.zoneCoverage.bands, margin);
+  return {
+    band: band.label,
+    margin,
+    openness: band.openness,
+    contestPosition: band.contest,
+    settled: band.settled,
+  };
+}
+
+export function resolveZoneCoverage(args: ZoneCoverageArgs): ZoneCoverageOutcome {
+  const { receiver, defender, coverageRng, tunables } = args;
+  const t = tunables.zoneCoverage;
+
+  const receiverMods = zoneCoverageModifiers(tunables, receiver);
+  const target = zoneCoverageTarget(tunables, defender);
 
   const roll = rollD100(coverageRng.fork(`${receiver.bio.id}:zone`), receiverMods);
   const margin = roll.total - target;

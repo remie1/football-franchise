@@ -103,6 +103,13 @@ export function sumModifiers(mods: readonly RollModifier[]): number {
   return mods.reduce((acc, m) => acc + m.value, 0);
 }
 
+/**
+ * The mean face of `rollD100`'s die, which runs 1–100. ADR-070 §3's TYPICAL outcome reads a
+ * contest at the middle of the die instead of rolling it: the outcome a man expects, as
+ * against the one he gets. Derived from the die, so it is not a tunable.
+ */
+export const D100_MEAN = 50.5;
+
 export function rollD100(rng: Rng, modifiers: readonly RollModifier[]): RollDetail {
   const raw = rng.d100();
   const mods = [...modifiers];
