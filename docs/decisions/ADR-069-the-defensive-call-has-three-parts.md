@@ -2,7 +2,8 @@
 
 - **Date:** 2026-10-14
 - **Proposed by:** Orchestrator, on the owner's review of ADR-068 §9
-- **Status:** proposed — questions in §8 await the owner
+- **Status:** **ruled in part** *(owner, 2026-10-14)* — §8's questions 1, 3, 4, 5, 6 approved; 2 EXPANDED
+  into the owner's catalogue (§9). Three new questions in §10.
 - **Builds on:** ADR-067 (shown/played pair), ADR-068 step 1 (the coverage read). Neither is reopened.
 
 ---
@@ -64,6 +65,9 @@ existing `mirrorZoneDuty` already flips `shows`).
 
 ### 2.2 The v1 catalogue — two masks, each early or late
 
+> ⛔ **SUPERSEDED by §9.2** — the owner's ruling on question 2 replaced this two-mask catalogue with
+> the owner's own (four shells and three position masks). Kept as written for the record.
+
 | mask | shown | played under it | real-football name |
 |---|---|---|---|
 | **Show 2** | both safeties at two-high depth, balanced (`DEEP_HALF` LH / RH) | any single-high rotation: Cover 3 (Sky, Buzz, pressure), Cover 1, Fire Zone | "two-high, roll to one"; the owner's "Sky Mask" |
@@ -85,7 +89,8 @@ A mask is legal over a card only when all of these hold. Like ADR-022's disguise
 1. **Every role the mask moves is on the field.** Show 2 needs both `S_F` and `S_S`, and both must
    be able to reach their played duty from the shown spot (a safety shown at two-high depth can
    rotate to the middle, the flat, the hook or a man assignment; he cannot become a rusher).
-2. **The shown shell differs from the played one.** Show 2 over Cover 2 is not a disguise; it is
+2. ⛔ *(AMENDED by §9.4: the shown DUTIES must differ, not the shell — the owner's Quarters
+   conversion keeps the middle open and changes the coverage under it.)* **The shown shell differs from the played one.** Show 2 over Cover 2 is not a disguise; it is
    Cover 2. A mask that changes nothing would be a die that turns nothing (ADR-005), so the validator
    refuses it rather than letting it count toward the disguise rate.
 3. **Excluded families:** `COVER_0` (its two-high lie is already the pressure axis's `ZERO` row,
@@ -155,6 +160,8 @@ wants the playbook itself built that way (§8 Q5).
 ---
 
 ## 5. BUILD ORDER
+
+> ⛔ **SUPERSEDED by §9.6.**
 
 1. **Playbook:** the mask catalogue, the §2.3 validator rules, `selectMask`; Cover 3 Sky and Cover 1
    Rat lose their inline `shows`. Tests: every illegal pairing is refused; every family in §2.3's
@@ -245,3 +252,139 @@ Pending the owner — §8.
 5. **Front & Blitz stays bound to the card** (three-part name only), rather than becoming its own
    composable piece. Yes, or build the full composition?
 6. **Contracts change:** add `mask` (id + name) to the defensive call. Approve?
+
+---
+
+# 9. ✅ RULINGS *(owner, 2026-10-14)*
+
+| # | question | ruling |
+|---|---|---|
+| 1 | Masks as named pieces, drawn after the card, never changing what is played | ✅ **YES** |
+| 2 | v1 catalogue: Show 2 and Show 1 | ⛔ **EXPANDED.** *"We need more."* The owner supplied a catalogue of four primary masks and three position masks; §9.2 replaces §2.2 with it |
+| 3 | The 30–33% counts coverage disguises only | ✅ **YES** |
+| 4 | One league-wide mask rate now; a defensive coordinator trait later | ✅ **YES** |
+| 5 | Front & Blitz stays bound to the card; the call is named in three parts | ✅ **YES** |
+| 6 | Contracts: `mask` (id + name) on the defensive call | ✅ **YES** — petition approved |
+
+Same message: the branch carrying ADR-067 B and C, ADR-068 and its step 1, and this ADR's first draft
+was merged to `main` on the owner's word (fast-forward, `1161e7f`).
+
+## 9.1 The owner's catalogue *(REPORTED — owner-supplied, with links the owner cited; not opened here)*
+
+The disguise works on the quarterback's first question: is the **middle of the field** open (two
+safeties wide) or closed (one safety in the middle)?
+
+- **Four primary masks (the shells):** Two-High (MOF open) · Single-High (MOF closed) · Cover 0
+  ("mugged up", simulated pressure) · Split-Field (lop-sided corners).
+- **Three that use other positions:** Press-Bail (corners) · Robber (a safety) · Defensive line
+  stemming.
+
+## 9.2 Each mask, mapped onto the game
+
+| mask | moves | shown before the snap | played under it (corpus rotations, weight of 105) | can the game do it today? |
+|---|---|---|---|---|
+| **Two-High** | safeties | both safeties at deep halves, each on the side of the duty he will play | single-high rolls — Cover 3 (Sky, Buzz, Nickel Pressure, Base), Cover 1 (Man Free, Rat, Double A, Base, Dime Man Pressure, Base Run Blitz), Fire Zone — **56** | ✅ **yes.** The look shows a hole the rotation fills — step 1's trap |
+| **Two-High, Cover 2 look** *(the owner's "passive Cover 2 → aggressive Quarters match")* | safeties + corners | safeties at deep halves, corners squatting in the flats | Quarters, Dime Quarters, Cover 6 — **24** | ⚠ **half.** The hole shot between a squat corner and a half safety looks open and the Quarters corner is there: works. The flat that looks covered by the squat corner and isn't needs §9.3 |
+| **Single-High** | safeties | free safety in the deep middle; strong safety walked down on his side (hook/curl, over the tight end) | two-high spins — Cover 2, Tampa 2, Base Cover 2, Quarters, Dime Quarters, Cover 6, Cover 2 Man — **40** | ✅ **yes.** The deep sideline looks open against one-high and the spinning safety is there — the owner's own description of why it works |
+| **Robber** | — | **the Two-High look** | **Cover 3 Buzz is already the robber rotation** — the strong safety drops to the middle hook | ✅ **yes, nothing to build.** Robber names the ROTATION, not the mask: "Two-High · Cover 3 Buzz" is the owner's robber, and the slant it robs is the trap step 1 built (§10 Q2) |
+| **Split-Field** | corners | one corner pressed (a man look), the other off at 10 yards | they flip at the snap: the pressed corner bails deep, the off corner drives the flat — **Cover 6 shown as its own mirror** | ⛔ **no.** A card can only SHOW a zone (`ZoneDuty.shows`, `defense.ts`); a pressed man look is not expressible, and the lie it tells is §9.3's |
+| **Press-Bail** | corners | both corners pressed | deep-zone corners: Cover 3 family, Fire Zone, Quarters | ⛔ **no** — as Split-Field |
+| **Cover 0 (mugged)** | safeties + front | no safety deep; safeties and backers in the A/B gaps, looking like seven or eight rushers | a simulated pressure: four rush (one a backer), the rest drop into zone. ⛔ **No such card** — Fire Zone and Cover 3 Nickel Pressure send five | ⛔ **no.** The rush SHOWN does not exist (ADR-068 §1), and the blitz read is rolled only when a PLAYED rusher is unblocked (`blitz.ts`, ADR-005) — a phantom blitz is invisible to it. Its two effects in the owner's description, the line blocking the wrong men and the quarterback throwing hot into a dropper, are both ADR-068 step 3 |
+| **DL Stem** | front | the line one gap over from where it plays | the card's front | ⛔ **no.** Needs the shown front and a protection that is set against it and then re-identified (ADR-068 steps 3 and 5). The false start it draws needs a penalty producer: `penalty_check` has none (ADR-068 step 7) |
+
+**Phase 1 covers every mask the game can already resolve,** and it is enough for the rate: cards
+carrying 96 of the 105 weight units can wear at least one of Two-High, Two-High Cover 2 look or
+Single-High, unchanged from §2.4's arithmetic.
+
+## 9.3 The second lie — a man who LOOKS covered and is open
+
+Step 1 built one kind of lie: **the look shows a hole the rotation fills.** Press-Bail, Split-Field
+and the squat corner in the Cover 2 look tell the opposite one: **a receiver who looks blanketed,
+and is open at the snap.**
+
+This is not a new ruling. ADR-068 §5, approved as its ruling 4, already says perceived openness is
+computed against the shown coverage, including *"a perception-only fork"* where a real defender is
+shown in a different role. Step 1 built only the trap case (`zoneCoverage.uncoveredOpenness` for a
+man nobody is shown on). **Phase 2 builds the rest of §5 as ruled:**
+
+- A card may SHOW a man look: `shows` widens from a zone to a zone or a pressed/off man duty.
+- A fooled quarterback moves the open-but-covered-looking man to the back and reads him skewed DOWN
+  (perceived minus actual, now negative); one who sees through it moves him up.
+- ⚠ The RECEIVER is fooled by Press-Bail too — he plans a release against press. That is ADR-068
+  step 4 (receiver reads), and until it lands Press-Bail fools the quarterback only.
+
+## 9.4 How masks combine, and what is legal
+
+- **Masks are grouped by what they move: safeties, corners, front.** A call wears at most one per
+  group, and no two masks may move the same player. "Two-High + Press-Bail" over Cover 3 — the
+  commonest modern two-high disguise — is legal once Phase 2 lands. (§10 Q1.)
+- **One die decides "disguised or not"** (ruling 4); a second picks among the legal combinations.
+  Front masks get their own die and their own rate, measured separately (ruling 3).
+- **§2.3 rule 2 is amended:** the shown duties must differ from the played ones; the shell need not.
+  The owner's Quarters conversion keeps the middle open and changes the coverage under it. Each mask
+  still names its legal rotations, stated and then checked, so no mask can drift onto a rotation it
+  does not disguise.
+- **§2.3's Cover 0 exclusion stands** for a PLAYED Cover 0 (its two-high lie is the `ZERO` row). The
+  owner's Cover 0 MASK is the opposite case — shown Cover 0, played something else — and is legal.
+- **Sides:** in Two-High each safety shows the half on the side of the duty he will play (his zone's
+  lane, his man's side, else his run fit's side); in Single-High the free safety shows the middle and
+  the strong safety walks down on his own side. On Cover 3 Sky and Cover 1 Rat this reproduces step
+  1's hand-written shows exactly.
+
+## 9.5 §5.1 complexity per mask
+
+§5.1's target is `50 + Defensive Disguise Rating + complexity`, rows *rotated shell* +10 and *heavy
+disguise (late rotation)* +20.
+
+- Two-High, Single-High: a safety rotation → **+10 early, +20 late.** From the spec.
+- Two-High Cover 2 look over Quarters: the middle stays open, the coverage changes → treated as a
+  rotation, **+10 / +20.** `CHOSEN`.
+- Corner masks: the bail happens at the snap → **+10.** `CHOSEN — provenance NONE`.
+- §5.1's **Defensive Disguise Rating** — how WELL a defence disguises, not how often — is the natural
+  home of ruling 4's coordinator trait. Not built here.
+
+## 9.6 Build order *(replaces §5)*
+
+| phase | what lands | engine change? | measured on |
+|---|---|---|---|
+| **1 — now** | Two-High, Two-High Cover 2 look, Single-High; the draw; `mask` on the call and on `PLAY_START`; `disguise_rate`; mask rate set to land 30–33%. Sky and Rat lose their hand-written shows | **none** | `disguise_rate`; `int_rate` and completion as guards. ⛔ Arms: each mask alone, then all three |
+| **2** | shown man looks; §9.3's second lie; Press-Bail, Split-Field, and combinations with Phase 1's masks | coverage read only | completion and `int_rate` on the disguised share |
+| then | **ADR-068 step 2** — `discipline` + the 0–100 leash | | as ADR-068 |
+| **3**, with **ADR-068 step 3** | the shown rush; the pressure read rolled against it; protection adjustment; a simulated-pressure card; the Cover 0 mask; DL Stem without false starts | pressure read | `sack_rate` (moves the "wrong" way, correctly) |
+| with **ADR-068 step 7** | the false start a stem draws | penalties | false-start rate |
+
+§6's prediction stands for Phase 1: `int_rate` moves by less than 0.1 percentage point.
+
+### Provenance — additions for §9
+
+| claim | provenance |
+|---|---|
+| The catalogue in §9.1–9.2 and its football descriptions | **REPORTED** — owner, 2026-10-14, with cited links not opened here |
+| Weights 56 / 24 / 40, 96 of 105 maskable | **COMPUTED** — `DEFENSIVE_CARDS` from built `@ff/playbook`, by family |
+| Cards can only show a zone | **COMPUTED** — `defense.ts`, `ZoneDuty.shows?: ZoneDuty` and the MAN duty's `shows?: ZoneDuty` |
+| The blitz read is rolled only when a played rusher is unblocked | **COMPUTED** — `resolve/blitz.ts` header (ADR-005) |
+| No penalty producer exists | **COMPUTED** — `penalty_check` listed as waiting for mechanics, `game/events.ts:60`; ADR-068 §3 |
+| Cover 3 Buzz is the robber rotation | **COMPUTED** (S_S plays `MIDDLE_HOOK@C`) + **CHOSEN** (that this is the owner's robber) |
+| Split-Field is Cover 6 shown as its mirror | **CHOSEN** — a football reading of the owner's description |
+| Safety sides in §9.4 reproduce Sky's and Rat's hand-written shows | **COMPUTED** — Sky S_S `FLAT@LW` → LH; Rat S_S man on #2 left → LH; S_F takes RH in both |
+| Two-High Cover 2 look and corner masks complexity rows | **CHOSEN** — §9.5 |
+
+### Implied scope — additions for §9
+
+- A **Cover 1 Robber** card (a safety robs while the rest play man) does not exist; Rat's low-hole
+  player is a linebacker. Authoring. `unruled`.
+- Single-High walks a safety into the box: a **run read** would see the extra man (ADR-068 step 3's
+  run-side form). `unruled`.
+- **Corners showing off-coverage in Two-High** — Phase 1's Two-High moves the safeties only; the
+  corners show what they play. `unruled`.
+
+---
+
+## 10. Questions for the owner
+
+1. **Masks grouped by what they move** (safeties, corners, front), at most one of each per call —
+   so "Two-High + Press-Bail" is one call. Yes?
+2. **Robber is the rotation under a Two-High look, not its own mask** — Cover 3 Buzz already is
+   it. Yes?
+3. **Order:** Phase 1 now; corner masks next; then the leash; the front masks with the pressure
+   read. Yes?
