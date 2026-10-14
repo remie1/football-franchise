@@ -369,6 +369,9 @@ export function simulatePassPlay(
       // answer for most real defences and no input field can state it.
       coverage: coverageShellFor(calls),
       assignments: calls.defense.assignments,
+      // Echoed, not derived (ADR-067 §B): the shown state is a fact about the
+      // CALL. Diffing it against `assignments` is the consumer's job.
+      shownAssignments: calls.defense.shownAssignments,
       // Alignment resolved, not echoed: it is the input the §7.2 arrival model
       // actually ran on, and the only place the stream states it. Side carried
       // through unresolved (ADR-018) — see `resolvedRushAssignment`.

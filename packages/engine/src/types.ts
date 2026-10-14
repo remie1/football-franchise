@@ -325,6 +325,27 @@ export interface PassPlayStartPayload {
     /** Derived from `assignments`, not echoed from the call: `MIXED` is sayable. */
     readonly coverage: CoverageShell;
     readonly assignments: readonly CoverageAssignment[];
+    /**
+     * ADR-067 §B — what the offence SAW before the snap, beside `assignments`,
+     * which is what was played. The call's `shownAssignments`, echoed.
+     *
+     * BOTH STATES, NO VERDICT. There is no `wasDisguised` flag and none may be
+     * added: a flag is a declaration, and a consumer computes divergence by
+     * diffing the two lists, so nothing can declare itself honest. Per
+     * assignment rather than per play, because the question E has to answer is
+     * "was THIS throw made against a look that lied?", and a per-play bit
+     * cannot attribute a throw to one receiver's coverage.
+     *
+     * ON `PLAY_START`, NOT A NEW EVENT AND NOT `PRESNAP_READ` (backlog entry
+     * 168): `PLAY_START` fires on every play, so the diff is computable on every
+     * play; `PRESNAP_READ` fires only when a rusher is unaccounted, and is a
+     * roll, which a state must not ride inside.
+     *
+     * ⚠ IDENTICAL TO `assignments` ON EVERY PLAY TODAY — ADR-067 §A builds both
+     * from one source. The diff is empty, and calibration's
+     * `shownAssignmentsStream` test runs the corpus to show it, not to assume it.
+     */
+    readonly shownAssignments: readonly CoverageAssignment[];
     /** Alignment resolved: §7.2's time-of-arrival model depends on it. */
     readonly rush: readonly ResolvedRushAssignment[];
     /**
@@ -370,6 +391,13 @@ export interface RunPlayStartPayload {
     readonly front: string;
     readonly coverage: CoverageShell;
     readonly assignments: readonly CoverageAssignment[];
+    /**
+     * ADR-067 §B — the shown state, as on `PassPlayStartPayload`. Carried on a
+     * run too so the stream has one shape for the defence and the diff is
+     * computable on every snap, not only on dropbacks. Nothing in the run sim
+     * reads it.
+     */
+    readonly shownAssignments: readonly CoverageAssignment[];
     readonly rush: readonly ResolvedRushAssignment[];
   };
   readonly situation: {
