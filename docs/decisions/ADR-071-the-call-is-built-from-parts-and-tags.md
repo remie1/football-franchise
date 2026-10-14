@@ -4,7 +4,9 @@
 - **Proposed by:** Orchestrator, from the owner's answer to ADR-070 §8 question 3
 - **Status:** **approved** *(owner, 2026-10-14)* — all four questions in §9 answered yes; the
   contracts petition in §6 is approved. Step 1 is built (§10): caller v3 reproduces arm B number
-  for number. Step 2 is next. Reviewed at draft by the contracts guardian
+  for number; merged to `main` on the owner's word (fast-forward, `c1f27d5`). Step 2 is built
+  (§11): Press, Split and Show 4, worn alone or beside a safety look by caller v4, now the
+  default; measured in ADR-070 §10. Reviewed at draft by the contracts guardian
   (MODIFY; its fixes are folded in below) and the fantasy advisor (nothing foreclosed; its notes are
   in Implied scope).
 - **Replaces:** ADR-070 §4's contracts petition (a list of masks). ADR-070's approved rulings (1, 2
@@ -440,3 +442,64 @@ bears on step 2, where Split is the Cover 6 look.
 |---|---|
 | The 880 numbers equal arm B's | **COMPUTED** — paired arm harness (as ADR-070 §9's), `adr-068:step1-arm`, 1,680 games, 2026-10-14 |
 | Show 2 moves only the quarters-side corner over Cover 6 | **COMPUTED** — `maskShows(NICKEL_COVER_6, SHOW_2)`; pinned in `playbook/test/masks.test.ts` |
+
+---
+
+## 11. Step 2, built *(2026-10-14)*
+
+The corner looks are worn, alone or beside a safety look, and caller v4 draws them. Nothing changes
+in contracts or the engine: `shownAssignments` already carried man assignments, and ADR-070 §3's rule
+already reads a shown man.
+
+- **A look can show a man.** `shows` is a zone or a man look (`ShownMan`: whom he shows himself on,
+  and how). `instantiateDefense` finds the man in the formation; a corner with no #1 to his side
+  shows what he plays (§7's rule until the captain's check). Every formation in the corpus has a #1
+  to each side, so Press is always shown.
+- **The three looks.** Press over Cover 3, Fire Zone and Quarters; Split over Cover 6 (the quarter
+  corner shown pressed, the cloud corner shown at a deep quarter); Show 4 over Cover 2, Tampa 2
+  included, and Cover 6 (the corners shown at deep quarters; over Cover 6 only the cloud corner
+  moves). Each comes off at the snap: +10, and no timing die (ADR-069 §9.5).
+- **One look per position group** (§3). The groups are stated once, in `roles.ts`.
+  `legalLookCombinations` lists every set of looks whose moved men fall in different groups, and
+  `applyLooks` refuses two looks on one group, a look that moves nobody, and a timing that would
+  turn nothing.
+- **The draw** (`selectLooks`). One die decides whether, at `COVERAGE_MASK_RATE` (ADR-070 ruling 4);
+  a second pick chooses among the legal sets at equal weight (ADR-070 §2); the timing die is rolled
+  only when a safety look is worn, and then sets the row. Phase 1's per-look weight is gone: both
+  were 1, so equal weight over Phase 1's sets is the same pick.
+- **Calibration.** Caller v4 is v3 with all five looks, on the same `defense-mask` address, and is
+  the default now, as v3 became at Phase 1. v3 keeps Phase 1's two (`PHASE_1_MASKS`).
+
+The sets a call may wear:
+
+| played rotation | looks |
+|---|---|
+| Cover 3, Fire Zone | Show 2 · Press · Show 2 + Press |
+| Quarters | Show 2 · Show 1 · Press · Show 1 + Press |
+| Cover 6 | Show 2 · Show 1 · Split · Show 4 · Show 1 + Split · Show 1 + Show 4 |
+| Cover 1 | Show 2 |
+| Cover 2, Tampa 2 | Show 1 · Show 4 · Show 1 + Show 4 |
+| Cover 2 Man | Show 1 |
+| Cover 0, Prevent, goal line | none |
+
+This is ADR-070 §2's table with Show 4 added. Over Cover 6, as over Quarters, Show 2 moves a corner,
+so it goes with no corner look.
+
+**v3 is unchanged.** Phase 1's two looks both move the safeties, so they never combine and every
+set over them is one look: `selectLooks` rolls every die where Phase 1's draw rolled it, checked die
+for die on every card. Caller v3 on arm B's seeds
+reproduces arm B again, **880 numbers, 0 differ**. v3 and v4 also disguise the same snaps, because
+the first die is the same over either catalogue (checked on every card, and on games in
+`calibration/test/caller.test.ts`).
+
+**Measured** in ADR-070 §10: the disguise rate holds at 31.45%; no arm moves completion or
+`int_rate` by much more than one standard error; and ADR-070 §5's prediction, that the hidden-man
+lie costs completions, is falsified, because the quarterback sees through the look twice as often as
+he is fooled by it.
+
+| claim | provenance |
+|---|---|
+| The sets a call may wear | **COMPUTED** — `legalLookCombinations` over `DEFENSIVE_CARDS`; pinned in `playbook/test/masks.test.ts` |
+| Every formation has a #1 to each side | **COMPUTED** — `masks.test.ts` checks each pressed corner's man in every formation of the corpus |
+| v3 draws as Phase 1 drew, and reproduces arm B | **COMPUTED** — `masks.test.ts` against Phase 1's draw; the paired arm harness, `adr-068:step1-arm`, 1,680 games, 2026-10-14 |
+| A corner look is +10 with no timing; a set takes the safety look's row when it has one | **CHOSEN** — ADR-069 §9.5, ADR-070 §1 |

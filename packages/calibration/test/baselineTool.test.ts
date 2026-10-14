@@ -82,7 +82,9 @@ function requireEngineCommit(): string {
  * WHICH CALLER TO BASELINE — ADR-024.
  *
  *   FF_BASELINE_CALLER=v1   the informed caller every batch before ADR-024 ran
- *   FF_BASELINE_CALLER=v2   the anticipating caller (the default)
+ *   FF_BASELINE_CALLER=v2   the anticipating caller
+ *   FF_BASELINE_CALLER=v3   v2 wearing ADR-069's safety looks
+ *   FF_BASELINE_CALLER=v4   v3 with ADR-071 step 2's corner looks (the default)
  *
  * It exists so that ADR-024's comparability paragraph can be honoured — *"the first v2 report
  * should be run alongside a final v1 report on the same seeds so the size of the discontinuity is

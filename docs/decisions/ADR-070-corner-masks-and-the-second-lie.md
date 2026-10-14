@@ -5,7 +5,8 @@
 - **Status:** **ruled in part** *(owner, 2026-10-14)* — §8's questions 1, 2 and 4 approved; 3
   answered *"build even more into it"*, and ADR-071 (the call built from parts and tags) replaces
   §4's petition. §3's rule is built and measured alone (§9), and merged to `main` on the owner's
-  word (fast-forward, `c72f79b`); nothing else here is built.
+  word (fast-forward, `c72f79b`). §1 and §2 are built as ADR-071 step 2 and measured in §10: the
+  corner looks move nothing measurable, and §5's prediction is falsified.
 - **Builds on:** ADR-069 (masks as named pieces; §9.3 the second lie; §9.4 combinations; §10's
   rulings), ADR-068 §5 (a misread is perceived against the SHOWN coverage — its "perception-only
   fork" was left to the build, and §3 below is that form). Neither is reopened.
@@ -181,6 +182,9 @@ yards per attempt, sack and throwaway rates, and throws to a hidden man.
 | Completion falls more than `int_rate` moves | **CHOSEN** — a prediction, §5 |
 | Arm B's rates, reads, misreads and throws (§9) | **COMPUTED** — paired arm harness against ADR-069 §11's arm A, `adr-068:step1-arm`, 1,680 games, 2026-10-14 |
 | Single-High over Cover 2 Man reads come from the third receiver in trips | **INFERRED** — Cover 2 Man mans both #1s, both #2s and the back (`DEFENSIVE_CARDS`); B counts 7 hidden-man throws and no trap throws there |
+| Arms C to F: rates, mix, misreads and throws (§10) | **COMPUTED** — the paired arm harness, `adr-068:step1-arm`, 1,680 games each, 2026-10-14 |
+| The read split over Cover 3, Quarters and Fire Zone (§10) | **COMPUTED** — the same harness split by the read's outcome; its runs of B and C equal the saved arms number for number |
+| Seeing through and being fooled cancel, so completion does not move | **INFERRED** from the read split; the cancellation is not measured on its own |
 
 ## Conjoined mechanisms — REQUIRED
 
@@ -204,6 +208,10 @@ Each corner mask is then priced alone (C, D) and jointly (E).
 - **Run plays** wear corner masks too (the defence calls blind); nothing on a run reads them. `unruled`.
 - **Defensive coordinator tendencies** — the combination weights are the natural place for ruling
   4's trait. `unruled`.
+- **Whether a disguise costs the offence on balance** is decided by the read, not the look (§10): at
+  the flat league's ratings a quarterback sees through a +10 look about twice as often as he is
+  fooled by it. That balance is ADR-068's band table and §5.1's Defensive Disguise Rating.
+  `unruled`.
 
 ## Decision
 
@@ -270,3 +278,76 @@ error. It rolls a fifth more reads, but Phase 1's safety looks rarely put a defe
 receiver the rotation leaves open, so they hide almost nobody. The hidden-man lie belongs to Press,
 as §3's worked example says, and arm C is where it gets measured. §5's prediction is about the
 corner masks and is untouched by B.
+
+---
+
+## 10. Arms C to F — the corner looks, measured *(2026-10-14)*
+
+ADR-071 step 2 built §1 and §2 (ADR-071 §11). Every arm runs caller v4 on arm B's seeds
+(`adr-068:step1-arm`, 1,680 games, §3's rule in) and is compared with arm B (caller v3, Phase 1's
+looks). Each corner look is priced with the safety looks still worn, so an arm differs from B by
+that look and the combinations it makes: C wears Show 2, Show 1 and Press; D, Show 2, Show 1 and
+Split; F, Show 2, Show 1 and Show 4; E, all five.
+
+| | B — Phase 1's looks | C — with Press | D — with Split | F — with Show 4 | E — all five |
+|---|---|---|---|---|---|
+| `disguise_rate` | 31.403% | 31.469% | 31.456% | 31.456% | 31.453% |
+| completion | 37.218% | 37.200% (−0.019pp) | 37.280% (+0.061) | 37.294% (+0.075) | 37.391% (+0.173) |
+| `int_rate` | 1.817% | 1.869% (+0.052pp) | 1.825% (+0.008) | 1.861% (+0.045) | 1.887% (+0.070) |
+| yards per attempt | 3.672 | 3.639 | 3.669 | 3.693 | 3.680 |
+| sacks per dropback | 16.430% | 16.436% | 16.473% | 16.432% | 16.446% |
+| throwaways per dropback | 5.336% | 5.382% | 5.339% | 5.278% | 5.348% |
+| throws to a hidden man (complete, intercepted) | 41 (23, 0) | 231 (100, 0) | 50 (27, 0) | 43 (23, 0) | 236 (105, 0) |
+| throws to a trap (complete, intercepted) | 1,153 (396, 77) | 1,241 (377, 88) | 1,354 (476, 95) | 1,648 (619, 118) | 1,759 (622, 127) |
+| disguised dropbacks wearing a corner look | — | 34.1% | 4.3% | 12.1% | 47.7% |
+
+Standard errors against B: ±0.216pp on completion and ±0.060pp on `int_rate`, in every arm. They
+treat the arms as unpaired, so they overstate the noise a little.
+
+- **The rate holds.** Every arm disguises 31.45–31.47% of dropbacks, inside the owner's 30–33%. The
+  die that decides whether a call is disguised is the same die over either catalogue, so the corner
+  looks change which disguise is worn, not how often (ruling 4).
+- **The mix (E).** Of 46,708 disguised dropbacks: Show 2 17,486; Press 8,036; Show 1 6,947; Show 2 +
+  Press 6,052; Show 4 2,538; Show 1 + Show 4 2,464; Show 1 + Press 1,876; Show 1 + Split 685; Split
+  624. Split is rare because Cover 6 is called on about 8% of dropbacks and its disguised snaps
+  split six ways.
+- **Press tells the second lie.** It is the first look that shows a man, and in C the stream names
+  that misread 647 times reading low (a hidden man) and 529 reading high. The high ones are traps:
+  the pressing corner shown on the receiver has a worse typical rep against him than the zone
+  defender who really plays him. Fooled quarterbacks threw to a hidden man 231 times (100 complete,
+  none intercepted), against 41 in B.
+- **Show 4 tells Phase 1's lie**, and does what Phase 1's looks did, a little: throws to a trap rise
+  from 1,153 to 1,648, and over Cover 2 the disguised dropbacks are intercepted at 2.34% against
+  1.82% in B (+0.52pp, about 1.6 standard errors).
+- **Split moves nothing measurable.** D wears it on 2,019 dropbacks.
+
+**Why completion did not fall.** Press puts a lie in front of the quarterback on every snap that
+wears it in C, so he rolls the coverage read far more often. Over Cover 3, Quarters and Fire Zone,
+the disguised dropbacks on which no read was rolled fall from 9,166 in B to 3,420 in C, and against
+B those rotations gain 3,006 reads that see through the look, 1,614 that read neither way and 1,150
+that are fooled. In C, a fooled quarterback completes 34.2% of his passes on those rotations and one
+who sees through completes 39.9%: seeing through puts the hidden man first (§3), and he is open.
+The lie charges the offence on the reads it fools and pays it on the reads that see through it,
+which are twice as many, and the two cancel.
+
+| Cover 3, Quarters, Fire Zone — disguised dropbacks | B | C |
+|---|---|---|
+| read rolled, saw through (GOOD, PERFECT) | 7,825 — 39.5% complete | 10,831 — 39.9% |
+| read rolled, neither way | 4,768 — 38.7% | 6,382 — 37.9% |
+| read rolled, fooled (MISREAD, COMPLETE_MISREAD) | 3,908 — 35.3%, 2.42% intercepted | 5,058 — 34.2%, 2.61% |
+| no read rolled (no lie on the play) | 9,166 — 36.8% | 3,420 — 37.2% |
+| all | 25,667 — 37.75%, 1.69% intercepted | 25,691 — 37.93%, 1.71% |
+
+**Verdict on §5's prediction: falsified.** Completion did not fall in C (−0.019pp, against a
+standard error of 0.216pp), and `int_rate` moved more than completion did (+0.052pp). Both moves are
+inside one standard error: Press moves nothing measurable, and that is the falsification. The
+prediction assumed the fooled quarterback. At this league's ratings he sees through a +10 look
+about twice as often as he is fooled by it (48.2% of C's reads against 23.1%), and §3 pays seeing
+through a hidden man as fully as it charges being fooled by one.
+
+**Reading.** The corner looks are worn at the ruled rate and tell the lies they were built to tell,
+play by play. In aggregate they move nothing measurable, alone or together (E: completion +0.173pp,
+`int_rate` +0.070pp, each about one standard error). Whether a disguise costs the offence on balance
+is decided by the read, not by the look: ADR-068's band table (`presnap.coverageRead.bands`) and
+§5.1's Defensive Disguise Rating, which ADR-069 §9.5 left to a coordinator trait. Neither is this
+ADR's to tune (Implied scope).
