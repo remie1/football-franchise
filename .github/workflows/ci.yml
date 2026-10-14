@@ -27,11 +27,18 @@ jobs:
       # pnpm 11 refuses to run dependency build scripts until each is approved and treats an
       # unapproved script as fatal on every later command. esbuild is approved in
       # pnpm-workspace.yaml's allowBuilds — see HANDOFF §1.1.
+      #
+      # THE VERSION IS NAMED HERE because nothing else names one (package.json has no
+      # `packageManager`), and action-setup@v4 fails the job rather than guess — which it did on
+      # every run from August 2026 until this line. pnpm 11 needs Node 22.13 or later, hence 22
+      # below.
       - uses: pnpm/action-setup@v4
+        with:
+          version: 11.28.2
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
