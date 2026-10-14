@@ -42,6 +42,7 @@ import type {
   ManTarget,
   RushDuty,
   RunFit,
+  ShownDuty,
   ZoneDuty,
 } from "./defense.js";
 import { dutyList } from "./defense.js";
@@ -235,14 +236,33 @@ export function instantiateDefense(
    */
   const shown: CoverageAssignment[] = [];
   let anyShown = false;
-  const play = (assignment: CoverageAssignment, shows: ZoneDuty | undefined): void => {
+  /**
+   * What one man shows, against THIS formation. A zone look is shown as written. A man look
+   * (ADR-070) needs its man: a corner shown pressing the #1 to his side when there is no #1 on
+   * that side shows what he plays instead (ADR-071 §7 — the look is not shown by the man it
+   * cannot move). The card is drawn, and the look laid over it, before the formation is known,
+   * so this is the one place the answer can be given.
+   */
+  const shownAs = (defender: PlayerId, shows: ShownDuty): CoverageAssignment | undefined => {
+    if (shows.kind === "ZONE") return zoneAssignment(defender, shows, shows.runFit);
+    const targetRole = resolveManTarget(shows.target, look);
+    if (targetRole === undefined) return undefined;
+    return {
+      kind: "MAN",
+      defender,
+      covers: requireOffensePlayer(look.unit, targetRole, context),
+      technique: shows.technique,
+    };
+  };
+  const play = (assignment: CoverageAssignment, shows: ShownDuty | undefined): void => {
     assignments.push(assignment);
-    if (shows === undefined) {
+    const looksLike = shows === undefined ? undefined : shownAs(assignment.defender, shows);
+    if (looksLike === undefined) {
       shown.push(assignment);
       return;
     }
     anyShown = true;
-    shown.push(zoneAssignment(assignment.defender, shows, shows.runFit));
+    shown.push(looksLike);
   };
   const rush: DeclaredRush[] = [];
   const gaps: GapAssignment[] = [];
@@ -318,10 +338,10 @@ export function instantiateDefense(
      * unmasked call the identity holds by construction, and `shownAssignments.test.ts`
      * asserts it on every card in the corpus.
      *
-     * A card wearing a look (`applyCoverageMask`) gets `shown`, built entry-for-entry beside
+     * A card wearing a look (`applyLooks`) gets `shown`, built entry-for-entry beside
      * `assignments` by `play` above: the same defenders in the same order, differing only
-     * where a duty `shows` a zone. A divergence can only arrive through that field, and only
-     * a look writes it.
+     * where a duty `shows` a zone or a man look. A divergence can only arrive through that
+     * field, and only a look writes it.
      *
      * ON MIRRORING. `mirrorDefensiveCard` flips duties, `shows` included, upstream of this
      * function, so a mirrored card mirrors both lists by construction.

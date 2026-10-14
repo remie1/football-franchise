@@ -24,7 +24,7 @@ import {
 } from "../src/defensiveCards.js";
 import { FORMATIONS } from "../src/formations.js";
 import { instantiateDefense } from "../src/instantiate.js";
-import { SHOW_2, applyCoverageMask } from "../src/masks.js";
+import { PRESS, SHOW_2, applyLooks } from "../src/masks.js";
 import { buildDefensiveUnit, buildOffensiveUnit } from "../src/personnel.js";
 import { LINE_GAME_TAGS, PERSONNEL_WORD, PRESSURE_TAGS, callTags, type PressureTagId } from "../src/tags.js";
 import { validateDefensiveCard } from "../src/validate.js";
@@ -98,13 +98,16 @@ describe("ADR-071 — every card is said in parts and tags", () => {
   });
 
   it("orders the tags as said: line game, pressure, then looks", () => {
-    const masked = applyCoverageMask(NICKEL_FIRE_ZONE, { mask: SHOW_2, timing: "EARLY" });
+    const masked = applyLooks(NICKEL_FIRE_ZONE, { looks: [SHOW_2], timing: "EARLY" });
     expect(callFor(masked).tags.map((t) => `${t.kind}:${t.id}`)).toEqual([
       "FRONT:TEX",
       "PRESSURE:FIRE",
       "LOOK:SHOW_2",
     ]);
     expect(say(callFor(masked))).toBe("Nickel Over Tex, Fire, Cover 3, Show 2");
+    // Two looks are said in the catalogue's order, safety look first (ADR-071 step 2).
+    const both = applyLooks(NICKEL_FIRE_ZONE, { looks: [SHOW_2, PRESS], timing: "EARLY" });
+    expect(say(callFor(both))).toBe("Nickel Over Tex, Fire, Cover 3, Show 2, Press");
   });
 
   it("gives a vanilla call no tags", () => {

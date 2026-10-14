@@ -88,13 +88,31 @@ export interface ZoneDuty extends ZoneRegion {
    * What this defender SHOWS before the snap, when it differs from what he plays
    * (ADR-068 step 1). Absent ⇒ he shows what he plays.
    *
-   * ⛔ WRITTEN BY A MASK, NOT BY A CARD (ADR-069). `applyCoverageMask` sets it on the men a
-   * mask moves; no card in the corpus states one of its own, and `test/shownAssignments.test.ts`
-   * fails if one starts to. Always a zone: a shown MAN look — a corner pressing a receiver he
-   * will bail from — is ADR-069 Phase 2.
+   * ⛔ WRITTEN BY A LOOK, NOT BY A CARD (ADR-069, ADR-071). `applyLooks` sets it on the men a
+   * look moves; no card in the corpus states one of its own, and `test/shownAssignments.test.ts`
+   * fails if one starts to. A zone, or since ADR-070 a man look — a corner pressing the receiver
+   * he will bail from. Never a rush: a shown rush is ADR-069 Phase 3.
    */
-  readonly shows?: ZoneDuty;
+  readonly shows?: ShownDuty;
 }
+
+/**
+ * A MAN LOOK, SHOWN AND NOT PLAYED (ADR-070 §1): a corner pressed on the #1 to his side before
+ * the snap, who bails to his zone at it. Whom he shows himself on, and how.
+ *
+ * NO `ifAbsent`, deliberately. A played man duty must say what happens when its man is not on
+ * the field; a look has nothing to play, so its answer is the rule ADR-071 §7 states for every
+ * look until the captain's check exists — a man the look cannot find shows what he plays.
+ * `instantiateDefense` applies it.
+ */
+export interface ShownMan {
+  readonly kind: "MAN";
+  readonly target: ManTarget;
+  readonly technique: CoverageTechnique;
+}
+
+/** What a defender can be shown doing: a zone, or a man look (ADR-070). */
+export type ShownDuty = ZoneDuty | ShownMan;
 
 /**
  * A rush duty.
@@ -126,7 +144,7 @@ export type DefensiveDuty =
       /** Second-level run responsibility, for backers and safeties who have one. */
       readonly runFit?: RunFit;
       /** See `ZoneDuty.shows`. Applies whether the man is on the field or the fallback ran. */
-      readonly shows?: ZoneDuty;
+      readonly shows?: ShownDuty;
     }
   | ZoneDuty;
 
@@ -269,8 +287,8 @@ export interface AnyDefensiveCard {
   readonly blitzDisguise?: BlitzDisguise;
   /**
    * §5.1's complexity row for the coverage read, and the look tags that set it (ADR-069,
-   * ADR-071). Neither is authored: a card describes a rotation, and `applyCoverageMask` adds
-   * both when a call wears a look over it. Absent ⇒ the call shows what it plays (BASIC, no
+   * ADR-071). Neither is authored: a card describes a rotation, and `applyLooks` adds both
+   * when a call wears one or more looks over it. Absent ⇒ the call shows what it plays (BASIC, no
    * look).
    */
   readonly coverageDisguise?: CoverageDisguise;
@@ -357,8 +375,14 @@ function mirrorZoneDuty(duty: ZoneDuty): ZoneDuty {
   return {
     ...flipped,
     ...(duty.runFit === undefined ? {} : { runFit: mirrorGap(duty.runFit) }),
-    ...(duty.shows === undefined ? {} : { shows: mirrorZoneDuty(duty.shows) }),
+    ...(duty.shows === undefined ? {} : { shows: mirrorShown(duty.shows) }),
   };
+}
+
+/** A man look flips its man's side, as a played man duty does: the left #1 becomes the right #1. */
+function mirrorShown(shown: ShownDuty): ShownDuty {
+  if (shown.kind === "ZONE") return mirrorZoneDuty(shown);
+  return { kind: "MAN", target: mirrorTarget(shown.target), technique: shown.technique };
 }
 
 function mirrorFallback(duty: FallbackDuty): FallbackDuty {
@@ -377,7 +401,7 @@ export function mirrorDuty(duty: DefensiveDuty): DefensiveDuty {
         technique: duty.technique,
         ifAbsent: mirrorFallback(duty.ifAbsent),
         ...(duty.runFit === undefined ? {} : { runFit: mirrorGap(duty.runFit) }),
-        ...(duty.shows === undefined ? {} : { shows: mirrorZoneDuty(duty.shows) }),
+        ...(duty.shows === undefined ? {} : { shows: mirrorShown(duty.shows) }),
       };
     case "ZONE":
       return mirrorZoneDuty(duty);

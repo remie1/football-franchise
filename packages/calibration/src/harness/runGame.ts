@@ -22,7 +22,10 @@ export interface RunGameInput {
   readonly tendencies: FittedTendencies;
   readonly fourthDown: FittedFourthDown;
   readonly tunables?: Tunables;
-  /** ADR-024 / ADR-069. Defaults to v3 (anticipating, masked) inside `frozenCallerPair`. */
+  /**
+   * ADR-024 / ADR-069 / ADR-071. Defaults to v4 (anticipating, wearing every look) inside
+   * `frozenCallerPair`.
+   */
   readonly callerVersion?: CallerVersion;
   /** ADR-069 measurement arms only — see `FrozenCallerSpec.coverageMasks`. */
   readonly coverageMasks?: readonly CoverageMask[];

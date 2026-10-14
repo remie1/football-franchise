@@ -450,18 +450,19 @@ describe("the frozen caller pair", () => {
     expect(v2.caller.draw.passDraws).toBe(v2.caller.passCalls);
   });
 
-  it("defaults to v3, and the identity string says which caller ran", () => {
-    expect(DEFAULT_CALLER_VERSION).toBe("v3");
+  it("defaults to v4, and the identity string says which caller ran", () => {
+    expect(DEFAULT_CALLER_VERSION).toBe("v4");
     const pair = frozenCallerPair({
       tendencies: FROZEN_TENDENCIES,
       fourthDown: FROZEN_FOURTH_DOWN,
       homeDepthChart: built.homeDepthChart,
       awayDepthChart: built.awayDepthChart,
     });
-    expect(pair.callerVersion).toBe("v3");
-    expect(callerIdentity("v3", FROZEN_TENDENCIES.version)).toBe(`v3/${FROZEN_TENDENCIES.version}`);
+    expect(pair.callerVersion).toBe("v4");
+    expect(callerIdentity("v4", FROZEN_TENDENCIES.version)).toBe(`v4/${FROZEN_TENDENCIES.version}`);
     expect(callerIdentity("v1", "x")).not.toBe(callerIdentity("v2", "x"));
     expect(callerIdentity("v2", "x")).not.toBe(callerIdentity("v3", "x"));
+    expect(callerIdentity("v3", "x")).not.toBe(callerIdentity("v4", "x"));
   });
 
   /**
@@ -518,10 +519,69 @@ describe("the frozen caller pair", () => {
     expect(unmasked, "every first snap wore a mask, so the bare path was never compared").toBeGreaterThan(0);
   });
 
-  it("a v3 caller given an empty catalogue wears nothing", () => {
+  /**
+   * ============================ ADR-071 step 2, callerVersion v4 ============================
+   *
+   * And once more: **v3 and v4 call the same play against the same card, disguise the same
+   * snaps, and differ only in which looks those snaps wear.** The looks are drawn on the same
+   * address, and its first die — whether the call is disguised at all — is the same die over
+   * either catalogue. Required to include a first snap wearing a look v3 could not (a corner
+   * look), or v4 was compared with v3's own catalogue.
+   */
+  it("v4 calls the SAME play against the SAME card as v3, disguises the SAME snaps — only the looks differ", () => {
+    const CORNER_LOOKS = new Set(["PRESS", "SPLIT", "SHOW_4"]);
+    let disguised = 0;
+    let cornerLooks = 0;
+    let bare = 0;
+    for (let i = 0; i < 60; i++) {
+      const seed = `adr071-v4-${String(i)}`;
+      const run = (callerVersion: "v3" | "v4"): Record<string, unknown> =>
+        (runOneGame({
+          built, seed, tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN, callerVersion,
+        }).observation.events.find((e) => e.event.type === "PLAY_START")?.event.payload ?? {}) as Record<
+          string,
+          unknown
+        >;
+      const sub = (x: Record<string, unknown>, key: string): Record<string, unknown> =>
+        (x[key] ?? {}) as Record<string, unknown>;
+      const a = run("v3");
+      const b = run("v4");
+      const da = sub(a, "defense");
+      const db = sub(b, "defense");
+      expect(b["kind"], seed).toBe(a["kind"]);
+      expect(sub(b, "offense")["call"], seed).toBe(sub(a, "offense")["call"]);
+      for (const key of ["call", "personnel", "front", "assignments", "rush", "coverage"]) {
+        expect(JSON.stringify(db[key]), `${seed}: defense.${key}`).toBe(JSON.stringify(da[key]));
+      }
+      const tagsOf = (d: Record<string, unknown>): readonly { kind?: unknown; id?: unknown }[] =>
+        Array.isArray(d["tags"]) ? (d["tags"] as readonly { kind?: unknown; id?: unknown }[]) : [];
+      const isLook = (tag: { kind?: unknown }): boolean => tag.kind === "LOOK";
+      expect(JSON.stringify(tagsOf(db).filter((tag) => !isLook(tag))), `${seed}: defense.tags`).toBe(
+        JSON.stringify(tagsOf(da).filter((tag) => !isLook(tag))),
+      );
+      const looksA = tagsOf(da).filter(isLook);
+      const looksB = tagsOf(db).filter(isLook);
+      expect(looksB.length > 0, `${seed}: v3 and v4 disagree on whether the snap was disguised`).toBe(
+        looksA.length > 0,
+      );
+      if (looksB.length === 0) {
+        bare += 1;
+        expect(JSON.stringify(db["shownAssignments"]), seed).toBe(JSON.stringify(da["shownAssignments"]));
+        continue;
+      }
+      disguised += 1;
+      if (looksB.some((tag) => CORNER_LOOKS.has(String(tag.id)))) cornerLooks += 1;
+      expect(JSON.stringify(db["shownAssignments"]), seed).not.toBe(JSON.stringify(db["assignments"]));
+    }
+    expect(disguised, "no first snap was disguised, so v4 was compared with nothing").toBeGreaterThan(0);
+    expect(cornerLooks, "no first snap wore a corner look, so v4 never left v3's catalogue").toBeGreaterThan(0);
+    expect(bare, "every first snap was disguised, so the bare path was never compared").toBeGreaterThan(0);
+  });
+
+  it.each(["v3", "v4"] as const)("a %s caller given an empty catalogue wears nothing", (callerVersion) => {
     const out = runOneGame({
       built, seed: "adr069-none", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
-      coverageMasks: [],
+      callerVersion, coverageMasks: [],
     });
     const tagLists = out.observation.events
       .filter((e) => e.event.type === "PLAY_START")

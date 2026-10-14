@@ -214,6 +214,31 @@ export const DEFENSE_ROLE_POSITION: Readonly<Record<DefenseRole, Position>> = {
   S_S: "SS",
 };
 
+/**
+ * The position groups a tag is counted against (ADR-071 §3 rule 4). One look per group, and
+ * never two on one man: a look that moves a corner and a look that moves a safety can be worn
+ * together; two that each move a corner cannot. The nickel and dime backs are their own group,
+ * so a look that moves them never collides with one that moves the outside corners.
+ */
+export type DefenseGroup = "LINE" | "BACKERS" | "CORNERS" | "NICKEL_DIME" | "SAFETIES";
+
+export const DEFENSE_ROLE_GROUP: Readonly<Record<DefenseRole, DefenseGroup>> = {
+  DE_L: "LINE",
+  DT_L: "LINE",
+  NT: "LINE",
+  DT_R: "LINE",
+  DE_R: "LINE",
+  LB_W: "BACKERS",
+  LB_M: "BACKERS",
+  LB_S: "BACKERS",
+  CB_L: "CORNERS",
+  CB_R: "CORNERS",
+  CB_N: "NICKEL_DIME",
+  CB_D: "NICKEL_DIME",
+  S_F: "SAFETIES",
+  S_S: "SAFETIES",
+};
+
 export type DefensiveUnit<G extends DefensePersonnel> = {
   readonly [R in DefenseRoleOf<G>]: PlayerId;
 };

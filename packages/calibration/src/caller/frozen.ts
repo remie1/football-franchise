@@ -14,8 +14,9 @@
  *  2. **Which card** comes from `@ff/playbook`'s usage weights (`selectPassConcept`,
  *     `selectRunConcept`, `selectDefensiveCard`) — the corpus's own situational applicability
  *     and frequencies, drawn through the contracts PRNG.
- *  2b. **Which mask** the defence wears over its card, at v3 (ADR-069) — `selectCoverageMask`,
- *     one league-wide rate, drawn after the card on an address of its own. See below.
+ *  2b. **Which looks** the defence wears over its card, from v3 (ADR-069, ADR-071) —
+ *     `selectLooks`, one league-wide rate, drawn after the card on an address of its own. See
+ *     below.
  *  3. **Fourth down** comes from a second fitted table (go / punt / field goal), drawn rather
  *     than taken modally. See `decideFourthDown` for why that disagrees with the engine's
  *     default caller on purpose.
@@ -91,6 +92,19 @@
  *
  * `FrozenCallerSpec.coverageMasks` narrows the catalogue for a measurement arm (one mask alone,
  * ADR-069's conjoined-mechanism rule); it is never narrowed in a report run.
+ *
+ * ================== WHAT CHANGED AT v4 — ADR-071 STEP 2, THE CORNER LOOKS ==================
+ *
+ * **At v4 the catalogue grows** from Phase 1's two safety looks to all five: Press, Split and
+ * Show 4 join Show 2 and Show 1, and a call may wear one look per position group — Show 2 with
+ * Press over Cover 3, say (ADR-070 §2). The draw is on the same `fork("defense-mask")`, and its
+ * FIRST die is still the one that decides whether the call is disguised at all, so for any seed
+ * v3 and v4 call the same plays against the same cards and disguise the same snaps: they differ
+ * ONLY in which looks those snaps wear. `test/caller.test.ts` asserts that as it does v2 → v3.
+ *
+ * And v3 still wears exactly what it wore: over Phase 1's catalogue no two looks combine, so
+ * `selectLooks` rolls every die where Phase 1's draw rolled it (`playbook/test/masks.test.ts`
+ * checks it die for die).
  */
 import type { Rng } from "@ff/contracts";
 import { createRng } from "@ff/contracts";
@@ -108,16 +122,17 @@ import type { OffensiveCall } from "@ff/contracts";
 import type { AnyDefensiveCard, DepthChart, PlaySituation } from "@ff/playbook";
 import {
   COVERAGE_MASKS,
+  PHASE_1_MASKS,
   UnprotectableCallError,
-  applyCoverageMask,
+  applyLooks,
   buildDefensiveUnit,
   buildOffensiveUnit,
   instantiateDefense,
   instantiateRun,
   instantiatePass,
   isRunConcept,
-  selectCoverageMask,
   selectDefensiveCard,
+  selectLooks,
   selectPassConcept,
   selectRunConcept,
   type CoverageMask,
@@ -194,8 +209,8 @@ export interface FrozenCallerSpec {
   readonly tendencies: FittedTendencies;
   readonly fourthDown: FittedFourthDown;
   /**
-   * v1 (the informed caller), v2 (ADR-024's anticipating caller) or v3 (v2 wearing ADR-069's
-   * pre-snap masks). Defaults to v3.
+   * v1 (the informed caller), v2 (ADR-024's anticipating caller), v3 (v2 wearing ADR-069's
+   * pre-snap masks) or v4 (v3 with ADR-071 step 2's corner looks). Defaults to v4.
    *
    * OPTIONAL HERE AND RECORDED IN PROVENANCE, which is the same split `runBatch` makes for
    * `tunables`: ergonomics on the surface, and the value that was actually used printed in the
@@ -204,10 +219,11 @@ export interface FrozenCallerSpec {
    */
   readonly callerVersion?: CallerVersion;
   /**
-   * The masks a v3 defence may wear (ADR-069). Defaults to the whole catalogue; `[]` wears none.
-   * A MEASUREMENT KNOB for one-mask-alone arms, never narrowed in a report run — the rate stays
-   * `COVERAGE_MASK_RATE` either way, so a narrowed arm disguises fewer snaps, which is the point.
-   * Ignored below v3, which draws no masks at all.
+   * The looks a defence may wear (ADR-069, ADR-071). Defaults to the version's catalogue —
+   * Phase 1's two at v3, all five at v4; `[]` wears none. A MEASUREMENT KNOB for one-look-alone
+   * arms, never narrowed in a report run — the rate stays `COVERAGE_MASK_RATE` either way, so a
+   * narrowed arm disguises fewer snaps, which is the point. Ignored below v3, which draws no
+   * looks at all.
    */
   readonly coverageMasks?: readonly CoverageMask[];
   /**
@@ -360,16 +376,18 @@ function resolveSnap(
   const defenseUnit = buildDefensiveUnit(defensiveCard.personnel, defenseChart);
 
   /**
-   * ADR-069, v3 only: the look the defence wears over that card, on its own address and AFTER
-   * the card, so the card is the one v2 would have called. Nothing below reads the mask but the
-   * instantiation of the real defence: the anticipated card (the offence's guess) is drawn bare,
-   * because a mask changes no rusher and no fit, so there is nothing in it to block against.
+   * ADR-069 and ADR-071, from v3: the looks the defence wears over that card, on their own
+   * address and AFTER the card, so the card is the one v2 would have called. Nothing below reads
+   * the looks but the instantiation of the real defence: the anticipated card (the offence's
+   * guess) is drawn bare, because a look changes no rusher and no fit, so there is nothing in it
+   * to block against.
    */
-  const maskDraw =
-    version === "v3"
-      ? selectCoverageMask(snapRng.fork("defense-mask"), defensiveCard, spec.coverageMasks ?? COVERAGE_MASKS)
-      : undefined;
-  const calledCard = maskDraw === undefined ? defensiveCard : applyCoverageMask(defensiveCard, maskDraw);
+  const catalogue = version === "v4" ? COVERAGE_MASKS : version === "v3" ? PHASE_1_MASKS : undefined;
+  const lookDraw =
+    catalogue === undefined
+      ? undefined
+      : selectLooks(snapRng.fork("defense-mask"), defensiveCard, spec.coverageMasks ?? catalogue);
+  const calledCard = lookDraw === undefined ? defensiveCard : applyLooks(defensiveCard, lookDraw);
 
   /**
    * ADR-024 step 2, on a fork of its own so v1's three addresses are untouched.
