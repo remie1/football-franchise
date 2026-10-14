@@ -3,7 +3,8 @@
 - **Date:** 2026-10-14
 - **Proposed by:** Orchestrator, on the owner's review of ADR-068 §9
 - **Status:** **ruled in part** *(owner, 2026-10-14)* — §8's questions 1, 3, 4, 5, 6 approved; 2 EXPANDED
-  into the owner's catalogue (§9). Three new questions in §10. **Phase 1 built and measured (§11).**
+  into the owner's catalogue (§9). §10's three questions approved. **Phase 1 built and measured
+  (§11); merged to `main` on the owner's word (`775d9df`).**
 - **Builds on:** ADR-067 (shown/played pair), ADR-068 step 1 (the coverage read). Neither is reopened.
 
 ---
@@ -394,6 +395,21 @@ disguise (late rotation)* +20.
    it. Yes?
 3. **Order:** Phase 1 now; corner masks next; then the leash; the front masks with the pressure
    read. Yes?
+
+### ✅ Rulings *(owner, 2026-10-14)*
+
+| # | question | ruling |
+|---|---|---|
+| 1 | Masks grouped by what they move, at most one of each per call | ✅ **YES** — a call carries at most one safety mask, one corner mask and one front mask |
+| 2 | Robber is the rotation under a Two-High look | ✅ **YES** — no Robber mask; "Two-High · Cover 3 Buzz" is the robber call |
+| 3 | Order: Phase 1, corner masks, the leash, front masks with the pressure read | ✅ **YES** — §9.6 stands as written |
+
+Same message: Phase 1 merged to `main` (fast-forward, `775d9df`), and the CI workflow given the
+pnpm version it had been failing setup without since August (with Node 22, which pnpm 11 needs).
+
+⚠ **Ruling 1 widens one contract field.** `DefensivePlayCall.mask` holds ONE reference today; a call
+that wears a safety mask and a corner mask needs two. Phase 2's design states the shape and is
+shown before it is built (contracts change on an approved petition only).
 
 ---
 
