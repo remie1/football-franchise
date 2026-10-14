@@ -286,11 +286,15 @@ export interface PlayFold {
    * Dropbacks whose `PLAY_START.defense.shownAssignments` differs from `assignments` — the
    * offence was shown something other than what was played. DIFFED, NOT READ OFF THE NAME:
    * ADR-067 §B refused a `wasDisguised` flag because a declaration can be wrong silently, so
-   * `defense.mask` is not the signal here. It is the KEY of the split below, and
-   * `shownAssignmentsStream` checks the name against this diff play by play.
+   * the call's LOOK tags are not the signal here. They are the KEY of the split below, and
+   * `shownAssignmentsStream` checks them against this diff play by play.
    */
   disguisedDropbacks: number;
-  /** `disguisedDropbacks` by the mask the call named; `UNNAMED` would be a divergence nobody named. */
+  /**
+   * `disguisedDropbacks` by the look the call named — its LOOK tags' ids, joined with `+` when
+   * it wears more than one (ADR-071): `SHOW_2`, `SHOW_2+PRESS`. `UNNAMED` would be a divergence
+   * nobody named.
+   */
   disguisedDropbacksByMask: Record<string, number>;
 
   /**
@@ -471,8 +475,8 @@ interface PlayStartShape {
     /** ADR-067 §B — what was played, and what the offence was shown. */
     readonly assignments?: unknown;
     readonly shownAssignments?: unknown;
-    /** ADR-069 — the name of the look, or null. */
-    readonly mask?: { readonly id?: unknown } | null;
+    /** ADR-071 — the call's tags, said in order; its LOOKs name the look it wore. */
+    readonly tags?: readonly { readonly kind?: unknown; readonly id?: unknown }[];
   };
   readonly situation?: PlayStartSituation;
 }
@@ -769,11 +773,10 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
             const shown = start.defense?.shownAssignments;
             if (shown !== undefined && !isDeepStrictEqual(shown, start.defense?.assignments)) {
               p.disguisedDropbacks++;
-              const mask = start.defense?.mask;
-              bumpKey(
-                p.disguisedDropbacksByMask,
-                mask === undefined || mask === null ? "UNNAMED" : String(mask.id),
-              );
+              const looks = (start.defense?.tags ?? [])
+                .filter((tag) => tag.kind === "LOOK")
+                .map((tag) => String(tag.id));
+              bumpKey(p.disguisedDropbacksByMask, looks.length === 0 ? "UNNAMED" : looks.join("+"));
             }
           }
         }

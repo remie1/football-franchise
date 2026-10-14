@@ -84,7 +84,8 @@ export const NICKEL_COVER_3_SKY = defensiveCard({
   id: "DEF_NICKEL_COVER_3_SKY",
   name: "Cover 3 Sky",
   personnel: "NICKEL",
-  front: "Nickel Over",
+  front: "Over",
+  concept: "Cover 3 Sky",
   shellIntent: "SPOT_ZONE",
   family: "COVER_3",
   duties: {
@@ -94,7 +95,7 @@ export const NICKEL_COVER_3_SKY = defensiveCard({
     // the next card exists.
     CB_L: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
     CB_R: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
-    // ADR-069: the two-high look ADR-068 step 1 wrote here is now the Two-High MASK
+    // ADR-069: the two-high look ADR-068 step 1 wrote here is now the Show 2 LOOK
     // (`masks.ts`), drawn over this rotation on some snaps and not others. From it, the
     // free safety spins to the middle and the strong safety drops into the flat.
     S_F: { kind: "ZONE", ...zone("DEEP_MIDDLE_THIRD", "C") },
@@ -111,7 +112,8 @@ export const NICKEL_COVER_3_BUZZ = defensiveCard({
   id: "DEF_NICKEL_COVER_3_BUZZ",
   name: "Cover 3 Buzz",
   personnel: "NICKEL",
-  front: "Nickel Over",
+  front: "Over",
+  concept: "Cover 3 Buzz",
   shellIntent: "SPOT_ZONE",
   family: "COVER_3",
   duties: {
@@ -142,7 +144,9 @@ export const NICKEL_COVER_3_PRESSURE = defensiveCard({
   id: "DEF_NICKEL_COVER_3_PRESSURE",
   name: "Cover 3 Nickel Pressure",
   personnel: "NICKEL",
-  front: "Nickel Over",
+  front: "Over",
+  concept: "Cover 3 Sky",
+  pressure: "SMOKE",
   shellIntent: "SPOT_ZONE",
   family: "COVER_3",
   duties: {
@@ -170,7 +174,8 @@ export const NICKEL_COVER_2 = defensiveCard({
   id: "DEF_NICKEL_COVER_2",
   name: "Cover 2",
   personnel: "NICKEL",
-  front: "Nickel Even",
+  front: "Even",
+  concept: "Cover 2",
   shellIntent: "SPOT_ZONE",
   family: "COVER_2",
   duties: {
@@ -194,7 +199,8 @@ export const NICKEL_TAMPA_2 = defensiveCard({
   id: "DEF_NICKEL_TAMPA_2",
   name: "Tampa 2",
   personnel: "NICKEL",
-  front: "Nickel Even",
+  front: "Even",
+  concept: "Tampa 2",
   shellIntent: "SPOT_ZONE",
   family: "COVER_2",
   duties: {
@@ -236,7 +242,8 @@ export const NICKEL_QUARTERS = defensiveCard({
   id: "DEF_NICKEL_QUARTERS",
   name: "Quarters",
   personnel: "NICKEL",
-  front: "Nickel Over",
+  front: "Over",
+  concept: "Quarters",
   shellIntent: "MATCH_ZONE",
   family: "QUARTERS",
   duties: {
@@ -260,7 +267,8 @@ export const NICKEL_COVER_6 = defensiveCard({
   id: "DEF_NICKEL_COVER_6",
   name: "Cover 6",
   personnel: "NICKEL",
-  front: "Nickel Over",
+  front: "Over",
+  concept: "Cover 6",
   shellIntent: "MATCH_ZONE",
   family: "COVER_6",
   duties: {
@@ -288,7 +296,8 @@ export const NICKEL_COVER_1 = defensiveCard({
   id: "DEF_NICKEL_COVER_1",
   name: "Cover 1 Man Free",
   personnel: "NICKEL",
-  front: "Nickel Over",
+  front: "Over",
+  concept: "Cover 1",
   shellIntent: "MAN_FREE",
   family: "COVER_1",
   duties: {
@@ -344,7 +353,8 @@ export const NICKEL_COVER_1_RAT = defensiveCard({
   id: "DEF_NICKEL_COVER_1_RAT",
   name: "Cover 1 Rat",
   personnel: "NICKEL",
-  front: "Nickel Even",
+  front: "Even",
+  concept: "Cover 1 Rat",
   shellIntent: "MAN_FREE",
   family: "COVER_1",
   duties: {
@@ -368,7 +378,7 @@ export const NICKEL_COVER_1_RAT = defensiveCard({
       ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
       runFit: { gap: "D", side: "RIGHT" },
     },
-    // ADR-069: under the Two-High mask the strong safety shows a deep half, so #2 left
+    // ADR-069: under the Show 2 look the strong safety shows a deep half, so #2 left
     // looks like he is releasing into zone with nobody on him; at the snap he comes down
     // and plays #2 man, and the free safety takes the post.
     S_S: {
@@ -396,7 +406,8 @@ export const NICKEL_COVER_2_MAN = defensiveCard({
   id: "DEF_NICKEL_COVER_2_MAN",
   name: "Cover 2 Man",
   personnel: "NICKEL",
-  front: "Nickel Even",
+  front: "Even",
+  concept: "Cover 2 Man",
   shellIntent: "MIXED",
   family: "COVER_2_MAN",
   duties: {
@@ -447,7 +458,9 @@ export const NICKEL_FIRE_ZONE = defensiveCard({
   id: "DEF_NICKEL_FIRE_ZONE",
   name: "Fire Zone",
   personnel: "NICKEL",
-  front: "Nickel Over",
+  front: "Over",
+  concept: "Cover 3",
+  pressure: "FIRE",
   shellIntent: "SPOT_ZONE",
   family: "FIRE_ZONE",
   duties: {
@@ -483,7 +496,9 @@ export const NICKEL_DOUBLE_A_BLITZ = defensiveCard({
   id: "DEF_NICKEL_DOUBLE_A_BLITZ",
   name: "Double A Blitz",
   personnel: "NICKEL",
-  front: "Nickel Mug",
+  front: "Mug",
+  concept: "Cover 1",
+  pressure: "DOUBLE_A",
   shellIntent: "MAN_FREE",
   family: "COVER_1",
   duties: {
@@ -532,7 +547,9 @@ export const NICKEL_COVER_0_BLITZ = defensiveCard({
   id: "DEF_NICKEL_COVER_0_BLITZ",
   name: "Cover 0 Blitz",
   personnel: "NICKEL",
-  front: "Nickel Mug",
+  front: "Mug",
+  concept: "Cover 0",
+  pressure: "ZERO",
   shellIntent: "MAN_ZERO",
   family: "COVER_0",
   noDeepHelp: true,
@@ -587,7 +604,8 @@ export const BASE_COVER_3 = defensiveCard({
   id: "DEF_BASE_COVER_3",
   name: "Base Cover 3",
   personnel: "BASE",
-  front: "4-3 Over",
+  front: "Over",
+  concept: "Cover 3",
   shellIntent: "SPOT_ZONE",
   family: "COVER_3",
   duties: {
@@ -610,7 +628,8 @@ export const BASE_COVER_1 = defensiveCard({
   id: "DEF_BASE_COVER_1",
   name: "Base Cover 1",
   personnel: "BASE",
-  front: "4-3 Under",
+  front: "Under",
+  concept: "Cover 1",
   shellIntent: "MAN_FREE",
   family: "COVER_1",
   duties: {
@@ -658,7 +677,8 @@ export const BASE_COVER_2 = defensiveCard({
   id: "DEF_BASE_COVER_2",
   name: "Base Cover 2",
   personnel: "BASE",
-  front: "4-3 Over",
+  front: "Over",
+  concept: "Cover 2",
   shellIntent: "SPOT_ZONE",
   family: "COVER_2",
   duties: {
@@ -682,7 +702,9 @@ export const BASE_RUN_BLITZ = defensiveCard({
   id: "DEF_BASE_RUN_BLITZ",
   name: "Base Run Blitz",
   personnel: "BASE",
-  front: "4-3 Bear",
+  front: "Bear",
+  concept: "Cover 1",
+  pressure: "FIRE",
   shellIntent: "MAN_FREE",
   family: "COVER_1",
   duties: {
@@ -729,7 +751,8 @@ export const DIME_QUARTERS = defensiveCard({
   id: "DEF_DIME_QUARTERS",
   name: "Dime Quarters",
   personnel: "DIME",
-  front: "Dime Even",
+  front: "Even",
+  concept: "Quarters",
   shellIntent: "MATCH_ZONE",
   family: "QUARTERS",
   duties: {
@@ -753,7 +776,9 @@ export const DIME_MAN_BLITZ = defensiveCard({
   id: "DEF_DIME_MAN_BLITZ",
   name: "Dime Man Pressure",
   personnel: "DIME",
-  front: "Dime Mug",
+  front: "Mug",
+  concept: "Cover 1",
+  pressure: "SMOKE",
   shellIntent: "MAN_FREE",
   family: "COVER_1",
   duties: {
@@ -811,7 +836,8 @@ export const DIME_PREVENT = defensiveCard({
   id: "DEF_DIME_PREVENT",
   name: "Prevent",
   personnel: "DIME",
-  front: "Dime Prevent",
+  front: "Prevent",
+  concept: "Prevent",
   shellIntent: "PREVENT",
   family: "PREVENT",
   duties: {
@@ -847,7 +873,8 @@ export const GOAL_LINE_MAN = defensiveCard({
   id: "DEF_GOAL_LINE_MAN",
   name: "Goal Line Man",
   personnel: "GOAL_LINE",
-  front: "5-3 Goal Line",
+  front: "5-3",
+  concept: "Man",
   shellIntent: "MAN_ZERO",
   family: "GOAL_LINE",
   noDeepHelp: true,
@@ -895,7 +922,8 @@ export const GOAL_LINE_ZONE = defensiveCard({
   id: "DEF_GOAL_LINE_ZONE",
   name: "Goal Line Zone",
   personnel: "GOAL_LINE",
-  front: "5-3 Goal Line",
+  front: "5-3",
+  concept: "Zone",
   shellIntent: "SPOT_ZONE",
   family: "GOAL_LINE",
   noDeepHelp: true,

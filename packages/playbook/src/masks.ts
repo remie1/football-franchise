@@ -19,19 +19,21 @@
  *
  * ================== THE CATALOGUE, AND WHAT IS NOT IN IT YET ==================
  *
- * The owner's catalogue (ADR-069 §9) has seven masks. Phase 1 builds the three the engine can
+ * The owner's catalogue (ADR-069 §9) has seven masks. Phase 1 built the ones the engine can
  * already resolve — each moves only men whose shown duty is a ZONE, and the lie each tells is
- * the one ADR-068 step 1 built (the look shows a hole the rotation fills):
+ * the one ADR-068 step 1 built (the look shows a hole the rotation fills). Under ADR-071 a mask
+ * is a LOOK tag, said last in the call by the word the captain uses:
  *
- *  - **Two-High** — both safeties at deep halves; the card rolls to one-high.
- *  - **Two-High, Cover 2 look** — the owner's "passive Cover 2 that converts to an aggressive
- *    Quarters match": safeties at halves, corners squatting in the flats.
- *  - **Single-High** — the free safety in the middle, the strong safety walked down; the card
- *    spins to two-high.
+ *  - **Show 2** — both safeties at deep halves; the card rolls to one-high. Over a quarters
+ *    rotation the corners squat in the flats too — the owner's "passive Cover 2 that converts
+ *    to an aggressive Quarters match". (Phase 1's Two-High and Two-High Cover 2 look, which
+ *    sat over disjoint rotations, as one word.)
+ *  - **Show 1** — the free safety in the middle, the strong safety walked down; the card spins
+ *    to two-high. (Phase 1's Single-High.)
  *
- * **Robber** is not a mask: it is a Two-High look over a robbing rotation, and Cover 3 Buzz is
- * one. Press-Bail and Split-Field need a shown MAN look (Phase 2); the Cover 0 mask and line
- * stemming need a shown rush (Phase 3).
+ * **Robber** is not a mask: it is Show 2 over a robbing rotation, and Cover 3 Buzz is one.
+ * Press and Split need a shown MAN look (ADR-070, ADR-071 step 2); Stem and the Cover 0 mug
+ * need a shown rush (ADR-069 Phase 3).
  *
  * ================== STATED, THEN CHECKED ==================
  *
@@ -42,14 +44,14 @@
  * that changes nothing would be a die that turns nothing (ADR-005) and would count toward a
  * disguise rate it does not earn.
  */
-import type { CoverageDisguise, CoverageMaskRef, Rng, RunSide } from "@ff/contracts";
+import type { CoverageDisguise, DefensiveTag, Rng, RunSide } from "@ff/contracts";
 import { zone } from "./coverage.js";
 import type { AnyDefensiveCard, CoverageFamily, DefensiveDuty, ZoneDuty } from "./defense.js";
 import { COVERAGE_MASK_RATE, LATE_ROTATION_SHARE, weightedPick } from "./distribution.js";
 import { PlaybookError } from "./errors.js";
 import type { DefenseRole } from "./roles.js";
 
-export type CoverageMaskId = "TWO_HIGH" | "TWO_HIGH_COVER_2_LOOK" | "SINGLE_HIGH";
+export type CoverageMaskId = "SHOW_2" | "SHOW_1";
 
 /**
  * EARLY: the safeties move before the snap and the quarterback can see the end of it — §5.1's
@@ -60,13 +62,13 @@ export type MaskTiming = "EARLY" | "LATE";
 
 export interface CoverageMask {
   readonly id: CoverageMaskId;
-  /** What a coach calls it. Becomes `DefensivePlayCall.mask.name`. */
+  /** The word the captain says. Becomes the LOOK tag's `name` on the call (ADR-071). */
   readonly name: string;
   /** The rotations it may be laid over — stated here, checked in `test/masks.test.ts`. */
   readonly over: readonly CoverageFamily[];
   /**
    * Relative weight when more than one mask is legal over one card (Quarters and Cover 6 can
-   * wear either the Cover 2 look or Single-High). `CHOSEN — provenance NONE` (ADR-069 §9).
+   * wear either Show 2 or Show 1). `CHOSEN — provenance NONE` (ADR-069 §9).
    */
   readonly weight: number;
   /**
@@ -139,31 +141,34 @@ function twoHighSafeties(card: AnyDefensiveCard): Partial<Record<DefenseRole, Zo
 
 // --- the catalogue ---------------------------------------------------------------
 
-/** Two-high shown, one-high played: the safeties roll at the snap. */
-export const TWO_HIGH: CoverageMask = {
-  id: "TWO_HIGH",
-  name: "Two-High",
-  over: ["COVER_3", "COVER_1", "FIRE_ZONE"],
-  weight: 1,
-  looks: twoHighSafeties,
-};
+/** The quarters rotations, over which a Cover 2 shell lies about the corners as well. */
+const QUARTERS_ROTATIONS: readonly CoverageFamily[] = ["QUARTERS", "COVER_6"];
 
 /**
- * The owner's "passive Cover 2 that converts to an aggressive Quarters match". The middle
- * stays open either way; what the look lies about is the corners. They squat in the flats
- * before the snap and play deep at it, so the hole shot a Cover 2 invites has a corner on
- * top of it.
+ * A Cover 2 shell shown: both safeties at deep halves.
+ *
+ * Over a one-high rotation (Cover 3, Cover 1, Fire Zone) the safeties roll at the snap and that
+ * is the whole lie. Over a quarters rotation the safeties already play halves, and the lie is
+ * the corners — the owner's "passive Cover 2 that converts to an aggressive Quarters match":
+ * they squat in the flats before the snap and play deep at it, so the hole shot a Cover 2
+ * invites has a corner on top of it.
+ *
+ * Phase 1 named these two masks (Two-High; Two-High, Cover 2 look). Their rotations never
+ * overlapped, so one word draws exactly as the two did (ADR-071 §7 step 1).
  */
-export const TWO_HIGH_COVER_2_LOOK: CoverageMask = {
-  id: "TWO_HIGH_COVER_2_LOOK",
-  name: "Two-High, Cover 2 look",
-  over: ["QUARTERS", "COVER_6"],
+export const SHOW_2: CoverageMask = {
+  id: "SHOW_2",
+  name: "Show 2",
+  over: ["COVER_3", "COVER_1", "FIRE_ZONE", "QUARTERS", "COVER_6"],
   weight: 1,
-  looks: (card) => ({
-    ...twoHighSafeties(card),
-    CB_L: { kind: "ZONE", ...zone("FLAT", "LW") },
-    CB_R: { kind: "ZONE", ...zone("FLAT", "RW") },
-  }),
+  looks: (card) =>
+    QUARTERS_ROTATIONS.includes(card.family)
+      ? {
+          ...twoHighSafeties(card),
+          CB_L: { kind: "ZONE", ...zone("FLAT", "LW") },
+          CB_R: { kind: "ZONE", ...zone("FLAT", "RW") },
+        }
+      : twoHighSafeties(card),
 };
 
 /**
@@ -171,9 +176,9 @@ export const TWO_HIGH_COVER_2_LOOK: CoverageMask = {
  * walks down over the tight end side, then bails to a deep half at the snap. The deep
  * sideline the quarterback expected against one-high has a half safety over it.
  */
-export const SINGLE_HIGH: CoverageMask = {
-  id: "SINGLE_HIGH",
-  name: "Single-High",
+export const SHOW_1: CoverageMask = {
+  id: "SHOW_1",
+  name: "Show 1",
   over: ["COVER_2", "QUARTERS", "COVER_6", "COVER_2_MAN"],
   weight: 1,
   looks: (card) => {
@@ -185,8 +190,17 @@ export const SINGLE_HIGH: CoverageMask = {
   },
 };
 
-/** Phase 1 of ADR-069 §9.6 — every mask the engine can already resolve. */
-export const COVERAGE_MASKS: readonly CoverageMask[] = [TWO_HIGH, TWO_HIGH_COVER_2_LOOK, SINGLE_HIGH];
+/**
+ * Phase 1 of ADR-069 §9.6 — every mask the engine can already resolve. The ORDER is part of the
+ * draw (`weightedPick` walks the legal list in this order), so it is Phase 1's order with the
+ * two two-high masks folded into Show 2's place.
+ */
+export const COVERAGE_MASKS: readonly CoverageMask[] = [SHOW_2, SHOW_1];
+
+/** The mask as the call says it: a LOOK tag (ADR-071). */
+export function lookTag(mask: CoverageMask): DefensiveTag {
+  return { kind: "LOOK", id: mask.id, name: mask.name };
+}
 
 // --- legality and application -----------------------------------------------
 
@@ -235,8 +249,8 @@ function disguiseRow(timing: MaskTiming): CoverageDisguise {
 
 /**
  * The card, wearing the mask: the moved men's duties carry `shows`, the card carries §5.1's
- * complexity row and the mask's reference, and nothing else changes. `instantiateDefense`
- * turns the `shows` into `shownAssignments` exactly as it always has.
+ * complexity row and the mask's LOOK tag, and nothing else changes. `instantiateDefense` turns
+ * the `shows` into `shownAssignments` exactly as it always has, and says the tag last.
  */
 export function applyCoverageMask(card: AnyDefensiveCard, draw: MaskDraw): AnyDefensiveCard {
   const shows = maskShows(card, draw.mask);
@@ -260,8 +274,8 @@ export function applyCoverageMask(card: AnyDefensiveCard, draw: MaskDraw): AnyDe
     }
     duties[role] = { ...duty, shows: shown };
   }
-  const mask: CoverageMaskRef = { id: draw.mask.id, name: draw.mask.name };
-  return { ...card, duties, coverageDisguise: disguiseRow(draw.timing), mask };
+  const looks = [...(card.looks ?? []), lookTag(draw.mask)];
+  return { ...card, duties, coverageDisguise: disguiseRow(draw.timing), looks };
 }
 
 // --- the draw --------------------------------------------------------------------

@@ -493,11 +493,20 @@ describe("the frozen caller pair", () => {
       const db = sub(b, "defense");
       expect(b["kind"], seed).toBe(a["kind"]);
       expect(sub(b, "offense")["call"], seed).toBe(sub(a, "offense")["call"]);
-      for (const key of ["call", "front", "assignments", "rush", "coverage"]) {
+      for (const key of ["call", "personnel", "front", "assignments", "rush", "coverage"]) {
         expect(JSON.stringify(db[key]), `${seed}: defense.${key}`).toBe(JSON.stringify(da[key]));
       }
-      expect(da["mask"], `${seed}: v2 wore a mask`).toBeNull();
-      if (db["mask"] === null) {
+      // ADR-071: the look is said last, as a LOOK tag after the call's own tags, so v3's tags are
+      // v2's with at most a look on the end, and v2's carry none.
+      const tagsOf = (d: Record<string, unknown>): readonly { kind?: unknown }[] =>
+        Array.isArray(d["tags"]) ? (d["tags"] as readonly { kind?: unknown }[]) : [];
+      const isLook = (tag: { kind?: unknown }): boolean => tag.kind === "LOOK";
+      expect(Array.isArray(da["tags"]) && Array.isArray(db["tags"]), `${seed}: defense.tags missing`).toBe(true);
+      expect(tagsOf(da).some(isLook), `${seed}: v2 wore a look`).toBe(false);
+      expect(JSON.stringify(tagsOf(db).filter((tag) => !isLook(tag))), `${seed}: defense.tags`).toBe(
+        JSON.stringify(tagsOf(da)),
+      );
+      if (!tagsOf(db).some(isLook)) {
         unmasked += 1;
         expect(JSON.stringify(db["shownAssignments"]), seed).toBe(JSON.stringify(da["shownAssignments"]));
       } else {
@@ -514,11 +523,12 @@ describe("the frozen caller pair", () => {
       built, seed: "adr069-none", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
       coverageMasks: [],
     });
-    const masks = out.observation.events
+    const tagLists = out.observation.events
       .filter((e) => e.event.type === "PLAY_START")
-      .map((e) => (e.event.payload as { defense?: { mask?: unknown } }).defense?.mask)
-      .filter((m) => m !== undefined && m !== null);
-    expect(masks).toEqual([]);
+      .map((e) => (e.event.payload as { defense?: { tags?: readonly { kind?: unknown }[] } }).defense?.tags)
+      .filter((tags) => tags !== undefined);
+    expect(tagLists.length, "no PLAY_START carried defense.tags, so nothing was checked").toBeGreaterThan(0);
+    expect(tagLists.flat().filter((tag) => tag.kind === "LOOK")).toEqual([]);
   });
 });
 

@@ -28,8 +28,8 @@
 import type {
   BlitzDisguise,
   CoverageDisguise,
-  CoverageMaskRef,
   CoverageTechnique,
+  DefensiveTag,
   FieldZone,
   PlayerId,
   RunFit,
@@ -44,6 +44,7 @@ import type { ZoneRegion } from "./coverage.js";
 import type { DefensePersonnel, DefenseRole, DefenseRoleOf } from "./roles.js";
 import { DEFENSE_ROLES } from "./roles.js";
 import type { SituationalUsage } from "./distribution.js";
+import type { PressureTagId } from "./tags.js";
 
 /**
  * A gap, named, as a second-level defender's run fit. Declared in `@ff/contracts` since
@@ -191,10 +192,27 @@ export interface StuntSpec<R extends DefenseRole = DefenseRole> {
 
 export interface DefensiveCardTemplate<G extends DefensePersonnel> {
   readonly id: string;
+  /** The card's own label in the playbook and its reports. Not said in the call (ADR-071). */
   readonly name: string;
+  /** Becomes `DefensivePlayCall.personnel`, said as `PERSONNEL_WORD` has it (ADR-071). */
   readonly personnel: G;
-  /** Becomes `DefensivePlayCall.front` verbatim. Renderer text; nothing reads it. */
+  /**
+   * The front alone, without the personnel: "Over", "Bear", "5-3". Becomes
+   * `DefensivePlayCall.front` verbatim (ADR-071). Renderer text; nothing reads it.
+   */
   readonly front: string;
+  /**
+   * The base concept the card plays after the snap, as the call says it: "Cover 3 Sky".
+   * Becomes `DefensivePlayCall.concept` (ADR-071). Several cards share one — Fire Zone, Base
+   * Cover 3 and Cover 3 Nickel Pressure are all Cover 3 under a tag — so it is no key.
+   */
+  readonly concept: string;
+  /**
+   * The pressure the card sends, as one word (ADR-071 §4). DECLARED, AND CHECKED: present
+   * exactly when somebody off the line rushes, and `validate.ts` holds each word to the
+   * rushers and the deep help it says. Absent ⇒ the line rushes alone.
+   */
+  readonly pressure?: PressureTagId;
   readonly shellIntent: ShellIntent;
   readonly family: CoverageFamily;
   readonly duties: { readonly [R in DefenseRoleOf<G>]: DefensiveDuty };
@@ -242,18 +260,21 @@ export interface AnyDefensiveCard {
   readonly name: string;
   readonly personnel: DefensePersonnel;
   readonly front: string;
+  readonly concept: string;
+  readonly pressure?: PressureTagId;
   readonly shellIntent: ShellIntent;
   readonly family: CoverageFamily;
   readonly duties: Readonly<Partial<Record<DefenseRole, DefensiveDuty>>>;
   readonly stunts?: readonly StuntSpec[];
   readonly blitzDisguise?: BlitzDisguise;
   /**
-   * §5.1's complexity row for the coverage read, and the mask that set it (ADR-069). Neither
-   * is authored: a card describes a rotation, and `applyCoverageMask` adds both when a call
-   * wears a look over it. Absent ⇒ the call shows what it plays (BASIC, no mask).
+   * §5.1's complexity row for the coverage read, and the look tags that set it (ADR-069,
+   * ADR-071). Neither is authored: a card describes a rotation, and `applyCoverageMask` adds
+   * both when a call wears a look over it. Absent ⇒ the call shows what it plays (BASIC, no
+   * look).
    */
   readonly coverageDisguise?: CoverageDisguise;
-  readonly mask?: CoverageMaskRef;
+  readonly looks?: readonly DefensiveTag[];
   readonly brackets?: true;
   readonly noDeepHelp?: true;
   readonly usage: SituationalUsage;

@@ -90,7 +90,7 @@ function renderPlayCall(events: readonly MatchEventEnvelope[], name: NameLookup)
       ? `  Design:  ${view.scheme} scheme, ${view.designedGap} gap` +
         (view.carrier === undefined ? "" : `, ball to ${name(view.carrier as unknown as PlayerId)}`)
       : `  Reads:   ${view.readSystem} — ${view.readOrder.length} in the progression`,
-    `  Defense: ${view.defenseFront}, "${view.defenseCall}" (${view.coverage})`,
+    `  Defense: ${sayDefense(view)} (${view.coverage})`,
     "",
     "SITUATION:",
     `  Down ${view.down} & ${view.distance}, ball on ${view.ballOn}`,
@@ -864,7 +864,11 @@ interface PlayStartView {
   readonly carrier: string | undefined;
   readonly designedGap: string | undefined;
   readonly defenseCall: string;
+  /** ADR-071. Empty on a stream that predates it, whose `front` carried the personnel. */
+  readonly defensePersonnel: string;
   readonly defenseFront: string;
+  /** ADR-071 — the call's tags, kind and word. Empty on a vanilla call or an older stream. */
+  readonly defenseTags: readonly { readonly kind: string; readonly name: string }[];
   readonly coverage: string;
   readonly down: number;
   readonly distance: number;
@@ -899,6 +903,26 @@ function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
 
+function asTags(value: unknown): { readonly kind: string; readonly name: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((v) => {
+    const tag = asRecord(v);
+    return tag === undefined ? [] : [{ kind: asString(tag["kind"], "?"), name: asString(tag["name"], "?") }];
+  });
+}
+
+/**
+ * The defensive call as a call sheet says it (ADR-071): personnel, front and its line game,
+ * the pressure, the concept in quotes as the offence's call is, then the look —
+ * `Nickel Over Tex, Fire, "Cover 3", Show 2`. An older stream has no personnel or tags and
+ * prints as it always did.
+ */
+function sayDefense(view: PlayStartView): string {
+  const words = (kind: string): string[] => view.defenseTags.filter((t) => t.kind === kind).map((t) => t.name);
+  const front = [view.defensePersonnel, view.defenseFront, ...words("FRONT")].filter((w) => w !== "").join(" ");
+  return [front, ...words("PRESSURE"), `"${view.defenseCall}"`, ...words("LOOK")].join(", ");
+}
+
 function readPlayStart(payload: unknown): PlayStartView | undefined {
   const root = asRecord(payload);
   if (root === undefined) return undefined;
@@ -916,7 +940,9 @@ function readPlayStart(payload: unknown): PlayStartView | undefined {
     carrier: typeof offense["carrier"] === "string" ? offense["carrier"] : undefined,
     designedGap: typeof offense["designedGap"] === "string" ? offense["designedGap"] : undefined,
     defenseCall: asString(defense["call"], "?"),
+    defensePersonnel: asString(defense["personnel"], ""),
     defenseFront: asString(defense["front"], "?"),
+    defenseTags: asTags(defense["tags"]),
     coverage: asString(defense["coverage"], "?"),
     down: asNumber(situation["down"], 0),
     distance: asNumber(situation["distance"], 0),

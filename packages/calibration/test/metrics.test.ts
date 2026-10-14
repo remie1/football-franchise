@@ -441,10 +441,10 @@ describe("the event fold", () => {
 
   /**
    * ADR-069. The disguise count is a DIFF of shown against played, and the per-mask split is keyed
-   * by the name the call carried — two readings of one play that must agree. Every disguised
-   * dropback is named, so the split sums to the count and nothing lands in UNNAMED.
+   * by the look the call named (ADR-071: its LOOK tags) — two readings of one play that must agree.
+   * Every disguised dropback is named, so the split sums to the count and nothing lands in UNNAMED.
    */
-  it("counts disguised dropbacks by diff, and every one of them names its mask", () => {
+  it("counts disguised dropbacks by diff, and every one of them names its look", () => {
     const p = acc.play;
     expect(p.disguisedDropbacks).toBeGreaterThan(0);
     expect(p.disguisedDropbacks).toBeLessThan(p.dropbacks);
@@ -452,13 +452,18 @@ describe("the event fold", () => {
     expect(named).toBe(p.disguisedDropbacks);
     expect(p.disguisedDropbacksByMask.UNNAMED).toBeUndefined();
 
-    // The other reading, taken straight off the stream: pass snaps whose call NAMED a mask. A run
-    // wears masks too (the defence calls before it knows), so the dropback filter is exercised.
+    // The other reading, taken straight off the stream: pass snaps whose call NAMED a look. A run
+    // wears looks too (the defence calls before it knows), so the dropback filter is exercised.
     const starts = observation.events
-      .map((e) => e.event as { type: string; payload: { kind?: string; defense?: { mask?: unknown } } })
+      .map(
+        (e) =>
+          e.event as { type: string; payload: { kind?: string; defense?: { tags?: readonly { kind?: string }[] } } },
+      )
       .filter((e) => e.type === "PLAY_START");
-    const maskedPasses = starts.filter((e) => e.payload.kind === "PASS_PLAY_V1" && e.payload.defense?.mask != null);
-    const maskedRuns = starts.filter((e) => e.payload.kind === "RUN_PLAY_V1" && e.payload.defense?.mask != null);
+    const wearsLook = (e: (typeof starts)[number]): boolean =>
+      (e.payload.defense?.tags ?? []).some((tag) => tag.kind === "LOOK");
+    const maskedPasses = starts.filter((e) => e.payload.kind === "PASS_PLAY_V1" && wearsLook(e));
+    const maskedRuns = starts.filter((e) => e.payload.kind === "RUN_PLAY_V1" && wearsLook(e));
     expect(p.disguisedDropbacks).toBe(maskedPasses.length);
     expect(maskedRuns.length).toBeGreaterThan(0);
   });

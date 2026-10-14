@@ -242,11 +242,11 @@ describe("the grid a coverage OWNS, independent of what the offence runs", () =>
     const cover2 = COVERAGE_CARDS[2]?.build(home.offense, away.defense);
     const cover3 = COVERAGE_CARDS[1]?.build(home.offense, away.defense);
     if (cover2 === undefined || cover3 === undefined) throw new Error("bad corpus");
-    expect(cover2.name).toBe("Cover 2 Man");
+    expect(cover2.concept).toBe("Cover 2 Man");
     expect(
       zoneDefenderFor(TUNABLES, cover2.assignments, { horizontal: "C", vertical: "DEEP" }),
     ).toBeUndefined();
-    expect(cover3.name).toBe("Cover 3 Spot Drop");
+    expect(cover3.concept).toBe("Cover 3 Spot Drop");
     for (const seam of ["LH", "RH"] as const) {
       expect(
         zoneDefenderFor(TUNABLES, cover3.assignments, { horizontal: seam, vertical: "DEEP" }),

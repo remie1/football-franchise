@@ -20,6 +20,7 @@
  *   defense.ts      duties, man targets, stunts, disguise, mirroring
  *   defensiveCards  twenty-two fronts/coverages/pressures
  *   masks.ts        pre-snap looks laid over a card, and the draw (ADR-069)
+ *   tags.ts         the words a call is said in: personnel, line games, pressures (ADR-071)
  *   protection.ts   man and slide schemes, the centre, blitz pickup, free runners
  *   personnel.ts    depth chart → bound personnel package
  *   instantiate.ts  template + personnel → contracts play calls
@@ -40,6 +41,7 @@ export * from "./runConcepts.js";
 export * from "./defense.js";
 export * from "./defensiveCards.js";
 export * from "./masks.js";
+export * from "./tags.js";
 export * from "./personnel.js";
 export * from "./instantiate.js";
 export * from "./validate.js";

@@ -44,6 +44,7 @@ import { protectionCapacity, statesAHotRoute } from "./passConcepts.js";
 import type { DefenseLineRole, DefenseRole, OffenseRole, OffenseSkillRole } from "./roles.js";
 import { OFFENSE_LINE_ROLES, PLAYERS_ON_THE_FIELD, SKILL_ROLES } from "./roles.js";
 import type { RunConcept } from "./runConcepts.js";
+import type { PressureTagId } from "./tags.js";
 import type { RouteName, RouteSpec } from "./routes.js";
 import {
   DEPTH_CLASS_AIR_YARDS,
@@ -810,6 +811,7 @@ export function validateDefensiveCard(card: AnyDefensiveCard): readonly Diagnost
 
   out.push(...checkStunts(where, card, duties));
   out.push(...checkDisguise(where, card, duties, rushers.length, deepZones));
+  out.push(...checkPressure(where, card, duties));
   return dedupe(out);
 }
 
@@ -878,6 +880,21 @@ function checkStunts(
         ),
       );
     }
+  }
+
+  // ONE LINE GAME, ONE ROW (ADR-071). The call's front tag is DERIVED from the stunts'
+  // complexity (`tags.ts`), so stunts that disagree on their row would make the call name a
+  // game half the line is not running. A triple's two entries share one row by the rule below.
+  const rows = new Set(stunts.map((s) => s.complexity));
+  if (rows.size > 1) {
+    out.push(
+      err(
+        "D_STUNT_MIXED_ROWS",
+        where,
+        `the stunts claim ${[...rows].join(" and ")}; a card runs one line game, and the call ` +
+          "names it by one row",
+      ),
+    );
   }
 
   const triples = stunts.filter((s) => s.complexity === "TRIPLE");
@@ -1019,6 +1036,85 @@ function checkDisguise(
    * was considered rather than missed.
    */
   return out;
+}
+
+// --- the pressure word (ADR-071) ---------------------------------------------------
+
+const BACKER_ROLES: readonly DefenseRole[] = ["LB_W", "LB_M", "LB_S"];
+const SUB_CORNER_ROLES: readonly DefenseRole[] = ["CB_N", "CB_D"];
+
+const PRESSURE_RULE: Readonly<Record<PressureTagId, string>> = {
+  FIRE: "Fire is backers, and not both through the A gaps, with deep help kept",
+  DOUBLE_A: "Double A is both backers through the A gaps, with deep help kept",
+  SMOKE: "Smoke is the nickel or the dime, with deep help kept",
+  ZERO: "Zero is nobody deep",
+};
+
+/**
+ * A PRESSURE WORD IS DECLARED BY THE CARD AND CHECKED AGAINST THE CARD (ADR-071 §4), as
+ * `blitzDisguise` is and for the same reason: one rush could be named more than one way, so
+ * the word is the author's, and what a check can do is refuse a word the rushers contradict.
+ *
+ * **Declared exactly when somebody off the line rushes** — `checkDisguise`'s trigger, and not a
+ * headcount: the goal-line front rushes five down linemen with nobody deep and is a vanilla
+ * call. Then each word with the men and the deep help it says. The four exclude one another,
+ * so a card's rush fits at most one, and a rush that fits none — an outside corner, a safety —
+ * is a word the vocabulary does not have yet, refused until it has one.
+ *
+ * Deep help is `noDeepHelp`, which `validateDefensiveCard` already holds to the card's zones in
+ * both directions. Every word but Zero keeps it: a pressure never moves the deep shell
+ * (ADR-071 §3 rule 3), and removing it is what Zero is.
+ */
+function checkPressure(
+  where: string,
+  card: AnyDefensiveCard,
+  duties: DutyEntries,
+): readonly Diagnostic[] {
+  const offBall = duties.filter(
+    (d) => d.duty.kind === "RUSH" && !(DEFENSE_LINE_ROLES as readonly string[]).includes(d.role),
+  );
+  const declared = card.pressure;
+  if (offBall.length === 0) {
+    if (declared === undefined) return [];
+    return [
+      err(
+        "D_PRESSURE_WITHOUT_A_RUSHER",
+        where,
+        `the card says ${declared} and nobody off the line rushes; the line alone is no pressure`,
+      ),
+    ];
+  }
+  const who = offBall.map((d) => d.role).join("/");
+  if (declared === undefined) {
+    return [
+      err(
+        "D_PRESSURE_UNNAMED",
+        where,
+        `${who} rush from off the line and the card names no pressure — say which word it is`,
+      ),
+    ];
+  }
+  const deepHelp = card.noDeepHelp !== true;
+  const backersOnly = offBall.every((d) => BACKER_ROLES.includes(d.role));
+  const doubleA =
+    backersOnly &&
+    offBall.length === 2 &&
+    offBall.every((d) => d.duty.kind === "RUSH" && d.duty.gap === "A");
+  const fits: Readonly<Record<PressureTagId, boolean>> = {
+    FIRE: backersOnly && !doubleA && deepHelp,
+    DOUBLE_A: doubleA && deepHelp,
+    SMOKE: offBall.every((d) => SUB_CORNER_ROLES.includes(d.role)) && deepHelp,
+    ZERO: !deepHelp,
+  };
+  if (fits[declared]) return [];
+  return [
+    err(
+      "D_PRESSURE_MISNAMED",
+      where,
+      `the card says ${declared} and its rush is ${who} from off the line with ` +
+        `${deepHelp ? "deep help kept" : "nobody deep"}. ${PRESSURE_RULE[declared]}`,
+    ),
+  ];
 }
 
 /**

@@ -8,7 +8,8 @@
  *   - the look it produces differs from what the card plays — and differs ONLY in the men it
  *     moved, with the same defenders in the same order;
  *   - what is PLAYED is exactly what the unmasked card plays: coverage, rush and all (ruling 1);
- *   - the call names the mask and carries §5.1's complexity row.
+ *   - the call says the mask as its last tag, a LOOK (ADR-071), and carries §5.1's complexity
+ *     row.
  *
  * And the draw: no die for a card nothing can mask (ADR-005), and the rates it draws at are
  * the ones `distribution.ts` states.
@@ -21,6 +22,8 @@ import {
   NICKEL_COVER_1_RAT,
   NICKEL_COVER_2,
   NICKEL_COVER_3_SKY,
+  NICKEL_COVER_6,
+  NICKEL_FIRE_ZONE,
   NICKEL_QUARTERS,
 } from "../src/defensiveCards.js";
 import { COVERAGE_MASK_RATE, LATE_ROTATION_SHARE } from "../src/distribution.js";
@@ -28,8 +31,8 @@ import { FORMATIONS } from "../src/formations.js";
 import { instantiateDefense } from "../src/instantiate.js";
 import {
   COVERAGE_MASKS,
-  SINGLE_HIGH,
-  TWO_HIGH,
+  SHOW_1,
+  SHOW_2,
   applyCoverageMask,
   legalCoverageMasks,
   maskShows,
@@ -49,7 +52,7 @@ const PAIRINGS: readonly (readonly [CoverageMask, AnyDefensiveCard])[] = COVERAG
 );
 
 function zoneOf(card: AnyDefensiveCard, role: DefenseRole): string {
-  const duty = maskShows(card, TWO_HIGH)[role];
+  const duty = maskShows(card, SHOW_2)[role];
   return duty === undefined ? "unmoved" : `${duty.responsibility}@${duty.zone.horizontal}`;
 }
 
@@ -96,13 +99,18 @@ describe.each(PAIRINGS.map(([mask, card]) => [`${mask.id} over ${card.id}`, mask
           const honest = instantiateDefense(card, unit, look).call;
           const call = instantiateDefense(masked, unit, look).call;
 
-          expect(call.mask, formation.id).toEqual({ id: mask.id, name: mask.name });
+          // ADR-071: the look is said last, after whatever the card itself says.
+          expect(call.tags, formation.id).toEqual([
+            ...honest.tags,
+            { kind: "LOOK", id: mask.id, name: mask.name },
+          ]);
           expect(call.coverageDisguise).toBe(timing === "LATE" ? "LATE_ROTATION" : "ROTATED");
           // Ruling 1: the mask never changes what is played.
           expect(call.assignments, `${formation.id}: played coverage changed`).toEqual(honest.assignments);
           expect(call.rush, `${formation.id}: rush changed`).toEqual(honest.rush);
-          expect(call.name).toBe(honest.name);
+          expect(call.personnel).toBe(honest.personnel);
           expect(call.front).toBe(honest.front);
+          expect(call.concept).toBe(honest.concept);
 
           expect(call.shownAssignments.map((a) => String(a.defender))).toEqual(
             call.assignments.map((a) => String(a.defender)),
@@ -125,15 +133,34 @@ describe.each(PAIRINGS.map(([mask, card]) => [`${mask.id} over ${card.id}`, mask
 );
 
 describe("ADR-069 — the looks themselves", () => {
-  it("Two-High over Cover 3 Sky and Cover 1 Rat is exactly what ADR-068 step 1 wrote by hand", () => {
+  it("Show 2 over Cover 3 Sky and Cover 1 Rat is exactly what ADR-068 step 1 wrote by hand", () => {
     for (const card of [NICKEL_COVER_3_SKY, NICKEL_COVER_1_RAT]) {
       expect(zoneOf(card, "S_S"), card.id).toBe("DEEP_HALF@LH");
       expect(zoneOf(card, "S_F"), card.id).toBe("DEEP_HALF@RH");
     }
   });
 
-  it("Single-High puts the free safety in the middle and walks the strong safety down on his side", () => {
-    const shows = maskShows(NICKEL_COVER_2, SINGLE_HIGH);
+  it("Show 2 moves the corners over a quarters rotation, and only the safeties over a one-high one", () => {
+    // ADR-071 folded Phase 1's Two-High and Two-High Cover 2 look into one word. The two sat
+    // over disjoint rotations, so every rotation still gets the look it got before.
+    const quarters = maskShows(NICKEL_QUARTERS, SHOW_2);
+    expect(quarters.CB_L?.responsibility).toBe("FLAT");
+    expect(quarters.CB_R?.responsibility).toBe("FLAT");
+    // Cover 6 is quarters on one side and Cover 2 on the other: the Cover 2 corner already
+    // plays the flat Show 2 would show him in, so only the quarters corner is moved.
+    const cover6 = maskShows(NICKEL_COVER_6, SHOW_2);
+    expect(cover6.CB_L?.responsibility).toBe("FLAT");
+    expect(NICKEL_COVER_6.duties.CB_R).toMatchObject({ kind: "ZONE", responsibility: "FLAT" });
+    expect(cover6.CB_R).toBeUndefined();
+    for (const card of [NICKEL_COVER_3_SKY, NICKEL_COVER_1_RAT, NICKEL_FIRE_ZONE]) {
+      const moved = Object.keys(maskShows(card, SHOW_2));
+      expect(moved.length, card.id).toBeGreaterThan(0);
+      expect(moved.every((role) => role === "S_F" || role === "S_S"), card.id).toBe(true);
+    }
+  });
+
+  it("Show 1 puts the free safety in the middle and walks the strong safety down on his side", () => {
+    const shows = maskShows(NICKEL_COVER_2, SHOW_1);
     expect(shows.S_F?.responsibility).toBe("DEEP_MIDDLE_THIRD");
     expect(shows.S_S?.responsibility).toBe("HOOK_CURL");
     // Nickel Cover 2's strong safety plays the right half, so he walks down on the right.
@@ -141,7 +168,7 @@ describe("ADR-069 — the looks themselves", () => {
   });
 
   it("a mirrored masked card shows the mirrored look", () => {
-    const masked = applyCoverageMask(NICKEL_COVER_3_SKY, { mask: TWO_HIGH, timing: "EARLY" });
+    const masked = applyCoverageMask(NICKEL_COVER_3_SKY, { mask: SHOW_2, timing: "EARLY" });
     const flipped = mirrorDefensiveCard(masked);
     const shown = (role: DefenseRole): string | undefined => {
       const duty = flipped.duties[role];
@@ -152,9 +179,9 @@ describe("ADR-069 — the looks themselves", () => {
   });
 
   it("refuses a mask over a rotation it would not disguise, loudly", () => {
-    // Nickel Cover 2 already plays both safeties at deep halves: a Two-High look over it is
-    // just Cover 2, which is why `TWO_HIGH.over` does not state COVER_2.
-    expect(() => applyCoverageMask(NICKEL_COVER_2, { mask: TWO_HIGH, timing: "EARLY" })).toThrow(
+    // Nickel Cover 2 already plays both safeties at deep halves: Show 2 over it is just
+    // Cover 2, which is why `SHOW_2.over` does not state COVER_2.
+    expect(() => applyCoverageMask(NICKEL_COVER_2, { mask: SHOW_2, timing: "EARLY" })).toThrow(
       /shows exactly what the card plays/,
     );
   });
@@ -209,7 +236,7 @@ describe("ADR-069 — the draw", () => {
     }
     expect(Math.abs(worn / n - COVERAGE_MASK_RATE)).toBeLessThan(0.015);
     expect(Math.abs(late / worn - LATE_ROTATION_SHARE)).toBeLessThan(0.02);
-    // Quarters can wear the Cover 2 look or Single-High, at equal weight.
+    // Quarters can wear Show 2 or Show 1, at equal weight.
     const legal = legalCoverageMasks(NICKEL_QUARTERS).map((m) => m.id).sort();
     expect([...byMask.keys()].sort()).toEqual(legal);
     for (const id of legal) {

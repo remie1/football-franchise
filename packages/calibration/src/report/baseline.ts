@@ -509,7 +509,7 @@ function renderDrawQuality<E extends Eligibility>(report: BaselineReport<E>): st
     `| exact card | ${pct(d.exactCard, d.draws)} | strictest reading; read beside the forced share above |`,
   );
   lines.push(
-    `| front label | ${pct(d.sameFrontLabel, d.draws)} | playbook's own \`front\` string — coarser than a card, finer than a grouping |`,
+    `| front label | ${pct(d.sameFrontLabel, d.draws)} | the call's personnel and front ("Nickel Over") — coarser than a card, finer than a grouping |`,
   );
   lines.push(
     `| personnel grouping | 100.00% | **by construction, not by measurement** — the anticipation is constrained to it (\`caller/anticipate.ts\`) |`,

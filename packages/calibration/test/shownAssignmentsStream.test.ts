@@ -23,8 +23,9 @@
  * ============================ THE NAME AGAINST THE DIFF (ADR-069) ============================
  *
  * ADR-068 step 1 made two CARDS lie, so this test named them. ADR-069 moved the lie to a mask
- * drawn over any card, and `PLAY_START.defense.mask` names it. So the check is now the name
- * against the diff, in both directions, on every play: a play that names a mask must show
+ * drawn over any card, and since ADR-071 the call names it as a LOOK in `PLAY_START.defense.tags`.
+ * So the check is now the name against the diff, in both directions, on every play: a play that
+ * names a look must show
  * something other than it plays (a mask that changed nothing is a disguise counted that never
  * happened), and a play that names none must show exactly what it plays (a divergence nobody
  * named is the authoring slip ADR-067 §A built this test to catch). Every mask in the catalogue
@@ -78,7 +79,7 @@ function foldGame(gameLabel: string, events: readonly MatchEventEnvelope[]): Gam
         readonly call?: unknown;
         readonly assignments?: unknown;
         readonly shownAssignments?: unknown;
-        readonly mask?: { readonly id?: unknown } | null;
+        readonly tags?: readonly { readonly kind?: unknown; readonly id?: unknown }[];
       };
     };
     // PLAY_START also opens special-teams plays, which carry no defensive call.
@@ -94,25 +95,26 @@ function foldGame(gameLabel: string, events: readonly MatchEventEnvelope[]): Gam
       continue;
     }
     if (Array.isArray(played) && played.length > 0) withAssignments += 1;
-    const mask = payload.defense?.mask;
-    if (mask === undefined) {
-      failures.push(`${where}: defense.mask is missing from PLAY_START (null means no mask)`);
+    const tags = payload.defense?.tags;
+    if (!Array.isArray(tags)) {
+      failures.push(`${where}: defense.tags is missing from PLAY_START ([] means a vanilla call)`);
       continue;
     }
-    if (mask !== null) {
+    const looks = tags.filter((tag) => tag.kind === "LOOK").map((tag) => String(tag.id));
+    if (looks.length > 0) {
       if (payload.kind === "PASS_PLAY_V1") maskedPass += 1;
       else maskedRun += 1;
-      masksSeen.add(String(mask.id));
+      for (const id of looks) masksSeen.add(id);
       if (isDeepStrictEqual(shown, played)) {
         failures.push(
-          `${where}: ${String(payload.defense?.call)} wore ${String(mask.id)} but showed what it played`,
+          `${where}: ${String(payload.defense?.call)} wore ${looks.join("+")} but showed what it played`,
         );
       }
       continue;
     }
     if (!isDeepStrictEqual(shown, played)) {
       failures.push(
-        `${where}: shown differs from played and no mask is named\n  shown:  ${JSON.stringify(shown)}\n` +
+        `${where}: shown differs from played and no look is named\n  shown:  ${JSON.stringify(shown)}\n` +
           `  played: ${JSON.stringify(played)}`,
       );
     }

@@ -396,7 +396,9 @@ export function simulatePassPlay(
     },
     defense: {
       team: state.defenseTeam,
-      call: calls.defense.name,
+      // ADR-071: the call said in parts. `call` echoes the concept under its old key.
+      call: calls.defense.concept,
+      personnel: calls.defense.personnel,
       front: calls.defense.front,
       // Derived, not echoed: with per-assignment coverage, MIXED is the honest
       // answer for most real defences and no input field can state it.
@@ -405,8 +407,9 @@ export function simulatePassPlay(
       // Echoed, not derived (ADR-067 §B): the shown state is a fact about the
       // CALL. Diffing it against `assignments` is the consumer's job.
       shownAssignments: calls.defense.shownAssignments,
-      // Echoed (ADR-069): the call's name for its look, beside the look itself.
-      mask: calls.defense.mask ?? null,
+      // Echoed (ADR-069, ADR-071): the call's names for its line game, pressure and look,
+      // beside the fields they name.
+      tags: calls.defense.tags,
       // Alignment resolved, not echoed: it is the input the §7.2 arrival model
       // actually ran on, and the only place the stream states it. Side carried
       // through unresolved (ADR-018) — see `resolvedRushAssignment`.

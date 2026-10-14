@@ -353,13 +353,15 @@ function buildStartPayload(
     },
     defense: {
       team: state.defenseTeam,
-      call: calls.defense.name,
+      // ADR-071, as the pass payload says the call.
+      call: calls.defense.concept,
+      personnel: calls.defense.personnel,
       front: calls.defense.front,
       coverage: coverageShellFor(calls.defense.assignments),
       assignments: calls.defense.assignments,
       // ADR-067 §B, echoed exactly as the pass payload does.
       shownAssignments: calls.defense.shownAssignments,
-      mask: calls.defense.mask ?? null,
+      tags: calls.defense.tags,
       // Alignment resolved, side carried through as stated (ADR-018) — the same
       // owner the pass payload uses, so the two cannot drift.
       rush: calls.defense.rush.map((r) =>

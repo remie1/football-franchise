@@ -15,9 +15,9 @@ import type {
   ChemistryTable,
   CoverageAssignment,
   CoverageDisguise,
-  CoverageMaskRef,
   CoverageTechnique,
   DefensivePlayCall,
+  DefensiveTag,
   FieldZone,
   GameId,
   HorizontalZone,
@@ -128,9 +128,9 @@ export type {
   BlockType,
   CoverageAssignment,
   CoverageDisguise,
-  CoverageMaskRef,
   CoverageTechnique,
   DefensivePlayCall,
+  DefensiveTag,
   FieldZone,
   HorizontalZone,
   HotRouteSpec,
@@ -324,7 +324,15 @@ export interface PassPlayStartPayload {
   };
   readonly defense: {
     readonly team: TeamId;
+    /**
+     * The call's CONCEPT (ADR-071) — "Cover 3 Sky". The key stays `call`
+     * because untyped readers (the §17 renderer above all) read it by that
+     * name, and a renamed key would print "?" on every play and fail nothing.
+     */
     readonly call: string;
+    /** ADR-071 — who is on the field, as said: "Nickel". */
+    readonly personnel: string;
+    /** The front alone, without the personnel (ADR-071): "Over". */
     readonly front: string;
     /** Derived from `assignments`, not echoed from the call: `MIXED` is sayable. */
     readonly coverage: CoverageShell;
@@ -345,24 +353,27 @@ export interface PassPlayStartPayload {
      * play; `PRESNAP_READ` fires only when a rusher is unaccounted, and is a
      * roll, which a state must not ride inside.
      *
-     * ⚠ IDENTICAL TO `assignments` UNLESS THE CALL WORE A MASK (ADR-069) — and
-     * then different in exactly the men the mask moved. Calibration's
-     * `shownAssignmentsStream` test runs the corpus to show it, not to assume it.
+     * ⚠ IDENTICAL TO `assignments` UNLESS THE CALL WORE A LOOK (ADR-069,
+     * ADR-071) — and then different in exactly the men the look moved.
+     * Calibration's `shownAssignmentsStream` test runs the corpus to show it,
+     * not to assume it.
      */
     readonly shownAssignments: readonly CoverageAssignment[];
     /**
-     * ADR-069 — the NAME of the look the call wore, as `call` names its
-     * rotation; `null` when it wore none. The middle of the three-part call:
-     * `front` · `mask.name` · `call`.
+     * ADR-071 — the call's TAGS, echoed in the order said: front tags, the
+     * pressure, the looks. `[]` for a vanilla call. With `personnel`, `front`
+     * and `call` (the concept) they say the call: "Nickel Over Tex, Fire,
+     * Cover 3, Show 2".
      *
-     * A NAME, NOT A VERDICT, so it is not the `wasDisguised` flag the comment
-     * above forbids. Nothing reads it to decide a divergence: the coverage read
-     * diffs the two lists, and so does calibration's `disguise_rate`. What
-     * `mask` is for is printing the call and splitting a rate by look — and
-     * `shownAssignmentsStream` checks the name against the diff on every play,
-     * so a mask that showed nothing, or a divergence nobody named, fails.
+     * NAMES, NOT A VERDICT, so a LOOK here is not the `wasDisguised` flag the
+     * comment above forbids. Nothing reads them to decide a divergence: the
+     * coverage read diffs the two lists, and so does calibration's
+     * `disguise_rate`. What they are for is printing the call and splitting a
+     * rate by tag — and `shownAssignmentsStream` checks every LOOK against the
+     * diff on every play, so a look that showed nothing, or a divergence
+     * nobody named, fails.
      */
-    readonly mask: CoverageMaskRef | null;
+    readonly tags: readonly DefensiveTag[];
     /** Alignment resolved: §7.2's time-of-arrival model depends on it. */
     readonly rush: readonly ResolvedRushAssignment[];
     /**
@@ -410,7 +421,10 @@ export interface RunPlayStartPayload {
   };
   readonly defense: {
     readonly team: TeamId;
+    /** The call's concept (ADR-071), as on `PassPlayStartPayload`. */
     readonly call: string;
+    /** ADR-071 — as on `PassPlayStartPayload`. */
+    readonly personnel: string;
     readonly front: string;
     readonly coverage: CoverageShell;
     readonly assignments: readonly CoverageAssignment[];
@@ -421,8 +435,8 @@ export interface RunPlayStartPayload {
      * reads it.
      */
     readonly shownAssignments: readonly CoverageAssignment[];
-    /** ADR-069 — as on `PassPlayStartPayload`. */
-    readonly mask: CoverageMaskRef | null;
+    /** ADR-071 — as on `PassPlayStartPayload`. */
+    readonly tags: readonly DefensiveTag[];
     readonly rush: readonly ResolvedRushAssignment[];
   };
   readonly situation: {

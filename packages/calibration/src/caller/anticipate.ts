@@ -236,8 +236,10 @@ export function anticipateFront(
  *
  *  - `exactCard` — the strictest reading, and the one to quote when somebody asks "how often is
  *    the caller right". Read it beside `forcedDraws`, which inflates it.
- *  - `sameFrontLabel` — `AnyDefensiveCard.front`, playbook's own renderer string ("4-3 over",
- *    "nickel 4-2-5 double A"). Coarser than the card and finer than the grouping.
+ *  - `sameFrontLabel` — the call's first two words, `AnyDefensiveCard.personnel` and `.front`
+ *    ("Nickel Over", "Base Bear"). Coarser than the card and finer than the grouping. Since
+ *    ADR-071 the front no longer carries the personnel, so both are compared, which keeps this
+ *    the reading it was.
  *  - `sameRusherCount` / `sameBlitzClass` — how many are coming, exactly and at the five-man
  *    threshold `blitz_rate` uses. `sameBlitzClass` is the one that predicts whether the offence
  *    had ENOUGH bodies; `sameRusherCount` is the one that predicts whether it had the right
@@ -303,7 +305,7 @@ export function compareFronts(
   const union = expectedRushers.size + realRushers.size - intersection;
   return {
     exactCard: expectedCard.id === realCard.id,
-    sameFrontLabel: expectedCard.front === realCard.front,
+    sameFrontLabel: expectedCard.personnel === realCard.personnel && expectedCard.front === realCard.front,
     sameRusherCount: expectedRushers.size === realRushers.size,
     sameBlitzClass:
       expectedRushers.size >= BLITZ_MIN_RUSHERS === (realRushers.size >= BLITZ_MIN_RUSHERS),

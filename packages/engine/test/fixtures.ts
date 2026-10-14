@@ -227,8 +227,10 @@ export function buildScenario(overrides: Partial<MatchGameState> = {}): Scenario
       ],
     },
     defense: {
-      name: "Cover 1 Press",
-      front: "Nickel Even",
+      personnel: "Nickel",
+      front: "Even",
+      concept: "Cover 1 Press",
+      tags: [],
       // ADR-067 §A: aliased to `assignments`, not copied — see `assignments`
       // above `calls`, defined once and referenced by both fields.
       assignments,
@@ -434,8 +436,10 @@ export function buildZoneScenario(): Scenario {
       ],
     },
     defense: {
-      name: "Cover 3 Spot Drop",
-      front: "Nickel Even",
+      personnel: "Nickel",
+      front: "Even",
+      concept: "Cover 3 Spot Drop",
+      tags: [],
       assignments: spotDropAssignments,
       shownAssignments: spotDropAssignments,
       rush: base.calls.defense.rush,
@@ -496,8 +500,10 @@ export function buildOverlappingZoneScenario(): Scenario {
       ],
     },
     defense: {
-      name: "Quarters, Overlapping Drops",
-      front: "Nickel Even",
+      personnel: "Nickel",
+      front: "Even",
+      concept: "Quarters, Overlapping Drops",
+      tags: [],
       assignments: overlappingAssignments,
       shownAssignments: overlappingAssignments,
       rush: base.calls.defense.rush,
@@ -546,8 +552,10 @@ export function buildMixedCoverageScenario(): Scenario {
   const calls: PlayCalls = {
     ...base.calls,
     defense: {
-      name: "Cover 1 Robber",
+      personnel: base.calls.defense.personnel,
       front: base.calls.defense.front,
+      concept: "Cover 1 Robber",
+      tags: [],
       assignments: robberAssignments,
       shownAssignments: robberAssignments,
       rush: base.calls.defense.rush,
@@ -739,8 +747,10 @@ export function buildRunScenario(scheme: RunScheme = "ZONE"): RunScenario {
       ],
     },
     defense: {
-      name: "Under Front, Cover 3",
-      front: "4-3 Under",
+      personnel: "Base",
+      front: "Under",
+      concept: "Cover 3",
+      tags: [],
       assignments: runDefenseAssignments,
       shownAssignments: runDefenseAssignments,
       rush: [

@@ -60,6 +60,7 @@ import type {
 } from "./roles.js";
 import { SKILL_ROLES, TIGHT_END_ROLES } from "./roles.js";
 import type { PassConcept } from "./passConcepts.js";
+import { callTags, PERSONNEL_WORD } from "./tags.js";
 import type { PerimeterTarget, RunConcept, SecondLevelSlot } from "./runConcepts.js";
 
 // --- the offence, as the defence sees it ------------------------------------
@@ -300,11 +301,16 @@ export function instantiateDefense(
 
   const stunts = resolveStunts(card, byRole, new Set(rush.map((r) => String(r.rusher))));
   const call: DefensivePlayCall = {
-    name: card.name,
+    // ADR-071 — the call in the order it is said: personnel, front, concept, then the tags
+    // (line game, pressure, looks). Names only; every one of them is already written into the
+    // fields below, and those are what the engine resolves.
+    personnel: PERSONNEL_WORD[card.personnel],
     front: card.front,
+    concept: card.concept,
+    tags: callTags(card),
     assignments,
     /**
-     * ⛔ ONE ARRAY, TWO FIELDS — UNLESS THE CALL WEARS A MASK (ADR-067 §A, ADR-069).
+     * ⛔ ONE ARRAY, TWO FIELDS — UNLESS THE CALL WEARS A LOOK (ADR-067 §A, ADR-069, ADR-071).
      *
      * A card with no `shows` on any duty gets `assignments` itself, the same object
      * referenced twice. Not a copy: a copy is a second value, and a second value is a
@@ -312,10 +318,10 @@ export function instantiateDefense(
      * unmasked call the identity holds by construction, and `shownAssignments.test.ts`
      * asserts it on every card in the corpus.
      *
-     * A card wearing a mask (`applyCoverageMask`) gets `shown`, built entry-for-entry beside
+     * A card wearing a look (`applyCoverageMask`) gets `shown`, built entry-for-entry beside
      * `assignments` by `play` above: the same defenders in the same order, differing only
      * where a duty `shows` a zone. A divergence can only arrive through that field, and only
-     * a mask writes it.
+     * a look writes it.
      *
      * ON MIRRORING. `mirrorDefensiveCard` flips duties, `shows` included, upstream of this
      * function, so a mirrored card mirrors both lists by construction.
@@ -332,7 +338,6 @@ export function instantiateDefense(
     // there the omitted value was a FAKE and here it is a fact.
     ...(card.blitzDisguise === undefined ? {} : { blitzDisguise: card.blitzDisguise }),
     ...(card.coverageDisguise === undefined ? {} : { coverageDisguise: card.coverageDisguise }),
-    ...(card.mask === undefined ? {} : { mask: card.mask }),
   };
 
   return {

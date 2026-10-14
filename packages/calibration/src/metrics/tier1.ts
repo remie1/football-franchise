@@ -802,8 +802,8 @@ export const hotRouteRate: Metric = registerMetric({
  * ingested source charts a shown shell against a played one — participation's
  * `defense_man_zone_type` and `defense_coverage_type` are what was PLAYED.
  *
- * The count is a DIFF of the two assignment lists, not a read of the mask's name (ADR-067 §B);
- * the name only keys `disguise_mask_mix`.
+ * The count is a DIFF of the two assignment lists, not a read of the look the call names (ADR-067
+ * §B); the name only keys `disguise_mask_mix`.
  */
 export const disguiseRate: Metric = registerMetric({
   id: "disguise_rate",
@@ -829,14 +829,15 @@ export const disguiseRate: Metric = registerMetric({
   },
 });
 
-/** ADR-069 — which mask the disguised dropbacks wore. Same diff, keyed by the call's mask name. */
+/** ADR-069 — which look the disguised dropbacks wore. Same diff, keyed by the call's LOOK tags. */
 export const disguiseMaskMix: Metric = registerMetric({
   id: "disguise_mask_mix",
   tier: 1,
   definition:
-    "SIM SIDE ONLY. The disguised dropbacks of `disguise_rate`, split by the mask the call " +
-    "named (PLAY_START.defense.mask.id). UNNAMED would be a shown look that differs with no " +
-    "mask named, which the engine cannot produce. No real source charts a shown shell.",
+    "SIM SIDE ONLY. The disguised dropbacks of `disguise_rate`, split by the look the call " +
+    "named (the LOOK tags in PLAY_START.defense.tags, ADR-071). UNNAMED would be a shown look " +
+    "that differs with no look named, which the engine cannot produce. No real source charts " +
+    "a shown shell.",
   unit: "share",
   toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {

@@ -3,7 +3,8 @@
 - **Date:** 2026-10-14
 - **Proposed by:** Orchestrator, from the owner's answer to ADR-070 §8 question 3
 - **Status:** **approved** *(owner, 2026-10-14)* — all four questions in §9 answered yes; the
-  contracts petition in §6 is approved. Step 1 is next. Reviewed at draft by the contracts guardian
+  contracts petition in §6 is approved. Step 1 is built (§10): caller v3 reproduces arm B number
+  for number. Step 2 is next. Reviewed at draft by the contracts guardian
   (MODIFY; its fixes are folded in below) and the fantasy advisor (nothing foreclosed; its notes are
   in Implied scope).
 - **Replaces:** ADR-070 §4's contracts petition (a list of masks). ADR-070's approved rulings (1, 2
@@ -326,7 +327,7 @@ export interface DefensivePlayCall {
 | Each pressure call passes exactly one of §4's four checks; no other call has a rusher off the line; the goal-line calls rush five linemen with nobody deep | **COMPUTED** — `dutyList` over `DEFENSIVE_CARDS`, this session |
 | Every stunted call's stunts share one complexity | **COMPUTED** — same |
 | Phase 1 lays Two-High over Fire Zone and the Cover 1 family, which holds three blitz calls | **COMPUTED** — `TWO_HIGH.over` in `playbook/src/masks.ts`; card families as above |
-| Merging Two-High and the Cover 2 look into Show 2 draws identically | **INFERRED** from `selectCoverageMask` — the two masks' `over` lists are disjoint, so the legal set over every coverage keeps its size, weights and order — and to be **COMPUTED** by step 1's exact-reproduction test |
+| Merging Two-High and the Cover 2 look into Show 2 draws identically | **COMPUTED** — step 1's exact-reproduction run (§10): 1,680 games, every counted number equal to arm B's. Predicted beforehand from `selectCoverageMask`: the two masks' `over` lists are disjoint, so the legal set over every coverage keeps its size, weights and order |
 | `package` cannot be destructured in a module | **COMPUTED** — `node --input-type=module`, `const { package } = …` is a SyntaxError; raised by the contracts guardian |
 | The renderer reads `defense["call"]` and `defense["front"]` untyped with a `"?"` fallback; six files beyond the engine's own producers read `mask` | **COMPUTED** — `engine/src/debug/renderPlay.ts:918-919`; a search of the workspace for `mask` on the call and the payload |
 | The caller's draws sit on named forks (`defense-card`, `defense-mask`, `anticipated-front`) | **COMPUTED** — `calibration/src/caller/frozen.ts` |
@@ -399,3 +400,43 @@ The owner's answer: *"Yes to all."*
 | 2 | The tag rule: one look per position group; no two played tags on one man; a look may sit over a pressure; a pressure never moves the deep shell, Zero excepted | ✅ **YES** |
 | 3 | The words: Show 2, Show 1, Press, Split, Show 4 (Stem and Mug at Phase 3); Fire, Double A, Smoke, Zero; Tex, Twist, Delay, Triple | ✅ **YES** |
 | 4 | The order: names first; corner looks; pressure and front tags with Phase 3; the call sheet and the captain's check once coordinators and the leash exist | ✅ **YES** |
+
+---
+
+## 10. Step 1, built *(2026-10-14)*
+
+Every call now says its parts and tags, and nothing plays differently.
+
+- **Contracts (§6, as approved).** `DefensivePlayCall` is `personnel`, `front`, `concept`, `tags`.
+  `DefensiveTag` (`kind`, `id`, `name`) and `DefensiveTagKind` replace `CoverageMaskRef`; `name` and
+  `mask` are gone.
+- **Playbook.** Each of the 22 cards states its front alone, its concept and, on the six blitz
+  calls, its pressure word, as §5's table says them. `callTags` derives the line game from the
+  stunts and adds the declared pressure; `applyCoverageMask` adds the look last. `validate.ts` holds
+  each pressure word to its rushers and its deep help (`D_PRESSURE_WITHOUT_A_RUSHER`,
+  `D_PRESSURE_UNNAMED`, `D_PRESSURE_MISNAMED`) and refuses one card's stunts at two complexities
+  (`D_STUNT_MIXED_ROWS`). Phase 1's masks are Show 2 and Show 1, in that catalogue order.
+- **Engine.** `PLAY_START.defense` carries `personnel` and `tags` beside `front`; `call` keeps its
+  key and carries the concept; `mask` is gone. The debug log says the call as a sheet does:
+  `Nickel Over Tex, Fire, "Cover 3", Show 2`. The engine's own six fixture calls write their tags
+  out, since the engine does not import `@ff/playbook`.
+- **Calibration.** `disguise_mask_mix` is keyed by the LOOK tags. The anticipation report's front
+  label compares personnel and front together, so it still reads what it read when the front
+  carried the personnel word.
+
+**The test (§7): exact reproduction.** Caller v3 on arm B's seeds (`adr-068:step1-arm`, 1,680
+games, two shards), against arm B's saved results with Phase 1's ids said the new way (Two-High and
+its Cover 2 look are Show 2; Single-High is Show 1): **880 numbers compared, 0 differ.** They are
+the dropbacks, attempts, completions, interceptions, yards, sacks and scrimmage plays; the disguised
+dropbacks by look; the coverage-read bands; the misread sources; and the splits by look, by
+coverage family and by disguise timing. Show 2 was worn on 32,769 disguised dropbacks (Phase 1:
+Two-High 27,030 plus the Cover 2 look 5,739) and Show 1 on 13,846.
+
+One fact the build surfaced, already true of Phase 1: over Cover 6, Show 2 moves one corner, not
+two. The corner on Cover 6's Cover 2 side already plays the flat the look would show him in. It
+bears on step 2, where Split is the Cover 6 look.
+
+| claim | provenance |
+|---|---|
+| The 880 numbers equal arm B's | **COMPUTED** — paired arm harness (as ADR-070 §9's), `adr-068:step1-arm`, 1,680 games, 2026-10-14 |
+| Show 2 moves only the quarters-side corner over Cover 6 | **COMPUTED** — `maskShows(NICKEL_COVER_6, SHOW_2)`; pinned in `playbook/test/masks.test.ts` |

@@ -408,32 +408,66 @@ export type BlitzDisguise = "STANDARD" | "ZONE_BLITZ" | "DELAYED" | "ZERO";
 export type CoverageDisguise = "BASIC" | "ROTATED" | "LATE_ROTATION";
 
 /**
- * The pre-snap mask a defensive call wore (ADR-069): the middle part of a call said in three
- * parts — front and blitz, mask, rotation. `"Nickel Over · Two-High · Cover 3 Sky"` is
- * `front`, `mask.name` and `name`.
+ * The three kinds of tag on a defensive call (ADR-071), by the LAYER of the call each one
+ * changes:
  *
- * A REFERENCE, NOT THE LOOK. What the mask makes the offence see is `shownAssignments`; this
- * names which catalogue entry produced it, so a renderer can print it and calibration can
- * split a rate by it. `id` is the catalogue's key; `name` is what a coach would call it.
+ *  - `LOOK` — only what the offence is shown (`shownAssignments`). Never what is played
+ *    (ADR-069 ruling 1). "Show 2", "Show 1".
+ *  - `PRESSURE` — who rushes, and who takes the rushers' coverage (`rush`, `assignments`).
+ *    "Fire", "Double A", "Smoke", "Zero".
+ *  - `FRONT` — how the line plays (`stunts`). "Tex", "Twist", "Delay", "Triple".
+ *
+ * The kind follows the layer, not the column a word sits in on a call sheet: a line that
+ * shows one front and plays another (a stem) changes the shown layer, so it is a LOOK.
  */
-export interface CoverageMaskRef {
+export type DefensiveTagKind = "LOOK" | "PRESSURE" | "FRONT";
+
+/**
+ * One tag on a defensive call (ADR-071): a single word that changes one or two position
+ * groups and leaves the rest of the call alone.
+ *
+ * A NAME, NOT THE CHANGE. What a tag changed is already in the call — `shownAssignments` for
+ * a LOOK, `rush` and `assignments` for a PRESSURE, `stunts` for a FRONT tag — and the engine
+ * resolves those fields, never this one. The tag says what produced them, so a renderer can
+ * say the call and calibration can split a rate by it. `id` is the catalogue's key; `name` is
+ * the word the captain says.
+ */
+export interface DefensiveTag {
+  readonly kind: DefensiveTagKind;
+  /** The catalogue's key: `"SHOW_2"`, `"FIRE"`, `"TEX"`. */
   readonly id: string;
+  /** The word the captain says: `"Show 2"`, `"Fire"`, `"Tex"`. */
   readonly name: string;
 }
 
+/**
+ * A defensive call, said in the order a call sheet says it (ADR-071): **personnel, front,
+ * concept, tags** — "Nickel Over Tex, Fire, Cover 3, Show 2". The four are NAMES: a renderer
+ * prints them and nothing resolves them. What the engine resolves is `assignments`,
+ * `shownAssignments`, `rush` and `stunts`.
+ */
 export interface DefensivePlayCall {
-  readonly name: string;
+  /** Who is on the field: `"Nickel"`. The call's first part (ADR-071). */
+  readonly personnel: string;
+  /** How the line and the box align, without the personnel: `"Over"` (ADR-071). */
   readonly front: string;
+  /**
+   * The base concept — what is played after the snap: `"Cover 3 Sky"` (ADR-071). The owner's
+   * call sheet calls it the foundation; a pressure or a look is a tag on top of it.
+   *
+   * Not `coverage`: `PLAY_START.defense.coverage` is the MAN / ZONE / MIXED shell the engine
+   * derives from `assignments`, a different fact under the same word.
+   */
+  readonly concept: string;
+  /**
+   * The tags the call wears (ADR-071), in the order said: front tags, then the pressure, then
+   * the looks. Empty ⇒ a vanilla call: the card's own rush and line, shown as it is played.
+   */
+  readonly tags: readonly DefensiveTag[];
   readonly stunts?: readonly StuntCall[];
   readonly blitzDisguise?: BlitzDisguise;
   /** §5.1's complexity row for the coverage read (ADR-068). Absent ⇒ `BASIC`. */
   readonly coverageDisguise?: CoverageDisguise;
-  /**
-   * The mask the call wore (ADR-069). Absent ⇒ none: the call shows exactly what it plays,
-   * and `shownAssignments` is `assignments` itself. Present ⇒ `shownAssignments` is the
-   * mask's look and differs from `assignments` in the defenders the mask moved.
-   */
-  readonly mask?: CoverageMaskRef;
   /**
    * Man and zone assignments, mixed freely. A receiver named by no `ManAssignment` is
    * played by whatever zone his route breaks into; if no zone defender is responsible for
@@ -444,12 +478,12 @@ export interface DefensivePlayCall {
    * What the offence SEES before the snap, as against `assignments`, which is what
    * actually resolves (ADR-067 §A).
    *
-   * ⛔ IDENTICAL TO `assignments` UNLESS THE CALL WEARS A MASK. A call with no shown duty
-   * gets the SAME ARRAY in both fields (`instantiateDefense`), so identity is by
-   * construction, not by agreement. A call that wears a mask (`mask` above — ADR-069; the
-   * mask states a shown duty for each defender it moves) gets a second list differing in
-   * exactly those assignments. No card in the corpus states a shown duty of its own, and
-   * `playbook`'s `shownAssignments` test fails if one starts to.
+   * ⛔ IDENTICAL TO `assignments` UNLESS THE CALL WEARS A LOOK TAG. A call with no shown
+   * duty gets the SAME ARRAY in both fields (`instantiateDefense`), so identity is by
+   * construction, not by agreement. A call that wears a look (a `LOOK` in `tags` above —
+   * ADR-069, ADR-071; the look states a shown duty for each defender it moves) gets a second
+   * list differing in exactly those assignments. No card in the corpus states a shown duty
+   * of its own, and `playbook`'s `shownAssignments` test fails if one starts to.
    *
    * WHY THIS EXISTS. There is no shown-vs-played pair anywhere in the engine today
    * (backlog entry 165): a defensive card states duties and the duties are what happens.

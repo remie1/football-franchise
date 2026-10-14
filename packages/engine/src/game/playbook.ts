@@ -433,8 +433,10 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
       ];
       return {
-        name: "Cover 1 Press",
-        front: "Nickel Even",
+        personnel: "Nickel",
+        front: "Even",
+        concept: "Cover 1 Press",
+        tags: [],
         assignments,
         shownAssignments: assignments,
         rush: baseRush(defense),
@@ -461,8 +463,10 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
       ];
       return {
-        name: "Cover 3 Spot Drop",
-        front: "Nickel Even",
+        personnel: "Nickel",
+        front: "Even",
+        concept: "Cover 3 Spot Drop",
+        tags: [],
         assignments,
         shownAssignments: assignments,
         rush: baseRush(defense),
@@ -484,8 +488,10 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
       ];
       return {
-        name: "Cover 2 Man",
-        front: "Nickel Even",
+        personnel: "Nickel",
+        front: "Even",
+        concept: "Cover 2 Man",
+        tags: [],
         assignments,
         shownAssignments: assignments,
         rush: baseRush(defense),
@@ -521,9 +527,13 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         // coverage is eleven; there is no robber and no help.
         { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
       ];
+      // ADR-071: said "Nickel Mug, Double A, Cover 1". The tag is written out here rather
+      // than taken from `@ff/playbook`'s catalogue, which the engine does not import.
       return {
-        name: "Cover 1 Double A",
-        front: "Nickel Double A Mug",
+        personnel: "Nickel",
+        front: "Mug",
+        concept: "Cover 1",
+        tags: [{ kind: "PRESSURE", id: "DOUBLE_A", name: "Double A" }],
         blitzDisguise: "STANDARD",
         assignments,
         shownAssignments: assignments,
@@ -554,9 +564,12 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         { kind: "ZONE", defender: at(defense.corners, 2, "NB"), zone: { horizontal: "LH", vertical: "SHORT" } },
         { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
       ];
+      // ADR-071: said "Nickel Even, Fire, Cover 3".
       return {
-        name: "Cover 3 Fire Zone",
-        front: "Nickel Fire",
+        personnel: "Nickel",
+        front: "Even",
+        concept: "Cover 3",
+        tags: [{ kind: "PRESSURE", id: "FIRE", name: "Fire" }],
         blitzDisguise: "ZONE_BLITZ",
         assignments,
         shownAssignments: assignments,
@@ -592,9 +605,12 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "LW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
         { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
       ];
+      // ADR-071: said "Nickel Even Tex, Cover 2 Man" — the T/E twist is the line-game tag.
       return {
-        name: "Cover 2 Man Twist",
-        front: "Nickel Even (TE twist right)",
+        personnel: "Nickel",
+        front: "Even",
+        concept: "Cover 2 Man",
+        tags: [{ kind: "FRONT", id: "TEX", name: "Tex" }],
         stunts: [
           {
             penetrator: at(defense.interior, 1, "DT"),

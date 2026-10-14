@@ -4,7 +4,8 @@
 - **Proposed by:** Orchestrator, building ADR-069 §9.6 in the order the owner ruled (§10 ruling 3)
 - **Status:** **ruled in part** *(owner, 2026-10-14)* — §8's questions 1, 2 and 4 approved; 3
   answered *"build even more into it"*, and ADR-071 (the call built from parts and tags) replaces
-  §4's petition. §3's rule is built and measured alone (§9); nothing else here is built.
+  §4's petition. §3's rule is built and measured alone (§9), and merged to `main` on the owner's
+  word (fast-forward, `c72f79b`); nothing else here is built.
 - **Builds on:** ADR-069 (masks as named pieces; §9.3 the second lie; §9.4 combinations; §10's
   rulings), ADR-068 §5 (a misread is perceived against the SHOWN coverage — its "perception-only
   fork" was left to the build, and §3 below is that form). Neither is reopened.

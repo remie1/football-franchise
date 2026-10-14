@@ -153,7 +153,8 @@ describe("a defensive card must give every one of its eleven a duty", () => {
       id: "T_MISSING_DUTY",
       name: "T",
       personnel: "NICKEL",
-      front: "Nickel Over",
+      front: "Over",
+      concept: "Cover 3",
       shellIntent: "SPOT_ZONE",
       family: "COVER_3",
       // @ts-expect-error the strong safety has no duty
@@ -179,7 +180,8 @@ describe("a defensive card must give every one of its eleven a duty", () => {
       id: "T_EXTRA_DUTY",
       name: "T",
       personnel: "NICKEL",
-      front: "Nickel Over",
+      front: "Over",
+      concept: "Cover 3",
       shellIntent: "SPOT_ZONE",
       family: "COVER_3",
       duties: {
@@ -246,7 +248,8 @@ describe("a zone duty cannot omit its region — ADR-018 §Petition 1 as a type"
       id: "T_POINT_ZONE",
       name: "T",
       personnel: "NICKEL",
-      front: "Nickel Over",
+      front: "Over",
+      concept: "Cover 3",
       shellIntent: "SPOT_ZONE",
       family: "COVER_3",
       duties: {
