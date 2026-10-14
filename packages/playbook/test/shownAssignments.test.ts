@@ -55,15 +55,23 @@ import { DEEP_CHART } from "./fixtures.js";
 /**
  * ⛔ CARDS WHOSE SHOWN LOOK DELIBERATELY DIFFERS FROM WHAT THEY PLAY.
  *
- * EMPTY, AND THAT IS THE CLAIM ADR-067 §A MAKES: the pair exists, inert; no card in
- * this change gets a different shown look. Producing a divergence is a separate build.
+ * ADR-067 §A landed this list empty. ADR-068 step 1 adds the first two disguises; every
+ * other card still shows exactly what it plays.
  *
  * To add one: name the card id here with the football reason it lies (`"the strong
  * safety shows a two-high shell and rotates down"`). The entry is the DECLARATION —
  * it is what makes the divergence deliberate instead of a slip — and it is checked in
  * both directions, so it cannot be left behind once the mechanic that produced it goes.
  */
-const DECLARED_DIVERGENT: Readonly<Record<string, string>> = {};
+const DECLARED_DIVERGENT: Readonly<Record<string, string>> = {
+  // ADR-068 step 1.
+  DEF_NICKEL_COVER_3_SKY:
+    "two-high shown: both safeties in deep halves; at the snap the free safety spins to " +
+    "the middle third and the strong safety drops into the flat he appeared to leave open",
+  DEF_NICKEL_COVER_1_RAT:
+    "two-high shown: the strong safety sits in a deep half over #2 left, then comes down " +
+    "to play him man while the free safety takes the post",
+};
 
 /**
  * Every defensive card the module exports, found structurally.
@@ -86,7 +94,7 @@ function isDefensiveCard(value: unknown): value is AnyDefensiveCard {
 
 const EXPORTED_CARDS: readonly AnyDefensiveCard[] = Object.values(CORPUS).filter(isDefensiveCard);
 
-describe("ADR-067 §A — the shown/played pair is inert", () => {
+describe("ADR-067 §A / ADR-068 — every shown look is identical or declared", () => {
   it("enumerates the corpus from the module's exports, and the shipped array misses none of it", () => {
     expect(
       EXPORTED_CARDS.length,
@@ -127,8 +135,6 @@ describe("ADR-067 §A — the shown/played pair is inert", () => {
               "with its football reason; if it is not, it is the authoring slip this test exists to catch.",
           ).toEqual(call.assignments);
         } else {
-          // ⚠ UNREACHABLE TODAY — DECLARED_DIVERGENT is empty. It is written now so that
-          // the first divergence is a one-line declaration rather than a test rewrite.
           expect(
             call.shownAssignments,
             `${id} vs ${formation.id}: declared divergent (${reason}) but shows exactly what ` +

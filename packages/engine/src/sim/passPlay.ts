@@ -45,7 +45,7 @@
  * (`CALIBRATION-BACKLOG.md` entry 21).
  */
 import { createRng, getAttr, playId as makePlayId } from "@ff/contracts";
-import type { PlayerId, PlayerState, Rng, RushThreatState } from "@ff/contracts";
+import type { PlayerId, PlayerState, Rng, RollModifier, RushThreatState } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
 import { chemistryLevel } from "../chemistry.js";
 import { PlayEventLog } from "../events.js";
@@ -54,6 +54,7 @@ import { TUNABLES } from "../tunables.js";
 import type { Tunables } from "../tunables.js";
 import type {
   ContestPosition,
+  CoverageAssignment,
   CoverageShell,
   CoverageTechnique,
   FieldZone,
@@ -114,6 +115,8 @@ import {
   throwThresholdFor,
   timeBudgetSeconds,
 } from "../resolve/qbRead.js";
+import { resolveCoverageRead } from "../resolve/coverageRead.js";
+import type { CoverageReadOutcome } from "../resolve/coverageRead.js";
 import { resolveReleaseVsPress } from "../resolve/release.js";
 import type { RoutePhase } from "../resolve/route.js";
 import { opennessAt, routePhaseAt, routeReadySeconds } from "../resolve/route.js";
@@ -266,6 +269,13 @@ interface ReceiverTrack {
   reachedInProgression: boolean;
   /** §8.8 scramble drill: openness the receiver had when the QB left the pocket. */
   scrambleBaseOpenness: number | undefined;
+  /**
+   * ADR-068 step 1 — the quarterback believed the shown coverage and it showed this
+   * receiver uncovered. His READS of him perceive a hole; the catch still resolves
+   * against the defender who is actually there. Never set out of structure: a
+   * scrambling passer is looking at the field as it is.
+   */
+  misperceivedAsOpen: boolean;
 }
 
 function requirePlayer(state: MatchGameState, id: PlayerId): PlayerState {
@@ -339,8 +349,27 @@ export function simulatePassPlay(
   const budgetSeconds = timeBudgetSeconds(tunables, qb, system);
   const maxReads = maxReadsFor(tunables, system);
   const throwThreshold = throwThresholdFor(tunables, system);
-  const readOrder = preSnap.readOrder.filter((id) =>
-    tracks.some((t) => t.assignment.receiver === id),
+  // ---- ADR-068 step 1: the coverage read --------------------------------------
+  // A TRAP is a receiver the shown look leaves uncovered whom the played coverage has a
+  // defender on. With none there is nothing for the read to decide, so no die (ADR-005).
+  const traps = coverageTraps(tunables, state, calls, tracks);
+  const coverageRead: CoverageReadOutcome | undefined =
+    traps.size === 0
+      ? undefined
+      : resolveCoverageRead({
+          tunables,
+          quarterback: qb,
+          disguise: calls.defense.coverageDisguise ?? "BASIC",
+          presnapRng,
+        });
+  if (coverageRead?.fooled === true) {
+    for (const t of tracks) if (traps.has(String(t.assignment.receiver))) t.misperceivedAsOpen = true;
+  }
+  const readOrder = reorderForCoverageRead(
+    preSnap.readOrder.filter((id) => tracks.some((t) => t.assignment.receiver === id)),
+    traps,
+    coverageRead,
+    new Set(preSnap.hotConversions.map((h) => String(h.receiver))),
   );
 
   const startPayload: PassPlayStartPayload = {
@@ -385,6 +414,7 @@ export function simulatePassPlay(
       ),
       unaccountedRushers: preSnap.unaccounted,
       blitzDisguise: preSnap.disguise,
+      coverageDisguise: calls.defense.coverageDisguise ?? "BASIC",
       stunts: preSnap.stunts,
     },
     situation: {
@@ -401,6 +431,7 @@ export function simulatePassPlay(
   // PLAY_START and before the first TICK, which is where they belong: they
   // happened before the snap.
   if (preSnap.recognition !== undefined) log.presnapRead(preSnap.recognition);
+  if (coverageRead !== undefined) log.presnapRead(coverageRead.presnap);
   for (const check of preSnap.checks) log.check(check);
 
   /** §8.1 — where he is in the progression. Wraps; it does NOT skip. */
@@ -772,12 +803,13 @@ export function simulatePassPlay(
       // §8.3's awareness roll, which is the check the doc writes it against.
       const vision =
         scramble === undefined ? [] : [visionConeRollModifier(tunables, target.assignment.depthClass)];
+      const misread = coverageMisreadModifier(tunables, target, tick, scramble);
       const read = resolveQbRead(
         tunables,
         qb,
         readOpenness(tunables, target, tick, scramble),
         qbReadRng.fork(`t${tick.toFixed(1)}:${labelPart}:${String(target.receiver.bio.id)}:read`),
-        vision,
+        misread === undefined ? vision : [...vision, misread],
       );
       log.qbRead(
         target.receiver.bio.id,
@@ -1849,24 +1881,7 @@ function buildReceiverTracks(
 ): ReceiverTrack[] {
   return routes.map((assignment) => {
     const zone = routeZone(tunables, assignment);
-    const manned = calls.defense.assignments.find(
-      (a) => a.kind === "MAN" && a.covers === assignment.receiver,
-    );
-
-    let coverage: TrackCoverage;
-    if (manned !== undefined && manned.kind === "MAN") {
-      coverage = {
-        kind: "MAN",
-        defender: requirePlayer(state, manned.defender),
-        technique: manned.technique,
-      };
-    } else {
-      const zoned = zoneDefenderFor(tunables, calls.defense.assignments, zone);
-      coverage = {
-        kind: "ZONE",
-        defender: zoned === undefined ? undefined : requirePlayer(state, zoned.defender),
-      };
-    }
+    const coverage = trackCoverageFor(tunables, state, calls.defense.assignments, assignment, zone);
 
     return {
       assignment,
@@ -1888,8 +1903,109 @@ function buildReceiverTracks(
       lastRead: undefined,
       reachedInProgression: false,
       scrambleBaseOpenness: undefined,
+      misperceivedAsOpen: false,
     };
   });
+}
+
+/**
+ * How one route is covered under a given list of assignments: a man assignment naming
+ * him wins; otherwise whoever owns the cell he breaks into; otherwise nobody. Taken
+ * out of `buildReceiverTracks` so the SHOWN coverage (ADR-068) is worked out by exactly
+ * the precedence the played coverage is, rather than by a second copy of it.
+ */
+function trackCoverageFor(
+  tunables: Tunables,
+  state: MatchGameState,
+  assignments: readonly CoverageAssignment[],
+  route: RouteAssignment,
+  zone: FieldZone,
+): TrackCoverage {
+  const manned = assignments.find((a) => a.kind === "MAN" && a.covers === route.receiver);
+  if (manned !== undefined && manned.kind === "MAN") {
+    return { kind: "MAN", defender: requirePlayer(state, manned.defender), technique: manned.technique };
+  }
+  const zoned = zoneDefenderFor(tunables, assignments, zone);
+  return { kind: "ZONE", defender: zoned === undefined ? undefined : requirePlayer(state, zoned.defender) };
+}
+
+/**
+ * ADR-068 step 1 — the receivers the shown look lies about in the one way step 1 gives a
+ * consequence: shown with nobody on him, played with somebody. Keyed by receiver id.
+ *
+ * Empty whenever `shownAssignments` IS `assignments` (every undisguised card), without
+ * comparing anything: the same list cannot produce two coverages.
+ */
+function coverageTraps(
+  tunables: Tunables,
+  state: MatchGameState,
+  calls: PlayCalls,
+  tracks: readonly ReceiverTrack[],
+): ReadonlySet<string> {
+  const traps = new Set<string>();
+  if (calls.defense.shownAssignments === calls.defense.assignments) return traps;
+  for (const track of tracks) {
+    const shown = trackCoverageFor(tunables, state, calls.defense.shownAssignments, track.assignment, track.zone);
+    if (shown.defender === undefined && track.coverage.defender !== undefined) {
+      traps.add(String(track.assignment.receiver));
+    }
+  }
+  return traps;
+}
+
+/**
+ * ADR-068 step 1's one decision lever: where the trapped receivers go in the
+ * progression. Seeing through the disguise puts them LAST (the route is dead); being
+ * fooled puts them FIRST (the shown hole is the best thing on the field). Hot
+ * conversions keep the front either way — they answer a recognised blitz, which is a
+ * separate read with a separate consequence. Any other band leaves the order as called.
+ */
+function reorderForCoverageRead(
+  order: readonly PlayerId[],
+  traps: ReadonlySet<string>,
+  read: CoverageReadOutcome | undefined,
+  hot: ReadonlySet<string>,
+): readonly PlayerId[] {
+  if (read === undefined || traps.size === 0) return order;
+  const isTrap = (id: PlayerId): boolean => traps.has(String(id)) && !hot.has(String(id));
+  if (read.seesThrough) return [...order.filter((id) => !isTrap(id)), ...order.filter(isTrap)];
+  if (read.fooled) {
+    return [
+      ...order.filter((id) => hot.has(String(id))),
+      ...order.filter(isTrap),
+      ...order.filter((id) => !hot.has(String(id)) && !isTrap(id)),
+    ];
+  }
+  return order;
+}
+
+/**
+ * ADR-068 step 1 — what believing the shown coverage does to one §8.3 read: he sees the
+ * hole the look promised. Valued exactly as the engine values a real hole
+ * (`zoneCoverage.uncoveredOpenness`, on the settled curve), so the size of the lie is
+ * the difference between two quantities the engine already computes, not a constant
+ * chosen for it.
+ *
+ * A NAMED MODIFIER ON THE READ, NOT A SUBSTITUTED INPUT. `QB_READ` publishes the real
+ * openness as `actual` and the misread as a line in the roll, so the stream says both
+ * what was there and why he saw something else; feeding the phantom in as the input
+ * would publish a hole as the truth.
+ */
+function coverageMisreadModifier(
+  tunables: Tunables,
+  track: ReceiverTrack,
+  tick: number,
+  scramble: ScrambleState | undefined,
+): RollModifier | undefined {
+  if (!track.misperceivedAsOpen || scramble !== undefined || track.baseOpenness === undefined) return undefined;
+  const hole: ReceiverTrack = {
+    ...track,
+    baseOpenness: tunables.zoneCoverage.uncoveredOpenness,
+    contestPosition: tunables.zoneCoverage.uncoveredContestPosition,
+    settled: true,
+  };
+  const delta = readOpenness(tunables, hole, tick, scramble) - readOpenness(tunables, track, tick, scramble);
+  return flatModifier("Coverage misread: the shown look had nobody on him (ADR-068)", delta);
 }
 
 /**

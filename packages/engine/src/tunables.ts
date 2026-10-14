@@ -22,7 +22,7 @@
  *    define fails to compile HERE, at the site that is wrong, rather than at the
  *    resolver that reads it (R9).
  */
-import type { CheckKind } from "@ff/contracts";
+import type { CheckKind, CoverageDisguise } from "@ff/contracts";
 import type { ByPocketStatus, PocketStatus } from "./types.js";
 
 const NEG_INF = Number.NEGATIVE_INFINITY;
@@ -239,6 +239,43 @@ export const TUNABLES = {
      */
     hotRoute: {
       movesToFrontOfProgression: true,
+    },
+    /**
+     * §5.1 COVERAGE SHELL RECOGNITION (ADR-068 step 1).
+     *
+     * `d100 + QB Awareness÷5 + QB Football IQ÷5` vs `50 + complexity`, verbatim. §5.1's
+     * "Defensive Disguise Rating" term is NOT rolled: no rating exists for a defender or a
+     * coordinator, and inventing one would put a fabricated number on a real roll
+     * (ADR-068 implied scope, `unruled`). The complexity row is the card's
+     * `coverageDisguise`.
+     *
+     * WHEN THIS ROLLS — only when the shown look leaves a receiver apparently uncovered
+     * whom the played coverage has a defender on (a TRAP). That is the only case step 1
+     * gives a consequence; a roll nothing can turn on is not thrown (ADR-005).
+     *
+     * THE BANDS ARE §5.1'S SIX ROWS, and two flags say what each does in step 1:
+     * - `seesThrough` (perfect, good): he knows the shell, recognises the trap and moves
+     *   that receiver to the back of the progression;
+     * - `fooled` (misread, complete misread): he believes the shown shell, moves the trap
+     *   to the front, and reads it as uncovered.
+     * Adequate (MOFO/MOFC only) and partial (uncertain) do neither: he has not pinned the
+     * coverage down, so he runs the progression as called and reads what is there.
+     * ⚠ Misread and complete misread act the same in step 1; "inverted understanding"
+     * has no separate consequence until the decision step has more than one lever.
+     */
+    coverageRead: {
+      target: 50,
+      attrDivisor: 5,
+      /** §5.1's complexity modifiers, verbatim. */
+      complexity: { BASIC: 0, ROTATED: 10, LATE_ROTATION: 20 } satisfies Record<CoverageDisguise, number>,
+      bands: [
+        { label: "PERFECT_READ", minMargin: 30, seesThrough: true, fooled: false },
+        { label: "GOOD_READ", minMargin: 15, seesThrough: true, fooled: false },
+        { label: "ADEQUATE_READ", minMargin: 0, seesThrough: false, fooled: false },
+        { label: "PARTIAL_READ", minMargin: -14, seesThrough: false, fooled: false },
+        { label: "MISREAD", minMargin: -29, seesThrough: false, fooled: true },
+        { label: "COMPLETE_MISREAD", minMargin: NEG_INF, seesThrough: false, fooled: true },
+      ],
     },
   },
 

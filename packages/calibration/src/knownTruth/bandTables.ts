@@ -580,11 +580,14 @@ export function bandTableCensus(tunables: Tunables = DEFAULT_TUNABLES): BandTabl
  * the census counts raw table/row population regardless of whether a table has any orderable
  * columns, and `resultTierLadder` is a real, zero-column row of that population like any other.
  */
+// 26 → 27 tables at ADR-068 step 1: `presnap.coverageRead.bands`, §5.1's six rows (+6 rows;
+// +12 cells, two boolean columns per row; +2 orderable columns, `seesThrough` and `fooled`, both
+// monotone). Read off a run; Tier B re-run at the same dispatch.
 export const RECORDED_CENSUS: BandTableCensus = {
-  tables: 26,
-  rows: 127,
-  cells: 248,
-  orderableColumns: 52,
+  tables: 27,
+  rows: 133,
+  cells: 260,
+  orderableColumns: 54,
   stringColumns: 3,
 };
 

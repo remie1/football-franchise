@@ -623,6 +623,76 @@ export const REGISTER: readonly RegisterRule[] = [
     note: "QB Awareness ÷5 + Centre Awareness ÷5.",
   },
 
+  // ---- §5.1 coverage read (ADR-068 step 1) -------------------------------------------------------
+  // Every cell named individually, no prefix rule: a transcription is a claim about the rows that
+  // were there, and a prefix rule would extend it to rows nobody has written yet.
+  {
+    pattern: "presnap.coverageRead.target",
+    provenance: "DOC_VERBATIM",
+    docRef: "§5.1",
+    note: "50. §5.1's 'Defensive Disguise Rating' term is NOT added: no such rating exists (ADR-068).",
+  },
+  {
+    pattern: "presnap.coverageRead.attrDivisor",
+    provenance: "DOC_VERBATIM",
+    docRef: "§5.1",
+    note: "QB Awareness ÷5 + QB Football IQ ÷5.",
+  },
+  {
+    pattern: "presnap.coverageRead.complexity.BASIC",
+    provenance: "DOC_VERBATIM",
+    docRef: "§5.1",
+    note: "Basic shell (Cover 2, Cover 3): +0.",
+  },
+  {
+    pattern: "presnap.coverageRead.complexity.ROTATED",
+    provenance: "DOC_VERBATIM",
+    docRef: "§5.1",
+    note: "Rotated shell: +10.",
+  },
+  {
+    pattern: "presnap.coverageRead.complexity.LATE_ROTATION",
+    provenance: "DOC_VERBATIM",
+    docRef: "§5.1",
+    note: "Heavy disguise (late rotation): +20.",
+  },
+  {
+    pattern: "presnap.coverageRead.bands.0.minMargin",
+    provenance: "DOC_DERIVED",
+    docRef: "§5.1",
+    note: "30 — 'Beat by 30+: Perfect read'.",
+  },
+  {
+    pattern: "presnap.coverageRead.bands.1.minMargin",
+    provenance: "DOC_DERIVED",
+    docRef: "§5.1",
+    note: "15 — 'Beat by 15-29: Good read'.",
+  },
+  {
+    pattern: "presnap.coverageRead.bands.2.minMargin",
+    provenance: "DOC_DERIVED",
+    docRef: "§5.1",
+    note: "0 — 'Beat by 0-14: Adequate read'.",
+  },
+  {
+    pattern: "presnap.coverageRead.bands.3.minMargin",
+    provenance: "DOC_DERIVED",
+    docRef: "§5.1",
+    note: "−14 — 'Miss by 1-14: Partial read'.",
+  },
+  {
+    pattern: "presnap.coverageRead.bands.4.minMargin",
+    provenance: "DOC_DERIVED",
+    docRef: "§5.1",
+    note: "−29 — 'Miss by 15-29: Misread'.",
+  },
+  {
+    pattern: "presnap.coverageRead.bands.5.minMargin",
+    provenance: "STRUCTURAL",
+    docRef: "§5.1",
+    note: "−∞ terminator — 'Miss by 30+: Complete misread'.",
+  },
+
   // ---- §7.1 pass rush --------------------------------------------------------------------------
   {
     pattern: "passRush.blockerStructuralAdvantage",

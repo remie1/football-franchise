@@ -265,6 +265,7 @@ describe("the men in protection are on the field too", () => {
         rush: [],
         unaccountedRushers: [],
         blitzDisguise: "STANDARD",
+        coverageDisguise: "BASIC",
         stunts: [],
       },
       situation: { down: 1, distance: 10, ballOn: 24, clockSeconds: 500 },

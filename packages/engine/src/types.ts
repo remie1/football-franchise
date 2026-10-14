@@ -14,6 +14,7 @@ import type {
   CalendarStamp,
   ChemistryTable,
   CoverageAssignment,
+  CoverageDisguise,
   CoverageTechnique,
   DefensivePlayCall,
   FieldZone,
@@ -125,6 +126,7 @@ export type {
   BlitzDisguise,
   BlockType,
   CoverageAssignment,
+  CoverageDisguise,
   CoverageTechnique,
   DefensivePlayCall,
   FieldZone,
@@ -356,6 +358,12 @@ export interface PassPlayStartPayload {
     readonly unaccountedRushers: readonly PlayerId[];
     /** §5.3's disguise row this pressure was rolled against. */
     readonly blitzDisguise: BlitzDisguise;
+    /**
+     * §5.1's complexity row for the coverage read (ADR-068 step 1), resolved: `BASIC`
+     * where the card said nothing. Stated on every play, like `blitzDisguise`, whether or
+     * not a coverage read was rolled — the `PRESNAP_READ` says whether one was.
+     */
+    readonly coverageDisguise: CoverageDisguise;
     /** §7.3's twists, as the card stated them. */
     readonly stunts: readonly StuntCall[];
   };

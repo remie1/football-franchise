@@ -391,11 +391,29 @@ export interface StuntCall {
  */
 export type BlitzDisguise = "STANDARD" | "ZONE_BLITZ" | "DELAYED" | "ZERO";
 
+/**
+ * §5.1's complexity rows for the quarterback's coverage read (ADR-068 step 1): a basic
+ * shell, a rotated shell, a heavy disguise with a late rotation. An absent value means
+ * `BASIC`, the doc's own +0 row.
+ *
+ * DECLARED, NOT DERIVED, for the reason `BlitzDisguise` is: WHETHER the shown look
+ * differs from the played one is derivable — diff `shownAssignments` against
+ * `assignments` — but how LATE the rotation comes is not on the card anywhere, and it is
+ * what makes one disguise harder to read than another.
+ *
+ * Separate from `BlitzDisguise` because the two are rolled separately and fail
+ * independently (ADR-068 §2): a defence can hide its coverage and show its rush, or the
+ * reverse.
+ */
+export type CoverageDisguise = "BASIC" | "ROTATED" | "LATE_ROTATION";
+
 export interface DefensivePlayCall {
   readonly name: string;
   readonly front: string;
   readonly stunts?: readonly StuntCall[];
   readonly blitzDisguise?: BlitzDisguise;
+  /** §5.1's complexity row for the coverage read (ADR-068). Absent ⇒ `BASIC`. */
+  readonly coverageDisguise?: CoverageDisguise;
   /**
    * Man and zone assignments, mixed freely. A receiver named by no `ManAssignment` is
    * played by whatever zone his route breaks into; if no zone defender is responsible for
@@ -406,12 +424,13 @@ export interface DefensivePlayCall {
    * What the offence SEES before the snap, as against `assignments`, which is what
    * actually resolves (ADR-067 §A).
    *
-   * ⛔ IDENTICAL TO `assignments` TODAY, AND IDENTICAL BY CONSTRUCTION RATHER THAN BY
-   * COINCIDENCE: `instantiateDefense` builds both from the same `dutyList(card)` in the
-   * same pass. Not two values that happen to agree and could drift — one source read
-   * twice. A test asserts the deep equality for every shipped card, and when a card first
-   * declares a divergence that test does not get deleted: it becomes the test that proves
-   * each divergence is DELIBERATE.
+   * ⛔ IDENTICAL TO `assignments` UNLESS THE CARD DECLARES OTHERWISE. A card with no
+   * shown duty gets the SAME ARRAY in both fields (`instantiateDefense`), so identity is by
+   * construction, not by agreement. A card that states a shown duty for some defenders
+   * (ADR-068 step 1: Cover 3 Sky and Cover 1 Rat show two-high and rotate) gets a second
+   * list differing in exactly those assignments, and `playbook`'s `shownAssignments` test
+   * names every such card with its football reason — an undeclared divergence and a
+   * declared one that stopped diverging both fail.
    *
    * WHY THIS EXISTS. There is no shown-vs-played pair anywhere in the engine today
    * (backlog entry 165): a defensive card states duties and the duties are what happens.
@@ -423,10 +442,9 @@ export interface DefensivePlayCall {
    * one-high is ONE ASSIGNMENT differing, not a different defence. A parallel second call
    * would double the authoring burden to express a single-defender change.
    *
-   * ⚠ NOTHING READS THIS YET, and that is deliberate — it lands inert so that the mechanic
-   * built on it can be measured on its own. Its SUBJECT CONDITION: a consumer appears when
-   * a coverage assignment is resolved against what the quarterback believed rather than
-   * against what was played. What produces a divergence is undesigned.
+   * READ BY THE QUARTERBACK'S COVERAGE READ (ADR-068 step 1): on a misread he perceives a
+   * receiver against this list rather than `assignments`; the catch still resolves against
+   * `assignments`.
    */
   readonly shownAssignments: readonly CoverageAssignment[];
   readonly rush: readonly RushAssignment[];

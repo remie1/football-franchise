@@ -56,7 +56,8 @@ const NON_MARGIN_LADDERS: readonly string[] = ["pocket.thresholds"];
 describe("band-table discovery", () => {
   it("recognises a band table structurally, with no list of tables anywhere", () => {
     const tables = discoverBandTables(DEFAULT_TUNABLES);
-    expect(tables.length).toBe(26);
+    // 27 since ADR-068 step 1 added `presnap.coverageRead.bands` (§5.1's six rows).
+    expect(tables.length).toBe(27);
     // A spot-check that the shape, not the name, is what was matched: the
     // §12.2 table is called `qualityBands`, not `bands`, and is still found.
     expect(tables.map((t) => t.path)).toContain("tippedBall.qualityBands");
@@ -167,14 +168,16 @@ describe("recorded column inversions", () => {
         checked += 1;
       }
     }
-    // 42 of the 52 orderable columns are clean today — 41 before ADR-036, which
+    // 44 clean columns today — ADR-068 step 1 added two, `coverageRead`'s
+    // `seesThrough` and `fooled`, both monotone. Before that, 42 of the 52 orderable
+    // columns were clean — 41 before ADR-036, which
     // removed the `DEAD` row's `finalTargetNumber` and with it that column's
     // inversion. The column itself is still here and still orderable, now with
     // five rows instead of six, so the DENOMINATOR did not move: this is a
     // column changing sides, not a column disappearing. The assertion above is
     // what proves the set; this only stops the sample silently emptying — a
     // discovery regression that found no columns would otherwise pass.
-    expect(checked).toBe(42);
+    expect(checked).toBe(44);
   });
 
   it("drops an exempt cell from the sequence rather than the whole column", () => {

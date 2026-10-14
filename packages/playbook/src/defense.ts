@@ -27,6 +27,7 @@
  */
 import type {
   BlitzDisguise,
+  CoverageDisguise,
   CoverageTechnique,
   FieldZone,
   PlayerId,
@@ -81,6 +82,13 @@ export type ManTarget =
 export interface ZoneDuty extends ZoneRegion {
   readonly kind: "ZONE";
   readonly runFit?: RunFit;
+  /**
+   * What this defender SHOWS before the snap, when it differs from what he plays
+   * (ADR-068 step 1). Absent ⇒ he shows what he plays. Always a zone: the disguises
+   * authored so far are pre-snap shells (two-high that rotates), and a shown MAN look —
+   * a defender walking up on a receiver he will not cover — has no card yet.
+   */
+  readonly shows?: ZoneDuty;
 }
 
 /**
@@ -112,6 +120,8 @@ export type DefensiveDuty =
       readonly ifAbsent: FallbackDuty;
       /** Second-level run responsibility, for backers and safeties who have one. */
       readonly runFit?: RunFit;
+      /** See `ZoneDuty.shows`. Applies whether the man is on the field or the fallback ran. */
+      readonly shows?: ZoneDuty;
     }
   | ZoneDuty;
 
@@ -206,6 +216,11 @@ export interface DefensiveCardTemplate<G extends DefensePersonnel> {
    * it from the card, and the difference is that a check can be wrong out loud.
    */
   readonly blitzDisguise?: BlitzDisguise;
+  /**
+   * §5.1's complexity row for the coverage read (ADR-068 step 1). Meaningful only on a
+   * card where some duty `shows` something other than what it plays; absent ⇒ BASIC.
+   */
+  readonly coverageDisguise?: CoverageDisguise;
   /** Two defenders on one receiver, on purpose. ADR-006 says a bracket is legal. */
   readonly brackets?: true;
   /**
@@ -233,6 +248,7 @@ export interface AnyDefensiveCard {
   readonly duties: Readonly<Partial<Record<DefenseRole, DefensiveDuty>>>;
   readonly stunts?: readonly StuntSpec[];
   readonly blitzDisguise?: BlitzDisguise;
+  readonly coverageDisguise?: CoverageDisguise;
   readonly brackets?: true;
   readonly noDeepHelp?: true;
   readonly usage: SituationalUsage;
@@ -310,7 +326,13 @@ function mirrorZoneDuty(duty: ZoneDuty): ZoneDuty {
     laneSpan: duty.laneSpan,
     depthSpan: duty.depthSpan,
   };
-  return duty.runFit === undefined ? flipped : { ...flipped, runFit: mirrorGap(duty.runFit) };
+  // A shown look flips with the duty it disguises (ADR-068): a strong safety showing a
+  // left deep half on the original shows a right deep half on the mirror.
+  return {
+    ...flipped,
+    ...(duty.runFit === undefined ? {} : { runFit: mirrorGap(duty.runFit) }),
+    ...(duty.shows === undefined ? {} : { shows: mirrorZoneDuty(duty.shows) }),
+  };
 }
 
 function mirrorFallback(duty: FallbackDuty): FallbackDuty {
@@ -323,20 +345,14 @@ export function mirrorDuty(duty: DefensiveDuty): DefensiveDuty {
     case "RUSH":
       return { ...duty, side: mirrorSide(duty.side) };
     case "MAN":
-      return duty.runFit === undefined
-        ? {
-            kind: "MAN",
-            target: mirrorTarget(duty.target),
-            technique: duty.technique,
-            ifAbsent: mirrorFallback(duty.ifAbsent),
-          }
-        : {
-            kind: "MAN",
-            target: mirrorTarget(duty.target),
-            technique: duty.technique,
-            ifAbsent: mirrorFallback(duty.ifAbsent),
-            runFit: mirrorGap(duty.runFit),
-          };
+      return {
+        kind: "MAN",
+        target: mirrorTarget(duty.target),
+        technique: duty.technique,
+        ifAbsent: mirrorFallback(duty.ifAbsent),
+        ...(duty.runFit === undefined ? {} : { runFit: mirrorGap(duty.runFit) }),
+        ...(duty.shows === undefined ? {} : { shows: mirrorZoneDuty(duty.shows) }),
+      };
     case "ZONE":
       return mirrorZoneDuty(duty);
   }

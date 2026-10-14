@@ -1,5 +1,6 @@
 /**
- * ADR-067 §B — THE SHOWN/PLAYED DIFF IS EMPTY ON EVERY PLAY OF THE CORPUS.
+ * ADR-067 §B — THE SHOWN/PLAYED DIFF IS EMPTY ON EVERY PLAY OF THE CORPUS, except the
+ * calls ADR-068 step 1 declares divergent, which are required to differ.
  *
  * ============================ WHAT THIS ASSERTS ============================
  *
@@ -42,7 +43,16 @@ import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTende
 
 const BATCH_SEED = "adr-067:shown-assignments-stream";
 
+/**
+ * ADR-068 step 1 — the calls whose shown look is DECLARED to differ, by call name (the
+ * stream carries the call's name, and a mirrored card keeps its name). Mirrors
+ * `playbook`'s `DECLARED_DIVERGENT`, where each one's football reason is written.
+ */
+const DECLARED_DIVERGENT_CALLS: ReadonlySet<string> = new Set(["Cover 3 Sky", "Cover 1 Rat"]);
+
 interface GameFold {
+  /** Plays from a declared-divergent call, which are required to differ. */
+  readonly divergentPlays: number;
   readonly passPlays: number;
   readonly runPlays: number;
   /** Plays whose played `assignments` list was non-empty — the diff had something to compare. */
@@ -51,6 +61,7 @@ interface GameFold {
 }
 
 function foldGame(gameLabel: string, events: readonly MatchEventEnvelope[]): GameFold {
+  let divergentPlays = 0;
   let passPlays = 0;
   let runPlays = 0;
   let withAssignments = 0;
@@ -61,7 +72,7 @@ function foldGame(gameLabel: string, events: readonly MatchEventEnvelope[]): Gam
     if (event.type !== "PLAY_START") continue;
     const payload = event.payload as {
       readonly kind?: unknown;
-      readonly defense?: { readonly assignments?: unknown; readonly shownAssignments?: unknown };
+      readonly defense?: { readonly call?: unknown; readonly assignments?: unknown; readonly shownAssignments?: unknown };
     };
     // PLAY_START also opens special-teams plays, which carry no defensive call.
     if (payload.kind === "PASS_PLAY_V1") passPlays += 1;
@@ -76,6 +87,13 @@ function foldGame(gameLabel: string, events: readonly MatchEventEnvelope[]): Gam
       continue;
     }
     if (Array.isArray(played) && played.length > 0) withAssignments += 1;
+    if (DECLARED_DIVERGENT_CALLS.has(String(payload.defense?.call))) {
+      divergentPlays += 1;
+      if (isDeepStrictEqual(shown, played)) {
+        failures.push(`${where}: ${String(payload.defense?.call)} is declared divergent but showed what it played`);
+      }
+      continue;
+    }
     if (!isDeepStrictEqual(shown, played)) {
       failures.push(
         `${where}: shown differs from played\n  shown:  ${JSON.stringify(shown)}\n` +
@@ -83,7 +101,7 @@ function foldGame(gameLabel: string, events: readonly MatchEventEnvelope[]): Gam
       );
     }
   }
-  return { passPlays, runPlays, withAssignments, failures };
+  return { divergentPlays, passPlays, runPlays, withAssignments, failures };
 }
 
 describe("ADR-067 §B: PLAY_START publishes the shown state, and it equals the played one", () => {
@@ -100,6 +118,7 @@ describe("ADR-067 §B: PLAY_START publishes the shown state, and it equals the p
       });
       const seeds = generateSeeds(BATCH_SEED, fixtures.length);
 
+      let divergentPlays = 0;
       let passPlays = 0;
       let runPlays = 0;
       let withAssignments = 0;
@@ -114,6 +133,7 @@ describe("ADR-067 §B: PLAY_START publishes the shown state, and it equals the p
           fourthDown: FROZEN_FOURTH_DOWN,
         });
         const fold = foldGame(seed, observation.events);
+        divergentPlays += fold.divergentPlays;
         passPlays += fold.passPlays;
         runPlays += fold.runPlays;
         withAssignments += fold.withAssignments;
@@ -126,7 +146,7 @@ describe("ADR-067 §B: PLAY_START publishes the shown state, and it equals the p
 
       expect(
         failures,
-        `${String(failures.length)} plays broke the shown === played identity (${corpus}):\n` +
+        `${String(failures.length)} plays broke the shown/played rule (${corpus}):\n` +
           failures.slice(0, 10).join("\n"),
       ).toEqual([]);
 
@@ -134,6 +154,7 @@ describe("ADR-067 §B: PLAY_START publishes the shown state, and it equals the p
       // pass — it is the shape this register keeps cataloguing.
       expect(passPlays, `no PASS_PLAY_V1 PLAY_START in ${corpus}`).toBeGreaterThan(0);
       expect(runPlays, `no RUN_PLAY_V1 PLAY_START in ${corpus}`).toBeGreaterThan(0);
+      expect(divergentPlays, `no play from a declared-divergent call in ${corpus}`).toBeGreaterThan(0);
       expect(
         withAssignments,
         `no play in ${corpus} carried a non-empty assignments list, so the diff compared nothing`,

@@ -227,6 +227,22 @@ export function instantiateDefense(
 ): InstantiatedDefense {
   const context = `defensive card ${card.id}`;
   const assignments: CoverageAssignment[] = [];
+  /**
+   * ADR-068 step 1 — what each defender SHOWS. Built in the same pass as `assignments`,
+   * one entry per entry, and pushed by `play` below so the two lists cannot fall out of
+   * step: a defender whose duty `shows` nothing contributes the very object he plays.
+   */
+  const shown: CoverageAssignment[] = [];
+  let anyShown = false;
+  const play = (assignment: CoverageAssignment, shows: ZoneDuty | undefined): void => {
+    assignments.push(assignment);
+    if (shows === undefined) {
+      shown.push(assignment);
+      return;
+    }
+    anyShown = true;
+    shown.push(zoneAssignment(assignment.defender, shows, shows.runFit));
+  };
   const rush: DeclaredRush[] = [];
   const gaps: GapAssignment[] = [];
   const fallbacksTaken: DefenseRole[] = [];
@@ -240,7 +256,7 @@ export function instantiateDefense(
         break;
       }
       case "ZONE": {
-        assignments.push(zoneAssignment(defender, duty, duty.runFit));
+        play(zoneAssignment(defender, duty, duty.runFit), duty.shows);
         if (duty.runFit !== undefined) {
           gaps.push({ defender, ...duty.runFit, level: "SECOND" });
         }
@@ -256,7 +272,7 @@ export function instantiateDefense(
             gaps.push({ defender, gap: fallback.gap, side: fallback.side, level: "FIRST" });
           } else {
             const fit = fallback.runFit ?? duty.runFit;
-            assignments.push(zoneAssignment(defender, fallback, fit));
+            play(zoneAssignment(defender, fallback, fit), duty.shows ?? fallback.shows);
             if (fit !== undefined) gaps.push({ defender, ...fit, level: "SECOND" });
           }
           break;
@@ -268,7 +284,7 @@ export function instantiateDefense(
           technique: duty.technique,
           ...(duty.runFit === undefined ? {} : { runFit: duty.runFit }),
         };
-        assignments.push(man);
+        play(man, duty.shows);
         if (duty.runFit !== undefined) {
           gaps.push({ defender, ...duty.runFit, level: "SECOND" });
         }
@@ -288,36 +304,25 @@ export function instantiateDefense(
     front: card.front,
     assignments,
     /**
-     * ⛔ ONE ARRAY, TWO FIELDS. The shown/played pair is inert BY IDENTITY, NOT BY
-     * COINCIDENCE (ADR-067 §A).
+     * ⛔ ONE ARRAY, TWO FIELDS — UNLESS THE CARD DECLARES A SHOWN LOOK (ADR-067 §A,
+     * ADR-068 step 1).
      *
-     * READ THIS LINE FOR WHAT IT IS AND NOT FOR WHAT IT LOOKS LIKE. `shownAssignments`
-     * is not a second list that currently agrees with `assignments`; it IS
-     * `assignments` — the same object, produced by the single traversal of
-     * `dutyList(card)` above, referenced twice. There is no second computation to fall
-     * out of step with the first, because there is no second computation.
+     * A card with no `shows` on any duty gets `assignments` itself, the same object
+     * referenced twice. Not a copy: a copy is a second value, and a second value is a
+     * thing a later edit can append to, filter, or reorder on one side only. So for every
+     * undisguised card the identity holds by construction, and `shownAssignments.test.ts`
+     * asserts it.
      *
-     * WHY NOT `[...assignments]`. A copy would also be built from one source today, and
-     * would also be deep-equal today — but it is a SECOND VALUE, and a second value is a
-     * thing a later edit can append to, filter, or reorder on one side only. That is
-     * precisely the drift this shape exists to make impossible. Two values that match
-     * are two values; one value read twice is one value. The contract types both fields
-     * `readonly CoverageAssignment[]`, so the aliasing costs nothing: no consumer can
-     * mutate one and surprise the other.
+     * A card that DOES declare one gets `shown`, built entry-for-entry beside
+     * `assignments` by `play` above: the same defenders in the same order, differing only
+     * where a duty `shows` a zone. A divergence can only arrive through that field, which
+     * is to say only where an author wrote it, and the test requires each such card to be
+     * named with its football reason.
      *
-     * WHAT THIS MAKES A DIVERGENCE COST. Today no card shows a different look from the
-     * one it plays, and none may be given one here — the deceiving MECHANIC is a
-     * separate build. When one is designed, it cannot arrive by omission (a branch that
-     * forgets to update the other list): it can only arrive by someone deliberately
-     * splitting this line into two constructions. That is the intended cost.
-     *
-     * ON MIRRORING. `mirrorDefensiveCard` flips DUTIES, upstream of this function, and
-     * this pass then builds both fields from whatever duties it is handed. A mirrored
-     * card therefore mirrors both fields by construction, and there is nothing for a
-     * mirror helper to remember to flip — which is the same argument as this one, one
-     * level up.
+     * ON MIRRORING. `mirrorDefensiveCard` flips duties, `shows` included, upstream of this
+     * function, so a mirrored card mirrors both lists by construction.
      */
-    shownAssignments: assignments,
+    shownAssignments: anyShown ? shown : assignments,
     rush,
     ...(stunts.length === 0 ? {} : { stunts }),
     // ABSENT WHERE THE CARD SAID NOTHING, and that is deliberate rather than lazy.
@@ -328,6 +333,7 @@ export function instantiateDefense(
     // opposite of the explicit-zero argument that governs the zone spans above, because
     // there the omitted value was a FAKE and here it is a fact.
     ...(card.blitzDisguise === undefined ? {} : { blitzDisguise: card.blitzDisguise }),
+    ...(card.coverageDisguise === undefined ? {} : { coverageDisguise: card.coverageDisguise }),
   };
 
   return {

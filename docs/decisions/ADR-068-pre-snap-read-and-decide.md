@@ -249,3 +249,64 @@ strength of the set, and therefore which defender has him.
    It needs a starting cell, not coordinates: the alignment vocabulary `playbook` already has.
 
 `unruled` — brought back to the owner for discussion before either is scheduled.
+
+---
+
+# 9. STEP 1 LANDED — and its pre-registered prediction FAILED *(October 2026)*
+
+## What was built
+
+| | |
+|---|---|
+| **Contracts** | `CoverageDisguise = BASIC \| ROTATED \| LATE_ROTATION` (§5.1's complexity rows) and an optional `coverageDisguise` on `DefensivePlayCall` |
+| **Playbook** | `shows?: ZoneDuty` on zone and man duties; `instantiateDefense` builds `shownAssignments` entry-for-entry beside `assignments`, and still aliases the one array when no duty `shows` anything. Mirroring flips `shows` with its duty. **Cover 3 Sky** and **Cover 1 Rat** show two-high (both safeties in deep halves) and are declared `ROTATED`; both are named in `DECLARED_DIVERGENT` with their football reason |
+| **Engine** | `presnap.coverageRead`: §5.1 verbatim — `d100 + Awareness÷5 + Football IQ÷5` vs `50 + complexity`, six bands. Rolled only when the shown look leaves a receiver uncovered whom the played coverage has a defender on (a **trap**). **Sees through** (perfect/good): traps go to the back of the progression. **Fooled** (misread/complete misread): traps go to the front, and each in-structure read of a trap carries a named modifier equal to `uncoveredOpenness`-curve minus real openness. Adequate/partial: progression as called. Published as `PRESNAP_READ` `coverage_read` with its band; `PLAY_START.defense.coverageDisguise` on every pass play |
+
+**Falsifiers**, mutation-checked: no read on any undisguised fixture; one read per disguised play at
+the right target; fooled ⇒ trap first and skewed reads; sees-through ⇒ trap last; other bands ⇒
+order unchanged; the dig's coverage CHECK still names the defender actually there. Disabling the
+reorder, the misread modifier, or the gate each turned the suite red.
+
+## ⛔ The measurement — `int_rate` DID NOT MOVE
+
+Paired arms, same 1,680 synthetic games and seeds (`adr-068:step1-arm`, 8-team flat league, frozen
+caller), before = `4544707`, after = this commit. Computed with `metrics/collect.ts`'s accumulator,
+so the same population as `int_rate`. ⚠ **A synthetic-league arm, not the canonical baseline** —
+no `data-cache/` in this environment, so no real-side comparison.
+
+| | before | after |
+|---|---|---|
+| pass attempts | 99,798 | 99,970 |
+| interceptions | 1,827 | 1,818 |
+| **`int_rate`** | **1.831%** | **1.819%** |
+| completion % | 37.25% | 37.24% |
+| `int_rate` on throws against Cover 3 Sky / Cover 1 Rat | 1.90% (269/14,155) | 1.90% (271/14,273) |
+| throws to a misread trap | — | 292, **14 intercepted (4.8%)** |
+
+**The prediction was "int_rate rises, completion barely moves." Completion held; int_rate did not
+rise.** ✅ **The mechanism works per throw** — a throw to a receiver the QB misread is intercepted at
+~2.5× the base rate. ⛔ **Almost no throws reach it.**
+
+## Why, as far as one diagnostic run shows *(280 games, `adr-068:diag` — COMPUTED, small sample)*
+
+- **Fooled is uncommon:** 2,484 fooled reads of 11,715 rolled (21%). PERFECT_READ alone is 34%:
+  against `50 + 10` a QB with ~+30 from Awareness and Football IQ beats the target by 30 on any
+  d100 ≥ 60. That is §5.1 verbatim, not a tuning choice.
+- ⛔ **A fooled QB usually never READS the trap.** Of 434 fooled plays, the trap was read on **55
+  (13%)**, though it was first in the progression on nearly all of them. The traps that do get read
+  are INTERMEDIATE routes (49 of 55). ⚠ **Inferred, not traced:** a late-developing route moved to
+  the front leaves him waiting on it (§8.1: he does not skip to the next man), and pressure or the
+  clock forces the decision first — 128 of the 434 fooled plays produced no throw at all.
+- When the trap IS read, the lie is large: median misread modifier **+52** openness (p10 +20, p90 +70).
+
+## What this leaves for the owner — NOT acted on
+
+1. **Promoting the trap to first read may be the wrong lever.** A fooled QB in real football
+   doesn't wait on the shown hole; he throws there when he gets to it. Leaving the order as called
+   (misread only skews the reads) is a one-line change worth its own arm.
+2. **Two cards of twenty-two disguise anything.** More disguised cards is authoring, not tuning —
+   and the per-throw rate says each one would carry its share.
+3. **The disguise only lies about one thing** (phantom holes). A shown man look, or a shown zone
+   that hides a man, are the next authoring shapes.
+
+`int_rate`'s verdict is unchanged: FAIL (known), low.
