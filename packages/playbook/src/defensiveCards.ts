@@ -87,8 +87,6 @@ export const NICKEL_COVER_3_SKY = defensiveCard({
   front: "Nickel Over",
   shellIntent: "SPOT_ZONE",
   family: "COVER_3",
-  // §5.1's "rotated shell" row: two-high shown, one-high played.
-  coverageDisguise: "ROTATED",
   duties: {
     ...FOUR_MAN_RUSH,
     // Three deep, four under. The two hooks are one lane each, so nobody has the
@@ -96,22 +94,12 @@ export const NICKEL_COVER_3_SKY = defensiveCard({
     // the next card exists.
     CB_L: { kind: "ZONE", ...zone("DEEP_THIRD", "LW") },
     CB_R: { kind: "ZONE", ...zone("DEEP_THIRD", "RW") },
-    // ADR-068 step 1 — THE DISGUISE. Both safeties sit at two-high depth before the snap,
-    // so the quarterback sees a split-safety shell (MOFO) with the left flat empty; at
-    // the snap the free safety spins to the middle and the strong safety drops into the
-    // flat he appeared to have left open.
-    S_F: {
-      kind: "ZONE",
-      ...zone("DEEP_MIDDLE_THIRD", "C"),
-      shows: { kind: "ZONE", ...zone("DEEP_HALF", "RH") },
-    },
+    // ADR-069: the two-high look ADR-068 step 1 wrote here is now the Two-High MASK
+    // (`masks.ts`), drawn over this rotation on some snaps and not others. From it, the
+    // free safety spins to the middle and the strong safety drops into the flat.
+    S_F: { kind: "ZONE", ...zone("DEEP_MIDDLE_THIRD", "C") },
     // Sky = safety force. He rolls to the flat and owns the edge in the run fit.
-    S_S: {
-      kind: "ZONE",
-      ...zone("FLAT", "LW"),
-      runFit: { gap: "D", side: "LEFT" },
-      shows: { kind: "ZONE", ...zone("DEEP_HALF", "LH") },
-    },
+    S_S: { kind: "ZONE", ...zone("FLAT", "LW"), runFit: { gap: "D", side: "LEFT" } },
     CB_N: { kind: "ZONE", ...zone("FLAT", "RW"), runFit: { gap: "D", side: "RIGHT" } },
     LB_W: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "LEFT" } },
     LB_M: { kind: "ZONE", ...zone("HOOK_CURL", "RH"), runFit: { gap: "B", side: "RIGHT" } },
@@ -359,8 +347,6 @@ export const NICKEL_COVER_1_RAT = defensiveCard({
   front: "Nickel Even",
   shellIntent: "MAN_FREE",
   family: "COVER_1",
-  // §5.1's "rotated shell" row: two-high shown, single-high man played.
-  coverageDisguise: "ROTATED",
   duties: {
     ...FOUR_MAN_RUSH,
     CB_L: {
@@ -382,16 +368,15 @@ export const NICKEL_COVER_1_RAT = defensiveCard({
       ifAbsent: { kind: "ZONE", ...zone("HOOK_CURL", "RH") },
       runFit: { gap: "D", side: "RIGHT" },
     },
-    // ADR-068 step 1 — THE DISGUISE. Two-high before the snap: the strong safety sits in
-    // a deep half, so #2 left looks like he is releasing into zone with nobody on him.
-    // At the snap he comes down and plays #2 man, and the free safety takes the post.
+    // ADR-069: under the Two-High mask the strong safety shows a deep half, so #2 left
+    // looks like he is releasing into zone with nobody on him; at the snap he comes down
+    // and plays #2 man, and the free safety takes the post.
     S_S: {
       kind: "MAN",
       target: { kind: "NUMBER", side: "LEFT", number: 2 },
       technique: "OFF",
       ifAbsent: { kind: "ZONE", ...zone("HOLE", "LH") },
       runFit: { gap: "D", side: "LEFT" },
-      shows: { kind: "ZONE", ...zone("DEEP_HALF", "LH") },
     },
     LB_W: {
       kind: "MAN",
@@ -402,7 +387,7 @@ export const NICKEL_COVER_1_RAT = defensiveCard({
     },
     /** The rat in the hole: a zone player inside an otherwise man call. */
     LB_M: { kind: "ZONE", ...zone("MIDDLE_HOOK", "C"), runFit: { gap: "B", side: "RIGHT" } },
-    S_F: { kind: "ZONE", ...zone("POST", "C"), shows: { kind: "ZONE", ...zone("DEEP_HALF", "RH") } },
+    S_F: { kind: "ZONE", ...zone("POST", "C") },
   },
   usage: { weight: 3 },
 });

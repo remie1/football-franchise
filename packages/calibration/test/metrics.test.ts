@@ -438,6 +438,30 @@ describe("the event fold", () => {
     expect(p.rushAttempts).toBeGreaterThan(0);
     expect(p.dropbacks).toBeLessThan(p.scrimmagePlays);
   });
+
+  /**
+   * ADR-069. The disguise count is a DIFF of shown against played, and the per-mask split is keyed
+   * by the name the call carried — two readings of one play that must agree. Every disguised
+   * dropback is named, so the split sums to the count and nothing lands in UNNAMED.
+   */
+  it("counts disguised dropbacks by diff, and every one of them names its mask", () => {
+    const p = acc.play;
+    expect(p.disguisedDropbacks).toBeGreaterThan(0);
+    expect(p.disguisedDropbacks).toBeLessThan(p.dropbacks);
+    const named = Object.values(p.disguisedDropbacksByMask).reduce((a, b) => a + b, 0);
+    expect(named).toBe(p.disguisedDropbacks);
+    expect(p.disguisedDropbacksByMask.UNNAMED).toBeUndefined();
+
+    // The other reading, taken straight off the stream: pass snaps whose call NAMED a mask. A run
+    // wears masks too (the defence calls before it knows), so the dropback filter is exercised.
+    const starts = observation.events
+      .map((e) => e.event as { type: string; payload: { kind?: string; defense?: { mask?: unknown } } })
+      .filter((e) => e.type === "PLAY_START");
+    const maskedPasses = starts.filter((e) => e.payload.kind === "PASS_PLAY_V1" && e.payload.defense?.mask != null);
+    const maskedRuns = starts.filter((e) => e.payload.kind === "RUN_PLAY_V1" && e.payload.defense?.mask != null);
+    expect(p.disguisedDropbacks).toBe(maskedPasses.length);
+    expect(maskedRuns.length).toBeGreaterThan(0);
+  });
 });
 
 // --- the real side ----------------------------------------------------------
@@ -799,7 +823,7 @@ describe("Tier 1 real-side computations", () => {
     // The two sim-only rows are absent on the real side FOREVER, not pending a load option, and
     // they say which — a reader who sees "no data" and reaches for the blitz rate is exactly the
     // failure `absence.ts` exists to prevent, so the refusal is written into the detail.
-    for (const id of ["hot_route_rate", "unaccounted_rusher_rate"]) {
+    for (const id of ["hot_route_rate", "unaccounted_rusher_rate", "disguise_rate", "disguise_mask_mix"]) {
       const outcome = getMetric(id).computeFromReal(bare);
       expect(isInapplicable(outcome)).toBe(true);
       if (isInapplicable(outcome)) expect(outcome.detail.length).toBeGreaterThan(40);

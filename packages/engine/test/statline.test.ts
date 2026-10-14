@@ -262,6 +262,7 @@ describe("the men in protection are on the field too", () => {
         coverage: "ZONE",
         assignments: [],
         shownAssignments: [],
+        mask: null,
         rush: [],
         unaccountedRushers: [],
         blitzDisguise: "STANDARD",

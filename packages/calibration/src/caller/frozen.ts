@@ -14,6 +14,8 @@
  *  2. **Which card** comes from `@ff/playbook`'s usage weights (`selectPassConcept`,
  *     `selectRunConcept`, `selectDefensiveCard`) — the corpus's own situational applicability
  *     and frequencies, drawn through the contracts PRNG.
+ *  2b. **Which mask** the defence wears over its card, at v3 (ADR-069) — `selectCoverageMask`,
+ *     one league-wide rate, drawn after the card on an address of its own. See below.
  *  3. **Fourth down** comes from a second fitted table (go / punt / field goal), drawn rather
  *     than taken modally. See `decideFourthDown` for why that disagrees with the engine's
  *     default caller on purpose.
@@ -77,6 +79,18 @@
  * plays against the same defences and differ ONLY in what the offence blocked. Every movement
  * between a v1 and a v2 batch on one seed list is attributable to protection and to nothing else.
  * `test/caller.test.ts` asserts it rather than asserting the comment.
+ *
+ * ================== WHAT CHANGED AT v3 — ADR-069, THE MASK ==================
+ *
+ * **At v3 the defence wears a pre-snap mask over the card it called** on the share of snaps
+ * `COVERAGE_MASK_RATE` sets, drawn on an address of its own, `fork("defense-mask")`,
+ * AFTER the card. A mask changes only what the quarterback is SHOWN (`shownAssignments`); the
+ * played coverage, the rush and every pairing the offence makes against them are the card's.
+ * So, exactly as v1 → v2: for any seed, v2 and v3 call the same plays against the same cards and
+ * differ ONLY in the look — and `test/caller.test.ts` asserts that too.
+ *
+ * `FrozenCallerSpec.coverageMasks` narrows the catalogue for a measurement arm (one mask alone,
+ * ADR-069's conjoined-mechanism rule); it is never narrowed in a report run.
  */
 import type { Rng } from "@ff/contracts";
 import { createRng } from "@ff/contracts";
@@ -93,16 +107,20 @@ import type {
 import type { OffensiveCall } from "@ff/contracts";
 import type { AnyDefensiveCard, DepthChart, PlaySituation } from "@ff/playbook";
 import {
+  COVERAGE_MASKS,
   UnprotectableCallError,
+  applyCoverageMask,
   buildDefensiveUnit,
   buildOffensiveUnit,
   instantiateDefense,
   instantiateRun,
   instantiatePass,
   isRunConcept,
+  selectCoverageMask,
   selectDefensiveCard,
   selectPassConcept,
   selectRunConcept,
+  type CoverageMask,
   type InstantiatedDefense,
   type InstantiatedOffense,
   type OffensiveConcept,
@@ -176,7 +194,8 @@ export interface FrozenCallerSpec {
   readonly tendencies: FittedTendencies;
   readonly fourthDown: FittedFourthDown;
   /**
-   * v1 (the informed caller) or v2 (ADR-024's anticipating caller). Defaults to v2.
+   * v1 (the informed caller), v2 (ADR-024's anticipating caller) or v3 (v2 wearing ADR-069's
+   * pre-snap masks). Defaults to v3.
    *
    * OPTIONAL HERE AND RECORDED IN PROVENANCE, which is the same split `runBatch` makes for
    * `tunables`: ergonomics on the surface, and the value that was actually used printed in the
@@ -184,6 +203,13 @@ export interface FrozenCallerSpec {
    * the two cannot be silently compared.
    */
   readonly callerVersion?: CallerVersion;
+  /**
+   * The masks a v3 defence may wear (ADR-069). Defaults to the whole catalogue; `[]` wears none.
+   * A MEASUREMENT KNOB for one-mask-alone arms, never narrowed in a report run — the rate stays
+   * `COVERAGE_MASK_RATE` either way, so a narrowed arm disguises fewer snaps, which is the point.
+   * Ignored below v3, which draws no masks at all.
+   */
+  readonly coverageMasks?: readonly CoverageMask[];
   /**
    * BOTH depth charts, because both callers resolve BOTH sides of every snap and must agree.
    * That agreement is the load-bearing property: the engine asks the offence first and the
@@ -334,6 +360,18 @@ function resolveSnap(
   const defenseUnit = buildDefensiveUnit(defensiveCard.personnel, defenseChart);
 
   /**
+   * ADR-069, v3 only: the look the defence wears over that card, on its own address and AFTER
+   * the card, so the card is the one v2 would have called. Nothing below reads the mask but the
+   * instantiation of the real defence: the anticipated card (the offence's guess) is drawn bare,
+   * because a mask changes no rusher and no fit, so there is nothing in it to block against.
+   */
+  const maskDraw =
+    version === "v3"
+      ? selectCoverageMask(snapRng.fork("defense-mask"), defensiveCard, spec.coverageMasks ?? COVERAGE_MASKS)
+      : undefined;
+  const calledCard = maskDraw === undefined ? defensiveCard : applyCoverageMask(defensiveCard, maskDraw);
+
+  /**
    * ADR-024 step 2, on a fork of its own so v1's three addresses are untouched.
    *
    * The anticipation is drawn ONCE PER SNAP, before the concept loop, and deliberately not inside
@@ -354,7 +392,7 @@ function resolveSnap(
       : selectRunConcept(conceptRng, situation);
     const offenseUnit = buildOffensiveUnit(concept.formation.personnel, offenseChart);
     const look = { formation: concept.formation, unit: offenseUnit };
-    const defense = instantiateDefense(defensiveCard, defenseUnit, look);
+    const defense = instantiateDefense(calledCard, defenseUnit, look);
     /**
      * THE SAME ELEVEN MEN, and that is the whole point of the personnel rule.
      *

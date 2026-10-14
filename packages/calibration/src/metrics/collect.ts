@@ -22,6 +22,7 @@
  * a distribution cannot be folded into a counter. They are kept, and they are the reason
  * `SimAccumulator` grows linearly with plays rather than staying constant.
  */
+import { isDeepStrictEqual } from "node:util";
 import type { MatchEventEnvelope, PlayerId, TeamId, ThrowawayCause } from "@ff/contracts";
 import { DEFAULT_TUNABLES } from "@ff/engine";
 import type { GameSummary, StatLine } from "@ff/engine";
@@ -280,6 +281,19 @@ export interface PlayFold {
   hotConversionDropbacks: number;
 
   /**
+   * ================== ADR-069: DISGUISED DROPBACKS ==================
+   *
+   * Dropbacks whose `PLAY_START.defense.shownAssignments` differs from `assignments` — the
+   * offence was shown something other than what was played. DIFFED, NOT READ OFF THE NAME:
+   * ADR-067 §B refused a `wasDisguised` flag because a declaration can be wrong silently, so
+   * `defense.mask` is not the signal here. It is the KEY of the split below, and
+   * `shownAssignmentsStream` checks the name against this diff play by play.
+   */
+  disguisedDropbacks: number;
+  /** `disguisedDropbacks` by the mask the call named; `UNNAMED` would be a divergence nobody named. */
+  disguisedDropbacksByMask: Record<string, number>;
+
+  /**
    * ================== ADR-024: THE STARVED BRANCH, PROMOTED TO A STANDING COUNT ==================
    *
    * `RUSH_THREAT.origin` (ADR-022 petition 5), counted once per (play, rusher) rather than once
@@ -400,6 +414,8 @@ export function emptyAccumulator(): SimAccumulator {
       blitzDropbacks: 0,
       unaccountedRusherDropbacks: 0,
       hotConversionDropbacks: 0,
+      disguisedDropbacks: 0,
+      disguisedDropbacksByMask: {},
       threatOrigins: {},
       threatOriginDropbacks: {},
     },
@@ -452,6 +468,11 @@ interface PlayStartShape {
     readonly rush?: readonly unknown[];
     /** §7.4 step 1 — rushers no `ProtectionAssignment` named. */
     readonly unaccountedRushers?: readonly unknown[];
+    /** ADR-067 §B — what was played, and what the offence was shown. */
+    readonly assignments?: unknown;
+    readonly shownAssignments?: unknown;
+    /** ADR-069 — the name of the look, or null. */
+    readonly mask?: { readonly id?: unknown } | null;
   };
   readonly situation?: PlayStartSituation;
 }
@@ -745,6 +766,15 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
             if (Array.isArray(unaccounted) && unaccounted.length > 0) p.unaccountedRusherDropbacks++;
             const hot = start.offense?.hotConversions;
             if (Array.isArray(hot) && hot.length > 0) p.hotConversionDropbacks++;
+            const shown = start.defense?.shownAssignments;
+            if (shown !== undefined && !isDeepStrictEqual(shown, start.defense?.assignments)) {
+              p.disguisedDropbacks++;
+              const mask = start.defense?.mask;
+              bumpKey(
+                p.disguisedDropbacksByMask,
+                mask === undefined || mask === null ? "UNNAMED" : String(mask.id),
+              );
+            }
           }
         }
         break;
@@ -1129,6 +1159,8 @@ export function mergeAccumulators(a: SimAccumulator, b: SimAccumulator): SimAccu
     blitzDropbacks: a.play.blitzDropbacks + b.play.blitzDropbacks,
     unaccountedRusherDropbacks: a.play.unaccountedRusherDropbacks + b.play.unaccountedRusherDropbacks,
     hotConversionDropbacks: a.play.hotConversionDropbacks + b.play.hotConversionDropbacks,
+    disguisedDropbacks: a.play.disguisedDropbacks + b.play.disguisedDropbacks,
+    disguisedDropbacksByMask: mergeCounters(a.play.disguisedDropbacksByMask, b.play.disguisedDropbacksByMask),
     threatOrigins: mergeCounters(a.play.threatOrigins, b.play.threatOrigins),
     threatOriginDropbacks: mergeCounters(a.play.threatOriginDropbacks, b.play.threatOriginDropbacks),
   };

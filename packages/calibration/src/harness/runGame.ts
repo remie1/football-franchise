@@ -7,6 +7,7 @@
  * an aspiration rather than a property, and that property is the entire determinism claim.
  */
 import type { Tunables } from "@ff/engine";
+import type { CoverageMask } from "@ff/playbook";
 import { createMatchState, deriveGameId, simulateGame, DEFAULT_TUNABLES } from "@ff/engine";
 import type { CallerVersion } from "../caller/anticipate.js";
 import type { FittedFourthDown } from "../caller/fourthDown.js";
@@ -21,8 +22,10 @@ export interface RunGameInput {
   readonly tendencies: FittedTendencies;
   readonly fourthDown: FittedFourthDown;
   readonly tunables?: Tunables;
-  /** ADR-024. Defaults to v2 (the anticipating caller) inside `frozenCallerPair`. */
+  /** ADR-024 / ADR-069. Defaults to v3 (anticipating, masked) inside `frozenCallerPair`. */
   readonly callerVersion?: CallerVersion;
+  /** ADR-069 measurement arms only — see `FrozenCallerSpec.coverageMasks`. */
+  readonly coverageMasks?: readonly CoverageMask[];
 }
 
 export interface RunGameOutput {
@@ -39,6 +42,7 @@ export function runOneGame(input: RunGameInput): RunGameOutput {
     homeDepthChart: built.homeDepthChart,
     awayDepthChart: built.awayDepthChart,
     ...(input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }),
+    ...(input.coverageMasks === undefined ? {} : { coverageMasks: input.coverageMasks }),
   });
 
   const coordinates = {

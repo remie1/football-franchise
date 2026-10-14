@@ -3,7 +3,7 @@
 - **Date:** 2026-10-14
 - **Proposed by:** Orchestrator, on the owner's review of ADR-068 §9
 - **Status:** **ruled in part** *(owner, 2026-10-14)* — §8's questions 1, 3, 4, 5, 6 approved; 2 EXPANDED
-  into the owner's catalogue (§9). Three new questions in §10.
+  into the owner's catalogue (§9). Three new questions in §10. **Phase 1 built and measured (§11).**
 - **Builds on:** ADR-067 (shown/played pair), ADR-068 step 1 (the coverage read). Neither is reopened.
 
 ---
@@ -157,6 +157,10 @@ wants the playbook itself built that way (§8 Q5).
 - **Pressure disguise is not counted** in this number (it already has its own row: `blitzDisguise`,
   and `BLITZ_RATE_PRIOR`'s disguise mix). §8 Q3 asks whether the owner's 30–33% meant both.
 
+> **As built (§11):** `disguise_rate` is the DIFF of `shownAssignments` against `assignments`
+> (ADR-067 §B), not the `coverageDisguise` tag; the arm found the two in agreement on every pass
+> snap. Per mask is its own row, `disguise_mask_mix`; per timing is in §11's arm, not a standing row.
+
 ---
 
 ## 5. BUILD ORDER
@@ -182,6 +186,8 @@ with or without the read, and a fooled QB reached the trap on 13% of fooled play
 disguised share from ~14% to ~31% should therefore move `int_rate` **by less than 0.1 percentage
 point**. `CHOSEN — provenance: extrapolated from ADR-068 §9's diagnostic, not measured.` If it moves
 more, that is news about the read, not about masks.
+
+> ✅ **Measured (§11): +0.018 percentage point.** The prediction holds.
 
 ---
 
@@ -236,7 +242,7 @@ run measures **three arms: Show 2 only, Show 1 only, both**, each at the target 
 
 ## Decision
 
-Pending the owner — §8.
+Ruled — §9. Phase 1 built — §11. §10 open.
 
 ---
 
@@ -388,3 +394,90 @@ disguise (late rotation)* +20.
    it. Yes?
 3. **Order:** Phase 1 now; corner masks next; then the leash; the front masks with the pressure
    read. Yes?
+
+---
+
+# 11. ✅ PHASE 1 — BUILT AND MEASURED *(2026-10-14)*
+
+## 11.1 What landed
+
+| where | what |
+|---|---|
+| `playbook/src/masks.ts` | Two-High, Two-High Cover 2 look, Single-High; legality by `over`; `applyCoverageMask`; `selectCoverageMask` — no die when nothing is legal (ADR-005), its own fork, after the card |
+| `playbook/src/defensiveCards.ts` | Cover 3 Sky and Cover 1 Rat lose their hand-written `shows`; Two-High over them reproduces those shows exactly. `DECLARED_DIVERGENT` is empty again |
+| `contracts/src/playcalls.ts` | `CoverageMaskRef { id, name }`; `DefensivePlayCall.mask?` — ruling 6 |
+| engine | `PLAY_START.defense.mask` on pass and run, echoed. **No rule change** |
+| calibration caller | **v3 = v2 + masks, the new default.** Its identity differs from v2's, so the trend layer refuses to compare across them. `coverageMasks` narrows the catalogue for an arm |
+| calibration report | `disguise_rate` and `disguise_mask_mix` — sim side only, never graded |
+| `playbook/src/distribution.ts` | `COVERAGE_MASK_RATE` 0.345 → **0.323**, from a pilot: 97.5% of dropbacks meet a card that can wear a mask, not the 91% the weights suggest |
+
+## 11.2 The arms
+
+Paired, 1,680 games each, seeds `adr-068:step1-arm` — **the same seeds as ADR-068 §9's table**, so
+the rows line up with it. 8-team flat league. ⚠ **Synthetic league, no real-side comparison.**
+
+| arm | `disguise_rate` | attempts | INT | **`int_rate`** | completion | yards / att |
+|---|---|---|---|---|---|---|
+| v2 — no masks | 0.00% | 99,798 | 1,827 | **1.831%** | 37.25% | 3.70 |
+| v3 — Two-High only | 18.17% | 100,320 | 1,842 | 1.836% | 37.26% | 3.69 |
+| v3 — Cover 2 look only | 7.80% | 99,722 | 1,860 | 1.865% | 37.25% | 3.69 |
+| v3 — Single-High only | 13.19% | 99,768 | 1,838 | 1.842% | 37.28% | 3.70 |
+| **v3 — all three (default)** | **31.38%** | 100,247 | 1,854 | **1.849%** | 37.23% | 3.68 |
+
+- ✅ **`disguise_rate` 31.4% — inside the owner's 30–33%.** Of the 46,710 disguised dropbacks:
+  Two-High 58%, Single-High 30%, Cover 2 look 12%; held late 24.9% (stated 25%).
+- ✅ **§6 holds:** `int_rate` +0.018 pp, completion −0.02 pp. Both are inside run-to-run noise (one
+  standard error on the difference of two arms is ~0.06 pp).
+- ✅ **v2 reproduces ADR-068 §9's "before" row exactly** (99,798 attempts, 1,827 INT). With the
+  hand-written shows gone, a v2 caller is the honest defence again, bit for bit on these counts.
+
+Inside the all-three arm, by what the defence wore:
+
+| worn | dropbacks | att | INT | `int_rate` | completion | reads rolled | fooled | throws to a misread trap (INT) |
+|---|---|---|---|---|---|---|---|---|
+| nothing | 102,135 | 68,335 | 1,221 | 1.79% | 37.24% | — | — | — |
+| Two-High | 27,078 | 18,473 | 358 | 1.94% | 37.35% | 14,660 | 3,491 (24%) | 908 (70) |
+| Cover 2 look | 5,752 | 3,938 | 80 | 2.03% | 38.78% | 3,124 | 767 (25%) | 140 (12) |
+| Single-High | 13,880 | 9,501 | 195 | 2.05% | 36.24% | 5,060 | 1,209 (24%) | 93 (6) |
+| *rotated early* | 35,086 | 23,938 | 467 | 1.95% | 37.20% | 17,144 | 3,653 (21%) | 763 (55) |
+| *rotated late* | 11,624 | 7,974 | 166 | 2.08% | 37.16% | 5,700 | 1,814 (32%) | 378 (33) |
+
+Masked throws overall: 633 of 31,912 intercepted (1.98%) against 1.79% unmasked, about two standard
+errors apart. ⚠ The two populations meet different cards (Cover 0, Prevent and goal line are never
+masked), so this is suggestive, not a clean effect.
+
+## 11.3 What it leaves — NOT acted on
+
+1. ⛔ **Single-High over Cover 2 Man is worn but inert.** Those 2,513 dropbacks (1.7% of pass snaps)
+   rolled no read at all: every receiver is manned in the shown look and the played one, and step
+   1's only consequence is "shown with nobody on him, played with somebody". What the look really
+   hides, the half safety over a manned receiver, is not something the read can see. It still
+   counts toward the rate, which is right for a call frequency. **Default kept:** it stays in
+   `over`; it becomes live when the read models help over the top (a Phase 2 candidate).
+2. **Single-High's trap is the deep sideline, and the quarterback rarely gets there:** 93 throws to
+   the trap from 1,209 fooled reads (8%), against Two-High's 908 from 3,491 (26%). Same shape as
+   ADR-068 §9: a late-developing route moved to the front of the progression is reached late.
+3. **Late rotation fools more, as §5.1 says it should:** 32% fooled against 21% early.
+4. **The lie works per throw and reaches few throws:** a throw to a misread trap is intercepted at
+   7.7% (88 of 1,141), about four times the base rate, and 1.1% of attempts are such throws.
+
+## 11.4 Tests
+
+`masks.test.ts` (every stated pairing against every formation: only non-rushers move, the look
+differs in exactly the moved men, the played coverage and rush are the unmasked card's; no die for
+an unmaskable card; the stated rates over 20,000 draws); the caller's v2-against-v3 same-call test;
+the stream test (a named mask if and only if the shown look differs, on pass and run snaps); the
+fold (the diff count equals the named count on pass snaps; runs wear masks too).
+**Mutation-checked: 15 deliberate breakages, 14 turned the suite red.** The fifteenth, drawing the
+mask on the snap's own die instead of its fork, changes nothing observable today because nothing
+else draws from that die.
+
+### Provenance — additions for §11
+
+| claim | provenance |
+|---|---|
+| Every number in §11.2–11.3 | **COMPUTED** — scratch arm harness over `runOneGame`; totals from `metrics/collect.ts`'s accumulator, splits re-folded from the same streams with the collector's attempt and interception rules |
+| 97.5% of dropbacks can wear a mask | **COMPUTED** — pilot, 224 games, `adr-069:pilot`; the full v3 arm read 97.8% |
+| Tag and diff agree on every pass snap | **COMPUTED** — 0 disagreements in 148,845 dropbacks |
+| ~0.06 pp standard error on an arm difference | **COMPUTED** — binomial, p ≈ 1.84%, n ≈ 100,000 per arm |
+| Single-High over Cover 2 Man cannot roll a read | **COMPUTED** — 0 reads in 2,513 dropbacks; `coverageTraps` in `passPlay.ts` needs a receiver shown with nobody on him |

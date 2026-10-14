@@ -359,6 +359,7 @@ function buildStartPayload(
       assignments: calls.defense.assignments,
       // ADR-067 §B, echoed exactly as the pass payload does.
       shownAssignments: calls.defense.shownAssignments,
+      mask: calls.defense.mask ?? null,
       // Alignment resolved, side carried through as stated (ADR-018) — the same
       // owner the pass payload uses, so the two cannot drift.
       rush: calls.defense.rush.map((r) =>

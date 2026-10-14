@@ -23,7 +23,17 @@
  * the day a card diverges. Deep equality is the assertion that survives the split:
  * the cards that still show what they play keep asserting it, unchanged, forever.
  *
- * ================== WHAT IT BECOMES ==================
+ * ================== WHAT IT IS NOW (ADR-069) ==================
+ *
+ * ADR-068 step 1 wrote two disguises into cards (Cover 3 Sky, Cover 1 Rat). ADR-069 moved
+ * them out: a disguise is now a MASK (`masks.ts`) laid over a card on some snaps, and a card
+ * is a rotation that shows what it plays. So `DECLARED_DIVERGENT` is empty again, and this
+ * test is what keeps every card an honest rotation — a `shows` written into a card fails
+ * here, because that disguise would be called on every snap the card is, which is exactly
+ * the frequency ADR-069 took away from cards and gave to the mask draw. The masked side is
+ * `masks.test.ts`.
+ *
+ * ================== WHAT IT BECAME, AND STILL CAN ==================
  *
  * ⛔ WHEN A CARD FIRST DECLARES A DIVERGENCE, THIS TEST IS NOT DELETED. It becomes
  * the test that proves each divergence is DELIBERATE rather than an authoring slip.
@@ -55,23 +65,15 @@ import { DEEP_CHART } from "./fixtures.js";
 /**
  * ⛔ CARDS WHOSE SHOWN LOOK DELIBERATELY DIFFERS FROM WHAT THEY PLAY.
  *
- * ADR-067 §A landed this list empty. ADR-068 step 1 adds the first two disguises; every
- * other card still shows exactly what it plays.
+ * ADR-067 §A landed this list empty. ADR-068 step 1 added Cover 3 Sky and Cover 1 Rat;
+ * ADR-069 moved both disguises into the Two-High mask and emptied it again.
  *
  * To add one: name the card id here with the football reason it lies (`"the strong
  * safety shows a two-high shell and rotates down"`). The entry is the DECLARATION —
  * it is what makes the divergence deliberate instead of a slip — and it is checked in
  * both directions, so it cannot be left behind once the mechanic that produced it goes.
  */
-const DECLARED_DIVERGENT: Readonly<Record<string, string>> = {
-  // ADR-068 step 1.
-  DEF_NICKEL_COVER_3_SKY:
-    "two-high shown: both safeties in deep halves; at the snap the free safety spins to " +
-    "the middle third and the strong safety drops into the flat he appeared to leave open",
-  DEF_NICKEL_COVER_1_RAT:
-    "two-high shown: the strong safety sits in a deep half over #2 left, then comes down " +
-    "to play him man while the free safety takes the post",
-};
+const DECLARED_DIVERGENT: Readonly<Record<string, string>> = {};
 
 /**
  * Every defensive card the module exports, found structurally.

@@ -450,17 +450,75 @@ describe("the frozen caller pair", () => {
     expect(v2.caller.draw.passDraws).toBe(v2.caller.passCalls);
   });
 
-  it("defaults to v2, and the identity string says which caller ran", () => {
-    expect(DEFAULT_CALLER_VERSION).toBe("v2");
+  it("defaults to v3, and the identity string says which caller ran", () => {
+    expect(DEFAULT_CALLER_VERSION).toBe("v3");
     const pair = frozenCallerPair({
       tendencies: FROZEN_TENDENCIES,
       fourthDown: FROZEN_FOURTH_DOWN,
       homeDepthChart: built.homeDepthChart,
       awayDepthChart: built.awayDepthChart,
     });
-    expect(pair.callerVersion).toBe("v2");
-    expect(callerIdentity("v2", FROZEN_TENDENCIES.version)).toBe(`v2/${FROZEN_TENDENCIES.version}`);
+    expect(pair.callerVersion).toBe("v3");
+    expect(callerIdentity("v3", FROZEN_TENDENCIES.version)).toBe(`v3/${FROZEN_TENDENCIES.version}`);
     expect(callerIdentity("v1", "x")).not.toBe(callerIdentity("v2", "x"));
+    expect(callerIdentity("v2", "x")).not.toBe(callerIdentity("v3", "x"));
+  });
+
+  /**
+   * ============================ ADR-069, callerVersion v3 ============================
+   *
+   * The same control-arm claim, one version on: **v2 and v3 call the same play against the same
+   * card, and differ only in the look.** The mask is drawn on its own address after the card, so
+   * nothing v2 draws moves. Compared over the FIRST snap of many games, for the reason the ADR-024
+   * test gives — and required to include masked first snaps, or the comparison would be v2
+   * against itself.
+   */
+  it("v3 calls the SAME play against the SAME card as v2 — only the look differs", () => {
+    let masked = 0;
+    let unmasked = 0;
+    for (let i = 0; i < 40; i++) {
+      const seed = `adr069-${String(i)}`;
+      const run = (callerVersion: "v2" | "v3"): Record<string, unknown> =>
+        (runOneGame({
+          built, seed, tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN, callerVersion,
+        }).observation.events.find((e) => e.event.type === "PLAY_START")?.event.payload ?? {}) as Record<
+          string,
+          unknown
+        >;
+      const sub = (x: Record<string, unknown>, key: string): Record<string, unknown> =>
+        (x[key] ?? {}) as Record<string, unknown>;
+      const a = run("v2");
+      const b = run("v3");
+      const da = sub(a, "defense");
+      const db = sub(b, "defense");
+      expect(b["kind"], seed).toBe(a["kind"]);
+      expect(sub(b, "offense")["call"], seed).toBe(sub(a, "offense")["call"]);
+      for (const key of ["call", "front", "assignments", "rush", "coverage"]) {
+        expect(JSON.stringify(db[key]), `${seed}: defense.${key}`).toBe(JSON.stringify(da[key]));
+      }
+      expect(da["mask"], `${seed}: v2 wore a mask`).toBeNull();
+      if (db["mask"] === null) {
+        unmasked += 1;
+        expect(JSON.stringify(db["shownAssignments"]), seed).toBe(JSON.stringify(da["shownAssignments"]));
+      } else {
+        masked += 1;
+        expect(JSON.stringify(db["shownAssignments"]), seed).not.toBe(JSON.stringify(da["shownAssignments"]));
+      }
+    }
+    expect(masked, "no first snap wore a mask, so v3 was compared with nothing").toBeGreaterThan(0);
+    expect(unmasked, "every first snap wore a mask, so the bare path was never compared").toBeGreaterThan(0);
+  });
+
+  it("a v3 caller given an empty catalogue wears nothing", () => {
+    const out = runOneGame({
+      built, seed: "adr069-none", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
+      coverageMasks: [],
+    });
+    const masks = out.observation.events
+      .filter((e) => e.event.type === "PLAY_START")
+      .map((e) => (e.event.payload as { defense?: { mask?: unknown } }).defense?.mask)
+      .filter((m) => m !== undefined && m !== null);
+    expect(masks).toEqual([]);
   });
 });
 

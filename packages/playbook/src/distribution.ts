@@ -308,6 +308,36 @@ export const BLITZ_DISGUISE_MIX: Readonly<Record<string, number>> = {
 };
 
 /**
+ * ================== ADR-069: HOW OFTEN A DEFENCE WEARS A MASK ==================
+ *
+ * **THE TARGET IS THE OWNER'S, AND IT HAS NO SOURCE ON FILE.** A disguised look on 30-33% of
+ * passing snaps — owner-stated (ADR-069, 2026-10-14) from a published figure the repo has not
+ * ingested. It is a CALL frequency: a mask is called on that share of snaps, not carried by
+ * that share of cards. Calibration measures it (`disguise_rate`) and reports it beside its
+ * real counterpart's absence; it does not gate on it.
+ */
+export const DISGUISE_RATE_TARGET = { min: 0.3, max: 0.33 } as const;
+
+/**
+ * The chance a call that CAN wear a mask does — ruling 4's one league-wide rate, until a
+ * defensive coordinator carries his own.
+ *
+ * NOT the target. Some calls can wear nothing (goal line, Prevent, a played Cover 0), so the
+ * rate on the calls that can is higher than the share of snaps it produces. Set from a run
+ * (ADR-069 §11), not derived: the card weights say ~91% of snaps can be masked, but which
+ * cards a pass snap meets depends on down and distance, and only a corpus run reads that.
+ * The run read 97.5% (224 games, `adr-069:pilot`): Prevent, goal line and Cover 0 are rarely
+ * called on a dropback. The target's midpoint over that: 0.315 ÷ 0.975 ≈ 0.323.
+ */
+export const COVERAGE_MASK_RATE = 0.323;
+
+/**
+ * Of the masks called, the share held until the snap (§5.1's +20 row) rather than rotated
+ * early (+10). 3 : 1 early to late. `CHOSEN — provenance NONE`: nobody publishes it.
+ */
+export const LATE_ROTATION_SHARE = 0.25;
+
+/**
  * Share of dropback weight whose answer to pressure is not already the first read.
  *
  * Deliberately not called a league rate. See the banner above: this is a property of how

@@ -304,20 +304,18 @@ export function instantiateDefense(
     front: card.front,
     assignments,
     /**
-     * ⛔ ONE ARRAY, TWO FIELDS — UNLESS THE CARD DECLARES A SHOWN LOOK (ADR-067 §A,
-     * ADR-068 step 1).
+     * ⛔ ONE ARRAY, TWO FIELDS — UNLESS THE CALL WEARS A MASK (ADR-067 §A, ADR-069).
      *
      * A card with no `shows` on any duty gets `assignments` itself, the same object
      * referenced twice. Not a copy: a copy is a second value, and a second value is a
      * thing a later edit can append to, filter, or reorder on one side only. So for every
-     * undisguised card the identity holds by construction, and `shownAssignments.test.ts`
-     * asserts it.
+     * unmasked call the identity holds by construction, and `shownAssignments.test.ts`
+     * asserts it on every card in the corpus.
      *
-     * A card that DOES declare one gets `shown`, built entry-for-entry beside
+     * A card wearing a mask (`applyCoverageMask`) gets `shown`, built entry-for-entry beside
      * `assignments` by `play` above: the same defenders in the same order, differing only
-     * where a duty `shows` a zone. A divergence can only arrive through that field, which
-     * is to say only where an author wrote it, and the test requires each such card to be
-     * named with its football reason.
+     * where a duty `shows` a zone. A divergence can only arrive through that field, and only
+     * a mask writes it.
      *
      * ON MIRRORING. `mirrorDefensiveCard` flips duties, `shows` included, upstream of this
      * function, so a mirrored card mirrors both lists by construction.
@@ -334,6 +332,7 @@ export function instantiateDefense(
     // there the omitted value was a FAKE and here it is a fact.
     ...(card.blitzDisguise === undefined ? {} : { blitzDisguise: card.blitzDisguise }),
     ...(card.coverageDisguise === undefined ? {} : { coverageDisguise: card.coverageDisguise }),
+    ...(card.mask === undefined ? {} : { mask: card.mask }),
   };
 
   return {

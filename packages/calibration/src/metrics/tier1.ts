@@ -794,6 +794,63 @@ export const hotRouteRate: Metric = registerMetric({
 });
 
 /**
+ * ADR-069 — HOW OFTEN THE DEFENCE SHOWED ONE THING AND PLAYED ANOTHER.
+ *
+ * SIM SIDE ONLY. The owner's target is 30–33% of passing snaps (`DISGUISE_RATE_TARGET`), and it
+ * is a CALL FREQUENCY: it counts the snaps a disguise was worn, not the share of the playbook
+ * that could wear one. It is reported, never graded: the target has no source on file, and no
+ * ingested source charts a shown shell against a played one — participation's
+ * `defense_man_zone_type` and `defense_coverage_type` are what was PLAYED.
+ *
+ * The count is a DIFF of the two assignment lists, not a read of the mask's name (ADR-067 §B);
+ * the name only keys `disguise_mask_mix`.
+ */
+export const disguiseRate: Metric = registerMetric({
+  id: "disguise_rate",
+  tier: 1,
+  definition:
+    "SIM SIDE ONLY. Dropbacks on which PLAY_START.defense.shownAssignments differs from " +
+    "PLAY_START.defense.assignments ÷ dropbacks: the share of passing snaps on which the " +
+    "offence was shown a different shell from the one played. The owner's target is 30–33%, " +
+    "stated as a call frequency with no source on file. No ingested source charts a shown " +
+    "shell, so there is no real side and this row is never graded.",
+  unit: "%",
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const p = accumulator.play;
+    return p.dropbacks === 0 ? noObservations("no dropbacks") : rate(p.disguisedDropbacks, p.dropbacks);
+  },
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations(
+      "no ingested source charts what the offence was SHOWN before the snap. Participation's " +
+        "defense_man_zone_type and defense_coverage_type are the coverage that was PLAYED; do " +
+        "NOT read a disguise rate off them — every snap would show what it played.",
+    );
+  },
+});
+
+/** ADR-069 — which mask the disguised dropbacks wore. Same diff, keyed by the call's mask name. */
+export const disguiseMaskMix: Metric = registerMetric({
+  id: "disguise_mask_mix",
+  tier: 1,
+  definition:
+    "SIM SIDE ONLY. The disguised dropbacks of `disguise_rate`, split by the mask the call " +
+    "named (PLAY_START.defense.mask.id). UNNAMED would be a shown look that differs with no " +
+    "mask named, which the engine cannot produce. No real source charts a shown shell.",
+  unit: "share",
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const byMask = accumulator.play.disguisedDropbacksByMask;
+    return accumulator.play.disguisedDropbacks === 0
+      ? noObservations("no disguised dropbacks")
+      : categorical(byMask);
+  },
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations("no ingested source charts what the offence was shown before the snap.");
+  },
+});
+
+/**
  * The other half of the ADR-023 story, and it is the one that moved most. §7.4 step 1's
  * UNACCOUNTED is a fact about the CALL — it is what the frozen caller could not previously
  * produce, because playbook refused the front and the caller re-drew the concept (backlog 21).
@@ -1642,6 +1699,8 @@ export const TIER_1_METRICS: readonly Metric[] = [
   pressureToSackRate,
   blitzRate,
   hotRouteRate,
+  disguiseRate,
+  disguiseMaskMix,
   unaccountedRusherRate,
   yardsPerAttempt,
   timeToThrow,

@@ -165,12 +165,22 @@ import { applicableDefensiveCards, weightedPick } from "@ff/playbook";
  * is a measurement rather than a surprise", and that paired run is the only honest instrument
  * available once the trend layer has (correctly) refused the boundary.
  */
-export type CallerVersion = "v1" | "v2";
+export type CallerVersion = "v1" | "v2" | "v3";
 
-export const CALLER_VERSIONS: readonly CallerVersion[] = ["v1", "v2"];
+/**
+ * v3 is v2 with ADR-069's pre-snap masks: the defence wears a look over the card it called, on
+ * an address of its own, so for any seed v2 and v3 call the same plays against the same cards
+ * and differ ONLY in what the quarterback was shown. A new version and not a quiet change to v2,
+ * by this type's own criterion: a mask is part of the defensive CALL (the owner's three parts),
+ * so a v3 batch is measured over a different call mix and must not trend against a v2 one.
+ */
+export const CALLER_VERSIONS: readonly CallerVersion[] = ["v1", "v2", "v3"];
 
-/** The default. ADR-024 is ratified; a batch that wants the old caller asks for it by name. */
-export const DEFAULT_CALLER_VERSION: CallerVersion = "v2";
+/**
+ * The default. ADR-024 made it v2; ADR-069 makes it v3. A batch that wants an older caller asks
+ * for it by name.
+ */
+export const DEFAULT_CALLER_VERSION: CallerVersion = "v3";
 
 /** Five or more rushers, the threshold `blitz_rate` uses on BOTH sides. Same number, one place. */
 const BLITZ_MIN_RUSHERS = 5;

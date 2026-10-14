@@ -129,8 +129,9 @@ describe("runBatch", () => {
     // ADR-024/ADR-025: the identity string carries the caller BEHAVIOUR version as well as the
     // tendency table's, because a caller that anticipates the front is a different denominator
     // while its table is byte-identical. `report/identity.ts` always claimed this field meant
-    // "which caller"; before ADR-024 it only ever meant "which table".
-    expect(result.provenance.callerVersion).toBe(`v2/${FROZEN_TENDENCIES.version}`);
+    // "which caller"; before ADR-024 it only ever meant "which table". ADR-069 made v3 the
+    // default: the same calls as v2, some of them wearing a mask.
+    expect(result.provenance.callerVersion).toBe(`v3/${FROZEN_TENDENCIES.version}`);
     expect(result.provenance.seedDigest).toBe(digestSeeds(result.seeds.seeds.slice(0, 6)));
     expect(result.provenance.availabilityMatched).toBe(false);
     expect(result.accumulator.games).toBe(6);

@@ -1,6 +1,6 @@
 /**
- * ADR-067 §B — THE SHOWN/PLAYED DIFF IS EMPTY ON EVERY PLAY OF THE CORPUS, except the
- * calls ADR-068 step 1 declares divergent, which are required to differ.
+ * ADR-067 §B / ADR-069 — THE SHOWN/PLAYED DIFF IS EMPTY ON EVERY PLAY OF THE CORPUS THAT WORE
+ * NO MASK, AND NON-EMPTY ON EVERY PLAY THAT DID.
  *
  * ============================ WHAT THIS ASSERTS ============================
  *
@@ -20,11 +20,15 @@
  * would quietly reduce "every play" to "every dropback", and a payload missing the field would read
  * as an empty diff. A play whose `shownAssignments` is absent is a failure, not a skip.
  *
- * ============================ WHEN E LANDS ============================
+ * ============================ THE NAME AGAINST THE DIFF (ADR-069) ============================
  *
- * This test does not get deleted when a card first declares a divergence. Like `playbook`'s
- * `shownAssignments.test.ts`, it narrows: plays from a card in `DECLARED_DIVERGENT` are required to
- * differ, and every other play keeps asserting identity.
+ * ADR-068 step 1 made two CARDS lie, so this test named them. ADR-069 moved the lie to a mask
+ * drawn over any card, and `PLAY_START.defense.mask` names it. So the check is now the name
+ * against the diff, in both directions, on every play: a play that names a mask must show
+ * something other than it plays (a mask that changed nothing is a disguise counted that never
+ * happened), and a play that names none must show exactly what it plays (a divergence nobody
+ * named is the authoring slip ADR-067 §A built this test to catch). Every mask in the catalogue
+ * must turn up, on dropbacks and on runs, or the corpus did not exercise it.
  *
  * ============================ DETERMINISM ============================
  *
@@ -39,20 +43,16 @@ import { indexLeague } from "../src/league/snapshot.js";
 import { buildFixture, buildFixtures } from "../src/harness/schedule.js";
 import { generateSeeds } from "../src/harness/seeds.js";
 import { runOneGame } from "../src/harness/runGame.js";
+import { COVERAGE_MASKS } from "@ff/playbook";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 
 const BATCH_SEED = "adr-067:shown-assignments-stream";
 
-/**
- * ADR-068 step 1 — the calls whose shown look is DECLARED to differ, by call name (the
- * stream carries the call's name, and a mirrored card keeps its name). Mirrors
- * `playbook`'s `DECLARED_DIVERGENT`, where each one's football reason is written.
- */
-const DECLARED_DIVERGENT_CALLS: ReadonlySet<string> = new Set(["Cover 3 Sky", "Cover 1 Rat"]);
-
 interface GameFold {
-  /** Plays from a declared-divergent call, which are required to differ. */
-  readonly divergentPlays: number;
+  /** Plays that wore a mask, by kind — required to differ. */
+  readonly maskedPass: number;
+  readonly maskedRun: number;
+  readonly masksSeen: ReadonlySet<string>;
   readonly passPlays: number;
   readonly runPlays: number;
   /** Plays whose played `assignments` list was non-empty — the diff had something to compare. */
@@ -61,7 +61,9 @@ interface GameFold {
 }
 
 function foldGame(gameLabel: string, events: readonly MatchEventEnvelope[]): GameFold {
-  let divergentPlays = 0;
+  let maskedPass = 0;
+  let maskedRun = 0;
+  const masksSeen = new Set<string>();
   let passPlays = 0;
   let runPlays = 0;
   let withAssignments = 0;
@@ -72,7 +74,12 @@ function foldGame(gameLabel: string, events: readonly MatchEventEnvelope[]): Gam
     if (event.type !== "PLAY_START") continue;
     const payload = event.payload as {
       readonly kind?: unknown;
-      readonly defense?: { readonly call?: unknown; readonly assignments?: unknown; readonly shownAssignments?: unknown };
+      readonly defense?: {
+        readonly call?: unknown;
+        readonly assignments?: unknown;
+        readonly shownAssignments?: unknown;
+        readonly mask?: { readonly id?: unknown } | null;
+      };
     };
     // PLAY_START also opens special-teams plays, which carry no defensive call.
     if (payload.kind === "PASS_PLAY_V1") passPlays += 1;
@@ -87,27 +94,36 @@ function foldGame(gameLabel: string, events: readonly MatchEventEnvelope[]): Gam
       continue;
     }
     if (Array.isArray(played) && played.length > 0) withAssignments += 1;
-    if (DECLARED_DIVERGENT_CALLS.has(String(payload.defense?.call))) {
-      divergentPlays += 1;
+    const mask = payload.defense?.mask;
+    if (mask === undefined) {
+      failures.push(`${where}: defense.mask is missing from PLAY_START (null means no mask)`);
+      continue;
+    }
+    if (mask !== null) {
+      if (payload.kind === "PASS_PLAY_V1") maskedPass += 1;
+      else maskedRun += 1;
+      masksSeen.add(String(mask.id));
       if (isDeepStrictEqual(shown, played)) {
-        failures.push(`${where}: ${String(payload.defense?.call)} is declared divergent but showed what it played`);
+        failures.push(
+          `${where}: ${String(payload.defense?.call)} wore ${String(mask.id)} but showed what it played`,
+        );
       }
       continue;
     }
     if (!isDeepStrictEqual(shown, played)) {
       failures.push(
-        `${where}: shown differs from played\n  shown:  ${JSON.stringify(shown)}\n` +
+        `${where}: shown differs from played and no mask is named\n  shown:  ${JSON.stringify(shown)}\n` +
           `  played: ${JSON.stringify(played)}`,
       );
     }
   }
-  return { divergentPlays, passPlays, runPlays, withAssignments, failures };
+  return { maskedPass, maskedRun, masksSeen, passPlays, runPlays, withAssignments, failures };
 }
 
-describe("ADR-067 §B: PLAY_START publishes the shown state, and it equals the played one", () => {
+describe("ADR-067 §B / ADR-069: PLAY_START publishes the shown state, and the mask it names", () => {
   it(
-    "the shown/played diff is empty on every pass and run play of the corpus, over a non-empty " +
-      "population of each",
+    "the shown/played diff is non-empty exactly on the plays that name a mask, over a non-empty " +
+      "population of each kind and of each mask",
     () => {
       const league = buildFlatLeague({ teams: 8 });
       const index = indexLeague(league);
@@ -118,7 +134,9 @@ describe("ADR-067 §B: PLAY_START publishes the shown state, and it equals the p
       });
       const seeds = generateSeeds(BATCH_SEED, fixtures.length);
 
-      let divergentPlays = 0;
+      let maskedPass = 0;
+      let maskedRun = 0;
+      const masksSeen = new Set<string>();
       let passPlays = 0;
       let runPlays = 0;
       let withAssignments = 0;
@@ -133,7 +151,9 @@ describe("ADR-067 §B: PLAY_START publishes the shown state, and it equals the p
           fourthDown: FROZEN_FOURTH_DOWN,
         });
         const fold = foldGame(seed, observation.events);
-        divergentPlays += fold.divergentPlays;
+        maskedPass += fold.maskedPass;
+        maskedRun += fold.maskedRun;
+        for (const id of fold.masksSeen) masksSeen.add(id);
         passPlays += fold.passPlays;
         runPlays += fold.runPlays;
         withAssignments += fold.withAssignments;
@@ -154,7 +174,11 @@ describe("ADR-067 §B: PLAY_START publishes the shown state, and it equals the p
       // pass — it is the shape this register keeps cataloguing.
       expect(passPlays, `no PASS_PLAY_V1 PLAY_START in ${corpus}`).toBeGreaterThan(0);
       expect(runPlays, `no RUN_PLAY_V1 PLAY_START in ${corpus}`).toBeGreaterThan(0);
-      expect(divergentPlays, `no play from a declared-divergent call in ${corpus}`).toBeGreaterThan(0);
+      expect(maskedPass, `no dropback wore a mask in ${corpus}`).toBeGreaterThan(0);
+      expect(maskedRun, `no run wore a mask in ${corpus}`).toBeGreaterThan(0);
+      expect([...masksSeen].sort(), `a mask in the catalogue never turned up in ${corpus}`).toEqual(
+        COVERAGE_MASKS.map((m) => m.id).sort(),
+      );
       expect(
         withAssignments,
         `no play in ${corpus} carried a non-empty assignments list, so the diff compared nothing`,

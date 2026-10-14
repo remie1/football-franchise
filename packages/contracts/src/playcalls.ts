@@ -407,6 +407,20 @@ export type BlitzDisguise = "STANDARD" | "ZONE_BLITZ" | "DELAYED" | "ZERO";
  */
 export type CoverageDisguise = "BASIC" | "ROTATED" | "LATE_ROTATION";
 
+/**
+ * The pre-snap mask a defensive call wore (ADR-069): the middle part of a call said in three
+ * parts — front and blitz, mask, rotation. `"Nickel Over · Two-High · Cover 3 Sky"` is
+ * `front`, `mask.name` and `name`.
+ *
+ * A REFERENCE, NOT THE LOOK. What the mask makes the offence see is `shownAssignments`; this
+ * names which catalogue entry produced it, so a renderer can print it and calibration can
+ * split a rate by it. `id` is the catalogue's key; `name` is what a coach would call it.
+ */
+export interface CoverageMaskRef {
+  readonly id: string;
+  readonly name: string;
+}
+
 export interface DefensivePlayCall {
   readonly name: string;
   readonly front: string;
@@ -414,6 +428,12 @@ export interface DefensivePlayCall {
   readonly blitzDisguise?: BlitzDisguise;
   /** §5.1's complexity row for the coverage read (ADR-068). Absent ⇒ `BASIC`. */
   readonly coverageDisguise?: CoverageDisguise;
+  /**
+   * The mask the call wore (ADR-069). Absent ⇒ none: the call shows exactly what it plays,
+   * and `shownAssignments` is `assignments` itself. Present ⇒ `shownAssignments` is the
+   * mask's look and differs from `assignments` in the defenders the mask moved.
+   */
+  readonly mask?: CoverageMaskRef;
   /**
    * Man and zone assignments, mixed freely. A receiver named by no `ManAssignment` is
    * played by whatever zone his route breaks into; if no zone defender is responsible for
@@ -424,13 +444,12 @@ export interface DefensivePlayCall {
    * What the offence SEES before the snap, as against `assignments`, which is what
    * actually resolves (ADR-067 §A).
    *
-   * ⛔ IDENTICAL TO `assignments` UNLESS THE CARD DECLARES OTHERWISE. A card with no
-   * shown duty gets the SAME ARRAY in both fields (`instantiateDefense`), so identity is by
-   * construction, not by agreement. A card that states a shown duty for some defenders
-   * (ADR-068 step 1: Cover 3 Sky and Cover 1 Rat show two-high and rotate) gets a second
-   * list differing in exactly those assignments, and `playbook`'s `shownAssignments` test
-   * names every such card with its football reason — an undeclared divergence and a
-   * declared one that stopped diverging both fail.
+   * ⛔ IDENTICAL TO `assignments` UNLESS THE CALL WEARS A MASK. A call with no shown duty
+   * gets the SAME ARRAY in both fields (`instantiateDefense`), so identity is by
+   * construction, not by agreement. A call that wears a mask (`mask` above — ADR-069; the
+   * mask states a shown duty for each defender it moves) gets a second list differing in
+   * exactly those assignments. No card in the corpus states a shown duty of its own, and
+   * `playbook`'s `shownAssignments` test fails if one starts to.
    *
    * WHY THIS EXISTS. There is no shown-vs-played pair anywhere in the engine today
    * (backlog entry 165): a defensive card states duties and the duties are what happens.

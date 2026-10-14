@@ -28,6 +28,7 @@
 import type {
   BlitzDisguise,
   CoverageDisguise,
+  CoverageMaskRef,
   CoverageTechnique,
   FieldZone,
   PlayerId,
@@ -84,9 +85,12 @@ export interface ZoneDuty extends ZoneRegion {
   readonly runFit?: RunFit;
   /**
    * What this defender SHOWS before the snap, when it differs from what he plays
-   * (ADR-068 step 1). Absent ⇒ he shows what he plays. Always a zone: the disguises
-   * authored so far are pre-snap shells (two-high that rotates), and a shown MAN look —
-   * a defender walking up on a receiver he will not cover — has no card yet.
+   * (ADR-068 step 1). Absent ⇒ he shows what he plays.
+   *
+   * ⛔ WRITTEN BY A MASK, NOT BY A CARD (ADR-069). `applyCoverageMask` sets it on the men a
+   * mask moves; no card in the corpus states one of its own, and `test/shownAssignments.test.ts`
+   * fails if one starts to. Always a zone: a shown MAN look — a corner pressing a receiver he
+   * will bail from — is ADR-069 Phase 2.
    */
   readonly shows?: ZoneDuty;
 }
@@ -216,11 +220,6 @@ export interface DefensiveCardTemplate<G extends DefensePersonnel> {
    * it from the card, and the difference is that a check can be wrong out loud.
    */
   readonly blitzDisguise?: BlitzDisguise;
-  /**
-   * §5.1's complexity row for the coverage read (ADR-068 step 1). Meaningful only on a
-   * card where some duty `shows` something other than what it plays; absent ⇒ BASIC.
-   */
-  readonly coverageDisguise?: CoverageDisguise;
   /** Two defenders on one receiver, on purpose. ADR-006 says a bracket is legal. */
   readonly brackets?: true;
   /**
@@ -248,7 +247,13 @@ export interface AnyDefensiveCard {
   readonly duties: Readonly<Partial<Record<DefenseRole, DefensiveDuty>>>;
   readonly stunts?: readonly StuntSpec[];
   readonly blitzDisguise?: BlitzDisguise;
+  /**
+   * §5.1's complexity row for the coverage read, and the mask that set it (ADR-069). Neither
+   * is authored: a card describes a rotation, and `applyCoverageMask` adds both when a call
+   * wears a look over it. Absent ⇒ the call shows what it plays (BASIC, no mask).
+   */
   readonly coverageDisguise?: CoverageDisguise;
+  readonly mask?: CoverageMaskRef;
   readonly brackets?: true;
   readonly noDeepHelp?: true;
   readonly usage: SituationalUsage;

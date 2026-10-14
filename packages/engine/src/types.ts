@@ -15,6 +15,7 @@ import type {
   ChemistryTable,
   CoverageAssignment,
   CoverageDisguise,
+  CoverageMaskRef,
   CoverageTechnique,
   DefensivePlayCall,
   FieldZone,
@@ -127,6 +128,7 @@ export type {
   BlockType,
   CoverageAssignment,
   CoverageDisguise,
+  CoverageMaskRef,
   CoverageTechnique,
   DefensivePlayCall,
   FieldZone,
@@ -343,11 +345,24 @@ export interface PassPlayStartPayload {
      * play; `PRESNAP_READ` fires only when a rusher is unaccounted, and is a
      * roll, which a state must not ride inside.
      *
-     * ⚠ IDENTICAL TO `assignments` ON EVERY PLAY TODAY — ADR-067 §A builds both
-     * from one source. The diff is empty, and calibration's
+     * ⚠ IDENTICAL TO `assignments` UNLESS THE CALL WORE A MASK (ADR-069) — and
+     * then different in exactly the men the mask moved. Calibration's
      * `shownAssignmentsStream` test runs the corpus to show it, not to assume it.
      */
     readonly shownAssignments: readonly CoverageAssignment[];
+    /**
+     * ADR-069 — the NAME of the look the call wore, as `call` names its
+     * rotation; `null` when it wore none. The middle of the three-part call:
+     * `front` · `mask.name` · `call`.
+     *
+     * A NAME, NOT A VERDICT, so it is not the `wasDisguised` flag the comment
+     * above forbids. Nothing reads it to decide a divergence: the coverage read
+     * diffs the two lists, and so does calibration's `disguise_rate`. What
+     * `mask` is for is printing the call and splitting a rate by look — and
+     * `shownAssignmentsStream` checks the name against the diff on every play,
+     * so a mask that showed nothing, or a divergence nobody named, fails.
+     */
+    readonly mask: CoverageMaskRef | null;
     /** Alignment resolved: §7.2's time-of-arrival model depends on it. */
     readonly rush: readonly ResolvedRushAssignment[];
     /**
@@ -406,6 +421,8 @@ export interface RunPlayStartPayload {
      * reads it.
      */
     readonly shownAssignments: readonly CoverageAssignment[];
+    /** ADR-069 — as on `PassPlayStartPayload`. */
+    readonly mask: CoverageMaskRef | null;
     readonly rush: readonly ResolvedRushAssignment[];
   };
   readonly situation: {
