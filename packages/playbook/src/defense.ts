@@ -30,6 +30,7 @@ import type {
   CoverageTechnique,
   FieldZone,
   PlayerId,
+  RunFit,
   RunGap,
   RunSide,
   RushAlignment,
@@ -43,16 +44,14 @@ import { DEFENSE_ROLES } from "./roles.js";
 import type { SituationalUsage } from "./distribution.js";
 
 /**
- * A gap, named. Structurally identical to contracts' `GapId`, and declared HERE on
- * purpose: `GapId` is a shape the engine produces while resolving a run, whereas
- * this is a thing a defensive CARD states before the snap. The two agree today and
- * there is no reason they must, so playbook does not depend on that agreement.
- * `RunGap` and `RunSide` are the shared vocabulary; the pair is not.
+ * A gap, named, as a second-level defender's run fit. Declared in `@ff/contracts` since
+ * ADR-067 §C carried it onto `CoverageAssignment`, and re-exported here so every
+ * existing `RunFit` import from this package keeps working.
+ *
+ * Still distinct from contracts' `GapId`: that is a shape the engine produces while
+ * resolving a run, and this is a thing a defensive CARD states before the snap.
  */
-export interface RunFit {
-  readonly gap: RunGap;
-  readonly side: RunSide;
-}
+export type { RunFit } from "@ff/contracts";
 
 /** Whom a man defender has, said the way a defence says it. */
 export type ManTarget =

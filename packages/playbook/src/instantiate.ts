@@ -41,6 +41,7 @@ import type {
   GapAssignment,
   ManTarget,
   RushDuty,
+  RunFit,
   ZoneDuty,
 } from "./defense.js";
 import { dutyList } from "./defense.js";
@@ -123,13 +124,20 @@ function resolveManTarget(target: ManTarget, look: OffensiveLook): OffenseSkillR
  * covers one cell because nobody stated a span, and only one of the two is a
  * modelling decision. Charter §4.1 — a silent default is invisible in the output.
  */
-function zoneAssignment(defender: PlayerId, duty: ZoneDuty): ZoneAssignment {
+/**
+ * `fit` is passed rather than read off `duty` because a fallback zone's fit can come
+ * from the man duty it replaced (see the MAN case below). Whichever fit the caller
+ * resolved is the one that goes into BOTH this assignment and `gaps`, so the run
+ * pairing and the call cannot disagree about it (ADR-067 §C).
+ */
+function zoneAssignment(defender: PlayerId, duty: ZoneDuty, fit: RunFit | undefined): ZoneAssignment {
   return {
     kind: "ZONE",
     defender,
     zone: duty.zone,
     laneSpan: duty.laneSpan,
     depthSpan: duty.depthSpan,
+    ...(fit === undefined ? {} : { runFit: fit }),
   };
 }
 
@@ -232,7 +240,7 @@ export function instantiateDefense(
         break;
       }
       case "ZONE": {
-        assignments.push(zoneAssignment(defender, duty));
+        assignments.push(zoneAssignment(defender, duty, duty.runFit));
         if (duty.runFit !== undefined) {
           gaps.push({ defender, ...duty.runFit, level: "SECOND" });
         }
@@ -247,8 +255,8 @@ export function instantiateDefense(
             rush.push(declaredRush(defender, fallback));
             gaps.push({ defender, gap: fallback.gap, side: fallback.side, level: "FIRST" });
           } else {
-            assignments.push(zoneAssignment(defender, fallback));
             const fit = fallback.runFit ?? duty.runFit;
+            assignments.push(zoneAssignment(defender, fallback, fit));
             if (fit !== undefined) gaps.push({ defender, ...fit, level: "SECOND" });
           }
           break;
@@ -258,6 +266,7 @@ export function instantiateDefense(
           defender,
           covers: requireOffensePlayer(look.unit, targetRole, context),
           technique: duty.technique,
+          ...(duty.runFit === undefined ? {} : { runFit: duty.runFit }),
         };
         assignments.push(man);
         if (duty.runFit !== undefined) {

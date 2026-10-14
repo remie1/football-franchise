@@ -246,3 +246,39 @@ entangled.**
 cleaner once the pair exists**, because a shown starting position and a played one are the thing
 `runFit` would feed. ⛔ **Landing it first would wire a gap+side into a model with no second state to
 distinguish it from.**
+
+---
+
+# ✅ B LANDED *(October 2026)* — `PLAY_START.defense.shownAssignments`, on pass AND run
+
+**Owner ruling: not pass-only.** Both payloads carry the shown state, so the defence has one shape
+on every snap. Inertness checked by a run: `calibration/test/shownAssignmentsStream.test.ts`, 28
+games, shown deep-equal to played on all 2,425 pass and 1,450 run plays.
+
+# ✅ C RULED AND LANDED *(owner, October 2026)* — `runFit` carried onto `CoverageAssignment`
+
+**Ruled "C now" over deferring it to after E.** Contracts: `RunFit` *(moved from `playbook`, which
+re-exports it)* and an optional `runFit` on `ManAssignment` and `ZoneAssignment`. Producer:
+`instantiateDefense` puts the SAME resolved fit on the assignment and into `gaps`, including the
+fallback case where a man defender's zone inherits the man duty's fit.
+
+## ⛔ A CORRECTION TO ENTRY 166 — `runFit` WAS NOT UNREAD
+
+**Entry 166 recorded `runFit` as *"touched only by `defense.ts`'s mirroring helpers."*** ⛔ **False
+for `playbook`:** `instantiateDefense` turns every fit into a `SECOND`-level `gaps` entry, and
+`instantiateRun` *(`gapOwner`)* pairs run blockers against those entries. ✅ **The half that holds:
+zero references in `packages/engine`.**
+
+⚠ **What this changes.** Run blocking pairs against the PLAYED fit upstream, at instantiation —
+**the run-side mirror of §D's problem.** The natural consumer of a shown/played fit split is
+therefore *"run blocking pairs against what was shown"*, not E. `unruled`.
+
+## Falsifiers, both mutation-checked
+
+- `playbook/test/runFitCarryAcross.test.ts` — every card and its mirror, against every formation:
+  every `SECOND` gap has an assignment carrying that exact fit, and every carried fit has its gap.
+  Dropping the MAN-case fit failed 18 cases.
+- `engine/test/runFitInert.test.ts` — five fixtures *(three pass, both run schemes)* × 40 seeds,
+  with a varied fit on every assignment: the stream and new state are identical once the published
+  fit is stripped. Filtering zone defenders by fit side failed both zone-bearing pass fixtures;
+  deriving the run payload's shell from fitless assignments failed both run fixtures.

@@ -239,6 +239,24 @@ export type OffensiveCall = OffensivePlayCall | RunPlayCall;
 // --- the defensive call -----------------------------------------------------
 
 /**
+ * A second-level defender's run responsibility: the gap he fits if the play is a run
+ * (ADR-067 §C).
+ *
+ * A PAIR, NOT TWO FIELDS, unlike `RushAssignment`'s separate `gap` and `side`: a fit is
+ * optional as a whole — a deep safety on a pass-first call has none — and two optional
+ * fields would let a card state a gap without a side, which §6.1 says is not a gap.
+ *
+ * Moved here from `playbook`, where it was declared locally on the grounds that the pair
+ * was a card-side shape and not shared vocabulary. That stopped being true when it
+ * started crossing the boundary on `CoverageAssignment`; a local copy now would be the
+ * subset-drift ADR-013 names.
+ */
+export interface RunFit {
+  readonly gap: RunGap;
+  readonly side: RunSide;
+}
+
+/**
  * COVERAGE IS PER ASSIGNMENT, NOT PER CALL.
  *
  * A single `coverage` flag on the whole call cannot express what real defences do: Cover 1
@@ -250,6 +268,26 @@ export interface ManAssignment {
   readonly defender: PlayerId;
   readonly covers: PlayerId;
   readonly technique: CoverageTechnique;
+  /**
+   * His run fit (ADR-067 §C) — the gap he plays if it is a run, as the card authored it.
+   *
+   * A CARRY-ACROSS, NOT NEW INFORMATION: `runFit` has been authored on the corpus's
+   * second-level duties since the corpus was written, and `playbook` already reads it —
+   * `instantiateRun` pairs run blockers with second-level defenders through it. What
+   * stopped at `instantiate.ts` was the crossing into this call, so the engine and the
+   * stream never saw it. Same shape as ADR-065's `RushAssignment.gap`.
+   *
+   * WHY ON THE COVERAGE ASSIGNMENT. A fit is where a defender STARTS, and the shown/played
+   * pair (`DefensivePlayCall.shownAssignments`) is per assignment: carried here, a safety
+   * who shows a deep half and rolls down into the box can show one fit and play another,
+   * and a consumer diffing the two lists sees it with no further field.
+   *
+   * ⚠ NOTHING IN THE ENGINE READS IT. Its subject condition: a run-game consumer of the
+   * shown fit (blocking that pairs against what was shown, the run-side analogue of §D)
+   * or a starting position for the pre-snap phase. Optional, absent where the card states
+   * no fit.
+   */
+  readonly runFit?: RunFit;
 }
 
 /**
@@ -270,6 +308,8 @@ export interface ZoneAssignment {
   readonly laneSpan?: number;
   /** Depth bands covered either side of `zone.vertical`. 0 (default) = the anchor cell only. */
   readonly depthSpan?: number;
+  /** See `ManAssignment.runFit`. */
+  readonly runFit?: RunFit;
 }
 
 export type CoverageAssignment = ManAssignment | ZoneAssignment;
