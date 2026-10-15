@@ -2,9 +2,9 @@
 
 - **Date:** 2026-10-15
 - **Proposed by:** Orchestrator, building ADR-068 step 2 in the order ADR-069 §10 ruled
-- **Status:** **proposed** — the owner chose to have it built and measured before ruling on it
-  *(owner, 2026-10-15: "#2 yes to the three contracts")*, and with that said yes to the three
-  contracts edits in §4. §9's questions are open.
+- **Status:** **proposed; built and measured (§10)** — the owner chose to have it built and measured
+  before ruling on it *(owner, 2026-10-15: "#2 yes to the three contracts")*, and with that said yes
+  to the three contracts edits in §4. §9's questions are open.
 - **Builds on:** ADR-068 (rulings 1–5; §4's leash and quadrant; step 1's re-order), ADR-070 §3 (what a
   fooled quarterback believes), ADR-069 §10 ruling 3 (the leash comes after the corner looks).
   Nothing is reopened.
@@ -250,6 +250,9 @@ producer).
 | The names `leash`, `leash_discipline`, `HELD`, `BROKE`, "work away", "work to" | **CHOSEN — provenance NONE** |
 | What coaches give young quarterbacks first | **CHOSEN — provenance NONE** (a football judgement) |
 | The predictions' sizes | **INFERRED** — from ADR-068 §9 and ADR-070 §10 |
+| §10's numbers | **COMPUTED** — the scratch arm harness (`/mnt/project-files/arms/adr072Arm.test.ts`), seeds `adr-072:leash-arm` (240 rounds) and `adr-072:leash-arm-2` (720 rounds), caller v4, 2026-10-15; saved as `/mnt/project-files/arms/adr072-*.json` |
+| Leash 50 reproduces main, 2,771,091 numbers | **COMPUTED** — main's arm, captured on `adr-072:leash-arm` before the build, against leash 50's (`compare_main.py`, same folder) |
+| Nothing but the leash's roll reads `discipline` | **COMPUTED** — a search of `packages/*/src` |
 
 ## Conjoined mechanisms — REQUIRED
 
@@ -311,3 +314,126 @@ Open — §9.
 3. **The default.** The calibration caller puts one league-wide leash of 50 on every pass call, which
    leaves main's numbers where they are; in the game a gameplan sets it. Yes, or another default?
 4. **The measurement.** §5's arms and predictions; the results are in §10. Accept, or ask for more?
+
+---
+
+## 10. Built and measured *(2026-10-15)*
+
+**In short.** The default is inert, number for number, and the roll holds at the rates §2 computes.
+On ADR-068 §6's target, `int_rate` on every dropback, no quadrant cell moves by more than 0.05 points
+at any leash: the leash touches at most one dropback in six. Where it touches, **it trades**. It
+spares a fooled quarterback the trap he would have worked to, and it costs one who saw through the
+look the time he would have saved by working away from it. The good reader loses on that trade at a
+leash of 0, and the poor reader comes out about even. **The two rungs split the trade:** working away
+(20) carries what seeing through earns, and working to (40) carries what being fooled costs. So a
+leash of 20 keeps the first and avoids most of the second.
+
+**The arms.** Each arm ran on two seed sets, pooled to **26,880 games an arm** and 161,280 in all:
+`adr-072:leash-arm` (6,720 games, §5's size) and `adr-072:leash-arm-2` (20,160, added when the first
+set read too close to call in the reader cells; the two sets agree in sign on every effect below
+that is beyond 2 SE, shown in bold).
+Frozen caller v4; the flat league and the quadrant; leashes 50, 20 and 0. Every difference is a cell
+against itself at 50: the same team slots, schedule and seeds, so only the leash differs. ± is one
+standard error. "Disguised" is a dropback against a look; "seen through" and "fooled" are its read.
+
+### The default is inert (prediction 6) ✅
+
+Leash 50 on the flat league reproduces main's arm on `adr-072:leash-arm`, which was captured before
+any of this code existed: **6,720 games, 2,771,091 numbers, 0 differ.** Every pass `PLAY_START`
+carries leash 50, and no `leash_discipline` roll is made at 50 in either league, in 53,760 games.
+
+### The roll does what §2 says
+
+| Discipline | leash 20 (a breach of 20) | leash 0 (a breach of 20 or 40) |
+|---|---|---|
+| 20 | 31.1–31.6% held (§2: 31%) | 35.4–36.7% (§2: 31% and 41%) |
+| 60, the flat league | 71.0% (71%) | 75.8% (71% and 81%) |
+| 95 | 100% (100%) | 100% (100%) |
+
+At a leash of 0 the roll comes on 16.6% of dropbacks, about 15 a game; at 20, on 8.0%, about 7.
+
+### The target: `int_rate` by quadrant, every dropback (% of attempts, ±0.022)
+
+| quarterback | leash 50 | leash 20 | leash 0 |
+|---|---|---|---|
+| poor reader, undisciplined (Football IQ 20, Discipline 20) | 1.943 | 1.934 | 1.921 |
+| poor reader, disciplined (IQ 20, D 95) | 1.995 | 1.994 | 1.971 |
+| good reader, undisciplined (IQ 95, D 20) | 1.970 | 1.979 | 1.965 |
+| good reader, disciplined (IQ 95, D 95) | 1.994 | 1.977 | 1.952 |
+
+**League-wide, nothing moves (prediction 5) ✅.** On the flat league, every dropback: completion
+37.28 / 37.30 / 37.23% and `int_rate` 1.979 / 1.963 / 1.952% at 50 / 20 / 0 (±0.04 and ±0.011). The
+largest move is `int_rate` at 0, −0.03 points (1.7 SE).
+
+### Where it shows: the snaps the leash can touch
+
+Disguised dropbacks whose read saw through the look or was fooled by it, each against itself at 50
+(points; SE in brackets):
+
+| quarterback | leash | seen through: completion | seen through: int | fooled: completion | fooled: int |
+|---|---|---|---|---|---|
+| flat (D 60) | 20 | −0.03 (0.2) | +0.08 (1.8) | +0.26 (1.1) | **−0.34 (4.0)** |
+| flat (D 60) | 0 | **−0.77 (4.8)** | +0.09 (2.0) | −0.19 (0.8) | **−0.46 (5.5)** |
+| good reader, disciplined | 20 | −0.13 (0.4) | +0.09 (1.1) | +0.20 (0.4) | **−0.54 (2.7)** |
+| good reader, disciplined | 0 | **−1.18 (3.9)** | +0.04 (0.4) | −0.61 (1.1) | **−0.68 (3.4)** |
+| poor reader, disciplined | 20 | +0.20 (0.6) | +0.16 (1.6) | +0.55 (1.4) | **−0.54 (3.6)** |
+| poor reader, disciplined | 0 | −0.37 (1.1) | +0.10 (1.1) | +0.10 (0.3) | **−0.69 (4.7)** |
+| good reader, undisciplined | 0 | −0.50 (1.7) | +0.03 (0.4) | −0.02 (0.0) | −0.20 (1.0) |
+| poor reader, undisciplined | 0 | −0.30 (0.8) | −0.01 (0.1) | −0.19 (0.5) | −0.20 (1.4) |
+
+- **Seen through, a closed leash costs completions, and almost all of it at 0, not 20.** Working away
+  from the trap is where seeing through earns, and 20 still allows it: the flat league gives up
+  0.03 points at 20 against 0.77 at 0, and the good reader 0.13 against 1.18.
+- **Fooled, a closed leash saves interceptions, and most of it already at 20.** Working to the shown
+  hole is where being fooled costs, and 20 already closes it: about three quarters of leash 0's
+  saving (flat 0.34 of 0.46; the disciplined readers 0.54 of 0.68 and 0.54 of 0.69).
+- **The price of 20 is the hidden man.** Seen through, he may not bring the man the look hid to the
+  front, and throws 0.08 to 0.16 points more interceptions on those snaps: positive in all three
+  leash-20 rows, though inside 2 SE in each.
+
+On all disguised dropbacks, the net (completion, then int):
+
+| quarterback | leash 20 | leash 0 |
+|---|---|---|
+| flat (D 60) | +0.03 (0.3), −0.04 (1.4) | **−0.26 (2.8)**, **−0.07 (2.3)** |
+| poor reader, undisciplined | −0.08 (0.4), −0.02 (0.4) | −0.21 (1.1), −0.07 (1.2) |
+| poor reader, disciplined | +0.14 (0.7), −0.07 (1.2) | −0.24 (1.2), **−0.12 (2.1)** |
+| good reader, undisciplined | −0.01 (0.0), −0.01 (0.2) | −0.29 (1.5), −0.04 (0.7) |
+| good reader, disciplined | −0.12 (0.6), −0.03 (0.5) | **−0.56 (2.9)**, −0.09 (1.6) |
+
+### The predictions
+
+1. **At 50 nothing is rolled** ✅, so a reader's two discipline cells are the same quarterback, and
+   they agree within noise. The largest gap, 0.13 points of `int_rate` on disguised dropbacks between
+   the poor reader's two cells (2.2 SE), is two different sets of games: nothing but the leash's roll
+   reads `discipline` (a search of `packages/*/src`). It is also this report's noise floor. A
+   difference near 2 SE here can be chance.
+2. **A closed leash wastes the good reader** ✅: −0.56 points of completion on disguised dropbacks at
+   0 (2.9 SE), and −1.18 on the snaps he saw through (3.9 SE). At 20, −0.12 (0.6 SE).
+3. ⚠ **The poor reader: half right.** At 0 a closed leash does cost him completions, by less than half
+   the good reader's (−0.24, 1.2 SE), as predicted. But it also saves him interceptions (−0.12, 2.1
+   SE), which I predicted would not net out in his favour. At 20 he loses nothing measurable (+0.14
+   completion, −0.07 `int_rate`). So the quadrant's protected cell exists in a weak form, *a short
+   leash costs the poor reader nothing*, not *a short leash makes him better*. Across all his
+   disguised dropbacks, his only number beyond 2 SE is the interception saving at 0.
+4. **Low discipline undoes the leash** ✅: where the effect is big enough to see, the Discipline 20
+   cells move about a third as far as the Discipline 95 ones, close to their 35–37% hold rate at 0.
+   The good reader's completion on seen-through snaps moves −0.50 against −1.18; fooled
+   interceptions move −0.20 against −0.68 (good reader) and −0.20 against −0.69 (poor reader).
+5. **Small, league-wide** ✅: above.
+6. **Inert at the default** ✅, exactly.
+
+### What it means for §9
+
+- **Question 1, the ladder.** The order is borne out. Working away, placed lower, is the decision
+  whose loss costs a good reader; working to, placed higher, is the one whose use costs a fooled one.
+  A coach who trusts his quarterback's eyes but not his conviction would set 20.
+- **Question 2, the breach.** The roll measures as computed, and discipline separates the cells by
+  about its hold rate.
+- **Question 3, the default.** 50 is inert, proved twice (§7). For what it is worth, 20 would move the
+  flat league's numbers by nothing measurable (completion +0.03, `int_rate` −0.02, both inside
+  1.1 SE) while rolling on 8% of dropbacks and holding him on most of those; it is not proposed,
+  because only 50 leaves main's numbers exactly where they are.
+- **Question 4, the measurement.** Run at four times §5's size. Nothing here asks for more, but the
+  reader cells' net effects sit inside 2 SE, so a later ruling that rested on them would want a
+  bigger arm.
