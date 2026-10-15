@@ -277,6 +277,45 @@ export const TUNABLES = {
         { label: "COMPLETE_MISREAD", minMargin: NEG_INF, seesThrough: false, fooled: true },
       ],
     },
+    /**
+     * THE COACH'S LEASH AND THE QUARTERBACK'S DISCIPLINE (ADR-072, ADR-068 step 2).
+     *
+     * The leash is on the call (`OffensivePlayCall.leash`, 0–100, omitted = 100). Each decision
+     * the coverage read can want opens at its own point on that slider; a read that wants one above
+     * the leash is a BREACH, and one roll decides whether he commits it.
+     */
+    leash: {
+      /**
+       * ADR-072 §1's ladder: the leash at which each decision opens. Step 1's re-order is two
+       * rungs. WORK_AWAY sends a man he reads as covered to the back of the progression; WORK_TO
+       * brings a man he reads as open to the front. CHOSEN, a football judgement: working away
+       * from a covered man keeps the call's intent, working to one he likes changes where the ball
+       * is going, and coaches give the second later. Both sit at or below 50, the calibration
+       * caller's default, so the default opens every rung that exists (ADR-072 §7).
+       */
+      rungs: { WORK_AWAY: 20, WORK_TO: 40 },
+      /**
+       * ADR-072 §2's roll: `d100 + Discipline ÷ attrDivisor + breach ÷ breachDivisor` against
+       * `target`, where the breach is the highest rung he wants minus the leash. Rolled ONLY on a
+       * breach (ADR-005). HELD, he makes the decisions the leash opens and none above it; BROKE,
+       * every decision his read wants.
+       *
+       * FULL RATING, NOT ÷5 (INVENTED). The doc's ÷5 is for a contest between two players' skills;
+       * this is one man's disposition against his coach's instruction. At ÷5 the best and worst
+       * discipline would hold the leash at rates under 20 points apart. With these values a
+       * Discipline 60 quarterback holds a 20-point breach 71% of the time and a 40-point one 81%;
+       * 95 never breaks a breach of 10 or more.
+       */
+      discipline: {
+        target: 100,
+        attrDivisor: 1,
+        breachDivisor: 2,
+        bands: [
+          { label: "HELD", minMargin: 0, held: true },
+          { label: "BROKE", minMargin: NEG_INF, held: false },
+        ],
+      },
+    },
   },
 
   /** §7.1 — per-tick rusher vs. blocker opposed roll. */

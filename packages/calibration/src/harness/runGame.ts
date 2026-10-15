@@ -29,6 +29,8 @@ export interface RunGameInput {
   readonly callerVersion?: CallerVersion;
   /** ADR-069 measurement arms only — see `FrozenCallerSpec.coverageMasks`. */
   readonly coverageMasks?: readonly CoverageMask[];
+  /** ADR-072 measurement arms only — see `FrozenCallerSpec.leash`. */
+  readonly leash?: number;
 }
 
 export interface RunGameOutput {
@@ -46,6 +48,7 @@ export function runOneGame(input: RunGameInput): RunGameOutput {
     awayDepthChart: built.awayDepthChart,
     ...(input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }),
     ...(input.coverageMasks === undefined ? {} : { coverageMasks: input.coverageMasks }),
+    ...(input.leash === undefined ? {} : { leash: input.leash }),
   });
 
   const coordinates = {

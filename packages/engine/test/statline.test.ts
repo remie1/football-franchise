@@ -247,6 +247,7 @@ describe("the men in protection are on the field too", () => {
         readSystem: "FULL_FIELD",
         routes: [{ receiver: wr, routeName: "Dig", depthClass: "INTERMEDIATE", airYards: 14 }],
         readOrder: [wr],
+        leash: 100,
         protection: [],
         availableBlockers: [centre],
         // ADR-026's tail is empty here on purpose: the centre is a man the CARD

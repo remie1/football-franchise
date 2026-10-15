@@ -287,6 +287,14 @@ export interface PassPlayStartPayload {
      * cannot reconstruct it from `routes`, which is a set, not a sequence.
      */
     readonly readOrder: readonly PlayerId[];
+    /**
+     * The coach's leash on this call (ADR-072), 0–100: 100 when the call states none, which is
+     * what an omitted leash means. Resolved, not echoed, as `coverageDisguise` is: the stream
+     * states the leash the play ran under, so a reconstructed play can say what the quarterback
+     * was allowed as well as what he did (`readOrder`) and whether he broke it (a
+     * `leash_discipline` PRESNAP_READ).
+     */
+    readonly leash: number;
     readonly protection: readonly ProtectionAssignment[];
     /**
      * §7.4 step 1 — men with nobody to block at the snap: the back who stayed to

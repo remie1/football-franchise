@@ -91,6 +91,11 @@ export type ByTier<T> = { [K in ResultTier]: T };
 /** Closed union — extending it is a contract petition (lightweight, pre-approved category). */
 export type CheckKind =
   | "coverage_read" | "blitz_recognition" | "audible"
+  /**
+   * ADR-072. A quarterback whose read wants a pre-snap decision above his coach's leash: does he
+   * hold it? One d100, recorded once as a `PRESNAP_READ` (ADR-004), rolled only on a breach.
+   */
+  | "leash_discipline"
   | "release_vs_press" | "route_break" | "man_coverage" | "zone_coverage" | "zone_read_qb" | "option_route"
   /**
    * ADR-059. The per-play, per-matchup pass-rush contest, drawn ONCE and lived with —

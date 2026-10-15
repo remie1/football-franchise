@@ -118,6 +118,8 @@ import {
 } from "../resolve/qbRead.js";
 import { resolveCoverageRead } from "../resolve/coverageRead.js";
 import type { CoverageReadOutcome } from "../resolve/coverageRead.js";
+import { LEASH_UNRESTRICTED, resolveLeash } from "../resolve/leash.js";
+import type { LeashOutcome, PreSnapDecision } from "../resolve/leash.js";
 import { resolveReleaseVsPress } from "../resolve/release.js";
 import type { RoutePhase } from "../resolve/route.js";
 import { opennessAt, routePhaseAt, routeReadySeconds } from "../resolve/route.js";
@@ -369,11 +371,23 @@ export function simulatePassPlay(
   if (coverageRead?.fooled === true) {
     for (const t of tracks) t.belief = lies.beliefs.get(String(t.assignment.receiver));
   }
+  // ---- ADR-072: the coach's leash ----------------------------------------------------------
+  // The read says which decisions he wants; the leash on the call says which are open. Wanting
+  // one above it is a breach, and his discipline decides whether he commits it. The belief above
+  // is untouched either way: the leash governs what he DOES, not what he sees.
+  const hotReceivers = new Set(preSnap.hotConversions.map((h) => String(h.receiver)));
+  const leash = calls.offense.leash ?? LEASH_UNRESTRICTED;
+  const wanted = decisionsWanted(lies, coverageRead, hotReceivers);
+  const leashOutcome: LeashOutcome | undefined =
+    wanted.size === 0
+      ? undefined
+      : resolveLeash({ tunables, quarterback: qb, leash, wanted, presnapRng });
   const readOrder = reorderForCoverageRead(
     preSnap.readOrder.filter((id) => tracks.some((t) => t.assignment.receiver === id)),
     lies,
     coverageRead,
-    new Set(preSnap.hotConversions.map((h) => String(h.receiver))),
+    hotReceivers,
+    leashOutcome?.made ?? NO_DECISIONS,
   );
 
   const startPayload: PassPlayStartPayload = {
@@ -389,6 +403,7 @@ export function simulatePassPlay(
       routes: preSnap.routes,
       // Filtered, not echoed: this is the progression he actually worked.
       readOrder,
+      leash,
       protection: calls.offense.protection,
       availableBlockers: preSnap.availableBlockers,
       unblockedProtectors: preSnap.unblockedProtectors,
@@ -441,6 +456,7 @@ export function simulatePassPlay(
   // happened before the snap.
   if (preSnap.recognition !== undefined) log.presnapRead(preSnap.recognition);
   if (coverageRead !== undefined) log.presnapRead(coverageRead.presnap);
+  if (leashOutcome?.breach !== undefined) log.presnapRead(leashOutcome.breach.presnap);
   for (const check of preSnap.checks) log.check(check);
 
   /** §8.1 — where he is in the progression. Wraps; it does NOT skip. */
@@ -2017,36 +2033,66 @@ function coverageLies(
   return { traps, hidden, beliefs };
 }
 
+const NO_DECISIONS: ReadonlySet<PreSnapDecision> = new Set();
+
 /**
- * The coverage read's one decision lever (ADR-068 step 1, generalized by ADR-070 §3):
- * where the receivers the look lies about go in the progression. FOOLED, he believes the
- * look: the traps lead (the shown hole is the best thing on the field) and the hidden men
- * go last (they look smothered). SEEING THROUGH it, the reverse: the hidden men lead and
- * the traps are dead routes, read last. Hot conversions keep the front either way — they
- * answer a recognised blitz, which is a separate read with a separate consequence. Any
+ * What the coverage read wants done to the progression, as ADR-072 §1's decisions: WORK_TO brings
+ * a man he reads as open to the front, WORK_AWAY sends a man he reads as covered to the back.
+ * SEEING THROUGH the look, the hidden men are the open ones and the traps the covered ones; FOOLED,
+ * the reverse. A decision is wanted only when it would move somebody — hot conversions never move
+ * (see below) — and any other band wants nothing.
+ */
+function decisionsWanted(
+  lies: CoverageLies,
+  read: CoverageReadOutcome | undefined,
+  hot: ReadonlySet<string>,
+): ReadonlySet<PreSnapDecision> {
+  if (read === undefined || lies.beliefs.size === 0 || (!read.seesThrough && !read.fooled)) return NO_DECISIONS;
+  const traps = [...lies.traps].filter((id) => !hot.has(id)).length;
+  const hidden = [...lies.hidden].filter((id) => !hot.has(id)).length;
+  const [toFront, toBack] = read.seesThrough ? [hidden, traps] : [traps, hidden];
+  const wanted = new Set<PreSnapDecision>();
+  if (toFront > 0) wanted.add("WORK_TO");
+  if (toBack > 0) wanted.add("WORK_AWAY");
+  return wanted;
+}
+
+/**
+ * The coverage read's one decision lever (ADR-068 step 1, generalized by ADR-070 §3), as far as
+ * the leash lets him pull it (ADR-072): where the receivers the look lies about go in the
+ * progression. FOOLED, he believes the look: the traps lead (the shown hole is the best thing on
+ * the field) and the hidden men go last (they look smothered). SEEING THROUGH it, the reverse: the
+ * hidden men lead and the traps are dead routes, read last. Hot conversions keep the front either
+ * way — they answer a recognised blitz, which is a separate read with a separate consequence. Any
  * other band leaves the order as called.
  *
- * With no hidden man this is step 1's reorder exactly, because hot conversions already
- * lead the called order whenever `presnap.hotRoute.movesToFrontOfProgression` is on.
+ * `made` is what the leash let him do: WORK_TO moves the men his read likes to the front, and
+ * WORK_AWAY the men it gives up on to the back; a man whose move was not made keeps his called
+ * place. With both made this is the reorder exactly as it was before the leash.
+ *
+ * With no hidden man this is step 1's reorder exactly, because hot conversions already lead the
+ * called order whenever `presnap.hotRoute.movesToFrontOfProgression` is on.
  */
 function reorderForCoverageRead(
   order: readonly PlayerId[],
   lies: CoverageLies,
   read: CoverageReadOutcome | undefined,
   hot: ReadonlySet<string>,
+  made: ReadonlySet<PreSnapDecision>,
 ): readonly PlayerId[] {
   if (read === undefined || lies.beliefs.size === 0) return order;
+  // Neither band, or held to the call: the order as called, exactly, whatever the hot-route
+  // tunable says about the front of it.
+  if ((!read.seesThrough && !read.fooled) || made.size === 0) return order;
+  const never = (_: PlayerId): boolean => false;
   const isHot = (id: PlayerId): boolean => hot.has(String(id));
   const isTrap = (id: PlayerId): boolean => lies.traps.has(String(id)) && !isHot(id);
   const isHidden = (id: PlayerId): boolean => lies.hidden.has(String(id)) && !isHot(id);
-  const isRest = (id: PlayerId): boolean => !isHot(id) && !isTrap(id) && !isHidden(id);
-  if (read.seesThrough) {
-    return [...order.filter(isHot), ...order.filter(isHidden), ...order.filter(isRest), ...order.filter(isTrap)];
-  }
-  if (read.fooled) {
-    return [...order.filter(isHot), ...order.filter(isTrap), ...order.filter(isRest), ...order.filter(isHidden)];
-  }
-  return order;
+  const [liked, givenUp] = read.seesThrough ? [isHidden, isTrap] : [isTrap, isHidden];
+  const toFront = made.has("WORK_TO") ? liked : never;
+  const toBack = made.has("WORK_AWAY") ? givenUp : never;
+  const isRest = (id: PlayerId): boolean => !isHot(id) && !toFront(id) && !toBack(id);
+  return [...order.filter(isHot), ...order.filter(toFront), ...order.filter(isRest), ...order.filter(toBack)];
 }
 
 /** The misread's name, by what the look put on him. Step 1's is kept verbatim. */

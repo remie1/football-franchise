@@ -243,6 +243,18 @@ export const SURFACE: Record<CheckKind, CheckDescriptor> = {
     docRef: "§5.4",
     note: "No producer. §5.4 specifies the roll and §15.2 modifies it; neither exists.",
   },
+  leash_discipline: {
+    form: "TARGET",
+    docRef: "ADR-072 §2",
+    actor: { declared: [{ attr: "discipline", divisor: 1 }], docQuote: "d100 + Discipline + breach ÷ 2 vs 100" },
+    target: 100,
+    flat: [1, 20],
+    note:
+      "Rolled only on a breach of the coach's leash (ADR-005). The breach term is half the highest " +
+      "rung the read wants minus the leash: 1 to 20 on today's ladder (rungs at 20 and 40). Full " +
+      "rating, not ÷5, because it is one man's disposition and not a contest (ADR-072 §2), so a " +
+      "Discipline 95+ quarterback cannot break a breach of 10 or more — by design, not by accident.",
+  },
 
   release_vs_press: {
     form: "OPPOSED",

@@ -3,6 +3,7 @@
 exports[`result-tier ladder — occupancy > pins the per-check even-contest surface 1`] = `
 [
   "blitz_recognition T shift=-26 SS=15.000 CS=15.000 >=15=60.000 LEVEL-VARIANT",
+  "leash_discipline T shift=-40 SS=15.000 CS=1.000 >=15=46.000 LEVEL-VARIANT",
   "release_vs_press O shift=0 SS=11.700 CS=4.950 >=15=36.550 inv",
   "man_coverage O shift=0 SS=11.700 CS=4.950 >=15=36.550 inv",
   "zone_coverage T shift=-50 SS=15.000 CS=0.000 >=15=36.000 inv",
@@ -63,6 +64,7 @@ exports[`result-tier ladder — occupancy > pins which checks are LEVEL-INVARIAN
   "deflection_recovery spread=41.0pp",
   "downfield_block spread=4.1pp",
   "field_goal spread=17.0pp",
+  "leash_discipline spread=15.0pp",
   "pass_rush_tick:FINESSE spread=4.1pp",
   "pass_rush_tick:SPEED spread=4.1pp",
   "passing_lane spread=15.0pp",

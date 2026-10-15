@@ -110,6 +110,12 @@ export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls):
     if (!known(state, id)) fail(`${role} ${String(id)} is not in state.players`);
   }
 
+  // ADR-072: the leash is a point on a 0–100 slider, whole numbers only. Anything else is a card
+  // or a caller bug, and a leash of 150 or 2.5 would open a ladder nobody wrote.
+  if (offense.leash !== undefined && !(Number.isInteger(offense.leash) && offense.leash >= 0 && offense.leash <= 100)) {
+    fail(`leash ${String(offense.leash)} is not a whole number from 0 to 100 (ADR-072)`);
+  }
+
   // 2. A progression cannot name somebody with nothing to run.
   const routeRunners = new Set(offense.routes.map((r) => String(r.receiver)));
   for (const id of offense.readOrder) {

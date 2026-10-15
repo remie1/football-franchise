@@ -13,7 +13,7 @@
  *
  * **TIER A ONLY, AND TIER A CANNOT SEE A RESOLVER CHANGE.** It reads the tables and asserts:
  *
- *   - the census (27 tables, 260 cells, 54 orderable columns) is what was recorded;
+ *   - the census (28 tables, 262 cells, 55 orderable columns) is what was recorded;
  *   - every labelled ladder is either a discovered band table or the one declared non-margin one;
  *   - the RAW inversion set is exactly the ten columns recorded, WITH THEIR SEQUENCES — so a
  *     removed cell (a FIX) is distinguishable from an exemption growing (a NOTE);

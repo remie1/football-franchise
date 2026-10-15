@@ -57,7 +57,7 @@ const FRONT: PositionGroup[] = ["OL","DL"];
 
 /** v0 registry, populated from match-engine.md §4. */
 export const ATTRIBUTE_REGISTRY_V1: AttributeRegistry = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   attributes: Object.fromEntries([
     // Universal
     A("speed","Speed",ALL,"physical"),
@@ -125,6 +125,9 @@ export const ATTRIBUTE_REGISTRY_V1: AttributeRegistry = {
     A("puntHangTime","Punt Hang Time",["ST"],"skill","Airtime — what makes a punt net rather than gross"),
     // Personality (Spec #14)
     A("volatility","Volatility",ALL,"mental","Rate morale moves in BOTH directions"),
+    // ADR-068 step 2 / ADR-072. The quarterback's leash reads it first; pre-snap penalties later.
+    // `introducedIn` is the schema version that added it (contracts.md §2): 4, not the helper's 1.
+    { ...A("discipline","Discipline",ALL,"mental","Stays inside his coach's instructions when his own read says otherwise (ADR-072)"), introducedIn: 4 },
   ].map((d) => [d.id as unknown as string, d])),
 };
 
@@ -232,6 +235,22 @@ export const MIGRATION_V2_TO_V3: RegistryMigration = {
       // `accuracy`, not `strength` — the migration must match the ratified table.
       defaultFrom: { sources: [attrId("accuracy")], method: "mean" } },
   ],
+};
+
+/**
+ * ADR-072 (ADR-068 step 2, ruling 2): adds `discipline`, every position, `mental` — whether a
+ * player stays inside his coach's instructions when his own read says otherwise. The quarterback's
+ * leash is its first reader.
+ *
+ * NO `defaultFrom`, deliberately. Nothing in the tree measures discipline, and seeding it from
+ * `awareness` would tie the two together by construction. A map without it reads `getAttr`'s 50,
+ * league average, until the attributes pipeline derives it (`attributes.md` §3's L3 menu names
+ * pre-snap penalty rates as its source).
+ */
+export const MIGRATION_V3_TO_V4: RegistryMigration = {
+  fromVersion: 3,
+  toVersion: 4,
+  ops: [{ op: "add", attr: ATTRIBUTE_REGISTRY_V1.attributes["discipline"]! }],
 };
 
 /** Coach attributes live in a separate namespace (Spec #11 §3). */

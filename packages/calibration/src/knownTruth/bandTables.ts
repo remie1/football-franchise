@@ -583,11 +583,13 @@ export function bandTableCensus(tunables: Tunables = DEFAULT_TUNABLES): BandTabl
 // 26 → 27 tables at ADR-068 step 1: `presnap.coverageRead.bands`, §5.1's six rows (+6 rows;
 // +12 cells, two boolean columns per row; +2 orderable columns, `seesThrough` and `fooled`, both
 // monotone). Read off a run; Tier B re-run at the same dispatch.
+// 27 → 28 tables at ADR-072: `presnap.leash.discipline.bands`, HELD and BROKE (+2 rows; +2 cells,
+// one boolean column per row; +1 orderable column, `held`, monotone). Read off a run.
 export const RECORDED_CENSUS: BandTableCensus = {
-  tables: 27,
-  rows: 133,
-  cells: 260,
-  orderableColumns: 54,
+  tables: 28,
+  rows: 135,
+  cells: 262,
+  orderableColumns: 55,
   stringColumns: 3,
 };
 

@@ -59,6 +59,8 @@ export const ATTR = {
   strength: resolveAttr("strength"),
   awareness: resolveAttr("awareness"),
   reaction: resolveAttr("reaction"),
+  /** ADR-072: whether he stays inside his coach's leash when his read says otherwise. */
+  discipline: resolveAttr("discipline"),
   // QB
   footballIQ: resolveAttr("footballIQ"),
   decisionMaking: resolveAttr("decisionMaking"),

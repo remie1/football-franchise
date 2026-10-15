@@ -173,6 +173,22 @@ export interface OffensivePlayCall {
    * a different field with a different football meaning, petitioned then.
    */
   readonly dropDepthYards: number;
+  /**
+   * THE COACH'S LEASH ON THIS CALL (ADR-068 step 2, ADR-072): how far the quarterback may stray
+   * from it before the snap, from 0 (run it as called) to 100 (every pre-snap decision open).
+   * Each decision opens at its own point on the slider (ADR-072 §1). A read that wants one above
+   * the leash is a breach, and his `discipline` decides whether he commits it (§2).
+   *
+   * A whole number from 0 to 100. Omitted ⇒ 100, every decision open: what a call has meant since
+   * ADR-068 step 1, so a call built before the leash keeps its meaning.
+   *
+   * ON THE CALL, NOT THE TEAM. The call is already the coach's decision (the request that produces
+   * it carries `authority: "COACH"`, Iron Rule 6), and a coach may loosen it for one situation.
+   *
+   * NOT on `RunPlayCall`: a run has no pre-snap decision yet, and a field there would author a value
+   * nothing reads (ADR-072, Implied scope).
+   */
+  readonly leash?: number;
 }
 
 // --- the run call -----------------------------------------------------------

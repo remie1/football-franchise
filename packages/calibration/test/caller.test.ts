@@ -20,7 +20,7 @@ import {
   type PlaySituation,
 } from "@ff/playbook";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
-import { callerIdentity, frozenCallerPair } from "../src/caller/frozen.js";
+import { DEFAULT_LEASH, callerIdentity, frozenCallerPair } from "../src/caller/frozen.js";
 import { DEFAULT_CALLER_VERSION, anticipateFront } from "../src/caller/anticipate.js";
 import {
   assertTendencyIntegrity,
@@ -589,6 +589,78 @@ describe("the frozen caller pair", () => {
       .filter((tags) => tags !== undefined);
     expect(tagLists.length, "no PLAY_START carried defense.tags, so nothing was checked").toBeGreaterThan(0);
     expect(tagLists.flat().filter((tag) => tag.kind === "LOOK")).toEqual([]);
+  });
+
+  /**
+   * ================================ ADR-072, the leash ================================
+   *
+   * The caller stamps one league-wide leash on every pass call (§3), and the engine echoes the
+   * leash it played on `PLAY_START`. An unstamped call reads 100 there, so seeing 50 is seeing
+   * the stamp, and seeing a discipline roll at 0 is seeing the knob reach the engine: a call
+   * rebuilt field by field that dropped the leash would silently play 100 instead.
+   */
+  const startsOf = (out: ReturnType<typeof runOneGame>) =>
+    out.observation.events
+      .filter((e) => e.event.type === "PLAY_START")
+      .map((e) => e.event.payload as { kind?: unknown; offense?: { leash?: unknown } });
+  const leashRollsOf = (out: ReturnType<typeof runOneGame>) =>
+    out.observation.events.filter(
+      (e) => e.event.type === "PRESNAP_READ" && (e.event.payload as { kind?: unknown }).kind === "leash_discipline",
+    ).length;
+
+  it("stamps the league-wide leash, 50, on every pass call and on nothing else", () => {
+    expect(DEFAULT_LEASH).toBe(50);
+    const starts = startsOf(
+      runOneGame({ built, seed: "adr072-default", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN }),
+    );
+    const passes = starts.filter((p) => p.kind === "PASS_PLAY_V1");
+    expect(passes.length, "no pass play, so no stamp was checked").toBeGreaterThan(0);
+    expect(new Set(passes.map((p) => p.offense?.leash))).toEqual(new Set([DEFAULT_LEASH]));
+    expect(starts.filter((p) => p.kind !== "PASS_PLAY_V1").map((p) => p.offense?.leash)).not.toContain(DEFAULT_LEASH);
+  });
+
+  it("a leash set on the caller reaches the engine: at 0 he is held to the call, and the roll is made", () => {
+    const out = runOneGame({
+      built, seed: "adr072-closed", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN, leash: 0,
+    });
+    expect(new Set(startsOf(out).filter((p) => p.kind === "PASS_PLAY_V1").map((p) => p.offense?.leash))).toEqual(
+      new Set([0]),
+    );
+    expect(leashRollsOf(out), "no read wanted a decision all game, so the knob was never exercised").toBeGreaterThan(0);
+  });
+
+  it("at the default nothing is rolled, and an open leash plays the identical game (§7)", () => {
+    const at = (leash?: number) =>
+      runOneGame({
+        built, seed: "adr072-inert", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
+        ...(leash === undefined ? {} : { leash }),
+      });
+    const base = at();
+    expect(leashRollsOf(base)).toBe(0);
+    for (const leash of [40, 100]) {
+      const other = at(leash);
+      expect(leashRollsOf(other), `leash ${String(leash)}`).toBe(0);
+      expect(other.observation.summary, `leash ${String(leash)}`).toEqual(base.observation.summary);
+      expect(JSON.stringify(other.observation.statlines), `leash ${String(leash)}`).toBe(
+        JSON.stringify(base.observation.statlines),
+      );
+      expect(other.observation.events.length, `leash ${String(leash)}`).toBe(base.observation.events.length);
+    }
+  });
+
+  it("names a leash other than the default in its identity, and leaves the default's unmarked", () => {
+    expect(callerIdentity("v4", "x", DEFAULT_LEASH)).toBe(callerIdentity("v4", "x"));
+    expect(callerIdentity("v4", "x", 20)).toBe("v4/x/leash-20");
+    expect(callerIdentity("v4", "x", 0)).not.toBe(callerIdentity("v4", "x", 20));
+    const pair = frozenCallerPair({
+      tendencies: FROZEN_TENDENCIES,
+      fourthDown: FROZEN_FOURTH_DOWN,
+      homeDepthChart: built.homeDepthChart,
+      awayDepthChart: built.awayDepthChart,
+      leash: 20,
+    });
+    expect(pair.leash).toBe(20);
+    expect(pair.name).toBe(`frozen-v4/${FROZEN_TENDENCIES.version}/leash-20`);
   });
 });
 

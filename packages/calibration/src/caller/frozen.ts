@@ -227,6 +227,14 @@ export interface FrozenCallerSpec {
    */
   readonly coverageMasks?: readonly CoverageMask[];
   /**
+   * The coach's leash this caller puts on every pass call (ADR-072 §3), 0–100. Defaults to
+   * `DEFAULT_LEASH`. ONE LEAGUE-WIDE VALUE, because this caller is coach-agnostic by design
+   * (`coaching-staff.md` §4.3): a real coach's leash is his own and his read of his quarterback,
+   * and neither exists here. A MEASUREMENT KNOB for the leash arms (ADR-072 §5), never moved in a
+   * report run; a caller at another leash says so in its identity (`callerIdentity`).
+   */
+  readonly leash?: number;
+  /**
    * BOTH depth charts, because both callers resolve BOTH sides of every snap and must agree.
    * That agreement is the load-bearing property: the engine asks the offence first and the
    * defence second, but a protection assignment cannot be written without knowing the rush, so
@@ -245,6 +253,8 @@ export interface FrozenCallerPair {
   readonly diagnostics: FrozenCallerDiagnostics;
   readonly name: string;
   readonly callerVersion: CallerVersion;
+  /** The leash on every pass call this pair makes (ADR-072). */
+  readonly leash: number;
 }
 
 /**
@@ -257,9 +267,22 @@ export interface FrozenCallerPair {
  * criterion while leaving the string alone. ADR-024 is exactly such a change, so the behaviour
  * version is composed in and the field now says what its own comment always claimed.
  */
-export function callerIdentity(version: CallerVersion, tendenciesVersion: string): string {
-  return `${version}/${tendenciesVersion}`;
+export function callerIdentity(
+  version: CallerVersion,
+  tendenciesVersion: string,
+  leash: number = DEFAULT_LEASH,
+): string {
+  return leash === DEFAULT_LEASH ? `${version}/${tendenciesVersion}` : `${version}/${tendenciesVersion}/leash-${String(leash)}`;
 }
+
+/**
+ * ADR-072 §3: the leash the frozen caller puts on every pass call — a mid-slider coach. It opens
+ * every rung of today's ladder (`presnap.leash.rungs`, all at or below it), so a batch at the
+ * default plays exactly what a batch played before the leash existed, and the identity leaves it
+ * unmarked for that reason. ⚠ That stops being true the day a rung above 50 lands: that change
+ * moves what the default plays, and must say so in the caller's version.
+ */
+export const DEFAULT_LEASH = 50;
 
 function situationOf(request: {
   readonly situation: {
@@ -461,7 +484,8 @@ function resolveSnap(
 
 export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
   const callerVersion = spec.callerVersion ?? DEFAULT_CALLER_VERSION;
-  const name = spec.name ?? `frozen-${callerIdentity(callerVersion, spec.tendencies.version)}`;
+  const leash = spec.leash ?? DEFAULT_LEASH;
+  const name = spec.name ?? `frozen-${callerIdentity(callerVersion, spec.tendencies.version, leash)}`;
   const diagnostics = blankDiagnostics();
 
   const chartsFor = (side: "HOME" | "AWAY"): { offense: DepthChart; defense: DepthChart } =>
@@ -505,7 +529,9 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
           protectorsInCoverage: resolved.protectorsInCoverage,
         });
       }
-      return resolved.offense.call;
+      // ADR-072: the leash is the coach's, so it is stamped here, on the call he makes, and not in
+      // `resolveSnap` — which both sides run, and which is about what is played, not who may change it.
+      return resolved.offense.call.kind === "PASS" ? { ...resolved.offense.call, leash } : resolved.offense.call;
     },
 
     callDefense(request: DefensiveCallRequest, rng: Rng): DefensivePlayCall {
@@ -574,5 +600,5 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
     },
   });
 
-  return { home: makeCaller("HOME"), away: makeCaller("AWAY"), diagnostics, name, callerVersion };
+  return { home: makeCaller("HOME"), away: makeCaller("AWAY"), diagnostics, name, callerVersion, leash };
 }

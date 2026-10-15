@@ -693,6 +693,53 @@ export const REGISTER: readonly RegisterRule[] = [
     note: "−∞ terminator — 'Miss by 30+: Complete misread'.",
   },
 
+  // ---- the leash and discipline (ADR-072, ADR-068 step 2) --------------------------------------
+  // `match-engine.md` has no leash. ADR-068 ruled that there is one (a 0–100 slider, ruling 3) and
+  // that discipline exists (ruling 2); every number below is ADR-072's judgement, made in the open
+  // and measured by its arms, so `INTERPRETATION`. Named individually, as the coverage read's are.
+  {
+    pattern: "presnap.leash.rungs.WORK_AWAY",
+    provenance: "INTERPRETATION",
+    docRef: "ADR-072 §1",
+    note: "20 — where the slider lets him move a man he reads as covered to the back. A football judgement.",
+  },
+  {
+    pattern: "presnap.leash.rungs.WORK_TO",
+    provenance: "INTERPRETATION",
+    docRef: "ADR-072 §1",
+    note: "40 — where it lets him move a man he reads as open to the front. A football judgement.",
+  },
+  {
+    pattern: "presnap.leash.discipline.target",
+    provenance: "INTERPRETATION",
+    docRef: "ADR-072 §2",
+    note: "100 — chosen with the full-rating divisor so that Discipline is close to his chance of holding.",
+  },
+  {
+    pattern: "presnap.leash.discipline.attrDivisor",
+    provenance: "INTERPRETATION",
+    docRef: "ADR-072 §2",
+    note: "1 — full rating, not the doc's ÷5: one man's disposition, not a contest between two skills.",
+  },
+  {
+    pattern: "presnap.leash.discipline.breachDivisor",
+    provenance: "INTERPRETATION",
+    docRef: "ADR-072 §2",
+    note: "2 — half the breach is added, so a bigger breach is harder to commit.",
+  },
+  {
+    pattern: "presnap.leash.discipline.bands.0.minMargin",
+    provenance: "INTERPRETATION",
+    docRef: "ADR-072 §2",
+    note: "0 — he holds when the total reaches the target; a knob only as the target is one.",
+  },
+  {
+    pattern: "presnap.leash.discipline.bands.1.minMargin",
+    provenance: "STRUCTURAL",
+    docRef: "ADR-072 §2",
+    note: "−∞ terminator — BROKE.",
+  },
+
   // ---- §7.1 pass rush --------------------------------------------------------------------------
   {
     pattern: "passRush.blockerStructuralAdvantage",

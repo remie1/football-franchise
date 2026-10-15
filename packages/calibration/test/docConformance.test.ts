@@ -182,7 +182,12 @@ import {
  * given its own narrow rule. DERIVED FROM A RUN (`npx vitest run test/docConformance.test.ts` inside
  * `packages/calibration`), which also read the path digest below.
  */
-const RECORDED_NUMERIC_CENSUS = 735;
+/*
+ * **735 → 742 at ADR-072.** Seven new leaves under `presnap.leash` — `rungs.{WORK_AWAY,WORK_TO}`,
+ * `discipline.{target,attrDivisor,breachDivisor}` and `discipline.bands.{0,1}.minMargin` — each given
+ * its own narrow rule. Read off a run (`npx vitest run test/docConformance.test.ts`), with the digest.
+ */
+const RECORDED_NUMERIC_CENSUS = 742;
 
 /**
  * The same subject as a SET rather than a size. Re-cut at ADR-040 (`d20Offset` → `baseHalfWidth`),
@@ -202,7 +207,11 @@ const RECORDED_NUMERIC_CENSUS = 735;
  * **`fnv1a:c366ce2f` → `fnv1a:9e1777d5` at ADR-068 step 1** — the eleven `presnap.coverageRead.*`
  * leaves joining the path set. Read off a run, not re-derived.
  */
-const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:9e1777d5";
+/*
+ * **`fnv1a:9e1777d5` → `fnv1a:1baf5452` at ADR-072** — the seven `presnap.leash.*` leaves joining the
+ * path set. Read off a run, not re-derived.
+ */
+const RECORDED_NUMERIC_PATH_DIGEST = "fnv1a:1baf5452";
 
 /**
  * ⚠ **THE RE-RECORD, AS A SET AND NOT AS A COUNT** — §4.1's count-blindness corollary applied to the
@@ -324,7 +333,10 @@ describe("doc-conformance register", () => {
     // 232 → 243 at ADR-068 step 1: eleven narrow rules, one per `presnap.coverageRead.*` leaf
     // (§5.1's target, divisor, three complexity rows and six band boundaries). Read off a run;
     // `absorbed` and every absorption pin unchanged, so the delta is exactly the eleven new cells.
-    expect(audit.classifiedNarrow).toBe(243);
+    // 243 → 250 at ADR-072: seven narrow rules, one per `presnap.leash.*` leaf (the two rungs, the
+    // roll's target and two divisors, its two band boundaries). Read off a run; the delta is exactly
+    // the seven new cells.
+    expect(audit.classifiedNarrow).toBe(250);
     // 281 → 279 at CALIBRATION-BACKLOG entry 111 — UNLIKE the two entries above, this one DOES move,
     // because the two cells pulled out this time were previously inside `arrival.*`'s UNIFORM
     // population rather than its absorbing one. A count that did NOT move here would mean the pair

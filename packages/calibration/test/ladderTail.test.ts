@@ -249,7 +249,9 @@ describe("ladder tail — the derivation", () => {
     const opposed = engineShifts().find((f) => f.form === "OPPOSED");
     expect(opposed?.shifts).toEqual(ENGINE_OPPOSED_SHIFTS);
     const target = engineShifts().find((f) => f.form === "TARGET");
-    expect(target?.min).toBe(-90);
+    // −100 since ADR-072: `leash_discipline` is Discipline ÷1 against 100, so at league level 0 an
+    // even contest sits 100 below its target. −90 before it, `deflection_recovery`'s target of 90.
+    expect(target?.min).toBe(-100);
     expect(target?.max).toBe(30);
   });
 
@@ -427,9 +429,10 @@ describe("ladder tail — the derivation", () => {
     expect(boundedSpan(derived)).toBe(179);
     // The pre-ratification ladder was compliant at ZERO of the engine's thirty target shifts; the
     // ratified one at 28. The two that remain are checks whose stack sits far ABOVE its target — a
-    // rating quantity, which no ladder can reach.
+    // rating quantity, which no ladder can reach. ADR-072's `leash_discipline` added three shifts
+    // (33 in all), every one compliant, so 31; the same two still fail.
     expect(targetCompliantShifts(preRatificationLadder(), targetShifts)).toHaveLength(0);
-    expect(ok.length).toBe(28);
+    expect(ok.length).toBe(31);
     const bad = new Set(targetShifts.filter((s) => !ok.includes(s)));
     const blamed = ladderStructures()
       .filter((s) => s.form === "TARGET")
