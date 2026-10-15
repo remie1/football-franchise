@@ -6,7 +6,8 @@
   contracts petition in §6 is approved. Step 1 is built (§10): caller v3 reproduces arm B number
   for number; merged to `main` on the owner's word (fast-forward, `c1f27d5`). Step 2 is built
   (§11): Press, Split and Show 4, worn alone or beside a safety look by caller v4, now the
-  default; measured in ADR-070 §10. Reviewed at draft by the contracts guardian
+  default; measured in ADR-070 §10; merged to `main` on the owner's word (fast-forward,
+  `b984074`). Reviewed at draft by the contracts guardian
   (MODIFY; its fixes are folded in below) and the fantasy advisor (nothing foreclosed; its notes are
   in Implied scope).
 - **Replaces:** ADR-070 §4's contracts petition (a list of masks). ADR-070's approved rulings (1, 2

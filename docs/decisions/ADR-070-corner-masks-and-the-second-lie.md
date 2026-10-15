@@ -6,7 +6,8 @@
   answered *"build even more into it"*, and ADR-071 (the call built from parts and tags) replaces
   §4's petition. §3's rule is built and measured alone (§9), and merged to `main` on the owner's
   word (fast-forward, `c72f79b`). §1 and §2 are built as ADR-071 step 2 and measured in §10: the
-  corner looks move nothing measurable, and §5's prediction is falsified.
+  corner looks move nothing measurable, and §5's prediction is falsified. Merged to `main` with
+  ADR-071 step 2 (fast-forward, `b984074`).
 - **Builds on:** ADR-069 (masks as named pieces; §9.3 the second lie; §9.4 combinations; §10's
   rulings), ADR-068 §5 (a misread is perceived against the SHOWN coverage — its "perception-only
   fork" was left to the build, and §3 below is that form). Neither is reopened.
