@@ -156,6 +156,9 @@ describe.each(COMBINATIONS)("%s", (_, card, looks, timing) => {
       // Ruling 1: a look never changes what is played.
       expect(call.assignments, `${formation.id}: played coverage changed`).toEqual(honest.assignments);
       expect(call.rush, `${formation.id}: rush changed`).toEqual(honest.rush);
+      // ADR-073 step 3.1: a coverage look writes no shown rush; both calls show the rush they play.
+      expect(call.shownRush, `${formation.id}: a coverage look wrote a shown rush`).toBe(call.rush);
+      expect(honest.shownRush, `${formation.id}: the honest call shows another rush`).toBe(honest.rush);
       expect(call.personnel).toBe(honest.personnel);
       expect(call.front).toBe(honest.front);
       expect(call.concept).toBe(honest.concept);

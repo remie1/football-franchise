@@ -62,6 +62,7 @@ import type {
   PassPlayStartPayload,
   PlayCalls,
   RouteAssignment,
+  RunGap,
   RunSide,
   RushAlignment,
   RushMove,
@@ -133,8 +134,10 @@ import {
   nearestThreat,
   recoverySecondsFor,
   resolvedRushAssignment,
+  resolvedShownRusher,
   retiresBySustainedContainment,
   retiresByTime,
+  rushAlignmentFor,
   soonerThreat,
   startsThreat,
   threatFromWonRep,
@@ -175,9 +178,11 @@ interface RushMatchup {
   readonly alignment: RushAlignment;
   /**
    * ADR-018 petition 2 — which side of the centre he came from, as the card
-   * stated it. The engine does NOT pair protection by it: `ProtectionAssignment`
-   * states the blocker↔rusher pairing and playbook is what forms it. It is
-   * carried so that the geometry the play was simulated with reaches PLAY_START,
+   * stated it. `ProtectionAssignment` states the blocker↔rusher pairing and
+   * playbook is what forms it; the one place the engine reads a side is the
+   * slide, which takes a slide-side rusher no pairing names (`sim/preSnap.ts`),
+   * and that reads the card before this matchup exists. It is carried so that
+   * the geometry the play was simulated with reaches PLAY_START,
    * exactly as `alignment` does — a consumer that can see a resolved alignment
    * and cannot see which side it was on can still be looking at an impossible
    * matchup that resolved cleanly.
@@ -187,6 +192,11 @@ interface RushMatchup {
    * the fabricated geometry the petition exists to remove.
    */
   readonly side: RunSide | undefined;
+  /**
+   * ADR-065's gap, as the card stated it, carried to PLAY_START as an echo
+   * (ADR-073 step 3.1). Never read here; the physics reads no gap.
+   */
+  readonly gap: RunGap | undefined;
   pressure: number;
   previousBand: PassRushBandLabel | undefined;
   /**
@@ -426,14 +436,29 @@ export function simulatePassPlay(
       // beside the fields they name.
       tags: calls.defense.tags,
       // Alignment resolved, not echoed: it is the input the §7.2 arrival model
-      // actually ran on, and the only place the stream states it. Side carried
-      // through unresolved (ADR-018) — see `resolvedRushAssignment`.
+      // actually ran on, and the only place the stream states it. Side and gap
+      // carried through unresolved (ADR-018, ADR-073) — see `resolvedRushAssignment`.
+      // Built from the post-stunt matchups, but a stunt exchanges only the
+      // blocker or free record, so the order and the fields are the card's.
       rush: matchups.map((m) =>
         resolvedRushAssignment({
           rusher: m.rusher.bio.id,
           move: m.move,
           alignment: m.alignment,
           side: m.side,
+          gap: m.gap,
+        }),
+      ),
+      // Echoed, not derived (ADR-073): what the offence was SHOWN of the rush,
+      // with alignment resolved exactly as the played rush's is (preSnap's
+      // accounting) so the two compare field for field. No die, no read: nothing
+      // resolves from it before ADR-073 step 3.2b.
+      shownRush: calls.defense.shownRush.map((s) =>
+        resolvedShownRusher({
+          rusher: s.rusher,
+          alignment: rushAlignmentFor(tunables, requirePlayer(state, s.rusher).bio.position, s.alignment),
+          side: s.side,
+          gap: s.gap,
         }),
       ),
       unaccountedRushers: preSnap.unaccounted,
@@ -1879,6 +1904,7 @@ function buildMatchups(preSnap: PreSnapResult): RushMatchup[] {
     move: plan.move,
     alignment: plan.alignment,
     side: plan.side,
+    gap: plan.gap,
     pressure: 0,
     previousBand: undefined,
     rep: undefined,

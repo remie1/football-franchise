@@ -26,6 +26,8 @@ import { clamp } from "../rolls.js";
 import type { Tunables } from "../tunables.js";
 import type {
   ResolvedRushAssignment,
+  ResolvedShownRusher,
+  RunGap,
   RunSide,
   RushAlignment,
   RushMove,
@@ -331,41 +333,80 @@ export function rushAlignmentFor(
 
 /**
  * The rush assignment as PLAY_START states it: the alignment RESOLVED, and the
- * side carried through unchanged (ADR-018 petition 2).
+ * side and gap carried through unchanged (ADR-018 petition 2; ADR-073 step 3.1).
  *
- * The asymmetry between the two fields is the whole content of this function and
- * is deliberate. `alignment` is resolved because §7.2's time-of-arrival model
+ * The asymmetry between the fields is the whole content of this function and is
+ * deliberate. `alignment` is resolved because §7.2's time-of-arrival model
  * cannot run without one, so an absent alignment becomes a tunable default and
- * the stream must state which value was actually used. `side` has no such
- * consumer and therefore no default: nothing in the engine reads it, so there is
- * nothing to substitute for it and substituting anything would be inventing the
- * geometry the petition exists to stop being invented. Absent stays absent, and
- * a consumer can tell "the card did not say" from "the card said LEFT".
+ * the stream must state which value was actually used. `side` and `gap` have no
+ * such consumer in the physics and therefore no default. The engine's slide reads
+ * the card's `side` (`sim/preSnap.ts`, the slide-side pickup), and so does
+ * playbook's `claim()` when it builds the protection, but both read the card;
+ * neither needs a value invented for a rusher whose card said nothing.
+ * Substituting one would be inventing the geometry the petition exists to stop
+ * being invented. Absent stays absent, and a consumer can tell "the card did not
+ * say" from "the card said LEFT".
  *
  * One owner, called from both `sim/passPlay.ts` and `sim/runPlay.ts`, because
  * two copies of "what PLAY_START says about a rusher" is how the pass and run
  * payloads drift apart.
  *
- * `gap` (ADR-065 §P1, `RushAssignment.gap`) is NOT threaded through here.
- * ADR-066's decomposition (this file's `threatFromWonRep`) reads only
- * `tunables.arrival.nominalClosingSpeedYardsPerSecond` — a single constant,
- * not `gap` — so nothing downstream of this function would read a `gap` this
- * function forwarded, and adding the parameter would be exactly the
- * read-but-unused shape ADR-066's own register has catalogued repeatedly.
- * `RushAssignment.gap` stays where ADR-065 §P1 landed it: crossing the
- * play-call boundary, unread past this point, with its own dated expiry pin
- * (`packages/playbook/test/gapCarryAcross.test.ts`).
+ * `gap` (ADR-065 §P1, `RushAssignment.gap`) is threaded through here as an ECHO
+ * (ADR-073 step 3.1): a stream fact, so renderers and diffs can compare the shown
+ * rush with the played one field for field. The engine's physics still reads no
+ * gap: ADR-066's decomposition (this file's `threatFromWonRep`) reads only
+ * `tunables.arrival.nominalClosingSpeedYardsPerSecond`, a single constant. A
+ * carry is not a reader, which is the distinction the expiry pin in
+ * `packages/playbook/test/gapCarryAcross.test.ts` now draws.
+ *
+ * `side` and `gap` are REQUIRED keys of the argument (`undefined` when the card
+ * said nothing), so a caller that forgets one fails to compile rather than
+ * silently dropping it.
  */
 export function resolvedRushAssignment(args: {
   readonly rusher: PlayerId;
   readonly move: RushMove;
   readonly alignment: RushAlignment;
   readonly side: RunSide | undefined;
+  readonly gap: RunGap | undefined;
 }): ResolvedRushAssignment {
-  const { rusher, move, alignment, side } = args;
-  // `exactOptionalPropertyTypes` — an omitted side is an ABSENT key, not a key
-  // whose value is `undefined`, so a consumer's `in` test and its `?.` test agree.
-  return side === undefined ? { rusher, move, alignment } : { rusher, move, alignment, side };
+  const { rusher, move, alignment, side, gap } = args;
+  // `exactOptionalPropertyTypes` — an omitted side or gap is an ABSENT key, not a
+  // key whose value is `undefined`, so a consumer's `in` test and its `?.` test
+  // agree. Key order is the old one with `gap` last, so a stream without gaps is
+  // byte-identical to the one before ADR-073.
+  return {
+    rusher,
+    move,
+    alignment,
+    ...(side === undefined ? {} : { side }),
+    ...(gap === undefined ? {} : { gap }),
+  };
+}
+
+/**
+ * A shown rusher as PLAY_START states it (ADR-073 step 3.1): the alignment
+ * RESOLVED and the side and gap carried, exactly as `resolvedRushAssignment`
+ * states the played rush, with no `move` (a move is played, never shown). The
+ * caller resolves the alignment with `rushAlignmentFor`, as for the played rush.
+ *
+ * One owner for the pass and run payloads, for the reason `resolvedRushAssignment`
+ * gives. It throws no dice and nothing in the engine resolves from what it
+ * returns before ADR-073 step 3.2b.
+ */
+export function resolvedShownRusher(args: {
+  readonly rusher: PlayerId;
+  readonly alignment: RushAlignment;
+  readonly side: RunSide | undefined;
+  readonly gap: RunGap | undefined;
+}): ResolvedShownRusher {
+  const { rusher, alignment, side, gap } = args;
+  return {
+    rusher,
+    alignment,
+    ...(side === undefined ? {} : { side }),
+    ...(gap === undefined ? {} : { gap }),
+  };
 }
 
 /**

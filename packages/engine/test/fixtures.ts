@@ -54,6 +54,18 @@ type _RushMovesComplete = RushMove extends (typeof RUSH_MOVES)[number] ? true : 
 const _rushMovesComplete: _RushMovesComplete = true;
 void _rushMovesComplete;
 
+/**
+ * A defence with its rush replaced, and `shownRush` aliased to the new array (ADR-073 step 3.1).
+ *
+ * Every test that overrides a defence's `rush` goes through here. A spread that overrides
+ * `rush` alone (`{ ...defense, rush: [...] }`) compiles, because the spread brings the old
+ * `shownRush` along, and then the offence is silently shown a rush that is not played. This
+ * keeps the identity by construction, as `instantiateDefense` does.
+ */
+export function withRush<D extends PlayCalls["defense"]>(defense: D, rush: PlayCalls["defense"]["rush"]): D {
+  return { ...defense, rush, shownRush: rush };
+}
+
 export function makePlayer(
   id: string,
   displayName: string,
@@ -201,6 +213,11 @@ export function buildScenario(overrides: Partial<MatchGameState> = {}): Scenario
     { kind: "MAN", defender: cb2.bio.id, covers: wr2.bio.id, technique: "OFF" },
     { kind: "MAN", defender: lb.bio.id, covers: te.bio.id, technique: "PRESS" },
   ];
+  // ADR-073 step 3.1: one array, referenced by both `rush` and `shownRush` below.
+  const rush: PlayCalls["defense"]["rush"] = [
+    { rusher: edge.bio.id, move: "SPEED" },
+    { rusher: dt.bio.id, move: "POWER" },
+  ];
 
   const calls: PlayCalls = {
     offense: {
@@ -235,10 +252,8 @@ export function buildScenario(overrides: Partial<MatchGameState> = {}): Scenario
       // above `calls`, defined once and referenced by both fields.
       assignments,
       shownAssignments: assignments,
-      rush: [
-        { rusher: edge.bio.id, move: "SPEED" },
-        { rusher: dt.bio.id, move: "POWER" },
-      ],
+      rush,
+      shownRush: rush,
     },
   };
 
@@ -316,19 +331,21 @@ export function buildCleanPocketScenario(): Scenario {
         { blocker: wallB.bio.id, rusher: futileB.bio.id },
       ],
     },
-    defense: {
-      ...base.calls.defense,
-      // Off coverage everywhere: no jam, so every route's break time is its
-      // §9.2 base and the progression can be observed without the release
-      // battle moving the goalposts underneath it.
-      assignments: base.calls.defense.assignments.map((a) =>
-        a.kind === "MAN" ? { ...a, technique: "OFF" as const } : a,
-      ),
-      rush: [
+    defense: withRush(
+      {
+        ...base.calls.defense,
+        // Off coverage everywhere: no jam, so every route's break time is its
+        // §9.2 base and the progression can be observed without the release
+        // battle moving the goalposts underneath it.
+        assignments: base.calls.defense.assignments.map((a) =>
+          a.kind === "MAN" ? { ...a, technique: "OFF" as const } : a,
+        ),
+      },
+      [
         { rusher: futileA.bio.id, move: "SPEED" },
         { rusher: futileB.bio.id, move: "POWER" },
       ],
-    },
+    ),
   };
 
   const names = (id: PlayerId): string => {
@@ -443,6 +460,7 @@ export function buildZoneScenario(): Scenario {
       assignments: spotDropAssignments,
       shownAssignments: spotDropAssignments,
       rush: base.calls.defense.rush,
+      shownRush: base.calls.defense.rush,
     },
   };
 
@@ -507,6 +525,7 @@ export function buildOverlappingZoneScenario(): Scenario {
       assignments: overlappingAssignments,
       shownAssignments: overlappingAssignments,
       rush: base.calls.defense.rush,
+      shownRush: base.calls.defense.rush,
     },
   };
 
@@ -559,6 +578,7 @@ export function buildMixedCoverageScenario(): Scenario {
       assignments: robberAssignments,
       shownAssignments: robberAssignments,
       rush: base.calls.defense.rush,
+      shownRush: base.calls.defense.rush,
     },
   };
 
@@ -724,6 +744,13 @@ export function buildRunScenario(scheme: RunScheme = "ZONE"): RunScenario {
     { kind: "ZONE", defender: ss.bio.id, zone: { horizontal: "RH", vertical: "INTERMEDIATE" } },
     { kind: "ZONE", defender: fs.bio.id, zone: { horizontal: "C", vertical: "DEEP" } },
   ];
+  // ADR-073 step 3.1: one array, referenced by both `rush` and `shownRush` below.
+  const runRush: RunPlayCalls["defense"]["rush"] = [
+    { rusher: deL.bio.id, move: "POWER", alignment: "EDGE" },
+    { rusher: dtL.bio.id, move: "POWER", alignment: "INTERIOR" },
+    { rusher: dtR.bio.id, move: "POWER", alignment: "INTERIOR" },
+    { rusher: deR.bio.id, move: "POWER", alignment: "EDGE" },
+  ];
 
   const calls: RunPlayCalls = {
     offense: {
@@ -753,12 +780,8 @@ export function buildRunScenario(scheme: RunScheme = "ZONE"): RunScenario {
       tags: [],
       assignments: runDefenseAssignments,
       shownAssignments: runDefenseAssignments,
-      rush: [
-        { rusher: deL.bio.id, move: "POWER", alignment: "EDGE" },
-        { rusher: dtL.bio.id, move: "POWER", alignment: "INTERIOR" },
-        { rusher: dtR.bio.id, move: "POWER", alignment: "INTERIOR" },
-        { rusher: deR.bio.id, move: "POWER", alignment: "EDGE" },
-      ],
+      rush: runRush,
+      shownRush: runRush,
     },
   };
 
@@ -833,16 +856,18 @@ export function buildStalledPocketScenario(): Scenario {
         { blocker: wallB.bio.id, rusher: futileB.bio.id },
       ],
     },
-    defense: {
-      ...base.calls.defense,
-      assignments: base.calls.defense.assignments.map((a) =>
-        a.kind === "MAN" ? { ...a, technique: "PRESS" as const } : a,
-      ),
-      rush: [
+    defense: withRush(
+      {
+        ...base.calls.defense,
+        assignments: base.calls.defense.assignments.map((a) =>
+          a.kind === "MAN" ? { ...a, technique: "PRESS" as const } : a,
+        ),
+      },
+      [
         { rusher: futileA.bio.id, move: "SPEED" },
         { rusher: futileB.bio.id, move: "POWER" },
       ],
-    },
+    ),
   };
 
   const names = (id: PlayerId): string => {
@@ -890,13 +915,10 @@ export function buildScramblerScenario(): Scenario {
       ...base.calls.offense,
       protection: [edgeProtection, { blocker: guard.bio.id, rusher: penetrator.bio.id }],
     },
-    defense: {
-      ...base.calls.defense,
-      rush: [
-        { ...edgeRusher, alignment: "EDGE" },
-        { rusher: penetrator.bio.id, move: "POWER", alignment: "INTERIOR" },
-      ],
-    },
+    defense: withRush(base.calls.defense, [
+      { ...edgeRusher, alignment: "EDGE" },
+      { rusher: penetrator.bio.id, move: "POWER", alignment: "INTERIOR" },
+    ]),
   };
 
   const names = (id: PlayerId): string => {
@@ -944,13 +966,10 @@ export function buildLopsidedRushScenario(): Scenario {
         { blocker: wall.bio.id, rusher: futile.bio.id },
       ],
     },
-    defense: {
-      ...base.calls.defense,
-      rush: [
-        { rusher: wrecker.bio.id, move: "POWER" },
-        { rusher: futile.bio.id, move: "FINESSE" },
-      ],
-    },
+    defense: withRush(base.calls.defense, [
+      { rusher: wrecker.bio.id, move: "POWER" },
+      { rusher: futile.bio.id, move: "FINESSE" },
+    ]),
   };
 
   const names = (id: PlayerId): string => {

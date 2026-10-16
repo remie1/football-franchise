@@ -9,9 +9,10 @@
  * The order is the doc's own:
  *
  *  1. §7.4 step 1 — RECOGNITION, and no die is thrown for it. A rusher is
- *     ACCOUNTED FOR when a `ProtectionAssignment` names him, or when the card
- *     declares a slide, he comes from the slide side, and a slide blocker is
- *     still free. Everything else is UNACCOUNTED.
+ *     ACCOUNTED FOR only when a `ProtectionAssignment` names him. Everything
+ *     else is UNACCOUNTED, a slide-side rusher no pairing names included: he is
+ *     in `unaccounted` (and so in PLAY_START's `unaccountedRushers`) and he
+ *     triggers step 2's roll. The slide answers him at step 4, not here.
  *  1b. §7.4 step 1 READ FROM THE PROTECTION'S SIDE (ADR-026) — a
  *     `ProtectionAssignment` whose named rusher is not in `defense.rush` is a
  *     blocker with nobody to block. He joins the pickup pool at the BACK.
@@ -21,7 +22,11 @@
  *  3. §5.3 / §7.4 step 2 — on recognition, hot routes convert and move to the
  *     front of the progression.
  *  4. §7.4 step 3 — each unaccounted rusher is offered to the next available
- *     blocker, in the card's stated priority. Contest per rusher.
+ *     blocker, in the card's stated priority. Contest per rusher. The one
+ *     exception is the SLIDE: on a slide card, a rusher who comes from the slide
+ *     side takes the first man left in the pickup pool (declared `available`,
+ *     then ADR-026's unblocked protectors) WITHOUT a contest, when
+ *     `blitzPickup.slideIsUncontested` holds. He was still unaccounted at step 1.
  *  5. §7.4 step 4 — anybody left, or anybody who beat his pickup, is a FREE
  *     RUNNER with an ETA. Not a teleport: a rusher with a short clock, and since
  *     ADR-031 a clock that reads WHERE HE STARTED — his alignment and the depth
@@ -65,6 +70,7 @@ import type {
   MatchGameState,
   PlayCalls,
   RouteAssignment,
+  RunGap,
   RunSide,
   RushAlignment,
   RushMove,
@@ -95,6 +101,13 @@ interface RushPlanCommon {
   readonly move: RushMove;
   readonly alignment: RushAlignment;
   readonly side: RunSide | undefined;
+  /**
+   * ADR-065's gap, carried only for the PLAY_START echo (ADR-073 step 3.1).
+   * Nothing in the pass sim reads it. A REQUIRED key, `undefined` when the card
+   * said nothing, so every plan rebuild (the stunt code's two) fails to compile
+   * until it carries it, instead of dropping it on every stunt snap.
+   */
+  readonly gap: RunGap | undefined;
 }
 
 /**
@@ -244,6 +257,7 @@ export function resolvePreSnap(args: {
         move: assignment.move,
         alignment: rushAlignmentFor(tunables, rusher.bio.position, assignment.alignment),
         side: assignment.side,
+        gap: assignment.gap,
       },
       blocker: named === undefined ? undefined : player(named.blocker),
     });
@@ -283,7 +297,9 @@ export function resolvePreSnap(args: {
     if (blocker !== undefined) return { ...common, blocker };
 
     // The slide answers its own side without a contest: §7.4 step 1 says
-    // "covered", and a covered rusher is an ordinary §7.1 rep from there.
+    // "covered", and a covered rusher is an ordinary §7.1 rep from there. He
+    // was still counted unaccounted above, so he has already triggered the
+    // §5.3 roll and is in `unaccountedRushers`; the slide is applied here.
     if (
       slideSide !== undefined &&
       common.side === slideSide &&
@@ -389,6 +405,7 @@ export function resolvePreSnap(args: {
       move: looper.move,
       alignment: looper.alignment,
       side: looper.side,
+      gap: looper.gap,
       free: {
         origin: "STUNT_LOOPER",
         etaTick: Number((tunables.stunt.looperArrivalSeconds + outcome.arrivalDelaySeconds).toFixed(1)),
@@ -425,6 +442,7 @@ function withAssignmentOf(plan: RushPlan, from: RushPlan): RushPlan {
     move: plan.move,
     alignment: plan.alignment,
     side: plan.side,
+    gap: plan.gap,
   };
   return from.blocker === undefined
     ? { ...common, free: from.free }

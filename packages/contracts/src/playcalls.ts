@@ -383,6 +383,14 @@ export interface RushAssignment {
   readonly gap?: RunGap;
 }
 
+/**
+ * A man as the defence SHOWS him rushing before the snap (ADR-073). No `move`: a move is
+ * played, never shown; what a stance gives away is a read, not card data (ADR-068 §1).
+ * Omitted fields mean what they mean on `RushAssignment`; a side or gap stated on one list
+ * and omitted on the other is not a difference. Every `RushAssignment` is one.
+ */
+export type ShownRusher = Pick<RushAssignment, "rusher" | "alignment" | "side" | "gap">;
+
 /** §7.3's four complexities, verbatim. */
 export type StuntComplexity = "T_E" | "T_T" | "DELAYED" | "TRIPLE";
 
@@ -460,7 +468,7 @@ export interface DefensiveTag {
  * A defensive call, said in the order a call sheet says it (ADR-071): **personnel, front,
  * concept, tags** — "Nickel Over Tex, Fire, Cover 3, Show 2". The four are NAMES: a renderer
  * prints them and nothing resolves them. What the engine resolves is `assignments`,
- * `shownAssignments`, `rush` and `stunts`.
+ * `shownAssignments`, `rush`, `stunts`, `blitzDisguise` and `coverageDisguise`.
  */
 export interface DefensivePlayCall {
   /** Who is on the field: `"Nickel"`. The call's first part (ADR-071). */
@@ -505,7 +513,8 @@ export interface DefensivePlayCall {
    * (backlog entry 165): a defensive card states duties and the duties are what happens.
    * `blitzDisguise` is NOT that pair — it shifts a recognition target (+0/15/20/25) about
    * a rush that is already fixed and that protection has already paired against. It models
-   * DEGRADED PERCEPTION OF ONE TRUTH. Being deceived requires two.
+   * DEGRADED PERCEPTION OF ONE TRUTH. Being deceived requires two. For the rush, the two
+   * are `rush` and `shownRush` (ADR-073).
    *
    * WHY PER-ASSIGNMENT RATHER THAN A SECOND CALL. A safety showing two-high and playing
    * one-high is ONE ASSIGNMENT differing, not a different defence. A parallel second call
@@ -517,6 +526,16 @@ export interface DefensivePlayCall {
    */
   readonly shownAssignments: readonly CoverageAssignment[];
   readonly rush: readonly RushAssignment[];
+  /**
+   * What the offence SEES of the rush, as against `rush`, which resolves (ADR-073).
+   *
+   * THE SAME ARRAY AS `rush` on every call built today (identity by construction); a front
+   * look (ADR-073 step 3.5) will be the only writer of a second list.
+   *
+   * NOTHING IN THE ENGINE READS IT YET beyond validating it and echoing it on PLAY_START;
+   * the pressure read consumes it from 3.2b. Physics never reads it.
+   */
+  readonly shownRush: readonly ShownRusher[];
 }
 
 // --- what a simulation takes ------------------------------------------------

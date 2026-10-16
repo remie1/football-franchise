@@ -24,7 +24,7 @@ import type {
   RunSide,
   StuntCall,
 } from "../src/types.js";
-import { buildScenario, endedInSack, makePlayer } from "./fixtures.js";
+import { buildScenario, endedInSack, makePlayer, withRush } from "./fixtures.js";
 
 // --- a blitz fixture --------------------------------------------------------
 
@@ -121,11 +121,13 @@ function buildBlitz(options: BlitzOptions = {}): BlitzFixture {
     },
   };
 
-  const defense: DefensivePlayCall = {
-    ...base.calls.defense,
-    ...(options.disguise === undefined ? {} : { blitzDisguise: options.disguise }),
-    ...(options.twist === undefined ? {} : { stunts: options.twist }),
-    rush: [
+  const defense: DefensivePlayCall = withRush(
+    {
+      ...base.calls.defense,
+      ...(options.disguise === undefined ? {} : { blitzDisguise: options.disguise }),
+      ...(options.twist === undefined ? {} : { stunts: options.twist }),
+    },
+    [
       ...base.calls.defense.rush.map((r, i) => ({
         ...r,
         side: i === 0 ? ("LEFT" as const) : ("RIGHT" as const),
@@ -138,7 +140,7 @@ function buildBlitz(options: BlitzOptions = {}): BlitzFixture {
         side: "RIGHT" as const,
       })),
     ],
-  };
+  );
 
   return {
     state,

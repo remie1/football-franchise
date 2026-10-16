@@ -348,6 +348,10 @@ export function instantiateDefense(
      */
     shownAssignments: anyShown ? shown : assignments,
     rush,
+    // ⛔ THE SAME ARRAY AS `rush` (ADR-073 step 3.1), for the reason `shownAssignments` gives
+    // above: identity by construction, not by agreement. A front look (ADR-073 step 3.5) will
+    // be the only writer of a second list; until then nothing can make the two differ.
+    shownRush: rush,
     ...(stunts.length === 0 ? {} : { stunts }),
     // ABSENT WHERE THE CARD SAID NOTHING, and that is deliberate rather than lazy.
     // An absent `blitzDisguise` is §5.3's +0 row (ADR-022 petition 4), and the cards

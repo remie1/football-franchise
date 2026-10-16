@@ -54,7 +54,7 @@ import {
 } from "../resolve/runBlock.js";
 import type { GapId, GapResult } from "../resolve/runGame.js";
 import { gapKey, pointOfAttackFor, resolveRbVision, selectGap } from "../resolve/runGame.js";
-import { resolvedRushAssignment, rushAlignmentFor } from "../resolve/rushThreat.js";
+import { resolvedRushAssignment, resolvedShownRusher, rushAlignmentFor } from "../resolve/rushThreat.js";
 
 interface GapEngagement extends GapResult {
   readonly blocker: PlayerState;
@@ -362,14 +362,25 @@ function buildStartPayload(
       // ADR-067 §B, echoed exactly as the pass payload does.
       shownAssignments: calls.defense.shownAssignments,
       tags: calls.defense.tags,
-      // Alignment resolved, side carried through as stated (ADR-018) — the same
-      // owner the pass payload uses, so the two cannot drift.
+      // Alignment resolved, side and gap carried through as stated (ADR-018,
+      // ADR-073) — the same owner the pass payload uses, so the two cannot drift.
       rush: calls.defense.rush.map((r) =>
         resolvedRushAssignment({
           rusher: r.rusher,
           move: r.move,
           alignment: rushAlignmentFor(tunables, requirePlayer(state, r.rusher).bio.position, r.alignment),
           side: r.side,
+          gap: r.gap,
+        }),
+      ),
+      // ADR-073 — the shown rush, resolved by the same owner as the pass
+      // payload's. Nothing in the run sim reads it.
+      shownRush: calls.defense.shownRush.map((s) =>
+        resolvedShownRusher({
+          rusher: s.rusher,
+          alignment: rushAlignmentFor(tunables, requirePlayer(state, s.rusher).bio.position, s.alignment),
+          side: s.side,
+          gap: s.gap,
         }),
       ),
     },

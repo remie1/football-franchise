@@ -432,6 +432,10 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         // The robber sits in the hole. A hole is a spot, so he states no span.
         { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
       ];
+      // ADR-073 step 3.1: the rush is hoisted beside `assignments` and aliased as `shownRush`,
+      // the same array object, as `shownAssignments` is above. `baseRush` returns a fresh
+      // array on every call, so a second call here would break the identity.
+      const rush: DefensivePlayCall["rush"] = baseRush(defense);
       return {
         personnel: "Nickel",
         front: "Even",
@@ -439,7 +443,8 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         tags: [],
         assignments,
         shownAssignments: assignments,
-        rush: baseRush(defense),
+        rush,
+        shownRush: rush,
       };
     },
   },
@@ -462,6 +467,8 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         { kind: "ZONE", defender: at(defense.linebackers, 1, "LB2"), zone: { horizontal: "LH", vertical: "SHORT" } },
         { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
       ];
+      // ADR-073 step 3.1: hoisted once and aliased as `shownRush` (see Cover 1 Press).
+      const rush: DefensivePlayCall["rush"] = baseRush(defense);
       return {
         personnel: "Nickel",
         front: "Even",
@@ -469,7 +476,8 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         tags: [],
         assignments,
         shownAssignments: assignments,
-        rush: baseRush(defense),
+        rush,
+        shownRush: rush,
       };
     },
   },
@@ -487,6 +495,8 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "LW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
         { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
       ];
+      // ADR-073 step 3.1: hoisted once and aliased as `shownRush` (see Cover 1 Press).
+      const rush: DefensivePlayCall["rush"] = baseRush(defense);
       return {
         personnel: "Nickel",
         front: "Even",
@@ -494,7 +504,8 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         tags: [],
         assignments,
         shownAssignments: assignments,
-        rush: baseRush(defense),
+        rush,
+        shownRush: rush,
       };
     },
   },
@@ -527,6 +538,12 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         // coverage is eleven; there is no robber and no help.
         { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "C", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
       ];
+      // ADR-073 step 3.1: one array, aliased as `shownRush` below (see Cover 1 Press).
+      const rush: DefensivePlayCall["rush"] = [
+        ...baseRush(defense),
+        { rusher: at(defense.linebackers, 0, "LB1"), move: "SPEED", alignment: "INTERIOR", side: "LEFT" },
+        { rusher: at(defense.linebackers, 1, "LB2"), move: "SPEED", alignment: "INTERIOR", side: "RIGHT" },
+      ];
       // ADR-071: said "Nickel Mug, Double A, Cover 1". The tag is written out here rather
       // than taken from `@ff/playbook`'s catalogue, which the engine does not import.
       return {
@@ -537,11 +554,8 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         blitzDisguise: "STANDARD",
         assignments,
         shownAssignments: assignments,
-        rush: [
-          ...baseRush(defense),
-          { rusher: at(defense.linebackers, 0, "LB1"), move: "SPEED", alignment: "INTERIOR", side: "LEFT" },
-          { rusher: at(defense.linebackers, 1, "LB2"), move: "SPEED", alignment: "INTERIOR", side: "RIGHT" },
-        ],
+        rush,
+        shownRush: rush,
       };
     },
   },
@@ -564,6 +578,14 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         { kind: "ZONE", defender: at(defense.corners, 2, "NB"), zone: { horizontal: "LH", vertical: "SHORT" } },
         { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "C", vertical: "INTERMEDIATE" } },
       ];
+      // ADR-073 step 3.1: one array, aliased as `shownRush` below (see Cover 1 Press).
+      const rush: DefensivePlayCall["rush"] = [
+        { rusher: at(defense.edges, 0, "LE"), move: "SPEED", alignment: "EDGE", side: "LEFT" },
+        { rusher: at(defense.interior, 0, "DT"), move: "POWER", alignment: "INTERIOR", side: "LEFT" },
+        { rusher: at(defense.interior, 1, "DT"), move: "POWER", alignment: "INTERIOR", side: "RIGHT" },
+        { rusher: at(defense.linebackers, 0, "LB1"), move: "SPEED", alignment: "INTERIOR", side: "LEFT" },
+        { rusher: at(defense.linebackers, 1, "LB2"), move: "SPEED", alignment: "EDGE", side: "RIGHT" },
+      ];
       // ADR-071: said "Nickel Even, Fire, Cover 3".
       return {
         personnel: "Nickel",
@@ -573,13 +595,8 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         blitzDisguise: "ZONE_BLITZ",
         assignments,
         shownAssignments: assignments,
-        rush: [
-          { rusher: at(defense.edges, 0, "LE"), move: "SPEED", alignment: "EDGE", side: "LEFT" },
-          { rusher: at(defense.interior, 0, "DT"), move: "POWER", alignment: "INTERIOR", side: "LEFT" },
-          { rusher: at(defense.interior, 1, "DT"), move: "POWER", alignment: "INTERIOR", side: "RIGHT" },
-          { rusher: at(defense.linebackers, 0, "LB1"), move: "SPEED", alignment: "INTERIOR", side: "LEFT" },
-          { rusher: at(defense.linebackers, 1, "LB2"), move: "SPEED", alignment: "EDGE", side: "RIGHT" },
-        ],
+        rush,
+        shownRush: rush,
       };
     },
   },
@@ -605,6 +622,8 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         { kind: "ZONE", defender: at(defense.safeties, 0, "FS"), zone: { horizontal: "LW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
         { kind: "ZONE", defender: at(defense.safeties, 1, "SS"), zone: { horizontal: "RW", vertical: "DEEP" }, laneSpan: 1, depthSpan: 1 },
       ];
+      // ADR-073 step 3.1: hoisted once and aliased as `shownRush` (see Cover 1 Press).
+      const rush: DefensivePlayCall["rush"] = baseRush(defense);
       // ADR-071: said "Nickel Even Tex, Cover 2 Man" — the T/E twist is the line-game tag.
       return {
         personnel: "Nickel",
@@ -620,7 +639,8 @@ export const COVERAGE_CARDS: readonly CoverageCard[] = [
         ],
         assignments,
         shownAssignments: assignments,
-        rush: baseRush(defense),
+        rush,
+        shownRush: rush,
       };
     },
   },

@@ -20,7 +20,9 @@
  *
  * The second describe is the boundary pin, mirroring the one `packages/playbook`
  * put on its own import surface: no engine source file may take any of the three
- * names from contracts. It reads source text because that is the only place an
+ * names from contracts, nor `ResolvedShownRusher` (ADR-073), which is the same
+ * case: contracts' `ShownRusher` is what the card SHOWS, and the engine's is the
+ * alignment it resolved for it. It reads source text because that is the only place an
  * `import type` still exists at test time — types are erased, so there is
  * nothing at runtime to assert against.
  */
@@ -31,7 +33,7 @@ import { simulatePassPlay, simulateRunPlay } from "../src/index.js";
 import { rushAlignmentFor, resolvedRushAssignment } from "../src/resolve/rushThreat.js";
 import { TUNABLES, applyTunablePatch } from "../src/tunables.js";
 import type { PassPlayStartPayload, PlayCalls, RunPlayStartPayload } from "../src/types.js";
-import { buildRunScenario, buildScenario } from "./fixtures.js";
+import { buildRunScenario, buildScenario, withRush } from "./fixtures.js";
 
 function passStartPayload(calls: PlayCalls, seed: string): PassPlayStartPayload {
   const { state } = buildScenario();
@@ -47,10 +49,10 @@ describe("ADR-018 — same shape, different fact", () => {
     const { calls } = buildScenario();
     return {
       ...calls,
-      defense: {
-        ...calls.defense,
-        rush: calls.defense.rush.map((r) => ({ rusher: r.rusher, move: r.move })),
-      },
+      defense: withRush(
+        calls.defense,
+        calls.defense.rush.map((r) => ({ rusher: r.rusher, move: r.move })),
+      ),
     };
   };
 
@@ -104,8 +106,8 @@ describe("ADR-018 — same shape, different fact", () => {
   });
 });
 
-describe("ADR-018 — the boundary: the three names are the engine's own", () => {
-  const RESOLUTION_PRODUCTS = ["ResolvedRushAssignment", "CoverageShell", "GapId"] as const;
+describe("ADR-018 — the boundary: the names are the engine's own", () => {
+  const RESOLUTION_PRODUCTS = ["ResolvedRushAssignment", "ResolvedShownRusher", "CoverageShell", "GapId"] as const;
 
   function sourceFiles(dir: string): string[] {
     return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -156,13 +158,10 @@ describe("ADR-018 petition 2 — the rusher's side reaches the stream", () => {
     const { calls } = buildScenario();
     const withSides: PlayCalls = {
       ...calls,
-      defense: {
-        ...calls.defense,
-        rush: [
-          { ...calls.defense.rush[0]!, side: "LEFT" },
-          { ...calls.defense.rush[1]!, side: "RIGHT" },
-        ],
-      },
+      defense: withRush(calls.defense, [
+        { ...calls.defense.rush[0]!, side: "LEFT" },
+        { ...calls.defense.rush[1]!, side: "RIGHT" },
+      ]),
     };
     const payload = passStartPayload(withSides, "side-pass");
     expect(payload.defense.rush.map((r) => r.side)).toEqual(["LEFT", "RIGHT"]);
@@ -170,8 +169,9 @@ describe("ADR-018 petition 2 — the rusher's side reaches the stream", () => {
 
   it("an omitted side is an ABSENT KEY, never a guess and never a null", () => {
     // Nothing defaults it, deliberately: `alignment` has a tunable to fall back
-    // on because §7.2 cannot run without one, and `side` has no consumer and so
-    // no default. Inventing one is the fabricated geometry the petition removes.
+    // on because §7.2 cannot run without one, and `side` has no consumer in the
+    // physics and so no default (the slide reads the card's side, never a
+    // default). Inventing one is the fabricated geometry the petition removes.
     const payload = passStartPayload(buildScenario().calls, "side-absent");
     for (const r of payload.defense.rush) {
       expect("side" in r).toBe(false);
@@ -183,13 +183,13 @@ describe("ADR-018 petition 2 — the rusher's side reaches the stream", () => {
     const { state, calls } = buildRunScenario();
     const sided = {
       ...calls,
-      defense: {
-        ...calls.defense,
-        rush: calls.defense.rush.map((r, i) => ({
+      defense: withRush(
+        calls.defense,
+        calls.defense.rush.map((r, i) => ({
           ...r,
           side: i < 2 ? ("LEFT" as const) : ("RIGHT" as const),
         })),
-      },
+      ),
     };
     const { events } = simulateRunPlay(state, sided, "side-run");
     const start = events.find((e) => e.event.type === "PLAY_START");
@@ -209,13 +209,15 @@ describe("ADR-018 petition 2 — the rusher's side reaches the stream", () => {
   it("side changes nothing about resolution: it is geometry the stream reports", () => {
     // ADR-018's own words — petition 2 "changes no resolution today". If a side
     // ever starts moving a number, that is a mechanic, and it needs its own ADR.
+    // The one that has one is ADR-022's slide, which reads a slide-side rusher's
+    // side (`sim/preSnap.ts`); this card declares no protection scheme, so no slide.
     const { calls } = buildScenario();
     const sided: PlayCalls = {
       ...calls,
-      defense: {
-        ...calls.defense,
-        rush: calls.defense.rush.map((r) => ({ ...r, side: "LEFT" as const })),
-      },
+      defense: withRush(
+        calls.defense,
+        calls.defense.rush.map((r) => ({ ...r, side: "LEFT" as const })),
+      ),
     };
     const { state } = buildScenario();
     const plain = simulatePassPlay(state, calls, "side-noop");
@@ -231,6 +233,7 @@ describe("ADR-018 petition 2 — the rusher's side reaches the stream", () => {
       move: "SPEED",
       alignment: "EDGE",
       side: undefined,
+      gap: undefined,
     })).not.toHaveProperty("side");
   });
 });

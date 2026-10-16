@@ -15,7 +15,12 @@
  *
  * ================== 2. THE EXPIRY, AND WHY IT IS DATED ==================
  *
- * ⛔ NOTHING READS `gap` YET. That is deliberate and it is also the risk.
+ * ⛔ NOTHING DECIDES FROM `gap` YET. That is deliberate and it is also the risk.
+ *
+ * Since ADR-073 step 3.1 the engine CARRIES the rush gap to PLAY_START, on the played
+ * `rush` echo and on the shown `shownRush` echo, so renderers and diffs can compare the
+ * two field for field. A carry is not a reader: nothing rolls, times, pairs or chooses
+ * from it, and the physics reads no gap.
  *
  * A field with no consumer and a documented reason gets read as intentional and skipped —
  * so the doc comment on `RushAssignment.gap`, and the one above `declaredRush`, are not
@@ -73,7 +78,7 @@ describe("ADR-065 §Petition 1 — gap crosses the boundary", () => {
     ).toEqual([]);
   });
 
-  it(`EXPIRY PIN — comes due ${P1_EXPIRY}; nothing reads \`gap\` and that must not become permanent`, () => {
+  it(`EXPIRY PIN — comes due ${P1_EXPIRY}; nothing decides from \`gap\` and that must not become permanent`, () => {
     const today = new Date().toISOString().slice(0, 10);
 
     expect(
@@ -102,15 +107,24 @@ describe("ADR-065 §Petition 1 — gap crosses the boundary", () => {
         "    git grep -n '\\.gap\\b' -- packages/engine/src packages/calibration/src",
         "",
         "  ⚠ FALSE POSITIVES ARE EXPECTED. `RunBlockAssignment` has its OWN unrelated `gap`",
-        "    (same file, run blocking). A hit only counts if it reads the gap off a RUSH",
-        "    assignment or a rush matchup. If every hit is run-blocking, you are in branch (b).",
+        "    (same file, run blocking; runPlay's run-block loop also names its variable",
+        "    `assignment`), and RUN_RESOLUTION has its own `gap` too.",
+        "",
+        "  ⚠ THE PLAY_START ECHO IS A CARRY, NOT A READER (ADR-073 step 3.1). The rush-gap hits",
+        "    in sim/preSnap.ts (`assignment.gap`, `looper.gap`, `plan.gap`), sim/passPlay.ts",
+        "    (`plan.gap`, `m.gap`, `s.gap`) and runPlay's PLAY_START echo (`r.gap`, `s.gap`)",
+        "    only move the card's gap into the stream. A hit counts only if something DECIDES",
+        "    from the rush gap: a roll, a time, a pairing or a choice. If every hit is run",
+        "    blocking or that echo, you are in branch (b).",
         "",
         "TWO BRANCHES — one of them is now true:",
         "",
-        "  (a) THE GEOMETRY GOT BUILT and something reads the rush `gap`.",
+        "  (a) THE GEOMETRY GOT BUILT and something DECIDES from the rush `gap`. ADR-073",
+        "      step 3.5's front look (`applyFrontLook`, packages/playbook/src) is planned to",
+        "      be the first: it moves a shown man by his gap. Check there too.",
         "      => The condition is discharged. DELETE THIS TEST. Nothing else is owed.",
         "",
-        "  (b) THE PETITION STALLED. `gap` still has no reader, and ADR-065 §Petitions 2 and 3",
+        "  (b) THE PETITION STALLED. Nothing decides from `gap`, and ADR-065 §Petitions 2 and 3",
         "      are still unratified.",
         "      => The disposition is a RULING, not a date change: either rule P2/P3, or",
         "         REMOVE `gap` — from `RushAssignment` (playcalls.ts) and from `declaredRush`",

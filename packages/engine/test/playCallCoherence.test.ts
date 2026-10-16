@@ -12,7 +12,7 @@ import { simulatePassPlay } from "../src/index.js";
 import { IncoherentPlayCallError, assertCoherentPlayCall } from "../src/validate/playCall.js";
 import type { PlayerId } from "@ff/contracts";
 import type { MatchGameState, PlayCalls, RouteAssignment } from "../src/types.js";
-import { baseReceivers, buildScenario, makePlayer } from "./fixtures.js";
+import { baseReceivers, buildScenario, makePlayer, withRush } from "./fixtures.js";
 
 function scenario(): { state: MatchGameState; calls: PlayCalls } {
   const { state, calls } = buildScenario();
@@ -43,14 +43,16 @@ function tripleChain(): {
   const players = { ...state.players, [extra.bio.id as unknown as string]: extra };
   const chain: PlayCalls = {
     ...calls,
-    defense: {
-      ...calls.defense,
-      rush: [...calls.defense.rush, { rusher: extra.bio.id, move: "POWER" }],
-      stunts: [
-        { penetrator: middle, looper: edge, complexity: "TRIPLE" },
-        { penetrator: extra.bio.id, looper: middle, complexity: "TRIPLE" },
-      ],
-    },
+    defense: withRush(
+      {
+        ...calls.defense,
+        stunts: [
+          { penetrator: middle, looper: edge, complexity: "TRIPLE" },
+          { penetrator: extra.bio.id, looper: middle, complexity: "TRIPLE" },
+        ],
+      },
+      [...calls.defense.rush, { rusher: extra.bio.id, move: "POWER" }],
+    ),
   };
   return { state: { ...state, players }, calls, chain, middle, edge, third: extra.bio.id };
 }
@@ -119,7 +121,7 @@ describe("ADR-006 — rejections", () => {
     if (rush === undefined) throw new Error("bad fixture");
     const bad: PlayCalls = {
       ...calls,
-      defense: { ...calls.defense, rush: [rush, { ...rush, move: "POWER" }] },
+      defense: withRush(calls.defense, [rush, { ...rush, move: "POWER" }]),
     };
     expect(() => assertCoherentPlayCall(state, bad)).toThrow(/rushes twice/);
   });
@@ -141,10 +143,7 @@ describe("ADR-006 — rejections", () => {
     if (cover === undefined) throw new Error("bad fixture");
     const bad: PlayCalls = {
       ...calls,
-      defense: {
-        ...calls.defense,
-        rush: [...calls.defense.rush, { rusher: cover.defender, move: "SPEED" }],
-      },
+      defense: withRush(calls.defense, [...calls.defense.rush, { rusher: cover.defender, move: "SPEED" }]),
     };
     expect(() => assertCoherentPlayCall(state, bad)).toThrow(/both rushing and in coverage/);
   });

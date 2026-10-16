@@ -23,6 +23,13 @@
  * the day a card diverges. Deep equality is the assertion that survives the split:
  * the cards that still show what they play keep asserting it, unchanged, forever.
  *
+ * ⛔ THE RUSH IS THE OPPOSITE CHOICE, AND FOR A STATED REASON (ADR-073 step 3.1).
+ * `shownRush` is asserted by `toBe` IDENTITY with `rush`, on every card. A card never
+ * writes a shown rush: a front look is laid over the CALL after `instantiateDefense`
+ * returns (ADR-073 §2.1, §2.5), so what this function produces shows exactly the rush
+ * it plays for as long as that design holds, and identity is what ADR-073 asked to pin,
+ * so a second list built by accident fails here and not inside a later measurement.
+ *
  * ================== WHAT IT IS NOW (ADR-069) ==================
  *
  * ADR-068 step 1 wrote two disguises into cards (Cover 3 Sky, Cover 1 Rat). ADR-069 moved
@@ -144,6 +151,13 @@ describe("ADR-067 §A / ADR-068 — every shown look is identical or declared", 
               "the declaration outlived it and should be removed.",
           ).not.toEqual(call.assignments);
         }
+
+        expect(
+          call.shownRush,
+          `${id} vs ${formation.id}: the shown rush is not the played rush's own array. ` +
+            "`instantiateDefense` returns ONE array for both (ADR-073 step 3.1); a front look " +
+            "is laid over the call afterwards, never written into a card.",
+        ).toBe(call.rush);
       }
 
       expect(looks, `${id} was never instantiated`).toBeGreaterThan(0);

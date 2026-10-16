@@ -7,7 +7,7 @@ import {
 } from "../src/index.js";
 import type { MatchGameState, PlayCalls } from "../src/types.js";
 import { TUNABLES } from "../src/tunables.js";
-import { buildScenario, buildScramblerScenario, endedInSack, makePlayer } from "./fixtures.js";
+import { buildScenario, buildScramblerScenario, endedInSack, makePlayer, withRush } from "./fixtures.js";
 
 const types = (events: readonly MatchEventEnvelope[]): string[] => events.map((e) => e.event.type);
 
@@ -288,11 +288,13 @@ describe("pass play integration", () => {
         routes: calls.offense.routes.map((r) => ({ ...r, depthClass: "DEEP" as const, airYards: 25 })),
         protection: [{ blocker: turnstile.bio.id, rusher: wrecker.bio.id }],
       },
-      defense: {
-        ...calls.defense,
-        assignments: calls.defense.assignments.map((a) => ({ ...a, technique: "PRESS" as const })),
-        rush: [{ rusher: wrecker.bio.id, move: "POWER" }],
-      },
+      defense: withRush(
+        {
+          ...calls.defense,
+          assignments: calls.defense.assignments.map((a) => ({ ...a, technique: "PRESS" as const })),
+        },
+        [{ rusher: wrecker.bio.id, move: "POWER" }],
+      ),
     };
 
     let sacks = 0;

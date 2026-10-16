@@ -34,7 +34,7 @@ import type {
   ProtectionCall,
   RunSide,
 } from "../src/types.js";
-import { buildScenario, makePlayer } from "./fixtures.js";
+import { buildScenario, makePlayer, withRush } from "./fixtures.js";
 
 /**
  * CALIBRATION-BACKLOG entry 99 — `RunSide` has exactly one restatement in this
@@ -122,7 +122,7 @@ function buildFront(options: FrontOptions): Fixture {
       : { kind: "SLIDE", slideSide: options.slide, available: declaredAvailable };
 
   const offense: OffensivePlayCall = { ...base.calls.offense, protectionScheme: scheme };
-  const defense: DefensivePlayCall = { ...base.calls.defense, rush: realRush };
+  const defense: DefensivePlayCall = withRush(base.calls.defense, realRush);
 
   const rushing = new Set(realRush.map((r) => String(r.rusher)));
   const expectedWindfall = protection

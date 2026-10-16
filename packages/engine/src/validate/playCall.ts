@@ -134,6 +134,9 @@ export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls):
   assertNoDuplicates(defense.rush.map((r) => String(r.rusher)), (id) =>
     `${id} rushes twice`,
   );
+  // After "rushes twice", so a card that rushes a man twice fails on that and not on the
+  // shown list it carries along (ADR-073 step 3.1).
+  assertShownRush(defense);
   assertNoDuplicates(defense.assignments.map((a) => String(a.defender)), (id) =>
     `${id} has two coverage assignments`,
   );
@@ -345,6 +348,7 @@ export function assertCoherentRunCall(state: MatchGameState, calls: RunPlayCalls
     }
   }
   assertNoDuplicates(defense.rush.map((r) => String(r.rusher)), (id) => `${id} is in the front twice`);
+  assertShownRush(defense);
   assertNoDuplicates(defense.assignments.map((a) => String(a.defender)), (id) =>
     `${id} has two coverage assignments`,
   );
@@ -376,6 +380,27 @@ export function assertCoherentRunCall(state: MatchGameState, calls: RunPlayCalls
     fail(
       `${defensePlayers.size} defensive players on the field; the limit is ${PLAYERS_ON_THE_FIELD}`,
     );
+  }
+}
+
+/**
+ * ADR-073 step 3.1: the shown rush, checked as the card's own data, on the pass and the run
+ * call alike (both echo it on PLAY_START). Every man the defence shows rushing is one of its
+ * own players on the call, rushing or covering, and nobody is shown twice.
+ *
+ * There is NO one-spot rule here: a Mug's walked-up backer may share a gap with the tackle
+ * in front of him. The Stem's one-spot refusal is the front look's own check (ADR-073 §2.5).
+ */
+function assertShownRush(defense: PlayCalls["defense"]): void {
+  assertNoDuplicates(defense.shownRush.map((r) => String(r.rusher)), (id) => `${id} is shown rushing twice`);
+  const onTheCall = new Set<string>([
+    ...defense.rush.map((r) => String(r.rusher)),
+    ...defense.assignments.map((a) => String(a.defender)),
+  ]);
+  for (const shown of defense.shownRush) {
+    if (!onTheCall.has(String(shown.rusher))) {
+      fail(`${String(shown.rusher)} is shown rushing but neither rushes nor covers on this call`);
+    }
   }
 }
 

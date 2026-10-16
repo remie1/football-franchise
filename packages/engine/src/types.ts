@@ -44,6 +44,7 @@ import type {
   RushAlignment,
   RushAssignment,
   RushMove,
+  ShownRusher,
   SpaceBlockAssignment,
   StuntCall,
   StuntComplexity,
@@ -231,8 +232,22 @@ export type CoverageShell = "MAN" | "ZONE" | "MIXED" | "NONE";
  * default to resolve it from, and inventing one would be exactly the fabricated
  * geometry the petition exists to remove. Omitted here means the card did not
  * say, which is what it means on the card.
+ *
+ * `gap` (ADR-065 §P1) is inherited and optional the same way. Since ADR-073 step
+ * 3.1 it is carried to PLAY_START as an echo, for renderers and for comparing the
+ * shown rush with the played one; the engine's physics still reads no gap.
  */
 export interface ResolvedRushAssignment extends RushAssignment {
+  readonly alignment: RushAlignment;
+}
+
+/**
+ * A shown rusher as PLAY_START states it (ADR-073): the call's `ShownRusher` with
+ * the alignment RESOLVED exactly as `ResolvedRushAssignment`'s is, and `side` and
+ * `gap` carried, absent when the card did not say. No `move`: a move is played,
+ * never shown.
+ */
+export interface ResolvedShownRusher extends ShownRusher {
   readonly alignment: RushAlignment;
 }
 
@@ -382,8 +397,20 @@ export interface PassPlayStartPayload {
      * nobody named, fails.
      */
     readonly tags: readonly DefensiveTag[];
-    /** Alignment resolved: §7.2's time-of-arrival model depends on it. */
+    /**
+     * Alignment resolved: §7.2's time-of-arrival model depends on it. `side` and
+     * `gap` carried as the card stated them (`gap` since ADR-073 step 3.1, an echo
+     * the physics never reads).
+     */
     readonly rush: readonly ResolvedRushAssignment[];
+    /**
+     * ADR-073 — what the offence SAW of the rush, beside `rush`, which was played:
+     * the call's `shownRush` with alignment resolved as `rush`'s is, side and gap
+     * carried, no move. Both states and no verdict, as `shownAssignments`. The same
+     * men in the same order as `rush` unless the call wore a front look (step 3.5);
+     * until then the two agree field for field, `move` aside.
+     */
+    readonly shownRush: readonly ResolvedShownRusher[];
     /**
      * §7.4 step 1 — rushers no `ProtectionAssignment` named. A fact about the
      * CALL, not about the resolution: whether each was picked up, ran through a
@@ -446,6 +473,11 @@ export interface RunPlayStartPayload {
     /** ADR-071 — as on `PassPlayStartPayload`. */
     readonly tags: readonly DefensiveTag[];
     readonly rush: readonly ResolvedRushAssignment[];
+    /**
+     * ADR-073 — as on `PassPlayStartPayload`. Carried on a run so the stream has
+     * one shape for the defence. Nothing in the run sim reads it.
+     */
+    readonly shownRush: readonly ResolvedShownRusher[];
   };
   readonly situation: {
     readonly down: number;

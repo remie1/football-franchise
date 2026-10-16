@@ -561,11 +561,12 @@ export const TUNABLES = {
    *
    * The doc's four steps map exactly onto four engine behaviours:
    *
-   *   1. RECOGNITION   deterministic, no die. A rusher is ACCOUNTED FOR if a
-   *                    `ProtectionAssignment` names him (man protection), or if
-   *                    the card declares a slide and he comes from the slide side
-   *                    with a slide blocker still free. Everything else is
-   *                    UNACCOUNTED, which is what starts §5.3's recognition roll.
+   *   1. RECOGNITION   deterministic, no die. A rusher is ACCOUNTED FOR only if
+   *                    a `ProtectionAssignment` names him (man protection).
+   *                    Everything else is UNACCOUNTED, which is what starts §5.3's
+   *                    recognition roll, a slide-side rusher no pairing names
+   *                    included. The slide answers him at step 3 instead of a
+   *                    contest (`slideIsUncontested` below).
    *   2. HOT ROUTE     `presnap.hotRoute`, gated on §5.3's recognition.
    *   3. PICKED UP     the contest below — the back or tight end who stayed in.
    *   4. FREE RUNNER   nobody left to pick him up, or the pickup was lost.
@@ -714,8 +715,11 @@ export const TUNABLES = {
       maxArrivalSeconds: 4.0,
     },
     /**
-     * §7.4 step 1's slide: "Covered if blitzer on slide side." No contest — the
-     * slide IS the answer, and the resulting matchup is an ordinary §7.1 rep.
+     * §7.4's slide: "Covered if blitzer on slide side." No contest — the slide IS
+     * the answer, and the resulting matchup is an ordinary §7.1 rep. The engine
+     * applies it at the pickup (step 3), not at recognition: a slide-side rusher
+     * no pairing names is still unaccounted, still triggers §5.3's roll, and then
+     * takes the first man left in the pickup pool without a contest.
      */
     slideIsUncontested: true,
   },

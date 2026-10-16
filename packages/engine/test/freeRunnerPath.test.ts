@@ -43,7 +43,7 @@ import type { FreeRunnerDepth } from "../src/resolve/rushThreat.js";
 import { applyTunablePatch, TUNABLES } from "../src/tunables.js";
 import type { Tunables } from "../src/tunables.js";
 import type { PocketStatus, RushAlignment } from "../src/types.js";
-import { buildScenario, makePlayer } from "./fixtures.js";
+import { buildScenario, makePlayer, withRush } from "./fixtures.js";
 
 const BASE = TUNABLES.blitzPickup.freeRunnerArrivalSeconds;
 const ALIGNMENTS: readonly RushAlignment[] = ["INTERIOR", "EDGE"];
@@ -275,13 +275,10 @@ function freeRunnerEta(
     // pickup contest, no delay, and the ETA in the stream is the path and only
     // the path.
     offense: { ...base.calls.offense, protectionScheme: { kind: "MAN" as const, available: [] } },
-    defense: {
-      ...base.calls.defense,
-      rush: [
-        ...base.calls.defense.rush,
-        { rusher: blitzer.bio.id, move: "SPEED" as const, alignment: who.alignment },
-      ],
-    },
+    defense: withRush(base.calls.defense, [
+      ...base.calls.defense.rush,
+      { rusher: blitzer.bio.id, move: "SPEED" as const, alignment: who.alignment },
+    ]),
   };
   const { events } = simulatePassPlay(state, calls, seed);
   for (const { event } of events) {
@@ -339,13 +336,10 @@ describe("§7.4 the path reaches the event stream", () => {
       const calls = {
         ...base.calls,
         offense: { ...base.calls.offense, protectionScheme: { kind: "MAN" as const, available: [] } },
-        defense: {
-          ...base.calls.defense,
-          rush: [
-            ...base.calls.defense.rush,
-            { rusher: blitzer.bio.id, move: "SPEED" as const, alignment: "EDGE" as const },
-          ],
-        },
+        defense: withRush(base.calls.defense, [
+          ...base.calls.defense.rush,
+          { rusher: blitzer.bio.id, move: "SPEED" as const, alignment: "EDGE" as const },
+        ]),
       };
       streams.push(JSON.stringify(simulatePassPlay(state, calls, "path-determinism").events));
     }
