@@ -2,8 +2,8 @@
 
 - **Date:** 2026-10-16
 - **Proposed by:** Orchestrator (thread "Weekly game plan design")
-- **Status:** proposed (design). Nothing in `packages/` changes with this ADR. The questions in §9
-  are open; each contracts edit in §6 needs the owner's yes by name before it is made.
+- **Status:** approved (design), all five questions ruled 2026-10-16 (§10). Nothing in `packages/`
+  changes with this ADR; each contracts edit in §6 needs the owner's yes by name before it is made.
 - **Plain-words version of the questions:** [ADR-076-questions-explained.md](ADR-076-questions-explained.md)
 - **Picks up:** ADR-075 §8 ("Exploiting the offence's rules: a coordinator studying the
   quarterback's checks and baiting them. That is the weekly game plan (Spec #11 §4.1), not built"),
@@ -42,9 +42,8 @@ each look, this offence made each check. From that he builds a **game plan**: a 
 **baits**, each a look paired with a call that punishes the check it draws, in the situations where
 this offence bites, called more often than usual this week (a **tilt**). He does not disguise more
 in total; his overall rate stays his own style (ADR-075). He only chooses which looks, over which
-calls, in which situations. The offence's staff studies too: if it wins the prep battle it knows
-what is coming and its coach tightens the QB's leash in those situations, so he does not bite and
-also gives up the good checks there. Nothing in the engine changes. The plan only changes what the
+calls, in which situations. The offence gets no answer to the plan in this ADR (owner Q4, §5).
+Nothing in the engine changes. The plan only changes what the
 defence calls, and every call it makes is one the engine already plays.
 
 ## 3. Baits
@@ -168,7 +167,7 @@ Setting the plan is a decision and carries the **COACH** authority tag (Iron Rul
 3. **A new quarterback starts from the league average.** Tallies are keyed by team and the QB who
    took the snaps. When the starter changes, his own tallies (from earlier games or teams) are used
    if any exist; otherwise every bite rate is the league's and every tilt is 1.
-4. **Deterministic and stored.** The plan builder and the counter-prep roll are pure functions of the
+4. **Deterministic and stored.** The plan builder is a pure function of the
    saved tallies, the staff's ratings and a seed from the league seed, the week and the team, never
    the game's own dice stream. The plan in force is saved at kickoff, so a replay uses that plan and
    never recomputes it from later film.
@@ -176,26 +175,14 @@ Setting the plan is a decision and carries the **COACH** authority tag (Iron Rul
    state. A human's chance to set or approve the plan is a pending decision that falls back to the
    DC's plan if nobody acts, so one absent player never stalls a shared league's week.
 
-## 5. The offence's side: counter-prep
+## 5. The offence's side: not yet
 
-Spec #11 §4.1 makes the packet opposed. Here: one roll per game, the offence's `gamePlanning`
-against the defence's (both coordinators, OC against DC), on the franchise's weekly fork.
-
-- **Defence wins, or tie:** the plan applies as built.
-- **Offence wins:** the offence's staff has seen its own habits on film too (self-scouting) and
-  knows which baits are coming in which situations. Its NPC coach **tightens the QB's leash in
-  those situations** to just under the baited check's rung (for B1 and B4, under 30; for B3, under
-  40; for B5, under 90). The QB then does not bite, and also cannot make the good checks in those
-  situations. That is the real cost of playing it safe.
-- **B2 cannot be answered with the leash**: the hot route is the call's own answer at rung 0
-  (ADR-072 §1). An offence that wins against a B2 plan simply knows; answering it needs a check the
-  tree does not have yet ("hot route off" on the call). Left for later (§8).
-- **The human offence** gets the same knowledge as a scouting report ("expect Mug-and-drop on third
-  down") and sets his own leash.
-
-The leash rides each pass call (ADR-072 §3) and the coach already stamps it, so this needs no new
-field. It is crude on purpose: the coach can tighten a situation, not a single look, because the
-call is made in the huddle before the look is seen.
+*Owner Q4 (2026-10-16): nothing for now.* The draft proposed an opposed prep roll (Spec #11 §4.1,
+the offence's `gamePlanning` against the defence's) whose winner's coach tightened the QB's leash
+in the baited situations. The owner chose to give the offence no answer in this ADR. So the plan
+always applies as built, there is no counter-prep roll, and a human calling the offence sees no
+scouting report of the defence's plan. Spec #11 §4.1's opposed check remains the place for an
+answer later (§8).
 
 ## 6. Contracts petition (shape only; each edit needs the owner's yes by name)
 
@@ -234,12 +221,11 @@ the same seam ADR-075 T1 opens for the coordinator's style.
 | **G2** | plan builder: tallies + `gamePlanning` → tilts (§4.2–4.3), overall rates held | no | no film ⇒ all tilts 1; tilts stay in ½–2; disguise and pressure rates equal before and after |
 | **G3** | the caller takes tilts on looks and calls, defaulting to 1 (needs ADR-075 T1's seam) | no | all tilts 1 ⇒ identical stream on the frozen caller |
 | **G4** | calibration arm: a plan caller against designed offences (below) | no | §7.1 predictions |
-| **G5** | counter-prep roll + the NPC offensive coach's leash answer | no | offence wins ⇒ leash under the baited rung in those situations only |
 | **G6** | scouting report and suggested calls in the UI | no (ui) | reads the plan only |
 
 G1–G3 can be built any time after ADR-075 T1 with B3 alone, since B3's pieces exist today. B1, B2
 and B4 join after ADR-073 step 3.5, and B1 also waits for the sack-and-outlet diagnosis. B5 joins
-after ADR-074 step 1. G2 and G5 need franchise weeks to run in the game proper; in calibration the
+after ADR-074 step 1. G2 needs franchise weeks to run in the game proper; in calibration the
 arm hands the plan builder tallies from a first batch of games and plays a second batch with the
 plan.
 
@@ -258,7 +244,7 @@ each offence with a plan built from its own film, against the same seeds with no
    and is predicted to be small (ADR-070 §10: the coverage looks net to about zero, so tilting among
    them moves little). If B3 alone moves nothing measurable, the bait machinery waits for B1–B4,
    whose film signal is stronger (§4.1).
-5. **The leash answer works:** at leash 20 (below B3's rung 40) the B3 tilt has nothing to bite on
+5. **A tight leash leaves nothing to bait:** at leash 20 (below B3's rung 40) the B3 tilt has nothing to bite on
    and moves nothing.
 
 ## 8. Implied scope (`unruled`)
@@ -272,7 +258,10 @@ each offence with a plan built from its own film, against the same seeds with no
   film (ADR-075 §8 "film study"). That is a term in the read, so engine work.
 - **A bait wearing out within a game:** a QB burned once reads it better next time. That is the
   AdjustmentPacket's (Spec #11 §4.2) or a read term; not here.
-- **"Hot route off"** as a check, so an offence can answer B2.
+- **The offence's answer (owner Q4: not yet).** The draft's counter-prep: an opposed
+  `gamePlanning` roll whose winning coach tightens the QB's leash in the baited situations (crude:
+  a situation, not a look, since the call is made before the look). Alternatives were a read bonus
+  on studied looks, and a "hot route off" check so an offence could answer B2.
 - **The week's baits in practice:** ADR-075 §4.6 gives the season window about a quarter of a year's
   disguise growth; whether this week's baits get extra reps is ADR-075 T7's.
 - **Fantasy mode:** the advisor found nothing foreclosed; its five constraints are §4.5.
@@ -298,7 +287,13 @@ in the thread.
 
 ## 10. Decision
 
-*Open.*
+| # | question | ruling | when |
+|---|---|---|---|
+| Q1 | What the plan may change | ✅ **Which looks, over which calls, in which situations**; his overall disguise and blitz rates held (§4.3) | owner, 2026-10-16 20:41 |
+| Q2 | Where his knowledge comes from | ✅ **Film** of what the offence actually did, depth set by his `gamePlanning` (§4.1–4.2) | owner, 2026-10-16 20:41 |
+| Q3 | How hard he leans | ✅ **Half to double**: tilt clamped to ½–2 (§4.3) | owner, 2026-10-16 20:41 |
+| Q4 | The offence's answer | ✅ **Nothing yet**: no counter-prep roll, the plan always applies (§5, §8) | owner, 2026-10-16 20:43 |
+| Q5 | Build order | ✅ **Start with one trap**: build with B3 after ADR-075 T1, add each bait as its look exists; B1 also waits for the sack-and-outlet diagnosis (§7) | owner, 2026-10-16 20:42 |
 
 ## Provenance
 
