@@ -229,7 +229,9 @@ export type MatchEvent =
   | ({ type: "PLAY_START"; payload: unknown } & MatchEventBase)
   | ({ type: "PRESNAP_READ"; payload: {
         actor: PlayerId; kind: CheckKind; roll: RollDetail; target: number; tier: ResultTier;
-        /** §5.3's four-row result table, same reasoning as ADR-011 gave `CHECK.band`: a
+        /** The read's own band label (a free string, ADR-011): §5.1's six-band ladder for
+         *  `coverage_read` and `blitz_recognition` (ADR-068 §2, ADR-073); HELD / BROKE for
+         *  `leash_discipline` (ADR-072). Same reasoning as ADR-011 gave `CHECK.band`: a
          *  re-derived band desyncs silently the first time calibration moves a boundary. */
         band?: string;
       } } & MatchEventBase)

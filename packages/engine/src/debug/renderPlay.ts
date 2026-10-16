@@ -258,7 +258,7 @@ function renderBallCarrier(events: readonly MatchEventEnvelope[], name: NameLook
  * blocking whom before a single rep is rolled.
  *
  * Every line here is read from the stream, the §5.3 band included: ADR-022 gave
- * `PRESNAP_READ` the same `band` field ADR-011 gave `CHECK`, so the four-row
+ * `PRESNAP_READ` the same `band` field ADR-011 gave `CHECK`, so the read's own
  * label is printed rather than re-derived from the margin here.
  */
 function renderPreSnap(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {

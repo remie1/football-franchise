@@ -585,12 +585,15 @@ export function bandTableCensus(tunables: Tunables = DEFAULT_TUNABLES): BandTabl
 // monotone). Read off a run; Tier B re-run at the same dispatch.
 // 27 → 28 tables at ADR-072: `presnap.leash.discipline.bands`, HELD and BROKE (+2 rows; +2 cells,
 // one boolean column per row; +1 orderable column, `held`, monotone). Read off a run.
+// 135 → 137 rows at ADR-073 step 3.2b: `presnap.blitzRecognition.bands` goes from four rows to §5.1's
+// six (+2 rows) and gains a `picture` column (+1 string column): six rows × two columns is 12
+// cells against four rows × one, so +8. `recognized` stays orderable and monotone. Read off a run.
 export const RECORDED_CENSUS: BandTableCensus = {
   tables: 28,
-  rows: 135,
-  cells: 262,
+  rows: 137,
+  cells: 270,
   orderableColumns: 55,
-  stringColumns: 3,
+  stringColumns: 4,
 };
 
 /**

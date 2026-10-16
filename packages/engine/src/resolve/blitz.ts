@@ -29,6 +29,9 @@ import type { Tunables } from "../tunables.js";
 
 export type BlitzRecognitionBandLabel =
   Tunables["presnap"]["blitzRecognition"]["bands"][number]["label"];
+/** What a band makes of the front he is shown (ADR-073 §2.2): TRUE, COUNT, CALL or LOOK. */
+export type BlitzRecognitionPicture =
+  Tunables["presnap"]["blitzRecognition"]["bands"][number]["picture"];
 export type BlitzPickupBandLabel = Tunables["blitzPickup"]["bands"][number]["label"];
 export type StuntBandLabel = Tunables["stunt"]["bands"][number]["label"];
 
@@ -36,6 +39,8 @@ export type StuntBandLabel = Tunables["stunt"]["bands"][number]["label"];
 
 export interface BlitzRecognitionOutcome {
   readonly band: BlitzRecognitionBandLabel;
+  readonly picture: BlitzRecognitionPicture;
+  /** §5.3's success: the top three bands. What the point-out reads. */
   readonly recognized: boolean;
   readonly margin: number;
   readonly roll: RollDetail;
@@ -76,6 +81,7 @@ export function resolveBlitzRecognition(args: {
 
   return {
     band: band.label,
+    picture: band.picture,
     recognized: band.recognized,
     margin,
     roll,
@@ -85,8 +91,9 @@ export function resolveBlitzRecognition(args: {
       roll,
       target,
       tier: tierFor(args.tunables, margin),
-      // ADR-022 petition 6 — §5.3's own four-row label, carried rather than
-      // re-derived from the tier by whoever needs to know HOW well he saw it.
+      // ADR-022 petition 6 — the read's own label, one of the six (ADR-073 §2.2),
+      // carried rather than re-derived from the tier by whoever needs to know
+      // HOW well he saw it.
       band: band.label,
     },
   };

@@ -921,21 +921,32 @@ describe("ADR-022 — what the stream now states instead of leaving to inference
     }
   });
 
-  it("§5.3's four-row label travels on PRESNAP_READ, and agrees with the arithmetic", () => {
-    const f = buildBlitz({ backStaysIn: false });
+  it("the pressure read's six-band label travels on PRESNAP_READ, and agrees with the arithmetic", () => {
+    // ZERO is §5.3's hardest row, so the margin reaches every band on these seeds.
+    const f = buildBlitz({ backStaysIn: false, disguise: "ZERO" });
+    // ADR-073 §2.2's cuts, written out rather than read off the table under test.
+    const sixBand = (margin: number): string =>
+      margin >= 30 ? "DIAGNOSED"
+        : margin >= 15 ? "IDENTIFIED"
+          : margin >= 0 ? "COUNTED"
+            : margin >= -14 ? "UNSURE"
+              : margin >= -29 ? "MISIDENTIFIED"
+                : "BUSTED";
     const bands = new Set<string>();
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 300; i++) {
       const read = presnapOf(simulatePassPlay(f.state, f.calls, `band-${i}`).events, "blitz_recognition")[0];
       if (read === undefined) continue;
       expect(read.band).toBeDefined();
       const band = read.band ?? "";
       bands.add(band);
-      expect(["READ_IT", "RECOGNIZED", "MISSED", "FOOLED"]).toContain(band);
-      // The band is the doc's; the binary outcome is the arithmetic's. They agree.
+      expect(band).toBe(sixBand(read.roll.total - read.target));
+      // §5.3's success is the top three bands: the binary outcome is the arithmetic's, at margin 0.
       const saw = read.roll.total >= read.target;
-      expect(band === "READ_IT" || band === "RECOGNIZED").toBe(saw);
+      expect(band === "DIAGNOSED" || band === "IDENTIFIED" || band === "COUNTED").toBe(saw);
     }
-    expect(bands.size).toBeGreaterThan(1);
+    expect([...bands].sort()).toEqual(
+      ["BUSTED", "COUNTED", "DIAGNOSED", "IDENTIFIED", "MISIDENTIFIED", "UNSURE"],
+    );
   });
 
   it("§17 states WHY the free runner is coming, rather than reading it off an absent tick", () => {

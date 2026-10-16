@@ -589,32 +589,43 @@ export const REGISTER: readonly RegisterRule[] = [
     docRef: "§5.3 / Appendix C",
     note: "50, and Appendix C's 'Blitz recognition | 50 | +0-25 (disguise)' agrees with §5.3.",
   },
+  // The pressure read's six bands (ADR-073 §2.2): §5.1's rows at the coverage read's own cuts,
+  // applied to §5.3 by ADR-068 §2. §5.3's own SUCCESS/FAILURE split is the cut at 0.
   {
     pattern: "presnap.blitzRecognition.bands.0.minMargin",
-    provenance: "INTERPRETATION",
-    docRef: "§5.3",
-    note:
-      "§5.3 states two outcomes, SUCCESS and FAILURE, split at margin 0. READ_IT's +20 and FOOLED's " +
-      "−20 subdivide them so the stream can say how well he saw it; only `recognized` is consumed, " +
-      "so these two boundaries move a published LABEL and nothing else. Declared in tunables.",
-  },
-  {
-    pattern: "presnap.blitzRecognition.bands.3.minMargin",
-    provenance: "STRUCTURAL",
-    docRef: "§5.3",
-    note: "−∞ terminator.",
-  },
-  {
-    pattern: "presnap.blitzRecognition.bands.2.minMargin",
-    provenance: "INTERPRETATION",
-    docRef: "§5.3",
-    note: "See bands.0 — the FOOLED/MISSED boundary is the same subdivision.",
+    provenance: "DOC_DERIVED",
+    docRef: "§5.1, applied to §5.3 by ADR-068 §2",
+    note: "30 — DIAGNOSED, §5.1's 'Beat by 30+' row (ADR-073 §2.2).",
   },
   {
     pattern: "presnap.blitzRecognition.bands.1.minMargin",
     provenance: "DOC_DERIVED",
+    docRef: "§5.1, applied to §5.3 by ADR-068 §2",
+    note: "15 — IDENTIFIED, §5.1's 'Beat by 15-29' row (ADR-073 §2.2).",
+  },
+  {
+    pattern: "presnap.blitzRecognition.bands.2.minMargin",
+    provenance: "DOC_DERIVED",
     docRef: "§5.3",
-    note: "0 — the doc's own SUCCESS/FAILURE split.",
+    note: "0 — the doc's own SUCCESS/FAILURE split; COUNTED is the last success (ADR-073 §2.2).",
+  },
+  {
+    pattern: "presnap.blitzRecognition.bands.3.minMargin",
+    provenance: "DOC_DERIVED",
+    docRef: "§5.1, applied to §5.3 by ADR-068 §2",
+    note: "−14 — UNSURE, §5.1's 'Miss by 1-14' row (ADR-073 §2.2).",
+  },
+  {
+    pattern: "presnap.blitzRecognition.bands.4.minMargin",
+    provenance: "DOC_DERIVED",
+    docRef: "§5.1, applied to §5.3 by ADR-068 §2",
+    note: "−29 — MISIDENTIFIED, §5.1's 'Miss by 15-29' row (ADR-073 §2.2).",
+  },
+  {
+    pattern: "presnap.blitzRecognition.bands.5.minMargin",
+    provenance: "STRUCTURAL",
+    docRef: "§5.3",
+    note: "−∞ terminator — BUSTED.",
   },
   {
     pattern: "presnap.blitzRecognition.attrDivisor",
@@ -693,7 +704,7 @@ export const REGISTER: readonly RegisterRule[] = [
     note: "−∞ terminator — 'Miss by 30+: Complete misread'.",
   },
 
-  // ---- the leash and discipline (ADR-072, ADR-068 step 2) --------------------------------------
+  // ---- the leash and discipline (ADR-072, ADR-068 step 2; ADR-073's rung) ----------------------
   // `match-engine.md` has no leash. ADR-068 ruled that there is one (a 0–100 slider, ruling 3) and
   // that discipline exists (ruling 2); every number below is ADR-072's judgement, made in the open
   // and measured by its arms, so `INTERPRETATION`. Named individually, as the coverage read's are.
@@ -702,6 +713,14 @@ export const REGISTER: readonly RegisterRule[] = [
     provenance: "INTERPRETATION",
     docRef: "ADR-072 §1",
     note: "20 — where the slider lets him move a man he reads as covered to the back. A football judgement.",
+  },
+  {
+    pattern: "presnap.leash.rungs.PROTECTION_ADJUST",
+    provenance: "INTERPRETATION",
+    docRef: "ADR-072 §1 / ADR-073 §2.3",
+    note:
+      "30 — where the slider lets the line check the slide and keep a back in; a football judgement, " +
+      "ruled at ADR-073 Q1.",
   },
   {
     pattern: "presnap.leash.rungs.WORK_TO",

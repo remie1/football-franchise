@@ -212,15 +212,27 @@ export const TUNABLES = {
        */
       disguise: { STANDARD: 0, ZONE_BLITZ: 15, DELAYED: 20, ZERO: 25 },
       /**
-       * §5.3 gives two outcomes ("SUCCESS" / "FAILURE"); the four bands are the
-       * usual margin split so the stream can say HOW well he saw it. Only
-       * `recognized` is consumed.
+       * THE PRESSURE READ'S SIX BANDS (ADR-073 §2.2): §5.1's six rows, at the coverage read's own
+       * cuts below (ADR-068 §2), applied to §5.3. §5.3 gives two outcomes ("SUCCESS" / "FAILURE"),
+       * and they split where these do, at margin 0.
+       *
+       * `picture` is what the band makes of the front he is shown (ADR-073 §2.2):
+       * - TRUE (diagnosed, identified): he sees the rush as it will come;
+       * - COUNT (counted): he counts every man shown rushing, and cannot tell a bluff from a blitz;
+       * - CALL (unsure): he has not pinned it down, and runs the protection as called;
+       * - LOOK (misidentified, busted): he believes what the front shows him.
+       *
+       * `recognized` is the top three bands, the TRUE and COUNT pictures. It is §5.3's success,
+       * and it is what the point-out reads (`blitzPickup.recognitionModifier`). Paired bands act
+       * alike until the decision step has more levers, as the coverage read's do.
        */
       bands: [
-        { label: "READ_IT", minMargin: 20, recognized: true },
-        { label: "RECOGNIZED", minMargin: 0, recognized: true },
-        { label: "MISSED", minMargin: -20, recognized: false },
-        { label: "FOOLED", minMargin: NEG_INF, recognized: false },
+        { label: "DIAGNOSED", minMargin: 30, picture: "TRUE", recognized: true },
+        { label: "IDENTIFIED", minMargin: 15, picture: "TRUE", recognized: true },
+        { label: "COUNTED", minMargin: 0, picture: "COUNT", recognized: true },
+        { label: "UNSURE", minMargin: -14, picture: "CALL", recognized: false },
+        { label: "MISIDENTIFIED", minMargin: -29, picture: "LOOK", recognized: false },
+        { label: "BUSTED", minMargin: NEG_INF, picture: "LOOK", recognized: false },
       ],
     },
     /**
@@ -281,8 +293,9 @@ export const TUNABLES = {
      * THE COACH'S LEASH AND THE QUARTERBACK'S DISCIPLINE (ADR-072, ADR-068 step 2).
      *
      * The leash is on the call (`OffensivePlayCall.leash`, 0–100, omitted = 100). Each decision
-     * the coverage read can want opens at its own point on that slider; a read that wants one above
-     * the leash is a BREACH, and one roll decides whether he commits it.
+     * a pre-snap read can want opens at its own point on that slider; a read that wants one above
+     * the leash is a BREACH, and one roll decides whether he commits it, however many reads want
+     * decisions on the snap (ADR-073 §2.4).
      */
     leash: {
       /**
@@ -290,10 +303,16 @@ export const TUNABLES = {
        * rungs. WORK_AWAY sends a man he reads as covered to the back of the progression; WORK_TO
        * brings a man he reads as open to the front. CHOSEN, a football judgement: working away
        * from a covered man keeps the call's intent, working to one he likes changes where the ball
-       * is going, and coaches give the second later. Both sit at or below 50, the calibration
-       * caller's default, so the default opens every rung that exists (ADR-072 §7).
+       * is going, and coaches give the second later.
+       *
+       * PROTECTION_ADJUST is the pressure read's one decision (ADR-073 §2.3, ruled at Q1): checking
+       * the slide and keeping a back in, together. It sits between the two: a protection change
+       * keeps the call's routes but one, and costs that route.
+       *
+       * All three sit at or below 50, the calibration caller's default, so the default opens every
+       * rung that exists (ADR-072 §7).
        */
-      rungs: { WORK_AWAY: 20, WORK_TO: 40 },
+      rungs: { WORK_AWAY: 20, PROTECTION_ADJUST: 30, WORK_TO: 40 },
       /**
        * ADR-072 §2's roll: `d100 + Discipline ÷ attrDivisor + breach ÷ breachDivisor` against
        * `target`, where the breach is the highest rung he wants minus the leash. Rolled ONLY on a
