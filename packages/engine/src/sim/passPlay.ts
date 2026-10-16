@@ -72,8 +72,8 @@ import type {
 import { assertCoherentPlayCall } from "../validate/playCall.js";
 import { applyPlayOutcome } from "./outcome.js";
 import type { PlayOutcome } from "./outcome.js";
-import { resolvePreSnap } from "./preSnap.js";
-import type { PreSnapResult, RushPlan } from "./preSnap.js";
+import { readPreSnap, resolvePickups, resolveStunts } from "./preSnap.js";
+import type { RushPlan } from "./preSnap.js";
 import type { Pursuer } from "../resolve/ballCarrier.js";
 import {
   advanceCarrier,
@@ -346,18 +346,16 @@ export function simulatePassPlay(
   // he worked them in, and who was blocking whom at the snap. The EVENTS are
   // emitted after PLAY_START, which is the order they happened in relative to
   // the play's own header.
-  const preSnap = resolvePreSnap({
-    tunables,
-    state,
-    calls,
-    quarterback: qb,
-    presnapRng,
-    player: (id) => requirePlayer(state, id),
-  });
+  //
+  // In ADR-073 §2.4's order: what the call accounts for, his read of it and the
+  // hot routes; then the coverage read and the leash, on the routes he will run;
+  // then the pickups, the free runners and the line games, on the protection as
+  // run. Every die below is forked by its own label, so the order moves none
+  // (`sim/preSnap.ts`).
+  const player = (id: PlayerId): PlayerState => requirePlayer(state, id);
+  const preSnap = readPreSnap({ tunables, calls, quarterback: qb, presnapRng, player });
 
-  const matchups = buildMatchups(preSnap);
   const tracks = buildReceiverTracks(tunables, state, calls, preSnap.routes);
-  const recoverySpots = buildRecoverySpots(tunables, state, calls, tracks);
 
   const system = calls.offense.readSystem;
   const budgetSeconds = timeBudgetSeconds(tunables, qb, system);
@@ -392,6 +390,32 @@ export function simulatePassPlay(
     wanted.size === 0
       ? undefined
       : resolveLeash({ tunables, quarterback: qb, leash, wanted, presnapRng });
+
+  // ---- §7.4 and §7.3: who is blocking whom at the snap -------------------------------------
+  // After the leash, where ADR-073 §2.4 puts them: a change to the protection is a decision the
+  // leash governs (§2.3, from step 3.2b), so the pickups are rolled on the protection as run, not
+  // as called. The recovery spots read who is in protection, so they come after it too.
+  // `buildMatchups` and `buildRecoverySpots` throw no die.
+  const pickups = resolvePickups({
+    tunables,
+    accounted: preSnap.accounted,
+    pool: preSnap.availableBlockers,
+    slideSide: preSnap.slideSide,
+    recognized: preSnap.recognized,
+    recognitionRollRef: preSnap.recognitionRollRef,
+    presnapRng,
+    player,
+  });
+  const lineGames = resolveStunts({
+    tunables,
+    center: preSnap.center,
+    stunts: preSnap.stunts,
+    plans: pickups.plans,
+    presnapRng,
+  });
+  const matchups = buildMatchups(lineGames.plans);
+  const recoverySpots = buildRecoverySpots(tunables, state, calls, tracks);
+
   const readOrder = reorderForCoverageRead(
     preSnap.readOrder.filter((id) => tracks.some((t) => t.assignment.receiver === id)),
     lies,
@@ -482,7 +506,8 @@ export function simulatePassPlay(
   if (preSnap.recognition !== undefined) log.presnapRead(preSnap.recognition);
   if (coverageRead !== undefined) log.presnapRead(coverageRead.presnap);
   if (leashOutcome?.breach !== undefined) log.presnapRead(leashOutcome.breach.presnap);
-  for (const check of preSnap.checks) log.check(check);
+  for (const check of pickups.checks) log.check(check);
+  for (const check of lineGames.checks) log.check(check);
 
   /** §8.1 — where he is in the progression. Wraps; it does NOT skip. */
   let readPointer = 0;
@@ -1897,8 +1922,8 @@ function checkdownTrack(
  * entry 21). §7.4 now answers the question the exception was standing in for:
  * he is picked up, he is slid to, or he is a free runner with an ETA.
  */
-function buildMatchups(preSnap: PreSnapResult): RushMatchup[] {
-  return preSnap.plans.map((plan) => ({
+function buildMatchups(plans: readonly RushPlan[]): RushMatchup[] {
+  return plans.map((plan) => ({
     rusher: plan.rusher,
     blocker: plan.blocker,
     move: plan.move,

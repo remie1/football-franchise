@@ -120,7 +120,7 @@
  * ==================== SUB-QUESTION 2: THE PROTECTOR IN COVERAGE ====================
  *
  * Not settled here, and deliberately not patched here. When `D_exp` sends a man `D_real` drops,
- * a blocker is paired to somebody who is not rushing. `resolvePreSnap` looks up protection BY
+ * a blocker is paired to somebody who is not rushing. `readPreSnap` looks up protection BY
  * RUSHER (`offense.protection.find(p => p.rusher === assignment.rusher)`), so that entry is never
  * consulted and the blocker stands idle — he neither blocks nor appears in `scheme.available`,
  * because `available` is the leftovers of a pairing walk that happened against the wrong front.

@@ -208,7 +208,7 @@ export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls):
   // indistinguishable rolls in the audit trail.
   //
   // A CHAIN PASSES BOTH: X→Y with Y→Z has distinct loopers and distinct
-  // penetrators, and `resolvePreSnap` walks the entries in order, so the middle
+  // penetrators, and `resolveStunts` walks the entries in order, so the middle
   // man carries whatever the first exchange gave him into the second.
   //
   // WHAT IS NOT CHECKED HERE, DELIBERATELY: chain SHAPE — that a `TRIPLE` is two
