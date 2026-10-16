@@ -12,7 +12,10 @@
  *  1. IDENTITY BY CONSTRUCTION. Every engine call and hand-built fixture call has
  *     `shownRush === rush` (reference identity, not deep equality). A spread that overrides
  *     `rush` alone compiles and carries a stale `shownRush`; that fails here, at 3.1, rather
- *     than inside 3.2b's measurement. (Playbook's corpus is pinned in
+ *     than inside 3.2b's measurement. The calls a test file builds for itself (a blitz, a
+ *     stunt chain, a front) are not importable, so they are pinned at the SOURCE: no object
+ *     literal in any package's source or tests spreads something and sets `rush` without
+ *     also setting `shownRush`. That is the only way to build a stale list. (Playbook's corpus is pinned in
  *     `packages/playbook/test/shownAssignments.test.ts`, and the frozen callers in
  *     `packages/calibration/test/shownRushStream.test.ts`.)
  *  2. THE ECHO. PLAY_START states the shown rush with alignment resolved exactly as the played
@@ -22,6 +25,8 @@
  *  4. THE VALIDATOR. Every shown rusher is on the call (rushing or covering), nobody is shown
  *     twice, and there is no one-spot rule.
  */
+import { readFileSync, readdirSync } from "node:fs";
+import { join, relative } from "node:path";
 import { playerId } from "@ff/contracts";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
@@ -85,6 +90,108 @@ function afterStart(events: readonly MatchEventEnvelope[]): string {
 }
 
 const GAPS: readonly RunGap[] = ["A", "B", "C", "D"];
+
+/**
+ * Every object literal in `source` that SPREADS something and sets `rush` but not `shownRush`,
+ * by line. That shape is the one way to build a call whose shown rush is stale: a literal
+ * without a spread must state `shownRush` or fail to compile, and `withRush` sets both.
+ *
+ * A small scanner, not a parser: it skips comments and string and template literals, tracks
+ * `{` `(` `[` nesting, and reads the keys at the top level of each `{`. A `{ ... }` followed by
+ * `=` is a destructuring pattern and is skipped. It is deliberately strict; a false positive
+ * fails loudly on the current tree, where it can be looked at. A literal that is stale ON
+ * PURPOSE (a test showing the trap) says so with `/* stale on purpose *\/` on its line.
+ */
+function staleRushSpreads(source: string): number[] {
+  interface Frame {
+    readonly kind: "{" | "(" | "[";
+    readonly start: number;
+    spread: boolean;
+    readonly keys: Set<string>;
+    expectingKey: boolean;
+  }
+  const stack: Frame[] = [];
+  const found: number[] = [];
+  const lineOf = (at: number): number => source.slice(0, at).split("\n").length;
+  let i = 0;
+  const skipSpace = (): void => {
+    for (;;) {
+      while (i < source.length && /\s/.test(source[i]!)) i += 1;
+      if (source.startsWith("//", i)) {
+        while (i < source.length && source[i] !== "\n") i += 1;
+      } else if (source.startsWith("/*", i)) {
+        const end = source.indexOf("*/", i + 2);
+        i = end < 0 ? source.length : end + 2;
+      } else return;
+    }
+  };
+  const skipString = (quote: string): void => {
+    i += 1;
+    while (i < source.length && source[i] !== quote) i += source[i] === "\\" ? 2 : 1;
+    i += 1;
+  };
+  const skipTemplate = (): void => {
+    i += 1;
+    let depth = 0;
+    while (i < source.length) {
+      const c = source[i]!;
+      if (c === "\\") { i += 2; continue; }
+      if (depth === 0 && c === "`") { i += 1; return; }
+      if (c === "$" && source[i + 1] === "{") { depth += 1; i += 2; continue; }
+      if (depth > 0 && c === "}") depth -= 1;
+      i += 1;
+    }
+  };
+  while (i < source.length) {
+    const top = stack[stack.length - 1];
+    if (top?.kind === "{" && top.expectingKey) {
+      skipSpace();
+      top.expectingKey = false;
+      if (source.startsWith("...", i)) {
+        top.spread = true;
+        i += 3;
+        continue;
+      }
+      const key = /^(?:"([^"]+)"|'([^']+)'|([A-Za-z_$][\w$]*))\s*(?=[:,}(?])/.exec(source.slice(i));
+      if (key !== null) {
+        top.keys.add(key[1] ?? key[2] ?? key[3]!);
+        i += key[0].length;
+      }
+      continue;
+    }
+    const c = source[i]!;
+    if (source.startsWith("//", i) || source.startsWith("/*", i)) { skipSpace(); continue; }
+    if (c === '"' || c === "'") { skipString(c); continue; }
+    if (c === "`") { skipTemplate(); continue; }
+    if (c === "{" || c === "(" || c === "[") {
+      stack.push({ kind: c, start: i, spread: false, keys: new Set(), expectingKey: c === "{" });
+      i += 1;
+      continue;
+    }
+    if (c === "}" || c === ")" || c === "]") {
+      const frame = stack.pop();
+      i += 1;
+      if (frame?.kind === "{" && frame.spread && frame.keys.has("rush") && !frame.keys.has("shownRush")) {
+        const after = /^\s*(=(?![=>]))?/.exec(source.slice(i));
+        const lineStart = source.lastIndexOf("\n", frame.start) + 1;
+        const marked = source.slice(lineStart, frame.start).includes("/* stale on purpose */");
+        if (after?.[1] === undefined && !marked) found.push(lineOf(frame.start));
+      }
+      continue;
+    }
+    if (c === "," && top?.kind === "{") top.expectingKey = true;
+    i += 1;
+  }
+  return found;
+}
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) return entry.name === "node_modules" ? [] : sourceFiles(full);
+    return entry.isFile() && entry.name.endsWith(".ts") ? [full] : [];
+  });
+}
 
 /** The fixture's rush with a side and a gap stated on every rusher, shown and played alike. */
 function gapped<C extends PlayCalls | RunPlayCalls>(calls: C): C {
@@ -163,6 +270,54 @@ describe("ADR-073 step 3.1 — identity by construction", () => {
     expect(calls.defense.shownRush).toBe(calls.defense.rush);
   });
 
+  it("no object literal anywhere spreads a call and overrides `rush` without `shownRush`", () => {
+    const packages = join(import.meta.dirname, "..", "..");
+    const roots = readdirSync(packages, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .flatMap((d) => ["src", "test"].map((sub) => join(packages, d.name, sub)))
+      .filter((dir) => {
+        try {
+          return readdirSync(dir).length > 0;
+        } catch {
+          return false;
+        }
+      });
+    const files = roots.flatMap(sourceFiles);
+    const offenders = files.flatMap((file) =>
+      staleRushSpreads(readFileSync(file, "utf8")).map((line) => `${relative(packages, file)}:${line}`),
+    );
+    expect(
+      offenders,
+      "a spread that overrides `rush` alone carries the old `shownRush` along: route it through `withRush`",
+    ).toEqual([]);
+    // Non-vacuity: the scan read the engine's tests, and the shape it looks for is really there
+    // to be found (every `withRush` call site was once one).
+    expect(files.some((f) => f.endsWith("blitz.test.ts"))).toBe(true);
+    expect(files.length).toBeGreaterThan(100);
+  });
+
+  it("the scanner finds the stale shape, and passes the honest ones", () => {
+    const stale = [
+      "const a = { ...calls.defense, rush: [x] };",
+      "const b = {\n  ...base.calls.defense,\n  // a comment with { braces }\n  rush: [...base.calls.defense.rush, { rusher: id, move: \"SPEED\" }],\n};",
+      "const c = { ...d, rush };",
+      "const e = { ...d, \"rush\": r, label: `x ${ { a: 1 }.a }` };",
+    ].join("\n");
+    expect(staleRushSpreads(stale)).toEqual([1, 2, 7, 8]);
+    const honest = [
+      "const a = { ...calls.defense, rush, shownRush: rush };",
+      "const b = withRush({ ...calls.defense, stunts: [] }, [x]);",
+      "const { rush, ...rest } = calls.defense;",
+      "const c = { rush: [x], shownRush: [x] };",
+      "const d = { ...calls, defense: withRush(calls.defense, r) };",
+      "const s = \"{ ...defense, rush: r }\";",
+      "// { ...defense, rush: r }",
+      "const f = ({ move: _move, ...shown }) => shown;",
+      "const g = /* stale on purpose */ { ...calls.defense, rush };",
+    ].join("\n");
+    expect(staleRushSpreads(honest)).toEqual([]);
+  });
+
   it("`withRush` aliases the new array, and a bare spread would not", () => {
     const { calls } = buildScenario();
     const rush = calls.defense.rush.slice(0, 1);
@@ -170,7 +325,7 @@ describe("ADR-073 step 3.1 — identity by construction", () => {
     expect(via.rush).toBe(rush);
     expect(via.shownRush).toBe(rush);
     // The trap `withRush` exists for: this compiles, and shows a rush that is not played.
-    const stale: DefensivePlayCall = { ...calls.defense, rush };
+    const stale: DefensivePlayCall = /* stale on purpose */ { ...calls.defense, rush };
     expect(stale.shownRush).not.toBe(stale.rush);
   });
 
@@ -367,6 +522,28 @@ describe("ADR-073 step 3.1 — the validator", () => {
     const start = startOf(simulatePassPlay(state, shown, "shown-dropper").events);
     expect(start.defense.shownRush.map((s) => s.rusher)).toContain(cover.defender);
     expect(start.defense.rush.map((r) => r.rusher)).not.toContain(cover.defender);
+    // Nothing resolves from the shown list before step 3.2b.
+    expect(afterStart(simulatePassPlay(state, shown, "shown-dropper").events)).toBe(
+      afterStart(simulatePassPlay(state, calls, "shown-dropper").events),
+    );
+  });
+
+  it("on a run too, the echo is built from the shown list and not from the played one", () => {
+    const { state, calls } = buildRunScenario();
+    const [cover] = calls.defense.assignments;
+    if (cover === undefined) throw new Error("bad fixture");
+    // Shown: the front's first man left out, and a cover man walked up. Played: the front as is.
+    const shownRush = [...calls.defense.rush.slice(1), { rusher: cover.defender, side: "LEFT" as const, gap: "B" as const }];
+    const shown: RunPlayCalls = { ...calls, defense: { ...calls.defense, shownRush } };
+    expect(() => assertCoherentRunCall(state, shown)).not.toThrow();
+    const start = startOf(simulateRunPlay(state, shown, "shown-dropper-run").events);
+    expect(start.defense.shownRush.map((s) => s.rusher)).toEqual(shownRush.map((s) => s.rusher));
+    expect(start.defense.shownRush.at(-1)).toMatchObject({ rusher: cover.defender, side: "LEFT", gap: "B" });
+    expect(start.defense.rush.map((r) => r.rusher)).toEqual(calls.defense.rush.map((r) => r.rusher));
+    // And what the run DID is the honest call's: nothing in the run sim reads the shown list.
+    expect(afterStart(simulateRunPlay(state, shown, "shown-dropper-run").events)).toBe(
+      afterStart(simulateRunPlay(state, calls, "shown-dropper-run").events),
+    );
   });
 
   it("accepts two shown rushers in one gap: there is no one-spot rule", () => {

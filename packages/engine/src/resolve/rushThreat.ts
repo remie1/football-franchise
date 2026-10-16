@@ -373,8 +373,8 @@ export function resolvedRushAssignment(args: {
   const { rusher, move, alignment, side, gap } = args;
   // `exactOptionalPropertyTypes` — an omitted side or gap is an ABSENT key, not a
   // key whose value is `undefined`, so a consumer's `in` test and its `?.` test
-  // agree. Key order is the old one with `gap` last, so a stream without gaps is
-  // byte-identical to the one before ADR-073.
+  // agree. Key order is the old one with `gap` last, so a rush entry whose card
+  // states no gap serialises exactly as it did before ADR-073 step 3.1.
   return {
     rusher,
     move,
