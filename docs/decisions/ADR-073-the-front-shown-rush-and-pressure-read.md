@@ -7,7 +7,8 @@
   "yes" to "Should I draft the front design now?")* and ruled all seven of §9's questions as
   recommended *(owner, 2026-10-16, decision cards)*. Every contracts edit in §3 still needs its own
   yes before it is made, and nothing merges without the owner's word. 3.0 re-derives §4.3: the
-  informed channel is now expected to raise `sack_rate` through keep-in (§10).
+  informed channel is now expected to raise `sack_rate` through keep-in (§10). The design, the
+  rulings and 3.0 merged to main *(owner, 2026-10-16: "Yes, merge" on the decision card)*.
 - **Builds on:** ADR-067 (§D, the rulings on order and the required sentence), ADR-068 (rulings 1–6,
   step 3), ADR-069 (§9.6's Phase 3 row, §10's rulings), ADR-071 (step 3, the words), ADR-072 (the
   ladder, one leash roll, the default of 50), ADR-022 (Petition 1: keeping a man in costs his route
