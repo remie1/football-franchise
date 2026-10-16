@@ -3,10 +3,11 @@
 - **Date:** 2026-10-16
 - **Proposed by:** Orchestrator, building ADR-069 Phase 3 (= ADR-068 step 3 = ADR-071 step 3) in the
   order ADR-069 §10 ruled
-- **Status:** **accepted; building from 3.0.** The owner asked for the draft *(owner, 2026-10-16:
+- **Status:** **accepted; 3.0 measured (§10), 3.1 next.** The owner asked for the draft *(owner, 2026-10-16:
   "yes" to "Should I draft the front design now?")* and ruled all seven of §9's questions as
   recommended *(owner, 2026-10-16, decision cards)*. Every contracts edit in §3 still needs its own
-  yes before it is made, and nothing merges without the owner's word.
+  yes before it is made, and nothing merges without the owner's word. 3.0 re-derives §4.3: the
+  informed channel is now expected to raise `sack_rate` through keep-in (§10).
 - **Builds on:** ADR-067 (§D, the rulings on order and the required sentence), ADR-068 (rulings 1–6,
   step 3), ADR-069 (§9.6's Phase 3 row, §10's rulings), ADR-071 (step 3, the words), ADR-072 (the
   ladder, one leash roll, the default of 50), ADR-022 (Petition 1: keeping a man in costs his route
@@ -119,7 +120,7 @@ the coverage read (built: ADR-068 step 1, ADR-070, ADR-072). Arms have word name
 | **3.4** | ADR-071 step 3: coverage, then pressure, then line game drawn on their own; per-coverage pressure statements, checked; the creeper (the Phase 3 row's simulated-pressure card, as a pressure tag); anticipated draw decomposed (coverage and pressure; no line game) | Yes (mix, by design) | Each host coverage's share and P(five or more) held by construction (asserted to 1e-12); v4 and v5 reproduce by name; §4.4 | pressure, front, joint-no-creeper, joint | **v6** |
 | **3.5** | Front looks Mug and Stem; front metrics; stream-test partition; contracts D2, D4, D6, D7 and P2's doc (tense). Deceived channel | Yes | §4.5; R2 scored on the deceived population (owner Q6) | Mug-only, Stem-only, both; proof: front-look rate 0 ≡ v6 | **v7**; default → v7 in the closing commit |
 
-**§9 is ruled** (owner, 2026-10-16: all seven as recommended), so the steps proceed in order. Each step that moves play comes back to the owner with its numbers, and every merge and every contracts edit waits for the owner's own word. 3.2b's rung rows follow Q1(a): one decision at 30.
+**§9 is ruled** (owner, 2026-10-16: all seven as recommended), so the steps proceed in order. **3.0 is measured** (§10), and it re-derives §4.3. Each step that moves play comes back to the owner with its numbers, and every merge and every contracts edit waits for the owner's own word. 3.2b's rung rows follow Q1(a): one decision at 30.
 
 **Why this order.**
 - 3.0 → 3.1 → 3.2 is forced. 3.2 needs the field and the split, and 3.1 needs a baseline to reproduce.
@@ -961,6 +962,7 @@ Every bound below is provisional: 3.0 re-derives it from the measured v1 − v4 
 | No line game on a man the call's pressure moved or dropped | **INFERRED** — R25 ("no two played tags on one man", ADR-071 ruling 2) applied to the separate line-game draw (§2.6) |
 | The front-look and creeper rates (1 in 10) | **CHOSEN — provenance NONE**; no real figure is on file; the owner ruled 1 in 10 (Q5(a), 2026-10-16) |
 | §4's predicted sizes | **INFERRED** — from backlog 21's July v1 → v2 anchor (stale), the `short` share and the band shares; provisional until 3.0 re-derives them from the measured v1 − v4 gap and files them as figures, before any arm |
+| §10's 3.0 figures | **MEASURED** — the arms, bench, probe and direct application §10 lists, from the scratch harness in `/mnt/project-files/arms/`; §4.3's re-derived centrals from the direct application, which **INFERS** that §2.3's adjustment made as a call edit stands for v5's; the floors **CHOSEN** (the rule §10 states) on three **INFERRED** assumptions §10 names |
 
 ## Conjoined mechanisms — REQUIRED
 
@@ -1214,7 +1216,276 @@ come to you with its numbers, and each needs your merge word.
 
 ## 10. Built and measured
 
-*(Empty until built.)*
+### 3.0 Measure first *(2026-10-16; no play change, nothing in `packages/` changed)*
+
+**In short.**
+- **The instrument is the same instrument.** It reproduces ADR-072's leash-50 shards on every field, accumulator hashes included. The pressure read lands where §2.2's formula puts it.
+- **§4's magnitude anchor fails as written.** Caller v1, which builds its protection against the real rush, is sacked *more* than v4: +0.42 ± 0.05 points. So v1 − v4 bounds nothing. The replay bench shows why. v1 differs from v4 in four ways at once:
+  - its protection is built against the real rush;
+  - it has no pressure read, so no hot routes;
+  - it keeps a released back in to block whenever the rush outnumbers the bodies;
+  - it wears no coverage looks (+0.11 ± 0.04 of the gap on their own).
+
+  With the looks out of both arms (v1 − v4 without looks = +0.31), the snaps where v4's hot route fired account for +0.41. That is everything v1 does differently on them: about +0.05 is v1 keeping the back in on the read-right `keepable` ones, and most of the rest is the lost hot route (**INFERRED**). Against v4 as played, the same snaps give +0.44 of +0.41. Protection information alone is worth about −0.7 to −1.3 points *a snap* on the short snaps outside `keepable` where no hot route fires.
+- **Keeping a back in costs more than it saves, today.** On `keepable` snaps the released back is the quarterback's answer to the free rusher. The throw goes to him on 17% of them (a thrown ball is never a sack), and a rusher arrives on only 1.0% of those. v1 keeps in exactly the man v5 would keep in, on all 14,723 snaps, and its sack rate there goes from 9.1% to 15.8%. Applying §2.3's keep-in directly to v4's own calls gives the same direction: +6.2 points a snap with no hot route, +11.7 with one.
+- **§4.3's informed channel is therefore re-derived up, not down** (§2.3's checks applied directly to v4's calls, set A):
+  - keep-in-only about **+0.13** points of `sack_rate` (at least +0.08, the floor from v1);
+  - slide-only about **−0.01**;
+  - full about **+0.12** (+0.45 a short snap).
+
+  §4.1's "most likely down" no longer holds. The banner's direction stands, and keep-in is now its one sized driver; the creeper and the deceived channels also point up, unsized until 3.4. Nothing in the build order changes: 3.3's keep-in-only arm prices this on its own, and its result is recorded as measured, the same rule §4.1 pre-commits for R2 on the deceived real-pressure population.
+- **Backlog 28a's filter is named for the slants and the shallow cross.** On the first look, 62% of the really converted receivers the quarterback reads outside the checkdown (48% of all of them) sit below the effective throw bar, against 51% of designation-only receivers.
+
+**What ran.** The scratch harness (`/mnt/project-files/arms/adr073Arm.test.ts`) ran in four shards from `packages/calibration`. Its in-repo copy was deleted before this commit. Every arm is on the flat league at leash 50.
+
+| arm | caller | seeds | size |
+|---|---|---|---|
+| proof | v4 | `adr-072:leash-arm`, 240 rounds | 6,720 games |
+| A4 | v4 | `adr-073:front-arm`, 240 rounds (set A) | 6,720 games, 593,962 dropbacks, each recorded |
+| B4 | v4 | `adr-073:front-arm-2`, 720 rounds (set B) | 20,160 games |
+| A1 | v1 (the ceiling) | set A | 6,720 games |
+| A4n | v4 without coverage looks (`coverageMasks: []`) | set A | 6,720 games |
+| bench | each recorded A4 dropback (its game, play number and situation) re-run alone from the game's seed, with each caller drawing its own call at the same address, under v4, v1, and v4 without looks | set A | 593,962 snaps × 3 |
+| probe | the bench's v1 replay of v4's `keepable` and `slideable` snaps, tallying what v1 did with the man v5 would keep in and with the slide | set A | 14,723 and 23,495 snaps |
+| direct | v4's own call on its `keepable` and `slideable` snaps, re-run with §2.3's keep-in, its slide, and both, against the same defence call and seed, each paired with v4 | set A | 14,723 and 23,495 snaps |
+
+**The instrument is the same instrument ✅**
+- On ADR-072's seeds, all four shards equal `adr072-flat-L50-{0..3}.json` on all 12 fields those shards carry besides `seconds` and `accFullSha256` (checked next).
+- Each full-accumulator sha256 matches: 375a3a1b4707…, 85c85890aff5…, 5fa70857e673…, db45abad077d….
+- On the bench, 593,962 of 593,962 v4 replays match their recorded play's events (sequence numbers aside) by a stable digest of their canonical form, and they fold to set A's game-level front exactly, in every population and field.
+- Set A and set B agree on the sack rate: 16.490 ± 0.049 against 16.559 ± 0.028 (1.2 SE apart).
+- Every mismatch counter the harness keeps reads 0. Those counters cover:
+  - the extras and the pool against the stream;
+  - on the 1,698,519 dropbacks without a line game (71.5%), the predicted contested and UNBLOCKED counts against the stream's;
+  - a roll without extras, and extras without a roll;
+  - a missing centre, concept or depth-chart team.
+
+**v4's baseline (H3, H4, S10, S15, S17).** Set A + B: 26,880 games, 2,374,310 dropbacks, 88.33 a game. ± is one per-game (clustered) SE; the binomial SE differs from it by under 0.001 points everywhere.
+
+| measure | rate | ± |
+|---|---|---|
+| `sack_rate` (sack ÷ dropbacks) | **16.542%** (ADR-070's 16.43% was on other seeds) | 0.024 |
+| exit ÷ dropbacks | 77.702% | 0.027 |
+| `threat_creation_rate` (pressured ÷ dropbacks) | 85.942% | 0.022 |
+| conversion (sack ÷ exit) | 21.288% | 0.030 |
+| completion (cmp ÷ att) | 37.398% | 0.039 |
+| `int_rate` (int ÷ att) | 1.958% | 0.011 |
+
+- **S10:** `sack_rate` stays FAIL: 16.54% against the real band of 5.58% to 7.54% (6.560% ± 15%).
+- **H4:** the SE of an unpaired sack-rate difference is 0.034 points at 26,880 games and 0.068 at 6,720. Clustered, it is 0.0345 and 0.069, as §4 said it would be: at least the binomial figure.
+- **S15:** the same SE for completion is 0.055 and 0.109 points; for `int_rate`, 0.016 and 0.031.
+
+**Populations (H1, S3, S5).** Each is a pure function of the call (§3.0's table), on set A + B.
+
+| population | share of dropbacks | sack | exit | conversion (sack ÷ exit) | pressured |
+|---|---|---|---|---|---|
+| `short` | **26.26%** (H1; July's 26.125%) | 16.30% | 80.98% | 20.13% | 88.89% |
+| `slideable` | 3.95% | **7.44%** | 65.86% | 11.29% | 79.14% |
+| `keepable` | 2.47% | **9.18%** | 98.53% | 9.31% | 100.00% |
+| `releaseListed` | 35.55% | 9.34% | 69.32% | 13.48% | 79.11% |
+| 5+ rushers | 24.08% | 16.74% | 81.43% | 20.56% | 89.37% |
+| line game | 28.46% | 17.33% | 81.05% | 21.39% | 90.39% |
+
+- `slideable` and `keepable` are sacked at about half the league rate already. `keepable` is pressured on every snap, because an extra is unblocked by definition, yet sacked on 9%.
+- **S5:** slide checks at v5 ≈ Σ over `slideable` of P(TRUE ∪ COUNT) = 69,106 over 93,744 snaps (mean P .737), which is 2.91% of dropbacks.
+- **S3:** kept-in men ≈ Σ over `keepable` of P(TRUE ∪ COUNT) × k = 39,404, which is 1.66% of dropbacks. k is 1 on every `keepable` snap.
+- 3,412 snaps are both `slideable` and `keepable`.
+- The deterministic accounting of the short snaps' extras gives 156,777 slid, 696,636 contested and 65,676 unblocked. The stream's UNBLOCKED count equals the last exactly.
+
+**The read lands where §2.2 says ✅ (F2's analytic values).** Rolled reads on v4's short snaps, observed share with the analytic share in brackets, %:
+
+| row | reads | DIAGNOSED | IDENTIFIED | COUNTED | UNSURE | MISIDENTIFIED | BUSTED | bite (COUNT ∪ LOOK) |
+|---|---|---|---|---|---|---|---|---|
+| STANDARD | 393,479 | 44.8 (45) | 15.1 (15) | 15.0 (15) | 14.1 (14) | 11.0 (11) | 0 (0) | 25.96 (26) |
+| ZONE_BLITZ | 146,955 | 30.3 (30) | 15.0 (15) | 15.0 (15) | 13.8 (14) | 14.9 (15) | 11.0 (11) | 40.86 (41) |
+| DELAYED | 38,084 | 25.3 (25) | 15.1 (15) | 14.7 (15) | 14.4 (14) | 14.9 (15) | 15.7 (16) | 45.21 (46) |
+| ZERO | 45,009 | 19.9 (20) | 15.0 (15) | 14.9 (15) | 14.2 (14) | 15.1 (15) | 20.9 (21) | 50.84 (51) |
+
+- The largest single deviation is DELAYED's bite share: −0.79 points, z −3.1. It is one of 28 comparisons, so it is inside what multiplicity allows. Every band cell is within 2.9 SE.
+- §4.5's test re-scores this on Mug-worn snaps at 3.5.
+- The analytic value is computed per snap from that snap's quarterback and centre Awareness, with no die. On the flat league it is the §2.2 table exactly.
+
+**The ceiling, and why v1 − v4 is not one (H2, S7).** Game level, set A, paired by game (6,720 games), points:
+
+| | sack | exit | pressured | completion | `int_rate` | conversion |
+|---|---|---|---|---|---|---|
+| v1 − v4 | **+0.418 ± 0.050** | +0.202 ± 0.058 | +0.027 ± 0.049 | −0.481 ± 0.079 | −0.040 ± 0.025 | +0.482 ± 0.063 |
+| v4 without looks − v4 | +0.111 ± 0.037 | +0.662 ± 0.043 | +0.579 ± 0.036 | −0.060 ± 0.060 | −0.079 ± 0.020 | −0.038 ± 0.046 |
+| v1 − v4 without looks | +0.307 ± 0.050 | −0.460 ± 0.056 | −0.553 ± 0.047 | −0.421 ± 0.077 | +0.039 ± 0.024 | +0.519 ± 0.062 |
+
+v1 is not "v4 told the truth":
+- v1 has no coverage looks; the looks are drawn only from v3 (frozen:408).
+- v1 has no pressure read and so no hot routes: 0.12% of v1's dropbacks are short, against 26.3% of v4's.
+- v1 keeps backs in whenever the real rush needs them.
+
+The bench takes these apart snap by snap. It re-runs every set-A dropback alone, so the situation is held and only the call differs. Its v1 − v4 is +0.406 ± 0.022 points, against the game-level +0.418. Below, v1 is paired against v4 *without looks*, so the looks are out of both, by v4's snap ("read right" = TRUE or COUNT, margin ≥ 0, today's RECOGNIZED and READ_IT):
+
+| v4's snap | snaps | Δsack a snap | of the aggregate | Δexit a snap | Δpressured a snap |
+|---|---|---|---|---|---|
+| not short | 437,809 | −0.10 ± 0.01 | −0.075 | −0.01 | 0.00 |
+| short, read missed | 49,471 | −0.58 ± 0.11 | −0.049 | −8.97 | −7.19 |
+| short, read right, no hot route fired | 49,451 | +0.22 ± 0.09 | +0.018 | −10.34 | −10.55 |
+| short, read right, hot route fired | 57,231 | **+4.28 ± 0.15** | **+0.413** | +11.95 | +9.45 |
+| **all** | 593,962 | +0.31 ± 0.02 | +0.308 | −0.46 | −0.57 |
+| `slideable`, read right, no hot | 11,416 | −0.36 ± 0.14 | −0.007 | −8.23 | −11.24 |
+| `slideable`, read right, hot | 5,860 | +11.18 ± 0.46 | +0.110 | +37.88 | +28.91 |
+| `keepable`, read missed | 4,854 | **+5.69 ± 0.50** | +0.046 | −21.82 | −17.90 |
+| `keepable`, read right, no hot | 6,943 | **+5.73 ± 0.41** | +0.067 | −29.70 | −26.60 |
+| `keepable`, read right, hot | 2,926 | +10.32 ± 0.68 | +0.051 | −6.84 | −2.26 |
+
+- **The snaps where v4's hot route fired carry the gap.** The four disjoint rows above `all` sum to it exactly, and the hot row is more than all of it (+0.413 of +0.308; against v4 as played, +0.439 of +0.406). On those snaps v1 is sacked 4.28 points more often and pressured 9.45 more. That row is everything v1 does differently there: about +0.05 of it is v1 keeping the back in on the read-right `keepable` ones (the last row), and v1 also keeps in a hot-spec check-release man on 1.3% of the row. The rest is mostly the lost hot route, whose throw had ended the play first (**INFERRED**: the bench does not take the hot route away on its own).
+- **Protection information alone is worth little, outside `keepable`.** Taking v5's `keepable` snaps out of the no-hot rows gives the figures below. On these rows v1 still differs in who is kept in on about 1–2% of snaps: it keeps in a hot-spec check-release man on 0.7% of read-missed snaps, and releases a back v4 pulled in on 1.8% of read-right ones.
+  - read right, no hot: −0.68 ± 0.08 a snap (42,508 snaps; exit −7.17, pressured −7.93);
+  - read missed: −1.27 ± 0.11 a snap (44,617 snaps; exit −7.58, pressured −6.03).
+- **Keeping the back in is the one place full information hurts, read missed or right.** The probe shows the mechanism (set A):
+
+| v4's `keepable` snap | snaps | sack v4 → v1 | threw v4 → v1 | scramble v4 → v1 | a rusher arrived v4 → v1 |
+|---|---|---|---|---|---|
+| all | 14,723 | 9.1% → **15.8%** | 73.1% → 65.4% | 17.4% → 15.4% | 10.5% → 19.4% |
+| v4 threw to the man v5 would keep in | 2,481 (16.9%) | 0.0% → **30.2%** | 100% → 34.4% | 0% → 29.6% | 1.0% → 38.7% |
+| v4 threw elsewhere or did not throw | 12,242 | 10.9% → 12.9% | 67.7% → 71.7% | 20.9% → 12.5% | 12.5% → 15.4% |
+
+  - On every one of the 14,723 snaps, v1's call gives that man no route and names him in its protection: v1 keeps in exactly whom v5 would.
+  - The released back is today's answer to the free rusher. On 16.9% of these snaps the quarterback throws to him, and a rusher arrives on only 1.0% of those. A thrown ball is never a sack, so v4's 0.0% there holds by construction.
+  - Kept in, the rusher is blocked (pressured −18.9 points across the population). But the quarterback has lost his outlet. On the snaps where v4 threw to him, v1 lets a rusher arrive on 38.7% and is sacked on 30.2%. That row is selected on v4's outcome, so it shows the mechanism, not its size. Across all 14,723 snaps the sack rate goes from 9.1% to 15.8%, and the direct application below sizes it.
+  - So in today's engine **a free rusher with a released back sacks less often than a blocked rusher without one**. That is a model statement, and it is for the calibration backlog, not for this ADR. Threats come overwhelmingly from won reps: WON_REP is 84.1% of threat origins (set A + B, all dropbacks). Sack origins were not tallied.
+- **v1 does not slide toward the extras.** On all 23,495 `slideable` snaps it keeps v4's slide side and names the extras in its pairings instead. So the bench prices *accounting for* the extras on those snaps, not the slide check itself.
+- **The looks are their own effect.** v4 without looks against v4 is pressured +0.58 and exits +0.66 more, sacks +0.11 more, and throws 0.08 points fewer interceptions. That is the whole look catalogue (ADR-069 Phase 1's Show 2 and Show 1, plus ADR-071 step 2's Press, Split and Show 4) measured from the other side, and it is not this ADR's to explain.
+
+**§4.3's bounds, re-derived (H2, S2, S4, S6, S7, S16, S17).** The ADR named no rule for turning the v1 − v4 gap into bounds (§3.0:182; §4.3:745). 3.0 **CHOSE** one, found it gives a floor, and then measured §2.3's two checks directly.
+
+*The rule from v1 (CHOSEN):*
+
+> A v5 step acting on population P acts on P's snaps whose read is TRUE or COUNT (on an honest front, CALL and LOOK answer nobody, §2.2). Its effect per snap is v1 − v4-without-looks on P's read-right snaps where no hot route fires. That is the only part of P's read-right snaps where v1 differs from v4 in protection alone: no hot route in either arm, and no looks in either. The projected aggregate is P's read-right share × that effect, and its interval is the effect ± 2 SE times the share.
+
+It rests on three **INFERRED** assumptions:
+- v5's protection after an adjustment is no better than v1's, which names every rusher. v1 blocks the kept man in a named rep with no contest; v5 adds him to the pool, where the extra gets a contested pickup he can lose.
+- Where a hot route fires, keep-in costs at least what it costs where none does. On read-right `keepable` snaps, v1 − v4-without-looks is +10.32 ± 0.68 a snap with a hot route against +5.73 ± 0.41 without one, and v4 is pressured on all of them (v1 on 97.7%). Pricing the hot third at the no-hot rate therefore understates keep-in there by about a factor of two.
+- The kept man's lost route costs what it costs v1. The probe shows it is the same man.
+
+Under these, keep-in's projection is a floor. Slide-only's is not even an estimate: v1 does not slide, and its −0.36 a snap mixes v1 naming the extras (−0.82 ± 0.12 a snap on the 96% of those snaps that are not `keepable`) with v1 keeping a back in on the 3.7% that are (+11.75 ± 1.82).
+
+*The direct application (MEASURED).* §2.3's keep-in and slide made as edits to v4's own call (§2.3's "Applied": the kept man loses his route and `readOrder` entry and joins `protectionScheme.available`; the slide points at the side with more extras), re-run against the same defence call and seed, and paired with v4 snap by snap. Set A, 593,962 dropbacks; ± is the snap-level SE.
+
+| check | v4's snap | snaps | v4's sack rate there | Δsack a snap | of the aggregate | Δexit a snap | Δpressured a snap |
+|---|---|---|---|---|---|---|---|
+| keep-in | `keepable`, read missed | 4,854 | 10.7% | +6.47 ± 0.46 | (v5 does not act) | −11.39 | −7.97 |
+| keep-in | `keepable`, read right, no hot | 6,943 | 9.2% | **+6.19 ± 0.39** | +0.072 | −21.39 | −17.13 |
+| keep-in | `keepable`, read right, hot | 2,926 | 6.0% | **+11.69 ± 0.66** | +0.058 | −32.06 | −25.19 |
+| slide | `slideable`, read missed | 6,219 | 10.4% | −0.88 ± 0.14 | (v5 does not act) | −9.13 | −11.58 |
+| slide | `slideable`, read right, no hot | 11,416 | 6.6% | −0.36 ± 0.07 | −0.007 | −6.87 | −10.35 |
+| slide | `slideable`, read right, hot | 5,860 | 5.7% | −0.43 ± 0.11 | −0.004 | −5.56 | −15.17 |
+| **both, as v5 would on honest fronts** | read right, either population | 26,574 | 7.0% | +2.65 ± 0.13 | **+0.118 ± 0.006** | −13.51 | −15.31 |
+
+- Keep-in costs sacks on every row, and most where a hot route fired (+11.7 a snap), though the kept man is never the hot receiver (§2.3). The bench does not say why.
+- The 571 read-right snaps that are both `slideable` and `keepable` (0.10% of dropbacks) take both checks: +10.6 a snap with no hot route, +28.6 with one.
+- An independent checker's replay probe measured this first and got the same per-snap figures for keep-in and the slide (Files).
+
+| figure | filed (provisional) | re-derived |
+|---|---|---|
+| H2, the anchor "cannot recover more than v1 − v4" | v1 − v4 caps the correction (stale July +0.12 sack, +1.54 pressure) | **void as written**: v1 − v4 is +0.418 ± 0.050 sack and +0.027 ± 0.049 pressure, and most of it sits on the snaps where v4's hot route fired. The direct application replaces it. |
+| S2, slide-only Δsack | [−0.08, 0.00], central −0.03 | central **−0.01** (direct: −0.011 ± 0.002, −0.38 a read-right `slideable` snap, on 2.909% of dropbacks). The rule's −0.010 agrees by coincidence. The interval stays [−0.08, 0.00]. A hard floor is about −0.2: those snaps' own sack rate (6.3%) × their share. |
+| S4, keep-in-only Δsack | [−0.08, +0.03], central −0.02 | **[+0.08, +0.14], central +0.13** (direct: +0.130 ± 0.006, +7.82 a read-right `keepable` snap, on 1.662% of dropbacks). The low end is the rule's floor (+0.095, [+0.08, +0.11], the no-hot rate on every snap); priced by v1's own rows, hot and no hot, the rule gives +0.118. The high end is the direct figure + 2 SE. |
+| S6, full Δsack | [−0.10, −0.03], central −0.05; on `short` −0.1 to −0.4, central −0.2 | **[0.00, +0.13], central +0.12** (direct: +0.118 ± 0.006). On `short`, central **+0.45** a short snap (+0.01 to +0.50). The rule's +0.085 (+0.32 a short snap) is a floor. Observed within ±2 SE: on all dropbacks 0.034 (26,880 games) or 0.068 (6,720); on `short`, 0.067 or 0.134. |
+| S7, pressure | down, by no more than the v1 − v4 pressure gap | down, about **−0.69** (direct: slide −0.35, keep-in −0.32; v1's own read-right `keepable` rows also give keep-in −0.32). The rule's −0.77 prices keep-in at −0.44 with the no-hot rate on hot snaps and, by the first assumption, bounds the cut rather than estimating it. The v1 − v4 gap (+0.03 ± 0.05) bounds nothing for the same reason as H2. |
+| S16, check-release targets | fall by about the kept-in share or more | the kept-in share is 1.66% of dropbacks (S3). On read-right `keepable` snaps v4 throws to the man v5 keeps in on 16.2%, so targets to him fall by about 0.0027 a dropback. Applied directly, targets to every eligible check-release man fall by 0.0027 a dropback, so the other men gain almost nothing. That is about 5% of today's 0.054 check-release targets a dropback. |
+| S17, the triple | exit falls with pressure; conversion not negative in slide-only, ambiguous with keep-in | exit and pressure fall; with keep-in, sacks rise as they fall, so **conversion rises**. Direct: Δexit −0.60 (keep-in −0.41, slide −0.19) with Δsack +0.12, so conversion rises about +0.3 points. The rule gives Δexit −0.73 (keep-in −0.49, slide −0.24). On `keepable` under v1, exit falls 22.6 points while sacks rise 6.6. |
+
+**What this changes in §4.1 and §4.5 (filed now, before any arm).**
+- **Informed channel:** sign **up** at full, driven by keep-in. Slide-only is down and small.
+- **Deceived, bluff:** **up**. A route lost to keep-in is now measured as a cost, and 28a names the filter for the slants and the shallow cross (below). For Sit and Swing the hot term stays undetermined.
+- **Deceived, real pressure:** "COUNT and LOOK keep backs in against ghosts (free → contested: down)" is re-signed **up**, by the keep-in measurement. With the slide toward the bluff (up) and LOOK's extra hot conversions (28a: up), every mechanism in this channel now points up, on snaps with an eligible `checkRelease` man as well as without one.
+- **F4 (3.5's aggregate):** [−0.08, +0.10] stays as the interval. Its central +0.01 is withdrawn: every term now points up, and the sizes need 3.4's legal-look shares.
+- **§4.1's aggregate:** whole-ADR `sack_rate` is now expected **up**: informed about +0.12, the creeper up, and the deceived channels up. The banner's sentence stands, and its reason changes. §4.1's pre-commitment (if R2's direction fails on the deceived real-pressure population, the failure and its cause are recorded, not re-labelled) is unchanged.
+
+**Backlog 28a: the filter is named for the slants and the shallow cross (bluff channel's sign).** On v4's hot-converted snaps, set A + B: the converted receiver's first QB_READ, leaving out the checkdown look, against the effective throw bar (`qb.throwThreshold` + the read system's delta).
+
+| converted receiver | receivers | not read outside the checkdown | read | first look below the bar | targeted | completion when targeted |
+|---|---|---|---|---|---|---|
+| really converted (the route changes) | 96,591 | 21,897 (3,951 of them read only on the checkdown) | 74,694 | **61.9%** of those read (47.9% of all) | 40.4% | 41.9% |
+| designation-only (same route, moved up the progression) | 148,900 | 10,170 (3,669) | 138,730 | 50.6% of those read (47.2% of all) | 58.6% | 45.2% |
+
+- By route, the share of all converted receivers on that route whose first look sat below the bar. Receivers not read outside the checkdown count as not below, so these are lower bounds; on this basis the pooled figure is 47.9%, not the table's 61.9%.
+  - Deep Cross → Shallow Cross ≥64%;
+  - Seam → Slant ≥64%;
+  - Post → Slant ≥57%;
+  - Two-Minute Sail's 12 → 6-yard Out ≥50%;
+  - Wheel → Swing ≥35%;
+  - Seam → Sit ≥33%.
+- 18.7% of really converted receivers' first looks (7.3% for designation-only) sit 50 to 55 points below the bar: an openness at or near zero.
+- Backlog 28a's stated test is "if the slant sits below it systematically, the mechanism is named". It holds for the slants and the shallow cross even on the lower bound. Sit and Swing, 48% of real conversions, are not settled: the harness kept no per-route count of receivers who were never read. There is no baseline for unconverted receivers' first looks, and designation-only receivers sit below the bar on half of theirs, so the filter is named for those three routes, not as a property of every conversion.
+- No tunable moved.
+
+**The check-release guard's baseline, against real NFL (S16, §4.3's guard).**
+
+| position | sim target share | real share, REG 2022–2024 | real season range | band (±15% relative) | sim catch | real catch |
+|---|---|---|---|---|---|---|
+| WR | 40.43% | 59.76% | 59.52–60.08% | 50.80–68.72% | 39.6% | 63.3% |
+| TE | 39.61% | 21.66% | 21.01–22.39% | 18.41–24.90% | 40.2% | 70.9% |
+| RB | 13.74% | 17.87% | 16.86–18.58% | 15.19–20.55% | 41.4% | 78.0% |
+| FB | 6.23% | 0.58% | 0.50–0.72% | 0.50–0.67% | 41.1% | 73.9% |
+
+- Released check-release men with no hot spec draw 0.0540 targets and 0.0216 receptions a dropback (0.1677 targets a dropback on `keepable` snaps).
+- **Every position is outside its band today.** The band test therefore cannot pass at 3.3, so the guard reads the direction of each position's share against this baseline. The size of the fall is §4.3's "about the kept-in share or more", re-derived as S16 above.
+- The low catch rates (about 40.6% of targets; 37% completion once throwaways count as attempts) are the flat league's known low completion (ADR-072 §10), not this ADR's.
+- Receptions are credited to the catcher, as the engine's stat lines and the real data do. That includes 6,055 receptions by centres who recovered a tip, which the table leaves out.
+
+**Every other figure §4 asked 3.0 to file.**
+- **S1:** 0 leash rolls at 50.
+- **S8, free-runner origins (share of threats):**
+  - WON_REP 84.10%;
+  - PICKUP_LOST 7.43%;
+  - STUNT_LOOPER 6.94%;
+  - UNBLOCKED 1.53%.
+- **S11 and S13:** constants, as filed (D95 never BROKE at a breach of 10; discipline is read only at leash:65).
+- **S14:** of 696,636 contested pickups, 67.3% carry today's +10 and 32.7% the −10; the no-pointing arm takes those away. 53.8% are won.
+- **T2:** `blitz_rate` 24.08%, PASS against 23.923% ± 15%.
+- **T3:** line-game share 28.46%. Complexity:
+  - T_E .655;
+  - T_T .139;
+  - TRIPLE .137;
+  - DELAYED .069.
+
+  The prior is T_E .68, T_T .20, TRIPLE .05, DELAYED .07.
+- **T4:** blitz disguise on 5+ rushers:
+  - STANDARD .502;
+  - ZONE_BLITZ .306;
+  - DELAYED .106;
+  - ZERO .086.
+
+  The prior is .50, .27, .12 and .11.
+- **T5:** `disguise_rate` 31.64%.
+- **T6:** shell × rushers, share of dropbacks:
+  - ZONE: 4 rushers 58.96%, 5 rushers 14.77%, 3 rushers 0.11%;
+  - MIXED: 4 rushers 16.86%, 6 rushers 5.47%, 5 rushers 2.60%;
+  - MAN: 6 rushers 1.24%.
+- **T7 and F1:** rate 1 in 10 (Q5) × legal share. The legal share has no code until 3.4.
+- **F3:** on short snaps, 53.8% of calls carry a hot spec, and the hot route fires on 53.6% of read-right short snaps.
+- Every later-step bag the harness carries reads 0, as it must at 3.0: kept-in men, slide checks and PROTECTION_ADJUST wanted and made, pictures, BROKE-below-30, front-look and creeper snaps.
+  - §3.0's bag for snaps whose only coverage lie was on a kept-in man is not yet in the harness. 3.3's harness adds it, as §4.3's guard needs.
+  - The illegal-look counter has no producer until 3.5, so its 0 is not a measurement.
+  - Front-look snaps are keyed by LOOK tag id, not yet by §3.0's shownRush-differs rule or by picture.
+
+**Departures from §3.0 as written.**
+- **The real-side source is nflverse `player_stats`, not NGS receiving rows.** NGS rows cover only qualifying receivers and carry no running backs, so they cannot give an RB share. The source used is weekly REG rows for 2022–2024: 51,802 targets, from `nflverse-data` release `player_stats/player_stats.csv.gz`. It is not yet an ingested calibration source.
+- **One arm and two tallies beyond the ceiling run:**
+  - v4 without looks (game level and on the bench), to take the looks out of v1 − v4;
+  - the probe;
+  - the direct application, because the rule from v1 turned out to give only a floor.
+- **28a's definitions:**
+  - "really converted" is playbook's own `isDesignationOnly` read off the card. A name comparison would misfile Two-Minute Sail's 12 → 6-yard Out.
+  - "first look" leaves out the checkdown look, which the engine judges against a different bar.
+  - The bar is compared with effective openness, which the throw decision reads. §3.0 and backlog 28a said perceived openness, which gives the same 61.9% and 50.6% at the precision shown.
+- **The direct application** re-runs v4's own call with §2.3's keep-in and slide made as call edits. That stands in for v5's adjustment, which has no code until 3.3, so its figures are an estimate of 3.3's, not a bound.
+- **F2's analytic check is made on v4's rolled reads,** since no Mug exists before 3.5.
+
+**Files** (`/mnt/project-files/arms/`, README section "Front arms (ADR-073 step 3.0)"):
+- `adr073Arm.test.ts`, the harness, and `adr073-run_arm.sh`, which runs its four shards;
+- `adr073-<arm>-<shard>.json`, each game shard without its full accumulator (about 2.4 MB, 6.8 MB for set B), keeping its sha256; the bench, probe and direct shards carry none; `adr073-slim.py` makes them;
+- `adr073-analyze.py`, its output `adr073-report.md`, and `adr073-figures.json`;
+- `adr073-realshares.json`, built by `adr073-realshares.py` from nflverse;
+- `adr073-records-A-<shard>.jsonl.gz`, the bench's 593,962 recorded dropbacks;
+- `adr073-review-probe.ts` and `adr073-review-probe-pooled.json`, an independent checker's replay probe: who each caller keeps in, by stratum (the 0.7%, 1.3% and 1.8% above), and the direct application it measured first.
 
 ---
 
