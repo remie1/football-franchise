@@ -1,7 +1,7 @@
 # ADR-076: the questions, in plain words
 
-The full design is in [ADR-076](ADR-076-the-weekly-game-plan-baits-the-checks.md). Each question is
-on a card in the thread with my recommendation marked.
+The full design is in [ADR-076](ADR-076-the-weekly-game-plan-baits-the-checks.md). All five questions
+are ruled (2026-10-16): Q1 a, Q2 a, Q3 a, Q4 c (nothing yet), Q5 a.
 
 ## The idea
 
@@ -43,9 +43,7 @@ calls the baits this offence bites on more often and the ones it reads well less
 disguise more in total; his overall rate is still his own style (ADR-075). He just picks which looks
 to use, and when.
 
-The offence's staff studies too. If it wins the prep battle, it knows what's coming, and its coach
-tightens the QB's leash in those situations so he doesn't bite. That also costs him the good checks
-in those situations.
+(Your ruling on Q4: the offence gets no answer to the plan for now.)
 
 Nothing about how plays are played changes. Every call the plan makes is one the sim already plays.
 
