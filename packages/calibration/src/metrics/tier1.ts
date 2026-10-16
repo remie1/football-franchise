@@ -121,7 +121,26 @@ export const interceptionRate: Metric = registerMetric({
   definition: "Interceptions ÷ pass attempts.",
   unit: "%",
   direction: "LOWER_IS_BETTER",
-  toleranceBand: relativeBand(0.15),
+  // The one band ever WIDENED, and only by owner ruling (calibration.md §10.1, amendment 1;
+  // backlog entry 169). At ±15% this row read FAIL (known) on every report from backlog 95 on,
+  // which made it a row nobody reads. The owner ruled ~1.8% close enough and to stop tightening
+  // (ADR-068/072), so ±25% passes 1.71%–2.85% against the real 2.28%: today's ~1.9% passes, a
+  // slide below ~1.7% fails again. Written as a literal band rather than through `ratchetBand`,
+  // which refuses to widen and should keep refusing.
+  toleranceBand: {
+    kind: "RELATIVE",
+    width: 0.25,
+    history: [
+      {
+        reportId: "owner-ruling-2026-10-16",
+        from: 0.15,
+        to: 0.25,
+        reason:
+          "calibration.md §10.1 amendment 1: owner ruled int_rate ~1.8% close enough and stopped " +
+          "tightening; widened so the row is a live check again (backlog entry 169)",
+      },
+    ],
+  },
   knownDivergences: [
     "backlog 6 (§12.4 recovery roll)",
     "backlog 7 (zone defender reads the QB)",

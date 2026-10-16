@@ -12753,3 +12753,15 @@ read":**
 
 ⚠ **Both were answerable in one grep here, and neither was asked until the placement was already
 chosen.**
+
+## 169. `int_rate`'s band widened to ±25% by owner ruling — the row checks something again
+
+- **Ruling.** The owner ruled the sim's ~1.8% interception rate close enough to the real 2.28% and
+  said to stop tightening it (ADR-068 measurement, ADR-072 §10). At ±15% the row read FAIL (known)
+  on every report since entry 95 (1.92% against 2.28%, −15.47%), so a real regression would have
+  looked identical to the accepted state.
+- **Change.** `calibration.md` §10.1 amendment 1: `int_rate` opens at ±25% relative, passing
+  1.71%–2.85%. Recorded in the band's own `history` (`tier1.ts`), not through `ratchetBand`, which
+  still refuses every widening. No engine change, no sim re-run: the next report reads the new band.
+- **What it now catches.** A slide below ~1.7% (or above ~2.85%) fails again. Entries 6 and 7 stay
+  open as the mechanisms; this entry closes nothing about interceptions themselves.
