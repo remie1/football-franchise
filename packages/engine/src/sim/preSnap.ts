@@ -45,8 +45,10 @@
  *  - `resolveStunts` — step 6.
  *
  * Between the first and the second, the quarterback reads the coverage on the
- * routes he will run and the leash decides what he may change, so a decision he
- * makes there can reach the protection before anybody is picked up. Moving the
+ * routes he will run and the leash decides what he may change, so that from
+ * ADR-073 step 3.2b a decision he makes there can reach the protection before
+ * anybody is picked up. Until then none does: the pool and the slide side reach
+ * `resolvePickups` exactly as `readPreSnap` read them off the card. Moving the
  * work moved no die: a fork is a pure function of its parent's seed and its own
  * label, not of what the parent has drawn (`createRng`), and every die in this
  * file is forked by its own label. So a pickup's dice are the same dice whether
@@ -353,7 +355,8 @@ export function readPreSnap(args: {
  *
  * It reads the pool and the slide side as arguments rather than off the card,
  * because they are the protection AS RUN: the bodies offered, in the order
- * offered, and the side slid to.
+ * offered, and the side slid to. Until ADR-073 step 3.2b that is the card's
+ * own protection, as `readPreSnap` read it.
  */
 export function resolvePickups(args: {
   readonly tunables: Tunables;

@@ -120,10 +120,11 @@
  * ==================== SUB-QUESTION 2: THE PROTECTOR IN COVERAGE ====================
  *
  * Not settled here, and deliberately not patched here. When `D_exp` sends a man `D_real` drops,
- * a blocker is paired to somebody who is not rushing. `readPreSnap` looks up protection BY
- * RUSHER (`offense.protection.find(p => p.rusher === assignment.rusher)`), so that entry is never
- * consulted and the blocker stands idle — he neither blocks nor appears in `scheme.available`,
+ * a blocker is paired to somebody who is not rushing. The engine looked up protection BY
+ * RUSHER (`offense.protection.find(p => p.rusher === assignment.rusher)`), so that entry was never
+ * consulted and the blocker stood idle — he neither blocked nor appeared in `scheme.available`,
  * because `available` is the leftovers of a pairing walk that happened against the wrong front.
+ * (ADR-026 has since put him at the back of the pickup pool: `readPreSnap`'s step 1b.)
  *
  * That needs an OWNER, and this file's judgement is that it is the ENGINE's (§7.4 step 1 already
  * decides who is accounted for; this is the same step read from the protection's side, and it is

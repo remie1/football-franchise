@@ -1095,21 +1095,49 @@ describe("ADR-073 3.2a — the pre-snap stages, called apart", () => {
     expect(changed).toBeGreaterThan(0);
   });
 
-  it("the play emits the stages in §2.4's order: every pre-snap read, then pickups, then line games", () => {
-    const [, f, calls] = fixtures[0] ?? [];
-    if (f === undefined || calls === undefined) throw new Error("no fixture");
-    let both = 0;
-    for (let i = 0; i < 60; i++) {
-      const { events } = simulatePassPlay(f.state, calls, `emit-${i}`);
+  /**
+   * The blitz card with a lie and a closed leash added, so that all five pre-snap rolls can happen
+   * on one play: the X's man shows a deep zone on the far side (a trap on the go), and at leash 0
+   * any decision the read wants is a breach.
+   */
+  function everyRoll(): PlayCalls {
+    const { offense, defense } = blitz.calls;
+    const shownAssignments = defense.assignments.map((a) =>
+      a.kind === "MAN" && a.covers === blitz.ids.x
+        ? ({ kind: "ZONE", defender: a.defender, zone: { horizontal: "LW", vertical: "DEEP" } } as const)
+        : a,
+    );
+    return {
+      offense: { ...offense, leash: 0 },
+      defense: { ...defense, shownAssignments, coverageDisguise: "ROTATED" },
+    };
+  }
+
+  it("the play emits the stages in §2.4's order: the three pre-snap reads in order, then pickups, then line games", () => {
+    const calls = everyRoll();
+    const RANK: Readonly<Record<string, number>> = {
+      blitz_recognition: 0,
+      coverage_read: 1,
+      leash_discipline: 2,
+      blitz_pickup: 3,
+      stunt_communication: 4,
+    };
+    const seen = new Map<string, number>();
+    let allFive = 0;
+    for (let i = 0; i < 200; i++) {
+      const { events } = simulatePassPlay(blitz.state, calls, `emit-${i}`);
       const firstTick = events.findIndex(({ event }) => event.type === "TICK");
-      const head = events.slice(0, firstTick < 0 ? events.length : firstTick).map(({ event }) =>
-        event.type === "CHECK" ? event.payload.checkKind : event.type === "PRESNAP_READ" ? "read" : event.type,
+      const head = events.slice(0, firstTick < 0 ? events.length : firstTick).flatMap(({ event }) =>
+        event.type === "CHECK" ? [event.payload.checkKind] : event.type === "PRESNAP_READ" ? [event.payload.kind] : [],
       );
-      const preSnap = head.filter((k) => k === "read" || k === "blitz_pickup" || k === "stunt_communication");
-      const rank = (k: string): number => (k === "read" ? 0 : k === "blitz_pickup" ? 1 : 2);
-      expect(preSnap.map(rank)).toEqual([...preSnap.map(rank)].sort((a, b) => a - b));
-      if (preSnap.includes("blitz_pickup") && preSnap.includes("stunt_communication")) both += 1;
+      const ranks = head.map((k) => RANK[k] ?? -1);
+      expect(ranks, head.join(", ")).not.toContain(-1);
+      expect(ranks, head.join(", ")).toEqual([...ranks].sort((a, b) => a - b));
+      for (const k of new Set(head)) seen.set(k, (seen.get(k) ?? 0) + 1);
+      if (new Set(head).size === 5) allFive += 1;
     }
-    expect(both).toBeGreaterThan(0);
+    // Non-vacuity: every kind was rolled, and some play rolled all five.
+    for (const k of Object.keys(RANK)) expect(seen.get(k) ?? 0, k).toBeGreaterThan(0);
+    expect(allFive).toBeGreaterThan(0);
   });
 });

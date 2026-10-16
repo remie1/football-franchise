@@ -3,7 +3,7 @@
 - **Date:** 2026-10-16
 - **Proposed by:** Orchestrator, building ADR-069 Phase 3 (= ADR-068 step 3 = ADR-071 step 3) in the
   order ADR-069 §10 ruled
-- **Status:** **accepted; 3.0 measured and 3.1 built (§10), 3.2a next.** The owner asked for the draft *(owner, 2026-10-16:
+- **Status:** **accepted; 3.0 measured, 3.1 and 3.2a built (§10), 3.2b next.** The owner asked for the draft *(owner, 2026-10-16:
   "yes" to "Should I draft the front design now?")* and ruled all seven of §9's questions as
   recommended *(owner, 2026-10-16, decision cards)*. Every contracts edit in §3 still needs its own
   yes before it is made, and nothing merges without the owner's word. 3.0 re-derives §4.3: the
@@ -1516,6 +1516,25 @@ Under these, keep-in's projection is a floor. Slide-only's is not even an estima
 **How the proof ran.** The 3.0 harness, unchanged except for two scratch digests (each whole game, and each dropback, with the two new facts stripped), ran set A in four shards on this tree and on a clean worktree of main (02278f9). Its in-repo copy was deleted before this commit.
 
 **Files** (`/mnt/project-files/arms/`, README section "Front arms (ADR-073 step 3.1)"): `adr073Arm31.test.ts` (the harness with the strip), `adr073-run31.sh`, `adr073-proof31.py` and its output `adr073-proof31.json`.
+
+### 3.2a The split *(2026-10-16; no play change)*
+
+**In short.**
+- **The pre-snap phase is three stages, called apart.** `resolvePreSnap` is gone. `readPreSnap` does the accounting, the §5.3 recognition roll and the hot routes; `resolvePickups` does the slide, the pickup contests and the free runners; `resolveStunts` does §7.3's line games.
+- **`simulatePassPlay` calls them in §2.4's order:** the read stage, then the receiver tracks, the coverage lies, the coverage read and its beliefs, the wants and the one leash roll; then the pickups, the line games, the matchups and the recovery spots; then `reorderForCoverageRead`, PLAY_START, and the emission in the old order (every PRESNAP_READ, then the pickup CHECKs, then the stunt CHECKs). Steps 4 (`decideProtection`) and 9 (apply) come in 3.2b; on v4 they would do nothing.
+- **Proof (set A: v4, `adr-073:front-arm`, 6,720 games), against 3.1's own proof run, nothing stripped.**
+  - **Numbers:** 0 of 2,874,388 differ from 3.1's shards, every key compared both ways; each shard's whole output (timing aside) has the same hash.
+  - **Whole games:** all 6,720 streams have the same sha256 as 3.1's, with the same event counts.
+  - **Dropbacks:** all 593,962 digests equal 3.1's.
+
+**Departures from 3.2a as written.**
+- **The stages have names, and stage two takes the protection as arguments.** The design named no functions. `resolvePickups` is handed the pool and the slide side rather than reading them off the call, so that 3.2b's apply step can hand it the protection as run (keep-in widens the pool, a slide check moves the side) without re-splitting. `resolveStunts` is handed the centre and the line games. Each stage copies what it is handed and returns a new list.
+- **Tests, where the table said "proof only".** Three were added to `blitz.test.ts`, because the claim rests on a property a later edit could break silently: dice drawn on the pre-snap fork between the stages (the coverage read's, the leash's, and raw draws) move nothing, on a man card, a slide card and a card with nobody kept in; a stage leaves the read and stage two's plans untouched; and, on a blitz card given a coverage lie and a leash of 0 so that all five pre-snap rolls happen, the play emits the recognition, coverage and leash reads in that order, then the pickups, then the line games. Each was mutation-checked: a pickup, stunt or recognition die that read its parent, a pool consumed in place, plans rewritten in place, the two CHECK lists emitted in the other order, and the reads reordered or emitted after the CHECKs all fail them.
+- **Three comments named the old function** and now name the stage they mean (`validate/playCall.ts`, `unblockedProtector.test.ts`, calibration's `caller/anticipate.ts`; the last also said the idle protector still stands idle, which ADR-026 ended, and is now in the past tense). The historical ADRs and the backlog keep the old name.
+
+**How the proof ran.** 3.1's harness (`adr073Arm31.test.ts`, unchanged) ran set A in four shards on this tree, and `adr073-proof32a.py` compared every shard's numbers, every game's sha256 and every dropback's digest with 3.1's proof run, whose code differs from what merged as d9351a3 only in comments. The script was checked both ways first: 3.1 against itself passes, and the pre-3.1 main against 3.1 fails on all 6,720 games, as it should, because its streams lack 3.1's new fields. The harness's in-repo copy was deleted before this commit.
+
+**Files** (`/mnt/project-files/arms/`, README section "Front arms (ADR-073 step 3.2a)"): `adr073-proof32a.py` and its output `adr073-proof32a.json`; the harness and run script are 3.1's.
 
 ---
 
