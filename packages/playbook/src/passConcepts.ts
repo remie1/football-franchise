@@ -233,7 +233,7 @@ export const BUBBLE_NOW = passConcept({
     SLOT: route("Slant", "QUICK", 5, "C"),
     RB: route("Swing", "QUICK", -2, "LH"),
   },
-  readOrder: ["SLOT2", "Z"],
+  readOrder: ["SLOT2", "Z", "RB"],
   protection: fiveManSlide("RIGHT", ["RB"]),
   usage: { weight: 5, downs: [1, 2], maxDistance: 10 },
 });
@@ -251,7 +251,7 @@ export const QUICK_OUTS = passConcept({
     TE_U: route("Sit", "SHORT", 8, "LH"),
     RB: route("Swing", "QUICK", -1, "RH"),
   },
-  readOrder: ["Z", "TE_Y", "X"],
+  readOrder: ["Z", "TE_Y", "X", "RB"],
   protection: fiveManSlide("LEFT", ["RB"]),
   usage: { weight: 5, maxDistance: 9 },
 });
@@ -268,7 +268,7 @@ export const THIRD_SHORT_STICK = passConcept({
     X: route("Slant", "QUICK", 5, "LH"),
     SLOT: route("Flat", "QUICK", 1, "LW"),
   },
-  readOrder: ["TE_Y", "Z", "X"],
+  readOrder: ["Z", "TE_Y", "X"],
   protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 4, downs: [3, 4], maxDistance: 3 },
 });
@@ -310,7 +310,7 @@ export const MESH = passConcept({
     Z: route("Dig", "INTERMEDIATE", 14, "RH"),
     RB: route("Swing", "QUICK", -2, "RH"),
   },
-  readOrder: ["SLOT", "TE_Y", "RB"],
+  readOrder: ["SLOT", "Z", "RB"],
   protection: fiveManSlide("LEFT", ["RB"]),
   usage: { weight: 6, minDistance: 4 },
 });
@@ -364,7 +364,7 @@ export const LEVELS = passConcept({
     X: route("Go", "DEEP", 26, "LW"),
     RB: route("Angle", "SHORT", 5, "LH"),
   },
-  readOrder: ["SLOT", "TE_Y", "RB"],
+  readOrder: ["SLOT", "Z", "TE_Y", "RB"],
   protection: fiveManSlide("RIGHT", ["RB"]),
   usage: { weight: 5, minDistance: 4 },
 });
@@ -378,11 +378,14 @@ export const FLOOD = passConcept({
   routes: {
     Z: route("Go", "DEEP", 24, "RW"),
     TE_Y: route("Out", "INTERMEDIATE", 14, "RW"),
-    FB: alreadyHot(route("Flat", "QUICK", 2, "RH")),
+    // The tailback runs the flat and the fullback stays in. Charted 21-personnel flood
+    // throws the flat to the back far more than to the fullback (real fullbacks draw
+    // ~0.6% of targets; with the fullback as the designed hot here they drew 6%).
+    RB: alreadyHot(route("Flat", "QUICK", 2, "RH")),
     X: route("Deep Cross", "INTERMEDIATE", 16, "C"),
   },
-  readOrder: ["TE_Y", "FB", "Z"],
-  protection: sixManProtection("RB", "LEFT"),
+  readOrder: ["Z", "TE_Y", "RB"],
+  protection: sixManProtection("FB", "LEFT"),
   usage: { weight: 4, minDistance: 5 },
 });
 
@@ -547,7 +550,7 @@ export const MILLS = passConcept({
     X: route("Go", "DEEP", 24, "LW"),
     TE_U: route("Curl", "SHORT", 10, "LH"),
   },
-  readOrder: ["TE_Y", "Z", "TE_U", "X"],
+  readOrder: ["Z", "TE_Y", "X", "TE_U"],
   protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 3, minDistance: 7 },
 });
@@ -627,7 +630,7 @@ export const RED_ZONE_RUB = passConcept({
     SLOT: route("Slant", "QUICK", 5, "C"),
     X: route("Slant", "QUICK", 5, "LH"),
   },
-  readOrder: ["Z", "TE_Y", "SLOT"],
+  readOrder: ["Z", "SLOT", "TE_Y"],
   protection: sixManProtection("RB", "LEFT"),
   usage: { weight: 3, regions: ["RED_ZONE", "GOAL_LINE"] },
 });
@@ -705,7 +708,7 @@ export const TWO_MINUTE_SAIL = passConcept({
     SLOT: route("Out", "SHORT", 8, "LW"),
     RB: route("Swing", "QUICK", -1, "RH"),
   },
-  readOrder: ["Z", "TE_Y", "X"],
+  readOrder: ["Z", "TE_Y", "X", "RB"],
   protection: fiveManSlide("LEFT", ["RB"]),
   usage: { weight: 3, twoMinuteOnly: true },
 });
