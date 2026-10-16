@@ -15,9 +15,11 @@
  *     than inside 3.2b's measurement. The calls a test file builds for itself (a blitz, a
  *     stunt chain, a front) are not importable, so they are pinned at the SOURCE: no object
  *     literal in any package's source or tests spreads something and sets `rush` without
- *     also setting `shownRush`. That is the only way to build a stale list. (Playbook's corpus is pinned in
+ *     also setting `shownRush`. That is how a stale list gets built by accident. (A literal
+ *     that states a wrong `shownRush` on purpose is not something a scan can tell from a
+ *     front look.) Playbook's corpus is pinned in
  *     `packages/playbook/test/shownAssignments.test.ts`, and the frozen callers in
- *     `packages/calibration/test/shownRushStream.test.ts`.)
+ *     `packages/calibration/test/shownRushStream.test.ts`.
  *  2. THE ECHO. PLAY_START states the shown rush with alignment resolved exactly as the played
  *     rush's is, side and gap carried, no move; and the played echo now carries `gap` too, so
  *     the two compare field for field. A stated gap survives a stunt's plan rebuild.
@@ -29,6 +31,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { playerId } from "@ff/contracts";
 import type { MatchEventEnvelope } from "@ff/contracts";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { simulatePassPlay, simulateRunPlay } from "../src/index.js";
 import { COVERAGE_CARDS } from "../src/game/playbook.js";
@@ -93,102 +96,43 @@ const GAPS: readonly RunGap[] = ["A", "B", "C", "D"];
 
 /**
  * Every object literal in `source` that SPREADS something and sets `rush` but not `shownRush`,
- * by line. That shape is the one way to build a call whose shown rush is stale: a literal
- * without a spread must state `shownRush` or fail to compile, and `withRush` sets both.
+ * by line. That shape is how a call's shown rush goes stale by accident: a literal without a
+ * spread must state `shownRush` or fail to compile, and `withRush` sets both.
  *
- * A small scanner, not a parser: it skips comments and string and template literals, tracks
- * `{` `(` `[` nesting, and reads the keys at the top level of each `{`. A `{ ... }` followed by
- * `=` is a destructuring pattern and is skipped. It is deliberately strict; a false positive
- * fails loudly on the current tree, where it can be looked at. A literal that is stale ON
- * PURPOSE (a test showing the trap) says so with `/* stale on purpose *\/` on its line.
+ * Read with the TypeScript parser, so strings, templates, comments and regular expressions are
+ * what the compiler says they are. Destructuring patterns are not object literals and are not
+ * read. A literal that is stale ON PURPOSE (a test showing the trap) says so with a leading
+ * `/* stale on purpose *\/` comment.
+ *
+ * A literal that states BOTH keys is not read: stating `shownRush` does not prove it is the same
+ * array as `rush` (`{ rush: [x], shownRush: [x] }` is two arrays). That is what hoisting each
+ * literal's rush to one const is for, and the builder identity tests above check the result.
  */
 function staleRushSpreads(source: string): number[] {
-  interface Frame {
-    readonly kind: "{" | "(" | "[";
-    readonly start: number;
-    spread: boolean;
-    readonly keys: Set<string>;
-    expectingKey: boolean;
-  }
-  const stack: Frame[] = [];
+  const file = ts.createSourceFile("scan.ts", source, ts.ScriptTarget.Latest, true);
   const found: number[] = [];
-  const lineOf = (at: number): number => source.slice(0, at).split("\n").length;
-  let i = 0;
-  const skipSpace = (): void => {
-    for (;;) {
-      while (i < source.length && /\s/.test(source[i]!)) i += 1;
-      if (source.startsWith("//", i)) {
-        while (i < source.length && source[i] !== "\n") i += 1;
-      } else if (source.startsWith("/*", i)) {
-        const end = source.indexOf("*/", i + 2);
-        i = end < 0 ? source.length : end + 2;
-      } else return;
-    }
-  };
-  const skipString = (quote: string): void => {
-    i += 1;
-    while (i < source.length && source[i] !== quote) i += source[i] === "\\" ? 2 : 1;
-    i += 1;
-  };
-  const skipTemplate = (): void => {
-    i += 1;
-    let depth = 0;
-    while (i < source.length) {
-      const c = source[i]!;
-      if (c === "\\") { i += 2; continue; }
-      if (depth === 0 && c === "`") { i += 1; return; }
-      if (c === "$" && source[i + 1] === "{") { depth += 1; i += 2; continue; }
-      if (depth > 0 && c === "}") depth -= 1;
-      i += 1;
-    }
-  };
-  while (i < source.length) {
-    const top = stack[stack.length - 1];
-    if (top?.kind === "{" && top.expectingKey) {
-      skipSpace();
-      top.expectingKey = false;
-      if (source.startsWith("...", i)) {
-        top.spread = true;
-        i += 3;
-        continue;
+  const nameOf = (name: ts.PropertyName | undefined): string | undefined =>
+    name !== undefined && (ts.isIdentifier(name) || ts.isStringLiteral(name)) ? name.text : undefined;
+  const visit = (node: ts.Node): void => {
+    if (ts.isObjectLiteralExpression(node) && node.properties.some(ts.isSpreadAssignment)) {
+      const keys = new Set(node.properties.map((p) => nameOf(p.name)));
+      // The literal's own leading trivia: a same-line comment after `=` is, to the parser, a
+      // trailing comment of `=`, so the text is read rather than the comment ranges.
+      const marked = source.slice(node.pos, node.getStart(file)).includes("stale on purpose");
+      if (keys.has("rush") && !keys.has("shownRush") && !marked) {
+        found.push(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1);
       }
-      const key = /^(?:"([^"]+)"|'([^']+)'|([A-Za-z_$][\w$]*))\s*(?=[:,}(?])/.exec(source.slice(i));
-      if (key !== null) {
-        top.keys.add(key[1] ?? key[2] ?? key[3]!);
-        i += key[0].length;
-      }
-      continue;
     }
-    const c = source[i]!;
-    if (source.startsWith("//", i) || source.startsWith("/*", i)) { skipSpace(); continue; }
-    if (c === '"' || c === "'") { skipString(c); continue; }
-    if (c === "`") { skipTemplate(); continue; }
-    if (c === "{" || c === "(" || c === "[") {
-      stack.push({ kind: c, start: i, spread: false, keys: new Set(), expectingKey: c === "{" });
-      i += 1;
-      continue;
-    }
-    if (c === "}" || c === ")" || c === "]") {
-      const frame = stack.pop();
-      i += 1;
-      if (frame?.kind === "{" && frame.spread && frame.keys.has("rush") && !frame.keys.has("shownRush")) {
-        const after = /^\s*(=(?![=>]))?/.exec(source.slice(i));
-        const lineStart = source.lastIndexOf("\n", frame.start) + 1;
-        const marked = source.slice(lineStart, frame.start).includes("/* stale on purpose */");
-        if (after?.[1] === undefined && !marked) found.push(lineOf(frame.start));
-      }
-      continue;
-    }
-    if (c === "," && top?.kind === "{") top.expectingKey = true;
-    i += 1;
-  }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
   return found;
 }
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) return entry.name === "node_modules" ? [] : sourceFiles(full);
+    if (entry.isDirectory()) return sourceFiles(full);
     return entry.isFile() && entry.name.endsWith(".ts") ? [full] : [];
   });
 }
@@ -270,30 +214,23 @@ describe("ADR-073 step 3.1 — identity by construction", () => {
     expect(calls.defense.shownRush).toBe(calls.defense.rush);
   });
 
-  it("no object literal anywhere spreads a call and overrides `rush` without `shownRush`", () => {
-    const packages = join(import.meta.dirname, "..", "..");
-    const roots = readdirSync(packages, { withFileTypes: true })
-      .filter((d) => d.isDirectory())
-      .flatMap((d) => ["src", "test"].map((sub) => join(packages, d.name, sub)))
-      .filter((dir) => {
-        try {
-          return readdirSync(dir).length > 0;
-        } catch {
-          return false;
-        }
-      });
-    const files = roots.flatMap(sourceFiles);
+  it("no object literal in the engine spreads a call and overrides `rush` without `shownRush`", () => {
+    // The engine's own source and tests only. Playbook's and calibration's calls are pinned by
+    // their own identity tests (shownAssignments, masks, shownRushStream), so no package's suite
+    // depends on another domain's code.
+    const engine = join(import.meta.dirname, "..");
+    const files = ["src", "test"].flatMap((sub) => sourceFiles(join(engine, sub)));
     const offenders = files.flatMap((file) =>
-      staleRushSpreads(readFileSync(file, "utf8")).map((line) => `${relative(packages, file)}:${line}`),
+      staleRushSpreads(readFileSync(file, "utf8")).map((line) => `${relative(engine, file)}:${line}`),
     );
     expect(
       offenders,
       "a spread that overrides `rush` alone carries the old `shownRush` along: route it through `withRush`",
     ).toEqual([]);
-    // Non-vacuity: the scan read the engine's tests, and the shape it looks for is really there
-    // to be found (every `withRush` call site was once one).
-    expect(files.some((f) => f.endsWith("blitz.test.ts"))).toBe(true);
-    expect(files.length).toBeGreaterThan(100);
+    // Non-vacuity: the scan read the tests that build their own calls.
+    for (const name of ["blitz.test.ts", "playCallCoherence.test.ts", "unblockedProtector.test.ts", "fixtures.ts"]) {
+      expect(files.some((f) => f.endsWith(name)), name).toBe(true);
+    }
   });
 
   it("the scanner finds the stale shape, and passes the honest ones", () => {
@@ -302,13 +239,15 @@ describe("ADR-073 step 3.1 — identity by construction", () => {
       "const b = {\n  ...base.calls.defense,\n  // a comment with { braces }\n  rush: [...base.calls.defense.rush, { rusher: id, move: \"SPEED\" }],\n};",
       "const c = { ...d, rush };",
       "const e = { ...d, \"rush\": r, label: `x ${ { a: 1 }.a }` };",
+      "const re = /\"/;",
+      "const h = { ...calls.defense, rush: [x] };",
     ].join("\n");
-    expect(staleRushSpreads(stale)).toEqual([1, 2, 7, 8]);
+    expect(staleRushSpreads(stale)).toEqual([1, 2, 7, 8, 10]);
     const honest = [
       "const a = { ...calls.defense, rush, shownRush: rush };",
       "const b = withRush({ ...calls.defense, stunts: [] }, [x]);",
       "const { rush, ...rest } = calls.defense;",
-      "const c = { rush: [x], shownRush: [x] };",
+      "const c = { rush, shownRush: rush };",
       "const d = { ...calls, defense: withRush(calls.defense, r) };",
       "const s = \"{ ...defense, rush: r }\";",
       "// { ...defense, rush: r }",

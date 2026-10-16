@@ -3,12 +3,14 @@
 - **Date:** 2026-10-16
 - **Proposed by:** Orchestrator, building ADR-069 Phase 3 (= ADR-068 step 3 = ADR-071 step 3) in the
   order ADR-069 §10 ruled
-- **Status:** **accepted; 3.0 measured (§10), 3.1 next.** The owner asked for the draft *(owner, 2026-10-16:
+- **Status:** **accepted; 3.0 measured and 3.1 built (§10), 3.2a next.** The owner asked for the draft *(owner, 2026-10-16:
   "yes" to "Should I draft the front design now?")* and ruled all seven of §9's questions as
   recommended *(owner, 2026-10-16, decision cards)*. Every contracts edit in §3 still needs its own
   yes before it is made, and nothing merges without the owner's word. 3.0 re-derives §4.3: the
   informed channel is now expected to raise `sack_rate` through keep-in (§10). The design, the
-  rulings and 3.0 merged to main *(owner, 2026-10-16: "Yes, merge" on the decision card)*.
+  rulings and 3.0 merged to main *(owner, 2026-10-16: "Yes, merge" on the decision card)*. 3.1's
+  four contracts edits were made on the owner's typed yes naming each *(owner, 2026-10-16: "Yes, make
+  contracts edits P1, P2, D1 and D3a for ADR-073 step two.")*.
 - **Builds on:** ADR-067 (§D, the rulings on order and the required sentence), ADR-068 (rulings 1–6,
   step 3), ADR-069 (§9.6's Phase 3 row, §10's rulings), ADR-071 (step 3, the words), ADR-072 (the
   ladder, one leash roll, the default of 50), ADR-022 (Petition 1: keeping a man in costs his route
@@ -1487,6 +1489,33 @@ Under these, keep-in's projection is a floor. Slide-only's is not even an estima
 - `adr073-realshares.json`, built by `adr073-realshares.py` from nflverse;
 - `adr073-records-A-<shard>.jsonl.gz`, the bench's 593,962 recorded dropbacks;
 - `adr073-review-probe.ts` and `adr073-review-probe-pooled.json`, an independent checker's replay probe: who each caller keeps in, by stratum (the 0.7%, 1.3% and 1.8% above, and slide-only's −0.82 and +11.75), and the direct application it measured first.
+
+### 3.1 The shown rush, identical to the played rush *(2026-10-16; no play change)*
+
+**In short.**
+- **Every call carries the rush it shows, as the same array as the rush it plays.** Playbook's `instantiateDefense`, the engine's six coverage cards and every hand-built test call build it that way; test calls that override `rush` go through `withRush`. Identity (`shownRush === rush`) is asserted on every corpus call, bare and masked, every engine card and fixture builder, the engine's own caller through a game, and `callDefense()` for every frozen caller version (v1–v4).
+- **The validator** rejects a shown rusher who neither rushes nor covers, and a man shown twice. It has no one-spot rule: a man shown rushing who drops, two shown men in one gap, and a shown list shorter than the rush are all accepted.
+- **PLAY_START** states the shown rush on pass and run plays (alignment resolved as the played rush's is, side and gap carried, no move), and the played rush now carries its gap. On every pass and run PLAY_START of the corpus the two agree field for field, `move` aside. The physics reads no gap: stating gaps on a card changes nothing after PLAY_START, through both of a stunt's plan rebuilds.
+- **Proof (set A: v4, `adr-073:front-arm`, 6,720 games).**
+  - **Numbers:** 0 of 2,874,388 differ from 3.0's shards; the accumulator hash is equal on all four.
+  - **Whole games:** with `shownRush` and the rush's `gap` taken out of PLAY_START, all 6,720 streams are byte-identical to main's (sha256, same event counts). Every game's unstripped stream differs from main's, so the new fields are really there.
+  - **Dropbacks:** all 593,962 match the digests 3.0 recorded once stripped, and none matches unstripped.
+  - A rerun of main on the same harness reproduced 3.0's shards and all 593,962 dropback digests exactly.
+
+**Departures from 3.1 as written.**
+- **The validator runs on the run call too** (`assertCoherentRunCall`). The run PLAY_START looks every shown rusher up on the roster, so without the rule a shown man who is not on the call would crash the echo instead of being rejected as incoherent.
+- **The echo has its own type and one owner.** Its elements are a new engine-local `ResolvedShownRusher` (contracts' `ShownRusher` with the alignment resolved), built by `resolvedShownRusher` in `rushThreat.ts` for both payloads, beside `resolvedRushAssignment`. The type joins ADR-018's boundary pin (`resolutionProducts.test.ts`): it is the same "same shape, different fact" case as `ResolvedRushAssignment`.
+- **`resolvedRushAssignment`'s `gap` is a required `RunGap | undefined` argument**, as `side` is, not an optional one. Under `exactOptionalPropertyTypes` an optional `gap` refuses the callers' `RunGap | undefined`, and a required key makes the compiler find every caller. The output key is absent when the card states none. That added one compile site to the list (`resolutionProducts.test.ts`'s owner test).
+- **C2 and C3 were fixed in more places than listed.** C2 also in the tunables `slideIsUncontested` doc. C3 also in the `RushMatchup.side` doc (passPlay), the `declaredRush` doc (instantiate) and two comments in `resolutionProducts.test.ts`.
+- **The gap pin went red nowhere.** Its grep is a recipe inside the failure message, which no assertion runs. Its text now names the echo hits as a carry, says branch (a) means something DECIDES from the rush gap, and names 3.5's `applyFrontLook` as the expected first decider. The expiry date stands.
+- **Where the tests live** (the ADR named no homes):
+  - engine `test/shownRush.test.ts`: the cards, fixtures and engine caller, the echo, gaps through stunts, determinism, and the validator. The calls a test file builds for itself cannot be imported, so a TypeScript-parser scan of the engine's source and tests fails on any object literal that spreads a call and sets `rush` without `shownRush`; it is mutation-checked against a reverted `withRush` site;
+  - playbook `shownAssignments.test.ts` (every corpus call; its header now says why the rush is asserted by identity where coverage is not) and `masks.test.ts` (masked calls);
+  - calibration `test/shownRushStream.test.ts`: each frozen caller version over three games, identity on every call and the echo on every PLAY_START. The stream test is here because only the corpus authors gaps; the engine's fixtures author none.
+
+**How the proof ran.** The 3.0 harness, unchanged except for two scratch digests (each whole game, and each dropback, with the two new facts stripped), ran set A in four shards on this tree and on a clean worktree of main (02278f9). Its in-repo copy was deleted before this commit.
+
+**Files** (`/mnt/project-files/arms/`, README section "Front arms (ADR-073 step 3.1)"): `adr073Arm31.test.ts` (the harness with the strip), `adr073-run31.sh`, `adr073-proof31.py` and its output `adr073-proof31.json`.
 
 ---
 

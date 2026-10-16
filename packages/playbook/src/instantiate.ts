@@ -145,9 +145,11 @@ function zoneAssignment(defender: PlayerId, duty: ZoneDuty, fit: RunFit | undefi
 
 /**
  * The rusher's side rides along to the engine as well as into the pairing. §7.2's
- * time-of-arrival model reads `alignment` today and nothing reads `side`, but the
- * call is what the stream records, and a protection that pairs by geometry inside a
- * call whose rushers have no geometry would be unauditable from the outside.
+ * time-of-arrival model reads `alignment`, not `side`. `side` is read by this package's
+ * own `claim()` when it pairs the protection, and by the engine's slide, which takes a
+ * slide-side rusher no pairing names (ADR-073 C3). The call is also what the stream
+ * records, and a protection that pairs by geometry inside a call whose rushers have no
+ * geometry would be unauditable from the outside.
  *
  * `gap` NOW RIDES ALONG TOO (ADR-065 §Petition 1, ratified). Same argument, and this
  * line is where it was previously lost: `duty.gap` is authored on every rush duty and

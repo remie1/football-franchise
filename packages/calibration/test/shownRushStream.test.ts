@@ -54,12 +54,16 @@ function foldStream(gameLabel: string, events: readonly MatchEventEnvelope[], in
       readonly kind?: unknown;
       readonly defense?: { readonly rush?: unknown; readonly shownRush?: unknown };
     };
-    // PLAY_START also opens special-teams plays, which carry no defensive call.
+    const where = `game ${gameLabel} play ${String(event.playId)} (${String(payload.kind)})`;
+    // Only the pass and run sims open a play with PLAY_START (a kick has none). Any other kind is
+    // a payload this test does not know how to check, so it is a failure, not a skip.
     if (payload.kind === "PASS_PLAY_V1") into.passPlays += 1;
     else if (payload.kind === "RUN_PLAY_V1") into.runPlays += 1;
-    else continue;
+    else {
+      into.failures.push(`${where}: a PLAY_START of a kind this test does not check`);
+      continue;
+    }
 
-    const where = `game ${gameLabel} play ${String(event.playId)} (${String(payload.kind)})`;
     const rush = payload.defense?.rush;
     const shown = payload.defense?.shownRush;
     if (!Array.isArray(rush) || !Array.isArray(shown)) {
