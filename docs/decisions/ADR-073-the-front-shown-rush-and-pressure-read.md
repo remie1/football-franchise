@@ -3,10 +3,10 @@
 - **Date:** 2026-10-16
 - **Proposed by:** Orchestrator, building ADR-069 Phase 3 (= ADR-068 step 3 = ADR-071 step 3) in the
   order ADR-069 §10 ruled
-- **Status:** **proposed; design only.** Nothing is built. The owner asked for the draft *(owner,
-  2026-10-16: "yes" to "Should I draft the front design now?")*; §9's questions are open, no step of
-  §1 is built until the owner rules them, and every contracts edit in §3 needs its own yes before it
-  is made.
+- **Status:** **accepted; building from 3.0.** The owner asked for the draft *(owner, 2026-10-16:
+  "yes" to "Should I draft the front design now?")* and ruled all seven of §9's questions as
+  recommended *(owner, 2026-10-16, decision cards)*. Every contracts edit in §3 still needs its own
+  yes before it is made, and nothing merges without the owner's word.
 - **Builds on:** ADR-067 (§D, the rulings on order and the required sentence), ADR-068 (rulings 1–6,
   step 3), ADR-069 (§9.6's Phase 3 row, §10's rulings), ADR-071 (step 3, the words), ADR-072 (the
   ladder, one leash roll, the default of 50), ADR-022 (Petition 1: keeping a man in costs his route
@@ -94,7 +94,7 @@ the coverage read (built: ADR-068 step 1, ADR-070, ADR-072). Arms have word name
 3. **What the read decides.**
    - Hot routes, at rung 0 (R16): every `hot` route converts iff the picture answers someone.
    - The centre's point-out: the existing ±10, exactly today's per-snap rule (+10 on every contested pickup when the band is one of the top three, else −10), at rung 0. The no-pointing arm (3.3) prices it.
-   - **Protection adjustment**, at **rung 30** (provisional; Q1): check the slide toward the pressure when that changes who is slid, and keep released check-release men in when a man short. Keeping a man in costs his route before the snap (R32).
+   - **Protection adjustment**, at **rung 30** (ruled, Q1): check the slide toward the pressure when that changes who is slid, and keep released check-release men in when a man short. Keeping a man in costs his route before the snap (R32).
    - These are chosen by a fixed rule from options the card states. Pairing stays in playbook (ADR-006).
    - The adjustment and the coverage read's decisions share **one leash roll**.
 
@@ -119,7 +119,7 @@ the coverage read (built: ADR-068 step 1, ADR-070, ADR-072). Arms have word name
 | **3.4** | ADR-071 step 3: coverage, then pressure, then line game drawn on their own; per-coverage pressure statements, checked; the creeper (the Phase 3 row's simulated-pressure card, as a pressure tag); anticipated draw decomposed (coverage and pressure; no line game) | Yes (mix, by design) | Each host coverage's share and P(five or more) held by construction (asserted to 1e-12); v4 and v5 reproduce by name; §4.4 | pressure, front, joint-no-creeper, joint | **v6** |
 | **3.5** | Front looks Mug and Stem; front metrics; stream-test partition; contracts D2, D4, D6, D7 and P2's doc (tense). Deceived channel | Yes | §4.5; R2 scored on the deceived population (owner Q6) | Mug-only, Stem-only, both; proof: front-look rate 0 ≡ v6 | **v7**; default → v7 in the closing commit |
 
-**Every step waits for §9's rulings,** not only the closing commit (Q5, Q6): nothing is built until the owner rules. 3.2b's rung rows follow Q1's answer.
+**§9 is ruled** (owner, 2026-10-16: all seven as recommended), so the steps proceed in order. Each step that moves play comes back to the owner with its numbers, and every merge and every contracts edit waits for the owner's own word. 3.2b's rung rows follow Q1(a): one decision at 30.
 
 **Why this order.**
 - 3.0 → 3.1 → 3.2 is forced. 3.2 needs the field and the split, and 3.1 needs a baseline to reproduce.
@@ -345,7 +345,7 @@ It holds no one-spot rule. A Mug's walked-up backer may share a gap with the tac
 - **`DIME_COVER_1` lives only in v6's coverage catalogue**, with its own usage weight 0 (§2.6), and passes the same corpus validation. `DEFENSIVE_CARDS` and its 22 cards are untouched, so v1–v5 draw exactly as before (selection:68-69). A playbook test asserts `DEFENSIVE_CARDS.length === 22` and that its order is unchanged.
 - **Cover 0 Blitz stays a bound card.** Zero moves the deep shell by definition (R25's exception).
 - **Base Run Blitz's corners** take the coverage's DEEP_THIRD fallback (defCards:641, :647) instead of FLAT (:725, :731), by R25 ("a pressure never moves the deep shell"). Settled, not asked; the case is unreachable on today's formations (ADR-071:457-458: every formation has a #1 to each side).
-- **The creeper** (§2.6; its name is owner question Q4). Under ADR-071 rulings 1 and 4 (R24, R27) a pressure call is a coverage plus a pressure tag, so ADR-069 §9.6's "simulated-pressure card" (R22) is delivered as the creeper tag over Cover 3 Sky. If the owner meant a card of its own, Q4 asks.
+- **The creeper** (§2.6; named "Creeper" by the owner, Q4). Under ADR-071 rulings 1 and 4 (R24, R27) a pressure call is a coverage plus a pressure tag, so ADR-069 §9.6's "simulated-pressure card" (R22) is delivered as the creeper tag over Cover 3 Sky. If the owner meant a card of its own, Q4 asks.
 - `pressure.test.ts:52-115`'s card-weight marginals stay on `DEFENSIVE_CARDS`, which v1–v5 still draw, and v6 gains caller-rate versions of them.
 
 **Lands in calibration:**
@@ -499,7 +499,7 @@ Paired bands act alike until the decision step has more levers. This is the cove
 |---|---|---|
 | **Hot routes** | 0, the call's own answer (R16) | Every `hot` route converts iff the picture's answer set is non-empty (`resolveHotRoutes`, preSnap:450-494, keyed by the answer set instead of `recognized`). Converted receivers lead the progression (tunables:240-242). The engine never forces the throw. On COUNT or LOOK over a Mug, the hot goes in against a dropper, resolved against the played coverage (R10). No post-snap belief is added |
 | **Point-out** (the centre's Mike ID) | 0 | Exactly today's rule, per snap: `+10` on every contested pickup iff the band is one of the top three (the TRUE or COUNT picture), else `−10`, with the same keys, values and labels (tunables:585-591; blitz:128-131). Contested pickups are always of extras, which TRUE and COUNT answer and CALL and LOOK do not, so this is also what the picture rule gives. It is still INTERPRETATION of §5.3's "protection adjusted": a pre-snap assignment of the body, never an attribute, clock or pairing. This ADR leaves it exactly as it is; the no-pointing arm (3.3) prices it, and §7 records its tension with ADR-068:50-51 and R31 |
-| **PROTECTION_ADJUST** | **30** (provisional; Q1) | the slide check and keep-in below, as one decision |
+| **PROTECTION_ADJUST** | **30** (ruled, Q1) | the slide check and keep-in below, as one decision |
 
 **Options exist only where the card states them** (P3):
 - **Slide check:** a SLIDE scheme with `slideCheck` may flip `slideSide`. `claim()` reads `call.kind`, never `slideSide` (protection:208-220), so a flip leaves every pairing valid. A checked slide may face the check-release man's side, which the playbook warns about at authoring (C_SLIDE_TOWARD_THE_OUTLET, validate:447-463); at the snap that is the line's chosen answer.
@@ -954,12 +954,12 @@ Every bound below is provisional: 3.0 re-derives it from the measured v1 − v4 
 | `DEFENSIVE_CARDS` holds 22 cards, which v1–v5 draw from | **REPORTED** — defCards:944-967; selection:68-69 |
 | The six band cuts | **REPORTED** — §5.1's ladder (tunables `presnap.coverageRead`, tunables:271-278) |
 | The labels DIAGNOSED … BUSTED, and TRUE / COUNT / CALL / LOOK | **CHOSEN — provenance NONE**; a repo search found none of them in another band table |
-| Rung 30 for protection adjustment | **CHOSEN** — ADR-072 §1's provisional point (ADR-072:48); filed INTERPRETATION in docConf's register, which has no CHOSEN provenance; the owner rules it (Q1), and nothing is built before they do |
+| Rung 30 for protection adjustment | **CHOSEN** — ADR-072 §1's provisional point (ADR-072:48); filed INTERPRETATION in docConf's register, which has no CHOSEN provenance; ruled by the owner as one decision at 30 (Q1(a), 2026-10-16) |
 | What each picture answers and where it places men (§2.2's answer and slide sets), the slide check's moves-somebody rule and the keep-in walk (§2.3) | **CHOSEN — a football judgement**; the moves-somebody rule is ADR-072's existing standard for a decision (passPlay:2042-2043) |
 | The Mug's and Stem's shapes and legality, the creeper's shape | **CHOSEN — a football judgement**, within ADR-069 §9.2's and ADR-071 §4's descriptions |
 | The creeper as the Phase 3 row's "simulated-pressure card" | **INFERRED** — R22's row (ADR-069:360) read through ADR-071 rulings 1 and 4 (R24, R27: a pressure call is a coverage plus a pressure tag); put to the owner in Q4 |
 | No line game on a man the call's pressure moved or dropped | **INFERRED** — R25 ("no two played tags on one man", ADR-071 ruling 2) applied to the separate line-game draw (§2.6) |
-| The front-look and creeper rates (1 in 10) | **CHOSEN — provenance NONE**; no real figure is on file (Q5) |
+| The front-look and creeper rates (1 in 10) | **CHOSEN — provenance NONE**; no real figure is on file; the owner ruled 1 in 10 (Q5(a), 2026-10-16) |
 | §4's predicted sizes | **INFERRED** — from backlog 21's July v1 → v2 anchor (stale), the `short` share and the band shares; provisional until 3.0 re-derives them from the measured v1 − v4 gap and files them as figures, before any arm |
 
 ## Conjoined mechanisms — REQUIRED
@@ -1129,11 +1129,33 @@ Every bound below is provisional: 3.0 re-derives it from the measured v1 − v4 
 
 ## Decision
 
-Open (§9).
+**Accepted** *(owner, 2026-10-16)*. ✅ Rulings on §9, asked in plain words
+(`/mnt/project-files/design/ADR-073-questions-explained.md`) and answered on decision cards, each as
+recommended:
+
+1. **Protection change on the leash — one decision at 30.** The slide check and keeping a back in open
+   together at rung 30; below it the quarterback must break his leash (the one Discipline roll).
+2. **The read — the six grades as described.** TRUE, COUNT, CALL and LOOK as §2.2 states them; a plain
+   front never invents a blitzer.
+3. **The Cover 0 mug — linebackers now, safeties later.** The safeties' half is its own coverage
+   disguise with its own test.
+4. **The four-man simulated pressure — "Creeper",** a pressure tag on Cover 3; it counts as a pressure,
+   not a blitz.
+5. **Rates — 1 in 10.** A Mug or a Stem on 1 in 10 of the calls that can wear one; the Creeper on 1 in
+   10 of the four-man Cover 3 calls.
+6. **What decides — the fooled snaps** (COUNT or LOOK on a disguised front), above all `r2Expected`;
+   the season sack rate is reported, never deciding.
+7. **The plan — yes.** 3.0 to 3.5 in order, each measured on its own; the default caller moves once,
+   at the end.
+
+The contracts edits in §3 (P1–P3, D1–D8, P2's doc) are not covered by these rulings: each comes to the
+owner for its own yes, named, before it is made.
 
 ---
 
 ## 9. Questions for the owner
+
+*Ruled 2026-10-16, each as recommended (Decision).*
 
 **Q1. Can the coach forbid the line's protection change?** Before the snap, the centre and quarterback can now slide the line toward the pressure and keep a back in to block when they're a man short. On the coach's 0–100 leash, "work away from a covered man" opens at 20 and "work to an open man" at 40.
 - **(a) Recommended:** one decision, opening at 30. A coach below 30 means "run the protection as called".
