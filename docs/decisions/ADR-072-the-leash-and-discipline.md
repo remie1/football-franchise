@@ -2,9 +2,10 @@
 
 - **Date:** 2026-10-15
 - **Proposed by:** Orchestrator, building ADR-068 step 2 in the order ADR-069 §10 ruled
-- **Status:** **proposed; built and measured (§10)** — the owner chose to have it built and measured
-  before ruling on it *(owner, 2026-10-15: "#2 yes to the three contracts")*, and with that said yes
-  to the three contracts edits in §4. §9's questions are open.
+- **Status:** **accepted; built and measured (§10); merged to main** — the owner chose to have it
+  built and measured before ruling on it *(owner, 2026-10-15: "#2 yes to the three contracts")*, and
+  with that said yes to the three contracts edits in §4. §9 ruled yes on all four, as recommended
+  *(owner, 2026-10-15/16, decision cards)*, with the merge.
 - **Builds on:** ADR-068 (rulings 1–5; §4's leash and quadrant; step 1's re-order), ADR-070 §3 (what a
   fooled quarterback believes), ADR-069 §10 ruling 3 (the leash comes after the corner looks).
   Nothing is reopened.
@@ -299,7 +300,15 @@ leash 20 against 0 and 50.
 
 ## Decision
 
-Open — §9.
+**Accepted** *(owner, 2026-10-15/16)*. ✅ Rulings on §9, asked again in plain words
+(`/mnt/project-files/design/ADR-072-questions-explained.md`) and answered on decision cards:
+
+1. **The ladder — yes.** Work away opens at leash 20, work to at 40; later rungs stay provisional.
+2. **The breach — yes.** One roll per snap: d100 + Discipline + half the breach against 100.
+3. **The default — 50.** The calibration caller stamps a league-wide leash of 50 on every pass call.
+4. **The measurement — accepted** as run (§10).
+
+The owner also said yes to merging this once the four rulings matched the recommendations.
 
 ---
 
