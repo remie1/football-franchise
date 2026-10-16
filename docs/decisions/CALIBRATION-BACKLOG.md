@@ -12766,3 +12766,66 @@ chosen.**
 - **What it now catches.** A slide below ~1.82% (or above ~2.74%) fails again; a
   run near 1.8% sits on the edge, by the owner's choice. Entries 6 and 7 stay
   open as the mechanisms; this entry closes nothing about interceptions themselves.
+
+## 170. A free rusher with a released back sacks less than a blocked rusher with no outlet — entry 100's early pocket, seen from keep-in
+
+- **Finding (ADR-073 §10, step 3.0).** On v4's `keepable` snaps (short protection, an extra rusher nobody
+  is assigned to, a released check-release man whom keeping in leaves the call a route) the sack rate is
+  9.1%. Keeping that man in to block raises it to 16.5%. The ADR filed this as a model statement for the
+  backlog: in today's engine a free rusher plus a released back sacks less often than a blocked rusher with
+  no outlet. In football keeping a back in to pick up the blitzer is what protects the quarterback.
+- **Measurement.** Every set-A dropback (`adr-073:front-arm`, 240 rounds, flat league, leash 50) replayed
+  under v4: 593,962 of 593,962 match their recorded digest. On the 14,723 `keepable` snaps the same call is
+  re-run against the same defence call and seed three ways. `base` is the snap as played. `keep` takes the
+  man v5 keeps in off his route and adds him to the protection pool. `noOutlet` takes his route and read away
+  without adding him to protection, which leaves the free rusher and no outlet. Probe, pooled shards and
+  README section: `/mnt/project-files/arms/adr073-sackoutlet-*` (scratch, not committed).
+
+| arm | free rusher? | outlet? | sack | pressured | decision forced by 1.0s |
+|---|---|---|---|---|---|
+| `base` | yes | yes | **9.1%** | 100.0% | 98.5% |
+| `noOutlet` | yes | no | **17.1%** | 100.0% | 98.5% |
+| `keep` | no (picked up or contested) | no | **16.5%** | 84.3% | 76.0% |
+
+Sack sources, % of `keepable` snaps:
+
+| arm | free rusher (UNBLOCKED) | pickup lost | picked-up blitzer beats the back | line's won reps | coverage |
+|---|---|---|---|---|---|
+| `base` | 6.13 | 0.12 | 0.01 | 2.84 | 0 |
+| `noOutlet` | 11.67 | 0.12 | 0.01 | 5.34 | 0 |
+| `keep` | 0 | 4.00 | 2.00 | 10.47 | 0.01 |
+
+- **Cause 1: the outlet is worth 8.0 points, and it beats a fixed clock.** `base` − `noOutlet` is −8.0.
+  The free runner's ETA is 1.5s on 92% of these snaps (`blitzPickup.freeRunnerArrivalSeconds`, §7.4).
+  His travelling threat forces a decision from 0.5s on 93% of snaps. The back's quick route is ready at
+  1.0s (`route.readySeconds.QUICK`), so when he clears the checkdown bar (30) the quarterback throws to him
+  at 1.0s (95% of throws to him), half a second before the rusher can arrive. A thrown ball is never a sack:
+  0.0% when the throw goes to him, 1.0% with a rusher arriving.
+- **Cause 2: blocking the free rusher is worth 0.6 points, because the pocket breaks by 1.5s anyway.**
+  `keep` − `noOutlet` is −0.6. Keeping the back in removes the 11.67 points of free-rusher sacks, but the
+  line's own won reps double (5.34 → 10.47) and the pickup adds 6.0 more (lost pickups, and picked-up
+  blitzers who then beat the back). With everyone blocked, the pocket still forces a decision by 1.0s on
+  76% of `keep` snaps, and 94.7% of `keep` sacks land at or before 1.5s. The free rusher was pre-empting
+  the line's losses, not adding a separate risk: remove him and the next-fastest threat arrives about as
+  soon. Keep-in also takes away the only route ready before 1.5s, so it trades an answer for a block that
+  does not change the clock.
+- **Not the lever: the pickup check.** Shifting the blitz-pickup bands down 20 points (a probe-only
+  override; the back's pickup win rate goes from 54% to 71%) moves `keep` from 16.5% to 16.2%. Fewer lost
+  pickups, but the picked-up blitzer and the line's won reps take up the slack (2.0 → 2.5, 10.5 → 11.4).
+- **This is entry 100's open question, not a new mechanism.** Entry 100 records exit disruption near 85.6%
+  against a real figure near 29% (pressure about 35% in the Target share check, 2026-10-16), mechanism
+  unaccounted for. Cause 2 is the same early pocket on 5- and 6-man rushes. Cause 1 follows from it: when
+  protection fails inside 1.5s, the only route that beats it is the back's.
+- **Proposed fix (nothing built).**
+  1. No stand-alone keep-in or pickup change. Solve it with entry 100's pocket timing.
+  2. Give that work this falsifier, re-run with this probe on the same records: on `keepable` snaps, `keep`
+     must beat `noOutlet` by most of the free-rusher share (today −0.6 of 11.7 points), and `keep` must not
+     sack more than `base`. If the league pressure rate comes down and this ordering does not flip, the
+     pocket fix has moved the wrong channel.
+  3. Measure next, after 1: a check-release man scans his blitz responsibility before he releases, so his
+     route should not be ready at 1.0s. Candidate: a check-release scan delay of about 0.5s on that route's
+     readiness. Today it would only add sacks, because nothing else on the field beats a 1.5s arrival, so it
+     waits for 1.
+- **Consequence for ADR-073 (already priced).** Step 3.3's keep-in raises `sack_rate` by about +0.12
+  points (§10's direct application) until entry 100 moves. That is this entry's cause 2, not a defect in
+  v5's keep-in logic.
