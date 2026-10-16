@@ -105,12 +105,39 @@ export type ProtectionCall =
       readonly center?: PlayerId;
       /** Men in protection not pre-paired to a rusher, in pickup priority order. */
       readonly available?: readonly PlayerId[];
+      /**
+       * Check-release men who RELEASED — running a route in this call — whom the line may keep
+       * in to block before the snap, in the card's order (ADR-073). Each listed man is in
+       * `routes`; the list is disjoint from `available` and from every `protection[].blocker`
+       * (the engine validator refuses otherwise). It is not playbook's
+       * `ProtectionScheme.checkRelease`, a list of roles that includes men later pulled into
+       * protection: it is what is left of that list, by PlayerId. Omitted ⇒ nobody may be kept in.
+       */
+      readonly checkRelease?: readonly PlayerId[];
     }
   | {
       readonly kind: "SLIDE";
+      /**
+       * The huddle's slide; with `slideCheck` the line may check it before the snap, and the
+       * engine reports a check on the stream.
+       */
       readonly slideSide: RunSide;
       readonly center?: PlayerId;
       readonly available?: readonly PlayerId[];
+      /**
+       * Check-release men who RELEASED — running a route in this call — whom the line may keep
+       * in to block before the snap, in the card's order (ADR-073). Each listed man is in
+       * `routes`; the list is disjoint from `available` and from every `protection[].blocker`
+       * (the engine validator refuses otherwise). It is not playbook's
+       * `ProtectionScheme.checkRelease`, a list of roles that includes men later pulled into
+       * protection: it is what is left of that list, by PlayerId. Omitted ⇒ nobody may be kept in.
+       */
+      readonly checkRelease?: readonly PlayerId[];
+      /**
+       * The line may check the slide to the other side before the snap, toward the pressure it
+       * reads (ADR-073). Omitted ⇒ the slide is run as called.
+       */
+      readonly slideCheck?: true;
     };
 
 /**

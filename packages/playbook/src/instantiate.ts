@@ -27,6 +27,7 @@ import type {
   OffensiveCall,
   OffensivePlayCall,
   PlayerId,
+  ProtectionCall,
   RunBlockAssignment,
   RunPlayCall,
   RunSide,
@@ -482,6 +483,48 @@ export function instantiatePass(
     pulledIntoProtection: pulledIn as readonly OffenseSkillRole[],
     unblockedRushers: unblocked,
   };
+}
+
+/**
+ * THE LINE'S PRE-SNAP OPTIONS ON A DROPBACK (ADR-073 §2.3, contracts P3), stated on the call.
+ *
+ * Returns the call's own protection with the two options the card allows:
+ * - `slideCheck: true` on a SLIDE: the line may check the slide toward the pressure it reads;
+ * - `checkRelease`: the card's check-release men who RELEASED, by PlayerId in card order. A man
+ *   the front pulled into protection is already blocking and is left out, as is a role with no
+ *   route on this call. The key is absent when nobody is left.
+ *
+ * Built separately for each arm, so a MAN protection never carries `slideCheck`. Pure: `offense`
+ * is not changed. Whether the line uses either option is decided per snap by the engine's
+ * pressure read and the leash; the engine, not this, also leaves out a man whose route converts
+ * hot. No caller uses it yet; caller v5 (ADR-073 step 3.3) is the first.
+ */
+export function protectionOptions(
+  concept: PassConcept,
+  unit: AnyOffensiveUnit,
+  offense: InstantiatedOffense,
+): ProtectionCall {
+  const context = `pass concept ${concept.id}`;
+  const call = offense.call;
+  if (call.kind !== "PASS") {
+    throw new UnresolvableAssignmentError(`${context}: protection options belong to a dropback`);
+  }
+  const scheme = call.protectionScheme;
+  if (scheme === undefined) {
+    throw new UnresolvableAssignmentError(`${context}: the call states no protection scheme`);
+  }
+  const pulledIn = new Set<string>(offense.pulledIntoProtection);
+  const runners = new Set(call.routes.map((r) => String(r.receiver)));
+  const checkRelease: PlayerId[] = [];
+  for (const role of concept.protection.checkRelease) {
+    if (pulledIn.has(role)) continue;
+    const player = unit[role];
+    if (player === undefined || !runners.has(String(player))) continue;
+    checkRelease.push(player);
+  }
+  // `exactOptionalPropertyTypes`: an option the card does not give is an ABSENT key.
+  const released = checkRelease.length === 0 ? {} : { checkRelease };
+  return scheme.kind === "SLIDE" ? { ...scheme, ...released, slideCheck: true } : { ...scheme, ...released };
 }
 
 // --- the run call -----------------------------------------------------------
