@@ -108,16 +108,24 @@
  *
  * ================== WHAT CHANGED AT v5 — ADR-073 STEP 3.3, THE LINE'S OPTIONS ==================
  *
- * **At v5 every pass call states the line's two pre-snap options** (`protectionOptions`, ADR-073
- * §2.3): `slideCheck` on a slide, so the line may check it toward the pressure it reads, and
- * `checkRelease`, the card's check-release men who released, whom the line may keep in to block.
- * Whether it uses either is the engine's decision, per snap, from the pressure read and the
- * coach's leash (rung 30). Nothing is drawn: no address moves, so for any seed v4 and v5 call the
- * same plays against the same cards wearing the same looks, and the calls differ ONLY in those two
- * keys. `test/caller.test.ts` asserts it call for call.
+ * **At v5 every pass call on a slide states the line's pre-snap SLIDE CHECK** (`protectionOptions`,
+ * ADR-073 §2.3): `slideCheck`, so the line may check the slide toward the pressure it reads. That
+ * is the call a centre and a quarterback make before the snap. Whether the line uses it is the
+ * engine's decision, per snap, from the pressure read and the coach's leash (rung 30). Nothing is
+ * drawn: no address moves, so for any seed v4 and v5 call the same plays against the same cards
+ * wearing the same looks, and the calls differ ONLY in that one key. `test/caller.test.ts` asserts
+ * it call for call.
  *
- * `FrozenCallerSpec.slideCheck` and `.keepIn` turn one option off for a measurement arm; with both
- * off a v5 call is v4's, key for key.
+ * **v5 does NOT state the KEEP-IN by default** (`checkRelease`, the card's check-release men who
+ * released, whom the engine may keep in to block). Keeping a check-release back in is the back's
+ * own post-snap read in real football, not a call the QB or centre makes before it, so a caller
+ * that stated it would be calling something no pre-snap caller calls (the owner's challenge of
+ * 2026-10-17, ADR-077 proposal; ADR-073 §10 3.3 measured it as a driver of `sack_rate`).
+ * `FrozenCallerSpec.keepIn: true` states it for a measurement arm: ADR-073 §10's keep-in-only
+ * and full arms, and a later "Max" call that puts the back's read in the coach's hands.
+ *
+ * `FrozenCallerSpec.slideCheck: false` drops the slide check, and with the keep-in at its default
+ * a v5 call is v4's, key for key (the proof arm).
  */
 import type { Rng } from "@ff/contracts";
 import { createRng } from "@ff/contracts";
@@ -228,7 +236,7 @@ export interface FrozenCallerSpec {
   /**
    * v1 (the informed caller), v2 (ADR-024's anticipating caller), v3 (v2 wearing ADR-069's
    * pre-snap masks), v4 (v3 with ADR-071 step 2's corner looks) or v5 (v4 stating the line's
-   * options, ADR-073). Defaults to v4.
+   * slide check, ADR-073; the keep-in only on request, `keepIn`). Defaults to v4.
    *
    * OPTIONAL HERE AND RECORDED IN PROVENANCE, which is the same split `runBatch` makes for
    * `tunables`: ergonomics on the surface, and the value that was actually used printed in the
@@ -253,11 +261,15 @@ export interface FrozenCallerSpec {
    */
   readonly leash?: number;
   /**
-   * ADR-073 §2.3, v5's two options, each stated unless set `false`: `slideCheck` on every slide,
-   * `checkRelease` (here `keepIn`) on every call whose card releases a check-release man.
-   * MEASUREMENT KNOBS for the slide-only and keep-in-only arms, never moved in a report run; a
-   * caller with one off says so in its identity. Refused on a version that states no options, so
-   * an identity never names a knob that did nothing.
+   * ADR-073 §2.3, v5's two options, and they are NOT symmetric. `slideCheck` is stated on every
+   * slide unless set `false`: a pre-snap call, v5's whole content. `keepIn` is `checkRelease`, the
+   * card's released check-release men, stated on a call ONLY when set `true`: keeping a back in is
+   * his own post-snap read, not a call the QB or centre makes (ADR-073 §10 3.3; the owner's
+   * challenge of 2026-10-17, ADR-077 proposal), so it is an opt-in MEASUREMENT KNOB for §10's
+   * keep-in-only and full arms and a later "Max" call. Neither is moved in a report run; a caller
+   * off the default on either says so in its identity (`/no-slide-check`, `/keep-in`). Both are
+   * refused on a version that states no options, whatever the value, so an identity never names a
+   * knob that did nothing.
    */
   readonly slideCheck?: boolean;
   readonly keepIn?: boolean;
@@ -295,8 +307,11 @@ export interface FrozenCallerPair {
  * version is composed in and the field now says what its own comment always claimed.
  *
  * A knob off its default is appended, so a measurement arm cannot be compared as the caller it
- * changed (ADR-073 §2.7): `/no-slide-check`, then `/no-keep-in`, then `/leash-N` last. A knob at
- * its default is unmarked, so every identity written before the knobs existed still reads the same.
+ * changed (ADR-073 §2.7): `/no-slide-check`, then `/keep-in`, then `/leash-N` last. A knob at its
+ * default is unmarked, so every identity written before the knobs existed still reads the same.
+ * The defaults are the slide check ON and the keep-in OFF, so the marks are `slideCheck: false`
+ * and `keepIn: true`; `keepIn: false` is the default spelled out and is unmarked. There is no
+ * `/no-keep-in`: that was the mark of v5's first build, which stated the keep-in by default.
  */
 export function callerIdentity(
   version: CallerVersion,
@@ -307,7 +322,7 @@ export function callerIdentity(
   return [
     `${version}/${tendenciesVersion}`,
     knobs.slideCheck === false ? "/no-slide-check" : "",
-    knobs.keepIn === false ? "/no-keep-in" : "",
+    knobs.keepIn === true ? "/keep-in" : "",
     leash === DEFAULT_LEASH ? "" : `/leash-${String(leash)}`,
   ].join("");
 }
@@ -336,7 +351,8 @@ export const DEFAULT_LEASH = 50;
  * WHAT EACH VERSION DOES, ONE ROW EACH (ADR-073 §2.7). Rows v1–v4 restate what the version
  * ternary used to say: v1 plays the card it is dealt; from v2 the offence blocks the front it
  * anticipated; v3 wears Phase 1's two safety looks; v4 all five. None of them states the line's
- * options. v5 is v4 with them (ADR-073 step 3.3), the first row the ternary never had.
+ * options. v5 is v4 with them (ADR-073 step 3.3), the first row the ternary never had: the slide
+ * check by default, the keep-in only on a spec that asks (`FrozenCallerSpec.keepIn`).
  *
  * A TABLE AND NOT A TERNARY because the type is the list of versions (`CALLER_VERSIONS`): a
  * version with no row fails to compile, where the ternary quietly played any version it did not
@@ -351,7 +367,7 @@ interface CallerProfile {
    * `FrozenCallerSpec.coverageMasks` has nothing to narrow and is ignored.
    */
   readonly looks: readonly CoverageMask[] | undefined;
-  /** Every pass call states the line's options (ADR-073 §2.3; `withLineOptions`). */
+  /** Every slide states the line's slide check, and a pass call the keep-in if asked (ADR-073 §2.3; `withLineOptions`). */
   readonly protectionOptions: boolean;
 }
 
@@ -365,10 +381,13 @@ const PROFILE: Readonly<Record<CallerVersion, CallerProfile>> = {
 
 /**
  * ADR-073 §2.3, from v5: the pass call with the line's options stated, as `protectionOptions`
- * states them from the card. A knob DROPS its option's key, so the key is absent rather than
- * `undefined` (`exactOptionalPropertyTypes`; the engine validator asks `"slideCheck" in scheme`),
- * and every other key keeps its place: the card's scheme carries neither key, so with both knobs
- * off the call is v4's, key for key and in order.
+ * states them from the card, less the ones this caller does not call. The slide check is stated
+ * unless `slideCheck` is `false`; the keep-in (`checkRelease`) is stated ONLY if `keepIn` is
+ * `true`, because it is the back's own post-snap read and not a pre-snap call (ADR-073 §10 3.3;
+ * the owner's challenge of 2026-10-17). A dropped option's key is ABSENT rather than `undefined`
+ * (`exactOptionalPropertyTypes`; the engine validator asks `"slideCheck" in scheme`), and every
+ * other key keeps its place: the card's scheme carries neither key, so with the slide check off
+ * and the keep-in at its default the call is v4's, key for key and in order.
  */
 function withLineOptions(
   spec: FrozenCallerSpec,
@@ -379,7 +398,7 @@ function withLineOptions(
   if (offense.call.kind !== "PASS") return offense;
   const off = new Set<string>([
     ...(spec.slideCheck === false ? ["slideCheck"] : []),
-    ...(spec.keepIn === false ? ["checkRelease"] : []),
+    ...(spec.keepIn === true ? [] : ["checkRelease"]),
   ]);
   const protectionScheme = Object.fromEntries(
     Object.entries(protectionOptions(concept, unit, offense)).filter(([key]) => !off.has(key)),
@@ -599,7 +618,7 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
   }
   if (!PROFILE[callerVersion].protectionOptions && (spec.slideCheck !== undefined || spec.keepIn !== undefined)) {
     throw new FrozenCallerError(
-      `caller ${callerVersion} states no line options, so it has none to turn off: slideCheck and ` +
+      `caller ${callerVersion} states no line options, so it has none to set: slideCheck and ` +
         `keepIn are knobs of a version that states them (v5 on, ADR-073 §2.7).`,
     );
   }

@@ -22,7 +22,13 @@ import {
   type PlaySituation,
 } from "@ff/playbook";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
-import { DEFAULT_LEASH, FrozenCallerError, callerIdentity, frozenCallerPair } from "../src/caller/frozen.js";
+import {
+  DEFAULT_LEASH,
+  FrozenCallerError,
+  callerIdentity,
+  frozenCallerPair,
+  type CallerKnobs,
+} from "../src/caller/frozen.js";
 import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, anticipateFront, type CallerVersion } from "../src/caller/anticipate.js";
 import {
   assertTendencyIntegrity,
@@ -688,11 +694,14 @@ describe("the frozen caller pair", () => {
 /**
  * ============================ ADR-073 step 3.3, callerVersion v5 ============================
  *
- * v5 is v4 with the line's two options stated on every pass call (§2.3): the slide check on a
- * slide, and the check-release men who released. Nothing is drawn, so the claim is stronger than
- * the earlier versions' first-snap comparisons: CALL FOR CALL, on every snap of a game, v5's call
- * is v4's plus those two keys and nothing else, and its defence is v4's exactly. The knobs drop a
- * key each; with both off the call is v4's, key for key and in order.
+ * v5 is v4 with the line's SLIDE CHECK stated on every slide (§2.3). The keep-in (`checkRelease`,
+ * the card's released check-release men) is the back's own post-snap read and not a pre-snap call,
+ * so v5 does not state it unless `keepIn: true` asks (§10 3.3; the owner's challenge of
+ * 2026-10-17, ADR-077 proposal). Nothing is drawn, so the claim is stronger than the earlier
+ * versions' first-snap comparisons: CALL FOR CALL, on every snap of a game, v5's call is v4's plus
+ * the slideCheck key and nothing else, v5/keep-in's is v4's plus both keys, and the defence is
+ * v4's exactly. `slideCheck: false` drops that key; with it off and the keep-in at its default the
+ * call is v4's, key for key and in order (the proof arm).
  *
  * The games themselves differ (the engine uses the options), so the comparison is made by a
  * wrapper that hands every request a v4 game makes to the v5 pairs too. Forks are pure, so both
@@ -724,13 +733,30 @@ describe("ADR-073 step 3.3, callerVersion v5", () => {
     });
 
   it("names its knobs in its identity, in order, and leaves a knob at its default unmarked", () => {
-    expect(callerIdentity("v5", "x", 20, { slideCheck: false, keepIn: false })).toBe(
-      "v5/x/no-slide-check/no-keep-in/leash-20",
+    expect(callerIdentity("v5", "x", 20, { slideCheck: false, keepIn: true })).toBe(
+      "v5/x/no-slide-check/keep-in/leash-20",
     );
     expect(callerIdentity("v5", "x", DEFAULT_LEASH, { slideCheck: false })).toBe("v5/x/no-slide-check");
-    expect(callerIdentity("v5", "x", DEFAULT_LEASH, { keepIn: false })).toBe("v5/x/no-keep-in");
-    expect(callerIdentity("v5", "x", DEFAULT_LEASH, { slideCheck: true, keepIn: true })).toBe("v5/x");
+    expect(callerIdentity("v5", "x", DEFAULT_LEASH, { keepIn: true })).toBe("v5/x/keep-in");
+    expect(callerIdentity("v5", "x", 20, { keepIn: true })).toBe("v5/x/keep-in/leash-20");
+    // The defaults, spelled out, are unmarked: the slide check ON and the keep-in OFF.
+    expect(callerIdentity("v5", "x", DEFAULT_LEASH, { slideCheck: true, keepIn: false })).toBe("v5/x");
+    expect(callerIdentity("v5", "x", DEFAULT_LEASH, { keepIn: false })).toBe("v5/x");
+    expect(callerIdentity("v5", "x", DEFAULT_LEASH, { slideCheck: true })).toBe("v5/x");
+    expect(callerIdentity("v5", "x", 20, { keepIn: false })).toBe("v5/x/leash-20");
     expect(callerIdentity("v5", "x", DEFAULT_LEASH, {})).toBe(callerIdentity("v5", "x"));
+    // `/no-keep-in` was v5's first build's mark, when the keep-in was on by default; it is gone.
+    const knobSets: readonly CallerKnobs[] = [
+      { keepIn: false },
+      { slideCheck: false, keepIn: false },
+      { slideCheck: false },
+      { keepIn: true },
+    ];
+    for (const knobs of knobSets) expect(callerIdentity("v5", "x", 20, knobs)).not.toContain("no-keep-in");
+    // Four settings of the two knobs, four distinct identities: no arm compares as another.
+    const fourSettings: readonly CallerKnobs[] = [{}, { slideCheck: false }, { keepIn: true }, { slideCheck: false, keepIn: true }];
+    const four = fourSettings.map((knobs) => callerIdentity("v5", "x", DEFAULT_LEASH, knobs));
+    expect(new Set(four).size).toBe(4);
     const pair = frozenCallerPair({
       tendencies: FROZEN_TENDENCIES,
       fourthDown: FROZEN_FOURTH_DOWN,
@@ -738,16 +764,20 @@ describe("ADR-073 step 3.3, callerVersion v5", () => {
       awayDepthChart: built.awayDepthChart,
       callerVersion: "v5",
       slideCheck: false,
-      keepIn: false,
+      keepIn: true,
       leash: 20,
     });
     expect(pair.callerVersion).toBe("v5");
-    expect(pair.name).toBe(`frozen-v5/${FROZEN_TENDENCIES.version}/no-slide-check/no-keep-in/leash-20`);
+    expect(pair.name).toBe(`frozen-v5/${FROZEN_TENDENCIES.version}/no-slide-check/keep-in/leash-20`);
+    // Plain v5, and v5 with the defaults spelled out, are the same caller under the same name.
+    expect(pairOf("v5").name).toBe(`frozen-v5/${FROZEN_TENDENCIES.version}`);
+    expect(pairOf("v5", { slideCheck: true, keepIn: false }).name).toBe(pairOf("v5").name);
+    expect(pairOf("v5", { keepIn: true }).name).toBe(`frozen-v5/${FROZEN_TENDENCIES.version}/keep-in`);
   });
 
   const BELOW_V5 = CALLER_VERSIONS.filter((v) => v !== "v5");
   it.each(BELOW_V5.flatMap((v) => [[v, "slideCheck"], [v, "keepIn"]] as const))(
-    "a %s caller refuses the %s knob: it states no options to turn off",
+    "a %s caller refuses the %s knob: it states no options, so there is nothing to set",
     (callerVersion, knob) => {
       for (const value of [true, false]) {
         const knobs = knob === "slideCheck" ? { slideCheck: value } : { keepIn: value };
@@ -781,6 +811,7 @@ describe("ADR-073 step 3.3, callerVersion v5", () => {
   const withoutOptions = (scheme: ProtectionCall): Record<string, unknown> =>
     Object.fromEntries(Object.entries(scheme).filter(([key]) => !(OPTION_KEYS as readonly string[]).includes(key)));
 
+  /** `slideCheck` and `keepIn` here are what the arm STATES (the call's keys), not the knobs' values. */
   interface Arm {
     readonly label: string;
     readonly pair: ReturnType<typeof pairOf>;
@@ -826,6 +857,16 @@ describe("ADR-073 step 3.3, callerVersion v5", () => {
       if (!isEqual(withoutOptions(scheme), baseScheme)) fail("the scheme differs from v4's beyond the options");
       if (OPTION_KEYS.some((key) => key in baseScheme)) fail("v4's own call states an option");
       if (JSON.stringify(Object.keys(call)) !== JSON.stringify(Object.keys(base))) fail("the call's key order moved");
+      // Every key the arm adds to v4's scheme is one it states: plain v5 adds `slideCheck` and no
+      // other key, and `checkRelease` is added only by an arm with the keep-in on.
+      const stated: readonly string[] = [...(arm.slideCheck ? ["slideCheck"] : []), ...(arm.keepIn ? ["checkRelease"] : [])];
+      for (const key of Object.keys(scheme)) {
+        if (!(key in baseScheme) && !stated.includes(key)) fail(`the scheme adds "${key}" to v4's, which this arm does not state`);
+      }
+      // The keys v4 had keep their places: removing the options leaves v4's scheme, key for key.
+      if (JSON.stringify(Object.keys(withoutOptions(scheme))) !== JSON.stringify(Object.keys(baseScheme))) {
+        fail("the scheme's key order, beyond the options, is not v4's");
+      }
       if (scheme.kind === "SLIDE") {
         tally.slideCalls += 1;
         const stated = "slideCheck" in scheme;
@@ -837,7 +878,7 @@ describe("ADR-073 step 3.3, callerVersion v5", () => {
       }
       if ("checkRelease" in scheme) {
         tally.checkReleaseCalls += 1;
-        if (!arm.keepIn) fail("check-release men the knob turned off");
+        if (!arm.keepIn) fail("check-release men stated by an arm that does not keep them in");
         const runners = new Set(call.routes.map((r) => String(r.receiver)));
         const available = new Set((scheme.available ?? []).map(String));
         const blockers = new Set(call.protection.map((p) => String(p.blocker)));
@@ -849,9 +890,9 @@ describe("ADR-073 step 3.3, callerVersion v5", () => {
         if ((scheme.checkRelease ?? []).length === 0) fail("an empty check-release list is stated");
       }
       if (!arm.slideCheck && !arm.keepIn) {
-        if (!isEqual(call, base)) fail("both knobs off, and the call is not v4's");
+        if (!isEqual(call, base)) fail("no option stated, and the call is not v4's");
         if (JSON.stringify(Object.keys(scheme)) !== JSON.stringify(Object.keys(baseScheme))) {
-          fail("both knobs off, and the scheme's key order is not v4's");
+          fail("no option stated, and the scheme's key order is not v4's");
         }
       }
     };
@@ -892,12 +933,19 @@ describe("ADR-073 step 3.3, callerVersion v5", () => {
   /** Strict deep equality: an absent key and an `undefined` one differ, as `toStrictEqual` has it. */
   const isEqual = isDeepStrictEqual;
 
-  it("calls v4's play on every snap, plus only the line's options; the knobs drop a key each", () => {
+  it("calls v4's play on every snap, plus the slide check (and the keep-in only where asked)", () => {
     const arms: readonly Arm[] = [
-      { label: "v5", pair: pairOf("v5"), slideCheck: true, keepIn: true },
-      { label: "v5/no-keep-in", pair: pairOf("v5", { keepIn: false }), slideCheck: true, keepIn: false },
-      { label: "v5/no-slide-check", pair: pairOf("v5", { slideCheck: false }), slideCheck: false, keepIn: true },
-      { label: "v5/no-slide-check/no-keep-in", pair: pairOf("v5", { slideCheck: false, keepIn: false }), slideCheck: false, keepIn: false },
+      // v5: the slide check, and NOT the keep-in. v4's call plus the one key.
+      { label: "v5", pair: pairOf("v5"), slideCheck: true, keepIn: false },
+      // The defaults, spelled out, are the same caller.
+      { label: "v5/keepIn:false", pair: pairOf("v5", { slideCheck: true, keepIn: false }), slideCheck: true, keepIn: false },
+      // The opt-in: v4's call plus both keys.
+      { label: "v5/keep-in", pair: pairOf("v5", { keepIn: true }), slideCheck: true, keepIn: true },
+      // Keep-in alone: ADR-073 §10's keep-in-only arm.
+      { label: "v5/no-slide-check/keep-in", pair: pairOf("v5", { slideCheck: false, keepIn: true }), slideCheck: false, keepIn: true },
+      // The proof arm: v4's call, key for key.
+      { label: "v5/no-slide-check", pair: pairOf("v5", { slideCheck: false }), slideCheck: false, keepIn: false },
+      { label: "v5/no-slide-check/keepIn:false", pair: pairOf("v5", { slideCheck: false, keepIn: false }), slideCheck: false, keepIn: false },
     ];
     const tallies = compareCallForCall(arms, 4);
     for (const arm of arms) {
@@ -908,11 +956,14 @@ describe("ADR-073 step 3.3, callerVersion v5", () => {
       if (arm.slideCheck) expect(t.slideChecks, arm.label).toBe(t.slideCalls);
       else expect(t.slideChecks, arm.label).toBe(0);
       if (arm.keepIn) expect(t.checkReleaseCalls, `${arm.label}: no call released a check-release man`).toBeGreaterThan(0);
-      else expect(t.checkReleaseCalls, arm.label).toBe(0);
+      else expect(t.checkReleaseCalls, `${arm.label}: stated a check-release man, and only /keep-in arms keep him in`).toBe(0);
     }
-    // The knobs leave the other option exactly where the full caller states it.
-    expect(tallies.get("v5/no-keep-in")!.slideChecks).toBe(tallies.get("v5")!.slideChecks);
-    expect(tallies.get("v5/no-slide-check")!.checkReleaseCalls).toBe(tallies.get("v5")!.checkReleaseCalls);
+    // The knobs leave the other option exactly where it is stated elsewhere.
+    expect(tallies.get("v5/keep-in")!.slideChecks).toBe(tallies.get("v5")!.slideChecks);
+    expect(tallies.get("v5/no-slide-check/keep-in")!.checkReleaseCalls).toBe(tallies.get("v5/keep-in")!.checkReleaseCalls);
+    // keepIn: false is the default spelled out, so those arms are one caller: same tallies.
+    expect(tallies.get("v5/keepIn:false")).toEqual(tallies.get("v5"));
+    expect(tallies.get("v5/no-slide-check/keepIn:false")).toEqual(tallies.get("v5/no-slide-check"));
   }, 5 * 60_000);
 
   /**
@@ -948,83 +999,110 @@ describe("ADR-073 step 3.3, callerVersion v5", () => {
     return out;
   };
   const SEEDS = ["adr073-v5-leash-0", "adr073-v5-leash-1", "adr073-v5-leash-2", "adr073-v5-leash-3"];
-  const atLeash = (seed: string, leash: number) =>
-    runOneGame({ built, seed, tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN, callerVersion: "v5", leash });
+  // Both arms walk every leash test below. Plain v5 wants a SLIDE CHECK and nothing else, so it
+  // keeps nobody in; the men kept in, and what becomes of them, belong to /keep-in.
+  const LEASH_ARMS: readonly { readonly label: string; readonly keepIn: boolean }[] = [
+    { label: "v5", keepIn: false },
+    { label: "v5/keep-in", keepIn: true },
+  ];
+  const atLeash = (seed: string, leash: number, keepIn: boolean) =>
+    runOneGame({
+      built,
+      seed,
+      tendencies: FROZEN_TENDENCIES,
+      fourthDown: FROZEN_FOURTH_DOWN,
+      callerVersion: "v5",
+      leash,
+      ...(keepIn ? { keepIn: true } : {}),
+    });
   const leashReadsOf = (out: ReturnType<typeof runOneGame>): number =>
     out.observation.events.filter(
       (e) => e.event.type === "PRESNAP_READ" && e.event.payload.kind === "leash_discipline",
     ).length;
 
-  it("at 50 nothing is rolled and every adjustment the line wants is made; 40 and 100 play the identical game", () => {
-    let wanted = 0;
-    let keptIn = 0;
-    for (const seed of SEEDS) {
-      const base = atLeash(seed, 50);
-      expect(leashReadsOf(base), seed).toBe(0);
-      for (const play of passPlays(base.observation.events)) {
-        if (play.adjustment === undefined) continue;
-        wanted += 1;
-        keptIn += play.adjustment.keptIn.length;
-        expect(play.adjustment.made, seed).toBe(true);
-        for (const man of play.adjustment.keptIn) expect(play.routes, `${seed}: a kept-in man ran his route`).not.toContain(man);
-      }
-      for (const leash of [40, 100]) {
-        const other = atLeash(seed, leash);
-        expect(leashReadsOf(other), `${seed} leash ${String(leash)}`).toBe(0);
-        expect(other.observation.summary, `${seed} leash ${String(leash)}`).toEqual(base.observation.summary);
-        expect(JSON.stringify(other.observation.statlines), `${seed} leash ${String(leash)}`).toBe(
-          JSON.stringify(base.observation.statlines),
-        );
-        expect(other.observation.events.length, `${seed} leash ${String(leash)}`).toBe(base.observation.events.length);
-      }
-    }
-    expect(wanted, "the line wanted no adjustment in any game, so the rung was never reached").toBeGreaterThan(0);
-    expect(keptIn, "nobody was kept in, so leash 40 and 100 were compared on slide checks alone").toBeGreaterThan(0);
-  }, 5 * 60_000);
-
-  it("at 30 the adjustment is open: every one wanted is made, and only WORK_TO can be rolled", () => {
-    let wanted = 0;
-    for (const seed of SEEDS) {
-      const out = atLeash(seed, 30);
-      for (const play of passPlays(out.observation.events)) {
-        if (play.adjustment === undefined) continue;
-        wanted += 1;
-        expect(play.adjustment.made, seed).toBe(true);
-      }
-      // A breach is the highest rung wanted minus the leash, so at 30 only WORK_TO (40) breaches it.
-      for (const e of out.observation.events) {
-        if (e.event.type !== "PRESNAP_READ" || e.event.payload.kind !== "leash_discipline") continue;
-        const breach = e.event.payload.roll.modifiers.find((m) => m.source.startsWith("Breach of the leash"));
-        expect(breach?.source, seed).toBe("Breach of the leash (10)");
-      }
-    }
-    expect(wanted, "the line wanted no adjustment at 30").toBeGreaterThan(0);
-  }, 5 * 60_000);
-
-  it("at 20 it is closed: HELD runs the protection as called, BROKE makes it", () => {
-    let held = 0;
-    let broke = 0;
-    for (const seed of SEEDS) {
-      for (const play of passPlays(atLeash(seed, 20).observation.events)) {
-        if (play.adjustment === undefined) continue;
-        // Wanting the adjustment above the leash is a breach, so the one roll is always thrown.
-        expect(play.leashBands, `${seed}: an adjustment wanted above the leash, and no roll`).toHaveLength(1);
-        const band = play.leashBands[0];
-        if (band === "HELD") {
-          held += 1;
-          expect(play.adjustment.made, seed).toBe(false);
-          for (const man of play.adjustment.keptIn) expect(play.routes, `${seed}: a man held to the call lost his route`).toContain(man);
-        } else {
-          expect(band, seed).toBe("BROKE");
-          broke += 1;
-          expect(play.adjustment.made, seed).toBe(true);
-          for (const man of play.adjustment.keptIn) expect(play.routes, seed).not.toContain(man);
+  describe.each(LEASH_ARMS)("$label", ({ label, keepIn: keepsIn }) => {
+    it("at 50 nothing is rolled and every adjustment the line wants is made; 40 and 100 play the identical game", () => {
+      let wanted = 0;
+      let keptIn = 0;
+      for (const seed of SEEDS) {
+        const base = atLeash(seed, 50, keepsIn);
+        expect(leashReadsOf(base), `${label} ${seed}`).toBe(0);
+        for (const play of passPlays(base.observation.events)) {
+          if (play.adjustment === undefined) continue;
+          wanted += 1;
+          keptIn += play.adjustment.keptIn.length;
+          expect(play.adjustment.made, `${label} ${seed}`).toBe(true);
+          for (const man of play.adjustment.keptIn) {
+            expect(play.routes, `${label} ${seed}: a kept-in man ran his route`).not.toContain(man);
+          }
+        }
+        for (const leash of [40, 100]) {
+          const other = atLeash(seed, leash, keepsIn);
+          const where = `${label} ${seed} leash ${String(leash)}`;
+          expect(leashReadsOf(other), where).toBe(0);
+          expect(other.observation.summary, where).toEqual(base.observation.summary);
+          expect(JSON.stringify(other.observation.statlines), where).toBe(JSON.stringify(base.observation.statlines));
+          expect(other.observation.events.length, where).toBe(base.observation.events.length);
         }
       }
-    }
-    expect(held, "no adjustment was held at 20 (Discipline 60), so the closed rung was never seen").toBeGreaterThan(0);
-    expect(broke, "no adjustment was broken for at 20 (Discipline 60), so BROKE was never seen").toBeGreaterThan(0);
-  }, 5 * 60_000);
+      expect(wanted, `${label}: the line wanted no adjustment in any game, so the rung was never reached`).toBeGreaterThan(0);
+      if (keepsIn) expect(keptIn, `${label}: nobody was kept in, so leash 40 and 100 were compared on slide checks alone`).toBeGreaterThan(0);
+      else expect(keptIn, `${label}: plain v5 states no check-release man, and somebody was kept in`).toBe(0);
+    }, 5 * 60_000);
+
+    it("at 30 the adjustment is open: every one wanted is made, and only WORK_TO can be rolled", () => {
+      let wanted = 0;
+      let keptIn = 0;
+      for (const seed of SEEDS) {
+        const out = atLeash(seed, 30, keepsIn);
+        for (const play of passPlays(out.observation.events)) {
+          if (play.adjustment === undefined) continue;
+          wanted += 1;
+          keptIn += play.adjustment.keptIn.length;
+          expect(play.adjustment.made, `${label} ${seed}`).toBe(true);
+        }
+        // A breach is the highest rung wanted minus the leash, so at 30 only WORK_TO (40) breaches it.
+        for (const e of out.observation.events) {
+          if (e.event.type !== "PRESNAP_READ" || e.event.payload.kind !== "leash_discipline") continue;
+          const breach = e.event.payload.roll.modifiers.find((m) => m.source.startsWith("Breach of the leash"));
+          expect(breach?.source, `${label} ${seed}`).toBe("Breach of the leash (10)");
+        }
+      }
+      expect(wanted, `${label}: the line wanted no adjustment at 30`).toBeGreaterThan(0);
+      if (!keepsIn) expect(keptIn, `${label}: plain v5 states no check-release man, and somebody was kept in`).toBe(0);
+    }, 5 * 60_000);
+
+    it("at 20 it is closed: HELD runs the protection as called, BROKE makes it", () => {
+      let held = 0;
+      let broke = 0;
+      let keptIn = 0;
+      for (const seed of SEEDS) {
+        for (const play of passPlays(atLeash(seed, 20, keepsIn).observation.events)) {
+          if (play.adjustment === undefined) continue;
+          keptIn += play.adjustment.keptIn.length;
+          // Wanting the adjustment above the leash is a breach, so the one roll is always thrown.
+          expect(play.leashBands, `${label} ${seed}: an adjustment wanted above the leash, and no roll`).toHaveLength(1);
+          const band = play.leashBands[0];
+          if (band === "HELD") {
+            held += 1;
+            expect(play.adjustment.made, `${label} ${seed}`).toBe(false);
+            for (const man of play.adjustment.keptIn) {
+              expect(play.routes, `${label} ${seed}: a man held to the call lost his route`).toContain(man);
+            }
+          } else {
+            expect(band, `${label} ${seed}`).toBe("BROKE");
+            broke += 1;
+            expect(play.adjustment.made, `${label} ${seed}`).toBe(true);
+            for (const man of play.adjustment.keptIn) expect(play.routes, `${label} ${seed}`).not.toContain(man);
+          }
+        }
+      }
+      expect(held, `${label}: no adjustment was held at 20 (Discipline 60), so the closed rung was never seen`).toBeGreaterThan(0);
+      expect(broke, `${label}: no adjustment was broken for at 20 (Discipline 60), so BROKE was never seen`).toBeGreaterThan(0);
+      if (keepsIn) expect(keptIn, `${label}: nobody was kept in at 20, so 'lost his route' was never tested`).toBeGreaterThan(0);
+      else expect(keptIn, `${label}: plain v5 states no check-release man, and somebody was kept in`).toBe(0);
+    }, 5 * 60_000);
+  });
 });
 
 /**

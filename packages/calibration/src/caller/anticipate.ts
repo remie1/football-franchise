@@ -181,12 +181,13 @@ export type CallerVersion = (typeof CALLER_VERSIONS)[number];
  * same snaps, and differ ONLY in which looks those snaps wear. A new version for the same reason
  * v3 was one: the looks are part of the call, so the call mix changes.
  *
- * v5 is v4 with the line's options stated (ADR-073 §2.3–§2.4): the slide check on every slide,
- * and the card's check-release men who released, whom the line may keep in. Same plays, cards,
- * looks and addresses, so for any seed v4 and v5 call the same plays against the same cards; the
- * calls differ ONLY in `protectionScheme.slideCheck` and `checkRelease`, and the games in what
- * the engine does with them. A new version because a seed now plays a different game (ADR-024's
- * rule, ADR-073 R30).
+ * v5 is v4 with the line's slide check stated (ADR-073 §2.3–§2.4) on every slide. Same plays,
+ * cards, looks and addresses, so for any seed v4 and v5 call the same plays against the same
+ * cards; the calls differ ONLY in `protectionScheme.slideCheck`, and the games in what the engine
+ * does with it. The card's check-release men, whom the line may keep in, are NOT stated by
+ * default: that is the back's own post-snap read, so it is an opt-in measurement knob
+ * (`FrozenCallerSpec.keepIn`, which adds `checkRelease`; ADR-073 §10 3.3). A new version because a
+ * seed now plays a different game (ADR-024's rule, ADR-073 R30).
  */
 export const CALLER_VERSIONS = ["v1", "v2", "v3", "v4", "v5"] as const;
 

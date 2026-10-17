@@ -24,16 +24,16 @@ export interface RunGameInput {
   readonly tunables?: Tunables;
   /**
    * ADR-024 / ADR-069 / ADR-071 / ADR-073. Defaults to v4 (anticipating, wearing every look)
-   * inside `frozenCallerPair`; v5 also states the line's options.
+   * inside `frozenCallerPair`; v5 also states the line's slide check (and the keep-in, on request).
    */
   readonly callerVersion?: CallerVersion;
   /** ADR-069 measurement arms only — see `FrozenCallerSpec.coverageMasks`. */
   readonly coverageMasks?: readonly CoverageMask[];
   /** ADR-072 measurement arms only — see `FrozenCallerSpec.leash`. */
   readonly leash?: number;
-  /** ADR-073 measurement arms only, v5 on — see `FrozenCallerSpec.slideCheck`. */
+  /** ADR-073 measurement arms only, v5 on — see `FrozenCallerSpec.slideCheck` (stated unless `false`). */
   readonly slideCheck?: boolean;
-  /** ADR-073 measurement arms only, v5 on — see `FrozenCallerSpec.keepIn`. */
+  /** ADR-073 measurement arms only, v5 on — see `FrozenCallerSpec.keepIn` (stated only if `true`). */
   readonly keepIn?: boolean;
 }
 

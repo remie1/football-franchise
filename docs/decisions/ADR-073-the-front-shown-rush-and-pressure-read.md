@@ -3,7 +3,7 @@
 - **Date:** 2026-10-16
 - **Proposed by:** Orchestrator, building ADR-069 Phase 3 (= ADR-068 step 3 = ADR-071 step 3) in the
   order ADR-069 §10 ruled
-- **Status:** **accepted; 3.0 measured, 3.1, 3.2a and 3.2b built and merged; 3.3 built and measured (§10), awaiting merge; 3.4 next.** The owner asked for the draft *(owner, 2026-10-16:
+- **Status:** **accepted; 3.0 measured, 3.1, 3.2a and 3.2b built and merged; 3.3 built and measured (§10), then re-scoped on the branch to the slide check alone pending the owner's ruling on the ADR-077 proposal (Q1); awaiting merge; 3.4 next.** The owner asked for the draft *(owner, 2026-10-16:
   "yes" to "Should I draft the front design now?")* and ruled all seven of §9's questions as
   recommended *(owner, 2026-10-16, decision cards)*. Every contracts edit in §3 still needs its own
   yes before it is made, and nothing merges without the owner's word. 3.0 re-derives §4.3: the
@@ -1635,6 +1635,8 @@ Under these, keep-in's projection is a floor. Slide-only's is not even an estima
 - *2026-10-17, after the runs.* The contested and unblocked rows of "pool, contested, unblocked mismatch" are counted on snaps with no line game, as H has counted them since 3.0; the pool row is counted on every snap.
 
 ### 3.3 Caller v5: the line answers what it sees *(2026-10-17; built and measured; v5 is opt-in, the default stays v4)*
+
+**Dated note, 2026-10-17, after the runs: the keep-in is withdrawn from v5, pending the owner's ruling.** The owner showed that in real football a check-release back reads his own linebackers after the snap and picks up the one who comes, with the quarterback saying nothing; a quarterback's pre-snap "Max" is for backs on a free release. So the keep-in this step gave the quarterback and centre is the wrong football, and the ADR-077 proposal (`/mnt/project-files/design/ADR-077-design-note.md`) replaces it with the back's own post-snap check, after 3.5. On its recommended ruling (Q1), v5 is re-scoped before merge: it states the slide check alone, and the keep-in stays as the opt-in measurement knob `/keep-in` (the engine machinery, on main since 3.2b, is kept for a later Max call). The section below records the runs on v5's first build. Its identities map to the re-scoped code as: `v5` (full) = `v5/keep-in`; `v5/no-slide-check` (keep-in-only) = `v5/no-slide-check/keep-in`; `v5/no-keep-in` (slide-only) = `v5`; `v5/no-slide-check/no-keep-in` (the proof) = `v5/no-slide-check`. Every number below stands as measured; only the default changes. The re-scoped v5's proof against the measured slide-only arm (R4) is in "The re-scoped v5" at the end of this section.
 
 **In short.**
 - **v5 is v4 with the line's two options stated.** On every pass call it applies playbook's `protectionOptions`: `slideCheck` on a SLIDE, and the card's released check-release men in `checkRelease`. Knobs `/no-slide-check` and `/no-keep-in` drop either key, and each is refused on a version without options, the default v4 included. `PROFILE` is an exhaustive table over `CALLER_VERSIONS`, so a version without a row fails to compile. The default caller stays v4 until step 3.5 moves it, once, to v7.

@@ -3,20 +3,26 @@
  *
  * `caller.test.ts` checks v5's CALLS against v4's, call for call. This checks the GAMES:
  *
- *  1. THE PROOF, IN THE SUITE. v5 with both options turned off plays v4's game exactly: the same
- *     `stableDigest` of the stream, and the same `JSON.stringify`, which also holds the key order.
- *     At leash 50 nothing is rolled; at leash 0 both throw the leash's roll on the coverage read's
- *     rungs, so the strip is tested under rolls too. The arm harness proves the same over set A.
+ *  1. THE PROOF, IN THE SUITE. v5 with no option stated (the slide check dropped, the keep-in at
+ *     its default of off) plays v4's game exactly: the same `stableDigest` of the stream, and the
+ *     same `JSON.stringify`, which also holds the key order. At leash 50 nothing is rolled; at
+ *     leash 0 both throw the leash's roll on the coverage read's rungs, so the strip is tested
+ *     under rolls too. The arm harness proves the same over set A. Plain v5 is NOT that game: it
+ *     states the slide check, and the engine uses it.
  *  2. THE REDUCER (§2.3). Wherever the line made its adjustment, a kept-in man runs no route, works
  *     no read, converts nothing hot, is never thrown to, and blocks: he sits in the pool as run
  *     after the card's own men and before any windfall. Where the leash held it, he is still listed
- *     and still on his route. Over v5 and each one-option arm, at five leashes.
- *  3. DETERMINISM (Iron Rule 4). Same seed, identical v5 stream.
+ *     and still on his route. Men are kept in only on the /keep-in arms: v5 states no check-release
+ *     man by default (the back's keep-in is his own post-snap read, not a pre-snap call; ADR-073
+ *     §10 3.3, the owner's challenge of 2026-10-17, ADR-077 proposal), so plain v5 keeps nobody in
+ *     and its adjustments are slide checks alone. Over v5 and both /keep-in arms, at five leashes.
+ *  3. DETERMINISM (Iron Rule 4). Same seed, identical v5 stream, on every arm.
  *
  * The leash below 30 is the only place 3.3's arms cannot reach BROKE (the flat league plays at 50,
  * and Discipline 95 never breaks a breach of 10), so the BROKE count here is caller v5's evidence
- * for that path, men kept in among it. A BROKE keep-in beside a coverage read (ADR-073 §1's
- * `brokeBelow30` bag) is the engine's to test, in `engine/test/pressureRead.test.ts`.
+ * for that path, men kept in among it (on the /keep-in arms). A BROKE keep-in beside a coverage
+ * read (ADR-073 §1's `brokeBelow30` bag) is the engine's to test, in
+ * `engine/test/pressureRead.test.ts`.
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
@@ -60,18 +66,39 @@ function withoutSeq(events: readonly MatchEventEnvelope[]): unknown[] {
 const leashReads = (events: readonly MatchEventEnvelope[]): number =>
   events.filter((e) => e.event.type === "PRESNAP_READ" && e.event.payload.kind === "leash_discipline").length;
 
-describe("ADR-073 step 3.3: v5 with both options off plays v4's game", () => {
+describe("ADR-073 step 3.3: v5 with no option stated plays v4's game", () => {
+  // The keep-in is off by default, so dropping the slide check leaves nothing stated. `keepIn: false`
+  // is the default spelled out: the same caller, so the same game.
+  const PROOF_ARMS: readonly (Arm & { readonly label: string })[] = [
+    { label: "v5/no-slide-check", callerVersion: "v5", slideCheck: false },
+    { label: "v5/no-slide-check (keepIn: false)", callerVersion: "v5", slideCheck: false, keepIn: false },
+  ];
   it.each([50, 0])("at leash %i, game for game, digest and bytes", (leash) => {
     let rolls = 0;
     for (const game of games) {
       const v4 = withoutSeq(play(game, { callerVersion: "v4" }, leash));
-      const proof = withoutSeq(play(game, { callerVersion: "v5", slideCheck: false, keepIn: false }, leash));
-      expect(stableDigest(proof), game.seed).toBe(stableDigest(v4));
-      expect(JSON.stringify(proof), game.seed).toBe(JSON.stringify(v4));
+      for (const arm of PROOF_ARMS) {
+        const proof = withoutSeq(play(game, arm, leash));
+        expect(stableDigest(proof), `${arm.label} ${game.seed}`).toBe(stableDigest(v4));
+        expect(JSON.stringify(proof), `${arm.label} ${game.seed}`).toBe(JSON.stringify(v4));
+      }
       rolls += leashReads(play(game, { callerVersion: "v4" }, leash));
     }
     if (leash === 0) expect(rolls, "no leash roll at leash 0, so the strip was never tested under one").toBeGreaterThan(0);
     else expect(rolls).toBe(0);
+  }, 5 * 60_000);
+
+  // The proof is not vacuous: plain v5 (the slide check stated) is NOT v4's game, nor is the
+  // keep-in, so the arms above differ from the ones below by the option they drop and by nothing else.
+  it("plain v5 and v5/keep-in are not v4's game: the engine uses what they state", () => {
+    const differs = { v5: 0, keepIn: 0 };
+    for (const game of games) {
+      const v4 = stableDigest(withoutSeq(play(game, { callerVersion: "v4" }, 50)));
+      if (stableDigest(withoutSeq(play(game, { callerVersion: "v5" }, 50))) !== v4) differs.v5 += 1;
+      if (stableDigest(withoutSeq(play(game, { callerVersion: "v5", keepIn: true }, 50))) !== v4) differs.keepIn += 1;
+    }
+    expect(differs.v5, "plain v5 played v4's game in every seed, so the slide check was never used").toBeGreaterThan(0);
+    expect(differs.keepIn, "v5/keep-in played v4's game in every seed, so nothing was ever kept in").toBeGreaterThan(0);
   }, 5 * 60_000);
 });
 
@@ -84,6 +111,8 @@ describe("ADR-073 §2.3: what a kept-in man does once the line keeps him in", ()
     readonly available: readonly string[];
     readonly unblockedProtectors: readonly string[];
     readonly declared: readonly string[];
+    /** The check-release men the CALL states (`protectionScheme.checkRelease`), as called. */
+    readonly stated: readonly string[];
     readonly adjustment: { readonly keptIn: readonly string[]; readonly made: boolean } | undefined;
   }
   const ids = (xs: readonly unknown[] | undefined): string[] => (xs ?? []).map(String);
@@ -99,7 +128,7 @@ describe("ADR-073 §2.3: what a kept-in man does once the line keeps him in", ()
           hotConversions?: readonly { receiver: unknown }[];
           availableBlockers?: readonly unknown[];
           unblockedProtectors?: readonly unknown[];
-          protectionScheme?: { available?: readonly unknown[] };
+          protectionScheme?: { available?: readonly unknown[]; checkRelease?: readonly unknown[] };
           protectionAdjustment?: { keptIn: readonly unknown[]; made: boolean };
         };
       };
@@ -113,6 +142,7 @@ describe("ADR-073 §2.3: what a kept-in man does once the line keeps him in", ()
         available: ids(o.availableBlockers),
         unblockedProtectors: ids(o.unblockedProtectors),
         declared: ids(o.protectionScheme?.available),
+        stated: ids(o.protectionScheme?.checkRelease),
         adjustment:
           o.protectionAdjustment === undefined
             ? undefined
@@ -132,16 +162,32 @@ describe("ADR-073 §2.3: what a kept-in man does once the line keeps him in", ()
     return out;
   }
 
+  /** The arms that keep a man in carry `/keep-in`; plain v5 states the slide check alone. */
   const ARMS: readonly (Arm & { readonly label: string })[] = [
     { label: "v5", callerVersion: "v5" },
-    { label: "v5/no-keep-in", callerVersion: "v5", keepIn: false },
-    { label: "v5/no-slide-check", callerVersion: "v5", slideCheck: false },
+    { label: "v5/keep-in", callerVersion: "v5", keepIn: true },
+    { label: "v5/no-slide-check/keep-in", callerVersion: "v5", slideCheck: false, keepIn: true },
   ];
+  interface Count {
+    made: number;
+    held: number;
+    keptMade: number;
+    keptHeld: number;
+    broke: number;
+    brokeKept: number;
+    /** Dropbacks whose CALL states a check-release man. */
+    statedCalls: number;
+    /** Men kept in by the engine. */
+    kept: number;
+  }
 
   it("runs no route, works no read and blocks when made; keeps his route when held", () => {
-    const count = { made: 0, held: 0, keptMade: 0, keptHeld: 0, broke: 0, brokeKept: 0, noKeepInKept: 0 };
+    const counts = new Map<string, Count>(
+      ARMS.map((a) => [a.label, { made: 0, held: 0, keptMade: 0, keptHeld: 0, broke: 0, brokeKept: 0, statedCalls: 0, kept: 0 }]),
+    );
     const failures: string[] = [];
     for (const arm of ARMS) {
+      const count = counts.get(arm.label)!;
       for (const leash of [0, 20, 30, 50, 100]) {
         for (const game of games.slice(0, 3)) {
           const events = play(game, arm, leash);
@@ -156,7 +202,11 @@ describe("ADR-073 §2.3: what a kept-in man does once the line keeps him in", ()
             const where = `${arm.label} leash ${String(leash)} ${game.seed} play ${start.playId}`;
             const adj = start.adjustment;
             const keptIn = adj?.keptIn ?? [];
-            if (arm.keepIn === false && keptIn.length > 0) count.noKeepInKept += 1;
+            if (start.stated.length > 0) count.statedCalls += 1;
+            count.kept += keptIn.length;
+            // Only a /keep-in arm states a check-release man, so only a /keep-in arm can keep one in.
+            if (arm.keepIn !== true && start.stated.length > 0) failures.push(`${where}: a call states check-release men on an arm without keep-in`);
+            if (arm.keepIn !== true && keptIn.length > 0) failures.push(`${where}: an arm without keep-in kept ${keptIn.join(", ")} in`);
             if (adj === undefined) {
               // Nothing wanted: the pool as run is the card's, then the windfalls.
               const pool = [...start.declared, ...start.unblockedProtectors];
@@ -196,22 +246,42 @@ describe("ADR-073 §2.3: what a kept-in man does once the line keeps him in", ()
       }
     }
     expect(failures, `${String(failures.length)} failures\n${failures.slice(0, 10).join("\n")}`).toEqual([]);
-    expect(count.noKeepInKept, "an arm with keep-in off kept somebody in").toBe(0);
-    // Non-vacuity: each path was walked, with somebody actually kept in on each side of the roll.
-    expect(count.made).toBeGreaterThan(0);
-    expect(count.keptMade, "nobody was kept in, so the reducer was never tested").toBeGreaterThan(0);
-    expect(count.held).toBeGreaterThan(0);
-    expect(count.keptHeld, "no held adjustment listed a man, so 'keeps his route' was never tested").toBeGreaterThan(0);
-    expect(count.broke, "no adjustment was made on a BROKE roll below 30").toBeGreaterThan(0);
-    expect(count.brokeKept, "no man was kept in on a BROKE roll below 30").toBeGreaterThan(0);
+
+    // Plain v5: its adjustments are slide checks, made and held, and it keeps nobody in.
+    const plain = counts.get("v5")!;
+    expect(plain.statedCalls, "plain v5 stated a check-release man").toBe(0);
+    expect(plain.kept, "plain v5 kept somebody in").toBe(0);
+    expect(plain.made, "plain v5: no slide check was made, so its adjustment was never walked").toBeGreaterThan(0);
+    expect(plain.held, "plain v5: no slide check was held to the call at a low leash").toBeGreaterThan(0);
+    expect(plain.broke, "plain v5: no slide check was made on a BROKE roll below 30").toBeGreaterThan(0);
+
+    // The /keep-in arms: the reducer's non-vacuity. Each path was walked, with somebody actually
+    // kept in on each side of the roll.
+    for (const arm of ARMS.filter((a) => a.keepIn === true)) {
+      const c = counts.get(arm.label)!;
+      expect(c.statedCalls, `${arm.label}: no call stated a check-release man`).toBeGreaterThan(0);
+      expect(c.made, `${arm.label}: no adjustment was made`).toBeGreaterThan(0);
+      expect(c.keptMade, `${arm.label}: nobody was kept in, so the reducer was never tested`).toBeGreaterThan(0);
+      expect(c.held, `${arm.label}: no adjustment was held`).toBeGreaterThan(0);
+      expect(c.keptHeld, `${arm.label}: no held adjustment listed a man, so 'keeps his route' was never tested`).toBeGreaterThan(0);
+      expect(c.broke, `${arm.label}: no adjustment was made on a BROKE roll below 30`).toBeGreaterThan(0);
+      expect(c.brokeKept, `${arm.label}: no man was kept in on a BROKE roll below 30`).toBeGreaterThan(0);
+    }
   }, 10 * 60_000);
 });
 
 describe("ADR-073 step 3.3: determinism (Iron Rule 4)", () => {
-  it.each([50, 20])("the same seed plays the identical v5 game at leash %i", (leash) => {
+  const DETERMINISM_ARMS: readonly Arm[] = [
+    { callerVersion: "v5" },
+    { callerVersion: "v5", keepIn: true },
+    { callerVersion: "v5", slideCheck: false, keepIn: true },
+  ];
+  it.each([50, 20])("the same seed plays the identical v5 game at leash %i, on every arm", (leash) => {
     const game = games[0]!;
-    const a = JSON.stringify(withoutSeq(play(game, { callerVersion: "v5" }, leash)));
-    const b = JSON.stringify(withoutSeq(play(game, { callerVersion: "v5" }, leash)));
-    expect(a).toBe(b);
+    for (const arm of DETERMINISM_ARMS) {
+      const a = JSON.stringify(withoutSeq(play(game, arm, leash)));
+      const b = JSON.stringify(withoutSeq(play(game, arm, leash)));
+      expect(a).toBe(b);
+    }
   });
 });
