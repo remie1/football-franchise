@@ -90,6 +90,7 @@ function renderPlayCall(events: readonly MatchEventEnvelope[], name: NameLookup)
       ? `  Design:  ${view.scheme} scheme, ${view.designedGap} gap` +
         (view.carrier === undefined ? "" : `, ball to ${name(view.carrier as unknown as PlayerId)}`)
       : `  Reads:   ${view.readSystem} — ${view.readOrder.length} in the progression`,
+    ...(run || view.protectionScheme === undefined ? [] : [`  Protect: ${sayProtection(view.protectionScheme, name)}`]),
     `  Defense: ${sayDefense(view)} (${view.coverage})`,
     "",
     "SITUATION:",
@@ -305,6 +306,33 @@ function renderPreSnap(events: readonly MatchEventEnvelope[], name: NameLookup):
         ` → ${p.band ?? (p.roll.total >= p.target ? "SEES IT" : "MISSED IT")} (${p.tier})`,
     );
     out.push(`  │    d100 ${p.roll.raw}${p.roll.modifiers.map((m) => ` ${signed(m.value)} ${m.source}`).join("")}`);
+  }
+
+  // ADR-073 §2.8: what the pressure read made of the front, and what the line did about it. Each
+  // is printed iff the stream states it: no picture, the read did not roll; no adjustment, nothing
+  // was wanted. An older stream states neither, and prints as it always did.
+  const names = (ids: readonly string[]): string =>
+    ids.length === 0 ? "nobody" : ids.map((id) => name(id as unknown as PlayerId)).join(", ");
+  if (view?.pressurePicture !== undefined) {
+    const pic = view.pressurePicture;
+    const placed = pic.placed.map(
+      (m) => `${name(m.rusher as unknown as PlayerId)}${m.side === undefined ? "" : ` on the ${m.side.toLowerCase()}`}`,
+    );
+    out.push(
+      `  ├─ PICTURE (ADR-073 §2.2): ${pic.picture} — answers ${names(pic.answers)};` +
+        ` counted for the slide: ${placed.length === 0 ? "nobody" : placed.join(", ")}`,
+    );
+  }
+  if (view?.protectionAdjustment !== undefined) {
+    const adj = view.protectionAdjustment;
+    const wanted = [
+      ...(adj.slideSide === undefined ? [] : [`slide checked ${adj.slideSide.toLowerCase()}`]),
+      ...(adj.keptIn.length === 0 ? [] : [`${names(adj.keptIn)} kept in`]),
+    ];
+    out.push(
+      `  ├─ ADJUSTMENT (§2.3): ${wanted.length === 0 ? "nothing" : wanted.join("; ")}` +
+        ` — ${adj.made ? "made" : "held by the leash"}`,
+    );
   }
 
   for (const { event } of events) {
@@ -885,6 +913,49 @@ interface PlayStartView {
     readonly to: string;
     readonly airYards: number;
   }[];
+  /** ADR-073 §2.8 — the scheme as called. Absent on a run, and on a stream that predates it. */
+  readonly protectionScheme: ProtectionView | undefined;
+  /** Present iff the pressure read rolled (from ADR-073 step 3.2b). */
+  readonly pressurePicture:
+    | {
+        readonly picture: string;
+        readonly answers: readonly string[];
+        readonly placed: readonly { readonly rusher: string; readonly side: string | undefined }[];
+      }
+    | undefined;
+  /** Present iff the line wanted something done to the protection. */
+  readonly protectionAdjustment:
+    | { readonly slideSide: string | undefined; readonly keptIn: readonly string[]; readonly made: boolean }
+    | undefined;
+}
+
+interface ProtectionView {
+  readonly kind: string;
+  readonly slideSide: string | undefined;
+  readonly center: string | undefined;
+  readonly available: readonly string[];
+  readonly checkRelease: readonly string[];
+  readonly slideCheck: boolean;
+}
+
+/**
+ * The protection as a line coach says it: `SLIDE left, centre Vic Aldana, pickup Nate Ivory;
+ * options: slide check, check-release Ty Okafor`. The options clause is left off when the call
+ * states none, which is every call before caller v5.
+ */
+function sayProtection(p: ProtectionView, name: NameLookup): string {
+  const who = (id: string): string => name(id as unknown as PlayerId);
+  const options = [
+    ...(p.slideCheck ? ["slide check"] : []),
+    ...(p.checkRelease.length === 0 ? [] : [`check-release ${p.checkRelease.map(who).join(", ")}`]),
+  ];
+  return (
+    [
+      p.kind === "SLIDE" && p.slideSide !== undefined ? `SLIDE ${p.slideSide.toLowerCase()}` : p.kind,
+      ...(p.center === undefined ? [] : [`centre ${who(p.center)}`]),
+      p.available.length === 0 ? "no pickup men" : `pickup ${p.available.map(who).join(", ")}`,
+    ].join(", ") + (options.length === 0 ? "" : `; options: ${options.join(", ")}`)
+  );
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -952,6 +1023,50 @@ function readPlayStart(payload: unknown): PlayStartView | undefined {
     unblockedProtectors: asStringArray(offense["unblockedProtectors"]),
     blitzDisguise: asString(defense["blitzDisguise"], "STANDARD"),
     hotConversions: asHotConversions(offense["hotConversions"]),
+    protectionScheme: asProtection(offense["protectionScheme"]),
+    pressurePicture: asPicture(offense["pressurePicture"]),
+    protectionAdjustment: asAdjustment(offense["protectionAdjustment"]),
+  };
+}
+
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function asProtection(value: unknown): PlayStartView["protectionScheme"] {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  return {
+    kind: asString(record["kind"], "?"),
+    slideSide: asOptionalString(record["slideSide"]),
+    center: asOptionalString(record["center"]),
+    available: asStringArray(record["available"]),
+    checkRelease: asStringArray(record["checkRelease"]),
+    slideCheck: record["slideCheck"] === true,
+  };
+}
+
+function asPicture(value: unknown): PlayStartView["pressurePicture"] {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const placed = Array.isArray(record["placed"]) ? record["placed"] : [];
+  return {
+    picture: asString(record["picture"], "?"),
+    answers: asStringArray(record["answers"]),
+    placed: placed.flatMap((entry) => {
+      const man = asRecord(entry);
+      return man === undefined ? [] : [{ rusher: asString(man["rusher"], "?"), side: asOptionalString(man["side"]) }];
+    }),
+  };
+}
+
+function asAdjustment(value: unknown): PlayStartView["protectionAdjustment"] {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  return {
+    slideSide: asOptionalString(record["slideSide"]),
+    keptIn: asStringArray(record["keptIn"]),
+    made: record["made"] === true,
   };
 }
 
