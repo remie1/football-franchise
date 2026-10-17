@@ -180,12 +180,20 @@ export type CallerVersion = (typeof CALLER_VERSIONS)[number];
  * disguised, so for any seed v3 and v4 call the same plays against the same cards, disguise the
  * same snaps, and differ ONLY in which looks those snaps wear. A new version for the same reason
  * v3 was one: the looks are part of the call, so the call mix changes.
+ *
+ * v5 is v4 with the line's options stated (ADR-073 §2.3–§2.4): the slide check on every slide,
+ * and the card's check-release men who released, whom the line may keep in. Same plays, cards,
+ * looks and addresses, so for any seed v4 and v5 call the same plays against the same cards; the
+ * calls differ ONLY in `protectionScheme.slideCheck` and `checkRelease`, and the games in what
+ * the engine does with them. A new version because a seed now plays a different game (ADR-024's
+ * rule, ADR-073 R30).
  */
-export const CALLER_VERSIONS = ["v1", "v2", "v3", "v4"] as const;
+export const CALLER_VERSIONS = ["v1", "v2", "v3", "v4", "v5"] as const;
 
 /**
  * The default. ADR-024 made it v2; ADR-069 made it v3; ADR-071 step 2 makes it v4. A batch that
- * wants an older caller asks for it by name.
+ * wants another caller asks for it by name. v5 is opt-in: the default stays v4 until ADR-073 step
+ * 3.5 moves it, once, to v7.
  */
 export const DEFAULT_CALLER_VERSION: CallerVersion = "v4";
 

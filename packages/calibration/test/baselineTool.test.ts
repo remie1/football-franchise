@@ -85,6 +85,7 @@ function requireEngineCommit(): string {
  *   FF_BASELINE_CALLER=v2   the anticipating caller
  *   FF_BASELINE_CALLER=v3   v2 wearing ADR-069's safety looks
  *   FF_BASELINE_CALLER=v4   v3 with ADR-071 step 2's corner looks (the default)
+ *   FF_BASELINE_CALLER=v5   v4 stating the line's options (ADR-073 step 3.3)
  *
  * It exists so that ADR-024's comparability paragraph can be honoured — *"the first v2 report
  * should be run alongside a final v1 report on the same seeds so the size of the discontinuity is

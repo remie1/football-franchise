@@ -105,6 +105,19 @@
  * And v3 still wears exactly what it wore: over Phase 1's catalogue no two looks combine, so
  * `selectLooks` rolls every die where Phase 1's draw rolled it (`playbook/test/masks.test.ts`
  * checks it die for die).
+ *
+ * ================== WHAT CHANGED AT v5 — ADR-073 STEP 3.3, THE LINE'S OPTIONS ==================
+ *
+ * **At v5 every pass call states the line's two pre-snap options** (`protectionOptions`, ADR-073
+ * §2.3): `slideCheck` on a slide, so the line may check it toward the pressure it reads, and
+ * `checkRelease`, the card's check-release men who released, whom the line may keep in to block.
+ * Whether it uses either is the engine's decision, per snap, from the pressure read and the
+ * coach's leash (rung 30). Nothing is drawn: no address moves, so for any seed v4 and v5 call the
+ * same plays against the same cards wearing the same looks, and the calls differ ONLY in those two
+ * keys. `test/caller.test.ts` asserts it call for call.
+ *
+ * `FrozenCallerSpec.slideCheck` and `.keepIn` turn one option off for a measurement arm; with both
+ * off a v5 call is v4's, key for key.
  */
 import type { Rng } from "@ff/contracts";
 import { createRng } from "@ff/contracts";
@@ -118,7 +131,7 @@ import type {
   OffensiveCallRequest,
   PlayCaller,
 } from "@ff/engine";
-import type { OffensiveCall } from "@ff/contracts";
+import type { OffensiveCall, ProtectionCall } from "@ff/contracts";
 import type { AnyDefensiveCard, DepthChart, PlaySituation } from "@ff/playbook";
 import {
   COVERAGE_MASKS,
@@ -131,14 +144,17 @@ import {
   instantiateRun,
   instantiatePass,
   isRunConcept,
+  protectionOptions,
   selectDefensiveCard,
   selectLooks,
   selectPassConcept,
   selectRunConcept,
+  type AnyOffensiveUnit,
   type CoverageMask,
   type InstantiatedDefense,
   type InstantiatedOffense,
   type OffensiveConcept,
+  type PassConcept,
 } from "@ff/playbook";
 import type { Down } from "@ff/playbook";
 import {
@@ -211,7 +227,8 @@ export interface FrozenCallerSpec {
   readonly fourthDown: FittedFourthDown;
   /**
    * v1 (the informed caller), v2 (ADR-024's anticipating caller), v3 (v2 wearing ADR-069's
-   * pre-snap masks) or v4 (v3 with ADR-071 step 2's corner looks). Defaults to v4.
+   * pre-snap masks), v4 (v3 with ADR-071 step 2's corner looks) or v5 (v4 stating the line's
+   * options, ADR-073). Defaults to v4.
    *
    * OPTIONAL HERE AND RECORDED IN PROVENANCE, which is the same split `runBatch` makes for
    * `tunables`: ergonomics on the surface, and the value that was actually used printed in the
@@ -221,10 +238,10 @@ export interface FrozenCallerSpec {
   readonly callerVersion?: CallerVersion;
   /**
    * The looks a defence may wear (ADR-069, ADR-071). Defaults to the version's catalogue —
-   * Phase 1's two at v3, all five at v4; `[]` wears none. A MEASUREMENT KNOB for one-look-alone
-   * arms, never narrowed in a report run — the rate stays `COVERAGE_MASK_RATE` either way, so a
-   * narrowed arm disguises fewer snaps, which is the point. Ignored below v3, which draws no
-   * looks at all.
+   * Phase 1's two at v3, all five at v4 and v5; `[]` wears none. A MEASUREMENT KNOB for
+   * one-look-alone arms, never narrowed in a report run — the rate stays `COVERAGE_MASK_RATE`
+   * either way, so a narrowed arm disguises fewer snaps, which is the point. Ignored below v3,
+   * which draws no looks at all.
    */
   readonly coverageMasks?: readonly CoverageMask[];
   /**
@@ -235,6 +252,15 @@ export interface FrozenCallerSpec {
    * report run; a caller at another leash says so in its identity (`callerIdentity`).
    */
   readonly leash?: number;
+  /**
+   * ADR-073 §2.3, v5's two options, each stated unless set `false`: `slideCheck` on every slide,
+   * `checkRelease` (here `keepIn`) on every call whose card releases a check-release man.
+   * MEASUREMENT KNOBS for the slide-only and keep-in-only arms, never moved in a report run; a
+   * caller with one off says so in its identity. Refused on a version that states no options, so
+   * an identity never names a knob that did nothing.
+   */
+  readonly slideCheck?: boolean;
+  readonly keepIn?: boolean;
   /**
    * BOTH depth charts, because both callers resolve BOTH sides of every snap and must agree.
    * That agreement is the load-bearing property: the engine asks the offence first and the
@@ -267,13 +293,29 @@ export interface FrozenCallerPair {
  * caller is a different denominator"* — and a behaviour change with an unchanged table met that
  * criterion while leaving the string alone. ADR-024 is exactly such a change, so the behaviour
  * version is composed in and the field now says what its own comment always claimed.
+ *
+ * A knob off its default is appended, so a measurement arm cannot be compared as the caller it
+ * changed (ADR-073 §2.7): `/no-slide-check`, then `/no-keep-in`, then `/leash-N` last. A knob at
+ * its default is unmarked, so every identity written before the knobs existed still reads the same.
  */
 export function callerIdentity(
   version: CallerVersion,
   tendenciesVersion: string,
   leash: number = DEFAULT_LEASH,
+  knobs: CallerKnobs = {},
 ): string {
-  return leash === DEFAULT_LEASH ? `${version}/${tendenciesVersion}` : `${version}/${tendenciesVersion}/leash-${String(leash)}`;
+  return [
+    `${version}/${tendenciesVersion}`,
+    knobs.slideCheck === false ? "/no-slide-check" : "",
+    knobs.keepIn === false ? "/no-keep-in" : "",
+    leash === DEFAULT_LEASH ? "" : `/leash-${String(leash)}`,
+  ].join("");
+}
+
+/** The option knobs an identity names (`FrozenCallerSpec.slideCheck`, `.keepIn`). */
+export interface CallerKnobs {
+  readonly slideCheck?: boolean;
+  readonly keepIn?: boolean;
 }
 
 /**
@@ -282,6 +324,11 @@ export function callerIdentity(
  * default plays exactly what a batch played before the leash existed, and the identity leaves it
  * unmarked for that reason. ⚠ That stops being true the day a rung above 50 lands: that change
  * moves what the default plays, and must say so in the caller's version.
+ *
+ * ADR-073's PROTECTION_ADJUST rung, at 30, sits below it, so the default is unchanged. On v5 a
+ * leash below 30 closes the line's adjustment: the one roll is thrown, HELD runs the protection as
+ * called and BROKE makes it (`engine/src/resolve/leash.ts`). From 30 to 39 the adjustment is open
+ * and WORK_TO (40) closed. v4 states no options, so its leash behaviour does not move.
  */
 export const DEFAULT_LEASH = 50;
 
@@ -303,14 +350,41 @@ interface CallerProfile {
    * `FrozenCallerSpec.coverageMasks` has nothing to narrow and is ignored.
    */
   readonly looks: readonly CoverageMask[] | undefined;
+  /** Every pass call states the line's options (ADR-073 §2.3; `withLineOptions`). */
+  readonly protectionOptions: boolean;
 }
 
 const PROFILE: Readonly<Record<CallerVersion, CallerProfile>> = {
-  v1: { anticipation: "NONE", looks: undefined },
-  v2: { anticipation: "CARD", looks: undefined },
-  v3: { anticipation: "CARD", looks: PHASE_1_MASKS },
-  v4: { anticipation: "CARD", looks: COVERAGE_MASKS },
+  v1: { anticipation: "NONE", looks: undefined, protectionOptions: false },
+  v2: { anticipation: "CARD", looks: undefined, protectionOptions: false },
+  v3: { anticipation: "CARD", looks: PHASE_1_MASKS, protectionOptions: false },
+  v4: { anticipation: "CARD", looks: COVERAGE_MASKS, protectionOptions: false },
+  v5: { anticipation: "CARD", looks: COVERAGE_MASKS, protectionOptions: true },
 };
+
+/**
+ * ADR-073 §2.3, from v5: the pass call with the line's options stated, as `protectionOptions`
+ * states them from the card. A knob DROPS its option's key, so the key is absent rather than
+ * `undefined` (`exactOptionalPropertyTypes`; the engine validator asks `"slideCheck" in scheme`),
+ * and every other key keeps its place: the card's scheme carries neither key, so with both knobs
+ * off the call is v4's, key for key and in order.
+ */
+function withLineOptions(
+  spec: FrozenCallerSpec,
+  concept: PassConcept,
+  unit: AnyOffensiveUnit,
+  offense: InstantiatedOffense,
+): InstantiatedOffense {
+  if (offense.call.kind !== "PASS") return offense;
+  const off = new Set<string>([
+    ...(spec.slideCheck === false ? ["slideCheck"] : []),
+    ...(spec.keepIn === false ? ["checkRelease"] : []),
+  ]);
+  const protectionScheme = Object.fromEntries(
+    Object.entries(protectionOptions(concept, unit, offense)).filter(([key]) => !off.has(key)),
+  ) as ProtectionCall;
+  return { ...offense, call: { ...offense.call, protectionScheme } };
+}
 
 function situationOf(request: {
   readonly situation: {
@@ -479,7 +553,9 @@ function resolveSnap(
     try {
       const offense = isRunConcept(concept)
         ? instantiateRun(concept, offenseUnit, expected)
-        : instantiatePass(concept, offenseUnit, expected);
+        : profile.protectionOptions
+          ? withLineOptions(spec, concept, offenseUnit, instantiatePass(concept, offenseUnit, expected))
+          : instantiatePass(concept, offenseUnit, expected);
       const realRushers = new Set(defense.rush.map((r) => String(r.rusher)));
       const protectorsInCoverage =
         offense.call.kind === "PASS"
@@ -520,8 +596,14 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
       `no caller version "${String(callerVersion)}". Expected one of ${CALLER_VERSIONS.join(", ")}.`,
     );
   }
+  if (!PROFILE[callerVersion].protectionOptions && (spec.slideCheck !== undefined || spec.keepIn !== undefined)) {
+    throw new FrozenCallerError(
+      `caller ${callerVersion} states no line options, so it has none to turn off: slideCheck and ` +
+        `keepIn are knobs of a version that states them (v5 on, ADR-073 §2.7).`,
+    );
+  }
   const leash = spec.leash ?? DEFAULT_LEASH;
-  const name = spec.name ?? `frozen-${callerIdentity(callerVersion, spec.tendencies.version, leash)}`;
+  const name = spec.name ?? `frozen-${callerIdentity(callerVersion, spec.tendencies.version, leash, spec)}`;
   const diagnostics = blankDiagnostics();
 
   const chartsFor = (side: "HOME" | "AWAY"): { offense: DepthChart; defense: DepthChart } =>

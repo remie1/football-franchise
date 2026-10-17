@@ -1,6 +1,8 @@
 /** The frozen caller: the fit, the backoff, the freeze, and the two sides agreeing. */
+import { isDeepStrictEqual } from "node:util";
 import { describe, expect, it } from "vitest";
-import { createRng } from "@ff/contracts";
+import { createRng, type MatchEventEnvelope, type OffensiveCall, type ProtectionCall } from "@ff/contracts";
+import { createMatchState, simulateGame, type PlayCaller } from "@ff/engine";
 import {
   DEFAULT_MIN_PLAYS,
   classifyRow,
@@ -21,7 +23,7 @@ import {
 } from "@ff/playbook";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { DEFAULT_LEASH, FrozenCallerError, callerIdentity, frozenCallerPair } from "../src/caller/frozen.js";
-import { DEFAULT_CALLER_VERSION, anticipateFront, type CallerVersion } from "../src/caller/anticipate.js";
+import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, anticipateFront, type CallerVersion } from "../src/caller/anticipate.js";
 import {
   assertTendencyIntegrity,
   backoffKeys,
@@ -463,6 +465,7 @@ describe("the frozen caller pair", () => {
     expect(callerIdentity("v1", "x")).not.toBe(callerIdentity("v2", "x"));
     expect(callerIdentity("v2", "x")).not.toBe(callerIdentity("v3", "x"));
     expect(callerIdentity("v3", "x")).not.toBe(callerIdentity("v4", "x"));
+    expect(callerIdentity("v4", "x")).not.toBe(callerIdentity("v5", "x"));
   });
 
   /**
@@ -596,7 +599,7 @@ describe("the frozen caller pair", () => {
     expect(bare, "every first snap was disguised, so the bare path was never compared").toBeGreaterThan(0);
   });
 
-  it.each(["v3", "v4"] as const)("a %s caller given an empty catalogue wears nothing", (callerVersion) => {
+  it.each(["v3", "v4", "v5"] as const)("a %s caller given an empty catalogue wears nothing", (callerVersion) => {
     const out = runOneGame({
       built, seed: "adr069-none", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
       callerVersion, coverageMasks: [],
@@ -680,6 +683,328 @@ describe("the frozen caller pair", () => {
     expect(pair.leash).toBe(20);
     expect(pair.name).toBe(`frozen-v4/${FROZEN_TENDENCIES.version}/leash-20`);
   });
+});
+
+/**
+ * ============================ ADR-073 step 3.3, callerVersion v5 ============================
+ *
+ * v5 is v4 with the line's two options stated on every pass call (§2.3): the slide check on a
+ * slide, and the check-release men who released. Nothing is drawn, so the claim is stronger than
+ * the earlier versions' first-snap comparisons: CALL FOR CALL, on every snap of a game, v5's call
+ * is v4's plus those two keys and nothing else, and its defence is v4's exactly. The knobs drop a
+ * key each; with both off the call is v4's, key for key and in order.
+ *
+ * The games themselves differ (the engine uses the options), so the comparison is made by a
+ * wrapper that hands every request a v4 game makes to the v5 pairs too. Forks are pure, so both
+ * resolve the identical snap.
+ */
+describe("ADR-073 step 3.3, callerVersion v5", () => {
+  const league = buildFlatLeague({ teams: 2 });
+  const index = indexLeague(league);
+  const teams = index.teamIds();
+  const built = buildFixture(
+    index,
+    buildFixtures(index, { kind: "SYNTHETIC_PAIR", home: teams[0]!, away: teams[1]!, games: 1, season: 2024 })[0]!,
+  );
+  const coordinates = {
+    season: built.fixture.season,
+    week: built.fixture.week,
+    home: built.fixture.home,
+    away: built.fixture.away,
+    ...(built.fixture.replay === 0 ? {} : { replay: built.fixture.replay }),
+  };
+  const pairOf = (callerVersion: CallerVersion, knobs: { slideCheck?: boolean; keepIn?: boolean } = {}) =>
+    frozenCallerPair({
+      tendencies: FROZEN_TENDENCIES,
+      fourthDown: FROZEN_FOURTH_DOWN,
+      homeDepthChart: built.homeDepthChart,
+      awayDepthChart: built.awayDepthChart,
+      callerVersion,
+      ...knobs,
+    });
+
+  it("names its knobs in its identity, in order, and leaves a knob at its default unmarked", () => {
+    expect(callerIdentity("v5", "x", 20, { slideCheck: false, keepIn: false })).toBe(
+      "v5/x/no-slide-check/no-keep-in/leash-20",
+    );
+    expect(callerIdentity("v5", "x", DEFAULT_LEASH, { slideCheck: false })).toBe("v5/x/no-slide-check");
+    expect(callerIdentity("v5", "x", DEFAULT_LEASH, { keepIn: false })).toBe("v5/x/no-keep-in");
+    expect(callerIdentity("v5", "x", DEFAULT_LEASH, { slideCheck: true, keepIn: true })).toBe("v5/x");
+    expect(callerIdentity("v5", "x", DEFAULT_LEASH, {})).toBe(callerIdentity("v5", "x"));
+    const pair = frozenCallerPair({
+      tendencies: FROZEN_TENDENCIES,
+      fourthDown: FROZEN_FOURTH_DOWN,
+      homeDepthChart: built.homeDepthChart,
+      awayDepthChart: built.awayDepthChart,
+      callerVersion: "v5",
+      slideCheck: false,
+      keepIn: false,
+      leash: 20,
+    });
+    expect(pair.callerVersion).toBe("v5");
+    expect(pair.name).toBe(`frozen-v5/${FROZEN_TENDENCIES.version}/no-slide-check/no-keep-in/leash-20`);
+  });
+
+  const BELOW_V5 = CALLER_VERSIONS.filter((v) => v !== "v5");
+  it.each(BELOW_V5.flatMap((v) => [[v, "slideCheck"], [v, "keepIn"]] as const))(
+    "a %s caller refuses the %s knob: it states no options to turn off",
+    (callerVersion, knob) => {
+      for (const value of [true, false]) {
+        const knobs = knob === "slideCheck" ? { slideCheck: value } : { keepIn: value };
+        expect(() => pairOf(callerVersion, knobs)).toThrow(FrozenCallerError);
+      }
+    },
+  );
+
+  /** What a v5 call is allowed to add to v4's: the two option keys, and nothing else. */
+  const OPTION_KEYS = ["checkRelease", "slideCheck"] as const;
+  const withoutOptions = (scheme: ProtectionCall): Record<string, unknown> =>
+    Object.fromEntries(Object.entries(scheme).filter(([key]) => !(OPTION_KEYS as readonly string[]).includes(key)));
+
+  interface Arm {
+    readonly label: string;
+    readonly pair: ReturnType<typeof pairOf>;
+    readonly slideCheck: boolean;
+    readonly keepIn: boolean;
+  }
+  interface Tally {
+    passCalls: number;
+    slideCalls: number;
+    slideChecks: number;
+    checkReleaseCalls: number;
+    readonly failures: string[];
+  }
+
+  /**
+   * Plays `games` v4 games. Every call the v4 pair makes is also asked of each v5 arm, with the
+   * same request and Rng, and the two calls are compared.
+   */
+  function compareCallForCall(arms: readonly Arm[], games: number): Map<string, Tally> {
+    const tallies = new Map(
+      arms.map((a) => [a.label, { passCalls: 0, slideCalls: 0, slideChecks: 0, checkReleaseCalls: 0, failures: [] } as Tally]),
+    );
+    const checkOffense = (arm: Arm, at: string, base: OffensiveCall, call: OffensiveCall): void => {
+      const tally = tallies.get(arm.label)!;
+      const fail = (why: string): void => {
+        tally.failures.push(`${arm.label} ${at}: ${why}`);
+      };
+      if (base.kind !== "PASS" || call.kind !== "PASS") {
+        if (!isEqual(call, base)) fail("a call that is not a pass differs from v4's");
+        return;
+      }
+      tally.passCalls += 1;
+      const scheme = call.protectionScheme;
+      const baseScheme = base.protectionScheme;
+      if (scheme === undefined || baseScheme === undefined) {
+        fail("a pass call states no protection scheme");
+        return;
+      }
+      // Everything but the scheme is v4's, and the scheme is v4's but for the two keys.
+      const { protectionScheme: _a, ...rest } = call;
+      const { protectionScheme: _b, ...baseRest } = base;
+      if (!isEqual(rest, baseRest)) fail("the call differs from v4's outside its protection scheme");
+      if (!isEqual(withoutOptions(scheme), baseScheme)) fail("the scheme differs from v4's beyond the options");
+      if (OPTION_KEYS.some((key) => key in baseScheme)) fail("v4's own call states an option");
+      if (JSON.stringify(Object.keys(call)) !== JSON.stringify(Object.keys(base))) fail("the call's key order moved");
+      if (scheme.kind === "SLIDE") {
+        tally.slideCalls += 1;
+        const stated = "slideCheck" in scheme;
+        if (stated) tally.slideChecks += 1;
+        if (arm.slideCheck && scheme.slideCheck !== true) fail("a slide without its slide check");
+        if (!arm.slideCheck && stated) fail("a slide check the knob turned off");
+      } else if ("slideCheck" in scheme) {
+        fail("a slide check on a MAN protection");
+      }
+      if ("checkRelease" in scheme) {
+        tally.checkReleaseCalls += 1;
+        if (!arm.keepIn) fail("check-release men the knob turned off");
+        const runners = new Set(call.routes.map((r) => String(r.receiver)));
+        const available = new Set((scheme.available ?? []).map(String));
+        const blockers = new Set(call.protection.map((p) => String(p.blocker)));
+        for (const man of scheme.checkRelease ?? []) {
+          if (!runners.has(String(man))) fail(`check-release man ${String(man)} runs no route`);
+          if (available.has(String(man))) fail(`check-release man ${String(man)} is already in the pool`);
+          if (blockers.has(String(man))) fail(`check-release man ${String(man)} is already blocking`);
+        }
+        if ((scheme.checkRelease ?? []).length === 0) fail("an empty check-release list is stated");
+      }
+      if (!arm.slideCheck && !arm.keepIn) {
+        if (!isEqual(call, base)) fail("both knobs off, and the call is not v4's");
+        if (JSON.stringify(Object.keys(scheme)) !== JSON.stringify(Object.keys(baseScheme))) {
+          fail("both knobs off, and the scheme's key order is not v4's");
+        }
+      }
+    };
+
+    for (let g = 0; g < games; g++) {
+      const seed = `adr073-v5-calls-${String(g)}`;
+      const v4 = pairOf("v4");
+      const wrap = (inner: PlayCaller, side: "home" | "away"): PlayCaller => ({
+        ...inner,
+        callOffense(request, rng) {
+          const base = inner.callOffense(request, rng);
+          for (const arm of arms) {
+            const call = arm.pair[side].callOffense(request, rng);
+            checkOffense(arm, `${seed} ${side} play ${String(request.situation.down)}&${String(request.situation.distance)}`, base, call);
+          }
+          return base;
+        },
+        callDefense(request, rng) {
+          const base = inner.callDefense(request, rng);
+          for (const arm of arms) {
+            // The arm's own pair asserts that its offence resolution agrees with `request.against`,
+            // which is v4's call: a v5 caller that called a different play would throw here.
+            const call = arm.pair[side].callDefense(request, rng);
+            if (!isEqual(call, base)) tallies.get(arm.label)!.failures.push(`${arm.label} ${seed}: the defence differs from v4's`);
+          }
+          return base;
+        },
+      });
+      simulateGame(
+        createMatchState(coordinates, built.snapshot),
+        { coordinates, snapshot: built.snapshot, callers: { home: wrap(v4.home, "home"), away: wrap(v4.away, "away") } },
+        seed,
+      );
+    }
+    return tallies;
+  }
+
+  /** Strict deep equality: an absent key and an `undefined` one differ, as `toStrictEqual` has it. */
+  const isEqual = isDeepStrictEqual;
+
+  it("calls v4's play on every snap, plus only the line's options; the knobs drop a key each", () => {
+    const arms: readonly Arm[] = [
+      { label: "v5", pair: pairOf("v5"), slideCheck: true, keepIn: true },
+      { label: "v5/no-keep-in", pair: pairOf("v5", { keepIn: false }), slideCheck: true, keepIn: false },
+      { label: "v5/no-slide-check", pair: pairOf("v5", { slideCheck: false }), slideCheck: false, keepIn: true },
+      { label: "v5/no-slide-check/no-keep-in", pair: pairOf("v5", { slideCheck: false, keepIn: false }), slideCheck: false, keepIn: false },
+    ];
+    const tallies = compareCallForCall(arms, 4);
+    for (const arm of arms) {
+      const t = tallies.get(arm.label)!;
+      expect(t.failures, `${arm.label}: ${String(t.failures.length)} failures\n${t.failures.slice(0, 10).join("\n")}`).toEqual([]);
+      expect(t.passCalls, `${arm.label}: no pass call was compared`).toBeGreaterThan(100);
+      expect(t.slideCalls, `${arm.label}: no slide was called, so the slide check was never compared`).toBeGreaterThan(0);
+      if (arm.slideCheck) expect(t.slideChecks, arm.label).toBe(t.slideCalls);
+      else expect(t.slideChecks, arm.label).toBe(0);
+      if (arm.keepIn) expect(t.checkReleaseCalls, `${arm.label}: no call released a check-release man`).toBeGreaterThan(0);
+      else expect(t.checkReleaseCalls, arm.label).toBe(0);
+    }
+    // The knobs leave the other option exactly where the full caller states it.
+    expect(tallies.get("v5/no-keep-in")!.slideChecks).toBe(tallies.get("v5")!.slideChecks);
+    expect(tallies.get("v5/no-slide-check")!.checkReleaseCalls).toBe(tallies.get("v5")!.checkReleaseCalls);
+  }, 5 * 60_000);
+
+  /**
+   * ADR-073 §2.4: the line's adjustment is the PROTECTION_ADJUST rung, at 30. v4 never wants it
+   * (it states no options), so v4's leash tests cannot see this rung; these are their v5 twins.
+   */
+  interface PlayRecord {
+    readonly adjustment: { readonly keptIn: readonly string[]; readonly made: boolean; readonly slideSide?: string } | undefined;
+    readonly routes: readonly string[];
+    readonly leashBands: readonly string[];
+  }
+  const passPlays = (events: readonly MatchEventEnvelope[]): PlayRecord[] => {
+    const bands = new Map<string, string[]>();
+    for (const e of events) {
+      if (e.event.type !== "PRESNAP_READ" || e.event.payload.kind !== "leash_discipline") continue;
+      const key = String(e.event.playId);
+      bands.set(key, [...(bands.get(key) ?? []), String(e.event.payload.band)]);
+    }
+    const out: PlayRecord[] = [];
+    for (const e of events) {
+      if (e.event.type !== "PLAY_START") continue;
+      const p = e.event.payload as {
+        kind?: unknown;
+        offense?: { routes?: readonly { receiver: unknown }[]; protectionAdjustment?: PlayRecord["adjustment"] };
+      };
+      if (p.kind !== "PASS_PLAY_V1") continue;
+      out.push({
+        adjustment: p.offense?.protectionAdjustment,
+        routes: (p.offense?.routes ?? []).map((r) => String(r.receiver)),
+        leashBands: bands.get(String(e.event.playId)) ?? [],
+      });
+    }
+    return out;
+  };
+  const SEEDS = ["adr073-v5-leash-0", "adr073-v5-leash-1", "adr073-v5-leash-2", "adr073-v5-leash-3"];
+  const atLeash = (seed: string, leash: number) =>
+    runOneGame({ built, seed, tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN, callerVersion: "v5", leash });
+  const leashReadsOf = (out: ReturnType<typeof runOneGame>): number =>
+    out.observation.events.filter(
+      (e) => e.event.type === "PRESNAP_READ" && e.event.payload.kind === "leash_discipline",
+    ).length;
+
+  it("at 50 nothing is rolled and every adjustment the line wants is made; 40 and 100 play the identical game", () => {
+    let wanted = 0;
+    let keptIn = 0;
+    for (const seed of SEEDS) {
+      const base = atLeash(seed, 50);
+      expect(leashReadsOf(base), seed).toBe(0);
+      for (const play of passPlays(base.observation.events)) {
+        if (play.adjustment === undefined) continue;
+        wanted += 1;
+        keptIn += play.adjustment.keptIn.length;
+        expect(play.adjustment.made, seed).toBe(true);
+        for (const man of play.adjustment.keptIn) expect(play.routes, `${seed}: a kept-in man ran his route`).not.toContain(man);
+      }
+      for (const leash of [40, 100]) {
+        const other = atLeash(seed, leash);
+        expect(leashReadsOf(other), `${seed} leash ${String(leash)}`).toBe(0);
+        expect(other.observation.summary, `${seed} leash ${String(leash)}`).toEqual(base.observation.summary);
+        expect(JSON.stringify(other.observation.statlines), `${seed} leash ${String(leash)}`).toBe(
+          JSON.stringify(base.observation.statlines),
+        );
+        expect(other.observation.events.length, `${seed} leash ${String(leash)}`).toBe(base.observation.events.length);
+      }
+    }
+    expect(wanted, "the line wanted no adjustment in any game, so the rung was never reached").toBeGreaterThan(0);
+    expect(keptIn, "nobody was kept in, so leash 40 and 100 were compared on slide checks alone").toBeGreaterThan(0);
+  }, 5 * 60_000);
+
+  it("at 30 the adjustment is open: every one wanted is made, and only WORK_TO can be rolled", () => {
+    let wanted = 0;
+    for (const seed of SEEDS) {
+      const out = atLeash(seed, 30);
+      for (const play of passPlays(out.observation.events)) {
+        if (play.adjustment === undefined) continue;
+        wanted += 1;
+        expect(play.adjustment.made, seed).toBe(true);
+      }
+      // A breach is the highest rung wanted minus the leash, so at 30 only WORK_TO (40) breaches it.
+      for (const e of out.observation.events) {
+        if (e.event.type !== "PRESNAP_READ" || e.event.payload.kind !== "leash_discipline") continue;
+        const breach = e.event.payload.roll.modifiers.find((m) => m.source.startsWith("Breach of the leash"));
+        expect(breach?.source, seed).toBe("Breach of the leash (10)");
+      }
+    }
+    expect(wanted, "the line wanted no adjustment at 30").toBeGreaterThan(0);
+  }, 5 * 60_000);
+
+  it("at 20 it is closed: HELD runs the protection as called, BROKE makes it", () => {
+    let held = 0;
+    let broke = 0;
+    for (const seed of SEEDS) {
+      for (const play of passPlays(atLeash(seed, 20).observation.events)) {
+        if (play.adjustment === undefined) continue;
+        // Wanting the adjustment above the leash is a breach, so the one roll is always thrown.
+        expect(play.leashBands, `${seed}: an adjustment wanted above the leash, and no roll`).toHaveLength(1);
+        const band = play.leashBands[0];
+        if (band === "HELD") {
+          held += 1;
+          expect(play.adjustment.made, seed).toBe(false);
+          for (const man of play.adjustment.keptIn) expect(play.routes, `${seed}: a man held to the call lost his route`).toContain(man);
+        } else {
+          expect(band, seed).toBe("BROKE");
+          broke += 1;
+          expect(play.adjustment.made, seed).toBe(true);
+          for (const man of play.adjustment.keptIn) expect(play.routes, seed).not.toContain(man);
+        }
+      }
+    }
+    expect(held, "no adjustment was held at 20 (Discipline 60), so the closed rung was never seen").toBeGreaterThan(0);
+    expect(broke, "no adjustment was broken for at 20 (Discipline 60), so BROKE was never seen").toBeGreaterThan(0);
+  }, 5 * 60_000);
 });
 
 /**

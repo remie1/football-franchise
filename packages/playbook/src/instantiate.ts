@@ -497,7 +497,7 @@ export function instantiatePass(
  * Built separately for each arm, so a MAN protection never carries `slideCheck`. Pure: `offense`
  * is not changed. Whether the line uses either option is decided per snap by the engine's
  * pressure read and the leash; the engine, not this, also leaves out a man whose route converts
- * hot. No caller uses it yet; caller v5 (ADR-073 step 3.3) is the first.
+ * hot. Caller v5 (calibration's frozen caller, ADR-073 step 3.3) states them on every pass call.
  */
 export function protectionOptions(
   concept: PassConcept,

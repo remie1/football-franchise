@@ -23,14 +23,18 @@ export interface RunGameInput {
   readonly fourthDown: FittedFourthDown;
   readonly tunables?: Tunables;
   /**
-   * ADR-024 / ADR-069 / ADR-071. Defaults to v4 (anticipating, wearing every look) inside
-   * `frozenCallerPair`.
+   * ADR-024 / ADR-069 / ADR-071 / ADR-073. Defaults to v4 (anticipating, wearing every look)
+   * inside `frozenCallerPair`; v5 also states the line's options.
    */
   readonly callerVersion?: CallerVersion;
   /** ADR-069 measurement arms only — see `FrozenCallerSpec.coverageMasks`. */
   readonly coverageMasks?: readonly CoverageMask[];
   /** ADR-072 measurement arms only — see `FrozenCallerSpec.leash`. */
   readonly leash?: number;
+  /** ADR-073 measurement arms only, v5 on — see `FrozenCallerSpec.slideCheck`. */
+  readonly slideCheck?: boolean;
+  /** ADR-073 measurement arms only, v5 on — see `FrozenCallerSpec.keepIn`. */
+  readonly keepIn?: boolean;
 }
 
 export interface RunGameOutput {
@@ -49,6 +53,8 @@ export function runOneGame(input: RunGameInput): RunGameOutput {
     ...(input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }),
     ...(input.coverageMasks === undefined ? {} : { coverageMasks: input.coverageMasks }),
     ...(input.leash === undefined ? {} : { leash: input.leash }),
+    ...(input.slideCheck === undefined ? {} : { slideCheck: input.slideCheck }),
+    ...(input.keepIn === undefined ? {} : { keepIn: input.keepIn }),
   });
 
   const coordinates = {

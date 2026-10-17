@@ -62,9 +62,11 @@ export interface BatchConfig {
     readonly tendencies: FittedTendencies;
     readonly fourthDown: FittedFourthDown;
     /**
-     * ADR-024. `v2` (the default) anticipates the front; `v1` is the informed caller every batch
-     * before this one ran. Recorded into `callerVersion`, which is part of `BaselineIdentity`, so
-     * a v1 report and a v2 report are refused as trend partners rather than compared.
+     * ADR-024. Defaults to `DEFAULT_CALLER_VERSION` (v4); `v1` is the informed caller every batch
+     * before ADR-024 ran, and each later version is listed at `CallerVersion`. Recorded into
+     * `callerVersion`, which is part of `BaselineIdentity`, so reports from two versions are
+     * refused as trend partners rather than compared. A batch carries no knobs: those are for
+     * measurement arms, which run games one by one.
      */
     readonly callerVersion?: CallerVersion;
   };
