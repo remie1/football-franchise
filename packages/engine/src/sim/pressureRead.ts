@@ -37,6 +37,7 @@ import type {
   PlayCalls,
   PressurePicture,
   PressurePictureKind,
+  ProtectionAdjustment,
   ProtectionAssignment,
   ProtectionCall,
   RouteAssignment,
@@ -77,13 +78,12 @@ export interface FrontAccount {
 /** A picture's two sets (§2.2). */
 export type PictureSets = Pick<PressurePicture, "answers" | "placed">;
 
-/** What the line wants done to the protection (§2.3), when it wants anything at all. */
-export interface ProtectionWant {
-  /** The side he wants the slide checked to. Absent: the slide is not to be checked. */
-  readonly slideSide?: RunSide;
-  /** The check-release men he wants kept in, in card order. Empty: nobody. */
-  readonly keptIn: readonly PlayerId[];
-}
+/**
+ * What the line wants done to the protection (§2.3), when it wants anything at all: the side he
+ * wants the slide checked to (absent: not checked), and the check-release men he wants kept in,
+ * in card order (empty: nobody). PLAY_START's `protectionAdjustment` is this and `made`.
+ */
+export type ProtectionWant = Omit<ProtectionAdjustment, "made">;
 
 /** A man at a spot, with an absent key where no side was stated (`exactOptionalPropertyTypes`). */
 function placed(rusher: PlayerId, side: RunSide | undefined, alignment: RushAlignment): PlacedRusher {
@@ -313,4 +313,50 @@ export function picturesDecideAlike(args: {
     return JSON.stringify([converts, want?.slideSide ?? null, (want?.keptIn ?? []).map(String)]);
   });
   return decisions.every((d) => d === decisions[0]);
+}
+
+/**
+ * §2.3's EFFECTIVE CALL: the call as the line will run it once PROTECTION_ADJUST is made. The
+ * kept-in men leave `routes` and `readOrder`, join `protectionScheme.available` after the card's
+ * declared men (they are its stated alternative), and leave `checkRelease`; the slide side is the
+ * side at the snap. Everything else is the call. With nothing made it is the call itself, the
+ * same object, so a play with no adjustment hands every consumer exactly what it handed before.
+ *
+ * The routes are the CALLED routes minus the kept-in men; the hot conversions are not applied
+ * here, because the engine carries those as the routes run (`PreSnapRead.routes`), not as a call.
+ * The result is a call the validator accepts: every reader downstream of the pickups (the
+ * recovery spots above all, which put a man in `available` in the backfield) reads it as one.
+ */
+export function effectiveCall(calls: PlayCalls, adjusted: ProtectionWant | undefined): PlayCalls {
+  if (adjusted === undefined) return calls;
+  const scheme = calls.offense.protectionScheme;
+  // Unreachable from `simulatePassPlay`: an adjustment is wanted only on a card that states an
+  // option, and an option is stated only on a scheme. A wrong call site is a bug, so say so.
+  if (scheme === undefined) throw new Error("effectiveCall: an adjustment on a call with no protection scheme");
+  const out = new Set(adjusted.keptIn.map(String));
+  const stays = (id: PlayerId): boolean => !out.has(String(id));
+  const center = scheme.center === undefined ? {} : { center: scheme.center };
+  const available = [...(scheme.available ?? []), ...adjusted.keptIn];
+  const left = (scheme.checkRelease ?? []).filter(stays);
+  const released = left.length === 0 ? {} : { checkRelease: left };
+  const protectionScheme: ProtectionCall =
+    scheme.kind === "SLIDE"
+      ? {
+          kind: "SLIDE",
+          slideSide: adjusted.slideSide ?? scheme.slideSide,
+          ...center,
+          available,
+          ...released,
+          ...(scheme.slideCheck === true ? { slideCheck: true as const } : {}),
+        }
+      : { kind: "MAN", ...center, available, ...released };
+  return {
+    ...calls,
+    offense: {
+      ...calls.offense,
+      routes: calls.offense.routes.filter((r) => stays(r.receiver)),
+      readOrder: calls.offense.readOrder.filter(stays),
+      protectionScheme,
+    },
+  };
 }

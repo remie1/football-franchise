@@ -74,6 +74,7 @@ import { applyPlayOutcome } from "./outcome.js";
 import type { PlayOutcome } from "./outcome.js";
 import { readPreSnap, resolvePickups, resolveStunts } from "./preSnap.js";
 import type { RushPlan } from "./preSnap.js";
+import { effectiveCall } from "./pressureRead.js";
 import type { Pursuer } from "../resolve/ballCarrier.js";
 import {
   advanceCarrier,
@@ -344,20 +345,39 @@ export function simulatePassPlay(
 
   // ---- §5 PRE-SNAP ---------------------------------------------------------
   // Resolved BEFORE PLAY_START is logged, because it decides what PLAY_START has
-  // to say: which routes were actually run (§5.3's hot conversion), what order
-  // he worked them in, and who was blocking whom at the snap. The EVENTS are
-  // emitted after PLAY_START, which is the order they happened in relative to
-  // the play's own header.
+  // to say: which routes were actually run (§5.3's hot conversion, and a back the
+  // line kept in), what order he worked them in, and who was blocking whom at the
+  // snap. The EVENTS are emitted after PLAY_START, which is the order they
+  // happened in relative to the play's own header.
   //
-  // In ADR-073 §2.4's order: what the call accounts for, his read of it and the
-  // hot routes; then the coverage read and the leash, on the routes he will run;
-  // then the pickups, the free runners and the line games, on the protection as
-  // run. Every die below is forked by its own label, so the order moves none
-  // (`sim/preSnap.ts`).
+  // In ADR-073 §2.4's order: what the call accounts for, his read of it, the hot
+  // routes and what the line wants done to the protection; then the coverage read
+  // and the one leash roll, on the routes he will run; then what was made, applied
+  // as the effective call; then the pickups, the free runners and the line games,
+  // on the protection as run. Every die below is forked by its own label, so the
+  // order moves none (`sim/preSnap.ts`).
   const player = (id: PlayerId): PlayerState => requirePlayer(state, id);
   const preSnap = readPreSnap({ tunables, calls, quarterback: qb, presnapRng, player });
 
-  const tracks = buildReceiverTracks(tunables, state, calls, preSnap.routes);
+  // §2.4 step 4: a man the line wants kept in is CERTAIN to be kept in when the leash opens
+  // PROTECTION_ADJUST (no rung above the leash: everything wanted is made), so he runs no track
+  // the coverage read could judge. Below the rung nothing is certain, and he keeps his track
+  // until the leash roll says otherwise (step 9).
+  const leash = calls.offense.leash ?? LEASH_UNRESTRICTED;
+  const wantedProtection = preSnap.protectionWanted;
+  const certainlyKeptIn = new Set(
+    wantedProtection !== undefined && tunables.presnap.leash.rungs.PROTECTION_ADJUST <= leash
+      ? wantedProtection.keptIn.map(String)
+      : [],
+  );
+  const plannedTracks = buildReceiverTracks(
+    tunables,
+    state,
+    calls,
+    certainlyKeptIn.size === 0
+      ? preSnap.routes
+      : preSnap.routes.filter((r) => !certainlyKeptIn.has(String(r.receiver))),
+  );
 
   const system = calls.offense.readSystem;
   const budgetSeconds = timeBudgetSeconds(tunables, qb, system);
@@ -368,7 +388,7 @@ export function simulatePassPlay(
   // outcome from what is played on him: higher, he is a TRAP (he looks more open than he
   // is); lower, a HIDDEN MAN (he looks more covered than he is). With no lie there is
   // nothing for the read to decide, so no die (ADR-005).
-  const lies = coverageLies(tunables, state, calls, tracks);
+  const lies = coverageLies(tunables, state, calls, plannedTracks);
   const coverageRead: CoverageReadOutcome | undefined =
     lies.beliefs.size === 0
       ? undefined
@@ -379,30 +399,55 @@ export function simulatePassPlay(
           presnapRng,
         });
   if (coverageRead?.fooled === true) {
-    for (const t of tracks) t.belief = lies.beliefs.get(String(t.assignment.receiver));
+    for (const t of plannedTracks) t.belief = lies.beliefs.get(String(t.assignment.receiver));
   }
   // ---- ADR-072: the coach's leash ----------------------------------------------------------
-  // The read says which decisions he wants; the leash on the call says which are open. Wanting
-  // one above it is a breach, and his discipline decides whether he commits it. The belief above
-  // is untouched either way: the leash governs what he DOES, not what he sees.
+  // His reads say which decisions he wants: the coverage read's re-order, and the pressure read's
+  // PROTECTION_ADJUST (ADR-073 §2.3). The leash on the call says which are open. Wanting one above
+  // it is a breach, and his discipline decides whether he commits it, in ONE roll however many
+  // reads want something (ADR-073 §2.4). The beliefs above are untouched either way: the leash
+  // governs what he DOES, not what he sees.
   const hotReceivers = new Set(preSnap.hotConversions.map((h) => String(h.receiver)));
-  const leash = calls.offense.leash ?? LEASH_UNRESTRICTED;
-  const wanted = decisionsWanted(lies, coverageRead, hotReceivers);
+  const coverageWants = decisionsWanted(lies, coverageRead, hotReceivers);
+  const wanted: ReadonlySet<PreSnapDecision> =
+    wantedProtection === undefined ? coverageWants : new Set([...coverageWants, "PROTECTION_ADJUST"]);
   const leashOutcome: LeashOutcome | undefined =
     wanted.size === 0
       ? undefined
       : resolveLeash({ tunables, quarterback: qb, leash, wanted, presnapRng });
+  const made = leashOutcome?.made ?? NO_DECISIONS;
+
+  // ---- ADR-073 §2.4 step 9: apply what was made --------------------------------------------
+  // Not made, the protection is run as called, with no new die and nothing recomputed: the leash
+  // governs decisions, not perception. Made, the kept-in men lose their routes and tracks — the
+  // planned tracks FILTERED, never rebuilt, because the beliefs above ride on them — and the
+  // effective call carries the protection as run to everything downstream. A man kept in on a
+  // BROKE roll below the rung had a track when the coverage die was thrown; the die and its
+  // PRESNAP_READ stay, because he was running when it was thrown.
+  const adjusted = made.has("PROTECTION_ADJUST") ? wantedProtection : undefined;
+  const keptIn = new Set(adjusted?.keptIn.map(String) ?? []);
+  const tracks =
+    keptIn.size === 0 ? plannedTracks : plannedTracks.filter((t) => !keptIn.has(String(t.assignment.receiver)));
+  const routesRun = keptIn.size === 0 ? preSnap.routes : preSnap.routes.filter((r) => !keptIn.has(String(r.receiver)));
+  const runCalls = effectiveCall(calls, adjusted);
+  // The pool as run: the card's own men, then the men kept in (its stated alternative), then
+  // ADR-026's windfalls at the back (§2.3). Pickup dice are addressed by blocker, so the order
+  // moves no die.
+  const poolRun: readonly PlayerId[] =
+    adjusted === undefined
+      ? preSnap.availableBlockers
+      : [...preSnap.declaredAvailable, ...adjusted.keptIn, ...preSnap.unblockedProtectors];
 
   // ---- §7.4 and §7.3: who is blocking whom at the snap -------------------------------------
   // After the leash, where ADR-073 §2.4 puts them: a change to the protection is a decision the
-  // leash governs (§2.3, from step 3.2b), so the pickups are rolled on the protection as run, not
-  // as called. The recovery spots read who is in protection, so they come after it too.
+  // leash governs (§2.3), so the pickups are rolled on the protection as run, not as called. The
+  // recovery spots read who is in protection, so they come after it too, on the effective call.
   // `buildMatchups` and `buildRecoverySpots` throw no die.
   const pickups = resolvePickups({
     tunables,
     accounted: preSnap.accounted,
-    pool: preSnap.availableBlockers,
-    slideSide: preSnap.slideSide,
+    pool: poolRun,
+    slideSide: adjusted?.slideSide ?? preSnap.slideSide,
     recognized: preSnap.recognized,
     recognitionRollRef: preSnap.recognitionRollRef,
     presnapRng,
@@ -416,14 +461,16 @@ export function simulatePassPlay(
     presnapRng,
   });
   const matchups = buildMatchups(lineGames.plans);
-  const recoverySpots = buildRecoverySpots(tunables, state, calls, tracks);
+  const recoverySpots = buildRecoverySpots(tunables, state, runCalls, tracks);
 
+  // The re-order sees only the coverage read's decisions: a protection-only `made` would skip its
+  // "nothing made" exit and re-order a progression no coverage decision touched (§2.4 step 11).
   const readOrder = reorderForCoverageRead(
     preSnap.readOrder.filter((id) => tracks.some((t) => t.assignment.receiver === id)),
     lies,
     coverageRead,
     hotReceivers,
-    leashOutcome?.made ?? NO_DECISIONS,
+    made.has("PROTECTION_ADJUST") ? new Set([...made].filter((d) => d !== "PROTECTION_ADJUST")) : made,
   );
 
   const startPayload: PassPlayStartPayload = {
@@ -434,19 +481,24 @@ export function simulatePassPlay(
       formation: calls.offense.formation,
       quarterback: state.quarterback,
       readSystem: system,
-      // The routes he RAN, which on a recognised blitz is not the routes the card
-      // drew. `hotConversions` states the difference.
-      routes: preSnap.routes,
+      // The routes he RAN, which after a hot conversion or a keep-in is not the routes
+      // the card drew. `hotConversions` and `protectionAdjustment` state the difference.
+      routes: routesRun,
       // Filtered, not echoed: this is the progression he actually worked.
       readOrder,
       leash,
       protection: calls.offense.protection,
-      availableBlockers: preSnap.availableBlockers,
+      availableBlockers: poolRun,
       unblockedProtectors: preSnap.unblockedProtectors,
       hotConversions: preSnap.hotConversions,
-      // ADR-073 §2.8: the pressure read's picture, iff the read rolled. Last, so a stream
-      // without one serialises exactly as it did before step 3.2b.
+      // ADR-073 §2.8, appended last so the keys above serialise as they did before step 3.2b:
+      // the protection as called, the pressure read's picture iff the read rolled, and what the
+      // line wanted done to the protection iff it wanted anything.
+      ...(calls.offense.protectionScheme === undefined ? {} : { protectionScheme: calls.offense.protectionScheme }),
       ...(preSnap.pressurePicture === undefined ? {} : { pressurePicture: preSnap.pressurePicture }),
+      ...(wantedProtection === undefined
+        ? {}
+        : { protectionAdjustment: { ...wantedProtection, made: adjusted !== undefined } }),
     },
     defense: {
       team: state.defenseTeam,
@@ -2199,7 +2251,7 @@ function coverageMisreadModifier(
  * ball is legal in some circumstances and not in others, and that is a rules
  * question the engine has no business answering to spend one modifier.
  */
-function buildRecoverySpots(
+export function buildRecoverySpots(
   tunables: Tunables,
   state: MatchGameState,
   calls: PlayCalls,
@@ -2234,8 +2286,9 @@ function buildRecoverySpots(
   for (const protection of calls.offense.protection) {
     add({ player: requirePlayer(state, protection.blocker), side: "OFFENSE", zone: backfield, engagedInBlock: true });
   }
-  // §7.4 — a back who stayed in to scan is in protection whether or not he ended
-  // up with anybody to block. He is in the backfield and he is not in a route.
+  // §7.4 — a back who stayed in to scan, or a check-release man the line kept in
+  // (ADR-073, through the effective call), is in protection whether or not he
+  // ended up with anybody to block. He is in the backfield and he is not in a route.
   for (const id of calls.offense.protectionScheme?.available ?? []) {
     add({ player: requirePlayer(state, id), side: "OFFENSE", zone: backfield, engagedInBlock: true });
   }

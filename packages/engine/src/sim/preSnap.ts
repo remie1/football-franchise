@@ -4,7 +4,8 @@
  *
  * ================== WHAT THIS MODULE DECIDES ==================
  * Who is blocking whom when the ball is snapped, who is not blocked at all, and
- * whether the receivers are running the routes the card drew or the hot ones.
+ * whether the receivers are running the routes the card drew or the hot ones,
+ * and which check-release men the line wants kept in to block (ADR-073).
  *
  * The order is the doc's own:
  *
@@ -29,9 +30,11 @@
  *  4. §7.4 step 3 — each unaccounted rusher is offered to the next available
  *     blocker, in the card's stated priority. Contest per rusher. The one
  *     exception is the SLIDE: on a slide card, a rusher who comes from the slide
- *     side takes the first man left in the pickup pool (declared `available`,
- *     then ADR-026's unblocked protectors) WITHOUT a contest, when
- *     `blitzPickup.slideIsUncontested` holds. He was still unaccounted at step 1.
+ *     side at the snap (the called side, or the one the line checked it to)
+ *     takes the first man left in the pickup pool (declared `available`, then
+ *     any check-release men the line kept in, then ADR-026's unblocked
+ *     protectors) WITHOUT a contest, when `blitzPickup.slideIsUncontested`
+ *     holds. He was still unaccounted at step 1.
  *  5. §7.4 step 4 — anybody left, or anybody who beat his pickup, is a FREE
  *     RUNNER with an ETA. Not a teleport: a rusher with a short clock, and since
  *     ADR-031 a clock that reads WHERE HE STARTED — his alignment and the depth
@@ -50,10 +53,11 @@
  *  - `resolveStunts` — step 6.
  *
  * Between the first and the second, the quarterback reads the coverage on the
- * routes he will run and the leash decides what he may change, so that from
- * ADR-073 step 3.2b a decision he makes there can reach the protection before
- * anybody is picked up. Until then none does: the pool and the slide side reach
- * `resolvePickups` exactly as `readPreSnap` read them off the card. Moving the
+ * routes he will run and the leash decides what he may change, so that a
+ * decision the pressure read wants (ADR-073 §2.3: keep a back in, check the
+ * slide) reaches the protection before anybody is picked up, if the leash lets
+ * it. `simulatePassPlay` hands `resolvePickups` the pool and the slide side as
+ * run: what `readPreSnap` read off the card when nothing was made. Moving the
  * work moved no die: a fork is a pure function of its parent's seed and its own
  * label, not of what the parent has drawn (`createRng`), and every die in this
  * file is forked by its own label. So a pickup's dice are the same dice whether
@@ -415,8 +419,9 @@ export function readPreSnap(args: {
  *
  * It reads the pool and the slide side as arguments rather than off the card,
  * because they are the protection AS RUN: the bodies offered, in the order
- * offered, and the side slid to. Until ADR-073 step 3.2b that is the card's
- * own protection, as `readPreSnap` read it.
+ * offered, and the side slid to: the card's own protection as `readPreSnap` read
+ * it, or, when the leash let the line adjust it, the effective call's (ADR-073
+ * §2.3: the kept-in men after the declared ones, and the checked slide side).
  */
 export function resolvePickups(args: {
   readonly tunables: Tunables;

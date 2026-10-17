@@ -542,7 +542,9 @@ export interface DefensivePlayCall {
    * WHY THIS EXISTS. There is no shown-vs-played pair anywhere in the engine today
    * (backlog entry 165): a defensive card states duties and the duties are what happens.
    * `blitzDisguise` is NOT that pair — it shifts a recognition target (+0/15/20/25) about
-   * a rush that is already fixed and that protection has already paired against. It models
+   * a rush that is already fixed, that the offence's protection was paired against before the
+   * snap (against the real rush or a caller's anticipation of it, ADR-024), and that the line may
+   * adjust to when the call states the option (ADR-073). It models
    * DEGRADED PERCEPTION OF ONE TRUTH. Being deceived requires two. For the rush, the two
    * are `rush` and `shownRush` (ADR-073).
    *

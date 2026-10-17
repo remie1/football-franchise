@@ -751,7 +751,10 @@ export const TUNABLES = {
      * the answer, and the resulting matchup is an ordinary §7.1 rep. The engine
      * applies it at the pickup (step 3), not at recognition: a slide-side rusher
      * no pairing names is still unaccounted, still triggers §5.3's roll, and then
-     * takes the first man left in the pickup pool without a contest.
+     * takes the first man left in the pickup pool without a contest. The slide
+     * side is the one at the snap, after any check (ADR-073 §2.3), and the pool
+     * includes any check-release men the line kept in. With this off a slide
+     * answers nobody, so the pressure read never wants it checked.
      */
     slideIsUncontested: true,
   },
