@@ -252,6 +252,35 @@ export interface ResolvedShownRusher extends ShownRusher {
 }
 
 /**
+ * What the pressure read's band makes of the front he is shown (ADR-073 §2.2). The band table's
+ * `picture` column (`presnap.blitzRecognition.bands`) is held to exactly these four.
+ */
+export type PressurePictureKind = "TRUE" | "COUNT" | "CALL" | "LOOK";
+
+/**
+ * A rusher at the spot the pressure read PERCEIVES him (ADR-073 §2.2): the side as the list he
+ * is counted from states it (absent when it does not), and the alignment resolved as
+ * `ResolvedRushAssignment`'s is. Same shape as a resolved rusher, different fact: this is where
+ * the quarterback thinks the man is, which on a front look is not where he plays.
+ */
+export interface PlacedRusher {
+  readonly rusher: PlayerId;
+  readonly side?: RunSide;
+  readonly alignment: RushAlignment;
+}
+
+/**
+ * The pressure read's picture of the front (ADR-073 §2.2, §2.8). `answers` is who he treats as
+ * coming with no blocker named on him: it decides the hot routes and how many backs the line
+ * wants kept in. `placed` is the men he counts for the slide, at the spots he perceives them.
+ */
+export interface PressurePicture {
+  readonly picture: PressurePictureKind;
+  readonly answers: readonly PlayerId[];
+  readonly placed: readonly PlacedRusher[];
+}
+
+/**
  * The engine's view of game state. Franchise owns the real one; this is the
  * subset a play needs. `at` rides along because EventEnvelope requires it.
  */
@@ -344,6 +373,14 @@ export interface PassPlayStartPayload {
      * wants a `ROUTE_CONVERTED` event, not an overloaded phase (ADR-010).
      */
     readonly hotConversions: readonly HotConversion[];
+    /**
+     * ADR-073 §2.8 — the pressure read's picture of the front: the picture its band made, who
+     * he treated as coming free (`answers`) and the men he counted for the slide, where he
+     * perceived them (`placed`). PRESENT IFF THE READ ROLLED, beside the `blitz_recognition`
+     * PRESNAP_READ that rolled it; absent, nothing was read. A stream stored before ADR-073 step
+     * 3.2b has none, and there the PRESNAP_READ is the record of whether the read rolled.
+     */
+    readonly pressurePicture?: PressurePicture;
   };
   readonly defense: {
     readonly team: TeamId;
@@ -373,8 +410,8 @@ export interface PassPlayStartPayload {
      *
      * ON `PLAY_START`, NOT A NEW EVENT AND NOT `PRESNAP_READ` (backlog entry
      * 168): `PLAY_START` fires on every play, so the diff is computable on every
-     * play; `PRESNAP_READ` fires only when a rusher is unaccounted, and is a
-     * roll, which a state must not ride inside.
+     * play; `PRESNAP_READ` fires only when a read is rolled, and is a roll,
+     * which a state must not ride inside.
      *
      * ⚠ IDENTICAL TO `assignments` UNLESS THE CALL WORE A LOOK (ADR-069,
      * ADR-071) — and then different in exactly the men the look moved.
@@ -408,7 +445,9 @@ export interface PassPlayStartPayload {
      * the call's `shownRush` with alignment resolved as `rush`'s is, side and gap
      * carried, no move. Both states and no verdict, as `shownAssignments`. The same
      * men in the same order as `rush` unless the call wore a front look (step 3.5);
-     * until then the two agree field for field, `move` aside.
+     * until then the two agree field for field, `move` aside. The pressure read judges
+     * the offence's picture against it (ADR-073 §2.2, from step 3.2b); physics never
+     * reads it.
      */
     readonly shownRush: readonly ResolvedShownRusher[];
     /**

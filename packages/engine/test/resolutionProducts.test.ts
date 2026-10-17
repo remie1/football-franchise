@@ -107,7 +107,14 @@ describe("ADR-018 — same shape, different fact", () => {
 });
 
 describe("ADR-018 — the boundary: the names are the engine's own", () => {
-  const RESOLUTION_PRODUCTS = ["ResolvedRushAssignment", "ResolvedShownRusher", "CoverageShell", "GapId"] as const;
+  const RESOLUTION_PRODUCTS = [
+    "ResolvedRushAssignment",
+    "ResolvedShownRusher",
+    // ADR-073 step 3.2b: where the pressure read PERCEIVES a rusher, not where he plays.
+    "PlacedRusher",
+    "CoverageShell",
+    "GapId",
+  ] as const;
 
   function sourceFiles(dir: string): string[] {
     return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

@@ -76,7 +76,10 @@ export interface RouteAssignment {
    * every route.**
    */
   readonly breakZone?: FieldZone;
-  /** The route he converts to if the offence recognises pressure (ADR-022). */
+  /**
+   * The route he converts to if the offence's pressure read pictures pressure, truly or not
+   * (ADR-022; ADR-073 §2.3).
+   */
   readonly hot?: HotRouteSpec;
 }
 
@@ -495,7 +498,7 @@ export interface DefensiveTag {
  * A defensive call, said in the order a call sheet says it (ADR-071): **personnel, front,
  * concept, tags** — "Nickel Over Tex, Fire, Cover 3, Show 2". The four are NAMES: a renderer
  * prints them and nothing resolves them. What the engine resolves is `assignments`,
- * `shownAssignments`, `rush`, `stunts`, `blitzDisguise` and `coverageDisguise`.
+ * `shownAssignments`, `rush`, `shownRush`, `stunts`, `blitzDisguise` and `coverageDisguise`.
  */
 export interface DefensivePlayCall {
   /** Who is on the field: `"Nickel"`. The call's first part (ADR-071). */
@@ -559,8 +562,8 @@ export interface DefensivePlayCall {
    * THE SAME ARRAY AS `rush` on every call built today (identity by construction); a front
    * look (ADR-073 step 3.5) will be the only writer of a second list.
    *
-   * NOTHING IN THE ENGINE READS IT YET beyond validating it and echoing it on PLAY_START;
-   * the pressure read consumes it from 3.2b. Physics never reads it.
+   * READ BY THE PRESSURE READ (ADR-073 step 3.2b), beside the validator and the PLAY_START
+   * echo: the offence's picture is judged against this list. Physics never reads it.
    */
   readonly shownRush: readonly ShownRusher[];
 }

@@ -179,9 +179,11 @@ interface RushMatchup {
   /**
    * ADR-018 petition 2 — which side of the centre he came from, as the card
    * stated it. `ProtectionAssignment` states the blocker↔rusher pairing and
-   * playbook is what forms it; the one place the engine reads a side is the
-   * slide, which takes a slide-side rusher no pairing names (`sim/preSnap.ts`),
-   * and that reads the card before this matchup exists. It is carried so that
+   * playbook is what forms it; the engine reads a side in two places, both on
+   * the card and before this matchup exists: the slide, which takes a slide-side
+   * rusher no pairing names (`sim/preSnap.ts`), and the pressure read, which
+   * places the men it counts for the slide and compares the shown rush with the
+   * played one (`sim/pressureRead.ts`, ADR-073 §2.2). It is carried so that
    * the geometry the play was simulated with reaches PLAY_START,
    * exactly as `alignment` does — a consumer that can see a resolved alignment
    * and cannot see which side it was on can still be looking at an impossible
@@ -442,6 +444,9 @@ export function simulatePassPlay(
       availableBlockers: preSnap.availableBlockers,
       unblockedProtectors: preSnap.unblockedProtectors,
       hotConversions: preSnap.hotConversions,
+      // ADR-073 §2.8: the pressure read's picture, iff the read rolled. Last, so a stream
+      // without one serialises exactly as it did before step 3.2b.
+      ...(preSnap.pressurePicture === undefined ? {} : { pressurePicture: preSnap.pressurePicture }),
     },
     defense: {
       team: state.defenseTeam,
@@ -475,8 +480,8 @@ export function simulatePassPlay(
       ),
       // Echoed, not derived (ADR-073): what the offence was SHOWN of the rush,
       // with alignment resolved exactly as the played rush's is (preSnap's
-      // accounting) so the two compare field for field. No die, no read: nothing
-      // resolves from it before ADR-073 step 3.2b.
+      // accounting) so the two compare field for field. The pressure read judges
+      // the offence's picture against it (ADR-073 §2.2); physics never reads it.
       shownRush: calls.defense.shownRush.map((s) =>
         resolvedShownRusher({
           rusher: s.rusher,
@@ -2114,7 +2119,7 @@ function decisionsWanted(
  * progression. FOOLED, he believes the look: the traps lead (the shown hole is the best thing on
  * the field) and the hidden men go last (they look smothered). SEEING THROUGH it, the reverse: the
  * hidden men lead and the traps are dead routes, read last. Hot conversions keep the front either
- * way — they answer a recognised blitz, which is a separate read with a separate consequence. Any
+ * way — they answer a pictured pressure, which is a separate read with a separate consequence. Any
  * other band leaves the order as called.
  *
  * `made` is what the leash let him do: WORK_TO moves the men his read likes to the front, and

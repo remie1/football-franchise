@@ -790,9 +790,11 @@ export const hotRouteRate: Metric = registerMetric({
   tier: 1,
   definition:
     "SIM SIDE ONLY. Dropbacks on which at least one route actually converted hot ÷ dropbacks, " +
-    "read from PLAY_START.offense.hotConversions. A conversion requires an unaccounted rusher " +
-    "AND a passed §5.3 recognition AND a card that states a hot, so this is the product of all " +
-    "three and not a count of cards that could convert. No ingested source charts sight " +
+    "read from PLAY_START.offense.hotConversions. A conversion requires a §5.3 pressure read " +
+    "whose picture answers somebody (an unaccounted rusher read at one of the top three bands, " +
+    "or, on a front look, a man shown rushing; ADR-073 §2.3) AND a card that states a hot, so " +
+    "this is the product of those and not a count of cards that could convert. No ingested " +
+    "source charts sight " +
     "adjustments, so there is no real-side target and this row is never graded.",
   unit: "%",
   toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),

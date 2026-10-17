@@ -4,8 +4,8 @@
  * `DefensivePlayCall.shownRush` is what the offence SEES of the rush before the snap, beside
  * `rush`, which resolves. At this step nothing can make the two differ: every call built
  * today returns ONE array for both, and only a front look (step 3.5) will ever write a
- * second list. Nothing in the engine resolves from `shownRush` until step 3.2b; this step's
- * validator and the PLAY_START echo are its only readers.
+ * second list. At 3.1 the validator and the PLAY_START echo were its only readers; from step
+ * 3.2b the pressure read judges the offence's picture against it (`sim/pressureRead.ts`).
  *
  * So this file pins four things, and each is the guard for a later step:
  *
@@ -55,6 +55,7 @@ import {
 import {
   buildCleanPocketScenario,
   buildDeflectionScenario,
+  buildFrontScenario,
   buildLopsidedRushScenario,
   buildMixedCoverageScenario,
   buildOverlappingZoneScenario,
@@ -205,6 +206,8 @@ describe("ADR-073 step 3.1 — identity by construction", () => {
     buildStalledPocketScenario,
     buildScramblerScenario,
     buildLopsidedRushScenario,
+    // ADR-073 step 3.2b's front fixture, at its honest default.
+    buildFrontScenario: () => buildFrontScenario(),
     buildZoneRunScenario: () => buildRunScenario("ZONE"),
     buildGapRunScenario: () => buildRunScenario("GAP"),
   } as const;
@@ -385,7 +388,8 @@ describe("ADR-073 step 3.1 — the physics reads no gap", () => {
     for (let i = 0; i < 40; i++) {
       const plain = simulatePassPlay(state, calls, `gap-noop-${i}`);
       const withGaps = simulatePassPlay(state, card, `gap-noop-${i}`);
-      // The sides are stated too, and the card has no slide, so nothing reads either.
+      // The sides are stated too, but the card has no slide and its shown rush is its played
+      // rush, so nothing that reads a side has anything to decide.
       expect(afterStart(withGaps.events), `seed ${i}`).toBe(afterStart(plain.events));
     }
   });
@@ -461,7 +465,8 @@ describe("ADR-073 step 3.1 — the validator", () => {
     const start = startOf(simulatePassPlay(state, shown, "shown-dropper").events);
     expect(start.defense.shownRush.map((s) => s.rusher)).toContain(cover.defender);
     expect(start.defense.rush.map((r) => r.rusher)).not.toContain(cover.defender);
-    // Nothing resolves from the shown list before step 3.2b.
+    // A bluff with nothing to decide rolls nothing (ADR-073 §2.2, trigger (b); ADR-005): the
+    // card has no hot route and states no options, so every picture decides alike.
     expect(afterStart(simulatePassPlay(state, shown, "shown-dropper").events)).toBe(
       afterStart(simulatePassPlay(state, calls, "shown-dropper").events),
     );
