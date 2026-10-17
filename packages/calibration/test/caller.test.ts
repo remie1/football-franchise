@@ -20,8 +20,8 @@ import {
   type PlaySituation,
 } from "@ff/playbook";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
-import { DEFAULT_LEASH, callerIdentity, frozenCallerPair } from "../src/caller/frozen.js";
-import { DEFAULT_CALLER_VERSION, anticipateFront } from "../src/caller/anticipate.js";
+import { DEFAULT_LEASH, FrozenCallerError, callerIdentity, frozenCallerPair } from "../src/caller/frozen.js";
+import { DEFAULT_CALLER_VERSION, anticipateFront, type CallerVersion } from "../src/caller/anticipate.js";
 import {
   assertTendencyIntegrity,
   backoffKeys,
@@ -463,6 +463,24 @@ describe("the frozen caller pair", () => {
     expect(callerIdentity("v1", "x")).not.toBe(callerIdentity("v2", "x"));
     expect(callerIdentity("v2", "x")).not.toBe(callerIdentity("v3", "x"));
     expect(callerIdentity("v3", "x")).not.toBe(callerIdentity("v4", "x"));
+  });
+
+  /**
+   * ADR-073 §2.7: each version is a row of the caller's profile, and the type is the list, so a
+   * version with no row does not compile. A string from outside the type (a config file, an
+   * environment variable) is refused at the pair, inherited names included: `"constructor"`
+   * finds an entry on any object, and would otherwise play as a caller nobody wrote.
+   */
+  it.each(["v9", "constructor"])("refuses a caller version it has no profile for (%s)", (version) => {
+    expect(() =>
+      frozenCallerPair({
+        tendencies: FROZEN_TENDENCIES,
+        fourthDown: FROZEN_FOURTH_DOWN,
+        homeDepthChart: built.homeDepthChart,
+        awayDepthChart: built.awayDepthChart,
+        callerVersion: version as CallerVersion,
+      }),
+    ).toThrow(FrozenCallerError);
   });
 
   /**

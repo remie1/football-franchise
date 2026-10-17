@@ -142,6 +142,7 @@ import {
 } from "@ff/playbook";
 import type { Down } from "@ff/playbook";
 import {
+  CALLER_VERSIONS,
   DEFAULT_CALLER_VERSION,
   anticipateFront,
   blankDrawQuality,
@@ -284,6 +285,33 @@ export function callerIdentity(
  */
 export const DEFAULT_LEASH = 50;
 
+/**
+ * WHAT EACH VERSION DOES, ONE ROW EACH (ADR-073 §2.7). The rows restate what the version ternary
+ * used to say, and nothing more: v1 plays the card it is dealt; from v2 the offence blocks the
+ * front it anticipated; v3 wears Phase 1's two safety looks; v4 all five.
+ *
+ * A TABLE AND NOT A TERNARY because the type is the list of versions (`CALLER_VERSIONS`): a
+ * version with no row fails to compile, where the ternary quietly played any version it did not
+ * name as a v2 (anticipating, wearing nothing). A string that is no version at all is refused by
+ * `frozenCallerPair`.
+ */
+interface CallerProfile {
+  /** "NONE": the offence blocks the card it is dealt (v1). "CARD": it blocks a second draw (ADR-024). */
+  readonly anticipation: "NONE" | "CARD";
+  /**
+   * The looks the defence may wear. `undefined`, not `[]`, below v3: no look is DRAWN there, so
+   * `FrozenCallerSpec.coverageMasks` has nothing to narrow and is ignored.
+   */
+  readonly looks: readonly CoverageMask[] | undefined;
+}
+
+const PROFILE: Readonly<Record<CallerVersion, CallerProfile>> = {
+  v1: { anticipation: "NONE", looks: undefined },
+  v2: { anticipation: "CARD", looks: undefined },
+  v3: { anticipation: "CARD", looks: PHASE_1_MASKS },
+  v4: { anticipation: "CARD", looks: COVERAGE_MASKS },
+};
+
 function situationOf(request: {
   readonly situation: {
     readonly down: number;
@@ -390,6 +418,7 @@ function resolveSnap(
   snapRng: Rng,
 ): ResolvedSnap {
   const version = spec.callerVersion ?? DEFAULT_CALLER_VERSION;
+  const profile = PROFILE[version];
   const rate = lookupPassRate(spec.tendencies, key);
   const pass = snapRng.fork("kind").next() < rate.passRate;
 
@@ -405,7 +434,7 @@ function resolveSnap(
    * guess) is drawn bare, because a look changes no rusher and no fit, so there is nothing in it
    * to block against.
    */
-  const catalogue = version === "v4" ? COVERAGE_MASKS : version === "v3" ? PHASE_1_MASKS : undefined;
+  const catalogue = profile.looks;
   const lookDraw =
     catalogue === undefined
       ? undefined
@@ -420,7 +449,7 @@ function resolveSnap(
    * until it found one it liked, which is clairvoyance wearing a guess's face.
    */
   const anticipated: AnticipatedFront | undefined =
-    version === "v1"
+    profile.anticipation === "NONE"
       ? undefined
       : anticipateFront(snapRng.fork("anticipated-front"), situation, defensiveCard);
 
@@ -484,6 +513,13 @@ function resolveSnap(
 
 export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
   const callerVersion = spec.callerVersion ?? DEFAULT_CALLER_VERSION;
+  // Membership in the list, not `PROFILE[v] === undefined`: an inherited name ("constructor")
+  // finds an entry on any object, and would play a caller nobody wrote.
+  if (!(CALLER_VERSIONS as readonly string[]).includes(callerVersion)) {
+    throw new FrozenCallerError(
+      `no caller version "${String(callerVersion)}". Expected one of ${CALLER_VERSIONS.join(", ")}.`,
+    );
+  }
   const leash = spec.leash ?? DEFAULT_LEASH;
   const name = spec.name ?? `frozen-${callerIdentity(callerVersion, spec.tendencies.version, leash)}`;
   const diagnostics = blankDiagnostics();

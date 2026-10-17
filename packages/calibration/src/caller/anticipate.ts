@@ -166,7 +166,7 @@ import { applicableDefensiveCards, weightedPick } from "@ff/playbook";
  * is a measurement rather than a surprise", and that paired run is the only honest instrument
  * available once the trend layer has (correctly) refused the boundary.
  */
-export type CallerVersion = "v1" | "v2" | "v3" | "v4";
+export type CallerVersion = (typeof CALLER_VERSIONS)[number];
 
 /**
  * v3 is v2 with ADR-069's pre-snap masks: the defence wears a look over the card it called, on
@@ -181,7 +181,7 @@ export type CallerVersion = "v1" | "v2" | "v3" | "v4";
  * same snaps, and differ ONLY in which looks those snaps wear. A new version for the same reason
  * v3 was one: the looks are part of the call, so the call mix changes.
  */
-export const CALLER_VERSIONS: readonly CallerVersion[] = ["v1", "v2", "v3", "v4"];
+export const CALLER_VERSIONS = ["v1", "v2", "v3", "v4"] as const;
 
 /**
  * The default. ADR-024 made it v2; ADR-069 made it v3; ADR-071 step 2 makes it v4. A batch that
