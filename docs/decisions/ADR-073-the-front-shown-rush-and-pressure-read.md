@@ -1755,6 +1755,13 @@ Held in every row, identical in the headers: seeds, rounds, shards, looks, leagu
 
 **Files** (`/mnt/project-files/arms/adr073-p33/`, README section "Front arms (ADR-073 step 3.3)"), under the names the scripts call each other by: `adr073Arm33.test.ts` (H33), `run33.sh`, `proof33.py`, `guard33.py`, `drive33.sh`, `r0.sh`, `adr073-analyze33.py`, `FROZEN.sha256`, the proof verdicts `proof33-*.json`, the logs, and the report `adr073-report33.md` with its figures `adr073-figs33.json`. The shards (`out/`, 339 MB) and dropback records (`rec/`, 127 MB) were not shared. The report and figures carry every scored number; the bench splits, the TE_Y bench counts and the call-mix shares quoted here were computed from `out/` and are not in them. The scripts re-run everything from the same seeds on e650227 (the benches also need `s32b`'s records from `../p31`).
 
+**The re-scoped v5** *(2026-10-17, on 9e3e172; the dated note above)*. Played with no knobs (identity `frozen-v5/v1`, knobs `{}`), the re-scoped v5 plays the measured slide-only arm's games, number for number, on both seed sets. H33 ran it with its grammar moved to the new marks (`/keep-in` turns the keep-in on, and `/no-keep-in` is refused) and the guard's keep-in scope moved to "`keepIn: true` only". Nothing else in the scripts changed but their comments.
+- **Set A** (`P5D`, 6,720 games): every one of the shards' 3,212,494 numbers equals R4's, checked both ways with only the label fields set aside (identity, knobs, version, callerSpec), and the tunables digest is `fnv1a:395a9ae2`.
+- **Set B** (`P5DB`, 20,160 games): every one of the shards' 9,551,646 numbers equals R15's, the same way, with the same digest.
+- **The guard passes on both,** scoped as a slide-only arm: no call states `checkRelease` (knob leak 0), every slide states the slide check, no kept-in man is named, the adjustment the stream states is the one §2.3 predicts on every dropback, no slide check falls outside its population, and there are no leash reads at leash 50.
+
+So every number 3.3 measured for the slide-only arm (R4, R15) is what the re-scoped v5 plays. Its proof lines, `proof33-P5D.json` and `proof33-P5DB.json`, and its logs are beside the others in `/mnt/project-files/arms/adr073-p33/`. The two changed scripts are in its `rescoped/` folder, so the originals that `FROZEN.sha256` pins still re-run the measured arms on e650227.
+
 ---
 
 ## Appendix A. How the design panel's disagreements were settled
