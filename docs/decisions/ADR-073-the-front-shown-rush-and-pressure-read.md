@@ -1582,6 +1582,53 @@ Under these, keep-in's projection is a floor. Slide-only's is not even an estima
 
 **Files** (`/mnt/project-files/arms/`, README section "Front arms (ADR-073 step 3.2b)"): `adr073Arm32b.test.ts` (the harness with the map and counters), `adr073-run32b.sh`, `adr073-proof32b.py` and its output `adr073-proof32b.json`. For 3.3: the harness's `short|band:*` strata now carry the six labels, and `adr073-analyze.py`, keyed on the four old ones, silently drops them; use `short|pic:*`.
 
+### 3.3, filed before any arm *(2026-10-17; CHOSEN)*
+
+3.3's arms are scored by the rules below, filed here before the first arm runs, as §4's figures were. §4.3 and 3.0's re-derived bounds give the predictions; these say how each is scored where the ADR left it open. A rule that proves impossible to compute as written is amended by a dated note under this heading, and recorded as a departure in 3.3's write-up.
+
+1. **The SE that decides S2, S4 and S6** is the width the ADR filed: 2 × 0.034 points on all dropbacks and 2 × 0.067 on `short`, at 26,880 games (H4). The paired per-game SE is printed beside each verdict, never in place of it. Each is falsified outside:
+   - S2, slide-only Δsack: [−0.148, +0.068];
+   - S4, keep-in-only Δsack: [+0.012, +0.208];
+   - S6, full Δsack: [−0.068, +0.198], and on `short` [−0.124, +0.634].
+2. **S3 and S5, the counts**, are predicted in each arm's own run over its own snaps, and falsified outside ± 2 Poisson-binomial SD (p is the read's P(TRUE ∪ COUNT) on that snap):
+   - S3, kept-in men on the keep-in arms: Σ over `keepable` of p × k, SD √Σp(1−p)k²;
+   - S5, slide checks made: Σ over the arm's slide population of p, SD √Σp(1−p). Slide-only is scored on `slideableNoK`, the slide's want computed with no kept-in man as a body, because with keep-in off the engine keeps nobody in. Full is scored on `slideable`, which counts him as the engine does. `kBodyOnly` (in `slideable`, not in `slideableNoK`) is reported on its own.
+   - On the bench, where every arm replays the same snap, both are exact per snap.
+3. **S7, pressure,** is falsified unless `pressured` falls by more than 2 × 0.032 points: the unpaired binomial SE at 85.942% over 2,374,310 dropbacks, as H4 computes the sack SE. It is shown against 3.0's −0.69.
+4. **Interaction ≈ 0** is scored per snap on the bench. Outside the cell where full both checks the slide and keeps a man in, two equalities are exact, and one mismatch falsifies:
+   - where full checks no slide, full ≡ keep-in-only, with `slideCheck` deleted from the echo;
+   - where full keeps nobody in, full ≡ slide-only, with `checkRelease` deleted.
+   On the remaining cell (read-right snaps that are both `slideable` and `keepable`, `kBodyOnly` included) the 4-way residual full − slide − keep + v4 is reported as measured, with its snap SE and its share of the aggregate. The game-level interaction is printed, not scored: at 2 SE it spans about 0.05 to 0.07 points, against a structural effect of at most about 0.01 on 0.10% of dropbacks.
+5. **No adjustment wanted, no change (E7).** Where an arm wants no adjustment, its snap is the base's with the option keys deleted. Exact per snap on the proof, slide-only, keep-in-only and full arms; one mismatch falsifies. Not on no-pointing, whose contested pickups' modifier lines differ by construction (a zero modifier is dropped), nor on the Discipline-95 arms at 20 and 30, which hold WORK_TO by design (rule 9 scores them).
+6. **The snaps whose only coverage lie is on a kept-in man (R3, §4.3's guard).**
+   - On the bench: v4 rolled a coverage read, the arm did not, and the arm kept somebody in.
+   - In game mode: each made keep-in is re-run without the options against the same defence call and seed, and the snap is in the bag when that counterfactual rolls a coverage read and the actual does not.
+   - The arm never adds a coverage read (`covAddedByArm` = 0).
+   - The bag's share of Δ`int_rate` is the paired Σ_bag(int − int_cf) ÷ Σatt over all dropbacks, with a snap SE; the same sum over every made keep-in is printed beside it. int ÷ att on the bag against the rest is descriptive only, since bag snaps are short, `keepable` and read right by selection.
+7. **Check-release men** for S16 are counted as 3.0 counted them: released, with no hot spec (`eligible`), so the figures compare with 0.0540 targets and 0.0216 receptions a dropback. Split by role (RB; FB; TE_Y). On every arm that states `checkRelease`, the stated list equals the released list and contains every `eligible` man.
+8. **Slide-only's conversion "not negative" (S17)** is "not below −2 paired SE" at game level (A + B). On the bench, the sign of the paired Σ(Δsack − 0.21288 × Δexit) ÷ Σexit is reported with its snap SE.
+9. **The leash pair.**
+   - "Δsack(L30 − L20) ≈ Δsack(full − v4) within 2 SE" uses the paired per-game SE of the difference of the two differences over A + B. It is not exact even in expectation: at leash 20 and 30 WORK_TO (rung 40) is held, and full at 50 makes it. Both differences are printed.
+   - **Exact on the bench:** v5 at leash 20 on the Discipline-95 league ≡ v4 at leash 30 on it, once the `leash_discipline` reads, `PLAY_START.offense.leash`, `protectionAdjustment` and the option keys are deleted. Discipline 95 never breaks a breach of 10 or more, so at 20 the one roll holds both PROTECTION_ADJUST and WORK_TO and makes WORK_AWAY, which is what v4 makes at 30; and nobody kept in leaves the tracks and the coverage read as v4's. One mismatch falsifies.
+   - v5 at 30 against v4 at 30, per snap, is reported as measured: rung 30's effect with WORK_TO held in both.
+10. **S13:** the Discipline-95 league at leash 50 ≡ the flat league at leash 50, per game (full against full, set A) and per snap (the D95 bench's v4 base against the flat records). One difference falsifies.
+11. **`brokeBelow30` is not reachable in 3.3's arms.** The flat arms never roll at leash 50, and Discipline 95 never breaks a breach of 10 or more, so its 0 is not a measurement. Its evidence is the v5 stream test at leash 0 and 20 (Discipline 60).
+
+**Checks that must read 0, by arm** (game mode, every shard; any one above 0 stops the runs as a defect):
+
+| check | what it counts | arms |
+|---|---|---|
+| option leak | an option key present that the arm's version or knobs do not state | every arm, v4 included |
+| stated ≠ released | the stated `checkRelease` is not the card's released men | arms stating `checkRelease` |
+| eligible not stated | an `eligible` man missing from the stated list | the same |
+| slide check missing | a SLIDE call without `slideCheck` | arms stating `slideCheck` |
+| kept-in man named | a kept-in man (when made) in a read, a throw, a hot conversion, `readOrder` or `routes` | every v5 arm |
+| adjustment on a missed read | a `protectionAdjustment` with margin below 0 (every 3.3 front is honest, and there CALL and LOOK answer and place nobody, so nothing can be wanted) | every v5 arm |
+| pool, contested, unblocked mismatch | the stream against the as-run accounting (declared, then kept-in when made, then windfalls; the slide side as run) | every arm |
+| slide check off its population | a made slide check off the arm's slide population | slide-only, full, no-pointing, D95 at 50 |
+| leash reads | any `leash_discipline` read | every arm at leash 50 |
+| BROKE | any BROKE read | the D95 arms at 20 and 30 |
+
 ---
 
 ## Appendix A. How the design panel's disagreements were settled
