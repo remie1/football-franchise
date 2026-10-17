@@ -333,9 +333,10 @@ export interface CallerKnobs {
 export const DEFAULT_LEASH = 50;
 
 /**
- * WHAT EACH VERSION DOES, ONE ROW EACH (ADR-073 §2.7). The rows restate what the version ternary
- * used to say, and nothing more: v1 plays the card it is dealt; from v2 the offence blocks the
- * front it anticipated; v3 wears Phase 1's two safety looks; v4 all five.
+ * WHAT EACH VERSION DOES, ONE ROW EACH (ADR-073 §2.7). Rows v1–v4 restate what the version
+ * ternary used to say: v1 plays the card it is dealt; from v2 the offence blocks the front it
+ * anticipated; v3 wears Phase 1's two safety looks; v4 all five. None of them states the line's
+ * options. v5 is v4 with them (ADR-073 step 3.3), the first row the ternary never had.
  *
  * A TABLE AND NOT A TERNARY because the type is the list of versions (`CALLER_VERSIONS`): a
  * version with no row fails to compile, where the ternary quietly played any version it did not

@@ -543,7 +543,16 @@ describe("ADR-073 §2.8 — the protection, the picture and the adjustment", () 
   const KEEP_IN = { mug: ["lb1"], backReleases: true, checkRelease: ["rb1"] } as const;
   const startOf = (events: readonly MatchEventEnvelope[]) =>
     events.find((e) => e.event.type === "PLAY_START")?.event.payload as
-      | { offense: { protectionAdjustment?: { made: boolean }; pressurePicture?: unknown } }
+      | {
+          offense: {
+            protectionAdjustment?: { made: boolean; slideSide?: string };
+            pressurePicture?: {
+              picture: string;
+              answers: readonly PlayerId[];
+              placed: readonly { rusher: PlayerId; side?: string }[];
+            };
+          };
+        }
       | undefined;
 
   it("prints the protection as called on every pass play that echoes one, options included", () => {
@@ -564,13 +573,24 @@ describe("ADR-073 §2.8 — the protection, the picture and the adjustment", () 
   it("prints the picture whenever the read rolled, and a keep-in at leash 30 as made", () => {
     const scenario = buildFrontScenario({ ...KEEP_IN, leash: 30 });
     let made = 0;
+    let counted = 0;
     for (const seed of SEEDS) {
       const { events } = simulatePassPlay(scenario.state, scenario.calls, seed);
       const text = renderPlay(events, scenario.names);
       const start = startOf(events);
       expect(text.includes("PICTURE (ADR-073 §2.2): "), seed).toBe(start?.offense.pressurePicture !== undefined);
-      if (start?.offense.pressurePicture !== undefined) {
-        expect(text, seed).toMatch(/├─ PICTURE \(ADR-073 §2\.2\): (TRUE|COUNT|CALL|LOOK) — answers [^;\n]+; counted for the slide: [^\n]+/);
+      const pic = start?.offense.pressurePicture;
+      if (pic !== undefined) {
+        // Built from the payload's own keys, so a renderer reading the wrong one prints "nobody" and fails.
+        const placed = pic.placed.map((m) => `${scenario.names(m.rusher)}${m.side === undefined ? "" : ` on the ${m.side.toLowerCase()}`}`);
+        expect(text, seed).toContain(
+          `  ├─ PICTURE (ADR-073 §2.2): ${pic.picture} — answers ${pic.answers.length === 0 ? "nobody" : pic.answers.map(scenario.names).join(", ")};` +
+            ` counted for the slide: ${placed.length === 0 ? "nobody" : placed.join(", ")}`,
+        );
+        if (pic.picture === "COUNT") {
+          counted += 1;
+          expect(text, seed).toContain("COUNT — answers Isaiah Ford (MLB); counted for the slide: Isaiah Ford (MLB) on the left");
+        }
       }
       if (start?.offense.protectionAdjustment === undefined) {
         expect(text, seed).not.toContain("ADJUSTMENT");
@@ -582,6 +602,21 @@ describe("ADR-073 §2.8 — the protection, the picture and the adjustment", () 
       made += 1;
     }
     expect(made, "the read never wanted the back kept in").toBeGreaterThan(0);
+    expect(counted, "no COUNT picture, so the men it names were never checked").toBeGreaterThan(0);
+  });
+
+  it("prints a checked slide: two extras on the left against a slide called right", () => {
+    const scenario = buildFrontScenario({ extras: 2, extraSides: ["LEFT", "LEFT"], slide: { side: "RIGHT", check: true } });
+    let checked = 0;
+    for (const seed of SEEDS) {
+      const { events } = simulatePassPlay(scenario.state, scenario.calls, seed);
+      const adjustment = startOf(events)?.offense.protectionAdjustment;
+      if (adjustment === undefined) continue;
+      expect(adjustment.slideSide, seed).toBe("LEFT");
+      expect(renderPlay(events, scenario.names), seed).toContain("  ├─ ADJUSTMENT (§2.3): slide checked left — made");
+      checked += 1;
+    }
+    expect(checked, "the read never wanted the slide checked").toBeGreaterThan(0);
   });
 
   it("prints a keep-in the leash held back as held, at leash 20 with Discipline 95", () => {

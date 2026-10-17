@@ -756,6 +756,26 @@ describe("ADR-073 step 3.3, callerVersion v5", () => {
     },
   );
 
+  // The likeliest misuse: a knob on a spec that forgets to name v5, so the default (v4) would play
+  // and the identity would name a knob that did nothing.
+  it.each(["slideCheck", "keepIn"] as const)("the default caller (v4) refuses the %s knob too", (knob) => {
+    for (const value of [true, false]) {
+      const knobs = knob === "slideCheck" ? { slideCheck: value } : { keepIn: value };
+      expect(() =>
+        frozenCallerPair({
+          tendencies: FROZEN_TENDENCIES,
+          fourthDown: FROZEN_FOURTH_DOWN,
+          homeDepthChart: built.homeDepthChart,
+          awayDepthChart: built.awayDepthChart,
+          ...knobs,
+        }),
+      ).toThrow(FrozenCallerError);
+      expect(() =>
+        runOneGame({ built, seed: "adr073-v5-default-knob", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN, ...knobs }),
+      ).toThrow(FrozenCallerError);
+    }
+  });
+
   /** What a v5 call is allowed to add to v4's: the two option keys, and nothing else. */
   const OPTION_KEYS = ["checkRelease", "slideCheck"] as const;
   const withoutOptions = (scheme: ProtectionCall): Record<string, unknown> =>

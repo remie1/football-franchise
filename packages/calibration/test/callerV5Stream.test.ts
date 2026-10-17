@@ -14,7 +14,9 @@
  *  3. DETERMINISM (Iron Rule 4). Same seed, identical v5 stream.
  *
  * The leash below 30 is the only place 3.3's arms cannot reach BROKE (the flat league plays at 50,
- * and Discipline 95 never breaks a breach of 10), so the BROKE count here is that path's evidence.
+ * and Discipline 95 never breaks a breach of 10), so the BROKE count here is caller v5's evidence
+ * for that path, men kept in among it. A BROKE keep-in beside a coverage read (ADR-073 §1's
+ * `brokeBelow30` bag) is the engine's to test, in `engine/test/pressureRead.test.ts`.
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
@@ -137,7 +139,7 @@ describe("ADR-073 §2.3: what a kept-in man does once the line keeps him in", ()
   ];
 
   it("runs no route, works no read and blocks when made; keeps his route when held", () => {
-    const count = { made: 0, held: 0, keptMade: 0, keptHeld: 0, broke: 0, noKeepInKept: 0 };
+    const count = { made: 0, held: 0, keptMade: 0, keptHeld: 0, broke: 0, brokeKept: 0, noKeepInKept: 0 };
     const failures: string[] = [];
     for (const arm of ARMS) {
       for (const leash of [0, 20, 30, 50, 100]) {
@@ -164,7 +166,10 @@ describe("ADR-073 §2.3: what a kept-in man does once the line keeps him in", ()
             if (adj.made) {
               count.made += 1;
               count.keptMade += keptIn.length;
-              if (bands.get(start.playId) === "BROKE") count.broke += 1;
+              if (bands.get(start.playId) === "BROKE") {
+                count.broke += 1;
+                if (keptIn.length > 0) count.brokeKept += 1;
+              }
               const lookedAt = reads.get(start.playId) ?? new Set<string>();
               for (const man of keptIn) {
                 if (start.routes.includes(man)) failures.push(`${where}: kept-in ${man} ran a route`);
@@ -198,6 +203,7 @@ describe("ADR-073 §2.3: what a kept-in man does once the line keeps him in", ()
     expect(count.held).toBeGreaterThan(0);
     expect(count.keptHeld, "no held adjustment listed a man, so 'keeps his route' was never tested").toBeGreaterThan(0);
     expect(count.broke, "no adjustment was made on a BROKE roll below 30").toBeGreaterThan(0);
+    expect(count.brokeKept, "no man was kept in on a BROKE roll below 30").toBeGreaterThan(0);
   }, 10 * 60_000);
 });
 
