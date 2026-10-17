@@ -183,9 +183,12 @@ export interface AccountedRusher {
 
 /**
  * STAGE ONE'S ANSWER: steps 1, 1b, 2 and 3. Who the call accounts for, whether
- * he saw what it did not, and the routes he will run. Nobody has been picked up
- * yet and no line game has run, so nothing here says who is blocking whom at the
- * snap; that is `resolvePickups` and then `resolveStunts`.
+ * he saw what it did not, the routes as called after the hot conversions, and
+ * what the line wants done to the protection. Nobody has been picked up yet and
+ * no line game has run, so nothing here says who is blocking whom at the snap;
+ * that is `resolvePickups` and then `resolveStunts`. Nor is anything here the
+ * protection AS RUN: when the leash makes the adjustment, `simulatePassPlay`
+ * runs its own pool, routes and progression (ADR-073 §2.4 step 9).
  */
 export interface PreSnapRead {
   /** Every played rusher, in `defense.rush` order, with his card pairing if any. */
@@ -193,11 +196,13 @@ export interface PreSnapRead {
   /** Rushers no `ProtectionAssignment` named — a fact about the CALL. */
   readonly unaccounted: readonly PlayerId[];
   /**
-   * THE POOL AS IT WAS OFFERED, in pickup priority: the card's own `available`
+   * THE POOL AS THE CARD OFFERS IT, in pickup priority: the card's own `available`
    * list first, then ADR-026's unblocked protectors at the back. Snapshotted
    * before anybody is taken out of it, so it states who COULD have been used and
    * never who was — whether a body ended up on somebody is the `blitz_pickup`
-   * CHECK's business, and there is no die here (ADR-004/ADR-005).
+   * CHECK's business, and there is no die here (ADR-004/ADR-005). It is the pool
+   * at the snap only when no adjustment is made; a made one puts the kept-in men
+   * between the two parts (`simulatePassPlay`'s pool as run).
    */
   readonly availableBlockers: readonly PlayerId[];
   /**
@@ -236,9 +241,12 @@ export interface PreSnapRead {
    * nobody can end up UNBLOCKED and nothing reads it.
    */
   readonly recognitionRollRef: string;
-  /** The routes he will run, after any §5.3 conversion. */
+  /**
+   * The routes as called, after any hot conversion. A man kept in by a made adjustment gives
+   * his up at the snap, so these are the routes he will run only when none is made.
+   */
   readonly routes: readonly RouteAssignment[];
-  /** The progression he will work, after hot receivers move to the front. */
+  /** The progression, after hot receivers move to the front; a man kept in leaves it at the snap. */
   readonly readOrder: readonly PlayerId[];
   readonly hotConversions: readonly HotConversion[];
 }

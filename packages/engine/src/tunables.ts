@@ -316,7 +316,8 @@ export const TUNABLES = {
        *
        * PROTECTION_ADJUST is the pressure read's one decision (ADR-073 §2.3, ruled at Q1): checking
        * the slide and keeping a back in, together. It sits between the two: a protection change
-       * keeps the call's routes but one, and costs that route.
+       * keeps the call's intent, and costs a route for each man kept in (a slide check alone costs
+       * none).
        *
        * All three sit at or below 50, the calibration caller's default, so the default opens every
        * rung that exists (ADR-072 §7).

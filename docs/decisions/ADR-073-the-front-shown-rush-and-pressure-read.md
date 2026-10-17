@@ -3,14 +3,16 @@
 - **Date:** 2026-10-16
 - **Proposed by:** Orchestrator, building ADR-069 Phase 3 (= ADR-068 step 3 = ADR-071 step 3) in the
   order ADR-069 §10 ruled
-- **Status:** **accepted; 3.0 measured, 3.1 and 3.2a built (§10), 3.2b next.** The owner asked for the draft *(owner, 2026-10-16:
+- **Status:** **accepted; 3.0 measured, 3.1, 3.2a and 3.2b built (§10), 3.3 next.** The owner asked for the draft *(owner, 2026-10-16:
   "yes" to "Should I draft the front design now?")* and ruled all seven of §9's questions as
   recommended *(owner, 2026-10-16, decision cards)*. Every contracts edit in §3 still needs its own
   yes before it is made, and nothing merges without the owner's word. 3.0 re-derives §4.3: the
   informed channel is now expected to raise `sack_rate` through keep-in (§10). The design, the
   rulings and 3.0 merged to main *(owner, 2026-10-16: "Yes, merge" on the decision card)*. 3.1's
   four contracts edits were made on the owner's typed yes naming each *(owner, 2026-10-16: "Yes, make
-  contracts edits P1, P2, D1 and D3a for ADR-073 step two.")*.
+  contracts edits P1, P2, D1 and D3a for ADR-073 step two.")*. 3.2b's six were made the same way
+  *(owner, 2026-10-16 23:41Z: "Yes, make contracts edits P3, D1, D3b, D5, D8 and P2’s doc for ADR-073
+  step 3.2b.")*.
 - **Builds on:** ADR-067 (§D, the rulings on order and the required sentence), ADR-068 (rulings 1–6,
   step 3), ADR-069 (§9.6's Phase 3 row, §10's rulings), ADR-071 (step 3, the words), ADR-072 (the
   ladder, one leash roll, the default of 50), ADR-022 (Petition 1: keeping a man in costs his route
@@ -1535,6 +1537,49 @@ Under these, keep-in's projection is a floor. Slide-only's is not even an estima
 **How the proof ran.** 3.1's harness (`adr073Arm31.test.ts`, unchanged) ran set A in four shards on this tree, and `adr073-proof32a.py` compared every shard's numbers, every game's sha256 and every dropback's digest with 3.1's proof run, whose code differs from what merged as d9351a3 only in comments. The script was checked both ways first: 3.1 against itself passes, and the pre-3.1 main against 3.1 fails on all 6,720 games, as it should, because its streams lack 3.1's new fields. The harness's in-repo copy was deleted before this commit.
 
 **Files** (`/mnt/project-files/arms/`, README section "Front arms (ADR-073 step 3.2a)"): `adr073-proof32a.py` and its output `adr073-proof32a.json`; the harness and run script are 3.1's.
+
+### 3.2b The graded read and the line's options *(2026-10-17; no play change)*
+
+**In short.**
+- **The blitz read has six bands and four pictures.** The bands are §5.1's, at the coverage read's own cuts (DIAGNOSED, IDENTIFIED, COUNTED, UNSURE, MISIDENTIFIED, BUSTED), and each names its picture (TRUE, TRUE, COUNT, CALL, LOOK, LOOK). The point-out still splits at margin 0, so every snap's ±10 is today's.
+- **The read works out what the front shows.** A new pure module, `sim/pressureRead.ts`, holds §2.2's accounting (extras, ghosts, moved men), each picture's answer set and slide set, the perceived pool, the trigger's "would the pictures decide alike" test, `decideProtection` (keep-in first, then the slide check) and the effective call. It throws no dice and reads no gap.
+- **The read rolls** on an unnamed rusher, as today, or on a ghost or a moved man when the four pictures would decide differently. **Hot routes convert** iff the picture answers somebody.
+- **The line's two options are on the call** (P3): `checkRelease` on both arms, `slideCheck` on SLIDE. The validator refuses a check-release man listed twice or running no route, and a MAN protection that states `slideCheck`. Playbook's `protectionOptions` states them where the card allows; no caller uses it yet.
+- **The adjustment is a rung at 30 in the one leash roll**, applied as the effective call in §2.4's order. When made, the kept-in men leave `routes`, `readOrder` and their tracks (filtered, not rebuilt), and join the pool after the declared men and before the windfalls; a checked slide moves the slide side.
+- **PLAY_START** appends `protectionScheme` (as called) on every pass play, `pressurePicture` iff the read rolled, and `protectionAdjustment` iff wanted. `routes` and `availableBlockers` are as run.
+- **Proof (set A: v4, `adr-073:front-arm`, 6,720 games), against 3.2a's own proof run.** On v4 the stream changes in exactly three places: the band label, `pressurePicture` and the `protectionScheme` echo. With those mapped back (the two fields deleted, the band recomputed on the old four-row table from its own margin):
+  - **Numbers:** 0 of 2,874,324 differ, every key compared both ways. Two summary bags are checked on their own instead (below).
+  - **Whole games:** all 6,720 streams have the same sha256 as 3.2a's, with the same event counts. Unmapped, all 6,720 differ, so the new fields are really there.
+  - **Dropbacks:** all 593,962 digests equal 3.2a's (none missing). Unmapped, none does. Because the map only rewrites the band, every read's `roll.total` and `target` are 3.2a's.
+  - **Per read:** 156,153 reads rolled, exactly 3.2a's count. Every band is the six-band label of its margin; every old label went to an allowed new one (READ_IT to DIAGNOSED 59,883 or IDENTIFIED 15,633; RECOGNIZED to IDENTIFIED 7,793 or COUNTED 23,373; MISSED to UNSURE 22,038 or MISIDENTIFIED 9,387; FOOLED to MISIDENTIFIED 10,159 or BUSTED 7,887), and none crossed margin 0. The pictures were TRUE 83,309, COUNT 23,373, CALL 22,038 and LOOK 27,433. Every picture sits on a rolled read and every rolled read has one; under TRUE and COUNT the answers are the call's unaccounted rushers, under CALL and LOOK nobody; every placed man matches the rush echo.
+  - **Never on v4:** a `protectionAdjustment`, and a leash read. `protectionScheme` deep-equals the call's on all 593,962 pass starts.
+- **Tier B** (`FF_BAND_GATE=1`, the band-table gate, 97 corpus runs): **green**. It counts 28 tables, 137 rows, 270 cells, 55 orderable and 4 string columns. 10 columns invert before exemption, and the derivation is scoped to their 51 cells. The verdicts are LIVE 39, GUARDED 11 (the exemption set) and UNREACHED_ROW 1, as in ADR-037's recorded run, and the four inversions that survive are the four already adjudicated.
+
+**Departures from 3.2b as written, and the details it left open.**
+- **`recognized` stays**, beside `picture`, as the point-out flag (the top three bands), and keeps its name on `PreSnapRead` and `resolvePickups`, so 3.2a's stage tests compile unchanged. A test ties it to TRUE or COUNT on every row. The band census is therefore 137 rows, 270 cells, 55 orderable and 4 string columns, and `bandGuards`' count holds at 45.
+- **The slide check is also gated on `blitzPickup.slideIsUncontested`.** With that tunable off a slide answers nobody, so a check would change nothing and is never wanted.
+- **Where the pictures place a man:** at his shown side if the shown list states one, else his played side. Alignments are compared resolved, as §2.2 says, so a shown entry that omits its alignment means the position's default, and can make a man moved. 3.5's `applyFrontLook` copies the men it leaves alone.
+- **The trigger's "decide alike" test** compares, across the four pictures, whether hot routes convert (the picture answers somebody and the call has a hot route), the wanted slide side, and the kept-in men in order.
+- **CALL's perceived pool** (undefined in §2.2) is the real pool, declared men and windfalls. CALL answers nobody, so it never keeps anybody in, and the pool is never emitted.
+- **The effective call drops kept-in men from `checkRelease`**, so the call as run passes the validator. Its routes are the called routes minus K, and only the recovery spots read it; PLAY_START's `routes` are the routes he ran, hot conversions included, minus K.
+- **`protectionScheme` is echoed as called.** The protection as run is `routes`, `readOrder`, `availableBlockers` and `protectionAdjustment` together.
+- **The validator states two rules, not four.** A check-release man must run a route in the call, once. A man who is `available` or a `protection[].blocker` runs no route (the rules above refuse a route-runner who is either), so the route rule refuses him and P3's disjointness needs no rule of its own. The engine's tests refuse an unknown man, a man listed twice and a blocker; playbook's coherence mirror refuses each of P3's four lists. `slideCheck` on a MAN protection is refused at runtime as well as by the type, because a spread of a SLIDE call can carry it past the union.
+- **`protectionOptions` returns the whole `ProtectionCall`**, built separately for each arm, rather than a bag of options to spread in, so a MAN arm can never carry `slideCheck`. The engine, not playbook, leaves out men already converted hot.
+- **`buildRecoverySpots` is exported from `passPlay.ts`** (not from the index) for its test, and a source pin holds its one call site to the effective call and the filtered tracks. The mutation that handed it the call as called passed every behavioural test until the pin was added.
+- **Each contracts edit landed with its producer:** D5 with the six bands (1/4), P3 with the options (2/4), D1, D8 and P2's doc with the pressure read (3/4), D3b with the adjustment (4/4).
+- **Left for 3.3:** the optional calibration smoke test (every corpus pass concept, with `protectionOptions` applied, through the engine validator and one snap), because v5 is the first caller; and debug renderer lines for the three new PLAY_START fields, which say nothing on v4. **Left as it is:** contracts `playcalls.ts`'s sentence "There is no shown-vs-played pair anywhere in the engine today", out of date since ADR-068 and outside this petition; it can join 3.5's contracts batch with the owner's yes.
+- **D5 keeps its words.** A capital and a full stop fit it to the sentence it now opens.
+- **Tests** (the ADR named no homes): engine `test/pressureRead.test.ts` (71: the band table, then falsifier groups A and B, on a new `buildFrontScenario` fixture that is honest by default and sits in 3.1's identity list); `playCallCoherence.test.ts` (6: P3's accept and refusals, and a call with the options playing exactly as one without while the read does not roll); playbook `test/protectionOptions.test.ts` (2, over the pass corpus against every defensive card). Twenty-four mutations of the new code are each caught:
+  - ten in group A: the trigger, hot routes, the pool, moved men, keep-in, the slide check, the alike test, LOOK's slide set;
+  - seven in group B: pool order, the recovery call site, K*, unfiltered tracks, the rung never wanted, the slide not applied, routes echoed as called;
+  - seven from the review (below).
+- **The review** (five lenses, each finding put to skeptics) found no play bug. It found six places where a broken version of the new code still passed every test, and six comments the step had made false. All twelve are fixed in this commit.
+  - **Tests.** The rule that a man whose route converts hot is never kept in is now tested through the read and the stream, on a check-release back with a hot flat. A BROKE keep-in keeps the other receivers' misreads (a second lie, on a man who keeps his route). A windfall counts as the slide check's body. The slide's majority is taken over the sided men, and the body must be found by a sided extra (the fixture can now build a rusher with no side). The moved-man comparison now keeps somebody in. The recovery spots' source pin also pins `runCalls` to the effective call. The seven broken versions the review built each fail a test now: the hot set emptied, the tracks rebuilt, windfalls dropped from the bodies, keep-in sized off the slide set, the majority over every placed man, an unsided extra finding the body, and the recovery spots handed the call as written.
+  - **Comments.** These were rewritten: the rung's cost (a route for each man kept in), why a man under the rung is certain to be kept in, where `PlacedRusher` takes its side, `PreSnapRead`'s pool and routes (as the card offers them, before any adjustment), calibration's `hotConversionDropbacks`, and the P3 test that said nothing reads the options (it now pins that the read did not roll).
+
+**How the proof ran.** 3.1's harness, extended with the map (`map32b`), a mapped digest beside each game's and each dropback's, and per-read counters written to a separate file so the numbers stay comparable, ran set A in four shards on this tree. `adr073-proof32b.py` compared every shard's numbers, every game's sha256 and every dropback's digest with 3.2a's proof run (`s32a`). The script was checked both ways first: 3.2a against itself passes, and 3.2b unmapped fails on every game and every dropback. Two summary bags are left out of the number diff and checked on their own: `/front/observedFour`, whose labels are the band's (each disguise row's new counts equal 3.2a's six-band counts, and the top three sum to 3.2a's READ_IT and RECOGNIZED), and `/front/later/pictures`, 3.0's census of the picture field itself, which must equal the per-read counters' picture totals exactly. The harness's in-repo copy was deleted before this commit.
+
+**Files** (`/mnt/project-files/arms/`, README section "Front arms (ADR-073 step 3.2b)"): `adr073Arm32b.test.ts` (the harness with the map and counters), `adr073-run32b.sh`, `adr073-proof32b.py` and its output `adr073-proof32b.json`. For 3.3: the analyzer's `short|band:*` strata now carry the six labels; use `short|pic:*`.
 
 ---
 

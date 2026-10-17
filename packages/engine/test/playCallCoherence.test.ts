@@ -376,9 +376,10 @@ describe("ADR-006 — what the engine must NOT reject", () => {
 
 /**
  * ADR-073 §3 P3 — the line's two options on a protection call. A check-release man is a man who
- * released: he runs a route in this call. A slide check needs a slide. Nothing in the engine uses
- * either option yet (ADR-073 3.2b's pressure read is the first reader), so a call that states them
- * must play exactly as the same call without them.
+ * released: he runs a route in this call. A slide check needs a slide. The pressure read acts on
+ * them (ADR-073 §2.3, `sim/pressureRead.ts`), and only on a snap where it rolls. On a call that
+ * names every rusher behind an honest front it does not roll, so a call that states them plays
+ * exactly as the same call without them.
  */
 describe("ADR-073 P3 — the line's options", () => {
   function withOptions(protectionScheme: NonNullable<PlayCalls["offense"]["protectionScheme"]>) {
@@ -434,13 +435,22 @@ describe("ADR-073 P3 — the line's options", () => {
     expect(() => assertCoherentPlayCall(state, calls)).toThrow(/MAN protection states slideCheck/);
   });
 
-  it("plays exactly as the same call without them, while nothing reads them", () => {
+  it("plays exactly as the same call without them when every rusher is named and nothing is shown", () => {
     const { te } = ids();
     const plain = withOptions({ kind: "SLIDE", slideSide: "LEFT" });
     const optioned = withOptions({ kind: "SLIDE", slideSide: "LEFT", slideCheck: true, checkRelease: [te] });
     for (let i = 0; i < 20; i++) {
+      const played = simulatePassPlay(optioned.state, optioned.calls, `p3-${String(i)}`).events;
+      // The precondition, pinned: the read did not roll, so nothing was pictured or wanted.
+      const reads = played.filter((e) => e.event.type === "PRESNAP_READ" && e.event.payload.kind === "blitz_recognition");
+      expect(reads).toEqual([]);
+      const start = played.find((e) => e.event.type === "PLAY_START")?.event.payload as unknown as {
+        readonly offense: Record<string, unknown>;
+      };
+      expect(start.offense).not.toHaveProperty("pressurePicture");
+      expect(start.offense).not.toHaveProperty("protectionAdjustment");
       const a = simulatePassPlay(plain.state, plain.calls, `p3-${String(i)}`).events.filter((e) => e.event.type !== "PLAY_START");
-      const b = simulatePassPlay(optioned.state, optioned.calls, `p3-${String(i)}`).events.filter((e) => e.event.type !== "PLAY_START");
+      const b = played.filter((e) => e.event.type !== "PLAY_START");
       expect(JSON.stringify(b)).toBe(JSON.stringify(a));
     }
   });

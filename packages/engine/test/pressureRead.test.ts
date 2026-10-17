@@ -148,6 +148,9 @@ describe("ADR-073 §2.2: the fixtures the falsifiers run on", () => {
     releasedBack: { backReleases: true, checkRelease: ["te1", "rb1"] },
     slideChecked: { slide: { side: "RIGHT", check: true }, extras: 1, hot: true },
     lieOnBack: { backReleases: true, lieOnBack: true, checkRelease: ["rb1"], leash: 20, discipline: 0 },
+    unsided: { extras: 2, extraSides: ["UNSIDED", "LEFT"], slide: { side: "RIGHT", check: true } },
+    hotBack: { mug: ["lb1"], backReleases: true, hotBack: true, checkRelease: ["rb1", "te1"] },
+    trapOnWr2: { backReleases: true, lieOnBack: true, trapOnWr2: true, checkRelease: ["rb1"] },
   };
   it.each(Object.entries(VARIANTS))("%s is a coherent call", (_name, options) => {
     const scenario = buildFrontScenario(options);
@@ -404,11 +407,26 @@ describe("ADR-073 §2.3 step 2: the slide check", () => {
     expect(check({ slide: { side: "RIGHT" }, extras: 1, extraSides: ["LEFT"] }, "TRUE")).toBeUndefined();
   });
 
-  it("is not wanted when no extra would find a body, and is when a kept-in man is the body", () => {
+  it("is not wanted when no extra would find a body, and is when a kept-in man or a windfall is the body", () => {
     expect(check({ slide: sliding, extras: 1, extraSides: ["LEFT"], backReleases: true }, "TRUE")).toBeUndefined();
     expect(
       check({ slide: sliding, extras: 1, extraSides: ["LEFT"], backReleases: true, checkRelease: ["te1"] }, "TRUE"),
     ).toEqual({ slideSide: "LEFT", keptIn: ids("te1") });
+    // rt1's man lb1 drops: ADR-026's windfall is the body, with nobody declared and nobody kept in.
+    expect(
+      check({ slide: sliding, extras: 1, extraSides: ["LEFT"], backReleases: true, namedDropper: true }, "TRUE"),
+    ).toEqual({ slideSide: "LEFT", keptIn: [] });
+  });
+
+  it("takes the majority over the sided men, and needs a sided extra to find the body", () => {
+    // blz0 comes from the left and blz1 states no side: one of one sided men is a strict majority.
+    expect(check({ slide: sliding, extras: 2, extraSides: ["LEFT", "UNSIDED"] }, "TRUE")).toEqual({
+      slideSide: "LEFT",
+      keptIn: [],
+    });
+    // blz0 states no side and takes the one body (rb1); blz1, from the left, finds nobody. A
+    // checked slide would move nobody, so it is not wanted (ADR-005).
+    expect(check({ slide: sliding, extras: 2, extraSides: ["UNSIDED", "LEFT"] }, "TRUE")).toBeUndefined();
   });
 
   it("is not wanted when a slide answers nobody (`slideIsUncontested` off)", () => {
@@ -484,6 +502,31 @@ describe("ADR-073 §2.3: the hot routes ride the answer set", () => {
   });
 });
 
+describe("ADR-073 §2.3: a man whose route converts hot is never kept in", () => {
+  it("through the read: the back's hot flat stands, and the walk takes the next man on the card", () => {
+    // A Mug against an empty pool: COUNT and LOOK answer lb1, so the hot routes convert and the
+    // line is a man short. rb1 is first on the card, but his check flat is hot.
+    const both = buildFrontScenario({ mug: ["lb1"], backReleases: true, hotBack: true, checkRelease: ["rb1", "te1"] });
+    const alone = buildFrontScenario({ mug: ["lb1"], backReleases: true, hotBack: true, checkRelease: ["rb1"] });
+    let answered = 0;
+    for (const seed of SEEDS) {
+      const read = readOf(both, seed);
+      expect(read.recognition, seed).toBeDefined();
+      if ((read.pressurePicture?.answers.length ?? 0) === 0) {
+        expect(read.hotConversions, seed).toEqual([]);
+        continue;
+      }
+      answered++;
+      expect(read.hotConversions.map((h) => h.receiver), seed).toContain(id("rb1"));
+      expect(read.routes.map((r) => r.receiver), seed).toContain(id("rb1"));
+      expect(read.protectionWanted, seed).toEqual({ keptIn: ids("te1") });
+      // With nobody else on the card there is nobody to keep in, and nothing is wanted.
+      expect(readOf(alone, seed).protectionWanted, seed).toBeUndefined();
+    }
+    expect(answered).toBeGreaterThan(0);
+  });
+});
+
 describe("ADR-073 §2.8: the picture on PLAY_START", () => {
   it("is present iff the read rolled, names its band's picture, and states the picture's sets", () => {
     const scenario = buildFrontScenario({ mug: ["lb1"], extras: 1, hot: true });
@@ -527,10 +570,18 @@ describe("ADR-073 §2.2: a moved man changes only where the slide thinks the str
   });
 
   it("on a checkable slide, the answers, the hot routes, the point-out and the keep-in are the same", () => {
-    const options: FrontOptions = { extras: 1, hot: true, slide: { side: "LEFT", check: true }, checkRelease: ["te1"] };
+    // The back releases, so the pool is empty and an answered extra keeps te1 in.
+    const options: FrontOptions = {
+      extras: 1,
+      hot: true,
+      slide: { side: "LEFT", check: true },
+      backReleases: true,
+      checkRelease: ["te1"],
+    };
     const moved = buildFrontScenario({ ...options, moved: true });
     const still = buildFrontScenario(options);
     let slideDiffered = 0;
+    let keptSome = 0;
     for (const seed of SEEDS) {
       const a = readOf(moved, seed);
       const b = readOf(still, seed);
@@ -538,9 +589,11 @@ describe("ADR-073 §2.2: a moved man changes only where the slide thinks the str
       expect(a.hotConversions).toEqual(b.hotConversions);
       expect(a.recognized).toBe(b.recognized);
       expect(a.protectionWanted?.keptIn ?? []).toEqual(b.protectionWanted?.keptIn ?? []);
+      if ((b.protectionWanted?.keptIn.length ?? 0) > 0) keptSome++;
       if (a.protectionWanted?.slideSide !== b.protectionWanted?.slideSide) slideDiffered++;
     }
-    // Non-vacuity: the moved man did pull the slide on some snaps.
+    // Non-vacuity: the keep-in compared was not empty, and the moved man did pull the slide.
+    expect(keptSome).toBeGreaterThan(0);
     expect(slideDiffered).toBeGreaterThan(0);
   });
 });
@@ -588,6 +641,17 @@ function played(scenario: Scenario, seed: string) {
     coverageReads: presnapOf(events, "coverage_read"),
     looked,
   };
+}
+
+const COVERAGE_BANDS = TUNABLES.presnap.coverageRead.bands;
+
+/** Every coverage-misread line on the quarterback's reads of this receiver. */
+function misreadsOf(events: readonly MatchEventEnvelope[], receiver: PlayerId): readonly string[] {
+  return events.flatMap(({ event }) =>
+    event.type === "QB_READ" && String(event.payload.target) === String(receiver)
+      ? event.payload.varianceRoll.modifiers.map((m) => m.source).filter((m) => m.startsWith("Coverage misread"))
+      : [],
+  );
 }
 
 /** Runs no route, works no read: what a man kept in must be on the stream. */
@@ -641,6 +705,9 @@ describe("ADR-073 §2.3: the effective call", () => {
     const source = readFileSync(join(import.meta.dirname, "..", "src", "sim", "passPlay.ts"), "utf8");
     const sites = [...source.matchAll(/(?<!function )buildRecoverySpots\(([^)]*)\)/g)].map((m) => m[1]);
     expect(sites).toEqual(["tunables, state, runCalls, tracks"]);
+    // …and `runCalls` is the effective call of what was made, not the call as written.
+    expect(source.match(/\brunCalls\b/g)?.length).toBe(2);
+    expect(source).toMatch(/const runCalls = effectiveCall\(calls, adjusted\);/);
   });
 
   it("offers the pool as run on PLAY_START: declared, then kept in, then the windfalls", () => {
@@ -710,6 +777,24 @@ describe("ADR-073 §2.4: the one leash roll", () => {
     }
   });
 
+  it("a BROKE keep-in filters the tracks: a receiver who keeps his route keeps the misread", () => {
+    // Two lies: rb1 (hidden, and kept in) and wr2 (a trap: cb2 shown deep on the other side).
+    // Fooled, wr2 believes the look; dropping rb1 must not take wr2's belief with it.
+    const scenario = buildFrontScenario({ ...KEEP_IN, lieOnBack: true, trapOnWr2: true, leash: 20, discipline: 0 });
+    let carried = 0;
+    for (const seed of SEEDS) {
+      const s = played(scenario, seed);
+      if (s.adjustment?.made !== true) continue;
+      expectKeptIn(s.start, id("rb1"), seed);
+      const [read] = s.coverageReads;
+      const fooled = COVERAGE_BANDS.find((b) => b.label === read?.band)?.fooled === true;
+      const misreads = misreadsOf(s.events, id("wr2"));
+      if (!fooled) expect(misreads, seed).toEqual([]);
+      carried += misreads.length;
+    }
+    expect(carried).toBeGreaterThan(0);
+  });
+
   it("at a leash that opens the rung, a man certain to be kept in has no track, so his lie rolls no coverage die", () => {
     const scenario = buildFrontScenario({ ...KEEP_IN, lieOnBack: true, leash: 30 });
     let kept = 0;
@@ -735,27 +820,37 @@ describe("ADR-073 §2.8: the stream says what the line did", () => {
   const DISCIPLINES = [0, 95] as const;
 
   it("no read, throw, hot route or progression ever names a man kept in; a coverage read on him needs a BROKE leash below 30", () => {
+    // The second front lists a back whose route can convert hot, so the hot-route check can fail.
+    const FRONTS: readonly FrontOptions[] = [
+      { ...KEEP_IN, lieOnBack: true, hot: true },
+      { mug: ["lb1"], backReleases: true, hotBack: true, checkRelease: ["rb1", "te1"] },
+    ];
     let bag = 0;
-    for (const leash of LEASHES) {
-      for (const discipline of DISCIPLINES) {
-        const scenario = buildFrontScenario({ ...KEEP_IN, lieOnBack: true, hot: true, leash, discipline });
-        for (const seed of SEEDS.slice(0, 120)) {
-          const s = played(scenario, seed);
-          if (s.adjustment?.made !== true) continue;
-          for (const man of s.adjustment.keptIn) {
-            expect(s.looked, seed).not.toContain(String(man));
-            expect(s.start.offense.hotConversions.map((h) => h.receiver), seed).not.toContain(man);
-            expect(s.start.offense.readOrder, seed).not.toContain(man);
-          }
-          if (s.coverageReads.length > 0) {
-            expect(leash, seed).toBeLessThan(30);
-            expect(s.leashReads.map((r) => r.band), seed).toEqual(["BROKE"]);
-            bag++;
+    let hotBeside = 0;
+    for (const options of FRONTS) {
+      for (const leash of LEASHES) {
+        for (const discipline of DISCIPLINES) {
+          const scenario = buildFrontScenario({ ...options, leash, discipline });
+          for (const seed of SEEDS.slice(0, 120)) {
+            const s = played(scenario, seed);
+            if (s.adjustment?.made !== true) continue;
+            for (const man of s.adjustment.keptIn) {
+              expect(s.looked, seed).not.toContain(String(man));
+              expect(s.start.offense.hotConversions.map((h) => h.receiver), seed).not.toContain(man);
+              expect(s.start.offense.readOrder, seed).not.toContain(man);
+            }
+            if (s.start.offense.hotConversions.some((h) => String(h.receiver) === "rb1")) hotBeside++;
+            if (s.coverageReads.length > 0) {
+              expect(leash, seed).toBeLessThan(30);
+              expect(s.leashReads.map((r) => r.band), seed).toEqual(["BROKE"]);
+              bag++;
+            }
           }
         }
       }
     }
     expect(bag).toBeGreaterThan(0);
+    expect(hotBeside).toBeGreaterThan(0);
   });
 
   const EVERY_FRONT: Readonly<Record<string, FrontOptions>> = {

@@ -360,9 +360,10 @@ export function simulatePassPlay(
   const preSnap = readPreSnap({ tunables, calls, quarterback: qb, presnapRng, player });
 
   // §2.4 step 4: a man the line wants kept in is CERTAIN to be kept in when the leash opens
-  // PROTECTION_ADJUST (no rung above the leash: everything wanted is made), so he runs no track
-  // the coverage read could judge. Below the rung nothing is certain, and he keeps his track
-  // until the leash roll says otherwise (step 9).
+  // PROTECTION_ADJUST (with no rung above the leash everything wanted is made; otherwise HELD
+  // makes every rung at or below it and BROKE makes all), so he runs no track the coverage read
+  // could judge. Below the rung nothing is certain, and he keeps his track until the leash roll
+  // says otherwise (step 9).
   const leash = calls.offense.leash ?? LEASH_UNRESTRICTED;
   const wantedProtection = preSnap.protectionWanted;
   const certainlyKeptIn = new Set(

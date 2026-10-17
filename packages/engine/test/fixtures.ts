@@ -1032,7 +1032,8 @@ export function sackTick(events: readonly MatchEventEnvelope[]): number | undefi
  * back kept in as the card's one available body, s1 in the deep middle, `shownRush === rush` and
  * `shownAssignments === assignments`. Every option moves exactly what it names:
  *
- * - `extras`: unnamed blitzers, inside, from `extraSides[i]` (default RIGHT);
+ * - `extras`: unnamed blitzers, inside, from `extraSides[i]` (default RIGHT; `UNSIDED` states no
+ *   side, which the contracts allow and playbook's cards never write);
  * - `mug`: men shown rushing who drop — lb1 (who has te1 in man) or s1 — at `mugSide` (default
  *   LEFT), inside. Unnamed, each is a ghost;
  * - `moved`: blz0 shown on the side he does not play (needs an extra);
@@ -1041,8 +1042,12 @@ export function sackTick(events: readonly MatchEventEnvelope[]): number | undefi
  * - `checkRelease`: the card's check-release men, by role (P3);
  * - `slide`: a SLIDE to `side`, with `slideCheck` when `check`;
  * - `hot`: wr1's Go converts to a hot slant;
+ * - `hotBack`: rb1's check flat is a hot route too, so a check-release back can convert hot (needs
+ *   `backReleases`);
  * - `lieOnBack`: s1 shown in rb1's flat cell while he plays deep, so rb1 is the one receiver the
  *   coverage lies about (a HIDDEN man; needs `backReleases`);
+ * - `trapOnWr2`: cb2 shown in a deep zone on the other side while he plays wr2 man, so the look
+ *   lies about a receiver nobody keeps in (a TRAP: shown nobody, played somebody);
  * - `leash`, `discipline`: the call's leash and the quarterback's Discipline.
  *
  * The blitz disguise defaults to ZERO, so the read's margin is about d100 − 42 and every one of
@@ -1050,7 +1055,7 @@ export function sackTick(events: readonly MatchEventEnvelope[]): number | undefi
  */
 export interface FrontOptions {
   readonly extras?: number;
-  readonly extraSides?: readonly RunSide[];
+  readonly extraSides?: readonly (RunSide | "UNSIDED")[];
   readonly mug?: readonly ("lb1" | "s1")[];
   readonly mugSide?: RunSide;
   readonly moved?: boolean;
@@ -1059,7 +1064,9 @@ export interface FrontOptions {
   readonly checkRelease?: readonly ("rb1" | "te1")[];
   readonly slide?: { readonly side: RunSide; readonly check?: boolean };
   readonly hot?: boolean;
+  readonly hotBack?: boolean;
   readonly lieOnBack?: boolean;
+  readonly trapOnWr2?: boolean;
   readonly leash?: number;
   readonly discipline?: number;
   readonly disguise?: BlitzDisguise;
@@ -1071,6 +1078,7 @@ export function buildFrontScenario(options: FrontOptions = {}): Scenario {
   const backReleases = options.backReleases ?? false;
   if (options.moved === true && extras === 0) throw new Error("fixture: `moved` needs an extra");
   if (options.lieOnBack === true && !backReleases) throw new Error("fixture: `lieOnBack` needs `backReleases`");
+  if (options.hotBack === true && !backReleases) throw new Error("fixture: `hotBack` needs `backReleases`");
 
   const rb = makePlayer("rb1", "Nate Ivory", "RB", {
     speed: 88, acceleration: 87, agility: 85, strength: 74, passBlock: 70, awareness: 70, reaction: 72,
@@ -1121,7 +1129,18 @@ export function buildFrontScenario(options: FrontOptions = {}): Scenario {
       : wr1Route,
     ...otherRoutes,
     ...(backReleases
-      ? [{ receiver: rb.bio.id, routeName: "Check Flat", depthClass: "QUICK" as const, airYards: 2, breakZone: flatCell }]
+      ? [
+          {
+            receiver: rb.bio.id,
+            routeName: "Check Flat",
+            depthClass: "QUICK" as const,
+            airYards: 2,
+            breakZone: flatCell,
+            ...(options.hotBack === true
+              ? { hot: { routeName: "Hot Flat", depthClass: "QUICK" as const, airYards: 1, breakZone: flatCell } }
+              : {}),
+          },
+        ]
       : []),
   ];
   const readOrder = [...base.calls.offense.readOrder, ...(backReleases ? [rb.bio.id] : [])];
@@ -1149,14 +1168,26 @@ export function buildFrontScenario(options: FrontOptions = {}): Scenario {
 
   const deepMiddle = { kind: "ZONE" as const, defender: safety.bio.id, zone: { horizontal: "C", vertical: "DEEP" } as const };
   const assignments: PlayCalls["defense"]["assignments"] = [...base.calls.defense.assignments, deepMiddle];
-  const shownAssignments: PlayCalls["defense"]["assignments"] =
-    options.lieOnBack === true ? [...base.calls.defense.assignments, { ...deepMiddle, zone: flatCell }] : assignments;
+  const cb2 = id("cb2");
+  const shownBase: PlayCalls["defense"]["assignments"] =
+    options.trapOnWr2 === true
+      ? base.calls.defense.assignments.map((a) =>
+          a.defender === cb2 ? { kind: "ZONE" as const, defender: cb2, zone: { horizontal: "LH", vertical: "DEEP" } as const } : a,
+        )
+      : base.calls.defense.assignments;
+  const lying = options.lieOnBack === true || options.trapOnWr2 === true;
+  const shownAssignments: PlayCalls["defense"]["assignments"] = !lying
+    ? assignments
+    : [...shownBase, options.lieOnBack === true ? { ...deepMiddle, zone: flatCell } : deepMiddle];
 
-  const extraSide = (i: number): RunSide => options.extraSides?.[i] ?? "RIGHT";
+  const extraSide = (i: number): { side?: RunSide } => {
+    const side = options.extraSides?.[i] ?? "RIGHT";
+    return side === "UNSIDED" ? {} : { side };
+  };
   const rush: PlayCalls["defense"]["rush"] = [
     { rusher: id("de1"), move: "SPEED", side: "LEFT", alignment: "EDGE" },
     { rusher: id("dt1"), move: "POWER", side: "RIGHT", alignment: "INTERIOR" },
-    ...blitzers.map((b, i) => ({ rusher: b.bio.id, move: "SPEED" as const, side: extraSide(i), alignment: "INTERIOR" as const })),
+    ...blitzers.map((b, i) => ({ rusher: b.bio.id, move: "SPEED" as const, ...extraSide(i), alignment: "INTERIOR" as const })),
   ];
   const mugSide = options.mugSide ?? "LEFT";
   const mugged = (options.mug ?? []).map((m) => ({ rusher: id(m), side: mugSide, alignment: "INTERIOR" as const }));

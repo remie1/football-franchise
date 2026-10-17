@@ -258,10 +258,12 @@ export interface ResolvedShownRusher extends ShownRusher {
 export type PressurePictureKind = "TRUE" | "COUNT" | "CALL" | "LOOK";
 
 /**
- * A rusher at the spot the pressure read PERCEIVES him (ADR-073 §2.2): the side as the list he
- * is counted from states it (absent when it does not), and the alignment resolved as
- * `ResolvedRushAssignment`'s is. Same shape as a resolved rusher, different fact: this is where
- * the quarterback thinks the man is, which on a front look is not where he plays.
+ * A rusher at the spot the pressure read PERCEIVES him (ADR-073 §2.2), with the alignment resolved
+ * as `ResolvedRushAssignment`'s is. The side: a man placed where he plays takes his played side; a
+ * man placed where he is shown takes the side the shown list states, or his played side where it
+ * states none; a ghost takes the shown side. Absent when the lists it is read from state none.
+ * Same shape as a resolved rusher, different fact: this is where the quarterback thinks the man
+ * is, which on a front look is not where he plays.
  */
 export interface PlacedRusher {
   readonly rusher: PlayerId;
