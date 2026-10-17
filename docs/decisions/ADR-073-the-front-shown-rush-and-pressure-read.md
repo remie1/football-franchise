@@ -3,7 +3,7 @@
 - **Date:** 2026-10-16
 - **Proposed by:** Orchestrator, building ADR-069 Phase 3 (= ADR-068 step 3 = ADR-071 step 3) in the
   order ADR-069 §10 ruled
-- **Status:** **accepted; 3.0 measured, 3.1, 3.2a and 3.2b built (§10), 3.3 next.** The owner asked for the draft *(owner, 2026-10-16:
+- **Status:** **accepted; 3.0 measured, 3.1, 3.2a and 3.2b built, 3.3 built and measured (§10), awaiting merge; 3.4 next.** The owner asked for the draft *(owner, 2026-10-16:
   "yes" to "Should I draft the front design now?")* and ruled all seven of §9's questions as
   recommended *(owner, 2026-10-16, decision cards)*. Every contracts edit in §3 still needs its own
   yes before it is made, and nothing merges without the owner's word. 3.0 re-derives §4.3: the
@@ -12,7 +12,7 @@
   four contracts edits were made on the owner's typed yes naming each *(owner, 2026-10-16: "Yes, make
   contracts edits P1, P2, D1 and D3a for ADR-073 step two.")*. 3.2b's six were made the same way
   *(owner, 2026-10-16 23:41Z: "Yes, make contracts edits P3, D1, D3b, D5, D8 and P2’s doc for ADR-073
-  step 3.2b.")*.
+  step 3.2b.")*. 3.3 needed no contracts edit; caller v5 is opt-in, and the default stays v4.
 - **Builds on:** ADR-067 (§D, the rulings on order and the required sentence), ADR-068 (rulings 1–6,
   step 3), ADR-069 (§9.6's Phase 3 row, §10's rulings), ADR-071 (step 3, the words), ADR-072 (the
   ladder, one leash roll, the default of 50), ADR-022 (Petition 1: keeping a man in costs his route
@@ -1628,6 +1628,128 @@ Under these, keep-in's projection is a floor. Slide-only's is not even an estima
 | slide check off its population | a made slide check off the arm's slide population | slide-only, full, no-pointing, D95 at 50 |
 | leash reads | any `leash_discipline` read | every arm at leash 50 |
 | BROKE | any BROKE read | the D95 arms at 20 and 30 |
+
+**Dated notes.**
+- *2026-10-17, before R0.* Rule 11's last sentences were reworded in place by the review fix commit (e650227), to name the bag's evidence and caller v5's evidence separately. They first read: "Its evidence is the v5 stream test at leash 0 and 20 (Discipline 60)." Scoring is unchanged.
+- *2026-10-17, after the runs.* Rule 4's reason for printing the game-level interaction unscored ("at 2 SE it spans about 0.05 to 0.07 points") proved wrong: paired on the same seeds, its 2 SE is 0.008 points. It is printed, not scored, as filed (3.3's write-up gives it).
+- *2026-10-17, after the runs.* The contested and unblocked rows of "pool, contested, unblocked mismatch" are counted on snaps with no line game, as H has counted them since 3.0; the pool row is counted on every snap.
+
+### 3.3 Caller v5: the line answers what it sees *(2026-10-17; built and measured; v5 is opt-in, the default stays v4)*
+
+**In short.**
+- **v5 is v4 with the line's two options stated.** On every pass call it applies playbook's `protectionOptions`: `slideCheck` on a SLIDE, and the card's released check-release men in `checkRelease`. Knobs `/no-slide-check` and `/no-keep-in` drop either key, and each is refused on a version without options, the default v4 included. `PROFILE` is an exhaustive table over `CALLER_VERSIONS`, so a version without a row fails to compile. The default caller stays v4 until step 3.5 moves it, once, to v7.
+- **The proof holds. v5 with both options off plays v4's games exactly:** all 26,880 games over sets A and B (game sha256 and event counts), all 593,962 set-A dropbacks (digest), every number both ways (0 of 3,212,100 on set A; set B against its own v4), and all 593,962 replays on the bench.
+- **Every prediction filed for 3.3 passes**, scored by the rules filed before any arm ran (the section above). The decisive windows are the filed ones; the paired per-game SEs beside them are 4 to 6 times tighter.
+
+| | filed (3.0 re-derived) | measured, 26,880 games | verdict |
+|---|---|---|---|
+| S2 slide-only Δsack | −0.01, window [−0.148, +0.068] | **−0.011** (paired SE 0.006) | PASS |
+| S4 keep-in-only Δsack | +0.13, window [+0.012, +0.208] | **+0.115** (paired SE 0.011) | PASS |
+| S6 full Δsack, all | +0.12, window [−0.068, +0.198] | **+0.095** (paired SE 0.012) | PASS |
+| S6 full Δsack, a `short` snap | +0.45, window [−0.124, +0.634] | **+0.439** (paired SE 0.026) | PASS |
+| S7 pressured, full | down by more than 0.064; 3.0 said −0.69 | **−0.679** (paired SE 0.012) | PASS |
+| S3 kept-in men (keep-in-only) | Σp·k = 39,334 ± 2·110 | 39,341 (1.66% of dropbacks) | PASS |
+| S5 slide checks (full, on `slideable`) | Σp = 68,967 ± 2·134 | 68,857 | PASS |
+
+- **Keeping a back in costs sacks, as 3.0 said it would.** Keep-in-only raises `sack_rate` by +0.115 points on all dropbacks. On `keepable` snaps (one rusher more than the pool, a released back who could stay in), it raises sacks by +4.91 points while pressure falls 12.72 and the pocket breaks down 16.21 points less often. The quarterback loses his outlet. The slide check is worth nothing on sacks overall (−0.011 points) and takes pressure down 0.36. Together they raise sacks by +0.095 points and take pressure down 0.68. S4 and S6 sit inside their windows but below their re-derived centrals, by 1.3 and 2.0 paired SE.
+- **The banner's direction holds** (R2's sentence, which opens the report): full moves `sack_rate` up, the wrong way against a sim already at 16.64% against 5.58–7.54% real. Every 3.3 front is honest, so the reason is keep-in, not deception (A:1404). S10 stays FAIL.
+- **Nothing broke that should not have.** `int_rate` and completion stay within the filed guards on every arm. Completion rises +0.091 points of attempts for full (paired SE 0.019, within the 0.110 guard), mostly from the slide check (+0.059 alone). The arm never adds a coverage read, and the snaps whose only coverage lie fell on a kept-in man (2,113 for full) move `int_rate` by +0.0001 points ± 0.0003.
+- **Check-release targets fall about 2 a team-season,** as filed (S16: about −0.0027 a dropback): RB 29.8 to 28.1 targets and 11.9 to 11.2 receptions per team per 17-game season, FB 8.8 to 8.3. The TE_Y clause of the fantasy gate did not show: −19 of 6,249 targets, against a Poisson SD of about 112 (the one TE_Y concept, RB Slip Screen, is 3.5% of calls; its expected fall is about 100 to 300, so it is too small to see at this size, **INFERRED**).
+
+**What ran.** The scratch harness (H33, `adr073Arm33.test.ts`, 3.2b's harness with caller knobs, the option, adjustment and kept-in counters, the as-run pickup accounting and a multi-arm replay bench) ran in four shards from `packages/calibration` on tree e650227. Every run went through a stop guard (every must-be-0 check, scoped by the arm's own header) and its proof line, in order, and would have stopped at the first failure. None did. The in-repo copy was deleted before this commit.
+
+| run | arm | caller | seeds | size |
+|---|---|---|---|---|
+| R0 | the checker checked both ways, and smokes of every arm | as R1–R11 | set A, 2 rounds | 56 games each; benches 4,000 snaps |
+| R1, R12 | v4 | `v4` | A, B | 6,720 + 20,160 games |
+| R2, R13 | proof | `v5/no-slide-check/no-keep-in` | A, B | 26,880 games |
+| R3, R14 | keep-in-only | `v5/no-slide-check` | A, B | 26,880 games |
+| R4, R15 | slide-only | `v5/no-keep-in` | A, B | 26,880 games |
+| R5, R16 | full | `v5` | A, B | 26,880 games |
+| R6, R17 | no-pointing | `v5`, `recognitionModifier {0, 0}` (`tunablesDigest` fnv1a:3b758775) | A, B | 26,880 games |
+| R7 | D95 at leash 50 | `v5` on the Discipline-95 league | A | 6,720 games |
+| R8, R18 | D95 at leash 20 | `v5/leash-20` | A, B | 26,880 games |
+| R9, R19 | D95 at leash 30 | `v5/leash-30` | A, B | 26,880 games |
+| R10 | flat bench | each of `s32b`'s 593,962 recorded v4 dropbacks re-run alone under v4 and five arms (proof, slide, keep, full, nopoint) | A | 593,962 snaps × 6 |
+| R11 | D95 bench | the same snaps on the D95 league under v4 at 50, v5 at 20, v5 at 30, v4 at 30 | A | 593,962 snaps × 4 |
+
+**The proofs ✅**
+- **R0.** The proof checker passes `s32b` against itself and fails the full arm on every game (56 of 56) and every dropback that saw an option; v4 on H33, the proof, D95 v4 at 50 and D95 full at 50 all equal their references on the 56-game prefix; no-pointing carries its own digest. The bench smokes replay 4,000 of 4,000.
+- **R1, the instrument.** v4 on H33 equals 3.2b's own run (`s32b`) on all 6,720 games (sha256 and event counts) and on all 2,874,432 numbers `s32b` carries. Every new counter reads its v4 value (0 for every option, adjustment, kept-in and must-be-0 counter), and the new populations are consistent.
+- **R2, the proof.** v5 with both options off: 6,720 of 6,720 games and 593,962 of 593,962 dropbacks equal `s32b`'s, 0 missing, 0 extra; 0 of 3,212,100 numbers differ from R1's, both ways.
+- **R12, set B.** v4 on set B on H33 equals 3.0's `B4` one way over 307,136 numbers, with the remapped `observedFour` row for row, `later.pictures` its sum by picture, and all four full-accumulator sha256s. So set B reproduces through 3.1–3.2b, never having been re-run since 3.0. **R13:** the proof equals R12 on all 20,160 games and on all 9,553,764 numbers, both ways.
+- **The bench.** Its v4 base replays 593,962 of 593,962 recorded dropbacks, and folds to R1's front in every population and field. `identical[proof]` = 593,962.
+
+**The exact claims, per snap on the bench ✅** (one mismatch falsifies each)
+- **E2–E6:** recognition reads, hot conversions, coverage reads, unaccounted rushers, the call (options aside) and the leash stamp equal v4's on every arm and every snap. The only coverage-read difference is the filed bag: v4 rolled one and the arm, having kept its man in, did not (510 snaps on keep, full and nopoint). No arm adds one.
+- **E7:** where an arm wants no adjustment, its snap is v4's with the option keys deleted: proof 593,962, slide 577,257, keep 584,093 and full 567,388 snaps, 0 different.
+- **The adjustment is §2.3's, exactly:** the kept-in men equal `pop.kept` and the checked side equals the predicted one on all 593,962 snaps, on every arm that states the option.
+- **Interaction:** full ≡ keep-in-only wherever full checks no slide (576,686 snaps), and full ≡ slide-only wherever it keeps nobody in (584,093), 0 mismatches. The 4-way residual is 0 on every outcome outside the cell (593,391 snaps); on the cell (571 read-right snaps that are both `slideable` and `keepable`) it is −0.53 points ± 0.46 a snap, −0.4% of the bench's full − v4.
+- **Slide-only's UNBLOCKED count** equals v4's on all 593,962 snaps (bodies are unchanged).
+
+**The counts ✅** Each arm's own run, against Σ over its own snaps of the read's P(TRUE ∪ COUNT), ± 2 Poisson-binomial SD:
+
+| arm | kept-in men (S3, on `keepable`) | slide checks (S5) |
+|---|---|---|
+| keep-in-only | 39,341 against 39,334 ± 2·110 (z +0.06) | — |
+| slide-only (on `slideableNoK`) | — | 66,633 against 66,786 ± 2·131 (z −1.16) |
+| full (on `slideable`) | 39,298 against 39,307 ± 2·110 (z −0.08) | 68,857 against 68,967 ± 2·134 (z −0.83) |
+| no-pointing | 39,311 against 39,240 ± 2·110 (z +0.65) | 68,788 against 68,882 ± 2·134 (z −0.71) |
+| D95 at 30 | 39,310 against 39,317 ± 2·110 (z −0.07) | 68,835 against 68,945 ± 2·134 (z −0.82) |
+| D95 at 50 (set A) | 9,928 against 9,923 ± 2·55 (z +0.09) | 17,267 against 17,287 ± 2·67 (z −0.30) |
+
+No slide check was made off its arm's population. Every snap that is both `slideable` and `keepable` is `kBodyOnly` in this corpus (the slide's want exists only because the kept-in man adds a body), so the two interaction cells are one cell. On `kBodyOnly` itself, reported on its own as rule 2 asks, full made 2,275 slide checks on its 3,419 snaps against 2,268 ± 2·27 (z +0.25).
+
+**The triple** (Δ against the comparison, points, paired per-game SE; Charter:2206-2217):
+
+| arm | population | Δ pocket broken down (exit) | Δsack | Δconversion (sack ÷ exit) | Δpressured |
+|---|---|---|---|---|---|
+| slide-only − v4 | all | −0.19 ± 0.01 | −0.01 ± 0.01 | +0.04 ± 0.01 | −0.36 ± 0.01 |
+| | `slideable` | −4.74 ± 0.08 | −0.26 ± 0.03 | +0.45 ± 0.05 | −8.80 ± 0.10 |
+| keep-in-only − v4 | all | −0.40 ± 0.01 | +0.12 ± 0.01 | +0.26 ± 0.01 | −0.31 ± 0.01 |
+| | `keepable` | −16.21 ± 0.15 | +4.91 ± 0.12 | +7.80 ± 0.14 | −12.72 ± 0.14 |
+| full − v4 | all | −0.60 ± 0.01 | +0.10 ± 0.01 | +0.29 ± 0.02 | −0.68 ± 0.01 |
+| | `short` | −2.26 ± 0.03 | +0.44 ± 0.03 | +1.14 ± 0.03 | −2.55 ± 0.03 |
+| | `slideable` | −5.39 ± 0.11 | +0.13 ± 0.05 | +1.22 ± 0.09 | −9.30 ± 0.12 |
+| | `keepable` | −16.61 ± 0.16 | +4.86 ± 0.12 | +7.82 ± 0.14 | −13.17 ± 0.14 |
+| no-pointing − full | all | +0.14 ± 0.01 | +0.01 ± 0.01 | −0.03 ± 0.01 | +0.16 ± 0.01 |
+| | `short` | +0.60 ± 0.03 | +0.07 ± 0.02 | −0.07 ± 0.03 | +0.64 ± 0.02 |
+
+Held in every row, identical in the headers: seeds, rounds, shards, looks, league, leash and tunables (no-pointing's tunables excepted). The call mix is held in distribution: no concept or defensive card moves more than 0.02 points of share (SE 0.02–0.03). As §4.3 filed, exit falls with pressure on every arm; slide-only's conversion is not negative (+0.04 ± 0.01; on the bench, the paired Σ(Δsack − 0.21288·Δexit) ÷ Σexit is +0.00037 ± 0.00003); with keep-in, conversion rises (+0.29, filed about +0.3) and exit falls (−0.60, filed about −0.60).
+
+**The rest of §4.3 ✅**
+- **S8, free-runner origins (full against v4):** UNBLOCKED 1.53% to 0.62%, PICKUP_LOST 7.43% to 7.09%, WON_REP 84.10% to 85.30%, as predicted.
+- **The leash pair (S11–S12, the D95 league, whose quarterbacks carry Discipline 95).** 0 BROKE in either arm. At leash 20 the read wanted 106,216 adjustments and the leash held every one (289,615 HELD rolls, breaches of 10 and 20); at 30 every one of 105,894 wanted was made (189,929 HELD rolls, every breach 10: WORK_TO held). Δsack(L30 − L20) is +0.097 ± 0.012 against full − v4's +0.095 ± 0.012; the difference of the differences is +0.002 ± 0.011. **Exact on the bench:** v5 at leash 20 ≡ v4 at leash 30 on all 593,962 snaps, once the leash reads, the stamp, the adjustment and the option keys are deleted. WORK_AWAY open at both leashes is **INFERRED** (rung 20 ≤ the leash, and that equality), not counted.
+- **S13:** the D95 league at leash 50 plays the flat league's games exactly: full against full on all 6,720 set-A games (R7 against R5), v4 on the 56-game prefix (R0e), and the D95 bench's v4 base replays all 593,962 flat records.
+- **No-pointing (against full), direction only:** PICKUP_LOST up (+0.0297 a `short` dropback) and sacks up on `short` (+0.07 ± 0.02 a snap), as predicted. Of full's contested pickups, 65.0% carry the +10 and 35.0% the −10, inside the filed 60–75% / 25–40%. The adjustment itself is unchanged by it on all 593,962 bench snaps. So beside real adjustment the point-out is worth about 0.07 points of sacks a short snap, and about 0.01 on all dropbacks (not distinguishable from 0). It stays exactly as it is; its retirement is the owner's call with these numbers (§7), and needs no new question.
+- **G1:** Δint/att and Δcmp/att are within 2 × (0.016, 0.055) points on every arm: full − v4 −0.002 ± 0.006 and +0.091 ± 0.019; keep-in-only −0.005 ± 0.006 and +0.030 ± 0.018; slide-only −0.000 ± 0.003 and +0.059 ± 0.009. The completion rise is real by its paired SE (4.8 SE) and mostly the slide check's: fewer pressured throws. On the bench the direct per-snap rise for full is +0.127 points, above the 0.110 guard; the game level passes because the game-level effect falls short of the direct one.
+- **G2, the snaps whose only coverage lie was on a kept-in man (R3).** In game mode each made keep-in is re-run without the options against the same defence call and seed: 2,122 (keep) and 2,113 (full) are in the bag, 0 counterfactual errors, and no arm ever adds a coverage read. The bag's share of Δ`int_rate` is +0.0000 ± 0.0003 (keep) and +0.0001 ± 0.0003 (full) points; over every made keep-in it is −0.0033 ± 0.0014 and −0.0028 ± 0.0015. int ÷ att on the bag (1.0–1.1%) against the rest (1.95%) is descriptive only.
+- **G3, coverage reads:** 0.2380 a dropback on v4, 0.2371 on full (the bag's).
+- **G4, check-release men** (released with no hot spec, as 3.0 counted them): 0.0540 targets and 0.0216 receptions a dropback on v4, 0.0512 and 0.0205 on full (S16: about −0.0027 with keep-in; measured −0.0027). By role (targets a dropback): RB 0.0397 to 0.0375, FB 0.0117 to 0.0111, TE_Y 0.0026 to 0.0026. On every arm stating `checkRelease`, the stated list equals the released list and holds every eligible man.
+- **G5, position target share** (direction only; every position is already out of band): full WR 40.48% (v4 40.43%, real 59.76%), TE 39.89% (39.61%, real 21.66%), RB 13.49% (13.74%, real 17.87%), FB 6.14% (6.23%, real 0.58%).
+
+**The guards ✅** Every must-be-0 check filed above reads 0 on every arm it covers, in every shard: option leak, stated ≠ released, eligible not stated, slide check missing, kept-in man named, adjustment on a missed read, the pool / contested / unblocked accounting as run, slide check off its population, leash reads at leash 50, BROKE at 20 and 30, and H's own six self-checks. The adjustment §2.3 predicts from the call and the read equals the one the stream states on every dropback of every arm.
+
+**The fantasy gate: pass, with notes.** Nothing in 3.3 forecloses fantasy mode or the COACH/GM split: v5 is calibration-only, and no file outside `packages/calibration` reads it. The gate line holds for RB and FB (about −5% of their check-release targets) and does not show for TE_Y (above). The advisor's watch items for 3.4 and 3.5:
+- **Cumulative drift.** Guards are scored step by step, but the league feels v4 to v7 at once. v5 already uses 0.091 of the 0.110 completion guard. At 3.5's closing commit, report v7 − v4 on the fantasy lines (check-release targets by role, position share, completion, interceptions including hot throws, sacks, points and yards per team-game).
+- **The low-leash path is unmeasured.** BROKE below 30 is unreachable in 3.3's arms (rule 11), so only unit tests cover a human at leash 0–29 with an average quarterback. One low-Discipline, low-leash arm before humans can reach it.
+- **Rating sensitivity is unmeasured.** Every 3.3 league is flat or Discipline 95; 3.5 makes Awareness decide who is fooled. An archetype-league arm at 3.5.
+- **Pin the ruleset in the save, and decide who states the options in the shipped game.** The save records no engine commit, tunables digest or caller identity; and v5 lives only in calibration, so franchise must say which coaches state `protectionOptions` and from which version (§7).
+- **Promote the bench.** The recorded-snap replay is the only tool that prices "your decision against the baseline coach on the same snap" without dice luck.
+- **Type the payload** before a scorer or `apps/game` reads `routes` (now as run) and `protectionAdjustment` (the typed-payload trigger, §3).
+
+**Departures from 3.3 as written, and the details it left open.**
+- **Rule 11 was reworded in place, not by a dated note.** Before R0, the review fix commit (e650227) changed its last sentence to name the bag's evidence (`engine/test/pressureRead.test.ts`) and caller v5's evidence for the BROKE path (`callerV5Stream.test.ts`). Scoring did not change. The dated notes above record it.
+- **The game-level interaction's filed premise was wrong.** Rule 4 prints it unscored because "at 2 SE it spans about 0.05 to 0.07 points". Pairing on the same seeds makes it far tighter: −0.009 ± 0.004 points (z −2.2; set A −0.001 ± 0.009, set B −0.012 ± 0.005). About 89% of it sits on dropbacks outside `short`, where every arm's per-snap effect is exactly 0, so it is game-state feedback after the arms' games diverge, not the mechanism; its `short` part (−0.001) agrees with the bench's residual (−0.0005). Printed, not scored, as filed.
+- **The contested and unblocked as-run checks run on snaps with no line game** (H's definition since 3.0); the pool check runs on every snap. The filed table did not say so.
+- **S3 and S5 are scored on every arm that makes the adjustment**, not only the arm each names: keep-in-only, full, no-pointing, D95 at 30 and D95 at 50 for S3, and slide-only, full, no-pointing and both D95 arms that make it for S5. D95 at 20 holds every adjustment by design, so it is scored by rule 9, not by S3 or S5.
+- **One exact check was added:** the 4-way residual must be 0 outside the cell, which the two filed equalities and E7 imply.
+- **R0 ran in the main tree** at e650227 (clean), not a private copy. Its first pass of H at 2 rounds wrote nothing (its output folder did not exist yet); it was re-run with the two proofs that use it, and both pass.
+- **The proof checker was extended after R0** with set B's comparison against 3.0's `B4` (additive; R0's proof lines re-run on it give the same verdicts). The report script's presentation was corrected after the runs (labels, the no-pointing and S2 verdicts computed rather than stated, the D95 comparisons restricted to the seed set they share); no verdict changed.
+- **Tests** (C1–C4): calibration `caller.test.ts` (v5's identity and knobs, the refusals, v5 ≡ v4 plus the two keys call for call, the leash twins at 50/40/100/30/20), `callerV5Stream.test.ts` (v5 with no options ≡ v4 game for game at leash 50 and 0, digest and bytes; the reducer for a kept-in man over three arms and five leashes, BROKE keep-ins included; determinism), `protectionOptionsSmoke.test.ts` (28 concepts × 22 cards through the engine validator and one snap); engine `renderPlay.test.ts` (the protection as called, the picture, the adjustment made and held, and an older stream printing none of them). The review (two lenses) found 5 test gaps and wordings in the build, all fixed in e650227, and no measuring defect in the harness.
+- **The debug renderer** now prints the three PLAY_START fields 3.2b left for 3.3: `Protect: SLIDE right, centre …, pickup …; options: slide check, check-release …` in PLAY CALL, and the PICTURE and ADJUSTMENT lines in PRE-SNAP, each iff the stream states it.
+
+**Files** (`/mnt/project-files/arms/`, README section "Front arms (ADR-073 step 3.3)"): `adr073Arm33.test.ts` (H33), `adr073-run33.sh`, `adr073-proof33.py`, `adr073-guard33.py`, `adr073-drive33.sh`, `adr073-analyze33.py`, and the report `adr073-report33.md` with its figures `adr073-figs33.json`.
 
 ---
 
