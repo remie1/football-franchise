@@ -5,6 +5,7 @@
  */
 import type { GameId, PlayId, PlayerId, TeamId, StaffId, StorylineId, AttrId, TraitId } from "./ids.js";
 import type { CalendarStamp } from "./calendar.js";
+import type { GameKind, GameResult, PlayoffBracket } from "./league.js";
 
 export interface RollModifier {
   source: string;
@@ -552,7 +553,10 @@ export type FranchiseEvent =
   | { type: "STAFF_HIRED"; payload: { staff: StaffId; team: TeamId; role: string } }
   | { type: "STAFF_DEPARTED"; payload: { staff: StaffId; team: TeamId; reason: string } }
   | { type: "AWARD_GIVEN"; payload: { award: string; subject: PlayerId | StaffId } }
-  | { type: "GAME_COMPLETED"; payload: { gameId: GameId; home: number; away: number } };
+  /** ADR-078 C6: widened to carry the teams; nothing emitted the old shape. */
+  | { type: "GAME_COMPLETED"; payload: { result: GameResult; kind: GameKind } }
+  | { type: "PLAYOFF_FIELD_SET"; payload: { season: number; seeds: PlayoffBracket["seeds"] } }
+  | { type: "CHAMPION_DECIDED"; payload: { season: number; team: TeamId } };
 
 /**
  * ROLL ACCOUNTING RULE (ADR-004).

@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-21
 - **Proposed by:** Orchestrator, for `franchise` (season shell, piece S1 of `/mnt/project-files/design/season-shell-plan.md`)
-- **Status:** proposed
+- **Status:** approved
 
 > Phase note: Charter §6 places franchise at Phase 4. The owner chose on 2026-10-21 to start the
 > season shell early, in parallel with the ADR-073 tuning work, on the condition that nothing here
@@ -210,4 +210,15 @@ calibration's league builders. Cleaner name, but three exceptions instead of one
 
 ## Decision
 
-_Pending the owner's typed yes, naming each edit (C1-C7, R1)._
+**Approved in full, 2026-10-21 13:35Z.** The owner typed: *"Yes, make contracts edits C1, C2, C3,
+C4, C5, C6, C7 and R1."*
+
+- C1-C7 committed together in `packages/contracts` (`ids.ts`, new `league.ts`, `events.ts`,
+  `save.ts`, `index.ts`), with `test/league.test.ts` (save round-trip, season events).
+  `docs/design/contracts.md` §9 updated.
+- R1 ratified as a Charter §4 rule 1 exception: **`calibration` → `franchise`**, one-directional,
+  surface limited to the league builder, `buildSchedule`, `computeStandings`, `seedPlayoffs`,
+  `runSeason` and the `GameResolver` type. Recorded in the Charter Amendment Log. The import itself
+  lands with S7.
+- Inertness: types only; no engine, playbook or calibration file edited. `pnpm verify` result
+  recorded in the commit.
