@@ -1797,16 +1797,16 @@ So on v5, v6 and v7 no back is kept in unless `/keep-in` is named, and the back'
 
 ### 3.4, filed before any arm *(2026-10-21; CHOSEN)*
 
-**Why.** 3.4's arms are scored by the rules below, filed in git before the first arm runs, as §4's figures were (lines 201, 710) and as 3.3's rules were (lines 1585-1587). A failed prediction is recorded as measured, and never re-labelled (line 737). 3.4 needs rules the ADR never filed, and one filed band, P5's, is re-derived here because the construction is known to break it (rule 6). The block holds, in this order: the 3.4 mechanics as built (rule 15, first because every other rule reads them), the identity grammar (rule 1's note), then scoring rules 1–14.
+**Why.** 3.4's arms are scored by the rules below, filed in git before the first arm runs, as §4's figures were (lines 201, 710) and as 3.3's rules were (lines 1585-1587). A failed prediction is recorded as measured, and never re-labelled (line 737). 3.4 needs rules the ADR never filed, and one filed band, P5's, is re-derived here because the construction is known to break it (rule 6). The block holds, in this order: the 3.4 mechanics as built (rule 15, first because every other rule reads them), the identity grammar (rule 1's note), then scoring rules 1–14, then the checks that must read 0.
 
 **How to read it.**
 - §1–§9 stay as filed: no line there is inserted or edited, and the Status line, edited in place, names this block. Line numbers are this file's, and nothing above this block moved.
 - **Labels.** P1–P11 number the predictions 3.4 is scored on: P1–P9 are §4.4's bullets in order (lines 793-805; P8 is lines 800-804), P10 is §4.1's creeper row (line 730) and P11 is line 866. They are not §3's contracts edits. "Plan point n" is open point n of 3.4's build plan, cited where this block takes its recommended default; this ADR's own Q1–Q7 (§9) and ADR-077's are named as such. W is 3.4's write-up; W0 is the owner's heads-up note (plan point 28), and W2 the results note.
-- **Code** is cited at `cfb2c79`, the build's head: C1–C5 (`8b6d4d5`, `9abb907`, `bda058a`, `e6e7b35`, `84c7818`) and the review fixes. Playbook files are in `packages/playbook/src/` and the caller's in `packages/calibration/src/caller/`; tests are cited by their path in their package.
+- **Code** is cited at `cfb2c79`, the build's head: C1–C5 (`8b6d4d5`, `9abb907`, `bda058a`, `e6e7b35`, `84c7818`) and the review fixes. Playbook files are in `packages/playbook/src/` and the caller's in `packages/calibration/src/caller/`. Tests are cited by file name: the playbook's are in `packages/playbook/test/` and the caller's in `packages/calibration/test/`.
 - **3.3's tools** are cited by line in `/mnt/project-files/arms/adr073-p33/` (line 1756): H33 is `rescoped/adr073Arm33.test.ts`, G33 is `rescoped/guard33.py`, AN33 is `adr073-analyze33.py`, and `proof33.py` and `drive33.sh` go by name. 3.4's tools are scratch, made from them at M0: the harness H34, `guard34.py`, `proof34.py` and `adr073-analyze34.py`. They are named here so that a rule can name its counter.
 - **The runs.** 3.3's are `s32b` (3.2b's v4 records on set A), R1 (v4, set A), R10 (the flat bench), R12 (v4, set B), and P5D and P5DB (the re-scoped v5 on sets A and B) (lines 1663-1676, 1758-1763). P5G is v5's 6,720 set-A game sha256s, captured through H33 on F0's commit, before any build commit. 3.4's are M0 (the checker and the smokes); M1 v4, M2 v5, M3 bound, M4 joint, M5 jnc, M6 pressure and M7 front on set A; M8 the bench; M9 v5, M10 joint, M11 jnc, M12 pressure and M13 front on set B; and M14 v4 on set B.
 - **The expected values are COMPUTED for this block, before any arm.** `expected34.mjs` evaluates v5's card-weight law and v6's draw analytically, with the playbook as built at `cfb2c79`: its own `hostShares`, `blitzRate`, `pressureMix`, `CREEPER_RATE`, `lineGameRate`, `lineGameMix` and `COMPOSED`. No die is thrown.
-  - They are weighed by every defensive call caller v4 makes on set A: 942,361 calls (593,962 dropbacks and 348,399 runs) in 9,624 situations. The calls were captured by a v4 run on set A at `cfb2c79`, which is neither M1 nor a 3.4 arm. Its dropbacks are `s32b`'s, call for call (checked by game, snap and situation).
+  - They are weighed by every defensive call caller v4 makes on set A: 942,361 calls (593,962 dropbacks and 348,399 runs) in 9,624 situations. The calls were captured by a v4 run on set A at `cfb2c79`, which is neither M1 nor a 3.4 arm. Its dropbacks are `s32b`'s, call for call (checked by game, snap and situation). That is a check of the weighting's input, not M1's verdict: M1 remains the reproduction proof (rule 3).
   - So each is a set-A figure over v4's situations. The scored predictions are computed by H34 over each arm's own snaps (3.3's rule-2 form, line 1593). On A + B the counts are about four times these and the SDs about twice (INFERRED: set B is three times set A's games, on the same league and caller).
   - They replace the planning previews, which took line 596's line-game legality as written. "Planning" marks a figure computed from 3.3's shards while planning, and not re-run here.
 - No number in this block was measured by a 3.4 arm.
@@ -1815,12 +1815,16 @@ So on v5, v6 and v7 no back is kept in unless `/keep-in` is named, and the back'
 **15. The 3.4 mechanics as built** *(CHOSEN)*. Each of the first seven items departs from §2.6's text, which the owner accepted with the design, or reads it one way. The last lists where the build named or did a thing otherwise than its plan's text, where a rule reads it. W cites this list; it does not introduce these choices for the first time.
 - **The coverage** (plan point 1). It is v5's card, drawn on `defense-card` with v5's own die (`selectDefensiveCard`), folded onto its host (`HOST_OF`, `coverageCatalogue.ts:369-371`; `selectCoverage`, `pressureDraw.ts:135-140`). This is line 591's law: each host's share is its own weight plus those of the pressure cards it hosts that apply in s, over v5's total. It is not line 591's wording, "over the coverage catalogue". So v6's coverage is the host of v5's card on every snap, an exact claim (rule 4).
 - **The words** (plan point 7). CREEPER is four rushing, a backer among them, a down lineman dropping, deep help kept: `rushers === 4`, a backer off the ball, `lineDrops` and `deepHelp` (`validate.ts:1123-1124`; the rule's text at :1051-1053; the tag at `tags.ts:66`, :73). FIRE and DOUBLE_A both gain "five or more" (`rushers >= 5`, `validate.ts:1119-1120`).
-  - Line 611 names FIRE only. DOUBLE_A needs the same clause, or a four-man Double A would fit two words. DOUBLE_A is the owner's word (R26, line 1072), so the owner is told (W0, W2). No book card changes its word.
+  - Line 611 names FIRE only. DOUBLE_A needs the same clause, or a four-man Double A would fit two words. DOUBLE_A is the owner's word (R26, line 1072), so the owner was told in W0, before F0, and is told again in W2. No book card changes its word.
   - `lineDrops` (`validate.ts:1110-1112`) cannot be falsified on a valid card. Every grouping fields four or more down-lineman roles (`roles.ts:193-198`), and every role carries a duty, so four rushers with a backer among them always leave a lineman out of the rush. The clause is kept as the rule states it. No test can isolate it, and a mutation that removes it passes the tests (C1's mutation check).
-- **Line-game legality** (plan point 10). It adds three conditions to line 596's, which line 367 cites for the front arm: at most five rush (`MOST_RUSHERS_UNDER_A_LINE_GAME`, `coverageCatalogue.ts:476`); not on PREVENT or GOAL_LINE (:479); and both men are down linemen who rush on the call (the refusals `NOT_A_DOWN_LINEMAN` and `DROPPED_LINEMAN`).
-  - Line 596's own conditions stand: the call wearing the game validates (`checkStunts`, through `validateDefensiveCard`), and neither man is one the pressure moved (R25). Every refused pair names its rule (`LineGameRefusal`, :482-494; `lineGameRefusals`, :531-552). A bare coverage's moved men are its rushers from off the line, which is none but the bound Cover 0 Blitz's (`movedOn`, :507-516).
+- **Line-game legality** (plan point 10). It adds three conditions to line 596's, which line 367 cites for the front arm: at most five rush (`MOST_RUSHERS_UNDER_A_LINE_GAME`, `coverageCatalogue.ts:476`); not on PREVENT or GOAL_LINE (:479); and both men are down linemen who rush on the call. Only the third condition's "down linemen" is new (the refusal `NOT_A_DOWN_LINEMAN`). That both rush is line 596's already: `checkStunts`' "both rush", and "never a man the pressure dropped (Fire's or the creeper's end)", which the refusal `DROPPED_LINEMAN` carries and the code labels R25 (:487-488).
+  - Line 596's own conditions stand: the call wearing the game validates (`checkStunts`, through `validateDefensiveCard`), neither man is one the pressure dropped (`DROPPED_LINEMAN`), and neither man is one the pressure moved (R25, `MOVED_BY_PRESSURE`). Every refused pair names its rule (`LineGameRefusal`, :482-494; `lineGameRefusals`, :531-552). A bare coverage's moved men are its rushers from off the line, which is none but the bound Cover 0 Blitz's (`movedOn`, :507-516).
   - `NOT_A_DOWN_LINEMAN` cannot fire on the book's five patterns, since every grouping fields DE_L, DT_L, DT_R and DE_R. It is kept, and tested on two made-up pairs (the NT over Sky; LB_W over the Sky creeper). It is the same case as `lineDrops`.
-  - Under it, line games on five-or-more calls fall from 7.370% of dropbacks on v5 to 5.292% on front and 4.942% on jnc and joint (set A, COMPUTED). The planning preview, with line 596's legality as written, was 5.881%.
+  - **Two of line 596's refusals never decide a pair on the book** (COMPUTED over `COMPOSED`'s 26 compositions with no line game, each with the five games: 130 pairs, 38 refused).
+    - No pair is refused by `DROPPED_LINEMAN` alone. It always fires with `VALIDATOR`, because `checkStunts` already refuses a stunt man who does not rush (`D_STUNT_NOT_A_RUSHER`, `validate.ts:864-865`).
+    - No pair is refused by `MOVED_BY_PRESSURE` alone. It fires with `VALIDATOR` or with the five-rusher rule. That is why C5 did not run the mutation removing it: on this book it survives by construction.
+    - So beyond the validator, only the five-rusher rule and the Prevent and goal-line rule bind on today's book. The guards `lineGameOnMovedMan` and `lineGameOverDoubleA` (the table after rule 14) read 0 with or without these two clauses, so they cannot tell them apart.
+  - Under these conditions, line games on five-or-more calls fall from 7.370% of dropbacks on v5 to 5.292% on front and 4.942% on jnc and joint (set A, COMPUTED). The planning preview for the front arm, with line 596's legality as written, was 5.881%; jnc and joint were not aggregated in planning.
 - **The line game's `/which`** (plan point 11). Each pattern weighs the summed weight in s of the book's cards that state it (`STATED_BY` and `gameWeight`, `pressureDraw.ts:248-264`). This reads line 596's "today's complexity weights" one way.
   - **A pattern with no weight in s is not one the call can wear,** for `/wears` and in r_line's denominator alike (`wearable`, `pressureDraw.ts:283-287`; the filter is :286). On today's book this binds only on the Twist at six yards or less, where no card stating it applies (`pressureDraw.test.ts:386`). Each call's set of wearable games has 5, 4, 3, 2 or 0 members.
   - A call's legal games are read by its id off `COMPOSED` (`LEGAL_BY_CALL`, :272-281), so nothing is validated per snap. Each of the book's 22 cards carries its composition's id, so the front arm's stripped cards resolve too.
@@ -1842,22 +1846,23 @@ So on v5, v6 and v7 no back is kept in unless `/keep-in` is named, and the back'
   - **Composition.** The signature is `composeCall(coverage, pressure?, line: LineChoice = "BOUND")`, with `LineChoice = "BOUND" | "NONE" | LineGameId` (`coverageCatalogue.ts:407`, :458-468). BOUND keeps the call's own stunts, NONE wears none, and a game's id wears that game alone.
     - `COMPOSED` holds every reachable composition as BOUND, as NONE and with each legal game: 144 entries keyed `coverage|pressure word or -|line` (`composedKey`, :580-582; :618), built once and frozen.
     - The plan's `stripStunts` and `withLineGame` do not exist. With the pressures drawn the caller looks its call up in `COMPOSED`, and on the front arm it composes `composeCall(card, undefined, "NONE" | game.id)` (`drawInParts`, `frozen.ts:525-539`).
-  - **The draws** are in `pressureDraw.ts`, a sibling of `coverageCatalogue.ts`, with their tests in `test/pressureDraw.test.ts`. The corpus-wide checks' copies for composed calls are in `test/coverageCatalogueCorpus.test.ts`.
+  - **The draws** are in `pressureDraw.ts`, a sibling of `coverageCatalogue.ts`, with their tests in `pressureDraw.test.ts`. The corpus-wide checks' copies for composed calls are in `coverageCatalogueCorpus.test.ts`.
     - `drawPressure` returns the pressure laid over the coverage, or none (:213-229), and `drawLineGame` returns the game, or none (:365-376). `lineGameRate` takes a `DrawPlan`: the pressures bound, or drawn with the creeper on or off (:234-238).
     - `pressureMix` and `lineGameMix` (:187-191, :349-353) are the conditional `which` laws. The full measure is r_s × `pressureMix`, the creeper taking `CREEPER_RATE` of a creeper host's draws with no five-or-more pressure, and r_line × `lineGameMix`. So rule 6's conditional form is `pressureMix`.
     - Each die is one `weightedPick`, a yes/no die being a two-item pick (`yes`, :109-111).
   - **`CREEPER_RATE = 0.1`** is in `distribution.ts:244`, beside `BLITZ_RATE_PRIOR` (:233). It is CHOSEN with provenance NONE: the owner's 1 in 10 (Decision 5; this ADR's Q5(a)). It is pinned at `pressureDraw.test.ts:650-654`.
   - **The tables are built at load,** in every process that imports `@ff/playbook`, v1–v5's included: `COMPOSED` and those before it (`coverageCatalogue.ts:7-10`), and `STATED_BY` and `LEGAL_BY_CALL` (`pressureDraw.ts:7-10`). They draw nothing and move no v1–v5 die. A book edit they cannot compose throws at load for every caller.
   - **Loud failures.** A rate outside [0, 1] or NaN throws `PlaybookError`, naming the situation (`checkedRate`, `pressureDraw.ts:99-104`). So does a card that is no v6 coverage given as the coverage (:87-91), and an unknown call id given to the line-game draws (:283-287).
-  - **The harness's host key** is defined in the test, not exported from playbook (`packages/playbook/test/coverageCatalogue.test.ts:854-859`).
-    - A call whose PRESSURE tag is not the Creeper keys on (personnel, pressure word). Every other call keys on (personnel, concept): bare coverages, the creeper, Prevent and both goal-line calls.
+  - **The harness's host key** is defined in the test, not exported from playbook (`coverageCatalogue.test.ts:854-859`).
+    - A call whose PRESSURE tag is not the Creeper keys on (personnel, pressure word). That includes the bound Cover 0 Blitz, which carries PRESSURE ZERO (`defensiveCards.ts:552`). Every other call keys on (personnel, concept): the other bare coverages, the creeper, Prevent and both goal-line calls.
     - The test proves the key unique, and that it resolves every card and composed call to its host, with or without a look (:861-907). H34 states the same rule, verbatim.
+    - A call H34's key resolves to no host counts in `hostUnresolved`, which must be 0 on every arm, v4 included, and stops the run (plan point 34).
   - **The caller.**
     - The knobs are `creeper`, `drawPressures` and `drawLines`, each on when absent (`frozen.ts:324-336`). Each is refused, whatever its value, on v1–v5 (:810-819), and `creeper: false` is refused with `drawPressures: false` (:820-825). `creeper: true` with `drawPressures: false` is accepted, since it adds no mark.
     - `snapPlan` (:482-491) folds the profile and the knobs. Three of `resolveSnap`'s lines read through it, with v1–v5's behaviour unchanged (the scratch pins, 13 v1–v5 callers over 12 games, equal the base's at every build commit).
     - The decomposed guess also carries its `coverage` and `pressure` (`DecomposedFront`, `anticipate.ts:263-268`), as read-only diagnostics.
   - **The replay tests.**
-    - The snap-for-snap test (`packages/calibration/test/caller.test.ts:1489`) replays every arm from a request recorder (`recordSnaps`, :1318): each side's request, and its Rng's seed and label, as H33 replays. It does not use `capturePlays`, which keeps neither the request nor the state's two-minute flag and score. It plays four v5 games (566 snaps), and since the review fixes it re-derives the huddle's guess on every snap, for v5 and all five v6 arms.
+    - The snap-for-snap test (`caller.test.ts:1489`) replays every arm from a request recorder (`recordSnaps`, :1318): each side's request, and its Rng's seed and label, as H33 replays. It does not use `capturePlays`, which keeps neither the request nor the state's two-minute flag and score. It plays four v5 games (566 snaps), and since the review fixes it re-derives the huddle's guess on every snap, for v5 and all five v6 arms.
     - `callerV6Stream.test.ts` takes the states from `capturePlays` wrapped around the same recorder (:287), joined by order, with the counts asserted equal. It anchors the replay: v5's replay equals the calls v5 played.
   - **A run's `PLAY_START` carries no `blitzDisguise` and no `stunts`** (`packages/engine/src/sim/runPlay.ts:354-386`). So the stream test checks the creeper's row and the line-game rules on dropbacks only, and the creeper's host and four-man rush on every play. Rule 7's counts over runs read the call the caller hands the engine (H33's `watch` wrapper, H33:774-780), not the stream.
   - **Three pins C4 (`e6e7b35`) moved without naming them,** which `cfb2c79`'s message names:
@@ -1890,12 +1895,12 @@ So on v5, v6 and v7 no back is kept in unless `/keep-in` is named, and the back'
    | joint (= v6) | `v6` | drawn | drawn | on | decomposed | jnc, and v5 |
 
    - The interaction is jnc − pressure − front + v5. The creeper's increment is joint − jnc (lines 985-986).
-   - **The huddle rides with the pressure draw.** pressure − v5 and jnc − v5 measure the pressure draw together with the decomposed huddle, which line 622 couples to it. The interaction and joint − jnc are free of the huddle's change, and W says so.
+   - **The huddle rides with the pressure draw.** pressure − v5 and jnc − v5 measure the pressure draw together with the decomposed huddle, which line 622 couples to it. The interaction and joint − jnc are free of the switch to the decomposed huddle, and W says so. joint − jnc still carries the huddle's guessed creeper, which jnc's huddle never guesses (rules 4 and 8).
    - The grammar is the note above.
-2. **The construction is exact, and one failure stops the runs.**
+2. **P2, the construction is exact** (line 794), **and one failure stops the runs.**
    - The 1e-12 sweep passes in `pnpm verify` on this block's commit (`pressureDraw.test.ts:223-283`: every host's share, P(five or more) and the line-game share against v5's, with every r_s and r_line at most 1, over 23,760 situations).
    - In game mode, per snap, H34 recomputes v5's host share and P(five or more) from `DEFENSIVE_CARDS`, and v6's from playbook's exports: `hostShareDrift` (any |Δ| > 1e-12) = 0 and `rsAboveOne` = 0 on every arm that draws pressures.
-3. **Reproduction by name** (line 793), exact.
+3. **P1, reproduction by name** (line 793), exact.
    - **How the one-way numbers are compared.** Every one-way comparison skips `/seconds` and `/secondsSetup`, both timing fields. It declares only the keys the new run's harness adds over the reference's (`proof34.py`). The counts below are the reference's leaves less those skips (COMPUTED over 3.3's shards for this block).
    - **v4:**
      - M1's 6,720 game `full` sha256s (H33:845-846) equal `s32b`'s, with equal event counts.
@@ -1960,21 +1965,25 @@ So on v5, v6 and v7 no back is kept in unless `/keep-in` is named, and the back'
      | ZERO | .0859 | .0859 | .0000 | expected pass |
 
      So the filed band is expected to FAIL by construction on STANDARD and DELAYED, and that verdict is recorded as filed, with its cause. A per-personnel r_s would hold DELAYED, but it amends line 601's "one r_s shared by every host in s", which only the owner can do.
-   - **The re-derived rule.** On the joint arm, each row's count is taken over the arm's own five-or-more dropbacks, as `disguiseOnBlitz5` counts them (H33:551). It is set against Σ over those dropbacks of the row's marginal share in s under v6's draw. A miss outside ± 2 Poisson-binomial SD, √Σp(1−p), is falsified and recorded as measured (3.3's rule-2 form, line 1593). Beyond 3 SD it counts toward the split trigger (rules 7 and 12). The marginal share is
+   - **The re-derived rule.** On the joint arm, over A + B (M4 + M10), each row's count is taken over the arm's own five-or-more dropbacks, as `disguiseOnBlitz5` counts them (H33:551). It is set against Σ over those dropbacks of the row's marginal share in s under v6's draw. A miss outside ± 2 Poisson-binomial SD, √Σp(1−p), is falsified and recorded as measured (3.3's rule-2 form, line 1593). Beyond 3 SD it counts toward the split trigger (rules 7 and 12). The marginal share is
 
      p_row(s) = [Σ_h hostShare(h, s) · r_s · mix_row(h, s) + Σ_c share(c, s) · 1{row(c) = row}] ÷ P(five or more | s)
 
      - h runs over the hosts, and mix_row(h, s) is the share of `pressureMix` over h that carries the row.
      - c runs over the bound calls that rush five or more: Cover 0 (ZERO, `defensiveCards.ts:597`), and in the goal-line region the two goal-line calls (five linemen, no row, `defensiveCards.ts:864-869`).
      - A call that names no row counts as STANDARD, as the harness counts it (H33:456, :551).
-     - Expected over set A's dropbacks (COMPUTED): STANDARD 79,275 (SD 187.3), ZONE_BLITZ 43,171 (SD 173.4), DELAYED 8,152 (SD 87.0), ZERO 12,268 (SD 103.5).
+     - Expected over set A's dropbacks (COMPUTED): STANDARD 79,275 (SD 187.3), ZONE_BLITZ 43,171 (SD 173.4), DELAYED 8,152 (SD 87.0), ZERO 12,268 (SD 103.5). Over A + B the counts are about four times these and the SDs about twice (INFERRED, as above).
    - **Why marginal.** Given the coverage, the row is fixed on every host but Sky: Nickel Cover 1 hosts only Double A (STANDARD, `defensiveCards.ts:542`), Base Cover 1 only Base Run Blitz (STANDARD, :744), and `DIME_COVER_1` only Dime Man Pressure (DELAYED, :826). So a coverage-conditional predictor (`pressureMix`) has p ∈ {0, 1} there and SD 0. It would test only Sky's `/which` die, and not the shared r_s and the fold, which are what move DELAYED from .1060 to .0571.
-   - **The conditional form is kept as an exact check of Sky's `/which` die.** On Sky's five-or-more dropbacks, the STANDARD count is set against half of them, since Smoke and Fire weigh 7 and 7 (`defensiveCards.ts:170`, :492), ± 2 SD. Expected: 86,342 such dropbacks on set A, with an SD of 146.9 on the half (COMPUTED).
+   - **The conditional form is kept as an exact check of Sky's `/which` die.** On the joint arm, over A + B, on Sky's five-or-more dropbacks, the STANDARD count is set against half of them, since Smoke and Fire weigh 7 and 7 (`defensiveCards.ts:170`, :492), ± 2 SD. Expected: 86,342 such dropbacks on set A, with an SD of 146.9 on the half (COMPUTED).
    - The other arms are reported with their z.
-7. **The sampler counts** (3.3's rule-2 form). Each is falsified outside ± 2 SD and recorded as measured. Beyond 3 SD a miss counts toward rule 12's split trigger. They are scored on joint and front, and reported on the rest:
+7. **The sampler counts** (3.3's rule-2 form). Each is falsified outside ± 2 SD and recorded as measured. Beyond 3 SD a miss counts toward rule 12's split trigger. They are scored over A + B, each over the arm's own snaps: on joint (M4 + M10) and front (M7 + M13). They are reported on the rest:
    - five-or-more calls on host snaps, against Σ r_s over host snaps (joint);
    - line games, against Σ r_line over hostable calls (joint and front);
    - creepers, against 0.1 × N, where N is the number of creeper-eligible calls (a creeper host, no five-or-more drawn), with SD √(N × 0.1 × 0.9) (joint).
+   - **The snaps each count is over:**
+     - **A host snap** is a call whose coverage hosts a pressure that applies in s: the snaps on which `/blitz` is thrown (`pressureDraw.ts:221`). The count, Σ r_s and the per-host rows below are taken over those snaps only. So Base Cover 1 counts only at six yards or less, where Base Run Blitz applies (`defensiveCards.ts:745`). At seven yards or more r_s is not 0, but no die is thrown over Base Cover 1.
+     - **A hostable call** is one that can wear a line game in s (`wearable` not empty): the snaps on which `/wears` is thrown (:372).
+     - **A creeper-eligible call** is one whose coverage hosts a creeper (Sky, Buzz or Base Cover 3) and on which no five-or-more pressure was drawn: the snaps on which the `creeper` die is thrown when the creeper is on (:227).
    - **All are counted over all defensive calls, runs included,** because the dice are thrown on every snap.
    - **Expected** on set A, over v4's 942,361 calls (COMPUTED):
 
@@ -1991,21 +2000,22 @@ So on v5, v6 and v7 no back is kept in unless `/keep-in` is named, and the back'
      - Nickel Cover 1: 99,526 snaps, 52,826 (SD 157.4);
      - Base Cover 1: 7,954 snaps, 3,977 (SD 44.6);
      - `DIME_COVER_1`: 23,892 snaps, 12,865 (SD 77.1).
-   - **Multiplicity.** Rule 6's four rows and this rule's counts make eight: four rows and three counts on joint, and one count on front. The four rows are dependent, because they sum to the five-or-more count. At 2 SD about 31% of correct runs show at least one miss (INFERRED, independence assumed). That is why 2 SD only records a miss, and 3 SD is the line that counts toward the split trigger.
-8. **The creeper (lines 800-804), joint against jnc:**
+   - **Multiplicity.** Rule 6's four rows and Sky's `/which` check, and this rule's counts, make nine: four rows, the Sky check and three counts on joint, and one count on front. The four rows are dependent, because they sum to the five-or-more count. At 2 SD about 34% of correct runs show at least one miss (INFERRED, independence assumed). That is why 2 SD only records a miss, and 3 SD is the line that counts toward the split trigger.
+8. **P8, the creeper (lines 800-804), joint against jnc:**
    - creeper share: rule 7;
-   - unaccounted rushers on creeper snaps: the bench's paired mean Δ`unaccountedRushers.length` on joint's creeper snaps, under the sign rule (rule 10);
-   - sack on creeper snaps: the bench's paired mean Δsack there, under the sign rule.
+   - unaccounted rushers on creeper snaps: the bench's paired mean Δ`unaccountedRushers.length` on joint's creeper snaps, claimed > 0 (line 803's "up"), under the sign rule (rule 10);
+   - sack on creeper snaps: the bench's paired mean Δsack there, claimed > 0 (line 804), under the sign rule.
+     - P10 (line 730's "up" on creeper snaps) is the same claim, and is scored by this row. Its size, "creeper share × short-snap effect", is the aggregate's expected size below, which is printed and not scored.
      - Expected (COMPUTED): about 13,878 creeper snaps among the bench's 593,962, and a per-snap SE of at most 0.446 pp, at independent outcomes and v5's 16.531% sack rate.
      - So the smallest creeper-snap effect the sign rule can show is about 0.89 pp, and a NOT SHOWN on the creeper rows reads "smaller than about 0.9 points a snap".
-   - **aggregate:** |Δsack(joint − jnc)| on all dropbacks ≤ 2 × 0.034 pp, the filed width (line 804's "aggregate within 2 SE"; plan point 23).
+   - **aggregate:** |Δsack(joint − jnc)| on all dropbacks ≤ 2 × 0.034 pp, the filed width (line 804's "aggregate within 2 SE"; plan point 23). It is taken at game level over A + B (M4 + M10 against M5 + M11), as `contrast_fn`'s joint − jnc on all dropbacks, with its paired per-game SE printed beside it.
      - It is filed as a check for gross errors, not as a test of the creeper.
      - The expected aggregate is +0.016 to +0.030 pp (INFERRED): the creeper's 2.337% of dropbacks (COMPUTED) times a creeper-snap effect of the order of 3.0's protection-information rows, 0.68 to 1.27 points a snap (lines 1343-1344). That is a quarter to under half of the band.
      - Beside it, the bench's all-snap paired mean Δsack(joint − jnc) is printed with its `bstat` SE (AN33:281-297). It is split into the creeper-snap term and the term on non-creeper snaps where the huddle guessed a creeper and the offence call differs (`jointOffenseDiffOffCreeper`, rule 4).
      - "Creeper share × the creeper-snap Δsack" leaves out that second term, so it is not the bench's prediction.
    - P11 (line 866): the creeper never counts in `blitz_rate`; `creeperNotFourMan` = 0.
 9. **P7, the pressure share per hosting family** (line 799): reported, as the designed move (backlog 8b, `docs/decisions/CALIBRATION-BACKLOG.md:1149`).
-   - The sim side is P(five or more | host) per host, and the family × rusher-count table, against v5's. Expected over set A's dropbacks, v5 and front against pressure, jnc and joint (COMPUTED): Cover 3 Sky .5385 → .5310; Nickel Cover 1 .4000 → .5310; Base Cover 1 .1618 → .1618; `DIME_COVER_1` 1.0000 → .5385.
+   - The sim side is P(five or more | host) per host, and the family × rusher-count table, against v5's, over A + B. Expected over set A's dropbacks, v5 and front against pressure, jnc and joint (COMPUTED): Cover 3 Sky .5385 → .5310; Nickel Cover 1 .4000 → .5310; Base Cover 1 .1618 → .1618; `DIME_COVER_1` 1.0000 → .5385.
    - Rule 7's per-host counts are printed here.
    - The real side is the participation feed's `defense_man_zone_type` × `number_of_pass_rushers` (`packages/calibration/src/ingest/sources/participation.ts:171-173`, :189-197), with MIXED reported on its own and folded into MAN (plan point 25).
      - No code builds this joint today: tier1 counts the marginals only (`tier1.ts:1650-1654`), and no cache is on disk (`data-cache` is absent; `packages/calibration/src/ingest/cache.ts:26`).
@@ -2014,7 +2024,7 @@ So on v5, v6 and v7 no back is kept in unless `/keep-in` is named, and the back'
     - PASS if the estimate is beyond 0 in the claimed direction by 2 SE or more; NOT SHOWN between; FAIL if it is beyond 0 in the other direction by 2 SE or more.
     - The SE is the bench's snap SE (`bstat`, AN33:281-297) on bench rows, and the paired per-game SE (`contrast_fn`, AN33:249-268) on game rows.
     - NOT SHOWN is reported as measured, and is not a pass.
-11. **Guards carried from 3.3** (line 1728): Δint/att within 2 × 0.016 points and Δcmp/att within 2 × 0.055 points, for every arm against its comparison.
+11. **Guards carried from 3.3** (line 1728): Δint/att within 2 × 0.016 points and Δcmp/att within 2 × 0.055 points, for every arm against its comparison, at game level over A + B (26,880 games), as 3.3 scored G1 (line 1728), with the paired per-game SE beside each.
     - **A miss is recorded as measured and passed to the fantasy gate.** It is neither a stop nor a split trigger.
       - There are five contrasts with two tests each, so a correct run misses one about a third of the time or more (INFERRED, independence assumed).
       - On the drawn arms, a completion move is a designed consequence of the new pressure-by-coverage mix.
@@ -2027,11 +2037,16 @@ So on v5, v6 and v7 no back is kept in unless `/keep-in` is named, and the back'
     - P3, P4 or P6 falls outside its band (rule 5). The construction determines these three:
       - P3 through the 1e-12 law;
       - P4 through r_line;
-      - P6 because the look code is held, a look is legal by the call's family (`masks.ts:333-338`), and every composed call carries its host's family, Fire over Sky its card's FIRE_ZONE. Every legal look applies over all 144 composed calls and moves no rusher (`packages/playbook/test/coverageCatalogue.test.ts:808-841`). P6's rate staying near v5's is INFERRED from these;
+      - P6 because the look code is held, a look is legal by the call's family (`masks.ts:333-338`), and every composed call carries its host's family, Fire over Sky its card's FIRE_ZONE. Every legal look applies over all 144 composed calls and moves no rusher (`coverageCatalogue.test.ts:808-841`). P6's rate staying near v5's is INFERRED from these;
     - a count in rules 6–7 misses by more than 3 SD.
     - **What does not count:** P5's filed band failing as rule 6 predicts; P9, a sack guard the construction does not fix (a true jnc − v5 of +0.04 pp would fail it about one time in five, INFERRED); the guards of rule 11; and the creeper's sign rows.
     - **If the trigger fires,** W recommends the split. The owner gets a card whose options name it, not the merge card: a Hold tap cannot say "split", and a Merge tap would contradict line 919.
-13. **The triple** (R31, line 1077): exit, sack, conversion (sack ÷ exit) and pressured, with paired SEs, and the held header fields printed beside it. A report with a missing column is INCOMPLETE (`ARCHITECTURE_CHARTER.md:2206-2208`). Its columns:
+13. **The triple** (R31, line 1077): exit, sack, conversion (sack ÷ exit) and pressured, with paired SEs, and the held header fields printed beside it. A report with a missing column is INCOMPLETE (`ARCHITECTURE_CHARTER.md:2206-2208`). Every game-level column is over A + B (26,880 games), and every bench column is M8's. Its populations and columns:
+    - **The populations,** all of dropbacks. `short`, `blitz5` and `lineGame` are H33's (H33:182). The three new ones are H34's:
+      - `creeper`: a call tagged CREEPER;
+      - `creeperEligible`: a call whose host (by the host key, rule 15) is a creeper host, Sky, Buzz or Base Cover 3, and which rushes four. It is rule 7's creeper-eligible call on dropbacks, so the creeper's own snaps are in it (23.366% of dropbacks on pressure, jnc and joint, COMPUTED);
+      - `bareC3`: `creeperEligible` without the creeper.
+      - On the bench each stratum is the first arm's snap's (the last column below).
     - **Game level, each arm against its comparison,** on all dropbacks and on `short`.
     - **Game level, joint − jnc, on `creeperEligible`,** which both arms have. This is an intent-to-treat contrast, about 0.1 of the creeper effect.
     - **Game level, joint's `creeper` against joint's own `bareC3`,** which the creeper die randomizes.
@@ -2039,6 +2054,25 @@ So on v5, v6 and v7 no back is kept in unless `/keep-in` is named, and the back'
     - **Game-level `blitz5` and `lineGame` rows carry a label.** Each arm's own dice decide which snaps are in them: P(five or more | Nickel Cover 1) goes from .4000 to .5310, and line games on five-or-more calls from 7.370% of dropbacks to 4.942% on jnc and joint (5.292% on front, 7.268% on pressure; COMPUTED). So the Δ mixes a change of population with the effect.
     - **Bench, keyed on the first arm's snap:** each pair on `blitz5`, `lineGame`, `creeper` and `bareC3`. Both arms replay the same snap there, and the first arm's own die sets the stratum.
 14. **What is held** (line 373): D's and E's mechanics; no front looks; the coverage-look code; leash 50; ratings (the flat league); tunables (`fnv1a:395a9ae2` on every shard); and the offence's call mix in distribution, printed by the analyzer's held check (AN33:230's `check_held`).
+
+**Checks that must read 0, by arm** (game mode, every shard; any one above 0 stops the runs as a defect). This is the build plan's list for `guard34.py`, filed as 3.3 filed its own; `guard34.py` scopes each by the run's own header. "All" is v4, v5, bound, pressure, front, jnc and joint. On the bench, the base's `selfOk` must equal its records, and rules 3 and 4 give the rest.
+
+| check | arms |
+|---|---|
+| H33's always-list (G33): `extrasMismatch`, `poolMismatch`, `contestedMismatch`, `unblockedMismatch`, `rolledWithoutExtras`, `extrasWithoutRoll`, `centreMissing`, `conceptMissing`, `chartTeamMismatch`, `knobLeak`, `adjPredMismatch`, `crStatedMismatch`, `crEligibleNotStated`, `slideCheckMissing` | all, with `knobLeak` and `slideCheckMissing` read through H34's `statesSlide` (v5 or v6) |
+| `keptInNamed`, `adjOnMissedRead`, `slideChecksOutsidePopNoK` | v5 and every v6 arm (every 3.4 front is honest, and nobody is kept in) |
+| `leashReads` | all (leash 50) |
+| `g2.covAddedByArm`, `g2.cfErrors` | all (vacuous with no keep-in) |
+| `creeperSnaps` | v4, v5, bound, front, pressure, jnc |
+| `creeperNotFourMan`, `creeperDisguiseNotZoneBlitz`, `creeperOnNonHost`, `creeperWithPressure` | all |
+| `shownRushMismatch` (identity by construction until 3.5) | all |
+| `lineTagWithoutStunt`, `stuntWithoutLineTag`, `lineGameNonLineman`, `tripleNotChain` | all |
+| `lineGameOnMovedMan`, `lineGameOverDoubleA`, `lineGameOverSixPreventGL` | front, jnc, joint |
+| `pressureUnnamed`: a non-lineman rushes with no PRESSURE tag (read on roles, since the goal-line fronts rush five linemen untagged) | all |
+| `dimeCover1Called`: a four-man dime Cover 1 | v4, v5, bound, front |
+| `hostUnresolved` (rule 15) | all |
+| `hostShareDrift`, `rsAboveOne` (rule 2) | pressure, jnc, joint |
+| `tunablesDigest` other than `fnv1a:395a9ae2` (rule 14) | all |
 
 **Before M0.** `pnpm verify` runs on this block as committed, and M0's log records its commit hash. M0's smoke figures are read for pass or fail and timing only. If M0 shows that a filed rule cannot be computed as written, it is amended by a dated note under this heading and recorded as a departure in W (line 1587's convention).
 
