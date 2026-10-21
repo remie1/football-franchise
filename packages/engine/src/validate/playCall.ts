@@ -85,6 +85,7 @@ export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls):
   // field is: a name that resolves to nobody, and nobody doing two jobs.
   const scheme = offense.protectionScheme;
   const availableBlockers = scheme?.available ?? [];
+  const checkRelease = scheme?.checkRelease ?? [];
   const stunts = defense.stunts ?? [];
 
   // 1. Every name has to resolve to somebody who is actually here.
@@ -97,6 +98,7 @@ export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls):
     ]),
     ...offense.readOrder.map((id) => ({ role: "readOrder entry", id })),
     ...availableBlockers.map((id) => ({ role: "available blocker", id })),
+    ...checkRelease.map((id) => ({ role: "check-release man", id })),
     ...(scheme?.center === undefined ? [] : [{ role: "protection's centre", id: scheme.center }]),
     ...defense.assignments.map((a) => ({ role: "coverage defender", id: a.defender })),
     ...defense.assignments.flatMap((a) => (a.kind === "MAN" ? [{ role: "covered receiver", id: a.covers }] : [])),
@@ -157,7 +159,10 @@ export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls):
   //     a man who is running a route cannot materialise as a blocker the moment
   //     a blitz shows, because that is exactly the perfectly-informed protection
   //     §7.4 exists to remove (CALIBRATION-BACKLOG 21). Keeping a man in is a
-  //     PRE-SNAP decision and the card has to have made it.
+  //     PRE-SNAP decision and the card has to have made it. A card that lists a
+  //     released man in `checkRelease` (ADR-073) has made it: it states the
+  //     option before the snap, the pressure read and the leash gate it, and it
+  //     costs his route. Nothing searches for a body at resolution time.
   assertNoDuplicates(availableBlockers.map(String), (id) => `${id} is listed twice as an available blocker`);
   const preAssigned = new Set(offense.protection.map((p) => String(p.blocker)));
   for (const id of availableBlockers) {
@@ -167,6 +172,21 @@ export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls):
     if (preAssigned.has(String(id))) {
       fail(`${String(id)} is both assigned a blocking assignment and listed as available`);
     }
+  }
+  // 3c. ADR-073 P3: the line's two options. A check-release man is one who RELEASED, so he runs a
+  //     route in this call, once. That is also what keeps him out of protection: a route-runner
+  //     who blocks or is available is refused above, so P3's disjointness needs no rule of its own.
+  //     A slide check needs a slide.
+  assertNoDuplicates(checkRelease.map(String), (id) => `${id} is listed twice as a check-release man`);
+  for (const id of checkRelease) {
+    if (!routeRunners.has(String(id))) {
+      fail(`check-release man ${String(id)} runs no route in this call (ADR-073)`);
+    }
+  }
+  // The union keeps `slideCheck` off a MAN literal, but not off a spread of one, so this is a
+  // runtime rule as well as a type (ADR-073 §1, 3.2b).
+  if (scheme?.kind === "MAN" && "slideCheck" in scheme) {
+    fail("a MAN protection states slideCheck; only a slide can be checked (ADR-073)");
   }
   const rushers = new Set(defense.rush.map((r) => String(r.rusher)));
   for (const stunt of stunts) {
@@ -208,7 +228,7 @@ export function assertCoherentPlayCall(state: MatchGameState, calls: PlayCalls):
   // indistinguishable rolls in the audit trail.
   //
   // A CHAIN PASSES BOTH: X→Y with Y→Z has distinct loopers and distinct
-  // penetrators, and `resolvePreSnap` walks the entries in order, so the middle
+  // penetrators, and `resolveStunts` walks the entries in order, so the middle
   // man carries whatever the first exchange gave him into the second.
   //
   // WHAT IS NOT CHECKED HERE, DELIBERATELY: chain SHAPE — that a `TRIPLE` is two

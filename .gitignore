@@ -11,3 +11,6 @@ assets/generated/
 # accounting and exists only as a measurement instrument. Untracked, one `git add
 # -A` away from landing on main. Ignored so that cannot happen by accident.
 .claude/worktrees/
+
+# Games saved by `export-game` for the viewer. Re-makeable from their seed, and megabytes each.
+apps/game/public/games/

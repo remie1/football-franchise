@@ -4,7 +4,8 @@
  *
  * ================== WHAT THIS MODULE DECIDES ==================
  * Who is blocking whom when the ball is snapped, who is not blocked at all, and
- * whether the receivers are running the routes the card drew or the hot ones.
+ * whether the receivers are running the routes the card drew or the hot ones,
+ * and which check-release men the line wants kept in to block (ADR-073).
  *
  * The order is the doc's own:
  *
@@ -16,17 +17,24 @@
  *  1b. §7.4 step 1 READ FROM THE PROTECTION'S SIDE (ADR-026) — a
  *     `ProtectionAssignment` whose named rusher is not in `defense.rush` is a
  *     blocker with nobody to block. He joins the pickup pool at the BACK.
- *  2. §5.3 — if anything is unaccounted, the quarterback and the centre roll to
- *     SEE it. This is the only trigger; a pressure the protection already names
- *     has nothing to recognise, so nothing is rolled (ADR-005).
- *  3. §5.3 / §7.4 step 2 — on recognition, hot routes convert and move to the
- *     front of the progression.
+ *  2. §5.3 — the quarterback and the centre roll to SEE the front: when an
+ *     unnamed rusher exists, or when a front look shows or moves a man and the
+ *     pictures would decide differently (ADR-073 §2.2, `sim/pressureRead.ts`).
+ *     A pressure the protection already names, shown as it is played, has
+ *     nothing to recognise, so nothing is rolled (ADR-005). The band makes a
+ *     PICTURE of the front: who he treats as coming free, and where.
+ *  3. §5.3 / §7.4 step 2 — when the picture answers somebody, hot routes
+ *     convert and move to the front of the progression. Then what the line
+ *     wants done to the protection, if the card gives it the options
+ *     (`decideProtection`); the leash decides whether it is done.
  *  4. §7.4 step 3 — each unaccounted rusher is offered to the next available
  *     blocker, in the card's stated priority. Contest per rusher. The one
  *     exception is the SLIDE: on a slide card, a rusher who comes from the slide
- *     side takes the first man left in the pickup pool (declared `available`,
- *     then ADR-026's unblocked protectors) WITHOUT a contest, when
- *     `blitzPickup.slideIsUncontested` holds. He was still unaccounted at step 1.
+ *     side at the snap (the called side, or the one the line checked it to)
+ *     takes the first man left in the pickup pool (declared `available`, then
+ *     any check-release men the line kept in, then ADR-026's unblocked
+ *     protectors) WITHOUT a contest, when `blitzPickup.slideIsUncontested`
+ *     holds. He was still unaccounted at step 1.
  *  5. §7.4 step 4 — anybody left, or anybody who beat his pickup, is a FREE
  *     RUNNER with an ETA. Not a teleport: a rusher with a short clock, and since
  *     ADR-031 a clock that reads WHERE HE STARTED — his alignment and the depth
@@ -34,6 +42,26 @@
  *     the field (`freeRunnerArrivalSecondsFor`).
  *  6. §7.3 — stunts resolve last, because a twist is an exchange between two
  *     men whose blockers step 4 may just have decided.
+ *
+ * ================== THREE STAGES, CALLED APART (ADR-073 3.2a) ==================
+ * One decision tree, but not one call. `simulatePassPlay` calls it in three
+ * stages, around the coverage read and the leash (ADR-073 §2.4):
+ *
+ *  - `readPreSnap` — steps 1 to 3: who the call accounts for, whether he saw
+ *    what it did not, and the routes he will run.
+ *  - `resolvePickups` — steps 4 and 5: who picks up whom, and who runs free.
+ *  - `resolveStunts` — step 6.
+ *
+ * Between the first and the second, the quarterback reads the coverage on the
+ * routes he will run and the leash decides what he may change, so that a
+ * decision the pressure read wants (ADR-073 §2.3: keep a back in, check the
+ * slide) reaches the protection before anybody is picked up, if the leash lets
+ * it. `simulatePassPlay` hands `resolvePickups` the pool and the slide side as
+ * run: what `readPreSnap` read off the card when nothing was made. Moving the
+ * work moved no die: a fork is a pure function of its parent's seed and its own
+ * label, not of what the parent has drawn (`createRng`), and every die in this
+ * file is forked by its own label. So a pickup's dice are the same dice whether
+ * the coverage read and the leash were rolled before it or not.
  *
  * ================== WHAT IT REFUSES TO DECIDE ==================
  *  - WHO the centre is. Absent from the card ⇒ his term is not rolled.
@@ -67,14 +95,21 @@ import { freeRunnerArrivalSecondsFor, rushAlignmentFor } from "../resolve/rushTh
 import type { Tunables } from "../tunables.js";
 import type {
   HotConversion,
-  MatchGameState,
   PlayCalls,
+  PressurePicture,
   RouteAssignment,
   RunGap,
   RunSide,
   RushAlignment,
   RushMove,
 } from "../types.js";
+import {
+  accountFront,
+  decideProtection,
+  pictureSets,
+  picturesDecideAlike,
+  type ProtectionWant,
+} from "./pressureRead.js";
 
 /**
  * Why a rusher is running free — every `ThreatOrigin` except the won rep, which
@@ -140,16 +175,34 @@ export interface FreeRush extends RushPlanCommon {
   readonly free: FreeRunner;
 }
 
-export interface PreSnapResult {
-  readonly plans: readonly RushPlan[];
+/** A rusher and the blocker the CARD paired him with, if it paired one (step 1). */
+export interface AccountedRusher {
+  readonly common: RushPlanCommon;
+  readonly blocker: PlayerState | undefined;
+}
+
+/**
+ * STAGE ONE'S ANSWER: steps 1, 1b, 2 and 3. Who the call accounts for, whether
+ * he saw what it did not, the routes as called after the hot conversions, and
+ * what the line wants done to the protection. Nobody has been picked up yet and
+ * no line game has run, so nothing here says who is blocking whom at the snap;
+ * that is `resolvePickups` and then `resolveStunts`. Nor is anything here the
+ * protection AS RUN: when the leash makes the adjustment, `simulatePassPlay`
+ * runs its own pool, routes and progression (ADR-073 §2.4 step 9).
+ */
+export interface PreSnapRead {
+  /** Every played rusher, in `defense.rush` order, with his card pairing if any. */
+  readonly accounted: readonly AccountedRusher[];
   /** Rushers no `ProtectionAssignment` named — a fact about the CALL. */
   readonly unaccounted: readonly PlayerId[];
   /**
-   * THE POOL AS IT WAS OFFERED, in pickup priority: the card's own `available`
+   * THE POOL AS THE CARD OFFERS IT, in pickup priority: the card's own `available`
    * list first, then ADR-026's unblocked protectors at the back. Snapshotted
    * before anybody is taken out of it, so it states who COULD have been used and
    * never who was — whether a body ended up on somebody is the `blitz_pickup`
-   * CHECK's business, and there is no die here (ADR-004/ADR-005).
+   * CHECK's business, and there is no die here (ADR-004/ADR-005). It is the pool
+   * at the snap only when no adjustment is made; a made one puts the kept-in men
+   * between the two parts (`simulatePassPlay`'s pool as run).
    */
   readonly availableBlockers: readonly PlayerId[];
   /**
@@ -159,29 +212,67 @@ export interface PreSnapResult {
    * lists are not added together by anybody counting bodies.
    */
   readonly unblockedProtectors: readonly PlayerId[];
+  /** The head of `availableBlockers`: the card's own `available` list, in its order. */
+  readonly declaredAvailable: readonly PlayerId[];
+  /** The side a SLIDE card slides to, as called; `undefined` on any other card. */
+  readonly slideSide: RunSide | undefined;
+  /** The centre the card names, if it names one. §5.3 and §7.3 both read him. */
+  readonly center: PlayerState | undefined;
   readonly disguise: BlitzDisguise;
   readonly stunts: readonly StuntCall[];
-  /** §5.3. Absent when nothing was unaccounted and therefore nothing was rolled. */
+  /** §5.3. Absent when the read did not roll (ADR-073 §2.2's trigger). */
   readonly recognition: PresnapEmission | undefined;
+  /**
+   * The band is one of the top three, the TRUE and COUNT pictures: §5.3's success, and what the
+   * centre's point-out reads on every contested pickup (`blitzPickup.recognitionModifier`).
+   */
   readonly recognized: boolean;
-  /** In emission order: pickups, then stunts. */
-  readonly checks: readonly CheckEmission[];
-  /** The routes actually run, after any §5.3 conversion. */
+  /** ADR-073 §2.2 — the picture the band made of the front. Present iff the read rolled. */
+  readonly pressurePicture: PressurePicture | undefined;
+  /**
+   * ADR-073 §2.3 — what the line wants done to the protection on that picture, if anything.
+   * `undefined` when it wants nothing, and always when the read did not roll: with no picture
+   * there is nothing to decide from.
+   */
+  readonly protectionWanted: ProtectionWant | undefined;
+  /**
+   * `rngLabel` of §5.3's roll, which an UNBLOCKED free runner points at
+   * (ADR-004). Empty when no roll was thrown, and then nobody is unaccounted, so
+   * nobody can end up UNBLOCKED and nothing reads it.
+   */
+  readonly recognitionRollRef: string;
+  /**
+   * The routes as called, after any hot conversion. A man kept in by a made adjustment gives
+   * his up at the snap, so these are the routes he will run only when none is made.
+   */
   readonly routes: readonly RouteAssignment[];
-  /** The progression actually worked, after hot receivers move to the front. */
+  /** The progression, after hot receivers move to the front; a man kept in leaves it at the snap. */
   readonly readOrder: readonly PlayerId[];
   readonly hotConversions: readonly HotConversion[];
 }
 
-export function resolvePreSnap(args: {
+/** Stages two and three: every played rusher, blocked or free, and the CHECKs rolled to decide it. */
+export interface RushPlans {
+  /** One plan per played rusher, in `defense.rush` order. */
+  readonly plans: readonly RushPlan[];
+  /** The CHECKs this stage rolled, in the order it rolled them. */
+  readonly checks: readonly CheckEmission[];
+}
+
+/**
+ * STAGE ONE: steps 1, 1b, 2 and 3 — accounting, §5.3's roll and its picture, the hot routes,
+ * and what the line wants done to the protection.
+ *
+ * Its one die is `presnap/blitzRecognition`, thrown iff ADR-073 §2.2's trigger fires.
+ */
+export function readPreSnap(args: {
   /** Required, never defaulted: a missed call site must be a compile error. */
   readonly tunables: Tunables;
-  readonly state: MatchGameState;
   readonly calls: PlayCalls;
   readonly quarterback: PlayerState;
   readonly presnapRng: Rng;
   readonly player: (id: PlayerId) => PlayerState;
-}): PreSnapResult {
+}): PreSnapRead {
   const { tunables, calls, quarterback, presnapRng, player } = args;
   const { offense, defense } = calls;
 
@@ -198,7 +289,10 @@ export function resolvePreSnap(args: {
   // that does not say which way it goes unrepresentable — there is no runtime
   // check here for it any more, because there is no such card (ADR-022).
   const slideSide = scheme?.kind === "SLIDE" ? scheme.slideSide : undefined;
-  const declaredAvailable: readonly PlayerId[] = scheme?.available ?? [];
+  // R, S and N, and what they give (ADR-073 §2.2): the extras, the ghosts and the moved men,
+  // the card's declared pool and ADR-026's windfalls. No die.
+  const front = accountFront(tunables, calls, player);
+  const declaredAvailable = front.declaredAvailable;
 
   // ---- 1b. ADR-026: A PROTECTOR WITH NOBODY TO BLOCK ----------------------
   //
@@ -230,23 +324,15 @@ export function resolvePreSnap(args: {
   // blocker twice in `protection`, so the concatenation cannot repeat a name. It
   // is not defended against here, because absorbing an incoherent card quietly
   // is the failure this whole module is written against.
-  const rushing = new Set(defense.rush.map((r) => String(r.rusher)));
-  const unblockedProtectors: readonly PlayerId[] = offense.protection
-    .filter((p) => !rushing.has(String(p.rusher)))
-    .map((p) => p.blocker);
+  // (`accountFront` does the arithmetic: the protection entries whose man is not in R.)
+  const unblockedProtectors = front.unblockedProtectors;
 
-  /** Pickup priority, snapshotted before step 3 starts taking men out of it. */
+  /** Pickup priority, snapshotted before step 4 starts taking men out of it. */
   const pickupPool: readonly PlayerId[] = [...declaredAvailable, ...unblockedProtectors];
-  const available: PlayerId[] = [...pickupPool];
 
-  /** A rusher and the blocker the CARD paired him with, if it paired one. */
-  interface Accounting {
-    readonly common: RushPlanCommon;
-    readonly blocker: PlayerState | undefined;
-  }
-
-  const accounted: Accounting[] = [];
-  const unaccounted: PlayerId[] = [];
+  const accounted: AccountedRusher[] = [];
+  // The extras, which `accountFront` counts on the same rule: no pairing names him.
+  const unaccounted: readonly PlayerId[] = front.extras.map((e) => e.rusher);
 
   for (const assignment of defense.rush) {
     const rusher = player(assignment.rusher);
@@ -261,16 +347,22 @@ export function resolvePreSnap(args: {
       },
       blocker: named === undefined ? undefined : player(named.blocker),
     });
-    if (named === undefined) unaccounted.push(assignment.rusher);
   }
 
   // ---- 2. §5.3: does he see it? -------------------------------------------
-  // Rolled if and only if something is unaccounted. Nothing else turns on it,
-  // and an absent check must mean "no die was thrown" (ADR-005).
+  // ADR-073 §2.2's trigger: (a) an unnamed rusher exists, today's trigger and
+  // the one that keeps every UNBLOCKED `rollRef` pointing at a real read; or
+  // (b) a front look shows a ghost or moves a man AND the four pictures would
+  // not all decide alike. With no look there is no picture work at all. A die
+  // nothing would turn on is not thrown, and an absent check means "no die was
+  // thrown" (ADR-005).
+  const looked = front.ghosts.length > 0 || front.moved.length > 0;
+  const rolls = unaccounted.length > 0 || (looked && !picturesDecideAlike({ tunables, calls, front }));
   let recognition: PresnapEmission | undefined;
   let recognized = false;
   let recognitionRollRef = "";
-  if (unaccounted.length > 0) {
+  let pressurePicture: PressurePicture | undefined;
+  if (rolls) {
     const outcome = resolveBlitzRecognition({
       tunables,
       quarterback,
@@ -281,10 +373,79 @@ export function resolvePreSnap(args: {
     recognition = outcome.presnap;
     recognized = outcome.recognized;
     recognitionRollRef = outcome.roll.rngLabel;
+    pressurePicture = { picture: outcome.picture, ...pictureSets(outcome.picture, front) };
   }
 
-  // ---- 3. §5.3 / §7.4 step 2: hot routes ----------------------------------
-  const hot = resolveHotRoutes(tunables, offense.routes, offense.readOrder, recognized);
+  // ---- 3. §5.3 / §7.4 step 2: hot routes, on the answer set ---------------
+  // Every hot route converts iff the picture answers somebody (ADR-073 §2.3):
+  // on an honest front that is exactly the top three bands.
+  const answered = pressurePicture !== undefined && pressurePicture.answers.length > 0;
+  const hot = resolveHotRoutes(tunables, offense.routes, offense.readOrder, answered);
+
+  // ---- and what the line wants done to the protection (ADR-073 §2.3) -----
+  // Decided on the picture, after the hot routes (§2.4 steps 3 and 4). Wanted
+  // is not made: the leash decides that, after the coverage read.
+  const protectionWanted =
+    pressurePicture === undefined
+      ? undefined
+      : decideProtection({
+          tunables,
+          scheme,
+          front,
+          picture: pressurePicture.picture,
+          sets: pressurePicture,
+          routes: hot.routes,
+          readOrder: hot.readOrder,
+          hotConverted: new Set(hot.conversions.map((c) => String(c.receiver))),
+        });
+
+  return {
+    accounted,
+    unaccounted,
+    availableBlockers: pickupPool,
+    unblockedProtectors,
+    declaredAvailable,
+    slideSide,
+    center: centerPlayer,
+    disguise,
+    stunts,
+    recognition,
+    recognized,
+    pressurePicture,
+    protectionWanted,
+    recognitionRollRef,
+    routes: hot.routes,
+    readOrder: hot.readOrder,
+    hotConversions: hot.conversions,
+  };
+}
+
+/**
+ * STAGE TWO: steps 4 and 5 — the slide, the pickup contests, and the free
+ * runners. Its dice are `presnap/pickup` then `${blocker}:pickup` and
+ * `${rusher}:blitz`, one pair per contested pickup.
+ *
+ * It reads the pool and the slide side as arguments rather than off the card,
+ * because they are the protection AS RUN: the bodies offered, in the order
+ * offered, and the side slid to: the card's own protection as `readPreSnap` read
+ * it, or, when the leash let the line adjust it, the effective call's (ADR-073
+ * §2.3: the kept-in men after the declared ones, and the checked slide side).
+ */
+export function resolvePickups(args: {
+  readonly tunables: Tunables;
+  readonly accounted: readonly AccountedRusher[];
+  /** The pickup pool in priority order. Copied, never consumed. */
+  readonly pool: readonly PlayerId[];
+  readonly slideSide: RunSide | undefined;
+  /** The read's band was one of the top three: the centre's point-out, on every pickup as a modifier. */
+  readonly recognized: boolean;
+  /** What an UNBLOCKED free runner points at (`PreSnapRead.recognitionRollRef`). */
+  readonly recognitionRollRef: string;
+  readonly presnapRng: Rng;
+  readonly player: (id: PlayerId) => PlayerState;
+}): RushPlans {
+  const { tunables, accounted, slideSide, recognized, recognitionRollRef, presnapRng, player } = args;
+  const available: PlayerId[] = [...args.pool];
 
   // ---- 4/5. §7.4 steps 3 and 4: pickup, then the free runner --------------
   //
@@ -366,6 +527,27 @@ export function resolvePreSnap(args: {
     };
   });
 
+  return { plans, checks };
+}
+
+/**
+ * STAGE THREE: step 6 — §7.3's line games, last, on the plans stage two left.
+ * Its die is `presnap/stunt` then `${looper}:stunt`, one per line game that
+ * names two played rushers.
+ */
+export function resolveStunts(args: {
+  readonly tunables: Tunables;
+  /** `PreSnapRead.center`: §7.3's second term. */
+  readonly center: PlayerState | undefined;
+  readonly stunts: readonly StuntCall[];
+  /** Stage two's plans. Copied, never mutated. */
+  readonly plans: readonly RushPlan[];
+  readonly presnapRng: Rng;
+}): RushPlans {
+  const { tunables, center, stunts, presnapRng } = args;
+  const plans: RushPlan[] = [...args.plans];
+  const checks: CheckEmission[] = [];
+
   // ---- 6. §7.3: the twist -------------------------------------------------
   for (const stunt of stunts) {
     const penetratorIndex = plans.findIndex((p) => p.rusher.bio.id === stunt.penetrator);
@@ -376,7 +558,7 @@ export function resolvePreSnap(args: {
 
     const outcome = resolveStuntCommunication({
       tunables,
-      center: centerPlayer,
+      center,
       adjacentBlocker: looper.blocker,
       complexity: stunt.complexity,
       penetrator: stunt.penetrator,
@@ -414,20 +596,7 @@ export function resolvePreSnap(args: {
     };
   }
 
-  return {
-    plans,
-    unaccounted,
-    availableBlockers: pickupPool,
-    unblockedProtectors,
-    disguise,
-    stunts,
-    recognition,
-    recognized,
-    checks,
-    routes: hot.routes,
-    readOrder: hot.readOrder,
-    hotConversions: hot.conversions,
-  };
+  return { plans, checks };
 }
 
 /**
@@ -469,9 +638,10 @@ function resolveHotRoutes(
   tunables: Tunables,
   routes: readonly RouteAssignment[],
   readOrder: readonly PlayerId[],
-  recognized: boolean,
+  /** The pressure read's picture answers somebody (ADR-073 §2.3). */
+  answered: boolean,
 ): HotResult {
-  if (!recognized) return { routes, readOrder, conversions: [] };
+  if (!answered) return { routes, readOrder, conversions: [] };
 
   const conversions: HotConversion[] = [];
   const converted = routes.map((route): RouteAssignment => {

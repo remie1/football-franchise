@@ -17,7 +17,10 @@ import type { PresnapEmission } from "../events.js";
 import { actorAttrModifier, bandFor, compact, flatModifier, rollD100, tierFor } from "../rolls.js";
 import type { Tunables } from "../tunables.js";
 
-/** The pre-snap decisions the leash can open (ADR-072 §1): step 1's re-order, as two rungs. */
+/**
+ * The pre-snap decisions the leash can open (ADR-072 §1): the coverage read's re-order, as two
+ * rungs, and the pressure read's protection adjustment (ADR-073 §2.3).
+ */
 export type PreSnapDecision = keyof Tunables["presnap"]["leash"]["rungs"];
 
 /**

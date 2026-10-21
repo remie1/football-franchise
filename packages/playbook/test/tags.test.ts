@@ -7,13 +7,16 @@
  *   - a line game is DERIVED from the stunts, so it cannot name one the line does not run;
  *   - a pressure is DECLARED and CHECKED: exactly when somebody off the line rushes, and each
  *     word only with the rush it says. On every pressure card in the corpus the declared word
- *     is the ONLY one of the four that fits, so the checks can tell the six apart;
+ *     is the ONLY one of the five that fits, so the checks can tell the six apart; the Creeper
+ *     (ADR-073 Decision 4) is told from every blitz word by its count, four;
  *   - a look is said last (`masks.test.ts` holds it to the look it shows).
  */
 import type { DefensivePlayCall } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
-import type { AnyDefensiveCard } from "../src/defense.js";
+import { rusherCount, type AnyDefensiveCard } from "../src/defense.js";
+import { zone } from "../src/coverage.js";
 import {
+  BASE_RUN_BLITZ,
   DEFENSIVE_CARDS,
   GOAL_LINE_MAN,
   NICKEL_COVER_0_BLITZ,
@@ -148,7 +151,7 @@ describe("ADR-071 — a pressure is declared and checked", () => {
   });
 
   it.each(pressureCards.map((c) => [c.id, c] as const))(
-    "%s: the declared word is the only one of the four its rush fits",
+    "%s: the declared word is the only one of the five its rush fits",
     (_id, card) => {
       for (const word of PRESSURE_IDS) {
         const misnamed = errorCodes({ ...card, pressure: word }).includes("D_PRESSURE_MISNAMED");
@@ -171,5 +174,139 @@ describe("ADR-071 — a pressure is declared and checked", () => {
 
   it("refuses Fire over a call with nobody deep, which is Zero's to say", () => {
     expect(errorCodes({ ...NICKEL_COVER_0_BLITZ, pressure: "FIRE" })).toContain("D_PRESSURE_MISNAMED");
+  });
+});
+
+/**
+ * ADR-073 Decision 4 — THE CREEPER: four rush, a backer among them, a lineman drops, deep help
+ * kept; a pressure, not a blitz. Its word needs the count, and so do Fire and Double A: without
+ * "five or more" on Double A, a four-man Double A would fit both words (plan 3.4, C1).
+ */
+describe("ADR-073 — the Creeper's word", () => {
+  /** A:607-610's creeper over Cover 3 Sky, built in the test from the shipped card. */
+  const creeper: AnyDefensiveCard = {
+    ...NICKEL_COVER_3_SKY,
+    id: "DEF_TEST_COVER_3_SKY_CREEPER",
+    pressure: "CREEPER",
+    blitzDisguise: "ZONE_BLITZ",
+    duties: {
+      ...NICKEL_COVER_3_SKY.duties,
+      LB_W: { kind: "RUSH", move: "SPEED", alignment: "INTERIOR", gap: "B", side: "LEFT" },
+      DE_R: { kind: "ZONE", ...zone("HOOK_CURL", "RH"), runFit: { gap: "C", side: "RIGHT" } },
+      LB_M: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "B", side: "RIGHT" } },
+    },
+  };
+
+  /** Both backers through the A gaps, both ends dropping: four rush (`overlap.mjs`, MP §7). */
+  const fourManDoubleA: AnyDefensiveCard = {
+    ...NICKEL_COVER_3_SKY,
+    id: "DEF_TEST_FOUR_MAN_DOUBLE_A",
+    pressure: "CREEPER",
+    blitzDisguise: "ZONE_BLITZ",
+    duties: {
+      ...NICKEL_COVER_3_SKY.duties,
+      LB_W: { kind: "RUSH", move: "SPEED", alignment: "INTERIOR", gap: "A", side: "LEFT" },
+      LB_M: { kind: "RUSH", move: "SPEED", alignment: "INTERIOR", gap: "A", side: "RIGHT" },
+      DT_L: { kind: "RUSH", move: "POWER", alignment: "INTERIOR", gap: "B", side: "LEFT" },
+      DT_R: { kind: "RUSH", move: "POWER", alignment: "INTERIOR", gap: "B", side: "RIGHT" },
+      DE_L: { kind: "ZONE", ...zone("HOOK_CURL", "LH"), runFit: { gap: "C", side: "LEFT" } },
+      DE_R: { kind: "ZONE", ...zone("HOOK_CURL", "RH"), runFit: { gap: "C", side: "RIGHT" } },
+    },
+  };
+
+  it("is a word in the vocabulary, said Creeper", () => {
+    expect(PRESSURE_TAGS.CREEPER).toEqual({ kind: "PRESSURE", id: "CREEPER", name: "Creeper" });
+    expect(callTags(creeper)).toEqual([PRESSURE_TAGS.CREEPER]);
+  });
+
+  it("validates a creeper over Cover 3 Sky: four rush, LB_W among them, DE_R drops", () => {
+    expect(rusherCount(creeper)).toBe(4);
+    expect(errorCodes(creeper)).toEqual([]);
+  });
+
+  it.each((["FIRE", "DOUBLE_A", "SMOKE", "ZERO"] as const).map((w) => [w] as const))(
+    "refuses the creeper over Cover 3 Sky named %s",
+    (word) => {
+      expect(errorCodes({ ...creeper, pressure: word })).toContain("D_PRESSURE_MISNAMED");
+    },
+  );
+
+  it("refuses the creeper over Cover 3 Sky with no word", () => {
+    const { pressure: _dropped, ...unnamed } = creeper;
+    expect(errorCodes(unnamed)).toContain("D_PRESSURE_UNNAMED");
+  });
+
+  it("calls a four-man Double A a Creeper, and refuses it as Double A", () => {
+    expect(rusherCount(fourManDoubleA)).toBe(4);
+    expect(errorCodes(fourManDoubleA)).toEqual([]);
+    expect(errorCodes({ ...fourManDoubleA, pressure: "DOUBLE_A" })).toContain("D_PRESSURE_MISNAMED");
+  });
+
+  /**
+   * The count's edges, on shapes the book does not call (the build review's N1), each by plan C1's
+   * rules: Fire and Double A five or more, the Creeper exactly four with a backer among them, a down
+   * lineman dropping and deep help kept. Each is read on the pressure word alone: which of the five
+   * the rush fits.
+   */
+  const fitsOnly = (card: AnyDefensiveCard): readonly string[] =>
+    PRESSURE_IDS.filter((word) => !errorCodes({ ...card, pressure: word }).includes("D_PRESSURE_MISNAMED"));
+
+  /** Both backers through the A gaps with both tackles and the left end; the right end drops: five rush. */
+  const fiveManDoubleA: AnyDefensiveCard = {
+    ...fourManDoubleA,
+    id: "DEF_TEST_FIVE_MAN_DOUBLE_A",
+    pressure: "DOUBLE_A",
+    duties: {
+      ...fourManDoubleA.duties,
+      DE_L: { kind: "RUSH", move: "SPEED", alignment: "EDGE", gap: "C", side: "LEFT" },
+    },
+  };
+
+  it("calls a five-man Double A a Double A: five or more is the line, not six", () => {
+    expect(rusherCount(fiveManDoubleA)).toBe(5);
+    expect(fitsOnly(fiveManDoubleA)).toEqual(["DOUBLE_A"]);
+  });
+
+  it("gives no word to three rushing with a backer among them: neither Fire (five or more) nor the Creeper (four)", () => {
+    // The creeper with its left end dropping too: DT_L, DT_R and LB_W rush.
+    const threeMan: AnyDefensiveCard = {
+      ...creeper,
+      id: "DEF_TEST_THREE_MAN_BACKER",
+      duties: { ...creeper.duties, DE_L: { kind: "ZONE", ...zone("CURL_FLAT", "LW"), runFit: { gap: "C", side: "LEFT" } } },
+    };
+    expect(rusherCount(threeMan)).toBe(3);
+    expect(fitsOnly(threeMan)).toEqual([]);
+  });
+
+  it("calls the creeper's rush with nobody deep a Zero and not a Creeper: the five exclude one another", () => {
+    expect(fitsOnly({ ...creeper, noDeepHelp: true })).toEqual(["ZERO"]);
+  });
+
+  it("calls a four-man rush of the nickel and the Will a Creeper: a backer among them, not every rusher a backer", () => {
+    // The tackles, the nickel and the Will rush; both ends drop.
+    const nickelAndWill: AnyDefensiveCard = {
+      ...creeper,
+      id: "DEF_TEST_NICKEL_WILL_FOUR",
+      duties: {
+        ...creeper.duties,
+        CB_N: { kind: "RUSH", move: "SPEED", alignment: "EDGE", gap: "D", side: "RIGHT" },
+        DE_L: { kind: "ZONE", ...zone("CURL_FLAT", "LW"), runFit: { gap: "C", side: "LEFT" } },
+      },
+    };
+    expect(rusherCount(nickelAndWill)).toBe(4);
+    expect(fitsOnly(nickelAndWill)).toEqual(["CREEPER"]);
+  });
+
+  it("keeps the book's five-or-more words: Fire Zone and Base Run Blitz are Fire, Double A is Double A", () => {
+    for (const [card, word] of [
+      [NICKEL_FIRE_ZONE, "FIRE"],
+      [BASE_RUN_BLITZ, "FIRE"],
+      [NICKEL_DOUBLE_A_BLITZ, "DOUBLE_A"],
+    ] as const) {
+      expect(card.pressure, card.id).toBe(word);
+      expect(rusherCount(card), card.id).toBeGreaterThanOrEqual(5);
+      expect(errorCodes(card), card.id).toEqual([]);
+      expect(errorCodes({ ...card, pressure: "CREEPER" }), card.id).toContain("D_PRESSURE_MISNAMED");
+    }
   });
 });

@@ -9,11 +9,15 @@ import type {
 } from "@ff/contracts";
 import { resolveAttr, resolveTrait } from "../src/attrs.js";
 import type {
+  BlitzDisguise,
   MatchGameState,
   PlayCalls,
+  ProtectionCall,
   ReadSystem,
+  RouteAssignment,
   RunPlayCalls,
   RunScheme,
+  RunSide,
   RushMove,
 } from "../src/types.js";
 
@@ -1018,4 +1022,209 @@ export function sackTick(events: readonly MatchEventEnvelope[]): number | undefi
     if (tick !== undefined) last = tick;
   }
   return last;
+}
+
+/**
+ * ADR-073 step 3.2b — THE FRONT, FOR THE PRESSURE READ'S FALSIFIERS. `buildScenario`'s men, plus a
+ * back (rb1), a centre (c1), a right tackle (rt1), a free safety (s1) and blitzers (blz0, blz1…).
+ *
+ * THE DEFAULT IS HONEST: every rusher named (de1 on the left edge, dt1 inside on the right), the
+ * back kept in as the card's one available body, s1 in the deep middle, `shownRush === rush` and
+ * `shownAssignments === assignments`. Every option moves exactly what it names:
+ *
+ * - `extras`: unnamed blitzers, inside, from `extraSides[i]` (default RIGHT; `UNSIDED` states no
+ *   side, which the contracts allow and playbook's cards never write);
+ * - `mug`: men shown rushing who drop — lb1 (who has te1 in man) or s1 — at `mugSide` (default
+ *   LEFT), inside. Unnamed, each is a ghost;
+ * - `moved`: blz0 shown on the side he does not play (needs an extra);
+ * - `namedDropper`: rt1 paired with lb1, who drops, so rt1 is ADR-026's windfall and lb1 is named;
+ * - `backReleases`: rb1 runs a check flat (to RH SHORT, a cell nobody plays) instead of staying in;
+ * - `checkRelease`: the card's check-release men, by role (P3);
+ * - `slide`: a SLIDE to `side`, with `slideCheck` when `check`;
+ * - `hot`: wr1's Go converts to a hot slant;
+ * - `hotBack`: rb1's check flat is a hot route too, so a check-release back can convert hot (needs
+ *   `backReleases`);
+ * - `lieOnBack`: s1 shown in rb1's flat cell while he plays deep, so rb1 is the one receiver the
+ *   coverage lies about (a HIDDEN man; needs `backReleases`);
+ * - `trapOnWr2`: cb2 shown in a deep zone on the other side while he plays wr2 man, so the look
+ *   lies about a receiver nobody keeps in (a TRAP: shown nobody, played somebody);
+ * - `leash`, `discipline`: the call's leash and the quarterback's Discipline.
+ *
+ * The blitz disguise defaults to ZERO, so the read's margin is about d100 − 42 and every one of
+ * the six bands is reachable on some seed.
+ */
+export interface FrontOptions {
+  readonly extras?: number;
+  readonly extraSides?: readonly (RunSide | "UNSIDED")[];
+  readonly mug?: readonly ("lb1" | "s1")[];
+  readonly mugSide?: RunSide;
+  readonly moved?: boolean;
+  readonly namedDropper?: boolean;
+  readonly backReleases?: boolean;
+  readonly checkRelease?: readonly ("rb1" | "te1")[];
+  readonly slide?: { readonly side: RunSide; readonly check?: boolean };
+  readonly hot?: boolean;
+  readonly hotBack?: boolean;
+  readonly lieOnBack?: boolean;
+  readonly trapOnWr2?: boolean;
+  readonly leash?: number;
+  readonly discipline?: number;
+  readonly disguise?: BlitzDisguise;
+}
+
+export function buildFrontScenario(options: FrontOptions = {}): Scenario {
+  const base = buildScenario();
+  const extras = options.extras ?? 0;
+  const backReleases = options.backReleases ?? false;
+  if (options.moved === true && extras === 0) throw new Error("fixture: `moved` needs an extra");
+  if (options.lieOnBack === true && !backReleases) throw new Error("fixture: `lieOnBack` needs `backReleases`");
+  if (options.hotBack === true && !backReleases) throw new Error("fixture: `hotBack` needs `backReleases`");
+
+  const rb = makePlayer("rb1", "Nate Ivory", "RB", {
+    speed: 88, acceleration: 87, agility: 85, strength: 74, passBlock: 70, awareness: 70, reaction: 72,
+    routeRunning: 70, releaseWR: 68, catching: 72, catchInTraffic: 66, jumping: 70,
+  });
+  const centre = makePlayer("c1", "Vic Aldana", "C", {
+    strength: 86, passBlock: 78, footwork: 74, anchor: 80, awareness: 84,
+  });
+  const rt = makePlayer("rt1", "Bo Kessler", "RT", {
+    strength: 84, passBlock: 78, footwork: 74, anchor: 78, awareness: 72,
+  });
+  const safety = makePlayer("s1", "Lew Tarrant", "FS", {
+    speed: 88, acceleration: 86, agility: 82, strength: 64, jumping: 80,
+    manCoverage: 70, zoneCoverage: 78, ballSkills: 72, reaction: 78, awareness: 76,
+  });
+  const blitzers: PlayerState[] = [];
+  for (let i = 0; i < extras; i++) {
+    blitzers.push(
+      makePlayer(`blz${i}`, `Blitzer ${i}`, "OLB", {
+        speed: 84, acceleration: 84, agility: 78, strength: 76, passRush: 78, firstStep: 80,
+        powerMove: 70, finesseMove: 68, awareness: 74, tackling: 80, pursuit: 82,
+      }),
+    );
+  }
+
+  const players: Record<string, PlayerState> = { ...base.state.players };
+  for (const p of [rb, centre, rt, safety, ...blitzers]) players[p.bio.id as unknown as string] = p;
+  if (options.discipline !== undefined) {
+    const qb = players[base.state.quarterback as unknown as string];
+    if (qb === undefined) throw new Error("fixture has no QB");
+    players[base.state.quarterback as unknown as string] = {
+      ...qb,
+      attributes: { ...qb.attributes, values: setAttr(qb.attributes.values, resolveAttr("discipline"), options.discipline) },
+    };
+  }
+  const state: MatchGameState = { ...base.state, players };
+
+  const id = (name: string): PlayerId => playerId(name);
+  const flatCell = { horizontal: "RH", vertical: "SHORT" } as const;
+  const [wr1Route, ...otherRoutes] = base.calls.offense.routes;
+  if (wr1Route === undefined) throw new Error("fixture has no X");
+  const routes: RouteAssignment[] = [
+    options.hot === true
+      ? {
+          ...wr1Route,
+          hot: { routeName: "Hot Slant", depthClass: "QUICK", airYards: 6, breakZone: { horizontal: "LH", vertical: "SHORT" } },
+        }
+      : wr1Route,
+    ...otherRoutes,
+    ...(backReleases
+      ? [
+          {
+            receiver: rb.bio.id,
+            routeName: "Check Flat",
+            depthClass: "QUICK" as const,
+            airYards: 2,
+            breakZone: flatCell,
+            ...(options.hotBack === true
+              ? { hot: { routeName: "Hot Flat", depthClass: "QUICK" as const, airYards: 1, breakZone: flatCell } }
+              : {}),
+          },
+        ]
+      : []),
+  ];
+  const readOrder = [...base.calls.offense.readOrder, ...(backReleases ? [rb.bio.id] : [])];
+
+  const declared = backReleases ? [] : [rb.bio.id];
+  const checkRelease = (options.checkRelease ?? []).map(id);
+  const released = checkRelease.length === 0 ? {} : { checkRelease };
+  const protectionScheme: ProtectionCall =
+    options.slide === undefined
+      ? { kind: "MAN", center: centre.bio.id, available: declared, ...released }
+      : {
+          kind: "SLIDE",
+          slideSide: options.slide.side,
+          center: centre.bio.id,
+          available: declared,
+          ...released,
+          ...(options.slide.check === true ? { slideCheck: true as const } : {}),
+        };
+
+  const lb = id("lb1");
+  const protection = [
+    ...base.calls.offense.protection,
+    ...(options.namedDropper === true ? [{ blocker: rt.bio.id, rusher: lb }] : []),
+  ];
+
+  const deepMiddle = { kind: "ZONE" as const, defender: safety.bio.id, zone: { horizontal: "C", vertical: "DEEP" } as const };
+  const assignments: PlayCalls["defense"]["assignments"] = [...base.calls.defense.assignments, deepMiddle];
+  const cb2 = id("cb2");
+  const shownBase: PlayCalls["defense"]["assignments"] =
+    options.trapOnWr2 === true
+      ? base.calls.defense.assignments.map((a) =>
+          a.defender === cb2 ? { kind: "ZONE" as const, defender: cb2, zone: { horizontal: "LH", vertical: "DEEP" } as const } : a,
+        )
+      : base.calls.defense.assignments;
+  const lying = options.lieOnBack === true || options.trapOnWr2 === true;
+  const shownAssignments: PlayCalls["defense"]["assignments"] = !lying
+    ? assignments
+    : [...shownBase, options.lieOnBack === true ? { ...deepMiddle, zone: flatCell } : deepMiddle];
+
+  const extraSide = (i: number): { side?: RunSide } => {
+    const side = options.extraSides?.[i] ?? "RIGHT";
+    return side === "UNSIDED" ? {} : { side };
+  };
+  const rush: PlayCalls["defense"]["rush"] = [
+    { rusher: id("de1"), move: "SPEED", side: "LEFT", alignment: "EDGE" },
+    { rusher: id("dt1"), move: "POWER", side: "RIGHT", alignment: "INTERIOR" },
+    ...blitzers.map((b, i) => ({ rusher: b.bio.id, move: "SPEED" as const, ...extraSide(i), alignment: "INTERIOR" as const })),
+  ];
+  const mugSide = options.mugSide ?? "LEFT";
+  const mugged = (options.mug ?? []).map((m) => ({ rusher: id(m), side: mugSide, alignment: "INTERIOR" as const }));
+  const looked = mugged.length > 0 || options.moved === true;
+  const shownRush: PlayCalls["defense"]["shownRush"] = !looked
+    ? rush
+    : [
+        ...rush.map((r) =>
+          options.moved === true && r.rusher === blitzers[0]?.bio.id
+            ? { rusher: r.rusher, side: r.side === "LEFT" ? ("RIGHT" as const) : ("LEFT" as const), alignment: "INTERIOR" as const }
+            : r,
+        ),
+        ...mugged,
+      ];
+
+  const calls: PlayCalls = {
+    offense: {
+      ...base.calls.offense,
+      routes,
+      readOrder,
+      protection,
+      protectionScheme,
+      ...(options.leash === undefined ? {} : { leash: options.leash }),
+    },
+    defense: {
+      ...base.calls.defense,
+      blitzDisguise: options.disguise ?? "ZERO",
+      assignments,
+      shownAssignments,
+      rush,
+      shownRush,
+    },
+  };
+
+  const names = (who: PlayerId): string => {
+    const p = players[who as unknown as string];
+    return p === undefined ? String(who) : `${p.bio.displayName} (${p.bio.position})`;
+  };
+  return { state, calls, names };
 }

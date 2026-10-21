@@ -7,6 +7,7 @@ import {
   STAMP,
   baseReceivers,
   buildDeflectionScenario,
+  buildFrontScenario,
   buildMixedCoverageScenario,
   buildRunScenario,
   buildScenario,
@@ -533,5 +534,134 @@ describe("§17.1 — the run play printout", () => {
         }
       }
     }
+  });
+});
+
+describe("ADR-073 §2.8 — the protection, the picture and the adjustment", () => {
+  const SEEDS = Array.from({ length: 200 }, (_, i) => `render-front-${String(i)}`);
+  /** A Mug against an empty pool and one check-release back: the read wants Nate Ivory kept in. */
+  const KEEP_IN = { mug: ["lb1"], backReleases: true, checkRelease: ["rb1"] } as const;
+  const startOf = (events: readonly MatchEventEnvelope[]) =>
+    events.find((e) => e.event.type === "PLAY_START")?.event.payload as
+      | {
+          offense: {
+            protectionAdjustment?: { made: boolean; slideSide?: string };
+            pressurePicture?: {
+              picture: string;
+              answers: readonly PlayerId[];
+              placed: readonly { rusher: PlayerId; side?: string }[];
+            };
+          };
+        }
+      | undefined;
+
+  it("prints the protection as called on every pass play that echoes one, options included", () => {
+    const slide = buildFrontScenario({ extras: 1, slide: { side: "RIGHT", check: true }, checkRelease: ["te1"] });
+    const text = renderPlay(simulatePassPlay(slide.state, slide.calls, SEEDS[0]!).events, slide.names);
+    expect(text).toContain(
+      "  Protect: SLIDE right, centre Vic Aldana (C), pickup Nate Ivory (RB); options: slide check, check-release Sam Pryor (TE)",
+    );
+    const man = buildFrontScenario({ extras: 1 });
+    const plain = renderPlay(simulatePassPlay(man.state, man.calls, SEEDS[0]!).events, man.names);
+    expect(plain).toContain("  Protect: MAN, centre Vic Aldana (C), pickup Nate Ivory (RB)\n");
+    // A call that states no scheme echoes none, so there is nothing to print.
+    const { state, calls, names } = buildScenario();
+    expect(calls.offense.protectionScheme).toBeUndefined();
+    expect(renderPlay(simulatePassPlay(state, calls, SEEDS[0]!).events, names)).not.toContain("Protect:");
+  });
+
+  it("prints the picture whenever the read rolled, and a keep-in at leash 30 as made", () => {
+    const scenario = buildFrontScenario({ ...KEEP_IN, leash: 30 });
+    let made = 0;
+    let counted = 0;
+    for (const seed of SEEDS) {
+      const { events } = simulatePassPlay(scenario.state, scenario.calls, seed);
+      const text = renderPlay(events, scenario.names);
+      const start = startOf(events);
+      expect(text.includes("PICTURE (ADR-073 §2.2): "), seed).toBe(start?.offense.pressurePicture !== undefined);
+      const pic = start?.offense.pressurePicture;
+      if (pic !== undefined) {
+        // Built from the payload's own keys, so a renderer reading the wrong one prints "nobody" and fails.
+        const placed = pic.placed.map((m) => `${scenario.names(m.rusher)}${m.side === undefined ? "" : ` on the ${m.side.toLowerCase()}`}`);
+        expect(text, seed).toContain(
+          `  ├─ PICTURE (ADR-073 §2.2): ${pic.picture} — answers ${pic.answers.length === 0 ? "nobody" : pic.answers.map(scenario.names).join(", ")};` +
+            ` counted for the slide: ${placed.length === 0 ? "nobody" : placed.join(", ")}`,
+        );
+        if (pic.picture === "COUNT") {
+          counted += 1;
+          expect(text, seed).toContain("COUNT — answers Isaiah Ford (MLB); counted for the slide: Isaiah Ford (MLB) on the left");
+        }
+      }
+      if (start?.offense.protectionAdjustment === undefined) {
+        expect(text, seed).not.toContain("ADJUSTMENT");
+        continue;
+      }
+      expect(start.offense.protectionAdjustment.made, seed).toBe(true);
+      expect(text, seed).toContain("  ├─ ADJUSTMENT (§2.3): Nate Ivory (RB) kept in — made");
+      expect(text, seed).not.toContain("undefined");
+      made += 1;
+    }
+    expect(made, "the read never wanted the back kept in").toBeGreaterThan(0);
+    expect(counted, "no COUNT picture, so the men it names were never checked").toBeGreaterThan(0);
+  });
+
+  it("prints a checked slide: two extras on the left against a slide called right", () => {
+    const scenario = buildFrontScenario({ extras: 2, extraSides: ["LEFT", "LEFT"], slide: { side: "RIGHT", check: true } });
+    let checked = 0;
+    for (const seed of SEEDS) {
+      const { events } = simulatePassPlay(scenario.state, scenario.calls, seed);
+      const adjustment = startOf(events)?.offense.protectionAdjustment;
+      if (adjustment === undefined) continue;
+      expect(adjustment.slideSide, seed).toBe("LEFT");
+      expect(renderPlay(events, scenario.names), seed).toContain("  ├─ ADJUSTMENT (§2.3): slide checked left — made");
+      checked += 1;
+    }
+    expect(checked, "the read never wanted the slide checked").toBeGreaterThan(0);
+  });
+
+  it("prints a keep-in the leash held back as held, at leash 20 with Discipline 95", () => {
+    const scenario = buildFrontScenario({ ...KEEP_IN, leash: 20, discipline: 95 });
+    let held = 0;
+    for (const seed of SEEDS) {
+      const { events } = simulatePassPlay(scenario.state, scenario.calls, seed);
+      if (startOf(events)?.offense.protectionAdjustment === undefined) continue;
+      const text = renderPlay(events, scenario.names);
+      expect(text, seed).toContain("  ├─ ADJUSTMENT (§2.3): Nate Ivory (RB) kept in — held by the leash");
+      expect(text, seed).toContain("leash_discipline");
+      held += 1;
+    }
+    expect(held, "the read never wanted the back kept in").toBeGreaterThan(0);
+  });
+
+  it("an honest play with no extra rusher prints no picture, no adjustment and no pre-snap section", () => {
+    const scenario = buildFrontScenario({});
+    for (const seed of SEEDS.slice(0, 40)) {
+      const text = renderPlay(simulatePassPlay(scenario.state, scenario.calls, seed).events, scenario.names);
+      expect(text, seed).not.toContain("PICTURE");
+      expect(text, seed).not.toContain("ADJUSTMENT");
+      expect(text, seed).not.toContain("PRE-SNAP");
+    }
+  });
+
+  it("a stream stored before the fields existed prints none of them, and no 'undefined'", () => {
+    const scenario = buildFrontScenario({ ...KEEP_IN, slide: { side: "LEFT", check: true }, leash: 30 });
+    let seen = 0;
+    for (const seed of SEEDS) {
+      const { events } = simulatePassPlay(scenario.state, scenario.calls, seed);
+      if (startOf(events)?.offense.protectionAdjustment === undefined) continue;
+      const older = events.map((e) => {
+        if (e.event.type !== "PLAY_START") return e;
+        const payload = e.event.payload as { offense: Record<string, unknown> };
+        const { protectionScheme: _s, pressurePicture: _p, protectionAdjustment: _a, ...offense } = payload.offense;
+        return { ...e, event: { ...e.event, payload: { ...payload, offense } } } as MatchEventEnvelope;
+      });
+      const text = renderPlay(older, scenario.names);
+      expect(text, seed).not.toContain("Protect:");
+      expect(text, seed).not.toContain("PICTURE");
+      expect(text, seed).not.toContain("ADJUSTMENT");
+      expect(text, seed).not.toContain("undefined");
+      seen += 1;
+    }
+    expect(seen).toBeGreaterThan(0);
   });
 });

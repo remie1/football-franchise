@@ -9,8 +9,10 @@
  * downward. A free runner is football; he is now a rusher with a short ETA.
  */
 import { describe, expect, it } from "vitest";
+import { createRng } from "@ff/contracts";
 import type { MatchEvent, MatchEventEnvelope, PlayerId, PlayerState } from "@ff/contracts";
 import { simulatePassPlay } from "../src/sim/passPlay.js";
+import { readPreSnap, resolvePickups, resolveStunts } from "../src/sim/preSnap.js";
 import { renderPlay } from "../src/debug/renderPlay.js";
 import { TUNABLES } from "../src/tunables.js";
 import { IncoherentPlayCallError } from "../src/validate/playCall.js";
@@ -919,21 +921,32 @@ describe("ADR-022 — what the stream now states instead of leaving to inference
     }
   });
 
-  it("§5.3's four-row label travels on PRESNAP_READ, and agrees with the arithmetic", () => {
-    const f = buildBlitz({ backStaysIn: false });
+  it("the pressure read's six-band label travels on PRESNAP_READ, and agrees with the arithmetic", () => {
+    // ZERO is §5.3's hardest row, so the margin reaches every band on these seeds.
+    const f = buildBlitz({ backStaysIn: false, disguise: "ZERO" });
+    // ADR-073 §2.2's cuts, written out rather than read off the table under test.
+    const sixBand = (margin: number): string =>
+      margin >= 30 ? "DIAGNOSED"
+        : margin >= 15 ? "IDENTIFIED"
+          : margin >= 0 ? "COUNTED"
+            : margin >= -14 ? "UNSURE"
+              : margin >= -29 ? "MISIDENTIFIED"
+                : "BUSTED";
     const bands = new Set<string>();
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 300; i++) {
       const read = presnapOf(simulatePassPlay(f.state, f.calls, `band-${i}`).events, "blitz_recognition")[0];
       if (read === undefined) continue;
       expect(read.band).toBeDefined();
       const band = read.band ?? "";
       bands.add(band);
-      expect(["READ_IT", "RECOGNIZED", "MISSED", "FOOLED"]).toContain(band);
-      // The band is the doc's; the binary outcome is the arithmetic's. They agree.
+      expect(band).toBe(sixBand(read.roll.total - read.target));
+      // §5.3's success is the top three bands: the binary outcome is the arithmetic's, at margin 0.
       const saw = read.roll.total >= read.target;
-      expect(band === "READ_IT" || band === "RECOGNIZED").toBe(saw);
+      expect(band === "DIAGNOSED" || band === "IDENTIFIED" || band === "COUNTED").toBe(saw);
     }
-    expect(bands.size).toBeGreaterThan(1);
+    expect([...bands].sort()).toEqual(
+      ["BUSTED", "COUNTED", "DIAGNOSED", "IDENTIFIED", "MISIDENTIFIED", "UNSURE"],
+    );
   });
 
   it("§17 states WHY the free runner is coming, rather than reading it off an absent tick", () => {
@@ -992,5 +1005,150 @@ describe("determinism, ADR-004 and the printout", () => {
     const { state, calls, names } = buildScenario();
     const { events } = simulatePassPlay(state, calls, "quiet");
     expect(renderPlay(events, names)).not.toContain("PRE-SNAP");
+  });
+});
+
+/**
+ * ADR-073 step 3.2a. `simulatePassPlay` now calls the pre-snap phase in three stages, with the
+ * coverage read and the leash rolled between the first and the second (§2.4). That moved no die
+ * only because every die in `sim/preSnap.ts` is FORKED by its own label, and a fork does not
+ * depend on what its parent has drawn. These pin it at the stages themselves: a stage that drew
+ * straight from the pre-snap fork would change what it rolls with whatever ran before it.
+ */
+describe("ADR-073 3.2a — the pre-snap stages, called apart", () => {
+  const probe = buildBlitz({ extraRushers: 2 });
+  const twist: readonly StuntCall[] = [
+    { penetrator: probe.ids.interior, looper: probe.ids.edge, complexity: "T_T" },
+  ];
+  const blitz = buildBlitz({ extraRushers: 2, twist });
+  const alone = buildBlitz({ backStaysIn: false, twist });
+  /** Name, fixture, the call, and whether the back is offered to anybody in a contest. */
+  const fixtures: readonly (readonly [string, BlitzFixture, PlayCalls, boolean])[] = [
+    ["man, two blitzers, a twist", blitz, blitz.calls, true],
+    // Both blitzers come from the right: the slide takes the first, the second runs free.
+    ["slide right, two blitzers, a twist", blitz, slideTo(blitz, "RIGHT"), false],
+    ["nobody kept in, a twist", alone, alone.calls, false],
+  ];
+
+  function stages(f: BlitzFixture, calls: PlayCalls, seed: string, noise: boolean) {
+    const presnapRng = createRng(seed, "stages").fork("presnap");
+    // What may now run between the stages: the coverage read's die, the leash's, and anything a
+    // later step adds. Drawn on the same fork, and straight from it as well.
+    const between = (): void => {
+      if (!noise) return;
+      presnapRng.fork("coverageRead").d100();
+      presnapRng.fork("leashDiscipline").d100();
+      for (let k = 0; k < 7; k++) presnapRng.next();
+    };
+    const player = (id: PlayerId): PlayerState => {
+      const p = f.state.players[id as unknown as string];
+      if (p === undefined) throw new Error(`no player ${String(id)}`);
+      return p;
+    };
+    between();
+    const read = readPreSnap({ tunables: TUNABLES, calls, quarterback: player(f.ids.qb), presnapRng, player });
+    const readBefore = JSON.stringify(read);
+    between();
+    const pickups = resolvePickups({
+      tunables: TUNABLES,
+      accounted: read.accounted,
+      pool: read.availableBlockers,
+      slideSide: read.slideSide,
+      recognized: read.recognized,
+      recognitionRollRef: read.recognitionRollRef,
+      presnapRng,
+      player,
+    });
+    const pickupsBefore = JSON.stringify(pickups);
+    between();
+    const lineGames = resolveStunts({
+      tunables: TUNABLES,
+      center: read.center,
+      stunts: read.stunts,
+      plans: pickups.plans,
+      presnapRng,
+    });
+    return { read, pickups, lineGames, readBefore, pickupsBefore };
+  }
+
+  it.each(fixtures)("%s: dice drawn on the pre-snap fork between the stages move nothing", (_name, f, calls, contested) => {
+    let pickupChecks = 0;
+    let stuntChecks = 0;
+    let recognitions = 0;
+    let freeRunners = 0;
+    for (let i = 0; i < 60; i++) {
+      const quiet = stages(f, calls, `order-${i}`, false);
+      const noisy = stages(f, calls, `order-${i}`, true);
+      expect(noisy).toEqual(quiet);
+      pickupChecks += quiet.pickups.checks.length;
+      stuntChecks += quiet.lineGames.checks.length;
+      freeRunners += quiet.lineGames.plans.filter((p) => p.free !== undefined).length;
+      if (quiet.read.recognition !== undefined) recognitions += 1;
+    }
+    // Non-vacuity: the dice each card owns were thrown, and somebody ran free.
+    expect(recognitions).toBeGreaterThan(0);
+    expect(stuntChecks).toBeGreaterThan(0);
+    expect(freeRunners).toBeGreaterThan(0);
+    if (contested) expect(pickupChecks).toBeGreaterThan(0);
+    else expect(pickupChecks).toBe(0);
+  });
+
+  it.each(fixtures)("%s: a stage copies what it is handed, so the read and stage two's plans come back untouched", (_name, f, calls) => {
+    let changed = 0;
+    for (let i = 0; i < 60; i++) {
+      const { read, pickups, lineGames, readBefore, pickupsBefore } = stages(f, calls, `copy-${i}`, false);
+      // The pool is offered from the front, and a passed-off twist rewrites two plans.
+      expect(JSON.stringify(read)).toBe(readBefore);
+      expect(JSON.stringify(pickups)).toBe(pickupsBefore);
+      if (JSON.stringify(lineGames.plans) !== JSON.stringify(pickups.plans)) changed += 1;
+    }
+    // Non-vacuity: stage three did rewrite plans, on its own copy.
+    expect(changed).toBeGreaterThan(0);
+  });
+
+  /**
+   * The blitz card with a lie and a closed leash added, so that all five pre-snap rolls can happen
+   * on one play: the X's man shows a deep zone on the far side (a trap on the go), and at leash 0
+   * any decision the read wants is a breach.
+   */
+  function everyRoll(): PlayCalls {
+    const { offense, defense } = blitz.calls;
+    const shownAssignments = defense.assignments.map((a) =>
+      a.kind === "MAN" && a.covers === blitz.ids.x
+        ? ({ kind: "ZONE", defender: a.defender, zone: { horizontal: "LW", vertical: "DEEP" } } as const)
+        : a,
+    );
+    return {
+      offense: { ...offense, leash: 0 },
+      defense: { ...defense, shownAssignments, coverageDisguise: "ROTATED" },
+    };
+  }
+
+  it("the play emits the stages in §2.4's order: the three pre-snap reads in order, then pickups, then line games", () => {
+    const calls = everyRoll();
+    const RANK: Readonly<Record<string, number>> = {
+      blitz_recognition: 0,
+      coverage_read: 1,
+      leash_discipline: 2,
+      blitz_pickup: 3,
+      stunt_communication: 4,
+    };
+    const seen = new Map<string, number>();
+    let allFive = 0;
+    for (let i = 0; i < 200; i++) {
+      const { events } = simulatePassPlay(blitz.state, calls, `emit-${i}`);
+      const firstTick = events.findIndex(({ event }) => event.type === "TICK");
+      const head = events.slice(0, firstTick < 0 ? events.length : firstTick).flatMap(({ event }) =>
+        event.type === "CHECK" ? [event.payload.checkKind] : event.type === "PRESNAP_READ" ? [event.payload.kind] : [],
+      );
+      const ranks = head.map((k) => RANK[k] ?? -1);
+      expect(ranks, head.join(", ")).not.toContain(-1);
+      expect(ranks, head.join(", ")).toEqual([...ranks].sort((a, b) => a - b));
+      for (const k of new Set(head)) seen.set(k, (seen.get(k) ?? 0) + 1);
+      if (new Set(head).size === 5) allFive += 1;
+    }
+    // Non-vacuity: every kind was rolled, and some play rolled all five.
+    for (const k of Object.keys(RANK)) expect(seen.get(k) ?? 0, k).toBeGreaterThan(0);
+    expect(allFive).toBeGreaterThan(0);
   });
 });

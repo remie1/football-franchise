@@ -76,7 +76,10 @@ export interface RouteAssignment {
    * every route.**
    */
   readonly breakZone?: FieldZone;
-  /** The route he converts to if the offence recognises pressure (ADR-022). */
+  /**
+   * The route he converts to if the offence's pressure read pictures pressure, truly or not
+   * (ADR-022; ADR-073 §2.3).
+   */
   readonly hot?: HotRouteSpec;
 }
 
@@ -105,12 +108,39 @@ export type ProtectionCall =
       readonly center?: PlayerId;
       /** Men in protection not pre-paired to a rusher, in pickup priority order. */
       readonly available?: readonly PlayerId[];
+      /**
+       * Check-release men who RELEASED — running a route in this call — whom the line may keep
+       * in to block before the snap, in the card's order (ADR-073). Each listed man is in
+       * `routes`; the list is disjoint from `available` and from every `protection[].blocker`
+       * (the engine validator refuses otherwise). It is not playbook's
+       * `ProtectionScheme.checkRelease`, a list of roles that includes men later pulled into
+       * protection: it is what is left of that list, by PlayerId. Omitted ⇒ nobody may be kept in.
+       */
+      readonly checkRelease?: readonly PlayerId[];
     }
   | {
       readonly kind: "SLIDE";
+      /**
+       * The huddle's slide; with `slideCheck` the line may check it before the snap, and the
+       * engine reports a check on the stream.
+       */
       readonly slideSide: RunSide;
       readonly center?: PlayerId;
       readonly available?: readonly PlayerId[];
+      /**
+       * Check-release men who RELEASED — running a route in this call — whom the line may keep
+       * in to block before the snap, in the card's order (ADR-073). Each listed man is in
+       * `routes`; the list is disjoint from `available` and from every `protection[].blocker`
+       * (the engine validator refuses otherwise). It is not playbook's
+       * `ProtectionScheme.checkRelease`, a list of roles that includes men later pulled into
+       * protection: it is what is left of that list, by PlayerId. Omitted ⇒ nobody may be kept in.
+       */
+      readonly checkRelease?: readonly PlayerId[];
+      /**
+       * The line may check the slide to the other side before the snap, toward the pressure it
+       * reads (ADR-073). Omitted ⇒ the slide is run as called.
+       */
+      readonly slideCheck?: true;
     };
 
 /**
@@ -468,7 +498,7 @@ export interface DefensiveTag {
  * A defensive call, said in the order a call sheet says it (ADR-071): **personnel, front,
  * concept, tags** — "Nickel Over Tex, Fire, Cover 3, Show 2". The four are NAMES: a renderer
  * prints them and nothing resolves them. What the engine resolves is `assignments`,
- * `shownAssignments`, `rush`, `stunts`, `blitzDisguise` and `coverageDisguise`.
+ * `shownAssignments`, `rush`, `shownRush`, `stunts`, `blitzDisguise` and `coverageDisguise`.
  */
 export interface DefensivePlayCall {
   /** Who is on the field: `"Nickel"`. The call's first part (ADR-071). */
@@ -512,7 +542,9 @@ export interface DefensivePlayCall {
    * WHY THIS EXISTS. There is no shown-vs-played pair anywhere in the engine today
    * (backlog entry 165): a defensive card states duties and the duties are what happens.
    * `blitzDisguise` is NOT that pair — it shifts a recognition target (+0/15/20/25) about
-   * a rush that is already fixed and that protection has already paired against. It models
+   * a rush that is already fixed, that the offence's protection was paired against before the
+   * snap (against the real rush or a caller's anticipation of it, ADR-024), and that the line may
+   * adjust to when the call states the option (ADR-073). It models
    * DEGRADED PERCEPTION OF ONE TRUTH. Being deceived requires two. For the rush, the two
    * are `rush` and `shownRush` (ADR-073).
    *
@@ -532,8 +564,8 @@ export interface DefensivePlayCall {
    * THE SAME ARRAY AS `rush` on every call built today (identity by construction); a front
    * look (ADR-073 step 3.5) will be the only writer of a second list.
    *
-   * NOTHING IN THE ENGINE READS IT YET beyond validating it and echoing it on PLAY_START;
-   * the pressure read consumes it from 3.2b. Physics never reads it.
+   * READ BY THE PRESSURE READ (ADR-073 step 3.2b), beside the validator and the PLAY_START
+   * echo: the offence's picture is judged against this list. Physics never reads it.
    */
   readonly shownRush: readonly ShownRusher[];
 }

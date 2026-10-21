@@ -17,6 +17,9 @@
  *  2b. **Which looks** the defence wears over its card, from v3 (ADR-069, ADR-071) —
  *     `selectLooks`, one league-wide rate, drawn after the card on an address of its own. See
  *     below.
+ *  2c. **The call in parts**, from v6 (ADR-071 step 3, ADR-073 §2.6) — the coverage, the pressure
+ *     laid over it and the line game, each drawn on an address of its own, at rates that hold
+ *     v5's by construction. See below.
  *  3. **Fourth down** comes from a second fitted table (go / punt / field goal), drawn rather
  *     than taken modally. See `decideFourthDown` for why that disagrees with the engine's
  *     default caller on purpose.
@@ -105,6 +108,61 @@
  * And v3 still wears exactly what it wore: over Phase 1's catalogue no two looks combine, so
  * `selectLooks` rolls every die where Phase 1's draw rolled it (`playbook/test/masks.test.ts`
  * checks it die for die).
+ *
+ * ================== WHAT CHANGED AT v5 — ADR-073 STEP 3.3, THE LINE'S OPTIONS ==================
+ *
+ * **At v5 every pass call on a slide states the line's pre-snap SLIDE CHECK** (`protectionOptions`,
+ * ADR-073 §2.3): `slideCheck`, so the line may check the slide toward the pressure it reads. That
+ * is the call a centre and a quarterback make before the snap. Whether the line uses it is the
+ * engine's decision, per snap, from the pressure read and the coach's leash (rung 30). Nothing is
+ * drawn: no address moves, so for any seed v4 and v5 call the same plays against the same cards
+ * wearing the same looks, and the calls differ ONLY in that one key. `test/caller.test.ts` asserts
+ * it call for call.
+ *
+ * **v5 does NOT state the KEEP-IN by default** (`checkRelease`, the card's check-release men who
+ * released, whom the engine may keep in to block). Keeping a check-release back in is the back's
+ * own post-snap read in real football, not a call the QB or centre makes before it, so a caller
+ * that stated it would be calling something no pre-snap caller calls (the owner's challenge of
+ * 2026-10-17, ADR-077 proposal; ADR-073 §10 3.3 measured it as a driver of `sack_rate`).
+ * `FrozenCallerSpec.keepIn: true` states it for a measurement arm: ADR-073 §10's keep-in-only
+ * and full arms, and a later "Max" call that puts the back's read in the coach's hands.
+ *
+ * `FrozenCallerSpec.slideCheck: false` drops the slide check, and with the keep-in at its default
+ * a v5 call is v4's, key for key (the proof arm).
+ *
+ * ================== WHAT CHANGED AT v6 — ADR-073 STEP 3.4, THE CALL DRAWN IN PARTS ==================
+ *
+ * **At v6 the defence draws its call in parts** (ADR-071 step 3, ADR-073 §2.6), each part on an
+ * address of its own (`drawInParts`):
+ *
+ *  1. **the coverage**, on `fork("defense-card")`: v5's card, drawn with v5's own die, folded onto
+ *     the coverage that hosts it (`selectCoverage`). So each coverage's share is its own weight
+ *     plus the weights of the pressures it hosts, and on every snap v6's coverage is the host of the
+ *     card v5 would have called;
+ *  2. **the pressure** over it, on `fork("defense-pressure")` (`/blitz`, `/which`, `/creeper`):
+ *     a five-or-more pressure at one rate per situation, so P(five or more) is v5's exactly, and
+ *     with none drawn over a four-man Cover 3, the creeper on `CREEPER_RATE` of them;
+ *  3. **the line game**, on `fork("defense-line")` (`/wears`, `/which`), among the games legal on
+ *     the call, at the rate that holds v5's line-game share in every situation.
+ *
+ * Each die is thrown only where it can turn something (ADR-005). The parts are composed as a card
+ * (`COMPOSED`, built and checked in playbook), so the looks are drawn over it on
+ * `fork("defense-mask")` with the code above, and it is instantiated as any card is.
+ *
+ * **The huddle guesses the same way** (R30): a coverage and a pressure, on
+ * `anticipated-front/coverage` and `anticipated-front/pressure`, with the real coverage's
+ * personnel and the real draw's own weights, the creeper included, and nothing drawn on
+ * `anticipated-front` itself (`anticipateDecomposed`). No line game: protection reads no stunts.
+ * The guess is graded against the real call before its line game, so `exactCard` reads as v5's.
+ * Protection is v5's: the slide check stated, the keep-in only on `keepIn: true`.
+ *
+ * **Three measurement knobs, each on by default.** `creeper: false` (`/creeper-0`) draws no creeper,
+ * in the call or in the guess. `drawPressures: false` (`/pressures-bound`) calls v5's card on v5's
+ * die, and the huddle guesses v5's way; with the line game drawn, the card's own stunts are
+ * stripped first (the front arm). `drawLines: false` (`/lines-bound`) keeps each call's own stunts,
+ * and Fire over Sky keeps Fire Zone's Tex (the pressure arm). With both bound a v6 call is v5's on
+ * every snap (the bound proof arm). v1–v5 never fork the new addresses, and forks are pure, so not
+ * one of their dice moves.
  */
 import type { Rng } from "@ff/contracts";
 import { createRng } from "@ff/contracts";
@@ -118,31 +176,45 @@ import type {
   OffensiveCallRequest,
   PlayCaller,
 } from "@ff/engine";
-import type { OffensiveCall } from "@ff/contracts";
+import type { OffensiveCall, ProtectionCall } from "@ff/contracts";
 import type { AnyDefensiveCard, DepthChart, PlaySituation } from "@ff/playbook";
 import {
+  COMPOSED,
   COVERAGE_MASKS,
   PHASE_1_MASKS,
   UnprotectableCallError,
   applyLooks,
   buildDefensiveUnit,
   buildOffensiveUnit,
+  composeCall,
+  composedKey,
+  drawLineGame,
+  drawPressure,
   instantiateDefense,
   instantiateRun,
   instantiatePass,
   isRunConcept,
+  lineGameRate,
+  protectionOptions,
+  selectCoverage,
   selectDefensiveCard,
   selectLooks,
   selectPassConcept,
   selectRunConcept,
+  type AnyOffensiveUnit,
   type CoverageMask,
+  type HostedPressure,
   type InstantiatedDefense,
   type InstantiatedOffense,
+  type LineChoice,
   type OffensiveConcept,
+  type PassConcept,
 } from "@ff/playbook";
 import type { Down } from "@ff/playbook";
 import {
+  CALLER_VERSIONS,
   DEFAULT_CALLER_VERSION,
+  anticipateDecomposed,
   anticipateFront,
   blankDrawQuality,
   compareFronts,
@@ -210,7 +282,9 @@ export interface FrozenCallerSpec {
   readonly fourthDown: FittedFourthDown;
   /**
    * v1 (the informed caller), v2 (ADR-024's anticipating caller), v3 (v2 wearing ADR-069's
-   * pre-snap masks) or v4 (v3 with ADR-071 step 2's corner looks). Defaults to v4.
+   * pre-snap masks), v4 (v3 with ADR-071 step 2's corner looks), v5 (v4 stating the line's
+   * slide check, ADR-073; the keep-in only on request, `keepIn`) or v6 (v5 drawing its defence's
+   * call in parts, and the creeper, ADR-073 step 3.4). Defaults to v4.
    *
    * OPTIONAL HERE AND RECORDED IN PROVENANCE, which is the same split `runBatch` makes for
    * `tunables`: ergonomics on the surface, and the value that was actually used printed in the
@@ -220,10 +294,10 @@ export interface FrozenCallerSpec {
   readonly callerVersion?: CallerVersion;
   /**
    * The looks a defence may wear (ADR-069, ADR-071). Defaults to the version's catalogue —
-   * Phase 1's two at v3, all five at v4; `[]` wears none. A MEASUREMENT KNOB for one-look-alone
-   * arms, never narrowed in a report run — the rate stays `COVERAGE_MASK_RATE` either way, so a
-   * narrowed arm disguises fewer snaps, which is the point. Ignored below v3, which draws no
-   * looks at all.
+   * Phase 1's two at v3, all five at v4, v5 and v6; `[]` wears none. A MEASUREMENT KNOB for
+   * one-look-alone arms, never narrowed in a report run — the rate stays `COVERAGE_MASK_RATE`
+   * either way, so a narrowed arm disguises fewer snaps, which is the point. Ignored below v3,
+   * which draws no looks at all.
    */
   readonly coverageMasks?: readonly CoverageMask[];
   /**
@@ -234,6 +308,32 @@ export interface FrozenCallerSpec {
    * report run; a caller at another leash says so in its identity (`callerIdentity`).
    */
   readonly leash?: number;
+  /**
+   * ADR-073 §2.3, the two options v5 and v6 state, and they are NOT symmetric. `slideCheck` is
+   * stated on every slide unless set `false`: a pre-snap call, v5's whole content. `keepIn` is
+   * `checkRelease`, the card's released check-release men, stated on a call ONLY when set `true`:
+   * keeping a back in is his own post-snap read, not a call the QB or centre makes (ADR-073 §10
+   * 3.3; the owner's challenge of 2026-10-17, ADR-077 proposal), so it is an opt-in MEASUREMENT
+   * KNOB for §10's keep-in-only and full arms and a later "Max" call. Neither is moved in a report
+   * run; a caller off the default on either says so in its identity (`/no-slide-check`,
+   * `/keep-in`). Both are refused on a version that states no options, whatever the value, so an
+   * identity never names a knob that did nothing.
+   */
+  readonly slideCheck?: boolean;
+  readonly keepIn?: boolean;
+  /**
+   * ADR-073 §2.6, v6's three parts, each DRAWN unless set `false`, and each a MEASUREMENT KNOB for
+   * step 3.4's arms, never moved in a report run. `creeper: false` (`/creeper-0`) draws no creeper,
+   * in the call or in the huddle's guess. `drawPressures: false` (`/pressures-bound`) calls v5's
+   * card on v5's die, and the huddle guesses v5's way (the front arm). `drawLines: false`
+   * (`/lines-bound`) keeps each call's own stunts (the pressure arm). With both bound a v6 call is
+   * v5's on every snap. Refused, whatever the value, on a version that draws its call as one card
+   * (v1–v5), and `creeper: false` is refused with the pressures bound, where there is no creeper to
+   * turn off: an identity never names a knob that did nothing.
+   */
+  readonly creeper?: boolean;
+  readonly drawPressures?: boolean;
+  readonly drawLines?: boolean;
   /**
    * BOTH depth charts, because both callers resolve BOTH sides of every snap and must agree.
    * That agreement is the load-bearing property: the engine asks the offence first and the
@@ -266,13 +366,44 @@ export interface FrozenCallerPair {
  * caller is a different denominator"* — and a behaviour change with an unchanged table met that
  * criterion while leaving the string alone. ADR-024 is exactly such a change, so the behaviour
  * version is composed in and the field now says what its own comment always claimed.
+ *
+ * A knob off its default is appended, so a measurement arm cannot be compared as the caller it
+ * changed (ADR-073 §2.7): `/no-slide-check`, then `/keep-in`, then v6's `/creeper-0`,
+ * `/pressures-bound` and `/lines-bound`, then `/leash-N` last (step 3.5's `/front-*` marks go before
+ * it, so every leash mark keeps its place). A knob at its default is unmarked, so every identity
+ * written before the knobs existed still reads the same. The defaults are the slide check ON and
+ * the keep-in OFF, so the marks are `slideCheck: false` and `keepIn: true`; `keepIn: false` is the
+ * default spelled out and is unmarked. There is no `/no-keep-in`: that was the mark of v5's first
+ * build, which stated the keep-in by default. v6's three parts are drawn by default, so each is
+ * marked when `false`.
  */
 export function callerIdentity(
   version: CallerVersion,
   tendenciesVersion: string,
   leash: number = DEFAULT_LEASH,
+  knobs: CallerKnobs = {},
 ): string {
-  return leash === DEFAULT_LEASH ? `${version}/${tendenciesVersion}` : `${version}/${tendenciesVersion}/leash-${String(leash)}`;
+  return [
+    `${version}/${tendenciesVersion}`,
+    knobs.slideCheck === false ? "/no-slide-check" : "",
+    knobs.keepIn === true ? "/keep-in" : "",
+    knobs.creeper === false ? "/creeper-0" : "",
+    knobs.drawPressures === false ? "/pressures-bound" : "",
+    knobs.drawLines === false ? "/lines-bound" : "",
+    leash === DEFAULT_LEASH ? "" : `/leash-${String(leash)}`,
+  ].join("");
+}
+
+/**
+ * The knobs an identity names (`FrozenCallerSpec.slideCheck`, `.keepIn`, `.creeper`,
+ * `.drawPressures`, `.drawLines`).
+ */
+export interface CallerKnobs {
+  readonly slideCheck?: boolean;
+  readonly keepIn?: boolean;
+  readonly creeper?: boolean;
+  readonly drawPressures?: boolean;
+  readonly drawLines?: boolean;
 }
 
 /**
@@ -281,8 +412,158 @@ export function callerIdentity(
  * default plays exactly what a batch played before the leash existed, and the identity leaves it
  * unmarked for that reason. ⚠ That stops being true the day a rung above 50 lands: that change
  * moves what the default plays, and must say so in the caller's version.
+ *
+ * ADR-073's PROTECTION_ADJUST rung, at 30, sits below it, so the default is unchanged. On v5 a
+ * leash below 30 closes the line's adjustment: the one roll is thrown, HELD runs the protection as
+ * called and BROKE makes it (`engine/src/resolve/leash.ts`). From 30 to 39 the adjustment is open
+ * and WORK_TO (40) closed. v4 states no options, so its leash behaviour does not move.
  */
 export const DEFAULT_LEASH = 50;
+
+/**
+ * WHAT EACH VERSION DOES, ONE ROW EACH (ADR-073 §2.7). Rows v1–v4 restate what the version
+ * ternary used to say: v1 plays the card it is dealt; from v2 the offence blocks the front it
+ * anticipated; v3 wears Phase 1's two safety looks; v4 all five. None of them states the line's
+ * options. v5 is v4 with them (ADR-073 step 3.3), the first row the ternary never had: the slide
+ * check by default, the keep-in only on a spec that asks (`FrozenCallerSpec.keepIn`). v1–v5 draw
+ * their call as one card, its pressure and its line game bound to it. v6 is v5 drawing them on
+ * their own (ADR-073 step 3.4, §2.6), and its huddle guesses the call decomposed the same way.
+ *
+ * A TABLE AND NOT A TERNARY because the type is the list of versions (`CALLER_VERSIONS`): a
+ * version with no row fails to compile, where the ternary quietly played any version it did not
+ * name as a v2 (anticipating, wearing nothing). A string that is no version at all is refused by
+ * `frozenCallerPair`.
+ */
+interface CallerProfile {
+  /**
+   * "NONE": the offence blocks the card it is dealt (v1). "CARD": it blocks a second draw (ADR-024).
+   * "DECOMPOSED": it blocks a second draw of the coverage and the pressure (ADR-073 §2.6, R30),
+   * and blocks as "CARD" when the pressures are bound (`/pressures-bound`): with no pressure
+   * drawn there is none to decompose.
+   */
+  readonly anticipation: "NONE" | "CARD" | "DECOMPOSED";
+  /**
+   * The looks the defence may wear. `undefined`, not `[]`, below v3: no look is DRAWN there, so
+   * `FrozenCallerSpec.coverageMasks` has nothing to narrow and is ignored.
+   */
+  readonly looks: readonly CoverageMask[] | undefined;
+  /** Every slide states the line's slide check, and a pass call the keep-in if asked (ADR-073 §2.3; `withLineOptions`). */
+  readonly protectionOptions: boolean;
+  /**
+   * "BOUND": the pressure is the card's own (v1–v5). "DRAWN": it is drawn over the coverage on its
+   * own address, the creeper among them (ADR-073 §2.6; `FrozenCallerSpec.drawPressures`, `.creeper`).
+   */
+  readonly pressures: "BOUND" | "DRAWN";
+  /**
+   * "BOUND": the line plays the call's own stunts (v1–v5). "DRAWN": the line game is drawn on its own
+   * address among those legal on the call (ADR-073 §2.6; `FrozenCallerSpec.drawLines`).
+   */
+  readonly lines: "BOUND" | "DRAWN";
+}
+
+const PROFILE: Readonly<Record<CallerVersion, CallerProfile>> = {
+  v1: { anticipation: "NONE", looks: undefined, protectionOptions: false, pressures: "BOUND", lines: "BOUND" },
+  v2: { anticipation: "CARD", looks: undefined, protectionOptions: false, pressures: "BOUND", lines: "BOUND" },
+  v3: { anticipation: "CARD", looks: PHASE_1_MASKS, protectionOptions: false, pressures: "BOUND", lines: "BOUND" },
+  v4: { anticipation: "CARD", looks: COVERAGE_MASKS, protectionOptions: false, pressures: "BOUND", lines: "BOUND" },
+  v5: { anticipation: "CARD", looks: COVERAGE_MASKS, protectionOptions: true, pressures: "BOUND", lines: "BOUND" },
+  v6: { anticipation: "DECOMPOSED", looks: COVERAGE_MASKS, protectionOptions: true, pressures: "DRAWN", lines: "DRAWN" },
+};
+
+/** A profile with a spec's knobs applied: what each snap draws. Pure, and the same on both sides. */
+interface SnapPlan {
+  readonly anticipation: CallerProfile["anticipation"];
+  readonly pressures: CallerProfile["pressures"];
+  readonly lines: CallerProfile["lines"];
+  /** The creeper is drawn: the pressures are drawn and `creeper` is not `false`. */
+  readonly creeper: boolean;
+}
+
+function snapPlan(profile: CallerProfile, spec: FrozenCallerSpec): SnapPlan {
+  const pressures = profile.pressures === "DRAWN" && spec.drawPressures !== false ? "DRAWN" : "BOUND";
+  const lines = profile.lines === "DRAWN" && spec.drawLines !== false ? "DRAWN" : "BOUND";
+  return {
+    anticipation: profile.anticipation === "DECOMPOSED" && pressures === "BOUND" ? "CARD" : profile.anticipation,
+    pressures,
+    lines,
+    creeper: pressures === "DRAWN" && spec.creeper !== false,
+  };
+}
+
+/** One part-drawn call (`drawInParts`). */
+interface DrawnCall {
+  /** The coverage drawn, when the pressures are drawn: what the huddle's decomposed guess is held to. */
+  readonly coverage: AnyDefensiveCard | undefined;
+  /** The call before its line game, with no stunts: what the huddle's guess is graded against. */
+  readonly graded: AnyDefensiveCard;
+  /** The call as played: with its drawn line game, or with its own stunts when lines are BOUND. */
+  readonly card: AnyDefensiveCard;
+}
+
+function composed(coverage: AnyDefensiveCard, pressure: HostedPressure | undefined, line: LineChoice): AnyDefensiveCard {
+  const key = composedKey(coverage.id, pressure?.pressure, line);
+  const entry = COMPOSED[key];
+  if (entry === undefined) {
+    throw new FrozenCallerError(`the draw reached ${key}, which playbook's COMPOSED does not hold`);
+  }
+  return entry.call;
+}
+
+/**
+ * ADR-073 §2.6, from v6: the defensive call drawn in parts, each on its own fork of the snap, and
+ * each a playbook draw (`pressureDraw.ts`, which states their law and holds v5's rates by
+ * construction). Called only when a part is drawn; with both bound the caller draws v5's card on
+ * v5's die and never comes here.
+ *
+ *  - **Pressures DRAWN:** the coverage on `defense-card` (`selectCoverage`: v5's die, folded onto
+ *    its host), then the pressure over it on `defense-pressure`, the creeper as the plan says.
+ *  - **Pressures BOUND** (`/pressures-bound`): v5's card, on v5's `defense-card` die.
+ *  - **Lines DRAWN:** the line game on `defense-line`, over the call with its own stunts stripped, at
+ *    the plan's r_line (`lineGameRate`).
+ *  - **Lines BOUND** (`/lines-bound`): the call keeps its own stunts (a reproduction its card's).
+ */
+function drawInParts(snapRng: Rng, situation: PlaySituation, plan: SnapPlan): DrawnCall {
+  if (plan.pressures === "DRAWN") {
+    const coverage = selectCoverage(snapRng.fork("defense-card"), situation);
+    const pressure = drawPressure(snapRng.fork("defense-pressure"), coverage, situation, { creeper: plan.creeper });
+    const graded = composed(coverage, pressure, "NONE");
+    if (plan.lines === "BOUND") return { coverage, graded, card: composed(coverage, pressure, "BOUND") };
+    const rLine = lineGameRate(situation, { pressures: "DRAWN", creeper: plan.creeper });
+    const game = drawLineGame(snapRng.fork("defense-line"), graded, situation, rLine);
+    return { coverage, graded, card: game === undefined ? graded : composed(coverage, pressure, game.id) };
+  }
+  const card = selectDefensiveCard(snapRng.fork("defense-card"), situation);
+  const graded = composeCall(card, undefined, "NONE");
+  const game = drawLineGame(snapRng.fork("defense-line"), graded, situation, lineGameRate(situation, { pressures: "BOUND" }));
+  return { coverage: undefined, graded, card: game === undefined ? graded : composeCall(card, undefined, game.id) };
+}
+
+/**
+ * ADR-073 §2.3, from v5: the pass call with the line's options stated, as `protectionOptions`
+ * states them from the card, less the ones this caller does not call. The slide check is stated
+ * unless `slideCheck` is `false`; the keep-in (`checkRelease`) is stated ONLY if `keepIn` is
+ * `true`, because it is the back's own post-snap read and not a pre-snap call (ADR-073 §10 3.3;
+ * the owner's challenge of 2026-10-17). A dropped option's key is ABSENT rather than `undefined`
+ * (`exactOptionalPropertyTypes`; the engine validator asks `"slideCheck" in scheme`), and every
+ * other key keeps its place: the card's scheme carries neither key, so with the slide check off
+ * and the keep-in at its default the call is v4's, key for key and in order.
+ */
+function withLineOptions(
+  spec: FrozenCallerSpec,
+  concept: PassConcept,
+  unit: AnyOffensiveUnit,
+  offense: InstantiatedOffense,
+): InstantiatedOffense {
+  if (offense.call.kind !== "PASS") return offense;
+  const off = new Set<string>([
+    ...(spec.slideCheck === false ? ["slideCheck"] : []),
+    ...(spec.keepIn === true ? [] : ["checkRelease"]),
+  ]);
+  const protectionScheme = Object.fromEntries(
+    Object.entries(protectionOptions(concept, unit, offense)).filter(([key]) => !off.has(key)),
+  ) as ProtectionCall;
+  return { ...offense, call: { ...offense.call, protectionScheme } };
+}
 
 function situationOf(request: {
   readonly situation: {
@@ -353,6 +634,11 @@ function sharedSnapRng(rng: Rng, side: "offense" | "defense"): Rng {
 interface ResolvedSnap {
   readonly offense: InstantiatedOffense;
   readonly defense: InstantiatedDefense;
+  /**
+   * The card drawn, as the anticipation is graded against it. From v6, when a part is drawn, the
+   * call BEFORE its line game (the huddle guesses none), which carries the same id, personnel and
+   * front as the call played.
+   */
   readonly defensiveCard: AnyDefensiveCard;
   readonly concept: OffensiveConcept;
   readonly redraws: number;
@@ -390,12 +676,17 @@ function resolveSnap(
   snapRng: Rng,
 ): ResolvedSnap {
   const version = spec.callerVersion ?? DEFAULT_CALLER_VERSION;
+  const profile = PROFILE[version];
+  const plan = snapPlan(profile, spec);
   const rate = lookupPassRate(spec.tendencies, key);
   const pass = snapRng.fork("kind").next() < rate.passRate;
 
   // The defensive card is drawn WITHOUT reference to the offensive concept — the corpus's
-  // situational weights are all it sees — so the defence is not clairvoyant either.
-  const defensiveCard = selectDefensiveCard(snapRng.fork("defense-card"), situation);
+  // situational weights are all it sees — so the defence is not clairvoyant either. From v6 it is
+  // drawn in parts (ADR-073 §2.6); with both parts bound it is v5's card on v5's die.
+  const drawn = plan.pressures === "BOUND" && plan.lines === "BOUND" ? undefined : drawInParts(snapRng, situation, plan);
+  const defensiveCard =
+    drawn === undefined ? selectDefensiveCard(snapRng.fork("defense-card"), situation) : drawn.card;
   const defenseUnit = buildDefensiveUnit(defensiveCard.personnel, defenseChart);
 
   /**
@@ -405,7 +696,7 @@ function resolveSnap(
    * guess) is drawn bare, because a look changes no rusher and no fit, so there is nothing in it
    * to block against.
    */
-  const catalogue = version === "v4" ? COVERAGE_MASKS : version === "v3" ? PHASE_1_MASKS : undefined;
+  const catalogue = profile.looks;
   const lookDraw =
     catalogue === undefined
       ? undefined
@@ -418,11 +709,19 @@ function resolveSnap(
    * The anticipation is drawn ONCE PER SNAP, before the concept loop, and deliberately not inside
    * it: a caller that re-anticipated on every re-draw would be sampling the defence repeatedly
    * until it found one it liked, which is clairvoyance wearing a guess's face.
+   *
+   * From v6, with the pressures drawn, it is decomposed as the call is (ADR-073 R30), on children
+   * of the same fork, and held to the real coverage's personnel.
    */
   const anticipated: AnticipatedFront | undefined =
-    version === "v1"
+    plan.anticipation === "NONE"
       ? undefined
-      : anticipateFront(snapRng.fork("anticipated-front"), situation, defensiveCard);
+      : plan.anticipation === "CARD"
+        ? anticipateFront(snapRng.fork("anticipated-front"), situation, defensiveCard)
+        : anticipateDecomposed(snapRng.fork("anticipated-front"), situation, coverageOf(drawn), {
+            pressures: "DRAWN",
+            creeper: plan.creeper,
+          });
 
   let redraws = 0;
   let lastError: unknown = null;
@@ -450,7 +749,9 @@ function resolveSnap(
     try {
       const offense = isRunConcept(concept)
         ? instantiateRun(concept, offenseUnit, expected)
-        : instantiatePass(concept, offenseUnit, expected);
+        : profile.protectionOptions
+          ? withLineOptions(spec, concept, offenseUnit, instantiatePass(concept, offenseUnit, expected))
+          : instantiatePass(concept, offenseUnit, expected);
       const realRushers = new Set(defense.rush.map((r) => String(r.rusher)));
       const protectorsInCoverage =
         offense.call.kind === "PASS"
@@ -459,7 +760,7 @@ function resolveSnap(
       return {
         offense,
         defense,
-        defensiveCard,
+        defensiveCard: drawn === undefined ? defensiveCard : drawn.graded,
         concept,
         redraws,
         pass,
@@ -482,10 +783,48 @@ function resolveSnap(
   );
 }
 
+/** The coverage of a part-drawn call. Asked only where the pressures are drawn, which draws one. */
+function coverageOf(drawn: DrawnCall | undefined): AnyDefensiveCard {
+  if (drawn?.coverage === undefined) {
+    throw new FrozenCallerError("the huddle decomposes the call, and no coverage was drawn to decompose");
+  }
+  return drawn.coverage;
+}
+
 export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
   const callerVersion = spec.callerVersion ?? DEFAULT_CALLER_VERSION;
+  // Membership in the list, not `PROFILE[v] === undefined`: an inherited name ("constructor")
+  // finds an entry on any object, and would play a caller nobody wrote.
+  if (!(CALLER_VERSIONS as readonly string[]).includes(callerVersion)) {
+    throw new FrozenCallerError(
+      `no caller version "${String(callerVersion)}". Expected one of ${CALLER_VERSIONS.join(", ")}.`,
+    );
+  }
+  if (!PROFILE[callerVersion].protectionOptions && (spec.slideCheck !== undefined || spec.keepIn !== undefined)) {
+    throw new FrozenCallerError(
+      `caller ${callerVersion} states no line options, so it has none to set: slideCheck and ` +
+        `keepIn are knobs of a version that states them (v5 and v6, ADR-073 §2.7).`,
+    );
+  }
+  const profile = PROFILE[callerVersion];
+  if (
+    profile.pressures === "BOUND" &&
+    profile.lines === "BOUND" &&
+    (spec.creeper !== undefined || spec.drawPressures !== undefined || spec.drawLines !== undefined)
+  ) {
+    throw new FrozenCallerError(
+      `caller ${callerVersion} draws its call as one card, so it has no part to bind: creeper, ` +
+        `drawPressures and drawLines are knobs of a version that draws them (v6, ADR-073 §2.6).`,
+    );
+  }
+  if (spec.creeper === false && spec.drawPressures === false) {
+    throw new FrozenCallerError(
+      `with the pressures bound (drawPressures: false) no creeper is drawn, so creeper: false would ` +
+        `name a knob that did nothing (ADR-073 step 3.4).`,
+    );
+  }
   const leash = spec.leash ?? DEFAULT_LEASH;
-  const name = spec.name ?? `frozen-${callerIdentity(callerVersion, spec.tendencies.version, leash)}`;
+  const name = spec.name ?? `frozen-${callerIdentity(callerVersion, spec.tendencies.version, leash, spec)}`;
   const diagnostics = blankDiagnostics();
 
   const chartsFor = (side: "HOME" | "AWAY"): { offense: DepthChart; defense: DepthChart } =>

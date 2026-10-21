@@ -84,9 +84,10 @@ export interface CheckEmission {
  *
  * `band` is ADR-022 petition 6, ratified — the same field and the same meaning
  * ADR-011 gave `CHECK.band`, for the same reason: a band a consumer re-derives
- * desyncs silently the first time calibration moves a boundary. §5.3's four rows
- * (`READ_IT`, `RECOGNIZED`, `MISSED`, `FOOLED`) travel in the stream rather than
- * being reconstructed from `tier`. Absent means the read rolled against a bare
+ * desyncs silently the first time calibration moves a boundary. The pressure
+ * read's six bands (`DIAGNOSED`, `IDENTIFIED`, `COUNTED`, `UNSURE`,
+ * `MISIDENTIFIED`, `BUSTED`; ADR-073 §2.2) travel in the stream rather than
+ * being reconstructed from `tier`, as the coverage read's and the leash's do. Absent means the read rolled against a bare
  * target with no band table behind it, never "the band was not worth carrying".
  */
 export interface PresnapEmission {

@@ -23,14 +23,25 @@ export interface RunGameInput {
   readonly fourthDown: FittedFourthDown;
   readonly tunables?: Tunables;
   /**
-   * ADR-024 / ADR-069 / ADR-071. Defaults to v4 (anticipating, wearing every look) inside
-   * `frozenCallerPair`.
+   * ADR-024 / ADR-069 / ADR-071 / ADR-073. Defaults to v4 (anticipating, wearing every look)
+   * inside `frozenCallerPair`; v5 also states the line's slide check (and the keep-in, on request);
+   * v6 also draws the defence's call in parts, and the creeper.
    */
   readonly callerVersion?: CallerVersion;
   /** ADR-069 measurement arms only — see `FrozenCallerSpec.coverageMasks`. */
   readonly coverageMasks?: readonly CoverageMask[];
   /** ADR-072 measurement arms only — see `FrozenCallerSpec.leash`. */
   readonly leash?: number;
+  /** ADR-073 measurement arms only, v5 and v6 — see `FrozenCallerSpec.slideCheck` (stated unless `false`). */
+  readonly slideCheck?: boolean;
+  /** ADR-073 measurement arms only, v5 and v6 — see `FrozenCallerSpec.keepIn` (stated only if `true`). */
+  readonly keepIn?: boolean;
+  /** ADR-073 step 3.4 measurement arms only, v6 — see `FrozenCallerSpec.creeper` (drawn unless `false`). */
+  readonly creeper?: boolean;
+  /** ADR-073 step 3.4 measurement arms only, v6 — see `FrozenCallerSpec.drawPressures` (drawn unless `false`). */
+  readonly drawPressures?: boolean;
+  /** ADR-073 step 3.4 measurement arms only, v6 — see `FrozenCallerSpec.drawLines` (drawn unless `false`). */
+  readonly drawLines?: boolean;
 }
 
 export interface RunGameOutput {
@@ -49,6 +60,11 @@ export function runOneGame(input: RunGameInput): RunGameOutput {
     ...(input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }),
     ...(input.coverageMasks === undefined ? {} : { coverageMasks: input.coverageMasks }),
     ...(input.leash === undefined ? {} : { leash: input.leash }),
+    ...(input.slideCheck === undefined ? {} : { slideCheck: input.slideCheck }),
+    ...(input.keepIn === undefined ? {} : { keepIn: input.keepIn }),
+    ...(input.creeper === undefined ? {} : { creeper: input.creeper }),
+    ...(input.drawPressures === undefined ? {} : { drawPressures: input.drawPressures }),
+    ...(input.drawLines === undefined ? {} : { drawLines: input.drawLines }),
   });
 
   const coordinates = {

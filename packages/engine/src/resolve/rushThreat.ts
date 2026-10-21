@@ -340,9 +340,11 @@ export function rushAlignmentFor(
  * cannot run without one, so an absent alignment becomes a tunable default and
  * the stream must state which value was actually used. `side` and `gap` have no
  * such consumer in the physics and therefore no default. The engine's slide reads
- * the card's `side` (`sim/preSnap.ts`, the slide-side pickup), and so does
- * playbook's `claim()` when it builds the protection, but both read the card;
- * neither needs a value invented for a rusher whose card said nothing.
+ * the card's `side` (`sim/preSnap.ts`, the slide-side pickup), the pressure read
+ * reads it to place the men it counts and to compare the shown rush with the
+ * played one (`sim/pressureRead.ts`, ADR-073 §2.2), and so does playbook's
+ * `claim()` when it builds the protection, but all three read the card; none
+ * needs a value invented for a rusher whose card said nothing.
  * Substituting one would be inventing the geometry the petition exists to stop
  * being invented. Absent stays absent, and a consumer can tell "the card did not
  * say" from "the card said LEFT".
@@ -391,8 +393,9 @@ export function resolvedRushAssignment(args: {
  * caller resolves the alignment with `rushAlignmentFor`, as for the played rush.
  *
  * One owner for the pass and run payloads, for the reason `resolvedRushAssignment`
- * gives. It throws no dice and nothing in the engine resolves from what it
- * returns before ADR-073 step 3.2b.
+ * gives. It throws no dice, and nothing in the engine resolves from what it
+ * returns: it is the stream's echo. The pressure read reads the call's own
+ * `shownRush` (`sim/pressureRead.ts`), resolving alignment the same way.
  */
 export function resolvedShownRusher(args: {
   readonly rusher: PlayerId;

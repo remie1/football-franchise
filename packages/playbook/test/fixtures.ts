@@ -138,6 +138,20 @@ export function checkPassCoherence(
         problems.push(`${String(man)} is available for pickup and already blocking somebody`);
       }
     }
+    // ADR-073 P3: a check-release man released, so he runs a route, once, and is in no protection;
+    // a slide check needs a slide. The engine's validator refuses the same four.
+    const checkRelease = scheme.checkRelease ?? [];
+    for (const dupe of duplicates(checkRelease.map(String))) {
+      problems.push(`${dupe} is listed twice as a check-release man`);
+    }
+    for (const man of checkRelease) {
+      if (!routeRunners.includes(String(man))) problems.push(`check-release man ${String(man)} runs no route`);
+      if ((scheme.available ?? []).includes(man)) {
+        problems.push(`${String(man)} is a check-release man and available for pickup`);
+      }
+      if (blockers.has(String(man))) problems.push(`${String(man)} is a check-release man and already blocking`);
+    }
+    if (scheme.kind === "MAN" && "slideCheck" in scheme) problems.push("a MAN protection states slideCheck");
     // The centre is a protector, so he is engaged or he is available — never neither.
     const centre = scheme.center;
     if (centre !== undefined) {

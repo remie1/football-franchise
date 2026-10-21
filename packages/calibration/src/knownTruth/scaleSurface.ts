@@ -251,7 +251,7 @@ export const SURFACE: Record<CheckKind, CheckDescriptor> = {
     flat: [1, 20],
     note:
       "Rolled only on a breach of the coach's leash (ADR-005). The breach term is half the highest " +
-      "rung the read wants minus the leash: 1 to 20 on today's ladder (rungs at 20 and 40). Full " +
+      "rung the read wants minus the leash: 1 to 20 on today's ladder (rungs at 20, 30 and 40). Full " +
       "rating, not ÷5, because it is one man's disposition and not a contest (ADR-072 §2), so a " +
       "Discipline 95+ quarterback cannot break a breach of 10 or more — by design, not by accident.",
   },

@@ -373,3 +373,85 @@ describe("ADR-006 — what the engine must NOT reject", () => {
     expect(() => assertCoherentPlayCall({ ...state, players }, full)).not.toThrow();
   });
 });
+
+/**
+ * ADR-073 §3 P3 — the line's two options on a protection call. A check-release man is a man who
+ * released: he runs a route in this call. A slide check needs a slide. The pressure read acts on
+ * them (ADR-073 §2.3, `sim/pressureRead.ts`), and only on a snap where it rolls. On a call that
+ * names every rusher behind an honest front it does not roll, so a call that states them plays
+ * exactly as the same call without them.
+ */
+describe("ADR-073 P3 — the line's options", () => {
+  function withOptions(protectionScheme: NonNullable<PlayCalls["offense"]["protectionScheme"]>) {
+    const { state, calls } = scenario();
+    return { state, calls: { ...calls, offense: { ...calls.offense, protectionScheme } } };
+  }
+  function ids() {
+    const { calls } = scenario();
+    const te = calls.offense.routes[2]?.receiver;
+    const wr1 = calls.offense.routes[0]?.receiver;
+    const lt = calls.offense.protection[0]?.blocker;
+    if (te === undefined || wr1 === undefined || lt === undefined) throw new Error("bad fixture");
+    return { te, wr1, lt };
+  }
+
+  it("accepts a man protection and a slide that state them", () => {
+    const { te, wr1 } = ids();
+    for (const scheme of [
+      { kind: "MAN" as const, checkRelease: [te, wr1] },
+      { kind: "SLIDE" as const, slideSide: "LEFT" as const, slideCheck: true as const, checkRelease: [te] },
+      { kind: "SLIDE" as const, slideSide: "RIGHT" as const, slideCheck: true as const },
+    ]) {
+      const { state, calls } = withOptions(scheme);
+      expect(() => assertCoherentPlayCall(state, calls)).not.toThrow();
+    }
+  });
+
+  it("refuses a check-release man who is not on the field", () => {
+    const { state, calls } = withOptions({ kind: "MAN", checkRelease: [playerId("nobody")] });
+    expect(() => assertCoherentPlayCall(state, calls)).toThrow(/check-release man nobody is not in state.players/);
+  });
+
+  it("refuses a check-release man listed twice", () => {
+    const { te } = ids();
+    const { state, calls } = withOptions({ kind: "MAN", checkRelease: [te, te] });
+    expect(() => assertCoherentPlayCall(state, calls)).toThrow(/listed twice as a check-release man/);
+  });
+
+  it("refuses a check-release man who runs no route — a blocker is already in protection", () => {
+    const { lt } = ids();
+    const { state, calls } = withOptions({ kind: "MAN", checkRelease: [lt] });
+    expect(() => assertCoherentPlayCall(state, calls)).toThrow(IncoherentPlayCallError);
+    expect(() => assertCoherentPlayCall(state, calls)).toThrow(/runs no route in this call/);
+  });
+
+  it("refuses a slide check on a man protection, which only a spread can write", () => {
+    // @ts-expect-error — the union keeps `slideCheck` off a MAN literal…
+    const literal: NonNullable<PlayCalls["offense"]["protectionScheme"]> = { kind: "MAN", slideCheck: true };
+    void literal;
+    // …but not off a spread of one, so the validator refuses it at run time.
+    const spread = { ...{ kind: "MAN" as const }, ...{ slideCheck: true as const } };
+    const { state, calls } = withOptions(spread);
+    expect(() => assertCoherentPlayCall(state, calls)).toThrow(/MAN protection states slideCheck/);
+  });
+
+  it("plays exactly as the same call without them when every rusher is named and nothing is shown", () => {
+    const { te } = ids();
+    const plain = withOptions({ kind: "SLIDE", slideSide: "LEFT" });
+    const optioned = withOptions({ kind: "SLIDE", slideSide: "LEFT", slideCheck: true, checkRelease: [te] });
+    for (let i = 0; i < 20; i++) {
+      const played = simulatePassPlay(optioned.state, optioned.calls, `p3-${String(i)}`).events;
+      // The precondition, pinned: the read did not roll, so nothing was pictured or wanted.
+      const reads = played.filter((e) => e.event.type === "PRESNAP_READ" && e.event.payload.kind === "blitz_recognition");
+      expect(reads).toEqual([]);
+      const start = played.find((e) => e.event.type === "PLAY_START")?.event.payload as unknown as {
+        readonly offense: Record<string, unknown>;
+      };
+      expect(start.offense).not.toHaveProperty("pressurePicture");
+      expect(start.offense).not.toHaveProperty("protectionAdjustment");
+      const a = simulatePassPlay(plain.state, plain.calls, `p3-${String(i)}`).events.filter((e) => e.event.type !== "PLAY_START");
+      const b = played.filter((e) => e.event.type !== "PLAY_START");
+      expect(JSON.stringify(b)).toBe(JSON.stringify(a));
+    }
+  });
+});

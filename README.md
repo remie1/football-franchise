@@ -3,6 +3,8 @@
 A single-player American football management simulation. Governed by `ARCHITECTURE_CHARTER.md`.
 
 ## Start here
+**Want the plain-words tour?** Read `docs/GUIDE.md`: what each part does, what is built, and what is waiting.
+
 **New to this repo? Read `HANDOFF.md`** — repo setup, first Claude Code session, and working habits.
 
 ## Getting started (any device)

@@ -1,4 +1,5 @@
 import type { CalendarStamp } from "./calendar.js";
+import type { LeagueStructure, SeasonState } from "./league.js";
 import type { Team, PlayerState, StaffState, PlayerContract, PerceivedAttributes } from "./players.js";
 
 export const SAVE_FORMAT_VERSION = 1;
@@ -20,7 +21,10 @@ export interface SaveFile {
     staff: StaffState[];
     contracts: PlayerContract[];
     perceptions: PerceivedAttributes[];
-    standings: unknown;
+    /** ADR-078 C7: conferences and divisions, as data (Spec #5 §14.1). */
+    league: LeagueStructure;
+    /** ADR-078 C7: the current season; null before a schedule exists. Replaces `standings: unknown`. */
+    season: SeasonState | null;
     narrativeState: unknown;
     fashion: unknown;
   };

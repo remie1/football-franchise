@@ -186,19 +186,28 @@ export const TUNABLES = {
   },
 
   /**
-   * §5.3 PRE-SNAP BLITZ RECOGNITION, and the hot route that is its whole point.
+   * §5.3 PRE-SNAP BLITZ RECOGNITION — THE PRESSURE READ (ADR-073 §2.2), and the
+   * hot route that is its oldest consequence.
    *
    * WHEN THIS ROLLS, and it is an INTERPRETATION worth stating because the doc
    * gives no trigger: **when the defence sends a rusher the protection does not
-   * name.** That is the moment §5.3 describes — "blitz shows" — and it is the
-   * only moment at which recognition changes anything, because a pressure the
-   * protection already accounts for has nothing to recognise. A play where every
-   * rusher is blocked therefore rolls NOTHING here (ADR-005: an absent check
-   * means no die was thrown, never a failed one).
+   * name, or when a front look shows or moves a man and the pictures would
+   * decide differently** (ADR-073 §2.2, `sim/pressureRead.ts`). The first is the
+   * moment §5.3 describes — "blitz shows"; the second is the same read of a front
+   * that lies. A play where every rusher is named, shown as it is played, rolls
+   * NOTHING here, and neither does a bluff with nothing to decide (ADR-005: an
+   * absent check means no die was thrown, never a failed one).
    *
-   * §5.3 states two consequences of success and the engine honours both:
-   * "hot route available" (`hotRoute` below) and "protection adjusted"
-   * (`blitzPickup.recognitionModifier`).
+   * The band makes a PICTURE of the front (the `picture` column below), and the
+   * picture decides three things:
+   * - "hot route available" (`hotRoute` below), rung 0: every hot route converts
+   *   iff the picture answers somebody;
+   * - the centre's point-out, rung 0 (`blitzPickup.recognitionModifier`): ±10 on
+   *   every contested pickup, by whether the band is one of the top three — §5.3's
+   *   "protection adjusted", read as today;
+   * - PROTECTION_ADJUST, rung 30 (`leash.rungs`): keeping a check-release man in
+   *   and checking the slide, where the card states the options, if the leash
+   *   lets the line do it.
    */
   presnap: {
     blitzRecognition: {
@@ -212,15 +221,27 @@ export const TUNABLES = {
        */
       disguise: { STANDARD: 0, ZONE_BLITZ: 15, DELAYED: 20, ZERO: 25 },
       /**
-       * §5.3 gives two outcomes ("SUCCESS" / "FAILURE"); the four bands are the
-       * usual margin split so the stream can say HOW well he saw it. Only
-       * `recognized` is consumed.
+       * THE PRESSURE READ'S SIX BANDS (ADR-073 §2.2): §5.1's six rows, at the coverage read's own
+       * cuts below (ADR-068 §2), applied to §5.3. §5.3 gives two outcomes ("SUCCESS" / "FAILURE"),
+       * and they split where these do, at margin 0.
+       *
+       * `picture` is what the band makes of the front he is shown (ADR-073 §2.2):
+       * - TRUE (diagnosed, identified): he sees the rush as it will come;
+       * - COUNT (counted): he counts every man shown rushing, and cannot tell a bluff from a blitz;
+       * - CALL (unsure): he has not pinned it down, and runs the protection as called;
+       * - LOOK (misidentified, busted): he believes what the front shows him.
+       *
+       * `recognized` is the top three bands, the TRUE and COUNT pictures. It is §5.3's success,
+       * and it is what the point-out reads (`blitzPickup.recognitionModifier`). Paired bands act
+       * alike until the decision step has more levers, as the coverage read's do.
        */
       bands: [
-        { label: "READ_IT", minMargin: 20, recognized: true },
-        { label: "RECOGNIZED", minMargin: 0, recognized: true },
-        { label: "MISSED", minMargin: -20, recognized: false },
-        { label: "FOOLED", minMargin: NEG_INF, recognized: false },
+        { label: "DIAGNOSED", minMargin: 30, picture: "TRUE", recognized: true },
+        { label: "IDENTIFIED", minMargin: 15, picture: "TRUE", recognized: true },
+        { label: "COUNTED", minMargin: 0, picture: "COUNT", recognized: true },
+        { label: "UNSURE", minMargin: -14, picture: "CALL", recognized: false },
+        { label: "MISIDENTIFIED", minMargin: -29, picture: "LOOK", recognized: false },
+        { label: "BUSTED", minMargin: NEG_INF, picture: "LOOK", recognized: false },
       ],
     },
     /**
@@ -281,8 +302,9 @@ export const TUNABLES = {
      * THE COACH'S LEASH AND THE QUARTERBACK'S DISCIPLINE (ADR-072, ADR-068 step 2).
      *
      * The leash is on the call (`OffensivePlayCall.leash`, 0–100, omitted = 100). Each decision
-     * the coverage read can want opens at its own point on that slider; a read that wants one above
-     * the leash is a BREACH, and one roll decides whether he commits it.
+     * a pre-snap read can want opens at its own point on that slider; a read that wants one above
+     * the leash is a BREACH, and one roll decides whether he commits it, however many reads want
+     * decisions on the snap (ADR-073 §2.4).
      */
     leash: {
       /**
@@ -290,10 +312,17 @@ export const TUNABLES = {
        * rungs. WORK_AWAY sends a man he reads as covered to the back of the progression; WORK_TO
        * brings a man he reads as open to the front. CHOSEN, a football judgement: working away
        * from a covered man keeps the call's intent, working to one he likes changes where the ball
-       * is going, and coaches give the second later. Both sit at or below 50, the calibration
-       * caller's default, so the default opens every rung that exists (ADR-072 §7).
+       * is going, and coaches give the second later.
+       *
+       * PROTECTION_ADJUST is the pressure read's one decision (ADR-073 §2.3, ruled at Q1): checking
+       * the slide and keeping a back in, together. It sits between the two: a protection change
+       * keeps the call's intent, and costs a route for each man kept in (a slide check alone costs
+       * none).
+       *
+       * All three sit at or below 50, the calibration caller's default, so the default opens every
+       * rung that exists (ADR-072 §7).
        */
-      rungs: { WORK_AWAY: 20, WORK_TO: 40 },
+      rungs: { WORK_AWAY: 20, PROTECTION_ADJUST: 30, WORK_TO: 40 },
       /**
        * ADR-072 §2's roll: `d100 + Discipline ÷ attrDivisor + breach ÷ breachDivisor` against
        * `target`, where the breach is the highest rung he wants minus the leash. Rolled ONLY on a
@@ -563,11 +592,13 @@ export const TUNABLES = {
    *
    *   1. RECOGNITION   deterministic, no die. A rusher is ACCOUNTED FOR only if
    *                    a `ProtectionAssignment` names him (man protection).
-   *                    Everything else is UNACCOUNTED, which is what starts §5.3's
-   *                    recognition roll, a slide-side rusher no pairing names
-   *                    included. The slide answers him at step 3 instead of a
-   *                    contest (`slideIsUncontested` below).
-   *   2. HOT ROUTE     `presnap.hotRoute`, gated on §5.3's recognition.
+   *                    Everything else is UNACCOUNTED, which is one of the two
+   *                    things that start §5.3's recognition roll (the other is a
+   *                    front look, ADR-073 §2.2), a slide-side rusher no pairing
+   *                    names included. The slide answers him at step 3 instead of
+   *                    a contest (`slideIsUncontested` below).
+   *   2. HOT ROUTE     `presnap.hotRoute`, gated on the pressure read's picture
+   *                    answering somebody (ADR-073 §2.3).
    *   3. PICKED UP     the contest below — the back or tight end who stayed in.
    *   4. FREE RUNNER   nobody left to pick him up, or the pickup was lost.
    *
@@ -583,11 +614,13 @@ export const TUNABLES = {
     blockerAttrDivisor: 5,
     rusherAttrDivisor: 5,
     /**
-     * INTERPRETATION of §5.3's "protection adjusted". A blitz the quarterback and
-     * the centre SAW is pointed out before the snap; one they missed is picked up
-     * on instinct. This is the only place recognition touches the line, and it is
-     * a modifier rather than a gate — §5.3's failure text is "free rusher
-     * POTENTIAL", not "free rusher".
+     * INTERPRETATION of §5.3's "protection adjusted": the centre's point-out. A
+     * blitz the quarterback and the centre SAW (a top-three band) is pointed out
+     * before the snap; one they missed is picked up on instinct. It is a modifier
+     * rather than a gate — §5.3's failure text is "free rusher POTENTIAL", not
+     * "free rusher". It is no longer the only place the read touches the line:
+     * the picture also decides the protection adjustment (ADR-073 §2.3,
+     * `presnap.leash.rungs.PROTECTION_ADJUST`), where the card gives the options.
      */
     recognitionModifier: { RECOGNIZED: 10, MISSED: -10 },
     /**
@@ -719,7 +752,10 @@ export const TUNABLES = {
      * the answer, and the resulting matchup is an ordinary §7.1 rep. The engine
      * applies it at the pickup (step 3), not at recognition: a slide-side rusher
      * no pairing names is still unaccounted, still triggers §5.3's roll, and then
-     * takes the first man left in the pickup pool without a contest.
+     * takes the first man left in the pickup pool without a contest. The slide
+     * side is the one at the snap, after any check (ADR-073 §2.3), and the pool
+     * includes any check-release men the line kept in. With this off a slide
+     * answers nobody, so the pressure read never wants it checked.
      */
     slideIsUncontested: true,
   },

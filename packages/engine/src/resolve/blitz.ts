@@ -4,15 +4,19 @@
  * Three rolls, each stated literally from the design doc's own formula, and each
  * producing exactly one fact:
  *
- *   §5.3  did the quarterback and the centre SEE it?      → hot routes, +/- pickup
+ *   §5.3  did the quarterback and the centre SEE it?      → a picture of the front:
+ *                                                           hot routes, +/- pickup, and
+ *                                                           the protection adjustment
  *   §7.3  did the line pass the twist off?                → a swap, or a free looper
  *   §7.4  did the back pick the blitzer up?               → a block, or a free runner
  *
  * ADR-004: every one of them is recorded exactly once, in the emission it
- * returns. ADR-005: none of them is rolled unless something turns on it — a
- * defence whose every rusher is named by the protection produces no recognition
- * roll at all, because there is nothing to recognise and an absent check must
- * mean "no die", never "failed".
+ * returns. ADR-005: none of them is rolled unless something turns on it — the
+ * recognition roll is rolled when an unnamed rusher exists, or when a front look
+ * shows or moves a man and the pictures would decide differently (ADR-073 §2.2,
+ * `sim/pressureRead.ts`). A defence whose every rusher is named, shown as it is
+ * played, produces none at all, because there is nothing to recognise and an
+ * absent check must mean "no die", never "failed".
  */
 import type {
   BlitzDisguise,
@@ -29,6 +33,9 @@ import type { Tunables } from "../tunables.js";
 
 export type BlitzRecognitionBandLabel =
   Tunables["presnap"]["blitzRecognition"]["bands"][number]["label"];
+/** What a band makes of the front he is shown (ADR-073 §2.2): TRUE, COUNT, CALL or LOOK. */
+export type BlitzRecognitionPicture =
+  Tunables["presnap"]["blitzRecognition"]["bands"][number]["picture"];
 export type BlitzPickupBandLabel = Tunables["blitzPickup"]["bands"][number]["label"];
 export type StuntBandLabel = Tunables["stunt"]["bands"][number]["label"];
 
@@ -36,6 +43,8 @@ export type StuntBandLabel = Tunables["stunt"]["bands"][number]["label"];
 
 export interface BlitzRecognitionOutcome {
   readonly band: BlitzRecognitionBandLabel;
+  readonly picture: BlitzRecognitionPicture;
+  /** §5.3's success: the top three bands. What the point-out reads. */
   readonly recognized: boolean;
   readonly margin: number;
   readonly roll: RollDetail;
@@ -76,6 +85,7 @@ export function resolveBlitzRecognition(args: {
 
   return {
     band: band.label,
+    picture: band.picture,
     recognized: band.recognized,
     margin,
     roll,
@@ -85,8 +95,9 @@ export function resolveBlitzRecognition(args: {
       roll,
       target,
       tier: tierFor(args.tunables, margin),
-      // ADR-022 petition 6 — §5.3's own four-row label, carried rather than
-      // re-derived from the tier by whoever needs to know HOW well he saw it.
+      // ADR-022 petition 6 — the read's own label, one of the six (ADR-073 §2.2),
+      // carried rather than re-derived from the tier by whoever needs to know
+      // HOW well he saw it.
       band: band.label,
     },
   };
@@ -109,9 +120,11 @@ export interface BlitzPickupOutcome {
  * Margin reads from the PROTECTION's side (blocker total − rusher total),
  * matching the doc's own framing, so a positive margin is a pickup.
  *
- * §5.3's "protection adjusted" rides here as a named modifier rather than as a
- * gate: the doc's failure text is "free rusher POTENTIAL", so a missed blitz
- * makes the pickup harder and does not skip it.
+ * §5.3's "protection adjusted" rides here as the centre's point-out, a named
+ * modifier rather than a gate: the doc's failure text is "free rusher
+ * POTENTIAL", so a missed blitz makes the pickup harder and does not skip it.
+ * Changing the protection itself — keeping a back in, checking the slide — is a
+ * separate decision, the pressure read's PROTECTION_ADJUST (ADR-073 §2.3).
  */
 export function resolveBlitzPickup(args: {
   readonly tunables: Tunables;

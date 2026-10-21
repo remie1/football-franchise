@@ -277,7 +277,7 @@ export interface PlayFold {
    * and a four-man rush against empty can leave a man unaccounted without being one.
    */
   unaccountedRusherDropbacks: number;
-  /** Dropbacks on which at least one route actually converted hot (§5.3 recognised). */
+  /** Dropbacks on which at least one route actually converted hot (the pressure read's picture answered somebody, ADR-073 §2.3). */
   hotConversionDropbacks: number;
 
   /**

@@ -348,7 +348,8 @@ export interface SaveFile {
     players: PlayerState[];
     contracts: PlayerContract[];
     perceptions: PerceivedAttributes[];   // per observer×subject
-    standings: unknown;                    // typed in franchise spec v0
+    league: LeagueStructure;               // ADR-078 C7
+    season: SeasonState | null;            // ADR-078 C7 (was `standings: unknown`)
     narrativeState: unknown;               // typed in narrative spec v0
   };
   history: {                          // summaries, not raw event streams

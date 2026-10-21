@@ -2,7 +2,7 @@
  * ADR-026 — A PROTECTOR WITH NOBODY TO BLOCK, as an INVARIANT rather than a case.
  *
  * The caller anticipates the front (ADR-024 v2), so a protection entry can name a
- * man who is not in `defense.rush`. `resolvePreSnap` looks protection up BY
+ * man who is not in `defense.rush`. `readPreSnap` looks protection up BY
  * RUSHER, so that entry used to be consulted by nobody: the blocker it named was
  * paired to no one, was in no list, and did nothing — the engine making a
  * football claim by omission. He now joins the pickup pool AT THE BACK.

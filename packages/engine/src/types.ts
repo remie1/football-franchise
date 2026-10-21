@@ -252,6 +252,49 @@ export interface ResolvedShownRusher extends ShownRusher {
 }
 
 /**
+ * What the pressure read's band makes of the front he is shown (ADR-073 §2.2). The band table's
+ * `picture` column (`presnap.blitzRecognition.bands`) is held to exactly these four.
+ */
+export type PressurePictureKind = "TRUE" | "COUNT" | "CALL" | "LOOK";
+
+/**
+ * A rusher at the spot the pressure read PERCEIVES him (ADR-073 §2.2), with the alignment resolved
+ * as `ResolvedRushAssignment`'s is. The side: a man placed where he plays takes his played side; a
+ * man placed where he is shown takes the side the shown list states, or his played side where it
+ * states none; a ghost takes the shown side. Absent when the lists it is read from state none.
+ * Same shape as a resolved rusher, different fact: this is where the quarterback thinks the man
+ * is, which on a front look is not where he plays.
+ */
+export interface PlacedRusher {
+  readonly rusher: PlayerId;
+  readonly side?: RunSide;
+  readonly alignment: RushAlignment;
+}
+
+/**
+ * The pressure read's picture of the front (ADR-073 §2.2, §2.8). `answers` is who he treats as
+ * coming with no blocker named on him: it decides the hot routes and how many backs the line
+ * wants kept in. `placed` is the men he counts for the slide, at the spots he perceives them.
+ */
+export interface PressurePicture {
+  readonly picture: PressurePictureKind;
+  readonly answers: readonly PlayerId[];
+  readonly placed: readonly PlacedRusher[];
+}
+
+/**
+ * What the line wanted done to the protection before the snap, and whether it was done (ADR-073
+ * §2.3, §2.8): the slide checked to `slideSide`, the check-release men in `keptIn` kept in to
+ * block. Both are what he WANTED; they were done iff `made` (the leash let him). A leash that held
+ * the adjustment back leaves `keptIn` listed and those men on `routes`.
+ */
+export interface ProtectionAdjustment {
+  readonly slideSide?: RunSide;
+  readonly keptIn: readonly PlayerId[];
+  readonly made: boolean;
+}
+
+/**
  * The engine's view of game state. Franchise owns the real one; this is the
  * subset a play needs. `at` rides along because EventEnvelope requires it.
  */
@@ -294,6 +337,11 @@ export interface PassPlayStartPayload {
     readonly formation: string;
     readonly quarterback: PlayerId;
     readonly readSystem: ReadSystem;
+    /**
+     * The routes he RAN at the snap: hot conversions included (`hotConversions` states them),
+     * and a check-release man the line kept in left out (ADR-073 §2.8; `protectionAdjustment`
+     * names him when `made`). So it is not every route the card called.
+     */
     readonly routes: readonly RouteAssignment[];
     /**
      * The progression the quarterback actually worked, filtered to receivers who
@@ -313,15 +361,16 @@ export interface PassPlayStartPayload {
     readonly protection: readonly ProtectionAssignment[];
     /**
      * §7.4 step 1 — men with nobody to block at the snap: the back who stayed to
-     * scan, the uncommitted lineman on a slide, and (ADR-026) a protector whose
-     * named rusher is not in `rush`. Without this the stream cannot say whether
-     * a blitz went unblocked because the offence had nobody left or because the
-     * body it had lost the contest.
+     * scan, the uncommitted lineman on a slide, a check-release man the line kept
+     * in (ADR-073), and (ADR-026) a protector whose named rusher is not in `rush`.
+     * Without this the stream cannot say whether a blitz went unblocked because
+     * the offence had nobody left or because the body it had lost the contest.
      *
      * IN PICKUP PRIORITY, which is the order the engine actually offered them
-     * in: the card's own list first, then `unblockedProtectors` at the back.
-     * This is the pool as OFFERED — a man in it may have been used, beaten, or
-     * never needed at all, and only the `blitz_pickup` CHECKs say which.
+     * in: the card's own list first, then the men kept in, then
+     * `unblockedProtectors` at the back. This is the pool as OFFERED at the snap
+     * — a man in it may have been used, beaten, or never needed at all, and only
+     * the `blitz_pickup` CHECKs say which.
      */
     readonly availableBlockers: readonly PlayerId[];
     /**
@@ -344,6 +393,27 @@ export interface PassPlayStartPayload {
      * wants a `ROUTE_CONVERTED` event, not an overloaded phase (ADR-010).
      */
     readonly hotConversions: readonly HotConversion[];
+    /**
+     * ADR-073 §2.8 — the call's protection scheme AS CALLED, echoed: kind, slide side, centre,
+     * declared `available`, and the line's options (`checkRelease`, `slideCheck`). What the line
+     * did with the options is `protectionAdjustment`, and the pool as run is `availableBlockers`.
+     * Absent when the call states no scheme.
+     */
+    readonly protectionScheme?: ProtectionCall;
+    /**
+     * ADR-073 §2.8 — the pressure read's picture of the front: the picture its band made, who
+     * he treated as coming free (`answers`) and the men he counted for the slide, where he
+     * perceived them (`placed`). PRESENT IFF THE READ ROLLED, beside the `blitz_recognition`
+     * PRESNAP_READ that rolled it; absent, nothing was read. A stream stored before ADR-073 step
+     * 3.2b has none, and there the PRESNAP_READ is the record of whether the read rolled.
+     */
+    readonly pressurePicture?: PressurePicture;
+    /**
+     * ADR-073 §2.8 — what the line wanted done to the protection, and whether the leash let it be
+     * done. PRESENT IFF SOMETHING WAS WANTED; absent, the protection was run as called with
+     * nothing to decide.
+     */
+    readonly protectionAdjustment?: ProtectionAdjustment;
   };
   readonly defense: {
     readonly team: TeamId;
@@ -373,8 +443,8 @@ export interface PassPlayStartPayload {
      *
      * ON `PLAY_START`, NOT A NEW EVENT AND NOT `PRESNAP_READ` (backlog entry
      * 168): `PLAY_START` fires on every play, so the diff is computable on every
-     * play; `PRESNAP_READ` fires only when a rusher is unaccounted, and is a
-     * roll, which a state must not ride inside.
+     * play; `PRESNAP_READ` fires only when a read is rolled, and is a roll,
+     * which a state must not ride inside.
      *
      * ⚠ IDENTICAL TO `assignments` UNLESS THE CALL WORE A LOOK (ADR-069,
      * ADR-071) — and then different in exactly the men the look moved.
@@ -408,7 +478,9 @@ export interface PassPlayStartPayload {
      * the call's `shownRush` with alignment resolved as `rush`'s is, side and gap
      * carried, no move. Both states and no verdict, as `shownAssignments`. The same
      * men in the same order as `rush` unless the call wore a front look (step 3.5);
-     * until then the two agree field for field, `move` aside.
+     * until then the two agree field for field, `move` aside. The pressure read judges
+     * the offence's picture against it (ADR-073 §2.2, from step 3.2b); physics never
+     * reads it.
      */
     readonly shownRush: readonly ResolvedShownRusher[];
     /**

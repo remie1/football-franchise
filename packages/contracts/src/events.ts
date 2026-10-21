@@ -5,6 +5,7 @@
  */
 import type { GameId, PlayId, PlayerId, TeamId, StaffId, StorylineId, AttrId, TraitId } from "./ids.js";
 import type { CalendarStamp } from "./calendar.js";
+import type { GameKind, GameResult, PlayoffBracket } from "./league.js";
 
 export interface RollModifier {
   source: string;
@@ -229,7 +230,9 @@ export type MatchEvent =
   | ({ type: "PLAY_START"; payload: unknown } & MatchEventBase)
   | ({ type: "PRESNAP_READ"; payload: {
         actor: PlayerId; kind: CheckKind; roll: RollDetail; target: number; tier: ResultTier;
-        /** §5.3's four-row result table, same reasoning as ADR-011 gave `CHECK.band`: a
+        /** The read's own band label (a free string, ADR-011): §5.1's six-band ladder for
+         *  `coverage_read` and `blitz_recognition` (ADR-068 §2, ADR-073); HELD / BROKE for
+         *  `leash_discipline` (ADR-072). Same reasoning as ADR-011 gave `CHECK.band`: a
          *  re-derived band desyncs silently the first time calibration moves a boundary. */
         band?: string;
       } } & MatchEventBase)
@@ -550,7 +553,10 @@ export type FranchiseEvent =
   | { type: "STAFF_HIRED"; payload: { staff: StaffId; team: TeamId; role: string } }
   | { type: "STAFF_DEPARTED"; payload: { staff: StaffId; team: TeamId; reason: string } }
   | { type: "AWARD_GIVEN"; payload: { award: string; subject: PlayerId | StaffId } }
-  | { type: "GAME_COMPLETED"; payload: { gameId: GameId; home: number; away: number } };
+  /** ADR-078 C6: widened to carry the teams; nothing emitted the old shape. */
+  | { type: "GAME_COMPLETED"; payload: { result: GameResult; kind: GameKind } }
+  | { type: "PLAYOFF_FIELD_SET"; payload: { season: number; seeds: PlayoffBracket["seeds"] } }
+  | { type: "CHAMPION_DECIDED"; payload: { season: number; team: TeamId } };
 
 /**
  * ROLL ACCOUNTING RULE (ADR-004).
