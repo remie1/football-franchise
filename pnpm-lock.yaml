@@ -54,6 +54,9 @@ importers:
       '@ff/engine':
         specifier: workspace:*
         version: link:../engine
+      '@ff/franchise':
+        specifier: workspace:*
+        version: link:../franchise
       '@ff/playbook':
         specifier: workspace:*
         version: link:../playbook

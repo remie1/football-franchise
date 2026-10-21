@@ -13,3 +13,10 @@ export {
   computeStandings, rankConference,
   type StandingsOptions, type ConferenceRankRow, type ConferenceTiebreakStep,
 } from "./standings/computeStandings.js";
+export {
+  seedPlayoffs, advanceBracket, conferenceRounds, roundKind, roundWeek, seedOf,
+} from "./playoffs/bracket.js";
+export {
+  runSeason, gameSeed, MAX_PLAYOFF_REPLAYS,
+  type GameResolver, type RunSeasonInput, type SeasonRun,
+} from "./season/runSeason.js";

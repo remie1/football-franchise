@@ -9,11 +9,13 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "ingest": "tsc -p tsconfig.json && node dist/ingest/cli.js",
     "known-truth": "vitest run test/knownTruth",
-    "export-game": "vite-node src/export/main.ts --"
+    "export-game": "vite-node src/export/main.ts --",
+    "season": "vite-node src/season/main.ts --"
   },
   "dependencies": {
     "@ff/contracts": "workspace:*",
     "@ff/engine": "workspace:*",
+    "@ff/franchise": "workspace:*",
     "@ff/playbook": "workspace:*"
   },
   "devDependencies": {

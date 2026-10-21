@@ -116,7 +116,7 @@ function eventsOnEntering(from: CalendarStamp, to: CalendarStamp, deadlines: Cal
 const WEEKLY_PHASES: ReadonlySet<CalendarPhase> = new Set(["REGULAR_SEASON", "PLAYOFFS"]);
 
 function hasGame(world: ClockWorld, s: CalendarStamp): boolean {
-  const games = world.season?.schedule.games ?? [];
+  const games = [...(world.season?.schedule.games ?? []), ...(world.season?.bracket?.games ?? [])];
   return games.some((g) => g.at.season === s.season && sameDay(g.at, s));
 }
 
