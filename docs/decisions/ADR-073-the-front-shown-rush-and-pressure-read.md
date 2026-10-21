@@ -2076,6 +2076,13 @@ So on v5, v6 and v7 no back is kept in unless `/keep-in` is named, and the back'
 
 **Before M0.** `pnpm verify` runs on this block as committed, and M0's log records its commit hash. M0's smoke figures are read for pass or fail and timing only. If M0 shows that a filed rule cannot be computed as written, it is amended by a dated note under this heading and recorded as a departure in W (line 1587's convention).
 
+- *2026-10-21, after M0 and before M1: a guard stop is added; no scored rule changes.* The tools review found that a defect in a draw passes every must-be-0 check and shows only as one of rule 7's counts far outside its band. Its example is a front arm that keeps the card's own stunts where no line game is drawn. The guard therefore also stops a run when one of rule 7's three counts misses its expectation by more than 10 SD:
+  - five or more on host snaps, on the arms that draw their pressures;
+  - line games on hostable calls, on the arms that draw their lines;
+  - creepers on creeper-eligible calls, on the arms with the creeper.
+
+  A correct run reaches 10 SD with a chance of about 10⁻²³ (normal approximation). A stop is diagnosed before the runs go on. A defect is fixed, and the runs start again from M0. If the code does what §2.6 says, the count is recorded as measured, and the runs continue. Either way rule 7 still scores the count at 2 SD and counts it toward rule 12 beyond 3 SD. Recorded as a departure in W.
+
 ---
 
 ## Appendix A. How the design panel's disagreements were settled
