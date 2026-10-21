@@ -3,3 +3,7 @@
  * Season shell plan: /mnt/project-files/design/season-shell-plan.md (S1 = ADR-078).
  */
 export { buildLeague, type League } from "./league/buildLeague.js";
+export {
+  computeStandings, rankConference,
+  type StandingsOptions, type ConferenceRankRow, type ConferenceTiebreakStep,
+} from "./standings/computeStandings.js";
