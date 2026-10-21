@@ -7,6 +7,8 @@ export type TeamId = Brand<string, "TeamId">;
 export type GameId = Brand<string, "GameId">;
 export type PlayId = Brand<string, "PlayId">;
 export type SeasonId = Brand<string, "SeasonId">;
+export type ConferenceId = Brand<string, "ConferenceId">; // ADR-078 C1
+export type DivisionId = Brand<string, "DivisionId">;     // ADR-078 C1
 export type StorylineId = Brand<string, "StorylineId">;
 export type StaffId = Brand<string, "StaffId">;
 export type AttrId = Brand<string, "AttrId">;
@@ -20,6 +22,8 @@ export const teamId = (s: string) => s as TeamId;
 export const gameId = (s: string) => s as GameId;
 export const playId = (s: string) => s as PlayId;
 export const staffId = (s: string) => s as StaffId;
+export const conferenceId = (s: string) => s as ConferenceId;
+export const divisionId = (s: string) => s as DivisionId;
 export const attrId = (s: string) => s as AttrId;
 export const coachAttrId = (s: string) => s as CoachAttrId;
 export const traitId = (s: string) => s as TraitId;
