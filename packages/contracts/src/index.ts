@@ -8,6 +8,7 @@ export const CONTRACTS_SCHEMA_VERSION = 1;
 
 export * from "./ids.js";
 export * from "./calendar.js";
+export * from "./league.js";
 export * from "./registry.js";
 export * from "./rng.js";
 export * from "./players.js";

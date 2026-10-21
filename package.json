@@ -5,6 +5,8 @@
   "scripts": {
     "build": "node scripts/check-workspace-coverage.mjs && pnpm -r build",
     "test": "node scripts/check-workspace-coverage.mjs && pnpm -r test",
+    "test:ci-rest": "node scripts/check-workspace-coverage.mjs && pnpm -r --filter '!@ff/calibration' test",
+    "test:ci-calibration": "pnpm --filter @ff/calibration test",
     "typecheck": "node scripts/check-workspace-coverage.mjs && pnpm -r typecheck",
     "verify": "node scripts/verify.mjs"
   },
