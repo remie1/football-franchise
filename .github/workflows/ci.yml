@@ -16,8 +16,19 @@ on:
   pull_request:
   workflow_dispatch:
 
+# TWO JOBS, RUN SIDE BY SIDE (2026-10, CI speed). A single job took ~5 minutes, and ~80% of
+# the test time is @ff/calibration's known-truth ladders. `checks` runs everything except
+# calibration's tests; `calibration` runs calibration's whole suite split three ways by vitest's
+# --shard. Every test file still runs exactly once:
+#   - test:ci-rest excludes ONE named package, so a new package is included without an edit,
+#     and it runs the workspace-coverage assertion first, as `pnpm test` does.
+#   - vitest's shards partition calibration's files: shard i/3 takes its share, and the three
+#     shards together are the whole set. All three must pass (fail-fast off, so one red shard
+#     cannot hide another's result).
+# The floor is the slowest single file (the db-coverage ladder, ~2.5 min on its own), not the
+# sum, so more shards would not help. `pnpm test` and `pnpm verify` are unchanged.
 jobs:
-  test:
+  checks:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -59,8 +70,8 @@ jobs:
 
       # The four dormant packages carry --passWithNoTests so the recursive run reaches the
       # packages that do have tests. Engine deliberately does NOT (HANDOFF §1.2).
-      - name: Test
-        run: pnpm test
+      - name: Test (all packages but calibration)
+        run: pnpm test:ci-rest
 
       # BUILD RUNS HERE AND NOWHERE ELSE — owner ruling, July 2026, backlog entry 60.
       #
@@ -86,3 +97,29 @@ jobs:
       # given developer installed it, which is why HANDOFF §1.3 states the install step.
       - name: Contracts hook present
         run: test -x .githooks/commit-msg || { echo "::error::.githooks/commit-msg missing or not executable"; exit 1; }
+
+  calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same toolchain as `checks` above; the reasons for each pin are written there.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.28.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Test (calibration, shard ${{ matrix.shard }} of 3)
+        run: pnpm test:ci-calibration --shard=${{ matrix.shard }}/3
