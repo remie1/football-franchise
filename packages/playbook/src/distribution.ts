@@ -233,6 +233,17 @@ export const RUN_SCHEME_USAGE: Readonly<Record<"ZONE" | "GAP", number>> = {
 export const BLITZ_RATE_PRIOR = 0.26;
 
 /**
+ * The creeper's rate (ADR-073 §2.6): caller v6 lays a creeper on 1 in 10 of the four-man Cover 3
+ * calls that can wear one — Cover 3 Sky, Cover 3 Buzz or Base Cover 3, drawn with no five-man
+ * pressure over it. A rate of the caller's draw, not a card weight, and not part of the blitz
+ * rate above: the creeper rushes four, a pressure and not a blitz.
+ *
+ * `CHOSEN — provenance NONE`: no real figure is on file. The owner ruled 1 in 10 (ADR-073
+ * Decision 5, Q5(a), 2026-10-16; its provenance table).
+ */
+export const CREEPER_RATE = 0.1;
+
+/**
  * =================== THE FOUR PRESSURE AXES, AND WHICH ARE WORTH ANYTHING ==========
  *
  * ADR-022 gave the corpus three things it could not say and one it could only imply, so

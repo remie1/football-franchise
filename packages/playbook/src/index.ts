@@ -28,6 +28,7 @@
  *   distribution.ts usage weights, with their provenance stated
  *   selection.ts    weighted, seeded selection within a family
  *   coverageCatalogue  v6's coverages, pressures, creepers and line games, composed (ADR-073 §2.6)
+ *   pressureDraw    v6's coverage, pressure, creeper and line-game dice, and their rates (ADR-073 §2.6)
  */
 export const PLAYBOOK_VERSION = "0.1.0";
 
@@ -49,4 +50,5 @@ export * from "./validate.js";
 export * from "./distribution.js";
 export * from "./selection.js";
 export * from "./coverageCatalogue.js";
+export * from "./pressureDraw.js";
 export * from "./errors.js";

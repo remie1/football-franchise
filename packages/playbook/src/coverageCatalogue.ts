@@ -2,8 +2,8 @@
  * THE v6 COVERAGE CATALOGUE — ADR-073 §2.6, ADR-071 step 3.
  *
  * Caller v6 draws a call in parts: the coverage, then the pressure laid over it, then the line
- * game. This module states the parts and composes them. It draws nothing (ADR-073 step 3.4's
- * draws are a later step) and nothing on caller v1–v5's path calls it: those callers draw
+ * game. This module states the parts and composes them. It draws nothing (`pressureDraw.ts`
+ * throws the dice) and nothing on caller v1–v5's path calls it: those callers draw
  * `DEFENSIVE_CARDS`, which this module reads and never edits.
  *
  * ================== WHY IT IS NOT IN `defensiveCards.ts` ==================

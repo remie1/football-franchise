@@ -20,8 +20,9 @@
  * `coverageCatalogueCorpus.test.ts` carries the corpus-wide checks the book's own tests run on
  * `DEFENSIVE_CARDS` alone.
  *
- * Nothing here is random: the catalogue draws nothing (the draws are step 3.4's C3). Its
- * determinism is purity — composing twice gives the same call, and composing changes no card.
+ * Nothing here is random: the catalogue draws nothing (the draws are `pressureDraw.ts`'s, held by
+ * `pressureDraw.test.ts`). Its determinism is purity — composing twice gives the same call, and
+ * composing changes no card.
  */
 import type { DefensivePlayCall } from "@ff/contracts";
 import { isDeepStrictEqual } from "node:util";
