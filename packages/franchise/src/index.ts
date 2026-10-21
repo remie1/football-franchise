@@ -8,3 +8,4 @@ export {
   PHASE_WEEKS, DAYS_PER_WEEK,
   type ClockWorld, type CalendarDeadline, type AdvanceOptions, type AdvanceResult,
 } from "./calendar/clock.js";
+export { buildSchedule, BYE_WINDOW, GAME_DAY, type ScheduleOptions } from "./schedule/buildSchedule.js";

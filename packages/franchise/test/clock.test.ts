@@ -5,6 +5,7 @@ import {
 } from "@ff/contracts";
 import {
   advance, nextDay, seasonStart, phaseWeeks, DAYS_PER_WEEK, PHASE_WEEKS, type ClockWorld,
+  buildLeague, buildSchedule,
 } from "../src/index.js";
 
 const rules = DEFAULT_LEAGUE_RULES;
@@ -133,5 +134,13 @@ describe("the advance button (no target, Spec #5 §13)", () => {
   it("always moves at least one day", () => {
     const r = advance(start());
     expect(compareStamps(r.world.calendar, seasonStart(1))).toBeGreaterThan(0);
+  });
+
+  it("fits a schedule from buildSchedule: every game day is a stop on the button", () => {
+    const schedule = buildSchedule(buildLeague("world-1"), 1, "sched-1");
+    const season: SeasonState = { season: 1, schedule, results: [], standings: [] };
+    const from: CalendarStamp = { season: 1, phase: "REGULAR_SEASON", week: 1, day: 1 };
+    const stops = press({ calendar: from, leagueRules: rules, season }, { season: 1, phase: "PLAYOFFS", week: 1, day: 1 });
+    for (const g of schedule.games) expect(stops).toContainEqual(g.at);
   });
 });
