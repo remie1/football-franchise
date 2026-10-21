@@ -1,5 +1,5 @@
 /**
  * @ff/franchise — see ARCHITECTURE_CHARTER.md §3 and docs/design/.
- * Implementation begins per the phase plan (Charter §6).
+ * Season shell plan: /mnt/project-files/design/season-shell-plan.md (S1 = ADR-078).
  */
-export {};
+export { buildLeague, type League } from "./league/buildLeague.js";
