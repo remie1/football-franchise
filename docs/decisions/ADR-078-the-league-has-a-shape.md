@@ -222,3 +222,11 @@ C4, C5, C6, C7 and R1."*
   lands with S7.
 - Inertness: types only; no engine, playbook or calibration file edited. `pnpm verify` result
   recorded in the commit.
+
+### S7 note (2026-10-21): the surface as built
+
+The R1 surface is used as named, plus the two return types the named functions hand back:
+`League` (what the league builder returns) and `SeasonRun` (what `runSeason` returns). They are
+types of the ratified functions, not new capabilities. `packages/calibration/test/seasonSurface.test.ts`
+fails if calibration imports any other name from `@ff/franchise`, or reaches into its files.
+
