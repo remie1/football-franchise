@@ -46,7 +46,7 @@ describe("buildPlayLog", () => {
       when: "Q1 15:00",
       situation: "1st & 10 at own 30",
       text: "Ada Quinn complete to Wes Reed for 25 yards, pocket collapsing.",
-      calls: "Spot Option vs Cover 1 (Smoke)",
+      calls: "Spot Option vs Cover 1 (Show 2, Smoke)",
       tags: ["pressure", "big"],
     });
     expect(sack).toMatchObject({ text: "Ada Quinn sacked by Dez Edge for a loss of 7.", tags: ["sack"] });

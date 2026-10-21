@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { GameFile } from "./gameFile.js";
+import { PlayDetailView } from "./PlayDetailView.js";
 import { buildPlayLog, type LineTag, type LogLine } from "./playLog.js";
 
 const TAG_LABELS: Readonly<Record<LineTag, string>> = {
@@ -11,9 +12,19 @@ const TAG_LABELS: Readonly<Record<LineTag, string>> = {
   big: "Big play",
 };
 
-function Line({ line }: { line: LogLine }) {
-  return (
-    <li className={`line ${line.tags.join(" ")}`}>
+/** `?play=<playId>` opens that play's detail, so a play can be shared as a link. */
+function linkedPlay(): string | null {
+  return new URLSearchParams(window.location.search).get("play");
+}
+
+function Line({ game, line }: { game: GameFile; line: LogLine }) {
+  const [open, setOpen] = useState(() => line.playId !== undefined && line.playId === linkedPlay());
+  const ref = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (line.playId !== undefined && line.playId === linkedPlay()) ref.current?.scrollIntoView({ block: "start" });
+  }, [line.playId]);
+  const body = (
+    <>
       <div className="line-head">
         {line.when !== undefined && <span className="when">{line.when}</span>}
         {line.situation !== undefined && <span className="situation">{line.situation}</span>}
@@ -25,6 +36,18 @@ function Line({ line }: { line: LogLine }) {
       </div>
       <div className="text">{line.text}</div>
       {line.calls !== undefined && <div className="calls">{line.calls}</div>}
+    </>
+  );
+  return (
+    <li ref={ref} className={`line ${line.tags.join(" ")}`}>
+      {line.playId === undefined ? (
+        body
+      ) : (
+        <button type="button" className="line-button" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {body}
+        </button>
+      )}
+      {open && line.playId !== undefined && <PlayDetailView game={game} playId={line.playId} />}
     </li>
   );
 }
@@ -37,6 +60,7 @@ export function PlayLogView({ game }: { game: GameFile }) {
   return (
     <section className="panel">
       <div className="filter">
+        <span className="hint">Click a play to see the calls, the disguise, the reads and the dice.</span>{" "}
         <label>
           Show{" "}
           <select value={only} onChange={(e) => setOnly(e.target.value as LineTag | "all")}>
@@ -52,7 +76,7 @@ export function PlayLogView({ game }: { game: GameFile }) {
       {only === "all" && log.opening.length > 0 && (
         <ul className="lines">
           {log.opening.map((l, i) => (
-            <Line key={i} line={l} />
+            <Line key={i} game={game} line={l} />
           ))}
         </ul>
       )}
@@ -67,7 +91,7 @@ export function PlayLogView({ game }: { game: GameFile }) {
             </summary>
             <ul className="lines">
               {lines.map((l, i) => (
-                <Line key={l.playId ?? i} line={l} />
+                <Line key={l.playId ?? i} game={game} line={l} />
               ))}
             </ul>
           </details>

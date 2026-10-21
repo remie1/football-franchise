@@ -14,12 +14,12 @@ type Loose = { type: string; payload: unknown; playId?: string };
 const game = (type: string, payload: unknown): Loose => ({ type, payload });
 const play = (playId: string, type: string, payload: unknown): Loose => ({ type, payload, playId });
 
-function snap(playId: string, kind: string, down: number, distance: number, ballOn: number, clockSeconds: number, extra: object = {}): Loose {
+function snap(playId: string, kind: string, down: number, distance: number, ballOn: number, clockSeconds: number, offense: object = {}, defense: object = {}): Loose {
   return play(playId, "PLAY_START", {
     kind,
     situation: { down, distance, ballOn, clockSeconds },
-    offense: { team: AWAY, call: kind === "PASS_PLAY_V1" ? "Spot Option" : "Inside Zone", quarterback: "qb", ...extra },
-    defense: { team: HOME, call: "Cover 1", tags: [{ kind: "PRESSURE", id: "SMOKE", name: "Smoke" }] },
+    offense: { team: AWAY, call: kind === "PASS_PLAY_V1" ? "Spot Option" : "Inside Zone", quarterback: "qb", ...offense },
+    defense: { team: HOME, call: "Cover 1", tags: [{ kind: "PRESSURE", id: "SMOKE", name: "Smoke" }], ...defense },
   });
 }
 const result = (playId: string, yards: number, more: object = {}) => play(playId, "PLAY_RESULT", { yards, turnover: false, clockRunoff: 5, ...more });
@@ -31,7 +31,55 @@ const EVENTS: Loose[] = [
   play("k1", "KICKOFF", { kicker: "hk", team: HOME, fromYardLine: 35, touchback: true, returnYards: 0, resultYardLine: 30 }),
   game("DRIVE_START", { driveNumber: 1, offense: AWAY, defense: HOME, period: 1, clockSeconds: 900, startYardLine: 30, cause: "OPENING_KICKOFF" }),
   // 1: complete under pressure, a big play
-  snap("p1", "PASS_PLAY_V1", 1, 10, 30, 900),
+  snap("p1", "PASS_PLAY_V1", 1, 10, 30, 900, {
+    formation: "Shotgun Trips Right",
+    readSystem: "CONCEPT",
+    readOrder: ["wr", "te"],
+    routes: [
+      { receiver: "wr", routeName: "Post" },
+      { receiver: "te", routeName: "Seam" },
+    ],
+    protectionScheme: { kind: "SLIDE", slideSide: "LEFT", available: ["rb2"], slideCheck: true },
+    leash: 50,
+  }, {
+    personnel: "Nickel",
+    front: "Over",
+    coverage: "MIXED",
+    coverageDisguise: "ROTATED",
+    blitzDisguise: "STANDARD",
+    tags: [
+      { kind: "LOOK", id: "SHOW_2", name: "Show 2" },
+      { kind: "PRESSURE", id: "SMOKE", name: "Smoke" },
+    ],
+    assignments: [
+      { kind: "MAN", defender: "cb", covers: "wr", technique: "PRESS" },
+      { kind: "ZONE", defender: "fs", zone: { horizontal: "LH", vertical: "DEEP" } },
+    ],
+    shownAssignments: [
+      { kind: "MAN", defender: "cb", covers: "wr", technique: "PRESS" },
+      { kind: "ZONE", defender: "fs", zone: { horizontal: "C", vertical: "DEEP" } },
+    ],
+    rush: [{ rusher: "de", move: "SPEED" }],
+  }),
+  play("p1", "PRESNAP_READ", {
+    actor: "qb",
+    kind: "coverage_read",
+    roll: { die: "d100", raw: 40, modifiers: [{ source: "QB Awareness", value: 12 }], total: 52, rngLabel: "r" },
+    target: 50,
+    tier: "MARGINAL_SUCCESS",
+    band: "GOOD_READ",
+  }),
+  play("p1", "CHECK", {
+    checkKind: "pass_rush_rep",
+    actors: ["de", "lt"],
+    roll: { die: "d100", raw: 70, modifiers: [{ source: "DE Pass Rush", value: 12 }], total: 82, rngLabel: "r" },
+    opposedRoll: { die: "d100", raw: 30, modifiers: [{ source: "LT Pass Block", value: -2 }], total: 28, rngLabel: "r" },
+    tier: "DOMINANT_SUCCESS",
+    band: "RUSHER_WINS_REP",
+    margin: 54,
+    testsAttrs: [],
+  }),
+  play("p1", "TICK", { tick: 1 }),
   play("p1", "POCKET_STATUS", { status: "PRESSURE" }),
   play("p1", "POCKET_STATUS", { status: "COLLAPSING" }),
   play("p1", "THROW", { target: "wr", throwType: "BULLET", accuracyTier: "SUCCESS" }),
@@ -66,6 +114,16 @@ const EVENTS: Loose[] = [
   result("p5", 60, { score: 6 }),
   game("SCORE", { team: HOME, kind: "TOUCHDOWN", points: 6, home: 6, away: 0 }),
   game("DRIVE_END", { driveNumber: 2, offense: HOME, result: "TOUCHDOWN", plays: 1, yards: 60, elapsedSeconds: 5, endYardLine: 100, points: 6 }),
+  play("x1", "CHECK", {
+    checkKind: "field_goal",
+    actors: ["hk"],
+    roll: { die: "d100", raw: 77, modifiers: [], total: 77, rngLabel: "r" },
+    target: 10,
+    tier: "TOTAL_SUCCESS",
+    band: "GOOD",
+    margin: 67,
+    testsAttrs: [],
+  }),
   play("x1", "PLACEKICK", { kind: "EXTRA_POINT", kicker: "hk", team: HOME, distanceYards: 33, made: true, band: "GOOD", rollRef: "r", target: 10 }),
   game("SCORE", { team: HOME, kind: "EXTRA_POINT", points: 1, home: 7, away: 0 }),
   play("k2", "KICKOFF", { kicker: "hk", team: HOME, fromYardLine: 35, touchback: false, returner: "kr", returnYards: 22, resultYardLine: 25 }),
@@ -80,6 +138,9 @@ const PLAYERS: GameFile["players"] = {
   te: { name: "Ty Ellis", position: "TE", team: AWAY },
   kr: { name: "Kai Ross", position: "WR", team: AWAY },
   de: { name: "Dez Edge", position: "DE", team: HOME },
+  fs: { name: "Finn Shaw", position: "FS", team: HOME },
+  lt: { name: "Lou Tate", position: "LT", team: AWAY },
+  rb2: { name: "Rob Bell", position: "RB", team: AWAY },
   cb: { name: "Cal Burke", position: "CB", team: HOME },
   rb: { name: "Ray Banks", position: "RB", team: HOME },
   hk: { name: "Hal Kemp", position: "K", team: HOME },

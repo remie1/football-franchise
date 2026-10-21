@@ -70,3 +70,19 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
 .tag-sack, .tag-pressure { color: var(--warn); }
 .tag-big { color: var(--accent); }
 .box-teams { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.hint { margin-right: 12px; }
+.line-button { all: unset; display: block; width: 100%; cursor: pointer; }
+.line-button:hover .text { text-decoration: underline; text-decoration-color: var(--line); }
+.line-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.detail { margin: 8px 0 4px; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font-size: 0.9em; }
+.detail h4 { margin: 8px 0 4px; font-size: 0.9em; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.facts-pair { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+.facts dl { margin: 0; }
+.facts dl > div { display: flex; gap: 8px; padding: 2px 0; }
+.facts dt { color: var(--muted); min-width: 120px; }
+.facts dd { margin: 0; }
+.timeline { margin: 0; padding-left: 0; list-style: none; }
+.timeline li { padding: 1px 0; }
+.tick { display: inline-block; min-width: 52px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dice summary { cursor: pointer; margin-top: 8px; color: var(--muted); }
+.detail .grid td[title] { cursor: help; text-decoration: underline dotted var(--line); }
