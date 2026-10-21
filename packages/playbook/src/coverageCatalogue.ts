@@ -4,7 +4,10 @@
  * Caller v6 draws a call in parts: the coverage, then the pressure laid over it, then the line
  * game. This module states the parts and composes them. It draws nothing (`pressureDraw.ts`
  * throws the dice) and nothing on caller v1–v5's path calls it: those callers draw
- * `DEFENSIVE_CARDS`, which this module reads and never edits.
+ * `DEFENSIVE_CARDS`, which this module reads and never edits. Its tables (`COMPOSED` and those
+ * before it) are built when the module loads, though, in every process that imports
+ * `@ff/playbook`, v1–v5's included: pure, they draw nothing and move no v1–v5 die, but a book
+ * edit they cannot compose throws at load for every caller (the suite fails on it first).
  *
  * ================== WHY IT IS NOT IN `defensiveCards.ts` ==================
  *
@@ -301,7 +304,7 @@ export const PRESSURE_SPECS: readonly PressureSpec[] = [
  *
  * Over Buzz the Will's zone is the left curl/flat, so the same form slides the Mike across the
  * field from the right hook to it — chosen by the text's "same form", not by a football review,
- * and named to the owner as such.
+ * and to be named to the owner as such in step five's results (plan 3.4, W2 and Q3).
  *
  * Each id is the host's with `+CREEPER`; the name and usage are the host's, because the creeper is
  * drawn at its own rate and has no weight.

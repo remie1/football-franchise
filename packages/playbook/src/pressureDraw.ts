@@ -4,7 +4,10 @@
  * Caller v6 draws a call in parts (`coverageCatalogue.ts` states the parts): the coverage on the
  * caller's `defense-card` fork, then the pressure over it on `defense-pressure`, then the line
  * game on `defense-line`. This module throws those dice and states their law. Nothing on caller
- * v1–v5's path calls it.
+ * v1–v5's path calls it. Its two tables (`STATED_BY`, `LEGAL_BY_CALL`) are built when the module
+ * loads, though, in every process that imports `@ff/playbook`, v1–v5's included: pure, they draw
+ * nothing and move no v1–v5 die, but a book card that stunts in none of the five line games
+ * throws at load for every caller (the suite fails on it first).
  *
  * ================== THE LAW ==================
  *

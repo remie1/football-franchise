@@ -1426,6 +1426,52 @@ describe("ADR-073 step 3.4, callerVersion v6", () => {
     return at(game?.id ?? "NONE");
   }
 
+  /**
+   * The huddle's guess an arm makes on a snap, re-derived on the snap's own `anticipated-front`
+   * address (ADR-073 R30; plan Q14, Q15). With the pressures bound it is v5's `anticipateFront`
+   * against the real card. With them drawn it is `anticipateDecomposed` against the real coverage,
+   * guessing the creeper exactly where the arm draws it, and graded against the call before its
+   * line game. `undefined` knobs: v5.
+   */
+  function huddleOf(
+    snap: RecordedSnap,
+    knobs: CallerKnobs | undefined,
+  ): { readonly poolSize: number; readonly exact: boolean; readonly forced: boolean; readonly creeper: boolean } {
+    const rng = snapAddress(snap);
+    const s = situationOfSnap(snap);
+    if (knobs === undefined || knobs.drawPressures === false) {
+      const card = selectDefensiveCard(rng.fork("defense-card"), s);
+      const guess = anticipateFront(rng.fork("anticipated-front"), s, card);
+      return { poolSize: guess.poolSize, exact: guess.card.id === card.id, forced: guess.forced, creeper: false };
+    }
+    const creeper = knobs.creeper !== false;
+    const coverage = selectCoverage(rng.fork("defense-card"), s);
+    const pressure = drawPressure(rng.fork("defense-pressure"), coverage, s, { creeper });
+    const graded = COMPOSED[composedKey(coverage.id, pressure?.pressure, "NONE")]!.call;
+    const guess = anticipateDecomposed(rng.fork("anticipated-front"), s, coverage, { pressures: "DRAWN", creeper });
+    return {
+      poolSize: guess.poolSize,
+      exact: guess.card.id === graded.id,
+      forced: guess.forced,
+      creeper: guess.pressure?.pressure === "CREEPER",
+    };
+  }
+
+  /** A pair's draw-quality counters that one snap's guess moves (`recordDraw`, in `callOffense`). */
+  const foldMark = (pair: FrozenCallerPair): readonly number[] => {
+    const d = pair.diagnostics.draw;
+    return [d.draws, d.poolSizeSum, d.exactCard, d.forcedDraws];
+  };
+  /** How the huddle as `resolveSnap` wires it moved the fold on the snap, against the re-derived guess. */
+  function huddleDiffers(before: readonly number[], after: readonly number[], want: ReturnType<typeof huddleOf>): string | undefined {
+    const [draws, pool, exact, forced] = after.map((n, i) => n - (before[i] ?? NaN));
+    if (draws !== 1) return `the snap was graded ${String(draws)} times`;
+    if (pool !== want.poolSize) return `the huddle's pool held ${String(pool)} outcomes, the guess re-derived on the snap's address ${String(want.poolSize)}`;
+    if ((exact === 1) !== want.exact) return `the huddle's guess was ${exact === 1 ? "" : "not "}exact, the re-derived one ${want.exact ? "is" : "is not"}`;
+    if ((forced === 1) !== want.forced) return `the huddle's guess was ${forced === 1 ? "" : "not "}forced, the re-derived one ${want.forced ? "is" : "is not"}`;
+    return undefined;
+  }
+
   /** How a call differs from a card: its words, its tags but the looks, its disguise, its line game man for man. */
   function differsFrom(call: DefensivePlayCall, card: AnyDefensiveCard, snap: RecordedSnap): string | undefined {
     const chart = snap.defense?.side === "home" ? built.homeDepthChart : built.awayDepthChart;
@@ -1456,6 +1502,7 @@ describe("ADR-073 step 3.4, callerVersion v6", () => {
       jointComparedWhole: 0,
       jointOffenseDiffers: 0,
       jointConceptDiffers: 0,
+      jointCreeperGuessed: 0,
     };
     const bump = (m: Map<string, number>, k: string): void => {
       m.set(k, (m.get(k) ?? 0) + 1);
@@ -1463,11 +1510,22 @@ describe("ADR-073 step 3.4, callerVersion v6", () => {
 
     for (const snap of snaps) {
       counts.snaps += 1;
-      const base = replay(v5, snap);
-      const calls = new Map(arms.map((arm) => [arm.label, replay(arm.pair, snap)] as const));
       const fail = (label: string, why: string): void => {
         failures.push(`${label} ${snap.where}: ${why}`);
       };
+      // The huddle as `resolveSnap` wires it: each arm's fold moves by exactly the guess re-derived on
+      // the snap's own address, so v5's huddle in v6, or a creeper flag fixed on or off, fails here.
+      const graded = (label: string, pair: FrozenCallerPair, knobs: CallerKnobs | undefined): SnapCalls => {
+        const before = foldMark(pair);
+        const replayed = replay(pair, snap);
+        const want = huddleOf(snap, knobs);
+        const why = huddleDiffers(before, foldMark(pair), want);
+        if (why !== undefined) fail(label, why);
+        if (label === "joint" && want.creeper) counts.jointCreeperGuessed += 1;
+        return replayed;
+      };
+      const base = graded("v5", v5, undefined);
+      const calls = new Map(arms.map((arm) => [arm.label, graded(arm.label, arm.pair, arm.knobs)] as const));
       const baseHost = HOST.get(callKey(base.defense));
       if (baseHost === undefined) fail("v5", `no host for ${callKey(base.defense)}`);
       const baseCard = drawnCard(snap, undefined);
@@ -1550,11 +1608,16 @@ describe("ADR-073 step 3.4, callerVersion v6", () => {
       `${String(counts.snaps)} snaps; joint creepers ${String(counts.creepers)} over ${[...counts.creeperHosts].join(", ")}; ` +
       `line games ${JSON.stringify(Object.fromEntries(counts.lineGames))}; 5+ ${JSON.stringify(Object.fromEntries(counts.fiveOrMore))}; ` +
       `front's stunts moved on ${String(counts.frontStuntsMoved)}; joint vs jnc: offence differs on ${String(counts.jointOffenseDiffers)}, ` +
-      `concept on ${String(counts.jointConceptDiffers)} off the creeper, whole defence compared on ${String(counts.jointComparedWhole)}`;
+      `concept on ${String(counts.jointConceptDiffers)} off the creeper, whole defence compared on ${String(counts.jointComparedWhole)}; ` +
+      `joint's huddle guessed a creeper on ${String(counts.jointCreeperGuessed)}`;
     expect(failures, `${String(failures.length)} failures (${summary})\n${failures.slice(0, 12).join("\n")}`).toEqual([]);
     // Non-vacuity: every claim above was exercised.
     expect(counts.snaps, summary).toBeGreaterThan(400);
     expect(counts.creepers, `no creeper was called, so the creeper was never checked (${summary})`).toBeGreaterThan(0);
+    // The joint huddle guessed creepers, which jnc's never does, and on some snaps that moved the
+    // offence's call (R30, plan Q14): with one huddle on both arms, or none guessing a creeper, it never would.
+    expect(counts.jointCreeperGuessed, summary).toBeGreaterThan(0);
+    expect(counts.jointOffenseDiffers, summary).toBeGreaterThan(0);
     expect(counts.frontStuntsMoved, `the front arm never moved a line game (${summary})`).toBeGreaterThan(0);
     for (const label of ["front", "jnc", "joint", "pressure", "bound"]) {
       expect(counts.lineGames.get(label) ?? 0, `${label} wore no line game (${summary})`).toBeGreaterThan(0);

@@ -53,10 +53,11 @@ interface CapturedSnap {
 }
 
 /**
- * One v4 game, captured: its first pass play and its first run play, each with the offence's and
- * the defence's depth charts. The states are what a real game hands the engine.
+ * One v4 game, captured: its first pass play and, on asking, its first run play, each with the
+ * offence's and the defence's depth charts. The states are what a real game hands the engine. The run
+ * play is found only when it is asked for, so the pass-card test needs no run play in the game.
  */
-function capturedSnaps(): { readonly pass: CapturedSnap; readonly run: CapturedSnap } {
+function capturedSnaps(): { readonly pass: CapturedSnap; readonly run: () => CapturedSnap } {
   const index = indexLeague(buildFlatLeague({ teams: 2 }));
   const teams = index.teamIds();
   const built = buildFixture(
@@ -95,7 +96,7 @@ function capturedSnaps(): { readonly pass: CapturedSnap; readonly run: CapturedS
       defenceChart: homeOnOffence ? built.awayDepthChart : built.homeDepthChart,
     };
   };
-  return { pass: sideOf("PASS"), run: sideOf("RUN") };
+  return { pass: sideOf("PASS"), run: () => sideOf("RUN") };
 }
 
 describe("ADR-073 §2.3: every pass card's options play through the engine", () => {
@@ -164,7 +165,9 @@ describe("ADR-073 step 3.4: every composed call plays through the engine, as the
   // defence's (the call as played). Any throw but `UnprotectableCallError`, which the caller's
   // concept loop redraws, fails here rather than mid-game.
   it("instantiates every pass and run concept against every call in COMPOSED, and plays each snap", () => {
-    const { pass, run } = capturedSnaps();
+    const captured = capturedSnaps();
+    const pass = captured.pass;
+    const run = captured.run();
     const entries = Object.values(COMPOSED);
     const playedByPass = new Set<string>();
     const playedByRun = new Set<string>();

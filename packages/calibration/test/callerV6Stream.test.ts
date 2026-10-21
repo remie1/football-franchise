@@ -437,6 +437,9 @@ describe("ADR-073 step 3.4: v6's arms against their pairs, snap for snap, on cap
     expect(counts.fiveOrMore, summary).toBeGreaterThan(0);
     expect(counts.fiveOrMore, summary).toBeLessThan(counts.snaps);
     expect(counts.played, summary).toBeGreaterThan(counts.snaps / 2);
+    // And the huddles do differ: joint's guesses the creeper and jnc's does not, so on some snaps the
+    // offences part. With one huddle on both arms (v5's, or the creeper flag fixed) they never would.
+    expect(counts.offenseDiffers, summary).toBeGreaterThan(0);
   }, 5 * 60_000);
 });
 

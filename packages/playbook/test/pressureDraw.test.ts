@@ -9,7 +9,9 @@
  *     computed here from the book's own weights; every r_s and every r_line is at most 1; and
  *     the line-game share is v5's;
  *   - **the caller-rate marginals** (§3.4): `pressure.test.ts`'s three marginals, on v6's draw
- *     over the open field, beside the originals, which stay on `DEFENSIVE_CARDS`;
+ *     over the open field, beside the originals, which stay on `DEFENSIVE_CARDS`; the disguise
+ *     rows the construction moves are pinned at the law's value;
+ *   - **the creeper's rate**: the owner's 1 in 10 (Decision 5), pinned by value;
  *   - **the dice ledger**: the dice §2.6 names, each thrown once on its own child fork, and none
  *     that would turn nothing (ADR-005);
  *   - **the sampler realises the law**: with a scripted Rng that answers each die at its
@@ -591,14 +593,43 @@ describe("ADR-073 §3.4 — the caller-rate marginals, on v6's draw over the ope
     });
 
     /**
-     * NOT HELD HERE: STANDARD and DELAYED. The one r_s shared by every host (§2.6) moves Dime Man
-     * Pressure, the book's only DELAYED pressure, from always on its host to r_s of it, and the mass
-     * goes to STANDARD (Double A, Base Run Blitz). On v6's draw over the open field the two rows are
-     * .5555 and .0617 against the prior's .50 and .12, so the prior's three points does not hold for
-     * them, and no band for them is filed for this test.
+     * NOT HELD TO THE PRIOR: STANDARD and DELAYED. The one r_s shared by every host (§2.6) moves Dime
+     * Man Pressure, the book's only DELAYED pressure, from always on its host to r_s of it, and the
+     * mass goes to STANDARD (Double A, Base Run Blitz). On v6's draw over the open field the two rows
+     * are .5555 and .0617 against the prior's .50 and .12, so the prior's three points does not hold
+     * for them. No band for them is filed; the test below pins all four rows at the law's value.
      */
     it.each(["ZONE_BLITZ", "ZERO"] as const)("%s is within three points of BLITZ_DISGUISE_MIX", (row) => {
       expect(Math.abs((disguiseMix(V6).get(row) ?? 0) - (BLITZ_DISGUISE_MIX[row] ?? NaN))).toBeLessThanOrEqual(0.03);
+    });
+
+    /**
+     * Every row at the law's value on today's book, STANDARD and DELAYED included: outputs of §2.6's
+     * construction, not a band, pinned as the r_s pin above pins 1/2 and 21/39. Over the open field the
+     * book weighs W = 100. The hosts weigh 43 (Sky 12 + 7 + 7, Nickel Cover 1 6 + 4, Base Cover 1 2 + 2,
+     * Dime Cover 1 0 + 3) and the five pressure cards 23, so r = 23/43, and five or more come on 26 of
+     * 100 (23 hosted, Cover 0's 3). A row is its hosts' share × r × its pressures' share of them, plus
+     * the bound Zero, over 26/100:
+     *
+     *   STANDARD   (Smoke's half of Sky's 26, Nickel Cover 1's 10, Base Cover 1's 4) = 27 × 23 / (43 × 26)
+     *   ZONE_BLITZ (Fire's half of Sky's 26)                                          = 13 × 23 / (43 × 26)
+     *   DELAYED    (Dime Cover 1's 3)                                                 =  3 × 23 / (43 × 26)
+     *   ZERO       (Cover 0's 3, bound)                                               =  3 / 26
+     *
+     * A change to the shared r_s (a per-personnel rate, Q9's alternative), to the fold or to a pressure's
+     * row moves one of them. Plan §4 rule 6 scores the arms' rows; this holds the draw's.
+     */
+    it.each([
+      ["STANDARD", (27 * 23) / (43 * 26)],
+      ["ZONE_BLITZ", (13 * 23) / (43 * 26)],
+      ["DELAYED", (3 * 23) / (43 * 26)],
+      ["ZERO", 3 / 26],
+    ] as const)("%s is the law's value on today's book", (row, want) => {
+      expect(disguiseMix(V6).get(row)).toBeCloseTo(want, 12);
+    });
+
+    it("has exactly those four rows", () => {
+      expect([...disguiseMix(V6).keys()].sort()).toEqual(["DELAYED", "STANDARD", "ZERO", "ZONE_BLITZ"]);
     });
 
     it("leaves the four-man rushes silent but the creeper, which is §5.3's zone blitz row", () => {
@@ -609,6 +640,16 @@ describe("ADR-073 §3.4 — the caller-rate marginals, on v6's draw over the ope
         expect([x.call.pressure, x.call.blitzDisguise], x.call.id).toEqual(["CREEPER", "ZONE_BLITZ"]);
       }
     });
+  });
+});
+
+/**
+ * Every test of the creeper's law reads `CREEPER_RATE` by name, so the law and its tests would move
+ * together. The value itself is the owner's ruling, pinned here once.
+ */
+describe("ADR-073 Decision 5 — the creeper's rate", () => {
+  it("is 1 in 10 of the four-man Cover 3 calls, as the owner ruled (Q5(a); provenance NONE)", () => {
+    expect(CREEPER_RATE).toBe(0.1);
   });
 });
 
