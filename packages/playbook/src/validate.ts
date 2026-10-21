@@ -1044,10 +1044,13 @@ const BACKER_ROLES: readonly DefenseRole[] = ["LB_W", "LB_M", "LB_S"];
 const SUB_CORNER_ROLES: readonly DefenseRole[] = ["CB_N", "CB_D"];
 
 const PRESSURE_RULE: Readonly<Record<PressureTagId, string>> = {
-  FIRE: "Fire is backers, and not both through the A gaps, with deep help kept",
-  DOUBLE_A: "Double A is both backers through the A gaps, with deep help kept",
+  FIRE: "Fire is five or more rushing, backers, and not both through the A gaps, with deep help kept",
+  DOUBLE_A: "Double A is five or more rushing, both backers through the A gaps, with deep help kept",
   SMOKE: "Smoke is the nickel or the dime, with deep help kept",
   ZERO: "Zero is nobody deep",
+  CREEPER:
+    "Creeper is four rushing, a backer among them, with a down lineman dropping and deep help " +
+    "kept; a pressure, not a blitz",
 };
 
 /**
@@ -1057,9 +1060,16 @@ const PRESSURE_RULE: Readonly<Record<PressureTagId, string>> = {
  *
  * **Declared exactly when somebody off the line rushes** — `checkDisguise`'s trigger, and not a
  * headcount: the goal-line front rushes five down linemen with nobody deep and is a vanilla
- * call. Then each word with the men and the deep help it says. The four exclude one another,
+ * call. Then each word with the men and the deep help it says. The five exclude one another,
  * so a card's rush fits at most one, and a rush that fits none — an outside corner, a safety —
  * is a word the vocabulary does not have yet, refused until it has one.
+ *
+ * **The count is the one line between the Creeper and every blitz word** (ADR-073 Decision 4:
+ * "a pressure, not a blitz"). The Creeper is four rushing with a backer among them and a down
+ * lineman dropping; Fire and Double A are five or more, which is `blitz_rate`'s line. Without
+ * the count on Double A, a four-man Double A (both backers through the A gaps, both ends
+ * dropping) would fit both words. Smoke and Zero need no count: the Creeper needs a backer off
+ * the ball, which Smoke's rush cannot hold, and deep help, which Zero removes.
  *
  * Deep help is `noDeepHelp`, which `validateDefensiveCard` already holds to the card's zones in
  * both directions. Every word but Zero keeps it: a pressure never moves the deep shell
@@ -1095,23 +1105,30 @@ function checkPressure(
     ];
   }
   const deepHelp = card.noDeepHelp !== true;
+  const rushers = duties.filter((d) => d.duty.kind === "RUSH").length;
+  // A down lineman in coverage: the test `checkDisguise` uses for ZONE_BLITZ.
+  const lineDrops = duties.some(
+    (d) => (DEFENSE_LINE_ROLES as readonly string[]).includes(d.role) && d.duty.kind !== "RUSH",
+  );
   const backersOnly = offBall.every((d) => BACKER_ROLES.includes(d.role));
   const doubleA =
     backersOnly &&
     offBall.length === 2 &&
     offBall.every((d) => d.duty.kind === "RUSH" && d.duty.gap === "A");
   const fits: Readonly<Record<PressureTagId, boolean>> = {
-    FIRE: backersOnly && !doubleA && deepHelp,
-    DOUBLE_A: doubleA && deepHelp,
+    FIRE: backersOnly && !doubleA && deepHelp && rushers >= 5,
+    DOUBLE_A: doubleA && deepHelp && rushers >= 5,
     SMOKE: offBall.every((d) => SUB_CORNER_ROLES.includes(d.role)) && deepHelp,
     ZERO: !deepHelp,
+    CREEPER:
+      rushers === 4 && offBall.some((d) => BACKER_ROLES.includes(d.role)) && lineDrops && deepHelp,
   };
   if (fits[declared]) return [];
   return [
     err(
       "D_PRESSURE_MISNAMED",
       where,
-      `the card says ${declared} and its rush is ${who} from off the line with ` +
+      `the card says ${declared} and its rush is ${rushers}, ${who} from off the line, with ` +
         `${deepHelp ? "deep help kept" : "nobody deep"}. ${PRESSURE_RULE[declared]}`,
     ),
   ];

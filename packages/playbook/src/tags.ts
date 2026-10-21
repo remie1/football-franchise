@@ -55,18 +55,22 @@ export const LINE_GAME_TAGS: Readonly<Record<StuntComplexity, DefensiveTag>> = {
  * Who comes from off the line (ADR-071 §4). What each word must be on the card that declares
  * it is `validate.ts`'s to check:
  *
- *  - **Fire** — backers, and not both through the A gaps; deep help kept.
- *  - **Double A** — both backers through the A gaps; deep help kept. The owner's own word.
+ *  - **Fire** — five or more rush: backers, and not both through the A gaps; deep help kept.
+ *  - **Double A** — five or more rush: both backers through the A gaps; deep help kept. The
+ *    owner's own word.
  *  - **Smoke** — the nickel or the dime; deep help kept.
  *  - **Zero** — nobody deep (`noDeepHelp`).
+ *  - **Creeper** — four rush, a linebacker among them, a lineman drops, deep help kept; a
+ *    pressure, not a blitz (ADR-073 Decision 4, the owner's word).
  */
-export type PressureTagId = "FIRE" | "DOUBLE_A" | "SMOKE" | "ZERO";
+export type PressureTagId = "FIRE" | "DOUBLE_A" | "SMOKE" | "ZERO" | "CREEPER";
 
 export const PRESSURE_TAGS: Readonly<Record<PressureTagId, DefensiveTag>> = {
   FIRE: { kind: "PRESSURE", id: "FIRE", name: "Fire" },
   DOUBLE_A: { kind: "PRESSURE", id: "DOUBLE_A", name: "Double A" },
   SMOKE: { kind: "PRESSURE", id: "SMOKE", name: "Smoke" },
   ZERO: { kind: "PRESSURE", id: "ZERO", name: "Zero" },
+  CREEPER: { kind: "PRESSURE", id: "CREEPER", name: "Creeper" },
 };
 
 /**
