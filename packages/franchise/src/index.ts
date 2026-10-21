@@ -9,3 +9,7 @@ export {
   type ClockWorld, type CalendarDeadline, type AdvanceOptions, type AdvanceResult,
 } from "./calendar/clock.js";
 export { buildSchedule, BYE_WINDOW, GAME_DAY, type ScheduleOptions } from "./schedule/buildSchedule.js";
+export {
+  computeStandings, rankConference,
+  type StandingsOptions, type ConferenceRankRow, type ConferenceTiebreakStep,
+} from "./standings/computeStandings.js";

@@ -116,6 +116,8 @@ finishes.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.
+Season shell so far: a made-up 32-team league, and standings with the full NFL tiebreakers
+(checked against the real 2020-2024 playoff seeds).
 
 ## Words you will see
 
