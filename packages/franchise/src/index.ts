@@ -20,3 +20,4 @@ export {
   runSeason, gameSeed, MAX_PLAYOFF_REPLAYS,
   type GameResolver, type RunSeasonInput, type SeasonRun,
 } from "./season/runSeason.js";
+export { makeSave, readSave, SaveError, type MakeSaveInput, type LoadedSave } from "./save/save.js";

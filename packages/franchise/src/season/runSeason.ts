@@ -9,6 +9,11 @@
  * tests pass a seeded fake, and calibration passes the real sim (ADR-078 R1).
  *
  * Same league, season, seed and resolver → the identical season and event stream.
+ *
+ * Save and load: `stopAfter` ends the run early on a chosen day, and `resumeFrom` carries on from a
+ * saved season. A resumed run replays the season from its first day with the saved games read from
+ * the save instead of played, so stopping and carrying on gives the season, event stream included,
+ * that one straight run gives.
  */
 import {
   DEFAULT_LEAGUE_RULES, compareStamps, stampToString,
@@ -37,12 +42,24 @@ export interface RunSeasonInput {
   previousFinish?: Readonly<Record<string, readonly TeamId[]>>;
   /** Where to stop: the first day of the offseason (default) or the last day of the year. */
   through?: "PLAYOFFS" | "YEAR";
+  /**
+   * Stop early: play every game day up to and including this day, move the clock to it, and return
+   * with `complete: false`. A day's games are played all together or not at all.
+   */
+  stopAfter?: CalendarStamp;
+  /**
+   * Carry on from a saved season: its results are used as they stand and only the rest is played.
+   * The save must be of this season, built from the same league and seed.
+   */
+  resumeFrom?: SeasonState;
 }
 
 export interface SeasonRun {
   state: SeasonState;
   calendar: CalendarStamp;
   events: FranchiseEventEnvelope[];
+  /** False when `stopAfter` ended the run before its end date. */
+  complete: boolean;
 }
 
 /** A playoff game the resolver returns level is played again on a fresh seed, at most this often. */
@@ -52,8 +69,16 @@ export function gameSeed(seed: string, game: ScheduledGame): string {
   return `${seed}/${String(game.gameId)}`;
 }
 
-function play(game: ScheduledGame, seed: string, resolve: GameResolver): GameResult {
+function play(game: ScheduledGame, seed: string, resolve: GameResolver, saved: ReadonlyMap<string, GameResult>): GameResult {
   const base = gameSeed(seed, game);
+  const kept = saved.get(String(game.gameId));
+  if (kept) {
+    const replays = Array.from({ length: MAX_PLAYOFF_REPLAYS }, (_, k) => `${base}/replay-${k + 1}`);
+    if (kept.home !== game.home || kept.away !== game.away || (kept.seed !== base && !replays.includes(kept.seed))) {
+      throw new Error(`runSeason: the saved result for ${String(game.gameId)} was not played in this season`);
+    }
+    return kept;
+  }
   for (let replay = 0; replay <= MAX_PLAYOFF_REPLAYS; replay++) {
     const s = replay === 0 ? base : `${base}/replay-${replay}`;
     const r = resolve(game, s);
@@ -68,12 +93,19 @@ function play(game: ScheduledGame, seed: string, resolve: GameResolver): GameRes
 const sameDay = (a: CalendarStamp, b: CalendarStamp) => compareStamps(a, b) === 0;
 
 export function runSeason(input: RunSeasonInput): SeasonRun {
-  const { league, season, seed, resolve } = input;
+  const { league, season, seed, resolve, stopAfter, resumeFrom } = input;
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
   const schedule = buildSchedule(league, season, seed, {
     rules,
     ...(input.previousFinish ? { previousFinish: input.previousFinish } : {}),
   });
+  if (stopAfter && compareStamps(stopAfter, seasonStart(season)) < 0) {
+    throw new Error(`runSeason: stopAfter ${stampToString(stopAfter)} is before the season starts`);
+  }
+  if (resumeFrom && (resumeFrom.season !== season || JSON.stringify(resumeFrom.schedule) !== JSON.stringify(schedule))) {
+    throw new Error(`runSeason: the saved season is not season ${season} of this league and seed`);
+  }
+  const saved = new Map((resumeFrom?.results ?? []).map((r) => [String(r.gameId), r]));
 
   // Standings and seeding count regular-season games only.
   const regularIds = new Set(schedule.games.filter((g) => g.kind === "REGULAR").map((g) => String(g.gameId)));
@@ -90,6 +122,12 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
   emit({ type: "CALENDAR_PHASE_ENTERED", payload: { phase: world.calendar.phase } });
 
   const played = new Set<string>();
+  const past = (at: CalendarStamp) => stopAfter !== undefined && compareStamps(at, stopAfter) > 0;
+  const finish = (complete: boolean): SeasonRun => {
+    const unused = [...saved.keys()].filter((id) => !played.has(id));
+    if (unused.length > 0) throw new Error(`runSeason: the save has results this run did not reach (${unused.slice(0, 3).join(", ")})`);
+    return { state, calendar: world.calendar, events, complete };
+  };
   const pending = () => [...state.schedule.games, ...(state.bracket?.games ?? [])]
     .filter((g) => !played.has(String(g.gameId)))
     .sort((a, b) => compareStamps(a.at, b.at) || String(a.gameId).localeCompare(String(b.gameId)));
@@ -99,6 +137,7 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
     if (queue.length === 0) {
       if (state.bracket?.champion !== undefined) break;
       if (state.bracket === undefined) {
+        if (past({ season, phase: "PLAYOFFS", week: 1, day: 1 })) break;
         moveTo({ season, phase: "PLAYOFFS", week: 1, day: 1 });
         const regular = state.results.filter((r) => regularIds.has(String(r.gameId)));
         const bracket = advanceBracket(seedPlayoffs(league, regular, season, rules, { seed }), state.results);
@@ -111,10 +150,11 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
     }
 
     const day = queue[0]!.at;
+    if (past(day)) break;
     moveTo(day);
     const results = [...state.results];
     for (const game of queue.filter((g) => sameDay(g.at, day))) {
-      const result = play(game, seed, resolve);
+      const result = play(game, seed, resolve, saved);
       results.push(result);
       played.add(String(game.gameId));
       emit({ type: "GAME_COMPLETED", payload: { result, kind: game.kind } });
@@ -132,6 +172,10 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
   const end: CalendarStamp = input.through === "YEAR"
     ? { season, phase: "OFF_SUMMER", week: phaseWeeks("OFF_SUMMER", rules), day: DAYS_PER_WEEK }
     : { season, phase: "OFF_EVAL", week: 1, day: 1 };
+  if (stopAfter && compareStamps(stopAfter, end) < 0) {
+    moveTo(stopAfter);
+    return finish(false);
+  }
   moveTo(end);
-  return { state, calendar: world.calendar, events };
+  return finish(true);
 }
