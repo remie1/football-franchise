@@ -22,11 +22,48 @@ export interface GameFilePlayer {
   readonly team: string;
 }
 
-/** One player's line as the engine counted it. Only the parts the viewer shows are named. */
+/** One player's line as the engine counted it (`@ff/engine`'s `StatLine`, mirrored). */
 export interface BoxScoreLine {
   readonly player: string;
   readonly team: string;
-  readonly [part: string]: unknown;
+  readonly passing: {
+    readonly attempts: number;
+    readonly completions: number;
+    readonly yards: number;
+    readonly touchdowns: number;
+    readonly interceptions: number;
+    readonly sacked: number;
+    readonly sackYards: number;
+  };
+  readonly rushing: { readonly attempts: number; readonly yards: number; readonly touchdowns: number; readonly longest: number };
+  readonly receiving: {
+    readonly targets: number;
+    readonly receptions: number;
+    readonly yards: number;
+    readonly touchdowns: number;
+    readonly drops: number;
+  };
+  readonly defense: {
+    readonly tackles: number;
+    readonly sacks: number;
+    readonly interceptions: number;
+    readonly passesDefensed: number;
+    readonly tacklesForLoss: number;
+  };
+  readonly kicking: {
+    readonly fieldGoalAttempts: number;
+    readonly fieldGoalsMade: number;
+    readonly extraPointAttempts: number;
+    readonly extraPointsMade: number;
+    readonly punts: number;
+    readonly puntGrossYards: number;
+  };
+  readonly returns: {
+    readonly kickReturns: number;
+    readonly kickReturnYards: number;
+    readonly puntReturns: number;
+    readonly puntReturnYards: number;
+  };
 }
 
 export interface GameFile {
@@ -68,6 +105,17 @@ export function parseGameFile(text: string): GameFile {
     throw new GameFileError("This game file is missing its teams, players or box score.");
   }
   return file as GameFile;
+}
+
+/** A player's name, or the id itself if the file somehow lacks it (never a blank). */
+export function nameOf(file: GameFile, id: string): string {
+  return file.players[id]?.name ?? id;
+}
+
+/** "City 01 Team 01" for a team id; the id itself if the file lacks it. */
+export function teamName(file: GameFile, id: string): string {
+  const team = id === file.home.id ? file.home : id === file.away.id ? file.away : undefined;
+  return team === undefined ? id : `${team.city} ${team.name}`;
 }
 
 export function eventsOf<T extends MatchEvent["type"]>(

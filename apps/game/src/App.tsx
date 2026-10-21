@@ -1,6 +1,16 @@
 import { useEffect, useState } from "react";
 import { GameFileError, parseGameFile, type GameFile } from "./gameFile.js";
+import { BoxScoreView } from "./BoxScoreView.js";
+import { DriveChartView } from "./DriveChartView.js";
+import { PlayLogView } from "./PlayLogView.js";
 import { ScoreboardView } from "./ScoreboardView.js";
+
+const TABS = [
+  { id: "log", label: "Play log" },
+  { id: "drives", label: "Drive chart" },
+  { id: "box", label: "Box score" },
+] as const;
+type Tab = (typeof TABS)[number]["id"];
 
 /** Games `export-game` saved into `public/games/`, listed by its `index.json`. */
 async function listSavedGames(): Promise<readonly string[]> {
@@ -18,6 +28,11 @@ export function App() {
   const [saved, setSaved] = useState<readonly string[]>([]);
   const [game, setGame] = useState<GameFile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // `?tab=drives` / `?tab=box` opens on that tab, alongside `?game=`.
+  const [tab, setTab] = useState<Tab>(() => {
+    const asked = new URLSearchParams(window.location.search).get("tab");
+    return TABS.find((t) => t.id === asked)?.id ?? "log";
+  });
 
   useEffect(() => {
     void listSavedGames().then(setSaved);
@@ -76,7 +91,21 @@ export function App() {
           No game open. Make one with <code>pnpm --filter @ff/calibration export-game --seed my-game</code>, then pick it above.
         </p>
       )}
-      {game !== null && <ScoreboardView game={game} />}
+      {game !== null && (
+        <>
+          <ScoreboardView game={game} />
+          <nav className="tabs" role="tablist">
+            {TABS.map((t) => (
+              <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
+                {t.label}
+              </button>
+            ))}
+          </nav>
+          {tab === "log" && <PlayLogView game={game} />}
+          {tab === "drives" && <DriveChartView game={game} />}
+          {tab === "box" && <BoxScoreView game={game} />}
+        </>
+      )}
     </main>
   );
 }
