@@ -52,6 +52,25 @@ describe("makeSave / readSave (save and load L2)", () => {
     expect(readSave(onDisk(saveOf(half))).save.playedWith).toBeUndefined();
   });
 
+  it("carries the rostered players when given them (ADR-079), and refuses rosters without them", () => {
+    const team = league.teams[0]!;
+    const pid = "p:T01:QB0" as never;
+    const player = {
+      bio: { id: pid, displayName: "Test Player", position: "QB", age: 25, heightIn: 75, weightLb: 220, draft: "UDFA" },
+      attributes: { kind: "true", values: { accuracy: 70 }, traits: new Set<string>() },
+      condition: { stamina: 100, morale: 0 },
+      personality: { needs: {}, type: "quiet" },
+      teamId: team.id,
+    } as const;
+    const rostered = { ...league, teams: league.teams.map((t, i) => (i === 0 ? { ...t, roster: [pid], depthChart: { QB: [pid] } } : t)) };
+    const s = makeSave({ league: rostered, calendar: half.calendar, season: half.state, createdBy: "test", players: [player as never] });
+    const text = JSON.stringify(s, (_k, v) => (v instanceof Set ? [...v] : v), 2);
+    const loaded = readSave(text);
+    expect(loaded.save.world.players.map((p) => String(p.bio.id))).toEqual(["p:T01:QB0"]);
+    expect(loaded.league.teams[0]!.roster).toEqual([pid]);
+    expect(() => makeSave({ league: rostered, calendar: half.calendar, season: half.state, createdBy: "test" })).toThrow(/not in the save/);
+  });
+
   it("a save is plain data: the same season saves to the same text", () => {
     expect(onDisk(saveOf(half))).toBe(onDisk(saveOf(runSeason({ ...base, stopAfter: week9 }))));
   });

@@ -13,6 +13,7 @@
     "season": "vite-node src/season/main.ts --"
   },
   "dependencies": {
+    "@ff/attributes": "workspace:*",
     "@ff/contracts": "workspace:*",
     "@ff/engine": "workspace:*",
     "@ff/franchise": "workspace:*",

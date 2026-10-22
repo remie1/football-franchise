@@ -39,7 +39,7 @@ run the play simulator).
 | Play simulator | `packages/engine` | Simulates one play at a time, and whole games: pre-snap reads, the pass rush and the pocket, routes and coverage, the throw and catch, runs, special teams. | Yes, being tuned |
 | Playbook | `packages/playbook` | The play cards: formations, pass and run concepts, protections, defensive calls with their fronts, coverages, pressures and disguises. | Yes |
 | Realism checker | `packages/calibration` | Runs thousands of games and compares the results with real NFL numbers. Also holds the computer play-callers used for testing, and the "ladder" checks (described below). | Yes |
-| Player ratings | `packages/attributes` | Will turn real data into player ratings for real rosters. | Not started |
+| Player ratings | `packages/attributes` | Makes the made-up league's players and their ratings (ADR-079); will later turn real data into ratings for real rosters. | Made-up rosters: yes. Real data: not started |
 | Front office | `packages/franchise` | Runs the calendar, schedule, standings and playoffs (the season shell), and the coaching staffs: hiring and firing (ADR-080). Will add the cap, player contracts, free agency and the draft. | Yes: the season shell and coaching staffs (coaches do not affect games yet) |
 | Storylines | `packages/narrative` | Writes the news from what happens in games: each week's headlines, the playoff race, the playoffs and a season review today (ADR-082); storylines, press and reputation later. | Started: the season's news |
 | Game screen | `apps/game` | The browser app: menus, dashboards, the play log. It only displays; it decides nothing. | Not started (a game viewer has its own thread now) |
@@ -122,6 +122,9 @@ Season shell: a made-up 32-team league, its schedule, standings with the full NF
 real sim. **Save and load:** stop a season after any week, save it to a file, and carry on later;
 the season comes out exactly as if it had never stopped
 (`season -- --seed X --stop-after 9 --save league.json`, then `season -- --load league.json`).
+Team rosters (ADR-079, 22 October 2026): every team has its own 53 made-up players, rated on one
+absolute scale for every position (a guard's speed and a corner's speed on the same ruler), with
+the best player at each spot starting. Seasons play with these squads by default.
 
 **Coaching staffs (ADR-080, 22 October 2026):** every team has a head coach, two coordinators, a
 special teams coordinator and a computer-run president, with careers, contracts and 20 seasons of

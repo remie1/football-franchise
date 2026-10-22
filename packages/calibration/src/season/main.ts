@@ -1,6 +1,6 @@
 /**
  * `pnpm --filter @ff/calibration season -- --seed <seed> [--season 2027] [--caller v5] [--out <file>]`
- *   `[--stop-after <week> | playoffs:<week>] [--save <file>]`
+ *   `[--rosters generated|flat] [--team-sd <n>] [--stop-after <week> | playoffs:<week>] [--save <file>]`
  * `pnpm --filter @ff/calibration season -- --load <file> [--caller v5] [--stop-after …] [--save <file>]`
  *
  * Plays a whole season (272 games plus the playoffs) through the real sim, prints the final
@@ -12,13 +12,19 @@
  * it holds are read from it, not played again. A save records the play-caller version that played it
  * (E1): `--load` carries on with that version, and refuses a different `--caller` unless
  * `--switch-caller` is given.
+ *
+ * Rosters (ADR-079): each team plays with its own made-up squad unless `--rosters flat`; with
+ * squads, `--out` also saves the players and each team's hidden strength. Squads are rebuilt
+ * from the world seed: a save stores the players, but `--load` rebuilds them and uses squads when
+ * the saved teams have rosters, the flat league when they do not. A save does not record `--team-sd`, so the
+ * two cannot be combined.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { DEFAULT_LEAGUE_RULES, stampToString, type CalendarStamp } from "@ff/contracts";
 import { makeSave, readSave } from "@ff/franchise";
 import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
-import { runRealSeason } from "./realSeason.js";
+import { runRealSeason, type SeasonRosters } from "./realSeason.js";
 
 function parse(argv: readonly string[]) {
   let seed: string | undefined;
@@ -29,6 +35,8 @@ function parse(argv: readonly string[]) {
   let save: string | undefined;
   let load: string | undefined;
   let switchCaller = false;
+  let rosters: SeasonRosters | undefined;
+  let teamStrengthSd: number | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const next = (): string => {
@@ -44,6 +52,14 @@ function parse(argv: readonly string[]) {
     else if (arg === "--save") save = next();
     else if (arg === "--load") load = next();
     else if (arg === "--switch-caller") switchCaller = true;
+    else if (arg === "--rosters") {
+      const v = next();
+      if (v !== "generated" && v !== "flat") throw new SyntaxError("--rosters must be generated or flat");
+      rosters = v;
+    } else if (arg === "--team-sd") {
+      teamStrengthSd = Number(next());
+      if (!(teamStrengthSd >= 0)) throw new SyntaxError("--team-sd must be a number, 0 or more");
+    }
     else if (arg === "--caller") {
       const v = next();
       if (!(CALLER_VERSIONS as readonly string[]).includes(v)) throw new SyntaxError(`--caller must be one of ${CALLER_VERSIONS.join(", ")}`);
@@ -54,7 +70,11 @@ function parse(argv: readonly string[]) {
   if (load === undefined && (seed === undefined || seed.trim() === "")) throw new SyntaxError("--seed is required");
   if (!Number.isInteger(season)) throw new SyntaxError("--season must be a whole number");
   if (switchCaller && load === undefined) throw new SyntaxError("--switch-caller only applies with --load");
-  return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller };
+  if (load !== undefined && rosters !== undefined) throw new SyntaxError("--load takes its rosters from the save; drop --rosters");
+  if (teamStrengthSd !== undefined && (load !== undefined || save !== undefined)) {
+    throw new SyntaxError("a save does not record --team-sd; drop it to save or load");
+  }
+  return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd };
 }
 
 function stopDay(text: string, season: number): CalendarStamp {
@@ -66,6 +86,9 @@ function stopDay(text: string, season: number): CalendarStamp {
 // A relative path is from the folder the command was typed in, not this package's, where pnpm runs
 // it; so `--out season.json` here and the news command's `--season season.json` agree.
 const fromCaller = (path: string) => resolve(process.env.INIT_CWD ?? process.cwd(), path);
+
+/** Traits are a Set; JSON gets them as a list. */
+const listTraits = (_k: string, v: unknown): unknown => (v instanceof Set ? [...v] : v);
 
 const args = parse(process.argv.slice(2));
 const started = Date.now();
@@ -80,8 +103,12 @@ if (savedCaller !== undefined && args.callerVersion !== undefined && args.caller
   throw new Error(`This save was played with caller ${savedCaller}; carrying on with ${args.callerVersion} needs --switch-caller`);
 }
 const callerVersion: CallerVersion = args.callerVersion ?? (savedCaller as CallerVersion | undefined) ?? DEFAULT_CALLER_VERSION;
-const { league, run } = runRealSeason({
-  seed, season, callerVersion,
+const rosters: SeasonRosters = loaded
+  ? (loaded.league.teams.some((t) => t.roster.length > 0) ? "generated" : "flat")
+  : (args.rosters ?? "generated");
+const { league, rated, run } = runRealSeason({
+  seed, season, callerVersion, rosters,
+  ...(args.teamStrengthSd === undefined ? {} : { teamStrengthSd: args.teamStrengthSd }),
   ...(loaded ? { league: loaded.league, rules: loaded.rules, ...(loaded.save.world.season ? { resumeFrom: loaded.save.world.season } : {}) } : {}),
   ...(args.stopAfter ? { stopAfter: stopDay(args.stopAfter, season) } : {}),
 });
@@ -101,12 +128,15 @@ if (run.complete) console.log(`\nChampion: ${name.get(String(champion))} (${took
 else console.log(`\nStopped after ${stampToString(run.calendar)} (${took})${champion === undefined ? "" : `; champion ${name.get(String(champion))}`}`);
 if (args.save) {
   const path = fromCaller(args.save);
-  writeFileSync(path, JSON.stringify(makeSave({ league, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: { caller: callerVersion }, rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES }), null, 2));
+  const players = rated === undefined ? {} : { players: rated.league.players };
+  const save = makeSave({ league, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: { caller: callerVersion }, rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...players });
+  writeFileSync(path, JSON.stringify(save, listTraits, 2));
   console.log(`Saved ${path}`);
 }
 if (args.out) {
   const path = fromCaller(args.out);
+  const squads = rated === undefined ? {} : { rosters: rated.id, players: rated.league.players, ratedProvenance: rated.league.provenance };
   // The event stream rides along so the news desk (ADR-082) can read the season the way it happened.
-  writeFileSync(path, JSON.stringify({ seed, league, season: run.state, events: run.events }, null, 2));
+  writeFileSync(path, JSON.stringify({ seed, league, season: run.state, events: run.events, ...squads }, listTraits, 2));
   console.log(`Saved ${path}`);
 }

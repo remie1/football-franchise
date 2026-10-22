@@ -14,7 +14,7 @@
  */
 import {
   ATTRIBUTE_REGISTRY_V1, DEFAULT_LEAGUE_RULES, SAVE_FORMAT_VERSION, compareStamps, stampToString,
-  type CalendarStamp, type LeagueRules, type SaveFile, type SeasonState,
+  type CalendarStamp, type LeagueRules, type PlayerState, type SaveFile, type SeasonState,
 } from "@ff/contracts";
 import type { League } from "../league/buildLeague.js";
 import { assertValidStamp, seasonStart } from "../calendar/clock.js";
@@ -31,6 +31,11 @@ export interface MakeSaveInput {
   rules?: LeagueRules;
   /** What played the games (E1), e.g. `{ caller: "v5" }`. */
   playedWith?: { caller: string };
+  /**
+   * The players on the teams' rosters (ADR-079 team rosters). Absent, the save has none, and so
+   * may its teams' rosters. Traits are a `Set`: write the file with a replacer that lists them.
+   */
+  players?: PlayerState[];
 }
 
 export function makeSave(input: MakeSaveInput): SaveFile {
@@ -44,7 +49,7 @@ export function makeSave(input: MakeSaveInput): SaveFile {
     leagueRules: input.rules ?? DEFAULT_LEAGUE_RULES,
     world: {
       teams: league.teams,
-      players: [],
+      players: input.players ?? [],
       staff: [],
       contracts: [],
       perceptions: [],
