@@ -1,6 +1,7 @@
 /**
  * THE FRONT LOOKS — ADR-073 §2.5: the Mug and the Stem, which calls can wear one, the dice that
- * draw one, and R28, the rule every call wearing one keeps.
+ * draw one, how an instantiated call wears one (`applyFrontLook`), and R28, the rule every call
+ * wearing one keeps.
  *
  * A coverage look (`masks.ts`) lies about the coverage: it changes `shownAssignments`. A front
  * look lies about the RUSH: it changes `shownRush`, what the offence is shown of who comes.
@@ -34,6 +35,16 @@
  *  - `stem-side`, only for a Stem over a balanced played rush with both sides legal, at equal
  *    weight. Over a balanced rush with one legal side the draw names that side and throws nothing.
  *
+ * ================== WEARING ONE ==================
+ *
+ * `applyFrontLook` lays the drawn look over an instantiated call — the real defence, inside the
+ * caller's concept loop, never the huddle's `expected`. It writes `shownRush`, a second list, and
+ * appends the look's tag after the coverage looks; every other field keeps its reference. It is
+ * the only writer of a second shown-rush list, and the Stem makes it the first reader of a
+ * rusher's gap (`RushAssignment.gap`): the Stem's positions and its one-spot rule are read off it.
+ * Where the formation makes the drawn look illegal on this instance, the call wears none and the
+ * defence comes back unchanged, the same object, so the caller can count the snap (§2.5).
+ *
  * ================== R28 ==================
  *
  * Every tag is derived or checked, never only declared (R28; ADR-071 §6). ADR-073 §3.5 states the
@@ -43,11 +54,21 @@
  * the other is not a difference (P1).
  * `validateFrontLook` states the rule as diagnostics; `assertValidFrontLook` throws on them.
  */
-import type { DefensivePlayCall, DefensiveTag, Rng, RunGap, RunSide, ShownRusher } from "@ff/contracts";
-import type { AnyDefensiveCard, CoverageFamily, DefensiveDuty } from "./defense.js";
+import type {
+  DefensivePlayCall,
+  DefensiveTag,
+  PlayerId,
+  Rng,
+  RunGap,
+  RunSide,
+  RushAlignment,
+  ShownRusher,
+} from "@ff/contracts";
+import type { AnyDefensiveCard, CoverageFamily, DefensiveDuty, GapAssignment } from "./defense.js";
 import { dutyList } from "./defense.js";
 import { FRONT_LOOK_RATE, weightedPick } from "./distribution.js";
 import { InvalidCardError, PlaybookError } from "./errors.js";
+import type { InstantiatedDefense } from "./instantiate.js";
 import type { DefensePersonnel, DefenseRole } from "./roles.js";
 import { DEFENSE_ROLE_GROUP } from "./roles.js";
 import type { Diagnostic } from "./validate.js";
@@ -398,4 +419,173 @@ export function assertValidFrontLook(call: DefensivePlayCall): void {
   if (problems.length > 0) {
     throw new InvalidCardError(`defensive call "${call.personnel} ${call.front}, ${call.concept}"`, problems);
   }
+}
+
+// --- wearing one -------------------------------------------------------------------------------
+
+/** A gap's alignment, as §2.5 draws the front: the A and B gaps INTERIOR, the C and D gaps EDGE. */
+const alignmentOfGap = (gap: RunGap): RushAlignment => (gap === "A" || gap === "B" ? "INTERIOR" : "EDGE");
+
+/** The instance's men, role by role, in `byRole`'s order — `dutyList` order, linemen first. */
+interface Man {
+  readonly role: DefenseRole;
+  readonly player: PlayerId;
+}
+
+function menOf(defense: InstantiatedDefense): readonly Man[] {
+  return Object.entries(defense.byRole).flatMap(([role, player]) =>
+    player === undefined ? [] : [{ role: role as DefenseRole, player }],
+  );
+}
+
+/** A look's picture at this instance: the shown rush it writes and the men it moves. */
+interface Picture {
+  readonly shownRush: readonly ShownRusher[];
+  readonly moves: readonly Man[];
+}
+
+/**
+ * A dropping man's run fit: his one SECOND-level gap on this instance, so a MAN fallback's own
+ * fit wins. No fit is no picture to draw him at, and there is no default (Charter §4.1).
+ */
+function fitOf(defense: InstantiatedDefense, man: Man, look: FrontLookId): GapAssignment {
+  const fit = defense.gaps.find((g) => g.level === "SECOND" && g.defender === man.player);
+  if (fit === undefined) {
+    throw new PlaybookError(
+      `a ${FRONT_LOOK_NAME[look]} over ${defense.cardId} shows ${man.role} at his run fit, and he drops with none`,
+    );
+  }
+  return fit;
+}
+
+/**
+ * The Mug at this instance (§2.5): the walked-up backers (LB_W and LB_M on the field — in Dime
+ * LB_M alone) shown as INTERIOR rushers in the A gap on their run-fit side, the line in its
+ * stance. `undefined` where nobody it shows drops: it would move nobody.
+ *
+ * The played rush comes first, in `rush` order, each entry the very object from `rush` (3.3's
+ * verbatim copy), except a walked-up backer who already rushes from another spot: he is re-spotted
+ * to the A gap, INTERIOR, on his own side — his run fit is his rush (option A). Then the GHOSTS, in
+ * `dutyList` order: a dropping down lineman at his run fit's side and gap, alignment from the gap,
+ * and a dropping walked-up backer at the A gap, INTERIOR, on his run fit's side. A backer may share
+ * the A gap with the tackle in front of him; the one-spot rule is the Stem's, not the Mug's.
+ */
+function mugPicture(defense: InstantiatedDefense): Picture | undefined {
+  const rushing = new Set(defense.rush.map((r) => String(r.rusher)));
+  const men = menOf(defense);
+  const walkedUp = men.filter((m) => m.role === "LB_W" || m.role === "LB_M");
+  const line = men.filter((m) => isDownLineman(m.role));
+  const drop = (m: Man): boolean => !rushing.has(String(m.player));
+  if (!walkedUp.some(drop) && !line.some(drop)) return undefined;
+
+  const respotted = new Set(walkedUp.filter((m) => !drop(m)).map((m) => String(m.player)));
+  const shownRush: ShownRusher[] = defense.rush.map((r) => {
+    if (!respotted.has(String(r.rusher)) || (r.gap === "A" && r.alignment === "INTERIOR")) return r;
+    return { rusher: r.rusher, alignment: "INTERIOR", side: r.side, gap: "A" };
+  });
+  for (const man of men) {
+    if (!drop(man)) continue;
+    if (isDownLineman(man.role)) {
+      const fit = fitOf(defense, man, "MUG");
+      shownRush.push({ rusher: man.player, alignment: alignmentOfGap(fit.gap), side: fit.side, gap: fit.gap });
+    } else if (man.role === "LB_W" || man.role === "LB_M") {
+      const fit = fitOf(defense, man, "MUG");
+      shownRush.push({ rusher: man.player, alignment: "INTERIOR", side: fit.side, gap: "A" });
+    }
+  }
+  return { shownRush, moves: [...walkedUp, ...line.filter(drop)] };
+}
+
+/**
+ * The Stem at this instance (§2.5): every rushing down lineman shown one position toward X,
+ * clamped at the ends, alignment from his new gap; every other rusher where he plays. X is the
+ * side opposite this instance's played strength, counted over every rusher, or over a balanced
+ * rush the drawn `side`. `undefined` — the call wears none — where fewer than three down linemen
+ * rush or one drops, over a balanced rush with no drawn side, or where a shifted lineman lands on
+ * a (side, gap) another shown rusher holds (the one-spot refusal, this function's own check).
+ *
+ * It decides from each rusher's gap, so a rusher with none is refused: there is no default. A
+ * lineman the clamp keeps at the end stays where he is, his entry the very object from `rush`.
+ */
+function stemPicture(defense: InstantiatedDefense, side: RunSide | undefined): Picture | undefined {
+  const rushing = new Set(defense.rush.map((r) => String(r.rusher)));
+  const line = menOf(defense).filter((m) => isDownLineman(m.role));
+  const rushingLine = line.filter((m) => rushing.has(String(m.player)));
+  if (rushingLine.length < 3 || rushingLine.length !== line.length) return undefined;
+  const isLine = new Set(rushingLine.map((m) => String(m.player)));
+  const spots = defense.rush.map((r) => {
+    if (r.gap === undefined) {
+      throw new PlaybookError(
+        `a Stem over ${defense.cardId} places every rusher by his gap, and ${String(r.rusher)} states none`,
+      );
+    }
+    return { line: isLine.has(String(r.rusher)), side: r.side, gap: r.gap };
+  });
+  const strength = playedStrength(spots);
+  const x = strength === undefined ? side : opposite(strength);
+  if (x === undefined || !stemClear(spots, x)) return undefined;
+  const shownRush = defense.rush.map((r, i): ShownRusher => {
+    const spot = spots[i];
+    if (spot === undefined || !spot.line) return r;
+    const at = positionOf(spot.side, spot.gap);
+    const to = POSITIONS[towards(at, x)];
+    if (to === undefined || towards(at, x) === at) return r;
+    return { rusher: r.rusher, alignment: alignmentOfGap(to.gap), side: to.side, gap: to.gap };
+  });
+  return { shownRush, moves: rushingLine };
+}
+
+/**
+ * Lays the drawn front look over an instantiated call (ADR-073 §2.5, §3.5): the real `defense`,
+ * after `instantiateDefense`, inside the caller's concept loop — never the huddle's `expected`.
+ *
+ * PURE: it returns a new defence and never touches its input, because the caller's `expected` IS
+ * `defense` when it anticipates nothing. The call it writes is the input's, with `shownRush` a new
+ * list and the look's tag appended after the coverage looks; `assignments`, `shownAssignments`,
+ * `rush`, `stunts`, `blitzDisguise` and `coverageDisguise` keep their references, so a call with
+ * no coverage look still shows its coverage as the same array (C11), and the disguise row is the
+ * call's own, never stamped (R7). The picture is `mugPicture`'s or `stemPicture`'s.
+ *
+ * ⛔ LOUD where the caller is wrong, SILENT where the formation is:
+ *  - it throws on a draw made on another card (`draw.cardId`; an instantiated defence carries no
+ *    family, so the card that passed `legalFrontLooks` is named), on a call that already has a
+ *    second shown-rush list or already wears a front look (R21: one a call), on a man it moves
+ *    whom a coverage look moved (R25: `shownAssignments[i] !== assignments[i]`), and on a
+ *    dropping man with no run fit or a rusher with no gap;
+ *  - where this formation makes the drawn look illegal (§2.5's legality, re-read on the instance:
+ *    a MAN duty's `ifAbsent` can turn a man into a rusher or a dropper) the call wears none, and
+ *    `defense` itself comes back, the same object, as `instantiateDefense` drops a stunt whose
+ *    man ended in coverage. The caller counts the snap by that identity.
+ *
+ * It checks its own output against R28 (`assertValidFrontLook`) before it returns.
+ */
+export function applyFrontLook(defense: InstantiatedDefense, draw: FrontLookDraw): InstantiatedDefense {
+  const look = FRONT_LOOK_NAME[draw.look];
+  if (draw.cardId !== defense.cardId) {
+    throw new PlaybookError(
+      `a ${look} drawn on ${draw.cardId} laid over ${defense.cardId} — a front look is worn over the card it was drawn on`,
+    );
+  }
+  if (defense.call.shownRush !== defense.call.rush || defense.call.tags.some(isFrontLookTag)) {
+    throw new PlaybookError(`a ${look} over ${defense.cardId}, which already wears a front look — one a call (R21)`);
+  }
+  const picture = draw.look === "MUG" ? mugPicture(defense) : stemPicture(defense, draw.side);
+  if (picture === undefined) return defense;
+
+  const { assignments, shownAssignments } = defense.call;
+  for (const man of picture.moves) {
+    const i = assignments.findIndex((a) => a.defender === man.player);
+    if (i >= 0 && shownAssignments[i] !== assignments[i]) {
+      throw new PlaybookError(
+        `a ${look} over ${defense.cardId} moves ${man.role}, whom a coverage look moved — no front look on a man a worn coverage look moves (R25)`,
+      );
+    }
+  }
+  const call: DefensivePlayCall = {
+    ...defense.call,
+    tags: [...defense.call.tags, frontLookTag(draw.look)],
+    shownRush: picture.shownRush,
+  };
+  assertValidFrontLook(call);
+  return { ...defense, call };
 }

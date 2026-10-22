@@ -32,8 +32,9 @@
  * its own stunts when lines are BOUND (a reproduction keeps `boundStunts`), wears none when the
  * draw says NONE, and otherwise wears exactly one legal pattern (`legalLineGames`).
  *
- * `composeCall` returns an ordinary card, so `selectLooks`, `applyLooks` and `instantiateDefense`
- * take a composed call unchanged (ADR-073 §2.6 step 4). `COMPOSED` holds every reachable
+ * `composeCall` returns an ordinary card, so `selectLooks`, `applyLooks`, `legalFrontLooks`,
+ * `drawFrontLook` and `instantiateDefense` take a composed call unchanged, and `applyFrontLook`
+ * the instantiated one (ADR-073 §2.6 step 4, §2.5). `COMPOSED` holds every reachable
  * composition, built once when the module loads and checked by its tests, so a caller looks a
  * call up and validates nothing per snap.
  */

@@ -29,7 +29,8 @@
  *   selection.ts    weighted, seeded selection within a family
  *   coverageCatalogue  v6's coverages, pressures, creepers and line games, composed (ADR-073 §2.6)
  *   pressureDraw    v6's coverage, pressure, creeper and line-game dice, and their rates (ADR-073 §2.6)
- *   frontLooks      v7's front looks, Mug and Stem: legality, the draw, and R28 (ADR-073 §2.5)
+ *   frontLooks      v7's front looks, Mug and Stem: legality, the draw, wearing one
+ *                   (applyFrontLook, the only writer of a second shown rush), and R28 (ADR-073 §2.5)
  */
 export const PLAYBOOK_VERSION = "0.1.0";
 

@@ -91,7 +91,8 @@ export interface ZoneDuty extends ZoneRegion {
    * ⛔ WRITTEN BY A LOOK, NOT BY A CARD (ADR-069, ADR-071). `applyLooks` sets it on the men a
    * look moves; no card in the corpus states one of its own, and `test/shownAssignments.test.ts`
    * fails if one starts to. A zone, or since ADR-070 a man look — a corner pressing the receiver
-   * he will bail from. Never a rush: a shown rush is ADR-069 Phase 3.
+   * he will bail from. Never a rush: a coverage duty never shows one. A front look writes the
+   * shown rush, on the call (`applyFrontLook`, ADR-073 §2.5).
    */
   readonly shows?: ShownDuty;
 }

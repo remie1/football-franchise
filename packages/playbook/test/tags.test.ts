@@ -9,7 +9,8 @@
  *     word only with the rush it says. On every pressure card in the corpus the declared word
  *     is the ONLY one of the five that fits, so the checks can tell the six apart; the Creeper
  *     (ADR-073 Decision 4) is told from every blitz word by its count, four;
- *   - a look is said last (`masks.test.ts` holds it to the look it shows).
+ *   - a look is said last (`masks.test.ts` holds it to the look it shows), and a front look
+ *     (ADR-073 §2.5), laid over the instantiated call, after the coverage looks.
  */
 import type { DefensivePlayCall } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
@@ -26,6 +27,7 @@ import {
   NICKEL_FIRE_ZONE,
 } from "../src/defensiveCards.js";
 import { FORMATIONS } from "../src/formations.js";
+import { applyFrontLook, frontLookTag } from "../src/frontLooks.js";
 import { instantiateDefense } from "../src/instantiate.js";
 import { PRESS, SHOW_2, applyLooks } from "../src/masks.js";
 import { buildDefensiveUnit, buildOffensiveUnit } from "../src/personnel.js";
@@ -111,6 +113,21 @@ describe("ADR-071 — every card is said in parts and tags", () => {
     // Two looks are said in the catalogue's order, safety look first (ADR-071 step 2).
     const both = applyLooks(NICKEL_FIRE_ZONE, { looks: [SHOW_2, PRESS], timing: "EARLY" });
     expect(say(callFor(both))).toBe("Nickel Over Tex, Fire, Cover 3, Show 2, Press");
+  });
+
+  it("says a front look last, after the coverage looks: appended to the instantiated call (ADR-073 §2.5)", () => {
+    const masked = applyLooks(NICKEL_FIRE_ZONE, { looks: [SHOW_2], timing: "EARLY" });
+    const formation = FORMATIONS[0];
+    if (formation === undefined) throw new Error("no formations");
+    const look = { formation, unit: buildOffensiveUnit(formation.personnel, DEEP_CHART) };
+    const defense = instantiateDefense(masked, buildDefensiveUnit(masked.personnel, DEEP_CHART), look);
+    const worn = applyFrontLook(defense, { cardId: masked.id, look: "MUG" }).call;
+    expect(worn.tags.map((t) => `${t.kind}:${t.id}`)).toEqual(["FRONT:TEX", "PRESSURE:FIRE", "LOOK:SHOW_2", "LOOK:MUG"]);
+    expect(worn.tags[3]).toEqual(frontLookTag("MUG"));
+    expect(say(worn)).toBe("Nickel Over Tex, Fire, Cover 3, Show 2, Mug");
+    // `callTags` cannot see a look laid over the call after it is instantiated: the card's own
+    // tags, and so `SPOKEN`, are unchanged.
+    expect(callTags(masked).map((t) => t.id)).toEqual(["TEX", "FIRE", "SHOW_2"]);
   });
 
   it("gives a vanilla call no tags", () => {
