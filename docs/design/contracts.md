@@ -358,6 +358,7 @@ export interface SaveFile {
     seasons: unknown[];
     transactions: unknown[];
   };
+  playedWith?: { caller: string };   // save and load E1: what played the saved games (free text)
 }
 ```
 
