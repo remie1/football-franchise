@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-22
 - **Proposed by:** Orchestrator, for `attributes` (team rosters, plan `/mnt/project-files/design/rosters-plan.md`)
-- **Status:** approved (Q1-Q7, 2026-10-21/22). R1 (import exception): **pending the owner's ruling.**
+- **Status:** approved (Q1-Q7, 2026-10-21/22; R1, 2026-10-22)
 
 > Phase note: Charter §6 places attributes at Phase 2. The owner chose on 2026-10-21 to start team
 > rosters early, alongside the ADR-073 tuning work, on the condition that nothing here touches
@@ -52,22 +52,24 @@ own players with their own ratings.
   real importer (`attributes.md` §5). Madden values are never copied (`attributes.md` §2-G).
 - **Q7 — no traits or personality yet**: traits empty, personality the flat league's placeholder.
 
-## R1 — the season runner calls the roster maker (Charter §4 rule 1 exception) — PENDING
+## R1 — the season runner calls the roster maker (Charter §4 rule 1 exception) — APPROVED 2026-10-22
 
 The season runner lives in `calibration` (ADR-078 R1). To play with the new squads it must call
 the generator in `attributes`. Proposed: **`calibration` → `attributes`**, one-directional,
 surface named: `generateLeagueRosters`, its input type `GenerateLeagueInput`, and its
 provenance type `FictionalProvenance`. Nothing else.
 
-Alternative if refused: `attributes` writes the league to a JSON file and the `season` command
+Alternative considered: `attributes` writes the league to a JSON file and the `season` command
 reads it. No import, but an extra step and a second copy of the league.
+
+**Ruling (owner, 2026-10-22):** yes, one function only. Ratified as Charter Amendment 10.
 
 ## What is built
 
 - `packages/attributes/src/fictional/`: `shape.ts` (roster shape, bodies), `profiles.ts` (which
   ratings each position is built on), `derive.ts` (measurements → physical ratings), `names.ts`,
   `generate.ts` (`generateLeagueRosters`). Tests: `packages/attributes/test/generate.test.ts`.
-- After R1: `calibration/src/season/` plays the season with the generated squads (the flat
+- `calibration/src/season/` plays the season with the generated squads (the flat
   version stays available); a test checks every personnel group playbook declares can be
   fielded from a generated roster.
 

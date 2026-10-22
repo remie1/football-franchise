@@ -42,6 +42,11 @@ export interface GameResult {
   awayScore: number;
   reason: GameEndReason;
   seed: string;
+  /**
+   * ADR-082 N2: points scored in each period (5 and up are overtime), as GAME_END.payload.periods.
+   * Optional: a resolver that does not know them leaves it out.
+   */
+  periods?: readonly { period: number; home: number; away: number }[];
 }
 
 // C5 — standings. A view: everything here is derivable from results + LeagueStructure,

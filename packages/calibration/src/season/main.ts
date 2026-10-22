@@ -4,8 +4,9 @@
  *
  * Plays a whole season (272 games plus the playoffs) through the real sim, prints the final
  * standings and the champion, and with `--out` saves the season (schedule, results, standings,
- * bracket) as JSON. Each team plays with its own made-up squad (ADR-079) unless
- * `--rosters flat`; with squads, `--out` also saves the players and each team's hidden strength.
+ * bracket, and the season's event stream) as JSON. Each team plays with its own made-up squad
+ * (ADR-079) unless `--rosters flat`; with squads, `--out` also saves the players and each team's
+ * hidden strength.
  */
 import { writeFileSync } from "node:fs";
 import { CALLER_VERSIONS, type CallerVersion } from "../caller/anticipate.js";
@@ -71,6 +72,7 @@ if (args.out) {
   const squads = rated === undefined ? {} : { rosters: rated.id, players: rated.league.players, ratedProvenance: rated.league.provenance };
   // Traits are a Set; JSON gets them as a list.
   const replacer = (_k: string, v: unknown) => (v instanceof Set ? [...v] : v);
-  writeFileSync(args.out, JSON.stringify({ seed: args.seed, league, season: run.state, ...squads }, replacer, 2));
+  // The event stream rides along so the news desk (ADR-082) can read the season the way it happened.
+  writeFileSync(args.out, JSON.stringify({ seed: args.seed, league, season: run.state, events: run.events, ...squads }, replacer, 2));
   console.log(`Saved ${args.out}`);
 }
