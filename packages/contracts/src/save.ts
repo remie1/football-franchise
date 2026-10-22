@@ -1,6 +1,7 @@
 import type { CalendarStamp } from "./calendar.js";
 import type { LeagueStructure, SeasonState } from "./league.js";
 import type { Team, PlayerState, StaffState, PlayerContract, PerceivedAttributes } from "./players.js";
+import type { StaffContract } from "./staff.js";
 
 export const SAVE_FORMAT_VERSION = 1;
 
@@ -19,6 +20,8 @@ export interface SaveFile {
     teams: Team[];
     players: PlayerState[];
     staff: StaffState[];
+    /** ADR-080 P1: coaches' contracts. Optional, so saves written before it still load. */
+    staffContracts?: StaffContract[];
     contracts: PlayerContract[];
     perceptions: PerceivedAttributes[];
     /** ADR-078 C7: conferences and divisions, as data (Spec #5 §14.1). */
@@ -29,6 +32,12 @@ export interface SaveFile {
     fashion: unknown;
   };
   history: { seasons: unknown[]; transactions: unknown[] };
+  /**
+   * Save and load E1 (ADR-078 R1 amendment 1, 2026-10-21): what played the saved games, so carrying
+   * on cannot quietly switch to other rules. Free text (e.g. a play-caller version) so contracts stay
+   * engine-agnostic. Absent in saves that predate it.
+   */
+  playedWith?: { caller: string };
   /** Reserved for fantasy mode (Spec #10 §4 watch item) — petitioned in before v1 freeze. */
   leagueContext?: unknown;
 }

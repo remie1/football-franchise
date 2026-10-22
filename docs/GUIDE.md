@@ -40,8 +40,8 @@ run the play simulator).
 | Playbook | `packages/playbook` | The play cards: formations, pass and run concepts, protections, defensive calls with their fronts, coverages, pressures and disguises. | Yes |
 | Realism checker | `packages/calibration` | Runs thousands of games and compares the results with real NFL numbers. Also holds the computer play-callers used for testing, and the "ladder" checks (described below). | Yes |
 | Player ratings | `packages/attributes` | Will turn real data into player ratings for real rosters. | Not started |
-| Front office | `packages/franchise` | Will run the calendar, schedule, standings, cap, contracts, free agency and the draft. | Not started (its own thread now) |
-| Storylines | `packages/narrative` | Will write storylines, press and reputation from what happens in games. | Not started |
+| Front office | `packages/franchise` | Runs the calendar, schedule, standings and playoffs (the season shell), and the coaching staffs: hiring and firing (ADR-080). Will add the cap, player contracts, free agency and the draft. | Yes: the season shell and coaching staffs (coaches do not affect games yet) |
+| Storylines | `packages/narrative` | Writes the news from what happens in games: each week's headlines, the playoff race, the playoffs and a season review today (ADR-082); storylines, press and reputation later. | Started: the season's news |
 | Game screen | `apps/game` | The browser app: menus, dashboards, the play log. It only displays; it decides nothing. | Not started (a game viewer has its own thread now) |
 
 The order the parts are meant to be built in is in the Charter, section 6. Play simulator and
@@ -117,8 +117,26 @@ finishes.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.
-Season shell so far: a made-up 32-team league, and standings with the full NFL tiebreakers
-(checked against the real 2020-2024 playoff seeds).
+Season shell: a made-up 32-team league, its schedule, standings with the full NFL tiebreakers
+(checked against the real 2020-2024 playoff seeds), the playoffs and a whole season through the
+real sim. **Save and load:** stop a season after any week, save it to a file, and carry on later;
+the season comes out exactly as if it had never stopped
+(`season -- --seed X --stop-after 9 --save league.json`, then `season -- --load league.json`).
+
+**Coaching staffs (ADR-080, 22 October 2026):** every team has a head coach, two coordinators, a
+special teams coordinator and a computer-run president, with careers, contracts and 20 seasons of
+made-up history. Presidents hire and fire head coaches, head coaches pick their coordinators, and
+`pnpm --filter @ff/franchise staff-check` compares the turnover with NFL numbers. Coaches do not
+affect games yet; that waits for the front work (ADR-073) and ADR-075.
+
+**News (22 October 2026, ADR-082):** a news desk writes up to four headlines a week from a
+season's results: routs, comebacks, upsets, streaks, the last unbeaten team, division leaders, and
+who has clinched or been knocked out. Every playoff game gets a headline, and a season review
+closes the year. Save a season with
+`pnpm --filter @ff/calibration season -- --seed <seed> --out season.json`, then
+`pnpm --filter @ff/narrative news -- --season season.json` prints its news and saves it for the
+game viewer: run `pnpm --filter game dev` and open the News page. Next: the season command printing
+the headlines as it plays (waits on the owner's R2 ruling).
 
 ## Words you will see
 

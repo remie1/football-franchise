@@ -42,6 +42,19 @@ describe("league shapes (ADR-078)", () => {
     expect(JSON.parse(JSON.stringify(save))).toEqual(save);
   });
 
+  it("a SaveFile may record what played its games (save and load E1), and stays valid without it", () => {
+    const save: SaveFile = {
+      formatVersion: SAVE_FORMAT_VERSION, createdBy: "test", registrySchemaVersion: 1,
+      worldSeed: "w", calendar: at, leagueRules: DEFAULT_LEAGUE_RULES,
+      world: { teams: [], players: [], staff: [], contracts: [], perceptions: [], league, season, narrativeState: null, fashion: null },
+      history: { seasons: [], transactions: [] },
+      playedWith: { caller: "v5" },
+    };
+    expect(JSON.parse(JSON.stringify(save))).toEqual(save);
+    const { playedWith: _, ...older } = save;
+    expect(JSON.parse(JSON.stringify(older)).playedWith).toBeUndefined();
+  });
+
   it("the season events carry results and seeds", () => {
     const events: FranchiseEvent[] = [
       { type: "GAME_COMPLETED", payload: { result: season.results[0]!, kind: "REGULAR" } },
@@ -49,5 +62,27 @@ describe("league shapes (ADR-078)", () => {
       { type: "CHAMPION_DECIDED", payload: { season: 2026, team: teamId("T1") } },
     ];
     expect(JSON.parse(JSON.stringify(events))).toEqual(events);
+  });
+});
+
+describe("news shapes (ADR-082)", () => {
+  it("N2: a result may carry its period scores, and still round-trips", () => {
+    const withPeriods = {
+      ...season.results[0]!,
+      periods: [
+        { period: 1, home: 7, away: 0 }, { period: 2, home: 3, away: 10 },
+        { period: 3, home: 7, away: 7 }, { period: 4, home: 7, away: 7 },
+      ],
+    };
+    expect(withPeriods.periods.reduce((n, p) => n + p.home, 0)).toBe(withPeriods.homeScore);
+    expect(JSON.parse(JSON.stringify(withPeriods))).toEqual(withPeriods);
+  });
+
+  it("N1: a news story names its kind, importance, teams and games", () => {
+    const story: FranchiseEvent = {
+      type: "PRESS_STORY_PUBLISHED",
+      payload: { kind: "TIE", headline: "First and Second can't be separated", importance: 3, teams: [teamId("T1"), teamId("T2")], games: [gameId("G1")], subjects: [] },
+    };
+    expect(JSON.parse(JSON.stringify(story))).toEqual(story);
   });
 });
