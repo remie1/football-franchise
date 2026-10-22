@@ -23,9 +23,10 @@
  * `SimAccumulator` grows linearly with plays rather than staying constant.
  */
 import { isDeepStrictEqual } from "node:util";
-import type { MatchEventEnvelope, PlayerId, TeamId, ThrowawayCause } from "@ff/contracts";
+import type { MatchEventEnvelope, PlayerId, ShownRusher, TeamId, ThrowawayCause } from "@ff/contracts";
 import { DEFAULT_TUNABLES } from "@ff/engine";
 import type { GameSummary, StatLine } from "@ff/engine";
+import { COVERAGE_MASKS, FRONT_LOOKS, shownRushDiffers } from "@ff/playbook";
 
 /** One simulated game, as it comes back from a worker. */
 export interface SimGameObservation {
@@ -281,21 +282,47 @@ export interface PlayFold {
   hotConversionDropbacks: number;
 
   /**
-   * ================== ADR-069: DISGUISED DROPBACKS ==================
+   * ================== ADR-069: DISGUISED DROPBACKS (THE COVERAGE LOOKS) ==================
    *
    * Dropbacks whose `PLAY_START.defense.shownAssignments` differs from `assignments` — the
-   * offence was shown something other than what was played. DIFFED, NOT READ OFF THE NAME:
+   * offence was shown a coverage other than the one played. DIFFED, NOT READ OFF THE NAME:
    * ADR-067 §B refused a `wasDisguised` flag because a declaration can be wrong silently, so
-   * the call's LOOK tags are not the signal here. They are the KEY of the split below, and
-   * `shownAssignmentsStream` checks them against this diff play by play.
+   * the call's LOOK tags are not the signal here. Its coverage LOOK tags are the KEY of the split
+   * below, and `shownAssignmentsStream` checks them against this diff play by play. A front look
+   * (ADR-073 step 3.5) moves no coverage duty, so it is not counted here: it is
+   * `frontLookDropbacks`' diff, on the shown rush.
    */
   disguisedDropbacks: number;
   /**
-   * `disguisedDropbacks` by the look the call named — its LOOK tags' ids, joined with `+` when
-   * it wears more than one (ADR-071): `SHOW_2`, `SHOW_2+PRESS`. `UNNAMED` would be a divergence
-   * nobody named.
+   * `disguisedDropbacks` by the coverage look the call named — its LOOK tags' ids that are
+   * coverage looks (`@ff/playbook`'s `COVERAGE_MASKS`), joined with `+` when it wears more than one
+   * (ADR-071): `SHOW_2`, `SHOW_2+PRESS`. A front LOOK tag (`MUG`, `STEM`) never joins the key, so a
+   * call wearing Show 2 and a Mug is `SHOW_2` (ADR-073 §3.5). `UNNAMED` would be a divergence no
+   * coverage look named.
    */
   disguisedDropbacksByMask: Record<string, number>;
+
+  /**
+   * ================== ADR-073 STEP 3.5: FRONT-LOOK DROPBACKS ==================
+   *
+   * Dropbacks whose `PLAY_START.defense.shownRush` differs from `defense.rush` — the line was shown
+   * a rush other than the one that came: a front look, the Mug or the Stem (caller v7).
+   * `front_look_rate`'s numerator. DIFFED, NOT READ OFF THE NAME, as `disguisedDropbacks` is: entry
+   * by entry with playbook's `shownRushDiffers`, the comparison R28 uses, on PLAY_START's resolved
+   * lists — rusher, side, alignment and gap, `move` never read, and a side or gap stated on one list
+   * and omitted on the other no difference.
+   *
+   * It counts the look WORN, not the look that ACTED: a gap-only difference, and a Stem of linemen
+   * the protection names, make nobody moved and show no ghost (ADR-073 §2.2), and both are counted
+   * here.
+   */
+  frontLookDropbacks: number;
+  /**
+   * `frontLookDropbacks` by the front look the call named — its front LOOK tags' ids (`@ff/playbook`'s
+   * `FRONT_LOOKS`: `MUG`, `STEM`), joined with `+` if a call ever named two (R28 refuses that).
+   * `front_look_mix`. `UNNAMED` would be a shown rush that differs with no front look named.
+   */
+  frontLookDropbacksByLook: Record<string, number>;
 
   /**
    * ================== ADR-024: THE STARVED BRANCH, PROMOTED TO A STANDING COUNT ==================
@@ -420,6 +447,8 @@ export function emptyAccumulator(): SimAccumulator {
       hotConversionDropbacks: 0,
       disguisedDropbacks: 0,
       disguisedDropbacksByMask: {},
+      frontLookDropbacks: 0,
+      frontLookDropbacksByLook: {},
       threatOrigins: {},
       threatOriginDropbacks: {},
     },
@@ -469,7 +498,10 @@ interface PlayStartShape {
   };
   readonly defense?: {
     readonly coverage?: unknown;
+    /** The rush as played, resolved, with each man's gap (ADR-073 P1). */
     readonly rush?: readonly unknown[];
+    /** ADR-073 §2.5 — the rush as shown, resolved the same way: the played rush unless a front look was worn. */
+    readonly shownRush?: readonly unknown[];
     /** §7.4 step 1 — rushers no `ProtectionAssignment` named. */
     readonly unaccountedRushers?: readonly unknown[];
     /** ADR-067 §B — what was played, and what the offence was shown. */
@@ -514,6 +546,28 @@ function asPlayStart(payload: unknown): PlayStartShape | null {
 
 function bumpKey(record: Record<string, number>, key: string, by = 1): void {
   record[key] = (record[key] ?? 0) + by;
+}
+
+/**
+ * The two kinds of LOOK a call can name, by id, from playbook's own catalogues (calibration →
+ * playbook is ratified, ADR-017; ADR-073 §3.5): the coverage looks key `disguisedDropbacksByMask`
+ * and the front looks key `frontLookDropbacksByLook`. Read off the catalogues rather than
+ * restated, so a look added to either moves its key set with it.
+ */
+const COVERAGE_LOOK_IDS: ReadonlySet<string> = new Set(COVERAGE_MASKS.map((mask) => mask.id));
+const FRONT_LOOK_IDS: ReadonlySet<string> = new Set<string>(FRONT_LOOKS);
+
+/** A PLAY_START's LOOK tag ids that are in `ids`, in the order the call says them. */
+function lookIds(
+  tags: readonly { readonly kind?: unknown; readonly id?: unknown }[],
+  ids: ReadonlySet<string>,
+): readonly string[] {
+  return tags.filter((tag) => tag.kind === "LOOK" && ids.has(String(tag.id))).map((tag) => String(tag.id));
+}
+
+/** A PLAY_START rush list `shownRushDiffers` can read: an array of records. */
+function isRushList(value: unknown): value is readonly ShownRusher[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "object" && entry !== null);
 }
 
 // --- per-play working state -------------------------------------------------
@@ -770,13 +824,20 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
             if (Array.isArray(unaccounted) && unaccounted.length > 0) p.unaccountedRusherDropbacks++;
             const hot = start.offense?.hotConversions;
             if (Array.isArray(hot) && hot.length > 0) p.hotConversionDropbacks++;
+            const tags = start.defense?.tags ?? [];
             const shown = start.defense?.shownAssignments;
             if (shown !== undefined && !isDeepStrictEqual(shown, start.defense?.assignments)) {
               p.disguisedDropbacks++;
-              const looks = (start.defense?.tags ?? [])
-                .filter((tag) => tag.kind === "LOOK")
-                .map((tag) => String(tag.id));
+              const looks = lookIds(tags, COVERAGE_LOOK_IDS);
               bumpKey(p.disguisedDropbacksByMask, looks.length === 0 ? "UNNAMED" : looks.join("+"));
+            }
+            // ADR-073 step 3.5: the shown rush against the played one, both as PLAY_START resolved
+            // them. A stream with no `shownRush` (stored before ADR-073 step 3.1) counts nothing.
+            const shownRush = start.defense?.shownRush;
+            if (isRushList(rush) && isRushList(shownRush) && shownRushDiffers(rush, shownRush)) {
+              p.frontLookDropbacks++;
+              const fronts = lookIds(tags, FRONT_LOOK_IDS);
+              bumpKey(p.frontLookDropbacksByLook, fronts.length === 0 ? "UNNAMED" : fronts.join("+"));
             }
           }
         }
@@ -1164,6 +1225,8 @@ export function mergeAccumulators(a: SimAccumulator, b: SimAccumulator): SimAccu
     hotConversionDropbacks: a.play.hotConversionDropbacks + b.play.hotConversionDropbacks,
     disguisedDropbacks: a.play.disguisedDropbacks + b.play.disguisedDropbacks,
     disguisedDropbacksByMask: mergeCounters(a.play.disguisedDropbacksByMask, b.play.disguisedDropbacksByMask),
+    frontLookDropbacks: a.play.frontLookDropbacks + b.play.frontLookDropbacks,
+    frontLookDropbacksByLook: mergeCounters(a.play.frontLookDropbacksByLook, b.play.frontLookDropbacksByLook),
     threatOrigins: mergeCounters(a.play.threatOrigins, b.play.threatOrigins),
     threatOriginDropbacks: mergeCounters(a.play.threatOriginDropbacks, b.play.threatOriginDropbacks),
   };
