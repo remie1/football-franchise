@@ -1166,9 +1166,9 @@ distribution is wrong, and nothing in a report shows a joint distribution.
 So: match each marginal, **and separately verify the dimensions are not being traded against
 each other.** The fix here needed one more card (a Cover 3 nickel pressure) and produced both
 distributions at once. Applies to every corpus with more than one axis of variation.
+- **UPDATED 2026-10-21 — the test, run on the pressure-by-coverage joint (ADR-073 §10, step 3.4: caller v6, opt-in).** v6 draws the coverage first, then one five-or-more die shared by every coverage that hosts a pressure in the situation, so the hosts now blitz alike in each situation where their pressure applies (Base Cover 1's run blitz only at six yards or less, so it stays near .16) while the marginal holds (`blitz_rate` 24.081% → 24.079% of dropbacks). P(five or more | host), v5 → v6, over 26,880 games' dropbacks: Nickel Cover 3 Sky .5392 → .5315, Nickel Cover 1 .4009 → .5316, Base Cover 1 .1633 → .1636, the dime's Cover 1 1.0000 → .5368, Cover 3 Buzz and Base Cover 3 0 → 0. Against real football (the nflverse participation feed, 2022–2024, 64,293 charted rows), with the sim's mixed Cover 1 looks folded into man: P(five or more | man) .3558 → .3636 against .3960, and P(five or more | zone) .2001 → .1973 against .1686. Both of these blitz rates by shell move toward real; the blitz marginal holds, and the shell marginal was already off (the sim plays man on 26.2% of dropbacks against real's 40.7%). **The cells move away.** Man with five rushers falls from .0260 to .0142 of rows (real .1120), and man with six rises from .0671 to .0809 (real .0395), so five-to-six goes 0.39 → 0.175 against real 2.84; the total-variation distance from the real coverage × rushers table rises from 0.2311 to 0.2450 (computed from the shards; the gate memo's 0.2451 matches the report's rounded cells). The cause is the one shared rate (ADR-073 line 601): it cuts the dime's blitz, the sim's only five-man man call outside the goal line (60,534 of v5's 61,718 five-man man dropbacks; Goal Line Man's five-man front is the rest, 1,184 → 1,166), from always to 21/39 at seven or more yards, and gives Nickel Cover 1's six-man Double A what the dime loses. A rate per personnel group would keep the dime's blitz (ADR-073 line 1967), but it amends line 601, which only the owner can do. So a corpus whose caller holds the blitz marginal can still trade cells when the caller changes: run this test on the joint, cell by cell and season by season, because the real side moves too (man is 28.7%, 42.3% and 49.3% of charted rows in 2022, 2023 and 2024; P(five or more | man) .482, .365 and .381).
 
 ### Reference by role only when the role is guaranteed; otherwise by position, with a fallback
-
 A defensive card cannot say "`CB_L` covers `TE_Y`" — the tight end may not be on the field, and
 a defence cannot name offensive roles at all. It says what a real defence says: **#2 to the
 field, the back, the tight end.** Receiver numbering is derived from the formation's alignments,
@@ -12829,3 +12829,29 @@ Sack sources, % of `keepable` snaps:
 - **Consequence for ADR-073 (already priced).** Step 3.3's keep-in raises `sack_rate` by about +0.12
   points (§10's direct application) until entry 100 moves. That is this entry's cause 2, not a defect in
   v5's keep-in logic.
+
+## 171. Target share by position: the play cards' read orders, then entry 100's early pocket
+
+- **Finding (ADR-073 §10, step 3.0).** Every position's target share sat outside its real band (REG
+  2022-2024, ±15% relative): WR 40.4% (real 59.8%), TE 39.6% (21.7%), RB 13.7% (17.9%), FB 6.2% (0.6%).
+- **Cause 1, the corpus (fixed here).** The engine throws only to men in a card's read order (100% of
+  targets in the probe). The Y tight end was in the read order on every snap he ran a route and first on
+  24.6% of the weighted corpus; the X was absent on 60% of his route snaps (2.4% of targets). Tight ends
+  running the flat made them the checkdown too (§8.1's outlet is the shortest route in the read order):
+  a third of targets were checkdowns, 54% of those to the tight end. Flood made the fullback the designed
+  hot (82% of Flood's targets).
+- **Cause 2, the pocket (entry 100, not re-filed).** 86% of dropbacks are pressured, so the quarterback
+  looks at only 21% of 10-19-yard routes and 6% of 20+ routes, and those are mostly wide receivers'.
+  Targets land 0-9 yards 69% of the time against the corpus prior's 50%.
+- **Fix (owner ruling 2026-10-16, "cards only").** Read orders rewritten on Bubble Now, Quick Outs,
+  Third-and-Short Stick, Mesh, Levels, Flood, Mills, Red Zone Rub and Two-Minute Sail (receivers ahead of
+  the tight end where the concept allows, the released back last as the outlet); Flood's flat moves to the
+  tailback and the fullback blocks. No engine or contracts change. `packages/playbook/test/readOrders.test.ts`
+  pins it (Y first read 24.6% → 15.3% weighted).
+- **Measured (scratch probe, flat league, caller v4, 560 games each).** All snaps: WR 40.6 → 41.9%, TE
+  39.7 → 35.7%, RB 13.8 → 20.4%, FB 5.9 → 2.0%. Clean-pocket snaps only, a stand-in for a pocket that holds:
+  WR 56.3%, TE 25.3%, RB 17.8%, FB 0.57% (TE 0.4 points over its band, the other three inside). The gap
+  left on all snaps is cause 2. Re-measure after ADR-073's last step and after entry 100 moves.
+- **Side effect.** `blockedDepthOffsetAgreement.test.ts`'s power check saw `EDGE.BOX` about 4 times in 400
+  games; the reshuffled play stream drew a zero. It now plays on past 400 until every cell is seen (cap 1,984).
+- Probe and write-up: `/mnt/project-files/arms/targetshare-*`, `/mnt/project-files/design/target-share-finding.md`.

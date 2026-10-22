@@ -95,8 +95,8 @@ export interface WorkerBootstrap {
   /** Serialised tunables. `undefined` means the worker uses `DEFAULT_TUNABLES`. */
   readonly tunables?: unknown;
   /** ADR-024. `undefined` means the worker uses `DEFAULT_CALLER_VERSION` (v4) — the same default
-   *  the in-process path takes, so the two executors cannot run different callers. No knobs, as
-   *  `BatchConfig.playCalling` carries none. */
+   *  the in-process path takes, so the two executors cannot run different callers. No knobs (not
+   *  v5's options, not v6's parts), as `BatchConfig.playCalling` carries none. */
   readonly callerVersion?: CallerVersion;
 }
 

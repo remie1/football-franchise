@@ -65,8 +65,9 @@ export interface BatchConfig {
      * ADR-024. Defaults to `DEFAULT_CALLER_VERSION` (v4); `v1` is the informed caller every batch
      * before ADR-024 ran, and each later version is listed at `CallerVersion`. Recorded into
      * `callerVersion`, which is part of `BaselineIdentity`, so reports from two versions are
-     * refused as trend partners rather than compared. A batch carries no knobs: those are for
-     * measurement arms, which run games one by one.
+     * refused as trend partners rather than compared. A batch carries no knobs (v5's and v6's
+     * `slideCheck`, `keepIn`, `creeper`, `drawPressures`, `drawLines`): those are for measurement
+     * arms, which run games one by one, so a batch's caller is always its version as it ships.
      */
     readonly callerVersion?: CallerVersion;
   };

@@ -74,11 +74,14 @@ function say(line: string): void {
   console.log(line);
 }
 
-// 400 games: enough to reach even `EDGE.BOX` (the family's rarest reachable cell — LB_S is the ONLY
-// RUSH duty anywhere in defensiveCards.ts that produces it) at least once, verified by running this
-// file, not assumed. Costs ~20s, in line with this package's other always-on corpus tests (several of
-// which already run 90s+ in the default suite — see `knownTruth.*.test.ts`).
+// 400 games, then on until every reachable cell has been seen, up to 1,984 (four 32-team rounds).
+// `EDGE.BOX` is the family's rarest reachable cell (LB_S is the ONLY RUSH duty anywhere in
+// defensiveCards.ts that produces it): about 4 per 400 games on main in October 2026, so a flat
+// 400 drew a zero ~2% of the time, and the target-share read-order rewrite (backlog 171) reshuffled
+// the play stream into exactly that zero. Playing on until it shows keeps the power check honest
+// without paying for 2,000 games on every run. Deterministic: same seeds, same stopping game.
 const GAMES = 400;
+const GAMES_MAX = 1_984;
 const BATCH_SEED = "known-truth:blocked-depth-offset-agreement";
 
 const ALIGNMENTS = ["INTERIOR", "EDGE"] as const;
@@ -153,8 +156,9 @@ describe("CALIBRATION-BACKLOG entry 155 — reconstructedTravelSecondsFor agrees
     () => {
       const tunables: Tunables = DEFAULT_TUNABLES;
       const index = indexLeague(buildFlatLeague({ teams: 32 }));
-      const fixtures = buildFixtures(index, { kind: "SYNTHETIC_ROUND_ROBIN", rounds: 1, season: 2024 });
-      const limit = Math.min(GAMES, fixtures.length);
+      const fixtures = buildFixtures(index, { kind: "SYNTHETIC_ROUND_ROBIN", rounds: 4, season: 2024 });
+      const cap = Math.min(GAMES_MAX, fixtures.length);
+      let limit = 0;
       const seeds = generateSeeds(BATCH_SEED, fixtures.length);
       const used: string[] = [];
 
@@ -163,7 +167,10 @@ describe("CALIBRATION-BACKLOG entry 155 — reconstructedTravelSecondsFor agrees
       let identityChecksTotal = 0;
       let identityMismatchesTotal = 0;
 
-      for (let i = 0; i < limit; i++) {
+      const allCellsSeen = (): boolean =>
+        REACHABLE_CELLS.every(([alignment, depth]) => (byCell.get(cellKey(alignment, depth))?.count ?? 0) > 0);
+      for (let i = 0; i < cap && (i < GAMES || !allCellsSeen()); i++) {
+        limit = i + 1;
         const fixture = fixtures[i];
         const seed = seeds.seeds[i];
         if (fixture === undefined || seed === undefined) continue;

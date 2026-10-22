@@ -95,8 +95,9 @@ realism checker came first. Front office and the game screen were started early 
 
 - **The front and pass rush (ADR-073).** The defence shows a rush before the snap, the
   quarterback grades the pressure he sees, and the line can slide its protection to it. Steps
-  one to three are merged. The next step is blitzes and line stunts drawn on their own, plus the
-  creeper pressure.
+  one to five are merged; step five (play-caller version 6, which no team uses yet) draws the
+  blitz and the line stunt on their own and adds the Creeper. The last step, six, adds disguised
+  fronts (the Mug and the Stem) and moves the test league to the new play-caller.
 
 **Biggest known problem:** the pocket collapses too early. About 86% of dropbacks are under
 pressure, against about 35% in the NFL (backlog entry 100). This drives too many sacks, too few

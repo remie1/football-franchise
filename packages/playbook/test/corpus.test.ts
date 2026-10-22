@@ -47,6 +47,43 @@ describe("every card in the corpus is valid", () => {
   });
 });
 
+/**
+ * THE 22 CARDS, IN ORDER (ADR-073 §3.4, "Lands in playbook", and §2.6's draw order).
+ * `selectDefensiveCard` walks `DEFENSIVE_CARDS` in this order for `weightedPick`'s cumulative
+ * roll, so the order, not only the set, decides which card each die lands on: v1–v5 draw exactly
+ * as before only while it holds. v6's coverage catalogue lives beside the book and is never
+ * appended to it. `tags.test.ts` pins the set (sorted); this pins the order.
+ */
+describe("the defensive book is the 22 cards, in their order", () => {
+  it("holds DEFENSIVE_CARDS to its 22 ids in order", () => {
+    expect(DEFENSIVE_CARDS).toHaveLength(22);
+    expect(DEFENSIVE_CARDS.map((c) => c.id)).toEqual([
+      "DEF_NICKEL_COVER_3_SKY",
+      "DEF_NICKEL_COVER_3_BUZZ",
+      "DEF_NICKEL_COVER_3_PRESSURE",
+      "DEF_NICKEL_COVER_2",
+      "DEF_NICKEL_TAMPA_2",
+      "DEF_NICKEL_QUARTERS",
+      "DEF_NICKEL_COVER_6",
+      "DEF_NICKEL_COVER_1",
+      "DEF_NICKEL_COVER_1_RAT",
+      "DEF_NICKEL_COVER_2_MAN",
+      "DEF_NICKEL_FIRE_ZONE",
+      "DEF_NICKEL_DOUBLE_A_BLITZ",
+      "DEF_NICKEL_COVER_0_BLITZ",
+      "DEF_BASE_COVER_3",
+      "DEF_BASE_COVER_1",
+      "DEF_BASE_COVER_2",
+      "DEF_BASE_RUN_BLITZ",
+      "DEF_DIME_QUARTERS",
+      "DEF_DIME_MAN_BLITZ",
+      "DEF_DIME_PREVENT",
+      "DEF_GOAL_LINE_MAN",
+      "DEF_GOAL_LINE_ZONE",
+    ]);
+  });
+});
+
 describe("horizontal placement — CALIBRATION-BACKLOG entry 8", () => {
   it("states a break lane on every route in the corpus, with none omitted", () => {
     let routes = 0;

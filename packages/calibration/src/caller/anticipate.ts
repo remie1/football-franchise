@@ -152,10 +152,25 @@ import type { PlayerId } from "@ff/contracts";
 import type {
   AnyDefensiveCard,
   CoverageShell,
+  DrawPlan,
+  HostedPressure,
   InstantiatedDefense,
   PlaySituation,
 } from "@ff/playbook";
-import { applicableDefensiveCards, weightedPick } from "@ff/playbook";
+import {
+  COMPOSED,
+  CREEPER_RATE,
+  CREEPER_SPECS,
+  DIME_COVER_1,
+  V6_COVERAGES,
+  applicableDefensiveCards,
+  blitzRate,
+  composedKey,
+  coverageDrawWeight,
+  drawPressure,
+  pressureMix,
+  weightedPick,
+} from "@ff/playbook";
 
 /**
  * WHICH CALLER RAN. Part of `BaselineIdentity` via `BatchProvenance.callerVersion`, so a v1 report
@@ -188,13 +203,18 @@ export type CallerVersion = (typeof CALLER_VERSIONS)[number];
  * default: that is the back's own post-snap read, so it is an opt-in measurement knob
  * (`FrozenCallerSpec.keepIn`, which adds `checkRelease`; ADR-073 §10 3.3). A new version because a
  * seed now plays a different game (ADR-024's rule, ADR-073 R30).
+ *
+ * v6 is v5 with ADR-071 step 3: the coverage, then the pressure, then the line game, each drawn on
+ * its own (ADR-073 §2.6), and the creeper. The huddle anticipates coverage and pressure the same
+ * way (R30), and no line game (`anticipateDecomposed`). Protection as v5. A new version because the
+ * call mix changes by design.
  */
-export const CALLER_VERSIONS = ["v1", "v2", "v3", "v4", "v5"] as const;
+export const CALLER_VERSIONS = ["v1", "v2", "v3", "v4", "v5", "v6"] as const;
 
 /**
  * The default. ADR-024 made it v2; ADR-069 made it v3; ADR-071 step 2 makes it v4. A batch that
- * wants another caller asks for it by name. v5 is opt-in: the default stays v4 until ADR-073 step
- * 3.5 moves it, once, to v7.
+ * wants another caller asks for it by name. v5 and v6 are opt-in: the default stays v4 until
+ * ADR-073 step 3.5 moves it, once, to v7.
  */
 export const DEFAULT_CALLER_VERSION: CallerVersion = "v4";
 
@@ -237,6 +257,101 @@ export function anticipateFront(
   }
   const card = weightedPick(rng, pool, (c) => c.usage.weight);
   return { card, poolSize: pool.length, forced: pool.length === 1 };
+}
+
+/** v6's guess: the anticipated call, and the coverage and the pressure it was guessed from. */
+export interface DecomposedFront extends AnticipatedFront {
+  /** The coverage the huddle guessed, from `V6_COVERAGES`. */
+  readonly coverage: AnyDefensiveCard;
+  /** The pressure it guessed over that coverage, the creeper included; `undefined` for none. */
+  readonly pressure: HostedPressure | undefined;
+}
+
+const CREEPER_HOSTS: ReadonlySet<string> = new Set(CREEPER_SPECS.map((spec) => spec.over));
+
+/**
+ * How many (coverage, pressure) outcomes over one coverage have positive probability in s: each
+ * hosted pressure that applies, when r_s > 0; and with no five-or-more pressure, the bare coverage
+ * and, over a creeper host with the creeper on, the creeper. Read off the same law the draw throws
+ * (`pressureMix`, `blitzRate`, `CREEPER_RATE`).
+ */
+function pressureOutcomes(coverage: AnyDefensiveCard, situation: PlaySituation, rate: number, creeper: boolean): number {
+  const mix = pressureMix(coverage, situation);
+  const r = mix.length === 0 ? 0 : rate;
+  const pressured = r > 0 ? mix.filter((m) => m.share > 0).length : 0;
+  if (r >= 1) return pressured;
+  const creeps = creeper && CREEPER_HOSTS.has(coverage.id);
+  return pressured + (creeps ? (CREEPER_RATE > 0 ? 1 : 0) + (CREEPER_RATE < 1 ? 1 : 0) : 1);
+}
+
+/**
+ * ADR-073 §2.6 and R30, caller v6: the huddle's guess, DECOMPOSED as the real call is — a coverage,
+ * then a pressure over it — and constrained to the real coverage's personnel, as `anticipateFront`
+ * is, for the same reason (the same eleven men).
+ *
+ * Every die is a child of `rng`, the caller's `anticipated-front` fork, and nothing is drawn on
+ * `rng` itself, so the one die v2–v5 throw on that address is never thrown here:
+ *
+ *  - **the coverage**, on `coverage`: the real coverage draw's own law (`selectCoverage`: each v6
+ *    coverage by its draw weight in s, `coverageDrawWeight`) restricted to the real coverage's
+ *    personnel. The pool is weighed by DRAW weight, not own weight, so it holds `DIME_COVER_1`
+ *    wherever it hosts (its own weight is 0), and it always holds the real coverage;
+ *  - **the pressure**, on `pressure`, through the real draw's own `drawPressure`, so its dice are
+ *    `pressure/blitz`, `pressure/which` and `pressure/creeper`, and the creeper is guessed at the
+ *    real rate where `plan.creeper` is on. Its `blitz` die is INDEPENDENT of the real one: matching
+ *    on rusher count is rejected above, and conditioning the guess on the real pressure would be
+ *    exactly that;
+ *  - **no line game.** Protection reads no stunts and the engine gets the real call's, so a guessed
+ *    line game would be a die that turns nothing (ADR-005). The guess is the composed call with
+ *    none (`COMPOSED`, line `NONE`), and it is graded against the real call before its line game.
+ *
+ * `poolSize` counts the (coverage, pressure) outcomes with positive probability; `forced` is a pool
+ * of exactly one, as before: the caller could not have guessed otherwise.
+ */
+export function anticipateDecomposed(
+  rng: Rng,
+  situation: PlaySituation,
+  real: AnyDefensiveCard,
+  plan: Extract<DrawPlan, { readonly pressures: "DRAWN" }>,
+): DecomposedFront {
+  const where = `${situation.down} and ${situation.distance} at ${situation.ballOn}`;
+  if (!V6_COVERAGES.includes(real)) {
+    throw new Error(
+      `@ff/calibration: anticipateDecomposed was handed ${real.id}, which is no v6 coverage. The guess ` +
+        `is drawn against the real COVERAGE (\`selectCoverage\`), not the call composed over it.`,
+    );
+  }
+  const pool = V6_COVERAGES.filter(
+    (coverage) => coverage.personnel === real.personnel && coverageDrawWeight(coverage, situation) > 0,
+  );
+  if (!pool.includes(real)) {
+    throw new Error(
+      `@ff/calibration: anticipateDecomposed found ${pool.length === 0 ? "no coverage" : "no " + real.id} ` +
+        `among the ${real.personnel} coverages that can be drawn on ${where}. The real coverage is drawn ` +
+        `by the same weights, so this is impossible unless playbook's draw stopped being a pure function ` +
+        `of the situation.`,
+    );
+  }
+  if (
+    real.personnel === DIME_COVER_1.personnel &&
+    coverageDrawWeight(DIME_COVER_1, situation) > 0 &&
+    !pool.includes(DIME_COVER_1)
+  ) {
+    throw new Error(
+      `@ff/calibration: anticipateDecomposed left ${DIME_COVER_1.id} out on ${where}, where it hosts a ` +
+        `pressure. Its own weight is 0, so a pool weighed by own weight would never guess it.`,
+    );
+  }
+  const coverage = weightedPick(rng.fork("coverage"), pool, (c) => coverageDrawWeight(c, situation));
+  const pressure = drawPressure(rng.fork("pressure"), coverage, situation, { creeper: plan.creeper });
+  const key = composedKey(coverage.id, pressure?.pressure, "NONE");
+  const composed = COMPOSED[key];
+  if (composed === undefined) {
+    throw new Error(`@ff/calibration: anticipateDecomposed guessed ${key}, which COMPOSED does not hold.`);
+  }
+  const rate = blitzRate(situation);
+  const poolSize = pool.reduce((n, c) => n + pressureOutcomes(c, situation, rate, plan.creeper), 0);
+  return { card: composed.call, coverage, pressure, poolSize, forced: poolSize === 1 };
 }
 
 // --- similarity -------------------------------------------------------------
