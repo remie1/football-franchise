@@ -13,7 +13,8 @@
 import {
   createRng,
   type Authority, type CalendarStamp, type Decision, type FranchiseEvent, type FranchiseEventEnvelope,
-  type PlayerState, type StaffId, type Team, type TeamId,
+  type PlayerState, type StaffContract, type StaffDepartureReason, type StaffId, type StaffJob, type StaffState,
+  type Team, type TeamId,
 } from "@ff/contracts";
 import {
   COLLEGE_PROGRAMS, COORDINATOR_SEATS, SEAT_SIDE, STAFF_TUNING, type Seat, type Side,
@@ -26,7 +27,6 @@ import {
   clamp, currentJob, isRetired, logistic, offseasonStamp, seasonsOutOfWork, seatOf, sideOf, weightedPick, winShare,
   type StaffWorld, type TeamSeasonSummary,
 } from "./world.js";
-import type { StaffContract, StaffDepartureReason, StaffJob, StaffState } from "./contractsShim.js";
 
 export type StaffDecisionType = "HIRE_STAFF" | "FIRE_STAFF" | "EXTEND_STAFF" | "LET_CONTRACT_EXPIRE";
 export type StaffDecision = Decision<StaffDecisionType, { team: TeamId; staff: StaffId; seat: Seat }>;

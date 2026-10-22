@@ -7,12 +7,11 @@
  * College programmes have a fixed strength each, drawn from the world seed, and a college season is
  * the same kind of draw over 12 games.
  */
-import { createRng, type Rng, type TeamId } from "@ff/contracts";
+import { createRng, type Rng, type StaffState, type TeamId } from "@ff/contracts";
 import type { League } from "../league/buildLeague.js";
 import { STAFF_TUNING, type Seat } from "./tables.js";
 import { seatScore } from "./ratings.js";
 import { clamp, normal, seatOf, type StaffWorld, type TeamSeasonSummary } from "./world.js";
-import type { StaffState } from "./contractsShim.js";
 
 export interface StandInState {
   units: Record<string, { off: number; def: number }>;

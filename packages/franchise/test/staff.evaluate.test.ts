@@ -1,10 +1,9 @@
 import { describe, it, expect } from "vitest";
-import type { PersonalityType, PlayerState, StaffId, Team, TeamId } from "@ff/contracts";
+import type { PersonalityType, PlayerState, StaffId, StaffState, Team, TeamId } from "@ff/contracts";
 import {
   buildLeague, buildStaff, candidateReport, readResume, reputation, firedStigma, rosterFit, rosterExpectation,
   sideLean, unprovenPenalty, seatOf, STYLE_MATCH, STAFF_TUNING,
 } from "../src/index.js";
-import type { StaffState } from "../src/staff/contractsShim.js";
 
 const league = buildLeague("staff-3");
 const { world } = buildStaff(league, { firstSeason: 2026, historySeasons: 6 });

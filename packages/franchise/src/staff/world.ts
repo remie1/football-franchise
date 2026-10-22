@@ -1,9 +1,10 @@
 /**
  * ADR-080: the staff world and the small helpers the staff modules share.
  */
-import type { CalendarStamp, Rng, StaffId, Team, TeamId, WinLossTie } from "@ff/contracts";
+import type {
+  CalendarStamp, Rng, StaffContract, StaffId, StaffJob, StaffState, Team, TeamId, WinLossTie,
+} from "@ff/contracts";
 import { SCHEMES, type Seat, type Side } from "./tables.js";
-import type { StaffContract, StaffJob, StaffState } from "./contractsShim.js";
 
 /**
  * Everything the coaching carousel reads and writes. `season` is the next season to be played:

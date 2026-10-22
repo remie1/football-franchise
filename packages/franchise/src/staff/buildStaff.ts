@@ -11,7 +11,7 @@
  *
  * Same league, first season and seed → the identical staff world.
  */
-import { createRng, type Team } from "@ff/contracts";
+import { createRng, type StaffContract, type StaffState, type Team } from "@ff/contracts";
 import type { League } from "../league/buildLeague.js";
 import { COLLEGE_PROGRAMS, SEATS, STAFF_TUNING, type Seat } from "./tables.js";
 import { seatScore } from "./ratings.js";
@@ -19,7 +19,6 @@ import { makeCoach, type Cohort } from "./makeCoach.js";
 import { runStaffOffseason } from "./offseason.js";
 import { initStandIn, standInSeason, type StandInState } from "./standIn.js";
 import { clamp, offseasonStamp, seatOf, weightedPick, type StaffWorld, type TeamSeasonSummary } from "./world.js";
-import type { StaffContract, StaffState } from "./contractsShim.js";
 
 export interface BuildStaffOptions {
   /** The league's first real season. The staffs are set for it. */

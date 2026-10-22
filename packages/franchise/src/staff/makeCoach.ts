@@ -2,13 +2,12 @@
  * ADR-080 §3-§5, §8.1: making a coach. Every draw comes from the `rng` passed in, so a coach is a
  * pure function of his seed label.
  */
-import type { Rng, StaffRole, Team } from "@ff/contracts";
+import type { DefensiveDisguiseTendency, Rng, StaffJob, StaffRole, StaffState, Team } from "@ff/contracts";
 import {
   FIRST_NAMES, LAST_NAMES, PERSONALITY_SHARES, SCHEMES_BY_SIDE, STAFF_TUNING, type Seat, type Side,
 } from "./tables.js";
 import { makeRatings } from "./ratings.js";
 import { clamp, normal, staffIdFor, weightedPick } from "./world.js";
-import type { DefensiveDisguiseTendency, StaffJob, StaffState } from "./contractsShim.js";
 
 /** Where a new coach starts. */
 export type Cohort =

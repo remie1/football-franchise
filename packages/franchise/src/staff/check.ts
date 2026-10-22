@@ -9,8 +9,8 @@ import { buildStaff } from "./buildStaff.js";
 import { runStaffOffseason, type HireSource, type StaffMove } from "./offseason.js";
 import { standInSeason } from "./standIn.js";
 import { isRetired, seatOf, type StaffWorld } from "./world.js";
+import type { StaffState } from "@ff/contracts";
 import type { Seat } from "./tables.js";
-import type { StaffState } from "./contractsShim.js";
 
 export interface SeasonTally {
   season: number;

@@ -10,13 +10,13 @@
  */
 import {
   createRng,
-  type PersonalityType, type PlayerState, type StaffId, type StaffRole, type Team, type WinLossTie,
+  type CoachingLevel, type PersonalityType, type PlayerState, type StaffId, type StaffRole, type StaffState,
+  type Team, type WinLossTie,
 } from "@ff/contracts";
 import { SCHEMES, STAFF_TUNING, type Seat } from "./tables.js";
 import { COACH_SKILLS, rating, seatScore, type CoachRatings } from "./ratings.js";
 import { rosterFit } from "./style.js";
 import { normal, winShare } from "./world.js";
-import type { CoachingLevel, StaffState } from "./contractsShim.js";
 
 /** Who is judging: a president (head coach jobs) or a head coach (coordinator jobs). */
 export interface Evaluator {
