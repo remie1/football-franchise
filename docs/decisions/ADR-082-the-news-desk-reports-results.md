@@ -203,6 +203,22 @@ mark, the headline lists them in a line written for a crowd.
 | `TOP_DEFENSE` | the fewest points allowed | 2 |
 | `CHAMPION_PATH` | the champion's road: whom it beat in the playoffs | 4 |
 
+### The News page (step 3)
+
+The `news` command saves a season's news as a **news file** (`ff-news/1`): the season, every
+team's city and nickname, the result of every game a story names, and the editions, each story a
+`PRESS_STORY_PUBLISHED` event (N1). By default it goes where the viewer looks,
+`apps/game/public/news/`, under the season file's name, with an `index.json` listing the files
+there, as `export-game` does for games; that folder is git-ignored. `--out <file>` saves it
+elsewhere. Relative paths given to the season and news commands are read from the folder the
+command was typed in, so `--out season.json` and `--season season.json` agree.
+
+The viewer's **News** page, beside **Games**, lists the saved seasons and opens one (or a file, or
+a `?news=<file>` link). It shows every edition in order, with links to each: the headlines, a big
+story (importance 4 or 5) in bold, and a one-game story's final score beneath it. The page mirrors
+the file's shape by hand (it may import only contracts) and decides nothing: it shows the desk's
+stories in the desk's order.
+
 ## Impact
 
 - `contracts`: N1 (`events.ts`), N2 (`league.ts`), `docs/design/contracts.md` §6.2; tests in
@@ -211,9 +227,10 @@ mark, the headline lists them in a line written for a crowd.
 - `narrative`: the desk, the stories, the wording file, the `news` command, tests (with a copy of
   franchise's real 2020-2024 results for the race check).
 - `calibration`: `season/realSeason.ts` copies period scores (N2); `season/main.ts` saves the
-  season's event stream with the season so the news command can read it; under R2 only, the
-  command prints the headlines. No harness, metric or caller file is edited.
-- `apps/game`: a News page (step 3), reading the saved news.
+  season's event stream with the season so the news command can read it, and reads a relative
+  `--out` from the folder the command was typed in; under R2 only, the command prints the
+  headlines. No harness, metric or caller file is edited.
+- `apps/game`: the News page and its news-file reader (step 3).
 - `engine`, `playbook`, play-callers, franchise logic: **no change.**
 
 ## Decision

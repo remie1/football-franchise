@@ -6,6 +6,7 @@
  * bracket, and the season's event stream) as JSON.
  */
 import { writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { CALLER_VERSIONS, type CallerVersion } from "../caller/anticipate.js";
 import { runRealSeason } from "./realSeason.js";
 
@@ -50,7 +51,10 @@ for (const d of league.structure.divisions) {
 }
 console.log(`\nChampion: ${name.get(String(run.state.bracket!.champion))} (${run.state.results.length} games in ${((Date.now() - started) / 1000).toFixed(0)}s)`);
 if (args.out) {
+  // A relative path is from the folder the command was typed in, not this package's, where pnpm
+  // runs it; so `--out season.json` here and the news command's `--season season.json` agree.
+  const out = resolve(process.env.INIT_CWD ?? process.cwd(), args.out);
   // The event stream rides along so the news desk (ADR-082) can read the season the way it happened.
-  writeFileSync(args.out, JSON.stringify({ seed: args.seed, league, season: run.state, events: run.events }, null, 2));
-  console.log(`Saved ${args.out}`);
+  writeFileSync(out, JSON.stringify({ seed: args.seed, league, season: run.state, events: run.events }, null, 2));
+  console.log(`Saved ${out}`);
 }

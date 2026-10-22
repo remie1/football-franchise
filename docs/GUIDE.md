@@ -41,7 +41,7 @@ run the play simulator).
 | Realism checker | `packages/calibration` | Runs thousands of games and compares the results with real NFL numbers. Also holds the computer play-callers used for testing, and the "ladder" checks (described below). | Yes |
 | Player ratings | `packages/attributes` | Will turn real data into player ratings for real rosters. | Not started |
 | Front office | `packages/franchise` | Will run the calendar, schedule, standings, cap, contracts, free agency and the draft. | Not started (its own thread now) |
-| Storylines | `packages/narrative` | Writes the news from what happens in games: each week's headlines today (ADR-082); storylines, press and reputation later. | Started: weekly headlines |
+| Storylines | `packages/narrative` | Writes the news from what happens in games: each week's headlines, the playoff race, the playoffs and a season review today (ADR-082); storylines, press and reputation later. | Started: the season's news |
 | Game screen | `apps/game` | The browser app: menus, dashboards, the play log. It only displays; it decides nothing. | Not started (a game viewer has its own thread now) |
 
 The order the parts are meant to be built in is in the Charter, section 6. Play simulator and
@@ -121,10 +121,13 @@ Season shell so far: a made-up 32-team league, and standings with the full NFL t
 (checked against the real 2020-2024 playoff seeds).
 
 **News (22 October 2026, ADR-082):** a news desk writes up to four headlines a week from a
-season's results: routs, comebacks, upsets, streaks, the last unbeaten team, division leaders.
-Save a season with `pnpm --filter @ff/calibration season -- --seed <seed> --out <file>`, then
-`pnpm --filter @ff/narrative news -- --season <file>` prints its news. Next: the playoff race and
-the playoff run, then a News page in the viewer.
+season's results: routs, comebacks, upsets, streaks, the last unbeaten team, division leaders, and
+who has clinched or been knocked out. Every playoff game gets a headline, and a season review
+closes the year. Save a season with
+`pnpm --filter @ff/calibration season -- --seed <seed> --out season.json`, then
+`pnpm --filter @ff/narrative news -- --season season.json` prints its news and saves it for the
+game viewer: run `pnpm --filter game dev` and open the News page. Next: the season command printing
+the headlines as it plays (waits on the owner's R2 ruling).
 
 ## Words you will see
 

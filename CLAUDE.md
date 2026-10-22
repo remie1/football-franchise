@@ -53,6 +53,8 @@ Delegate implementation to the owning sub-agent. Never let one agent write in an
 - `pnpm --filter @ff/<pkg> test` — one package
 - `pnpm --filter game dev` — run the UI (the game viewer)
 - `pnpm --filter @ff/calibration export-game --seed <seed>` — save one game for the viewer (`apps/game/public/games/`)
+- `pnpm --filter @ff/calibration season -- --seed <seed> --out season.json` — play a whole season and save it
+- `pnpm --filter @ff/narrative news -- --season season.json` — print a saved season's news and save it for the viewer's News page (`apps/game/public/news/`)
 
 ## Current State
 
