@@ -52,8 +52,10 @@ Claim: **this changes nothing the sim produces.**
   the resolver fills from numbers the engine already computed. The desk reads events and writes
   stories; it holds no reference to anything that plays a game. No engine, playbook or play-caller
   file is edited.
-- **Empirical:** `pnpm verify` green; the real-sim resolver's existing determinism test still passes
-  with the same scores, and a new test asserts the period scores add up to the final score.
+- **Empirical:** `pnpm verify` green; the real-sim resolver's existing determinism test still passes,
+  and a new test asserts the period scores add up to the final score. A whole real-sim season
+  (seed `news-1`, 285 games) played on main and on this branch: **0 of 285 results differ** apart
+  from the added period scores, and the schedule, standings and bracket are identical.
 
 ## Need
 
@@ -111,7 +113,7 @@ franchise event stream, one event at a time. **Output:** `PRESS_STORY_PUBLISHED`
 editions, one edition per calendar week.
 
 1. **Story rules are data.** Each rule says what has to happen, who it is about, and how important
-   it is. Headline wording lives in `packages/narrative/content/headlines.json`, several lines per
+   it is. Headline wording lives in `packages/narrative/src/content/headlines.json`, several lines per
    story in two tones, `straight` and `punchy`; the owner asked for a mix (Q6), so each headline
    picks the tone with the seeded dice (`punchyShare`, 0.5) and then a line.
 2. **One story per game, one story per team.** Each game offers its most important game story;
@@ -145,10 +147,12 @@ editions, one edition per calendar week.
 | `LAST_WINLESS` | from week 4, one team without a win is left | 2 |
 | `FIRST_WIN` | the last team without a win wins | 3 |
 | `NEW_LEADER` | from week 4, a team is alone in first in its division and wasn't in first a week ago | 2 |
-| `SHOWDOWN` | from week 8, next week's game between a division leader and a rival within one game of it | 2 |
+| `SHOWDOWN` | from week 8, next week's game between a division leader (at .500 or better) and a rival within one game of it | 2 |
 
 A game offers only its most important game story (an upset rout is an `UPSET`). Win share counts a
-tie as half a win. A bye week breaks no streak.
+tie as half a win. A bye week breaks no streak; a tie ends one. At equal importance a story that can
+only happen once a season (`LAST_UNBEATEN`, `UNBEATEN_FALLS`, `LAST_WINLESS`, `FIRST_WIN`) runs ahead
+of the weekly kinds.
 
 ### Season stories (step 2)
 
