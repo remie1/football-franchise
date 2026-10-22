@@ -1,0 +1,222 @@
+{
+  "_about": "Headline wording for the news desk (ADR-082). Edit freely: no rule reads this file. {winner}, {team} and the like are nicknames and take plural verbs (\"Bison rout Comets\"); {winnerCity}, {teamCity} and the like are cities and take singular verbs (\"Elmwood routs Ironvale\"). Each story needs at least one straight and one punchy line. Avoid \"a\" or \"an\" right before a placeholder (\"a 18-point\", \"a Atlantic North\"): the right one depends on the value. A key like \"SHOWDOWN.tied\" is a variant the rules ask for by name. punchyShare is how often a headline is written punchy.",
+  "punchyShare": 0.5,
+  "stories": {
+    "ROUT": {
+      "straight": [
+        "{winner} rout {loser} {score}",
+        "{winnerCity} routs {loserCity} by {margin}",
+        "{winner} roll past {loser}, {score}",
+        "{winner} pound {loser} {score}",
+        "{winnerCity} cruises past {loserCity}, {score}"
+      ],
+      "punchy": [
+        "{winner} flatten {loser}",
+        "{winner} run {loser} out of the building",
+        "No contest: {winner} {score} over {loser}",
+        "{winner} make it a laugher against {loser}",
+        "{loser} buried by {winner}, {score}"
+      ]
+    },
+    "SHUTOUT": {
+      "straight": [
+        "{winner} shut out {loser}, {score}",
+        "{winner} blank {loser}"
+      ],
+      "punchy": [
+        "Goose egg: {winner} hold {loser} scoreless",
+        "{loser} can't find the end zone, or the scoreboard, against {winner}"
+      ]
+    },
+    "NAIL_BITER": {
+      "straight": [
+        "{winner} edge {loser}, {score}",
+        "{winner} hold off {loser} {score}",
+        "{winnerCity} squeaks past {loserCity}, {score}"
+      ],
+      "punchy": [
+        "{winner} survive {loser} by a whisker",
+        "Down to the wire: {winner} {score} over {loser}",
+        "{winner} sweat out a win over {loser}"
+      ]
+    },
+    "OVERTIME": {
+      "straight": [
+        "{winner} beat {loser} in overtime",
+        "{winner} top {loser} {score} in overtime",
+        "{winnerCity} wins it in overtime over {loserCity}"
+      ],
+      "punchy": [
+        "{winner} outlast {loser} in an overtime thriller",
+        "Extra time, extra drama: {winner} get past {loser}",
+        "{winner} need extra time, but get past {loser}"
+      ]
+    },
+    "TIE": {
+      "straight": [
+        "{team} and {opponent} tie, {score}",
+        "{teamCity} and {opponentCity} settle for a tie"
+      ],
+      "punchy": [
+        "Nobody wins: {team} and {opponent} tie {score}",
+        "{team} and {opponent} can't be separated"
+      ]
+    },
+    "COMEBACK": {
+      "straight": [
+        "{winner} rally from {deficit} down to beat {loser}",
+        "{winner} erase {deficit}-point deficit against {loser}",
+        "{winner} come back from {deficit} down to top {loser}",
+        "{winnerCity} rallies past {loserCity} after trailing by {deficit}"
+      ],
+      "punchy": [
+        "{winner} storm back from {deficit} down to stun {loser}",
+        "Never out of it: {winner} climb out of {deficit}-point hole against {loser}",
+        "Down {deficit}? No problem for the {winner}",
+        "{loser} let {deficit}-point lead slip away against {winner}"
+      ]
+    },
+    "LATE_RALLY": {
+      "straight": [
+        "{winner} rally late to beat {loser}",
+        "Fourth-quarter push lifts {winner} past {loser}",
+        "{winner} come from behind in the fourth to beat {loser}",
+        "{winnerCity} rallies in the fourth quarter to top {loserCity}"
+      ],
+      "punchy": [
+        "{winner} steal one from {loser} late",
+        "{winner} save their best for the fourth quarter against {loser}",
+        "{winner} snatch it from {loser} in the fourth",
+        "{loser} let one get away against {winner}"
+      ]
+    },
+    "UPSET": {
+      "straight": [
+        "{winnerRecordBefore} {winner} upset {loserRecordBefore} {loser}",
+        "{winner} stun {loser}, {score}",
+        "{winnerCity} upsets {loserCity}, {score}"
+      ],
+      "punchy": [
+        "Shocker: {winner} take down {loser}",
+        "Stop the presses: {winnerRecordBefore} {winner} beat {loserRecordBefore} {loser}",
+        "{winner} shake up the league with a win over {loser}"
+      ]
+    },
+    "SHOOTOUT": {
+      "straight": [
+        "{winner} outscore {loser} {score}",
+        "{total} points: {winner} outscore {loser} in a shootout",
+        "{winnerCity} outlasts {loserCity} {score} in a shootout"
+      ],
+      "punchy": [
+        "Points galore as {winner} outgun {loser} {score}",
+        "{winner} win a track meet against {loser}",
+        "Defense optional: {winner} beat {loser} {score}"
+      ]
+    },
+    "WIN_STREAK": {
+      "straight": [
+        "{team} win {nth} straight",
+        "{team} make it {countWord} in a row",
+        "{teamCity} extends its win streak to {count}"
+      ],
+      "punchy": [
+        "{team} can't be stopped: {nth} straight win",
+        "Make it {countWord}: {team} keep rolling",
+        "{team} roll on: {countWord} straight"
+      ]
+    },
+    "LOSING_STREAK": {
+      "straight": [
+        "{team} lose {nth} straight",
+        "{teamCity}'s losing streak reaches {count}",
+        "{team} fall again, {nth} loss in a row"
+      ],
+      "punchy": [
+        "Skid hits {countWord} for the {team}",
+        "Rock bottom? {team} drop {nth} in a row",
+        "The skid goes on: {team} lose {nth} straight"
+      ]
+    },
+    "STREAK_SNAPPED": {
+      "straight": [
+        "{opponent} snap {teamCity}'s {count}-game win streak",
+        "{team} win streak ends at {count}"
+      ],
+      "punchy": [
+        "{opponent} end the {team} run at {count}",
+        "All good things: {opponent} stop the {team} at {count} straight"
+      ]
+    },
+    "LAST_UNBEATEN": {
+      "straight": [
+        "{team} are the league's last unbeaten team",
+        "{team} stand alone as the only unbeaten team at {record}"
+      ],
+      "punchy": [
+        "Last ones standing: {team} still perfect at {record}",
+        "{record} and alone: nobody else is unbeaten but the {team}"
+      ]
+    },
+    "UNBEATEN_FALLS": {
+      "straight": [
+        "{opponent} hand {team} their first loss",
+        "{teamCity}'s unbeaten start ends at {recordBefore}"
+      ],
+      "punchy": [
+        "Perfect no more: {opponent} topple {team}",
+        "{opponent} knock off the last unbeaten team"
+      ]
+    },
+    "LAST_WINLESS": {
+      "straight": [
+        "{team} still winless at {record}",
+        "{teamCity} is the only winless team left"
+      ],
+      "punchy": [
+        "{team} still searching for a win at {record}",
+        "{record} and alone: {team} the last team without a win"
+      ]
+    },
+    "FIRST_WIN": {
+      "straight": [
+        "{team} get their first win, beating {opponent} {score}",
+        "{teamCity} wins at last"
+      ],
+      "punchy": [
+        "Finally! {team} are in the win column",
+        "{team} end the drought against {opponent}"
+      ]
+    },
+    "NEW_LEADER": {
+      "straight": [
+        "{team} take over first in the {division}",
+        "{team} alone atop the {division} at {record}"
+      ],
+      "punchy": [
+        "New name on top of the {division}: {team}",
+        "{team} climb to the top of the {division}"
+      ]
+    },
+    "SHOWDOWN": {
+      "straight": [
+        "{home} host {away} next week with first in the {division} at stake",
+        "{away} visit {home} next week for first in the {division}"
+      ],
+      "punchy": [
+        "Circle it: {away} at {home} next week for the {division} lead",
+        "Showdown in the {division}: {away} at {home} next week"
+      ]
+    },
+    "SHOWDOWN.tied": {
+      "straight": [
+        "{home} and {away}, tied atop the {division}, meet next week",
+        "First-place showdown next week: {away} at {home}"
+      ],
+      "punchy": [
+        "Winner takes the {division} lead: {away} at {home} next week",
+        "Two teams, one first place: {away} visit {home} next week"
+      ]
+    }
+  }
+}

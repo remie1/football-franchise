@@ -346,6 +346,8 @@ export interface RollDetail {
 
 `CALENDAR_PHASE_ENTERED`, `DEADLINE_REACHED`, `CONTRACT_SIGNED / RESTRUCTURED / EXPIRED`, `PLAYER_RELEASED / RETIRED (immediate|slow|late per design notes)`, `TAG_APPLIED`, `TRADE_PROPOSED / EXECUTED / REJECTED`, `DRAFT_PICK_MADE`, `SCOUT_REPORT_FILED` (perception delta), `INJURY_OCCURRED / RECOVERED`, `MORALE_CHANGED`, `PRESSURE_EVENT` (owner mandate / hot seat), `PRESS_STORY_PUBLISHED`, `AWARD_GIVEN`, `GAME_SCHEDULED / COMPLETED`, `STAFF_HIRED` (`{ staff, team, role: StaffRole }`) and `STAFF_DEPARTED` (`{ staff, team, reason: StaffDepartureReason }`), typed by ADR-080 P3.
 
+`PRESS_STORY_PUBLISHED` (ADR-082 N1) is narrative's news: `{ kind, headline, importance: 1..5, teams, games, subjects }`, where `kind` names the story rule that wrote it. `GameResult` may carry `periods` (ADR-082 N2), the points per period as in `GAME_END.payload.periods`, which is what stories like "rallied from 17 down" read.
+
 Narrative consumes both families; its write-backs are **not** events but a constrained effect type:
 
 ```ts

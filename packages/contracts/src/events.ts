@@ -551,7 +551,20 @@ export type FranchiseEvent =
   | { type: "INJURY_OCCURRED"; payload: { player: PlayerId; kind: string; weeks: number } }
   | { type: "MORALE_CHANGED"; payload: { player: PlayerId; delta: number; reason: string } }
   | { type: "PRESSURE_EVENT"; payload: { source: "OWNER"|"PRESIDENT"|"MEDIA"; delta: number } }
-  | { type: "PRESS_STORY_PUBLISHED"; payload: { headline: string; subjects: (PlayerId | StaffId)[] } }
+  /**
+   * ADR-082 N1: a news story. Narrative writes it from results; it changes nothing.
+   * `kind` names the story rule that wrote it (narrative's own vocabulary, so a plain string);
+   * `importance` ranks stories the way `Interrupt.severity` ranks beats. `teams` and `games` say
+   * what the story is about; `subjects` names the players and staff in it.
+   */
+  | { type: "PRESS_STORY_PUBLISHED"; payload: {
+        kind: string;
+        headline: string;
+        importance: 1 | 2 | 3 | 4 | 5;
+        teams: TeamId[];
+        games: GameId[];
+        subjects: (PlayerId | StaffId)[];
+      } }
   /** ADR-080 P3: tightened from free text; nothing emitted the old shape. */
   | { type: "STAFF_HIRED"; payload: { staff: StaffId; team: TeamId; role: StaffRole } }
   | { type: "STAFF_DEPARTED"; payload: { staff: StaffId; team: TeamId; reason: StaffDepartureReason } }

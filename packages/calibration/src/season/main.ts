@@ -3,7 +3,7 @@
  *
  * Plays a whole season (272 games plus the playoffs) through the real sim, prints the final
  * standings and the champion, and with `--out` saves the season (schedule, results, standings,
- * bracket) as JSON.
+ * bracket, and the season's event stream) as JSON.
  */
 import { writeFileSync } from "node:fs";
 import { CALLER_VERSIONS, type CallerVersion } from "../caller/anticipate.js";
@@ -50,6 +50,7 @@ for (const d of league.structure.divisions) {
 }
 console.log(`\nChampion: ${name.get(String(run.state.bracket!.champion))} (${run.state.results.length} games in ${((Date.now() - started) / 1000).toFixed(0)}s)`);
 if (args.out) {
-  writeFileSync(args.out, JSON.stringify({ seed: args.seed, league, season: run.state }, null, 2));
+  // The event stream rides along so the news desk (ADR-082) can read the season the way it happened.
+  writeFileSync(args.out, JSON.stringify({ seed: args.seed, league, season: run.state, events: run.events }, null, 2));
   console.log(`Saved ${args.out}`);
 }
