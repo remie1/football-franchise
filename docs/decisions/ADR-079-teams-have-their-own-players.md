@@ -62,7 +62,7 @@ provenance type `FictionalProvenance`. Nothing else.
 Alternative considered: `attributes` writes the league to a JSON file and the `season` command
 reads it. No import, but an extra step and a second copy of the league.
 
-**Ruling (owner, 2026-10-22):** yes, one function only. Ratified as Charter Amendment 10.
+**Ruling (owner, 2026-10-22):** yes, one function only. Ratified as Charter Amendment 11 (Amendment 10 went to the save-and-load surface, ADR-078 R1 amendment 1).
 
 ## What is built
 
@@ -98,6 +98,19 @@ against the NFL's 2021-2024 regular seasons (`packages/franchise/test/fixtures/n
   one great quarterback lifts a team further than in the NFL. Not investigated.
 - Scoring on generated squads averages about 114 combined points a game (flat league: about 86).
   This is the accepted drift of ADR-079 Q3; not investigated (owner's hold on scoring).
+
+## Save and load with squads (merged with ADR-078 R1 amendment 1)
+
+A save made with generated squads stores the teams' rosters and their players
+(`makeSave` gains an optional `players`, franchise code only; `SaveFile.world.players` already
+existed). `--load` rebuilds the squads from the world seed and plays on with them, or with the
+flat league when the saved teams have no rosters. `--team-sd` cannot be saved or loaded, since
+a save does not record it. Checked: seed `homie-1` played straight through and stopped at week 9,
+saved, loaded and finished give byte-identical season files.
+
+Known gap: `PlayerState` traits are a `Set`, which JSON cannot hold; the season command writes
+them as a list. Traits are empty today (Q7). A save format that keeps real traits is a question
+for the save-format work, not this ADR.
 
 ## What this does not touch
 

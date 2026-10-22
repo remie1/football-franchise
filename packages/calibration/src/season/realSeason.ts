@@ -15,7 +15,7 @@
  * `buildGeneratedLeague`. With `rosters: "flat"`, team i of the franchise league plays with team
  * i of the flat league instead (every attribute 60): equal teams, results close to coin flips.
  */
-import { DEFAULT_LEAGUE_RULES, type GameResult, type LeagueRules, type ScheduledGame, type TeamId } from "@ff/contracts";
+import { DEFAULT_LEAGUE_RULES, type CalendarStamp, type GameResult, type LeagueRules, type ScheduledGame, type SeasonState, type TeamId } from "@ff/contracts";
 import { buildLeague, runSeason, type GameResolver, type League, type SeasonRun } from "@ff/franchise";
 import type { CallerVersion } from "../caller/anticipate.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../caller/frozenTendencies.js";
@@ -99,23 +99,40 @@ export interface RealSeasonInput {
   readonly seed: string;
   readonly season?: number;
   readonly callerVersion?: CallerVersion;
+  /** A league read from a save; built from `seed` when absent. */
+  readonly league?: League;
+  readonly rules?: LeagueRules;
+  /** Save and load: stop after this day, or carry on from a saved season. */
+  readonly stopAfter?: CalendarStamp;
+  readonly resumeFrom?: SeasonState;
   /** Whose players play: each team's own made-up squad (default), or the flat league's. */
   readonly rosters?: SeasonRosters;
   /** Team-strength spread for generated squads (ADR-079 Q2; tuned in R5). */
   readonly teamStrengthSd?: number;
 }
 
-/** Build the fictional league from `seed` and play its season through the real sim. */
+/**
+ * Build the fictional league from `seed` (or take a saved one) and play its season through the
+ * real sim. Generated squads are rebuilt from the league's seed and the season, so a loaded save
+ * gets the same players it was saved with.
+ */
 export function runRealSeason(input: RealSeasonInput): { league: League; rated?: GeneratedLeague; run: SeasonRun } {
-  const league = buildLeague(input.seed);
+  const base = input.league ?? buildLeague(input.seed);
+  const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
   const season = input.season ?? 2027;
   const rated = (input.rosters ?? "generated") === "generated"
-    ? buildGeneratedLeague(league, { season, ...(input.teamStrengthSd === undefined ? {} : { teamStrengthSd: input.teamStrengthSd }) })
+    ? buildGeneratedLeague(base, { season, ...(input.teamStrengthSd === undefined ? {} : { teamStrengthSd: input.teamStrengthSd }) })
     : undefined;
+  const league = rated === undefined ? base : { ...base, teams: rated.league.teams };
   const resolve = realSimResolver(league, {
+    rules,
     ...(input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }),
     ...(rated === undefined ? {} : { rated }),
   });
-  const run = runSeason({ league, season, seed: input.seed, resolve });
-  return { league: rated === undefined ? league : { ...league, teams: rated.league.teams }, ...(rated === undefined ? {} : { rated }), run };
+  const run = runSeason({
+    league, season, seed: input.seed, resolve, rules,
+    ...(input.stopAfter ? { stopAfter: input.stopAfter } : {}),
+    ...(input.resumeFrom ? { resumeFrom: input.resumeFrom } : {}),
+  });
+  return { league, ...(rated === undefined ? {} : { rated }), run };
 }
