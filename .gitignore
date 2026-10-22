@@ -14,3 +14,5 @@ assets/generated/
 
 # Games saved by `export-game` for the viewer. Re-makeable from their seed, and megabytes each.
 apps/game/public/games/
+# Seasons' news saved by the news command for the viewer's News page. Re-makeable from the season file.
+apps/game/public/news/
