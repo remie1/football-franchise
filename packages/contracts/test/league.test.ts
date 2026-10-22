@@ -42,6 +42,19 @@ describe("league shapes (ADR-078)", () => {
     expect(JSON.parse(JSON.stringify(save))).toEqual(save);
   });
 
+  it("a SaveFile may record what played its games (save and load E1), and stays valid without it", () => {
+    const save: SaveFile = {
+      formatVersion: SAVE_FORMAT_VERSION, createdBy: "test", registrySchemaVersion: 1,
+      worldSeed: "w", calendar: at, leagueRules: DEFAULT_LEAGUE_RULES,
+      world: { teams: [], players: [], staff: [], contracts: [], perceptions: [], league, season, narrativeState: null, fashion: null },
+      history: { seasons: [], transactions: [] },
+      playedWith: { caller: "v5" },
+    };
+    expect(JSON.parse(JSON.stringify(save))).toEqual(save);
+    const { playedWith: _, ...older } = save;
+    expect(JSON.parse(JSON.stringify(older)).playedWith).toBeUndefined();
+  });
+
   it("the season events carry results and seeds", () => {
     const events: FranchiseEvent[] = [
       { type: "GAME_COMPLETED", payload: { result: season.results[0]!, kind: "REGULAR" } },

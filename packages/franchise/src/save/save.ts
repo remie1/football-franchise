@@ -29,6 +29,8 @@ export interface MakeSaveInput {
   /** What wrote the file, e.g. "calibration season". */
   createdBy: string;
   rules?: LeagueRules;
+  /** What played the games (E1), e.g. `{ caller: "v5" }`. */
+  playedWith?: { caller: string };
 }
 
 export function makeSave(input: MakeSaveInput): SaveFile {
@@ -52,6 +54,7 @@ export function makeSave(input: MakeSaveInput): SaveFile {
       fashion: null,
     },
     history: { seasons: [], transactions: [] },
+    ...(input.playedWith ? { playedWith: input.playedWith } : {}),
   };
   // A save that would not load is a bug here, not a surprise later.
   readSave(save);
@@ -90,6 +93,9 @@ export function readSave(input: unknown): LoadedSave {
       : `its format ${String(save.formatVersion)} is not one this version reads (${SAVE_FORMAT_VERSION})`);
   }
   if (typeof save.worldSeed !== "string" || save.worldSeed === "") refuse("it has no world seed");
+  if (save.playedWith !== undefined && (!isObject(save.playedWith) || typeof save.playedWith.caller !== "string")) {
+    refuse("its note of what played the games is damaged");
+  }
   const w = save.world;
   for (const k of ["teams", "players", "staff", "contracts", "perceptions"] as const) {
     if (!Array.isArray(w[k])) refuse(`its ${k} list is missing`);

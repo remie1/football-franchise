@@ -237,3 +237,8 @@ The owner ruled yes (thread "Save and load", Q2) to two more names on the R1 sur
 options for this (`stopAfter`, `resumeFrom`) and `SeasonRun` gains `complete`; those are the same ratified
 function, not new names. Plan: `/mnt/project-files/design/save-and-load-plan.md`. Charter Amendment 10.
 
+Contracts edit **E1** (same thread, Q1; owner typed "Yes, make contracts edit E1" on 2026-10-22):
+`SaveFile.playedWith?: { caller: string }`, an optional note of what played the saved games. Free
+text, so contracts stay engine-agnostic; saves without it still load. The season command line records
+the play-caller version and refuses to carry on with a different one unless `--switch-caller` is given.
+

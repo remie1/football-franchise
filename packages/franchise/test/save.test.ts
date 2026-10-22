@@ -46,6 +46,12 @@ describe("makeSave / readSave (save and load L2)", () => {
     expect(() => readSave(makeSave({ league, calendar: { season: 2027, phase: "TRAINING_CAMP", week: 1, day: 1 }, season: null, createdBy: "test" }))).not.toThrow();
   });
 
+  it("records what played the games when told (E1), and reads saves without it", () => {
+    const s = makeSave({ league, calendar: half.calendar, season: half.state, createdBy: "test", playedWith: { caller: "v5" } });
+    expect(readSave(onDisk(s)).save.playedWith).toEqual({ caller: "v5" });
+    expect(readSave(onDisk(saveOf(half))).save.playedWith).toBeUndefined();
+  });
+
   it("a save is plain data: the same season saves to the same text", () => {
     expect(onDisk(saveOf(half))).toBe(onDisk(saveOf(runSeason({ ...base, stopAfter: week9 }))));
   });
@@ -63,6 +69,7 @@ describe("makeSave / readSave (save and load L2)", () => {
     ["a result after its date", () => edited((s) => { s.calendar = { season: 2027, phase: "REGULAR_SEASON", week: 4, day: 7 }; }), /did not reach/],
     ["another seed", () => edited((s) => { s.worldSeed = "world-2"; }), /another league's dice/],
     ["a roster player who isn't there", () => edited((s) => { s.world.teams[0]!.roster.push("P-ghost" as never); }), /not in the save/],
+    ["a damaged played-with note", () => edited((s) => { (s as { playedWith?: unknown }).playedWith = { caller: 5 }; }), /what played the games is damaged/],
     ["edited standings", () => edited((s) => { s.world.season!.standings[0]!.overall.wins += 1; }), /standings don't match/],
   ];
   it.each(broken)("refuses %s with a plain reason", (_, file, why) => {

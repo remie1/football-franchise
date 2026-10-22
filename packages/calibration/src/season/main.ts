@@ -9,12 +9,14 @@
  *
  * Save and load: `--stop-after 9` stops after the last day of regular-season week 9 (`playoffs:2`
  * after playoff week 2), and `--save` writes a save file. `--load` carries on from one; the games
- * it holds are read from it, not played again.
+ * it holds are read from it, not played again. A save records the play-caller version that played it
+ * (E1): `--load` carries on with that version, and refuses a different `--caller` unless
+ * `--switch-caller` is given.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { DEFAULT_LEAGUE_RULES, stampToString, type CalendarStamp } from "@ff/contracts";
 import { makeSave, readSave } from "@ff/franchise";
-import { CALLER_VERSIONS, type CallerVersion } from "../caller/anticipate.js";
+import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
 import { runRealSeason } from "./realSeason.js";
 
 function parse(argv: readonly string[]) {
@@ -25,6 +27,7 @@ function parse(argv: readonly string[]) {
   let stopAfter: string | undefined;
   let save: string | undefined;
   let load: string | undefined;
+  let switchCaller = false;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const next = (): string => {
@@ -39,6 +42,7 @@ function parse(argv: readonly string[]) {
     else if (arg === "--stop-after") stopAfter = next();
     else if (arg === "--save") save = next();
     else if (arg === "--load") load = next();
+    else if (arg === "--switch-caller") switchCaller = true;
     else if (arg === "--caller") {
       const v = next();
       if (!(CALLER_VERSIONS as readonly string[]).includes(v)) throw new SyntaxError(`--caller must be one of ${CALLER_VERSIONS.join(", ")}`);
@@ -48,7 +52,8 @@ function parse(argv: readonly string[]) {
   if (load !== undefined && seed !== undefined) throw new SyntaxError("--load takes its seed from the save; drop --seed");
   if (load === undefined && (seed === undefined || seed.trim() === "")) throw new SyntaxError("--seed is required");
   if (!Number.isInteger(season)) throw new SyntaxError("--season must be a whole number");
-  return { seed, season, callerVersion, out, stopAfter, save, load };
+  if (switchCaller && load === undefined) throw new SyntaxError("--switch-caller only applies with --load");
+  return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller };
 }
 
 function stopDay(text: string, season: number): CalendarStamp {
@@ -62,9 +67,16 @@ const started = Date.now();
 const loaded = args.load === undefined ? undefined : readSave(readFileSync(args.load, "utf8"));
 const seed = loaded?.save.worldSeed ?? args.seed!;
 const season = loaded?.save.calendar.season ?? args.season;
+const savedCaller = loaded?.save.playedWith?.caller;
+if (savedCaller !== undefined && !(CALLER_VERSIONS as readonly string[]).includes(savedCaller)) {
+  throw new Error(`This save was played with caller ${savedCaller}, which this version does not have`);
+}
+if (savedCaller !== undefined && args.callerVersion !== undefined && args.callerVersion !== savedCaller && !args.switchCaller) {
+  throw new Error(`This save was played with caller ${savedCaller}; carrying on with ${args.callerVersion} needs --switch-caller`);
+}
+const callerVersion: CallerVersion = args.callerVersion ?? (savedCaller as CallerVersion | undefined) ?? DEFAULT_CALLER_VERSION;
 const { league, run } = runRealSeason({
-  seed, season,
-  ...(args.callerVersion ? { callerVersion: args.callerVersion } : {}),
+  seed, season, callerVersion,
   ...(loaded ? { league: loaded.league, rules: loaded.rules, ...(loaded.save.world.season ? { resumeFrom: loaded.save.world.season } : {}) } : {}),
   ...(args.stopAfter ? { stopAfter: stopDay(args.stopAfter, season) } : {}),
 });
@@ -83,7 +95,7 @@ const champion = run.state.bracket?.champion;
 if (run.complete) console.log(`\nChampion: ${name.get(String(champion))} (${took})`);
 else console.log(`\nStopped after ${stampToString(run.calendar)} (${took})${champion === undefined ? "" : `; champion ${name.get(String(champion))}`}`);
 if (args.save) {
-  writeFileSync(args.save, JSON.stringify(makeSave({ league, calendar: run.calendar, season: run.state, createdBy: "calibration season", rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES }), null, 2));
+  writeFileSync(args.save, JSON.stringify(makeSave({ league, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: { caller: callerVersion }, rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES }), null, 2));
   console.log(`Saved ${args.save}`);
 }
 if (args.out) {
