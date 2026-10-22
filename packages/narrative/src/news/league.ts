@@ -16,6 +16,8 @@ export interface TeamEntry {
   readonly division: DivisionId;
   readonly divisionName: string;
   readonly conference: ConferenceId;
+  /** "Atlantic" for the "Atlantic Conference". */
+  readonly conferenceName: string;
 }
 
 export interface LeagueIndex {
@@ -23,6 +25,8 @@ export interface LeagueIndex {
   /** Division id → its teams, in the structure's order. */
   readonly divisions: ReadonlyMap<string, readonly TeamId[]>;
   team(id: TeamId): TeamEntry;
+  /** "Atlantic" for a team in the "Atlantic Conference". */
+  conferenceName(id: TeamId): string;
 }
 
 /** "Elmwood Bison" in "Elmwood" → "Bison"; a name that doesn't start with its city is kept whole. */
@@ -33,6 +37,7 @@ export function nicknameOf(t: TeamNames): string {
 
 export function indexLeague(structure: LeagueStructure, names: readonly TeamNames[]): LeagueIndex {
   const byId = new Map(names.map((t) => [String(t.id), t]));
+  const conferences = new Map(structure.conferences.map((c) => [String(c.id), c.name.replace(/ Conference$/, "")]));
   const teams = new Map<string, TeamEntry>();
   const divisions = new Map<string, readonly TeamId[]>();
   for (const d of structure.divisions) {
@@ -43,16 +48,14 @@ export function indexLeague(structure: LeagueStructure, names: readonly TeamName
       teams.set(String(id), {
         id, nickname: nicknameOf(n), city: n.city,
         division: d.id, divisionName: d.name, conference: d.conference,
+        conferenceName: conferences.get(String(d.conference)) ?? String(d.conference),
       });
     }
   }
-  return {
-    teams,
-    divisions,
-    team(id) {
-      const t = teams.get(String(id));
-      if (t === undefined) throw new Error(`news: team ${String(id)} is not in this league`);
-      return t;
-    },
+  const team = (id: TeamId): TeamEntry => {
+    const t = teams.get(String(id));
+    if (t === undefined) throw new Error(`news: team ${String(id)} is not in this league`);
+    return t;
   };
+  return { teams, divisions, team, conferenceName: (id) => team(id).conferenceName };
 }

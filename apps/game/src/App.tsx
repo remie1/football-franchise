@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { GameFileError, parseGameFile, type GameFile } from "./gameFile.js";
 import { BoxScoreView } from "./BoxScoreView.js";
 import { DriveChartView } from "./DriveChartView.js";
+import { NewsPage } from "./NewsPage.js";
 import { PlayLogView } from "./PlayLogView.js";
 import { ScoreboardView } from "./ScoreboardView.js";
 
@@ -11,6 +12,12 @@ const TABS = [
   { id: "box", label: "Box score" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
+
+const PAGES = [
+  { id: "games", label: "Games" },
+  { id: "news", label: "News" },
+] as const;
+type Page = (typeof PAGES)[number]["id"];
 
 /** Games `export-game` saved into `public/games/`, listed by its `index.json`. */
 async function listSavedGames(): Promise<readonly string[]> {
@@ -28,6 +35,11 @@ export function App() {
   const [saved, setSaved] = useState<readonly string[]>([]);
   const [game, setGame] = useState<GameFile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // `?page=news` (or a `?news=` link) opens on the News page.
+  const [page, setPage] = useState<Page>(() => {
+    const query = new URLSearchParams(window.location.search);
+    return query.get("page") === "news" || query.has("news") ? "news" : "games";
+  });
   // `?tab=drives` / `?tab=box` opens on that tab, alongside `?game=`.
   const [tab, setTab] = useState<Tab>(() => {
     const asked = new URLSearchParams(window.location.search).get("tab");
@@ -64,48 +76,64 @@ export function App() {
   return (
     <main>
       <header className="bar">
-        <h1>Game viewer</h1>
-        <div className="pickers">
-          {saved.length > 0 && (
-            <select defaultValue="" onChange={(e) => e.target.value && void openSaved(e.target.value)} aria-label="Saved games">
-              <option value="" disabled>
-                Saved games…
-              </option>
-              {saved.map((name) => (
-                <option key={name} value={name}>
-                  {name.replace(/\.json$/, "")}
-                </option>
-              ))}
-            </select>
-          )}
-          <label className="file">
-            Open a game file
-            <input type="file" accept=".json,application/json" onChange={(e) => void e.target.files?.[0]?.text().then(open)} />
-          </label>
-        </div>
-      </header>
-
-      {error !== null && <p className="error">{error}</p>}
-      {game === null && error === null && (
-        <p className="empty">
-          No game open. Make one with <code>pnpm --filter @ff/calibration export-game --seed my-game</code>, then pick it above.
-        </p>
-      )}
-      {game !== null && (
-        <>
-          <ScoreboardView game={game} />
-          <nav className="tabs" role="tablist">
-            {TABS.map((t) => (
-              <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
-                {t.label}
+        <div className="title">
+          <h1>Game viewer</h1>
+          <nav className="tabs pages" role="tablist" aria-label="Pages">
+            {PAGES.map((p) => (
+              <button key={p.id} role="tab" aria-selected={page === p.id} onClick={() => setPage(p.id)}>
+                {p.label}
               </button>
             ))}
           </nav>
-          {tab === "log" && <PlayLogView game={game} />}
-          {tab === "drives" && <DriveChartView game={game} />}
-          {tab === "box" && <BoxScoreView game={game} />}
-        </>
-      )}
+        </div>
+        {page === "games" && (
+          <div className="pickers">
+            {saved.length > 0 && (
+              <select defaultValue="" onChange={(e) => e.target.value && void openSaved(e.target.value)} aria-label="Saved games">
+                <option value="" disabled>
+                  Saved games…
+                </option>
+                {saved.map((name) => (
+                  <option key={name} value={name}>
+                    {name.replace(/\.json$/, "")}
+                  </option>
+                ))}
+              </select>
+            )}
+            <label className="file">
+              Open a game file
+              <input type="file" accept=".json,application/json" onChange={(e) => void e.target.files?.[0]?.text().then(open)} />
+            </label>
+          </div>
+        )}
+      </header>
+
+      <div hidden={page !== "news"}>
+        <NewsPage />
+      </div>
+      <div hidden={page !== "games"}>
+        {error !== null && <p className="error">{error}</p>}
+        {game === null && error === null && (
+          <p className="empty">
+            No game open. Make one with <code>pnpm --filter @ff/calibration export-game --seed my-game</code>, then pick it above.
+          </p>
+        )}
+        {game !== null && (
+          <>
+            <ScoreboardView game={game} />
+            <nav className="tabs" role="tablist">
+              {TABS.map((t) => (
+                <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+            {tab === "log" && <PlayLogView game={game} />}
+            {tab === "drives" && <DriveChartView game={game} />}
+            {tab === "box" && <BoxScoreView game={game} />}
+          </>
+        )}
+      </div>
     </main>
   );
 }

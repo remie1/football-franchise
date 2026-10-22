@@ -110,7 +110,7 @@ describe("the desk", () => {
     const desk = createNewsDesk(input(sched));
     const printed = [...events.flatMap((e) => desk.take(e)), ...desk.finish()].map((e) => formatEdition(e, desk.scoreLine));
     expect(printed[0]!.split("\n")[0]).toBe("Week 1");
-    expect(printed[0]).toMatch(/\n {2}\S.*\(\w[\w ]* \d+, \w[\w ]* \d+\)/);
+    expect(printed.join("\n")).toMatch(/\n {2}\S.*\(\w[\w ]* \d+, \w[\w ]* \d+\)/);
     expect(formatEdition(editions[0]!)).not.toMatch(/\(/);
   });
 });

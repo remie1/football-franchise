@@ -53,7 +53,10 @@ export const LINES = {
  * Stories that can happen at most once a season. At equal importance they run ahead of the kinds
  * that come round every week: the last unbeaten team is rarer news than a sixth straight win.
  */
-export const ONCE_A_SEASON: ReadonlySet<string> = new Set(["LAST_UNBEATEN", "UNBEATEN_FALLS", "LAST_WINLESS", "FIRST_WIN"]);
+export const ONCE_A_SEASON: ReadonlySet<string> = new Set([
+  "LAST_UNBEATEN", "UNBEATEN_FALLS", "LAST_WINLESS", "FIRST_WIN",
+  "CLINCHED_DIVISION", "CLINCHED_PLAYOFFS", "ELIMINATED",
+]);
 
 /** At most this many stories of one kind in an edition, so a week isn't four routs. */
 export const MAX_PER_KIND = 2;
@@ -69,6 +72,11 @@ const ONE_TEAM = ["team", "teamCity", "record"] as const;
 const TWO_TEAMS = [...ONE_TEAM, "opponent", "opponentCity", "opponentRecord", "score"] as const;
 const STREAK = [...TWO_TEAMS, "count", "countWord", "nth"] as const;
 const FIXTURE = ["home", "away", "homeCity", "awayCity", "homeRecord", "awayRecord", "division"] as const;
+const RACE = [...ONE_TEAM, "division", "conference"] as const;
+const PLAYOFF = [
+  "winner", "loser", "winnerCity", "loserCity", "score", "margin", "deficit", "round", "conference",
+  "winnerSeed", "loserSeed",
+] as const;
 
 /** The facts each story kind provides; its headlines may use these placeholders and no others. */
 export const STORY_FACTS: Readonly<Record<string, readonly string[]>> = {
@@ -81,4 +89,12 @@ export const STORY_FACTS: Readonly<Record<string, readonly string[]>> = {
   FIRST_WIN: TWO_TEAMS,
   NEW_LEADER: [...ONE_TEAM, "division"],
   SHOWDOWN: FIXTURE,
+  // Step 2: the race, the playoffs, the review.
+  CLINCHED_DIVISION: RACE, CLINCHED_PLAYOFFS: RACE, ELIMINATED: RACE,
+  PLAYOFF_FIELD: [...ONE_TEAM, "conference", "count"],
+  PLAYOFF_WIN: PLAYOFF, CONFERENCE_TITLE: PLAYOFF, CHAMPIONSHIP: PLAYOFF,
+  BEST_RECORD: ["teams", "count", "record"], WORST_RECORD: ["teams", "count", "record"],
+  LONGEST_WIN_STREAK: ["teams", "count", "length"], LONGEST_LOSING_STREAK: ["teams", "count", "length"],
+  TOP_OFFENSE: ["teams", "count", "points"], TOP_DEFENSE: ["teams", "count", "points"],
+  CHAMPION_PATH: [...ONE_TEAM, "path", "wins"],
 };

@@ -193,6 +193,75 @@ export interface ContractYear {
 
 Cap *math* lives in franchise; contracts only defines shapes.
 
+### Coaching staff (ADR-080)
+
+`StaffState` (in `players.ts`) is a coach or a president. The staff shapes it uses live in `staff.ts`.
+
+```ts
+export type StaffRole =
+  | "HEAD_COACH" | "OC" | "DC" | "STC" | "POSITION_COACH"
+  | "SCOUTING_DIRECTOR" | "SCOUT" | "PLAYER_ENGAGEMENT" | "STRENGTH"
+  | "CAP_MANAGER" | "PRESIDENT";
+
+export interface StaffState {
+  id: StaffId;
+  displayName: string;
+  role: StaffRole;                 // current or most recent role
+  age: number;
+  attributes: Partial<Record<string, number>>; // CoachAttrId-keyed, one 1-99 ruler (ADR-080 §4)
+  schemeFamily?: string;           // sets the coach's side of the ball; absent for a president
+  lineage: StaffId[];              // head coaches he worked under (the coaching tree)
+  personalityType: PersonalityType;
+  teamId?: TeamId;                 // a seat holder or a president only, matching Team.staff
+  career: StaffJob[];              // ADR-080 P2: his résumé, oldest job first
+  retiredAfter?: number;           // ADR-080 P2: the last season he coached, once retired
+  disguise?: DefensiveDisguiseTendency; // ADR-080 P4 (ADR-075 §3.2): read only in the DC seat
+}
+
+export type StaffDepartureReason = "FIRED" | "HIRED_AWAY" | "RETIRED" | "CONTRACT_EXPIRED"; // P3
+
+export interface StaffContract {   // P1; money is dollars per season
+  staff: StaffId;
+  team: TeamId;
+  role: StaffRole;
+  firstSeason: number;
+  lastSeason: number;
+  salary: number;
+  signedAt: CalendarStamp;
+  terminated?: { at: CalendarStamp; reason: StaffDepartureReason }; // a FIRED salary still counts (dead money)
+}
+
+export type CoachingLevel = "NFL" | "COLLEGE";
+
+export interface StaffJob {        // P2: one job on a résumé
+  level: CoachingLevel;
+  role: StaffRole;
+  team?: TeamId;                   // a job in this league; absent for college
+  employer: string;                // the team's or the college programme's name
+  firstSeason: number;
+  lastSeason?: number;             // absent while he holds it
+  seasons: StaffJobSeason[];
+  ended?: StaffDepartureReason | "PROMOTED";
+}
+
+export interface StaffJobSeason {
+  season: number;
+  record: WinLossTie;              // the team's regular season
+  rosterRank?: number;             // 1 = best roster; absent when not known
+  unitRank?: number;               // a coordinator's unit, 1 = best
+  playoffs?: { wins: number; champion: boolean };
+}
+
+export interface DefensiveDisguiseTendency { // P4, ADR-075 §3.2; absent fields = league defaults
+  readonly passSnapMaskShare: number;        // share of passing snaps disguised
+  readonly lookWeights?: Readonly<Record<string, number>>;
+  readonly lateShare?: number;
+  readonly frontLookShare?: number;
+}
+```
+
+Hiring, firing and contract *rules* live in franchise; contracts only defines shapes.
+
 ---
 
 ## 5. AUTHORITY TAGS
@@ -275,7 +344,7 @@ export interface RollDetail {
 
 ### 6.2 Franchise event types (v0 set)
 
-`CALENDAR_PHASE_ENTERED`, `DEADLINE_REACHED`, `CONTRACT_SIGNED / RESTRUCTURED / EXPIRED`, `PLAYER_RELEASED / RETIRED (immediate|slow|late per design notes)`, `TAG_APPLIED`, `TRADE_PROPOSED / EXECUTED / REJECTED`, `DRAFT_PICK_MADE`, `SCOUT_REPORT_FILED` (perception delta), `INJURY_OCCURRED / RECOVERED`, `MORALE_CHANGED`, `PRESSURE_EVENT` (owner mandate / hot seat), `PRESS_STORY_PUBLISHED`, `AWARD_GIVEN`, `GAME_SCHEDULED / COMPLETED`.
+`CALENDAR_PHASE_ENTERED`, `DEADLINE_REACHED`, `CONTRACT_SIGNED / RESTRUCTURED / EXPIRED`, `PLAYER_RELEASED / RETIRED (immediate|slow|late per design notes)`, `TAG_APPLIED`, `TRADE_PROPOSED / EXECUTED / REJECTED`, `DRAFT_PICK_MADE`, `SCOUT_REPORT_FILED` (perception delta), `INJURY_OCCURRED / RECOVERED`, `MORALE_CHANGED`, `PRESSURE_EVENT` (owner mandate / hot seat), `PRESS_STORY_PUBLISHED`, `AWARD_GIVEN`, `GAME_SCHEDULED / COMPLETED`, `STAFF_HIRED` (`{ staff, team, role: StaffRole }`) and `STAFF_DEPARTED` (`{ staff, team, reason: StaffDepartureReason }`), typed by ADR-080 P3.
 
 `PRESS_STORY_PUBLISHED` (ADR-082 N1) is narrative's news: `{ kind, headline, importance: 1..5, teams, games, subjects }`, where `kind` names the story rule that wrote it. `GameResult` may carry `periods` (ADR-082 N2), the points per period as in `GAME_END.payload.periods`, which is what stories like "rallied from 17 down" read.
 
@@ -348,6 +417,8 @@ export interface SaveFile {
   world: {
     teams: Team[];
     players: PlayerState[];
+    staff: StaffState[];                   // coaches and presidents, retired coaches included (their résumés feed trees)
+    staffContracts?: StaffContract[];      // ADR-080 P1; optional, so saves written before it still load
     contracts: PlayerContract[];
     perceptions: PerceivedAttributes[];   // per observer×subject
     league: LeagueStructure;               // ADR-078 C7

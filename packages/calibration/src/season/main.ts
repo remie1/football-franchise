@@ -20,6 +20,7 @@
  * two cannot be combined.
  */
 import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { DEFAULT_LEAGUE_RULES, stampToString, type CalendarStamp } from "@ff/contracts";
 import { makeSave, readSave } from "@ff/franchise";
 import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
@@ -82,9 +83,16 @@ function stopDay(text: string, season: number): CalendarStamp {
   return { season, phase: m[1] ? "PLAYOFFS" : "REGULAR_SEASON", week: Number(m[2]), day: 7 };
 }
 
+// A relative path is from the folder the command was typed in, not this package's, where pnpm runs
+// it; so `--out season.json` here and the news command's `--season season.json` agree.
+const fromCaller = (path: string) => resolve(process.env.INIT_CWD ?? process.cwd(), path);
+
+/** Traits are a Set; JSON gets them as a list. */
+const listTraits = (_k: string, v: unknown): unknown => (v instanceof Set ? [...v] : v);
+
 const args = parse(process.argv.slice(2));
 const started = Date.now();
-const loaded = args.load === undefined ? undefined : readSave(readFileSync(args.load, "utf8"));
+const loaded = args.load === undefined ? undefined : readSave(readFileSync(fromCaller(args.load), "utf8"));
 const seed = loaded?.save.worldSeed ?? args.seed!;
 const season = loaded?.save.calendar.season ?? args.season;
 const savedCaller = loaded?.save.playedWith?.caller;
@@ -119,17 +127,16 @@ const champion = run.state.bracket?.champion;
 if (run.complete) console.log(`\nChampion: ${name.get(String(champion))} (${took})`);
 else console.log(`\nStopped after ${stampToString(run.calendar)} (${took})${champion === undefined ? "" : `; champion ${name.get(String(champion))}`}`);
 if (args.save) {
+  const path = fromCaller(args.save);
   const players = rated === undefined ? {} : { players: rated.league.players };
   const save = makeSave({ league, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: { caller: callerVersion }, rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...players });
-  // Traits are a Set; JSON gets them as a list.
-  writeFileSync(args.save, JSON.stringify(save, (_k, v: unknown) => (v instanceof Set ? [...v] : v), 2));
-  console.log(`Saved ${args.save}`);
+  writeFileSync(path, JSON.stringify(save, listTraits, 2));
+  console.log(`Saved ${path}`);
 }
 if (args.out) {
+  const path = fromCaller(args.out);
   const squads = rated === undefined ? {} : { rosters: rated.id, players: rated.league.players, ratedProvenance: rated.league.provenance };
-  // Traits are a Set; JSON gets them as a list.
-  const replacer = (_k: string, v: unknown) => (v instanceof Set ? [...v] : v);
   // The event stream rides along so the news desk (ADR-082) can read the season the way it happened.
-  writeFileSync(args.out, JSON.stringify({ seed, league, season: run.state, events: run.events, ...squads }, replacer, 2));
-  console.log(`Saved ${args.out}`);
+  writeFileSync(path, JSON.stringify({ seed, league, season: run.state, events: run.events, ...squads }, listTraits, 2));
+  console.log(`Saved ${path}`);
 }
