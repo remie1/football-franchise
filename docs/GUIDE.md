@@ -40,7 +40,7 @@ run the play simulator).
 | Playbook | `packages/playbook` | The play cards: formations, pass and run concepts, protections, defensive calls with their fronts, coverages, pressures and disguises. | Yes |
 | Realism checker | `packages/calibration` | Runs thousands of games and compares the results with real NFL numbers. Also holds the computer play-callers used for testing, and the "ladder" checks (described below). | Yes |
 | Player ratings | `packages/attributes` | Will turn real data into player ratings for real rosters. | Not started |
-| Front office | `packages/franchise` | Will run the calendar, schedule, standings, cap, contracts, free agency and the draft. | Not started (its own thread now) |
+| Front office | `packages/franchise` | Runs the calendar, schedule, standings and playoffs (the season shell), and the coaching staffs: hiring and firing (ADR-080). Will add the cap, player contracts, free agency and the draft. | Season shell yes; coaching staffs being built |
 | Storylines | `packages/narrative` | Will write storylines, press and reputation from what happens in games. | Not started |
 | Game screen | `apps/game` | The browser app: menus, dashboards, the play log. It only displays; it decides nothing. | Not started (a game viewer has its own thread now) |
 
@@ -117,6 +117,12 @@ finishes.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.
+
+**Coaching staffs (ADR-080, 22 October 2026):** every team has a head coach, two coordinators, a
+special teams coordinator and a computer-run president, with careers, contracts and 20 seasons of
+made-up history. Presidents hire and fire head coaches, head coaches pick their coordinators, and
+`pnpm --filter @ff/franchise staff-check` compares the turnover with NFL numbers. Coaches do not
+affect games yet; that waits for the front work (ADR-073) and ADR-075.
 Season shell so far: a made-up 32-team league, and standings with the full NFL tiebreakers
 (checked against the real 2020-2024 playoff seeds).
 

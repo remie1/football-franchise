@@ -27,6 +27,7 @@
 | NFL: 8 head coach, 16 offensive coordinator and 11 defensive coordinator changes after 2018 | Acme Packing Company (2019-02-21) | REPORTED |
 | New NFL head coaches since 2005: offensive coordinators 28.3%, retreads 26.4%, defensive coordinators 18.9%, college coaches about 10% | Football Perspective, "Where do teams find new head coaches?" (2013) | REPORTED |
 | Recent cycles (2017-2025) ran 5 to 10 head coach openings a year | the author's recollection, not checked line by line | REPORTED (unverified) |
+| 2024 NFL staffs: about 4 offensive and 7 defensive coordinators had been NFL head coaches | the author's count from memory of the 2024 staffs | REPORTED (unverified) |
 | Salary scale (head coaches about $4M-$20M a year, coordinators about $1M-$5M, special teams about $1M-$2M) | the author's recollection of public reporting | REPORTED (unverified) |
 | Every weight, rate and threshold in §5-§8 below | named here | CHOSEN — provenance NONE; tuned against the REPORTED rows in step C5 |
 
@@ -108,7 +109,7 @@ record)". Each part lands in §7:
 | Defensive coordinator | 1 | `DC` | defensive background; carries the disguise habit (P4) |
 | Special teams coordinator | 1 | `STC` | special-teams background |
 | President | 1 | `PRESIDENT` | computer-run; hires and fires the head coach (Q3). Rated on the same sheet; his `talentEvaluation` sets how clearly he reads candidates. Fixed in v1 |
-| The pool | league-wide | none | coaches out of work, NFL position coaches (a seat not modelled in v1, shown on résumés) and college coaches. About 140 at any time, topped up each year with young coaches |
+| The pool | league-wide | none | coaches out of work, NFL position coaches (a seat not modelled in v1, shown on résumés) and college coaches (a head coach at each of 60 made-up programmes, some coordinators). About 300 at any time, most of them NFL position coaches, where most coordinators come from; topped up each year with young coaches, and every staff keeps an assistant special teams coach, where special teams coordinators come from |
 
 A coach's **background side** comes from his `schemeFamily` (an offensive or defensive system, or
 special teams), through a franchise lookup table, so no field is added for it. `team.staff` lists the
@@ -123,8 +124,9 @@ four seat holders and the president.
   (tested within 47-53). Head coaches average higher because the hiring picks them from the better
   candidates, not because the maker gives them more.
 - **Shape:** a coach's skill = a shared talent level + a skill-by-skill spread, so most coaches are
-  strong in a few skills and plain in the rest; a little experience lifts the game-scale skills of
-  older coaches at creation. No growth over a career in this build (implied scope).
+  strong in a few skills and plain in the rest. Age at creation does not lift a coach's skills: with
+  no growth over a career in this build (implied scope), that would let the old outrank the young
+  for good.
 - **What each seat values** (the weights the evaluators use; CHOSEN, tunable):
 
 | seat | skills that count (weight) |
@@ -189,10 +191,18 @@ out of work three years or more drift out of coaching.
 | opening | candidates |
 |---|---|
 | Head coach | anyone not retired and not a sitting head coach: other teams' coordinators (they may always leave for a head job), this team's own coordinators (a promotion), the pool (out of work, college, position coaches) |
-| OC / DC / special teams | the matching background, from the pool and other teams' position coaches; never a sitting coordinator elsewhere (no sideways moves under contract) |
+| OC / DC / special teams | the matching background, from the pool and other teams' position coaches; never a sitting coordinator elsewhere (no sideways moves under contract), and never a sitting college head coach (he is a candidate for head jobs only) |
 
 Openings are filled worst record first. A coordinator hired as someone's head coach opens his old
-seat, which his old head coach fills in the coordinator round.
+seat, which his old head coach fills in the coordinator round. A team does not rehire, in the same
+offseason, a coach it has just let go.
+
+**Most fired head coaches never step down.** About three in ten former NFL head coaches (CHOSEN; one
+roll per coach, kept for life) will take a coordinator job again. The rest sit out on the old
+contract's money, take TV or consulting work, or wait for another head job (head coach searches still
+see them, and they drift out of coaching like anyone else out of work). Without this rule, fired head
+coaches, picked as the best of their generation and not getting worse, filled 20 to 29 of the 32
+offensive coordinator seats after the made-up history.
 
 ### 7.2 Two stages: reputation, then the interview
 
@@ -227,13 +237,23 @@ as an NFL coordinator, as a college head coach.
 For each interviewed candidate: the interview's read of the seat's skills (§4), plus the résumé
 reading, plus experience, plus **roster fit** (§5), plus, for a coordinator, a bonus for the head
 coach's own **tree** (worked under him, or under the same mentor), minus an age term for candidates
-past about 60. The best judgement gets the job; every offer is accepted in v1.
+past about 52 for a head job and 58 for a coordinator job. Head coach searches add three more terms,
+all CHOSEN in C5 to bring the hiring sources near the REPORTED shares:
+- a **stigma** for a head coach his last NFL team let go, heavier in the four seasons after, lighter
+  later;
+- a **lean by background**: toward offensive minds (the REPORTED hires run 28% offensive to 19%
+  defensive coordinators) and away from special teams coaches;
+- a cost for a candidate who has **never run a unit or a programme**, and a smaller one for one who
+  has run them **only in college**, where it is hard to tell what carries over.
+
+Reputation (who gets the interview) carries the same three terms. The best judgement gets the job;
+every offer is accepted in v1.
 
 ### 7.5 What a hire carries
 
 - **Contract** (P1): head coach 4 or 5 years, coordinators 2 or 3; salary from the judgement on the
   scale in the provenance table. A kept coach in his last year is extended (head coach 3 years,
-  coordinator 2) with a raise.
+  coordinator 2) with a raise, including a coordinator a new head coach decides to keep.
 - **Career** (P2): the old job closes with how it ended; the new one opens.
 - **Tree**: a coordinator who takes a seat under a head coach adds him to his `lineage`.
 - **Events and decisions**: `STAFF_DEPARTED` (P3 reasons) and `STAFF_HIRED` events; every hire,
@@ -276,6 +296,46 @@ ADR-075 build, as ADR-075 Q3 sequenced them. At the league's first season the 32
 re-centred so their mean is exactly 31.5% (ADR-075 §3.3). After that, new DCs are drawn from the same
 spread and the check reports how far the mean wanders; holding it exact every year would mean
 quietly changing coaches' habits, which ADR-075 does not ask for. Nothing reads the tendency yet.
+
+In the check (§8.2) the mean wandered between 28.7% and 34.1% over 50 seasons, so it leaves the
+owner's 30-33% band at times. Holding it inside would take either re-centring every year or drawing
+new DCs around a centre that leans against the drift. Both are the owner's call, best made at the
+ADR-075 build, when something first reads the habit.
+
+### 8.2 What the check found (C5, 2026-10-22)
+
+Eight made-up leagues, 50 offseasons each after their 20 seasons of history. `pnpm --filter
+@ff/franchise staff-check` runs one league and prints these rows; `staff.check.test.ts` holds the
+bands on another.
+
+| measure | the game (8-league mean) | NFL |
+|---|---|---|
+| head coach changes a year | 7.6 (7.2 to 8.1 by league) | 6.8 (2004-2013); 7 and 8 after 2017 and 2018 (REPORTED) |
+| offensive coordinator changes a year | 13.4 | 10, 18, 16 after 2016-2018 (REPORTED) |
+| defensive coordinator changes a year | 12.2 | 11 after 2018 (REPORTED) |
+| special teams coordinator changes a year | 9.7 | no figure on file |
+| head coach tenure, jobs that ended | 4.2 seasons | §8 target 4-5 (CHOSEN, no figure on file) |
+| new head coaches who were offensive coordinators | 35% | 28% (REPORTED) |
+| ... defensive coordinators | 21% | 19% (REPORTED) |
+| ... retreads (an earlier NFL head job) | 28% | 26% (REPORTED) |
+| ... college coaches | 10% | about 10% (REPORTED) |
+| ... special teams coordinators, position coaches | 4%, 1% | inside the other 16%, not broken down (REPORTED) |
+| coordinator hires from the head coach's own tree | 34% | no figure on file |
+| sitting coordinators' average skill at the first season | 49.7 | 50 by ruling (Q2) |
+| former NFL head coaches sitting as coordinators | about 12 OCs and 7 DCs | about 4 and 7 in 2024 (REPORTED, unverified) |
+| the DCs' mean disguise share | 31.5% at the start, then 28.7% to 34.1% | 30-33% (owner, ADR-069) |
+
+Rules and values set in C5 to get there, all CHOSEN: most fired head coaches never step down (§7.1,
+three in ten will); every staff keeps a special teams assistant (§3); in head coach searches the
+stigma of being let go (8 rating points for four seasons, 6 after), the lean by background
+(offence +4, defence 0, special teams −3), and the costs of never having run a unit (5) or of
+having run one only in college (2) (§7.4); the rating base set so the anchor lands on 50 (§4).
+
+**Known gaps.** (1) Offensive coordinators are hired as head coaches a little too often (35% against
+28%), mostly because assistants below coordinator are almost never hired (1%); a fuller pool comes
+with position coaches (Q1). (2) About three times too many former head coaches sit as offensive
+coordinators (12 against about 4, by an unverified count); the §7.1 rule brought it down from 20-29.
+(3) The disguise drift above.
 
 ## 9. Proposal: the contracts edits
 
@@ -331,9 +391,14 @@ export interface StaffJob {
 // StaffState gains:
 /** ADR-080 P2: his résumé, oldest job first. */
 career: StaffJob[];
+/** ADR-080 P2: the last season he coached, once he has retired; absent while he is in the game. */
+retiredAfter?: number;
 ```
 
-`career` is required: nothing constructs a `StaffState` today (provenance row 4).
+`career` is required: nothing constructs a `StaffState` today (provenance row 4). `retiredAfter` is
+needed because a coach out of work can retire, and his last job's ending ("fired") must not be
+overwritten. For a coach not in a seat, `role` is his current or most recent role and `teamId` is
+absent; `teamId` is set only for a seat holder or a president, matching `Team.staff`.
 
 ### P3 — why a coach left (`staff.ts`; `events.ts`)
 
@@ -385,14 +450,19 @@ tightened payloads.
 | **C4** | hiring, poaching, trees, the candidate report, the `choose` hook | every seat filled every year; tree hires happen; a human pick replaces the computer's |
 | **C5** | the turnover check (a `staff-check` command and a test that holds the bands) | the figures in §8 against the REPORTED rows; a short report for the owner |
 
-Pull requests: C0 on its own, then C1-C5 together. Save and load (PR #19) writes `world.staff`; once
-both are on `main`, `makeSave` / `readSave` carry the staff and contracts and check that every team's
-staff ids exist.
+One pull request (this thread has one branch), with the contracts edits in a commit of their own so
+they can be read alone. Save and load (PR #19) writes `world.staff`; once both are on `main`,
+`makeSave` / `readSave` carry the staff and contracts and check that every team's staff ids exist.
 
 ## 11. Impact
 
 - `contracts`: P1-P4 and D1 above. New file `staff.ts`, exported from `index.ts`.
 - `franchise`: a new `staff/` folder; `buildLeague` unchanged (staff are built by their own function).
+  A new league's coaches take about 2 seconds to build.
+- Save size: staff and staff contracts are about 1.4 MB of JSON after the 20-season history (about
+  730 coaches, a third of them retired, and 930 contracts), and grow each season, since retired
+  coaches and ended contracts stay for résumés and trees. Trimming them is a later save-format
+  question.
 - `apps/game`: may read staff, careers and contracts later; nothing now.
 - `engine`, `playbook`, play-callers, `calibration`: **no change.**
 

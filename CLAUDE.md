@@ -53,6 +53,7 @@ Delegate implementation to the owning sub-agent. Never let one agent write in an
 - `pnpm --filter @ff/<pkg> test` — one package
 - `pnpm --filter game dev` — run the UI (the game viewer)
 - `pnpm --filter @ff/calibration export-game --seed <seed>` — save one game for the viewer (`apps/game/public/games/`)
+- `pnpm --filter @ff/franchise staff-check [--seed <seed>] [--seasons 50]` — coaching turnover against NFL numbers (ADR-080 C5)
 
 ## Current State
 

@@ -20,3 +20,29 @@ export {
   runSeason, gameSeed, MAX_PLAYOFF_REPLAYS,
   type GameResolver, type RunSeasonInput, type SeasonRun,
 } from "./season/runSeason.js";
+// ADR-080: coaching staffs, hiring and firing.
+export { buildStaff, freshStaff, recentreDisguise, type BuildStaffOptions, type BuiltStaff } from "./staff/buildStaff.js";
+export {
+  runStaffOffseason, headCoachFireChance, coordinatorFireChance, retireChance, seatScores,
+  type StaffOffseasonInput, type StaffOffseasonResult, type StaffDecision, type StaffDecisionType,
+  type StaffMove, type HireSource, type HeadCoachVerdict, type CoordinatorVerdict,
+} from "./staff/offseason.js";
+export {
+  candidateReport, readResume, reputation, experiencePoints, inTree, firedStigma, hasRunSomething,
+  sideLean, unprovenPenalty, expectedShare, rosterExpectation,
+  type CandidateReport, type ResumeLine, type Evaluator, type ReportInput,
+} from "./staff/evaluate.js";
+export { summariseSeason } from "./staff/summarise.js";
+export { rosterFit } from "./staff/style.js";
+export { makeCoach, drawDisguise, type Cohort } from "./staff/makeCoach.js";
+export { makeRatings, seatScore, averageSkill, COACH_SKILLS, type CoachRatings } from "./staff/ratings.js";
+export { initStandIn, standInSeason, collegeRecord, programStrength, type StandInState } from "./staff/standIn.js";
+export { staffTurnoverCheck, type TurnoverReport, type SeasonTally, type Band } from "./staff/check.js";
+export {
+  currentJob, isRetired, seatOf, sideOf, winShare,
+  type StaffWorld, type TeamSeasonSummary,
+} from "./staff/world.js";
+export {
+  SEATS, COORDINATOR_SEATS, SEAT_SIDE, SCHEMES, SEAT_WEIGHTS, STYLE_MATCH, STAFF_TUNING, COLLEGE_PROGRAMS,
+  type Seat, type Side,
+} from "./staff/tables.js";
