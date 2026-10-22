@@ -208,8 +208,13 @@ export type CallerVersion = (typeof CALLER_VERSIONS)[number];
  * its own (ADR-073 §2.6), and the creeper. The huddle anticipates coverage and pressure the same
  * way (R30), and no line game (`anticipateDecomposed`). Protection as v5. A new version because the
  * call mix changes by design.
+ *
+ * v7 is v6 wearing ADR-073 §2.5's front looks, the Mug and the Stem, drawn on their own address
+ * after the coverage looks and worn by the real defence only. The huddle guesses as v6 does and
+ * never sees the look (R30). Protection as v5. A new version because a seed now plays a different
+ * game.
  */
-export const CALLER_VERSIONS = ["v1", "v2", "v3", "v4", "v5", "v6"] as const;
+export const CALLER_VERSIONS = ["v1", "v2", "v3", "v4", "v5", "v6", "v7"] as const;
 
 /**
  * The default. ADR-024 made it v2; ADR-069 made it v3; ADR-071 step 2 makes it v4. A batch that

@@ -7,7 +7,7 @@
  * an aspiration rather than a property, and that property is the entire determinism claim.
  */
 import type { Tunables } from "@ff/engine";
-import type { CoverageMask } from "@ff/playbook";
+import type { CoverageMask, FrontLookId } from "@ff/playbook";
 import { createMatchState, deriveGameId, simulateGame, DEFAULT_TUNABLES } from "@ff/engine";
 import type { CallerVersion } from "../caller/anticipate.js";
 import type { FittedFourthDown } from "../caller/fourthDown.js";
@@ -25,23 +25,25 @@ export interface RunGameInput {
   /**
    * ADR-024 / ADR-069 / ADR-071 / ADR-073. Defaults to v4 (anticipating, wearing every look)
    * inside `frozenCallerPair`; v5 also states the line's slide check (and the keep-in, on request);
-   * v6 also draws the defence's call in parts, and the creeper.
+   * v6 also draws the defence's call in parts, and the creeper; v7 also wears the front looks.
    */
   readonly callerVersion?: CallerVersion;
   /** ADR-069 measurement arms only — see `FrozenCallerSpec.coverageMasks`. */
   readonly coverageMasks?: readonly CoverageMask[];
   /** ADR-072 measurement arms only — see `FrozenCallerSpec.leash`. */
   readonly leash?: number;
-  /** ADR-073 measurement arms only, v5 and v6 — see `FrozenCallerSpec.slideCheck` (stated unless `false`). */
+  /** ADR-073 measurement arms only, v5 to v7 — see `FrozenCallerSpec.slideCheck` (stated unless `false`). */
   readonly slideCheck?: boolean;
-  /** ADR-073 measurement arms only, v5 and v6 — see `FrozenCallerSpec.keepIn` (stated only if `true`). */
+  /** ADR-073 measurement arms only, v5 to v7 — see `FrozenCallerSpec.keepIn` (stated only if `true`). */
   readonly keepIn?: boolean;
-  /** ADR-073 step 3.4 measurement arms only, v6 — see `FrozenCallerSpec.creeper` (drawn unless `false`). */
+  /** ADR-073 step 3.4 measurement arms only, v6 and v7 — see `FrozenCallerSpec.creeper` (drawn unless `false`). */
   readonly creeper?: boolean;
-  /** ADR-073 step 3.4 measurement arms only, v6 — see `FrozenCallerSpec.drawPressures` (drawn unless `false`). */
+  /** ADR-073 step 3.4 measurement arms only, v6 and v7 — see `FrozenCallerSpec.drawPressures` (drawn unless `false`). */
   readonly drawPressures?: boolean;
-  /** ADR-073 step 3.4 measurement arms only, v6 — see `FrozenCallerSpec.drawLines` (drawn unless `false`). */
+  /** ADR-073 step 3.4 measurement arms only, v6 and v7 — see `FrozenCallerSpec.drawLines` (drawn unless `false`). */
   readonly drawLines?: boolean;
+  /** ADR-073 step 3.5 measurement arms only, v7 — see `FrozenCallerSpec.frontLooks` (the full catalogue unless narrowed). */
+  readonly frontLooks?: readonly FrontLookId[];
 }
 
 export interface RunGameOutput {
@@ -65,6 +67,7 @@ export function runOneGame(input: RunGameInput): RunGameOutput {
     ...(input.creeper === undefined ? {} : { creeper: input.creeper }),
     ...(input.drawPressures === undefined ? {} : { drawPressures: input.drawPressures }),
     ...(input.drawLines === undefined ? {} : { drawLines: input.drawLines }),
+    ...(input.frontLooks === undefined ? {} : { frontLooks: input.frontLooks }),
   });
 
   const coordinates = {

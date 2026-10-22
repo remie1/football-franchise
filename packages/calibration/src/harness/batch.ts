@@ -66,8 +66,9 @@ export interface BatchConfig {
      * before ADR-024 ran, and each later version is listed at `CallerVersion`. Recorded into
      * `callerVersion`, which is part of `BaselineIdentity`, so reports from two versions are
      * refused as trend partners rather than compared. A batch carries no knobs (v5's and v6's
-     * `slideCheck`, `keepIn`, `creeper`, `drawPressures`, `drawLines`): those are for measurement
-     * arms, which run games one by one, so a batch's caller is always its version as it ships.
+     * `slideCheck`, `keepIn`, `creeper`, `drawPressures`, `drawLines`, and v7's `frontLooks`): those
+     * are for measurement arms, which run games one by one, so a batch's caller is always its
+     * version as it ships.
      */
     readonly callerVersion?: CallerVersion;
   };
@@ -153,6 +154,8 @@ export function mergeCallerDiagnostics(
 ): FrozenCallerDiagnostics {
   const backoff: Record<string, number> = { ...a.backoff };
   for (const [k, v] of Object.entries(b.backoff)) backoff[k] = (backoff[k] ?? 0) + v;
+  const drawn: Record<string, number> = { ...a.frontLooks.drawn };
+  for (const [k, v] of Object.entries(b.frontLooks.drawn)) drawn[k] = (drawn[k] ?? 0) + v;
   return {
     offensiveCalls: a.offensiveCalls + b.offensiveCalls,
     defensiveCalls: a.defensiveCalls + b.defensiveCalls,
@@ -164,6 +167,7 @@ export function mergeCallerDiagnostics(
     fourthDownFieldGoal: a.fourthDownFieldGoal + b.fourthDownFieldGoal,
     backoff,
     draw: mergeDrawQuality(a.draw, b.draw),
+    frontLooks: { drawn, formationDropped: a.frontLooks.formationDropped + b.frontLooks.formationDropped },
   };
 }
 
@@ -179,6 +183,7 @@ export function blankCallerDiagnostics(): FrozenCallerDiagnostics {
     fourthDownFieldGoal: 0,
     backoff: {},
     draw: blankDrawQuality(),
+    frontLooks: { drawn: {}, formationDropped: 0 },
   };
 }
 

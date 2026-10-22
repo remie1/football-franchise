@@ -20,6 +20,9 @@
  *  2c. **The call in parts**, from v6 (ADR-071 step 3, ADR-073 §2.6) — the coverage, the pressure
  *     laid over it and the line game, each drawn on an address of its own, at rates that hold
  *     v5's by construction. See below.
+ *  2d. **The front look**, from v7 (ADR-073 §2.5) — a Mug or a Stem over the called card, drawn
+ *     after its coverage looks on an address of its own and worn by the real defence only. See
+ *     below.
  *  3. **Fourth down** comes from a second fitted table (go / punt / field goal), drawn rather
  *     than taken modally. See `decideFourthDown` for why that disagrees with the engine's
  *     default caller on purpose.
@@ -163,6 +166,32 @@
  * and Fire over Sky keeps Fire Zone's Tex (the pressure arm). With both bound a v6 call is v5's on
  * every snap (the bound proof arm). v1–v5 never fork the new addresses, and forks are pure, so not
  * one of their dice moves.
+ *
+ * ================== WHAT CHANGED AT v7 — ADR-073 STEP 3.5, THE FRONT LIES ==================
+ *
+ * **At v7 the defence may wear a FRONT LOOK over the call v6 makes** (ADR-073 §2.5): the Mug (the
+ * walked-up backers shown in the A gaps, and a man shown rushing who drops) or the Stem (the
+ * rushing down linemen shown one spot over). A coverage look lies about the coverage
+ * (`shownAssignments`); a front look lies about the rush (`shownRush`). Playbook draws the look and
+ * lays it over the call (`drawFrontLook`, `applyFrontLook`); this caller says where:
+ *
+ *  - **On its own address, after the coverage looks** (§2.6 step 5): `fork("defense-front")`, with
+ *    legality read off the CALLED card, the card after its coverage looks. Its dice are thrown ONCE
+ *    PER SNAP, before the anticipation and the concept loop, at the owner's `FRONT_LOOK_RATE`, which
+ *    this caller passes to the draw explicitly. Never on `defense-mask`: a front look in that
+ *    catalogue would move v4's and v6's coverage dice.
+ *  - **Worn by the real defence only**, inside the concept loop, on each instantiation of the called
+ *    card, after `expected` is bound. The huddle's guess never wears one: the huddle cannot see a
+ *    look, and the line reads it after the snap through the shown rush (R30). So the offence's call
+ *    is v6's on every snap, and the defence's call is v6's but for `shownRush` and the look's tag.
+ *  - **A formation that makes the drawn look illegal** on an instance wears none (`applyFrontLook`
+ *    hands the defence back, the same object). The dice stay thrown and the snap is counted
+ *    (`FrozenCallerDiagnostics.frontLooks.formationDropped`).
+ *
+ * **One measurement knob,** `frontLooks`, narrows the catalogue as `coverageMasks` does and keeps the
+ * rate: `[]` (`/front-0`) wears none, `["MUG"]` (`/front-MUG`) and `["STEM"]` (`/front-STEM`) one look
+ * alone. `/front-0` throws no front die, so it is v6 on every snap: the proof arm (ADR-073 §4.5).
+ * v1–v6 never fork `defense-front`, and forks are pure, so not one of their dice moves.
  */
 import type { Rng } from "@ff/contracts";
 import { createRng } from "@ff/contracts";
@@ -181,13 +210,17 @@ import type { AnyDefensiveCard, DepthChart, PlaySituation } from "@ff/playbook";
 import {
   COMPOSED,
   COVERAGE_MASKS,
+  FRONT_LOOKS,
+  FRONT_LOOK_RATE,
   PHASE_1_MASKS,
   UnprotectableCallError,
+  applyFrontLook,
   applyLooks,
   buildDefensiveUnit,
   buildOffensiveUnit,
   composeCall,
   composedKey,
+  drawFrontLook,
   drawLineGame,
   drawPressure,
   instantiateDefense,
@@ -203,6 +236,8 @@ import {
   selectRunConcept,
   type AnyOffensiveUnit,
   type CoverageMask,
+  type FrontLookDraw,
+  type FrontLookId,
   type HostedPressure,
   type InstantiatedDefense,
   type InstantiatedOffense,
@@ -260,6 +295,12 @@ export interface FrozenCallerDiagnostics {
    * to grade, and zeroes are the honest reading rather than a missing key.
    */
   draw: DrawQualityFold;
+  /**
+   * ADR-073 §2.5 (v7): the front looks drawn, by look id, and how many of those draws a formation
+   * made illegal, so the call wore none. Zeroes below v7, which draws none. A worn look is on the
+   * stream already (its LOOK tag and `shownRush`); a dropped one is the fact the stream cannot show.
+   */
+  frontLooks: { drawn: Record<string, number>; formationDropped: number };
 }
 
 function blankDiagnostics(): FrozenCallerDiagnostics {
@@ -274,6 +315,7 @@ function blankDiagnostics(): FrozenCallerDiagnostics {
     fourthDownFieldGoal: 0,
     backoff: {},
     draw: blankDrawQuality(),
+    frontLooks: { drawn: {}, formationDropped: 0 },
   };
 }
 
@@ -283,8 +325,9 @@ export interface FrozenCallerSpec {
   /**
    * v1 (the informed caller), v2 (ADR-024's anticipating caller), v3 (v2 wearing ADR-069's
    * pre-snap masks), v4 (v3 with ADR-071 step 2's corner looks), v5 (v4 stating the line's
-   * slide check, ADR-073; the keep-in only on request, `keepIn`) or v6 (v5 drawing its defence's
-   * call in parts, and the creeper, ADR-073 step 3.4). Defaults to v4.
+   * slide check, ADR-073; the keep-in only on request, `keepIn`), v6 (v5 drawing its defence's
+   * call in parts, and the creeper, ADR-073 step 3.4) or v7 (v6 wearing ADR-073 §2.5's front looks,
+   * step 3.5). Defaults to v4.
    *
    * OPTIONAL HERE AND RECORDED IN PROVENANCE, which is the same split `runBatch` makes for
    * `tunables`: ergonomics on the surface, and the value that was actually used printed in the
@@ -294,7 +337,7 @@ export interface FrozenCallerSpec {
   readonly callerVersion?: CallerVersion;
   /**
    * The looks a defence may wear (ADR-069, ADR-071). Defaults to the version's catalogue —
-   * Phase 1's two at v3, all five at v4, v5 and v6; `[]` wears none. A MEASUREMENT KNOB for
+   * Phase 1's two at v3, all five at v4 to v7; `[]` wears none. A MEASUREMENT KNOB for
    * one-look-alone arms, never narrowed in a report run — the rate stays `COVERAGE_MASK_RATE`
    * either way, so a narrowed arm disguises fewer snaps, which is the point. Ignored below v3,
    * which draws no looks at all.
@@ -309,7 +352,7 @@ export interface FrozenCallerSpec {
    */
   readonly leash?: number;
   /**
-   * ADR-073 §2.3, the two options v5 and v6 state, and they are NOT symmetric. `slideCheck` is
+   * ADR-073 §2.3, the two options v5 to v7 state, and they are NOT symmetric. `slideCheck` is
    * stated on every slide unless set `false`: a pre-snap call, v5's whole content. `keepIn` is
    * `checkRelease`, the card's released check-release men, stated on a call ONLY when set `true`:
    * keeping a back in is his own post-snap read, not a call the QB or centre makes (ADR-073 §10
@@ -334,6 +377,16 @@ export interface FrozenCallerSpec {
   readonly creeper?: boolean;
   readonly drawPressures?: boolean;
   readonly drawLines?: boolean;
+  /**
+   * ADR-073 step 3.5, v7 only: the front looks a defence may wear. Defaults to the version's
+   * catalogue, `FRONT_LOOKS` (the Mug, then the Stem); `[]` wears none (`/front-0`), `["MUG"]` the
+   * Mug alone (`/front-MUG`), `["STEM"]` the Stem alone (`/front-STEM`). A MEASUREMENT KNOB, as
+   * `coverageMasks` is: the catalogue is narrowed before the draw's `wears` die and the rate stays
+   * `FRONT_LOOK_RATE`, so a narrowed arm wears its look on 1 in 10 of the calls that can wear it.
+   * Refused below v7, whatever the value, and refused in any other order or with a repeat or an
+   * unknown id: the order is part of the draw.
+   */
+  readonly frontLooks?: readonly FrontLookId[];
   /**
    * BOTH depth charts, because both callers resolve BOTH sides of every snap and must agree.
    * That agreement is the load-bearing property: the engine asks the offence first and the
@@ -369,13 +422,13 @@ export interface FrozenCallerPair {
  *
  * A knob off its default is appended, so a measurement arm cannot be compared as the caller it
  * changed (ADR-073 §2.7): `/no-slide-check`, then `/keep-in`, then v6's `/creeper-0`,
- * `/pressures-bound` and `/lines-bound`, then `/leash-N` last (step 3.5's `/front-*` marks go before
- * it, so every leash mark keeps its place). A knob at its default is unmarked, so every identity
- * written before the knobs existed still reads the same. The defaults are the slide check ON and
- * the keep-in OFF, so the marks are `slideCheck: false` and `keepIn: true`; `keepIn: false` is the
- * default spelled out and is unmarked. There is no `/no-keep-in`: that was the mark of v5's first
- * build, which stated the keep-in by default. v6's three parts are drawn by default, so each is
- * marked when `false`.
+ * `/pressures-bound` and `/lines-bound`, then v7's `/front-0`, `/front-MUG` or `/front-STEM` (the
+ * catalogue narrowed; the full catalogue is unmarked), then `/leash-N` last, so every leash mark
+ * keeps its place. A knob at its default is unmarked, so every identity written before the knobs
+ * existed still reads the same. The defaults are the slide check ON and the keep-in OFF, so the
+ * marks are `slideCheck: false` and `keepIn: true`; `keepIn: false` is the default spelled out and
+ * is unmarked. There is no `/no-keep-in`: that was the mark of v5's first build, which stated the
+ * keep-in by default. v6's three parts are drawn by default, so each is marked when `false`.
  */
 export function callerIdentity(
   version: CallerVersion,
@@ -390,13 +443,43 @@ export function callerIdentity(
     knobs.creeper === false ? "/creeper-0" : "",
     knobs.drawPressures === false ? "/pressures-bound" : "",
     knobs.drawLines === false ? "/lines-bound" : "",
+    frontMark(knobs.frontLooks),
     leash === DEFAULT_LEASH ? "" : `/leash-${String(leash)}`,
   ].join("");
 }
 
 /**
+ * v7's front-look catalogue as a mark (ADR-073 step 3.5): none for the version's own catalogue,
+ * `FRONT_LOOKS`, whether left out or spelled out in order; `/front-0` for `[]`; `/front-MUG` or
+ * `/front-STEM` for one look alone. Any other list is no catalogue the caller plays (the order is
+ * part of the draw), so it has no name and is refused rather than named.
+ */
+function frontMark(catalogue: readonly FrontLookId[] | undefined): string {
+  if (catalogue === undefined) return "";
+  if (!isFrontCatalogue(catalogue)) throw new FrozenCallerError(notAFrontCatalogue(catalogue));
+  if (catalogue.length === FRONT_LOOKS.length) return "";
+  return catalogue.length === 0 ? "/front-0" : `/front-${catalogue.join("-")}`;
+}
+
+/** `FRONT_LOOKS` or a part of it, in its order, each look once: the order is part of the draw. */
+function isFrontCatalogue(catalogue: readonly FrontLookId[]): boolean {
+  let last = -1;
+  for (const id of catalogue) {
+    const at = FRONT_LOOKS.indexOf(id);
+    if (at <= last) return false;
+    last = at;
+  }
+  return true;
+}
+
+const notAFrontCatalogue = (catalogue: readonly FrontLookId[]): string =>
+  `frontLooks [${catalogue.map(String).join(", ")}] is no front-look catalogue: it is FRONT_LOOKS ` +
+  `(${FRONT_LOOKS.join(", ")}) or a part of it, in its order, each look once — the order is part of ` +
+  `the draw, so another order would play another game under the same name.`;
+
+/**
  * The knobs an identity names (`FrozenCallerSpec.slideCheck`, `.keepIn`, `.creeper`,
- * `.drawPressures`, `.drawLines`).
+ * `.drawPressures`, `.drawLines`, `.frontLooks`).
  */
 export interface CallerKnobs {
   readonly slideCheck?: boolean;
@@ -404,6 +487,7 @@ export interface CallerKnobs {
   readonly creeper?: boolean;
   readonly drawPressures?: boolean;
   readonly drawLines?: boolean;
+  readonly frontLooks?: readonly FrontLookId[];
 }
 
 /**
@@ -428,6 +512,7 @@ export const DEFAULT_LEASH = 50;
  * check by default, the keep-in only on a spec that asks (`FrozenCallerSpec.keepIn`). v1–v5 draw
  * their call as one card, its pressure and its line game bound to it. v6 is v5 drawing them on
  * their own (ADR-073 step 3.4, §2.6), and its huddle guesses the call decomposed the same way.
+ * v7 is v6 wearing ADR-073 §2.5's front looks.
  *
  * A TABLE AND NOT A TERNARY because the type is the list of versions (`CALLER_VERSIONS`): a
  * version with no row fails to compile, where the ternary quietly played any version it did not
@@ -459,15 +544,21 @@ interface CallerProfile {
    * address among those legal on the call (ADR-073 §2.6; `FrozenCallerSpec.drawLines`).
    */
   readonly lines: "BOUND" | "DRAWN";
+  /**
+   * The front looks the defence may wear (ADR-073 §2.5). `undefined`, not `[]`, below v7: no front
+   * look is DRAWN there, so `FrozenCallerSpec.frontLooks` has nothing to narrow and is refused.
+   */
+  readonly fronts: readonly FrontLookId[] | undefined;
 }
 
 const PROFILE: Readonly<Record<CallerVersion, CallerProfile>> = {
-  v1: { anticipation: "NONE", looks: undefined, protectionOptions: false, pressures: "BOUND", lines: "BOUND" },
-  v2: { anticipation: "CARD", looks: undefined, protectionOptions: false, pressures: "BOUND", lines: "BOUND" },
-  v3: { anticipation: "CARD", looks: PHASE_1_MASKS, protectionOptions: false, pressures: "BOUND", lines: "BOUND" },
-  v4: { anticipation: "CARD", looks: COVERAGE_MASKS, protectionOptions: false, pressures: "BOUND", lines: "BOUND" },
-  v5: { anticipation: "CARD", looks: COVERAGE_MASKS, protectionOptions: true, pressures: "BOUND", lines: "BOUND" },
-  v6: { anticipation: "DECOMPOSED", looks: COVERAGE_MASKS, protectionOptions: true, pressures: "DRAWN", lines: "DRAWN" },
+  v1: { anticipation: "NONE", looks: undefined, protectionOptions: false, pressures: "BOUND", lines: "BOUND", fronts: undefined },
+  v2: { anticipation: "CARD", looks: undefined, protectionOptions: false, pressures: "BOUND", lines: "BOUND", fronts: undefined },
+  v3: { anticipation: "CARD", looks: PHASE_1_MASKS, protectionOptions: false, pressures: "BOUND", lines: "BOUND", fronts: undefined },
+  v4: { anticipation: "CARD", looks: COVERAGE_MASKS, protectionOptions: false, pressures: "BOUND", lines: "BOUND", fronts: undefined },
+  v5: { anticipation: "CARD", looks: COVERAGE_MASKS, protectionOptions: true, pressures: "BOUND", lines: "BOUND", fronts: undefined },
+  v6: { anticipation: "DECOMPOSED", looks: COVERAGE_MASKS, protectionOptions: true, pressures: "DRAWN", lines: "DRAWN", fronts: undefined },
+  v7: { anticipation: "DECOMPOSED", looks: COVERAGE_MASKS, protectionOptions: true, pressures: "DRAWN", lines: "DRAWN", fronts: FRONT_LOOKS },
 };
 
 /** A profile with a spec's knobs applied: what each snap draws. Pure, and the same on both sides. */
@@ -477,6 +568,11 @@ interface SnapPlan {
   readonly lines: CallerProfile["lines"];
   /** The creeper is drawn: the pressures are drawn and `creeper` is not `false`. */
   readonly creeper: boolean;
+  /**
+   * The front-look catalogue the snap draws from (v7): the spec's `frontLooks`, else the profile's.
+   * `undefined` below v7, which never forks `defense-front`.
+   */
+  readonly fronts: readonly FrontLookId[] | undefined;
 }
 
 function snapPlan(profile: CallerProfile, spec: FrozenCallerSpec): SnapPlan {
@@ -487,6 +583,7 @@ function snapPlan(profile: CallerProfile, spec: FrozenCallerSpec): SnapPlan {
     pressures,
     lines,
     creeper: pressures === "DRAWN" && spec.creeper !== false,
+    fronts: profile.fronts === undefined ? undefined : (spec.frontLooks ?? profile.fronts),
   };
 }
 
@@ -660,6 +757,13 @@ interface ResolvedSnap {
   readonly expectedDefense: InstantiatedDefense;
   /** Protection entries naming a man `defense.rush` does not contain. ADR-026's population. */
   readonly protectorsInCoverage: number;
+  /** ADR-073 §2.5 (v7): the front look drawn this snap, if `/wears` said yes; `undefined` otherwise. */
+  readonly frontDraw: FrontLookDraw | undefined;
+  /**
+   * The call wears it: drawn, and this instance did not make it illegal. `false` with a draw is a
+   * formation-dropped look (§2.5), known by `applyFrontLook` handing the defence back unchanged.
+   */
+  readonly frontWorn: boolean;
 }
 
 /**
@@ -690,11 +794,12 @@ function resolveSnap(
   const defenseUnit = buildDefensiveUnit(defensiveCard.personnel, defenseChart);
 
   /**
-   * ADR-069 and ADR-071, from v3: the looks the defence wears over that card, on their own
-   * address and AFTER the card, so the card is the one v2 would have called. Nothing below reads
-   * the looks but the instantiation of the real defence: the anticipated card (the offence's
-   * guess) is drawn bare, because a look changes no rusher and no fit, so there is nothing in it
-   * to block against.
+   * ADR-069 and ADR-071, from v3: the coverage looks the defence wears over that card, on their own
+   * address and AFTER the card, so the card is the one v2 would have called. From v7 a front look
+   * follows them (below; ADR-073 §2.5), and it does change what the line is shown. The anticipated
+   * card (the offence's guess) is still drawn bare, now because the huddle cannot see a look: the
+   * guess is made before the defence shows anything, and the line reads the look after the snap
+   * through the shown rush (ADR-073 R30). So nothing below but the real defence ever wears one.
    */
   const catalogue = profile.looks;
   const lookDraw =
@@ -702,6 +807,19 @@ function resolveSnap(
       ? undefined
       : selectLooks(snapRng.fork("defense-mask"), defensiveCard, spec.coverageMasks ?? catalogue);
   const calledCard = lookDraw === undefined ? defensiveCard : applyLooks(defensiveCard, lookDraw);
+
+  /**
+   * ADR-073 §2.5, from v7: the front look, on an address of its own and AFTER the card and its
+   * coverage looks (§2.6 step 5), so the call is the one v6 would have made. Its dice are thrown
+   * ONCE PER SNAP, here, with legality read off the called card, at the owner's rate, passed
+   * explicitly. The concept loop below lays the drawn look over each instantiation and never
+   * re-throws a die. The huddle's guess never sees it. Below v7 `plan.fronts` is `undefined` and
+   * nothing is forked.
+   */
+  const frontDraw =
+    plan.fronts === undefined
+      ? undefined
+      : drawFrontLook(snapRng.fork("defense-front"), calledCard, plan.fronts, FRONT_LOOK_RATE);
 
   /**
    * ADR-024 step 2, on a fork of its own so v1's three addresses are untouched.
@@ -746,6 +864,9 @@ function resolveSnap(
       anticipated === undefined
         ? defense
         : instantiateDefense(anticipated.card, defenseUnit, look);
+    // ADR-073 §2.5: the real defence wears the drawn look; `expected` never does. A formation that
+    // makes the look illegal on this instance gets `defense` itself back, and that call wears none.
+    const worn = frontDraw === undefined ? defense : applyFrontLook(defense, frontDraw);
     try {
       const offense = isRunConcept(concept)
         ? instantiateRun(concept, offenseUnit, expected)
@@ -759,7 +880,7 @@ function resolveSnap(
           : 0;
       return {
         offense,
-        defense,
+        defense: worn,
         defensiveCard: drawn === undefined ? defensiveCard : drawn.graded,
         concept,
         redraws,
@@ -768,6 +889,8 @@ function resolveSnap(
         anticipated,
         expectedDefense: expected,
         protectorsInCoverage,
+        frontDraw,
+        frontWorn: frontDraw !== undefined && worn !== defense,
       };
     } catch (e) {
       if (!(e instanceof UnprotectableCallError)) throw e;
@@ -803,7 +926,7 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
   if (!PROFILE[callerVersion].protectionOptions && (spec.slideCheck !== undefined || spec.keepIn !== undefined)) {
     throw new FrozenCallerError(
       `caller ${callerVersion} states no line options, so it has none to set: slideCheck and ` +
-        `keepIn are knobs of a version that states them (v5 and v6, ADR-073 §2.7).`,
+        `keepIn are knobs of a version that states them (v5 to v7, ADR-073 §2.7).`,
     );
   }
   const profile = PROFILE[callerVersion];
@@ -814,7 +937,7 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
   ) {
     throw new FrozenCallerError(
       `caller ${callerVersion} draws its call as one card, so it has no part to bind: creeper, ` +
-        `drawPressures and drawLines are knobs of a version that draws them (v6, ADR-073 §2.6).`,
+        `drawPressures and drawLines are knobs of a version that draws them (v6 and v7, ADR-073 §2.6).`,
     );
   }
   if (spec.creeper === false && spec.drawPressures === false) {
@@ -822,6 +945,15 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
       `with the pressures bound (drawPressures: false) no creeper is drawn, so creeper: false would ` +
         `name a knob that did nothing (ADR-073 step 3.4).`,
     );
+  }
+  if (profile.fronts === undefined && spec.frontLooks !== undefined) {
+    throw new FrozenCallerError(
+      `caller ${callerVersion} draws no front look, so it has no catalogue to narrow: frontLooks is a ` +
+        `knob of a version that draws them (v7, ADR-073 §2.5).`,
+    );
+  }
+  if (spec.frontLooks !== undefined && !isFrontCatalogue(spec.frontLooks)) {
+    throw new FrozenCallerError(notAFrontCatalogue(spec.frontLooks));
   }
   const leash = spec.leash ?? DEFAULT_LEASH;
   const name = spec.name ?? `frozen-${callerIdentity(callerVersion, spec.tendencies.version, leash, spec)}`;
@@ -867,6 +999,13 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
           personnel: resolved.defensiveCard.personnel,
           protectorsInCoverage: resolved.protectorsInCoverage,
         });
+      }
+      // ADR-073 §2.5 (v7): the front look drawn, and a draw this instance's formation made illegal.
+      const front = resolved.frontDraw;
+      if (front !== undefined) {
+        const counts = diagnostics.frontLooks;
+        counts.drawn[front.look] = (counts.drawn[front.look] ?? 0) + 1;
+        if (!resolved.frontWorn) counts.formationDropped++;
       }
       // ADR-072: the leash is the coach's, so it is stamped here, on the call he makes, and not in
       // `resolveSnap` — which both sides run, and which is about what is played, not who may change it.

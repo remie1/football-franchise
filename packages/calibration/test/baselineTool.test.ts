@@ -87,6 +87,7 @@ function requireEngineCommit(): string {
  *   FF_BASELINE_CALLER=v4   v3 with ADR-071 step 2's corner looks (the default)
  *   FF_BASELINE_CALLER=v5   v4 stating the line's slide check (ADR-073 step 3.3; keep-in is a measurement knob)
  *   FF_BASELINE_CALLER=v6   v5 drawing the coverage, the pressure and the line game on their own, and the creeper (ADR-073 step 3.4)
+ *   FF_BASELINE_CALLER=v7   v6 wearing the front looks, the Mug and the Stem (ADR-073 step 3.5)
  *
  * It exists so that ADR-024's comparability paragraph can be honoured — *"the first v2 report
  * should be run alongside a final v1 report on the same seeds so the size of the discontinuity is

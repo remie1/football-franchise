@@ -23,27 +23,37 @@ import {
 } from "../src/caller/fourthDown.js";
 import {
   COMPOSED,
+  COVERAGE_MASKS,
   CREEPER_SPECS,
   DEFENSE_ROLES,
   DEFENSIVE_CARDS,
   DIME_COVER_1,
+  FRONT_LOOKS,
+  FRONT_LOOK_RATE,
   HOST_OF,
   PERSONNEL_WORD,
   V6_COVERAGES,
   applicableDefensiveCards,
+  applyLooks,
   buildDefensiveUnit,
   callTags,
   composeCall,
   composedKey,
+  drawFrontLook,
   drawLineGame,
   drawPressure,
+  isFrontLookTag,
+  legalFrontLooks,
   lineGameRate,
   rusherCount,
   selectCoverage,
   selectDefensiveCard,
+  selectLooks,
+  validateFrontLook,
   weightedPick,
   type AnyDefensiveCard,
   type DefenseRole,
+  type FrontLookId,
   type LineChoice,
   type PlaySituation,
 } from "@ff/playbook";
@@ -506,6 +516,7 @@ describe("the frozen caller pair", () => {
     expect(callerIdentity("v3", "x")).not.toBe(callerIdentity("v4", "x"));
     expect(callerIdentity("v4", "x")).not.toBe(callerIdentity("v5", "x"));
     expect(callerIdentity("v5", "x")).not.toBe(callerIdentity("v6", "x"));
+    expect(callerIdentity("v6", "x")).not.toBe(callerIdentity("v7", "x"));
   });
 
   /**
@@ -650,6 +661,37 @@ describe("the frozen caller pair", () => {
       .filter((tags) => tags !== undefined);
     expect(tagLists.length, "no PLAY_START carried defense.tags, so nothing was checked").toBeGreaterThan(0);
     expect(tagLists.flat().filter((tag) => tag.kind === "LOOK")).toEqual([]);
+  });
+
+  // ADR-073 step 3.5: v7 also wears a front look (a LOOK tag "MUG" or "STEM"), which is no coverage
+  // look, so `coverageMasks: []` leaves it and `frontLooks: []` takes it off too.
+  const lookIdsOf = (out: ReturnType<typeof runOneGame>): { readonly calls: number; readonly ids: readonly unknown[] } => {
+    const tagLists = out.observation.events
+      .filter((e) => e.event.type === "PLAY_START")
+      .map((e) => (e.event.payload as { defense?: { tags?: readonly { kind?: unknown; id?: unknown }[] } }).defense?.tags)
+      .filter((tags) => tags !== undefined);
+    return { calls: tagLists.length, ids: tagLists.flat().filter((tag) => tag.kind === "LOOK").map((tag) => tag.id) };
+  };
+  it("a v7 caller given empty catalogues of both kinds wears nothing", () => {
+    const { calls, ids } = lookIdsOf(
+      runOneGame({
+        built, seed: "adr069-none", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
+        callerVersion: "v7", coverageMasks: [], frontLooks: [],
+      }),
+    );
+    expect(calls, "no PLAY_START carried defense.tags, so nothing was checked").toBeGreaterThan(0);
+    expect(ids).toEqual([]);
+  });
+  it("a v7 caller given an empty coverage catalogue wears front looks alone", () => {
+    const { calls, ids } = lookIdsOf(
+      runOneGame({
+        built, seed: "adr069-none", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
+        callerVersion: "v7", coverageMasks: [],
+      }),
+    );
+    expect(calls, "no PLAY_START carried defense.tags, so nothing was checked").toBeGreaterThan(0);
+    expect(ids.length, "no front look was worn, so the empty coverage catalogue was compared with nothing").toBeGreaterThan(0);
+    expect(ids.filter((id) => id !== "MUG" && id !== "STEM")).toEqual([]);
   });
 
   /**
@@ -1256,8 +1298,8 @@ describe("ADR-073 step 3.4, callerVersion v6", () => {
   const partKnob = (knob: (typeof PART_KNOBS)[number], value: boolean): CallerKnobs =>
     knob === "creeper" ? { creeper: value } : knob === "drawPressures" ? { drawPressures: value } : { drawLines: value };
 
-  it("draws its call in parts alone: every other version is v1–v5", () => {
-    expect(CALLER_VERSIONS.filter((v) => !ONE_CARD.includes(v))).toEqual(["v6"]);
+  it("v6 and v7 draw their call in parts", () => {
+    expect(CALLER_VERSIONS.filter((v) => !ONE_CARD.includes(v))).toEqual(["v6", "v7"]);
   });
 
   it.each(ONE_CARD.flatMap((v) => PART_KNOBS.map((knob) => [v, knob] as const)))(
@@ -1654,6 +1696,332 @@ describe("ADR-073 step 3.4, callerVersion v6", () => {
     },
     5 * 60_000,
   );
+});
+
+/**
+ * ============================ ADR-073 step 3.5, callerVersion v7 ============================
+ *
+ * v7 is v6 wearing §2.5's front looks: the Mug or the Stem, drawn once a snap on `defense-front`
+ * over the CALLED card (the card after its coverage looks) and laid over the real defence only.
+ * The huddle's guess never wears one, so the offence's call is v6's on every snap, and a defence
+ * call with no front LOOK tag is v6's (A:398-399); a worn one is v6's but for `shownRush` and the
+ * look's tag, and keeps R28. One knob narrows the catalogue before the `wears` die and keeps the
+ * rate: `/front-0` (none, the proof arm), `/front-MUG`, `/front-STEM`.
+ *
+ * The calls are compared CALL FOR CALL with the v5 tests' wrapper: a v6 game is played, and every
+ * request it makes is also asked of each v7 arm with the same Rng. That works here, where the v6
+ * tests had to replay, because no v7 arm guesses differently from v6: the look never reaches the
+ * huddle, so each arm calls v6's offence and its `callDefense` agrees with the request.
+ */
+describe("ADR-073 step 3.5, callerVersion v7", () => {
+  const league = buildFlatLeague({ teams: 2 });
+  const index = indexLeague(league);
+  const teams = index.teamIds();
+  const built = buildFixture(
+    index,
+    buildFixtures(index, { kind: "SYNTHETIC_PAIR", home: teams[0]!, away: teams[1]!, games: 1, season: 2024 })[0]!,
+  );
+  const coordinates = {
+    season: built.fixture.season,
+    week: built.fixture.week,
+    home: built.fixture.home,
+    away: built.fixture.away,
+    ...(built.fixture.replay === 0 ? {} : { replay: built.fixture.replay }),
+  };
+  const pairOf = (callerVersion: CallerVersion, knobs: CallerKnobs = {}, leash?: number): FrozenCallerPair =>
+    frozenCallerPair({
+      tendencies: FROZEN_TENDENCIES,
+      fourthDown: FROZEN_FOURTH_DOWN,
+      homeDepthChart: built.homeDepthChart,
+      awayDepthChart: built.awayDepthChart,
+      callerVersion,
+      ...knobs,
+      ...(leash === undefined ? {} : { leash }),
+    });
+  const T = FROZEN_TENDENCIES.version;
+
+  /** The front settings, as v7 knob settings: both looks, none (the proof arm), each alone. */
+  const FRONT_ARMS: readonly { readonly label: string; readonly frontLooks: readonly FrontLookId[] | undefined }[] = [
+    { label: "v7", frontLooks: undefined },
+    { label: "v7/front-0", frontLooks: [] },
+    { label: "v7/front-MUG", frontLooks: ["MUG"] },
+    { label: "v7/front-STEM", frontLooks: ["STEM"] },
+  ];
+  const frontKnobs = (frontLooks: readonly FrontLookId[] | undefined): CallerKnobs =>
+    frontLooks === undefined ? {} : { frontLooks };
+
+  // --- T1: identity and refusals -----------------------------------------------------------------
+
+  it("names its front catalogue in its identity, after the parts and before the leash, and leaves the full one unmarked", () => {
+    expect(FRONT_LOOKS).toEqual(["MUG", "STEM"]);
+    expect(callerIdentity("v7", "x")).toBe("v7/x");
+    expect(callerIdentity("v7", "x", DEFAULT_LEASH, { frontLooks: [] })).toBe("v7/x/front-0");
+    expect(callerIdentity("v7", "x", DEFAULT_LEASH, { frontLooks: ["MUG"] })).toBe("v7/x/front-MUG");
+    expect(callerIdentity("v7", "x", DEFAULT_LEASH, { frontLooks: ["STEM"] })).toBe("v7/x/front-STEM");
+    // Every mark in its place: the options, the parts, the front catalogue, the leash last.
+    expect(
+      callerIdentity("v7", "x", 20, {
+        slideCheck: false, keepIn: true, creeper: false, drawPressures: false, drawLines: false, frontLooks: ["STEM"],
+      }),
+    ).toBe("v7/x/no-slide-check/keep-in/creeper-0/pressures-bound/lines-bound/front-STEM/leash-20");
+    // The default catalogue, spelled out in order, is unmarked.
+    expect(callerIdentity("v7", "x", DEFAULT_LEASH, { frontLooks: ["MUG", "STEM"] })).toBe("v7/x");
+    expect(callerIdentity("v7", "x", DEFAULT_LEASH, { frontLooks: FRONT_LOOKS })).toBe("v7/x");
+    expect(callerIdentity("v7", "x", 20, { frontLooks: ["MUG", "STEM"] })).toBe("v7/x/leash-20");
+    // A list that is no catalogue has no name.
+    for (const bad of [["STEM", "MUG"], ["MUG", "MUG"], ["SHOW_2"]] as const) {
+      expect(() => callerIdentity("v7", "x", DEFAULT_LEASH, { frontLooks: bad as unknown as readonly FrontLookId[] })).toThrow(
+        FrozenCallerError,
+      );
+    }
+
+    // The pair's name carries the mark, from the spec passed whole to `callerIdentity`.
+    expect(pairOf("v7").callerVersion).toBe("v7");
+    expect(pairOf("v7").name).toBe(`frozen-v7/${T}`);
+    expect(pairOf("v7", { frontLooks: [] }).name).toBe(`frozen-v7/${T}/front-0`);
+    expect(pairOf("v7", { frontLooks: ["MUG"] }).name).toBe(`frozen-v7/${T}/front-MUG`);
+    expect(pairOf("v7", { frontLooks: ["STEM"] }).name).toBe(`frozen-v7/${T}/front-STEM`);
+    expect(pairOf("v7", { frontLooks: ["MUG", "STEM"] }).name).toBe(pairOf("v7").name);
+    expect(pairOf("v7", { creeper: false, frontLooks: ["MUG"] }, 20).name).toBe(`frozen-v7/${T}/creeper-0/front-MUG/leash-20`);
+    // Five callers, five identities: no front arm compares as another, nor as v6.
+    const names = [pairOf("v6").name, ...FRONT_ARMS.map((arm) => pairOf("v7", frontKnobs(arm.frontLooks)).name)];
+    expect(new Set(names).size).toBe(FRONT_ARMS.length + 1);
+  });
+
+  /** v1–v6 draw no front look. */
+  const NO_FRONTS: readonly CallerVersion[] = ["v1", "v2", "v3", "v4", "v5", "v6"];
+  const CATALOGUES: readonly (readonly FrontLookId[])[] = [[], ["MUG"], ["STEM"], ["MUG", "STEM"]];
+
+  it("draws front looks alone among the versions", () => {
+    expect(CALLER_VERSIONS.filter((v) => !NO_FRONTS.includes(v))).toEqual(["v7"]);
+  });
+
+  it.each(NO_FRONTS)("a %s caller refuses frontLooks, whatever the catalogue: it draws no front look", (callerVersion) => {
+    for (const frontLooks of CATALOGUES) {
+      expect(() => pairOf(callerVersion, { frontLooks }), JSON.stringify(frontLooks)).toThrow(FrozenCallerError);
+    }
+  });
+
+  it("refuses a front catalogue out of order, with a repeat, or with an id that is no front look", () => {
+    const bad: readonly (readonly string[])[] = [["STEM", "MUG"], ["MUG", "MUG"], ["STEM", "STEM"], ["MUG", "STEM", "MUG"], ["SHOW_2"], ["MUG", "PRESS"]];
+    for (const frontLooks of bad) {
+      expect(() => pairOf("v7", { frontLooks: frontLooks as readonly FrontLookId[] }), JSON.stringify(frontLooks)).toThrow(
+        FrozenCallerError,
+      );
+    }
+    for (const frontLooks of CATALOGUES) expect(() => pairOf("v7", { frontLooks }), JSON.stringify(frontLooks)).not.toThrow();
+    // v7 takes v6's knobs, and v6's creeper rule.
+    expect(() => pairOf("v7", { slideCheck: false, keepIn: true, creeper: false, drawLines: false, frontLooks: [] })).not.toThrow();
+    expect(() => pairOf("v7", { drawPressures: false, frontLooks: ["MUG"] })).not.toThrow();
+    expect(() => pairOf("v7", { creeper: false, drawPressures: false })).toThrow(FrozenCallerError);
+  });
+
+  // Named v4, not the default: it holds when the default moves (ADR-073 step 3.5's closing commit).
+  it("an explicit v4 refuses frontLooks, through the pair and through runOneGame", () => {
+    for (const frontLooks of CATALOGUES) {
+      expect(() => pairOf("v4", { frontLooks })).toThrow(FrozenCallerError);
+      expect(() =>
+        runOneGame({
+          built, seed: "adr073-v7-v4-knob", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
+          callerVersion: "v4", frontLooks,
+        }),
+      ).toThrow(FrozenCallerError);
+    }
+  });
+
+  // --- T2: call for call against v6 ----------------------------------------------------------------
+
+  const isEqual = isDeepStrictEqual;
+  const sameKeys = (a: object, b: object): boolean => JSON.stringify(Object.keys(a)) === JSON.stringify(Object.keys(b));
+  const frontTags = (call: DefensivePlayCall): readonly string[] => call.tags.filter(isFrontLookTag).map((tag) => tag.id);
+
+  /**
+   * The called card on a snap, re-derived from playbook's own draws on the snap's addresses as v6
+   * (and v7) make them: the coverage, the pressure and the line game (ADR-073 §2.6), then the
+   * coverage looks over that card on `defense-mask`. Its front-look legality is what v7 reads.
+   */
+  function calledCardOf(snap: Rng, s: PlaySituation): AnyDefensiveCard {
+    const coverage = selectCoverage(snap.fork("defense-card"), s);
+    const pressure = drawPressure(snap.fork("defense-pressure"), coverage, s, { creeper: true });
+    const at = (line: LineChoice): AnyDefensiveCard => COMPOSED[composedKey(coverage.id, pressure?.pressure, line)]!.call;
+    const game = drawLineGame(snap.fork("defense-line"), at("NONE"), s, lineGameRate(s, { pressures: "DRAWN", creeper: true }));
+    const card = at(game?.id ?? "NONE");
+    const looks = selectLooks(snap.fork("defense-mask"), card, COVERAGE_MASKS);
+    return looks === undefined ? card : applyLooks(card, looks);
+  }
+
+  it("calls v6's offence on every snap, v6's defence where it wears no front look, and v6's but for the look where it wears one", () => {
+    const failures: string[] = [];
+    const counts = {
+      snaps: 0,
+      mugLegal: 0,
+      stemLegal: 0,
+      stemLegalMugIllegal: 0,
+      worn: new Map<string, number>(),
+      wornWithCoverageLook: 0,
+      v7MugWhereStemOnlyStems: 0,
+    };
+    const bump = (k: string): void => {
+      counts.worn.set(k, (counts.worn.get(k) ?? 0) + 1);
+    };
+    const GAMES = 4;
+    for (let g = 0; g < GAMES; g++) {
+      const seed = `adr073-v7-calls-${String(g)}`;
+      const v6 = pairOf("v6");
+      const arms = FRONT_ARMS.map((arm) => ({ ...arm, pair: pairOf("v7", frontKnobs(arm.frontLooks)) }));
+      const wrap = (inner: PlayCaller, side: "home" | "away"): PlayCaller => ({
+        ...inner,
+        callOffense(request, rng) {
+          const base = inner.callOffense(request, rng);
+          for (const arm of arms) {
+            const call = arm.pair[side].callOffense(request, rng);
+            if (!isEqual(call, base) || !sameKeys(call, base) || JSON.stringify(call) !== JSON.stringify(base)) {
+              failures.push(`${arm.label} ${seed} ${side}: the offence is not v6's`);
+            }
+          }
+          return base;
+        },
+        callDefense(request, rng) {
+          const base = inner.callDefense(request, rng);
+          const where = `${seed} ${side} ${String(request.situation.down)}&${String(request.situation.distance)} at ${String(request.situation.ballOn)}`;
+          counts.snaps += 1;
+          if (base.shownRush !== base.rush || frontTags(base).length > 0) failures.push(`v6 ${where}: v6 wore a front look`);
+          // The snap's shared address, as the frozen caller derives it (`sharedSnapRng`), and the
+          // called card v7 reads legality off.
+          const snap = createRng(rng.seed, `${rng.label.slice(0, -"/defense".length)}/frozen-snap`);
+          const s: PlaySituation = {
+            down: request.situation.down as PlaySituation["down"],
+            distance: request.situation.distance,
+            ballOn: request.situation.ballOn,
+            twoMinute: request.situation.twoMinute,
+          };
+          const called = calledCardOf(snap, s);
+          const legal = new Set(legalFrontLooks(called).map((o) => o.look));
+          if (legal.has("MUG")) counts.mugLegal += 1;
+          if (legal.has("STEM")) counts.stemLegal += 1;
+          if (legal.has("STEM") && !legal.has("MUG")) counts.stemLegalMugIllegal += 1;
+
+          const calls = new Map<string, DefensivePlayCall>();
+          for (const arm of arms) {
+            const call = arm.pair[side].callDefense(request, rng);
+            calls.set(arm.label, call);
+            const fail = (why: string): void => {
+              failures.push(`${arm.label} ${where}: ${why}`);
+            };
+            const fronts = frontTags(call);
+            // Each arm wears what playbook's draw names on the snap's own `defense-front` address,
+            // over the called card, from the arm's catalogue at the owner's rate.
+            const drawn = drawFrontLook(snap.fork("defense-front"), called, arm.frontLooks ?? FRONT_LOOKS, FRONT_LOOK_RATE);
+            if ((fronts[0] ?? undefined) !== drawn?.look) {
+              fail(`wears [${fronts.join(", ")}], and the draw on its address names ${String(drawn?.look)}`);
+            }
+            if (fronts.length === 0) {
+              // No front LOOK tag: v6's call, key for key (3.1's identity holds, A:398-399).
+              if (!isEqual(call, base) || !sameKeys(call, base)) fail("no front look, and the defence is not v6's");
+              if (call.shownRush !== call.rush) fail("no front look, and the call does not show its own rush array");
+              continue;
+            }
+            bump(`${arm.label}:${fronts[0]!}`);
+            if (fronts.length !== 1) fail(`${String(fronts.length)} front looks`);
+            if (!legal.has(fronts[0] as FrontLookId)) fail(`a ${fronts[0]!} over ${called.id}, where it is not legal`);
+            if (arm.frontLooks !== undefined && !arm.frontLooks.includes(fronts[0] as FrontLookId)) {
+              fail(`a ${fronts[0]!}, which its catalogue does not hold`);
+            }
+            // The worn call: v6's tags with the look said last, v6's every other key, and R28.
+            if (!isEqual(call.tags.slice(0, -1), [...base.tags])) fail("the tags before the look are not v6's");
+            const last = call.tags[call.tags.length - 1];
+            if (last === undefined || !isFrontLookTag(last)) fail("the front look is not the last tag");
+            const { shownRush: _a, tags: _b, ...rest } = call;
+            const { shownRush: _c, tags: _d, ...baseRest } = base;
+            if (!isEqual(rest, baseRest)) fail("a key other than shownRush and tags differs from v6's");
+            if (!sameKeys(call, base)) fail("the call's key order is not v6's");
+            if (call.shownRush === call.rush) fail("a front look, and shownRush is the played rush array");
+            for (const d of validateFrontLook(call)) fail(`R28: ${d.code} at ${d.where}`);
+            if (call.tags.some((t) => t.kind === "LOOK" && !isFrontLookTag(t))) counts.wornWithCoverageLook += 1;
+          }
+
+          // The worn sets (Q1: the catalogue is narrowed before `wears`, and the rate kept). Mug-only
+          // wears exactly where v7 wears anything; Stem-only exactly where v7 wears and the called
+          // card is Stem-legal. Where both wear the same look, the call is the same call.
+          const v7 = calls.get("v7")!;
+          const mugOnly = calls.get("v7/front-MUG")!;
+          const stemOnly = calls.get("v7/front-STEM")!;
+          const v7Wears = frontTags(v7)[0];
+          const mugWears = frontTags(mugOnly)[0];
+          const stemWears = frontTags(stemOnly)[0];
+          if ((mugWears !== undefined) !== (v7Wears !== undefined)) {
+            failures.push(`v7/front-MUG ${where}: wears ${String(mugWears)}, and v7 wears ${String(v7Wears)}`);
+          }
+          if ((stemWears !== undefined) !== (v7Wears !== undefined && legal.has("STEM"))) {
+            failures.push(`v7/front-STEM ${where}: wears ${String(stemWears)}, v7 ${String(v7Wears)}, Stem legal: ${String(legal.has("STEM"))}`);
+          }
+          if (v7Wears === "MUG" && !isEqual(mugOnly, v7)) failures.push(`v7/front-MUG ${where}: its Mug is not v7's`);
+          if (v7Wears === "STEM" && !isEqual(stemOnly, v7)) failures.push(`v7/front-STEM ${where}: its Stem is not v7's`);
+          if (v7Wears === "MUG" && stemWears === "STEM") counts.v7MugWhereStemOnlyStems += 1;
+          return base;
+        },
+      });
+      simulateGame(
+        createMatchState(coordinates, built.snapshot),
+        { coordinates, snapshot: built.snapshot, callers: { home: wrap(v6.home, "home"), away: wrap(v6.away, "away") } },
+        seed,
+      );
+      // The huddle is v6's, so the draw-quality fold is v6's after the same requests; the front
+      // counters hold each arm's draws, and no formation made a drawn look illegal.
+      for (const arm of arms) {
+        const d = arm.pair.diagnostics;
+        if (!isEqual(d.draw, v6.diagnostics.draw)) failures.push(`${arm.label} ${seed}: diagnostics.draw is not v6's`);
+        if (d.frontLooks.formationDropped !== 0) failures.push(`${arm.label} ${seed}: ${String(d.frontLooks.formationDropped)} formation-dropped looks`);
+        if (d.offensiveCalls !== v6.diagnostics.offensiveCalls) failures.push(`${arm.label} ${seed}: a different number of calls`);
+      }
+      if (!isEqual(v6.diagnostics.frontLooks, { drawn: {}, formationDropped: 0 })) failures.push(`v6 ${seed}: front counters moved`);
+      if (!isEqual(arms[1]!.pair.diagnostics.frontLooks, { drawn: {}, formationDropped: 0 })) failures.push(`v7/front-0 ${seed}: drew a front look`);
+    }
+
+    const worn = Object.fromEntries(counts.worn);
+    const summary =
+      `${String(counts.snaps)} snaps; Mug-legal ${String(counts.mugLegal)}, Stem-legal ${String(counts.stemLegal)} ` +
+      `(Stem-legal and not Mug-legal ${String(counts.stemLegalMugIllegal)}); worn ${JSON.stringify(worn)}; ` +
+      `worn over a coverage look ${String(counts.wornWithCoverageLook)}; v7 Mug where Stem-only Stems ${String(counts.v7MugWhereStemOnlyStems)}`;
+    expect(failures, `${String(failures.length)} failures (${summary})\n${failures.slice(0, 12).join("\n")}`).toEqual([]);
+    // Non-vacuity: every arm wore what it may, and v7 wore both looks.
+    expect(counts.snaps, summary).toBeGreaterThan(400);
+    expect(worn["v7:MUG"] ?? 0, summary).toBeGreaterThan(0);
+    expect(worn["v7:STEM"] ?? 0, summary).toBeGreaterThan(0);
+    expect(worn["v7/front-MUG:MUG"] ?? 0, summary).toBeGreaterThan(0);
+    expect(worn["v7/front-STEM:STEM"] ?? 0, summary).toBeGreaterThan(0);
+    expect(Object.keys(worn).filter((k) => k.startsWith("v7/front-0")), summary).toEqual([]);
+    expect(worn["v7/front-MUG:STEM"] ?? 0, summary).toBe(0);
+    expect(worn["v7/front-STEM:MUG"] ?? 0, summary).toBe(0);
+    // The two narrowed arms part from v7 where the catalogue says: a v7 Mug where the Stem is legal too.
+    expect(counts.v7MugWhereStemOnlyStems, summary).toBeGreaterThan(0);
+  }, 5 * 60_000);
+
+  // --- T6: the pass-through, by behaviour ----------------------------------------------------------
+
+  it("runOneGame passes frontLooks through: /front-0 plays v6's game, plain v7 does not, and the same seed plays the same v7 game", () => {
+    const at = (callerVersion: CallerVersion, frontLooks?: readonly FrontLookId[]) =>
+      runOneGame({
+        built, seed: "adr073-v7-passthrough", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
+        callerVersion, ...(frontLooks === undefined ? {} : { frontLooks }),
+      });
+    const v6 = at("v6");
+    const front0 = at("v7", []);
+    const v7 = at("v7");
+    expect(JSON.stringify(front0.observation.events)).toBe(JSON.stringify(v6.observation.events));
+    expect(front0.caller.frontLooks).toEqual({ drawn: {}, formationDropped: 0 });
+    expect(JSON.stringify(v7.observation.events)).not.toBe(JSON.stringify(v6.observation.events));
+    // Each catalogue reaches the pair: what it drew is what it holds.
+    expect(Object.keys(v7.caller.frontLooks.drawn).sort()).toEqual(["MUG", "STEM"]);
+    expect(Object.keys(at("v7", ["MUG"]).caller.frontLooks.drawn)).toEqual(["MUG"]);
+    expect(Object.keys(at("v7", ["STEM"]).caller.frontLooks.drawn)).toEqual(["STEM"]);
+    // Iron Rule 4: the same seed plays the identical v7 stream and caller counts.
+    const again = at("v7");
+    expect(JSON.stringify(again.observation.events)).toBe(JSON.stringify(v7.observation.events));
+    expect(again.caller).toEqual(v7.caller);
+    // The name runOneGame's pair carries, from the same spread.
+    expect(pairOf("v7", { frontLooks: [] }).name).toBe(`frozen-v7/${T}/front-0`);
+  }, 5 * 60_000);
 });
 
 /**
