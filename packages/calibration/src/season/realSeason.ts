@@ -74,6 +74,8 @@ export function realSimResolver(league: League, opts: RealSimOptions = {}): Game
       awayScore: s.score.away,
       reason: s.finalReason,
       seed,
+      // ADR-082 N2: the stories read how the game unfolded; the sim already kept it.
+      periods: s.periods.map((p, i) => ({ period: i + 1, home: p.home, away: p.away })),
     };
   };
 }
