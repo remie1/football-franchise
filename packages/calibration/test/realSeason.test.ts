@@ -26,6 +26,14 @@ describe("realSimResolver", () => {
     expect(["REGULATION", "OVERTIME", "TIE"]).toContain(result.reason);
   });
 
+  it("carries the sim's period scores, which add up to the final score (ADR-082 N2)", () => {
+    const periods = result.periods ?? [];
+    expect(periods.length).toBeGreaterThanOrEqual(4);
+    expect(periods.map((p) => p.period)).toEqual(periods.map((_, i) => i + 1));
+    expect(periods.reduce((n, p) => n + p.home, 0)).toBe(result.homeScore);
+    expect(periods.reduce((n, p) => n + p.away, 0)).toBe(result.awayScore);
+  });
+
   it("is deterministic: same seed, same result; another seed, another game", () => {
     expect(resolve(game, "seed-a")).toEqual(result);
     const others = ["seed-b", "seed-c", "seed-d"].map((s) => resolve(game, s));
