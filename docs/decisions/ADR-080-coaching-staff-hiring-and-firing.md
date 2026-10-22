@@ -3,8 +3,8 @@
 - **Date:** 2026-10-22
 - **Proposed by:** Orchestrator, for `franchise` (thread "Coaching staff"; plan at
   `/mnt/project-files/design/coaching-staff-plan.md`, pieces C0-C5)
-- **Status:** design ruled by the owner (Q1-Q7, 2026-10-22); contracts edits P1-P4 and D1 **awaiting
-  the owner's typed yes**
+- **Status:** design ruled by the owner (Q1-Q7, 2026-10-22); contracts edits P1-P4 and D1 **approved**
+  by the owner's typed yes (2026-10-22 16:19Z); built (C0-C5)
 
 > Phase note: Charter §6 places franchise at Phase 4. The owner pulled franchise work ahead on
 > 2026-10-21 (ADR-078) and asked for this piece the same day, on the same condition: nothing here
@@ -470,5 +470,14 @@ they can be read alone. Save and load (PR #19) writes `world.staff`; once both a
 
 Design: **ruled by the owner, 2026-10-22 14:35Z** (Q1-Q7 all (a), with the note on Q6 recorded in §2).
 
-Contracts edits: **awaiting the owner's typed yes**, e.g. *"Yes, make contracts edits P1, P2, P3, P4
-and D1."*
+Contracts edits: **approved by the owner, 2026-10-22 16:19Z**, typed in thread "Coaching staff":
+*"Yes, make contracts edits P1, P2, P3, P4 and D1"*. P2 includes `retiredAfter`, added to the
+proposal before the yes and named in the thread.
+
+Built: P1-P4 in `packages/contracts/src/staff.ts` (with the `StaffState`, event and save fields as
+in §9), D1 in `docs/design/contracts.md` §4, §6.2, §9; the contracts round-trip test
+`packages/contracts/test/staff.test.ts`; C1-C5 in `packages/franchise/src/staff/`, measured in §8.2.
+
+Inertness, empirical: `pnpm verify` green (build, test, typecheck, every package) with no engine,
+playbook, play-caller or calibration file changed; the calibration and determinism suites pass
+unchanged.
