@@ -39,6 +39,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_TUNABLES } from "@ff/engine";
+import { DEFAULT_CALLER_VERSION } from "../src/caller/anticipate.js";
+import { callerIdentity } from "../src/caller/frozen.js";
+import { FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import {
   DIAGNOSTIC_MEASURES,
   LADDER_TABLES,
@@ -410,6 +413,12 @@ describe("pocket-status ladder — TIER B, the walk", () => {
       expect(a.rungs.map((r) => r.tunablesDigest)).toEqual(b.rungs.map((r) => r.tunablesDigest));
       // Five distinct configurations, so the walk cannot be five copies of one arm.
       expect(new Set(a.rungs.map((r) => r.tunablesDigest)).size).toBe(a.rungs.length);
+      // …and one caller, named (ADR-073 step 3.5): every rung records the caller its batch
+      // resolved, which with no caller named is the default as it stands, and the report prints
+      // it, so a red walk after the default moves says which caller went red.
+      const caller = callerIdentity(DEFAULT_CALLER_VERSION, FROZEN_TENDENCIES.version);
+      expect(a.rungs.map((r) => r.callerVersion)).toEqual(a.rungs.map(() => caller));
+      expect(a.report).toContain(`caller "${caller}"`);
     },
     900_000,
   );

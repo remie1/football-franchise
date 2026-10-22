@@ -275,11 +275,17 @@ export const threatCreationRate: Metric = registerMetric({
    * is 26.08% in `baseline-0005`, against 0.13% at v1. Kept as mechanic context for the SIM number
    * even though the metric is no longer graded: it is still true that a caller which guesses
    * biases this rate up, by the 1.54pp ADR-024 measured.
+   *
+   * It names no caller version and no miss rate (ADR-073 step 3.5). It said "frozen caller v2"
+   * and "~26%", and the default caller has moved since (v3, then v4) and moves again at step
+   * 3.5's close, while every report prints this string beside numbers the caller of its day
+   * played. Every version from v2 on anticipates, so the clause holds for each; how many rushers
+   * that caller misses is the same report's own `unaccounted_rusher_rate` row, on the same games.
    */
   knownDivergences: [
     "backlog 2",
     "backlog 3",
-    "frozen caller v2: protection is built against an ANTICIPATED front and misses ~26% of rushers (ADR-024) — biases this UP, by 1.54pp when measured",
+    "frozen caller: protection is built against an ANTICIPATED front and misses some rushers (ADR-024; how many is this report's own unaccounted_rusher_rate) — biases this UP, by 1.54pp when ADR-024 measured it",
     "backlog 93: renamed from pressure_rate, real side retired — see this metric's own header",
   ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
