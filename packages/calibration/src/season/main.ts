@@ -5,7 +5,7 @@
  *
  * Plays a whole season (272 games plus the playoffs) through the real sim, prints the final
  * standings and the champion, and with `--out` saves the season (schedule, results, standings,
- * bracket) as JSON.
+ * bracket, and the season's event stream) as JSON.
  *
  * Save and load: `--stop-after 9` stops after the last day of regular-season week 9 (`playoffs:2`
  * after playoff week 2), and `--save` writes a save file. `--load` carries on from one; the games
@@ -99,6 +99,7 @@ if (args.save) {
   console.log(`Saved ${args.save}`);
 }
 if (args.out) {
-  writeFileSync(args.out, JSON.stringify({ seed, league, season: run.state }, null, 2));
+  // The event stream rides along so the news desk (ADR-082) can read the season the way it happened.
+  writeFileSync(args.out, JSON.stringify({ seed, league, season: run.state, events: run.events }, null, 2));
   console.log(`Saved ${args.out}`);
 }

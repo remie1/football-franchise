@@ -64,3 +64,25 @@ describe("league shapes (ADR-078)", () => {
     expect(JSON.parse(JSON.stringify(events))).toEqual(events);
   });
 });
+
+describe("news shapes (ADR-082)", () => {
+  it("N2: a result may carry its period scores, and still round-trips", () => {
+    const withPeriods = {
+      ...season.results[0]!,
+      periods: [
+        { period: 1, home: 7, away: 0 }, { period: 2, home: 3, away: 10 },
+        { period: 3, home: 7, away: 7 }, { period: 4, home: 7, away: 7 },
+      ],
+    };
+    expect(withPeriods.periods.reduce((n, p) => n + p.home, 0)).toBe(withPeriods.homeScore);
+    expect(JSON.parse(JSON.stringify(withPeriods))).toEqual(withPeriods);
+  });
+
+  it("N1: a news story names its kind, importance, teams and games", () => {
+    const story: FranchiseEvent = {
+      type: "PRESS_STORY_PUBLISHED",
+      payload: { kind: "TIE", headline: "First and Second can't be separated", importance: 3, teams: [teamId("T1"), teamId("T2")], games: [gameId("G1")], subjects: [] },
+    };
+    expect(JSON.parse(JSON.stringify(story))).toEqual(story);
+  });
+});
