@@ -71,6 +71,32 @@ reads it. No import, but an extra step and a second copy of the league.
   version stays available); a test checks every personnel group playbook declares can be
   fielded from a generated roster.
 
+## R5 — the spread check (2026-10-22)
+
+20 seasons per setting (seeds `spread-1` to `spread-20`, caller default, generated squads),
+against the NFL's 2021-2024 regular seasons (`packages/franchise/test/fixtures/nfl-seasons.json`).
+"Win spread" is the standard deviation of teams' wins in a season.
+
+| Team-strength spread | Win spread | Best record (avg) | Worst record (avg) | Teams with 13+ wins | Teams with 4 or fewer | Better record wins the game |
+|---|---|---|---|---|---|---|
+| NFL 2021-24 | 3.05 (2.70 to 3.65 by year) | 13.8 | 2.8 | 10% | 14% | 74% |
+| 0 | 2.83 | 14.0 | 2.9 | 9% | 7% | 70% |
+| **0.15 (chosen)** | **3.02** | 14.8 | 2.8 | 12% | 8% | 71% |
+| 0.28 | 3.25 | 14.9 | 2.2 | 14% | 10% | 73% |
+| 0.30 | 3.31 | 15.3 | 2.1 | 15% | 10% | 74% |
+| 0.35 | 3.38 | 14.9 | 1.9 | 15% | 11% | 74% |
+
+- **Chosen: 0.15**, the setting whose win spread matches the NFL's. All five settings sit inside
+  the NFL's own year-to-year range, so this is a fine adjustment, not a cliff.
+- **Most of the difference between teams comes from the players themselves**: with no hidden team
+  strength at all, the luck of each squad's draws (above all its quarterback) already gives a
+  win spread of 2.83.
+- Records are a little too lopsided at the top (the best team averages 14.8 wins, the NFL 13.8)
+  and there are too few really bad teams (8% vs 14%). Left for later; one plausible cause is that
+  one great quarterback lifts a team further than in the NFL. Not investigated.
+- Scoring on generated squads averages about 114 combined points a game (flat league: about 86).
+  This is the accepted drift of ADR-079 Q3; not investigated (owner's hold on scoring).
+
 ## What this does not touch
 
 Engine, playbook, play-callers, calibration's test leagues and arms, contracts code. No measured

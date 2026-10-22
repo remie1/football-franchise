@@ -28,10 +28,12 @@ import { PHYSICAL, PROFILES, TIERS, UNIVERSAL, type Tier } from "./profiles.js";
 import { BODY, POSITION_ORDER, ROSTER_SHAPE, type Dist } from "./shape.js";
 
 /**
- * Spread of team strength, in units of player talent (ADR-079 Q2). The starting value; R5 tunes
- * it until a season's records spread like the NFL's.
+ * Spread of team strength, in units of player talent (ADR-079 Q2), tuned in R5 (ADR-079 §R5):
+ * at 0.15 a season's spread of wins matches the NFL's (3.02 over 20 seasons vs 3.05 in
+ * 2021-24). Most of the difference between teams comes from the luck of each squad's player
+ * draws (0 alone gives 2.83); this only adds the rest.
  */
-export const DEFAULT_TEAM_STRENGTH_SD = 0.35;
+export const DEFAULT_TEAM_STRENGTH_SD = 0.15;
 
 /** Where a roster slot's talent is centred: starters are drafted to start. */
 export const SLOT_TALENT: readonly number[] = [0.6, -0.2, -0.6];
