@@ -56,6 +56,7 @@ Delegate implementation to the owning sub-agent. Never let one agent write in an
 - `pnpm --filter @ff/calibration season -- --seed <seed> --out season.json` — play a whole season and save it
 - `pnpm --filter @ff/calibration season -- --seed <seed> --stop-after 9 --save league.json` — play to week 9 and save; `season -- --load league.json` carries on
 - `pnpm --filter @ff/narrative news -- --season season.json` — print a saved season's news and save it for the viewer's News page (`apps/game/public/news/`)
+- `pnpm --filter @ff/franchise staff-check [--seed <seed>] [--seasons 50]` — coaching turnover against NFL numbers (ADR-080 C5)
 
 ## Current State
 

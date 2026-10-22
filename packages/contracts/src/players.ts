@@ -2,6 +2,7 @@
 import type { PlayerId, TeamId, StaffId, Position, AttrId, CoachAttrId } from "./ids.js";
 import type { AttributeMap, TraitSet } from "./registry.js";
 import type { CalendarStamp } from "./calendar.js";
+import type { DefensiveDisguiseTendency, StaffJob } from "./staff.js";
 
 /** Ground truth. Only engine, attributes pipeline, and calibration consume this. */
 export interface TrueAttributes {
@@ -125,7 +126,14 @@ export interface StaffState {
   schemeFamily?: string;
   lineage: StaffId[];
   personalityType: PersonalityType;
+  /** Set only for a seat holder or a president, matching `Team.staff` (ADR-080 P2). */
   teamId?: TeamId;
+  /** ADR-080 P2: his résumé, oldest job first. */
+  career: StaffJob[];
+  /** ADR-080 P2: the last season he coached, once he has retired; absent while he is in the game. */
+  retiredAfter?: number;
+  /** ADR-080 P4: read only in the DC seat. Absent = the league default. */
+  disguise?: DefensiveDisguiseTendency;
 }
 
 /**

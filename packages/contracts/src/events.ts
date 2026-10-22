@@ -6,6 +6,8 @@
 import type { GameId, PlayId, PlayerId, TeamId, StaffId, StorylineId, AttrId, TraitId } from "./ids.js";
 import type { CalendarStamp } from "./calendar.js";
 import type { GameKind, GameResult, PlayoffBracket } from "./league.js";
+import type { StaffRole } from "./players.js";
+import type { StaffDepartureReason } from "./staff.js";
 
 export interface RollModifier {
   source: string;
@@ -563,8 +565,9 @@ export type FranchiseEvent =
         games: GameId[];
         subjects: (PlayerId | StaffId)[];
       } }
-  | { type: "STAFF_HIRED"; payload: { staff: StaffId; team: TeamId; role: string } }
-  | { type: "STAFF_DEPARTED"; payload: { staff: StaffId; team: TeamId; reason: string } }
+  /** ADR-080 P3: tightened from free text; nothing emitted the old shape. */
+  | { type: "STAFF_HIRED"; payload: { staff: StaffId; team: TeamId; role: StaffRole } }
+  | { type: "STAFF_DEPARTED"; payload: { staff: StaffId; team: TeamId; reason: StaffDepartureReason } }
   | { type: "AWARD_GIVEN"; payload: { award: string; subject: PlayerId | StaffId } }
   /** ADR-078 C6: widened to carry the teams; nothing emitted the old shape. */
   | { type: "GAME_COMPLETED"; payload: { result: GameResult; kind: GameKind } }
