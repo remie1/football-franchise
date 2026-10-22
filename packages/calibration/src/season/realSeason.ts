@@ -15,7 +15,7 @@
  * team i of the flat league (every attribute 60). Results are therefore close to coin flips — a
  * real season shape with equal teams, until `@ff/attributes` supplies rated rosters.
  */
-import { DEFAULT_LEAGUE_RULES, type GameResult, type LeagueRules, type ScheduledGame, type TeamId } from "@ff/contracts";
+import { DEFAULT_LEAGUE_RULES, type CalendarStamp, type GameResult, type LeagueRules, type ScheduledGame, type SeasonState, type TeamId } from "@ff/contracts";
 import { buildLeague, runSeason, type GameResolver, type League, type SeasonRun } from "@ff/franchise";
 import type { CallerVersion } from "../caller/anticipate.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../caller/frozenTendencies.js";
@@ -84,12 +84,23 @@ export interface RealSeasonInput {
   readonly seed: string;
   readonly season?: number;
   readonly callerVersion?: CallerVersion;
+  /** A league read from a save; built from `seed` when absent. */
+  readonly league?: League;
+  readonly rules?: LeagueRules;
+  /** Save and load: stop after this day, or carry on from a saved season. */
+  readonly stopAfter?: CalendarStamp;
+  readonly resumeFrom?: SeasonState;
 }
 
-/** Build the fictional league from `seed` and play its season through the real sim. */
+/** Build the fictional league from `seed` (or take a saved one) and play its season through the real sim. */
 export function runRealSeason(input: RealSeasonInput): { league: League; run: SeasonRun } {
-  const league = buildLeague(input.seed);
-  const resolve = realSimResolver(league, input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion });
-  const run = runSeason({ league, season: input.season ?? 2027, seed: input.seed, resolve });
+  const league = input.league ?? buildLeague(input.seed);
+  const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
+  const resolve = realSimResolver(league, { rules, ...(input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }) });
+  const run = runSeason({
+    league, season: input.season ?? 2027, seed: input.seed, resolve, rules,
+    ...(input.stopAfter ? { stopAfter: input.stopAfter } : {}),
+    ...(input.resumeFrom ? { resumeFrom: input.resumeFrom } : {}),
+  });
   return { league, run };
 }

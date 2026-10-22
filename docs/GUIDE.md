@@ -117,8 +117,11 @@ finishes.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.
-Season shell so far: a made-up 32-team league, and standings with the full NFL tiebreakers
-(checked against the real 2020-2024 playoff seeds).
+Season shell: a made-up 32-team league, its schedule, standings with the full NFL tiebreakers
+(checked against the real 2020-2024 playoff seeds), the playoffs and a whole season through the
+real sim. **Save and load:** stop a season after any week, save it to a file, and carry on later;
+the season comes out exactly as if it had never stopped
+(`season -- --seed X --stop-after 9 --save league.json`, then `season -- --load league.json`).
 
 **Coaching staffs (ADR-080, 22 October 2026):** every team has a head coach, two coordinators, a
 special teams coordinator and a computer-run president, with careers, contracts and 20 seasons of

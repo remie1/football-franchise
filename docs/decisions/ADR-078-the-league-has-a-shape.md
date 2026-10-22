@@ -230,3 +230,15 @@ The R1 surface is used as named, plus the two return types the named functions h
 types of the ratified functions, not new capabilities. `packages/calibration/test/seasonSurface.test.ts`
 fails if calibration imports any other name from `@ff/franchise`, or reaches into its files.
 
+### R1 amendment 1 (2026-10-21): save and load
+
+The owner ruled yes (thread "Save and load", Q2) to two more names on the R1 surface: `makeSave` and
+`readSave`, so the season command line can write a save and carry on from one. `runSeason` gains two
+options for this (`stopAfter`, `resumeFrom`) and `SeasonRun` gains `complete`; those are the same ratified
+function, not new names. Plan: `/mnt/project-files/design/save-and-load-plan.md`. Charter Amendment 10.
+
+Contracts edit **E1** (same thread, Q1; owner typed "Yes, make contracts edit E1" on 2026-10-22):
+`SaveFile.playedWith?: { caller: string }`, an optional note of what played the saved games. Free
+text, so contracts stay engine-agnostic; saves without it still load. The season command line records
+the play-caller version and refuses to carry on with a different one unless `--switch-caller` is given.
+
