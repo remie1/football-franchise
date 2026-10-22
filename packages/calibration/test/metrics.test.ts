@@ -209,7 +209,7 @@ describe("the event fold", () => {
   const acc = collectGames([observation]);
   /**
    * Two games on caller v7 (ADR-073 step 3.5), which wears front looks over v6's call: the fold's
-   * front-look counters are exercised on them while the default is v4, which wears none.
+   * front-look counters are exercised on them, and against v4 (named below), which wears none.
    */
   const v7Games = [game("fold-v7-1", "v7"), game("fold-v7-2", "v7")];
   const v7Acc = collectGames(v7Games);
@@ -605,13 +605,16 @@ describe("the event fold", () => {
 
   /**
    * ADR-073 step 3.5 — the fold's front-look diff, by hand-made PLAY_STARTs. One real dropback of a
-   * default game (which wears no front look) is edited, one field at a time, and the fold is
-   * compared with the unedited one: `front_look_rate`'s comparison is `shownRushDiffers`, entry by
-   * entry, `move` never read and an omitted side or gap no difference; the key is the front LOOK
-   * tag, never a coverage one; and a front LOOK tag never joins the coverage key.
+   * v4 game, named (which wears no front look whatever the default is), is edited, one field at a
+   * time, and the fold is compared with the unedited one: `front_look_rate`'s comparison is
+   * `shownRushDiffers`, entry by entry, `move` never read and an omitted side or gap no difference;
+   * the key is the front LOOK tag, never a coverage one; and a front LOOK tag never joins the
+   * coverage key.
    */
   describe("the front-look diff, edit by edit", () => {
-    const base = collectGames([observation]).play;
+    // Named, not the default: the default moves to v7, which wears front looks (dry run D, 2026-10-22).
+    const honest = v4Games[0]!;
+    const base = collectGames([honest]).play;
     type Payload = {
       kind?: unknown;
       defense: {
@@ -624,7 +627,7 @@ describe("the event fold", () => {
     };
     /** The first dropback with a rusher and, when asked, a coverage look worn; edited in a deep copy. */
     function edited(edit: (payload: Payload) => void, coverageLooked = false) {
-      const copy = structuredClone(observation);
+      const copy = structuredClone(honest);
       const target = copy.events.find((e) => {
         if (e.event.type !== "PLAY_START") return false;
         const payload = e.event.payload as Payload;
@@ -646,7 +649,7 @@ describe("the event fold", () => {
       return shown;
     };
 
-    it("the unedited default game wears no front look", () => {
+    it("the unedited v4 game wears no front look", () => {
       expect(base.frontLookDropbacks).toBe(0);
       expect(base.frontLookDropbacksByLook).toEqual({});
     });
@@ -750,8 +753,8 @@ describe("the event fold", () => {
     const mix = getMetric("front_look_mix").computeFromEvents(context);
     if (isInapplicable(mix)) throw new Error("front_look_mix computed nothing on caller v7");
     expect(mix).toEqual({ kind: "CATEGORICAL", counts: v7Acc.play.frontLookDropbacksByLook });
-    // On the default game, which wears no front look, the mix has nothing to split.
-    const none = getMetric("front_look_mix").computeFromEvents({ accumulator: acc, provenance: "FLAT_SYNTHETIC" });
+    // On a v4 game, named, which wears no front look, the mix has nothing to split.
+    const none = getMetric("front_look_mix").computeFromEvents({ accumulator: collectGames(v4Games), provenance: "FLAT_SYNTHETIC" });
     expect(isInapplicable(none)).toBe(true);
   });
 
