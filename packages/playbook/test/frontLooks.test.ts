@@ -686,6 +686,15 @@ describe("ADR-073 §3.5 — 6. R28: a front LOOK tag iff a second shown rush, wh
     expect(shownRushDiffers(played, HONEST.rush)).toBe(false);
   });
 
+  it("compares an alignment as stated: omitted on one list and stated on the other is a difference", () => {
+    const { alignment: _a, ...noAlignment } = entry(0);
+    expect(entry(0).alignment).toBeDefined();
+    expect(shownRushDiffers(HONEST.rush, replaced(0, noAlignment))).toBe(true);
+    expect(shownRushDiffers(replaced(0, noAlignment), HONEST.rush)).toBe(true);
+    // Omitted on both lists, it is the same statement.
+    expect(shownRushDiffers(replaced(0, noAlignment), replaced(0, noAlignment))).toBe(false);
+  });
+
   it("never reads `move`: a copy that differs only in move is no difference", () => {
     const moved = HONEST.rush.map((e) => ({ ...e, move: e.move === "POWER" ? "SPEED" : "POWER" }));
     expect(shownRushDiffers(HONEST.rush, moved)).toBe(false);
@@ -1020,6 +1029,53 @@ describe("ADR-073 §2.5 — 8. the pictures, row by row", () => {
       expect(shown?.gap, role).toBe("A");
       expect([shown?.side, shown?.alignment], role).toEqual([played?.side, played?.alignment]);
     }
+  });
+
+  it("keeps a rushing walked-up backer already in his A gap, INTERIOR, where he is: the very object from rush", () => {
+    const will = NICKEL_FIRE_ZONE.duties.LB_W;
+    if (will === undefined || will.kind !== "RUSH") throw new Error("Fire Zone's Will rushes");
+    const card: AnyDefensiveCard = {
+      ...NICKEL_FIRE_ZONE,
+      id: "TEST_WILL_AT_LEFT_A",
+      duties: { ...NICKEL_FIRE_ZONE.duties, LB_W: { ...will, gap: "A", alignment: "INTERIOR", side: "LEFT" } },
+    };
+    expect(legalFrontLooks(card)).toEqual([MUG]);
+    const defense = instance(card, FIRST_FORMATION);
+    const worn = applyFrontLook(defense, { cardId: card.id, look: "MUG" });
+    const at = (role: "LB_W" | "LB_M"): number => defense.call.rush.findIndex((r) => r.rusher === playerOf(defense, role));
+    expect(defense.call.rush[at("LB_W")]).toMatchObject({ side: "LEFT", gap: "A", alignment: "INTERIOR" });
+    expect(worn.call.shownRush[at("LB_W")]).toBe(defense.call.rush[at("LB_W")]);
+    // The Mike still rushes from his B gap, so he is still re-spotted (option A).
+    expect(defense.call.rush[at("LB_M")]?.gap).toBe("B");
+    expect(worn.call.shownRush[at("LB_M")]).toStrictEqual({ rusher: playerOf(defense, "LB_M"), alignment: "INTERIOR", side: "RIGHT", gap: "A" });
+  });
+
+  it("shows each Mug ghost on his own run fit's side, not his role's", () => {
+    const { LB_W: will, LB_M: mike } = NICKEL_COVER_3_SKY.duties;
+    if (will === undefined || will.kind !== "ZONE" || mike === undefined || mike.kind !== "ZONE") throw new Error("Sky's backers drop into zones");
+    // The backers' fits crossed: the Will fits RIGHT and the Mike LEFT.
+    const crossed: AnyDefensiveCard = {
+      ...NICKEL_COVER_3_SKY,
+      id: "TEST_BACKERS_FIT_CROSSED",
+      duties: { ...NICKEL_COVER_3_SKY.duties, LB_W: { ...will, runFit: { gap: "B", side: "RIGHT" } }, LB_M: { ...mike, runFit: { gap: "B", side: "LEFT" } } },
+    };
+    const defense = instance(crossed, FIRST_FORMATION);
+    const worn = applyFrontLook(defense, { cardId: crossed.id, look: "MUG" });
+    const ghostOf = (d: InstantiatedDefense, w: InstantiatedDefense, role: DefenseRole): ShownRusher | undefined =>
+      w.call.shownRush.slice(d.call.rush.length).find((s) => s.rusher === playerOf(d, role));
+    expect(ghostOf(defense, worn, "LB_W")).toStrictEqual({ rusher: playerOf(defense, "LB_W"), alignment: "INTERIOR", side: "RIGHT", gap: "A" });
+    expect(ghostOf(defense, worn, "LB_M")).toStrictEqual({ rusher: playerOf(defense, "LB_M"), alignment: "INTERIOR", side: "LEFT", gap: "A" });
+    // Fire Zone's dropping end, fitting LEFT: his ghost on the LEFT, at his fit's gap.
+    const end = NICKEL_FIRE_ZONE.duties.DE_R;
+    if (end === undefined || end.kind !== "ZONE") throw new Error("Fire Zone's end drops into a zone");
+    const leftFit: AnyDefensiveCard = {
+      ...NICKEL_FIRE_ZONE,
+      id: "TEST_END_FITS_LEFT",
+      duties: { ...NICKEL_FIRE_ZONE.duties, DE_R: { ...end, runFit: { gap: "C", side: "LEFT" } } },
+    };
+    const fire = instance(leftFit, FIRST_FORMATION);
+    const fireWorn = applyFrontLook(fire, { cardId: leftFit.id, look: "MUG" });
+    expect(ghostOf(fire, fireWorn, "DE_R")).toStrictEqual({ rusher: playerOf(fire, "DE_R"), alignment: "EDGE", side: "LEFT", gap: "C" });
   });
 
   it("keeps a lineman the clamp holds at the end where he is, the very object from rush (Q55)", () => {

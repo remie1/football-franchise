@@ -35,11 +35,15 @@
  */
 import { describe, expect, it } from "vitest";
 import { DEFAULT_TUNABLES, discoverBandTables, labelledLadderPaths } from "@ff/engine";
-import { DEFAULT_CALLER_VERSION } from "../src/caller/anticipate.js";
+import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../src/caller/anticipate.js";
 import { callerIdentity } from "../src/caller/frozen.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { runBatch } from "../src/harness/batch.js";
+import { runOneGame } from "../src/harness/runGame.js";
+import { buildFixture, buildFixtures } from "../src/harness/schedule.js";
+import { generateSeeds } from "../src/harness/seeds.js";
 import { buildFlatLeague } from "../src/league/flat.js";
+import { indexLeague } from "../src/league/snapshot.js";
 import {
   BAND_GATE_CORPUS,
   DECLARED_ABSTENTIONS,
@@ -163,6 +167,23 @@ describe("band tables — the corpus names its caller", () => {
     expect(batch.provenance.seedDigest).toBe(observed.seedDigest);
     expect(observed.callerVersion).toBe(batch.provenance.callerVersion);
     expect(observed.callerVersion).toBe(callerIdentity(DEFAULT_CALLER_VERSION, FROZEN_TENDENCIES.version));
+
+    // The name is the caller the games PLAYED, not a label beside them: the corpus's one game,
+    // played again by itself under the version its name gives, has the corpus's events and plays.
+    const named = observed.callerVersion.split("/")[0] as CallerVersion;
+    expect(CALLER_VERSIONS).toContain(named);
+    const index = indexLeague(buildFlatLeague({ teams: corpus.teams }));
+    const fixtures = buildFixtures(index, { kind: "SYNTHETIC_ROUND_ROBIN", rounds: 1, season: corpus.season });
+    const replay = runOneGame({
+      built: buildFixture(index, fixtures[0]!),
+      seed: generateSeeds(corpus.batchSeed, fixtures.length).seeds[0]!,
+      tendencies: FROZEN_TENDENCIES,
+      fourthDown: FROZEN_FOURTH_DOWN,
+      tunables: DEFAULT_TUNABLES,
+      callerVersion: named,
+    }).observation.events;
+    expect(observed.events).toBe(replay.length);
+    expect(observed.plays).toBe(new Set(replay.flatMap((e) => (e.event.playId === undefined ? [] : [String(e.event.playId)]))).size);
 
     // …and the gate's report prints that name on its corpus line, where it used to print a fixed
     // "caller v2". The derivation is the env-gated tier's (~27 minutes), so the result around the

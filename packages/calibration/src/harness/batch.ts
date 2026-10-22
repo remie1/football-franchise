@@ -154,8 +154,13 @@ export function mergeCallerDiagnostics(
 ): FrozenCallerDiagnostics {
   const backoff: Record<string, number> = { ...a.backoff };
   for (const [k, v] of Object.entries(b.backoff)) backoff[k] = (backoff[k] ?? 0) + v;
-  const drawn: Record<string, number> = { ...a.frontLooks.drawn };
-  for (const [k, v] of Object.entries(b.frontLooks.drawn)) drawn[k] = (drawn[k] ?? 0) + v;
+  // ADR-073 step 3.5: the front looks drawn, summed with a sorted key order, as `mergeDrawQuality`'s
+  // counters are, so the order the worker pool's results arrive in cannot change the OUTPUT.
+  const drawn: Record<string, number> = {};
+  const looks = [...new Set([...Object.keys(a.frontLooks.drawn), ...Object.keys(b.frontLooks.drawn)])];
+  for (const k of looks.sort((x, y) => x.localeCompare(y))) {
+    drawn[k] = (a.frontLooks.drawn[k] ?? 0) + (b.frontLooks.drawn[k] ?? 0);
+  }
   return {
     offensiveCalls: a.offensiveCalls + b.offensiveCalls,
     defensiveCalls: a.defensiveCalls + b.defensiveCalls,

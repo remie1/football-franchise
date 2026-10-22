@@ -28,20 +28,24 @@ import {
   DEFENSE_ROLES,
   DEFENSIVE_CARDS,
   DIME_COVER_1,
+  FORMATIONS,
   FRONT_LOOKS,
   FRONT_LOOK_RATE,
   HOST_OF,
   PERSONNEL_WORD,
   V6_COVERAGES,
   applicableDefensiveCards,
+  applyFrontLook,
   applyLooks,
   buildDefensiveUnit,
+  buildOffensiveUnit,
   callTags,
   composeCall,
   composedKey,
   drawFrontLook,
   drawLineGame,
   drawPressure,
+  instantiateDefense,
   isFrontLookTag,
   legalFrontLooks,
   lineGameRate,
@@ -1869,6 +1873,8 @@ describe("ADR-073 step 3.5, callerVersion v7", () => {
       const seed = `adr073-v7-calls-${String(g)}`;
       const v6 = pairOf("v6");
       const arms = FRONT_ARMS.map((arm) => ({ ...arm, pair: pairOf("v7", frontKnobs(arm.frontLooks)) }));
+      /** The looks each arm wore this game, call by call: what its `frontLooks.drawn` must count. */
+      const wornThisGame = new Map<string, Record<string, number>>(FRONT_ARMS.map((arm) => [arm.label, {}]));
       const wrap = (inner: PlayCaller, side: "home" | "away"): PlayCaller => ({
         ...inner,
         callOffense(request, rng) {
@@ -1922,6 +1928,8 @@ describe("ADR-073 step 3.5, callerVersion v7", () => {
               continue;
             }
             bump(`${arm.label}:${fronts[0]!}`);
+            const wornByArm = wornThisGame.get(arm.label)!;
+            wornByArm[fronts[0]!] = (wornByArm[fronts[0]!] ?? 0) + 1;
             if (fronts.length !== 1) fail(`${String(fronts.length)} front looks`);
             if (!legal.has(fronts[0] as FrontLookId)) fail(`a ${fronts[0]!} over ${called.id}, where it is not legal`);
             if (arm.frontLooks !== undefined && !arm.frontLooks.includes(fronts[0] as FrontLookId)) {
@@ -1937,6 +1945,24 @@ describe("ADR-073 step 3.5, callerVersion v7", () => {
             if (!sameKeys(call, base)) fail("the call's key order is not v6's");
             if (call.shownRush === call.rush) fail("a front look, and shownRush is the played rush array");
             for (const d of validateFrontLook(call)) fail(`R28: ${d.code} at ${d.where}`);
+            // The picture itself: the snap re-instantiated as the caller instantiates it (the called
+            // card, this side's defence, the offence's formation and unit) is v6's call, and the
+            // worn call is `applyFrontLook` of that instance under the re-derived draw — the side,
+            // the instance and the draw as made, not merely some call R28 accepts.
+            const formations = FORMATIONS.filter((f) => f.name === request.against.formation);
+            const formation = formations[0];
+            if (formation === undefined || formations.length !== 1) {
+              fail(`the offence's formation "${request.against.formation}" names ${String(formations.length)} formations`);
+            } else if (drawn !== undefined) {
+              const defenseChart = side === "home" ? built.homeDepthChart : built.awayDepthChart;
+              const offenseChart = side === "home" ? built.awayDepthChart : built.homeDepthChart;
+              const instance = instantiateDefense(called, buildDefensiveUnit(called.personnel, defenseChart), {
+                formation,
+                unit: buildOffensiveUnit(formation.personnel, offenseChart),
+              });
+              if (!isEqual(instance.call, base)) fail("the snap re-instantiated is not v6's call");
+              if (!isEqual(call, applyFrontLook(instance, drawn).call)) fail(`the worn call is not applyFrontLook(instance, ${JSON.stringify(drawn)})`);
+            }
             if (call.tags.some((t) => t.kind === "LOOK" && !isFrontLookTag(t))) counts.wornWithCoverageLook += 1;
           }
 
@@ -1973,6 +1999,10 @@ describe("ADR-073 step 3.5, callerVersion v7", () => {
         if (!isEqual(d.draw, v6.diagnostics.draw)) failures.push(`${arm.label} ${seed}: diagnostics.draw is not v6's`);
         if (d.frontLooks.formationDropped !== 0) failures.push(`${arm.label} ${seed}: ${String(d.frontLooks.formationDropped)} formation-dropped looks`);
         if (d.offensiveCalls !== v6.diagnostics.offensiveCalls) failures.push(`${arm.label} ${seed}: a different number of calls`);
+        // Counted once a snap, as worn: exact while no formation drops a drawn look (asserted above).
+        if (!isEqual(d.frontLooks.drawn, wornThisGame.get(arm.label))) {
+          failures.push(`${arm.label} ${seed}: drawn ${JSON.stringify(d.frontLooks.drawn)}, worn ${JSON.stringify(wornThisGame.get(arm.label))}`);
+        }
       }
       if (!isEqual(v6.diagnostics.frontLooks, { drawn: {}, formationDropped: 0 })) failures.push(`v6 ${seed}: front counters moved`);
       if (!isEqual(arms[1]!.pair.diagnostics.frontLooks, { drawn: {}, formationDropped: 0 })) failures.push(`v7/front-0 ${seed}: drew a front look`);
@@ -1990,6 +2020,9 @@ describe("ADR-073 step 3.5, callerVersion v7", () => {
     expect(worn["v7:STEM"] ?? 0, summary).toBeGreaterThan(0);
     expect(worn["v7/front-MUG:MUG"] ?? 0, summary).toBeGreaterThan(0);
     expect(worn["v7/front-STEM:STEM"] ?? 0, summary).toBeGreaterThan(0);
+    // A front look worn over a coverage look, so the worn call's kept `shownAssignments` (C5, C11)
+    // was compared on something.
+    expect(counts.wornWithCoverageLook, summary).toBeGreaterThan(0);
     expect(Object.keys(worn).filter((k) => k.startsWith("v7/front-0")), summary).toEqual([]);
     expect(worn["v7/front-MUG:STEM"] ?? 0, summary).toBe(0);
     expect(worn["v7/front-STEM:MUG"] ?? 0, summary).toBe(0);

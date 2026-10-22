@@ -124,6 +124,7 @@ interface StreamPlayStart {
     readonly shownRush?: readonly Record<string, unknown>[];
     readonly assignments?: unknown;
     readonly shownAssignments?: unknown;
+    readonly unaccountedRushers?: readonly unknown[];
   };
   readonly offense?: { readonly hotConversions?: readonly unknown[] };
 }
@@ -212,6 +213,8 @@ describe("the event fold", () => {
    */
   const v7Games = [game("fold-v7-1", "v7"), game("fold-v7-2", "v7")];
   const v7Acc = collectGames(v7Games);
+  /** One game on caller v4, NAMED: an honest front on every call, whatever the default is. */
+  const v4Games = [game("fold-v4-1", "v4")];
 
   /** Fixed, seeded, and large enough to contain the rare reconciliation paths. */
   const CORPUS = Array.from({ length: 30 }, (_, i) => game(`agree-${i}`));
@@ -479,9 +482,10 @@ describe("the event fold", () => {
    * denominator of a passing-game metric and the error would look like a corpus finding.
    */
   it.each([
-    ["the default caller", () => [observation]],
-    ["caller v7", () => v7Games],
-  ] as const)("counts the pressure facts on dropbacks only, never on a run (%s)", (_label, games) => {
+    ["the default caller", () => [observation], false],
+    ["caller v7", () => v7Games, false],
+    ["caller v4, named", () => v4Games, true],
+  ] as const)("counts the pressure facts on dropbacks only, never on a run (%s)", (_label, games, honest) => {
     const observed = games();
     const p = collectGames(observed).play;
     expect(p.blitzDropbacks).toBeLessThanOrEqual(p.dropbacks);
@@ -498,6 +502,11 @@ describe("the event fold", () => {
     let rolledDropbacks = 0;
     let hotDropbacks = 0;
     const hotWithoutRoll: string[] = [];
+    // On an honest front (a caller that wears no front look: `shownRush` is `rush` on every call)
+    // trigger (b) cannot fire, so the read rolls on exactly the dropbacks with an unaccounted
+    // rusher, trigger (a). The per-play "hot ⇒ rolled" bound alone would pass a trigger (b) that
+    // fired there.
+    const rollNotTriggerA: string[] = [];
     for (const one of observed) {
       const rolled = rolledRecognitionPlays(one.events);
       for (const start of playStarts(one.events)) {
@@ -508,8 +517,13 @@ describe("the event fold", () => {
           hotDropbacks += 1;
           if (!didRoll) hotWithoutRoll.push(`${one.seed} ${start.playId}`);
         }
+        const unaccounted = (start.defense?.unaccountedRushers ?? []).length > 0;
+        if (honest && didRoll !== unaccounted) rollNotTriggerA.push(`${one.seed} ${start.playId}: rolled ${String(didRoll)}, unaccounted ${String(unaccounted)}`);
       }
     }
+    expect(rollNotTriggerA, "on an honest front the read rolled where no rusher was unaccounted, or did not where one was").toEqual([]);
+    // …and so, there, the old structural bound holds as it was written before front looks.
+    if (honest) expect(p.hotConversionDropbacks).toBeLessThanOrEqual(p.unaccountedRusherDropbacks);
     expect(hotWithoutRoll, "a dropback converted hot with no rolled blitz_recognition read").toEqual([]);
     expect(hotDropbacks).toBe(p.hotConversionDropbacks);
     expect(p.hotConversionDropbacks).toBeLessThanOrEqual(rolledDropbacks);
