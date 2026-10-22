@@ -2726,6 +2726,12 @@ Crowd noise:
 
 Standard attribute scale: 0-99
 
+> **Absolute, position-agnostic (ADR-079 Q3, 2026-10-22).** One scale for every position: the bands
+> below describe how good a player is *at that rating* among everyone in the league, so a guard's
+> speed and a corner's speed are compared directly. "Top 5 at position" in the table reads as
+> "among the league's best at this rating" for a rating the position is built on; a rating a
+> position rarely uses (a guard's catching) sits low on the same scale.
+
 | Range | Description | NFL Equivalent |
 |-------|-------------|----------------|
 | 90-99 | Elite | Top 5 at position |

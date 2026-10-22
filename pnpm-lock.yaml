@@ -48,6 +48,9 @@ importers:
 
   packages/calibration:
     dependencies:
+      '@ff/attributes':
+        specifier: workspace:*
+        version: link:../attributes
       '@ff/contracts':
         specifier: workspace:*
         version: link:../contracts

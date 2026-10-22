@@ -67,7 +67,7 @@ L4 CALIBRATION ADJ   deltas prescribed by calibration reports (Spec #3), applied
 
 Blend rule per attribute: `estimate = Σ(source_i × w_i × conf_i) / Σ(w_i × conf_i)` with per-source weights `w` living in a tunables file (calibration-adjustable). Every derived value keeps provenance: `{attrId, value, layerHits: [{source, raw, mapped, conf}]}` — so when calibration says "CBs are overrated," we can see *which source family* inflated them.
 
-**Scale anchoring:** all mappings normalize to league-relative percentiles before the 0–99 scale (Appendix A of the engine spec: 90+ = top-5 at position). Position-relative, season-relative.
+**Scale anchoring (amended by ADR-079 Q3, 2026-10-22):** ratings are **absolute and position-agnostic**: one 0–99 scale for every position, so a guard's speed and a corner's speed sit on the same ruler and a lineman used as a goal-line receiver keeps his own speed and hands. Every player carries every active rating. Physical ratings are pinned to measurements (speed to the 40: 4.22 s = 99, 5.60 s = 0; agility to the 3-cone; jumping to the vertical; strength to bench and weight; `fictional/derive.ts`), and the real importer uses the same mappings. Skill and mental ratings map onto the same league-wide scale: 90+ = among the league's best at that rating, whatever the position (Appendix A of the engine spec). ~~Position-relative~~, season-relative.
 
 **L3 inference menu (beyond text):** sack-avoidance vs pressure rate faced → pocketPatience/poise; pre-snap penalty rates → awareness/discipline; audible-heavy offense participation → footballIQ floor; snap-to-throw distribution shape vs depth of target → decisionMaking profile. Each documented with its confidence ceiling — inference never exceeds 0.6.
 

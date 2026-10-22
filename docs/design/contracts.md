@@ -41,7 +41,7 @@ export interface AttributeDefinition {
   name: string;                    // "Pass Block"
   description: string;
   positionGroups: PositionGroup[]; // which positions carry this attribute
-  scale: { min: 0; max: 99 };      // fixed scale, league-relative (Charter/design doc Appendix A)
+  scale: { min: 0; max: 99 };      // fixed scale, absolute and position-agnostic (ADR-079; design doc Appendix A)
   category: "physical" | "skill" | "mental" | "knowledge";
   status: "active" | "deprecated"; // deprecated = kept for save migration, unused by engine
   introducedIn: number;            // registry schema version

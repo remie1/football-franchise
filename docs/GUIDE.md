@@ -39,7 +39,7 @@ run the play simulator).
 | Play simulator | `packages/engine` | Simulates one play at a time, and whole games: pre-snap reads, the pass rush and the pocket, routes and coverage, the throw and catch, runs, special teams. | Yes, being tuned |
 | Playbook | `packages/playbook` | The play cards: formations, pass and run concepts, protections, defensive calls with their fronts, coverages, pressures and disguises. | Yes |
 | Realism checker | `packages/calibration` | Runs thousands of games and compares the results with real NFL numbers. Also holds the computer play-callers used for testing, and the "ladder" checks (described below). | Yes |
-| Player ratings | `packages/attributes` | Will turn real data into player ratings for real rosters. | Not started |
+| Player ratings | `packages/attributes` | Makes the made-up league's players and their ratings (ADR-079); will later turn real data into ratings for real rosters. | Made-up rosters: yes. Real data: not started |
 | Front office | `packages/franchise` | Will run the calendar, schedule, standings, cap, contracts, free agency and the draft. | Not started (its own thread now) |
 | Storylines | `packages/narrative` | Will write storylines, press and reputation from what happens in games. | Not started |
 | Game screen | `apps/game` | The browser app: menus, dashboards, the play log. It only displays; it decides nothing. | Not started (a game viewer has its own thread now) |
@@ -119,6 +119,9 @@ finishes.
 shell for the front office, faster CI, and this guide.
 Season shell so far: a made-up 32-team league, and standings with the full NFL tiebreakers
 (checked against the real 2020-2024 playoff seeds).
+Team rosters (ADR-079, 22 October 2026): every team has its own 53 made-up players, rated on one
+absolute scale for every position (a guard's speed and a corner's speed on the same ruler), with
+the best player at each spot starting. Seasons play with these squads by default.
 
 ## Words you will see
 
