@@ -95,6 +95,7 @@ export function seasonEvents(sched: SeasonSchedule, seed: string): FranchiseEven
   return out;
 }
 
+/** Three playoff teams a conference: its two division winners and one wild card. */
 export function input(sched: SeasonSchedule, seed = "news-test"): NewsInput {
-  return { seed, structure: STRUCTURE, teams: NAMES, schedule: sched };
+  return { seed, structure: STRUCTURE, teams: NAMES, schedule: sched, playoffTeams: 3 };
 }

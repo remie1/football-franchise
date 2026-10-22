@@ -25,6 +25,7 @@
 | Story lines below (28+ is a rout, 3 or less is close, 14+ is a comeback, 4 is a streak, .400 is an upset gap, 70 is a shootout) | football judgement, fixed in football terms rather than in this league's scoring (owner's Q3) | CHOSEN — provenance NONE |
 | Story names (`ROUT`, `WIN_STREAK`, ...) and importance values | named here | CHOSEN — provenance NONE |
 | NFL playoff format: 4 division winners and 3 wild cards per conference | NFL rule (2020-), as ADR-078 | REPORTED |
+| The race check makes no wrong call on the 2020-2024 NFL regular seasons; by the last week it has called 12-13 of each season's 14 playoff teams in and 16-17 of the 18 others out | `packages/narrative/test/race.nfl.test.ts`, on franchise's fixture of nflverse's public games table; counted 2026-10-22 | COMPUTED |
 
 ## Conjoined mechanisms
 
@@ -161,29 +162,54 @@ of the weekly kinds.
 | `CLINCHED_DIVISION` | certain on wins alone (Q5) | 3 |
 | `CLINCHED_PLAYOFFS` | certain on wins alone, and not the division the same week | 3 |
 | `ELIMINATED` | can no longer make the playoffs on wins alone | 2 |
-| `PLAYOFF_FIELD` | the field is set: one per conference, naming its top seed | 3 |
+| `PLAYOFF_FIELD` | the field is set: one per conference, naming its top seed | 4 |
 | `PLAYOFF_WIN` | each wild-card and divisional game | 3 |
 | `CONFERENCE_TITLE` | each conference final | 4 |
 | `CHAMPIONSHIP` | the final | 5 |
+
+Each team's clinch and elimination is reported once a season, and at equal importance runs ahead of
+the weekly kinds, as the other once-a-season stories do. The field stories and every playoff game
+always run, outside the cap of 4 (Q4). A playoff headline takes the first of these that fits: won in
+overtime, came back from 14+ down, an upset by seed (never in the final, whose seeds come from
+different conferences), a rout.
 
 **"Certain on wins alone"** (Q5, the simple version): a team's worst case is losing every game left;
 a rival's best case is winning every game left. A rival who could finish level or ahead is a threat
 (a tie might break either way). A team has clinched its division when no division rival is a threat,
 and a playoff spot when the threats couldn't fill the places above it (its division's crown, and
-three wild cards, each of which needs its own division's winner above it too). Treating every rival
-as able to win out, even rivals who still play each other, only ever makes the check late, never
-wrong. Elimination is the mirror image. The real NFL, with full tiebreaks, sometimes announces a
-week sooner.
+the wild cards, each of which needs its own division's winner above it too). The wild cards are the
+league's playoff teams per conference (`LeagueRules.playoffTeamsPerConference`, 7) less its division
+winners. Treating every rival as able to win out, even rivals who still play each other, only ever
+makes the check late, never wrong. Elimination is the mirror image. The real NFL, with full
+tiebreaks, sometimes announces a week sooner.
 
-**The season wrap-up** is its own edition when the offseason starts: best and worst records, the
-longest streaks, the most points scored and the fewest allowed, and the champion's path.
+**Checked against real seasons.** The check replayed the 2020-2024 NFL regular seasons week by week
+(`test/race.nfl.test.ts`). It made no wrong call: every division it called was won by that team,
+every team it called in made the field, and every team it called out missed it. By the last week it
+had called 12-13 of each season's 14 playoff teams in and 16-17 of the 18 others out; the rest were
+settled by tiebreaks, which the simple version leaves to the field story.
+
+**The season review** is its own edition, "Season review", when the offseason starts (or when the
+events end, once a champion is crowned). Every review story runs; when more than two teams share a
+mark, the headline lists them in a line written for a crowd.
+
+| Story | Reports | Importance |
+|---|---|---|
+| `BEST_RECORD` | the best record and who holds it | 3 |
+| `WORST_RECORD` | the worst record | 2 |
+| `LONGEST_WIN_STREAK` | the season's longest win streak | 2 |
+| `LONGEST_LOSING_STREAK` | the season's longest losing streak | 2 |
+| `TOP_OFFENSE` | the most points scored | 2 |
+| `TOP_DEFENSE` | the fewest points allowed | 2 |
+| `CHAMPION_PATH` | the champion's road: whom it beat in the playoffs | 4 |
 
 ## Impact
 
 - `contracts`: N1 (`events.ts`), N2 (`league.ts`), `docs/design/contracts.md` §6.2; tests in
   `test/league.test.ts`. `CONTRACTS_SCHEMA_VERSION` unchanged (N1 reshapes an event nothing emits,
   N2 is optional).
-- `narrative`: the desk, the stories, the wording file, the `news` command, tests.
+- `narrative`: the desk, the stories, the wording file, the `news` command, tests (with a copy of
+  franchise's real 2020-2024 results for the race check).
 - `calibration`: `season/realSeason.ts` copies period scores (N2); `season/main.ts` saves the
   season's event stream with the season so the news command can read it; under R2 only, the
   command prints the headlines. No harness, metric or caller file is edited.
