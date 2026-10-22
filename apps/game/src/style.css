@@ -86,3 +86,13 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
 .tick { display: inline-block; min-width: 52px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .dice summary { cursor: pointer; margin-top: 8px; color: var(--muted); }
 .detail .grid td[title] { cursor: help; text-decoration: underline dotted var(--line); }
+.title { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.bar .pages { margin-top: 0; border-bottom: 0; }
+.page-pickers { margin-top: 12px; }
+.jump { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.9em; }
+.jump a { color: var(--accent); text-decoration: none; }
+.jump a:hover { text-decoration: underline; }
+.edition { scroll-margin-top: 12px; }
+.headline .text { display: block; }
+.headline.lead .text { font-weight: 700; }
+.final { display: block; color: var(--muted); font-size: 0.85em; font-variant-numeric: tabular-nums; }

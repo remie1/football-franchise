@@ -2,17 +2,21 @@
  * THE NEWS DESK (ADR-082).
  *
  * Reads a season's franchise events one at a time and publishes an edition for each calendar
- * week that had news: `PRESS_STORY_PUBLISHED` events, ranked and capped. It only reads; nothing
- * it does reaches the game (Spec #7 §1: narrative may not manufacture facts).
+ * week that had news: `PRESS_STORY_PUBLISHED` events, ranked and capped. Once a champion is
+ * crowned and the offseason starts, it publishes the season in review. It only reads; nothing it
+ * does reaches the game (Spec #7 §1: narrative may not manufacture facts).
  *
  * Same input and events → the same news, word for word (Iron Rule 4).
  */
 import {
-  createRng, type CalendarStamp, type FranchiseEvent, type FranchiseEventEnvelope, type GameId,
-  type GameResult, type LeagueStructure, type Rng, type SeasonSchedule, type TeamId,
+  createRng, DEFAULT_LEAGUE_RULES,
+  type CalendarStamp, type ConferenceId, type FranchiseEvent, type FranchiseEventEnvelope, type GameId,
+  type GameKind, type GameResult, type LeagueStructure, type Rng, type SeasonSchedule, type TeamId,
 } from "@ff/contracts";
 import { indexLeague, type LeagueIndex, type TeamNames } from "./league.js";
+import { gamesLeft, raceStories, type RaceMarks } from "./race.js";
 import { applyResults, emptyRecords, type Records } from "./records.js";
+import { fieldStories, playoffStory, reviewStories, ROUND_LABEL, seedsOf } from "./season.js";
 import { DEFAULT_PER_WEEK, MAX_PER_KIND, ONCE_A_SEASON, type Candidate } from "./stories.js";
 import { weeklyCandidates } from "./weekly.js";
 import { writeHeadline, WORDING, type Wording } from "./words.js";
@@ -22,8 +26,10 @@ export interface NewsInput {
   readonly seed: string;
   readonly structure: LeagueStructure;
   readonly teams: readonly TeamNames[];
-  /** For next week's games (previews) and, from step 2, the games each team has left. */
+  /** For next week's games (previews) and the games each team has left (the playoff race). */
   readonly schedule: SeasonSchedule;
+  /** Playoff teams per conference; the league rules' 7 unless given. */
+  readonly playoffTeams?: number;
   /** Headlines a regular-season week keeps; the owner's Q4 is 4. */
   readonly perWeek?: number;
   /** The headline wording; the content file unless a test swaps it. */
@@ -33,7 +39,7 @@ export interface NewsInput {
 export type StoryEnvelope = FranchiseEventEnvelope & { event: Extract<FranchiseEvent, { type: "PRESS_STORY_PUBLISHED" }> };
 
 export interface Edition {
-  /** "Week 6". */
+  /** "Week 6", "Wild-card round", "Season review". */
   readonly label: string;
   /** The day the week's games were played, or the week's last event when it had none. */
   readonly at: CalendarStamp;
@@ -43,17 +49,21 @@ export interface Edition {
 export interface NewsDesk {
   /** Read the next event. Returns the editions it closed: usually none, at a new week one. */
   take(envelope: FranchiseEventEnvelope): Edition[];
-  /** The stream has ended: close the last week. */
+  /** The stream has ended: close the last week, and review the season if it has a champion. */
   finish(): Edition[];
   /** "Elmwood Bison 41, Ironvale Comets 17" for a game the desk has seen finish. */
   scoreLine(game: GameId): string | undefined;
 }
+
+type Field = readonly { conference: ConferenceId; teams: readonly TeamId[] }[];
 
 interface OpenWeek {
   readonly key: string;
   at: CalendarStamp;
   gameDay: CalendarStamp | null;
   readonly regular: GameResult[];
+  readonly playoff: { result: GameResult; kind: GameKind }[];
+  field: Field | null;
 }
 
 const weekKey = (s: CalendarStamp) => `${s.season}/${s.phase}/${s.week}`;
@@ -86,26 +96,35 @@ export function selectStories(candidates: readonly Candidate[], rng: Rng, perWee
   return ranked.filter((c) => kept.has(c));
 }
 
-function label(at: CalendarStamp): string {
-  return at.phase === "REGULAR_SEASON" ? `Week ${at.week}` : `${at.phase} week ${at.week}`;
+function label(week: OpenWeek): string {
+  const at = week.gameDay ?? week.at;
+  if (at.phase === "REGULAR_SEASON") return `Week ${at.week}`;
+  const round = week.playoff[0] === undefined ? undefined : ROUND_LABEL[week.playoff[0].kind];
+  if (round !== undefined) return round;
+  return week.field !== null ? "Playoff field" : `${at.phase} week ${at.week}`;
 }
 
 export function createNewsDesk(input: NewsInput): NewsDesk {
   const league: LeagueIndex = indexLeague(input.structure, input.teams);
   const perWeek = input.perWeek ?? DEFAULT_PER_WEEK;
+  const playoffTeams = input.playoffTeams ?? DEFAULT_LEAGUE_RULES.playoffTeamsPerConference;
   const wording = input.wording ?? WORDING;
   const dice = createRng(input.seed, "narrative:news");
   let records: Records = emptyRecords([...league.teams.values()].map((t) => t.id));
   let open: OpenWeek | null = null;
   let seq = 0;
+  let seeds = new Map<string, number>();
+  let champion: TeamId | null = null;
+  let reviewed = false;
+  const marks: RaceMarks = new Map();
+  const playoffs: GameResult[] = [];
   const finished = new Map<string, GameResult>();
 
-  function publish(week: OpenWeek, candidates: readonly Candidate[]): Edition | null {
+  function publish(key: string, title: string, at: CalendarStamp, candidates: readonly Candidate[]): Edition | null {
     if (candidates.length === 0) return null;
-    const rng = dice.fork(week.key);
+    const rng = dice.fork(key);
     const words = rng.fork("words");
     const used = new Set<string>();
-    const at = week.gameDay ?? week.at;
     const stories = selectStories(candidates, rng.fork("rank"), perWeek).map((c): StoryEnvelope => ({
       seq: seq++,
       at,
@@ -121,20 +140,33 @@ export function createNewsDesk(input: NewsInput): NewsDesk {
         },
       },
     }));
-    return { label: label(at), at, stories };
+    return { label: title, at, stories };
   }
 
   function close(week: OpenWeek): Edition | null {
     const candidates: Candidate[] = [];
+    const day = week.gameDay ?? week.at;
     if (week.regular.length > 0) {
       const before = records;
       records = applyResults(before, week.regular);
       candidates.push(...weeklyCandidates({
-        week: (week.gameDay ?? week.at).week,
-        results: week.regular, before, after: records, league, schedule: input.schedule,
+        week: day.week, results: week.regular, before, after: records, league, schedule: input.schedule,
       }));
+      candidates.push(...raceStories({ records, left: gamesLeft(input.schedule, day.week), league, playoffTeams }, marks));
     }
-    return publish(week, candidates);
+    if (week.field !== null) candidates.push(...fieldStories(week.field, records, league));
+    for (const { result, kind } of week.playoff) {
+      const story = playoffStory(result, kind, seeds, league);
+      if (story !== null) candidates.push(story);
+    }
+    return publish(week.key, label(week), day, candidates);
+  }
+
+  function seasonReview(at: CalendarStamp): Edition[] {
+    if (reviewed || champion === null) return [];
+    reviewed = true;
+    const edition = publish(`${at.season}/review`, "Season review", at, reviewStories(records, league, champion, playoffs));
+    return edition === null ? [] : [edition];
   }
 
   const closeOpen = (): Edition[] => {
@@ -147,8 +179,8 @@ export function createNewsDesk(input: NewsInput): NewsDesk {
   return {
     take(envelope) {
       const key = weekKey(envelope.at);
-      const closed = open !== null && open.key !== key ? closeOpen() : [];
-      const week: OpenWeek = open ?? { key, at: envelope.at, gameDay: null, regular: [] };
+      const out = open !== null && open.key !== key ? closeOpen() : [];
+      const week: OpenWeek = open ?? { key, at: envelope.at, gameDay: null, regular: [], playoff: [], field: null };
       open = week;
       week.at = envelope.at;
       const e = envelope.event;
@@ -156,10 +188,25 @@ export function createNewsDesk(input: NewsInput): NewsDesk {
         finished.set(String(e.payload.result.gameId), e.payload.result);
         week.gameDay ??= envelope.at;
         if (e.payload.kind === "REGULAR") week.regular.push(e.payload.result);
+        else if (e.payload.kind !== "PRESEASON") {
+          week.playoff.push({ result: e.payload.result, kind: e.payload.kind });
+          playoffs.push(e.payload.result);
+        }
+      } else if (e.type === "PLAYOFF_FIELD_SET") {
+        week.field = e.payload.seeds;
+        seeds = seedsOf(e.payload.seeds);
+      } else if (e.type === "CHAMPION_DECIDED") {
+        champion = e.payload.team;
+      } else if (e.type === "CALENDAR_PHASE_ENTERED" && e.payload.phase === "OFF_EVAL") {
+        out.push(...seasonReview(envelope.at));
       }
-      return closed;
+      return out;
     },
-    finish: closeOpen,
+    finish() {
+      const last = open?.at ?? null;
+      const out = closeOpen();
+      return last === null ? out : [...out, ...seasonReview(last)];
+    },
     scoreLine(game) {
       const g = finished.get(String(game));
       if (g === undefined) return undefined;

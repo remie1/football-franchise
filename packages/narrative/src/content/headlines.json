@@ -217,6 +217,304 @@
         "Winner takes the {division} lead: {away} at {home} next week",
         "Two teams, one first place: {away} visit {home} next week"
       ]
+    },
+    "CLINCHED_DIVISION": {
+      "straight": [
+        "{team} clinch the {division}",
+        "{teamCity} wins the {division}"
+      ],
+      "punchy": [
+        "{division} champions: {team}",
+        "{team} lock up the {division}"
+      ]
+    },
+    "CLINCHED_PLAYOFFS": {
+      "straight": [
+        "{team} clinch a playoff spot",
+        "{teamCity} is playoff-bound at {record}"
+      ],
+      "punchy": [
+        "{team} are in!",
+        "Playoff ticket punched: {team} are in at {record}"
+      ]
+    },
+    "ELIMINATED": {
+      "straight": [
+        "{team} eliminated from playoff contention",
+        "{teamCity}'s playoff hopes end at {record}"
+      ],
+      "punchy": [
+        "Wait till next year, {team}",
+        "{team} out of the running at {record}"
+      ]
+    },
+    "PLAYOFF_FIELD": {
+      "straight": [
+        "Playoff field set: {team} the top seed in the {conference}",
+        "{team} earn the top seed in the {conference} at {record}"
+      ],
+      "punchy": [
+        "The road to the title in the {conference} runs through {teamCity}",
+        "{team} grab the {conference} bye as the field is set"
+      ]
+    },
+    "PLAYOFF_WIN": {
+      "straight": [
+        "{winner} beat {loser} {score} to advance",
+        "{winnerCity} moves on past {loserCity}, {score}"
+      ],
+      "punchy": [
+        "{winner} punch their ticket past {loser}",
+        "{loser} sent home by {winner}"
+      ]
+    },
+    "PLAYOFF_WIN.overtime": {
+      "straight": [
+        "{winner} edge {loser} in overtime to advance",
+        "{winnerCity} survives {loserCity} in overtime"
+      ],
+      "punchy": [
+        "Overtime heroics: {winner} survive {loser}",
+        "{winner} live to play another week after overtime win"
+      ]
+    },
+    "PLAYOFF_WIN.comeback": {
+      "straight": [
+        "{winner} rally from {deficit} down to knock out {loser}",
+        "{winnerCity} comes back to oust {loserCity}"
+      ],
+      "punchy": [
+        "{winner} come back from {deficit} down to end the {loser} season",
+        "Never say die: {winner} stun {loser} from {deficit} down"
+      ]
+    },
+    "PLAYOFF_WIN.upset": {
+      "straight": [
+        "No. {winnerSeed} {winner} upset No. {loserSeed} {loser}",
+        "{winnerCity} upsets {loserCity} to advance"
+      ],
+      "punchy": [
+        "Seeds mean nothing: No. {winnerSeed} {winner} oust {loser}",
+        "Bracket busted: {winner} send {loser} home"
+      ]
+    },
+    "PLAYOFF_WIN.rout": {
+      "straight": [
+        "{winner} rout {loser} {score} to advance",
+        "{winnerCity} cruises past {loserCity}, {score}"
+      ],
+      "punchy": [
+        "{winner} make short work of {loser}",
+        "{loser} blown out of the playoffs by {winner}"
+      ]
+    },
+    "CONFERENCE_TITLE": {
+      "straight": [
+        "{winner} win the {conference} title, beating {loser} {score}",
+        "{winnerCity} heads to the championship after beating {loserCity}"
+      ],
+      "punchy": [
+        "{winner} are {conference} champions",
+        "Next stop, the championship: {winner} top {loser}"
+      ]
+    },
+    "CONFERENCE_TITLE.overtime": {
+      "straight": [
+        "{winner} win the {conference} in overtime",
+        "{winnerCity} beats {loserCity} in overtime for the {conference} title"
+      ],
+      "punchy": [
+        "Overtime sends the {winner} to the championship",
+        "{winner} win an overtime classic for the {conference} crown"
+      ]
+    },
+    "CONFERENCE_TITLE.comeback": {
+      "straight": [
+        "{winner} rally from {deficit} down to win the {conference}",
+        "{winnerCity} comes back to win the {conference} title"
+      ],
+      "punchy": [
+        "From {deficit} down to {conference} champions: the {winner}",
+        "{winner} come back to take the {conference} title"
+      ]
+    },
+    "CONFERENCE_TITLE.upset": {
+      "straight": [
+        "No. {winnerSeed} {winner} win the {conference}",
+        "{winnerCity} upsets {loserCity} for the {conference} title"
+      ],
+      "punchy": [
+        "Underdogs no more: {winner} are {conference} champions",
+        "No. {winnerSeed} {winner} crash the championship"
+      ]
+    },
+    "CONFERENCE_TITLE.rout": {
+      "straight": [
+        "{winner} rout {loser} for the {conference} title",
+        "{winnerCity} romps to the {conference} crown"
+      ],
+      "punchy": [
+        "{winner} run away with the {conference}",
+        "{conference} final no contest: {winner} {score}"
+      ]
+    },
+    "CHAMPIONSHIP": {
+      "straight": [
+        "{winner} are champions, beating {loser} {score}",
+        "{winnerCity} wins the championship"
+      ],
+      "punchy": [
+        "Champions! {winner} beat {loser} {score}",
+        "{winner} on top of the league"
+      ]
+    },
+    "CHAMPIONSHIP.overtime": {
+      "straight": [
+        "{winner} win the championship in overtime",
+        "{winnerCity} beats {loserCity} in overtime for the title"
+      ],
+      "punchy": [
+        "Overtime glory: {winner} are champions",
+        "{winner} win it all in overtime"
+      ]
+    },
+    "CHAMPIONSHIP.comeback": {
+      "straight": [
+        "{winner} rally from {deficit} down to win the championship",
+        "{winnerCity} comes back to beat {loserCity} for the title"
+      ],
+      "punchy": [
+        "{winner} win it all from {deficit} down",
+        "The comeback is complete: {winner} are champions"
+      ]
+    },
+    "CHAMPIONSHIP.rout": {
+      "straight": [
+        "{winner} rout {loser} {score} for the title",
+        "{winnerCity} romps to the championship"
+      ],
+      "punchy": [
+        "{winner} crush {loser} to win it all",
+        "No contest in the final: {winner} {score}"
+      ]
+    },
+    "BEST_RECORD": {
+      "straight": [
+        "{teams} finish with the league's best record, {record}",
+        "Best record in the league: {teams}, {record}"
+      ],
+      "punchy": [
+        "Top of the league: {teams} at {record}",
+        "Nobody did it better than the {teams} at {record}"
+      ]
+    },
+    "BEST_RECORD.many": {
+      "straight": [
+        "{count} teams share the league's best record at {record}"
+      ],
+      "punchy": [
+        "Logjam at the top at {record}: {teams}"
+      ]
+    },
+    "WORST_RECORD": {
+      "straight": [
+        "{teams} finish with the league's worst record, {record}",
+        "Worst record in the league: {teams}, {record}"
+      ],
+      "punchy": [
+        "Bottom of the barrel: {teams} at {record}",
+        "A season to forget for the {teams} at {record}"
+      ]
+    },
+    "WORST_RECORD.many": {
+      "straight": [
+        "{count} teams share the league's worst record at {record}"
+      ],
+      "punchy": [
+        "Crowded at the bottom: {teams} at {record}"
+      ]
+    },
+    "LONGEST_WIN_STREAK": {
+      "straight": [
+        "Longest win streak of the season: {length} straight, by the {teams}",
+        "{teams} had the season's longest win streak, {length} games"
+      ],
+      "punchy": [
+        "{length} straight: the {teams} had the hottest run of the season",
+        "Hottest stretch of the year: {length} in a row for the {teams}"
+      ]
+    },
+    "LONGEST_WIN_STREAK.many": {
+      "straight": [
+        "{count} teams had the season's longest win streak, {length} games"
+      ],
+      "punchy": [
+        "{length} straight wins, done {count} times this season"
+      ]
+    },
+    "LONGEST_LOSING_STREAK": {
+      "straight": [
+        "Longest losing streak of the season: {length}, by the {teams}",
+        "{teams} had the season's longest losing streak, {length} games"
+      ],
+      "punchy": [
+        "{length} straight losses: the coldest run belonged to the {teams}",
+        "The skid of the year: {length} in a row for the {teams}"
+      ]
+    },
+    "LONGEST_LOSING_STREAK.many": {
+      "straight": [
+        "{count} teams had the season's longest losing streak, {length} games"
+      ],
+      "punchy": [
+        "{length} straight losses, done {count} times this season"
+      ]
+    },
+    "TOP_OFFENSE": {
+      "straight": [
+        "{teams} score a league-best {points} points",
+        "Most points in the league: {teams}, {points}"
+      ],
+      "punchy": [
+        "Points machine: {teams} put up {points}",
+        "Nobody scored like the {teams}: {points} points"
+      ]
+    },
+    "TOP_OFFENSE.many": {
+      "straight": [
+        "{count} teams tie for the most points, {points}"
+      ],
+      "punchy": [
+        "{points} points apiece at the top: {teams}"
+      ]
+    },
+    "TOP_DEFENSE": {
+      "straight": [
+        "{teams} allow a league-low {points} points",
+        "Fewest points allowed: {teams}, {points}"
+      ],
+      "punchy": [
+        "Toughest defense in the league: {teams}, {points} allowed",
+        "{teams} give up just {points} points all season"
+      ]
+    },
+    "TOP_DEFENSE.many": {
+      "straight": [
+        "{count} teams tie for the fewest points allowed, {points}"
+      ],
+      "punchy": [
+        "{points} allowed apiece: {teams} share the stingiest defense"
+      ]
+    },
+    "CHAMPION_PATH": {
+      "straight": [
+        "{team} beat {path} on the way to the title",
+        "The champions' road: {team} past {path}"
+      ],
+      "punchy": [
+        "{team} went through {path} to win it all",
+        "From {record} to champions: {team} beat {path}"
+      ]
     }
   }
 }
