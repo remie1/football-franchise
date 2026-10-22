@@ -2,10 +2,12 @@
  * ADR-073 step 3.1 — THE SHOWN RUSH, IDENTICAL TO THE PLAYED RUSH.
  *
  * `DefensivePlayCall.shownRush` is what the offence SEES of the rush before the snap, beside
- * `rush`, which resolves. At this step nothing can make the two differ: every call built
- * today returns ONE array for both, and only a front look (step 3.5) will ever write a
- * second list. At 3.1 the validator and the PLAY_START echo were its only readers; from step
- * 3.2b the pressure read judges the offence's picture against it (`sim/pressureRead.ts`).
+ * `rush`, which resolves. At 3.1 nothing could make the two differ: every call built returned
+ * ONE array for both. From step 3.5 a front look (Stem, Mug; playbook's `applyFrontLook`,
+ * ADR-073 §2.5) writes a second list; every call the game builds without one still carries
+ * ONE array for both, and the engine's own caller never wears one. At 3.1 the validator and
+ * the PLAY_START echo were its only readers; from step 3.2b the pressure read judges the
+ * offence's picture against it (`sim/pressureRead.ts`).
  *
  * So this file pins four things, and each is the guard for a later step:
  *
