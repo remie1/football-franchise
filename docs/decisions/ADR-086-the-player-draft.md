@@ -94,7 +94,7 @@ Dates (on the current placeholder calendar; moved with it):
 About 900 made-up prospects a year (about 260 drafted, several hundred signed undrafted to fill 90-man
 rosters, the rest go home). Each has a name, home region, age 21-23, height, weight, combine numbers
 in ADR-087 P2's `PlayerBio.combine` (public, exact, frozen at the draft), the same numbers seeding
-the hidden `body` in ADR-087 P1's `development` (with growth rate, `seasons` 0, `snaps` 0, carry empty), every
+the hidden `body` in ADR-087 P1's `development` (with growth rate, `snaps` 0, carry empty), and ADR-085 K5's `PlayerBio.creditedSeasons` 0, every
 rating on ADR-079's absolute scale, read through ADR-087 P5's shared measurement scales. Growth is
 drawn from its own random stream so adding it never shifts names or ratings. Rookies come in below veterans of
 the same talent; ADR-087 grows them. Each class's overall strength and its depth at each position
@@ -158,7 +158,7 @@ him, the 11th is the pick.
 - Cut-down day: each team keeps 53 (best at each spot by ADR-087 P5's shared position overall, the depth every formation needs, a young
   fast-growing player counting in his favour), then fills a 16-man practice squad, a 17th only for an
   international-pathway player (none exist yet).
-- Waivers on cut day: newer players (under four credited seasons, ADR-087 P1 `seasons`) can
+- Waivers on cut day: newer players (under four credited seasons, ADR-085 K5 `PlayerBio.creditedSeasons`, which the year turn increments) can
   be claimed by other teams in draft order (`WAIVER_CLAIMED`); veterans become free agents at once.
 - The league's starting squads gain practice squads (16 each) from the generator.
 
