@@ -3,7 +3,7 @@
 - **Date:** 2026-10-23
 - **Proposed by:** Orchestrator, for `attributes` (thread "Real-player stand-in league"; plan
   `/mnt/project-files/design/standin-league-plan.md`)
-- **Status:** approved (Q1-Q8, owner, 2026-10-23); Q9-Q10 open; contracts edits S1-S3 proposed, not approved
+- **Status:** approved (Q1-Q10, owner, 2026-10-23); contracts edits S1-S3 proposed, not approved
 
 ## Problem
 
@@ -52,8 +52,10 @@ combine numbers) all consume it.
   league file, made-up names only, is committed so every device and thread can use it.
 - **Q8 — no hidden team-strength boost** in the stand-in league; strength comes from the players.
 
-Open: **Q9** team identity (real city with a made-up nickname, recommended, vs both made up);
-**Q10** depth charts (copy each team's real depth chart, recommended, vs best-rated starts).
+- **Q9 — real city, made-up nickname** (owner, 2026-10-23 20:56Z): each team shows its real city
+  or region with a nickname that is no real NFL team's (`positions.ts`).
+- **Q10 — depth charts copied as they are today** (owner, same message): ESPN's latest order within
+  each position; players ESPN does not list come after, most experienced first.
 
 ## Design
 
@@ -131,7 +133,13 @@ downstream reads today.
   --league <file>` reads the league file (a file, not an import: calibration's attributes
   surface stays ADR-079 R1's one function). New league provenance `REAL_STAND_IN` (not
   `DERIVED`: first-version ratings are mostly priors). Not with `--save` or `--team-sd` yet.
-  Picks (Q6) wait on football.realgm.com.
+- **R5, traded picks** (`picks.ts`, league file `picks` + `picksSource`): 12 traded picks
+  transcribed from RealGM's page (owner's source, Q6), in ADR-086 C1's shape. Caveats, REPORTED from
+  the page itself: it is dated 16 March 2026, so trades since then (the 2026 draft's day-of trades,
+  this season's deadline) are not in it; it covers rounds 1-3 only; and it contradicts itself once
+  (DAL lists its 2027 3rd "To PIT", PIT lists DAL's 2027 2nd), kept from the giving team's side with
+  the conflict in the condition text. The DAL/GB/NYJ 2027 1st-round swap is kept as two entries
+  whose condition quotes both lines.
 
 ## R6 — first checks (2026-10-23)
 

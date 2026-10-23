@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { teamId, type Team } from "@ff/contracts";
 import { buildRealLeague } from "./league.js";
+import { PICKS_SOURCE, tradedPicks } from "./picks.js";
 import { REAL_CITY, REAL_TEAM_SLOTS, STANDIN_NICKNAME } from "./positions.js";
 import { loadSnapshotRows, loadTrackingRows } from "./rows.js";
 import { fetchSnapshot, latestSnapshot, readManifest } from "./snapshot.js";
@@ -50,7 +51,8 @@ async function main(argv: readonly string[]) {
 
   const out = opt("--out") ?? `leagues/standin-${manifest.date}.json`;
   mkdirSync(dirname(out), { recursive: true });
-  const file = { format: LEAGUE_FILE_FORMAT, season, snapshotDate: manifest.date, league: built.league, contracts: built.contracts };
+  const file = { format: LEAGUE_FILE_FORMAT, season, snapshotDate: manifest.date, league: built.league, contracts: built.contracts,
+    picks: tradedPicks(built.league.teams), picksSource: PICKS_SOURCE };
   writeFileSync(out, JSON.stringify(file, (_k, v) => (v instanceof Set ? [...v] : v)) + "\n");
   writeFileSync(sealedPath, JSON.stringify(built.sealed, null, 1) + "\n");
 
@@ -60,6 +62,7 @@ async function main(argv: readonly string[]) {
   console.log(`  ratings: ${r.filter((x) => x.measures.length > 0).length} with tracking data, ${r.filter((x) => x.skill === "guess").length} guesses; ${r.filter((x) => x.imputed.length > 0).length} missing a combine drill`);
   const est = Object.values(built.league.provenance.contractSource).filter((x) => x === "estimated").length;
   console.log(`  contracts: ${built.contracts.length} (${est} estimated at their yearly average), ${built.league.provenance.noContract.length} players without one`);
+  console.log(`  traded picks: ${file.picks.length} (rounds 1-3, as of ${PICKS_SOURCE.published})`);
   console.log(`  wrote ${out}; sealed table ${sealedPath}`);
 }
 
