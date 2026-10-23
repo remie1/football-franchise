@@ -3,7 +3,7 @@
 - **Date:** 2026-10-23
 - **Proposed by:** Orchestrator, for `franchise` (order, picks, boards, rosters, the turnover) and
   `attributes` (the draft class) (thread "Player draft"; plan `/mnt/project-files/design/draft-plan.md`)
-- **Status:** design ruled by the owner (Q1-Q9, 2026-10-23), new questions N1-N3 open (§11).
+- **Status:** design ruled by the owner (Q1-Q9; N2, N3 on 2026-10-23); N1 being confirmed (§11).
   Contracts edits C1-C7 and rule change R1 proposed, **not approved**. Nothing built.
 
 > Phase note: Charter §6 places franchise at Phase 4. As with the season shell (ADR-078), the owner
@@ -37,7 +37,9 @@ a squad between seasons, not how a play resolves). D7 checks each against its ow
 
 ## Implied scope
 
-- **Trades** (players and picks): pick ownership is built to be traded, and the comp-pick logic is
+- **Trades** (players and picks): the owner ruled (N2) that the trading system must allow
+  conditional picks like the real ones (a 3rd that becomes a 2nd on a playing-time condition).
+  Pick ownership is built to be traded, and the comp-pick logic is
   what makes the owner's Mac Jones example work (a team keeps a backup it could trade because it
   expects a third-round comp pick when he leaves). Trade AI must value expected comp picks. `unruled`
   (no trade system yet).
@@ -75,8 +77,11 @@ runs inside the same walk, exactly once per calendar week, so this ADR never cal
 
 A new season begins: every player a year older; `PlayerBio.creditedSeasons` goes up by one for each player the cap thread's `earnsCreditedSeason(gamesOnFullPayStatus)` says earned it (games on a 53-man roster until injured reserve exists; ADR-085 K5); players, contracts, injuries, practice squads and
 pick ownership carry over. Nobody retires yet (ADR-087: retirement waits for player personality);
-players leave only by being cut and staying unsigned. Whether an unsigned player eventually leaves
-the league is ADR-087's open question F2; nothing here builds on it until the owner rules.
+players leave only by being cut and staying unsigned. ADR-087 F2 (ruled 2026-10-23): a player
+without a team waits up to two seasons (a hidden patience draw until personality exists, older
+players shorter), may retire when camps open or when a regular season ends, and retires after two
+regular seasons unsigned (`PLAYER_RETIRED`, reason `UNSIGNED`). That step is ADR-087's; the free-agent
+pool here only holds players until it removes them.
 
 Dates (on the current placeholder calendar; moved with it):
 
@@ -158,6 +163,8 @@ him, the 11th is the pick.
 - Cut-down day: each team keeps 53 (best at each spot by ADR-087 P5's shared position overall, the depth every formation needs, a young
   fast-growing player counting in his favour), then fills a 16-man practice squad, a 17th only for an
   international-pathway player (none exist yet).
+- Close calls in the trim lean the way the head coach leans on starters (ADR-087 F3: incumbent-loyal,
+  veteran-leaning or by who looks best), so a coach who trusts veterans keeps one over a rookie.
 - Waivers on cut day: newer players (under four credited seasons, ADR-085 K5 `PlayerBio.creditedSeasons`, which the year turn increments) can
   be claimed by other teams in draft order (`WAIVER_CLAIMED`); veterans become free agents at once.
 - The league's starting squads gain practice squads (16 each) from the generator.
@@ -183,21 +190,17 @@ him, the 11th is the pick.
 - **C4** `Team.practiceSquad?: PlayerId[]`.
 - **C5** events `COMPENSATORY_PICKS_AWARDED { draft, picks: { team, round, kind }[] }` and `WAIVER_CLAIMED { player, from, to }`; `DRAFT_PICK_MADE` gains `overall` and `kind`.
 - **C6** `SaveFile.world.draft?: { picks: DraftPick[]; classes: DraftClass[]; freeAgentMoves: unknown[] }` (optional, old saves load).
-- **C7** `seasonDeadlines` vocabulary: `CUTDOWN_DAY`, `COMP_PICK_CUTOFF` deadline ids (franchise data, listed here so the ids are agreed).
+- (Dropped C7: the `CUTDOWN_DAY` and `COMP_PICK_CUTOFF` deadline ids are franchise calendar data, not contracts.)
 - **R1** (Charter §4 rule 1, like ADR-079 R1): the season runner in `calibration` may also call `generateDraftClass` (and its input type) in `attributes`. Nothing else.
 
-Exact wording is fixed when each is built and shown before it is made.
+Exact wording for the owner's yes: `/mnt/project-files/design/ADR-086-contracts-edits.md` (C1 carries a structured `PickCondition` per N2; C3's fields are optional with NFL defaults). C4 split agreed with ADR-085: this ADR adds the field and fills it at cut-down through the cap code's `signPracticeSquad`; ADR-085 prices it and owns in-season practice-squad moves, injured reserve and street signings.
 
 ## 11. Open questions for the owner
 
-- **N1. Special compensatory picks for minority hires (JC-2A)?** Copying the real league means
-  including them, but it needs the game to record which coaches and executives qualify.
-  Recommended: (b) leave out for now, revisit with the real-coach importer. (a) include now.
-- **N2. Traded picks with conditions.** Many real traded picks carry conditions (a 3rd that becomes
-  a 2nd if a player plays 70% of snaps). Recommended: (a) carry the condition and settle it from the
-  game's own season (only the common kinds: playing time, playoff finish, pick swaps); (b) lock each
-  at its likeliest value when the league starts.
-- **N3. First comp picks.** The first draft's comp picks come from real 2026 free-agent moves.
-  Recommended: (a) compute them with our formula from the real contracts the cap thread imports,
-  and compare with the NFL's own announcement when it comes out in March; (b) copy public
-  projections now.
+- **N1. Special compensatory picks for minority hires (JC-2A).** Owner answered "Yes"
+  2026-10-23; being confirmed whether that means include now or leave out for now (card in thread).
+- **N2. Traded picks with conditions: RULED (a)**, 2026-10-23. The condition is carried with the pick
+  and settled from the game's own season (playing time, playoff finish, pick swaps). The owner added
+  that the trading system must allow such conditions.
+- **N3. First comp picks: RULED (a)**, 2026-10-23. Computed with §5's formula from the real 2026
+  free-agent moves in the stand-in league's contracts, compared with the NFL's announcement in March.
