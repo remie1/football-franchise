@@ -138,8 +138,8 @@ who has clinched or been knocked out. Every playoff game gets a headline, and a 
 closes the year. Save a season with
 `pnpm --filter @ff/calibration season -- --seed <seed> --out season.json`, then
 `pnpm --filter @ff/narrative news -- --season season.json` prints its news and saves it for the
-game viewer: run `pnpm --filter game dev` and open the News page. Next: the season command printing
-the headlines as it plays (waits on the owner's R2 ruling).
+game viewer: run `pnpm --filter game dev` and open the News page. The season command also prints
+each week's headlines as it plays.
 
 **Relationships (ADR-084, ruled 23 October 2026, not built yet):** each staff member will have a
 view of you and of each colleague, running both ways, nudged by everyday choices, swung by big

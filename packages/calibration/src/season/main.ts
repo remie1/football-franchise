@@ -13,6 +13,9 @@
  * (E1): `--load` carries on with that version, and refuses a different `--caller` unless
  * `--switch-caller` is given.
  *
+ * News (ADR-082 R2): each week's top headlines print as the season plays, as the news command
+ * prints them from a saved season. Carrying on from a save prints only the weeks after it.
+ *
  * Rosters (ADR-079): each team plays with its own made-up squad unless `--rosters flat`; with
  * squads, `--out` also saves the players and each team's hidden strength. Squads are rebuilt
  * from the world seed: a save stores the players, but `--load` rebuilds them and uses squads when
@@ -21,8 +24,9 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { DEFAULT_LEAGUE_RULES, stampToString, type CalendarStamp } from "@ff/contracts";
-import { makeSave, readSave } from "@ff/franchise";
+import { compareStamps, DEFAULT_LEAGUE_RULES, stampToString, type CalendarStamp } from "@ff/contracts";
+import { buildLeague, makeSave, readSave } from "@ff/franchise";
+import { createNewsDesk, formatEdition } from "@ff/narrative";
 import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
 import { runRealSeason, type SeasonRosters } from "./realSeason.js";
 
@@ -106,13 +110,30 @@ const callerVersion: CallerVersion = args.callerVersion ?? (savedCaller as Calle
 const rosters: SeasonRosters = loaded
   ? (loaded.league.teams.some((t) => t.roster.length > 0) ? "generated" : "flat")
   : (args.rosters ?? "generated");
-const { league, rated, run } = runRealSeason({
-  seed, season, callerVersion, rosters,
-  ...(args.teamStrengthSd === undefined ? {} : { teamStrengthSd: args.teamStrengthSd }),
-  ...(loaded ? { league: loaded.league, rules: loaded.rules, ...(loaded.save.world.season ? { resumeFrom: loaded.save.world.season } : {}) } : {}),
-  ...(args.stopAfter ? { stopAfter: stopDay(args.stopAfter, season) } : {}),
-});
 if (loaded) console.log(`Loaded ${args.load}: ${loaded.save.world.season?.results.length ?? 0} games already played`);
+
+// The desk reads the season as it plays (ADR-082 R2). A resumed run replays from day one, so the
+// desk sees the weeks the save holds too; their headlines were printed when they were played.
+type Desk = ReturnType<typeof createNewsDesk>;
+const base = loaded?.league ?? buildLeague(seed);
+let desk: Desk | undefined;
+const printNews = (editions: ReturnType<Desk["take"]>) => {
+  for (const e of editions) {
+    if (loaded && compareStamps(e.at, loaded.save.calendar) <= 0) continue;
+    console.log(`\n${formatEdition(e, desk!.scoreLine)}`);
+  }
+};
+const { league, rated, run } = runRealSeason({
+  seed, season, callerVersion, rosters, league: base,
+  ...(args.teamStrengthSd === undefined ? {} : { teamStrengthSd: args.teamStrengthSd }),
+  ...(loaded ? { rules: loaded.rules, ...(loaded.save.world.season ? { resumeFrom: loaded.save.world.season } : {}) } : {}),
+  ...(args.stopAfter ? { stopAfter: stopDay(args.stopAfter, season) } : {}),
+  onEvent: (envelope, schedule) => {
+    desk ??= createNewsDesk({ seed, structure: base.structure, teams: base.teams, schedule });
+    printNews(desk.take(envelope));
+  },
+});
+if (desk) printNews(desk.finish());
 const name = new Map(league.teams.map((t) => [String(t.id), t.displayName]));
 
 for (const d of league.structure.divisions) {
