@@ -141,6 +141,11 @@ closes the year. Save a season with
 game viewer: run `pnpm --filter game dev` and open the News page. Next: the season command printing
 the headlines as it plays (waits on the owner's R2 ruling).
 
+**Relationships (ADR-084, ruled 23 October 2026, not built yet):** each staff member will have a
+view of you and of each colleague, running both ways, nudged by everyday choices, swung by big
+moments and, now and then, by a storyline about the coaches. Views feed who stays, how hot the
+staff meeting's arguments get, and what leaks to the press; they never change a game.
+
 ## Words you will see
 
 | Word | Meaning |
