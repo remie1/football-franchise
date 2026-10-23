@@ -8,6 +8,7 @@ import type { CalendarStamp } from "./calendar.js";
 import type { GameKind, GameResult, PlayoffBracket } from "./league.js";
 import type { StaffRole } from "./players.js";
 import type { StaffDepartureReason } from "./staff.js";
+import type { RelationshipParty, RelationshipWord } from "./relationships.js";
 
 export interface RollModifier {
   source: string;
@@ -568,6 +569,20 @@ export type FranchiseEvent =
   /** ADR-080 P3: tightened from free text; nothing emitted the old shape. */
   | { type: "STAFF_HIRED"; payload: { staff: StaffId; team: TeamId; role: StaffRole } }
   | { type: "STAFF_DEPARTED"; payload: { staff: StaffId; team: TeamId; reason: StaffDepartureReason } }
+  /**
+   * ADR-084 V2: a view moved. Once per move, and once whenever the weekly drift changes a view's
+   * word. `cause` names the move in the ledger's own vocabulary ("HIRED", "DRIFT", ...); `rift` is
+   * set when the move opened or repaired a grudge.
+   */
+  | { type: "RELATIONSHIP_CHANGED"; payload: {
+        from: StaffId;
+        of: RelationshipParty;
+        delta: number;
+        cause: string;
+        before: RelationshipWord;
+        after: RelationshipWord;
+        rift?: "OPENED" | "REPAIRED";
+      } }
   | { type: "AWARD_GIVEN"; payload: { award: string; subject: PlayerId | StaffId } }
   /** ADR-078 C6: widened to carry the teams; nothing emitted the old shape. */
   | { type: "GAME_COMPLETED"; payload: { result: GameResult; kind: GameKind } }
@@ -612,7 +627,9 @@ export type NarrativeEffect =
   | { kind: "MORALE_DELTA"; player: PlayerId; delta: number; reason: StorylineId }
   | { kind: "AVAILABILITY"; player: PlayerId; status: "suspended" | "excused" | "returned"; weeks?: number; reason: StorylineId }
   | { kind: "REPUTATION_DELTA"; scope: "coach" | "franchise"; axis: string; delta: number; reason: StorylineId }
-  | { kind: "PRESSURE_DELTA"; delta: number; reason: StorylineId };
+  | { kind: "PRESSURE_DELTA"; delta: number; reason: StorylineId }
+  /** ADR-084 V3: a story moves one view, and may open or repair a grudge as it ends. */
+  | { kind: "RELATIONSHIP_DELTA"; from: StaffId; of: RelationshipParty; delta: number; rift?: "OPEN" | "REPAIR"; reason: StorylineId };
 
 /** Interrupts feed the advance button (Spec #5 §13). */
 export interface Interrupt {

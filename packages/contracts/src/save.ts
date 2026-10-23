@@ -2,6 +2,7 @@ import type { CalendarStamp } from "./calendar.js";
 import type { LeagueStructure, SeasonState } from "./league.js";
 import type { Team, PlayerState, StaffState, PlayerContract, PerceivedAttributes } from "./players.js";
 import type { StaffContract } from "./staff.js";
+import type { RelationshipView } from "./relationships.js";
 
 export const SAVE_FORMAT_VERSION = 1;
 
@@ -22,6 +23,8 @@ export interface SaveFile {
     staff: StaffState[];
     /** ADR-080 P1: coaches' contracts. Optional, so saves written before it still load. */
     staffContracts?: StaffContract[];
+    /** ADR-084 V1: every staff member's views, one entry per direction. Optional, as above. */
+    relationships?: RelationshipView[];
     contracts: PlayerContract[];
     perceptions: PerceivedAttributes[];
     /** ADR-078 C7: conferences and divisions, as data (Spec #5 §14.1). */
