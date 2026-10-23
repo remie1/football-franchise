@@ -12909,3 +12909,141 @@ Sack sources, % of `keepable` snaps:
   2; plan §10). Filed with step 3.5's write-up. Proposed trigger: before anything outside calibration scores a coach's
   call against the baseline caller's, or before the next caller step scored on the bench, whichever comes first. Until
   then each step's scratch bench serves.
+
+## 173. `pressure_to_sack`'s real side reads FTN seasons only — nflverse's participation data changed source at 2023
+
+- **Ruling (owner, 2026-10-23).** Fix the real `pressure_to_sack` target to the FTN seasons (2023-24, about
+  22.0%), as a small pull request brought for the owner's yes before it merges. The default where the ask forked:
+  every real side that reads `was_pressure` uses one rule, FTN-charted participation seasons only, because mixing
+  the two sources is wrong anywhere; a retired or ungraded reader gets the rule too, with its figure reported; if
+  that wider change were more than a few lines or moved another graded verdict, P2S only.
+- **Why.** nflverse documents a change of source: "Participation data prior to 2023 is from NFL NGS."
+  "Participation data from 2023 onwards is courtesy of FTN"
+  ([load_participation](https://nflreadr.nflverse.com/reference/load_participation.html)); "The data source died
+  during the 2023 season" ([data schedule](https://nflreadr.nflverse.com/articles/nflverse_data_schedule.html)).
+  2022's NGS `was_pressure` is null on every sack and every scramble, so the pooled real side counted 2022's
+  5,239 pressured attempts and none of its sacks.
+- **Change.** `packages/calibration/src/ingest/sources/participation.ts`: `FIRST_FTN_PARTICIPATION_SEASON = 2023`,
+  `isFtnChartedPressureSeason`, and `isFtnChartedPressureRow` (season read from the `nflverse_game_id` prefix,
+  which `parseRow` already enforces; a row with no readable season is not counted). `tier1.ts`'s
+  `pressureToSackRate.computeFromReal` skips any row the helper refuses. Provenance §2-§5 corrected and §6 added
+  (the quotes, URLs, the per-season null table and the week-by-week 2023 check). One `knownDivergences` note on
+  `pressure_to_sack`. No engine, franchise or contracts change; no band change.
+
+### Implied scope
+
+Derived by two greps over `packages/*/src`, `packages/*/test`, `apps/`, `scripts/` (data-cache, dist and reports
+excluded): `grep -rn "wasPressure\|was_pressure"` for the field's readers, and `grep -rnE
+"pressureToSack|pressure_to_sack|0\.1637"` for copies of the old real figure. The only code that reads the field
+is `pressureToSackRate.computeFromReal`. Everything else the reasoning reaches:
+
+- `threat_creation_rate`: real side retired by entry 93; reads no `was_pressure` row, so the rule changes no code.
+  Under it, today's join would give 12,363 / 40,982 = 30.17% (2023-24) against the retired 29.23% (old join,
+  2022-24). The source artefact does not lift the retirement, which waits on semantics (`tier1.ts` header note).
+  `unruled`.
+- `qb_disruption_rate`, `threat_entry_exit_ratio`: no real side by design. Nothing to apply. `unruled`.
+- `time_to_throw`: reads participation's `time_to_throw`, which nflverse's statement covers too (the whole
+  participation dataset changed source). Not a `was_pressure` reader, so not changed. Figures below. `unruled`.
+- `structural_shell_and_rusher_mix`: reads participation's `defense_man_zone_type` and `number_of_pass_rushers`
+  pooled across the boundary. Never graded. `unruled`.
+- `packages/engine/src/tunables.ts` comments and `test/pressureSweep.test.ts`'s quoted `REAL.pressureToSack =
+  0.1637` (baseline-0005, print only, already stale since `3019dd8`): historical, unchanged. `unruled`.
+- Four more copies of the same old real, `pressureToSack: 0.16371`, in `test/freeRunnerSweep.test.ts:101`,
+  `test/pocketBandSweep.test.ts:196`, `test/pressureHorizonSweep.test.ts:57` and `test/threatSupplySweep.test.ts:107`;
+  plus the "real 16.37%" in `test/anticipation.test.ts`'s header comment (entry 26). All skip-gated or comments,
+  print only, none asserts on the figure. Stale since `3019dd8` like the one above, unchanged. `unruled`.
+
+### Provenance of factual claims
+
+Arm for every real figure: the 2022-2024 TUNING cache (`packages/calibration/data-cache`), today's `isDropback`
+(`qb_dropback`), on tree `8b387f7` plus this change.
+
+- Real P2S pooled 2022-24, before: 2,722 / 17,602 = 15.464%. MEASURED (`pressureToSackRate.computeFromReal`, and
+  `pressureSweep.test.ts`'s `real` printer on HEAD's `tier1.ts`: 0.15464, n 17,602).
+- Real P2S pooled 2022-24, after: 2,722 / 12,363 = 22.017%. MEASURED (same two paths: 0.22017, n 12,363).
+- Per season, before: 2022 0 / 5,239 = 0.00%; 2023 1,409 / 6,123 = 23.01%; 2024 1,313 / 6,240 = 21.04%. MEASURED
+  (registered metric opened per season, dispatch scratch test). After: 2022 alone is NO_OBSERVATIONS with the rule
+  named; 2023 and 2024 unchanged.
+- 2022 null pattern (sacks 1,296 / 1,296 null, scrambles 905 / 905 null, attempts 12,769 false / 5,239 true / 88
+  null) and the 2023-24 counts in `participation.ts` §6. MEASURED (scratch test, participation joined to
+  `isDropback`).
+- Pressured share of non-null pass attempts: 29.09% (2022, NGS), 22.99% (2023), 24.97% (2024). DERIVED from those
+  counts.
+- Verdict on baseline-0009's arm (flat-60-32t, 496 games, seed digest `fnv1a:020c1dcb#496`, sim 18.91%): +0.2231
+  FAIL (known) -> -0.1409 PASS (not PASS+; comfort is |dev| <= 0.075). DERIVED: arithmetic on that report's sim
+  figure; no sim re-run.
+- How thin that PASS is. New floor 0.85 x 22.017% = 18.715%; sim 18.915%, 0.20pp above it; the sim's 95% interval
+  [18.52%, 19.31%] (`reports/baseline-0009.md`, same arm) crosses the floor. 2023 alone (23.01%) reads -0.178
+  FAIL; 2024 alone (21.04%) -0.101 PASS. DERIVED (arithmetic on the figures above and the report's).
+- Week split, registered `computeFromReal` on week-filtered pbp (fix-pass scratch run, 2026-10-23). P2S: 2023
+  weeks 1-4 339 / 1,681 = 20.17%, weeks 5-18 1,070 / 4,442 = 24.09% (z -3.25); 2024 weeks 1-4 327 / 1,403 =
+  23.31%, weeks 5-18 986 / 4,837 = 20.38% (z +2.36). Pooled without 2023 weeks 1-4: 2,383 / 10,682 = 22.31%, on
+  which the sim reads -0.152 FAIL (DERIVED). Pressured share of joined dropbacks: 2023 weeks 1-4 1,681 / 4,945 =
+  34.0%, weeks 5-18 4,442 / 15,824 = 28.1% (z 7.97); 2024 1,403 / 4,590 = 30.6% and 4,837 / 15,623 = 31.0% (z
+  -0.51); 2022 25.8% and 25.8%. MEASURED. The 2023 figures, 2024's pressured share and the pooled figure without
+  2023 weeks 1-4 agree with the reviewer's independent script over the raw cache.
+- No NGS-format week in 2023. On the 2023 TUNING asset (`pbp_participation_2023.csv`, fetched 2026-10-22,
+  contentHash `sha256:ad01aeb4…`), every week 1-18 has its sacks flagged (1,409 true, 1 false in week 3, 0 null)
+  and every scramble non-null; `ngs_air_yards` is null on all 46,168 rows (manifest type `empty`), against
+  18,208 / 50,150 = 36.3% populated in 2022; 2022's sacks are null in every week 1-18. MEASURED (same scratch
+  run). This answers "the data source died during the 2023 season" for this asset: 2023 is not partly NGS's.
+- `time_to_throw` real, attempt-joined: 2.785 s (2022), 2.615 s (2023), 2.647 s (2024); pooled 2.682 s, FTN-only
+  2.631 s. MEASURED (registered metric per season). Its verdict against baseline-0009's sim 1.242 s: -0.537 now,
+  about -0.528 FTN-only, FAIL (known) either way. DERIVED.
+- Every other metric printed by `pressureSweep.test.ts`'s `real` test (`sack_rate`, `completion_pct`, `int_rate`,
+  `time_to_throw`, `yards_per_attempt`) is identical before and after. MEASURED.
+
+### Premise ledger
+
+- nflverse's two quotations: CARRIED AS TESTIMONY. Three model-mediated readings agree word for word: this
+  dispatch's fetch of 2026-10-23, the free-rusher research's verifier
+  (`/mnt/project-files/arms/free-rusher-check/out/verify/research.verify.md` §1d), and this change's reviewer. The
+  reviewer's direct `curl` was refused by the proxy (403), so no raw copy was read (`participation.ts` §6). The
+  cache corroborates the source change (the 2022 null pattern, and no NGS-format week in 2023, above); it cannot
+  confirm the wording.
+- 15.464% / 22.02% / per-season figures from `/mnt/project-files/design/free-rusher-sack-check-technical.md` §3.2:
+  CONFIRMED (re-measured above).
+- `participation.ts` §5's "stable rate is evidence AGAINST a definition change" and "red herring": REFUTED; two
+  effects that offset across a documented source change, a pooling error and a difference between the sources
+  (§5's corrected paragraph).
+- `tier1.ts`'s 3019dd8-era note "verdict unchanged (PASS+)": REFUTED. Its own new deviation, 0.0956, is above the
+  0.075 comfort line, so it read PASS, not PASS+. Left as history in the string, with a dated correction in the
+  comment above it; baseline-0009 already read FAIL (known) before this change.
+- `was_pressure`'s semantics (what FTN's charters record as "pressured") are UNESTABLISHED (entry 87 item 4):
+  CONFIRMED. The dictionary, as re-read on 2026-10-23, gives the column no definition and no source note, and FTN's
+  own definition is not vendored here. The source answer does not settle it.
+
+### What remains unjustified
+
+Not a refusal: this entry changes a real side; it refuses no lever. Left as is, and named:
+
+- ⛔ NEITHER: which pressure definition the sim should be graded against. FTN's is now the one used; whether it
+  matches the sim's POCKET_STATUS construct is the open semantics question (entries 87, 88, 93, 94).
+- ⛔ NEITHER: the `time_to_throw` and `structural_shell_and_rusher_mix` real sides still pool NGS 2022 with FTN
+  2023-24. The owner's ruling covered `was_pressure` readers only.
+- ⚠ RULED (owner, 2026-10-23, the ruling above): the window, 2023-2024 whole. Not derived beyond that: single
+  seasons, and the window without 2023 weeks 1-4, grade the same sim differently (Finding).
+- ⛔ NEITHER: why 2023 weeks 1-4 chart more pressure (34.0% of dropbacks against 28.1% later; 2024 shows no such
+  step). Observed, unexplained; nothing here says which part of the season is right.
+
+### Finding
+
+The real P2S target was a mix of two sources in which one source contributed pressured plays and no sacks.
+Single-source (FTN, 2023-24) it is 22.017%. On baseline-0009's arm that turns `pressure_to_sack` from FAIL (known)
+to PASS, and the PASS is thin: the sim is 0.20pp above the 18.715% floor and its own 95% interval crosses the
+floor; 2023 alone reads FAIL (-0.178) and 2024 alone PASS (-0.101); and inside FTN's first season the pressured
+share of dropbacks is high in weeks 1-4 (34.0% against 28.1% after; z about 8), observed and unexplained, without
+which the real is 22.31% and the sim reads FAIL (-0.152). The match is the league level only: the sim's pressure
+rate (86.85%) and sack rate (16.43%) are both far from real, so P2S passing does not say the pocket is right
+(design doc §3.1).
+
+### Disposition
+
+- Changed: the P2S real side and its tests (`metrics.test.ts`: the existing fixture now carries a 2023 game id; a
+  new case pins that pre-2023 rows are ignored and that NGS-only input reads NO_OBSERVATIONS; `sources.test.ts`:
+  the helper on the committed nflverse sample).
+- Not changed: band, sim side, every other metric, historical reports.
+- `unruled` for the owner: whether `time_to_throw` (and the never-graded shell/rusher mix) get the same one-source
+  rule.
+- For the owner's yes: the new PASS is thin and window-sensitive (Finding); the early-2023 pressure step is
+  unexplained.
