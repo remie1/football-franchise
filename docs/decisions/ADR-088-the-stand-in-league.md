@@ -101,6 +101,43 @@ downstream reads today.
 - **S3** — roster status: `Team.reserve?: PlayerId[]` and `Team.practiceSquad?: PlayerId[]`, so
   injured and practice-squad players live on the team without being in `roster`.
 
+## What is built (2026-10-23, draft PR #32)
+
+- **R1-R3** as above. `pnpm --filter @ff/attributes import-real [-- --fetch]` writes
+  `packages/attributes/leagues/standin-<date>.json` and the local sealed table.
+- **Must-field elevation**: when a team's copied 53 has no quarterback, kicker, punter or snapper
+  (the snapshot caught Miami between cutting its kicker and promoting his replacement), its
+  practice-squad player at that position is moved up, as the real team does on game day; listed
+  in `provenance.elevated`.
+- **R4 part 1, contracts**: OverTheCap's year-by-year history in the contract file belongs to the
+  player (every contract row carries the same copy), so each stand-in's contract is his history
+  from 2026 on, on his current team, where the cap number is above zero; in dollars, in today's
+  `PlayerContract` shape plus ADR-085 K1/K2 fields as optional extras. 2,474 of 2,528 players
+  have a deal; 501 (mostly practice squad) have no 2026 row and are estimated at their deal's
+  yearly average.
+- **R4 part 2, dead money: not built.** A cut player's history stops, so nothing in nflverse
+  records what his old team still owes. Without it, the 32 teams' 2026 cap numbers average $259M
+  and Miami's are $122M. Source asked for: overthecap.com (blocked from the build container).
+- **R5, the season plays the stand-ins**: `pnpm --filter @ff/calibration season -- --seed <s>
+  --league <file>` reads the league file (a file, not an import: calibration's attributes
+  surface stays ADR-079 R1's one function). New league provenance `REAL_STAND_IN` (not
+  `DERIVED`: first-version ratings are mostly priors). Not with `--save` or `--team-sd` yet.
+  Picks (Q6) wait on football.realgm.com.
+
+## R6 — first checks (2026-10-23)
+
+| Check | Stand-in league | Real NFL |
+|---|---|---|
+| Spread of wins in a season (10 seasons, seeds `standin-check-1..10`) | 2.82 | 3.05 (2.70 to 3.65 by year, 2021-24) |
+| Teams' average simulated wins vs their real 2025 win % (rank correlation) | 0.38 | 0.31 (real 2025 vs real 2026 so far) |
+| Combined points per game | 122 | about 45 (the accepted drift of ADR-079 Q3; the owner's hold on scoring) |
+
+Box-score smell test (attributes.md §8.2): each player's standing against his 2025 production,
+rank correlation, production never an input (Q4). QB EPA (200+ attempts) 0.70; WR receiving
+yards (40+ targets) 0.64; TE 0.61; RB scrimmage yards (80+ carries) 0.70; edge sacks + half hits
+(10+ games) 0.79; interior DL 0.72; CB passes defended + INTs 0.54; inside LB solo tackles 0.50.
+COMPUTED (scratch analysis on the committed league file; not a test).
+
 ## What this does not touch
 
 Engine, playbook, play-callers, calibration's test leagues and arms. The made-up league stays the

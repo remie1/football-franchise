@@ -25,6 +25,9 @@ export type SealedTable = Record<string, { readonly id: string; readonly name: s
 
 export type RosterStatus = "active" | "reserve" | "practice";
 
+/** Positions every game-day roster has; see the elevation rule in `buildStandIns`. */
+export const MUST_FIELD: readonly Position[] = ["QB", "K", "P", "LS"];
+
 /**
  * nflverse's detailed roster status → ours: A01 is the 53; P01-P07 the practice squad (a
  * practice player elevated for a game is listed active that week, and stays practice here);
@@ -66,6 +69,8 @@ export interface RealProvenance {
   readonly measurements: Readonly<Record<string, Partial<Measurements>>>;
   /** His best rank on his team's latest ESPN depth chart (1 = starter), where listed. */
   readonly espnRank: Readonly<Record<string, number>>;
+  /** Practice-squad players moved up because their team had nobody at a must-field position. */
+  readonly elevated: readonly string[];
   readonly reserve: Readonly<Record<string, readonly string[]>>;
   readonly practiceSquad: Readonly<Record<string, readonly string[]>>;
 }
@@ -135,12 +140,12 @@ export function buildStandIns(input: StandInInput): StandInLeague {
   ]);
   let next = Math.max(0, ...Object.values(sealed).map((s) => Number(s.id.slice(2)) || 0)) + 1;
 
-  const status: Record<string, RosterStatus> = {};
   const creditedSeasons: Record<string, number> = {};
   const measurements: Record<string, Partial<Measurements>> = {};
   const espnRank: Record<string, number> = {};
   const players: PlayerState[] = [];
   const onTeam = new Map<TeamId, { id: PlayerId; position: Position; status: RosterStatus; rank: number; exp: number }[]>();
+  const status: Record<string, RosterStatus> = {};
   const sides = new Map<string, Record<string, number>>();
 
   for (const r of rows) {
@@ -202,8 +207,20 @@ export function buildStandIns(input: StandInInput): StandInLeague {
 
   const reserve: Record<string, string[]> = {};
   const practiceSquad: Record<string, string[]> = {};
+  const elevated: string[] = [];
   const teams = input.teams.map((team): Team => {
     const list = onTeam.get(team.id) ?? [];
+    // A real team never plays without a quarterback, kicker, punter or snapper: when the copy
+    // catches one between moves (cut on Tuesday, his replacement still on the practice squad),
+    // the practice-squad man is elevated, as the real team does on game day.
+    for (const must of MUST_FIELD) {
+      if (list.some((p) => p.position === must && p.status === "active")) continue;
+      const up = list.find((p) => p.position === must && p.status === "practice");
+      if (up === undefined) continue;
+      up.status = "active";
+      status[String(up.id)] = "active";
+      elevated.push(String(up.id));
+    }
     const active = list.filter((p) => p.status === "active");
     // ESPN's order within each position; the unlisted after, most experienced first (ADR-088 Q10).
     active.sort((a, b) => a.rank - b.rank || b.exp - a.exp || (String(a.id) < String(b.id) ? -1 : 1));
@@ -219,7 +236,7 @@ export function buildStandIns(input: StandInInput): StandInLeague {
     players,
     provenance: {
       importer: "real/1", season: input.season, snapshotDate: input.date,
-      status, creditedSeasons, measurements, espnRank, reserve, practiceSquad,
+      status, creditedSeasons, measurements, espnRank, elevated, reserve, practiceSquad,
     },
     sealed,
   };

@@ -88,6 +88,18 @@ describe("stand-ins (ADR-088 R2)", () => {
     expect(again.sealed["g11"]!.id).toBe(`r:${Object.keys(L.sealed).length + 1}`);
   });
 
+  it("elevates a practice-squad kicker when the team's 53 has none", () => {
+    const L2 = buildStandIns({ ...base, rosters: [
+      ...base.rosters,
+      row({ gsis_id: "k1", position: "K", depth_chart_position: "K", status: "DEV", status_description_abbr: "P07" }),
+      row({ gsis_id: "w1", position: "WR", depth_chart_position: "WR", status: "DEV", status_description_abbr: "P01" }),
+    ] });
+    const k = L2.sealed["k1"]!.id;
+    expect(L2.teams[0]!.depthChart.K!.map(String)).toEqual([k]);
+    expect(L2.provenance.elevated).toEqual([k]);
+    expect(L2.provenance.practiceSquad["T01"]).toContain(L2.sealed["w1"]!.id);
+  });
+
   it("is deterministic", () => {
     expect(JSON.stringify(buildStandIns(base).sealed)).toBe(JSON.stringify(L.sealed));
   });
