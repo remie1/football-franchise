@@ -49,6 +49,8 @@ export interface MakeSaveInput {
    * staff list and budget are taken from `world.teams`. Absent, the save has no coaches.
    */
   staff?: { world: StaffWorld; relationships?: readonly RelationshipView[] };
+  /** ADR-086 C6: the draft (picks someone holds, classes not yet drafted, last year's free-agent moves). */
+  draft?: NonNullable<SaveFile["world"]["draft"]>;
 }
 
 export function makeSave(input: MakeSaveInput): SaveFile {
@@ -72,6 +74,7 @@ export function makeSave(input: MakeSaveInput): SaveFile {
       staff: staff?.world.staff ?? [],
       ...(staff ? { staffContracts: staff.world.contracts } : {}),
       ...(staff?.relationships ? { relationships: [...staff.relationships] } : {}),
+      ...(input.draft ? { draft: input.draft } : {}),
       contracts: [],
       perceptions: [],
       league: league.structure,
@@ -161,6 +164,29 @@ export function readSave(input: unknown): LoadedSave {
       const p = players.get(String(pid));
       if (!p) refuse(`${t.displayName}'s roster lists a player who is not in the save (${String(pid)})`);
       if (p!.teamId !== undefined && p!.teamId !== t.id) refuse(`${String(pid)} is on ${t.displayName}'s roster but belongs to ${String(p!.teamId)}`);
+    }
+  }
+
+  // ADR-086: practice squads and the draft, when the save has them.
+  for (const t of w.teams) {
+    for (const pid of t.practiceSquad ?? []) {
+      const p = players.get(String(pid));
+      if (!p) refuse(`${t.displayName}'s practice squad lists a player who is not in the save (${String(pid)})`);
+      if (p!.teamId !== t.id) refuse(`${String(pid)} is on ${t.displayName}'s practice squad but belongs to ${String(p!.teamId ?? "no team")}`);
+      if (t.roster.some((r) => String(r) === String(pid))) refuse(`${String(pid)} is on ${t.displayName}'s roster and practice squad`);
+    }
+  }
+  if (w.draft !== undefined) {
+    if (!isObject(w.draft) || !Array.isArray(w.draft.picks) || !Array.isArray(w.draft.classes) || !Array.isArray(w.draft.freeAgentMoves)) refuse("its draft is damaged");
+    for (const pk of w.draft!.picks) {
+      if (!teamIds.has(String(pk.owner)) || !teamIds.has(String(pk.originalTeam))) refuse(`a ${pk.draft} round ${pk.round} pick names a team that does not exist`);
+    }
+    for (const c of w.draft!.classes) {
+      for (const pid of c.prospects) {
+        const p = players.get(String(pid));
+        if (!p) refuse(`the ${c.draft} class lists a prospect who is not in the save (${String(pid)})`);
+        if (p!.bio.draft !== "PROSPECT") refuse(`${String(pid)} is in the ${c.draft} class but is not a prospect`);
+      }
     }
   }
 

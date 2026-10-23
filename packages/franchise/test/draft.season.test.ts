@@ -3,9 +3,9 @@ import {
   createRng, playerId,
   type DraftClass, type PlayerState, type Position, type TeamId,
 } from "@ff/contracts";
-import { buildLeague, runSeason, type GameResolver, type LeaguePeople } from "../src/index.js";
+import { buildLeague, makeSave, readSave, runSeason, type GameResolver, type LeaguePeople } from "../src/index.js";
 import { WANTED, type Rate } from "../src/draft/board.js";
-import { draftSteps, turnYear } from "../src/draft/steps.js";
+import { draftSteps, peopleFromSave, turnYear } from "../src/draft/steps.js";
 
 /** Franchise never imports attributes: a small stand-in player maker with one rating, `ovr`. */
 function player(id: string, position: Position, ovr: number, age: number, team?: TeamId, draft: PlayerState["bio"]["draft"] = "UDFA"): PlayerState {
@@ -138,5 +138,41 @@ describe("the year turns over, and cut-down day (ADR-086 §2, §8)", () => {
       const { from, to } = (e.event as { payload: { from: TeamId; to: TeamId } }).payload;
       expect(from).not.toBe(to);
     }
+  });
+});
+
+describe("saves keep the draft (ADR-086 C6)", () => {
+  const stop = { season: 2026, phase: "OFF_DRAFT" as const, week: 2, day: 1 };
+  const straight = runSeason({ league, season: 2026, seed: league.seed, resolve: fake, people: startingPeople(), daySteps: steps, through: "YEAR" });
+  const first = runSeason({ league, season: 2026, seed: league.seed, resolve: fake, people: startingPeople(), daySteps: steps, through: "YEAR", stopAfter: stop });
+  const listSets = (_k: string, v: unknown) => (v instanceof Set ? [...v] : v);
+  const save = makeSave({
+    league: { ...league, teams: first.people!.teams }, calendar: first.calendar, season: first.state, createdBy: "test",
+    players: first.people!.players,
+    draft: { picks: first.people!.picks, classes: first.people!.classes, freeAgentMoves: [] },
+  });
+  const loaded = readSave(JSON.parse(JSON.stringify(save, listSets)));
+
+  it("keeps the announced class and its prospects", () => {
+    expect(loaded.save.world.draft!.classes).toHaveLength(1);
+    expect(loaded.save.world.draft!.classes[0]!.prospects).toHaveLength(600);
+  });
+
+  it("carries on to the same draft as a straight run", () => {
+    const people = peopleFromSave(loaded.save);
+    const second = runSeason({
+      league: loaded.league, season: 2026, seed: league.seed, resolve: fake, through: "YEAR",
+      people, daySteps: steps, resumeFrom: loaded.save.world.season!, stepsDoneThrough: loaded.save.calendar,
+    });
+    const picksOf = (r: typeof second) => r.events.filter((e) => e.event.type === "DRAFT_PICK_MADE").map((e) => e.event);
+    expect(picksOf(second)).toHaveLength(224);
+    expect(picksOf(second)).toEqual(picksOf(straight));
+    expect(JSON.stringify(second.people!.teams)).toBe(JSON.stringify(straight.people!.teams));
+  });
+
+  it("refuses a class that lists someone who is not a prospect", () => {
+    const bad = JSON.parse(JSON.stringify(save, listSets));
+    bad.world.draft.classes[0].prospects.push(bad.world.players[0].bio.id);
+    expect(() => readSave(bad)).toThrow(/is not a prospect/);
   });
 });

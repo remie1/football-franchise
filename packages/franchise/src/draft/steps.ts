@@ -14,7 +14,7 @@
  */
 import {
   DEFAULT_LEAGUE_RULES,
-  type DraftClass, type FranchiseEvent, type PlayerId, type PlayerState, type TeamId,
+  type DraftClass, type FranchiseEvent, type PlayerId, type PlayerState, type SaveFile, type TeamId,
 } from "@ff/contracts";
 import { isDay, type DayStep, type LeaguePeople } from "../season/people.js";
 import type { Rate } from "./board.js";
@@ -120,4 +120,23 @@ export function turnYear(people: LeaguePeople): LeaguePeople {
     return { ...t, roster: [...t.roster, ...t.practiceSquad], depthChart, practiceSquad: [] };
   });
   return { ...people, players, teams };
+}
+
+/**
+ * The people a loaded save carries on with (ADR-086 C6): its teams and players, the draft it kept,
+ * and the free agents (players on no team who are not prospects). Waiver order is the finished
+ * season's draft order, when the save's season has finished.
+ */
+export function peopleFromSave(save: SaveFile): LeaguePeople {
+  const w = save.world;
+  const state = w.season;
+  return {
+    teams: w.teams,
+    players: w.players,
+    picks: w.draft?.picks ?? [],
+    classes: w.draft?.classes ?? [],
+    freeAgents: w.players.filter((p) => p.teamId === undefined && p.bio.draft !== "PROSPECT").map((p) => p.bio.id),
+    ...(w.staff.length > 0 ? { staff: w.staff } : {}),
+    ...(state?.bracket?.champion !== undefined ? { waiverOrder: draftOrder(state, save.worldSeed).map((r) => r.team) } : {}),
+  };
 }

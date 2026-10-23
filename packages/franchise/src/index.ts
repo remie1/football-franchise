@@ -76,4 +76,4 @@ export {
 } from "./draft/board.js";
 export { runDraftDay, UDFA, type DraftDayInput, type DraftDayResult } from "./draft/draftDay.js";
 export { runCutdown, seasonsIn, LEAN_POINTS, NEWER_PLAYER_SEASONS, CLAIM_MARGIN, type CoachLean, type CutdownInput } from "./draft/cutdown.js";
-export { draftSteps, turnYear, headCoachEvaluation, DRAFT_DAYS, type DraftStepsConfig } from "./draft/steps.js";
+export { draftSteps, turnYear, peopleFromSave, headCoachEvaluation, DRAFT_DAYS, type DraftStepsConfig } from "./draft/steps.js";
