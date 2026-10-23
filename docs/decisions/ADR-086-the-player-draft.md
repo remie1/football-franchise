@@ -75,8 +75,8 @@ runs inside the same walk, exactly once per calendar week, so this ADR never cal
 
 A new season begins: every player a year older; players, contracts, injuries, practice squads and
 pick ownership carry over. Nobody retires yet (ADR-087: retirement waits for player personality);
-players leave only by being cut and staying unsigned (ADR-087's proposed rule: unsigned a full
-season, he leaves the league).
+players leave only by being cut and staying unsigned. Whether an unsigned player eventually leaves
+the league is ADR-087's open question F2; nothing here builds on it until the owner rules.
 
 Dates (on the current placeholder calendar; moved with it):
 
@@ -93,8 +93,10 @@ Dates (on the current placeholder calendar; moved with it):
 
 About 900 made-up prospects a year (about 260 drafted, several hundred signed undrafted to fill 90-man
 rosters, the rest go home). Each has a name, home region, age 21-23, height, weight, combine numbers
-in ADR-087 P2's `PlayerBio.measurements` (public and exact), every rating on ADR-079's absolute
-scale, and ADR-087 P1's `development` (growth rate, experience 0). Rookies come in below veterans of
+in ADR-087 P2's `PlayerBio.combine` (public, exact, frozen at the draft), the same numbers seeding
+the hidden `body` in ADR-087 P1's `development` (with growth rate, experience 0, carry empty), every
+rating on ADR-079's absolute scale, read through ADR-087 P5's shared measurement scales. Growth is
+drawn from its own random stream so adding it never shifts names or ratings. Rookies come in below veterans of
 the same talent; ADR-087 grows them. Each class's overall strength and its depth at each position
 wobble from year to year. Same seed and season → same class.
 
