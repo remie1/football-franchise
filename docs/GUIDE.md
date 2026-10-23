@@ -105,8 +105,14 @@ realism checker came first. Front office and the game screen were started early 
 pressure, against about 35% in the NFL (backlog entry 100). This drives too many sacks, too few
 completions and odd target shares. The play cards' read orders are already fixed (backlog 171,
 merged). Measured with play-caller version 4, on the snaps where the pocket held, the targets
-spread nearly as they do in the NFL; the rest of the gap is the pocket. A fix is designed in outline
-but waits until the front work finishes.
+spread nearly as they do in the NFL; the rest of the gap is the pocket. The front work is finished,
+so the pocket fix comes next. Its design will take in what a free blitzer really changes (the
+quarterback's feel for the rush, his mobility against the rusher's speed, hot and deep routes, and
+down and distance), and its questions go to you before anything is built.
+
+**Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
+NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered
+windows. Its fix is designed right after the pocket fix, measured on the fixed pocket.
 
 **Designed and ruled, waiting to be built:**
 
