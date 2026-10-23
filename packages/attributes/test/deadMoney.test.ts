@@ -40,9 +40,9 @@ describe("dead money from OverTheCap (ADR-088 R4, ADR-085 K3)", () => {
     });
     expect(built.charges.map((c) => [c.team, c.player, c.season, c.amount])).toEqual([
       ["T10", "r:7", 2026, 10_000_000],
-      ["T10", "gone-MIA-01", 2026, 500_000],
-      ["T10", "gone-MIA-01", 2026, 250_000],
-      ["T10", "gone-MIA-rest", 2026, 250_000],
+      ["T10", "gone-T10-01", 2026, 500_000],
+      ["T10", "gone-T10-01", 2026, 250_000],
+      ["T10", "gone-T10-rest", 2026, 250_000],
       ["T10", "r:7", 2027, 4_000_000],
     ]);
     expect(built).toMatchObject({ matched: 2, placeholders: 1, unitemized: 250_000 });
@@ -56,7 +56,7 @@ describe("dead money from OverTheCap (ADR-088 R4, ADR-085 K3)", () => {
       sealed: { g1: { id: "r:1", name: "x" }, g2: { id: "r:2", name: "y" } },
       realNames: new Map([["g1", "Beta Real"], ["g2", "Beta Real II"]]),
     });
-    expect(built.charges[0]!.player).toBe("gone-MIA-01");
+    expect(built.charges[0]!.player).toBe("gone-T10-01");
   });
 
   it("compares names loosely and knows a page for every team", () => {

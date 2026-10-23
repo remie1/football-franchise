@@ -7,7 +7,7 @@
  * sha256 manifest beside them.
  *
  * Names on the page are real. They are only used here, to find the stand-in of a let-go player who
- * is on a roster today; everyone else gets a made-up placeholder id (`gone-<team>-<n>`), so nothing
+ * is on a roster today; everyone else gets a made-up placeholder id (`gone-<team id>-<n>`, the stand-in team id), so nothing
  * real leaves this module. OverTheCap does not say why a charge exists, so `reason` is
  * "RELEASED" throughout (a traded player's charge looks the same; see the provenance flag).
  */
@@ -52,7 +52,7 @@ const text = (html: string) => html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&
 /**
  * The dead-money rows of one team page. Each season is a `<div ... id="y<season>">` block; its
  * dead money is the table under the "Dead Money" heading. Where the TOTAL row is above the rows' sum,
- * the difference becomes a row with no name (`gone-<team>-rest`), so team totals match the page.
+ * the difference becomes a row with no name (`gone-<team id>-rest`), so team totals match the page.
  */
 export function parseDeadMoney(html: string): DeadMoneyRow[] {
   const out: DeadMoneyRow[] = [];
@@ -115,13 +115,13 @@ export function buildDeadMoney(input: {
       const k = nameKey(r.name);
       let player: string;
       if (k === "") {
-        player = `gone-${code}-rest`;
+        player = `gone-${team}-rest`;
         unitemized += r.amount;
       } else if (byName.get(k) != null) {
         player = byName.get(k)!;
         matched++;
       } else {
-        if (!placeholder.has(k)) placeholder.set(k, `gone-${code}-${String(placeholder.size + 1).padStart(2, "0")}`);
+        if (!placeholder.has(k)) placeholder.set(k, `gone-${team}-${String(placeholder.size + 1).padStart(2, "0")}`);
         player = placeholder.get(k)!;
         gone.add(player);
       }
