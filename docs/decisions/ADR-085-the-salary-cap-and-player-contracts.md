@@ -185,3 +185,38 @@ The rookie scale, minimums and tag formulas are CBA data and live in `franchise`
    free agents move, how many teams are tight).
 
 None of it touches engine, playbook or play-caller code.
+
+## 8. Build log
+
+### Step 1 — the money rules (`packages/franchise/src/cap/`), 2026-10-23
+
+- `money.ts`: cap number, proration (at most five years), league years (a February cut counts in
+  the new league year and saves its roster bonus), release before / after June 1 and the designation,
+  injury-only guarantees, expiry and void years, restructures (with added void years and a salary
+  floor), a team's cap total with the top-51 rule.
+- `signings.ts`: minimums by credited seasons, practice-squad pay, the rookie scale, tags, RFA
+  tenders, `earnsCreditedSeason` (called by the draft thread's year turn).
+- Real numbers it reproduces (tests): the 2026 minimums 885k / 1.005M / 1.075M / 1.145M / 1.215M /
+  1.3M (COMPUTED from the contract file: the most common 2026 base by years since the draft), the
+  practice squad's $247,500 / $330,300 / $411,300, all eleven 2026 tag prices, the 2026 RFA tenders,
+  and the 2026 rookie total for every one of the 257 picks (COMPUTED, `rookieScale2026.ts`).
+- Simplifications, each named in the code: a player cut in season costs his whole season's cap
+  number; top picks' rookie raises (the 25% rule) are folded into the signing bonus, so totals and
+  guarantees match but the yearly split differs; tags use the 2026 price grown with the cap until
+  the league has five seasons of its own; the veteran salary benefit and earned unlikely incentives
+  wait for the league year step.
+
+### Step 2 — the cap growth model (`capGrowth.ts`), 2026-10-23
+
+2,000 simulated leagues, 2027-2041, against the real 2012-2026 history (COMPUTED):
+
+| | Real 2012-2026 | Model |
+|---|---|---|
+| Mean yearly growth | 6.46% | 6.48% |
+| Spread (sd) | 5.13% | 4.35% |
+| Years the cap fell | 1 in 15 (6.7%) | 4.5% |
+
+The 2036 cap: median $582M, 10th-90th percentile $518M-$650M. Each season also carries the range
+announced before it and the drivers that moved it (trend, TV money, labour talks, shock, rebound), for
+the owners' meeting and the news. The real 2011-2024 history is REPORTED from memory and still needs
+checking against OverTheCap.
