@@ -42,6 +42,13 @@ export interface LadderRung {
   readonly batchSeed: string;
   readonly seedDigest: string;
   readonly games: number;
+  /**
+   * The caller the rung's batch played, as that batch resolved and recorded it
+   * (`provenance.callerVersion`, e.g. `v4/v1`). `runLadder` names no caller, so this is the
+   * default as it stood; the report prints it, so a red gate after the default moves says which
+   * caller it ran (ADR-073 step 3.5).
+   */
+  readonly callerVersion: string;
 }
 
 export interface LadderResult {
@@ -141,6 +148,7 @@ export async function runLadder(
       batchSeed,
       seedDigest: result.seeds.digest,
       games: scenario.games,
+      callerVersion: result.provenance.callerVersion,
     });
   }
 
@@ -201,7 +209,8 @@ export function renderLadder(
     `  monotone: ${monotone ? "yes" : `NO — worst step ${worstInversion.toFixed(4)} against a tolerance of ${scenario.monotonicityTolerance}`}`,
     `  effect: ${effect === null ? "n/a" : effect.toFixed(4)} against a floor of ${scenario.minEffect} — ${effectPasses ? "ok" : "BELOW FLOOR"}`,
     `  reproduce: batch seed "${rungs[0]?.batchSeed ?? "?"}", ${scenario.games} games, ` +
-      `SHARED across every rung (common random numbers) — seed digest ${rungs[0]?.seedDigest ?? "?"}`,
+      `SHARED across every rung (common random numbers) — seed digest ${rungs[0]?.seedDigest ?? "?"}` +
+      `, caller "${rungs[0]?.callerVersion ?? "?"}"`,
   ].join("\n");
 }
 

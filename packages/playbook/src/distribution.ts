@@ -244,6 +244,16 @@ export const BLITZ_RATE_PRIOR = 0.26;
 export const CREEPER_RATE = 0.1;
 
 /**
+ * The front looks' rate (ADR-073 §2.5): caller v7 wears a front look, a Mug or a Stem, on 1 in 10
+ * of the calls that can wear one, split evenly where both fit (`frontLooks.ts`, `drawFrontLook`).
+ * A rate of the caller's draw over the called card, not a card weight, and not
+ * `COVERAGE_MASK_RATE`: a front look never rides the coverage looks' catalogue or their die.
+ *
+ * CHOSEN — provenance NONE; the owner ruled 1 in 10 (ADR-073 Decision 5, Q5(a), 2026-10-16).
+ */
+export const FRONT_LOOK_RATE = 0.1;
+
+/**
  * =================== THE FOUR PRESSURE AXES, AND WHICH ARE WORTH ANYTHING ==========
  *
  * ADR-022 gave the corpus three things it could not say and one it could only imply, so

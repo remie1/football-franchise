@@ -397,8 +397,10 @@ export interface RushAssignment {
    * So this is a CARRY-ACROSS of existing data, not new information: no card gains a value
    * an author has to choose.
    *
-   * NOTHING READS IT YET, AND THAT IS THE POINT OF LANDING IT. A subject appears when a
-   * travel model computes a DISTANCE rather than looking one up: `alignment` is
+   * ITS FIRST READER IS THE FRONT LOOK (ADR-073), which places the shown line by it; the
+   * engine only echoes it. A front look may show a different gap in `shownRush`; the engine's
+   * physics reads neither, and PLAY_START echoes both (ADR-073). A physics reader appears when
+   * a travel model computes a DISTANCE rather than looking one up: `alignment` is
    * `EDGE|INTERIOR`, which is a classification, and a gap plus a side is a position. The
    * category is not the distance.
    *
@@ -465,8 +467,9 @@ export type CoverageDisguise = "BASIC" | "ROTATED" | "LATE_ROTATION";
  * The three kinds of tag on a defensive call (ADR-071), by the LAYER of the call each one
  * changes:
  *
- *  - `LOOK` — only what the offence is shown (`shownAssignments`). Never what is played
- *    (ADR-069 ruling 1). "Show 2", "Show 1".
+ *  - `LOOK` — only what the offence is shown: `shownAssignments` (a coverage look) or
+ *    `shownRush` (a front look: Stem, Mug). Never what is played (ADR-069 ruling 1).
+ *    "Show 2", "Show 1".
  *  - `PRESSURE` — who rushes, and who takes the rushers' coverage (`rush`, `assignments`).
  *    "Fire", "Double A", "Smoke", "Zero".
  *  - `FRONT` — how the line plays (`stunts`). "Tex", "Twist", "Delay", "Triple".
@@ -481,10 +484,10 @@ export type DefensiveTagKind = "LOOK" | "PRESSURE" | "FRONT";
  * groups and leaves the rest of the call alone.
  *
  * A NAME, NOT THE CHANGE. What a tag changed is already in the call — `shownAssignments` for
- * a LOOK, `rush` and `assignments` for a PRESSURE, `stunts` for a FRONT tag — and the engine
- * resolves those fields, never this one. The tag says what produced them, so a renderer can
- * say the call and calibration can split a rate by it. `id` is the catalogue's key; `name` is
- * the word the captain says.
+ * a coverage LOOK, `shownRush` for a front LOOK, `rush` and `assignments` for a PRESSURE,
+ * `stunts` for a FRONT tag — and the engine resolves those fields, never this one. The tag
+ * says what produced them, so a renderer can say the call and calibration can split a rate by
+ * it. `id` is the catalogue's key; `name` is the word the captain says.
  */
 export interface DefensiveTag {
   readonly kind: DefensiveTagKind;
@@ -532,12 +535,14 @@ export interface DefensivePlayCall {
    * What the offence SEES before the snap, as against `assignments`, which is what
    * actually resolves (ADR-067 §A).
    *
-   * ⛔ IDENTICAL TO `assignments` UNLESS THE CALL WEARS A LOOK TAG. A call with no shown
-   * duty gets the SAME ARRAY in both fields (`instantiateDefense`), so identity is by
-   * construction, not by agreement. A call that wears a look (a `LOOK` in `tags` above —
-   * ADR-069, ADR-071; the look states a shown duty for each defender it moves) gets a second
-   * list differing in exactly those assignments. No card in the corpus states a shown duty
-   * of its own, and `playbook`'s `shownAssignments` test fails if one starts to.
+   * ⛔ IDENTICAL TO `assignments` UNLESS THE CALL WEARS A COVERAGE LOOK. A call with no
+   * shown duty gets the SAME ARRAY in both fields (`instantiateDefense`), so identity is by
+   * construction, not by agreement. A call that wears a coverage look (a `LOOK` in `tags`
+   * above — ADR-069, ADR-071; the look states a shown duty for each defender it moves) gets a
+   * second list differing in exactly those assignments. No card in the corpus states a shown
+   * duty of its own, and `playbook`'s `shownAssignments` test fails if one starts to.
+   *
+   * A front look (Stem, Mug; ADR-073) changes `shownRush` and leaves this the same array.
    *
    * WHY THIS EXISTS. There is no shown-vs-played pair anywhere in the engine today
    * (backlog entry 165): a defensive card states duties and the duties are what happens.
@@ -561,8 +566,8 @@ export interface DefensivePlayCall {
   /**
    * What the offence SEES of the rush, as against `rush`, which resolves (ADR-073).
    *
-   * THE SAME ARRAY AS `rush` on every call built today (identity by construction); a front
-   * look (ADR-073 step 3.5) will be the only writer of a second list.
+   * THE SAME ARRAY AS `rush` unless the call wears a front look; a front look is the only
+   * writer of a second list.
    *
    * READ BY THE PRESSURE READ (ADR-073 step 3.2b), beside the validator and the PLAY_START
    * echo: the offence's picture is judged against this list. Physics never reads it.

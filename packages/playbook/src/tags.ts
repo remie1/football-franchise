@@ -6,7 +6,9 @@
  * one word that changes one or two position groups, of one of three kinds by the LAYER of the
  * call it changes (contracts' `DefensiveTagKind`):
  *
- *  - a **look** changes only what the offence is shown — `masks.ts`, drawn over a card;
+ *  - a **look** changes only what the offence is shown — a coverage look its coverage
+ *    (`masks.ts`, drawn over a card), a front look its rush (`frontLooks.ts`, laid over the
+ *    instantiated call);
  *  - a **pressure** changes who rushes and who takes their coverage — declared on the card;
  *  - a **front tag** changes how the line plays — derived from the card's stunts.
  *
@@ -20,8 +22,10 @@
  *  - A pressure is DECLARED on the card and CHECKED against its rushers (`validate.ts`,
  *    `D_PRESSURE_*`): declared exactly when somebody off the line rushes, and each word with
  *    the rushers and the deep help it says.
- *  - A look is worn exactly when the shown coverage differs from the played one;
- *    `masks.test.ts` and calibration's `shownAssignmentsStream` hold every look to that.
+ *  - A coverage look is worn exactly when the shown coverage differs from the played one;
+ *    `masks.test.ts` and calibration's `shownAssignmentsStream` hold every coverage look to
+ *    that. A front look is worn exactly when the shown rush is a second list that differs from
+ *    the played one entry by entry: R28, `validateFrontLook` (`frontLooks.ts`).
  */
 import type { DefensiveTag, StuntComplexity } from "@ff/contracts";
 import type { AnyDefensiveCard } from "./defense.js";
@@ -76,6 +80,10 @@ export const PRESSURE_TAGS: Readonly<Record<PressureTagId, DefensiveTag>> = {
 /**
  * The tags a card wears, in the order the call says them: the line game, the pressure, then
  * the looks. Empty for a vanilla call.
+ *
+ * A front look is not among them: it is laid over the instantiated call, which this function
+ * cannot see, and `applyFrontLook` appends its tag after these (ADR-073 §2.5). So a call is
+ * said line game, pressure, coverage looks, front look.
  */
 export function callTags(card: AnyDefensiveCard): readonly DefensiveTag[] {
   const lineGame = stuntComplexity(card);

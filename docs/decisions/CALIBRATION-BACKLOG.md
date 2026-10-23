@@ -12855,3 +12855,57 @@ Sack sources, % of `keepable` snaps:
 - **Side effect.** `blockedDepthOffsetAgreement.test.ts`'s power check saw `EDGE.BOX` about 4 times in 400
   games; the reshuffled play stream drew a zero. It now plays on past 400 until every cell is seen (cap 1,984).
 - Probe and write-up: `/mnt/project-files/arms/targetshare-*`, `/mnt/project-files/design/target-share-finding.md`.
+- **UPDATED 2026-10-23 — re-measured after ADR-073's last step (ADR-073 §10, step 3.5: caller v7; the default
+  caller moves from v4 to v7 in 3.5's closing commit).** All snaps, 26,880 games a caller (sets A + B, flat league,
+  leash 50, tree 94fee2c), against G5's real shares (ADR-073 line 1732; the real shares above, REG 2022-2024): v7
+  WR 41.90%, TE 35.60%, RB 20.65%, FB 1.86% (real 59.76%, 21.66%, 17.87%, 0.58%). v6 reads 41.91 / 35.57 / 20.66 /
+  1.86% and v4 41.85 / 35.58 / 20.67 / 1.90%; v4 agrees with this entry's 560-game probe (41.9 / 35.7 / 20.4 /
+  2.0%). Paired per game, v7 − v4 is WR +0.05 ± 0.05 points, TE +0.01 ± 0.05, RB −0.02 ± 0.04, FB −0.04 ± 0.01, and
+  v7 − v6 is WR −0.02 ± 0.01, TE +0.02 ± 0.01, RB −0.01 ± 0.01, FB −0.00 ± 0.00. So ADR-073's steps 3.3 to 3.5 (v4
+  to v7) leave target share where the read-order fix left it: no share moves by more than 0.05 points, and every
+  position is still outside its ±15% band (RB only just; COMPUTED for this note from the shares above and this
+  entry's band). The gap left is still cause 2, entry 100's early pocket, which the front looks barely move:
+  v7 − v6 moves the pressured share of dropbacks by −0.07 ± 0.01 points. The clean-pocket stand-in above was not
+  re-measured at 3.5. Re-measure after entry 100 moves. Report and figures (§24, with §16 for the pocket):
+  `/mnt/project-files/arms/adr073-p35/report/`.
+
+## 172. Promote the replay bench: a coach's call priced against the baseline caller's on the same snap
+
+- **Form.** A proposal. It rules nothing and measures nothing new, so the template's ruling sections (implied scope,
+  premise ledger, what remains unjustified) are not needed (`BACKLOG-ENTRY-TEMPLATE.md`: "say so explicitly"). Its
+  figures are MEASURED on ADR-073 step 3.5's benches (tree 94fee2c), each with its arm named.
+- **What the bench is.** ADR-073's scratch harnesses carry a bench mode (3.0's, then H33, H34 and H35). A game run
+  records every dropback's game state, caller inputs and play seed; the bench re-runs each recorded snap alone under
+  a base caller and every named arm, and keeps n, Σ and Σ² of each per-snap paired difference by stratum, with
+  per-game sums for a clustered SE (ADR-073 lines 179-181; `KEYS35.md` §10). The base must first replay every record
+  (`selfOk`). At 3.5, K8 re-ran set A's 593,157 recorded v6 dropbacks under a v6 base and six arms (front0, mug,
+  stem, v7, v4, v7nc), in eight pairs; K8f and K8b re-ran sets A and B, 2,371,845 dropbacks, under front0 and v7f
+  (v7 with `FRONT_LOOK_RATE` mocked to 1, so a look is worn on every legal snap). Every base replayed every record.
+- **Why it answers what a game run cannot.** Game-level arms diverge after a game's first changed outcome
+  (ADR-073 line 180), so a per-snap effect at game level carries the luck of every later snap. On the bench only the
+  decision changes. ADR-073 decided R2 there: v7f − front0, Δsack −7.44 ± 1.17 points a snap on R2a (995 snaps) and
+  −0.50 ± 0.03 on R2b (110,038), K8f + K8b. A fooled read throws hot and gets the ball out, so the disguise lowers
+  sacks.
+- **Who asked, and why.** The fantasy advisor, at ADR-073 step 3.3's gate (ADR-073 line 1741): "The recorded-snap
+  replay is the only tool that prices 'your decision against the baseline coach on the same snap' without dice
+  luck." At 3.5's gate it called 3.5 "the strongest case yet", and that price "the scoring primitive any
+  judged-against-the-real-coach fantasy shape needs" (`/mnt/project-files/arms/adr073-p35/verify/fantasy-gate.md`,
+  carried item 2).
+- **Where it lives today.** Only in scratch: H35 (`adr073Arm35.test.ts`), copied into `packages/calibration/test/` for
+  a run and removed on exit (`run35.sh`); nothing in the repository tests it. Each step copies the last step's harness
+  and extends it (H33, H34, H35). Its records go stale when play changes: 3.4's recorded dropbacks were set aside for
+  3.5 because PR #13 changed nine read orders and Flood's flat (ADR-073 line 2378, F0 entry 1).
+- **What promoting means (proposed; nothing built).**
+  1. A committed calibration command, beside `export-game` and `season`, that records a run's dropbacks and replays
+     them under a base caller and named arms given by caller identity, writing the same paired sums and per-game
+     cells as H35's bench.
+  2. Records that carry their tree and caller identity, and a replay that refuses a record from another tree or a
+     base that does not reproduce every record.
+  3. Tests: the base replays every record; the same seed gives the same output (Iron Rule 4); an arm equal to the
+     base reads 0 on every pair.
+  4. A reader outside calibration (a franchise or fantasy scorer) reaches it only through a contract petition (Iron
+     Rules 1 and 2).
+- **Owner and trigger.** Owner: calibration (ADR-073 step 3.5's fantasy gate, `verify/fantasy-gate.md`, carried item
+  2; plan §10). Filed with step 3.5's write-up. Proposed trigger: before anything outside calibration scores a coach's
+  call against the baseline caller's, or before the next caller step scored on the bench, whichever comes first. Until
+  then each step's scratch bench serves.

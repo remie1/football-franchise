@@ -109,6 +109,8 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import { applyTunablePatch, DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
+import { DEFAULT_CALLER_VERSION } from "../src/caller/anticipate.js";
+import { callerIdentity } from "../src/caller/frozen.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { digestSeeds, generateSeeds } from "../src/harness/seeds.js";
 import { runOneGame } from "../src/harness/runGame.js";
@@ -128,6 +130,13 @@ const enabled = process.env["FF_PRESSURE_SWEEP"] === "1";
 const STAGE = process.env["FF_SWEEP_STAGE"] ?? "curve";
 const GAMES = Number(process.env["FF_SWEEP_GAMES"] ?? "496");
 const BATCH_SEED = process.env["FF_SWEEP_SEED"] ?? "baseline-0001";
+
+/**
+ * The caller every game below plays: resolved here as `runBatch` resolves it, passed to every game,
+ * and printed in the header by the name a batch records (`provenance.callerVersion`), so the header
+ * names the caller that played, before and after the default moves (ADR-073 step 3.5).
+ */
+const CALLER_VERSION = DEFAULT_CALLER_VERSION;
 
 /**
  * The real side, quoted from `reports/baseline-0005.md`, which computed each from the 2022-2024
@@ -384,6 +393,7 @@ function run(id: string, what: string, tunables: Tunables, league: AnyProvenance
       tendencies: FROZEN_TENDENCIES,
       fourthDown: FROZEN_FOURTH_DOWN,
       tunables,
+      callerVersion: CALLER_VERSION,
     });
     foldGame(accumulator, output.observation);
     foldRush(rush, output.observation.events);
@@ -512,7 +522,7 @@ function header(stage: string, leagueDetail: string): void {
   say("=======================================================================");
   say(`ADR-027 MEASUREMENT SWEEP — stage "${stage}"`);
   say(`league ${leagueDetail} · SYNTHETIC_ROUND_ROBIN 2024 · ${GAMES} games · seed "${BATCH_SEED}"`);
-  say("caller v2 (anticipating) + FROZEN_TENDENCIES/FROZEN_FOURTH_DOWN");
+  say(`caller ${callerIdentity(CALLER_VERSION, FROZEN_TENDENCIES.version)} (anticipating) + FROZEN_TENDENCIES/FROZEN_FOURTH_DOWN`);
   say("EVERY value below is an in-memory applyTunablePatch. TUNABLES on disk is UNCHANGED.");
   say("=======================================================================");
 }

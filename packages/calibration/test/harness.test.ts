@@ -2,9 +2,17 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_TUNABLES, applyTunablePatch } from "@ff/engine";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
-import { inProcessExecutor, runBatch, shardedExecutor } from "../src/harness/batch.js";
+import {
+  blankCallerDiagnostics,
+  inProcessExecutor,
+  mergeCallerDiagnostics,
+  runBatch,
+  shardedExecutor,
+} from "../src/harness/batch.js";
+import { runOneGame } from "../src/harness/runGame.js";
+import type { FrozenCallerDiagnostics } from "../src/caller/frozen.js";
 import { stableDigest } from "../src/harness/digest.js";
-import { buildFixtures, ScheduleError } from "../src/harness/schedule.js";
+import { buildFixture, buildFixtures, ScheduleError } from "../src/harness/schedule.js";
 import { assertSeedDigest, digestSeeds, generateSeeds, SeedMismatchError, seedListOf } from "../src/harness/seeds.js";
 import { WorkerPoolUnavailableError } from "../src/harness/workerPool.js";
 import { buildFlatLeague } from "../src/league/flat.js";
@@ -131,8 +139,10 @@ describe("runBatch", () => {
     // while its table is byte-identical. `report/identity.ts` always claimed this field meant
     // "which caller"; before ADR-024 it only ever meant "which table". ADR-069 made v3 the
     // default: the same calls as v2, some of them wearing a mask. ADR-071 step 2 made it v4: the
-    // same calls as v3, disguised on the same snaps, wearing the corner looks too.
-    expect(result.provenance.callerVersion).toBe(`v4/${FROZEN_TENDENCIES.version}`);
+    // same calls as v3, disguised on the same snaps, wearing the corner looks too. ADR-073 step 3.5
+    // made it v7: v4 stating the line's slide check (v5), drawing the defence's call in parts with
+    // the creeper (v6), and wearing the front looks, so the same seed plays another game.
+    expect(result.provenance.callerVersion).toBe(`v7/${FROZEN_TENDENCIES.version}`);
     expect(result.provenance.seedDigest).toBe(digestSeeds(result.seeds.seeds.slice(0, 6)));
     expect(result.provenance.availabilityMatched).toBe(false);
     expect(result.accumulator.games).toBe(6);
@@ -181,6 +191,59 @@ describe("runBatch", () => {
     expect(JSON.stringify(five.accumulator)).toBe(JSON.stringify(one.accumulator));
     expect(five.provenance.workers).toBe(5);
     expect(five.provenance.executorName).toBe("sharded-5");
+  }, 120_000);
+
+  /**
+   * ADR-073 step 3.5: v7's front-look counters (`FrozenCallerDiagnostics.frontLooks`) merge by sum,
+   * and with a sorted key order. The worker pool merges results in the order they ARRIVE, so a
+   * merge that kept insertion order would let the worker count change the output, not merely
+   * leave the numbers alone (`caller/anticipate.ts`'s fold makes the same rule).
+   */
+  it("merges the front-look counters by sum, in a sorted key order, whichever side comes first", () => {
+    const withFronts = (drawn: Record<string, number>, formationDropped: number): FrozenCallerDiagnostics => ({
+      ...blankCallerDiagnostics(),
+      frontLooks: { drawn, formationDropped },
+    });
+    const a = withFronts({ STEM: 3, MUG: 1 }, 2);
+    const b = withFronts({ MUG: 2 }, 1);
+    const ab = mergeCallerDiagnostics(a, b);
+    const ba = mergeCallerDiagnostics(b, a);
+    expect(ab.frontLooks).toEqual({ drawn: { MUG: 3, STEM: 3 }, formationDropped: 3 });
+    expect(Object.keys(ab.frontLooks.drawn)).toEqual(["MUG", "STEM"]);
+    expect(JSON.stringify(ba.frontLooks)).toBe(JSON.stringify(ab.frontLooks));
+    // A look only one side drew is carried; the blank is the identity; the inputs are untouched.
+    expect(mergeCallerDiagnostics(withFronts({ STEM: 4 }, 0), b).frontLooks).toEqual({ drawn: { MUG: 2, STEM: 4 }, formationDropped: 1 });
+    expect(mergeCallerDiagnostics(blankCallerDiagnostics(), a).frontLooks).toEqual(a.frontLooks);
+    expect(a.frontLooks).toEqual({ drawn: { STEM: 3, MUG: 1 }, formationDropped: 2 });
+    expect(Object.keys(a.frontLooks.drawn)).toEqual(["STEM", "MUG"]);
+    expect(b.frontLooks).toEqual({ drawn: { MUG: 2 }, formationDropped: 1 });
+  });
+
+  it("sums a v7 batch's front-look counters over its games, the same on one shard and on five", async () => {
+    const seeds = generateSeeds("front-looks", 6);
+    const v7 = { ...playCalling, callerVersion: "v7" } as const;
+    const one = await runBatch({ league, schedule, seeds, playCalling: v7, executor: inProcessExecutor() });
+    const five = await runBatch({ league, schedule, seeds, playCalling: v7, executor: shardedExecutor(5) });
+    // The same games played one at a time, as the batch plays them: their counters, summed.
+    const drawn: Record<string, number> = {};
+    let formationDropped = 0;
+    buildFixtures(index, schedule).forEach((fixture, i) => {
+      const game = runOneGame({
+        built: buildFixture(index, fixture),
+        seed: seeds.seeds[i]!,
+        tendencies: FROZEN_TENDENCIES,
+        fourthDown: FROZEN_FOURTH_DOWN,
+        callerVersion: "v7",
+      });
+      for (const [look, n] of Object.entries(game.caller.frontLooks.drawn)) drawn[look] = (drawn[look] ?? 0) + n;
+      formationDropped += game.caller.frontLooks.formationDropped;
+    });
+    expect(one.provenance.games).toBe(6);
+    expect(one.caller.frontLooks).toEqual({ drawn, formationDropped });
+    expect(drawn["MUG"] ?? 0, "the batch drew no Mug, so the sum compared nothing").toBeGreaterThan(0);
+    expect(drawn["STEM"] ?? 0, "the batch drew no Stem, so the sum compared nothing").toBeGreaterThan(0);
+    expect(five.caller).toEqual(one.caller);
+    expect(JSON.stringify(five.caller.frontLooks)).toBe(JSON.stringify(one.caller.frontLooks));
   }, 120_000);
 
   it("refuses to run on the unfitted placeholder caller", async () => {
