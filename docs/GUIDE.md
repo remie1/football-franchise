@@ -130,7 +130,9 @@ the best player at each spot starting. Seasons play with these squads by default
 special teams coordinator and a computer-run president, with careers, contracts and 20 seasons of
 made-up history. Presidents hire and fire head coaches, head coaches pick their coordinators, and
 `pnpm --filter @ff/franchise staff-check` compares the turnover with NFL numbers. Coaches do not
-affect games yet; that waits for the front work (ADR-073) and ADR-075.
+affect games yet; that waits for the front work (ADR-073) and ADR-075. Saves keep the coaches (23 October
+2026): every coach, their contracts and each team's staff go into a `--save` file, and `--load`
+carries on with them.
 
 **News (22 October 2026, ADR-082):** a news desk writes up to four headlines a week from a
 season's results: routs, comebacks, upsets, streaks, the last unbeaten team, division leaders, and

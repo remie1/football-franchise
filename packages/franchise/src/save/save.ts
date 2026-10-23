@@ -11,11 +11,19 @@
  * the saved day, with a resolver that refuses to play anything. If that rebuilds the same schedule,
  * standings and bracket, the file is consistent; if it needs a game the file does not have, or the
  * file has one it should not, the file is refused. Same code that plays the season checks the save.
+ *
+ * Coaches (thread "Saves keep coaching staff"): given the staff world, a save keeps every coach,
+ * their contracts, each team's staff list and budget, and the staffs' views of each other (ADR-084).
+ * `readSave` checks them and hands the world back, ready for the next carousel. The world's season
+ * is not stored: it is the one after the last season on anyone's résumé (the carousel writes the
+ * season just played onto résumés first), or the save's own season when no résumé has one.
  */
 import {
   ATTRIBUTE_REGISTRY_V1, DEFAULT_LEAGUE_RULES, SAVE_FORMAT_VERSION, compareStamps, stampToString,
-  type CalendarStamp, type LeagueRules, type PlayerState, type SaveFile, type SeasonState,
+  type CalendarStamp, type LeagueRules, type PlayerState, type RelationshipView, type SaveFile, type SeasonState,
 } from "@ff/contracts";
+import type { StaffWorld } from "../staff/world.js";
+import { checkViews } from "../relationships/ledger.js";
 import type { League } from "../league/buildLeague.js";
 import { assertValidStamp, seasonStart } from "../calendar/clock.js";
 import { runSeason, type GameResolver } from "../season/runSeason.js";
@@ -36,10 +44,21 @@ export interface MakeSaveInput {
    * may its teams' rosters. Traits are a `Set`: write the file with a replacer that lists them.
    */
   players?: PlayerState[];
+  /**
+   * The league's coaches (ADR-080), and their views of each other when kept (ADR-084). Each team's
+   * staff list and budget are taken from `world.teams`. Absent, the save has no coaches.
+   */
+  staff?: { world: StaffWorld; relationships?: readonly RelationshipView[] };
 }
 
 export function makeSave(input: MakeSaveInput): SaveFile {
-  const { league, season } = input;
+  const { league, season, staff } = input;
+  const staffTeams = new Map((staff?.world.teams ?? []).map((t) => [String(t.id), t]));
+  const teams = staff === undefined ? league.teams : league.teams.map((t) => {
+    const s = staffTeams.get(String(t.id));
+    if (!s) throw new Error(`makeSave: the coaches have no team ${String(t.id)}`);
+    return { ...t, staff: [...s.staff], staffBudget: { ...s.staffBudget } };
+  });
   const save: SaveFile = {
     formatVersion: SAVE_FORMAT_VERSION,
     createdBy: input.createdBy,
@@ -48,9 +67,11 @@ export function makeSave(input: MakeSaveInput): SaveFile {
     calendar: input.calendar,
     leagueRules: input.rules ?? DEFAULT_LEAGUE_RULES,
     world: {
-      teams: league.teams,
+      teams,
       players: input.players ?? [],
-      staff: [],
+      staff: staff?.world.staff ?? [],
+      ...(staff ? { staffContracts: staff.world.contracts } : {}),
+      ...(staff?.relationships ? { relationships: [...staff.relationships] } : {}),
       contracts: [],
       perceptions: [],
       league: league.structure,
@@ -70,6 +91,8 @@ export interface LoadedSave {
   save: SaveFile;
   league: League;
   rules: LeagueRules;
+  /** The coaches, when the save has any: the world the carousel reads, and their views if kept. */
+  staff?: { world: StaffWorld; relationships?: RelationshipView[] };
 }
 
 /** Thrown for a file that is not a save this version can carry on from. The message says why. */
@@ -142,6 +165,8 @@ export function readSave(input: unknown): LoadedSave {
   }
 
   const league: League = { seed: save.worldSeed, structure: w.league, teams: w.teams };
+  const staff = w.staff.length === 0 && w.staffContracts === undefined && w.relationships === undefined
+    ? undefined : readStaff(save);
 
   if (w.season !== null) {
     const s = w.season;
@@ -166,5 +191,51 @@ export function readSave(input: unknown): LoadedSave {
     if (!same(replay.bracket, s.bracket)) refuse("its playoff bracket doesn't match its results");
   }
 
-  return { save, league, rules };
+  return { save, league, rules, ...(staff ? { staff } : {}) };
+}
+
+/** The coaches: everyone once, every team's staff list theirs, every contract and view between real people. */
+function readStaff(save: SaveFile): NonNullable<LoadedSave["staff"]> {
+  const w = save.world;
+  if (w.staff.length === 0) refuse("it has coaches' contracts or views but no coaches");
+  if (!Array.isArray(w.staffContracts)) refuse("its coaches have no contracts list");
+  if (w.relationships !== undefined && !Array.isArray(w.relationships)) refuse("its coaches' views are damaged");
+  const people = new Map<string, (typeof w.staff)[number]>();
+  for (const s of w.staff) {
+    if (!isObject(s) || typeof s.id !== "string" || !Array.isArray(s.career)) refuse("a coach's record is damaged");
+    if (people.has(String(s.id))) refuse(`coach ${String(s.id)} appears twice`);
+    people.set(String(s.id), s);
+  }
+  const teamIds = new Set(w.teams.map((t) => String(t.id)));
+  const listed = new Map<string, string>();
+  for (const t of w.teams) {
+    for (const id of t.staff) {
+      const s = people.get(String(id));
+      if (!s) refuse(`${t.displayName}'s staff lists a coach who is not in the save (${String(id)})`);
+      if (listed.has(String(id))) refuse(`coach ${String(id)} is on two teams' staffs`);
+      if (s!.teamId !== t.id) refuse(`coach ${String(id)} is on ${t.displayName}'s staff but his record says ${String(s!.teamId ?? "no team")}`);
+      listed.set(String(id), String(t.id));
+    }
+  }
+  for (const s of w.staff) {
+    if (s.teamId !== undefined && listed.get(String(s.id)) !== String(s.teamId)) {
+      refuse(`coach ${String(s.id)} says he works for ${String(s.teamId)}, whose staff list doesn't have him`);
+    }
+  }
+  for (const c of w.staffContracts!) {
+    if (!people.has(String(c.staff))) refuse(`a contract is for a coach who is not in the save (${String(c.staff)})`);
+    if (!teamIds.has(String(c.team))) refuse(`coach ${String(c.staff)}'s contract is with a team that does not exist (${String(c.team)})`);
+  }
+
+  // The season the staffs are set for: the one after the last season on any résumé.
+  let last = -Infinity;
+  for (const s of w.staff) for (const j of s.career) for (const x of j.seasons) last = Math.max(last, x.season);
+  const season = last === -Infinity ? save.calendar.season : last + 1;
+  if (season !== save.calendar.season && season !== save.calendar.season + 1) {
+    refuse(`its coaches are set for ${season}, but its date is in ${save.calendar.season}`);
+  }
+  const world: StaffWorld = { season, teams: w.teams, staff: w.staff, contracts: w.staffContracts! };
+  if (w.relationships === undefined) return { world };
+  try { checkViews(w.relationships, world); } catch (e) { refuse(`its coaches' views don't match their staffs (${(e as Error).message.replace(/^relationships: /, "")})`); }
+  return { world, relationships: w.relationships };
 }
