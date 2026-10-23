@@ -4,7 +4,7 @@
 - **Proposed by:** Orchestrator, for `franchise` (development, aging, injuries), with small parts in
   `attributes` (starting values) and `calibration` (the season runner hands each week's players to
   the game and reports who played)
-- **Status:** design ruled by the owner (Q1-Q8, 2026-10-23 18:28Z); follow-ups F1-F3 open.
+- **Status:** design ruled by the owner (Q1-Q8, 2026-10-23 18:28Z; follow-ups F1-F3, 20:49Z).
   Nothing is built. The contracts edits in §8 each wait on the owner's typed yes.
 - **Works with:** "Player draft" (ADR-086: the year turnover, rookies), "Salary cap and contracts"
   (ADR-085: cuts, free agents, injured reserve, replacements; real-player stand-ins), ADR-079
@@ -52,7 +52,7 @@ and the backup who plays well in his place.
 
 ## 1. The rulings
 
-| # | Owner's answer (2026-10-23 18:28Z) | Where |
+| # | Owner's answer (Q1-Q8 2026-10-23 18:28Z; F1-F3 20:49Z) | Where |
 |---|---|---|
 | Q1 | **(b) No ceiling.** "Many things affect how a player grows ... a hidden growth rate, performance, playing time, practice, coaching, and potentially storylines ... none of it ever hits any ceiling other than an attribute hitting 99." | §2. No hidden ceiling or potential; 99 is the only cap. Spec #11's "potential" term is dropped. |
 | Q2 | **Ratings change every week**, with larger jumps over the offseason and training camp. A variable from age and experience lets young players improve faster. Injury is a lasting physical modifier depending on the injury (a broken hand doesn't slow a receiver; a torn ACL does). Age weighs more in the offseason because so much time passes. | §3 (weekly), §2.2 (learning rate), §4.1 (aging weighted to the offseason), §5.4 (lasting marks) |
@@ -60,7 +60,10 @@ and the backup who plays well in his place.
 | Q4 | (a) Coaches matter, small. | §2.3 |
 | Q5 | **Injuries at any time**: in games (highest risk), in practice (second), and away from football in any week, offseason included. | §5. Game injuries are drawn at the final whistle until the engine can take a player off mid-game (§5.2). |
 | Q6 | (a) A serious injury can leave a lasting mark. | §5.4 |
-| Q7 | **(b) Retirement waits for player personality.** | §6. No retirement rule. F2 asks how players leave meanwhile. |
+| Q7 | **(b) Retirement waits for player personality.** | §6. No general retirement rule; F2 below covers players nobody signs. |
+| F1 | **No slope.** "Once a player starts climbing in age, their physical skills start to diminish. Also, young age and inexperience are two major aspects for a player's ratings going up ... once they head into the middle section of their career ... they won't continue to improve as fast ... These two effects help to create a natural curve." Most players don't last 20 years, and after 10 most struggle to keep a roster spot, let alone the game time it takes to improve. | §2.3: no slope; the natural curve comes from aging and the learning rate. The 20-year check (D5b) checks that the league does not drift upward. |
+| F2 | **An unsigned player waits up to 2 seasons for a call, then retires; how long depends on his personality.** | §6.1 |
+| F3 | **Starters follow the coach's personality**: some stick with incumbents even when a rookie behind them is improving, some lean to any veteran, some are cold and calculating and re-order every week by who looks best. The situation matters, for the owner's own coach as well: open competition for a spot hurts less when a player goes from starting to benched; a starter who returns from injury to find his backup has taken the job is hurt less than one suddenly demoted; a sudden mid-season demotion for no reason can strain the relationship. The same for the owner's team and computer teams. | §3.1. The relationship strain is ruled but waits until players hold views of their coach (ADR-084's later step with Spec #14); this build moves morale and records every change (E5) so the strain can be applied then. |
 | Q8 | (a) Off by default until the owner has seen the checks. | §9, D5 |
 
 ## 2. Getting better and worse: no ceiling
@@ -109,14 +112,14 @@ The inputs, each week:
 | **Performance** | a corner who wins his matchups gains a little more in coverage; one beaten repeatedly gains less and can slip | from the same report |
 | **Coaching** (Q4) | the best staff against the worst is worth about one rating point a year on a young player | the coordinator on his side of the ball, through his `development` skill (special teams coordinator for K, P, LS). For `disguise`, the defensive coordinator's `teaching`, in ADR-075's windows (spring ~1/4, camp ~1/2, season ~1/4), as the owner ruled there |
 | **Storylines** | a mentor taking a rookie under his wing; a player distracted by a contract fight | later, through a channel the story side can write to (its own petition) |
+| **Morale** | an unhappy player develops a little slower | later: Spec #14 §3 makes morale a development-rate modifier; not in this build |
 | **Wobble** | a small random step each week | from the season seed, so the same seed always gives the same careers |
 
-**Gains get harder near the top (F1, proposed).** Going from 60 to 65 is easier than from 85 to 90:
-each point gained shrinks a little as a rating climbs. It is a slope, not a wall: nothing stops a
-player short of 99, and one who keeps playing well and practising keeps climbing. Without it, a
-league whose players mostly improve would drift upward year after year, and ADR-079's rule that
-"a 90 is among the league's best" would stop holding. The owner ruled out a ceiling, so this is
-asked separately (F1); the 20-year check shows the league with and without it.
+**No slope near the top (F1).** Every point costs the same wherever a rating stands. What keeps the
+league from climbing into the 90s is the natural curve the owner described: the learning rate is
+high only while a player is young and new, falls through the middle of his career, and his body
+declines with age; and few players keep a roster spot, let alone the snaps that drive growth, past
+about ten seasons. The 20-year check (D5b) shows the spread of ratings year by year to confirm it.
 
 ### 2.4 Spec #11's development tick
 
@@ -174,11 +177,67 @@ and on whether he is with a team that is still playing:
 The season loop runs these weeks itself; the draft thread's draft day, undrafted signings and trim
 to 53 happen inside the same loop at their dates, so no week ever runs twice.
 
-**Depth charts.** Every team's staff re-sorts its depth chart at the end of camp and each week after,
-so an improving rookie can win the job and a declining or injured starter loses it. Until scouting
-(perception) exists, coaches would sort by the players' true ratings, which the perception spec
-otherwise forbids (F3). The owner's own team is sorted the same way until he can set his own chart
-in the game.
+### 3.1 Who starts: the coach's style and the situation (F3)
+
+Each week every team sets its depth chart, a COACH-authority decision (Iron Rule 6). Each
+coordinator ranks the players on his side by how good he thinks they are; the head coach decides,
+leaning the way his personality leans. An improving rookie can win a job and a declining or injured
+starter can lose one, but how quickly depends on the coach.
+
+**His leanings.** Every head coach has three, set by his personality type with some variation of his
+own (the type-to-leaning mapping is proposed, not ruled):
+
+| Leaning | What it does | Strongest in (proposed) |
+|---|---|---|
+| **Sticks with the incumbent** | the starter keeps the job until someone is clearly better, not just a little, even while a rookie behind him improves | players' coach, quiet |
+| **Leans to veterans** | any veteran (incumbent or newcomer, star or journeyman) gets the nod over a younger player of about the same level | demanding, quiet |
+| **Plays who looks best** | cold and calculating: re-orders every week by who looks best right now | cerebral |
+
+A fiery coach (proposed) has his own habit: a quick hook, benching a starter after one bad game.
+
+**Who looks best** is the coordinator's read: the player's recent form (his last four weeks' game
+grades from the who-played report, P4, and his practice grades from the development week, so a
+backup who seldom plays is still seen) and his ratings as the coordinator judges them. Until scouting
+exists, that judgement is the true rating seen through a blur set by the coordinator's
+`talentEvaluation`, the same blurry lens ADR-080 Q6 uses for hiring; perception replaces it later.
+When the head coach starts a player over his coordinator's pick, ADR-084 §5.1's move "start a player
+over his pick" applies to the coordinator's view of him.
+
+**Open competition.** A spot is open when the coach says so: at camp, when his coordinator rates two
+players there as close; at any time for a coach who plays who looks best, since on his team every
+spot is open all season and his players know it (the owner: open competition "can be normal").
+Incumbent-loving coaches rarely open a spot. A battle ends when the coach names a starter.
+
+**The situation, and how the player takes it.** Each change is labelled by what the player himself
+can see: his own recent form, his injury, and whether the spot was declared open. The coach's private
+read does not set the label, so a coach who misjudges and benches a starter in good form has made a
+sudden demotion, whatever he thought.
+
+| Situation | Example | How much it hurts the player who loses the spot |
+|---|---|---|
+| **Open competition** | the two players in a declared battle swap weeks | little (ruled: less than a sudden demotion) |
+| **Injury cover** | the starter is hurt and his backup moves up | none |
+| **Starter returns** | the starter is healthy again and takes his job back from the backup | little, for the backup (proposed) |
+| **Kept after injury** | the starter comes back and his backup, who played well, keeps the job | some (ruled: less than a sudden demotion) |
+| **Benched for form** | a starter whose own form has dropped over recent weeks loses the job | moderate (proposed) |
+| **Sudden demotion** | mid-season, no declared battle, a healthy starter whose own form has not dropped is benched | a lot, and it can strain his view of the coach (ruled) |
+
+Also proposed: the player who gains a spot gets a small lift; the sizes are scaled by each player's
+`volatility` rating (the registry's "rate morale moves in both directions").
+
+**Feelings, now and later.** In this build each change moves the player's morale (`MORALE_CHANGED`,
+already in contracts). That per-change hit is a placeholder: Spec #14's weekly need terms (playing
+time, role clarity, positional competition, which is exactly the open-battle case) replace it when
+player personality is built. The strain on his view of the coach is ruled (F3) but needs players to
+hold views, which ADR-084 left for its later step with Spec #14; every change is recorded (E5) so that
+system applies the strain when it exists.
+
+**The owner's team.** He has no staff record and is not rated (Spec #11 §1; ADR-084 V1), so his
+leanings come from his own personality: ADR-083's main trait, read the same way as a computer head
+coach's type, with no personal variation. Until ADR-083 is built, his team uses even leanings (the
+middle of all three). His coordinators' reads are blurred like everyone's. While the staff sets his
+chart the decision is recorded as made by the computer for him; once he can set his own chart in the
+game he decides, and the same labels and feelings follow from his choices.
 
 ## 4. Aging
 
@@ -271,25 +330,24 @@ tuned in D5.
 
 ## 6. Retirement: waits for personality (Q7)
 
-No retirement rule in this ADR. When player personality (Spec #14) is built, the choice to retire
-will come from the player's needs, body and contract (`franchise-calendar.md`'s retirement windows,
-spring-bonus pressure), through `PLAYER_RETIRED`. Spec #14 has no retirement section yet; whoever
-designs personality writes it.
+No general retirement rule in this ADR. When player personality (Spec #14) is built, the choice to
+retire will come from the player's needs, body and contract (`franchise-calendar.md`'s retirement
+windows, spring-bonus pressure), through `PLAYER_RETIRED`. Spec #14 has no retirement section yet;
+whoever designs personality writes it.
 
-**F2 (open): how do players leave the league meanwhile?** Without retirement, nobody under contract
-ever leaves: a 38-year-old starter plays on until he is cut, and every player without a team stays
-in the free-agent pool, which grows by a few hundred a year (each spring's rookies push about as
-many veterans off rosters). Two options:
-- **(a) Nobody leaves until personality arrives.** Exactly as ruled in Q7. The pool grows; the
-  20-year check leaves out career lengths, since careers never end.
-- **(b) A placeholder exit, honestly a stand-in retirement:** a player without a team (released,
-  contract run out, or never signed) who is still without one when the first regular season that
-  starts after that ends, leaves the league, with an event saying so (E4). This is how most real
-  careers end, and it keeps the pool and the 20-year check meaningful. Personality-driven
-  retirement replaces it later. The draft thread uses the same wording.
+### 6.1 Players nobody signs (F2)
 
-Recommendation: (b), because the long-run checks mean little without it; but it is the kind of
-simple rule Q7 set aside, so it is the owner's call.
+A player without a team (released, contract run out, or never signed) waits **up to two seasons**
+for a call, then retires. How long he waits depends on his personality. He may decide at two moments
+each year: when camps open (the calendar's late-retirement window) and when the regular season ends.
+His patience is counted from the day he became unsigned; he retires at the first of those moments
+after it has run out, and in any case once two regular seasons that began after he became unsigned
+have ended. He retires with `PLAYER_RETIRED`, reason `UNSIGNED` (E4).
+
+Until player personality is built, every personality sheet is the flat placeholder (ADR-079 Q7), so
+his patience is a hidden draw between none and two seasons, stored on his personality sheet (P6) and
+replaced by his needs once Spec #14 says which of them set it. The draft and cap threads use the same
+rule for their free-agent pool.
 
 ## 7. Hidden information
 
@@ -305,14 +363,9 @@ through perception (`PERCEPTION_UPDATED`) once it is built; until then the news 
 "breakout" or "lost a step" stories.
 
 Three franchise steps read true ratings until perception exists: the development week, the injury
-draws (true `durability`), and the depth-chart sort (F3). D1 names all three in the `TrueAttributes`
-reader comment.
-
-**F3 (open): may coaches sort depth charts by true ratings until scouting exists?**
-- **(a) Yes, as a stated stopgap**, replaced by each staff's own (blurred) view when perception is
-  built. Recommended: without it, injuries and development cannot change who starts.
-- (b) No: depth charts stay as generated; injured starters are skipped, but a rookie never wins a
-  job until perception exists.
+draws (true `durability`), and the coordinators' read for the depth chart (§3.1, through their blur).
+D1 names all three in the `TrueAttributes` reader comment. The unsigned-retirement check (§6.1) reads
+only the personality sheet.
 
 ## 8. Contracts edits this needs (each needs the owner's typed yes)
 
@@ -323,12 +376,15 @@ reader comment.
 | **P3** | `Injury` gains `setting: "GAME" \| "PRACTICE" \| "AWAY"`, `band: "DAY_TO_DAY" \| "SHORT" \| "LONG" \| "MAJOR"`, `since: CalendarStamp` | availability, reports, lasting marks |
 | **P4** | `GameParticipation { player; team; snaps: { offense; defense; special }; contests: { attr; won; lost }[] }`, returned with each game | who played and how (§10) |
 | **P5** | **an amendment to `contracts.md` §10**, which today keeps formulas out of contracts: the measurement scales (4.22/5.60 s, 6.50/8.10 s, 22/44 in, the strength formula) and the position profiles with their overall (which ratings each position leans on), as data with small readers beside `getAttr` | the generator, the draft's class maker and franchise (aging, depth-chart sort, the draft's trim) all need the same scales and overall; each domain may import only contracts, so it is one shared copy or several. These are ADR-079's ruled anchors, which rarely change; any change to them would come back to the owner as a contracts edit. The aging curves and injury table, which D5 tunes, stay in franchise |
-| **S1** | `SaveFile.world.development?: { events: FranchiseEventEnvelope[] }` | the saved truth-layer events (E1, E3, emergency signings), so a loaded season carries on exactly (§10) |
+| **S1** | `SaveFile.world.development?: { events: FranchiseEventEnvelope[]; depthMemory: unknown }` | every event the development, injury, depth-chart and retirement steps emitted (truth-layer and public), and the depth-chart memory §3.1 needs (open battles, who started before an injury, each starter's weeks in the job, the last four weeks' grades), so a loaded season carries on exactly (§10). `depthMemory` is franchise's own shape, typed `unknown` like the other open save slots |
 | **E1** | `RATINGS_CHANGED { team?: TeamId; changes: { player; attr; from; to }[]; body?: { player; measure: "forty" \| "cone" \| "vertical" \| "bench" \| "weightLb"; from; to }[] }`, truth-layer: one per team per week, plus one for free agents; whole-point rating moves and body changes from practice, play, coaching, workouts and aging (injury marks are in E3, not here); the week is the envelope's `at` | every change on the event stream (Iron Rule 3); about 1,700 events a year (33 × 52) |
 | **E2** | `INJURY_OCCURRED` gains `setting`, `band`, `game?: GameId`; public | when, where and how bad |
 | **E3** | `INJURY_HEALED { player; lasting: { attr; from; to }[]; body?: { measure; from; to }[] }`, truth-layer | the one record of a lasting mark |
-| **E4** | `PLAYER_LEFT_LEAGUE { player; reason: "UNSIGNED" }`, public, only if F2 is (b) | a player leaving football is a game fact |
-| **D1** | `contracts.md` wording for the above; the `TrueAttributes` reader comment (§7's three franchise readers); `contracts.md` §3 truth-layer note; the `contracts.md` §10 amendment (P5) | documents |
+| **E4** | `PLAYER_RETIRED` gains `reason?: "UNSIGNED"`, and its `timing` gains `"SEASON_END"` (the camp-opening moment uses the existing `"LATE"`) | an unsigned player retiring (§6.1); later personality-driven retirements leave the reason out or add their own |
+| **C1** | `StaffState.lineup?: { incumbent: number; veteran: number; form: number }` (0-100 each), drawn for computer head coaches from their personality type by `buildStaff` on its own random stream (existing coaches unchanged) | the coach's three leanings (§3.1). The owner's team reads ADR-083's main trait instead |
+| **E5** | `DEPTH_CHART_CHANGED { team; position; up?: PlayerId; down?: PlayerId; situation: "OPEN_COMPETITION" \| "INJURY_COVER" \| "STARTER_RETURNS" \| "KEPT_AFTER_INJURY" \| "FORM" \| "SUDDEN" }`, `POSITION_BATTLE_DECLARED { team; position; players: PlayerId[] }` and `POSITION_BATTLE_ENDED { team; position; starter: PlayerId }`, public; each is a COACH-authority decision, `decidedBy` NPC unless the owner set it | why each change happened, for morale now and players' views of the coach later |
+| **P6** | `PersonalitySheet.patience?: number` (0-2 seasons), the placeholder until Spec #14's needs set it | §6.1 |
+| **D1** | `contracts.md` wording for the above; the `TrueAttributes` reader comment (§7's three franchise readers of truth); `contracts.md` §3 truth-layer note; the `contracts.md` §10 amendment (P5) | documents |
 
 No change to `GameResult` or the engine's types.
 
@@ -336,44 +392,50 @@ No change to `GameResult` or the engine's types.
 
 | Step | What | Moves sim output? |
 |---|---|---|
-| D1 | contracts P1-P5, S1, E1-E3 (E4 if F2 is b), D1, on the owner's typed yes naming each | no |
-| D2 | the development week: a pure function in `franchise/src/players/` (players + week → changed players + events): learning rate, the inputs and groups of §2.3, aging with the offseason split, workouts, the top-end slope (if F1 yes). Generator draws the growth rate from its own random stream and fills the new fields only when development is switched on. Tests: same seed gives the same events; nothing past 99; an old player loses more over the offseason than over the season; a free agent and a rostered player of the same age age equally; every active rating is in exactly one group; the generated league is unchanged with the switch off | no (not called yet) |
+| D1 | contracts P1-P6, S1, C1, E1-E5, D1, on the owner's typed yes naming each | no |
+| D2 | the development week: a pure function in `franchise/src/players/` (players + week → changed players + events): learning rate, the inputs and groups of §2.3, aging with the offseason split, workouts. Generator draws the growth rate from its own random stream and fills the new fields only when development is switched on. Tests: same seed gives the same events; nothing past 99; an old player loses more over the offseason than over the season; a free agent and a rostered player of the same age age equally; every active rating is in exactly one group; the generated league is unchanged with the switch off | no (not called yet) |
 | D3 | injuries: three settings, length bands, kinds, playing-hurt penalties, lasting marks (tests: a hand injury leaves the 40 alone, an ACL does not), emergency signings; rates measured from free data first, every number listed with its source | no (not called yet) |
-| D4 | wire it in (§10); switches `--development` and `--injuries`, both off by default | season runs only, and only when switched on |
+| D4 | wire it in (§10); the weekly depth chart by each coach's style, with its labels and morale effects (§3.1), on whenever either switch is on, since either one changes who can play; unsigned players retiring (§6.1), on with either switch wherever there are free agents; switches `--development` and `--injuries`, both off by default | season runs only, and only when switched on |
 | D5a | single-season checks, available after D4: a season's injuries by setting and position against real ones; how far players move in a season; the starter-vs-backup gap (Q3 says "a little"); ADR-079 R5's win spread re-measured in three arms (development alone, injuries alone, both). If the spread moves, a retuned team-strength setting applies only with the switches on, or lands with Q8's default flip | season runs only |
-| D5b | the 20-year check, once the draft thread's year turnover (ADR-086) and the cap thread's cuts and free-agent pool (ADR-085) exist, and F2 is ruled: ratings spread stays like today's (with and without F1's slope), roster ages and peak ages by position against the NFL, career lengths only if F2 is (b). Run on the generated league until the stand-in importer exists. Then, on the owner's yes, both switches on by default (Q8) | season runs only |
-| later | injuries during the game (engine, §5.2); preseason games; the weekly practice plan; storyline effects; retirement with personality; head coach and position coaches; scheme fit and style match | engine held |
+| D5b | the 20-year check, once the draft thread's year turnover (ADR-086) and the cap thread's cuts and free-agent pool (ADR-085) exist: whether the ratings spread stays like today's year after year (F1's natural curve; any drift is tuned through the learning rate, the aging curves and the playing-time share, never a slope, and reported to the owner), roster ages, peak ages and career lengths by position against the NFL, and how often unsigned players retire after one season or two. Run on the generated league until the stand-in importer exists. Then, on the owner's yes, both switches on by default (Q8) | season runs only |
+| later | injuries during the game (engine, §5.2); preseason games; the weekly practice plan; storyline effects; morale slowing development; the strain a sudden demotion puts on a player's view of his coach (ruled F3, needs players' views); retirement with personality; head coach and position coaches; scheme fit and style match | engine held |
 
 ## 10. How it plugs in (for builders)
 
-- **One loop.** `runSeason` (franchise) runs the development week inside its walk of the calendar,
-  once per week, on the week's last day after that day's games and before any stop or save. The
-  draft thread's year turnover hooks its steps into the same walk and never calls the development
-  week itself (agreed 2026-10-23). With `--development` or `--injuries` on, the season command runs
+The draft thread built the shared season walk on PR #31 (`franchise/src/season/people.ts`, agreed
+2026-10-23); this ADR plugs into it.
+
+- **One loop.** `runSeason` takes `people` (`LeaguePeople`: teams, players, picks, classes,
+  `freeAgents`, `staff?`) and `daySteps`. Steps run once for every calendar day the clock passes,
+  games or not, after that day's games and before the clock moves on or the run stops. Development
+  is a `DayStep` that acts on each week's last day; the depth chart and injury steps are DaySteps
+  too. The year turn (age +1, credited seasons) is the draft thread's `runYears`. Nobody else calls
+  the development week. With `--development` or `--injuries` on, the season command runs
   `through: "YEAR"`; with both off it stops where it does today.
-- **New inputs to `runSeason`**: the players; the coaching staff, built inside franchise from the
-  season seed with its own `buildStaff` (calibration's permitted imports do not change); a reserve
-  pool of unattached players for emergency signings, which calibration makes at season start with
-  its permitted `generateLeagueRosters` from a reserve seed, until ADR-085's free-agent pool replaces
-  it; and a `canField(team, available)` check from the season runner, which owns the lineup rules
-  (`snapshot.ts`'s fallback chains), so the emergency signing fires whenever a lineup cannot be
-  fielded. Signings are recorded with `CONTRACT_SIGNED`.
-- **The resolver** is given the players as they are that week, who is available, and the
-  playing-hurt penalties already taken off their ratings; it returns the `GameParticipation` report
-  (P4) with the result. Calibration's season runner builds the report from the match events (it may
-  read the engine, ADR-012); franchise reads only the report and never parses engine-shaped play
-  events (Iron Rule 1). If P4 waits, version 1 counts playing time from the depth chart and leaves
-  performance out.
-- **Depth-chart sort** uses P5's position overall; the draft's trim uses the same.
-- **Randomness**: every week's development and injury draws are forked from the season seed by week
-  and player, so a resumed run draws exactly what a straight run would.
-- **Saves.** With either switch on, a save stores the players and teams as they are that day
-  (current depth charts and any emergency signings) and the season's truth-layer events (S1);
-  `--load` uses those players instead of rebuilding from the seed; resuming re-emits the saved
-  events up to the save day and runs development from the next week. The saved games' inputs are
-  not needed again: each week's development has already run by the time a save is made. `readSave`'s
-  check replays without development. The save-and-load check (stop at week 9, load, finish) must give
-  a byte-identical season with both switches on.
+- **Staff**: `people.staff`, built inside franchise from the season seed with its own `buildStaff`
+  (calibration's permitted imports do not change).
+- **Emergency signings** come from `people.freeAgents`. Before each game the season runner, which
+  owns the lineup rules (`snapshot.ts`'s fallback chains), checks each team can be fielded; if not,
+  the team signs the best fit from the free agents, recorded with `CONTRACT_SIGNED`. Until the cap
+  thread's pool fills `freeAgents`, calibration seeds it at season start with players made by its
+  permitted `generateLeagueRosters` from a reserve seed.
+- **The resolver** receives the current `people` (its third argument), skips unavailable players,
+  takes the playing-hurt penalties off that week's copies of their ratings, and returns
+  `{ result, extras }` with the who-played report (P4) in `extras`; steps read it from `ctx.games`.
+  Calibration's season runner builds the report from the match events (it may read the engine,
+  ADR-012); franchise reads only the report and never parses engine-shaped play events (Iron Rule 1).
+  P4 is needed for performance and for §3.1's form and labels, so it is part of D1.
+- **Depth chart**: coordinators' reads use P5's position overall plus form; the draft's trim uses the
+  same overall.
+- **Randomness**: every draw (development, injuries, coach leanings, patience) is forked from the
+  season seed by week and player, so a resumed run draws exactly what a straight run would.
+- **Saves.** With either switch on, a save stores `people` as they are that day (players, current
+  depth charts, emergency signings), every event the steps emitted, and the depth-chart memory (S1).
+  `--load` uses those people instead of rebuilding from the seed; `stepsDoneThrough` stops a resumed
+  run repeating a day; resuming re-emits the saved step events up to the save day. The saved games'
+  inputs are not needed again: each day's steps have run by the time a save is made. `readSave`'s
+  check replays without the steps. The save-and-load check (stop at week 9, load, finish) must give a
+  byte-identical season with both switches on.
 - **Truth-layer events** are filtered out in the season command's event hook before the news desk,
   and the game viewer never loads them.
 
@@ -382,7 +444,9 @@ No change to `GameResult` or the engine's types.
 Development and injuries are separate mechanisms that both change who plays and how well. Each has
 its own switch, and D5a prices them alone and together (three arms) before either becomes the
 default. Inside development, aging and growth are priced together, since one without the other is
-not a football year.
+not a football year. The weekly depth chart by coach style (§3.1) only matters once players change,
+so it is priced inside each arm, with a check that a league of incumbent-loving coaches and one of
+form-chasing coaches differ in who starts but not in how the league's ratings spread.
 
 ## Implied scope (unruled, not built here)
 
@@ -391,8 +455,10 @@ not a football year.
 - Perception: what each team believes about a player's development and lasting injury costs.
 - News stories about breakouts, declines and injuries (through perception for ratings; injuries are
   public).
-- The owner's weekly practice plan as a decision (Spec #5, "practice allocation"), and his own depth
-  chart.
+- The owner's weekly practice plan as a decision (Spec #5, "practice allocation"), and setting his
+  own depth chart in the game (the same situations and feelings apply, §3.1).
+- Players holding views of their coach in general (ADR-084's later step with Spec #14). The strain a
+  sudden demotion causes is not unruled: F3 ruled it, and it is built with that step, reading E5.
 - Preseason games (season shell).
 - Storylines nudging growth (narrative petition).
 - In-game injuries (engine, after the pocket fix).
