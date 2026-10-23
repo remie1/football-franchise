@@ -5,7 +5,7 @@
  */
 import type { GameId, PlayId, PlayerId, TeamId, StaffId, StorylineId, AttrId, TraitId } from "./ids.js";
 import type { CalendarStamp } from "./calendar.js";
-import type { GameKind, GameResult, PlayoffBracket } from "./league.js";
+import type { DraftPickKind, GameKind, GameResult, PlayoffBracket } from "./league.js";
 import type { StaffRole } from "./players.js";
 import type { StaffDepartureReason } from "./staff.js";
 import type { RelationshipParty, RelationshipWord } from "./relationships.js";
@@ -543,7 +543,14 @@ export type FranchiseEvent =
   | { type: "PLAYER_RETIRED"; payload: { player: PlayerId; timing: "IMMEDIATE"|"SLOW"|"LATE" } }
   | { type: "TAG_APPLIED"; payload: { player: PlayerId; tagType: string } }
   | { type: "TRADE_EXECUTED"; payload: { teams: TeamId[] } }
-  | { type: "DRAFT_PICK_MADE"; payload: { team: TeamId; player: PlayerId; round: number; pick: number } }
+  /** ADR-086 C5: `overall` and `kind` added (optional). */
+  | { type: "DRAFT_PICK_MADE"; payload: { team: TeamId; player: PlayerId; round: number; pick: number; overall?: number; kind?: DraftPickKind } }
+  /** ADR-086 C5: the compensatory picks for one draft, announced together. */
+  | { type: "COMPENSATORY_PICKS_AWARDED"; payload: { draft: number; picks: { team: TeamId; round: number; kind: DraftPickKind }[] } }
+  /** ADR-086 C5: a traded pick's condition settled; `round` is the round it ends up in. */
+  | { type: "DRAFT_PICK_CONDITION_SETTLED"; payload: { draft: number; originalTeam: TeamId; owner: TeamId; round: number; text: string } }
+  /** ADR-086 C5: a cut player claimed off waivers. */
+  | { type: "WAIVER_CLAIMED"; payload: { player: PlayerId; from: TeamId; to: TeamId } }
   | { type: "SCOUT_REPORT_FILED"; payload: { observer: TeamId; subject: PlayerId; scout: StaffId } }
   | { type: "PERCEPTION_UPDATED"; payload: { observer: TeamId | "PUBLIC"; subject: PlayerId | StaffId; attrs: AttrId[]; cause: string } }
   | { type: "TRAIT_REVEALED"; payload: { observer: TeamId | "PUBLIC"; subject: PlayerId; trait: TraitId; cause: string } }

@@ -72,7 +72,8 @@ export interface PlayerBio {
   heightIn: number;
   weightLb: number;
   birthRegion?: string;
-  draft: { year: number; round: number; pick: number } | "UDFA";
+  /** ADR-086 C2: "PROSPECT" while he is in a draft class and not yet picked. */
+  draft: { year: number; round: number; pick: number } | "UDFA" | "PROSPECT";
   appearance?: Appearance;
 }
 
@@ -173,6 +174,8 @@ export interface Team {
   roster: PlayerId[];
   staff: StaffId[];
   depthChart: Partial<Record<Position, PlayerId[]>>;
+  /** ADR-086 C4: the practice squad, filled on cut-down day. Absent = none. */
+  practiceSquad?: PlayerId[];
   capState: CapState;
   staffBudget: { limit: number; committed: number };
 }

@@ -3,7 +3,7 @@
 - **Date:** 2026-10-23
 - **Proposed by:** Orchestrator, for `franchise` (order, picks, boards, rosters, the turnover) and
   `attributes` (the draft class) (thread "Player draft"; plan `/mnt/project-files/design/draft-plan.md`)
-- **Status:** design ruled by the owner (Q1-Q9, N1-N3, 2026-10-23).
+- **Status:** design ruled by the owner (Q1-Q9, N1-N3, 2026-10-23). Contracts edits C1-C6 and rule change R1 APPROVED by the owner's typed yes (2026-10-23 20:59Z) and made (R1 = Charter Amendment 14). Build in progress.
   Contracts edits C1-C7 and rule change R1 proposed, **not approved**. Nothing built.
 
 > Phase note: Charter §6 places franchise at Phase 4. As with the season shell (ADR-078), the owner
