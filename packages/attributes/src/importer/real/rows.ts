@@ -2,7 +2,7 @@
  * The snapshot's rows, as the importer reads them (ADR-088). Only the columns used are read.
  * Field names are nflverse's.
  */
-import { readRows } from "./snapshot.js";
+import { FIRST_SNAP_SEASON, readRows } from "./snapshot.js";
 import type { ContractHistoryRow } from "./contracts.js";
 import type { TrackingRow, TrackingSource } from "./tracking.js";
 
@@ -60,16 +60,38 @@ export interface ContractRow extends ContractHistoryRow {
 
 export interface SnapRow {
   readonly pfr_player_id: string | null;
+  readonly season: number;
   readonly game_type: string;
   readonly offense_pct: number | null;
   readonly defense_pct: number | null;
   readonly st_pct: number | null;
+  readonly offense_snaps: number | null;
+  readonly defense_snaps: number | null;
+  readonly st_snaps: number | null;
 }
 
 const cols = <T>(...names: (keyof T & string)[]) => names;
 
-export async function loadSnapshotRows(dir: string) {
-  const [rosters, players, combine, depth, contracts, snaps] = await Promise.all([
+export interface InjuryRow {
+  readonly gsis_id: string | null;
+  readonly week: number;
+  readonly report_primary_injury: string | null;
+  readonly practice_primary_injury: string | null;
+  readonly report_status: string | null;
+}
+
+/** Every season's snap rows from `FIRST_SNAP_SEASON` through `season`. */
+export async function loadSnapRows(dir: string, season: number): Promise<SnapRow[]> {
+  const out: SnapRow[] = [];
+  for (let y = FIRST_SNAP_SEASON; y <= season; y++) {
+    out.push(...await readRows<SnapRow>(dir, `snaps${y}`, cols<SnapRow>(
+      "pfr_player_id", "season", "game_type", "offense_pct", "defense_pct", "st_pct", "offense_snaps", "defense_snaps", "st_snaps")));
+  }
+  return out;
+}
+
+export async function loadSnapshotRows(dir: string, season: number) {
+  const [rosters, players, combine, depth, contracts, snaps, injuries] = await Promise.all([
     readRows<RosterRow>(dir, "rosters", cols<RosterRow>(
       "gsis_id", "pfr_id", "team", "week", "status", "status_description_abbr", "position", "depth_chart_position",
       "birth_date", "height", "weight", "years_exp", "full_name")),
@@ -78,9 +100,10 @@ export async function loadSnapshotRows(dir: string) {
     readRows<DepthRow>(dir, "depth", cols<DepthRow>("dt", "team", "gsis_id", "pos_abb", "pos_rank")),
     readRows<ContractRow>(dir, "contracts", cols<ContractRow>(
       "gsis_id", "is_active", "year_signed", "years", "apy", "apy_cap_pct", "draft_year", "season_history")),
-    readRows<SnapRow>(dir, "snaps", cols<SnapRow>("pfr_player_id", "game_type", "offense_pct", "defense_pct", "st_pct")),
+    loadSnapRows(dir, season),
+    readRows<InjuryRow>(dir, "injuries", cols<InjuryRow>("gsis_id", "week", "report_primary_injury", "practice_primary_injury", "report_status")),
   ]);
-  return { rosters, players, combine, depth, contracts, snaps };
+  return { rosters, players, combine, depth, contracts, snaps, injuries };
 }
 
 /** Which file, id column and value columns each tracking source reads (`tracking.ts`). */

@@ -20,15 +20,22 @@ import { parquetReadObjects } from "hyparquet";
 
 export const NFLVERSE = "https://github.com/nflverse/nflverse-data/releases/download";
 
+/** The first season nflverse has snap counts for. */
+export const FIRST_SNAP_SEASON = 2012;
+
 /** The files one snapshot holds. `season` is the season being copied; stats come from the one before. */
 export function snapshotFiles(season: number): Readonly<Record<string, string>> {
+  // Every season's snap counts, for career snaps and games played (ADR-087 reads them).
+  const snaps: Record<string, string> = {};
+  for (let y = FIRST_SNAP_SEASON; y <= season; y++) snaps[`snaps${y}`] = `snap_counts/snap_counts_${y}.parquet`;
   return {
     contracts: "contracts/historical_contracts.parquet",
     rosters: `weekly_rosters/roster_weekly_${season}.parquet`,
     players: "players/players.parquet",
     combine: "combine/combine.parquet",
     depth: `depth_charts/depth_charts_${season}.parquet`,
-    snaps: `snap_counts/snap_counts_${season - 1}.parquet`,
+    ...snaps,
+    injuries: `injuries/injuries_${season}.parquet`,
     stats: `stats_player/stats_player_reg_${season - 1}.parquet`,
     // Tracking and charting: every season in one file; the importer pools last season and this one.
     ngsPass: "nextgen_stats/ngs_passing.parquet",

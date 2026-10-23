@@ -16,6 +16,8 @@ export function buildSignals(input: {
   readonly positionOf: (id: string) => string;
   readonly creditedSeasons: Readonly<Record<string, number>>;
   readonly espnRank: Readonly<Record<string, number>>;
+  /** The season the snap share is read from: the last full one. */
+  readonly snapSeason: number;
 }): Record<string, Signals> {
   const pfrOf = new Map<string, string>();
   for (const p of input.players) if (p.gsis_id !== null && p.pfr_id !== null) pfrOf.set(p.gsis_id, p.pfr_id);
@@ -33,7 +35,7 @@ export function buildSignals(input: {
   // Regular-season snap shares by pfr id, both sides and special teams.
   const snaps = new Map<string, { off: number; def: number; st: number }>();
   for (const s of input.snaps) {
-    if (s.game_type !== "REG" || s.pfr_player_id === null) continue;
+    if (s.season !== input.snapSeason || s.game_type !== "REG" || s.pfr_player_id === null) continue;
     const t = snaps.get(s.pfr_player_id) ?? { off: 0, def: 0, st: 0 };
     t.off += s.offense_pct ?? 0;
     t.def += s.defense_pct ?? 0;

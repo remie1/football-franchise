@@ -44,7 +44,7 @@ async function main(argv: readonly string[]) {
   const sealedPath = join(cache, "sealed.json");
   const sealed: SealedTable = existsSync(sealedPath) ? JSON.parse(readFileSync(sealedPath, "utf8")) : {};
 
-  const rows = await loadSnapshotRows(dir);
+  const rows = await loadSnapshotRows(dir, season);
   const tracking = await loadTrackingRows(dir, [season - 1, season]);
   const built = buildRealLeague({ seed, season, date: manifest.date, teams: standInTeams(), ...rows, tracking, sealed });
 
@@ -58,7 +58,7 @@ async function main(argv: readonly string[]) {
   const per = built.league.teams.map((t) => t.roster.length);
   console.log(`stand-in league ${manifest.date}: ${built.league.players.length} players, ${Math.min(...per)}-${Math.max(...per)} active per team`);
   console.log(`  ratings: ${r.filter((x) => x.measures.length > 0).length} with tracking data, ${r.filter((x) => x.skill === "guess").length} guesses; ${r.filter((x) => x.imputed.length > 0).length} missing a combine drill`);
-  const est = built.contracts.filter((c) => c.source === "estimated").length;
+  const est = Object.values(built.league.provenance.contractSource).filter((x) => x === "estimated").length;
   console.log(`  contracts: ${built.contracts.length} (${est} estimated at their yearly average), ${built.league.provenance.noContract.length} players without one`);
   console.log(`  wrote ${out}; sealed table ${sealedPath}`);
 }

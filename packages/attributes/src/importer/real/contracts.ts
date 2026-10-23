@@ -62,15 +62,18 @@ export interface StandInContractYear extends ContractYear {
   readonly optionBonusProration?: number;
   readonly perGameRosterBonus?: number;
   readonly guaranteedSalary?: number;
+  /** A year after the deal's real end that exists only to spread a bonus (zero base, proration only). */
+  readonly voidYear?: boolean;
 }
 
-/** ADR-085 K2, proposed (kind only), plus how sure the copy is. */
+/** ADR-085 K2, proposed (kind only). */
 export interface StandInContract extends PlayerContract {
   readonly years: StandInContractYear[];
   readonly kind?: "ROOKIE" | "VETERAN";
-  /** "copied" from the year-by-year history; "estimated" at the deal's yearly average. */
-  readonly source: "copied" | "estimated";
 }
+
+/** How sure each copy is: "copied" from the year-by-year history, "estimated" at the deal's yearly average. */
+export type ContractSource = "copied" | "estimated";
 
 const dollars = (m: number | null | undefined): number => Math.round((m ?? 0) * 1_000_000);
 
@@ -84,7 +87,7 @@ export function buildContracts(input: {
   readonly season: number;
   readonly contracts: readonly ContractHistoryRow[];
   readonly players: ReadonlyMap<string, { readonly id: PlayerId; readonly team: TeamId; readonly code: string }>;
-}): { contracts: StandInContract[]; missing: string[] } {
+}): { contracts: StandInContract[]; source: Record<string, ContractSource>; missing: string[] } {
   // His current deal: the active contract signed most recently.
   const deal = new Map<string, ContractHistoryRow>();
   for (const c of input.contracts) {
@@ -93,10 +96,13 @@ export function buildContracts(input: {
     if (prev === undefined || (c.year_signed ?? 0) > (prev.year_signed ?? 0)) deal.set(c.gsis_id, c);
   }
   const contracts: StandInContract[] = [];
+  const source: Record<string, ContractSource> = {};
   const missing: string[] = [];
   for (const [gsis, p] of input.players) {
     const c = deal.get(gsis);
     if (c === undefined) { missing.push(String(p.id)); continue; }
+    // The last year the deal really runs; OverTheCap lists void years after it.
+    const lastReal = c.year_signed !== null && c.years !== null ? c.year_signed + c.years - 1 : Infinity;
     const kind = c.draft_year !== null && c.year_signed === c.draft_year ? "ROOKIE" as const : "VETERAN" as const;
     const years: StandInContractYear[] = (c.season_history ?? [])
       .filter((y) => Number(y.year) >= input.season && OTC_TEAM[y.team] === p.code && (y.cap_number ?? 0) > 0)
@@ -114,19 +120,22 @@ export function buildContracts(input: {
           optionBonusProration: dollars(y.option_bonus),
           perGameRosterBonus: dollars(y.per_game_roster_bonus),
           guaranteedSalary: guaranteed,
+          ...(Number(y.year) > lastReal && base === 0 && (y.prorated_bonus ?? 0) > 0 ? { voidYear: true } : {}),
         };
       })
       .sort((a, b) => a.season - b.season);
     const signedAt = signedStamp(c.year_signed ?? input.season);
     if (years.length > 0) {
-      contracts.push({ player: p.id, team: p.team, years, signedAt, kind, source: "copied" });
+      contracts.push({ player: p.id, team: p.team, years, signedAt, kind });
+      source[String(p.id)] = "copied";
     } else {
       const apy = dollars(c.apy);
       contracts.push({
-        player: p.id, team: p.team, signedAt, kind, source: "estimated",
+        player: p.id, team: p.team, signedAt, kind,
         years: [{ season: input.season, baseSalary: apy, signingBonusProration: 0, guarantees: { fullyGuaranteed: false }, capHit: apy }],
       });
+      source[String(p.id)] = "estimated";
     }
   }
-  return { contracts, missing };
+  return { contracts, source, missing };
 }

@@ -80,6 +80,8 @@ export interface StandInLeague {
   readonly players: PlayerState[];
   readonly provenance: RealProvenance;
   readonly sealed: SealedTable;
+  /** Stand-in id -> nflverse's detailed code, for players on a reserve list. Importer-internal. */
+  readonly reserveCode: Readonly<Record<string, string>>;
 }
 
 /** Whole years between two `YYYY-MM-DD` dates. */
@@ -143,6 +145,7 @@ export function buildStandIns(input: StandInInput): StandInLeague {
   const creditedSeasons: Record<string, number> = {};
   const measurements: Record<string, Partial<Measurements>> = {};
   const espnRank: Record<string, number> = {};
+  const reserveCode: Record<string, string> = {};
   const players: PlayerState[] = [];
   const onTeam = new Map<TeamId, { id: PlayerId; position: Position; status: RosterStatus; rank: number; exp: number }[]>();
   const status: Record<string, RosterStatus> = {};
@@ -176,6 +179,7 @@ export function buildStandIns(input: StandInInput): StandInLeague {
     if (c?.cone != null) (m as { cone?: number }).cone = c.cone;
 
     status[entry.id] = st;
+    if (st === "reserve") reserveCode[entry.id] = r.status_description_abbr!;
     creditedSeasons[entry.id] = r.years_exp ?? 0;
     measurements[entry.id] = m;
     players.push({
@@ -239,5 +243,6 @@ export function buildStandIns(input: StandInInput): StandInLeague {
       status, creditedSeasons, measurements, espnRank, elevated, reserve, practiceSquad,
     },
     sealed,
+    reserveCode,
   };
 }

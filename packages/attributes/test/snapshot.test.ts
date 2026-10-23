@@ -8,7 +8,8 @@ describe("snapshot (ADR-088 R1)", () => {
   it("names the season's files, stats from the season before", () => {
     const f = snapshotFiles(2026);
     expect(f.rosters).toBe("weekly_rosters/roster_weekly_2026.parquet");
-    expect(f.snaps).toBe("snap_counts/snap_counts_2025.parquet");
+    expect(f.snaps2012).toBe("snap_counts/snap_counts_2012.parquet");
+    expect(f.snaps2026).toBe("snap_counts/snap_counts_2026.parquet");
   });
 
   it("writes every file into a dated folder with a manifest, without touching the network", async () => {

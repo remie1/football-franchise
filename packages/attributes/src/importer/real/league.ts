@@ -3,10 +3,11 @@
  * Pure: the command (`main.ts`) does the reading and writing.
  */
 import { playerId, type RatedLeague, type Team } from "@ff/contracts";
-import { buildContracts, type StandInContract } from "./contracts.js";
+import { buildContracts, type ContractSource, type StandInContract } from "./contracts.js";
 import { REAL_TEAM_SLOTS } from "./positions.js";
 import { rateStandIns, type RatingProvenance } from "./rate.js";
-import type { ContractRow, PlayerRow, SnapRow } from "./rows.js";
+import { buildHistory, type CareerHistory } from "./history.js";
+import type { ContractRow, InjuryRow, PlayerRow, SnapRow } from "./rows.js";
 import { buildSignals } from "./signals.js";
 import { buildStandIns, type RealProvenance, type SealedTable, type StandInInput } from "./standins.js";
 import { trackingScores, type TrackingRow, type TrackingSource } from "./tracking.js";
@@ -15,12 +16,17 @@ export interface RealLeagueInput extends StandInInput {
   readonly seed: string;
   readonly contracts: readonly ContractRow[];
   readonly snaps: readonly SnapRow[];
+  readonly injuries: readonly InjuryRow[];
   readonly tracking: Readonly<Record<TrackingSource, readonly TrackingRow[]>>;
 }
 
 export interface RealLeagueProvenance extends RealProvenance {
   readonly seed: string;
   readonly ratings: Readonly<Record<string, RatingProvenance & { readonly measures: readonly string[] }>>;
+  /** Each contract's copy: "copied" or "estimated" (`contracts.ts`). */
+  readonly contractSource: Readonly<Record<string, ContractSource>>;
+  /** Career snaps, games played, reserve list and latest injury (`history.ts`; ADR-087 reads it). */
+  readonly history: Readonly<Record<string, CareerHistory>>;
   /** Stand-ins with no current deal in the contract file. */
   readonly noContract: readonly string[];
 }
@@ -39,6 +45,7 @@ export function buildRealLeague(input: RealLeagueInput): {
   );
   const base = buildSignals({
     sealed: s.sealed, rosters: input.rosters, players: input.players, contracts: input.contracts, snaps: input.snaps,
+    snapSeason: input.season - 1,
     positionOf: (id) => position.get(id)!, creditedSeasons: s.provenance.creditedSeasons, espnRank: s.provenance.espnRank,
   });
   const signals = Object.fromEntries(Object.entries(base).map(([id, sig]) => [id, { ...sig, play: tracked.get(id)?.play }]));
@@ -58,10 +65,14 @@ export function buildRealLeague(input: RealLeagueInput): {
       return [gsis, { id: playerId(x.id), team, code: slot.get(String(team))! }];
     })),
   });
+  const history = buildHistory({
+    season: input.season, snaps: input.snaps, injuries: input.injuries,
+    players: new Map([...realIds].filter(([id]) => position.has(id)).map(([id, r]) => [id, { ...r, reserveCode: s.reserveCode[id] }])),
+  });
   return {
     league: {
       teams, players: rated.players, coverage: null,
-      provenance: { ...s.provenance, seed: input.seed, ratings, noContract: deals.missing },
+      provenance: { ...s.provenance, seed: input.seed, ratings, contractSource: deals.source, history, noContract: deals.missing },
     },
     contracts: deals.contracts,
     sealed: s.sealed,

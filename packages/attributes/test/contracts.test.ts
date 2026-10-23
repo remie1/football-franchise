@@ -16,14 +16,14 @@ const players = new Map([
 ]);
 
 describe("contracts (ADR-088 R4)", () => {
-  const { contracts, missing } = buildContracts({
+  const { contracts, source, missing } = buildContracts({
     season: 2026, players,
     contracts: [
-      // g1: an old deal and the current one; his history runs 2025-2029, the last year void (cap 0)
+      // g1: an old deal and the current one (2025-2027); 2028 is a void year, 2029 does not count (cap 0)
       deal({ gsis_id: "g1", year_signed: 2020, is_active: false }),
-      deal({ gsis_id: "g1", year_signed: 2025, season_history: [
+      deal({ gsis_id: "g1", year_signed: 2025, years: 3, season_history: [
         year(2025, "Ravens", 10), year(2026, "Ravens", 12.5, { guaranteed_salary: 11.5, roster_bonus: 0.25 }),
-        year(2027, "Ravens", 14), year(2028, "Ravens", 15), year(2029, "Ravens", 0, { base_salary: 20 }),
+        year(2027, "Ravens", 14), year(2028, "Ravens", 1, { base_salary: 0 }), year(2029, "Ravens", 0, { base_salary: 20 }),
       ] }),
       // g2: a deal with no row for this season, a rookie deal
       deal({ gsis_id: "g2", year_signed: 2020, apy: 1.25 }),
@@ -32,8 +32,9 @@ describe("contracts (ADR-088 R4)", () => {
   const g1 = contracts.find((c) => String(c.player) === "r:1")!;
 
   it("copies this season on, on his team, in dollars, skipping years that do not count", () => {
-    expect(g1.source).toBe("copied");
+    expect(source["r:1"]).toBe("copied");
     expect(g1.years.map((y) => y.season)).toEqual([2026, 2027, 2028]);
+    expect(g1.years.map((y) => y.voidYear ?? false)).toEqual([false, false, true]);
     expect(g1.years[0]).toMatchObject({ baseSalary: 11_500_000, signingBonusProration: 1_000_000, capHit: 12_500_000, rosterBonus: 250_000, guaranteedSalary: 11_500_000, guarantees: { fullyGuaranteed: true } });
     expect(g1.signedAt).toEqual(signedStamp(2025));
     expect(g1.kind).toBe("VETERAN");
@@ -41,7 +42,8 @@ describe("contracts (ADR-088 R4)", () => {
 
   it("estimates a deal with no row for this season at its yearly average", () => {
     const g2 = contracts.find((c) => String(c.player) === "r:2")!;
-    expect(g2).toMatchObject({ source: "estimated", kind: "ROOKIE" });
+    expect(g2.kind).toBe("ROOKIE");
+    expect(source["r:2"]).toBe("estimated");
     expect(g2.years).toEqual([{ season: 2026, baseSalary: 1_250_000, signingBonusProration: 0, guarantees: { fullyGuaranteed: false }, capHit: 1_250_000 }]);
   });
 

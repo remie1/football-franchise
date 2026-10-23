@@ -115,6 +115,15 @@ downstream reads today.
   `PlayerContract` shape plus ADR-085 K1/K2 fields as optional extras. 2,474 of 2,528 players
   have a deal; 501 (mostly practice squad) have no 2026 row and are estimated at their deal's
   yearly average.
+- **Contract details for the cap thread**: how sure each copy is (`copied` / `estimated`) is in
+  `provenance.contractSource`, not on the contract; a year after the deal's real end with zero
+  base and proration only is marked `voidYear` (K1; 7 such years in the 2026-10-23 copy). The
+  total signing bonus is not in the file; the cap code derives it from the proration.
+- **Career history for ADR-087** (`history.ts`, `provenance.history`): regular-season career snaps
+  by side (snap counts start in 2012), games played in each of the last five seasons, the
+  reserve list (nflverse code; R01 injured reserve, R04 PUP, R05 non-football injury, R48 injured
+  reserve designated to return named, any other kept raw as OTHER), and the latest injury on this
+  season's report with its week and body part.
 - **R4 part 2, dead money: not built.** A cut player's history stops, so nothing in nflverse
   records what his old team still owes. Without it, the 32 teams' 2026 cap numbers average $259M
   and Miami's are $122M. Source asked for: overthecap.com (blocked from the build container).
