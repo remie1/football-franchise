@@ -3,7 +3,7 @@
 - **Date:** 2026-10-22
 - **Proposed by:** Orchestrator, for `narrative` (thread "News and storylines";
   plan `/mnt/project-files/design/news-and-storylines-plan.md`)
-- **Status:** approved (N1, N2); R2 proposed, awaiting the owner's typed yes
+- **Status:** approved (N1, N2, R2); built (steps 1-3 and R2)
 
 > Phase note: Charter §6 places narrative last. The owner chose on 2026-10-21 to start it early, in
 > parallel with the ADR-073 tuning work, on the same condition as the season shell (ADR-078): nothing
@@ -99,13 +99,22 @@ that need them don't fire.
 
 ### R2 — the season command may use the news desk (Charter §4 rule 1 exception)
 
-**Proposed, not yet approved.** `calibration` → `narrative`, one-directional, surface named:
+**Approved by the owner's typed yes, 2026-10-23 02:44Z; built.** `calibration` → `narrative`, one-directional, surface named:
 `createNewsDesk` and `formatEdition`, imported only by `calibration/src/season/main.ts`. The
 season command is calibration's (ADR-078 R1); printing its headlines as it runs means calibration
 calls the desk. Spec #7 §10's "calibration ignores narrative" is about measurement: no harness,
 metric or caller file may import narrative, and a surface test holds calibration to that one file
-and those two names. Until R2 is ratified, `pnpm --filter @ff/narrative news` prints the same
-headlines from a saved season.
+and those two names (`calibration/test/narrativeSurface.test.ts`). `pnpm --filter @ff/narrative news`
+still prints the same headlines from a saved season.
+
+**As built.** The season command creates a desk on the season's first event and prints each
+edition as the desk closes it, then the last ones when the run ends. To see events as they happen,
+franchise's `runSeason` gains an optional `onEvent` watcher (each event as it is added, and the
+season's schedule, which the desk needs for previews and games left). It only watches: a run with
+and without it is identical (`franchise/test/runSeason.test.ts`, and a real-sim check below). A
+run that carries on from a save replays the season from day one, so the desk sees every week, but
+only the weeks after the save are printed. `onEvent` is a field of `runSeason`'s input, not a new
+name, so ADR-078 R1's surface is unchanged.
 
 ## The desk (narrative's own design; no contracts change)
 
@@ -228,9 +237,10 @@ stories in the desk's order.
   franchise's real 2020-2024 results for the race check).
 - `calibration`: `season/realSeason.ts` copies period scores (N2); `season/main.ts` saves the
   season's event stream with the season so the news command can read it, and reads a relative
-  `--out` from the folder the command was typed in; under R2 only, the command prints the
-  headlines. No harness, metric or caller file is edited.
+  `--out` from the folder the command was typed in; under R2, the command prints the headlines as
+  it plays. No harness, metric or caller file is edited.
 - `apps/game`: the News page and its news-file reader (step 3).
+- `franchise`: `runSeason` gains the optional `onEvent` watcher (R2); it changes no result.
 - `engine`, `playbook`, play-callers, franchise logic: **no change.**
 
 ## Decision
@@ -246,4 +256,14 @@ stories in the desk's order.
 7. **N2** — *"yes to N2."*
 8. A News page in the game viewer, plus the season command printing the week's top headlines as it runs.
 
-N1 and N2 approved by those typed answers. R2 (needed by ruling 8) awaits its own typed yes.
+N1 and N2 approved by those typed answers. **R2** (needed by ruling 8) approved by the owner's typed
+yes, 2026-10-23 02:44Z (thread "News and storylines"): *"Yes, make R2."*
+
+R2 built: `@ff/narrative` added to calibration's dependencies, imported only by
+`calibration/src/season/main.ts` (`createNewsDesk`, `formatEdition`), held by
+`calibration/test/narrativeSurface.test.ts`; `runSeason`'s `onEvent` watcher in franchise. Checked
+on a real-sim season (seed `r2-check`): the 23 editions the season command prints are, word for word,
+the 23 the news command prints from the saved file; stopping after week 9, saving and carrying on
+prints weeks 1-9 and then weeks 10 to the review, which together equal the straight run; and a
+real-sim run to week 3 with and without the watcher is identical (48 games, 59 events). Charter
+Amendment 12.

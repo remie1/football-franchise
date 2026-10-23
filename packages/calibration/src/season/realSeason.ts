@@ -15,7 +15,11 @@
  * `buildGeneratedLeague`. With `rosters: "flat"`, team i of the franchise league plays with team
  * i of the flat league instead (every attribute 60): equal teams, results close to coin flips.
  */
-import { DEFAULT_LEAGUE_RULES, type CalendarStamp, type GameResult, type LeagueRules, type ScheduledGame, type SeasonState, type TeamId } from "@ff/contracts";
+import {
+  DEFAULT_LEAGUE_RULES,
+  type CalendarStamp, type FranchiseEventEnvelope, type GameResult, type LeagueRules, type ScheduledGame,
+  type SeasonSchedule, type SeasonState, type TeamId,
+} from "@ff/contracts";
 import { buildLeague, runSeason, type GameResolver, type League, type SeasonRun } from "@ff/franchise";
 import type { CallerVersion } from "../caller/anticipate.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../caller/frozenTendencies.js";
@@ -109,6 +113,8 @@ export interface RealSeasonInput {
   readonly rosters?: SeasonRosters;
   /** Team-strength spread for generated squads (ADR-079 Q2; tuned in R5). */
   readonly teamStrengthSd?: number;
+  /** Sees each event as the season plays (the season command's headlines, ADR-082 R2). Watches only. */
+  readonly onEvent?: (envelope: FranchiseEventEnvelope, schedule: SeasonSchedule) => void;
 }
 
 /**
@@ -133,6 +139,7 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
     league, season, seed: input.seed, resolve, rules,
     ...(input.stopAfter ? { stopAfter: input.stopAfter } : {}),
     ...(input.resumeFrom ? { resumeFrom: input.resumeFrom } : {}),
+    ...(input.onEvent ? { onEvent: input.onEvent } : {}),
   });
   return { league, ...(rated === undefined ? {} : { rated }), run };
 }

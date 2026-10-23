@@ -47,3 +47,14 @@ export {
   SEATS, COORDINATOR_SEATS, SEAT_SIDE, SCHEMES, SEAT_WEIGHTS, STYLE_MATCH, STAFF_TUNING, COLLEGE_PROGRAMS,
   type Seat, type Side,
 } from "./staff/tables.js";
+// ADR-084: relationships (the ledger, L1; the carousel's own moves, L2).
+export {
+  wordFor, restPoint, seatRelationships, syncViews, checkViews, driftWeek, applyMove, applyStoryEffect, bossOf,
+  viewHolders, viewKey, partyKey, STORY_MOVE_MAX,
+  type RelationshipContext, type LedgerStep, type MoveRequest, type MoveOptions,
+} from "./relationships/ledger.js";
+export { applySeasonResults, applyFiring, applyHire, applyExtension } from "./relationships/staffMoves.js";
+export {
+  RELATIONSHIP_TUNING, RELATIONSHIP_MOVES, sitDownChance,
+  type RelationshipMove, type RelationshipMoveId, type RiftRule,
+} from "./relationships/tables.js";

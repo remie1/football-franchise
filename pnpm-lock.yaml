@@ -60,6 +60,9 @@ importers:
       '@ff/franchise':
         specifier: workspace:*
         version: link:../franchise
+      '@ff/narrative':
+        specifier: workspace:*
+        version: link:../narrative
       '@ff/playbook':
         specifier: workspace:*
         version: link:../playbook

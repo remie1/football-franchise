@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { createRng, SAVE_FORMAT_VERSION, type CalendarStamp, type SaveFile } from "@ff/contracts";
-import { buildLeague, makeSave, readSave, runSeason, SaveError, type GameResolver } from "../src/index.js";
+import {
+  buildLeague, buildStaff, makeSave, readSave, runSeason, runStaffOffseason, seatRelationships, summariseSeason, SaveError,
+  type GameResolver,
+} from "../src/index.js";
 
 const fake: GameResolver = (game, seed) => {
   const rng = createRng(seed, "fake-game");
@@ -92,6 +95,61 @@ describe("makeSave / readSave (save and load L2)", () => {
     ["edited standings", () => edited((s) => { s.world.season!.standings[0]!.overall.wins += 1; }), /standings don't match/],
   ];
   it.each(broken)("refuses %s with a plain reason", (_, file, why) => {
+    expect(() => readSave(file())).toThrow(SaveError);
+    expect(() => readSave(file())).toThrow(why);
+  });
+});
+
+describe("saves keep the coaching staff (ADR-080, ADR-084)", () => {
+  const built = buildStaff(league, { firstSeason: 2027, historySeasons: 5 });
+  const views = seatRelationships(built.world);
+  const staff = { world: built.world, relationships: views };
+  const staffSave = (run: typeof half, s: typeof staff = staff) =>
+    makeSave({ league, calendar: run.calendar, season: run.state, createdBy: "test", staff: s });
+  const editedStaff = (f: (s: SaveFile) => void): SaveFile => { const s = JSON.parse(onDisk(staffSave(half))) as SaveFile; f(s); return s; };
+
+  it("keeps every coach, their contracts, each team's staff and the views, and hands back the same world", () => {
+    const s = staffSave(half);
+    expect(s.world.staff).toHaveLength(built.world.staff.length);
+    expect(s.world.staffContracts).toHaveLength(built.world.contracts.length);
+    expect(s.world.relationships).toHaveLength(views.length);
+    const loaded = readSave(onDisk(s));
+    expect(loaded.staff!.world).toEqual(built.world);
+    expect(loaded.staff!.relationships).toEqual(views);
+  });
+
+  it("saved at week 9 and carried on, gives the straight season, and the same offseason after it", () => {
+    const loaded = readSave(onDisk(staffSave(half)));
+    const rest = runSeason({ league: loaded.league, season: 2027, seed: loaded.save.worldSeed, rules: loaded.rules, resolve: fake, resumeFrom: loaded.save.world.season! });
+    expect(JSON.stringify(rest.state)).toBe(JSON.stringify(straight.state));
+    const offseason = (w: typeof built.world, v: typeof views) =>
+      runStaffOffseason({ world: w, results: summariseSeason(straight.state), seed: league.seed, relationships: { views: v } });
+    expect(JSON.stringify(offseason(loaded.staff!.world, loaded.staff!.relationships!))).toBe(JSON.stringify(offseason(built.world, views)));
+  });
+
+  it("reads a save made after the carousel, with the staffs set for next season", () => {
+    const after = runStaffOffseason({ world: built.world, results: summariseSeason(straight.state), seed: league.seed, relationships: { views } });
+    const loaded = readSave(onDisk(staffSave(straight, { world: after.world, relationships: after.relationships! })));
+    expect(loaded.staff!.world.season).toBe(2028);
+    expect(loaded.staff!.world).toEqual(after.world);
+  });
+
+  it("keeps coaches without their views, and older saves without coaches load with none", () => {
+    const loaded = readSave(onDisk(staffSave(half, { world: built.world } as typeof staff)));
+    expect(loaded.staff!.relationships).toBeUndefined();
+    expect(readSave(onDisk(saveOf(half))).staff).toBeUndefined();
+  });
+
+  const brokenStaff: [string, () => unknown, RegExp][] = [
+    ["a coach twice", () => editedStaff((s) => { s.world.staff.push(s.world.staff[0]!); }), /appears twice/],
+    ["a staff list naming a missing coach", () => editedStaff((s) => { s.world.teams[0]!.staff.push("S-ghost" as never); }), /not in the save/],
+    ["a seated coach missing from his staff list", () => editedStaff((s) => { s.world.teams[0]!.staff.pop(); }), /whose staff list doesn't have him/],
+    ["a contract for a missing coach", () => editedStaff((s) => { s.world.staffContracts![0]!.staff = "S-ghost" as never; }), /contract is for a coach who is not in the save/],
+    ["coaches without contracts", () => editedStaff((s) => { delete s.world.staffContracts; }), /no contracts list/],
+    ["a view lost", () => editedStaff((s) => { s.world.relationships!.pop(); }), /views don't match/],
+    ["coaches from another year", () => editedStaff((s) => { s.calendar = { ...s.calendar, season: 2030 }; s.world.season!.season = 2030; }), /set for 2027/],
+  ];
+  it.each(brokenStaff)("refuses %s with a plain reason", (_, file, why) => {
     expect(() => readSave(file())).toThrow(SaveError);
     expect(() => readSave(file())).toThrow(why);
   });

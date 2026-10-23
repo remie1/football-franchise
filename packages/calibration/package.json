@@ -17,6 +17,7 @@
     "@ff/contracts": "workspace:*",
     "@ff/engine": "workspace:*",
     "@ff/franchise": "workspace:*",
+    "@ff/narrative": "workspace:*",
     "@ff/playbook": "workspace:*"
   },
   "devDependencies": {

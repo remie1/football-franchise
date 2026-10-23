@@ -9,12 +9,16 @@
  *
  * Pure: the input world is not changed. Same world, results and seed give the same world, events
  * and decisions. Every roll has its own seed label, so one team's dice never depend on another's.
+ *
+ * Given the staffs' views (ADR-084), it carries them along: the season's results move them, a firing
+ * stings the fired man's friends, a hire starts the new man's views, an extension pleases. Nothing
+ * here reads a view yet, so the carousel's own choices are the same with or without them.
  */
 import {
   createRng,
   type Authority, type CalendarStamp, type Decision, type FranchiseEvent, type FranchiseEventEnvelope,
-  type PlayerState, type StaffContract, type StaffDepartureReason, type StaffId, type StaffJob, type StaffState,
-  type Team, type TeamId,
+  type PlayerState, type RelationshipView, type StaffContract, type StaffDepartureReason, type StaffId, type StaffJob,
+  type StaffState, type Team, type TeamId,
 } from "@ff/contracts";
 import {
   COLLEGE_PROGRAMS, COORDINATOR_SEATS, SEAT_SIDE, STAFF_TUNING, type Seat, type Side,
@@ -27,6 +31,8 @@ import {
   clamp, currentJob, isRetired, logistic, offseasonStamp, seasonsOutOfWork, seatOf, sideOf, weightedPick, winShare,
   type StaffWorld, type TeamSeasonSummary,
 } from "./world.js";
+import { checkViews, syncViews, type LedgerStep, type RelationshipContext } from "../relationships/ledger.js";
+import { applyExtension, applyFiring, applyHire, applySeasonResults } from "../relationships/staffMoves.js";
 
 export type StaffDecisionType = "HIRE_STAFF" | "FIRE_STAFF" | "EXTEND_STAFF" | "LET_CONTRACT_EXPIRE";
 export type StaffDecision = Decision<StaffDecisionType, { team: TeamId; staff: StaffId; seat: Seat }>;
@@ -59,13 +65,21 @@ export interface StaffOffseasonInput {
    * staff id from it, or undefined to let the computer pick.
    */
   choose?: (team: TeamId, seat: Seat, shortlist: readonly CandidateReport[]) => StaffId | undefined;
+  /**
+   * ADR-084: every staff's views (from `seatRelationships`, then carried week to week), to move with
+   * the offseason. Absent: no views are kept, and nothing else changes.
+   */
+  relationships?: { views: readonly RelationshipView[]; context?: RelationshipContext };
 }
 
 export interface StaffOffseasonResult {
   world: StaffWorld;
+  /** With views given, their moves (`RELATIONSHIP_CHANGED`) come in among the staff's own events. */
   events: FranchiseEventEnvelope[];
   decisions: StaffDecision[];
   moves: StaffMove[];
+  /** The views after the offseason, when they were given. */
+  relationships?: RelationshipView[];
 }
 
 const authorityFor = (seat: Seat): Authority => (seat === "HEAD_COACH" ? "PRESIDENT" : "COACH");
@@ -153,6 +167,15 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
   const HC_HIRE_AT = offseasonStamp(played, 2);
   const COORD_HIRE_AT = offseasonStamp(played, 3);
 
+  // ADR-084: the views, if kept. They follow the moves below; nothing reads them.
+  const ctx = input.relationships?.context ?? {};
+  let views = input.relationships ? [...input.relationships.views] : undefined;
+  if (views) checkViews(views, world, ctx);
+  const take = (step: LedgerStep) => {
+    views = step.views;
+    events.push(...step.events);
+  };
+
   // ---- 1. The season goes on every résumé. ------------------------------------------------------
   const collegeHeads = new Map<string, StaffState>();
   for (const s of world.staff) {
@@ -181,6 +204,7 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
       job.seasons.push({ season: played, record: { ...rec } });
     }
   }
+  if (views) take(applySeasonResults(views, world, input.results, DEPART_AT, ctx, events.length));
 
   // ---- shared moves ------------------------------------------------------------------------------
   const vacate = (s: StaffState, team: Team) => {
@@ -203,6 +227,10 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     moves.push({ season: played, team: team.id, seat, staff: s.id, kind: "DEPARTED", reason });
     if (reason === "FIRED") decide(DEPART_AT, "FIRE_STAFF", team, s, seat);
     if (reason === "CONTRACT_EXPIRED") decide(DEPART_AT, "LET_CONTRACT_EXPIRE", team, s, seat);
+    if (views) {
+      if (reason === "FIRED" || reason === "CONTRACT_EXPIRED") take(applyFiring(views, world, team.id, seat, s.id, DEPART_AT, ctx, events.length));
+      views = syncViews(views, world, ctx);
+    }
   };
 
   const extend = (s: StaffState, team: Team, seat: Seat) => {
@@ -210,6 +238,7 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     c.lastSeason += t.extensionYears[seat];
     c.salary = Math.round(c.salary * t.extensionRaise / 10_000) * 10_000;
     decide(DEPART_AT, "EXTEND_STAFF", team, s, seat);
+    if (views) take(applyExtension(views, world, team.id, seat, s.id, DEPART_AT, ctx, events.length));
   };
 
   /**
@@ -353,6 +382,10 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     if (seat !== "HEAD_COACH" && hc && !c.lineage.includes(hc.id)) c.lineage.push(hc.id);
     emit(at, { type: "STAFF_HIRED", payload: { staff: c.id, team: team.id, role: seat } });
     decide(at, "HIRE_STAFF", team, c, seat, human);
+    if (views) {
+      views = syncViews(views, world, ctx);
+      take(applyHire(views, world, team.id, seat, c.id, at, ctx, events.length));
+    }
     const move: StaffMove = { season: played, team: team.id, seat, staff: c.id, kind: "HIRED", source };
     if (seat !== "HEAD_COACH") move.tree = tree;
     moves.push(move);
@@ -506,7 +539,7 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
   for (const s of world.staff) if (!isRetired(s) && s.role !== "PRESIDENT") s.age += 1;
   world.season = next;
 
-  return { world, events, decisions, moves };
+  return { world, events, decisions, moves, ...(views ? { relationships: views } : {}) };
 }
 
 /** The seated coaches' seat scores, for reports and checks. */
