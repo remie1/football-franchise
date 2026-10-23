@@ -123,7 +123,9 @@ The calendar (franchise-calendar.md §4-§6) already places every date. This ADR
 - **The draft** (ADR-086) calls the rookie scale when a pick signs. The year-turnover step there calls
   this ADR's contract-expiry step.
 - **Injured reserve, street signings and the practice squad** are moves this ADR adds; injured reserve
-  reads `condition.injury.weeksRemaining` (ADR-087). Not in the first build.
+  reads `condition.injury.weeksRemaining` (ADR-087) and the public injury band. Not in the first
+  build. Until then ADR-087's stopgap (an emergency stand-in from a reserve pool, no money) fills a
+  team that cannot field a lineup; the free-agent pool replaces it.
 
 ## 5. How the cap grows each year
 
@@ -160,7 +162,9 @@ All additive; `CONTRACTS_SCHEMA_VERSION` unchanged.
 - **K4 — the cap by season**: save `world.capHistory?: { season, cap, projectedLow?, projectedHigh? }[]`;
   `LeagueRules.salaryCap` stays the current season's number.
 - **K5 — credited seasons**: `PlayerBio.creditedSeasons?: number` (drives minimums, RFA/ERFA, the
-  veteran salary benefit).
+  veteran salary benefit). Public, not hidden. Raised by one at the year turn when the player had 3+
+  games on full pay status (the CBA rule). Shared with ADR-087: development reads it from the bio
+  (agreed with that thread 2026-10-23; ADR-087 P1 no longer carries its own season count).
 - **K6 — fuller events**: `CONTRACT_SIGNED` payload gains optional `kind`, `years`, `value`,
   `guaranteed`; new `CONTRACT_EXPIRED { player, team }`, `CAP_SET { season, cap }`,
   `OPTION_EXERCISED { player, team, season }`.
