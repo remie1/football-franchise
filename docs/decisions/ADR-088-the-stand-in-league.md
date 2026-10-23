@@ -136,7 +136,7 @@ downstream reads today.
   REPORTED caveats: OverTheCap does not say why a charge exists, so `reason` is `RELEASED`
   throughout (a traded player's charge looks the same); and every page's TOTAL runs $0.4-1.2M
   above its itemized rows, so the gap is kept as one unnamed charge per team
-  (`gone-<team>-rest`, $32M league-wide) so totals match the page.
+  (`gone-<team>-rest`, $34M league-wide over all seasons) so totals match the page.
   COMPUTED check: 2026 cap numbers plus dead money average $307.8M a team against OverTheCap's
   $304.7M "total cap liabilities" (mean gap $4.9M; Green Bay -$12.9M and San Francisco -$11.3M
   are the two biggest, likely contracts the file is missing). Miami goes from $122M to $307M
