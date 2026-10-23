@@ -154,6 +154,15 @@ meeting runs quietly and its clashes can still leak to the news.
 F1 went (b); F2, F3, F4 and F5 went (a). F3's relationship model goes to the story-building
 (narrative) side to develop further; this meeting only reads and moves the scores.
 
+> **Update 23 October (ADR-084, relationships, ruled by the owner):** views run **one way**. Each
+> staff member has his own view of the user and of every other staff member (the DC's view of the
+> GM can differ from the GM's view of the DC); the user holds none. Wherever F3 and F4 below say
+> "a score for each pair", read "one view in each direction". Clash heat (F4) reads the **lower** of
+> the two men's views of each other. A rift is a grudge held by the man who lost the argument (the
+> one you didn't back, or the one beaten on politics; both if nobody won). The sizes of the
+> meeting's moves (asking "how sure are you?", siding, polite and open clashes, answer lines) are
+> ADR-084's.
+
 **F1. Other GM skills for this meeting? RULED 22 October: (b).** Talent evaluation, politics and
 market sense are all added; "finance" is renamed "cap management". The options as asked:
 - (a) **Add two, both reused from the coaches' existing skill list. Recommended.**
@@ -408,8 +417,8 @@ GM's decisions yourself (you sign, cut and trade). So who sits across the table?
 - **G5. Five new staff skills**: performance analysis, forecasting, cap management, market sense
   and nuance, added to
   the coaches' skill list so every staff member carries them (Q4, Q6, F1).
-- **G6. Relationship scores**, you with each staff member and staff with each other, in the save
-  file (F3 ruled (a); the relationship model itself is designed on the narrative side).
+- **G6. Relationship views**, one entry per direction (from, of, score, optional rift), in the
+  save file. The shape is ADR-084's (its V1); this note only reads and moves them.
 
 Nothing in the match engine, play cards or play-callers is touched. ADR-073 step six's
 measurements are unaffected.
