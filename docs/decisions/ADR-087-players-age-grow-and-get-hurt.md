@@ -70,9 +70,9 @@ and the backup who plays well in his place.
 - **Growth rate**: his own, fixed for life. How much he gets out of what he does. A high growth
   rate turns the same practice, snaps and coaching into bigger gains, and later slows his decline
   because he keeps adding while his body loses.
-- **Experience**, two numbers: *seasons* in the league (used for how fast he learns, and by the
-  draft and cap threads for waiver and minimum-salary rules) and *career snaps* (which feed his
-  smarts).
+- **Experience**: *career snaps* (hidden, they feed his smarts). His credited seasons in the league
+  are public and live on his bio (ADR-085 K5, `PlayerBio.creditedSeasons`, which the cap and draft
+  threads use for minimum salaries and waivers); development reads them from there.
 - **Unshown progress**: ratings are whole numbers, but a week's change is a fraction of a point.
   The fraction is kept per rating and the rating moves when it adds up to a whole point, so small
   weekly steps are never rounded away.
@@ -83,7 +83,7 @@ There is no ceiling. A rating climbs as long as what he does keeps pushing it up
 
 ### 2.2 Learning rate: age and seasons
 
-Each week's gains are scaled by a learning rate built from age and seasons in the league. It is
+Each week's gains are scaled by a learning rate built from age and credited seasons. It is
 highest for a young player in his first seasons (a rookie learns fastest), falls through the
 mid-20s, and is low but never zero for a veteran.
 
@@ -129,7 +129,7 @@ ADR-075 T7 (players' `disguise` growth) plugs into this same week as a skill, as
 
 **Real-player stand-ins** (the owner's cap-thread ruling: copy the real current NFL in every way
 except name and likeness), from free data only:
-- *copied*: age, seasons, career snaps, listed weight, current injuries, injury history (which sets
+- *copied*: age, credited seasons, career snaps, listed weight, current injuries, injury history (which sets
   `durability`);
 - *estimated*: his body today (his combine or pro-day numbers aged forward from when he tested, by
   §4's curves; for a player who never tested, a typical body for his position, size and age,
@@ -139,8 +139,8 @@ except name and likeness), from free data only:
 Because §4's curves set every veteran's starting speed, they are tuned in D5 before stand-ins are
 built.
 
-**Made-up players** (the generator and the draft thread's prospects): growth rate drawn; seasons
-and snaps 0 for rookies, from age for generated veterans; body from the measurements the generator
+**Made-up players** (the generator and the draft thread's prospects): growth rate drawn; career
+snaps 0 for rookies, from age for generated veterans; body from the measurements the generator
 already draws.
 
 ## 3. Every week, all year
@@ -307,7 +307,7 @@ reader comment.
 
 | Id | Edit | Why |
 |---|---|---|
-| **P1** | `TrueAttributes.development?: { growth: number; seasons: number; snaps: number; carry: Partial<Record<string, number>>; body: { forty: number; cone: number; vertical: number; bench: number } }` (optional; absent = the player never changes, today's behaviour) | §2.1, §4. Prospects carry `growth` and `body` |
+| **P1** | `TrueAttributes.development?: { growth: number; snaps: number; carry: Partial<Record<string, number>>; body: { forty: number; cone: number; vertical: number; bench: number } }` (optional; absent = the player never changes, today's behaviour) | §2.1, §4. Prospects carry `growth` and `body` |
 | **P2** | `PlayerBio.combine?: { forty?: number; cone?: number; vertical?: number; bench?: number }`, frozen at the draft | the public record (§7) |
 | **P3** | `Injury` gains `setting: "GAME" \| "PRACTICE" \| "AWAY"`, `band: "DAY_TO_DAY" \| "SHORT" \| "LONG" \| "MAJOR"`, `since: CalendarStamp` | availability, reports, lasting marks |
 | **P4** | `GameParticipation { player; team; snaps: { offense; defense; special }; contests: { attr; won; lost }[] }`, returned with each game | who played and how (§10) |
