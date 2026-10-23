@@ -18,8 +18,10 @@ export {
 } from "./playoffs/bracket.js";
 export {
   runSeason, gameSeed, MAX_PLAYOFF_REPLAYS,
-  type GameResolver, type RunSeasonInput, type SeasonRun,
+  type GameResolver, type ResolvedGame, type RunSeasonInput, type SeasonRun,
 } from "./season/runSeason.js";
+// ADR-086: the league's people through the year, and the day steps that change them.
+export { isDay, type LeaguePeople, type DayStep, type DayStepContext } from "./season/people.js";
 export { makeSave, readSave, SaveError, type MakeSaveInput, type LoadedSave } from "./save/save.js";
 // ADR-080: coaching staffs, hiring and firing.
 export { buildStaff, freshStaff, recentreDisguise, type BuildStaffOptions, type BuiltStaff } from "./staff/buildStaff.js";
