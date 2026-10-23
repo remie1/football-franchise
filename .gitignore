@@ -16,3 +16,6 @@ assets/generated/
 apps/game/public/games/
 # Seasons' news saved by the news command for the viewer's News page. Re-makeable from the season file.
 apps/game/public/news/
+
+# The real importer's downloads (ADR-088 Q7): raw nflverse files and the sealed stand-in table. Never committed.
+packages/attributes/data-cache/
