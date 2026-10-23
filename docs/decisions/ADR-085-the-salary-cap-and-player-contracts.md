@@ -3,8 +3,9 @@
 - **Date:** 2026-10-23
 - **Proposed by:** Orchestrator, for `franchise` (thread "Salary cap and contracts",
   plan `/mnt/project-files/design/salary-cap-plan.md`)
-- **Status:** design ruled by the owner (Q1-Q10, 2026-10-23). Contracts edits K1-K7 **proposed, not
-  approved**. Open: who builds the real-player stand-ins (§3).
+- **Status:** design ruled by the owner (Q1-Q10, 2026-10-23). Contracts edits K1-K7 **approved** by the owner's
+  typed yes (2026-10-23 20:52Z, "Yes, make contracts edits K1, K2, K3, K4, K5, K6 and K7"). The
+  real-player stand-ins are built in their own thread (owner's card, 2026-10-23).
 
 ## Problem
 

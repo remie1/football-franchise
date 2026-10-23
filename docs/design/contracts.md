@@ -193,6 +193,20 @@ export interface ContractYear {
 
 Cap *math* lives in franchise; contracts only defines shapes.
 
+**ADR-085 K1-K5 (salary cap and player contracts), all optional so older data still loads:**
+
+- `ContractYear` gains `rosterBonus`, `workoutBonus`, `optionBonusProration`, `perGameRosterBonus`,
+  `incentives { likely, unlikely }`, `guaranteedSalary` (dollars) and `voidYear`.
+- `PlayerContract` gains `kind: ContractKind` (`ROOKIE | VETERAN | EXTENSION | MINIMUM | FRANCHISE_TAG |
+  TRANSITION_TAG | RFA_TENDER | ERFA_TENDER | PRACTICE_SQUAD`), `signingBonus`, `fifthYearOption
+  { season, price, exercised? }` and `ended { at, reason: ContractEndReason, postJune1? }`.
+- `DeadMoneyCharge { team, player, season, amount, reason: "RELEASED" | "TRADED" | "VOIDED" | "RETIRED" }`;
+  `CapState.deadMoney` is the sum of a team's charges for the season.
+- `CapSeason { season, cap, projectedLow?, projectedHigh? }` (in `save.ts`).
+- `PlayerBio.creditedSeasons` (CBA credited seasons; public; shared with ADR-087).
+
+The rookie scale, minimum salaries and tag formulas are CBA data and live in franchise.
+
 ### Coaching staff (ADR-080)
 
 `StaffState` (in `players.ts`) is a coach or a president. The staff shapes it uses live in `staff.ts`.
@@ -363,7 +377,7 @@ export interface RollDetail {
 
 ### 6.2 Franchise event types (v0 set)
 
-`CALENDAR_PHASE_ENTERED`, `DEADLINE_REACHED`, `CONTRACT_SIGNED / RESTRUCTURED / EXPIRED`, `PLAYER_RELEASED / RETIRED (immediate|slow|late per design notes)`, `TAG_APPLIED`, `TRADE_PROPOSED / EXECUTED / REJECTED`, `DRAFT_PICK_MADE`, `SCOUT_REPORT_FILED` (perception delta), `INJURY_OCCURRED / RECOVERED`, `MORALE_CHANGED`, `PRESSURE_EVENT` (owner mandate / hot seat), `PRESS_STORY_PUBLISHED`, `AWARD_GIVEN`, `GAME_SCHEDULED / COMPLETED`, `STAFF_HIRED` (`{ staff, team, role: StaffRole }`) and `STAFF_DEPARTED` (`{ staff, team, reason: StaffDepartureReason }`), typed by ADR-080 P3.
+`CALENDAR_PHASE_ENTERED`, `DEADLINE_REACHED`, `CONTRACT_SIGNED / RESTRUCTURED / EXPIRED` (`CONTRACT_SIGNED` may carry `kind`, `years`, `value`, `guaranteed`; `CONTRACT_EXPIRED` is `{ player, team }`, ADR-085 K6), `CAP_SET` (`{ season, cap }`) and `OPTION_EXERCISED` (`{ player, team, season }`) (ADR-085 K6), `PLAYER_RELEASED / RETIRED (immediate|slow|late per design notes)`, `TAG_APPLIED`, `TRADE_PROPOSED / EXECUTED / REJECTED`, `DRAFT_PICK_MADE`, `SCOUT_REPORT_FILED` (perception delta), `INJURY_OCCURRED / RECOVERED`, `MORALE_CHANGED`, `PRESSURE_EVENT` (owner mandate / hot seat), `PRESS_STORY_PUBLISHED`, `AWARD_GIVEN`, `GAME_SCHEDULED / COMPLETED`, `STAFF_HIRED` (`{ staff, team, role: StaffRole }`) and `STAFF_DEPARTED` (`{ staff, team, reason: StaffDepartureReason }`), typed by ADR-080 P3.
 
 `RELATIONSHIP_CHANGED` (ADR-084 V2) is a view that moved: `{ from, of, delta, cause, before, after, rift?: "OPENED" | "REPAIRED" }`, once per move and once whenever the weekly drift changes a view's word.
 
@@ -443,6 +457,8 @@ export interface SaveFile {
     staffContracts?: StaffContract[];      // ADR-080 P1; optional, so saves written before it still load
     relationships?: RelationshipView[];    // ADR-084 V1: every view, one entry per direction; optional, as above
     contracts: PlayerContract[];
+    deadMoney?: DeadMoneyCharge[];         // ADR-085 K3; optional, as above
+    capHistory?: CapSeason[];              // ADR-085 K4: the cap each season; optional, as above
     perceptions: PerceivedAttributes[];   // per observer×subject
     league: LeagueStructure;               // ADR-078 C7
     season: SeasonState | null;            // ADR-078 C7 (was `standings: unknown`)
