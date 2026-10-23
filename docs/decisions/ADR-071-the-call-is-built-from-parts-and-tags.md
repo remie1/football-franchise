@@ -272,7 +272,7 @@ export interface DefensivePlayCall {
   holds Phase 1's mask to this on every play). A line-game tag is derived from the stunts (§4). A
   pressure tag is declared on the card and checked against its rushers (§4's check column). The
   checks are playbook validation, beside `noDeepHelp`; contracts carry the types only (contracts.md
-  §7), and the call stays inert data (§10).
+  §7), and the call stays inert data (§10). *(2026-10-23, ADR-073 step 3.5.)* From caller v7 the sentence "A look is worn exactly when `shownAssignments` differs from `assignments`" holds for coverage looks only. A front look (the Mug or the Stem, a `LOOK` tag with id `MUG` or `STEM`, ADR-073 §2.5) leaves `shownAssignments` untouched and changes `shownRush` instead, so a call can wear a look while `shownAssignments` equals `assignments`. `shownAssignmentsStream` now holds each kind to its own diff: a coverage look to `shownAssignments` differing from `assignments`, a front look to `shownRush` differing from `rush` (`shownAssignmentsStream.test.ts:34-42`). Nothing else here changes.
 - **Nothing the engine resolves changes.** The engine reads `assignments`, `shownAssignments`, `rush`
   and `stunts`, as now. The tags are how the call says what produced them.
 

@@ -158,9 +158,10 @@ function zoneAssignment(defender: PlayerId, duty: ZoneDuty, fit: RunFit | undefi
  * own doc says that field exists so a card can say "left A-gap blitz" — only the `left`
  * half was crossing.
  *
- * Nothing reads `gap` yet either, for exactly the reason nothing read `side` when
- * ADR-018 carried it: the consumer is a model that does not exist. A subject appears
- * when travel computes a DISTANCE instead of looking one up.
+ * ITS FIRST READER IS THE FRONT LOOK (ADR-073 §2.5): `applyFrontLook` places the
+ * Stem's shown line by it — each rushing lineman one position over, and the one-spot
+ * rule against every other shown rusher — and the engine only echoes it. A physics
+ * reader appears when travel computes a DISTANCE instead of looking one up.
  */
 function declaredRush(rusher: PlayerId, duty: RushDuty): DeclaredRush {
   return { rusher, move: duty.move, alignment: duty.alignment, side: duty.side, gap: duty.gap };
@@ -333,7 +334,8 @@ export function instantiateDefense(
     tags: callTags(card),
     assignments,
     /**
-     * ⛔ ONE ARRAY, TWO FIELDS — UNLESS THE CALL WEARS A LOOK (ADR-067 §A, ADR-069, ADR-071).
+     * ⛔ ONE ARRAY, TWO FIELDS — UNLESS THE CALL WEARS A COVERAGE LOOK (ADR-067 §A, ADR-069,
+     * ADR-071).
      *
      * A card with no `shows` on any duty gets `assignments` itself, the same object
      * referenced twice. Not a copy: a copy is a second value, and a second value is a
@@ -341,10 +343,12 @@ export function instantiateDefense(
      * unmasked call the identity holds by construction, and `shownAssignments.test.ts`
      * asserts it on every card in the corpus.
      *
-     * A card wearing a look (`applyLooks`) gets `shown`, built entry-for-entry beside
-     * `assignments` by `play` above: the same defenders in the same order, differing only
-     * where a duty `shows` a zone or a man look. A divergence can only arrive through that
-     * field, and only a look writes it.
+     * A card wearing a coverage look (`applyLooks`) gets `shown`, built entry-for-entry
+     * beside `assignments` by `play` above: the same defenders in the same order, differing
+     * only where a duty `shows` a zone or a man look. A divergence can only arrive through
+     * that field, and only a coverage look writes it. A front look (`applyFrontLook`, laid
+     * over this call afterwards; ADR-073 §2.5) writes `shownRush` and leaves this field the
+     * array it was.
      *
      * ON MIRRORING. `mirrorDefensiveCard` flips duties, `shows` included, upstream of this
      * function, so a mirrored card mirrors both lists by construction.
@@ -352,8 +356,9 @@ export function instantiateDefense(
     shownAssignments: anyShown ? shown : assignments,
     rush,
     // ⛔ THE SAME ARRAY AS `rush` (ADR-073 step 3.1), for the reason `shownAssignments` gives
-    // above: identity by construction, not by agreement. A front look (ADR-073 step 3.5) will
-    // be the only writer of a second list; until then nothing can make the two differ.
+    // above: identity by construction, not by agreement. This function never writes a second
+    // list: a front look (`applyFrontLook`, ADR-073 §2.5), laid over the call afterwards, is
+    // the only writer of one.
     shownRush: rush,
     ...(stunts.length === 0 ? {} : { stunts }),
     // ABSENT WHERE THE CARD SAID NOTHING, and that is deliberate rather than lazy.

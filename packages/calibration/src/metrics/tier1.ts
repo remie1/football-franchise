@@ -275,11 +275,17 @@ export const threatCreationRate: Metric = registerMetric({
    * is 26.08% in `baseline-0005`, against 0.13% at v1. Kept as mechanic context for the SIM number
    * even though the metric is no longer graded: it is still true that a caller which guesses
    * biases this rate up, by the 1.54pp ADR-024 measured.
+   *
+   * It names no caller version and no miss rate (ADR-073 step 3.5). It said "frozen caller v2"
+   * and "~26%", and the default caller has moved since (v3, then v4, then v7 at step 3.5's
+   * close), while every report prints this string beside numbers the caller of its day
+   * played. Every version from v2 on anticipates, so the clause holds for each; how many rushers
+   * that caller misses is the same report's own `unaccounted_rusher_rate` row, on the same games.
    */
   knownDivergences: [
     "backlog 2",
     "backlog 3",
-    "frozen caller v2: protection is built against an ANTICIPATED front and misses ~26% of rushers (ADR-024) — biases this UP, by 1.54pp when measured",
+    "frozen caller: protection is built against an ANTICIPATED front and misses some rushers (ADR-024; how many is this report's own unaccounted_rusher_rate) — biases this UP, by 1.54pp when ADR-024 measured it",
     "backlog 93: renamed from pressure_rate, real side retired — see this metric's own header",
   ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
@@ -850,15 +856,19 @@ export const disguiseRate: Metric = registerMetric({
   },
 });
 
-/** ADR-069 — which look the disguised dropbacks wore. Same diff, keyed by the call's LOOK tags. */
+/**
+ * ADR-069 — which coverage look the disguised dropbacks wore. Same diff, keyed by the call's
+ * coverage LOOK tags; a front LOOK tag (ADR-073 step 3.5) never joins the key.
+ */
 export const disguiseMaskMix: Metric = registerMetric({
   id: "disguise_mask_mix",
   tier: 1,
   definition:
-    "SIM SIDE ONLY. The disguised dropbacks of `disguise_rate`, split by the look the call " +
-    "named (the LOOK tags in PLAY_START.defense.tags, ADR-071). UNNAMED would be a shown look " +
-    "that differs with no look named, which the engine cannot produce. No real source charts " +
-    "a shown shell.",
+    "SIM SIDE ONLY. The disguised dropbacks of `disguise_rate`, split by the coverage look the " +
+    "call named (the coverage LOOK tags in PLAY_START.defense.tags, ADR-071; a front look's tag, " +
+    "MUG or STEM, is not a coverage look and never joins the key, ADR-073 §3.5). UNNAMED would " +
+    "be a shown look that differs with no coverage look named, which the engine cannot produce. " +
+    "No real source charts a shown shell.",
   unit: "share",
   toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
@@ -869,6 +879,69 @@ export const disguiseMaskMix: Metric = registerMetric({
   },
   computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
     return noObservations("no ingested source charts what the offence was shown before the snap.");
+  },
+});
+
+/**
+ * ADR-073 step 3.5 — HOW OFTEN THE LINE WAS SHOWN A RUSH OTHER THAN THE ONE THAT CAME.
+ *
+ * SIM SIDE ONLY. A front look (the Mug or the Stem, caller v7) shows the offence a rush it does not
+ * play: `shownRush` against `rush`. The owner ruled the look worn on 1 in 10 of the calls that can
+ * wear one (ADR-073 Decision 5), so on dropbacks this reads that rate times the legal share
+ * (ADR-073 §4.5). It is reported, never graded: no ingested source charts what the line was shown
+ * before the snap. It is the look WORN, not the look that acted: a gap-only difference, and a Stem
+ * of linemen the protection names, are counted, and neither makes anybody moved or shows a ghost
+ * (ADR-073 §2.2).
+ *
+ * The count is a DIFF of the two rush lists, as `disguise_rate`'s is of the assignments, with
+ * playbook's `shownRushDiffers` (R28's comparison); the name only keys `front_look_mix`.
+ */
+export const frontLookRate: Metric = registerMetric({
+  id: "front_look_rate",
+  tier: 1,
+  definition:
+    "SIM SIDE ONLY. Dropbacks on which PLAY_START.defense.shownRush differs from " +
+    "PLAY_START.defense.rush ÷ dropbacks, compared entry by entry on rusher, side, alignment and " +
+    "gap, with `move` stripped and a side or gap stated on one list and omitted on the other no " +
+    "difference (ADR-073 §3.5): the share of passing snaps on which the defence wore a front " +
+    "look (the Mug or the Stem; caller v7 wears them, and every earlier caller reads 0). The " +
+    "owner ruled 1 in 10 of the calls that can wear one, so this is that rate times the legal " +
+    "share. It counts the look worn, not whether it changed a read. " +
+    "No ingested source charts a shown rush, so there is no real side and this row is never graded.",
+  unit: "%",
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const p = accumulator.play;
+    return p.dropbacks === 0 ? noObservations("no dropbacks") : rate(p.frontLookDropbacks, p.dropbacks);
+  },
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations(
+      "no ingested source charts what the offensive line was SHOWN of the rush before the snap. " +
+        "FTN's n_pass_rushers counts who rushed; do NOT read a front-look rate off it — every snap " +
+        "would show the rush it played.",
+    );
+  },
+});
+
+/** ADR-073 step 3.5 — which front look the front-look dropbacks wore. Same diff, keyed by the call's front LOOK tags. */
+export const frontLookMix: Metric = registerMetric({
+  id: "front_look_mix",
+  tier: 1,
+  definition:
+    "SIM SIDE ONLY. The front-look dropbacks of `front_look_rate`, split by the front look the " +
+    "call named (its front LOOK tags in PLAY_START.defense.tags: MUG or STEM, ADR-073 §2.5). " +
+    "UNNAMED would be a shown rush that differs with no front look named, which R28 refuses. " +
+    "No real source charts a shown rush.",
+  unit: "share",
+  toleranceBand: absoluteBand(Number.POSITIVE_INFINITY),
+  computeFromEvents({ accumulator }: SimContext): MetricOutcome {
+    const byLook = accumulator.play.frontLookDropbacksByLook;
+    return accumulator.play.frontLookDropbacks === 0
+      ? noObservations("no front-look dropbacks")
+      : categorical(byLook);
+  },
+  computeFromReal<E extends Eligibility>(_input: RealInput<E>): MetricOutcome {
+    return noObservations("no ingested source charts what the offensive line was shown of the rush before the snap.");
   },
 });
 
@@ -1723,6 +1796,8 @@ export const TIER_1_METRICS: readonly Metric[] = [
   hotRouteRate,
   disguiseRate,
   disguiseMaskMix,
+  frontLookRate,
+  frontLookMix,
   unaccountedRusherRate,
   yardsPerAttempt,
   timeToThrow,

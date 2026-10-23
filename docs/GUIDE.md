@@ -91,18 +91,28 @@ realism checker came first. Front office and the game screen were started early 
 
 ## Where things stand
 
-**Being worked on now (the play simulator):**
+**Just finished (the play simulator):**
 
 - **The front and pass rush (ADR-073).** The defence shows a rush before the snap, the
-  quarterback grades the pressure he sees, and the line can slide its protection to it. Steps
-  one to five are merged; step five (play-caller version 6, which no team uses yet) draws the
-  blitz and the line stunt on their own and adds the Creeper. The last step, six, adds disguised
-  fronts (the Mug and the Stem) and moves the test league to the new play-caller.
+  quarterback grades the pressure he sees, and the line can slide its protection to it. All six
+  steps are merged. Step five added play-caller version 6, which draws the blitz and the line
+  stunt on their own and adds the Creeper. Step six added disguised fronts (the Mug and the Stem)
+  in version 7 and moved the test league to it, so the league now plays with all of it at once:
+  the line's slide check, the blitz and the stunt drawn on their own, the Creeper and the
+  disguised fronts.
 
 **Biggest known problem:** the pocket collapses too early. About 86% of dropbacks are under
 pressure, against about 35% in the NFL (backlog entry 100). This drives too many sacks, too few
-completions and odd target shares. A fix is designed in outline but waits until the front work
-finishes.
+completions and odd target shares. The play cards' read orders are already fixed (backlog 171,
+merged). Measured with play-caller version 4, on the snaps where the pocket held, the targets
+spread nearly as they do in the NFL; the rest of the gap is the pocket. The front work is finished,
+so the pocket fix comes next. Its design will take in what a free blitzer really changes (the
+quarterback's feel for the rush, his mobility against the rusher's speed, hot and deep routes, and
+down and distance), and its questions go to you before anything is built.
+
+**Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
+NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered
+windows. Its fix is designed right after the pocket fix, measured on the fixed pocket.
 
 **Designed and ruled, waiting to be built:**
 
@@ -112,8 +122,6 @@ finishes.
   not designed yet.
 - The running back's own blitz read at the snap (ADR-077, ruled but not yet in the repo), after the front work, switched on
   only once the pocket fix works.
-- Fixed read orders on the play cards, so the targets spread more like the NFL (backlog 171).
-  It is built on its own branch and waits for the front work to finish.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.
@@ -130,7 +138,9 @@ the best player at each spot starting. Seasons play with these squads by default
 special teams coordinator and a computer-run president, with careers, contracts and 20 seasons of
 made-up history. Presidents hire and fire head coaches, head coaches pick their coordinators, and
 `pnpm --filter @ff/franchise staff-check` compares the turnover with NFL numbers. Coaches do not
-affect games yet; that waits for the front work (ADR-073) and ADR-075.
+affect games yet; that waits for the front work (ADR-073) and ADR-075. Saves keep the coaches (23 October
+2026): every coach, their contracts and each team's staff go into a `--save` file, and `--load`
+carries on with them.
 
 **News (22 October 2026, ADR-082):** a news desk writes up to four headlines a week from a
 season's results: routs, comebacks, upsets, streaks, the last unbeaten team, division leaders, and

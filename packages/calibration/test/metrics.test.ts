@@ -1,6 +1,8 @@
 /** The metric library: statistics, the fold, and both sides of the Tier 1 computations. */
 import { describe, expect, it } from "vitest";
+import type { MatchEventEnvelope } from "@ff/contracts";
 import { DEFAULT_TUNABLES } from "@ff/engine";
+import { COVERAGE_MASKS, FRONT_LOOKS } from "@ff/playbook";
 import { collectGames, emptyAccumulator, foldGame, mergeAccumulators } from "../src/metrics/collect.js";
 import { allMetrics, getMetric, metricsInTier } from "../src/metrics/registry.js";
 import {
@@ -27,6 +29,7 @@ import { indexLeague } from "../src/league/snapshot.js";
 import { buildFixture, buildFixtures } from "../src/harness/schedule.js";
 import { runOneGame } from "../src/harness/runGame.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
+import type { CallerVersion } from "../src/caller/anticipate.js";
 import "../src/metrics/index.js";
 
 // --- statistics -------------------------------------------------------------
@@ -99,9 +102,54 @@ const built = buildFixture(
   })[0]!,
 );
 
-function game(seed: string) {
-  return runOneGame({ built, seed, tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN })
-    .observation;
+/** One game on the default caller, or on the version named. */
+function game(seed: string, callerVersion?: CallerVersion) {
+  return runOneGame({
+    built,
+    seed,
+    tendencies: FROZEN_TENDENCIES,
+    fourthDown: FROZEN_FOURTH_DOWN,
+    ...(callerVersion === undefined ? {} : { callerVersion }),
+  }).observation;
+}
+
+// --- reading PLAY_START straight off the stream, for the fold's second readings ----------------
+
+interface StreamPlayStart {
+  readonly playId: string;
+  readonly kind: unknown;
+  readonly defense?: {
+    readonly tags?: readonly { readonly kind?: unknown; readonly id?: unknown }[];
+    readonly rush?: readonly Record<string, unknown>[];
+    readonly shownRush?: readonly Record<string, unknown>[];
+    readonly assignments?: unknown;
+    readonly shownAssignments?: unknown;
+    readonly unaccountedRushers?: readonly unknown[];
+  };
+  readonly offense?: { readonly hotConversions?: readonly unknown[] };
+}
+
+function playStarts(events: readonly MatchEventEnvelope[]): readonly StreamPlayStart[] {
+  return events
+    .filter((e) => e.event.type === "PLAY_START")
+    .map((e) => ({ playId: String(e.event.playId), ...(e.event.payload as Omit<StreamPlayStart, "playId">) }));
+}
+
+/** The two kinds of LOOK, by id, from playbook's catalogues (ADR-069, ADR-073 §2.5). */
+const COVERAGE_LOOK_IDS: ReadonlySet<string> = new Set(COVERAGE_MASKS.map((m) => m.id));
+const FRONT_LOOK_IDS: ReadonlySet<string> = new Set<string>(FRONT_LOOKS);
+const namesLook = (start: StreamPlayStart, ids: ReadonlySet<string>): boolean =>
+  (start.defense?.tags ?? []).some((tag) => tag.kind === "LOOK" && ids.has(String(tag.id)));
+
+/** The plays whose `blitz_recognition` read ROLLED: a PRESNAP_READ of that kind on the play. */
+function rolledRecognitionPlays(events: readonly MatchEventEnvelope[]): ReadonlySet<string> {
+  const rolled = new Set<string>();
+  for (const e of events) {
+    if (e.event.type === "PRESNAP_READ" && e.event.payload.kind === "blitz_recognition") {
+      rolled.add(String(e.event.playId));
+    }
+  }
+  return rolled;
 }
 
 /**
@@ -159,6 +207,14 @@ function playerIdsIn(value: unknown, known: ReadonlySet<string>): ReadonlySet<st
 describe("the event fold", () => {
   const observation = game("fold-1");
   const acc = collectGames([observation]);
+  /**
+   * Two games on caller v7 (ADR-073 step 3.5), which wears front looks over v6's call: the fold's
+   * front-look counters are exercised on them, and against v4 (named below), which wears none.
+   */
+  const v7Games = [game("fold-v7-1", "v7"), game("fold-v7-2", "v7")];
+  const v7Acc = collectGames(v7Games);
+  /** One game on caller v4, NAMED: an honest front on every call, whatever the default is. */
+  const v4Games = [game("fold-v4-1", "v4")];
 
   /** Fixed, seeded, and large enough to contain the rare reconciliation paths. */
   const CORPUS = Array.from({ length: 30 }, (_, i) => game(`agree-${i}`));
@@ -425,47 +481,288 @@ describe("the event fold", () => {
    * run play carries a `rush` list too. Counting every PLAY_START would put the run mix into the
    * denominator of a passing-game metric and the error would look like a corpus finding.
    */
-  it("counts the pressure facts on dropbacks only, never on a run", () => {
-    const p = acc.play;
+  it.each([
+    ["the default caller", () => [observation], false],
+    ["caller v7", () => v7Games, false],
+    ["caller v4, named", () => v4Games, true],
+  ] as const)("counts the pressure facts on dropbacks only, never on a run (%s)", (_label, games, honest) => {
+    const observed = games();
+    const p = collectGames(observed).play;
     expect(p.blitzDropbacks).toBeLessThanOrEqual(p.dropbacks);
     expect(p.unaccountedRusherDropbacks).toBeLessThanOrEqual(p.dropbacks);
     expect(p.hotConversionDropbacks).toBeLessThanOrEqual(p.dropbacks);
-    // §5.3 only rolls when a rusher is unaccounted for, so a conversion cannot outnumber the
-    // dropbacks that could have produced one. This is the relationship that makes
-    // `hot_route_rate` interpretable at all, and it is structural rather than statistical.
-    expect(p.hotConversionDropbacks).toBeLessThanOrEqual(p.unaccountedRusherDropbacks);
+    // A route converts hot only when §5.3's pressure read ROLLED and its picture answered somebody
+    // (ADR-073 §2.3), and a rolled read is recorded as a `blitz_recognition` PRESNAP_READ. So a
+    // conversion cannot outnumber the dropbacks whose read rolled. This is the relationship that
+    // makes `hot_route_rate` interpretable at all, and it is structural rather than statistical.
+    // It used to be written against `unaccountedRusherDropbacks`, because the read rolled only on
+    // an unaccounted rusher. Since ADR-073 §2.2 a front look rolls it too, with nobody
+    // unaccounted (trigger (b)), and a Mug bluff converts hot with no unaccounted rusher at all.
+    // So the rolled reads are counted here, off the stream, and checked play by play as well.
+    let rolledDropbacks = 0;
+    let hotDropbacks = 0;
+    const hotWithoutRoll: string[] = [];
+    // On an honest front (a caller that wears no front look: `shownRush` is `rush` on every call)
+    // trigger (b) cannot fire, so the read rolls on exactly the dropbacks with an unaccounted
+    // rusher, trigger (a). The per-play "hot ⇒ rolled" bound alone would pass a trigger (b) that
+    // fired there.
+    const rollNotTriggerA: string[] = [];
+    for (const one of observed) {
+      const rolled = rolledRecognitionPlays(one.events);
+      for (const start of playStarts(one.events)) {
+        if (start.kind !== "PASS_PLAY_V1") continue;
+        const didRoll = rolled.has(start.playId);
+        if (didRoll) rolledDropbacks += 1;
+        if ((start.offense?.hotConversions ?? []).length > 0) {
+          hotDropbacks += 1;
+          if (!didRoll) hotWithoutRoll.push(`${one.seed} ${start.playId}`);
+        }
+        const unaccounted = (start.defense?.unaccountedRushers ?? []).length > 0;
+        if (honest && didRoll !== unaccounted) rollNotTriggerA.push(`${one.seed} ${start.playId}: rolled ${String(didRoll)}, unaccounted ${String(unaccounted)}`);
+      }
+    }
+    expect(rollNotTriggerA, "on an honest front the read rolled where no rusher was unaccounted, or did not where one was").toEqual([]);
+    // …and so, there, the old structural bound holds as it was written before front looks.
+    if (honest) expect(p.hotConversionDropbacks).toBeLessThanOrEqual(p.unaccountedRusherDropbacks);
+    expect(hotWithoutRoll, "a dropback converted hot with no rolled blitz_recognition read").toEqual([]);
+    expect(hotDropbacks).toBe(p.hotConversionDropbacks);
+    expect(p.hotConversionDropbacks).toBeLessThanOrEqual(rolledDropbacks);
+    expect(rolledDropbacks, "no blitz_recognition read rolled, so the bound compared nothing").toBeGreaterThan(0);
     // Runs happen in this corpus, so the pass-only denominator is genuinely being exercised.
     expect(p.rushAttempts).toBeGreaterThan(0);
     expect(p.dropbacks).toBeLessThan(p.scrimmagePlays);
   });
 
   /**
-   * ADR-069. The disguise count is a DIFF of shown against played, and the per-mask split is keyed
-   * by the look the call named (ADR-071: its LOOK tags) — two readings of one play that must agree.
-   * Every disguised dropback is named, so the split sums to the count and nothing lands in UNNAMED.
+   * ADR-069 and ADR-073 step 3.5, partitioned by the kind of look. Each disguise count is a DIFF of
+   * shown against played, and each split is keyed by the looks OF ITS OWN KIND the call named
+   * (ADR-071: its LOOK tags) — two readings of one play that must agree:
+   *
+   *  - a COVERAGE look ⇔ `shownAssignments` differs from `assignments` (`disguisedDropbacks`, keyed
+   *    by coverage-look ids only);
+   *  - a FRONT look ⇔ `shownRush` differs from `rush` as `front_look_rate` defines it
+   *    (`frontLookDropbacks`, keyed by front-look ids only).
+   *
+   * Every diffed dropback is named by a look of its own kind, so each split sums to its count and
+   * nothing lands in UNNAMED, and neither split carries the other kind's ids. The default caller
+   * wears coverage looks; v7 wears both kinds, and must wear a front look here, or the front half
+   * compared nothing.
    */
-  it("counts disguised dropbacks by diff, and every one of them names its look", () => {
-    const p = acc.play;
-    expect(p.disguisedDropbacks).toBeGreaterThan(0);
-    expect(p.disguisedDropbacks).toBeLessThan(p.dropbacks);
-    const named = Object.values(p.disguisedDropbacksByMask).reduce((a, b) => a + b, 0);
-    expect(named).toBe(p.disguisedDropbacks);
-    expect(p.disguisedDropbacksByMask.UNNAMED).toBeUndefined();
+  it.each([
+    ["the default caller", () => [observation], false],
+    ["caller v7", () => v7Games, true],
+  ] as const)(
+    "counts each kind of disguised dropback by its own diff, and every one names a look of its kind (%s)",
+    (_label, games, mustWearFront) => {
+      const observed = games();
+      const p = collectGames(observed).play;
+      expect(p.disguisedDropbacks).toBeGreaterThan(0);
+      expect(p.disguisedDropbacks).toBeLessThan(p.dropbacks);
+      expect(p.frontLookDropbacks).toBeLessThan(p.dropbacks);
+      const sum = (record: Readonly<Record<string, number>>): number =>
+        Object.values(record).reduce((a, b) => a + b, 0);
+      expect(sum(p.disguisedDropbacksByMask)).toBe(p.disguisedDropbacks);
+      expect(sum(p.frontLookDropbacksByLook)).toBe(p.frontLookDropbacks);
+      expect(p.disguisedDropbacksByMask.UNNAMED).toBeUndefined();
+      expect(p.frontLookDropbacksByLook.UNNAMED).toBeUndefined();
+      for (const key of Object.keys(p.disguisedDropbacksByMask)) {
+        for (const id of key.split("+")) expect(COVERAGE_LOOK_IDS.has(id), `coverage key ${key}`).toBe(true);
+      }
+      for (const key of Object.keys(p.frontLookDropbacksByLook)) {
+        expect(FRONT_LOOK_IDS.has(key), `front key ${key}`).toBe(true);
+      }
 
-    // The other reading, taken straight off the stream: pass snaps whose call NAMED a look. A run
-    // wears looks too (the defence calls before it knows), so the dropback filter is exercised.
-    const starts = observation.events
-      .map(
-        (e) =>
-          e.event as { type: string; payload: { kind?: string; defense?: { tags?: readonly { kind?: string }[] } } },
-      )
-      .filter((e) => e.type === "PLAY_START");
-    const wearsLook = (e: (typeof starts)[number]): boolean =>
-      (e.payload.defense?.tags ?? []).some((tag) => tag.kind === "LOOK");
-    const maskedPasses = starts.filter((e) => e.payload.kind === "PASS_PLAY_V1" && wearsLook(e));
-    const maskedRuns = starts.filter((e) => e.payload.kind === "RUN_PLAY_V1" && wearsLook(e));
-    expect(p.disguisedDropbacks).toBe(maskedPasses.length);
-    expect(maskedRuns.length).toBeGreaterThan(0);
+      // The other reading, taken straight off the stream: pass snaps whose call NAMED a look of each
+      // kind. A run wears looks too (the defence calls before it knows), so the dropback filter is
+      // exercised.
+      const starts = observed.flatMap((one) => playStarts(one.events));
+      const passes = starts.filter((s) => s.kind === "PASS_PLAY_V1");
+      const coveragePasses = passes.filter((s) => namesLook(s, COVERAGE_LOOK_IDS));
+      const frontPasses = passes.filter((s) => namesLook(s, FRONT_LOOK_IDS));
+      const coverageRuns = starts.filter((s) => s.kind === "RUN_PLAY_V1" && namesLook(s, COVERAGE_LOOK_IDS));
+      expect(p.disguisedDropbacks).toBe(coveragePasses.length);
+      expect(p.frontLookDropbacks).toBe(frontPasses.length);
+      expect(coverageRuns.length).toBeGreaterThan(0);
+      // Every LOOK the stream names is one of the two kinds, so the partition covers every look.
+      const unknownLooks = starts.flatMap((s) =>
+        (s.defense?.tags ?? [])
+          .filter((tag) => tag.kind === "LOOK")
+          .map((tag) => String(tag.id))
+          .filter((id) => !COVERAGE_LOOK_IDS.has(id) && !FRONT_LOOK_IDS.has(id)),
+      );
+      expect(unknownLooks).toEqual([]);
+      // The front look's split, against the stream's own count by look.
+      const byLook: Record<string, number> = {};
+      for (const s of frontPasses) {
+        for (const tag of s.defense?.tags ?? []) {
+          if (tag.kind === "LOOK" && FRONT_LOOK_IDS.has(String(tag.id))) byLook[String(tag.id)] = (byLook[String(tag.id)] ?? 0) + 1;
+        }
+      }
+      expect(p.frontLookDropbacksByLook).toEqual(byLook);
+      if (mustWearFront) expect(p.frontLookDropbacks, "caller v7 wore no front look on a dropback").toBeGreaterThan(0);
+    },
+  );
+
+  /**
+   * ADR-073 step 3.5 — the fold's front-look diff, by hand-made PLAY_STARTs. One real dropback of a
+   * v4 game, named (which wears no front look whatever the default is), is edited, one field at a
+   * time, and the fold is compared with the unedited one: `front_look_rate`'s comparison is
+   * `shownRushDiffers`, entry by entry, `move` never read and an omitted side or gap no difference;
+   * the key is the front LOOK tag, never a coverage one; and a front LOOK tag never joins the
+   * coverage key.
+   */
+  describe("the front-look diff, edit by edit", () => {
+    // Named, not the default: the default moves to v7, which wears front looks (dry run D, 2026-10-22).
+    const honest = v4Games[0]!;
+    const base = collectGames([honest]).play;
+    type Payload = {
+      kind?: unknown;
+      defense: {
+        rush: Record<string, unknown>[];
+        shownRush?: Record<string, unknown>[];
+        tags: { kind: string; id: string; name?: string }[];
+        assignments?: unknown;
+        shownAssignments?: unknown;
+      };
+    };
+    /** The first dropback with a rusher and, when asked, a coverage look worn; edited in a deep copy. */
+    function edited(edit: (payload: Payload) => void, coverageLooked = false) {
+      const copy = structuredClone(honest);
+      const target = copy.events.find((e) => {
+        if (e.event.type !== "PLAY_START") return false;
+        const payload = e.event.payload as Payload;
+        if (payload.kind !== "PASS_PLAY_V1" || payload.defense.rush.length === 0) return false;
+        return !coverageLooked || payload.defense.tags.some((t) => t.kind === "LOOK" && COVERAGE_LOOK_IDS.has(t.id));
+      });
+      if (target === undefined) throw new Error("no dropback to edit");
+      edit(target.event.payload as Payload);
+      return collectGames([copy]).play;
+    }
+    /** Shows the man in another gap; the corpus authors a gap on every rusher (gapCarryAcross). */
+    const flipGap = (shown: Record<string, unknown>): void => {
+      if (shown["gap"] === undefined) throw new Error("the corpus rusher states no gap");
+      shown["gap"] = shown["gap"] === "A" ? "B" : "A";
+    };
+    const firstShown = (payload: Payload): Record<string, unknown> => {
+      const shown = payload.defense.shownRush?.[0];
+      if (shown === undefined) throw new Error("the dropback shows no rusher");
+      return shown;
+    };
+
+    it("the unedited v4 game wears no front look", () => {
+      expect(base.frontLookDropbacks).toBe(0);
+      expect(base.frontLookDropbacksByLook).toEqual({});
+    });
+
+    it("counts a gap shown elsewhere, and keys it by the front LOOK tag the call names", () => {
+      const unnamed = edited((payload) => {
+        const shown = firstShown(payload);
+        flipGap(shown);
+      });
+      expect(unnamed.frontLookDropbacks).toBe(1);
+      expect(unnamed.frontLookDropbacksByLook).toEqual({ UNNAMED: 1 });
+      const named = edited((payload) => {
+        const shown = firstShown(payload);
+        flipGap(shown);
+        payload.defense.tags.push({ kind: "LOOK", id: "STEM", name: "Stem" });
+      });
+      expect(named.frontLookDropbacks).toBe(1);
+      expect(named.frontLookDropbacksByLook).toEqual({ STEM: 1 });
+      // A front look changes no coverage duty, so the coverage diff and its key are untouched.
+      expect(named.disguisedDropbacks).toBe(base.disguisedDropbacks);
+      expect(named.disguisedDropbacksByMask).toEqual(base.disguisedDropbacksByMask);
+    });
+
+    it("counts a man shown rushing who is not in the played rush, a side or an alignment shown elsewhere", () => {
+      const ghost = edited((payload) => {
+        payload.defense.shownRush = [...(payload.defense.shownRush ?? []), { rusher: "ghost", alignment: "INTERIOR", side: "LEFT", gap: "A" }];
+        payload.defense.tags.push({ kind: "LOOK", id: "MUG", name: "Mug" });
+      });
+      expect(ghost.frontLookDropbacksByLook).toEqual({ MUG: 1 });
+      const side = edited((payload) => {
+        const shown = firstShown(payload);
+        if (shown["side"] === undefined) throw new Error("the corpus rusher states no side");
+        shown["side"] = shown["side"] === "LEFT" ? "RIGHT" : "LEFT";
+      });
+      expect(side.frontLookDropbacks).toBe(1);
+      const alignment = edited((payload) => {
+        const shown = firstShown(payload);
+        shown["alignment"] = shown["alignment"] === "EDGE" ? "INTERIOR" : "EDGE";
+      });
+      expect(alignment.frontLookDropbacks).toBe(1);
+    });
+
+    it("does not count a difference in move alone, or a side or gap stated on one list and omitted on the other", () => {
+      const move = edited((payload) => {
+        const played = payload.defense.rush[0]!;
+        played["move"] = played["move"] === "SPEED" ? "POWER" : "SPEED";
+      });
+      expect(move.frontLookDropbacks).toBe(0);
+      const omitted = edited((payload) => {
+        const shown = firstShown(payload);
+        delete shown["side"];
+        delete shown["gap"];
+      });
+      expect(omitted.frontLookDropbacks).toBe(0);
+    });
+
+    it("counts nothing on a PLAY_START that carries no shown rush (a stream stored before ADR-073 step 3.1)", () => {
+      const absent = edited((payload) => {
+        const shown = firstShown(payload);
+        flipGap(shown);
+        delete payload.defense.shownRush;
+      });
+      expect(absent.frontLookDropbacks).toBe(0);
+    });
+
+    it("keys a coverage disguise by its coverage look alone when the call also names a front look", () => {
+      const both = edited((payload) => {
+        payload.defense.tags.push({ kind: "LOOK", id: "MUG", name: "Mug" });
+      }, true);
+      expect(both.disguisedDropbacks).toBe(base.disguisedDropbacks);
+      expect(both.disguisedDropbacksByMask).toEqual(base.disguisedDropbacksByMask);
+      // The tag alone, with the shown rush unchanged, is no front-look dropback: the count is a diff.
+      expect(both.frontLookDropbacks).toBe(0);
+    });
+  });
+
+  /**
+   * The fold's front-look counters merge like every other counter, and the two sim-only rows read
+   * them: `front_look_rate` is front-look dropbacks ÷ dropbacks, and `front_look_mix` their split.
+   */
+  it("merges the front-look counters, and front_look_rate and front_look_mix read them", () => {
+    // Each game folded on its own, then merged, against the two folded in turn: the merge sums both
+    // counters, key by key, and agrees with the sequential fold.
+    const [first, second] = v7Games.map((one) => foldGame(emptyAccumulator(), one).play);
+    const merged = mergeAccumulators(foldGame(emptyAccumulator(), v7Games[0]!), foldGame(emptyAccumulator(), v7Games[1]!)).play;
+    expect(first!.frontLookDropbacks, "the first v7 game wore no front look on a dropback").toBeGreaterThan(0);
+    expect(second!.frontLookDropbacks, "the second v7 game wore no front look on a dropback").toBeGreaterThan(0);
+    expect(merged.frontLookDropbacks).toBe(first!.frontLookDropbacks + second!.frontLookDropbacks);
+    for (const id of FRONT_LOOKS) {
+      expect(merged.frontLookDropbacksByLook[id] ?? 0).toBe(
+        (first!.frontLookDropbacksByLook[id] ?? 0) + (second!.frontLookDropbacksByLook[id] ?? 0),
+      );
+    }
+    expect(merged.frontLookDropbacks).toBe(v7Acc.play.frontLookDropbacks);
+    expect(merged.frontLookDropbacksByLook).toEqual(v7Acc.play.frontLookDropbacksByLook);
+    const context = { accumulator: v7Acc, provenance: "FLAT_SYNTHETIC" } as const;
+    const rate = getMetric("front_look_rate").computeFromEvents(context);
+    if (isInapplicable(rate)) throw new Error("front_look_rate computed nothing on caller v7");
+    expect(sampleSize(rate)).toBe(v7Acc.play.dropbacks);
+    expect(pointEstimate(rate)).toBeCloseTo(v7Acc.play.frontLookDropbacks / v7Acc.play.dropbacks, 12);
+    const mix = getMetric("front_look_mix").computeFromEvents(context);
+    if (isInapplicable(mix)) throw new Error("front_look_mix computed nothing on caller v7");
+    expect(mix).toEqual({ kind: "CATEGORICAL", counts: v7Acc.play.frontLookDropbacksByLook });
+    // On a v4 game, named, which wears no front look, the mix has nothing to split.
+    const none = getMetric("front_look_mix").computeFromEvents({ accumulator: collectGames(v4Games), provenance: "FLAT_SYNTHETIC" });
+    expect(isInapplicable(none)).toBe(true);
+  });
+
+  /** Iron Rule 4: the same seed gives the same front-look counts. */
+  it("folds the same v7 seed to the same front-look counts", () => {
+    const again = collectGames([game("fold-v7-1", "v7"), game("fold-v7-2", "v7")]);
+    expect(again.play.frontLookDropbacks).toBe(v7Acc.play.frontLookDropbacks);
+    expect(again.play.frontLookDropbacksByLook).toEqual(v7Acc.play.frontLookDropbacksByLook);
   });
 });
 
@@ -828,7 +1125,14 @@ describe("Tier 1 real-side computations", () => {
     // The two sim-only rows are absent on the real side FOREVER, not pending a load option, and
     // they say which — a reader who sees "no data" and reaches for the blitz rate is exactly the
     // failure `absence.ts` exists to prevent, so the refusal is written into the detail.
-    for (const id of ["hot_route_rate", "unaccounted_rusher_rate", "disguise_rate", "disguise_mask_mix"]) {
+    for (const id of [
+      "hot_route_rate",
+      "unaccounted_rusher_rate",
+      "disguise_rate",
+      "disguise_mask_mix",
+      "front_look_rate",
+      "front_look_mix",
+    ]) {
       const outcome = getMetric(id).computeFromReal(bare);
       expect(isInapplicable(outcome)).toBe(true);
       if (isInapplicable(outcome)) expect(outcome.detail.length).toBeGreaterThan(40);

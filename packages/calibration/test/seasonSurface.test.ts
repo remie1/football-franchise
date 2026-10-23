@@ -1,7 +1,7 @@
 /**
  * ADR-078 R1: calibration may import from `@ff/franchise` only the named surface.
  * Any other name is a new exception, which needs its own ADR. Amendment 1 (2026-10-21, save and load)
- * added `makeSave` and `readSave`.
+ * added `makeSave` and `readSave`; amendment 2 (2026-10-23, saves keep the coaching staff) `buildStaff`.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -11,6 +11,8 @@ const PERMITTED = new Set([
   "buildLeague", "League", "buildSchedule", "computeStandings", "seedPlayoffs", "runSeason", "GameResolver", "SeasonRun",
   // Save and load (R1 amendment 1, 2026-10-21).
   "makeSave", "readSave",
+  // Saves keep the coaching staff (R1 amendment 2, 2026-10-23).
+  "buildStaff",
 ]);
 
 function files(dir: string): string[] {

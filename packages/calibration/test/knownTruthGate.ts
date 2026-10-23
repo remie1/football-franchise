@@ -42,6 +42,9 @@
  * takes an id and derives the filename from it rather than the other way round.
  */
 import { describe, expect, it } from "vitest";
+import { DEFAULT_CALLER_VERSION } from "../src/caller/anticipate.js";
+import { callerIdentity } from "../src/caller/frozen.js";
+import { FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { failuresOf, runLadder } from "../src/knownTruth/assertions.js";
 import { scenarioById } from "../src/knownTruth/scenarios.js";
 
@@ -86,6 +89,12 @@ export function gateFor(scenarioId: string): void {
         ).toBe(true);
         expect(a.rungs.map((r) => r.measured)).toEqual(b.rungs.map((r) => r.measured));
         expect(a.rungs.map((r) => r.seedDigest)).toEqual(b.rungs.map((r) => r.seedDigest));
+        // …and the report says which caller to reproduce it with (ADR-073 step 3.5): the one each
+        // rung's batch resolved and recorded, which with no caller named is the default as it
+        // stands, so a red gate after the default moves names the caller that went red.
+        const caller = callerIdentity(DEFAULT_CALLER_VERSION, FROZEN_TENDENCIES.version);
+        expect(a.rungs.map((r) => r.callerVersion)).toEqual(a.rungs.map(() => caller));
+        expect(a.report).toContain(`caller "${caller}"`);
       },
       600_000,
     );

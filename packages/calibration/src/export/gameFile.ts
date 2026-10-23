@@ -14,7 +14,7 @@
  */
 import type { MatchEventEnvelope } from "@ff/contracts";
 import type { StatLine } from "@ff/engine";
-import type { CallerVersion } from "../caller/anticipate.js";
+import { DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../caller/frozenTendencies.js";
 import { runOneGame } from "../harness/runGame.js";
 import { buildFixture, buildFixtures } from "../harness/schedule.js";
@@ -40,7 +40,13 @@ export interface GameFile {
   readonly seed: string;
   /** Which league and caller played it, so a file can be re-made exactly. */
   readonly league: "flat";
-  readonly callerVersion: CallerVersion | "default";
+  /**
+   * The caller version that played, resolved: an export that names none records
+   * `DEFAULT_CALLER_VERSION` as it stood when the file was made, never the word "default". So the
+   * file still says which caller played it after the default moves (ADR-073 step 3.5), and
+   * `exportGame({ seed, callerVersion })` read back off the file re-makes it byte for byte.
+   */
+  readonly callerVersion: CallerVersion;
   readonly home: GameFileTeam;
   readonly away: GameFileTeam;
   readonly players: Readonly<Record<string, GameFilePlayer>>;
@@ -65,12 +71,15 @@ export function exportGame(input: ExportGameInput): GameFile {
     season: 2024,
   });
   const built = buildFixture(index, fixture!);
+  // Resolved once, as `runBatch` resolves it, and both played and stamped: the file names the
+  // version that played by construction, not by a second reading of the default.
+  const callerVersion = input.callerVersion ?? DEFAULT_CALLER_VERSION;
   const { observation } = runOneGame({
     built,
     seed: input.seed,
     tendencies: FROZEN_TENDENCIES,
     fourthDown: FROZEN_FOURTH_DOWN,
-    ...(input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }),
+    callerVersion,
   });
 
   const teamOf = (id: string): GameFileTeam => {
@@ -90,7 +99,7 @@ export function exportGame(input: ExportGameInput): GameFile {
     format: GAME_FILE_FORMAT,
     seed: input.seed,
     league: "flat",
-    callerVersion: input.callerVersion ?? "default",
+    callerVersion,
     home: teamOf(String(homeId)),
     away: teamOf(String(awayId)),
     players,

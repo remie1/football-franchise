@@ -446,8 +446,10 @@ export interface PassPlayStartPayload {
      * play; `PRESNAP_READ` fires only when a read is rolled, and is a roll,
      * which a state must not ride inside.
      *
-     * ⚠ IDENTICAL TO `assignments` UNLESS THE CALL WORE A LOOK (ADR-069,
-     * ADR-071) — and then different in exactly the men the look moved.
+     * ⚠ IDENTICAL TO `assignments` UNLESS THE CALL WORE A COVERAGE LOOK (ADR-069,
+     * ADR-071) — and then different in exactly the men the look moved. A front
+     * look (Stem, Mug; ADR-073 step 3.5) lies about the rush, not the coverage:
+     * it leaves this list as it was and shows its lie in `shownRush` below.
      * Calibration's `shownAssignmentsStream` test runs the corpus to show it,
      * not to assume it.
      */
@@ -461,10 +463,12 @@ export interface PassPlayStartPayload {
      * NAMES, NOT A VERDICT, so a LOOK here is not the `wasDisguised` flag the
      * comment above forbids. Nothing reads them to decide a divergence: the
      * coverage read diffs the two lists, and so does calibration's
-     * `disguise_rate`. What they are for is printing the call and splitting a
-     * rate by tag — and `shownAssignmentsStream` checks every LOOK against the
-     * diff on every play, so a look that showed nothing, or a divergence
-     * nobody named, fails.
+     * `disguise_rate`; the pressure read compares `shownRush` with `rush` by
+     * value (ADR-073 §2.2). What they are for is printing the call and splitting
+     * a rate by tag — and `shownAssignmentsStream` checks every coverage LOOK
+     * against the diff on every play, so a coverage look that showed nothing, or
+     * a divergence nobody named, fails. A front LOOK (Stem, Mug; ADR-073 step
+     * 3.5) shows nothing in that diff: its lie is in `shownRush`.
      */
     readonly tags: readonly DefensiveTag[];
     /**
@@ -476,11 +480,13 @@ export interface PassPlayStartPayload {
     /**
      * ADR-073 — what the offence SAW of the rush, beside `rush`, which was played:
      * the call's `shownRush` with alignment resolved as `rush`'s is, side and gap
-     * carried, no move. Both states and no verdict, as `shownAssignments`. The same
-     * men in the same order as `rush` unless the call wore a front look (step 3.5);
-     * until then the two agree field for field, `move` aside. The pressure read judges
-     * the offence's picture against it (ADR-073 §2.2, from step 3.2b); physics never
-     * reads it.
+     * carried, no move. Both states and no verdict, as `shownAssignments`. Unless the
+     * call wore a front look (Stem, Mug; ADR-073 step 3.5), the same men in the same
+     * order as `rush`, agreeing field for field, `move` aside. A front look shows a
+     * second list: a Stem shows the rushing down linemen one spot over, and a Mug
+     * shows its walked-up backers in the A gaps and lists, after the played men, the
+     * men shown rushing who drop. The pressure read judges the offence's picture
+     * against it (ADR-073 §2.2, from step 3.2b); physics never reads it.
      */
     readonly shownRush: readonly ResolvedShownRusher[];
     /**

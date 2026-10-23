@@ -62,12 +62,13 @@ export interface BatchConfig {
     readonly tendencies: FittedTendencies;
     readonly fourthDown: FittedFourthDown;
     /**
-     * ADR-024. Defaults to `DEFAULT_CALLER_VERSION` (v4); `v1` is the informed caller every batch
+     * ADR-024. Defaults to `DEFAULT_CALLER_VERSION` (v7); `v1` is the informed caller every batch
      * before ADR-024 ran, and each later version is listed at `CallerVersion`. Recorded into
      * `callerVersion`, which is part of `BaselineIdentity`, so reports from two versions are
      * refused as trend partners rather than compared. A batch carries no knobs (v5's and v6's
-     * `slideCheck`, `keepIn`, `creeper`, `drawPressures`, `drawLines`): those are for measurement
-     * arms, which run games one by one, so a batch's caller is always its version as it ships.
+     * `slideCheck`, `keepIn`, `creeper`, `drawPressures`, `drawLines`, and v7's `frontLooks`): those
+     * are for measurement arms, which run games one by one, so a batch's caller is always its
+     * version as it ships.
      */
     readonly callerVersion?: CallerVersion;
   };
@@ -153,6 +154,13 @@ export function mergeCallerDiagnostics(
 ): FrozenCallerDiagnostics {
   const backoff: Record<string, number> = { ...a.backoff };
   for (const [k, v] of Object.entries(b.backoff)) backoff[k] = (backoff[k] ?? 0) + v;
+  // ADR-073 step 3.5: the front looks drawn, summed with a sorted key order, as `mergeDrawQuality`'s
+  // counters are, so the order the worker pool's results arrive in cannot change the OUTPUT.
+  const drawn: Record<string, number> = {};
+  const looks = [...new Set([...Object.keys(a.frontLooks.drawn), ...Object.keys(b.frontLooks.drawn)])];
+  for (const k of looks.sort((x, y) => x.localeCompare(y))) {
+    drawn[k] = (a.frontLooks.drawn[k] ?? 0) + (b.frontLooks.drawn[k] ?? 0);
+  }
   return {
     offensiveCalls: a.offensiveCalls + b.offensiveCalls,
     defensiveCalls: a.defensiveCalls + b.defensiveCalls,
@@ -164,6 +172,7 @@ export function mergeCallerDiagnostics(
     fourthDownFieldGoal: a.fourthDownFieldGoal + b.fourthDownFieldGoal,
     backoff,
     draw: mergeDrawQuality(a.draw, b.draw),
+    frontLooks: { drawn, formationDropped: a.frontLooks.formationDropped + b.frontLooks.formationDropped },
   };
 }
 
@@ -179,6 +188,7 @@ export function blankCallerDiagnostics(): FrozenCallerDiagnostics {
     fourthDownFieldGoal: 0,
     backoff: {},
     draw: blankDrawQuality(),
+    frontLooks: { drawn: {}, formationDropped: 0 },
   };
 }
 

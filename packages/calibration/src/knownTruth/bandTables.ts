@@ -178,6 +178,8 @@ import {
   type OrderViolation,
   type Tunables,
 } from "@ff/engine";
+import { DEFAULT_CALLER_VERSION } from "../caller/anticipate.js";
+import { callerIdentity } from "../caller/frozen.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../caller/frozenTendencies.js";
 import { stableDigest } from "../harness/digest.js";
 import { runOneGame } from "../harness/runGame.js";
@@ -229,6 +231,12 @@ export interface CorpusObservation {
   readonly events: number;
   readonly games: number;
   readonly seedDigest: string;
+  /**
+   * The caller every game played, named as `runBatch` names it in `provenance.callerVersion`
+   * (e.g. `v4/v1`). The corpus runs games one by one, not as a batch, so it resolves the version
+   * the way `runBatch` does, passes it to every game and records it (ADR-073 step 3.5).
+   */
+  readonly callerVersion: string;
   /** `${checkKind}\u0000${band}` → count. Empty unless `countBands` was set. */
   readonly bandCounts: ReadonlyMap<string, number>;
 }
@@ -399,6 +407,7 @@ export function runCorpus(
     );
   }
   const seeds = generateSeeds(corpus.batchSeed, fixtures.length);
+  const callerVersion = DEFAULT_CALLER_VERSION;
   const bandCounts = new Map<string, number>();
   const h: Fnv = { a: 0x811c9dc5, b: 0x811c9dc5 };
   let plays = 0;
@@ -415,6 +424,7 @@ export function runCorpus(
       tendencies: FROZEN_TENDENCIES,
       fourthDown: FROZEN_FOURTH_DOWN,
       tunables,
+      callerVersion,
     });
     used.push(seed);
     const stream: readonly MatchEventEnvelope[] = output.observation.events;
@@ -444,6 +454,7 @@ export function runCorpus(
     events,
     games: used.length,
     seedDigest: digestSeeds(used),
+    callerVersion: callerIdentity(callerVersion, FROZEN_TENDENCIES.version),
     bandCounts,
   };
 }
@@ -1370,8 +1381,8 @@ export function renderBandGate(result: BandGateResult): string {
   say();
   say(
     `corpus: ${String(result.baseline.games)} games · flat-60 ${String(result.corpus.teams)}t ` +
-      `(FLAT_SYNTHETIC) · SYNTHETIC_ROUND_ROBIN ${String(result.corpus.season)} · caller v2 + ` +
-      `FROZEN_TENDENCIES/FROZEN_FOURTH_DOWN`,
+      `(FLAT_SYNTHETIC) · SYNTHETIC_ROUND_ROBIN ${String(result.corpus.season)} · caller ` +
+      `${result.baseline.callerVersion} + FROZEN_TENDENCIES/FROZEN_FOURTH_DOWN`,
   );
   say(
     `batch seed \`${result.corpus.batchSeed}\` · seed digest \`${result.baseline.seedDigest}\` · ` +

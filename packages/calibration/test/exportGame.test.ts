@@ -8,11 +8,15 @@
  *     the viewer never has to show a bare id.
  *  4. THE COMMAND LINE. Arguments parse, bad ones are refused, and a run writes the game and the
  *     folder's index.
+ *  5. IT NAMES ITS CALLER (ADR-073 step 3.5). The file records the caller version that played,
+ *     resolved, never "default", so the seed and the version read back off the file re-make it
+ *     byte for byte after the default moves.
  */
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { DEFAULT_CALLER_VERSION } from "../src/caller/anticipate.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { gameFileName, parseExportArgs, runExport } from "../src/export/cli.js";
 import { exportGame, GAME_FILE_FORMAT } from "../src/export/gameFile.js";
@@ -47,9 +51,27 @@ describe("exportGame", () => {
   it("is a whole game: starts, ends, and says how it was made", () => {
     expect(game.format).toBe(GAME_FILE_FORMAT);
     expect(game.seed).toBe(SEED);
-    expect(game.callerVersion).toBe("default");
+    expect(game.callerVersion).toBe(DEFAULT_CALLER_VERSION);
     expect(game.events[0]!.event.type).toBe("GAME_START");
     expect(game.events.at(-1)!.event.type).toBe("GAME_END");
+  });
+
+  it("stamps the caller that played, and the stamp re-makes the file (ADR-073 step 3.5)", () => {
+    // No caller named: the file says the default as it stands, and naming that version makes the
+    // same file, byte for byte. So the stamp is the caller that played, not a word for "whatever
+    // the default is", and the file can be re-made from its own fields after the default moves.
+    expect(game.callerVersion).not.toBe("default");
+    expect(JSON.stringify(exportGame({ seed: game.seed, callerVersion: game.callerVersion }))).toBe(
+      JSON.stringify(game),
+    );
+    // Named: stamped as named, re-made from its own fields, and another game than the default's,
+    // so the stamp is what tells the two files apart.
+    const named = exportGame({ seed: SEED, callerVersion: "v1" });
+    expect(named.callerVersion).toBe("v1");
+    expect(JSON.stringify(exportGame({ seed: named.seed, callerVersion: named.callerVersion }))).toBe(
+      JSON.stringify(named),
+    );
+    expect(JSON.stringify(named.events)).not.toBe(JSON.stringify(game.events));
   });
 
   it("names every team and every player the stream or the box score mentions", () => {
