@@ -3,7 +3,7 @@
 - **Date:** 2026-10-23
 - **Proposed by:** Orchestrator, for `attributes` (thread "Real-player stand-in league"; plan
   `/mnt/project-files/design/standin-league-plan.md`)
-- **Status:** approved (Q1-Q10, owner, 2026-10-23); contracts edits S1-S3 proposed, not approved
+- **Status:** approved (Q1-Q10, owner, 2026-10-23); contracts edit S3 proposed, not approved (S1, S2 and the practice squad are other ADRs' edits)
 
 ## Problem
 
@@ -97,11 +97,12 @@ downstream reads today.
 
 ### Contracts edits proposed (each needs the owner's typed yes)
 
-- **S1** — `PlayerBio.creditedSeasons?: number`: the same field as ADR-085 K5. One edit, whichever
-  thread lands it first.
-- **S2** — `PlayerBio.combine?`: the same field as ADR-086/087 P2. One edit, shared.
-- **S3** — roster status: `Team.reserve?: PlayerId[]` and `Team.practiceSquad?: PlayerId[]`, so
-  injured and practice-squad players live on the team without being in `roster`.
+- **S1** — `PlayerBio.creditedSeasons?: number`: covered by ADR-085 K5 (approved 2026-10-23,
+  built on the cap thread's branch). Not asked for here.
+- **S2** — `PlayerBio.combine?`: covered by ADR-087 P2 (the aging thread's ask). Not asked for here.
+- **S3** — `Team.reserve?: PlayerId[]`, so players on injured reserve and the other reserve lists
+  live on the team without being in `roster`. The practice-squad half is ADR-086 C4 (approved
+  2026-10-23); this importer fills that field once it lands.
 
 ## What is built (2026-10-23, draft PR #32)
 
