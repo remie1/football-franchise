@@ -73,7 +73,7 @@ Agreed with the aging thread (ADR-087): one loop. `runSeason`'s day walk (`throu
 the offseason, and each offseason step hooks into it on its date; ADR-087's weekly development step
 runs inside the same walk, exactly once per calendar week, so this ADR never calls it.
 
-A new season begins: every player a year older; players, contracts, injuries, practice squads and
+A new season begins: every player a year older; `PlayerBio.creditedSeasons` goes up by one for each player the cap thread's `earnsCreditedSeason(gamesOnFullPayStatus)` says earned it (games on a 53-man roster until injured reserve exists; ADR-085 K5); players, contracts, injuries, practice squads and
 pick ownership carry over. Nobody retires yet (ADR-087: retirement waits for player personality);
 players leave only by being cut and staying unsigned. Whether an unsigned player eventually leaves
 the league is ADR-087's open question F2; nothing here builds on it until the owner rules.
