@@ -3,7 +3,7 @@
 - **Date:** 2026-10-23
 - **Proposed by:** Orchestrator, for `franchise` (order, picks, boards, rosters, the turnover) and
   `attributes` (the draft class) (thread "Player draft"; plan `/mnt/project-files/design/draft-plan.md`)
-- **Status:** design ruled by the owner (Q1-Q9; N2, N3 on 2026-10-23); N1 being confirmed (§11).
+- **Status:** design ruled by the owner (Q1-Q9, N1-N3, 2026-10-23).
   Contracts edits C1-C7 and rule change R1 proposed, **not approved**. Nothing built.
 
 > Phase note: Charter §6 places franchise at Phase 4. As with the season shell (ADR-078), the owner
@@ -197,8 +197,8 @@ Exact wording for the owner's yes: `/mnt/project-files/design/ADR-086-contracts-
 
 ## 11. Open questions for the owner
 
-- **N1. Special compensatory picks for minority hires (JC-2A).** Owner answered "Yes"
-  2026-10-23; being confirmed whether that means include now or leave out for now (card in thread).
+- **N1. Special compensatory picks for minority hires (JC-2A): RULED leave out for now**, 2026-10-23
+  (card). Revisited with the real-coach importer; `SPECIAL_COMPENSATORY` stays in C1's kinds.
 - **N2. Traded picks with conditions: RULED (a)**, 2026-10-23. The condition is carried with the pick
   and settled from the game's own season (playing time, playoff finish, pick swaps). The owner added
   that the trading system must allow such conditions.
