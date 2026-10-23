@@ -139,6 +139,17 @@ except name and likeness), from free data only:
 Because §4's curves set every veteran's starting speed, they are tuned in D5 before stand-ins are
 built.
 
+Where these come from in the stand-in league file (PR #32, `packages/attributes/leagues/standin-2026-10-23.json`,
+as of 7d4024c): age and listed weight in the bio; credited seasons in `provenance.creditedSeasons`;
+combine drills in `provenance.measurements`, with drills he never ran filled by his position's
+average and listed in `provenance.ratings[id].imputed` (those are aged as averages, not as his own
+numbers); career snaps, games played over the last five seasons, reserve status and his latest
+2026 injury in `provenance.history[playerId]`. Known gaps: snaps before 2012 are missing, so older
+veterans' career snaps run low; "games missed" counts healthy scratches as missed, so durability
+reads only the games missed while on an injury report or a reserve list; a player on a reserve list
+starts out with a length drawn from the reserve type (IR, PUP, NFI, designated to return), and his
+latest injury report sets the body part where it is recent enough not to have healed.
+
 **Made-up players** (the generator and the draft thread's prospects): growth rate drawn; career
 snaps 0 for rookies, from age for generated veterans; body from the measurements the generator
 already draws.
