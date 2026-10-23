@@ -71,6 +71,25 @@ Where the starting values come from:
 - **Drafted rookies**: the draft thread's prospects carry age and ceiling; this ADR does the rest.
   Scouts see a blurred ceiling (perception), never the true one.
 
+### 2.1a When the league is real players under other names
+
+The owner ruled in the cap thread (2026-10-23, ADR-085) that the league's players and coaches are
+to be stand-ins for the real current NFL ones, copied in every way except name and likeness. Then
+the starting values come from the real importer (`attributes.md` §5, Iron Rule 7), not the
+generator, using free data only:
+- **age**: the real player's age;
+- **measurements**: his real combine or pro-day numbers (nflverse), aged forward to today by this
+  ADR's own curves, so the curve and the starting point agree;
+- **current talent**: his ratings as the importer derives them;
+- **ceiling**: estimated, since no one knows it: from age, draft slot and the trend of his recent
+  seasons (a 23-year-old whose snaps and production rose sharply gets a ceiling well above his
+  current level; a 29-year-old's ceiling is about where he is);
+- **durability and injury status**: from his real games missed and injury reports over recent
+  seasons, and a player hurt in real life when the league starts starts the game hurt.
+
+The generator path stays for made-up leagues and tests. Nothing in the design changes; only
+where the first values come from.
+
 ### 2.2 What speeds it up or slows it down (Q3, Q4)
 
 - **Playing time** (Q3): a starter grows a little faster than a player who sat all year.
