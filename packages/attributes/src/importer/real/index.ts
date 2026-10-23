@@ -10,5 +10,6 @@ export * from "./rate.js";
 export * from "./signals.js";
 export * from "./tracking.js";
 export * from "./league.js";
+export * from "./contracts.js";
 export type { RosterRow, PlayerRow, CombineRow, DepthRow, ContractRow, SnapRow } from "./rows.js";
 export { loadSnapshotRows, loadTrackingRows } from "./rows.js";

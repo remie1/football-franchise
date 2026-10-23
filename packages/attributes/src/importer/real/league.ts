@@ -2,7 +2,9 @@
  * The whole importer, rows to league (ADR-088): stand-ins (R2), then their ratings (R3).
  * Pure: the command (`main.ts`) does the reading and writing.
  */
-import type { RatedLeague, Team } from "@ff/contracts";
+import { playerId, type RatedLeague, type Team } from "@ff/contracts";
+import { buildContracts, type StandInContract } from "./contracts.js";
+import { REAL_TEAM_SLOTS } from "./positions.js";
 import { rateStandIns, type RatingProvenance } from "./rate.js";
 import type { ContractRow, PlayerRow, SnapRow } from "./rows.js";
 import { buildSignals } from "./signals.js";
@@ -19,9 +21,15 @@ export interface RealLeagueInput extends StandInInput {
 export interface RealLeagueProvenance extends RealProvenance {
   readonly seed: string;
   readonly ratings: Readonly<Record<string, RatingProvenance & { readonly measures: readonly string[] }>>;
+  /** Stand-ins with no current deal in the contract file. */
+  readonly noContract: readonly string[];
 }
 
-export function buildRealLeague(input: RealLeagueInput): { league: RatedLeague & { provenance: RealLeagueProvenance }; sealed: SealedTable } {
+export function buildRealLeague(input: RealLeagueInput): {
+  league: RatedLeague & { provenance: RealLeagueProvenance };
+  contracts: StandInContract[];
+  sealed: SealedTable;
+} {
   const s = buildStandIns(input);
   const position = new Map(s.players.map((p) => [String(p.bio.id), p.bio.position]));
   const realIds = realIdsOf(s.sealed, input.rosters, input.players);
@@ -40,8 +48,22 @@ export function buildRealLeague(input: RealLeagueInput): { league: RatedLeague &
   });
   const ratings = Object.fromEntries(Object.entries(rated.ratings).map(([id, r]) => [id, { ...r, measures: tracked.get(id)?.measures ?? [] }]));
   const teams: Team[] = s.teams;
+  const slot = new Map(input.teams.map((t, i) => [String(t.id), REAL_TEAM_SLOTS[i]!]));
+  const owner = new Map(s.players.map((p) => [String(p.bio.id), p.teamId!]));
+  const deals = buildContracts({
+    season: input.season,
+    contracts: input.contracts,
+    players: new Map(Object.entries(s.sealed).filter(([, x]) => owner.has(x.id)).map(([gsis, x]) => {
+      const team = owner.get(x.id)!;
+      return [gsis, { id: playerId(x.id), team, code: slot.get(String(team))! }];
+    })),
+  });
   return {
-    league: { teams, players: rated.players, provenance: { ...s.provenance, seed: input.seed, ratings }, coverage: null },
+    league: {
+      teams, players: rated.players, coverage: null,
+      provenance: { ...s.provenance, seed: input.seed, ratings, noContract: deals.missing },
+    },
+    contracts: deals.contracts,
     sealed: s.sealed,
   };
 }

@@ -3,6 +3,7 @@
  * Field names are nflverse's.
  */
 import { readRows } from "./snapshot.js";
+import type { ContractHistoryRow } from "./contracts.js";
 import type { TrackingRow, TrackingSource } from "./tracking.js";
 
 export interface RosterRow {
@@ -53,10 +54,7 @@ export interface DepthRow {
   readonly pos_rank: number;
 }
 
-export interface ContractRow {
-  readonly gsis_id: string | null;
-  readonly is_active: boolean;
-  readonly year_signed: number | null;
+export interface ContractRow extends ContractHistoryRow {
   readonly apy_cap_pct: number | null;
 }
 
@@ -78,7 +76,8 @@ export async function loadSnapshotRows(dir: string) {
     readRows<PlayerRow>(dir, "players", cols<PlayerRow>("gsis_id", "pfr_id", "birth_date", "draft_year", "draft_round", "draft_pick", "display_name")),
     readRows<CombineRow>(dir, "combine", cols<CombineRow>("pfr_id", "ht", "wt", "forty", "bench", "vertical", "cone")),
     readRows<DepthRow>(dir, "depth", cols<DepthRow>("dt", "team", "gsis_id", "pos_abb", "pos_rank")),
-    readRows<ContractRow>(dir, "contracts", cols<ContractRow>("gsis_id", "is_active", "year_signed", "apy_cap_pct")),
+    readRows<ContractRow>(dir, "contracts", cols<ContractRow>(
+      "gsis_id", "is_active", "year_signed", "years", "apy", "apy_cap_pct", "draft_year", "season_history")),
     readRows<SnapRow>(dir, "snaps", cols<SnapRow>("pfr_player_id", "game_type", "offense_pct", "defense_pct", "st_pct")),
   ]);
   return { rosters, players, combine, depth, contracts, snaps };

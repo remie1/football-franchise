@@ -50,7 +50,7 @@ async function main(argv: readonly string[]) {
 
   const out = opt("--out") ?? `leagues/standin-${manifest.date}.json`;
   mkdirSync(dirname(out), { recursive: true });
-  const file = { format: LEAGUE_FILE_FORMAT, season, snapshotDate: manifest.date, league: built.league };
+  const file = { format: LEAGUE_FILE_FORMAT, season, snapshotDate: manifest.date, league: built.league, contracts: built.contracts };
   writeFileSync(out, JSON.stringify(file, (_k, v) => (v instanceof Set ? [...v] : v)) + "\n");
   writeFileSync(sealedPath, JSON.stringify(built.sealed, null, 1) + "\n");
 
@@ -58,6 +58,8 @@ async function main(argv: readonly string[]) {
   const per = built.league.teams.map((t) => t.roster.length);
   console.log(`stand-in league ${manifest.date}: ${built.league.players.length} players, ${Math.min(...per)}-${Math.max(...per)} active per team`);
   console.log(`  ratings: ${r.filter((x) => x.measures.length > 0).length} with tracking data, ${r.filter((x) => x.skill === "guess").length} guesses; ${r.filter((x) => x.imputed.length > 0).length} missing a combine drill`);
+  const est = built.contracts.filter((c) => c.source === "estimated").length;
+  console.log(`  contracts: ${built.contracts.length} (${est} estimated at their yearly average), ${built.league.provenance.noContract.length} players without one`);
   console.log(`  wrote ${out}; sealed table ${sealedPath}`);
 }
 
