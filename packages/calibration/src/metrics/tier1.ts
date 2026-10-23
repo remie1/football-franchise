@@ -277,8 +277,8 @@ export const threatCreationRate: Metric = registerMetric({
    * biases this rate up, by the 1.54pp ADR-024 measured.
    *
    * It names no caller version and no miss rate (ADR-073 step 3.5). It said "frozen caller v2"
-   * and "~26%", and the default caller has moved since (v3, then v4) and moves again at step
-   * 3.5's close, while every report prints this string beside numbers the caller of its day
+   * and "~26%", and the default caller has moved since (v3, then v4, then v7 at step 3.5's
+   * close), while every report prints this string beside numbers the caller of its day
    * played. Every version from v2 on anticipates, so the clause holds for each; how many rushers
    * that caller misses is the same report's own `unaccounted_rusher_rate` row, on the same games.
    */

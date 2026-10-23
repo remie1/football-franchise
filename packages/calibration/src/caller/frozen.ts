@@ -327,7 +327,7 @@ export interface FrozenCallerSpec {
    * pre-snap masks), v4 (v3 with ADR-071 step 2's corner looks), v5 (v4 stating the line's
    * slide check, ADR-073; the keep-in only on request, `keepIn`), v6 (v5 drawing its defence's
    * call in parts, and the creeper, ADR-073 step 3.4) or v7 (v6 wearing ADR-073 §2.5's front looks,
-   * step 3.5). Defaults to v4.
+   * step 3.5). Defaults to v7.
    *
    * OPTIONAL HERE AND RECORDED IN PROVENANCE, which is the same split `runBatch` makes for
    * `tunables`: ergonomics on the surface, and the value that was actually used printed in the

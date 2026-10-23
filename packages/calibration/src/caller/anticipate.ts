@@ -217,11 +217,10 @@ export type CallerVersion = (typeof CALLER_VERSIONS)[number];
 export const CALLER_VERSIONS = ["v1", "v2", "v3", "v4", "v5", "v6", "v7"] as const;
 
 /**
- * The default. ADR-024 made it v2; ADR-069 made it v3; ADR-071 step 2 makes it v4. A batch that
- * wants another caller asks for it by name. v5 and v6 are opt-in: the default stays v4 until
- * ADR-073 step 3.5 moves it, once, to v7.
+ * The default; every other version is opt-in, and a batch that wants one asks for it by name.
+ * ADR-024 made it v2; ADR-069 made it v3; ADR-071 step 2 made it v4; ADR-073 step 3.5 makes it v7.
  */
-export const DEFAULT_CALLER_VERSION: CallerVersion = "v4";
+export const DEFAULT_CALLER_VERSION: CallerVersion = "v7";
 
 /** Five or more rushers, the threshold `blitz_rate` uses on BOTH sides. Same number, one place. */
 const BLITZ_MIN_RUSHERS = 5;

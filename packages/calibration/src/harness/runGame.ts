@@ -23,9 +23,10 @@ export interface RunGameInput {
   readonly fourthDown: FittedFourthDown;
   readonly tunables?: Tunables;
   /**
-   * ADR-024 / ADR-069 / ADR-071 / ADR-073. Defaults to v4 (anticipating, wearing every look)
-   * inside `frozenCallerPair`; v5 also states the line's slide check (and the keep-in, on request);
-   * v6 also draws the defence's call in parts, and the creeper; v7 also wears the front looks.
+   * ADR-024 / ADR-069 / ADR-071 / ADR-073. Defaults to v7 inside `frozenCallerPair` (ADR-073 step
+   * 3.5). v4 anticipates and wears every coverage look; v5 also states the line's slide check (and
+   * the keep-in, on request); v6 also draws the defence's call in parts, and the creeper; v7 also
+   * wears the front looks.
    */
   readonly callerVersion?: CallerVersion;
   /** ADR-069 measurement arms only — see `FrozenCallerSpec.coverageMasks`. */

@@ -15,8 +15,8 @@
  * has completion near 45% against a real 65% and yards per carry far above a real 4.3 — so an
  * absolute assertion would fail today for reasons that have nothing to do with the property being
  * tested. (Those two figures are the BASELINE's, cited, and they move as the engine moves; the
- * numbers this file itself relies on are re-recorded per scenario below with the seed digest that
- * produced them, and are the only numbers here anybody should treat as current.)
+ * numbers this file relies on are re-recorded per scenario below with the seed digest that made
+ * them and, except in a scenario marked `provisional`, are the only ones to treat as current.)
  *
  * The property being tested is **ordering**: a 95-accuracy quarterback must complete more passes
  * than a 40-accuracy one, at any absolute level. That holds under every open backlog entry, and
@@ -48,11 +48,11 @@
  *
  * A curve is still ONE DRAW. `ol-passblock`'s canonical seed list measures its second rung high,
  * which makes the step below it small and the step above it large, and that single artefact was
- * read — in a backlog entry, by careful people — as the ladder having developed a shelf. Across
- * eight seed sets the three steps are 0.0509 / 0.0546 / 0.0537: flat. So the rule is not "map the
- * curve", it is **map the curve and then replicate the ladder**, and `test/ladderRerung.test.ts`
- * is the instrument that does both. A shape seen once is a hypothesis; `recordedStepSE` is the
- * only thing in this file that can promote it.
+ * read — in a backlog entry, by careful people — as the ladder having developed a shelf. In
+ * 2026-07, across eight seed sets, the three steps were 0.0509 / 0.0546 / 0.0537: flat. So the
+ * rule is not "map the curve", it is **map the curve and then replicate the ladder**, and
+ * `test/ladderRerung.test.ts` is the instrument that does both. A shape seen once is a
+ * hypothesis; `recordedStepSE` is the only thing in this file that can promote it.
  *
  * ================== WHAT THE `attributes` LIST IS ==================
  *
@@ -155,10 +155,17 @@ export interface KnownTruthScenario {
    * Re-recording clears it. Nothing else does — and re-recording means the whole §22a procedure:
    * re-map the curve, re-choose the rungs, re-derive the SE across independent seed sets.
    *
-   * AS OF 2026-07 NO SCENARIO CARRIES THIS FIELD. All five have been through the full procedure
-   * against the engine as committed at ADR-028, each on eight independent seed sets, so every
-   * number quoted in this file is current and the field is waiting for the next engine change
-   * rather than describing one. It is kept because that change will come.
+   * FROM ADR-073 STEP 3.5'S CLOSING COMMIT THREE SCENARIOS CARRY THIS FIELD:
+   * `qb-accuracy-completion`, `rb-vision-ypc` and `db-coverage-net-yards-per-dropback`. In 2026-07
+   * all five went through the full procedure against the engine as committed at ADR-028, each on
+   * eight independent seed sets, under the caller of that day (v2, INFERRED: no record names its
+   * caller). Since then the default caller has moved to v3, to v4 and, at that commit, to v7, and
+   * the engine has moved on from ADR-028 as well. The two sack ladders, `ol-passblock-sack-rate`
+   * and `dl-passrush-sack-rate`, were re-recorded through the full procedure under v7 for that
+   * commit and carry no flag: the figures each gives as re-recorded under v7 are current, and the
+   * 2026-07 paragraphs after them are kept as dated history. The other three had only their
+   * canonical ladders re-measured under v7, so every figure in their hypotheses predates the move.
+   * The field was kept for exactly this, and the next change will come too.
    */
   readonly provisional?: {
     /** What moved underneath the record. An ADR id, normally. */
@@ -367,6 +374,16 @@ export const INTERCEPTION_RATE: LadderMeasurement = {
 // --- the v0 scenario set ----------------------------------------------------
 
 /**
+ * What invalidated the three records that ADR-073 step 3.5's closing commit marks `provisional`
+ * (`qb-accuracy-completion`, `rb-vision-ypc`, `db-coverage-net-yards-per-dropback`): the move
+ * itself, and everything their 2026-07 records already predated.
+ */
+const INVALIDATED_BY_THE_V7_DEFAULT =
+  "ADR-073 step 3.5's move of the default caller to v7; the 2026-07 record also predates the v3 " +
+  "and v4 default moves (ADR-069, ADR-071 step 2; it was taken under v2, INFERRED, since it names " +
+  "no caller) and every engine change after ADR-028, the engine it was recorded against";
+
+/**
  * Five scenarios, chosen so that between them they exercise the four checks the design document
  * puts the most weight on — accuracy (§10.4), the pass-rush/pass-block rep (§7.1), the run
  * block (§6.3) and coverage (§9) — and so that each has an obvious inversion failure mode.
@@ -424,6 +441,17 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
     attributes: ["accuracy"],
     mechanismCheckKinds: ["accuracy"],
     attributesNotReadByMechanism: [],
+    provisional: {
+      invalidatedBy: INVALIDATED_BY_THE_V7_DEFAULT,
+      measuredLadder: [0.2741, 0.3013, 0.3292, 0.4229],
+      note:
+        "The canonical ladder only, re-measured 2026-10-22 under caller v7/v1 with the default " +
+        "flipped, on 30b1b21 (seed known-truth:qb-accuracy-completion, digest " +
+        "fnv1a:8fea204c#100, 100 games a rung): effect 0.1488 against a floor of 0.05, " +
+        "monotone, no rung null. Caller v4 on the same seeds measured 0.2853 / 0.3119 / " +
+        "0.3526 / 0.4201. The eight-seed-set replicate that clears this flag (§22a) was not " +
+        "run, so `recordedSteps` and `recordedStepSE` are still the 2026-07 record's.",
+    },
     positions: ["QB"],
     rungs: [0, 20, 40, 95],
     designedTeam: 0,
@@ -444,14 +472,36 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
       "`test/attributeClaims.test.ts` checks it against the engine's own `testsAttrs`. " +
       "This sentence used to name them, and it was wrong three times running (four, then two, " +
       "then three), every time because the engine moved and the prose sat still. " +
-      "RE-RECORDED 2026-07 AFTER ADR-028 (seed known-truth:ol-passblock-sack-rate, digest " +
-      "fnv1a:6343f7ee#160, 160 games a rung): 20 → 0.2707, 45 → 0.2351, 70 → 0.1723, 95 → " +
-      "0.1156, effect 0.1551. Steps across EIGHT independent seed sets at 160 games: 0.0509 ± " +
-      "0.0087, 0.0546 ± 0.0057, 0.0537 ± 0.0040 — noise margins 7.0σ / 11.3σ / 16.1σ, span " +
-      "0.1592 ± 0.0066 against a floor of 0.06, floor margin 15σ. Every ± is the SD of ONE " +
-      "ladder's step, never the SE of the mean of eight: the gate runs one ladder, so what " +
-      "threatens it is a single draw, and dividing by √K would shrink the recorded margin every " +
-      "time somebody measured harder. " +
+      "RE-RECORDED 2026-10-22 UNDER CALLER v7/v1, THE DEFAULT FLIPPED, MEASURED ON 30b1b21; " +
+      "4dfc300 CHANGED ONE TEST FILE ONLY (metrics.test.ts, which no ladder reads), MAIN'S " +
+      "10029e3 (MERGED AS 54bbaff) CHANGED NO LINE A LADDER RUNS (ADR-073 AMENDMENT 7), F AND W " +
+      "CHANGED NO CODE, AND THE CANONICAL LADDER WAS RE-RUN AT THE CLOSING COMMIT AND MATCHED " +
+      "(ADR-073 step 3.5, the default's move to v7; seed known-truth:ol-passblock-sack-rate, " +
+      "digest fnv1a:6343f7ee#160, 160 games a rung): 20 → 0.2770, 45 → 0.2378, 70 → 0.1768, " +
+      "95 → 0.1305, effect 0.1465. Steps across EIGHT independent seed sets at 160 games: " +
+      "0.0448 ± 0.0053, 0.0541 ± 0.0053, 0.0515 ± 0.0042 — noise margins 10.3σ / 12.2σ / " +
+      "14.5σ, span 0.1504 ± 0.0048 against a floor of 0.06, floor margin 18.8σ. Every ± is the " +
+      "SD of ONE ladder's step, never the SE of the mean of eight: the gate runs one ladder, so " +
+      "what threatens it is a single draw, and dividing by √K would shrink the recorded margin " +
+      "every time somebody measured harder. " +
+      "IT TOOK §22a's WHOLE PROCEDURE AND NONE OF ITS LEVERS (ADR-073 rule 18): the usage stage " +
+      "still finds every laddered attribute read by `pass_rush_rep`, and the rungs, games, " +
+      "tolerance and floor are the 2026-07 record's. " +
+      "WHAT THE MOVE ITSELF DID, ON THE SAME CANONICAL SEEDS: caller v4 measures 0.2797 / " +
+      "0.2338 / 0.1784 / 0.1334 (effect 0.1463), so v7 moves no rung by more than 0.0040. The " +
+      "2026-07 record read 0.2707 / 0.2351 / 0.1723 / 0.1156 (effect 0.1551), with steps " +
+      "0.0509 ± 0.0087, 0.0546 ± 0.0057, 0.0537 ± 0.0040, so the drift from it is older than " +
+      "v7: v4 on today's engine already measures rung 95 0.0178 above it. " +
+      "THE RESPONSE CURVE UNDER v7, 160 games a rung at 0/10/20/30/40/50/60/70/80/95: 0.3079 / " +
+      "0.2936 / 0.2770 / 0.2604 / 0.2500 / 0.2224 / 0.1979 / 0.1768 / 0.1587 / 0.1305 — " +
+      "0.00155 sack rate per point from 0 to 20 against 0.00195 from 20 to 95. The bottom shelf " +
+      "that the 2026-07 curve below found is much less marked now: the bottom fifth of the scale " +
+      "is worth about 79% of the slope above it, against 43% then (that curve was mapped at 80 " +
+      "games a rung, so the two are not like for like), and the rungs sit on the responsive part " +
+      "of the curve. " +
+      "THE REST OF THIS RECORD IS THE 2026-07 RE-RECORD'S, KEPT AS DATED HISTORY: its figures " +
+      "were measured against ADR-028's engine under the caller of that day (v2, INFERRED: the " +
+      "record named no caller), and none of them is current. " +
       "ADR-028 GREW THE EFFECT 25%, from 0.1276 to 0.1592, which is this gate doing the job it " +
       "was built for — the §7.1 slope change surfaced here without anyone pointing the " +
       "instrument at it. Three attribute terms respond to a rating point where two terms plus a " +
@@ -509,20 +559,44 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
     games: 160,
     minEffect: 0.06,
     monotonicityTolerance: 0.01,
-    recordedSteps: [0.0509, 0.0546, 0.0537],
-    recordedStepSE: [0.0087, 0.0057, 0.004],
+    recordedSteps: [0.0448, 0.0541, 0.0515],
+    recordedStepSE: [0.0053, 0.0053, 0.0042],
   },
   {
     id: "dl-passrush-sack-rate",
     hypothesis:
       "A better pass rush produces more sacks against a fixed line. The mirror of the previous " +
       "scenario, and the pair is what separates 'the rep works' from 'one side of the rep works'. " +
-      "RE-RECORDED 2026-07 AFTER ADR-028 (seed known-truth:dl-passrush-sack-rate, digest " +
-      "fnv1a:e1fb93bc#120, 120 games a rung): 20 → 0.1365, 45 → 0.1703, 70 → 0.2114, 95 → " +
-      "0.2451, effect 0.1086. Steps across EIGHT independent seed sets at 120 games: 0.0378 ± " +
-      "0.0049, 0.0365 ± 0.0041, 0.0361 ± 0.0061 — noise margins 9.7σ / 11.3σ / 7.5σ, span " +
-      "0.1104 ± 0.0063 against a floor of 0.075, floor margin 5.6σ. Every ± is the SD of ONE " +
-      "ladder's step, never the SE of the mean of eight. " +
+      "RE-RECORDED 2026-10-22 UNDER CALLER v7/v1, THE DEFAULT FLIPPED, MEASURED ON 30b1b21; " +
+      "4dfc300 CHANGED ONE TEST FILE ONLY (metrics.test.ts, which no ladder reads), MAIN'S " +
+      "10029e3 (MERGED AS 54bbaff) CHANGED NO LINE A LADDER RUNS (ADR-073 AMENDMENT 7), F AND W " +
+      "CHANGED NO CODE, AND THE CANONICAL LADDER WAS RE-RUN AT THE CLOSING COMMIT AND MATCHED " +
+      "(ADR-073 step 3.5, the default's move to v7; seed known-truth:dl-passrush-sack-rate, " +
+      "digest fnv1a:e1fb93bc#120, 120 games a rung): 20 → 0.1441, 45 → 0.1782, 70 → 0.2146, " +
+      "95 → 0.2527, effect 0.1085 (unrounded; the rounded rungs above give 0.1086). Steps " +
+      "across EIGHT independent seed sets at 120 games: " +
+      "0.0341 ± 0.0028, 0.0345 ± 0.0061, 0.0346 ± 0.0046 — noise margins 15.5σ / 7.3σ / 9.7σ, " +
+      "span 0.1032 ± 0.0077 against a floor of 0.075, floor margin 3.7σ. Every ± is the SD of " +
+      "ONE ladder's step, never the SE of the mean of eight. " +
+      "IT TOOK §22a's WHOLE PROCEDURE AND NONE OF ITS LEVERS (ADR-073 rule 18): the usage stage " +
+      "still finds every laddered attribute read by `pass_rush_rep`, and the rungs, games, " +
+      "tolerance and floor are the 2026-07 record's. " +
+      "THE FLOOR MARGIN FELL FROM 5.6σ TO 3.7σ. The floor needs a span of 0.0938 (0.075 / 0.8), " +
+      "and the span clears it by 0.0094. The gate is deterministic on its canonical seeds, so " +
+      "this is no flake risk; it is the room left for the next engine change. " +
+      "WHAT THE MOVE ITSELF DID, ON THE SAME CANONICAL SEEDS: caller v4 measures 0.1485 / " +
+      "0.1846 / 0.2219 / 0.2622 (effect 0.1137), so v7 reads lower at every rung, by 0.0044 to " +
+      "0.0095, and its effect is about 0.005 smaller. The 2026-07 record read 0.1365 / 0.1703 / " +
+      "0.2114 / 0.2451 (effect 0.1086), with steps 0.0378 ± 0.0049, 0.0365 ± 0.0041, " +
+      "0.0361 ± 0.0061. " +
+      "THE RESPONSE CURVE UNDER v7, 120 games a rung at 0/10/20/30/40/50/60/70/80/95: 0.1181 / " +
+      "0.1287 / 0.1441 / 0.1536 / 0.1648 / 0.1835 / 0.2000 / 0.2146 / 0.2397 / 0.2527 — " +
+      "0.00130 sack rate per point from 0 to 20 against 0.00145 from 20 to 95, so the bottom " +
+      "shelf the 2026-07 curve found at the same 120 games (0.00091 against 0.00145) has nearly " +
+      "gone. " +
+      "THE REST OF THIS RECORD IS THE 2026-07 RE-RECORD'S, KEPT AS DATED HISTORY: its figures " +
+      "were measured against ADR-028's engine under the caller of that day (v2, INFERRED: the " +
+      "record named no caller), and none of them is current. " +
       "THE STEPS ARE FLAT, AND THE OLD RECORD SAID THEY WERE NOT. It read 0.0298 / 0.0436 / " +
       "0.0435 — a first step two thirds of its neighbours, at 4.4σ — from FOUR seed sets, three " +
       "of them at 80 games rather than 120. Eight seed sets at the scenario's own sample size " +
@@ -563,8 +637,8 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
     games: 120,
     minEffect: 0.075,
     monotonicityTolerance: 0.01,
-    recordedSteps: [0.0378, 0.0365, 0.0361],
-    recordedStepSE: [0.0049, 0.0041, 0.0061],
+    recordedSteps: [0.0341, 0.0345, 0.0346],
+    recordedStepSE: [0.0028, 0.0061, 0.0046],
   },
   {
     id: "rb-vision-ypc",
@@ -623,6 +697,17 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
      */
     mechanismCheckKinds: ["rb_vision", "break_tackle", "tackle", "yac_tackle"],
     attributesNotReadByMechanism: [],
+    provisional: {
+      invalidatedBy: INVALIDATED_BY_THE_V7_DEFAULT,
+      measuredLadder: [10.2449, 11.5618, 13.708, 17.0536],
+      note:
+        "The canonical ladder only, re-measured 2026-10-22 under caller v7/v1 with the default " +
+        "flipped, on 30b1b21 (seed known-truth:rb-vision-ypc, digest fnv1a:dcc46768#160, 160 " +
+        "games a rung): effect 6.8087 against a floor of 1.5, monotone, no rung null. Caller v4 " +
+        "on the same seeds measured 10.5433 / 12.2893 / 14.2452 / 17.3848. The eight-seed-set " +
+        "replicate that clears this flag (§22a) was not run, so `recordedSteps` and " +
+        "`recordedStepSE` are still the 2026-07 record's.",
+    },
     positions: ["RB"],
     rungs: [20, 45, 70, 95],
     designedTeam: 0,
@@ -733,6 +818,17 @@ export const KNOWN_TRUTH_SCENARIOS: readonly KnownTruthScenario[] = [
      * one seed list cannot size an effect, only suggest one.
      */
     attributesNotReadByMechanism: [],
+    provisional: {
+      invalidatedBy: INVALIDATED_BY_THE_V7_DEFAULT,
+      measuredLadder: [1.9921, 1.6411, 1.3706],
+      note:
+        "The canonical ladder only, re-measured 2026-10-22 under caller v7/v1 with the default " +
+        "flipped, on 30b1b21 (seed known-truth:db-coverage-net-yards-per-dropback, digest " +
+        "fnv1a:6b9a68f2#600, 600 games a rung): effect 0.6215 against a floor of 0.25, " +
+        "monotone, no rung null. Caller v4 on the same seeds measured 1.9582 / 1.5630 / 1.2909. " +
+        "The eight-seed-set replicate that clears this flag (§22a) was not run, so " +
+        "`recordedSteps` and `recordedStepSE` are still the 2026-07 record's.",
+    },
     positions: ["CB", "FS", "SS"],
     rungs: [0, 50, 95],
     designedTeam: 1,

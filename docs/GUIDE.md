@@ -6,7 +6,7 @@ rules live in `ARCHITECTURE_CHARTER.md`, and the full working history lives in `
 This page points into both and should stay short. Update the "Where things stand" section when
 a big piece lands.
 
-_Last updated: 21 October 2026._
+_Last updated: 23 October 2026._
 
 ## What the game is
 
@@ -91,18 +91,22 @@ realism checker came first. Front office and the game screen were started early 
 
 ## Where things stand
 
-**Being worked on now (the play simulator):**
+**Just finished (the play simulator):**
 
 - **The front and pass rush (ADR-073).** The defence shows a rush before the snap, the
-  quarterback grades the pressure he sees, and the line can slide its protection to it. Steps
-  one to five are merged; step five (play-caller version 6, which no team uses yet) draws the
-  blitz and the line stunt on their own and adds the Creeper. The last step, six, adds disguised
-  fronts (the Mug and the Stem) and moves the test league to the new play-caller.
+  quarterback grades the pressure he sees, and the line can slide its protection to it. All six
+  steps are merged. Step five added play-caller version 6, which draws the blitz and the line
+  stunt on their own and adds the Creeper. Step six added disguised fronts (the Mug and the Stem)
+  in version 7 and moved the test league to it, so the league now plays with all of it at once:
+  the line's slide check, the blitz and the stunt drawn on their own, the Creeper and the
+  disguised fronts.
 
 **Biggest known problem:** the pocket collapses too early. About 86% of dropbacks are under
 pressure, against about 35% in the NFL (backlog entry 100). This drives too many sacks, too few
-completions and odd target shares. A fix is designed in outline but waits until the front work
-finishes.
+completions and odd target shares. The play cards' read orders are already fixed (backlog 171,
+merged). Measured with play-caller version 4, on the snaps where the pocket held, the targets
+spread nearly as they do in the NFL; the rest of the gap is the pocket. A fix is designed in outline
+but waits until the front work finishes.
 
 **Designed and ruled, waiting to be built:**
 
@@ -112,8 +116,6 @@ finishes.
   not designed yet.
 - The running back's own blitz read at the snap (ADR-077, ruled but not yet in the repo), after the front work, switched on
   only once the pocket fix works.
-- Fixed read orders on the play cards, so the targets spread more like the NFL (backlog 171).
-  It is built on its own branch and waits for the front work to finish.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.

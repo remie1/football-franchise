@@ -94,9 +94,20 @@ export interface WorkerBootstrap {
   readonly fourthDown: FittedFourthDown;
   /** Serialised tunables. `undefined` means the worker uses `DEFAULT_TUNABLES`. */
   readonly tunables?: unknown;
-  /** ADR-024. `undefined` means the worker uses `DEFAULT_CALLER_VERSION` (v4) — the same default
-   *  the in-process path takes, so the two executors cannot run different callers. No knobs (not
-   *  v5's options, not v6's parts), as `BatchConfig.playCalling` carries none. */
+  /** ADR-024. `undefined` means the worker uses `DEFAULT_CALLER_VERSION` (v7), the same default
+   *  the in-process path takes. No knobs (not v5's options, not v6's parts), as
+   *  `BatchConfig.playCalling` carries none.
+   *  ⚠ THE TWO EXECUTORS CAN STILL RUN DIFFERENT CALLERS, in two ways. (1) The worker is the
+   *  compiled `dist/harness/worker.js` and reads the default it was built with, so a `dist/` built
+   *  before ADR-073 step 3.5 moved the default would play v4 while `runBatch` records the source's
+   *  default in provenance. (2) The pool is handed this bootstrap apart from the batch's config:
+   *  the worker plays the bootstrap's caller, while `runBatch` records
+   *  `BatchConfig.playCalling.callerVersion` (or the default), so a bootstrap whose caller (named,
+   *  or the default when it names none) differs from the one `runBatch` resolves plays one caller
+   *  and records another. The
+   *  pool cannot run a game today (`WorkerPoolUnavailableError` unbuilt, `WorkspaceNotBuiltError`
+   *  built), so this is a comment and not a guard; when the pool becomes runnable, `runBatch`
+   *  should refuse a pool whose bootstrap caller differs from the one it resolves. */
   readonly callerVersion?: CallerVersion;
 }
 

@@ -505,16 +505,17 @@ describe("the frozen caller pair", () => {
     expect(v2.caller.draw.passDraws).toBe(v2.caller.passCalls);
   });
 
-  it("defaults to v4, and the identity string says which caller ran", () => {
-    expect(DEFAULT_CALLER_VERSION).toBe("v4");
+  it("defaults to v7, and the identity string says which caller ran", () => {
+    expect(DEFAULT_CALLER_VERSION).toBe("v7");
     const pair = frozenCallerPair({
       tendencies: FROZEN_TENDENCIES,
       fourthDown: FROZEN_FOURTH_DOWN,
       homeDepthChart: built.homeDepthChart,
       awayDepthChart: built.awayDepthChart,
     });
-    expect(pair.callerVersion).toBe("v4");
+    expect(pair.callerVersion).toBe("v7");
     expect(callerIdentity("v4", FROZEN_TENDENCIES.version)).toBe(`v4/${FROZEN_TENDENCIES.version}`);
+    expect(callerIdentity("v7", FROZEN_TENDENCIES.version)).toBe(`v7/${FROZEN_TENDENCIES.version}`);
     expect(callerIdentity("v1", "x")).not.toBe(callerIdentity("v2", "x"));
     expect(callerIdentity("v2", "x")).not.toBe(callerIdentity("v3", "x"));
     expect(callerIdentity("v3", "x")).not.toBe(callerIdentity("v4", "x"));
@@ -767,7 +768,7 @@ describe("the frozen caller pair", () => {
       leash: 20,
     });
     expect(pair.leash).toBe(20);
-    expect(pair.name).toBe(`frozen-v4/${FROZEN_TENDENCIES.version}/leash-20`);
+    expect(pair.name).toBe(`frozen-v7/${FROZEN_TENDENCIES.version}/leash-20`);
   });
 });
 
@@ -864,6 +865,9 @@ describe("ADR-073 step 3.3, callerVersion v5", () => {
       for (const value of [true, false]) {
         const knobs = knob === "slideCheck" ? { slideCheck: value } : { keepIn: value };
         expect(() => pairOf(callerVersion, knobs)).toThrow(FrozenCallerError);
+        expect(() =>
+          runOneGame({ built, seed: "adr073-v5-named-knob", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN, callerVersion, ...knobs }),
+        ).toThrow(FrozenCallerError);
       }
     },
   );
@@ -879,23 +883,32 @@ describe("ADR-073 step 3.3, callerVersion v5", () => {
     },
   );
 
-  // The likeliest misuse: a knob on a spec that forgets to name v5, so the default (v4) would play
-  // and the identity would name a knob that did nothing.
-  it.each(["slideCheck", "keepIn"] as const)("the default caller (v4) refuses the %s knob too", (knob) => {
-    for (const value of [true, false]) {
-      const knobs = knob === "slideCheck" ? { slideCheck: value } : { keepIn: value };
-      expect(() =>
-        frozenCallerPair({
-          tendencies: FROZEN_TENDENCIES,
-          fourthDown: FROZEN_FOURTH_DOWN,
-          homeDepthChart: built.homeDepthChart,
-          awayDepthChart: built.awayDepthChart,
-          ...knobs,
-        }),
-      ).toThrow(FrozenCallerError);
-      expect(() =>
-        runOneGame({ built, seed: "adr073-v5-default-knob", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN, ...knobs }),
-      ).toThrow(FrozenCallerError);
+  // A knob on a spec that names no version plays the default, which is v7 from ADR-073 step 3.5's
+  // closing commit. v7 states the options, so the default takes both knobs, and its identity names
+  // each one off its default exactly as plain v7's does. v4's refusal stays pinned by name above,
+  // in `STATES_NO_OPTIONS` (v4 included), through the pair and through `runOneGame`.
+  it.each(["slideCheck", "keepIn"] as const)("the default caller (v7) takes the %s knob, and its identity names it", (knob) => {
+    const named: readonly (readonly [CallerKnobs, string])[] =
+      knob === "slideCheck"
+        ? [
+            [{ slideCheck: false }, `frozen-v7/${FROZEN_TENDENCIES.version}/no-slide-check`],
+            [{ slideCheck: true }, `frozen-v7/${FROZEN_TENDENCIES.version}`],
+          ]
+        : [
+            [{ keepIn: true }, `frozen-v7/${FROZEN_TENDENCIES.version}/keep-in`],
+            [{ keepIn: false }, `frozen-v7/${FROZEN_TENDENCIES.version}`],
+          ];
+    for (const [knobs, name] of named) {
+      const pair = frozenCallerPair({
+        tendencies: FROZEN_TENDENCIES,
+        fourthDown: FROZEN_FOURTH_DOWN,
+        homeDepthChart: built.homeDepthChart,
+        awayDepthChart: built.awayDepthChart,
+        ...knobs,
+      });
+      expect(pair.callerVersion, JSON.stringify(knobs)).toBe("v7");
+      expect(pair.name, JSON.stringify(knobs)).toBe(name);
+      expect(pair.name, JSON.stringify(knobs)).toBe(pairOf("v7", knobs).name);
     }
   });
 
@@ -1311,29 +1324,40 @@ describe("ADR-073 step 3.4, callerVersion v6", () => {
     (callerVersion, knob) => {
       for (const value of [true, false]) {
         expect(() => pairOf(callerVersion, partKnob(knob, value))).toThrow(FrozenCallerError);
+        expect(() =>
+          runOneGame({
+            built, seed: "adr073-v6-named-knob", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
+            callerVersion, ...partKnob(knob, value),
+          }),
+        ).toThrow(FrozenCallerError);
       }
     },
   );
 
-  // As for v5's knobs: a spec that forgets to name v6 would play the default (v4), and its identity
-  // would name a knob that did nothing.
-  it.each(PART_KNOBS)("the default caller (v4) refuses the %s knob too", (knob) => {
+  // As for v5's knobs: a part knob on a spec that names no version plays the default, which is v7
+  // from ADR-073 step 3.5's closing commit. v7 draws its call in parts, so the default takes each
+  // knob, and its identity names it when it is off exactly as plain v7's does. v4's refusal stays
+  // pinned by name above, in `ONE_CARD` (v4 included), through the pair and through `runOneGame`.
+  // The default's front catalogue is the v7 block's ("the default caller (v7) takes the frontLooks
+  // knob, and its identity names it").
+  const DEFAULT_PART_NAMES: Readonly<Record<(typeof PART_KNOBS)[number], string>> = {
+    creeper: `frozen-v7/${T}/creeper-0`,
+    drawPressures: `frozen-v7/${T}/pressures-bound`,
+    drawLines: `frozen-v7/${T}/lines-bound`,
+  };
+  it.each(PART_KNOBS)("the default caller (v7) takes the %s knob, and its identity names it", (knob) => {
     for (const value of [true, false]) {
-      expect(() =>
-        frozenCallerPair({
-          tendencies: FROZEN_TENDENCIES,
-          fourthDown: FROZEN_FOURTH_DOWN,
-          homeDepthChart: built.homeDepthChart,
-          awayDepthChart: built.awayDepthChart,
-          ...partKnob(knob, value),
-        }),
-      ).toThrow(FrozenCallerError);
-      expect(() =>
-        runOneGame({
-          built, seed: "adr073-v6-default-knob", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN,
-          ...partKnob(knob, value),
-        }),
-      ).toThrow(FrozenCallerError);
+      const pair = frozenCallerPair({
+        tendencies: FROZEN_TENDENCIES,
+        fourthDown: FROZEN_FOURTH_DOWN,
+        homeDepthChart: built.homeDepthChart,
+        awayDepthChart: built.awayDepthChart,
+        ...partKnob(knob, value),
+      });
+      const at = `${knob}: ${String(value)}`;
+      expect(pair.callerVersion, at).toBe("v7");
+      expect(pair.name, at).toBe(value ? `frozen-v7/${T}` : DEFAULT_PART_NAMES[knob]);
+      expect(pair.name, at).toBe(pairOf("v7", partKnob(knob, value)).name);
     }
   });
 
@@ -1830,6 +1854,29 @@ describe("ADR-073 step 3.5, callerVersion v7", () => {
           callerVersion: "v4", frontLooks,
         }),
       ).toThrow(FrozenCallerError);
+    }
+  });
+
+  // The default is v7 from ADR-073 step 3.5's closing commit, so a spec that names no version takes
+  // the front catalogue, and its identity names it exactly as plain v7's does.
+  it("the default caller (v7) takes the frontLooks knob, and its identity names it", () => {
+    const named: readonly (readonly [readonly FrontLookId[], string])[] = [
+      [[], `frozen-v7/${T}/front-0`],
+      [["MUG"], `frozen-v7/${T}/front-MUG`],
+      [["STEM"], `frozen-v7/${T}/front-STEM`],
+      [["MUG", "STEM"], `frozen-v7/${T}`],
+    ];
+    for (const [frontLooks, name] of named) {
+      const pair = frozenCallerPair({
+        tendencies: FROZEN_TENDENCIES,
+        fourthDown: FROZEN_FOURTH_DOWN,
+        homeDepthChart: built.homeDepthChart,
+        awayDepthChart: built.awayDepthChart,
+        frontLooks,
+      });
+      expect(pair.callerVersion, JSON.stringify(frontLooks)).toBe("v7");
+      expect(pair.name, JSON.stringify(frontLooks)).toBe(name);
+      expect(pair.name, JSON.stringify(frontLooks)).toBe(pairOf("v7", { frontLooks }).name);
     }
   });
 

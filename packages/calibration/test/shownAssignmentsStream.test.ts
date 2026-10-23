@@ -261,7 +261,8 @@ describe("ADR-067 §B / ADR-069 / ADR-073 §3.5: PLAY_START publishes the shown 
         COVERAGE_MASKS.map((m) => m.id).sort(),
       );
       // The front half was compared: v7 wears both front looks here, on dropbacks and on runs. (The
-      // default caller is checked by the same partition; while it is v4 it wears no front look.)
+      // default caller's row names no version, so these front checks run on the named v7 row only;
+      // from ADR-073 step 3.5's closing commit the default is v7 and wears front looks too.)
       if (callerVersion === "v7") {
         expect(frontPass, `no dropback wore a front look in ${corpus}`).toBeGreaterThan(0);
         expect(frontRun, `no run wore a front look in ${corpus}`).toBeGreaterThan(0);

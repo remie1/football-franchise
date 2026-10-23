@@ -139,8 +139,10 @@ describe("runBatch", () => {
     // while its table is byte-identical. `report/identity.ts` always claimed this field meant
     // "which caller"; before ADR-024 it only ever meant "which table". ADR-069 made v3 the
     // default: the same calls as v2, some of them wearing a mask. ADR-071 step 2 made it v4: the
-    // same calls as v3, disguised on the same snaps, wearing the corner looks too.
-    expect(result.provenance.callerVersion).toBe(`v4/${FROZEN_TENDENCIES.version}`);
+    // same calls as v3, disguised on the same snaps, wearing the corner looks too. ADR-073 step 3.5
+    // made it v7: v4 stating the line's slide check (v5), drawing the defence's call in parts with
+    // the creeper (v6), and wearing the front looks, so the same seed plays another game.
+    expect(result.provenance.callerVersion).toBe(`v7/${FROZEN_TENDENCIES.version}`);
     expect(result.provenance.seedDigest).toBe(digestSeeds(result.seeds.seeds.slice(0, 6)));
     expect(result.provenance.availabilityMatched).toBe(false);
     expect(result.accumulator.games).toBe(6);
