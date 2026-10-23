@@ -11,9 +11,9 @@
  *
  * It only READS the sim: no tunable, caller default or seed path is touched.
  *
- * Rosters: franchise's teams have no players yet, so team i of the franchise league plays with
- * team i of the flat league (every attribute 60). Results are therefore close to coin flips — a
- * real season shape with equal teams, until `@ff/attributes` supplies rated rosters.
+ * Rosters (ADR-079): by default each team plays with its own made-up squad from
+ * `buildGeneratedLeague`. With `rosters: "flat"`, team i of the franchise league plays with team
+ * i of the flat league instead (every attribute 60): equal teams, results close to coin flips.
  */
 import { DEFAULT_LEAGUE_RULES, type CalendarStamp, type GameResult, type LeagueRules, type ScheduledGame, type SeasonState, type TeamId } from "@ff/contracts";
 import { buildLeague, runSeason, type GameResolver, type League, type SeasonRun } from "@ff/franchise";
@@ -22,11 +22,18 @@ import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../caller/frozenTendencie
 import { runOneGame } from "../harness/runGame.js";
 import { buildFixture, type GameFixture } from "../harness/schedule.js";
 import { buildFlatLeague } from "../league/flat.js";
+import type { AnyProvenancedLeague } from "../league/provenance.js";
 import { fullStrength, indexLeague } from "../league/snapshot.js";
+import { buildGeneratedLeague, type GeneratedLeague } from "./generatedLeague.js";
 
 export interface RealSimOptions {
   readonly callerVersion?: CallerVersion;
   readonly rules?: LeagueRules;
+  /**
+   * The rated league whose teams play: its team ids must be the franchise league's. Absent, the
+   * flat league stands in, team i for team i.
+   */
+  readonly rated?: AnyProvenancedLeague;
 }
 
 /** The engine's week for a scheduled game: playoff weeks follow the regular season's. */
@@ -36,19 +43,25 @@ function simWeek(game: ScheduledGame, rules: LeagueRules): number {
 
 export function realSimResolver(league: League, opts: RealSimOptions = {}): GameResolver {
   const rules = opts.rules ?? DEFAULT_LEAGUE_RULES;
-  const index = indexLeague(buildFlatLeague({ teams: league.teams.length }));
-  const flatIds = index.teamIds();
-  const toFlat = new Map<string, TeamId>(league.teams.map((t, i) => [String(t.id), flatIds[i]!]));
-  const flatOf = (t: TeamId): TeamId => {
-    const f = toFlat.get(String(t));
+  const index = indexLeague(opts.rated ?? buildFlatLeague({ teams: league.teams.length }));
+  const ratedIds = index.teamIds();
+  if (opts.rated !== undefined) {
+    const missing = league.teams.filter((t) => !index.teams.has(String(t.id)));
+    if (missing.length > 0) throw new Error(`realSimResolver: rated league ${index.league.id} has no team ${String(missing[0]!.id)}`);
+  }
+  const toRated = new Map<string, TeamId>(
+    league.teams.map((t, i) => [String(t.id), opts.rated === undefined ? ratedIds[i]! : t.id]),
+  );
+  const ratedOf = (t: TeamId): TeamId => {
+    const f = toRated.get(String(t));
     if (f === undefined) throw new Error(`realSimResolver: team ${String(t)} is not in this league`);
     return f;
   };
 
   return (game, seed): GameResult => {
     const week = simWeek(game, rules);
-    const home = flatOf(game.home);
-    const away = flatOf(game.away);
+    const home = ratedOf(game.home);
+    const away = ratedOf(game.away);
     const fixture: GameFixture = {
       season: game.season,
       week,
@@ -80,6 +93,8 @@ export function realSimResolver(league: League, opts: RealSimOptions = {}): Game
   };
 }
 
+export type SeasonRosters = "generated" | "flat";
+
 export interface RealSeasonInput {
   readonly seed: string;
   readonly season?: number;
@@ -90,17 +105,34 @@ export interface RealSeasonInput {
   /** Save and load: stop after this day, or carry on from a saved season. */
   readonly stopAfter?: CalendarStamp;
   readonly resumeFrom?: SeasonState;
+  /** Whose players play: each team's own made-up squad (default), or the flat league's. */
+  readonly rosters?: SeasonRosters;
+  /** Team-strength spread for generated squads (ADR-079 Q2; tuned in R5). */
+  readonly teamStrengthSd?: number;
 }
 
-/** Build the fictional league from `seed` (or take a saved one) and play its season through the real sim. */
-export function runRealSeason(input: RealSeasonInput): { league: League; run: SeasonRun } {
-  const league = input.league ?? buildLeague(input.seed);
+/**
+ * Build the fictional league from `seed` (or take a saved one) and play its season through the
+ * real sim. Generated squads are rebuilt from the league's seed and the season, so a loaded save
+ * gets the same players it was saved with.
+ */
+export function runRealSeason(input: RealSeasonInput): { league: League; rated?: GeneratedLeague; run: SeasonRun } {
+  const base = input.league ?? buildLeague(input.seed);
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
-  const resolve = realSimResolver(league, { rules, ...(input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }) });
+  const season = input.season ?? 2027;
+  const rated = (input.rosters ?? "generated") === "generated"
+    ? buildGeneratedLeague(base, { season, ...(input.teamStrengthSd === undefined ? {} : { teamStrengthSd: input.teamStrengthSd }) })
+    : undefined;
+  const league = rated === undefined ? base : { ...base, teams: rated.league.teams };
+  const resolve = realSimResolver(league, {
+    rules,
+    ...(input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }),
+    ...(rated === undefined ? {} : { rated }),
+  });
   const run = runSeason({
-    league, season: input.season ?? 2027, seed: input.seed, resolve, rules,
+    league, season, seed: input.seed, resolve, rules,
     ...(input.stopAfter ? { stopAfter: input.stopAfter } : {}),
     ...(input.resumeFrom ? { resumeFrom: input.resumeFrom } : {}),
   });
-  return { league, run };
+  return { league, ...(rated === undefined ? {} : { rated }), run };
 }

@@ -48,12 +48,19 @@ export type LeagueProvenance =
    * Derived from real data by `@ff/attributes`. **Nothing produces this yet.** The only
    * provenance against which a rating-attribution verdict means anything.
    */
-  | "DERIVED";
+  | "DERIVED"
+  /**
+   * Made-up players from `@ff/attributes`' fictional generator (ADR-079), for the season runner.
+   * The ratings are invented, not derived: a season's shape (who wins, how records spread) is
+   * meaningful; comparing its totals with the NFL says nothing about ratings or the engine.
+   */
+  | "GENERATED_FICTIONAL";
 
 export const LEAGUE_PROVENANCES = [
   "FLAT_SYNTHETIC",
   "DESIGNED_ARCHETYPE",
   "DERIVED",
+  "GENERATED_FICTIONAL",
 ] as const satisfies readonly LeagueProvenance[];
 
 /**
@@ -148,5 +155,11 @@ export function claimScopeOf(provenance: LeagueProvenance): string {
       );
     case "DERIVED":
       return "FULL. Ratings came from the attributes pipeline; mechanic and rating claims are both available.";
+    case "GENERATED_FICTIONAL":
+      return (
+        "SEASON-SHAPE CLAIMS ONLY. Players and ratings are made up (ADR-079): how records and " +
+        "upsets spread is meaningful, but neither a rating error nor an engine verdict can be " +
+        "read from this league's totals."
+      );
   }
 }
