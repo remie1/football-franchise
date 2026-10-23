@@ -14,11 +14,14 @@
  * saved season. A resumed run replays the season from its first day with the saved games read from
  * the save instead of played, so stopping and carrying on gives the season, event stream included,
  * that one straight run gives.
+ *
+ * `onEvent` sees each event as it happens, for a caller that reports while the season plays (the
+ * season command's headlines, ADR-082 R2). It only watches: the run is the same with or without it.
  */
 import {
   DEFAULT_LEAGUE_RULES, compareStamps, stampToString,
   type CalendarStamp, type FranchiseEvent, type FranchiseEventEnvelope, type GameResult,
-  type LeagueRules, type ScheduledGame, type SeasonState, type TeamId,
+  type LeagueRules, type ScheduledGame, type SeasonSchedule, type SeasonState, type TeamId,
 } from "@ff/contracts";
 import type { League } from "../league/buildLeague.js";
 import { advance, phaseWeeks, seasonStart, DAYS_PER_WEEK, type ClockWorld } from "../calendar/clock.js";
@@ -52,6 +55,8 @@ export interface RunSeasonInput {
    * The save must be of this season, built from the same league and seed.
    */
   resumeFrom?: SeasonState;
+  /** Called with each event as it is added, and the season's schedule. Watches only. */
+  onEvent?: (envelope: FranchiseEventEnvelope, schedule: SeasonSchedule) => void;
 }
 
 export interface SeasonRun {
@@ -112,10 +117,14 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
   let state: SeasonState = { season, schedule, results: [], standings: computeStandings(league, [], { seed }) };
   let world: ClockWorld = { calendar: seasonStart(season), leagueRules: rules, season: state };
   const events: FranchiseEventEnvelope[] = [];
-  const emit = (event: FranchiseEvent) => events.push({ seq: events.length, at: world.calendar, event });
+  const record = (envelope: FranchiseEventEnvelope) => {
+    events.push(envelope);
+    input.onEvent?.(envelope, schedule);
+  };
+  const emit = (event: FranchiseEvent) => record({ seq: events.length, at: world.calendar, event });
   const moveTo = (to: CalendarStamp) => {
     const r = advance(world, to, { firstSeq: events.length });
-    events.push(...r.events);
+    for (const envelope of r.events) record(envelope);
     world = r.world;
   };
 

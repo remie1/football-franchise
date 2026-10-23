@@ -3,8 +3,10 @@
 - **Date:** 2026-10-23
 - **Proposed by:** Orchestrator, for `narrative` (the design) and `franchise` (the ledger)
   (thread "News and storylines"; plan `/mnt/project-files/design/relationships-plan.md`)
-- **Status:** design ruled by the owner (B1-B7, 2026-10-23). Nothing is built and no contracts
-  edit is made; the three edits in §8 each need the owner's typed yes by name.
+- **Status:** design ruled by the owner (B1-B7, 2026-10-23). Contracts edits V1-V3 approved by the
+  owner's typed yes (2026-10-23) and made; L1 (the ledger) and the carousel's own moves of L2
+  (results, firings, hires, extensions) built (§13). The stay-or-go readers, the meeting's moves and
+  the leaks are not built.
 - **Origin:** the owner's F3 ruling in thread "End-of-season staff meeting" (2026-10-22: *"3. A -
   this needs to go to our story-building agent to develop it further"*), which handed the
   relationship model the meeting needs (F3, F4, G6) to the story side.
@@ -34,6 +36,8 @@
 | The worked example's figures (§9) and the pace figure (§5.1) follow from the rules as written | script, 2026-10-23 | COMPUTED |
 | Every move size, the 3-a-week cap on everyday moves, the band edges, the rift rule (−25, rest −30), the sit-down odds, the storyline rate (about one per two seasons) | judgement, to be tuned | CHOSEN — provenance NONE |
 | The names `RelationshipView`, `RELATIONSHIP_CHANGED`, `RELATIONSHIP_DELTA` | named here | CHOSEN — provenance NONE |
+| As built (§13): the carousel decides exactly as without views; §9's figures; drift halves a gap in 34-35 weeks | `packages/franchise/test/relationships.offseason.test.ts`, `relationships.ledger.test.ts` | COMPUTED |
+| §13's 20-season measurement (words, rifts, reported moves a season) | scratch script over `franchise`'s public API, run 2026-10-23, quoted in the build's PR | COMPUTED |
 
 ## Conjoined mechanisms
 
@@ -47,8 +51,8 @@ own arms, alone and with anything that lands with it.
 
 - Players' views: of the coach and of each other (locker-room factions), feeding morale (Spec #14).
 - The president's view of the coach, alongside ADR-080's `politics`.
-- The user's own personality (ADR-083, Q1-Q6 unanswered), which sets every staff member's rest
-  point with the user. Until it is built that rest point is 0.
+- The user's own personality (ADR-083, Q1-Q6 ruled 2026-10-23, not built), which sets every staff
+  member's rest point with the user. Until it is built that rest point is 0.
 - Conversations (sit-downs, promises, press conferences) and the storyline runtime (Spec #7 §2-§3):
   not built. Their moves are designed here and arrive with them.
 - On-field effects of a broken relationship (B7: not in this version; open for the story side).
@@ -57,10 +61,12 @@ own arms, alone and with anything that lands with it.
 
 ## Inertness proof
 
-Claim: **this ADR changes nothing the sim produces.** It is a design note: no file in `packages/`
-or `apps/` changes with it. When built, the ledger lives in `franchise`, is read by staff turnover,
-the meeting and the news desk, and is never read by the engine, the playbook, any play-caller or the
-frozen calibration caller (B7 a).
+Claim: **this ADR changes nothing the sim produces.** The design note changed no file in `packages/`
+or `apps/`. As built (§13), the ledger lives in `franchise` and nothing reads it yet; the coaching
+carousel carries the views along and decides exactly as without them (tested: same world, decisions
+and moves, and the same events apart from the added `RELATIONSHIP_CHANGED`). It will be read by
+staff turnover, the meeting and the news desk, and never by the engine, the playbook, any
+play-caller or the frozen calibration caller (B7 a).
 
 ## 1. Need
 
@@ -246,29 +252,31 @@ A rift is a grudge held by one man against another or against the user; it can r
 A players'-coach DC and a demanding GM: the DC's view of the GM rests at −16, the GM's of the DC at
 −8; the DC's view of the user is +24, the GM's +12. At the meeting they argue in the open (DC→GM −26,
 GM→DC −18); the user sides with the GM in the open (GM→user +22, DC→user +8, DC→GM −31); the user
-asks the DC "how sure?" twice (DC→user +4). Six weeks later the user signs the GM's corner over the
+asks the DC "how sure?" twice (DC→user +5: −2, then only −1 under §5.1's cap of 3 a week; the
+first draft said +4, missing the cap). Six weeks later the user signs the GM's corner over the
 DC's objection (DC→user ≈ +2, GM→user ≈ +21 after drift), and a leak about the secondary comes from
 the DC, the one holding a strained view (DC→GM ≈ −29). A year after the meeting, results aside:
-GM→DC ≈ −12 (professional), DC→GM ≈ −21 (still strained), so the next clash starts hotter. Had the
-clash boiled over, the DC would hold the rift: DC→GM −56, rest point −46.
+GM→DC ≈ −11.5 (professional), DC→GM ≈ −21 (still strained), so the next clash starts hotter. Had
+the clash boiled over, the DC would hold the rift: DC→GM −56, rest point −46. Every figure here is
+checked by `packages/franchise/test/relationships.ledger.test.ts`.
 
-## 10. Build order (later; each step its own commit and owner yes where named)
+## 10. Build order (each step its own commit and owner yes where named)
 
 | Step | Piece | Check |
 |---|---|---|
 | L0 | This note | rulings recorded |
-| L1 | The ledger in `franchise`: views, rest points, drift, rifts, the moves of §5 as one data table; V1-V3 on the owner's typed yes | unit tests; same seed, same ledger; drift halves a gap in 34-35 weeks |
-| L2 | Hiring, firing, season results, and the stay-or-go readers (ADR-080) | turnover bands of ADR-080 §8 still hold, or moved and reported |
+| L1 | The ledger in `franchise`: views, rest points, drift, rifts, the moves of §5 as one data table; V1-V3 on the owner's typed yes | unit tests; same seed, same ledger; drift halves a gap in 34-35 weeks. **Built (§13)** |
+| L2a | Hiring, firing, extensions and season results, carried by the carousel | the carousel decides exactly as without views. **Built (§13)** |
+| L2b | The stay-or-go readers (ADR-080) | turnover bands of ADR-080 §8 still hold, or moved and reported |
 | L3 | The meeting's moves and clash heat (with ADR-081's M3) | the meeting's own checks |
 | L4 | Leaks on the news desk | leaks only from strained or broken views |
 | Later | Each everyday choice as its part of the game arrives; conversations (sit-downs, promises, press); storylines with coaches | each with its own tests |
 
 ## 11. Impact
 
-- This ADR: `docs/decisions/` only.
-- When built: `contracts` (V1-V3), `franchise` (the ledger and the readers), `narrative` (leaks,
-  later story moves), `apps/game` (the staff page, later). `engine`, `playbook`, play-callers,
-  `calibration`: **no change.**
+- Built: `contracts` (V1-V3), `franchise` (the ledger, and the carousel carrying it).
+- Later: `franchise` (the readers), `narrative` (leaks, later story moves), `apps/game` (the staff
+  page). `engine`, `playbook`, play-callers, `calibration`: **no change.**
 
 ## 12. Decision
 
@@ -276,4 +284,46 @@ Design: **ruled by the owner, 2026-10-23 01:00Z**, thread "News and storylines":
 4. [three kinds of moves, quoted in §2] 5. A 6. A 7. A. But let's leave this open for our story
 department to potentially build out more."*
 
-Contracts edits V1-V3: **not yet requested**; each will be named for the owner's typed yes at L1.
+Contracts edits V1-V3: **approved by the owner's typed yes, 2026-10-23 02:44Z** (*"Yes, make
+contracts edits V1, V2 and V3."*), and made as §8 shapes them (`packages/contracts/src/relationships.ts`,
+`events.ts`, `save.ts`; spec #1 updated).
+
+## 13. As built: L1, and the carousel's moves of L2 (2026-10-23)
+
+- **Where:** `packages/franchise/src/relationships/`: `tables.ts` (the knobs, and every move of §5
+  as one table), `ledger.ts` (views, words, rest points, drift, moves and rifts, story effects),
+  `staffMoves.ts` (season results, a firing, a hire, an extension). `runStaffOffseason` carries the
+  views when given them (`relationships: { views, context }`) and returns them moved.
+- **Readings taken in the build** (none changes a ruling; each is a one-line change):
+  1. On a computer team the head coach stands where the user stands: a move written "his of the
+     user" lands on his view of his head coach, who hires, fires and extends there. A head coach
+     answers to the president, whose views are not kept yet, so the president's hiring, firing or
+     extending of a head coach moves nothing.
+  2. "Fire a man" includes letting his contract run out (ADR-080's `LET_CONTRACT_EXPIRE`), the same
+     decision made the same way.
+  3. A man who leaves a staff (let go, retired, hired away) takes his views, and the views of him,
+     with him; a newcomer's views start at their rest points, his view of the man who hired him 10
+     above (§5.2). Two men who meet again later start afresh.
+  4. The tree bonus uses ADR-080's `inTree` as it is. A hire puts the head coach in the
+     coordinator's lineage, so a head coach and the coordinators he hired, and those coordinators
+     among themselves, share a tree (+8); coordinators he inherited do not.
+  5. A playoff win is +5 once, however many playoff games were won; whether it repairs a rift
+     between two staff members (unless broken) is judged after the +5.
+  6. A rift's −25 is not given back when it is repaired; only the rest point comes back up.
+  7. The weekly cap (§5.1) counts the net of the week's everyday moves on that view, read from the
+     week's events, and a move past it moves only up to the cap. It also caps the meeting's "how
+     sure?" costs within the meeting week (§9 corrected for it); whether the meeting is exempt is
+     L3's question.
+  8. Each reported move is one `RELATIONSHIP_CHANGED` with the total change (a rift's −25 included)
+     and the move's table name as its cause; a story effect's cause is `STORYLINE:<id>`. A move that
+     changes nothing is not reported.
+- **Not wired yet:** nothing in the season loop runs the weekly drift (`driftWeek`, once a calendar
+  week, is the caller's), and views are not saved: saves carry no staff yet (`makeSave` writes
+  `staff: []`) and a view names staff, so both arrive with staff in the save.
+- **Measured** (20 seasons of ADR-080's stand-in results, views carried week by week, one team run
+  by a user): views stay close to their rest points (mean distance 2.5 to 3.2):
+  20-28% good, the rest professional, none strained or broken; 1 rift opened in 20 seasons (a friend
+  fired), none standing at the end; about 570 reported moves a season across the league, most of
+  them season results. With only the carousel's moves, staffs settle into their personality mix;
+  the swings come with the meeting, conversations and storylines (L3 and later). Turnover cannot
+  move: the carousel reads no view (tested).

@@ -262,6 +262,25 @@ export interface DefensiveDisguiseTendency { // P4, ADR-075 §3.2; absent fields
 
 Hiring, firing and contract *rules* live in franchise; contracts only defines shapes.
 
+### Relationships (ADR-084)
+
+How one person on a staff gets on with another, or with the human who runs the team (`relationships.ts`).
+A view runs one way: the DC's view of the GM is not the GM's view of the DC.
+
+```ts
+export type RelationshipParty = { staff: StaffId } | { user: TeamId }; // V1: the human has no staff record
+export type RelationshipWord = "close" | "good" | "professional" | "strained" | "broken"; // how a view is shown
+
+export interface RelationshipView {  // V1: one person's view of another
+  from: StaffId;                     // whose view; the human holds none
+  of: RelationshipParty;
+  score: number;                     // -100..+100
+  rift?: { since: CalendarStamp; cause: string }; // a grudge the view's holder has
+}
+```
+
+Rest points, drift, moves and rifts are franchise's rules (the ledger); nothing in the sim reads a view.
+
 ---
 
 ## 5. AUTHORITY TAGS
@@ -346,6 +365,8 @@ export interface RollDetail {
 
 `CALENDAR_PHASE_ENTERED`, `DEADLINE_REACHED`, `CONTRACT_SIGNED / RESTRUCTURED / EXPIRED`, `PLAYER_RELEASED / RETIRED (immediate|slow|late per design notes)`, `TAG_APPLIED`, `TRADE_PROPOSED / EXECUTED / REJECTED`, `DRAFT_PICK_MADE`, `SCOUT_REPORT_FILED` (perception delta), `INJURY_OCCURRED / RECOVERED`, `MORALE_CHANGED`, `PRESSURE_EVENT` (owner mandate / hot seat), `PRESS_STORY_PUBLISHED`, `AWARD_GIVEN`, `GAME_SCHEDULED / COMPLETED`, `STAFF_HIRED` (`{ staff, team, role: StaffRole }`) and `STAFF_DEPARTED` (`{ staff, team, reason: StaffDepartureReason }`), typed by ADR-080 P3.
 
+`RELATIONSHIP_CHANGED` (ADR-084 V2) is a view that moved: `{ from, of, delta, cause, before, after, rift?: "OPENED" | "REPAIRED" }`, once per move and once whenever the weekly drift changes a view's word.
+
 `PRESS_STORY_PUBLISHED` (ADR-082 N1) is narrative's news: `{ kind, headline, importance: 1..5, teams, games, subjects }`, where `kind` names the story rule that wrote it. `GameResult` may carry `periods` (ADR-082 N2), the points per period as in `GAME_END.payload.periods`, which is what stories like "rallied from 17 down" read.
 
 Narrative consumes both families; its write-backs are **not** events but a constrained effect type:
@@ -355,7 +376,8 @@ export type NarrativeEffect =
   | { kind: "MORALE_DELTA"; player: PlayerId; delta: number; reason: StorylineId }
   | { kind: "AVAILABILITY"; player: PlayerId; status: "suspended" | "excused" | "returned"; weeks?: number; reason: StorylineId }
   | { kind: "REPUTATION_DELTA"; scope: "coach" | "franchise"; axis: string; delta: number; reason: StorylineId }
-  | { kind: "PRESSURE_DELTA"; delta: number; reason: StorylineId };
+  | { kind: "PRESSURE_DELTA"; delta: number; reason: StorylineId }
+  | { kind: "RELATIONSHIP_DELTA"; from: StaffId; of: RelationshipParty; delta: number; rift?: "OPEN" | "REPAIR"; reason: StorylineId }; // ADR-084 V3
 ```
 
 This closed union is the entire surface through which stories touch the game (Charter §3-D6). Expanding it = contract petition.
@@ -419,6 +441,7 @@ export interface SaveFile {
     players: PlayerState[];
     staff: StaffState[];                   // coaches and presidents, retired coaches included (their résumés feed trees)
     staffContracts?: StaffContract[];      // ADR-080 P1; optional, so saves written before it still load
+    relationships?: RelationshipView[];    // ADR-084 V1: every view, one entry per direction; optional, as above
     contracts: PlayerContract[];
     perceptions: PerceivedAttributes[];   // per observer×subject
     league: LeagueStructure;               // ADR-078 C7

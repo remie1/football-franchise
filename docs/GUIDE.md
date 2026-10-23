@@ -6,7 +6,7 @@ rules live in `ARCHITECTURE_CHARTER.md`, and the full working history lives in `
 This page points into both and should stay short. Update the "Where things stand" section when
 a big piece lands.
 
-_Last updated: 21 October 2026._
+_Last updated: 23 October 2026._
 
 ## What the game is
 
@@ -40,7 +40,7 @@ run the play simulator).
 | Playbook | `packages/playbook` | The play cards: formations, pass and run concepts, protections, defensive calls with their fronts, coverages, pressures and disguises. | Yes |
 | Realism checker | `packages/calibration` | Runs thousands of games and compares the results with real NFL numbers. Also holds the computer play-callers used for testing, and the "ladder" checks (described below). | Yes |
 | Player ratings | `packages/attributes` | Makes the made-up league's players and their ratings (ADR-079); will later turn real data into ratings for real rosters. | Made-up rosters: yes. Real data: not started |
-| Front office | `packages/franchise` | Runs the calendar, schedule, standings and playoffs (the season shell), and the coaching staffs: hiring and firing (ADR-080). Will add the cap, player contracts, free agency and the draft. | Yes: the season shell and coaching staffs (coaches do not affect games yet) |
+| Front office | `packages/franchise` | Runs the calendar, schedule, standings and playoffs (the season shell), the coaching staffs: hiring and firing (ADR-080), and how the staff get on (ADR-084). Will add the cap, player contracts, free agency and the draft. | Yes: the season shell, coaching staffs and their relationships (none of it affects games) |
 | Storylines | `packages/narrative` | Writes the news from what happens in games: each week's headlines, the playoff race, the playoffs and a season review today (ADR-082); storylines, press and reputation later. | Started: the season's news |
 | Game screen | `apps/game` | The browser app: menus, dashboards, the play log. It only displays; it decides nothing. | Not started (a game viewer has its own thread now) |
 
@@ -138,13 +138,21 @@ who has clinched or been knocked out. Every playoff game gets a headline, and a 
 closes the year. Save a season with
 `pnpm --filter @ff/calibration season -- --seed <seed> --out season.json`, then
 `pnpm --filter @ff/narrative news -- --season season.json` prints its news and saves it for the
-game viewer: run `pnpm --filter game dev` and open the News page. Next: the season command printing
-the headlines as it plays (waits on the owner's R2 ruling).
+game viewer: run `pnpm --filter game dev` and open the News page. The season command also prints
+each week's headlines as it plays.
 
-**Relationships (ADR-084, ruled 23 October 2026, not built yet):** each staff member will have a
-view of you and of each colleague, running both ways, nudged by everyday choices, swung by big
-moments and, now and then, by a storyline about the coaches. Views feed who stays, how hot the
-staff meeting's arguments get, and what leaks to the press; they never change a game.
+**Relationships (ADR-084, 23 October 2026):** each staff member has a view of you and of each
+colleague, running both ways (close, good, professional, strained or broken), nudged by everyday
+choices, swung by big moments and, now and then, by a storyline about the coaches. Built so far:
+the record of every view, how each drifts back to what the two men's personalities make normal,
+grudges, and the moves the coaching carousel makes by itself (a hire, a firing, an extension, the
+season's results). Next, views will feed who stays, how hot the staff meeting's arguments get, and
+what leaks to the press; they never change a game.
+
+**Your coach's personality (ADR-083, ruled 23 October 2026, not built):** your type builds up from
+how you answer people, shown as five meters on your coach page. Only your main trait counts, and it
+changes only when another trait clearly overtakes it. It waits for the first conversation (the
+end-of-season staff meeting).
 
 ## Words you will see
 

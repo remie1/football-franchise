@@ -89,6 +89,21 @@ describe("runSeason (season shell S7) with the quick fake", () => {
   it("survives a JSON round-trip (it goes into the save file)", () => {
     expect(JSON.parse(JSON.stringify(run.state))).toEqual(run.state);
   });
+
+  it("onEvent sees every event in order, as it happens, and changes nothing (ADR-082 R2)", () => {
+    const seen: number[] = [];
+    const schedules = new Set<string>();
+    const watched = runSeason({
+      league, season: 2027, seed: "season-1", resolve: fake,
+      onEvent: (envelope, schedule) => {
+        seen.push(envelope.seq);
+        schedules.add(JSON.stringify(schedule));
+      },
+    });
+    expect(watched).toEqual(run);
+    expect(seen).toEqual(run.events.map((e) => e.seq));
+    expect([...schedules]).toEqual([JSON.stringify(run.state.schedule)]);
+  });
 });
 
 describe("calendar clock: playoff games halt the advance button", () => {
