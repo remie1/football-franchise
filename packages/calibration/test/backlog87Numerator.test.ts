@@ -320,7 +320,8 @@ describe.skipIf(!enabled)("backlog 87 — pressure_to_sack numerator fix and hor
     );
     say(
       `real (DERIVED live from pressure_to_sack.computeFromReal, participation was_pressure, ` +
-        `TUNING 2022-2024 cache, n=${REAL_N}) = ${(REAL_PRESSURE_TO_SACK * 100).toFixed(3)}%  ` +
+        `TUNING 2022-2024 cache, FTN seasons 2023-2024 read (backlog 173), n=${REAL_N}) = ` +
+        `${(REAL_PRESSURE_TO_SACK * 100).toFixed(3)}%  ` +
         `band ±15% relative = [${(FLOOR * 100).toFixed(2)}%, ${(CEILING * 100).toFixed(2)}%]`,
     );
     say(
