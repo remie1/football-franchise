@@ -126,9 +126,21 @@ downstream reads today.
   reserve list (nflverse code; R01 injured reserve, R04 PUP, R05 non-football injury, R48 injured
   reserve designated to return named, any other kept raw as OTHER), and the latest injury on this
   season's report with its week and body part.
-- **R4 part 2, dead money: not built.** A cut player's history stops, so nothing in nflverse
-  records what his old team still owes. Without it, the 32 teams' 2026 cap numbers average $259M
-  and Miami's are $122M. Source asked for: overthecap.com (blocked from the build container).
+- **R4 part 2, dead money** (`deadMoney.ts`, league file `deadMoney`): OverTheCap's 32 team
+  pages (owner allowed the site, 2026-10-23), kept in the snapshot folder as `otc/<team>.html` with
+  a sha256 manifest (gitignored, Q7). Each season's "Dead Money" table becomes ADR-085 K3's
+  `DeadMoneyCharge { team, player, season, amount, reason }`: 792 charges from 2026 on, $1,577M in
+  2026. A let-go player who is on a roster today is named by his stand-in id (matched by name,
+  loosely, inside the importer; a name two players share matches neither); the rest get a
+  placeholder (`gone-<team>-<n>`, 254 of them), so no real name leaves the importer.
+  REPORTED caveats: OverTheCap does not say why a charge exists, so `reason` is `RELEASED`
+  throughout (a traded player's charge looks the same); and every page's TOTAL runs $0.4-1.2M
+  above its itemized rows, so the gap is kept as one unnamed charge per team
+  (`gone-<team>-rest`, $32M league-wide) so totals match the page.
+  COMPUTED check: 2026 cap numbers plus dead money average $307.8M a team against OverTheCap's
+  $304.7M "total cap liabilities" (mean gap $4.9M; Green Bay -$12.9M and San Francisco -$11.3M
+  are the two biggest, likely contracts the file is missing). Miami goes from $122M to $307M
+  (OverTheCap $302M). Refresh with `import-real -- --fetch-otc` (pages only) or `--fetch` (both).
 - **R5, the season plays the stand-ins**: `pnpm --filter @ff/calibration season -- --seed <s>
   --league <file>` reads the league file (a file, not an import: calibration's attributes
   surface stays ADR-079 R1's one function). New league provenance `REAL_STAND_IN` (not
