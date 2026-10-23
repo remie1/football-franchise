@@ -21,11 +21,15 @@
  * from the world seed: a save stores the players, but `--load` rebuilds them and uses squads when
  * the saved teams have rosters, the flat league when they do not. A save does not record `--team-sd`, so the
  * two cannot be combined.
+ *
+ * Coaches (ADR-080; ADR-078 R1 amendment 2): a new league's coaches are made from the world seed at
+ * the start, with their made-up history, and `--save` keeps them. `--load` carries on with the saved
+ * coaches. Coaches do not touch the games yet.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { compareStamps, DEFAULT_LEAGUE_RULES, stampToString, type CalendarStamp } from "@ff/contracts";
-import { buildLeague, makeSave, readSave } from "@ff/franchise";
+import { buildLeague, buildStaff, makeSave, readSave } from "@ff/franchise";
 import { createNewsDesk, formatEdition } from "@ff/narrative";
 import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
 import { runRealSeason, type SeasonRosters } from "./realSeason.js";
@@ -116,6 +120,8 @@ if (loaded) console.log(`Loaded ${args.load}: ${loaded.save.world.season?.result
 // desk sees the weeks the save holds too; their headlines were printed when they were played.
 type Desk = ReturnType<typeof createNewsDesk>;
 const base = loaded?.league ?? buildLeague(seed);
+// A save from before coaches were kept has none; it carries on without them rather than inventing a staff mid-season.
+const staff = loaded ? loaded.staff : { world: buildStaff(base, { firstSeason: season }).world };
 let desk: Desk | undefined;
 const printNews = (editions: ReturnType<Desk["take"]>) => {
   for (const e of editions) {
@@ -150,7 +156,7 @@ else console.log(`\nStopped after ${stampToString(run.calendar)} (${took})${cham
 if (args.save) {
   const path = fromCaller(args.save);
   const players = rated === undefined ? {} : { players: rated.league.players };
-  const save = makeSave({ league, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: { caller: callerVersion }, rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...players });
+  const save = makeSave({ league, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: { caller: callerVersion }, rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...players, ...(staff ? { staff } : {}) });
   writeFileSync(path, JSON.stringify(save, listTraits, 2));
   console.log(`Saved ${path}`);
 }

@@ -242,3 +242,11 @@ Contracts edit **E1** (same thread, Q1; owner typed "Yes, make contracts edit E1
 text, so contracts stay engine-agnostic; saves without it still load. The season command line records
 the play-caller version and refuses to carry on with a different one unless `--switch-caller` is given.
 
+### R1 amendment 2 (2026-10-23): saves keep the coaching staff
+
+The owner ruled yes (thread "Saves keep coaching staff", decision card, 2026-10-23) to one more name
+on the R1 surface: `buildStaff` (ADR-080 C1), so the season command line can make the league's coaches
+at the start and save them. `makeSave` gains a `staff` option and `readSave`'s result a `staff` field;
+those are the same ratified functions, not new names. No contracts edit: `SaveFile` already had
+`staff`, `staffContracts` (ADR-080 P1) and `relationships` (ADR-084 V1). Charter Amendment 13.
+
