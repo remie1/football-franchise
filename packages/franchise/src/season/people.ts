@@ -9,7 +9,7 @@
  */
 import type {
   CalendarStamp, DraftClass, DraftPick, FranchiseEvent, GameResult, LeagueRules, PlayerId, PlayerState,
-  ScheduledGame, SeasonState, StaffState, Team,
+  ScheduledGame, SeasonState, StaffState, Team, TeamId,
 } from "@ff/contracts";
 
 export interface LeaguePeople {
@@ -22,6 +22,8 @@ export interface LeaguePeople {
   freeAgents: PlayerId[];
   /** The coaching staff, for steps that read it (ADR-087's growth reads coordinators). */
   staff?: StaffState[];
+  /** Waiver priority, first claim first: the last draft's first-round order (ADR-086 §8). */
+  waiverOrder?: TeamId[];
 }
 
 export interface DayStepContext {

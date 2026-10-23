@@ -60,3 +60,20 @@ export {
   RELATIONSHIP_TUNING, RELATIONSHIP_MOVES, sitDownChance,
   type RelationshipMove, type RelationshipMoveId, type RiftRule,
 } from "./relationships/tables.js";
+// ADR-086: the draft (order, compensatory picks, boards, draft day, cut-down day, the year turn).
+export {
+  draftOrder, draftGroups, draftPicks, settleConditions, strengthOfSchedule,
+  type DraftGroup, type DraftOrderRow,
+} from "./draft/order.js";
+export {
+  compensatoryPicks, compValue, netLosses, COMP_BANDS, COMP_SNAPS,
+  type FreeAgentMove, type CompValue,
+} from "./draft/compensatory.js";
+export {
+  buildBoard, consensusBoard, choose, needAt, boardValue,
+  BOARD_ERROR, CONSENSUS_ERROR, POSITION_VALUE, REPLACEMENT_GRADE, STARTERS, WANTED, CHOICE,
+  type Rate, type Board, type ChooseInput,
+} from "./draft/board.js";
+export { runDraftDay, UDFA, type DraftDayInput, type DraftDayResult } from "./draft/draftDay.js";
+export { runCutdown, seasonsIn, LEAN_POINTS, NEWER_PLAYER_SEASONS, CLAIM_MARGIN, type CoachLean, type CutdownInput } from "./draft/cutdown.js";
+export { draftSteps, turnYear, headCoachEvaluation, DRAFT_DAYS, type DraftStepsConfig } from "./draft/steps.js";
