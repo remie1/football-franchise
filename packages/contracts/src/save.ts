@@ -1,7 +1,7 @@
 import type { CalendarStamp } from "./calendar.js";
 import type { DraftClass, DraftPick, LeagueStructure, SeasonState } from "./league.js";
 import type { PlayerId, TeamId } from "./ids.js";
-import type { Team, PlayerState, StaffState, PlayerContract, PerceivedAttributes } from "./players.js";
+import type { Team, PlayerState, StaffState, PlayerContract, PerceivedAttributes, DeadMoneyCharge } from "./players.js";
 import type { StaffContract } from "./staff.js";
 import type { RelationshipView } from "./relationships.js";
 
@@ -37,6 +37,10 @@ export interface SaveFile {
       freeAgentMoves: { player: PlayerId; from: TeamId; to: TeamId; apy: number; signedAt: CalendarStamp }[];
     };
     contracts: PlayerContract[];
+    /** ADR-085 K3: every dead-money charge, past and future seasons. Optional, so older saves still load. */
+    deadMoney?: DeadMoneyCharge[];
+    /** ADR-085 K4: the cap each season, with the range published before it was set. Optional, as above. */
+    capHistory?: CapSeason[];
     perceptions: PerceivedAttributes[];
     /** ADR-078 C7: conferences and divisions, as data (Spec #5 §14.1). */
     league: LeagueStructure;
@@ -54,6 +58,14 @@ export interface SaveFile {
   playedWith?: { caller: string };
   /** Reserved for fantasy mode (Spec #10 §4 watch item) — petitioned in before v1 freeze. */
   leagueContext?: unknown;
+}
+
+/** ADR-085 K4: one season's cap. `LeagueRules.salaryCap` stays the current season's number. */
+export interface CapSeason {
+  season: number;
+  cap: number;
+  projectedLow?: number;
+  projectedHigh?: number;
 }
 
 /** League structure is DATA, not constants (Spec #5 §14.1). Tier B changes need user assent. */

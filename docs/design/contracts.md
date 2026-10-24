@@ -193,6 +193,20 @@ export interface ContractYear {
 
 Cap *math* lives in franchise; contracts only defines shapes.
 
+**ADR-085 K1-K5 (salary cap and player contracts), all optional so older data still loads:**
+
+- `ContractYear` gains `rosterBonus`, `workoutBonus`, `optionBonusProration`, `perGameRosterBonus`,
+  `incentives { likely, unlikely }`, `guaranteedSalary` (dollars) and `voidYear`.
+- `PlayerContract` gains `kind: ContractKind` (`ROOKIE | VETERAN | EXTENSION | MINIMUM | FRANCHISE_TAG |
+  TRANSITION_TAG | RFA_TENDER | ERFA_TENDER | PRACTICE_SQUAD`), `signingBonus`, `fifthYearOption
+  { season, price, exercised? }` and `ended { at, reason: ContractEndReason, postJune1? }`.
+- `DeadMoneyCharge { team, player, season, amount, reason: "RELEASED" | "TRADED" | "VOIDED" | "RETIRED" }`;
+  `CapState.deadMoney` is the sum of a team's charges for the season.
+- `CapSeason { season, cap, projectedLow?, projectedHigh? }` (in `save.ts`).
+- `PlayerBio.creditedSeasons` (CBA credited seasons; public; shared with ADR-087).
+
+The rookie scale, minimum salaries and tag formulas are CBA data and live in franchise.
+
 ### The draft (ADR-086)
 
 `DraftPick { draft, round, originalTeam, owner, kind: DraftPickKind, overall?, condition?: { text, rule: PickCondition, settled? } }` (C1): who each pick belonged to and who holds it. `DraftPickKind` is `REGULAR | COMPENSATORY | SPECIAL_COMPENSATORY`; `PickCondition` is `PLAYING_TIME | PLAYOFF_FINISH | PICK_SWAP | OTHER`, settled from the game's own seasons. `DraftClass { draft, prospects }` (C2). `Team.practiceSquad?` (C4), filled on cut-down day. `LeagueRules` gains optional `offseasonRosterLimit` (90), `draft: { rounds, compensatoryLimit, compensatoryPerTeam }` (7, 32, 4) and `cutdown` (C3). All in `league.ts`, `players.ts`, `save.ts`.
@@ -367,7 +381,7 @@ export interface RollDetail {
 
 ### 6.2 Franchise event types (v0 set)
 
-`CALENDAR_PHASE_ENTERED`, `DEADLINE_REACHED`, `CONTRACT_SIGNED / RESTRUCTURED / EXPIRED`, `PLAYER_RELEASED / RETIRED (immediate|slow|late per design notes)`, `TAG_APPLIED`, `TRADE_PROPOSED / EXECUTED / REJECTED`, `DRAFT_PICK_MADE`, `SCOUT_REPORT_FILED` (perception delta), `INJURY_OCCURRED / RECOVERED`, `MORALE_CHANGED`, `PRESSURE_EVENT` (owner mandate / hot seat), `PRESS_STORY_PUBLISHED`, `AWARD_GIVEN`, `GAME_SCHEDULED / COMPLETED`, `STAFF_HIRED` (`{ staff, team, role: StaffRole }`) and `STAFF_DEPARTED` (`{ staff, team, reason: StaffDepartureReason }`), typed by ADR-080 P3.
+`CALENDAR_PHASE_ENTERED`, `DEADLINE_REACHED`, `CONTRACT_SIGNED / RESTRUCTURED / EXPIRED` (`CONTRACT_SIGNED` may carry `kind`, `years`, `value`, `guaranteed`; `CONTRACT_EXPIRED` is `{ player, team }`, ADR-085 K6), `CAP_SET` (`{ season, cap }`) and `OPTION_EXERCISED` (`{ player, team, season }`) (ADR-085 K6), `PLAYER_RELEASED / RETIRED (immediate|slow|late per design notes)`, `TAG_APPLIED`, `TRADE_PROPOSED / EXECUTED / REJECTED`, `DRAFT_PICK_MADE`, `SCOUT_REPORT_FILED` (perception delta), `INJURY_OCCURRED / RECOVERED`, `MORALE_CHANGED`, `PRESSURE_EVENT` (owner mandate / hot seat), `PRESS_STORY_PUBLISHED`, `AWARD_GIVEN`, `GAME_SCHEDULED / COMPLETED`, `STAFF_HIRED` (`{ staff, team, role: StaffRole }`) and `STAFF_DEPARTED` (`{ staff, team, reason: StaffDepartureReason }`), typed by ADR-080 P3.
 
 The draft (ADR-086 C5): `DRAFT_PICK_MADE` may carry `overall` and `kind`; `COMPENSATORY_PICKS_AWARDED` (`{ draft, picks: { team, round, kind }[] }`), `DRAFT_PICK_CONDITION_SETTLED` (`{ draft, originalTeam, owner, round, text }`) and `WAIVER_CLAIMED` (`{ player, from, to }`).
 
@@ -450,6 +464,8 @@ export interface SaveFile {
     relationships?: RelationshipView[];    // ADR-084 V1: every view, one entry per direction; optional, as above
     draft?: { picks: DraftPick[]; classes: DraftClass[]; freeAgentMoves: {...}[] };  // ADR-086 C6; optional, as above
     contracts: PlayerContract[];
+    deadMoney?: DeadMoneyCharge[];         // ADR-085 K3; optional, as above
+    capHistory?: CapSeason[];              // ADR-085 K4: the cap each season; optional, as above
     perceptions: PerceivedAttributes[];   // per observer×subject
     league: LeagueStructure;               // ADR-078 C7
     season: SeasonState | null;            // ADR-078 C7 (was `standings: unknown`)

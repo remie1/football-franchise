@@ -75,6 +75,12 @@ export interface PlayerBio {
   /** ADR-086 C2: "PROSPECT" while he is in a draft class and not yet picked. */
   draft: { year: number; round: number; pick: number } | "UDFA" | "PROSPECT";
   appearance?: Appearance;
+  /**
+   * ADR-085 K5: credited seasons under the CBA (a season with 3+ games on full pay status). Public.
+   * Sets minimum salary, RFA/ERFA status and the veteran benefit; development reads it too (ADR-087).
+   * Raised at the year turn. Absent reads as 0.
+   */
+  creditedSeasons?: number;
 }
 
 export interface Injury {
@@ -164,7 +170,20 @@ export interface RatedLeague {
 export interface CapState {
   capLimit: number;
   committed: number;
+  /** The sum of this season's `DeadMoneyCharge`s for the team (ADR-085 K3). */
   deadMoney: number;
+}
+
+/** ADR-085 K3: why money stays on a team's cap for a player who is gone. */
+export type DeadMoneyReason = "RELEASED" | "TRADED" | "VOIDED" | "RETIRED";
+
+/** ADR-085 K3: one season's dead money for one player on one team. Dollars. */
+export interface DeadMoneyCharge {
+  team: TeamId;
+  player: PlayerId;
+  season: number;
+  amount: number;
+  reason: DeadMoneyReason;
 }
 
 export interface Team {
@@ -187,13 +206,43 @@ export interface ContractYear {
   springBonus?: { amount: number; dueAt: CalendarStamp; clawbackOnRetirement: boolean };
   guarantees: { fullyGuaranteed: boolean; injuryOnly?: boolean };
   capHit: number;
+  /** ADR-085 K1: paid if on the roster on a set day early in the league year. */
+  rosterBonus?: number;
+  /** ADR-085 K1: paid for attending the offseason programme. */
+  workoutBonus?: number;
+  /** ADR-085 K1: this year's share of an option bonus, spread like a signing bonus. */
+  optionBonusProration?: number;
+  /** ADR-085 K1: the season's total if active for every game; earned per game on the 53. */
+  perGameRosterBonus?: number;
+  /** ADR-085 K1: likely-to-be-earned incentives count on this year's cap; unlikely ones the next, if earned. */
+  incentives?: { likely: number; unlikely: number };
+  /** ADR-085 K1: the guaranteed part of this year's base salary, in dollars. */
+  guaranteedSalary?: number;
+  /** ADR-085 K1: a year that exists only to spread a bonus; it voids before it is played. */
+  voidYear?: boolean;
 }
+
+/** ADR-085 K2: what kind of deal a contract is. */
+export type ContractKind =
+  | "ROOKIE" | "VETERAN" | "EXTENSION" | "MINIMUM" | "FRANCHISE_TAG" | "TRANSITION_TAG"
+  | "RFA_TENDER" | "ERFA_TENDER" | "PRACTICE_SQUAD";
+
+/** ADR-085 K2: how a contract ended before it ran out, or that it ran out. */
+export type ContractEndReason = "RELEASED" | "TRADED" | "EXPIRED" | "VOIDED" | "RETIRED";
 
 export interface PlayerContract {
   player: PlayerId;
   team: TeamId;
   years: ContractYear[];
   signedAt: CalendarStamp;
+  /** ADR-085 K2. Absent in contracts written before it. */
+  kind?: ContractKind;
+  /** ADR-085 K2: the whole signing bonus, paid at signing, spread on the cap over at most five years. */
+  signingBonus?: number;
+  /** ADR-085 K2: a first-round rookie's fifth-year team option. */
+  fifthYearOption?: { season: number; price: number; exercised?: boolean };
+  /** ADR-085 K2: set once the contract is over. A post-June-1 release splits its dead money over two seasons. */
+  ended?: { at: CalendarStamp; reason: ContractEndReason; postJune1?: boolean };
 }
 
 export type { AttrId, CoachAttrId };

@@ -60,6 +60,22 @@ export {
   RELATIONSHIP_TUNING, RELATIONSHIP_MOVES, sitDownChance,
   type RelationshipMove, type RelationshipMoveId, type RiftRule,
 } from "./relationships/tables.js";
+// ADR-085: the salary cap and player contracts (the money rules).
+export {
+  leagueYear, transactionYear, isAfterJune1, isTop51Window, proration, capNumber, guaranteedOf, withCapHits, prorate,
+  endedYear, liveIn, releasePlayer, expireContract, restructure, teamCapTotal,
+  type ReleaseOptions, type ReleaseResult, type RestructureOptions, type CapTotal,
+} from "./cap/money.js";
+export {
+  earnsCreditedSeason, minimumSalary, minimumContract, signPracticeSquad, rookieContract, tagPrice, tagContract, tenderPrice,
+  type SigningBase, type RookieSigning,
+} from "./cap/signings.js";
+export * as capRules from "./cap/rules.js";
+export { ROOKIE_SCALE_2026 } from "./cap/rookieScale2026.js";
+export {
+  projectCaps, drawGrowth, historyGrowth, CAP_HISTORY, CAP_GROWTH,
+  type CapForecast, type CapDrivers,
+} from "./cap/capGrowth.js";
 // ADR-086: the draft (order, compensatory picks, boards, draft day, cut-down day, the year turn).
 export {
   draftOrder, draftGroups, draftPicks, settleConditions, strengthOfSchedule,
