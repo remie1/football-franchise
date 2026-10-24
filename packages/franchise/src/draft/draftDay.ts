@@ -5,10 +5,12 @@
  * prospect joins the team (bio.draft gets year, round and overall pick; he goes to the bottom of his
  * position's depth chart until camp sorts it). After the last pick, teams sign undrafted prospects
  * in draft order, one at a time, while they have room under the offseason limit and a prospect
- * worth signing; the rest of the class goes home.
+ * worth signing; the rest of the class goes home. Every pick and undrafted rookie signs his rookie
+ * deal on the spot (ADR-085's scale, `money.ts`).
  */
-import type { DraftPick, FranchiseEvent, LeagueRules, PlayerId, PlayerState, Team, TeamId } from "@ff/contracts";
+import type { CalendarStamp, DraftPick, FranchiseEvent, LeagueRules, PlayerId, PlayerState, Team, TeamId } from "@ff/contracts";
 import type { LeaguePeople } from "../season/people.js";
+import { flatCap, signRookie, type CapForSeason } from "./money.js";
 import { boardValue, buildBoard, choose, consensusBoard, needAt, type Board, type Rate } from "./board.js";
 
 /** Undrafted signings a team makes at most, and the board value below which a prospect is not worth a spot. */
@@ -23,6 +25,10 @@ export interface DraftDayInput {
   rate: Rate;
   /** A team's evaluator skill, 0..100. */
   scouting: (team: TeamId) => number;
+  /** When the picks are made (default: the draft's day, OFF_DRAFT week 3 day 4). */
+  at?: CalendarStamp;
+  /** The cap by season, for the rookie scale (default: flat at the rules' cap). */
+  cap?: CapForSeason;
 }
 
 export interface DraftDayResult {
@@ -50,6 +56,14 @@ export function runDraftDay(people: LeaguePeople, input: DraftDayInput): DraftDa
   const available = new Map(prospects.map((p) => [String(p.bio.id), p]));
   const events: FranchiseEvent[] = [];
   const selections: { pick: DraftPick; player: PlayerId }[] = [];
+  const at: CalendarStamp = input.at ?? { season: draft - 1, phase: "OFF_DRAFT", week: 3, day: 4 };
+  const cap = input.cap ?? flatCap(rules);
+  const contracts = [...(people.contracts ?? [])];
+  const signDeal = (team: TeamId, player: PlayerId, pick: number | "UDFA") => {
+    const { contract, event } = signRookie(player, team, pick, draft, at, cap);
+    contracts.push(contract);
+    events.push(event);
+  };
 
   const sign = (team: TeamId, p: PlayerState, draftLine: PlayerState["bio"]["draft"]) => {
     available.delete(String(p.bio.id));
@@ -74,6 +88,7 @@ export function runDraftDay(people: LeaguePeople, input: DraftDayInput): DraftDa
     sign(pick.owner, player, { year: draft, round: pick.round, pick: overall });
     selections.push({ pick, player: player.bio.id });
     events.push({ type: "DRAFT_PICK_MADE", payload: { team: pick.owner, player: player.bio.id, round: pick.round, pick: overall, overall, kind: pick.kind } });
+    signDeal(pick.owner, player.bio.id, overall);
   });
 
   // The undrafted scramble: in draft order (first-round order), one signing a turn.
@@ -96,7 +111,7 @@ export function runDraftDay(people: LeaguePeople, input: DraftDayInput): DraftDa
       if (!best || best.v < UDFA.minValue) continue;
       sign(team, best.p, "UDFA");
       signedBy.set(team, (signedBy.get(team) ?? 0) + 1);
-      events.push({ type: "CONTRACT_SIGNED", payload: { player: best.p.bio.id, team } });
+      signDeal(team, best.p.bio.id, "UDFA");
       progress = true;
     }
   }
@@ -105,7 +120,7 @@ export function runDraftDay(people: LeaguePeople, input: DraftDayInput): DraftDa
   const players = [...byId.values()].filter((p) => !(inClass.has(String(p.bio.id)) && p.bio.draft === "PROSPECT"));
   const classes = people.classes.filter((c) => c.draft !== draft);
   return {
-    people: { ...people, teams: people.teams.map((t) => teams.get(t.id) as Team), players, classes },
+    people: { ...people, teams: people.teams.map((t) => teams.get(t.id) as Team), players, classes, contracts },
     events,
     selections,
   };

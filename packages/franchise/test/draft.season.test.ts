@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  createRng, playerId,
+  DEFAULT_LEAGUE_RULES, createRng, playerId,
   type DraftClass, type PlayerState, type Position, type TeamId,
 } from "@ff/contracts";
 import { buildLeague, makeSave, readSave, runSeason, type GameResolver, type LeaguePeople } from "../src/index.js";
@@ -98,7 +98,7 @@ describe("a season with the draft in its offseason (ADR-086 D5)", () => {
 });
 
 describe("the year turns over, and cut-down day (ADR-086 §2, §8)", () => {
-  const turned = turnYear(year1.people!);
+  const turned = turnYear(year1.people!, { season: 2027, rules: DEFAULT_LEAGUE_RULES }).people;
   const cutDay = { season: 2027, phase: "PRESEASON" as const, week: 3, day: 2 };
   const year2 = runSeason({ league, season: 2027, seed: "s", resolve: fake, people: turned, daySteps: steps, through: "YEAR", stopAfter: cutDay });
   const people = year2.people!;
@@ -141,6 +141,83 @@ describe("the year turns over, and cut-down day (ADR-086 §2, §8)", () => {
   });
 });
 
+describe("the draft's money (ADR-086 §8 with ADR-085)", () => {
+  const turned = turnYear(year1.people!, { season: 2027, rules: DEFAULT_LEAGUE_RULES }).people;
+  const cutDay = { season: 2027, phase: "PRESEASON" as const, week: 3, day: 2 };
+  const year2 = runSeason({ league, season: 2027, seed: "s", resolve: fake, people: turned, daySteps: steps, through: "YEAR", stopAfter: cutDay });
+  const book = year2.people!.contracts!;
+  const live = (id: unknown) => book.filter((c) => String(c.player) === String(id) && !c.ended);
+  const byId = new Map(year2.people!.players.map((p) => [String(p.bio.id), p]));
+
+  it("signs every pick to the rookie scale: four years, first-rounders guaranteed with a fifth-year option", () => {
+    const drafted = year1.people!.contracts!.filter((c) => c.kind === "ROOKIE" && c.signingBonus !== undefined);
+    expect(drafted).toHaveLength(224);
+    for (const c of drafted) {
+      expect(c.years.map((y) => y.season)).toEqual([2027, 2028, 2029, 2030]);
+      const pick = (year1.people!.players.find((p) => p.bio.id === c.player)!.bio.draft as { pick: number }).pick;
+      expect(c.fifthYearOption !== undefined).toBe(pick <= 32);
+    }
+    const bonus = (n: number) => drafted.find((c) => (year1.people!.players.find((p) => p.bio.id === c.player)!.bio.draft as { pick: number }).pick === n)!.signingBonus!;
+    expect(bonus(1)).toBeGreaterThan(bonus(32));
+    expect(bonus(32)).toBeGreaterThan(bonus(224));
+  });
+
+  it("signs undrafted rookies to three minimum years", () => {
+    const udfa = year1.people!.contracts!.filter((c) => c.kind === "ROOKIE" && c.signingBonus === undefined);
+    expect(udfa.length).toBeGreaterThan(32 * 10);
+    for (const c of udfa) expect(c.years.map((y) => y.season)).toEqual([2027, 2028, 2029]);
+  });
+
+  it("gives everyone on a 53 at the season's end a credited season, and no prospect one", () => {
+    for (const t of year1.people!.teams) for (const id of t.roster) {
+      const p = year1.people!.players.find((q) => q.bio.id === id)!;
+      if (p.bio.draft === "UDFA" || (typeof p.bio.draft === "object" && p.bio.draft.year === 2027)) continue;
+      const d = p.bio.draft as { year: number };
+      expect(p.bio.creditedSeasons).toBe(2026 - d.year + 1);
+    }
+    for (const p of year1.people!.players) if (typeof p.bio.draft === "object" && p.bio.draft.year === 2027) expect(p.bio.creditedSeasons).toBeUndefined();
+  });
+
+  it("on cut-down day ends the cut players' deals, charges a cut draftee's bonus as dead money, and signs practice squads", () => {
+    for (const t of year2.people!.teams) {
+      for (const id of t.practiceSquad!) {
+        expect(live(id).map((c) => [c.kind, c.team, c.years[0]!.season])).toEqual([["PRACTICE_SQUAD", t.id, 2027]]);
+      }
+      for (const id of t.roster) expect(live(id).length).toBeLessThanOrEqual(1);
+    }
+    for (const id of year2.people!.freeAgents) expect(live(id)).toHaveLength(0);
+    const dead = year2.people!.deadMoney!;
+    expect(dead.length).toBeGreaterThan(0);
+    for (const d of dead) {
+      const draft = byId.get(String(d.player))!.bio.draft;
+      expect(typeof draft === "object" && draft.year === 2027).toBe(true);
+    }
+  });
+
+  it("hands a claimed player's remaining salaries, not his bonus, to the claiming team", () => {
+    const claims = year2.events.filter((e) => e.event.type === "WAIVER_CLAIMED").map((e) => (e.event as { payload: { player: unknown; to: TeamId } }).payload);
+    for (const { player, to } of claims) {
+      const held = year2.people!.teams.find((t) => t.roster.includes(player as never));
+      if (held?.id !== to) continue; // claimed, then cut again
+      const deals = live(player);
+      if (deals.length === 0) continue;
+      expect(deals).toHaveLength(1);
+      expect(deals[0]!.team).toBe(to);
+      for (const y of deals[0]!.years) expect(y.signingBonusProration).toBe(0);
+    }
+  });
+
+  it("turns last year's practice squads into reserve/future deals at the year turn", () => {
+    const next = turnYear(year2.people!, { season: 2028, rules: DEFAULT_LEAGUE_RULES });
+    const squads = year2.people!.teams.flatMap((t) => t.practiceSquad!);
+    const futures = next.events.filter((e) => e.type === "CONTRACT_SIGNED");
+    expect(futures).toHaveLength(squads.length);
+    for (const id of squads) {
+      expect(next.people.contracts!.some((c) => String(c.player) === String(id) && c.kind === "MINIMUM" && c.years[0]!.season === 2028)).toBe(true);
+    }
+  });
+});
+
 describe("saves keep the draft (ADR-086 C6)", () => {
   const stop = { season: 2026, phase: "OFF_DRAFT" as const, week: 2, day: 1 };
   const straight = runSeason({ league, season: 2026, seed: league.seed, resolve: fake, people: startingPeople(), daySteps: steps, through: "YEAR" });
@@ -174,5 +251,34 @@ describe("saves keep the draft (ADR-086 C6)", () => {
     const bad = JSON.parse(JSON.stringify(save, listSets));
     bad.world.draft.classes[0].prospects.push(bad.world.players[0].bio.id);
     expect(() => readSave(bad)).toThrow(/is not a prospect/);
+  });
+});
+
+describe("saves keep the contracts and dead money (ADR-085 with ADR-086)", () => {
+  // 2027 to cut-down day after the 2026 draft: once in one go, once saved a week before and loaded again.
+  const draftYear = runSeason({ league, season: 2026, seed: league.seed, resolve: fake, people: startingPeople(), daySteps: steps, through: "YEAR" });
+  const turned = turnYear(draftYear.people!, { season: 2027, rules: DEFAULT_LEAGUE_RULES }).people;
+  const cutDay = { season: 2027, phase: "PRESEASON" as const, week: 3, day: 2 };
+  const straight = runSeason({ league, season: 2027, seed: league.seed, resolve: fake, people: turned, daySteps: steps, through: "YEAR", stopAfter: cutDay });
+  const stop = { season: 2027, phase: "PRESEASON" as const, week: 2, day: 1 };
+  const first = runSeason({ league, season: 2027, seed: league.seed, resolve: fake, people: turned, daySteps: steps, through: "YEAR", stopAfter: stop });
+  const listSets = (_k: string, v: unknown) => (v instanceof Set ? [...v] : v);
+  const save = makeSave({
+    league: { ...league, teams: first.people!.teams }, calendar: first.calendar, season: first.state, createdBy: "test",
+    players: first.people!.players, draft: { picks: first.people!.picks, classes: first.people!.classes, freeAgentMoves: [] },
+    contracts: first.people!.contracts!, deadMoney: first.people!.deadMoney ?? [],
+  });
+  const loaded = readSave(JSON.parse(JSON.stringify(save, listSets)));
+
+  it("carries on to the same cut-down day, deals and dead money as a straight run", () => {
+    const people = peopleFromSave(loaded.save);
+    expect(people.contracts).toHaveLength(first.people!.contracts!.length);
+    const second = runSeason({
+      league: loaded.league, season: 2027, seed: league.seed, resolve: fake, through: "YEAR", stopAfter: cutDay,
+      people, daySteps: steps, resumeFrom: loaded.save.world.season!, stepsDoneThrough: loaded.save.calendar,
+    });
+    expect(JSON.stringify(second.people!.contracts)).toBe(JSON.stringify(straight.people!.contracts));
+    expect(JSON.stringify(second.people!.deadMoney)).toBe(JSON.stringify(straight.people!.deadMoney));
+    expect(JSON.stringify(second.people!.teams)).toBe(JSON.stringify(straight.people!.teams));
   });
 });

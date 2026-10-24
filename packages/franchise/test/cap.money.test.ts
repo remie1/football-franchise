@@ -75,6 +75,12 @@ describe("releasing a player", () => {
     expect(r.charges.map((c) => [c.season, c.amount])).toEqual([[2026, 17e6], [2027, 15e6]]);
   });
 
+  it("a cut in camp or preseason (cut-down day) owes no salary: bonuses and guarantees only, the rest next year", () => {
+    const r = releasePlayer(deal(), stamp(2027, "PRESEASON", 3)); // 2027 base not guaranteed
+    expect(r.charges.map((c) => [c.season, c.amount])).toEqual([[2027, 5e6 + 2e6 + 5e5], [2028, 10e6]]);
+    expect(r.events[0]).toMatchObject({ payload: { postJune1: true } });
+  });
+
   it("injury-only guarantees are owed only to an injured player", () => {
     const c = deal(); c.years[1] = { ...c.years[1]!, guarantees: { fullyGuaranteed: false, injuryOnly: true } };
     const healthy = releasePlayer(c, stamp(2026, "OFF_EVAL"));

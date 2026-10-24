@@ -204,3 +204,20 @@ Exact wording for the owner's yes: `/mnt/project-files/design/ADR-086-contracts-
   that the trading system must allow such conditions.
 - **N3. First comp picks: RULED (a)**, 2026-10-23. Computed with §5's formula from the real 2026
   free-agent moves in the stand-in league's contracts, compared with the NFL's announcement in March.
+
+## 12. Built (2026-10-24)
+
+On PR #31. D1, D3, D4, D5 built in `franchise/src/draft/`; D2 in `attributes/src/fictional/draftClass.ts`.
+
+**The money, with ADR-085's rules** (`draft/money.ts`; prices from `cap/signings.ts`):
+
+- Every pick signs `rookieContract` for its overall pick on draft day; every undrafted rookie signs three minimum years. The cap by season is passed in (`DraftStepsConfig.cap`, ADR-085's forecast); default flat at the rules' cap.
+- Cut-down day: a cut ends the deal through `releasePlayer` (bonus and guarantees become dead money; cut-down day is after June 1). A waiver claim hands the claiming team the deal's remaining salaries, not its bonus. Practice-squad players sign `signPracticeSquad`.
+- Year turn: last year's practice squads come back on one-year minimum reserve/future deals.
+- Credited seasons (ADR-085 K5): at the OFF_EVAL step, everyone on a 53 whose team played 3+ regular-season games earns one (`earnsCreditedSeason`). Simplification until in-season moves and injured reserve exist: the 53 at the season's end stands for the whole season. A player with none kept starts from his draft line. Waivers and practice squads read credited seasons.
+- One fix to the cap code, agreed as ADR-085's own rule: a player cut in camp or preseason is owed no salary (base salary is paid in regular-season weeks), only bonuses and guarantees. Before, `releasePlayer` charged camp and preseason cuts their whole season's cap number, which would have left every team about $35M of dead money on cut-down day.
+- Saves keep the contracts and dead money (`makeSave` `contracts`, `deadMoney`).
+
+**Waiver order across a save.** The made draft's picks (owners final, `overall` set) stay in `world.draft.picks` until the next season's order is fixed, so a save made between the draft and the end of the next season carries on with the same waiver order (`waiverOrderFrom`). C6's comment says "future" picks; keeping the last made draft is a reading of it, not a new field.
+
+**Not built yet:** expiring contracts at the new league year (`expireContract`) wait for ADR-085's re-signing and free-agent market, or every expiring player would walk; the season command's `--seasons N` waits for ADR-087 P5's position overall in contracts (franchise takes an injected rating meanwhile); D7, the 20-draft NFL check.

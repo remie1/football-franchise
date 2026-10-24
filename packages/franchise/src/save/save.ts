@@ -20,7 +20,8 @@
  */
 import {
   ATTRIBUTE_REGISTRY_V1, DEFAULT_LEAGUE_RULES, SAVE_FORMAT_VERSION, compareStamps, stampToString,
-  type CalendarStamp, type LeagueRules, type PlayerState, type RelationshipView, type SaveFile, type SeasonState,
+  type CalendarStamp, type DeadMoneyCharge, type LeagueRules, type PlayerContract, type PlayerState, type RelationshipView,
+  type SaveFile, type SeasonState,
 } from "@ff/contracts";
 import type { StaffWorld } from "../staff/world.js";
 import { checkViews } from "../relationships/ledger.js";
@@ -51,6 +52,9 @@ export interface MakeSaveInput {
   staff?: { world: StaffWorld; relationships?: readonly RelationshipView[] };
   /** ADR-086 C6: the draft (picks someone holds, classes not yet drafted, last year's free-agent moves). */
   draft?: NonNullable<SaveFile["world"]["draft"]>;
+  /** ADR-085: player contracts, and dead money (K3). Absent, the book is empty. */
+  contracts?: readonly PlayerContract[];
+  deadMoney?: readonly DeadMoneyCharge[];
 }
 
 export function makeSave(input: MakeSaveInput): SaveFile {
@@ -75,7 +79,8 @@ export function makeSave(input: MakeSaveInput): SaveFile {
       ...(staff ? { staffContracts: staff.world.contracts } : {}),
       ...(staff?.relationships ? { relationships: [...staff.relationships] } : {}),
       ...(input.draft ? { draft: input.draft } : {}),
-      contracts: [],
+      contracts: [...(input.contracts ?? [])],
+      ...(input.deadMoney ? { deadMoney: [...input.deadMoney] } : {}),
       perceptions: [],
       league: league.structure,
       season,

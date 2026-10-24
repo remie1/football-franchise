@@ -8,8 +8,8 @@
  * same result, or a season is not reproducible.
  */
 import type {
-  CalendarStamp, DraftClass, DraftPick, FranchiseEvent, GameResult, LeagueRules, PlayerId, PlayerState,
-  ScheduledGame, SeasonState, StaffState, Team, TeamId,
+  CalendarStamp, DeadMoneyCharge, DraftClass, DraftPick, FranchiseEvent, GameResult, LeagueRules, PlayerContract,
+  PlayerId, PlayerState, ScheduledGame, SeasonState, StaffState, Team, TeamId,
 } from "@ff/contracts";
 
 export interface LeaguePeople {
@@ -24,6 +24,13 @@ export interface LeaguePeople {
   staff?: StaffState[];
   /** Waiver priority, first claim first: the last draft's first-round order (ADR-086 §8). */
   waiverOrder?: TeamId[];
+  /**
+   * Player contracts (ADR-085). The draft signs every pick and undrafted rookie here, cut-down day
+   * ends the deals of players it lets go and signs practice squads. Absent = an empty book.
+   */
+  contracts?: PlayerContract[];
+  /** Dead money from cut-down day's releases (ADR-085 K3). */
+  deadMoney?: DeadMoneyCharge[];
 }
 
 export interface DayStepContext {

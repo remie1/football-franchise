@@ -15,7 +15,12 @@ import { MAX_PRORATION_YEARS, TOP_51 } from "./rules.js";
 const NEXT_LEAGUE_YEAR: ReadonlySet<CalendarPhase> = new Set(["OFF_RESET_FA", "OFF_DRAFT", "OFF_ROOKIES_OTAS", "OFF_SUMMER"]);
 /** Phases before June 1 of their league year (OFF_EVAL counts: it is processed at the new league year). */
 const BEFORE_JUNE_1: ReadonlySet<CalendarPhase> = new Set(["OFF_EVAL", "OFF_RESET_FA", "OFF_DRAFT", "OFF_ROOKIES_OTAS"]);
-const IN_SEASON: ReadonlySet<CalendarPhase> = new Set(["TRAINING_CAMP", "PRESEASON", "REGULAR_SEASON", "PLAYOFFS"]);
+/**
+ * Phases whose base salary is being paid: the regular season's weekly cheques (and the playoffs).
+ * A player cut in camp or preseason, including cut-down day, is owed only his guarantees and
+ * bonuses, as in the offseason (ADR-086 §8, cut-down day).
+ */
+const IN_SEASON: ReadonlySet<CalendarPhase> = new Set(["REGULAR_SEASON", "PLAYOFFS"]);
 
 /** The contract season a stamp falls in. */
 export function leagueYear(at: CalendarStamp): number {
@@ -104,7 +109,7 @@ export function releasePlayer(c: PlayerContract, at: CalendarStamp, opts: Releas
     } else {
       now += proration(thisYear) + guaranteedOf(thisYear, opts.injured);
       if (at.phase !== "OFF_EVAL") now += thisYear.rosterBonus ?? 0;
-      if (at.phase === "OFF_SUMMER") now += thisYear.workoutBonus ?? 0;
+      if (at.phase === "OFF_SUMMER" || at.phase === "TRAINING_CAMP" || at.phase === "PRESEASON") now += thisYear.workoutBonus ?? 0;
     }
   }
   const later = c.years.filter((y) => y.season > year)

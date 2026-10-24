@@ -10,10 +10,13 @@
  *   weakest player there go. Veterans become free agents at once.
  * - Practice squad: up to 16 newer players, the team's own cuts first, then the best unclaimed.
  * Everyone else let go becomes a free agent.
+ * Money (ADR-085): a cut ends the player's deal and leaves its bonus and guarantees as dead money; a
+ * claiming team takes on the rest of his salaries; a practice-squad player signs a squad deal.
  */
-import type { FranchiseEvent, LeagueRules, PlayerId, PlayerState, Position, Team, TeamId } from "@ff/contracts";
+import type { CalendarStamp, FranchiseEvent, LeagueRules, PlayerId, PlayerState, Position, Team, TeamId } from "@ff/contracts";
 import type { LeaguePeople } from "../season/people.js";
 import { WANTED, type Rate } from "./board.js";
+import { claimedDeal, flatCap, release, signSquad, type CapForSeason } from "./money.js";
 
 export type CoachLean = "INCUMBENT" | "VETERAN" | "FORM";
 /** Rating points a coach's lean is worth in a close call. */
@@ -28,10 +31,15 @@ export interface CutdownInput {
   rules: LeagueRules;
   rate: Rate;
   lean?: (team: TeamId) => CoachLean | undefined;
+  /** When the cuts are made (default: the rules' cut-down day). */
+  at?: CalendarStamp;
+  /** The cap by season, for practice-squad pay (default: flat at the rules' cap). */
+  cap?: CapForSeason;
 }
 
-/** Seasons in the league, from the draft line (ADR-085 K5's credited seasons replace this once it lands). */
+/** Seasons in the league: credited seasons (ADR-085 K5) when kept, else read from the draft line. */
 export function seasonsIn(p: PlayerState, season: number): number {
+  if (p.bio.creditedSeasons !== undefined) return p.bio.creditedSeasons;
   const d = p.bio.draft;
   if (typeof d === "object") return Math.max(0, season - d.year);
   return Math.max(0, p.bio.age - 22);
@@ -47,6 +55,12 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
   const psLimit = rules.practiceSquadLimit;
   const kept = new Map<TeamId, PlayerState[]>();
   const cutFrom = new Map<string, TeamId>();
+  const day = rules.cutdown ?? { phase: "PRESEASON", week: 3, day: 2 };
+  const at: CalendarStamp = input.at ?? { season, phase: day.phase as CalendarStamp["phase"], week: day.week, day: day.day };
+  const cap = input.cap ?? flatCap(rules);
+  const contracts = [...(people.contracts ?? [])];
+  const deadMoney = [...(people.deadMoney ?? [])];
+  const cut = (player: PlayerId, team: TeamId) => events.push(...release(contracts, deadMoney, player, team, at));
 
   for (const team of people.teams) {
     const roster = team.roster.map((id) => byId.get(String(id))!);
@@ -69,7 +83,7 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
     kept.set(team.id, keep);
     for (const p of rest) {
       cutFrom.set(String(p.bio.id), team.id);
-      events.push({ type: "PLAYER_RELEASED", payload: { player: p.bio.id, team: team.id, postJune1: false } });
+      cut(p.bio.id, team.id);
     }
   }
 
@@ -88,9 +102,12 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
       kept.set(team, [...roster.filter((q) => q !== weakest), p]);
       claimed.add(String(p.bio.id));
       events.push({ type: "WAIVER_CLAIMED", payload: { player: p.bio.id, from: cutFrom.get(String(p.bio.id))!, to: team } });
+      const old = [...contracts].reverse().find((c) => String(c.player) === String(p.bio.id));
+      const deal = claimedDeal(old, team, at);
+      if (deal) contracts.push(deal);
       cutFrom.set(String(weakest.bio.id), team);
       claimed.delete(String(weakest.bio.id));
-      events.push({ type: "PLAYER_RELEASED", payload: { player: weakest.bio.id, team, postJune1: false } });
+      cut(weakest.bio.id, team);
       break;
     }
   }
@@ -119,6 +136,14 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
     }
   }
 
+  for (const [team, list] of squads) {
+    for (const p of list) {
+      const { contract, event } = signSquad(p, team, season, at, cap);
+      contracts.push(contract);
+      events.push(event);
+    }
+  }
+
   // Write back: rosters, depth charts best first, practice squads, free agents.
   const teamOf = new Map<string, TeamId>();
   for (const [team, list] of kept) for (const p of list) teamOf.set(String(p.bio.id), team);
@@ -136,5 +161,5 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
     for (const p of [...list].sort((a, b) => rate(b) - rate(a))) (depthChart[p.bio.position] ??= []).push(p.bio.id);
     return { ...t, roster: list.map((p) => p.bio.id), depthChart, practiceSquad: squads.get(t.id)!.map((p) => p.bio.id) };
   });
-  return { people: { ...people, teams, players, freeAgents }, events };
+  return { people: { ...people, teams, players, freeAgents, contracts, deadMoney }, events };
 }
