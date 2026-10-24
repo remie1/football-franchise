@@ -14,6 +14,7 @@
  * Rosters (ADR-079): by default each team plays with its own made-up squad from
  * `buildGeneratedLeague`. With `rosters: "flat"`, team i of the franchise league plays with team
  * i of the flat league instead (every attribute 60): equal teams, results close to coin flips.
+ * With `rosters: "standin"`, the teams are the real NFL's stand-ins from a league file (ADR-088).
  */
 import {
   DEFAULT_LEAGUE_RULES,
@@ -29,6 +30,7 @@ import { buildFlatLeague } from "../league/flat.js";
 import type { AnyProvenancedLeague } from "../league/provenance.js";
 import { fullStrength, indexLeague } from "../league/snapshot.js";
 import { buildGeneratedLeague, type GeneratedLeague } from "./generatedLeague.js";
+import { buildStandInLeague, type readStandInFile, type StandInLeague } from "./standInLeague.js";
 
 export interface RealSimOptions {
   readonly callerVersion?: CallerVersion;
@@ -97,7 +99,7 @@ export function realSimResolver(league: League, opts: RealSimOptions = {}): Game
   };
 }
 
-export type SeasonRosters = "generated" | "flat";
+export type SeasonRosters = "generated" | "flat" | "standin";
 
 export interface RealSeasonInput {
   readonly seed: string;
@@ -111,6 +113,8 @@ export interface RealSeasonInput {
   readonly resumeFrom?: SeasonState;
   /** Whose players play: each team's own made-up squad (default), or the flat league's. */
   readonly rosters?: SeasonRosters;
+  /** With `rosters: "standin"`: the parsed league file (ADR-088 R5). */
+  readonly standIn?: ReturnType<typeof readStandInFile>;
   /** Team-strength spread for generated squads (ADR-079 Q2; tuned in R5). */
   readonly teamStrengthSd?: number;
   /** Sees each event as the season plays (the season command's headlines, ADR-082 R2). Watches only. */
@@ -122,14 +126,20 @@ export interface RealSeasonInput {
  * real sim. Generated squads are rebuilt from the league's seed and the season, so a loaded save
  * gets the same players it was saved with.
  */
-export function runRealSeason(input: RealSeasonInput): { league: League; rated?: GeneratedLeague; run: SeasonRun } {
+export function runRealSeason(input: RealSeasonInput): { league: League; rated?: GeneratedLeague | StandInLeague; run: SeasonRun } {
   const base = input.league ?? buildLeague(input.seed);
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
   const season = input.season ?? 2027;
-  const rated = (input.rosters ?? "generated") === "generated"
-    ? buildGeneratedLeague(base, { season, ...(input.teamStrengthSd === undefined ? {} : { teamStrengthSd: input.teamStrengthSd }) })
-    : undefined;
-  const league = rated === undefined ? base : { ...base, teams: rated.league.teams };
+  const rosters = input.rosters ?? "generated";
+  let league: League = base;
+  let rated: GeneratedLeague | StandInLeague | undefined;
+  if (rosters === "generated") {
+    rated = buildGeneratedLeague(base, { season, ...(input.teamStrengthSd === undefined ? {} : { teamStrengthSd: input.teamStrengthSd }) });
+    league = { ...base, teams: rated.league.teams };
+  } else if (rosters === "standin") {
+    if (input.standIn === undefined) throw new Error("runRealSeason: rosters \"standin\" needs the league file (standIn)");
+    ({ league, rated } = buildStandInLeague(base, input.standIn));
+  }
   const resolve = realSimResolver(league, {
     rules,
     ...(input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }),

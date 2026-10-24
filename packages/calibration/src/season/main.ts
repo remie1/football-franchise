@@ -1,6 +1,6 @@
 /**
  * `pnpm --filter @ff/calibration season -- --seed <seed> [--season 2027] [--caller v5] [--out <file>]`
- *   `[--rosters generated|flat] [--team-sd <n>] [--stop-after <week> | playoffs:<week>] [--save <file>]`
+ *   `[--rosters generated|flat|standin] [--league <file>] [--team-sd <n>] [--stop-after <week> | playoffs:<week>] [--save <file>]`
  * `pnpm --filter @ff/calibration season -- --load <file> [--caller v5] [--stop-after …] [--save <file>]`
  *
  * Plays a whole season (272 games plus the playoffs) through the real sim, prints the final
@@ -22,6 +22,10 @@
  * the saved teams have rosters, the flat league when they do not. A save does not record `--team-sd`, so the
  * two cannot be combined.
  *
+ * Stand-ins (ADR-088): `--league <file>` (with or without `--rosters standin`) plays the real NFL's
+ * stand-ins from a league file written by `pnpm --filter @ff/attributes import-real`. Not with
+ * `--save` or `--team-sd` yet.
+ *
  * Coaches (ADR-080; ADR-078 R1 amendment 2): a new league's coaches are made from the world seed at
  * the start, with their made-up history, and `--save` keeps them. `--load` carries on with the saved
  * coaches. Coaches do not touch the games yet.
@@ -33,6 +37,7 @@ import { buildLeague, buildStaff, makeSave, readSave } from "@ff/franchise";
 import { createNewsDesk, formatEdition } from "@ff/narrative";
 import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
 import { runRealSeason, type SeasonRosters } from "./realSeason.js";
+import { readStandInFile } from "./standInLeague.js";
 
 function parse(argv: readonly string[]) {
   let seed: string | undefined;
@@ -45,6 +50,7 @@ function parse(argv: readonly string[]) {
   let switchCaller = false;
   let rosters: SeasonRosters | undefined;
   let teamStrengthSd: number | undefined;
+  let leagueFile: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const next = (): string => {
@@ -62,9 +68,9 @@ function parse(argv: readonly string[]) {
     else if (arg === "--switch-caller") switchCaller = true;
     else if (arg === "--rosters") {
       const v = next();
-      if (v !== "generated" && v !== "flat") throw new SyntaxError("--rosters must be generated or flat");
+      if (v !== "generated" && v !== "flat" && v !== "standin") throw new SyntaxError("--rosters must be generated, flat or standin");
       rosters = v;
-    } else if (arg === "--team-sd") {
+    } else if (arg === "--league") leagueFile = next(); else if (arg === "--team-sd") {
       teamStrengthSd = Number(next());
       if (!(teamStrengthSd >= 0)) throw new SyntaxError("--team-sd must be a number, 0 or more");
     }
@@ -82,7 +88,13 @@ function parse(argv: readonly string[]) {
   if (teamStrengthSd !== undefined && (load !== undefined || save !== undefined)) {
     throw new SyntaxError("a save does not record --team-sd; drop it to save or load");
   }
-  return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd };
+  if (leagueFile !== undefined && rosters === undefined) rosters = "standin";
+  if (rosters === "standin" && leagueFile === undefined) throw new SyntaxError("--rosters standin needs --league <file>");
+  if (leagueFile !== undefined && rosters !== "standin") throw new SyntaxError("--league is the stand-in league; it goes with --rosters standin");
+  // ADR-088 R5: saves do not record which league file was played yet.
+  if (rosters === "standin" && save !== undefined) throw new SyntaxError("a save cannot hold the stand-in league yet; drop --save");
+  if (rosters === "standin" && teamStrengthSd !== undefined) throw new SyntaxError("the stand-in league has no hidden team strength (ADR-088 Q8); drop --team-sd");
+  return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd, leagueFile };
 }
 
 function stopDay(text: string, season: number): CalendarStamp {
@@ -129,8 +141,10 @@ const printNews = (editions: ReturnType<Desk["take"]>) => {
     console.log(`\n${formatEdition(e, desk!.scoreLine)}`);
   }
 };
+const standIn = args.leagueFile === undefined ? undefined : readStandInFile(readFileSync(fromCaller(args.leagueFile), "utf8"));
 const { league, rated, run } = runRealSeason({
   seed, season, callerVersion, rosters, league: base,
+  ...(standIn === undefined ? {} : { standIn }),
   ...(args.teamStrengthSd === undefined ? {} : { teamStrengthSd: args.teamStrengthSd }),
   ...(loaded ? { rules: loaded.rules, ...(loaded.save.world.season ? { resumeFrom: loaded.save.world.season } : {}) } : {}),
   ...(args.stopAfter ? { stopAfter: stopDay(args.stopAfter, season) } : {}),

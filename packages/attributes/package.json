@@ -6,9 +6,15 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc -p tsconfig.test.json"
+    "typecheck": "tsc -p tsconfig.test.json",
+    "import-real": "vite-node src/importer/real/main.ts --"
   },
   "dependencies": {
-    "@ff/contracts": "workspace:*"
+    "@ff/contracts": "workspace:*",
+    "hyparquet": "1.31.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "vite-node": "^2.1.9"
   }
 }
