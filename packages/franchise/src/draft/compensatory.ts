@@ -21,7 +21,7 @@ export interface FreeAgentMove {
   to: TeamId;
   /** The new contract's average a year. */
   apy: number;
-  /** Share of his old team's snaps he played last season (0..1). Absent = not known; no adjustment. */
+  /** Share of his new team's snaps in the season after he signed (0..1), as in the NFL formula. Absent = not known; no adjustment. */
   snapShare?: number;
 }
 
