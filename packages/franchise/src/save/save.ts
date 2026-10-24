@@ -17,13 +17,21 @@
  * `readSave` checks them and hands the world back, ready for the next carousel. The world's season
  * is not stored: it is the one after the last season on anyone's résumé (the carousel writes the
  * season just played onto résumés first), or the save's own season when no résumé has one.
+ *
+ * Players' development (ADR-087 S1): a save made with development or injuries switched on keeps the
+ * players as they are that day (rosters, depth charts, emergency signings, free agents), every event
+ * the players' steps emitted, and their memory, and `readSave` hands back the league's people to carry
+ * on with, so a loaded season plays on exactly as a straight one would.
  */
 import {
   ATTRIBUTE_REGISTRY_V1, DEFAULT_LEAGUE_RULES, SAVE_FORMAT_VERSION, compareStamps, stampToString,
-  type CalendarStamp, type DeadMoneyCharge, type LeagueRules, type PlayerContract, type PlayerState, type RelationshipView,
+  type CalendarStamp, type DeadMoneyCharge, type FranchiseEventEnvelope, type LeagueRules, type PlayerContract, type PlayerState, type RelationshipView,
   type SaveFile, type SeasonState,
 } from "@ff/contracts";
 import type { StaffWorld } from "../staff/world.js";
+import { peopleFromSave } from "../draft/steps.js";
+import type { LeaguePeople } from "../season/people.js";
+import type { PlayerMemory } from "../players/types.js";
 import { checkViews } from "../relationships/ledger.js";
 import type { League } from "../league/buildLeague.js";
 import { assertValidStamp, seasonStart } from "../calendar/clock.js";
@@ -55,6 +63,8 @@ export interface MakeSaveInput {
   /** ADR-085: player contracts, and dead money (K3). Absent, the book is empty. */
   contracts?: readonly PlayerContract[];
   deadMoney?: readonly DeadMoneyCharge[];
+  /** ADR-087 S1: the players' steps' events this season and their memory (`LeaguePeople.playerMemory`). */
+  development?: { events: readonly FranchiseEventEnvelope[]; depthMemory: PlayerMemory };
 }
 
 export function makeSave(input: MakeSaveInput): SaveFile {
@@ -81,6 +91,7 @@ export function makeSave(input: MakeSaveInput): SaveFile {
       ...(input.draft ? { draft: input.draft } : {}),
       contracts: [...(input.contracts ?? [])],
       ...(input.deadMoney ? { deadMoney: [...input.deadMoney] } : {}),
+      ...(input.development ? { development: { events: [...input.development.events], depthMemory: input.development.depthMemory } } : {}),
       perceptions: [],
       league: league.structure,
       season,
@@ -101,6 +112,11 @@ export interface LoadedSave {
   rules: LeagueRules;
   /** The coaches, when the save has any: the world the carousel reads, and their views if kept. */
   staff?: { world: StaffWorld; relationships?: RelationshipView[] };
+  /**
+   * ADR-087 S1, when the save has it: the league's people to carry on with (memory included), and the
+   * players' steps' events up to the save's day, for `runSeason`'s `resumeEvents`.
+   */
+  development?: { people: LeaguePeople; events: FranchiseEventEnvelope[] };
 }
 
 /** Thrown for a file that is not a save this version can carry on from. The message says why. */
@@ -195,6 +211,14 @@ export function readSave(input: unknown): LoadedSave {
     }
   }
 
+  // ADR-087 S1: the players' steps' events and memory, when the save has them.
+  if (w.development !== undefined) {
+    if (!isObject(w.development) || !Array.isArray(w.development.events) || !isObject(w.development.depthMemory)) refuse("its players' development record is damaged");
+    for (const e of w.development!.events) {
+      if (!isObject(e) || !isObject(e.at) || !isObject(e.event) || compareStamps(e.at, save.calendar) > 0) refuse("its players' development record has an event after its date");
+    }
+  }
+
   const league: League = { seed: save.worldSeed, structure: w.league, teams: w.teams };
   const staff = w.staff.length === 0 && w.staffContracts === undefined && w.relationships === undefined
     ? undefined : readStaff(save);
@@ -222,7 +246,14 @@ export function readSave(input: unknown): LoadedSave {
     if (!same(replay.bracket, s.bracket)) refuse("its playoff bracket doesn't match its results");
   }
 
-  return { save, league, rules, ...(staff ? { staff } : {}) };
+  const development = w.development === undefined ? undefined : (() => {
+    const people = peopleFromSave(save);
+    // A file lists each player's traits; the game reads them as a set.
+    const players = people.players.map((p) => Array.isArray(p.attributes.traits)
+      ? { ...p, attributes: { ...p.attributes, traits: new Set<string>(p.attributes.traits as unknown as string[]) } } : p);
+    return { people: { ...people, players, playerMemory: w.development!.depthMemory as PlayerMemory }, events: w.development!.events };
+  })();
+  return { save, league, rules, ...(staff ? { staff } : {}), ...(development ? { development } : {}) };
 }
 
 /** The coaches: everyone once, every team's staff list theirs, every contract and view between real people. */

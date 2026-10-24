@@ -11,6 +11,7 @@ import type {
   CalendarStamp, DeadMoneyCharge, DraftClass, DraftPick, FranchiseEvent, GameResult, LeagueRules, PlayerContract,
   PlayerId, PlayerState, ScheduledGame, SeasonState, StaffState, Team, TeamId,
 } from "@ff/contracts";
+import type { PlayerMemory } from "../players/types.js";
 
 export interface LeaguePeople {
   teams: Team[];
@@ -31,6 +32,11 @@ export interface LeaguePeople {
   contracts?: PlayerContract[];
   /** Dead money from cut-down day's releases (ADR-085 K3). */
   deadMoney?: DeadMoneyCharge[];
+  /**
+   * ADR-087: what the players' steps remember between days (past injuries, recent grades, position
+   * battles, when each free agent became unsigned). Saved as S1's `depthMemory`. Absent = nothing yet.
+   */
+  playerMemory?: PlayerMemory;
 }
 
 export interface DayStepContext {

@@ -5,7 +5,8 @@
   `attributes` (starting values) and `calibration` (the season runner hands each week's players to
   the game and reports who played)
 - **Status:** design ruled by the owner (Q1-Q8, 2026-10-23 18:28Z; follow-ups F1-F3, 20:49Z).
-  Nothing is built. The contracts edits in §8 each wait on the owner's typed yes.
+  Contracts edits P1-P6, S1, C1, E1-E5 and D1 approved by the owner's typed yes (2026-10-24
+  02:39Z). D1-D4 built and D5a measured 2026-10-24 (PR #35; §11); both switches off by default.
 - **Works with:** "Player draft" (ADR-086: the year turnover, rookies), "Salary cap and contracts"
   (ADR-085: cuts, free agents, injured reserve, replacements; real-player stand-ins), ADR-079
   (absolute ratings, physical ratings pinned to measurements), ADR-080 (coaches), ADR-075 (players'
@@ -439,6 +440,94 @@ The draft thread built the shared season walk on PR #31 (`franchise/src/season/p
   byte-identical season with both switches on.
 - **Truth-layer events** are filtered out in the season command's event hook before the news desk,
   and the game viewer never loads them.
+
+## 11. Build notes (D1-D4 built, D5a measured, 2026-10-24)
+
+Built as §9 and §10 lay out, with these choices the design left to the build (CHOSEN unless marked):
+
+- **Street free agents.** Until the cap thread's pool fills `freeAgents`, calibration's season runner
+  starts each switched-on season with three made-up reserve squads (`FA1`-`FA3`, from the world seed's
+  own `/free-agents` stream), less each position's best man wherever a backup stands behind him: 114
+  players, specialists included (`reservePool`).
+- **Emergency signings** happen on the last day of a week for teams with a game the next week (in the
+  week before the playoff field is set, every team; never in the offseason), after that day's
+  injuries. The side's coordinator picks by his blurred read (`readBlur`, the depth chart's read), not
+  by true ratings (§7). One-year minimum; the 53-man limit is not enforced. The lineup check asks for
+  a kicker or a punter by name before the snapshot would let one stand in for the other, so a hurt
+  kicker brings in a kicker.
+- **The who-played report** credits a snap to every player a play card names and to the offence's
+  quarterback on every scrimmage play (a run card does not name him). Kicks credit the kicker or
+  punter and the returner only: the engine has no coverage or return units yet.
+- **The stand-in league** (ADR-088) runs with `--injuries` but refuses `--development` until its
+  players get growth rates and bodies (§2.5); without them none of them would change.
+- **The game injury rate** stays at its MEASURED per-snap value (`INJURY_RATES.game.perSnap`, fitted
+  on franchise's model season with NFL snap counts). It is not refitted to the real sim's per-game
+  total, for the reason below.
+- **Saves.** `--load` reads the switches from the save and refuses them on the command line. As on
+  main before this build, an `--out` file written after `--load` differs from a straight run's only
+  in its `league` header's staff lists (a loaded save carries the staffed teams); the season, its
+  events and its players match.
+
+**Proofs.** `pnpm verify` passes. With both switches off, `season --seed homie-1 --out` and
+`--stop-after 9 --save` are byte-identical to main (ba1f0e3). With both on, a week-9 save and load
+carried to the end of the league year gives a save identical in every field to a straight run's,
+every rating change and injury included.
+
+### D5a: one season with the switches (`reports/player-checks.md`)
+
+20 seasons per arm on ADR-079 R5's seeds, generated squads, caller v7 (the default). The `off` arm is
+today's league: its 2.81 win spread is below R5's 3.02 because R5 was measured with an older caller.
+
+| | Win spread | Best | Worst | 13+ wins | 4 or fewer | Better record wins |
+|---|---|---|---|---|---|---|
+| NFL 2021-24 | 3.05 | 13.8 | 2.8 | 10.0% | 14.0% | 74.0% |
+| off | 2.81 | 14.5 | 2.6 | 6.4% | 8.8% | 71.3% |
+| development | 2.93 | 14.7 | 2.5 | 10.3% | 8.1% | 71.7% |
+| injuries | 2.78 | 14.4 | 3.3 | 8.6% | 7.2% | 70.9% |
+| both | 2.62 | 14.3 | 3.3 | 7.0% | 5.3% | 69.3% |
+
+- **Win spread.** Against `off` on the same seeds: development +0.12 (1.8 standard errors), injuries
+  -0.03 (0.5), both -0.19 (2.6); the better record wins 2.0 points less often with both (3.0
+  standard errors), and neither switch alone moves it beyond luck. So with both on the league is a
+  little more even, further from the NFL. §9 lets the retuned team-strength setting apply either with
+  the switches on or with Q8's default flip; the build takes the default flip, since D5b re-measures
+  the spread over 20 years with the draft and the year turnover, which a single season cannot show.
+- **Injuries against the NFL**, like for like (players on a team, begun between his team's games, per
+  team interval, football injuries only): time-loss 1.83 a team-game against 2.02 (the real seasons
+  ran 1.87-2.16; ours 1.70-1.96), with illness and accidents 1.91 against 2.09, day-to-day 0.73
+  against 0.78. Lengths match (short / long / major 58.5% / 18.8% / 22.6% against 57.9% / 19.2% /
+  22.9%), and so do players out 4+ games with an injury begun in the season (8.9 a team against 9.4).
+  By position, quarterbacks (0.067 against 0.062) and linemen (0.344 against 0.341) match; linebackers
+  (0.147 against 0.277), backs, tight ends and defensive backs are low, defensive linemen and
+  receivers high. The mix follows the snaps the sim gives each group (16 games measured, snaps per
+  team-game against the NFL's 2019-2024: QB 1.22×, RB 0.98×, WR 1.23×, TE 0.85×, OL 1.15×, DL 1.34×,
+  LB 0.64×, DB 1.01×, K/P 1.22×; all 1.05×): it plays about 75 downs a team against the NFL's about
+  63 and has no kick-coverage or return units, and its defence fields more linemen and fewer
+  linebackers. Weighted for special teams, the exposure comes out about equal, so per snap the sim
+  hurts about 10% fewer players than the measured rate. The likeliest reason is age: the generated
+  squads (ADR-079) average 24.2 years, with 33.5% aged 21-22 and 2.4% aged 31 or more, against the
+  real 2026 rosters' 26.3, 6.8% and 10.4% (the stand-in league file), and older players get hurt
+  more. So the per-snap rate is left as measured. The made-up league's youth also inflates the
+  league-wide rise below; D5b should run on the stand-in league, with real ages, once its players
+  have growth records (§2.5). Players out 4+ weeks by any onset come to 10.5 a team against 15.5: the
+  sim has no preseason games (about half of the 6.2 new injuries a real team has at week 1) and starts
+  every league healthy (no carry-over from a previous season, 1.7, or the non-football list, 0.4).
+- **How far players move in a year** (position overall, start of camp to the end of the league year,
+  development arm, starters / backups): 21-22 +3.4 / +2.7; 23-24 +2.1 / +1.7; 25-26 +1.2 / +1.0;
+  27-28 +0.7 / +0.5; 29-30 +0.1 / -0.1; 31-32 -0.9 / -1.1; 33+ -1.7 / -2.0. Injuries alone move
+  ratings by a few hundredths (lasting marks).
+- **Starters and backups.** The gap (11.3 points at camp) widens a little over the year with growth
+  alone (+0.35) and hardly with both (+0.08), since hurt starters' backups play and grow. Q3's "a
+  little" holds. Over one year the whole league rises (starters +1.9, backups +1.6) because nobody
+  leaves, no rookies arrive and the made-up league is young; D5b checks the steady state.
+- **Depth charts and the street.** With injuries on, about 49 emergency signings a season (1.5 a
+  team), 27 injury covers and 25 starter returns per team-season, about 4 position battles per team,
+  and 16-28 unsigned players retiring a season from the street pool.
+
+**Left for D5 tuning** (from the build's reviews): away-from-football injuries are 11.2% of a year's
+time-loss; the recent-return risk factor also counts day-to-day knocks; `SKILL_FADE` is the same for
+every position; weight keeps its fraction; a team on a playoff bye keeps the previous week's
+starters; the coordinators' views of players (ADR-084's later step) are not built.
 
 ## Conjoined mechanisms
 
