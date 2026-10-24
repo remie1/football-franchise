@@ -8,7 +8,9 @@
  * (`@ff/playbook`'s units, with their stated fallbacks). When a group cannot be fielded, some
  * position has fewer fit players than the group asks for at that position (were every position
  * covered, each role would find one of its own): the first such role, in the playbook's allocation
- * order, names the position to sign.
+ * order, names the position to sign. The kicker and the punter are asked for first and by name: the
+ * snapshot would let the punter kick (and the kicker punt), but a team with its kicker out signs a
+ * kicker (§5.3), not a second punter.
  */
 import type { PlayerState, Position, Team } from "@ff/contracts";
 import {
@@ -18,6 +20,9 @@ import {
 } from "@ff/playbook";
 import type { AnyProvenancedLeague } from "../league/provenance.js";
 import { buildTeamSnapshot, RosterUnavailableError, weekDepthChart, type LeagueIndex, type WeekRoster } from "../league/snapshot.js";
+
+/** The kicking jobs, each wanted by its own specialist. */
+const SPECIALISTS: readonly Position[] = ["K", "P"];
 
 /** The first position in `roles` with fewer fit players in the chart than the roles ask for. */
 function shortOf(roles: readonly Position[], chart: DepthChart): Position | undefined {
@@ -31,13 +36,14 @@ export function unfilledPosition(
 ): Position | undefined {
   const index: LeagueIndex = { league, teams: new Map([[String(team.id), team]]), players, teamIds: () => [team.id] };
   const roster: WeekRoster = { team: team.id, season: 0, week: 0, available, source: "SEASON_AVAILABILITY", unavailableCount: 0 };
+  const chart = weekDepthChart(team, roster);
+  for (const specialist of SPECIALISTS) if ((chart[specialist]?.length ?? 0) === 0) return specialist;
   try {
     buildTeamSnapshot(index, roster);
   } catch (e) {
     if (e instanceof RosterUnavailableError && e.position !== undefined) return e.position;
     throw e;
   }
-  const chart = weekDepthChart(team, roster);
   for (const group of OFFENSE_PERSONNEL) {
     try {
       buildOffensiveUnit(group, chart);

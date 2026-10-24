@@ -7,6 +7,8 @@ import {
 import { buildLeague, buildStaff, makeSave, readSave, runSeason, type GameResolver, type LeaguePeople } from "../src/index.js";
 import { STARTERS, WANTED } from "../src/draft/board.js";
 import { emergencySignings, playerSteps, playerWeeks, PLAYER_STEP_PREFIX } from "../src/players/steps.js";
+import { readBlur } from "../src/players/depthChart.js";
+import { currentJob, seatOf } from "../src/staff/world.js";
 
 // ADR-087 §10 (D4): the players' steps in the season walk, on a league of hand-made players.
 
@@ -103,6 +105,25 @@ describe("the players' steps in the season walk (ADR-087 §10)", () => {
     expect(JSON.stringify(again.events)).toBe(JSON.stringify(straight.events));
   });
 
+  it("signs players in an emergency only for a game next week: never in the offseason, never for a team that is out", () => {
+    // A team wants a quarterback whenever it has fewer fit ones than it started with, so hurt quarterbacks bring signings.
+    const start = startingPeople();
+    const wanted = new Map(start.teams.map((t) => [String(t.id), (t.depthChart.QB ?? []).length]));
+    const unfilled = (t: Team, available: ReadonlySet<string>, players: ReadonlyMap<string, PlayerState>): Position | undefined =>
+      (t.depthChart.QB ?? []).filter((id) => available.has(String(id)) && players.get(String(id))!.bio.position === "QB").length < wanted.get(String(t.id))! ? "QB" : undefined;
+    const run = runSeason({ ...base, people: start, players: { ...both, unfilled } });
+    const signings = run.events.filter((e) => e.event.type === "CONTRACT_SIGNED");
+    expect(signings.length).toBeGreaterThan(0);
+    const field = new Set(run.state.bracket!.seeds.flatMap((s) => s.teams.map(String)));
+    for (const e of signings) {
+      expect(["PRESEASON", "REGULAR_SEASON", "PLAYOFFS"]).toContain(e.at.phase);
+      if (e.at.phase === "PRESEASON") expect(e.at.week).toBe(3);
+      const team = String((e.event.payload as { team: string }).team);
+      if (e.at.phase === "PLAYOFFS") expect(field.has(team)).toBe(true);
+    }
+    expect(signings.some((e) => e.at.phase !== "PRESEASON")).toBe(true);
+  });
+
   it("only ever puts fit players on the field: nobody out injured appears in a who-played report", () => {
     const seen: string[] = [];
     const watching: GameResolver = (game, seed, people) => {
@@ -189,28 +210,45 @@ describe("emergencySignings (§5.3)", () => {
   const noQb = (t: Team, available: ReadonlySet<string>, players: ReadonlyMap<string, PlayerState>): Position | undefined =>
     (t.depthChart.QB ?? []).some((id) => available.has(String(id)) && players.get(String(id))!.bio.position === "QB") ? undefined : "QB";
 
-  it("signs the best free-agent quarterback on a one-year minimum when every quarterback is out", () => {
-    const r = emergencySignings(hurt, at, noQb);
-    expect(r.events).toEqual([{ type: "CONTRACT_SIGNED", payload: { player: playerId("FA-QB-1"), team: team.id, kind: "MINIMUM", years: 1 } }]);
-    const signed = r.people.players.find((p) => String(p.bio.id) === "FA-QB-1")!;
+  const seed = "signings";
+  const oc = people.staff!.find((s) => seatOf(s) === "OC" && currentJob(s)?.team === team.id);
+  /** The offensive coordinator's read of a free agent at quarterback: what the team signs on, never the truth (§7). */
+  const read = (id: string) => positionOverall("QB", byId.get(id)!.attributes.values) + readBlur({ seed, at, team: team.id, seat: "OC", coordinator: oc, player: playerId(id) });
+  const bestRead = (ids: readonly string[]) => [...ids].sort((a, b) => read(b) - read(a) || a.localeCompare(b))[0]!;
+
+  it("signs the free-agent quarterback his coordinator reads best, on a one-year minimum, when every quarterback is out", () => {
+    const r = emergencySignings(hurt, at, noQb, { seed });
+    const pick = bestRead(hurt.freeAgents.map(String).filter((id) => id.startsWith("FA-QB")));
+    expect(r.events).toEqual([{ type: "CONTRACT_SIGNED", payload: { player: playerId(pick), team: team.id, kind: "MINIMUM", years: 1 } }]);
+    const signed = r.people.players.find((p) => String(p.bio.id) === pick)!;
     expect(signed.teamId).toBe(team.id);
     expect(r.people.teams[0]!.roster).toContain(signed.bio.id);
     expect(r.people.teams[0]!.depthChart.QB).toContain(signed.bio.id);
     expect(r.people.freeAgents).not.toContain(signed.bio.id);
   });
 
-  it("signs the best overall at the position, listed there, when no free agent plays it", () => {
+  it("reads through the coordinator's blur, so the same seed signs the same man and the read is not the true overall", () => {
+    expect(emergencySignings(hurt, at, noQb, { seed })).toEqual(emergencySignings(hurt, at, noQb, { seed }));
+    const ids = hurt.freeAgents.map(String);
+    expect(ids.some((id) => read(id) !== positionOverall("QB", byId.get(id)!.attributes.values))).toBe(true);
+  });
+
+  it("signs the best read at the position, listed there, when no free agent plays it", () => {
     const noQbs: LeaguePeople = { ...hurt, freeAgents: hurt.freeAgents.filter((id) => !String(id).startsWith("FA-QB")) };
-    const r = emergencySignings(noQbs, at, noQb);
+    const r = emergencySignings(noQbs, at, noQb, { seed });
     const id = (r.events[0]!.payload as { player: string }).player;
     const signed = r.people.players.find((p) => p.bio.id === id)!;
     expect(signed.bio.position).toBe("QB");
-    const best = Math.max(...noQbs.freeAgents.map((f) => positionOverall("QB", byId.get(String(f))!.attributes.values)));
-    expect(positionOverall("QB", signed.attributes.values)).toBe(best);
+    expect(String(id)).toBe(bestRead(noQbs.freeAgents.map(String)));
+  });
+
+  it("signs nobody for a team without a game next week", () => {
+    const r = emergencySignings(hurt, at, noQb, { seed, playing: new Set(people.teams.slice(1).map((t) => String(t.id))) });
+    expect(r.events).toEqual([]);
   });
 
   it("changes nothing when every team can play", () => {
-    const r = emergencySignings(people, at, () => undefined);
+    const r = emergencySignings(people, at, () => undefined, { seed });
     expect(r.events).toEqual([]);
     expect(r.people).toBe(people);
   });

@@ -180,13 +180,15 @@ export const RESERVE_TEAMS = 3;
 /**
  * The street free agents a season with the players' switches on starts with (ADR-087 §10), until
  * the cap thread's pool fills `freeAgents`: `RESERVE_TEAMS` made-up squads from the world seed's own
- * reserve stream, less each position's best man (backups, not starters, are who is left unsigned
- * in-season). CHOSEN. Their ids (`p:FA1:…`) cannot meet the league's (`p:T01:…`).
+ * reserve stream, less each position's best man where the squad has a backup behind him (backups,
+ * not starters, are who is left unsigned in-season; a squad's lone kicker, punter or long snapper
+ * stays, so the street has specialists). CHOSEN. Their ids (`p:FA1:…`) cannot meet the league's
+ * (`p:T01:…`).
  */
 export function reservePool(league: League, season: number, development: boolean): PlayerState[] {
   const stubs: Team[] = league.teams.slice(0, RESERVE_TEAMS).map((t, i) => ({ ...t, id: teamId(`FA${i + 1}`), roster: [], depthChart: {} }));
   const made = buildGeneratedLeague({ ...league, seed: `${league.seed}/free-agents`, teams: stubs }, { season, development });
-  const best = new Set(made.league.teams.flatMap((t) => Object.values(t.depthChart).map((ids) => String(ids?.[0]))));
+  const best = new Set(made.league.teams.flatMap((t) => Object.values(t.depthChart).filter((ids) => (ids?.length ?? 0) > 1).map((ids) => String(ids![0]))));
   return made.league.players.filter((p) => !best.has(String(p.bio.id))).map(({ teamId: _team, ...p }) => p);
 }
 
@@ -233,6 +235,9 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
   const rosters = input.rosters ?? "generated";
   const switched = switchedOn(input.players);
   if (switched && rosters === "flat") throw new Error("runRealSeason: development and injuries need squads; the flat league has none");
+  if (rosters === "standin" && input.players?.development === true) {
+    throw new Error("runRealSeason: the stand-in league's players have no growth records yet (ADR-087 §2.5); development needs generated squads");
+  }
   if (input.resume !== undefined && !switched) throw new Error("runRealSeason: carrying on a season's people needs the players' switches");
   let league: League = base;
   let rated: GeneratedLeague | StandInLeague | undefined;

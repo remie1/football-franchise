@@ -98,6 +98,22 @@ export const READ_BLUR = {
   absentSkill: 50,
 } as const;
 
+/**
+ * How far a coordinator misreads a player this season (§7): `READ_BLUR`'s standard deviation × a
+ * seeded normal draw, the same all season for the same coordinator (or empty seat) and player. The
+ * depth chart's read and the emergency signings' read both use it, so neither reads truth.
+ */
+export function readBlur(input: {
+  readonly seed: string; readonly at: CalendarStamp; readonly team: TeamId; readonly seat: "OC" | "DC" | "STC";
+  readonly coordinator: StaffState | undefined; readonly player: PlayerId;
+}): number {
+  const { seed, at, team, seat, coordinator, player } = input;
+  const skill = coordinator?.attributes["talentEvaluation"] ?? READ_BLUR.absentSkill;
+  const sd = READ_BLUR.min + READ_BLUR.span * (1 - skill / 100);
+  const lens = coordinator ? String(coordinator.id) : `${String(team)}:${seat}`;
+  return sd * normal(createRng(seed, DEPTH_STREAM).fork(`blur/${at.season}/${lens}/${String(player)}`));
+}
+
 /** How grades are made and kept. CHOSEN, except where marked. */
 export const GRADES = {
   /** The grade scale, 0..100 (a practice grade is on the rating scale), and an even game's grade on it. Scale, not tuned. */
@@ -357,11 +373,7 @@ function makeTeamWeek(
 
   const blur = (p: PlayerState) => {
     const seat = SIDE_SEAT[sideOf(p.bio.position)];
-    const coordinator = seats.get(`${String(team.id)}/${seat}`);
-    const skill = coordinator?.attributes["talentEvaluation"] ?? READ_BLUR.absentSkill;
-    const sd = READ_BLUR.min + READ_BLUR.span * (1 - skill / 100);
-    const lens = coordinator ? String(coordinator.id) : `${String(team.id)}:${seat}`;
-    return sd * normal(createRng(seed, DEPTH_STREAM).fork(`blur/${at.season}/${lens}/${String(p.bio.id)}`));
+    return readBlur({ seed, at, team: team.id, seat, coordinator: seats.get(`${String(team.id)}/${seat}`), player: p.bio.id });
   };
   const seen = new Map<string, { read: number; view: number }>();
   const look = (id: string) => {

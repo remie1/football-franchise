@@ -21,29 +21,45 @@ const A = teamId("A"), B = teamId("B");
 const team = (id: typeof A, qbs: string[]): Team => ({ id, displayName: String(id), city: "", conference: "C" as never, division: "D" as never, roster: qbs.map(playerId), depthChart: { QB: qbs.map(playerId) }, staff: [], staffBudget: {} as never } as unknown as Team);
 const row = (t: typeof A, wins: number, losses: number) => ({ team: t, overall: { wins, losses, ties: 0 } }) as unknown as SeasonState["standings"][number];
 const result = (id: string, home: typeof A, away: typeof A, hs: number, as: number) => ({ gameId: gameId(id), home, away, homeScore: hs, awayScore: as, reason: "REGULATION" as const, seed: "x" });
+type Phase = "TRAINING_CAMP" | "PRESEASON" | "REGULAR_SEASON" | "PLAYOFFS" | "OFF_EVAL";
+const at = (phase: Phase, week = 1) => ({ season: 2027, phase, week, day: 7 });
+// Six regular-season games for each team, a bye in week 4; results for the first three.
+const WEEKS = [1, 2, 3, 5, 6, 7];
 const state = {
   season: 2027,
-  schedule: { games: [{ gameId: gameId("g1") }, { gameId: gameId("g2") }, { gameId: gameId("g3") }] },
+  schedule: { games: WEEKS.map((w) => ({ gameId: gameId(`g${w}`), home: A, away: B, at: at("REGULAR_SEASON", w) })) },
   results: [result("g1", A, B, 21, 7), result("g2", B, A, 14, 10), result("g3", A, B, 30, 3), result("p1", A, B, 7, 3)],
   standings: [row(A, 2, 1), row(B, 1, 2)],
 } as unknown as SeasonState;
 
-const at = (phase: "REGULAR_SEASON" | "TRAINING_CAMP" | "OFF_EVAL", week = 1) => ({ season: 2027, phase, week, day: 7 });
 let seq = 0;
-const env = (stamp: ReturnType<typeof at>, event: FranchiseEvent): FranchiseEventEnvelope => ({ seq: seq++, at: stamp, event });
-const hurt = (who: string, weeks: number, band: "DAY_TO_DAY" | "SHORT" | "LONG" | "MAJOR", setting: "GAME" | "PRACTICE" | "AWAY", stamp: ReturnType<typeof at>, game?: string): FranchiseEvent =>
-  ({ type: "INJURY_OCCURRED", payload: { player: playerId(who), kind: "ankle", weeks, band, setting, ...(game ? { game: gameId(game) } : {}) } });
-const events = [
-  env(at("TRAINING_CAMP"), hurt("qb2", 5, "LONG", "PRACTICE", at("TRAINING_CAMP"))),
-  env(at("REGULAR_SEASON", 2), hurt("qb1", 0, "DAY_TO_DAY", "GAME", at("REGULAR_SEASON", 2), "g2")),
-  env(at("REGULAR_SEASON", 3), hurt("qb1", 2, "SHORT", "GAME", at("REGULAR_SEASON", 3), "g3")),
-  env(at("REGULAR_SEASON", 3), hurt("qb3", 10, "MAJOR", "AWAY", at("REGULAR_SEASON", 3))),
-  env(at("OFF_EVAL"), hurt("qb2", 1, "SHORT", "AWAY", at("OFF_EVAL"))),
-  env(at("REGULAR_SEASON", 4), { type: "CONTRACT_SIGNED", payload: { player: playerId("fa"), team: A, kind: "MINIMUM", years: 1 } }),
-  env(at("REGULAR_SEASON", 4), { type: "DEPTH_CHART_CHANGED", payload: { team: A, position: "QB", up: playerId("qb2"), down: playerId("qb1"), situation: "INJURY_COVER", authority: "COACH", decidedBy: "NPC" } }),
+const hurt = (who: string, weeks: number, band: "DAY_TO_DAY" | "SHORT" | "LONG" | "MAJOR", setting: "GAME" | "PRACTICE" | "AWAY", game?: string, kind = "ankle"): FranchiseEvent =>
+  ({ type: "INJURY_OCCURRED", payload: { player: playerId(who), kind, weeks, band, setting, ...(game ? { game: gameId(game) } : {}) } });
+const happened: [ReturnType<typeof at>, FranchiseEvent][] = [
+  [at("TRAINING_CAMP", 1), hurt("qb2", 9, "MAJOR", "PRACTICE")], // out regular weeks 1-4: "any onset" counts him
+  [at("REGULAR_SEASON", 2), hurt("qb1", 0, "DAY_TO_DAY", "GAME", "g2")],
+  [at("REGULAR_SEASON", 2), hurt("qb3", 10, "MAJOR", "AWAY")], // misses games 3, 5, 6 and 7: both long counts
+  [at("REGULAR_SEASON", 2), hurt("fa", 2, "SHORT", "AWAY")], // a free agent: not on a team, so not counted
+  [at("REGULAR_SEASON", 3), hurt("qb1", 2, "SHORT", "GAME", "g3")],
+  [at("REGULAR_SEASON", 4), { type: "CONTRACT_SIGNED", payload: { player: playerId("fa"), team: A, kind: "MINIMUM", years: 1 } }],
+  [at("REGULAR_SEASON", 4), { type: "DEPTH_CHART_CHANGED", payload: { team: A, position: "QB", up: playerId("qb2"), down: playerId("qb1"), situation: "INJURY_COVER", authority: "COACH", decidedBy: "NPC" } }],
+  [at("REGULAR_SEASON", 5), hurt("qb1", 1, "SHORT", "AWAY", undefined, "illness")], // any cause only
+  [at("REGULAR_SEASON", 5), hurt("fa", 1, "SHORT", "PRACTICE")], // signed now: counted
+  [at("REGULAR_SEASON", 7), hurt("qb1", 1, "SHORT", "GAME", "g7")], // after the team's last game: no interval
+  [at("OFF_EVAL", 1), hurt("qb2", 1, "SHORT", "AWAY")],
 ];
-const start = [player("qb1", 24, 70), player("qb2", 33, 60), player("qb3", 22, 50)];
-const end = [player("qb1", 24, 73), player("qb2", 33, 58), player("qb3", 22, 50)];
+// The stream marks every week, in calendar order, as the real one does.
+const calendar: ReturnType<typeof at>[] = [
+  ...[1, 2, 3].map((w) => at("TRAINING_CAMP", w)), ...[1, 2, 3].map((w) => at("PRESEASON", w)),
+  ...[1, 2, 3, 4, 5, 6, 7].map((w) => at("REGULAR_SEASON", w)), at("PLAYOFFS", 1), at("OFF_EVAL", 1),
+];
+const events: FranchiseEventEnvelope[] = calendar.flatMap((stamp) => [
+  { seq: seq++, at: stamp, event: { type: "WEEK_ADVANCED", payload: { stamp } } as FranchiseEvent },
+  ...happened.filter(([when]) => when.phase === stamp.phase && when.week === stamp.week).map(([when, event]) => ({ seq: seq++, at: when, event })),
+]);
+const { teamId: _none, ...fa } = player("fa", 27, 55);
+const start = [player("qb1", 24, 70), player("qb2", 33, 60), player("qb3", 22, 50), fa];
+const end = [player("qb1", 24, 73), player("qb2", 33, 58), player("qb3", 22, 50), fa];
 
 describe("summariseSeason", () => {
   const s = summariseSeason({ seed: "s", arm: "both", state, events, startTeams: [team(A, ["qb1", "qb2", "qb3"])], startPlayers: start, endPlayers: end });
@@ -54,13 +70,15 @@ describe("summariseSeason", () => {
     expect(s.betterRecord).toEqual({ games: 3, won: 2 });
   });
 
-  it("counts injuries by setting and band, and in the real measurement's terms for the regular season", () => {
-    expect(s.injuries.total).toBe(5);
-    expect(s.injuries.bySetting).toEqual({ PRACTICE: 1, GAME: 2, AWAY: 2 });
-    expect(s.injuries.regularGame).toBe(2);
+  it("counts injuries by setting and band, and the regular season's in the real measurement's terms", () => {
+    expect(s.injuries.total).toBe(9);
+    expect(s.injuries.bySetting).toEqual({ PRACTICE: 2, GAME: 3, AWAY: 4 });
+    expect(s.injuries.regularGame).toBe(3);
     expect(s.injuries.longInSeason).toBe(2);
     expect(s.injuries.regular).toEqual({
-      timeLoss: 2, dayToDay: 1, bySetting: { GAME: 2, AWAY: 1 }, timeLossBands: { SHORT: 1, MAJOR: 1 }, timeLossByGroup: { QB: 2 }, long: 1,
+      intervals: 10, timeLoss: 3, dayToDay: 1, timeLossAllCauses: 4,
+      bySetting: { GAME: 2, AWAY: 1, PRACTICE: 1 }, timeLossBySetting: { GAME: 1, AWAY: 1, PRACTICE: 1 }, timeLossBands: { MAJOR: 1, SHORT: 2 }, timeLossByGroup: { QB: 3 },
+      long: 1, longAll: 2,
     });
   });
 
@@ -81,8 +99,11 @@ describe("summariseSeason", () => {
   it("sums seasons into an arm", () => {
     const arm = summariseArm([s, s]);
     expect(arm.seasons).toBe(2);
-    expect(arm.injuries.regular.timeLossPerTeamGame).toBeCloseTo(4 / 12);
-    expect(arm.injuries.regular.timeLossBands).toEqual({ MAJOR: 0.5, SHORT: 0.5 });
+    expect(arm.injuries.regular.timeLossPerTeamGame).toBeCloseTo(6 / 20);
+    expect(arm.injuries.regular.timeLossAllCausesPerTeamGame).toBeCloseTo(8 / 20);
+    expect(arm.injuries.regular.timeLossBands).toEqual({ MAJOR: 1 / 3, SHORT: 2 / 3 });
+    expect(arm.injuries.regular.longPerTeamSeason).toBeCloseTo(2 / 4);
+    expect(arm.injuries.regular.longAllPerTeamSeason).toBeCloseTo(4 / 4);
     expect(arm.spread.betterRecordWins).toBeCloseTo(2 / 3);
     expect(arm.movement["23-24"]!.starter!.n).toBe(2);
   });

@@ -99,6 +99,22 @@ describe("participationFrom on a real game", () => {
     expect(offense).toBeLessThanOrEqual(11 * plays);
   });
 
+  it("credits each quarterback with every scrimmage play his team runs, runs included", () => {
+    let ball: string | undefined;
+    const plays = new Map<string, number>();
+    for (const e of events) {
+      if (e.type === "DRIVE_START") ball = String(e.payload.offense);
+      if (e.type === "PLAY_START") {
+        const t = String((e.payload as { offense?: { team?: string } }).offense?.team ?? ball);
+        plays.set(t, (plays.get(t) ?? 0) + 1);
+      }
+    }
+    for (const side of [built.snapshot.home, built.snapshot.away]) {
+      const qb = report.find((r) => r.player === side.offense.quarterback)!;
+      expect(qb.snaps.offense).toBe(plays.get(String(side.team)));
+    }
+  });
+
   it("counts one win and one loss for every decided opposed check between two players", () => {
     const decided = events.filter((e) => e.type === "CHECK" && e.payload.opposedRoll !== undefined && e.payload.actors.length === 2 && e.payload.rollRef === undefined && e.payload.margin !== 0);
     expect(decided.length).toBeGreaterThan(100);

@@ -36,7 +36,8 @@
  * players sit out, coaches set their depth charts each week, and teams short of a player sign a
  * street free agent. `--save` then keeps the players as they are that day and what happened to
  * them, and `--load` carries on with the save's own switches. Truth-layer events (true ratings,
- * ADR-087 §7) never reach the news or `--out`. Not with `--rosters flat`, which has no squads.
+ * ADR-087 §7) never reach the news or `--out`. Not with `--rosters flat`, which has no squads, and
+ * `--development` not with the stand-in league, whose players have no growth records yet.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -108,6 +109,8 @@ function parse(argv: readonly string[]) {
   if (rosters === "standin" && teamStrengthSd !== undefined) throw new SyntaxError("the stand-in league has no hidden team strength (ADR-088 Q8); drop --team-sd");
   if ((development || injuries) && load !== undefined) throw new SyntaxError("--load carries on with the save's own --development and --injuries; drop them");
   if ((development || injuries) && rosters === "flat") throw new SyntaxError("--development and --injuries need squads; --rosters flat has none");
+  // ADR-087 §2.5: stand-ins get their growth rates and bodies with the importer's next step; until then none of them would change.
+  if (development && rosters === "standin") throw new SyntaxError("the stand-in league's players have no growth records yet (ADR-087 §2.5); drop --development (--injuries works)");
   return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd, leagueFile, development, injuries };
 }
 

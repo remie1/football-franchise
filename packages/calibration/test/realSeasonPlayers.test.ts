@@ -36,6 +36,11 @@ describe("a real-sim season with the players' switches on", () => {
     }
   });
 
+  it("keeps the reserve squads' lone specialists, so the street has a kicker, a punter and a long snapper", () => {
+    const pool = reservePool(base, season, true);
+    for (const position of ["K", "P", "LS"]) expect(pool.some((p) => p.bio.position === position), position).toBe(true);
+  });
+
   it("carried on from week 1 with the people, the steps' events and the day, gives the straight run", () => {
     const first = runRealSeason({ seed, season, players, staff, stopAfter: week(1) });
     const second = runRealSeason({
@@ -48,6 +53,10 @@ describe("a real-sim season with the players' switches on", () => {
 
   it("refuses the flat league, which has no squads", () => {
     expect(() => runRealSeason({ seed, season, players, rosters: "flat" })).toThrow(/need squads/);
+  });
+
+  it("refuses growth for the stand-in league, whose players have no growth records yet", () => {
+    expect(() => runRealSeason({ seed, season, players: { development: true }, rosters: "standin" })).toThrow(/no growth records/);
   });
 });
 

@@ -5,7 +5,7 @@
  * On a day with games, after them: each game's injuries, drawn at the final whistle (§5.2).
  * On each week's last day (day 7), after that day's games, in this order:
  *   healing → practice and away-from-football injuries → the development week → the depth chart →
- *   emergency signings, so every team can field a side for the next game.
+ *   emergency signings, so every team with a game next week can field a side for it.
  * Every day: unsigned players' patience (§6.1).
  *
  * What each player did this week (`PlayerWeek`) is read once, before the day's new injuries: who was
@@ -25,7 +25,8 @@ import {
 import { minimumContract } from "../cap/signings.js";
 import type { DayStep, DayStepContext, LeaguePeople } from "../season/people.js";
 import { currentJob, seatOf } from "../staff/world.js";
-import { depthChartWeek } from "./depthChart.js";
+import { nextDay } from "../calendar/clock.js";
+import { depthChartWeek, readBlur } from "./depthChart.js";
 import { developmentWeek } from "./development.js";
 import { gameInjuries, healWeek, isAvailable, weekInjuries } from "./injuries.js";
 import { emptyMemory, type PlayerMemory, type PlayerWeek } from "./types.js";
@@ -82,6 +83,30 @@ function teamsStillPlaying(phase: CalendarPhase, state: SeasonState, today: DayS
   for (const r of state.results) {
     const game = bracket.games.find((g) => g.gameId === r.gameId);
     if (!game || todays.has(String(r.gameId))) continue;
+    alive.delete(String(r.homeScore > r.awayScore ? r.away : r.home));
+  }
+  return alive;
+}
+
+/**
+ * Teams with a game next week, who sign before it (§5.3): next week's scheduled teams in the regular
+ * season; in the playoffs, the field's teams not yet knocked out (every team in the week before the
+ * field is set, which is on the playoffs' first day). Nobody in the offseason.
+ */
+function teamsPlayingNextWeek(ctx: DayStepContext, teams: readonly Team[]): ReadonlySet<string> {
+  const next = nextDay(ctx.day, ctx.rules);
+  if (next.phase === "REGULAR_SEASON") {
+    return new Set(ctx.state.schedule.games
+      .filter((g) => g.at.season === next.season && g.at.phase === "REGULAR_SEASON" && g.at.week === next.week)
+      .flatMap((g) => [String(g.home), String(g.away)]));
+  }
+  if (next.phase !== "PLAYOFFS") return new Set();
+  const bracket = ctx.state.bracket;
+  if (!bracket) return new Set(teams.map((t) => String(t.id)));
+  if (bracket.champion !== undefined) return new Set();
+  const alive = new Set(bracket.seeds.flatMap((s) => s.teams.map(String)));
+  for (const r of ctx.state.results) {
+    if (!bracket.games.some((g) => g.gameId === r.gameId)) continue;
     alive.delete(String(r.homeScore > r.awayScore ? r.away : r.home));
   }
   return alive;
@@ -144,24 +169,32 @@ export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: 
  * Next man up (§5.3), a stopgap until the cap thread's injured reserve and street signings: before the
  * next game, a team that cannot field a side signs the free agent who best fits the spot it cannot
  * fill, on a one-year minimum deal. One who plays that position is preferred; failing that, the best
- * overall at it, listed there from now on. The 53-man limit is not enforced for these signings.
+ * overall at it, listed there from now on. "Best" is the side's coordinator's read (his position
+ * overall there through `readBlur`), never the true ratings (§7). Only `playing` teams sign (absent =
+ * every team). The 53-man limit is not enforced for these signings.
  */
 export function emergencySignings(
   people: LeaguePeople, at: DayStepContext["day"], unfilled: NonNullable<PlayerStepsConfig["unfilled"]>,
+  opts: { readonly seed: string; readonly playing?: ReadonlySet<string> },
 ): { people: LeaguePeople; events: FranchiseEvent[] } {
   const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
   let freeAgents = [...people.freeAgents];
   const contracts = people.contracts ? [...people.contracts] : undefined;
   const events: FranchiseEvent[] = [];
   const teams = people.teams.map((team) => {
+    if (opts.playing && !opts.playing.has(String(team.id))) return team;
     let t = team;
     for (;;) {
       const available = new Set(t.roster.map(String).filter((id) => { const p = byId.get(id); return p !== undefined && isAvailable(p); }));
       const position = unfilled(t, available, byId);
       if (position === undefined) return t;
       const pool = freeAgents.map((id) => byId.get(String(id))).filter((p): p is PlayerState => p !== undefined && isAvailable(p) && p.bio.draft !== "PROSPECT");
+      const seat = SIDE_SEAT[sideOf(position)];
+      const lens = coordinator(people.staff, t.id, seat);
+      const read = new Map(pool.map((p) => [String(p.bio.id),
+        positionOverall(position, p.attributes.values) + readBlur({ seed: opts.seed, at, team: t.id, seat, coordinator: lens, player: p.bio.id })]));
       const best = (list: PlayerState[]) => [...list].sort((a, b) =>
-        positionOverall(position, b.attributes.values) - positionOverall(position, a.attributes.values) || String(a.bio.id).localeCompare(String(b.bio.id)))[0];
+        read.get(String(b.bio.id))! - read.get(String(a.bio.id))! || String(a.bio.id).localeCompare(String(b.bio.id)))[0];
       const pick = best(pool.filter((p) => p.bio.position === position)) ?? best(pool);
       if (!pick) return t; // Nobody left to sign: the season runner reports the team it cannot field.
       const signed: PlayerState = { ...pick, teamId: t.id, bio: { ...pick.bio, position } };
@@ -227,7 +260,7 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
       events.push(...depth.events);
       let next: LeaguePeople = { ...people, teams: depth.teams, players: depth.players, playerMemory: { ...depth.memory, switches } };
       if (config.unfilled) {
-        const signed = emergencySignings(next, ctx.day, config.unfilled);
+        const signed = emergencySignings(next, ctx.day, config.unfilled, { seed: ctx.seed, playing: teamsPlayingNextWeek(ctx, next.teams) });
         next = signed.people; events.push(...signed.events);
       }
       return { people: next, events };

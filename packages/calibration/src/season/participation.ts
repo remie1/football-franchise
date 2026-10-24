@@ -9,8 +9,9 @@
  *   (the play corpus picks the personnel from the depth chart, so a nickel corner or a second tight
  *   end plays some snaps and not others). Every player the card names is credited a snap: an
  *   offensive one if he is on the team with the ball (the card's offence, else the last
- *   `DRIVE_START`'s), a defensive one if not. A run card names ten of the offence, a receiver who
- *   takes no part being left off, so a receiver's count runs a little short on runs. Kicks carry no
+ *   `DRIVE_START`'s), a defensive one if not. A run card names the carrier and the blockers but not
+ *   the quarterback who hands off, so the offence's quarterback (the snapshot's) is credited on every
+ *   scrimmage play his team runs, named or not. Kicks carry no
  *   `PLAY_START`: each `PLACEKICK` and `KICKOFF` is a special-teams snap for its kicker, each `PUNT`
  *   one for its punter, and a return one for the returner it names.
  * - Matchups. Every opposed `CHECK` between two players (`opposedRoll` present, two actors) is a
@@ -71,7 +72,10 @@ export function participationFrom(events: readonly MatchEventEnvelope[], snapsho
         break;
       case "PLAY_START": {
         const ball = (e.payload as { offense?: { team?: TeamId } } | undefined)?.offense?.team ?? offense;
-        for (const id of named(e.payload, teamOf, new Set())) snap(id as PlayerId, teamOf.get(id) === ball ? "offense" : "defense");
+        const on = named(e.payload, teamOf, new Set());
+        const qb = teams.find((t) => t.team === ball)?.offense.quarterback;
+        if (qb !== undefined && teamOf.has(String(qb))) on.add(String(qb));
+        for (const id of on) snap(id as PlayerId, teamOf.get(id) === ball ? "offense" : "defense");
         break;
       }
       case "PLACEKICK":

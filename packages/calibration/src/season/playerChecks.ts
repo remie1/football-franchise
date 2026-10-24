@@ -5,7 +5,8 @@
  * at the end of the league year), never from inside franchise:
  *  - the win spread, as ADR-079 R5 measured it (each team's regular-season wins; the share of games
  *    the team with the better final record won);
- *  - injuries by setting, length, kind and position group (`INJURY_OCCURRED`);
+ *  - injuries by setting, length, kind and position group (`INJURY_OCCURRED`), and the regular
+ *    season's again in the real measurement's terms;
  *  - how far players moved over the year: each player's position overall (contracts'
  *    `positionOverall`) at the start of camp against the end of the league year, by age and by
  *    starter or backup;
@@ -63,17 +64,32 @@ export interface SeasonCheck {
     readonly longInSeason: number;
     readonly weeksLost: number;
     /**
-     * Drawn in the regular season, any setting: the real measurement's "new in season" (it cannot tell
-     * games from practice). Time-loss = costs at least a week (not DAY_TO_DAY).
+     * The regular season in the real measurement's terms (reports/injury-rates.md), which cannot tell a
+     * game injury from a practice one: injuries to players on a team, begun after one of his team's
+     * regular-season games and before its next (a *team interval*). Football injuries only, as in the
+     * real headline: illness and accidents away from football (`AWAY_ONLY_KINDS`) are counted apart,
+     * in `timeLossAllCauses`. Time-loss = costs at least a week (not DAY_TO_DAY).
      */
     readonly regular: {
+      /** Team intervals: each team's regular-season games less its last. */
+      intervals: number;
       timeLoss: number;
       dayToDay: number;
+      /** Time-loss of any cause, illness and accidents included (the real `perTeamGameAllCauses`). */
+      timeLossAllCauses: number;
+      /** Football time-loss and day-to-day injuries by setting, and the time-loss alone. */
       bySetting: Record<string, number>;
+      timeLossBySetting: Record<string, number>;
       timeLossBands: Record<string, number>;
       timeLossByGroup: Record<string, number>;
-      /** Time-loss of 4+ weeks. */
+      /**
+       * Players on a team out with a football injury, each once: `long` = begun in the regular season
+       * and costing 4+ of his team's games before the season ends (the real "new in season, by
+       * games"); `longAll` = out 4+ regular-season weeks, whenever it began, so those still out at
+       * week 1 count too (the real "all, by weeks").
+       */
       long: number;
+      longAll: number;
     };
   };
   /** Change in position overall over the league year, by age band and role ("starter" / "backup"). */
@@ -89,6 +105,13 @@ export interface SeasonCheck {
 }
 
 const bump = (m: Record<string, number>, k: string, by = 1) => { m[k] = (m[k] ?? 0) + by; };
+
+/**
+ * Kinds that only ever happen away from football: the real reports list them as illness or on the
+ * non-football list, outside the headline counts. Copied from franchise's `INJURY_KINDS` (those with
+ * an AWAY share alone), since calibration may not import it.
+ */
+export const AWAY_ONLY_KINDS: ReadonlySet<string> = new Set(["illness", "car-accident", "bicycle-accident", "fireworks"]);
 
 export function summariseSeason(input: {
   seed: string;
@@ -120,7 +143,25 @@ export function summariseSeason(input: {
   const endById = new Map((input.endPlayers ?? input.startPlayers).map((p) => [String(p.bio.id), p]));
   const positionOf = (id: string): Position | undefined => (startById.get(id) ?? endById.get(id))?.bio.position;
 
-  const regularInjuries = { timeLoss: 0, dayToDay: 0, bySetting: {}, timeLossBands: {}, timeLossByGroup: {}, long: 0 } as SeasonCheck["injuries"]["regular"];
+  // Each team's regular-season game weeks, the week order of the year (from the stream's own stamps)
+  // and who is on a team (the start of camp's rosters, then each signing).
+  const gameWeeks = new Map<string, number[]>();
+  for (const g of state.schedule.games) {
+    for (const t of [g.home, g.away]) gameWeeks.set(String(t), [...(gameWeeks.get(String(t)) ?? []), g.at.week]);
+  }
+  for (const w of gameWeeks.values()) w.sort((a, b) => a - b);
+  const lastRegularWeek = Math.max(...state.schedule.games.map((g) => g.at.week));
+  const weekIndex = new Map<string, number>();
+  for (const { at } of events) if (!weekIndex.has(`${at.phase}/${at.week}`)) weekIndex.set(`${at.phase}/${at.week}`, weekIndex.size);
+  const regularIndex = (week: number) => weekIndex.get(`REGULAR_SEASON/${week}`);
+  const teamOf = new Map<string, string>();
+  for (const t of input.startTeams) for (const id of t.roster) teamOf.set(String(id), String(t.id));
+  const longPlayers = new Set<string>(), longAllPlayers = new Set<string>();
+
+  const regularInjuries = {
+    intervals: [...gameWeeks.values()].reduce((n, w) => n + Math.max(0, w.length - 1), 0),
+    timeLoss: 0, dayToDay: 0, timeLossAllCauses: 0, bySetting: {}, timeLossBySetting: {}, timeLossBands: {}, timeLossByGroup: {}, long: 0, longAll: 0,
+  } as SeasonCheck["injuries"]["regular"];
   const injuries = { total: 0, bySetting: {}, byBand: {}, byKind: {}, regularGameByGroup: {}, regularGame: 0, longInSeason: 0, weeksLost: 0, regular: regularInjuries } as {
     total: number; bySetting: Record<string, number>; byBand: Record<string, number>; byKind: Record<string, number>;
     regularGameByGroup: Record<string, number>; regularGame: number; longInSeason: number; weeksLost: number; regular: SeasonCheck["injuries"]["regular"];
@@ -138,15 +179,30 @@ export function summariseSeason(input: {
         bump(injuries.byKind, p.kind);
         const inSeason = at.phase === "TRAINING_CAMP" || at.phase === "PRESEASON" || at.phase === "REGULAR_SEASON";
         if (inSeason && p.weeks >= 4) injuries.longInSeason++;
-        if (at.phase === "REGULAR_SEASON") {
+        const team = teamOf.get(String(p.player));
+        const football = !AWAY_ONLY_KINDS.has(p.kind);
+        // Out for the next `weeks` week-ends' games: every injury is drawn on a week's last day, after its games.
+        const from = weekIndex.get(`${at.phase}/${at.week}`);
+        if (team !== undefined && football && from !== undefined && p.band !== "DAY_TO_DAY") {
+          let weeksOut = 0;
+          for (let w = 1; w <= lastRegularWeek; w++) { const j = regularIndex(w); if (j !== undefined && j > from && j <= from + p.weeks) weeksOut++; }
+          if (weeksOut >= 4) longAllPlayers.add(String(p.player));
+          const games = (gameWeeks.get(team) ?? []).filter((w) => at.phase === "REGULAR_SEASON" && w > at.week && w <= at.week + p.weeks).length;
+          if (games >= 4) longPlayers.add(String(p.player));
+        }
+        const inInterval = at.phase === "REGULAR_SEASON" && team !== undefined && (gameWeeks.get(team) ?? []).some((w) => w > at.week);
+        if (inInterval) {
           const pos = positionOf(String(p.player));
-          bump(regularInjuries.bySetting, p.setting);
-          if (p.band === "DAY_TO_DAY") regularInjuries.dayToDay++;
-          else {
-            regularInjuries.timeLoss++;
-            bump(regularInjuries.timeLossBands, p.band);
-            bump(regularInjuries.timeLossByGroup, pos ? POSITION_GROUP[pos] : "?");
-            if (p.weeks >= 4) regularInjuries.long++;
+          if (p.band !== "DAY_TO_DAY") regularInjuries.timeLossAllCauses++;
+          if (football) {
+            bump(regularInjuries.bySetting, p.setting);
+            if (p.band === "DAY_TO_DAY") regularInjuries.dayToDay++;
+            else {
+              regularInjuries.timeLoss++;
+              bump(regularInjuries.timeLossBySetting, p.setting);
+              bump(regularInjuries.timeLossBands, p.band);
+              bump(regularInjuries.timeLossByGroup, pos ? POSITION_GROUP[pos] : "?");
+            }
           }
         }
         if (p.setting === "GAME" && p.game !== undefined && regular.has(String(p.game))) {
@@ -158,6 +214,7 @@ export function summariseSeason(input: {
       }
       case "CONTRACT_SIGNED":
         if (event.payload.kind === "MINIMUM") emergencySignings++;
+        teamOf.set(String(event.payload.player), String(event.payload.team));
         break;
       case "PLAYER_RETIRED":
         if (event.payload.reason === "UNSIGNED") unsignedRetired++;
@@ -172,6 +229,9 @@ export function summariseSeason(input: {
         break;
     }
   }
+
+  regularInjuries.long = longPlayers.size;
+  regularInjuries.longAll = longAllPlayers.size;
 
   // Who started at the start of camp.
   const role = new Map<string, "starter" | "backup">();
@@ -229,15 +289,18 @@ export interface ArmSummary {
     weeksPerInjury: number;
     gameByGroupPerTeamGame: Record<string, number>;
     topKinds: { kind: string; share: number }[];
-    /** Regular season, any setting (the real measurement's terms). */
+    /** The regular season in the real measurement's terms (`SeasonCheck`'s `regular`); "per team-game" is per team interval. */
     regular: {
       timeLossPerTeamGame: number;
       dayToDayPerTeamGame: number;
-      timeLossPerTeamSeason: number;
+      timeLossAllCausesPerTeamGame: number;
       settingShares: Record<string, number>;
+      /** Football time-loss per team-game by setting (what the game rate, practice and away each add). */
+      timeLossBySettingPerTeamGame: Record<string, number>;
       timeLossBands: Record<string, number>;
       timeLossByGroupPerTeamGame: Record<string, number>;
       longPerTeamSeason: number;
+      longAllPerTeamSeason: number;
     };
   };
   readonly movement: Record<string, Record<string, { n: number; mean: number; sd: number; p10: number; p90: number }>>;
@@ -296,17 +359,20 @@ export function summariseArm(checks: readonly SeasonCheck[]): ArmSummary {
       gameByGroupPerTeamGame: shares(sumBy((c) => c.injuries.regularGameByGroup), 2 * regularGames),
       topKinds: Object.entries(kinds).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 12).map(([kind, n]) => ({ kind, share: n / Math.max(1, total) })),
       regular: (() => {
-        const tl = checks.reduce((n, c) => n + c.injuries.regular.timeLoss, 0);
-        const dd = checks.reduce((n, c) => n + c.injuries.regular.dayToDay, 0);
-        const teamGames = Math.max(1, 2 * regularGames);
+        const sum = (pick: (r: SeasonCheck["injuries"]["regular"]) => number) => checks.reduce((n, c) => n + pick(c.injuries.regular), 0);
+        const tl = sum((r) => r.timeLoss), dd = sum((r) => r.dayToDay);
+        const intervals = Math.max(1, sum((r) => r.intervals));
+        const teamSeasons = Math.max(1, teams * checks.length);
         return {
-          timeLossPerTeamGame: tl / teamGames,
-          dayToDayPerTeamGame: dd / teamGames,
-          timeLossPerTeamSeason: tl / Math.max(1, teams * checks.length),
+          timeLossPerTeamGame: tl / intervals,
+          dayToDayPerTeamGame: dd / intervals,
+          timeLossAllCausesPerTeamGame: sum((r) => r.timeLossAllCauses) / intervals,
           settingShares: shares(sumBy((c) => c.injuries.regular.bySetting), tl + dd),
+          timeLossBySettingPerTeamGame: shares(sumBy((c) => c.injuries.regular.timeLossBySetting), intervals),
           timeLossBands: shares(sumBy((c) => c.injuries.regular.timeLossBands), tl),
-          timeLossByGroupPerTeamGame: shares(sumBy((c) => c.injuries.regular.timeLossByGroup), teamGames),
-          longPerTeamSeason: checks.reduce((n, c) => n + c.injuries.regular.long, 0) / Math.max(1, teams * checks.length),
+          timeLossByGroupPerTeamGame: shares(sumBy((c) => c.injuries.regular.timeLossByGroup), intervals),
+          longPerTeamSeason: sum((r) => r.long) / teamSeasons,
+          longAllPerTeamSeason: sum((r) => r.longAll) / teamSeasons,
         };
       })(),
     },

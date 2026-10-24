@@ -6,12 +6,15 @@
  * the win spread against the NFL (R5's table), injuries against the real numbers
  * (`reports/injury-rates.json`, when measured), how far players move in a year, the starter-versus-
  * backup gap, and what the depth charts and the free-agent pool did. Each season's summary is kept
- * under `data-cache/player-checks/`, so a re-run only plays what is missing. Seasons play one after
+ * under `data-cache/player-checks/<code>/`, where `<code>` is a fingerprint of every package's source,
+ * so a re-run only plays what is missing and a change to the code (a retuned table, say) starts a
+ * fresh cache rather than reporting old seasons. Seasons play one after
  * another in this process (library code never starts processes); to go faster, run the command in
  * a few shells with `--shard 1/3`, `--shard 2/3`, `--shard 3/3`, each playing its share, and the
  * report is written once every season is in the cache.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NFL_SPREAD, summariseArm, type ArmSummary, type SeasonCheck } from "./playerChecks.js";
@@ -26,8 +29,17 @@ const shard = /^(\d+)\/(\d+)$/.exec(opt("--shard", "1/1"));
 if (!shard || Number(shard[1]) < 1 || Number(shard[1]) > Number(shard[2])) throw new SyntaxError("--shard takes i/n, e.g. 2/3");
 const [part, parts] = [Number(shard[1]), Number(shard[2])];
 const root = fileURLToPath(new URL("../..", import.meta.url));
-const cache = join(root, "data-cache", "player-checks");
+// The code the seasons were played with: every package's source files, by path and content.
+const code = createHash("sha256");
+for (const pkg of ["contracts", "engine", "playbook", "attributes", "franchise", "calibration"]) {
+  const src = join(root, "..", pkg, "src");
+  const files = (readdirSync(src, { recursive: true }) as string[]).filter((f) => f.endsWith(".ts")).sort();
+  for (const f of files) code.update(`${pkg}/${f}\n`).update(readFileSync(join(src, f)));
+}
+const fingerprint = code.digest("hex").slice(0, 12);
+const cache = join(root, "data-cache", "player-checks", fingerprint);
 mkdirSync(cache, { recursive: true });
+console.log(`Code ${fingerprint}: seasons cached in ${cache}`);
 
 const runs = arms.flatMap((arm) => Array.from({ length: seeds }, (_, i) => ({ arm, seed: `spread-${i + 1}` })));
 const fileOf = (r: { arm: string; seed: string }) => join(cache, `${r.arm}-${r.seed}.json`);
@@ -52,11 +64,11 @@ const realPath = join(root, "reports", "injury-rates.json");
 interface RealInjuries {
   seasons: number[];
   pooled: {
-    timeLoss: { perTeamGame: number; perTeamSeason: number };
+    timeLoss: { perTeamGame: number; perTeamGameAllCauses: number };
     durations: { weeks: { bands: Record<string, number> } };
     groups: { group: string; perTeamGame: number }[];
     episodes: { dayToDayDesignatedPerTeamGame: number };
-    reserve: { missing4PlusWeeksAll: number; missing4PlusGamesNew: number };
+    reserve: { missing4PlusWeeksAll: number; missing4PlusGamesNew: number; pupAtWeek1PerTeamSeason: number; nfiAtWeek1PerTeamSeason: number };
   };
 }
 const real = existsSync(realPath) ? (JSON.parse(readFileSync(realPath, "utf8")) as RealInjuries) : undefined;
@@ -68,7 +80,8 @@ const say = (s = "") => lines.push(s);
 say("# ADR-087 D5a: one season with the players' switches");
 say();
 say(`${seeds} seasons per arm (seeds spread-1 to spread-${seeds}, ADR-079 R5's), generated squads, the caller default. ` +
-  "Arms: `off` (today), `development` (growth and aging), `injuries`, `both`. Made by `pnpm --filter @ff/calibration player-checks`.");
+  "Arms: `off` (today), `development` (growth and aging), `injuries`, `both`. Made by `pnpm --filter @ff/calibration player-checks` " +
+  `with the code fingerprinted \`${fingerprint}\`.`);
 say();
 say("## Win spread (ADR-079 R5)");
 say();
@@ -105,18 +118,26 @@ if (hurt.length > 0) {
     const r = real.pooled;
     say(`### Against the NFL (regular seasons ${real.seasons[0]}-${real.seasons.at(-1)}, \`reports/injury-rates.md\`)`);
     say();
-    say("Injuries that begin in the regular season, in any setting, since the real reports cannot tell a game injury from a practice one. " +
-      "Time-loss = costs at least a week. The real \"4+ weeks\" counts every player out 4+ weeks during the season, " +
-      "including those already out at week 1; the sim's counts only injuries that begin in the season, so it should come in lower.");
+    say("Like for like with the real measurement: injuries to players on a team that begin after one of his team's regular-season games " +
+      "and before its next, per team interval (a game followed by another, the real denominator), in any setting, since the real reports " +
+      "cannot tell a game injury from a practice one. Football injuries only, as in the real headline; \"any cause\" adds illness and " +
+      "accidents away from football. Time-loss = costs at least a week. \"Out 4+, begun in season\" counts each player once, by his " +
+      "team's games missed before the season ends; \"any onset\" counts regular-season weeks missed whenever the injury began. The real " +
+      `"any onset" also holds players hurt before camp (about ${(real.pooled.reserve.pupAtWeek1PerTeamSeason + real.pooled.reserve.nfiAtWeek1PerTeamSeason).toFixed(1)} a team on the PUP and non-football lists at week 1), ` +
+      "whom the sim, which starts healthy at camp, cannot have.");
     say();
-    say("| | Time-loss per team-game | Day-to-day per team-game | Time-loss per team-season | Short / long / major (of time-loss) | 4+ weeks per team-season |");
-    say("|---|---|---|---|---|---|");
+    say("| | Time-loss per team-game | Any cause | Day-to-day per team-game | Short / long / major (of time-loss) | Out 4+, begun in season (per team) | Out 4+, any onset (per team) |");
+    say("|---|---|---|---|---|---|---|");
     const b = r.durations.weeks.bands;
-    say(`| NFL | ${n2(r.timeLoss.perTeamGame)} | ${n2(r.episodes.dayToDayDesignatedPerTeamGame)} | ${r.timeLoss.perTeamSeason.toFixed(1)} | ${pct(b.short ?? 0)} / ${pct(b.long ?? 0)} / ${pct(b.major ?? 0)} | ${r.reserve.missing4PlusWeeksAll.toFixed(1)} (new in season: ${r.reserve.missing4PlusGamesNew.toFixed(1)}, by games) |`);
+    say(`| NFL | ${n2(r.timeLoss.perTeamGame)} | ${n2(r.timeLoss.perTeamGameAllCauses)} | ${n2(r.episodes.dayToDayDesignatedPerTeamGame)} | ${pct(b.short ?? 0)} / ${pct(b.long ?? 0)} / ${pct(b.major ?? 0)} | ${r.reserve.missing4PlusGamesNew.toFixed(1)} | ${r.reserve.missing4PlusWeeksAll.toFixed(1)} |`);
     for (const s of hurt) {
       const g = s.injuries.regular;
-      say(`| ${s.arm} | ${n2(g.timeLossPerTeamGame)} | ${n2(g.dayToDayPerTeamGame)} | ${g.timeLossPerTeamSeason.toFixed(1)} | ${pct(g.timeLossBands.SHORT ?? 0)} / ${pct(g.timeLossBands.LONG ?? 0)} / ${pct(g.timeLossBands.MAJOR ?? 0)} | ${g.longPerTeamSeason.toFixed(1)} |`);
+      say(`| ${s.arm} | ${n2(g.timeLossPerTeamGame)} | ${n2(g.timeLossAllCausesPerTeamGame)} | ${n2(g.dayToDayPerTeamGame)} | ${pct(g.timeLossBands.SHORT ?? 0)} / ${pct(g.timeLossBands.LONG ?? 0)} / ${pct(g.timeLossBands.MAJOR ?? 0)} | ${g.longPerTeamSeason.toFixed(1)} | ${g.longAllPerTeamSeason.toFixed(1)} |`);
     }
+    say();
+    say("Football time-loss injuries per team-game by setting (the game rate is the one fitted to the NFL; practice and away are set apart, see `injuryTables.ts`):");
+    say();
+    for (const s of hurt) say(`- **${s.arm}**: ${Object.entries(s.injuries.regular.timeLossBySettingPerTeamGame).map(([k, v]) => `${k.toLowerCase()} ${v.toFixed(2)}`).join(", ")}`);
     say();
     say("Time-loss injuries per team-game by position group:");
     say();
@@ -161,5 +182,5 @@ if (grown.length > 0) {
   say();
 }
 writeFileSync(join(root, "reports", "player-checks.md"), lines.join("\n"));
-writeFileSync(join(root, "reports", "player-checks.json"), JSON.stringify({ seeds, arms, summaries }, null, 2));
+writeFileSync(join(root, "reports", "player-checks.json"), JSON.stringify({ seeds, arms, code: fingerprint, summaries }, null, 2));
 console.log(lines.join("\n"));

@@ -25,8 +25,9 @@ describe("unfilledPosition", () => {
     expect(unfilledPosition(rated, team, without("QB"), players)).toBe("QB");
   });
 
-  it("needs a second specialist when one is out (the punter kicks, so a punter is wanted), and the kicker first when both are", () => {
-    expect(unfilledPosition(rated, team, without("K"), players)).toBe("P");
+  it("wants a kicker when the kicker is out and a punter when the punter is (not a second punter to kick), the kicker first when both are", () => {
+    expect(unfilledPosition(rated, team, without("K"), players)).toBe("K");
+    expect(unfilledPosition(rated, team, without("P"), players)).toBe("P");
     expect(unfilledPosition(rated, team, without("K", "P"), players)).toBe("K");
   });
 
