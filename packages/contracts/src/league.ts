@@ -4,7 +4,7 @@
  * logic (contracts.md §10).
  */
 import type { CalendarStamp } from "./calendar.js";
-import type { ConferenceId, DivisionId, GameId, PlayerId, TeamId } from "./ids.js";
+import type { AttrId, ConferenceId, DivisionId, GameId, PlayerId, TeamId } from "./ids.js";
 import type { GameEndReason } from "./events.js";
 
 // C2 — structure is data, not constants (Spec #5 §14.1).
@@ -47,6 +47,19 @@ export interface GameResult {
    * Optional: a resolver that does not know them leaves it out.
    */
   periods?: readonly { period: number; home: number; away: number }[];
+}
+
+/**
+ * ADR-087 P4: who played in a game and how, one entry per player who took a snap. Built by whoever
+ * plays the game (the season runner, from the match events) and handed back beside the result, so
+ * franchise reads who played without parsing play events (Iron Rule 1). `contests`: his one-on-one
+ * checks by the rating he used, won and lost.
+ */
+export interface GameParticipation {
+  player: PlayerId;
+  team: TeamId;
+  snaps: { offense: number; defense: number; special: number };
+  contests: { attr: AttrId; won: number; lost: number }[];
 }
 
 // C5 — standings. A view: everything here is derivable from results + LeagueStructure,

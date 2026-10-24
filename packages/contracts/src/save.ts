@@ -3,6 +3,7 @@ import type { DraftClass, DraftPick, LeagueStructure, SeasonState } from "./leag
 import type { PlayerId, TeamId } from "./ids.js";
 import type { Team, PlayerState, StaffState, PlayerContract, PerceivedAttributes, DeadMoneyCharge } from "./players.js";
 import type { StaffContract } from "./staff.js";
+import type { FranchiseEventEnvelope } from "./events.js";
 import type { RelationshipView } from "./relationships.js";
 
 export const SAVE_FORMAT_VERSION = 1;
@@ -41,6 +42,14 @@ export interface SaveFile {
     deadMoney?: DeadMoneyCharge[];
     /** ADR-085 K4: the cap each season, with the range published before it was set. Optional, as above. */
     capHistory?: CapSeason[];
+    /**
+     * ADR-087 S1: what players' development, injuries, depth charts and unsigned retirements did this
+     * season (every event those steps and the emergency signings emitted, truth-layer ones included),
+     * and the steps' own memory (open position battles, who started before an injury, recent grades,
+     * when each free agent became unsigned), so a loaded season carries on exactly. `depthMemory` is
+     * franchise's shape. Optional, so older saves still load.
+     */
+    development?: { events: FranchiseEventEnvelope[]; depthMemory: unknown };
     perceptions: PerceivedAttributes[];
     /** ADR-078 C7: conferences and divisions, as data (Spec #5 §14.1). */
     league: LeagueStructure;
