@@ -16,6 +16,11 @@ export interface GeneratedLeagueOptions {
   readonly season: number;
   /** Team-strength spread, in talent units; the generator's default when absent (R5 tunes it). */
   readonly teamStrengthSd?: number;
+  /**
+   * ADR-087: fill each player's development record and patience, on the generator's own streams
+   * (ratings, names and depth charts are the same either way). Only with the players' switches on.
+   */
+  readonly development?: boolean;
 }
 
 export function buildGeneratedLeague(league: League, opts: GeneratedLeagueOptions): GeneratedLeague {
@@ -24,6 +29,7 @@ export function buildGeneratedLeague(league: League, opts: GeneratedLeagueOption
     season: opts.season,
     teams: league.teams,
     ...(opts.teamStrengthSd === undefined ? {} : { teamStrengthSd: opts.teamStrengthSd }),
+    ...(opts.development === true ? { development: true } : {}),
   });
   return makeProvenancedLeague(
     "GENERATED_FICTIONAL",
