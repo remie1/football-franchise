@@ -19,10 +19,10 @@
  * so changing one position's count never reshuffles another position's players.
  */
 import {
-  ATTRIBUTE_REGISTRY_V1, createRng, playerId,
+  ATTRIBUTE_REGISTRY_V1, clampRating, createRng, playerId, positionOverall,
   type AttributeMap, type PlayerId, type PlayerState, type Position, type RatedLeague, type Rng, type Team,
 } from "@ff/contracts";
-import { clampRating, physicalRatings, type Measurements } from "./derive.js";
+import { physicalRatings, type Measurements } from "./derive.js";
 import { drawName } from "./names.js";
 import { PHYSICAL, PROFILES, TIERS, UNIVERSAL, type Tier } from "./profiles.js";
 import { BODY, POSITION_ORDER, ROSTER_SHAPE, type Dist } from "./shape.js";
@@ -110,14 +110,10 @@ export function rateAttributes(rng: Rng, position: Position, talent: number, m: 
 
 /**
  * How good a player is AT A POSITION: his core ratings, plus the physical ones the position
- * leans on. Used for the depth chart (ADR-079 Q5). Not a rating the sim reads.
+ * leans on. Used for the depth chart (ADR-079 Q5). Not a rating the sim reads. Contracts'
+ * `positionOverall` since ADR-087 P5, so franchise sorts by the same number.
  */
-export function overallAt(position: Position, ratings: AttributeMap): number {
-  const profile = PROFILES[position];
-  const mean = (ids: readonly string[]) => ids.reduce((s, id) => s + (ratings[id] ?? 0), 0) / ids.length;
-  const core = mean(profile.core);
-  return profile.keyPhysical.length === 0 ? core : 0.7 * core + 0.3 * mean(profile.keyPhysical);
-}
+export const overallAt = (position: Position, ratings: AttributeMap): number => positionOverall(position, ratings);
 
 function draftFor(rng: Rng, talent: number, age: number, season: number): PlayerState["bio"]["draft"] {
   const z = talent + 0.5 * gauss(rng);

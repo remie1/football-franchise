@@ -79,6 +79,14 @@ export interface RegistryMigration {
 }
 ```
 
+### Measurement scales and position profiles (ADR-087 P5)
+
+ADR-079 pins body ratings to measurements on one scale and gives each position the ratings it is built around. The generator, the draft's class maker, the stand-in importer and franchise (aging, the weekly depth chart, draft boards, cut-down day) all need the same numbers, so they live in `measures.ts`, as data with small readers beside `getAttr` (the §10 amendment below says why):
+
+- `MEASUREMENT_SCALES`: `forty` (5.60 s reads 0, 4.22 s reads 99), `cone` (8.10 / 6.50 s), `vertical` (22 / 44 in), `strength` (`20 + 1.6 × bench + 0.12 × (weightLb − 200)`).
+- `speedFromForty`, `agilityFromCone`, `jumpingFromVertical`, `strengthFrom` (rounded and clamped by `clampRating`); `onScale` and `strengthOnScale`, unrounded, for what a change in a measurement is worth.
+- `POSITION_PROFILES: Record<Position, { core; secondary; keyPhysical }>` (registry ids) and `positionOverall(position, ratings)`: the core mean, or 0.7 × core + 0.3 × key physical where the position leans on its body. For depth charts, boards and cut-down day; the sim never reads it.
+
 ### Traits
 
 Same registry pattern, boolean possession + situational bonus payload (design doc Appendix B):
@@ -486,7 +494,7 @@ Raw match event streams are **not** saved (regenerate any game from `worldSeed` 
 
 ## 10. WHAT IS DELIBERATELY ABSENT
 
-- Any modifier table, target number, or formula (engine tunables)
+- Any modifier table, target number, or formula (engine tunables). **Amendment 1 (ADR-087 P5, owner's yes 2026-10-24):** one narrow exception, the measurement scales and position profiles of §2 (`measures.ts`). They are ADR-079's ruled anchors, which rarely change, and every domain that rates a player needs the same copy; any change to them is a contracts edit that goes back to the owner. The tunable curves that use them (aging, injuries, growth) stay in franchise.
 - Cap math, market pricing, reveal-curve logic (franchise)
 - Storyline templates (narrative)
 - Scene/asset manifest types (claimed by art-style + ui specs via petition once drafted)
