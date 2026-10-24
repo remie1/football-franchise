@@ -14,3 +14,5 @@ export {
 } from "./fictional/draftClass.js";
 export type { Measurements } from "./fictional/derive.js";
 export { ROSTER_SHAPE, ROSTER_SIZE } from "./fictional/shape.js";
+// ADR-087: growth rates, career snaps and patience for made-up players (only with `development`).
+export { drawGrowth, drawPatience, GROWTH, CAREER_SNAPS, PATIENCE_SEASONS } from "./fictional/development.js";

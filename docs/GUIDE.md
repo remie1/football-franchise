@@ -6,7 +6,7 @@ rules live in `ARCHITECTURE_CHARTER.md`, and the full working history lives in `
 This page points into both and should stay short. Update the "Where things stand" section when
 a big piece lands.
 
-_Last updated: 23 October 2026._
+_Last updated: 24 October 2026._
 
 ## What the game is
 
@@ -40,7 +40,7 @@ run the play simulator).
 | Playbook | `packages/playbook` | The play cards: formations, pass and run concepts, protections, defensive calls with their fronts, coverages, pressures and disguises. | Yes |
 | Realism checker | `packages/calibration` | Runs thousands of games and compares the results with real NFL numbers. Also holds the computer play-callers used for testing, and the "ladder" checks (described below). | Yes |
 | Player ratings | `packages/attributes` | Makes the made-up league's players and their ratings (ADR-079); will later turn real data into ratings for real rosters. | Made-up rosters: yes. Real data: not started |
-| Front office | `packages/franchise` | Runs the calendar, schedule, standings and playoffs (the season shell), the coaching staffs: hiring and firing (ADR-080), and how the staff get on (ADR-084). Will add the cap, player contracts, free agency and the draft. | Yes: the season shell, coaching staffs and their relationships (none of it affects games) |
+| Front office | `packages/franchise` | Runs the calendar, schedule, standings and playoffs (the season shell), the coaching staffs: hiring and firing (ADR-080), and how the staff get on (ADR-084), and players growing, aging and getting hurt week by week (ADR-087, switched off by default). Will add the cap, player contracts, free agency and the draft. | Yes: the season shell, coaching staffs and their relationships (none of it affects games); player growth and injuries (off by default) |
 | Storylines | `packages/narrative` | Writes the news from what happens in games: each week's headlines, the playoff race, the playoffs and a season review today (ADR-082); storylines, press and reputation later. | Started: the season's news |
 | Game screen | `apps/game` | The browser app: menus, dashboards, the play log. It only displays; it decides nothing. | Not started (a game viewer has its own thread now) |
 
@@ -158,6 +158,18 @@ the record of every view, how each drifts back to what the two men's personaliti
 grudges, and the moves the coaching carousel makes by itself (a hire, a firing, an extension, the
 season's results). Next, views will feed who stays, how hot the staff meeting's arguments get, and
 what leaks to the press; they never change a game.
+
+**Players grow, age and get hurt (ADR-087, built 24 October 2026, off by default):** with
+`--development` and/or `--injuries` on the season command, every player's ratings move a little
+each week (young players gain, players past about 30 lose, more of it in the offseason, playing time
+and coaching help), injuries happen in games, in practice and away from football with lengths and
+kinds measured from six real NFL seasons, hurt players sit out or play hurt, each head coach sets
+his depth chart his own way, teams short of a player sign a street free agent, and free agents
+nobody signs retire. The season then runs on to the end of the league year, and a save carries all
+of it. With both switches off a season is exactly what it was. The single-season checks
+(`pnpm --filter @ff/calibration player-checks`, `reports/player-checks.md`) compare it with the NFL;
+switching it on by default waits for the 20-season check, after the draft and cap threads' year
+turnover.
 
 **Your coach's personality (ADR-083, ruled 23 October 2026, not built):** your type builds up from
 how you answer people, shown as five meters on your coach page. Only your main trait counts, and it

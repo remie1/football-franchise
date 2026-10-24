@@ -14,7 +14,7 @@
  * Physical ratings (speed, strength, agility, jumping, acceleration) are not in a tier: they come
  * from the player's measurements (`derive.ts`), which already differ by position.
  */
-import type { Position } from "@ff/contracts";
+import { POSITION_PROFILES, type Position, type PositionProfile } from "@ff/contracts";
 
 export interface Tier {
   /** League-wide mean of the rating among players for whom it is in this tier. */
@@ -35,91 +35,13 @@ export const TIERS = {
   rest: { mean: 22, sd: 8, load: 0.2 },
 } as const satisfies Record<string, Tier>;
 
-export interface Profile {
-  readonly core: readonly string[];
-  readonly secondary: readonly string[];
-  /** The physical ratings the position's overall leans on, for the depth chart. */
-  readonly keyPhysical: readonly string[];
-}
-
-const QB: Profile = {
-  core: ["accuracy", "decisionMaking", "footballIQ", "armStrength", "touch", "pocketPatience", "poise", "release"],
-  secondary: ["improvisation", "ballSecurity", "elusiveness"],
-  keyPhysical: [],
-};
-const RB: Profile = {
-  core: ["vision", "elusiveness", "ballSecurity", "patience", "power", "yac"],
-  secondary: ["catching", "routeRunning", "passBlock", "catchInTraffic", "runBlock"],
-  keyPhysical: ["speed", "acceleration", "agility"],
-};
-const FB: Profile = {
-  core: ["runBlock", "passBlock", "sustain", "power"],
-  secondary: ["catching", "vision", "ballSecurity", "yac", "routeRunning"],
-  keyPhysical: ["strength"],
-};
-const WR: Profile = {
-  core: ["routeRunning", "releaseWR", "catching", "catchInTraffic", "spectacularCatch", "yac"],
-  secondary: ["elusiveness", "ballSecurity", "ballSkills", "runBlock"],
-  keyPhysical: ["speed", "acceleration", "jumping"],
-};
-const TE: Profile = {
-  core: ["catching", "routeRunning", "runBlock", "passBlock", "sustain"],
-  secondary: ["releaseWR", "catchInTraffic", "spectacularCatch", "yac", "ballSkills", "ballSecurity", "elusiveness"],
-  keyPhysical: ["speed", "strength"],
-};
-const OL: Profile = {
-  core: ["passBlock", "runBlock", "anchor", "footwork", "sustain"],
-  secondary: ["pullSkill", "gapDiscipline"],
-  keyPhysical: ["strength"],
-};
-const GUARD: Profile = { ...OL, core: [...OL.core, "pullSkill"], secondary: ["gapDiscipline"] };
-const EDGE: Profile = {
-  core: ["passRush", "powerMove", "finesseMove", "firstStep", "blockShed", "runStuff"],
-  secondary: ["tackling", "pursuit", "gapDiscipline", "playRecognition"],
-  keyPhysical: ["speed", "strength"],
-};
-const INTERIOR: Profile = {
-  core: ["runStuff", "blockShed", "powerMove", "passRush", "gapDiscipline"],
-  secondary: ["firstStep", "finesseMove", "tackling", "pursuit"],
-  keyPhysical: ["strength"],
-};
-const OUTSIDE_LB: Profile = {
-  core: ["passRush", "tackling", "pursuit", "playRecognition", "blockShed"],
-  secondary: ["zoneCoverage", "manCoverage", "instincts", "firstStep", "finesseMove", "powerMove", "runStuff", "gapDiscipline"],
-  keyPhysical: ["speed"],
-};
-const INSIDE_LB: Profile = {
-  core: ["tackling", "playRecognition", "instincts", "pursuit", "zoneCoverage", "runStuff", "blockShed", "gapDiscipline"],
-  secondary: ["manCoverage", "passRush", "ballSkills"],
-  keyPhysical: ["speed"],
-};
-const CB: Profile = {
-  core: ["manCoverage", "zoneCoverage", "press", "ballSkills", "playRecognition"],
-  secondary: ["instincts", "tackling", "pursuit", "catching"],
-  keyPhysical: ["speed", "agility"],
-};
-const FS: Profile = {
-  core: ["zoneCoverage", "playRecognition", "instincts", "ballSkills", "pursuit", "tackling"],
-  secondary: ["manCoverage", "press", "catching"],
-  keyPhysical: ["speed"],
-};
-const SS: Profile = {
-  core: ["tackling", "zoneCoverage", "playRecognition", "instincts", "pursuit", "runStuff"],
-  secondary: ["manCoverage", "ballSkills", "press", "blockShed"],
-  keyPhysical: ["speed", "strength"],
-};
-const K: Profile = { core: ["kickPower", "kickAccuracy"], secondary: ["puntPower", "puntHangTime"], keyPhysical: [] };
-const P: Profile = { core: ["puntPower", "puntHangTime"], secondary: ["kickPower", "kickAccuracy"], keyPhysical: [] };
-// There is no snapping rating; a long snapper is a blocker who covers punts.
-const LS: Profile = { core: ["passBlock", "sustain"], secondary: ["tackling", "pursuit", "runBlock"], keyPhysical: [] };
-
-export const PROFILES: Readonly<Record<Position, Profile>> = {
-  QB, RB, FB, WR, TE,
-  LT: OL, LG: GUARD, C: OL, RG: GUARD, RT: OL,
-  DE: EDGE, DT: INTERIOR, NT: INTERIOR,
-  OLB: OUTSIDE_LB, MLB: INSIDE_LB, ILB: INSIDE_LB,
-  CB, FS, SS, K, P, LS,
-};
+/**
+ * Each position's core, secondary and key physical ratings are shared vocabulary since ADR-087 P5
+ * (contracts' `POSITION_PROFILES`): the depth chart, draft boards and cut-down day read the same
+ * profiles through `positionOverall`. Re-exported here under the generator's names.
+ */
+export type Profile = PositionProfile;
+export const PROFILES: Readonly<Record<Position, Profile>> = POSITION_PROFILES;
 
 /**
  * Ratings every player carries whatever his position, each with its own spread and its own

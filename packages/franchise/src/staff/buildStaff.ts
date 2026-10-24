@@ -7,7 +7,8 @@
  * real season the league has coaching trees, retreads and résumés that agree with each other.
  *
  * Then the sitting defensive coordinators' disguise habit is re-centred so their mean is exactly
- * the owner's 31.5% (ADR-075 §3.3).
+ * the owner's 31.5% (ADR-075 §3.3). With `lineups`, every sitting head coach is then given his
+ * depth-chart leanings (ADR-087 C1), each drawn on its own stream so no other draw moves.
  *
  * Same league, first season and seed → the identical staff world.
  */
@@ -17,6 +18,7 @@ import { COLLEGE_PROGRAMS, SEATS, STAFF_TUNING, type Seat } from "./tables.js";
 import { seatScore } from "./ratings.js";
 import { makeCoach, type Cohort } from "./makeCoach.js";
 import { runStaffOffseason } from "./offseason.js";
+import { lineupFor } from "../players/lineup.js";
 import { initStandIn, standInSeason, type StandInState } from "./standIn.js";
 import { clamp, offseasonStamp, seatOf, weightedPick, type StaffWorld, type TeamSeasonSummary } from "./world.js";
 
@@ -27,6 +29,12 @@ export interface BuildStaffOptions {
   historySeasons?: number;
   /** Defaults to the league's seed. */
   seed?: string;
+  /**
+   * ADR-087 C1: give every sitting head coach without one his depth-chart leanings (`lineup`), drawn
+   * from his personality type on its own stream after the history. Off by default, so the staff
+   * world is byte-identical to one built without it.
+   */
+  lineups?: boolean;
 }
 
 export interface BuiltStaff {
@@ -120,5 +128,8 @@ export function buildStaff(league: League, opts: BuildStaffOptions): BuiltStaff 
     world = runStaffOffseason({ world, results: season.summaries, seed }).world;
   }
   recentreDisguise(world);
+  if (opts.lineups === true) {
+    world = { ...world, staff: world.staff.map((s) => (seatOf(s) === "HEAD_COACH" && s.lineup === undefined ? { ...s, lineup: lineupFor(s, seed) } : s)) };
+  }
   return { world, history, standIn };
 }

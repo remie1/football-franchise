@@ -10,7 +10,9 @@
     "ingest": "tsc -p tsconfig.json && node dist/ingest/cli.js",
     "known-truth": "vitest run test/knownTruth",
     "export-game": "vite-node src/export/main.ts --",
-    "season": "vite-node src/season/main.ts --"
+    "season": "vite-node src/season/main.ts --",
+    "player-checks": "vite-node src/season/playerChecksMain.ts --",
+    "injury-rates": "vite-node src/injuries/main.ts --"
   },
   "dependencies": {
     "@ff/attributes": "workspace:*",

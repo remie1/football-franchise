@@ -37,9 +37,15 @@ import type {
 import type { AnyProvenancedLeague } from "./provenance.js";
 
 export class RosterUnavailableError extends Error {
-  constructor(message: string) {
+  /**
+   * The position the team could not fill, when that is what went wrong: the first position of the
+   * role's chain. The season runner's emergency signings (ADR-087 §5.3) sign one there.
+   */
+  readonly position?: Position;
+  constructor(message: string, position?: Position) {
     super(`@ff/calibration: ${message}`);
     this.name = "RosterUnavailableError";
+    if (position !== undefined) this.position = position;
   }
 }
 
@@ -55,7 +61,8 @@ export interface WeekRoster {
   readonly season: number;
   readonly week: number;
   readonly available: ReadonlySet<string>;
-  readonly source: "REAL_AVAILABILITY" | "FULL_STRENGTH";
+  /** `SEASON_AVAILABILITY`: the season runner's own injuries (ADR-087), not real weekly data. */
+  readonly source: "REAL_AVAILABILITY" | "FULL_STRENGTH" | "SEASON_AVAILABILITY";
   /** Players the league rosters who are unavailable this week. Counted for the report. */
   readonly unavailableCount: number;
 }
@@ -155,6 +162,7 @@ function take(
     `${String(team)} cannot field a ${what}: tried ${chain.join(", ")}, ` +
       `${used.size} players already placed. An availability-matched replay that cannot field ` +
       `eleven men is a data problem, not a simulation to approximate around.`,
+    chain[0],
   );
 }
 

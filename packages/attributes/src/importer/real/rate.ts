@@ -2,7 +2,7 @@
  * RATINGS, FIRST VERSION (ADR-088 R3; Q3 a, Q4 a, Q5 a).
  *
  * Body ratings come straight from the player's combine numbers through the made-up league's own
- * conversion (`fictional/derive.ts`), so a 4.40 forty is the same speed rating in both leagues.
+ * conversion (contracts' measurement scales, ADR-087 P5), so a 4.40 forty is the same speed rating in both leagues.
  * A drill he did not run takes his position's average in this league, and is marked a guess.
  *
  * Skill and football-smarts ratings come from his STANDING among the league's players at his
@@ -21,8 +21,8 @@
  * Box-score stats (yards, sacks, touchdowns) do not enter (Q4): they check, in R6.
  * Tracking and charting adjustments to single ratings come next (R3b).
  */
-import { createRng, type PlayerState, type Position } from "@ff/contracts";
-import { clampRating, type Measurements } from "../../fictional/derive.js";
+import { clampRating, createRng, type PlayerState, type Position } from "@ff/contracts";
+import type { Measurements } from "../../fictional/derive.js";
 import { rateAttributes } from "../../fictional/generate.js";
 
 /** Positions ranked together: the game's positions that one real job covers. */

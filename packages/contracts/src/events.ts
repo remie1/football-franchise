@@ -3,10 +3,10 @@
  * Debug text, calibration stats, UI replay, and narrative triggers are all
  * consumers of this stream. Streams are append-only and read-only to consumers.
  */
-import type { GameId, PlayId, PlayerId, TeamId, StaffId, StorylineId, AttrId, TraitId } from "./ids.js";
+import type { GameId, PlayId, PlayerId, TeamId, StaffId, StorylineId, AttrId, TraitId, Position } from "./ids.js";
 import type { CalendarStamp } from "./calendar.js";
 import type { DraftPickKind, GameKind, GameResult, PlayoffBracket } from "./league.js";
-import type { StaffRole, ContractKind } from "./players.js";
+import type { StaffRole, ContractKind, InjuryBand, InjurySetting } from "./players.js";
 import type { StaffDepartureReason } from "./staff.js";
 import type { RelationshipParty, RelationshipWord } from "./relationships.js";
 
@@ -533,6 +533,13 @@ export type MatchEvent =
         seed: string;
       } } & GameEventBase);
 
+/** ADR-087: a body measurement development tracks (40 and 3-cone in seconds, vertical in inches, bench in reps). */
+export type BodyMeasure = "forty" | "cone" | "vertical" | "bench";
+
+/** ADR-087 E5: why a depth chart changed, from what the player himself can see (§3.1). */
+export type DepthChartSituation =
+  | "OPEN_COMPETITION" | "INJURY_COVER" | "STARTER_RETURNS" | "KEPT_AFTER_INJURY" | "FORM" | "SUDDEN";
+
 export type FranchiseEvent =
   | { type: "CALENDAR_PHASE_ENTERED"; payload: { phase: string } }
   | { type: "WEEK_ADVANCED"; payload: { stamp: CalendarStamp } }
@@ -547,7 +554,11 @@ export type FranchiseEvent =
   | { type: "OPTION_EXERCISED"; payload: { player: PlayerId; team: TeamId; season: number } }
   | { type: "CONTRACT_RESTRUCTURED"; payload: { player: PlayerId } }
   | { type: "PLAYER_RELEASED"; payload: { player: PlayerId; team: TeamId; postJune1: boolean } }
-  | { type: "PLAYER_RETIRED"; payload: { player: PlayerId; timing: "IMMEDIATE"|"SLOW"|"LATE" } }
+  /**
+   * ADR-087 E4: `reason` "UNSIGNED" = nobody signed him in time (§6.1); absent = his own choice.
+   * `timing` "SEASON_END" = when the regular season ends; the camp-opening moment is "LATE".
+   */
+  | { type: "PLAYER_RETIRED"; payload: { player: PlayerId; timing: "IMMEDIATE"|"SLOW"|"LATE"|"SEASON_END"; reason?: "UNSIGNED" } }
   | { type: "TAG_APPLIED"; payload: { player: PlayerId; tagType: string } }
   | { type: "TRADE_EXECUTED"; payload: { teams: TeamId[] } }
   /** ADR-086 C5: `overall` and `kind` added (optional). */
@@ -563,7 +574,44 @@ export type FranchiseEvent =
   | { type: "TRAIT_REVEALED"; payload: { observer: TeamId | "PUBLIC"; subject: PlayerId; trait: TraitId; cause: string } }
   | { type: "COMPARISON_FILED"; payload: { observer: TeamId; a: PlayerId; b: PlayerId; verdict: "A"|"B"|"EVEN"; confidence: number } }
   | { type: "MEDIA_RANKING_PUBLISHED"; payload: { scope: string; entries: { subject: PlayerId; rank: number }[] } }
-  | { type: "INJURY_OCCURRED"; payload: { player: PlayerId; kind: string; weeks: number } }
+  /** ADR-087 E2: where (`setting`), how long (`band`) and, for a game injury, which game. Public. */
+  | { type: "INJURY_OCCURRED"; payload: { player: PlayerId; kind: string; weeks: number; setting: InjurySetting; band: InjuryBand; game?: GameId } }
+  /**
+   * ADR-087 E3, TRUTH LAYER: back from injury, with what it cost him for good (empty when nothing):
+   * ratings and body measurements, before and after.
+   */
+  | { type: "INJURY_HEALED"; payload: {
+        player: PlayerId;
+        lasting: { attr: AttrId; from: number; to: number }[];
+        body?: { measure: BodyMeasure; from: number; to: number }[];
+      } }
+  /**
+   * ADR-087 E1, TRUTH LAYER: one week's whole-point rating moves and body changes from practice,
+   * play, coaching, workouts and aging, for one team (absent = the free agents). Injury marks are
+   * INJURY_HEALED's. The week is the envelope's `at`.
+   */
+  | { type: "RATINGS_CHANGED"; payload: {
+        team?: TeamId;
+        changes: { player: PlayerId; attr: AttrId; from: number; to: number }[];
+        body?: { player: PlayerId; measure: BodyMeasure | "weightLb"; from: number; to: number }[];
+      } }
+  /**
+   * ADR-087 E5: a depth-chart move and why, labelled by what the player can see (§3.1). A COACH
+   * decision (Iron Rule 6): `decidedBy` is "NPC" unless the owner set it. Public.
+   */
+  | { type: "DEPTH_CHART_CHANGED"; payload: {
+        team: TeamId;
+        position: Position;
+        up?: PlayerId;
+        down?: PlayerId;
+        situation: DepthChartSituation;
+        authority: "COACH";
+        decidedBy: "HUMAN" | "NPC";
+      } }
+  /** ADR-087 E5: a coach declares a spot open. A COACH decision. */
+  | { type: "POSITION_BATTLE_DECLARED"; payload: { team: TeamId; position: Position; players: PlayerId[]; authority: "COACH"; decidedBy: "HUMAN" | "NPC" } }
+  /** ADR-087 E5: a coach names the winner. A COACH decision. */
+  | { type: "POSITION_BATTLE_ENDED"; payload: { team: TeamId; position: Position; starter: PlayerId; authority: "COACH"; decidedBy: "HUMAN" | "NPC" } }
   | { type: "MORALE_CHANGED"; payload: { player: PlayerId; delta: number; reason: string } }
   | { type: "PRESSURE_EVENT"; payload: { source: "OWNER"|"PRESIDENT"|"MEDIA"; delta: number } }
   /**
@@ -635,6 +683,18 @@ export interface EventEnvelope<E> {
 
 export type MatchEventEnvelope = EventEnvelope<MatchEvent>;
 export type FranchiseEventEnvelope = EventEnvelope<FranchiseEvent>;
+
+/**
+ * TRUTH-LAYER franchise events (ADR-087 §7; contracts.md §3): they carry true ratings, so they are
+ * for calibration, saves and franchise's own checks only. Filter them out before the news desk; the
+ * UI never shows them and computer teams' decisions never read them. Fans, the news and other teams
+ * learn of these changes only through perception (`PERCEPTION_UPDATED`).
+ */
+export const TRUTH_LAYER_EVENT_TYPES: readonly FranchiseEvent["type"][] = ["RATINGS_CHANGED", "INJURY_HEALED"];
+
+export function isTruthLayerEvent(event: FranchiseEvent): boolean {
+  return TRUTH_LAYER_EVENT_TYPES.includes(event.type);
+}
 
 /** The ENTIRE surface through which narrative touches the game (Spec #7 §1). */
 export type NarrativeEffect =
