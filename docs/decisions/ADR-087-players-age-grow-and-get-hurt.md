@@ -455,6 +455,37 @@ Built as §9 and §10 lay out, with these choices the design left to the build (
   by true ratings (§7). One-year minimum; the 53-man limit is not enforced. The lineup check asks for
   a kicker or a punter by name before the snapshot would let one stand in for the other, so a hurt
   kicker brings in a kicker.
+- **Practice-squad call-ups before street signings** (Orchestrator's ruling, 2026-10-24). A team
+  short of a player calls up the best fit man on its own practice squad (`Team.practiceSquad`) first,
+  as real teams do, by the same coordinator's read (one listed at the position first, then anyone,
+  listed there from now on): he moves to the roster and that position's depth chart, a
+  `CONTRACT_SIGNED` one-year minimum like the street signing (a called-up squad player signs a
+  standard deal; no new event or field). Only when nobody on the squad is fit does the team sign off
+  the street, with one exception (build choice, for the Orchestrator to confirm): for a kicker,
+  punter or long snapper, a specialist off the street comes before a squad man of another trade
+  (squad at the position, street at the position, squad anyone, street anyone), so a hurt kicker
+  brings in a kicker while there is one to sign. Read literally, the ruling had 16 of spread-17's 20
+  kicking signings (`--injuries`) go to men who were not specialists (a defensive tackle kicking)
+  while the street's three kickers and three punters sat unsigned; with the exception it is 11 of
+  20, all from week 7 on, once those six are signed (only 8 of the 32 squads carry a specialist). A
+  bigger street, or letting the punter kick, would close that; neither is built. Why: the stand-in
+  league makes about 90-100 emergency signings a season (the made-up league 49), the 114-man street
+  ran dry, and `player-checks --league` crashed on seed spread-17 in the playoffs (T32 could not
+  field a right guard). With a switch on, the stand-in loader gives each team its practice squad from
+  the file (`provenance.practiceSquad`, the file's order; switched off, none, so those runs are
+  unchanged); spread-17 with `--injuries` now plays through, with 115 call-ups and 6 street signings
+  (those specialists). `player-checks`
+  keeps a called-up man in his file group (practice squad) but counts him in the like-for-like
+  injury tables from his call-up on, as it counts a street signing, and reports the call-ups among
+  the emergency signings; like a street signing's, his injuries are filed under the position he held
+  at camp. The loader refuses a squad entry that is not of status "practice" in the file, so the two
+  agree. The generated league has no practice squads yet (cut-down day fills them, but the season
+  runner does not run it), so it signs from the street byte for byte as before and its D5a numbers
+  do not move. Left open: where a contract book is kept, the called-up man's practice-squad deal
+  stays live beside his new minimum (ending it needs a contract end reason contracts lacks), so
+  `teamCapTotal` counts both that season, `liveContract` finds the stale squad deal, and a later
+  `release` ends that one and leaves the minimum live on the cap; calibration keeps no book, and
+  nothing that keeps one calls players up yet.
 - **The who-played report** credits a snap to every player a play card names and to the offence's
   quarterback on every scrimmage play (a run card does not name him). Kicks credit the kicker or
   punter and the returner only: the engine has no coverage or return units yet.

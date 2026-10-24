@@ -160,6 +160,24 @@ describe("summariseSeason on the stand-in league (roster groups given)", () => {
     expect("standIn" in summariseArm([generated])).toBe(false);
   });
 
+  it("counts a practice-squad player called up to the 53 in the main tables from his call-up on, as a street signing, and counts the call-ups", () => {
+    const callUp: FranchiseEventEnvelope[] = [
+      { seq: seq++, at: at("REGULAR_SEASON", 4), event: { type: "CONTRACT_SIGNED", payload: { player: playerId("ps1"), team: A, kind: "MINIMUM", years: 1 } } },
+      { seq: seq++, at: at("REGULAR_SEASON", 5), event: hurt("ps1", 2, "SHORT", "PRACTICE") },
+    ];
+    const c = summariseSeason({ seed: "s", arm: "both", state, events: [...events, extra, ...callUp], startTeams: [team(A, ["qb1", "qb2", "qb3"])], startPlayers: startSI, endPlayers: endSI, groups, starters: new Set(["qb2"]) });
+    // His camp injury, on the practice squad, stays out of the main tables; the one after his call-up is in them.
+    expect(c.injuries.total).toBe(s.injuries.total + 1);
+    expect(c.injuries.regular.timeLoss).toBe(s.injuries.regular.timeLoss + 1);
+    expect(c.injuries.regular.timeLossByGroup).toEqual({ QB: 4 });
+    // He keeps his group in the file, and the call-up is one of the emergency signings.
+    expect(c.standIn!.injuriesByGroup).toEqual({ "53": 7, street: 2, practice: 2 });
+    expect(c.roster.emergencySignings).toBe(s.roster.emergencySignings + 1);
+    expect([c.standIn!.callUps, s.standIn!.callUps]).toEqual([1, 0]);
+    expect(summariseArm([c, s]).standIn!.callUpsPerSeason).toBe(0.5);
+    expect(c.movement["23-24"]!.practice!.n).toBe(1);
+  });
+
   it("growthScaleOf: the median of the logs, and their spread", () => {
     const g = growthScaleOf([Math.log(0.5), 0, Math.log(2), Math.log(4)]);
     expect(g.medianLog).toBeCloseTo(Math.log(2) / 2, 12);

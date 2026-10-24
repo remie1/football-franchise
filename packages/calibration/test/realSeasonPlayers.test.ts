@@ -78,6 +78,10 @@ describe("a real-sim season with the players' switches on", () => {
     expect(JSON.stringify(again.run.events)).toBe(JSON.stringify(played.run.events));
     expect(JSON.stringify(again.run.people, (_k, v) => (v instanceof Set ? [...v] : v))).toBe(JSON.stringify(played.run.people, (_k, v) => (v instanceof Set ? [...v] : v)));
     expect(played.run.state.results.length).toBe(16);
+    // The replay covers practice-squad call-ups (ADR-087 §11): some team called up one of its own.
+    const squads = (file.league.provenance as { practiceSquad: Record<string, string[]> }).practiceSquad;
+    expect(played.run.events.some((e) => e.event.type === "CONTRACT_SIGNED" &&
+      (squads[String(e.event.payload.team)] ?? []).includes(String(e.event.payload.player)))).toBe(true);
     const standIns = new Set(file.league.players.map((p) => String(p.bio.id)));
     const moved = played.run.events.flatMap((e) => (e.event.type === "RATINGS_CHANGED" ? e.event.payload.changes : [])).filter((c) => standIns.has(String(c.player)));
     expect(moved.length).toBeGreaterThan(100);

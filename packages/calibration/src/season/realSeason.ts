@@ -21,8 +21,10 @@
  * the resolver plays each game with the league's people as they are that day: hurt players sit,
  * those playing hurt take the field with their penalties off this game's copies of their ratings,
  * and each result comes back with the who-played report (`participation.ts`). Teams that cannot
- * field a side sign from a pool of street free agents made at the start (`reservePool`). Both
- * switches off, nothing here changes: the same resolver, rosters and walk as before.
+ * field a side call up a player from their own practice squad (the stand-ins'; the generated
+ * league has none yet), and failing that sign from a pool of street free agents made at the start
+ * (`reservePool`). Both switches off, nothing here changes: the same resolver, rosters and walk as
+ * before.
  *
  * The stand-in league with a switch on plays the league file's own season (`standInSeason`), with
  * each player's starting development read only for the switch that uses it (`buildStandInLeague`).

@@ -18,7 +18,11 @@
  * INJURY_OCCURRED marks them), and the growth rates' scale on the 53 at camp. The injury counts
  * themselves (`injuries`) then take the 53 and the street only, the people the generated league's
  * count (it has no practice squad or reserve lists), so the two compare like for like; the practice
- * squad's and the reserve lists' injuries are in `standIn.injuriesByGroup` alone. And the stand-ins'
+ * squad's and the reserve lists' injuries are in `standIn.injuriesByGroup` alone, except that a
+ * practice-squad player called up to the 53 (a `CONTRACT_SIGNED` for him) counts in `injuries` from
+ * then on, as a street signing does, since he fills the spot a street signing would. Everywhere he
+ * keeps his group in the file (the practice squad), and `standIn.callUps` counts the call-ups among
+ * the emergency signings. And the stand-ins'
  * starters are who the engine fields from their real depth charts (`fieldedStarters`, given as
  * `starters`), not the generated league's `STARTERS` table, which their charts do not follow (most
  * list inside linebackers, `ILB`, whom the table never starts). Without `groups` and `starters`
@@ -142,8 +146,10 @@ export interface SeasonCheck {
   };
   /** Stand-in league only (`groups` given). */
   readonly standIn?: {
-    /** INJURY_OCCURRED by the player's roster group. */
+    /** INJURY_OCCURRED by the player's roster group (his group in the file, called up or not). */
     readonly injuriesByGroup: Record<string, number>;
+    /** Emergency signings that called up a team's own practice-squad player (counted in `roster.emergencySignings` too). */
+    readonly callUps: number;
     /** Players hurt at the start of camp (copied from the league file), by roster group. */
     readonly startedHurt: Record<string, number>;
     /** Players at the start of camp by roster group (for per-team and per-player rates). */
@@ -223,6 +229,9 @@ export function summariseSeason(input: {
   let emergencySignings = 0, unsignedRetired = 0, battles = 0;
   const groupOf = (id: string): RosterGroup => input.groups?.get(id) ?? "street";
   const injuriesByGroup: Record<string, number> = {};
+  // Practice-squad players called up to the 53 so far (stand-ins only).
+  const calledUp = new Set<string>();
+  let callUps = 0;
   for (const { at, event } of events) {
     switch (event.type) {
       case "INJURY_OCCURRED": {
@@ -231,8 +240,8 @@ export function summariseSeason(input: {
           const group = groupOf(String(p.player));
           bump(injuriesByGroup, group);
           // The generated league's people are its 53s and the street: the stand-ins' practice squads
-          // and reserve lists are counted by group alone.
-          if (group === "practice" || group === "reserve") break;
+          // and reserve lists are counted by group alone, a practice-squad player until he is called up.
+          if (group === "reserve" || (group === "practice" && !calledUp.has(String(p.player)))) break;
         }
         injuries.total++;
         injuries.weeksLost += p.weeks;
@@ -277,6 +286,10 @@ export function summariseSeason(input: {
       case "CONTRACT_SIGNED":
         if (event.payload.kind === "MINIMUM") emergencySignings++;
         teamOf.set(String(event.payload.player), String(event.payload.team));
+        if (input.groups?.get(String(event.payload.player)) === "practice") {
+          calledUp.add(String(event.payload.player));
+          if (event.payload.kind === "MINIMUM") callUps++;
+        }
         break;
       case "PLAYER_RETIRED":
         if (event.payload.reason === "UNSIGNED") unsignedRetired++;
@@ -324,13 +337,13 @@ export function summariseSeason(input: {
   return {
     seed: input.seed, arm: input.arm, wins, betterRecord: { games, won }, regularSeasonGames, injuries, movement, gap,
     roster: { emergencySignings, unsignedRetired, depthChanges, battles },
-    ...(input.groups ? { standIn: standInCounts(input.startPlayers, input.groups, injuriesByGroup) } : {}),
+    ...(input.groups ? { standIn: standInCounts(input.startPlayers, input.groups, injuriesByGroup, callUps) } : {}),
   };
 }
 
 /** What the stand-in league's start holds by roster group: players, those already hurt, and the 53's growth rates. */
 function standInCounts(
-  start: readonly PlayerState[], groups: ReadonlyMap<string, Exclude<RosterGroup, "street">>, injuriesByGroup: Record<string, number>,
+  start: readonly PlayerState[], groups: ReadonlyMap<string, Exclude<RosterGroup, "street">>, injuriesByGroup: Record<string, number>, callUps: number,
 ): NonNullable<SeasonCheck["standIn"]> {
   const players: Record<string, number> = {};
   const startedHurt: Record<string, number> = {};
@@ -343,7 +356,7 @@ function standInCounts(
     const growth = p.attributes.development?.growth;
     if (g === "53" && growth !== undefined) lnGrowth.push(Math.log(growth));
   }
-  return { injuriesByGroup, startedHurt, players, ...(lnGrowth.length > 0 ? { growthScale: growthScaleOf(lnGrowth) } : {}) };
+  return { injuriesByGroup, callUps, startedHurt, players, ...(lnGrowth.length > 0 ? { growthScale: growthScaleOf(lnGrowth) } : {}) };
 }
 
 /** Median and spread of growth rates, from their logarithms. */
@@ -405,6 +418,8 @@ export interface ArmSummary {
     /** Players hurt at the start of camp, per team, by roster group. */
     readonly startedHurtPerTeam: Record<string, number>;
     readonly playersPerTeam: Record<string, number>;
+    /** Practice-squad call-ups a season (part of `roster.emergencySigningsPerSeason`). */
+    readonly callUpsPerSeason: number;
     readonly growthScale?: GrowthScale;
   };
 }
@@ -506,6 +521,7 @@ function standInArm(checks: readonly SeasonCheck[], teams: number): NonNullable<
     injuriesPerPlayerSeason: per(injuries, (g) => players[g] ?? 0),
     startedHurtPerTeam: per(sum((s) => s.startedHurt), () => teams * seasons),
     playersPerTeam: per(players, () => teams * seasons),
+    callUpsPerSeason: checks.reduce((n, c) => n + c.standIn!.callUps, 0) / seasons,
     // Every season starts from the same file, so the 53's growth rates are the same each season.
     ...(growth ? { growthScale: growth } : {}),
   };

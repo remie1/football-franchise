@@ -10,12 +10,12 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { compareStamps, type CalendarStamp, type PlayerState } from "@ff/contracts";
+import { compareStamps, teamId, type CalendarStamp, type PlayerState } from "@ff/contracts";
 import { buildLeague, type SeasonRun } from "@ff/franchise";
 import { fieldedStarters } from "../src/season/playerChecks.js";
 import { rosterGroups } from "../src/season/playerChecksRun.js";
 import { DEFAULT_SEASON, runRealSeason, seasonToPlay } from "../src/season/realSeason.js";
-import { buildStandInLeague, forSwitches, readStandInFile, standInSeason } from "../src/season/standInLeague.js";
+import { buildStandInLeague, forSwitches, readStandInFile, standInPracticeSquads, standInSeason } from "../src/season/standInLeague.js";
 
 const FILE = join(__dirname, "..", "..", "attributes", "leagues", "standin-2026-10-23.json");
 const text = readFileSync(FILE, "utf8");
@@ -200,5 +200,112 @@ describe("the player checks' roster groups (player-checks --league)", () => {
     expect([count("53"), count("practice"), count("reserve")]).toEqual([1682, 538, 308]);
     const onRosters = new Set(file.league.teams.flatMap((t) => t.roster.map(String)));
     for (const [id, g] of groups) expect(onRosters.has(id), id).toBe(g === "53");
+  });
+});
+
+describe("the stand-ins' practice squads (ADR-087 §11)", () => {
+  const kept = (file.league.provenance as { practiceSquad: Record<string, string[]> }).practiceSquad;
+  const status = (file.league.provenance as { status: Record<string, string> }).status;
+
+  it("go on the teams, in the file's order, only with a switch on: switched off, no team has one", () => {
+    for (const t of [...buildStandInLeague(base, file).league.teams, ...buildStandInLeague(base, file).rated.league.teams]) {
+      expect("practiceSquad" in t, String(t.id)).toBe(false);
+    }
+    for (const switches of [{ injuries: true }, { development: true }, { development: true, injuries: true }]) {
+      const { league, rated } = buildStandInLeague(base, file, switches);
+      for (const teams of [league.teams, rated.league.teams]) {
+        expect(teams.map((t) => (t.practiceSquad ?? []).map(String))).toEqual(teams.map((t) => kept[String(t.id)]));
+      }
+      expect(league.teams.reduce((n, t) => n + t.practiceSquad!.length, 0)).toBe(538);
+    }
+  });
+
+  it("are the file's practice-squad players, each on his team and off its roster", () => {
+    const squads = standInPracticeSquads(file);
+    const team = new Map(file.league.players.map((p) => [String(p.bio.id), String(p.teamId)]));
+    for (const t of file.league.teams) {
+      const roster = new Set(t.roster.map(String));
+      for (const id of squads.get(String(t.id))!) {
+        expect(status[String(id)]).toBe("practice");
+        expect(team.get(String(id))).toBe(String(t.id));
+        expect(roster.has(String(id))).toBe(false);
+      }
+    }
+  });
+
+  it("come from the players' statuses, in the players' order, in a file that does not keep them by team", () => {
+    const { practiceSquad: _kept, ...rest } = file.league.provenance as Record<string, unknown>;
+    const unkept = { ...file, league: { ...file.league, provenance: rest } };
+    const fromStatus = standInPracticeSquads(unkept);
+    for (const t of file.league.teams) {
+      const order = file.league.players.filter((p) => status[String(p.bio.id)] === "practice" && p.teamId === t.id).map((p) => String(p.bio.id));
+      expect(fromStatus.get(String(t.id))!.map(String)).toEqual(order);
+      expect([...order].sort()).toEqual([...kept[String(t.id)]!].sort());
+    }
+  });
+
+  it("refuses a practice squad that lists a rostered player, another team's, or one not in the file", () => {
+    const listing = (ids: string[]) => ({ ...file, league: { ...file.league, provenance: { ...(file.league.provenance as object), practiceSquad: { ...kept, T01: ids } } } });
+    const t01 = file.league.teams.find((t) => String(t.id) === "T01")!;
+    expect(() => standInPracticeSquads(listing([String(t01.roster[0])]))).toThrow(/T01 practice squad lists .* on its roster/);
+    expect(() => standInPracticeSquads(listing([kept.T02![0]!]))).toThrow(/T01 practice squad lists .* on T02/);
+    expect(() => standInPracticeSquads(listing(["r:nobody"]))).toThrow(/not in the file/);
+  });
+
+  it("refuses a player listed twice, or one whose status in the file is not practice (player-checks counts him by it)", () => {
+    const prov = file.league.provenance as Record<string, unknown>;
+    const first = kept.T01![0]!;
+    const twice = { ...file, league: { ...file.league, provenance: { ...prov, practiceSquad: { ...kept, T01: [...kept.T01!, first] } } } };
+    expect(() => standInPracticeSquads(twice)).toThrow(/T01 practice squad lists .* on a practice squad already/);
+    const reserve = { ...file, league: { ...file.league, provenance: { ...prov, status: { ...status, [first]: "reserve" } } } };
+    expect(() => standInPracticeSquads(reserve)).toThrow(/T01 practice squad lists .* of status "reserve", not "practice"/);
+  });
+
+  it("refuses, in a file that does not keep them by team, a practice-squad player on a team it does not have", () => {
+    const { practiceSquad: _kept, ...rest } = file.league.provenance as Record<string, unknown>;
+    const first = kept.T01![0]!;
+    const players = file.league.players.map((p) => (String(p.bio.id) === first ? { ...p, teamId: teamId("T99") } : p));
+    expect(() => standInPracticeSquads({ ...file, league: { ...file.league, players, provenance: rest } })).toThrow(/on a practice squad of T99, a team it does not have/);
+    const { teamId: _t, ...free } = file.league.players.find((p) => String(p.bio.id) === first)!;
+    const teamless = file.league.players.map((p) => (String(p.bio.id) === first ? free : p));
+    expect(() => standInPracticeSquads({ ...file, league: { ...file.league, players: teamless, provenance: rest } })).toThrow(/on a practice squad of no team/);
+  });
+
+  it("are called up, by the team short of a player, before anyone off the street but a specialist the squad lacks", () => {
+    const stopAfter: CalendarStamp = { season: 2026, phase: "REGULAR_SEASON", week: 1, day: 7 };
+    const { league, run } = runRealSeason({ seed: "spread-17", rosters: "standin", standIn: file, players: { injuries: true }, stopAfter });
+    const squadOf = new Map(league.teams.flatMap((t) => (t.practiceSquad ?? []).map((id) => [String(id), String(t.id)] as const)));
+    const filePosition = new Map(file.league.players.map((p) => [String(p.bio.id), p.bio.position]));
+    const endPosition = new Map(run.people!.players.map((p) => [String(p.bio.id), p.bio.position]));
+    const signed = run.events.flatMap((e) => (e.event.type === "CONTRACT_SIGNED" ? [e.event.payload] : []));
+    const calledUp = signed.filter((s) => squadOf.get(String(s.player)) === String(s.team));
+    const street = signed.filter((s) => !squadOf.has(String(s.player)));
+    expect(calledUp.length).toBeGreaterThan(0);
+    expect(calledUp.length + street.length).toBe(signed.length);
+    // Off the street only a kicker, punter or long snapper, listed there, for a team whose squad (in the file) has none.
+    for (const s of street) {
+      const position = endPosition.get(String(s.player))!;
+      expect(["K", "P", "LS"], String(s.player)).toContain(position);
+      expect(String(s.player).startsWith("p:FA"), String(s.player)).toBe(true);
+      const squad = league.teams.find((t) => String(t.id) === String(s.team))!.practiceSquad!;
+      expect(squad.filter((id) => filePosition.get(String(id)) === position), `${String(s.team)} ${position}`).toEqual([]);
+    }
+    const end = new Map(run.people!.teams.map((t) => [String(t.id), t]));
+    for (const s of signed) {
+      const t = end.get(String(s.team))!;
+      expect(t.roster.map(String)).toContain(String(s.player));
+      expect((t.practiceSquad ?? []).map(String)).not.toContain(String(s.player));
+    }
+    // The street pool (114 men, ADR-087 §11) gave only those specialists; the rest left it unsigned, retired.
+    const retired = run.events.flatMap((e) => (e.event.type === "PLAYER_RETIRED" && String(e.event.payload.player).startsWith("p:FA") ? [e.event.payload.player] : []));
+    expect(run.people!.freeAgents.length).toBe(114 - street.length - retired.length);
+    for (const s of street) expect(run.people!.freeAgents).not.toContain(s.player);
+    for (const id of run.people!.freeAgents) expect(String(id).startsWith("p:FA"), String(id)).toBe(true);
+    // Each team's squad and roster together are what they were: players moved, none lost or counted twice.
+    for (const t of league.teams) {
+      const now = end.get(String(t.id))!;
+      const was = [...t.roster, ...t.practiceSquad!, ...street.filter((s) => s.team === t.id).map((s) => s.player)].map(String).sort();
+      expect([...now.roster, ...(now.practiceSquad ?? [])].map(String).sort()).toEqual(was);
+    }
   });
 });

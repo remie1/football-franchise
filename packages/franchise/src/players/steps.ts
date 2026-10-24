@@ -19,7 +19,7 @@
  */
 import {
   positionOverall,
-  type CalendarPhase, type FranchiseEvent, type GameParticipation, type PlayerState, type Position, type SeasonState,
+  type CalendarPhase, type FranchiseEvent, type GameParticipation, type PlayerId, type PlayerState, type Position, type SeasonState,
   type StaffState, type Team, type TeamId,
 } from "@ff/contracts";
 import { minimumContract } from "../cap/signings.js";
@@ -167,11 +167,17 @@ export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: 
 
 /**
  * Next man up (§5.3), a stopgap until the cap thread's injured reserve and street signings: before the
- * next game, a team that cannot field a side signs the free agent who best fits the spot it cannot
- * fill, on a one-year minimum deal. One who plays that position is preferred; failing that, the best
- * overall at it, listed there from now on. "Best" is the side's coordinator's read (his position
- * overall there through `readBlur`), never the true ratings (§7). Only `playing` teams sign (absent =
- * every team). The 53-man limit is not enforced for these signings.
+ * next game, a team that cannot field a side fills the spot it cannot fill, on a one-year minimum
+ * deal: from its own practice squad first (`Team.practiceSquad`, ADR-086 C4), as real teams do, and
+ * only when nobody there is fit, with the free agent who best fits. In either pool one who plays
+ * that position is preferred; failing that, the best overall at it, listed there from now on. For a
+ * kicker, punter or long snapper, a specialist off the street comes before a squad player of
+ * another trade.
+ * "Best" is the side's coordinator's read (his position overall there through `readBlur`), never
+ * the true ratings (§7). A call-up leaves the practice squad for the roster and the position's depth
+ * chart, and is a `CONTRACT_SIGNED` like a street signing (a squad player called up signs a standard
+ * deal); a team with no practice squad signs from the street exactly as before. Only `playing` teams
+ * sign (absent = every team). The 53-man limit is not enforced for these signings.
  */
 export function emergencySignings(
   people: LeaguePeople, at: DayStepContext["day"], unfilled: NonNullable<PlayerStepsConfig["unfilled"]>,
@@ -188,18 +194,36 @@ export function emergencySignings(
       const available = new Set(t.roster.map(String).filter((id) => { const p = byId.get(id); return p !== undefined && isAvailable(p); }));
       const position = unfilled(t, available, byId);
       if (position === undefined) return t;
-      const pool = freeAgents.map((id) => byId.get(String(id))).filter((p): p is PlayerState => p !== undefined && isAvailable(p) && p.bio.draft !== "PROSPECT");
       const seat = SIDE_SEAT[sideOf(position)];
       const lens = coordinator(people.staff, t.id, seat);
-      const read = new Map(pool.map((p) => [String(p.bio.id),
-        positionOverall(position, p.attributes.values) + readBlur({ seed: opts.seed, at, team: t.id, seat, coordinator: lens, player: p.bio.id })]));
-      const best = (list: PlayerState[]) => [...list].sort((a, b) =>
-        read.get(String(b.bio.id))! - read.get(String(a.bio.id))! || String(a.bio.id).localeCompare(String(b.bio.id)))[0];
-      const pick = best(pool.filter((p) => p.bio.position === position)) ?? best(pool);
+      /** The coordinator's pick from a pool (his read is a pure function of the day, so reading more men moves nothing); ties by id. */
+      const best = (pool: readonly PlayerState[]): PlayerState | undefined => {
+        const read = new Map(pool.map((p) => [String(p.bio.id),
+          positionOverall(position, p.attributes.values) + readBlur({ seed: opts.seed, at, team: t.id, seat, coordinator: lens, player: p.bio.id })]));
+        return [...pool].sort((a, b) =>
+          read.get(String(b.bio.id))! - read.get(String(a.bio.id))! || String(a.bio.id).localeCompare(String(b.bio.id)))[0];
+      };
+      const fit = (id: PlayerId) => { const p = byId.get(String(id)); return p !== undefined && isAvailable(p) && p.bio.draft !== "PROSPECT" ? p : undefined; };
+      const listed = (pool: readonly PlayerState[]) => pool.filter((p) => p.bio.position === position);
+      const squad = (t.practiceSquad ?? []).map(fit).filter((p): p is PlayerState => p !== undefined);
+      const street = freeAgents.map(fit).filter((p): p is PlayerState => p !== undefined);
+      // Where to look, in order (`true` = a call-up): the squad, one listed at the position first, then the
+      // street the same way. A specialist (K, P, LS) is the exception: a kicker off the street comes before a
+      // squad man of another trade, so a hurt kicker brings in a kicker while there is one (ADR-087 §11).
+      const tiers: readonly (readonly [readonly PlayerState[], boolean])[] = SPECIAL.has(position)
+        ? [[listed(squad), true], [listed(street), false], [squad, true], [street, false]]
+        : [[listed(squad), true], [squad, true], [listed(street), false], [street, false]];
+      let pick: PlayerState | undefined;
+      let calledUp = false;
+      for (const [pool, fromSquad] of tiers) {
+        pick = best(pool);
+        if (pick) { calledUp = fromSquad; break; }
+      }
       if (!pick) return t; // Nobody left to sign: the season runner reports the team it cannot field.
       const signed: PlayerState = { ...pick, teamId: t.id, bio: { ...pick.bio, position } };
       byId.set(String(pick.bio.id), signed);
-      freeAgents = freeAgents.filter((id) => id !== pick.bio.id);
+      if (calledUp) t = { ...t, practiceSquad: t.practiceSquad!.filter((id) => id !== pick.bio.id) };
+      else freeAgents = freeAgents.filter((id) => id !== pick.bio.id);
       t = { ...t, roster: [...t.roster, pick.bio.id], depthChart: { ...t.depthChart, [position]: [...(t.depthChart[position] ?? []), pick.bio.id] } };
       events.push({ type: "CONTRACT_SIGNED", payload: { player: pick.bio.id, team: t.id, kind: "MINIMUM", years: 1 } });
       contracts?.push(minimumContract({ player: pick.bio.id, team: t.id, season: at.season, signedAt: at, creditedSeasons: pick.bio.creditedSeasons ?? 0, years: 1 }));

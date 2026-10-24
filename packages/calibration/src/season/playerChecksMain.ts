@@ -20,7 +20,8 @@
  * them into the 53, the practice squad, the reserve lists and the street (the injury tables take the
  * 53 and the street, as the generated league's do); the players who start the year hurt (copied from
  * the file, so no INJURY_OCCURRED) are counted from the start; the starters are who the engine fields
- * from the real depth charts; and a section gives the growth rates' scale on the 53 at camp. The
+ * from the real depth charts; the emergency signings say how many were practice-squad call-ups; and a
+ * section gives the growth rates' scale on the 53 at camp. The
  * report names the file by its path from the repository (its name alone when outside it).
  */
 import { createHash } from "node:crypto";
@@ -196,8 +197,12 @@ if (standIn !== undefined) {
   say();
   say("Each stand-in's group is his status in the league file at the start: the 53 (active), the practice squad, or a reserve list; " +
     "\"street\" is the run's street free agents. The injury tables above count the 53 and the street, the people the made-up league's " +
-    "count (it has no practice squad or reserve lists); the tables against the NFL count the 53 (and any street signing) only. The " +
-    "practice squad's and the reserve lists' injuries are counted here alone. \"Started hurt\" are the players the file copies hurt at " +
+    "count (it has no practice squad or reserve lists); the tables against the NFL count the 53 and any emergency signing (off the " +
+    "street or called up from the practice squad) only, a signing's injuries under the position he held at camp, even when he was " +
+    "signed to play another. The " +
+    "practice squad's and the reserve lists' injuries are counted here alone, but for a practice-squad player called up to the 53 in an " +
+    "emergency: the tables above count him from his call-up on, as they count a street signing, and here he stays in the practice " +
+    "squad's column. \"Started hurt\" are the players the file copies hurt at " +
     "camp (ADR-087 §2.5): they raise no INJURY_OCCURRED, so no count above includes them. Starters below are who the engine fields from " +
     "each team's real depth chart at camp (11 personnel, the base and nickel defences, the specialists: 26 a team), not the made-up " +
     "league's starters-per-position table, which the real charts do not follow.");
@@ -261,7 +266,9 @@ if (grown.length > 0) {
   say("|---|---|---|---|---|");
   for (const s of grown) {
     const r = s.roster;
-    say(`| ${s.arm} | ${r.emergencySigningsPerSeason.toFixed(1)} | ${r.unsignedRetiredPerSeason.toFixed(1)} | ${r.battlesPerTeamSeason.toFixed(2)} | ${Object.entries(r.depthChangesPerTeamSeason).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(", ")} |`);
+    // The stand-ins call up their own practice squad first: how many of the signings that was.
+    const calledUp = s.standIn === undefined ? "" : ` (${s.standIn.callUpsPerSeason.toFixed(1)} from the practice squad)`;
+    say(`| ${s.arm} | ${r.emergencySigningsPerSeason.toFixed(1)}${calledUp} | ${r.unsignedRetiredPerSeason.toFixed(1)} | ${r.battlesPerTeamSeason.toFixed(2)} | ${Object.entries(r.depthChangesPerTeamSeason).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(", ")} |`);
   }
   say();
 }

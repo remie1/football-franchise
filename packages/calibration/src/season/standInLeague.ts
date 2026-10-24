@@ -13,8 +13,12 @@
  * player's growth record, patience and combine record are left out, and with `injuries` off, his
  * copied injury, so a switched-off run (and an `--injuries`-only run's development) is exactly what
  * it was before the records existed. With `development` on, every player must have a growth record.
+ *
+ * The practice squads (the file's `provenance.practiceSquad`) go on the teams only with a switch on
+ * (ADR-087 §11): a team short of a player calls one up before it signs from the street. Switched off,
+ * no team has one and nobody is signed, so the league is what it was.
  */
-import type { PlayerState, RatedLeague, Team } from "@ff/contracts";
+import type { PlayerId, PlayerState, RatedLeague, Team } from "@ff/contracts";
 import type { League } from "@ff/franchise";
 import { makeProvenancedLeague, type ProvenancedLeague } from "../league/provenance.js";
 
@@ -107,13 +111,66 @@ export function standInSeason(file: Pick<StandInFile, "season">, switches: Stand
   return file.season;
 }
 
-/** The franchise league with each team's stand-in identity and squad, and the rated league that plays. */
+/**
+ * Each team's practice squad in the league file, in the file's order: `provenance.practiceSquad`
+ * when it is kept by team, else the players whose `provenance.status` is "practice", in the players'
+ * order. Every one must be a player in the file, on that team, not on its roster, on one squad
+ * once, and (when the file gives statuses) of status "practice", the group player-checks counts
+ * him in.
+ */
+export function standInPracticeSquads(file: Pick<StandInFile, "league">): Map<string, PlayerId[]> {
+  const prov = file.league.provenance as { practiceSquad?: unknown; status?: Record<string, string> } | null | undefined;
+  const players = new Map(file.league.players.map((p) => [String(p.bio.id), p]));
+  const squads = new Map<string, PlayerId[]>(file.league.teams.map((t) => [String(t.id), []]));
+  const status = prov?.status;
+  const kept = prov?.practiceSquad;
+  if (kept !== null && typeof kept === "object" && !Array.isArray(kept)) {
+    for (const [team, ids] of Object.entries(kept as Record<string, unknown>)) {
+      if (!squads.has(team)) throw new Error(`the stand-in league file's practice squads name a team it does not have (${team})`);
+      if (!Array.isArray(ids)) throw new Error(`the stand-in league file's ${team} practice squad is not a list of players`);
+      squads.set(team, ids.map((id) => String(id) as PlayerId));
+    }
+  } else {
+    for (const p of file.league.players) {
+      if (status?.[String(p.bio.id)] !== "practice") continue;
+      const squad = p.teamId === undefined ? undefined : squads.get(String(p.teamId));
+      if (squad === undefined) throw new Error(`the stand-in league file has ${String(p.bio.id)} on a practice squad of ${String(p.teamId ?? "no team")}, a team it does not have`);
+      squad.push(p.bio.id);
+    }
+  }
+  const seen = new Set<string>();
+  for (const t of file.league.teams) {
+    const roster = new Set(t.roster.map(String));
+    for (const id of squads.get(String(t.id))!) {
+      const p = players.get(String(id));
+      const why = p === undefined ? "not in the file"
+        : seen.has(String(id)) ? "on a practice squad already"
+        : roster.has(String(id)) ? "on its roster"
+        : p.teamId !== t.id ? `on ${String(p.teamId ?? "no team")}`
+        : status !== undefined && status[String(id)] !== "practice" ? `of status "${String(status[String(id)] ?? "none")}", not "practice"`
+        : undefined;
+      if (why !== undefined) throw new Error(`the stand-in league file's ${String(t.id)} practice squad lists ${String(id)}, who is ${why}`);
+      seen.add(String(id));
+    }
+  }
+  return squads;
+}
+
+/**
+ * The franchise league with each team's stand-in identity and squad, and the rated league that plays.
+ * With either player switch on, each team also carries its practice squad from the file
+ * (`standInPracticeSquads`), whom franchise's emergency signings call up before the street; with
+ * both off, no team has one, as before.
+ */
 export function buildStandInLeague(base: League, file: StandInFile, switches?: StandInSwitches): { league: League; rated: StandInLeague } {
   const byId = new Map(file.league.teams.map((t) => [String(t.id), t]));
+  const switched = switches?.development === true || switches?.injuries === true;
+  const squads = switched ? standInPracticeSquads(file) : undefined;
   const teams: Team[] = base.teams.map((t) => {
     const s = byId.get(String(t.id));
     if (s === undefined) throw new Error(`stand-in league file has no team ${String(t.id)}`);
-    return { ...t, displayName: s.displayName, city: s.city, roster: s.roster, depthChart: s.depthChart };
+    const practiceSquad = squads?.get(String(t.id));
+    return { ...t, displayName: s.displayName, city: s.city, roster: s.roster, depthChart: s.depthChart, ...(practiceSquad ? { practiceSquad } : {}) };
   });
   const players = file.league.players.map((p) => forSwitches(p, switches));
   if (switches?.development === true) assertGrowthRecords(players);
