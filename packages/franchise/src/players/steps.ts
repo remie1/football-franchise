@@ -176,7 +176,11 @@ export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: 
  * "Best" is the side's coordinator's read (his position overall there through `readBlur`), never
  * the true ratings (§7). A call-up leaves the practice squad for the roster and the position's depth
  * chart, and is a `CONTRACT_SIGNED` like a street signing (a squad player called up signs a standard
- * deal); a team with no practice squad signs from the street exactly as before. Only `playing` teams
+ * deal); a team with no practice squad signs from the street exactly as before. Where a contract book
+ * is kept, each signing adds his one-year minimum to it, and a call-up also ends his live
+ * practice-squad deal with that team at the call-up day (reason `EXPIRED`: no dead money, since a
+ * squad deal has no bonus, and no event of its own, the `CONTRACT_SIGNED` tells it), so the book has
+ * one live deal for him; with no such deal on the book, nothing else changes. Only `playing` teams
  * sign (absent = every team). The 53-man limit is not enforced for these signings.
  */
 export function emergencySignings(
@@ -226,6 +230,12 @@ export function emergencySignings(
       else freeAgents = freeAgents.filter((id) => id !== pick.bio.id);
       t = { ...t, roster: [...t.roster, pick.bio.id], depthChart: { ...t.depthChart, [position]: [...(t.depthChart[position] ?? []), pick.bio.id] } };
       events.push({ type: "CONTRACT_SIGNED", payload: { player: pick.bio.id, team: t.id, kind: "MINIMUM", years: 1 } });
+      if (calledUp && contracts) {
+        // His squad deal ends at the call-up (ADR-087 §11): EXPIRED, so no charge (it has no bonus) and no event.
+        const i = contracts.findIndex((c) =>
+          String(c.player) === String(pick.bio.id) && String(c.team) === String(t.id) && c.kind === "PRACTICE_SQUAD" && !c.ended);
+        if (i >= 0) contracts[i] = { ...contracts[i]!, ended: { at, reason: "EXPIRED" } };
+      }
       contracts?.push(minimumContract({ player: pick.bio.id, team: t.id, season: at.season, signedAt: at, creditedSeasons: pick.bio.creditedSeasons ?? 0, years: 1 }));
     }
   });

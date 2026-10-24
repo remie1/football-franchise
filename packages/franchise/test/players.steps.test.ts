@@ -1,14 +1,16 @@
 import { describe, it, expect } from "vitest";
 import {
   ATTRIBUTE_REGISTRY_V1, DEFAULT_LEAGUE_RULES, POSITION_PROFILES, createRng, isTruthLayerEvent, playerId, positionOverall, stampToString,
-  type AttrId, type AttributeMap, type CalendarStamp, type FranchiseEventEnvelope, type GameParticipation, type PlayerState,
-  type Position, type SaveFile, type Team,
+  type AttrId, type AttributeMap, type CalendarStamp, type DeadMoneyCharge, type FranchiseEventEnvelope, type GameParticipation,
+  type PlayerContract, type PlayerState, type Position, type SaveFile, type Team,
 } from "@ff/contracts";
 import { buildLeague, buildStaff, makeSave, readSave, runSeason, type GameResolver, type LeaguePeople } from "../src/index.js";
 import { STARTERS, WANTED } from "../src/draft/board.js";
 import { emergencySignings, playerSteps, playerWeeks, PLAYER_STEP_PREFIX } from "../src/players/steps.js";
 import { readBlur } from "../src/players/depthChart.js";
-import { minimumContract } from "../src/cap/signings.js";
+import { minimumContract, signPracticeSquad } from "../src/cap/signings.js";
+import { capNumber, liveIn, teamCapTotal } from "../src/cap/money.js";
+import { liveContract, release } from "../src/draft/money.js";
 import { currentJob, seatOf } from "../src/staff/world.js";
 
 // ADR-087 §10 (D4): the players' steps in the season walk, on a league of hand-made players.
@@ -418,6 +420,71 @@ describe("emergencySignings (§5.3)", () => {
     expect(r.people.contracts![0]!.years).toHaveLength(1);
   });
 
+  // ADR-087 §11: a call-up ends his squad deal, so the book holds one live deal for him and the cap counts one.
+  const cutDown: CalendarStamp = { season: SEASON, phase: "PRESEASON", week: 4, day: 7 };
+  const squadDeal = (p: PlayerState, t: Team["id"] = team.id) =>
+    signPracticeSquad({ player: p.bio.id, team: t, season: SEASON, signedAt: cutDown, creditedSeasons: p.bio.creditedSeasons ?? 0 });
+  /** Deals for team 0's own quarterbacks, so the book holds more than the squad's. */
+  const rosterDeals = (team.depthChart.QB ?? []).map((id) =>
+    minimumContract({ player: id, team: team.id, season: SEASON, signedAt: cutDown, creditedSeasons: byId.get(String(id))!.bio.creditedSeasons ?? 0, years: 1 }));
+
+  it("ends the called-up man's practice-squad deal at the call-up (EXPIRED, no event), so his minimum is his one live deal and the cap counts one", () => {
+    const book: PlayerContract[] = [...rosterDeals, ...squadPlayers.map((p) => squadDeal(p))];
+    const r = emergencySignings({ ...withSquad(squadPlayers), contracts: book }, at, noQb, { seed });
+    const pick = bestOf(["PS-QB-a", "PS-QB-b"]);
+    expect(r.events).toEqual([{ type: "CONTRACT_SIGNED", payload: { player: playerId(pick), team: team.id, kind: "MINIMUM", years: 1 } }]);
+    const after = r.people.contracts!;
+    expect(after).toHaveLength(book.length + 1);
+    const i = book.findIndex((c) => String(c.player) === pick);
+    expect(after[i]).toEqual({ ...book[i], ended: { at, reason: "EXPIRED" } });
+    after.forEach((c, j) => { if (j !== i && j < book.length) expect(c).toBe(book[j]); }); // every other deal as it was
+    expect(book[i]!.ended).toBeUndefined(); // the book handed in is not changed
+
+    const minimum = after.at(-1)!;
+    expect(minimum).toMatchObject({ player: playerId(pick), team: team.id, kind: "MINIMUM", signedAt: at });
+    expect(liveContract(after, playerId(pick))).toBe(minimum);
+    expect(after.filter((c) => String(c.player) === pick && liveIn(c, SEASON))).toEqual([minimum]);
+
+    // The call-up's season counts the minimum and not the squad deal: one deal for him, the same count as before.
+    const cap = teamCapTotal(team.id, SEASON, after, []);
+    const others = book.filter((_, j) => j !== i);
+    expect(cap).toEqual(teamCapTotal(team.id, SEASON, [...others, minimum], []));
+    expect(cap.counted).toBe(teamCapTotal(team.id, SEASON, book, []).counted);
+    expect(cap.contracts).toBe(teamCapTotal(team.id, SEASON, book, []).contracts - capNumber(book[i]!.years[0]!) + capNumber(minimum.years[0]!));
+    expect(cap.dead).toBe(0);
+
+    // A later release ends the minimum, the deal he is on.
+    const cut = [...after];
+    const dead: DeadMoneyCharge[] = [];
+    release(cut, dead, playerId(pick), team.id, { ...at, week: 10 });
+    expect(cut.at(-1)!.ended?.reason).toBe("RELEASED");
+    expect(cut[i]).toBe(after[i]);
+  });
+
+  it("ends only a live squad deal of his with that team, and does nothing else when there is none", () => {
+    const pick = bestOf(["PS-QB-a", "PS-QB-b"]);
+    const called = squadPlayers.find((p) => String(p.bio.id) === pick)!;
+    const elsewhere = squadDeal(called, people.teams[1]!.id);
+    const over: PlayerContract = { ...squadDeal(called), ended: { at: cutDown, reason: "RELEASED" } };
+    const book: PlayerContract[] = [...rosterDeals, elsewhere, over];
+    const r = emergencySignings({ ...withSquad(squadPlayers), contracts: book }, at, noQb, { seed });
+    expect(r.people.contracts!.slice(0, book.length)).toEqual(book);
+    expect(r.people.contracts!.slice(0, book.length).every((c, j) => c === book[j])).toBe(true);
+    expect(r.people.contracts![book.length]).toMatchObject({ player: playerId(pick), kind: "MINIMUM" });
+  });
+
+  it("leaves every other deal alone on a street signing, the squad's included", () => {
+    const book: PlayerContract[] = [...rosterDeals, squadDeal(psHurtQb)];
+    const r = emergencySignings({ ...withSquad([psHurtQb]), contracts: book }, at, noQb, { seed });
+    const street = emergencySignings(hurt, at, noQb, { seed });
+    expect(r.events).toEqual(street.events);
+    const signed = (r.events[0]!.payload as { player: PlayerState["bio"]["id"] }).player;
+    expect(r.people.contracts).toHaveLength(book.length + 1);
+    r.people.contracts!.slice(0, book.length).forEach((c, j) => expect(c).toBe(book[j]));
+    expect(r.people.contracts!.every((c) => !c.ended)).toBe(true);
+    expect(r.people.contracts!.at(-1)).toMatchObject({ player: signed, team: team.id, kind: "MINIMUM", signedAt: at });
+  });
+
   /** The rule before practice squads (d047dcb), kept here word for word but for names: street signings only. */
   function streetOnly(p: LeaguePeople, day: CalendarStamp, short: typeof noQb, opts: { seed: string; playing?: ReadonlySet<string> }) {
     const offence = new Set(["QB", "RB", "FB", "WR", "TE", "LT", "LG", "C", "RG", "RT"]);
@@ -466,6 +533,7 @@ describe("emergencySignings (§5.3)", () => {
       [{ ...hurt, freeAgents: hurt.freeAgents.filter((id) => !String(id).startsWith("FA-QB")) }, noQb, { seed }],
       [noKicker, noQbOrK, { seed }],
       [{ ...fewQbs, contracts: [] }, noQbOrK, { seed: "other", playing: new Set(people.teams.filter((_, i) => i % 3 !== 1).map((t) => String(t.id))) }],
+      [{ ...hurt, contracts: [...rosterDeals] }, noQb, { seed }],
       [people, () => undefined, { seed }],
     ];
     for (const [who, short, opts] of cases) {

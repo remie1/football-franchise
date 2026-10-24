@@ -481,11 +481,16 @@ Built as §9 and §10 lay out, with these choices the design left to the build (
   at camp. The loader refuses a squad entry that is not of status "practice" in the file, so the two
   agree. The generated league has no practice squads yet (cut-down day fills them, but the season
   runner does not run it), so it signs from the street byte for byte as before and its D5a numbers
-  do not move. Left open: where a contract book is kept, the called-up man's practice-squad deal
-  stays live beside his new minimum (ending it needs a contract end reason contracts lacks), so
-  `teamCapTotal` counts both that season, `liveContract` finds the stale squad deal, and a later
-  `release` ends that one and leaves the minimum live on the cap; calibration keeps no book, and
-  nothing that keeps one calls players up yet.
+  do not move. Where a contract book is kept, the call-up ends the man's live practice-squad deal
+  with that team at the call-up day, reason `EXPIRED` (the draft thread's suggestion): no dead-money
+  charge, since a squad deal has no bonus, and no event of its own, the `CONTRACT_SIGNED` tells it.
+  His new minimum is then his one live deal: `liveContract` finds it, a later `release` ends it, and
+  `teamCapTotal` counts one deal for him that season (an ended deal stops counting in the league
+  year it ends, so the squad deal's pay is not counted at all, and the minimum counts in full, as
+  every in-season signing does here). With no live squad deal for him with that team on the book,
+  nothing more changes; street signings are unchanged. A truer reason, such as `PROMOTED`, would be
+  an edit to `ContractEndReason`, which the cap thread owns, and needs the owner's typed yes; it is
+  not done. Calibration keeps no book, and nothing that keeps one calls players up yet.
 - **The who-played report** credits a snap to every player a play card names and to the offence's
   quarterback on every scrimmage play (a run card does not name him). Kicks credit the kicker or
   punter and the returner only: the engine has no coverage or return units yet.
