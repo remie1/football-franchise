@@ -639,6 +639,47 @@ the committed one but for its code fingerprint. The tests pin the two "as before
 that the step changes nothing on any player but its four records, and play a switched-on stand-in
 run twice to the same events.
 
+#### One season on the stand-ins (`reports/player-checks-standin.md`)
+
+20 seasons per arm on the same seeds, every arm in 2026, code and file fingerprinted `19e18924e0ef`
+(735c08b; the later contract-book change, 5e34b8f, does not reach calibration, which keeps no book).
+
+| | Win spread | Best | Worst | 13+ wins | 4 or fewer | Better record wins |
+|---|---|---|---|---|---|---|
+| NFL 2021-24 | 3.05 | 13.8 | 2.8 | 10.0% | 14.0% | 74.0% |
+| off | 2.79 | 14.7 | 3.3 | 9.4% | 6.6% | 70.7% |
+| development | 2.82 | 13.9 | 2.5 | 7.5% | 7.8% | 70.5% |
+| injuries | 2.49 | 13.8 | 3.1 | 5.5% | 5.0% | 68.5% |
+| both | 2.51 | 13.7 | 3.6 | 5.9% | 4.8% | 68.2% |
+
+- **Win spread.** Against `off` on the same seeds: development +0.04 (0.5 standard errors), injuries
+  -0.30 (3.7), both -0.28 (2.9); the better record wins 2.2 and 2.5 points less often (3.6 and 3.1).
+  Unlike the generated league (injuries -0.03), on the stand-ins injuries alone even the league out:
+  across the 32 teams, wins with injuries regress on wins without them with slope 0.64 (a strong team
+  loses about 0.4 of a win per win above average). Starter age does not explain it (correlation with
+  the change -0.11). Not yet understood; a candidate, unverified: on real rosters a team's quality sits
+  in its starters more than in its depth, so losing starters costs strong teams more. It goes to the
+  team-strength retune with D5b, which for the stand-ins cannot be a hidden boost (ADR-088 Q8).
+- **Injuries against the NFL**, like for like: time-loss 1.88 a team-game against 2.02 (generated
+  league 1.83), any cause 1.97 against 2.09, day-to-day 0.76 against 0.78; lengths 57.7% / 19.2% /
+  23.0% against 57.9% / 19.2% / 22.9%; out 4+ games begun in season 9.5 a team against 9.4. By
+  group (NFL in brackets): QB 0.079 (0.062), RB 0.141 (0.174), WR 0.275 (0.256), TE 0.102 (0.124),
+  OL 0.348 (0.341), DL 0.262 (0.260), LB 0.208 (0.277), DB 0.429 (0.494), K/P 0.035 (0.028). The
+  older league adds 0.05 a team-game, as the age reading above expected; the per-snap rate stays as
+  measured. Out 4+ by any onset is 11.1 against 15.5 (no preseason games; the reserve lists' players
+  start hurt off the 53).
+- **How far players move** (development arm, starters / backups): 21-22 +2.9 / +2.5; 23-24 +2.1 /
+  +1.9; 25-26 +1.3 / +1.2; 27-28 +0.8 / +0.6; 29-30 +0.2 / 0.0; 31-32 -0.8 / -0.9; 33+ -1.8 / -1.9:
+  close to the generated league's, a little smaller at 21-22. Growth on the 53 at camp: median
+  0.989, sd of ln(growth) 0.255.
+- **Starters and backups.** The 26 fielded starters average 69.8 at camp and the rest of the 53
+  63.4, a 6.4-point gap that narrows to 6.0 (development) and 5.9 (both). The league rises less in a
+  year than the generated one (starters +0.8, backups +1.2, against +1.9 and +1.6): real rosters are
+  older.
+- **Depth.** With injuries on, about 91 emergency signings a season, 85 of them practice-squad
+  call-ups and about 6 street specialists; 24-26 unsigned street players retire a season; about 3.5
+  position battles, 24.5 injury covers and 23 starter returns per team.
+
 ## Conjoined mechanisms
 
 Development and injuries are separate mechanisms that both change who plays and how well. Each has
