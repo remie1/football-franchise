@@ -169,7 +169,8 @@ nobody signs retire. The season then runs on to the end of the league year, and 
 of it. With both switches off a season is exactly what it was. The single-season checks
 (`pnpm --filter @ff/calibration player-checks`, `reports/player-checks.md`) compare it with the NFL;
 switching it on by default waits for the 20-season check, after the draft and cap threads' year
-turnover.
+turnover. The real-player stand-in league now carries growth records and today's injuries too (step
+1, `pnpm --filter @ff/attributes standin-development`), so both switches run on it, in its own 2026 season.
 
 **Your coach's personality (ADR-083, ruled 23 October 2026, not built):** your type builds up from
 how you answer people, shown as five meters on your coach page. Only your main trait counts, and it

@@ -3,11 +3,18 @@
  * they are each week, and carrying on from a stop gives exactly the straight run. Two regular-season
  * weeks keep it quick.
  */
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { isTruthLayerEvent, type CalendarStamp, type GameParticipation } from "@ff/contracts";
 import { buildLeague, buildStaff } from "@ff/franchise";
 import { peopleResolver, reservePool, runRealSeason } from "../src/season/realSeason.js";
 import { buildGeneratedLeague } from "../src/season/generatedLeague.js";
+import { forSwitches, readStandInFile } from "../src/season/standInLeague.js";
+
+/** The committed stand-in league, with its growth records (ADR-087 §2.5), named rather than "the newest". */
+const STANDIN_FILE = join(__dirname, "..", "..", "attributes", "leagues", "standin-2026-10-23.json");
 
 const seed = "players-real-test";
 const season = 2027;
@@ -55,8 +62,25 @@ describe("a real-sim season with the players' switches on", () => {
     expect(() => runRealSeason({ seed, season, players, rosters: "flat" })).toThrow(/need squads/);
   });
 
-  it("refuses growth for the stand-in league, whose players have no growth records yet", () => {
-    expect(() => runRealSeason({ seed, season, players: { development: true }, rosters: "standin" })).toThrow(/no growth records/);
+  it("refuses growth on a stand-in league file without growth records, and plays one that has them, the same for the same seed", () => {
+    const file = readStandInFile(readFileSync(STANDIN_FILE, "utf8"));
+    // The file as it was before `standin-development`: no records on anyone (commit e23bf69's players, by their JSON's sha256).
+    const old = { ...file, league: { ...file.league, players: file.league.players.map((p) => forSwitches(p, undefined)) } };
+    const oldJson = JSON.stringify(old.league.players, (_k, v) => (v instanceof Set ? [...v] : v));
+    expect(createHash("sha256").update(oldJson).digest("hex")).toBe("b080396cca79b579bc1a4e1d0547c046f89d14f4e9256c9095a9dbcd09844450");
+    const growth = { development: true } as const;
+    expect(() => runRealSeason({ seed, players: growth, rosters: "standin", standIn: old })).toThrow(/no growth records; run standin-development/);
+    const stopAfter: CalendarStamp = { season: file.season, phase: "REGULAR_SEASON", week: 1, day: 7 };
+    // Both switches on (growth and the copied injuries), played twice: the same seed, the same events (Iron Rule 4).
+    const play = () => runRealSeason({ seed, players, rosters: "standin", standIn: file, stopAfter });
+    const played = play();
+    const again = play();
+    expect(JSON.stringify(again.run.events)).toBe(JSON.stringify(played.run.events));
+    expect(JSON.stringify(again.run.people, (_k, v) => (v instanceof Set ? [...v] : v))).toBe(JSON.stringify(played.run.people, (_k, v) => (v instanceof Set ? [...v] : v)));
+    expect(played.run.state.results.length).toBe(16);
+    const standIns = new Set(file.league.players.map((p) => String(p.bio.id)));
+    const moved = played.run.events.flatMap((e) => (e.event.type === "RATINGS_CHANGED" ? e.event.payload.changes : [])).filter((c) => standIns.has(String(c.player)));
+    expect(moved.length).toBeGreaterThan(100);
   });
 });
 

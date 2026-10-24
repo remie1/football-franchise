@@ -459,7 +459,8 @@ Built as §9 and §10 lay out, with these choices the design left to the build (
   quarterback on every scrimmage play (a run card does not name him). Kicks credit the kicker or
   punter and the returner only: the engine has no coverage or return units yet.
 - **The stand-in league** (ADR-088) runs with `--injuries` but refuses `--development` until its
-  players get growth rates and bodies (§2.5); without them none of them would change.
+  players get growth rates and bodies (§2.5); without them none of them would change. (Since
+  "Stand-in records, step 1" below, it runs with both.)
 - **The game injury rate** stays at its MEASURED per-snap value (`INJURY_RATES.game.perSnap`, fitted
   on franchise's model season with NFL snap counts). It is not refitted to the real sim's per-game
   total, for the reason below.
@@ -528,6 +529,79 @@ today's league: its 2.81 win spread is below R5's 3.02 because R5 was measured w
 time-loss; the recent-return risk factor also counts day-to-day knocks; `SKILL_FADE` is the same for
 every position; weight keeps its fraction; a team on a playoff bye keeps the previous week's
 starters; the coordinators' views of players (ADR-084's later step) are not built.
+
+### Stand-in records, step 1 (2026-10-24)
+
+§2.5 for the stand-in league, first step, on the Orchestrator's rulings. Built in attributes'
+importer (`importer/real/development.ts`): `pnpm --filter @ff/attributes standin-development` writes
+the records into the league file from the file alone (no raw data, no name table), taking off any
+earlier ones first, so a second run changes nothing; `import-real` calls the same step. The file's
+new top-level `startingDevelopment` key records the version, seed, as-of date, every constant used,
+the teams whose latest injury report had no game statuses, and per player how growth was set and
+where a copied injury came from (ADR-088 Q5's guess flags). A test fails with "re-run
+standin-development" when the code's constants move.
+
+- **Body**: the four drills he was rated from (his drill, else his position's average, else the
+  fallback; the one fill in `rate.ts`), so his 40 and his speed agree for all 2,528. Not aged forward
+  from when he tested: that waits for §4's curves to be tuned (D5b), and goes in one place, the fill
+  (`fillMeasurements`), before both the ratings and the body read it, so they keep agreeing (§2.3);
+  since it moves ratings it comes with a re-rate (`import-real`), not in `standin-development` alone.
+  Players who never tested keep their position's average, not one set by size and age.
+- **Growth** is drawn (`drawGrowth`, the made-up league's lognormal), and **patience** too
+  (`drawPatience`), each on `createRng("standin", "attributes:real:development").fork(<id>)`, split
+  "growth" / "patience" / "injury": no season in the seed, so growth stays fixed for life. Step 2
+  estimates growth from playing time.
+- **Career snaps**: offence + defence + special teams from `provenance.history`. They include every
+  2026 game played by the snapshot (`snapsThrough`: at most 7 a team; 24 teams had played 6, 6 had
+  played 5 and 2 had played 7), which a run then plays again; nothing reads the total yet.
+  **Combine record**: only the drills he ran (1,340 players). **Durability**: unchanged (step 2).
+- **Today's injuries** (327): injured reserve 227, designated to return 52, PUP 21, non-football 5,
+  and active players Out 20 and Doubtful 2 on their team's latest report. Left out: Questionable
+  players (23 active; they would play hurt, and the report gives no penalty), the other lists (R40/R49,
+  3), the practice squad. Weeks are CHOSEN placeholders, drawn flat: injured reserve 11-15, designated
+  to return 1-4, PUP and non-football 1-8, Out or Doubtful 1-3. The kind is `real:<body part>`, or
+  `real:reserve-<list>` without one, so no lasting mark or repeat rule fires on it; non-football is
+  AWAY, the rest GAME. `since` is the first day of the previous league year's summer: franchise's
+  healing skips the week an injury is stamped in, so this way a w-week injury keeps him out of exactly
+  the run's first w weeks (calibration's `standInDevelopment.test.ts`; a camp week 1 stamp would cost
+  a week more). The snapshot was a Friday: 25 of 32 teams' latest report has no game statuses yet, so
+  the 22 Out or Doubtful come from 7 teams (recorded in the file).
+- **What the copied injuries do**: little in a game. The 305 on reserve lists are not on the 53
+  (the loader leaves `Team.reserve` out), and the 22 actives heal within camp. They change camp and
+  preseason practice, growth and the depth chart. His injury history beyond today's is not copied
+  (franchise's injury memory starts empty).
+- **Calibration**: the stand-in loader reads each record only with its switch: development off drops
+  the growth record, patience and combine record; injuries off drops the copied injury. So both off,
+  the league is the old file's to the byte, and `--injuries` alone grows nobody, as before. A file
+  whose records are of a version the loader does not know (`startingDevelopment.version`) is refused,
+  so a later step's new record cannot reach a switched-off run unnoticed. With
+  development on, a file without records is refused ("no growth records; run standin-development"),
+  and the old refusal is gone. A switched-on stand-in run plays the file's season, 2026 (its ages and
+  injuries are that season's, and one season has no year turn); a different `--season` is refused.
+  Switched off, the season is the default, 2027, as before. With development on and injuries off,
+  reserve players practise and grow.
+- **Checks**: `player-checks -- --league <file>` plays every arm in 2026 on the stand-ins, keeps
+  its seasons under a fingerprint that includes the file's sha256, and writes
+  `reports/player-checks-standin.md`: players counted by roster group (the 53, practice squad,
+  reserve lists, street), the players who started hurt (copied, so no INJURY_OCCURRED), and the
+  growth rates' scale on the 53 at camp. Its injury tables count the 53 and the street, the people
+  the generated league's count (it has no practice squad or reserve lists; the stand-ins' practise
+  with their teams and get hurt, about 13% of all injuries in a one-seed smoke run); their injuries
+  are in the roster-group table alone. Its starters are who the engine fields from each real depth
+  chart (11 personnel, base and nickel defences, the specialists: 26 a team), since the generated
+  league's starters-per-position table never starts an inside linebacker (`ILB`), which 25 of the 32
+  real charts list. The generated league's report is unchanged.
+
+**Proofs.** Taking the new keys off the rewritten file and writing it the same way gives back the
+file before, byte for byte (sha256 3a9ae152…d3d3). With both switches off, `season --seed homie-1
+--league <file> --out` is byte-identical on the old file with main's code (e23bf69), the old file
+with this code and the new file with this code, and so is `--stop-after 9 --out` on the old and new
+files. Rated from the same inputs, `rateStandIns` gives the same bytes before and after the fill
+moved out of it. Rendered from D5a's cached seasons, the generated league's `player-checks` report is
+the committed one but for its code fingerprint. The tests pin the two "as before" claims by sha256
+(the stripped file's bytes in attributes; the players a switched-off run reads in calibration), check
+that the step changes nothing on any player but its four records, and play a switched-on stand-in
+run twice to the same events.
 
 ## Conjoined mechanisms
 

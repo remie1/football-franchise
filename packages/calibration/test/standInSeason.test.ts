@@ -1,10 +1,10 @@
 /**
  * THE STAND-IN LEAGUE IN THE SEASON RUNNER (ADR-088 R5).
  *
- * Reads the committed league file (a file, not an import: ADR-079 R1's surface is unchanged)
+ * Reads the committed league file by name (a file, not an import: ADR-079 R1's surface is unchanged)
  * and checks that every team can field every personnel group and that a game plays.
  */
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildLeague, buildSchedule } from "@ff/franchise";
@@ -12,9 +12,8 @@ import { buildDefensiveUnit, buildOffensiveUnit, DEFENSE_PERSONNEL, OFFENSE_PERS
 import { realSimResolver } from "../src/season/realSeason.js";
 import { buildStandInLeague, readStandInFile } from "../src/season/standInLeague.js";
 
-const dir = join(__dirname, "..", "..", "attributes", "leagues");
-const newest = readdirSync(dir).filter((f) => /^standin-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().pop()!;
-const file = readStandInFile(readFileSync(join(dir, newest), "utf8"));
+// The committed league file, by name (a new snapshot is a deliberate change to this test).
+const file = readStandInFile(readFileSync(join(__dirname, "..", "..", "attributes", "leagues", "standin-2026-10-23.json"), "utf8"));
 const base = buildLeague("standin-season-test");
 const { league, rated } = buildStandInLeague(base, file);
 

@@ -23,6 +23,9 @@
  * and each result comes back with the who-played report (`participation.ts`). Teams that cannot
  * field a side sign from a pool of street free agents made at the start (`reservePool`). Both
  * switches off, nothing here changes: the same resolver, rosters and walk as before.
+ *
+ * The stand-in league with a switch on plays the league file's own season (`standInSeason`), with
+ * each player's starting development read only for the switch that uses it (`buildStandInLeague`).
  */
 import {
   clampRating, DEFAULT_LEAGUE_RULES, teamId,
@@ -41,7 +44,7 @@ import { fullStrength, indexLeague, type LeagueIndex, type WeekRoster } from "..
 import { buildGeneratedLeague, type GeneratedLeague } from "./generatedLeague.js";
 import { unfilledPosition } from "./lineup.js";
 import { participationFrom } from "./participation.js";
-import { buildStandInLeague, type readStandInFile, type StandInLeague } from "./standInLeague.js";
+import { buildStandInLeague, standInSeason, type readStandInFile, type StandInLeague } from "./standInLeague.js";
 
 /** The league's people as `runSeason` carries them (ADR-086 §2), read off the resolver's type. */
 export type SeasonPeople = NonNullable<Parameters<GameResolver>[2]>;
@@ -194,8 +197,12 @@ export function reservePool(league: League, season: number, development: boolean
 
 export type SeasonRosters = "generated" | "flat" | "standin";
 
+/** The season a run plays when none is given (stand-ins with a switch on play their file's own). */
+export const DEFAULT_SEASON = 2027;
+
 export interface RealSeasonInput {
   readonly seed: string;
+  /** Absent: `DEFAULT_SEASON`, or with stand-ins and a switch on, the league file's season (any other is refused). */
   readonly season?: number;
   readonly callerVersion?: CallerVersion;
   /** A league read from a save; built from `seed` when absent. */
@@ -224,6 +231,17 @@ export interface RealSeasonInput {
 }
 
 /**
+ * The season a run plays: with the stand-ins, `standInSeason`'s rule (the league file's own with a
+ * player switch on, any other asked for refused); otherwise as asked, or `DEFAULT_SEASON`. The season
+ * command works it out with this before the run, for the coaches and the stop day, so the three agree.
+ */
+export function seasonToPlay(input: Pick<RealSeasonInput, "rosters" | "standIn" | "players" | "season">): number {
+  if ((input.rosters ?? "generated") !== "standin") return input.season ?? DEFAULT_SEASON;
+  if (input.standIn === undefined) throw new Error("runRealSeason: rosters \"standin\" needs the league file (standIn)");
+  return standInSeason(input.standIn, input.players, input.season, DEFAULT_SEASON);
+}
+
+/**
  * Build the fictional league from `seed` (or take a saved one) and play its season through the
  * real sim. Generated squads are rebuilt from the league's seed and the season, so a loaded save
  * gets the same players it was saved with.
@@ -231,13 +249,10 @@ export interface RealSeasonInput {
 export function runRealSeason(input: RealSeasonInput): { league: League; rated?: GeneratedLeague | StandInLeague; run: SeasonRun } {
   const base = input.league ?? buildLeague(input.seed);
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
-  const season = input.season ?? 2027;
   const rosters = input.rosters ?? "generated";
   const switched = switchedOn(input.players);
   if (switched && rosters === "flat") throw new Error("runRealSeason: development and injuries need squads; the flat league has none");
-  if (rosters === "standin" && input.players?.development === true) {
-    throw new Error("runRealSeason: the stand-in league's players have no growth records yet (ADR-087 §2.5); development needs generated squads");
-  }
+  const season = seasonToPlay({ ...input, rosters });
   if (input.resume !== undefined && !switched) throw new Error("runRealSeason: carrying on a season's people needs the players' switches");
   let league: League = base;
   let rated: GeneratedLeague | StandInLeague | undefined;
@@ -249,8 +264,7 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
     });
     league = { ...base, teams: rated.league.teams };
   } else if (rosters === "standin") {
-    if (input.standIn === undefined) throw new Error("runRealSeason: rosters \"standin\" needs the league file (standIn)");
-    ({ league, rated } = buildStandInLeague(base, input.standIn));
+    ({ league, rated } = buildStandInLeague(base, input.standIn!, input.players));
   }
   const caller = input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion };
   const common = {

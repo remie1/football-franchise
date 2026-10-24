@@ -59,6 +59,8 @@ Delegate implementation to the owning sub-agent. Never let one agent write in an
 - `pnpm --filter @ff/franchise staff-check [--seed <seed>] [--seasons 50]` — coaching turnover against NFL numbers (ADR-080 C5)
 - `pnpm --filter @ff/calibration season -- --seed <seed> --development --injuries --out season.json` — a season where players grow, age and get hurt, on through the offseason (ADR-087; either switch alone works; both off by default)
 - `pnpm --filter @ff/calibration player-checks [--seeds 20] [--shard 1/3]` — ADR-087's single-season checks in four arms (`reports/player-checks.md`); run shards 1/3, 2/3, 3/3 in separate shells to go faster
+- `pnpm --filter @ff/calibration player-checks -- --league packages/attributes/leagues/standin-2026-10-23.json [--seeds 20] [--shard 1/3]` — the same checks on the stand-in league, in its own season (`reports/player-checks-standin.md`)
+- `pnpm --filter @ff/attributes standin-development [-- --league <file>]` — give a stand-in league file's players their growth records, bodies and today's injuries (ADR-087 §2.5 step 1), in place; a second run changes nothing
 - `pnpm --filter @ff/calibration injury-rates` — measure real NFL injury numbers from nflverse (`reports/injury-rates.md`)
 
 ## Current State

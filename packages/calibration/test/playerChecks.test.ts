@@ -7,7 +7,7 @@ import {
   ATTRIBUTE_REGISTRY_V1, gameId, playerId, positionOverall, teamId,
   type FranchiseEvent, type FranchiseEventEnvelope, type PlayerState, type SeasonState, type Team,
 } from "@ff/contracts";
-import { summariseArm, summariseSeason } from "../src/season/playerChecks.js";
+import { growthScaleOf, summariseArm, summariseSeason } from "../src/season/playerChecks.js";
 
 const ACTIVE = Object.values(ATTRIBUTE_REGISTRY_V1.attributes).filter((d) => d.status === "active").map((d) => String(d.id));
 const player = (id: string, age: number, rating: number): PlayerState => ({
@@ -106,5 +106,64 @@ describe("summariseSeason", () => {
     expect(arm.injuries.regular.longAllPerTeamSeason).toBeCloseTo(4 / 4);
     expect(arm.spread.betterRecordWins).toBeCloseTo(2 / 3);
     expect(arm.movement["23-24"]!.starter!.n).toBe(2);
+  });
+});
+
+describe("summariseSeason on the stand-in league (roster groups given)", () => {
+  // qb1-qb3 are the 53; ps1 is on the practice squad, ir1 on a reserve list and hurt at camp; fa is the street.
+  const withGrowth = (p: PlayerState, growth: number): PlayerState =>
+    ({ ...p, attributes: { ...p.attributes, development: { growth, snaps: 0, carry: {}, body: { forty: 4.6, cone: 7, vertical: 33, bench: 20 } } } });
+  const ir1: PlayerState = { ...player("ir1", 26, 65), condition: { stamina: 100, morale: 0, injury: { kind: "real:knee", weeksRemaining: 12, playable: false, setting: "GAME", band: "MAJOR", since: { season: 2026, phase: "OFF_SUMMER", week: 1, day: 1 } } } };
+  const ps1 = player("ps1", 23, 50);
+  const startSI = [withGrowth(start[0]!, Math.exp(0.1)), withGrowth(start[1]!, Math.exp(-0.1)), withGrowth(start[2]!, Math.exp(0.3)), ps1, ir1, fa];
+  const endSI = [...end, player("ps1", 23, 53), ir1];
+  const groups = new Map([["qb1", "53"], ["qb2", "53"], ["qb3", "53"], ["ps1", "practice"], ["ir1", "reserve"]] as const);
+  const extra: FranchiseEventEnvelope = { seq: seq++, at: at("TRAINING_CAMP", 2), event: hurt("ps1", 1, "SHORT", "PRACTICE") };
+  // The engine's starters, given: qb2 starts here, not the chart's first (the table's rule).
+  const s = summariseSeason({ seed: "s", arm: "both", state, events: [...events, extra], startTeams: [team(A, ["qb1", "qb2", "qb3"])], startPlayers: startSI, endPlayers: endSI, groups, starters: new Set(["qb2"]) });
+  const generated = summariseSeason({ seed: "s", arm: "both", state, events, startTeams: [team(A, ["qb1", "qb2", "qb3"])], startPlayers: start, endPlayers: end });
+
+  it("counts injuries in the main tables on the 53 and the street only, as the generated league's", () => {
+    expect(s.injuries).toEqual(generated.injuries); // the practice squad's injury is left out of them
+    expect(s.injuries.total).toBe(9);
+  });
+
+  it("takes the starters given, not the STARTERS table", () => {
+    expect(generated.movement["23-24"]!.starter!.n).toBe(1); // qb1, the chart's first
+    expect(s.movement["23-24"]!.backup!.n).toBe(1);
+    expect(s.movement["33+"]!.starter!.n).toBe(1); // qb2
+    expect(s.gap.starter.n).toBe(1);
+    expect(s.gap.backup.n).toBe(2);
+  });
+
+  it("splits injuries by roster group, counts who started hurt, and gives the 53's growth scale", () => {
+    expect(s.standIn!.injuriesByGroup).toEqual({ "53": 7, street: 2, practice: 1 });
+    expect(s.standIn!.startedHurt).toEqual({ reserve: 1 });
+    expect(s.standIn!.players).toEqual({ "53": 3, practice: 1, reserve: 1 });
+    expect(s.standIn!.growthScale!.n).toBe(3);
+    expect(s.standIn!.growthScale!.medianLog).toBeCloseTo(0.1, 12);
+    expect(s.standIn!.growthScale!.median).toBeCloseTo(Math.exp(0.1), 12);
+  });
+
+  it("moves the practice squad and the reserve lists as their own rows, leaving the 53's gap alone", () => {
+    expect(s.movement["23-24"]!.practice!.deltas).toEqual([Math.round((positionOverall("QB", endSI[4]!.attributes.values) - positionOverall("QB", ps1.attributes.values)) * 100) / 100]);
+    expect(s.movement["25-26"]!.reserve!.n).toBe(1);
+    expect(s.gap.starter.n + s.gap.backup.n).toBe(3);
+  });
+
+  it("sums into the arm per team and per player, and the generated league's summary carries none of it", () => {
+    const arm = summariseArm([s, s]);
+    expect(arm.standIn!.injuriesPerTeamSeason).toEqual({ "53": 7 / 2, practice: 1 / 2, street: 2 / 2 });
+    expect(arm.standIn!.injuriesPerPlayerSeason).toEqual({ "53": 14 / 6, practice: 2 / 2 });
+    expect(arm.standIn!.startedHurtPerTeam).toEqual({ reserve: 2 / 4 }); // two teams, two seasons
+    expect("standIn" in generated).toBe(false);
+    expect("standIn" in summariseArm([generated])).toBe(false);
+  });
+
+  it("growthScaleOf: the median of the logs, and their spread", () => {
+    const g = growthScaleOf([Math.log(0.5), 0, Math.log(2), Math.log(4)]);
+    expect(g.medianLog).toBeCloseTo(Math.log(2) / 2, 12);
+    expect(g.n).toBe(4);
+    expect(g.sdLog).toBeCloseTo(Math.sqrt([-1, 0, 1, 2].map((x) => (x - 0.5) ** 2).reduce((a, b) => a + b) / 4) * Math.log(2), 12);
   });
 });
