@@ -30,6 +30,7 @@ import {
 } from "@ff/contracts";
 import type { League } from "../league/buildLeague.js";
 import type { LeaguePeople, DayStep } from "./people.js";
+import { draftSteps, turnYear, type DraftStepsConfig } from "../draft/steps.js";
 import { advance, nextDay, phaseWeeks, seasonStart, DAYS_PER_WEEK, type ClockWorld } from "../calendar/clock.js";
 import { buildSchedule } from "../schedule/buildSchedule.js";
 import { computeStandings } from "../standings/computeStandings.js";
@@ -77,6 +78,12 @@ export interface RunSeasonInput {
    * calendar), and `people` is as they left it, so they are not run again.
    */
   stepsDoneThrough?: CalendarStamp;
+  /**
+   * ADR-086: play the draft's offseason. Its steps run after `daySteps` (`draftSteps`), and a run that
+   * completes its year turns the year for the next season (`turnYear`), so `SeasonRun.people` is ready
+   * to start it. Needs `people`.
+   */
+  draft?: DraftStepsConfig;
 }
 
 export interface SeasonRun {
@@ -122,8 +129,8 @@ const sameDay = (a: CalendarStamp, b: CalendarStamp) => compareStamps(a, b) === 
 
 export function runSeason(input: RunSeasonInput): SeasonRun {
   const { league, season, seed, resolve, stopAfter, resumeFrom } = input;
-  const steps = input.daySteps ?? [];
-  if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps need people");
+  const steps = [...(input.daySteps ?? []), ...(input.draft ? draftSteps(input.draft) : [])];
+  if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps and the draft need people");
   let people = input.people;
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
   const schedule = buildSchedule(league, season, seed, {
@@ -189,6 +196,11 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
     const unused = [...saved.keys()].filter((id) => !played.has(id));
     if (unused.length > 0) throw new Error(`runSeason: the save has results this run did not reach (${unused.slice(0, 3).join(", ")})`);
     runSteps();
+    if (complete && input.draft && input.through === "YEAR") {
+      const turned = turnYear(people!, { season: season + 1, rules, ...(input.draft.cap ? { cap: input.draft.cap } : {}) });
+      people = turned.people;
+      for (const event of turned.events) emit(event);
+    }
     return { state, calendar: world.calendar, events, complete, ...(people ? { people } : {}) };
   };
   const pending = () => [...state.schedule.games, ...(state.bracket?.games ?? [])]
