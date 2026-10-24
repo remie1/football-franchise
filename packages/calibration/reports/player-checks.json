@@ -1,0 +1,846 @@
+{
+  "seeds": 20,
+  "arms": [
+    "off",
+    "development",
+    "injuries",
+    "both"
+  ],
+  "code": "b42f1a40eaca",
+  "summaries": [
+    {
+      "arm": "off",
+      "seasons": 20,
+      "spread": {
+        "winSpread": 2.81092864039735,
+        "best": 14.5,
+        "worst": 2.65,
+        "share13Plus": 0.0640625,
+        "share4OrFewer": 0.0875,
+        "betterRecordWins": 0.7126530612244898
+      },
+      "injuries": {
+        "perTeamGame": 0,
+        "perTeamSeason": 0,
+        "settingShares": {},
+        "bandShares": {},
+        "longInSeasonPerTeam": 0,
+        "weeksPerInjury": 0,
+        "gameByGroupPerTeamGame": {},
+        "topKinds": [],
+        "regular": {
+          "timeLossPerTeamGame": 0,
+          "dayToDayPerTeamGame": 0,
+          "timeLossAllCausesPerTeamGame": 0,
+          "settingShares": {},
+          "timeLossBySettingPerTeamGame": {},
+          "timeLossBands": {},
+          "timeLossByGroupPerTeamGame": {},
+          "longPerTeamSeason": 0,
+          "longAllPerTeamSeason": 0
+        }
+      },
+      "movement": {
+        "21-22": {
+          "starter": {
+            "n": 5145,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          },
+          "backup": {
+            "n": 5924,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          }
+        },
+        "27-28": {
+          "backup": {
+            "n": 1807,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          },
+          "starter": {
+            "n": 1962,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          }
+        },
+        "23-24": {
+          "starter": {
+            "n": 4778,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          },
+          "backup": {
+            "n": 4953,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          }
+        },
+        "29-30": {
+          "backup": {
+            "n": 840,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          },
+          "starter": {
+            "n": 917,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          }
+        },
+        "25-26": {
+          "starter": {
+            "n": 3324,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          },
+          "backup": {
+            "n": 3260,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          }
+        },
+        "31-32": {
+          "backup": {
+            "n": 377,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          },
+          "starter": {
+            "n": 368,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          }
+        },
+        "33+": {
+          "starter": {
+            "n": 146,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          },
+          "backup": {
+            "n": 119,
+            "mean": 0,
+            "sd": 0,
+            "p10": 0,
+            "p90": 0
+          }
+        }
+      },
+      "gap": {
+        "starterStart": 68.99506850961538,
+        "starterEnd": 68.99506850961538,
+        "backupStart": 57.65500149498458,
+        "backupEnd": 57.65500149498458
+      },
+      "roster": {
+        "emergencySigningsPerSeason": 0,
+        "unsignedRetiredPerSeason": 0,
+        "depthChangesPerTeamSeason": {},
+        "battlesPerTeamSeason": 0
+      }
+    },
+    {
+      "arm": "development",
+      "seasons": 20,
+      "spread": {
+        "winSpread": 2.9339686370340603,
+        "best": 14.65,
+        "worst": 2.55,
+        "share13Plus": 0.103125,
+        "share4OrFewer": 0.08125,
+        "betterRecordWins": 0.7174175382139983
+      },
+      "injuries": {
+        "perTeamGame": 0,
+        "perTeamSeason": 0,
+        "settingShares": {},
+        "bandShares": {},
+        "longInSeasonPerTeam": 0,
+        "weeksPerInjury": 0,
+        "gameByGroupPerTeamGame": {},
+        "topKinds": [],
+        "regular": {
+          "timeLossPerTeamGame": 0,
+          "dayToDayPerTeamGame": 0,
+          "timeLossAllCausesPerTeamGame": 0,
+          "settingShares": {},
+          "timeLossBySettingPerTeamGame": {},
+          "timeLossBands": {},
+          "timeLossByGroupPerTeamGame": {},
+          "longPerTeamSeason": 0,
+          "longAllPerTeamSeason": 0
+        }
+      },
+      "movement": {
+        "21-22": {
+          "starter": {
+            "n": 5145,
+            "mean": 3.3622546161321605,
+            "sd": 1.0674420025714835,
+            "p10": 2.12,
+            "p90": 4.75
+          },
+          "backup": {
+            "n": 5924,
+            "mean": 2.653031735313974,
+            "sd": 0.8783426698721056,
+            "p10": 1.68,
+            "p90": 3.82
+          }
+        },
+        "27-28": {
+          "backup": {
+            "n": 1807,
+            "mean": 0.5183951300498063,
+            "sd": 0.44098869265410706,
+            "p10": 0,
+            "p90": 1
+          },
+          "starter": {
+            "n": 1962,
+            "mean": 0.7257390417940872,
+            "sd": 0.4862153757706358,
+            "p10": 0.02,
+            "p90": 1.28
+          }
+        },
+        "23-24": {
+          "starter": {
+            "n": 4778,
+            "mean": 2.1217936375052315,
+            "sd": 0.8546786667418067,
+            "p10": 1,
+            "p90": 3.18
+          },
+          "backup": {
+            "n": 4953,
+            "mean": 1.7261356753482853,
+            "sd": 0.6678248827809617,
+            "p10": 0.97,
+            "p90": 2.57
+          }
+        },
+        "29-30": {
+          "backup": {
+            "n": 840,
+            "mean": -0.14113095238095227,
+            "sd": 0.5639651559601782,
+            "p10": -0.95,
+            "p90": 0.5
+          },
+          "starter": {
+            "n": 917,
+            "mean": 0.054176663031624904,
+            "sd": 0.5661587873537922,
+            "p10": -0.72,
+            "p90": 0.7
+          }
+        },
+        "25-26": {
+          "starter": {
+            "n": 3324,
+            "mean": 1.2411732851985595,
+            "sd": 0.60364447307664,
+            "p10": 0.5,
+            "p90": 2
+          },
+          "backup": {
+            "n": 3260,
+            "mean": 0.9966932515337421,
+            "sd": 0.4726849147209664,
+            "p10": 0.42,
+            "p90": 1.62
+          }
+        },
+        "31-32": {
+          "backup": {
+            "n": 377,
+            "mean": -1.0885145888594165,
+            "sd": 0.7690608282050729,
+            "p10": -2.23,
+            "p90": -0.14
+          },
+          "starter": {
+            "n": 368,
+            "mean": -0.8680434782608693,
+            "sd": 0.7588198633840333,
+            "p10": -1.98,
+            "p90": 0
+          }
+        },
+        "33+": {
+          "starter": {
+            "n": 146,
+            "mean": -1.7441095890410951,
+            "sd": 1.0770963447786122,
+            "p10": -3.22,
+            "p90": -0.5
+          },
+          "backup": {
+            "n": 119,
+            "mean": -2.016974789915966,
+            "sd": 1.1632557574960223,
+            "p10": -3.64,
+            "p90": -0.56
+          }
+        }
+      },
+      "gap": {
+        "starterStart": 68.99506850961538,
+        "starterEnd": 70.9457998798077,
+        "backupStart": 57.65500149498458,
+        "backupEnd": 59.25685489004631
+      },
+      "roster": {
+        "emergencySigningsPerSeason": 0,
+        "unsignedRetiredPerSeason": 27.6,
+        "depthChangesPerTeamSeason": {
+          "FORM": 0.7921875,
+          "OPEN_COMPETITION": 3.20625,
+          "SUDDEN": 0.1375
+        },
+        "battlesPerTeamSeason": 4.1171875
+      }
+    },
+    {
+      "arm": "injuries",
+      "seasons": 20,
+      "spread": {
+        "winSpread": 2.7770570728137836,
+        "best": 14.4,
+        "worst": 3.25,
+        "share13Plus": 0.0859375,
+        "share4OrFewer": 0.071875,
+        "betterRecordWins": 0.7087240114145944
+      },
+      "injuries": {
+        "perTeamGame": 2.3625,
+        "perTeamSeason": 62.8265625,
+        "settingShares": {
+          "AWAY": 0.1937625904648213,
+          "GAME": 0.6696510731428287,
+          "PRACTICE": 0.13658633639234996
+        },
+        "bandShares": {
+          "DAY_TO_DAY": 0.3319406103111244,
+          "LONG": 0.12044567136710686,
+          "MAJOR": 0.13685990698599815,
+          "SHORT": 0.4107538113357706
+        },
+        "longInSeasonPerTeam": 14.6,
+        "weeksPerInjury": 5.499515033947624,
+        "gameByGroupPerTeamGame": {
+          "DB": 0.5479779411764706,
+          "DL": 0.3943014705882353,
+          "K/P": 0.03851102941176471,
+          "LB": 0.18584558823529412,
+          "OL": 0.44025735294117646,
+          "QB": 0.08759191176470588,
+          "RB": 0.17803308823529412,
+          "TE": 0.12389705882352942,
+          "WR": 0.3660845588235294
+        },
+        "topKinds": [
+          {
+            "kind": "illness",
+            "share": 0.15180680942077646
+          },
+          {
+            "kind": "ankle",
+            "share": 0.1241264393543734
+          },
+          {
+            "kind": "knee-mcl",
+            "share": 0.12392747892262926
+          },
+          {
+            "kind": "hamstring",
+            "share": 0.10838369519261856
+          },
+          {
+            "kind": "concussion",
+            "share": 0.07719664751672511
+          },
+          {
+            "kind": "groin",
+            "share": 0.06685070506603
+          },
+          {
+            "kind": "shoulder",
+            "share": 0.06364246810415579
+          },
+          {
+            "kind": "back",
+            "share": 0.053744186624884976
+          },
+          {
+            "kind": "foot",
+            "share": 0.04456713671068666
+          },
+          {
+            "kind": "calf",
+            "share": 0.0399661767266035
+          },
+          {
+            "kind": "ribs",
+            "share": 0.037628391653609886
+          },
+          {
+            "kind": "hand-wrist",
+            "share": 0.030192245517172773
+          }
+        ],
+        "regular": {
+          "timeLossPerTeamGame": 1.82880859375,
+          "dayToDayPerTeamGame": 0.72998046875,
+          "timeLossAllCausesPerTeamGame": 1.905859375,
+          "settingShares": {
+            "AWAY": 0.013395923975269064,
+            "GAME": 0.9245859094725594,
+            "PRACTICE": 0.06201816655217159
+          },
+          "timeLossBySettingPerTeamGame": {
+            "AWAY": 0.02470703125,
+            "GAME": 1.6921875,
+            "PRACTICE": 0.1119140625
+          },
+          "timeLossBands": {
+            "LONG": 0.18849789074598175,
+            "MAJOR": 0.22603727238746196,
+            "SHORT": 0.5854648368665563
+          },
+          "timeLossByGroupPerTeamGame": {
+            "DB": 0.41328125,
+            "DL": 0.3111328125,
+            "K/P": 0.03203125,
+            "LB": 0.14716796875,
+            "OL": 0.34423828125,
+            "QB": 0.0671875,
+            "RB": 0.13447265625,
+            "TE": 0.09609375,
+            "WR": 0.283203125
+          },
+          "longPerTeamSeason": 8.9234375,
+          "longAllPerTeamSeason": 10.4625
+        }
+      },
+      "movement": {
+        "21-22": {
+          "starter": {
+            "n": 5145,
+            "mean": -0.007531584062196305,
+            "sd": 0.06347845546773606,
+            "p10": 0,
+            "p90": 0
+          },
+          "backup": {
+            "n": 5924,
+            "mean": -0.002486495611073599,
+            "sd": 0.03246114885445011,
+            "p10": 0,
+            "p90": 0
+          }
+        },
+        "27-28": {
+          "backup": {
+            "n": 1807,
+            "mean": -0.007360265633646929,
+            "sd": 0.08905737835362998,
+            "p10": 0,
+            "p90": 0
+          },
+          "starter": {
+            "n": 1962,
+            "mean": -0.00916921508664628,
+            "sd": 0.09169417385613632,
+            "p10": 0,
+            "p90": 0
+          }
+        },
+        "23-24": {
+          "starter": {
+            "n": 4778,
+            "mean": -0.007440351611552954,
+            "sd": 0.06942597187949476,
+            "p10": 0,
+            "p90": 0
+          },
+          "backup": {
+            "n": 4953,
+            "mean": -0.003533212194629519,
+            "sd": 0.04373203830554437,
+            "p10": 0,
+            "p90": 0
+          }
+        },
+        "29-30": {
+          "backup": {
+            "n": 840,
+            "mean": -0.0059880952380952385,
+            "sd": 0.0700168336982896,
+            "p10": 0,
+            "p90": 0
+          },
+          "starter": {
+            "n": 917,
+            "mean": -0.01273718647764449,
+            "sd": 0.12325567960105054,
+            "p10": 0,
+            "p90": 0
+          }
+        },
+        "25-26": {
+          "starter": {
+            "n": 3324,
+            "mean": -0.0070427196149217795,
+            "sd": 0.06897746788013208,
+            "p10": 0,
+            "p90": 0
+          },
+          "backup": {
+            "n": 3260,
+            "mean": -0.006398773006134968,
+            "sd": 0.06968404064035569,
+            "p10": 0,
+            "p90": 0
+          }
+        },
+        "31-32": {
+          "backup": {
+            "n": 377,
+            "mean": -0.020291777188328912,
+            "sd": 0.15353714507936775,
+            "p10": 0,
+            "p90": 0
+          },
+          "starter": {
+            "n": 368,
+            "mean": -0.021929347826086958,
+            "sd": 0.1501948929818701,
+            "p10": 0,
+            "p90": 0
+          }
+        },
+        "33+": {
+          "starter": {
+            "n": 146,
+            "mean": -0.0030821917808219177,
+            "sd": 0.03711450383874341,
+            "p10": 0,
+            "p90": 0
+          },
+          "backup": {
+            "n": 119,
+            "mean": -0.017478991596638654,
+            "sd": 0.18987044892181884,
+            "p10": 0,
+            "p90": 0
+          }
+        }
+      },
+      "gap": {
+        "starterStart": 68.99506850961538,
+        "starterEnd": 68.98690249399039,
+        "backupStart": 57.65500149498458,
+        "backupEnd": 57.6503058931327
+      },
+      "roster": {
+        "emergencySigningsPerSeason": 48.55,
+        "unsignedRetiredPerSeason": 15.8,
+        "depthChangesPerTeamSeason": {
+          "FORM": 0.734375,
+          "INJURY_COVER": 26.746875,
+          "KEPT_AFTER_INJURY": 2.2015625,
+          "OPEN_COMPETITION": 2.8765625,
+          "STARTER_RETURNS": 24.909375,
+          "SUDDEN": 0.59375
+        },
+        "battlesPerTeamSeason": 4.0359375
+      }
+    },
+    {
+      "arm": "both",
+      "seasons": 20,
+      "spread": {
+        "winSpread": 2.618443121131958,
+        "best": 14.25,
+        "worst": 3.3,
+        "share13Plus": 0.0703125,
+        "share4OrFewer": 0.053125,
+        "betterRecordWins": 0.6928091260949277
+      },
+      "injuries": {
+        "perTeamGame": 2.3746323529411764,
+        "perTeamSeason": 63.15625,
+        "settingShares": {
+          "AWAY": 0.19203364670954973,
+          "GAME": 0.6720188025729836,
+          "PRACTICE": 0.13594755071746661
+        },
+        "bandShares": {
+          "DAY_TO_DAY": 0.33169223156853045,
+          "LONG": 0.12236516575952498,
+          "MAJOR": 0.13639287481444828,
+          "SHORT": 0.40954972785749627
+        },
+        "longInSeasonPerTeam": 14.75,
+        "weeksPerInjury": 5.492676892627412,
+        "gameByGroupPerTeamGame": {
+          "DB": 0.5535845588235294,
+          "DL": 0.39310661764705884,
+          "K/P": 0.038327205882352944,
+          "LB": 0.18722426470588235,
+          "OL": 0.44485294117647056,
+          "QB": 0.08722426470588235,
+          "RB": 0.17941176470588235,
+          "TE": 0.12371323529411765,
+          "WR": 0.3671875
+        },
+        "topKinds": [
+          {
+            "kind": "illness",
+            "share": 0.15064324591786243
+          },
+          {
+            "kind": "ankle",
+            "share": 0.12513607125185552
+          },
+          {
+            "kind": "knee-mcl",
+            "share": 0.12474022761009401
+          },
+          {
+            "kind": "hamstring",
+            "share": 0.10856011875309253
+          },
+          {
+            "kind": "concussion",
+            "share": 0.07674418604651163
+          },
+          {
+            "kind": "groin",
+            "share": 0.06726867887184562
+          },
+          {
+            "kind": "shoulder",
+            "share": 0.06279069767441861
+          },
+          {
+            "kind": "back",
+            "share": 0.053735774369124197
+          },
+          {
+            "kind": "foot",
+            "share": 0.044656110836219697
+          },
+          {
+            "kind": "calf",
+            "share": 0.040029688273132115
+          },
+          {
+            "kind": "ribs",
+            "share": 0.037530925284512615
+          },
+          {
+            "kind": "hand-wrist",
+            "share": 0.030851063829787233
+          }
+        ],
+        "regular": {
+          "timeLossPerTeamGame": 1.83564453125,
+          "dayToDayPerTeamGame": 0.73115234375,
+          "timeLossAllCausesPerTeamGame": 1.91279296875,
+          "settingShares": {
+            "AWAY": 0.013354131791203774,
+            "GAME": 0.9248972759092984,
+            "PRACTICE": 0.06174859229949779
+          },
+          "timeLossBySettingPerTeamGame": {
+            "AWAY": 0.0248046875,
+            "GAME": 1.6990234375,
+            "PRACTICE": 0.11181640625
+          },
+          "timeLossBands": {
+            "LONG": 0.1918923232430707,
+            "MAJOR": 0.22455711017715593,
+            "SHORT": 0.5835505665797733
+          },
+          "timeLossByGroupPerTeamGame": {
+            "DB": 0.416015625,
+            "DL": 0.3103515625,
+            "K/P": 0.030859375,
+            "LB": 0.14873046875,
+            "OL": 0.34619140625,
+            "QB": 0.066796875,
+            "RB": 0.1361328125,
+            "TE": 0.09697265625,
+            "WR": 0.28359375
+          },
+          "longPerTeamSeason": 9.00625,
+          "longAllPerTeamSeason": 10.55625
+        }
+      },
+      "movement": {
+        "21-22": {
+          "starter": {
+            "n": 5145,
+            "mean": 2.949082604470358,
+            "sd": 1.0524672174967549,
+            "p10": 1.7,
+            "p90": 4.28
+          },
+          "backup": {
+            "n": 5924,
+            "mean": 2.6781988521269366,
+            "sd": 0.9113029346947651,
+            "p10": 1.62,
+            "p90": 3.84
+          }
+        },
+        "27-28": {
+          "backup": {
+            "n": 1807,
+            "mean": 0.5279966795794134,
+            "sd": 0.4538203740692486,
+            "p10": 0,
+            "p90": 1.05
+          },
+          "starter": {
+            "n": 1962,
+            "mean": 0.6203211009174305,
+            "sd": 0.4781810686413065,
+            "p10": 0,
+            "p90": 1.17
+          }
+        },
+        "23-24": {
+          "starter": {
+            "n": 4778,
+            "mean": 1.889899539556299,
+            "sd": 0.8268392554854149,
+            "p10": 0.97,
+            "p90": 2.96
+          },
+          "backup": {
+            "n": 4953,
+            "mean": 1.755453260650118,
+            "sd": 0.6929456792572813,
+            "p10": 0.96,
+            "p90": 2.67
+          }
+        },
+        "29-30": {
+          "backup": {
+            "n": 840,
+            "mean": -0.13824999999999993,
+            "sd": 0.5780366270937383,
+            "p10": -0.9,
+            "p90": 0.5
+          },
+          "starter": {
+            "n": 917,
+            "mean": -0.030436205016357652,
+            "sd": 0.5867092353510643,
+            "p10": -0.74,
+            "p90": 0.61
+          }
+        },
+        "25-26": {
+          "starter": {
+            "n": 3324,
+            "mean": 1.097307460890494,
+            "sd": 0.5831205220652069,
+            "p10": 0.45,
+            "p90": 1.84
+          },
+          "backup": {
+            "n": 3260,
+            "mean": 1.0156963190184052,
+            "sd": 0.4879766410970794,
+            "p10": 0.43,
+            "p90": 1.65
+          }
+        },
+        "31-32": {
+          "backup": {
+            "n": 377,
+            "mean": -1.0989655172413786,
+            "sd": 0.7662213885800698,
+            "p10": -2.23,
+            "p90": -0.23
+          },
+          "starter": {
+            "n": 368,
+            "mean": -0.954673913043478,
+            "sd": 0.8089935388130178,
+            "p10": -2.1,
+            "p90": 0
+          }
+        },
+        "33+": {
+          "starter": {
+            "n": 146,
+            "mean": -1.803013698630137,
+            "sd": 1.0909223004255486,
+            "p10": -3.36,
+            "p90": -0.5
+          },
+          "backup": {
+            "n": 119,
+            "mean": -2.0316806722689065,
+            "sd": 1.1656983475692153,
+            "p10": -3.75,
+            "p90": -0.58
+          }
+        }
+      },
+      "gap": {
+        "starterStart": 68.99506850961538,
+        "starterEnd": 70.70318865184294,
+        "backupStart": 57.65500149498458,
+        "backupEnd": 59.27825506365741
+      },
+      "roster": {
+        "emergencySigningsPerSeason": 49.6,
+        "unsignedRetiredPerSeason": 16.7,
+        "depthChangesPerTeamSeason": {
+          "FORM": 0.73125,
+          "INJURY_COVER": 26.90625,
+          "KEPT_AFTER_INJURY": 2.2921875,
+          "OPEN_COMPETITION": 2.925,
+          "STARTER_RETURNS": 24.9734375,
+          "SUDDEN": 0.559375
+        },
+        "battlesPerTeamSeason": 4.0359375
+      }
+    }
+  ]
+}

@@ -9,11 +9,13 @@
  * The position mix follows a roster's shape; each class's overall strength and its depth at each
  * position wobble a little from year to year. Same seed and draft year → the same class.
  *
- * Growth is ADR-087's: once its development fields exist, the class gives each prospect his growth
- * rate (from its own random stream, so adding it moves no name or rating here).
+ * Growth is ADR-087's: with `development` on, each prospect also gets his growth rate, body and
+ * patience, and his combine drills go on his bio (P2), from another fork of his own
+ * (`development/<player id>`, `development.ts`), so switching it on moves no name or rating here.
  */
 import { createRng, playerId, type DraftClass, type PlayerState, type Position, type Rng } from "@ff/contracts";
 import type { Measurements } from "./derive.js";
+import { withDevelopment } from "./development.js";
 import { gauss, measure, overallAt, rateAttributes } from "./generate.js";
 import { drawName } from "./names.js";
 import { POSITION_ORDER, ROSTER_SHAPE, ROSTER_SIZE } from "./shape.js";
@@ -35,6 +37,8 @@ export interface GenerateDraftClassInput {
   readonly size?: number;
   /** Names already in the league, so a prospect never shares one. Not changed. */
   readonly usedNames?: ReadonlySet<string>;
+  /** ADR-087: give each prospect his development record (P1, no snaps), combine record (P2) and patience (P6). Off by default. */
+  readonly development?: boolean;
 }
 
 export interface GeneratedDraftClass {
@@ -76,7 +80,7 @@ export function generateDraftClass(input: GenerateDraftClassInput): GeneratedDra
     const id = playerId(`d:${input.draft}:${String(i).padStart(4, "0")}`);
     combine[String(id)] = m;
     overall[String(id)] = overallAt(position, ratings);
-    players.push({
+    const prospect: PlayerState = {
       bio: {
         id,
         displayName: drawName(rng, used),
@@ -90,7 +94,10 @@ export function generateDraftClass(input: GenerateDraftClassInput): GeneratedDra
       condition: { stamina: 100, morale: 0 },
       // ADR-079 Q7: no personality yet.
       personality: { needs: {}, type: "quiet" },
-    });
+    };
+    players.push(input.development
+      ? withDevelopment(prospect, root.fork(`development/${String(id)}`), { measurements: m })
+      : prospect);
   }
   return { draftClass: { draft: input.draft, prospects: players.map((p) => p.bio.id) }, players, combine, overall };
 }

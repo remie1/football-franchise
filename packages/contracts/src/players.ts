@@ -4,11 +4,31 @@ import type { AttributeMap, TraitSet } from "./registry.js";
 import type { CalendarStamp } from "./calendar.js";
 import type { DefensiveDisguiseTendency, StaffJob } from "./staff.js";
 
-/** Ground truth. Only engine, attributes pipeline, and calibration consume this. */
+/**
+ * Ground truth. Only engine, attributes pipeline, and calibration consume this, plus four franchise
+ * steps until perception exists (ADR-087 §7): the development week, the injury draws (true
+ * `durability`), the coordinators' read for the weekly depth chart (through their own blur) and the
+ * morale step (true `volatility`).
+ */
 export interface TrueAttributes {
   readonly kind: "true";
   values: AttributeMap;
   traits: TraitSet;
+  /** ADR-087 P1: how he grows and ages. Absent = he never changes (the behaviour before it). */
+  development?: PlayerDevelopment;
+}
+
+/**
+ * ADR-087 P1: a player's hidden development record. `growth`: his own rate, fixed for life (1 = typical).
+ * `snaps`: career snaps, which feed his football smarts. `carry`: the fraction of a point each rating
+ * has earned but not yet shown, by registry id (ratings move in whole points). `body`: his 40 and
+ * 3-cone (seconds), vertical (inches) and bench (reps) as they are now; his weight is the bio's.
+ */
+export interface PlayerDevelopment {
+  growth: number;
+  snaps: number;
+  carry: Partial<Record<string, number>>;
+  body: { forty: number; cone: number; vertical: number; bench: number };
 }
 
 /** One observer's belief about one player. All the UI and AI teams ever see. */
@@ -81,13 +101,31 @@ export interface PlayerBio {
    * Raised at the year turn. Absent reads as 0.
    */
   creditedSeasons?: number;
+  /**
+   * ADR-087 P2: his combine numbers, public (40 and 3-cone in seconds, vertical in inches, bench in
+   * reps). Frozen on draft day: aging moves the hidden `TrueAttributes.development.body`, never this.
+   * A drill he did not run is absent.
+   */
+  combine?: { forty?: number; cone?: number; vertical?: number; bench?: number };
 }
 
+/** ADR-087 P3: where an injury happened. */
+export type InjurySetting = "GAME" | "PRACTICE" | "AWAY";
+/** ADR-087 P3: how long, in weeks lost: 0, 1-3, 4-8, 9 or more. */
+export type InjuryBand = "DAY_TO_DAY" | "SHORT" | "LONG" | "MAJOR";
+
+/** Public, as on an NFL injury report. What it will cost him for good is hidden (ADR-087 §7). */
 export interface Injury {
   kind: string;
   weeksRemaining: number;
   playable: boolean;
   inGamePenalty?: AttributeMap;
+  /** ADR-087 P3. */
+  setting: InjurySetting;
+  /** ADR-087 P3. */
+  band: InjuryBand;
+  /** ADR-087 P3: when it happened. */
+  since: CalendarStamp;
 }
 
 export interface PlayerCondition {
@@ -109,6 +147,11 @@ export type PersonalityType = "demanding" | "playersCoach" | "cerebral" | "fiery
 export interface PersonalitySheet {
   needs: Partial<Record<NeedId, number>>; // weights
   type: PersonalityType;
+  /**
+   * ADR-087 P6: how many seasons (0..2) he waits for a team after becoming unsigned before he
+   * retires. A placeholder drawn when he is made, until Spec #14's needs set it. Hidden.
+   */
+  patience?: number;
 }
 
 export interface PlayerState {
@@ -141,6 +184,11 @@ export interface StaffState {
   retiredAfter?: number;
   /** ADR-080 P4: read only in the DC seat. Absent = the league default. */
   disguise?: DefensiveDisguiseTendency;
+  /**
+   * ADR-087 C1: a head coach's depth-chart leanings, 0..100 each: sticks with the incumbent, leans to
+   * veterans, plays who looks best this week. Drawn from his personality type. Absent = even leanings.
+   */
+  lineup?: { incumbent: number; veteran: number; form: number };
 }
 
 /**

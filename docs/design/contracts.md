@@ -79,6 +79,14 @@ export interface RegistryMigration {
 }
 ```
 
+### Measurement scales and position profiles (ADR-087 P5)
+
+ADR-079 pins body ratings to measurements on one scale and gives each position the ratings it is built around. The generator, the draft's class maker, the stand-in importer and franchise (aging, the weekly depth chart, draft boards, cut-down day) all need the same numbers, so they live in `measures.ts`, as data with small readers beside `getAttr` (the §10 amendment below says why):
+
+- `MEASUREMENT_SCALES`: `forty` (5.60 s reads 0, 4.22 s reads 99), `cone` (8.10 / 6.50 s), `vertical` (22 / 44 in), `strength` (`20 + 1.6 × bench + 0.12 × (weightLb − 200)`).
+- `speedFromForty`, `agilityFromCone`, `jumpingFromVertical`, `strengthFrom` (rounded and clamped by `clampRating`); `onScale` and `strengthOnScale`, unrounded, for what a change in a measurement is worth.
+- `POSITION_PROFILES: Record<Position, { core; secondary; keyPhysical }>` (registry ids) and `positionOverall(position, ratings)`: the core mean, or 0.7 × core + 0.3 × key physical where the position leans on its body. For depth charts, boards and cut-down day; the sim never reads it.
+
 ### Traits
 
 Same registry pattern, boolean possession + situational bonus payload (design doc Appendix B):
@@ -100,11 +108,16 @@ export type TraitSet = ReadonlySet<TraitId>;
 The hidden-information pillar, as a type-level guarantee.
 
 ```ts
-/** Ground truth. ONLY the engine, attributes pipeline, and calibration may consume this. */
+/**
+ * Ground truth. ONLY the engine, attributes pipeline, and calibration may consume this, plus four
+ * franchise steps until perception exists (ADR-087 §7): the development week, the injury draws,
+ * the coordinators' (blurred) read for the depth chart, and the morale step.
+ */
 export interface TrueAttributes {
   readonly kind: "true";
   values: AttributeMap;
   traits: TraitSet;
+  development?: PlayerDevelopment;  // ADR-087 P1: { growth, snaps, carry, body: { forty, cone, vertical, bench } }; absent = never changes
 }
 
 /** One observer's belief about one player. This is all the UI and AI teams ever see. */
@@ -124,6 +137,8 @@ export interface PerceivedAttributes {
   knownTraits: TraitSet;   // traits reveal discretely, via events
 }
 ```
+
+**Truth-layer events (ADR-087 §7).** Some franchise events carry true values: `RATINGS_CHANGED` and `INJURY_HEALED`, listed in `TRUTH_LAYER_EVENT_TYPES` (`isTruthLayerEvent`). They are kept for calibration, saves and franchise's own checks, are filtered out before the news desk, are never shown in the UI and are never read by computer teams' decisions. Everyone else learns of a change only through perception (`PERCEPTION_UPDATED`).
 
 The `kind` discriminant means a function typed to accept `PerceivedAttributes` cannot be handed truth by accident. The franchise domain owns *how* perception updates (scouting, game exposure, reveal curves — Spec #6); contracts only owns the shape.
 
@@ -205,6 +220,15 @@ Cap *math* lives in franchise; contracts only defines shapes.
   `CapState.deadMoney` is the sum of a team's charges for the season.
 - `CapSeason { season, cap, projectedLow?, projectedHigh? }` (in `save.ts`).
 - `PlayerBio.creditedSeasons` (CBA credited seasons; public; shared with ADR-087).
+
+**ADR-087 (players age, grow and get hurt):**
+
+- P1 `TrueAttributes.development?: PlayerDevelopment` = `{ growth, snaps, carry: Partial<Record<attr, number>>, body: { forty, cone, vertical, bench } }`, hidden: his growth rate, career snaps, the unshown fraction of each rating, and his body now. Absent = the player never changes.
+- P2 `PlayerBio.combine?: { forty?, cone?, vertical?, bench? }`, public, frozen on draft day.
+- P3 `Injury` gains `setting: "GAME" | "PRACTICE" | "AWAY"` (`InjurySetting`), `band: "DAY_TO_DAY" | "SHORT" | "LONG" | "MAJOR"` (`InjuryBand`; 0, 1-3, 4-8, 9+ weeks) and `since: CalendarStamp`. Injuries are public; their lasting cost is not.
+- P4 `GameParticipation { player, team, snaps: { offense, defense, special }, contests: { attr, won, lost }[] }` (in `league.ts`): who played a game and how, handed back beside its result by whoever played it.
+- P6 `PersonalitySheet.patience?: number` (0..2 seasons an unsigned player waits before he retires; a placeholder until Spec #14).
+- C1 `StaffState.lineup?: { incumbent, veteran, form }` (0..100 each): a head coach's depth-chart leanings.
 
 The rookie scale, minimum salaries and tag formulas are CBA data and live in franchise.
 
@@ -386,6 +410,8 @@ export interface RollDetail {
 
 The draft (ADR-086 C5): `DRAFT_PICK_MADE` may carry `overall` and `kind`; `COMPENSATORY_PICKS_AWARDED` (`{ draft, picks: { team, round, kind }[] }`), `DRAFT_PICK_CONDITION_SETTLED` (`{ draft, originalTeam, owner, round, text }`) and `WAIVER_CLAIMED` (`{ player, from, to }`).
 
+Players age, grow and get hurt (ADR-087): `RATINGS_CHANGED` (E1, truth layer: `{ team?, changes: { player, attr, from, to }[], body?: { player, measure, from, to }[] }`, one per team per week plus one for free agents), `INJURY_OCCURRED` gains `setting`, `band` and `game?` (E2, public), `INJURY_HEALED` (E3, truth layer: `{ player, lasting: { attr, from, to }[], body? }`), `PLAYER_RETIRED` gains `reason?: "UNSIGNED"` and `timing: "SEASON_END"` (E4), and the COACH decisions `DEPTH_CHART_CHANGED` (`{ team, position, up?, down?, situation: OPEN_COMPETITION | INJURY_COVER | STARTER_RETURNS | KEPT_AFTER_INJURY | FORM | SUDDEN, authority, decidedBy }`), `POSITION_BATTLE_DECLARED` (`{ team, position, players, ... }`) and `POSITION_BATTLE_ENDED` (`{ team, position, starter, ... }`) (E5, public).
+
 `RELATIONSHIP_CHANGED` (ADR-084 V2) is a view that moved: `{ from, of, delta, cause, before, after, rift?: "OPENED" | "REPAIRED" }`, once per move and once whenever the weekly drift changes a view's word.
 
 `PRESS_STORY_PUBLISHED` (ADR-082 N1) is narrative's news: `{ kind, headline, importance: 1..5, teams, games, subjects }`, where `kind` names the story rule that wrote it. `GameResult` may carry `periods` (ADR-082 N2), the points per period as in `GAME_END.payload.periods`, which is what stories like "rallied from 17 down" read.
@@ -467,6 +493,7 @@ export interface SaveFile {
     contracts: PlayerContract[];
     deadMoney?: DeadMoneyCharge[];         // ADR-085 K3; optional, as above
     capHistory?: CapSeason[];              // ADR-085 K4: the cap each season; optional, as above
+    development?: { events: FranchiseEventEnvelope[]; depthMemory: unknown };  // ADR-087 S1: the development, injury, depth-chart and retirement steps' events and memory; optional, as above
     perceptions: PerceivedAttributes[];   // per observer×subject
     league: LeagueStructure;               // ADR-078 C7
     season: SeasonState | null;            // ADR-078 C7 (was `standings: unknown`)
@@ -486,7 +513,7 @@ Raw match event streams are **not** saved (regenerate any game from `worldSeed` 
 
 ## 10. WHAT IS DELIBERATELY ABSENT
 
-- Any modifier table, target number, or formula (engine tunables)
+- Any modifier table, target number, or formula (engine tunables). **Amendment 1 (ADR-087 P5, owner's yes 2026-10-24):** one narrow exception, the measurement scales and position profiles of §2 (`measures.ts`). They are ADR-079's ruled anchors, which rarely change, and every domain that rates a player needs the same copy; any change to them is a contracts edit that goes back to the owner. The tunable curves that use them (aging, injuries, growth) stay in franchise.
 - Cap math, market pricing, reveal-curve logic (franchise)
 - Storyline templates (narrative)
 - Scene/asset manifest types (claimed by art-style + ui specs via petition once drafted)
