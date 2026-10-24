@@ -35,6 +35,15 @@
  */
 import { describe, expect, it } from "vitest";
 import { DEFAULT_TUNABLES, discoverBandTables, labelledLadderPaths } from "@ff/engine";
+import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../src/caller/anticipate.js";
+import { callerIdentity } from "../src/caller/frozen.js";
+import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
+import { runBatch } from "../src/harness/batch.js";
+import { runOneGame } from "../src/harness/runGame.js";
+import { buildFixture, buildFixtures } from "../src/harness/schedule.js";
+import { generateSeeds } from "../src/harness/seeds.js";
+import { buildFlatLeague } from "../src/league/flat.js";
+import { indexLeague } from "../src/league/snapshot.js";
 import {
   BAND_GATE_CORPUS,
   DECLARED_ABSTENTIONS,
@@ -46,10 +55,12 @@ import {
   abstainedRowKeys,
   assertRuledCellsCurrent,
   bandTableCensus,
+  censusRowReach,
   measuredRawInversions,
   rawViolations,
   renderBandGate,
   runBandTableGate,
+  runCorpus,
   violationKey,
 } from "../src/knownTruth/bandTables.js";
 
@@ -130,6 +141,84 @@ describe("band tables — the free tier", () => {
       runBandTableGate({ corpus: { ...BAND_GATE_CORPUS, minRowReach: 0 } }),
     ).toThrow(/minRowReach/);
     expect(() => runBandTableGate({ corpus: { ...BAND_GATE_CORPUS, games: 24 } })).toThrow(/§22c/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The corpus names its caller. One game, so not free, and not env-gated either.
+// ---------------------------------------------------------------------------
+
+describe("band tables — the corpus names its caller", () => {
+  it("records and prints the caller its games played, by the name runBatch records (ADR-073 step 3.5)", async () => {
+    // The corpus runs games one by one, not as a batch, so it has no batch provenance to quote.
+    // Its name for the caller must still be the one a batch over the same game, naming no caller,
+    // records, or the report's corpus line is a label of its own. One game of a two-team corpus:
+    // the name is a fact about how the games were called, not about how many there were.
+    const corpus = { ...BAND_GATE_CORPUS, teams: 2, games: 1 };
+    const observed = runCorpus(DEFAULT_TUNABLES, corpus);
+    const batch = await runBatch({
+      league: buildFlatLeague({ teams: corpus.teams }),
+      schedule: { kind: "SYNTHETIC_ROUND_ROBIN", rounds: 1, season: corpus.season },
+      seeds: { batchSeed: corpus.batchSeed },
+      playCalling: { tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN },
+    });
+    expect(observed.games).toBe(1);
+    expect(batch.provenance.games).toBe(1);
+    expect(batch.provenance.seedDigest).toBe(observed.seedDigest);
+    expect(observed.callerVersion).toBe(batch.provenance.callerVersion);
+    expect(observed.callerVersion).toBe(callerIdentity(DEFAULT_CALLER_VERSION, FROZEN_TENDENCIES.version));
+
+    // The name is the caller the games PLAYED, not a label beside them: the corpus's one game,
+    // played again by itself under the version its name gives, has the corpus's events and plays.
+    const named = observed.callerVersion.split("/")[0] as CallerVersion;
+    expect(CALLER_VERSIONS).toContain(named);
+    const index = indexLeague(buildFlatLeague({ teams: corpus.teams }));
+    const fixtures = buildFixtures(index, { kind: "SYNTHETIC_ROUND_ROBIN", rounds: 1, season: corpus.season });
+    const replay = runOneGame({
+      built: buildFixture(index, fixtures[0]!),
+      seed: generateSeeds(corpus.batchSeed, fixtures.length).seeds[0]!,
+      tendencies: FROZEN_TENDENCIES,
+      fourthDown: FROZEN_FOURTH_DOWN,
+      tunables: DEFAULT_TUNABLES,
+      callerVersion: named,
+    }).observation.events;
+    expect(observed.events).toBe(replay.length);
+    expect(observed.plays).toBe(new Set(replay.flatMap((e) => (e.event.playId === undefined ? [] : [String(e.event.playId)]))).size);
+
+    // …and the gate's report prints that name on its corpus line, where it used to print a fixed
+    // "caller v2". The derivation is the env-gated tier's (~27 minutes), so the result around the
+    // one-game baseline is an empty one: only the corpus line is under test here.
+    const report = renderBandGate({
+      census: bandTableCensus(DEFAULT_TUNABLES),
+      corpus,
+      restrictedTo: null,
+      rawViolations: [],
+      scopedCells: 0,
+      derivation: {
+        verdicts: [],
+        exempt: new Set<string>(),
+        unreachedRows: [],
+        underSampledRows: [],
+        unreadColumns: [],
+        observations: 0,
+        reachFloorApplied: true,
+      },
+      reach: censusRowReach(DEFAULT_TUNABLES, observed),
+      surviving: [],
+      unadjudicated: [],
+      vanished: [],
+      abstentionsNowMeasurable: [],
+      undeclaredBlindSpots: [],
+      baseline: observed,
+      observations: 0,
+      wallClockMs: 0,
+      tunablesDigest: "-",
+    });
+    const corpusLines = report.split("\n").filter((line) => line.startsWith("corpus: "));
+    expect(corpusLines).toHaveLength(1);
+    expect(corpusLines[0]).toContain(
+      `· caller ${batch.provenance.callerVersion} + FROZEN_TENDENCIES/FROZEN_FOURTH_DOWN`,
+    );
   });
 });
 

@@ -358,8 +358,11 @@ export function rushAlignmentFor(
  * rush with the played one field for field. The engine's physics still reads no
  * gap: ADR-066's decomposition (this file's `threatFromWonRep`) reads only
  * `tunables.arrival.nominalClosingSpeedYardsPerSecond`, a single constant. A
- * carry is not a reader, which is the distinction the expiry pin in
- * `packages/playbook/test/gapCarryAcross.test.ts` now draws.
+ * carry is not a reader. The gap's first reader is playbook's front look
+ * (`applyFrontLook`, ADR-073 step 3.5), which places the Stem's shown line by it;
+ * that discharged the expiry pin in `packages/playbook/test/gapCarryAcross.test.ts`,
+ * and the pin was deleted. That the physics still reads no gap is pinned in this
+ * package's `test/shownRush.test.ts` ("the physics reads no gap").
  *
  * `side` and `gap` are REQUIRED keys of the argument (`undefined` when the card
  * said nothing), so a caller that forgets one fails to compile rather than

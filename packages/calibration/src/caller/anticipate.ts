@@ -208,15 +208,19 @@ export type CallerVersion = (typeof CALLER_VERSIONS)[number];
  * its own (ADR-073 §2.6), and the creeper. The huddle anticipates coverage and pressure the same
  * way (R30), and no line game (`anticipateDecomposed`). Protection as v5. A new version because the
  * call mix changes by design.
+ *
+ * v7 is v6 wearing ADR-073 §2.5's front looks, the Mug and the Stem, drawn on their own address
+ * after the coverage looks and worn by the real defence only. The huddle guesses as v6 does and
+ * never sees the look (R30). Protection as v5. A new version because a seed now plays a different
+ * game.
  */
-export const CALLER_VERSIONS = ["v1", "v2", "v3", "v4", "v5", "v6"] as const;
+export const CALLER_VERSIONS = ["v1", "v2", "v3", "v4", "v5", "v6", "v7"] as const;
 
 /**
- * The default. ADR-024 made it v2; ADR-069 made it v3; ADR-071 step 2 makes it v4. A batch that
- * wants another caller asks for it by name. v5 and v6 are opt-in: the default stays v4 until
- * ADR-073 step 3.5 moves it, once, to v7.
+ * The default; every other version is opt-in, and a batch that wants one asks for it by name.
+ * ADR-024 made it v2; ADR-069 made it v3; ADR-071 step 2 made it v4; ADR-073 step 3.5 makes it v7.
  */
-export const DEFAULT_CALLER_VERSION: CallerVersion = "v4";
+export const DEFAULT_CALLER_VERSION: CallerVersion = "v7";
 
 /** Five or more rushers, the threshold `blitz_rate` uses on BOTH sides. Same number, one place. */
 const BLITZ_MIN_RUSHERS = 5;

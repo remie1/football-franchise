@@ -65,6 +65,8 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import { applyTunablePatch, DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
+import { DEFAULT_CALLER_VERSION } from "../src/caller/anticipate.js";
+import { callerIdentity } from "../src/caller/frozen.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { digestSeeds, generateSeeds } from "../src/harness/seeds.js";
 import { runOneGame } from "../src/harness/runGame.js";
@@ -78,6 +80,13 @@ import { pocketStatusLadder, severityOf } from "../src/knownTruth/pocketLadder.j
 const enabled = process.env["FF_FR_SWEEP"] === "1";
 const STAGE = process.env["FF_FR_STAGE"] ?? "population";
 const GAMES = Number(process.env["FF_FR_GAMES"] ?? "496");
+
+/**
+ * The caller every game below plays: resolved here as `runBatch` resolves it, passed to every game,
+ * and printed in the header by the name a batch records (`provenance.callerVersion`), so the header
+ * names the caller that played, before and after the default moves (ADR-073 step 3.5).
+ */
+const CALLER_VERSION = DEFAULT_CALLER_VERSION;
 
 /** The committed value every patch in this file is written against. */
 const COMMITTED: number = DEFAULT_TUNABLES.blitzPickup.freeRunnerArrivalSeconds;
@@ -511,6 +520,7 @@ function run(id: string, value: number, set: number, what: string, tunables: Tun
       tendencies: FROZEN_TENDENCIES,
       fourthDown: FROZEN_FOURTH_DOWN,
       tunables,
+      callerVersion: CALLER_VERSION,
     });
     foldEvents(fold, output.observation.events);
     used.push(seed);
@@ -641,7 +651,7 @@ function header(stage: string, sets: readonly number[]): void {
   say(`freeRunnerArrivalSeconds MEASUREMENT SWEEP — stage "${stage}"`);
   say(`flat-60 32t (FLAT_SYNTHETIC) · SYNTHETIC_ROUND_ROBIN 2024 · ${GAMES} games per config`);
   say(`seed sets: ${sets.map((s) => `${s} → "${batchSeedFor(s)}"`).join(" · ")}`);
-  say("caller v2 (anticipating) + FROZEN_TENDENCIES/FROZEN_FOURTH_DOWN");
+  say(`caller ${callerIdentity(CALLER_VERSION, FROZEN_TENDENCIES.version)} (anticipating) + FROZEN_TENDENCIES/FROZEN_FOURTH_DOWN`);
   say(`committed value ${COMMITTED}. EVERY row below is an in-memory patch; TUNABLES is UNCHANGED.`);
   say("=======================================================================");
 }

@@ -3,7 +3,7 @@
 - **Date:** 2026-10-16
 - **Proposed by:** Orchestrator, building ADR-069 Phase 3 (= ADR-068 step 3 = ADR-071 step 3) in the
   order ADR-069 §10 ruled
-- **Status:** **accepted; 3.0 measured, 3.1, 3.2a and 3.2b built and merged; 3.3 built and measured (§10), then re-scoped to the slide check alone on the owner's ruling on the ADR-077 proposal (Q1, 2026-10-21) and merged; the predictions that counted on the keep-in were re-filed, and 3.4's mechanics as built and its scoring rules filed, before any arm; 3.4 built and measured (§10), awaiting merge; 3.5 next.** The owner asked for the draft *(owner, 2026-10-16:
+- **Status:** **accepted; 3.0 measured, 3.1, 3.2a and 3.2b built and merged; 3.3 built and measured (§10), then re-scoped to the slide check alone on the owner's ruling on the ADR-077 proposal (Q1, 2026-10-21) and merged; the predictions that counted on the keep-in were re-filed, and 3.4's mechanics as built and its scoring rules filed, before any arm; 3.4 built and measured (§10) and merged; 3.5's stale references and its unscoreable claims re-filed, and its mechanics as built and its scoring rules filed, before any arm; 3.5 built and measured, the closing commit moved the default to v7 and its proofs passed (§10), and 3.5 merged to main on the owner's "Merge and move" (decision card, 2026-10-23).** The owner asked for the draft *(owner, 2026-10-16:
   "yes" to "Should I draft the front design now?")* and ruled all seven of §9's questions as
   recommended *(owner, 2026-10-16, decision cards)*. Every contracts edit in §3 still needs its own
   yes before it is made, and nothing merges without the owner's word. 3.0 re-derives §4.3: the
@@ -12,7 +12,7 @@
   four contracts edits were made on the owner's typed yes naming each *(owner, 2026-10-16: "Yes, make
   contracts edits P1, P2, D1 and D3a for ADR-073 step two.")*. 3.2b's six were made the same way
   *(owner, 2026-10-16 23:41Z: "Yes, make contracts edits P3, D1, D3b, D5, D8 and P2’s doc for ADR-073
-  step 3.2b.")*. 3.3 needed no contracts edit; caller v5 is opt-in, and the default stays v4. 3.4 needed no contracts edit; caller v6 is opt-in, and the default stays v4.
+  step 3.2b.")*. 3.3 needed no contracts edit; caller v5 is opt-in, and the default stays v4. 3.4 needed no contracts edit; caller v6 is opt-in, and the default stays v4. 3.5's five contracts edits were made on the owner's typed yes naming each *(owner, 2026-10-21 22:01Z: "Yes, make contracts edits D2, D4, D6, D7 and P2's tense for ADR-073 step six.")*.
 - **Builds on:** ADR-067 (§D, the rulings on order and the required sentence), ADR-068 (rulings 1–6,
   step 3), ADR-069 (§9.6's Phase 3 row, §10's rulings), ADR-071 (step 3, the words), ADR-072 (the
   ladder, one leash roll, the default of 50), ADR-022 (Petition 1: keeping a man in costs his route
@@ -970,11 +970,11 @@ Every bound below is provisional: 3.0 re-derives it from the measured v1 − v4 
 | §10's 3.0 figures | **MEASURED** — the arms, bench, probe and direct application §10 lists, from the scratch harness in `/mnt/project-files/arms/`, and the shares on which v1 keeps in or releases a different man (0.7%, 1.3%, 1.8%) and slide-only's split (−0.82, +11.75) from the independent checker's replay probe there (`adr073-review-probe.ts`); §4.3's re-derived centrals from the direct application, which **INFERS** that §2.3's adjustment made as a call edit stands for v5's; keep-in's floor and the pressure bound **CHOSEN** (the rule §10 states) on three **INFERRED** assumptions §10 names |
 | §10's 3.4 figures (2026-10-21) | **MEASURED** — runs M0–M14 on ccd75bb, from the scratch harness H34 in `/mnt/project-files/arms/adr073-p34/`, through its report `adr073-report34.md` and figures `adr073-figs34.json` (analyzer 28be58cb; every figure equal to the frozen 4a20eba8's); the football-unit conversions, the bench splits and the run-game figures **COMPUTED** from the same shards by the two independent verifications (`verify/verification-summary.md`) and the rushing check (`verify/rushing-check.md`), as §10 names them; the expected values beside them **COMPUTED** before any arm, in the block §10 files before the runs; the few figures §10 marks **COMPUTED** here (the joint − v5 game-level conversion, the five-man man split, the total-variation distance, and the drift's completions, attempts and dropbacks) recomputed for this write-up from the same figures and shards; `CREEPER_RATE` 0.1 (`distribution.ts:244`, pinned at `pressureDraw.test.ts:650-654`) **CHOSEN — provenance NONE**, the owner's 1 in 10 (the creeper-rate row above); `DIME_COVER_1`'s duties (`coverageCatalogue.ts:76-132`: the dime back on #3 to the right, the hole when there is none, seven or more to go) **CHOSEN — provenance NONE**, a football judgement, with no real dime Cover 1 on file to compare against (line 350); the real man/zone × rushers joint **REPORTED** — the nflverse participation feed, 2022–2024 (`pbp_participation_2022..2024.csv`, their sha256s in `realjoint34.json`), 64,293 rows charted with both fields of 142,237, tabled by `adr073-realjoint.py` (**COMPUTED**); what §10 marks **INFERRED** (among them the size per creeper run and the paths through the code) is inferred |
 | The fantasy review of 3.4 (2026-10-21) | **REPORTED** — the fantasy advisor's gate memo, `verify/fantasy-gate.md` (PASS WITH NOTES), quoted in §10; its per-player figures are its own computations |
+| §10's 3.5 figures (2026-10-23) | **MEASURED** — runs K1–K17, K4z, K8f and K8b on HEAD35 94fee2c (the benches K8, K8f and K8b; K4z the rate-0 control), with N0-head's checks there, against the references R0, R1, R2v5, R3, R4 and R5 taken at B35 c257270, with N0-base's checks and amendment 2's equivalence smokes there, from the scratch harness H35 in `/mnt/project-files/arms/adr073-p35/` (`adr073Arm35.test.ts`, c6733c30; R1, R2v5, R3, R4 and R5 ran its earlier build 570ea2b7, which amendment 2's equivalence ties to it, `logs/equiv35.out:220-254`, and R0 ran 3.4's H34), through its report `adr073-report35.md` and figures `adr073-figs35.json` (analyzer 550a0aea, one of the 16 files in `FROZEN35.sha256`; re-run on 2026-10-23 after four proof files were restored, which changed four input counts and no figure); P0d against 3.4's M1, M14, M4 and M10 shards on ccd75bb, the one declared cross-tree contrast; rule 16's suite and scratch counts by the build commits' own checks (`build/C1.md` to `build/C6.md`, `build/C2e.md`, `build/fix.md`); the pins of amendments 5 and 7 on bf8183c and 54bbaff and their compiled-code comparisons (188293e against bf8183c, 94fee2c against 54bbaff), and amendment 7's `pnpm verify` on 54bbaff; the dry run D's suite, ladder, shard, timing and baseline figures in amendments 6 and 7 on `cp -a` copies of 30b1b21, 4dfc300 and 54bbaff (scratch `dryrunD/`, `dryrunD2/` and `dryrunD3/`; `dryrunD/check.md` checks the first); the expected values beside the run figures **COMPUTED** before any arm by `expected35.py` (a979eeb6) from R3's and R5's shards, in `expected35-amend2.json` (62bb9b24), in the block §10 files before the runs; every report number **COMPUTED** again from the shards by the independent verification `verify/v1-numbers.md` (2,389 of 2,393 equal; the other 4 are one counter's checked count, which the report prints as its COUNT half alone), with the procedure checked in `verify/v2-procedure.md` and both reconciled in `verify/reconcile.md` (every verdict stands); the figures §10 takes from those three and not from the report (among them V2's 868,376 legal calls on K4z, v7f's worn snaps equal to v6's 2,185,362 Mug-legal dropbacks and the bench's cost of about 268 s a replay, and the reconciler's LOOK + COUNT checked counts, its 68 of 68 HEAD35 game shards and its Poisson z +1.54) **COMPUTED** from the same shards by them, as §10 names them; the few figures §10 marks **COMPUTED** here (the converted routes' snaps, 108,793, the bitten bluffs' count; R2a's Δcontested and ΔhotThrows from the benches' per-game cells; K8's attempt split, 274 and 253; R4 against M14 on 20,160 games) recomputed for this write-up from the same shards and game records; `FRONT_LOOK_RATE` 0.1 (`distribution.ts:254`, pinned at `frontLooks.test.ts:572-575`) **CHOSEN — provenance NONE**, the owner's 1 in 10 (the front-look and creeper rates row above); the real coverage × rushers joint by season **REPORTED** — 3.4's `realjoint34.json` (the 3.4 row above), 64,293 charted rows; what §10 marks **INFERRED** is inferred |
+| The fantasy review of 3.5 (2026-10-23) | **REPORTED** — the fantasy advisor's gate memo, `verify/fantasy-gate.md` (PASS WITH NOTES), quoted in §10, written read-only from the report, its figures, the two verifications and the reconciliation; its per-slot PPR lines are the report's (§18, paired per game), and the figures it marks **COMPUTED** (its season and DST scalings and the total-variation distances, pooled and by season, hand arithmetic on printed figures) and its **INFERRED** readings are its own |
 ## Conjoined mechanisms — REQUIRED
-- **The read and the line's answer (D) against the coverage read (E):** different target metrics
-  (`sack_rate`, `int_rate`), never in one arm (ADR-067). D lands on honest fronts (3.3) before any
-  front look exists. A front look leaves `shownAssignments` untouched, so on a call with no coverage
-  look it cannot roll E by itself (C11). D still reaches E's population in counted ways: hot
+- **The read and the line's answer (D) against the coverage read (E):** different target metrics (`sack_rate`, `int_rate`), never in one arm (ADR-067). D lands on honest fronts (3.3) before any
+  front look exists. A front look leaves `shownAssignments` untouched, so on a call with no coverage look it cannot roll E by itself (C11). D still reaches E's population in counted ways: hot
   conversions, as today; the kept-in man, whose lie is not formed (so a snap where it was the only
   lie rolls no coverage read); a BROKE roll below leash 30, where a coverage die may concern a man
   then kept in; and, on a call that also wears a coverage look, a front look changing which tracks
@@ -2361,6 +2361,1307 @@ bound − v5 is exactly 0 on every stratum (143,203, 168,609 and 137,523 snaps).
 - `verify/`: `verification-summary.md` and `journal-all.json` (the two independent verifications), with `football-facts/` and `football/` (the football-unit scripts of the first and second verification) and `anomaly/` (the anomaly lens's scripts, without their pickled caches); `fantasy-gate.md` with `fantasy/` (the gate's scripts and outputs); `rushing-check.md` with `rushing/` (its scripts and their outputs, without the pickled rows); and `W-brief.md`.
 
 The full shards (`out/`, 304 MB) were not shared. The points, yards and run-game figures need their `accFull`, so they re-run from the same seeds on ccd75bb. The report and figures carry every scored number. Most football-unit conversions, the finer bench splits (the creeper's and the guessed creeper's per-snap outcomes, G1's split) and the run-game figures quoted here were computed from `out/` by the verifications and by the rushing check (`verify/rushing-check.md`), and are not in them. The few figures marked COMPUTED here were recomputed for this write-up from the figures and from the shards' `front` fields (the per-game columns, the call mix and the shell × rushers counts), which the shared shards keep.
+
+### 3.5, re-filed before any arm: the references PR #13 made stale, and the claims that cannot be scored as filed *(2026-10-22)*
+
+**Why.**
+- **PR #13 changed every caller's play.** It merged to main after 3.4 (94ea150, backlog entry 171): it rewrote nine pass concepts' read orders and moved Flood's flat runner from the fullback to the tailback, with the fullback kept in to block (`packages/playbook/src/passConcepts.ts`). Every caller plays those concepts, so every byte reference 3.4 recorded is stale for 3.5: 3.4's runs were on ccd75bb (line 2097).
+- **Seven filed 3.5 claims cannot be scored as written** on the merged callers, which keep nobody in unless `/keep-in` is named (3.4's re-filing block, entry 9, line 1789) and state `slideCheck` on every SLIDE call unless `/no-slide-check` is named.
+- This ADR re-files a prediction before an arm runs and never re-labels it after one (line 737), as 3.4's block did (lines 1765-1796).
+
+**How to read it.**
+- §1–§9 stay as filed: they are the record. No line there is inserted or edited; the Status line, edited in place, names this block. Line numbers below are this file's, and nothing above this block moved.
+- Each entry names where the filed text is, quotes it, and says how it reads from 3.5 on, with its reason.
+- This block holds no 3.5 scoring rule and no number from a 3.5 run. Its numbers are 3.4's, quoted from this section.
+
+**The entries.**
+1. **§4.5 Exact (line 810) and 3.4's "For 3.5" (line 2310).** Filed: "v7 `/front-0` ≡ v6"; "M4's records (593,072 joint dropbacks on set A) are 3.5's bench base and the byte reference for line 810's 'v7 `/front-0` ≡ v6'". Reads: v7 `/front-0` replays v6 byte for byte against v6 references taken at the 3.5 base, before any 3.5 build commit: R3's 6,720 set-A game sha256s and dropback records, and R5's 20,160 set-B game sha256s and dropback records. M4's records were taken on ccd75bb, before PR #13 changed nine read orders and Flood's flat, and are not used. Line 2305's "v4, v5 and v6, each named with its knobs, must replay byte for byte on 3.5's code" is checked against the same base's references (R1–R5) and its pins.
+2. **3.4's "For 3.5" (lines 2311-2313).** Filed: "Mug legal: 93.51% on v5, 92.14% on joint. Stem legal toward the weak side: 85.74% → 82.12%. Balanced rushes: … 81.58% on joint". Reads: these are pre-PR-#13 figures. They are re-read from R3, on v6's calls at the 3.5 base, and filed with 3.5's scoring rules. PR #13 changed no defensive card, so they are expected to move only through the situation mix (INFERRED).
+3. **§4.5 Exact (line 812).** Filed: "Stem-worn snaps are identical per snap to the same snaps without the Stem unless moved ≠ ∅ and the call states `slideCheck`". Reads: on the bench every Stem-worn snap equals the same snap under `v7/front-0` in every field except `shownRush`, the STEM tag and, when the read is pictured COUNT or LOOK, `pressurePicture.placed`. The exception is a `stemLive` snap on a SLIDE call read COUNT or LOOK: there the slide check may also differ, and every other difference follows from it. The read rolls on exactly the same snaps on both arms (a Stem adds no roll, line 584). Reason: PLAY_START echoes `shownRush` and the tag on every worn snap, and `pressurePicture.placed` echoes the shown spots when the read rolls (lines 459, 465, 638 and 1562).
+4. **§4.5 Bluff, bitten (line 819).** Filed: "hot conversion ≈ the hot-route share of those calls". Reads: exact: on every bitten bluff snap every `hot` route converts. No bluff snap without a ghost and a hot route rolls the read, and no Stem-worn bluff rolls. The hot-route share over all bluff snaps is reported beside it. Reason: nobody is kept in unless `/keep-in` is named (3.4's block, entry 9, line 1789), and on a bluff a slide check would move nobody (line 820). So trigger (b) rolls a bluff only where the pictures decide differently, which needs a ghost and a hot route (`preSnap.ts:359-360`). A Stem shows no ghost (line 584).
+5. **§4.5 Bluff, bitten (line 822).** Filed: "completion on hot throws down, interceptions on hot throws up". Reads: on bitten bluff snaps on the bench, per snap, completions fall and interceptions rise, v7 against `v7/front-0`, each by the sign rule (lines 2023-2026), in completions and interceptions a hundred snaps. Attempts a hundred snaps and throws to a converted receiver are reported beside them, and the per-attempt rates are printed without a verdict. Reason: on the same snaps undisguised nothing is thrown hot, because the read does not roll there. And the bench keeps only n, Σ and Σ² of each per-snap difference, so a per-attempt ratio has no paired SE there; 3.4 printed its bench completion rate without one (line 2179).
+6. **§4.5 Bluff, bitten (line 823), with 3.4's block, entry 3 (line 1783).** Filed: "sack as §4.1"; entry 3: "up for the slants and the shallow cross (28a's filter, line 1242); undetermined for Sit and Swing". Reads: Δsack > 0 by the sign rule on bitten bluff snaps whose converted route is a Slant or the Shallow Cross. Sit, Swing, the Out and conversions by designation alone are reported as undetermined. PR #13 rewrote the read orders of Mills (hot Slant) and Two-Minute Sail (hot Out) and moved Flood's designated hot from the FB to the RB, so 28a's per-route rows (lines 1406-1422) are re-taken from the bench's v7 − `v7/front-0` pairs, keyed by converted route, as information.
+7. **§4.5 Guard (line 834).** Filed: "any `int_rate` rise of 2 SE or more must sit at least 80% on bitten, hot-converted snaps". Reads: if game-level Δint/att (v7 − v6, sets A + B, 26,880 games) is +2 paired per-game SE or more, at least 80% of the bench's paired Δinterceptions against `v7/front-0` (keyed on the disguised arm's snap) must fall on bitten snaps where the disguised arm's hot conversions differ from `v7/front-0`'s. The 80% is tested with its sampling error, by the rule filed with 3.5's scoring rules before any arm. Reason: game-level arms part after their first changed snap (line 180), so a game-level rise cannot be split by stratum. And on a fooled COUNT snap with a real blitzer both arms convert (`pressureRead.ts:166-170`), so a stratum read off v7's conversions alone would credit the slide's interceptions to the hot route.
+8. **`releaseListed` (line 173), with §4.5 (line 825).** Filed: "the call lists a released check-release man with no hot spec". Reads: read off the card: the card's `protection.checkRelease` lists a role whose man is on the field running a route with no hot spec. Reason: no v7 call lists one unless `/keep-in` is named (3.4's block, entry 9, line 1789), so the literal reading is empty. Entry 10 of that block (line 1790) and 3.4's harness already read it off the card. This is a reading, not a change of population.
+9. **§4.5 (line 830) and `r2Expected` (line 174).** Filed: "on a SLIDE call stating `slideCheck`". Reads: on v5–v7 every SLIDE call states `slideCheck` unless `/no-slide-check` is named, so the clause reads "on a SLIDE call". No 3.5 arm names `/no-slide-check` (3.4's `slideCheckMissing` read 0 on every arm, line 2062).
+
+**Not re-filed, and why.**
+- Line 811 is exact as filed once `disguisedDropbacksByMask` is keyed by coverage-look ids (§1 "3.5", calibration).
+- Lines 814 and 832 filed no observed tolerance. 3.5's scoring rules give them one, which is a scoring rule, not a re-filing.
+- Lines 816, 820, 733 and 826-830 are scored as filed, or as 3.4's block, entries 5 and 9-14, already re-filed them (lines 1785, 1789-1794).
+
+### 3.5, filed before any arm *(2026-10-22; CHOSEN)*
+
+**Why.** 3.5's arms are scored by the rules below, filed in git before the first arm runs, as §4's figures were (lines 201, 710) and as 3.4's rules were (line 1798). A failed prediction is recorded as measured, and never re-labelled (line 737). 3.5 needs rules the ADR never filed: a width for line 814's rates and line 832's aggregate, R2's scoring form on the bench, and the guards. It also fixes readings the build had to choose. The block above re-filed the claims PR #13 made stale or that cannot be scored as written (lines 2365-2391); this block files how each claim is scored.
+
+**Where it sits, and why before D.**
+- It follows the block above. As there, no line is inserted into §1–§9, and the Status line (line 6), edited in place, names this block. Line numbers below are this file's, and nothing above this block moved.
+- It is committed before the dry run D of the default move. D runs the sack ladders and the baseline tool under the flipped default, so it sees v7 outcomes. This block's rules, its triggers and its "what does not count" list are in git before any of them is seen (lines 201, 710, 737, 1800). If D forces a code change, this block gets a dated amendment under its heading and D is repeated.
+- The block holds, in this order: the 3.5 mechanics as built (rule 16, first because every other rule reads them); the arms and the identity grammar (rule 1); the scoring rules (rules 2–15, then 19 and 20); the alternate-card triggers (rule 17); the ladder re-record rule (rule 18); then the checks that must read 0 and their floors, the stop rules, the tools that compute them, and the dated amendments. The rule numbers are the build plan's, kept so that every later stage's cite reads; rules 19 and 20 are scoring rules and sit with them.
+
+**How to read it.**
+- **Labels.** "Rule n" is this block's. "Plan point n" is open point n of 3.5's build plan, cited where this block takes its recommended default; this ADR's own Q1–Q7 (§9) are named as such. "Decision n" with a line cite is this ADR's own Decision n, the owner's rulings 1–7 on §9 (lines 1143-1156). Otherwise "decision n" (capitalised only at the head of a sentence or a bullet) is one of the Orchestrator's binding decisions on the plan's rechecks: 1–10 before the block above, 11–16 on the tools review (2026-10-22 08:20Z), 17–18 on the cross-check of this block and the analyzer and on their reviews, 19 on the check of decision 17, and 20 on freezing the analyzer, which amendment 3 below carried out (plan §18 and §18b; decision 17 is dated 2026-10-22 13:30Z and decision 19 14:20Z; decision 20 carries no time). P-D1 to P-D5 are the closing commit C7's proofs (the build plan's §12: the named callers unmoved, the old default by name, the two-way flip, the commands by name, the gates). E1 is the Save and load plan's edit that makes a save record its play-caller, which waits for the owner's typed yes in that thread. CE is the contracts-edit text the owner approved (`/mnt/project-files/design/ADR-073-step-six-contracts-edits.md`). W is 3.5's write-up and W2 its results note; D is the dry run of the move; C7 and C8 are the closing commits.
+- **Code** is cited at `67552bc`, the build's head: C1 `4abd0b3`, C2 `6ba0316` (with the five contracts edits), C2e `144ab05`, C3 `1de2be3`, C4 `45957bc`, C5 `f876a5b`, C6 `53832cd`, and the review fixes `67552bc`. The block above is `c257270`. Playbook files are in `packages/playbook/src/` and the caller's in `packages/calibration/src/caller/`; every other source file is cited by its repository path where it is first cited; tests go by file name. The default caller is still v4 at `67552bc` (`DEFAULT_CALLER_VERSION`, `anticipate.ts:224`).
+- **The trees.** B35 is `c257270`, whose packages are 94ea150's. The references are taken there, from a clean worktree, while the build commits were written in the main checkout (decision 10); timing from overlapping runs is not used for the cost model. HEAD35 is this block's commit, where the K-runs run. C7 is the closing commit.
+- **The tools** are scratch, shared with W, and named here so that a rule can name its counter: the harness H35 (`adr073Arm35.test.ts`, a copy of 3.4's H34 with append-only keys, defined in `KEYS35.md`), `run35.sh`, `guard35.py`, `proof35.py`, `drive35.sh`, `r0-35.sh`, `freeze35.sh`, `expected35.py`, the lists in `declare/`, and the analyzer `adr073-analyze35.py`, which joins the freeze by a dated amendment (it was not written at the freeze). Every tool and list is hashed into `FROZEN35.sha256`. The freeze in force when this block was committed holds 16 files (written 2026-10-22T14:58:40Z; H35 `c6733c30…`, `expected35.py` `a979eeb6…`); the dated amendments below say what each rewrite changed. `fill35.py`, which renders this block's figures from `expected35`'s output, writes text only and is outside the freeze (sha256 `d26427f8ff4b…`).
+- **The runs.**
+  - At B35: N0-base (the checker, smokes and timing); R0 (v6 on H34, set A); R3 (v6, set A, dropback and game records); R1 (v4, set A, game records); R2v5 (v5, set A, game records); R4 (v4, set B, game records); R5 (v6, set B, dropback and game records); and expected35 on R3 and R5.
+  - At HEAD35: N0-head; K1 (v4), K2 (v5), K3 (v6), K4 (front0), K4z (v7 at rate 0, decision 11), K5 (mug), K6 (stem) and K7 (v7) on set A; K9 (v7), K10 (mug), K11 (stem), K12 (v6) and K13 (v4) on set B; the benches K8 (R3's records, six arms), K8f (R3's records, front0 and v7f) and K8b (R5's records, front0 and v7f); K14 and K15 (aware-v6 and aware-v7) and K16 and K17 (d20-v6 and d20-v7) on set A. `drive35.sh` runs them in the build plan's §8 order, with K4z after K4 (decision 11): N0-head, K4, K4z, K3, K1, K7, K8, K8f, K5, K6, K2, K9, K8b, K10, K11, K14, K15, K16, K17, K12, K13.
+  - At C7: CL1 (v4), CL2 (v7) and CL3 (the default) on set A.
+  - Set A is `adr-073:front-arm` × 240 rounds (6,720 games) and set B is `adr-073:front-arm-2` × 720 rounds (20,160), as in 3.4 (line 2097). Every run plays the flat league at leash 50, except the aware and d20 arms.
+- **The expected values are COMPUTED for this block, before any arm,** by `expected35.py` (sha256 `a979eeb6…`) from R3's and R5's shards: 6,720 and 20,160 games of v6 at tree `c257270`, tunables `fnv1a:395a9ae2`, 593,157 and 1,778,688 dropbacks, 3,759,690 defensive calls over both sets. Its output, `expected35-amend2.json` (sha256 `62bb9b24678f…`), passed 170 consistency checks with 0 failed. Each COMPUTED figure below is a key of that file: `fill35.py` renders this block from it, checks that the file was written by the frozen `expected35.py` from R3's and R5's shards as they stand, and lists every key it read.
+  - **Why it is not the B35 drive's own expected35 output.** The drive's expected35 step (STEP PASS) ran the tool frozen before amendment 2 below (`8ab08b59…`; its file, sha256 `51c95595fcbc…`, passed 162 checks), which does not print the aware cells of rule 6 (decision 15). So the tool as amendment 2 froze it, named above, was re-run on the same shards with the drive's own arguments. `fill35.py` renders this block's value placeholders from both files: of its 262 distinct value placeholders it compares 256 and finds them alike, and the other 6, the tool's own sha256, the check count and the four aware cells, are not compared.
+  - It evaluates the dice analytically over v6's own calls, through H35's restatement of §2.5's pictures (the tables after rule 18). No die is thrown.
+  - **Bench figures are exact in expectation,** because the benches replay R3's and R5's dropbacks. **Game-level figures are previews:** a game-level arm's calls part from v6's after its first worn snap (line 180), so rule 5 scores each arm against its own legal calls.
+  - They replace the build plan's previews, which were INFERRED from its maps.
+- No number in this block was measured by a 3.5 arm. R3 and R5 are v6 references at B35. The only v7 figures here are the build's suite and scratch counts in rule 16: wear counts and the look mix on 3 to 20 games, counts of looks applied and drawn through the playbook and `simulatePlay`, and stream-equality counts on 6 and 12 games. They are labelled as such and are not filed predictions. None is a sack, exit, pressure, completion, interception or yards figure, and none comes from an arm or from D.
+- A rule that proves impossible to compute as written is amended by a dated note under this heading, and recorded as a departure in W (line 1587's convention, as 3.4 did at lines 2079-2084).
+
+**16. The 3.5 mechanics as built** *(CHOSEN)*. Each item reads §2.5's text (lines 562-587) one way, or departs from it. W cites this list; it does not introduce these choices for the first time. C8's note files the closing-time departures.
+- **The module** (`frontLooks.ts`) exports `FrontLookId`, `FRONT_LOOKS` (the Mug, then the Stem, :85), `frontLookTag`, `isFrontLookTag`, `FrontLookOption`, `legalFrontLooks` (:214), `FrontLookDraw`, `drawFrontLook` (:282), `shownRushDiffers` (:313), `validateFrontLook` (:349), `assertValidFrontLook` (:417) and `applyFrontLook` (:562). Its picture builders (`mugPicture`, `stemPicture`, `menOf`, `fitOf`, `alignmentOfGap`) are not exported. `checkShownRush` is test support in `packages/playbook/test/fixtures.ts`.
+- **The rate.** `FRONT_LOOK_RATE = 0.1` is in `distribution.ts:254`, not in `frontLooks.ts`. It is CHOSEN with provenance NONE: the owner's 1 in 10 (Decision 5, line 1151; this ADR's Q5(a)). It is not a tunable. `drawFrontLook` takes the rate as an argument that defaults to it, and the caller passes it explicitly (`frozen.ts:822`). No suite test pins the explicit pass: a mutation that drops it passes the suite, because play is identical. It is what lets H35's module mock reach the draw (rule 1's v7f), so N0-head's v7f proof guards it (C3's scratch check: with the mock, 382 of 411 calls wore a look, 0.929; without it, 40 of 416, 0.096; with the mock and the explicit pass removed, 40 of 416, 0.096).
+- **The dice.** Each is one `weightedPick` on a child of the Rng given; the caller passes `snapRng.fork("defense-front")` (line 571).
+  - `wears` is a yes/no pick over `[true, false]` with weights rate and 1 − rate. It is thrown only if a look in the catalogue is legal on the called card.
+  - `which` has equal weight over the remaining options in `FRONT_LOOKS` order, thrown only if both remain.
+  - `stem-side` has equal weights. Line 571 names the die but not its weights. It is thrown only for a Stem over a balanced card with both sides legal. Line 571 says "only for a Stem over a balanced played rush"; the gate stops a die from picking an illegal side. On today's book every balanced Stem-legal card has both sides legal, so the gate changes no die. A balanced card with one legal side gets that side with no die, and an unbalanced card writes no `side`.
+  - **Run calls wear looks too, and are counted,** because the draw comes before the concept (`frozen.ts:822`, before the concept loop at :847).
+- **The catalogue narrows before `wears` and keeps the rate,** as `coverageMasks` does (plan point 1): `[]` throws no die. A catalogue that is not `FRONT_LOOKS` or an in-order part of it (reversed, repeated or unknown), or a rate outside [0, 1] or not finite, is refused before any die (`drawFrontLook`, :288-291). The build plan named neither refusal; plan point 3 files the first.
+- **Legality as built** (`legalFrontLooks`).
+  - No look on PREVENT or GOAL_LINE (`NO_FRONT_LOOK`, :109).
+  - The walked-up backers are LB_M in Dime and LB_W and LB_M otherwise (:111-114). LB_S never is.
+  - A MAN duty counts as dropping at card level. Strength is counted over every RUSH duty.
+  - The one-spot rule checks each shifted lineman against every other shown rusher: the shifted linemen at their new spots and the off-line rushers at their played spots. The clamp keeps an end lineman in place, and a lineman shifted onto him is a one-spot refusal (plan point 55).
+  - R25 at card level is `shows` on any man the look moves.
+- **On today's book** (C1, pinned by name in `frontLooks.test.ts`).
+  - Over `COMPOSED`'s 26 compositions with no line game: the Mug is legal on 21 and the Stem on 16. Both sides on 14; LEFT only on Smoke over Sky; RIGHT only on Dime Smoke. Mug only on Fire over Sky, the three Creeper calls and Fire over Base Cover 1. Neither on Double A, Zero, Prevent and both goal-line calls.
+  - Over the 22 book cards: 13 take both, with `/stem-side`; `DEF_NICKEL_COVER_3_PRESSURE` the Mug and the Stem LEFT only; `DEF_DIME_MAN_BLITZ` the Mug and the Stem RIGHT only; `DEF_NICKEL_FIRE_ZONE` and `DEF_BASE_RUN_BLITZ` the Mug only; 5 neither.
+  - Wearing a coverage look as well changes no answer (C5).
+  - Stem-legal is a subset of Mug-legal on today's book: no composition and no card takes the Stem alone (and C3's T2 found Stem-legal and not Mug-legal on 0 of 568 snaps). So `/wears` is thrown on the same calls with the same value on v7, mug and stem (rule 4's narrowing equalities).
+- **`applyFrontLook(defense, draw)`** (:562-591) is applied to the real `defense` after `instantiateDefense` (line 566).
+  - It refuses a call that already carries a second list or a front tag (R21), and a draw for another card: the draw carries the called card's id.
+  - R25 at instance level: the Mug moves every walked-up backer on the field and the dropping linemen; the Stem moves the rushing linemen.
+  - **`shownRush` holds the played entries first, in `rush` order, then the ghosts in `dutyList` order.**
+  - **The Mug is option A** (line 574 as written). A rushing walked-up backer is re-spotted to the A gap, INTERIOR, on his own side, and kept verbatim if he is already there. Each ghost is at his SECOND-level fit: a dropping down lineman at his run fit's gap and side, with the alignment from the gap; a dropping walked-up backer at the A gap, INTERIOR, on his run fit's side. Revision 1 of the plan chose otherwise, so it is listed.
+  - **The Stem** reads `RushAssignment.gap` on the instantiated rush and moves each rushing down lineman one spot toward X, where X is the instance's strength, else `draw.side`. A clamped lineman stays verbatim. The one-spot rule is re-run on the instance.
+  - **A formation-illegal look returns `defense` itself** and is counted as `formationDropped` (line 566's rule): the Mug with no dropper; the Stem with fewer than three linemen rushing, or one dropping; a balanced instance with no drawn side; a one-spot clash. The one-spot refusal at instance level wears none and never throws. None occurs on today's book: 4,128 of 4,128 applications in the build's tests are worn, and 0 of C5's 344 census draws dropped.
+  - The output is self-checked by R28.
+- **R28 as built** (`validateFrontLook`; codes at :335-342, all ERROR): `C_FRONT_LOOK_TWICE`, `C_FRONT_LOOK_UNNAMED`, `C_FRONT_LOOK_UNWORN`, `C_FRONT_LOOK_NAME`, `C_FRONT_LOOK_ORDER` and `C_SHOWN_ALIGNMENT_OMITTED`. R28 refuses an omitted alignment on either list, because playbook cannot resolve one; the check applies only under a second list. A tagged, permuted copy passes by the rule's wording; order is pinned by C2's tests and C5's echo partition.
+- **The coverage looks' refusal of a look that moves a rusher** (`masks.ts:478-480`) now reads "… who rushes — a coverage look never moves a rusher; a shown rush is a front look's (`applyFrontLook`, ADR-073 §2.5)". No test pins it.
+- **The caller (C3).**
+  - The spec and knob field is `frontLooks?: readonly FrontLookId[]` (`frozen.ts:389`). The profile field is `fronts`, and `SnapPlan.fronts` is the same. `ResolvedSnap` gains `frontDraw` and `frontWorn`.
+  - The diagnostics are `FrozenCallerDiagnostics.frontLooks = { drawn, formationDropped }` (`frozen.ts:303`), counted in `callOffense` and merged in `mergeCallerDiagnostics` (`packages/calibration/src/harness/batch.ts:151`). The merge sums `drawn` with its keys sorted by `localeCompare` (:161), so a merged count does not depend on which side comes first; `backoff` still merges in insertion order, which is older than 3.5 and was not changed.
+  - `frontLooks` is refused below v7 for every value (`frozen.ts:949-953`). On v7 a list that is not `FRONT_LOOKS` or an in-order part of it is refused by the pair (:955-956) and by `callerIdentity` (`frontMark` throws), so an identity can never name a list the pair refuses. The option and part refusal messages name "v5 to v7" and "v6 and v7".
+- **`front_look_rate` compares entry by entry** (line 389; C4). A dropback counts when `shownRushDiffers(PLAY_START.defense.rush, PLAY_START.defense.shownRush)` holds: rusher, side, alignment and gap; `move` never read; a side or gap stated on one list and omitted on the other is no difference. Runs are not counted, and a stream without `shownRush` counts nothing. The mix is keyed by the front LOOK ids among PLAY_START's tags, `+`-joined, or `UNNAMED`. H35 cross-checks the count by rusher (`frontLookRateMismatch`, the tables after rule 17).
+  - The metric ids are `front_look_rate` and `front_look_mix`, sim-only in tier 1 with an infinite band (`packages/calibration/src/metrics/tier1.ts:900`, :928). They are metric ids only. **The accumulator fields are `accumulator.play.frontLookDropbacks`** (a count) **and `accumulator.play.frontLookDropbacksByLook`** (keyed `MUG`, `STEM` or `UNNAMED`) (`packages/calibration/src/metrics/collect.ts:319`, :325), blanked to `0` and `{}`. A shard writes them under `/accFull/play/`.
+  - `disguisedDropbacksByMask` joins coverage-look ids only. On v4–v6 no key changed (the pins' batch rows), and on v7 the split equals v6's exactly.
+  - The structural bound now reads "hot conversions ≤ dropbacks whose `blitz_recognition` PRESNAP_READ rolled", per play and in aggregate.
+- **The contracts wording is CE's,** which departs from A §3 in D4's colon (CE:40, against line 682's dash) and D6's "A physics reader appears" (CE:50-53, beyond line 684). D2's sentence is its own paragraph. The five edits were made in C2 on the owner's typed yes (Status). contracts-guardian reviewed C2's contracts diff as its own agent and approved it (0 blocking, 0 should-fix, 1 nit; `build35/review-contracts.md`); C2's own read-through was the builder's. D2a, D2b and D11, three further contracts wording fixes offered to the owner with one optional typed yes, remain the optional re-ask, which W records if no yes comes: their reach is 37 of 80 front-look calls (6 v7 games, 826 PLAY_STARTs; that review's nit 1).
+- **Added in revision 2 of the plan, with their reasons:**
+  - **C2e edits five comments, where 3.5's row says "Engine: nothing" (line 394):** four in `packages/engine/src` (`types.ts:449-450`, :461-467 and :478-483, and `resolve/rushThreat.ts:356-362`, as they stood at `6ba0316`) and one test header (`packages/engine/test/shownRush.test.ts:4-6`; decision 5). Each went false under a worn look or named the pin C2 deletes. No engine code changed; the engine suite is unchanged at 995 passed and 1 skipped.
+  - **C6's caller stamps are not in §1's 3.5 row (lines 377-413).** They make files truthful across the move and move no stream (decision 4):
+    - the export stamp: `GameFile.callerVersion` is the resolved `CallerVersion`, never "default" (`packages/calibration/src/export/gameFile.ts:49`). The file name still carries only a version named on the command line;
+    - the sack-ladder report's caller line: `LadderRung.callerVersion` holds `provenance.callerVersion`, and the report's `reproduce:` line ends `, caller "<it>"`;
+    - the tier-1 divergence clause, which now reads "frozen caller: protection is built against an ANTICIPATED front and misses some rushers (ADR-024; how many is this report's own unaccounted_rusher_rate) — biases this UP, by 1.54pp when ADR-024 measured it";
+    - the band-table corpus, which now passes and records its caller (`CorpusObservation.callerVersion` is `callerIdentity(DEFAULT_CALLER_VERSION, FROZEN_TENDENCIES.version)`, and `runCorpus` passes that version to `runOneGame` explicitly), and its gate, which prints it;
+    - the three sweep headers, which print the caller (each sweep has a `CALLER_VERSION` constant equal to `DEFAULT_CALLER_VERSION`);
+    - the pocket ladder's rungs and report, which carry the caller (`PocketLadderRung.callerVersion`), and its reworded `hypothesis` record.
+    - Only `pressureSweep`'s header is not shown, because that sweep is spent. C6's new tests follow `DEFAULT_CALLER_VERSION`, and a scratch v7 flip showed they pass unedited, so they need no change at the move.
+  - **`/stem-side`'s gate and the balanced instance with no side** (the dice and `applyFrontLook` above).
+  - **The Mug's option A** (above).
+  - **v7f, the forced-wear bench arm** (rule 1), and `FRONT_LOOK_RATE` passed explicitly by the caller (above).
+- **Named or built otherwise than the build's text, where a rule reads it:**
+  - C6 moved a pin it did not name: `exportGame.test.ts:54` went from `toBe("default")` to `toBe(DEFAULT_CALLER_VERSION)`, with `GameFile.callerVersion` narrowed from `CallerVersion | "default"`. C6's message says "Pins that move: none."
+  - C5's message says "Seven mutations of frozen.ts were each caught by the new file." One of them, a non-determinism mutant, is caught only when the determinism tests run alone; in the whole-file run earlier tests use up its window. The test does catch it.
+  - C2 deleted the `gapCarryAcross` expiry pin (2027-02-05), discharged by its branch (a). Playbook's suite went 3207 → 3224 at C2, and is 3227 at `67552bc`.
+  - Two stale comments are left for C7: `anticipate.ts`'s "v5 and v6 are opt-in" and `packages/calibration/src/harness/workerPool.ts`'s default note.
+  - **Tests C7 must keep** (P-D3): C4's v7 `it.each` cases in `metrics.test.ts` and `shownAssignmentsStream.test.ts`, and the review fixes' new cases: the harness's "merges the front-look counters by sum, in a sorted key order, whichever side comes first" and "sums a v7 batch's front-look counters over its games, the same on one shard and on five"; metrics' "counts the pressure facts on dropbacks only, never on a run (caller v4, named)"; and `frontLooks.test.ts`'s "compares an alignment as stated: …", "keeps a rushing walked-up backer already in his A gap, INTERIOR, where he is: …" and "shows each Mug ghost on his own run fit's side, not his role's". T2 and the band-table test gained assertions; no existing assertion was removed or loosened.
+- **The suite's v7 proofs, by name** (C5, `callerV7Stream.test.ts` and `protectionOptionsSmoke.test.ts`): "v7/front-0 plays v6's game" (both leashes, five settings); its non-vacuity test, which asks the two Mug arms to differ from v6 past PLAY_START's echo; the echo partition (four arms); determinism (two leashes, four arms); and "every composed call, wearing each front look legal on it, plays through the engine".
+- **Measured in the build, as scratch figures and not filed predictions:**
+  - C3's T2, 4 games and 568 snaps on the two-team fixture: Mug-legal 519, Stem-legal 459; v7 wore 21 Mugs and 19 Stems; mug wore 40, equal to v7's worn set; stem wore 36; formation-dropped 0.
+  - C4, 20 v7 games: `front_look_rate` 169 of 1,783 dropbacks (MUG 94, STEM 75); every front-tagged PLAY_START (263) was a drawn look.
+  - C5's corpus, 6 games at leash 50: worn plays (pass + run) 45 + 23 on v7 (MUG 38, STEM 30), 45 + 23 on mug, 43 + 22 on stem and 0 on front0; ghosts 70, 128, 0 and 0. Stem-only equals v6 on all 6 games once PLAY_START's `defense.shownRush` and `defense.tags` are removed, which is line 812's thinness on 6 games; v7 parts from v6 past the echo on 5 of 6 games and mug on 6 of 6.
+  - C5's census: 134 of 144 `COMPOSED` entries can wear a look; 344 draws (Mug 134; Stem 14 with no side and 98 toward each side); 9,632 worn dropbacks and 5,504 worn runs through `simulatePlay` with no throw; 0 formation drops.
+- **The pins.** The base is `pins-base35.jsonl` (sha256 `022b7392b802b8c8…`), 288 game rows, 3 batch rows and 1 meta row captured at `c257270` in the clean worktree: stream rows `adr-073:pin35`, 12 games a spec on the 8-team flat league; batch rows the same seeds, 6 games on the 4-team league. Every build head's base rows equal it. The v7 pin base is `pins-v7base35.jsonl` (sha256 `994761d9…0bc3d86`, 84 v7 game rows and 1 v7 batch row), frozen at C5 and byte-identical to C4's, so the v7 stream has not changed since C3 and its batch row not since C4's re-keying. C3's pins (`pins-c3.jsonl`, sha256 `04abd0af…`) kept the base rows and joined the v7 set: `v7/front-0` ≡ v6 on 12 of 12 games, and the v7 batch drew MUG 43 and STEM 34 in 6 games. Later pin runs pass C4's two fields through `PIN35_EXTRAS`, and `PIN35_DEFAULT=v7` at C7 and C8. The review fixes (`67552bc`) touched six paths, one of them source (`packages/calibration/src/harness/batch.ts`, the sorted merge above) and five tests (`bandTableGate.test.ts`, `caller.test.ts`, `harness.test.ts`, `metrics.test.ts` and `frontLooks.test.ts`); their pins equal the v7 pin base byte for byte. The suites at `67552bc`: playbook 3227 passed; engine 995 passed and 1 skipped; calibration 721 passed and 74 skipped (695 at C3, 706 at C4, 716 at C5 and 718 at C6, each with 74 skipped). From C4 the declared batch extras are `accumulator.play.frontLookDropbacks:zero` and `accumulator.play.frontLookDropbacksByLook:zero`, beside C3's `caller.frontLooks`.
+
+**1. The arms and their comparisons.**
+
+| arm | identity | front looks | compared with | runs |
+|---|---|---|---|---|
+| v6 | `v6` | none | the base | R3, R5 (references); K3, K12; the bench base |
+| front0 | `v7/front-0` | none; no die thrown | v6, exactly (rule 3) | K4; bench |
+| v7 at rate 0 | `v7`, `FRONT_LOOK_RATE` mocked to 0 | none; the die thrown, answering no | v6, exactly (rule 3) | K4z; N0-head |
+| mug | `v7/front-MUG` | the Mug, narrowed | front0 | K5, K10; bench |
+| stem | `v7/front-STEM` | the Stem, narrowed | front0 | K6, K11; bench |
+| v7 | `v7` | both | front0 per snap; v6 at game level; v4 for the drift | K7, K9; bench |
+| v4 | `v4` | none | v7, for the drift | R1, R4; K1, K13; bench |
+| v5 | `v5` | none | by name only | R2v5; K2 |
+| v7nc | `v7/creeper-0` | both | v7: the huddle's guessed creeper | bench only |
+| v7f | `v7`, `FRONT_LOOK_RATE` mocked to 1 in its own bench process | both, on every legal call | front0 per snap; v7 on v7's worn snaps, exactly | K8f, K8b (bench only) |
+| aware-v6, aware-v7 | `v6` and `v7` on the Awareness league | none on aware-v6; both on aware-v7 | each other | K14, K15 |
+| d20-v6, d20-v7 | `v6/leash-20` and `v7/leash-20` on the Discipline-20 league | none on d20-v6; both on d20-v7 | each other | K16, K17 |
+
+- **Narrowing.** `/front-MUG` and `/front-STEM` filter the catalogue before `/wears` and keep the rate (rule 16). Every die on a snap has the same value in every arm, so rule 4's narrowing equalities follow.
+- **At game level, v7 − v6 is v7 − front0,** because rule 3 proves front0's games are v6's.
+- **v7f, the forced-wear arm.** It plays under v7's name, but it is not a caller anyone ships. It exists only on the bench, its shards say `frontLookRateMock: 1` in their header, and it is never a game reference. `/wears` is a separate fork, and a two-item pick with weights 1 and 0 always says yes (`weightedPick`, `distribution.ts:99`; `frontLooks.ts`'s `yes`, :252-254). So on every snap v7f wears whenever a look is legal, and it draws the same `/which` and `/stem-side` dice as v7. On v7's worn snaps it is v7, which rule 4 item 15 checks exactly. The wear die is independent of the snap, so the per-snap effect on any population defined by the snap and the worn call is the same quantity on both arms. v7f sees it on about 10 times the snaps.
+- **The rate-0 control** (decision 11) is never a reference and never scored. H35 accepts `ARM_FRONT_RATE_MOCK=0` in game mode for it alone. It holds the whole unworn path (the die thrown and answering no), runs included, at full scale, which the `--expect worn` lines (K5–K7) cannot, because almost every v7 game wears a look.
+
+**The identity grammar** *(rule 1's note)*. It reads line 625's list as the code's (`callerIdentity`, `frozen.ts:423-447`); line 625 is not edited.
+- The marks, in order: `/no-slide-check`, `/keep-in`, `/creeper-0`, `/pressures-bound`, `/lines-bound`, then one of `/front-0`, `/front-MUG` or `/front-STEM` (`frontMark`, :461), then `/leash-N` last. A knob at its default is unmarked, so the full catalogue is unmarked.
+- There is no `/no-keep-in` (`frozen.ts:430`): that was the mark of v5's first build.
+- A pair's name is `frozen-` and the identity with the tables' version, as in `frozen-v7/v1/front-MUG`.
+
+**The scoring rules.**
+
+2. **Reproduction by name** (line 2305, as the block above re-files it, entry 1), exact.
+   - v4: K1's 6,720 game sha256s and event counts equal R1's, and K13's 20,160 equal R4's. v5: K2's equal R2v5's. v6: K3's equal R3's, and K12's equal R5's.
+   - Each also equals its reference number for number, one way: every reference leaf, less `/seconds` and `/secondsSetup`, which are timing fields. HEAD35's added keys are declared from the line's list (`declare/tree-B35-HEAD35.game.txt`, which names C4's fields since the tools' fix step): `pb35` and C4's two fields, `/accFull/play/frontLookDropbacks` and `/accFull/play/frontLookDropbacksByLook`, the latter two required on every shard and expected at 0 and `{}` on v4–v6 (`proof35.py --c4-zero`).
+   - The pins hold at every head (rule 16), and the bench base v6 replays every R3 and R5 record (`selfOk` equals the record count).
+
+3. **The front0 proof** (line 810, as the block above re-files it, entry 1), exact.
+   - K4's 6,720 game sha256s and event counts equal R3's.
+   - K4's numbers equal K3's both ways, with only the label fields, `/seconds` and `/secondsSetup` set aside, and the two write the same key set (`--keys-equal`).
+   - On the bench, `/front0Exact`'s `notIdentical` (rule 4 item 1) is 0 on every R3 record (K8 and K8f) and every R5 record (K8b).
+   - **The rate-0 control** (decision 11). N0-head's 2-round `v7` smoke with the mock at 0 equals the 2-round v6 smoke both ways, with the labels, timing fields, `pb35`, C4's two fields and `frontLookRateMock` aside. K4z (`v7`, set A, game records, mock 0) has 6,720 game sha256s equal to R3's (cross-tree, `--games-vs`).
+   - In the suite: "v7/front-0 plays v6's game" (rule 16).
+
+4. **The exact claims on the bench.** Items 1–14, with 7b, must read 0 on every snap: item 1 for front0 on every bench, and the rest for each disguised arm against front0, that is mug, stem and v7 on K8, and v7f on K8f and K8b. v7nc and v4 are not held to them, because their calls differ from front0's by design (v7nc draws no creeper in the call or in the huddle's guess); v7nc is compared with v7 only (rule 14). Item 15 compares K8 with K8f, and its `forcedUnwornLegal` half also runs on K8b. The narrowing equalities and the decomposition are set-A claims (K8), because only K8 has mug and stem.
+   - **Every counter carries its checked count,** which must be above 0 on each arm where its population exists by construction, as `guard35.py` floors them: on the arms that wear the Mug, the Mug's items, which are 7b, item 12's `bittenBluffNotConverted` and `bluffRolledWithoutGhostAndHot`, and item 13's LOOK half (it needs a ghost, which a Stem never shows); on the arms that wear the Stem, the Stem's items, which are item 8's Stem half, item 9 and `stemBluffRolled` (its checked count is `bluffChecked` on stem and `bluffRolledChecked` where the Mug is also worn); and every other item on every disguised arm, item 12's `bluffSlideCheck` (whose population, worn snaps that are not `short`, exists on every disguised arm) and item 13's COUNT half included. Item 8's Mug half has no floor, and its checked count is reported: a Mug with no ghost needs the huddle's protection to name every shown man who drops (ghosts are shown men "not in R and not in N", `packages/engine/src/sim/pressureRead.ts:12`, :131), so its population does not exist by construction.
+   1. `/front0Exact`'s `notIdentical`: front0's stream equals the base's.
+   2. `offenseDiffer`: the disguised arm's offence call equals front0's. The huddle cannot see a look (line 565).
+   3. `defenseDiffExceptLook`: its defence call equals front0's once `shownRush` and the front LOOK tag are removed. This is line 811's "`disguise_rate` and `disguise_mask_mix` unchanged per snap", with R7's unstamped disguise (line 569).
+   4. `unwornNotIdentical`: where the arm wears no look, its stream equals front0's.
+   5. `shortDiffer`: `short` is the same on both arms, because the look moves no played rusher and the huddle's names do not change.
+   6. `bandDiffWhereBothRoll`: where both arms roll, the roll's total, target and band are equal. They roll the same fork, and the target is 50 plus the call's own disguise row (line 569).
+   7. `wornTrueCallNotIdentical`: on worn ∩ `short` snaps read TRUE or CALL, the streams differ only in `shownRush` and the tag. Both arms roll there under trigger (a), TRUE answers the extras where they play, and CALL answers nobody (`pressureRead.ts:161-176`).
+   7b. `bluffTrueCallNotIdentical`: on `bluffRolled` snaps read TRUE or CALL, the streams differ only in `shownRush`, the tag, the disguised arm's PRESNAP_READ `blitz_recognition` event and `PLAY_START.offense.pressurePicture` (`{picture, answers: [], placed: []}`). Every other event is equal, `seq` aside, and every outcome difference is 0.
+      - Why: on a Mug bluff `unaccounted` is empty, so front0 does not roll. The disguised arm shows a ghost, so `looked` is true, and with a hot route the pictures do not decide alike, so it rolls (`packages/engine/src/sim/preSnap.ts:337`, :359-360).
+      - On TRUE or CALL nothing is answered, no hot route converts (`preSnap.ts:382-383`), nothing is wanted (`pressureRead.ts:246-279`) and no leash is rolled (`packages/engine/src/sim/passPlay.ts:412-418`). `recognized` reaches only contested pickups (`preSnap.ts:500-505`), and a bluff has none. Every die is forked by label, so the extra roll moves no other die.
+   8. `mugInertNotIdentical` and `stemInertNotIdentical`: a Mug with no ghost, or a Stem with no moved man, changes only `shownRush` and the tag.
+   9. `stemAddsRoll` and `stemDiffOffLive`: the block above, entry 3.
+   10. `fooledDiffWithoutDecision`: on fooled snaps every outcome difference comes with a decision difference, in the hot conversions or in the slide side. A third channel, a named dropper shown by the Mug, shrinks COUNT's and LOOK's perceived pool, which reaches only the keep-in's need (`pressureRead.ts:246-257`); no v7 call states a keep-in, so it should change no decision (INFERRED). This check counts it if it does.
+   11. `keptInMen`: 0 on every arm that does not name `/keep-in` (line 1789).
+   12. The bluffs (the block above, entry 4): `bluffSlideCheck` (line 820); `bittenBluffNotConverted`; `bluffRolledWithoutGhostAndHot`; `stemBluffRolled`.
+   13. `lookHotMismatch`: on a fooled real-pressure snap pictured LOOK with a ghost and a hot route, the hot converts on the disguised arm and not on front0; pictured COUNT, it converts on both. This follows from the answer sets (`preSnap.ts:382-383`), and is INFERRED until the bench counts it.
+   14. `countManDiff`: on fooled real-pressure snaps pictured COUNT on a MAN protection, every outcome difference is 0. COUNT answers the extras on both arms, so the hot conversions match (`pressureRead.ts:166-170`). MAN has no slide, and no back is kept in without `/keep-in`. The same holds for fooled LOOK snaps on a MAN protection with no hot route, or no ghost; their counter is `lookManNoHotDiff`.
+   15. `forcedEqV7OnWorn` and `forcedUnwornLegal`. Every v7-worn snap in K8 has the same stream digest in K8f: H35 writes the per-snap list of worn snaps on both, `{i, n, look, side, digest}`, keyed `i:n`. The checked count must equal K8's v7 worn count. And v7f wears on every snap whose called card has a legal look.
+   - In `guard35.py` some items are split into sub-counters, each must-be-0: 7b also counts `bluffTrueCallOutDiff`, item 9 also `stemDropsRoll`, and item 13 is `lookHotLookMismatch`, `lookHotCountMismatch` and `lookHotMismatch`. `stemDiffOffLiveStrict` and item 8's `mugInertChecked` are reported.
+   - **The narrowing equalities (set A, K8):** `narrowMugEqNotIdentical` (v7's Mug snaps equal mug's), `narrowStemEqNotIdentical` (v7's Stem snaps equal stem's), and `wornSetDiffer` (mug wears on exactly v7's worn snaps, and stem on exactly v7's worn snaps whose call is Stem-legal). They hold because Stem-legal is a subset of Mug-legal on today's book (rule 16).
+   - **The decomposition.** Per snap, v7 − front0 = 1[v7 wears the Mug] × (mug − front0) + 1[v7 wears the Stem] × (stem − front0), on every outcome key. `decompResidual` must read 0. v7 − mug − stem + front0 is reported and never read as an interaction: where both looks are legal it equals minus the effect of the look v7 did not choose.
+   - **The runs.** That a worn look changes a run only in its PLAY_START echo stays INFERRED from the import graph (`readPreSnap` is imported only by `passPlay.ts`, and `packages/engine/src/sim/runPlay.ts` only echoes `shownRush`), because no run bench is built (plan point 22). K4z holds the unworn runs exactly (rule 3).
+
+5. **The rates** (line 814), in 3.4's count form (lines 1979-1980). Each count is taken over all defensive calls, runs included, because the dice are thrown on every call that can wear a look (line 571). Sets A and B are pooled per arm (K5 + K10, K6 + K11, K7 + K9). Each arm is scored against its own legal calls; the expected values below are v6's calls (R3 + R5) and are previews at game level.
+   - **The legal-look shares at B35** (the block above, entry 2, which re-reads them from R3), on v6's dropbacks, set A (R3), with A + B (R3 + R5) in brackets: Mug legal 92.12% (92.14%); Stem legal (toward the weak side, either side over a balanced rush) 82.12% (82.12%); both 82.12% (82.12%); the Mug alone 10.00% (10.02%); the Stem alone 0.00% (0.00%); balanced rushes 81.59% (81.57%), the Stem legal to both sides on 73.51% (73.49%). 3.4 filed 92.14%, 82.12% and 81.58% on joint at ccd75bb (lines 2311-2313). The counts below pool A + B, so their expectations use the A + B shares. Over all calls, runs included, A + B: Mug legal 92.40% and Stem legal 82.35% of 3,759,690 calls.
+   - **The counts.** Worn calls against 0.1 × N_legal, with SD √(0.09 N_legal); N_legal counts any-legal calls on v7 (calls on which a look is legal, equal to the Mug-legal calls on today's book, because Stem-legal is a subset of Mug-legal), Mug-legal calls on mug and Stem-legal calls on stem. On v7, Mugs among worn calls where both looks are legal, against ½n with SD √(n/4). On v7 and stem, `/stem-side` LEFT among Stems over a balanced rush, against ½n with SD √(n/4). Expected over v6's calls on A + B (COMPUTED):
+
+     | count | arm | what | n | expected | SD | ±2 SD | ±3 SD | ±10 SD |
+     |---|---|---|---|---|---|---|---|---|
+     | 1 | v7 | worn calls | 3,474,028 | 347,402.8 | 559.2 | [346,284.5, 348,521.1] | [345,725.3, 349,080.3] | [341,811.2, 352,994.4] |
+     | 2 | mug | worn calls | 3,474,028 | 347,402.8 | 559.2 | [346,284.5, 348,521.1] | [345,725.3, 349,080.3] | [341,811.2, 352,994.4] |
+     | 3 | stem | worn calls | 3,096,196 | 309,619.6 | 527.9 | [308,563.8, 310,675.4] | [308,036.0, 311,203.2] | [304,340.8, 314,898.4] |
+     | 4 | v7 | Mugs among worn both-legal calls | 309,619.6 | 154,809.8 | 278.2 | [154,253.4, 155,366.2] | [153,975.1, 155,644.5] | [152,027.6, 157,592.0] |
+     | 5 | v7 | `/stem-side` LEFT over a balanced rush | 138,544.5 | 69,272.2 | 186.1 | [68,900.0, 69,644.4] | [68,713.9, 69,830.5] | [67,411.1, 71,133.3] |
+     | 6 | stem | `/stem-side` LEFT over a balanced rush | 277,088.9 | 138,544.5 | 263.2 | [138,018.1, 139,070.8] | [137,754.9, 139,334.0] | [135,912.5, 141,176.4] |
+
+     Counts 4–6 take n as the expected worn calls of their kind, so their bands are previews twice over: the scored n is the arm's own.
+   - **Verdicts.** Within ±2 SD passes. Outside ±2 SD records a miss, as measured. Beyond 3 SD a miss is a construction miss (rule 17). Beyond 10 SD the guard stops the runs, 3.4's gross stop (lines 2079-2084), filed here before N0.
+   - **Multiplicity** (INFERRED, as decision 3 files it: the normal approximation, computed by `expected35`; by Šidák's inequality each chance below is at most about this, whatever the counts' correlation; the analyzer's report prints the same 3 SD figure under the build plan's wording, "INFERRED, independence assumed"). There are six counts. At 2 SD at most about 24% of correct runs would show at least one miss, which is why 2 SD only records a miss. Beyond 3 SD at most about 1.6% of correct runs would show at least one miss among the six counts, about 1 correct build in 62, and that miss fires rule 17 as Class C, so such a build would get the alternate card recommending "Merge, keep version 4" (decision 3 keeps the 3 SD line). A correct run reaches 10 SD on one count with a chance of about 1.5 × 10⁻²³, and on any of the six about 9.1 × 10⁻²³.
+   - **v7f is outside these counts.** It wears at rate 1 on the bench, so neither the counts nor the 10 SD stop apply to it; its wear law is `forcedUnwornLegal` = 0 (rule 4 item 15). The rate-0 control is outside them too: its law is worn = 0 exactly (the floors after rule 18).
+   - **Reported on dropbacks:** `front_look_rate` per arm against 0.1 × the legal share, and `front_look_mix`, with H35's cross-check of the mix, `pb35.frontLookMixMismatch`, which is reported and stops nothing. The preview over v6's dropbacks (COMPUTED): v7 worn on 9.21% of dropbacks, 55.4% of them Mugs; mug on 9.21%; stem on 8.21%. So "each about half" (line 814) holds only where both looks are legal.
+   - **Exact:** collect's `front_look_rate` count equals H35's on every HEAD35 game shard (`frontLookRateMismatch` 0). `formationDropped` is 0, labelled "no producer on today's book": every legal draw on every `COMPOSED` entry is worn on all 12 formations (C2's test, 4,128 of 4,128 applications; rule 16), and that no MAN fallback in the book is a rush is INFERRED from the build plan's map of the book.
+
+6. **The bite share** (line 816), scored as filed.
+   - The population is rolled reads on Mug-worn dropbacks, by the call's own row: four-man calls, Smoke over Sky and Fire over Base Cover 1 are STANDARD; Fire over Sky and the three Creeper calls are ZONE_BLITZ; Dime Smoke is DELAYED.
+   - The count of COUNT ∪ LOOK is set against Σ p, with p the analytic share computed per snap from that snap's quarterback's and centre's Awareness and the row (line 1311), and SD √Σ p(1 − p). "Within 2 SE" is read as ±2 SD of the count. The filed 26, 41 and 46 (line 816) are printed beside it. It is scored on v7 and mug, over A + B.
+   - **Expected over v6's dropbacks** (COMPUTED over R3 + R5, A + B; previews for the game-level arms, whose own reads are scored):
+
+     | arm | row | rolled reads | analytic share | SD of the count |
+     |---|---|---|---|---|
+     | v7 | STANDARD | 56,748 | 26.0% | 104.5 |
+     | v7 | ZONE_BLITZ | 19,897 | 41.0% | 69.4 |
+     | v7 | DELAYED | 1,484 | 46.0% | 19.2 |
+     | mug | STANDARD | 112,663 | 26.0% | 147.2 |
+     | mug | ZONE_BLITZ | 19,897 | 41.0% | 69.4 |
+     | mug | DELAYED | 2,967 | 46.0% | 27.1 |
+
+   - **The flat league's read on honest snaps, from R3 and R5** (v6, a reference, not an arm): rolled 453,190, 187,733, 25,887 and 44,338 reads on STANDARD, ZONE_BLITZ, DELAYED and ZERO calls; analytic shares 26%, 41%, 46% and 51%; observed 25.9% (z −1.05), 40.9% (z −1.00), 45.9% (z −0.41) and 50.6% (z −1.52). ZERO is not Mug-legal, so its row scores nothing here; it is printed because it is the engine's read that the bite share rests on.
+   - **The aware cells** (decision 15), COMPUTED from §5.3's formula itself, margin = d100 + round(QB Awareness / 5) + round(C Awareness / 5) − 50 on STANDARD, with the band table that maps a margin to a picture (`packages/engine/src/tunables.ts:213-222`, :238-245; `attrMod` rounds, `packages/contracts/src/registry.ts:43-45`), with no aware reference run (expected35's `awareComputed`; its transcription is checked against the flat league's rolled reads at 60/60): the analytic STANDARD bite share is 42% at quarterback and centre Awareness 20/20, 27% at 20/95, 27% at 95/20 and 15% at 95/95, against the flat league's 26%, computed from R3 as decision 15 asks (every flat-league player is rated 60, so every snap's share is the same and the A + B figure above equals it). K14 and K15 measure them, reported by offence cell.
+   - **A miss is recorded as measured, and it is not a trigger** (plan point 52). The band is a property of the engine's read, which 3.5 does not build, and 3.0 already measured DELAYED's bite share at z −3.1 (line 1309).
+
+7. **The bluffs** (the block above, entries 4–6).
+   - Exact: rule 4, item 12.
+   - On bitten bluff snaps on the bench (v7f − front0 per snap, over K8f + K8b, with v7 − front0 on K8 beside it): Δcmp < 0 and Δint > 0 a hundred snaps, each by the sign rule (rule 13). Δatt a hundred snaps and throws to a converted receiver are reported beside them, and the per-attempt rates are printed without a verdict, because the bench keeps only n, Σ and Σ² of each per-snap difference.
+   - Δsack > 0 by the sign rule on bitten bluffs whose converted route is a Slant or the Shallow Cross. Sit, Swing, the Out and designation-only conversions are reported as undetermined.
+   - Per-route rows, as information: v6's hot-route shares on the bench base, and v7 − front0 by converted route (plan point 44).
+   - **Expected sizes** (COMPUTED, expected snaps): `bluffRolled` 410,557 on v7f over A + B and 10,268 on v7 over A; bitten bluffs 108,808 and 2,721; those converted to a Slant or the Shallow Cross 22,070 and 549.
+   - **Minimum detectable effects,** a hundred snaps, independent at 2 and 2.8 SE (rule 13), then paired at the borrowed ratio. Expected35 keeps v6's sacks on each stratum but not its completions or interceptions, so Δcmp's and Δint's are printed at the bound p = ½ and at a labelled proxy, v6's rate per dropback on snaps that are not `short`; neither is the stratum's own p.
+     - Δcmp, v7f over A + B, at the bound, p = ½: 0.43 and 0.60 points at 2 and 2.8 SE (0.23 and 0.32 at the borrowed paired ratio); at the proxy, p = 24.4%: 0.37 and 0.52 points at 2 and 2.8 SE (0.20 and 0.27 at the borrowed paired ratio). v7 over A, at the bound, p = ½: 2.71 and 3.80 points at 2 and 2.8 SE (1.44 and 2.01 at the borrowed paired ratio); at the proxy, p = 24.4%: 2.33 and 3.26 points at 2 and 2.8 SE (1.24 and 1.73 at the borrowed paired ratio).
+     - Δint, v7f over A + B, at the bound, p = ½: 0.43 and 0.60 points at 2 and 2.8 SE (0.23 and 0.32 at the borrowed paired ratio); at the proxy, p = 1.3%: 0.10 and 0.14 points at 2 and 2.8 SE (0.05 and 0.07 at the borrowed paired ratio). v7 over A, at the bound, p = ½: 2.71 and 3.80 points at 2 and 2.8 SE (1.44 and 2.01 at the borrowed paired ratio); at the proxy, p = 1.3%: 0.62 and 0.87 points at 2 and 2.8 SE (0.33 and 0.46 at the borrowed paired ratio).
+     - Δsack on Slant or Shallow Cross bluffs, v7f over A + B: 0.82 and 1.15 points at 2 and 2.8 SE (0.44 and 0.61 at the borrowed paired ratio). v7 over A: 5.23 and 7.32 points at 2 and 2.8 SE (2.78 and 3.89 at the borrowed paired ratio).
+
+8. **R2, deciding** (Decision 6, lines 1153-1154; Q6(a), line 1207).
+   - **R2a:** Δsack(deciding arm − front0) > 0 on `r2Expected` ∩ `fooled`, where the deciding arm is v7f (v7 in the fallback below). This is Decision 6's "above all `r2Expected`" (lines 1153-1154; line 830, kept by line 1792).
+   - **R2b:** Δsack(deciding arm − front0) > 0 on `deceivedReal` ∩ not `releaseListed` (line 829, standing as filed, line 1792; the block above, entry 8, reads `releaseListed` off the card).
+   - **How.** On the bench, v7f − front0, keyed on v7f's snap, pooled over K8f (set A) and K8b (set B) by summing n, Σ and Σ². The verdict is the sign rule (rule 13), on the bench SE of rule 13. v7 − front0 on K8 (set A) is reported beside each verdict, with its own SE.
+   - **v7f is deciding only if N0-head proves it.** N0-head must show that v7f wears on every legal call, and that it equals v7 on v7's worn snaps, on the 1,000-record bench (the tools below). If it cannot be built, R2a and R2b are scored on v7 as revision 1 filed: K8 and a plain-v7 K8b; their minimum detectable effects are the v7 rows over A + B below, and R2a is expected to read NOT SHOWN at that size. The owner hears it in plain words before K8, and the card says so. **If the fallback is taken** (N0-head ends PASS-FALLBACK), a dated amendment adds `expected35`'s (v7, A + B) rows for the eight channel strata (`ch:none`, `ch:lookHot`, `ch:slide` and `ch:both` of R2a and of R2b), R2bRel, `stemRule10`, `bitBluff` cmp and int, and `bitBluff|slantShallow`, and this block files them, before K8 runs (plan §18b decision 18). Until then the fallback's `ch:slide` figure is the computed one of rule 17. In the fallback the deciding arm is v7 wherever this block reads v7f on the bench: every bench figure it reads on v7f over K8f + K8b (rules 4, 7, 9, 10, 12, 19 and 20) is read on v7 − front0 over K8 + K8b, as the analyzer's deciding pool is, and rule 4's item 15 is not run, because K8f is not run and the fallback's K8b holds no v7f.
+   - **Nothing else goes to the owner before the runs are measured** (decision 1). That line is the one exception. The owner hears R2's sizes in W2, and W2 and the card are written from the measured figures.
+   - **Why this is not a change of the deciding population** (line 1793). Each population is defined as filed, by the snap and the worn call (`r2Expected`, `fooled`, `deceivedReal`, `releaseListed`). v7f changes only how many of its snaps are disguised, and the disguise is placed by an independent die. W2 says it in plain words.
+   - **Preconditions.** Rule 4's items 5, 6, 7, 7b, 10, 14 and 15 read 0 first (item 15 drops out in the fallback, where it is not run). They put the whole effect on fooled snaps, and only through decisions. If one of them is not 0, or was not computed, R2a and R2b are not read: the analyzer prints NOT READ with the items.
+   - **R2b's three channels, filed with their signs as the ADR states them:**
+     1. **No decision difference** (`ch:none`: the hot conversions and the checked side both match, as on every fooled COUNT snap on a MAN protection, and on fooled LOOK snaps there with no ghost or no hot route): exactly 0, by rule 4 items 10 and 14.
+     2. **LOOK-hot** (LOOK with a ghost and a hot route, any protection): the hot route converts on the disguised arm only. Its sign is undetermined (line 1402; line 1784).
+     3. **SLIDE slide-changed** (a SLIDE call whose checked side differs between the arms): slid → contested, so the sign is up (line 1784).
+     The channels are read off the pair keys, so they partition the stratum (decision 14 keeps it a partition): `ch:lookHot` where the hot conversions differ and the checked sides do not, `ch:slide` where the checked sides differ and the hot conversions do not, `ch:both` where both differ (a LOOK on a SLIDE call with a ghost and a hot route), printed apart, and `ch:none`. R2b's deciding sign stays as filed: Δsack > 0 on the whole stratum (lines 829, 1792). The channels decide nothing. They say which term carried the verdict, and rule 17 reads `ch:slide`'s sign. The analyzer prints each channel's Δsack with its SE beside each verdict, for R2a as for R2b.
+   - **Expected sizes and v6's sack rates** (COMPUTED; expected snaps on the bench; p is v6's sack rate on the stratum, weighted by each snap's chance to be in it). v7 wears at 0.1 where v7f wears at 1, so each v7 size over A + B is a tenth of v7f's at the same p:
+
+     | stratum | v7f, A + B | p | v7, A (K8) | p, v7, A | v7, A + B (the fallback) |
+     |---|---|---|---|---|---|
+     | worn | 2,185,362 | 16.6% | 54,641 | 16.5% | 218,536 |
+     | worn ∩ `lookOverReal` | 545,920 | 15.8% | 13,611 | 15.7% | 54,592 |
+     | `fooled` | 284,085 | 18.1% | 7,095 | 18.0% | 28,408 |
+     | `deceivedReal` | 175,277 | 16.4% | 4,374 | 16.3% | 17,528 |
+     | `deceivedBluff` | 108,808 | 20.8% | 2,721 | 20.7% | 10,881 |
+     | `r2Expected` (worn) | 2,383 | 24.5% | 63 | 25.3% | 238 |
+     | **R2a**: `r2Expected` ∩ `fooled` | 992 | 24.8% | 26 | 25.5% | 99 |
+     | **R2b**: `deceivedReal` ∩ not `releaseListed` | 110,185 | 21.0% | 2,749 | 20.7% | 11,018 |
+     | with release: `deceivedReal` ∩ `releaseListed` | 65,092 | 8.7% | 1,625 | 8.7% | 6,509 |
+     | `r2ExpectedWide` ∩ `fooled` | 7,215 | 12.2% | 181 | 13.1% | 722 |
+
+     The build plan's previews of these sizes were INFERRED from its maps; these computed sizes replace them. "worn ∩ `lookOverReal`" is a snap population; rule 20's `lookOverReal` is the call-level one, which both arms have.
+   - **The channels' expected sizes** (COMPUTED, share of the stratum in brackets):
+
+     | stratum, arm | `ch:none` | `ch:lookHot` | `ch:slide` | `ch:both` |
+     |---|---|---|---|---|
+     | R2a, v7f A + B | 353 (35.6%) | 1.8 (0.2%) | 11 (1.1%) | 626 (63.1%) |
+     | R2b, v7f A + B | 98,494 (89.4%) | 10,615 (9.6%) | 333 (0.3%) | 743 (0.7%) |
+     | R2a, v7 A | 9.3 (35.6%) | 0.044 (0.2%) | 0.28 (1.1%) | 16 (63.1%) |
+     | R2b, v7 A | 2,455 (89.3%) | 266 (9.7%) | 7.8 (0.3%) | 19 (0.7%) |
+
+   - **The minimum detectable effects, filed before any arm** (decision 1: on both bounds, and NOT SHOWN is a possible outcome). They are 2 × √(2p(1 − p)/n) and 2.8 × √(2p(1 − p)/n) in points a snap, with each row's own n and p from the table above (a v7 row over A uses set A's p; the fallback's rows over A + B use v7f's). 2 SE is 3.4's convention (lines 2009-2010), and it is the effect the sign rule shows only half the time; 2.8 SE is the effect it shows 80% of the time. The paired value at 3.4's observed paired-to-independent ratio, 0.531 (COMPUTED from 3.4's bench, joint − jnc on joint's 13,877 creeper snaps; lines 2009, 2178), is printed beside them, labelled as borrowed from creeper snaps. The independent bound is the filed one.
+     - **R2a**, v7f over A + B: 3.88 and 5.43 points at 2 and 2.8 SE (2.06 and 2.88 at the borrowed paired ratio). v7 over A: 24.14 and 33.79 points at 2 and 2.8 SE (12.81 and 17.94 at the borrowed paired ratio). v7 over A + B (the fallback): 12.27 and 17.18 points at 2 and 2.8 SE (6.51 and 9.12 at the borrowed paired ratio).
+     - **R2b**, v7f over A + B: 0.35 and 0.49 points at 2 and 2.8 SE (0.18 and 0.26 at the borrowed paired ratio). v7 over A: 2.19 and 3.06 points at 2 and 2.8 SE (1.16 and 1.63 at the borrowed paired ratio). v7 over A + B (the fallback): 1.10 and 1.54 points at 2 and 2.8 SE (0.58 and 0.82 at the borrowed paired ratio).
+     - **The with-release stratum**, v7f over A + B: 0.31 and 0.44 points at 2 and 2.8 SE (0.17 and 0.23 at the borrowed paired ratio). v7 over A: 1.98 and 2.77 points at 2 and 2.8 SE (1.05 and 1.47 at the borrowed paired ratio).
+     - **Channel-aware rows, labelled, beside the filed bounds** (they decide nothing). `ch:none`'s snaps differ by exactly 0 (rule 4), so the stratum's variance comes only from the share f with a decision difference: k × √(f × 2p_m(1 − p_m)/n), with p_m v6's sack rate on those snaps. **R2a**, v7f over A + B: 3.12 and 4.36 points at 2 and 2.8 SE (channel-aware, f = 0.644, p_m = 24.90%); v7 over A: 19.38 and 27.13 points at 2 and 2.8 SE (channel-aware, f = 0.644, p_m = 25.57%); v7 over A + B (the fallback): 9.85 and 13.80 points at 2 and 2.8 SE (channel-aware, f = 0.644, p_m = 24.90%). **R2b**, v7f over A + B: 0.11 and 0.16 points at 2 and 2.8 SE (channel-aware, f = 0.106, p_m = 21.95%); v7 over A: 0.73 and 1.02 points at 2 and 2.8 SE (channel-aware, f = 0.107, p_m = 21.92%); v7 over A + B (the fallback): 0.36 and 0.51 points at 2 and 2.8 SE (channel-aware, f = 0.106, p_m = 21.95%). The with-release stratum has no such row, because `expected35` keeps no channel strata for it.
+     - **Which 2 SE a verdict reads.** The verdict's SE is the larger of its realised per-snap and per-game SEs (rule 13), not any figure above. On R2a and R2b, whose `ch:none` snaps differ by exactly 0, it is expected to sit near the channel-aware row, and it can fall below the filed independent bound (INFERRED, as `expected35`'s note says). So a NOT SHOWN on R2 reads as 3.4's creeper rows did (line 2010), against the verdict's own SE: the effect is smaller than about 2 × that SE, and one at 2.8 × that SE would be shown 80% of the time. W2 says so, with the verdict's own 2 SE and 2.8 SE figures and the filed bound beside them.
+   - **Splits printed beside each verdict:** look; picture; SLIDE or MAN protection; hot conversions differ between the arms or not; disguise row; the three channels. For R2b the SLIDE no-release calls are printed apart, because the stratum is mostly MAN protections, where only the hot term moves sacks.
+   - **Mechanism counts beside each verdict:** Δslid, ΔpickupLost, Δunblocked, ΔhotConv and Δroutes.
+   - **Scored separately, never deciding:** the with-release stratum, `deceivedReal` ∩ `releaseListed`, which line 1792 re-files as "Reported as measured and scored separately" and Q6(a) scores apart (line 1207). It gets the sign rule on v7f − front0 over K8f + K8b, against its filed lean, up (line 1792), with v7's figure beside it, and it does not decide R2.
+   - **Reported, never deciding:** `r2ExpectedWide`, which is `r2Expected` without its `not releaseListed` clause (line 1793), with the MDE of `r2ExpectedWide` ∩ `fooled` (the table above), 1.09 and 1.52 points at 2 and 2.8 SE (0.58 and 0.81 at the borrowed paired ratio) on v7f over A + B; `r2Expected` over every band; `deceivedReal` whole, 0.25 and 0.35 points at 2 and 2.8 SE (0.13 and 0.19 at the borrowed paired ratio); honest snaps; `ch:slide` over all `fooled` snaps (decision 14), read off H35's `ch:slide` key, which H35 writes on every snap (it keeps no `fooled|ch:` crossing); by rule 4 no decision differs off `fooled` (rule 11: the all-snap term equals the fooled-snap term), so the analyzer's row over every snap is this row (INFERRED from rule 4, not counted); and the game-level aggregate (rule 11).
+   - **Outcomes.** NOT SHOWN is recorded as measured, and it is not a pass. A FAIL is recorded with its cause (line 737), and it fires rule 17, whose class rule reads `ch:slide`.
+
+9. **Real pressure's mechanisms** (lines 826-828, as lines 1784 and 1791 re-file them).
+   - Reported: slide checks made on fooled real-pressure SLIDE snaps, v7f against front0 (K8f + K8b), with v7 against front0 (K8) beside it, with Δslid, Δcontested and ΔUNBLOCKED.
+   - Exact: rule 4, item 13.
+
+10. **The Stem** (line 733; the block above, entry 3): Δsack > 0 on `stemLive` snaps on a SLIDE call read COUNT or LOOK, by the sign rule, scored on v7f over K8f + K8b, with v7 and stem on K8 beside it. Line 733 calls the population tiny, and the build plan expected a NOT SHOWN (INFERRED) before its size was computed; the sizes and minimum detectable effects below replace that expectation, and a NOT SHOWN is recorded as measured (rule 8's reading). Expected (COMPUTED): 5,689 snaps on v7f over A + B, 142 on v7 and 284 on stem over A; `stemLive` as a whole 51,227 on v7f. Its minimum detectable effect: v7f over A + B 1.07 and 1.50 points at 2 and 2.8 SE (0.57 and 0.80 at the borrowed paired ratio); v7 over A 6.79 and 9.51 points at 2 and 2.8 SE (3.60 and 5.05 at the borrowed paired ratio); stem over A 4.80 and 6.72 points at 2 and 2.8 SE (2.55 and 3.57 at the borrowed paired ratio).
+
+11. **The aggregate** (line 832; line 1794).
+    - Δsack(v7 − v6) at game level over A + B (26,880 games) is falsified outside [−0.148, +0.168] pp. That is the filed interval widened by 2 × 0.034 pp, the filed SE at 26,880 games (line 723). The independent SE of a game-level difference at v6's sack rate (16.63% over 2,371,845 dropbacks in 26,880 games) is 0.034 pp (COMPUTED), against the filed 0.034 pp. The paired per-game SE is printed beside the verdict.
+    - It is reported and never deciding (Decision 6, lines 1153-1154).
+    - Beside it goes the bench's all-snap Δsack(v7 − front0). By rule 4 it equals the fooled-snap term exactly, and it is split by `hot:diff` and `slide:diff`.
+    - **The whole-ADR aggregate** (line 735, as line 1786 re-files it): Δsack(v7 − v4) at game level, (K7 + K9) − (K1 + K13), with its paired per-game SE. It is unsized, reported and never deciding (Decision 6, lines 1153-1154). It is the same figure as rule 14's sacks line, printed here under line 1786's name.
+
+12. **The interception guard and G1.**
+    - **The guard is line 834, with a sampling rule** (the block above, entry 7). It applies only if the game-level Δint/att (v7 − v6, K7 + K9 against K3 + K12) is +2 paired per-game SE or more.
+      - Then, on the bench (v7f − front0, K8f + K8b), H is ΣΔint over fooled snaps whose hot conversions differ between the arms (`fooled|hot:diff`), and N is ΣΔint over every other snap.
+      - "Bitten" in line 834 and in the block above, entry 7, is read as fooled: a worn snap whose read rolled and was pictured COUNT or LOOK, real pressure included, as entry 7's reason needs (its COUNT snap with a real blitzer). It is not rule 7's bitten bluffs. The tools compute H this way (`intGuard35`, `KEYS35.md`).
+      - "At least 80% on H" is H ≥ 0.8(H + N), that is L = 0.25·H − N ≥ 0. L's SE comes from the two strata's n, Σ and Σ² (a stratum sum's SE is n times the stratum mean's SE), and from their per-game sums (rule 13).
+      - The guard fails only when L < −2 SE. Then rule 17 fires.
+      - By rule 4, Δint is 0 off fooled snaps, so N sits on fooled snaps whose conversions match, which is the slide's channel.
+      - v7 − front0 on K8 is printed beside it, and so is the raw share H/(H + N).
+    - **G1, carried from 3.3 and 3.4** (line 2027): Δint/att within 2 × 0.016 points and Δcmp/att within 2 × 0.055 points, for v7, mug and stem against v6, at game level over A + B. A miss is recorded as measured and passed to the fantasy gate. It is neither a stop nor a trigger. The bench's direct per-snap effect is printed beside each verdict.
+
+13. **The SE rules.**
+    - **Game rows** use the delta method over game pairs, paired on (seed set, `i`), as 3.4's `contrast_terms` did, with `delta` for two terms.
+    - **Bench rows: the larger of two SEs** (decision 2). H35 keeps, for every key a bench verdict reads, the per-snap n, Σ and Σ² and the same sums per game (`pg35`, keyed by game index, with its key list in the bench header's `/pg35Keys`). The analyzer prints the per-snap SE (3.4's `bstat`) and the per-game clustered SE, and uses the larger.
+    - **Clusters** (decision 16): per-game rows are clustered by (seed set, `i`), not `i` alone, and a league game's two side rows are kept in one cluster.
+    - **Counts** use the Poisson-binomial SD √Σ p(1 − p).
+    - **The sign rule** (lines 2023-2026): PASS if the estimate is beyond 0 in the claimed direction by 2 SE or more; FAIL if it is beyond 0 the other way by 2 SE or more; NOT SHOWN between, reported as measured and not a pass. **The count rule** is 3.4's `count_verdict`.
+    - **Minimum detectable effects** are printed at 2 SE and at 2.8 SE (80% power at the 2 SE rule), with the independent bound filed and any borrowed paired ratio labelled. Where p is 0 or 1 on a stratum, or the stratum is expected empty, no MDE is printed, and the row says so.
+    - **No shard-difference SE is used anywhere.** 3.4's per-player fantasy SEs came from 8 shard pairs and were too small (line 2294). Per-slot fantasy lines get paired per-game SEs from H35's per-game slot columns.
+
+14. **The fantasy measurements** (lines 2301-2308).
+    - **v7 − v4** = (K7 + K9) − (K1 + K13), each line with its paired per-game SE: completions and attempts separately, throwaways and scrambles, interceptions including hot interceptions, sacks, check-release targets by role, target share by position, points, total yards, designed rush yards a team-game, and per-slot PPR points a season.
+    - **Hot interceptions into droppers** (line 410). A hot interception is a throw whose target is among PLAY_START's `hotConversions` receivers, on a play that ends intercepted. It is "into a dropper" when the interceptor is in PLAY_START's `shownRush` and not in its `rush`. The interceptor is the second actor of the play's `contested_catch` CHECK with band INTERCEPTION, else the defensive recoverer of a tipped ball, as the reducer credits it (`packages/engine/src/stats/statline.ts:462-463`, :551-556; `passPlay.ts:1775-1777`; amendment 1 below). `hotIntIntoDropper` gives the gate a paired per-game SE.
+    - **"At 3.5's closing commit"** (line 2302) is read as these HEAD35 figures. They hold at C7 because CL1 and CL2 replay K1's and K7's games byte for byte at C7, and the pins show that only the `default` rows moved. W and C8's note say so.
+    - **The drift base is re-measured.** PR #13 moved both v4 and v6, so 3.4's +0.150 ± 0.043 completion points (lines 2303 and 2094) is a ccd75bb figure, quoted as such. The base is v6 − v4 at B35, (R3 + R5) − (R1 + R4). Cumulative v7 − v4 is printed against one step's 0.110 explicitly.
+    - **PR #13's own drift:** B35 − ccd75bb on v4 and v6, from the shards, labelled cross-tree.
+    - **P7 by season,** against 3.4's real-joint table by season (plan point 24).
+    - **The huddle's guessed creeper:** the bench's v7 − v7nc on `noCreeper|offDiff`, the stratum 3.4 measured (13,455 snaps, Δsack −0.36 ± 0.19; lines 2128, 2182-2186). That figure is joint against jnc on ccd75bb (lines 971, 2128), so it is quoted as a ccd75bb figure and the comparison is labelled cross-tree. It is split by worn and not worn through `noCreeper|offDiff|worn` and `noCreeper|offDiff|unworn`. Over all snaps v7 − v7nc also holds the real creeper's own effect (line 2180), so that figure is printed only beside it (line 2307).
+    - **The two leagues** (K14–K17), reported by offence cell, never scored. A game holds two cells' offences, so H35 writes the per-game columns once per offence side, each with its side's cell, and the bite counts by cell.
+    - **Target share** against G5's real shares (line 1732) and backlog 171.
+
+15. **What is held** (line 373's pattern): the engine (line 394) and its tunables (`fnv1a:395a9ae2` on every shard); leash 50, except the d20 arms; the flat league, except the aware and d20 arms; the coverage-look code; v6's draw; `FRONT_LOOK_RATE` 0.1 (`rateConstant` reads 0.1 on every unmocked HEAD35 shard, the tables below); and the offence's call mix, printed by the analyzer's held check.
+
+19. **D reaching E: the coverage read under a front look** (lines 434, 912, 980-982; R3 at line 1049).
+    - Reported per arm on worn ∩ `coverageMasked` snaps, on the bench (mug, stem and v7 against front0 on K8, and v7f against front0 over K8f + K8b): the coverage-read difference and Δint, with Δint split by whether the hot conversions differ. The bench's per-snap `cov` outcome and its coverage-read comparison give these rows. At game level each arm (v7, mug and stem, with v6 beside them) reports its `coverageMasked` dropback count and the `coverage_read` bands over all its dropbacks: game mode keeps no band count per population, so no band count on worn ∩ `coverageMasked` is printed.
+    - With no `/keep-in`, a front look reaches E only through hot conversions (line 434). A front look alone never rolls E, because `shownAssignments` keeps its reference (`passPlay.ts:2129`). So on worn ∩ `coverageHonest` snaps the coverage read must be the same on both arms: `coverageReadOnHonestWorn` is a must-be-0 counter.
+    - Expected (COMPUTED, v6's dropbacks over A + B): coverage-masked calls are 31.6% of dropbacks and coverage-honest 68.4%.
+
+20. **The triple's form** (R31 at line 1077; `ARCHITECTURE_CHARTER.md:2208`).
+    - **At game level** the triple (exit, sack, conversion and pressured, with paired per-game SEs) is scored on populations both arms have: the call-level `all`, `mugLegal`, `stemLegal` and `lookOverReal`, read as intent to treat. A contrast refuses an empty bag, and v6 has no worn snap. Their sizes on v6's dropbacks over A + B (COMPUTED): 2,371,845, 2,185,362 (92.1%), 1,947,811 (82.1%) and 545,920 (23.0%), with v6's sack rates 16.63%, 16.55%, 16.26% and 15.81%.
+    - **Within v7** there is a row for worn against legal-but-unworn, which the `/wears` die randomizes, as 3.4's within-joint row did. Expected on v7 over A + B: 218,536 worn and 1,966,826 legal-but-unworn dropbacks.
+    - **On the bench**, the worn, fooled and `deceivedReal` triple (v7f − front0 and v7 − front0).
+    - Every cell is computed. A missing column is INCOMPLETE.
+
+17. **The alternate-card triggers.** The owner gets the alternate card, not the merge card, if any of these holds:
+    - an exact claim in rules 2–5 fails although the code does what §2.5 and rule 16 say (a defect stops the runs instead);
+    - a count in rule 5 misses by more than 3 SD;
+    - R2a or R2b FAILs;
+    - the interception guard fails (rule 12);
+    - a known-truth ladder gate is red under v7 at the dry run D;
+    - a sack ladder's honest v7 record cannot meet the record rules without lowering a floor or widening a tolerance (rule 18);
+    - after C7 exists and before it merges, main gains a resumable save that does not record the resolved caller identity (the stop rules' "Saves": before C7 exists, C7 waits for E1 and no card is sent).
+    - **What does not count:** a NOT SHOWN on R2; the with-release stratum's sign (rule 8); the bluffs' signs (rule 7); the bite share (rule 6); G1; the aggregate interval; the Stem's sign; any reported row; a record rule met through rule 18's allowed levers.
+    - **The recommended option on the alternate card depends on the trigger's class:**
+      - **Class C, the construction or the move is in doubt:** a defect-free exact claim fails; a count misses by more than 3 SD (a correct build does so at most about 1 time in 62, rule 5); the interception guard fails; a ladder is red, or its record cannot meet the rules; a save without its caller exists. The recommendation is "Merge, keep version 4".
+      - **Class P, a football prediction failed on a build that does what was ruled:** R2a or R2b FAILs, every exact claim and count passes (read as below), and the SLIDE slide-changed channel is not itself reversed. So the reversal is carried by the LOOK-hot term the ADR left undetermined (line 1402). The recommendation is "Merge and move", with the failed prediction recorded as measured (line 737).
+      - **What "every exact claim and count passes" means** (plan §18b decision 17). Every exact claim of rules 2–4 holds, and no count of rule 5 is beyond 3 SD. A count between 2 and 3 SD is a miss recorded as measured (rule 5: "Outside ±2 SD records a miss, as measured. Beyond 3 SD a miss is a construction miss"), not a doubt about the construction, so it does not by itself keep an R2 FAIL out of Class P. Such an R2 FAIL is Class P when its own `ch:slide` is not FAIL (decision 14, below), and Class C otherwise. An exact claim of rule 5 that fails is a Class C trigger above, and Class C wins. No case is left without a class.
+      - **Which `ch:slide` is read** (decision 14). For an R2a FAIL or an R2b FAIL, the sign rule is read on `ch:slide` of that verdict's own deciding stratum. An empty `ch:slide`, or one whose sign rule reads NOT SHOWN, is "not FAIL". An R2 FAIL whose `ch:slide` reads FAIL is Class C. If both R2a and R2b FAIL, a FAIL on either one's `ch:slide` makes the trigger Class C.
+      - **A degenerate `ch:slide`** (plan §18b decision 19). For the class test, a failing verdict's own `ch:slide` with fewer than 2 snaps, or with zero SE and zero mean, reads NOT SHOWN, so it is "not FAIL" (decision 14). With zero SE and a nonzero mean, the sign rule's z is infinite, so it reads by the sign of the mean: FAIL if the mean is below 0, else not FAIL. So no case is INCOMPLETE for want of a slide reading.
+      - **At these sizes the class test catches only a large reversal.** `ch:slide` is expected at 11 snaps of R2a and 333 of R2b on v7f over A + B (rule 8), and its minimum detectable effect is, on R2a's, 32.07 and 44.89 points at 2 and 2.8 SE (17.02 and 23.83 at the borrowed paired ratio), and on R2b's, 5.74 and 8.04 points at 2 and 2.8 SE (3.05 and 4.27 at the borrowed paired ratio). So an R2 FAIL will most likely read Class P.
+      - **In the fallback** (rule 8), the deciding stratum is v7's over A + B, where `ch:slide` is expected at 1.1 snaps of R2a and 33 of R2b: a tenth of v7f's at the same p, so its minimum detectable effect is √10 (about 3.2) times v7f's above, as computed (plan §18b decision 18). `expected35` prints no row for it; if the fallback is taken, the dated amendment of rule 8 files that row before K8 runs. Beside them, on v7 over A (K8): R2a's 244.54 and 342.36 points at 2 and 2.8 SE (129.80 and 181.73 at the borrowed paired ratio); R2b's 39.63 and 55.48 points at 2 and 2.8 SE (21.04 and 29.45 at the borrowed paired ratio).
+      - If triggers of both classes fire, Class C wins.
+
+18. **The ladder re-record rule,** for the two sack ladders under the flip (D's step 2).
+    - **First, the honest record.** Run §22a's full procedure at the scenario's own `games` and rungs: usage, curve, then replicate with eight seed sets (`ladderRerung.test.ts:16-27`). Check the steps and SEs against the three record rules (`knownTruth.test.ts:146-190`, :230-240):
+      - the record has a positive step with an SE;
+      - the signal: tolerance ≤ half the smallest step;
+      - the noise: (step + tolerance) / SE ≥ 4;
+      - the floor: `minEffect` ≤ 0.8 × span. `dl-passrush-sack-rate` needs a span of at least 0.0938 (`packages/calibration/src/knownTruth/scenarios.ts:564`; its 2026-07 span is 0.1104).
+    - **If every rule passes,** the rungs, games, tolerance and floor stay as they are, and the closing digests stay as filed.
+    - **If a rule fails,** only §22a's levers are used: more `games`, or rungs re-chosen where the curve says. A tolerance is never widened and `n` is never lowered (`packages/calibration/test/knownTruthGate.ts:29`; `ladderRerung.test.ts:34`). C7's message and W name the lever. The digest clause is amended to the new `#N` (the digest's `#N` is the seed count, `packages/calibration/src/harness/seeds.ts:56`, which is the scenario's `games`, `packages/calibration/src/knownTruth/assertions.ts:131`), and CI cost is measured again.
+    - **Lowering a floor is not a lever.** If no allowed lever meets the rules, rule 17 fires (Class C).
+    - The usage stage's `attributesNotReadByMechanism` must still pass `attributeClaims.test.ts:58-91`. A change there is reported in C7's message.
+
+**Checks that must read 0, by arm** (every shard; any one above 0 stops the runs for diagnosis (§8)). This is `guard35.py`'s table, filed as 3.4 filed its own (lines 2058-2075). The guard scopes each check by the run's own header.
+- **The arm sets.** "Every arm" is every run's arm: v4, v5, v6, front0, mug, stem, v7, v7nc, v7f, the rate-0 control, and the league arms aware-v6, aware-v7, d20-v6 and d20-v7. "The v7 arms" are every arm whose caller is v7: front0, mug, stem, v7, v7nc, v7f, the rate-0 control, aware-v7 and d20-v7. "The Mug arms" are mug, v7, v7nc, v7f, aware-v7 and d20-v7, and "the Stem arms" are stem, v7, v7nc, v7f, aware-v7 and d20-v7. "The wearing arms" are the Mug arms and the Stem arms. v6 and every v7 arm draw their pressures, line games and the creeper, except v7nc, which draws no creeper; v4 and v5 draw none of them.
+- **The rate-0 control** (decision 11; `v7z` in the guard) is v7 with the full catalogue at `FRONT_LOOK_RATE` 0. Its die is thrown on every legal call and answers no, so it wears nothing and is not a wearing arm. It runs only on the flat league, at N0-head's rate-0 line and K4z.
+- **The identities** are v4 `v4`, v5 `v5`, v6 `v6`, front0 `v7/front-0`, mug `v7/front-MUG`, stem `v7/front-STEM`, v7 `v7`, v7nc `v7/creeper-0`, v7f `v7` with `frontLookRateMock: 1` (benches only), the rate-0 control `v7` with `frontLookRateMock: 0` (game runs only), and on the leagues `v6`, `v7`, `v6/leash-20` and `v7/leash-20`.
+
+| check | arms |
+|---|---|
+| H33's always-list, as 3.4's guard carries it: `extrasMismatch`, `poolMismatch`, `contestedMismatch`, `unblockedMismatch`, `extrasWithoutRoll`, `centreMissing`, `conceptMissing`, `chartTeamMismatch`, `knobLeak`, `crStatedMismatch`, `crEligibleNotStated`, `slideCheckMissing` | every arm |
+| `rolledWithoutExtras` | 0 on v4–v6, front0, stem and the rate-0 control (a Stem shows no ghost, so no Stem-worn bluff rolls; line 584). On the Mug arms it is reported and must equal `bluffRolled`, and `rolledWithoutExtrasOffWorn`, `bluffRollUnpredicted` and `bluffRollMissing` (against a restatement of `picturesDecideAlike`) must be 0 |
+| `shownRushMismatch` | 0 on v4–v6, front0 and the rate-0 control. On the wearing arms it is replaced by `frontTagWithoutDiff` and `diffWithoutFrontTag` (R28), which are also held at 0 on the rate-0 control |
+| `adjPredMismatch`, `adjOnMissedRead`, `slideChecksOutsidePop`, `slideChecksOutsidePopNoK`, bench `sideEqPredOwnMismatch` | 0 off worn snaps |
+| `adjPredPictureMismatch`, `slideChecksOutsidePopPicture` | 0 on every dropback of every arm. They restate the prediction from the stream's own picture, which on an unworn snap is the honest one, so they extend the line above to worn snaps |
+| `keptInNamed`, `keptInMen` | every arm without `/keep-in` |
+| 3.4's rows (lines 2058-2075), with v7 treated as v6: its creeper, line-game, `pressureUnnamed` and `hostUnresolved` rows (on the wearing arms `shownRushMismatch` is left to R28, above); its line rows, `lineGameOnMovedMan`, `lineGameOverDoubleA` and `lineGameOverSixPreventGL`, with `rLineAboveOne` (T34_LINES_ADDED); its drawn-pressure rows, `hostShareDrift` and `rsAboveOne`; `dimeCover1Called`; and T34_SELF's six self-checks, `gradedUnresolved`, `lineRateError`, `eligibleDefsDiffer`, `disguiseEchoMismatch`, `situationMissing` and `stemUnplaced` | the line rows on the arms that draw line games, the drawn-pressure rows on the arms that draw their pressures, `dimeCover1Called` on v4 and v5, and the rest on every arm |
+| `wornOnIllegalCall`, `frontLookOnPreventGL`, `frontLookOverDoubleAZero`, `twoFrontLooks`, `frontLookOnCoverageLookMan`, `frontTagOrder`, `mugShownWrong` (H35's as-built picture, below), `stemShownWrong`, `stemCollides`, `stemOverDroppingLine`, `blitzDisguiseStamped`, `narrowLeak`, `pictureBandMismatch`, `answersMismatch`, `placedMismatch`, and `pb35.restateNotWorn`, with `pb35` present on every fold | every v7 arm |
+| at HEAD35, `pb35`'s `legalityRestateMismatch` and `legalityError`, with `rateConstant` equal to 0.1 (1 on a bench whose header says `frontLookRateMock: 1`, 0 on the rate-0 control); `pb35` on every fold of a run or on none | every fold that carries `pb35`, any arm |
+| `frontLookRateMismatch` (H35's count against collect's) | every HEAD35 game shard |
+| `leashReads` | every arm at leash 50; lifted on d20 |
+| the 10 SD gross stop on rule 5's counts | every wearing arm, game folds and bench folds; never v7f, which wears at rate 1, and never the rate-0 control, whose wear law is the exact 0 of the floors below |
+| `tunablesDigest` other than `fnv1a:395a9ae2` | every arm |
+| `frontLookRateMock` in a shard header (decision 11) | absent on every game run except the rate-0 control's two, N0-head's rate-0 line and K4z, where it must be 0 on every shard. On the bench: 1 on every {front0, v7} bench (K8f, K8b and N0-head's `n0h-benchf`, whose `v7` arm is v7f because of it), unless the fallback is filed; absent on K8 and on every other bench, the fallback's plain-v7 K8b (rule 8) included. Any other value, 0 on a bench included, stops |
+| bench: `selfOk` equals the records; rule 4's and rule 19's counters; 3.4's arm-own checks (`leashStampMismatch`, `leashRolls` at 50, `brokeReads`, `n`) | bench, every arm the rule names |
+| 3.4's base-scoped bench checks, now against base v6 | the totals must be 0 on front0. On mug, stem and v7 (K8) and v7f (K8f, K8b), every `K_offWorn` key and `recognitionMismatchBothRoll` must be 0, and `unaccountedMismatch` must be 0 on every snap. On v4 and v7nc each is reported only, because their calls differ from v6's by design |
+| the per-game sums (decision 2), per shard and pair: Σᵢ of the `pg35` rows equals the pair's n, Σ and Σ² for every `/pg35Keys` key it carries; no other key; each `i` an integer with `i` mod shards = the shard; each key's games among `intGuard35.perGame`'s; those per-game rows sum to H and N; H.n + N.n = all.n; H is `fooled\|hot:diff` on interceptions | every bench pair |
+
+- **The base-scoped comparisons are corrected and split.** 3.4's `callMismatch` and `mappedWhenNoAdjMismatch` stripped the option keys from the arm's call alone, which is right only on base v4. On base v6 the base's own call states `slideCheck`, so both would fire on front0 on every SLIDE snap. H35 strips both calls, or neither when the arm and the base state the same options; on base v4 the two forms are identical, so 3.4's lines keep their meaning. 3.4's base-scoped counters are one total per arm, so "off worn snaps" cannot be read from them; for each key K of 3.4's list H35 adds `K_offWorn`, counted only where the arm wears no front look, with its checked count, and `recognitionMismatchBothRoll`, counted only where both arms rolled, which is rule 4 item 6 under 3.4's name.
+- **H35's restatement of §2.5's pictures** is written from this ADR's text and rule 16 and is not imported. Its Mug is rule 16's as built: the played entries in `rush` order, each verbatim except a rushing walked-up backer, re-spotted to the A gap, INTERIOR, on his own side; then the ghosts in `dutyList` order, at their run fits as rule 16 says. `mugShownWrong` counts a worn Mug whose `shownRush` differs from it on any of `shownRushDiffers`' fields. Its Stem is each rushing down lineman one spot toward X, clamped, every other rusher verbatim. At B35 it sizes v6's calls for `expected35`; at both trees it gives the checks above; at HEAD35 `pb35` cross-checks it against `legalFrontLooks` and `shownRushDiffers`. That cross-check's mix count, `pb35.frontLookMixMismatch`, is reported under rule 5 and stops nothing.
+
+**Floors,** so that no check passes vacuously:
+- on every wearing arm: worn > 0 and `fooled` > 0;
+- on the Mug arms: `rolledWithoutExtras` > 0, `bluffRolled` > 0 and `mugGhost` > 0; on stem, `rolledWithoutExtras` is the exact 0 of the table above;
+- on the Stem arms: `stemLive` > 0;
+- rule 5's two conditional populations, so that counts 4–6 cannot pass on an SD of 0: `wornBothLegal` > 0 on the arms that wear both looks, and `balancedStemWorn` > 0 on the Stem arms, never on v7f or the rate-0 control (both exist by construction: v7 always has calls on which both looks are legal, and the 14 balanced four-man rows give every Stem arm balanced Stems);
+- on every arm: the dropback count > 0, and `adjPredPictureMismatch`'s checked count equal to the arm's dropbacks;
+- on front0: worn = 0;
+- on the rate-0 control: worn dropbacks, worn calls and `fooled` = 0, and C3's `drawn` = 0 (no look drawn on any call), with some call legal (`anyLegal` > 0). `anyLegal` counts calls with a legal look; that the die was thrown on each of them is read from the code (`frozen.ts:819-822`, `frontLooks.ts:294`), not counted, because C3 counts drawn looks only;
+- each rule 4 and rule 19 counter's checked count > 0 on the arms where its population exists by construction (rule 4), each `K_offWorn` key's checked count > 0, and the narrowing and decomposition checked counts > 0, on the full benches K8, K8f and K8b only. N0-head has three benches: `n0h-bench` and `n0h-benchf` hold 1,000 records a shard, as 3.4's N0 benches did, and `n0h-bench6` replays N0-base's 2-round v6 smoke (decision 12). There, and on every run of 2 rounds or fewer, only the dense floors of this list apply: worn, `fooled`, `rolledWithoutExtras`, `bluffRolled`, `mugGhost`, `stemLive`, `wornBothLegal`, `balancedStemWorn`, the dropback count, front0's worn = 0 and the rate-0 control's floor;
+- on d20: `leashReads` > 0 and `brokeReads` > 0, with `brokeBelow30Slide` reported beside them (it is not floored).
+
+**Stops added over the table,** each stricter than it and none reading a scored figure, listed so that no check outside the table is read as part of it:
+- H35's own self-checks that `KEYS35.md` files as must-be-0: `startMissing`, `lookIdUnknown`, `hotIntNoInterceptor`, `coverageMaskedNeMasked`, `biteUnkeyed`, `runYardsMismatch` (game runs), and at HEAD35 `pb35.differsMismatch`;
+- rule 5's exact `formationDropped` = 0 on every v7 fold, held non-vacuous by C3's `drawn` > 0 on the wearing arms (H35 zero-fills an absent diagnostic);
+- 3.4's added stops, with v7 treated as v6: `creeperCalls` = 0 on the arms without the creeper and > 0 on the arms with it; `dimeCover1Called` > 0 on the arms that draw their pressures; `lineGamesOffHostable` = 0 on the arms that draw line games; 3.4's rule-7 gross stops at 10 SD (five-or-more pressures on host snaps, line games on hostable calls and creepers on eligible calls), each on the arms that draw it; and `callsChecked` > 0;
+- on the bench, an arm whose caller and tunables are the base's own is held as front0 is: every base-scoped total 0;
+- the decomposition's stream form, `decomp35.notIdentical` = 0;
+- 3.4's structural checks: the harness is H35; the shards agree on the arm and the tree; `covAddedByArm` and `cfErrors` 0; `adjChecked` > 0; `creeperSnaps` 0 on the arms without the creeper; `sideOwnChecked` > 0 on the bench arms that state the options; the per-game rows number the games (twice the games on the leagues); and the bench's arm set and pairs have K8's or K8f's shape.
+
+These tables are filed here. No check outside them is read as part of them.
+
+**Stop rules** (the plan's §8, filed here).
+- **N0 or a by-name proof fails:** stop. It is a build or harness defect; fix it and re-run from N0.
+- **A bench base's `selfOk` is below its records:** stop.
+- **A must-be-0 check is above 0 on an arm it applies to, a floor is not met, or a stop above fires:** stop. It is a caller, playbook or harness bug. `drive35.sh` stops at the first failure.
+- **A rule 5 count misses by more than 10 SD:** stop and diagnose (rule 5).
+- **An exact claim fails** (rules 2–5): stop and diagnose before set B. If the code is wrong, fix it and re-run from N0. If the code does what §2.5 and rule 16 say and this ADR's claim was wrong, record it as measured (line 737), note it toward rule 17, and continue.
+- **If main moves during 3.5** (plan point 50), `origin/main` is merged into the branch, never rebased, so that every hash this step records stays in main's history: each shard's `/tree`, the ladder records, and the baselines' `engineCommit`, which is "the code that produced the numbers" (`packages/calibration/src/report/identity.ts:26-29`).
+  - After the merge the pins are re-run on the merge commit, with P-D1 and P-D2 if C7 exists.
+  - If `git diff --stat <old base> <new base> -- packages/engine packages/playbook/src packages/contracts/src packages/calibration/src/caller packages/calibration/src/metrics packages/calibration/src/league packages/calibration/src/harness packages/calibration/src/report` is empty, the references stand, and the K-runs' byte proofs confirm it at scale. Otherwise the references are re-taken and every K-run is re-run; if C7 exists, the ladders and the baselines are re-measured and committed again.
+  - If the merge touches `packages/calibration/src/season`, P-D4 is re-run.
+  - **Saves.** If main can resume a season from a file that does not record the resolved caller identity (PR #19's `--load` as posted at `d128829`, whose `SaveFile` records no caller), the move does not merge with it. Before C7 exists, C7 waits for E1. After C7 exists, W's hash is pushed as its own branch, the merge is offered at W with C7 and C8 left out, and the alternate card is sent (rule 17, Class C). The Save and load thread says it will make E1 before it asks to merge PR #19, so this is expected not to fire (INFERRED).
+
+**The tools that compute them** (frozen in `FROZEN35.sha256`; `KEYS35.md` defines every key). Decisions 11, 12, 13 and 15 reached the tools through amendment 2 below: the rate-0 control (K4z and N0-head's rate-0 line), N0-head's declared bench line, the equivalence over v4, v5 and v6 with a base-v6 bench, and the aware cells' COMPUTED bite shares. Decision 20 (the analyzer's freeze) reached them through amendment 3.
+- **H35's keys are append-only.** Every H34 key keeps its definition, so R0 against R3, and K-runs against R-runs, compare one way. Within one tree every caller writes the same key set. A HEAD35 shard's only extras over a B35 shard are `pb35` (`legalityRestateMismatch`, `legalityError`, `restateNotWorn`, `frontLookRateMismatch`, `frontLookMixH35`, `frontLookMixMismatch`, `rateConstant`, and `frontLookMixCollect` with the fixed keys MUG, STEM, UNNAMED and other) and C4's two fields, and on the rate-0 control's two runs the header's `frontLookRateMock` (0); a HEAD35 bench's extras are declared in `declare/tree-B35-HEAD35.bench.txt`. `pg35` and `intGuard35` are written on every bench pair, and the bench header carries `/pg35Keys`.
+- **`proof35.py`.** Each proof line declares its extras from a list in `declare/`; a line fails if an undeclared path appears or a declared one is never seen. One-way mode skips `/seconds` and `/secondsSetup`. `--games-vs` compares game sha256s and event counts; `--expect differ` is the negative control; `--expect worn` is the exact control (a game differs from the reference if and only if its `worn` count is above 0, both ways, with the unworn direction's count reported); `--keys-equal` checks two shards write one key set; `--tree` and `--cross-tree` check and label trees, and both-ways mode is forbidden across trees; `--c4-zero` requires C4's two fields on every shard at their zeros; `--keys-scope h35` folds the open-keyed mix field; `--rate0`, on a both-ways game line only, requires `frontLookRateMock` 0 on every shard of the run and on no reference shard, and sets aside exactly `pb35`, collect's two front-look counts and that header key.
+- **The proof lines.** The pins at every head: the stream rows equal by `cmp`, the batch rows equal one way with C3's and C4's declared extras, and at C7 and C8 only the `default` game row and the `default` batch row move, each to C7's `v7` row (P-D2). Then N0-base; R0 → R3, one way on H34's keys with H35's declared; R1 against 3.4's M1 with `--expect differ` (every game differs, INFERRED; reported, not a stop); N0-head; K4, K4z, K3, K1, K2, K12 and K13 as rules 2 and 3 say; K5, K6 and K7 against K3 with `--expect worn`; K8, K8f and K8b through the guard; CL1 and CL2 equal K1's and K7's games, and CL3 (the pair built with no version) equals K7's with its header naming `frozen-v7/v1`.
+- **N0-head** (at HEAD35, with nothing else running): a 2-round `v7/front-0` smoke against a 2-round v6 smoke both ways and `--keys-equal`; the rate-0 `v7` smoke (decision 11), guarded with `--rate0` and equal to the 2-round v6 smoke both ways under `--rate0`, with its three negative controls (its guard without `--rate0`, v7's with it, and the line without it, each failing for its own reason); 2-round v4, v5 and v6 smokes one way against N0-base's, declaring `pb35` and C4's fields; 2-round mug, stem and v7 smokes with `--expect worn`; 2-round smokes of every v7 arm and both leagues through the guard; a bench at base v6 with arms `v4=v4;v6=v6` on N0-base's v6 smoke records, one way against N0-base's base-v6 bench under `declare/tree-B35-HEAD35.bench.txt` (decision 12); a 1,000-record bench on R3's records with K8's arms and a second with K8f's arms and the mock, which together must show `frontLookRateMock: 1` on the second only, `forcedUnwornLegal` 0, and `forcedEqV7OnWorn` 0 with its checked count equal to the first bench's v7 worn count; and v7's cost.
+- **The analyzer** (`adr073-analyze35.py`) resolves per-game columns by name from each seed set's own column map, clusters by (seed set, `i`) and keeps a league game's two side rows in one cluster (decision 16), pools bench strata by summing n, Σ and Σ² (v7f over K8f and K8b; v7, mug, stem and v7nc over K8 alone), computes every rule of this block and states none, reads every proof line's JSON and every guard log, and refuses any cross-tree contrast not declared as one.
+- **Freezing.** Every tool and list is hashed into `FROZEN35.sha256` before N0-base, and `freeze35.sh` keeps a copy of each frozen file by its sha256. The first freeze (`freeze35.sh --write --no-analyzer`) held 15 files, and N0-base passed on it (the attempt of 2026-10-22T08:06:17Z). Amendments 1, 2 and 3 below each rewrote it; the freeze in force when this block was committed is named under "The tools" above. Each earlier freeze is kept in `frozen-history/`, named by the time of the rewrite that replaced it, not by its own. A tool change after N0-base is a dated amendment under this heading; `FROZEN35` is rewritten and both N0 parts are re-run. `run35.sh` logs each run's H35 sha256, and each run step's STEP PASS line in `drive35.sh`'s log ends with it (`; H35 <sha>`, `; H34 <sha>` on R0). `H35_FILE`, an override, is used only by `r0-35.sh equiv`; the drive and the N0 parts unset it.
+  - **The equivalence record.** At HEAD35 the drive refuses a reference written by another H35 unless `logs/equiv35.out` records `EQUIV35 PASS <old> -> <current>` in decision 13's form, `(2-round v4, v5 and v6 smokes, v6 with records, and a base-v6 bench …`, as its last line for that pair in that form; a line in the first equivalence's form carries nothing, and the analyzer reads the record the same way. Before amendment 2 that log held one PASS from before any reference (`6407181b` → `0e496b76`) and one deliberate FAIL, the negative control; neither concerned a reference. R1, R2v5, R3, R4 and R5 were written by H35 `570ea2b7…` (amendment 1), so they stand at HEAD35 only through amendment 2's `EQUIV35 PASS 570ea2b7… -> c6733c30… (2-round v4, v5 and v6 smokes, v6 with records, and a base-v6 bench …`.
+  - **That record covers every reference's caller** (decision 13): `r0-35.sh equiv` runs 2-round v4, v5 and v6 smokes at B35 (v6 with records and a base-v6 bench) under the old and the new H35, each equal both ways, with key sets and records byte for byte. A reference stands on a tools change only through that record; a change to a key a reference wrote re-runs it.
+
+**Before D and N0-head.** `pnpm verify` runs on this block as committed. D's scratch copy and N0-head's log both record its commit hash. If N0-head shows that a filed rule cannot be computed as written, it is amended by a dated note under this heading and recorded as a departure in W (line 1587's convention).
+
+- *2026-10-22, amendment 1, before this block was committed (the tools; no scored rule changes).* The B35 drive stopped at R3's guard: `checks35.hotIntNoInterceptor` read 9, a must-be-0 check. The cause was in the harness, not the engine: H35 took the interceptor only from a `contested_catch` CHECK with band INTERCEPTION (`statline.ts:462-463`), and the engine has a second interception path, a tipped ball recovered by the defence (`passPlay.ts:1775-1777`), which the reducer credits through its fallback (`statline.ts:551-556`). H35 now credits a hot interception to the defensive tip recoverer when no contested catch names one. No key changed; the values of `hotIntNoInterceptor` and `hotIntIntoDropper` can change (the latter is 0 at B35, where nobody is shown rushing who drops). H35 went from `0e496b76…` to `570ea2b7…`; `FROZEN35` was rewritten at 2026-10-22T08:28:58Z, N0-base was re-run and passed, and the drive resumed at R3, which then passed its guard (2026-10-22T08:37:29Z) and its proof under the amended H35 (STEP PASS at 2026-10-22T08:37:32Z). R0 (H34) stands untouched, and no H35 reference had passed, so nothing is carried by the equivalence record. Rule 14's definition above is the amended one. Recorded as a departure in W.
+
+  - **Its dated text.** `freeze35.sh --rewrite` wrote it into `FROZEN35`'s header (`REWRITTEN 2026-10-22T08:28:58Z`), and that freeze is kept as `frozen-history/FROZEN35.20261022T132139Z.sha256`. It is carried here verbatim:
+    > 2026-10-22 amendment 1: R3's guard stopped on checks35.hotIntNoInterceptor = 9; H35 now credits a hot interception to a defensive tipped-ball recoverer when no contested catch names one, as the reducer does (statline.ts:551-556). Both N0 parts re-run; R3 onward re-run.
+
+- *2026-10-22, amendment 2, before this block was committed (the tools of decisions 11, 12, 13 and 15; no scored rule changes).* Plan §18b's decisions 11, 12, 13 and 15 (2026-10-22 08:20Z) needed tools the first freeze did not hold. They were staged in `tools35/amend/stage` from about 08:31Z, while the B35 drive ran on the frozen tools in P35, and installed only after the drive ended (`DRIVE35 B35 DONE`, 2026-10-22T09:17:27Z), by `install-amend.sh` (`INSTALL PASS` at 2026-10-22T13:24:31Z), which rewrote `FROZEN35` with this dated text (`tools35/amend/AMEND.md` §6), carried here verbatim:
+  > 2026-10-22 amendment 2 (the tools amendment of plan §18b decisions 11, 12, 13 and 15; tools35/amend/AMEND.md): H35 accepts ARM_FRONT_RATE_MOCK=0 in game mode for the rate-0 control (exactly v7, the full catalogue, HEAD35; header frontLookRateMock: 0; refused on the bench); guard35 --rate0 and its header rule (frontLookRateMock 0 only on n0h-rate0 and K4z, which are guarded with --rate0 only, where rateConstant is 0; 1 on the {front0, v7} benches K8f, K8b and N0-head's n0h-benchf, absent on K8b under the filed fallback; absent on K8 and on every other run); proof35 --rate0, and a rate-0 run refused as a reference; drive35 K4z after K4, and an R-run carried only by an EQUIV35 PASS in decision 13's form; r0-35 N0-head's rate-0 line and declared bench line, and equiv over v4, v5 and v6 smokes and a base-v6 bench; expected35 the aware cells' analytic bite shares COMPUTED from the formula, re-run on R3 and R5 into expected35-amend2.json. H35 570ea2b71067 -> c6733c30f89e; the R-runs are carried by r0-35.sh equiv; both N0 parts re-run.
+  - **Decision 11.** H35 accepts `ARM_FRONT_RATE_MOCK=0` in game mode for the rate-0 control alone (`v7` with the full catalogue, at HEAD35), whose header carries `frontLookRateMock: 0`. It refuses the mock at 0 on the bench, reading decision 11's "as well as in bench mode" as the bench's existing mock of 1. The guard gains `--rate0` and its header rule: `frontLookRateMock` is 0 only on N0-head's rate-0 line (`n0h-rate0`) and K4z, which are guarded with `--rate0` and only with it, and there `rateConstant` is 0; it is 1 on every {front0, v7} bench, K8f, K8b and N0-head's `n0h-benchf` (whose `v7` arm is v7f because of it); it is absent on K8b under the filed fallback (rule 8), on K8 and on every other run. The rate-0 control's floor is the one after rule 18: `anyLegal` > 0 counts calls with a legal look, and that the die was thrown on each of them is read from the code (`frozen.ts:819-822`, `frontLooks.ts:294`), not counted. `proof35.py` gains `--rate0` and refuses a rate-0 run as a `--numbers` or `--games-vs` reference (exit 2). `drive35.sh` runs K4z after K4. K4z is never a reference and never scored.
+  - **Decisions 12 and 13.** `r0-35.sh` gains N0-head's declared bench line, and its equivalence runs 2-round v4, v5 and v6 smokes (v6 with records) and a base-v6 bench under the old and the new H35. The drive carries an R-run across a tools change only through an `EQUIV35 PASS <its H35> -> <current H35>` line in decision 13's form, `(2-round v4, v5 and v6 smokes, v6 with records, and a base-v6 bench …`; a line in the first equivalence's form carries nothing.
+  - **Decision 15.** `expected35.py` prints the aware cells' STANDARD bite shares, COMPUTED from the recognition formula, beside the flat share from R3.
+  - **No existing key changed.** Every existing caller and mode writes the key set and values it wrote before; only the rate-0 control's game header adds `frontLookRateMock`.
+  - **The hashes.** Amendment 2 changed 7 of the freeze's 15 files: H35 (`adr073Arm35.test.ts`) from `570ea2b7…` to `c6733c30…`, `drive35.sh` from `1f2ce307…` to `91786c34…`, `expected35.py` from `8ab08b59…` to `a979eeb6…`, `freeze35.sh` from `70e0230f…` to `4dd966b9…`, `guard35.py` from `b526cfc2…` to `34422898…`, `proof35.py` from `8f351be2…` to `9d058a1a…` and `r0-35.sh` from `17c633f3…` to `da2d70f8…`; the other 8 lines are unchanged. `freeze35.sh` changed only in a comment and in the obligation it prints when H35 changes, which now names decision 13's form of the equivalence. `FROZEN35` was rewritten at 2026-10-22T13:21:39Z, with 15 files; that freeze is kept as `frozen-history/FROZEN35.20261022T145840Z.sha256`.
+  - **The references.** `r0-35.sh equiv` recorded `EQUIV35 PASS 570ea2b7… -> c6733c30… (2-round v4, v5 and v6 smokes, v6 with records, and a base-v6 bench …)` (2026-10-22T13:23:15Z), in decision 13's form, which carries R1, R2v5, R3, R4 and R5. R0 (H34) stands untouched. N0-base was re-run and passed (2026-10-22T13:24:28Z).
+  - **The figures.** The install's step 6 ran the installed `expected35.py` on R3's and R5's shards with the drive's own arguments into `expected35-amend2.json` (exit 0), the file named under "The expected values" above. That file is the source of this block's COMPUTED figures. The drive's own `expected35.json`, written by `8ab08b59…`, has no `awareComputed` and is not cited for them; it equals the source on every value this block reads but the aware cells, the tool's sha256 and the check count (the sentence under "The expected values").
+  - Recorded as a departure in W.
+
+- *2026-10-22, amendment 3, before this block was committed (the analyzer, decision 20; no scored rule changes).* Plan §18b's decision 20 freezes the analyzer before any HEAD35 output exists. `adr073-analyze35.py` (sha256 `485416e2…`) was copied into P35 unchanged and taken into `FROZEN35` by `freeze35.sh --rewrite`, which rewrote it at 2026-10-22T14:58:40Z with this dated text, carried here verbatim:
+  > 2026-10-22T14:58:40Z amendment 3 (plan §18b decision 20): the analyzer adr073-analyze35.py 485416e24ad0 is frozen before any HEAD35 output exists; no run tool changed (H35 c6733c30 unchanged, so no equivalence); N0-base re-run.
+  - **What changed.** The freeze gained one line, the analyzer's, and holds 16 files. H35 (`c6733c30…`), `expected35.py` (`a979eeb6…`) and the other 13 lines are unchanged, so no run tool changed, no equivalence was needed, and every reference stands as amendment 2 left it. The analyzer imports only Python's standard library, so no other file joined the freeze. Amendment 2's freeze is kept as `frozen-history/FROZEN35.20261022T145840Z.sha256`.
+  - **N0-base** was re-run on the new freeze and passed (the attempt of 2026-10-22T14:59:01Z, `N0-base: PASS` at 15:00:11Z), and its 16 `N0 TOOL` lines are the freeze's. N0-head has not run; it runs at HEAD35 on this freeze.
+  - **The frozen analyzer**, run on the B35 outputs (`--preset b35`), names itself as the freeze's and reads them as it did before the freeze.
+  - Recorded as a departure in W.
+
+- *2026-10-22, amendment 4, after this block was committed and before any arm (plan §18b decisions 21–24, and the analyzer; no COMPUTED figure changes).* Plan §18b's decisions 21–24 are the Orchestrator's rulings on four points this block was committed without, and on three of its readings; they carry no time. The review of this block's rules found four gaps: this block read a failing exact claim two ways, as a rule 17 trigger (line 2707) and as a defect (lines 2736 and 2786), while the tools then frozen computed a third, a stop under which rule 17 reads NOT DECIDED; the analyzer then frozen (`485416e2…`, amendment 3) read a `ch:slide` of 2 or more snaps all in one game as INCOMPLETE, against decision 19's sentence (line 2720); rule 13 filed no reading for a bench verdict whose per-game SE is missing or whose SEs are both 0, which that analyzer read INCOMPLETE; and rule 17 did not say when it is itself read. The commit left those four to the Orchestrator, with the three readings it filed where the plan's text was silent or loose. Each decision below first gives the ruling as plan §18b words it, with this block's line numbers added, and then, under "Read here as", what this amendment reads from it. "§8" here, as in decision 21 and in the table's heading (line 2736), is the plan's §8, filed above as the stop rules (line 2785), not this ADR's own §8 (line 1041).
+  - **Decision 21: the controls, and a failing exact claim.** Rule 2's by-name lines (K3, K1, K2, K12 and K13, and CL1–CL3 at C7), the rate-0 control K4z and the `--expect worn` lines (lines 2800-2801) are controls: a failure there is always a build or harness defect (a §8 stop: fix it and re-run from N0, line 2786), and never a rule 17 input. An exact claim of rules 3–5 that fails, or a must-be-0 check that stops, first stops the runs for diagnosis (§8). If the diagnosis finds a defect, it is fixed and the runs re-run from N0, and nothing reaches rule 17. If it finds that the code does what §2.5 and rule 16 say and this ADR's claim was wrong, a dated amendment under this heading records the claim as measured (the check, its count and the runs it read) and lifts that one check for the remaining runs. The same amendment gives the analyzer that reading as FALSIFIED, by a freeze rewrite and N0-base again, before the analyzer's verdict is read. That FALSIFIED claim is a Class C trigger. Read here as:
+    - **The rate-0 control** is both of its lines, N0-head's rate-0 line and K4z (lines 2492 and 2738). Neither is one of rule 3's claims (line 2524), and N0-head's line is also an N0 line (line 2786).
+    - **Rules 3–5.** Line 2707's trigger is read on rules 3–5, and so is line 2790's "An exact claim fails (rules 2–5)". A rule 2 line that fails is a defect (line 2786) and is never recorded as measured.
+    - **A must-be-0 check's stop** (line 2788) is read as an exact claim's is (line 2790): stop and diagnose.
+    - **The FALSIFIED claim** is line 2716's "a defect-free exact claim fails", and line 2790's "record it as measured … and continue" is done by that amendment. Line 2718's "An exact claim of rule 5 that fails is a Class C trigger above" is read the same way: a failing claim of rule 5 is a §8 stop until such an amendment records it, and a Class C trigger after.
+  - **The table's heading** (line 2736) is edited in place by this amendment, as decision 21's last sentence rules. It read "any one above 0 stops the runs as a defect", and now reads "any one above 0 stops the runs for diagnosis (§8)", in the plan's words; its "§8" is the stop rules at line 2785. No other line above is edited, so lines 2608, 2707, 2716, 2718, 2790, 2797 and 2803 are read with this amendment, as it says below.
+  - **The record, as built.** The analyzer reads it from `asmeasured35.json` in P35, whose entries have exactly the fields claim, check, count, runs and amendment. The file is absent, so no exact claim is recorded as measured.
+    - **It is outside the freeze.** The file is data. `freeze35.sh --list` names no `.json` and no run tool reads it, so `FROZEN35` does not hold it, and the analyzer checks only that an entry's `amendment` field holds a date, not that the amendment or its freeze rewrite exists. So the amendment that writes the file carries the file's sha256 and its bytes verbatim, as amendments 1–4 carry their dated text, and does decision 21's freeze rewrite and N0-base again, with dated text that names that sha256. A file that no such amendment carries is not a record under decision 21, whatever the analyzer prints.
+    - **What it refuses.** An entry is refused if it names a control, or a check that is not one of the claims of rules 3–5 (rule 19's `coverageReadOnHonestWorn` among them), and a refused entry's check stays a defect. A must-be-0 check outside rules 3–5 that is found to be a wrong claim is recorded only by an amendment that also extends the analyzer's list of claims (a freeze rewrite and N0-base again); it is then a Class C trigger, as decision 21 says. Until then it stays a defect, and rule 17 reads NOT DECIDED.
+    - **Its count.** An entry's count must equal the analyzer's own count of that check on the runs it names. A refused entry, an unreadable file, an entry that names a run not loaded, and a count that differs from the analyzer's are each an input not read, so rule 17 reads NOT DECIDED even when nothing else fails.
+    - **Its reach.** On a run that is not a control, a guard STOP whose every line is lifted reads AS MEASURED, and a lifted proof line reads "as measured". The run tools lift nothing: `guard35.py` still stops on a recorded check and `drive35.sh` halts there, so lifting a check in the drive is a tool change after N0-base (line 2803).
+    - **The harness's own forms.** Four failures that the analyzer then frozen read as failing exact claims are now harness defects (§8 stops) that no entry lifts, as decision 21 rules for a defect: `front0Exact`'s checked count, worn count, `vsBase` or arm not as built; an `exact35` counter that is missing; `forcedEqV7OnWorn`'s checked count not equal to K8's v7 worn count (filed with item 15, line 2546); and a `frontLookRateMismatch` that is not a number. Their rows still read FALSIFIED, and rule 17 reads NOT DECIDED. If a diagnosis found one of them a wrong claim, it would be recorded as a check outside the analyzer's list is, above.
+  - **Decision 22: degenerate bench SEs.** Rule 13's sign rule (line 2678) uses the larger of the per-snap and the per-game clustered SE (decision 2). Where the clustered SE cannot be computed, because the stratum has fewer than 2 game clusters, the per-snap SE alone is used. Where the SE used is 0, a zero mean reads NOT SHOWN and a nonzero mean reads by its sign, because z is infinite. A stratum with fewer than 2 snaps reads NOT SHOWN. So no bench verdict, and no `ch:slide` reading (decision 19), is INCOMPLETE for want of an SE. Read here as:
+    - **A `ch:slide` of 2 or more snaps in one game** reads on its per-snap SE.
+    - **Rule 12's L** (lines 2667-2668) is read the same way: at an SE of 0 the guard fails exactly when L < 0, and with fewer than 2 snaps, H and N together, it does not fail.
+    - **As built,** a verdict key with no per-game cells at all has no per-game sums to read, a missing input, and reads INCOMPLETE. On a correct harness every verdict key is in `/pg35Keys`, and one the pool never wrote has 0 snaps and reads NOT SHOWN.
+  - **Decision 23: when rule 17 is read.** Once, after every run, guard and proof line of the HEAD35 drive is in, read and PASS (or recorded as measured under decision 21), with no §8 stop outstanding. Before that it reads NOT DECIDED. An unread or missing input is NOT DECIDED, never a class. Read here as:
+    - **No case is left without a class** (line 2718) once every input is in.
+    - **The order.** The analyzer reads, in order: a defect, NOT DECIDED (a §8 stop); an input not read, NOT DECIDED; a Class C trigger, Class C; a Class P trigger, Class P; else NOT FIRED. A failing exact claim is no longer a trigger of its own (lines 2707, 2716 and 2718); one recorded as measured is.
+    - **R2 left unread by rule 8.** R2a and R2b, left unread by rule 8's preconditions (line 2608) because a precondition failed only through claims recorded as measured, are not inputs left unread: those claims are Class C triggers, and Class C wins whatever R2 reads.
+    - **The save trigger** (line 2713) can fire only after C7 exists, and C7 comes after the HEAD35 drive and W (the plan's commit order). At a reading made before C7 it is false by construction, because before C7 exists C7 waits for E1 and no card is sent (line 2795). A save found after C7 exists takes that line's own path, which sends the alternate card (Class C). "Once" is the plan's word and stands.
+  - **Decision 24: three readings stand as filed.** In the fallback, every bench figure read on v7f over K8f + K8b is read on v7 − front0 over K8 + K8b (rule 8, line 2605); "every arm" includes the league arms aware-v6, aware-v7, d20-v6 and d20-v7 (line 2737); and rule 19's rows are reported rows, with no band count per population at game level (line 2696).
+  - **The analyzer.** Decisions 21–23 reached the analyzer and no other tool, so lines 2797 and 2803 read with this amendment added: decisions 21–23 reached the tools through amendment 4, which also rewrote the freeze. `adr073-analyze35.py` went from `485416e2…` to `550a0aea…`, and `freeze35.sh --rewrite` rewrote `FROZEN35` at 2026-10-22T17:02:35Z with this dated text, carried here verbatim:
+    > 2026-10-22T17:02:35Z amendment 4 (plan §18b decisions 21-23): the analyzer adr073-analyze35.py 485416e24ad0 -> 550a0aea2f96 reads degenerate SEs by decision 22, reads rule 17 only when every HEAD35 input is in (decision 23), and reads /tmp/claude-0/-home-claude-football-franchise/6c81441b-6f64-5504-9ead-dcff7a2b1f80/scratchpad/arms073/p35/asmeasured35.json (absent) by decision 21; no run tool changed (H35 c6733c30), so no equivalence; N0-base re-run.
+  - **Its path.** The dated text names the record by its full path in the session's scratch copy of P35, the only such path in this block. It is P35's `asmeasured35.json`, the record above.
+  - **What changed.** Only the analyzer's line. The freeze holds 16 files, and H35 (`c6733c30…`), `expected35.py` (`a979eeb6…`) and the other 13 lines are unchanged, so no run tool changed, no equivalence was needed, and every reference stands as amendment 2 left it. Amendment 3's freeze is kept as `frozen-history/FROZEN35.20261022T170235Z.sha256`.
+  - **N0-base** was re-run on the new freeze and passed (the attempt of 2026-10-22T17:02:49Z, `N0-base: PASS` at 17:03:57Z), and its 16 `N0 TOOL` lines are the freeze's. N0-head has not run; it runs at HEAD35 on this freeze.
+  - **The analyzer now frozen** (`550a0aea…`), run on the B35 outputs (`--preset b35`), names itself as the freeze's, and every row's verdict is as before. Rule 17 reads NOT DECIDED (decision 23), where it read INCOMPLETE, because no HEAD35 output exists.
+  - Recorded as a departure in W.
+- *2026-10-22, amendment 5, after this block was committed and before any arm (main moved; plan §18b decision 25; no rule, tool or COMPUTED figure changes).* Main moved from 94ea150 to 0eef4b5 (save and load, coaching staffs and news: PRs #19, #21, #22 and #23), and §8's main-moves rule applies. Main was merged into this branch as bf8183c, never rebased.
+  - **The diff.** §8's sim-path diff-stat between the two bases is not empty: it names `packages/contracts/src` (events.ts, index.ts, league.ts, players.ts, save.ts and the new staff.ts) and, outside that list, `packages/calibration/src/season` (main.ts, realSeason.ts). `packages/engine` and `packages/playbook` are unchanged. Every contracts change is a type: new event payload fields, `GameResult.periods`, StaffState's résumé and disguise fields, `SaveFile.staffContracts` and `SaveFile.playedWith`, and staff.ts's types.
+  - **The compiled code.** Built before (188293e) and after (bf8183c), the JavaScript of `packages/engine`, `packages/playbook` and every `packages/calibration` file outside `season/` is byte-identical, and contracts' JavaScript gains only `export * from "./staff.js"`, whose module is empty (`export {};`). So no executable line on the sim path changed.
+  - **The pins.** On bf8183c (`pins.sh merge-main-0eef4b5`, 2026-10-22T18:03:22Z) the base set's 288 game rows equal `pins-base35.jsonl` byte for byte, the v7 set's 84 equal `pins-v7base35.jsonl`, every batch row equals its base one way, and the default rows equal v4's.
+  - **Read here as.** §8's literal rule re-takes the references when that diff is not empty. Decision 25 reads this move as §8's empty-diff case, because the diff compiles to the same bytes: the B35 references stand, and the K-runs' by-name byte proofs (K3 against R3, K1 against R1, and K2, K12 and K13) confirm it at full scale. Any one of them failing is a §8 stop, after which the references are re-taken on a new base. HEAD35 is this branch's head after this amendment, which descends from B35 as `drive35.sh` requires; no tool changed, so `FROZEN35` (16 files) and N0-base stand, and N0-head runs at HEAD35 as filed.
+  - **P-D4** has not run. It runs at C7 on the merged season code, so nothing is re-run.
+  - **The saves rule does not fire.** Main can now resume a season from a save, and the save records the resolved caller: the only writer stores `playedWith: { caller: callerVersion }`, where `callerVersion` is the `--caller` given, else the save's own, else `DEFAULT_CALLER_VERSION` (`packages/calibration/src/season/main.ts:82` and `:104`), never the word "default". `--load` carries on with the saved version and refuses another unless `--switch-caller` is given. A season saved before the move therefore carries on under v4 after it.
+  - Recorded as a departure in W.
+- *2026-10-22, amendment 6, after the dry run D and before any arm (D forced a code change; plan §18b decision 26; no rule, tool or COMPUTED figure changes).* As the paragraph "Where it sits, and why before D" says (line 2399), a code change that D forces gets a dated amendment under this heading, and D is repeated.
+  - **What D found.** D ran on a `cp -a` copy of 30b1b21 (2026-10-22, 18:15Z to 19:07Z; scratch `dryrunD/D.md`, checked independently in `dryrunD/check.md`). With the default flipped to `"v7"`, the whole calibration suite failed 15 cases. Eight are T-D1 to T-D5 exactly: every T-D item failed, and T-D6, a comment, could not fail. The seven others are in `metrics.test.ts`, C4's front-look diff tests: the edit-by-edit block and the last check of the merge test took their base game from the default caller and assumed it wears no front look. Under v7 that game wears front looks on 17 dropbacks. That is a fix before the move (§8, D step 1), not a Class C trigger, and not C6b: H4's one seed pair passes under the flip.
+  - **The fix,** 4dfc300 (test-only): those cases now use the named v4 game the file already plays (`v4Games`), so they pass whatever the default is. It changes no stream and no tool.
+  - **D repeated.** On a fresh `cp -a` copy of 4dfc300 (scratch `dryrunD2/`), the whole calibration suite ran unflipped (19:40:13Z: 722 passed, 0 failed, 74 skipped) and flipped (19:45:38Z: 714 passed, 8 failed, 74 skipped). The 8 are T-D1 to T-D5's cases, every change between the two runs is passed to failed, and the skipped set is the same, so F_fwd is exactly T-D1 to T-D5. Step 5's table was rebuilt from those runs: no default-following file is above half its timeout (the highest is `blockedDepthOffsetAgreement` at 111.3 s of 300 s, 0.371).
+  - **Read here as.** Decision 26 repeats D's steps 1 and 5 in full and lets steps 2, 3, 4 and 6 stand from the first run. 4dfc300 changes one test file, which no ladder, baseline or shard computation reads, and the file list is unchanged, so vitest's shard membership, which hashes file paths, is unchanged.
+  - **What D's other steps found (first run, standing).**
+    - Step 2: both sack ladders' records under the flip pass all four checks rule 18 lists (its "three record rules" are read as those four: a positive step with an SE, the signal, the noise and the floor). No lever is needed, and the seed digests are unchanged. `ol-passblock-sack-rate` steps 0.0448, 0.0541 and 0.0515 (SEs 0.0053, 0.0053 and 0.0042; span 0.1504). `dl-passrush-sack-rate` steps 0.0341, 0.0345 and 0.0346 (SEs 0.0028, 0.0061 and 0.0046; span 0.1032, against the 0.0938 it needs). The usage stage's inert set is still empty.
+    - Step 3: the canonical v7 ladders for `qb-accuracy-completion`, `rb-vision-ypc` and `db-coverage-net-yards-per-dropback` are monotone and clear their floors (effects 0.1488, 6.8087 and 0.6215).
+    - Step 4: the only membership change since 94ea150 is that `callerV7Stream.test.ts` joins shard 3 (29, 29 and 28 files; vitest's own `--shard` listing agrees). Shard 3's summed test time grows 1.65 times against a base without that file, and its longest file, `blockedDepthOffsetAgreement`, 1.52 times (74.2 s to 113.0 s). This is the job to watch at C7's CI job-wall check (a job above 1.5 times 94ea150's is a finding before the card).
+    - Step 6: the baseline tool ran both ways, exit 0, recording `v4/v1` and `v7/v1`; v7's `front_look_rate` is 0.0925, and no verdict changed between the two runs.
+    - No rule 17 Class C trigger fired.
+  - HEAD35 is this branch's head with this amendment. No tool changed, so `FROZEN35` (16 files) and N0-base stand.
+  - Recorded as a departure in W.
+- *2026-10-23, amendment 7, after every K-run and before W (main moved; plan §18b decision 28; no rule, tool or COMPUTED figure changes).* Main moved from 0eef4b5 to 10029e3 (team rosters, ADR-079: PR #20), and §8's main-moves rule applies. Main was merged into this branch as 54bbaff, never rebased. HEAD35 stays 94fee2c: every K-run measured it, and C7 descends from it.
+  - **The diff.** §8's sim-path diff-stat between the two bases names one file, `packages/calibration/src/league/provenance.ts`: a fourth league provenance, `GENERATED_FICTIONAL`, its entry in `LEAGUE_PROVENANCES` and its case in `claimScopeOf`. Outside that list main changed `packages/calibration/src/season` (main.ts and realSeason.ts, and the new generatedLeague.ts), `@ff/attributes` (the new fictional generator), calibration's `package.json` (the `@ff/attributes` dependency the Charter's amendment 11 ratifies), franchise's `save.ts` (a save may now carry players), the lockfile, and two new calibration tests (`attributesSurface.test.ts`, `generatedSeason.test.ts`). `packages/engine`, `packages/playbook` and `packages/contracts` are unchanged.
+  - **The compiled code.** Built before (94fee2c) and after (54bbaff), the JavaScript of `packages/engine`, `packages/playbook`, `packages/contracts` and every `packages/calibration` file outside `season/` is byte-identical but `league/provenance.js`, which gains only the new array entry and the new `case`. No source file reads `LEAGUE_PROVENANCES` (only `league.test.ts` does), and `claimScopeOf`'s one caller, the baseline report (`report/baseline.ts:303`), passes the league's own provenance, `FLAT_SYNTHETIC` on every batch, arm, pin and baseline, whose case is unchanged. Only the season runner builds a `GENERATED_FICTIONAL` league (`season/generatedLeague.ts`). So no executable line that a batch, arm, pin, K-run or baseline reaches changed.
+  - **The pins.** On 54bbaff (`pins.sh merge-main-10029e3`, 2026-10-23T00:05:46Z) the base set's 288 game rows equal `pins-base35.jsonl` byte for byte, the v7 set's 84 equal `pins-v7base35.jsonl`, every batch row equals its base one way, and the default rows equal v4's.
+  - **The gate.** `pnpm verify` on 54bbaff: build, test and typecheck at exit 0 (calibration 50 files passed, 38 skipped, of 88).
+  - **Read here as.** As amendment 5 read its move (decision 25): §8's empty-diff case, because the one sim-path change is unreachable from every run this block files. The B35 references and every K-run stand, and nothing is re-taken.
+  - **D's steps 1, 4 and 5 repeated** (decision 28), because main added two test files and changed the season runner, which the default caller plays. On a `cp -a` copy of 54bbaff (scratch `dryrunD3/`), the whole calibration suite ran unflipped (00:17:30Z: 727 passed, 0 failed, 74 skipped) and flipped (00:22:31Z: 719 passed, 8 failed, 74 skipped). The 8 are T-D1 to T-D5's cases, the same 8 as amendment 6's repeat; every change between the two runs is passed to failed, the skipped set is the same, and the five new cases (`attributesSurface` 1, `generatedSeason` 4) pass both ways. So F_fwd is still exactly T-D1 to T-D5. Step 5's table, with `generatedSeason.test.ts` added: no default-following file is above half its timeout (the highest is `blockedDepthOffsetAgreement` at 98.1 s of 300 s, 0.327; `generatedSeason` 0.89 s of 5 s, 0.177). Step 4: with 88 files vitest's slices are 30, 30 and 28 files; both new files join shard 1 and `shownRushStream.test.ts` moves from shard 1 to shard 2 (2.5 s); shard 3, the one to watch, keeps its 28 files. D's steps 2, 3 and 6 stand: no ladder, baseline or scenario file changed.
+  - **P-D4** runs at C7 on the merged season code, whose default now plays each team's own made-up squad; P's and C7's runs both do.
+  - **The saves rule does not fire.** The only save writer still records the resolved version name (`playedWith: { caller: callerVersion }`, `packages/calibration/src/season/main.ts`, now beside the players), and `--load` still carries on with the saved version unless `--switch-caller` is given.
+  - **The P35 record.** Four n0-equiv proof files that an analyzer test had overwritten with stubs at 2026-10-22T13:49:15Z (V2's F1; `verify/reconcile.md` §2) were restored from the reconciler's rebuild, whose sha256 it recorded, and the stubs kept beside them. The frozen analyzer, re-run, changes only those four rows' input counts (1 to 22, and 1 to 14 on the bench); every verdict and figure is as before (`adr073-figs35.json` byte-identical).
+  - Recorded as a departure in W.
+
+### 3.5 Caller v7: the front looks, the Mug and the Stem *(2026-10-23; built and measured; the default caller moves from v4 to v7 in the closing commit)*
+
+**In short.**
+- **R2's banner** (lines 26-28) opens the report, verbatim and before any figure, and 3.5 is the step it is scored at: on the fooled snaps (Decision 6, lines 1153-1154), on the bench, with the disguise forced on every legal snap (v7f, rule 8; report §1).
+- **v7 is v6, then a front look.** On 1 in 10 of the calls that can wear one (`FRONT_LOOK_RATE` 0.1, `distribution.ts:254`), the real defence shows the Mug or the Stem. The huddle never sees it, and the line's read does (§2.5, lines 562-587). These are rule 16's mechanics as built (lines 2420-2484); this section measures them and does not re-introduce them. At HEAD35 the default is still v4 (`anticipate.ts:224`), and the closing commit C7 moves it to v7.
+- **Every proof holds.** v4 and v6 replay byte for byte by name on both seed sets, and v5 on set A, the only set it ran (K2 against R2v5). `v7/front-0` plays v6's games exactly, and so does v7 with its rate mocked to 0. Every exact per-snap claim on the bench holds, every guard passes (25 of 25), and 48 of the 49 proof files read as expected; the 49th is historical, an earlier equivalence attempt's file. No stop under the stop rules (the plan's §8, line 2785) is outstanding (the report's defects: NONE). The one stop, R3's guard at B35 on `hotIntNoInterceptor` = 9, was a harness bug that amendment 1 fixed before any H35 reference had passed. The one record defect, four stub proof files, is restored (Departures).
+- **R2a and R2b FAIL, in the opposite direction.** On the snaps R2 named, the disguise lowers sacks. R2a, v7f − front0, is Δsack −7.44 points a snap on 995 snaps (SE 1.17, z −6.33), and R2b is −0.50 on 110,038 snaps (SE 0.03, z −15.51). The cause is the bluff in the look: on a fooled Mug snap its ghosts, men shown rushing who drop, make the quarterback throw hot. On R2a hot conversions rise +0.6442 ± 0.0153 a snap, against slid pickups −0.6623 ± 0.0155 and pickups lost +0.3980 ± 0.0157. The LOOK-hot term, which the ADR left undetermined (line 1402), carries both verdicts (on R2b through `ch:lookHot`, −0.404 of −0.50; on R2a, whose `ch:lookHot` is empty, inside `ch:both`, −7.739 of −7.44, where the slide also differs, so on R2a it is line 2717's reading), and the slide channel the ADR signed up reads NOT SHOWN on both strata. So **rule 17 FIRED, Class P**: the alternate card recommends "Merge and move", with the failure recorded as measured (line 737).
+- **Three more signed claims fail as measured, none of them a rule 17 input.** The bitten bluffs' completions rise, +7.05 ± 0.11 a hundred snaps (z +63.98), against a filed fall. Their Slant and Shallow Cross conversions lower sacks, −4.82 ± 0.28 points a snap (z −17.27), against a filed rise. Their interceptions rise as filed (+0.14 ± 0.04, z +3.91). On the Stem's `stemLive` snaps (a SLIDE call read COUNT or LOOK), Δsack is −0.41 ± 0.11 points a snap (z −3.80), against a filed rise. The with-release stratum reads NOT SHOWN (Δsack −0.03 ± 0.03 points a snap, z −1.13).
+- **The rates and the bite share pass.** All six counts sit within ±2 SD (the largest |z| is 1.28). v7 wears a look on 9.22% of its dropbacks (0.1 × the 92.14% legal share is 9.21%), 0.556 of them Mugs. On v7 the Mug bites on 26.2%, 40.4% and 47.5% of rolled reads over STANDARD, ZONE_BLITZ and DELAYED calls (on the mug arm 26.1%, 40.3% and 47.7%), against the filed 26%, 41% and 46%.
+- **What the move changes in a test-league season, v7 − v4:** sacks −1.08 ± 0.20, completions +0.63 ± 0.24, attempts −1.52 ± 0.45, interceptions −0.03 ± 0.07, designed rush yards −21.39 ± 10.20 and points −1.03 ± 1.18 a team-season. The sacks and the designed rush yards are mostly v6 − v4's, re-measured at B35 (sacks −0.92 ± 0.20, designed rush yards −23.83 ± 10.18). v7's own step, v7 − v6, is sacks −0.15 ± 0.05, completions +0.26 ± 0.06, attempts +0.47 ± 0.11 and points +0.60 ± 0.30. Completion drift, v7 − v4, is +0.238 ± 0.042 points, 2.16 × one step's 0.110; v7 − v6 is +0.017 ± 0.010 (0.16 ×).
+
+**What ran.** The scratch harness H35 (`adr073Arm35.test.ts`, sha256 c6733c30…: 3.4's H34 with append-only keys, defined in `KEYS35.md`) ran in four shards a run from `packages/calibration`. Its tools are `run35.sh`, `guard35.py`, `proof35.py`, `drive35.sh`, `r0-35.sh`, `freeze35.sh`, `expected35.py` (a979eeb6…), the lists in `declare/` and the analyzer `adr073-analyze35.py` (550a0aea…). With H35 and 3.4's `h34/adr073Arm34.test.ts` and `h34/run34.sh`, they are the 16 files hashed into `FROZEN35.sha256`, last rewritten by amendment 4 at 2026-10-22T17:02:35Z. Every shard runs tunables `fnv1a:395a9ae2` (report §27). Every shard plays the flat league at leash 50 except the Awareness arms (the `aware` league, at leash 50) and the Discipline-20 arms (the `d20` league, at leash 20). Set A is `adr-073:front-arm` × 240 rounds (6,720 games) and set B `adr-073:front-arm-2` × 720 (20,160), as in 3.4 (line 2097) and as F files them (line 2411).
+- **The references, at B35** (`c257270`, whose packages are 94ea150's, from a clean worktree; line 2405).
+  - `drive35.sh` started at 2026-10-22T08:15:31Z on N0-base's pass (the attempt of 08:06:17Z; `logs/drive35.out`:1-134 and `logs/n0-base.out`:1-224). R0 (v6 on H34) passed at 08:19:08Z.
+  - R3's guard stopped at 08:26:40Z on `hotIntNoInterceptor` = 9 (amendment 1). N0-base passed again at 08:30:16Z (the attempt of 08:28:58Z, `logs/n0-base.out`:225-448), and the drive resumed at R3 that second on the amended H35 (570ea2b7…).
+  - R3 passed at 08:37:32Z, R1 at 08:41:11Z, R2v5 at 08:44:51Z, R4 at 08:55:44Z and R5 at 09:17:26Z, and `DRIVE35 B35 DONE` is at 09:17:27Z.
+  - Amendment 2's tools (decisions 11, 12, 13 and 15) were installed after the drive. `EQUIV35 PASS 570ea2b7… -> c6733c30…` (13:23:15Z) carries R1, R2v5, R3, R4 and R5 to H35 c6733c30 (`logs/equiv35.out`:220-254). N0-base passed again at 13:24:28Z, at 15:00:11Z (amendment 3) and at 17:03:57Z (amendment 4, the attempt of 17:02:49Z).
+- **The K-runs, at HEAD35** (`94fee2c`: amendment 6, on the test fix 4dfc300 and amendment 5 30b1b21, after bf8183c's merge of main 0eef4b5).
+  - N0-head ran first, from 19:47:06Z to its pass at 19:51:38Z (`logs/n0-head.out`), at a one-minute load of 0.65 on 4 CPUs when it started (decision 10 wants nothing else running).
+  - It proved v7f on two benches of 1,000 of R3's records a shard (4,000 records each): `forcedEqV7OnWorn` is 0 over all 356 of the first bench's v7 worn dropbacks, `forcedUnwornLegal` is 0, and v7f wore 3,694. So R2 is decided on v7f, and no fallback was taken (rule 8).
+  - v7's cost is 1.053 × v6's; the plan's §8 rule re-costs the table above 1.3.
+  - `drive35.sh` then ran from 19:52:13Z, in the plan's §8 order with K4z after K4 (decision 11; line 2409; `logs/drive35.out`:135-469): K4, K4z, K3, K1, K7, K8, K8f, K5, K6, K2, K9, K8b, K10, K11, K14, K15, K16, K17, K12 and K13. Each went through `guard35.py`, and then its proof line where it has one. `DRIVE35 HEAD35 DONE` is at 22:53:56Z.
+  - The frozen analyzer read every input at 22:55:55Z, after the drive (decision 23). It was re-run on 2026-10-23 after the four stub proof files were restored, and only four inputs cells changed (amendment 7; Departures).
+  - The benches took 1,633 s (K8), 803 s (K8f) and 2,448 s (K8b), against the plan's 1,200, 516 and 1,560 s (Departures).
+- **After the K-runs**, main's 10029e3 was merged into the branch as 54bbaff (amendment 7). Main had moved there at 2026-10-22T18:44:21Z, before N0-head, but the drive's last fetch still showed 0eef4b5 (`logs/drive35.out`:136). HEAD35 stays 94fee2c, and C7 descends from it.
+
+| run | arm | caller | seeds | size |
+|---|---|---|---|---|
+| N0-base (B35) | the checker checked both ways, smokes, a base-v6 bench and timing | v4, v5, v6 | set A, 2 rounds | 12 proof lines |
+| R0 | v6 on H34 (H35 ≡ H34) | `v6` | A | 6,720 games |
+| R3, R5 | v6: the references and the bench bases | `v6` | A, B | 6,720 + 20,160 games; 593,157 and 1,778,688 dropbacks recorded |
+| R1, R4 | v4 | `v4` | A, B | 6,720 + 20,160 games |
+| R2v5 | v5 | `v5` | A | 6,720 games |
+| N0-head (HEAD35) | smokes of v4, v5, v6, every v7 arm and both leagues, the rate-0 line, three benches, v7's cost | as the K-runs | A, 2 rounds (timing smokes 24); the K8 and K8f benches 1,000 of R3's records a shard, the base-v6 bench on N0-base's v6 smoke | 56 games a smoke (672 for timing); benches of 4,000, 4,000 and 5,102 records; 15 proof lines |
+| K1, K13 | v4 | `v4` | A, B | 6,720 + 20,160 games |
+| K2 | v5 | `v5` | A | 6,720 games |
+| K3, K12 | v6 | `v6` | A, B | 6,720 + 20,160 games |
+| K4 | front0 | `v7/front-0` | A | 6,720 games |
+| K4z | the rate-0 control (decision 11) | `v7`, `FRONT_LOOK_RATE` mocked to 0 | A | 6,720 games |
+| K5, K10 | mug | `v7/front-MUG` | A, B | 6,720 + 20,160 games |
+| K6, K11 | stem | `v7/front-STEM` | A, B | 6,720 + 20,160 games |
+| K7, K9 | v7 | `v7` | A, B | 6,720 + 20,160 games |
+| K8 | bench | R3's recorded dropbacks, each re-run alone under base v6 and six arms (v4, front0, mug, stem, v7, v7nc) | A | 593,157 snaps × 7 |
+| K8f | forced bench | R3's records under base v6, front0 and v7f (`v7` with `FRONT_LOOK_RATE` mocked to 1) | A | 593,157 snaps |
+| K8b | forced bench | R5's records under base v6, front0 and v7f | B | 1,778,688 snaps |
+| K14, K15 | aware-v6, aware-v7 | `v6`, `v7` on the Awareness league | A | 6,720 games each |
+| K16, K17 | d20-v6, d20-v7 | `v6/leash-20`, `v7/leash-20` on the Discipline-20 league | A | 6,720 games each |
+
+**The proofs ✅** (rules 2 and 3; one difference falsifies; report §2–§4)
+- **v4, v5 and v6 by name** (rule 2). Each K-run's game sha256s and event counts equal its reference's. Its numbers equal the reference's one way, with HEAD35's three added keys declared (`pb35` and C4's two fields, `declare/tree-B35-HEAD35.game.txt`, line 2517; C4's fields are present on every shard and sum to 0, `--c4-zero`), and each line is labelled cross-tree:
+
+  | line | games equal | numbers, one way |
+  |---|---|---|
+  | K1 (v4, A) against R1 | 6,720 of 6,720 | 0 of 6,090,169 differ |
+  | K13 (v4, B) against R4 | 20,160 of 20,160 | 0 of 18,157,150 differ |
+  | K2 (v5, A) against R2v5 | 6,720 of 6,720 | 0 of 6,089,646 differ |
+  | K3 (v6, A) against R3 | 6,720 of 6,720 | 0 of 6,081,865 differ |
+  | K12 (v6, B) against R5 | 20,160 of 20,160 | 0 of 18,138,308 differ |
+
+  - Every line reads 0 missing and 0 extra.
+  - The bench base v6 replays every record: `selfOk` is 593,157 of 593,157 on K8 and on K8f, and 1,778,688 of 1,778,688 on K8b.
+  - The knobbed variants are held by the pins (rule 16): every build head's base rows equal `pins-base35.jsonl` (line 2484), and so do both merges' (amendments 5 and 7). No pins run is on 30b1b21, 4dfc300 or 94fee2c: at HEAD35 the pins are carried from bf8183c, because `git diff bf8183c 94fee2c -- packages` touches only `metrics.test.ts` (`verify/v2-procedure.md` §9). On 54bbaff the base set's 288 game rows equal `pins-base35.jsonl`, and the v7 set's 84 equal `pins-v7base35.jsonl`, byte for byte (amendment 7).
+- **The references stand on H35 c6733c30.** R1, R2v5, R3, R4 and R5 were written by H35 570ea2b7 (amendment 1). Amendment 2's equivalence carries them (`logs/equiv35.out`:220-254; `EQUIV35 PASS` at 2026-10-22T13:23:15Z):
+  - 2-round v4, v5 and v6 smokes under the old and the new H35 are equal both ways with equal key sets, 0 of 101,101, 101,064 and 101,815 leaves differing;
+  - a base-v6 bench differs in 0 of 125,444;
+  - 16 of 16 record files are byte-equal.
+  - The references' own stamps (R1, R2v5, R4, R5) pass.
+- **H35 ≡ H34.** R3 against R0, one way on H34's keys with H35's declared: 0 of 3,647,181 numbers differ.
+- **PR #13 moved every game** (R1 against 3.4's M1, `--expect differ`, report-only): 0 of 6,720 equal, 6,720 differ.
+- **front0 ≡ v6** (rule 3; line 810 as F0 entry 1 re-files it).
+  - K4's 6,720 games equal R3's, sha256 and event counts.
+  - K4 against K3, both ways, with the same key set: 0 of 6,081,925 numbers differ.
+  - On the bench, `front0NotIdentical` is 0 on 593,157 of 593,157 records on K8 and K8f, and on 1,778,688 of 1,778,688 on K8b, with front0 worn 0.
+- **The rate-0 control** (decision 11; proof-only, never scored).
+  - K4z, `v7` with the rate mocked to 0, equals R3 on 6,720 of 6,720 games.
+  - It wore nothing: worn 0, worn calls 0, fooled 0 and C3's `drawn` 0, over 868,376 calls on which a look is legal (`verify/v2-procedure.md` §2.2).
+  - N0-head's rate-0 smoke equals the 2-round v6 smoke both ways under `--rate0`. Its three negative controls each fail for their own reason (`logs/n0-head.out`:207-256).
+- **The worn controls** (K5, K6 and K7 against K3, `--expect worn`). On each arm all 6,720 games wore a look and all differ. The unworn direction is vacuous (0 unworn games), which K4z covers.
+- **N0.** N0-base's 12 proof lines and N0-head's 15 read as their expectations say: every negative control reads FAIL except N0-base's `--expect differ` line (`proof35-n0b-v6-neg-differ.json`), which reads PASS as it must, because v6's 56 smoke games all differ from v4's (`logs/n0-base.out`:1017-1022), and the generation control reads REFUSED.
+  - Over the 49 proof files, 48 read as expected. The other one is historical: `proof35-eq35-new-old.json`, an earlier N0-equiv attempt's file whose H35 input has since changed. It reads FAIL, because it is the first equivalence's deliberate negative control (line 2804), which failed as meant on `/front/checks35/callsChecked` doubled (`EQUIV35 FAIL` at 2026-10-22T08:09:16Z, `logs/equiv35.out`:101-111).
+  - The four amendment-2 equivalence files had been overwritten with stubs, and are restored (Departures).
+- **Not yet run:** the closing lines CL1–CL3, at C7. The report names them as informational (report §2).
+
+**The construction, and the exact claims per snap on the bench ✅** (rule 4; report §5; one mismatch falsifies; each counter with its checked count)
+
+| counter (rule 4 item) | mug, K8 | stem, K8 | v7, K8 | v7f, K8f | v7f, K8b |
+|---|---|---|---|---|---|
+| `offenseDiffer` (2), `defenseDiffExceptLook` (3), `shortDiffer` (5), `keptInMen` (11) | 0 / 593,157 | 0 / 593,157 | 0 / 593,157 | 0 / 593,157 | 0 / 1,778,688 |
+| `unwornNotIdentical` (4) | 0 / 538,439 | 0 / 544,499 | 0 / 538,439 | 0 / 46,748 | 0 / 139,735 |
+| `bandDiffWhereBothRoll` (6) | 0 / 177,552 | 0 / 177,552 | 0 / 177,552 | 0 / 177,552 | 0 / 533,596 |
+| `wornTrueCallNotIdentical` (7) | 0 / 9,347 | 0 / 6,283 | 0 / 9,347 | 0 / 92,634 | 0 / 278,516 |
+| `bluffTrueCallNotIdentical` and `bluffTrueCallOutDiff` (7b) | 0 / 15,010 | 0 / 0 | 0 / 7,636 | 0 / 75,494 | 0 / 226,761 |
+| `mugInertNotIdentical` (8) | 0 / 10,861 | 0 / 0 | 0 / 7,375 | 0 / 74,370 | 0 / 223,218 |
+| `stemInertNotIdentical` (8) | 0 / 0 | 0 / 46,058 | 0 / 22,868 | 0 / 230,756 | 0 / 690,607 |
+| `stemAddsRoll` and `stemDropsRoll` (9) | 0 / 0 | 0 / 48,658 | 0 / 24,210 | 0 / 243,509 | 0 / 728,932 |
+| `stemDiffOffLive` (9) | 0 / 0 | 0 / 48,354 | 0 / 24,043 | 0 / 242,068 | 0 / 724,553 |
+| `fooledDiffWithoutDecision` (10) | 0 / 9,799 | 0 / 2,388 | 0 / 7,175 | 0 / 70,649 | 0 / 212,914 |
+| `bluffSlideCheck` (12) | 0 / 40,999 | 0 / 39,987 | 0 / 40,999 | 0 / 410,299 | 0 / 1,229,143 |
+| `bittenBluffNotConverted` (12) | 0 / 5,427 | 0 / 0 | 0 / 2,803 | 0 / 27,173 | 0 / 81,620 |
+| `bluffRolledWithoutGhostAndHot` (12) | 0 / 20,437 | 0 / 0 | 0 / 10,439 | 0 / 102,667 | 0 / 308,381 |
+| `stemBluffRolled` (12) | 0 / 20,437 | 0 / 39,987 | 0 / 10,439 | 0 / 102,667 | 0 / 308,381 |
+| `lookHotMismatch` (13): LOOK half + COUNT half | 0 / 1,681 (554 + 1,127) | 0 / 719 (0 + 719) | 0 / 1,501 (374 + 1,127) | 0 / 14,658 (3,714 + 10,944) | 0 / 43,952 (11,038 + 32,914) |
+| `countManDiff` (14) | 0 / 1,193 | 0 / 761 | 0 / 1,193 | 0 / 11,589 | 0 / 35,046 |
+| `lookManNoHotDiff` (14) | 0 / 928 | 0 / 598 | 0 / 1,048 | 0 / 10,737 | 0 / 32,793 |
+| `coverageReadOnHonestWorn` (rule 19) | 0 / 37,036 | 0 / 32,914 | 0 / 37,036 | 0 / 369,793 | 0 / 1,108,937 |
+| `forcedUnwornLegal` (15): unworn legal calls | 491,691 of 546,409 (reported) | 438,413 of 487,071 (reported) | 491,691 of 546,409 (reported) | **0** of 546,409 | **0** of 1,638,953 |
+| `stemDiffOffLiveStrict` (reported) | 0 | 369 | 199 | 1,849 | 5,778 |
+
+- **`lookHotMismatch`'s checked count is the sum of its two halves.** H35 counts the LOOK half (a ghost and a hot route) and the COUNT half on disjoint populations. The report prints the COUNT half alone as the counter's checked count: a printing slip, which the first verification found and the reconciliation settled (`verify/reconcile.md` item 1). The counter is 0 on every row either way, and both halves meet their floors.
+- **Item 15** (`forcedEqV7OnWorn`): every one of K8's 54,718 v7-worn snaps has the same stream digest in K8f, 0 of 54,718 differing; v7f's worn list holds 546,409. With `forcedUnwornLegal` 0 on K8f and K8b, v7f wears on every legal call and is v7 wherever v7 wears.
+- **The narrowing equalities** (K8):
+  - `narrowMugEq` 0 of 30,508 and `narrowStemEq` 0 of 24,210;
+  - `wornSetDiffer` 0 (Mug 0 of 593,157, Stem 0 of 487,071);
+  - Mug-only 0 of 59,338 and Stem-only 0 of 0 (reported).
+- **The decomposition:** `decompResidual` is 0 on 593,157 of 593,157 snaps, and its stream form is 0.
+- **3.4's base-scoped checks, against base v6:** every `K_offWorn` counter is 0 on mug, stem, v7 and v7f (`verify/reconcile.md` item 3), and so are `recognitionMismatchBothRoll` and, on every snap, `unaccountedMismatch`. front0's base-scoped totals are 0 (F's table, line 2758). `guard35.py`:593-600 stops on any of them, and K8, K8f and K8b pass.
+- **Rule 5's exact checks.**
+  - collect's `front_look_rate` count equals H35's on all **68 of 68** HEAD35 game shards, K4z's four included (128 of 128 with N0-head's smokes; `frontLookRateMismatch` 0). The report's "64 of 64" counts only the 16 HEAD35 game runs it loads, K1–K7 and K9–K17 (Departures).
+  - `formationDropped` is 0 on every v7 arm, labelled "no producer on today's book". C3's `drawn` holds it non-vacuous: v7 drew MUG 193,319 and STEM 154,602, its 347,921 worn calls.
+- **Every must-be-0 check of F's table** (lines 2736-2762) reads 0 on every arm it covers, and every floor is met under the guard's reading of the `K_offWorn` floor (Departures): the guard passes on all 25 runs (report, The guard logs).
+- **What a 0 here does not show.** That a worn look changes a run only in its PLAY_START echo stays INFERRED from the import graph, because no run bench is built (line 2550). K4z holds the unworn runs exactly.
+
+**R2a and R2b, deciding: both FAIL, the other way** (rule 8, lines 2601-2649; report §6).
+- **How they are read.** v7f − front0 per snap, keyed on v7f's snap, pooled over K8f (set A) and K8b (set B). Each verdict is the sign rule on the larger of the per-snap and the per-game clustered SE. v7 − front0 on K8 (set A) is beside each one.
+- **The preconditions** (rule 4 items 5, 6, 7, 7b, 10, 14 and 15) all read 0.
+
+| stratum | snaps (filed) | Δsack, points a snap | per-snap SE / clustered SE (games) | z | MDE filed: independent at 2 and 2.8 SE; borrowed paired; channel-aware | verdict |
+|---|---|---|---|---|---|---|
+| **R2a**, `r2Expected` ∩ `fooled` (line 830) | 995 (991.8) | **−7.44** | 1.17 / 1.17 (979) | −6.33 | 3.88, 5.43; 2.06, 2.88; 3.12, 4.36 | **FAIL** |
+| beside it, v7 − front0 on K8 | 34 (26.1) | +0.00 | 7.31 / 7.31 (34) | +0.00 | 24.14, 33.79; 12.81, 17.94; 19.38, 27.13 | reported |
+| **R2b**, `deceivedReal` ∩ not `releaseListed` (line 829) | 110,038 (110,185.0) | **−0.50** | 0.03 / 0.03 (26,471) | −15.51 | 0.35, 0.49; 0.18, 0.26; 0.11, 0.16 | **FAIL** |
+| beside it, v7 − front0 on K8 | 2,747 (2,748.9) | −0.33 | 0.20 / 0.20 (2,281) | −1.62 | 2.19, 3.06; 1.16, 1.63; 0.73, 1.02 | reported |
+
+- **The channels** (rule 8's partition, read off the pair keys; snaps, share and Δsack points a snap ± SE; the filed sizes, lines 2634-2635, in brackets):
+
+  | stratum | `ch:none` | `ch:lookHot` | `ch:slide` | `ch:both` |
+  |---|---|---|---|---|
+  | R2a | 342 (34.4%) [353], exactly 0 | 0, empty [1.8] | 12 (1.2%) [11]: +25.00 ± 13.06, z +1.91, **NOT SHOWN** (MDE 32.07 and 44.89) | 641 (64.4%) [626]: −12.01 ± 1.78, z −6.75 (reported) |
+  | R2b | 98,191 (89.2%) [98,494], exactly 0 | 10,738 (9.8%) [10,615]: −4.14 ± 0.30, z −13.80 (sign undetermined, reported) | 354 (0.3%) [333]: −0.85 ± 1.17, z −0.73, **NOT SHOWN** (MDE 5.74 and 8.04) | 755 (0.7%) [743]: −12.85 ± 1.63, z −7.90 (reported) |
+
+  - The channels partition both strata: 995 of 995 snaps with ΣΔsack −74.0, and 110,038 of 110,038 with ΣΔsack −545.0.
+  - Of R2a's −7.44, `ch:both` contributes −7.739 and `ch:slide` +0.302.
+  - Of R2b's −0.50, `ch:lookHot` contributes −0.404, `ch:both` −0.088 and `ch:slide` −0.003.
+  - `ch:none` reads exactly 0 on every outcome key, as rule 4 items 10 and 14 file.
+- **The splits** (Δsack points a snap ± the larger SE):
+  - R2a by look: Mug 978 snaps −7.87 ± 1.18, Stem 17 +17.65 ± 9.53. By picture: COUNT 346 +0.29 ± 0.29, LOOK 649 −11.56 ± 1.77. All 995 are SLIDE calls. By hot conversion: differing 641 −12.01 ± 1.78, the same 354 +0.85 ± 0.49. By disguise row: DELAYED 277 −7.94 ± 2.05, STANDARD 25 +0.00 ± 10.00, ZONE_BLITZ 693 −7.50 ± 1.43.
+  - R2b by look: Mug 79,266 −0.68 ± 0.04, Stem 30,772 −0.02 ± 0.01. By picture: COUNT 51,272 +0.01 ± 0.00, LOOK 58,766 −0.93 ± 0.06. By protection: MAN 100,025 −0.30 ± 0.03, SLIDE 10,013 −2.48 ± 0.18 (8,350 games), the SLIDE no-release calls printed apart. By hot conversion: differing 11,493 −4.72 ± 0.30, the same 98,545 −0.00 ± 0.00. By row: DELAYED 7,875 −1.42 ± 0.18, STANDARD 54,647 −0.46 ± 0.04, ZONE_BLITZ 47,516 −0.39 ± 0.05.
+- **The mechanism counts, a snap:**
+  - R2a: Δslid −0.6623 ± 0.0155, ΔpickupLost +0.3980 ± 0.0157, Δunblocked 0, ΔhotConv +0.6442 ± 0.0153, Δroutes 0.
+  - R2b: Δslid −0.0038 ± 0.0003, ΔpickupLost +0.0022 ± 0.0002, Δunblocked 0, ΔhotConv +0.1044 ± 0.0009, Δroutes 0.
+- **The failure and its cause** (line 737: "the ADR records the failure and its cause").
+  - On a fooled Mug snap the look shows men who drop (a Stem shows no ghost, line 584). Pictured LOOK with a ghost and a hot route, the hot route converts on v7f and not on front0 (rule 4 item 13's LOOK half, which reads 0 mismatches on 3,714 + 11,038 checked snaps on K8f and K8b; pictured COUNT, the hot converts on both arms, and that half reads 0 on 10,944 + 32,914, so item 13 reads 0 on 14,658 + 43,952 checked snaps in all, `verify/reconcile.md` item 1).
+  - On R2a fewer pickups are slid (Δslid −0.6623 a snap), and pickups lost rise +0.3980 a snap. That the slide is checked toward the bluff, so that slid pickups become contested ones, is measured on rule 9's fooled real-pressure SLIDE snaps (v7f − front0: Δslid −5.30 ± 0.13 against Δcontested +5.30 ± 0.13 a hundred snaps, report §11). On R2a the shards show it too, though the report does not print it: Δcontested +0.6623 ± 0.0155 a snap, equal and opposite to Δslid (COMPUTED here from the benches' per-game cells `pg35/v7f-front0/R2a` over K8f + K8b, 979 games: Σcontested +659 against Σslid −659). The hot routes convert more often (ΔhotConv +0.6442 a snap), and the quarterback throws hot more often (ΔhotThrows +0.3296 ± 0.0149 a snap, COMPUTED here from the same per-game cells; the report does not print it). No snap's count of unblocked rushers changes (Δunblocked 0).
+  - The snaps whose hot conversions differ carry the whole fall (−12.01 ± 1.78 on 641 snaps). The snaps where they match read +0.85 ± 0.49.
+  - R2b is mostly MAN protections, where only the hot term moves sacks (line 2645), and its LOOK-hot channel carries the sign: −4.14 ± 0.30 points a snap on 10,738 snaps.
+  - So the reversal sits on the term 3.0 left undetermined (line 1402; line 1784). The SLIDE slide-changed term, signed up (line 1784), is NOT SHOWN, read against its own SEs of 13.06 points (R2a) and 1.17 (R2b) (line 2644), where the filed minimum detectable effects were 32.07 and 5.74 points at 2 SE.
+  - The banner's sentence is not borne out at 3.5: deceived, the protection loses more pickups (ΔpickupLost +0.3980 a snap on R2a), yet it gives up fewer sacks, not more.
+- **Why the deciding population is unchanged** (rule 8, line 2607). Each stratum is defined by the snap and the worn call. v7f changes only how many of its snaps are disguised, by an independent die, and it equals v7 on v7's 54,718 worn snaps (item 15).
+- **On K8, v7 alone** reads R2a +0.00 ± 7.31 on 34 snaps, where 26.1 were filed (Poisson z +1.54, `verify/reconcile.md` item 5), and R2b −0.33 ± 0.20 (z −1.62). Both are reported only, at their filed MDEs of 24.14 and 2.19 points at 2 SE (33.79 and 3.06 at 2.8 SE).
+
+**R2's reported strata** (rule 8; report §7; v7f − front0, Δsack points a snap)
+- **The with-release stratum** (`deceivedReal` ∩ `releaseListed`, scored separately against its filed lean up, line 1792): −0.03 ± 0.03 on 64,732 snaps (filed 65,091.6; 24,479 games), z −1.13, **NOT SHOWN**. Its filed MDE is 0.31 and 0.44 points at 2 and 2.8 SE (0.17 and 0.23 at the borrowed paired ratio). Read as line 2644 reads a NOT SHOWN on R2, against its own SE of 0.03 points, the effect is smaller than about twice that. On v7 (K8) it reads +0.06 ± 0.14 on 1,625 snaps (1,438 games).
+- **Reported, never deciding:**
+  - `r2ExpectedWide` ∩ `fooled`: 7,250 snaps, −1.17 ± 0.25 (6,331 games).
+  - `r2Expected` over every band: 2,401 snaps, −3.08 ± 0.49 (per-snap SE only: the key has no per-game cells).
+  - `fooled`: 283,563 snaps, −1.60 ± 0.04 (26,880 games).
+  - `deceivedReal`: 174,770 snaps, −0.32 ± 0.02.
+  - Honest (unworn) snaps: 186,483, exactly 0.
+  - `ch:slide` over every snap (decision 14's row): 7,037 snaps, +0.38 ± 0.17 (per-snap SE only).
+
+**§4.5, filed against measured** (bench rows v7f − front0 over K8f + K8b, game rows over A + B with 26,880 games a role and paired per-game SEs; F's readings, rules 3–12):
+
+| prediction | filed | measured | verdict |
+|---|---|---|---|
+| Exact: front0 ≡ v6 (line 810; F0 entry 1) | v7 `/front-0` replays v6 byte for byte against the B35 references | K4 = R3 on 6,720 of 6,720 games; K4 ≡ K3 both ways (0 of 6,081,925); `front0NotIdentical` 0 on every bench record | PASS |
+| Exact: `disguise_rate` and `disguise_mask_mix` unchanged per snap (line 811) | the defence call equals front0's once `shownRush` and the front tag are removed | `defenseDiffExceptLook` 0 of 593,157 on mug, stem and v7 (K8) and on v7f (K8f), 0 of 1,778,688 on v7f (K8b) | PASS |
+| Exact: the Stem (line 812; F0 entry 3) | a Stem-worn snap differs only in `shownRush`, the tag and `placed`, except a `stemLive` SLIDE snap read COUNT or LOOK; a Stem adds no roll | stem: `stemInertNotIdentical` 0 / 46,058, `stemAddsRoll` and `stemDropsRoll` 0 / 48,658, `stemDiffOffLive` 0 / 48,354; 0 on v7 (K8) and on v7f (K8f and K8b) too | PASS |
+| Rates (line 814; rule 5) | `front_look_rate` = rate × legal share; the six counts within ±2 SD | counts at z +0.80, +0.70, +0.14, +1.17, +1.28 and +1.21; v7 9.22% of dropbacks against 9.21% | PASS |
+| Bite share (line 816; rule 6) | 26% STANDARD, 41% ZONE_BLITZ, 46% DELAYED, each within ±2 SD of Σp | v7 26.2% (z +1.14), 40.4% (z −1.88), 47.5% (z +1.15); mug 26.1% (z +0.58), 40.3% (z −1.94), 47.7% (z +1.83) | PASS |
+| Bluff, bitten: hot conversion (line 819; F0 entry 4) | exact: every `hot` route converts on a bitten bluff; no bluff without a ghost and a hot route rolls; no Stem-worn bluff rolls | `bittenBluffNotConverted`, `bluffRolledWithoutGhostAndHot` and `stemBluffRolled` 0 on every disguised arm (v7: 0 / 2,803, 0 / 10,439, 0 / 10,439) | PASS |
+| Bluff, bitten: no slide check (line 820) | none made | `bluffSlideCheck` 0 / 40,999 (v7), 0 / 410,299 and 0 / 1,229,143 (v7f) | PASS |
+| Bluff, bitten: kept-in (line 821; 3.4's entry 9, line 1789) | kept-in = 0 on every arm without `/keep-in` | `keptInMen` 0 on every arm | PASS, as re-filed |
+| Bluff, bitten: completions and interceptions (line 822; F0 entry 5) | Δcmp < 0 and Δint > 0 a hundred snaps | Δcmp **+7.05** ± 0.11 (z +63.98); Δint +0.14 ± 0.04 (z +3.91), on 108,793 snaps | cmp **FAIL** (not a trigger); int PASS |
+| Bluff, bitten: sack (line 823; F0 entry 6) | Δsack > 0 where the converted route is a Slant or the Shallow Cross | **−4.82** ± 0.28 points a snap on 21,957 snaps (z −17.27) | **FAIL** (not a trigger) |
+| Real pressure: the slide toward the bluff (line 826) | slid → contested, up | v7f: +6,694 slide checks on 74,439 fooled real-pressure SLIDE snaps; Δslid −5.30 ± 0.13, Δcontested +5.30 ± 0.13 and Δunblocked 0 a hundred snaps; Δsack on those snaps −0.36 ± 0.03 points a snap | REPORTED (rule 9): slid → contested as filed; the sack sign is reported, not scored |
+| Real pressure: COUNT and LOOK keep backs in (line 827; line 1791) | withdrawn: no back is kept in without `/keep-in` | `keptInMen` 0 | withdrawn |
+| Real pressure: LOOK converts hot (line 828) | converts where undisguised it did not; its sack sign undetermined (line 1402; line 1784) | `lookHotMismatch` 0 (rule 4 item 13); R2b's `ch:lookHot` −4.14 ± 0.30 points a snap on 10,738 snaps (reported) | PASS (exact) |
+| Real pressure, no release (line 829) = **R2b** | Δsack > 0 | **−0.50** ± 0.03 points a snap on 110,038 snaps (z −15.51) | **FAIL** (deciding) |
+| Real pressure, with release (line 829; line 1792) | scored separately; leans up | −0.03 ± 0.03 points a snap on 64,732 snaps (z −1.13) | NOT SHOWN |
+| `r2Expected` (line 830) = **R2a** | Δsack > 0, mechanically expected | **−7.44** ± 1.17 points a snap on 995 snaps (z −6.33) | **FAIL** (deciding) |
+| Aggregate (line 832; rule 11) | Δsack(v7 − v6) in [−0.08, +0.10] pp, widened to [−0.148, +0.168] pp by 2 × 0.034 pp | −0.024 ± 0.007 pp | within (REPORTED) |
+| Guard (line 834; F0 entry 7; rule 12) | applies if Δint/att rises by 2 SE or more; then at least 80% on fooled `hot:diff` snaps | Δint/att −0.004 ± 0.003 pp: no rise | NOT APPLICABLE |
+| Deceived, Stem (line 733; rule 10) | Δsack > 0 on `stemLive` SLIDE snaps read COUNT or LOOK | −0.41 ± 0.11 points a snap on 5,820 snaps (z −3.80) | **FAIL** (not a trigger) |
+
+In football units: the aggregate's −0.024 points of `sack_rate` is −0.15 ± 0.05 sacks a team-season (v7 − v6, report §18).
+- **Rule 17 FIRED, Class P** (lines 2706-2723; report, The alternate-card triggers).
+  - The inputs: R2a and R2b FAIL. Every exact claim of rules 2–4 holds. No rule 5 count is beyond 3 SD (all within ±2 SD). The interception guard does not apply, the guards and proofs pass, and no stop under the stop rules (the plan's §8, line 2785) is outstanding (defects: NONE; decision 23's condition, line 2849). R3's one B35 guard stop was a harness bug, fixed by amendment 1 before any H35 reference had passed.
+  - D's ladders fired no trigger (amendment 6), and the saves rule does not fire (amendments 5 and 7).
+  - Each failing verdict's own `ch:slide` reads NOT SHOWN, so it is "not FAIL" (decision 14, line 2719).
+  - The class is P (line 2717): "Merge and move", with the failed prediction recorded as measured (line 737).
+  - It was read once, after every HEAD35 input was in (decision 23). As line 2721 expected, at these sizes the class test could catch only a large reversal of the slide term.
+  - Not counted (line 2714): a NOT SHOWN on R2 (none here: R2a and R2b each FAIL), the with-release sign, the bluffs' signs, the bite share, G1, the aggregate interval, the Stem's sign, every reported row and a record rule met through rule 18's allowed levers.
+
+**The rates ✅** (rule 5; all defensive calls, runs included, A + B pooled per arm; report §8)
+
+| count | arm | what | n | measured | expected ± SD | z |
+|---|---|---|---|---|---|---|
+| 1 | v7 | worn calls among calls with a legal look | 3,474,713 | 347,921 | 347,471.3 ± 559.2 | +0.80 |
+| 2 | mug | worn calls among Mug-legal calls | 3,475,121 | 347,903 | 347,512.1 ± 559.3 | +0.70 |
+| 3 | stem | worn calls among Stem-legal calls | 3,096,176 | 309,694 | 309,617.6 ± 527.9 | +0.14 |
+| 4 | v7 | Mugs among worn both-legal calls | 309,854 | 155,252 | 154,927.0 ± 278.3 | +1.17 |
+| 5 | v7 | `/stem-side` LEFT among Stems over a balanced rush | 138,610 | 69,544 | 69,305.0 ± 186.2 | +1.28 |
+| 6 | stem | `/stem-side` LEFT among Stems over a balanced rush | 277,565 | 139,100 | 138,782.5 ± 263.4 | +1.21 |
+
+- F's previews over v6's calls (lines 2558-2563; the K-runs' calls part after the first worn snap) were 347,402.8, 347,402.8, 309,619.6, 154,809.8, 69,272.2 and 138,544.5.
+- At 3 SD, at most about 1.6% of correct runs would show a miss among the six counts, about 1 in 62 (line 2567). The largest |z| is +1.28 (count 5).
+- **On dropbacks** (reported):
+  - v7: `front_look_rate` 9.22% of 2,372,308 dropbacks, against 0.1 × the B35 legal share 92.14% = 9.21%. `front_look_mix` is MUG 0.556 and STEM 0.444, against F's preview of 55.4% Mugs (line 2569). Collect counts 218,824 worn dropbacks.
+  - mug: 9.23% of 2,372,726 (collect 218,895). stem: 8.21% of 2,371,851, against 0.1 × 82.12% = 8.21% (collect 194,725). front0: 0 of 593,157.
+  - "Each about half" (line 814) holds only where both looks are legal: the Mug alone is legal on 10.02% of v6's dropbacks, and the Stem alone on none (line 2553).
+  - Over all calls C3's `drawn` gives v7 MUG 193,319 and STEM 154,602, aware-v7 48,891 and 39,084 (87,975), and d20-v7 48,493 and 38,610 (87,103).
+  - D's baseline run under the flip measured v7's `front_look_rate` at 0.0925 (amendment 6).
+
+**Rule 16's choices, measured** (the owner hears these as information, with no card).
+- **The Stem picks its side at random when the rush is even:** `/stem-side` reads LEFT on 69,544 of 138,610 balanced Stems on v7 (z +1.28) and 139,100 of 277,565 on stem (z +1.21) (counts 5 and 6).
+- **The Mug-only and Stem-only arms disguise as often as the full caller where their look fits:** mug wears 347,903 of 3,475,121 Mug-legal calls (z +0.70) and stem 309,694 of 3,096,176 Stem-legal calls (z +0.14), against v7's 347,921 of 3,474,713 (z +0.80) (counts 1-3).
+- **Under a Mug the inside linebackers (one in the dime, line 574) are always shown in the A gaps, a blitzing one included** (the Mug's option A, rule 16): `mugShownWrong`, which counts a worn Mug whose `shownRush` differs from H35's restatement of that picture (line 2762), reads 0 on every v7 arm (F's table, line 2750; the guard passes on all 25 runs).
+
+**The bite share ✅** (rule 6; rolled reads on Mug-worn dropbacks by the call's row, COUNT ∪ LOOK against Σp; each cell prints ± one SD, and ±2 SD passes; A + B; report §9)
+
+| arm | STANDARD | ZONE_BLITZ | DELAYED |
+|---|---|---|---|
+| v7 | 14,934 of 56,981 (26.2%) against 14,815.1 ± 104.7, z +1.14 | 8,146 of 20,188 (40.4%) against 8,277.1 ± 69.9, z −1.88 | 679 of 1,429 (47.5%) against 657.3 ± 18.8, z +1.15 |
+| mug | 29,445 of 112,922 (26.1%) against 29,359.7 ± 147.4, z +0.58 | 8,154 of 20,218 (40.3%) against 8,289.4 ± 69.9, z −1.94 | 1,386 of 2,906 (47.7%) against 1,336.8 ± 26.9, z +1.83 |
+
+- The filed 26%, 41% and 46% (line 816) are the analytic shares at Awareness 60 (26.0%, 41.0% and 46.0% of Σp).
+- ZERO is not Mug-legal and is empty. A miss here would be recorded and is not a trigger (plan point 52).
+
+**The bluffs** (rule 7; bitten bluff snaps, v7f − front0 over K8f + K8b; report §10)
+- **Exact:** item 12's four counters read 0 (the table above).
+- **Completions and interceptions,** a hundred snaps, on 108,793 snaps (filed 108,808; 26,427 games):
+  - Δcmp **+7.05 ± 0.11**, z +63.98, claimed < 0: **FAIL**;
+  - Δint +0.14 ± 0.04 (the clustered SE), z +3.91: **PASS**.
+  - Their filed MDEs were 0.43 and 0.60 points at the bound p = ½; at the proxy they were 0.37 and 0.52 for completions and 0.10 and 0.14 for interceptions (lines 2597-2598).
+- **Beside them,** reported:
+  - Δatt +8.04 ± 0.11 and Δhot throws +52.68 ± 0.15 a hundred snaps;
+  - ΣΔcmp / ΣΔatt = +0.877, printed without a verdict, because the bench keeps only n, Σ and Σ² of each difference (F0 entry 5).
+- **Sacks on bluffs converted to a Slant or the Shallow Cross:** −4.82 ± 0.28 points a snap on 21,957 snaps (filed 22,070; 14,985 games), z −17.27, claimed > 0: **FAIL** (MDE 0.82 and 1.15).
+- **v7 − front0 on K8,** beside them: cmp +6.46 ± 0.68, int +0.64 ± 0.20 and sack −4.25 ± 0.56 a hundred snaps. The sack figure covers all 2,803 bitten bluffs, not the slant rows (`verify/v2-procedure.md`, observations).
+- **Why the completion claim fails,** from F0 entry 5's own reason: on the same snaps undisguised nothing is thrown hot, because the read does not roll there. So the bitten bluff adds throws (INFERRED): +8.04 attempts and +7.05 completions a hundred snaps, ΣΔcmp / ΣΔatt = 7,665 / 8,743 = 0.877 (`verify/v2-procedure.md` row 48). The claim was scored per snap, and per snap completions rise with the throws. The per-attempt rate has no paired SE on the bench, so whether it falls is not measured.
+- **The sack claim fails the same way:** a converted slant or shallow cross gets the ball out on a snap where front0 held it (INFERRED).
+- **By converted route,** Δsack points a snap (reported; Sit, Swing, the Out and designation-only conversions are undetermined): Drag by designation 23,658 snaps +0.30; Flat by designation 28,376 +0.19; Hitch by designation 10,437 −4.44; Out 2,003 −4.54; Shallow Cross 13,942 −4.68; Sit 8,084 −14.78; Sit by designation 8,163 −1.05; Slant 8,015 −5.05; Swing 6,115 −19.80. The rows key every worn snap that is not short by v7f's own hot conversions (`adr073Arm35.test.ts:2121-2124`), so `none` is the 1,530,649 such snaps on which v7f converted nothing, at 0, not a count of bitten bluffs. The converted rows' snaps sum to 108,793, the bitten bluffs' count (COMPUTED from the rows above).
+- **v6's hot-route shares on the bench base** (rule 7, line 2594; after PR #13, which is why F0 entry 6 re-takes the per-route rows above, line 2383): Seam to Sit 0.350, Deep Cross to Shallow Cross 0.304, Post to Slant 0.131, Wheel to Swing 0.130, Seam to Slant 0.043, Out to Out 0.042.
+- Recorded as measured (line 737). Neither FAIL is a rule 17 trigger (line 2714).
+
+**Real pressure's mechanisms** (rule 9; fooled real-pressure SLIDE snaps, `deceivedReal|kind:SLIDE`; a hundred snaps; report §11)
+- v7f − front0: 74,439 snaps; +6,694 slide checks made; Δslid −5.30 ± 0.13; Δcontested +5.30 ± 0.13; Δunblocked 0; Δsack −0.36 ± 0.03.
+- v7 − front0 (K8): 1,876 snaps; +156 checks; Δslid −5.49 ± 0.83; Δcontested +5.49 ± 0.83; Δunblocked 0; Δsack −0.16 ± 0.21.
+- The slide is checked toward the bluff and every slid pickup it costs becomes a contested one, as line 826 filed; none becomes a free rusher. The sack still falls on these snaps through the hot conversions, not the slide (INFERRED: the slide channel alone, `ch:slide` over every snap, reads +0.38 ± 0.17 points a snap, report §7, and `ch:none` is exactly 0 by rule 4). Exact: `lookHotMismatch` 0.
+
+**The Stem** (rule 10; `stemLive` on a SLIDE call read COUNT or LOOK; report §12)
+- v7f − front0: Δsack −0.41 ± 0.11 points a snap on 5,820 snaps (filed 5,689; 5,215 games), z −3.80, claimed > 0: **FAIL**. Its MDE was 1.07 and 1.50 points at 2 and 2.8 SE.
+- On K8 the population is small, and every snap's Δsack is exactly 0: v7 on 167 snaps and stem on 304 both read +0.00 ± 0.00. The snaps are not identical, though. 39 of v7's and 77 of stem's are `ch:slide` snaps, which change slid, contested, exit and pressured but no sack (`verify/v2-procedure.md` §7.1 for stem; the K8 shards' `stemRule10|ch:slide` for v7).
+- The plan expected a NOT SHOWN here. F replaced that with the computed size, and the measured sign is the other way. Recorded as measured; a Stem FAIL is not a trigger (line 2714).
+
+**The aggregate** (rule 11; report §13)
+- **Game level,** v7 − v6 over all dropbacks: Δsack −0.024 pp (paired per-game SE 0.007; 26,880 games, A + B). That is within [−0.148, +0.168] pp, the filed interval (line 832) widened by 2 × 0.034 pp. Reported, never deciding (Decision 6).
+- **On the bench,** v7 − front0 (K8): −0.0214 pp a snap ± 0.0028 on 593,157 snaps. It is all the fooled-snap term, as rule 4 says. Split by hot conversion, and separately by the slide side (each pair sums to the total):
+  - `hot:diff` 3,177 snaps contribute −0.0219 ± 0.0028;
+  - `hot:same` +0.0005 ± 0.0003;
+  - `slide:diff` 220 snaps +0.0002 ± 0.0006;
+  - `slide:same` −0.0216 ± 0.0028.
+- **v7f − front0:** −0.1915 ± 0.0044 pp a snap on 2,371,845 snaps.
+  - `hot:diff` 123,545 snaps contribute −0.1927 ± 0.0043, and `hot:same` +0.0011 ± 0.0005;
+  - `slide:diff` 9,024 snaps contribute −0.0051 ± 0.0009, and `slide:same` −0.1864 ± 0.0043.
+  - So the whole aggregate is the hot conversions' term.
+- **The whole-ADR aggregate** (line 735, as line 1786 re-files it): Δsack(v7 − v4) −0.109 ± 0.028 pp (26,880 games, A + B). It is unsized, reported and never deciding. It is the drift's sack line below.
+
+**The guards.**
+- **The interception guard** (rule 12; report §14): **NOT APPLICABLE.** Game-level Δint/att (v7 − v6) is −0.004 ± 0.003 pp, below +2 SE, so the guard does not apply.
+  - On the bench (v7f − front0), H, the ΣΔint on fooled `hot:diff` snaps, is +138 (123,545 snaps). N, the sum on every other snap, is −7 (2,248,300).
+  - So L = 0.25·H − N = +41.50, with SE 10.97: L / SE is +3.78, and the raw share H/(H + N) is 1.053. Had the guard applied, it would not have failed: it fails only when L < −2 SE.
+  - v7 − front0 on K8 reads L +5.00 ± 1.41.
+- **G1** (rule 12; within 2 × 0.016 points on int/att and 2 × 0.055 on cmp/att; game level, A + B; report §15): **PASS**.
+
+  | contrast | Δint/att | Δcmp/att | verdict | bench direct (against front0, K8): Δint/att, Δcmp/att |
+  |---|---|---|---|---|
+  | v7 − v6 | −0.004 ± 0.003 | +0.017 ± 0.010 | within | +0.004, +0.025 |
+  | mug − v6 | −0.006 ± 0.004 | +0.063 ± 0.014 | within | +0.007, +0.055 |
+  | stem − v6 | +0.000 ± 0.000 | +0.001 ± 0.001 | within | +0.000, +0.000 |
+
+  On the Discipline-20 league, d20-v7 − d20-v6 reads Δint/att −0.002 ± 0.007 and Δcmp/att +0.012 ± 0.020 (6,720 games, set A).
+- **The must-be-0 table and the stops:** every run's guard passes (25 of 25), and the 10 SD gross stop never fires: no rule 5 count passes 2 SD.
+
+**The triple** (rule 20; game level as intent to treat, paired per-game SEs, points; report §16): **COMPLETE.**
+
+| contrast | population | Δexit | Δsack | Δconversion (sack ÷ exit) | Δpressured |
+|---|---|---|---|---|---|
+| v7 − v6 | all | −0.08 ± 0.01 | −0.02 ± 0.01 | −0.01 ± 0.01 | −0.07 ± 0.01 |
+| | `mugLegal` | −0.09 ± 0.01 | −0.03 ± 0.01 | −0.01 ± 0.01 | −0.07 ± 0.01 |
+| | `stemLegal` | −0.09 ± 0.01 | −0.03 ± 0.01 | −0.01 ± 0.01 | −0.08 ± 0.01 |
+| | `lookOverReal` | −0.08 ± 0.02 | −0.02 ± 0.01 | −0.01 ± 0.02 | −0.04 ± 0.01 |
+| mug − v6 | all | −0.15 ± 0.01 | −0.04 ± 0.01 | −0.02 ± 0.01 | −0.13 ± 0.01 |
+| | `mugLegal` | −0.17 ± 0.01 | −0.05 ± 0.01 | −0.02 ± 0.01 | −0.14 ± 0.01 |
+| | `stemLegal` | −0.18 ± 0.01 | −0.05 ± 0.01 | −0.02 ± 0.01 | −0.15 ± 0.01 |
+| | `lookOverReal` | −0.12 ± 0.02 | −0.03 ± 0.02 | −0.01 ± 0.02 | −0.07 ± 0.02 |
+| stem − v6 | all, `mugLegal`, `stemLegal` | −0.00 ± 0.00 | −0.00 ± 0.00 | −0.00 ± 0.00 | −0.00 ± 0.00 |
+| | `lookOverReal` | −0.01 ± 0.00 | −0.00 ± 0.00 | +0.00 ± 0.00 | −0.01 ± 0.00 |
+| v7: worn − legal but unworn | within v7 (the `/wears` die randomizes) | −0.99 ± 0.10 | −0.33 ± 0.08 | −0.16 ± 0.11 | −0.78 ± 0.08 |
+
+On the bench the arms replay the same snap, so the strata are clean (Δ a snap as a fraction, not points: fooled's −0.0160 is the −1.60 points of R2's reported strata; ± the larger SE):
+
+| pair | stratum | snaps | Δexit | Δsack | Δconversion | Δpressured |
+|---|---|---|---|---|---|---|
+| v7f − front0 (K8f + K8b) | worn | 2,185,362 | −0.0082 ± 0.0001 | −0.0021 ± 0.0000 | −0.0004 ± 0.0001 | −0.0064 ± 0.0001 |
+| | `fooled` | 283,563 | −0.0628 ± 0.0005 | −0.0160 ± 0.0004 | −0.0027 ± 0.0004 | −0.0496 ± 0.0004 |
+| | `deceivedReal` | 174,770 | −0.0107 ± 0.0003 | −0.0032 ± 0.0002 | −0.0012 ± 0.0003 | −0.0050 ± 0.0003 |
+| v7 − front0 (K8) | worn | 54,718 | −0.0081 ± 0.0004 | −0.0023 ± 0.0003 | −0.0008 ± 0.0004 | −0.0066 ± 0.0004 |
+| | `fooled` | 7,175 | −0.0616 ± 0.0030 | −0.0177 ± 0.0023 | −0.0060 ± 0.0029 | −0.0500 ± 0.0027 |
+| | `deceivedReal` | 4,372 | −0.0103 ± 0.0020 | −0.0018 ± 0.0014 | +0.0003 ± 0.0018 | −0.0041 ± 0.0017 |
+
+- The look breaks the pocket less, not more. On fooled snaps v7f − front0 moves exit −0.0628 a snap and pressured −0.0496, and the sack falls with them. On exit, sack and pressured every row, game and bench, reads the same sign. Δconversion does not: it is +0.00 on stem − v6's `lookOverReal` and +0.0003 ± 0.0018 on K8's `deceivedReal`.
+- v7f's 2,185,362 worn snaps equal v6's Mug-legal dropbacks (`verify/v2-procedure.md` §7.3; F's own count, line 2701), as rule 16's subset says they must.
+- **Held** (rule 15; report §16): rounds, shards, looks, league, leash, the tunables label and digest are identical in the headers of each arm and its comparison, on A and B (front0 on A).
+  - The offence's call mix is held in distribution. The largest share difference is Dagger 3.98% against 3.99% (−0.01 ± 0.02 points) on v7 − v6, Bubble Now 3.61% against 3.60% (+0.01 ± 0.02) on mug − v6, and Smash 5.13% against 5.13% (−0.00 ± 0.02) on stem − v6.
+  - front0 − v6 is equal call for call.
+  - v7 − v4's largest is Snag 6.26% against 6.21% (+0.05 ± 0.02), as ref-v6 − ref-v4's is at B35 (Snag +0.04 ± 0.02).
+
+**Mug-only and Stem-only, and the four-way** (report §17; game level, A + B, pp, paired per-game SEs; front0 ≡ v6 by rule 3)
+- **mug − v6:** sack −0.045 ± 0.009, exit −0.155 ± 0.010, pressured −0.125 ± 0.009, int/att −0.006 ± 0.004 and cmp/att +0.063 ± 0.014 a dropback or attempt. On the bench, mug − front0 is −0.036 ± 0.004 points of sack a snap over all 593,157 snaps, and −0.393 ± 0.041 on its 54,718 worn ones.
+- **stem − v6** is a thousandth of a point or less on every line: sack −0.001 ± 0.000, exit −0.001 ± 0.001, pressured −0.001 ± 0.000, int/att +0.000 ± 0.000, cmp/att +0.001 ± 0.001. On the bench, stem − front0's Δsack is exactly 0, all 593,157 snaps and its 48,658 worn ones alike (`verify/v2-procedure.md` §7.1). Its exits and pressures move only on the 77 `ch:slide` snaps. The Stem moves a man's shown spot, and it moves play only on a call stating `slideCheck`, read COUNT or LOOK (line 175): 304 of K8's snaps under stem.
+- **The four-way,** v7 − mug − stem + v6: Δsack +0.022 ± 0.006 pp (with front0 itself on set A, +0.021 ± 0.012), and on the bench +0.015 ± 0.002 a snap. It is reported and never read as an interaction: where both looks are legal, it is minus the effect of the look v7 did not choose (rule 4's decomposition, which reads 0).
+
+**D reaching E: the coverage read under a front look** (rule 19; worn ∩ `coverageMasked` snaps; ΔcovRead a snap, Δint a hundred snaps; report §28)
+- **Exact:** `coverageReadOnHonestWorn` is 0 on every disguised arm. A front look never rolls the coverage read by itself.
+- **On masked snaps:**
+  - mug − front0 (K8): 17,682 snaps, ΔcovRead −0.0011 ± 0.0003, Δint +0.051 ± 0.030. Its `hot:diff` 1,924 snaps read Δint +0.468 ± 0.280, and its `hot:same` 15,758 read 0.
+  - v7 − front0 (K8): 17,682 snaps, ΔcovRead −0.0004 ± 0.0002, Δint +0.034 ± 0.020. Its `hot:diff` 1,034 snaps read +0.580 ± 0.335, and its `hot:same` 16,648 read 0.
+  - stem − front0: 15,744 snaps, 0 on both, with no `hot:diff` snap.
+  - v7f − front0: 706,632 snaps, ΔcovRead −0.0007 ± 0.0000, Δint +0.004 ± 0.003. Its `hot:diff` 39,788 snaps read +0.070 ± 0.058.
+- So a front look reaches E only through the hot conversions, as rule 19 reads line 434 with no `/keep-in` (line 2697).
+- **At game level** the `coverageMasked` dropbacks are v7 749,786, mug 749,805, stem 749,590 and v6 749,574 (F expected 31.6% of dropbacks, line 2698). The `coverage_read` bands over all dropbacks barely move: PERFECT_READ, for example, is 188,457 on v7 and 188,363 on v6.
+
+**The run game and points** (rule 14's lines, at game level; paired per-game SEs; a team-season is 17 team-games).
+- **v7 does not cost the run game.** Designed rush yards, v7 − v6, are +0.144 ± 0.151 a team-game (+2.44 ± 2.56 a team-season). Points are +0.035 ± 0.018 (+0.60 ± 0.30), and total yards +0.364 ± 0.174 (+6.18 ± 2.97).
+- **v7 − v4's run-game loss is v6's.** v7 − v4 is −1.258 ± 0.600 designed rush yards a team-game (−21.39 ± 10.20 a team-season). The base v6 − v4 at B35 is −1.402 ± 0.599 (−23.83 ± 10.18), re-measured after PR #13. 3.4 measured joint − v4 at −1.58 ± 0.60 at ccd75bb (line 2279) and found it mostly the creeper (line 2280).
+- **Points, v7 − v4:** −0.061 ± 0.069 a team-game (−1.03 ± 1.18), against v6 − v4's −0.096 ± 0.069 (−1.63 ± 1.18).
+
+**The drift, and what the move changes in a team-season** (rule 14, lines 2682-2691; report §18).
+- v7 − v4 = (K7 + K9) − (K1 + K13) at HEAD35, and the drift base v6 − v4 = (R3 + R5) − (R1 + R4) at B35. Each is over 26,880 games, A + B, with paired per-game SEs.
+- One step's completion width is 0.110 points (line 2303). 3.4's +0.150 ± 0.043 (line 2094) is a ccd75bb figure, quoted as such.
+- Rates are points; counts are a team-game, with a team-season (× 17) in brackets.
+
+| line | v7 − v4 (the move) | v7 − v6 (3.5's step) | v6 − v4 (the base, B35) |
+|---|---|---|---|
+| completion (cmp/att) | **+0.238 ± 0.042** (2.16 × the width: past) | +0.017 ± 0.010 (0.16 ×: within) | +0.220 ± 0.042 (2.00 ×: past) |
+| completions | +0.037 ± 0.014 [+0.63 ± 0.24] | +0.015 ± 0.004 [+0.26 ± 0.06] | +0.022 ± 0.014 [+0.37 ± 0.24] |
+| attempts | −0.089 ± 0.026 [−1.52 ± 0.45] | +0.028 ± 0.007 [+0.47 ± 0.11] | −0.117 ± 0.026 [−1.99 ± 0.45] |
+| throwaways | −0.090 ± 0.008 [−1.54 ± 0.14] | −0.001 ± 0.002 [−0.02 ± 0.03] | −0.089 ± 0.008 [−1.52 ± 0.14] |
+| scrambles | +0.062 ± 0.011 [+1.06 ± 0.20] | −0.010 ± 0.003 [−0.17 ± 0.05] | +0.072 ± 0.011 [+1.23 ± 0.19] |
+| interceptions (int/att) | +0.000 ± 0.013 | −0.004 ± 0.003 | +0.004 ± 0.013 |
+| interceptions | −0.002 ± 0.004 [−0.03 ± 0.07] | −0.001 ± 0.001 [−0.01 ± 0.02] | −0.001 ± 0.004 [−0.02 ± 0.07] |
+| hot interceptions | +0.006 ± 0.001 [+0.09 ± 0.02] | +0.002 ± 0.000 [+0.03 ± 0.01] | +0.004 ± 0.001 [+0.06 ± 0.02] |
+| sacks a dropback | −0.109 ± 0.028 | −0.024 ± 0.007 | −0.085 ± 0.028 |
+| sacks | −0.063 ± 0.012 [−1.08 ± 0.20] | −0.009 ± 0.003 [−0.15 ± 0.05] | −0.054 ± 0.012 [−0.92 ± 0.20] |
+| points | −0.061 ± 0.069 [−1.03 ± 1.18] | +0.035 ± 0.018 [+0.60 ± 0.30] | −0.096 ± 0.069 [−1.63 ± 1.18] |
+| total yards | +0.552 ± 0.698 [+9.38 ± 11.87] | +0.364 ± 0.174 [+6.18 ± 2.97] | +0.188 ± 0.698 [+3.20 ± 11.87] |
+| designed rush yards | −1.258 ± 0.600 [−21.39 ± 10.20] | +0.144 ± 0.151 [+2.44 ± 2.56] | −1.402 ± 0.599 [−23.83 ± 10.18] |
+| check-release targets a dropback: RB | −0.087 ± 0.018 (every released man −0.029 ± 0.019) | −0.014 ± 0.004 (+0.003 ± 0.005) | −0.073 ± 0.018 (−0.032 ± 0.019) |
+| FB | −0.023 ± 0.008 | +0.001 ± 0.002 | −0.024 ± 0.008 |
+| TE_Y | −0.010 ± 0.004 | −0.001 ± 0.001 | −0.009 ± 0.004 |
+| target share: WR | +0.049 ± 0.047 | −0.016 ± 0.012 | +0.065 ± 0.047 |
+| TE | +0.014 ± 0.046 | +0.024 ± 0.011 | −0.009 ± 0.046 |
+| RB | −0.022 ± 0.039 | −0.008 ± 0.010 | −0.014 ± 0.039 |
+| FB | −0.042 ± 0.014 | −0.000 ± 0.003 | −0.041 ± 0.014 |
+
+- **The cumulative overshoot is v6's, re-measured, not v7's.** v6 − v4 is already 2.00 × the width at B35, and 3.5's own step is 0.16 × (the fantasy gate's reading).
+- **Like 3.4's, it is fewer throws:** throwaways turn into scrambles (−1.54 and +1.06 a team-season). Unlike at ccd75bb, completions now rise measurably too: +0.63 ± 0.24 a team-season, against 3.4's −0.01 ± 0.24 (line 2268). Of that, v6 − v4 at B35 is +0.37 ± 0.24, not measurable on its own, and v7's step is +0.26 ± 0.06.
+- **v7's step is more throws:** +0.47 ± 0.11 attempts and +0.26 ± 0.06 completions a team-season. INFERRED: these are the hot throws of the fooled reads, mostly the bitten bluffs (the gate's items (a) and (b)). On K8's bench, v7 − front0 adds 274 attempts, all of them on fooled snaps and 253 on bitten bluffs (COMPUTED here from the K8 shards' pair sums). No game-level row splits the step by mechanism.
+- Recorded as measured, and passed to the gate; neither a stop nor a trigger.
+
+**Per-slot PPR points a team-season** (standard PPR from the slot stat lines, with no fumbles; paired per-game SEs):
+
+| slot | v7 − v4 | v7 − v6 | v6 − v4 (B35) |
+|---|---|---|---|
+| QB0 | +2.46 ± 0.78 | +0.29 ± 0.19 | +2.16 ± 0.77 |
+| RB0 | −2.87 ± 1.88 | +0.60 ± 0.47 | −3.47 ± 1.87 |
+| FB0 | −0.06 ± 0.10 | −0.02 ± 0.02 | −0.05 ± 0.10 |
+| TE0 | −0.17 ± 0.51 | +0.41 ± 0.12 | −0.58 ± 0.50 |
+| TE1 | −0.48 ± 0.24 | −0.11 ± 0.06 | −0.37 ± 0.24 |
+| TE2 | −0.05 ± 0.04 | −0.00 ± 0.01 | −0.05 ± 0.04 |
+| WR0 | −0.35 ± 0.20 | −0.10 ± 0.05 | −0.25 ± 0.20 |
+| WR1 | +0.79 ± 0.41 | +0.28 ± 0.10 | +0.50 ± 0.41 |
+| WR2 | +0.69 ± 0.48 | +0.00 ± 0.12 | +0.69 ± 0.48 |
+| WR3 | +0.33 ± 0.18 | +0.09 ± 0.04 | +0.24 ± 0.18 |
+| WR4 | +0.13 ± 0.11 | +0.03 ± 0.03 | +0.10 ± 0.11 |
+
+**PR #13's own drift, P0d** (rule 14; B35 − ccd75bb by caller, paired on seeds and game, the R-runs against 3.4's M-runs; **cross-tree**, the one declared cross-tree contrast; report §19)
+
+| caller | completion (points) | int/att (points) | sack a dropback (points) | points a team-game [a team-season] | total yards a team-game [a team-season] |
+|---|---|---|---|---|---|
+| v4 | −0.303 ± 0.036 | −0.089 ± 0.011 | +0.171 ± 0.023 | −0.365 ± 0.057 [−6.20 ± 0.97] | −5.404 ± 0.566 [−91.87 ± 9.62] |
+| v6 | −0.233 ± 0.036 | −0.073 ± 0.011 | +0.115 ± 0.023 | −0.327 ± 0.057 [−5.57 ± 0.96] | −4.519 ± 0.561 [−76.82 ± 9.55] |
+
+- PR #13 is an offence change with no version name of its own: it moved every v4 game under the token `v4`. R1 differs from M1 on all 6,720 set-A games (The proofs, above), and R4 from M14 on all 20,160 set-B games (COMPUTED here from the two runs' game records, their `full` sha256s game by game). The table pools the two.
+
+**P7 by season** (rule 14; real: the nflverse participation feed, 64,293 rows charted with both coverage and rushers; the sim folds MIXED into MAN; report §20)
+
+| | MAN share of rows | P(5+ \| MAN) | P(5+ \| ZONE) |
+|---|---|---|---|
+| real, 2022–2024 | 0.4069 | 0.3960 (26,162 rows) | 0.1686 (38,131) |
+| real 2022 | 0.2867 | 0.4821 (5,441) | 0.1756 (13,534) |
+| real 2023 | 0.4226 | 0.3646 (9,682) | 0.1726 (13,228) |
+| real 2024 | 0.4926 | 0.3812 (11,039) | 0.1555 (11,369) |
+| sim v7 (A + B) | 0.2615 | 0.3631 | 0.1974 |
+| sim v6 | 0.2614 | 0.3631 | 0.1974 |
+| sim v4 | 0.2613 | 0.3559 | 0.1999 |
+
+- v7's coverage × rushers table is v6's to within 0.0001 in every cell. Three cells differ in the fourth place (MAN|4 0.1666 against 0.1665, MAN|6 0.0809 against 0.0808, ZONE|4 0.5916 against 0.5917), and so does the MAN share (0.2615 against 0.2614). The front looks change what is shown, not what is called (the gate's reading).
+- The cells stay where 3.4 moved them: MAN with five rushers is 0.0141 of rows on v7 (real 0.1120; v4 0.0260), and MAN with six is 0.0809 (real 0.0395; v4 0.0670).
+- The fantasy gate's total-variation distance from the real table is 0.245 pooled on v7 and v6 (0.231 on v4). By season it is 0.196, 0.251 and 0.312 in 2022, 2023 and 2024 (v4 0.184, 0.238 and 0.298). The gate COMPUTED these by hand from the report's four-place table, good to about ±0.001.
+- So the sim is closest to 2022 and moves further away each later season, as the real side's man share climbs (0.2867, 0.4226 and 0.4926, against v7's 0.2615; that the climb is the cause is INFERRED).
+
+**The huddle's guessed creeper** (rule 14; v7 − v7nc on K8; Δsack points a snap; report §21)
+- `noCreeper|offDiff`: 13,388 snaps, −0.22 ± 0.19 (5,818 games). Split by wear: worn 1,326 snaps −0.45 ± 0.56, unworn 12,062 −0.19 ± 0.20. `noCreeper|offSame`: 565,879 snaps, exactly 0.
+- Against 3.4's 13,455 snaps and −0.36 ± 0.19 (joint − jnc at ccd75bb, lines 2182-2186), the comparison is **cross-tree**.
+- Over all snaps v7 − v7nc is +0.017 ± 0.007. That is printed only beside it, since it also holds the real creeper's own effect (line 2180).
+
+**The Awareness league** (rule 14, K14 and K15; quarterback and centre Awareness 20 or 95; reported by offence cell, never scored; report §22)
+- **F's COMPUTED STANDARD bite shares** (decision 15): 0.42 at 20/20, 0.27 at 20/95 and at 95/20, and 0.15 at 95/95, against the flat league's 0.26.
+- **Measured:** the bite counts sit on those shares, cell by cell and look by look. Three rows of the report's table are past 2 SE:
+  - aware-v7's STANDARD/STEM at 20/95, 325 of 1,045 (0.311 against 0.270, z +2.99);
+  - aware-v7's ZONE_BLITZ/MUG at 20/95, 494 of 1,264 (0.391 against 0.420, z −2.10);
+  - aware-v6's DELAYED rolls with no look at 20/95, 739 of 1,679 (0.440 against 0.470, z −2.45).
+- **By cell** (QA/CA, each game one cluster, 6,720 games; v7 − v6, pp):
+
+  | cell | aware-v7 fooled share | Δsack | Δcmp/att | Δint/att |
+  |---|---|---|---|---|
+  | 20/20 | 0.0181 | +0.005 ± 0.034 | +0.142 ± 0.049 | −0.010 ± 0.019 |
+  | 20/95 | 0.0125 | −0.020 ± 0.031 | +0.061 ± 0.049 | −0.001 ± 0.017 |
+  | 95/20 | 0.0121 | +0.022 ± 0.028 | +0.045 ± 0.044 | +0.005 ± 0.012 |
+  | 95/95 | 0.0076 | +0.018 ± 0.027 | +0.001 ± 0.046 | −0.012 ± 0.012 |
+
+  aware-v6's fooled share is 0 in every cell.
+- So the looks are priced by Awareness, as designed: the low-Awareness pair is fooled more often than the high one. It loses no sacks for it, and its completion rate edges up (the gate's reading).
+
+**The Discipline-20 league** (rule 14, K16 and K17, leash 20; report §23)
+- d20-v6: 65,267 leash rolls, BROKE 46,092 (0.706). Every one of its 13,855 slide checks comes from breaking below 30 (`brokeBelow30Slide`).
+- d20-v7: 65,400 rolls, BROKE 46,192 (0.706), with 13,977 slide checks, all from breaking below 30.
+- G1's lines are within (The guards). The low-Discipline, low-leash path, unreachable in 3.3's arms (line 1738), now runs at scale.
+
+**Target share** (rule 14; against G5's real shares, line 1732, and backlog 171; report §24)
+
+| caller | WR | TE | RB | FB |
+|---|---|---|---|---|
+| v7 | 41.90% | 35.60% | 20.65% | 1.86% |
+| v6 | 41.91% | 35.57% | 20.66% | 1.86% |
+| v4 | 41.85% | 35.58% | 20.67% | 1.90% |
+| real (G5) | 59.76% | 21.66% | 17.87% | 0.58% |
+
+- v7 − v4 is WR +0.05 ± 0.05, TE +0.01 ± 0.05, RB −0.02 ± 0.04 and FB −0.04 ± 0.01 points.
+- v4 at HEAD35 agrees with backlog 171's PR #13 probe (41.9 / 35.7 / 20.4 / 2.0, all snaps, caller v4). ADR-073's steps leave target share where the read orders left it, and the gap to real stands. Backlog 171's dated note files these figures.
+
+**Hot interceptions into droppers** (rule 14, line 2684: the interceptor is in PLAY_START's `shownRush` and not its `rush`; the gate's item, line 410; report §25)
+
+| caller | hot interceptions | into a dropper | a team-game |
+|---|---|---|---|
+| v7 | 1,635 | 64 (0.039 of them) | 0.0304 and 0.0012 |
+| mug | 1,748 | 119 (0.068) | 0.0325 and 0.0022 |
+| stem | 1,530 | 0 | 0.0285 and 0 |
+| v6 | 1,530 | 0 | 0.0285 and 0 |
+| v4 | 1,336 | 0 | 0.0249 and 0 |
+
+- v7 − v6, into droppers: +0.00119 ± 0.00015 a team-game (+0.020 ± 0.003 a team-season), and +0.00004 ± 0.00001 an attempt.
+- All hot interceptions: v7 − v6 is +0.00195 ± 0.00030 a team-game (+0.033 ± 0.005 a team-season), and v7 − v4 +0.00556 ± 0.00098 (+0.095 ± 0.017).
+- Total interceptions do not move (the drift table). A hot interception by a man who was shown rushing and dropped is new with 3.5, and the Mug alone makes them; a Stem drops nobody.
+
+**The legal-look shares, re-read at B35** (F0 entry 2; R3 + R5, v6's calls; report §26)
+- On dropbacks (2,371,845): the Mug is legal on 92.14% (set A 92.12%, set B 92.14%), and the Stem on 82.12%. Both are legal on 82.12%, and any look on 92.14%.
+- Over all calls (3,759,690): 92.40% and 82.35%.
+- `expected35`'s counts equal these. 3.4 filed 92.14% and 82.12% on joint at ccd75bb (lines 2311-2312), so PR #13, which changed no defensive card, left them where they were.
+
+**What is held** (rule 15; report §27)
+- The tunables digest reads `fnv1a:395a9ae2` on every shard.
+- `rate5.rate`, the filed rate H35 scores with, is 0.1. `pb35.rateConstant`, playbook's `FRONT_LOOK_RATE` as the harness reads it, is 0.1 on every unmocked HEAD35 shard, 1 on K8f and K8b, and 0 on K4z, the rate-0 control (`verify/v1-numbers.md` §27).
+- Leash 50 holds except on the d20 arms, and the flat league except on the aware and d20 arms; each role's header is checked at load.
+- The engine is held (rule 15, line 394), with the departure rule 16 files for it (line 2460), where line 394 says "Engine: nothing": C2e edited five comments (four in `packages/engine/src` and one test header) and no engine code, and the engine suite stays at 995 passed and 1 skipped (rule 16).
+
+**The fantasy review: PASS WITH NOTES** (the fantasy advisor's gate memo, `verify/fantasy-gate.md`; its per-player figures are the report's, and those it marks COMPUTED are its own hand arithmetic on them).
+- **Nothing in 3.5 forecloses fantasy mode or same-franchise multiplayer.**
+  - v4, v5 and v6 replay byte for byte on HEAD35 by name at scale, and with every knob in the pins (byte-equal at bf8183c and carried to HEAD35; The proofs, above).
+  - v7's dice sit on their own fork, so `v7/front-0` plays v6's games exactly, and seeded head-to-head stays auditable.
+  - A worn look is part of one `DefensivePlayCall`, so it is still one COACH decision.
+  - Saves now record the caller that played them (`playedWith.caller`, `packages/contracts/src/save.ts:40`, resolved at `packages/calibration/src/season/main.ts:105` and written at `:132`; `:82` and `:104` at HEAD35, before 54bbaff's merge), so a running league does not follow the default move. 3.5 itself changed no `SaveFile` field.
+- **What the move changes in a test-league season is fantasy-immaterial.** Every per-slot PPR move from v4 to v7 is under 3 points a season (RB0's −2.87 ± 1.88 is the largest), and v7's own step is within ±0.6 on every slot (the per-slot table).
+  - QB0 is +2.46 ± 0.78, mostly from scrambles, and RB0 −2.87 ± 1.88, from about 21 fewer designed rushing yards (−21.39 ± 10.20 a team-season).
+  - The receivers and tight ends move by under a point each. The largest step against its SE is TE0's +0.41 ± 0.12 on v7 − v6 (z 3.4 there), which the gate ties to the commonest hot conversion, Seam to Sit (INFERRED there).
+  - DST is about −1.1 points a team-season (COMPUTED there: −1.08 ± 0.20 sacks, interceptions flat).
+  - Hot interceptions into droppers, the gate's own item (line 410): v7 − v6 adds +0.033 ± 0.005 hot interceptions a team-season, +0.020 ± 0.003 of them to a man shown rushing who dropped, while all interceptions move −0.01 ± 0.02. In DST units, at 2 points an interception, the droppers' +0.020 is under 0.05 points a season (COMPUTED there). The interception guard does not apply (no +2 SE rise).
+  - The sacks and the designed rush yards are mostly v6 − v4's, as the gate reads the sacks: of v7 − v4's −1.08 ± 0.20 sacks a team-season, −0.92 ± 0.20 is v6 − v4 at B35 and −0.15 ± 0.05 is v7's; v6 − v4's designed rush yards are −23.83 ± 10.18 against v7 − v4's −21.39 ± 10.20 (report §18). The hot interceptions into droppers are all v7's (v6 and v4 read 0, report §25). The paired SEs confirm 3.4's warning: RB0's SE is now 1.88, against 3.4's crude 0.95 (line 2294).
+- **Deception does not hurt the deceived offence.**
+  - R2 fails the other way, Class P: fooled protections give up fewer sacks, not more. At v7's fixed 1-in-10 rate this is a fidelity note, −0.15 ± 0.05 sacks a team-season (v7 − v6).
+  - It becomes a fantasy question once a coach can choose how often to disguise.
+  - A low-Awareness pair is fooled more and loses nothing for it (the Awareness league). Once ratings are live and drafted, a low-Awareness quarterback should not come out ahead for being fooled.
+- **The watch items from 3.4** (lines 2301-2308), answered:
+  - v7 − v4 with paired SEs on every listed line, with per-slot PPR added (the drift);
+  - the drift re-measured on its base (v6 − v4 at B35);
+  - v4, v5 and v6 by name and in the pins;
+  - P7 by season;
+  - the guessed creeper re-reported;
+  - the low-Discipline, low-leash arm, at scale for the first time.
+  - The Awareness league answers the rating-sensitivity item for the rating 3.5 makes live. A full archetype league is still unmeasured.
+  - The stamp is partly answered (the carried items).
+- **Its three carried items,** each with an owner and a trigger:
+  1. **"Decide who states the options in the shipped game"** (line 1740).
+     - Owner: franchise-engine. Trigger: Phase 4 (franchise).
+     - `packages/franchise/src` names no caller, protection option, pressure draw or front look. v7 adds a third stated choice and its rate (`frontLooks`, `FRONT_LOOK_RATE`), beside v5's options and v6's draws.
+     - Whoever states the disguise rate controls R2's sign. A coach who disguises more would, on today's engine, give his DST fewer sacks and the opposing quarterback more completions (INFERRED there).
+  2. **"Promote the bench"** (line 1741).
+     - Owner: calibration. Trigger: a backlog entry filed with W, which is entry 172.
+     - 3.5 is the strongest case yet. R2 was decided on the bench, on the same 2,371,845 recorded snaps replayed with the disguise on and off, with no dice luck: "your decision against the baseline coach on the same snap".
+  3. **"The stamp needs the engine commit"** (line 2298).
+     - Owner: the Save and load thread. Trigger: plan §13's note, sent with W and C7, a note between threads and not an owner ruling.
+     - `playedWith.caller` records the resolved version name (for example `"v4"`, never "default"), but no tendencies version, knobs, leash, engine commit, tunables digest or feed version. `FRONT_LOOK_RATE` (`distribution.ts:254`), `CREEPER_RATE` (`:244`) and r_s are in neither `callerIdentity` nor `tunablesDigest`, so only the engine commit pins them.
+     - Two cases in hand show that a name does not pin what played. v7f and v7 carry the identity `v7` and play different games. PR #13 changed every v4 game under the unchanged token `"v4"` (P0d: −0.365 ± 0.057 points a team-game).
+     - Plan §13's note to the Save and load thread asks that a save record the caller's resolved identity (for example `v4/v1`, never "default"), with the engine commit, the tunables digest and the feed version beside it, which are fields line 627 lists.
+     - The note adds the gate's two suggestions: a content digest of the sim path (engine, playbook, caller) recorded beside the commit, and that `season --out` still records no caller (`main.ts:140`; `:110` at HEAD35).
+- **Also from the gate:**
+  - Target share is still the largest gap to real, and 3.5 does not move it (backlog 171).
+  - The absolute scale is still untethered, a gap 3.5 did not cause: sacks 16.5% sim against 6.6% real, as R2's banner gives them (lines 26-28), and the target shares above. Those gaps dominate any comparison with real fantasy scoring, and the move does not touch them.
+  - The typed-payload trigger has fired (Dated notes).
+  - The card's E1 sentence in plan §14 predates PR #19's merge with E1, so the card is to say that saves now record their play-caller, and that a saved league keeps its caller after the move.
+  - The addendum, after C7, is to confirm that CL1 and CL2 replay K1 and K7, read PR #20's save and season changes against the save-format watch item, and name baselines 0008 and 0009 as the fantasy reference levels.
+- **Recommendation:** merge and move. Nothing in the memo argues for keeping v4: the one fantasy reason for it, a running league following the default, is met by E1. The memo informs and blocks nothing.
+
+**Departures from 3.5 as filed, and the readings it left open.**
+- **F's rule 16** (lines 2420-2484) holds the build's own departures from §2.5, filed before any arm; it is cited here, not re-introduced. Among them:
+  - the Mug's option A;
+  - `/stem-side`'s gate, and the balanced instance with no side;
+  - C2e's engine comments and C6's caller stamps;
+  - v7f, and `FRONT_LOOK_RATE` passed explicitly by the caller (`frozen.ts:822`).
+- **F's dated amendments,** each recorded here as a departure, as each says:
+  1. *Amendment 1* (no decision; a harness fix; lines 2809-2812). R3's guard stopped on `hotIntNoInterceptor` = 9. H35 (`0e496b76…` → `570ea2b7…`) now credits a hot interception to a defensive tipped-ball recoverer, as the reducer does. `FROZEN35` was rewritten at 2026-10-22T08:28:58Z, N0-base re-run and R3 re-run.
+  2. *Amendment 2* (decisions 11, 12, 13 and 15; lines 2814-2823): the rate-0 control, N0-head's declared bench line, an equivalence over v4, v5 and v6 with a base-v6 bench, and the aware cells' COMPUTED bite shares. H35 went `570ea2b7…` → `c6733c30…`, `FROZEN35` was rewritten at 13:21:39Z, `EQUIV35 PASS` came at 13:23:15Z and N0-base passed at 13:24:28Z.
+  3. *Amendment 3* (decision 20; lines 2825-2830): the analyzer, `485416e2…`, frozen before any HEAD35 output, at 14:58:40Z. The freeze holds 16 files, and no run tool changed.
+  4. *Amendment 4* (decisions 21–24; lines 2832-2861): the controls and a failing exact claim (`asmeasured35.json`, which is absent, so no claim is recorded as measured); degenerate bench SEs; when rule 17 is read; and three readings standing as filed. The analyzer went `485416e2…` → `550a0aea…` at 17:02:35Z.
+  5. *Amendment 5* (decision 25; lines 2862-2869): main moved 94ea150 → 0eef4b5 and was merged as bf8183c. The sim path compiles to the same bytes and the pins are equal, so the references stand.
+  6. *Amendment 6* (decision 26; lines 2870-2882): D's flipped suite failed 15 cases, T-D1 to T-D5's 8 and 7 in `metrics.test.ts` that took the default caller's game. The test fix is 4dfc300. D's steps 1 and 5 were repeated: 722 passed, 0 failed and 74 skipped unflipped; 714, 8 and 74 flipped.
+  7. *Amendment 7* (decision 28; lines 2883-2893): main moved 0eef4b5 → 10029e3 and was merged as 54bbaff.
+     - Its one sim-path file is unreachable from every run, the pins are equal and `pnpm verify` exits 0.
+     - D's steps 1, 4 and 5 were repeated: 727, 0 and 74 unflipped; 719, 8 and 74 flipped.
+     - The stub proofs were restored (below).
+- **Every failed prediction is recorded as measured** (line 737), not re-labelled:
+  - R2a and R2b FAIL the other way (z −6.33 and −15.51), and their cause is the hot term (R2a and R2b, above).
+  - The bitten bluffs' completions FAIL (+7.05 ± 0.11 a hundred snaps against a filed fall), and so does their slant and shallow-cross sack (−4.82 ± 0.28 points a snap against a filed rise).
+  - The Stem FAILs (−0.41 ± 0.11 points a snap against a filed rise). The plan had expected a NOT SHOWN, and F replaced that with its computed size.
+  - NOT SHOWN, recorded and not a pass: the with-release stratum, and both strata's `ch:slide`.
+  - Not a filed prediction, but recorded as 3.4 recorded it (line 2350): cumulative completion drift, v7 − v4, is 2.16 × one step's width (reported, rule 14), though 3.5's own step is 0.16 ×.
+  - The banner's direction is not borne out.
+- **A record defect: the stub proofs, restored** (V2's F1; `verify/reconcile.md` item 2; amendment 7, line 2892).
+  - At 2026-10-22T13:49:15Z the analyzer's own test suite wrote through symlinks into P35. It overwrote the four amendment-2 equivalence proof files (`proofs/n0-equiv/proof35-eq35-new-{v4,v5,v6,bench6}-old.json`) with 191-195-byte stubs. The frozen analyzer accepted them, because it reads only `verdict` and `inputs`.
+  - The equivalence never rested on them. The drive and the analyzer read `logs/equiv35.out`'s last line, and the reconciler re-checked the shards leaf by leaf, finding 0 differences on all four lines, 56 of 56 games equal on each of the three game lines and 16 record files byte-equal.
+  - The files were restored from the reconciler's rebuild with the frozen `proof35.py` (sha256 `33a2f442…`, `0fc26296…`, `de4cb433…` and `aea69225…`), and the stubs are kept beside them.
+  - The frozen analyzer, re-run, changes only those four rows' input counts (1 to 22, and 1 to 14 on the bench), and `adr073-figs35.json` is byte-identical. This section cites `logs/equiv35.out`:220-254 for the equivalence, not the files.
+- **The `K_offWorn` floor, a reading of line 2772** (V2's F2; `verify/reconcile.md` item 3). Each `K_offWorn` checked-count floor applies where K is evaluated (`KEYS35.md`:299; `guard35.py`:609-610). On today's arms this exempts `keptEqPredMismatch` on every arm (none keeps in) and both sideEqPred keys on v4 (no options). Every counter on those empty populations is 0. F ties the floors to the guard ("as `guard35.py` floors them", line 2528), whose reading was frozen before any arm.
+- **Two printing slips in the report, no verdict changed:**
+  - `lookHotMismatch`'s checked count prints the COUNT half alone; this section gives the sums.
+  - Rule 5's exact claim reads "64 of 64 shards", the 16 HEAD35 game runs the analyzer loads. The claim's own scope, every HEAD35 game shard (line 2570), is 68 of 68 with K4z (`verify/reconcile.md` items 1 and 4).
+- **The bench cost.** The plan priced a replay at 172 s from 3.4's bench, and the forced bench costs about 268 s a replay. K8, K8f and K8b ran 1.36, 1.56 and 1.57 times their budgets. The cost per record is flat (`verify/v2-procedure.md` §7.4). No run was cut short.
+- **The order of the closing work.** §1's closing commit puts the baselines in it (lines 406-409). They are measured in C8, the commit after the closing commit, because they need C7 as a clean tree. Line 408 names only the two sack ladders, and C7 also marks the three other attribute ladders `provisional`. C8's note files both, with their reasons (rule 16's opening).
+- **Tests,** by build commit (rule 16 names the suite's v7 proofs and the cases C7 must keep, lines 2477-2478):
+  - C1 (4abd0b3): playbook `frontLooks.test.ts`.
+  - C2 (6ba0316): `frontLooks.test.ts`, `tags.test.ts` and `fixtures.ts`; `gapCarryAcross.test.ts`'s expiry pin is deleted (line 397).
+  - C2e (144ab05): engine `shownRush.test.ts`'s header comment (:4-6) only.
+  - C3 (1de2be3): calibration `caller.test.ts`, `shownRushStream.test.ts` and `baselineTool.test.ts`.
+  - C4 (45957bc): `metrics.test.ts` and `shownAssignmentsStream.test.ts` (the partition, line 391).
+  - C5 (f876a5b): `callerV7Stream.test.ts` and `protectionOptionsSmoke.test.ts`.
+  - C6 (53832cd): `exportGame.test.ts`, `bandTableGate.test.ts`, `knownTruth.pocket-status-ladder.test.ts` with `knownTruthGate.ts`, and the three sweeps' tests (`pressureSweep`, `pocketBandSweep`, `freeRunnerSweep`).
+  - The review fixes (67552bc): `bandTableGate.test.ts`, `caller.test.ts`, `harness.test.ts`, `metrics.test.ts` and `frontLooks.test.ts`. The suites there: playbook 3227 passed, engine 995 passed and 1 skipped, calibration 721 passed and 74 skipped (line 2484).
+  - 4dfc300 names v4 in `metrics.test.ts` (amendment 6).
+
+**Dated notes, and what comes next.**
+- **The typed PLAY_START payload trigger has fired** (line 703: "Once `apps/game` reads these fields … it needs a typed payload in contracts").
+  - `apps/game/src/playDetail.ts:128` reads `offense.protectionScheme`, this ADR's new PLAY_START field (line 637), with its `slideCheck` at :136. It also reads `offense.readOrder` and `offense.routes` (:122-127), §2.8's fields "as run at the snap" (line 640); 3.3's watch item asked that `routes` be typed before `apps/game` read it (line 1742). It also reads `defense.tags`, so a worn look's LOOK tag appears under "Looks (disguises)" (:160-166), and the played `defense.rush` (:172).
+  - No file under `apps/game/src` reads `shownRush`: C6v has not landed, so the viewer names the disguise but does not show who was shown rushing.
+  - The petition is its own ADR later (plan Q39). A fantasy scorer would read the same payload.
+- **ADR-076's B1 check** (ADR-076 line 58: "slide to the A-gaps, keep the back in (30)") names a keep-in that v5–v7 do not make: no back is kept in unless `/keep-in` is named (line 1791). Noted here; ADR-076 is not edited.
+- **The contracts edits.** The five the owner approved, D2, D4, D6, D7 and P2's tense, were made in C2 (6ba0316) with CE's wording, comment-only, on the owner's typed yes of 2026-10-21T22:01:48Z (Status, line 15; rule 16, line 2458). contracts-guardian approved C2's contracts diff (0 blocking, 0 should-fix, 1 nit; `build/review-contracts.md`). No type changed.
+- **D2a, D2b and D11.** The three further contracts wording fixes were offered to the owner with one optional typed yes ("Yes, make contracts edits D2a, D2b and D11 for ADR-073 step six."; `/mnt/project-files/design/ADR-073-step-six-contracts-edits-2.md`). No yes came.
+  - They are left for a later petition. All three are in `packages/contracts/src/playcalls.ts`'s doc of `shownAssignments` (D2a at :540-541, D2b at :545, D11 at :547-548). Until then D11's sentence, "There is no shown-vs-played pair anywhere in the engine today", stays stale, as it has been since coverage disguises arrived.
+  - Their reach is 37 of 80 front-look calls (6 v7 games, 826 PLAY_STARTs; rule 16).
+- **ADR-071 gets a one-line dated note.** Its sentence "A look is worn exactly when `shownAssignments` differs from `assignments`" (ADR-071 lines 270-271) holds from 3.5 for coverage looks only. A front look is a LOOK tag that writes `shownRush` and leaves `shownAssignments` the array it was, and R28 holds it (line 384; the stream and metrics tests are partitioned, line 391).
+- **Backlog 171** gets the measured target shares after ADR-073's last step (Target share). Its other re-measure, after entry 100 moves, stays open.
+- **Backlog 172, "Promote the bench,"** is filed with W, as the gate's second carried item asks.
+- **C7, C8 and the card.**
+  - C7 moves `DEFAULT_CALLER_VERSION` to v7 (`anticipate.ts:224` at HEAD35; line 407's `anticipate:189` is corrected in C8's note), with the doc lines and tests that name the default (T-D1 to T-D6).
+  - It also re-records the two sack ladders under the flip, from D's records (no lever: rule 18's checks pass, amendment 6). It marks the other three attribute ladders `provisional`, and moves `docs/GUIDE.md:96-100` to the past tense. It also takes backlog 171 off the guide's waiting list (`docs/GUIDE.md:115-116`; decision 6), and adds a sentence that the read orders are already fixed (backlog 171, merged), qualified "measured with play-caller version 4" (decision 27).
+  - Its closing proofs P-D1 to P-D5 include CL1–CL3, which must replay K1's and K7's games byte for byte, and the pins, which must show that only the `default` rows moved. So these HEAD35 figures, which rule 14 reads as "at 3.5's closing commit" (line 2302), hold there once those proofs pass (line 2685). CL1–CL3 have not run yet (report §2: "cannot compute"). The addendum reads them (plan §10), and the gate asks it to confirm CL1 and CL2.
+  - Shard 3 is the CI job to watch at C7's job-wall check (amendment 6).
+  - Decision 27 lets C7 also carry comment-only edits to the lines that would call v4 the default or a 2026-07 figure current after the move (`shownAssignmentsStream.test.ts:263-264`, `tier1.ts:280-281`, `scenarios.ts:16-18` and :48-52). It adds one test-only assertion to each by-name refusal case (`STATES_NO_OPTIONS`, `ONE_CARD`) that `runOneGame` still passes the knobs through to the refusal, which the deleted T-D3 and T-D4 cases used to check.
+  - C8 then measures the baselines on C7 as a clean tree: 0008 with v4 named, and 0009 by the default, v7, the first committed v4 and v7 baselines. It adds a dated note with the closing proofs, the ladders before and after, and the fantasy gate's addendum.
+  - The owner then gets W2 and one card. Because rule 17 fired Class P, the alternate card recommends "Merge and move", with R2's failure stated.
+
+**Files** (`/mnt/project-files/arms/adr073-p35/`, README section "Front looks (ADR-073 step 3.5, 2026-10-23)" in `/mnt/project-files/arms/README.md`), under the names the scripts call each other by:
+- `plan/`: `p35-plan.md`, the build plan with the Orchestrator's decisions 1–28 (§18 and §18b).
+- `build/`: each build commit's report (`C1.md` to `C6.md`, `C2e.md`, `PINS.md`, `fix.md`), the four reviews (`review-contracts.md`, `review-correct.md`, `review-plan.md`, `review-tests.md`), and C7's draft and its reviews (`C7-draft.md`, `C7-review.md`, `C7-recheck.md`).
+- `dryrun/`: `dryrunD/`, `dryrunD2/` and `dryrunD3/`, D and its two repeats (amendments 6 and 7).
+- `tools/`:
+  - H35 `adr073Arm35.test.ts` with `KEYS35.md`, and `run35.sh`, `guard35.py`, `proof35.py`, `drive35.sh`, `r0-35.sh`, `freeze35.sh`, `expected35.py` and `adr073-analyze35.py`;
+  - `declare/`, `pins.sh` with `pin35.test.ts`, and `h34/` (3.4's harness, for R0);
+  - `FROZEN35.sha256`, with `frozen-history/`, every earlier freeze, and `frozen-files/`, a copy of every frozen file named by its sha256 (the earlier H35 570ea2b7 among them).
+- `report/`:
+  - `adr073-report35.md` and `adr073-figs35.json`;
+  - `expected35-amend2.json` and `.md` (F's COMPUTED figures), and the B35 drive's own `expected35.json` and `.md`;
+  - `report-history/` (the report before the proof restore).
+- `proofs/`: `proof35-*.json`, one per proof line, with `n0-base/`, `n0-head/`, `n0-equiv/` (restored) and `n0-equiv-stubs-20261022T134915Z/` (the stubs, with a README).
+- `logs/`: each shard's log, `drive35.out`, `equiv35.out`, `n0-base.out`, `n0-head.out`, the amendments' freeze and N0 logs, and `guards/`.
+- `shards/`: the game and bench shards of R0, R1, R2v5, R3, R4 and R5, K1–K17, K4z, K8f and K8b (104 in all), gzipped with `accFull` dropped, and `MANIFEST.json`, which keeps each original's sha256 and its `accFull`'s.
+- `rec/`: R3's and R5's dropback and game records (the bench bases and the front0 byte reference), gzipped, with `SHA256`.
+- `verify/`: `v1-numbers.md` and `v2-procedure.md` (the two independent verifications), `reconcile.md` (their reconciliation) and `fantasy-gate.md` (the gate memo).
+
+The full shards (`out/`) were not shared. The per-game columns and the slot statlines are in the slim shards, but the analyzer skips `accFull` (`adr073-analyze35.py:252`). `proof35.py`'s number lines and `guard35.py`'s rate check read it, so they re-run from the same seeds on 94fee2c (HEAD35) and c257270 (B35). The report and figures carry every scored number. The scratch copy (`arms073/p35/` in the session's scratchpad) is never committed, and its in-repo copies are git-excluded and deleted before every verify and commit.
+
+#### Closing note *(2026-10-23; C7 d1f0ef6 and C8)*
+
+**In short.**
+- **C7 (d1f0ef6) moved the default to v7** (`DEFAULT_CALLER_VERSION`, `anticipate.ts:223`), and every closing proof passed. CI is green; one finding is recorded and not fixed: calibration shard 1's job took 1.57× as long as before the move (P-D5). P-D1 to P-D5 read 0 wherever they must: the named pin rows are byte-equal, only the 12 `default` game rows and the `default` batch row moved, each to C7's `v7` row, and CL1, CL2 and CL3 replay K1, K7 and K7 on 6,720 of 6,720 games each. The flip back fails exactly the 9 cases that assert v7 is the default, the commands reproduce by name, and the five canonical ladders printed at C7 equal D's v7 tables.
+- **C8 measured baselines 0008 (v4, named) and 0009 (v7, the default)** on C7 as a clean tree, the first committed v4 and v7 baselines. 0009's trend is refused on the caller, as ADR-025 designs it, and no verdict changes between the two. At 496 games, one batch each on common seeds and not analysed paired, they are reference levels, not the measurement of the move, which stays the K-runs' (the drift, above).
+- **The fantasy advisor's addendum** keeps PASS WITH NOTES and "merge and move", corrects one line of its memo and adds four points to the stamp note.
+- **Main moved a third time,** docs only (623f85e, merged as b962d79). The pins re-run there are OK, and nothing else is re-run.
+- **Main moved a fourth time,** after C8 (d1ba7a7: relationships, ADR-083's note, saves keep the staff; merged as 916cdef). Its one sim-path change is type-only contracts code that compiles to an empty module. The pins, P-D4, the flip back, the ladders and both baselines come out as at C7, and nothing is re-taken (below).
+
+**What ran** (scratch `close35/` and its `progress.md`; the proof lines in P35's `proofs/`).
+- `pnpm verify` on C7's working tree, just before it was committed (04:50:10Z to 04:56:53Z): build, test and typecheck at exit 0. Calibration 50 files passed and 38 skipped of 88, 728 tests passed and 74 skipped; engine 995 passed and 1 skipped; playbook 3227 passed (`gate/verify-c7wt.log`). D's last repeat had 727 passed at 54bbaff (amendment 7): C7 deletes T-D3's 2 cases and T-D4's 3, and adds 6.
+- C7 was committed at 04:57:07Z on W (ec6034a). The closing chain then ran in the main checkout with C7 clean, from 04:57:48Z to 05:24:50Z: the pins, CL1–CL3, P-D4's C7 half and the ladder print. P-D3's backward flip ran beside it on a `cp -a` copy (04:57:17Z to 05:11:56Z). P-D4's P half had run at 04:48:45Z on P, which is W. The baselines followed (05:25:09Z to 05:26:45Z), then the merge b962d79 (05:27:11Z) and its pins.
+
+**The closing proofs** (plan §12; one difference falsifies; each with its count and its must-be-0 reading)
+- **P-D1, the named callers unmoved.** The pins at C7 (`pins.sh c7` with `PIN35_DEFAULT=v7`; `pins-c7.jsonl`, 377 lines: 372 game rows, 4 batch rows and the meta row, sha256 `b1310552…`; `pins-c7.stdout`):
+  - the base set's 276 named game rows (the 288 less the 12 `default` rows) equal `pins-base35.jsonl` byte for byte, and the v7 set's 84 equal `pins-v7base35.jsonl` byte for byte: both diffs are empty;
+  - the `v4` and `v6` batch rows equal the base one way, and the `v7` batch row equals the v7 base one way;
+  - `v7/front-0`'s games equal v6's (line 810).
+- **P-D2, the old default by name.**
+  - The base's 12 `default` game rows (`frozen-v4/v1`, as P's are, since W's pins equal the base byte for byte) equal C7's `v4` rows in sha256, digest and event count, and C7's `v4` rows also name `frozen-v4/v1`. The base's `default` batch row equals C7's `v4` batch row one way.
+  - C7's 12 `default` game rows equal its `v7` game rows field for field, now `frozen-v7/v1`, and its `default` batch row equals its `v7` batch row, with `provenance.callerVersion` `v7/v1`. Those 12 game rows and that 1 batch row are the only rows that moved; all 12 games differ from their base.
+  - At scale (`drive35.sh C7 --c7 d1f0ef6 --head35 94fee2c`; `drive-c7.out`): `FROZEN35` verifies (16 files), H35 is c6733c30, and each line went through the guard (PASS on 6,720 games) and its proof line (PASS):
+
+    | line | caller at C7 | against (HEAD35) | games equal | event counts equal | missing, extra | wall |
+    |---|---|---|---|---|---|---|
+    | CL1 | `v4` | K1 | 6,720 of 6,720 | 6,720 | 0, 0 | 397 s |
+    | CL2 | `v7` | K7 | 6,720 of 6,720 | 6,720 | 0, 0 | 432 s |
+    | CL3 | the pair built with no version, its header naming `frozen-v7/v1` | K7 | 6,720 of 6,720 | 6,720 | 0, 0 | 266 s |
+
+  - Each line is labelled cross-tree, C7 clean against HEAD35 94fee2c clean, verified, on tunables `fnv1a:395a9ae2` (P35's `proofs/proof35-CL1-K1.json`, `proof35-CL2-K7.json` and `proof35-CL3-K7.json`). Line 2976's "not yet run" is answered. The three took 1,095 s against the plan's about 10.5 minutes, with the backward flip's suites running beside CL1 and CL2.
+  - So the HEAD35 figures that rule 14 reads "at 3.5's closing commit" (line 2302) hold at C7, as line 2685 reads them. One limit: CL1 and CL2 replay set A only. Set B (K13, K9) and v6 (K3, K12) rest on the pins, which are OK at C7 and at b962d79, not on a replay (INFERRED, as the plan accepts).
+  - CL1 and CL2 span 54bbaff, so they also show at scale that main's 10029e3 changed no flat-league game, which amendment 7 argued from the compiled code.
+- **P-D3, the two-way flip.**
+  - **Forward.** D's F_fwd is exactly T-D1 to T-D5's 8 cases (amendments 6 and 7). C7 edits T-D1, T-D2 and T-D5 in place, deletes T-D3's 2 cases and T-D4's 3, and adds 6 positive ones (2 for T-D3, 3 for T-D4 and 1 for `frontLooks`). Under decision 27 it also adds a `runOneGame(...)` assertion, `.toThrow(FrozenCallerError)`, to the two by-name refusal cases: the v5 block's `STATES_NO_OPTIONS` case (`caller.test.ts:868-870`) and the v6 block's `ONE_CARD` case (:1327-1332). N8 reads them as part of T-D3 and T-D4's replacement: they carry the deleted cases' `runOneGame` half onto the by-name pins (plan §12 item 3, "v4's refusal stays pinned by version"), and each names its own version, so it passes under both flips. T-D6, the doc lines and decision 27's edits to `shownAssignmentsStream.test.ts`, `tier1.ts` and the `scenarios.ts` header are comment-only (`build/C7-draft.md` §4, items 5-6, and §7, "What this does to P-D3"). So C7's edited cases contain F_fwd, and every other edited case is comment-only or part of T-D3 and T-D4's positive replacement.
+  - **Backward** (`flipback/`): a `cp -a` copy of C7 with only `anticipate.ts:223` flipped back to `"v4"` (`logs/flip.diff`, one line). Of the calibration suite's 802 cases, 728 passed, 0 failed and 74 were skipped unflipped, and 719, 9 and 74 flipped. Exactly 9 cases change, every one passed to failed, and the skipped set is identical, so 0 other cases move. Every file in the always-on table plan §12 names (MD §4.2, scratch `plan35/map-default.md:138-160`) ran in both suites, none skipped, and every case in them passed under both flips except T-D5, which that table's harness row itself lists ("identity (T-D5)") and which is one of the 9 below (COMPUTED here from `flipback/logs/c7-unflipped.json` and `c7-flipback.json`).
+  - The 9 are, in `caller.test.ts`, T-D1 ("the frozen caller pair defaults to v7, and the identity string says which caller ran"), T-D2 (the leash identity case), T-D3's two positive cases (`slideCheck`, `keepIn`), T-D4's three (`creeper`, `drawPressures`, `drawLines`) and the `frontLooks` case, and, in `harness.test.ts`, T-D5 ("runBatch runs a batch and records everything a report needs to reproduce it"). They are exactly the cases that assert v7 is the default, and the 9 that C7's draft predicted by reading.
+- **P-D4, the commands by name** (`pd4/`; seeds `adr073-pd4-a` and `adr073-pd4-b`).
+  - At P (ec6034a, default v4), `export-game --seed S` and `season --seed S --out F`; at C7, the same with `--caller v4`. Both seasons and both exported games are byte-identical (`cmp`, 4 of 4 file pairs), and every export says `"callerVersion":"v4"`. The export file names differ (`S.json` against `S.v4.json`), and so do the viewer index files that list them.
+  - Both trees' seasons play each team's made-up squad, the default since 10029e3 (amendment 7).
+  - At C7, `season --seed adr073-pd4-a` with no `--caller` differs from P's (first difference at line 9480), because the default now plays v7.
+- **P-D5, the gates.**
+  - CI is green on PR #27's run 304 (GitHub run 39906074449, head b962d79f, conclusion `success`): all four jobs (`checks` and the three calibration shards) succeeded. No run is on d1f0ef6 itself, so "green on C7" is read from b962d79, whose packages equal C7's (`git diff --stat d1f0ef6 b962d79 -- packages apps scripts` is empty; the merge adds only `docs/GUIDE.md` lines and two design notes; INFERRED).
+  - **The ladder print at C7** (`ladders.out`; `ladders/logs/c7-curve-{ol,dl,qb,rb,db}.log`): each attribute scenario's canonical curve at its own rungs printed a table and a seed digest identical to D's v7 table (`dryrunD/logs/v7-curve-*.log`, measured on 30b1b21), 5 of 5 with 0 mismatches. The two sack ladders' recorded values equal it, and so does each other ladder's `measuredLadder` (the ladders below). No `games` changed, so every seed digest is unchanged, `fnv1a:6343f7ee#160` and `fnv1a:e1fb93bc#120` among them. So the sentence C7's two sack records carry, "THE CANONICAL LADDER WAS RE-RUN AT THE CLOSING COMMIT AND MATCHED" (`scenarios.ts:478`, :573), holds.
+  - The pocket-status ladder stays green under v7 (15 of 15 at C7's verify), and its record is left as it is (below).
+  - **CI job walls** (P-D5; PR #27's run 304 on b962d79, whose packages are C7's; D step 5's reference is 94ea150's run 280). Calibration shard 1: 212 s against 135 s (1.57×); shard 2: 75 s against 57 s (1.32×); shard 3: 129 s against 98 s (1.32×); the `checks` job 133 s against 108 s. **Shard 1 is above 1.5×, a finding, recorded here and not fixed.** Main's own run on 623f85e (default v4, without 3.5's test files, so its slices differ) reads 124 / 51 / 78 s. Most of shard 1's growth is the move (INFERRED from the local runs below): with 88 files the slices are 30 / 30 / 28 (amendment 7), and shard 1's longest file is the coverage ladder gate (`knownTruth.db-coverage-net-yards-per-dropback.test.ts`), which plays the default caller. On a copy of C7 run both ways (`flipback/`; each suite ran beside the closing runs on the same four-CPU machine, so both are inflated, roughly alike), that file takes 291.7 s under v7 against 213.9 s under v4 (1.36×), the other attribute ladder gates rise alike (ol 1.37×, rb 1.44×, qb 1.34×, dl 1.31×), and shard 1's files sum to 1.21× (shard 2 1.04×, shard 3 0.98×). The gate's timeout is 600 s (`knownTruthGate.ts:71`, :99) and the whole shard-1 test step took 201 s on CI, so no file nears its timeout. Shard 3, the one D asked to watch, is at 1.32×. Rebalancing the shards is left to a later CI change.
+- **The pins on the merge** (`pins.sh merge-main-623f85e` on b962d79, from 05:27:22Z; `pins-merge3.stdout`): OK, every line as at C7, and the file byte-identical to C7's (sha256 `b1310552…`). The 4 changed paths it reports under `packages/` are C8's baseline reports, then untracked, which no pin reads. C8 changes no package source (the four report files and this ADR's text), so the pins carry from b962d79 to C8, as they carried from bf8183c to HEAD35 (line 2956; INFERRED).
+
+**The ladders, before and after** (each scenario's canonical seeds. The 2026-07 records were measured against ADR-028's engine under the caller of that day, v2, INFERRED. v4 and v7 are D's, on 30b1b21, as C7's records give them, and C7's print of v7 is equal.)
+
+| scenario (rungs) | 2026-07 record | v4 | v7 | effect: 2026-07, v4, v7 | at C7 |
+|---|---|---|---|---|---|
+| `ol-passblock-sack-rate` (20/45/70/95) | 0.2707 / 0.2351 / 0.1723 / 0.1156 | 0.2797 / 0.2338 / 0.1784 / 0.1334 | 0.2770 / 0.2378 / 0.1768 / 0.1305 | 0.1551, 0.1463, 0.1465 | re-recorded under v7 |
+| `dl-passrush-sack-rate` (20/45/70/95) | 0.1365 / 0.1703 / 0.2114 / 0.2451 | 0.1485 / 0.1846 / 0.2219 / 0.2622 | 0.1441 / 0.1782 / 0.2146 / 0.2527 | 0.1086, 0.1137, 0.1085 | re-recorded under v7 |
+| `qb-accuracy-completion` (0/20/40/95) | 0.3009 / 0.3365 / 0.3684 / 0.4122 | 0.2853 / 0.3119 / 0.3526 / 0.4201 | 0.2741 / 0.3013 / 0.3292 / 0.4229 | 0.1113, 0.1348, 0.1488 | `provisional` |
+| `rb-vision-ypc` (20/45/70/95) | 10.3569 / 11.8785 / 13.8482 / 16.8885 | 10.5433 / 12.2893 / 14.2452 / 17.3848 | 10.2449 / 11.5618 / 13.7080 / 17.0536 | 6.5316, 6.8415, 6.8087 | `provisional` |
+| `db-coverage-net-yards-per-dropback` (0/50/95) | 2.2756 / 2.0177 / 1.5941 | 1.9582 / 1.5630 / 1.2909 | 1.9921 / 1.6411 / 1.3706 | 0.6815, 0.6673, 0.6215 | `provisional` |
+
+- The v4 effects of the three provisional ladders are COMPUTED here from their rungs. Every other figure is the records' (`packages/calibration/src/knownTruth/scenarios.ts`, cited below) or D's logs'.
+- **The two sack ladders' steps,** across eight independent seed sets, in 2026-07 and now under v7:
+  - `ol-passblock-sack-rate` (`scenarios.ts:475-504`; `recordedSteps` and `recordedStepSE` at :562-563): 0.0509 ± 0.0087, 0.0546 ± 0.0057 and 0.0537 ± 0.0040 (floor margin 15σ, in the record as it stood at W, ec6034a's `scenarios.ts:451`; C7's rewrite of the record dropped it), now 0.0448 ± 0.0053, 0.0541 ± 0.0053 and 0.0515 ± 0.0042 (noise margins 10.3σ / 12.2σ / 14.5σ; span 0.1504 ± 0.0048 against a floor of 0.06; floor margin 18.8σ). v7 moves no rung from v4 by more than 0.0040, and the drift from 2026-07 is older than v7: v4 already reads rung 95 0.0178 above the record.
+  - `dl-passrush-sack-rate` (:570-599; :640-641): 0.0378 ± 0.0049, 0.0365 ± 0.0041 and 0.0361 ± 0.0061 (floor margin 5.6σ), now 0.0341 ± 0.0028, 0.0345 ± 0.0061 and 0.0346 ± 0.0046 (15.5σ / 7.3σ / 9.7σ; span 0.1032 ± 0.0077 against a floor of 0.075; floor margin 3.7σ, the span clearing the 0.0938 it needs by 0.0094). v7 reads lower than v4 at every rung, by 0.0044 to 0.0095.
+  - Both took §22a's whole procedure and none of its levers (rule 18; amendment 6's step 2), with the 2026-07 record's rungs, games, tolerance and floor. Their 2026-07 paragraphs are kept after the new ones as dated history.
+- **The three provisional ladders** (`provisional` at `scenarios.ts:444-454`, :700-710 and :821-831, each `invalidatedBy` the constant at :381-384): each `measuredLadder` is its v7 row above, monotone and clear of its floor (0.05, 1.5 and 0.25). Their `recordedSteps` and `recordedStepSE` are still 2026-07's, because the eight-seed-set replicate that clears the flag was not run. The field's own doc (:158-168) now names the three.
+
+**The baselines, 0008 and 0009** (C8; plan §12; `packages/calibration/reports/baseline-0008.md` and `baseline-0009.md`, each with its `.carry-forward.json`; scratch `close35/baselines/`)
+- **How they ran.** In the main checkout with C7 clean (the script checks that the tree is clean first), with `FF_ENGINE_COMMIT=d1f0ef6f…`:
+  - 0008: `FF_BASELINE_CALLER=v4` and `FF_BASELINE_ID=baseline-0008`, with no `FF_BASELINE_PREV`, as 0007 ran; caller `v4/v1`.
+  - 0009: the default, `v7/v1`, with `FF_BASELINE_ID=baseline-0009` and `FF_BASELINE_PREV` at 0008's carry-forward.
+  - Both: `DEFAULT_TUNABLES` at `fnv1a:395a9ae2`, the `flat-60-32t` league (FLAT_SYNTHETIC), 496 games, batch seed `baseline-0001`, seed digest `fnv1a:020c1dcb#496`, real seasons 2022–2024, and registry schemaVersion 4 with 57 active attributes (`baseline-0008.md:13-23`, `baseline-0009.md:13-23`). Each reads MECHANIC CLAIMS ONLY (:25).
+  - 0007 is `v2/v1` on engine c4103246, registry schemaVersion 3 with 56 attributes (`baseline-0007.md:13-17`), so these are the first committed v4 and v7 baselines (that their numbering continues at 0008 is INFERRED, plan §12).
+- **The trend is refused, as designed.** 0009 prints TREND REFUSED on `callerVersion`, previous `v4/v1` against this run's `v7/v1` (`baseline-0009.md:30-34`, :53). ADR-025 draws no arrow across a caller change, because a different caller sets a different play mix, a different denominator. So the discontinuity is recorded as a refusal and not as a delta, as plan §12 asked on ADR-024's precedent. 0008, which names no predecessor, is refused against the reconstructed baseline-0001 (caller v1), as 0007 is (`baseline-0008.md:30-34`).
+- **No verdict changes.** All 50 metric rows carry the same verdict in both reports: 23 FAIL (known), 2 PASS, 2 PASS+, 18 obs and 5 n/a (COMPUTED here from the two reports' tier tables). The values that matter:
+
+  | metric | verdict, both | 0008 (v4) | 0009 (v7) | real |
+  |---|---|---|---|---|
+  | `sack_rate` | FAIL (known) | 16.32% | 16.43% [16.08%, 16.78%] | 6.56% |
+  | `completion_pct` | FAIL (known) | 36.86% | 37.01% | 64.58% |
+  | `int_rate` | PASS | 1.92% | 1.93% | 2.28% |
+  | `yards_per_attempt` | FAIL (known) | 3.443 | 3.609 | 7.051 |
+  | `yards_per_carry` | FAIL (known) | 15.696 | 15.805 | 4.324 |
+  | `points_per_team_game` | FAIL (known) | 42.267 | 42.216 | 22.188 |
+  | `field_goal_pct` | PASS | 76.80% | 75.72% | 84.99% |
+  | `front_look_rate` | obs | 0.00% | 9.25% [8.98%, 9.53%] | none charted |
+  | `hot_route_rate` | obs | 9.41% | 11.59% | none charted |
+  | `unaccounted_rusher_rate` | obs | 26.17% | 30.23% | none charted |
+
+  - 0009's `front_look_rate` interval contains the K-runs' 9.22% (the rates, above), and it is the 0.0925 that D's step 6 read on scratch (amendment 6).
+- **496 games is not the measurement of the move.** A baseline is one batch on the flat league. 0008 and 0009 play the same 496 seeds, but the reports compare levels and make no paired analysis. The move is measured by the K-runs' v7 − v4, paired over 26,880 games (the drift, above). The sack line shows the difference: the baselines read +0.11 points from v4 to v7, the other sign from the K-runs' −0.109 ± 0.028 points a dropback, and 0008's value lies inside 0009's interval.
+
+**The fantasy advisor's addendum, after C7: PASS WITH NOTES stands** (P35's `verify/fantasy-addendum.md`; read-only work with Read, Grep and Glob and no script run; repo paths read at b962d79, whose packages are C7's)
+- **The verdict and "merge and move" are unchanged.** Nothing at the close forecloses fantasy mode or same-franchise multiplayer, and the addendum informs and blocks nothing.
+- **The HEAD35 figures hold at C7** (its §1): CL1 and CL2 replay K1 and K7, so the memo's per-player and per-slot tables hold at the closing commit as rule 14 reads them, with the limit above (set B and v6 rest on the pins, INFERRED).
+- **PR #20's save and season changes, read against the save-format watch item** (its §2):
+  - PR #20 adds no format assumption that blocks shared leagues. `packages/contracts` is unchanged, `SAVE_FORMAT_VERSION` is still 1 (`packages/contracts/src/save.ts:6`), `players` was already in the shape (:21), and `leagueContext?: unknown` is still reserved (:42). `makeSave` now fills `players` (`packages/franchise/src/save/save.ts:34-38`, :52), and `readSave` checks that each roster's players are in the file (:134-142).
+  - E1 survives the merge and the move, as line 3388 records; the refusals are now at `main.ts:99-104`. The memo's `:82`, `:104`, `:79-81` and `:76-78` are HEAD35's line numbers.
+  - **A correction to its memo (line 228):** a save that carries players is not yet the mid-season patch path that Shapes B and C need. `--load` rebuilds the squads from the world seed and the season and never reads the saved players (`main.ts:17-19`, :106-108; `realSeason.ts:114-118`, :123-126), so a player patched in a save is silently replaced on load. The read path is not built; the per-week `fullStrength(team, season, week)` (`realSeason.ts:70-71`) is a hook for it (INFERRED there).
+- **Four points for carried item 3's note to the Save and load thread:**
+  1. **The rebuilt squads are never checked against the saved ones.** Two builds whose fictional generator differs can load the same save and play different players, and nothing refuses. It is the same "a name does not pin what played" as v7f and PR #13, and since the save already holds the players, the check would be cheap.
+  2. **The save does not say that a league is made up, or which generator made it.** The `--out` file carries the generator's own provenance (`ratedProvenance`, whose `generator` is `fictional/1`; `main.ts:138`), and the save does not (:132). So the rule "never tether a fictional league to real results" has no field in a save to read, and `leagueContext` is the reserved place for one.
+  3. **A ratings-list change now locks default saves out.** Every default save holds players (`main.ts:108`, :131-132), and `readSave` refuses a save with players once the registry's schema version moves on (`save.ts:110-112`). The refusal is correct today, but the registry stays fluid until ship (CLAUDE.md rule 5) and has already moved (version 3 at 0007, 4 at 0008: `:17` in each), so a shared league that crosses builds would hit it.
+  4. **`season --out` still records no caller** (`main.ts:140`), and P-D4 has now measured what that costs (above). A file written before 10029e3 also needs `--rosters flat` to replay.
+- **The gate's tables describe the flat league,** which no default `season` run plays now, so v7 − v4 on made-up squads is unmeasured. The effects act per snap, so a similar size is likely (INFERRED there), and the verdict does not change.
+- **0008 and 0009 as the fantasy reference levels** (its §3). They set league-level reference levels only: there is no fantasy reference level yet for a player's stat line, nor for the made-up squads a season now plays.
+  - The lines PPR scores are far from real, and on 0009 each of these is FAIL (known): yards a carry 3.7 × real (15.805 against 4.324), yards an attempt about half (3.609 against 7.051), completion 37.01% against 64.58%, points a team-game 1.9 × real (42.216 against 22.188) and sacks 16.43% against 6.56%. The run game is the largest gap, so a PPR league scored from these lines would value backs several times above real (INFERRED there). A tethered shape must rescale stat by stat or wait for the engine.
+  - Two lines already tether: interceptions (1.93% against 2.28%, PASS), the DST's line, and field goals (75.72% against 84.99%, PASS), the kicker's.
+  - The carry-forward file is a template for the stamp. Its identity records the engine commit and the tunables digest, which the save lacks, the caller with its tendencies version (`v7/v1`, where the save has only `v7`), and the league's id and provenance (`baseline-0009.carry-forward.json:4-21`). The Save and load note can point to it.
+- **The addendum does not read the ladders.** Plan §10 has it read CL1–CL3, the ladders and the baselines (plan line 999). The memo's own asks (`verify/fantasy-gate.md:262-265`) name CL1 and CL2, PR #20's save and season changes, and the baselines, and the addendum answers those three. It says nothing of the two sack ladders re-recorded under v7 or of the three ladders marked `provisional` (above).
+
+**What plan §12 asks this note to record.**
+- **Line 407's cite is corrected.** Its `anticipate:189` is `anticipate.ts:223`, where the constant is at C7 (`anticipate.ts:224` at HEAD35; the plan's AT:219 had drifted too). Line 407 is left as filed.
+- **Opt-in tools that name no caller now measure v7.** Every tool that takes the default caller, among them the three sweeps, the band-table derivation and `ladderRerung`, plays v7 from C7, so the results such tools recorded before C7 will not reproduce under the default.
+- **The two "caller v2" labels plan §12 names were already made truthful by C6** (53832cd, before the move; rule 16, lines 2461-2468; D found none left, `dryrunD/D.md:170` and `dryrunD/check.md:37`). Neither is stale at C7, and no label fix is left for a later change. Read at b962d79, whose packages are C7's:
+  - **The pocket-status ladder** still names no caller. Its `runBatch` (`packages/calibration/src/knownTruth/pocketLadder.ts:1195`) passes a `playCalling` (:1203) with only the tendencies and the fourth-down card, so from C7 it plays v7. Its record (:895-897) says the figures were measured when the default "was v2" and that each run's report prints the caller its batches recorded, which each rung now keeps (:1224) and the report prints (:1302). It stayed green under v7 and is not re-recorded (plan §12, C7 item 4), so its figures stay the 2026-07-29 record's, dated as such. The plan's `:895` and `:1187-1198` are the lines before C6, where the record read "caller v2 with FROZEN_TENDENCIES/FROZEN_FOURTH_DOWN".
+  - **The band-table and sweep tools** print the caller they resolve, not a fixed "caller v2". The band-table corpus takes `DEFAULT_CALLER_VERSION` (`packages/calibration/src/knownTruth/bandTables.ts:410`), records it by `callerIdentity` (:457) and prints it (:1385). Each sweep's `CALLER_VERSION` is the default (`pressureSweep.test.ts:139`, `pocketBandSweep.test.ts:133`, `freeRunnerSweep.test.ts:89`), printed by `callerIdentity` (:525, :840 and :654). From C7 they measure v7 and print `v7/v1`. The plan's `bandTables.ts:1373`, `pressureSweep.test.ts:515`, `pocketBandSweep.test.ts:830` and `freeRunnerSweep.test.ts:644` are the lines before C6, each of which printed "caller v2".
+  - The fixed "caller v2" strings still printed in `packages/` are true: `dispatchCEntryExit.test.ts:54` and `backlog87Numerator.test.ts:305` print it for batches that pass `callerVersion: "v2"` (:40, :282).
+
+**The closing-time departures** (rule 16's opening, line 2420; line 3464), each with its reason.
+1. **Three ladders marked `provisional`, where line 408 names only the two sack ladders.** Line 408 re-runs `dl-passrush-sack-rate` and `ol-passblock-sack-rate` under the new default. C7 also marked `qb-accuracy-completion`, `rb-vision-ypc` and `db-coverage-net-yards-per-dropback` `provisional`, with their canonical v7 ladders (plan §12, C7 item 4).
+   - The reason: the move changes every curve the default plays, and the scenario file's own rule flags a record that predates a change and has not been re-derived, where re-recording means §22a's whole procedure (`scenarios.ts:144-156`). That procedure, with its eight-seed-set replicate, was taken for the two sack ladders only (D's step 2), and the other three had only their canonical ladders re-measured (D's step 3).
+   - Their 2026-07 records also predate the v3 and v4 default moves and every engine change after ADR-028, the engine they were recorded against (:381-384). Left unflagged, every figure in their hypotheses would read as current.
+2. **The baselines in C8, where lines 406-409 put them in the closing commit.**
+   - The reason: a baseline's `engineCommit` is "the code that produced the numbers" (`packages/calibration/src/report/identity.ts:26-29`), and HANDOFF.md's standing rule is "RUN BASELINES FROM A CLEAN TREE … Commit first, then measure" (`HANDOFF.md:118-122`), because a dirty stamp never compares equal, even to itself (ADR-025).
+   - So the baselines need C7 committed and clean, and none measured inside C7 could name C7. C8 holds them, with `engineCommit` d1f0ef6.
+
+**Main moved a third time** (plan point 50; §8's main-moves rule, line 2791).
+- Main moved from 10029e3 to 623f85e: PRs #24 and #25, which add five lines to `docs/GUIDE.md` and two design notes, ADR-081 (the end-of-season staff meeting) and ADR-084 (relationships run both ways).
+- It moved at 2026-10-23T02:09:03Z, before W, but this branch's first fetch to see it was at 04:58:06Z, a minute after C7 was committed. It was merged into the branch as b962d79 (05:27:11Z), never rebased, so d1f0ef6, the baselines' `engineCommit`, stays in the branch's history and, on the merge, in main's.
+- §8's sim-path diff-stat between the two bases is empty, and so is `git diff --stat d1f0ef6 b962d79 -- packages apps scripts`. This is §8's empty-diff case on its face, with no reading of the kind amendments 5 and 7 needed. The references, every K-run, the closing proofs and the baselines stand.
+- No `packages/calibration/src/season` file changed, so P-D4 is not re-run, and the saves rule does not fire. The pins on b962d79 are OK (the closing proofs, above), and CI's run 304 is on b962d79.
+
+**Main moved a fourth time** (plan point 50; §8's main-moves rule, line 2791; scratch `merge4/`).
+- Main moved from 623f85e to d1ba7a7: PRs #26 and #30. They bring ADR-082 R2 (the `season` command prints each week's headlines), ADR-084's relationship views and ledger (V1–V3, L1 and L2a: a new `packages/contracts/src/relationships.ts`, two events in `events.ts` and an optional `relationships` field in `save.ts`), ADR-083's design note, and saves that keep the coaching staff (franchise `save.ts`, and the `season` command, which now depends on `@ff/narrative`).
+- PR #30 merged at 18:50:10Z, after C8. The owner chose "Merge and move" at 19:24:25Z, and main was merged into the branch as 916cdef (19:26:14Z), never rebased, so d1f0ef6 and ccd5e3e stay in the branch's history and, on the merge, in main's.
+- **The diff.** §8's sim-path diff-stat is not empty. It names four files, all in `packages/contracts/src` (`events.ts`, `index.ts`, the new `relationships.ts` and `save.ts`), and every change in them is a type. `SAVE_FORMAT_VERSION` and `CONTRACTS_SCHEMA_VERSION` stay 1.
+- **The compiled code.** Built before (ccd5e3e) and after (916cdef), the JavaScript of `packages/engine` (48 files), `packages/playbook` (22) and every `packages/calibration` file outside `season/` (78) is byte-identical. Contracts' JavaScript gains only `export * from "./relationships.js"` over an empty module (`relationships.js` is `export {};`); `events.js` and `save.js` are byte-identical, and the runtime namespace of `@ff/contracts` is the same 31 exports. esbuild's per-file transform, which vitest runs, agrees. The runtime import closure of the batches, arms, pins, ladder gates and baseline report holds no franchise, narrative, attributes or `season/` file.
+- **Read here as** decision 25 read amendment 5's move: §8's empty-diff case on compiled code, because no executable line on the sim path changed. The references, every K-run, the closing proofs and the baselines stand. As a check of that reading, the literal path's re-measures were run on a clean copy of 916cdef: baselines 0008 and 0009 regenerate with identical content but the one `engineCommit` line (stamped d1f0ef6 instead, all four files are byte-identical to the committed ones), and the five ladders equal D's v7 tables and C7's. The B35 references, the K-runs and CL1–CL3 were not re-run.
+- **The pins** on 916cdef (`pins.sh merge-main-d1ba7a7`, as the chain ran them at C7): OK, every line as at C7, the file byte-identical to C7's (sha256 `b1310552…`).
+- **P-D4 is re-run**, because the merge touches `packages/calibration/src/season` (`main.ts`, `realSeason.ts`). The old default (a copy of 916cdef flipped back to v4) and 916cdef with `--caller v4` give byte-identical files, and each equals close35's P-D4 output byte for byte. 916cdef's default season equals close35's C7 default season. Main's additions (coaches in a save, the headlines) reach no file P-D4 writes, and the games a season plays are unchanged; a season resumed from a save now also records each team's staff and staff budget in its `--out`.
+- **The saves rule does not fire.** The only writer of a resumable save still records the resolved name (`playedWith: { caller: callerVersion }`, `season/main.ts:159`, resolved at :113), and `--load` carries on with the saved version unless `--switch-caller`. A save with no `playedWith`, which no writer produces, still resumes under the default, as at every earlier move.
+- **D's steps 1, 4 and 5 are repeated** (as decision 28 repeated them), because main added `narrativeSurface.test.ts` and changed `seasonSurface.test.ts`. On a `cp -a` copy of 916cdef the calibration suite passes unflipped; flipped back to v4 it fails exactly C7's 9 cases (720 passed, 9 failed, 74 skipped of 803), every change between the runs is passed to failed, and the new and changed cases pass both ways. With 89 files vitest's slices are 30, 30 and 29 (checked with vitest's own `--shard` listing): `narrativeSurface` joins shard 1, `knownTruth.rb-vision-ypc` moves from shard 1 to 2 and `intRateBand` from 2 to 3, and shard 3 keeps its 28 files. No default-following file is above half its timeout (the highest is `blockedDepthOffsetAgreement`, 142.9 s of 300 s, 0.476, on a busy machine; 0.405 on a quieter re-run).
+- **The gate.** `pnpm verify` on 916cdef: build, test and typecheck at exit 0 (calibration 51 files passed and 38 skipped of 89, 729 tests passed and 74 skipped). Every count that moved since C8 comes from a test file main added or changed. CI is green on 916cdef (GitHub run 40011749197, all four jobs). Job walls: calibration shard 1 200 s (212 s on run 304; 1.48× 94ea150's 135 s), shard 2 70 s, shard 3 131 s, `checks` 116 s. Shard 2 now runs `rb-vision-ypc` and its wall did not rise.
+
+**Unchanged since W, and what comes next.**
+- The typed PLAY_START payload trigger, the viewer that does not yet show `shownRush` (C6v has not landed), and D2a, D2b and D11 stand as the dated notes above record them.
+- C8 holds the four baseline files and this note, with the Status line (line 6). PR #27 is open for the branch.
+- W2 and the card followed, as line 3496 says. The owner chose "Merge and move" on the card (2026-10-23 19:24:25Z), so v7 is the default on main. This note's fourth-move record and the Status line are the last commit on the branch before the merge.
+- **Files** for the close, copied to the share that the Files list above names (`arms/adr073-p35/`): the addendum, `verify/fantasy-addendum.md`; the closing proofs, `proofs/proof35-CL1-K1.json`, `proof35-CL2-K7.json` and `proof35-CL3-K7.json`; the pin file, `pins/pins-c7.jsonl`; and `close35/`, without the flip back's repo copy: the C7 verify (`gate/`), the pins (`pins-c7.stdout`, `pins-merge3.stdout`), CL1–CL3's drive (`drive-c7.out`), the flip back (`flipback/`), P-D4 (`pd4/`), the ladder print (`ladders/`, `ladders.out`) and the baseline logs (`baselines/`), with the chain's `progress.md`.
 
 ---
 

@@ -1,6 +1,7 @@
 /**
  * Test fixtures: a depth chart deep enough to field every personnel grouping in
- * the corpus, and the ADR-006 coherence checks restated locally.
+ * the corpus, and the ADR-006 coherence checks restated locally, with ADR-073
+ * step 3.1's shown-rush check beside them (`checkShownRush`).
  *
  * THE COHERENCE CHECKS ARE DUPLICATED ON PURPOSE. They are the engine's, in
  * `packages/engine/src/validate/playCall.ts`, and playbook may not import the
@@ -255,4 +256,27 @@ export function checkCoherence(
   return offense.kind === "RUN"
     ? checkRunCoherence(quarterback, offense, defense)
     : checkPassCoherence(quarterback, offense, defense);
+}
+
+/**
+ * ADR-073 step 3.1's shown-rush check, restated (the engine's `assertShownRush`, on the pass and
+ * the run call alike): nobody is shown rushing twice, and every man shown rushing is on the call,
+ * rushing or covering. NO one-spot rule, as there: a Mug's walked-up backer may share a gap with
+ * the tackle in front of him; the Stem's one-spot refusal is the front look's own check.
+ */
+export function checkShownRush(defense: DefensivePlayCall): CoherenceReport {
+  const problems: string[] = [];
+  for (const dupe of duplicates(defense.shownRush.map((r) => String(r.rusher)))) {
+    problems.push(`${dupe} is shown rushing twice`);
+  }
+  const onTheCall = new Set<string>([
+    ...defense.rush.map((r) => String(r.rusher)),
+    ...defense.assignments.map((a) => String(a.defender)),
+  ]);
+  for (const shown of defense.shownRush) {
+    if (!onTheCall.has(String(shown.rusher))) {
+      problems.push(`${String(shown.rusher)} is shown rushing but neither rushes nor covers on this call`);
+    }
+  }
+  return { problems };
 }

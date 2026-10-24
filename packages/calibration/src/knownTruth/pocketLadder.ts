@@ -892,7 +892,9 @@ export const POCKET_STATUS_LADDER_SCENARIO: PocketLadderScenario = {
     "CLEAN(0) < PRESSURE(1) < COLLAPSING(2) < IMMEDIATE(3); the walk imposes each rung as a floor " +
     "and asserts the outcome ordering follows. Config throughout: seed " +
     "known-truth:pocket-status-ladder, 160 games a rung, flat-60 two-team FLAT_SYNTHETIC, " +
-    "SYNTHETIC_PAIR 2024, caller v2 with FROZEN_TENDENCIES/FROZEN_FOURTH_DOWN. Every ± below is " +
+    "SYNTHETIC_PAIR 2024, FROZEN_TENDENCIES/FROZEN_FOURTH_DOWN, and the default caller, which " +
+    "was v2 when every figure below was measured (the walk names no caller; each run's report " +
+    "prints the one its batches recorded). Every ± below is " +
     "the SD of ONE ladder's step across EIGHT independent seed lists, never the SE of the mean of " +
     "eight: the gate runs one ladder, so what threatens it is a single draw (§22c). " +
     "THE LADDER IS NOW THREE STEPS AND IT IS MONOTONE, RE-RECORDED 2026-07-29 AFTER ADR-033. " +
@@ -1034,6 +1036,12 @@ export interface PocketLadderRung {
   readonly batchSeed: string;
   readonly seedDigest: string;
   readonly games: number;
+  /**
+   * The caller the rung's batch played, as that batch resolved and recorded it
+   * (`provenance.callerVersion`, e.g. `v4/v1`). The walk names no caller, so this is the default
+   * as it stood; the report prints it (ADR-073 step 3.5).
+   */
+  readonly callerVersion: string;
 }
 
 export interface PocketLadderAxis {
@@ -1213,6 +1221,7 @@ export async function runPocketLadder(
       batchSeed,
       seedDigest: result.seeds.digest,
       games,
+      callerVersion: result.provenance.callerVersion,
     });
   }
 
@@ -1289,7 +1298,8 @@ export function renderPocketLadder(
   lines.push(
     "",
     `  reproduce: batch seed "${rungs[0]?.batchSeed ?? "?"}", ${scenario.games} games per rung, ` +
-      `SHARED across every rung (common random numbers) — seed digest ${rungs[0]?.seedDigest ?? "?"}`,
+      `SHARED across every rung (common random numbers) — seed digest ${rungs[0]?.seedDigest ?? "?"}` +
+      `, caller "${rungs[0]?.callerVersion ?? "?"}"`,
     `  tunables digests: ${rungs.map((r) => `${r.status} ${r.tunablesDigest}`).join(" | ")}`,
   );
 

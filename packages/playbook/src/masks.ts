@@ -41,7 +41,10 @@
  *    squat on the flats at the snap. The first lie again, told by the corners.
  *
  * **Robber** is not a mask: it is Show 2 over a robbing rotation, and Cover 3 Buzz is one.
- * Stem and the Cover 0 mug need a shown rush (ADR-069 Phase 3, ADR-071 step 3).
+ * The Stem and the Mug (the Cover 0 mug's backers' half; ADR-073 Decision 3) lie about the
+ * rush, not the coverage: they are front looks, in `frontLooks.ts` (ADR-073 §2.5), and never
+ * ride this catalogue — a front look here would change `legalLookCombinations`, and so v4's
+ * and v6's dice.
  *
  * ================== ONE LOOK PER POSITION GROUP ==================
  *
@@ -473,8 +476,8 @@ export function applyLooks(card: AnyDefensiveCard, draw: LookDraw): AnyDefensive
       if (duty === undefined || shown === undefined) continue;
       if (duty.kind === "RUSH") {
         throw new PlaybookError(
-          `${mask.name} moves ${role} on ${card.id}, who rushes — a shown rush is ADR-069 ` +
-            `Phase 3 and nothing can show it yet`,
+          `${mask.name} moves ${role} on ${card.id}, who rushes — a coverage look never moves a ` +
+            `rusher; a shown rush is a front look's (\`applyFrontLook\`, ADR-073 §2.5)`,
         );
       }
       duties[role] = { ...duty, shows: shown };
