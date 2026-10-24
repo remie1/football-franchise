@@ -164,6 +164,7 @@ export interface Team {
   displayName: string;
   city: string;
   roster: PlayerId[];
+  reserve?: PlayerId[];            // ADR-088 S3: reserve lists (IR, PUP, NFI...); not in roster, not in the 53
   depthChart: Partial<Record<Position, PlayerId[]>>;
   capState: CapState;
 }

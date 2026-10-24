@@ -1,5 +1,5 @@
 /**
- * DEAD MONEY (ADR-088 R4 part 2; ADR-085 K3, proposed).
+ * DEAD MONEY (ADR-088 R4 part 2), as ADR-085 K3's `DeadMoneyCharge`.
  *
  * nflverse's contract file has no rows for players a team has already let go, so their leftover
  * cap charges come from OverTheCap's team pages instead: each season's "Dead Money" table, one row
@@ -14,6 +14,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { playerId, teamId, type DeadMoneyCharge } from "@ff/contracts";
 import type { Download } from "./snapshot.js";
 import type { SealedTable } from "./standins.js";
 
@@ -30,15 +31,6 @@ export const OTC_PAGE: Readonly<Record<string, string>> = {
 };
 
 export const OTC_URL = "https://overthecap.com/salary-cap";
-
-/** ADR-085 K3, proposed. `player` is a stand-in id, or a placeholder for someone no longer in the league. */
-export interface DeadMoneyCharge {
-  readonly team: string;
-  readonly player: string;
-  readonly season: number;
-  readonly amount: number;
-  readonly reason: "RELEASED" | "TRADED" | "EXPIRED" | "VOIDED" | "RETIRED";
-}
 
 /** One row of a page's dead-money table. Real name: importer-internal. */
 export interface DeadMoneyRow {
@@ -125,7 +117,7 @@ export function buildDeadMoney(input: {
         player = placeholder.get(k)!;
         gone.add(player);
       }
-      charges.push({ team, player, season: r.season, amount: r.amount, reason: "RELEASED" });
+      charges.push({ team: teamId(team), player: playerId(player), season: r.season, amount: r.amount, reason: "RELEASED" });
     }
   }
   return { charges, matched, placeholders: gone.size, unitemized };

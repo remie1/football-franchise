@@ -64,14 +64,12 @@ export interface RealProvenance {
   readonly season: number;
   readonly snapshotDate: string;
   readonly status: Readonly<Record<string, RosterStatus>>;
-  readonly creditedSeasons: Readonly<Record<string, number>>;
   /** Combine numbers where he tested; height and weight always. */
   readonly measurements: Readonly<Record<string, Partial<Measurements>>>;
   /** His best rank on his team's latest ESPN depth chart (1 = starter), where listed. */
   readonly espnRank: Readonly<Record<string, number>>;
   /** Practice-squad players moved up because their team had nobody at a must-field position. */
   readonly elevated: readonly string[];
-  readonly reserve: Readonly<Record<string, readonly string[]>>;
   readonly practiceSquad: Readonly<Record<string, readonly string[]>>;
 }
 
@@ -142,7 +140,6 @@ export function buildStandIns(input: StandInInput): StandInLeague {
   ]);
   let next = Math.max(0, ...Object.values(sealed).map((s) => Number(s.id.slice(2)) || 0)) + 1;
 
-  const creditedSeasons: Record<string, number> = {};
   const measurements: Record<string, Partial<Measurements>> = {};
   const espnRank: Record<string, number> = {};
   const reserveCode: Record<string, string> = {};
@@ -180,7 +177,6 @@ export function buildStandIns(input: StandInInput): StandInLeague {
 
     status[entry.id] = st;
     if (st === "reserve") reserveCode[entry.id] = r.status_description_abbr!;
-    creditedSeasons[entry.id] = r.years_exp ?? 0;
     measurements[entry.id] = m;
     players.push({
       bio: {
@@ -191,6 +187,7 @@ export function buildStandIns(input: StandInInput): StandInLeague {
         age: birth === null ? 22 + (r.years_exp ?? 0) : ageOn(birth, input.date),
         heightIn,
         weightLb,
+        creditedSeasons: r.years_exp ?? 0,
         draft: d?.draft_round != null && d.draft_pick != null && d.draft_year != null
           ? { year: d.draft_year, round: d.draft_round, pick: d.draft_pick }
           : "UDFA",
@@ -209,7 +206,6 @@ export function buildStandIns(input: StandInInput): StandInLeague {
     onTeam.set(teamId, list);
   }
 
-  const reserve: Record<string, string[]> = {};
   const practiceSquad: Record<string, string[]> = {};
   const elevated: string[] = [];
   const teams = input.teams.map((team): Team => {
@@ -230,9 +226,8 @@ export function buildStandIns(input: StandInInput): StandInLeague {
     active.sort((a, b) => a.rank - b.rank || b.exp - a.exp || (String(a.id) < String(b.id) ? -1 : 1));
     const depthChart: Partial<Record<Position, PlayerId[]>> = {};
     for (const p of active) (depthChart[p.position] ??= []).push(p.id);
-    reserve[String(team.id)] = list.filter((p) => p.status === "reserve").map((p) => String(p.id));
     practiceSquad[String(team.id)] = list.filter((p) => p.status === "practice").map((p) => String(p.id));
-    return { ...team, roster: active.map((p) => p.id), depthChart };
+    return { ...team, roster: active.map((p) => p.id), reserve: list.filter((p) => p.status === "reserve").map((p) => p.id), depthChart };
   });
 
   return {
@@ -240,7 +235,7 @@ export function buildStandIns(input: StandInInput): StandInLeague {
     players,
     provenance: {
       importer: "real/1", season: input.season, snapshotDate: input.date,
-      status, creditedSeasons, measurements, espnRank, elevated, reserve, practiceSquad,
+      status, measurements, espnRank, elevated, practiceSquad,
     },
     sealed,
     reserveCode,

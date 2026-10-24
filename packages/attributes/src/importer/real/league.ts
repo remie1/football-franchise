@@ -46,7 +46,7 @@ export function buildRealLeague(input: RealLeagueInput): {
   const base = buildSignals({
     sealed: s.sealed, rosters: input.rosters, players: input.players, contracts: input.contracts, snaps: input.snaps,
     snapSeason: input.season - 1,
-    positionOf: (id) => position.get(id)!, creditedSeasons: s.provenance.creditedSeasons, espnRank: s.provenance.espnRank,
+    positionOf: (id) => position.get(id)!, creditedSeasons: Object.fromEntries(s.players.map((p) => [String(p.bio.id), p.bio.creditedSeasons ?? 0])), espnRank: s.provenance.espnRank,
   });
   const signals = Object.fromEntries(Object.entries(base).map(([id, sig]) => [id, { ...sig, play: tracked.get(id)?.play }]));
   const rated = rateStandIns({

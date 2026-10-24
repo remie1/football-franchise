@@ -57,14 +57,14 @@ describe("stand-ins (ADR-088 R2)", () => {
     expect(L.provenance.measurements[String(p.bio.id)]).toEqual({ heightIn: 75, weightLb: 220, forty: 4.6, vertical: 33, cone: 7.0 });
     expect(byGsis("g2").bio.age).toBe(29); // birthday tomorrow
     expect(byGsis("g2").bio.draft).toBe("UDFA");
-    expect(L.provenance.creditedSeasons[String(byGsis("g2").bio.id)]).toBe(8);
+    expect(byGsis("g2").bio.creditedSeasons).toBe(8);
   });
 
   it("splits the 53, reserve and practice squad, and drops cut players and old weeks", () => {
     const t = L.teams[0]!;
     const ids = (gs: string[]) => gs.map((g) => L.sealed[g]!.id);
     expect(t.roster.map(String).sort()).toEqual(ids(["g1", "g2", "g3", "g4", "g5"]).sort());
-    expect(L.provenance.reserve["T01"]).toEqual(ids(["g6"]));
+    expect(t.reserve!.map(String)).toEqual(ids(["g6"]));
     expect(L.provenance.practiceSquad["T01"]).toEqual(ids(["g7"]));
     expect(L.sealed["g8"]).toBeUndefined();
     expect(L.sealed["g10"]).toBeUndefined();

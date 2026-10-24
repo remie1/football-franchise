@@ -190,6 +190,11 @@ export interface Team {
   displayName: string;
   city: string;
   roster: PlayerId[];
+  /**
+   * ADR-088 S3: players on a reserve list (injured reserve, PUP, non-football injury and the
+   * rest). They belong to the team but are not in `roster` and do not count toward its 53.
+   */
+  reserve?: PlayerId[];
   staff: StaffId[];
   depthChart: Partial<Record<Position, PlayerId[]>>;
   capState: CapState;
