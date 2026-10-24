@@ -6,7 +6,7 @@
 import type { GameId, PlayId, PlayerId, TeamId, StaffId, StorylineId, AttrId, TraitId } from "./ids.js";
 import type { CalendarStamp } from "./calendar.js";
 import type { GameKind, GameResult, PlayoffBracket } from "./league.js";
-import type { StaffRole } from "./players.js";
+import type { StaffRole, ContractKind } from "./players.js";
 import type { StaffDepartureReason } from "./staff.js";
 import type { RelationshipParty, RelationshipWord } from "./relationships.js";
 
@@ -537,7 +537,14 @@ export type FranchiseEvent =
   | { type: "CALENDAR_PHASE_ENTERED"; payload: { phase: string } }
   | { type: "WEEK_ADVANCED"; payload: { stamp: CalendarStamp } }
   | { type: "DEADLINE_REACHED"; payload: { deadlineId: string; autoResolved: boolean } }
-  | { type: "CONTRACT_SIGNED"; payload: { player: PlayerId; team: TeamId } }
+  /** ADR-085 K6: the deal's details are optional so older senders still type-check. Money in dollars. */
+  | { type: "CONTRACT_SIGNED"; payload: { player: PlayerId; team: TeamId; kind?: ContractKind; years?: number; value?: number; guaranteed?: number } }
+  /** ADR-085 K6: a contract ran out at the start of a league year. */
+  | { type: "CONTRACT_EXPIRED"; payload: { player: PlayerId; team: TeamId } }
+  /** ADR-085 K6: the league set the cap for a season. */
+  | { type: "CAP_SET"; payload: { season: number; cap: number } }
+  /** ADR-085 K6: a team took up a first-round rookie's fifth-year option. */
+  | { type: "OPTION_EXERCISED"; payload: { player: PlayerId; team: TeamId; season: number } }
   | { type: "CONTRACT_RESTRUCTURED"; payload: { player: PlayerId } }
   | { type: "PLAYER_RELEASED"; payload: { player: PlayerId; team: TeamId; postJune1: boolean } }
   | { type: "PLAYER_RETIRED"; payload: { player: PlayerId; timing: "IMMEDIATE"|"SLOW"|"LATE" } }
