@@ -1,5 +1,6 @@
 import type { CalendarStamp } from "./calendar.js";
-import type { LeagueStructure, SeasonState } from "./league.js";
+import type { DraftClass, DraftPick, LeagueStructure, SeasonState } from "./league.js";
+import type { PlayerId, TeamId } from "./ids.js";
 import type { Team, PlayerState, StaffState, PlayerContract, PerceivedAttributes, DeadMoneyCharge } from "./players.js";
 import type { StaffContract } from "./staff.js";
 import type { RelationshipView } from "./relationships.js";
@@ -25,6 +26,16 @@ export interface SaveFile {
     staffContracts?: StaffContract[];
     /** ADR-084 V1: every staff member's views, one entry per direction. Optional, as above. */
     relationships?: RelationshipView[];
+    /**
+     * ADR-086 C6: the draft. Every pick of every future draft someone holds (untraded picks may be
+     * left out: a team holds its own by default), the classes, and last year's free-agent moves for
+     * the compensatory formula. Optional, so older saves still load.
+     */
+    draft?: {
+      picks: DraftPick[];
+      classes: DraftClass[];
+      freeAgentMoves: { player: PlayerId; from: TeamId; to: TeamId; apy: number; signedAt: CalendarStamp }[];
+    };
     contracts: PlayerContract[];
     /** ADR-085 K3: every dead-money charge, past and future seasons. Optional, so older saves still load. */
     deadMoney?: DeadMoneyCharge[];
@@ -69,6 +80,12 @@ export interface LeagueRules {
   tradeDeadline: { phase: string; week: number; day: number };
   salaryCap: number;
   franchiseTagEnabled: boolean;
+  /** ADR-086 C3: the offseason roster limit (NFL: 90). Absent = the default. */
+  offseasonRosterLimit?: number;
+  /** ADR-086 C3: rounds, and the compensatory picks' league and per-team limits (NFL: 7, 32, 4). */
+  draft?: { rounds: number; compensatoryLimit: number; compensatoryPerTeam: number };
+  /** ADR-086 C3: the day rosters must be down to `rosterLimit` (NFL: the Tuesday after the last preseason week). */
+  cutdown?: { phase: string; week: number; day: number };
 }
 
 export const DEFAULT_LEAGUE_RULES: LeagueRules = {
@@ -82,4 +99,7 @@ export const DEFAULT_LEAGUE_RULES: LeagueRules = {
   tradeDeadline: { phase: "REGULAR_SEASON", week: 10, day: 2 },
   salaryCap: 300_000_000,
   franchiseTagEnabled: true,
+  offseasonRosterLimit: 90,
+  draft: { rounds: 7, compensatoryLimit: 32, compensatoryPerTeam: 4 },
+  cutdown: { phase: "PRESEASON", week: 3, day: 2 },
 };

@@ -17,6 +17,11 @@
  *
  * `onEvent` sees each event as it happens, for a caller that reports while the season plays (the
  * season command's headlines, ADR-082 R2). It only watches: the run is the same with or without it.
+ *
+ * People and day steps (ADR-086 §2): with `people`, the run also carries the league's teams, players,
+ * picks and classes through the year, and each `daySteps` entry gets one look at every day the walk
+ * passes, after that day's games: the draft, cut-down day and the aging thread's weekly growth all
+ * run this way, in one walk. A step decides for itself whether the day is its day.
  */
 import {
   DEFAULT_LEAGUE_RULES, compareStamps, stampToString,
@@ -24,7 +29,8 @@ import {
   type LeagueRules, type ScheduledGame, type SeasonSchedule, type SeasonState, type TeamId,
 } from "@ff/contracts";
 import type { League } from "../league/buildLeague.js";
-import { advance, phaseWeeks, seasonStart, DAYS_PER_WEEK, type ClockWorld } from "../calendar/clock.js";
+import type { LeaguePeople, DayStep } from "./people.js";
+import { advance, nextDay, phaseWeeks, seasonStart, DAYS_PER_WEEK, type ClockWorld } from "../calendar/clock.js";
 import { buildSchedule } from "../schedule/buildSchedule.js";
 import { computeStandings } from "../standings/computeStandings.js";
 import { advanceBracket, seedPlayoffs } from "../playoffs/bracket.js";
@@ -33,7 +39,12 @@ import { advanceBracket, seedPlayoffs } from "../playoffs/bracket.js";
  * Plays one game. Must return a result for exactly `game` (same id, home and away) and must be a
  * pure function of its arguments, or the season is not reproducible.
  */
-export type GameResolver = (game: ScheduledGame, seed: string) => GameResult;
+export type GameResolver = (game: ScheduledGame, seed: string, people?: LeaguePeople) => GameResult | ResolvedGame;
+
+/** A result with whatever else the resolver learned (ADR-086 §2; e.g. who played, for ADR-087). Day steps see it. */
+export interface ResolvedGame { result: GameResult; extras?: unknown }
+
+const unwrap = (r: GameResult | ResolvedGame): ResolvedGame => ("result" in r ? r : { result: r });
 
 export interface RunSeasonInput {
   league: League;
@@ -57,6 +68,15 @@ export interface RunSeasonInput {
   resumeFrom?: SeasonState;
   /** Called with each event as it is added, and the season's schedule. Watches only. */
   onEvent?: (envelope: FranchiseEventEnvelope, schedule: SeasonSchedule) => void;
+  /** ADR-086 §2: the league's people, carried through the walk and handed to the resolver. */
+  people?: LeaguePeople;
+  /** ADR-086 §2: run on every day the walk passes, after the day's games, in this order. Needs `people`. */
+  daySteps?: readonly DayStep[];
+  /**
+   * A resumed run: the steps already ran on every day up to and including this one (the save's
+   * calendar), and `people` is as they left it, so they are not run again.
+   */
+  stepsDoneThrough?: CalendarStamp;
 }
 
 export interface SeasonRun {
@@ -65,6 +85,8 @@ export interface SeasonRun {
   events: FranchiseEventEnvelope[];
   /** False when `stopAfter` ended the run before its end date. */
   complete: boolean;
+  /** The people as the run left them; absent when the run was given none. */
+  people?: LeaguePeople;
 }
 
 /** A playoff game the resolver returns level is played again on a fresh seed, at most this often. */
@@ -74,7 +96,7 @@ export function gameSeed(seed: string, game: ScheduledGame): string {
   return `${seed}/${String(game.gameId)}`;
 }
 
-function play(game: ScheduledGame, seed: string, resolve: GameResolver, saved: ReadonlyMap<string, GameResult>): GameResult {
+function play(game: ScheduledGame, seed: string, resolve: GameResolver, saved: ReadonlyMap<string, GameResult>, people?: LeaguePeople): ResolvedGame {
   const base = gameSeed(seed, game);
   const kept = saved.get(String(game.gameId));
   if (kept) {
@@ -82,15 +104,16 @@ function play(game: ScheduledGame, seed: string, resolve: GameResolver, saved: R
     if (kept.home !== game.home || kept.away !== game.away || (kept.seed !== base && !replays.includes(kept.seed))) {
       throw new Error(`runSeason: the saved result for ${String(game.gameId)} was not played in this season`);
     }
-    return kept;
+    return { result: kept };
   }
   for (let replay = 0; replay <= MAX_PLAYOFF_REPLAYS; replay++) {
     const s = replay === 0 ? base : `${base}/replay-${replay}`;
-    const r = resolve(game, s);
+    const resolved = unwrap(people ? resolve(game, s, people) : resolve(game, s));
+    const r = resolved.result;
     if (r.gameId !== game.gameId || r.home !== game.home || r.away !== game.away) {
       throw new Error(`runSeason: resolver answered ${String(r.gameId)} (${String(r.away)}@${String(r.home)}) for ${String(game.gameId)}`);
     }
-    if (game.kind === "REGULAR" || game.kind === "PRESEASON" || r.homeScore !== r.awayScore) return r;
+    if (game.kind === "REGULAR" || game.kind === "PRESEASON" || r.homeScore !== r.awayScore) return resolved;
   }
   throw new Error(`runSeason: playoff game ${String(game.gameId)} was level after ${MAX_PLAYOFF_REPLAYS} replays`);
 }
@@ -99,6 +122,9 @@ const sameDay = (a: CalendarStamp, b: CalendarStamp) => compareStamps(a, b) === 
 
 export function runSeason(input: RunSeasonInput): SeasonRun {
   const { league, season, seed, resolve, stopAfter, resumeFrom } = input;
+  const steps = input.daySteps ?? [];
+  if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps need people");
+  let people = input.people;
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
   const schedule = buildSchedule(league, season, seed, {
     rules,
@@ -122,10 +148,37 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
     input.onEvent?.(envelope, schedule);
   };
   const emit = (event: FranchiseEvent) => record({ seq: events.length, at: world.calendar, event });
+  // The last day whose steps have run. A resumed run's steps ran already, up to the save's day.
+  let stepped: CalendarStamp | undefined = input.stepsDoneThrough;
+  // The games played on the current day, for its steps.
+  let today: { game: ScheduledGame; result: GameResult; extras?: unknown }[] = [];
+  const runSteps = () => {
+    const day = world.calendar;
+    const games = today;
+    today = [];
+    if (steps.length === 0 || (stepped && compareStamps(day, stepped) <= 0)) return;
+    stepped = day;
+    for (const step of steps) {
+      const r = step.run(people!, { day, season, seed, rules, state, games });
+      if (!r) continue;
+      people = r.people;
+      for (const event of r.events) emit(event);
+    }
+  };
   const moveTo = (to: CalendarStamp) => {
-    const r = advance(world, to, { firstSeq: events.length });
-    for (const envelope of r.events) record(envelope);
-    world = r.world;
+    if (steps.length === 0) {
+      const r = advance(world, to, { firstSeq: events.length });
+      for (const envelope of r.events) record(envelope);
+      world = r.world;
+      return;
+    }
+    // Day by day, so each day's steps run after its games and before the clock moves on.
+    while (compareStamps(world.calendar, to) < 0) {
+      runSteps();
+      const r = advance(world, nextDay(world.calendar, rules), { firstSeq: events.length });
+      for (const envelope of r.events) record(envelope);
+      world = r.world;
+    }
   };
 
   emit({ type: "CALENDAR_PHASE_ENTERED", payload: { phase: world.calendar.phase } });
@@ -135,7 +188,8 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
   const finish = (complete: boolean): SeasonRun => {
     const unused = [...saved.keys()].filter((id) => !played.has(id));
     if (unused.length > 0) throw new Error(`runSeason: the save has results this run did not reach (${unused.slice(0, 3).join(", ")})`);
-    return { state, calendar: world.calendar, events, complete };
+    runSteps();
+    return { state, calendar: world.calendar, events, complete, ...(people ? { people } : {}) };
   };
   const pending = () => [...state.schedule.games, ...(state.bracket?.games ?? [])]
     .filter((g) => !played.has(String(g.gameId)))
@@ -163,7 +217,8 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
     moveTo(day);
     const results = [...state.results];
     for (const game of queue.filter((g) => sameDay(g.at, day))) {
-      const result = play(game, seed, resolve, saved);
+      const { result, extras } = play(game, seed, resolve, saved, people);
+      if (steps.length > 0) today.push({ game, result, ...(extras !== undefined ? { extras } : {}) });
       results.push(result);
       played.add(String(game.gameId));
       emit({ type: "GAME_COMPLETED", payload: { result, kind: game.kind } });

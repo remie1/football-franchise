@@ -75,7 +75,7 @@ function tierRating(rng: Rng, tier: Tier, talent: number): number {
   return clampRating(tier.mean + tier.sd * blend(rng, tier.load, talent));
 }
 
-function measure(rng: Rng, position: Position, talent: number): Measurements {
+export function measure(rng: Rng, position: Position, talent: number): Measurements {
   const body = BODY[position];
   const athleticism = blend(rng, 0.5, talent);
   const round = (x: number, step: number) => Math.round(x / step) * step;

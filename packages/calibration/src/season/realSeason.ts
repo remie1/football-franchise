@@ -47,7 +47,8 @@ function simWeek(game: ScheduledGame, rules: LeagueRules): number {
   return game.at.phase === "REGULAR_SEASON" ? game.at.week : rules.weeksPerSeason + game.at.week;
 }
 
-export function realSimResolver(league: League, opts: RealSimOptions = {}): GameResolver {
+/** Always a plain result (a `GameResolver` may also hand back extras; this one has none). */
+export function realSimResolver(league: League, opts: RealSimOptions = {}): (game: ScheduledGame, seed: string) => GameResult {
   const rules = opts.rules ?? DEFAULT_LEAGUE_RULES;
   const index = indexLeague(opts.rated ?? buildFlatLeague({ teams: league.teams.length }));
   const ratedIds = index.teamIds();

@@ -144,7 +144,7 @@ export interface PlayerBio {
   heightIn: number;
   weightLb: number;
   birthRegion?: string;     // supports "home game for player from X" modifiers later
-  draft?: { year: number; round: number; pick: number } | "UDFA";
+  draft?: { year: number; round: number; pick: number } | "UDFA" | "PROSPECT";  // ADR-086 C2: "PROSPECT" = in a class, not yet picked
 }
 
 export interface PlayerState {
@@ -207,6 +207,10 @@ Cap *math* lives in franchise; contracts only defines shapes.
 - `PlayerBio.creditedSeasons` (CBA credited seasons; public; shared with ADR-087).
 
 The rookie scale, minimum salaries and tag formulas are CBA data and live in franchise.
+
+### The draft (ADR-086)
+
+`DraftPick { draft, round, originalTeam, owner, kind: DraftPickKind, overall?, condition?: { text, rule: PickCondition, settled? } }` (C1): who each pick belonged to and who holds it. `DraftPickKind` is `REGULAR | COMPENSATORY | SPECIAL_COMPENSATORY`; `PickCondition` is `PLAYING_TIME | PLAYOFF_FINISH | PICK_SWAP | OTHER`, settled from the game's own seasons. `DraftClass { draft, prospects }` (C2). `Team.practiceSquad?` (C4), filled on cut-down day. `LeagueRules` gains optional `offseasonRosterLimit` (90), `draft: { rounds, compensatoryLimit, compensatoryPerTeam }` (7, 32, 4) and `cutdown` (C3). All in `league.ts`, `players.ts`, `save.ts`.
 
 ### Coaching staff (ADR-080)
 
@@ -380,6 +384,8 @@ export interface RollDetail {
 
 `CALENDAR_PHASE_ENTERED`, `DEADLINE_REACHED`, `CONTRACT_SIGNED / RESTRUCTURED / EXPIRED` (`CONTRACT_SIGNED` may carry `kind`, `years`, `value`, `guaranteed`; `CONTRACT_EXPIRED` is `{ player, team }`, ADR-085 K6), `CAP_SET` (`{ season, cap }`) and `OPTION_EXERCISED` (`{ player, team, season }`) (ADR-085 K6), `PLAYER_RELEASED / RETIRED (immediate|slow|late per design notes)`, `TAG_APPLIED`, `TRADE_PROPOSED / EXECUTED / REJECTED`, `DRAFT_PICK_MADE`, `SCOUT_REPORT_FILED` (perception delta), `INJURY_OCCURRED / RECOVERED`, `MORALE_CHANGED`, `PRESSURE_EVENT` (owner mandate / hot seat), `PRESS_STORY_PUBLISHED`, `AWARD_GIVEN`, `GAME_SCHEDULED / COMPLETED`, `STAFF_HIRED` (`{ staff, team, role: StaffRole }`) and `STAFF_DEPARTED` (`{ staff, team, reason: StaffDepartureReason }`), typed by ADR-080 P3.
 
+The draft (ADR-086 C5): `DRAFT_PICK_MADE` may carry `overall` and `kind`; `COMPENSATORY_PICKS_AWARDED` (`{ draft, picks: { team, round, kind }[] }`), `DRAFT_PICK_CONDITION_SETTLED` (`{ draft, originalTeam, owner, round, text }`) and `WAIVER_CLAIMED` (`{ player, from, to }`).
+
 `RELATIONSHIP_CHANGED` (ADR-084 V2) is a view that moved: `{ from, of, delta, cause, before, after, rift?: "OPENED" | "REPAIRED" }`, once per move and once whenever the weekly drift changes a view's word.
 
 `PRESS_STORY_PUBLISHED` (ADR-082 N1) is narrative's news: `{ kind, headline, importance: 1..5, teams, games, subjects }`, where `kind` names the story rule that wrote it. `GameResult` may carry `periods` (ADR-082 N2), the points per period as in `GAME_END.payload.periods`, which is what stories like "rallied from 17 down" read.
@@ -457,6 +463,7 @@ export interface SaveFile {
     staff: StaffState[];                   // coaches and presidents, retired coaches included (their résumés feed trees)
     staffContracts?: StaffContract[];      // ADR-080 P1; optional, so saves written before it still load
     relationships?: RelationshipView[];    // ADR-084 V1: every view, one entry per direction; optional, as above
+    draft?: { picks: DraftPick[]; classes: DraftClass[]; freeAgentMoves: {...}[] };  // ADR-086 C6; optional, as above
     contracts: PlayerContract[];
     deadMoney?: DeadMoneyCharge[];         // ADR-085 K3; optional, as above
     capHistory?: CapSeason[];              // ADR-085 K4: the cap each season; optional, as above

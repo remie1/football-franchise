@@ -4,7 +4,7 @@
  * logic (contracts.md §10).
  */
 import type { CalendarStamp } from "./calendar.js";
-import type { ConferenceId, DivisionId, GameId, TeamId } from "./ids.js";
+import type { ConferenceId, DivisionId, GameId, PlayerId, TeamId } from "./ids.js";
 import type { GameEndReason } from "./events.js";
 
 // C2 — structure is data, not constants (Spec #5 §14.1).
@@ -89,3 +89,36 @@ export interface SeasonState {
   standings: StandingsRow[];
   bracket?: PlayoffBracket;
 }
+
+// ADR-086 C1 — draft picks: who each pick belonged to and who holds it now.
+export type DraftPickKind = "REGULAR" | "COMPENSATORY" | "SPECIAL_COMPENSATORY";
+
+/**
+ * ADR-086 C1 / N2: how a traded pick's condition is settled from the game's own seasons.
+ * PLAYING_TIME and PLAYOFF_FINISH: the pick becomes `round` if the condition is met.
+ * PICK_SWAP: the holder gets the better or worse of this pick and `otherTeam`'s in the same round.
+ * OTHER: a condition the game cannot settle; the pick stays as it is.
+ */
+export type PickCondition =
+  | { kind: "PLAYING_TIME"; player: PlayerId; season: number; snapShare: number; round: number }
+  | { kind: "PLAYOFF_FINISH"; team: TeamId; season: number; reached: GameKind; round: number }
+  | { kind: "PICK_SWAP"; otherTeam: TeamId; ownerGets: "BETTER" | "WORSE" }
+  | { kind: "OTHER" };
+
+export interface DraftPick {
+  /** The draft's year. */
+  draft: number;
+  round: number;
+  /** Whose pick it was. */
+  originalTeam: TeamId;
+  /** Who holds it now. */
+  owner: TeamId;
+  kind: DraftPickKind;
+  /** Its number in the draft, once the order is fixed. */
+  overall?: number;
+  /** A traded pick's condition: the source's own words, and the rule that settles it. */
+  condition?: { text: string; rule: PickCondition; settled?: boolean };
+}
+
+// ADR-086 C2 — a draft class: the prospects of one draft, before anyone owns them.
+export interface DraftClass { draft: number; prospects: PlayerId[] }

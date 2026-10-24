@@ -20,7 +20,8 @@
  */
 import {
   ATTRIBUTE_REGISTRY_V1, DEFAULT_LEAGUE_RULES, SAVE_FORMAT_VERSION, compareStamps, stampToString,
-  type CalendarStamp, type LeagueRules, type PlayerState, type RelationshipView, type SaveFile, type SeasonState,
+  type CalendarStamp, type DeadMoneyCharge, type LeagueRules, type PlayerContract, type PlayerState, type RelationshipView,
+  type SaveFile, type SeasonState,
 } from "@ff/contracts";
 import type { StaffWorld } from "../staff/world.js";
 import { checkViews } from "../relationships/ledger.js";
@@ -49,6 +50,11 @@ export interface MakeSaveInput {
    * staff list and budget are taken from `world.teams`. Absent, the save has no coaches.
    */
   staff?: { world: StaffWorld; relationships?: readonly RelationshipView[] };
+  /** ADR-086 C6: the draft (picks someone holds, classes not yet drafted, last year's free-agent moves). */
+  draft?: NonNullable<SaveFile["world"]["draft"]>;
+  /** ADR-085: player contracts, and dead money (K3). Absent, the book is empty. */
+  contracts?: readonly PlayerContract[];
+  deadMoney?: readonly DeadMoneyCharge[];
 }
 
 export function makeSave(input: MakeSaveInput): SaveFile {
@@ -72,7 +78,9 @@ export function makeSave(input: MakeSaveInput): SaveFile {
       staff: staff?.world.staff ?? [],
       ...(staff ? { staffContracts: staff.world.contracts } : {}),
       ...(staff?.relationships ? { relationships: [...staff.relationships] } : {}),
-      contracts: [],
+      ...(input.draft ? { draft: input.draft } : {}),
+      contracts: [...(input.contracts ?? [])],
+      ...(input.deadMoney ? { deadMoney: [...input.deadMoney] } : {}),
       perceptions: [],
       league: league.structure,
       season,
@@ -161,6 +169,29 @@ export function readSave(input: unknown): LoadedSave {
       const p = players.get(String(pid));
       if (!p) refuse(`${t.displayName}'s roster lists a player who is not in the save (${String(pid)})`);
       if (p!.teamId !== undefined && p!.teamId !== t.id) refuse(`${String(pid)} is on ${t.displayName}'s roster but belongs to ${String(p!.teamId)}`);
+    }
+  }
+
+  // ADR-086: practice squads and the draft, when the save has them.
+  for (const t of w.teams) {
+    for (const pid of t.practiceSquad ?? []) {
+      const p = players.get(String(pid));
+      if (!p) refuse(`${t.displayName}'s practice squad lists a player who is not in the save (${String(pid)})`);
+      if (p!.teamId !== t.id) refuse(`${String(pid)} is on ${t.displayName}'s practice squad but belongs to ${String(p!.teamId ?? "no team")}`);
+      if (t.roster.some((r) => String(r) === String(pid))) refuse(`${String(pid)} is on ${t.displayName}'s roster and practice squad`);
+    }
+  }
+  if (w.draft !== undefined) {
+    if (!isObject(w.draft) || !Array.isArray(w.draft.picks) || !Array.isArray(w.draft.classes) || !Array.isArray(w.draft.freeAgentMoves)) refuse("its draft is damaged");
+    for (const pk of w.draft!.picks) {
+      if (!teamIds.has(String(pk.owner)) || !teamIds.has(String(pk.originalTeam))) refuse(`a ${pk.draft} round ${pk.round} pick names a team that does not exist`);
+    }
+    for (const c of w.draft!.classes) {
+      for (const pid of c.prospects) {
+        const p = players.get(String(pid));
+        if (!p) refuse(`the ${c.draft} class lists a prospect who is not in the save (${String(pid)})`);
+        if (p!.bio.draft !== "PROSPECT") refuse(`${String(pid)} is in the ${c.draft} class but is not a prospect`);
+      }
     }
   }
 
