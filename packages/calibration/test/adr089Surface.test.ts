@@ -39,12 +39,34 @@ const DENIED = (name: string): boolean => /^resolve/.test(name) || name === "ban
 // Built by concatenation so that this file's own text never matches what it scans for.
 const PKG = "@ff/" + "engine";
 const Q = PKG.replace("/", "\\/");
-const NAMED = new RegExp(`(?:import|export)\\s+(?:type\\s+)?\\{([^}]*)\\}\\s+from\\s+"${Q}"`, "g");
-const ANY_FROM = new RegExp(`from\\s+"${Q}"`, "g");
+// Either quote style (review finding CT-N1): a single-quoted import must be counted, not skipped.
+const NAMED = new RegExp(`(?:import|export)\\s+(?:type\\s+)?\\{([^}]*)\\}\\s+from\\s+["']${Q}["']`, "g");
+const ANY_FROM = new RegExp(`from\\s+["']${Q}["']`, "g");
 const DEEP = new RegExp(`["']${Q}\\/`);
 const BY_PATH = new RegExp(`from\\s+["'][^"']*engine\\/src[^"']*["']`);
 const DYNAMIC = new RegExp(`import\\(\\s*["']${Q}`);
 const BARE = new RegExp(`import\\s+["']${Q}["']`);
+
+/** The engine names one source file imports from the barrel, and every form of import it may not use. */
+function scanSource(src: string): { names: string[]; badForms: string[] } {
+  const names: string[] = [];
+  const badForms: string[] = [];
+  let named = 0;
+  for (const m of src.matchAll(NAMED)) {
+    named += 1;
+    for (const raw of m[1]!.split(",")) {
+      const name = raw.trim().replace(/^type\s+/, "").split(/\s+as\s+/)[0]!.trim();
+      if (name.length > 0) names.push(name);
+    }
+  }
+  const from = [...src.matchAll(ANY_FROM)].length;
+  if (from !== named) badForms.push(`${String(from - named)} import(s) of the barrel that are not named imports`);
+  if (DEEP.test(src)) badForms.push("a deep import into the engine package");
+  if (BY_PATH.test(src)) badForms.push("an import of the engine's source by path");
+  if (DYNAMIC.test(src)) badForms.push("a dynamic import of the engine");
+  if (BARE.test(src)) badForms.push("a side-effect import of the engine");
+  return { names, badForms };
+}
 
 function files(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
@@ -58,25 +80,26 @@ describe("ADR-089 step 0: calibration's engine surface is the set measured at e2
   const badForms: string[] = [];
 
   for (const f of scanned) {
-    const src = readFileSync(f, "utf8");
     const where = relative(root, f);
-    let named = 0;
-    for (const m of src.matchAll(NAMED)) {
-      named += 1;
-      for (const raw of m[1]!.split(",")) {
-        const name = raw.trim().replace(/^type\s+/, "").split(/\s+as\s+/)[0]!.trim();
-        if (name.length === 0) continue;
-        if (!used.has(name)) used.set(name, new Set());
-        used.get(name)!.add(where);
-      }
+    const r = scanSource(readFileSync(f, "utf8"));
+    for (const name of r.names) {
+      if (!used.has(name)) used.set(name, new Set());
+      used.get(name)!.add(where);
     }
-    const from = [...src.matchAll(ANY_FROM)].length;
-    if (from !== named) badForms.push(`${where}: ${String(from - named)} import(s) of the barrel that are not named imports`);
-    if (DEEP.test(src)) badForms.push(`${where}: a deep import into the engine package`);
-    if (BY_PATH.test(src)) badForms.push(`${where}: an import of the engine's source by path`);
-    if (DYNAMIC.test(src)) badForms.push(`${where}: a dynamic import of the engine`);
-    if (BARE.test(src)) badForms.push(`${where}: a side-effect import of the engine`);
+    badForms.push(...r.badForms.map((b) => `${where}: ${b}`));
   }
+
+  it("the scan reads either quote style and flags every other form (self-test, CT-N1)", () => {
+    const named = scanSource(`import { simulateGame, type Tunables as T } from '${PKG}';\nexport { DEFAULT_TUNABLES } from "${PKG}";`);
+    expect(named.names).toEqual(["simulateGame", "Tunables", "DEFAULT_TUNABLES"]);
+    expect(named.badForms).toEqual([]);
+    expect(scanSource(`import * as E from '${PKG}';`).badForms).toEqual(["1 import(s) of the barrel that are not named imports"]);
+    expect(scanSource(`import E from "${PKG}";`).badForms).toEqual(["1 import(s) of the barrel that are not named imports"]);
+    expect(scanSource(`import { x } from '${PKG}/src/x.js';`).badForms).toContain("a deep import into the engine package");
+    expect(scanSource(`import { x } from '../../${"engine" + "/src"}/x.js';`).badForms).toEqual(["an import of the engine's source by path"]);
+    expect(scanSource(`const e = await import('${PKG}');`).badForms).toEqual(["a dynamic import of the engine"]);
+    expect(scanSource(`import '${PKG}';`).badForms).toEqual(["a side-effect import of the engine"]);
+  });
 
   it("scans a non-trivial tree (so a passing scan means something)", () => {
     expect(scanned.length).toBeGreaterThan(150);

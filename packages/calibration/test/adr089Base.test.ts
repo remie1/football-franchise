@@ -29,9 +29,11 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { DEFAULT_TUNABLES } from "@ff/engine";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { runBatch, type BatchResult } from "../src/harness/batch.js";
+import { stableDigest } from "../src/harness/digest.js";
 import { generateSeeds } from "../src/harness/seeds.js";
 import { fsCacheStore } from "../src/ingest/cache.js";
 import { TUNING_SEASONS } from "../src/ingest/seasons.js";
+import { numericLeafPathDigest } from "../src/knownTruth/docConformance.js";
 import { positionsFromSnapshot } from "../src/knownTruth/pocketChannelShares.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import type { LeagueProvenance } from "../src/league/provenance.js";
@@ -63,6 +65,7 @@ import { emptyM4Fold, foldM4Game, m4Summary } from "../src/pocket/m4AlarmMix.js"
 import { registryBaseRows, sanitize } from "../src/pocket/main.js";
 import { BIN_20_LIMIT } from "../src/pocket/missRule.js";
 import { emptyRowsFold, foldRowsGame, pocketRows, type RowsFold } from "../src/pocket/rows.js";
+import { dropbacksOf } from "../src/pocket/throwClass.js";
 
 const BASE = process.env["FF_POCKET_BASE"] === "1";
 const CARRY = process.env["FF_POCKET_CARRY"];
@@ -133,6 +136,18 @@ const B_EXPECTED: Readonly<Record<string, BClass>> = Object.freeze({
   "b.entry-107": "REPORTED-UNREPRODUCED",
   "b.cp-classes": "reproduced",
   "b.tm-399": "REPORTED-UNREPRODUCED",
+});
+
+// --- a.census: the step proof's census (plan K11; review CT-S1) ----------------------------------------
+
+describe.skipIf(!BASE)("a.census: the tunables digest and the path digest at the step proof (FF_POCKET_BASE=1)", () => {
+  it("DEFAULT_TUNABLES still digests to the filed fnv1a:395a9ae2, and its numeric-leaf path set to fnv1a:365da48d", () => {
+    // Checked here, in the step proof, not as a suite pin (plan K11): a value change on main that adds
+    // no leaf moves this digest, and the step's proof is where ADR-089:995's "tunablesDigest is still"
+    // is graded. The path digest is also the suite's pin (docConformance, adr089Filed).
+    expect(stableDigest(DEFAULT_TUNABLES), "ADR-089:995 a.census: a tunables value or leaf moved since step 0's filing").toBe(filed.census.tunablesDigest);
+    expect(numericLeafPathDigest(), "ADR-089:993 the census: a numeric leaf was added to or removed from DEFAULT_TUNABLES").toBe(filed.census.pathDigest);
+  });
 });
 
 // --- P-3: baseline-0009 ------------------------------------------------------------------------------
@@ -242,6 +257,8 @@ describe.skipIf(!BASE)("P-4: the gen base, genSeason(1) (FF_POCKET_BASE=1)", () 
   let acc: SimAccumulator = emptyAccumulator();
   const rows: RowsFold = emptyRowsFold();
   const m4 = emptyM4Fold();
+  /** TM's construct (ADR-089:492): each rusher's first WON_REP threat on a dropback, EDGE, travel = etaTick - tick. */
+  const tm399 = { edge: 0, far: 0, farCB: 0 };
   let games = 0;
   beforeAll(() => {
     games = genSeason(1, (o, snapshot, meta) => {
@@ -249,6 +266,19 @@ describe.skipIf(!BASE)("P-4: the gen base, genSeason(1) (FF_POCKET_BASE=1)", () 
       acc = mergeAccumulators(acc, foldGame(emptyAccumulator(), o));
       foldRowsGame(rows, o.events, T, positions);
       foldM4Game(m4, o.events, T, positions, meta.seed);
+      for (const d of dropbacksOf(o.events)) {
+        const seen = new Set<string>();
+        for (const t of d.threats) {
+          if (t.origin !== "WON_REP" || seen.has(t.rusher)) continue;
+          seen.add(t.rusher);
+          if (t.alignment !== "EDGE") continue;
+          tm399.edge += 1;
+          if (Math.round((t.etaTick - t.tick) * 10) / 10 >= 2.5) {
+            tm399.far += 1;
+            if (String(positions.get(t.rusher as never)) === "CB") tm399.farCB += 1;
+          }
+        }
+      }
     }).games;
   }, LONG);
 
@@ -343,15 +373,20 @@ describe.skipIf(!BASE)("P-4: the gen base, genSeason(1) (FF_POCKET_BASE=1)", () 
       verdict: printedAs(run.value, 17.1, 1) && run.aimed === 421 ? "reproduced" : "REPORTED-UNREPRODUCED",
     });
 
+    // Review F1: TM's figure is a count of threats on the gen base, which this tree can measure; the
+    // verdict is derived from that count, and M2's decision-level figure is printed beside it.
     const M2 = filed.M.M2 as unknown as Record<string, Record<string, { forced: number; counterFar: number; counterFarSharePct: number }>>;
     const s = M2["gen"]?.["S-theta11-window"];
     record({
       id: "b.tm-399",
-      construct: "M2 under shape S (theta 11, the push window): the counter-forced share of forced decisions; it does not count edge won-rep threats by travel",
-      design: "TM's 399 of 14,627 edge won-rep threats whose travel is 2.5 s or more under S, if M2's S construct matches",
-      measured: `the construct does not match: M2's S arm gives counter-forced ${String(s?.counterFar)} of ${String(s?.forced)} forced (${String(s?.counterFarSharePct)}%) on gen`,
-      verdict: "REPORTED-UNREPRODUCED",
+      construct:
+        "each rusher's first WON_REP RUSH_THREAT on a dropback, EDGE, with travel (etaTick - tick) of 2.5 s or more, and how many are cornerbacks (the snapshot's position), gen seed set 1; M2's S arm (theta 11, the window) counts decisions, beside it",
+      design: "TM's 399 of 14,627 edge won-rep threats whose travel is 2.5 s or more on gen base (2.7%), 393 of them cornerbacks",
+      measured: `${String(tm399.far)} of ${String(tm399.edge)} (${((100 * tm399.far) / tm399.edge).toFixed(2)}%), ${String(tm399.farCB)} of them cornerbacks; M2's S arm: counter-forced ${String(s?.counterFar)} of ${String(s?.forced)} forced decisions (${String(s?.counterFarSharePct)}%)`,
+      verdict: tm399.far === 399 && tm399.edge === 14627 && tm399.farCB === 393 ? "reproduced" : "REPORTED-UNREPRODUCED",
     });
+    // MEASURED by the fidelity review's scratch run (398 of 14,447, 392 CB), pinned so a change in either direction is seen.
+    expect(tm399).toEqual({ edge: 14447, far: 398, farCB: 392 });
 
     record({
       id: "b.clean-bench-nobody-open",

@@ -19,8 +19,8 @@ import {
 } from "../src/pocket/constructs.js";
 import { CORPORA, flatBaseline, genSeason, type CorpusGameMeta } from "../src/pocket/corpus.js";
 import { ADR_089_LINES } from "../src/pocket/filed.js";
-import { fnv1a, foldDigests, gameBytesDigest, gameDigest, GOLDEN_STRIP, goldenStream } from "../src/pocket/golden.js";
-import { readGoldenFixture } from "./goldenDigestsShared.js";
+import { fnv1a, foldDigests, gameBytesDigest, gameDigest, GOLDEN_MEASURED_AT, GOLDEN_STRIP, goldenStream } from "../src/pocket/golden.js";
+import { goldenWriter, readGoldenFixture } from "./goldenDigestsShared.js";
 
 const AT = { season: 2024, phase: "REGULAR_SEASON", week: 1, day: 1 } as const;
 const env = (event: Record<string, unknown>): MatchEventEnvelope => ({ seq: 7, at: AT, event: event as never });
@@ -70,6 +70,20 @@ describe("ADR-089 step 0: the digest helpers", () => {
     expect(stream).toEqual(before);
     // An entry naming a field the event lacks changes nothing.
     expect(gameDigest(stream, [{ adr: "ADR-090", path: "TICK.payload.snap" }])).toBe(gameDigest(stream));
+  });
+
+  it("the fixture is stamped with the tree its pins were measured at (review NPC-N1)", () => {
+    expect(GOLDEN_MEASURED_AT).toBe("e23bf69");
+    expect(readGoldenFixture()?.measuredAt).toBe(GOLDEN_MEASURED_AT);
+  });
+
+  it("the gated writer runs in the one league file its variable names, never both (review NPC-N1)", () => {
+    expect(goldenWriter(undefined)).toBeUndefined();
+    expect(goldenWriter("")).toBeUndefined();
+    expect(goldenWriter("flat")).toBe("flat");
+    expect(goldenWriter("gen")).toBe("gen");
+    expect(() => goldenWriter("1")).toThrow(/must name one league/);
+    expect(() => goldenWriter("both")).toThrow(/must name one league/);
   });
 
   it("refuses a strip entry with no ADR named, or with no field path", () => {

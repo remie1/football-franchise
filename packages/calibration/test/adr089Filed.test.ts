@@ -3,8 +3,12 @@
  *
  * The file validates as `adr-089-filed/v1`; it is written in `saveFiled`'s format; it equals
  * `step0Filing()` everywhere except where `step0Filing()` leaves a pending marker, which C3 fills
- * (append-only); the prediction's three lists are disjoint; and the filed census is the live one,
- * so a new leaf in `DEFAULT_TUNABLES` fails here naming ADR-089's census rule.
+ * (append-only); the prediction's three lists are disjoint; the golden pins it records are the pins
+ * the suite enforces; and the filed census path digest is the live one, so a new leaf in
+ * `DEFAULT_TUNABLES` fails here naming ADR-089's census rule. The live tunables digest (a VALUE
+ * check, which any tuning on main moves) is checked in the step proof, not here: plan K11 says
+ * "`tunablesDigest` is checked in the step proof, not as a suite pin, so unrelated tuning is not
+ * blocked" (review CT-S1). It is `adr089Base.test.ts`'s census case (P-3, `FF_POCKET_BASE=1`).
  *
  * `FF_POCKET_FILED_WRITE=1` rewrites the file from `step0Filing()`; it refuses once any pending
  * marker has been filled, because the filing is append-only from then on. C3 pins `FILED_DIGEST`
@@ -17,13 +21,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_TUNABLES } from "@ff/engine";
-import { stableDigest } from "../src/harness/digest.js";
 import { numericLeafPathDigest } from "../src/knownTruth/docConformance.js";
 import { rate, meanFrom, samples, categorical } from "../src/metrics/types.js";
 import { BASE_ROW_IDS, FILED_PATH, step0Filing } from "../src/pocket/bands.js";
 import { M_IDS, type MId } from "../src/pocket/constructs.js";
 import { FILED_BLOCKS, filedDigest, isPending, loadFiled, pendingPaths, saveFiled, validateFiled, type FiledFile, type JsonValue } from "../src/pocket/filed.js";
+import { GOLDEN_PINS, SEASON_PATH_PINS } from "../src/pocket/golden.js";
 import { baseRowValue, b1Points, C3_CLAUSE_RULES, fillC3, fillStep0, reportValue, type Step0Result } from "../src/pocket/main.js";
 
 const PATH = join(import.meta.dirname, "..", FILED_PATH);
@@ -127,11 +130,20 @@ describe("ADR-089 step 0: the committed filing", () => {
     expect(new Set(texts).size).toBe(texts.length);
   });
 
-  it("files the live census: the path digest and the tunables digest", () => {
+  it("files the census, and the live path digest is the filed one (the tunables VALUE digest is the step proof's, plan K11)", () => {
     const file = loadFiled(PATH);
     expect(file.census).toEqual({ pathDigest: "fnv1a:365da48d", tunablesDigest: "fnv1a:395a9ae2" });
     expect(numericLeafPathDigest(), `${CENSUS_RULE}; the numeric-leaf path digest moved`).toBe(file.census.pathDigest);
-    expect(stableDigest(DEFAULT_TUNABLES), `${CENSUS_RULE}; the tunables digest moved`).toBe(file.census.tunablesDigest);
+  });
+
+  it("records the golden pins the suite enforces (GOLDEN_PINS, SEASON_PATH_PINS), and the season-path prediction states them", () => {
+    const file = loadFiled(PATH);
+    const K11 = "ADR-089 risk K11: a golden pin is re-recorded only by a named Orchestrator commit, with the filing amended by a named entry";
+    expect(file.base.golden.pins, K11).toEqual(GOLDEN_PINS);
+    expect(file.base.golden.seasonPath, K11).toEqual(SEASON_PATH_PINS);
+    const a = file.prediction.a.find((x) => x.id === "a.season-path");
+    const { canonicalFold, byteFold, first50CanonicalFold, first50ByteFold, run } = SEASON_PATH_PINS;
+    expect(a?.value, K11).toEqual({ canonicalFold, byteFold, first50CanonicalFold, first50ByteFold, run });
   });
 
   it("answers question 19 with Wait, and files Table now as information only", () => {

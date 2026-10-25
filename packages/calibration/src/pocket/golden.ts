@@ -100,6 +100,14 @@ export function foldDigests(list: readonly string[]): string {
 
 // --- the pins (MEASURED at e23bf69, plan §0) ---------------------------------
 
+/**
+ * The tree the pins and the fixture's per-game lists were measured at (plan §0). The fixture
+ * carries it as `measuredAt`, its writer stamps it from here, and the golden tests assert the two
+ * agree. A re-record under K11 changes it in the same named commit, with the pins, and re-runs
+ * `test/goldenBaseRecipe.test.ts` at that tree (`goldenBaseCheck.test.ts` compares).
+ */
+export const GOLDEN_MEASURED_AT = "e23bf69";
+
 export type GoldenLeague = "flat" | "gen";
 export const GOLDEN_LEAGUES: readonly GoldenLeague[] = ["flat", "gen"];
 

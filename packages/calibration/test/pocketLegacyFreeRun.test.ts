@@ -3,8 +3,8 @@
  *
  * `legacyFreeRun.ts` restates `freeRunnerArrivalSecondsFor` (and the looper's time) off the public
  * tunables. On the gen golden games every free runner's restated time must equal his published
- * `etaTick`, exactly: 5 games always, all 50 under `FF_POCKET_BASE=1`. This is a real check of the
- * restatement (it can fail), not an identity.
+ * `etaTick`, exactly: 13 games always (game 12 carries a stunt pass-off), all 50 under
+ * `FF_POCKET_BASE=1`. This is a real check of the restatement (it can fail), not an identity.
  */
 import { DEFAULT_TUNABLES, applyTunablePatch } from "@ff/engine";
 import { describe, expect, it } from "vitest";
@@ -89,10 +89,13 @@ function checkGames(first: number): { runners: number; byOrigin: Record<string, 
 }
 
 describe("the restatement against the stream (gen golden games)", () => {
-  it("equals every free runner's published etaTick on 5 games", () => {
-    const r = checkGames(5);
-    console.log(`##POCKET_LEGACY_FREE_RUN## ${JSON.stringify({ games: 5, ...r, mismatches: r.mismatches.length })}`);
+  // 13 games, not 5: game 12 (0-based) is the first of the 50 with a stunt pass-off, so the always-on
+  // case runs the `timedFor !== rusher` branch too (review finding CT-N3).
+  it("equals every free runner's published etaTick on 13 games, one of them with a stunt pass-off", () => {
+    const r = checkGames(13);
+    console.log(`##POCKET_LEGACY_FREE_RUN## ${JSON.stringify({ games: 13, ...r, mismatches: r.mismatches.length })}`);
     expect(r.runners).toBeGreaterThan(100);
+    expect(r.swapped, "a free runner timed for another (the pass-off branch)").toBeGreaterThan(0);
     expect(Object.keys(r.byOrigin).sort()).toEqual(["PICKUP_LOST", "STUNT_LOOPER", "UNBLOCKED"]);
     expect(r.mismatches).toEqual([]);
   }, 120_000);

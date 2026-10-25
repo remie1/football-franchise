@@ -7,16 +7,18 @@
  * (`GOLDEN_PINS`, plan §0). On a mismatch the failure names the first game that moved, from the
  * per-game lists in `test/fixtures/adr089-golden.json`.
  *
- * THE FIXTURE is written once, by this same code, with `FF_POCKET_GOLDEN_WRITE=1`: run ONE league
- * file at a time, since both write the one file. A written list must still fold to the pins, or
- * the write fails. Re-recording is a named commit's job (`src/pocket/golden.ts`, risk K11).
+ * THE FIXTURE is written once, by this same code, with `FF_POCKET_GOLDEN_WRITE=<league>` (`flat` or
+ * `gen`): the variable names the ONE league file that writes, so the two files, which share the
+ * fixture, never write it at once. A written list must still fold to the pins, or the write fails,
+ * and the writer stamps `measuredAt` from `GOLDEN_MEASURED_AT`, which the fixture case asserts.
+ * Re-recording is a named commit's job (`src/pocket/golden.ts`, risk K11).
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { CALLER_VERSIONS, type CallerVersion } from "../src/caller/anticipate.js";
 import { goldenGames } from "../src/pocket/corpus.js";
-import { foldDigests, gameBytesDigest, gameDigest, GOLDEN_PINS, type GoldenLeague } from "../src/pocket/golden.js";
+import { foldDigests, gameBytesDigest, gameDigest, GOLDEN_LEAGUES, GOLDEN_MEASURED_AT, GOLDEN_PINS, type GoldenLeague } from "../src/pocket/golden.js";
 
 export const GOLDEN_FIXTURE_PATH = resolve(import.meta.dirname, "fixtures", "adr089-golden.json");
 export const GOLDEN_FIXTURE_FORMAT = "adr-089-golden/v1";
@@ -73,14 +75,26 @@ export function playGolden(league: GoldenLeague, callerVersion: CallerVersion): 
   return { seeds, canonical, bytes, events };
 }
 
+/**
+ * Which league file the gated writer runs in: `FF_POCKET_GOLDEN_WRITE` must name one league
+ * (`flat` or `gen`); any other value is refused, so `=1` (both files writing the one fixture at
+ * once) cannot happen.
+ */
+export function goldenWriter(value: string | undefined): GoldenLeague | undefined {
+  if (value === undefined || value === "") return undefined;
+  if ((GOLDEN_LEAGUES as readonly string[]).includes(value)) return value as GoldenLeague;
+  throw new Error(`FF_POCKET_GOLDEN_WRITE must name one league (${GOLDEN_LEAGUES.join(" or ")}), so that one file writes the fixture; got "${value}"`);
+}
+
 export function goldenSuite(league: GoldenLeague): void {
-  const writing = process.env["FF_POCKET_GOLDEN_WRITE"] === "1";
+  const writing = goldenWriter(process.env["FF_POCKET_GOLDEN_WRITE"]) === league;
   const fixture = readGoldenFixture();
   const written: Partial<Record<CallerVersion, GoldenList>> = {};
 
   describe(`ADR-089 step 0: golden digests, ${league} league, callers v1-v7 (no play change)`, () => {
     it.skipIf(writing)("the fixture's per-game lists fold to the pins, for every caller", () => {
-      expect(fixture, `${GOLDEN_FIXTURE_PATH} is missing; write it with FF_POCKET_GOLDEN_WRITE=1`).toBeDefined();
+      expect(fixture, `${GOLDEN_FIXTURE_PATH} is missing; write it with FF_POCKET_GOLDEN_WRITE=${league}`).toBeDefined();
+      expect(fixture!.measuredAt, "the fixture's stamp is the tree the pins were measured at (GOLDEN_MEASURED_AT)").toBe(GOLDEN_MEASURED_AT);
       for (const caller of CALLER_VERSIONS) {
         const list = fixture!.leagues[league]?.[caller];
         expect(list, `${league} ${caller}`).toBeDefined();
@@ -118,7 +132,7 @@ export function goldenSuite(league: GoldenLeague): void {
       const now = readGoldenFixture();
       const next: GoldenFixture = {
         format: GOLDEN_FIXTURE_FORMAT,
-        measuredAt: "e23bf69",
+        measuredAt: GOLDEN_MEASURED_AT,
         leagues: { ...(now?.leagues ?? {}), [league]: written },
       };
       writeFileSync(GOLDEN_FIXTURE_PATH, `${JSON.stringify(next, null, 1)}\n`);
