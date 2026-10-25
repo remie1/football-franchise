@@ -3,8 +3,10 @@
  * the stream says; these check the wording, where each line lands, and that nothing is invented.
  */
 import { describe, expect, it } from "vitest";
+import type { MatchEvent } from "@ff/contracts";
 import { readBoxScore } from "../src/boxScore.js";
 import { readDriveChart } from "../src/driveChart.js";
+import type { GameFile } from "../src/gameFile.js";
 import { buildPlayLog, readSnap } from "../src/playLog.js";
 import { clock, downAndDistance, gain, gapWords, kickSpot, quarter, sentenceCase, spot } from "../src/words.js";
 import { FIXTURE } from "./fixture.js";
@@ -90,5 +92,62 @@ describe("readBoxScore", () => {
     expect(away!.tables[1]!.rows.map((r) => r.player)).toEqual(["Wes Reed", "Ty Ellis"]);
     expect(home!.tables.map((t) => t.title)).toEqual(["Rushing", "Defense", "Kicking"]);
     expect(home!.tables[2]!.rows).toEqual([{ player: "Hal Kemp", cells: ["0/0", "1/1", 0, 0] }]);
+  });
+});
+
+// ADR-089 §9: the pocket fix adds kinds this viewer has never seen: a CHECK kind (`pass_rush_beat`,
+// P2), an event (`QB_HIT`, P7) and two decision choices (`SLIDE_POCKET`, `SIDESTEP`; P14, P15). The
+// design says they render as skipped unknown kinds rather than crash (INFERRED from this file's
+// header); `ui-layout` confirms it here, at step 0. They are built loosely, as a newer engine's file
+// would carry them, because the contracts do not have them yet.
+type Loose = { type: string; payload: unknown; playId: string };
+const POCKET_FIX_KINDS: Readonly<Record<string, readonly Loose[]>> = {
+  p1: [
+    {
+      type: "CHECK",
+      playId: "p1",
+      payload: {
+        checkKind: "pass_rush_beat",
+        actors: ["de", "lt"],
+        roll: { die: "d100", raw: 37, modifiers: [], total: 37, rngLabel: "beat/r" },
+        tier: "MARGINAL_SUCCESS",
+        band: "BEATEN",
+        margin: 3,
+        testsAttrs: [],
+      },
+    },
+    { type: "QB_DECISION", playId: "p1", payload: { choice: "SLIDE_POCKET" } },
+    { type: "QB_HIT", playId: "p1", payload: { qb: "qb", rusher: "de", phase: "THROWING", contactSeconds: 1.4 } },
+  ],
+  p2: [
+    { type: "QB_DECISION", playId: "p2", payload: { choice: "SIDESTEP" } },
+    { type: "QB_HIT", playId: "p2", payload: { qb: "qb", rusher: "de", phase: "ARRIVAL", contactSeconds: 1.5 } },
+  ],
+};
+
+/** The fixture with the pocket fix's new kinds put in front of plays 1 and 2's results. */
+function withPocketFixKinds(file: GameFile): GameFile {
+  const events = file.events.flatMap((e) => {
+    const playId = "playId" in e.event ? e.event.playId : undefined;
+    const added = e.event.type === "PLAY_RESULT" && playId !== undefined ? (POCKET_FIX_KINDS[playId] ?? []) : [];
+    return [...added.map((n) => ({ ...e, event: { ...n, gameId: e.event.gameId } as unknown as MatchEvent })), e];
+  });
+  return { ...file, events: events.map((e, seq) => ({ ...e, seq })) };
+}
+
+describe("the pocket fix's new kinds (ADR-089 §9)", () => {
+  const changed = withPocketFixKinds(FIXTURE);
+
+  it("are in the stream", () => {
+    const types = changed.events.map((e) => e.event.type as string);
+    expect(types.filter((t) => t === "QB_HIT")).toHaveLength(2);
+    expect(changed.events.length).toBe(FIXTURE.events.length + 5);
+  });
+
+  it("render without throwing, and the play log skips them: it words exactly what it worded before", () => {
+    expect(() => buildPlayLog(changed)).not.toThrow();
+    expect(buildPlayLog(changed)).toEqual(buildPlayLog(FIXTURE));
+    expect(readDriveChart(changed)).toEqual(readDriveChart(FIXTURE));
+    expect(readBoxScore(changed)).toEqual(readBoxScore(FIXTURE));
   });
 });
