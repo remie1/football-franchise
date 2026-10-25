@@ -24,14 +24,32 @@
  * Only step 0 is built: any other `--step` is refused, as is any flag this command does not know.
  * The command runs only as the script's entry (vite-node); under the test runner (`VITEST` set) the
  * module only exports its functions, which `test/pocketMeasures.test.ts` checks.
+ *
+ * C3 (plan §7.3 items 1 and 5). The seed-set-1 passes also fold S2's accumulator (one game at a
+ * time, merged exactly as `runBatch`'s in-process executor merges them) and the guard's class-by-bin
+ * counts, so the command (a) fills the filing's remaining markers through `fillC3`: every new row's
+ * base value on both leagues (`base.rows.*`) and the eight clause edges an M table sets (the B1
+ * edges, M2's S share, M9's tolerance; `C3_CLAUSE_RULES`), and (b) prints S4's step report
+ * (`report.ts`) for the base arm, every row on both leagues. `--out` carries both.
  */
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import { DEFAULT_TUNABLES, type GameSnapshot, type Tunables } from "@ff/engine";
-import { DEFAULT_CACHE_DIR } from "../ingest/cache.js";
+import { DEFAULT_CACHE_DIR, fsCacheStore } from "../ingest/cache.js";
+import { TUNING_SEASONS } from "../ingest/seasons.js";
 import { positionsFromSnapshot } from "../knownTruth/pocketChannelShares.js";
-import { M_IDS, type MId } from "./constructs.js";
+import type { LeagueProvenance } from "../league/provenance.js";
+import { emptyAccumulator, foldGame, mergeAccumulators, RELEASE_BINS, releaseBinOf, type SimAccumulator } from "../metrics/collect.js";
+import "../metrics/index.js";
+import { openRealForTuning, type TuningRealInput } from "../metrics/realInput.js";
+import { getMetric } from "../metrics/registry.js";
+import { isInapplicable, pointEstimate, type MetricOutcome } from "../metrics/types.js";
+import { BASE_ROW_IDS } from "./bands.js";
+import { constructById, M_IDS, NOBODY_OPEN_CLASSES, THROW_CLASSES, type MId, type ThrowClass } from "./constructs.js";
+import { ARM_S } from "./m2ForcingSource.js";
+import { renderStepReport, type ArmReport, type ClassIntRows, type IntGuardRows, type ReportRow, type StepReportInput } from "./report.js";
+import { dropbacksOf, isAimed, throwClassOf } from "./throwClass.js";
 import { flatBaseline, genSeason, type CorpusVisitor, type SeedSet } from "./corpus.js";
 import { fillPending, loadFiled, pendingPaths, saveFiled, type FiledFile, type JsonValue } from "./filed.js";
 import { emptyM1Fold, foldM1Game, m1Result, type M1Fold, type M1Result } from "./m1PushWindow.js";
@@ -114,6 +132,9 @@ interface FullFolds {
   m6: M6Fold;
   m7: M7Fold;
   m8: M8Fold;
+  /** C3: S2's accumulator, each game folded alone and merged, as `runBatch`'s in-process executor does. */
+  accumulator: SimAccumulator;
+  guard: GuardFold;
 }
 
 export interface Step0Result {
@@ -133,7 +154,199 @@ export interface Step0Result {
     readonly margins1to4: JsonValue;
     readonly margins5to14: JsonValue;
   };
+  /** C3: every new row's base value on both leagues, seed set 1 (`base.rows`), and the base arm's step report input. */
+  readonly base: {
+    readonly rows: Readonly<Record<string, { readonly flat: JsonValue; readonly gen: JsonValue }>>;
+    readonly report: StepReportInput;
+  };
 }
+
+// --- C3: the base rows, the guard's class-by-bin counts and the base arm's report ----------------------
+
+/** The provenance each base league's metric context carries (no new row reads it; tier 3 and 4 rows do). */
+export const BASE_PROVENANCE: Readonly<Record<Step0League, LeagueProvenance>> = Object.freeze({ flat: "FLAT_SYNTHETIC", gen: "GENERATED_FICTIONAL" });
+
+/**
+ * A metric outcome as the filing records it: the counts behind the value, and the value
+ * (`pointEstimate`, the number the baseline report and its carry-forward print). A shape keeps its
+ * size and mean only (its vector is the fold's); a categorical row keeps its counts.
+ */
+export function baseRowValue(outcome: MetricOutcome): JsonValue {
+  if (isInapplicable(outcome)) return { reason: outcome.reason, detail: outcome.detail };
+  const value = pointEstimate(outcome);
+  switch (outcome.kind) {
+    case "RATE":
+      return { kind: "RATE", successes: outcome.successes, trials: outcome.trials, value };
+    case "MEAN":
+      return { kind: "MEAN", total: outcome.total, n: outcome.n, value };
+    case "SAMPLES":
+      return { kind: "SAMPLES", n: outcome.values.length, value };
+    case "CATEGORICAL":
+      return { kind: "CATEGORICAL", counts: Object.fromEntries(Object.entries(outcome.counts).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) };
+  }
+}
+
+/** One league's metric outcome for a registered row, on the league's accumulator. */
+export function outcomeOn(id: string, accumulator: SimAccumulator, league: Step0League): MetricOutcome {
+  return getMetric(id).computeFromEvents({ accumulator, provenance: BASE_PROVENANCE[league] });
+}
+
+/** The registry rows' base values (S2's rows: `constructs.ts` home "registry") on one league. */
+export function registryBaseRows(accumulator: SimAccumulator, league: Step0League): Record<string, JsonValue> {
+  const out: Record<string, JsonValue> = {};
+  for (const id of BASE_ROW_IDS) if (constructById(id)?.home === "registry") out[id] = baseRowValue(outcomeOn(id, accumulator, league));
+  return out;
+}
+
+/** D28's classes that are aimed throws (THROWAWAY, SCRAMBLE and SACK are not). */
+export const AIMED_CLASSES: readonly ThrowClass[] = ["PROGRESSION", "RANK_PUSHED", "CHECKDOWN", "CLEAN_EXPIRY", "DESPERATION", "ON_THE_RUN"];
+
+/** The guard's population by class: aimed throws by release bin (the decision tick, `RELEASE_BINS` order), interceptions, completions. */
+export type GuardFold = Record<ThrowClass, { aimedByBin: number[]; interceptions: number; completions: number }>;
+
+export function emptyGuardFold(): GuardFold {
+  return Object.fromEntries(THROW_CLASSES.map((c) => [c, { aimedByBin: RELEASE_BINS.map(() => 0), interceptions: 0, completions: 0 }])) as GuardFold;
+}
+
+export function foldGuardGame(fold: GuardFold, events: readonly MatchEventEnvelope[], tunables: Tunables): void {
+  for (const d of dropbacksOf(events)) {
+    if (!isAimed(d) || d.throwTick === undefined) continue;
+    const cell = fold[throwClassOf(d, tunables).cls];
+    const label = releaseBinOf(d.throwTick);
+    const i = RELEASE_BINS.findIndex((b) => b.label === label);
+    cell.aimedByBin[i] = (cell.aimedByBin[i] ?? 0) + 1;
+    if (d.intercepted) cell.interceptions += 1;
+    if (d.caught) cell.completions += 1;
+  }
+}
+
+const pctOf = (n: number, d: number): number | null => (d === 0 ? null : (100 * n) / d);
+
+/** A registered row's report value: a rate in percent, a mean as it is, a shape's mean; a categorical row has none (its shares go in the note). */
+export function reportValue(outcome: MetricOutcome | undefined): number | null {
+  if (outcome === undefined || isInapplicable(outcome)) return null;
+  const v = pointEstimate(outcome);
+  if (v === null || !Number.isFinite(v)) return null;
+  return outcome.kind === "RATE" ? 100 * v : v;
+}
+
+function categoricalShares(outcome: MetricOutcome): string | undefined {
+  if (isInapplicable(outcome) || outcome.kind !== "CATEGORICAL") return undefined;
+  const total = Object.values(outcome.counts).reduce((a, b) => a + b, 0);
+  if (total === 0) return undefined;
+  return Object.entries(outcome.counts)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k} ${((100 * v) / total).toFixed(2)}%`)
+    .join(", ");
+}
+
+/** The rows the base report prints beside the sacks, P2S and the guard: the four headline rows, then every new row. */
+export const REPORT_HEADLINE_ROWS: readonly string[] = ["threat_creation_rate", "hit_or_sack_rate", "sack_rate", "time_to_throw"];
+
+export interface BaseArmInput {
+  readonly accumulators: Readonly<Record<Step0League, SimAccumulator>>;
+  readonly rows: Readonly<Record<Step0League, Readonly<Record<string, unknown>>>>;
+  readonly guard: Readonly<Record<Step0League, GuardFold>>;
+  readonly real?: TuningRealInput;
+}
+
+/** The base arm of the step-0 report (`report.ts`'s input), from the base corpora's folds. Plain data. */
+export function baseArm(input: BaseArmInput): ArmReport {
+  const lg = (f: (league: Step0League) => number | null): Record<Step0League, number | null> => ({ flat: f("flat"), gen: f("gen") });
+  const realOf = (id: string): number | null | undefined => {
+    if (input.real === undefined) return undefined;
+    try {
+      return reportValue(getMetric(id).computeFromReal(input.real));
+    } catch {
+      return null;
+    }
+  };
+  const rows: ReportRow[] = [];
+  const registryIds = [...REPORT_HEADLINE_ROWS, ...BASE_ROW_IDS.filter((id) => constructById(id)?.home === "registry" && !REPORT_HEADLINE_ROWS.includes(id))];
+  for (const id of registryIds) {
+    const metric = getMetric(id);
+    const outcomes = { flat: outcomeOn(id, input.accumulators.flat, "flat"), gen: outcomeOn(id, input.accumulators.gen, "gen") };
+    const shares = [categoricalShares(outcomes.flat), categoricalShares(outcomes.gen)];
+    const real = realOf(id);
+    rows.push({
+      id,
+      values: lg((l) => reportValue(outcomes[l])),
+      ...(real === undefined ? {} : { real }),
+      unit: outcomes.flat !== undefined && !isInapplicable(outcomes.flat) && outcomes.flat.kind === "RATE" ? "%" : metric.unit,
+      dp: metric.unit === "seconds" || id === "time_to_throw" ? 3 : 2,
+      ...(shares[0] === undefined && shares[1] === undefined ? {} : { note: `flat ${shares[0] ?? "n/a"}; gen ${shares[1] ?? "n/a"}` }),
+    });
+  }
+  const pocket = <T>(league: Step0League, id: string): T => input.rows[league][id] as T;
+  type Share = { pct: number };
+  type ByClass = Record<string, { aimed: number; value: number }>;
+  type Sacker = { splitPct: Record<string, number>; unsplitPct: Record<string, number> };
+  for (const part of ["interior", "edge", "offball", "db"]) {
+    rows.push({ id: `sacker_mix.split.${part}`, values: lg((l) => pocket<Sacker>(l, "sacker_mix").splitPct[part] ?? null), unit: "%", note: "same-tick arrivals split 0.5 (M3)" });
+  }
+  rows.push({ id: "sacker_mix.unsplit.interior", values: lg((l) => pocket<Sacker>(l, "sacker_mix").unsplitPct["interior"] ?? null), unit: "%", note: "last ARRIVED rusher, unsplit" });
+  rows.push({ id: "multi_channel_share", values: lg((l) => pocket<Share>(l, "multi_channel_share").pct), unit: "%" });
+  for (const cls of AIMED_CLASSES) {
+    rows.push({ id: `int_per_aimed_by_throw_class.${cls}`, values: lg((l) => (pocket<ByClass>(l, "int_per_aimed_by_throw_class")[cls]?.aimed ? pocket<ByClass>(l, "int_per_aimed_by_throw_class")[cls]!.value : null)), unit: "%" });
+  }
+  for (const cls of AIMED_CLASSES) {
+    rows.push({ id: `completion_per_aimed_by_throw_class.${cls}`, values: lg((l) => (pocket<ByClass>(l, "completion_per_aimed_by_throw_class")[cls]?.aimed ? pocket<ByClass>(l, "completion_per_aimed_by_throw_class")[cls]!.value : null)), unit: "%" });
+  }
+  rows.push({ id: "nobody_open_share", values: lg((l) => pocket<Share>(l, "nobody_open_share").pct), unit: "% of dropbacks" });
+  for (const cls of NOBODY_OPEN_CLASSES) {
+    rows.push({
+      id: `nobody_open_share.split.${cls}`,
+      values: lg((l) => pocket<{ split: Record<string, number> }>(l, "nobody_open_share").split[cls] ?? null),
+      unit: "% of dropbacks",
+      ...(cls === "SACK" ? { hitOrSack: true } : {}),
+    });
+  }
+  rows.push({ id: "clean_checkdown_share", values: lg((l) => pocket<Share>(l, "clean_checkdown_share").pct), unit: "% of clean aimed throws" });
+  rows.push({ id: "clean_later_read_share", values: lg((l) => pocket<Share>(l, "clean_later_read_share").pct), unit: "% of clean aimed throws" });
+
+  const num = (id: string, league: Step0League): number => {
+    const v = reportValue(outcomeOn(id, input.accumulators[league], league));
+    return v === null ? Number.NaN : v;
+  };
+  const per = <T>(f: (league: Step0League) => T): Record<Step0League, T> => ({ flat: f("flat"), gen: f("gen") });
+  const intGuard = per((league): IntGuardRows => {
+    const acc = input.accumulators[league];
+    const p = acc.play.pocket;
+    const mix = outcomeOn("int_source_mix", acc, league);
+    const mixTotal = !isInapplicable(mix) && mix.kind === "CATEGORICAL" ? Object.values(mix.counts).reduce((a, b) => a + b, 0) : 0;
+    const byClass: Partial<Record<ThrowClass, ClassIntRows>> = {};
+    for (const cls of AIMED_CLASSES) {
+      const c = input.guard[league][cls];
+      byClass[cls] = { aimedByBin: [...c.aimedByBin], interceptions: c.interceptions, completions: c.completions };
+    }
+    return {
+      intPerAttempt: num("int_rate", league),
+      intPerAimed: pctOf(p.aimedInterceptions, p.aimedThrows) ?? Number.NaN,
+      forcedThrowShare: pctOf(p.forcedAimedThrows, p.aimedThrows) ?? Number.NaN,
+      completionPerAttempt: num("completion_pct", league),
+      completionPerAimed: pctOf(p.aimedCompletions, p.aimedThrows) ?? Number.NaN,
+      intSourceMix: !isInapplicable(mix) && mix.kind === "CATEGORICAL" && mixTotal > 0 ? Object.fromEntries(Object.entries(mix.counts).map(([k, v]) => [k, (100 * v) / mixTotal])) : {},
+      all: { aimedByBin: RELEASE_BINS.map((b) => p.releaseBins[b.label]?.aimed ?? 0), interceptions: p.aimedInterceptions },
+      byClass,
+    };
+  });
+  return {
+    arm: "base",
+    isBase: true,
+    clock: "TICK",
+    rows,
+    timeToThrow: per((l) => num("time_to_throw", l)),
+    sacks: per((l) => {
+      const play = input.accumulators[l].play;
+      return { dropbacks: play.dropbacks, sacks: play.sacks, pressuredSacks: play.pressuredSacks, pressuredDropbacks: play.pressuredDropbacks };
+    }),
+    p2s: per((l) => num("pressure_to_sack", l)),
+    intGuard,
+  };
+}
+
+/** PR #33 is held open by the owner (2026-10-24 00:18Z), so P2S prints against both references (ADR-089:159, :987). */
+export const PR33_STATE = "OPEN" as const;
 
 /** A JSON round trip: plain data only (a Map or an undefined field cannot reach the filing). */
 export function sanitize(value: unknown): JsonValue {
@@ -179,7 +392,16 @@ export async function runStep0(opts: Step0Options = {}): Promise<Step0Result> {
       const m9Games: M9Game[] = [];
       const folds: FullFolds | undefined =
         set === 1
-          ? { m2: new Map(M2_ARMS.map((a) => [a.id, emptyM2Fold()])), rows: emptyRowsFold(), m4: emptyM4Fold(), m6: emptyM6Fold(), m7: emptyM7Fold(), m8: emptyM8Fold() }
+          ? {
+              m2: new Map(M2_ARMS.map((a) => [a.id, emptyM2Fold()])),
+              rows: emptyRowsFold(),
+              m4: emptyM4Fold(),
+              m6: emptyM6Fold(),
+              m7: emptyM7Fold(),
+              m8: emptyM8Fold(),
+              accumulator: emptyAccumulator(),
+              guard: emptyGuardFold(),
+            }
           : undefined;
       const games = playLeague(
         league,
@@ -198,6 +420,8 @@ export async function runStep0(opts: Step0Options = {}): Promise<Step0Result> {
           foldM6Game(folds.m6, events, snapshot, positions, tunables, meta.seed);
           foldM7Game(folds.m7, events, snapshot);
           foldM8Game(folds.m8, events, snapshot, positions, tunables);
+          folds.accumulator = mergeAccumulators(folds.accumulator, foldGame(emptyAccumulator(), o));
+          foldGuardGame(folds.guard, events, tunables);
         },
         opts,
       );
@@ -218,6 +442,7 @@ export async function runStep0(opts: Step0Options = {}): Promise<Step0Result> {
   }
 
   let real: RealSackerMix | { readonly unavailable: string };
+  let realInput: TuningRealInput | undefined;
   const cache = opts.realSackerCache === undefined ? resolve(DEFAULT_CACHE_DIR) : opts.realSackerCache;
   if (cache === null) real = { unavailable: "not asked for (realSackerCache: null)" };
   else {
@@ -225,6 +450,11 @@ export async function runStep0(opts: Step0Options = {}): Promise<Step0Result> {
       real = await loadRealSackerMix(cache);
     } catch (e: unknown) {
       real = { unavailable: `${cache}: ${e instanceof Error ? e.message : String(e)}` };
+    }
+    try {
+      realInput = await openRealForTuning(fsCacheStore(cache), TUNING_SEASONS, { withParticipation: true, withFtn: true });
+    } catch (e: unknown) {
+      log(`pocket: the report's real sides are unavailable (${cache}: ${e instanceof Error ? e.message : String(e)})`);
     }
   }
 
@@ -258,11 +488,28 @@ export async function runStep0(opts: Step0Options = {}): Promise<Step0Result> {
   for (const id of M_IDS) if (M[id] === undefined) throw new Error(`pocket: no ${id}`);
 
   const filedM1 = m1Of("gen/set1");
+  const rows = byLeague((f) => sanitize(pocketRows(f.rows)));
+  const registry = byLeague((f, league) => registryBaseRows(f.accumulator, league));
+  const baseRows: Record<string, { flat: JsonValue; gen: JsonValue }> = {};
+  for (const id of BASE_ROW_IDS) {
+    const of = (league: Step0League): JsonValue => {
+      const v = constructById(id)?.home === "registry" ? registry[league][id] : (rows[league] as Record<string, JsonValue>)[id];
+      if (v === undefined) throw new Error(`pocket: no base value for ${id} on ${league}`);
+      return v;
+    };
+    baseRows[id] = { flat: of("flat"), gen: of("gen") };
+  }
+  const arm = baseArm({
+    accumulators: byLeague((f) => f.accumulator),
+    rows: rows as Record<Step0League, Record<string, unknown>>,
+    guard: byLeague((f) => f.guard),
+    ...(realInput === undefined ? {} : { real: realInput }),
+  });
   return {
     format: "adr-089-step0-measures/v1",
     corpora: { played, flatFirst: opts.flatFirst ?? null, genThroughWeek: opts.genThroughWeek ?? null },
     M,
-    rows: byLeague((f) => sanitize(pocketRows(f.rows))),
+    rows,
     m1Bound: {
       E: filedM1.all.E,
       SD: filedM1.all.SD,
@@ -271,6 +518,10 @@ export async function runStep0(opts: Step0Options = {}): Promise<Step0Result> {
       dropbacks: filedM1.dropbacks,
       margins1to4: sanitize(filedM1.margins1to4),
       margins5to14: sanitize(filedM1.margins5to14),
+    },
+    base: {
+      rows: sanitize(baseRows) as Record<string, { flat: JsonValue; gen: JsonValue }>,
+      report: sanitize({ step: "0", pr33: PR33_STATE, arms: [arm] }) as unknown as StepReportInput,
     },
   };
 }
@@ -307,6 +558,103 @@ export function fillStep0(file: FiledFile, result: Pick<Step0Result, "M" | "m1Bo
   return { file: out, filled, left };
 }
 
+// --- C3: the base rows and the clause edges (plan §7.3 item 1) ---------------------------------------
+
+/**
+ * The value each M-set clause edge is filed at, by clause id and field. The filing's `lo`, `hi`
+ * and `tolerance` hold ONE number (`filed.ts`), while M1, M2 and M9 measure each league (and M9
+ * each row) apart, so each rule says which single number it files; the per-league (and per-row)
+ * figures stay in the M block beside it, filed in the same commit:
+ *
+ *  - **the B1 edges** (s1.S.pressure, s1.window.pressure, s5b.pressure): B1 in points =
+ *    100 x `m1Bound.B1` / `m1Bound.dropbacks`, the one filed quantity (deviation O1: one B1 in all
+ *    three uses; `m1Bound` is M1 on gen seed set 1). It is the largest of the four league-and-set
+ *    figures in `M.M1`, so on flat it is the looser bound;
+ *  - **s2.m2** (reported, never graded): `lo` and `hi` are the smaller and the larger of the two
+ *    leagues' counter-forced shares under shape S (`M.M2.<league>["S-theta11-window"]`), so the one
+ *    interval holds both leagues' figure;
+ *  - **M9's tolerance** (s8a.q1q3, acc.q1q3): the clause's comparator, `situation_q1q3_last_two`,
+ *    is a throwaway row in percent, so the filed number is M9's throwaway-rate tolerance for the
+ *    Q1/Q3 window in points (100 x `M.M9.<league>.rows.throwaway_rate.Q1Q3_END.tolerance`, each
+ *    already the larger of the two seed sets, deviation O10), the larger of the two leagues. M9's
+ *    pass-rate and time-to-throw tolerances (other units) are filed in `M.M9` only.
+ */
+export type ClauseEdge = "lo" | "hi" | "tolerance";
+
+export interface C3Inputs {
+  readonly m1Bound: { readonly B1: number; readonly dropbacks: number };
+  readonly M2: JsonValue;
+  readonly M9: JsonValue;
+}
+
+export function b1Points(m1: C3Inputs["m1Bound"]): number {
+  if (!(m1.dropbacks > 0)) throw new Error("C3: the M1 bound has no dropbacks");
+  return (100 * m1.B1) / m1.dropbacks;
+}
+
+function m2SShare(M2: JsonValue, league: Step0League): number {
+  const v = (M2 as Record<string, Record<string, { counterFarSharePct?: unknown }>> | null)?.[league]?.[ARM_S.id]?.counterFarSharePct;
+  if (typeof v !== "number") throw new Error(`C3: M.M2.${league}["${ARM_S.id}"].counterFarSharePct is not filed`);
+  return v;
+}
+
+function m9ThrowawayTolerancePoints(M9: JsonValue, league: Step0League): number {
+  const v = (M9 as Record<string, { rows?: Record<string, Record<string, { tolerance?: unknown }>> }> | null)?.[league]?.rows?.["throwaway_rate"]?.["Q1Q3_END"]?.tolerance;
+  if (typeof v !== "number") throw new Error(`C3: M.M9.${league}.rows.throwaway_rate.Q1Q3_END.tolerance is not filed`);
+  return 100 * v;
+}
+
+export const C3_CLAUSE_RULES: Readonly<Record<string, Readonly<Partial<Record<ClauseEdge, (x: C3Inputs) => number>>>>> = Object.freeze({
+  "s1.S.pressure": { hi: (x) => 40 + b1Points(x.m1Bound) },
+  "s1.window.pressure": { lo: (x) => -b1Points(x.m1Bound), hi: (x) => b1Points(x.m1Bound) },
+  "s5b.pressure": { hi: (x) => 42 + b1Points(x.m1Bound) },
+  "s2.m2": { lo: (x) => Math.min(m2SShare(x.M2, "flat"), m2SShare(x.M2, "gen")), hi: (x) => Math.max(m2SShare(x.M2, "flat"), m2SShare(x.M2, "gen")) },
+  "s8a.q1q3": { tolerance: (x) => Math.max(m9ThrowawayTolerancePoints(x.M9, "flat"), m9ThrowawayTolerancePoints(x.M9, "gen")) },
+  "acc.q1q3": { tolerance: (x) => Math.max(m9ThrowawayTolerancePoints(x.M9, "flat"), m9ThrowawayTolerancePoints(x.M9, "gen")) },
+});
+
+/** The M-set inputs the clause rules read, from a filing whose `m1Bound`, `M.M2` and `M.M9` are filed. */
+export function c3InputsOf(file: FiledFile): C3Inputs {
+  const { B1, dropbacks } = file.m1Bound;
+  if (typeof B1 !== "number" || typeof dropbacks !== "number") throw new Error("C3: m1Bound.B1 and m1Bound.dropbacks must be filed before the clause edges");
+  for (const id of ["M2", "M9"] as const) if (isPendingValue(file.M[id])) throw new Error(`C3: M.${id} must be filed before the clause edges`);
+  return { m1Bound: { B1, dropbacks }, M2: file.M.M2 as JsonValue, M9: file.M.M9 as JsonValue };
+}
+
+const isPendingValue = (v: unknown): boolean => typeof v === "object" && v !== null && !Array.isArray(v) && "pending" in v;
+
+/**
+ * C3's fill: every pending `base.rows.<id>` from the base run, then every pending clause edge by
+ * `C3_CLAUSE_RULES`. Run after `fillStep0` (the clause edges read the filed `m1Bound`, `M.M2` and
+ * `M.M9`). A pending marker no rule names is refused, never guessed; a filed value is never
+ * overwritten (`fillPending`).
+ */
+export function fillC3(file: FiledFile, base: Pick<Step0Result["base"], "rows">): FillOutcome {
+  let out = file;
+  const filled: string[] = [];
+  const left: string[] = [];
+  let inputs: C3Inputs | undefined;
+  for (const { path, source } of pendingPaths(file)) {
+    const parts = path.split(".");
+    if (parts.length === 3 && parts[0] === "base" && parts[1] === "rows") {
+      if (source !== "BASE") throw new Error(`C3: ${path} is pending ${source}, not BASE`);
+      const v = base.rows[parts[2] as string];
+      if (v === undefined) throw new Error(`C3: the base run has no value for ${path}`);
+      out = fillPending(out, path, sanitize(v));
+      filled.push(path);
+    } else if (parts.length === 4 && parts[0] === "bands" && parts[1] === "clauses") {
+      const clause = out.bands.clauses[Number(parts[2])];
+      const edge = parts[3] as ClauseEdge;
+      const rule = clause === undefined ? undefined : C3_CLAUSE_RULES[clause.id]?.[edge];
+      if (rule === undefined) throw new Error(`C3: ${path} (${clause?.id ?? "no clause"}, pending ${source}) has no filed rule in C3_CLAUSE_RULES`);
+      inputs ??= c3InputsOf(out);
+      out = fillPending(out, path, rule(inputs));
+      filled.push(`${path} (${clause!.id}.${edge})`);
+    } else left.push(`${path} (pending ${source})`);
+  }
+  return { file: out, filled, left };
+}
+
 /** Loads the filing first, so a missing or invalid file is refused before anything is played. */
 export function openFiling(path: string): FiledFile {
   if (!existsSync(path)) throw new Error(`the step-0 filing ${path} does not exist (S4 writes reports/adr-089-step0.filed.json)`);
@@ -334,17 +682,23 @@ export async function pocketCommand(argv: readonly string[]): Promise<void> {
   };
   const filing = args.writeFiled === undefined ? undefined : openFiling(args.writeFiled);
   const result = await runStep0({ log });
-  process.stdout.write(`${brief(result)}\n`);
+  process.stdout.write(`${brief(result)}\n\n`);
+  process.stdout.write(`${renderStepReport(result.base.report).join("\n")}\n`);
   if (args.out !== undefined) {
     mkdirSync(dirname(args.out), { recursive: true });
     writeFileSync(args.out, `${JSON.stringify(result, null, 2)}\n`);
     log(`pocket: wrote ${args.out}`);
   }
   if (filing !== undefined && args.writeFiled !== undefined) {
-    const outcome = fillStep0(filing, result);
-    saveFiled(args.writeFiled, outcome.file);
-    log(`pocket: filled ${String(outcome.filled.length)} pending fields of ${args.writeFiled}: ${outcome.filled.join(", ")}`);
-    if (outcome.left.length > 0) log(`pocket: left for C3: ${outcome.left.join(", ")}`);
+    const measured = fillStep0(filing, result);
+    const integrated = fillC3(measured.file, result.base);
+    saveFiled(args.writeFiled, integrated.file);
+    const filled = [...measured.filled, ...integrated.filled];
+    log(`pocket: filled ${String(filled.length)} pending fields of ${args.writeFiled}: ${filled.join(", ")}`);
+    if (integrated.left.length > 0) {
+      log(`pocket: left pending: ${integrated.left.join(", ")}`);
+      throw new Error(`the step-0 filing still has ${String(integrated.left.length)} pending fields (plan §7.3: C3 fills every one)`);
+    }
   }
 }
 

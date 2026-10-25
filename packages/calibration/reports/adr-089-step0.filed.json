@@ -180,180 +180,852 @@
     },
     "rows": {
       "hit_or_sack_rate": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 8788,
+          "trials": 43837,
+          "value": 0.2004699226680658
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 6192,
+          "trials": 25758,
+          "value": 0.24039133473095736
+        }
       },
       "sack_share_of_hit_or_sack": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 7201,
+          "trials": 8788,
+          "value": 0.819412835685025
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 4308,
+          "trials": 6192,
+          "value": 0.6957364341085271
+        }
       },
       "qb_hit_on_scramble": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 0,
+          "trials": 7485,
+          "value": 0
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 0,
+          "trials": 1659,
+          "value": 0
+        }
       },
       "release_distribution": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "SAMPLES",
+          "n": 29151,
+          "value": 1.24179273438304
+        },
+        "gen": {
+          "kind": "SAMPLES",
+          "n": 19791,
+          "value": 1.2351573947754029
+        }
       },
       "pressured_share_by_release_bin": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 3306,
+          "trials": 3973,
+          "value": 0.8321167883211679
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 1834,
+          "trials": 2256,
+          "value": 0.8129432624113475
+        }
       },
       "hit_rate_by_release_bin": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 193,
+          "trials": 2455,
+          "value": 0.07861507128309572
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 181,
+          "trials": 1819,
+          "value": 0.09950522264980759
+        }
       },
       "first_pressure_seconds": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "SAMPLES",
+          "n": 38071,
+          "value": 0.8771111869927242
+        },
+        "gen": {
+          "kind": "SAMPLES",
+          "n": 21962,
+          "value": 0.8830252253893088
+        }
       },
       "first_forcing_seconds": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "SAMPLES",
+          "n": 34549,
+          "value": 1.0077281542157515
+        },
+        "gen": {
+          "kind": "SAMPLES",
+          "n": 20130,
+          "value": 1.015176353700944
+        }
       },
       "first_arrival_seconds": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "SAMPLES",
+          "n": 8786,
+          "value": 1.3972797632597314
+        },
+        "gen": {
+          "kind": "SAMPLES",
+          "n": 6190,
+          "value": 1.4852180936995154
+        }
       },
       "first_pressure_origin": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "CATEGORICAL",
+          "counts": {
+            "COUNTER": 3580.8333333333335,
+            "FREE_RUNNER": 11051.833333333334,
+            "WON_REP": 23438.333333333332
+          }
+        },
+        "gen": {
+          "kind": "CATEGORICAL",
+          "counts": {
+            "COUNTER": 2145.8333333333335,
+            "FREE_RUNNER": 6226.5,
+            "WON_REP": 13589.666666666666
+          }
+        }
       },
       "quick_pressure_share_by_origin": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 37998,
+          "trials": 38071,
+          "value": 0.9980825300097187
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 21901,
+          "trials": 21962,
+          "value": 0.9972224751844094
+        }
       },
       "clean_with_live_won_rep_ticks": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 60,
+          "trials": 40626,
+          "value": 0.001476886722788362
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 30,
+          "trials": 24675,
+          "value": 0.0012158054711246201
+        }
       },
       "clean_with_live_won_rep_dropbacks": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 57,
+          "trials": 43837,
+          "value": 0.001300271460182038
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 29,
+          "trials": 25758,
+          "value": 0.0011258638093019644
+        }
       },
       "clean_with_live_won_rep_push_ticks": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 0,
+          "trials": 60,
+          "value": 0
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 0,
+          "trials": 30,
+          "value": 0
+        }
       },
       "throwaway_rate_pressured": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 2020,
+          "trials": 38071,
+          "value": 0.053058758635181634
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 620,
+          "trials": 21962,
+          "value": 0.028230580092887717
+        }
       },
       "throwaway_rate_clean": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 373,
+          "trials": 5766,
+          "value": 0.06468955948664586
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 126,
+          "trials": 3796,
+          "value": 0.033192834562697573
+        }
       },
       "scramble_rate": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 7485,
+          "trials": 43837,
+          "value": 0.17074617332390446
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 1659,
+          "trials": 25758,
+          "value": 0.06440717447006755
+        }
       },
       "scramble_yards": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "SAMPLES",
+          "n": 7485,
+          "value": 5.070273881095525
+        },
+        "gen": {
+          "kind": "SAMPLES",
+          "n": 1659,
+          "value": 3.715491259795057
+        }
       },
       "by_down_fixed_calls": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 803,
+          "trials": 4066,
+          "value": 0.19749139203148058
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 394,
+          "trials": 2110,
+          "value": 0.18672985781990523
+        }
       },
       "int_per_aimed_throw": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 564,
+          "trials": 26758,
+          "value": 0.021077808505867403
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 1295,
+          "trials": 19045,
+          "value": 0.06799684956681544
+        }
       },
       "completion_per_aimed_throw": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 10789,
+          "trials": 26758,
+          "value": 0.4032065176769564
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 7207,
+          "trials": 19045,
+          "value": 0.3784195326857443
+        }
       },
       "forced_throw_share": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 17216,
+          "trials": 26758,
+          "value": 0.6433963674415129
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 12947,
+          "trials": 19045,
+          "value": 0.6798109740089262
+        }
       },
       "completion_by_pocket_status": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 7949,
+          "trials": 23385,
+          "value": 0.3399187513363267
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 5282,
+          "trials": 15995,
+          "value": 0.3302281963113473
+        }
       },
       "qb_season_spread": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "MEAN",
+          "total": 0,
+          "n": 32,
+          "value": 0
+        },
+        "gen": {
+          "kind": "MEAN",
+          "total": 184.1729823985458,
+          "n": 32,
+          "value": 5.755405699954556
+        }
       },
       "defence_season_spread": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "MEAN",
+          "total": 11.230973525963039,
+          "n": 32,
+          "value": 0.35096792268634497
+        },
+        "gen": {
+          "kind": "MEAN",
+          "total": 43.584950573613156,
+          "n": 32,
+          "value": 1.3620297054254111
+        }
       },
       "unblocked_pressures_per_100": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "MEAN",
+          "total": 848000,
+          "n": 43837,
+          "value": 19.344389442708213
+        },
+        "gen": {
+          "kind": "MEAN",
+          "total": 466300,
+          "n": 25758,
+          "value": 18.10311359577607
+        }
       },
       "unblocked_share_of_hit_or_sack": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 699,
+          "trials": 8788,
+          "value": 0.07954028220300409
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 491,
+          "trials": 6192,
+          "value": 0.07929586563307493
+        }
       },
       "unblocked_men_per_100": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "MEAN",
+          "total": 848000,
+          "n": 43837,
+          "value": 19.344389442708213
+        },
+        "gen": {
+          "kind": "MEAN",
+          "total": 466300,
+          "n": 25758,
+          "value": 18.10311359577607
+        }
       },
       "pressured_share_2s_no_free_runner": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 2637,
+          "trials": 3304,
+          "value": 0.7981234866828087
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 1473,
+          "trials": 1895,
+          "value": 0.7773087071240106
+        }
       },
       "quick_share_no_free_runner": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 26748,
+          "trials": 26821,
+          "value": 0.9972782521158794
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 15579,
+          "trials": 15640,
+          "value": 0.9960997442455243
+        }
       },
       "clean_outs_rate": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 0,
+          "trials": 5766,
+          "value": 0
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 0,
+          "trials": 3796,
+          "value": 0
+        }
       },
       "out_of_pocket_rate": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "reason": "NO_OBSERVATIONS",
+          "detail": "no clean break-out"
+        },
+        "gen": {
+          "reason": "NO_OBSERVATIONS",
+          "detail": "no clean break-out"
+        }
       },
       "clean_drill_share": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 0,
+          "trials": 5393,
+          "value": 0
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 0,
+          "trials": 3670,
+          "value": 0
+        }
       },
       "situation_end_of_half": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 266,
+          "trials": 4945,
+          "value": 0.053791708796764405
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 77,
+          "trials": 2836,
+          "value": 0.027150916784203102
+        }
       },
       "situation_q1q3_last_two": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 254,
+          "trials": 4889,
+          "value": 0.0519533646962569
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 95,
+          "trials": 2897,
+          "value": 0.03279254401104591
+        }
       },
       "sack_share_of_contacts_in_out": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 7201,
+          "trials": 8788,
+          "value": 0.819412835685025
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 4308,
+          "trials": 6192,
+          "value": 0.6957364341085271
+        }
       },
       "coverage_sack_rows": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "kind": "RATE",
+          "successes": 0,
+          "trials": 7201,
+          "value": 0
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 0,
+          "trials": 4308,
+          "value": 0
+        }
       },
       "sacker_mix": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "dropbacks": 43837,
+          "sacks": 7201,
+          "noArrival": 2,
+          "multiSame": 1327,
+          "unsplitPct": {
+            "interior": 81.69,
+            "edge": 10.9,
+            "offball": 7.38,
+            "db": 0.03
+          },
+          "splitPct": {
+            "interior": 85.04,
+            "edge": 9.91,
+            "offball": 5.02,
+            "db": 0.03
+          },
+          "firstPct": {
+            "interior": 88.25,
+            "edge": 8.49,
+            "offball": 3.24,
+            "db": 0.03
+          },
+          "unsplitByPosition": {
+            "DT": 5876,
+            "OLB": 307,
+            "MLB": 531,
+            "DE": 478,
+            "NT": 5,
+            "CB": 2
+          },
+          "byOrigin": {
+            "WON_REP": 6568,
+            "PICKUP_LOST": 439,
+            "UNBLOCKED": 91,
+            "STUNT_LOOPER": 101
+          },
+          "band": {
+            "edge": {
+              "min": 45,
+              "max": 70
+            },
+            "interior": {
+              "min": 12,
+              "max": 32
+            }
+          }
+        },
+        "gen": {
+          "dropbacks": 25758,
+          "sacks": 4308,
+          "noArrival": 2,
+          "multiSame": 1110,
+          "unsplitPct": {
+            "interior": 82.51,
+            "offball": 7.34,
+            "edge": 10.1,
+            "db": 0.05
+          },
+          "splitPct": {
+            "interior": 86.9,
+            "offball": 4.43,
+            "edge": 8.64,
+            "db": 0.03
+          },
+          "firstPct": {
+            "interior": 91.22,
+            "offball": 2.39,
+            "edge": 6.36,
+            "db": 0.02
+          },
+          "unsplitByPosition": {
+            "DT": 3552,
+            "MLB": 316,
+            "DE": 181,
+            "OLB": 254,
+            "CB": 2,
+            "NT": 1
+          },
+          "byOrigin": {
+            "WON_REP": 3908,
+            "PICKUP_LOST": 292,
+            "STUNT_LOOPER": 51,
+            "UNBLOCKED": 55
+          },
+          "band": {
+            "edge": {
+              "min": 45,
+              "max": 70
+            },
+            "interior": {
+              "min": 12,
+              "max": 32
+            }
+          }
+        }
       },
       "multi_channel_share": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "pct": 0.2923384178992156,
+          "multi": 101,
+          "forced": 34549,
+          "dropbacks": 43837
+        },
+        "gen": {
+          "pct": 0.47690014903129657,
+          "multi": 96,
+          "forced": 20130,
+          "dropbacks": 25758
+        }
       },
       "int_per_aimed_by_throw_class": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "PROGRESSION": {
+            "aimed": 11599,
+            "value": 0.29312871799293044
+          },
+          "RANK_PUSHED": {
+            "aimed": 3382,
+            "value": 11.620342992312242
+          },
+          "CHECKDOWN": {
+            "aimed": 9261,
+            "value": 0.23755533959615593
+          },
+          "CLEAN_EXPIRY": {
+            "aimed": 0,
+            "value": 0
+          },
+          "DESPERATION": {
+            "aimed": 2161,
+            "value": 4.072188801480796
+          },
+          "ON_THE_RUN": {
+            "aimed": 355,
+            "value": 7.605633802816901
+          },
+          "THROWAWAY": {
+            "aimed": 0,
+            "value": 0
+          },
+          "SCRAMBLE": {
+            "aimed": 0,
+            "value": 0
+          },
+          "SACK": {
+            "aimed": 0,
+            "value": 0
+          }
+        },
+        "gen": {
+          "PROGRESSION": {
+            "aimed": 7636,
+            "value": 1.964379256155055
+          },
+          "RANK_PUSHED": {
+            "aimed": 2019,
+            "value": 18.87072808320951
+          },
+          "CHECKDOWN": {
+            "aimed": 6643,
+            "value": 4.711726629534849
+          },
+          "CLEAN_EXPIRY": {
+            "aimed": 0,
+            "value": 0
+          },
+          "DESPERATION": {
+            "aimed": 2326,
+            "value": 16.294067067927774
+          },
+          "ON_THE_RUN": {
+            "aimed": 421,
+            "value": 17.102137767220903
+          },
+          "THROWAWAY": {
+            "aimed": 0,
+            "value": 0
+          },
+          "SCRAMBLE": {
+            "aimed": 0,
+            "value": 0
+          },
+          "SACK": {
+            "aimed": 0,
+            "value": 0
+          }
+        }
       },
       "completion_per_aimed_by_throw_class": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "PROGRESSION": {
+            "aimed": 11599,
+            "value": 41.45184929735322
+          },
+          "RANK_PUSHED": {
+            "aimed": 3382,
+            "value": 14.10408042578356
+          },
+          "CHECKDOWN": {
+            "aimed": 9261,
+            "value": 35.98963394881762
+          },
+          "CLEAN_EXPIRY": {
+            "aimed": 0,
+            "value": 0
+          },
+          "DESPERATION": {
+            "aimed": 2161,
+            "value": 23.137436372049976
+          },
+          "ON_THE_RUN": {
+            "aimed": 355,
+            "value": 22.535211267605632
+          },
+          "THROWAWAY": {
+            "aimed": 0,
+            "value": 0
+          },
+          "SCRAMBLE": {
+            "aimed": 0,
+            "value": 0
+          },
+          "SACK": {
+            "aimed": 0,
+            "value": 0
+          }
+        },
+        "gen": {
+          "PROGRESSION": {
+            "aimed": 7636,
+            "value": 43.20324777370351
+          },
+          "RANK_PUSHED": {
+            "aimed": 2019,
+            "value": 15.106488360574541
+          },
+          "CHECKDOWN": {
+            "aimed": 6643,
+            "value": 33.298208640674396
+          },
+          "CLEAN_EXPIRY": {
+            "aimed": 0,
+            "value": 0
+          },
+          "DESPERATION": {
+            "aimed": 2326,
+            "value": 19.432502149613068
+          },
+          "ON_THE_RUN": {
+            "aimed": 421,
+            "value": 23.990498812351543
+          },
+          "THROWAWAY": {
+            "aimed": 0,
+            "value": 0
+          },
+          "SCRAMBLE": {
+            "aimed": 0,
+            "value": 0
+          },
+          "SACK": {
+            "aimed": 0,
+            "value": 0
+          }
+        }
       },
       "nobody_open_share": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "pct": 47.941236854711775,
+          "n": 21016,
+          "dropbacks": 43837,
+          "split": {
+            "CHECKDOWN": 21.125989460957637,
+            "DESPERATION": 4.9296256586901475,
+            "THROWAWAY": 5.45885895476424,
+            "SACK": 16.426762780299747
+          },
+          "byClassDropbacks": {
+            "PROGRESSION": 11599,
+            "RANK_PUSHED": 3382,
+            "CHECKDOWN": 9261,
+            "CLEAN_EXPIRY": 0,
+            "DESPERATION": 2161,
+            "ON_THE_RUN": 355,
+            "THROWAWAY": 2393,
+            "SCRAMBLE": 7485,
+            "SACK": 7201
+          }
+        },
+        "gen": {
+          "pct": 54.44133861324637,
+          "n": 14023,
+          "dropbacks": 25758,
+          "split": {
+            "CHECKDOWN": 25.79004581101017,
+            "DESPERATION": 9.030204208401273,
+            "THROWAWAY": 2.8961875922043636,
+            "SACK": 16.72490100163056
+          },
+          "byClassDropbacks": {
+            "PROGRESSION": 7636,
+            "RANK_PUSHED": 2019,
+            "CHECKDOWN": 6643,
+            "CLEAN_EXPIRY": 0,
+            "DESPERATION": 2326,
+            "ON_THE_RUN": 421,
+            "THROWAWAY": 746,
+            "SCRAMBLE": 1659,
+            "SACK": 4308
+          }
+        }
       },
       "clean_checkdown_share": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "pct": 7.750788058594474,
+          "n": 418,
+          "cleanAimed": 5393,
+          "cleanDropbacks": 5766
+        },
+        "gen": {
+          "pct": 3.1335149863760217,
+          "n": 115,
+          "cleanAimed": 3670,
+          "cleanDropbacks": 3796
+        }
       },
       "clean_later_read_share": {
-        "pending": "BASE",
-        "note": "the flat and gen base values on seed set 1 at e23bf69"
+        "flat": {
+          "pct": 9.1971073613944,
+          "n": 496,
+          "cleanAimed": 5393
+        },
+        "gen": {
+          "pct": 11.852861035422343,
+          "n": 435,
+          "cleanAimed": 3670
+        }
       }
     }
   },
@@ -832,10 +1504,7 @@
         "adrLine": 1005,
         "text": "Shape S at the provisional values: pressure 28 to 40, its upper edge raised by M1's window count (ADR-089:1007; deviation O1). INFERRED from pkC arm H's hazard form at a different point.",
         "lo": 28,
-        "hi": {
-          "pending": "M1",
-          "note": "40 + B1 in points (100 * B1 / dropbacks on the arm's league)"
-        }
+        "hi": 40.263321313735545
       },
       {
         "id": "s1.S.sack",
@@ -905,14 +1574,8 @@
         "kind": "graded",
         "adrLine": 1007,
         "text": "The window alone moves pressure by at most M1's count (B1, deviation O1).",
-        "lo": {
-          "pending": "M1",
-          "note": "-(B1 in points)"
-        },
-        "hi": {
-          "pending": "M1",
-          "note": "B1 in points (100 * B1 / dropbacks on the arm's league)"
-        }
+        "lo": -0.263321313735546,
+        "hi": 0.263321313735546
       },
       {
         "id": "s1.window.sack",
@@ -1018,14 +1681,8 @@
         "kind": "reported",
         "adrLine": 1017,
         "text": "Must act is per rusher with every threat registered until step 7, so its basis differs from A123's by the forcing the counter alone supplied; M2 sizes it before the arm runs (TM's 399 of 14,627 edge won-rep threats under S is a (b) check).",
-        "lo": {
-          "pending": "M2",
-          "note": "M2's counter-forced share under S, reported beside the arm"
-        },
-        "hi": {
-          "pending": "M2",
-          "note": "the same figure"
-        }
+        "lo": 0,
+        "hi": 0.02
       },
       {
         "id": "s2.falsifier.counterAlone",
@@ -1630,10 +2287,7 @@
         "adrLine": 1063,
         "text": "Pressure 25 to 42, its upper edge raised by M1's window count (deviation O1).",
         "lo": 25,
-        "hi": {
-          "pending": "M1",
-          "note": "42 + B1 in points (100 * B1 / dropbacks on the arm's league)"
-        }
+        "hi": 42.263321313735545
       },
       {
         "id": "s5b.quick",
@@ -2244,10 +2898,7 @@
         "adrLine": 1100,
         "text": "The sim's last two minutes of the first and third quarters come within M9's filed tolerance of the rest of the game (real: pressured throwaways 8.94 against 8.51 in 100, time to throw 2.616 against 2.622 s); falsified if they stay outside it.",
         "direction": "UNCHANGED",
-        "tolerance": {
-          "pending": "M9",
-          "note": "M9's tolerance: 2 x the game-clustered bootstrap SE, the larger of the two seed sets (deviation O10)"
-        }
+        "tolerance": 0.5813000968142927
       },
       {
         "id": "s8a.off",
@@ -2743,10 +3394,7 @@
         "adrLine": 1153,
         "text": "Within M9's filed tolerance of the rest (step 8a); real: indistinguishable from the rest.",
         "direction": "UNCHANGED",
-        "tolerance": {
-          "pending": "M9",
-          "note": "M9's tolerance, as s8a.q1q3"
-        }
+        "tolerance": 0.5813000968142927
       },
       {
         "id": "acc.blitz.p2s",
@@ -3513,33 +4161,26 @@
   },
   "m1Bound": {
     "definition": "B1 = E + 3 * SD, with E = sum P and SD = sqrt(sum P(1 - P)) over dropbacks (deviation O1); the hard bound H = the number of such dropbacks; B1 in points = 100 * B1 / dropbacks",
-    "E": {
-      "pending": "M1",
-      "note": "the expected count of dropbacks the window adds"
-    },
-    "SD": {
-      "pending": "M1",
-      "note": "its standard deviation"
-    },
-    "B1": {
-      "pending": "M1",
-      "note": "E + 3 * SD"
-    },
-    "H": {
-      "pending": "M1",
-      "note": "dropbacks with a 1-14 POWER rep released at 1.0 s or later"
-    },
-    "dropbacks": {
-      "pending": "M1",
-      "note": "the corpus's dropbacks, the denominator of B1 in points"
-    },
+    "E": 47.33913337957017,
+    "SD": 6.8290568708105885,
+    "B1": 67.82630399200194,
+    "H": 3988,
+    "dropbacks": 25758,
     "margins1to4": {
-      "pending": "M1",
-      "note": "E, SD, B1 and H for margins 1 to 4, counted apart"
+      "E": 13.66124878457331,
+      "SD": 3.671127001615834,
+      "B1": 24.674629789420813,
+      "H": 1260,
+      "reps": 1281,
+      "B1Points": 0.09579404375114844
     },
     "margins5to14": {
-      "pending": "M1",
-      "note": "E, SD, B1 and H for margins 5 to 14"
+      "E": 33.69427410937278,
+      "SD": 5.762554562453134,
+      "B1": 50.98193779673218,
+      "H": 2848,
+      "reps": 2978,
+      "B1Points": 0.19792661618422308
     },
     "uses": [
       {
@@ -3970,40 +4611,3684 @@
   },
   "M": {
     "M1": {
-      "pending": "M1",
-      "note": "E, SD, B1 = E + 3 SD and H, margins 1-4 and 5-14 apart, per league (fills m1Bound and the clauses' B1 edges)"
+      "definition": "B1 = E + 3 SD over POWER reps of latent margin 1-14 on dropbacks released at 1.0 s or later (deviation O1)",
+      "filedFrom": "gen/set1",
+      "flat": {
+        "set1": {
+          "dropbacks": 43837,
+          "released": 29151,
+          "all": {
+            "E": 68.83704594675031,
+            "SD": 8.235370043381792,
+            "B1": 93.54315607689568,
+            "H": 5862,
+            "reps": 6293,
+            "B1Points": 0.21338858972305513
+          },
+          "margins1to4": {
+            "E": 20.819603011535577,
+            "SD": 4.53241397766348,
+            "B1": 34.41684494452602,
+            "H": 1949,
+            "reps": 1998,
+            "B1Points": 0.0785109495278555
+          },
+          "margins5to14": {
+            "E": 48.04240109357428,
+            "SD": 6.881270036512347,
+            "B1": 68.68621120311131,
+            "H": 4090,
+            "reps": 4295,
+            "B1Points": 0.15668547392182702
+          }
+        },
+        "set2": {
+          "dropbacks": 43741,
+          "released": 29224,
+          "all": {
+            "E": 68.8292724628363,
+            "SD": 8.23579583818045,
+            "B1": 93.53665997737765,
+            "H": 5924,
+            "reps": 6345,
+            "B1Points": 0.21384207031704272
+          },
+          "margins1to4": {
+            "E": 21.32602487726596,
+            "SD": 4.587781217830356,
+            "B1": 35.08936853075703,
+            "H": 2009,
+            "reps": 2054,
+            "B1Points": 0.08022077348656187
+          },
+          "margins5to14": {
+            "E": 47.52433794665193,
+            "SD": 6.844170465655361,
+            "B1": 68.05684934361801,
+            "H": 4084,
+            "reps": 4291,
+            "B1Points": 0.1555905199780938
+          }
+        }
+      },
+      "gen": {
+        "set1": {
+          "dropbacks": 25758,
+          "released": 19791,
+          "all": {
+            "E": 47.33913337957017,
+            "SD": 6.8290568708105885,
+            "B1": 67.82630399200194,
+            "H": 3988,
+            "reps": 4259,
+            "B1Points": 0.263321313735546
+          },
+          "margins1to4": {
+            "E": 13.66124878457331,
+            "SD": 3.671127001615834,
+            "B1": 24.674629789420813,
+            "H": 1260,
+            "reps": 1281,
+            "B1Points": 0.09579404375114844
+          },
+          "margins5to14": {
+            "E": 33.69427410937278,
+            "SD": 5.762554562453134,
+            "B1": 50.98193779673218,
+            "H": 2848,
+            "reps": 2978,
+            "B1Points": 0.19792661618422308
+          }
+        },
+        "set2": {
+          "dropbacks": 25805,
+          "released": 20327,
+          "all": {
+            "E": 47.244471971862595,
+            "SD": 6.822978908998873,
+            "B1": 67.71340869885921,
+            "H": 4007,
+            "reps": 4266,
+            "B1Points": 0.2624042189453951
+          },
+          "margins1to4": {
+            "E": 13.64725366939711,
+            "SD": 3.670362958460111,
+            "B1": 24.658342544777444,
+            "H": 1289,
+            "reps": 1312,
+            "B1Points": 0.09555645241146074
+          },
+          "margins5to14": {
+            "E": 33.61145466581726,
+            "SD": 5.755290311402892,
+            "B1": 50.87732560002594,
+            "H": 2819,
+            "reps": 2954,
+            "B1Points": 0.19716072699099377
+          }
+        }
+      }
     },
     "M2": {
-      "pending": "M2",
-      "note": "the counter-forced share of forced decisions by alignment and position: today's, under S and under L at R = 5 and R = 8 (engine-free, first-order), with the censored share"
+      "farSeconds": 0.5,
+      "firstOrder": "counted at or before today's release; censored share printed (K1)",
+      "flat": {
+        "today": {
+          "dropbacks": 43837,
+          "forced": 34549,
+          "counterFar": 128,
+          "counterFarSharePct": 0.37,
+          "bandFarOnly": 0,
+          "censored": 9288,
+          "censoredSharePct": 21.19,
+          "byAlignment": {
+            "EDGE": 121,
+            "INTERIOR": 7
+          },
+          "byPosition": {
+            "DE": 84,
+            "CB": 37,
+            "DT": 7
+          },
+          "identity": {
+            "statusChecks": 106145,
+            "statusMismatches": 0,
+            "threatChecks": 82116,
+            "threatMismatches": 0
+          },
+          "jitter": {
+            "checks": 425367,
+            "mismatches": 0
+          }
+        },
+        "S-theta11-window": {
+          "dropbacks": 43837,
+          "forced": 9599,
+          "counterFar": 2,
+          "counterFarSharePct": 0.02,
+          "bandFarOnly": 0,
+          "censored": 34238,
+          "censoredSharePct": 78.1,
+          "byAlignment": {
+            "EDGE": 2
+          },
+          "byPosition": {
+            "CB": 2
+          },
+          "identity": {
+            "statusChecks": 0,
+            "statusMismatches": 0,
+            "threatChecks": 0,
+            "threatMismatches": 0
+          },
+          "jitter": {
+            "checks": 425367,
+            "mismatches": 0
+          }
+        },
+        "L-R5": {
+          "dropbacks": 43837,
+          "forced": 9970,
+          "counterFar": 204,
+          "counterFarSharePct": 2.05,
+          "bandFarOnly": 1,
+          "censored": 33867,
+          "censoredSharePct": 77.26,
+          "byAlignment": {
+            "EDGE": 194,
+            "INTERIOR": 10
+          },
+          "byPosition": {
+            "DE": 183,
+            "DT": 9,
+            "CB": 11,
+            "OLB": 1
+          },
+          "identity": {
+            "statusChecks": 0,
+            "statusMismatches": 0,
+            "threatChecks": 0,
+            "threatMismatches": 0
+          },
+          "jitter": {
+            "checks": 425367,
+            "mismatches": 0
+          }
+        },
+        "L-R8": {
+          "dropbacks": 43837,
+          "forced": 9063,
+          "counterFar": 265,
+          "counterFarSharePct": 2.92,
+          "bandFarOnly": 0,
+          "censored": 34774,
+          "censoredSharePct": 79.33,
+          "byAlignment": {
+            "EDGE": 259,
+            "INTERIOR": 6
+          },
+          "byPosition": {
+            "DE": 250,
+            "CB": 9,
+            "DT": 5,
+            "OLB": 1
+          },
+          "identity": {
+            "statusChecks": 0,
+            "statusMismatches": 0,
+            "threatChecks": 0,
+            "threatMismatches": 0
+          },
+          "jitter": {
+            "checks": 425367,
+            "mismatches": 0
+          }
+        }
+      },
+      "gen": {
+        "today": {
+          "dropbacks": 25758,
+          "forced": 20130,
+          "counterFar": 96,
+          "counterFarSharePct": 0.48,
+          "bandFarOnly": 0,
+          "censored": 5628,
+          "censoredSharePct": 21.85,
+          "byAlignment": {
+            "EDGE": 92,
+            "INTERIOR": 4
+          },
+          "byPosition": {
+            "DE": 68,
+            "CB": 23,
+            "DT": 4,
+            "OLB": 1
+          },
+          "identity": {
+            "statusChecks": 63590,
+            "statusMismatches": 0,
+            "threatChecks": 49974,
+            "threatMismatches": 0
+          },
+          "jitter": {
+            "checks": 255092,
+            "mismatches": 0
+          }
+        },
+        "S-theta11-window": {
+          "dropbacks": 25758,
+          "forced": 5596,
+          "counterFar": 0,
+          "counterFarSharePct": 0,
+          "bandFarOnly": 0,
+          "censored": 20162,
+          "censoredSharePct": 78.27,
+          "byAlignment": {},
+          "byPosition": {},
+          "identity": {
+            "statusChecks": 0,
+            "statusMismatches": 0,
+            "threatChecks": 0,
+            "threatMismatches": 0
+          },
+          "jitter": {
+            "checks": 255092,
+            "mismatches": 0
+          }
+        },
+        "L-R5": {
+          "dropbacks": 25758,
+          "forced": 6015,
+          "counterFar": 142,
+          "counterFarSharePct": 2.36,
+          "bandFarOnly": 0,
+          "censored": 19743,
+          "censoredSharePct": 76.65,
+          "byAlignment": {
+            "EDGE": 131,
+            "INTERIOR": 11
+          },
+          "byPosition": {
+            "DE": 128,
+            "DT": 11,
+            "CB": 3
+          },
+          "identity": {
+            "statusChecks": 0,
+            "statusMismatches": 0,
+            "threatChecks": 0,
+            "threatMismatches": 0
+          },
+          "jitter": {
+            "checks": 255092,
+            "mismatches": 0
+          }
+        },
+        "L-R8": {
+          "dropbacks": 25758,
+          "forced": 5212,
+          "counterFar": 156,
+          "counterFarSharePct": 2.99,
+          "bandFarOnly": 0,
+          "censored": 20546,
+          "censoredSharePct": 79.77,
+          "byAlignment": {
+            "EDGE": 147,
+            "INTERIOR": 9
+          },
+          "byPosition": {
+            "DE": 142,
+            "CB": 5,
+            "DT": 9
+          },
+          "identity": {
+            "statusChecks": 0,
+            "statusMismatches": 0,
+            "threatChecks": 0,
+            "threatMismatches": 0
+          },
+          "jitter": {
+            "checks": 255092,
+            "mismatches": 0
+          }
+        }
+      }
     },
     "M3": {
-      "pending": "M3",
-      "note": "the credited sacker by position and origin, same-tick arrivals split 0.5, against D34's band (reported), sim and real"
+      "band": {
+        "edge": {
+          "min": 45,
+          "max": 70
+        },
+        "interior": {
+          "min": 12,
+          "max": 32
+        }
+      },
+      "verdict": "reported against D34's band, never pass or fail",
+      "sim": {
+        "flat": {
+          "dropbacks": 43837,
+          "sacks": 7201,
+          "noArrival": 2,
+          "multiSame": 1327,
+          "unsplitPct": {
+            "interior": 81.69,
+            "edge": 10.9,
+            "offball": 7.38,
+            "db": 0.03
+          },
+          "splitPct": {
+            "interior": 85.04,
+            "edge": 9.91,
+            "offball": 5.02,
+            "db": 0.03
+          },
+          "firstPct": {
+            "interior": 88.25,
+            "edge": 8.49,
+            "offball": 3.24,
+            "db": 0.03
+          },
+          "unsplitByPosition": {
+            "DT": 5876,
+            "OLB": 307,
+            "MLB": 531,
+            "DE": 478,
+            "NT": 5,
+            "CB": 2
+          },
+          "byOrigin": {
+            "WON_REP": 6568,
+            "PICKUP_LOST": 439,
+            "UNBLOCKED": 91,
+            "STUNT_LOOPER": 101
+          },
+          "band": {
+            "edge": {
+              "min": 45,
+              "max": 70
+            },
+            "interior": {
+              "min": 12,
+              "max": 32
+            }
+          }
+        },
+        "gen": {
+          "dropbacks": 25758,
+          "sacks": 4308,
+          "noArrival": 2,
+          "multiSame": 1110,
+          "unsplitPct": {
+            "interior": 82.51,
+            "offball": 7.34,
+            "edge": 10.1,
+            "db": 0.05
+          },
+          "splitPct": {
+            "interior": 86.9,
+            "offball": 4.43,
+            "edge": 8.64,
+            "db": 0.03
+          },
+          "firstPct": {
+            "interior": 91.22,
+            "offball": 2.39,
+            "edge": 6.36,
+            "db": 0.02
+          },
+          "unsplitByPosition": {
+            "DT": 3552,
+            "MLB": 316,
+            "DE": 181,
+            "OLB": 254,
+            "CB": 2,
+            "NT": 1
+          },
+          "byOrigin": {
+            "WON_REP": 3908,
+            "PICKUP_LOST": 292,
+            "STUNT_LOOPER": 51,
+            "UNBLOCKED": 55
+          },
+          "band": {
+            "edge": {
+              "min": 45,
+              "max": 70
+            },
+            "interior": {
+              "min": 12,
+              "max": 32
+            }
+          }
+        }
+      },
+      "real": {
+        "seasons": [
+          2022,
+          2023,
+          2024
+        ],
+        "source": "play-by-play regular-season dropbacks: sack_player_id 1.0, else half_sack_1/2 0.5 each, joined to the season's most common depth-chart position",
+        "sacks": 4020,
+        "credits": {
+          "offball": 446,
+          "edge": 2384.5,
+          "interior": 849.5,
+          "db": 302.5
+        },
+        "unknownCredits": 10.5,
+        "sharesPct": {
+          "offball": 11.2,
+          "edge": 59.87,
+          "interior": 21.33,
+          "db": 7.6
+        }
+      }
     },
     "M4": {
-      "pending": "M4",
-      "note": "first registrations by approach, and the multi-cause share by TM's cause rule (the naive rule beside it)"
+      "flat": {
+        "dropbacks": 43837,
+        "firstNonClean": 38071,
+        "multiCause": 11160,
+        "multiCauseSharePct": 29.31,
+        "naiveMulti": 13891,
+        "naiveMultiSharePct": 36.49,
+        "noCause": 0,
+        "byKindPct": {
+          "WON_REP": 61.56,
+          "PICKUP_LOST": 12.32,
+          "STUNT_LOOPER": 12.82,
+          "UNBLOCKED": 3.89,
+          "BAND": 9.39,
+          "COUNTER": 0.02
+        },
+        "byApproachPct": {
+          "THROUGH": 50.09,
+          "ARC": 27.06,
+          "FREE": 12.81,
+          "PUSH": 4.96,
+          "BLOCKED": 5.09
+        },
+        "byApproachKindPct": {
+          "THROUGH/WON_REP": 38.38,
+          "THROUGH/PICKUP_LOST": 2.29,
+          "ARC/WON_REP": 19.39,
+          "THROUGH/STUNT_LOOPER": 7.98,
+          "FREE/UNBLOCKED": 3.89,
+          "FREE/PICKUP_LOST": 8.91,
+          "ARC/STUNT_LOOPER": 4.84,
+          "PUSH/WON_REP": 3.8,
+          "ARC/BAND": 1.71,
+          "BLOCKED/BAND": 5.08,
+          "PUSH/BAND": 1.16,
+          "THROUGH/BAND": 1.44,
+          "ARC/PICKUP_LOST": 1.11,
+          "BLOCKED/COUNTER": 0.01,
+          "THROUGH/COUNTER": 0,
+          "ARC/COUNTER": 0.01,
+          "PUSH/COUNTER": 0
+        },
+        "identity": {
+          "statusChecks": 106145,
+          "statusMismatches": 0
+        },
+        "reported": {
+          "multiCause": 6395,
+          "firstNonClean": 21962,
+          "sharePct": 29.1,
+          "naiveSharePct": 36.3
+        }
+      },
+      "gen": {
+        "dropbacks": 25758,
+        "firstNonClean": 21962,
+        "multiCause": 6395,
+        "multiCauseSharePct": 29.12,
+        "naiveMulti": 7967,
+        "naiveMultiSharePct": 36.28,
+        "noCause": 0,
+        "byKindPct": {
+          "WON_REP": 61.88,
+          "UNBLOCKED": 3.71,
+          "STUNT_LOOPER": 12.68,
+          "PICKUP_LOST": 11.97,
+          "BAND": 9.72,
+          "COUNTER": 0.05
+        },
+        "byApproachPct": {
+          "THROUGH": 52.32,
+          "FREE": 12.46,
+          "ARC": 25.08,
+          "BLOCKED": 5.15,
+          "PUSH": 4.99
+        },
+        "byApproachKindPct": {
+          "THROUGH/WON_REP": 40.8,
+          "FREE/UNBLOCKED": 3.71,
+          "ARC/WON_REP": 17.33,
+          "THROUGH/STUNT_LOOPER": 7.64,
+          "THROUGH/PICKUP_LOST": 2.2,
+          "ARC/STUNT_LOOPER": 5.04,
+          "BLOCKED/BAND": 5.12,
+          "PUSH/BAND": 1.24,
+          "FREE/PICKUP_LOST": 8.75,
+          "ARC/PICKUP_LOST": 1.02,
+          "THROUGH/BAND": 1.68,
+          "PUSH/WON_REP": 3.74,
+          "ARC/BAND": 1.68,
+          "BLOCKED/COUNTER": 0.03,
+          "ARC/COUNTER": 0.01,
+          "THROUGH/COUNTER": 0,
+          "PUSH/COUNTER": 0
+        },
+        "identity": {
+          "statusChecks": 63590,
+          "statusMismatches": 0
+        },
+        "reported": {
+          "multiCause": 6395,
+          "firstNonClean": 21962,
+          "sharePct": 29.1,
+          "naiveSharePct": 36.3
+        }
+      }
     },
     "M5": {
-      "pending": "M5",
-      "note": "mirrored against unmirrored runs, both seed sets and both leagues: the escape CAUGHT rate, the no-side share and how often the looper rule moves a side"
+      "flat": {
+        "league": "flat",
+        "rows": {
+          "escape_caught_rate": {
+            "tolerance": 0.0068776109596105145,
+            "sets": [
+              {
+                "set": 1,
+                "unmirrored": 0.20283960092095166,
+                "mirrored": 0.20389328369784396,
+                "seUnmirrored": 0.0034388054798052572,
+                "seMirrored": 0.003420840363954209,
+                "seDifference": 0.0048505187272700045,
+                "difference": 0.0010536827768923007,
+                "withinNoise": true
+              },
+              {
+                "set": 2,
+                "unmirrored": 0.21167713421725984,
+                "mirrored": 0.21061167747914736,
+                "seUnmirrored": 0.003354297345497006,
+                "seMirrored": 0.0036618977144433,
+                "seDifference": 0.004965964715244494,
+                "difference": -0.0010654567381124802,
+                "withinNoise": true
+              }
+            ],
+            "withinNoiseOnEverySet": true
+          },
+          "escape_rate": {
+            "tolerance": 0.004355364773027303,
+            "sets": [
+              {
+                "set": 1,
+                "unmirrored": 0.29723749344161327,
+                "mirrored": 0.29422905780069825,
+                "seUnmirrored": 0.002128410299034729,
+                "seMirrored": 0.0020858092457266067,
+                "seDifference": 0.0029800554710601784,
+                "difference": -0.0030084356409150192,
+                "withinNoise": true
+              },
+              {
+                "set": 2,
+                "unmirrored": 0.2948492261265174,
+                "mirrored": 0.2952322320268144,
+                "seUnmirrored": 0.0021776823865136516,
+                "seMirrored": 0.0022346613581413458,
+                "seDifference": 0.0031202583165664214,
+                "difference": 0.00038300590029699544,
+                "withinNoise": true
+              }
+            ],
+            "withinNoiseOnEverySet": true
+          },
+          "no_side_entry_share": {
+            "tolerance": 0,
+            "sets": [
+              {
+                "set": 1,
+                "unmirrored": 0,
+                "mirrored": 0,
+                "seUnmirrored": 0,
+                "seMirrored": 0,
+                "seDifference": 0,
+                "difference": 0,
+                "withinNoise": true
+              },
+              {
+                "set": 2,
+                "unmirrored": 0,
+                "mirrored": 0,
+                "seUnmirrored": 0,
+                "seMirrored": 0,
+                "seDifference": 0,
+                "difference": 0,
+                "withinNoise": true
+              }
+            ],
+            "withinNoiseOnEverySet": true
+          },
+          "no_side_card_share": {
+            "tolerance": 0,
+            "sets": [
+              {
+                "set": 1,
+                "unmirrored": 0,
+                "mirrored": 0,
+                "seUnmirrored": 0,
+                "seMirrored": 0,
+                "seDifference": 0,
+                "difference": 0,
+                "withinNoise": true
+              },
+              {
+                "set": 2,
+                "unmirrored": 0,
+                "mirrored": 0,
+                "seUnmirrored": 0,
+                "seMirrored": 0,
+                "seDifference": 0,
+                "difference": 0,
+                "withinNoise": true
+              }
+            ],
+            "withinNoiseOnEverySet": true
+          },
+          "all_no_side_card_share": {
+            "tolerance": 0,
+            "sets": [
+              {
+                "set": 1,
+                "unmirrored": 0,
+                "mirrored": 0,
+                "seUnmirrored": 0,
+                "seMirrored": 0,
+                "seDifference": 0,
+                "difference": 0,
+                "withinNoise": true
+              },
+              {
+                "set": 2,
+                "unmirrored": 0,
+                "mirrored": 0,
+                "seUnmirrored": 0,
+                "seMirrored": 0,
+                "seDifference": 0,
+                "difference": 0,
+                "withinNoise": true
+              }
+            ],
+            "withinNoiseOnEverySet": true
+          },
+          "looper_moved_share": {
+            "tolerance": 0.006453606330193832,
+            "sets": [
+              {
+                "set": 1,
+                "unmirrored": 0.2187755709291081,
+                "mirrored": 0.2207260824282101,
+                "seUnmirrored": 0.003226803165096916,
+                "seMirrored": 0.0030754697340530735,
+                "seDifference": 0.004457664495153932,
+                "difference": 0.0019505114991019978,
+                "withinNoise": true
+              },
+              {
+                "set": 2,
+                "unmirrored": 0.2208140748471746,
+                "mirrored": 0.22209771402958314,
+                "seUnmirrored": 0.003198368822682048,
+                "seMirrored": 0.003272376937534563,
+                "seDifference": 0.004575807463957879,
+                "difference": 0.0012836391824085358,
+                "withinNoise": true
+              }
+            ],
+            "withinNoiseOnEverySet": true
+          }
+        },
+        "totals": {
+          "set1/unmirrored": {
+            "games": 496,
+            "dropbacks": 43837,
+            "escapes": 13030,
+            "caught": 2643,
+            "bands": {
+              "CLEAN_ESCAPE": 5868,
+              "ESCAPED": 1972,
+              "CAUGHT_FROM_BEHIND": 2643,
+              "CONTAINED": 2547
+            },
+            "entries": 189621,
+            "entriesNoSide": 0,
+            "cardsAnyNoSide": 0,
+            "cardsAllNoSide": 0,
+            "stunts": 13443,
+            "stuntsBothSides": 13443,
+            "stuntsMoved": 2941
+          },
+          "set1/mirrored": {
+            "games": 496,
+            "dropbacks": 43823,
+            "escapes": 12894,
+            "caught": 2629,
+            "bands": {
+              "CLEAN_ESCAPE": 5798,
+              "ESCAPED": 1949,
+              "CONTAINED": 2518,
+              "CAUGHT_FROM_BEHIND": 2629
+            },
+            "entries": 189353,
+            "entriesNoSide": 0,
+            "cardsAnyNoSide": 0,
+            "cardsAllNoSide": 0,
+            "stunts": 13442,
+            "stuntsBothSides": 13442,
+            "stuntsMoved": 2967
+          },
+          "set2/unmirrored": {
+            "games": 496,
+            "dropbacks": 43741,
+            "escapes": 12897,
+            "caught": 2730,
+            "bands": {
+              "CLEAN_ESCAPE": 5710,
+              "CONTAINED": 2578,
+              "ESCAPED": 1879,
+              "CAUGHT_FROM_BEHIND": 2730
+            },
+            "entries": 189153,
+            "entriesNoSide": 0,
+            "cardsAnyNoSide": 0,
+            "cardsAllNoSide": 0,
+            "stunts": 13414,
+            "stuntsBothSides": 13414,
+            "stuntsMoved": 2962
+          },
+          "set2/mirrored": {
+            "games": 496,
+            "dropbacks": 43857,
+            "escapes": 12948,
+            "caught": 2727,
+            "bands": {
+              "CLEAN_ESCAPE": 5638,
+              "CONTAINED": 2684,
+              "ESCAPED": 1899,
+              "CAUGHT_FROM_BEHIND": 2727
+            },
+            "entries": 189630,
+            "entriesNoSide": 0,
+            "cardsAnyNoSide": 0,
+            "cardsAllNoSide": 0,
+            "stunts": 13386,
+            "stuntsBothSides": 13386,
+            "stuntsMoved": 2973
+          }
+        },
+        "escapeDirection": "not on today's stream (QB_DECISION.direction is P11, step 7)"
+      },
+      "gen": {
+        "league": "gen",
+        "rows": {
+          "escape_caught_rate": {
+            "tolerance": 0.015208189101494405,
+            "sets": [
+              {
+                "set": 1,
+                "unmirrored": 0.20005782017924256,
+                "mirrored": 0.1988338192419825,
+                "seUnmirrored": 0.007141505900724071,
+                "seMirrored": 0.00685700589400294,
+                "seDifference": 0.009900486672909962,
+                "difference": -0.0012240009372600502,
+                "withinNoise": true
+              },
+              {
+                "set": 2,
+                "unmirrored": 0.21272518206209276,
+                "mirrored": 0.21012849584278157,
+                "seUnmirrored": 0.007604094550747203,
+                "seMirrored": 0.00842496983268368,
+                "seDifference": 0.011349113208455249,
+                "difference": -0.002596686219311195,
+                "withinNoise": true
+              }
+            ],
+            "withinNoiseOnEverySet": true
+          },
+          "escape_rate": {
+            "tolerance": 0.008710254336566341,
+            "sets": [
+              {
+                "set": 1,
+                "unmirrored": 0.1342883764267412,
+                "mirrored": 0.1320754716981132,
+                "seUnmirrored": 0.004355127168283171,
+                "seMirrored": 0.004251101267470139,
+                "seDifference": 0.006085967025724377,
+                "difference": -0.002212904728628007,
+                "withinNoise": true
+              },
+              {
+                "set": 2,
+                "unmirrored": 0.10110443712458826,
+                "mirrored": 0.10182405910875086,
+                "seUnmirrored": 0.002981114171188597,
+                "seMirrored": 0.0029740402045819445,
+                "seDifference": 0.004210933013018765,
+                "difference": 0.0007196219841626023,
+                "withinNoise": true
+              }
+            ],
+            "withinNoiseOnEverySet": true
+          },
+          "no_side_entry_share": {
+            "tolerance": 0,
+            "sets": [
+              {
+                "set": 1,
+                "unmirrored": 0,
+                "mirrored": 0,
+                "seUnmirrored": 0,
+                "seMirrored": 0,
+                "seDifference": 0,
+                "difference": 0,
+                "withinNoise": true
+              },
+              {
+                "set": 2,
+                "unmirrored": 0,
+                "mirrored": 0,
+                "seUnmirrored": 0,
+                "seMirrored": 0,
+                "seDifference": 0,
+                "difference": 0,
+                "withinNoise": true
+              }
+            ],
+            "withinNoiseOnEverySet": true
+          },
+          "no_side_card_share": {
+            "tolerance": 0,
+            "sets": [
+              {
+                "set": 1,
+                "unmirrored": 0,
+                "mirrored": 0,
+                "seUnmirrored": 0,
+                "seMirrored": 0,
+                "seDifference": 0,
+                "difference": 0,
+                "withinNoise": true
+              },
+              {
+                "set": 2,
+                "unmirrored": 0,
+                "mirrored": 0,
+                "seUnmirrored": 0,
+                "seMirrored": 0,
+                "seDifference": 0,
+                "difference": 0,
+                "withinNoise": true
+              }
+            ],
+            "withinNoiseOnEverySet": true
+          },
+          "all_no_side_card_share": {
+            "tolerance": 0,
+            "sets": [
+              {
+                "set": 1,
+                "unmirrored": 0,
+                "mirrored": 0,
+                "seUnmirrored": 0,
+                "seMirrored": 0,
+                "seDifference": 0,
+                "difference": 0,
+                "withinNoise": true
+              },
+              {
+                "set": 2,
+                "unmirrored": 0,
+                "mirrored": 0,
+                "seUnmirrored": 0,
+                "seMirrored": 0,
+                "seDifference": 0,
+                "difference": 0,
+                "withinNoise": true
+              }
+            ],
+            "withinNoiseOnEverySet": true
+          },
+          "looper_moved_share": {
+            "tolerance": 0.00914868614699562,
+            "sets": [
+              {
+                "set": 1,
+                "unmirrored": 0.22005012531328322,
+                "mirrored": 0.21850738792887553,
+                "seUnmirrored": 0.004056063705769609,
+                "seMirrored": 0.004261627818627607,
+                "seDifference": 0.005883291973866518,
+                "difference": -0.0015427373844076886,
+                "withinNoise": true
+              },
+              {
+                "set": 2,
+                "unmirrored": 0.2163551987959363,
+                "mirrored": 0.212326193160466,
+                "seUnmirrored": 0.00457434307349781,
+                "seMirrored": 0.004101861182985161,
+                "seDifference": 0.006144093075347883,
+                "difference": -0.00402900563547029,
+                "withinNoise": true
+              }
+            ],
+            "withinNoiseOnEverySet": true
+          }
+        },
+        "totals": {
+          "set1/unmirrored": {
+            "games": 272,
+            "dropbacks": 25758,
+            "escapes": 3459,
+            "caught": 692,
+            "bands": {
+              "ESCAPED": 513,
+              "CONTAINED": 687,
+              "CLEAN_ESCAPE": 1567,
+              "CAUGHT_FROM_BEHIND": 692
+            },
+            "entries": 111090,
+            "entriesNoSide": 0,
+            "cardsAnyNoSide": 0,
+            "cardsAllNoSide": 0,
+            "stunts": 7980,
+            "stuntsBothSides": 7980,
+            "stuntsMoved": 1756
+          },
+          "set1/mirrored": {
+            "games": 272,
+            "dropbacks": 25970,
+            "escapes": 3430,
+            "caught": 682,
+            "bands": {
+              "CAUGHT_FROM_BEHIND": 682,
+              "CONTAINED": 710,
+              "CLEAN_ESCAPE": 1522,
+              "ESCAPED": 516
+            },
+            "entries": 112067,
+            "entriesNoSide": 0,
+            "cardsAnyNoSide": 0,
+            "cardsAllNoSide": 0,
+            "stunts": 7986,
+            "stuntsBothSides": 7986,
+            "stuntsMoved": 1745
+          },
+          "set2/unmirrored": {
+            "games": 272,
+            "dropbacks": 25805,
+            "escapes": 2609,
+            "caught": 555,
+            "bands": {
+              "CAUGHT_FROM_BEHIND": 555,
+              "CLEAN_ESCAPE": 1157,
+              "CONTAINED": 499,
+              "ESCAPED": 398
+            },
+            "entries": 111695,
+            "entriesNoSide": 0,
+            "cardsAnyNoSide": 0,
+            "cardsAllNoSide": 0,
+            "stunts": 7973,
+            "stuntsBothSides": 7973,
+            "stuntsMoved": 1725
+          },
+          "set2/mirrored": {
+            "games": 272,
+            "dropbacks": 25986,
+            "escapes": 2646,
+            "caught": 556,
+            "bands": {
+              "CAUGHT_FROM_BEHIND": 556,
+              "CLEAN_ESCAPE": 1165,
+              "CONTAINED": 529,
+              "ESCAPED": 396
+            },
+            "entries": 112454,
+            "entriesNoSide": 0,
+            "cardsAnyNoSide": 0,
+            "cardsAllNoSide": 0,
+            "stunts": 7983,
+            "stuntsBothSides": 7983,
+            "stuntsMoved": 1695
+          }
+        },
+        "escapeDirection": "not on today's stream (QB_DECISION.direction is P11, step 7)"
+      }
     },
     "M6": {
-      "pending": "M6",
-      "note": "the upper bound (no-target arrivals with a broken receiver), then FIGHT against THROWAWAY by approach and down at today's appeals"
+      "flat": {
+        "dropbacks": 43837,
+        "sacks": 7201,
+        "noTargetArrivals": 4558,
+        "caughtEscapes": 2643,
+        "sacksWithoutArrival": 0,
+        "multiArrival": 1327,
+        "upperBound": 3717,
+        "upperBoundPer100Dropbacks": 8.48,
+        "upperBoundPctOfSacks": 51.62,
+        "upperBoundByApproach": {
+          "FREE": 260,
+          "THROUGH": 3014,
+          "PUSH": 269,
+          "ARC": 174
+        },
+        "upperBoundByDown": {
+          "1": 1288,
+          "2": 1240,
+          "3": 1113,
+          "4": 76
+        },
+        "freeRunClock": 299,
+        "branch": {
+          "contacts": 3717,
+          "offered": 3418,
+          "prefersThrowaway": 3418,
+          "expectedThrowaway": 2563.5,
+          "throwawayPctOfContacts": 68.97,
+          "fightPctOfContacts": 31.03
+        },
+        "byApproach": {
+          "ARC": {
+            "contacts": 174,
+            "offered": 174,
+            "prefersThrowaway": 174,
+            "expectedThrowaway": 130.5,
+            "throwawayPctOfContacts": 75,
+            "fightPctOfContacts": 25
+          },
+          "FREE": {
+            "contacts": 260,
+            "offered": 0,
+            "prefersThrowaway": 0,
+            "expectedThrowaway": 0,
+            "throwawayPctOfContacts": 0,
+            "fightPctOfContacts": 100
+          },
+          "PUSH": {
+            "contacts": 269,
+            "offered": 269,
+            "prefersThrowaway": 269,
+            "expectedThrowaway": 201.75,
+            "throwawayPctOfContacts": 75,
+            "fightPctOfContacts": 25
+          },
+          "THROUGH": {
+            "contacts": 3014,
+            "offered": 2975,
+            "prefersThrowaway": 2975,
+            "expectedThrowaway": 2231.25,
+            "throwawayPctOfContacts": 74.03,
+            "fightPctOfContacts": 25.97
+          }
+        },
+        "byDown": {
+          "1": {
+            "contacts": 1288,
+            "offered": 1195,
+            "prefersThrowaway": 1195,
+            "expectedThrowaway": 896.25,
+            "throwawayPctOfContacts": 69.58,
+            "fightPctOfContacts": 30.42
+          },
+          "2": {
+            "contacts": 1240,
+            "offered": 1141,
+            "prefersThrowaway": 1141,
+            "expectedThrowaway": 855.75,
+            "throwawayPctOfContacts": 69.01,
+            "fightPctOfContacts": 30.99
+          },
+          "3": {
+            "contacts": 1113,
+            "offered": 1011,
+            "prefersThrowaway": 1011,
+            "expectedThrowaway": 758.25,
+            "throwawayPctOfContacts": 68.13,
+            "fightPctOfContacts": 31.87
+          },
+          "4": {
+            "contacts": 76,
+            "offered": 71,
+            "prefersThrowaway": 71,
+            "expectedThrowaway": 53.25,
+            "throwawayPctOfContacts": 70.07,
+            "fightPctOfContacts": 29.93
+          }
+        },
+        "appealGap": {
+          "37": 3418
+        },
+        "reading": "FIGHT priced at today's standIn appeal (no approach or situation term until steps 4 and 8); urgency at contact 3; exact expectation over the movement die",
+        "crossCheck": {
+          "movementChecks": 25723,
+          "bandMismatches": 0,
+          "pickMismatches": 0,
+          "unreadChecks": 0,
+          "examples": []
+        }
+      },
+      "gen": {
+        "dropbacks": 25758,
+        "sacks": 4308,
+        "noTargetArrivals": 3616,
+        "caughtEscapes": 692,
+        "sacksWithoutArrival": 0,
+        "multiArrival": 1110,
+        "upperBound": 2633,
+        "upperBoundPer100Dropbacks": 10.22,
+        "upperBoundPctOfSacks": 61.12,
+        "upperBoundByApproach": {
+          "THROUGH": 2179,
+          "PUSH": 194,
+          "ARC": 73,
+          "FREE": 187
+        },
+        "upperBoundByDown": {
+          "1": 996,
+          "2": 879,
+          "3": 702,
+          "4": 56
+        },
+        "freeRunClock": 205,
+        "branch": {
+          "contacts": 2633,
+          "offered": 2428,
+          "prefersThrowaway": 2428,
+          "expectedThrowaway": 1872.5,
+          "throwawayPctOfContacts": 71.12,
+          "fightPctOfContacts": 28.88
+        },
+        "byApproach": {
+          "ARC": {
+            "contacts": 73,
+            "offered": 73,
+            "prefersThrowaway": 73,
+            "expectedThrowaway": 56.16,
+            "throwawayPctOfContacts": 76.93,
+            "fightPctOfContacts": 23.07
+          },
+          "FREE": {
+            "contacts": 187,
+            "offered": 0,
+            "prefersThrowaway": 0,
+            "expectedThrowaway": 0,
+            "throwawayPctOfContacts": 0,
+            "fightPctOfContacts": 100
+          },
+          "PUSH": {
+            "contacts": 194,
+            "offered": 194,
+            "prefersThrowaway": 194,
+            "expectedThrowaway": 150.49,
+            "throwawayPctOfContacts": 77.57,
+            "fightPctOfContacts": 22.43
+          },
+          "THROUGH": {
+            "contacts": 2179,
+            "offered": 2161,
+            "prefersThrowaway": 2161,
+            "expectedThrowaway": 1665.85,
+            "throwawayPctOfContacts": 76.45,
+            "fightPctOfContacts": 23.55
+          }
+        },
+        "byDown": {
+          "1": {
+            "contacts": 996,
+            "offered": 923,
+            "prefersThrowaway": 923,
+            "expectedThrowaway": 712.58,
+            "throwawayPctOfContacts": 71.54,
+            "fightPctOfContacts": 28.46
+          },
+          "2": {
+            "contacts": 879,
+            "offered": 807,
+            "prefersThrowaway": 807,
+            "expectedThrowaway": 622.12,
+            "throwawayPctOfContacts": 70.78,
+            "fightPctOfContacts": 29.22
+          },
+          "3": {
+            "contacts": 702,
+            "offered": 649,
+            "prefersThrowaway": 649,
+            "expectedThrowaway": 500.52,
+            "throwawayPctOfContacts": 71.3,
+            "fightPctOfContacts": 28.7
+          },
+          "4": {
+            "contacts": 56,
+            "offered": 49,
+            "prefersThrowaway": 49,
+            "expectedThrowaway": 37.28,
+            "throwawayPctOfContacts": 66.57,
+            "fightPctOfContacts": 33.43
+          }
+        },
+        "appealGap": {
+          "15": 48,
+          "19": 84,
+          "20": 50,
+          "21": 274,
+          "25": 144,
+          "26": 50,
+          "27": 105,
+          "28": 163,
+          "29": 137,
+          "30": 378,
+          "31": 101,
+          "32": 66,
+          "34": 99,
+          "35": 94,
+          "36": 240,
+          "37": 79,
+          "38": 268,
+          "41": 48
+        },
+        "reading": "FIGHT priced at today's standIn appeal (no approach or situation term until steps 4 and 8); urgency at contact 3; exact expectation over the movement die",
+        "crossCheck": {
+          "movementChecks": 12537,
+          "bandMismatches": 0,
+          "pickMismatches": 0,
+          "unreadChecks": 0,
+          "examples": []
+        }
+      }
     },
     "M7": {
-      "pending": "M7",
-      "note": "the pocket_sense margin by from-class over the league's quarterbacks, the target and the NEVER share"
+      "flat": {
+        "constants": {
+          "sight.awarenessDivisor": 5,
+          "sight.traitBonus": 10,
+          "sight.fromTerm": {
+            "FRONT": 20,
+            "SIDE": 0,
+            "BEHIND": -30
+          },
+          "sight.lateFloor": -30,
+          "sight.earlyShareTarget": {
+            "min": 0.85,
+            "max": 0.95,
+            "mid": 0.9
+          }
+        },
+        "rollingThreats": {
+          "FRONT": 44017,
+          "SIDE": 30778,
+          "BEHIND": 0
+        },
+        "pushNoRoll": 5073,
+        "blockedNoRoll": 109753,
+        "quarterbacks": 32,
+        "target": 35,
+        "targetFrontSideEarly": 0.8977003810415135,
+        "targetBandForEarly85to95": {
+          "lo": 26,
+          "hi": 39
+        },
+        "atTarget": {
+          "target": 35,
+          "byThreat": {
+            "FRONT": {
+              "n": 44017,
+              "EARLY": 0.9799999999999999,
+              "LATE": 0.02,
+              "NEVER": 0
+            },
+            "SIDE": {
+              "n": 30778,
+              "EARLY": 0.78,
+              "LATE": 0.22,
+              "NEVER": 0
+            },
+            "BEHIND": {
+              "n": 74795,
+              "EARLY": 0.48,
+              "LATE": 0.3,
+              "NEVER": 0.22000000000000003
+            }
+          },
+          "byQuarterback": {
+            "FRONT": {
+              "n": 32,
+              "EARLY": 0.98,
+              "LATE": 0.02,
+              "NEVER": 0
+            },
+            "SIDE": {
+              "n": 32,
+              "EARLY": 0.78,
+              "LATE": 0.22,
+              "NEVER": 0
+            },
+            "BEHIND": {
+              "n": 32,
+              "EARLY": 0.48,
+              "LATE": 0.3,
+              "NEVER": 0.22
+            }
+          },
+          "frontSideEarly": 0.8977003810415135
+        },
+        "atBandEnds": {
+          "lo": {
+            "target": 26,
+            "byThreat": {
+              "FRONT": {
+                "n": 44017,
+                "EARLY": 1,
+                "LATE": 0,
+                "NEVER": 0
+              },
+              "SIDE": {
+                "n": 30778,
+                "EARLY": 0.87,
+                "LATE": 0.13,
+                "NEVER": 0
+              },
+              "BEHIND": {
+                "n": 74795,
+                "EARLY": 0.57,
+                "LATE": 0.3,
+                "NEVER": 0.13
+              }
+            },
+            "byQuarterback": {
+              "FRONT": {
+                "n": 32,
+                "EARLY": 1,
+                "LATE": 0,
+                "NEVER": 0
+              },
+              "SIDE": {
+                "n": 32,
+                "EARLY": 0.87,
+                "LATE": 0.13,
+                "NEVER": 0
+              },
+              "BEHIND": {
+                "n": 32,
+                "EARLY": 0.57,
+                "LATE": 0.3,
+                "NEVER": 0.13
+              }
+            },
+            "frontSideEarly": 0.9465052476769837
+          },
+          "hi": {
+            "target": 39,
+            "byThreat": {
+              "FRONT": {
+                "n": 44017,
+                "EARLY": 0.94,
+                "LATE": 0.06,
+                "NEVER": 0
+              },
+              "SIDE": {
+                "n": 30778,
+                "EARLY": 0.74,
+                "LATE": 0.26,
+                "NEVER": 0
+              },
+              "BEHIND": {
+                "n": 74795,
+                "EARLY": 0.44000000000000006,
+                "LATE": 0.3,
+                "NEVER": 0.26
+              }
+            },
+            "byQuarterback": {
+              "FRONT": {
+                "n": 32,
+                "EARLY": 0.94,
+                "LATE": 0.06,
+                "NEVER": 0
+              },
+              "SIDE": {
+                "n": 32,
+                "EARLY": 0.74,
+                "LATE": 0.26,
+                "NEVER": 0
+              },
+              "BEHIND": {
+                "n": 32,
+                "EARLY": 0.44,
+                "LATE": 0.3,
+                "NEVER": 0.26
+              }
+            },
+            "frontSideEarly": 0.8577003810415135
+          }
+        },
+        "behindNote": "BEHIND carries no legacy threats; its column prices every rolling threat's quarterback at the BEHIND term"
+      },
+      "gen": {
+        "constants": {
+          "sight.awarenessDivisor": 5,
+          "sight.traitBonus": 10,
+          "sight.fromTerm": {
+            "FRONT": 20,
+            "SIDE": 0,
+            "BEHIND": -30
+          },
+          "sight.lateFloor": -30,
+          "sight.earlyShareTarget": {
+            "min": 0.85,
+            "max": 0.95,
+            "mid": 0.9
+          }
+        },
+        "rollingThreats": {
+          "FRONT": 26835,
+          "SIDE": 16906,
+          "BEHIND": 0
+        },
+        "pushNoRoll": 2920,
+        "blockedNoRoll": 64429,
+        "quarterbacks": 32,
+        "target": 36,
+        "targetFrontSideEarly": 0.898130815482042,
+        "targetBandForEarly85to95": {
+          "lo": 27,
+          "hi": 41
+        },
+        "atTarget": {
+          "target": 36,
+          "byThreat": {
+            "FRONT": {
+              "n": 26835,
+              "EARLY": 0.9742943916526925,
+              "LATE": 0.025705608347307618,
+              "NEVER": 0
+            },
+            "SIDE": {
+              "n": 16906,
+              "EARLY": 0.7772358925825151,
+              "LATE": 0.22276410741748492,
+              "NEVER": 0
+            },
+            "BEHIND": {
+              "n": 43741,
+              "EARLY": 0.47737477423927205,
+              "LATE": 0.30000000000000004,
+              "NEVER": 0.22262522576072796
+            }
+          },
+          "byQuarterback": {
+            "FRONT": {
+              "n": 32,
+              "EARLY": 0.9737499999999999,
+              "LATE": 0.02625,
+              "NEVER": 0
+            },
+            "SIDE": {
+              "n": 32,
+              "EARLY": 0.7768750000000001,
+              "LATE": 0.223125,
+              "NEVER": 0
+            },
+            "BEHIND": {
+              "n": 32,
+              "EARLY": 0.47687500000000005,
+              "LATE": 0.3,
+              "NEVER": 0.223125
+            }
+          },
+          "frontSideEarly": 0.898130815482042
+        },
+        "atBandEnds": {
+          "lo": {
+            "target": 27,
+            "byThreat": {
+              "FRONT": {
+                "n": 26835,
+                "EARLY": 1,
+                "LATE": 0,
+                "NEVER": 0
+              },
+              "SIDE": {
+                "n": 16906,
+                "EARLY": 0.8672358925825152,
+                "LATE": 0.13276410741748493,
+                "NEVER": 0
+              },
+              "BEHIND": {
+                "n": 43741,
+                "EARLY": 0.5673747742392721,
+                "LATE": 0.30000000000000004,
+                "NEVER": 0.1326252257607279
+              }
+            },
+            "byQuarterback": {
+              "FRONT": {
+                "n": 32,
+                "EARLY": 1,
+                "LATE": 0,
+                "NEVER": 0
+              },
+              "SIDE": {
+                "n": 32,
+                "EARLY": 0.866875,
+                "LATE": 0.13312500000000002,
+                "NEVER": 0
+              },
+              "BEHIND": {
+                "n": 32,
+                "EARLY": 0.5668749999999999,
+                "LATE": 0.3,
+                "NEVER": 0.13312500000000002
+              }
+            },
+            "frontSideEarly": 0.9486863583365722
+          },
+          "hi": {
+            "target": 41,
+            "byThreat": {
+              "FRONT": {
+                "n": 26835,
+                "EARLY": 0.9274622694242592,
+                "LATE": 0.07253773057574063,
+                "NEVER": 0
+              },
+              "SIDE": {
+                "n": 16906,
+                "EARLY": 0.7272358925825151,
+                "LATE": 0.2700857683662605,
+                "NEVER": 0.0026783390512244176
+              },
+              "BEHIND": {
+                "n": 43741,
+                "EARLY": 0.42737477423927206,
+                "LATE": 0.30000000000000004,
+                "NEVER": 0.2726252257607279
+              }
+            },
+            "byQuarterback": {
+              "FRONT": {
+                "n": 32,
+                "EARLY": 0.926875,
+                "LATE": 0.07312500000000001,
+                "NEVER": 0
+              },
+              "SIDE": {
+                "n": 32,
+                "EARLY": 0.7268749999999998,
+                "LATE": 0.2703125,
+                "NEVER": 0.0028125
+              },
+              "BEHIND": {
+                "n": 32,
+                "EARLY": 0.426875,
+                "LATE": 0.3,
+                "NEVER": 0.273125
+              }
+            },
+            "frontSideEarly": 0.8500743009990627
+          }
+        },
+        "behindNote": "BEHIND carries no legacy threats; its column prices every rolling threat's quarterback at the BEHIND term"
+      }
     },
     "M8": {
-      "pending": "M8",
-      "note": "every free runner on both base seasons (set 1) by origin, snap row and position: Wait built, Table now beside it as information with and without the Mug arm; the down-lineman key's disagreements with the personnel family and the depth class"
+      "flat": {
+        "runners": 13142,
+        "publishedMismatches": 0,
+        "answer": "WAIT (question 19); Table now and its Mug arm are information only",
+        "wait": {
+          "rows": {
+            "TOUCHED": 4662,
+            "TODAY": 4533,
+            "DOWN_LINEMAN": 3947
+          },
+          "table": {
+            "PICKUP_LOST/BLOWN_UP|DOWN_LINEMAN|DE": {
+              "n": 670,
+              "meanEta": 1.769,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 670,
+              "etaHistogram": {
+                "1.7": 440,
+                "1.9": 230
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|DOWN_LINEMAN|DT": {
+              "n": 42,
+              "meanEta": 1.738,
+              "meanToday": 1.429,
+              "sooner": 0,
+              "later": 42,
+              "etaHistogram": {
+                "1.7": 24,
+                "1.4": 4,
+                "1.9": 14
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|TODAY|CB": {
+              "n": 676,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 676
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|TODAY|MLB": {
+              "n": 1137,
+              "meanEta": 1.5,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "1.5": 1137
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|TODAY|OLB": {
+              "n": 1286,
+              "meanEta": 1.507,
+              "meanToday": 1.507,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "1.5": 1269,
+                "2.0": 17
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|CB": {
+              "n": 344,
+              "meanEta": 3,
+              "meanToday": 3,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "3.0": 344
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|DE": {
+              "n": 394,
+              "meanEta": 1.999,
+              "meanToday": 1.999,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 393,
+                "1.5": 1
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|DT": {
+              "n": 16,
+              "meanEta": 1.938,
+              "meanToday": 1.938,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 14,
+                "1.5": 2
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|MLB": {
+              "n": 628,
+              "meanEta": 2,
+              "meanToday": 2,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 628
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|OLB": {
+              "n": 708,
+              "meanEta": 2.007,
+              "meanToday": 2.007,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 698,
+                "2.5": 10
+              }
+            },
+            "STUNT_LOOPER/LATE_EXCHANGE|TOUCHED|DE": {
+              "n": 2012,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 2012
+              }
+            },
+            "STUNT_LOOPER/LATE_EXCHANGE|TOUCHED|DT": {
+              "n": 560,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 560
+              }
+            },
+            "STUNT_LOOPER/LOOPER_FREE|DOWN_LINEMAN|DE": {
+              "n": 2116,
+              "meanEta": 2.046,
+              "meanToday": 2,
+              "sooner": 0,
+              "later": 485,
+              "etaHistogram": {
+                "2.0": 1631,
+                "2.2": 485
+              }
+            },
+            "STUNT_LOOPER/LOOPER_FREE|DOWN_LINEMAN|DT": {
+              "n": 939,
+              "meanEta": 1.743,
+              "meanToday": 2,
+              "sooner": 939,
+              "later": 0,
+              "etaHistogram": {
+                "1.7": 736,
+                "1.9": 203
+              }
+            },
+            "UNBLOCKED|DOWN_LINEMAN|DE": {
+              "n": 180,
+              "meanEta": 1.7,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 180,
+              "etaHistogram": {
+                "1.7": 180
+              }
+            },
+            "UNBLOCKED|TODAY|CB": {
+              "n": 26,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 26
+              }
+            },
+            "UNBLOCKED|TODAY|MLB": {
+              "n": 1310,
+              "meanEta": 1.5,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "1.5": 1310
+              }
+            },
+            "UNBLOCKED|TODAY|OLB": {
+              "n": 98,
+              "meanEta": 2,
+              "meanToday": 2,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 98
+              }
+            }
+          }
+        },
+        "tableNow": {
+          "rows": {
+            "TOUCHED": 4662,
+            "LB_WALKED_UP": 2293,
+            "SLOT_CORNER": 702,
+            "DOWN_LINEMAN": 3947,
+            "LB_DISGUISED": 1423,
+            "LB_ON_THE_EDGE": 115
+          },
+          "table": {
+            "PICKUP_LOST/BLOWN_UP|DOWN_LINEMAN|DE": {
+              "n": 670,
+              "meanEta": 1.769,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 670,
+              "etaHistogram": {
+                "1.7": 440,
+                "1.9": 230
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|DOWN_LINEMAN|DT": {
+              "n": 42,
+              "meanEta": 1.738,
+              "meanToday": 1.429,
+              "sooner": 0,
+              "later": 42,
+              "etaHistogram": {
+                "1.7": 24,
+                "1.4": 4,
+                "1.9": 14
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_DISGUISED|MLB": {
+              "n": 683,
+              "meanEta": 1.946,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 683,
+              "etaHistogram": {
+                "1.9": 527,
+                "2.1": 156
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_DISGUISED|OLB": {
+              "n": 712,
+              "meanEta": 1.959,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 712,
+              "etaHistogram": {
+                "1.9": 502,
+                "2.1": 210
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_ON_THE_EDGE|OLB": {
+              "n": 17,
+              "meanEta": 1.959,
+              "meanToday": 2,
+              "sooner": 12,
+              "later": 5,
+              "etaHistogram": {
+                "1.9": 12,
+                "2.1": 5
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_WALKED_UP|MLB": {
+              "n": 454,
+              "meanEta": 1.734,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 454,
+              "etaHistogram": {
+                "1.6": 197,
+                "1.9": 176,
+                "1.7": 81
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_WALKED_UP|OLB": {
+              "n": 557,
+              "meanEta": 1.715,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 557,
+              "etaHistogram": {
+                "1.9": 171,
+                "1.6": 260,
+                "1.7": 126
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|SLOT_CORNER|CB": {
+              "n": 676,
+              "meanEta": 2.454,
+              "meanToday": 2.5,
+              "sooner": 372,
+              "later": 114,
+              "etaHistogram": {
+                "2.5": 190,
+                "2.3": 372,
+                "2.8": 70,
+                "3.0": 44
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|CB": {
+              "n": 344,
+              "meanEta": 3,
+              "meanToday": 3,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "3.0": 344
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|DE": {
+              "n": 394,
+              "meanEta": 1.999,
+              "meanToday": 1.999,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 393,
+                "1.5": 1
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|DT": {
+              "n": 16,
+              "meanEta": 1.938,
+              "meanToday": 1.938,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 14,
+                "1.5": 2
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|MLB": {
+              "n": 628,
+              "meanEta": 2,
+              "meanToday": 2,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 628
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|OLB": {
+              "n": 708,
+              "meanEta": 2.007,
+              "meanToday": 2.007,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 698,
+                "2.5": 10
+              }
+            },
+            "STUNT_LOOPER/LATE_EXCHANGE|TOUCHED|DE": {
+              "n": 2012,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 2012
+              }
+            },
+            "STUNT_LOOPER/LATE_EXCHANGE|TOUCHED|DT": {
+              "n": 560,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 560
+              }
+            },
+            "STUNT_LOOPER/LOOPER_FREE|DOWN_LINEMAN|DE": {
+              "n": 2116,
+              "meanEta": 2.046,
+              "meanToday": 2,
+              "sooner": 0,
+              "later": 485,
+              "etaHistogram": {
+                "2.0": 1631,
+                "2.2": 485
+              }
+            },
+            "STUNT_LOOPER/LOOPER_FREE|DOWN_LINEMAN|DT": {
+              "n": 939,
+              "meanEta": 1.743,
+              "meanToday": 2,
+              "sooner": 939,
+              "later": 0,
+              "etaHistogram": {
+                "1.7": 736,
+                "1.9": 203
+              }
+            },
+            "UNBLOCKED|DOWN_LINEMAN|DE": {
+              "n": 180,
+              "meanEta": 1.7,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 180,
+              "etaHistogram": {
+                "1.7": 180
+              }
+            },
+            "UNBLOCKED|LB_DISGUISED|MLB": {
+              "n": 28,
+              "meanEta": 1.9,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 28,
+              "etaHistogram": {
+                "1.9": 28
+              }
+            },
+            "UNBLOCKED|LB_ON_THE_EDGE|OLB": {
+              "n": 98,
+              "meanEta": 1.9,
+              "meanToday": 2,
+              "sooner": 98,
+              "later": 0,
+              "etaHistogram": {
+                "1.9": 98
+              }
+            },
+            "UNBLOCKED|LB_WALKED_UP|MLB": {
+              "n": 1282,
+              "meanEta": 1.629,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 1282,
+              "etaHistogram": {
+                "1.7": 340,
+                "1.6": 932,
+                "1.9": 10
+              }
+            },
+            "UNBLOCKED|SLOT_CORNER|CB": {
+              "n": 26,
+              "meanEta": 2.3,
+              "meanToday": 2.5,
+              "sooner": 26,
+              "later": 0,
+              "etaHistogram": {
+                "2.3": 26
+              }
+            }
+          }
+        },
+        "tableNowMug": {
+          "rows": {
+            "TOUCHED": 4662,
+            "LB_WALKED_UP": 2289,
+            "SLOT_CORNER": 702,
+            "DOWN_LINEMAN": 3947,
+            "LB_DISGUISED": 1269,
+            "LB_ON_THE_EDGE": 104,
+            "LB_MUG": 169
+          },
+          "table": {
+            "PICKUP_LOST/BLOWN_UP|DOWN_LINEMAN|DE": {
+              "n": 670,
+              "meanEta": 1.769,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 670,
+              "etaHistogram": {
+                "1.7": 440,
+                "1.9": 230
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|DOWN_LINEMAN|DT": {
+              "n": 42,
+              "meanEta": 1.738,
+              "meanToday": 1.429,
+              "sooner": 0,
+              "later": 42,
+              "etaHistogram": {
+                "1.7": 24,
+                "1.4": 4,
+                "1.9": 14
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_DISGUISED|MLB": {
+              "n": 602,
+              "meanEta": 1.943,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 602,
+              "etaHistogram": {
+                "1.9": 472,
+                "2.1": 130
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_DISGUISED|OLB": {
+              "n": 641,
+              "meanEta": 1.958,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 641,
+              "etaHistogram": {
+                "1.9": 456,
+                "2.1": 185
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_MUG|MLB": {
+              "n": 81,
+              "meanEta": 1.564,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 26,
+              "etaHistogram": {
+                "1.5": 55,
+                "1.7": 26
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_MUG|OLB": {
+              "n": 76,
+              "meanEta": 1.572,
+              "meanToday": 1.507,
+              "sooner": 1,
+              "later": 26,
+              "etaHistogram": {
+                "1.7": 26,
+                "1.5": 49,
+                "1.8": 1
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_ON_THE_EDGE|OLB": {
+              "n": 16,
+              "meanEta": 1.963,
+              "meanToday": 2,
+              "sooner": 11,
+              "later": 5,
+              "etaHistogram": {
+                "1.9": 11,
+                "2.1": 5
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_WALKED_UP|MLB": {
+              "n": 454,
+              "meanEta": 1.734,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 454,
+              "etaHistogram": {
+                "1.6": 197,
+                "1.9": 176,
+                "1.7": 81
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_WALKED_UP|OLB": {
+              "n": 553,
+              "meanEta": 1.714,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 553,
+              "etaHistogram": {
+                "1.9": 170,
+                "1.6": 260,
+                "1.7": 123
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|SLOT_CORNER|CB": {
+              "n": 676,
+              "meanEta": 2.454,
+              "meanToday": 2.5,
+              "sooner": 372,
+              "later": 114,
+              "etaHistogram": {
+                "2.5": 190,
+                "2.3": 372,
+                "2.8": 70,
+                "3.0": 44
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|CB": {
+              "n": 344,
+              "meanEta": 3,
+              "meanToday": 3,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "3.0": 344
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|DE": {
+              "n": 394,
+              "meanEta": 1.999,
+              "meanToday": 1.999,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 393,
+                "1.5": 1
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|DT": {
+              "n": 16,
+              "meanEta": 1.938,
+              "meanToday": 1.938,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 14,
+                "1.5": 2
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|MLB": {
+              "n": 628,
+              "meanEta": 2,
+              "meanToday": 2,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 628
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|OLB": {
+              "n": 708,
+              "meanEta": 2.007,
+              "meanToday": 2.007,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 698,
+                "2.5": 10
+              }
+            },
+            "STUNT_LOOPER/LATE_EXCHANGE|TOUCHED|DE": {
+              "n": 2012,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 2012
+              }
+            },
+            "STUNT_LOOPER/LATE_EXCHANGE|TOUCHED|DT": {
+              "n": 560,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 560
+              }
+            },
+            "STUNT_LOOPER/LOOPER_FREE|DOWN_LINEMAN|DE": {
+              "n": 2116,
+              "meanEta": 2.046,
+              "meanToday": 2,
+              "sooner": 0,
+              "later": 485,
+              "etaHistogram": {
+                "2.0": 1631,
+                "2.2": 485
+              }
+            },
+            "STUNT_LOOPER/LOOPER_FREE|DOWN_LINEMAN|DT": {
+              "n": 939,
+              "meanEta": 1.743,
+              "meanToday": 2,
+              "sooner": 939,
+              "later": 0,
+              "etaHistogram": {
+                "1.7": 736,
+                "1.9": 203
+              }
+            },
+            "UNBLOCKED|DOWN_LINEMAN|DE": {
+              "n": 180,
+              "meanEta": 1.7,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 180,
+              "etaHistogram": {
+                "1.7": 180
+              }
+            },
+            "UNBLOCKED|LB_DISGUISED|MLB": {
+              "n": 26,
+              "meanEta": 1.9,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 26,
+              "etaHistogram": {
+                "1.9": 26
+              }
+            },
+            "UNBLOCKED|LB_MUG|MLB": {
+              "n": 2,
+              "meanEta": 1.5,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "1.5": 2
+              }
+            },
+            "UNBLOCKED|LB_MUG|OLB": {
+              "n": 10,
+              "meanEta": 1.8,
+              "meanToday": 2,
+              "sooner": 10,
+              "later": 0,
+              "etaHistogram": {
+                "1.8": 10
+              }
+            },
+            "UNBLOCKED|LB_ON_THE_EDGE|OLB": {
+              "n": 88,
+              "meanEta": 1.9,
+              "meanToday": 2,
+              "sooner": 88,
+              "later": 0,
+              "etaHistogram": {
+                "1.9": 88
+              }
+            },
+            "UNBLOCKED|LB_WALKED_UP|MLB": {
+              "n": 1282,
+              "meanEta": 1.629,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 1282,
+              "etaHistogram": {
+                "1.7": 340,
+                "1.6": 932,
+                "1.9": 10
+              }
+            },
+            "UNBLOCKED|SLOT_CORNER|CB": {
+              "n": 26,
+              "meanEta": 2.3,
+              "meanToday": 2.5,
+              "sooner": 26,
+              "later": 0,
+              "etaHistogram": {
+                "2.3": 26
+              }
+            }
+          }
+        },
+        "keyDisagreements": {
+          "runners": 13142,
+          "dlVsPersonnel": 0,
+          "dlVsDepthLine": 0,
+          "dlVsPersonnelByPosition": {},
+          "dlVsDepthLineByPosition": {}
+        }
+      },
+      "gen": {
+        "runners": 7366,
+        "publishedMismatches": 0,
+        "answer": "WAIT (question 19); Table now and its Mug arm are information only",
+        "wait": {
+          "rows": {
+            "TOUCHED": 2703,
+            "TODAY": 2564,
+            "DOWN_LINEMAN": 2099
+          },
+          "table": {
+            "PICKUP_LOST/BLOWN_UP|DOWN_LINEMAN|DE": {
+              "n": 366,
+              "meanEta": 1.771,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 366,
+              "etaHistogram": {
+                "1.6": 20,
+                "1.9": 97,
+                "1.7": 206,
+                "2.0": 22,
+                "1.8": 21
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|DOWN_LINEMAN|DT": {
+              "n": 18,
+              "meanEta": 1.8,
+              "meanToday": 1.444,
+              "sooner": 0,
+              "later": 18,
+              "etaHistogram": {
+                "1.8": 10,
+                "2.0": 4,
+                "1.5": 2,
+                "1.7": 2
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|TODAY|CB": {
+              "n": 327,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 327
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|TODAY|MLB": {
+              "n": 609,
+              "meanEta": 1.5,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "1.5": 609
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|TODAY|OLB": {
+              "n": 836,
+              "meanEta": 1.505,
+              "meanToday": 1.505,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "1.5": 828,
+                "2.0": 8
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|CB": {
+              "n": 179,
+              "meanEta": 3,
+              "meanToday": 3,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "3.0": 179
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|DE": {
+              "n": 220,
+              "meanEta": 1.998,
+              "meanToday": 1.998,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 219,
+                "1.5": 1
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|DT": {
+              "n": 12,
+              "meanEta": 1.833,
+              "meanToday": 1.833,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 8,
+                "1.5": 4
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|MLB": {
+              "n": 363,
+              "meanEta": 2,
+              "meanToday": 2,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 363
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|OLB": {
+              "n": 397,
+              "meanEta": 2.005,
+              "meanToday": 2.005,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 393,
+                "2.5": 4
+              }
+            },
+            "STUNT_LOOPER/LATE_EXCHANGE|TOUCHED|DE": {
+              "n": 1202,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 1202
+              }
+            },
+            "STUNT_LOOPER/LATE_EXCHANGE|TOUCHED|DT": {
+              "n": 330,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 330
+              }
+            },
+            "STUNT_LOOPER/LOOPER_FREE|DOWN_LINEMAN|DE": {
+              "n": 1086,
+              "meanEta": 1.999,
+              "meanToday": 2,
+              "sooner": 449,
+              "later": 244,
+              "etaHistogram": {
+                "2.2": 188,
+                "2.0": 393,
+                "1.9": 449,
+                "2.1": 55,
+                "2.3": 1
+              }
+            },
+            "STUNT_LOOPER/LOOPER_FREE|DOWN_LINEMAN|DT": {
+              "n": 543,
+              "meanEta": 1.815,
+              "meanToday": 2,
+              "sooner": 422,
+              "later": 6,
+              "etaHistogram": {
+                "1.7": 170,
+                "1.8": 247,
+                "2.0": 115,
+                "2.1": 6,
+                "1.9": 5
+              }
+            },
+            "UNBLOCKED|DOWN_LINEMAN|DE": {
+              "n": 86,
+              "meanEta": 1.703,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 86,
+              "etaHistogram": {
+                "1.7": 79,
+                "1.8": 5,
+                "1.6": 2
+              }
+            },
+            "UNBLOCKED|TODAY|CB": {
+              "n": 17,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 17
+              }
+            },
+            "UNBLOCKED|TODAY|MLB": {
+              "n": 725,
+              "meanEta": 1.5,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "1.5": 725
+              }
+            },
+            "UNBLOCKED|TODAY|OLB": {
+              "n": 50,
+              "meanEta": 2,
+              "meanToday": 2,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 50
+              }
+            }
+          }
+        },
+        "tableNow": {
+          "rows": {
+            "TOUCHED": 2703,
+            "LB_WALKED_UP": 1284,
+            "DOWN_LINEMAN": 2099,
+            "SLOT_CORNER": 344,
+            "LB_DISGUISED": 878,
+            "LB_ON_THE_EDGE": 58
+          },
+          "table": {
+            "PICKUP_LOST/BLOWN_UP|DOWN_LINEMAN|DE": {
+              "n": 366,
+              "meanEta": 1.771,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 366,
+              "etaHistogram": {
+                "1.6": 20,
+                "1.9": 97,
+                "1.7": 206,
+                "2.0": 22,
+                "1.8": 21
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|DOWN_LINEMAN|DT": {
+              "n": 18,
+              "meanEta": 1.8,
+              "meanToday": 1.444,
+              "sooner": 0,
+              "later": 18,
+              "etaHistogram": {
+                "1.8": 10,
+                "2.0": 4,
+                "1.5": 2,
+                "1.7": 2
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_DISGUISED|MLB": {
+              "n": 373,
+              "meanEta": 1.915,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 373,
+              "etaHistogram": {
+                "1.9": 166,
+                "2.0": 24,
+                "1.8": 111,
+                "2.1": 72
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_DISGUISED|OLB": {
+              "n": 484,
+              "meanEta": 1.936,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 484,
+              "etaHistogram": {
+                "1.8": 109,
+                "1.9": 216,
+                "2.1": 125,
+                "2.0": 34
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_ON_THE_EDGE|OLB": {
+              "n": 8,
+              "meanEta": 1.9,
+              "meanToday": 2,
+              "sooner": 6,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 2,
+                "1.9": 4,
+                "1.8": 2
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_WALKED_UP|MLB": {
+              "n": 236,
+              "meanEta": 1.709,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 236,
+              "etaHistogram": {
+                "1.6": 117,
+                "1.9": 35,
+                "1.8": 68,
+                "1.7": 16
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_WALKED_UP|OLB": {
+              "n": 344,
+              "meanEta": 1.683,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 344,
+              "etaHistogram": {
+                "1.6": 210,
+                "1.8": 52,
+                "1.9": 49,
+                "1.7": 33
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|SLOT_CORNER|CB": {
+              "n": 327,
+              "meanEta": 2.346,
+              "meanToday": 2.5,
+              "sooner": 273,
+              "later": 54,
+              "etaHistogram": {
+                "2.4": 85,
+                "2.2": 172,
+                "2.7": 38,
+                "2.3": 11,
+                "2.1": 5,
+                "2.8": 3,
+                "3.0": 2,
+                "2.9": 11
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|CB": {
+              "n": 179,
+              "meanEta": 3,
+              "meanToday": 3,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "3.0": 179
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|DE": {
+              "n": 220,
+              "meanEta": 1.998,
+              "meanToday": 1.998,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 219,
+                "1.5": 1
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|DT": {
+              "n": 12,
+              "meanEta": 1.833,
+              "meanToday": 1.833,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 8,
+                "1.5": 4
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|MLB": {
+              "n": 363,
+              "meanEta": 2,
+              "meanToday": 2,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 363
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|OLB": {
+              "n": 397,
+              "meanEta": 2.005,
+              "meanToday": 2.005,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 393,
+                "2.5": 4
+              }
+            },
+            "STUNT_LOOPER/LATE_EXCHANGE|TOUCHED|DE": {
+              "n": 1202,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 1202
+              }
+            },
+            "STUNT_LOOPER/LATE_EXCHANGE|TOUCHED|DT": {
+              "n": 330,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 330
+              }
+            },
+            "STUNT_LOOPER/LOOPER_FREE|DOWN_LINEMAN|DE": {
+              "n": 1086,
+              "meanEta": 1.999,
+              "meanToday": 2,
+              "sooner": 449,
+              "later": 244,
+              "etaHistogram": {
+                "2.2": 188,
+                "2.0": 393,
+                "1.9": 449,
+                "2.1": 55,
+                "2.3": 1
+              }
+            },
+            "STUNT_LOOPER/LOOPER_FREE|DOWN_LINEMAN|DT": {
+              "n": 543,
+              "meanEta": 1.815,
+              "meanToday": 2,
+              "sooner": 422,
+              "later": 6,
+              "etaHistogram": {
+                "1.7": 170,
+                "1.8": 247,
+                "2.0": 115,
+                "2.1": 6,
+                "1.9": 5
+              }
+            },
+            "UNBLOCKED|DOWN_LINEMAN|DE": {
+              "n": 86,
+              "meanEta": 1.703,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 86,
+              "etaHistogram": {
+                "1.7": 79,
+                "1.8": 5,
+                "1.6": 2
+              }
+            },
+            "UNBLOCKED|LB_DISGUISED|MLB": {
+              "n": 21,
+              "meanEta": 1.852,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 21,
+              "etaHistogram": {
+                "1.8": 10,
+                "1.9": 11
+              }
+            },
+            "UNBLOCKED|LB_ON_THE_EDGE|OLB": {
+              "n": 50,
+              "meanEta": 1.854,
+              "meanToday": 2,
+              "sooner": 50,
+              "later": 0,
+              "etaHistogram": {
+                "1.8": 23,
+                "1.9": 27
+              }
+            },
+            "UNBLOCKED|LB_WALKED_UP|MLB": {
+              "n": 704,
+              "meanEta": 1.612,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 704,
+              "etaHistogram": {
+                "1.6": 628,
+                "1.7": 68,
+                "1.8": 5,
+                "1.9": 3
+              }
+            },
+            "UNBLOCKED|SLOT_CORNER|CB": {
+              "n": 17,
+              "meanEta": 2.206,
+              "meanToday": 2.5,
+              "sooner": 17,
+              "later": 0,
+              "etaHistogram": {
+                "2.2": 16,
+                "2.3": 1
+              }
+            }
+          }
+        },
+        "tableNowMug": {
+          "rows": {
+            "TOUCHED": 2703,
+            "LB_WALKED_UP": 1283,
+            "DOWN_LINEMAN": 2099,
+            "SLOT_CORNER": 344,
+            "LB_DISGUISED": 789,
+            "LB_ON_THE_EDGE": 50,
+            "LB_MUG": 98
+          },
+          "table": {
+            "PICKUP_LOST/BLOWN_UP|DOWN_LINEMAN|DE": {
+              "n": 366,
+              "meanEta": 1.771,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 366,
+              "etaHistogram": {
+                "1.6": 20,
+                "1.9": 97,
+                "1.7": 206,
+                "2.0": 22,
+                "1.8": 21
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|DOWN_LINEMAN|DT": {
+              "n": 18,
+              "meanEta": 1.8,
+              "meanToday": 1.444,
+              "sooner": 0,
+              "later": 18,
+              "etaHistogram": {
+                "1.8": 10,
+                "2.0": 4,
+                "1.5": 2,
+                "1.7": 2
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_DISGUISED|MLB": {
+              "n": 332,
+              "meanEta": 1.919,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 332,
+              "etaHistogram": {
+                "1.9": 148,
+                "2.0": 23,
+                "1.8": 94,
+                "2.1": 67
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_DISGUISED|OLB": {
+              "n": 437,
+              "meanEta": 1.937,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 437,
+              "etaHistogram": {
+                "1.8": 101,
+                "1.9": 189,
+                "2.1": 114,
+                "2.0": 33
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_MUG|MLB": {
+              "n": 41,
+              "meanEta": 1.522,
+              "meanToday": 1.5,
+              "sooner": 3,
+              "later": 6,
+              "etaHistogram": {
+                "1.5": 32,
+                "1.7": 6,
+                "1.4": 3
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_MUG|OLB": {
+              "n": 49,
+              "meanEta": 1.555,
+              "meanToday": 1.51,
+              "sooner": 3,
+              "later": 12,
+              "etaHistogram": {
+                "1.7": 10,
+                "1.5": 34,
+                "1.8": 3,
+                "1.4": 2
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_ON_THE_EDGE|OLB": {
+              "n": 7,
+              "meanEta": 1.9,
+              "meanToday": 2,
+              "sooner": 5,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 2,
+                "1.9": 3,
+                "1.8": 2
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_WALKED_UP|MLB": {
+              "n": 236,
+              "meanEta": 1.709,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 236,
+              "etaHistogram": {
+                "1.6": 117,
+                "1.9": 35,
+                "1.8": 68,
+                "1.7": 16
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|LB_WALKED_UP|OLB": {
+              "n": 343,
+              "meanEta": 1.683,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 343,
+              "etaHistogram": {
+                "1.6": 210,
+                "1.8": 52,
+                "1.9": 49,
+                "1.7": 32
+              }
+            },
+            "PICKUP_LOST/BLOWN_UP|SLOT_CORNER|CB": {
+              "n": 327,
+              "meanEta": 2.346,
+              "meanToday": 2.5,
+              "sooner": 273,
+              "later": 54,
+              "etaHistogram": {
+                "2.4": 85,
+                "2.2": 172,
+                "2.7": 38,
+                "2.3": 11,
+                "2.1": 5,
+                "2.8": 3,
+                "3.0": 2,
+                "2.9": 11
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|CB": {
+              "n": 179,
+              "meanEta": 3,
+              "meanToday": 3,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "3.0": 179
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|DE": {
+              "n": 220,
+              "meanEta": 1.998,
+              "meanToday": 1.998,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 219,
+                "1.5": 1
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|DT": {
+              "n": 12,
+              "meanEta": 1.833,
+              "meanToday": 1.833,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 8,
+                "1.5": 4
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|MLB": {
+              "n": 363,
+              "meanEta": 2,
+              "meanToday": 2,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 363
+              }
+            },
+            "PICKUP_LOST/RAN_THROUGH|TOUCHED|OLB": {
+              "n": 397,
+              "meanEta": 2.005,
+              "meanToday": 2.005,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.0": 393,
+                "2.5": 4
+              }
+            },
+            "STUNT_LOOPER/LATE_EXCHANGE|TOUCHED|DE": {
+              "n": 1202,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 1202
+              }
+            },
+            "STUNT_LOOPER/LATE_EXCHANGE|TOUCHED|DT": {
+              "n": 330,
+              "meanEta": 2.5,
+              "meanToday": 2.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "2.5": 330
+              }
+            },
+            "STUNT_LOOPER/LOOPER_FREE|DOWN_LINEMAN|DE": {
+              "n": 1086,
+              "meanEta": 1.999,
+              "meanToday": 2,
+              "sooner": 449,
+              "later": 244,
+              "etaHistogram": {
+                "2.2": 188,
+                "2.0": 393,
+                "1.9": 449,
+                "2.1": 55,
+                "2.3": 1
+              }
+            },
+            "STUNT_LOOPER/LOOPER_FREE|DOWN_LINEMAN|DT": {
+              "n": 543,
+              "meanEta": 1.815,
+              "meanToday": 2,
+              "sooner": 422,
+              "later": 6,
+              "etaHistogram": {
+                "1.7": 170,
+                "1.8": 247,
+                "2.0": 115,
+                "2.1": 6,
+                "1.9": 5
+              }
+            },
+            "UNBLOCKED|DOWN_LINEMAN|DE": {
+              "n": 86,
+              "meanEta": 1.703,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 86,
+              "etaHistogram": {
+                "1.7": 79,
+                "1.8": 5,
+                "1.6": 2
+              }
+            },
+            "UNBLOCKED|LB_DISGUISED|MLB": {
+              "n": 20,
+              "meanEta": 1.85,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 20,
+              "etaHistogram": {
+                "1.8": 10,
+                "1.9": 10
+              }
+            },
+            "UNBLOCKED|LB_MUG|MLB": {
+              "n": 1,
+              "meanEta": 1.5,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 0,
+              "etaHistogram": {
+                "1.5": 1
+              }
+            },
+            "UNBLOCKED|LB_MUG|OLB": {
+              "n": 7,
+              "meanEta": 1.771,
+              "meanToday": 2,
+              "sooner": 7,
+              "later": 0,
+              "etaHistogram": {
+                "1.8": 5,
+                "1.7": 2
+              }
+            },
+            "UNBLOCKED|LB_ON_THE_EDGE|OLB": {
+              "n": 43,
+              "meanEta": 1.853,
+              "meanToday": 2,
+              "sooner": 43,
+              "later": 0,
+              "etaHistogram": {
+                "1.8": 20,
+                "1.9": 23
+              }
+            },
+            "UNBLOCKED|LB_WALKED_UP|MLB": {
+              "n": 704,
+              "meanEta": 1.612,
+              "meanToday": 1.5,
+              "sooner": 0,
+              "later": 704,
+              "etaHistogram": {
+                "1.6": 628,
+                "1.7": 68,
+                "1.8": 5,
+                "1.9": 3
+              }
+            },
+            "UNBLOCKED|SLOT_CORNER|CB": {
+              "n": 17,
+              "meanEta": 2.206,
+              "meanToday": 2.5,
+              "sooner": 17,
+              "later": 0,
+              "etaHistogram": {
+                "2.2": 16,
+                "2.3": 1
+              }
+            }
+          }
+        },
+        "keyDisagreements": {
+          "runners": 7366,
+          "dlVsPersonnel": 0,
+          "dlVsDepthLine": 0,
+          "dlVsPersonnelByPosition": {},
+          "dlVsDepthLineByPosition": {}
+        }
+      }
     },
     "M9": {
-      "pending": "M9",
-      "note": "pass rate, throwaways and time to throw in the last two minutes of Q1 and Q3 against Q2/Q4 and the rest, both seed sets; the tolerance: 2 x the game-clustered bootstrap SE (1,000 resamples, seeded adr-089:m9), the larger of the two sets"
+      "flat": {
+        "rows": {
+          "pass_rate": {
+            "Q1Q3_END": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.7683823529411765,
+                  "se": 0.004644907145863827,
+                  "n": 7344
+                },
+                {
+                  "set": 2,
+                  "value": 0.7679693905438645,
+                  "se": 0.004950546947384289,
+                  "n": 7318
+                }
+              ],
+              "tolerance": 0.009901093894768578
+            },
+            "Q2Q4_END": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.7651187904967602,
+                  "se": 0.005016129011940874,
+                  "n": 7408
+                },
+                {
+                  "set": 2,
+                  "value": 0.7655200767438674,
+                  "se": 0.004838412752618389,
+                  "n": 7297
+                }
+              ],
+              "tolerance": 0.010032258023881748
+            },
+            "REST": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.5966664219105661,
+                  "se": 0.002257306122438449,
+                  "n": 54476
+                },
+                {
+                  "set": 2,
+                  "value": 0.5950956171653399,
+                  "se": 0.0023320882963560213,
+                  "n": 54645
+                }
+              ],
+              "tolerance": 0.0046641765927120426
+            },
+            "OVERTIME": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.55,
+                  "se": 0.07448644231058828,
+                  "n": 40
+                },
+                {
+                  "set": 2,
+                  "value": 0.5925925925925926,
+                  "se": 0.12470316437064889,
+                  "n": 27
+                }
+              ],
+              "tolerance": 0.24940632874129778
+            }
+          },
+          "throwaway_rate": {
+            "Q1Q3_END": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.05440368598263335,
+                  "se": 0.002859672543208663,
+                  "n": 5643
+                },
+                {
+                  "set": 2,
+                  "value": 0.05,
+                  "se": 0.0028634537552729,
+                  "n": 5620
+                }
+              ],
+              "tolerance": 0.0057269075105458
+            },
+            "Q2Q4_END": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.055222300635144675,
+                  "se": 0.003009836603664016,
+                  "n": 5668
+                },
+                {
+                  "set": 2,
+                  "value": 0.05245255997135696,
+                  "se": 0.0028247465592472097,
+                  "n": 5586
+                }
+              ],
+              "tolerance": 0.006019673207328032
+            },
+            "REST": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.05451636721634261,
+                  "se": 0.0011864938623675895,
+                  "n": 32504
+                },
+                {
+                  "set": 2,
+                  "value": 0.05366093668316984,
+                  "se": 0.0012846004079949348,
+                  "n": 32519
+                }
+              ],
+              "tolerance": 0.0025692008159898696
+            },
+            "OVERTIME": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.045454545454545456,
+                  "se": 0.055391311647033134,
+                  "n": 22
+                },
+                {
+                  "set": 2,
+                  "value": 0,
+                  "se": 0,
+                  "n": 16
+                }
+              ],
+              "tolerance": 0.11078262329406627
+            }
+          },
+          "time_to_throw": {
+            "Q1Q3_END": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 1.2623342175066312,
+                  "se": 0.010500162800213209,
+                  "n": 3770
+                },
+                {
+                  "set": 2,
+                  "value": 1.228058510638298,
+                  "se": 0.010403427051169555,
+                  "n": 3760
+                }
+              ],
+              "tolerance": 0.021000325600426417
+            },
+            "Q2Q4_END": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 1.2555381808704718,
+                  "se": 0.010168781584643816,
+                  "n": 3837
+                },
+                {
+                  "set": 2,
+                  "value": 1.244862087614927,
+                  "se": 0.01036875368061791,
+                  "n": 3698
+                }
+              ],
+              "tolerance": 0.02073750736123582
+            },
+            "REST": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 1.2358337203901533,
+                  "se": 0.00405935084233023,
+                  "n": 21530
+                },
+                {
+                  "set": 2,
+                  "value": 1.2430265153255824,
+                  "se": 0.004266252547016837,
+                  "n": 21761
+                }
+              ],
+              "tolerance": 0.008532505094033674
+            },
+            "OVERTIME": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 1.1071428571428572,
+                  "se": 0.09245238745438365,
+                  "n": 14
+                },
+                {
+                  "set": 2,
+                  "value": 1.1,
+                  "se": 0.2478388709433762,
+                  "n": 5
+                }
+              ],
+              "tolerance": 0.4956777418867524
+            }
+          }
+        },
+        "clockCheck": {
+          "snaps": 138555,
+          "snapsEqual": 426,
+          "snapsRebuiltBelow": 0,
+          "drives": 38496,
+          "drivesEqual": 313,
+          "drivesRebuiltBelow": 0,
+          "snapsWithoutClock": 0
+        },
+        "clock": "PLAY_START.situation.clockSeconds (the rebuild runs ahead: huddles and kicking downs)"
+      },
+      "gen": {
+        "rows": {
+          "pass_rate": {
+            "Q1Q3_END": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.7734428473648186,
+                  "se": 0.006020877458698212,
+                  "n": 4383
+                },
+                {
+                  "set": 2,
+                  "value": 0.7623136014460009,
+                  "se": 0.006130638586603669,
+                  "n": 4426
+                }
+              ],
+              "tolerance": 0.012261277173207338
+            },
+            "Q2Q4_END": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.7609977324263039,
+                  "se": 0.00638792501017258,
+                  "n": 4410
+                },
+                {
+                  "set": 2,
+                  "value": 0.7601717902350814,
+                  "se": 0.006678239514768537,
+                  "n": 4424
+                }
+              ],
+              "tolerance": 0.013356479029537073
+            },
+            "REST": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.5857922486356488,
+                  "se": 0.0028478618809340242,
+                  "n": 32433
+                },
+                {
+                  "set": 2,
+                  "value": 0.583374128013707,
+                  "se": 0.0030403383499581493,
+                  "n": 32684
+                }
+              ],
+              "tolerance": 0.006080676699916299
+            },
+            "OVERTIME": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.5,
+                  "se": 0.13061870036227005,
+                  "n": 26
+                },
+                {
+                  "set": 2,
+                  "value": 0.3333333333333333,
+                  "se": 0.15556985491262662,
+                  "n": 3
+                }
+              ],
+              "tolerance": 0.31113970982525324
+            }
+          },
+          "throwaway_rate": {
+            "Q1Q3_END": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.03215339233038348,
+                  "se": 0.0029065004840714637,
+                  "n": 3390
+                },
+                {
+                  "set": 2,
+                  "value": 0.021636040308239478,
+                  "se": 0.0027544219370903215,
+                  "n": 3374
+                }
+              ],
+              "tolerance": 0.005813000968142927
+            },
+            "Q2Q4_END": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.028307508939213348,
+                  "se": 0.003028817953791871,
+                  "n": 3356
+                },
+                {
+                  "set": 2,
+                  "value": 0.02646446625037169,
+                  "se": 0.0029348922394735856,
+                  "n": 3363
+                }
+              ],
+              "tolerance": 0.006057635907583742
+            },
+            "REST": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.028475182904363388,
+                  "se": 0.0014352565001289064,
+                  "n": 18999
+                },
+                {
+                  "set": 2,
+                  "value": 0.025226831698746524,
+                  "se": 0.0013440579879685536,
+                  "n": 19067
+                }
+              ],
+              "tolerance": 0.0028705130002578128
+            },
+            "OVERTIME": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 0.07692307692307693,
+                  "se": 0.0975850481438324,
+                  "n": 13
+                },
+                {
+                  "set": 2,
+                  "value": 0,
+                  "se": 0,
+                  "n": 1
+                }
+              ],
+              "tolerance": 0.1951700962876648
+            }
+          },
+          "time_to_throw": {
+            "Q1Q3_END": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 1.2563204978607545,
+                  "se": 0.013032336152517194,
+                  "n": 2571
+                },
+                {
+                  "set": 2,
+                  "value": 1.2533307955843167,
+                  "se": 0.012875607606952473,
+                  "n": 2627
+                }
+              ],
+              "tolerance": 0.026064672305034387
+            },
+            "Q2Q4_END": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 1.2274835717046773,
+                  "se": 0.012191691204897125,
+                  "n": 2587
+                },
+                {
+                  "set": 2,
+                  "value": 1.2187381223869251,
+                  "se": 0.01336653005305401,
+                  "n": 2631
+                }
+              ],
+              "tolerance": 0.02673306010610802
+            },
+            "REST": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 1.2328340856244016,
+                  "se": 0.006281089898307492,
+                  "n": 14622
+                },
+                {
+                  "set": 2,
+                  "value": 1.245918502787364,
+                  "se": 0.005747347905797253,
+                  "n": 15068
+                }
+              ],
+              "tolerance": 0.012562179796614984
+            },
+            "OVERTIME": {
+              "sets": [
+                {
+                  "set": 1,
+                  "value": 1.1818181818181819,
+                  "se": 0.2829239985846534,
+                  "n": 11
+                },
+                {
+                  "set": 2,
+                  "value": 1,
+                  "se": 0.4822276884870312,
+                  "n": 1
+                }
+              ],
+              "tolerance": 0.9644553769740624
+            }
+          }
+        },
+        "clockCheck": {
+          "snaps": 82789,
+          "snapsEqual": 271,
+          "snapsRebuiltBelow": 0,
+          "drives": 24528,
+          "drivesEqual": 199,
+          "drivesRebuiltBelow": 0,
+          "snapsWithoutClock": 0
+        },
+        "clock": "PLAY_START.situation.clockSeconds (the rebuild runs ahead: huddles and kicking downs)"
+      }
     }
   },
   "census": {

@@ -35,10 +35,13 @@ import {
 } from "../src/pocket/bands.js";
 import { ADR_089_LINES, CLAUSE_DIRECTIONS, CLAUSE_KINDS, isPending, type BandClause } from "../src/pocket/filed.js";
 import { REAL } from "../src/pocket/selection.js";
+import { stableDigest } from "../src/harness/digest.js";
 
 const ADR_PATH = join(import.meta.dirname, "..", "..", "..", "docs", "decisions", "ADR-089-the-pocket-on-a-real-clock.md");
 const ADR_LINES = readFileSync(ADR_PATH, "utf8").split("\n");
 const line = (n: number): string => ADR_LINES[n - 1]!;
+/** `stableDigest` of the C0 lines 1 to 2018 (ADR-089 as C0 landed it, and as /mnt/project-files holds it). */
+const C0_DIGEST = "fnv1a:b175b420";
 
 const byId = new Map(CLAUSES.map((c) => [c.id, c]));
 const get = (id: string): BandClause => {
@@ -119,8 +122,19 @@ describe("the clauses", () => {
 });
 
 describe("the completeness list (the C0 bytes)", () => {
-  it("reads the C0 file at its filed length", () => {
-    expect(ADR_LINES.length - (ADR_LINES.at(-1) === "" ? 1 : 0)).toBe(ADR_089_LINES);
+  // C3 (plan §7.3 item 6) appends Appendix E after the C0 bytes, so the file is the C0 lines, pinned
+  // by digest, then nothing but that appendix: every filed adrLine still points at the C0 text.
+  it("reads the C0 bytes at their filed length, with only Appendix E after them", () => {
+    const c0 = ADR_LINES.slice(0, ADR_089_LINES);
+    expect(c0).toHaveLength(ADR_089_LINES);
+    expect(stableDigest(c0.join("\n")), "ADR-089's C0 lines changed: every filed adrLine reads them").toBe(C0_DIGEST);
+    const after = ADR_LINES.slice(ADR_089_LINES);
+    if (after.length > 1) {
+      expect(after[0]).toBe("");
+      expect(after[1]).toBe("## Appendix E: the step-0 filing record");
+      expect(after.slice(2).filter((l) => /^## /.test(l))).toEqual([]);
+    }
+    expect(ADR_LINES.at(-1)).toBe("");
   });
 
   it("is exactly the plan's ranges less the lines that state no clause, the two disjoint", () => {

@@ -2016,3 +2016,150 @@ No scratch test, no source edited and no background job (`CM` §9). Code was rea
 ### D.6 What none of it is
 
 None of it is engine code. It is one or two seed sets on two leagues. Revision 1's arms (Appendix B) and the readers' arms share one harness lineage (K2's rebuild of Appendix B's, `TOT` §2, `FR` §7.1), so they are not independent of each other. **Step 0 reproduces every base row in engine code before step 1 is written** (§6.0), and **no graded row is scored on anything but built engine code**, from step 5b (WARNING 1).
+
+## Appendix E: the step-0 filing record
+
+*Appended at step 0's integration (plan §7.3 item 6). Nothing above this appendix changed, so every `adrLine` in the filing still points at the C0 bytes of this file. The machine-read filing is the JSON below; this appendix is its human-read record (plan §8.1). Amendments go in `reports/adr-089-amendments.filed.json`, never in the step-0 file.*
+
+### E.1 The filing
+
+- **Path:** `packages/calibration/reports/adr-089-step0.filed.json`, format `adr-089-filed/v1`.
+- **`FILED_DIGEST`:** `fnv1a:6b9ef02c`, pinned in `packages/calibration/test/adr089Filed.test.ts`. It is `filedDigest` (`stableDigest` of the parsed file), and the same test pins the bytes' format (two-space JSON, final newline), so any edit fails the suite with "ADR-089 §6.0: the step-0 filing is append-only; amend by a named entry". The bytes' sha256 is `43b62a53a8aee07020eebbeb623efde522c5c95198ce57571cd4e7572b627e85`.
+- **How it was filled:** `pnpm --filter @ff/calibration pocket -- --step 0 --write-filed reports/adr-089-step0.filed.json` (P-7, 326 s on 4 vCPU). It filled all 68 pending fields: `m1Bound` (7), `M.M1` to `M.M9` (9), the 44 base rows on both leagues, and 8 clause edges (E.7). No pending marker is left (`adr089Comparators.test.ts`).
+- **Where it was measured:** the step-0 branch, which changes no engine source (P-12), so every base figure is today's game at `e23bf69`. The M block and `m1Bound` equal stream S3's own run of the same command field for field, and `adr089Base.test.ts` (P-3, P-4) re-plays the base corpora and gets every filed base row back.
+- **Question 19 was answered Wait.** M8 is built for Wait; Table now is filed beside it as information only (E.3).
+
+### E.2 The M1 bound: B1, E, SD and H (deviation O1)
+
+B1 = E + 3·SD, over POWER reps of latent margin 1 to 14 on dropbacks released at 1.0 s or later; H is the count of reps the window could touch (`m1PushWindow.ts`). The filed bound is gen seed set 1 (`m1Bound`); the other league and set are filed beside it in `M.M1`. In points, B1 is 100 × B1 / dropbacks.
+
+| league, set | dropbacks | E | SD | B1 | H | B1 in points | margins 1-4: B1 in points | margins 5-14: B1 in points |
+|---|---|---|---|---|---|---|---|---|
+| gen, 1 (filed) | 25,758 | 47.34 | 6.83 | 67.83 | 3,988 | 0.2633 | 0.0958 | 0.1979 |
+| gen, 2 | 25,805 | 47.24 | 6.82 | 67.71 | 4,007 | 0.2624 | 0.0956 | 0.1972 |
+| flat, 1 | 43,837 | 68.84 | 8.24 | 93.54 | 5,862 | 0.2134 | 0.0785 | 0.1567 |
+| flat, 2 | 43,741 | 68.83 | 8.24 | 93.54 | 5,924 | 0.2138 | 0.0802 | 0.1556 |
+
+Its three uses take the one filed number, 0.2633 points: step 1's window falsifier, pressure within ±0.2633 (`s1.window.pressure`, ADR-089:1007); the S band's raised upper pressure edge, 40 + B1 = 40.2633 (`s1.S.pressure`, :1005-1007); and 5b's raised edge, 42 + B1 = 42.2633 (`s5b.pressure`, :1063). It is the largest of the four league-and-set figures, so on flat (0.2134 and 0.2138) the filed bound is the looser one.
+
+### E.3 M8: the free-run clock under Wait, with Table now beside it as information
+
+Every free runner on both base seasons (seed set 1), by snap row. Under Wait only the down lineman's row is built: he runs the free-run clock (§4.4.4) from his gap (A 0.75 / B 2.25 / C 3.75 / D 5.25 yards, EDGE +0.75) at depth 1.0; every other free runner keeps today's set time (TODAY), and a man somebody touched keeps his (TOUCHED). Table now's rows are counted on the same men, with and without the Mug arm, and are information only.
+
+| league | free runners | published etaTick mismatches | Wait: DOWN_LINEMAN / TODAY / TOUCHED | Table now (information) | Table now with the Mug arm (information) |
+|---|---|---|---|---|---|
+| gen | 7,366 | 0 | 2,099 / 2,564 / 2,703 | DOWN_LINEMAN 2,099, LB_WALKED_UP 1,284, LB_DISGUISED 878, LB_ON_THE_EDGE 58, SLOT_CORNER 344, TOUCHED 2,703 | DOWN_LINEMAN 2,099, LB_WALKED_UP 1,283, LB_DISGUISED 789, LB_ON_THE_EDGE 50, LB_MUG 98, SLOT_CORNER 344, TOUCHED 2,703 |
+| flat | 13,142 | 0 | 3,947 / 4,533 / 4,662 | DOWN_LINEMAN 3,947, LB_WALKED_UP 2,293, LB_DISGUISED 1,423, LB_ON_THE_EDGE 115, SLOT_CORNER 702, TOUCHED 4,662 | DOWN_LINEMAN 3,947, LB_WALKED_UP 2,289, LB_DISGUISED 1,269, LB_ON_THE_EDGE 104, LB_MUG 169, SLOT_CORNER 702, TOUCHED 4,662 |
+
+The down linemen under Wait, by origin and position (mean free-run time against today's set time, seconds; how many arrive sooner and later than today):
+
+| league | origin | position | n | mean free-run time | mean today | sooner | later |
+|---|---|---|---|---|---|---|---|
+| gen | PICKUP_LOST/BLOWN_UP | DE | 366 | 1.771 | 1.500 | 0 | 366 |
+| gen | PICKUP_LOST/BLOWN_UP | DT | 18 | 1.800 | 1.444 | 0 | 18 |
+| gen | STUNT_LOOPER/LOOPER_FREE | DE | 1,086 | 1.999 | 2.000 | 449 | 244 |
+| gen | STUNT_LOOPER/LOOPER_FREE | DT | 543 | 1.815 | 2.000 | 422 | 6 |
+| gen | UNBLOCKED | DE | 86 | 1.703 | 1.500 | 0 | 86 |
+| flat | PICKUP_LOST/BLOWN_UP | DE | 670 | 1.769 | 1.500 | 0 | 670 |
+| flat | PICKUP_LOST/BLOWN_UP | DT | 42 | 1.738 | 1.429 | 0 | 42 |
+| flat | STUNT_LOOPER/LOOPER_FREE | DE | 2,116 | 2.046 | 2.000 | 0 | 485 |
+| flat | STUNT_LOOPER/LOOPER_FREE | DT | 939 | 1.743 | 2.000 | 939 | 0 |
+| flat | UNBLOCKED | DE | 180 | 1.700 | 1.500 | 0 | 180 |
+
+The down-lineman key (`POSITION_GROUP` DL, deviation O8) disagrees with the personnel family on 0 of 7,366 gen runners and 0 of 13,142 flat, and with the depth class on 0 and 0. The full tables (every origin, row and position, with the ETA histograms, under Wait, Table now and Table now with the Mug arm) are `M.M8` in the filing.
+
+### E.4 M9's tolerance (deviation O10)
+
+Two times the game-clustered bootstrap SE (1,000 resamples, seeded `adr-089:m9`), the larger of the two seed sets, by row and window. Rates are fractions; time to throw is in seconds.
+
+| league | row | Q1/Q3 end | Q2/Q4 end | rest | overtime |
+|---|---|---|---|---|---|
+| gen | pass_rate | 0.012261 | 0.013356 | 0.006081 | 0.311140 |
+| gen | throwaway_rate | 0.005813 | 0.006058 | 0.002871 | 0.195170 |
+| gen | time_to_throw | 0.026065 | 0.026733 | 0.012562 | 0.964455 |
+| flat | pass_rate | 0.009901 | 0.010032 | 0.004664 | 0.249406 |
+| flat | throwaway_rate | 0.005727 | 0.006020 | 0.002569 | 0.110783 |
+| flat | time_to_throw | 0.021000 | 0.020738 | 0.008533 | 0.495678 |
+
+Steps 8a's and acceptance's Q1/Q3 clauses (`s8a.q1q3`, ADR-089:1100; `acc.q1q3`, :1153) hold one number, 0.5813 points: the throwaway row's Q1/Q3 tolerance in points, the larger league's (E.7). The pass-rate and time-to-throw tolerances stay in `M.M9` beside it.
+
+### E.5 Step 5b's bands, re-derived (ADR-089:1063), with the full interval
+
+| row | acceptance | contributions after 5b (midpoints) | derived | filed | full interval |
+|---|---|---|---|---|---|
+| sack_rate | 5.58-7.54 | 6: the rescoring (0.3 to 1; midpoint 0.65): +0.65; 6: the side-aware catch (0.24 to 0.24; midpoint 0.24): +0.24; 6: the caught escape as contact (-1 to -0.5; midpoint -0.75): -0.75; 7: the alarm, sight and the slide (0.5 to 2.5; midpoint 1.5): +1.5; 8b: the situation term, centred (0 to 0; midpoint 0): +0 | 3.94-5.90 | 3.9-5.9 | 2.34-7.50 |
+| hit_or_sack_rate | 12.5-16.9 | 6: the rescoring (each also a hit-or-sack) (0.3 to 1; midpoint 0.65): +0.65; 6: the side-aware catch (0.32 to 0.32; midpoint 0.32): +0.32; 6: the caught escape as contact (-1 to -0.5; midpoint -0.75): -0.75; 7: the alarm, sight and the slide (-4 to 1; midpoint -1.5): -1.5; 8b: the situation term, centred (0 to 0; midpoint 0): +0 | 13.78-18.18 | 13.8-18.2 | 10.68-21.28 |
+
+### E.6 b's grid and RUN's margin (deviations O6, O7)
+
+- **b** starts at 5 and is fitted at step 10 to 44.6% on the whole numbers -15 to 15 (31 points). The closed form is (100 − b)(101 − b)/20000 for b ≥ 1 (0.456 at b = 5) and 1 − (99 + b)(100 + b)/20000 for b ≤ 0 (0.505 at b = 0). Its reachable range is filed as REPORTED stand-ins (ADR-089:671): a sack share of 24 to 36 on the continuous reading and 37 to 57 on the grid reading, measured at the grid's ends at steps 4 and 10, and the grid is never widened.
+- **Δ = 10** over urgency 0 to 3: RUN's base is the throwaway appeal's base plus Δ, the smallest whole margin at which a 70-baseline quarterback ranks RUN strictly first at every urgency (Δ + 5u > 8u for u in 0..3, so Δ > 9).
+
+### E.7 The clause edges C3 filled, and the rule each follows (an integration finding)
+
+The filing holds **one number** per clause edge (`lo`, `hi`, `tolerance`), while M1, M2 and M9 measure each league apart (and M9 each row and window). The plan says P-7 fills them; the step-0 command as built filled only the M block and `m1Bound`, so C3 added `fillC3` (`src/pocket/main.ts`, `C3_CLAUSE_RULES`), which files each edge by a stated rule and refuses an edge no rule names. `adr089Comparators.test.ts` checks every filed edge equals its rule applied to the filed M values.
+
+| clause | edge | rule | filed |
+|---|---|---|---|
+| `s1.S.pressure` (ADR-089:1005) | hi | 40 + B1 in points (O1) | 40.2633 |
+| `s1.window.pressure` (ADR-089:1007) | lo | −B1 in points (O1) | -0.263321 |
+| `s1.window.pressure` (ADR-089:1007) | hi | +B1 in points (O1) | 0.263321 |
+| `s2.m2` (ADR-089:1017) | lo | the smaller league's counter-forced share under S (`M.M2.<league>["S-theta11-window"].counterFarSharePct`) | 0 |
+| `s2.m2` (ADR-089:1017) | hi | the larger league's | 0.02 |
+| `s5b.pressure` (ADR-089:1063) | hi | 42 + B1 in points (O1) | 42.2633 |
+| `s8a.q1q3` (ADR-089:1100) | tolerance | 100 × M9's throwaway-rate Q1/Q3 tolerance, the larger league's | 0.5813 |
+| `acc.q1q3` (ADR-089:1153) | tolerance | the same | 0.5813 |
+
+Two readings are named here for the owner to see. The B1 edges on flat use gen's bound, the larger. And the clause's comparator `situation_q1q3_last_two` is **pressured throwaways per pressured dropback**, while M9's throwaway row is **throwaways per dropback**; the tolerance is filed from M9's row as the design says ("M9's filed tolerance"), and the construct gap is listed for step 8a, which grades it.
+
+### E.8 The deviations O1 to O19: Orchestrator choices within the design's words
+
+None changes an owner answer. Each fills a number or a reading the design leaves open, or corrects a construct that cannot hold literally. "The design's words" quotes the line; "what is filed" is the step-0 filing's reading.
+
+| id | line | the design's words | what is filed | why |
+|---|---|---|---|---|
+| O1 | :975, :1007, :1063 | "the window alone moves pressure by at most M1's count, and sacks within 0.3"; "raised by M1's window count"; "pressure 25 to 42, its upper edge raised by M1's window count" | "M1's count" is B1 = E + 3·SD, with H beside it, one quantity in all three places (E.2) | the beat is a random draw, so "at most E" would fail half the time on noise; one named quantity for all three uses |
+| O2 | :1027 | "every free runner's published `etaTick` equals M8's table for his snap row, ratings and drop, to the tenth" | step 3's part 1 is M8's **function** applied to each play's own `PLAY_START` and snapshot, not the base table | games diverge from step 1, so step 3's free runners are not the base seasons' men |
+| O3 | :1319 against :1616 | :1319 changes "the news CLI's advice to play a season"; :1616 "`narrative` is untouched in code" | the news CLI's advice changes at step 11, with the flip, by `narrative` | the advice is right while the default is `legacy`, and narrative is untouched through step 10 |
+| O4 | :425, :979, :1179 | "across two seed sets"; "within noise"; "each priced on two seed sets" (no second set named) | second seed sets: flat `generateSeeds("adr-089:seed-set-2", 496)`; gen `pk-02` | the design names none; `baseline-000N` names belong to the baseline series |
+| O5 | :422-427 | "theta from 7 to 15 at k = 2, beta = 0.5 ... R from 4 to 8"; "within twice the loss's own spread across two seed sets" | theta ∈ {7, …, 15}, each with the push window; R ∈ {4, …, 8}; spread_g = \|loss_g(set 1) − loss_g(set 2)\|, no separation if worst − best ≤ 2·max_g spread_g | the ranges need points, and "spread across two seed sets" needs a statistic |
+| O6 | :669-671 | "b starts at 5 and is fitted at step 10"; its reachable range "measured as stand-ins" | b ∈ {−15, …, 15}, the closed form for both signs (E.6) | the lower edge effectively sets step 10's sack level (lower b, more sacks; 44.6 sits above the stand-in ceiling) |
+| O7 | :727 | RUN "(today's escape terms ...)" against THROWAWAY "(today's throwaway terms ...)", no margin given | Δ = 10 over urgency 0 to 3 (E.6) | the smallest whole margin at which a 70-baseline quarterback ranks RUN first at every urgency, covering step 10's neutral-situation row |
+| O8 | :569 | "down lineman (where the card aligns him; a Stem is a look and is never read)" | down lineman = `POSITION_GROUP` DL; its disagreements with the personnel family and the depth class reported (0 and 0, E.3) | the row names no key; the alternatives are shown |
+| O9 | §6.0 benches (:966-972) | "the uncensored line bench lives in `packages/engine/test`" (no population) | the line bench's grid (plan §6.3), in `packages/engine/test/lineBench.test.ts` | the design gives no population |
+| O10 | :979, :983 | "within noise"; "Step 8a's tolerance is filed from it" | M5's noise and M9's tolerance: 2 × the game-clustered bootstrap SE, the larger of two seed sets (E.4) | "within noise" and "tolerance" need a rule |
+| O11 | :985 | "The rules version and its overlay's tunables digest reach the baseline identity ... as an optional field, absent meaning `legacy`" | export and `--out` always write `engineRules`; identity, batch provenance and the save write it only when not legacy; the digest field only when not legacy | a legacy identity and a legacy save stay byte-identical to today's, while the export and `--out` say what played |
+| O12 | :950, :962 | "at fixed calls" | "at fixed calls" as plan §5 reads it | undefined in the design |
+| O13 | :962 | "first forcing" | the first COLLAPSING or IMMEDIATE tick | `TM`'s construct; it reproduces `TM`'s 20,130 |
+| O14 | :976 | "the share of forced decisions set by the counter while the nearest threat is more than 0.5 s away" under S and L | M2's own dice and its first-order censoring (plan §6.2), the censored share printed | no engine fork exists for the beat or the unplayed ticks at step 0 |
+| O15 | :922 | "byte-identical ... compared by `stableDigest` of `{at, event}`" | the byte digest of plan §3.4 (FNV-1a over `JSON.stringify`), pinned per game, beside the canonical one | `stableDigest` sorts keys, so it cannot prove "byte-identical" alone |
+| O16 | :416, §4.1's reader list | the readers of `CHECK.roll` named at :416 | P3's reader list gains `apps/game/src/playDetail.ts:296-308` | the play-detail view reads `CHECK.roll` with no guard |
+| O17 | :970 | "the one-threat bench is built from constructed calls run through `simulatePassPlay`" | the bench's construction of plan §6.3 | the design names the harness, not the population |
+| O18 | :962-964 | the new rows, as "rows" | rows that need the snapshot, the tunables or the decision bar are pocket report rows (`constructs.ts` home `pocket-row`), not registry rows | the registry's word guard and its event-only folds |
+| O19 | :991 | "the S late arm re-measured on a second seed set, context only" | it runs at step 1 | no shape S exists at step 0 |
+
+### E.9 The (b) checks: reproductions of REPORTED figures
+
+A miss is recorded as REPORTED-UNREPRODUCED with its own construct and value, as Appendix B does; it does not falsify step 0 (§9 (b) of the plan). `adr089Base.test.ts` prints each and asserts the classification; the clean bench's figures are `cleanBench.test.ts`'s (P-6).
+
+| id | construct (this tree) | the design's figure | measured | outcome |
+|---|---|---|---|---|
+| b.m4 | M4, TM's cause rule, gen seed set 1 | 6,395 of 21,962 (29.1%); naive 36.3% | 6,395 of 21,962 (29.12%); naive 7,967 (36.28%) | reproduced |
+| b.clean-bench-nobody-open | the clean bench's nobody-open share and split (`throwClass.ts`) | gen 30.2% (8,631 of 28,588): 10.1 / 8.9 / 11.1; flat 43.6% (23,064 of 52,882): 6.8 / 16.2 / 20.6 | asserted by P-6 at the printed precision | reproduced (P-6) |
+| b.m3 | M3, the last ARRIVED rusher, same-tick arrivals split, gen | 86.9 / 8.6 / 4.4; unsplit interior 82.5; 1,110 | 86.90 / 8.64 / 4.43; 82.51; 1,110 of 4,308 | reproduced |
+| b.first-pressure | `first_pressure_seconds`, seed set 1 | 0.877 flat, 0.883 gen | 0.877, 0.883 | reproduced |
+| b.live-won-rep | `clean_with_live_won_rep_ticks` / `_dropbacks` | 60 on 57 flat, 30 on 29 gen | 60 on 57, 30 on 29 | reproduced |
+| b.unblocked-men | `unblocked_men_per_100`, gen | 18.1 | 18.10 | reproduced |
+| b.won-rep-origin | `first_pressure_origin`, gen | 62% | 61.88% | reproduced |
+| b.entry-107 | `multi_channel_share`, the in-tree deciding-instant algorithm under today's forcing rule, flat | 79.94% | 0.29% (101 of 34,549 forced); the pre-ADR-058 old-forced reading gives 76.55% (26,954 of 35,211) | **REPORTED-UNREPRODUCED** |
+| b.cp-classes | after an escape: `int_per_aimed_by_throw_class.ON_THE_RUN` on gen base; the rest on the gen clean bench | 17.1% after an escape; desperation 19.0%; rank-pushed 16.3% at 20.9% | 17.10% on 421 aimed; the clean-bench figures asserted by P-6 (rank-pushed after S3's reading of CP's stated rule, plan §6.1) | reproduced |
+| b.tm-399 | M2 under S counts the counter-forced share, not edge won-rep threats by travel | 399 of 14,627, "if M2's S construct matches" | the construct does not match; M2's S arm gives counter-forced 0 of 5,596 forced on gen | **REPORTED-UNREPRODUCED** |
+
+### E.10 The real sides against §2 (K16)
+
+`adr089Base.test.ts` checks 160 real figures of §2.1-§2.4 on the data cache (2022-24 TUNING seasons; 2023-24 where the row says FTN) at their printed precision, each with its line: 14.71 and 14.73 (:86, :155), 44.6 and 45.1 (:87, :156), 6.56 (:157), 2.631 and the 2.40 median (:158), every bin of §2.2's curves (:169-186) and the 0.5 s release shapes (:194-195), the 29.4 / 36.2 limits (:188), 3.54 / 8.84 / 1.25 (:204), 10.63 with its 33.0 / 4.7 / 62.3 split (:246), 45.5 / 43.9 (:290), and §2.4's situation table with its standard errors (:228-232). **158 reproduce.** Two cannot be matched, and are printed beside the design's figure; the bands stay filed against the design's figures:
+
+| figure | design | measured | why it cannot be matched |
+|---|---|---|---|
+| hit-or-sack's interval, upper edge (:86) | [14.43-15.00] | play-level binomial 95%: [14.43, 14.99]; a game-clustered bootstrap is wider (about [14.38, 15.03]) | the design states no construct for the interval |
+| QB hit rate counting throwaways, raw, 2.5-3.0 s (:171) | 10.9 | 10.850 (803 of 7,401; 10.8499 to four places) | the printed 10.9 is a half-up rounding of the two-place 10.85 (double rounding, INFERRED); K1's reference row, which no band reads |
