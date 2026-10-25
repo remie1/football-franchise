@@ -134,10 +134,16 @@ describe("ADR-089 step 0: the uncensored line bench", () => {
     expect(ticksOf(TUNABLES)).toEqual([0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0]);
   });
 
-  it("one small cell: deterministic, a curve that never rises, and the resolvers' own bands and tiers", () => {
+  it("one small cell: deterministic; plus structural sanity checks (the curve's shape, the resolvers' own bands)", () => {
     const a = cellCurve(TUNABLES, SMALL, 40);
     const b = cellCurve(TUNABLES, SMALL, 40);
     expect(b).toEqual(a);
+    // Structural sanity checks, not evidence (review finding CT-N2): each holds by construction.
+    // `checkMismatches` compares a tick's CHECK with bandFor/tierFor on its own margin, the functions
+    // the resolver itself calls, so it catches only the wrong tunables passed through; S(t) is the
+    // share not won by t over increasing t, so it cannot rise; and the last tick is clock.maxTick,
+    // so S there is the never-won share. What discriminates is the dating case and the ordering case
+    // below.
     expect(a.checkMismatches).toBe(0);
     for (let k = 1; k < a.survival.length; k += 1) expect(a.survival[k]!.notWon).toBeLessThanOrEqual(a.survival[k - 1]!.notWon);
     expect(a.survival[0]!.notWon).toBeLessThanOrEqual(1);
@@ -166,6 +172,8 @@ describe("ADR-089 step 0: the uncensored line bench", () => {
       const cells = grid();
       expect(cells.length).toBe(216);
       const curves = cells.map((c) => cellCurve(TUNABLES, c));
+      // The same structural sanity checks on every cell (by construction, see the small cell); the
+      // bench's output is the table it prints.
       for (const c of curves) {
         expect(c.checkMismatches).toBe(0);
         for (let k = 1; k < c.survival.length; k += 1) expect(c.survival[k]!.notWon).toBeLessThanOrEqual(c.survival[k - 1]!.notWon);
