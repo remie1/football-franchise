@@ -2024,9 +2024,11 @@ None of it is engine code. It is one or two seed sets on two leagues. Revision 1
 ### E.1 The filing
 
 - **Path:** `packages/calibration/reports/adr-089-step0.filed.json`, format `adr-089-filed/v1`.
-- **`FILED_DIGEST`:** `fnv1a:6b9ef02c`, pinned in `packages/calibration/test/adr089Filed.test.ts`. It is `filedDigest` (`stableDigest` of the parsed file), and the same test pins the bytes' format (two-space JSON, final newline), so any edit fails the suite with "ADR-089 §6.0: the step-0 filing is append-only; amend by a named entry". The bytes' sha256 is `43b62a53a8aee07020eebbeb623efde522c5c95198ce57571cd4e7572b627e85`.
-- **How it was filled:** `pnpm --filter @ff/calibration pocket -- --step 0 --write-filed reports/adr-089-step0.filed.json` (P-7, 326 s on 4 vCPU). It filled all 68 pending fields: `m1Bound` (7), `M.M1` to `M.M9` (9), the 44 base rows on both leagues, and 8 clause edges (E.7). No pending marker is left (`adr089Comparators.test.ts`).
+- **`FILED_DIGEST`:** `fnv1a:9a1c90e9`, pinned in `packages/calibration/test/adr089Filed.test.ts`. It is `filedDigest` (`stableDigest` of the parsed file), and the same test pins the bytes' format (two-space JSON, final newline), so any edit fails the suite with "ADR-089 §6.0: the step-0 filing is append-only; amend by a named entry". The bytes' sha256 is `767ae0c462e22a3319c509a65975be0c6b0e9a5b4a46bf8d119575234878da07`. It was re-pinned once, at step 0's review and before any arm read the pin: the first pin, `fnv1a:6b9ef02c` (sha256 `43b62a53…`), gave way when the review's findings F2, F3 and F8 changed the filing (E.11, the named entry).
+- **How it was filled:** `pnpm --filter @ff/calibration pocket -- --step 0 --write-filed <a fresh step0Filing()>` (P-7, 356 s on 4 vCPU), on a pending file written from `step0Filing()`, then copied to the path above; a second process filling another fresh file gives the same bytes (`cmp`). It filled all 73 pending fields: `m1Bound` (7), `M.M1` to `M.M9` (9), the 45 base rows on both leagues, and 12 clause edges (E.7). No pending marker is left (`adr089Comparators.test.ts`), and the command writes nothing unless it can fill every one (`completeFiling`).
+- **The curve rows hold one cell** (review F6). `base.rows.pressured_share_by_release_bin` and `base.rows.hit_rate_by_release_bin` file the registered 2.0-2.5 s cell only, as the registry rows print it; the whole curve by bin is `pocketTables`' (and the step report's), not the filing's. A later step that needs today's curve re-measures it on the base arm. The level of hits on thrown balls is its own row, `hits_on_aimed_throws_per_dropback` (E.11).
 - **Where it was measured:** the step-0 branch, which changes no engine source (P-12), so every base figure is today's game at `e23bf69`. The M block and `m1Bound` equal stream S3's own run of the same command field for field, and `adr089Base.test.ts` (P-3, P-4) re-plays the base corpora and gets every filed base row back.
+- **How the golden pins were measured** (review NPC-S2). `GOLDEN_PINS` and `SEASON_PATH_PINS` (`src/pocket/golden.ts`) and the 1,400 per-game hashes of `test/fixtures/adr089-golden.json` (stamped `measuredAt: "e23bf69"`) come from the base, not from the code they check: `test/goldenBaseRecipe.test.ts` imports only modules that exist at `e23bf69` and, run in a checkout of the base (`FF_POCKET_GOLDEN_RECIPE_OUT=<file>`), writes every golden game's canonical and byte digest, their folds, the whole-canonical digests and event counts, and the season path's per-game digests, folds and run digest (captured around `runOneGame`, since the base has no `onGame`); `test/goldenBaseCheck.test.ts` (`FF_POCKET_GOLDEN_BASE=<file>`), run in this tree, asserts the pins and the fixture equal that output. Run at the review's fix: the recipe in a copy of `e23bf69` (343 s), then the check here, 3 of 3 passed.
 - **Question 19 was answered Wait.** M8 is built for Wait; Table now is filed beside it as information only (E.3).
 
 ### E.2 The M1 bound: B1, E, SD and H (deviation O1)
@@ -2081,7 +2083,7 @@ Two times the game-clustered bootstrap SE (1,000 resamples, seeded `adr-089:m9`)
 | flat | throwaway_rate | 0.005727 | 0.006020 | 0.002569 | 0.110783 |
 | flat | time_to_throw | 0.021000 | 0.020738 | 0.008533 | 0.495678 |
 
-Steps 8a's and acceptance's Q1/Q3 clauses (`s8a.q1q3`, ADR-089:1100; `acc.q1q3`, :1153) hold one number, 0.5813 points: the throwaway row's Q1/Q3 tolerance in points, the larger league's (E.7). The pass-rate and time-to-throw tolerances stay in `M.M9` beside it.
+Steps 8a's and acceptance's Q1/Q3 clauses (ADR-089:1100, :1153) are one clause per row, each with its own Q1/Q3 tolerance in its own unit, the larger league's (E.7; review F3): throwaways 0.5813 points (`s8a.q1q3`, `acc.q1q3`), pass rate 1.2261 points (`s8a.q1q3.passRate`, `acc.q1q3.passRate`) and time to throw 0.026065 s (`s8a.q1q3.timeToThrow`, `acc.q1q3.timeToThrow`).
 
 ### E.5 Step 5b's bands, re-derived (ADR-089:1063), with the full interval
 
@@ -2097,7 +2099,7 @@ Steps 8a's and acceptance's Q1/Q3 clauses (`s8a.q1q3`, ADR-089:1100; `acc.q1q3`,
 
 ### E.7 The clause edges C3 filled, and the rule each follows (an integration finding)
 
-The filing holds **one number** per clause edge (`lo`, `hi`, `tolerance`), while M1, M2 and M9 measure each league apart (and M9 each row and window). The plan says P-7 fills them; the step-0 command as built filled only the M block and `m1Bound`, so C3 added `fillC3` (`src/pocket/main.ts`, `C3_CLAUSE_RULES`), which files each edge by a stated rule and refuses an edge no rule names. `adr089Comparators.test.ts` checks every filed edge equals its rule applied to the filed M values.
+The filing holds **one number** per clause edge (`lo`, `hi`, `tolerance`), while M1, M2 and M9 measure each league apart (and M9 each row and window). The plan says P-7 fills them; the step-0 command as built filled only the M block and `m1Bound`, so C3 added `fillC3` (`src/pocket/step0.ts`, `C3_CLAUSE_RULES`), which files each edge by a stated rule and refuses an edge no rule names. `adr089Comparators.test.ts` checks every filed edge equals its rule applied to the filed M values.
 
 | clause | edge | rule | filed |
 |---|---|---|---|
@@ -2108,9 +2110,13 @@ The filing holds **one number** per clause edge (`lo`, `hi`, `tolerance`), while
 | `s2.m2` (ADR-089:1017) | hi | the larger league's | 0.02 |
 | `s5b.pressure` (ADR-089:1063) | hi | 42 + B1 in points (O1) | 42.2633 |
 | `s8a.q1q3` (ADR-089:1100) | tolerance | 100 × M9's throwaway-rate Q1/Q3 tolerance, the larger league's | 0.5813 |
-| `acc.q1q3` (ADR-089:1153) | tolerance | the same | 0.5813 |
+| `s8a.q1q3.passRate` (ADR-089:1100) | tolerance | 100 × M9's pass-rate Q1/Q3 tolerance, the larger league's | 1.2261 |
+| `s8a.q1q3.timeToThrow` (ADR-089:1100) | tolerance | M9's time-to-throw Q1/Q3 tolerance in seconds, the larger league's | 0.026065 |
+| `acc.q1q3` (ADR-089:1153) | tolerance | as `s8a.q1q3` | 0.5813 |
+| `acc.q1q3.passRate` (ADR-089:1153) | tolerance | as `s8a.q1q3.passRate` | 1.2261 |
+| `acc.q1q3.timeToThrow` (ADR-089:1153) | tolerance | as `s8a.q1q3.timeToThrow` | 0.026065 |
 
-Two readings are named here for the owner to see. The B1 edges on flat use gen's bound, the larger. And the clause's comparator `situation_q1q3_last_two` is **pressured throwaways per pressured dropback**, while M9's throwaway row is **throwaways per dropback**; the tolerance is filed from M9's row as the design says ("M9's filed tolerance"), and the construct gap is listed for step 8a, which grades it.
+Three readings are named here for the owner to see. The B1 edges on flat use gen's bound, the larger. The throwaway clause's comparator `situation_q1q3_last_two` is **pressured throwaways per pressured dropback**, while M9's throwaway row is **throwaways per dropback**; the tolerance is filed from M9's row as the design says ("M9's filed tolerance"), and the construct gap is listed for step 8a, which grades it (the pass-rate and time-to-throw clauses read M9's own rows, so they have none). And `s2.m2`'s edges are M2's **censored first-order** share (review F5): under S, M2 censors 78% of dropbacks (gen 20,162 of 25,758, 78.27%; flat 78.10%), so 0 to 0.02 is reported only, never graded (O14).
 
 ### E.8 The deviations O1 to O19: Orchestrator choices within the design's words
 
@@ -2128,7 +2134,7 @@ None changes an owner answer. Each fills a number or a reading the design leaves
 | O8 | :569 | "down lineman (where the card aligns him; a Stem is a look and is never read)" | down lineman = `POSITION_GROUP` DL; its disagreements with the personnel family and the depth class reported (0 and 0, E.3) | the row names no key; the alternatives are shown |
 | O9 | §6.0 benches (:966-972) | "the uncensored line bench lives in `packages/engine/test`" (no population) | the line bench's grid (plan §6.3), in `packages/engine/test/lineBench.test.ts` | the design gives no population |
 | O10 | :979, :983 | "within noise"; "Step 8a's tolerance is filed from it" | M5's noise and M9's tolerance: 2 × the game-clustered bootstrap SE, the larger of two seed sets (E.4) | "within noise" and "tolerance" need a rule |
-| O11 | :985 | "The rules version and its overlay's tunables digest reach the baseline identity ... as an optional field, absent meaning `legacy`" | export and `--out` always write `engineRules`; identity, batch provenance and the save write it only when not legacy; the digest field only when not legacy | a legacy identity and a legacy save stay byte-identical to today's, while the export and `--out` say what played |
+| O11 | :985 | "The rules version and its overlay's tunables digest reach the baseline identity ... as an optional field, absent meaning `legacy`" | export and `--out` always write `engineRules`; identity, batch provenance and the save write it only when not legacy; the overlay digest field (identity, batch provenance, the export and `--out`; never the save, see K18 below) only when not legacy | a legacy identity and a legacy save stay byte-identical to today's, while the export and `--out` say what played |
 | O12 | :950, :962 | "at fixed calls" | "at fixed calls" as plan §5 reads it | undefined in the design |
 | O13 | :962 | "first forcing" | the first COLLAPSING or IMMEDIATE tick | `TM`'s construct; it reproduces `TM`'s 20,130 |
 | O14 | :976 | "the share of forced decisions set by the counter while the nearest threat is more than 0.5 s away" under S and L | M2's own dice and its first-order censoring (plan §6.2), the censored share printed | no engine fork exists for the beat or the unplayed ticks at step 0 |
@@ -2137,6 +2143,8 @@ None changes an owner answer. Each fills a number or a reading the design leaves
 | O17 | :970 | "the one-threat bench is built from constructed calls run through `simulatePassPlay`" | the bench's construction of plan §6.3 | the design names the harness, not the population |
 | O18 | :962-964 | the new rows, as "rows" | rows that need the snapshot, the tunables or the decision bar are pocket report rows (`constructs.ts` home `pocket-row`), not registry rows | the registry's word guard and its event-only folds |
 | O19 | :991 | "the S late arm re-measured on a second seed set, context only" | it runs at step 1 | no shape S exists at step 0 |
+
+**K18, the save's overlay digest** (plan K18, C1-N5; review F4). ADR-089:985 has the rules version "and its overlay's tunables digest" reach the season save, and :1321 loads a `pocket-1.s<step>` save only on the build whose overlay digest matches. The save carries the rules name only (P1: `SaveFile.playedWith.engineRules`, the owner's typed yes); a step-1 save needs the name to encode the overlay digest, or a second contracts petition.
 
 ### E.9 The (b) checks: reproductions of REPORTED figures
 
@@ -2153,13 +2161,25 @@ A miss is recorded as REPORTED-UNREPRODUCED with its own construct and value, as
 | b.won-rep-origin | `first_pressure_origin`, gen | 62% | 61.88% | reproduced |
 | b.entry-107 | `multi_channel_share`, the in-tree deciding-instant algorithm under today's forcing rule, flat | 79.94% | 0.29% (101 of 34,549 forced); the pre-ADR-058 old-forced reading gives 76.55% (26,954 of 35,211) | **REPORTED-UNREPRODUCED** |
 | b.cp-classes | after an escape: `int_per_aimed_by_throw_class.ON_THE_RUN` on gen base; the rest on the gen clean bench | 17.1% after an escape; desperation 19.0%; rank-pushed 16.3% at 20.9% | 17.10% on 421 aimed; the clean-bench figures asserted by P-6 (rank-pushed after S3's reading of CP's stated rule, plan §6.1) | reproduced |
-| b.tm-399 | M2 under S counts the counter-forced share, not edge won-rep threats by travel | 399 of 14,627, "if M2's S construct matches" | the construct does not match; M2's S arm gives counter-forced 0 of 5,596 forced on gen | **REPORTED-UNREPRODUCED** |
+| b.tm-399 | each rusher's first WON_REP threat on a dropback, EDGE, travel (`etaTick` − tick) 2.5 s or more, and how many are cornerbacks, gen seed set 1 (review F1); M2's S arm, which counts decisions, beside it | 399 of 14,627 (2.7%), 393 of them cornerbacks | 398 of 14,447 (2.75%), 392 cornerbacks; M2's S arm: counter-forced 0 of 5,596 forced decisions | **REPORTED-UNREPRODUCED**: near-reproduced on the threat count (398 of 14,447, 392 CB); M2's S arm counts decisions, 0 of 5,596 counter-forced |
 
 ### E.10 The real sides against §2 (K16)
 
-`adr089Base.test.ts` checks 160 real figures of §2.1-§2.4 on the data cache (2022-24 TUNING seasons; 2023-24 where the row says FTN) at their printed precision, each with its line: 14.71 and 14.73 (:86, :155), 44.6 and 45.1 (:87, :156), 6.56 (:157), 2.631 and the 2.40 median (:158), every bin of §2.2's curves (:169-186) and the 0.5 s release shapes (:194-195), the 29.4 / 36.2 limits (:188), 3.54 / 8.84 / 1.25 (:204), 10.63 with its 33.0 / 4.7 / 62.3 split (:246), 45.5 / 43.9 (:290), and §2.4's situation table with its standard errors (:228-232). **158 reproduce.** Two cannot be matched, and are printed beside the design's figure; the bands stay filed against the design's figures:
+`adr089Base.test.ts` checks 162 real figures of §2.1-§2.4 on the data cache (2022-24 TUNING seasons; 2023-24 where the row says FTN) at their printed precision, each with its line: 14.71 and 14.73 (:86, :155), 44.6 and 45.1 (:87, :156), 6.56 (:157), 2.631 and the 2.40 median (:158), every bin of §2.2's curves (:169-186) and the 0.5 s release shapes (:194-195), the 29.4 / 36.2 limits (:188), 3.54 / 8.84 / 1.25 (:204), the hits on aimed throws per dropback, 7.1 and 8.1 counting throwaways (:206; 7.093 and 8.079), 10.63 with its 33.0 / 4.7 / 62.3 split (:246), 45.5 / 43.9 (:290), and §2.4's situation table with its standard errors (:228-232). **160 reproduce.** Two cannot be matched, and are printed beside the design's figure; the bands stay filed against the design's figures:
 
 | figure | design | measured | why it cannot be matched |
 |---|---|---|---|
 | hit-or-sack's interval, upper edge (:86) | [14.43-15.00] | play-level binomial 95%: [14.43, 14.99]; 1.96 game-clustered bootstrap SEs (1,000 resamples over 815 games) are wider, [14.39, 15.03] | the design states no construct for the interval |
 | QB hit rate counting throwaways, raw, 2.5-3.0 s (:171) | 10.9 | 10.850 (803 of 7,401; 10.8499 to four places) | the printed 10.9 is a half-up rounding of the two-place 10.85 (double rounding, INFERRED); K1's reference row, which no band reads |
+
+### E.11 The step-0 review's re-filing (the named entry for the re-pin)
+
+Revision 2's step-0 reviews (no play change, fidelity, code and tests) found that two graded clauses read the wrong quantity (F2), that one tolerance stood for three rows in three units (F3), and that one 5a line had no clause (F8). They were re-filed before any arm read the pin, by the same command on a fresh `step0Filing()`; every other block of the filing (M1-M9, `m1Bound`, the 44 earlier base rows, the census, the constants, the rules, the prediction, the clause lines) is identical to the first filing's, which also shows that the review's code fixes moved no measured value.
+
+| finding | what changed in the filing | filed |
+|---|---|---|
+| F2 | a registry row, `hits_on_aimed_throws_per_dropback`: hits on aimed throws over dropbacks, every release bin together (real side: pbp `qb_hit` on FTN-season attempts FTN did not chart as throwaways, per FTN-season dropback). `s4.motion.hits` (ADR-089:1036) and `acc.hitsOnThrown` (:1140) grade it, where they read the one-bin per-throw rate before | base 3.62 flat (1,587 of 43,837) and 7.31 gen (1,884 of 25,758), ADR-089:88's figures; real 7.09 (2,907 of 40,982), 8.08 counting throwaways, :206's 7.1 and 8.1 |
+| F3 | the Q1/Q3 clauses, one per M9 row: `s8a.q1q3` and `acc.q1q3` are now the throwaway clauses, beside new `.passRate` and `.timeToThrow` clauses (E.4, E.7) | 0.5813 points, 1.2261 points, 0.026065 s |
+| F8 | `s5a.reset` (ADR-089:1053): "The reset is held at 1.0 s and reported alone (default D33)", a structural clause with no band | 262 clauses (257 before) |
+
+`FILED_DIGEST` moved from `fnv1a:6b9ef02c` to `fnv1a:9a1c90e9` in the commit that re-filed (`c4686d6`).

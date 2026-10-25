@@ -12917,11 +12917,12 @@ Sack sources, % of `keepable` snaps:
   the owner, 2026-10-24 00:18Z); whichever of the two lands second resolves an end-of-file text conflict.
 - **What landed (no play change).** The rules name: the export and the season `--out` file always name it (`legacy`
   today); the season save (`SaveFile.playedWith.engineRules`, petition P1, the owner's typed yes), the batch provenance
-  and the baseline identity carry it only when it is not `legacy`, absent meaning `legacy` (O11); 44 new rows (37 registry rows, 7 pocket report rows), M1-M9, the clean bench, the
+  and the baseline identity carry it only when it is not `legacy`, absent meaning `legacy` (O11); 45 new rows (38 registry rows, 7 pocket report rows), M1-M9, the clean bench, the
   one-threat bench and the line bench (`packages/engine/test/lineBench.test.ts`); golden digests v1-v7 on both leagues;
   and **`packages/calibration/reports/adr-089-step0.filed.json`**, every band, falsifier and REPORTED reproduction of
-  §6.1-§6.10 and §8, filled by `pocket -- --step 0` and pinned at `FILED_DIGEST` `fnv1a:6b9ef02c`
-  (`test/adr089Filed.test.ts`). ADR-089 Appendix E is its human-read record. Question 19 was answered Wait: M8 is built
+  §6.1-§6.10 and §8, filled by `pocket -- --step 0` and pinned at `FILED_DIGEST` `fnv1a:9a1c90e9`
+  (`test/adr089Filed.test.ts`; re-pinned once from `fnv1a:6b9ef02c` at step 0's review, before any arm read it, for
+  the review's F2, F3 and F8: Appendix E.11). ADR-089 Appendix E is its human-read record. Question 19 was answered Wait: M8 is built
   for Wait, Table now filed beside it as information only.
 
 ### Implied scope
@@ -12955,13 +12956,21 @@ Derived by grep at the step-0 head, not recalled. Each line is `unruled` by this
 - **Base, gen:** `runRealSeason` seed `pk-01` through 2027 week 18, 272 games: 85.26 / 24.04 / 16.72 / 1.235, MEASURED
   (P-4).
 - **Second seed sets** (O4): flat `generateSeeds("adr-089:seed-set-2", 496)`, gen `pk-02`; used by M1, M5 and M9 only.
+- **Golden pins:** MEASURED at `e23bf69` by `test/goldenBaseRecipe.test.ts` (base modules only) in a copy of the base
+  tree, and asserted equal to `GOLDEN_PINS`, `SEASON_PATH_PINS` and the fixture's 1,400 hashes by
+  `test/goldenBaseCheck.test.ts` here (Appendix E.1; review NPC-S2).
+- **Hits on thrown balls per dropback** (`hits_on_aimed_throws_per_dropback`, review F2): 3.62 flat and 7.31 gen,
+  MEASURED (P-3, P-4; ADR-089:88's figures); real 7.09 of 100 (2,907 of 40,982 FTN-season dropbacks), 8.08 counting
+  throwaways, MEASURED (P-5; ADR-089:206's 7.1 and 8.1).
 - **M1-M9:** MEASURED by P-7 on both leagues (set 1; M1, M5 and M9 on both sets), the same tree; the M block equals
   stream S3's own run field for field (MEASURED). B1 = 67.83 of 25,758 dropbacks (gen set 1) = 0.2633 points (DERIVED,
   O1).
-- **Real sides:** the data cache's 2022-24 TUNING seasons (FTN rows 2023-24): 160 figures of ADR-089 §2 checked, 158
+- **Real sides:** the data cache's 2022-24 TUNING seasons (FTN rows 2023-24): 162 figures of ADR-089 §2 checked, 160
   MEASURED to reproduce at their printed precision; two listed under K16 (Appendix E.10).
 - **REPORTED reproductions (§9 (b)):** eight reproduce; entry 107's 79.94% and `TM`'s 399 of 14,627 do not (MEASURED,
-  Appendix E.9).
+  Appendix E.9). `TM`'s figure is near-reproduced on the threat count (398 of 14,447 edge won-rep threats with travel
+  2.5 s or more, 392 of them cornerbacks, against 399 of 14,627 and 393); M2's S arm counts decisions, 0 of 5,596
+  counter-forced.
 
 ### Premise ledger
 
@@ -12975,9 +12984,10 @@ Derived by grep at the step-0 head, not recalled. Each line is `unruled` by this
 - **O1-O19** (ADR-089 Appendix E.8): Orchestrator readings within the design's words, shown to the owner, not asked.
   CARRIED AS TESTIMONY until the owner reads them.
 - **The REPORTED figures** of §9 (b): M3, M4, the first-pressure means, live WON_REP, 18.1 unblocked men, the 62%
-  won-rep origin, the clean bench's nobody-open splits and CP's class figures CONFIRMED; entry 107's 79.94% REFUTED on
-  this tree's construct (0.29% under today's forcing rule, 76.55% under the pre-ADR-058 reading); `TM`'s 399 of 14,627
-  not testable (M2's S construct counts something else).
+  won-rep origin, the clean bench's nobody-open splits and CP's class figures CONFIRMED; entry 107's 79.94%
+  REPORTED-UNREPRODUCED on this tree (0.29%; 76.55% under the pre-ADR-058 reading); `TM`'s 399 of 14,627
+  REPORTED-UNREPRODUCED, near-reproduced on the threat count (398 of 14,447, 392 CB); M2's S arm counts decisions, 0 of
+  5,596 counter-forced.
 - **K1's "counting throwaways" 10.9 (ADR-089:171) and the hit-or-sack interval [14.43-15.00] (:86):** REFUTED at the
   printed precision (10.850; binomial [14.43, 14.99]); neither is read by a band.
 
@@ -12994,6 +13004,9 @@ Derived by grep at the step-0 head, not recalled. Each line is `unruled` by this
   it cannot see: under S, 78.27% of gen's dropbacks (20,162 of 25,758) and 78.10% of flat's are censored, not forced
   by today's release. Its counter-forced share under S (0 gen, 0.02% flat) is a first-order figure, filed as a REPORTED
   clause (`s2.m2`) and never graded.
-- **The clause edges' single numbers** (Appendix E.7): ⚠ RULED by C3's `C3_CLAUSE_RULES`. The Q1/Q3 tolerance is M9's
+- **The clause edges' single numbers** (Appendix E.7): ⚠ RULED by C3's `C3_CLAUSE_RULES`. The Q1/Q3 clauses are one per
+  M9 row (review F3), each with its own tolerance in its own unit; the throwaway clause's tolerance is M9's
   throwaways-per-dropback row, while its comparator is pressured throwaways per pressured dropback; step 8a, which
   grades it, takes that up.
+- **The save's overlay digest** (K18, Appendix E.8; review F4): ⚠ the save carries the rules name only (P1); a step-1
+  save needs the name to encode the overlay digest, or a second contracts petition.
