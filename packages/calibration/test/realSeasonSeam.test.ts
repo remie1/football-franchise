@@ -21,7 +21,7 @@ import { stableDigest } from "../src/harness/digest.js";
 import type { SimGameObservation } from "../src/metrics/collect.js";
 import { foldDigests, gameBytesDigest, gameDigest, SEASON_PATH_PINS } from "../src/pocket/golden.js";
 import { buildGeneratedLeague } from "../src/season/generatedLeague.js";
-import { peopleResolver, runRealSeason, type SeasonGamePassThrough } from "../src/season/realSeason.js";
+import { peopleResolver, realSimResolver, runRealSeason, type SeasonGamePassThrough, type SeasonGameWatcher } from "../src/season/realSeason.js";
 
 interface Watched {
   readonly canonical: string[];
@@ -104,5 +104,35 @@ describe("ADR-089 step 0: the people resolver (players' switches on) watches and
     expect(seen[0]!.observation.seed).toBe("s1");
     const result = (watched as { result: { homeScore: number; awayScore: number } }).result;
     expect(seen[0]!.observation.summary.score).toEqual({ home: result.homeScore, away: result.awayScore });
+  }, 60_000);
+
+  // Review NPC-N2: the watcher runs after the result and the who-played report are taken, so even
+  // a watcher that breaks the rule (mutates the observation) cannot change what the season keeps.
+  const vandal: SeasonGameWatcher = (observation) => {
+    (observation.summary.score as { home: number; away: number }).home = 999;
+    (observation.summary as { finalReason: string }).finalReason = "VANDAL";
+    (observation.events as unknown[]).length = 0;
+  };
+
+  it("a watcher that mutates the observation changes neither the result nor the who-played report", () => {
+    const plain = peopleResolver(rated)(game, "s2", people) as { result: { homeScore: number }; extras: { participation: unknown[] } };
+    expect(plain.extras.participation.length).toBeGreaterThan(40);
+    expect(peopleResolver(rated, { onGame: vandal })(game, "s2", people)).toEqual(plain);
+  }, 60_000);
+
+  it("the flat-season resolver too: a mutating watcher does not change the result", () => {
+    const league = buildLeague("adr-089:people-seam");
+    const plain = realSimResolver(league, { rated })(game, "s3");
+    let saw = 0;
+    const watched = realSimResolver(league, {
+      rated,
+      onGame: (o, g, snap) => {
+        saw += o.events.length;
+        vandal(o, g, snap);
+      },
+    })(game, "s3");
+    expect(saw).toBeGreaterThan(1000);
+    expect(watched).toEqual(plain);
+    expect(watched.homeScore).not.toBe(999);
   }, 60_000);
 });

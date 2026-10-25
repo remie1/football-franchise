@@ -24,6 +24,7 @@ import { setAttr, type MatchEventEnvelope, type PlayerId, type PlayerState, type
 import { DEFAULT_TUNABLES } from "@ff/engine";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { positionsFromSnapshot } from "../src/knownTruth/pocketChannelShares.js";
+import { emptyAccumulator } from "../src/metrics/collect.js";
 import { approachOf, type ThreatApproach } from "../src/pocket/approach.js";
 import { M_IDS } from "../src/pocket/constructs.js";
 import { CORPORA, genSeason, goldenGames } from "../src/pocket/corpus.js";
@@ -53,10 +54,10 @@ import {
 import { emptyM7Fold, foldM7Game, frontSideEarly, m7Summary, m7Target, senseModifier, sightOf, sightShares, type M7Fold } from "../src/pocket/m7Sight.js";
 import { emptyM8Fold, foldM8Game, m8RunnersOf, m8Summary } from "../src/pocket/m8FreeRunClock.js";
 import { m9GameOf, m9Table, windowOf } from "../src/pocket/m9Situation.js";
-import { emptyRowsFold, foldRowsGame } from "../src/pocket/rows.js";
+import { emptyRowsFold, foldRowsGame, pocketRows } from "../src/pocket/rows.js";
 import { TABLE_NOW } from "../src/pocket/snapSpot.js";
 import { dropbacksOf, type Dropback } from "../src/pocket/throwClass.js";
-import { fillStep0, openFiling, parsePocketArgs, runStep0, sanitize } from "../src/pocket/main.js";
+import { baseArm, emptyGuardFold, fillStep0, openFiling, parsePocketArgs, runStep0, sanitize } from "../src/pocket/step0.js";
 
 const T = DEFAULT_TUNABLES;
 const BASE = process.env["FF_POCKET_BASE"] === "1";
@@ -689,6 +690,28 @@ describe("the filing fill (--write-filed)", () => {
 
   it("sanitizes to plain JSON", () => {
     expect(sanitize({ a: undefined, b: [1, Number.NaN], c: new Map([[1, 2]]) })).toEqual({ b: [1, null], c: {} });
+  });
+});
+
+describe("the base arm's real column (review CT-N7)", () => {
+  const empty = () => sanitize(pocketRows(emptyRowsFold())) as Record<string, unknown>;
+  const input = {
+    accumulators: { flat: emptyAccumulator(), gen: emptyAccumulator() },
+    rows: { flat: empty(), gen: empty() },
+    guard: { flat: emptyGuardFold(), gen: emptyGuardFold() },
+  };
+
+  it("has no real column without a real input", () => {
+    const arm = baseArm(input);
+    expect(arm.rows.length).toBeGreaterThan(10);
+    expect(arm.rows.every((r) => !("real" in r))).toBe(true);
+  });
+
+  it("fails, not blanks, when a real side throws: an error is never 'no real figure'", () => {
+    // Every read of this input throws. Before the fix, the catch turned that into an empty real
+    // column and the arm carried on.
+    const broken = new Proxy({}, { get: () => { throw new Error("the real input was read and broke"); } });
+    expect(() => baseArm({ ...input, real: broken as never })).toThrow(/the real input was read and broke/);
   });
 });
 

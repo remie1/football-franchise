@@ -58,7 +58,10 @@ const switchedOn = (s: PlayerSwitches | undefined): boolean => s?.development ==
 /**
  * ADR-089 step 0: sees each game as the season plays it, with the snapshot it was played on (the
  * observation carries none, and with injuries on a game's ratings are that day's). Watches only,
- * like `onEvent`: what it returns is ignored, and nothing it does reaches the result.
+ * like `onEvent`: what it returns is ignored. It must not mutate its arguments. The resolvers call
+ * it after the game's result (and, with the players' switches on, its who-played report) is taken,
+ * so a watcher that did mutate the observation could not change what the season keeps; the
+ * snapshot's player records may be the league's own, and are not copied for it.
  */
 export type SeasonGameWatcher = (observation: SimGameObservation, game: ScheduledGame, snapshot: GameSnapshot) => void;
 
@@ -140,8 +143,10 @@ export function realSimResolver(league: League, opts: RealSimOptions = {}): (gam
       ...(opts.callerVersion === undefined ? {} : { callerVersion: opts.callerVersion }),
       ...passThrough(opts.game),
     });
+    // The result first, then the watcher (review NPC-N2): nothing the watcher does reaches it.
+    const result = resultOf(game, seed, observation.summary);
     opts.onGame?.(observation, game, built.snapshot);
-    return resultOf(game, seed, observation.summary);
+    return result;
   };
 }
 
@@ -207,8 +212,11 @@ export function peopleResolver(rated: AnyProvenancedLeague, opts: Omit<RealSimOp
       ...(opts.callerVersion === undefined ? {} : { callerVersion: opts.callerVersion }),
       ...passThrough(opts.game),
     });
+    // The result and the who-played report first, then the watcher (review NPC-N2): the report
+    // feeds development and injuries, and so later games, and nothing the watcher does reaches it.
+    const resolved = { result: resultOf(game, seed, observation.summary), extras: { participation: participationFrom(observation.events, built.snapshot) } };
     opts.onGame?.(observation, game, built.snapshot);
-    return { result: resultOf(game, seed, observation.summary), extras: { participation: participationFrom(observation.events, built.snapshot) } };
+    return resolved;
   };
 }
 

@@ -44,6 +44,20 @@ describe("ADR-089 §4.0: approachOf, row by row", () => {
     // The penetrator row comes before the edge-speed row and the PUSH row.
     expect(approachOf(threat({ origin: "WON_REP", alignment: "EDGE", move: "SPEED", latentMargin: 3, penetrator: true }))).toEqual(through);
     expect(approachOf(threat({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", latentMargin: 5, penetrator: true }))).toEqual(through);
+    // And before row 3 (review CT-N4): a penetrator touched on a pickup or a stunt is still the
+    // penetrator, THROUGH from the FRONT, on the edge too (not row 3's ARC).
+    for (const touched of [
+      { origin: "PICKUP_LOST", band: PICKUP_TOUCHED_BAND },
+      { origin: "STUNT_LOOPER", band: LOOPER_TOUCHED_BAND },
+    ] as const) {
+      expect(approachOf(threat({ ...touched, alignment: "INTERIOR", move: "POWER", penetrator: true }))).toEqual(through);
+      expect(approachOf(threat({ ...touched, alignment: "EDGE", move: "SPEED", penetrator: true }))).toEqual(through);
+    }
+    // Row 1 still comes first: a blown-up pickup's penetrator is FREE.
+    expect(approachOf(threat({ origin: "PICKUP_LOST", band: PICKUP_FREE_BAND, alignment: "INTERIOR", move: "POWER", penetrator: true }))).toEqual({ approach: "FREE", from: "FRONT", row: "UNBLOCKED_FREE" });
+    // A band the table does not read is refused, penetrator or not.
+    expect(() => approachOf(threat({ origin: "PICKUP_LOST", band: "NOT_A_BAND", alignment: "INTERIOR", move: "POWER", penetrator: true }))).toThrow(/§4.0 reads/);
+    expect(() => approachOf(threat({ origin: "STUNT_LOOPER", band: "NOT_A_BAND", alignment: "INTERIOR", move: "POWER", penetrator: true }))).toThrow(/§4.0 reads/);
   });
 
   it("row 3 and the steps 1-2 rule: a man somebody got a hand on (RAN_THROUGH, LATE_EXCHANGE) is ARC if EDGE and THROUGH if INTERIOR", () => {

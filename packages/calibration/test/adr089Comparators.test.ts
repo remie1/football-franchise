@@ -23,7 +23,7 @@ import { M_IDS } from "../src/pocket/constructs.js";
 import { B_GRID, B_START, RUN_MARGIN, smallestRunMargin, urgencyRange } from "../src/pocket/contest.js";
 import { isPending, loadFiled, pendingPaths, type BandClause, type FiledFile } from "../src/pocket/filed.js";
 import { FREE_RUN_CONSTANTS, fortySeconds } from "../src/pocket/freeRun.js";
-import { C3_CLAUSE_RULES, c3InputsOf, type ClauseEdge } from "../src/pocket/main.js";
+import { C3_CLAUSE_RULES, c3InputsOf, type ClauseEdge } from "../src/pocket/step0.js";
 import { BIN_20_LIMIT, QUICK_SHARE_BAND, UNBLOCKED_PRESSURES_PER_100_MAX, UNBLOCKED_SHARE_OF_HIT_OR_SACK_MAX } from "../src/pocket/missRule.js";
 import { L_GRID, REAL, RELEASE_BINS as SELECTION_RELEASE_BINS, S_GRID } from "../src/pocket/selection.js";
 import { SNAP_CONSTANTS, TABLE_NOW } from "../src/pocket/snapSpot.js";

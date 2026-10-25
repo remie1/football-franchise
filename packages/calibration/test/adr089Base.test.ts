@@ -62,7 +62,7 @@ import { constructById } from "../src/pocket/constructs.js";
 import { flatBaseline, genSeason } from "../src/pocket/corpus.js";
 import { loadFiled, type JsonValue } from "../src/pocket/filed.js";
 import { emptyM4Fold, foldM4Game, m4Summary } from "../src/pocket/m4AlarmMix.js";
-import { registryBaseRows, sanitize } from "../src/pocket/main.js";
+import { registryBaseRows, sanitize } from "../src/pocket/step0.js";
 import { BIN_20_LIMIT } from "../src/pocket/missRule.js";
 import { emptyRowsFold, foldRowsGame, pocketRows, type RowsFold } from "../src/pocket/rows.js";
 import { dropbacksOf } from "../src/pocket/throwClass.js";

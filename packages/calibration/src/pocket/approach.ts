@@ -21,6 +21,9 @@
  *  1. completely unblocked and not a looper: origin UNBLOCKED, or a pickup BLOWN_UP → FREE,
  *     from FRONT if INTERIOR, SIDE if EDGE;
  *  2. a looper the line never touched (LOOPER_FREE), and a twist's penetrator → THROUGH, FRONT;
+ *     a penetrator whatever his own threat's origin, once row 1 does not fit: a won rep, or a man
+ *     touched on a pickup or a stunt (he inherits a free assignment when the stunt swaps them, or
+ *     he is also another stunt's looper), so row 3 never reaches a penetrator;
  *  3. a man somebody got a hand on (RAN_THROUGH, LATE_EXCHANGE) → ARC (SIDE) if EDGE, THROUGH
  *     (FRONT) if INTERIOR. At steps 1 and 2 (and under legacy) that is his label with today's
  *     time (ADR-089:394); step 3 changes his timing, not his label;
@@ -88,6 +91,9 @@ const byAlignment = (alignment: RushAlignment, row: ApproachRow): ApproachLabel 
 
 const fromOf = (alignment: RushAlignment): FromClass => (alignment === "EDGE" ? "SIDE" : "FRONT");
 
+/** Row 2: a looper the line never touched, or a twist's penetrator. */
+const PENETRATOR: ApproachLabel = Object.freeze({ approach: "THROUGH", from: "FRONT", row: "LOOPER_OR_PENETRATOR" });
+
 /** §4.0's table on one rusher's facts. Throws on a fact the table cannot read (a band it does not name). */
 export function approachOf(facts: ApproachFacts): ApproachLabel {
   if (!facts.threat) return { approach: "BLOCKED", row: "NOT_BEATEN" };
@@ -97,14 +103,15 @@ export function approachOf(facts: ApproachFacts): ApproachLabel {
       return { approach: "FREE", from: fromOf(alignment), row: "UNBLOCKED_FREE" };
     case "PICKUP_LOST":
       if (band === PICKUP_FREE_BAND) return { approach: "FREE", from: fromOf(alignment), row: "UNBLOCKED_FREE" };
-      if (band === PICKUP_TOUCHED_BAND) return byAlignment(alignment, "TOUCHED");
-      throw new Error(`approachOf: a PICKUP_LOST threat with band ${String(band)}; §4.0 reads ${PICKUP_FREE_BAND} or ${PICKUP_TOUCHED_BAND}`);
+      if (band !== PICKUP_TOUCHED_BAND) throw new Error(`approachOf: a PICKUP_LOST threat with band ${String(band)}; §4.0 reads ${PICKUP_FREE_BAND} or ${PICKUP_TOUCHED_BAND}`);
+      // Row 2 before row 3 (review CT-N4): a touched man who is also a twist's penetrator is the penetrator.
+      return facts.penetrator ? PENETRATOR : byAlignment(alignment, "TOUCHED");
     case "STUNT_LOOPER":
-      if (band === LOOPER_FREE_BAND) return { approach: "THROUGH", from: "FRONT", row: "LOOPER_OR_PENETRATOR" };
-      if (band === LOOPER_TOUCHED_BAND) return byAlignment(alignment, "TOUCHED");
-      throw new Error(`approachOf: a STUNT_LOOPER threat with band ${String(band)}; §4.0 reads ${LOOPER_FREE_BAND} or ${LOOPER_TOUCHED_BAND}`);
+      if (band === LOOPER_FREE_BAND) return PENETRATOR;
+      if (band !== LOOPER_TOUCHED_BAND) throw new Error(`approachOf: a STUNT_LOOPER threat with band ${String(band)}; §4.0 reads ${LOOPER_FREE_BAND} or ${LOOPER_TOUCHED_BAND}`);
+      return facts.penetrator ? PENETRATOR : byAlignment(alignment, "TOUCHED");
     case "WON_REP": {
-      if (facts.penetrator) return { approach: "THROUGH", from: "FRONT", row: "LOOPER_OR_PENETRATOR" };
+      if (facts.penetrator) return PENETRATOR;
       if (alignment === "EDGE" && (move === "SPEED" || move === "FINESSE")) return { approach: "ARC", from: "SIDE", row: "EDGE_SPEED_FINESSE" };
       if (move === "POWER") {
         const m = facts.latentMargin;

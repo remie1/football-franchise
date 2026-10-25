@@ -15,7 +15,7 @@
  * here (plan §7.3 item 2; §8.2): any edit to the committed file fails the suite, and a later step's
  * arm harness refuses a file whose digest is not this pin.
  *
- * C3's fill (`fillStep0`, then `fillC3`, `main.ts`) and the base helpers it files with
+ * C3's fill (`fillStep0`, then `fillC3`, `step0.ts`) and the base helpers it files with
  * (`baseRowValue`, `reportValue`) are unit-tested here on constructed inputs.
  */
 import { readFileSync } from "node:fs";
@@ -27,7 +27,7 @@ import { BASE_ROW_IDS, FILED_PATH, step0Filing } from "../src/pocket/bands.js";
 import { M_IDS, type MId } from "../src/pocket/constructs.js";
 import { FILED_BLOCKS, filedDigest, isPending, loadFiled, pendingPaths, saveFiled, validateFiled, type FiledFile, type JsonValue } from "../src/pocket/filed.js";
 import { GOLDEN_PINS, SEASON_PATH_PINS } from "../src/pocket/golden.js";
-import { baseRowValue, b1Points, C3_CLAUSE_RULES, fillC3, fillStep0, reportValue, type Step0Result } from "../src/pocket/main.js";
+import { baseRowValue, b1Points, C3_CLAUSE_RULES, completeFiling, fillC3, fillStep0, reportValue, type Step0Result } from "../src/pocket/step0.js";
 
 const PATH = join(import.meta.dirname, "..", FILED_PATH);
 
@@ -227,6 +227,24 @@ describe("C3's fill on a constructed step-0 result (plan §7.3 item 1)", () => {
     const probe = validateFiled({ ...fresh, bands: { ...fresh.bands, clauses } });
     const m = fillStep0(probe, measured());
     expect(() => fillC3(m.file, { rows: baseRows() })).toThrow(/has no filed rule in C3_CLAUSE_RULES/);
+  });
+
+  it("completeFiling is the command's whole fill: it returns the filled filing and leaves nothing pending", () => {
+    const fresh = step0Filing();
+    const whole = completeFiling(fresh, { ...measured(), base: { rows: baseRows() } });
+    expect(whole.file).toEqual(fillC3(fillStep0(fresh, measured()).file, { rows: baseRows() }).file);
+    expect(pendingPaths(whole.file)).toEqual([]);
+    expect(whole.filled.length).toBe(M_IDS.length + 7 + BASE_ROW_IDS.length + 8);
+  });
+
+  it("completeFiling refuses, writing nothing, when a pending field would be left (review CT-N5)", () => {
+    // A valid filing never has such a field (the validator allows a marker only where a fill names
+    // it), so it is constructed past the validator: a whole filing plus one marker neither fill
+    // names (not an M id). fillStep0 and fillC3 both leave it.
+    const whole = completeFiling(step0Filing(), { ...measured(), base: { rows: baseRows() } }).file;
+    const extra = { ...whole, M: { ...whole.M, EXTRA: { pending: "M1" } } } as unknown as FiledFile;
+    expect(pendingPaths(extra).map((p) => p.path)).toContain("M.EXTRA");
+    expect(() => completeFiling(extra, { ...measured(), base: { rows: baseRows() } })).toThrow(/would still have 1 pending fields .*M\.EXTRA \(pending M1\)/);
   });
 
   it("refuses an M2 or M9 without the field its rule reads", () => {

@@ -3,7 +3,7 @@
  *
  * A renderer: it reads plain, already-measured inputs and prints them, and computes nothing that is
  * a game fact (Iron Rule 3). S3's rows and benches and S2's registry rows are its inputs; it imports
- * neither (S3 never imports S4 and S4 never imports S3, C2-B3), and C3 wires it into `main.ts` so
+ * neither (S3 never imports S4 and S4 never imports S3, C2-B3), and C3 wires it into `step0.ts` so
  * that `pocket -- --step 0` prints the full base report (plan §7.3 item 5).
  *
  * What it must print (ADR-089:927, :935, :987, :1166; plan §7.2):
