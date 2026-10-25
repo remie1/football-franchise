@@ -193,6 +193,31 @@ const hitBinGame = (): SimGameObservation =>
     ])
     .observe();
 
+/**
+ * The hit level (review F2): a hit then an aimed throw at 2.0, a hit then an aimed throw at 1.0 (another
+ * bin), a hit then a throwaway at 2.0, a clean aimed throw at 1.5, a sack, a hit then a scramble: 2
+ * hits on aimed throws over 6 dropbacks, every bin together.
+ */
+const hitLevelGame = (): SimGameObservation =>
+  new Game("hitlevel")
+    .snap({}, [
+      ...at(0.5, status("CLEAN"), threat("r1", "WON_REP", 2.0)),
+      ...at(1.0, status("COLLAPSING")),
+      ...at(1.5, status("COLLAPSING")),
+      ...at(2.0, status("IMMEDIATE"), threat("r1", "WON_REP", 2.0, "ARRIVED"), thrown(), caught(false)),
+    ])
+    .snap({}, [...at(0.5, status("CLEAN"), threat("r2", "WON_REP", 1.0)), ...at(1.0, status("COLLAPSING"), threat("r2", "WON_REP", 1.0, "ARRIVED"), thrown(), caught())])
+    .snap({}, [
+      ...at(0.5, status("CLEAN"), threat("r3", "WON_REP", 2.0)),
+      ...at(1.0, status("COLLAPSING")),
+      ...at(1.5, status("COLLAPSING")),
+      ...at(2.0, status("IMMEDIATE"), threat("r3", "WON_REP", 2.0, "ARRIVED"), throwaway()),
+    ])
+    .snap({}, cleanThrow(1.5))
+    .snap(SACK, [...at(0.5, status("CLEAN"), threat("r5", "WON_REP", 1.0)), ...at(1.0, status("COLLAPSING"), threat("r5", "WON_REP", 1.0, "ARRIVED"))])
+    .snap({ yards: 4 }, [...at(0.5, status("CLEAN"), threat("r6", "WON_REP", 1.0)), ...at(1.0, status("COLLAPSING"), threat("r6", "WON_REP", 1.0, "ARRIVED"), scramble(4))])
+    .observe();
+
 /** First clocks: PRESSURE at 1.0 then COLLAPSING at 1.5; COLLAPSING at 0.5; clean; IMMEDIATE at 0.5 and a sack. */
 const firstGame = (): SimGameObservation =>
   new Game("first")
@@ -496,6 +521,7 @@ const CASES: readonly RowCase[] = [
   { id: "release_distribution", game: releaseGame, expected: samples([1.5, 2.0, 2.375]) },
   { id: "pressured_share_by_release_bin", game: binGame, expected: rate(2, 3) },
   { id: "hit_rate_by_release_bin", game: hitBinGame, expected: rate(1, 2) },
+  { id: "hits_on_aimed_throws_per_dropback", game: hitLevelGame, expected: rate(2, 6) },
   { id: "first_pressure_seconds", game: firstGame, expected: samples([0.5, 0.5, 1.0]) },
   { id: "first_forcing_seconds", game: firstGame, expected: samples([0.5, 0.5, 1.5]) },
   { id: "first_arrival_seconds", game: arrivalGame, expected: samples([1.0, 1.5]) },

@@ -29,6 +29,7 @@ export const CONSTRUCTS = [
   { id: "release_distribution", home: "registry", adrLine: 90, what: "Release on the named clock: the decision tick under legacy, THROW.releaseSeconds once it exists (P8, step 4)." },
   { id: "pressured_share_by_release_bin", home: "registry", adrLine: 161, what: "Pressured share of dropbacks by release bin, tick-aligned and raw-second real comparators." },
   { id: "hit_rate_by_release_bin", home: "registry", adrLine: 161, what: "Hit rate on thrown balls by release bin, tick-aligned and raw-second real comparators." },
+  { id: "hits_on_aimed_throws_per_dropback", home: "registry", adrLine: 1140, what: "Hits on aimed throws per dropback, every release bin together: the level s4.motion.hits and acc.hitsOnThrown grade (real 7.1, ADR-089:206; today 3.62 flat, 7.31 gen, ADR-089:88; review F2)." },
   { id: "first_pressure_seconds", home: "registry", adrLine: 962, what: "Time of the first PRESSURE-or-worse status; the clock compared with NGS's 2.9 s." },
   { id: "first_forcing_seconds", home: "registry", adrLine: 962, what: "Time of the first COLLAPSING or IMMEDIATE status (deviation O13)." },
   { id: "first_arrival_seconds", home: "registry", adrLine: 962, what: "Time of the first ARRIVED threat." },

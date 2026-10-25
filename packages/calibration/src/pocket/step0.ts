@@ -29,7 +29,7 @@
  * C3 (plan §7.3 items 1 and 5). The seed-set-1 passes also fold S2's accumulator (one game at a
  * time, merged exactly as `runBatch`'s in-process executor merges them) and the guard's class-by-bin
  * counts, so the command (a) fills the filing's remaining markers through `fillC3`: every new row's
- * base value on both leagues (`base.rows.*`) and the eight clause edges an M table sets (the B1
+ * base value on both leagues (`base.rows.*`) and the twelve clause edges an M table sets (the B1
  * edges, M2's S share, M9's tolerance; `C3_CLAUSE_RULES`), and (b) prints S4's step report
  * (`report.ts`) for the base arm, every row on both leagues. `--out` carries both.
  */
@@ -570,11 +570,12 @@ export function fillStep0(file: FiledFile, result: Pick<Step0Result, "M" | "m1Bo
  *  - **s2.m2** (reported, never graded): `lo` and `hi` are the smaller and the larger of the two
  *    leagues' counter-forced shares under shape S (`M.M2.<league>["S-theta11-window"]`), so the one
  *    interval holds both leagues' figure;
- *  - **M9's tolerance** (s8a.q1q3, acc.q1q3): the clause's comparator, `situation_q1q3_last_two`,
- *    is a throwaway row in percent, so the filed number is M9's throwaway-rate tolerance for the
- *    Q1/Q3 window in points (100 x `M.M9.<league>.rows.throwaway_rate.Q1Q3_END.tolerance`, each
- *    already the larger of the two seed sets, deviation O10), the larger of the two leagues. M9's
- *    pass-rate and time-to-throw tolerances (other units) are filed in `M.M9` only.
+ *  - **M9's tolerances** (s8a.q1q3, acc.q1q3 and their `.passRate` and `.timeToThrow` clauses):
+ *    one clause per row, each filed with its own row's Q1/Q3 tolerance in its own unit (review F3):
+ *    the throwaway clauses (comparator `situation_q1q3_last_two`, a throwaway row in percent) and
+ *    the pass-rate clauses in points (100 x `M.M9.<league>.rows.<row>.Q1Q3_END.tolerance`), the
+ *    time-to-throw clauses in seconds; each M9 figure is already the larger of the two seed sets
+ *    (deviation O10), and the clause files the larger of the two leagues.
  */
 export type ClauseEdge = "lo" | "hi" | "tolerance";
 
@@ -595,10 +596,17 @@ function m2SShare(M2: JsonValue, league: Step0League): number {
   return v;
 }
 
-function m9ThrowawayTolerancePoints(M9: JsonValue, league: Step0League): number {
-  const v = (M9 as Record<string, { rows?: Record<string, Record<string, { tolerance?: unknown }>> }> | null)?.[league]?.rows?.["throwaway_rate"]?.["Q1Q3_END"]?.tolerance;
-  if (typeof v !== "number") throw new Error(`C3: M.M9.${league}.rows.throwaway_rate.Q1Q3_END.tolerance is not filed`);
-  return 100 * v;
+/** M9's Q1/Q3 tolerance for one row on one league, as M9 files it (a fraction for the rates, seconds for time to throw). */
+function m9Q1Q3Tolerance(M9: JsonValue, league: Step0League, row: "pass_rate" | "throwaway_rate" | "time_to_throw"): number {
+  const v = (M9 as Record<string, { rows?: Record<string, Record<string, { tolerance?: unknown }>> }> | null)?.[league]?.rows?.[row]?.["Q1Q3_END"]?.tolerance;
+  if (typeof v !== "number") throw new Error(`C3: M.M9.${league}.rows.${row}.Q1Q3_END.tolerance is not filed`);
+  return v;
+}
+
+/** The larger league's M9 Q1/Q3 tolerance for one row, in the clause's unit: points for a rate, seconds for time to throw (review F3). */
+function m9Q1Q3Clause(row: "pass_rate" | "throwaway_rate" | "time_to_throw"): (x: C3Inputs) => number {
+  const scale = row === "time_to_throw" ? 1 : 100;
+  return (x) => Math.max(scale * m9Q1Q3Tolerance(x.M9, "flat", row), scale * m9Q1Q3Tolerance(x.M9, "gen", row));
 }
 
 export const C3_CLAUSE_RULES: Readonly<Record<string, Readonly<Partial<Record<ClauseEdge, (x: C3Inputs) => number>>>>> = Object.freeze({
@@ -606,8 +614,12 @@ export const C3_CLAUSE_RULES: Readonly<Record<string, Readonly<Partial<Record<Cl
   "s1.window.pressure": { lo: (x) => -b1Points(x.m1Bound), hi: (x) => b1Points(x.m1Bound) },
   "s5b.pressure": { hi: (x) => 42 + b1Points(x.m1Bound) },
   "s2.m2": { lo: (x) => Math.min(m2SShare(x.M2, "flat"), m2SShare(x.M2, "gen")), hi: (x) => Math.max(m2SShare(x.M2, "flat"), m2SShare(x.M2, "gen")) },
-  "s8a.q1q3": { tolerance: (x) => Math.max(m9ThrowawayTolerancePoints(x.M9, "flat"), m9ThrowawayTolerancePoints(x.M9, "gen")) },
-  "acc.q1q3": { tolerance: (x) => Math.max(m9ThrowawayTolerancePoints(x.M9, "flat"), m9ThrowawayTolerancePoints(x.M9, "gen")) },
+  "s8a.q1q3": { tolerance: m9Q1Q3Clause("throwaway_rate") },
+  "s8a.q1q3.passRate": { tolerance: m9Q1Q3Clause("pass_rate") },
+  "s8a.q1q3.timeToThrow": { tolerance: m9Q1Q3Clause("time_to_throw") },
+  "acc.q1q3": { tolerance: m9Q1Q3Clause("throwaway_rate") },
+  "acc.q1q3.passRate": { tolerance: m9Q1Q3Clause("pass_rate") },
+  "acc.q1q3.timeToThrow": { tolerance: m9Q1Q3Clause("time_to_throw") },
 });
 
 /** The M-set inputs the clause rules read, from a filing whose `m1Bound`, `M.M2` and `M.M9` are filed. */

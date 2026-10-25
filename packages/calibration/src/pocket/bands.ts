@@ -243,7 +243,7 @@ const STEP4: readonly BandClause[] = [
   clause("s4.contact.hitOrSack", "4", "hit-or-sack, contact alone minus its base", "hit_or_sack_rate", "graded", 1036, "Hit-or-sack within 1 point.", { lo: -1, hi: 1 }),
   clause("s4.contact.gen.share", "4", "sack share of hit-or-sack, gen", "sack_share_of_hit_or_sack", "graded", 1036, "Sack share of hit-or-sack 40 to 55 on gen.", { lo: 40, hi: 55 }),
   clause("s4.contact.flat.share", "4", "sack share of hit-or-sack, flat", "sack_share_of_hit_or_sack", "graded", 1036, "Sack share of hit-or-sack 50 to 65 flat.", { lo: 50, hi: 65 }),
-  clause("s4.motion.hits", "4", "hits on aimed throws per 100 dropbacks, the motion against the step-3 build", "hit_rate_by_release_bin", "graded", 1036, "The motion adds at least 3 hits on thrown balls in 100 dropbacks to the step-3 build; falsified if fewer.", { lo: 3 }),
+  clause("s4.motion.hits", "4", "hits on aimed throws per 100 dropbacks, the motion against the step-3 build", "hits_on_aimed_throws_per_dropback", "graded", 1036, "The motion adds at least 3 hits on thrown balls in 100 dropbacks to the step-3 build; falsified if fewer.", { lo: 3 }),
   clause("s4.motion.curveRises", "4", "attempt-weighted least-squares slope of the hit rate on bin midpoint, bins from 2.0 s on, D21's reading", "hit_rate_by_release_bin", "graded", 1036,
     "On default D21's reading the hit-by-release curve must rise with the bin from 2.0 s on: a positive attempt-weighted least-squares slope over the bins from 2.0 s on (ADR-089:1040; the open last bin read at 5.5 s, selection.ts). Falsified if it still falls, in which case the §4.1 selection cannot run and default D1's fallback applies.",
     { direction: "UP" }),
@@ -284,6 +284,7 @@ const STEP5A: readonly BandClause[] = [
   clause("s5a.cleanThrowaway", "5a", "clean throwaways per 100 clean dropbacks, in the pocket and outside it", "row:clean_throwaway_in_pocket", "reported", 1053, "Reported at 5a, as 0 in the pocket against a real 0.76 per 100 clean dropbacks and 0 outside against 0.50; graded from step 6 (ADR-089:1146).", { lo: 0, hi: 0 }),
   clause("s5a.int", "5a", "INT per aimed throw by throw class, each class's rise over base minus its mix-predicted rise", "int_per_aimed_by_throw_class", "graded", 1053, "The interception falsifier at 5a is D28's guard read by throw class (§8, intGuardByClass).", { hi: 0 }),
   clause("s5a.intLeague", "5a", "INT per attempt on the clean bench, minus the bench base", "int_rate", "reported", 1053, "The league-wide 'bench base + 0.3 pp' cannot fire once D23 can lower the bench's INT by up to about 1.4, so it is reported.", { hi: 0.3 }),
+  clause("s5a.reset", "5a", "the reset, held at 1.0 s", "proof:report", "structural", 1053, "The reset is held at 1.0 s and reported alone (default D33); no band is filed (review F8)."),
 ];
 
 const STEP5B: readonly BandClause[] = [
@@ -369,9 +370,16 @@ const STEP8: readonly BandClause[] = [
   // ADR-089:1100 (8a)
   clause("s8a.flag", "8a", "the two-minute flag", "proof:two-minute-flag", "structural", 1100, "No two-minute flag outside the last two minutes of a half; falsified if one fires there."),
   clause("s8a.distance", "8a", "the goal-to-go distance", "proof:goal-to-go-distance", "structural", 1100, "No distance above the yards to the goal line, after a first down, a turnover or a change of possession; falsified if one exceeds it."),
-  clause("s8a.q1q3", "8a", "the last two minutes of Q1 and Q3 against the rest: pass rate, throwaways and time to throw", "situation_q1q3_last_two", "graded", 1100,
-    "The sim's last two minutes of the first and third quarters come within M9's filed tolerance of the rest of the game (real: pressured throwaways 8.94 against 8.51 in 100, time to throw 2.616 against 2.622 s); falsified if they stay outside it.",
-    { direction: "UNCHANGED", tolerance: pend("M9", "M9's tolerance: 2 x the game-clustered bootstrap SE, the larger of the two seed sets (deviation O10)") }),
+  // One clause per row, each with its own M9 tolerance in its own unit (review F3).
+  clause("s8a.q1q3", "8a", "the last two minutes of Q1 and Q3 against the rest: throwaways", "situation_q1q3_last_two", "graded", 1100,
+    "The sim's last two minutes of the first and third quarters come within M9's filed throwaway tolerance, in points, of the rest of the game (real: pressured throwaways 8.94 against 8.51 in 100); falsified if they stay outside it. Pass rate and time to throw are s8a.q1q3.passRate and s8a.q1q3.timeToThrow.",
+    { direction: "UNCHANGED", tolerance: pend("M9", "M9's throwaway tolerance in points: 2 x the game-clustered bootstrap SE, the larger of the two seed sets (deviation O10), the larger league's") }),
+  clause("s8a.q1q3.passRate", "8a", "the last two minutes of Q1 and Q3 against the rest: pass rate", "M9", "graded", 1100,
+    "The sim's pass rate in the last two minutes of the first and third quarters comes within M9's filed pass-rate tolerance, in points, of the rest of the game; falsified if it stays outside it.",
+    { direction: "UNCHANGED", tolerance: pend("M9", "M9's pass-rate tolerance in points, the larger league's") }),
+  clause("s8a.q1q3.timeToThrow", "8a", "the last two minutes of Q1 and Q3 against the rest: time to throw", "M9", "graded", 1100,
+    "The sim's time to throw in the last two minutes of the first and third quarters comes within M9's filed time-to-throw tolerance, in seconds, of the rest of the game (real 2.616 against 2.622 s); falsified if it stays outside it.",
+    { direction: "UNCHANGED", tolerance: pend("M9", "M9's time-to-throw tolerance in seconds, the larger league's") }),
   clause("s8a.off", "8a", "every caller's stream under legacy", "proof:off-bytes", "structural", 1100, "Every caller's stream moves under pocket-1, as expected, and stays byte-identical under legacy (the OFF proof)."),
   // ADR-089:1104 (8b)
   clause("s8b.thirdDown", "8b", "third-down P2S minus early-down P2S, at 7-10 to go, goal-to-go excluded", "by_down_fixed_calls", "graded", 1104, "At a fixed 7-10 to go, goal-to-go excluded, third-down P2S at least 3 points above early downs (real 26.5 against 19.6). A miss is recorded and taken to the owner; it is not routed through the miss rule.", { lo: 3 }),
@@ -421,7 +429,7 @@ const ACCEPTANCE: readonly BandClause[] = [
   clause("acc.timeToThrow.pooled", "acceptance", "time to throw against the pooled 2.682", "time_to_throw", "reported", 1134, "2.682's band, 2.28 to 3.08, is reported beside it.", { lo: 2.28, hi: 3.08 }),
   // ADR-089:1136-1162, the unfitted falsifiers (raw-second bins from releaseSeconds)
   clause("acc.ledger.widths", "acceptance", "the unfitted falsifiers' widths", "proof:ledger", "structural", 1136, "Each unfitted falsifier's band is INFERRED, filed at step 0, and may be tightened but never widened before the arm runs."),
-  clause("acc.hitsOnThrown", "acceptance", "hits on aimed throws per dropback", "hit_rate_by_release_bin", "graded", 1140, "Hits on thrown balls per dropback (aimed) 5.0 to 9.5 (real 7.1).", { lo: 5.0, hi: 9.5 }),
+  clause("acc.hitsOnThrown", "acceptance", "hits on aimed throws per dropback", "hits_on_aimed_throws_per_dropback", "graded", 1140, "Hits on thrown balls per dropback (aimed) 5.0 to 9.5 (real 7.1).", { lo: 5.0, hi: 9.5 }),
   clause("acc.under2", "acceptance", "share of attempts released under 2.0 s", "release_distribution", "graded", 1141, "Time-to-throw shape: share of attempts under 2.0 s 18 to 34% (real 26.1%).", { lo: 18, hi: 34 }),
   clause("acc.over35", "acceptance", "share of attempts released at or over 3.5 s", "release_distribution", "graded", 1141, "Share at or over 3.5 s 10 to 22% (real 16.1%).", { lo: 10, hi: 22 }),
   clause("acc.pressuredCurve.bins", "acceptance", "pressured-by-release bins from 2.0 s on above twice FTN, raw seconds (binsAboveTwiceFtn)", "pressured_share_by_release_bin", "graded", 1142, "No bin from 2.0 s on above twice FTN (unless the curve is fitted by the fallback, when it is reported).", { hi: 0 }),
@@ -438,8 +446,12 @@ const ACCEPTANCE: readonly BandClause[] = [
   clause("acc.thirdDown", "acceptance", "third-down P2S minus early-down P2S, 7-10 to go", "by_down_fixed_calls", "graded", 1150, "Third-down P2S at least 3 points above early downs (real 26.5 against 19.6).", { lo: 3 }),
   clause("acc.p2sBySituation", "acceptance", "each situation's P2S minus the rest's", "situation_end_of_half", "graded", 1151, "No situation more than 3 points from the rest (real within 1.2).", { lo: -3, hi: 3 }),
   clause("acc.tttTrailing", "acceptance", "time to throw at the end of a half: (trailing minus the rest) minus (level or leading minus the rest)", "situation_end_of_half", "graded", 1152, "Trailing exceeds the rest by more than level or leading does (real +0.10 s against 0.00 s).", { direction: "UP" }),
-  clause("acc.q1q3", "acceptance", "the last two minutes of Q1 and Q3 against the rest", "situation_q1q3_last_two", "graded", 1153, "Within M9's filed tolerance of the rest (step 8a); real: indistinguishable from the rest.",
-    { direction: "UNCHANGED", tolerance: pend("M9", "M9's tolerance, as s8a.q1q3") }),
+  clause("acc.q1q3", "acceptance", "the last two minutes of Q1 and Q3 against the rest: throwaways", "situation_q1q3_last_two", "graded", 1153, "Throwaways within M9's filed throwaway tolerance of the rest (step 8a); real: indistinguishable from the rest.",
+    { direction: "UNCHANGED", tolerance: pend("M9", "M9's throwaway tolerance in points, as s8a.q1q3") }),
+  clause("acc.q1q3.passRate", "acceptance", "the last two minutes of Q1 and Q3 against the rest: pass rate", "M9", "graded", 1153, "Pass rate within M9's filed pass-rate tolerance of the rest (step 8a); real: indistinguishable from the rest.",
+    { direction: "UNCHANGED", tolerance: pend("M9", "M9's pass-rate tolerance in points, as s8a.q1q3.passRate") }),
+  clause("acc.q1q3.timeToThrow", "acceptance", "the last two minutes of Q1 and Q3 against the rest: time to throw", "M9", "graded", 1153, "Time to throw within M9's filed time-to-throw tolerance of the rest (step 8a); real: indistinguishable from the rest.",
+    { direction: "UNCHANGED", tolerance: pend("M9", "M9's time-to-throw tolerance in seconds, as s8a.q1q3.timeToThrow") }),
   clause("acc.blitz.p2s", "acceptance", "P2S with at least one blitzer minus without", "row:p2s_by_blitz", "graded", 1154, "Blitz against no blitz: P2S within 3 points (real 21.3 / 22.4).", { lo: -3, hi: 3 }),
   clause("acc.blitz.pressure", "acceptance", `pressure (${SIM_ONLY}) with at least one blitzer minus without`, "row:p2s_by_blitz", "graded", 1154, "Pressure 8 to 16 higher (real +12.4).", { lo: 8, hi: 16 }),
   clause("acc.deep", "acceptance", "P2S with 3+ deep routes over P2S with none (ratio)", "row:p2s_by_deep_routes", "graded", 1155, "3+ deep P2S at most twice 0-deep.", { hi: 2 }),

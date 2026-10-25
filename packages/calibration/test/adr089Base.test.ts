@@ -45,6 +45,7 @@ import {
   isRealHitOrSack,
   realCleanOuts,
   realDropbacks,
+  realHitsOnAimedPerDropback,
   realOutOfPocketThrows,
   realReleaseDistribution,
   realSackShareOfContacts,
@@ -181,6 +182,10 @@ describe.skipIf(!BASE)("P-3: baseline-0009 reproduced on its 496 games (FF_POCKE
     expect(headline(batch.accumulator, "FLAT_SYNTHETIC")).toEqual(["86.85", "20.05", "16.43", "1.242"]);
   });
 
+  it("prints ADR-089:88's hits on thrown balls, 3.62 in 100 dropbacks on flat (review F2: the level the motion and acceptance clauses grade)", () => {
+    expect((100 * point("hits_on_aimed_throws_per_dropback", batch.accumulator, "FLAT_SYNTHETIC")).toFixed(2)).toBe("3.62");
+  });
+
   it("gives the filed flat base value of every registry row", () => {
     const rows = registryBaseRows(batch.accumulator, "flat");
     for (const id of REGISTRY_IDS) expect(sanitize(rows[id]), id).toEqual(filedRow(id, "flat"));
@@ -285,6 +290,8 @@ describe.skipIf(!BASE)("P-4: the gen base, genSeason(1) (FF_POCKET_BASE=1)", () 
   it("prints 85.26 / 24.04 / 16.72 / 1.235 on 272 games", () => {
     expect(games).toBe(272);
     expect(headline(acc, "GENERATED_FICTIONAL")).toEqual(["85.26", "24.04", "16.72", "1.235"]);
+    // ADR-089:88's hits on thrown balls on gen, 7.31 in 100 dropbacks (review F2).
+    expect((100 * point("hits_on_aimed_throws_per_dropback", acc, "GENERATED_FICTIONAL")).toFixed(2)).toBe("7.31");
   });
 
   it("gives the filed gen base value of every registry row", () => {
@@ -504,6 +511,9 @@ describe.skipIf(!BASE)("P-5: every new real side against its §2 figure (FF_POCK
       cells.map((c) => (100 * num(c)) / den(c));
     row("QB hit rate on aimed throws, raw", 169, [2.7, 7.1, 10.6, 11.0, 13.8, 16.1, 18.0], ratio(raw.cells, (c) => c.aimedHit, (c) => c.aimed), 1);
     row("QB hit rate on aimed throws, tick", 170, [1.9, 5.4, 9.7, 10.6, 12.7, 15.3, 18.0], ratio(tick.cells, (c) => c.aimedHit, (c) => c.aimed), 1);
+    // §2.2's level (:206; review F2): hits on aimed throws per FTN-season dropback, and counting throwaways.
+    add("hits on aimed throws per dropback", 206, 7.1, pctOf(getMetric("hits_on_aimed_throws_per_dropback").computeFromReal(real)), 1);
+    add("hits on thrown balls per dropback, counting throwaways", 206, 8.1, pctOf(realHitsOnAimedPerDropback(real, "WITH_THROWAWAYS")), 1);
     row("QB hit rate counting throwaways, raw", 171, [2.7, 7.3, 10.9, 11.4, 14.8, 19.2, 21.5], ratio(raw.cells, (c) => c.hitAll, (c) => c.ftnAtt), 1);
     row("pressured share, raw", 179, [9.0, 18.1, 24.6, 27.9, 36.9, 56.0, 72.6], ratio(raw.cells, (c) => c.pressured, (c) => c.flagged), 1);
     row("pressured share, tick", 180, [7.3, 14.7, 22.3, 26.8, 32.5, 49.6, 71.5], ratio(tick.cells, (c) => c.pressured, (c) => c.flagged), 1);

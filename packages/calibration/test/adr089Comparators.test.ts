@@ -201,7 +201,7 @@ describe("C3's fill (plan §7.3 item 1)", () => {
         checked += 1;
       }
     }
-    expect(checked).toBe(8);
+    expect(checked).toBe(12);
   });
 
   it("files B1 in points as one quantity in its three uses (O1)", () => {

@@ -244,6 +244,23 @@ export function realHitRateInBin<E extends Eligibility>(input: RealInput<E>, bin
 }
 
 /**
+ * Hits on aimed throws per dropback, every release bin together (ADR-089:206, the level :88 and
+ * :1140 grade; review finding F2): pbp `qb_hit` on an FTN-season attempt FTN did not chart as a
+ * throwaway, per FTN-charted FTN-season dropback. On the TUNING cache, 2,907 of 40,982 (7.09, the
+ * design's 7.1); `WITH_THROWAWAYS` counts every attempt's hit, 3,311 (8.08, its 8.1).
+ */
+export function realHitsOnAimedPerDropback<E extends Eligibility>(input: RealInput<E>, counting: "AIMED" | "WITH_THROWAWAYS" = "AIMED"): MetricOutcome {
+  const missing = needsFtnSources(input, true);
+  if (missing !== null) return noObservations(missing);
+  return rateOver(
+    realDropbacks(input),
+    (d) => onFtnClock(d) && d.inFtn,
+    (d) => d.qbHit && (counting === "AIMED" ? isAimed(d) : d.attempt),
+    "no FTN-season dropback",
+  );
+}
+
+/**
  * ADR-089 §2.4's floor under the quick-pressure share: a charted pressure comes before the
  * release, so a pressured attempt released before 2.5 s was first pressured before 2.5 s. Its
  * share of pressured flagged dropbacks (19.6% raw, 13.6% on the tick grid, where "before 2.5" is

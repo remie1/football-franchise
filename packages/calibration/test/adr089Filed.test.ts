@@ -32,7 +32,13 @@ import { baseRowValue, b1Points, C3_CLAUSE_RULES, completeFiling, fillC3, fillSt
 const PATH = join(import.meta.dirname, "..", FILED_PATH);
 
 /** The committed filing's digest (`filedDigest`, a `stableDigest` of the parsed file), pinned by C3. */
-const FILED_DIGEST = "fnv1a:6b9ef02c";
+/**
+ * Re-pinned once, at step 0's review and before any arm read the pin (ADR-089 Appendix E.1): the
+ * first pin, fnv1a:6b9ef02c, became this when the hit level got its own row and the motion and
+ * acceptance clauses were pointed at it (review F2), the Q1/Q3 clauses were split one per M9 row
+ * (F3) and 5a's reset clause was added (F8). Every other filed value is unchanged.
+ */
+const FILED_DIGEST = "fnv1a:9a1c90e9";
 const APPEND_ONLY = "ADR-089 §6.0: the step-0 filing is append-only; amend by a named entry";
 const CENSUS_RULE =
   "ADR-089 §6.0, the census (K2-02, ADR-089:993): every new dial lives in the pocket-1 overlay, never in DEFAULT_TUNABLES, until step 11";
@@ -162,8 +168,8 @@ function measured(): Pick<Step0Result, "M" | "m1Bound"> {
   const M = Object.fromEntries(M_IDS.map((m) => [m, { constructed: m }])) as unknown as Record<MId, JsonValue>;
   M.M2 = { flat: { "S-theta11-window": { counterFarSharePct: 0.5 } }, gen: { "S-theta11-window": { counterFarSharePct: 0.25 } } };
   M.M9 = {
-    flat: { rows: { throwaway_rate: { Q1Q3_END: { tolerance: 0.004 } } } },
-    gen: { rows: { throwaway_rate: { Q1Q3_END: { tolerance: 0.006 } } } },
+    flat: { rows: { pass_rate: { Q1Q3_END: { tolerance: 0.011 } }, throwaway_rate: { Q1Q3_END: { tolerance: 0.004 } }, time_to_throw: { Q1Q3_END: { tolerance: 0.03 } } } },
+    gen: { rows: { pass_rate: { Q1Q3_END: { tolerance: 0.009 } }, throwaway_rate: { Q1Q3_END: { tolerance: 0.006 } }, time_to_throw: { Q1Q3_END: { tolerance: 0.02 } } } },
   };
   return { M, m1Bound: { E: 40, SD: 10, B1: 70, H: 75, dropbacks: 20000, margins1to4: { n: 1 }, margins5to14: { n: 2 } } };
 }
@@ -184,12 +190,12 @@ describe("C3's fill on a constructed step-0 result (plan §7.3 item 1)", () => {
     const c3 = fillC3(m.file, { rows: baseRows() });
     expect(c3.left).toEqual([]);
     expect(pendingPaths(c3.file)).toEqual([]);
-    expect(c3.filled.length).toBe(BASE_ROW_IDS.length + 8);
+    expect(c3.filled.length).toBe(BASE_ROW_IDS.length + 12);
     expect(c3.file.base.rows["hit_or_sack_rate"]).toEqual({ flat: { v: 1 }, gen: { v: 2 } });
     validateFiled(c3.file);
   });
 
-  it("files the B1 edges in points (100 x B1 / dropbacks), M2's interval over the leagues and M9's larger tolerance in points", () => {
+  it("files the B1 edges in points (100 x B1 / dropbacks), M2's interval over the leagues and each M9 row's larger tolerance in its unit", () => {
     const f = fillC3(fillStep0(step0Filing(), measured()).file, { rows: baseRows() }).file;
     const b1 = b1Points({ B1: 70, dropbacks: 20000 });
     expect(b1).toBeCloseTo(0.35, 12);
@@ -199,8 +205,15 @@ describe("C3's fill on a constructed step-0 result (plan §7.3 item 1)", () => {
     expect(clauseById(f, "s5b.pressure").hi).toBe(42 + b1);
     expect(clauseById(f, "s2.m2").lo).toBe(0.25);
     expect(clauseById(f, "s2.m2").hi).toBe(0.5);
-    expect(clauseById(f, "s8a.q1q3").tolerance).toBeCloseTo(0.6, 12);
-    expect(clauseById(f, "acc.q1q3").tolerance).toBeCloseTo(0.6, 12);
+    // One clause per M9 row, each in its own unit, the larger league's (review F3): throwaways and
+    // pass rate in points, time to throw in seconds.
+    for (const at of ["s8a.q1q3", "acc.q1q3"]) {
+      expect(clauseById(f, at).tolerance, at).toBeCloseTo(0.6, 12);
+      expect(clauseById(f, `${at}.passRate`).tolerance, `${at}.passRate`).toBeCloseTo(1.1, 12);
+      expect(clauseById(f, `${at}.timeToThrow`).tolerance, `${at}.timeToThrow`).toBeCloseTo(0.03, 12);
+      expect(clauseById(f, `${at}.passRate`).comparator).toBe("M9");
+      expect(clauseById(f, `${at}.timeToThrow`).comparator).toBe("M9");
+    }
   });
 
   it("never overwrites: a second fill finds nothing to fill", () => {
@@ -234,7 +247,7 @@ describe("C3's fill on a constructed step-0 result (plan §7.3 item 1)", () => {
     const whole = completeFiling(fresh, { ...measured(), base: { rows: baseRows() } });
     expect(whole.file).toEqual(fillC3(fillStep0(fresh, measured()).file, { rows: baseRows() }).file);
     expect(pendingPaths(whole.file)).toEqual([]);
-    expect(whole.filled.length).toBe(M_IDS.length + 7 + BASE_ROW_IDS.length + 8);
+    expect(whole.filled.length).toBe(M_IDS.length + 7 + BASE_ROW_IDS.length + 12);
   });
 
   it("completeFiling refuses, writing nothing, when a pending field would be left (review CT-N5)", () => {
@@ -250,7 +263,13 @@ describe("C3's fill on a constructed step-0 result (plan §7.3 item 1)", () => {
   it("refuses an M2 or M9 without the field its rule reads", () => {
     const r = measured();
     const bad = { ...r, M: { ...r.M, M9: { flat: { rows: {} }, gen: { rows: {} } } } };
-    expect(() => fillC3(fillStep0(step0Filing(), bad).file, { rows: baseRows() })).toThrow(/throwaway_rate\.Q1Q3_END\.tolerance is not filed/);
+    expect(() => fillC3(fillStep0(step0Filing(), bad).file, { rows: baseRows() })).toThrow(/(pass_rate|throwaway_rate|time_to_throw)\.Q1Q3_END\.tolerance is not filed/);
+    for (const missing of ["pass_rate", "time_to_throw"]) {
+      const m9 = JSON.parse(JSON.stringify(r.M.M9)) as { flat: { rows: Record<string, unknown> } };
+      delete m9.flat.rows[missing];
+      const partial = { ...r, M: { ...r.M, M9: m9 as unknown as JsonValue } };
+      expect(() => fillC3(fillStep0(step0Filing(), partial).file, { rows: baseRows() }), missing).toThrow(new RegExp(`M\\.M9\\.flat\\.rows\\.${missing}\\.Q1Q3_END\\.tolerance is not filed`));
+    }
   });
 });
 

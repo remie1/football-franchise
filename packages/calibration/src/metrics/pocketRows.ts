@@ -42,6 +42,7 @@ import {
   realHitOnScramble,
   realHitOrSack,
   realHitRateInBin,
+  realHitsOnAimedPerDropback,
   realOutOfPocketThrows,
   realPerAimedThrow,
   realPressuredShareInBin,
@@ -245,6 +246,24 @@ export const hitRateByReleaseBin: Metric = registerMetric({
     return rateOrNone(bin?.aimedHits ?? 0, bin?.aimed ?? 0, `no aimed throw released in ${TWO_SECOND_BIN}`);
   },
   computeFromReal: <E extends Eligibility>(input: RealInput<E>) => realHitRateInBin(input, TWO_SECOND_BIN, "TICK"),
+});
+
+export const hitsOnAimedThrowsPerDropback: Metric = registerMetric({
+  id: "hits_on_aimed_throws_per_dropback",
+  tier: 2,
+  definition:
+    "Per dropback: a hit on an aimed throw (throwaways excluded), every release bin together: the " +
+    "level the motion clause and the acceptance row grade (ADR-089:1036, :1140; today 3.62 flat and " +
+    "7.31 gen, ADR-089:88), where `hit_rate_by_release_bin` is the per-throw curve. " + STAND_IN +
+    " Real side: pbp `qb_hit` on FTN-season attempts FTN did not chart as throwaways, per FTN-season " +
+    "dropback (real 7.1, 8.1 counting throwaways, ADR-089:206).",
+  unit: "%",
+  toleranceBand: OBSERVATION(),
+  computeFromEvents(context: SimContext): MetricOutcome {
+    const hits = Object.values(pocketOf(context).releaseBins).reduce((a, bin) => a + bin.aimedHits, 0);
+    return rateOrNone(hits, context.accumulator.play.dropbacks, "no dropbacks");
+  },
+  computeFromReal: <E extends Eligibility>(input: RealInput<E>) => realHitsOnAimedPerDropback(input, "AIMED"),
 });
 
 // --- the first-pressure clocks ------------------------------------------------------

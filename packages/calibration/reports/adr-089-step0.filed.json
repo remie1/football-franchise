@@ -261,6 +261,20 @@
           "value": 0.09950522264980759
         }
       },
+      "hits_on_aimed_throws_per_dropback": {
+        "flat": {
+          "kind": "RATE",
+          "successes": 1587,
+          "trials": 43837,
+          "value": 0.03620229486506832
+        },
+        "gen": {
+          "kind": "RATE",
+          "successes": 1884,
+          "trials": 25758,
+          "value": 0.07314232471465176
+        }
+      },
       "first_pressure_seconds": {
         "flat": {
           "kind": "SAMPLES",
@@ -1934,7 +1948,7 @@
         "id": "s4.motion.hits",
         "step": "4",
         "row": "hits on aimed throws per 100 dropbacks, the motion against the step-3 build",
-        "comparator": "hit_rate_by_release_bin",
+        "comparator": "hits_on_aimed_throws_per_dropback",
         "kind": "graded",
         "adrLine": 1036,
         "text": "The motion adds at least 3 hits on thrown balls in 100 dropbacks to the step-3 build; falsified if fewer.",
@@ -2224,6 +2238,15 @@
         "adrLine": 1053,
         "text": "The league-wide 'bench base + 0.3 pp' cannot fire once D23 can lower the bench's INT by up to about 1.4, so it is reported.",
         "hi": 0.3
+      },
+      {
+        "id": "s5a.reset",
+        "step": "5a",
+        "row": "the reset, held at 1.0 s",
+        "comparator": "proof:report",
+        "kind": "structural",
+        "adrLine": 1053,
+        "text": "The reset is held at 1.0 s and reported alone (default D33); no band is filed (review F8)."
       },
       {
         "id": "s5b.sack",
@@ -2892,13 +2915,35 @@
       {
         "id": "s8a.q1q3",
         "step": "8a",
-        "row": "the last two minutes of Q1 and Q3 against the rest: pass rate, throwaways and time to throw",
+        "row": "the last two minutes of Q1 and Q3 against the rest: throwaways",
         "comparator": "situation_q1q3_last_two",
         "kind": "graded",
         "adrLine": 1100,
-        "text": "The sim's last two minutes of the first and third quarters come within M9's filed tolerance of the rest of the game (real: pressured throwaways 8.94 against 8.51 in 100, time to throw 2.616 against 2.622 s); falsified if they stay outside it.",
+        "text": "The sim's last two minutes of the first and third quarters come within M9's filed throwaway tolerance, in points, of the rest of the game (real: pressured throwaways 8.94 against 8.51 in 100); falsified if they stay outside it. Pass rate and time to throw are s8a.q1q3.passRate and s8a.q1q3.timeToThrow.",
         "direction": "UNCHANGED",
         "tolerance": 0.5813000968142927
+      },
+      {
+        "id": "s8a.q1q3.passRate",
+        "step": "8a",
+        "row": "the last two minutes of Q1 and Q3 against the rest: pass rate",
+        "comparator": "M9",
+        "kind": "graded",
+        "adrLine": 1100,
+        "text": "The sim's pass rate in the last two minutes of the first and third quarters comes within M9's filed pass-rate tolerance, in points, of the rest of the game; falsified if it stays outside it.",
+        "direction": "UNCHANGED",
+        "tolerance": 1.226127717320734
+      },
+      {
+        "id": "s8a.q1q3.timeToThrow",
+        "step": "8a",
+        "row": "the last two minutes of Q1 and Q3 against the rest: time to throw",
+        "comparator": "M9",
+        "kind": "graded",
+        "adrLine": 1100,
+        "text": "The sim's time to throw in the last two minutes of the first and third quarters comes within M9's filed time-to-throw tolerance, in seconds, of the rest of the game (real 2.616 against 2.622 s); falsified if it stays outside it.",
+        "direction": "UNCHANGED",
+        "tolerance": 0.026064672305034387
       },
       {
         "id": "s8a.off",
@@ -3208,7 +3253,7 @@
         "id": "acc.hitsOnThrown",
         "step": "acceptance",
         "row": "hits on aimed throws per dropback",
-        "comparator": "hit_rate_by_release_bin",
+        "comparator": "hits_on_aimed_throws_per_dropback",
         "kind": "graded",
         "adrLine": 1140,
         "text": "Hits on thrown balls per dropback (aimed) 5.0 to 9.5 (real 7.1).",
@@ -3388,13 +3433,35 @@
       {
         "id": "acc.q1q3",
         "step": "acceptance",
-        "row": "the last two minutes of Q1 and Q3 against the rest",
+        "row": "the last two minutes of Q1 and Q3 against the rest: throwaways",
         "comparator": "situation_q1q3_last_two",
         "kind": "graded",
         "adrLine": 1153,
-        "text": "Within M9's filed tolerance of the rest (step 8a); real: indistinguishable from the rest.",
+        "text": "Throwaways within M9's filed throwaway tolerance of the rest (step 8a); real: indistinguishable from the rest.",
         "direction": "UNCHANGED",
         "tolerance": 0.5813000968142927
+      },
+      {
+        "id": "acc.q1q3.passRate",
+        "step": "acceptance",
+        "row": "the last two minutes of Q1 and Q3 against the rest: pass rate",
+        "comparator": "M9",
+        "kind": "graded",
+        "adrLine": 1153,
+        "text": "Pass rate within M9's filed pass-rate tolerance of the rest (step 8a); real: indistinguishable from the rest.",
+        "direction": "UNCHANGED",
+        "tolerance": 1.226127717320734
+      },
+      {
+        "id": "acc.q1q3.timeToThrow",
+        "step": "acceptance",
+        "row": "the last two minutes of Q1 and Q3 against the rest: time to throw",
+        "comparator": "M9",
+        "kind": "graded",
+        "adrLine": 1153,
+        "text": "Time to throw within M9's filed time-to-throw tolerance of the rest (step 8a); real: indistinguishable from the rest.",
+        "direction": "UNCHANGED",
+        "tolerance": 0.026064672305034387
       },
       {
         "id": "acc.blitz.p2s",

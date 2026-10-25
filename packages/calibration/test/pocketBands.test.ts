@@ -99,7 +99,7 @@ describe("the clauses", () => {
     expect(get("guard.onTheRun.pressured")).toMatchObject({ lo: 3.25, hi: 3.25 });
   });
 
-  it("leaves pending only the M-derived edges: B1 on three pressure edges, M2's share, M9's tolerance", () => {
+  it("leaves pending only the M-derived edges: B1 on three pressure edges, M2's share, M9's three Q1/Q3 tolerances on 8a and acceptance", () => {
     const pending: string[] = [];
     for (const c of CLAUSES) {
       for (const f of ["lo", "hi", "tolerance"] as const) {
@@ -109,6 +109,8 @@ describe("the clauses", () => {
       }
     }
     expect(pending.sort()).toEqual([
+      "acc.q1q3.passRate.tolerance:M9",
+      "acc.q1q3.timeToThrow.tolerance:M9",
       "acc.q1q3.tolerance:M9",
       "s1.S.pressure.hi:M1",
       "s1.window.pressure.hi:M1",
@@ -116,6 +118,8 @@ describe("the clauses", () => {
       "s2.m2.hi:M2",
       "s2.m2.lo:M2",
       "s5b.pressure.hi:M1",
+      "s8a.q1q3.passRate.tolerance:M9",
+      "s8a.q1q3.timeToThrow.tolerance:M9",
       "s8a.q1q3.tolerance:M9",
     ]);
   });

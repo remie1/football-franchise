@@ -31,6 +31,7 @@ import {
   realHitOnScramble,
   realHitOrSack,
   realHitRateInBin,
+  realHitsOnAimedPerDropback,
   realOutOfPocketThrows,
   realPerAimedThrow,
   realPressuredShareInBin,
@@ -241,6 +242,22 @@ describe("ADR-089 step 0, real side: release, on the tick grid and in raw second
     expect(realHitRateInBin(binned, "2.0-2.5", "TICK")).toEqual(rate(1, 2));
     expect(realHitRateInBin(binned, "2.0-2.5", "RAW")).toEqual(rate(1, 3));
     expect(isInapplicable(realHitRateInBin(realOf([{ pbp: ATT, part: pressure(true, 2.1) }], { ftn: true }), "2.0-2.5", "TICK"))).toBe(true);
+  });
+
+  it("gives hits on aimed throws per FTN-season dropback, every bin together, and with throwaways counted (review F2)", () => {
+    const real = realOf([
+      { pbp: { ...ATT, qbHit: true }, part: pressure(true, 2.2), ftn: {} },
+      { pbp: { ...INC, qbHit: true }, part: pressure(false, 1.1), ftn: {} },
+      { pbp: { ...INC, qbHit: true }, part: pressure(true, 2.4), ftn: { isThrowAway: true } },
+      { pbp: ATT, part: pressure(false, 2.0), ftn: {} },
+      { pbp: { ...SACK, qbHit: true }, part: pressure(true, null), ftn: {} },
+      { pbp: SCRAMBLE, part: pressure(false, null), ftn: {} },
+      { pbp: { ...ATT, qbHit: true, season: 2022 }, ftn: {} },
+    ]);
+    // 2023 FTN-charted dropbacks: 6; hits on aimed throws: 2 (the throwaway, the sack and the 2022 play out).
+    expect(realHitsOnAimedPerDropback(real)).toEqual(rate(2, 6));
+    expect(realHitsOnAimedPerDropback(real, "WITH_THROWAWAYS")).toEqual(rate(3, 6));
+    expect(realHitsOnAimedPerDropback(realOf([{ pbp: ATT }], { ftn: true }))).toMatchObject({ reason: "NO_OBSERVATIONS" });
   });
 
   it("bounds the quick-pressure share from below: pressured attempts released before 2.5 s", () => {
@@ -474,6 +491,7 @@ const REAL_SIDES: Readonly<Record<string, (input: RealInput<"TUNING">) => Metric
   release_distribution: (i) => realReleaseDistribution(i, "TICK"),
   pressured_share_by_release_bin: (i) => realPressuredShareInBin(i, "2.0-2.5", "TICK"),
   hit_rate_by_release_bin: (i) => realHitRateInBin(i, "2.0-2.5", "TICK"),
+  hits_on_aimed_throws_per_dropback: (i) => realHitsOnAimedPerDropback(i, "AIMED"),
   throwaway_rate_pressured: (i) => realThrowawayRate(i, "PRESSURED"),
   throwaway_rate_clean: (i) => realThrowawayRate(i, "CLEAN"),
   scramble_rate: realScrambleRate,
@@ -618,6 +636,11 @@ describe("ADR-089 step 0, real side: the TUNING cache (FF_POCKET_REAL=1)", () =>
       expect(meanOf(realReleaseDistribution(real, "RAW"))).toBeCloseTo(2.631, 3);
       expect(pct(realPressuredShareInBin(real, "2.0-2.5", "TICK"))).toBeCloseTo(14.7, 1);
       expect(pct(realHitRateInBin(real, "2.0-2.5", "TICK"))).toBeCloseTo(5.4, 1);
+      // ADR-089:206: hits on aimed throws per dropback, 7.1 (8.1 counting throwaways); review F2.
+      expect(realHitsOnAimedPerDropback(real)).toEqual(rate(2_907, 40_982));
+      expect(pct(realHitsOnAimedPerDropback(real))).toBeCloseTo(7.1, 1);
+      expect(realHitsOnAimedPerDropback(real, "WITH_THROWAWAYS")).toEqual(rate(3_311, 40_982));
+      expect(pct(realHitsOnAimedPerDropback(real, "WITH_THROWAWAYS"))).toBeCloseTo(8.1, 1);
       // K1's raw-second hit curve on aimed throws with a release time (ADR-089:165, :1833).
       const raw = realReleaseBins(real, "RAW");
       expect(Object.values(raw).reduce((a, b) => a + b.aimed, 0)).toBe(34_578);
