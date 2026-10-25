@@ -13,6 +13,11 @@
  * (E1): `--load` carries on with that version, and refuses a different `--caller` unless
  * `--switch-caller` is given.
  *
+ * Engine rules (ADR-089 §9, petition P1): a save also records the engine rules bundle that played it
+ * when it is not `legacy`; `--load` carries on under the save's rules (none recorded: `legacy`) and
+ * refuses rules this version does not have. This version has `legacy` only. `--out` records the
+ * caller and the rules that played (`src/season/stamp.ts`).
+ *
  * News (ADR-082 R2): each week's top headlines print as the season plays, as the news command
  * prints them from a saved season. Carrying on from a save prints only the weeks after it.
  *
@@ -47,6 +52,8 @@ import { createNewsDesk, formatEdition } from "@ff/narrative";
 import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
 import { runRealSeason, type SeasonRosters } from "./realSeason.js";
 import { readStandInFile } from "./standInLeague.js";
+import { engineRulesDigestOf, playedUnder } from "../pocket/rules.js";
+import { savePlayedWith, seasonOutStamp, seasonRules } from "./stamp.js";
 
 function parse(argv: readonly string[]) {
   let seed: string | undefined;
@@ -140,6 +147,8 @@ if (savedCaller !== undefined && args.callerVersion !== undefined && args.caller
   throw new Error(`This save was played with caller ${savedCaller}; carrying on with ${args.callerVersion} needs --switch-caller`);
 }
 const callerVersion: CallerVersion = args.callerVersion ?? (savedCaller as CallerVersion | undefined) ?? DEFAULT_CALLER_VERSION;
+// ADR-089 P1: a save carries on under its own rules (absent: legacy); `playedUnder` holds them to legacy (K4).
+const engineRules = playedUnder(seasonRules(loaded?.save));
 const rosters: SeasonRosters = loaded
   ? (loaded.league.teams.some((t) => t.roster.length > 0) ? "generated" : "flat")
   : (args.rosters ?? "generated");
@@ -205,7 +214,7 @@ if (args.save) {
       depthMemory: people.playerMemory ?? (() => { throw new Error("the players' steps left no memory to save"); })(),
     },
   } : { league };
-  const save = makeSave({ ...development, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: { caller: callerVersion }, rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...squad, ...(staff ? { staff } : {}) });
+  const save = makeSave({ ...development, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: savePlayedWith(callerVersion, engineRules), rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...squad, ...(staff ? { staff } : {}) });
   writeFileSync(path, JSON.stringify(save, listTraits, 2));
   console.log(`Saved ${path}`);
 }
@@ -215,6 +224,8 @@ if (args.out) {
   // The event stream rides along so the news desk (ADR-082) can read the season the way it happened.
   // Truth-layer events stay out: the viewer and the news never load them (ADR-087 §7).
   const events = players ? run.events.filter((e) => !isTruthLayerEvent(e.event)) : run.events;
-  writeFileSync(path, JSON.stringify({ seed, league, season: run.state, events, ...squads }, listTraits, 2));
+  // ADR-089 §9: what played, caller and rules, beside the season (O11: always written).
+  const playedBy = seasonOutStamp(callerVersion, engineRules, engineRulesDigestOf(engineRules));
+  writeFileSync(path, JSON.stringify({ seed, ...playedBy, league, season: run.state, events, ...squads }, listTraits, 2));
   console.log(`Saved ${path}`);
 }

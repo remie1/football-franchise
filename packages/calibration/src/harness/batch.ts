@@ -42,6 +42,7 @@ import { assertTendencyIntegrity, type FittedTendencies } from "../caller/tenden
 import type { LeagueProvenance } from "../league/provenance.js";
 import type { AnyProvenancedLeague } from "../league/provenance.js";
 import { indexLeague } from "../league/snapshot.js";
+import { engineRulesDigestOf, engineRulesNamed, playedUnder, rulesStampUnlessLegacy } from "../pocket/rules.js";
 import {
   emptyAccumulator,
   foldGame,
@@ -80,6 +81,12 @@ export interface BatchConfig {
   readonly tunables?: Tunables;
   /** A label for the tunables version, e.g. "DEFAULT_TUNABLES" or "ADR-021-patch-1". */
   readonly tunablesVersion?: string;
+  /**
+   * ADR-089 §9: the engine rules bundle to play, by name; absent is `legacy`. At step 0 nothing
+   * reaches the engine (K4) and this build has `legacy` only, so any other name is refused before a
+   * game is played. Recorded into the provenance only when it is not `legacy`.
+   */
+  readonly engineRules?: string;
   readonly workers?: number;
   readonly executor?: BatchExecutor;
 }
@@ -111,6 +118,13 @@ export interface BatchProvenance {
   /** Whether the replay imposed real weekly availability, and for how many team-weeks. */
   readonly availabilityMatched: boolean;
   readonly teamWeeksWithAbsences: number;
+  /**
+   * ADR-089 §9 (plan O11): the engine rules bundle the batch played, and its overlay digest. Written
+   * only when the rules are not `legacy`, so a legacy batch's provenance is today's, key for key;
+   * absent means `legacy`. `BaselineIdentity` lifts both.
+   */
+  readonly engineRules?: string;
+  readonly engineRulesDigest?: string;
 }
 
 export interface BatchResult {
@@ -280,6 +294,8 @@ export async function runBatch(config: BatchConfig): Promise<BatchResult> {
   }
 
   const callerVersion = config.playCalling.callerVersion ?? DEFAULT_CALLER_VERSION;
+  // ADR-089 §9: checked before any game is played. `playedUnder` holds it to `legacy` (K4).
+  const engineRules = playedUnder(engineRulesNamed(config.engineRules, "runBatch"));
 
   const started = Date.now();
   const { accumulator, caller } = await executor.run(jobs, (job) => {
@@ -329,6 +345,7 @@ export async function runBatch(config: BatchConfig): Promise<BatchResult> {
       executorName: executor.name,
       availabilityMatched,
       teamWeeksWithAbsences,
+      ...rulesStampUnlessLegacy(engineRules, engineRulesDigestOf(engineRules)),
     },
   };
 }

@@ -20,6 +20,7 @@ import { runOneGame } from "../harness/runGame.js";
 import { buildFixture, buildFixtures } from "../harness/schedule.js";
 import { buildFlatLeague } from "../league/flat.js";
 import { indexLeague } from "../league/snapshot.js";
+import { engineRulesDigestOf, engineRulesNamed, playedUnder, rulesStampAlways } from "../pocket/rules.js";
 
 export const GAME_FILE_FORMAT = "ff-game/1";
 
@@ -47,6 +48,14 @@ export interface GameFile {
    * `exportGame({ seed, callerVersion })` read back off the file re-makes it byte for byte.
    */
   readonly callerVersion: CallerVersion;
+  /**
+   * The engine rules bundle that played (ADR-089 §9), resolved like `callerVersion`: an export that
+   * names none records `DEFAULT_ENGINE_RULES` as it stood (`legacy` until step 11's flip), never the
+   * word "default". Always written (plan O11), so the file says what played after the default moves.
+   */
+  readonly engineRules: string;
+  /** The rules bundle's overlay digest (ADR-089 §9); only when the rules are not `legacy`. */
+  readonly engineRulesDigest?: string;
   readonly home: GameFileTeam;
   readonly away: GameFileTeam;
   readonly players: Readonly<Record<string, GameFilePlayer>>;
@@ -57,10 +66,14 @@ export interface GameFile {
 export interface ExportGameInput {
   readonly seed: string;
   readonly callerVersion?: CallerVersion;
+  /** ADR-089 §9: absent is `DEFAULT_ENGINE_RULES`; a name this build does not have is refused. */
+  readonly engineRules?: string;
 }
 
 export function exportGame(input: ExportGameInput): GameFile {
   if (input.seed.trim().length === 0) throw new Error("a game needs a seed");
+  // Resolved as the caller is, before the game is played; `playedUnder` holds it to `legacy` (K4).
+  const engineRules = playedUnder(engineRulesNamed(input.engineRules, "exportGame"));
   const index = indexLeague(buildFlatLeague({ teams: 2 }));
   const [homeId, awayId] = index.teamIds();
   const [fixture] = buildFixtures(index, {
@@ -100,6 +113,7 @@ export function exportGame(input: ExportGameInput): GameFile {
     seed: input.seed,
     league: "flat",
     callerVersion,
+    ...rulesStampAlways(engineRules, engineRulesDigestOf(engineRules)),
     home: teamOf(String(homeId)),
     away: teamOf(String(awayId)),
     players,

@@ -11,6 +11,9 @@
  *  5. IT NAMES ITS CALLER (ADR-073 step 3.5). The file records the caller version that played,
  *     resolved, never "default", so the seed and the version read back off the file re-make it
  *     byte for byte after the default moves.
+ *  6. IT NAMES ITS RULES (ADR-089 §9, O11). The file always records the engine rules that played,
+ *     resolved the same way: `legacy` at step 0, with no overlay digest; the seed, caller and rules
+ *     read back off the file re-make it byte for byte; rules this build does not have are refused.
  */
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -72,6 +75,20 @@ describe("exportGame", () => {
       JSON.stringify(named),
     );
     expect(JSON.stringify(named.events)).not.toBe(JSON.stringify(game.events));
+  });
+
+  it("stamps the engine rules that played, legacy at step 0, and the stamp re-makes the file (ADR-089 §9)", () => {
+    expect(game.engineRules).toBe("legacy");
+    expect("engineRulesDigest" in game).toBe(false);
+    // Written right after the caller, so the two facts about what played sit together.
+    expect(Object.keys(game).slice(0, 5)).toEqual(["format", "seed", "league", "callerVersion", "engineRules"]);
+    const remade = exportGame({ seed: game.seed, callerVersion: game.callerVersion, engineRules: game.engineRules });
+    expect(JSON.stringify(remade)).toBe(JSON.stringify(game));
+    // Naming legacy plays exactly the game naming nothing plays: nothing reaches the engine (K4).
+    expect(JSON.stringify(exportGame({ seed: SEED, engineRules: "legacy" }).events)).toBe(JSON.stringify(game.events));
+    for (const bad of ["pocket-1.s1", "pocket-1", "default"]) {
+      expect(() => exportGame({ seed: SEED, engineRules: bad })).toThrow(/^exportGame: engine rules/);
+    }
   });
 
   it("names every team and every player the stream or the box score mentions", () => {
