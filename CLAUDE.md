@@ -60,6 +60,7 @@ Delegate implementation to the owning sub-agent. Never let one agent write in an
 - `pnpm --filter @ff/calibration season -- --seed <seed> --development --injuries --out season.json` — a season where players grow, age and get hurt, on through the offseason (ADR-087; either switch alone works; both off by default)
 - `pnpm --filter @ff/calibration player-checks [--seeds 20] [--shard 1/3]` — ADR-087's single-season checks in four arms (`reports/player-checks.md`); run shards 1/3, 2/3, 3/3 in separate shells to go faster
 - `pnpm --filter @ff/calibration injury-rates` — measure real NFL injury numbers from nflverse (`reports/injury-rates.md`)
+- `pnpm --filter @ff/calibration pocket -- --step 0` — ADR-089 step 0: play the base corpora (about 6 minutes) and print M1-M9 and the pocket report; `--out <file>` saves the measures, `--write-filed <file>` fills a filing's pending fields (the committed filing is filled and pinned)
 
 ## Current State
 

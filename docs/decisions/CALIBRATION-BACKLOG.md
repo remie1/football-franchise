@@ -12976,9 +12976,11 @@ Derived by grep at the step-0 head, not recalled. Each line is `unruled` by this
 
 - **Question 19 = Wait** (the owner's answer, ADR-089:5): CONFIRMED in the filing (`snap.answer` `WAIT`;
   `adr089Filed.test.ts`).
-- **P1** (`SaveFile.playedWith.engineRules?: string`, the owner's typed yes): CARRIED AS TESTIMONY of the approval. The
-  `contracts-guardian` review of P1 has **not** been obtained (no tool could start that agent during the build); the
-  Orchestrator gets and cites it before merging. `docs/design/contracts.md:506` lags until P16 at step 11.
+- **P1** (`SaveFile.playedWith.engineRules?: string`, the owner's typed yes): CARRIED AS TESTIMONY of the approval.
+  `contracts-guardian` reviewed P1 after the build, as its own read-only agent at `4463c55`: **APPROVE**, 0 blocking,
+  2 should-fix, 4 nits, no boundary violation, no `Math.random` (ADR-089 Appendix E.12;
+  `/mnt/project-files/arms/pocket-fix/step0/review-contracts.md`). Its should-fixes are K18 (the save's overlay
+  digest, settled before step 1) and `docs/design/contracts.md:506`, which lags until P16 at step 11.
 - **The D defaults** the filing uses (D1, D3, D5, D9, D18, D19, D21, D22, D23, D28, D31, D34, D35): CARRIED AS
   TESTIMONY from ADR-089 §15; none is re-decided here.
 - **O1-O19** (ADR-089 Appendix E.8): Orchestrator readings within the design's words, shown to the owner, not asked.

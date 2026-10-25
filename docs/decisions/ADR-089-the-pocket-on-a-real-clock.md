@@ -2183,3 +2183,15 @@ Revision 2's step-0 reviews (no play change, fidelity, code and tests) found tha
 | F8 | `s5a.reset` (ADR-089:1053): "The reset is held at 1.0 s and reported alone (default D33)", a structural clause with no band | 262 clauses (257 before) |
 
 `FILED_DIGEST` moved from `fnv1a:6b9ef02c` to `fnv1a:9a1c90e9` in the commit that re-filed (`c4686d6`).
+
+### E.12 contracts-guardian's review of P1
+
+`contracts-guardian` reviewed petition P1 (`0623045`, `SaveFile.playedWith.engineRules?: string`; the owner's typed yes, Status) after the build, as its own read-only agent over `e23bf69..4463c55`. The edit landed before this review, against §7's order; the branch was not pushed until the review was in (its nit F5). **Verdict: APPROVE**, 0 blocking, 2 should-fix, 4 nits.
+
+- **Necessary, minimal, well named, backward compatible.** One optional free-text string keeps contracts engine-agnostic; every save without it, and every legacy save written now, reads as `legacy`; legacy saves stay byte-identical; `SAVE_FORMAT_VERSION` correctly stays 1. Contracts gains a type and a comment only.
+- **Boundaries hold.** The names calibration imports from engine, franchise, playbook, narrative and attributes are identical at `e23bf69` and the head; no deep import; no `Math.random` in any source or test; attribute reads go through registry ids.
+- **Should-fix 1: K18** (E.8). The design checks a mid-build save against its overlay digest (:1321, R9 at :1408), which P1's single string cannot hold. Settled before step 1, the first step that can write a non-legacy save: the digest inside the rules name, a second petition with its own typed yes, or name-only checking, recorded here.
+- **Should-fix 2: the spec lag.** `docs/design/contracts.md:506` still shows `playedWith?: { caller: string }` until P16 at step 11; acceptable because P16 is scheduled and needs its own yes.
+- **Nits:** the doc comment on `save.ts` could say "a non-empty name; writers omit it under `legacy`" (a contracts edit, so it waits for a petition); a build from before P1 ignores the field (bounded: no non-legacy save exists before step 1); `DeadlineRatings` in `contest.ts` keys four attribute names by string (it never reads a player).
+
+The full report is `/mnt/project-files/arms/pocket-fix/step0/review-contracts.md`.
