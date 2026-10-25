@@ -6,7 +6,7 @@ rules live in `ARCHITECTURE_CHARTER.md`, and the full working history lives in `
 This page points into both and should stay short. Update the "Where things stand" section when
 a big piece lands.
 
-_Last updated: 24 October 2026._
+_Last updated: 25 October 2026._
 
 ## What the game is
 
@@ -80,7 +80,7 @@ realism checker came first. Front office and the game screen were started early 
 ## How decisions get made
 
 - **Design notes (ADRs).** Each real decision gets a numbered note in `docs/decisions/`, from
-  ADR-001 up (ADR-076 is the latest in the repo at the time of writing; ADR-077's design note
+  ADR-001 up (ADR-089 is the latest in the repo at the time of writing; ADR-077's design note
   is still in the project files). A note states the problem, the
   proposal, the questions for you, and later your rulings and what was measured.
 - **Your rulings.** Questions come to you as plain football questions. Nothing that changes the
@@ -108,7 +108,9 @@ merged). Measured with play-caller version 4, on the snaps where the pocket held
 spread nearly as they do in the NFL; the rest of the gap is the pocket. The front work is finished,
 so the pocket fix comes next. Its design will take in what a free blitzer really changes (the
 quarterback's feel for the rush, his mobility against the rusher's speed, hot and deep routes, and
-down and distance), and its questions go to you before anything is built.
+down and distance), and its questions go to you before anything is built. The pocket fix (ADR-089)
+is being built in twelve steps; step 0 added the instruments and filed every prediction; nothing
+about play has changed yet.
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
 NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered

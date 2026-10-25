@@ -12909,3 +12909,90 @@ Sack sources, % of `keepable` snaps:
   2; plan §10). Filed with step 3.5's write-up. Proposed trigger: before anything outside calibration scores a coach's
   call against the baseline caller's, or before the next caller step scored on the bench, whichever comes first. Until
   then each step's scratch bench serves.
+
+## 174. ADR-089 step 0: the pocket fix's instruments landed, and every prediction is filed before any engine change
+
+- **Form.** A ruling entry (`BACKLOG-ENTRY-TEMPLATE.md`): it records the Orchestrator's readings O1-O19 of ADR-089
+  §6.0 and the step-0 filing they produced, so the four ruling sections follow. Entry 173 is PR #33's (held open by
+  the owner, 2026-10-24 00:18Z); whichever of the two lands second resolves an end-of-file text conflict.
+- **What landed (no play change).** The rules name: the export and the season `--out` file always name it (`legacy`
+  today); the season save (`SaveFile.playedWith.engineRules`, petition P1, the owner's typed yes), the batch provenance
+  and the baseline identity carry it only when it is not `legacy`, absent meaning `legacy` (O11); 44 new rows (37 registry rows, 7 pocket report rows), M1-M9, the clean bench, the
+  one-threat bench and the line bench (`packages/engine/test/lineBench.test.ts`); golden digests v1-v7 on both leagues;
+  and **`packages/calibration/reports/adr-089-step0.filed.json`**, every band, falsifier and REPORTED reproduction of
+  §6.1-§6.10 and §8, filled by `pocket -- --step 0` and pinned at `FILED_DIGEST` `fnv1a:6b9ef02c`
+  (`test/adr089Filed.test.ts`). ADR-089 Appendix E is its human-read record. Question 19 was answered Wait: M8 is built
+  for Wait, Table now filed beside it as information only.
+
+### Implied scope
+
+Derived by grep at the step-0 head, not recalled. Each line is `unruled` by this entry.
+
+- **Rows whose real side reads FTN's `was_pressure`** (pattern `isFlagged|wasPressure|realPressured|realThrowaway|realSituation|realClean|realByDown|realCompletionByPressure|realScramble|realQuickShare|realReleaseBins|realSeasonSpread`
+  over `src/metrics/pocketRows.ts`; and `wasPressure` over `src/metrics/tier1.ts`): `pressured_share_by_release_bin`,
+  `quick_pressure_share_by_origin`, `throwaway_rate_pressured`, `throwaway_rate_clean`, `scramble_rate`,
+  `scramble_yards`, `by_down_fixed_calls`, `completion_by_pocket_status`, `qb_season_spread`, `defence_season_spread`,
+  `clean_outs_rate`, `out_of_pocket_rate`, `clean_drill_share`, `situation_end_of_half`, `situation_q1q3_last_two`, and
+  tier 1's `pressure_to_sack` and `threat_creation_rate` (entry 93's retired real side). Entry 173's single-source
+  question (FTN-only against pooled) applies to each; step 0 files them on FTN 2023-24 only (D3), and none is changed
+  here. `unruled`.
+- **Every tunables reader the pocket-1 overlay will shadow** (pattern `\.passRush\b|\.pocketMovement\b|freeRunner(ArrivalSeconds|Path)|\.arrival\b|\.clock\.(maxTick|tickStepSeconds)`):
+  in the engine `resolve/blitz.ts`, `resolve/passRush.ts`, `resolve/rushThreat.ts`, `resolve/pocketMovement.ts`,
+  `sim/passPlay.ts`, `sim/preSnap.ts`; in calibration `knownTruth/bandCensus.ts`, `knownTruth/pocketChannelShares.ts`,
+  `knownTruth/pocketLadder.ts`, `knownTruth/bandTables.ts`, `knownTruth/docConformance.ts`,
+  `knownTruth/geometryTimeRetirement.ts`, `harness/playScope.ts`, `metrics/collect.ts`, `metrics/pocketRows.ts`, and the
+  step-0 files `pocket/clocks.ts`, `pocket/contest.ts`, `pocket/decidingInstant.ts`, `pocket/legacyFreeRun.ts`,
+  `pocket/m2ForcingSource.ts`, `pocket/m4AlarmMix.ts`, `pocket/m6Contact.ts`, `pocket/oneThreatBench.ts`. From step 1 a
+  reader that takes `DEFAULT_TUNABLES` rather than the arm's tunables reads the wrong dials on a `pocket-1` arm.
+  `unruled` (the census rule keeps every new dial out of `DEFAULT_TUNABLES` until step 11).
+
+### Provenance of factual claims
+
+- **Base, flat:** baseline-0009's corpus (496 games, `generateSeeds("baseline-0001", 496)`, the flat 32-team league,
+  caller v7), at the step-0 head (no engine change since `e23bf69`): 86.85 / 20.05 / 16.43 / 1.242 (pressure /
+  hit-or-sack / sack / release), MEASURED by `adr089Base.test.ts` P-3 through `runBatch` and again through
+  `flatBaseline(1)`; all 35 carry-forward sim values MEASURED identical (`===`).
+- **Base, gen:** `runRealSeason` seed `pk-01` through 2027 week 18, 272 games: 85.26 / 24.04 / 16.72 / 1.235, MEASURED
+  (P-4).
+- **Second seed sets** (O4): flat `generateSeeds("adr-089:seed-set-2", 496)`, gen `pk-02`; used by M1, M5 and M9 only.
+- **M1-M9:** MEASURED by P-7 on both leagues (set 1; M1, M5 and M9 on both sets), the same tree; the M block equals
+  stream S3's own run field for field (MEASURED). B1 = 67.83 of 25,758 dropbacks (gen set 1) = 0.2633 points (DERIVED,
+  O1).
+- **Real sides:** the data cache's 2022-24 TUNING seasons (FTN rows 2023-24): 160 figures of ADR-089 §2 checked, 158
+  MEASURED to reproduce at their printed precision; two listed under K16 (Appendix E.10).
+- **REPORTED reproductions (§9 (b)):** eight reproduce; entry 107's 79.94% and `TM`'s 399 of 14,627 do not (MEASURED,
+  Appendix E.9).
+
+### Premise ledger
+
+- **Question 19 = Wait** (the owner's answer, ADR-089:5): CONFIRMED in the filing (`snap.answer` `WAIT`;
+  `adr089Filed.test.ts`).
+- **P1** (`SaveFile.playedWith.engineRules?: string`, the owner's typed yes): CARRIED AS TESTIMONY of the approval. The
+  `contracts-guardian` review of P1 has **not** been obtained (no tool could start that agent during the build); the
+  Orchestrator gets and cites it before merging. `docs/design/contracts.md:506` lags until P16 at step 11.
+- **The D defaults** the filing uses (D1, D3, D5, D9, D18, D19, D21, D22, D23, D28, D31, D34, D35): CARRIED AS
+  TESTIMONY from ADR-089 §15; none is re-decided here.
+- **O1-O19** (ADR-089 Appendix E.8): Orchestrator readings within the design's words, shown to the owner, not asked.
+  CARRIED AS TESTIMONY until the owner reads them.
+- **The REPORTED figures** of §9 (b): M3, M4, the first-pressure means, live WON_REP, 18.1 unblocked men, the 62%
+  won-rep origin, the clean bench's nobody-open splits and CP's class figures CONFIRMED; entry 107's 79.94% REFUTED on
+  this tree's construct (0.29% under today's forcing rule, 76.55% under the pre-ADR-058 reading); `TM`'s 399 of 14,627
+  not testable (M2's S construct counts something else).
+- **K1's "counting throwaways" 10.9 (ADR-089:171) and the hit-or-sack interval [14.43-15.00] (:86):** REFUTED at the
+  printed precision (10.850; binomial [14.43, 14.99]); neither is read by a band.
+
+### What remains unjustified
+
+- **M4's construct:** ✅ reproduces `TM`'s 6,395 of 21,962 (29.12%), so nothing open.
+- **b's grid, −15 to 15:** ⚠ RULED (O6), not DERIVED: the lower edge sets step 10's reachable sack level, and 44.6 sits
+  above the stand-in ceiling (24 to 36 on the continuous reading).
+- **Δ = 10:** ✅ DERIVED from the inequality Δ + 5u > 8u over urgency 0 to 3 (O7); the urgency range itself is today's
+  `round(urgencyHorizonSeconds / tickStepSeconds)` and is re-derived if step 6 reads another (risk K9).
+- **M1's noise rule, B1 = E + 3·SD:** ⚠ RULED (O1). One number, gen set 1, serves both leagues; flat's own bound is
+  tighter (0.2134 points).
+- **M2's first-order columns:** ⛔ NEITHER. M2 counts at or before today's release with its own dice, and censors what
+  it cannot see: 78.27% of gen's forced decisions are censored under S. Its counter-forced share under S (0 gen, 0.02%
+  flat) is a first-order figure, filed as a REPORTED clause (`s2.m2`) and never graded.
+- **The clause edges' single numbers** (Appendix E.7): ⚠ RULED by C3's `C3_CLAUSE_RULES`. The Q1/Q3 tolerance is M9's
+  throwaways-per-dropback row, while its comparator is pressured throwaways per pressured dropback; step 8a, which
+  grades it, takes that up.
