@@ -9,7 +9,9 @@
  * `computeStandings`, `seedPlayoffs`, `runSeason` and the `GameResolver` type
  * (`test/seasonSurface.test.ts` holds us to it).
  *
- * It only READS the sim: no tunable, caller default or seed path is touched.
+ * It only READS the sim: no tunable, caller default or seed path is touched. (ADR-089 step 0: a
+ * measurement arm may pass tunables or the mirror through `game`, and watch each game with
+ * `onGame`; with both absent, every game is played as before.)
  *
  * Rosters (ADR-079): by default each team plays with its own made-up squad from
  * `buildGeneratedLeague`. With `rosters: "flat"`, team i of the franchise league plays with team
@@ -29,11 +31,12 @@ import {
   type CalendarStamp, type FranchiseEventEnvelope, type GameResult, type LeagueRules, type PlayerState, type ScheduledGame,
   type SeasonSchedule, type SeasonState, type StaffState, type Team, type TeamId,
 } from "@ff/contracts";
-import type { GameSummary } from "@ff/engine";
+import type { GameSnapshot, GameSummary, Tunables } from "@ff/engine";
 import { buildLeague, runSeason, type GameResolver, type League, type SeasonRun } from "@ff/franchise";
 import type { CallerVersion } from "../caller/anticipate.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../caller/frozenTendencies.js";
 import { runOneGame } from "../harness/runGame.js";
+import type { SimGameObservation } from "../metrics/collect.js";
 import { buildFixture, type GameFixture } from "../harness/schedule.js";
 import { buildFlatLeague } from "../league/flat.js";
 import type { AnyProvenancedLeague } from "../league/provenance.js";
@@ -52,6 +55,24 @@ export interface PlayerSwitches {
 }
 const switchedOn = (s: PlayerSwitches | undefined): boolean => s?.development === true || s?.injuries === true;
 
+/**
+ * ADR-089 step 0: sees each game as the season plays it, with the snapshot it was played on (the
+ * observation carries none, and with injuries on a game's ratings are that day's). Watches only,
+ * like `onEvent`: what it returns is ignored, and nothing it does reaches the result.
+ */
+export type SeasonGameWatcher = (observation: SimGameObservation, game: ScheduledGame, snapshot: GameSnapshot) => void;
+
+/**
+ * ADR-089 step 0: what each game of the season is played with, passed through to `runOneGame`.
+ * Measurement arms only (the pocket fix's benches and its M5 mirror guard). Absent, every game is
+ * played exactly as before.
+ */
+export interface SeasonGamePassThrough {
+  readonly tunables?: Tunables;
+  /** ADR-089 M5 measurement arms only — see `RunGameInput.mirror`. */
+  readonly mirror?: boolean;
+}
+
 export interface RealSimOptions {
   readonly callerVersion?: CallerVersion;
   readonly rules?: LeagueRules;
@@ -60,6 +81,18 @@ export interface RealSimOptions {
    * flat league stands in, team i for team i.
    */
   readonly rated?: AnyProvenancedLeague;
+  /** ADR-089 step 0: see `SeasonGameWatcher`. */
+  readonly onGame?: SeasonGameWatcher;
+  /** ADR-089 step 0: see `SeasonGamePassThrough`. */
+  readonly game?: SeasonGamePassThrough;
+}
+
+/** `runOneGame`'s fields for a pass-through, written only where given (absent is today's game). */
+function passThrough(game: SeasonGamePassThrough | undefined): { readonly tunables?: Tunables; readonly mirror?: boolean } {
+  return {
+    ...(game?.tunables === undefined ? {} : { tunables: game.tunables }),
+    ...(game?.mirror === undefined ? {} : { mirror: game.mirror }),
+  };
 }
 
 /** The engine's week for a scheduled game: playoff weeks follow the regular season's. */
@@ -98,13 +131,16 @@ export function realSimResolver(league: League, opts: RealSimOptions = {}): (gam
       awayRoster: fullStrength(index.teams.get(String(away))!, game.season, week),
       replay: 0,
     };
+    const built = buildFixture(index, fixture);
     const { observation } = runOneGame({
-      built: buildFixture(index, fixture),
+      built,
       seed,
       tendencies: FROZEN_TENDENCIES,
       fourthDown: FROZEN_FOURTH_DOWN,
       ...(opts.callerVersion === undefined ? {} : { callerVersion: opts.callerVersion }),
+      ...passThrough(opts.game),
     });
+    opts.onGame?.(observation, game, built.snapshot);
     return resultOf(game, seed, observation.summary);
   };
 }
@@ -169,7 +205,9 @@ export function peopleResolver(rated: AnyProvenancedLeague, opts: Omit<RealSimOp
       tendencies: FROZEN_TENDENCIES,
       fourthDown: FROZEN_FOURTH_DOWN,
       ...(opts.callerVersion === undefined ? {} : { callerVersion: opts.callerVersion }),
+      ...passThrough(opts.game),
     });
+    opts.onGame?.(observation, game, built.snapshot);
     return { result: resultOf(game, seed, observation.summary), extras: { participation: participationFrom(observation.events, built.snapshot) } };
   };
 }
@@ -221,6 +259,10 @@ export interface RealSeasonInput {
    * steps' events up to its day, and that day, so no day's steps run twice.
    */
   readonly resume?: { readonly people: SeasonPeople; readonly events: readonly FranchiseEventEnvelope[]; readonly through: CalendarStamp };
+  /** ADR-089 step 0: sees each game with its snapshot. Watches only, like `onEvent`. See `SeasonGameWatcher`. */
+  readonly onGame?: SeasonGameWatcher;
+  /** ADR-089 step 0: passed through to every game. Measurement arms only. See `SeasonGamePassThrough`. */
+  readonly game?: SeasonGamePassThrough;
 }
 
 /**
@@ -253,6 +295,11 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
     ({ league, rated } = buildStandInLeague(base, input.standIn));
   }
   const caller = input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion };
+  // ADR-089 step 0: the watcher and the pass-through, threaded as `caller` is; absent, nothing.
+  const games = {
+    ...(input.onGame === undefined ? {} : { onGame: input.onGame }),
+    ...(input.game === undefined ? {} : { game: input.game }),
+  };
   const common = {
     league, season, seed: input.seed, rules,
     ...(input.stopAfter ? { stopAfter: input.stopAfter } : {}),
@@ -260,7 +307,7 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
     ...(input.onEvent ? { onEvent: input.onEvent } : {}),
   };
   if (!switched || rated === undefined) {
-    const resolve = realSimResolver(league, { rules, ...caller, ...(rated === undefined ? {} : { rated }) });
+    const resolve = realSimResolver(league, { rules, ...caller, ...games, ...(rated === undefined ? {} : { rated }) });
     return { league, ...(rated === undefined ? {} : { rated }), run: runSeason({ ...common, resolve }) };
   }
 
@@ -280,7 +327,7 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
   })();
   const run = runSeason({
     ...common,
-    resolve: peopleResolver(squads, { rules, ...caller }),
+    resolve: peopleResolver(squads, { rules, ...caller, ...games }),
     people,
     through: "YEAR",
     players: {

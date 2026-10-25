@@ -14,6 +14,7 @@ import type { FittedFourthDown } from "../caller/fourthDown.js";
 import { frozenCallerPair, type FrozenCallerDiagnostics } from "../caller/frozen.js";
 import type { FittedTendencies } from "../caller/tendencies.js";
 import type { SimGameObservation } from "../metrics/collect.js";
+import { mirrorCaller } from "../pocket/mirror.js";
 import type { BuiltFixture } from "./schedule.js";
 
 export interface RunGameInput {
@@ -45,6 +46,13 @@ export interface RunGameInput {
   readonly drawLines?: boolean;
   /** ADR-073 step 3.5 measurement arms only, v7 — see `FrozenCallerSpec.frontLooks` (the full catalogue unless narrowed). */
   readonly frontLooks?: readonly FrontLookId[];
+  /**
+   * ADR-089 M5 measurement arms only. `true` plays the game with LEFT and RIGHT swapped on every
+   * call both callers make (`pocket/mirror.ts`); the players keep their ids. Absent or `false`,
+   * the callers are passed to the engine exactly as before. A boolean rather than a hook, so the
+   * input stays plain data a worker can be handed.
+   */
+  readonly mirror?: boolean;
 }
 
 export interface RunGameOutput {
@@ -79,9 +87,13 @@ export function runOneGame(input: RunGameInput): RunGameOutput {
     ...(built.fixture.replay === 0 ? {} : { replay: built.fixture.replay }),
   };
   const state = createMatchState(coordinates, built.snapshot, tunables);
+  const callers =
+    input.mirror === true
+      ? { home: mirrorCaller(pair.home), away: mirrorCaller(pair.away) }
+      : { home: pair.home, away: pair.away };
   const result = simulateGame(
     state,
-    { coordinates, snapshot: built.snapshot, callers: { home: pair.home, away: pair.away } },
+    { coordinates, snapshot: built.snapshot, callers },
     seed,
     tunables,
   );
