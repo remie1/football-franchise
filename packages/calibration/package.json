@@ -11,6 +11,7 @@
     "known-truth": "vitest run test/knownTruth",
     "export-game": "vite-node src/export/main.ts --",
     "season": "vite-node src/season/main.ts --",
+    "pocket": "vite-node src/pocket/main.ts --",
     "player-checks": "vite-node src/season/playerChecksMain.ts --",
     "injury-rates": "vite-node src/injuries/main.ts --"
   },
