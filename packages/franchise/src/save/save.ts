@@ -46,8 +46,12 @@ export interface MakeSaveInput {
   /** What wrote the file, e.g. "calibration season". */
   createdBy: string;
   rules?: LeagueRules;
-  /** What played the games (E1), e.g. `{ caller: "v5" }`. */
-  playedWith?: { caller: string };
+  /**
+   * What played the games (E1), e.g. `{ caller: "v5" }`, and, when they were not played under
+   * `legacy`, the engine rules bundle by name (ADR-089 P1): `{ caller: "v7", engineRules: "pocket-1.s1" }`.
+   * No `engineRules` means `legacy`. The file keeps exactly what it is given.
+   */
+  playedWith?: { caller: string; engineRules?: string };
   /**
    * The players on the teams' rosters (ADR-079 team rosters). Absent, the save has none, and so
    * may its teams' rosters. Traits are a `Set`: write the file with a replacer that lists them.
@@ -145,7 +149,9 @@ export function readSave(input: unknown): LoadedSave {
       : `its format ${String(save.formatVersion)} is not one this version reads (${SAVE_FORMAT_VERSION})`);
   }
   if (typeof save.worldSeed !== "string" || save.worldSeed === "") refuse("it has no world seed");
-  if (save.playedWith !== undefined && (!isObject(save.playedWith) || typeof save.playedWith.caller !== "string")) {
+  // ADR-089 P1: an `engineRules`, when present, is a rules name (a non-empty string); absent is `legacy`.
+  if (save.playedWith !== undefined && (!isObject(save.playedWith) || typeof save.playedWith.caller !== "string"
+    || (save.playedWith.engineRules !== undefined && (typeof save.playedWith.engineRules !== "string" || save.playedWith.engineRules === "")))) {
     refuse("its note of what played the games is damaged");
   }
   const w = save.world;
