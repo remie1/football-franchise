@@ -2161,5 +2161,5 @@ A miss is recorded as REPORTED-UNREPRODUCED with its own construct and value, as
 
 | figure | design | measured | why it cannot be matched |
 |---|---|---|---|
-| hit-or-sack's interval, upper edge (:86) | [14.43-15.00] | play-level binomial 95%: [14.43, 14.99]; a game-clustered bootstrap is wider (about [14.38, 15.03]) | the design states no construct for the interval |
+| hit-or-sack's interval, upper edge (:86) | [14.43-15.00] | play-level binomial 95%: [14.43, 14.99]; 1.96 game-clustered bootstrap SEs (1,000 resamples over 815 games) are wider, [14.39, 15.03] | the design states no construct for the interval |
 | QB hit rate counting throwaways, raw, 2.5-3.0 s (:171) | 10.9 | 10.850 (803 of 7,401; 10.8499 to four places) | the printed 10.9 is a half-up rounding of the two-place 10.85 (double rounding, INFERRED); K1's reference row, which no band reads |

@@ -12991,8 +12991,9 @@ Derived by grep at the step-0 head, not recalled. Each line is `unruled` by this
 - **M1's noise rule, B1 = E + 3·SD:** ⚠ RULED (O1). One number, gen set 1, serves both leagues; flat's own bound is
   tighter (0.2134 points).
 - **M2's first-order columns:** ⛔ NEITHER. M2 counts at or before today's release with its own dice, and censors what
-  it cannot see: 78.27% of gen's forced decisions are censored under S. Its counter-forced share under S (0 gen, 0.02%
-  flat) is a first-order figure, filed as a REPORTED clause (`s2.m2`) and never graded.
+  it cannot see: under S, 78.27% of gen's dropbacks (20,162 of 25,758) and 78.10% of flat's are censored, not forced
+  by today's release. Its counter-forced share under S (0 gen, 0.02% flat) is a first-order figure, filed as a REPORTED
+  clause (`s2.m2`) and never graded.
 - **The clause edges' single numbers** (Appendix E.7): ⚠ RULED by C3's `C3_CLAUSE_RULES`. The Q1/Q3 tolerance is M9's
   throwaways-per-dropback row, while its comparator is pressured throwaways per pressured dropback; step 8a, which
   grades it, takes that up.
