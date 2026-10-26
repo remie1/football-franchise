@@ -13030,12 +13030,12 @@ Derived by grep at the step-0 head, not recalled. Each line is `unruled` by this
   the golden pins v1-v7, the season path, baseline-0009 (86.85 / 20.05 / 16.43 / 1.242), the generated league
   (85.26 / 24.04 / 16.72 / 1.235) and the step-0 filing (`FILED_DIGEST` `fnv1a:9a1c90e9`) did not move. ADR-089
   Appendix F is the human-read record.
-- **What the arms showed** (graded as filed; nothing re-filed or tuned). Shape S with the window (A1) lands inside
-  its predicted pressure, sacks and release on both leagues (31.81 / 2.70 / 1.589 flat, 33.05 / 2.80 / 1.666 gen);
-  the window's price on flat, +0.278 pressure points, is just outside the filed 0.2633. Shape L runs far above its
-  own prediction (A4 66.42 and 69.01 against 33.5 to 42.71; A3 74.55 and 75.35). The interception guard breaches
-  in every arm that has a base, on both seed sets. Five graded predictions fail. The step stops for the owner
-  (ADR-089:1306; Appendix F.8).
+- **What the arms showed** (graded as filed; nothing re-filed or tuned). Shape S with the window (A1) lands inside its
+  predicted pressure, sacks and release on both leagues (31.81 / 2.70 / 1.589 flat, 33.05 / 2.80 / 1.666 gen); the
+  window's price on flat, +0.278 pressure points, is just outside the filed 0.2633. Shape L runs far above its own
+  prediction (A4 66.42 against 33.5 to 39.5 on flat and 69.01 against 36.71 to 42.71 on gen; A3 74.55 and 75.35). The
+  interception guard breaches in every arm that has a base, on both seed sets. Five graded predictions fail. The step
+  stops for the owner (ADR-089:1306; Appendix F.8).
 - **Finding 1, for the gate's owner: the knownTruth ladder census has been red since before `20c5115`.**
   `FF_LADDER=1 pnpm --filter @ff/calibration test ladderOccupancy` exits 1: `ladderOccupancy.measure.test.ts`,
   "the exact derivation must predict the engine", fails on 131 `pass_rush_tick` d100/d100 cells (shifts -74 to 57,
@@ -13091,10 +13091,11 @@ Derived by grep at the step-1 head (`c45acae`), not recalled. Each line is `unru
 
 ### Provenance of factual claims
 
-- **Default play unchanged:** MEASURED by step 1's proofs P-1 to P-14 at `206640f` (ADR-089 Appendix F.7), again
-  after the review fixes (`f36b42f`, `dc640c9`) and after the ruling (`7b27840`), and the golden pins, the census
-  and `FILED_DIGEST` at `c45acae`. P-13: every CLI save, `--out` and export byte-identical to `20c5115`'s, MEASURED
-  at a worktree of the base.
+- **Default play unchanged:** MEASURED by step 1's proofs P-1 to P-14 at `206640f` (ADR-089 Appendix F.7). After the
+  review fixes, P-1, P-9 and P-14 re-ran at `f36b42f`, and P-3 (a) with P-4 and P-5 (one command), P-8 (`pnpm verify`:
+  exit 1 at `f36b42f`, exit 0 at `dc640c9`), P-12 and P-13 at `dc640c9`; after the ruling, P-1, P-8, P-9 and P-12 at
+  `7b27840` (`build-fix.md`, `build-ruling.md`); and the golden pins, the census and `FILED_DIGEST` at `c45acae`.
+  P-13: every CLI save, `--out` and export byte-identical to `20c5115`'s, MEASURED at a worktree of the base.
 - **The arms:** `reports/adr-089-step1.md` and `.json`, stamped commit `0a2eb41`, fingerprint `7689307642ed08e0`,
   Node v22.22.0, caller v7; flat 496 games (baseline-0009's seeds) and gen 272 games (`runRealSeason`), seed set 1
   (set 2 for A15 and A0b); MEASURED in three shards (876 s, 864 s, 785 s), and a shard re-run from the cache gives
@@ -13104,8 +13105,11 @@ Derived by grep at the step-1 head (`c45acae`), not recalled. Each line is `unru
 - **PUSH counts:** `clean_with_live_won_rep_push_ticks` 0 for A3 and A4 on both leagues, MEASURED in the arms under
   F1 option (b). The before-and-after counts (A3 485 to 6, A4 226 to 2, A1 7 to 7) are MEASURED on the first 20 flat
   games of seed set 1 by the ruling's scratch script.
-- **The L8 basis:** A5 reproduces pkA's A12 (36.50 / 2.86 / 2.41 / 1.590 flat, 39.71 / 3.40 / 2.44 / 1.651 gen) at
-  the printed precision, MEASURED; A4's flat pressure equals A0's less 20.4 to within 0.03 points, DERIVED.
+- **The L8 basis:** the filed L8 band is pkA's A12 (ADR-089:1005), which pkA's results name as the rep clock at R = 8
+  plus beaten-not-pressure ("A1 is the rep clock alone at R = 8; A12 adds beaten-not-pressure",
+  `/mnt/project-files/arms/pocket-fix/design-wip/round1/designA.json`), DOCUMENTED. A5 reproduces pkA's A12 (36.50 /
+  2.86 / 2.41 / 1.590 flat, 39.71 / 3.40 / 2.44 / 1.651 gen, P2S 6.61 and 6.14) and A4 reproduces pkA's A1 (66.42 /
+  2.94 / 2.50 / 1.603 flat, 69.01 / 3.34 / 2.51 / 1.650 gen, P2S 3.76 and 3.63) at the printed precision, MEASURED.
 - **The stock-fixture verdict:** 0 BEATEN and 1 GAINING tick over 3 fixtures by 60 seeds under S with the window,
   MEASURED and pinned in `engine/test/determinism.test.ts`.
 - **The interaction** (-20 to -30 pressure points; sacks within 0.3): DERIVED from the MEASURED arms.
@@ -13123,9 +13127,9 @@ Derived by grep at the step-1 head (`c45acae`), not recalled. Each line is `unru
   JavaScript identical.
 - **K18 option (a):** the owner's ruling, CARRIED AS TESTIMONY; the guardian's conditions F11, F12 and F14 CONFIRMED
   met (ADR-089 Appendix F.3; `test/engineRules.test.ts`).
-- **Question 1 Today, question 16 Yes, question 19 Wait** (the owner's answers, ADR-089:5): CARRIED AS TESTIMONY.
-  CONFIRMED in the build: A1 to A4 carry `DEFAULT_TUNABLES`' BEATEN floor and counter (Today); the design arm A1 runs
-  the window and S without it is information only (Yes); M8 is built for Wait (step 0's filing).
+- **Question 1 Today, question 16 Yes, question 19 Wait** (the owner's answers, ADR-089:33, :48 and :5): CARRIED AS
+  TESTIMONY. CONFIRMED in the build: A1 to A4 carry `DEFAULT_TUNABLES`' BEATEN floor and counter (Today); the design
+  arm A1 runs the window and S without it is information only (Yes); M8 is built for Wait (step 0's filing).
 - **O20-O34** (ADR-089 Appendix F.4): Orchestrator readings within the design's words, shown to the owner, not asked.
   CARRIED AS TESTIMONY until the owner reads them.
 - **F1 option (b):** the Orchestrator's ruling between the design's own texts. CARRIED AS TESTIMONY until the owner
@@ -13133,17 +13137,18 @@ Derived by grep at the step-1 head (`c45acae`), not recalled. Each line is `unru
   published label; only A3's and A4's digests moved, with every event count identical).
 - **P-15 satisfied as a no-change proof:** the Orchestrator's ruling, CARRIED AS TESTIMONY; the no-change fact
   CONFIRMED (the census report is byte-identical at `20c5115`).
-- **PR #33 is open** (held by the owner): CONFIRMED by the step-1 report's header, so P2S prints against both 22.02
-  and 15.46.
+- **PR #33 is open** (held by the owner): CONFIRMED on GitHub on 2026-10-26 (REST `pulls/33`: state open, not merged).
+  The step-1 report's header prints the code's constant `PR33_STATE` (`calibration/src/pocket/step0.ts:439`), not the
+  PR's state; so P2S prints against both 22.02 and 15.46.
 
 ### What remains unjustified
 
-- **Shape L's pressure:** ⛔ NEITHER. A3 and A4 sit at 66 to 75%, above L8's filed bands and the 45 falsifier, and
-  the L8 band was filed from an arm that ran Heels (A5 reproduces it), so the band and the arm it grades do not
-  match. It goes to the owner as filed (ADR-089 Appendix F.8).
+- **Shape L's pressure:** ⛔ NEITHER. A4 sits above L8's filed bands (66.42 and 69.01), and A3 and A4 (66 to 75%) above
+  the 45 falsifier; the L8 band was filed from pkA's arm with beaten-not-pressure (A5, L8 with Heels, reproduces it),
+  so the band and the arm it grades do not match. It goes to the owner as filed (ADR-089 Appendix F.8).
 - **The guard's zero tolerance:** ⚠ RULED (ADR-089:1306, default D9). It breaches on noise in A9 and A10, whose
-  allowed rise is about 0.00; the S arms' rises are not noise (A1 flat z +2.75 on set 1, +5.31 on set 2). Whether
-  the step goes on is the owner's.
+  allowed rise is about 0.00; A1's and A2's flat rises are not noise (z +2.75 to +5.36 on both sets), while on gen the
+  S arms' z runs from -0.37 to +2.19. Whether the step goes on is the owner's.
 - **The window's price on flat** (+0.278 points against the one filed B1, 0.2633 from gen set 1): ⚠ RULED (O1).
   Flat's own B1 is tighter (0.2134), and the window-only dirt (0.264 points) is about the whole price.
 - **L's PUSH-ticks band** (`acc.liveWonRep.push`, ADR-089:1160): ⚠ RULED by F1 option (b). Its basis count is 0 for
