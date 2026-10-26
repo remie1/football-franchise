@@ -17,6 +17,7 @@ import { goldenGames } from "../src/pocket/corpus.js";
 import { GOLDEN_LEAGUES } from "../src/pocket/golden.js";
 import { DEFAULT_TUNABLES } from "@ff/engine";
 import { withOverlay } from "../src/pocket/rules.js";
+import { shapeLMargin } from "../src/pocket/clocks.js";
 import {
   approachAgreement,
   beatAccounting,
@@ -29,6 +30,7 @@ import {
   emptyWindowTicksFold,
   foldS1Game,
   lEqualsTodayCheck,
+  lMarginExact,
   reproduceMargins,
   s1PlaysOf,
   s1Problems,
@@ -251,5 +253,32 @@ describe("each check fails on a stream it must refuse", () => {
     for (const play of plays) lEqualsTodayCheck(fold, play, dialsOf(l4));
     expect(fold.problemCount).toBe(1);
     expect(fold.problems[0]).toMatch(/against today's/);
+  });
+});
+
+/**
+ * Review CT-7. S-4 rebuilds an L margin by the engine's own form, `round(min(t, R) * x / R)`
+ * (`lMarginExact`, N3), so it can catch a changed input but not a changed formula. Step 0's
+ * instrument (`shapeLMargin`, the M2 forcing source) rounds `min(1, t/R) * x`. The two differ on a
+ * few ticks where the products round apart; this pins that set on the played grid (t 0.5 to 6.0,
+ * x -80 to 80), so a change to either form shows here.
+ */
+describe("the two shape-L margin forms disagree on exactly these ticks (review CT-7)", () => {
+  it("pins the disagreement set at R 3 to 8, the filed R 5 and 8 among them", () => {
+    const disagree = (R: number): [number, number, number, number][] => {
+      const out: [number, number, number, number][] = [];
+      for (let i = 1; i <= 12; i++) {
+        const t = i * 0.5;
+        for (let x = -80; x <= 80; x++) {
+          const step0 = shapeLMargin(t, R, x, 0);
+          const engine = lMarginExact(t, R, x);
+          if (step0 !== engine) out.push([t, x, step0, engine]);
+        }
+      }
+      return out;
+    };
+    expect(disagree(5)).toEqual([[3.5, 45, 31, 32]]);
+    expect(disagree(8)).toEqual([]);
+    expect([3, 4, 6, 7].map(disagree)).toEqual([[], [], [[3.5, -54, -32, -31]], [[4.5, -77, -50, -49], [4.5, -49, -32, -31], [4.5, -21, -14, -13]]]);
   });
 });
