@@ -242,7 +242,8 @@ interface RushMatchup {
   beat?: { readonly T: number; readonly tick: number | undefined; readonly label: string };
   /**
    * ADR-089 step 1, shape L only: the matchup reported BLOCKER_BEATEN (§4.0: under L, PUSH is a
-   * POWER rep that reported BEATEN before it reported RUSHER_WINS_REP). Never set otherwise.
+   * POWER rep in the card's PUSH range that reported BEATEN before it reported RUSHER_WINS_REP,
+   * ADR-089 Appendix F, F1 option (b)). Never set otherwise.
    */
   beatenSeen?: boolean;
   /**
@@ -916,7 +917,7 @@ export function simulatePassPlay(
           tickRollRef = jittered.check.roll.rngLabel;
         }
         log.check(rush.check);
-        // ADR-089 §4.0, shape L: PUSH is a POWER rep that reported BEATEN before it won.
+        // ADR-089 §4.0, shape L: PUSH is a POWER rep in the PUSH range that reported BEATEN before it won (F1 option (b)).
         if (rules.kind === "L" && rush.band === "BLOCKER_BEATEN") m.beatenSeen = true;
         m.pressure = advancePressure(m.pressure, rush);
         m.previousBand = rush.band;

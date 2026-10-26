@@ -96,16 +96,48 @@ describe("ADR-089 §4.0 — the card, row by row", () => {
     expect(approachOf(facts({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", repMargin: 3 }), "S", narrow)).toBe("PUSH");
     expect(approachOf(facts({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", repMargin: 11 }), "S", narrow)).toBe("THROUGH");
     expect(() => approachOf(facts({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER" }), "S", CARD)).toThrow(/pass_rush_rep margin/);
+    // Under S the BEATEN tick is not read: the range alone (unchanged by the F1 ruling).
+    for (const beatenSeen of [false, true]) {
+      for (const repMargin of [0, 1, 7, 14, 15, 30]) {
+        const expected = repMargin >= 1 && repMargin <= 14 ? "PUSH" : "THROUGH";
+        expect(approachOf(facts({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", repMargin, beatenSeen }), "S", CARD)).toBe(expected);
+      }
+    }
   });
 
-  it("row 5 under L: a POWER rep that reported BLOCKER_BEATEN before it won is PUSH, at any margin", () => {
+  it("row 5 under L: a POWER rep in the card's PUSH range that reported BLOCKER_BEATEN before it won is PUSH (ADR-089 Appendix F, F1 option (b))", () => {
     for (const alignment of ["EDGE", "INTERIOR"] as const) {
-      for (const repMargin of [-10, 3, 7, 30]) {
-        expect(approachOf(facts({ origin: "WON_REP", alignment, move: "POWER", repMargin, beatenSeen: true }), "L", CARD)).toBe("PUSH");
-        const other = alignment === "EDGE" ? "ARC" : "THROUGH";
+      const other = alignment === "EDGE" ? "ARC" : "THROUGH";
+      for (let repMargin = -10; repMargin <= 40; repMargin++) {
+        const inRange = repMargin >= 1 && repMargin <= 14;
+        expect(approachOf(facts({ origin: "WON_REP", alignment, move: "POWER", repMargin, beatenSeen: true }), "L", CARD), `${alignment} POWER at ${repMargin}, BEATEN first`)
+          .toBe(inRange ? "PUSH" : other);
+        // No BEATEN tick before the win: the other row, whatever the margin.
         expect(approachOf(facts({ origin: "WON_REP", alignment, move: "POWER", repMargin, beatenSeen: false }), "L", CARD)).toBe(other);
         expect(approachOf(facts({ origin: "WON_REP", alignment, move: "POWER", repMargin }), "L", CARD)).toBe(other);
       }
+    }
+    // The range is the card's under L too.
+    const narrow = { pushMinMargin: 3, pushMaxMargin: 10 };
+    expect(approachOf(facts({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", repMargin: 2, beatenSeen: true }), "L", narrow)).toBe("THROUGH");
+    expect(approachOf(facts({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", repMargin: 3, beatenSeen: true }), "L", narrow)).toBe("PUSH");
+    expect(approachOf(facts({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", repMargin: 10, beatenSeen: true }), "L", narrow)).toBe("PUSH");
+    expect(approachOf(facts({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", repMargin: 11, beatenSeen: true }), "L", narrow)).toBe("THROUGH");
+    // A POWER won rep needs its margin under L too.
+    expect(() => approachOf(facts({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", beatenSeen: true }), "L", CARD)).toThrow(/pass_rush_rep margin/);
+  });
+
+  it("under L, a dominant bull rusher (latent margin 15 or more) BEATEN first sheds his man: THROUGH inside, ARC off the edge (F1 option (b))", () => {
+    for (const repMargin of [15, 16, 22, 30, 60]) {
+      expect(approachOf(facts({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", repMargin, beatenSeen: true }), "L", CARD), `INTERIOR at ${repMargin}`).toBe("THROUGH");
+      expect(approachOf(facts({ origin: "WON_REP", alignment: "EDGE", move: "POWER", repMargin, beatenSeen: true }), "L", CARD), `EDGE at ${repMargin}`).toBe("ARC");
+    }
+    // In the range with BEATEN first he is PUSH; in the range without it, the other row.
+    for (const repMargin of [1, 7, 14]) {
+      expect(approachOf(facts({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", repMargin, beatenSeen: true }), "L", CARD)).toBe("PUSH");
+      expect(approachOf(facts({ origin: "WON_REP", alignment: "EDGE", move: "POWER", repMargin, beatenSeen: true }), "L", CARD)).toBe("PUSH");
+      expect(approachOf(facts({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", repMargin, beatenSeen: false }), "L", CARD)).toBe("THROUGH");
+      expect(approachOf(facts({ origin: "WON_REP", alignment: "EDGE", move: "POWER", repMargin, beatenSeen: false }), "L", CARD)).toBe("ARC");
     }
   });
 

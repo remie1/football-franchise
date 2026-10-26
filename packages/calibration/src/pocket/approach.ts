@@ -13,7 +13,7 @@
  *    threat without the field, or a `legacy` one with it, is refused.
  *  - **`deriveApproachesOfPlay`, the derivation**, kept for `legacy` streams and as S-8's
  *    cross-check of the published label (ADR-089:1218: "derived equals published"). At step 1 it
- *    learns shape S's join and shape L's PUSH (below).
+ *    learns shape S's join and shape L's PUSH (below; ADR-089 Appendix F, F1 option (b)).
  *
  * The facts, all on the stream:
  *  - the matchup's move and alignment: `PLAY_START.defense.rush[]` (`sim/passPlay.ts:525-546`);
@@ -24,8 +24,9 @@
  *    under shape S it names the rep's `pass_rush_beat` (P2), whose `rollRef` names the rep;
  *  - under shape L (a `pocket-1` play whose won rep is joined through a rolled tick), whether the
  *    matchup reported BLOCKER_BEATEN on a tick before the one that won (§4.0: "Under shape L, PUSH
- *    is a POWER rep that reported BLOCKER_BEATEN before it reported RUSHER_WINS_REP"; the stream is
- *    read in its own order for this one fact);
+ *    is a POWER rep that reported BLOCKER_BEATEN before it reported RUSHER_WINS_REP", read with
+ *    §4.0's row, margin 1 to 14, by ADR-089 Appendix F, F1 option (b); the stream is read in its own
+ *    order for this one fact);
  *  - the threat's origin (`RUSH_THREAT.origin`) and, for a pickup or a stunt, its band: the
  *    `blitz_pickup` or `stunt_communication` CHECK its `rollRef` names.
  *
@@ -42,10 +43,12 @@
  *     time (ADR-089:394); step 3 changes his timing, not his label;
  *  4. a won rep, move SPEED or FINESSE, EDGE → ARC, SIDE;
  *  5. a won rep, move POWER, latent margin 1 to 14 (the card's PUSH range) → PUSH, FRONT if
- *     INTERIOR, SIDE if EDGE; under shape L instead: a POWER rep that reported BLOCKER_BEATEN
- *     before it won → PUSH (row POWER_BEATEN_FIRST);
+ *     INTERIOR, SIDE if EDGE (row POWER_1_TO_14); under shape L the same range AND a rep that
+ *     reported BLOCKER_BEATEN before it won → PUSH (row POWER_1_TO_14_BEATEN_FIRST; ADR-089
+ *     Appendix F, F1 option (b));
  *  6. any other won rep (POWER 15 or more, a late beat from a margin of 0 or less, interior SPEED
- *     or FINESSE) → THROUGH (FRONT), or ARC (SIDE) if EDGE;
+ *     or FINESSE; under shape L also a POWER rep in the range with no BLOCKER_BEATEN before its
+ *     win) → THROUGH (FRONT), or ARC (SIDE) if EDGE;
  *  7. a matchup not beaten → BLOCKED (no from-class: it is read only by the side-aware escape).
  *
  * BEHIND (after a step-up under an ARC, or a won SIDESTEP) needs step 7's movement; no legacy fact
@@ -62,8 +65,9 @@ export const FROM_CLASSES = ["FRONT", "SIDE"] as const;
 export type FromClass = (typeof FROM_CLASSES)[number];
 
 /**
- * Which row of §4.0's table gave the label, in the table's order. `POWER_BEATEN_FIRST` is row 5
- * under shape L. `PUBLISHED` is not a row: it marks a label read off `RUSH_THREAT.approach` (a
+ * Which row of §4.0's table gave the label, in the table's order. `POWER_1_TO_14_BEATEN_FIRST` is
+ * row 5 under shape L: the PUSH range and BLOCKER_BEATEN before the win (ADR-089 Appendix F, F1
+ * option (b)). `PUBLISHED` is not a row: it marks a label read off `RUSH_THREAT.approach` (a
  * `pocket-1` play), whose row the engine does not publish; the derivation's own label rides beside
  * it as `ThreatApproach.derived`.
  */
@@ -73,7 +77,7 @@ export const APPROACH_ROWS = [
   "TOUCHED",
   "EDGE_SPEED_FINESSE",
   "POWER_1_TO_14",
-  "POWER_BEATEN_FIRST",
+  "POWER_1_TO_14_BEATEN_FIRST",
   "OTHER_WON_REP",
   "NOT_BEATEN",
   "PUBLISHED",
@@ -116,8 +120,8 @@ export interface ApproachFacts {
   readonly latentMargin?: number;
   /**
    * For WON_REP under shape L only (a `pocket-1` play, the rep joined through a rolled tick):
-   * whether the matchup reported BLOCKER_BEATEN on a tick before the one that won. Present, it
-   * decides row 5 in place of the margin; absent (`legacy`, shape S), the margin decides.
+   * whether the matchup reported BLOCKER_BEATEN on a tick before the one that won. Present, row 5
+   * needs it AND the margin in the PUSH range; absent (`legacy`, shape S), the range alone decides.
    */
   readonly beatenBeforeWin?: boolean;
   /** Named as a penetrator by one of the play's stunts. */
@@ -162,14 +166,14 @@ export function approachOf(facts: ApproachFacts, push: PushMargin = PUSH_MARGIN)
       if (facts.penetrator) return PENETRATOR;
       if (alignment === "EDGE" && (move === "SPEED" || move === "FINESSE")) return { approach: "ARC", from: "SIDE", row: "EDGE_SPEED_FINESSE" };
       if (move === "POWER") {
+        const m = facts.latentMargin;
+        if (m === undefined) throw new Error("approachOf: a POWER won rep needs its pass_rush_rep margin");
+        const inRange = m >= push.min && m <= push.max;
         if (facts.beatenBeforeWin !== undefined) {
-          // Shape L: BEATEN before the win is PUSH, whatever the margin (§4.0, ADR-089:1001).
-          if (facts.beatenBeforeWin) return { approach: "PUSH", from: fromOf(alignment), row: "POWER_BEATEN_FIRST" };
-        } else {
-          const m = facts.latentMargin;
-          if (m === undefined) throw new Error("approachOf: a POWER won rep needs its pass_rush_rep margin");
-          if (m >= push.min && m <= push.max) return { approach: "PUSH", from: fromOf(alignment), row: "POWER_1_TO_14" };
-        }
+          // Shape L: the PUSH range AND BLOCKER_BEATEN before the win (ADR-089 Appendix F, F1 option
+          // (b)); 15 or more, or no BEATEN tick before the win, is row 6.
+          if (inRange && facts.beatenBeforeWin) return { approach: "PUSH", from: fromOf(alignment), row: "POWER_1_TO_14_BEATEN_FIRST" };
+        } else if (inRange) return { approach: "PUSH", from: fromOf(alignment), row: "POWER_1_TO_14" };
       }
       return byAlignment(alignment, "OTHER_WON_REP");
     }
@@ -309,8 +313,8 @@ function readPlay(play: readonly MatchEventEnvelope[]): PlayFacts {
  * shape L's "BLOCKER_BEATEN before the win" reads the order). A play with no PLAY_START rush gives
  * an empty map. Throws if a threat's justifying CHECK is missing from the play: the stream must
  * carry it. A won rep is joined to its rep through the tick (`legacy`, shape L) or the beat
- * (shape S); on a `pocket-1` play joined through a tick (shape L), row 5 reads BLOCKER_BEATEN
- * before the win. `push` is the card's PUSH range (`pushMarginOf`), default 1 to 14.
+ * (shape S); on a `pocket-1` play joined through a tick (shape L), row 5 reads the PUSH range and
+ * BLOCKER_BEATEN before the win. `push` is the card's PUSH range (`pushMarginOf`), default 1 to 14.
  *
  * Under `legacy` this is what consumers read; under `pocket-1` it is S-8's cross-check only.
  */
@@ -351,7 +355,7 @@ function deriveFrom(read: PlayFacts, push: PushMargin): ReadonlyMap<string, Thre
         const tick = checkOf(threat.rollRef, "pass_rush_tick", r.rusher);
         if (tick.rollRef === undefined) throw new Error(`approachesOfPlay: rusher ${r.rusher}'s winning pass_rush_tick names no rep (ADR-059 rollRef)`);
         const rep = checkOf(tick.rollRef, "pass_rush_rep", r.rusher);
-        // Shape L (a pocket-1 play on a rolled tick): BLOCKER_BEATEN before the winning tick.
+        // Shape L (a pocket-1 play on a rolled tick): BLOCKER_BEATEN before the winning tick (row 5 with the range).
         const beaten = pocket1 ? { beatenBeforeWin: (beatenAt.get(r.rusher) ?? Number.POSITIVE_INFINITY) < tick.index } : {};
         facts = { threat: true, origin: "WON_REP", latentMargin: rep.margin, ...beaten, ...base };
       }

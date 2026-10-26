@@ -652,8 +652,8 @@ Results per Tick:
 > | a looper the line never touched (LOOPER_FREE), or a twist's penetrator | THROUGH |
 > | a man somebody got a hand on (RAN_THROUGH, LATE_EXCHANGE) | ARC if EDGE, THROUGH if INTERIOR |
 > | won rep, EDGE, SPEED or FINESSE | ARC |
-> | won rep, POWER: under S, latent margin 1 to 14 (the card's range, provisional); under L, reported BLOCKER_BEATEN before RUSHER_WINS_REP | PUSH |
-> | any other won rep | THROUGH (ARC if EDGE) |
+> | won rep, POWER, latent margin 1 to 14 (the card's range, provisional): under S, the range alone; under L, the range and BLOCKER_BEATEN reported before RUSHER_WINS_REP (ADR-089 Appendix F, F1 option (b)) | PUSH |
+> | any other won rep (under L, also a POWER rep of 15 or more, or one not BEATEN before its win) | THROUGH (ARC if EDGE) |
 > | a matchup not beaten | BLOCKED (never on a threat) |
 >
 > At step 1, free runners keep today's timing with these labels; step 3 changes their timing, not

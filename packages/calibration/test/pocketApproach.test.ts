@@ -8,7 +8,8 @@
  * ADR-089 step 1 (plan §7.2 item 4, §16.3): under `pocket-1` (a `PLAY_START` that carries `rules`)
  * consumers read the PUBLISHED `RUSH_THREAT.approach` (P4), with the derivation beside it; the
  * derivation learns shape S's join (threat → `pass_rush_beat` → rep) and shape L's PUSH (a POWER rep
- * that reported BLOCKER_BEATEN before it won), so S-8 can check derived equals published. On
+ * in the PUSH range, 1 to 14, that reported BLOCKER_BEATEN before it won: ADR-089 Appendix F, F1
+ * option (b)), so S-8 can check derived equals published. On
  * constructed plays here, and on a real `pocket-1.s1` game (the engine, stream E-b, publishes it).
  */
 import { describe, expect, it } from "vitest";
@@ -251,13 +252,24 @@ describe("ADR-089 §4.0: approachesOfGame on real games", () => {
 // --- ADR-089 step 1: shape L's PUSH, the card's range, the published label ---------------
 
 describe("ADR-089 step 1: approachOf under shape L and on the card's PUSH range", () => {
-  it("shape L: a POWER rep that reported BLOCKER_BEATEN before it won is PUSH, whatever its margin (row POWER_BEATEN_FIRST)", () => {
-    for (const latentMargin of [-5, 0, 6, 15, 30]) {
-      expect(approachOf(threat({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", latentMargin, beatenBeforeWin: true }))).toEqual({ approach: "PUSH", from: "FRONT", row: "POWER_BEATEN_FIRST" });
-      expect(approachOf(threat({ origin: "WON_REP", alignment: "EDGE", move: "POWER", latentMargin, beatenBeforeWin: true }))).toEqual({ approach: "PUSH", from: "SIDE", row: "POWER_BEATEN_FIRST" });
+  it("shape L: a POWER rep in the PUSH range that reported BLOCKER_BEATEN before it won is PUSH (row POWER_1_TO_14_BEATEN_FIRST; F1 option (b))", () => {
+    for (const latentMargin of [1, 6, 14]) {
+      expect(approachOf(threat({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", latentMargin, beatenBeforeWin: true }))).toEqual({ approach: "PUSH", from: "FRONT", row: "POWER_1_TO_14_BEATEN_FIRST" });
+      expect(approachOf(threat({ origin: "WON_REP", alignment: "EDGE", move: "POWER", latentMargin, beatenBeforeWin: true }))).toEqual({ approach: "PUSH", from: "SIDE", row: "POWER_1_TO_14_BEATEN_FIRST" });
     }
-    // Shape L reads BEATEN, not the margin, so a POWER rep L knows was not beaten first needs none.
-    expect(approachOf(threat({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", beatenBeforeWin: true })).row).toBe("POWER_BEATEN_FIRST");
+    // Outside the range, BEATEN first or not, the other row: a late beat from 0 or less.
+    for (const latentMargin of [-5, 0]) {
+      expect(approachOf(threat({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", latentMargin, beatenBeforeWin: true }))).toEqual({ approach: "THROUGH", from: "FRONT", row: "OTHER_WON_REP" });
+    }
+    // Shape L reads the margin as well as BEATEN, so a POWER won rep needs its margin under L too.
+    expect(() => approachOf(threat({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", beatenBeforeWin: true }))).toThrow(/pass_rush_rep margin/);
+  });
+
+  it("shape L: a dominant bull rusher (latent margin 15 or more) BEATEN first sheds his man: THROUGH inside, ARC off the edge (row OTHER_WON_REP; F1 option (b))", () => {
+    for (const latentMargin of [15, 16, 22, 30, 60]) {
+      expect(approachOf(threat({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", latentMargin, beatenBeforeWin: true }))).toEqual({ approach: "THROUGH", from: "FRONT", row: "OTHER_WON_REP" });
+      expect(approachOf(threat({ origin: "WON_REP", alignment: "EDGE", move: "POWER", latentMargin, beatenBeforeWin: true }))).toEqual({ approach: "ARC", from: "SIDE", row: "OTHER_WON_REP" });
+    }
   });
 
   it("shape L: a POWER rep that won without BLOCKER_BEATEN first is row 6, even on a margin in the PUSH range", () => {
@@ -277,6 +289,10 @@ describe("ADR-089 step 1: approachOf under shape L and on the card's PUSH range"
       expect(approachOf(threat({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", latentMargin }), narrow).approach, String(latentMargin)).toBe(approach);
     }
     expect(approachOf(threat({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", latentMargin: 1 })).approach).toBe("PUSH");
+    // Under shape L too, with BLOCKER_BEATEN before the win (F1 option (b)).
+    for (const [latentMargin, approach] of [[2, "THROUGH"], [3, "PUSH"], [10, "PUSH"], [11, "THROUGH"]] as const) {
+      expect(approachOf(threat({ origin: "WON_REP", alignment: "INTERIOR", move: "POWER", latentMargin, beatenBeforeWin: true }), narrow).approach, `L ${String(latentMargin)}`).toBe(approach);
+    }
   });
 
   it("pushMarginOf: the bundle's approach card, or step 0's 1 to 14 for tunables without one", () => {
@@ -306,7 +322,7 @@ describe("ADR-089 step 1: approachOf under shape L and on the card's PUSH range"
   });
 
   it("the rows: the table's seven, shape L's row 5, and PUBLISHED, which is not a row", () => {
-    expect(APPROACH_ROWS).toEqual(["UNBLOCKED_FREE", "LOOPER_OR_PENETRATOR", "TOUCHED", "EDGE_SPEED_FINESSE", "POWER_1_TO_14", "POWER_BEATEN_FIRST", "OTHER_WON_REP", "NOT_BEATEN", "PUBLISHED"]);
+    expect(APPROACH_ROWS).toEqual(["UNBLOCKED_FREE", "LOOPER_OR_PENETRATOR", "TOUCHED", "EDGE_SPEED_FINESSE", "POWER_1_TO_14", "POWER_1_TO_14_BEATEN_FIRST", "OTHER_WON_REP", "NOT_BEATEN", "PUBLISHED"]);
     expect(DEFAULT_TUNABLES.passRush.bands.some((b) => b.label === BEATEN_BAND)).toBe(true);
   });
 });
@@ -358,32 +374,44 @@ function sPlay(approaches: Readonly<Record<string, string | undefined>> = { dt1:
 }
 
 /**
- * A shape L play: rolled ticks (`rollRef` the rep), a `PLAY_START` with `rules`. dt1 POWER, margin
- * 20: BLOCKER_BEATEN, then wins (PUSH). dt2 POWER, margin 6: wins at once (not PUSH under L). dt3
- * POWER, margin 6: wins, then BLOCKER_BEATEN (not PUSH: the beaten tick came after). de1 edge
- * SPEED: ARC.
+ * A shape L play: rolled ticks (`rollRef` the rep), a `PLAY_START` with `rules`. Under the F1
+ * ruling (option (b)), PUSH under L is the PUSH range AND BLOCKER_BEATEN before the win. dt1
+ * POWER, margin 20: BLOCKER_BEATEN, then wins (a dominant bull rusher, THROUGH). dt2 POWER, margin
+ * 6: wins at once (not PUSH under L: no BEATEN first). dt3 edge POWER, margin 6: wins, then
+ * BLOCKER_BEATEN (not PUSH: the beaten tick came after). dt4 POWER, margin 7: BLOCKER_BEATEN, then
+ * wins (PUSH). dt5 edge POWER, margin 20: BLOCKER_BEATEN, then wins (ARC). de1 edge SPEED: ARC.
  */
 const L_RUSH = [
   { rusher: "dt1", move: "POWER", alignment: "INTERIOR" },
   { rusher: "dt2", move: "POWER", alignment: "INTERIOR" },
   { rusher: "dt3", move: "POWER", alignment: "EDGE" },
+  { rusher: "dt4", move: "POWER", alignment: "INTERIOR" },
+  { rusher: "dt5", move: "POWER", alignment: "EDGE" },
   { rusher: "de1", move: "SPEED", alignment: "EDGE" },
 ];
-function lPlay(approaches: Readonly<Record<string, string | undefined>> = { dt1: "PUSH", dt2: "THROUGH", dt3: "ARC", de1: "ARC" }, pocket1 = true) {
+function lPlay(approaches: Readonly<Record<string, string | undefined>> = { dt1: "THROUGH", dt2: "THROUGH", dt3: "ARC", dt4: "PUSH", dt5: "ARC", de1: "ARC" }, pocket1 = true) {
   const tick = (r: string, t: string, band: string, margin: number) => check("pass_rush_tick", `tick/${r}/${t}`, margin, { actors: [r, `ol-${r}`], band, rollRef: `rep/${r}` });
   return [
     playStart(L_RUSH, pocket1 ? RULES : undefined),
     check("pass_rush_rep", "rep/dt1", 20, { band: "RUSHER_WINS_REP" }),
     check("pass_rush_rep", "rep/dt2", 6, { band: "STALEMATE" }),
     check("pass_rush_rep", "rep/dt3", 6, { band: "STALEMATE" }),
+    check("pass_rush_rep", "rep/dt4", 7, { band: "STALEMATE" }),
+    check("pass_rush_rep", "rep/dt5", 20, { band: "RUSHER_WINS_REP" }),
     check("pass_rush_rep", "rep/de1", 9, { band: "STALEMATE" }),
     tick("dt1", "1.0", BEATEN_BAND, 7),
+    tick("dt4", "1.0", BEATEN_BAND, 6),
+    tick("dt5", "1.0", BEATEN_BAND, 8),
     tick("dt2", "1.0", "RUSHER_WINS_REP", 16),
     published("dt2", "WON_REP", "tick/dt2/1.0", "INTERIOR", approaches["dt2"]),
     tick("dt3", "1.0", "RUSHER_WINS_REP", 15),
     published("dt3", "WON_REP", "tick/dt3/1.0", "EDGE", approaches["dt3"]),
     tick("dt1", "1.5", "RUSHER_WINS_REP", 18),
     published("dt1", "WON_REP", "tick/dt1/1.5", "INTERIOR", approaches["dt1"]),
+    tick("dt4", "1.5", "RUSHER_WINS_REP", 15),
+    published("dt4", "WON_REP", "tick/dt4/1.5", "INTERIOR", approaches["dt4"]),
+    tick("dt5", "1.5", "RUSHER_WINS_REP", 18),
+    published("dt5", "WON_REP", "tick/dt5/1.5", "EDGE", approaches["dt5"]),
     tick("dt3", "1.5", BEATEN_BAND, 6),
     tick("de1", "1.5", "RUSHER_WINS_REP", 15),
     published("de1", "WON_REP", "tick/de1/1.5", "EDGE", approaches["de1"]),
@@ -418,10 +446,17 @@ describe("ADR-089 step 1: the derivation learns shape S's join and shape L's PUS
     expect(() => deriveApproachesOfPlay(noRep)).toThrow(/dt2.*pass_rush_rep/);
   });
 
-  it("shape L: PUSH is a POWER rep that reported BLOCKER_BEATEN before the tick that won, read in the play's order", () => {
+  it("shape L: PUSH is a POWER rep in the PUSH range that reported BLOCKER_BEATEN before the tick that won, read in the play's order (F1 option (b))", () => {
     const labels = deriveApproachesOfPlay(lPlay());
-    expect(labels.get("dt1")?.label).toEqual({ approach: "PUSH", from: "FRONT", row: "POWER_BEATEN_FIRST" });
+    // BEATEN first, margin 20: a dominant bull rusher sheds his man, THROUGH inside, ARC off the edge.
+    expect(labels.get("dt1")?.label).toEqual({ approach: "THROUGH", from: "FRONT", row: "OTHER_WON_REP" });
     expect(labels.get("dt1")?.facts.beatenBeforeWin).toBe(true);
+    expect(labels.get("dt5")?.label).toEqual({ approach: "ARC", from: "SIDE", row: "OTHER_WON_REP" });
+    expect(labels.get("dt5")?.facts.beatenBeforeWin).toBe(true);
+    // BEATEN first, margin 7: PUSH.
+    expect(labels.get("dt4")?.label).toEqual({ approach: "PUSH", from: "FRONT", row: "POWER_1_TO_14_BEATEN_FIRST" });
+    expect(labels.get("dt4")?.facts.beatenBeforeWin).toBe(true);
+    // Margin 6 without BEATEN before the win: the other row.
     expect(labels.get("dt2")?.label).toEqual({ approach: "THROUGH", from: "FRONT", row: "OTHER_WON_REP" });
     expect(labels.get("dt2")?.facts.beatenBeforeWin).toBe(false);
     expect(labels.get("dt3")?.label).toEqual({ approach: "ARC", from: "SIDE", row: "OTHER_WON_REP" });
@@ -435,6 +470,8 @@ describe("ADR-089 step 1: the derivation learns shape S's join and shape L's PUS
     expect(labels.get("dt1")?.label).toEqual({ approach: "THROUGH", from: "FRONT", row: "OTHER_WON_REP" });
     expect(labels.get("dt2")?.label).toEqual({ approach: "PUSH", from: "FRONT", row: "POWER_1_TO_14" });
     expect(labels.get("dt3")?.label).toEqual({ approach: "PUSH", from: "SIDE", row: "POWER_1_TO_14" });
+    expect(labels.get("dt4")?.label).toEqual({ approach: "PUSH", from: "FRONT", row: "POWER_1_TO_14" });
+    expect(labels.get("dt5")?.label).toEqual({ approach: "ARC", from: "SIDE", row: "OTHER_WON_REP" });
     for (const t of labels.values()) {
       expect(t.facts.beatenBeforeWin).toBeUndefined();
       expect(t.derived).toBeUndefined();
@@ -464,10 +501,12 @@ describe("ADR-089 step 1: under pocket-1 consumers read the published label; der
     }
   });
 
-  it("shape L: the same, with row 5 read off BLOCKER_BEATEN", () => {
+  it("shape L: the same, with row 5 read off the PUSH range and BLOCKER_BEATEN", () => {
     const labels = approachesOfPlay(lPlay());
-    expect(labels.get("dt1")?.label).toEqual({ approach: "PUSH", from: "FRONT", row: "PUBLISHED" });
-    expect(labels.get("dt1")?.derived).toEqual({ approach: "PUSH", from: "FRONT", row: "POWER_BEATEN_FIRST" });
+    expect(labels.get("dt4")?.label).toEqual({ approach: "PUSH", from: "FRONT", row: "PUBLISHED" });
+    expect(labels.get("dt4")?.derived).toEqual({ approach: "PUSH", from: "FRONT", row: "POWER_1_TO_14_BEATEN_FIRST" });
+    expect(labels.get("dt1")?.label).toEqual({ approach: "THROUGH", from: "FRONT", row: "PUBLISHED" });
+    expect(labels.get("dt1")?.derived).toEqual({ approach: "THROUGH", from: "FRONT", row: "OTHER_WON_REP" });
     for (const [rusher, t] of labels) expect(t.derived?.approach, rusher).toBe(t.label.approach);
   });
 

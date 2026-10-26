@@ -14,9 +14,12 @@
  *  3. a man somebody got a hand on (RAN_THROUGH, LATE_EXCHANGE) → ARC if EDGE, THROUGH if INTERIOR
  *     (at step 1 with today's time: step 3 changes his timing, not his label, ADR-089:397);
  *  4. a won rep, move SPEED or FINESSE, EDGE → ARC;
- *  5. a won rep, move POWER: under shape S with latent margin in the card's PUSH range (1 to 14),
- *     under shape L a rep that reported BLOCKER_BEATEN before it reported RUSHER_WINS_REP → PUSH;
- *  6. any other won rep → THROUGH, or ARC if EDGE;
+ *  5. a won rep, move POWER, latent margin in the card's PUSH range (1 to 14) → PUSH: under shape S
+ *     the range alone; under shape L the range AND a rep that reported BLOCKER_BEATEN before it
+ *     reported RUSHER_WINS_REP (ADR-089 Appendix F, F1 option (b): §4.0's row, the L sentence at
+ *     ADR-089:393 and :1003, and the owner note that a dominant bull rusher, 15 or more, is THROUGH);
+ *  6. any other won rep (under L, also a POWER rep of 15 or more, or one with no BEATEN tick before
+ *     its win) → THROUGH, or ARC if EDGE;
  *  7. a matchup not beaten → BLOCKED (never on a threat: the threat field excludes it by type).
  *
  * Computed ONCE, when a threat is built, and only when the approach card is present
@@ -34,7 +37,7 @@ export const PICKUP_TOUCHED_BAND = "RAN_THROUGH";
 export const LOOPER_FREE_BAND = "LOOPER_FREE";
 export const LOOPER_TOUCHED_BAND = "LATE_EXCHANGE";
 
-/** Which block clock the play runs: the PUSH row reads the margin under S, the BEATEN tick under L. */
+/** Which block clock the play runs: the PUSH row reads the margin under S, the margin and the BEATEN tick under L. */
 export type BlockClockShape = "S" | "L";
 
 export interface ApproachFacts {
@@ -48,7 +51,7 @@ export interface ApproachFacts {
   readonly move: RushMove;
   /** For WON_REP: the `pass_rush_rep` margin (rusher total − blocker total). */
   readonly repMargin?: number;
-  /** For WON_REP under shape L: whether the matchup reported BLOCKER_BEATEN before its win. */
+  /** For WON_REP under shape L: whether the matchup reported BLOCKER_BEATEN before its win (with the range, row 5). */
   readonly beatenSeen?: boolean;
   /** Named as a penetrator by one of the play's stunts (`PLAY_START.defense.stunts`). */
   readonly penetrator: boolean;
@@ -80,13 +83,12 @@ export function approachOf(facts: ApproachFacts, shape: BlockClockShape, card: A
       if (facts.penetrator) return "THROUGH";
       if (alignment === "EDGE" && (move === "SPEED" || move === "FINESSE")) return "ARC";
       if (move === "POWER") {
-        if (shape === "S") {
-          const m = facts.repMargin;
-          if (m === undefined) throw new Error("@ff/engine: a POWER won rep needs its pass_rush_rep margin");
-          if (m >= card.pushMinMargin && m <= card.pushMaxMargin) return "PUSH";
-        } else if (facts.beatenSeen === true) {
-          return "PUSH";
-        }
+        const m = facts.repMargin;
+        if (m === undefined) throw new Error("@ff/engine: a POWER won rep needs its pass_rush_rep margin");
+        const inRange = m >= card.pushMinMargin && m <= card.pushMaxMargin;
+        // Shape S: the range alone. Shape L: the range and BLOCKER_BEATEN before the win (ADR-089
+        // Appendix F, F1 option (b)); a POWER rep of 15 or more, or one never BEATEN first, is row 6.
+        if (inRange && (shape === "S" || facts.beatenSeen === true)) return "PUSH";
       }
       return byAlignment(alignment);
     }
