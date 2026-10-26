@@ -388,6 +388,15 @@ export interface Step1WindowPrice {
   /** M1 recomputed on A2's streams (K7), B1 in points. */
   readonly m1OnA2: number | null;
   readonly sackTolerance: number;
+  /** A1's dropbacks whose only dirt follows a played window tick, in points with its Poisson SE (review M4); null without A1. */
+  readonly windowOnlyDirt: Step1WindowOnlyDirt | null;
+}
+
+export interface Step1WindowOnlyDirt {
+  readonly count: number;
+  readonly dropbacks: number;
+  readonly points: number;
+  readonly se: number;
 }
 
 export interface Step1PricingRow {
@@ -407,7 +416,7 @@ export interface Step1ArmCounts {
   readonly league: League;
   readonly dropbacks: number;
   /** Exclusive affected plays against the arm's base (or A0 for A14), by mechanism; absent for A0 and A0b. */
-  readonly affected?: { readonly against: string; readonly byMechanism: Readonly<Record<string, number>>; readonly windowOnlyDirt: number; readonly union: number };
+  readonly affected?: { readonly against: string; readonly byMechanism: Readonly<Record<string, number>>; readonly windowOnlyDirt: number; readonly union: number; readonly dropbacks: number };
   /** The stream folds' counts, one line each. */
   readonly folds: readonly string[];
   readonly quickPressure: number | null;
@@ -453,6 +462,21 @@ const signed = (v: number | null | undefined, dp = 2): string => (v === null || 
 function figuresLine(f: Step1Figures, ttt: number | null): string {
   return `pressure ${fmt(f.pressure)} | ${withTtt(`hit-or-sack ${fmt(f.hitOrSack)}`, ttt)} | ${withTtt(`sacks ${fmt(f.sack)}`, ttt)} | release ${fmt(f.release, 3)} s`;
 }
+
+/**
+ * What each mechanism's affected count counts (`s1Stream.ts` foldAffectedGame), printed with it, since
+ * the notions differ and the counts do not compare across arms (review M7).
+ */
+const MECHANISM_TOUCH: Readonly<Record<string, string>> = {
+  S: "S (a beat played)",
+  WINDOW: "WINDOW (a window tick played)",
+  L: "L (a band changed before R)",
+  HEELS: "HEELS (a beaten or gaining tick)",
+  PAST_ONLY: "PAST_ONLY (a beaten or gaining tick)",
+  HOLD: "HOLD (every dropback)",
+  HORIZONS: "HORIZONS (every dropback)",
+  LATE: "LATE (every dropback)",
+};
 
 /** Step 1's own sections, as Markdown lines. */
 export function renderStep1Sections(s: Step1Sections): readonly string[] {
@@ -526,7 +550,10 @@ export function renderStep1Sections(s: Step1Sections): readonly string[] {
   for (const p of s.structural) out.push(`- ${p.id} (${p.what}): ${p.verdict === "PASS" ? "PASSES" : p.verdict === "FAIL" ? "FAILS" : p.verdict}. ${p.detail}`);
   out.push("");
 
-  out.push(`## The interaction (§9.3): joint minus (clock alone + beaten alone - base), beside pkA's ${s.pkAInteraction.toFixed(1)} points (REPORTED, ADR-089:1333)`);
+  out.push(
+    `## The interaction (§9.3): joint minus (clock alone + beaten alone - base), beside pkA's ${s.pkAInteraction.toFixed(1)} points (REPORTED, ADR-089:1333; ` +
+      "pkA is flat only, beaten plus horizon on its own clock: clock alone -20.4, beaten plus horizon alone -8.0, joint -53.7. Step 1's formulas take Heels or Past only alone, under shape L at R = 8 and 5, on both leagues, so the two are not like for like)",
+  );
   out.push("");
   for (const i of s.interaction) out.push(`- ${i.formula}, ${i.league}: pressure ${signed(i.pressure)} points; ${withTtt(`sacks ${signed(i.sack)}`, i.timeToThrow)}`);
   out.push("");
@@ -536,7 +563,8 @@ export function renderStep1Sections(s: Step1Sections): readonly string[] {
   for (const w of s.windowPrice) {
     out.push(
       `- ${w.league}: pressure ${signed(w.pressure, 3)} points against the filed +-${w.b1Filed.toFixed(4)} (B1, gen seed set 1; this league's own B1 ${fmt(w.b1OwnLeague, 4)}); ` +
-        `${withTtt(`sacks ${signed(w.sack, 3)} against +-${w.sackTolerance.toFixed(1)}`, w.timeToThrow)}; M1 recomputed on A2's streams: B1 ${fmt(w.m1OnA2, 4)} points (K7)`,
+        `${withTtt(`sacks ${signed(w.sack, 3)} against +-${w.sackTolerance.toFixed(1)}`, w.timeToThrow)}; M1 recomputed on A2's streams: B1 ${fmt(w.m1OnA2, 4)} points (K7); ` +
+        `window-only dirt ${w.windowOnlyDirt === null ? "n/a" : `${w.windowOnlyDirt.points.toFixed(3)} points (${String(w.windowOnlyDirt.count)} of ${String(w.windowOnlyDirt.dropbacks)}, Poisson SE ${w.windowOnlyDirt.se.toFixed(3)})`}`,
     );
   }
   out.push("");
@@ -556,8 +584,10 @@ export function renderStep1Sections(s: Step1Sections): readonly string[] {
     out.push(`- dropbacks ${String(a.dropbacks)}; time to throw ${fmt(a.timeToThrow, 3)} s`);
     if (a.affected === undefined) out.push("- exclusive affected plays: none (no base)");
     else {
-      const by = Object.entries(a.affected.byMechanism).map(([k, v]) => `${k} ${String(v)}`).join(", ");
-      out.push(`- exclusive affected plays against ${a.affected.against}: ${String(a.affected.union)} (${by === "" ? "no exclusive mechanism" : by}; window-only dirt ${String(a.affected.windowOnlyDirt)})`);
+      const by = Object.entries(a.affected.byMechanism).map(([k, v]) => `${MECHANISM_TOUCH[k] ?? k} ${String(v)}`).join(", ");
+      const d = a.affected.dropbacks;
+      const dirt = d > 0 ? ` (${((100 * a.affected.windowOnlyDirt) / d).toFixed(3)} points, Poisson SE ${((100 * Math.sqrt(a.affected.windowOnlyDirt)) / d).toFixed(3)})` : "";
+      out.push(`- exclusive affected plays against ${a.affected.against}: ${String(a.affected.union)} (${by === "" ? "no exclusive mechanism" : by}; window-only dirt ${String(a.affected.windowOnlyDirt)}${dirt})`);
     }
     out.push(`- quick-pressure share ${fmt(a.quickPressure)} %; band floor plus counter ${fmt(a.floorCounter)} % of first dirt`);
     out.push(`- clean_with_live_won_rep: ticks ${fmt(a.cleanWithLiveWonRep.ticks, 3)} %, dropbacks ${fmt(a.cleanWithLiveWonRep.dropbacks, 3)} %, PUSH ticks apart ${fmt(a.cleanWithLiveWonRep.pushTicks, 3)} %`);

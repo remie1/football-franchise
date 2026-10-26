@@ -81,6 +81,7 @@ import {
   type Step1Sections,
   type Step1ProofVerdict,
   type Step1Structural,
+  type Step1WindowOnlyDirt,
   type Step1WindowPrice,
   type StepReportInput,
 } from "./report.js";
@@ -702,6 +703,27 @@ export interface Step1Grade {
   readonly groups: readonly StepReportInput[];
 }
 
+/** A1's window-only dirt on one league, in points with its Poisson SE (review M4). */
+export function windowOnlyDirtOf(records: ArmRecords, league: League): Step1WindowOnlyDirt | null {
+  const aff = records.get("A1")?.affected?.[league];
+  if (aff === undefined || !(aff.dropbacks > 0)) return null;
+  return { count: aff.windowOnlyDirt, dropbacks: aff.dropbacks, points: (100 * aff.windowOnlyDirt) / aff.dropbacks, se: (100 * Math.sqrt(aff.windowOnlyDirt)) / aff.dropbacks };
+}
+
+/**
+ * The window clauses' note (review M4): which B1 the band is, the window-only dirt the price is
+ * nearly all of, in points with its Poisson SE, and M1 on A2's own streams (K7). Context only: the
+ * verdict is the filed band.
+ */
+function windowNote(records: ArmRecords): string {
+  const dirt = LEAGUES.map((l) => {
+    const d = windowOnlyDirtOf(records, l);
+    return `${l} ${d === null ? "n/a" : `${d.points.toFixed(3)} points (${String(d.count)} of ${String(d.dropbacks)}, Poisson SE ${d.se.toFixed(3)})`}`;
+  });
+  const m1 = LEAGUES.map((l) => `${l} B1 ${num(records.get("A2")?.m1?.[l].all.B1Points ?? null, 4)} points`);
+  return `B1 is gen seed set 1's (deviation O1); window-only dirt (A1's dropbacks whose only dirt follows a played window tick): ${dirt.join(", ")}; M1 recomputed on A2's streams (K7): ${m1.join(", ")}; flat's own B1 is printed with the window's price`;
+}
+
 /** Grades the records present against the filing (pure; the same records give the same grade). */
 export function gradeStep1(records: ArmRecords, file: FiledFile, replaySeedSet?: SeedSet): Step1Grade {
   const structural = structuralProofs(records, file);
@@ -776,7 +798,7 @@ export function gradeStep1(records: ArmRecords, file: FiledFile, replaySeedSet?:
       });
       extra = dir.join("; ");
     }
-    if (c.id.startsWith("s1.window.")) extra = `B1 is gen seed set 1's (deviation O1); flat's own is printed with the window's price`;
+    if (c.id.startsWith("s1.window.")) extra = windowNote(records);
     if (missing && verdict !== "NOT PLAYED") verdict = "NOT PLAYED";
     clauses.push({ id: c.id, kind: c.kind, arms: [...(read.needs ?? read.arms)], filed, values, verdict, ...(extra === undefined ? {} : { note: extra }) });
     const key = figureOf(c.id);
@@ -830,6 +852,7 @@ export function gradeStep1(records: ArmRecords, file: FiledFile, replaySeedSet?:
     return {
       league, pressure: diff("pressure"), sack: diff("sack"), timeToThrow: records.get("A1")?.measures[league].timeToThrow ?? null,
       b1Filed, b1OwnLeague: m1?.[league]?.set1?.all?.B1Points ?? null, m1OnA2: records.get("A2")?.m1?.[league].all.B1Points ?? null, sackTolerance,
+      windowOnlyDirt: windowOnlyDirtOf(records, league),
     };
   });
 
@@ -863,7 +886,7 @@ export function gradeStep1(records: ArmRecords, file: FiledFile, replaySeedSet?:
       const byLabel = Object.entries(s.approach.byLabel).map(([k, v]) => `${k} ${String(v.agree)}/${String(v.agree + v.disagree)}`).join(", ");
       armCounts.push({
         arm: LABEL_OF(id), role: armById(id).role, league, dropbacks: m.dropbacks, timeToThrow: m.timeToThrow,
-        ...(aff === undefined ? {} : { affected: { against: aff.against, byMechanism: aff[league].byMechanism as Record<string, number>, windowOnlyDirt: aff[league].windowOnlyDirt, union: aff[league].union } }),
+        ...(aff === undefined ? {} : { affected: { against: aff.against, byMechanism: aff[league].byMechanism as Record<string, number>, windowOnlyDirt: aff[league].windowOnlyDirt, union: aff[league].union, dropbacks: aff[league].dropbacks } }),
         folds: [
           `window: ${s.windowTicks.windowOn === null ? "not S" : s.windowTicks.windowOn ? "on" : "off"}, ${String(s.windowTicks.reps)} 1-14 POWER reps (${String(s.windowTicks.noBeat)} with no beat), cases two ${String(s.windowTicks.cases.two)} / one ${String(s.windowTicks.cases.one)} / none ${String(s.windowTicks.cases.none)}, played gaining ${String(s.windowTicks.played.gaining)} / beaten ${String(s.windowTicks.played.beaten)}, ${String(s.windowTicks.ticksChecked)} ticks checked, failures ${String(s.windowTicks.problemCount)}`,
           `L equals today: R ${s.lToday.R.length === 0 ? "none" : s.lToday.R.join(", ")}, ${String(s.lToday.ticksAtOrAfterR)} ticks at t >= R (${String(s.lToday.ticksBeforeR)} before), failures ${String(s.lToday.problemCount)}`,

@@ -599,6 +599,29 @@ describe("one arm on a cut corpus, and the digests", () => {
       expect(text).toContain("SE is binomial, the two arms read as independent");
     });
 
+    it("prints the window's price beside its clause, pkA's interaction with what pkA measured, and what each mechanism count means (review M4, M6, M7)", () => {
+      const records = recordsOf();
+      const g = gradeStep1(records, file());
+      const a1 = records.get("A1")!;
+      const a2 = records.get("A2")!;
+      const note = clause(g, "s1.window.pressure").note ?? "";
+      expect(clause(g, "s1.window.sack").note).toBe(note);
+      for (const league of ["flat", "gen"] as const) {
+        const dirt = a1.affected![league];
+        const points = (100 * dirt.windowOnlyDirt) / dirt.dropbacks;
+        const se = (100 * Math.sqrt(dirt.windowOnlyDirt)) / dirt.dropbacks;
+        expect(note).toContain(`${league} ${points.toFixed(3)} points (${String(dirt.windowOnlyDirt)} of ${String(dirt.dropbacks)}, Poisson SE ${se.toFixed(3)})`);
+        expect(note).toContain(`${league} B1 ${a2.m1![league].all.B1Points!.toFixed(4)} points`);
+        expect(g.sections.windowPrice.find((w) => w.league === league)!.windowOnlyDirt).toEqual({ count: dirt.windowOnlyDirt, dropbacks: dirt.dropbacks, points, se });
+      }
+      expect(note).toMatch(/^B1 is gen seed set 1's \(deviation O1\); window-only dirt \(A1's dropbacks whose only dirt follows a played window tick\): /);
+      const text = renderStep1Report(g, records);
+      expect(text).toContain("beside pkA's -25.3 points (REPORTED, ADR-089:1333; pkA is flat only, beaten plus horizon on its own clock");
+      expect(text).toMatch(/window-only dirt \d+ \(\d+\.\d{3} points, Poisson SE \d+\.\d{3}\)/);
+      expect(text).toMatch(/exclusive affected plays against A0: \d+ \(S \(a beat played\) \d+, WINDOW \(a window tick played\) \d+;/);
+      expect(text).toMatch(/L \(a band changed before R\) \d+/);
+    });
+
     it("a re-play on the other seed set grades the guard only, and never posts the merge card", () => {
       const m = new Map<ArmId, W<ArmRecord>>([["A0", synthetic("A0", 2)], ["A1", synthetic("A1", 2)]]);
       // A0 re-played on the full corpus of seed set 2: the filed base rows are seed set 1's (review M1).
