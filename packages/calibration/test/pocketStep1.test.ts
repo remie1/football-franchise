@@ -41,6 +41,7 @@ import {
   FINGERPRINT_PACKAGES,
   foldStep1Game,
   gradeStep1,
+  guardNoise,
   jsonText,
   planStep1,
   playArm,
@@ -572,6 +573,30 @@ describe("one arm on a cut corpus, and the digests", () => {
       expect(g.sections.outcome.mergeCard).toBe(false);
       const pricing = gradeStep1(recordsOf((m) => { m.get("A15")!.report.intGuard.gen.all.interceptions += 1000; }), file());
       expect(pricing.sections.outcome.next).toEqual([expect.stringContaining("--arms A15,A0b --seed-set 1")]);
+    });
+
+    it("prints each guard verdict with its binomial SE and z, league-wide and by class; the verdict is the filed rule (review M2)", () => {
+      // 20 of 1000 aimed against 30 of 1000: SE = 100 * sqrt(0.02 * 0.98 / 1000 + 0.03 * 0.97 / 1000).
+      const base = { aimedByBin: [400, 300, 200, 100], interceptions: 20 };
+      const arm = { aimedByBin: [400, 300, 200, 100], interceptions: 30 };
+      const n = guardNoise(base, arm, { baseRate: 2, armRate: 3, rise: 1, allowed: 0.3, passes: false });
+      expect(n.se).toBeCloseTo(0.697854, 5);
+      expect(n.z).toBeCloseTo(0.7 / 0.697854, 5);
+      expect(guardNoise({ aimedByBin: [10, 0, 0, 0], interceptions: 0 }, { aimedByBin: [10, 0, 0, 0], interceptions: 0 }, { baseRate: 0, armRate: 0, rise: 0, allowed: 0, passes: true })).toEqual({ se: 0, z: null });
+      const g = gradeStep1(recordsOf((m) => {
+        const all = m.get("A1")!.report.intGuard.flat.all;
+        all.interceptions = Math.min(all.aimedByBin.reduce((a, b) => a + b, 0), all.interceptions + 5);
+      }), file());
+      const row = g.sections.guard.find((r) => r.arm === "A1" && r.league === "flat")!;
+      expect(row.mix.passes).toBe(false);
+      expect(row.mixNoise.se).toBeGreaterThan(0);
+      expect(row.mixNoise.z).toBeCloseTo((row.mix.rise - row.mix.allowed) / row.mixNoise.se, 9);
+      expect(row.byClass.scored.length).toBeGreaterThan(0);
+      for (const c of row.byClass.scored) expect(c.z === null || Number.isFinite(c.z)).toBe(true);
+      const text = renderStep1Report(g, recordsOf());
+      expect(text).toMatch(/- A1 against A0, flat: league-wide rise \d+\.\d\d against an allowed -?\d+\.\d\d \(SE \d+\.\d\d, z [+-]\d+\.\d\d\): BREACH; by class: /);
+      expect(text).toMatch(/\n  - by class \(rise \/ allowed \/ SE \/ z\): [A-Z_]+ -?\d+\.\d\d \/ -?\d+\.\d\d \/ \d+\.\d\d \/ (?:[+-]\d+\.\d\d|n\/a) (?:PASSES|BREACH)/);
+      expect(text).toContain("SE is binomial, the two arms read as independent");
     });
 
     it("a re-play on the other seed set grades the guard only, and never posts the merge card", () => {

@@ -335,12 +335,24 @@ export interface Step1ClauseResult {
   readonly note?: string;
 }
 
+/** A guard rise's binomial SE in points per 100 aimed throws, and z = (rise - allowed) / SE (null when SE is 0); context, never the verdict (review M2). */
+export interface Step1GuardNoise {
+  readonly se: number;
+  readonly z: number | null;
+}
+
 export interface Step1GuardRow {
   readonly arm: string;
   readonly base: string;
   readonly league: League;
   readonly mix: GuardVerdict;
-  readonly byClass: { readonly passes: boolean; readonly breaches: readonly string[] };
+  readonly mixNoise: Step1GuardNoise;
+  readonly byClass: {
+    readonly passes: boolean;
+    readonly breaches: readonly string[];
+    /** Every scored class, with its rise, allowance, verdict and noise. */
+    readonly scored: readonly ({ readonly cls: string; readonly rise: number; readonly allowed: number; readonly passes: boolean } & Step1GuardNoise)[];
+  };
 }
 
 export interface Step1Structural {
@@ -491,11 +503,21 @@ export function renderStep1Sections(s: Step1Sections): readonly string[] {
 
   out.push("## The interception guard (graded in every arm with a base, on the decision tick)");
   out.push("");
+  out.push(
+    "Each verdict is the filed rule, the rise at most the mix-predicted rise. Beside it, as context for the owner and never as the verdict: SE is binomial, the two arms read as independent (they share seeds, so it reads high), in points per 100 aimed throws, and z = (rise - allowed) / SE.",
+  );
+  out.push("");
+  const noise = (n: Step1GuardNoise): string => `SE ${n.se.toFixed(2)}, z ${signed(n.z)}`;
   for (const g of s.guard) {
     out.push(
-      `- ${g.arm} against ${g.base}, ${g.league}: league-wide rise ${g.mix.rise.toFixed(2)} against an allowed ${g.mix.allowed.toFixed(2)}: ${g.mix.passes ? "PASSES" : "BREACH"}; ` +
+      `- ${g.arm} against ${g.base}, ${g.league}: league-wide rise ${g.mix.rise.toFixed(2)} against an allowed ${g.mix.allowed.toFixed(2)} (${noise(g.mixNoise)}): ${g.mix.passes ? "PASSES" : "BREACH"}; ` +
         `by class: ${g.byClass.passes ? "PASSES" : `BREACH (${g.byClass.breaches.join(", ")})`}`,
     );
+    if (g.byClass.scored.length > 0) {
+      out.push(
+        `  - by class (rise / allowed / SE / z): ${g.byClass.scored.map((c) => `${c.cls} ${c.rise.toFixed(2)} / ${c.allowed.toFixed(2)} / ${c.se.toFixed(2)} / ${signed(c.z)} ${c.passes ? "PASSES" : "BREACH"}`).join("; ")}`,
+      );
+    }
   }
   out.push("");
 

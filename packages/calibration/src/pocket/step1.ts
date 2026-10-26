@@ -56,7 +56,7 @@ import { emptyAccumulator, foldGame, mergeAccumulators, type SimAccumulator, typ
 import "../metrics/index.js";
 import { isInapplicable } from "../metrics/types.js";
 import { ARM_DEFS, ARM_IDS, armById, exclusiveMechanisms, type Arm, type ArmId, type Mechanism } from "./arms.js";
-import { FILED_PATH, intGuard, intGuardByClass } from "./bands.js";
+import { FILED_PATH, intGuard, intGuardByClass, type GuardVerdict, type IntMix } from "./bands.js";
 import { constructById } from "./constructs.js";
 import { flatBaseline, genSeason, goldenGames, type CorpusVisitor, type SeedSet } from "./corpus.js";
 import { filedDigest, pendingPaths, STEP0_FILED_DIGEST, type BandClause, type FiledFile, type JsonValue } from "./filed.js";
@@ -72,6 +72,7 @@ import {
   type Step1ArmCounts,
   type Step1ClauseResult,
   type Step1Figures,
+  type Step1GuardNoise,
   type Step1GuardRow,
   type Step1HeadlineRow,
   type Step1Interaction,
@@ -656,6 +657,20 @@ export function structuralProofs(records: ArmRecords, file: FiledFile): readonly
   return out;
 }
 
+/**
+ * A guard rise's binomial standard error, in points per 100 aimed throws, with the two arms read as
+ * independent (they share seeds, so it reads high), and z = (rise - allowed) / SE, null when SE is 0
+ * (review M2). Context printed beside the verdict for the owner: the verdict stays the filed rule.
+ */
+export function guardNoise(base: IntMix, arm: IntMix, v: GuardVerdict): Step1GuardNoise {
+  const nb = base.aimedByBin.reduce((a, b) => a + b, 0);
+  const na = arm.aimedByBin.reduce((a, b) => a + b, 0);
+  const pb = base.interceptions / nb;
+  const pa = arm.interceptions / na;
+  const se = 100 * Math.sqrt((pb * (1 - pb)) / nb + (pa * (1 - pa)) / na);
+  return { se, z: se > 0 ? (v.rise - v.allowed) / se : null };
+}
+
 /** The guard against each arm's base, per league (§9.4). */
 export function guardRows(records: ArmRecords): readonly Step1GuardRow[] {
   const out: Step1GuardRow[] = [];
@@ -666,10 +681,17 @@ export function guardRows(records: ArmRecords): readonly Step1GuardRow[] {
     if (arm === undefined || base === undefined) continue;
     if (arm.stamp.seedSet !== base.stamp.seedSet) throw new Error(`the guard reads ${def.id} against ${def.base} on the same seeds; they were played on sets ${String(arm.stamp.seedSet)} and ${String(base.stamp.seedSet)}`);
     for (const league of LEAGUES) {
-      const mix = intGuard(base.report.intGuard[league].all, arm.report.intGuard[league].all, "TICK");
-      const byClass = intGuardByClass(base.report.intGuard[league].byClass, arm.report.intGuard[league].byClass, "TICK");
+      const b = base.report.intGuard[league];
+      const a = arm.report.intGuard[league];
+      const mix = intGuard(b.all, a.all, "TICK");
+      const byClass = intGuardByClass(b.byClass, a.byClass, "TICK");
       const breaches = Object.entries(byClass.byClass).flatMap(([cls, v]) => (v !== undefined && v.status === "SCORED" && !v.passes ? [cls] : []));
-      out.push({ arm: def.id, base: def.base, league, mix, byClass: { passes: byClass.passes, breaches } });
+      const scored = Object.entries(byClass.byClass).flatMap(([cls, v]) => {
+        if (v === undefined || v.status !== "SCORED") return [];
+        const n = guardNoise(b.byClass[cls as keyof typeof b.byClass]!, a.byClass[cls as keyof typeof a.byClass]!, v);
+        return [{ cls, rise: v.rise, allowed: v.allowed, passes: v.passes, ...n }];
+      });
+      out.push({ arm: def.id, base: def.base, league, mix, mixNoise: guardNoise(b.all, a.all, mix), byClass: { passes: byClass.passes, breaches, scored } });
     }
   }
   return out;
