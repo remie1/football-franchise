@@ -16,7 +16,8 @@
  *    its exclusive affected plays against its base, M1 again on A2's streams (K7), and the throws
  *    on the run split clean and pressured.
  *  - **The cache.** Each arm's record is written under `<cache>/<fingerprint>/`, where the
- *    fingerprint is a sha256 of every package's source and the filing (`player-checks`' rule), to
+ *    fingerprint is a sha256 of every package's source, the lockfile and the manifests, and the
+ *    filing, each file framed by its path and length (`player-checks`' rule; review CT-9), to
  *    a temporary file of this writer's own (`<arm>.set<n>.json.<pid>.<thread>.<n>.tmp`) and renamed,
  *    so a reader never sees half a file and two writers never share one. A record carries its
  *    stamp; a cached record whose stamp differs from the one this build computes for that arm is
@@ -49,7 +50,7 @@ import { threadId } from "node:worker_threads";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import type { GameSnapshot, Tunables } from "@ff/engine";
 import type { CallerVersion } from "../caller/anticipate.js";
-import { stableDigest } from "../harness/digest.js";
+import { canonicalise, stableDigest } from "../harness/digest.js";
 import { positionsFromSnapshot } from "../knownTruth/pocketChannelShares.js";
 import { emptyAccumulator, foldGame, mergeAccumulators, type SimAccumulator, type SimGameObservation } from "../metrics/collect.js";
 import "../metrics/index.js";
@@ -124,6 +125,9 @@ export function checkFilingForStep1(file: FiledFile): void {
 /** The packages whose source a step-1 arm depends on, every one (player-checks' rule). */
 export const FINGERPRINT_PACKAGES: readonly string[] = ["contracts", "engine", "playbook", "attributes", "franchise", "narrative", "calibration"];
 
+/** The files outside the packages' `src` an arm's build also reads: the lockfile and the manifests (review CT-9). */
+export const FINGERPRINT_MANIFESTS: readonly string[] = ["pnpm-lock.yaml", "package.json", ...FINGERPRINT_PACKAGES.map((p) => `packages/${p}/package.json`)];
+
 export interface Fingerprint {
   readonly fingerprint: string;
   /** Every file read, repo-relative with `/`, in the order hashed. */
@@ -132,22 +136,35 @@ export interface Fingerprint {
   readonly dirs: readonly string[];
 }
 
-/** A sha256 over every package's `src/**\/*.ts` (path and bytes) and the filing; the first 16 hex digits. */
+/**
+ * A sha256 over every package's `src/**\/*.ts`, the lockfile and the manifests, and the filing; the
+ * first 16 hex digits. Each file is framed as `path NUL length NUL bytes` (review CT-9), so bytes
+ * moved from one file into the next, or a file split in two, is a different fingerprint.
+ */
 export function sourceFingerprint(repoRoot: string, filedPath: string): Fingerprint {
   const hash = createHash("sha256");
   const files: string[] = [];
   const dirs: string[] = [];
+  const add = (label: string, bytes: Buffer): void => {
+    hash.update(label).update("\0").update(String(bytes.length)).update("\0").update(bytes);
+  };
   for (const pkg of FINGERPRINT_PACKAGES) {
     const src = join(repoRoot, "packages", pkg, "src");
     if (!existsSync(src)) throw new Error(`step 1's fingerprint: no ${src}`);
     dirs.push(`packages/${pkg}/src`);
     const list = (readdirSync(src, { recursive: true }) as string[]).filter((f) => f.endsWith(".ts")).map((f) => f.split(sep).join("/")).sort();
     for (const f of list) {
-      hash.update(`${pkg}/${f}\n`).update(readFileSync(join(src, f)));
+      add(`${pkg}/${f}`, readFileSync(join(src, f)));
       files.push(`packages/${pkg}/src/${f}`);
     }
   }
-  hash.update("filing\n").update(readFileSync(filedPath));
+  for (const m of FINGERPRINT_MANIFESTS) {
+    const path = join(repoRoot, m);
+    if (!existsSync(path)) throw new Error(`step 1's fingerprint: no ${path}`);
+    add(m, readFileSync(path));
+    files.push(m);
+  }
+  add("filing", readFileSync(filedPath));
   files.push(relative(repoRoot, filedPath).split(sep).join("/"));
   return { fingerprint: hash.digest("hex").slice(0, 16), files, dirs };
 }
@@ -213,7 +230,8 @@ export function stampProblems(got: unknown, want: Step1Stamp): readonly string[]
   const out: string[] = [];
   for (const [key, value] of Object.entries(want)) {
     if (key === "commit" || key === "dirty") continue;
-    if (stableDigest(g[key] ?? null) !== stableDigest(value)) out.push(`${key}: cached ${JSON.stringify(g[key] ?? null)}, this build ${JSON.stringify(value)}`);
+    // Whole canonical text, not a 32-bit digest of it (review CT-9).
+    if (canonicalise(g[key] ?? null) !== canonicalise(value)) out.push(`${key}: cached ${JSON.stringify(g[key] ?? null)}, this build ${JSON.stringify(value)}`);
   }
   for (const key of Object.keys(g)) if (!(key in want) && key !== "overlayDigest") out.push(`${key}: a field this build does not stamp`);
   if ("overlayDigest" in g && !("overlayDigest" in want)) out.push("overlayDigest: cached on an arm this build does not stamp");

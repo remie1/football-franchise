@@ -37,6 +37,7 @@ import {
   checkFilingForStep1,
   DIGEST_ARMS,
   emptyLeagueFolds,
+  FINGERPRINT_MANIFESTS,
   FINGERPRINT_PACKAGES,
   foldStep1Game,
   gradeStep1,
@@ -176,6 +177,7 @@ function fakeRepo(dir: string): { filed: string } {
     writeFileSync(join(dir, "packages", pkg, "src", "index.ts"), `export const name = "${pkg}";\n`);
     writeFileSync(join(dir, "packages", pkg, "src", "sub", "deep.ts"), "export const deep = 1;\n");
   }
+  for (const m of FINGERPRINT_MANIFESTS) writeFileSync(join(dir, m), `${m}\n`);
   const filed = join(dir, "packages", "calibration", "reports", "filed.json");
   mkdirSync(dirname(filed), { recursive: true });
   writeFileSync(filed, "{}\n");
@@ -188,7 +190,7 @@ describe("the source fingerprint", () => {
     const { filed } = fakeRepo(dir);
     const a = sourceFingerprint(dir, filed);
     expect(a.fingerprint).toMatch(/^[0-9a-f]{16}$/);
-    expect(a.files).toHaveLength(FINGERPRINT_PACKAGES.length * 2 + 1);
+    expect(a.files).toHaveLength(FINGERPRINT_PACKAGES.length * 2 + FINGERPRINT_MANIFESTS.length + 1);
     expect(a.files).toContain(srcPath("engine", "sub/deep.ts"));
     expect(a.files.at(-1)).toBe("packages/calibration/reports/filed.json");
     expect(a.dirs).toEqual(FINGERPRINT_PACKAGES.map((p) => `packages/${p}/src`));
@@ -208,6 +210,35 @@ describe("the source fingerprint", () => {
     writeFileSync(filed, "{ }\n");
     changed.push(sourceFingerprint(dir, filed).fingerprint);
     expect(new Set([a.fingerprint, ...changed]).size).toBe(4);
+  });
+
+  it("frames each file by its path and length, so moving bytes from one file to the next is a change (review CT-9)", () => {
+    // Unframed, "path\n" + bytes for each file read the same for these two trees.
+    const one = tempDir("fp-frame-1");
+    const two = tempDir("fp-frame-2");
+    const a = fakeRepo(one);
+    const b = fakeRepo(two);
+    writeFileSync(join(one, "packages", "contracts", "src", "a.ts"), "x\ncontracts/b.ts\ny");
+    writeFileSync(join(two, "packages", "contracts", "src", "a.ts"), "x\n");
+    writeFileSync(join(two, "packages", "contracts", "src", "b.ts"), "y");
+    expect(sourceFingerprint(one, a.filed).fingerprint).not.toBe(sourceFingerprint(two, b.filed).fingerprint);
+  });
+
+  it("hashes the lockfile and the manifests too, and refuses a tree without one (review CT-9)", () => {
+    const dir = tempDir("fp-manifests");
+    const { filed } = fakeRepo(dir);
+    const a = sourceFingerprint(dir, filed);
+    for (const m of FINGERPRINT_MANIFESTS) expect(a.files).toContain(m);
+    for (const m of ["pnpm-lock.yaml", "packages/engine/package.json"]) {
+      const path = join(dir, m);
+      const before = readFileSync(path);
+      writeFileSync(path, `${before.toString()}# a bump\n`);
+      expect(sourceFingerprint(dir, filed).fingerprint, m).not.toBe(a.fingerprint);
+      writeFileSync(path, before);
+    }
+    expect(sourceFingerprint(dir, filed).fingerprint).toBe(a.fingerprint);
+    rmSync(join(dir, "pnpm-lock.yaml"));
+    expect(() => sourceFingerprint(dir, filed)).toThrow(/no .*pnpm-lock\.yaml/);
   });
 
   it("refuses a tree without one of the packages", () => {
@@ -237,6 +268,15 @@ describe("the stamp", () => {
     expect(stampProblems({ ...want, wallClockMs: 1 }, want)).toEqual(["wallClockMs: a field this build does not stamp"]);
     expect(stampProblems({ ...want, overlayDigest: "fnv1a:1" }, stampOf("A0", 1, ENV, TINY))).toContain("overlayDigest: cached on an arm this build does not stamp");
     expect(stampProblems(undefined, want)).toEqual(["the record carries no stamp"]);
+  });
+
+  it("compares each field whole, not through a 32-bit digest (review CT-9)", () => {
+    // Two Node versions whose stableDigest is the same fnv1a:785faaff.
+    const [cachedNode, thisNode] = ["v42.1xqod.11oz", "v0.eunli.1dyi"];
+    expect(stableDigest(cachedNode)).toBe(stableDigest(thisNode));
+    const want = { ...stampOf("A3", 1, ENV, TINY), node: thisNode };
+    expect(stampProblems({ ...want, node: cachedNode }, want)).toEqual([`node: cached "${cachedNode}", this build "${thisNode}"`]);
+    expect(stampProblems({ ...want, patches: [...want.patches] }, want)).toEqual([]);
   });
 });
 
