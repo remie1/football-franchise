@@ -18,7 +18,14 @@ export interface RollModifier {
 }
 
 export interface RollDetail {
-  die: "d100" | "d20";
+  /**
+   * ADR-089 P2: `"uniform"` is shape S's breaking-time draw, written only on a `pass_rush_beat`
+   * CHECK and only under `pocket-1`, never `legacy`: one number U in (0, 1], `1 - next()` as the
+   * first draw of the fork `rngLabel` names (so it replays from the seed and that label alone),
+   * recorded as both `raw` and `total`, with no modifiers. Every other roll is a d100 or a d20, as
+   * before.
+   */
+  die: "d100" | "d20" | "uniform";
   raw: number;
   modifiers: RollModifier[];
   total: number;
@@ -115,6 +122,21 @@ export type CheckKind =
    * persistent contest once, lazily, on the tick it is first needed, and memoize it.
    */
   | "pass_rush_rep"
+  /**
+   * ADR-089 P2: the breaking time of one block under shape S of the block clock (`pocket-1` only,
+   * never `legacy`). One CHECK per block, written after the CHECK its `rollRef` names (at step 1,
+   * immediately after it), which is the CHECK whose block it times. `roll` is one uniform U
+   * (`die: "uniform"`). `margin` is the margin the breaking time reads, and `tier` that margin's
+   * tier (a copy, not a result of U); `actors` are the rusher and the blocker; `testsAttrs` is
+   * empty (the CHECK `rollRef` names tested the ratings); there is no `band`, `target` or
+   * `opposedRoll`. The breaking time is ADR-089 §4.1's, from U, that margin and the dials of the
+   * rules `PLAY_START` names, and the block is beaten on the first tick at or after it.
+   *  - Step 1: a blocked rep. `rollRef` names its `pass_rush_rep`; the margin is the rep's.
+   *  - Step 3: a touched man's late block (ADR-089 §4.4.2). `rollRef` names his `blitz_pickup` or
+   *    `stunt_communication` CHECK; the margin is that CHECK's, negated.
+   * If shape L is chosen at step 5b, this kind is removed again (petition P2r).
+   */
+  | "pass_rush_beat"
   | "pass_rush_tick" | "run_block" | "second_level_climb" | "stunt_communication" | "blitz_pickup"
   | "qb_read" | "anticipation" | "qb_decision" | "unseen_defender" | "hold_decision" | "pocket_movement" | "scramble"
   | "passing_lane" | "accuracy" | "dline_tip"
