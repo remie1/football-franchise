@@ -617,6 +617,14 @@ export function filedDigest(json: unknown): string {
   return stableDigest(json);
 }
 
+/**
+ * The committed step-0 filing's digest (`filedDigest` of `reports/adr-089-step0.filed.json`), the
+ * pin `adr089Filed.test.ts` holds as `FILED_DIGEST` and asserts equal to this. Step 1's harness
+ * refuses to grade against any other filing (plan §7.2 item 8): the filing is append-only, so a
+ * different digest means the bands it grades are not the ones filed.
+ */
+export const STEP0_FILED_DIGEST = "fnv1a:9a1c90e9";
+
 /** Every pending marker left in the file, by dot path. */
 export function pendingPaths(file: FiledFile): readonly { readonly path: string; readonly source: PendingSource }[] {
   const out: { path: string; source: PendingSource }[] = [];

@@ -25,7 +25,6 @@ import { stableDigest } from "../src/harness/digest.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import { indexLeague } from "../src/league/snapshot.js";
 import { EngineRulesError, POCKET_1_S1_DIGEST, POCKET_1_S1_OVERLAY, rulesTunables, withOverlay } from "../src/pocket/rules.js";
-import { POCKET_1_ENGINE_LANDED } from "./pocket1Gate.js";
 import {
   baselineIdentity,
   compareIdentity,
@@ -237,8 +236,8 @@ describe("the batch: the rules reach the engine through the tunables (ADR-089 st
   });
 });
 
-// TODO(ADR-089 K-b2): needs E-b's engine, which plays the blocks; until then pocket-1.s1 plays legacy.
-describe.skipIf(!POCKET_1_ENGINE_LANDED)("the batch under pocket-1.s1 plays another game (needs E-b)", () => {
+// The engine (E-b) plays the blocks, so pocket-1.s1 plays another game than legacy on the same seeds.
+describe("the batch under pocket-1.s1 plays another game", () => {
   const league = buildFlatLeague({ teams: 2 });
   const [home, away] = indexLeague(league).teamIds();
   const config = {

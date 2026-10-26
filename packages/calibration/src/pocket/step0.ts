@@ -21,8 +21,9 @@
  * whole result as JSON. Paths resolve from the working directory, the package folder when pnpm runs
  * the script (as `injuries/main.ts` resolves its `--out`).
  *
- * Only step 0 is built: any other `--step` is refused, as is any flag this command does not know.
- * This module only exports; the script's entry is `main.ts`, which calls `pocketCommand` and does
+ * Steps 0 and 1 are built: any other `--step` is refused, as is any flag this command does not know
+ * and any flag of the other step. `--step 1` (its flags parsed here, `Step1Args`) runs `step1.ts`'s
+ * `step1Command`, loaded only then. This module only exports; the script's entry is `main.ts`, which calls `pocketCommand` and does
  * nothing else (review finding CT-N6, as `export/main.ts` runs `export/cli.ts`), so importing this
  * module never runs the command.
  *
@@ -36,7 +37,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type { MatchEventEnvelope } from "@ff/contracts";
-import { DEFAULT_TUNABLES, type GameSnapshot, type Tunables } from "@ff/engine";
+import type { GameSnapshot, Tunables } from "@ff/engine";
 import { DEFAULT_CACHE_DIR, fsCacheStore } from "../ingest/cache.js";
 import { TUNING_SEASONS } from "../ingest/seasons.js";
 import { positionsFromSnapshot } from "../knownTruth/pocketChannelShares.js";
@@ -46,6 +47,7 @@ import "../metrics/index.js";
 import { openRealForTuning, type TuningRealInput } from "../metrics/realInput.js";
 import { getMetric } from "../metrics/registry.js";
 import { isInapplicable, pointEstimate, type MetricOutcome } from "../metrics/types.js";
+import { isArmId, type ArmId } from "./arms.js";
 import { BASE_ROW_IDS } from "./bands.js";
 import { constructById, M_IDS, NOBODY_OPEN_CLASSES, THROW_CLASSES, type MId, type ThrowClass } from "./constructs.js";
 import { ARM_S } from "./m2ForcingSource.js";
@@ -63,6 +65,7 @@ import { emptyM7Fold, foldM7Game, m7Summary, type M7Fold } from "./m7Sight.js";
 import { emptyM8Fold, foldM8Game, m8Summary, type M8Fold } from "./m8FreeRunClock.js";
 import { m9GameOf, m9Table, type M9Game } from "./m9Situation.js";
 import { emptyRowsFold, foldRowsGame, pocketRows, type RowsFold } from "./rows.js";
+import { LEGACY_RULES, rulesTunables } from "./rules.js";
 
 // --- the arguments -------------------------------------------------------------------------------
 
@@ -74,11 +77,43 @@ export interface PocketArgs {
   readonly out?: string;
 }
 
-/** Reads the command's arguments; paths resolve against `cwd`. Throws `SyntaxError` on anything else. */
-export function parsePocketArgs(argv: readonly string[], cwd: string = process.cwd()): PocketArgs {
-  let step: 0 | undefined;
+/** Step 1's arguments (`step1.ts`; plan §7.2 item 9). Paths are absolute. */
+export interface Step1Args {
+  readonly step: 1;
+  /** The arms to play, in the order given (`arms.ts`'s ids). Default every arm. */
+  readonly arms?: readonly ArmId[];
+  /** `--shard i/n`: every n-th arm of the list from the i-th, 1 <= i <= n. */
+  readonly shard?: { readonly index: number; readonly count: number };
+  /** The cache's parent directory; the source fingerprint is appended. */
+  readonly cache?: string;
+  /** S-1: only the golden 50 a league under A1 to A4, written to `--out`. */
+  readonly digests?: true;
+  /** Re-play the named arms on this seed set (the guard-breach rule). */
+  readonly seedSet?: SeedSet;
+  readonly report?: string;
+  readonly out?: string;
+}
+
+const STEP0_USAGE = "pocket -- --step 0 [--write-filed <path>] [--out <path>]";
+const STEP1_USAGE = "pocket -- --step 1 [--arms A1,A2] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>], or pocket -- --step 1 --digests --out <file.json>";
+
+/**
+ * Reads the command's arguments; paths resolve against `cwd` (the package folder under pnpm).
+ * Throws `SyntaxError` on anything else: an unknown flag, a step other than 0 and 1, or a flag of
+ * the other step.
+ */
+export function parsePocketArgs(argv: readonly string[], cwd: string = process.cwd()): PocketArgs | Step1Args {
+  let step: 0 | 1 | undefined;
   let writeFiled: string | undefined;
   let out: string | undefined;
+  let arms: ArmId[] | undefined;
+  let shard: { index: number; count: number } | undefined;
+  let cache: string | undefined;
+  let digests = false;
+  let seedSet: SeedSet | undefined;
+  let report: string | undefined;
+  const step1Only: string[] = [];
+  const step0Only: string[] = [];
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i] as string;
     const value = (): string => {
@@ -92,22 +127,80 @@ export function parsePocketArgs(argv: readonly string[], cwd: string = process.c
         break;
       case "--step": {
         const v = value();
-        if (v !== "0") throw new SyntaxError(`ADR-089: only step 0 is built (its measurements, benches and filing); --step ${v} is not`);
-        step = 0;
+        if (v !== "0" && v !== "1") throw new SyntaxError(`ADR-089: steps 0 and 1 are built (step 0's measurements and filing, step 1's arms); --step ${v} is not`);
+        step = v === "0" ? 0 : 1;
         break;
       }
       case "--write-filed":
         writeFiled = resolve(cwd, value());
+        step0Only.push(arg);
         break;
       case "--out":
         out = resolve(cwd, value());
         break;
+      case "--arms": {
+        const list = value().split(",").map((a) => a.trim());
+        for (const a of list) if (!isArmId(a)) throw new SyntaxError(`--arms: ${a === "" ? "an empty arm" : a} is not an arm (A0 to A15, A0b)`);
+        if (new Set(list).size !== list.length) throw new SyntaxError(`--arms names an arm twice: ${list.join(",")}`);
+        arms = list as ArmId[];
+        step1Only.push(arg);
+        break;
+      }
+      case "--shard": {
+        const v = value();
+        const m = /^([1-9][0-9]*)\/([1-9][0-9]*)$/.exec(v);
+        const index = m === null ? Number.NaN : Number(m[1]);
+        const count = m === null ? Number.NaN : Number(m[2]);
+        if (m === null || index > count) throw new SyntaxError(`--shard takes i/n with 1 <= i <= n; ${v} is not`);
+        shard = { index, count };
+        step1Only.push(arg);
+        break;
+      }
+      case "--cache":
+        cache = resolve(cwd, value());
+        step1Only.push(arg);
+        break;
+      case "--digests":
+        digests = true;
+        step1Only.push(arg);
+        break;
+      case "--seed-set": {
+        const v = value();
+        if (v !== "1" && v !== "2") throw new SyntaxError(`--seed-set takes 1 or 2; ${v} is not`);
+        seedSet = v === "1" ? 1 : 2;
+        step1Only.push(arg);
+        break;
+      }
+      case "--report":
+        report = resolve(cwd, value());
+        step1Only.push(arg);
+        break;
       default:
-        throw new SyntaxError(`unknown argument ${arg} (pocket -- --step 0 [--write-filed <path>] [--out <path>])`);
+        throw new SyntaxError(`unknown argument ${arg} (${step === 1 ? STEP1_USAGE : STEP0_USAGE})`);
     }
   }
-  if (step === undefined) throw new SyntaxError("--step is required: pocket -- --step 0");
-  return { step, ...(writeFiled === undefined ? {} : { writeFiled }), ...(out === undefined ? {} : { out }) };
+  if (step === undefined) throw new SyntaxError(`--step is required: ${STEP0_USAGE}; ${STEP1_USAGE}`);
+  if (step === 0) {
+    if (step1Only.length > 0) throw new SyntaxError(`${step1Only.join(", ")}: step 1's flags, not step 0's (${STEP0_USAGE})`);
+    return { step, ...(writeFiled === undefined ? {} : { writeFiled }), ...(out === undefined ? {} : { out }) };
+  }
+  if (step0Only.length > 0) throw new SyntaxError(`${step0Only.join(", ")}: step 0's flag, not step 1's (${STEP1_USAGE})`);
+  if (digests) {
+    const others = [arms && "--arms", shard && "--shard", cache && "--cache", seedSet && "--seed-set", report && "--report"].filter((x): x is string => typeof x === "string");
+    if (others.length > 0) throw new SyntaxError(`--digests plays only the golden 50 a league under A1 to A4; it takes --out and nothing else (not ${others.join(", ")})`);
+    if (out === undefined) throw new SyntaxError("--digests writes its folds to --out <file>");
+    return { step, digests: true, out };
+  }
+  if (seedSet !== undefined && arms === undefined) throw new SyntaxError("--seed-set re-plays named arms: give --arms <arm>,<base>");
+  return {
+    step,
+    ...(arms === undefined ? {} : { arms }),
+    ...(shard === undefined ? {} : { shard }),
+    ...(cache === undefined ? {} : { cache }),
+    ...(seedSet === undefined ? {} : { seedSet }),
+    ...(report === undefined ? {} : { report }),
+    ...(out === undefined ? {} : { out }),
+  };
 }
 
 // --- the run ---------------------------------------------------------------------------------------
@@ -373,7 +466,9 @@ function realSackerSide(real: RealSackerMix | { readonly unavailable: string }):
 
 /** Plays every pass and assembles M1-M9 and the rows. */
 export async function runStep0(opts: Step0Options = {}): Promise<Step0Result> {
-  const tunables: Tunables = DEFAULT_TUNABLES;
+  // K14: the base arm's tunables are what the legacy rules name (the engine's default object itself,
+  // the same reference), passed to every fold; no fold file reads the default outside a parameter.
+  const tunables: Tunables = rulesTunables(LEGACY_RULES);
   const log = opts.log ?? ((): void => undefined);
   const m1 = new Map<string, M1Result>();
   const m5Runs: M5Run[] = [];
@@ -706,6 +801,12 @@ export async function pocketCommand(argv: readonly string[]): Promise<void> {
   const log = (line: string): void => {
     process.stderr.write(`${line}\n`);
   };
+  if (args.step === 1) {
+    // Loaded only for step 1, so step 0's command never reads the arms or the engine's overlays.
+    const { step1Command } = await import("./step1.js");
+    await step1Command(args, log);
+    return;
+  }
   const filing = args.writeFiled === undefined ? undefined : openFiling(args.writeFiled);
   const result = await runStep0({ log });
   process.stdout.write(`${brief(result)}\n\n`);

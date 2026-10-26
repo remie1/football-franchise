@@ -18,8 +18,8 @@
  *     back off the file re-make it byte for byte; rules this build does not have are refused. The
  *     command line takes `--engine-rules`, and a non-legacy file is named after its rules too.
  *
- * TODO(ADR-089 K-b2): the gated case below (a `pocket-1.s1` game plays another game than `legacy`)
- * waits on the engine's `pocket-1` (stream E-b); see `test/pocket1Gate.ts`.
+ * The engine plays `pocket-1` (stream E-b), so a `pocket-1.s1` game is another game than `legacy` on
+ * the same seed, and the stamp is what tells the two files apart.
  */
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -34,7 +34,6 @@ import { buildFixture, buildFixtures } from "../src/harness/schedule.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import { indexLeague } from "../src/league/snapshot.js";
 import { POCKET_1_S1_DIGEST, rulesTunables } from "../src/pocket/rules.js";
-import { POCKET_1_ENGINE_LANDED } from "./pocket1Gate.js";
 
 const SEED = "viewer:export-test";
 const game = exportGame({ seed: SEED });
@@ -141,10 +140,8 @@ describe("exportGame", () => {
   });
 });
 
-// TODO(ADR-089 K-b2): needs the engine's `pocket-1` (stream E-b). In this tree the engine reads none
-// of the bundle's blocks, so a `pocket-1.s1` game plays exactly `legacy`; once it does not, the
-// stamp is what tells the two files apart.
-describe.skipIf(!POCKET_1_ENGINE_LANDED)("exportGame under pocket-1.s1 plays another game (TODO(ADR-089 K-b2))", () => {
+// The engine plays the bundle's blocks (E-b), so the stamp is what tells the two files apart.
+describe("exportGame under pocket-1.s1 plays another game", () => {
   it("the same seed under pocket-1.s1 gives another stream than under legacy", () => {
     expect(JSON.stringify(pocketGame.events)).not.toBe(JSON.stringify(game.events));
   });

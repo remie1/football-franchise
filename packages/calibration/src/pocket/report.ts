@@ -286,3 +286,257 @@ export function renderStepReport(input: StepReportInput): readonly string[] {
   }
   return out;
 }
+
+// --- step 1's sections (ADR-089 step 1; plan §7.2 item 10, §9.3 to §9.5) -------------------------------
+//
+// Step 1 reuses `renderStepReport` unchanged, once per base group (A0 with A1-A10; A14 with A11-A13;
+// A0b with A15), since it requires exactly one base and reads the guard against it. These sections
+// add what the step-0 report has no place for: the headline (§9.5), the clause table (graded clauses
+// with pass or fail, reported ones with their basis or direction, structural ones with their proof),
+// the guard verdicts, the stream folds' structural proofs, the interaction table (§9.3), the window's
+// price, the pricing arms, and each arm's counts. Every figure arrives measured; nothing here is a
+// game fact. Every hit and sack figure carries its time to throw beside it, and P2S prints against
+// both references while PR #33 is open.
+
+export type Step1Verdict = "PASS" | "FAIL" | "REPORTED" | "NOT PLAYED";
+
+/** The four figures the headline and the pricing rows print. */
+export interface Step1Figures {
+  readonly pressure: number | null;
+  readonly hitOrSack: number | null;
+  readonly sack: number | null;
+  /** Mean release, seconds (`release_distribution`). */
+  readonly release: number | null;
+}
+
+export interface Step1HeadlineRow {
+  readonly arm: string;
+  readonly what: string;
+  readonly league: League;
+  readonly figures: Step1Figures;
+  readonly timeToThrow: number;
+  readonly p2s: number | null;
+  /** Per figure, the filed band and its verdict ("28 to 40.26: PASS"), the basis or direction of a reported clause, or "" when no clause names it. */
+  readonly verdicts: Readonly<Record<keyof Step1Figures, string>>;
+}
+
+export interface Step1ClauseResult {
+  readonly id: string;
+  readonly kind: "graded" | "reported" | "structural";
+  readonly arms: readonly string[];
+  /** The filed band, basis or direction, as the filing states it. */
+  readonly filed: string;
+  /** The figures it reads, each labelled ("A1 flat 33.21 %"). */
+  readonly values: readonly string[];
+  readonly verdict: Step1Verdict;
+  readonly note?: string;
+}
+
+export interface Step1GuardRow {
+  readonly arm: string;
+  readonly base: string;
+  readonly league: League;
+  readonly mix: GuardVerdict;
+  readonly byClass: { readonly passes: boolean; readonly breaches: readonly string[] };
+}
+
+export interface Step1Structural {
+  readonly id: string;
+  readonly what: string;
+  readonly passes: boolean;
+  readonly detail: string;
+}
+
+export interface Step1Interaction {
+  /** "A5 - (A4 + A9 - A0)". */
+  readonly formula: string;
+  readonly league: League;
+  /** Points of pressure, and sacks per 100 dropbacks; null when an arm is missing. */
+  readonly pressure: number | null;
+  readonly sack: number | null;
+  /** The joint arm's time to throw, beside its sack figure. */
+  readonly timeToThrow: number | null;
+}
+
+export interface Step1WindowPrice {
+  readonly league: League;
+  /** A1 minus A2. */
+  readonly pressure: number | null;
+  readonly sack: number | null;
+  /** A1's time to throw, beside the sack figure. */
+  readonly timeToThrow: number | null;
+  /** The one filed B1 in points (gen seed set 1, deviation O1), the band's half-width. */
+  readonly b1Filed: number;
+  /** This league's own B1 in points from step 0's M1 (seed set 1), printed beside it. */
+  readonly b1OwnLeague: number | null;
+  /** M1 recomputed on A2's streams (K7), B1 in points. */
+  readonly m1OnA2: number | null;
+  readonly sackTolerance: number;
+}
+
+export interface Step1PricingRow {
+  readonly arm: string;
+  readonly label: string;
+  /** What the row is read against ("A0", "A1", "Appendix B, gen Later"). */
+  readonly against: string;
+  readonly league: League;
+  readonly figures: Step1Figures;
+  readonly againstFigures: Step1Figures;
+  readonly timeToThrow: number | null;
+}
+
+export interface Step1ArmCounts {
+  readonly arm: string;
+  readonly role: string;
+  readonly league: League;
+  readonly dropbacks: number;
+  /** Exclusive affected plays against the arm's base (or A0 for A14), by mechanism; absent for A0 and A0b. */
+  readonly affected?: { readonly against: string; readonly byMechanism: Readonly<Record<string, number>>; readonly windowOnlyDirt: number; readonly union: number };
+  /** The stream folds' counts, one line each. */
+  readonly folds: readonly string[];
+  readonly quickPressure: number | null;
+  readonly floorCounter: number | null;
+  readonly cleanWithLiveWonRep: { readonly ticks: number | null; readonly dropbacks: number | null; readonly pushTicks: number | null };
+  /** Under S only: the pass-block win rows, printed with O30's label. */
+  readonly passRushWin?: number | null;
+  /** The miss rule's n (`pressured_share_2s_no_free_runner`), which classes nothing at step 1 (O31). */
+  readonly missRuleN: number | null;
+  readonly timeToThrow: number | null;
+}
+
+export interface Step1Outcome {
+  readonly structuralFailures: readonly string[];
+  readonly gradedFailures: readonly string[];
+  readonly guardBreaches: readonly string[];
+  /** Posted only when every structural clause passes and no guard breach is open (§9.4). */
+  readonly mergeCard: boolean;
+  readonly next: readonly string[];
+}
+
+export interface Step1Sections {
+  readonly pr33: Pr33State;
+  /** Set on a re-play of named arms on the other seed set (§9.4's guard-breach rule). */
+  readonly replaySeedSet?: number;
+  readonly headline: readonly Step1HeadlineRow[];
+  readonly clauses: readonly Step1ClauseResult[];
+  readonly guard: readonly Step1GuardRow[];
+  readonly structural: readonly Step1Structural[];
+  readonly interaction: readonly Step1Interaction[];
+  /** pkA's flat interaction on pressure, REPORTED (ADR-089:1333). */
+  readonly pkAInteraction: number;
+  readonly windowPrice: readonly Step1WindowPrice[];
+  readonly pricing: readonly Step1PricingRow[];
+  readonly arms: readonly Step1ArmCounts[];
+  readonly outcome: Step1Outcome;
+}
+
+/** A sack or hit-or-sack figure with its time to throw beside it (ADR-089:935). */
+const withTtt = (v: string, ttt: number | null | undefined): string => (ttt === null || ttt === undefined || !Number.isFinite(ttt) ? `${v} [time to throw n/a]` : `${v} ${tttBeside(ttt)}`);
+const signed = (v: number | null | undefined, dp = 2): string => (v === null || v === undefined || !Number.isFinite(v) ? "n/a" : `${v >= 0 ? "+" : ""}${v.toFixed(dp)}`);
+
+function figuresLine(f: Step1Figures, ttt: number | null): string {
+  return `pressure ${fmt(f.pressure)} | ${withTtt(`hit-or-sack ${fmt(f.hitOrSack)}`, ttt)} | ${withTtt(`sacks ${fmt(f.sack)}`, ttt)} | release ${fmt(f.release, 3)} s`;
+}
+
+/** Step 1's own sections, as Markdown lines. */
+export function renderStep1Sections(s: Step1Sections): readonly string[] {
+  const out: string[] = [];
+  const refs = p2sReferences(s.pr33);
+  const o = s.outcome;
+
+  out.push("## What failed, first");
+  out.push("");
+  if (o.structuralFailures.length === 0 && o.gradedFailures.length === 0 && o.guardBreaches.length === 0) out.push("Nothing: every structural clause passes, every graded clause is inside its filed band, and no guard breach is open.");
+  for (const f of o.structuralFailures) out.push(`- STRUCTURAL (a build fault, fixed before the PR, never put to a merge card): ${f}`);
+  for (const f of o.guardBreaches) out.push(`- GUARD BREACH (the step stops; the arm and its base are re-played on the other seed set): ${f}`);
+  for (const f of o.gradedFailures) out.push(`- GRADED, reported as filed (no band moves, nothing is retuned; the design question goes to the owner): ${f}`);
+  out.push("");
+  out.push(`Merge card: ${o.mergeCard ? "may be posted (every structural clause passes and no guard breach is open)" : "NOT to be posted until the items above are settled"}.`);
+  for (const n of o.next) out.push(`- next: ${n}`);
+  out.push("");
+
+  out.push(`## The headline (§9.5)${s.replaySeedSet === undefined ? "" : ` (re-play on seed set ${String(s.replaySeedSet)})`}`);
+  out.push("");
+  out.push("Pass or fail is printed for graded clauses only; a reported clause shows its basis or direction. Every hit and sack figure has its time to throw beside it.");
+  out.push("");
+  out.push("| arm | league | pressure % | hit-or-sack % | sacks % | release s | time to throw s |");
+  out.push("|---|---|---|---|---|---|---|");
+  for (const h of s.headline) {
+    const cell = (v: string, verdict: string): string => (verdict === "" ? v : `${v} (${verdict})`);
+    out.push(
+      `| ${h.arm} | ${h.league} | ${cell(fmt(h.figures.pressure), h.verdicts.pressure)} | ${cell(fmt(h.figures.hitOrSack), h.verdicts.hitOrSack)} ${tttBeside(h.timeToThrow)} | ` +
+        `${cell(fmt(h.figures.sack), h.verdicts.sack)} ${tttBeside(h.timeToThrow)} | ${cell(fmt(h.figures.release, 3), h.verdicts.release)} | ${h.timeToThrow.toFixed(3)} |`,
+    );
+  }
+  out.push("");
+  out.push(`P2S (reported, never graded; against ${refs.map((r) => `${r.value.toFixed(2)}% ${r.name}`).join(" and ")}):`);
+  for (const h of s.headline) {
+    const v = h.p2s;
+    out.push(`- ${h.arm} ${h.league}: ${fmt(v)}% ${refs.map((r) => `| ${signed(v === null ? null : v - r.value)} against ${r.value.toFixed(2)}% (${r.name})`).join(" ")} ${tttBeside(h.timeToThrow)}`);
+  }
+  out.push("");
+
+  out.push("## The clause table");
+  out.push("");
+  out.push("| clause | kind | arms | filed | measured | verdict |");
+  out.push("|---|---|---|---|---|---|");
+  for (const c of s.clauses) out.push(`| ${c.id} | ${c.kind} | ${c.arms.join(", ")} | ${c.filed} | ${c.values.join("; ")} | ${c.verdict}${c.note === undefined ? "" : ` (${c.note})`} |`);
+  out.push("");
+
+  out.push("## The interception guard (graded in every arm with a base, on the decision tick)");
+  out.push("");
+  for (const g of s.guard) {
+    out.push(
+      `- ${g.arm} against ${g.base}, ${g.league}: league-wide rise ${g.mix.rise.toFixed(2)} against an allowed ${g.mix.allowed.toFixed(2)}: ${g.mix.passes ? "PASSES" : "BREACH"}; ` +
+        `by class: ${g.byClass.passes ? "PASSES" : `BREACH (${g.byClass.breaches.join(", ")})`}`,
+    );
+  }
+  out.push("");
+
+  out.push("## The structural proofs inside the arms (§9.2)");
+  out.push("");
+  for (const p of s.structural) out.push(`- ${p.id} (${p.what}): ${p.passes ? "PASSES" : "FAILS"}. ${p.detail}`);
+  out.push("");
+
+  out.push(`## The interaction (§9.3): joint minus (clock alone + beaten alone - base), beside pkA's ${s.pkAInteraction.toFixed(1)} points (REPORTED, ADR-089:1333)`);
+  out.push("");
+  for (const i of s.interaction) out.push(`- ${i.formula}, ${i.league}: pressure ${signed(i.pressure)} points; ${withTtt(`sacks ${signed(i.sack)}`, i.timeToThrow)}`);
+  out.push("");
+
+  out.push("## The window's price: A1 minus A2 (the window cannot run alone)");
+  out.push("");
+  for (const w of s.windowPrice) {
+    out.push(
+      `- ${w.league}: pressure ${signed(w.pressure, 3)} points against the filed +-${w.b1Filed.toFixed(4)} (B1, gen seed set 1; this league's own B1 ${fmt(w.b1OwnLeague, 4)}); ` +
+        `${withTtt(`sacks ${signed(w.sack, 3)} against +-${w.sackTolerance.toFixed(1)}`, w.timeToThrow)}; M1 recomputed on A2's streams: B1 ${fmt(w.m1OnA2, 4)} points (K7)`,
+    );
+  }
+  out.push("");
+
+  out.push("## The pricing arms (each a pricing arm, never a design value) and the context arm");
+  out.push("");
+  for (const p of s.pricing) {
+    out.push(`- ${p.arm} (${p.label}) against ${p.against}, ${p.league}: ${figuresLine(p.figures, p.timeToThrow)}; against ${figuresLine(p.againstFigures, null).replace(/ \[time to throw n\/a\]/g, "")}`);
+  }
+  out.push("");
+
+  out.push("## Each arm: exclusive affected plays, the stream folds' counts and the rows printed apart");
+  out.push("");
+  for (const a of s.arms) {
+    out.push(`### ${a.arm}, ${a.league} (${a.role})`);
+    out.push("");
+    out.push(`- dropbacks ${String(a.dropbacks)}; time to throw ${fmt(a.timeToThrow, 3)} s`);
+    if (a.affected === undefined) out.push("- exclusive affected plays: none (no base)");
+    else {
+      const by = Object.entries(a.affected.byMechanism).map(([k, v]) => `${k} ${String(v)}`).join(", ");
+      out.push(`- exclusive affected plays against ${a.affected.against}: ${String(a.affected.union)} (${by === "" ? "no exclusive mechanism" : by}; window-only dirt ${String(a.affected.windowOnlyDirt)})`);
+    }
+    out.push(`- quick-pressure share ${fmt(a.quickPressure)} %; band floor plus counter ${fmt(a.floorCounter)} % of first dirt`);
+    out.push(`- clean_with_live_won_rep: ticks ${fmt(a.cleanWithLiveWonRep.ticks, 3)} %, dropbacks ${fmt(a.cleanWithLiveWonRep.dropbacks, 3)} %, PUSH ticks apart ${fmt(a.cleanWithLiveWonRep.pushTicks, 3)} %`);
+    if (a.passRushWin !== undefined) out.push(`- pass-rush win rate (pbwr_sim_only, mean over rushers) ${fmt(a.passRushWin)} %: a pre-beat tick is a capped margin, not a rep outcome (O30)`);
+    out.push(`- the miss rule's n (pressured_share_2s_no_free_runner) ${fmt(a.missRuleN)} %: the miss rule classes nothing at step 1 (O31)`);
+    for (const f of a.folds) out.push(`- ${f}`);
+    out.push("");
+  }
+  return out;
+}

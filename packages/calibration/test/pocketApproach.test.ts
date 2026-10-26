@@ -9,7 +9,7 @@
  * consumers read the PUBLISHED `RUSH_THREAT.approach` (P4), with the derivation beside it; the
  * derivation learns shape S's join (threat → `pass_rush_beat` → rep) and shape L's PUSH (a POWER rep
  * that reported BLOCKER_BEATEN before it won), so S-8 can check derived equals published. On
- * constructed plays here; on a real `pocket-1.s1` game behind the gate (TODO(ADR-089 K-b2)).
+ * constructed plays here, and on a real `pocket-1.s1` game (the engine, stream E-b, publishes it).
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
@@ -33,7 +33,6 @@ import {
 } from "../src/pocket/approach.js";
 import { goldenGames } from "../src/pocket/corpus.js";
 import { POCKET_1_S1_DIGEST, POCKET_1_S1_OVERLAY, rulesTunables, withOverlay } from "../src/pocket/rules.js";
-import { POCKET_1_ENGINE_LANDED } from "./pocket1Gate.js";
 
 const threat = (f: Omit<ApproachFacts, "threat" | "penetrator"> & { readonly penetrator?: boolean }): ApproachFacts => ({
   threat: true,
@@ -487,9 +486,9 @@ describe("ADR-089 step 1: under pocket-1 consumers read the published label; der
   });
 });
 
-// TODO(ADR-089 K-b2): needs the engine's `pocket-1` (stream E-b): a real `pocket-1.s1` game, where
-// every RUSH_THREAT carries the engine's approach and the derivation must agree with each (S-8).
-describe.skipIf(!POCKET_1_ENGINE_LANDED)("ADR-089 step 1: approachesOfGame on a real pocket-1.s1 game (TODO(ADR-089 K-b2))", () => {
+// A real `pocket-1.s1` game, where every RUSH_THREAT carries the engine's approach and the
+// derivation must agree with each (S-8).
+describe("ADR-089 step 1: approachesOfGame on a real pocket-1.s1 game", () => {
   it.each(["flat", "gen"] as const)("%s golden game 0 (v7) under pocket-1.s1: every threat published, derived equals published", (league) => {
     let events: readonly MatchEventEnvelope[] = [];
     const tunables = rulesTunables("pocket-1.s1");

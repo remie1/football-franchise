@@ -25,7 +25,7 @@ import { numericLeafPathDigest } from "../src/knownTruth/docConformance.js";
 import { rate, meanFrom, samples, categorical } from "../src/metrics/types.js";
 import { BASE_ROW_IDS, FILED_PATH, step0Filing } from "../src/pocket/bands.js";
 import { M_IDS, type MId } from "../src/pocket/constructs.js";
-import { FILED_BLOCKS, filedDigest, isPending, loadFiled, pendingPaths, saveFiled, validateFiled, type FiledFile, type JsonValue } from "../src/pocket/filed.js";
+import { FILED_BLOCKS, filedDigest, isPending, loadFiled, pendingPaths, saveFiled, STEP0_FILED_DIGEST, validateFiled, type FiledFile, type JsonValue } from "../src/pocket/filed.js";
 import { GOLDEN_PINS, SEASON_PATH_PINS } from "../src/pocket/golden.js";
 import { baseRowValue, b1Points, C3_CLAUSE_RULES, completeFiling, fillC3, fillStep0, reportValue, type Step0Result } from "../src/pocket/step0.js";
 
@@ -93,6 +93,8 @@ describe("ADR-089 step 0: the committed filing", () => {
 
   it("is the pinned filing (FILED_DIGEST): append-only, amended only by a named entry", () => {
     expect(filedDigest(JSON.parse(committed()) as unknown), APPEND_ONLY).toBe(FILED_DIGEST);
+    // Step 1's harness reads the same pin from the source (plan §7.2 item 8): the two agree.
+    expect(STEP0_FILED_DIGEST).toBe(FILED_DIGEST);
   });
 
   it("validates as adr-089-filed/v1, with every block", () => {

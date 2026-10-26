@@ -44,8 +44,8 @@
  * ADR-059 says; a DIELESS tick (shape S) must name a `pass_rush_beat` in its play, and that beat a
  * `pass_rush_rep` in the same play (tick → beat → rep). A beat that names no rep is dangling too. A
  * dieless tick that names a rep directly, or a rolled tick that names a beat, is the other shape's
- * join and dangling here. Constructed plays pin the S join now; the corpus case under `pocket-1.s1`
- * waits on the engine (TODO(ADR-089 K-b2), `test/pocket1Gate.ts`). The legacy corpus case is
+ * join and dangling here. Constructed plays pin the S join, and the corpus case under `pocket-1.s1`
+ * runs it on the engine's own stream (stream E-b). The legacy corpus case is
  * unchanged, and asserts no dieless tick and no beat in a legacy stream.
  */
 import { describe, expect, it } from "vitest";
@@ -58,7 +58,6 @@ import { generateSeeds } from "../src/harness/seeds.js";
 import { runOneGame } from "../src/harness/runGame.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { POCKET_1_S1_DIGEST, rulesTunables } from "../src/pocket/rules.js";
-import { POCKET_1_ENGINE_LANDED } from "./pocket1Gate.js";
 
 /** Regenerates this test's own corpus. Cited in every failure message, per the determinism rule. */
 const BATCH_SEED = "adr-059:pass-rush-rep-rollref";
@@ -286,9 +285,9 @@ describe("ADR-089 step 1: shape S's tick → beat → rep join (plan §16.3)", (
   });
 });
 
-// TODO(ADR-089 K-b2): needs the engine's `pocket-1` (stream E-b). The same round robin under the
-// design bundle: shape S writes beats and dieless ticks, and every reference resolves in its play.
-describe.skipIf(!POCKET_1_ENGINE_LANDED)("ADR-089 step 1: the invariant on a pocket-1.s1 corpus (TODO(ADR-089 K-b2))", () => {
+// The same round robin under the design bundle: shape S writes beats and dieless ticks, and every
+// reference resolves in its play.
+describe("ADR-089 step 1: the invariant on a pocket-1.s1 corpus", () => {
   it(
     "every dieless tick names its play's beat, every beat its play's rep, over non-empty populations",
     () => {

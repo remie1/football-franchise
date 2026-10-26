@@ -125,10 +125,22 @@ describe("the clauses", () => {
   });
 });
 
+/**
+ * The `## ` headings after Appendix E that are not allowed: none, or only "## Appendix F: the step-1
+ * record" (once). Anything else, a second F, or a heading after F, is returned.
+ */
+function appendicesAfterE(lines: readonly string[]): string[] {
+  const headings = lines.filter((l) => /^## /.test(l));
+  if (headings.length === 0) return [];
+  if (headings.length === 1 && headings[0] === "## Appendix F: the step-1 record") return [];
+  return headings;
+}
+
 describe("the completeness list (the C0 bytes)", () => {
-  // C3 (plan §7.3 item 6) appends Appendix E after the C0 bytes, so the file is the C0 lines, pinned
-  // by digest, then nothing but that appendix: every filed adrLine still points at the C0 text.
-  it("reads the C0 bytes at their filed length, with only Appendix E after them", () => {
+  // C3 (plan §7.3 item 6) appends Appendix E after the C0 bytes, and step 1's record (plan §11)
+  // appends Appendix F after E, so the file is the C0 lines, pinned by digest, then nothing but those
+  // appendices, in that order: every filed adrLine still points at the C0 text.
+  it("reads the C0 bytes at their filed length, with only Appendix E and then Appendix F after them", () => {
     const c0 = ADR_LINES.slice(0, ADR_089_LINES);
     expect(c0).toHaveLength(ADR_089_LINES);
     expect(stableDigest(c0.join("\n")), "ADR-089's C0 lines changed: every filed adrLine reads them").toBe(C0_DIGEST);
@@ -136,9 +148,18 @@ describe("the completeness list (the C0 bytes)", () => {
     if (after.length > 1) {
       expect(after[0]).toBe("");
       expect(after[1]).toBe("## Appendix E: the step-0 filing record");
-      expect(after.slice(2).filter((l) => /^## /.test(l))).toEqual([]);
+      expect(appendicesAfterE(after.slice(2))).toEqual([]);
     }
     expect(ADR_LINES.at(-1)).toBe("");
+  });
+
+  it("lets only Appendix F follow Appendix E", () => {
+    expect(appendicesAfterE(["x", "y"])).toEqual([]);
+    expect(appendicesAfterE(["", "## Appendix F: the step-1 record", "### F.1", "text"])).toEqual([]);
+    expect(appendicesAfterE(["## Appendix G: later"])).toEqual(["## Appendix G: later"]);
+    expect(appendicesAfterE(["## Appendix F: the step-1 record", "## Appendix G: later"])).toHaveLength(2);
+    expect(appendicesAfterE(["## Appendix F: the step-1 record", "## Appendix F: the step-1 record"])).toHaveLength(2);
+    expect(appendicesAfterE(["## Appendix F: step 1"])).toEqual(["## Appendix F: step 1"]);
   });
 
   it("is exactly the plan's ranges less the lines that state no clause, the two disjoint", () => {
