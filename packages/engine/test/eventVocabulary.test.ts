@@ -128,6 +128,11 @@ describe("ADR-007 #4 — RUSH_THREAT", () => {
       const rushLabels = new Map<string, number>();
       for (const { seq, event } of events) {
         if (event.type === "CHECK" && event.payload.checkKind === "pass_rush_tick") {
+          const kind: string = event.payload.checkKind;
+          if (event.payload.roll === undefined) {
+            if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+            continue;
+          }
           rushLabels.set(event.payload.roll.rngLabel, seq);
         }
       }
@@ -535,6 +540,11 @@ describe("ADR-014 — the game is described by the schema, not by an engine-loca
     for (const { event } of game.events) {
       if (event.type !== "CHECK") continue;
       if (!["field_goal", "punt", "kick_return"].includes(event.payload.checkKind)) continue;
+      const kind: string = event.payload.checkKind;
+      if (event.payload.roll === undefined) {
+        if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+        continue;
+      }
       const id = String(event.playId);
       expect(id).toMatch(/:(kickoff|punt|fieldGoal|pat):\d+$/);
       const kinds = byPlay.get(id) ?? new Set<string>();
@@ -564,6 +574,11 @@ describe("ADR-014 — the game is described by the schema, not by an engine-loca
     const playOfRoll = new Map<string, string>();
     for (const { event } of game.events) {
       if (event.type !== "CHECK") continue;
+      const kind: string = event.payload.checkKind;
+      if (event.payload.roll === undefined) {
+        if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+        continue;
+      }
       playOfRoll.set(event.payload.roll.rngLabel, String(event.playId));
     }
 

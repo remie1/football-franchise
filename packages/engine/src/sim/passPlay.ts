@@ -805,6 +805,7 @@ export function simulatePassPlay(
           repMargin: rep.margin,
           rollRef: rep.rollRef,
           tickRng,
+          tick,
         });
         log.check(rush.check);
         m.pressure = advancePressure(m.pressure, rush);

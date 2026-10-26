@@ -142,11 +142,15 @@ describe("ADR-004 roll accounting", () => {
       const { state, calls } = buildScenario();
       const { events } = simulatePassPlay(state, calls, `threat-accounting-${i}`);
       const rushLabels = new Set(
-        events.flatMap(({ event }) =>
-          event.type === "CHECK" && event.payload.checkKind === "pass_rush_tick"
-            ? [event.payload.roll.rngLabel]
-            : [],
-        ),
+        events.flatMap(({ event }) => {
+          if (event.type !== "CHECK" || event.payload.checkKind !== "pass_rush_tick") return [];
+          const kind: string = event.payload.checkKind;
+          if (event.payload.roll === undefined) {
+            if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+            return [];
+          }
+          return [event.payload.roll.rngLabel];
+        }),
       );
       for (const { event } of events) {
         if (event.type !== "RUSH_THREAT") continue;
@@ -280,6 +284,11 @@ describe("ADR-004 roll accounting", () => {
     for (const { seq, event } of events) {
       if (event.type !== "CHECK") continue;
       kinds.add(event.payload.checkKind);
+      const kind: string = event.payload.checkKind;
+      if (event.payload.roll === undefined) {
+        if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+        continue;
+      }
       checkAt.set(event.payload.roll.rngLabel, seq);
     }
     expect(kinds).toContain("field_goal");
@@ -322,6 +331,11 @@ describe("ADR-004 roll accounting", () => {
     for (const { event } of events) {
       if (event.type === "CHECK") {
         expect(event.payload.checkKind).not.toBe("coin_toss");
+        const kind: string = event.payload.checkKind;
+        if (event.payload.roll === undefined) {
+          if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+          continue;
+        }
         labels.add(event.payload.roll.rngLabel);
       }
     }

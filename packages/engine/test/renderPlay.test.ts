@@ -428,6 +428,11 @@ describe("§17.1 debug renderer", () => {
       const labels: string[] = [];
       for (const { event } of events) {
         if (event.type === "CHECK") {
+          const kind: string = event.payload.checkKind;
+          if (event.payload.roll === undefined) {
+            if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+            continue;
+          }
           labels.push(event.payload.roll.rngLabel);
           const opposed: RollDetail | undefined = event.payload.opposedRoll;
           if (opposed !== undefined) labels.push(opposed.rngLabel);
@@ -438,6 +443,45 @@ describe("§17.1 debug renderer", () => {
         expect(occurrences).toBeLessThanOrEqual(1);
       }
     }
+  });
+});
+
+/**
+ * ADR-089 P3, built before it lands (E-a): under shape S a `pass_rush_tick` draws no die, and only
+ * that kind may lack a roll. These streams are a legacy play's with the dice taken off, as a newer
+ * engine's file would carry them; the cast is needed until P3 makes the dieless tick a CHECK.
+ */
+describe("§17.1 — a CHECK with no die (ADR-089 P3)", () => {
+  type Check = Extract<MatchEventEnvelope["event"], { type: "CHECK" }>;
+  const isCheck = (e: MatchEventEnvelope): e is MatchEventEnvelope & { event: Check } => e.event.type === "CHECK";
+  const withoutDice = (e: MatchEventEnvelope & { event: Check }): MatchEventEnvelope => {
+    const { roll: _roll, opposedRoll: _opposed, ...payload } = e.event.payload;
+    return { ...e, event: { ...e.event, payload } } as unknown as MatchEventEnvelope;
+  };
+
+  it("prints a pass_rush_tick with no die as a block-clock row, at its tick, with its band and margin", () => {
+    const { state, calls, names } = buildScenario();
+    const { events } = simulatePassPlay(state, calls, "render-no-die");
+    const ticks = events.filter(isCheck).filter((e) => e.event.payload.checkKind === "pass_rush_tick");
+    expect(ticks.length).toBeGreaterThan(0);
+    const text = renderPlay(
+      events.map((e) => (isCheck(e) && e.event.payload.checkKind === "pass_rush_tick" ? withoutDice(e) : e)),
+      names,
+    );
+    for (const t of ticks) {
+      const p = t.event.payload;
+      expect(text).toContain(`Tick ${String(t.event.tick?.toFixed(1))}: block clock, no die → ${String(p.band)} (${String(p.margin)})`);
+    }
+    expect(text.split("block clock, no die").length - 1).toBe(ticks.length);
+    expect(text).not.toContain(" vs. block ");
+    expect(text).not.toContain("undefined");
+  });
+
+  it("refuses any other kind of CHECK with no roll, rather than print it as if nothing were lost", () => {
+    const { state, calls, names } = buildScenario();
+    const { events } = simulatePassPlay(state, calls, "render-lost-roll");
+    const lost = events.map((e) => (isCheck(e) && e.event.payload.checkKind !== "pass_rush_tick" ? withoutDice(e) : e));
+    expect(() => renderPlay(lost, names)).toThrow(/CHECK without a roll/);
   });
 });
 
@@ -526,6 +570,11 @@ describe("§17.1 — the run play printout", () => {
       const text = renderPlay(events, names);
       for (const { event } of events) {
         if (event.type !== "CHECK") continue;
+        const kind: string = event.payload.checkKind;
+        if (event.payload.roll === undefined) {
+          if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+          continue;
+        }
         const labels = [event.payload.roll.rngLabel];
         const opposed: RollDetail | undefined = event.payload.opposedRoll;
         if (opposed !== undefined) labels.push(opposed.rngLabel);

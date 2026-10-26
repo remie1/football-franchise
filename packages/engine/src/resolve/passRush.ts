@@ -134,6 +134,12 @@ export interface PassRushTickArgs {
   readonly rollRef: string;
   /** Tick-scoped fork; the resolver forks once per actor for auditability. */
   readonly tickRng: Rng;
+  /**
+   * ADR-089 step 1: the play clock's tick (seconds) this tick resolves at. Required, like
+   * `tunables`, so a missed call site is a compile error. Shape L's gradual block clock
+   * (`passRush.repClock`, `pocket-1` only) will read it; under `legacy` nothing reads it.
+   */
+  readonly tick: number;
 }
 
 export interface PassRushTickOutcome {

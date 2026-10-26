@@ -194,7 +194,15 @@ describe("determinism (Charter pillar 5)", () => {
     const a = simulatePassPlay(one.state, one.calls, "same-seed");
     const b = simulatePassPlay(two.state, two.calls, "same-seed");
     const rolls = (r: typeof a): number[] =>
-      r.events.flatMap(({ event }) => (event.type === "CHECK" ? [event.payload.roll.raw] : []));
+      r.events.flatMap(({ event }) => {
+        if (event.type !== "CHECK") return [];
+        const kind: string = event.payload.checkKind;
+        if (event.payload.roll === undefined) {
+          if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+          return [];
+        }
+        return [event.payload.roll.raw];
+      });
     expect(rolls(b)).not.toEqual(rolls(a));
   });
 
@@ -213,6 +221,11 @@ describe("determinism (Charter pillar 5)", () => {
     const labels: string[] = [];
     for (const { event } of events) {
       if (event.type === "CHECK") {
+        const kind: string = event.payload.checkKind;
+        if (event.payload.roll === undefined) {
+          if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+          continue;
+        }
         labels.push(event.payload.roll.rngLabel);
         if (event.payload.opposedRoll) labels.push(event.payload.opposedRoll.rngLabel);
       }
@@ -322,6 +335,11 @@ describe("determinism (Charter pillar 5)", () => {
         expect(event.payload.testsAttrs.length).toBeGreaterThan(0);
       }
       expect(event.payload.actors.length).toBeGreaterThan(0);
+      const kind: string = event.payload.checkKind;
+      if (event.payload.roll === undefined) {
+        if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+        continue;
+      }
       for (const mod of event.payload.roll.modifiers) {
         expect(mod.source.length).toBeGreaterThan(0);
       }

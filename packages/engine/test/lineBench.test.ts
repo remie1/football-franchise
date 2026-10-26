@@ -90,7 +90,7 @@ function runRep(tunables: Tunables, cell: Cell, i: number): RepTrace {
   let checkMismatches = 0;
   const bands: string[] = [];
   for (const t of ticksOf(tunables)) {
-    const tick = resolvePassRushTick({ tunables, rusher, blocker, repMargin: rep.margin, rollRef: rep.check.roll.rngLabel, tickRng: rng.fork(`t${t.toFixed(1)}`) });
+    const tick = resolvePassRushTick({ tunables, rusher, blocker, repMargin: rep.margin, rollRef: rep.check.roll.rngLabel, tickRng: rng.fork(`t${t.toFixed(1)}`), tick: t });
     bands.push(tick.band);
     if (bandFor(tunables.passRush.bands, tick.margin).label !== tick.check.band || tierFor(tunables, tick.margin) !== tick.check.tier) checkMismatches += 1;
     if (wonAt === undefined && startsThreat(tick.band)) wonAt = t;

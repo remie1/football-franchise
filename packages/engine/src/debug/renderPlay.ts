@@ -53,6 +53,20 @@ function bandOf(payload: Extract<MatchEvent, { type: "CHECK" }>["payload"]): str
   return payload.band ?? "-";
 }
 
+/**
+ * ADR-089 P3's guard at an expression site: the CHECK's roll, formatted. Only a `pass_rush_tick`
+ * may lack a roll (shape S's dieless tick, printed "no die"); any other kind without one is a lost
+ * roll, and the printout refuses it rather than hide it.
+ */
+function formatCheckRoll(payload: Extract<MatchEvent, { type: "CHECK" }>["payload"]): string {
+  const kind: string = payload.checkKind;
+  if (payload.roll === undefined) {
+    if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+    return "no die";
+  }
+  return formatRoll(payload.roll);
+}
+
 const RULE = "=".repeat(71);
 
 export function renderPlay(events: readonly MatchEventEnvelope[], names: NameLookup): string {
@@ -373,15 +387,29 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
   const matchups = new Map<string, { rusher: PlayerId; blocker: PlayerId; rows: string[] }>();
   for (const { event } of events) {
     if (event.type !== "CHECK" || event.payload.checkKind !== "pass_rush_tick") continue;
-    const rusher = event.payload.actors[0];
-    const blocker = event.payload.actors[1];
-    const opposed = event.payload.opposedRoll;
-    if (rusher === undefined || blocker === undefined || opposed === undefined) continue;
+    const p = event.payload;
+    const rusher = p.actors[0];
+    const blocker = p.actors[1];
+    if (rusher === undefined || blocker === undefined) continue;
     const key = `${String(rusher)}|${String(blocker)}`;
+    // ADR-089 P3: a tick with no die (shape S of the block clock) is a row of its own, printed
+    // deliberately: its band and margin are the block clock's, read off the CHECK, not a contest.
+    const kind: string = p.checkKind;
+    if (p.roll === undefined) {
+      if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+      const entry = matchups.get(key) ?? { rusher, blocker, rows: [] };
+      entry.rows.push(
+        `  │    Tick ${tickLabel(event.tick)}: block clock, no die → ${bandOf(p)} (${String(p.margin)})`,
+      );
+      matchups.set(key, entry);
+      continue;
+    }
+    const opposed = p.opposedRoll;
+    if (opposed === undefined) continue;
     const entry = matchups.get(key) ?? { rusher, blocker, rows: [] };
     entry.rows.push(
-      `  │    Tick ${tickLabel(event.tick)}: rush ${event.payload.roll.total} vs. block ${opposed.total}` +
-        ` → ${bandOf(event.payload)} (${signed(event.payload.margin)})`,
+      `  │    Tick ${tickLabel(event.tick)}: rush ${p.roll.total} vs. block ${opposed.total}` +
+        ` → ${bandOf(p)} (${signed(p.margin)})`,
     );
     matchups.set(key, entry);
   }
@@ -525,7 +553,7 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
       const off = actorLabel(payload.roll, "OFF");
       const def = actorLabel(payload.opposedRoll, "DEF");
       out.push("  │    Release vs. Press:");
-      out.push(`  │      ${off}:  ${formatRoll(payload.roll)}`);
+      out.push(`  │      ${off}:  ${formatCheckRoll(payload)}`);
       if (payload.opposedRoll !== undefined) {
         out.push(`  │      ${def}:  ${formatRoll(payload.opposedRoll)}`);
       }
@@ -544,7 +572,7 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
       // EARLY, because the ball is already on its way to the spot. The openness
       // track below is what says when the receiver actually got there.
       out.push(`  │    Man coverage (rep resolved at tick ${tickLabel(coverage.event.tick)}):`);
-      out.push(`  │      ${off}:  ${formatRoll(payload.roll)}`);
+      out.push(`  │      ${off}:  ${formatCheckRoll(payload)}`);
       if (payload.opposedRoll !== undefined) {
         out.push(`  │      ${def}:  ${formatRoll(payload.opposedRoll)}`);
       }
@@ -565,7 +593,7 @@ function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): 
         `  │    Zone coverage (rep resolved at tick ${tickLabel(zoned.event.tick)})` +
           (defender === undefined ? ":" : ` vs. ${name(defender)}:`),
       );
-      out.push(`  │      ${actorLabel(payload.roll, "OFF")}:  ${formatRoll(payload.roll)}`);
+      out.push(`  │      ${actorLabel(payload.roll, "OFF")}:  ${formatCheckRoll(payload)}`);
       out.push(`  │      vs. target ${payload.target ?? "-"} (50 + defender Zone Coverage ÷ 5)`);
       // Whether he SAT DOWN in it is in the openness track too: a settled
       // receiver reports the SETTLED phase, which is what ADR-009 added it for.
@@ -746,7 +774,7 @@ function renderTippedBall(events: readonly MatchEventEnvelope[], name: NameLooku
   if (quality !== undefined) {
     const q = quality.payload;
     out.push("  ├─ Roll 1 — deflection quality:");
-    out.push(`  │    ${formatRoll(q.roll)} vs. target ${q.target ?? "-"} (throw height + velocity)`);
+    out.push(`  │    ${formatCheckRoll(q)} vs. target ${q.target ?? "-"} (throw height + velocity)`);
     out.push(`  │    Result: ${bandOf(q)} (${signed(q.margin)}) → ${target}`);
   } else {
     out.push(`  ├─ Roll 1 — deflection quality: ${target}`);
@@ -766,7 +794,7 @@ function renderTippedBall(events: readonly MatchEventEnvelope[], name: NameLooku
       continue;
     }
     const a = check.payload;
-    out.push(`  │    ${name(attempt.player)}: ${formatRoll(a.roll)} vs. ${a.target ?? "-"}`);
+    out.push(`  │    ${name(attempt.player)}: ${formatCheckRoll(a)} vs. ${a.target ?? "-"}`);
     out.push(`  │      → ${a.margin >= 0 ? "RECOVERS" : "cannot come up with it"} (${signed(a.margin)})`);
   }
 
@@ -804,7 +832,7 @@ function renderCatch(events: readonly MatchEventEnvelope[], name: NameLookup): s
       // §17.1 printout is a renderer over the stream, so this number is READ from
       // the payload and never recomputed from the coverage band or the decay.
       out.push(`  ├─ Catch type: ${contested ? "CONTESTED" : "ROUTINE"} (openness ${resolution.openness})`);
-      out.push(`  ├─ ${actorLabel(p.roll, "OFF")}: ${formatRoll(p.roll)}`);
+      out.push(`  ├─ ${actorLabel(p.roll, "OFF")}: ${formatCheckRoll(p)}`);
       if (p.opposedRoll !== undefined) {
         out.push(`  ├─ ${actorLabel(p.opposedRoll, "DEF")}: ${formatRoll(p.opposedRoll)}`);
       }

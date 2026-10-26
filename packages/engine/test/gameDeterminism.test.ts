@@ -121,6 +121,11 @@ describe("★2 — draws are addressed by fork label, never by stream position",
     const duplicates: string[] = [];
     for (const { event } of result.events) {
       if (event.type !== "CHECK" && event.type !== "PRESNAP_READ") continue;
+      const kind: string = event.type === "CHECK" ? event.payload.checkKind : event.payload.kind;
+      if (event.payload.roll === undefined) {
+        if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+        continue;
+      }
       const label = event.payload.roll.rngLabel;
       if (seen.has(label)) duplicates.push(label);
       seen.add(label);

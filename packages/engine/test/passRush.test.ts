@@ -232,6 +232,7 @@ describe("§7.1 pass rush tick (ADR-059 — unmodded jitter around the rep)", ()
       repMargin: 0,
       rollRef: "rep-label",
       tickRng: createRng("s", "t").fork("x"),
+      tick: 0.5,
     });
     expect(out.rusherRoll.modifiers).toEqual([]);
     expect(out.blockerRoll.modifiers).toEqual([]);
@@ -245,6 +246,7 @@ describe("§7.1 pass rush tick (ADR-059 — unmodded jitter around the rep)", ()
       repMargin: 20,
       rollRef: "rep-label",
       tickRng: createRng("s", "t").fork("x"),
+      tick: 0.5,
     });
     expect(out.check.testsAttrs).toEqual([]);
   });
@@ -257,6 +259,7 @@ describe("§7.1 pass rush tick (ADR-059 — unmodded jitter around the rep)", ()
       repMargin: 20,
       rollRef: "the-reps-own-label",
       tickRng: createRng("s", "t").fork("x"),
+      tick: 0.5,
     });
     expect(out.check.rollRef).toBe("the-reps-own-label");
   });
@@ -271,6 +274,7 @@ describe("§7.1 pass rush tick (ADR-059 — unmodded jitter around the rep)", ()
         repMargin,
         rollRef: "rep-label",
         tickRng: createRng(`jitter-${i}`, "t"),
+        tick: 0.5,
       });
       const jitter = out.margin - repMargin;
       // Two unmodded d100s (raw 1-100) differenced and divided by the tunable
@@ -290,6 +294,7 @@ describe("§7.1 pass rush tick (ADR-059 — unmodded jitter around the rep)", ()
         repMargin: 80,
         rollRef: "rep-label",
         tickRng: createRng(`dominant-${i}`, "t"),
+        tick: 0.5,
       });
       if (out.band === "RUSHER_WINS_REP") winsRep += 1;
     }
@@ -305,6 +310,7 @@ describe("§7.1 pass rush tick (ADR-059 — unmodded jitter around the rep)", ()
       repMargin: 0,
       rollRef: "rep-label",
       tickRng: createRng("s", "t").fork("x"),
+      tick: 0.5,
     });
     expect(TUNABLES.passRush.pressureProgressByBand[out.band]).toBeDefined();
   });
