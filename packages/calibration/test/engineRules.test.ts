@@ -164,6 +164,34 @@ describe("the bundles (plan §4; N7, N9, O28, S1)", () => {
     }
   });
 
+  it("withOverlay and checkStamp refuse a dial no clock can run on, and a window whose range is not the card's, before any game (NPC-3, CT-2, CT-3)", () => {
+    const card = { pushMinMargin: 1, pushMaxMargin: 14 };
+    const beat = { thetaSeconds: 11, shape: 2, ratingWeight: 0.5 };
+    const window = (over: Partial<{ minMargin: number; maxMargin: number; lengthSeconds: number }>) => ({ ...beat, pushWindow: { minMargin: 1, maxMargin: 14, lengthSeconds: 1.0, ...over } });
+    const cases: [string, PocketOverlay, string][] = [
+      ["a theta of 0", { beatClock: { ...beat, thetaSeconds: 0 }, approach: card }, "passRush.beatClock.thetaSeconds must be a finite number above 0, got 0"],
+      ["a negative shape", { beatClock: { ...beat, shape: -2 }, approach: card }, "passRush.beatClock.shape must be a finite number above 0, got -2"],
+      ["a rating weight that is not a number", { beatClock: { ...beat, ratingWeight: Number.NaN }, approach: card }, "passRush.beatClock.ratingWeight must be a finite number, got NaN"],
+      ["a window whose range runs backwards", { beatClock: window({ minMargin: 14, maxMargin: 1 }), approach: card }, "passRush.beatClock.pushWindow runs from 14 to 1: its minimum is above its maximum"],
+      ["a window of no length", { beatClock: window({ lengthSeconds: 0 }), approach: card }, "passRush.beatClock.pushWindow.lengthSeconds must be a finite number above 0, got 0"],
+      ["a window one tick step long", { beatClock: window({ lengthSeconds: 0.5 }), approach: card }, "passRush.beatClock.pushWindow.lengthSeconds must be a whole number of tick steps (0.5 s), at least 2, got 0.5"],
+      ["a window off the tick grid", { beatClock: window({ lengthSeconds: 0.75 }), approach: card }, "passRush.beatClock.pushWindow.lengthSeconds must be a whole number of tick steps (0.5 s), at least 2, got 0.75"],
+      ["a window whose range is not the card's", { beatClock: window({ minMargin: 3, maxMargin: 9 }), approach: card }, "the push window's margin range (3 to 9) is not the approach card's PUSH range (1 to 14); both name the same POWER reps (ADR-089 §4.0, §4.1.1)"],
+      ["a PUSH range that runs backwards", { beatClock: beat, approach: { pushMinMargin: 9, pushMaxMargin: 2 } }, "the approach card's PUSH range (passRush.approach) runs from 9 to 2: its minimum is above its maximum"],
+      ["an R of 0", { repClock: { fullExpressionSeconds: 0 }, approach: card }, "passRush.repClock.fullExpressionSeconds must be a finite number above 0, got 0"],
+    ];
+    for (const [label, blocks, message] of cases) {
+      expect(() => withOverlay(DEFAULT_TUNABLES, "pocket-1.s1", blocks), label).toThrow(EngineRulesError);
+      expect(() => withOverlay(DEFAULT_TUNABLES, "pocket-1.s1", blocks), label).toThrow(`withOverlay(pocket-1.s1): ${message}`);
+      // A bundle stamped by hand, its digest right, is refused by checkStamp the same way.
+      const unstamped: Tunables = { ...DEFAULT_TUNABLES, passRush: { ...DEFAULT_TUNABLES.passRush, ...blocks } };
+      const byHand: Tunables = { ...unstamped, engineRules: { name: "pocket-1.s1", overlayDigest: overlayDigestOf(unstamped) } };
+      expect(() => checkStamp(byHand, "pocket-1.s1", "runBatch"), label).toThrow(`runBatch: ${message}`);
+    }
+    // A window of a whole number of steps, two or more, with the card's range, is a bundle.
+    for (const lengthSeconds of [1.0, 1.5, 2.0]) expect(checkStamp(withOverlay(DEFAULT_TUNABLES, "pocket-1.s1", { beatClock: window({ lengthSeconds }), approach: card }), "pocket-1.s1")).toBeDefined();
+  });
+
   it("checkStamp refuses a leaf patched after stamping (S1), in the overlay or out of it", () => {
     const b = rulesTunables("pocket-1.s1");
     const patch = (tunableId: string, currentValue: number, proposedValue: number): Tunables =>

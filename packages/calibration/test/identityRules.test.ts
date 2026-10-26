@@ -18,10 +18,13 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { applyTunablePatch, DEFAULT_TUNABLES } from "@ff/engine";
+import { applyTunablePatch, DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { runBatch, type BatchExecutor, type BatchProvenance } from "../src/harness/batch.js";
 import { stableDigest } from "../src/harness/digest.js";
+import { runOneGame } from "../src/harness/runGame.js";
+import { buildFixture, buildFixtures } from "../src/harness/schedule.js";
+import { runRealSeason } from "../src/season/realSeason.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import { indexLeague } from "../src/league/snapshot.js";
 import { EngineRulesError, POCKET_1_S1_DIGEST, POCKET_1_S1_OVERLAY, rulesTunables, withOverlay } from "../src/pocket/rules.js";
@@ -254,5 +257,42 @@ describe("the batch under pocket-1.s1 plays another game", () => {
     // ...and again the same under pocket-1.s1 (Iron Rule 4).
     const again = await runBatch({ ...config, engineRules: "pocket-1.s1" });
     expect(JSON.stringify(again.accumulator)).toBe(JSON.stringify(pocket.accumulator));
+  });
+});
+
+// Review NPC-1: runBatch, the export, the season command and the step-1 arms check the stamp at their
+// entry, and `runOneGame` (every calibration game goes through it: the batch, the season's
+// resolvers, the corpora, the knownTruth callers, the worker) checks it again, so a bundle patched
+// after stamping is refused below those entries too, before its first play.
+describe("every calibration game checks its stamp (review NPC-1)", () => {
+  const league = buildFlatLeague({ teams: 2 });
+  const index = indexLeague(league);
+  const [home, away] = index.teamIds();
+  const fixture = buildFixtures(index, { kind: "SYNTHETIC_PAIR", home: home!, away: away!, games: 1, season: 2024 })[0]!;
+  const game = (tunables?: Tunables) =>
+    runOneGame({ built: buildFixture(index, fixture), seed: "adr-089:npc-1", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN, ...(tunables === undefined ? {} : { tunables }) });
+  const bundle = rulesTunables("pocket-1.s1");
+  const stale = applyTunablePatch(bundle, { tunableId: "passRush.beatClock.thetaSeconds", currentValue: 11, proposedValue: 4, evidence: "test", expectedEffect: "test" });
+
+  it("runOneGame refuses a bundle patched after stamping, and an unstamped block, before a play", () => {
+    expect(stale.engineRules).toEqual(bundle.engineRules);
+    expect(() => game(stale)).toThrow(EngineRulesError);
+    expect(() => game(stale)).toThrow(/^runOneGame: the tunables are stamped pocket-1\.s1 at overlay fnv1a:69a7cc48, but they digest to fnv1a:[0-9a-f]{8}: a dial changed after stamping$/);
+    const blockOnly: Tunables = { ...DEFAULT_TUNABLES, passRush: { ...DEFAULT_TUNABLES.passRush, ...POCKET_1_S1_OVERLAY } };
+    expect(() => game(blockOnly)).toThrow("runOneGame: the run names engine rules legacy, but the tunables carry passRush.beatClock, passRush.approach with no rules stamp");
+    const unknown: Tunables = { ...bundle, engineRules: { name: "pocket-1.s9", overlayDigest: POCKET_1_S1_DIGEST } };
+    expect(() => game(unknown)).toThrow(/^runOneGame: engine rules "pocket-1\.s9" are not in this build/);
+  });
+
+  it("runOneGame plays the bundle as stamped, an arm bundle, legacy and legacy plus patches", () => {
+    const played = (t?: Tunables): number => game(t).observation.events.length;
+    expect(played(bundle)).toBeGreaterThan(1000);
+    expect(played(withOverlay(applyTunablePatch(DEFAULT_TUNABLES, { tunableId: "qb.timeBudget.baseSeconds", currentValue: 2.5, proposedValue: 4.5, evidence: "test", expectedEffect: "test" }), "pocket-1.s1", POCKET_1_S1_OVERLAY))).toBeGreaterThan(1000);
+    expect(played()).toBeGreaterThan(1000);
+    expect(played(applyTunablePatch(DEFAULT_TUNABLES, { tunableId: "qb.timeBudget.baseSeconds", currentValue: 2.5, proposedValue: 4.5, evidence: "test", expectedEffect: "test" }))).toBeGreaterThan(1000);
+  }, 60_000);
+
+  it("the season's game pass-through refuses it too (runRealSeason's game.tunables)", () => {
+    expect(() => runRealSeason({ seed: "adr-089:npc-1", rosters: "flat", game: { tunables: stale } })).toThrow(/^runOneGame: .*a dial changed after stamping$/);
   });
 });

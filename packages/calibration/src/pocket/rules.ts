@@ -157,6 +157,52 @@ function assertClosedSet(passRush: Tunables["passRush"], where: string): void {
   if (passRush.approach === undefined) throw new EngineRulesError(`${where}: a pocket-1 bundle needs the approach card (passRush.approach)`);
 }
 
+const finiteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+
+/**
+ * The dials of a `pocket-1` bundle, checked here as the engine checks them at the top of each pass
+ * play (`sim/pocketRules.ts`, which is not on the engine's barrel, so the rules are restated, Iron
+ * Rule 1), so a bundle no clock can run on is refused before any game rather than inside its first
+ * pass play (review NPC-3): S's theta and shape above 0 and its rating weight finite; the push
+ * window's range in order and its length a whole number of the tunables' tick steps, two or more
+ * (CT-2); L's R above 0; the card's PUSH range in order. And one rule of calibration's own (CT-3):
+ * a window's margin range is the card's PUSH range, since §4.0's PUSH row and §4.1.1's window both
+ * name "a POWER rep of latent margin 1 to 14", and under S the PUSH reps are counted apart because
+ * the window fills their tick (ADR-089:1160). The engine reads the two as separate dials.
+ */
+function assertDials(tunables: Tunables, where: string): void {
+  const { beatClock, repClock, approach } = tunables.passRush;
+  const above0 = (v: unknown, what: string): void => {
+    if (!finiteNumber(v) || !(v > 0)) throw new EngineRulesError(`${where}: ${what} must be a finite number above 0, got ${String(v)}`);
+  };
+  const inOrder = (min: unknown, max: unknown, what: string): void => {
+    if (!finiteNumber(min) || !finiteNumber(max)) throw new EngineRulesError(`${where}: ${what} must run between two finite numbers, got ${String(min)} to ${String(max)}`);
+    if (min > max) throw new EngineRulesError(`${where}: ${what} runs from ${String(min)} to ${String(max)}: its minimum is above its maximum`);
+  };
+  if (approach !== undefined) inOrder(approach.pushMinMargin, approach.pushMaxMargin, "the approach card's PUSH range (passRush.approach)");
+  if (beatClock !== undefined) {
+    above0(beatClock.thetaSeconds, "passRush.beatClock.thetaSeconds");
+    above0(beatClock.shape, "passRush.beatClock.shape");
+    if (!finiteNumber(beatClock.ratingWeight)) throw new EngineRulesError(`${where}: passRush.beatClock.ratingWeight must be a finite number, got ${String(beatClock.ratingWeight)}`);
+    const w = beatClock.pushWindow;
+    if (w !== undefined) {
+      inOrder(w.minMargin, w.maxMargin, "passRush.beatClock.pushWindow");
+      above0(w.lengthSeconds, "passRush.beatClock.pushWindow.lengthSeconds");
+      const step = tunables.clock.tickStepSeconds;
+      const steps = w.lengthSeconds / step;
+      if (!(Math.abs(steps - Math.round(steps)) < 1e-9 && Math.round(steps) >= 2)) {
+        throw new EngineRulesError(`${where}: passRush.beatClock.pushWindow.lengthSeconds must be a whole number of tick steps (${String(step)} s), at least 2, got ${String(w.lengthSeconds)}`);
+      }
+      if (approach !== undefined && (w.minMargin !== approach.pushMinMargin || w.maxMargin !== approach.pushMaxMargin)) {
+        throw new EngineRulesError(
+          `${where}: the push window's margin range (${String(w.minMargin)} to ${String(w.maxMargin)}) is not the approach card's PUSH range (${String(approach.pushMinMargin)} to ${String(approach.pushMaxMargin)}); both name the same POWER reps (ADR-089 §4.0, §4.1.1)`,
+        );
+      }
+    }
+  }
+  if (repClock !== undefined) above0(repClock.fullExpressionSeconds, "passRush.repClock.fullExpressionSeconds");
+}
+
 /**
  * The only way to make a stamped bundle (S1). Refuses a base that already carries a `pocket-1` block
  * or a stamp (so a bundle is never stamped twice, and an arm's patches go on the base first, through
@@ -179,12 +225,15 @@ export function withOverlay(base: Tunables, name: OverlayRules, blocks: PocketOv
   const passRush = { ...base.passRush, ...copyData(blocks) };
   assertClosedSet(passRush, where);
   const unstamped: Tunables = { ...base, passRush };
+  assertDials(unstamped, where);
   return deepFreeze({ ...unstamped, engineRules: { name, overlayDigest: overlayDigestOf(unstamped) } });
 }
 
 /**
  * The tunables a run is about to play, checked against the rules it names (S1), before any game: at
- * every calibration entry (`runBatch`, the season command, the export, and the step-1 harness).
+ * every calibration entry (`runBatch`, the season command, the export, and the step-1 harness), and
+ * again in `runOneGame`, the one function every calibration game is played through (review NPC-1),
+ * against the rules its own stamp names.
  *  - `legacy`: no stamp and no `pocket-1` block (patched leaves are fine: that is `legacy` plus
  *    patches, and its `PLAY_START` has no `rules`).
  *  - any other name: a stamp naming exactly it, a bundle in the closed sets, and an overlay digest
@@ -215,6 +264,7 @@ export function checkStamp(tunables: Tunables, rules: EngineRules, where = "chec
   if (stamp.overlayDigest !== recomputed) {
     throw new EngineRulesError(`${where}: the tunables are stamped ${rules} at overlay ${stamp.overlayDigest}, but they digest to ${recomputed}: a dial changed after stamping`);
   }
+  assertDials(tunables, where);
   return tunables;
 }
 

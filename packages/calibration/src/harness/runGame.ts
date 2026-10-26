@@ -15,6 +15,7 @@ import { frozenCallerPair, type FrozenCallerDiagnostics } from "../caller/frozen
 import type { FittedTendencies } from "../caller/tendencies.js";
 import type { SimGameObservation } from "../metrics/collect.js";
 import { mirrorCaller } from "../pocket/mirror.js";
+import { checkStamp, engineRulesNamed, LEGACY_RULES } from "../pocket/rules.js";
 import type { BuiltFixture } from "./schedule.js";
 
 export interface RunGameInput {
@@ -62,6 +63,10 @@ export interface RunGameOutput {
 
 export function runOneGame(input: RunGameInput): RunGameOutput {
   const tunables = input.tunables ?? DEFAULT_TUNABLES;
+  // ADR-089 S1 at the one function every calibration game is played through (review NPC-1): the
+  // stamp names rules this build has, and the dials it was handed digest to it, or no play is made.
+  // Legacy tunables (no stamp, no block) return after three property reads, so legacy play is today's.
+  checkStamp(tunables, tunables.engineRules === undefined ? LEGACY_RULES : engineRulesNamed(tunables.engineRules.name, "runOneGame"), "runOneGame");
   const { built, seed } = input;
   const pair = frozenCallerPair({
     tendencies: input.tendencies,
