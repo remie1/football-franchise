@@ -29,7 +29,6 @@
  *     worker count cannot move a result — `test/harness.test.ts` asserts exactly that.
  */
 import type { Tunables } from "@ff/engine";
-import { DEFAULT_TUNABLES } from "@ff/engine";
 import {
   DEFAULT_CALLER_VERSION,
   blankDrawQuality,
@@ -42,7 +41,7 @@ import { assertTendencyIntegrity, type FittedTendencies } from "../caller/tenden
 import type { LeagueProvenance } from "../league/provenance.js";
 import type { AnyProvenancedLeague } from "../league/provenance.js";
 import { indexLeague } from "../league/snapshot.js";
-import { engineRulesDigestOf, engineRulesNamed, playedUnder, rulesStampUnlessLegacy } from "../pocket/rules.js";
+import { checkStamp, engineRulesNamed, LEGACY_RULES, rulesStampUnlessLegacy, rulesTunables } from "../pocket/rules.js";
 import {
   emptyAccumulator,
   foldGame,
@@ -76,15 +75,20 @@ export interface BatchConfig {
   /**
    * The tunables version this batch measured. §6: *"every baseline report states which
    * tunables-version it measured — the audit trail that prevents tuning amnesia."* Defaulted to
-   * `DEFAULT_TUNABLES` and the default is RECORDED as such rather than left implicit.
+   * the named rules' tunables (`rulesTunables(engineRules)`: `DEFAULT_TUNABLES` itself under
+   * `legacy`) and the default is RECORDED as such rather than left implicit. A legacy caller leaves
+   * this undefined; a caller that passes it must pass tunables whose rules stamp agrees with
+   * `engineRules` (ADR-089 step 1, `checkStamp`).
    */
   readonly tunables?: Tunables;
   /** A label for the tunables version, e.g. "DEFAULT_TUNABLES" or "ADR-021-patch-1". */
   readonly tunablesVersion?: string;
   /**
-   * ADR-089 §9: the engine rules bundle to play, by name; absent is `legacy`. At step 0 nothing
-   * reaches the engine (K4) and this build has `legacy` only, so any other name is refused before a
-   * game is played. Recorded into the provenance only when it is not `legacy`.
+   * ADR-089 §9: the engine rules bundle to play, by name; absent is `legacy`. A name this build does
+   * not have is refused before a game is played. With no `tunables`, the batch plays the name's own
+   * bundle (`rulesTunables`); with `tunables`, they must carry that name's stamp, at a digest they
+   * still have (`checkStamp`). Recorded into the provenance only when it is not `legacy`, with the
+   * overlay digest of the stamp the games were played under.
    */
   readonly engineRules?: string;
   readonly workers?: number;
@@ -282,7 +286,11 @@ export async function runBatch(config: BatchConfig): Promise<BatchResult> {
   }));
 
   const executor = config.executor ?? inProcessExecutor();
-  const tunables = config.tunables ?? DEFAULT_TUNABLES;
+  // ADR-089 §9: the rules are named, and checked, before any game is played.
+  const engineRules = engineRulesNamed(config.engineRules, "runBatch");
+  // N8: a legacy caller leaves `config.tunables` undefined and plays `DEFAULT_TUNABLES` itself (the
+  // same reference `rulesTunables("legacy")` returns), so its provenance and stream are today's.
+  const tunables = config.tunables ?? rulesTunables(engineRules);
   const tunablesVersion =
     config.tunablesVersion ?? (config.tunables === undefined ? "DEFAULT_TUNABLES" : "UNNAMED_PATCH");
   if (config.tunables !== undefined && config.tunablesVersion === undefined) {
@@ -292,10 +300,10 @@ export async function runBatch(config: BatchConfig): Promise<BatchResult> {
         "with extra steps.",
     );
   }
+  // S1: the stamp agrees with the name and with the dials actually passed, or nothing is played.
+  checkStamp(tunables, engineRules, "runBatch");
 
   const callerVersion = config.playCalling.callerVersion ?? DEFAULT_CALLER_VERSION;
-  // ADR-089 §9: checked before any game is played. `playedUnder` holds it to `legacy` (K4).
-  const engineRules = playedUnder(engineRulesNamed(config.engineRules, "runBatch"));
 
   const started = Date.now();
   const { accumulator, caller } = await executor.run(jobs, (job) => {
@@ -308,8 +316,12 @@ export async function runBatch(config: BatchConfig): Promise<BatchResult> {
       tunables,
       callerVersion,
     });
+    // K14: a pocket-1 batch folds with the tunables it played; a legacy one folds as it always has.
     return {
-      accumulator: foldGame(emptyAccumulator(), output.observation),
+      accumulator:
+        engineRules === LEGACY_RULES
+          ? foldGame(emptyAccumulator(), output.observation)
+          : foldGame(emptyAccumulator(), output.observation, tunables),
       caller: output.caller,
     };
   });
@@ -345,7 +357,8 @@ export async function runBatch(config: BatchConfig): Promise<BatchResult> {
       executorName: executor.name,
       availabilityMatched,
       teamWeeksWithAbsences,
-      ...rulesStampUnlessLegacy(engineRules, engineRulesDigestOf(engineRules)),
+      // The digest of the stamp the games were played under (an arm's own, for an arm bundle).
+      ...rulesStampUnlessLegacy(engineRules, tunables.engineRules?.overlayDigest),
     },
   };
 }

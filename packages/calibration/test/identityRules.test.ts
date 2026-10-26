@@ -7,19 +7,25 @@
  *  3. A `pocket-1.s1` predecessor against a legacy run is REFUSED by `decideTrend`, and so is the
  *     same bundle over a different overlay digest.
  *  4. A malformed value is refused as a malformed carry-forward.
- *  5. The batch: `engineRules: "legacy"` gives the same accumulator and provenance as no name; any
- *     other name is refused before a game is played (K4).
+ *  5. The batch: `engineRules: "legacy"` gives the same accumulator and provenance as no name, and a
+ *     legacy caller leaves `config.tunables` undefined (N8, critique-2 F7). ADR-089 step 1 (plan §7.2
+ *     items 3 and 11, rewriting step 0's ":179-182"): `engineRules: "pocket-1.s1"` plays the design
+ *     bundle and records its name and overlay digest; a `pocket-1.s1` name with unstamped tunables,
+ *     a stamped bundle under `legacy`, and a bundle patched after stamping are each refused with their
+ *     own message before a game is played; an arm bundle (a patched base, then the overlay) records
+ *     its own digest. A name this build does not have is refused before a game is played.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_TUNABLES } from "@ff/engine";
+import { applyTunablePatch, DEFAULT_TUNABLES } from "@ff/engine";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { runBatch, type BatchExecutor, type BatchProvenance } from "../src/harness/batch.js";
 import { stableDigest } from "../src/harness/digest.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import { indexLeague } from "../src/league/snapshot.js";
-import { EngineRulesError } from "../src/pocket/rules.js";
+import { EngineRulesError, POCKET_1_S1_DIGEST, POCKET_1_S1_OVERLAY, rulesTunables, withOverlay } from "../src/pocket/rules.js";
+import { POCKET_1_ENGINE_LANDED } from "./pocket1Gate.js";
 import {
   baselineIdentity,
   compareIdentity,
@@ -150,7 +156,7 @@ describe("a malformed rules value", () => {
   }
 });
 
-describe("the batch (K4: nothing reaches the engine at step 0)", () => {
+describe("the batch: the rules reach the engine through the tunables (ADR-089 step 1)", () => {
   const league = buildFlatLeague({ teams: 2 });
   const [home, away] = indexLeague(league).teamIds();
   const config = {
@@ -170,17 +176,84 @@ describe("the batch (K4: nothing reaches the engine at step 0)", () => {
     expect(legacy.provenance.tunablesDigest).toBe(stableDigest(DEFAULT_TUNABLES));
   });
 
-  it("refuses any other name before a game is played", async () => {
-    const neverRuns: BatchExecutor = {
-      name: "never",
-      workers: 1,
-      run: () => Promise.reject(new Error("a game was played")),
-    };
-    for (const name of ["pocket-1.s1", "pocket-1", "default", ""]) {
+  const neverRuns: BatchExecutor = {
+    name: "never",
+    workers: 1,
+    run: () => Promise.reject(new Error("a game was played")),
+  };
+
+  it("refuses a name this build does not have before a game is played", async () => {
+    for (const name of ["pocket-1", "pocket-1.s9", "default", ""]) {
       await expect(runBatch({ ...config, engineRules: name, executor: neverRuns })).rejects.toThrow(EngineRulesError);
     }
-    await expect(runBatch({ ...config, engineRules: "pocket-1.s1", executor: neverRuns })).rejects.toThrow(/^runBatch: engine rules "pocket-1.s1"/);
-    // The stub does run when the name is legacy, so the refusal above is the rules check, not the stub.
+    await expect(runBatch({ ...config, engineRules: "pocket-1.s9", executor: neverRuns })).rejects.toThrow(/^runBatch: engine rules "pocket-1.s9" are not in this build/);
+    // The stub does run when the name is legacy or pocket-1.s1, so the refusals above are the rules
+    // check, not the stub.
     await expect(runBatch({ ...config, engineRules: "legacy", executor: neverRuns })).rejects.toThrow("a game was played");
+    await expect(runBatch({ ...config, engineRules: "pocket-1.s1", executor: neverRuns })).rejects.toThrow("a game was played");
+  });
+
+  it("pocket-1.s1 with no tunables plays the design bundle, and records its name and overlay digest", async () => {
+    const pocket = await runBatch({ ...config, engineRules: "pocket-1.s1" });
+    expect(pocket.provenance.games).toBe(2);
+    expect(pocket.provenance.engineRules).toBe("pocket-1.s1");
+    expect(pocket.provenance.engineRulesDigest).toBe(POCKET_1_S1_DIGEST);
+    // The digest of the tunables ACTUALLY RUN is the bundle's, so the bundle is what was passed.
+    expect(pocket.provenance.tunablesDigest).toBe(stableDigest(rulesTunables("pocket-1.s1")));
+    expect(pocket.provenance.tunablesDigest).not.toBe(stableDigest(DEFAULT_TUNABLES));
+    // The base the overlay sits on: no patch was named, so the label is the default's.
+    expect(pocket.provenance.tunablesVersion).toBe("DEFAULT_TUNABLES");
+    expect(Object.keys(pocket.provenance).slice(-2)).toEqual(["engineRules", "engineRulesDigest"]);
+  });
+
+  it("refuses a pocket-1.s1 name over unstamped tunables, with its own message, before a game is played", async () => {
+    const patched = applyTunablePatch(DEFAULT_TUNABLES, { tunableId: "qb.timeBudget.baseSeconds", currentValue: 2.5, proposedValue: 4.5, evidence: "test", expectedEffect: "test" });
+    for (const tunables of [DEFAULT_TUNABLES, patched]) {
+      await expect(runBatch({ ...config, engineRules: "pocket-1.s1", tunables, tunablesVersion: "t", executor: neverRuns })).rejects.toThrow(
+        "runBatch: the run names engine rules pocket-1.s1, but the tunables carry no rules stamp; a bundle is made by withOverlay or rulesTunables",
+      );
+    }
+  });
+
+  it("refuses a stamped bundle under legacy, and a bundle patched after stamping, before a game is played", async () => {
+    const bundle = rulesTunables("pocket-1.s1");
+    await expect(runBatch({ ...config, tunables: bundle, tunablesVersion: "t", executor: neverRuns })).rejects.toThrow(
+      "runBatch: the run names engine rules legacy, but the tunables carry the rules stamp pocket-1.s1",
+    );
+    const late = applyTunablePatch(bundle, { tunableId: "passRush.beatClock.thetaSeconds", currentValue: 11, proposedValue: 9, evidence: "test", expectedEffect: "test" });
+    await expect(runBatch({ ...config, engineRules: "pocket-1.s1", tunables: late, tunablesVersion: "t", executor: neverRuns })).rejects.toThrow(/a dial changed after stamping$/);
+  });
+
+  it("an arm bundle (a patched base, then the overlay) is accepted and records its own digest", async () => {
+    const base = applyTunablePatch(DEFAULT_TUNABLES, { tunableId: "qb.timeBudget.baseSeconds", currentValue: 2.5, proposedValue: 4.5, evidence: "test", expectedEffect: "test" });
+    const arm = withOverlay(base, "pocket-1.s1", POCKET_1_S1_OVERLAY);
+    const one = { ...config, schedule: { ...config.schedule, games: 1 } };
+    const r = await runBatch({ ...one, engineRules: "pocket-1.s1", tunables: arm, tunablesVersion: "hold-arm" });
+    expect(r.provenance.engineRules).toBe("pocket-1.s1");
+    expect(r.provenance.engineRulesDigest).toBe(arm.engineRules!.overlayDigest);
+    expect(r.provenance.engineRulesDigest).not.toBe(POCKET_1_S1_DIGEST);
+    expect(r.provenance.tunablesDigest).toBe(stableDigest(arm));
+    expect(r.provenance.tunablesVersion).toBe("hold-arm");
+  });
+});
+
+// TODO(ADR-089 K-b2): needs E-b's engine, which plays the blocks; until then pocket-1.s1 plays legacy.
+describe.skipIf(!POCKET_1_ENGINE_LANDED)("the batch under pocket-1.s1 plays another game (needs E-b)", () => {
+  const league = buildFlatLeague({ teams: 2 });
+  const [home, away] = indexLeague(league).teamIds();
+  const config = {
+    league,
+    schedule: { kind: "SYNTHETIC_PAIR", home: home!, away: away!, games: 2, season: 2024 } as const,
+    seeds: { batchSeed: "adr-089:identity-rules" },
+    playCalling: { tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN },
+  };
+
+  it("the same seeds under pocket-1.s1 give another accumulator than under legacy", async () => {
+    const legacy = await runBatch(config);
+    const pocket = await runBatch({ ...config, engineRules: "pocket-1.s1" });
+    expect(JSON.stringify(pocket.accumulator)).not.toBe(JSON.stringify(legacy.accumulator));
+    // ...and again the same under pocket-1.s1 (Iron Rule 4).
+    const again = await runBatch({ ...config, engineRules: "pocket-1.s1" });
+    expect(JSON.stringify(again.accumulator)).toBe(JSON.stringify(pocket.accumulator));
   });
 });

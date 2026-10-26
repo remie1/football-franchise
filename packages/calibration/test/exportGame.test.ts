@@ -12,8 +12,14 @@
  *     resolved, never "default", so the seed and the version read back off the file re-make it
  *     byte for byte after the default moves.
  *  6. IT NAMES ITS RULES (ADR-089 §9, O11). The file always records the engine rules that played,
- *     resolved the same way: `legacy` at step 0, with no overlay digest; the seed, caller and rules
- *     read back off the file re-make it byte for byte; rules this build does not have are refused.
+ *     resolved the same way: `legacy` by default, with no overlay digest; step 1's design bundle
+ *     `pocket-1.s1` with its overlay digest beside the name, played with its own tunables
+ *     (`rulesTunables`, O26: an export names rules, never an arm). The seed, caller and rules read
+ *     back off the file re-make it byte for byte; rules this build does not have are refused. The
+ *     command line takes `--engine-rules`, and a non-legacy file is named after its rules too.
+ *
+ * TODO(ADR-089 K-b2): the gated case below (a `pocket-1.s1` game plays another game than `legacy`)
+ * waits on the engine's `pocket-1` (stream E-b); see `test/pocket1Gate.ts`.
  */
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -27,9 +33,26 @@ import { runOneGame } from "../src/harness/runGame.js";
 import { buildFixture, buildFixtures } from "../src/harness/schedule.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import { indexLeague } from "../src/league/snapshot.js";
+import { POCKET_1_S1_DIGEST, rulesTunables } from "../src/pocket/rules.js";
+import { POCKET_1_ENGINE_LANDED } from "./pocket1Gate.js";
 
 const SEED = "viewer:export-test";
 const game = exportGame({ seed: SEED });
+const pocketGame = exportGame({ seed: SEED, engineRules: "pocket-1.s1" });
+
+/** `runOneGame`'s observation for the exporter's fixture, as the exporter builds it. */
+function observedGame(seed: string, tunables?: ReturnType<typeof rulesTunables>) {
+  const index = indexLeague(buildFlatLeague({ teams: 2 }));
+  const [home, away] = index.teamIds();
+  const [fixture] = buildFixtures(index, { kind: "SYNTHETIC_PAIR", home: home!, away: away!, games: 1, season: 2024 });
+  return runOneGame({
+    built: buildFixture(index, fixture!),
+    seed,
+    tendencies: FROZEN_TENDENCIES,
+    fourthDown: FROZEN_FOURTH_DOWN,
+    ...(tunables === undefined ? {} : { tunables }),
+  }).observation;
+}
 
 describe("exportGame", () => {
   it("is deterministic: same seed, same bytes; another seed, another game", () => {
@@ -38,17 +61,15 @@ describe("exportGame", () => {
   });
 
   it("saves runOneGame's stream untouched", () => {
-    const index = indexLeague(buildFlatLeague({ teams: 2 }));
-    const [home, away] = index.teamIds();
-    const [fixture] = buildFixtures(index, { kind: "SYNTHETIC_PAIR", home: home!, away: away!, games: 1, season: 2024 });
-    const { observation } = runOneGame({
-      built: buildFixture(index, fixture!),
-      seed: SEED,
-      tendencies: FROZEN_TENDENCIES,
-      fourthDown: FROZEN_FOURTH_DOWN,
-    });
+    const observation = observedGame(SEED);
     expect(JSON.stringify(game.events)).toBe(JSON.stringify(observation.events));
     expect(JSON.stringify(game.statlines)).toBe(JSON.stringify(observation.statlines));
+  });
+
+  it("under pocket-1.s1, saves runOneGame's stream for the design bundle untouched (ADR-089 §9, O26)", () => {
+    const observation = observedGame(SEED, rulesTunables("pocket-1.s1"));
+    expect(JSON.stringify(pocketGame.events)).toBe(JSON.stringify(observation.events));
+    expect(JSON.stringify(pocketGame.statlines)).toBe(JSON.stringify(observation.statlines));
   });
 
   it("is a whole game: starts, ends, and says how it was made", () => {
@@ -86,9 +107,22 @@ describe("exportGame", () => {
     expect(JSON.stringify(remade)).toBe(JSON.stringify(game));
     // Naming legacy plays exactly the game naming nothing plays: nothing reaches the engine (K4).
     expect(JSON.stringify(exportGame({ seed: SEED, engineRules: "legacy" }).events)).toBe(JSON.stringify(game.events));
-    for (const bad of ["pocket-1.s1", "pocket-1", "default"]) {
-      expect(() => exportGame({ seed: SEED, engineRules: bad })).toThrow(/^exportGame: engine rules/);
+    // Not a name in this build: refused before anything is played. (`pocket-1.s1` moved out of
+    // this list at step 1, into the case below.)
+    for (const bad of ["pocket-1", "default", "pocket-1.s9", ""]) {
+      expect(() => exportGame({ seed: SEED, engineRules: bad }), bad).toThrow(/^exportGame: engine rules ".*" are not in this build/);
     }
+  });
+
+  it("stamps pocket-1.s1 with its overlay digest, and the stamp re-makes the file (ADR-089 §9, step 1)", () => {
+    expect(pocketGame.engineRules).toBe("pocket-1.s1");
+    expect(pocketGame.engineRulesDigest).toBe(POCKET_1_S1_DIGEST);
+    expect(pocketGame.engineRulesDigest).toBe(rulesTunables("pocket-1.s1").engineRules?.overlayDigest);
+    expect(Object.keys(pocketGame).slice(0, 6)).toEqual(["format", "seed", "league", "callerVersion", "engineRules", "engineRulesDigest"]);
+    const remade = exportGame({ seed: pocketGame.seed, callerVersion: pocketGame.callerVersion, engineRules: pocketGame.engineRules });
+    expect(JSON.stringify(remade)).toBe(JSON.stringify(pocketGame));
+    // Deterministic under its own rules too (Iron Rule 4).
+    expect(JSON.stringify(exportGame({ seed: SEED, engineRules: "pocket-1.s1" }))).toBe(JSON.stringify(pocketGame));
   });
 
   it("names every team and every player the stream or the box score mentions", () => {
@@ -104,6 +138,15 @@ describe("exportGame", () => {
 
   it("refuses an empty seed", () => {
     expect(() => exportGame({ seed: " " })).toThrow(/seed/);
+  });
+});
+
+// TODO(ADR-089 K-b2): needs the engine's `pocket-1` (stream E-b). In this tree the engine reads none
+// of the bundle's blocks, so a `pocket-1.s1` game plays exactly `legacy`; once it does not, the
+// stamp is what tells the two files apart.
+describe.skipIf(!POCKET_1_ENGINE_LANDED)("exportGame under pocket-1.s1 plays another game (TODO(ADR-089 K-b2))", () => {
+  it("the same seed under pocket-1.s1 gives another stream than under legacy", () => {
+    expect(JSON.stringify(pocketGame.events)).not.toBe(JSON.stringify(game.events));
   });
 });
 
@@ -123,14 +166,50 @@ describe("export-game command", () => {
     expect(() => parseExportArgs(["--seed", "a", "--bogus"])).toThrow(/unknown argument/);
   });
 
+  it("takes --engine-rules: legacy or the design bundle, and refuses any other name (ADR-089 §9)", () => {
+    expect(parseExportArgs(["--seed", "a", "--engine-rules", "pocket-1.s1", "--out", dir])).toEqual({
+      seed: "a",
+      engineRules: "pocket-1.s1",
+      outDir: dir,
+    });
+    expect(parseExportArgs(["--seed", "a", "--caller", "v5", "--engine-rules", "legacy", "--out", dir])).toEqual({
+      seed: "a",
+      callerVersion: "v5",
+      engineRules: "legacy",
+      outDir: dir,
+    });
+    expect("engineRules" in parseExportArgs(["--seed", "a"])).toBe(false);
+    for (const bad of ["pocket-1", "default", "pocket-1.s1@fnv1a:69a7cc48", "heels"]) {
+      expect(() => parseExportArgs(["--seed", "a", "--engine-rules", bad]), bad).toThrow(
+        "--engine-rules must be one of legacy, pocket-1.s1",
+      );
+    }
+    expect(() => parseExportArgs(["--seed", "a", "--engine-rules"])).toThrow(/requires a value/);
+  });
+
   it("names files safely from the seed", () => {
     expect(gameFileName("week 3: rain/wind")).toBe("week_3_rain_wind.json");
     expect(gameFileName("a", "v5")).toBe("a.v5.json");
+    // ADR-089: a legacy file's name is what it always was; other rules add their name.
+    expect(gameFileName("a", "v5", "legacy")).toBe("a.v5.json");
+    expect(gameFileName("a", undefined, "legacy")).toBe("a.json");
+    expect(gameFileName("a", "v5", "pocket-1.s1")).toBe("a.v5.pocket-1.s1.json");
+    expect(gameFileName("a", undefined, "pocket-1.s1")).toBe("a.pocket-1.s1.json");
   });
 
   it("writes the game and lists it in the folder's index", () => {
     const path = runExport({ seed: SEED, outDir: dir });
     expect(readFileSync(path, "utf8")).toBe(JSON.stringify(game) + "\n");
     expect(JSON.parse(readFileSync(join(dir, "index.json"), "utf8"))).toEqual({ games: [gameFileName(SEED)] });
+  });
+
+  it("writes a pocket-1.s1 game beside the legacy one, never over it, and lists both", () => {
+    const path = runExport({ seed: SEED, engineRules: "pocket-1.s1", outDir: dir });
+    expect(path).toBe(join(dir, gameFileName(SEED, undefined, "pocket-1.s1")));
+    expect(readFileSync(path, "utf8")).toBe(JSON.stringify(pocketGame) + "\n");
+    expect(readFileSync(join(dir, gameFileName(SEED)), "utf8")).toBe(JSON.stringify(game) + "\n");
+    expect(JSON.parse(readFileSync(join(dir, "index.json"), "utf8"))).toEqual({
+      games: [gameFileName(SEED), gameFileName(SEED, undefined, "pocket-1.s1")].sort(),
+    });
   });
 });

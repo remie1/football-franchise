@@ -25,7 +25,7 @@
 import { isDeepStrictEqual } from "node:util";
 import type { MatchEventEnvelope, PlayerId, ShownRusher, TeamId, ThrowawayCause } from "@ff/contracts";
 import { DEFAULT_TUNABLES } from "@ff/engine";
-import type { GameSummary, StatLine } from "@ff/engine";
+import type { GameSummary, StatLine, Tunables } from "@ff/engine";
 import { COVERAGE_MASKS, FRONT_LOOKS, shownRushDiffers } from "@ff/playbook";
 import { approachesOfPlay, LOOPER_FREE_BAND, PICKUP_FREE_BAND } from "../pocket/approach.js";
 
@@ -119,7 +119,7 @@ export interface PlayFold {
    *   (1) a `RUSH_THREAT` reached `state: "ARRIVED"` — set by `threatArrived` below;
    *   (2) a `POCKET_STATUS` was ever a status in `DEFAULT_TUNABLES.pocket.forcesDecision`
    *       (`COLLAPSING`/`IMMEDIATE` today, read from tunables rather than restated — see
-   *       `FORCES_DECISION_STATUSES` below) — set by `forcedDecision`;
+   *       `FoldTables.forcesDecision` below) — set by `forcedDecision`;
    *   (3) the dropback ended in a sack — the SAME dichotomy `sacks` above already makes (no
    *       THROW, no scramble, no throwaway, no interception); no second sack rule. (Backlog entry
    *       94: this used to be inferred from negative result yards rather than read off a
@@ -799,16 +799,77 @@ interface PlayStartShape {
  */
 export const BLITZ_MIN_RUSHERS = 5;
 
+// ---------------------------------------------------------------------------
+// THE TABLES THE FOLD READS, FROM THE TUNABLES THE GAME WAS PLAYED WITH
+// ---------------------------------------------------------------------------
+
 /**
- * BACKLOG DISPATCH C, disjunct (2) of the exit predicate — DERIVED from `DEFAULT_TUNABLES`, never
- * restated as a literal, for the same reason `RUSHER_WINS_REP_FLOOR` above reads its floor off the
- * table rather than copying a number: a rung added to or removed from `pocket.forcesDecision`
- * moves this set automatically instead of silently going stale beside a hand-written copy.
- * `DEFAULT_TUNABLES` is the permitted surface ADR-012 item 3 names; this reads a value off it, the
- * same way `RUSHER_WINS_REP_FLOOR` and `RUSHER_WON_BANDS` already do — no resolver function
- * (`forcesDecision` itself, `packages/engine/src/resolve/pocket.ts`) is called or imported.
+ * Every value the fold reads off the tunables, derived once per `Tunables` (ADR-089 step 1, plan
+ * §7.2 item 5; critique-2 F6). These were module-level constants read off `DEFAULT_TUNABLES`; a
+ * `pocket-1` arm that patches a leaf (Heels, Past only, the hold, the horizons) must be folded by
+ * its OWN tables (K14), so `foldGame` takes the tunables and derives them per call, memoised by
+ * reference. `foldGame(acc, game)` with no tunables reads `DEFAULT_TUNABLES`, the same values as
+ * before, so a legacy caller's output is byte for byte today's.
+ *
+ *  - `forcesDecision`: BACKLOG DISPATCH C, disjunct (2) of the exit predicate — DERIVED from the
+ *    tunables, never restated as a literal, for the same reason `rusherWinsRepFloor` reads its floor
+ *    off the table rather than copying a number: a rung added to or removed from
+ *    `pocket.forcesDecision` moves this set automatically instead of silently going stale beside a
+ *    hand-written copy. `Tunables` is the permitted surface ADR-012 item 3 names; this reads a value
+ *    off it — no resolver function (`forcesDecision` itself, `packages/engine/src/resolve/pocket.ts`)
+ *    is called or imported.
+ *  - `severity`, `pressureSeverity`, `minimumStatusByBand`: the status ladder's order and the band
+ *    floors, read off `pocket.severity` and `pocket.minimumStatusByBand` rather than restated.
+ *  - `arrival`: the horizons of a threat's own arrival floor (`arrivalFloorOf`).
+ *  - `escapeCaughtBands`: the escape roll's bands that end in a sack (`scramble.bands`): its CAUGHT.
+ *  - `rusherWinsRepFloor`, `rusherWonBands`: see `recordRushRep`.
  */
-const FORCES_DECISION_STATUSES: ReadonlySet<string> = new Set(DEFAULT_TUNABLES.pocket.forcesDecision);
+interface FoldTables {
+  readonly forcesDecision: ReadonlySet<string>;
+  readonly severity: Readonly<Record<string, number>>;
+  readonly pressureSeverity: number;
+  readonly minimumStatusByBand: Readonly<Record<string, string>>;
+  readonly arrival: {
+    readonly immediateWithinSeconds: number;
+    readonly collapsingWithinSeconds: number;
+    readonly pressureWithinSeconds: number;
+  };
+  readonly escapeCaughtBands: ReadonlySet<string>;
+  readonly rusherWinsRepFloor: number;
+  readonly rusherWonBands: ReadonlySet<string>;
+}
+
+const FOLD_TABLES = new WeakMap<Tunables, FoldTables>();
+
+/** The fold's tables for one `Tunables`, derived on first use and memoised by reference. */
+function foldTablesOf(tunables: Tunables): FoldTables {
+  const known = FOLD_TABLES.get(tunables);
+  if (known !== undefined) return known;
+  const severity: Readonly<Record<string, number>> = tunables.pocket.severity;
+  const pressureSeverity = severity["PRESSURE"];
+  if (pressureSeverity === undefined) throw new Error("collect: pocket.severity has no PRESSURE rung");
+  const winsRep = tunables.passRush.bands.find((b) => b.label === "RUSHER_WINS_REP");
+  if (winsRep === undefined) throw new Error("collect: passRush.bands has no RUSHER_WINS_REP row");
+  const rusherWinsRepFloor = winsRep.minMargin;
+  const a = tunables.arrival;
+  const tables: FoldTables = {
+    forcesDecision: new Set<string>(tunables.pocket.forcesDecision),
+    severity,
+    pressureSeverity,
+    minimumStatusByBand: tunables.pocket.minimumStatusByBand,
+    arrival: {
+      immediateWithinSeconds: a.immediateWithinSeconds,
+      collapsingWithinSeconds: a.collapsingWithinSeconds,
+      pressureWithinSeconds: a.pressureWithinSeconds,
+    },
+    escapeCaughtBands: new Set(tunables.scramble.bands.filter((b) => b.sacked).map((b) => b.label)),
+    rusherWinsRepFloor,
+    // The band labels at or above that floor — DERIVED from the table, never listed.
+    rusherWonBands: new Set(tunables.passRush.bands.filter((b) => b.minMargin >= rusherWinsRepFloor).map((b) => b.label)),
+  };
+  FOLD_TABLES.set(tunables, tables);
+  return tables;
+}
 
 /**
  * `PLAY_START.payload` is `unknown` in contracts — a deliberately open slot the engine fills
@@ -949,26 +1010,21 @@ function blankPocketPlay(period: number, clockSeconds: number): PocketPlayState 
   };
 }
 
-/** The status ladder's order, read off `DEFAULT_TUNABLES.pocket.severity` rather than restated. */
-const SEVERITY: Readonly<Record<string, number>> = DEFAULT_TUNABLES.pocket.severity;
-const PRESSURE_SEVERITY: number = SEVERITY["PRESSURE"]!;
-const MINIMUM_STATUS_BY_BAND: Readonly<Record<string, string>> = DEFAULT_TUNABLES.pocket.minimumStatusByBand;
-
 /**
  * A threat's own arrival floor, `pocketFloorFromArrival` (`resolve/rushThreat.ts:812`) restated
- * from `DEFAULT_TUNABLES.arrival`'s horizons (a permitted read, ADR-012 item 3), on the same
+ * from the tunables' `arrival` horizons (a permitted read, ADR-012 item 3), on the same
  * tenth-rounded time-to-arrival the engine reads (`timeToArrival`, `:690`).
  */
-function arrivalFloorOf(etaTick: number, tick: number): string {
+function arrivalFloorOf(tb: FoldTables, etaTick: number, tick: number): string {
   const tta = Number((etaTick - tick).toFixed(1));
-  const a = DEFAULT_TUNABLES.arrival;
+  const a = tb.arrival;
   if (tta <= a.immediateWithinSeconds) return "IMMEDIATE";
   if (tta <= a.collapsingWithinSeconds) return "COLLAPSING";
   if (tta <= a.pressureWithinSeconds) return "PRESSURE";
   return "CLEAN";
 }
 
-const severityOf = (status: string): number => SEVERITY[status] ?? 0;
+const severityOf = (tb: FoldTables, status: string): number => tb.severity[status] ?? 0;
 const isLiveThreat = (t: PocketThreat): boolean => t.state !== "RESET";
 
 /**
@@ -977,11 +1033,6 @@ const isLiveThreat = (t: PocketThreat): boolean => t.state !== "RESET";
  * 27,720 is the least common multiple of 1 to 12: a split among up to twelve causes is exact.
  */
 export const CAUSE_SPLIT_UNITS = 27_720;
-
-/** The escape roll's bands that end in a sack (`DEFAULT_TUNABLES.scramble.bands`): its CAUGHT. */
-const ESCAPE_CAUGHT_BANDS: ReadonlySet<string> = new Set(
-  DEFAULT_TUNABLES.scramble.bands.filter((b) => b.sacked).map((b) => b.label),
-);
 
 /** D19 (ADR-089:385): completely unblocked, or a looper nobody touched. */
 function onFreeRunClock(origin: string, band: string | undefined): boolean {
@@ -1000,21 +1051,21 @@ function onFreeRunClock(origin: string, band: string | undefined): boolean {
  * is `PRESSURE_ORIGINS`': WON_REP; FREE_RUNNER for every other origin; COUNTER for the band floor
  * and the counter together (`TM`'s type (d), "no real state").
  */
-function causesOf(pk: PocketPlayState, status: string, tick: number): { origin: Record<string, number>; cause: Record<string, number> } {
-  const need = severityOf(status);
+function causesOf(pk: PocketPlayState, status: string, tick: number, tb: FoldTables): { origin: Record<string, number>; cause: Record<string, number> } {
+  const need = severityOf(tb, status);
   const found: { cause: string; origin: string }[] = [];
   const rushers = new Set<string>([...pk.threats.keys(), ...pk.lastBands.keys()]);
   for (const rusher of rushers) {
     const threat = pk.threats.get(rusher);
     const live = threat !== undefined && isLiveThreat(threat);
-    if (live && severityOf(arrivalFloorOf(threat.etaTick, tick)) >= need) {
+    if (live && severityOf(tb, arrivalFloorOf(tb, threat.etaTick, tick)) >= need) {
       found.push({ cause: threat.origin, origin: threat.origin === "WON_REP" ? "WON_REP" : "FREE_RUNNER" });
       continue;
     }
     const band = pk.lastBands.get(rusher);
-    if (band === undefined || (live && RUSHER_WON_BANDS.has(band))) continue;
-    const floor = MINIMUM_STATUS_BY_BAND[band];
-    if (floor !== undefined && severityOf(floor) >= need) found.push({ cause: "BAND", origin: "COUNTER" });
+    if (band === undefined || (live && tb.rusherWonBands.has(band))) continue;
+    const floor = tb.minimumStatusByBand[band];
+    if (floor !== undefined && severityOf(tb, floor) >= need) found.push({ cause: "BAND", origin: "COUNTER" });
   }
   if (found.length === 0) found.push({ cause: "COUNTER", origin: "COUNTER" });
   const share = CAUSE_SPLIT_UNITS / found.length;
@@ -1074,8 +1125,8 @@ function rushThreatSeen(pk: PocketPlayState, t: RushThreatPayload, tick: number)
 }
 
 /** A POCKET_STATUS, into the pocket rows' per-play state. Published only while he holds the ball in the pocket. */
-function pocketStatusSeen(pk: PocketPlayState, status: string, tick: number): void {
-  const severity = severityOf(status);
+function pocketStatusSeen(pk: PocketPlayState, status: string, tick: number, tb: FoldTables): void {
+  const severity = severityOf(tb, status);
   if (severity > pk.worstSeverity) {
     pk.worstSeverity = severity;
     pk.worstStatus = status;
@@ -1084,7 +1135,7 @@ function pocketStatusSeen(pk: PocketPlayState, status: string, tick: number): vo
   pk.lastStatusTick = tick;
   if (!pk.released) {
     for (const [rusher, t] of pk.threats) {
-      if (t.freeRun && isLiveThreat(t) && severityOf(arrivalFloorOf(t.etaTick, tick)) >= PRESSURE_SEVERITY) {
+      if (t.freeRun && isLiveThreat(t) && severityOf(tb, arrivalFloorOf(tb, t.etaTick, tick)) >= tb.pressureSeverity) {
         pk.freeRunPressured.add(rusher);
       }
     }
@@ -1100,21 +1151,21 @@ function pocketStatusSeen(pk: PocketPlayState, status: string, tick: number): vo
     }
   } else if (pk.firstPressure === null) {
     pk.firstPressure = tick;
-    const causes = causesOf(pk, status, tick);
+    const causes = causesOf(pk, status, tick, tb);
     pk.firstOrigin = causes.origin;
     pk.firstCause = causes.cause;
   }
-  if (pk.firstForcing === null && FORCES_DECISION_STATUSES.has(status)) pk.firstForcing = tick;
+  if (pk.firstForcing === null && tb.forcesDecision.has(status)) pk.firstForcing = tick;
 }
 
 /** A CHECK, into the pocket rows' per-play state: rush bands, pickup and stunt bands, the escape's CAUGHT. */
-function pocketCheckSeen(pk: PocketPlayState, c: CheckPayload): void {
+function pocketCheckSeen(pk: PocketPlayState, c: CheckPayload, tb: FoldTables): void {
   if (c.checkKind === "pass_rush_tick") {
     const rusher = c.actors[0];
     if (rusher !== undefined && c.band !== undefined) pk.lastBands.set(String(rusher), c.band);
   } else if (c.checkKind === "blitz_pickup" || c.checkKind === "stunt_communication") {
     pk.checkBands.set(c.roll.rngLabel, c.band);
-  } else if (c.checkKind === "scramble" && c.band !== undefined && ESCAPE_CAUGHT_BANDS.has(c.band) && !pk.released) {
+  } else if (c.checkKind === "scramble" && c.band !== undefined && tb.escapeCaughtBands.has(c.band) && !pk.released) {
     if (pk.escaped) pk.contactOut = true;
     else pk.contactIn = true;
   }
@@ -1364,8 +1415,14 @@ function blankPlay(): PlayState {
 /**
  * Fold one game into the accumulator. Mutates `acc` — it is a private working value owned by one
  * worker and never shared — and returns it for chaining.
+ *
+ * `tunables` are the tunables the game was PLAYED with (ADR-089 step 1, K14): the fold reads its
+ * status ladder, band floors, arrival horizons, escape bands and won-rep floor off them
+ * (`FoldTables`). A legacy caller passes nothing and folds with `DEFAULT_TUNABLES`, exactly as
+ * before; a `pocket-1` arm passes its own bundle.
  */
-export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccumulator {
+export function foldGame(acc: SimAccumulator, game: SimGameObservation, tunables: Tunables = DEFAULT_TUNABLES): SimAccumulator {
+  const tb = foldTablesOf(tunables);
   acc.games++;
   acc.seeds.push(game.seed);
 
@@ -1579,14 +1636,14 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
       case "POCKET_STATUS":
         if (current !== null && current.isPass) {
           if (event.payload.status !== "CLEAN") current.pressured = true;
-          // Backlog dispatch C, disjunct (2): DERIVED off DEFAULT_TUNABLES.pocket.forcesDecision
-          // (FORCES_DECISION_STATUSES above), not restated.
-          if (FORCES_DECISION_STATUSES.has(event.payload.status)) current.forcedDecision = true;
+          // Backlog dispatch C, disjunct (2): DERIVED off the tunables' pocket.forcesDecision
+          // (`FoldTables.forcesDecision` above), not restated.
+          if (tb.forcesDecision.has(event.payload.status)) current.forcedDecision = true;
           // Tallied per TICK, immediately, not deferred to `flush()`: unlike `pressured` (a
           // per-DROPBACK worst-status flag), the severity partition is a per-TICK count and needs
           // no play-level reduction — see the `pocketStatusTicks` field comment.
           bumpKey(p.pocketStatusTicks, event.payload.status);
-          pocketStatusSeen(current.pk, event.payload.status, tick);
+          pocketStatusSeen(current.pk, event.payload.status, tick, tb);
         }
         break;
       case "RUSH_THREAT":
@@ -1610,7 +1667,7 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
           const pk = current.pk;
           const releaseSeconds = (event.payload as { readonly releaseSeconds?: unknown }).releaseSeconds;
           if (typeof releaseSeconds === "number") pk.releaseSeconds = releaseSeconds;
-          pk.forcedAtRelease = pk.lastStatusTick === tick && pk.lastStatus !== null && FORCES_DECISION_STATUSES.has(pk.lastStatus);
+          pk.forcedAtRelease = pk.lastStatusTick === tick && pk.lastStatus !== null && tb.forcesDecision.has(pk.lastStatus);
           if (pk.escaped) pk.threwAfterEscape = true;
           pk.released = true;
           // Entry 94's historical note: `throwType` here is drawn from `selectThrowType`
@@ -1667,9 +1724,9 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
         break;
       case "CHECK":
         if (event.payload.checkKind === "pass_rush_tick") {
-          recordRushRep(acc.player, event.payload.actors, event.payload.band, event.payload.margin);
+          recordRushRep(acc.player, event.payload.actors, event.payload.band, event.payload.margin, tb);
         }
-        if (current !== null) pocketCheckSeen(current.pk, event.payload);
+        if (current !== null) pocketCheckSeen(current.pk, event.payload, tb);
         break;
       case "QB_PURSUIT":
         // ADR-089 step 0: an escape began (one publication per escape, ADR-054).
@@ -1814,29 +1871,19 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
  *
  * `actors` is `[rusher, blocker]` by the engine's own ordering convention on this check.
  */
-const RUSHER_WINS_REP_FLOOR: number = ((): number => {
-  const row = DEFAULT_TUNABLES.passRush.bands.find((b) => b.label === "RUSHER_WINS_REP");
-  if (row === undefined) throw new Error("collect: passRush.bands has no RUSHER_WINS_REP row");
-  return row.minMargin;
-})();
-
-/** The band labels at or above that floor — DERIVED from the table, never listed. */
-const RUSHER_WON_BANDS: ReadonlySet<string> = new Set(
-  DEFAULT_TUNABLES.passRush.bands.filter((b) => b.minMargin >= RUSHER_WINS_REP_FLOOR).map((b) => b.label),
-);
-
 function recordRushRep(
   fold: PlayerFold,
   actors: readonly PlayerId[],
   band: string | undefined,
   margin: number,
+  tb: FoldTables,
 ): void {
   const rusher = actors[0];
   const blocker = actors[1];
   if (rusher === undefined) return;
   // ADR-011: prefer the PUBLISHED band. `band` is optional on the payload, so the fallback reads
   // the same table's floor off the same margin — one source, two paths to it.
-  const rusherWon = band === undefined ? margin >= RUSHER_WINS_REP_FLOOR : RUSHER_WON_BANDS.has(band);
+  const rusherWon = band === undefined ? margin >= tb.rusherWinsRepFloor : tb.rusherWonBands.has(band);
   const rusherKey = String(rusher);
   const r = fold.rushReps[rusherKey] ?? { wins: 0, reps: 0 };
   r.reps++;

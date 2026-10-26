@@ -1,5 +1,5 @@
 /**
- * `pnpm --filter @ff/calibration season -- --seed <seed> [--season 2027] [--caller v5] [--out <file>]`
+ * `pnpm --filter @ff/calibration season -- --seed <seed> [--season 2027] [--caller v5] [--engine-rules <name>] [--out <file>]`
  *   `[--rosters generated|flat|standin] [--league <file>] [--team-sd <n>] [--stop-after <week> | playoffs:<week>] [--save <file>]`
  * `pnpm --filter @ff/calibration season -- --load <file> [--caller v5] [--stop-after …] [--save <file>]`
  *
@@ -13,9 +13,11 @@
  * (E1): `--load` carries on with that version, and refuses a different `--caller` unless
  * `--switch-caller` is given.
  *
- * Engine rules (ADR-089 §9, petition P1): a save also records the engine rules bundle that played it
- * when it is not `legacy`; `--load` carries on under the save's rules (none recorded: `legacy`) and
- * refuses rules this version does not have. This version has `legacy` only. `--out` records the
+ * Engine rules (ADR-089 §9, petition P1): `--engine-rules <name>` plays a new league under that rules
+ * bundle (`legacy`, the default, or `pocket-1.s1`, step 1's design bundle). A save also records the
+ * rules that played it when they are not `legacy`, as `<name>@<overlay digest>` (K18 (a)); `--load`
+ * carries on under the save's rules (none recorded: `legacy`), refuses rules this version cannot
+ * play as written, and refuses a `--engine-rules` that differs from the save's. `--out` records the
  * caller and the rules that played (`src/season/stamp.ts`).
  *
  * News (ADR-082 R2): each week's top headlines print as the season plays, as the news command
@@ -52,7 +54,7 @@ import { createNewsDesk, formatEdition } from "@ff/narrative";
 import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
 import { runRealSeason, type SeasonRosters } from "./realSeason.js";
 import { readStandInFile } from "./standInLeague.js";
-import { engineRulesDigestOf, playedUnder } from "../pocket/rules.js";
+import { checkStamp, engineRulesDigestOf, LEGACY_RULES, rulesTunables } from "../pocket/rules.js";
 import { savePlayedWith, seasonOutStamp, seasonRules } from "./stamp.js";
 
 function parse(argv: readonly string[]) {
@@ -69,6 +71,7 @@ function parse(argv: readonly string[]) {
   let leagueFile: string | undefined;
   let development = false;
   let injuries = false;
+  let engineRules: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const next = (): string => {
@@ -86,6 +89,7 @@ function parse(argv: readonly string[]) {
     else if (arg === "--switch-caller") switchCaller = true;
     else if (arg === "--development") development = true;
     else if (arg === "--injuries") injuries = true;
+    else if (arg === "--engine-rules") engineRules = next();
     else if (arg === "--rosters") {
       const v = next();
       if (v !== "generated" && v !== "flat" && v !== "standin") throw new SyntaxError("--rosters must be generated, flat or standin");
@@ -118,7 +122,7 @@ function parse(argv: readonly string[]) {
   if ((development || injuries) && rosters === "flat") throw new SyntaxError("--development and --injuries need squads; --rosters flat has none");
   // ADR-087 §2.5: stand-ins get their growth rates and bodies with the importer's next step; until then none of them would change.
   if (development && rosters === "standin") throw new SyntaxError("the stand-in league's players have no growth records yet (ADR-087 §2.5); drop --development (--injuries works)");
-  return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd, leagueFile, development, injuries };
+  return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd, leagueFile, development, injuries, engineRules };
 }
 
 function stopDay(text: string, season: number): CalendarStamp {
@@ -147,8 +151,10 @@ if (savedCaller !== undefined && args.callerVersion !== undefined && args.caller
   throw new Error(`This save was played with caller ${savedCaller}; carrying on with ${args.callerVersion} needs --switch-caller`);
 }
 const callerVersion: CallerVersion = args.callerVersion ?? (savedCaller as CallerVersion | undefined) ?? DEFAULT_CALLER_VERSION;
-// ADR-089 P1: a save carries on under its own rules (absent: legacy); `playedUnder` holds them to legacy (K4).
-const engineRules = playedUnder(seasonRules(loaded?.save));
+// ADR-089 P1, K18: a new league plays the rules it names (default legacy); a save carries on under its
+// own (absent: legacy), and a different --engine-rules is refused. Checked before any game (S1).
+const engineRules = seasonRules(loaded?.save, args.engineRules);
+const gameTunables = checkStamp(rulesTunables(engineRules), engineRules, "season");
 const rosters: SeasonRosters = loaded
   ? (loaded.league.teams.some((t) => t.roster.length > 0) ? "generated" : "flat")
   : (args.rosters ?? "generated");
@@ -182,6 +188,8 @@ const { league, rated, run } = runRealSeason({
   ...(args.stopAfter ? { stopAfter: stopDay(args.stopAfter, season) } : {}),
   ...(players ? { players, ...(staff ? { staff: staff.world.staff } : {}) } : {}),
   ...(players && loaded?.development ? { resume: { people: loaded.development.people, events: loaded.development.events, through: loaded.save.calendar } } : {}),
+  // A legacy season passes nothing, as before; any other plays its bundle in every game.
+  ...(engineRules === LEGACY_RULES ? {} : { game: { tunables: gameTunables } }),
   onEvent: (envelope, schedule) => {
     if (isTruthLayerEvent(envelope.event)) return; // true ratings never reach the news (ADR-087 §7)
     desk ??= createNewsDesk({ seed, structure: base.structure, teams: base.teams, schedule });

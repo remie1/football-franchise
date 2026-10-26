@@ -27,6 +27,7 @@ import {
   LADDER_READERS_WITHOUT_SCALE,
   LEVELS,
   canonicalOccupancies,
+  emptyLadderSkipped,
   foldLadder,
   ladderOrder,
   ladderTiers,
@@ -254,10 +255,12 @@ describe("result-tier ladder — occupancy", () => {
   });
 
   it("records the ladder readers the scale surface cannot describe", () => {
-    // Both emit CHECKs through `game/specialTeams.ts`'s `distanceCheck`, which calls `tierFor`, and
-    // both are pinned UNIMPLEMENTED by `scaleSurface.test.ts`. That pin is about SCALE, not about
-    // producers, and the difference matters the moment anyone censuses tiers.
-    expect([...LADDER_READERS_WITHOUT_SCALE].sort()).toEqual(["kick_return", "punt"]);
+    // `punt` and `kick_return` emit CHECKs through `game/specialTeams.ts`'s `distanceCheck`, which
+    // calls `tierFor`, and both are pinned UNIMPLEMENTED by `scaleSurface.test.ts`. That pin is about
+    // SCALE, not about producers, and the difference matters the moment anyone censuses tiers.
+    // ADR-089 P2 adds `pass_rush_beat` (shape S's breaking-time draw: its tier copies the rep's,
+    // and SURFACE pins it UNIMPLEMENTED, "a uniform with no terms"); step 1's plan §7.2 item 6.
+    expect([...LADDER_READERS_WITHOUT_SCALE].sort()).toEqual(["kick_return", "pass_rush_beat", "punt"]);
   });
 
   it("prints the reports", () => {
@@ -311,5 +314,47 @@ describe("ADR-089 P3: foldLadder and a CHECK with no die", () => {
 
   it("refuses any other kind of CHECK with no roll", () => {
     expect(() => foldLadder([dieless("blitz_pickup")])).toThrow(/a blitz_pickup CHECK without a roll/);
+  });
+});
+
+// ADR-089 P2 (step 1's plan §7.2 item 6): shape S's `pass_rush_beat` CHECK carries one uniform U in
+// (0, 1] (`die: "uniform"`), not a die face. `foldLadder` gives it no cell (its `raw` is not an
+// integer, so the shift identity would make one cell per beat), skips it and counts it apart.
+describe("ADR-089 P2: foldLadder and a uniform roll", () => {
+  const AT = { season: 2024, phase: "REGULAR_SEASON", week: 1, day: 1 } as const;
+  const check = (payload: Record<string, unknown>): MatchEventEnvelope => ({ seq: 0, at: AT, event: { gameId: "g", playId: "g:p1", type: "CHECK", payload } as never });
+  const d100 = (raw: number, rngLabel: string) => ({ die: "d100", raw, modifiers: [], total: raw, rngLabel });
+  const uniform = (raw: number) => ({ die: "uniform", raw, modifiers: [], total: raw, rngLabel: "beat/a:u" });
+  const rolledRep = check({ checkKind: "pass_rush_rep", actors: [], roll: d100(70, "rep/a:jitter"), opposedRoll: d100(50, "rep/b:jitter"), tier: "MODERATE_SUCCESS", band: "RUSHER_WINS_REP", margin: 20, testsAttrs: [] });
+  const beat = (checkKind = "pass_rush_beat") => check({ checkKind, actors: [], roll: uniform(0.4137), tier: "MODERATE_SUCCESS", band: "RUSHER_WINS_REP", margin: 20, testsAttrs: [], rollRef: "rep" });
+
+  it("skips a pass_rush_beat and counts it apart: the cells are the rolled stream's", () => {
+    const rolled = foldLadder([rolledRep]);
+    expect(rolled.size).toBe(1);
+    const skipped = emptyLadderSkipped();
+    expect(foldLadder([beat(), rolledRep, beat()], undefined, skipped)).toEqual(rolled);
+    expect(skipped).toEqual({ uniformRolls: 2 });
+  });
+
+  it("counts into the same tally across calls, and needs none", () => {
+    const skipped = emptyLadderSkipped();
+    const cells = foldLadder([beat()], undefined, skipped);
+    foldLadder([beat(), rolledRep], cells, skipped);
+    expect(skipped.uniformRolls).toBe(2);
+    expect(cells).toEqual(foldLadder([rolledRep]));
+    expect(foldLadder([beat()]).size).toBe(0);
+  });
+
+  it("a legacy stream counts no uniform rolls", () => {
+    const skipped = emptyLadderSkipped();
+    foldLadder([rolledRep, rolledRep], undefined, skipped);
+    expect(skipped).toEqual({ uniformRolls: 0 });
+  });
+
+  it("refuses a uniform roll on any other kind", () => {
+    const skipped = emptyLadderSkipped();
+    expect(() => foldLadder([beat("pass_rush_rep")], undefined, skipped)).toThrow("a pass_rush_rep CHECK with a uniform roll");
+    expect(() => foldLadder([beat("pass_rush_tick")])).toThrow("a pass_rush_tick CHECK with a uniform roll");
+    expect(skipped.uniformRolls).toBe(0);
   });
 });

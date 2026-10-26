@@ -7,7 +7,8 @@
  * to replay it — the event stream, the names behind the ids, and the engine's own statlines.
  *
  * It only READS the sim. No tunable, caller default or seed path is touched, so nothing a
- * measurement arm reports can move because this file exists.
+ * measurement arm reports can move because this file exists. (ADR-089 §9: a named rules bundle is
+ * played with its own tunables, `rulesTunables`; only the design bundle can be named, never an arm.)
  *
  * The file's shape is mirrored, by hand, in `apps/game/src/gameFile.ts`. It is not a contract
  * type (yet): if a second consumer appears, it is a petition to move it into `@ff/contracts`.
@@ -20,7 +21,7 @@ import { runOneGame } from "../harness/runGame.js";
 import { buildFixture, buildFixtures } from "../harness/schedule.js";
 import { buildFlatLeague } from "../league/flat.js";
 import { indexLeague } from "../league/snapshot.js";
-import { engineRulesDigestOf, engineRulesNamed, playedUnder, rulesStampAlways } from "../pocket/rules.js";
+import { checkStamp, engineRulesDigestOf, engineRulesNamed, LEGACY_RULES, rulesStampAlways, rulesTunables } from "../pocket/rules.js";
 
 export const GAME_FILE_FORMAT = "ff-game/1";
 
@@ -51,7 +52,8 @@ export interface GameFile {
   /**
    * The engine rules bundle that played (ADR-089 §9), resolved like `callerVersion`: an export that
    * names none records `DEFAULT_ENGINE_RULES` as it stood (`legacy` until step 11's flip), never the
-   * word "default". Always written (plan O11), so the file says what played after the default moves.
+   * word "default". Always written (plan O11), so the file says what played after the default moves;
+   * `exportGame({ seed, callerVersion, engineRules })` read back off the file re-makes it.
    */
   readonly engineRules: string;
   /** The rules bundle's overlay digest (ADR-089 §9); only when the rules are not `legacy`. */
@@ -66,14 +68,19 @@ export interface GameFile {
 export interface ExportGameInput {
   readonly seed: string;
   readonly callerVersion?: CallerVersion;
-  /** ADR-089 §9: absent is `DEFAULT_ENGINE_RULES`; a name this build does not have is refused. */
+  /**
+   * ADR-089 §9: absent is `DEFAULT_ENGINE_RULES`; a name this build does not have is refused. A
+   * non-legacy name plays its design bundle (`rulesTunables`, O26): an export names rules, never an
+   * arm's dials.
+   */
   readonly engineRules?: string;
 }
 
 export function exportGame(input: ExportGameInput): GameFile {
   if (input.seed.trim().length === 0) throw new Error("a game needs a seed");
-  // Resolved as the caller is, before the game is played; `playedUnder` holds it to `legacy` (K4).
-  const engineRules = playedUnder(engineRulesNamed(input.engineRules, "exportGame"));
+  // Resolved as the caller is, before the game is played, and its bundle checked (S1).
+  const engineRules = engineRulesNamed(input.engineRules, "exportGame");
+  const tunables = checkStamp(rulesTunables(engineRules), engineRules, "exportGame");
   const index = indexLeague(buildFlatLeague({ teams: 2 }));
   const [homeId, awayId] = index.teamIds();
   const [fixture] = buildFixtures(index, {
@@ -93,6 +100,8 @@ export function exportGame(input: ExportGameInput): GameFile {
     tendencies: FROZEN_TENDENCIES,
     fourthDown: FROZEN_FOURTH_DOWN,
     callerVersion,
+    // A legacy export passes no tunables, as before; any other plays its bundle.
+    ...(engineRules === LEGACY_RULES ? {} : { tunables }),
   });
 
   const teamOf = (id: string): GameFileTeam => {
