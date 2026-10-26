@@ -78,6 +78,7 @@ import {
   type Step1Outcome,
   type Step1PricingRow,
   type Step1Sections,
+  type Step1ProofVerdict,
   type Step1Structural,
   type Step1WindowPrice,
   type StepReportInput,
@@ -529,7 +530,10 @@ type FigureKey = keyof Step1Figures;
 
 /** What each graded or reported step-1 clause reads: arm, leagues and figure (or a difference). */
 interface ClauseRead {
+  /** The arms whose figures are printed, one value per arm and league. */
   readonly arms: readonly ArmId[];
+  /** Every arm the value reads, when more than `arms` (a difference); the clause is NOT PLAYED without one (review M5). */
+  readonly needs?: readonly ArmId[];
   readonly leagues: readonly League[];
   readonly value: (records: ArmRecords, arm: ArmId, league: League) => number | null;
   readonly unit: string;
@@ -548,6 +552,7 @@ function clauseRead(id: string): ClauseRead | undefined {
     const key = w[1] as FigureKey;
     return {
       arms: ["A1"],
+      needs: ["A1", "A2"],
       leagues: both,
       value: (records, _arm, league) => {
         const a = figuresOf(records.get("A1"), league)[key];
@@ -571,6 +576,9 @@ function clauseRead(id: string): ClauseRead | undefined {
   }
 }
 
+/** The seed set step 0's base rows (`file.base.rows`) were measured on. */
+export const FILED_BASE_SEED_SET: SeedSet = 1;
+
 /** The structural proofs the arms' folds carry, and the OFF arm's check (§9.2). */
 export function structuralProofs(records: ArmRecords, file: FiledFile): readonly Step1Structural[] {
   const out: Step1Structural[] = [];
@@ -586,10 +594,12 @@ export function structuralProofs(records: ArmRecords, file: FiledFile): readonly
   const offPlayed = sum(windowOff, (s) => s.windowTicks.played.gaining + s.windowTicks.played.beaten);
   const reps = sum(windowOn, (s) => s.windowTicks.reps);
   const cases = (k: "two" | "one" | "none"): number => sum(windowOn, (s) => s.windowTicks.cases[k]);
+  // No arm with the window present (a partial run, a re-play): the proof's arm did not play, so it
+  // is NOT APPLICABLE, unless an arm without the window played a window tick (review M1, M5).
   out.push({
     id: "s1.window.ticks",
     what: "S-2, the window's ticks on every 1-14 POWER rep",
-    passes: windowOn.length > 0 && wFail.length === 0 && offPlayed === 0 && reps > 0,
+    verdict: wFail.length > 0 || offPlayed > 0 ? "FAIL" : windowOn.length === 0 ? "NOT APPLICABLE" : reps > 0 ? "PASS" : "FAIL",
     detail:
       `${windowOn.join(", ") || "no arm with the window"}: ${String(reps)} reps, cases two ${String(cases("two"))}, one ${String(cases("one"))}, none ${String(cases("none"))}, ` +
       `window ticks played ${String(sum(windowOn, (s) => s.windowTicks.played.gaining))} gaining and ${String(sum(windowOn, (s) => s.windowTicks.played.beaten))} beaten; ` +
@@ -601,7 +611,7 @@ export function structuralProofs(records: ArmRecords, file: FiledFile): readonly
   out.push({
     id: "s1.window.noDie",
     what: "S-3, the window draws no die (the stream half; the paired-run test is the engine's rollAccounting)",
-    passes: noDie.length === 0,
+    verdict: noDie.length === 0 ? "PASS" : "FAIL",
     detail: `rolls naming the window: ${String(sum(present, (s) => s.beats.windowLabels))} in every arm; jitter rolls under S: ${String(sum(sArms, (s) => s.beats.jitterRolls))}; uniform rolls ${String(sum(sArms, (s) => s.beats.uniformRolls))} = beats ${String(sum(sArms, (s) => s.beats.beats))}`,
   });
 
@@ -610,7 +620,7 @@ export function structuralProofs(records: ArmRecords, file: FiledFile): readonly
   out.push({
     id: "s1.falsifier.lToday",
     what: "S-5, L equals today from t >= R (here R = 5, in every L5 arm; R = 4, 5, 6 on the golden 50 is FF_POCKET_ON=1 pocketStep1Stream)",
-    passes: lArms.length > 0 && lFail.length === 0 && sum(lArms, (s) => s.lToday.ticksAtOrAfterR) > 0,
+    verdict: lArms.length === 0 ? "NOT APPLICABLE" : lFail.length === 0 && sum(lArms, (s) => s.lToday.ticksAtOrAfterR) > 0 ? "PASS" : "FAIL",
     detail: `${lArms.join(", ") || "no L arm with R <= 6"}: ${String(sum(lArms, (s) => s.lToday.ticksAtOrAfterR))} ticks at t >= R checked field for field; failures ${lFail.length === 0 ? "none" : lFail.join(", ")}`,
   });
 
@@ -620,20 +630,27 @@ export function structuralProofs(records: ArmRecords, file: FiledFile): readonly
     ["S-8", "the published approach equals the derivation on every threat", (s: S1Folds) => s.approach.problemCount, (s: S1Folds) => s.approach.threats],
   ] as const) {
     const fl = failures(present, f);
-    out.push({ id, what, passes: fl.length === 0, detail: `${String(sum(present, n))} cases over ${String(present.length)} arms and both leagues; failures ${fl.length === 0 ? "none" : fl.join(", ")}` });
+    out.push({ id, what, verdict: fl.length === 0 ? "PASS" : "FAIL", detail: `${String(sum(present, n))} cases over ${String(present.length)} arms and both leagues; failures ${fl.length === 0 ? "none" : fl.join(", ")}` });
   }
 
   const a0 = records.get("A0");
   if (a0 !== undefined) {
     const limited = a0.stamp.corpus.flatFirst !== null || a0.stamp.corpus.genThroughWeek !== null;
+    // Step 0's base rows were measured on seed set 1: A0 re-played on another set cannot equal them (review M1).
+    const otherSet = a0.stamp.seedSet !== FILED_BASE_SEED_SET;
     const filed = file.base.rows as unknown as Record<string, JsonValue>;
     const got = a0.baseRows ?? {};
     const differ = Object.keys(filed).filter((k) => stableDigest(filed[k] ?? null) !== stableDigest((got as Record<string, JsonValue>)[k] ?? null));
+    const verdict: Step1ProofVerdict = limited || otherSet ? "NOT CHECKED" : differ.length === 0 ? "PASS" : "FAIL";
     out.push({
       id: "s1.falsifier.offBytes",
       what: "the OFF arm A0 reproduces step 0's filed base rows (the OFF proof proper is P-1 to P-15, outside this run)",
-      passes: limited || differ.length === 0,
-      detail: limited ? "NOT CHECKED: A0 played a cut corpus (tests only)" : `${String(Object.keys(filed).length - differ.length)} of ${String(Object.keys(filed).length)} filed base rows equal on both leagues${differ.length === 0 ? "" : `; differing: ${differ.join(", ")}`}`,
+      verdict,
+      detail: limited
+        ? "NOT CHECKED: A0 played a cut corpus (tests only)"
+        : otherSet
+          ? `NOT CHECKED: A0 played seed set ${String(a0.stamp.seedSet)}; the filed base rows are seed set ${String(FILED_BASE_SEED_SET)}'s (step 0's base)`
+          : `${String(Object.keys(filed).length - differ.length)} of ${String(Object.keys(filed).length)} filed base rows equal on both leagues${differ.length === 0 ? "" : `; differing: ${differ.join(", ")}`}`,
     });
   }
   return out;
@@ -702,7 +719,7 @@ export function gradeStep1(records: ArmRecords, file: FiledFile, replaySeedSet?:
     if (c.kind === "structural") {
       const p = proofById.get(c.id);
       if (p !== undefined) {
-        clauses.push({ id: c.id, kind: c.kind, arms: [], filed, values: [p.detail], verdict: p.passes ? "PASS" : "FAIL" });
+        clauses.push({ id: c.id, kind: c.kind, arms: [], filed, values: [p.detail], verdict: p.verdict });
       } else if (c.step === "guard") {
         const every = ARM_IDS.filter((id) => records.has(id));
         clauses.push({ id: c.id, kind: c.kind, arms: every, filed, values: [c.id === "guard.removedClass" ? "printed with its count and interceptions in each group report (REMOVED lines)" : "printed for every arm on both leagues in the group reports"], verdict: every.length > 0 ? "PASS" : "NOT PLAYED" });
@@ -714,7 +731,7 @@ export function gradeStep1(records: ArmRecords, file: FiledFile, replaySeedSet?:
     const read = clauseRead(c.id);
     if (read === undefined) continue;
     const values: string[] = [];
-    let missing = false;
+    let missing = (read.needs ?? []).some((arm) => !records.has(arm));
     let ok = true;
     for (const arm of read.arms) {
       for (const league of read.leagues) {
@@ -739,9 +756,10 @@ export function gradeStep1(records: ArmRecords, file: FiledFile, replaySeedSet?:
     }
     if (c.id.startsWith("s1.window.")) extra = `B1 is gen seed set 1's (deviation O1); flat's own is printed with the window's price`;
     if (missing && verdict !== "NOT PLAYED") verdict = "NOT PLAYED";
-    clauses.push({ id: c.id, kind: c.kind, arms: [...read.arms], filed, values, verdict, ...(extra === undefined ? {} : { note: extra }) });
+    clauses.push({ id: c.id, kind: c.kind, arms: [...(read.needs ?? read.arms)], filed, values, verdict, ...(extra === undefined ? {} : { note: extra }) });
     const key = figureOf(c.id);
-    if (key !== undefined && !c.id.startsWith("s1.window.")) {
+    // The headline notes a clause's per-arm verdict only when the clause was fully played (review M5).
+    if (key !== undefined && !missing && !c.id.startsWith("s1.window.")) {
       for (const arm of read.arms) for (const league of read.leagues) {
         const short = c.id.replace(/^s1\./, "");
         note(arm, league, key, `${short} ${filed}: ${c.kind === "graded" ? (inBand(read.value(records, arm, league), c) ? "PASS" : "FAIL") : "reported"}`);
@@ -839,7 +857,7 @@ export function gradeStep1(records: ArmRecords, file: FiledFile, replaySeedSet?:
   }
 
   const structuralFailures = [
-    ...structural.filter((p) => !p.passes).map((p) => `${p.id}: ${p.detail}`),
+    ...structural.filter((p) => p.verdict === "FAIL").map((p) => `${p.id}: ${p.detail}`),
     ...clauses.filter((c) => c.kind === "structural" && c.verdict === "FAIL" && !proofById.has(c.id)).map((c) => c.id),
   ];
   const gradedFailures = clauses.filter((c) => c.kind === "graded" && c.verdict === "FAIL" && !c.id.startsWith("guard.")).map((c) => `${c.id} (${c.filed}): ${c.values.join("; ")}`);
@@ -848,6 +866,11 @@ export function gradeStep1(records: ArmRecords, file: FiledFile, replaySeedSet?:
   const next: string[] = [];
   for (const arm of [...new Set(breaches.map((g) => g.arm))]) {
     const base = armById(arm as ArmId).base!;
+    if (replaySeedSet !== undefined) {
+      // The re-play is the second seed set (§9.4, D9): a breach here goes to the owner, not to a third set (review M1).
+      next.push(`${arm} against ${base} breaches on seed set ${String(replaySeedSet)} too: the breach holds on both seed sets and goes to the owner with both sets' numbers; nothing is re-played again`);
+      continue;
+    }
     const other = armById(arm as ArmId).seedSet === 1 ? 2 : 1;
     next.push(`re-play the breaching arm and its base on seed set ${String(other)}: pnpm --filter @ff/calibration pocket -- --step 1 --arms ${arm},${base} --seed-set ${String(other)}; both sets' numbers go to the owner before any merge card`);
   }

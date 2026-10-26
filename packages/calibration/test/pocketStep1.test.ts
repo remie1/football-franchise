@@ -510,10 +510,11 @@ describe("one arm on a cut corpus, and the digests", () => {
 
     it("as given: every structural proof passes, no guard breach, a merge card may be posted", () => {
       const g = gradeStep1(recordsOf(), file());
-      expect(g.sections.structural.map((p) => [p.id, p.passes])).toEqual([
-        ["s1.window.ticks", true], ["s1.window.noDie", true], ["s1.falsifier.lToday", true], ["S-4", true], ["S-7", true], ["S-8", true], ["s1.falsifier.offBytes", true],
+      expect(g.sections.structural.map((p) => [p.id, p.verdict])).toEqual([
+        ["s1.window.ticks", "PASS"], ["s1.window.noDie", "PASS"], ["s1.falsifier.lToday", "PASS"], ["S-4", "PASS"], ["S-7", "PASS"], ["S-8", "PASS"], ["s1.falsifier.offBytes", "NOT CHECKED"],
       ]);
       expect(g.sections.structural.at(-1)!.detail).toMatch(/^NOT CHECKED: A0 played a cut corpus/);
+      expect(clause(g, "s1.falsifier.offBytes").verdict).toBe("NOT CHECKED");
       expect(g.sections.outcome.structuralFailures).toEqual([]);
       expect(g.sections.outcome.guardBreaches).toEqual([]);
       expect(g.sections.outcome.mergeCard).toBe(true);
@@ -550,7 +551,7 @@ describe("one arm on a cut corpus, and the digests", () => {
 
     it("a structural proof that fails is a structural failure, and holds the merge card", () => {
       const g = gradeStep1(recordsOf((m) => { m.get("A1")!.s1.flat.margins.problemCount = 1; }), file());
-      expect(g.sections.structural.find((p) => p.id === "S-4")).toMatchObject({ passes: false, detail: expect.stringMatching(/failures A1 flat$/) });
+      expect(g.sections.structural.find((p) => p.id === "S-4")).toMatchObject({ verdict: "FAIL", detail: expect.stringMatching(/failures A1 flat$/) });
       expect(g.sections.outcome.structuralFailures).toEqual([expect.stringMatching(/^S-4: /)]);
       expect(g.sections.outcome.mergeCard).toBe(false);
       const w = gradeStep1(recordsOf((m) => { m.get("A2")!.s1.gen.windowTicks.played.gaining = 1; }), file());
@@ -560,7 +561,7 @@ describe("one arm on a cut corpus, and the digests", () => {
         const a0 = m.get("A0")!;
         a0.stamp.corpus = { flatFirst: null, genThroughWeek: null };
       }), file());
-      expect(off.sections.structural.find((p) => p.id === "s1.falsifier.offBytes")!.passes).toBe(false);
+      expect(off.sections.structural.find((p) => p.id === "s1.falsifier.offBytes")!.verdict).toBe("FAIL");
     });
 
     it("a guard breach stops the step and names the re-play on the other seed set", () => {
@@ -575,13 +576,48 @@ describe("one arm on a cut corpus, and the digests", () => {
 
     it("a re-play on the other seed set grades the guard only, and never posts the merge card", () => {
       const m = new Map<ArmId, W<ArmRecord>>([["A0", synthetic("A0", 2)], ["A1", synthetic("A1", 2)]]);
+      // A0 re-played on the full corpus of seed set 2: the filed base rows are seed set 1's (review M1).
+      m.get("A0")!.stamp.corpus = { flatFirst: null, genThroughWeek: null };
       const g = gradeStep1(m as unknown as ReadonlyMap<ArmId, ArmRecord>, file(), 2);
       expect(g.sections.replaySeedSet).toBe(2);
       expect(g.sections.clauses.every((c) => c.id.startsWith("guard."))).toBe(true);
       expect(g.sections.outcome.mergeCard).toBe(false);
-      expect(g.sections.outcome.next.at(-1)).toMatch(/re-play on seed set 2/);
+      expect(g.sections.outcome.structuralFailures).toEqual([]);
+      expect(Object.fromEntries(g.sections.structural.map((p) => [p.id, p.verdict]))).toMatchObject({
+        "s1.window.ticks": "PASS", "s1.falsifier.lToday": "NOT APPLICABLE", "s1.falsifier.offBytes": "NOT CHECKED", "S-4": "PASS", "S-7": "PASS", "S-8": "PASS",
+      });
+      expect(g.sections.structural.find((p) => p.id === "s1.falsifier.offBytes")!.detail).toMatch(/^NOT CHECKED: A0 played seed set 2; the filed base rows are seed set 1's/);
+      expect(g.sections.outcome.next).toEqual([expect.stringMatching(/^this is a re-play on seed set 2: /)]);
+      // A breach on the re-play goes to the owner; it names no third re-play (review M1).
+      m.get("A1")!.report.intGuard.flat.all.interceptions += 1000;
+      const breach = gradeStep1(m as unknown as ReadonlyMap<ArmId, ArmRecord>, file(), 2);
+      expect(breach.sections.outcome.guardBreaches).toHaveLength(1);
+      expect(breach.sections.outcome.next[0]).toMatch(/^A1 against A0 breaches on seed set 2 too: the breach holds on both seed sets and goes to the owner/);
+      expect(breach.sections.outcome.next.join("\n")).not.toMatch(/--seed-set/);
+      expect(renderStep1Report(breach, m as unknown as ReadonlyMap<ArmId, ArmRecord>)).not.toMatch(/STRUCTURAL \(a build fault/);
       const mixed = new Map<ArmId, W<ArmRecord>>([["A0", synthetic("A0", 1)], ["A1", synthetic("A1", 2)]]);
       expect(() => gradeStep1(mixed as unknown as ReadonlyMap<ArmId, ArmRecord>, file())).toThrow(/same seeds/);
+    });
+
+    it("a partial run grades what it played: an absent proof is not applicable, an absent clause not played, and the headline notes only full clauses (review M1, M5)", () => {
+      const partial = (keep: readonly ArmId[]) => recordsOf((m) => { for (const id of ARM_IDS) if (!keep.includes(id)) m.delete(id); });
+      const g = gradeStep1(partial(["A0", "A1", "A4"]), file());
+      expect(g.sections.outcome.structuralFailures).toEqual([]);
+      expect(clause(g, "s1.falsifier.lToday").verdict).toBe("NOT APPLICABLE");
+      expect(clause(g, "s1.window.pressure")).toMatchObject({ verdict: "NOT PLAYED", arms: ["A1", "A2"] });
+      expect(clause(g, "s1.window.sack").verdict).toBe("NOT PLAYED");
+      expect(g.sections.outcome.gradedFailures.filter((f) => f.startsWith("s1.window."))).toEqual([]);
+      expect(clause(g, "s1.falsifier.pressure45").verdict).toBe("NOT PLAYED");
+      const a4 = g.sections.headline.find((h) => h.arm === "A4" && h.league === "flat")!;
+      expect(a4.verdicts.pressure).toMatch(/L8\.flat\.pressure/);
+      expect(a4.verdicts.pressure).not.toMatch(/pressure45/);
+      const noWindow = gradeStep1(partial(["A0", "A2", "A3"]), file());
+      expect(clause(noWindow, "s1.window.ticks").verdict).toBe("NOT APPLICABLE");
+      expect(noWindow.sections.outcome.structuralFailures).toEqual([]);
+      const nan = gradeStep1(recordsOf((m) => { (m.get("A1")!.measures.flat as { timeToThrow: number | null }).timeToThrow = null; }), file());
+      const text = renderStep1Report(nan, recordsOf());
+      expect(text).not.toContain("NaN");
+      expect(text).toMatch(/\| A1 \| flat \| .* \| n\/a \|/);
     });
 
     it("is deterministic, and its report prints every group, the pricing labels and P2S against both references", () => {

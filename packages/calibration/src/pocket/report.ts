@@ -298,7 +298,10 @@ export function renderStepReport(input: StepReportInput): readonly string[] {
 // game fact. Every hit and sack figure carries its time to throw beside it, and P2S prints against
 // both references while PR #33 is open.
 
-export type Step1Verdict = "PASS" | "FAIL" | "REPORTED" | "NOT PLAYED";
+/** A structural proof's verdict: NOT APPLICABLE when no arm present carries it, NOT CHECKED when its arm did not play what it compares with (review M1, M5). */
+export type Step1ProofVerdict = "PASS" | "FAIL" | "NOT APPLICABLE" | "NOT CHECKED";
+
+export type Step1Verdict = "PASS" | "FAIL" | "REPORTED" | "NOT PLAYED" | "NOT APPLICABLE" | "NOT CHECKED";
 
 /** The four figures the headline and the pricing rows print. */
 export interface Step1Figures {
@@ -343,7 +346,8 @@ export interface Step1GuardRow {
 export interface Step1Structural {
   readonly id: string;
   readonly what: string;
-  readonly passes: boolean;
+  /** Only FAIL is a build fault (a structural failure). */
+  readonly verdict: Step1ProofVerdict;
   readonly detail: string;
 }
 
@@ -461,18 +465,20 @@ export function renderStep1Sections(s: Step1Sections): readonly string[] {
   out.push("");
   out.push("| arm | league | pressure % | hit-or-sack % | sacks % | release s | time to throw s |");
   out.push("|---|---|---|---|---|---|---|");
+  // A time to throw that was not measured prints n/a, never NaN (review M5).
+  const ttt = (seconds: number): string => (Number.isFinite(seconds) ? tttBeside(seconds) : "[time to throw n/a]");
   for (const h of s.headline) {
     const cell = (v: string, verdict: string): string => (verdict === "" ? v : `${v} (${verdict})`);
     out.push(
-      `| ${h.arm} | ${h.league} | ${cell(fmt(h.figures.pressure), h.verdicts.pressure)} | ${cell(fmt(h.figures.hitOrSack), h.verdicts.hitOrSack)} ${tttBeside(h.timeToThrow)} | ` +
-        `${cell(fmt(h.figures.sack), h.verdicts.sack)} ${tttBeside(h.timeToThrow)} | ${cell(fmt(h.figures.release, 3), h.verdicts.release)} | ${h.timeToThrow.toFixed(3)} |`,
+      `| ${h.arm} | ${h.league} | ${cell(fmt(h.figures.pressure), h.verdicts.pressure)} | ${cell(fmt(h.figures.hitOrSack), h.verdicts.hitOrSack)} ${ttt(h.timeToThrow)} | ` +
+        `${cell(fmt(h.figures.sack), h.verdicts.sack)} ${ttt(h.timeToThrow)} | ${cell(fmt(h.figures.release, 3), h.verdicts.release)} | ${fmt(h.timeToThrow, 3)} |`,
     );
   }
   out.push("");
   out.push(`P2S (reported, never graded; against ${refs.map((r) => `${r.value.toFixed(2)}% ${r.name}`).join(" and ")}):`);
   for (const h of s.headline) {
     const v = h.p2s;
-    out.push(`- ${h.arm} ${h.league}: ${fmt(v)}% ${refs.map((r) => `| ${signed(v === null ? null : v - r.value)} against ${r.value.toFixed(2)}% (${r.name})`).join(" ")} ${tttBeside(h.timeToThrow)}`);
+    out.push(`- ${h.arm} ${h.league}: ${fmt(v)}% ${refs.map((r) => `| ${signed(v === null ? null : v - r.value)} against ${r.value.toFixed(2)}% (${r.name})`).join(" ")} ${ttt(h.timeToThrow)}`);
   }
   out.push("");
 
@@ -495,7 +501,7 @@ export function renderStep1Sections(s: Step1Sections): readonly string[] {
 
   out.push("## The structural proofs inside the arms (§9.2)");
   out.push("");
-  for (const p of s.structural) out.push(`- ${p.id} (${p.what}): ${p.passes ? "PASSES" : "FAILS"}. ${p.detail}`);
+  for (const p of s.structural) out.push(`- ${p.id} (${p.what}): ${p.verdict === "PASS" ? "PASSES" : p.verdict === "FAIL" ? "FAILS" : p.verdict}. ${p.detail}`);
   out.push("");
 
   out.push(`## The interaction (§9.3): joint minus (clock alone + beaten alone - base), beside pkA's ${s.pkAInteraction.toFixed(1)} points (REPORTED, ADR-089:1333)`);
