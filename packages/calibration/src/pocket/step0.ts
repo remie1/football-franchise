@@ -802,7 +802,8 @@ export async function pocketCommand(argv: readonly string[]): Promise<void> {
     process.stderr.write(`${line}\n`);
   };
   if (args.step === 1) {
-    // Loaded only for step 1, so step 0's command never reads the arms or the engine's overlays.
+    // Step 1's harness (step1.ts) is loaded only for step 1. Step 0 does load arms.ts (isArmId, for
+    // --arms), but the arm table and the design bundle are built only on first use (review NPC-5).
     const { step1Command } = await import("./step1.js");
     await step1Command(args, log);
     return;
