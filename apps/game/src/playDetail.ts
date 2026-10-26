@@ -205,8 +205,17 @@ function disguiseRows(file: GameFile, defense: Obj | undefined): DisguiseRow[] {
 
 // --- the stream's own events for the snap ------------------------------------------------------
 
-/** "42 → 66": the die as it landed, then the total the roll states. Nothing is added up here. */
+/**
+ * "42 → 66": the die as it landed, then the total the roll states. Nothing is added up here.
+ *
+ * A uniform (ADR-089 P2: the breaking-time draw on a `pass_rush_beat`, shape S of the block clock)
+ * is a number in (0, 1], not a face, so it is named and given to three places: "uniform 0.734".
+ */
 export function sayRoll(roll: RollDetail): string {
+  if (roll.die === "uniform") {
+    const raw = `uniform ${roll.raw.toFixed(3)}`;
+    return roll.raw === roll.total ? raw : `${raw} → ${roll.total.toFixed(3)}`;
+  }
   return roll.raw === roll.total ? `${roll.raw}` : `${roll.raw} → ${roll.total}`;
 }
 
@@ -223,6 +232,15 @@ const READ_WORDS: Readonly<Record<string, string>> = {
 
 type Ev = MatchEvent;
 
+/** A threat's approach (ADR-089 P4; absent under `legacy`), in the words of ADR-089 §4.0's card. */
+type ThreatApproach = NonNullable<Extract<Ev, { type: "RUSH_THREAT" }>["payload"]["approach"]>;
+const APPROACH_WORDS: Readonly<Record<ThreatApproach, string>> = {
+  FREE: "free",
+  ARC: "round the corner",
+  THROUGH: "straight through",
+  PUSH: "bull rush, still engaged",
+};
+
 function timelineText(file: GameFile, e: Ev): string | undefined {
   const who = (id: string) => nameOf(file, id);
   switch (e.type) {
@@ -230,7 +248,9 @@ function timelineText(file: GameFile, e: Ev): string | undefined {
       return `Pocket: ${e.payload.status.toLowerCase()}`;
     case "RUSH_THREAT": {
       const p = e.payload;
-      return `${who(p.rusher)} (${p.alignment.toLowerCase()}): ${p.state.toLowerCase()}${p.state === "TRAVELLING" ? `, due tick ${p.etaTick}` : ""} [${sentenceCase(p.origin).toLowerCase()}]`;
+      // A label this viewer has no words for (a newer file's) is shown in its own name, lower-cased.
+      const approach = p.approach === undefined ? "" : `; ${APPROACH_WORDS[p.approach] ?? sentenceCase(p.approach).toLowerCase()}`;
+      return `${who(p.rusher)} (${p.alignment.toLowerCase()}): ${p.state.toLowerCase()}${p.state === "TRAVELLING" ? `, due tick ${p.etaTick}` : ""} [${sentenceCase(p.origin).toLowerCase()}${approach}]`;
     }
     case "QB_READ":
       return `Reads ${who(e.payload.target)}: sees ${e.payload.perceivedOpenness} open (really ${e.payload.actualOpenness})`;
