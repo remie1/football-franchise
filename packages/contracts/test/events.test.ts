@@ -23,3 +23,34 @@ describe("ADR-089 P2: the pass_rush_beat CHECK and its uniform", () => {
     expect(u.raw).toBe(u.total);
   });
 });
+
+describe("ADR-089 P3: CHECK.roll is optional for pass_rush_tick only", () => {
+  it("a pass_rush_tick may carry no roll (shape S), and today's tick still carries both", () => {
+    const dieless: CheckPayload = { checkKind: "pass_rush_tick", actors: [p], tier, margin: 0, testsAttrs: [], band: "STALEMATE", rollRef: "g/rush/beat/g/rush/p1:rep" };
+    const today: CheckPayload = { checkKind: "pass_rush_tick", actors: [p], roll: d100, opposedRoll: d100, tier, margin: 3, testsAttrs: [], band: "RUSHER_GAINING", rollRef: "g/rush/p1:rep" };
+    expect("roll" in dieless).toBe(false);
+    expect("roll" in today).toBe(true);
+  });
+
+  it("every other kind still needs its roll, written or read", () => {
+    // @ts-expect-error a blitz_pickup CHECK without a roll does not compile
+    const pickup: CheckPayload = { checkKind: "blitz_pickup", actors: [p], tier, margin: 0, testsAttrs: [] };
+    // @ts-expect-error nor does a pass_rush_rep without one
+    const rep: CheckPayload = { checkKind: "pass_rush_rep", actors: [p], tier, margin: 0, testsAttrs: [] };
+    const read = (c: CheckPayload): string => (c.checkKind === "blitz_pickup" ? c.roll.rngLabel : "");
+    expect([pickup, rep].length).toBe(2);
+    expect(read({ checkKind: "blitz_pickup", actors: [p], roll: d100, tier, margin: 0, testsAttrs: [] })).toBe(d100.rngLabel);
+  });
+
+  it("a dieless tick carries no opposedRoll and always names its beat", () => {
+    // @ts-expect-error a pass_rush_tick with an opposedRoll but no roll does not compile
+    const half: CheckPayload = { checkKind: "pass_rush_tick", actors: [p], opposedRoll: d100, tier, margin: 0, testsAttrs: [], rollRef: "g/rush/beat/g/rush/p1:rep" };
+    // @ts-expect-error nor does a dieless tick that names no beat
+    const orphan: CheckPayload = { checkKind: "pass_rush_tick", actors: [p], tier, margin: 0, testsAttrs: [] };
+    // @ts-expect-error exactOptionalPropertyTypes: roll: undefined is refused, so a legacy tick can never carry the key with no value
+    const undef: CheckPayload = { checkKind: "pass_rush_tick", actors: [p], roll: undefined, tier, margin: 0, testsAttrs: [], rollRef: "g/rush/beat/g/rush/p1:rep" };
+    const ref = (c: CheckPayload): string => (c.roll === undefined ? c.rollRef : c.roll.rngLabel);
+    expect([half, orphan, undef].length).toBe(3);
+    expect(ref({ checkKind: "pass_rush_tick", actors: [p], tier, margin: 0, testsAttrs: [], rollRef: "beat" })).toBe("beat");
+  });
+});
