@@ -440,3 +440,20 @@ Related: [ADR-004](ADR-004-roll-accounting.md) (the rule this extends),
 [ADR-025](ADR-025-what-makes-two-baselines-comparable.md) (baseline invalidation),
 [ADR-058](ADR-058-arrival-is-authoritative-for-a-won-rep.md) (the arrival horizon, one of the three
 mechanisms §5 says must land jointly).
+
+## Amendment (ADR-089 step 1, `pocket-1` only)
+
+Under ADR-089's shape S of the block clock, which runs only behind the `pocket-1` switch, **the
+per-tick jitter die is not drawn**. The rep latent is kept: it is still drawn once, as this ADR
+says, and it is the m the block is beaten by. One breaking-time die is drawn per rep, on the fork
+`rush/beat/<the rep's rngLabel>`, and published as a `pass_rush_beat` CHECK. Each tick of the
+matchup then **reports the beat clock's margin**: `min(0, m)` before the beat tick, and
+`max(15, m)` from the beat tick on. Its `pass_rush_tick` CHECK carries no roll, and its `rollRef`
+names the `pass_rush_beat`, whose own `rollRef` names the rep. **The push window's two ticks are
+the only exception before the beat**: a POWER rep of latent margin 1 to 14 reports `min(m, 4)`
+one window length before the beat tick, and `max(m, 5)` on the tick just before it. Neither tick
+throws a die (ADR-089:416, :1256, :1320, and its §4.1.1; critique-1 F5).
+
+Under `legacy`, which is the default, and under shape L, everything above is unchanged: the
+jitter die is drawn on every tick, and the tick reports `repMargin + jitter`. Under L that sum is
+scaled by `min(t, R) / R`.

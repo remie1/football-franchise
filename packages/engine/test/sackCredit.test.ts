@@ -38,7 +38,8 @@ import { simulatePassPlay } from "../src/index.js";
 import { arrivedAt, nearestThreat } from "../src/resolve/rushThreat.js";
 import type { RushThreat } from "../src/resolve/rushThreat.js";
 import { TUNABLES } from "../src/tunables.js";
-import { buildScramblerScenario } from "./fixtures.js";
+import { RULE_SETS } from "./pocketTunables.js";
+import { buildFrontScenario, buildLopsidedRushScenario, buildScramblerScenario } from "./fixtures.js";
 import { buildGameFixture } from "./gameFixtures.js";
 
 const GAMES = 12;
@@ -441,6 +442,44 @@ describe("§8.8 — the arrival a failed escape publishes", () => {
       }
     }
   });
+
+  /**
+   * ADR-089 P4 (S4): the same arrival under `pocket-1` also says how he got there, and the
+   * caught man's ARRIVED carries the approach his threat was built with. The legacy key set
+   * above stays exact; this is the ON case beside it.
+   */
+  for (const { name, tunables } of RULE_SETS) {
+    if (name === "legacy") continue;
+    it(`under ${name}: the arrival gains approach, the one its threat was built with, and nothing else`, () => {
+      let arrivals = 0;
+      // Under pocket-1 fewer blocks break, so free runners (the front with two extra rushers) and
+      // a lopsided line carry most of the arrivals.
+      for (let i = 0; i < 600; i++) {
+        const build = [buildScramblerScenario, buildLopsidedRushScenario, () => buildFrontScenario({ extras: 2 })][i % 3];
+        if (build === undefined) throw new Error("no fixture");
+        const { state, calls } = build();
+        const events = simulatePassPlay(state, calls, `escape-sack-${i}`, tunables).events;
+        const built = new Map<string, string | undefined>();
+        for (const { event } of events) {
+          if (event.type !== "RUSH_THREAT") continue;
+          expect(Object.keys(event.payload).sort()).toEqual([
+            "alignment",
+            "approach",
+            "etaTick",
+            "origin",
+            "rollRef",
+            "rusher",
+            "state",
+          ]);
+          const rusher = String(event.payload.rusher);
+          if (!built.has(rusher)) built.set(rusher, event.payload.approach);
+          expect(event.payload.approach).toBe(built.get(rusher));
+          if (event.payload.state === "ARRIVED") arrivals += 1;
+        }
+      }
+      expect(arrivals).toBeGreaterThan(0);
+    });
+  }
 
   it("is reproducible: the same seed publishes the same arrivals", () => {
     for (let i = 0; i < 40; i++) {

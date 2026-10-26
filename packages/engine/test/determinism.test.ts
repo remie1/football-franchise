@@ -15,6 +15,9 @@ import {
   endedInSack,
   withReadSystem,
 } from "./fixtures.js";
+import type { Scenario } from "./fixtures.js";
+import type { Tunables } from "../src/tunables.js";
+import { L5_TUNABLES, L8_TUNABLES, SW_TUNABLES, S_TUNABLES, buildBullRushScenario } from "./pocketTunables.js";
 
 describe("determinism (Charter pillar 5)", () => {
   it("same seed produces a byte-identical event stream and identical new state", () => {
@@ -465,5 +468,130 @@ describe("determinism (Charter pillar 5)", () => {
       }
     }
     expect(statuses).toBeGreaterThan(1000);
+  });
+});
+
+/**
+ * ADR-089 step 1 — THE POCKET-1 RULE SETS, REPLAYED (plan §5's `determinism.test.ts` row).
+ *
+ * The legacy case above stays as it is. Each `pocket-1` rule set gets the same discipline: the
+ * same stream twice, and a count of the branches its rules introduce, so a replay that never
+ * reached them proves nothing about them.
+ */
+describe("ADR-089 step 1 — pocket-1 determinism", () => {
+  const STOCK: readonly (() => Scenario)[] = [buildScenario, buildLopsidedRushScenario, buildStalledPocketScenario];
+
+  function replayAndCount(
+    tunables: Tunables,
+    builds: readonly (() => Scenario)[],
+    n: number,
+    prefix: string,
+  ): { beaten: number; gaining: number; sacks: number; beats: number } {
+    let beaten = 0;
+    let gaining = 0;
+    let sacks = 0;
+    let beats = 0;
+    for (const build of builds) {
+      for (let i = 0; i < n; i++) {
+        const a = build();
+        const b = build();
+        const first = simulatePassPlay(a.state, a.calls, `${prefix}-${i}`, tunables);
+        const second = simulatePassPlay(b.state, b.calls, `${prefix}-${i}`, tunables);
+        expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+        expect(JSON.stringify(second.newState)).toBe(JSON.stringify(first.newState));
+        if (endedInSack(first.events)) sacks += 1;
+        for (const { event } of first.events) {
+          if (event.type !== "CHECK") continue;
+          if (event.payload.checkKind === "pass_rush_beat") beats += 1;
+          if (event.payload.checkKind !== "pass_rush_tick") continue;
+          const band = bandFor(TUNABLES.passRush.bands, event.payload.margin).label;
+          if (band === "BLOCKER_BEATEN") beaten += 1;
+          if (band === "RUSHER_GAINING") gaining += 1;
+        }
+      }
+    }
+    return { beaten, gaining, sacks, beats };
+  }
+
+  /**
+   * THE BEATEN-AND-GAINING ASSERTION ON THE STOCK FIXTURES FIRST (ADR-089:416, :462): the legacy
+   * case's own fixtures and seeds, under shape S with the push window. VERDICT: REFUTED. The two
+   * bands come only from the window's two ticks, which need a POWER rep at 1 to 14 whose beat lands
+   * inside a play that is still running a tick before it; on these 180 plays that happened once
+   * for the first tick and never for the second. The counts are pinned as the recorded verdict (a
+   * change that moves them re-records it); the window's bands are then asserted on a fixture built
+   * for them, below.
+   */
+  it("shape S with the window: the stock fixtures replay, and their BEATEN-and-GAINING verdict is recorded (refuted)", () => {
+    const counts = replayAndCount(SW_TUNABLES, STOCK, 60, "adr033-determinism");
+    expect(counts.beats).toBeGreaterThan(0);
+    expect({ beaten: counts.beaten, gaining: counts.gaining }).toEqual({ beaten: 0, gaining: 1 });
+  });
+
+  it("shape S with the window: a POWER 1-14 fixture reaches both window bands, and replays (critique-1 F26)", () => {
+    const counts = replayAndCount(SW_TUNABLES, [buildBullRushScenario], 300, "adr089-bull");
+    expect(counts.beaten).toBeGreaterThan(0);
+    expect(counts.gaining).toBeGreaterThan(0);
+  });
+
+  it("shape S without the window: BEATEN and GAINING never occur, on any fixture", () => {
+    const counts = replayAndCount(S_TUNABLES, [...STOCK, buildBullRushScenario, buildScramblerScenario], 100, "adr089-s");
+    expect(counts.beats).toBeGreaterThan(0);
+    expect(counts.beaten).toBe(0);
+    expect(counts.gaining).toBe(0);
+  });
+
+  for (const [name, tunables] of [["L5", L5_TUNABLES], ["L8", L8_TUNABLES]] as const) {
+    it(`shape ${name}: the legacy case's assertions hold (beaten and gaining reps and sacks replay)`, () => {
+      const counts = replayAndCount(tunables, STOCK, 60, "adr033-determinism");
+      expect(counts.beats).toBe(0);
+      expect(counts.beaten).toBeGreaterThan(0);
+      expect(counts.gaining).toBeGreaterThan(0);
+      expect(counts.sacks).toBeGreaterThan(0);
+    });
+  }
+
+  /**
+   * ADR-059's testsAttrs exception, under shape S. `pass_rush_beat` joins it (the rep its `rollRef`
+   * names tested the ratings; the uniform tests none), PAIRED with the rep's non-empty assertion,
+   * as ADR-059's landing checklist requires of any kind added to the exception.
+   */
+  it("every CHECK populates testsAttrs under shape S, pass_rush_beat excepted and paired with the rep", () => {
+    let sawRep = false;
+    let sawBeat = false;
+    let sawDieless = false;
+    for (const tunables of [S_TUNABLES, SW_TUNABLES]) {
+      for (let i = 0; i < 20; i++) {
+        const { state, calls } = buildScenario();
+        const { events } = simulatePassPlay(state, calls, `audit-s-${i}`, tunables);
+        for (const { event } of events) {
+          if (event.type !== "CHECK") continue;
+          const kind: string = event.payload.checkKind;
+          if (kind === "deflection_quality" || kind === "pass_rush_tick" || kind === "pass_rush_beat") {
+            expect(event.payload.testsAttrs).toEqual([]);
+          } else {
+            expect(event.payload.testsAttrs.length).toBeGreaterThan(0);
+          }
+          if (kind === "pass_rush_rep") {
+            sawRep = true;
+            expect(event.payload.testsAttrs.length).toBeGreaterThan(0);
+          }
+          if (kind === "pass_rush_beat") {
+            sawBeat = true;
+            expect(event.payload.roll?.die).toBe("uniform");
+            expect(event.payload.roll?.modifiers).toEqual([]);
+          }
+          if (event.payload.roll === undefined) {
+            if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+            sawDieless = true;
+            continue;
+          }
+          for (const mod of event.payload.roll.modifiers) expect(mod.source.length).toBeGreaterThan(0);
+        }
+      }
+    }
+    expect(sawRep).toBe(true);
+    expect(sawBeat).toBe(true);
+    expect(sawDieless).toBe(true);
   });
 });

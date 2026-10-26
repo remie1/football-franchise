@@ -512,6 +512,14 @@ export interface PassPlayStartPayload {
     readonly ballOn: number;
     readonly clockSeconds: number;
   };
+  /**
+   * ADR-089 §9 — the rules this play ran under, and the digest of their overlay: a copy of the
+   * tunables' `engineRules` stamp, present only when the rules are not `legacy`, and the last key,
+   * so a legacy payload keeps today's keys in today's order. Pass plays only at step 1 (reading
+   * O20: the overlay acts only on pass plays until step 8a). Every dial of the play is pinned by
+   * it, so a margin can be rebuilt from the stream and this.
+   */
+  readonly rules?: { readonly name: string; readonly overlayDigest: string };
 }
 
 /**

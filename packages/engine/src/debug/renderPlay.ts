@@ -386,6 +386,24 @@ function renderPreSnap(events: readonly MatchEventEnvelope[], name: NameLookup):
 function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const matchups = new Map<string, { rusher: PlayerId; blocker: PlayerId; rows: string[] }>();
   for (const { event } of events) {
+    // ADR-089 P2: shape S's breaking-time draw, once per block, printed at the head of its
+    // matchup's rows (a legacy stream has none, so its printout is unchanged).
+    if (event.type === "CHECK" && event.payload.checkKind === "pass_rush_beat") {
+      const b = event.payload;
+      const rusher = b.actors[0];
+      const blocker = b.actors[1];
+      // The kind-first guard (P3): only a `pass_rush_tick` may lack a roll.
+      if (b.roll === undefined) throw new Error("a pass_rush_beat CHECK without a roll");
+      if (rusher === undefined || blocker === undefined) continue;
+      const key = `${String(rusher)}|${String(blocker)}`;
+      const entry = matchups.get(key) ?? { rusher, blocker, rows: [] };
+      entry.rows.push(
+        `  │    Beat (block clock): ${b.roll.die} ${b.roll.raw.toFixed(4)} on rep margin ${signed(b.margin)}` +
+          `  [${b.roll.rngLabel}]`,
+      );
+      matchups.set(key, entry);
+      continue;
+    }
     if (event.type !== "CHECK" || event.payload.checkKind !== "pass_rush_tick") continue;
     const p = event.payload;
     const rusher = p.actors[0];
@@ -424,6 +442,8 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
     const p = event.payload;
     const at = tickLabel(event.tick);
     const eta = p.etaTick.toFixed(1);
+    // ADR-089 P4: how he got there, on every threat of a `pocket-1` play; nothing under `legacy`.
+    const approach = p.approach === undefined ? "" : ` [${p.approach}]`;
     if (p.state === "TRAVELLING") {
       const travel = p.etaTick - (event.tick ?? 0);
       // ADR-022 petition 5, ratified: the EVENT says why he is coming. This used
@@ -433,10 +453,10 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
       threats.push(
         p.origin === "WON_REP"
           ? `  │    Tick ${at}: ${name(p.rusher)} wins the rep → ${p.alignment} threat,` +
-            ` ${travel.toFixed(1)}s to travel, arrival ${eta}`
+            ` ${travel.toFixed(1)}s to travel, arrival ${eta}${approach}`
           : `  │    Pre-snap: ${name(p.rusher)} is UNBLOCKED (${freeRunnerReason(p.origin)})` +
             ` → ${p.alignment} free runner,` +
-            ` ${travel.toFixed(1)}s to travel, arrival ${eta} (roll ${p.rollRef})`,
+            ` ${travel.toFixed(1)}s to travel, arrival ${eta} (roll ${p.rollRef})${approach}`,
       );
     } else if (p.state === "DELAYED") {
       threats.push(`  │    Tick ${at}: ${name(p.rusher)} pushed back → arrival now ${eta}`);

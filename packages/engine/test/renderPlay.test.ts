@@ -8,6 +8,7 @@ import {
   baseReceivers,
   buildDeflectionScenario,
   buildFrontScenario,
+  buildLopsidedRushScenario,
   buildMixedCoverageScenario,
   buildRunScenario,
   buildScenario,
@@ -17,6 +18,7 @@ import {
   withReadOrder,
   withReadSystem,
 } from "./fixtures.js";
+import { SW_TUNABLES } from "./pocketTunables.js";
 
 describe("§17.1 debug renderer", () => {
   it("renders the in-scope sections from the event stream", () => {
@@ -482,6 +484,92 @@ describe("§17.1 — a CHECK with no die (ADR-089 P3)", () => {
     const { events } = simulatePassPlay(state, calls, "render-lost-roll");
     const lost = events.map((e) => (isCheck(e) && e.event.payload.checkKind !== "pass_rush_tick" ? withoutDice(e) : e));
     expect(() => renderPlay(lost, names)).toThrow(/CHECK without a roll/);
+  });
+});
+
+/**
+ * ADR-089 step 1 — the printout of a `pocket-1` play, from a real stream (E-b), and the legacy
+ * printout unchanged.
+ */
+describe("§17.1 — pocket-1's beat, dieless ticks and approach (ADR-089 P2-P4)", () => {
+  it("prints each block's beat at the head of its rows, every dieless tick, and each threat's approach", () => {
+    let beats = 0;
+    let dieless = 0;
+    let labelled = 0;
+    for (let i = 0; i < 60; i++) {
+      for (const build of [buildScenario, () => buildFrontScenario({ extras: 2 })]) {
+        const { state, calls, names } = build();
+        const { events } = simulatePassPlay(state, calls, `render-pocket-${i}`, SW_TUNABLES);
+        const text = renderPlay(events, names);
+        expect(text).not.toContain("undefined");
+        expect(text).not.toContain(" vs. block ");
+        for (const { event } of events) {
+          if (event.type === "CHECK" && event.payload.checkKind === "pass_rush_beat") {
+            beats += 1;
+            const roll = event.payload.roll;
+            if (roll === undefined) throw new Error("a pass_rush_beat CHECK without a roll");
+            const row = `Beat (block clock): uniform ${roll.raw.toFixed(4)} on rep margin ${event.payload.margin >= 0 ? "+" : ""}${event.payload.margin}  [${roll.rngLabel}]`;
+            expect(text).toContain(row);
+            // At the head of its matchup's rows: the line just before it names the blocker and the rusher.
+            const lines = text.split("\n");
+            const at = lines.findIndex((l) => l.includes(row));
+            expect(lines[at - 1]).toMatch(/^ {2}├─ .* vs\. .*:$/);
+          }
+          if (event.type === "CHECK" && event.payload.checkKind === "pass_rush_tick" && event.payload.roll === undefined) dieless += 1;
+          if (event.type === "RUSH_THREAT" && event.payload.state === "TRAVELLING" && event.payload.approach !== undefined) {
+            labelled += 1;
+            expect(text).toContain(`arrival ${event.payload.etaTick.toFixed(1)}`);
+          }
+        }
+        const approaches = events.flatMap(({ event }) =>
+          event.type === "RUSH_THREAT" && event.payload.state === "TRAVELLING" && event.payload.approach !== undefined ? [event.payload.approach] : [],
+        );
+        expect((text.match(/ \[(FREE|ARC|THROUGH|PUSH)\]$/gm) ?? []).length).toBe(approaches.length);
+        expect(text.split("block clock, no die").length - 1).toBe(
+          events.filter(({ event }) => event.type === "CHECK" && event.payload.checkKind === "pass_rush_tick" && event.payload.roll === undefined).length,
+        );
+      }
+    }
+    expect(beats).toBeGreaterThan(0);
+    expect(dieless).toBeGreaterThan(0);
+    expect(labelled).toBeGreaterThan(0);
+  });
+
+  it("refuses a pass_rush_beat with no roll, as any lost roll", () => {
+    const { state, calls, names } = buildScenario();
+    const { events } = simulatePassPlay(state, calls, "render-lost-beat", SW_TUNABLES);
+    const lost = events.map((e) => {
+      if (e.event.type !== "CHECK" || e.event.payload.checkKind !== "pass_rush_beat") return e;
+      const { roll: _roll, ...payload } = e.event.payload;
+      return { ...e, event: { ...e.event, payload } } as unknown as MatchEventEnvelope;
+    });
+    expect(() => renderPlay(lost, names)).toThrow(/CHECK without a roll/);
+  });
+
+  /**
+   * LEGACY OUTPUT UNCHANGED: the printout of 100 legacy plays (five fixtures, 20 seeds each) is
+   * pinned to its FNV-1a digest at the step-1 base (163a10b), measured before E-b's first line.
+   */
+  it("prints a legacy play exactly as before E-b", () => {
+    const fnv = (s: string): string => {
+      let h = 0x811c9dc5;
+      for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+      }
+      return (h >>> 0).toString(16).padStart(8, "0");
+    };
+    const builds = [buildScenario, buildLopsidedRushScenario, buildScramblerScenario, buildStalledPocketScenario, () => buildFrontScenario({ extras: 2 })];
+    let text = "";
+    for (const [b, build] of builds.entries()) {
+      for (let i = 0; i < 20; i++) {
+        const { state, calls, names } = build();
+        const { events } = simulatePassPlay(state, calls, `render-pin-${b}-${i}`);
+        text += renderPlay(events, names);
+      }
+    }
+    expect(text.length).toBe(500565);
+    expect(fnv(text)).toBe("a3f20d82");
   });
 });
 

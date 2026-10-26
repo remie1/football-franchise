@@ -591,6 +591,70 @@ Results per Tick:
 > and by direct computation: `P(margin ≥ 15)` on the raw triangular d100−d100 distribution
 > is fixed by the roll alone and is invariant under any re-partition of the ladder above 15.
 
+> **pocket-1 (ADR-089 step 1, behind the switch; not the default until step 11)**
+>
+> Nothing in this section runs by default. It runs only when the tunables carry a `pocket-1`
+> block and its rules stamp, and `DEFAULT_TUNABLES` carries neither, so default play is the
+> table above, unchanged. The switch is read once a play (`sim/pocketRules.ts`), from closed
+> sets only: no block and no stamp is `legacy`; `passRush.beatClock` (with or without its push
+> window) plus `passRush.approach` plus an `engineRules { name, overlayDigest }` stamp is
+> **shape S**; `passRush.repClock` plus `passRush.approach` plus the stamp is **shape L**. Any
+> other mix (both clocks, a clock without the card, the card without a clock, a block without a
+> stamp, a stamp without a block, a name that is not `pocket-1` or `pocket-1.<step>`, an empty
+> digest) is refused before a die is thrown. A `pocket-1` pass play copies the stamp's name and
+> digest onto `PLAY_START`'s payload as `rules`; a `legacy` play has no `rules` key. **Every value
+> below is provisional** (ADR-089 §4.1: both shapes are built at step 1, and one shape and its
+> value are chosen at step 5b; none is an ADR-061 candidate).
+>
+> **Shape S, the breaking time** (`resolve/beatClock.ts`). Each blocked rep is still drawn once
+> (ADR-059), with latent margin m. Right after it, one uniform `U = 1 - next()` in (0, 1] is drawn
+> on the fork `rush/beat/<the rep's rngLabel>` and published as a `pass_rush_beat` CHECK (die
+> `uniform`, raw and total U, margin m and its tier, no attributes tested, `rollRef` the rep's
+> `rngLabel`). The breaking time is
+>
+> ```
+> T = theta * exp(-beta * m / 41) * (-ln U)^(1/k)
+>     theta 11 s, k 2, beta 0.5            (all provisional)
+> ```
+>
+> and the block is beaten on the first tick at or after T, or never in the play when T is past
+> `clock.maxTick`. **No per-tick jitter die is drawn under S** (an amendment to ADR-059, noted
+> there). Each tick reports a margin set by the beat, through the same bands and counter table
+> as the rows above: `min(0, m)` before the beat tick, and `max(15, m)`, RUSHER_WINS_REP, from the
+> beat tick on. That tick's `pass_rush_tick` CHECK carries no `roll` and no `opposedRoll`, and its
+> `rollRef` names the beat. On the beat tick the threat is built once by `threatFromWonRep`, with
+> the travel table unchanged, and its `rollRef` is the beat's label.
+>
+> **The push window (shape S only, `passRush.beatClock.pushWindow`).** A POWER rep whose latent
+> margin is 1 to 14 (provisional) shows the bull rush before it breaks. With t_b its beat tick, it
+> reports `min(m, 4)`, RUSHER_GAINING, on t_b - 1.0 s (the length is provisional), and
+> `max(m, 5)`, BLOCKER_BEATEN, on t_b - 0.5 s. A window tick before the play's first tick is
+> dropped. The 4, 5 and 15 are not dials: they are read from `passRush.bands` (BLOCKER_BEATEN's
+> floor less 1, BLOCKER_BEATEN's floor, RUSHER_WINS_REP's floor). The window throws no die.
+> S without the window is an information arm only.
+>
+> **Shape L, the gradual clock** (`passRush.repClock.fullExpressionSeconds`, R). It uses today's
+> dice and fork labels; only the reported margin changes:
+> `margin_t = round(min(t, R) * (repMargin + jitter_t) / R)`. R is 5 s (provisional), and 8 s is
+> the priced point. From t >= R it is today's tick; a play ends at 6.0 s, so at R = 8 every
+> margin stays capped below today's.
+>
+> **The approach card** (`passRush.approach`, published as `RUSH_THREAT.approach`). It is
+> computed once, when a threat is built, with no die, taking the first row that fits:
+>
+> | engine facts | approach |
+> |---|---|
+> | origin UNBLOCKED, or a pickup BLOWN_UP | FREE |
+> | a looper the line never touched (LOOPER_FREE), or a twist's penetrator | THROUGH |
+> | a man somebody got a hand on (RAN_THROUGH, LATE_EXCHANGE) | ARC if EDGE, THROUGH if INTERIOR |
+> | won rep, EDGE, SPEED or FINESSE | ARC |
+> | won rep, POWER: under S, latent margin 1 to 14 (the card's range, provisional); under L, reported BLOCKER_BEATEN before RUSHER_WINS_REP | PUSH |
+> | any other won rep | THROUGH (ARC if EDGE) |
+> | a matchup not beaten | BLOCKED (never on a threat) |
+>
+> At step 1, free runners keep today's timing with these labels; step 3 changes their timing, not
+> their labels.
+
 > **KNOWN ISSUE (logged July 2026, Phase 1 slice) — term asymmetry.**
 > The rusher above carries two-to-three attribute terms (`Pass Rush` plus a move
 > modifier, and a power rush adds both `Power Move` *and* `Strength`) against the
