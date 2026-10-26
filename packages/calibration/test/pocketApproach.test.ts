@@ -180,12 +180,36 @@ describe("ADR-089 §4.0: approachesOfPlay reads the facts off the stream", () =>
   });
 
   it("refuses a threat whose justifying CHECK is not in the play", () => {
-    const broken = constructedPlay.filter((e) => !(e.event.type === "CHECK" && e.event.payload.roll.rngLabel === "rep/dt1"));
+    const broken = constructedPlay.filter((e) => {
+      if (e.event.type !== "CHECK") return true;
+      const kind: string = e.event.payload.checkKind;
+      if (e.event.payload.roll === undefined) {
+        if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+        return true;
+      }
+      return e.event.payload.roll.rngLabel !== "rep/dt1";
+    });
     expect(() => approachesOfPlay(broken)).toThrow(/dt1.*pass_rush_rep/);
   });
 
   it("gives an empty map for a play with no PLAY_START rush", () => {
     expect(approachesOfPlay([env({ type: "TICK", payload: { tick: 0.5 } })]).size).toBe(0);
+  });
+});
+
+// ADR-089 P3, guarded before it lands (K-a): only a `pass_rush_tick` may lack a roll (shape S's
+// tick, which draws no die). Built loosely, as a newer engine's file would carry it.
+const dieless = (checkKind: string, margin: number, extra: Record<string, unknown> = {}) =>
+  env({ type: "CHECK", payload: { checkKind, actors: [], tier: "TIE", margin, testsAttrs: [], ...extra } });
+
+describe("ADR-089 P3: approachesOfPlay and a CHECK with no die", () => {
+  it("skips a pass_rush_tick with no die: every label is the constructed play's", () => {
+    const withTick = [...constructedPlay.slice(0, 4), dieless("pass_rush_tick", 0, { band: "STALEMATE", rollRef: "beat/rep/de1" }), ...constructedPlay.slice(4)];
+    expect(approachesOfPlay(withTick)).toEqual(approachesOfPlay(constructedPlay));
+  });
+
+  it("refuses any other kind of CHECK with no roll", () => {
+    expect(() => approachesOfPlay([...constructedPlay, dieless("blitz_pickup", -8)])).toThrow(/a blitz_pickup CHECK without a roll/);
   });
 });
 

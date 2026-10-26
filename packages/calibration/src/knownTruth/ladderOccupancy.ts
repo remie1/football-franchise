@@ -505,6 +505,13 @@ export function foldLadder(events: readonly MatchEventEnvelope[], into?: Map<str
     let tier: ResultTier;
     if (event.type === "CHECK") {
       const p = event.payload;
+      // ADR-089 P3: a `pass_rush_tick` with no die (shape S) has no roll to ladder, and is skipped;
+      // any other kind without a roll is a lost roll.
+      const checkKind: string = p.checkKind;
+      if (p.roll === undefined) {
+        if (checkKind !== "pass_rush_tick") throw new Error(`a ${checkKind} CHECK without a roll`);
+        continue;
+      }
       kind = p.checkKind;
       form = p.opposedRoll === undefined ? "TARGET" : "OPPOSED";
       die = p.opposedRoll === undefined ? p.roll.die : `${p.roll.die}/${p.opposedRoll.die}`;

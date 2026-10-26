@@ -177,6 +177,30 @@ describe("the dropback reader", () => {
   });
 });
 
+// ADR-089 P3, guarded before it lands (K-a): only a `pass_rush_tick` may lack a roll (shape S's
+// tick, which draws no die). Built loosely, as a newer engine's file would carry it.
+describe("ADR-089 P3: the dropback reader and a CHECK with no die", () => {
+  const d100 = (raw: number, rngLabel: string) => ({ die: "d100", raw, modifiers: [], total: raw, rngLabel });
+  const rolledTick: Ev = {
+    type: "CHECK",
+    payload: { checkKind: "pass_rush_tick", actors: ["de1", "lt"], roll: d100(60, "t1.0/de1:jitter"), opposedRoll: d100(50, "t1.0/lt:jitter"), tier: "MARGINAL_SUCCESS", band: "STALEMATE", margin: 2, testsAttrs: [], rollRef: "rep/de1" },
+  };
+  const dieless = (checkKind: string): Ev => ({
+    type: "CHECK",
+    payload: { checkKind, actors: ["de1", "lt"], tier: "TIE", band: "STALEMATE", margin: 0, testsAttrs: [], rollRef: "beat/rep/de1" },
+  });
+
+  it("leaves a pass_rush_tick with no die out of the dropback's checks, and reads the rest", () => {
+    const d = one(play([tick(0.5), dieless("pass_rush_tick"), tick(1.0), rolledTick, read("wr1", 62), decide("THROW", "wr1"), thrown("wr1"), caught(true), result(12)]));
+    expect(d.checks.map((c) => [c.tick, c.rngLabel, c.rollTotal, c.opposedTotal])).toEqual([[1.0, "t1.0/de1:jitter", 60, 50]]);
+    expect(throwClassOf(d, T).cls).toBe("PROGRESSION");
+  });
+
+  it("refuses any other kind of CHECK with no roll", () => {
+    expect(() => dropbacksOf(play([tick(0.5), dieless("blitz_pickup"), result(0)]))).toThrow(/a blitz_pickup CHECK without a roll/);
+  });
+});
+
 describe("the pocket report rows over the constructed dropbacks (rows.ts; plan §6.4)", () => {
   it("counts each class once, splits nobody open, and states shares as percents", () => {
     const fold = emptyRowsFold();

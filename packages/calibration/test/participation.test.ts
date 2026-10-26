@@ -121,6 +121,11 @@ describe("participationFrom on a real game", () => {
     const credited = report.reduce((n, r) => n + r.contests.reduce((m, c) => m + c.won + c.lost, 0), 0);
     const expected = decided.reduce((n, e) => {
       const c = e.type === "CHECK" ? e.payload : undefined;
+      const kind: string = c!.checkKind;
+      if (c!.roll === undefined) {
+        if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+        return n;
+      }
       const sides = [c!.roll, c!.opposedRoll!].map((r) => new Set(r.modifiers.flatMap((m) => (m.attr === undefined ? [] : [m.attr]))).size);
       return n + sides[0]! + sides[1]!;
     }, 0);

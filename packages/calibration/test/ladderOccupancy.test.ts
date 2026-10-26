@@ -20,12 +20,14 @@
  *     getting it backwards is what backlog entry 49 warns about.
  */
 import { describe, expect, it } from "vitest";
+import type { MatchEventEnvelope } from "@ff/contracts";
 import { DEFAULT_TUNABLES } from "@ff/engine";
 import {
   FLAT_LEVEL,
   LADDER_READERS_WITHOUT_SCALE,
   LEVELS,
   canonicalOccupancies,
+  foldLadder,
   ladderOrder,
   ladderTiers,
   renderLadderOccupancy,
@@ -288,5 +290,26 @@ describe("result-tier ladder — occupancy", () => {
    */
   it("resultTierLadder carries the ratified seventeen rungs", () => {
     expect(DEFAULT_TUNABLES.resultTierLadder).toHaveLength(17);
+  });
+});
+
+// ADR-089 P3, guarded before it lands (K-a): only a `pass_rush_tick` may lack a roll (shape S's
+// tick, which draws no die), and it has nothing to ladder. Built loosely, as a newer engine's file
+// would carry it.
+describe("ADR-089 P3: foldLadder and a CHECK with no die", () => {
+  const AT = { season: 2024, phase: "REGULAR_SEASON", week: 1, day: 1 } as const;
+  const check = (payload: Record<string, unknown>): MatchEventEnvelope => ({ seq: 0, at: AT, event: { gameId: "g", playId: "g:p1", type: "CHECK", payload } as never });
+  const d100 = (raw: number, rngLabel: string) => ({ die: "d100", raw, modifiers: [], total: raw, rngLabel });
+  const rolledTick = check({ checkKind: "pass_rush_tick", actors: [], roll: d100(60, "t/a:jitter"), opposedRoll: d100(50, "t/b:jitter"), tier: "MARGINAL_SUCCESS", band: "STALEMATE", margin: 12, testsAttrs: [], rollRef: "rep" });
+  const dieless = (checkKind: string) => check({ checkKind, actors: [], tier: "TIE", band: "STALEMATE", margin: 0, testsAttrs: [], rollRef: "beat/rep" });
+
+  it("skips a pass_rush_tick with no die: the cells are the rolled stream's", () => {
+    const rolled = foldLadder([rolledTick]);
+    expect(rolled.size).toBe(1);
+    expect(foldLadder([dieless("pass_rush_tick"), rolledTick, dieless("pass_rush_tick")])).toEqual(rolled);
+  });
+
+  it("refuses any other kind of CHECK with no roll", () => {
+    expect(() => foldLadder([dieless("blitz_pickup")])).toThrow(/a blitz_pickup CHECK without a roll/);
   });
 });

@@ -288,6 +288,13 @@ export function readDropback(play: PlaySlice): Dropback | undefined {
       }
       case "CHECK": {
         const c = event.payload;
+        // ADR-089 P3: a `pass_rush_tick` with no die (shape S) carries no roll label or total, and
+        // is skipped; any other kind without a roll is a lost roll.
+        const kind: string = c.checkKind;
+        if (c.roll === undefined) {
+          if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+          break;
+        }
         checks.push({
           tick,
           checkKind: c.checkKind,
