@@ -61,6 +61,8 @@ Delegate implementation to the owning sub-agent. Never let one agent write in an
 - `pnpm --filter @ff/calibration player-checks [--seeds 20] [--shard 1/3]` — ADR-087's single-season checks in four arms (`reports/player-checks.md`); run shards 1/3, 2/3, 3/3 in separate shells to go faster
 - `pnpm --filter @ff/calibration injury-rates` — measure real NFL injury numbers from nflverse (`reports/injury-rates.md`)
 - `pnpm --filter @ff/calibration pocket -- --step 0` — ADR-089 step 0: play the base corpora (about 6 minutes) and print M1-M9 and the pocket report; `--out <file>` saves the measures, `--write-filed <file>` fills a filing's pending fields (the committed filing is filled and pinned)
+- `pnpm --filter @ff/calibration pocket -- --step 1 [--shard 1/3] --report reports/adr-089-step1.md --out reports/adr-089-step1.json` — ADR-089 step 1: play the 17 arms and grade them against the filing (about 15 minutes with shards 1/3, 2/3 and 3/3 in three shells); paths are relative to the package; finished arms are cached by source fingerprint, so a re-run reads them
+- `pnpm --filter @ff/calibration season -- --seed <seed> --engine-rules pocket-1.s1 --out season.json` (or `export-game --seed <seed> --engine-rules pocket-1.s1`) — play the ADR-089 step-1 build behind its switch (the default is `legacy`); a save is stamped `pocket-1.s1@<overlay digest>`
 
 ## Current State
 
