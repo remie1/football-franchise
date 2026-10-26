@@ -615,6 +615,21 @@ describe("one arm on a cut corpus, and the digests", () => {
       expect(two.wrote).toEqual([]);
     });
 
+    it("writes one named arm's record to --out once every arm is cached too, and grades the --report as before (review CT-4)", () => {
+      const dir = tempDir("one-full");
+      const common = { filedPath: FILED, cacheParent: join(dir, "cache"), env: ENV, corpus: TINY, play: seam([]) };
+      const fullReport = join(dir, "full.md");
+      const full = runStep1({ ...common, report: fullReport });
+      expect(full).toMatchObject({ graded: true, remaining: [], wrote: [fullReport] });
+      const out = join(dir, "A3.json");
+      const report = join(dir, "step1.md");
+      const one = runStep1({ ...common, arms: ["A3"], out, report });
+      expect(one).toMatchObject({ graded: true, played: [], cached: ["A3.set1"] });
+      expect(one.wrote.slice().sort()).toEqual([out, report].sort());
+      expect(readFileSync(out, "utf8")).toBe(readFileSync(armFileOf(one.cacheDir, "A3", 1), "utf8"));
+      expect(readFileSync(report, "utf8")).toBe(readFileSync(fullReport, "utf8"));
+    });
+
     it("refuses a cached arm whose stamp is not this build's", () => {
       const dir = tempDir("stale");
       const calls: string[] = [];

@@ -26,9 +26,9 @@
  *  - **Shards.** `--shard i/n` plays every n-th arm of the list from the i-th; any invocation that
  *    then finds every arm in the cache grades, deterministically, and writes `--report` and `--out`
  *    (each through a temporary file and a rename), so two shards that both finish write the same
- *    bytes. One that does not prints what remains, and writes nothing, except: with `--arms`
- *    naming exactly one arm, `--out` receives that arm's record, byte for byte its cache file
- *    (S-1b: a cached arm against a fresh process).
+ *    bytes. One that does not prints what remains, and writes nothing. With `--arms` naming
+ *    exactly one arm, `--out` always receives that arm's record, byte for byte its cache file,
+ *    whether or not every arm is cached (S-1b: a cached arm against a fresh process; review CT-4).
  *  - **`--seed-set <n>`** re-plays the named arms on that seed set (§9.4's guard-breach rule:
  *    `--arms <arm>,<base> --seed-set 2`); the re-play grades the guard and prints its own report.
  *  - **`--digests`** plays only the golden 50 a league under A1 to A4 and writes their canonical
@@ -961,14 +961,18 @@ export function runStep1(opts: Step1Options): Step1RunResult {
 
   const remaining = plan.complete.filter(({ id, seedSet }) => !existsSync(armFileOf(cacheDir, id, seedSet))).map(({ id, seedSet }) => `${id}.set${String(seedSet)}`);
   const wrote: string[] = [];
+  // S-1b: with --arms naming exactly one arm, --out is that arm's record, byte for byte its cache
+  // file, whether or not every arm is cached, so the same command writes the same kind of file on
+  // any cache (review CT-4). --report is still graded once every arm is cached.
+  const recordOut = opts.arms !== undefined && opts.arms.length === 1 ? opts.out : undefined;
+  if (recordOut !== undefined) {
+    const only = plan.targets[0]!;
+    writeAtomic(recordOut, readFileSync(armFileOf(cacheDir, only.id, only.seedSet), "utf8"));
+    wrote.push(recordOut);
+    log(`pocket step 1: wrote ${only.id}'s record to ${recordOut}`);
+  }
   if (remaining.length > 0) {
     log(`pocket step 1: ${String(remaining.length)} arm(s) still to play (${remaining.join(", ")}); the report is written once every arm is in the cache`);
-    if (opts.arms !== undefined && opts.arms.length === 1 && opts.out !== undefined) {
-      const only = plan.targets[0]!;
-      writeAtomic(opts.out, readFileSync(armFileOf(cacheDir, only.id, only.seedSet), "utf8"));
-      wrote.push(opts.out);
-      log(`pocket step 1: wrote ${only.id}'s record to ${opts.out}`);
-    }
     return { cacheDir, played, cached, remaining, graded: false, wrote };
   }
 
@@ -986,7 +990,7 @@ export function runStep1(opts: Step1Options): Step1RunResult {
     writeAtomic(opts.report, renderStep1Report(grade, records));
     wrote.push(opts.report);
   }
-  if (opts.out !== undefined) {
+  if (opts.out !== undefined && recordOut === undefined) {
     const measures = {
       format: STEP1_MEASURES_FORMAT,
       filedDigest: STEP0_FILED_DIGEST,
