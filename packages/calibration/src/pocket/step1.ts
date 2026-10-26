@@ -88,7 +88,7 @@ import {
 import { emptyRowsFold, foldRowsGame, pocketRows, type RowsFold } from "./rows.js";
 import { emptyAffectedFold, emptyS1Folds, foldAffectedGame, foldS1Game, type AffectedFold, type S1Folds } from "./s1Stream.js";
 import { baseArm, emptyGuardFold, foldGuardGame, openFiling, outcomeOn, PR33_STATE, registryBaseRows, reportValue, sanitize, type GuardFold, type Step1Args } from "./step0.js";
-import { dropbacksOf, isAimed, isCleanDropback, throwClassOf } from "./throwClass.js";
+import { dropbacksOf, isAimed, isCleanDropback, throwClassOf, worstStatus, type Dropback } from "./throwClass.js";
 
 export const STEP1_ARM_FORMAT = "adr-089-step1-arm/v1";
 export const STEP1_MEASURES_FORMAT = "adr-089-step1-measures/v1";
@@ -291,11 +291,23 @@ export function emptyOnTheRun(): OnTheRun {
   return { clean: { aimed: 0, interceptions: 0 }, pressured: { aimed: 0, interceptions: 0 } };
 }
 
-/** Aimed throws on the run, split by whether the dropback stayed clean (ADR-089:1308). */
+/**
+ * Whether the pocket a quarterback left on the run was clean: the worst status published at or
+ * before the escape tick (`QB_PURSUIT`) is CLEAN. What the play shows after he left does not count,
+ * and the escape itself does not make it dirty (review M3: CP's whole-play rule, `isCleanDropback`,
+ * requires no escape, so no throw on the run could ever be clean).
+ */
+export function leftACleanPocket(d: Dropback): boolean {
+  const escape = d.pursuitTick;
+  if (escape === undefined) return isCleanDropback(d);
+  return worstStatus({ ...d, statuses: d.statuses.filter((s) => s.tick <= escape) }) === "CLEAN";
+}
+
+/** Aimed throws on the run, split by whether the pocket he left was clean (ADR-089:1308, the real 2.11% and 3.25%). */
 export function foldOnTheRun(fold: OnTheRun, events: readonly MatchEventEnvelope[], tunables: Tunables): void {
   for (const d of dropbacksOf(events)) {
     if (!isAimed(d) || d.throwTick === undefined || throwClassOf(d, tunables).cls !== "ON_THE_RUN") continue;
-    const cell = isCleanDropback(d) ? fold.clean : fold.pressured;
+    const cell = leftACleanPocket(d) ? fold.clean : fold.pressured;
     cell.aimed += 1;
     if (d.intercepted) cell.interceptions += 1;
   }

@@ -22,6 +22,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { MatchEventEnvelope } from "@ff/contracts";
 import { DEFAULT_TUNABLES } from "@ff/engine";
 import { stableDigest } from "../src/harness/digest.js";
 import { ARM_IDS, armById, type ArmId } from "../src/pocket/arms.js";
@@ -37,8 +38,10 @@ import {
   checkFilingForStep1,
   DIGEST_ARMS,
   emptyLeagueFolds,
+  emptyOnTheRun,
   FINGERPRINT_MANIFESTS,
   FINGERPRINT_PACKAGES,
+  foldOnTheRun,
   foldStep1Game,
   gradeStep1,
   guardNoise,
@@ -278,6 +281,58 @@ describe("the stamp", () => {
     const want = { ...stampOf("A3", 1, ENV, TINY), node: thisNode };
     expect(stampProblems({ ...want, node: cachedNode }, want)).toEqual([`node: cached "${cachedNode}", this build "${thisNode}"`]);
     expect(stampProblems({ ...want, patches: [...want.patches] }, want)).toEqual([]);
+  });
+});
+
+// --- on the run, clean or pressured -----------------------------------------------------------------
+
+describe("throws on the run, split by the pocket he left (review M3)", () => {
+  const AT = { season: 2024, phase: "REGULAR_SEASON", week: 1, day: 1 } as const;
+  let playNo = 0;
+  type Ev = Record<string, unknown>;
+  const play = (events: readonly Ev[]): MatchEventEnvelope[] => {
+    playNo += 1;
+    const playId = `g:p${String(playNo)}`;
+    const env = (event: Ev): MatchEventEnvelope => ({ seq: 0, at: AT, event: { gameId: "g", playId, ...event } as never });
+    return [
+      env({
+        type: "PLAY_START",
+        payload: {
+          kind: "PASS_PLAY_V1",
+          offense: { team: "OFF", call: "SMASH", readSystem: "HALF_FIELD", quarterback: "qb" },
+          defense: { team: "DEF", rush: [{ rusher: "de1", move: "SPEED", alignment: "EDGE", side: "LEFT", gap: "D" }] },
+          situation: { down: 1, distance: 10, ballOn: 25, clockSeconds: 900 },
+        },
+      }),
+      ...events.map(env),
+    ];
+  };
+  const tick = (t: number): Ev => ({ type: "TICK", payload: { tick: t } });
+  const status = (x: string): Ev => ({ type: "POCKET_STATUS", payload: { status: x } });
+  const escape: Ev = { type: "QB_PURSUIT", payload: {} };
+  const throwOnTheRun = (intercepted: boolean): Ev[] => [
+    tick(1.5),
+    { type: "QB_READ", payload: { target: "wr1", effectiveOpenness: 58 } },
+    { type: "QB_DECISION", payload: { choice: "THROW", target: "wr1" } },
+    { type: "THROW", payload: { target: "wr1" } },
+    { type: "CATCH_RESOLUTION", payload: { caught: !intercepted } },
+    { type: "PLAY_RESULT", payload: { yards: intercepted ? 0 : 15, turnover: intercepted, clockRunoff: 6 } },
+  ];
+
+  it("a clean pocket left on the run is clean, whatever the play shows after the escape; dirt at or before it is pressured", () => {
+    const events = [
+      // Clean to the escape: the old rule (worst status over the play and no escape) could never call this clean.
+      ...play([tick(0.5), status("CLEAN"), tick(1.0), status("CLEAN"), escape, ...throwOnTheRun(false)]),
+      // Clean to the escape, dirty after it: still the clean pocket he left.
+      ...play([tick(0.5), tick(1.0), escape, tick(1.25), status("COLLAPSING"), ...throwOnTheRun(true)]),
+      // Dirty at the escape tick: pressured.
+      ...play([tick(0.5), tick(1.0), status("IMMEDIATE"), escape, ...throwOnTheRun(false)]),
+      // Dirty before the escape: pressured.
+      ...play([tick(0.5), status("COLLAPSING"), tick(1.0), escape, ...throwOnTheRun(true)]),
+    ];
+    const fold = emptyOnTheRun();
+    foldOnTheRun(fold, events, DEFAULT_TUNABLES);
+    expect(fold).toEqual({ clean: { aimed: 2, interceptions: 1 }, pressured: { aimed: 2, interceptions: 1 } });
   });
 });
 
