@@ -117,8 +117,10 @@ pressure down to 32% to 33% of dropbacks with sacks and release time inside thei
 though the bull-rush window added slightly more pressure than predicted on one league; the gradual
 clock left pressure at 66% to 75%, far above its own prediction; and interceptions rose by more
 than the filed check allows, across the league or in at least one kind of throw, in every arm
-measured against a base, on both seed sets, so step 1's results come to you before anything
-merges. Step 1's numbers are in `packages/calibration/reports/adr-089-step1.md`.
+measured against a base, on both seed sets. The pick rules themselves did not change: most former
+sacks are now throws, and the old rules catch some of them. You chose to keep the order (finish
+the pocket, then the interception design) and to merge step 1 with its switch off. Step 1's
+numbers are in `packages/calibration/reports/adr-089-step1.md`.
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
 NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered
