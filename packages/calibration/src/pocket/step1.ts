@@ -17,7 +17,8 @@
  *    on the run split clean and pressured.
  *  - **The cache.** Each arm's record is written under `<cache>/<fingerprint>/`, where the
  *    fingerprint is a sha256 of every package's source and the filing (`player-checks`' rule), to
- *    `<arm>.set<n>.json.tmp` and renamed, so a reader never sees half a file. A record carries its
+ *    a temporary file of this writer's own (`<arm>.set<n>.json.<pid>.<thread>.<n>.tmp`) and renamed,
+ *    so a reader never sees half a file and two writers never share one. A record carries its
  *    stamp; a cached record whose stamp differs from the one this build computes for that arm is
  *    refused (delete it, or use another cache), never re-used.
  *  - **No wall-clock, host or path field** in any record, the measures JSON or the digests JSON:
@@ -41,9 +42,10 @@
  * what its own games made, so a cached arm is the same bytes on any machine.
  */
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { threadId } from "node:worker_threads";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import type { GameSnapshot, Tunables } from "@ff/engine";
 import type { CallerVersion } from "../caller/anticipate.js";
@@ -398,12 +400,28 @@ export function playArm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: PlayAr
 /** Plain data as the files hold it: two-space JSON and a final newline. */
 export const jsonText = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
 
-/** Writes `<path>.tmp` and renames it over `path`, so no reader sees half a file. */
+let tmpCount = 0;
+
+/**
+ * Writes a temporary file beside `path` and renames it over `path`, so no reader sees half a file.
+ * The temporary name is this writer's own, `<path>.<pid>.<thread>.<n>.tmp` (review CT-1): two
+ * writers of one path (two shards that finish together and share `--report` or `--out`, or two
+ * overlapping runs of one arm into one cache) never share one, so neither replaces the file the
+ * other is about to rename, and the last rename wins whole. A temporary file whose write or rename
+ * failed is removed. The name never reaches a record.
+ */
 export function writeAtomic(path: string, text: string): void {
   mkdirSync(dirname(path), { recursive: true });
-  const tmp = `${path}.tmp`;
-  writeFileSync(tmp, text);
-  renameSync(tmp, path);
+  tmpCount += 1;
+  const tmp = `${path}.${String(process.pid)}.${String(threadId)}.${String(tmpCount)}.tmp`;
+  let renamed = false;
+  try {
+    writeFileSync(tmp, text);
+    renameSync(tmp, path);
+    renamed = true;
+  } finally {
+    if (!renamed) rmSync(tmp, { force: true });
+  }
 }
 
 export const armFileOf = (dir: string, id: ArmId, seedSet: SeedSet): string => join(dir, `${id}.set${String(seedSet)}.json`);

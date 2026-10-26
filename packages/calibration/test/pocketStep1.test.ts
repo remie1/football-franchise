@@ -241,15 +241,19 @@ describe("the stamp", () => {
 });
 
 describe("the files", () => {
-  it("writes through a temporary file and a rename, making the folder, leaving no temporary file", () => {
+  it("writes through a temporary file and a rename, making the folder, leaving no temporary file of its own", () => {
     const dir = tempDir("atomic");
     const path = join(dir, "a", "b", "A1.set1.json");
     writeAtomic(path, "one\n");
     expect(readFileSync(path, "utf8")).toBe("one\n");
-    writeFileSync(`${path}.tmp`, "a half-written file from a killed run");
+    expect(readdirSync(dirname(path))).toEqual(["A1.set1.json"]);
+    // A killed run's temporary file is another writer's name (it could be a live writer's): it is
+    // neither read nor replaced, and this write leaves none of its own beside it (review CT-1).
+    const killed = "A1.set1.json.1.0.1.tmp";
+    writeFileSync(join(dirname(path), killed), "a half-written file from a killed run");
     writeAtomic(path, "two\n");
     expect(readFileSync(path, "utf8")).toBe("two\n");
-    expect(readdirSync(dirname(path))).toEqual(["A1.set1.json"]);
+    expect(readdirSync(dirname(path)).sort()).toEqual(["A1.set1.json", killed]);
     expect(armFileOf("/c", "A0b", 2)).toBe(join("/c", "A0b.set2.json"));
     expect(jsonText({ b: 1, a: [1, 2] })).toBe('{\n  "b": 1,\n  "a": [\n    1,\n    2\n  ]\n}\n');
   });
