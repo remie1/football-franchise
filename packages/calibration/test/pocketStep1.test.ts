@@ -18,7 +18,7 @@
  *    files), and the arm's tunables reach the folds (the same game folds differently under Heels).
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -695,6 +695,22 @@ describe("one arm on a cut corpus, and the digests", () => {
       expect(elsewhere.graded).toBe(true);
       expect(() => runStep1({ ...common, env: ENV, report: join(committedDir, "adr-089-step1.md") })).toThrow(/refused to grade a committed report: A0 was played on a dirty tree/);
       expect(existsSync(committedDir)).toBe(false);
+    });
+
+    it("sees a committed report through a symlink, to the folder or to a parent of it (review CT-11)", () => {
+      const dir = tempDir("committed-link");
+      const committedDir = join(dir, "pkg", "reports");
+      mkdirSync(committedDir, { recursive: true });
+      symlinkSync(committedDir, join(dir, "to-reports"));
+      symlinkSync(join(dir, "pkg"), join(dir, "to-pkg"));
+      const calls: string[] = [];
+      const common = { filedPath: FILED, cacheParent: join(dir, "cache"), corpus: TINY, play: seam(calls), committedDir, env: { ...ENV, dirty: true } };
+      for (const report of [join(dir, "to-reports", "adr-089-step1.md"), join(dir, "to-pkg", "reports", "new", "adr-089-step1.md")]) {
+        expect(() => runStep1({ ...common, report }), report).toThrow(/a committed report \(under reports\/\) is made from a clean tree/);
+      }
+      expect(() => runStep1({ ...common, committedDir: join(dir, "to-reports"), out: join(committedDir, "m.json") })).toThrow(/made from a clean tree/);
+      expect(calls).toEqual([]);
+      expect(readdirSync(committedDir)).toEqual([]);
     });
   });
 });

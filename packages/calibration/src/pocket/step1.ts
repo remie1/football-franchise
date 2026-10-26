@@ -43,8 +43,8 @@
  * what its own games made, so a cached arm is the same bytes on any machine.
  */
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { threadId } from "node:worker_threads";
 import type { MatchEventEnvelope } from "@ff/contracts";
@@ -934,8 +934,22 @@ export interface Step1RunResult {
   readonly grade?: Step1Grade;
 }
 
+/** `path` with every symlink resolved: the real path of its nearest existing ancestor, then the rest as given. */
+function realOf(path: string): string {
+  let at = resolve(path);
+  const rest: string[] = [];
+  while (!existsSync(at)) {
+    const parent = dirname(at);
+    if (parent === at) return resolve(path);
+    rest.unshift(basename(at));
+    at = parent;
+  }
+  return join(realpathSync(at), ...rest);
+}
+
+/** Whether `path` lies under `dir`, compared on real paths, so a symlink into `dir` is under it (review CT-11). */
 const isUnder = (path: string, dir: string): boolean => {
-  const rel = relative(resolve(dir), resolve(path));
+  const rel = relative(realOf(dir), realOf(path));
   return rel !== "" && !rel.startsWith("..") && !rel.startsWith(sep) && !/^[A-Za-z]:/.test(rel);
 };
 
