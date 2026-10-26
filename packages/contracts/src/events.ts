@@ -205,6 +205,13 @@ export type RushThreatState = "TRAVELLING" | "DELAYED" | "RESET" | "ARRIVED";
  * CHECK respectively. Nothing here is justified by an absence.
  */
 export type ThreatOrigin = "WON_REP" | "UNBLOCKED" | "PICKUP_LOST" | "STUNT_LOOPER";
+
+/**
+ * ADR-089 P4: how a rusher got to the quarterback, the approach on ADR-089 §4.0's card. FREE:
+ * nobody laid a hand on him. ARC: round the corner. THROUGH: straight through. PUSH: a bull rush,
+ * still engaged. BLOCKED: still in his block; never on a `RUSH_THREAT`, whose field excludes it.
+ */
+export type RushApproach = "FREE" | "ARC" | "THROUGH" | "PUSH" | "BLOCKED";
 export type RoutePhase = "JAMMED" | "DEVELOPING" | "OPEN" | "SETTLED" | "DECAYING" | "SCRAMBLE_DRILL";
 export type QbDecisionChoice = "THROW" | "HOLD" | "STEP_UP" | "SCRAMBLE" | "THROWAWAY" | "CHECKDOWN";
 export type CarryType = "DESIGNED" | "SCRAMBLE";
@@ -337,6 +344,12 @@ export type MatchEvent =
         rollRef: string;
         etaTick: number;
         state: RushThreatState;
+        /**
+         * ADR-089 P4: how he got there (ADR-089 §4.0). On every `RUSH_THREAT` of a play under
+         * `pocket-1`, set once when the threat is built and the same on each of its publications;
+         * absent under `legacy`.
+         */
+        approach?: Exclude<RushApproach, "BLOCKED">;
       } } & MatchEventBase)
   /**
    * §8.8's PURSUIT CLOCK — the quarterback has left structure and pursuit is running him down.

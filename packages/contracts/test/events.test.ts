@@ -6,7 +6,7 @@
  * show the file ran. Contracts gain types and comments only, so nothing here can change a stream.
  */
 import { describe, expect, it } from "vitest";
-import type { MatchEvent, PlayerId, ResultTier, RollDetail } from "../src/index.js";
+import type { MatchEvent, PlayerId, ResultTier, RollDetail, RushApproach } from "../src/index.js";
 
 type CheckPayload = Extract<MatchEvent, { type: "CHECK" }>["payload"];
 type ThreatPayload = Extract<MatchEvent, { type: "RUSH_THREAT" }>["payload"];
@@ -52,5 +52,21 @@ describe("ADR-089 P3: CHECK.roll is optional for pass_rush_tick only", () => {
     const ref = (c: CheckPayload): string => (c.roll === undefined ? c.rollRef : c.roll.rngLabel);
     expect([half, orphan, undef].length).toBe(3);
     expect(ref({ checkKind: "pass_rush_tick", actors: [p], tier, margin: 0, testsAttrs: [], rollRef: "beat" })).toBe("beat");
+  });
+});
+
+describe("ADR-089 P4: RUSH_THREAT.approach", () => {
+  it("a threat may say how he got there; a legacy threat writes no key", () => {
+    const approach: RushApproach = "PUSH";
+    const legacy: ThreatPayload = { rusher: p, alignment: "INTERIOR", origin: "WON_REP", rollRef: d100.rngLabel, etaTick: 2, state: "TRAVELLING" };
+    const withApproach: ThreatPayload = { ...legacy, approach };
+    // @ts-expect-error exactOptionalPropertyTypes: approach: undefined is refused, so legacy writes no key
+    const undef: ThreatPayload = { ...legacy, approach: undefined };
+    expect(Object.keys(legacy)).not.toContain("approach");
+    expect(withApproach.approach).toBe("PUSH");
+    // @ts-expect-error a threat is never BLOCKED
+    const blocked: ThreatPayload = { ...legacy, approach: "BLOCKED" };
+    expect(undef).toBeDefined();
+    expect(blocked).toBeDefined();
   });
 });
