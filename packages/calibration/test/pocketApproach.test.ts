@@ -283,7 +283,14 @@ describe("ADR-089 step 1: approachOf under shape L and on the card's PUSH range"
     expect(pushMarginOf(DEFAULT_TUNABLES)).toBe(PUSH_MARGIN);
     expect(pushMarginOf(rulesTunables("legacy"))).toEqual({ min: 1, max: 14 });
     expect(pushMarginOf(rulesTunables("pocket-1.s1"))).toEqual({ min: POCKET_1_S1_OVERLAY.approach!.pushMinMargin, max: POCKET_1_S1_OVERLAY.approach!.pushMaxMargin });
-    const card = withOverlay(DEFAULT_TUNABLES, "pocket-1.s1", { ...POCKET_1_S1_OVERLAY, approach: { pushMinMargin: 3, pushMaxMargin: 10 } });
+    // The window moves with the card: withOverlay refuses a window whose range is not the card's PUSH
+    // range (review CT-3), and the window alone is refused in engineRules.test.ts.
+    const beat = POCKET_1_S1_OVERLAY.beatClock!;
+    const card = withOverlay(DEFAULT_TUNABLES, "pocket-1.s1", {
+      ...POCKET_1_S1_OVERLAY,
+      beatClock: { ...beat, pushWindow: { ...beat.pushWindow!, minMargin: 3, maxMargin: 10 } },
+      approach: { pushMinMargin: 3, pushMaxMargin: 10 },
+    });
     expect(pushMarginOf(card)).toEqual({ min: 3, max: 10 });
   });
 
