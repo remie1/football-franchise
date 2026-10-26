@@ -295,11 +295,15 @@ export function buildPlayDetail(file: GameFile, playId: string): PlayDetail {
     }
     if (e.type === "CHECK") {
       const p = e.payload;
+      // ADR-089 P3: only a `pass_rush_tick` may lack a roll (shape S's tick, which draws no die);
+      // any other kind without one is shown as a missing roll. The viewer renders what it meets.
+      const checkKind: string = p.checkKind;
+      const missing = checkKind === "pass_rush_tick" ? "no die" : "missing roll";
       dice.push({
         kind: sentenceCase(p.checkKind),
         who: p.actors.map((a) => nameOf(file, a)).join(" vs "),
-        roll: sayRoll(p.roll),
-        modifiers: [sayModifiers(p.roll), p.opposedRoll === undefined ? "" : `against: ${sayModifiers(p.opposedRoll)}`].filter((m) => m !== "").join("; "),
+        roll: p.roll === undefined ? missing : sayRoll(p.roll),
+        modifiers: [p.roll === undefined ? "" : sayModifiers(p.roll), p.opposedRoll === undefined ? "" : `against: ${sayModifiers(p.opposedRoll)}`].filter((m) => m !== "").join("; "),
         against: p.opposedRoll !== undefined ? `vs ${sayRoll(p.opposedRoll)}` : p.target !== undefined ? `needs ${p.target}` : "",
         margin: p.margin,
         tier: sentenceCase(p.tier),

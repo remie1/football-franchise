@@ -104,8 +104,8 @@ describe("buildPlayDetail", () => {
 // ADR-089 §9: the pocket fix's new kinds (a `pass_rush_beat` CHECK, P2; `QB_HIT`, P7; the
 // `SLIDE_POCKET` and `SIDESTEP` choices, P14 and P15) render rather than crash. Built loosely, as a
 // newer engine's file would carry them: the contracts do not have them yet. A roll-less
-// `pass_rush_tick` CHECK (P3) cannot be built at step 0, because `CHECK.roll` is required until P3;
-// this file's dice row reads the roll unguarded, and joins P3's reader list (deviation O16).
+// `pass_rush_tick` CHECK (P3) is built loosely too, below: the dice row reads the roll through P3's
+// guard (ADR-089 step 1, V-a; deviation O16).
 type Loose = { type: string; payload: unknown; playId: string };
 const POCKET_FIX_KINDS: Readonly<Record<string, readonly Loose[]>> = {
   p1: [
@@ -172,5 +172,41 @@ describe("the pocket fix's new kinds (ADR-089 §9)", () => {
     ]);
     // Nothing else about the play moves.
     expect({ ...p1, timeline: [], dice: [] }).toEqual({ ...before, timeline: [], dice: [] });
+  });
+});
+
+// ADR-089 P3, guarded before it lands (V-a): only a `pass_rush_tick` may lack a roll (shape S's
+// tick, which draws no die). Any other kind without one is shown as a missing roll: the viewer
+// renders what it meets and never throws.
+describe("a CHECK with no roll (ADR-089 P3)", () => {
+  const dieless = (checkKind: string): Loose => ({
+    type: "CHECK",
+    playId: "p1",
+    payload: { checkKind, actors: ["de", "lt"], tier: "TIE", band: "STALEMATE", margin: 0, testsAttrs: [], rollRef: "beat/r" },
+  });
+  /** The fixture with one roll-less CHECK put in front of play 1's result. */
+  function withCheck(file: GameFile, c: Loose): GameFile {
+    const events = file.events.flatMap((e) => {
+      const before = e.event.type === "PLAY_RESULT" && "playId" in e.event && e.event.playId === "p1";
+      return before ? [{ ...e, event: { ...c, gameId: e.event.gameId } as unknown as MatchEvent }, e] : [e];
+    });
+    return { ...file, events: events.map((e, seq) => ({ ...e, seq })) };
+  }
+  const before = buildPlayDetail(FIXTURE, "p1");
+
+  it("shows a pass_rush_tick with no die as 'no die', with no modifiers", () => {
+    const p1 = buildPlayDetail(withCheck(FIXTURE, dieless("pass_rush_tick")), "p1");
+    expect(p1.dice.slice(0, before.dice.length)).toEqual(before.dice);
+    expect(p1.dice.slice(before.dice.length)).toEqual([
+      { kind: "Pass rush tick", who: "Dez Edge vs Lou Tate", roll: "no die", modifiers: "", against: "", margin: 0, tier: "Tie", band: "Stalemate" },
+    ]);
+  });
+
+  it("shows any other kind without a roll as a missing roll, and does not throw", () => {
+    const changed = withCheck(FIXTURE, dieless("blitz_pickup"));
+    expect(() => buildPlayDetail(changed, "p1")).not.toThrow();
+    expect(buildPlayDetail(changed, "p1").dice.slice(before.dice.length)).toEqual([
+      { kind: "Blitz pickup", who: "Dez Edge vs Lou Tate", roll: "missing roll", modifiers: "", against: "", margin: 0, tier: "Tie", band: "Stalemate" },
+    ]);
   });
 });
