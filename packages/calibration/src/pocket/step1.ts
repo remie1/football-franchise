@@ -86,7 +86,8 @@ import {
   type StepReportInput,
 } from "./report.js";
 import { emptyRowsFold, foldRowsGame, pocketRows, type RowsFold } from "./rows.js";
-import { emptyAffectedFold, emptyS1Folds, foldAffectedGame, foldS1Game, type AffectedFold, type S1Folds } from "./s1Stream.js";
+import { dialsOf, emptyAffectedFold, emptyS1Folds, foldAffectedGame, foldS1Game, type AffectedFold, type S1Folds } from "./s1Stream.js";
+import type { ShapeS } from "./clocks.js";
 import { baseArm, emptyGuardFold, foldGuardGame, openFiling, outcomeOn, PR33_STATE, registryBaseRows, reportValue, sanitize, type GuardFold, type Step1Args } from "./step0.js";
 import { dropbacksOf, isAimed, isCleanDropback, throwClassOf, worstStatus, type Dropback } from "./throwClass.js";
 
@@ -324,6 +325,13 @@ interface LeagueFolds {
   games: number;
 }
 
+/** M1's shape-S dials from the arm's own tunables (K14; review M8), never the provisional constants. */
+function m1DialsOf(tunables: Tunables): ShapeS {
+  const s = dialsOf(tunables).s;
+  if (s === undefined) throw new Error("step 1: M1 on an arm's streams reads its shape-S dials, and these tunables carry no passRush.beatClock");
+  return s;
+}
+
 /** Folds one game of the arm into every fold, with the arm's tunables (K14). */
 export function foldStep1Game(f: LeagueFolds, o: SimGameObservation, snapshot: GameSnapshot, tunables: Tunables, mechanisms: readonly Mechanism[]): void {
   const events = o.events;
@@ -334,7 +342,7 @@ export function foldStep1Game(f: LeagueFolds, o: SimGameObservation, snapshot: G
   foldGuardGame(f.guard, events, tunables);
   foldS1Game(f.s1, events, tunables);
   if (f.affected !== undefined) foldAffectedGame(f.affected, events, tunables, mechanisms);
-  if (f.m1 !== undefined) foldM1Game(f.m1, events);
+  if (f.m1 !== undefined) foldM1Game(f.m1, events, m1DialsOf(tunables));
   foldOnTheRun(f.onTheRun, events, tunables);
 }
 

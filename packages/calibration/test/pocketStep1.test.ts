@@ -30,6 +30,7 @@ import { FILED_PATH } from "../src/pocket/bands.js";
 import { flatBaseline, type SeedSet } from "../src/pocket/corpus.js";
 import { loadFiled, STEP0_FILED_DIGEST, filedDigest, type FiledFile } from "../src/pocket/filed.js";
 import { blobSha, headCommit, readIndex, treeState } from "../src/pocket/gitTree.js";
+import { emptyM1Fold, foldM1Game } from "../src/pocket/m1PushWindow.js";
 import { s1Problems } from "../src/pocket/s1Stream.js";
 import { sanitize } from "../src/pocket/step0.js";
 import {
@@ -282,6 +283,31 @@ describe("the stamp", () => {
     expect(stampProblems({ ...want, node: cachedNode }, want)).toEqual([`node: cached "${cachedNode}", this build "${thisNode}"`]);
     expect(stampProblems({ ...want, patches: [...want.patches] }, want)).toEqual([]);
   });
+});
+
+// --- M1 on A2's streams reads the arm's own dials ------------------------------------------------------
+
+describe("M1 on A2's streams (review M8)", () => {
+  it("reads the beat-clock dials of the tunables it is handed (K14), not the provisional constants", () => {
+    // Today every S arm's dials equal the provisional ones (arms.ts, clocks.ts), so the folds are
+    // handed A2's tunables with theta moved to 9: M1 must follow them. The stream is A2's own, so
+    // the stream folds still name its dials by its stamp (N9).
+    const a2 = armById("A2").tunables;
+    const theta9 = { ...a2, passRush: { ...a2.passRush, beatClock: { ...a2.passRush.beatClock!, thetaSeconds: 9 } } };
+    let games = 0;
+    flatBaseline(1, (o, snapshot) => {
+      const f = emptyLeagueFolds("A2", []);
+      foldStep1Game(f, o, snapshot, theta9, []);
+      const mine = emptyM1Fold();
+      foldM1Game(mine, o.events, { theta: 9, k: 2, beta: 0.5 });
+      const provisional = emptyM1Fold();
+      foldM1Game(provisional, o.events);
+      expect(f.m1).toEqual(mine);
+      expect(mine).not.toEqual(provisional);
+      games += 1;
+    }, { tunables: a2, callerVersion: "v7", first: 1 });
+    expect(games).toBe(1);
+  }, 120_000);
 });
 
 // --- on the run, clean or pressured -----------------------------------------------------------------
