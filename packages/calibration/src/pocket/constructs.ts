@@ -37,7 +37,7 @@ export const CONSTRUCTS = [
   { id: "quick_pressure_share_by_origin", home: "registry", adrLine: 962, what: "First PRESSURE-or-worse before 2.5 s, by origin." },
   { id: "clean_with_live_won_rep_ticks", home: "registry", adrLine: 962, what: "POCKET_STATUS CLEAN ticks at which some WON_REP threat's latest state is TRAVELLING or DELAYED." },
   { id: "clean_with_live_won_rep_dropbacks", home: "registry", adrLine: 962, what: "The dropbacks those ticks fall on." },
-  { id: "clean_with_live_won_rep_push_ticks", home: "registry", adrLine: 1160, what: "Those ticks whose live threat is a PUSH rep (approach.ts), counted apart." },
+  { id: "clean_with_live_won_rep_push_ticks", home: "registry", adrLine: 1160, what: "Those ticks whose live threat is a PUSH rep (approach.ts), counted apart: under legacy and S, a POWER rep won from a latent margin of 1 to 14; under L, the same range and BLOCKER_BEATEN reported before the win (ADR-089 Appendix F, F1 option (b))." },
   { id: "throwaway_rate_pressured", home: "registry", adrLine: 204, what: "Throwaways per pressured dropback, beside the existing throwaway_rate; real side FTN is_throw_away." },
   { id: "throwaway_rate_clean", home: "registry", adrLine: 204, what: "Throwaways per clean dropback; real side FTN is_throw_away." },
   { id: "scramble_rate", home: "registry", adrLine: 962, what: "RUN_RESOLUTION carryType SCRAMBLE per dropback." },

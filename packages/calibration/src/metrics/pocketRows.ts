@@ -381,8 +381,10 @@ export const cleanWithLiveWonRepPushTicks: Metric = registerMetric({
   id: "clean_with_live_won_rep_push_ticks",
   tier: 1,
   definition:
-    `Of the ticks with ${LIVE_WON_REP}, those where such a threat is a PUSH rep by \`pocket/approach.ts\` ` +
-    "(a POWER rep won from a latent margin of 1 to 14), counted apart because shape S's window fills that tick for them (ADR-089:1160).",
+    `Of the ticks with ${LIVE_WON_REP}, those where such a threat is a PUSH rep by \`pocket/approach.ts\`, ` +
+    "counted apart because shape S's window fills that tick for them (ADR-089:1160). A PUSH rep is a POWER rep won from a " +
+    "latent margin of 1 to 14 (the approach card's PUSH range): under legacy and shape S, the range alone; under shape L, " +
+    "the same range and BLOCKER_BEATEN reported before the win (ADR-089 Appendix F, F1 option (b)).",
   unit: "% of those ticks",
   toleranceBand: OBSERVATION(),
   computeFromEvents(context: SimContext): MetricOutcome {
