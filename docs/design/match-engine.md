@@ -618,7 +618,10 @@ Results per Tick:
 > ```
 >
 > and the block is beaten on the first tick at or after T, or never in the play when T is past
-> `clock.maxTick`. **No per-tick jitter die is drawn under S** (an amendment to ADR-059, noted
+> `clock.maxTick`. T is computed with `Math.exp`, `Math.log` and `**`, the first such math on a
+> play path, and is never published: it reaches the stream only through the tick it picks (first
+> tick at or after T, to within 1e-9 of a tick), so a runtime whose `Math.log` differs by an ulp
+> can move a beat only when T lands within that of a tick boundary. **No per-tick jitter die is drawn under S** (an amendment to ADR-059, noted
 > there). Each tick reports a margin set by the beat, through the same bands and counter table
 > as the rows above: `min(0, m)` before the beat tick, and `max(15, m)`, RUSHER_WINS_REP, from the
 > beat tick on. That tick's `pass_rush_tick` CHECK carries no `roll` and no `opposedRoll`, and its
@@ -629,7 +632,8 @@ Results per Tick:
 > margin is 1 to 14 (provisional) shows the bull rush before it breaks. With t_b its beat tick, it
 > reports `min(m, 4)`, RUSHER_GAINING, on t_b - 1.0 s (the length is provisional), and
 > `max(m, 5)`, BLOCKER_BEATEN, on t_b - 0.5 s. A window tick before the play's first tick is
-> dropped. The 4, 5 and 15 are not dials: they are read from `passRush.bands` (BLOCKER_BEATEN's
+> dropped. The window's length must be a whole number of tick steps, at least two, so its first
+> tick is a played tick before its second; any other length is refused before a die is thrown. The 4, 5 and 15 are not dials: they are read from `passRush.bands` (BLOCKER_BEATEN's
 > floor less 1, BLOCKER_BEATEN's floor, RUSHER_WINS_REP's floor). The window throws no die.
 > S without the window is an information arm only.
 >

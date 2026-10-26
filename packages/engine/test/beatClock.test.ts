@@ -4,7 +4,9 @@
  * The closed forms against hand values and, bit for bit, against calibration's step-0 formula
  * (`packages/calibration/src/pocket/clocks.ts:89-112`, `:121-145`). The engine cannot import
  * calibration (Iron Rule 1), so the reference below is a COPY of those expressions, operation for
- * operation; if either side changes its arithmetic, this file fails.
+ * operation: if the engine's arithmetic changes, this file fails. A change to calibration's
+ * `clocks.ts` does not fail it (review CT-6); calibration's side is held by `pocketStep1Stream`'s
+ * S-2 and S-4, which rebuild every stream's breaking times and margins with `clocks.ts`.
  */
 import { describe, expect, it } from "vitest";
 import { createRng } from "@ff/contracts";

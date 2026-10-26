@@ -451,8 +451,9 @@ matchup then **reports the beat clock's margin**: `min(0, m)` before the beat ti
 `max(15, m)` from the beat tick on. Its `pass_rush_tick` CHECK carries no roll, and its `rollRef`
 names the `pass_rush_beat`, whose own `rollRef` names the rep. **The push window's two ticks are
 the only exception before the beat**: a POWER rep of latent margin 1 to 14 reports `min(m, 4)`
-one window length before the beat tick, and `max(m, 5)` on the tick just before it. Neither tick
-throws a die (ADR-089:416, :1256, :1320, and its §4.1.1; critique-1 F5).
+one window length before the beat tick, and `max(m, 5)` on the tick just before it, each only at
+or after the play's first tick (0.5 s). Neither tick throws a die (ADR-089:416, :1003, :1256,
+:1320, and its §4.1.1; critique-1 F5).
 
 Under `legacy`, which is the default, and under shape L, everything above is unchanged: the
 jitter die is drawn on every tick, and the tick reports `repMargin + jitter`. Under L that sum is

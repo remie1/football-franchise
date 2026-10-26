@@ -76,6 +76,22 @@ describe("ADR-089 step 1 — the closed sets", () => {
     expect(l.rules).toEqual({ name: "pocket-1.s1", overlayDigest: "fnv1a:1c000005" });
   });
 
+  it("accepts a window of a whole number of tick steps, two or more, on the tunables' own grid (CT-2)", () => {
+    const sWith = (base: Tunables, lengthSeconds: number): Tunables =>
+      withBlocks(base, { beatClock: { ...BEAT_CLOCK, pushWindow: { minMargin: 1, maxMargin: 14, lengthSeconds } }, approach: APPROACH_CARD }, STAMP);
+    for (const lengthSeconds of [1.0, 1.5, 2.0]) expect(pocketRulesOf(sWith(DEFAULT_TUNABLES, lengthSeconds)).kind).toBe("S");
+    // The grid is the tunables' own: on a 0.25 s step a 0.5 s window is two steps.
+    const fine = applyTunablePatch(DEFAULT_TUNABLES, {
+      tunableId: "clock.tickStepSeconds",
+      currentValue: DEFAULT_TUNABLES.clock.tickStepSeconds,
+      proposedValue: 0.25,
+      evidence: "pocketRules.test.ts",
+      expectedEffect: "the window's grid",
+    });
+    expect(pocketRulesOf(sWith(fine, 0.5)).kind).toBe("S");
+    expect(() => pocketRulesOf(sWith(fine, 0.25))).toThrow(/whole number of tick steps \(0\.25 s\), at least 2/);
+  });
+
   it("accepts pocket-1 itself and mid-build pocket-1.s<step> names", () => {
     for (const name of ["pocket-1", "pocket-1.s1", "pocket-1.s11", "pocket-1.s5b"]) {
       expect(pocketRulesOf(withBlocks(DEFAULT_TUNABLES, { beatClock: BEAT_CLOCK, approach: APPROACH_CARD }, stamp("fnv1a:1", name))).kind).toBe("S");
@@ -170,6 +186,29 @@ describe("ADR-089 step 1 — every refusal, before any die", () => {
       "a window of no length",
       withBlocks(DEFAULT_TUNABLES, { beatClock: { ...BEAT_CLOCK, pushWindow: { minMargin: 1, maxMargin: 14, lengthSeconds: 0 } }, approach: APPROACH_CARD }, STAMP),
       "@ff/engine: passRush.beatClock.pushWindow.lengthSeconds must be a finite number above 0, got 0",
+    ],
+    // CT-2: the window's gaining tick is t_b - lengthSeconds, so the length must land on the tick grid
+    // and be at least two steps, or the gaining tick is never played (off the grid) or falls on the
+    // beaten tick (one step), and the BLOCKER_BEATEN tick §4.1.1 files is never played.
+    [
+      "a window one tick step long (its gaining tick would be its beaten tick)",
+      withBlocks(DEFAULT_TUNABLES, { beatClock: { ...BEAT_CLOCK, pushWindow: { minMargin: 1, maxMargin: 14, lengthSeconds: 0.5 } }, approach: APPROACH_CARD }, STAMP),
+      "@ff/engine: passRush.beatClock.pushWindow.lengthSeconds must be a whole number of tick steps (0.5 s), at least 2, so its gaining tick is a played tick before its beaten tick; got 0.5",
+    ],
+    [
+      "a window off the tick grid",
+      withBlocks(DEFAULT_TUNABLES, { beatClock: { ...BEAT_CLOCK, pushWindow: { minMargin: 1, maxMargin: 14, lengthSeconds: 0.75 } }, approach: APPROACH_CARD }, STAMP),
+      "@ff/engine: passRush.beatClock.pushWindow.lengthSeconds must be a whole number of tick steps (0.5 s), at least 2, so its gaining tick is a played tick before its beaten tick; got 0.75",
+    ],
+    [
+      "a window shorter than one tick step",
+      withBlocks(DEFAULT_TUNABLES, { beatClock: { ...BEAT_CLOCK, pushWindow: { minMargin: 1, maxMargin: 14, lengthSeconds: 0.25 } }, approach: APPROACH_CARD }, STAMP),
+      "@ff/engine: passRush.beatClock.pushWindow.lengthSeconds must be a whole number of tick steps (0.5 s), at least 2, so its gaining tick is a played tick before its beaten tick; got 0.25",
+    ],
+    [
+      "a window of 1.3 s on the 0.5 s grid",
+      withBlocks(DEFAULT_TUNABLES, { beatClock: { ...BEAT_CLOCK, pushWindow: { minMargin: 1, maxMargin: 14, lengthSeconds: 1.3 } }, approach: APPROACH_CARD }, STAMP),
+      "@ff/engine: passRush.beatClock.pushWindow.lengthSeconds must be a whole number of tick steps (0.5 s), at least 2, so its gaining tick is a played tick before its beaten tick; got 1.3",
     ],
     [
       "a PUSH range that runs backwards",

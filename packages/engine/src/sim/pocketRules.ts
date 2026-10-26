@@ -14,7 +14,14 @@
  * Anything else is refused with a `PocketRulesError`: both clocks; a clock without the approach
  * card or the card without a clock; a block without a stamp or a stamp without a block; a stamp
  * whose name is not a `pocket-1` name (`legacy` is never stamped); a stamp without its overlay
- * digest; a dial no clock can run on.
+ * digest; a dial no clock can run on (among them a push window that is not a whole number of tick
+ * steps, two or more).
+ *
+ * The push window's margin range (`beatClock.pushWindow`) and the approach card's PUSH range
+ * (`approach`) are separate dials here (review CT-3): shape S without the window still has a
+ * card, and the engine reads each where it acts (the window's ticks, the threat's label). They
+ * name the same reps by design (ADR-089 §4.0's PUSH row and §4.1.1 are both "POWER, 1 to 14"),
+ * and calibration, the only maker of a stamped bundle, refuses one whose two ranges differ.
  *
  * The stamp is COPIED onto `PLAY_START` as `{ name, overlayDigest }` (`rules` below), so no
  * extra run-time key of the caller's object can ride into the stream. The engine computes no
@@ -82,6 +89,21 @@ function range(min: unknown, max: unknown, what: string): void {
 }
 
 /**
+ * The push window's gaining tick is `t_b - lengthSeconds` and its beaten tick `t_b - tickStep`
+ * (§4.1.1), and the beat tick is on the play's grid. So the length must be a whole number of tick
+ * steps, or the gaining tick is never a played tick, and at least two, or it is the beaten tick
+ * itself and the BLOCKER_BEATEN tick the window files is never played (review CT-2).
+ */
+function onTheGrid(lengthSeconds: number, tickStepSeconds: number, what: string): void {
+  const steps = lengthSeconds / tickStepSeconds;
+  if (!(Math.abs(steps - Math.round(steps)) < 1e-9 && Math.round(steps) >= 2)) {
+    throw new PocketRulesError(
+      `${what} must be a whole number of tick steps (${String(tickStepSeconds)} s), at least 2, so its gaining tick is a played tick before its beaten tick; got ${String(lengthSeconds)}`,
+    );
+  }
+}
+
+/**
  * The rules this play runs under, from the tunables it was handed. Pure, and called once a play
  * at the top of `simulatePassPlay`, before any die: a refusal throws before the stream begins.
  */
@@ -124,6 +146,7 @@ export function pocketRulesOf(tunables: Tunables): PocketRules {
     if (w !== undefined) {
       range(w.minMargin, w.maxMargin, "passRush.beatClock.pushWindow");
       positive(w.lengthSeconds, "passRush.beatClock.pushWindow.lengthSeconds");
+      onTheGrid(w.lengthSeconds, tunables.clock.tickStepSeconds, "passRush.beatClock.pushWindow.lengthSeconds");
     }
     return Object.freeze({ kind: "S", beatClock, approach, rules });
   }
