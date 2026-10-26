@@ -109,8 +109,16 @@ spread nearly as they do in the NFL; the rest of the gap is the pocket. The fron
 so the pocket fix comes next. Its design will take in what a free blitzer really changes (the
 quarterback's feel for the rush, his mobility against the rusher's speed, hot and deep routes, and
 down and distance), and its questions go to you before anything is built. The pocket fix (ADR-089)
-is being built in twelve steps; step 0 added the instruments and filed every prediction; nothing
-about play has changed yet.
+is being built in twelve steps; step 0 added the instruments and filed every prediction; step 1
+built the two candidate block clocks (a breaking time with the bull-rush window, and a gradual one)
+and a label for how each rusher got there, all behind a switch that is off, so default play has
+still not changed. With the switch turned on for measurement, the breaking-time clock brought
+pressure down to 32% to 33% of dropbacks with sacks and release time inside their predictions,
+though the bull-rush window added slightly more pressure than predicted on one league; the gradual
+clock left pressure at 66% to 75%, far above its own prediction; and interceptions rose by more
+than the filed check allows in every arm measured against a base, on both seed sets, so step 1's
+results come to you before anything merges. Step 1's numbers are in
+`packages/calibration/reports/adr-089-step1.md`.
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
 NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered
