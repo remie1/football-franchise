@@ -33,6 +33,7 @@ import type { FittedFourthDown } from "../caller/fourthDown.js";
 import type { FittedTendencies } from "../caller/tendencies.js";
 import { emptyAccumulator, mergeAccumulators, type SimAccumulator } from "../metrics/collect.js";
 import type { AnyProvenancedLeague } from "../league/provenance.js";
+import { EngineRulesError } from "../pocket/rules.js";
 import {
   blankCallerDiagnostics,
   mergeCallerDiagnostics,
@@ -92,7 +93,12 @@ export interface WorkerBootstrap {
   readonly league: AnyProvenancedLeague;
   readonly tendencies: FittedTendencies;
   readonly fourthDown: FittedFourthDown;
-  /** Serialised tunables. `undefined` means the worker uses `DEFAULT_TUNABLES`. */
+  /** Serialised tunables. `undefined` means the worker uses `DEFAULT_TUNABLES`.
+   *  Legacy only (ADR-089 review NPC-2, CT-5): the worker folds with `DEFAULT_TUNABLES`' tables
+   *  (`worker.ts`) and plays these apart from the tunables `runBatch` checks and records, so
+   *  `workerPoolExecutor` refuses a `pocket-1` stamp or block here, and a `pocket-1` batch runs in
+   *  process, where it folds with the tunables it played (K14). When the pool becomes runnable,
+   *  `runBatch` should hand it the tunables it checked and the worker fold with them. */
   readonly tunables?: unknown;
   /** ADR-024. `undefined` means the worker uses `DEFAULT_CALLER_VERSION` (v7), the same default
    *  the in-process path takes. No knobs (not v5's options, not v6's parts), as
@@ -116,6 +122,27 @@ export interface WorkerJobResult {
   readonly caller: FrozenCallerDiagnostics;
 }
 
+/**
+ * ADR-089 review NPC-2 and CT-5: a bootstrap whose tunables carry a rules stamp or any `pocket-1`
+ * block is refused before the compiled-worker check, whatever the build state, since the worker
+ * would fold it with the default tables and play it unchecked. Reads only; legacy passes.
+ */
+function refusePocketBootstrap(tunables: unknown): void {
+  if (tunables === null || typeof tunables !== "object") return;
+  const t = tunables as { readonly engineRules?: unknown; readonly passRush?: unknown };
+  const pr = (t.passRush !== null && typeof t.passRush === "object" ? t.passRush : {}) as {
+    readonly beatClock?: unknown;
+    readonly repClock?: unknown;
+    readonly approach?: unknown;
+  };
+  if (t.engineRules === undefined && pr.beatClock === undefined && pr.repClock === undefined && pr.approach === undefined) return;
+  throw new EngineRulesError(
+    "workerPoolExecutor: a pocket-1 bootstrap (a rules stamp, or a passRush.beatClock, repClock or approach block) is refused: " +
+      "the worker folds with DEFAULT_TUNABLES' tables and plays its bootstrap apart from the tunables runBatch checks and records, " +
+      "so a pocket-1 batch runs on inProcessExecutor() (K14)",
+  );
+}
+
 function compiledWorkerPath(): string {
   const here = dirname(fileURLToPath(import.meta.url));
   // Two layouts: running from `dist/harness` (built) or `src/harness` (source).
@@ -131,6 +158,7 @@ function compiledWorkerPath(): string {
  */
 export function workerPoolExecutor(workers: number, bootstrap: WorkerBootstrap): BatchExecutor {
   if (workers < 1) throw new RangeError("workers must be at least 1");
+  refusePocketBootstrap(bootstrap.tunables);
   const workerPath = compiledWorkerPath();
   if (!existsSync(workerPath)) throw new WorkerPoolUnavailableError(workerPath);
 
