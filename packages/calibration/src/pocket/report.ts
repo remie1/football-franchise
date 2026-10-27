@@ -24,7 +24,7 @@
  */
 import { THROW_CLASSES, type ThrowClass } from "./constructs.js";
 import { intGuard, intGuardByClass, type ClassGuardVerdict, type GuardClock, type GuardVerdict, type IntMix } from "./bands.js";
-import type { Am1ArmReading, Am1Reading, Am1SetReading, PairedReading, Reweighted } from "./guardAm1.js";
+import type { Am1ArmReading, Am1Reading, Am1SetReading, PairedReading, Reweighted, ReweightedOf } from "./guardAm1.js";
 
 export const LEAGUES = ["flat", "gen"] as const;
 export type League = (typeof LEAGUES)[number];
@@ -750,6 +750,8 @@ export interface Step2GuardRow {
   readonly desperation: readonly Step2GuardHalf[];
   readonly reweighted: readonly Reweighted[];
   readonly checkdown: { readonly base: readonly Step2Checkdown[]; readonly arm: readonly Step2Checkdown[] };
+  /** CHECKDOWN's aimed throws by trigger (THREAT, COUNT, STATUS, NONE; `s2Stream.ts`'s `checkdownSplit`) and its rise re-weighted to the base's (AM-1 §4.5). */
+  readonly checkdownReweighted: readonly ReweightedOf<string>[];
 }
 
 /** One arm's counts on one league and seed set. */
@@ -847,9 +849,25 @@ const readingText = (r: Am1Reading): string =>
 const pairedText = (p: PairedReading): string =>
   p.sets.length === 0 ? "paired: n/a" : `paired SE ${p.sets.map((x) => `${x.se.toFixed(2)} (set ${String(x.seedSet)}, ${String(x.games)} games, z ${signed(x.z)})`).join(", ")}; paired Z ${signed(p.Z)} (reported, never graded)`;
 
+/**
+ * The looks by trigger. The threat, status and count parts are separate counts and overlap (on
+ * step 1's clock a threat inside C floors the status, so the first two often hold together), so
+ * they are printed apart and never summed; the rule-part trigger count is `ruleOnly + both`
+ * (review MEAS-M-2).
+ */
 function checkdownText(cs: readonly Step2Checkdown[]): string {
-  return cs.map((c) => `set ${String(c.seedSet)} ${String(c.acts)} looks (threat or status part ${String(c.threatPart + c.statusPart)}, count part ${String(c.countPart)}; rule only ${String(c.ruleOnly)}, count only ${String(c.countOnly)}, both ${String(c.both)}, neither ${String(c.neither)})`).join("; ") || "none";
+  return (
+    cs
+      .map(
+        (c) =>
+          `set ${String(c.seedSet)} ${String(c.acts)} looks (threat part ${String(c.threatPart)}, status part ${String(c.statusPart)}, count part ${String(c.countPart)}; ` +
+          `rule part ${String(c.ruleOnly + c.both)} under ${c.rule ?? "n/a"}: rule only ${String(c.ruleOnly)}, count only ${String(c.countOnly)}, both ${String(c.both)}, neither ${String(c.neither)})`,
+      )
+      .join("; ") || "none"
+  );
 }
+
+const shareText = (o: Readonly<Record<string, number | null>>): string => Object.entries(o).map(([k, v]) => `${k.toLowerCase()} ${fmt(v)}%`).join(" / ");
 
 const m2Text = (r: Step2M2Row, band: { lo: number; hi: number }): string => {
   const range = r.sharePct === null ? "no forced decision" : r.sharePct > band.hi ? "outside the reported range, information" : "inside the reported range";
@@ -974,6 +992,12 @@ export function renderStep2Sections(s: Step2Sections): readonly string[] {
       );
     }
     out.push(`- checkdown looks by trigger: base ${checkdownText(g.checkdown.base)}; arm ${checkdownText(g.checkdown.arm)}`);
+    for (const w of g.checkdownReweighted) {
+      out.push(
+        `- CHECKDOWN composition by trigger on the release tick, set ${String(w.seedSet)}: base ${shareText(w.baseShare)} -> arm ${shareText(w.armShare)}; ` +
+          `the class's rise ${signed(w.rise)}, re-weighted to the base's composition ${signed(w.reweightedRise)} (reported)`,
+      );
+    }
     out.push("");
   }
 

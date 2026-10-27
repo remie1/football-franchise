@@ -24,8 +24,10 @@ import {
   am1ArmReading,
   am1ClassReading,
   am1Reading,
+  DESPERATION_HALVES,
   pairedReading,
   pairedSet,
+  reweightedBy,
   reweightedDesperation,
   type GuardSide,
 } from "../src/pocket/guardAm1.js";
@@ -276,5 +278,25 @@ describe("DESPERATION re-weighted to the base's composition (AM-1 §4.5, reporte
     expect(worse.reweightedRise).toBeCloseTo(0.25 * 10, 12);
     expect(reweightedDesperation(1, base, { DIRTY: mix(100, 10), CLEAN: mix(0, 0) }).reweightedRise).toBeNull();
     expect(reweightedDesperation(1, { DIRTY: mix(0, 0), CLEAN: mix(0, 0) }, arm).rise).toBeNull();
+  });
+
+  it("re-weights any class split into parts the same way: CHECKDOWN by trigger (review FID-F-2)", () => {
+    const parts = ["THREAT", "COUNT", "STATUS", "NONE"] as const;
+    const base = { THREAT: mix(100, 4), COUNT: mix(300, 3), STATUS: mix(100, 1), NONE: mix(0, 0) };
+    // The arm moves looks from STATUS to THREAT at the same rates in each part: the class rises, the re-weighted rise is 0.
+    const arm = { THREAT: mix(200, 8), COUNT: mix(300, 3), STATUS: mix(0, 0), NONE: mix(0, 0) };
+    const moved = reweightedBy(1, parts, base, arm);
+    expect(moved.rise).toBeCloseTo((100 * 11) / 500 - (100 * 8) / 500, 12);
+    // STATUS, a part the base throws in, has no arm throws: its rate change is not defined.
+    expect(moved.reweightedRise).toBeNull();
+    expect(moved.baseShare).toEqual({ THREAT: 20, COUNT: 60, STATUS: 20, NONE: 0 });
+    expect(moved.armShare).toEqual({ THREAT: 40, COUNT: 60, STATUS: 0, NONE: 0 });
+    const same = reweightedBy(2, parts, base, { THREAT: mix(200, 8), COUNT: mix(300, 3), STATUS: mix(100, 1), NONE: mix(0, 0) });
+    expect(same.reweightedRise).toBeCloseTo(0, 12);
+    const worse = reweightedBy(2, parts, base, { THREAT: mix(100, 9), COUNT: mix(300, 3), STATUS: mix(100, 1), NONE: mix(0, 0) });
+    expect(worse.reweightedRise).toBeCloseTo(0.2 * 5, 12);
+    // DESPERATION's is the same function over its halves.
+    const d = { DIRTY: mix(100, 10), CLEAN: mix(300, 6) };
+    expect(reweightedBy(1, DESPERATION_HALVES, d, d)).toEqual(reweightedDesperation(1, d, d));
   });
 });

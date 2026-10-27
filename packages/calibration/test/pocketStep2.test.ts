@@ -535,6 +535,8 @@ describe("grading synthetic records", () => {
       expect(r.desperation.map((h) => h.half)).toEqual(["DIRTY", "CLEAN"]);
       expect(r.reweighted).toHaveLength(2);
       expect(r.checkdown.arm.map((c) => c.seedSet)).toEqual([1, 2]);
+      expect(r.checkdownReweighted.map((w) => w.seedSet)).toEqual([1, 2]);
+      expect(Object.keys(r.checkdownReweighted[0]!.baseShare)).toEqual(["THREAT", "COUNT", "STATUS", "NONE"]);
     }
     expect(g.groups.map((x) => `${String(x.seedSet)}:${x.input.arms.map((a) => a.arm.split(" ")[0]).join(",")}`)).toEqual(
       [1, 2].flatMap((s) => STEP2_GROUPS.map((gr) => `${String(s)}:${[gr.base, ...gr.arms].join(",")}`)),
@@ -606,6 +608,37 @@ describe("grading synthetic records", () => {
     expect(row.desperation.map((h) => h.bySet.length)).toEqual([2, 2]);
     expect(row.checkdown.base.map((c) => c.rule)).toEqual(["STEP_1", "STEP_1"]);
     expect(row.checkdown.arm.map((c) => c.rule)).toEqual(["PER_RUSHER", "PER_RUSHER"]);
+  });
+
+  it("a CHECKDOWN breach carries CHECKDOWN's composition by trigger and the rise re-weighted to the base's (review FID-F-2)", () => {
+    const g = grade(recordsOf((m) => {
+      for (const s of [1, 2] as const) {
+        const r = rec(m, "B3", s);
+        const c = r.report.intGuard.gen.byClass.CHECKDOWN!;
+        expect(c.aimedByBin.reduce((a, b) => a + b, 0)).toBeGreaterThan(50);
+        c.interceptions += 25;
+        r.s2.gen.checkdown.THREAT.interceptions += 25;
+      }
+    }));
+    expect(g.sections.outcome.guardBreaches).toEqual([expect.stringMatching(/^B3 against A1, gen: CHECKDOWN Z \+\d+\.\d\d$/)]);
+    expect(g.sections.outcome.next[1]).toBe(
+      "a DESPERATION or CHECKDOWN breach goes to the owner with the class's composition (AM-1 §4.5): the guard section prints DESPERATION's halves and CHECKDOWN's throws by trigger, each with the rise re-weighted to the base's composition, and the checkdown looks by trigger",
+    );
+    const row = g.sections.guard.find((r) => !r.cumulative && r.arm === "B3" && r.base === "A1" && r.league === "gen")!;
+    expect(row.checkdownReweighted.map((w) => w.seedSet)).toEqual([1, 2]);
+    for (const w of row.checkdownReweighted) {
+      console.log(`CHECKDOWN set ${String(w.seedSet)}: base ${JSON.stringify(w.baseShare)} arm ${JSON.stringify(w.armShare)} rise ${String(w.rise)} re-weighted ${String(w.reweightedRise)}`);
+      expect(w.rise).not.toBeNull();
+      const total = (o: Readonly<Record<string, number | null>>): number => Object.values(o).reduce<number>((a, b) => a + (b ?? 0), 0);
+      expect(total(w.baseShare)).toBeCloseTo(100, 9);
+      expect(total(w.armShare)).toBeCloseTo(100, 9);
+      // B3 is PER_RUSHER: no CHECKDOWN of its is forced by the status alone or by nothing.
+      expect([w.armShare["STATUS"], w.armShare["NONE"]]).toEqual([0, 0]);
+      expect(w.armShare["THREAT"]).toBeGreaterThan(0);
+    }
+    const text = renderStep2Report(g, recordsOf());
+    expect(text).toMatch(/- CHECKDOWN composition by trigger on the release tick, set 1: base threat [0-9.]+% \/ count [0-9.]+% \/ status [0-9.]+% \/ none [0-9.]+% -> arm threat /);
+    expect(text).toMatch(/the class's rise [+-][0-9.]+, re-weighted to the base's composition (n\/a|[+-][0-9.]+) \(reported\)/);
   });
 
   it("a structural proof that fails is a structural failure, and holds the merge card", () => {
@@ -745,6 +778,9 @@ describe("grading synthetic records", () => {
     ]) expect(text, h).toContain(h);
     expect(text.split("\n").filter((l) => l === "```text")).toHaveLength(10);
     expect(text).toContain("the filed guard against");
+    // The checkdown looks by trigger print each part apart, never their sum (review MEAS-M-2).
+    expect(text).not.toContain("threat or status part");
+    expect(text).toMatch(/looks \(threat part [0-9]+, status part [0-9]+, count part [0-9]+; rule part [0-9]+ under (STEP_1|PER_RUSHER|COUNTER_LESS_SEEN): rule only /);
     expect(text).toContain("(CUT: flat first 1, gen through week 1; tests only)");
     expect(text).not.toContain(tmpdir());
     const one = grade(recordsOf(undefined, [1]), 1);

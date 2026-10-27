@@ -344,36 +344,40 @@ export function pairedReading(
   return { sets, Z };
 }
 
-// --- reported: DESPERATION, dirty and clean (F.9 item 4; AM-1 §4.5) -------------------------------------
+// --- reported: DESPERATION, dirty and clean (F.9 item 4), and any class's re-weighting (AM-1 §4.5) --------
 
 export const DESPERATION_HALVES: readonly DesperationPocket[] = Object.freeze(["DIRTY", "CLEAN"] as const);
 
-/** One set's composition of DESPERATION by half and the rise re-weighted to the base's composition. */
-export interface Reweighted {
+/** One set's composition of a class by part and the rise re-weighted to the base's composition. */
+export interface ReweightedOf<H extends string> {
   readonly seedSet: SeedSet;
-  /** The base's and the arm's share of DESPERATION aimed throws in each half, percent. */
-  readonly baseShare: Readonly<Record<DesperationPocket, number | null>>;
-  readonly armShare: Readonly<Record<DesperationPocket, number | null>>;
+  /** The base's and the arm's share of the class's aimed throws in each part, percent. */
+  readonly baseShare: Readonly<Record<H, number | null>>;
+  readonly armShare: Readonly<Record<H, number | null>>;
   /** The class's own rise (points per 100 aimed throws). */
   readonly rise: number | null;
   /**
-   * The rise with each half's rate change weighted by the base's share of that half: the rise the
-   * class would show had its membership not moved. Null when a half the base throws in has no arm
+   * The rise with each part's rate change weighted by the base's share of that part: the rise the
+   * class would show had its membership not moved. Null when a part the base throws in has no arm
    * throws (its rate change is not defined).
    */
   readonly reweightedRise: number | null;
 }
 
-export function reweightedDesperation(seedSet: SeedSet, base: Readonly<Record<DesperationPocket, IntMix>>, arm: Readonly<Record<DesperationPocket, IntMix>>): Reweighted {
-  const nb = DESPERATION_HALVES.reduce((a, h) => a + aimedOf(base[h]), 0);
-  const na = DESPERATION_HALVES.reduce((a, h) => a + aimedOf(arm[h]), 0);
-  const share = (side: Readonly<Record<DesperationPocket, IntMix>>, n: number): Record<DesperationPocket, number | null> =>
-    Object.fromEntries(DESPERATION_HALVES.map((h) => [h, n > 0 ? (100 * aimedOf(side[h])) / n : null])) as Record<DesperationPocket, number | null>;
+/** DESPERATION's, by half (F.9 item 4). */
+export type Reweighted = ReweightedOf<DesperationPocket>;
+
+/** The composition and the re-weighted rise of a class split into `parts` (AM-1 §4.5), on one set. */
+export function reweightedBy<H extends string>(seedSet: SeedSet, parts: readonly H[], base: Readonly<Record<H, IntMix>>, arm: Readonly<Record<H, IntMix>>): ReweightedOf<H> {
+  const nb = parts.reduce((a, h) => a + aimedOf(base[h]), 0);
+  const na = parts.reduce((a, h) => a + aimedOf(arm[h]), 0);
+  const share = (side: Readonly<Record<H, IntMix>>, n: number): Record<H, number | null> =>
+    Object.fromEntries(parts.map((h) => [h, n > 0 ? (100 * aimedOf(side[h])) / n : null])) as Record<H, number | null>;
   const rate = (m: IntMix): number | null => (aimedOf(m) > 0 ? (100 * m.interceptions) / aimedOf(m) : null);
-  const ints = (side: Readonly<Record<DesperationPocket, IntMix>>): number => DESPERATION_HALVES.reduce((a, h) => a + side[h].interceptions, 0);
+  const ints = (side: Readonly<Record<H, IntMix>>): number => parts.reduce((a, h) => a + side[h].interceptions, 0);
   const rise = nb > 0 && na > 0 ? (100 * ints(arm)) / na - (100 * ints(base)) / nb : null;
   let reweightedRise: number | null = nb > 0 ? 0 : null;
-  for (const h of DESPERATION_HALVES) {
+  for (const h of parts) {
     if (reweightedRise === null) break;
     const nbh = aimedOf(base[h]);
     if (nbh === 0) continue;
@@ -382,4 +386,8 @@ export function reweightedDesperation(seedSet: SeedSet, base: Readonly<Record<De
     reweightedRise = ra === null || rb === null ? null : reweightedRise + (nbh / nb) * (ra - rb);
   }
   return { seedSet, baseShare: share(base, nb), armShare: share(arm, na), rise, reweightedRise };
+}
+
+export function reweightedDesperation(seedSet: SeedSet, base: Readonly<Record<DesperationPocket, IntMix>>, arm: Readonly<Record<DesperationPocket, IntMix>>): Reweighted {
+  return reweightedBy(seedSet, DESPERATION_HALVES, base, arm);
 }

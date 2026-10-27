@@ -24,8 +24,11 @@ import { forcingRuleOf } from "../src/pocket/m2ForcingSource.js";
 import { emptyAffectedFold, foldAffectedGame } from "../src/pocket/s1Stream.js";
 import {
   arrivalActsCheck,
+  checkdownSplit,
+  checkdownTriggerOf,
   checkdownTriggersOf,
   closingHoldsOf,
+  emptyCheckdownSplitFold,
   desperationSplit,
   emptyArrivalFold,
   emptyDesperationSplitFold,
@@ -572,6 +575,38 @@ describe("foldAffectedGame: step 2's four mechanisms (plan §4.3)", () => {
   });
 });
 
+// --- CHECKDOWN by trigger (AM-1 §4.5's composition; review FID-F-2) ------------------------------------
+
+describe("CHECKDOWN's throws by what forced the look, on the release tick", () => {
+  const checkdown = (t: number, intercepted = false): Ev[] => [look(t, "rb", 30), decide("CHECKDOWN", "rb"), thrown("rb"), caught(!intercepted), result(intercepted ? 0 : 4, intercepted)];
+
+  it("names the trigger: THREAT before COUNT before STATUS, with the arm's own C", () => {
+    // B3 (C 0.5): a threat 0.5 s out is the threat part.
+    expect(checkdownTriggerOf(one(play([tick(1.0), threat("de1", "TRAVELLING", 1.5), status("COLLAPSING"), ...checkdown(1.0)])), ctxOf(B3))).toBe("THREAT");
+    // Past the 2.0 s budget with no threat near: the count part.
+    expect(checkdownTriggerOf(one(play([tick(2.0), threat("de1", "TRAVELLING", 4.0), status("COLLAPSING"), read(2.0, 1, "wr1", 20), ...checkdown(2.0)])), ctxOf(B3))).toBe("COUNT");
+    // A1 (C 1.0): a threat 0.8 s out is A1's threat part; at 1.5 s out on COLLAPSING only the status forced the look.
+    expect(A1.arrival.collapsingWithinSeconds).toBe(1.0);
+    expect(checkdownTriggerOf(one(play([tick(1.0), threat("de1", "TRAVELLING", 1.8), status("COLLAPSING"), ...checkdown(1.0)])), ctxOf(A1))).toBe("THREAT");
+    expect(checkdownTriggerOf(one(play([tick(1.0), threat("de1", "TRAVELLING", 2.5), status("COLLAPSING"), ...checkdown(1.0)])), ctxOf(A1))).toBe("STATUS");
+    // Nothing forced it: NONE (mustActCheck names the look itself).
+    expect(checkdownTriggerOf(one(play([tick(1.0), status("CLEAN"), ...checkdown(1.0)])), ctxOf(A1))).toBe("NONE");
+    // Any other throw is not a CHECKDOWN.
+    expect(checkdownTriggerOf(one(play([tick(1.0), read(1.0, 1, "wr1", 90), decide("THROW", "wr1"), thrown("wr1"), caught(true), result(9)])), ctxOf(A1))).toBeUndefined();
+  });
+
+  it("folds each CHECKDOWN into its trigger's cell with its release bin, interception and completion", () => {
+    const fold = emptyCheckdownSplitFold();
+    checkdownSplit(fold, one(play([tick(1.0), threat("de1", "TRAVELLING", 1.5), status("COLLAPSING"), ...checkdown(1.0, true)])), ctxOf(B3));
+    checkdownSplit(fold, one(play([tick(2.0), status("CLEAN"), read(2.0, 1, "wr1", 20), ...checkdown(2.0)])), ctxOf(B3));
+    checkdownSplit(fold, one(play([tick(1.0), read(1.0, 1, "wr1", 90), decide("THROW", "wr1"), thrown("wr1"), caught(true), result(9)])), ctxOf(B3));
+    const aimed = (c: { aimedByBin: number[] }): number => c.aimedByBin.reduce((a, b) => a + b, 0);
+    expect([aimed(fold.THREAT), fold.THREAT.interceptions, fold.THREAT.completions]).toEqual([1, 1, 0]);
+    expect([aimed(fold.COUNT), fold.COUNT.interceptions, fold.COUNT.completions]).toEqual([1, 0, 1]);
+    expect([aimed(fold.STATUS), aimed(fold.NONE)]).toEqual([0, 0]);
+  });
+});
+
 // --- the verdicts --------------------------------------------------------------------------------------
 
 describe("the verdict lines", () => {
@@ -742,6 +777,18 @@ describe(`the step-2 checks on the first ${String(FIRST)} golden games of each l
     }
     expect(sum).toEqual(guard);
     expect(halves).toEqual(folds.desperation);
+    // CHECKDOWN's throws by trigger sum to the guard fold's CHECKDOWN row (review FID-F-2); under PER_RUSHER none is STATUS or NONE.
+    const triggers = emptyGuardFold().CHECKDOWN;
+    for (const cell of Object.values(folds.checkdown)) {
+      cell.aimedByBin.forEach((n, i) => (triggers.aimedByBin[i] = (triggers.aimedByBin[i] ?? 0) + n));
+      triggers.interceptions += cell.interceptions;
+      triggers.completions += cell.completions;
+    }
+    expect(triggers).toEqual(guard.CHECKDOWN);
+    const aimedIn = (h: { aimedByBin: number[] }): number => h.aimedByBin.reduce((a, b) => a + b, 0);
+    expect(aimedIn(folds.checkdown.THREAT) + aimedIn(folds.checkdown.COUNT)).toBe(aimedIn(guard.CHECKDOWN));
+    expect(aimedIn(folds.checkdown.THREAT)).toBeGreaterThan(0);
+    expect(aimedIn(folds.checkdown.COUNT)).toBeGreaterThan(0);
     const despAimed = (h: { aimedByBin: number[] }): number => h.aimedByBin.reduce((a, b) => a + b, 0);
     expect(despAimed(folds.desperation.CLEAN) + despAimed(folds.desperation.DIRTY)).toBe(despAimed(guard.DESPERATION));
     expect(new Set(folds.guardGames.map((g) => g.gameId)).size).toBe(folds.guardGames.length);

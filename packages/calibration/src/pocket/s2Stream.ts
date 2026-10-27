@@ -69,6 +69,9 @@
  *    definitions (R5).
  *  - **`desperationSplit`** (F.9 item 4; O50): DESPERATION's aimed throws by release bin, with
  *    interceptions and completions, split CLEAN and DIRTY by `desperationPocketOf`.
+ *  - **`checkdownSplit`** (AM-1 §4.5's composition; review FID-F-2): CHECKDOWN's aimed throws the
+ *    same way, split by what forced the look on the release tick (`CHECKDOWN_TRIGGERS`), so a
+ *    CHECKDOWN breach carries the rise re-weighted to the base's composition as DESPERATION's does.
  *  - **`guardGameVector`** (AM-1 §4.4; S4-2): each game's guard fold (`step0.ts`'s `foldGuardGame`,
  *    the classes with an aimed throw) and its DESPERATION halves, in game order, with the game's id,
  *    so the report can print the paired, game-clustered SE beside every AM-1 reading.
@@ -469,6 +472,43 @@ export function forcedActsOf(play: S2Play, tunables: Tunables): readonly (At & {
   return acts.sort((a, b) => a.index - b.index);
 }
 
+/** Must act's parts on one tick, read with the arm's own dials (K14). */
+export interface MustActParts {
+  /** A live threat within C, or one arrived. */
+  readonly threat: boolean;
+  /** The published status forces (`pocket.forcesDecision`). */
+  readonly status: boolean;
+  /** His progression reads by the end of the tick's reads. */
+  readonly reads: number;
+  /** The tick at or past his restated budget, or his reads at `maxReads`. */
+  readonly count: boolean;
+  /** The arm's rule part: the threat part under PER_RUSHER, the status part otherwise. */
+  readonly rulePart: boolean;
+}
+
+/** One play's must-act reader: the quarterback's restated budget and reads, the first status a tick, and the parts on a tick. */
+export function mustActPartsOf(play: S2Play, ctx: S2Context): {
+  readonly budget: number;
+  readonly maxReads: number;
+  readonly statusAt: ReadonlyMap<number, StatusTick>;
+  readonly at: (s: StatusTick, tick: number) => MustActParts;
+} {
+  const qb = ctx.players.get(play.start.quarterback);
+  if (qb === undefined) throw new Error(`mustActCheck: ${play.playId}: the quarterback ${play.start.quarterback} is not on the game's snapshot`);
+  const budget = restatedBudgetSeconds(ctx.tunables, qb, play.start.readSystem);
+  const maxReads = restatedMaxReads(ctx.tunables, play.start.readSystem);
+  const statusAt = new Map<number, StatusTick>();
+  for (const s of play.statuses) if (!statusAt.has(s.tick)) statusAt.set(s.tick, s);
+  const perRusher = ctx.rule === "PER_RUSHER";
+  const at = (s: StatusTick, t: number): MustActParts => {
+    const threat = threatPartAt(s, ctx.C);
+    const status = ctx.forcing.has(s.status);
+    const reads = play.reads.filter((r) => r.kind === "PROGRESSION" && r.tick <= t + TOLERANCE).length;
+    return { threat, status, reads, count: t >= budget || reads >= maxReads, rulePart: perRusher ? threat : status };
+  };
+  return { budget, maxReads, statusAt, at };
+}
+
 export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): void {
   holdRule(fold, ctx.rule, "mustActCheck");
   fold.plays += 1;
@@ -477,19 +517,8 @@ export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): v
   const acts = forcedActsOf(play, ctx.tunables);
   const holds = closingHoldsOf(play);
   if (acts.length === 0 && holds.length === 0 && play.statuses.length === 0) return;
-  const qb = ctx.players.get(play.start.quarterback);
-  if (qb === undefined) throw new Error(`mustActCheck: ${play.playId}: the quarterback ${play.start.quarterback} is not on the game's snapshot`);
-  const budget = restatedBudgetSeconds(ctx.tunables, qb, play.start.readSystem);
-  const maxReads = restatedMaxReads(ctx.tunables, play.start.readSystem);
-  const statusAt = new Map<number, StatusTick>();
-  for (const s of play.statuses) if (!statusAt.has(s.tick)) statusAt.set(s.tick, s);
+  const { budget, maxReads, statusAt, at: partsAt } = mustActPartsOf(play, ctx);
   const perRusher = ctx.rule === "PER_RUSHER";
-  const partsAt = (s: StatusTick, t: number): { threat: boolean; status: boolean; reads: number; count: boolean; rulePart: boolean } => {
-    const threat = threatPartAt(s, ctx.C);
-    const status = ctx.forcing.has(s.status);
-    const reads = play.reads.filter((r) => r.kind === "PROGRESSION" && r.tick <= t + TOLERANCE).length;
-    return { threat, status, reads, count: t >= budget || reads >= maxReads, rulePart: perRusher ? threat : status };
-  };
   const nearOf = (s: StatusTick): string => (s.minTta === undefined ? "no live threat" : `nearest threat ${String(s.minTta)} s`);
   const countText = (reads: number): string => `budget ${budget.toFixed(3)} s, ${String(reads)} of ${String(maxReads)} reads`;
   const ruleText = perRusher ? `C ${String(ctx.C)}` : "status in pocket.forcesDecision";
@@ -706,6 +735,47 @@ export function desperationSplit(fold: DesperationSplitFold, play: S2Play, ctx: 
   addDesperation(fold, play.dropback, ctx.tunables);
 }
 
+// --- reported: CHECKDOWN, by what forced the look (AM-1 §4.5's composition; review FID-F-2) ----------
+
+/**
+ * What forced a CHECKDOWN, on its release tick, which is its look's (the engine looks at the outlet
+ * and throws to it on one tick, in the must-decide branch): THREAT, the threat part holds (with the
+ * arm's own C, K14); COUNT, the count part holds and the threat part does not; STATUS, neither, and
+ * the status forces (step 1's rule only: under PER_RUSHER that is a falsifier failure); NONE,
+ * nothing does (a fold fault `mustActCheck` already names on the look).
+ */
+export const CHECKDOWN_TRIGGERS = ["THREAT", "COUNT", "STATUS", "NONE"] as const;
+export type CheckdownTrigger = (typeof CHECKDOWN_TRIGGERS)[number];
+
+export type CheckdownSplitFold = Record<CheckdownTrigger, GuardCell>;
+
+export function emptyCheckdownSplitFold(): CheckdownSplitFold {
+  return { THREAT: emptyGuardCell(), COUNT: emptyGuardCell(), STATUS: emptyGuardCell(), NONE: emptyGuardCell() };
+}
+
+/** A CHECKDOWN aimed throw's trigger; `undefined` for any other dropback. */
+export function checkdownTriggerOf(play: S2Play, ctx: S2Context): CheckdownTrigger | undefined {
+  const d = play.dropback;
+  if (!isAimed(d) || d.throwTick === undefined || throwClassOf(d, ctx.tunables).cls !== "CHECKDOWN") return undefined;
+  const parts = mustActPartsOf(play, ctx);
+  const s = parts.statusAt.get(d.throwTick);
+  if (s === undefined) return "NONE";
+  const p = parts.at(s, d.throwTick);
+  return p.threat ? "THREAT" : p.count ? "COUNT" : p.status ? "STATUS" : "NONE";
+}
+
+/** CHECKDOWN's aimed throws by trigger, with interceptions and completions: their sum is the guard fold's CHECKDOWN row. */
+export function checkdownSplit(fold: CheckdownSplitFold, play: S2Play, ctx: S2Context): void {
+  const trigger = checkdownTriggerOf(play, ctx);
+  if (trigger === undefined) return;
+  const d = play.dropback;
+  const cell = fold[trigger];
+  const i = RELEASE_BINS.findIndex((b) => b.label === releaseBinOf(d.throwTick as number));
+  cell.aimedByBin[i] = (cell.aimedByBin[i] ?? 0) + 1;
+  if (d.intercepted) cell.interceptions += 1;
+  if (d.caught) cell.completions += 1;
+}
+
 // --- reported: the per-game guard vectors (AM-1's paired SE) -----------------------------------------
 
 export interface GuardGameVector {
@@ -751,6 +821,7 @@ export interface S2Folds {
   warning: WarningFold;
   share: MustActShareFold;
   desperation: DesperationSplitFold;
+  checkdown: CheckdownSplitFold;
   guardGames: GuardGameVector[];
   m2: M2StreamFold;
 }
@@ -763,6 +834,7 @@ export function emptyS2Folds(): S2Folds {
     warning: emptyWarningFold(),
     share: emptyMustActShareFold(),
     desperation: emptyDesperationSplitFold(),
+    checkdown: emptyCheckdownSplitFold(),
     guardGames: [],
     m2: emptyM2StreamFold(),
   };
@@ -780,6 +852,7 @@ export const s2Checks = {
   warning: warningCleanCheck,
   share: mustActShare,
   desperation: desperationSplit,
+  checkdown: checkdownSplit,
   guardGame: guardGameVector,
   m2: m2Stream,
 };
@@ -794,6 +867,7 @@ export function foldS2Game(folds: S2Folds, events: readonly MatchEventEnvelope[]
     s2Checks.warning(folds.warning, play, ctx);
     s2Checks.share(folds.share, play, ctx);
     s2Checks.desperation(folds.desperation, play, ctx);
+    s2Checks.checkdown(folds.checkdown, play, ctx);
   }
   s2Checks.guardGame(folds.guardGames, events, ctx);
   s2Checks.m2(folds.m2, events, ctx);

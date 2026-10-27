@@ -60,7 +60,7 @@ import type { ThrowClass } from "./constructs.js";
 import { goldenGames, type SeedSet } from "./corpus.js";
 import { filedDigest, pendingPaths, STEP0_FILED_DIGEST, type BandClause, type FiledFile, type JsonValue } from "./filed.js";
 import { foldDigests, gameBytesDigest, gameDigest, GOLDEN_LEAGUES } from "./golden.js";
-import { am1ArmReading, am1Reading, DESPERATION_HALVES, pairedReading, reweightedDesperation, SEED_SETS, type Am1Lines, type GuardSide, type PairedReading } from "./guardAm1.js";
+import { am1ArmReading, am1Reading, DESPERATION_HALVES, pairedReading, reweightedBy, reweightedDesperation, SEED_SETS, type Am1Lines, type GuardSide, type PairedReading } from "./guardAm1.js";
 import { m2StreamSummary, mergeM2StreamFolds, poissonInterval95, type M2StreamFold } from "./m2ForcingSource.js";
 import {
   LEAGUES,
@@ -90,7 +90,7 @@ import {
 import { POCKET_1_S1_BASE_PINS } from "./s1BasePins.js";
 import { POCKET_1_S1_PINS } from "./s1Pins.js";
 import { s1Problems } from "./s1Stream.js";
-import { checkdownTriggersOf, emptyS2Folds, FORCED_ACT_KINDS, foldS2Game, mustActShareSummary, s2Problems, selfCheckOf, type GuardCell, type GuardGameVector, type MustActSelfCheck, type S2Folds } from "./s2Stream.js";
+import { CHECKDOWN_TRIGGERS, checkdownTriggersOf, emptyS2Folds, FORCED_ACT_KINDS, foldS2Game, mustActShareSummary, s2Problems, selfCheckOf, type GuardCell, type GuardGameVector, type MustActSelfCheck, type S2Folds } from "./s2Stream.js";
 import { openFiling, PR33_STATE, sanitize, type Step2Args } from "./step0.js";
 import {
   armFileOf,
@@ -637,11 +637,17 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
       const a = at(arm, s);
       return b === undefined || a === undefined ? [] : [reweightedDesperation(s, b.s2[league].desperation, a.s2[league].desperation)];
     });
+    const checkdownReweighted = sets.flatMap((s) => {
+      const b = at(base, s);
+      const a = at(arm, s);
+      return b === undefined || a === undefined ? [] : [reweightedBy(s, CHECKDOWN_TRIGGERS, b.s2[league].checkdown, a.s2[league].checkdown)];
+    });
     return {
       arm, base, league, cumulative, reading,
       pairedLeague: pairedReading(baseGames, armGames, { of: "LEAGUE" }, clock),
       pairedClasses, desperation, reweighted,
       checkdown: { base: checkdownOf(base, league), arm: checkdownOf(arm, league) },
+      checkdownReweighted,
     };
   };
   const guardRows: Step2GuardRow[] = [];
@@ -865,7 +871,7 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
         "the cumulative line, the INT-source mix and the class rows (DESPERATION's split, and on a DESPERATION or CHECKDOWN breach the composition and the re-weighted rise); the card asks what to do with them (D9), and the merge card waits",
     );
     if (breachRows.some((g) => g.reading.breaches.includes("DESPERATION") || g.reading.breaches.includes("CHECKDOWN"))) {
-      next.push("a DESPERATION or CHECKDOWN breach goes to the owner with the class's composition (AM-1 §4.5): the guard section prints DESPERATION's halves with the rise re-weighted to the base's composition, and the checkdown looks by trigger");
+      next.push("a DESPERATION or CHECKDOWN breach goes to the owner with the class's composition (AM-1 §4.5): the guard section prints DESPERATION's halves and CHECKDOWN's throws by trigger, each with the rise re-weighted to the base's composition, and the checkdown looks by trigger");
     }
   }
   if (foldFaults.length > 0) next.push("fix the fold (plan §4.7, kind 2): the clauses it feeds print NOT JUDGED until then, and the step cannot close");
