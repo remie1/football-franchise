@@ -996,6 +996,45 @@ SACK:
 > **What replaces PRESSURE/COLLAPSING/IMMEDIATE's accuracy and read-capacity rows during pursuit** is
 > §8.8's own note below, not this table.
 
+> **pocket-1 (ADR-089 step 2, behind the switch; not the default until step 11)**
+>
+> Nothing in this block runs by default. It runs only under a `pocket-1` bundle (§7.1's pocket-1
+> block) that also carries `pocket.forcing`, and `DEFAULT_TUNABLES` carries neither, so default play
+> is the ladder above, unchanged; so does every `pocket-1.s1` bundle, which carries no forcing block.
+> A forcing block alone, without a block clock or without the rules stamp, or with a rule outside
+> its closed set, is refused before a die is thrown. It is a named amendment of this section's
+> COLLAPSING row and of the use of `pocket.forcesDecision` (ADR-089 §4.3, questions 2 and 3,
+> answered Half and Follows); its values are provisional, as §7.1's block says.
+>
+> **Must act, per rusher** (`pocket.forcing.rule` `PER_RUSHER`). COLLAPSING's "QB must throw, move,
+> or take hit" applies only when a rusher is within `arrival.collapsingWithinSeconds` of him (0.5 s
+> in the step-2 bundle, question 2 Half; the same leaf as the arrival floor's COLLAPSING horizon,
+> not a new dial), or one has arrived, or his count runs out:
+>
+> ```
+> mustAct(tick) = exists threat: (registered(threat) and eta(threat) - tick <= collapsingWithinSeconds)
+>                                or arrived(threat)
+>              or tick >= budget or readsUsed >= maxReads
+> ```
+>
+> It replaces the status's `pocket.forcesDecision` in the quarterback's must-decide test, and the
+> move branch (stand in, climb, leave, throw it away under duress) is gated by its threat part only,
+> so a count that runs out with no rusher that near is still the clock's throwaway with no movement
+> check. **The counter's COLLAPSING or IMMEDIATE alone, and the band floor alone, no longer force.**
+> An arrival still does, IMMEDIATE included: on the tick a rusher reaches him he throws or is sacked.
+> The status itself is unchanged: still the worst of the counter, the band floor and the arrival
+> floor, published as `POCKET_STATUS`, and it still sets accuracy and the read penalty. Until sight is
+> built (ADR-089 step 7) every threat counts as registered.
+>
+> **The warning, a status only** (question 3, Follows). The step-2 bundle sets
+> `arrival.pressureWithinSeconds` to 1.0 s by the July rule P = C + (C - I) (0.5 + 0.5 with I = 0.0):
+> the rule is applied, not amended, and it never moves on a later miss. PRESSURE from a rusher 0.5 to
+> 1.0 s away no longer forces anything under must act; it still drives the pressured count, accuracy
+> and the read penalty.
+>
+> No die, no event, no field and no choice is added: `POCKET_DURESS` (`ThrowawayCause`) is now the
+> threat part's throwaway and `CLOCK_EXPIRED` the count part's.
+
 ### 7.3 Stunts and Twists
 
 ```

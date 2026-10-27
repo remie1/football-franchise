@@ -1394,6 +1394,10 @@ export const TUNABLES = {
      * contain. The hole was `SACK`, and it was closed by removing the rung rather
      * than by adding an entry — adding one would have made the outcome a more
      * urgent kind of space instead of admitting it is not a space at all.
+     *
+     * ADR-089 step 2 (behind the switch): under `pocket-1` with `pocket.forcing`
+     * `PER_RUSHER`, `mustDecide` and the movement gate read `mustActThreat`
+     * (`resolve/pocket.ts`), not this list (`match-engine.md` §7.2's step-2 block).
      */
     forcesDecision: ["COLLAPSING", "IMMEDIATE"],
     /**

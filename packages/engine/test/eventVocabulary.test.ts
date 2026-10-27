@@ -21,7 +21,7 @@ import { isGameScoped } from "../src/game/events.js";
 import { TUNABLES } from "../src/tunables.js";
 import { buildGameFixture } from "./gameFixtures.js";
 import type { Tunables } from "../src/tunables.js";
-import { RULE_SETS, isShapeS } from "./pocketTunables.js";
+import { PASS_FIXTURES, RULE_SETS, STEP1_RULE_SET_NAMES, isShapeS } from "./pocketTunables.js";
 import {
   buildMixedCoverageScenario,
   buildScenario,
@@ -777,5 +777,47 @@ describe("ADR-089 N1 — the CHECK payload's keys, in order", () => {
       }
     }
     expect(ticks).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * ADR-089 step 2 — NO NEW VOCABULARY (plan §1.1, §3). Must act per rusher (S2) and the narrower
+ * counter (S2N) decide among the same choices, publish the same event types and CHECK kinds, and
+ * name the same throwaway causes as the step-1 rule sets (legacy, S, SW, L5, L8) on the same
+ * fixtures and seeds; and every key set of every event is one those rule sets publish too.
+ */
+describe("ADR-089 step 2 — must act adds no event, CHECK kind, choice or cause", () => {
+  it("under S2 and S2N every word of the stream is one the step-1 rule sets already use", () => {
+    const words = (events: readonly MatchEventEnvelope[], into: Set<string>): void => {
+      for (const { event } of events) {
+        into.add(`type:${event.type}`);
+        into.add(`keys:${event.type}:${Object.keys(event.payload as object).join(",")}`);
+        if (event.type === "CHECK") into.add(`check:${event.payload.checkKind}`);
+        if (event.type === "QB_DECISION") into.add(`choice:${event.payload.choice}`);
+        if (event.type === "THROWAWAY") into.add(`cause:${event.payload.cause}`);
+        if (event.type === "POCKET_STATUS") into.add(`status:${event.payload.status}`);
+        if (event.type === "RUSH_THREAT") into.add(`threat:${event.payload.state}:${event.payload.origin}`);
+      }
+    };
+    const step1 = new Set<string>();
+    const step2 = new Map<string, Set<string>>([["S2", new Set()], ["S2N", new Set()]]);
+    for (const [fixture, build] of PASS_FIXTURES) {
+      for (let i = 0; i < 40; i++) {
+        for (const { name, tunables } of RULE_SETS) {
+          const { state, calls } = build();
+          const { events } = simulatePassPlay(state, calls, `vocabulary-s2-${fixture}-${i}`, tunables);
+          if (STEP1_RULE_SET_NAMES.includes(name)) words(events, step1);
+          const into = step2.get(name);
+          if (into !== undefined) words(events, into);
+        }
+      }
+    }
+    for (const [name, seen] of step2) {
+      expect([...seen].filter((w) => !step1.has(w)), name).toEqual([]);
+      // Not vacuous: the forced acts are all in the sample.
+      for (const w of ["choice:THROW", "choice:CHECKDOWN", "choice:HOLD", "choice:STEP_UP", "choice:SCRAMBLE", "choice:THROWAWAY", "cause:POCKET_DURESS", "cause:CLOCK_EXPIRED", "check:pocket_movement"]) {
+        expect(seen.has(w), `${name}: ${w}`).toBe(true);
+      }
+    }
   });
 });

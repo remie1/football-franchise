@@ -7,9 +7,9 @@
  * set, and the dials are step 1's provisional values (ADR-089:414, §4.1.1, :424): theta 11, k 2,
  * beta 0.5; the window 1 to 14 for 1.0 s; the PUSH range 1 to 14; R 5 and 8.
  */
-import type { PlayerState } from "@ff/contracts";
+import type { MatchEventEnvelope, PlayerState, PocketStatus } from "@ff/contracts";
 import type { PlayCalls } from "../src/index.js";
-import { DEFAULT_TUNABLES } from "../src/tunables.js";
+import { DEFAULT_TUNABLES, applyTunablePatch } from "../src/tunables.js";
 import {
   buildCleanPocketScenario,
   buildDeflectionScenario,
@@ -95,16 +95,66 @@ export function lTunables(R: number): Tunables {
   return withBlocks(DEFAULT_TUNABLES, { repClock: { fullExpressionSeconds: R }, approach: APPROACH_CARD }, stamp(`fnv1a:1e0000${String(R * 10).padStart(2, "0")}`));
 }
 
-/** The five rule sets the step-1 suites run over, `legacy` first (the same reference as the default). */
-export const RULE_SETS: readonly { readonly name: "legacy" | "S" | "SW" | "L5" | "L8"; readonly tunables: Tunables }[] = [
+/**
+ * ADR-089 step 2 — step 2's horizons on `base`, as two existing leaves (§4.3): Half,
+ * `arrival.collapsingWithinSeconds` 1.0 -> 0.5, and Follows, `arrival.pressureWithinSeconds`
+ * 2.0 -> 1.0 (C + (C - I) with I = 0.0). Calibration's `pocket-1.s2` bundle patches the same two
+ * leaves; these test bundles are built by hand, as the step-1 ones are.
+ */
+export function withStep2Horizons(base: Tunables): Tunables {
+  const half = applyTunablePatch(base, {
+    tunableId: "arrival.collapsingWithinSeconds",
+    currentValue: 1.0,
+    proposedValue: 0.5,
+    evidence: "ADR-089 §4.3, Half; D32",
+    expectedEffect: "the forcing point at half a second",
+  });
+  return applyTunablePatch(half, {
+    tunableId: "arrival.pressureWithinSeconds",
+    currentValue: 2.0,
+    proposedValue: 1.0,
+    evidence: "ADR-089 §4.3, Follows",
+    expectedEffect: "the pressured warning at one second, a status only",
+  });
+}
+
+/** SW at step 2's horizons with step 1's forcing rule (no `pocket.forcing`): the per-rusher rule's base. */
+export const SWH_TUNABLES = withBlocks(
+  withStep2Horizons(DEFAULT_TUNABLES),
+  { beatClock: BEAT_CLOCK_WITH_WINDOW, approach: APPROACH_CARD },
+  stamp("fnv1a:5c000020", "pocket-1.s2"),
+);
+/** SWH with must act per rusher: the step-2 design bundle's shape (`pocket.forcing` PER_RUSHER). */
+export const S2_TUNABLES = withForcing(
+  withBlocks(withStep2Horizons(DEFAULT_TUNABLES), { beatClock: BEAT_CLOCK_WITH_WINDOW, approach: APPROACH_CARD }, stamp("fnv1a:5d000021", "pocket-1.s2")),
+  { rule: "PER_RUSHER" },
+);
+/** SWH with the narrower counter rule (`pocket.forcing` COUNTER_LESS_SEEN), information only. */
+export const S2N_TUNABLES = withForcing(
+  withBlocks(withStep2Horizons(DEFAULT_TUNABLES), { beatClock: BEAT_CLOCK_WITH_WINDOW, approach: APPROACH_CARD }, stamp("fnv1a:5e000022", "pocket-1.s2")),
+  { rule: "COUNTER_LESS_SEEN" },
+);
+
+/** The rule sets the step-1 and step-2 suites run over, `legacy` first (the same reference as the default). */
+export const RULE_SETS: readonly {
+  readonly name: "legacy" | "S" | "SW" | "L5" | "L8" | "SWH" | "S2" | "S2N";
+  readonly tunables: Tunables;
+}[] = [
   { name: "legacy", tunables: DEFAULT_TUNABLES },
   { name: "S", tunables: S_TUNABLES },
   { name: "SW", tunables: SW_TUNABLES },
   { name: "L5", tunables: L5_TUNABLES },
   { name: "L8", tunables: L8_TUNABLES },
+  { name: "SWH", tunables: SWH_TUNABLES },
+  { name: "S2", tunables: S2_TUNABLES },
+  { name: "S2N", tunables: S2N_TUNABLES },
 ];
 
-export const isShapeS = (name: string): boolean => name === "S" || name === "SW";
+/** The step-1 rule sets: every bundle of `RULE_SETS` that carries no `pocket.forcing` before step 2's. */
+export const STEP1_RULE_SET_NAMES: readonly string[] = ["legacy", "S", "SW", "L5", "L8"];
+
+export const isShapeS = (name: string): boolean =>
+  name === "S" || name === "SW" || name === "SWH" || name === "S2" || name === "S2N";
 
 /**
  * A POWER 1-14 fixture (critique-1 F26): `buildStalledPocketScenario`'s smothered coverage, so the
@@ -147,3 +197,73 @@ export const PASS_FIXTURES: readonly (readonly [string, () => Scenario])[] = [
   ["front +2", () => buildFrontScenario({ extras: 2 })],
   ["bull rush", buildBullRushScenario],
 ];
+
+/**
+ * ADR-089 step 2 — ONE POCKET TICK AS THE STREAM STATES IT, for the must-act tests.
+ *
+ * `ttas` is every live threat's time to arrival at the tick's `POCKET_STATUS`, which is what the
+ * engine's `threats` held when it set the status and decided (it is built at the top of the tick,
+ * after the ARRIVED publications and before the line battle). The live set is folded from the
+ * published `RUSH_THREAT`s in stream order: the latest state per rusher, TRAVELLING, DELAYED or
+ * ARRIVED live, RESET removed; `QB_PURSUIT` clears it. Times are rounded to the tick grid as
+ * `resolve/rushThreat.ts`'s `timeToArrival` rounds them.
+ */
+export interface PocketTick {
+  readonly tick: number;
+  readonly status: PocketStatus;
+  readonly ttas: readonly number[];
+  readonly minTta: number | undefined;
+  /** A RESET was published earlier in the play (a time-retired or reset threat can floor the band). */
+  readonly resetBefore: boolean;
+  /** The envelopes of this tick from its POCKET_STATUS on, in order. */
+  readonly after: readonly MatchEventEnvelope[];
+}
+
+export function pocketTicks(events: readonly MatchEventEnvelope[]): PocketTick[] {
+  const live = new Map<string, number>();
+  let resetBefore = false;
+  const out: { tick: number; status: PocketStatus; ttas: number[]; minTta: number | undefined; resetBefore: boolean; after: MatchEventEnvelope[] }[] = [];
+  for (const envelope of events) {
+    const { event } = envelope;
+    const current = out.at(-1);
+    if (current !== undefined && tickOf(envelope) === current.tick) current.after.push(envelope);
+    if (event.type === "RUSH_THREAT") {
+      const rusher = String(event.payload.rusher);
+      if (event.payload.state === "RESET") {
+        live.delete(rusher);
+        resetBefore = true;
+      } else {
+        live.set(rusher, event.payload.etaTick);
+      }
+    } else if (event.type === "QB_PURSUIT") {
+      live.clear();
+    } else if (event.type === "POCKET_STATUS") {
+      const tick = tickOf(envelope);
+      if (tick === undefined) throw new Error("a POCKET_STATUS without a tick");
+      const ttas = [...live.values()].map((eta) => Number((eta - tick).toFixed(1)));
+      out.push({
+        tick,
+        status: event.payload.status,
+        ttas,
+        minTta: ttas.length === 0 ? undefined : Math.min(...ttas),
+        resetBefore,
+        after: [envelope],
+      });
+    }
+  }
+  return out;
+}
+
+/** The tick a play event carries (`undefined` before the first TICK and on game events). */
+export function tickOf(envelope: MatchEventEnvelope): number | undefined {
+  const tick = (envelope.event as { tick?: unknown }).tick;
+  return typeof tick === "number" ? tick : undefined;
+}
+
+/** The largest tick any event of the play carries. */
+export function lastTickOf(events: readonly MatchEventEnvelope[]): number {
+  return events.reduce((max, envelope) => {
+    const tick = tickOf(envelope);
+    return tick === undefined ? max : Math.max(max, tick);
+  }, Number.NEGATIVE_INFINITY);
+}

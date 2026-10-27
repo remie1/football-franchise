@@ -108,6 +108,7 @@ import type { PocketStatusRung } from "../resolve/pocket.js";
 import {
   advancePressure,
   forcesDecision,
+  mustActThreat,
   pocketStatusFor,
   readCapacityDeltaFor,
   sacksWithoutTarget,
@@ -379,6 +380,11 @@ export function simulatePassPlay(
   // `LEGACY` for tunables with no `pocket-1` block (today's game, every new branch below skipped),
   // shape S or shape L for a stamped overlay; anything else throws a `PocketRulesError` here.
   const rules = pocketRulesOf(tunables);
+  // ADR-089 step 2 — what forces him to act, once a play: `STEP_1` (the status's
+  // `pocket.forcesDecision`) under `legacy` and every bundle without `pocket.forcing`;
+  // `PER_RUSHER` (must act per rusher, §4.3) or `COUNTER_LESS_SEEN` (the narrower counter, §4.3,
+  // information only) from that block.
+  const forcing = rules.kind === "LEGACY" ? "STEP_1" : rules.forcing;
 
   // ADR-006 — internal coherence only, before a single die is thrown. A card the
   // engine cannot resolve is rejected loudly; a card that is merely unrealistic
@@ -1145,13 +1151,28 @@ export function simulatePassPlay(
       list.reduce((max, c) => Math.max(max, c.effectiveOpenness), Number.NEGATIVE_INFINITY);
 
     let candidates = readCandidates();
+    // The nearest live threat's time to arrival, from the tick's own `threats` (the list the
+    // status's arrival floor read above, so the threat part and the published `POCKET_STATUS`
+    // agree by construction). Pure: `threats` is never written after it is built, so computing it
+    // here rather than at the sack below moves nothing.
+    const minTta = minTimeToArrival(threats, tick);
+    // ADR-089 step 2 — WHAT FORCES HIM, the pocket's part of `mustDecide` and the movement gate's
+    // condition. `STEP_1` and `COUNTER_LESS_SEEN`: the status (`pocket.forcesDecision`), today's
+    // expression on today's `pocket`. `PER_RUSHER`: must act's threat part (§4.3), a threat within
+    // `arrival.collapsingWithinSeconds` or one arrived; every threat counts as registered until
+    // step 7, so both minima are `minTta`. The counter and the band floor alone no longer force.
+    const forced =
+      pocket !== undefined &&
+      (forcing === "PER_RUSHER" ? mustActThreat(tunables, minTta, minTta) : forcesDecision(tunables, pocket));
     // ADR-055 §6 point 4 — pursuit's own condition, not `pocket.forcesDecision`'s
     // list membership borrowed through a rung pursuit no longer has. See
     // `resolve/scramble.ts`'s `pursuitForcesDecision` for the derivation.
+    // ADR-089 step 2: the pocket branch's count part (`tick >= budgetSeconds || readsUsed >=
+    // maxReads`) is unchanged under every rule.
     const mustDecide =
       pocket === undefined
         ? scramble !== undefined && pursuitForcesDecision(tunables, tick, scramble.pursuitAtTick)
-        : forcesDecision(tunables, pocket) || tick >= budgetSeconds || readsUsed >= maxReads;
+        : forced || tick >= budgetSeconds || readsUsed >= maxReads;
     // ADR-055 §6 point 3 — pursuit's own accuracy constant for any throw released
     // this tick, not `pocket.accuracyModifier` borrowed through a rung it no
     // longer has (`resolveAccuracy`'s consumer, `throwTo`, below).
@@ -1299,7 +1320,8 @@ export function simulatePassPlay(
     // down still goes down, via §8.8's own `CAUGHT_FROM_BEHIND` sack path a few
     // dozen lines below, which has always been the only route to that outcome
     // once he has left the pocket.
-    const minTta = minTimeToArrival(threats, tick);
+    //
+    // `minTta` is the tick's, computed above beside `mustDecide` (ADR-089 step 2).
     if (pocket !== undefined && minTta !== undefined && minTta <= 0 && sacksWithoutTarget(tunables, pocket)) {
       outcome = sack(tick);
       break;
@@ -1309,7 +1331,12 @@ export function simulatePassPlay(
     // arrived: stand in, climb, leave, or eat it — chosen on his own attributes.
     // Same reachability invariant as the guard above: `pocket` is defined on
     // every tick this line is reached.
-    if (pocket !== undefined && forcesDecision(tunables, pocket)) {
+    //
+    // ADR-089 step 2: gated by `forced`, which is `forcesDecision(pocket)` under `STEP_1` and
+    // `COUNTER_LESS_SEEN` (today's gate) and must act's THREAT part under `PER_RUSHER` (§4.3:
+    // "the movement branch is gated by its threat part"), never its count part: a clean expiry
+    // still goes to CLOCK_EXPIRED below, with no movement check.
+    if (forced) {
       const movement = resolvePocketMovement({
         tunables,
         qb,

@@ -235,6 +235,45 @@ export function forcesDecision(tunables: Tunables, status: PocketStatusRung): bo
   return forcing.includes(status);
 }
 
+/**
+ * ADR-089 step 2 — MUST ACT, PER RUSHER: its threat part (§4.3, question 2 Half; `pocket-1` only,
+ * under `pocket.forcing` `PER_RUSHER`).
+ *
+ * ```
+ * mustAct(tick) = exists threat: (registered(threat) and eta(threat) - tick <= 0.5) or arrived(threat)
+ *              or tick >= budget or readsUsed >= maxReads
+ * ```
+ *
+ * This is the first line: a registered threat within the forcing point, or any threat that has
+ * arrived. The count part (the second line) stays in `sim/passPlay.ts`'s `mustDecide`, unchanged.
+ * Under `PER_RUSHER` this replaces `forcesDecision(pocket)` inside `mustDecide` and gates the
+ * movement branch; `POCKET_STATUS` is still `pocketStatusFor` (the counter, the band floor and the
+ * arrival floor) and still drives accuracy and the read penalty, but the counter and the band floor
+ * alone no longer force (ADR-089 §4.3; `match-engine.md` §7.2's step-2 block).
+ *
+ * The half second is `arrival.collapsingWithinSeconds` itself, read here from the tunables it is
+ * handed, not a new dial (default D32), so the warning stays tied to it by the July rule.
+ *
+ * Two minima, because "an unseen rusher does not force at half a second; his arrival does"
+ * (ADR-089 §4.3): `minTtaRegistered` is the nearest registered threat's time to arrival and
+ * `minTtaAll` every threat's, `undefined` when there is none. **Until step 7 builds sight, every
+ * threat counts as registered**, so the caller passes the same `minTimeToArrival(threats, tick)`
+ * twice. At step 7 the first becomes the minimum over registered threats (a LATE threat from the
+ * first tick he is within 0.5 s, a NEVER threat never) while the second stays every threat's.
+ *
+ * Pure, and it draws no die.
+ */
+export function mustActThreat(
+  tunables: Tunables,
+  minTtaRegistered: number | undefined,
+  minTtaAll: number | undefined,
+): boolean {
+  return (
+    (minTtaRegistered !== undefined && minTtaRegistered <= tunables.arrival.collapsingWithinSeconds) ||
+    (minTtaAll !== undefined && minTtaAll <= 0)
+  );
+}
+
 /** §7.2 — the QB is going down if he has no one to throw to under this status. */
 export function sacksWithoutTarget(tunables: Tunables, status: PocketStatusRung): boolean {
   const sacking: readonly string[] = tunables.pocket.sackWhenNoTarget;

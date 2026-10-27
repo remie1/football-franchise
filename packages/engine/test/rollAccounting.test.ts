@@ -16,7 +16,8 @@ import { describe, expect, it } from "vitest";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
 import { simulateGame, simulatePassPlay, simulateRunPlay } from "../src/index.js";
 import { buildGameFixture } from "./gameFixtures.js";
-import { PASS_FIXTURES, RULE_SETS, isShapeS } from "./pocketTunables.js";
+import { PASS_FIXTURES, RULE_SETS, STEP1_RULE_SET_NAMES, isShapeS, pocketTicks } from "./pocketTunables.js";
+import { mustActThreat } from "../src/resolve/pocket.js";
 import {
   RUN_SCHEMES,
   buildDeflectionScenario,
@@ -258,6 +259,86 @@ describe("ADR-004 roll accounting", () => {
     expect(plays).toBe(PASS_FIXTURES.length * 150);
     expect(beats).toBeGreaterThan(1000);
     expect(commonTicks).toBeGreaterThan(1000);
+  });
+
+  /**
+   * ADR-089 step 2 — THE PAIRED RUN, CONTINUED (plan §4.5, Q-7): the must-act rule and the narrower
+   * counter draw no die and add no label.
+   *  5. S2 (per rusher), SWH (step 1's rule at the same horizons) and SW (step 1's bundle) throw the
+   *     same rush dice, roll for roll, and the same pre-snap dice; case 4 above already holds the
+   *     rep CHECKs field for field under every rule set, these three included;
+   *  6. every `pocket_movement` roll under S2 sits on a tick whose published threats have one
+   *     within 0.5 s (the movement branch runs on the threat part only);
+   *  7. the label families S2 and S2N draw are a subset of those the step-1 rule sets (legacy, S,
+   *     SW, L5, L8) draw on the same fixtures and seeds, a family being the label with every tick
+   *     and index segment replaced by `#`.
+   */
+  it("step 2: the must-act rule and the narrower counter draw no die and add no label (pairs 5 to 7)", () => {
+    type Roll = { readonly rngLabel: string; readonly raw: number };
+    const tunablesOf = (name: string) => {
+      const set = RULE_SETS.find((r) => r.name === name);
+      if (set === undefined) throw new Error(name);
+      return set.tunables;
+    };
+    const rollsWhere = (events: readonly MatchEventEnvelope[], part: string): Roll[] =>
+      allRolls(events)
+        .filter((r) => r.roll.rngLabel.includes(part))
+        .map((r) => ({ rngLabel: r.roll.rngLabel, raw: r.roll.raw }));
+    const family = (label: string): string =>
+      label.replace(/(^|[/:])t\d+(\.\d+)?(?=[:/]|$)/g, "$1t#").replace(/:([ra])\d+:/g, ":$1#:");
+    const step1Families = new Set<string>();
+    const step2Families = new Map<string, Set<string>>([["S2", new Set()], ["S2N", new Set()]]);
+    let plays = 0;
+    let movementRolls = 0;
+    let rushRolls = 0;
+    let presnapRolls = 0;
+    for (const [fixture, build] of PASS_FIXTURES) {
+      for (let i = 0; i < 100; i++) {
+        const seed = `paired-s2-${fixture}-${i}`;
+        const run = (name: string): readonly MatchEventEnvelope[] => {
+          const { state, calls } = build();
+          return simulatePassPlay(state, calls, seed, tunablesOf(name)).events;
+        };
+        const sw = run("SW");
+        const swh = run("SWH");
+        const s2 = run("S2");
+        const s2n = run("S2N");
+        plays += 1;
+        // (5) the same rush dice and the same pre-snap dice.
+        const rush = rollsWhere(sw, "/rush/");
+        rushRolls += rush.length;
+        expect(rollsWhere(swh, "/rush/")).toEqual(rush);
+        expect(rollsWhere(s2, "/rush/")).toEqual(rush);
+        const presnap = rollsWhere(sw, "/presnap");
+        presnapRolls += presnap.length;
+        expect(rollsWhere(swh, "/presnap")).toEqual(presnap);
+        expect(rollsWhere(s2, "/presnap")).toEqual(presnap);
+        // (6) movement rolls under S2 only on the threat part.
+        const s2Tunables = tunablesOf("S2");
+        for (const t of pocketTicks(s2)) {
+          for (const { event } of t.after) {
+            if (event.type !== "CHECK" || event.payload.checkKind !== "pocket_movement") continue;
+            movementRolls += 1;
+            expect(mustActThreat(s2Tunables, t.minTta, t.minTta), `${seed} at ${t.tick}`).toBe(true);
+          }
+        }
+        // (7) the label families.
+        for (const name of STEP1_RULE_SET_NAMES) {
+          for (const r of allRolls(name === "SW" ? sw : run(name))) step1Families.add(family(r.roll.rngLabel));
+        }
+        for (const [name, events] of [["S2", s2], ["S2N", s2n]] as const) {
+          for (const r of allRolls(events)) step2Families.get(name)?.add(family(r.roll.rngLabel));
+        }
+      }
+    }
+    expect(plays).toBe(PASS_FIXTURES.length * 100);
+    expect(rushRolls).toBeGreaterThan(1000);
+    expect(presnapRolls).toBeGreaterThan(100);
+    expect(movementRolls).toBeGreaterThan(0);
+    for (const [name, families] of step2Families) {
+      expect(families.size, name).toBeGreaterThan(20);
+      expect([...families].filter((f) => !step1Families.has(f)), name).toEqual([]);
+    }
   });
 
   /**

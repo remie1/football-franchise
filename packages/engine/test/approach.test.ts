@@ -29,7 +29,7 @@ import {
   withRush,
 } from "./fixtures.js";
 import type { Scenario } from "./fixtures.js";
-import { APPROACH_CARD, RULE_SETS, buildBullRushScenario } from "./pocketTunables.js";
+import { APPROACH_CARD, RULE_SETS, buildBullRushScenario, isShapeS } from "./pocketTunables.js";
 
 const CARD = APPROACH_CARD;
 const SHAPES: readonly BlockClockShape[] = ["S", "L"];
@@ -329,7 +329,7 @@ const FIXTURES: readonly [string, () => Scenario][] = [
 describe("ADR-089 P4 — the label on the stream", () => {
   for (const { name, tunables } of RULE_SETS) {
     if (name === "legacy") continue;
-    const shape: BlockClockShape = name === "S" || name === "SW" ? "S" : "L";
+    const shape: BlockClockShape = isShapeS(name) ? "S" : "L";
     it(`under ${name}: every threat carries the card's label on the stream's own facts, the same on each publication`, () => {
       const labels = new Map<string, number>();
       let threats = 0;
@@ -368,7 +368,7 @@ describe("ADR-089 P4 — the label on the stream", () => {
     let swappedInterior = 0;
     for (const { name, tunables } of RULE_SETS) {
       if (name === "legacy") continue;
-      const shape: BlockClockShape = name === "S" || name === "SW" ? "S" : "L";
+      const shape: BlockClockShape = isShapeS(name) ? "S" : "L";
       for (const [build, man, expected] of [
         [twistBlitzerLoops, "de1", { RAN_THROUGH: "ARC", BLOWN_UP: "FREE" }],
         [twistInteriorPenetrates, "dt1", { RAN_THROUGH: "THROUGH", BLOWN_UP: "FREE" }],

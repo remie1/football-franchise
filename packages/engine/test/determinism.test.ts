@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { simulatePassPlay } from "../src/index.js";
+import { simulateGame, simulatePassPlay } from "../src/index.js";
 import { bandFor } from "../src/rolls.js";
 import { TUNABLES } from "../src/tunables.js";
 import {
@@ -17,7 +17,16 @@ import {
 } from "./fixtures.js";
 import type { Scenario } from "./fixtures.js";
 import type { Tunables } from "../src/tunables.js";
-import { L5_TUNABLES, L8_TUNABLES, SW_TUNABLES, S_TUNABLES, buildBullRushScenario } from "./pocketTunables.js";
+import { buildGameFixture } from "./gameFixtures.js";
+import {
+  L5_TUNABLES,
+  L8_TUNABLES,
+  S2N_TUNABLES,
+  S2_TUNABLES,
+  SW_TUNABLES,
+  S_TUNABLES,
+  buildBullRushScenario,
+} from "./pocketTunables.js";
 
 describe("determinism (Charter pillar 5)", () => {
   it("same seed produces a byte-identical event stream and identical new state", () => {
@@ -594,4 +603,44 @@ describe("ADR-089 step 1 — pocket-1 determinism", () => {
     expect(sawBeat).toBe(true);
     expect(sawDieless).toBe(true);
   });
+});
+
+/**
+ * ADR-089 step 2 — must act per rusher (S2) and the narrower counter (S2N), replayed: the same
+ * stream twice, play by play and game by game (the rules draw no die, so a replay is a replay).
+ * The step-1 verdict above (`{ beaten: 0, gaining: 1 }` on the stock fixtures under SW, F.8 item 4)
+ * is untouched: it runs on SW, which carries no forcing block.
+ */
+describe("ADR-089 step 2 — pocket-1.s2 determinism", () => {
+  for (const [name, tunables] of [["S2", S2_TUNABLES], ["S2N", S2N_TUNABLES]] as const) {
+    it(`${name}: every fixture replays byte for byte, the move branch and the scramble included`, () => {
+      let movement = 0;
+      let scrambles = 0;
+      for (const build of [buildScenario, buildLopsidedRushScenario, buildStalledPocketScenario, buildScramblerScenario, buildBullRushScenario]) {
+        for (let i = 0; i < 80; i++) {
+          const a = build();
+          const b = build();
+          const first = simulatePassPlay(a.state, a.calls, `s2-determinism-${i}`, tunables);
+          const second = simulatePassPlay(b.state, b.calls, `s2-determinism-${i}`, tunables);
+          expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+          expect(JSON.stringify(second.newState)).toBe(JSON.stringify(first.newState));
+          for (const { event } of first.events) {
+            if (event.type === "CHECK" && event.payload.checkKind === "pocket_movement") movement += 1;
+            if (event.type === "QB_PURSUIT") scrambles += 1;
+          }
+        }
+      }
+      expect(movement).toBeGreaterThan(0);
+      expect(scrambles).toBeGreaterThan(0);
+    });
+
+    it(`${name}: a whole game replays byte for byte`, () => {
+      const a = buildGameFixture({ seed: `s2-game-${name}` });
+      const b = buildGameFixture({ seed: `s2-game-${name}` });
+      const first = simulateGame(a.state, a.inputs, a.seed, tunables);
+      const second = simulateGame(b.state, b.inputs, b.seed, tunables);
+      expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+      expect(first.events.length).toBeGreaterThan(1000);
+    });
+  }
 });
