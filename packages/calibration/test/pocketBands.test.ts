@@ -125,22 +125,28 @@ describe("the clauses", () => {
   });
 });
 
+/** The `## ` headings allowed after Appendix E, in this order, each once. */
+const APPENDICES_AFTER_E = ["## Appendix F: the step-1 record", "## Appendix G: the step-2 record"] as const;
+
 /**
- * The `## ` headings after Appendix E that are not allowed: none, or only "## Appendix F: the step-1
- * record" (once). Anything else, a second F, or a heading after F, is returned.
+ * The `## ` headings after Appendix E that are not allowed: none, or "## Appendix F: the step-1
+ * record" alone, or F and then "## Appendix G: the step-2 record", each once and in that order.
+ * Anything else (G without F, G before F, a second F or G, another title, a heading after G) is
+ * returned.
  */
 function appendicesAfterE(lines: readonly string[]): string[] {
   const headings = lines.filter((l) => /^## /.test(l));
-  if (headings.length === 0) return [];
-  if (headings.length === 1 && headings[0] === "## Appendix F: the step-1 record") return [];
+  // Past the list's end `APPENDICES_AFTER_E[i]` is undefined, so any heading after G is refused.
+  if (headings.every((h, i) => h === APPENDICES_AFTER_E[i])) return [];
   return headings;
 }
 
 describe("the completeness list (the C0 bytes)", () => {
-  // C3 (plan §7.3 item 6) appends Appendix E after the C0 bytes, and step 1's record (plan §11)
-  // appends Appendix F after E, so the file is the C0 lines, pinned by digest, then nothing but those
-  // appendices, in that order: every filed adrLine still points at the C0 text.
-  it("reads the C0 bytes at their filed length, with only Appendix E and then Appendix F after them", () => {
+  // C3 (plan §7.3 item 6) appends Appendix E after the C0 bytes, step 1's record (plan §11) appends
+  // Appendix F after E, and step 2's record (step-2 plan §7) appends Appendix G after F, so the file is
+  // the C0 lines, pinned by digest, then nothing but those appendices, in that order: every filed
+  // adrLine still points at the C0 text.
+  it("reads the C0 bytes at their filed length, with only Appendix E, then F, then G after them", () => {
     const c0 = ADR_LINES.slice(0, ADR_089_LINES);
     expect(c0).toHaveLength(ADR_089_LINES);
     expect(stableDigest(c0.join("\n")), "ADR-089's C0 lines changed: every filed adrLine reads them").toBe(C0_DIGEST);
@@ -153,12 +159,24 @@ describe("the completeness list (the C0 bytes)", () => {
     expect(ADR_LINES.at(-1)).toBe("");
   });
 
-  it("lets only Appendix F follow Appendix E", () => {
+  it("lets only Appendix F, and then Appendix G, follow Appendix E", () => {
+    const F = "## Appendix F: the step-1 record";
+    const G = "## Appendix G: the step-2 record";
     expect(appendicesAfterE(["x", "y"])).toEqual([]);
-    expect(appendicesAfterE(["", "## Appendix F: the step-1 record", "### F.1", "text"])).toEqual([]);
-    expect(appendicesAfterE(["## Appendix G: later"])).toEqual(["## Appendix G: later"]);
-    expect(appendicesAfterE(["## Appendix F: the step-1 record", "## Appendix G: later"])).toHaveLength(2);
-    expect(appendicesAfterE(["## Appendix F: the step-1 record", "## Appendix F: the step-1 record"])).toHaveLength(2);
+    expect(appendicesAfterE(["", F, "### F.1", "text"])).toEqual([]);
+    // F and then G, each once, with their own sections inside: allowed.
+    expect(appendicesAfterE(["", F, "### F.11", "text", "", G, "### G.1", "text", "### G.6"])).toEqual([]);
+    // G alone, or G before F: refused.
+    expect(appendicesAfterE([G])).toEqual([G]);
+    expect(appendicesAfterE([G, F])).toEqual([G, F]);
+    // Two Gs: refused.
+    expect(appendicesAfterE([F, G, G])).toEqual([F, G, G]);
+    // A G with another title: refused.
+    expect(appendicesAfterE([F, "## Appendix G: later"])).toEqual([F, "## Appendix G: later"]);
+    // A heading after G: refused.
+    expect(appendicesAfterE([F, G, "## Appendix H: the step-3 record"])).toHaveLength(3);
+    // Step 1's cases still hold: two Fs, or an F with another title, are refused.
+    expect(appendicesAfterE([F, F])).toHaveLength(2);
     expect(appendicesAfterE(["## Appendix F: step 1"])).toEqual(["## Appendix F: step 1"]);
   });
 

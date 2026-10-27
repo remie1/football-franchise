@@ -110,17 +110,19 @@ so the pocket fix comes next. Its design will take in what a free blitzer really
 quarterback's feel for the rush, his mobility against the rusher's speed, hot and deep routes, and
 down and distance), and its questions go to you before anything is built. The pocket fix (ADR-089)
 is being built in twelve steps; step 0 added the instruments and filed every prediction; step 1
-built the two candidate block clocks (a breaking time with the bull-rush window, and a gradual one)
-and a label for how each rusher got there, all behind a switch that is off, so default play has
-still not changed. With the switch turned on for measurement, the breaking-time clock brought
-pressure down to 32% to 33% of dropbacks with sacks and release time inside their predictions,
-though the bull-rush window added slightly more pressure than predicted on one league; the gradual
-clock left pressure at 66% to 75%, far above its own prediction; and interceptions rose by more
-than the filed check allows, across the league or in at least one kind of throw, in every arm
-measured against a base, on both seed sets. The pick rules themselves did not change: most former
-sacks are now throws, and the old rules catch some of them. You chose to keep the order (finish
-the pocket, then the interception design) and to merge step 1 with its switch off. Step 1's
-numbers are in `packages/calibration/reports/adr-089-step1.md`.
+built a new block clock behind a switch that is off, which with the switch on for measurement
+brought pressure down to about a third of dropbacks while interceptions rose, and you chose to
+finish the pocket before the interception design and to merge it (numbers in
+`packages/calibration/reports/adr-089-step1.md`). Step 2, also behind the switch, makes the
+quarterback react to a rusher half a second away, to one who reaches him, or to his count running
+out, instead of to the pocket's running tally, and starts the pressure warning at one second
+instead of two; default play has still not changed. With the switch on, against step 1's clock on
+the same games, pressure fell from 32% to 28% of dropbacks on the flat-rated test league and from
+33% to 29% on the made-up league, and sacks rose by 0.2 to 0.4 per 100 dropbacks. Four of the five
+graded predictions held; on the made-up league pressure fell 0.02 points further than the
+predicted range, which is reported as filed. The interception check, as amended before step 2, did
+not trip. Step 2's numbers are in `packages/calibration/reports/adr-089-step2.md`; whether to merge
+it with its switch off waits on you.
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
 NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered

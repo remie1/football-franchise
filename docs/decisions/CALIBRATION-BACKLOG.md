@@ -13159,3 +13159,138 @@ Derived by grep at the step-1 head (`c45acae`), not recalled. Each line is `unru
   step 1.
 - **The stamp's commit under a staged change** (review F4): ⚠ RULED (declined). The gap is printed in every step-1
   report header; the runbook check, `git diff --cached --quiet` before a filing run, sits outside `src/`.
+
+## 176. ADR-089 step 2: must act per rusher and the one-second warning are built behind the switch; default play has not moved
+
+- **Form.** A ruling entry (`BACKLOG-ENTRY-TEMPLATE.md`): it records step 2's build behind the `pocket-1` switch,
+  the guard's amendment AM-1 (ADR-089 Appendix F.11), the Orchestrator's readings O35-O50 and its rulings R-1 and R-2
+  on the review-fix blockers (ADR-089 Appendix G.1 and G.6), so the four ruling sections follow. Entry 173 stays
+  PR #33's (held open by the owner); entry 174 is step 0's and entry 175 step 1's. Whichever of PR #33 and this
+  branch lands second resolves an end-of-file text conflict. The `CLAUDE.md` command lines for step 2 are left to the
+  Orchestrator (ADR-089 Appendix G.1).
+- **What landed (no play change).** The `pocket.forcing` block (`{ rule: "PER_RUSHER" | "COUNTER_LESS_SEEN" }`) and
+  its refusals in `pocketRulesOf`; must act, per rusher (`mustActThreat`: a registered threat within
+  `arrival.collapsingWithinSeconds`, or one arrived, or the count running out), which replaces the status's
+  `pocket.forcesDecision` in `mustDecide` and gates the movement branch; the half second (C 1.0 to 0.5, question 2
+  Half) and the one-second warning (`pressureWithinSeconds` 2.0 to 1.0 by the July rule, question 3 Follows); the
+  narrower counter rule (`counterExcludes`), information only; the marked step-2 block of `match-engine.md` §7.2; the
+  rules bundle `pocket-1.s2` (design digest `POCKET_1_S2_DIGEST` `fnv1a:03754f60`), with a save stamped
+  `pocket-1.s2@<overlay digest>`; arms B1 to B7 with the re-played bases A0, A14, A1, A5 and A11; the step-2 folds
+  (`pocket/s2Stream.ts`), M2 STREAM on real streams and the DESPERATION split; AM-1's loader and reading
+  (`amendments.ts`, `guardAm1.ts`); `pocket -- --step 2`; the stream pins `POCKET_1_S2_PINS`; and the arms' numbers,
+  `packages/calibration/reports/adr-089-step2.md` and `.json`. All of it is behind the switch, which is OFF:
+  `DEFAULT_TUNABLES` is unchanged (census `fnv1a:365da48d`, digest `fnv1a:395a9ae2`), and the golden pins v1-v7, the
+  season path, baseline-0009 (86.85 / 20.05 / 16.43 / 1.242), the generated league (85.26 / 24.04 / 16.72 / 1.235),
+  `pocket-1.s1` (`fnv1a:69a7cc48`, `POCKET_1_S1_PINS`), the step-0 filing (`FILED_DIGEST` `fnv1a:9a1c90e9`) and the
+  amendments file (`fnv1a:d5f9de6d`) did not move. No `packages/contracts` edit. ADR-089 Appendix G is the human-read
+  record.
+- **What the arms showed** (graded as filed; nothing re-filed, tuned or re-run; ADR-089 Appendix G.3). The design
+  arm B3 against step 1's design A1 on the same seeds: pressure -4.02 points on flat and -4.32 on gen, hit-or-sack
+  +0.64 and +0.49, sacks +0.41 and +0.22, release +0.003 s and +0.015 s (set 1). Four of the five graded s2 clauses
+  pass; `s2.pressure.gen` fails as filed, 0.016 points below its band's low edge (-4.3 to -1.3; set 2 -3.68, inside).
+  The basis arm on L (B5, pkA's A123 on this build) reproduces the band's basis exactly; on S the same mechanism falls
+  1.49 points further on gen (G.5). The per-rusher rule itself moves nothing measurable at these horizons (B3 minus B7
+  within 0.02 on every figure). The interception guard under AM-1 does not breach (14 readings, largest league-wide Z
+  +1.45, largest class Z +2.01); the cumulative line against today's game, reported and never graded before step 10,
+  prints BREACH on flat. M2 reads 0.05% (flat) and 0.04% (gen) of forced decisions on A1, above its reported 0 to
+  0.02%. The tool's outcome: no structural failure, no fold fault, one graded failure, no AM-1 breach, "Merge card:
+  may be posted". What goes back to the owner is ADR-089 Appendix G.5.
+
+### Implied scope
+
+Derived by grep at the step-2 head (`a3790a8`), not recalled. Each line is `unruled` by this entry.
+
+- **Every calibration reader that defines "forced" by the status's `pocket.forcesDecision`** (pattern
+  `forcesDecision` over `packages` and `apps`, tests and reports left out): `metrics/collect.ts` (`FoldTables
+  .forcesDecision` `:828` and `:856`, the first forcing tick `:1158`, disjunct (2) `:1641`, `forcedAtRelease`
+  `:1670`), `metrics/pocketRows.ts` (`first_forcing_seconds` `:294`, `forced_throw_share` `:512`), `metrics/tier1.ts`
+  (`qb_disruption_rate` disjunct (2) `:431-494`, `throwaway_rate_pocket_duress` `:1582`),
+  `pocket/decidingInstant.ts:67-69` and `pocket/m2ForcingSource.ts:511-513` and `:659-666`. Under PER_RUSHER the
+  quarterback is forced by must act, not by the status, so on a `pocket-1.s2` stream these rows read the status's
+  forcing; O49 keeps their definitions, and the report prints the must-act share and the first must-act tick beside
+  them (A1 flat 20.30% against 20.30%; B3 flat 15.30% against 15.31%; B6 flat 24.47% against 24.66%). `unruled`.
+- **The knownTruth instruments that name `pocket.forcesDecision`:** `knownTruth/pocketLadder.ts` (the
+  `pocket.forcesDecision` path `:346-352`, and the sizing-defect texts), `knownTruth/geometryTimeRetirement.ts:22`,
+  `:85` and `knownTruth/ruling2CommittedRetirement.ts:99` (comments). They describe today's rule; none is run on a
+  `pocket-1.s2` stream at step 2. `unruled`.
+- **Pursuit's own forcing,** `engine/src/resolve/scramble.ts` (`pursuitForcesDecision`, `:140`): unchanged under
+  every rule; must act per rusher is the pocket branch's only. `unruled`.
+- **`ThrowawayCause`'s doc** (`packages/contracts/src/events.ts:181-186`, "§7.2's pocket forcing him out of the
+  play"): it reads through §7.2's marked step-2 block and waits for P16 at step 11 (ADR-089 Appendix G.1). `unruled`.
+- **The `foldGame` calls that pass no tunables, and so read `DEFAULT_TUNABLES`** (pattern `foldGame(` over
+  `packages/calibration/src`): `harness/worker.ts:41` (the worker pool, which refuses a `pocket-1` bootstrap),
+  `harness/batch.ts:323` (a `legacy` batch), `metrics/collect.ts:2170` (`collectGames`) and `pocket/step0.ts:585`
+  (step 0's base). Entry 175 named the same four (step 0's then at `:515`); a step-2 fold on a `pocket-1.s2` arm
+  through any of them reads the wrong dials. `unruled`.
+- **The narrower counter rule** (B4, `COUNTER_LESS_SEEN`): information, not ruled on; adopting it would need an
+  ADR-058 amendment. `unruled`.
+
+### Provenance of factual claims
+
+- **Default play unchanged:** MEASURED by step 2's proofs P-1 to P-14 at `d14a991` (ADR-089 Appendix G.4,
+  `proofs.md`), and again after the review fixes at `339c3e7` (P-1, P-3 (a), P-9, P-12, P-13, P-14 and
+  `pnpm install --frozen-lockfile && pnpm verify`, `build-fix.md`). P-13: every CLI save, `--out` and export
+  byte-identical to `b98ecd1`'s, at a worktree of the base, MEASURED. `pocket-1.s1` replays byte for byte: Q-1 and
+  Q-1 ON (`POCKET_1_S1_PINS` and the A5 and A11 base pins), MEASURED at both heads.
+- **P-15** (the gated ladder census) exits 1 at the head and at `b98ecd1`, with the same 131 `pass_rush_tick` cells
+  and a byte-identical census report, MEASURED: entry 175's Finding 1, unchanged.
+- **The arms:** `reports/adr-089-step2.md` and `.json`, stamped commit `6b667eb`, fingerprint `4ab320f1bdb71cdb`,
+  `dirty: false`, amendments `fnv1a:d5f9de6d`, Node v22.22.0, caller v7; flat 496 games and gen 272 games on each
+  seed set; MEASURED in three shards (1,480 s, 1,407 s and 1,389 s, A1 cached from a 381 s run), and a re-run from the
+  cache gives byte-identical reports. Q-3b (B3 fresh, empty cache, 411 s) and Q-3c (re-grading the committed records
+  reproduces the committed report and measures, byte for byte) MEASURED.
+- **The pins:** `POCKET_1_S2_PINS` MEASURED at `9b41da2` by `pocket -- --step 2 --digests` (byte-identical to the
+  fix stage's two-process Q-3 run), and checked by `pocketS2Pins` on the first 10 and on all 50 games a league.
+- **The world and the rule:** B5 reproduces pkA's A123 on all eight numbers (flat 33.14 / 3.67 / 2.94 / 1.589, gen
+  36.87 / 4.01 / 2.83 / 1.663), MEASURED against `designA.json`, REPORTED. "The gen miss is the world" is DERIVED
+  from the MEASURED arms ((B7 - A1) - (B5 - A5) on gen, -1.49 and -0.99 points) and is a reading drafted for the
+  Orchestrator (ADR-089 Appendix G.6).
+- **AM-1's readings:** MEASURED on both seed sets (G.2). The count of filed-rule breaches beside them (10 of 14
+  league-wide readings, 53 of 70 class readings, on at least one set) is DERIVED from the measures file's
+  `filedPasses`.
+- **The SE-0 case is unreachable on step 1's bases** (ruling R-1): DERIVED from `reports/adr-089-step1.json`'s class
+  counts. That no step-2 reading carries an SE-0 flag: MEASURED (`seZeroFlags` empty on all 18 guard rows).
+- **The review:** 26 findings, 23 fixed with fail-before tests, 3 declined, as `build-fix.md` lists them, MEASURED
+  by its fail-before runs; NPC-R1's "the rule changes no play on the stock fixtures" MEASURED by CT-F2's test (1
+  parting in 9,980 plays).
+
+### Premise ledger
+
+- **Questions 2 and 3, answered Half and Follows** (ADR-089 §4.3, the owner's answers): CARRIED AS TESTIMONY.
+  CONFIRMED in the build: `pocket-1.s2` sets C 0.5 and P 1.0, and `engineRules.test.ts` checks that only the "alone"
+  arms B1 and B2 break the July derivation.
+- **AM-1** (filed `b65ab25`, shown to the owner at 2026-10-27T02:28:46Z, not asked; F.11): the Orchestrator's
+  defaults D9 and D28, CARRIED AS TESTIMONY until the owner reads it. Its pin CONFIRMED unchanged
+  (`adr089Amendments.test.ts`, `AMENDMENTS_DIGEST` `fnv1a:d5f9de6d`).
+- **"Keep order"** (the owner's card, 2026-10-26 23:45:29Z; F.10 item 1): CARRIED AS TESTIMONY. CONFIRMED in the build:
+  no interception rule changed. `git diff --stat b98ecd1 a3790a8 -- packages/engine/src` lists only
+  `resolve/pocket.ts`, `sim/pocketRules.ts`, `tunables.ts` and `sim/passPlay.ts`, whose changed lines are the forcing
+  paths only (the counter's reduce, `forced`, `mustDecide` and the movement gate).
+- **O35-O50** (ADR-089 Appendix G.1): Orchestrator readings within the design's words, shown to the owner, not asked.
+  CARRIED AS TESTIMONY until the owner reads them.
+- **Rulings R-1 and R-2** (`rulings-fix.md`, 2026-10-27; ADR-089 Appendix G.6): the Orchestrator's, CARRIED AS
+  TESTIMONY. R-2's change CONFIRMED in `9b41da2`; R-1's standing rule CONFIRMED not triggered.
+- **P-15 satisfied as a no-change proof:** step 1's ruling carried to step 2, CARRIED AS TESTIMONY; the no-change fact
+  CONFIRMED (the census report is byte-identical at `b98ecd1`).
+- **F.9 item 6** (the s2 pressure bands rest on pkA's L8 Heels arms, recorded before step 2's arms ran): CONFIRMED by
+  B5, which reproduces pkA's A123 on this build.
+- **PR #33 is open** (held by the owner): CONFIRMED on GitHub on 2026-10-27 (REST `pulls/33`: state open, not merged).
+  The step-2 report's header prints the code's constant, so P2S prints against both 22.02 and 15.46.
+
+### What remains unjustified
+
+- **The gen pressure band** (`s2.pressure.gen`, -4.3 to -1.3): ⛔ NEITHER. It was filed from pkA's L8 arms with Heels
+  (ADR-089:1015), while the design builds on S; B5 reproduces the basis and B3 falls 1.49 points further on set 1. It
+  goes to the owner as filed (ADR-089 Appendix G.5).
+- **`s2.m2`'s range** (0 to 0.02 percent): ⛔ NEITHER at the stream level. The range is step 0's engine-free
+  first-order figure; M2 STREAM on A1's own streams reads 0.05% and 0.04%, inside step 0's intervals. Reported,
+  never graded.
+- **AM-1's widths** (Z above 2.0 league-wide, 3.0 in a class): ⚠ RULED (F.11, defaults D9 and D28, shown, not asked).
+  The filed reading, with no noise term, would breach 10 of the 14 graded readings; the owner may overrule AM-1 by a
+  later entry (AM-2), which only the Orchestrator files.
+- **AM-1's SE-0 rule** (`zSetSE0`): ⚠ RULED (R-1): unreachable on step 1's bases; a flagged reading would go to the
+  owner with an AM-2 before step 3 reads the guard.
+- **`guard.onTheRun.clean`:** ⛔ NEITHER. 0 aimed throws in every arm, so its basis (2.11) is never compared at
+  step 2; under PER_RUSHER the escape runs only on the threat part, so it opens at step 5a.
+- **The `clean_with_live_won_rep` gap** under the warning (B3 flat 0.454% of ticks against A1's 0.025%): ⚠ RULED
+  ("Past him" was not chosen, ADR-089 §4.3); a reported falsifier, not a failure.
