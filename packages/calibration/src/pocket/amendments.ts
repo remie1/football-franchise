@@ -197,7 +197,13 @@ export function amendmentsProblems(json: unknown, filing: FiledFile): readonly s
     if (!isAdrStepId(e["filedBeforeStep"])) out.push(`${at}.filedBeforeStep: ${JSON.stringify(e["filedBeforeStep"] ?? null)} is not a step of ADR-089`);
     const steps = e["steps"];
     if (!Array.isArray(steps) || steps.length === 0) out.push(`${at}.steps: must list the steps it reads at`);
-    else steps.forEach((s: unknown, j: number) => { if (!isAdrStepId(s)) out.push(`${at}.steps.${String(j)}: ${JSON.stringify(s)} is not a step of ADR-089`); });
+    else steps.forEach((s: unknown, j: number) => {
+      if (!isAdrStepId(s)) out.push(`${at}.steps.${String(j)}: ${JSON.stringify(s)} is not a step of ADR-089`);
+      // An entry reads only at steps not yet played when it was filed: none before filedBeforeStep (review CT-F8).
+      else if (isAdrStepId(e["filedBeforeStep"]) && ADR_089_STEP_IDS.indexOf(s) < ADR_089_STEP_IDS.indexOf(e["filedBeforeStep"])) {
+        out.push(`${at}.steps.${String(j)}: step ${s} comes before filedBeforeStep ${e["filedBeforeStep"]}; an entry reads only at the step it was filed before and later ones`);
+      }
+    });
     const lists: Record<string, readonly unknown[]> = {};
     for (const key of ["supersedes", "untouched", "defaults"]) {
       const v = e[key];

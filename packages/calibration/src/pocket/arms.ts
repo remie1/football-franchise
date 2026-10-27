@@ -409,6 +409,15 @@ function isS2DesignArm(def: Pick<ArmDef, "patchSets" | "forcing">, overlay: Pock
   return overlay === S_WINDOW_OVERLAY && def.forcing === "PER_RUSHER" && def.patchSets.length === 2 && def.patchSets[0] === "HALF" && def.patchSets[1] === "FOLLOWS";
 }
 
+/**
+ * Builds one arm from its definition: the patches, the overlay, the rules stamp and the forcing
+ * block, checked by `checkStamp`. Exported as `buildArm` only as a test seam (review FID-F-8,
+ * CT-F9): no definition in this file reaches the legacy-clock tripwire, so the test builds one that does.
+ */
+export function buildArm(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }): Arm {
+  return build(def);
+}
+
 function build(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }): Arm {
   const patches = def.patchSets.flatMap((name) => PATCH_SETS[name]);
   const overlay = overlayOf(def.clock);

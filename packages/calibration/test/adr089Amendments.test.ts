@@ -160,6 +160,15 @@ describe("validateAmendments: every rule, on a copy that breaks it", () => {
     refuses((j) => (j.entries[0]!["steps"] = ["2", "5c"]), /steps\.1: "5c" is not a step of ADR-089/);
   });
 
+  it("no step an entry reads at comes before its filedBeforeStep (review CT-F8)", () => {
+    refuses((j) => (j.entries[0]!["steps"] = ["1", "2", "3"]), /^entries\.0\.steps\.0: step 1 comes before filedBeforeStep 2; an entry reads only at the step it was filed before and later ones$/);
+    refuses((j) => (j.entries[0]!["filedBeforeStep"] = "5a"), /^entries\.0\.steps\.1: step 3 comes before filedBeforeStep 5a/);
+    // AM-1 as filed: before step 2, read at steps 2 to 10.
+    const j = copy();
+    expect(amendmentsProblems(j, filing())).toEqual([]);
+    expect([j.entries[0]!["filedBeforeStep"], (j.entries[0]!["steps"] as string[])[0]]).toEqual(["2", "2"]);
+  });
+
   it("every arm in a base map is an arm of this build, mapped from a step the entry reads at", () => {
     refuses((j) => ((ruleOf(j)["bases"] as Record<string, Record<string, string>>)["2"]!["B9"] = "A1"), /bases\.2\.B9: not an arm of this build/);
     refuses((j) => ((ruleOf(j)["bases"] as Record<string, Record<string, string>>)["2"]!["B1"] = "A99"), /bases\.2\.B1: its base "A99" is not an arm of this build/);

@@ -38,6 +38,7 @@ import {
   ARM_IDS,
   armById,
   armOfDigest,
+  buildArm,
   everyArm,
   exclusiveMechanisms,
   FOLLOWS,
@@ -75,7 +76,9 @@ import {
   EngineRulesError,
   overlayDigestOf,
   POCKET_1_S1_DIGEST,
+  POCKET_1_S1_RULES,
   POCKET_1_S2_DIGEST,
+  POCKET_1_S2_RULES,
   POCKET_1_S2_LEAVES,
   rulesTunables,
   withOverlay,
@@ -544,5 +547,22 @@ describe("step 2's mechanisms (plan §4.1, C3-13)", () => {
     for (const a of allArms()) expect(mechanismsOf(a).some((m) => m === "MUST_ACT" || m === "COUNTER_LESS_SEEN" || m === "HALF" || m === "FOLLOWS"), a.id).toBe(false);
     const ids: ArmId[] = [...ALL_ARM_IDS];
     expect(ids).toHaveLength(24);
+  });
+});
+
+describe("the legacy-clock tripwire in build (review FID-F-8, CT-F9)", () => {
+  const a0 = ARM_DEFS.find((d) => d.id === "A0")!;
+  it("refuses an arm on today's clock that carries a rules stamp or a forcing block, and builds the one that carries neither", () => {
+    expect(a0.clock).toEqual({ kind: "LEGACY" });
+    const built = buildArm(a0);
+    expect(built.rules).toBe("legacy");
+    expect(built.tunables).toBe(DEFAULT_TUNABLES);
+    expect(built.digest).toBe(armById("A0").digest);
+    const message = /^arm A0: an arm on today's clock carries no rules stamp and no forcing block$/;
+    const defs: Parameters<typeof buildArm>[0][] = [{ ...a0, rules: POCKET_1_S1_RULES }, { ...a0, rules: POCKET_1_S2_RULES }, { ...a0, forcing: "PER_RUSHER" }, { ...a0, rules: POCKET_1_S2_RULES, forcing: "COUNTER_LESS_SEEN" }];
+    for (const def of defs) {
+      expect(() => buildArm(def), JSON.stringify({ rules: def.rules, forcing: def.forcing })).toThrow(EngineRulesError);
+      expect(() => buildArm(def)).toThrow(message);
+    }
   });
 });
