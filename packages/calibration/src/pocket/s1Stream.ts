@@ -34,12 +34,13 @@
  *    publishes one.
  *
  * `foldAffectedGame` counts each arm's exclusive affected plays against its base (ADR-089:927), by
- * mechanism (`arms.ts`'s `exclusiveMechanisms`).
+ * mechanism (`arms.ts`'s `exclusiveMechanisms`); step 2's four (plan §4.3) read the live threat set
+ * `s2Stream.ts` rebuilds, and only when one of them is asked for, so a step-1 count is unchanged.
  */
 import type { MatchEventEnvelope } from "@ff/contracts";
 import type { Tunables } from "@ff/engine";
 import { approachesOfPlay, pushMarginOf } from "./approach.js";
-import { armOfDigest, MECHANISMS, type Mechanism } from "./arms.js";
+import { armOfDigest, FOLLOWS, HALF, MECHANISMS, type Mechanism } from "./arms.js";
 import {
   beatTickOf,
   clockOf,
@@ -55,6 +56,7 @@ import {
   type ShapeS,
 } from "./clocks.js";
 import { overlayDigestOf, rulesOnPlayStart, type PlayStartRules } from "./rules.js";
+import { readS2Play, threatPartAt } from "./s2Stream.js";
 import { playsOf } from "./throwClass.js";
 
 /** How many failure lines a fold keeps; the count beside them is complete. */
@@ -713,16 +715,53 @@ export function emptyAffectedFold(mechanisms: readonly Mechanism[]): AffectedFol
 
 const TOUCHED_BY_HEELS = new Set(["BLOCKER_BEATEN", "RUSHER_GAINING"]);
 
+/** Step 2's mechanisms (plan §4.3), read off the live threat set; any other leaves the play unread. */
+const STEP2_MECHANISMS: ReadonlySet<Mechanism> = new Set(["MUST_ACT", "HALF", "FOLLOWS", "COUNTER_LESS_SEEN"]);
+
+/** A patch set's one leaf, as the interval (proposed, current] its patch moves a horizon across. */
+function horizonBand(set: readonly { readonly proposedValue: unknown; readonly currentValue: unknown }[], name: string): { readonly lo: number; readonly hi: number } {
+  const p = set[0];
+  if (set.length !== 1 || p === undefined || typeof p.proposedValue !== "number" || typeof p.currentValue !== "number" || !(p.proposedValue < p.currentValue)) {
+    throw new Error(`foldAffectedGame: ${name} is not one patch moving a horizon down`);
+  }
+  return { lo: p.proposedValue, hi: p.currentValue };
+}
+
+const HALF_BAND = horizonBand(HALF, "HALF");
+const FOLLOWS_BAND = horizonBand(FOLLOWS, "FOLLOWS");
+const inBand = (x: number | undefined, b: { readonly lo: number; readonly hi: number }): boolean => x !== undefined && x > b.lo + TOLERANCE && x <= b.hi + TOLERANCE;
+
+/**
+ * Step 2's four on one play (plan §4.3, C1-F12), on the live set at each status tick (`s2Stream.ts`'s
+ * `readS2Play`): HALF, a status tick whose nearest live threat is in (0.5, 1.0] s (HALF's patch);
+ * FOLLOWS, one in (1.0, 2.0] s (FOLLOWS's); MUST_ACT, a status-forcing tick (`pocket.forcesDecision`)
+ * with no threat within the arm's own C, or arrived; COUNTER_LESS_SEEN, a live WON_REP threat at a
+ * status tick.
+ */
+function step2Hits(hit: Set<Mechanism>, play: S1Play, tunables: Tunables): void {
+  const s2 = readS2Play(play.playId, play.events);
+  if (s2 === undefined) return;
+  const forcing = new Set<string>(tunables.pocket.forcesDecision as readonly string[]);
+  const C = tunables.arrival.collapsingWithinSeconds;
+  for (const s of s2.statuses) {
+    if (inBand(s.minTta, HALF_BAND)) hit.add("HALF");
+    if (inBand(s.minTta, FOLLOWS_BAND)) hit.add("FOLLOWS");
+    if (forcing.has(s.status) && !threatPartAt(s, C)) hit.add("MUST_ACT");
+    if (s.live.some((x) => x.origin === "WON_REP")) hit.add("COUNTER_LESS_SEEN");
+  }
+}
+
 /**
  * Counts the dropbacks each of `mechanisms` touched, on one game of the arm (`tunables` is the arm's):
  * S, a blocked dropback whose beat fell within the ticks played; the window, a dropback with a window
  * tick played (and apart, those whose only non-CLEAN statuses followed one, before any threat); L, a
  * dropback with a tick before R whose band differs from the unscaled band of its own rolls; Heels and
  * Past only, a dropback with a BLOCKER_BEATEN or RUSHER_GAINING tick; the hold, the horizons and the
- * late free rushers, every dropback.
+ * late free rushers, every dropback; step 2's four as `step2Hits` reads them.
  */
 export function foldAffectedGame(fold: AffectedFold, events: readonly MatchEventEnvelope[], tunables: Tunables, mechanisms: readonly Mechanism[]): void {
   const d = dialsOf(tunables);
+  const step2 = mechanisms.some((m) => STEP2_MECHANISMS.has(m));
   for (const play of s1PlaysOf(events)) {
     fold.dropbacks += 1;
     const hit = new Set<Mechanism>();
@@ -756,6 +795,7 @@ export function foldAffectedGame(fold: AffectedFold, events: readonly MatchEvent
     hit.add("HOLD");
     hit.add("HORIZONS");
     hit.add("LATE");
+    if (step2) step2Hits(hit, play, tunables);
     let any = false;
     for (const mech of mechanisms) {
       if (!hit.has(mech)) continue;

@@ -12,7 +12,21 @@
  *  - TODAY: each `pass_rush_tick` CHECK's published margin and band;
  *  - S: the margin of §4.1 (`clocks.ts`): `min(0, m)` before the beat, the push window's two ticks
  *    for a POWER rep of 1 to 14 (every S grid point carries it, ADR-089:428), then `max(15, m)`;
- *  - L at R: `round(min(1, t/R) * (repMargin + jitter_t))`, re-banded through `passRush.bands`.
+ *  - L at R: `round(min(1, t/R) * (repMargin + jitter_t))`, re-banded through `passRush.bands`;
+ *  - STREAM (ADR-089 step 2, plan §1.6; `ARM_STREAM`, kept out of `M2_ARMS` so step 0's figures
+ *    still reproduce): M2 on an arm's own real stream, played under that arm's rules. It reads
+ *    every published `pass_rush_tick` band, as TODAY does, with the arm's own tunables, and keeps
+ *    TODAY's identity check (the rebuilt status must equal every published `POCKET_STATUS`, and the
+ *    rebuilt won-rep threats every published `WON_REP` `RUSH_THREAT`). Where it differs from TODAY:
+ *    the forced decision is the arm's own forcing rule's (`forcedDecisionByRule`: the status under
+ *    step 1's rule and the narrower counter, must act's threat part under PER_RUSHER, where the
+ *    construct is then 0 by the rule and the fold says so); under `pocket.forcing`
+ *    COUNTER_LESS_SEEN the rebuild leaves a matchup with a live won-rep threat out of the counter,
+ *    as the engine does (C2-F21), so the identity stays meaningful on B4; a dropback the arm never
+ *    forced is "unforced", not "censored" (nothing is cut off: the stream is the arm's own); TODAY's
+ *    jitter check is vacuous on a shape-S stream (every S `pass_rush_tick` is dieless), so STREAM
+ *    counts those ticks as skipped and checks a rolled tick against its own clock's margin (today's
+ *    `repMargin + jitter`, or shape L's `round(min(t, R) * x / R)`). It draws no die.
  *
  * Each tick's band moves the rusher's counter (`passRush.pressureProgressByBand`) and his threat
  * exactly as the engine's line battle does (`sim/passPlay.ts:795-893`): a won band builds the
@@ -69,13 +83,17 @@ import { passStartOf, type PassStart } from "./throwClass.js";
 export type M2Arm =
   | { readonly id: string; readonly kind: "TODAY" }
   | { readonly id: string; readonly kind: "S"; readonly shape: ShapeS; readonly pushWindow: boolean }
-  | { readonly id: string; readonly kind: "L"; readonly R: number };
+  | { readonly id: string; readonly kind: "L"; readonly R: number }
+  | { readonly id: string; readonly kind: "STREAM" };
 
 export const ARM_TODAY: M2Arm = Object.freeze({ id: "today", kind: "TODAY" });
 export const ARM_S: M2Arm = Object.freeze({ id: "S-theta11-window", kind: "S", shape: SHAPE_S_PROVISIONAL, pushWindow: true });
 export const ARM_L5: M2Arm = Object.freeze({ id: "L-R5", kind: "L", R: SHAPE_L_PROVISIONAL_R });
 export const ARM_L8: M2Arm = Object.freeze({ id: "L-R8", kind: "L", R: SHAPE_L_PRICED_R });
+/** Step 0's four first-order arms. `ARM_STREAM` is not among them, so step 0's figures reproduce. */
 export const M2_ARMS: readonly M2Arm[] = Object.freeze([ARM_TODAY, ARM_S, ARM_L5, ARM_L8]);
+/** ADR-089 step 2 (plan §1.6): M2 on an arm's own real stream, with that arm's tunables. */
+export const ARM_STREAM: M2Arm = Object.freeze({ id: "stream", kind: "STREAM" });
 
 /** The label every M2 die hangs from (deviation O14). */
 export const M2_RNG_LABEL = "adr-089:m2";
@@ -198,6 +216,8 @@ export interface ArmReplay {
   /** pass_rush_tick margins whose published jitter differs from round((rusher - blocker)/divisor). */
   readonly jitterChecks: number;
   readonly jitterMismatches: number;
+  /** STREAM only: dieless `pass_rush_tick`s (shape S, P3), for which the jitter check is vacuous; 0 for every other arm. */
+  readonly jitterSkipped: number;
 }
 
 export interface ReplayContext {
@@ -225,7 +245,11 @@ export function replayPassPlay(playId: string, events: readonly MatchEventEnvelo
   let escapeTick: number | undefined;
   let jitterChecks = 0;
   let jitterMismatches = 0;
+  let jitterSkipped = 0;
   let stopped = false;
+  // STREAM under the narrower counter (B4): a matchup with a live won-rep threat is left out of the
+  // counter, as the engine's `counterExcludes` does (C2-F21). Every other arm rebuilds today's counter.
+  const narrower = arm.kind === "STREAM" && tunables.pocket.forcing?.rule === "COUNTER_LESS_SEEN";
 
   const positionOf = (id: string): Position | undefined => positions.get(id as PlayerId);
   const emit = (rusher: string, state: ReplayThreatEvent["state"], etaTick: number): void => {
@@ -245,6 +269,8 @@ export function replayPassPlay(playId: string, events: readonly MatchEventEnvelo
         return shapeSReportedMargin(tick, { m: m.repMargin, move: m.move, beatTick: m.beatTick }, clock, arm.pushWindow);
       case "L":
         return shapeLMargin(tick, arm.R, m.repMargin, publishedMargin - m.repMargin);
+      case "STREAM":
+        return publishedMargin;
     }
   };
 
@@ -291,7 +317,7 @@ export function replayPassPlay(playId: string, events: readonly MatchEventEnvelo
             rusher: m.rusher,
             alignment: m.alignment,
             position: m.position,
-            counter: statusFromCounter(tunables, m.pressure),
+            counter: narrower && m.threat !== undefined ? "CLEAN" : statusFromCounter(tunables, m.pressure),
             band,
             arrival: floorFromArrival(tunables, tta),
             tta,
@@ -344,10 +370,18 @@ export function replayPassPlay(playId: string, events: readonly MatchEventEnvelo
         if (c.checkKind !== "pass_rush_tick") break;
         const m = matchups.get(String(c.actors[0]));
         if (m === undefined) throw new Error(`m2: ${playId}: a pass_rush_tick for ${String(c.actors[0])} before his rep`);
-        jitterChecks += 1;
-        if (c.opposedRoll === undefined || tickJitter(tunables, c.roll.total, c.opposedRoll.total) !== c.margin - m.repMargin) jitterMismatches += 1;
+        if (arm.kind === "STREAM") {
+          if (c.roll === undefined) jitterSkipped += 1;
+          else {
+            jitterChecks += 1;
+            if (c.opposedRoll === undefined || streamTickMargin(tunables, tick, m.repMargin, tickJitter(tunables, c.roll.total, c.opposedRoll.total)) !== c.margin) jitterMismatches += 1;
+          }
+        } else {
+          jitterChecks += 1;
+          if (c.opposedRoll === undefined || tickJitter(tunables, c.roll.total, c.opposedRoll.total) !== c.margin - m.repMargin) jitterMismatches += 1;
+        }
         const margin = armMargin(m, c.margin);
-        const band = arm.kind === "TODAY" ? (c.band as string) : passRushBandOf(tunables, margin);
+        const band = arm.kind === "TODAY" || arm.kind === "STREAM" ? (c.band as string) : passRushBandOf(tunables, margin);
         const progress = progressOf(tunables, band);
         m.pressure = progress.reset ? 0 : Math.max(0, m.pressure + progress.delta);
         m.previousBand = band;
@@ -420,7 +454,19 @@ export function replayPassPlay(playId: string, events: readonly MatchEventEnvelo
     }
   }
   if (start === undefined) return undefined;
-  return { playId, start, ticks, wonRepEvents, publishedWonRepEvents, releaseTick, pursuitTick, escapeTick, jitterChecks, jitterMismatches };
+  return { playId, start, ticks, wonRepEvents, publishedWonRepEvents, releaseTick, pursuitTick, escapeTick, jitterChecks, jitterMismatches, jitterSkipped };
+}
+
+/**
+ * STREAM: a rolled `pass_rush_tick`'s margin on its own clock, from its rep's margin and its rolled
+ * jitter: today's `repMargin + jitter`, or under shape L the engine's exact form
+ * `round(min(t, R) * x / R)` (`s1Stream.ts`'s `lMarginExact`, N3; restated here so this file does
+ * not import the stream checks, and `pocketM2.test.ts` checks the two agree).
+ */
+export function streamTickMargin(tunables: Tunables, tick: number, repMargin: number, jitter: number): number {
+  const R = tunables.passRush.repClock?.fullExpressionSeconds;
+  const x = repMargin + jitter;
+  return R === undefined ? x : Math.round((Math.min(tick, R) * x) / R) + 0;
 }
 
 /** Does an escape roll's band end the pocket (he escaped, or was caught)? CONTAINED does not. */
@@ -596,5 +642,266 @@ export function m2Summary(fold: M2Fold): Readonly<Record<string, unknown>> {
     byPosition: fold.byPosition,
     identity: { statusChecks: fold.statusChecks, statusMismatches: fold.statusMismatches, threatChecks: fold.threatChecks, threatMismatches: fold.threatMismatches },
     jitter: { checks: fold.jitterChecks, mismatches: fold.jitterMismatches },
+  };
+}
+
+// --- STREAM: M2 on an arm's own real streams (ADR-089 step 2, plan §1.6) ------------------------------
+
+/** The forcing rule an arm plays: `pocket.forcing.rule`, or step 1's (the status) when the block is absent. */
+export type M2ForcingRule = "STEP_1" | NonNullable<Tunables["pocket"]["forcing"]>["rule"];
+
+export function forcingRuleOf(tunables: Tunables): M2ForcingRule {
+  return tunables.pocket.forcing?.rule ?? "STEP_1";
+}
+
+/**
+ * The arm's own forced decision on a replayed dropback, by its forcing rule: under step 1's rule
+ * and the narrower counter, the first tick whose status is in `pocket.forcesDecision`
+ * (`forcedDecisionOf`); under PER_RUSHER, the first tick with must act's threat part, a threat
+ * within `arrival.collapsingWithinSeconds` or one arrived (§4.3; every threat counts as registered
+ * until step 7). The count part (his budget, his reads) is not M2's: M2 asks what the pocket forces.
+ */
+export function forcedDecisionByRule(r: ArmReplay, tunables: Tunables): ForcedDecision | undefined {
+  if (forcingRuleOf(tunables) !== "PER_RUSHER") return forcedDecisionOf(r, tunables);
+  const forcing = new Set<string>(tunables.pocket.forcesDecision as readonly string[]);
+  const C = tunables.arrival.collapsingWithinSeconds;
+  for (const t of r.ticks) {
+    if (t.minTta === undefined || !(t.minTta <= C || t.minTta <= 0)) continue;
+    const far = t.minTta > M2_FAR_SECONDS;
+    let setter: RusherChannels | undefined;
+    for (const x of t.rushers) if (setter === undefined || x.pressure > setter.pressure) setter = x;
+    const counterForces = forcing.has(t.counter);
+    return { tick: t.tick, counterForces, bandForces: forcing.has(t.bandFloor), arrivalForces: forcing.has(t.arrival), far, counterFar: counterForces && far, setter: counterForces ? setter : undefined };
+  }
+  return undefined;
+}
+
+/** Step 0's (b) check `b.tm-399` (TM's construct, ADR-089:492): edge won-rep threats and the long-travel ones. */
+export interface Tm399Fold {
+  /** Each rusher's first WON_REP `RUSH_THREAT` on a dropback, EDGE. */
+  edge: number;
+  /** Of them, travel (etaTick minus the tick it was published) 2.5 s or more. */
+  far: number;
+  /** Of those, cornerbacks (the snapshot's position). */
+  farCB: number;
+}
+
+/** TM's travel line (ADR-089:492, `adr089Base.test.ts`'s `tm399`). */
+export const TM399_TRAVEL_SECONDS = 2.5;
+
+export interface M2StreamFold {
+  /** The arm's forcing rule, set by the first dropback folded (one fold, one arm). */
+  rule: M2ForcingRule | null;
+  /** The arm's `arrival.collapsingWithinSeconds` (C), set the same way: PER_RUSHER's construct is 0 by the rule only when C <= M2_FAR_SECONDS. */
+  collapsingWithin: number | null;
+  dropbacks: number;
+  forced: number;
+  /** Dropbacks the arm's rule never forced before its release (nothing is censored on a real stream). */
+  unforced: number;
+  counterFar: number;
+  bandFarOnly: number;
+  byAlignment: Record<string, number>;
+  byPosition: Record<string, number>;
+  statusChecks: number;
+  statusMismatches: number;
+  threatChecks: number;
+  threatMismatches: number;
+  jitterChecks: number;
+  jitterMismatches: number;
+  /** Dieless ticks (shape S), where TODAY's jitter check is vacuous. */
+  jitterSkipped: number;
+  tm399: Tm399Fold;
+}
+
+export function emptyM2StreamFold(): M2StreamFold {
+  return {
+    rule: null,
+    collapsingWithin: null,
+    dropbacks: 0,
+    forced: 0,
+    unforced: 0,
+    counterFar: 0,
+    bandFarOnly: 0,
+    byAlignment: {},
+    byPosition: {},
+    statusChecks: 0,
+    statusMismatches: 0,
+    threatChecks: 0,
+    threatMismatches: 0,
+    jitterChecks: 0,
+    jitterMismatches: 0,
+    jitterSkipped: 0,
+    tm399: { edge: 0, far: 0, farCB: 0 },
+  };
+}
+
+/** Fold one dropback replayed under STREAM, with the arm's own tunables (K14). */
+export function foldM2Stream(fold: M2StreamFold, r: ArmReplay, tunables: Tunables): void {
+  const rule = forcingRuleOf(tunables);
+  if (fold.rule === null) fold.rule = rule;
+  else if (fold.rule !== rule) throw new Error(`m2 STREAM: one fold read arms under ${fold.rule} and ${rule}`);
+  const C = tunables.arrival.collapsingWithinSeconds;
+  if (fold.collapsingWithin === null) fold.collapsingWithin = C;
+  else if (fold.collapsingWithin !== C) throw new Error(`m2 STREAM: one fold read arms with C ${String(fold.collapsingWithin)} and ${String(C)}`);
+  fold.dropbacks += 1;
+  fold.jitterChecks += r.jitterChecks;
+  fold.jitterMismatches += r.jitterMismatches;
+  fold.jitterSkipped += r.jitterSkipped;
+  for (const t of r.ticks) {
+    fold.statusChecks += 1;
+    if (t.status !== t.published) fold.statusMismatches += 1;
+  }
+  const id = wonRepIdentity(r);
+  fold.threatChecks += id.checks;
+  fold.threatMismatches += id.mismatches;
+  const f = forcedDecisionByRule(r, tunables);
+  if (f === undefined) {
+    fold.unforced += 1;
+    return;
+  }
+  fold.forced += 1;
+  if (f.counterFar) {
+    fold.counterFar += 1;
+    bump(fold.byAlignment, f.setter?.alignment ?? "none");
+    bump(fold.byPosition, f.setter?.position ?? "none");
+  } else if (f.far && f.bandForces) fold.bandFarOnly += 1;
+}
+
+/** TM's construct on one game's published threats (the same reading as step 0's base check). */
+export function foldTm399Game(fold: Tm399Fold, events: readonly MatchEventEnvelope[], positions: ReadonlyMap<PlayerId, Position>): void {
+  for (const r of passPlayThreats(events)) {
+    const seen = new Set<string>();
+    for (const t of r) {
+      if (t.origin !== "WON_REP" || seen.has(t.rusher)) continue;
+      seen.add(t.rusher);
+      if (t.alignment !== "EDGE") continue;
+      fold.edge += 1;
+      if (Math.round((t.etaTick - t.tick) * 10) / 10 >= TM399_TRAVEL_SECONDS) {
+        fold.far += 1;
+        if (String(positions.get(t.rusher as PlayerId)) === "CB") fold.farCB += 1;
+      }
+    }
+  }
+}
+
+/** Every PASS play's published `RUSH_THREAT`s in order, each with the tick it was published at (0 before the first TICK). */
+function passPlayThreats(events: readonly MatchEventEnvelope[]): readonly (readonly { readonly tick: number; readonly rusher: string; readonly origin: ThreatOrigin; readonly alignment: RushAlignment; readonly etaTick: number }[])[] {
+  const byPlay = new Map<string, { pass: boolean; tick: number; threats: { tick: number; rusher: string; origin: ThreatOrigin; alignment: RushAlignment; etaTick: number }[] }>();
+  for (const { event } of events) {
+    const id = (event as { readonly playId?: unknown }).playId;
+    if (typeof id !== "string") continue;
+    let p = byPlay.get(id);
+    if (p === undefined) {
+      p = { pass: false, tick: 0, threats: [] };
+      byPlay.set(id, p);
+    }
+    if (event.type === "PLAY_START") p.pass = passStartOf(event.payload) !== undefined;
+    else if (event.type === "TICK") p.tick = event.payload.tick;
+    else if (event.type === "RUSH_THREAT") p.threats.push({ tick: p.tick, rusher: String(event.payload.rusher), origin: event.payload.origin, alignment: event.payload.alignment, etaTick: event.payload.etaTick });
+  }
+  return [...byPlay.values()].filter((p) => p.pass).map((p) => p.threats);
+}
+
+/** M2 STREAM on one game of the arm: every PASS play replayed with the arm's tunables, and TM's construct. */
+export function foldM2StreamGame(fold: M2StreamFold, events: readonly MatchEventEnvelope[], tunables: Tunables, positions: ReadonlyMap<PlayerId, Position>): void {
+  // STREAM draws no die, so the replay's game seed is never read.
+  for (const r of replayGame(events, { tunables, positions, gameSeed: "", arm: ARM_STREAM })) foldM2Stream(fold, r, tunables);
+  foldTm399Game(fold.tm399, events, positions);
+}
+
+/**
+ * The exact (Garwood) 95% interval of a Poisson count k: the means at which k or more, and k or
+ * fewer, have probability 2.5% each. M2's S share rests on about two events (S4-14), so its count is
+ * printed with this interval: k = 2 gives 0.24 to 7.22.
+ */
+export function poissonInterval95(k: number): { readonly lo: number; readonly hi: number } {
+  if (!Number.isInteger(k) || k < 0) throw new RangeError(`poissonInterval95: a count is a whole number, 0 or more (got ${String(k)})`);
+  // P(X <= n; mu), summed in log space so a large count does not overflow.
+  const cdf = (n: number, mu: number): number => {
+    if (n < 0) return 0;
+    let logTerm = -mu;
+    let sum = Math.exp(logTerm);
+    for (let i = 1; i <= n; i++) {
+      logTerm += Math.log(mu) - Math.log(i);
+      sum += Math.exp(logTerm);
+    }
+    return Math.min(1, sum);
+  };
+  const solve = (f: (mu: number) => number, lo: number, hi: number): number => {
+    // f falls in mu; find f(mu) = 0 by bisection.
+    for (let i = 0; i < 200; i++) {
+      const mid = (lo + hi) / 2;
+      if (f(mid) > 0) lo = mid;
+      else hi = mid;
+    }
+    return (lo + hi) / 2;
+  };
+  const top = 10 + 10 * k;
+  const hi = solve((mu) => cdf(k, mu) - 0.025, 0, top);
+  const lo = k === 0 ? 0 : solve((mu) => cdf(k - 1, mu) - 0.975, 0, top);
+  return { lo, hi };
+}
+
+const pct2 = (n: number, d: number): number => (d === 0 ? 0 : Number(((100 * n) / d).toFixed(2)));
+const pct4 = (n: number): number => Number(n.toFixed(4));
+
+/** The STREAM fold as the report prints it (percent of forced decisions; the count's interval beside the share). */
+export function m2StreamSummary(fold: M2StreamFold): Readonly<Record<string, unknown>> {
+  const interval = poissonInterval95(fold.counterFar);
+  return {
+    arm: ARM_STREAM.id,
+    rule: fold.rule,
+    dropbacks: fold.dropbacks,
+    forced: fold.forced,
+    counterFar: fold.counterFar,
+    counterFarSharePct: pct2(fold.counterFar, fold.forced),
+    counterFarInterval95: { lo: pct4(interval.lo), hi: pct4(interval.hi) },
+    counterFarIntervalPct: fold.forced === 0 ? null : { lo: pct4((100 * interval.lo) / fold.forced), hi: pct4((100 * interval.hi) / fold.forced) },
+    // Under PER_RUSHER the forced decision has a threat within C, so with C at or inside M2's far
+    // line (0.5 s, every PER_RUSHER arm of step 2) none is "far": 0 by the rule.
+    zeroByTheRule: m2ZeroByTheRule(fold) ? fold.counterFar === 0 : null,
+    bandFarOnly: fold.bandFarOnly,
+    unforced: fold.unforced,
+    unforcedSharePct: pct2(fold.unforced, fold.dropbacks),
+    byAlignment: fold.byAlignment,
+    byPosition: fold.byPosition,
+    identity: { statusChecks: fold.statusChecks, statusMismatches: fold.statusMismatches, threatChecks: fold.threatChecks, threatMismatches: fold.threatMismatches },
+    jitter: { checks: fold.jitterChecks, mismatches: fold.jitterMismatches, skippedDieless: fold.jitterSkipped },
+    tm399: { ...fold.tm399, farSharePct: pct2(fold.tm399.far, fold.tm399.edge) },
+  };
+}
+
+/** Whether the fold's construct is 0 by its rule: PER_RUSHER with C at or inside M2's far line. */
+export function m2ZeroByTheRule(fold: M2StreamFold): boolean {
+  return fold.rule === "PER_RUSHER" && fold.collapsingWithin !== null && fold.collapsingWithin <= M2_FAR_SECONDS;
+}
+
+/** Merge two STREAM folds of one arm (two leagues or two shards read as one), counts summed. */
+export function mergeM2StreamFolds(a: M2StreamFold, b: M2StreamFold): M2StreamFold {
+  if (a.rule !== null && b.rule !== null && a.rule !== b.rule) throw new Error(`m2 STREAM: cannot merge folds of ${a.rule} and ${b.rule}`);
+  if (a.collapsingWithin !== null && b.collapsingWithin !== null && a.collapsingWithin !== b.collapsingWithin) throw new Error(`m2 STREAM: cannot merge folds with C ${String(a.collapsingWithin)} and ${String(b.collapsingWithin)}`);
+  const add = (x: Record<string, number>, y: Record<string, number>): Record<string, number> => {
+    const out: Record<string, number> = { ...x };
+    for (const [k, v] of Object.entries(y)) out[k] = (out[k] ?? 0) + v;
+    return out;
+  };
+  return {
+    rule: a.rule ?? b.rule,
+    collapsingWithin: a.collapsingWithin ?? b.collapsingWithin,
+    dropbacks: a.dropbacks + b.dropbacks,
+    forced: a.forced + b.forced,
+    unforced: a.unforced + b.unforced,
+    counterFar: a.counterFar + b.counterFar,
+    bandFarOnly: a.bandFarOnly + b.bandFarOnly,
+    byAlignment: add(a.byAlignment, b.byAlignment),
+    byPosition: add(a.byPosition, b.byPosition),
+    statusChecks: a.statusChecks + b.statusChecks,
+    statusMismatches: a.statusMismatches + b.statusMismatches,
+    threatChecks: a.threatChecks + b.threatChecks,
+    threatMismatches: a.threatMismatches + b.threatMismatches,
+    jitterChecks: a.jitterChecks + b.jitterChecks,
+    jitterMismatches: a.jitterMismatches + b.jitterMismatches,
+    jitterSkipped: a.jitterSkipped + b.jitterSkipped,
+    tm399: { edge: a.tm399.edge + b.tm399.edge, far: a.tm399.far + b.tm399.far, farCB: a.tm399.farCB + b.tm399.farCB },
   };
 }

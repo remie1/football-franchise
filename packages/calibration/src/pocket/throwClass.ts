@@ -454,5 +454,26 @@ export function releaseTickOf(d: Dropback): number | undefined {
   return d.throwTick ?? d.throwawayTick;
 }
 
+/** The two halves of the DESPERATION class (F.9 item 4). */
+export type DesperationPocket = "CLEAN" | "DIRTY";
+
+/**
+ * ADR-089 step 2 (F.9 item 4; plan §5; reading O50): which half of DESPERATION a release falls in.
+ * DIRTY when the **last** `POCKET_STATUS` published at or before the release tick is PRESSURE,
+ * COLLAPSING or IMMEDIATE; CLEAN when it is CLEAN, or when none was published by then. The release
+ * tick is the THROW's (a must-act throw is released on its decision tick). It reads the last
+ * status, not the worst (`int-sources.md:254`, the rule F.9 item 4's figures used): a pocket that
+ * was dirty and cleared again is clean at the release. One function serves the step-2 fold, the
+ * report and AM-1's reading (`guardAm1.ts`), so the three agree by construction. The graded class
+ * stays DESPERATION as built; this split is reported.
+ */
+export function desperationPocketOf(d: Dropback): DesperationPocket {
+  const release = releaseTickOf(d);
+  if (release === undefined) throw new Error(`desperationPocketOf: play ${d.playId} has no release (no THROW and no THROWAWAY)`);
+  let last: PocketStatus | undefined;
+  for (const s of d.statuses) if (s.tick <= release) last = s.status;
+  return last === undefined || last === "CLEAN" ? "CLEAN" : "DIRTY";
+}
+
 /** Map a player id string back to the branded id (the stream's ids are strings). */
 export const asPlayerId = (s: string): PlayerId => s as PlayerId;

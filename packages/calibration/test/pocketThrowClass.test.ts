@@ -9,6 +9,7 @@ import { DEFAULT_TUNABLES } from "@ff/engine";
 import { describe, expect, it } from "vitest";
 import { NOBODY_OPEN_CLASSES, THROW_CLASSES, type ThrowClass } from "../src/pocket/constructs.js";
 import {
+  desperationPocketOf,
   dropbacksOf,
   isAimed,
   isCleanDropback,
@@ -231,5 +232,43 @@ describe("the pocket report rows over the constructed dropbacks (rows.ts; plan Â
     // first man read) a later read.
     expect(rows.clean_checkdown_share).toMatchObject({ n: 1, cleanAimed: 3, cleanDropbacks: 4 });
     expect(rows.clean_later_read_share).toMatchObject({ n: 1, cleanAimed: 3 });
+  });
+});
+
+describe("ADR-089 step 2: DESPERATION's clean and dirty halves (desperationPocketOf; F.9 item 4)", () => {
+  /** A desperation throw at 1.5 (wr1 31, wr2 28: nobody at the bar), after the given statuses. */
+  const desperate = (before: readonly Ev[]): Dropback =>
+    one(play([tick(0.5), read("wr1", 31), ...before, tick(1.5), read("wr2", 28), decide("THROW", "wr1"), thrown("wr1"), caught(false), result(0)]));
+
+  it("is CLEAN when no status was published by the release", () => {
+    const d = desperate([]);
+    expect(throwClassOf(d, T).cls).toBe("DESPERATION");
+    expect(desperationPocketOf(d)).toBe("CLEAN");
+  });
+
+  it("is DIRTY when the last status at or before the release is PRESSURE, COLLAPSING or IMMEDIATE", () => {
+    for (const s of ["PRESSURE", "COLLAPSING", "IMMEDIATE"]) expect(desperationPocketOf(desperate([tick(1.0), status(s)])), s).toBe("DIRTY");
+  });
+
+  it("reads the last status, not the worst: dirty and cleared again is CLEAN at the release", () => {
+    const d = desperate([tick(1.0), status("IMMEDIATE"), tick(1.2), status("CLEAN")]);
+    expect(worstStatus(d)).toBe("IMMEDIATE");
+    expect(desperationPocketOf(d)).toBe("CLEAN");
+    expect(desperationPocketOf(desperate([tick(1.0), status("CLEAN"), tick(1.2), status("PRESSURE")]))).toBe("DIRTY");
+  });
+
+  it("counts a status on the release tick itself, and none after it", () => {
+    const onRelease = one(play([tick(0.5), read("wr1", 31), tick(1.0), status("COLLAPSING"), read("wr2", 28), decide("THROW", "wr1"), thrown("wr1"), caught(false), result(0)]));
+    expect(releaseTickOf(onRelease)).toBe(1.0);
+    expect(desperationPocketOf(onRelease)).toBe("DIRTY");
+    const after = one(play([tick(0.5), read("wr1", 31), decide("THROW", "wr1"), thrown("wr1"), tick(1.0), status("IMMEDIATE"), caught(false), result(0)]));
+    expect(desperationPocketOf(after)).toBe("CLEAN");
+  });
+
+  it("reads a THROWAWAY's release the same way, and refuses a dropback with no release", () => {
+    const away = one(play([tick(0.5), status("PRESSURE"), read("wr1", 20), tick(1.0), decide("THROWAWAY"), { type: "THROWAWAY", payload: { cause: "POCKET_DURESS" } }, result(0)]));
+    expect(desperationPocketOf(away)).toBe("DIRTY");
+    const sack = one(play([tick(0.5), read("wr1", 20), tick(1.0), status("IMMEDIATE"), decide("HOLD"), result(-7)]));
+    expect(() => desperationPocketOf(sack)).toThrow(/has no release/);
   });
 });
