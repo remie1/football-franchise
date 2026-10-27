@@ -1204,9 +1204,32 @@ export function step1Env(repoRoot: string, filedPath: string): Step1Env & { read
   return { fingerprint: fp.fingerprint, commit: tree.commit ?? "unknown", dirty: tree.dirty, node: process.version, ...(tree.reason === undefined ? {} : { reason: tree.reason }) };
 }
 
+/** Step 1's committed records, relative to the package: step 1 is closed and they are never edited (review NPC-N1). */
+export const STEP1_CLOSED_RECORDS = ["reports/adr-089-step1.md", "reports/adr-089-step1.json"] as const;
+
+/**
+ * The `--report` and `--out` of a step-1 command that would write over one of step 1's committed
+ * records, compared on real paths from `cwd` (a symlink to one is caught); empty when none does.
+ * Step 1 is closed: a re-run writes its report and records elsewhere (review NPC-N1).
+ */
+export function closedStep1Writes(args: Pick<Step1Args, "report" | "out">, cwd: string, pkgRoot: string = PKG_ROOT): readonly string[] {
+  const closed = new Set(STEP1_CLOSED_RECORDS.map((r) => realOf(join(pkgRoot, r))));
+  return (["report", "out"] as const).flatMap((flag) => {
+    const value = args[flag];
+    return value !== undefined && closed.has(realOf(resolve(cwd, value))) ? [`--${flag} ${value}`] : [];
+  });
+}
+
 export async function step1Command(args: Step1Args, log: (line: string) => void): Promise<void> {
   const repoRoot = resolve(PKG_ROOT, "..", "..");
   const filedPath = join(PKG_ROOT, FILED_PATH);
+  const closed = closedStep1Writes(args, process.cwd());
+  if (closed.length > 0) {
+    throw new Error(
+      `ADR-089 step 1 is closed: ${closed.join(" and ")} would write over its committed records (${STEP1_CLOSED_RECORDS.join(", ")}), which are never edited. ` +
+        "Write a re-run elsewhere (for example --report /tmp/s1.md --out /tmp/s1.json)",
+    );
+  }
   if (args.digests === true) {
     const out = args.out;
     if (out === undefined) throw new SyntaxError("--digests writes its folds to --out <file>");

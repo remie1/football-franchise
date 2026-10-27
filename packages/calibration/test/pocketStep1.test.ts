@@ -37,6 +37,7 @@ import {
   armFileOf,
   BASE_GROUPS,
   checkFilingForStep1,
+  closedStep1Writes,
   DIGEST_ARMS,
   emptyLeagueFolds,
   emptyOnTheRun,
@@ -56,6 +57,8 @@ import {
   sourceFingerprint,
   stampOf,
   stampProblems,
+  STEP1_CLOSED_RECORDS,
+  step1Command,
   step1Env,
   STEP1_ARM_FORMAT,
   STEP1_DIGESTS_FORMAT,
@@ -1021,5 +1024,48 @@ describe("K14: no fold reads the default tunables", () => {
     for (const name of ["step0.ts", "step1.ts", "s1Stream.ts", "collect.ts", "rows.ts"]) expect(folding.some((f) => f.endsWith(`/${name}`)), name).toBe(true);
     const reads = folding.flatMap((f) => defaultReads(readFileSync(f, "utf8")).map((r) => `${f.slice(PKG.length + 1)}:${r}`));
     expect(reads, reads.join("\n")).toEqual([]);
+  });
+});
+
+// --- step 1 is closed ------------------------------------------------------------------------------
+
+describe("the step-1 command never writes over step 1's committed records (review NPC-N1)", () => {
+  const md = join(PKG, "reports", "adr-089-step1.md");
+  const json = join(PKG, "reports", "adr-089-step1.json");
+
+  it("names a --report or --out that is a committed record, from any cwd and through a symlink; any other path passes", () => {
+    expect(typeof closedStep1Writes).toBe("function");
+    expect(STEP1_CLOSED_RECORDS).toEqual(["reports/adr-089-step1.md", "reports/adr-089-step1.json"]);
+    // The documented command's paths, relative to the package.
+    expect(closedStep1Writes({ report: "reports/adr-089-step1.md", out: "reports/adr-089-step1.json" }, PKG)).toEqual(["--report reports/adr-089-step1.md", "--out reports/adr-089-step1.json"]);
+    // From the repo root, and absolute.
+    const root = resolve(PKG, "..", "..");
+    expect(closedStep1Writes({ report: "packages/calibration/reports/adr-089-step1.md" }, root)).toEqual(["--report packages/calibration/reports/adr-089-step1.md"]);
+    expect(closedStep1Writes({ out: json }, tmpdir())).toEqual([`--out ${json}`]);
+    expect(closedStep1Writes({ out: "./reports/../reports/adr-089-step1.json" }, PKG)).toEqual(["--out ./reports/../reports/adr-089-step1.json"]);
+    // A symlink to the file, and a symlinked directory holding it.
+    const dir = tempDir("closed");
+    symlinkSync(md, join(dir, "s1.md"));
+    symlinkSync(join(PKG, "reports"), join(dir, "reports-link"));
+    expect(closedStep1Writes({ report: join(dir, "s1.md"), out: join(dir, "reports-link", "adr-089-step1.json") }, PKG)).toEqual([`--report ${join(dir, "s1.md")}`, `--out ${join(dir, "reports-link", "adr-089-step1.json")}`]);
+    // Elsewhere, beside them, or not given: nothing.
+    expect(closedStep1Writes({ report: join(dir, "s1-new.md"), out: join(dir, "s1.json") }, PKG)).toEqual([]);
+    expect(closedStep1Writes({ report: "reports/adr-089-step1-rerun.md", out: "reports/adr-089-step2.json" }, PKG)).toEqual([]);
+    expect(closedStep1Writes({}, PKG)).toEqual([]);
+  });
+
+  it("refuses the command before it reads the tree or plays, the digests run too, and the records stay as they were", async () => {
+    expect(typeof closedStep1Writes).toBe("function");
+    const before = [readFileSync(md), readFileSync(json)];
+    const lines: string[] = [];
+    await expect(step1Command({ step: 1, report: md, out: json }, (l) => lines.push(l))).rejects.toThrow(
+      /^ADR-089 step 1 is closed: --report .*adr-089-step1\.md and --out .*adr-089-step1\.json would write over its committed records \(reports\/adr-089-step1\.md, reports\/adr-089-step1\.json\), which are never edited\. Write a re-run elsewhere/,
+    );
+    await expect(step1Command({ step: 1, digests: true, out: json }, (l) => lines.push(l))).rejects.toThrow(/^ADR-089 step 1 is closed: --out /);
+    const dir = tempDir("closed-cmd");
+    symlinkSync(md, join(dir, "s1.md"));
+    await expect(step1Command({ step: 1, report: join(dir, "s1.md") }, (l) => lines.push(l))).rejects.toThrow(/^ADR-089 step 1 is closed: --report /);
+    expect(lines).toEqual([]);
+    expect([readFileSync(md), readFileSync(json)]).toEqual(before);
   });
 });
