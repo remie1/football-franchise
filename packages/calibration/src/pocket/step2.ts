@@ -501,6 +501,17 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
   const counterFails = perRusher.flatMap((x) => LEAGUES.flatMap((l) => (x.r.s2[l].mustAct.problemCount > 0 ? [`${where(x)} ${l} (${String(x.r.s2[l].mustAct.problemCount)}; first: ${x.r.s2[l].mustAct.problems[0] ?? ""})`] : [])));
   const counterNoCase = perRusher.filter((x) => LEAGUES.every((l) => x.r.s2[l].mustAct.acts === 0)).map(where);
   const a1Present = a1Self.length > 0;
+  // Its power (review FID-F-5, CT-F1): the chances it had, and B7 (step 1's rule on B3's clock) read as PER_RUSHER, the positive control.
+  const chancesOf = (xs: readonly { r: Step2Record }[]): number => sumOf(xs.flatMap((x) => LEAGUES.map((l) => x.r.s2[l].mustAct.chances)));
+  const uncountedOf = (xs: readonly { r: Step2Record }[]): number => sumOf(xs.flatMap((x) => LEAGUES.map((l) => x.r.s2[l].mustAct.chancesUncounted)));
+  const perRusherChances = chancesOf(perRusher);
+  const controls = present.filter((x) => x.id === "B7");
+  const controlFails = sumOf(controls.flatMap((x) => LEAGUES.map((l) => x.r.s2[l].mustAct.asPerRusherFailures)));
+  const noPower = perRusherChances === 0 || (controls.length > 0 && controlFails === 0);
+  const powerText =
+    `; chances (a status-forced tick with no threat part, where the rules part ways) ${String(perRusherChances)} on the PER_RUSHER arms, ${String(uncountedOf(perRusher))} of them outside the count part too; ` +
+    `the positive control, B7 read as PER_RUSHER: ${controls.length === 0 ? "not in this run" : `${String(controlFails)} failures over ${String(chancesOf(controls))} chances (${String(uncountedOf(controls))} outside the count part)`}` +
+    (noPower ? "; no discriminating case on this corpus, so the proof has no power here and the engine's mustAct.test.ts (a) carries it" : "");
   proofs.push({
     id: "s2.falsifier.counterAlone",
     what: "must act never fires on the counter alone (proof:must-act-counter; O40), on every PER_RUSHER arm's full corpora",
@@ -508,7 +519,7 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
     verdict: perRusher.length === 0 ? "NOT APPLICABLE" : selfFault ? "NOT JUDGED" : !a1Present ? "NOT CHECKED" : counterFails.length > 0 || counterNoCase.length > 0 ? "FAIL" : "PASS",
     detail:
       `${perRusher.map(where).join(", ") || "no PER_RUSHER arm"}: ${String(sumOf(perRusher.flatMap((x) => LEAGUES.map((l) => x.r.s2[l].mustAct.acts))))} forced acts; failures ${counterFails.length === 0 ? "none" : counterFails.join("; ")}` +
-      `${counterNoCase.length === 0 ? "" : `; no case on ${counterNoCase.join(", ")}`}${selfFault ? "; NOT JUDGED: the count part's self-check (either direction) failed (a fold fault)" : !a1Present ? "; NOT CHECKED: A1's self-check is not in this run" : ""}; the golden 50 under pocket-1.s2 is Q-4 (pocketS2Pins) and the engine's cases mustAct.test.ts, outside this run`,
+      `${counterNoCase.length === 0 ? "" : `; no case on ${counterNoCase.join(", ")}`}${selfFault ? "; NOT JUDGED: the count part's self-check (either direction) failed (a fold fault)" : !a1Present ? "; NOT CHECKED: A1's self-check is not in this run" : ""}${powerText}; outside this run, the engine's cases are mustAct.test.ts (a) to (d)`,
   });
 
   const arrivalFails = present.flatMap((x) => LEAGUES.flatMap((l) => (x.r.s2[l].arrival.problemCount > 0 ? [`${where(x)} ${l} (${String(x.r.s2[l].arrival.problemCount)}; first: ${x.r.s2[l].arrival.problems[0] ?? ""})`] : [])));

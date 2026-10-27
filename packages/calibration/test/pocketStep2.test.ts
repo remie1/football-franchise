@@ -653,6 +653,18 @@ describe("grading synthetic records", () => {
     const noCase = grade(recordsOf((m) => { for (const bySet of m.values()) for (const r of Object.values(bySet)) for (const l of LEAGUES) r!.s2[l].mustAct.witness.countHolds = 0; }));
     expect(proof(noCase, "s2.selfCheck").verdict).toBe("FAIL");
     expect(proof(noCase, "s2.selfCheck").detail).toMatch(/the generous direction saw no case/);
+    // Its power (review FID-F-5, CT-F1): the chances and B7's control are printed, and with none the detail says so.
+    const powered = grade(recordsOf((m) => {
+      rec(m, "B3", 1).s2.flat.mustAct.chances = 4;
+      rec(m, "B7", 1).s2.flat.mustAct.chances = 5;
+      rec(m, "B7", 1).s2.flat.mustAct.asPerRusherFailures = 3;
+    }));
+    expect(proof(powered, "s2.falsifier.counterAlone").detail).toMatch(/chances \(a status-forced tick with no threat part, where the rules part ways\) [0-9]+ on the PER_RUSHER arms, [0-9]+ of them outside the count part too; the positive control, B7 read as PER_RUSHER: [0-9]+ failures over [0-9]+ chances \([0-9]+ outside the count part\); outside this run/);
+    expect(proof(powered, "s2.falsifier.counterAlone").detail).not.toMatch(/no discriminating case/);
+    const powerless = grade(recordsOf((m) => { for (const bySet of m.values()) for (const r of Object.values(bySet)) for (const l of LEAGUES) { r!.s2[l].mustAct.chances = 0; r!.s2[l].mustAct.chancesUncounted = 0; r!.s2[l].mustAct.asPerRusherFailures = 0; } }));
+    expect(proof(powerless, "s2.falsifier.counterAlone").detail).toMatch(/where the rules part ways\) 0 on the PER_RUSHER arms, 0 of them outside the count part too; the positive control, B7 read as PER_RUSHER: 0 failures over 0 chances \(0 outside the count part\); no discriminating case on this corpus/);
+    expect(proof(powerless, "s2.falsifier.counterAlone").detail).not.toMatch(/pocketS2Pins/);
+    expect(clause(powerless, "s2.falsifier.counterAlone").values[0]).toMatch(/no discriminating case on this corpus/);
     // Without A1 in the run, counterAlone is not checked (A1's self-check is its witness).
     const noA1 = grade(recordsOf((m) => { m.delete("A1"); }));
     expect(proof(noA1, "s2.falsifier.counterAlone").verdict).toBe("NOT CHECKED");

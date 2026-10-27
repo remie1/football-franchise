@@ -417,6 +417,21 @@ export interface MustActFold extends S2CheckFold {
   offRuleCounted: number;
   /** The self-check's other direction, on every arm: its exceptions never count as the falsifier's. */
   witness: MustActWitnessFold;
+  /**
+   * The falsifier's chances (review FID-F-5): pocket status ticks (the first a tick, none after
+   * `QB_PURSUIT`) on which the status forces and the threat part does not hold, the only ticks on
+   * which PER_RUSHER and step 1's rule part ways (on step 1's clock a threat inside C floors the
+   * status at COLLAPSING). A MOVEMENT or a POCKET_DURESS on one fails it. Counted on every arm.
+   */
+  chances: number;
+  /** Of them, the count part does not hold either (review CT-F1): any forced act on one fails it. */
+  chancesUncounted: number;
+  /**
+   * Forced acts that would fail the falsifier read as PER_RUSHER with the arm's own C (the same test
+   * as the PER_RUSHER failure line, on every act with a status): on a PER_RUSHER arm its failures of
+   * that kind; on a step-1-rule arm (B7) the positive control, which shows the corpus can bite.
+   */
+  asPerRusherFailures: number;
 }
 
 export function emptyMustActFold(): MustActFold {
@@ -428,6 +443,9 @@ export function emptyMustActFold(): MustActFold {
     offRule: 0,
     offRuleCounted: 0,
     witness: { ...emptyCheck(), holds: 0, countHolds: 0, clockExpired: 0 },
+    chances: 0,
+    chancesUncounted: 0,
+    asPerRusherFailures: 0,
   };
 }
 
@@ -458,7 +476,7 @@ export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): v
   w.plays += 1;
   const acts = forcedActsOf(play, ctx.tunables);
   const holds = closingHoldsOf(play);
-  if (acts.length === 0 && holds.length === 0) return;
+  if (acts.length === 0 && holds.length === 0 && play.statuses.length === 0) return;
   const qb = ctx.players.get(play.start.quarterback);
   if (qb === undefined) throw new Error(`mustActCheck: ${play.playId}: the quarterback ${play.start.quarterback} is not on the game's snapshot`);
   const budget = restatedBudgetSeconds(ctx.tunables, qb, play.start.readSystem);
@@ -489,6 +507,7 @@ export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): v
       continue;
     }
     const { threat, status, reads, count, rulePart } = partsAt(s, act.tick);
+    if (GATED.has(act.kind) ? !threat : !(threat || count)) fold.asPerRusherFailures += 1;
     if (threat) cell.threatPart += 1;
     if (status) cell.statusPart += 1;
     if (count) cell.countPart += 1;
@@ -509,6 +528,13 @@ export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): v
     const why = GATED.has(act.kind) ? "the movement gate opened" : countText(reads);
     if (perRusher) fail(fold, atPlay(play, act.tick), `must act fired on the counter alone: a ${act.kind} with ${nearOf(s)} (C ${String(ctx.C)}), status ${s.status}; ${why}`);
     else fail(fold, atPlay(play, act.tick), `self-check: a ${act.kind} on a tick whose status (${s.status}) does not force, and the restated count part does not hold (${why}): the restatement is wrong`);
+  }
+  for (const s of statusAt.values()) {
+    if (play.pursuit !== undefined && s.index > play.pursuit.index) continue;
+    const { threat, status, count } = partsAt(s, s.tick);
+    if (!status || threat) continue;
+    fold.chances += 1;
+    if (!count) fold.chancesUncounted += 1;
   }
   const earliest = ctx.tunables.qb.throwawayEarliestSeconds;
   for (const h of holds) {

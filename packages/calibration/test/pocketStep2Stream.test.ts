@@ -385,6 +385,31 @@ describe("must act never fires on the counter alone (PER_RUSHER) and its self-ch
     expect(selfCheckOf(fold).passed).toBe(false);
   });
 
+  // --- the falsifier's power: its chances, and the acts that would fail it read as PER_RUSHER (review FID-F-5, CT-F1) ---
+
+  it("counts a chance on a status-forced tick with no threat part, and whether the count part held there, on either rule", () => {
+    // COLLAPSING with the nearest threat 1.5 s out at tick 1.0, a 2.0 s budget and no reads: the rules part ways here.
+    const events = play([tick(1.0), threat("de1", "TRAVELLING", 2.5), status("COLLAPSING"), decide("HOLD"), tick(1.5), threat("de1", "TRAVELLING", 2.5), status("CLEAN"), ...throwaway("NO_TARGET")]);
+    expect(fold1(B3, events)).toMatchObject({ chances: 1, chancesUncounted: 1, asPerRusherFailures: 0, problemCount: 0 });
+    // Past the budget the rules still part (a movement gate against a clock throwaway), but only a gated act can fail there.
+    expect(fold1(B3, play([tick(2.0), threat("de1", "TRAVELLING", 4.0), status("COLLAPSING"), read(2.0, 1, "wr1", 20), ...throwaway("CLOCK_EXPIRED")]))).toMatchObject({ chances: 1, chancesUncounted: 0 });
+    // A threat inside C, or a status that does not force: no chance.
+    expect(fold1(B3, play([tick(1.0), threat("de1", "TRAVELLING", 1.5), status("COLLAPSING"), movement, ...throwaway("POCKET_DURESS")])).chances).toBe(0);
+    expect(fold1(B3, play([tick(1.0), threat("de1", "TRAVELLING", 2.5), status("PRESSURE"), decide("HOLD"), tick(1.5), status("CLEAN"), ...throwaway("NO_TARGET")])).chances).toBe(0);
+    // None after QB_PURSUIT.
+    expect(fold1(B3, play([tick(1.0), threat("de1", "TRAVELLING", 1.5), status("COLLAPSING"), movement, pursuit, decide("SCRAMBLE"), tick(1.5), status("COLLAPSING"), decide("HOLD"), result(3)])).chances).toBe(0);
+  });
+
+  it("counts the acts that would fail read as PER_RUSHER on every arm: B3's failures, and a step-1-rule arm's positive control", () => {
+    const events = play([tick(1.0), threat("de1", "TRAVELLING", 4.0), status("COLLAPSING"), movement, ...throwaway("POCKET_DURESS")]);
+    const per = fold1(B3, events);
+    expect([per.problemCount, per.asPerRusherFailures, per.chances, per.chancesUncounted]).toEqual([2, 2, 1, 1]);
+    const b7 = armById("B7").tunables;
+    expect(forcingRuleOf(b7)).toBe("STEP_1");
+    const control = fold1(b7, events);
+    expect([control.problemCount, control.asPerRusherFailures, control.chances, control.chancesUncounted]).toEqual([0, 2, 1, 1]);
+  });
+
   it("one fold reads one arm, and a quarterback missing from the snapshot is refused", () => {
     const fold = emptyMustActFold();
     const p = one(play([tick(2.0), status("CLEAN"), ...throwaway("CLOCK_EXPIRED")]));
@@ -636,9 +661,14 @@ describe(`the step-2 checks on the first ${String(FIRST)} golden games of each l
         { tunables: a5, callerVersion: "v7", first: FIRST },
       );
     }
-    console.log(`A5 read as PER_RUSHER: ${String(fold.problemCount)} counter-alone failures of ${String(fold.acts)} forced acts; first: ${fold.problems[0] ?? ""}`);
+    console.log(`A5 read as PER_RUSHER: ${String(fold.problemCount)} counter-alone failures of ${String(fold.acts)} forced acts over ${String(fold.chances)} chances; first: ${fold.problems[0] ?? ""}`);
     expect(fold.problemCount).toBeGreaterThan(0);
     expect(fold.problems[0]).toMatch(/must act fired on the counter alone/);
+    // Read on its own rule, the fold's positive control counts the same failures (review CT-F1).
+    const own = foldArm("A5", FIRST).mustAct;
+    expect(own.rule).toBe("STEP_1");
+    expect(own.asPerRusherFailures).toBe(fold.problemCount);
+    expect(own.chances).toBe(fold.chances);
   }, ON ? 900_000 : 300_000);
 
   it("a count part restated 1 s too generous gives witness exceptions on real streams (K2's probe, the other direction)", () => {
@@ -666,6 +696,16 @@ describe(`the step-2 checks on the first ${String(FIRST)} golden games of each l
       expect(wrong.witness.problemCount, `${id} 1 s too generous`).toBeGreaterThan(0);
       expect(wrong.witness.problems[0]).toMatch(/restated count part holds/);
     }
+  }, ON ? 900_000 : 300_000);
+
+  it("B7, read as PER_RUSHER (the positive control), and B3 count their chances; B3's would-fail acts are its failures", () => {
+    const b7 = foldArm("B7", FIRST).mustAct;
+    const b3 = foldArm("B3", FIRST).mustAct;
+    console.log(`chances: B3 ${String(b3.chances)} (${String(b3.chancesUncounted)} uncounted), B7 ${String(b7.chances)} (${String(b7.chancesUncounted)} uncounted); B7 read as PER_RUSHER fails ${String(b7.asPerRusherFailures)} of ${String(b7.acts)} forced acts; B3 ${String(b3.asPerRusherFailures)} of ${String(b3.acts)}`);
+    expect(b3.asPerRusherFailures).toBe(b3.problemCount);
+    expect(b3.problemCount).toBe(0);
+    expect(b7.rule).toBe("STEP_1");
+    expect(b7.asPerRusherFailures).toBeGreaterThanOrEqual(0);
   }, ON ? 900_000 : 300_000);
 
   it("B3: the per-game guard vectors sum to the league's guard fold, and their DESPERATION halves to the split", () => {
