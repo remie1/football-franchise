@@ -1,0 +1,48 @@
+{
+  "format": "adr-089-amendments/v1",
+  "adr": "docs/decisions/ADR-089-the-pocket-on-a-real-clock.md",
+  "filing": "fnv1a:9a1c90e9",
+  "entries": [
+    {
+      "id": "AM-1",
+      "name": "the guard from step 2: the previous step's arm as base, and a re-seed noise term",
+      "filedBeforeStep": "2",
+      "steps": ["2", "3", "4", "5a", "5b", "6", "7", "8a", "8b", "9", "10"],
+      "supersedes": ["guard.mix", "guard.byClass"],
+      "untouched": ["acc.intGuard", "s4.motion.int", "s5a.int"],
+      "defaults": ["D9", "D28"],
+      "adrLines": [1306, 1308],
+      "cites": [1287, 1159, 1036, 1053],
+      "record": "ADR-089 Appendix F, F.11",
+      "reason": "Appendix F, F.9 items 1, 2, 3 and 8 and F.10 item 1: the filed rule has no noise term, so at step 1 it breached all 14 arms with a base on both seed sets, A9 and A10 included (allowance about 0.00, z at most +0.69); and from step 2 each change is priced at its step (ADR-089:1287), so the base is the previous step's arm.",
+      "ownersWord": null,
+      "rule": {
+        "base": "previousStepArm",
+        "pricingBase": "previousStepPricingArm",
+        "bases": {
+          "2": { "B1": "A1", "B2": "A1", "B3": "A1", "B4": "A1", "B5": "A5", "B6": "A11", "B7": "A1" }
+        },
+        "laterBases": "filed as a named entry before that step's arms run",
+        "gradedArms": "every arm in the step's map",
+        "replayMustEqualPreviousRecords": true,
+        "allowance": "filed",
+        "se": "binomialIndependent",
+        "statistic": "pooledZ",
+        "seedSets": [1, 2],
+        "zLeague": 2.0,
+        "zClass": 3.0,
+        "breachIf": "greaterThan",
+        "zSetSE0": 0,
+        "classes": "GUARD_CLASSES",
+        "reportedSplits": { "DESPERATION": ["DIRTY", "CLEAN"] },
+        "dirtyPocket": "lastStatusAtOrBeforeRelease",
+        "onCompositionClassBreach": ["DESPERATION", "CHECKDOWN"],
+        "reportFiledReading": true,
+        "reportMinimumExcess": true,
+        "reportPairedSE": true,
+        "cumulative": { "design": "A0", "pricing": "A14", "graded": false },
+        "acceptedState": { "design": "A1", "pricing": "A11", "fromStep": "3", "graded": false }
+      }
+    }
+  ]
+}
