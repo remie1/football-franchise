@@ -27,8 +27,19 @@
  * extra run-time key of the caller's object can ride into the stream. The engine computes no
  * digest: the caller (calibration) stamps the bundle with the digest of the dials it built, and
  * the engine publishes what it was given.
+ *
+ * ADR-089 step 2 (plan §1.8) adds one block, `pocket.forcing`, read here once a play with the
+ * rest: absent is step 1's forcing rule (`STEP_1`, the status's `pocket.forcesDecision`, under
+ * `legacy` and under every `pocket-1.s1` bundle); `{ rule: "PER_RUSHER" }` is must act per rusher
+ * (§4.3); `{ rule: "COUNTER_LESS_SEEN" }` is the narrower counter rule (§4.3, information only).
+ * It rides only on a stamped bundle with a block clock: a forcing block alone, without a stamp or
+ * without a clock, is refused, never ignored, and so is a rule outside the closed set. Under
+ * `PER_RUSHER` the threat part reads `arrival.collapsingWithinSeconds` (D32), so that horizon must
+ * be a finite number of 0 or more, and `arrival.immediateWithinSeconds` may not lie above it (an
+ * IMMEDIATE floor from an arrival that would not force). `PLAY_START.rules` keeps its two keys:
+ * the forcing rule is named by the overlay digest, not by a new key.
  */
-import type { ApproachTunables, BeatClockTunables, RepClockTunables, Tunables } from "../tunables.js";
+import type { ApproachTunables, BeatClockTunables, ForcingTunables, RepClockTunables, Tunables } from "../tunables.js";
 
 /** Thrown before any die when the tunables carry a `pocket-1` overlay outside the closed sets. */
 export class PocketRulesError extends Error {
@@ -44,6 +55,13 @@ export interface PublishedRules {
   readonly overlayDigest: string;
 }
 
+/**
+ * ADR-089 step 2: what forces the quarterback to act, once a play. `STEP_1` is the status's
+ * `pocket.forcesDecision` (today's rule, and the only one `legacy` and `pocket-1.s1` run);
+ * `PER_RUSHER` and `COUNTER_LESS_SEEN` are `pocket.forcing.rule`'s two values.
+ */
+export type PocketForcing = "STEP_1" | ForcingTunables["rule"];
+
 /** Which rules a play runs under. `S` and `L` are the two candidate block clocks of §4.1. */
 export type PocketRules =
   | { readonly kind: "LEGACY" }
@@ -52,12 +70,14 @@ export type PocketRules =
       readonly beatClock: BeatClockTunables;
       readonly approach: ApproachTunables;
       readonly rules: PublishedRules;
+      readonly forcing: PocketForcing;
     }
   | {
       readonly kind: "L";
       readonly repClock: RepClockTunables;
       readonly approach: ApproachTunables;
       readonly rules: PublishedRules;
+      readonly forcing: PocketForcing;
     };
 
 const LEGACY: PocketRules = Object.freeze({ kind: "LEGACY" });
@@ -67,6 +87,44 @@ const LEGACY: PocketRules = Object.freeze({ kind: "LEGACY" });
  * `pocket-1.s1` (ADR-089 §9: "Mid-build arms are `pocket-1.s<step>`").
  */
 const POCKET_1_NAME = /^pocket-1(\.[a-z0-9][a-z0-9.-]*)?$/;
+
+/** `pocket.forcing.rule`'s closed set (ADR-089 step 2). */
+const FORCING_RULES: readonly ForcingTunables["rule"][] = ["PER_RUSHER", "COUNTER_LESS_SEEN"];
+
+/**
+ * The forcing rule a stamped bundle runs, from its `pocket.forcing` block (absent is `STEP_1`).
+ * Under `PER_RUSHER` must act's threat part is `minTta <= arrival.collapsingWithinSeconds` (D32),
+ * so that horizon must be a finite number, 0 or more; and an arrival floor of IMMEDIATE must force,
+ * so `arrival.immediateWithinSeconds` may not lie above it.
+ */
+function forcingOf(tunables: Tunables): PocketForcing {
+  const forcing: unknown = tunables.pocket.forcing;
+  if (forcing === undefined) return "STEP_1";
+  if (typeof forcing !== "object" || forcing === null) {
+    throw new PocketRulesError(`the forcing block (pocket.forcing) must be an object { rule }, got ${String(forcing)}`);
+  }
+  const rule: unknown = (forcing as { rule?: unknown }).rule;
+  if (!FORCING_RULES.some((r) => r === rule)) {
+    throw new PocketRulesError(
+      `the forcing block's rule (pocket.forcing.rule) is ${String(rule)}, which is not one of ${FORCING_RULES.join(", ")}`,
+    );
+  }
+  const known = rule as ForcingTunables["rule"];
+  if (known === "PER_RUSHER") {
+    const { collapsingWithinSeconds: c, immediateWithinSeconds: i } = tunables.arrival;
+    if (typeof c !== "number" || !Number.isFinite(c) || c < 0) {
+      throw new PocketRulesError(
+        `under pocket.forcing PER_RUSHER, arrival.collapsingWithinSeconds (must act's threat part) must be a finite number, 0 or more, got ${String(c)}`,
+      );
+    }
+    if (typeof i !== "number" || !Number.isFinite(i) || i > c) {
+      throw new PocketRulesError(
+        `under pocket.forcing PER_RUSHER, arrival.immediateWithinSeconds (${String(i)}) may not lie above arrival.collapsingWithinSeconds (${String(c)}): an IMMEDIATE from an arrival would not force`,
+      );
+    }
+  }
+  return known;
+}
 
 function positive(value: unknown, what: string): void {
   if (typeof value !== "number" || !Number.isFinite(value) || !(value > 0)) {
@@ -110,8 +168,9 @@ function onTheGrid(lengthSeconds: number, tickStepSeconds: number, what: string)
 export function pocketRulesOf(tunables: Tunables): PocketRules {
   const stamp = tunables.engineRules;
   const { beatClock, repClock, approach } = tunables.passRush;
+  const forcingBlock = tunables.pocket.forcing;
   const clocks = (beatClock === undefined ? 0 : 1) + (repClock === undefined ? 0 : 1);
-  if (stamp === undefined && clocks === 0 && approach === undefined) return LEGACY;
+  if (stamp === undefined && clocks === 0 && approach === undefined && forcingBlock === undefined) return LEGACY;
 
   if (clocks === 2) {
     throw new PocketRulesError("the tunables carry both block clocks (passRush.beatClock and passRush.repClock); a bundle runs one");
@@ -121,6 +180,13 @@ export function pocketRulesOf(tunables: Tunables): PocketRules {
   }
   if (clocks === 0 && approach !== undefined) {
     throw new PocketRulesError("the approach card (passRush.approach) without a block clock (passRush.beatClock or passRush.repClock)");
+  }
+  // ADR-089 step 2: a forcing block alone is refused, never ignored.
+  if (forcingBlock !== undefined && clocks === 0) {
+    throw new PocketRulesError("the forcing block (pocket.forcing) without a block clock (passRush.beatClock or passRush.repClock); it is a pocket-1 rule");
+  }
+  if (forcingBlock !== undefined && stamp === undefined) {
+    throw new PocketRulesError("the forcing block (pocket.forcing) without its rules stamp (engineRules { name, overlayDigest })");
   }
   if (stamp === undefined) {
     throw new PocketRulesError("a pocket-1 overlay without its rules stamp (engineRules { name, overlayDigest })");
@@ -137,6 +203,7 @@ export function pocketRulesOf(tunables: Tunables): PocketRules {
   if (approach === undefined) throw new PocketRulesError("unreachable: a block clock without the approach card");
   range(approach.pushMinMargin, approach.pushMaxMargin, "the approach card's PUSH range");
   const rules: PublishedRules = Object.freeze({ name: stamp.name, overlayDigest: stamp.overlayDigest });
+  const forcing = forcingOf(tunables);
 
   if (beatClock !== undefined) {
     positive(beatClock.thetaSeconds, "passRush.beatClock.thetaSeconds");
@@ -148,9 +215,9 @@ export function pocketRulesOf(tunables: Tunables): PocketRules {
       positive(w.lengthSeconds, "passRush.beatClock.pushWindow.lengthSeconds");
       onTheGrid(w.lengthSeconds, tunables.clock.tickStepSeconds, "passRush.beatClock.pushWindow.lengthSeconds");
     }
-    return Object.freeze({ kind: "S", beatClock, approach, rules });
+    return Object.freeze({ kind: "S", beatClock, approach, rules, forcing });
   }
   if (repClock === undefined) throw new PocketRulesError("unreachable: no block clock");
   positive(repClock.fullExpressionSeconds, "passRush.repClock.fullExpressionSeconds");
-  return Object.freeze({ kind: "L", repClock, approach, rules });
+  return Object.freeze({ kind: "L", repClock, approach, rules, forcing });
 }

@@ -30,6 +30,7 @@ import type {
   ApproachTunables,
   BeatClockTunables,
   EngineRulesStamp,
+  ForcingTunables,
   RepClockTunables,
   Tunables,
 } from "../src/tunables.js";
@@ -58,6 +59,15 @@ export function withBlocks(
     ...(rulesStamp === undefined ? {} : { engineRules: rulesStamp }),
     passRush: { ...base.passRush, ...blocks },
   };
+}
+
+/**
+ * ADR-089 step 2: `base` with `pocket.forcing` set to `forcing`, merged into `pocket` (the key is
+ * added only here, never as `forcing: undefined`). Nothing is checked here; a value outside the
+ * closed set is for the refusal tests, cast at the call site.
+ */
+export function withForcing(base: Tunables, forcing: ForcingTunables): Tunables {
+  return { ...base, pocket: { ...base.pocket, forcing } };
 }
 
 /** Shape S without the push window (information only). */

@@ -3377,11 +3377,22 @@ export interface RepClockTunables { readonly fullExpressionSeconds: number }
 export interface ApproachTunables { readonly pushMinMargin: number; readonly pushMaxMargin: number }
 /** ADR-089 §9: the rules name and its overlay digest, copied onto PLAY_START. */
 export interface EngineRulesStamp { readonly name: string; readonly overlayDigest: string }
+/**
+ * ADR-089 step 2 (`pocket-1` only; absent from DEFAULT_TUNABLES until step 11): what forces the
+ * quarterback to act. Absent is step 1's rule (`pocket.forcesDecision` on the status).
+ *  - `PER_RUSHER` (§4.3, question 2 Half): he must act only when a threat is within
+ *    `arrival.collapsingWithinSeconds` of him, or one has arrived, or his count or reads run out;
+ *    the counter and the band floor still set `POCKET_STATUS` but never force.
+ *  - `COUNTER_LESS_SEEN` (§4.3's narrower alternative, an information arm): step 1's rule on a
+ *    status whose counter leaves out every matchup whose won rep has a live threat.
+ */
+export interface ForcingTunables { readonly rule: "PER_RUSHER" | "COUNTER_LESS_SEEN" }
 
 /**
- * ADR-089 step 1: the build's tunables, widened by the `pocket-1` overlay's optional blocks
- * (`engineRules`, `passRush.beatClock`, `passRush.repClock`, `passRush.approach`). The run-time
- * value of `DEFAULT_TUNABLES` carries none of them (`legacy`); only the type widened.
+ * ADR-089 steps 1 and 2: the build's tunables, widened by the `pocket-1` overlay's optional blocks
+ * (`engineRules`, `passRush.beatClock`, `passRush.repClock`, `passRush.approach`, and from step 2
+ * `pocket.forcing`). The run-time value of `DEFAULT_TUNABLES` carries none of them (`legacy`);
+ * only the type widened.
  */
 export type Tunables = typeof TUNABLES & {
   readonly engineRules?: EngineRulesStamp;
@@ -3390,6 +3401,7 @@ export type Tunables = typeof TUNABLES & {
     readonly repClock?: RepClockTunables;
     readonly approach?: ApproachTunables;
   };
+  readonly pocket: { readonly forcing?: ForcingTunables };
 };
 
 // --- the base a patch is a patch OF (ADR-016 item 2) -------------------------
