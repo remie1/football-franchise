@@ -54,6 +54,7 @@ import {
   type PocketForcing,
   type PocketOverlay,
 } from "../src/pocket/rules.js";
+import { allArms, armById, step2Arms } from "../src/pocket/arms.js";
 import { seasonRules } from "../src/season/stamp.js";
 
 /** K18's literal: the overlay digest of `pocket-1.s1` on this build (N9). Re-recorded only under K24. */
@@ -562,6 +563,23 @@ describe("pocket-1.s2, step 2's bundle (plan §1.2, §1.3, §1.8)", () => {
     // A pocket-1.s2 bundle with no forcing block plays step 1's rule under the step-2 name (B2, B5, B7).
     const noForcing = withOverlay(horizons(), "pocket-1.s2", POCKET_1_S1_OVERLAY);
     expect(checkStamp(noForcing, "pocket-1.s2")).toBe(noForcing);
+  });
+
+  it("keeps the July rule P = C + (C - I), and of the step-2 arms only the alone arms B1 and B2 break it (plan §1.3, O37)", () => {
+    const keeps = (t: Tunables): boolean => {
+      const a = t.arrival;
+      return a.pressureWithinSeconds === a.collapsingWithinSeconds + (a.collapsingWithinSeconds - a.immediateWithinSeconds);
+    };
+    expect(keeps(rulesTunables("pocket-1.s2"))).toBe(true);
+    expect(step2Arms().filter((a) => !keeps(a.tunables)).map((a) => a.id)).toEqual(["B1", "B2"]);
+    for (const a of allArms()) expect(keeps(a.tunables), a.id).toBe(true);
+    // B1: the forcing point at 0.5 s, the warning left at 2.0 s. B2: the warning at 1.0 s with the
+    // forcing point at 1.0 s, so the arrival floor's PRESSURE rung is empty (P = C).
+    const b1 = armById("B1").tunables.arrival;
+    const b2 = armById("B2").tunables.arrival;
+    expect([b1.collapsingWithinSeconds, b1.pressureWithinSeconds]).toEqual([0.5, 2.0]);
+    expect([b2.collapsingWithinSeconds, b2.pressureWithinSeconds]).toEqual([1.0, 1.0]);
+    expect(b2.pressureWithinSeconds).toBe(b2.collapsingWithinSeconds);
   });
 
   it("is written down like any non-legacy bundle (O11)", () => {
