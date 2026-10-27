@@ -40,6 +40,7 @@ import type { Tunables } from "../tunables.js";
 import type { PocketStatus } from "../types.js";
 import type { PassRushBandLabel } from "./passRush.js";
 import { pocketFloorFromArrival } from "./rushThreat.js";
+import type { ArrivalClock, RushThreat } from "./rushThreat.js";
 
 export interface PressureUpdate {
   readonly pressureDelta: number;
@@ -278,4 +279,27 @@ export function mustActThreat(
 export function sacksWithoutTarget(tunables: Tunables, status: PocketStatusRung): boolean {
   const sacking: readonly string[] = tunables.pocket.sackWhenNoTarget;
   return sacking.includes(status);
+}
+
+/**
+ * ADR-089 step 2 — THE NARROWER COUNTER RULE, information only (§4.3's alternative; `pocket-1`
+ * only, under `pocket.forcing` `COUNTER_LESS_SEEN`).
+ *
+ * "Keep `forcesDecision`, but leave out of the counter any matchup whose won rep already has a live
+ * threat the arrival floor sees." True when this matchup's threat is in `threats` (the tick's list,
+ * the one `pocketFloorFromArrival` reads through `minTimeToArrival`) with origin `WON_REP`: arrival
+ * already prices that rusher, so his counter is not counted twice. A matchup with no live threat
+ * (never won, reset, or a won rep time-retired the instant it was made, which arrival cannot see)
+ * and one whose threat is not a won rep (an unblocked man has no rep to leave out) still count.
+ *
+ * It changes the published `POCKET_STATUS`, so adopting it would need a named amendment of
+ * ADR-058's band-floor rule, which ADR-089 §7.2 does not list: it runs as an information arm and is
+ * not ruled on. The forcing stays the status's (`forcesDecision`). Pure, and it draws no die.
+ */
+export function counterExcludes(
+  m: { readonly threat: RushThreat | undefined },
+  threats: readonly ArrivalClock[],
+): boolean {
+  const threat = m.threat;
+  return threat !== undefined && threat.origin === "WON_REP" && threats.includes(threat);
 }

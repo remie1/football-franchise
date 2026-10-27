@@ -5,9 +5,11 @@
  * legacy game call neither (no beat is drawn, no approach is computed, `withApproach` never adds a
  * key), and the same plays under `pocket-1` call both, so the spies are proven to be wired.
  *
- * ADR-089 step 2 (plan §1.1): `resolve/pocket.js` is wrapped the same way, for must act's
- * `mustActThreat`. It is called under no rule set without `pocket.forcing` (legacy, S, SW, L5, L8
- * and SWH, step 1's rule at step 2's horizons), and it is called under S2 (`PER_RUSHER`).
+ * ADR-089 step 2 (plan §1.1, §1.5): `resolve/pocket.js` is wrapped the same way, for must act's
+ * `mustActThreat` and the narrower counter's `counterExcludes`. Neither is called under any rule
+ * set without `pocket.forcing` (legacy, S, SW, L5, L8 and SWH, step 1's rule at step 2's
+ * horizons); `mustActThreat` is called under S2 (`PER_RUSHER`) only and `counterExcludes` under
+ * S2N (`COUNTER_LESS_SEEN`) only.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -21,17 +23,17 @@ vi.mock("../src/resolve/approach.js", async (importOriginal) => {
 });
 vi.mock("../src/resolve/pocket.js", async (importOriginal) => {
   const real = await importOriginal<typeof import("../src/resolve/pocket.js")>();
-  return { ...real, mustActThreat: vi.fn(real.mustActThreat) };
+  return { ...real, mustActThreat: vi.fn(real.mustActThreat), counterExcludes: vi.fn(real.counterExcludes) };
 });
 
 import { simulateGame, simulatePassPlay } from "../src/index.js";
 import { drawBeat, resolveBeatTick } from "../src/resolve/beatClock.js";
 import { threatApproachOf, withApproach } from "../src/resolve/approach.js";
-import { mustActThreat } from "../src/resolve/pocket.js";
+import { counterExcludes, mustActThreat } from "../src/resolve/pocket.js";
 import { DEFAULT_TUNABLES } from "../src/tunables.js";
 import { buildGameFixture } from "./gameFixtures.js";
 import { buildFrontScenario, buildLopsidedRushScenario, buildScenario, buildScramblerScenario } from "./fixtures.js";
-import { L5_TUNABLES, RULE_SETS, S2_TUNABLES, SW_TUNABLES, buildBullRushScenario } from "./pocketTunables.js";
+import { L5_TUNABLES, RULE_SETS, S2N_TUNABLES, S2_TUNABLES, SW_TUNABLES, buildBullRushScenario } from "./pocketTunables.js";
 
 const FIXTURES = [buildScenario, buildLopsidedRushScenario, buildScramblerScenario, () => buildFrontScenario({ extras: 2 })];
 
@@ -41,6 +43,7 @@ afterEach(() => {
   vi.mocked(threatApproachOf).mockClear();
   vi.mocked(withApproach).mockClear();
   vi.mocked(mustActThreat).mockClear();
+  vi.mocked(counterExcludes).mockClear();
 });
 
 describe("ADR-089 step 1 — legacy runs no new branch", () => {
@@ -99,10 +102,10 @@ describe("ADR-089 step 1 — legacy runs no new branch", () => {
   });
 });
 
-describe("ADR-089 step 2 — no rule set without pocket.forcing runs must act", () => {
+describe("ADR-089 step 2 — no rule set without pocket.forcing runs must act or the narrower counter", () => {
   const STEP2_FIXTURES = [...FIXTURES, buildBullRushScenario];
 
-  it("legacy, S, SW, L5, L8 and SWH never call mustActThreat, play or game", () => {
+  it("legacy, S, SW, L5, L8 and SWH never call mustActThreat or counterExcludes, play or game", () => {
     const without = RULE_SETS.filter((r) => !("forcing" in r.tunables.pocket));
     expect(without.map((r) => r.name)).toEqual(["legacy", "S", "SW", "L5", "L8", "SWH"]);
     for (const { tunables } of without) {
@@ -117,6 +120,7 @@ describe("ADR-089 step 2 — no rule set without pocket.forcing runs must act", 
     simulateGame(fixture.state, fixture.inputs, fixture.seed);
     simulateGame(fixture.state, fixture.inputs, fixture.seed, SW_TUNABLES);
     expect(vi.mocked(mustActThreat)).not.toHaveBeenCalled();
+    expect(vi.mocked(counterExcludes)).not.toHaveBeenCalled();
   });
 
   it("the spy is wired: S2 calls mustActThreat, once a pocket tick, with both minima equal (every threat registered)", () => {
@@ -135,5 +139,18 @@ describe("ADR-089 step 2 — no rule set without pocket.forcing runs must act", 
       expect(tunables).toBe(S2_TUNABLES);
       expect(registered).toBe(all);
     }
+    // S2 runs the old counter: the narrower rule is S2N's alone.
+    expect(vi.mocked(counterExcludes)).not.toHaveBeenCalled();
+  });
+
+  it("the spy is wired: S2N calls counterExcludes, and never mustActThreat (its forcing is the status's)", () => {
+    for (const build of STEP2_FIXTURES) {
+      for (let i = 0; i < 40; i++) {
+        const { state, calls } = build();
+        simulatePassPlay(state, calls, `isolation-s2n-${i}`, S2N_TUNABLES);
+      }
+    }
+    expect(vi.mocked(counterExcludes)).toHaveBeenCalled();
+    expect(vi.mocked(mustActThreat)).not.toHaveBeenCalled();
   });
 });

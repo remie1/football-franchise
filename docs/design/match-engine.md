@@ -1034,6 +1034,14 @@ SACK:
 >
 > No die, no event, no field and no choice is added: `POCKET_DURESS` (`ThrowawayCause`) is now the
 > threat part's throwaway and `CLOCK_EXPIRED` the count part's.
+>
+> **The narrower counter, information only** (`pocket.forcing.rule` `COUNTER_LESS_SEEN`; ADR-089
+> §4.3's alternative). Forcing stays the status's (`pocket.forcesDecision`), but the status's counter
+> leaves out any matchup whose won rep already has a live threat the arrival floor sees (its threat
+> is in the tick's threat list, origin WON_REP); every other matchup counts as above, a won rep
+> time-retired at birth (which arrival cannot see) included. It changes the published
+> `POCKET_STATUS`, so it extends ADR-058's band-floor rule; adopting it would need a named amendment
+> of ADR-058, which ADR-089 does not list. It runs as an information arm and is not ruled on.
 
 ### 7.3 Stunts and Twists
 

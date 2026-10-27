@@ -107,6 +107,7 @@ import {
 import type { PocketStatusRung } from "../resolve/pocket.js";
 import {
   advancePressure,
+  counterExcludes,
   forcesDecision,
   mustActThreat,
   pocketStatusFor,
@@ -848,7 +849,14 @@ export function simulatePassPlay(
      */
     let pocket: PocketStatusRung | undefined;
     if (scramble === undefined) {
-      const highest = matchups.reduce((max, m) => Math.max(max, m.pressure), 0);
+      // ADR-089 step 2 — under `pocket.forcing` COUNTER_LESS_SEEN (the narrower counter rule,
+      // information only) a matchup whose won rep has a live threat in `threats` is left out of
+      // the counter (`counterExcludes`); under every other rule this is today's reduce, and
+      // `counterExcludes` is never called.
+      const highest =
+        forcing === "COUNTER_LESS_SEEN"
+          ? matchups.reduce((max, m) => (counterExcludes(m, threats) ? max : Math.max(max, m.pressure)), 0)
+          : matchups.reduce((max, m) => Math.max(max, m.pressure), 0);
       // ADR-058 — ARRIVAL IS AUTHORITATIVE FOR A WON REP IT CAN SEE. A won rep
       // (`startsThreat(m.previousBand)`) with a live threat (`m.threat !==
       // undefined`) is already inside `threats` below, so `pocketFloorFromArrival`
