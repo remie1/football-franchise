@@ -763,6 +763,33 @@ describe("grading synthetic records", () => {
     expect(clause(noB3, "s2.sack")).toMatchObject({ verdict: "NOT PLAYED", values: ["not played: B3"] });
   });
 
+  it("PER_RUSHER's 0 by the rule is printed in the M2 section and is no part of the identity proof (review CT-F5)", () => {
+    const records = recordsOf((m) => { rec(m, "B3", 1).s2.flat.m2.counterFar = 3; });
+    const g = grade(records);
+    expect(proof(g, "s2.m2.identity").verdict).toBe("PASS");
+    expect(proof(g, "s2.m2.identity").what).toMatch(/PER_RUSHER's 0 by the rule holds by construction, so it is printed in the M2 section and not proved here \(review CT-F5\)$/);
+    expect(g.sections.outcome.foldFaults).toEqual([]);
+    // A PER_RUSHER arm's M2 row is its two sets merged.
+    expect(g.sections.m2.rows.filter((r) => r.arm === "B3").map((r) => `${r.league}/${r.sets}/${String(r.zeroByTheRule)}`)).toEqual(["flat/1 and 2/false", "gen/1 and 2/true"]);
+    expect(renderStep2Report(g, records)).toContain("0 by the rule (PER_RUSHER, C within 0.5 s): DOES NOT HOLD");
+  });
+
+  it("flags a set whose SE is 0 while the rise is above the allowance, and grades it as AM-1 files it (review CT-F3)", () => {
+    expect(grade(recordsOf()).sections.guard.every((r) => r.seZeroFlags.length === 0)).toBe(true);
+    const records = recordsOf((m) => {
+      rec(m, "A1", 1).report.intGuard.flat.byClass.DESPERATION = { aimedByBin: [3, 0, 0, 0, 0, 0, 0], interceptions: 0, completions: 1 };
+      rec(m, "B3", 1).report.intGuard.flat.byClass.DESPERATION = { aimedByBin: [2, 0, 0, 0, 0, 0, 0], interceptions: 2, completions: 0 };
+    });
+    const g = grade(records);
+    const flagged = g.sections.guard.filter((r) => r.seZeroFlags.length > 0);
+    expect(flagged.map((r) => `${r.arm}/${r.base}/${r.league}${r.cumulative ? "/cumulative" : ""}: ${r.seZeroFlags.join(", ")}`)).toEqual(["B3/A1/flat: DESPERATION set 1", "B3/A0/flat/cumulative: DESPERATION set 1"]);
+    const desp = flagged[0]!.reading.classes.find((c) => c.cls === "DESPERATION")!.reading!.sets.find((x) => x.seedSet === 1)!;
+    expect([desp.se, desp.z, desp.excess > 0]).toEqual([0, 0, true]);
+    const text = renderStep2Report(g, records);
+    expect(text).toContain("- FLAGGED (review CT-F3): DESPERATION set 1: SE 0 with the rise above the allowance, scored 0 as AM-1 files it, which lowers Z; ");
+    expect(text).toContain("(SE 0, scored 0 though the rise is above the allowance: FLAGGED, review CT-F3)");
+  });
+
   it("a partial run that breaches still fails the guard, whatever it left out (review CT-F7)", () => {
     const g = grade(recordsOf((m) => {
       m.delete("B5");

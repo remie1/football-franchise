@@ -29,6 +29,7 @@ import {
   pairedSet,
   reweightedBy,
   reweightedDesperation,
+  seZeroWithExcess,
   type GuardSide,
 } from "../src/pocket/guardAm1.js";
 import type { League } from "../src/pocket/report.js";
@@ -155,6 +156,30 @@ describe("AM-1's edge cases", () => {
     expect(r.graded).toBe(true);
     expect(r.Z).toBeCloseTo(r.sets.find((s) => s.seedSet === 2)!.z / Math.SQRT2, 12);
     expect(r.eStar).toBeNull();
+  });
+
+  it("pins today's SE-0 rule where it is not monotone: one more interception turns a BREACH into a PASS, and the set is flagged (review CT-F3)", () => {
+    // Base: set 1 0 of 3 intercepted, set 2 8 of 400. The arm's set 2: 25 of 400 (z +3.04).
+    const base = { 1: mix(3, 0), 2: mix(400, 8) };
+    const oneOfTwo = am1Reading(base, { 1: mix(2, 1), 2: mix(400, 25) }, "TICK", "CLASS");
+    const twoOfTwo = am1Reading(base, { 1: mix(2, 2), 2: mix(400, 25) }, "TICK", "CLASS");
+    expect(oneOfTwo.sets.find((x) => x.seedSet === 2)!.z).toBeCloseTo(3.0397, 4);
+    // Set 1 at 1 of 2: SE 35.36, z +1.41, so Z +3.15 breaches the class line (3.0).
+    expect(oneOfTwo.sets.find((x) => x.seedSet === 1)!.se).toBeCloseTo(35.3553, 4);
+    expect(oneOfTwo.sets.find((x) => x.seedSet === 1)!.z).toBeCloseTo(1.4142, 4);
+    expect(oneOfTwo.Z).toBeCloseTo(3.1494, 4);
+    expect(oneOfTwo.verdict).toBe("BREACH");
+    expect(seZeroWithExcess(oneOfTwo)).toEqual([]);
+    // Set 1 at 2 of 2 (a 100-point rise): SE 0, scored 0 as AM-1 files it, so Z +2.15 passes.
+    const one = twoOfTwo.sets.find((x) => x.seedSet === 1)!;
+    expect([one.se, one.seZero, one.z, one.excess]).toEqual([0, true, AM1_LINES.zSetSE0, 100]);
+    expect(twoOfTwo.Z).toBeCloseTo(2.1494, 4);
+    expect(twoOfTwo.verdict).toBe("PASS");
+    // The filed reading beside both shows the rise; the SE-0 set with a positive excess is flagged.
+    expect([oneOfTwo.filedPasses, twoOfTwo.filedPasses]).toEqual([false, false]);
+    expect(seZeroWithExcess(twoOfTwo)).toEqual([1]);
+    // An SE-0 set with no excess (0 of 300 against 0 of 300) is not flagged.
+    expect(seZeroWithExcess(am1Reading({ 1: mix(300, 0), 2: mix(4000, 80) }, { 1: mix(300, 0), 2: mix(4000, 140) }, "TICK", "CLASS"))).toEqual([]);
   });
 
   it("a class fall never offsets a class rise, and a league-wide pass never excuses a class breach", () => {

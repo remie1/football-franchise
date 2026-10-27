@@ -20,7 +20,7 @@ import { describe, expect, it } from "vitest";
 import { armById, mechanismsOf, STEP2_RUN_IDS, type ArmId } from "../src/pocket/arms.js";
 import { goldenGames } from "../src/pocket/corpus.js";
 import { GOLDEN_LEAGUES } from "../src/pocket/golden.js";
-import { forcingRuleOf } from "../src/pocket/m2ForcingSource.js";
+import { forcingRuleOf, m2StreamSummary } from "../src/pocket/m2ForcingSource.js";
 import { emptyAffectedFold, foldAffectedGame } from "../src/pocket/s1Stream.js";
 import {
   arrivalActsCheck,
@@ -624,14 +624,23 @@ describe("the verdict lines", () => {
     expect(s2Problems(g)[0]).toMatch(/^mustAct \(STEP_1: the count part's self-check\): 1 failure, first: /);
   });
 
-  it("flags a PER_RUSHER construct that is not 0, only where C is inside the far line", () => {
+  it("prints PER_RUSHER's 0 by the rule beside the M2 row, and never counts it in the identity proof (review CT-F5)", () => {
     const f = emptyS2Folds();
     f.m2.rule = "PER_RUSHER";
     f.m2.collapsingWithin = 0.5;
     f.m2.counterFar = 2;
-    expect(s2Problems(f)).toEqual(["m2 STREAM identity: the construct is 2, not 0 by the rule"]);
-    f.m2.collapsingWithin = 1.0;
+    // The construct is 0 by construction under PER_RUSHER with C inside the far line: a check of it tests the code against itself.
     expect(s2Problems(f)).toEqual([]);
+    expect(m2StreamSummary(f.m2).zeroByTheRule).toBe(false);
+    f.m2.counterFar = 0;
+    expect(m2StreamSummary(f.m2).zeroByTheRule).toBe(true);
+    f.m2.collapsingWithin = 1.0;
+    f.m2.counterFar = 2;
+    expect([s2Problems(f), m2StreamSummary(f.m2).zeroByTheRule]).toEqual([[], null]);
+    // The rebuild's own identity still fails the proof.
+    f.m2.statusChecks = 10;
+    f.m2.statusMismatches = 1;
+    expect(s2Problems(f)).toEqual(["m2 STREAM identity: 1 of 10 rebuilt statuses"]);
   });
 });
 

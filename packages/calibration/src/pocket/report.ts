@@ -752,6 +752,8 @@ export interface Step2GuardRow {
   readonly checkdown: { readonly base: readonly Step2Checkdown[]; readonly arm: readonly Step2Checkdown[] };
   /** CHECKDOWN's aimed throws by trigger (THREAT, COUNT, STATUS, NONE; `s2Stream.ts`'s `checkdownSplit`) and its rise re-weighted to the base's (AM-1 §4.5). */
   readonly checkdownReweighted: readonly ReweightedOf<string>[];
+  /** The populations and sets read with SE 0 while the rise is above the allowance (`guardAm1.ts`'s `seZeroWithExcess`; review CT-F3), e.g. "DESPERATION set 1". */
+  readonly seZeroFlags: readonly string[];
 }
 
 /** One arm's counts on one league and seed set. */
@@ -841,7 +843,7 @@ function contrastLine(c: Step2Contrast): string {
 }
 
 const setReadingText = (s: Am1SetReading): string =>
-  `set ${String(s.seedSet)} ${s.baseRate.toFixed(2)} -> ${s.armRate.toFixed(2)}, rise ${signed(s.rise)} / allowed ${signed(s.allowed)} / SE ${s.se.toFixed(2)} / z ${signed(s.z)}${s.seZero ? " (SE 0, scored 0)" : ""} (filed: ${s.filedPasses ? "within" : "above"} the allowance; ${String(s.armAimed)} aimed)`;
+  `set ${String(s.seedSet)} ${s.baseRate.toFixed(2)} -> ${s.armRate.toFixed(2)}, rise ${signed(s.rise)} / allowed ${signed(s.allowed)} / SE ${s.se.toFixed(2)} / z ${signed(s.z)}${s.seZero ? (s.excess > 0 ? " (SE 0, scored 0 though the rise is above the allowance: FLAGGED, review CT-F3)" : " (SE 0, scored 0)") : ""} (filed: ${s.filedPasses ? "within" : "above"} the allowance; ${String(s.armAimed)} aimed)`;
 
 const readingText = (r: Am1Reading): string =>
   `${r.sets.map(setReadingText).join("; ")}; Z ${signed(r.Z)} against ${r.line.toFixed(1)}, e* ${fmt(r.eStar)}, mean excess ${signed(r.meanExcess)}: ${r.verdict}${r.graded ? "" : " (not graded: one seed set)"}`;
@@ -973,6 +975,12 @@ export function renderStep2Sections(s: Step2Sections): readonly string[] {
     out.push(`### ${g.arm} against ${g.base}, ${g.league}${g.cumulative ? " (the cumulative line: reported, never graded)" : ""}`);
     out.push("");
     out.push(`- league-wide: ${readingText(g.reading.league)}; ${pairedText(g.pairedLeague)}`);
+    if (g.seZeroFlags.length > 0) {
+      out.push(
+        `- FLAGGED (review CT-F3): ${g.seZeroFlags.join(", ")}: SE 0 with the rise above the allowance, scored ${String(a.zSetSE0)} as AM-1 files it, which lowers Z; ` +
+          "the reading stands as filed, and whether such a set should make it REPORTED or take a continuity-corrected SE is a question for an AM-2 (the Orchestrator's)",
+      );
+    }
     for (const c of g.reading.classes) {
       const statuses = c.bySet.filter((x) => x.status !== "SCORED").map((x) =>
         x.status === "REMOVED" ? `set ${String(x.seedSet)} REMOVED (${String(x.baseThrows)} base aimed, ${String(x.baseInterceptions)} interceptions)` : `set ${String(x.seedSet)} NO BASE (${String(x.armThrows)} arm aimed, ${String(x.armInterceptions)} interceptions)`,

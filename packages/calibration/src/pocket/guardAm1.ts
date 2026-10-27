@@ -118,6 +118,18 @@ function setReading(seedSet: SeedSet, base: IntMix, arm: IntMix, clock: GuardClo
   };
 }
 
+/**
+ * The sets of a reading whose SE is 0 while the arm's rise is above its allowance (review CT-F3).
+ * AM-1 scores such a set `zSetSE0` (0), as filed, so a set where base and arm rates sit at 0 or 1
+ * and differ (base 0 of 3, arm 2 of 2: a 100-point rise) pulls the pooled Z down, and one more
+ * interception can turn a BREACH into a PASS. The reading is kept as filed; the guard section flags
+ * each such set, and whether it should make the reading REPORTED (or take a continuity-corrected SE)
+ * is a question for an AM-2, which only the Orchestrator files.
+ */
+export function seZeroWithExcess(r: Am1Reading): readonly SeedSet[] {
+  return r.sets.filter((s) => s.seZero && s.excess > 0).map((s) => s.seedSet);
+}
+
 /** Pools the set readings into AM-1's reading. */
 function pool(kind: Am1Kind, sets: readonly Am1SetReading[], lines: Am1Lines): Am1Reading {
   const line = lineOf(kind, lines);

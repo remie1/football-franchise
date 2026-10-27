@@ -60,7 +60,7 @@ import type { ThrowClass } from "./constructs.js";
 import { goldenGames, type SeedSet } from "./corpus.js";
 import { filedDigest, pendingPaths, STEP0_FILED_DIGEST, type BandClause, type FiledFile, type JsonValue } from "./filed.js";
 import { foldDigests, gameBytesDigest, gameDigest, GOLDEN_LEAGUES } from "./golden.js";
-import { am1ArmReading, am1Reading, DESPERATION_HALVES, pairedReading, reweightedBy, reweightedDesperation, SEED_SETS, type Am1Lines, type GuardSide, type PairedReading } from "./guardAm1.js";
+import { am1ArmReading, am1Reading, DESPERATION_HALVES, pairedReading, reweightedBy, reweightedDesperation, SEED_SETS, seZeroWithExcess, type Am1Lines, type GuardSide, type PairedReading } from "./guardAm1.js";
 import { m2StreamSummary, mergeM2StreamFolds, poissonInterval95, type M2StreamFold } from "./m2ForcingSource.js";
 import {
   LEAGUES,
@@ -594,7 +594,7 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
   const m2Fails = present.flatMap((x) => LEAGUES.flatMap((l) => s2Problems(s2Of(x.r, l)).filter((p) => p.startsWith("m2 STREAM")).map((p) => `${where(x)} ${l}: ${p}`)));
   proofs.push({
     id: "s2.m2.identity",
-    what: "M2 STREAM's rebuild: its statuses and won-rep threats equal the stream's, its rolled ticks their margins, and 0 by the rule under PER_RUSHER (plan §1.6)",
+    what: "M2 STREAM's rebuild: its statuses and won-rep threats equal the stream's, its rolled ticks their margins (plan §1.6); PER_RUSHER's 0 by the rule holds by construction, so it is printed in the M2 section and not proved here (review CT-F5)",
     kind: "fold",
     verdict: present.length === 0 ? "NOT APPLICABLE" : m2Fails.length > 0 ? "FAIL" : "PASS",
     detail: `${String(sumOf(present.flatMap((x) => LEAGUES.map((l) => x.r.s2[l].m2.statusChecks))))} statuses and ${String(sumOf(present.flatMap((x) => LEAGUES.map((l) => x.r.s2[l].m2.threatChecks))))} won-rep threats rebuilt; failures ${m2Fails.length === 0 ? "none" : m2Fails.join("; ")}`,
@@ -679,6 +679,10 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
       pairedClasses, desperation, reweighted,
       checkdown: { base: checkdownOf(base, league), arm: checkdownOf(arm, league) },
       checkdownReweighted,
+      seZeroFlags: [
+        ...seZeroWithExcess(reading.league).map((s) => `league-wide set ${String(s)}`),
+        ...reading.classes.flatMap((c) => (c.reading === undefined ? [] : seZeroWithExcess(c.reading).map((s) => `${c.cls} set ${String(s)}`))),
+      ],
     };
   };
   const guardRows: Step2GuardRow[] = [];
@@ -1012,7 +1016,7 @@ export function m2Section(file: FiledFile, at: (id: ArmId, s: SeedSet) => Step2R
     notes: [
       "the unit is percent of forced decisions; a value above the reported range prints \"outside the reported range, information\" (C2-F18); nothing is graded",
       "b.tm-399 references: TM's 399 of 14,627 edge won-rep threats under S, and step 0's own 398 of 14,447 on the gen base (392 of them cornerbacks; REPORTED-UNREPRODUCED)",
-      "A5's rows are the L return package's (O46); B4's rebuild uses B4's own counter rule, so its identity check stays meaningful (C2-F21); on B1, B3 and B6 the construct is 0 by the rule (PER_RUSHER with C at 0.5 s), and that is checked",
+      "A5's rows are the L return package's (O46); B4's rebuild uses B4's own counter rule, so its identity check stays meaningful (C2-F21); on B1, B3 and B6 the construct is 0 by the rule (PER_RUSHER with C at 0.5 s): printed on each row, it holds by construction, so it is no part of the identity proof (review CT-F5)",
       "B7's rows size the rule (B3 - B7, the world and the rule): the decisions step 1's rule forces at B3's horizons (C 0.5 s) with no threat within 0.5 s; B5's are the same on L8 with Heels (review MEAS-M-3, FID-F-3)",
     ],
   };

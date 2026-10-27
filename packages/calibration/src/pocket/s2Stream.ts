@@ -86,7 +86,7 @@ import { severityOf } from "../knownTruth/pocketLadder.js";
 import { RELEASE_BINS, releaseBinOf } from "../metrics/collect.js";
 import type { ThrowClass } from "./constructs.js";
 import { registryAttr } from "./freeRun.js";
-import { emptyM2StreamFold, foldM2StreamGame, forcingRuleOf, m2StreamSummary, m2ZeroByTheRule, type M2ForcingRule, type M2StreamFold } from "./m2ForcingSource.js";
+import { emptyM2StreamFold, foldM2StreamGame, forcingRuleOf, m2StreamSummary, type M2ForcingRule, type M2StreamFold } from "./m2ForcingSource.js";
 import { playersOfSnapshot } from "./m6Contact.js";
 import { emptyGuardFold, foldGuardGame } from "./step0.js";
 import { desperationPocketOf, isAimed, playsOf, readDropback, throwClassOf, type DesperationPocket, type Dropback, type PassStart } from "./throwClass.js";
@@ -882,8 +882,10 @@ export function foldS2Game(folds: S2Folds, events: readonly MatchEventEnvelope[]
  * restatement failed its self-check (a fold fault). The witness line, on every arm, is the
  * self-check's other direction (a fold fault too). M2 STREAM's identity rebuild is a fold fault
  * too: its rebuilt statuses and won-rep threats must equal the stream's, its rolled ticks their
- * own clock's margin, and under PER_RUSHER (with C at or inside M2's 0.5 s far line, every
- * PER_RUSHER arm of step 2) its construct must be 0.
+ * own clock's margin. PER_RUSHER's "0 by the rule" (C at or inside M2's 0.5 s far line) is not
+ * checked here: the forced decision is by construction the first tick with a threat inside C, so
+ * the construct cannot be anything but 0 and the check would test the code against itself (review
+ * CT-F5). It stays printed beside each M2 row (`m2StreamSummary`'s `zeroByTheRule`).
  */
 export function s2Problems(folds: S2Folds): readonly string[] {
   const out: string[] = [];
@@ -900,7 +902,6 @@ export function s2Problems(folds: S2Folds): readonly string[] {
   if (m.statusMismatches > 0) wrong.push(`${String(m.statusMismatches)} of ${String(m.statusChecks)} rebuilt statuses`);
   if (m.threatMismatches > 0) wrong.push(`${String(m.threatMismatches)} of ${String(m.threatChecks)} rebuilt won-rep threats`);
   if (m.jitterMismatches > 0) wrong.push(`${String(m.jitterMismatches)} of ${String(m.jitterChecks)} rolled tick margins`);
-  if (m2ZeroByTheRule(m) && m.counterFar !== 0) wrong.push(`the construct is ${String(m.counterFar)}, not 0 by the rule`);
   if (wrong.length > 0) out.push(`m2 STREAM identity: ${wrong.join("; ")}`);
   return out;
 }
