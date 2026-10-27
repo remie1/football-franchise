@@ -942,7 +942,7 @@ export function renderStep2Sections(s: Step2Sections): readonly string[] {
 
   out.push("## The world and the rule (F.9 item 6; C1-F9)");
   out.push("");
-  out.push("B7 minus A1 is the basis mechanism (the half second with the warning, under step 1's forcing rule) on S; B5 minus A5 is the same on L8 with Heels, pkA's A123. Their difference is the world. B3 minus B7 is the rule, per rusher at the same horizons, which M2 sizes.");
+  out.push("B7 minus A1 is the basis mechanism (the half second with the warning, under step 1's forcing rule) on S; B5 minus A5 is the same on L8 with Heels, pkA's A123. Their difference is the world. B3 minus B7 is the rule, per rusher at the same horizons, which M2 STREAM on B7's own stream sizes (printed beside each row, set by set; A1's merged figure is the filed reading, at C 1.0 s).");
   out.push("");
   for (const c of s.worldAndRule) out.push(contrastLine(c));
   out.push("");

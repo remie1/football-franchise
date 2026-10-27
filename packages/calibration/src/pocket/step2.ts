@@ -711,6 +711,9 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
         if (r.value !== null && r.se !== null && !inBand(r.value, c) && Math.abs(r.value) <= 2 * r.se) notes.push(`${r.l}: a filed failure within noise of its line (within 2 SE of 0), both sets beside, not re-run (S4-8)`);
         const b7 = diffAt("B7", "A1", gradedSet, r.l, "sack");
         if (r.value !== null && b7 !== null && Math.sign(r.value) * Math.sign(b7) < 0) notes.push(`${r.l}: B1 and B7 disagree in sign, so both go to the owner (R12)`);
+        // §6.2's own basis is A12 to A123, the forcing point with Follows: B3 - B2 (review FID-F-4).
+        const b32 = diffAt("B3", "B2", gradedSet, r.l, "sack");
+        if (r.value !== null && b32 !== null && Math.sign(r.value) * Math.sign(b32) < 0) notes.push(`${r.l}: B1 - A1 and B3 - B2 (the forcing point with Follows, §6.2's basis) disagree in sign, so both go to the owner (R12)`);
       }
       clauses.push({
         id: c.id, kind: c.kind, arms: ["B1", "A1"], filed, values: missing.length > 0 ? [`not played: ${missing.join(", ")}`] : [...reads.map((r) => r.text), `beside, set ${String(gradedSet)}: ${beside.join("; ")}`],
@@ -801,17 +804,21 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
   const headline = each((l, s) => comparison(STEP2_DESIGN_ARM, "A1", l, s));
   const decomposition = each((l, s) => [...comparison("B1", "A1", l, s, "information"), ...comparison("B2", "A1", l, s, "reported, direction only"), ...comparison("B3", "A1", l, s, "the design")]);
   const interaction = each((l, s) => contrast("B3 - (B1 + B2 - A1)", ["B1", "B2", "B3", "A1"], l, s, (g) => sub(g("B3"), sub(add(g("B1"), g("B2")), g("A1"))), "B3", "the interaction of the forcing point and the warning"));
-  const m2ShareOf = (id: ArmId, league: League): string => {
-    const folds = sets.flatMap((s) => (at(id, s) === undefined ? [] : [at(id, s)!.s2[league].m2]));
+  const m2ShareIn = (folds: readonly M2StreamFold[]): string => {
     if (folds.length === 0) return "n/a";
     const m = folds.reduce((a, b) => mergeM2StreamFolds(a, b));
     return m.forced === 0 ? "n/a" : `${((100 * m.counterFar) / m.forced).toFixed(2)}% (${String(m.counterFar)} of ${String(m.forced)})`;
   };
+  const m2ShareOf = (id: ArmId, league: League): string => m2ShareIn(sets.flatMap((s) => (at(id, s) === undefined ? [] : [at(id, s)!.s2[league].m2])));
+  const m2ShareAt = (id: ArmId, s: SeedSet, league: League): string => m2ShareIn(at(id, s) === undefined ? [] : [at(id, s)!.s2[league].m2]);
   const worldAndRule = each((l, s) => [
     ...contrast("B7 - A1", ["B7", "A1"], l, s, (g) => sub(g("B7"), g("A1")), "B7", "the basis mechanism on S"),
     ...contrast("B5 - A5", ["B5", "A5"], l, s, (g) => sub(g("B5"), g("A5")), "B5", "the same on L8 with Heels, pkA's A123"),
     ...contrast("(B7 - A1) - (B5 - A5)", ["B7", "A1", "B5", "A5"], l, s, (g) => sub(sub(g("B7"), g("A1")), sub(g("B5"), g("A5"))), "B7", "the world (F.9 item 6)"),
-    ...contrast("B3 - B7", ["B3", "B7"], l, s, (g) => sub(g("B3"), g("B7")), "B3", `the rule, per rusher at the same horizons; M2 STREAM on A1 ${m2ShareOf("A1", l)} beside it`),
+    ...contrast(
+      "B3 - B7", ["B3", "B7"], l, s, (g) => sub(g("B3"), g("B7")), "B3",
+      `the rule, per rusher at the same horizons; beside it M2 STREAM on B7's own stream, set ${String(s)}: ${m2ShareAt("B7", s, l)} (the decisions step 1's rule forces at C 0.5 s that the rule removes), and on A1, both sets, the filed reading at C 1.0 s: ${m2ShareOf("A1", l)}`,
+    ),
   ]);
   const filedBands = file.bands.clauses.filter((c) => c.step === "2" && c.kind === "graded" && c.id !== "s2.falsifier.sacksDown").map((c) => `${c.id} ${bandText(c)}`).join(", ");
   const information = each((l, s) => [
@@ -942,7 +949,7 @@ export function m2Section(file: FiledFile, at: (id: ArmId, s: SeedSet) => Step2R
     }
   }
   const rows: Step2M2Row[] = [];
-  for (const id of ["A1", "A5", "B4", "B1", "B3", "B6"] as const) {
+  for (const id of ["A1", "A5", "B4", "B1", "B3", "B6", "B7", "B5"] as const) {
     for (const league of LEAGUES) {
       const present = sets.flatMap((s) => (at(id, s) === undefined ? [] : [{ s, f: at(id, s)!.s2[league].m2 }]));
       if (present.length === 0) continue;
@@ -959,6 +966,7 @@ export function m2Section(file: FiledFile, at: (id: ArmId, s: SeedSet) => Step2R
       "the unit is percent of forced decisions; a value above the reported range prints \"outside the reported range, information\" (C2-F18); nothing is graded",
       "b.tm-399 references: TM's 399 of 14,627 edge won-rep threats under S, and step 0's own 398 of 14,447 on the gen base (392 of them cornerbacks; REPORTED-UNREPRODUCED)",
       "A5's rows are the L return package's (O46); B4's rebuild uses B4's own counter rule, so its identity check stays meaningful (C2-F21); on B1, B3 and B6 the construct is 0 by the rule (PER_RUSHER with C at 0.5 s), and that is checked",
+      "B7's rows size the rule (B3 - B7, the world and the rule): the decisions step 1's rule forces at B3's horizons (C 0.5 s) with no threat within 0.5 s; B5's are the same on L8 with Heels (review MEAS-M-3, FID-F-3)",
     ],
   };
 }

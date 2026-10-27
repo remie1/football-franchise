@@ -573,7 +573,15 @@ describe("grading synthetic records", () => {
     expect(c.verdict).toBe("FAIL");
     expect(c.note).toContain("flat: a filed failure within noise of its line (within 2 SE of 0), both sets beside, not re-run (S4-8)");
     expect(c.note).toContain("flat: B1 and B7 disagree in sign, so both go to the owner (R12)");
+    // B3 - B2 is +0.50: §6.2's own basis disagrees with B1 - A1 too (review FID-F-4).
+    expect(c.note).toContain("flat: B1 - A1 and B3 - B2 (the forcing point with Follows, §6.2's basis) disagree in sign, so both go to the owner (R12)");
     expect(c.note).not.toContain("gen:");
+    // B1 - A1 +0.20 against B3 - B2 -0.30 on gen, B7 agreeing with B1: only the B3 - B2 note.
+    const b32 = grade(recordsOf((m) => { for (const s of [1, 2] as const) rec(m, "B3", s).measures.gen.sack = rec(m, "B2", s).measures.gen.sack! - 0.3; }));
+    const n = clause(b32, "s2.falsifier.sacksDown").note!;
+    expect(n).toContain("gen: B1 - A1 and B3 - B2 (the forcing point with Follows, §6.2's basis) disagree in sign, so both go to the owner (R12)");
+    expect(n).not.toContain("B1 and B7 disagree");
+    expect(n).not.toContain("flat: B1 - A1 and B3 - B2");
     expect(c.values.at(-1)).toMatch(/^beside, set 1: flat: B7 - A1 \+0\.30, B3 - B2 \+0\.50; gen: B7 - A1 \+0\.10, B3 - B2 \+0\.50$/);
     // A difference of 0 has no sign to disagree with.
     const zero = grade(recordsOf((m) => { for (const s of [1, 2] as const) rec(m, "B7", s).measures.gen.sack = rec(m, "A1", s).measures.gen.sack!; }));
@@ -590,6 +598,12 @@ describe("grading synthetic records", () => {
     const cumulative = g.sections.guard.find((r) => r.cumulative && r.arm === "B3" && r.league === "gen")!;
     expect(cumulative.reading.breaches).toEqual(["league-wide"]);
     expect(g.sections.outcome.guardBreaches.some((b) => b.includes("against A0"))).toBe(false);
+    // B3 - B7 is printed beside B7's own M2 STREAM, set by set, and A1's merged filed reading (review MEAS-M-3, FID-F-3).
+    const rule = g.sections.worldAndRule.filter((c) => c.formula === "B3 - B7");
+    expect(rule.map((c) => `${c.league}/${String(c.seedSet)}`)).toEqual(["flat/1", "flat/2", "gen/1", "gen/2"]);
+    for (const c of rule) expect(c.note).toMatch(new RegExp(`^the rule, per rusher at the same horizons; beside it M2 STREAM on B7's own stream, set ${String(c.seedSet)}: (n/a|[0-9.]+% \\([0-9]+ of [0-9]+\\)) \\(the decisions step 1's rule forces at C 0\\.5 s that the rule removes\\), and on A1, both sets, the filed reading at C 1\\.0 s: `));
+    expect(new Set(g.sections.m2.rows.map((x) => x.arm))).toEqual(new Set(["A1", "A5", "B4", "B1", "B3", "B6", "B7", "B5"]));
+    expect(g.sections.m2.rows.filter((x) => x.arm === "B7").map((x) => `${x.league}/${x.sets}`)).toEqual(["flat/1", "flat/2", "flat/1 and 2", "gen/1", "gen/2", "gen/1 and 2"]);
   });
 
   it("a DESPERATION breach goes to the owner with the class's composition: the halves re-weighted and the checkdown looks by trigger", () => {
