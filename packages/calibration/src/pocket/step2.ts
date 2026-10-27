@@ -68,6 +68,7 @@ import {
   renderStep2Sections,
   renderStepReport,
   type ArmReport,
+  type IntGuardRows,
   type League,
   type Step1Figures,
   type Step2ArmCounts,
@@ -305,6 +306,33 @@ export function playStep2Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
   void _stamp;
   return sanitize({ format: STEP2_ARM_FORMAT, stamp: step2StampOf(id, seedSet, env, corpus), ...rest, s2: { flat: packS2Folds(s2.flat), gen: packS2Folds(s2.gen) } }) as unknown as Step2Record;
 }
+
+// --- the structural guard rows -------------------------------------------------------------------------------
+
+const finite = (x: unknown): boolean => typeof x === "number" && Number.isFinite(x);
+const finiteCounts = (xs: unknown): boolean => Array.isArray(xs) && xs.every(finite);
+/** A league's by-class rows: every aimed class's release bins, interceptions and completions are numbers. */
+const byClassRows = (g: IntGuardRows): boolean =>
+  typeof g.byClass === "object" && g.byClass !== null &&
+  Object.values(g.byClass).every((c) => c !== undefined && finiteCounts(c.aimedByBin) && finite(c.interceptions) && finite(c.completions));
+
+/**
+ * The row each structural guard clause names, read off one league's `report.intGuard` (ADR-089:1289,
+ * :1308; review MEAS-M-5). The clause passes when it holds on every arm-set of the run on both leagues;
+ * an empty INT-source mix (a league with no interception) is still a reported mix. `guard.removedClass`
+ * reads the by-class counts the REMOVED lines print.
+ */
+export const STRUCTURAL_GUARD_ROWS: Readonly<Record<string, (g: IntGuardRows | undefined) => boolean>> = {
+  "guard.reported.intPerAttempt": (g) => g !== undefined && finite(g.intPerAttempt),
+  "guard.reported.intPerAimed": (g) => g !== undefined && finite(g.intPerAimed),
+  "guard.reported.forced": (g) => g !== undefined && finite(g.forcedThrowShare),
+  "guard.reported.completion": (g) => g !== undefined && finite(g.completionPerAttempt),
+  "guard.reported.completionAimed": (g) => g !== undefined && finite(g.completionPerAimed),
+  "guard.reported.intSource": (g) => g !== undefined && typeof g.intSourceMix === "object" && g.intSourceMix !== null && Object.values(g.intSourceMix).every(finite),
+  "guard.reported.intByClass": (g) => g !== undefined && byClassRows(g),
+  "guard.reported.completionByClass": (g) => g !== undefined && byClassRows(g),
+  "guard.removedClass": (g) => g !== undefined && byClassRows(g),
+};
 
 // --- Q-2: the re-played bases against step 1's records -----------------------------------------------------
 
@@ -758,8 +786,9 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
       clauses.push({
         id: c.id, kind: c.kind, arms, filed: `as amended by ${guard.entry} (${guard.record}): pooled Z over both seed sets above ${String(c.id === "guard.mix" ? guard.lines.zLeague : guard.lines.zClass)} breaches (filed: rise over the mix-predicted rise ${filed})`,
         values: [...values, ...(missingArms.length === 0 ? [] : [`not played: ${missingArms.join(", ")}`])],
-        verdict: arms.length === 0 ? "NOT PLAYED" : oneSet !== undefined ? "REPORTED" : breaching.length > 0 ? "FAIL" : "PASS",
-        note: "the filed reading, e* and the paired SE are printed beside every reading in the guard section",
+        // A run that leaves an arm out cannot pass the guard: what it played is reported (review CT-F7, MEAS-M-6).
+        verdict: arms.length === 0 ? "NOT PLAYED" : oneSet !== undefined ? "REPORTED" : breaching.length > 0 ? "FAIL" : missingArms.length > 0 ? "REPORTED" : "PASS",
+        note: `the filed reading, e* and the paired SE are printed beside every reading in the guard section${breaching.length === 0 && missingArms.length > 0 && oneSet === undefined ? "; not every arm is in this run, so the guard is reported, not passed" : ""}`,
       });
       continue;
     }
@@ -784,10 +813,15 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
     }
     if (c.kind === "structural") {
       const every = [...new Set(present.map((x) => x.id))];
+      // The verdict comes from the records: each row the clause names is in every arm-set's report on
+      // both leagues, a finite number (review MEAS-M-5). A clause with no row check is reported.
+      const rowOk = STRUCTURAL_GUARD_ROWS[c.id];
+      const missingRows = rowOk === undefined ? [] : present.flatMap((x) => LEAGUES.filter((l) => !rowOk(x.r.report.intGuard[l] as IntGuardRows | undefined)).map((l) => `${where(x)} ${l}`));
+      const says = c.id === "guard.removedClass" ? "printed with its count and interceptions in each group report (REMOVED lines) and in the AM-1 readings" : "printed for every arm on both leagues and both seed sets in the group reports";
       clauses.push({
         id: c.id, kind: c.kind, arms: every, filed,
-        values: [c.id === "guard.removedClass" ? "printed with its count and interceptions in each group report (REMOVED lines) and in the AM-1 readings" : "printed for every arm on both leagues and both seed sets in the group reports"],
-        verdict: every.length > 0 ? "PASS" : "NOT PLAYED",
+        values: missingRows.length === 0 ? [says] : [`not in the records, or not a number: ${missingRows.join(", ")}`],
+        verdict: every.length === 0 ? "NOT PLAYED" : rowOk === undefined ? "REPORTED" : missingRows.length > 0 ? "FAIL" : "PASS",
       });
     }
   }
@@ -867,7 +901,11 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
   }
 
   // --- the outcome ---
-  const structuralFailures = proofs.filter((p) => p.kind === "structural" && p.verdict === "FAIL").map((p) => `${p.id}: ${p.detail}`);
+  // A structural guard row missing from the records is a structural failure beside the proofs' (review MEAS-M-5).
+  const structuralFailures = [
+    ...proofs.filter((p) => p.kind === "structural" && p.verdict === "FAIL").map((p) => `${p.id}: ${p.detail}`),
+    ...clauses.filter((c) => c.kind === "structural" && c.verdict === "FAIL" && STRUCTURAL_GUARD_ROWS[c.id] !== undefined).map((c) => `${c.id}: ${c.values.join("; ")}`),
+  ];
   const foldFaults = proofs.filter((p) => p.kind === "fold" && p.verdict === "FAIL").map((p) => `${p.id}: ${p.detail}`);
   const gradedFailures = clauses.filter((c) => c.kind === "graded" && c.verdict === "FAIL" && !c.id.startsWith("guard.")).map((c) => `${c.id} (${c.filed}): ${c.values.join("; ")}`);
   const breachRows = oneSet === undefined ? graded.filter((g) => g.reading.breaches.length > 0) : [];
@@ -896,7 +934,7 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
   if (gradedFailures.length > 0) next.push("the graded failures go to the owner as filed: no band moves, nothing re-files, nothing is tuned to pass or re-run to try again");
   const outcome: Step2Outcome = {
     structuralFailures, foldFaults, gradedFailures, guardBreaches,
-    mergeCard: complete && proofs.every((p) => p.kind !== "structural" || p.verdict === "PASS") && foldFaults.length === 0 && guardBreaches.length === 0,
+    mergeCard: complete && proofs.every((p) => p.kind !== "structural" || p.verdict === "PASS") && structuralFailures.length === 0 && foldFaults.length === 0 && guardBreaches.length === 0,
     next,
   };
 

@@ -31,7 +31,7 @@ import { FILED_PATH } from "../src/pocket/bands.js";
 import { SEED_SETS, type SeedSet } from "../src/pocket/corpus.js";
 import { loadFiled, STEP0_FILED_DIGEST, type FiledFile } from "../src/pocket/filed.js";
 import { GOLDEN_LEAGUES } from "../src/pocket/golden.js";
-import { LEAGUES } from "../src/pocket/report.js";
+import { LEAGUES, type ClassIntRows, type IntGuardRows } from "../src/pocket/report.js";
 import { POCKET_1_S1_BASE_PINS } from "../src/pocket/s1BasePins.js";
 import { POCKET_1_S1_PINS } from "../src/pocket/s1Pins.js";
 import { s2Problems, selfCheckOf } from "../src/pocket/s2Stream.js";
@@ -752,10 +752,53 @@ describe("grading synthetic records", () => {
     const g = grade(recordsOf((m) => { m.delete("B5"); }));
     expect(g.sections.guard.some((r) => r.arm === "B5")).toBe(false);
     expect(clause(g, "guard.mix").values.at(-1)).toBe("not played: B5");
+    // Nothing breaches, but B5 is not in the run: the guard is reported, never passed (review CT-F7, MEAS-M-6).
+    for (const id of ["guard.mix", "guard.byClass"]) {
+      expect(clause(g, id).verdict, id).toBe("REPORTED");
+      expect(clause(g, id).note, id).toMatch(/; not every arm is in this run, so the guard is reported, not passed$/);
+    }
     expect(g.sections.outcome.mergeCard).toBe(false);
     expect(g.sections.outcome.next).toEqual(["not every target of the step is in this run (missing B5.set1, B5.set2): the merge card waits for the full run"]);
     const noB3 = grade(recordsOf((m) => { m.delete("B3"); }));
     expect(clause(noB3, "s2.sack")).toMatchObject({ verdict: "NOT PLAYED", values: ["not played: B3"] });
+  });
+
+  it("a partial run that breaches still fails the guard, whatever it left out (review CT-F7)", () => {
+    const g = grade(recordsOf((m) => {
+      m.delete("B5");
+      for (const s of [1, 2] as const) rec(m, "B3", s).report.intGuard.gen.all.interceptions += 40;
+    }));
+    expect(clause(g, "guard.mix").verdict).toBe("FAIL");
+    expect(clause(g, "guard.mix").note).toBe("the filed reading, e* and the paired SE are printed beside every reading in the guard section");
+    expect(clause(g, "guard.byClass").verdict).toBe("REPORTED");
+    expect(g.sections.outcome.mergeCard).toBe(false);
+  });
+
+  it("the structural guard rows pass only when every arm-set prints them on both leagues (review MEAS-M-5)", () => {
+    const names = ["guard.reported.intPerAttempt", "guard.reported.intPerAimed", "guard.reported.forced", "guard.reported.intSource", "guard.reported.completion", "guard.reported.completionAimed", "guard.reported.intByClass", "guard.reported.completionByClass", "guard.removedClass"];
+    const verdicts = (g: Step2Grade): string[] => names.map((id) => `${id} ${clause(g, id).verdict}`);
+    expect(verdicts(grade(recordsOf()))).toEqual(names.map((id) => `${id} PASS`));
+    // A row missing from one arm-set's report on one league fails its clause, naming where.
+    const noAimed = grade(recordsOf((m) => { delete (rec(m, "B3", 1).report.intGuard.flat as Partial<W<IntGuardRows>>).intPerAimed; }));
+    expect(clause(noAimed, "guard.reported.intPerAimed")).toMatchObject({ verdict: "FAIL", values: ["not in the records, or not a number: B3 set 1 flat"] });
+    expect(clause(noAimed, "guard.reported.intPerAttempt").verdict).toBe("PASS");
+    expect(noAimed.sections.outcome.structuralFailures).toEqual(["guard.reported.intPerAimed: not in the records, or not a number: B3 set 1 flat"]);
+    expect(noAimed.sections.outcome.mergeCard).toBe(false);
+    // A row that is not a number (an empty league prints NaN) fails too.
+    const nan = grade(recordsOf((m) => { rec(m, "A1", 2).report.intGuard.gen.forcedThrowShare = Number.NaN; rec(m, "B6", 1).report.intGuard.flat.completionPerAttempt = Number.NaN; }));
+    expect(clause(nan, "guard.reported.forced").values).toEqual(["not in the records, or not a number: A1 set 2 gen"]);
+    expect(clause(nan, "guard.reported.completion").values).toEqual(["not in the records, or not a number: B6 set 1 flat"]);
+    // The INT-source mix: an empty mix is a reported mix, a share that is not a number is not.
+    const emptyMix = grade(recordsOf((m) => { rec(m, "B1", 1).report.intGuard.flat.intSourceMix = {}; }));
+    expect(clause(emptyMix, "guard.reported.intSource").verdict).toBe("PASS");
+    const badMix = grade(recordsOf((m) => { rec(m, "B1", 1).report.intGuard.flat.intSourceMix = { ...rec(m, "B1", 1).report.intGuard.flat.intSourceMix, X: Number.NaN }; }));
+    expect(clause(badMix, "guard.reported.intSource").values).toEqual(["not in the records, or not a number: B1 set 1 flat"]);
+    // The by-class rows feed the two by-class clauses and the removed class's line.
+    const noClass = grade(recordsOf((m) => { delete (rec(m, "B4", 2).report.intGuard.gen.byClass.PROGRESSION as Partial<W<ClassIntRows>>).completions; }));
+    for (const id of ["guard.reported.intByClass", "guard.reported.completionByClass", "guard.removedClass"]) expect(clause(noClass, id), id).toMatchObject({ verdict: "FAIL", values: ["not in the records, or not a number: B4 set 2 gen"] });
+    // One seed set grades the rows it has, the same way.
+    const one = grade(recordsOf((m) => { rec(m, "B2", 1).report.intGuard.gen.completionPerAimed = Number.NaN; }, [1]), 1);
+    expect(clause(one, "guard.reported.completionAimed").verdict).toBe("FAIL");
   });
 
   it("Q-2: a re-played base on the full corpus is checked against its step-1 record; a difference is a structural failure", () => {
