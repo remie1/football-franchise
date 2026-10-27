@@ -24,6 +24,7 @@
  */
 import { THROW_CLASSES, type ThrowClass } from "./constructs.js";
 import { intGuard, intGuardByClass, type ClassGuardVerdict, type GuardClock, type GuardVerdict, type IntMix } from "./bands.js";
+import type { Am1ArmReading, Am1Reading, Am1SetReading, PairedReading, Reweighted } from "./guardAm1.js";
 
 export const LEAGUES = ["flat", "gen"] as const;
 export type League = (typeof LEAGUES)[number];
@@ -118,6 +119,12 @@ export interface StepReportInput {
   readonly step: string;
   readonly pr33: Pr33State;
   readonly arms: readonly ArmReport[];
+  /**
+   * Set from step 2 on, where a named amendment (AM-1, F.11) supersedes the filed guard: the filed
+   * reading is still printed against the group's base, as context, and the lines say so instead of
+   * "BREACH: the step stops". Step 1 never sets it, so its reports are as they were.
+   */
+  readonly filedGuardSuperseded?: string;
 }
 
 // --- the rules -------------------------------------------------------------------------------------
@@ -193,12 +200,13 @@ function rowLine(row: ReportRow, arm: ArmReport): string {
   return `  ${row.id}: ${parts.join(" | ")}${real}${note}`;
 }
 
-function guardLine(league: League, label: string, v: GuardVerdict): string {
-  return `    ${league} ${label}: base ${v.baseRate.toFixed(2)} -> arm ${v.armRate.toFixed(2)}, rise ${v.rise.toFixed(2)} against an allowed ${v.allowed.toFixed(2)}: ${v.passes ? "PASSES" : "BREACH: the step stops and comes back to the owner with a second seed set"}`;
+function guardLine(league: League, label: string, v: GuardVerdict, superseded?: string): string {
+  const breach = superseded === undefined ? "BREACH: the step stops and comes back to the owner with a second seed set" : `above the allowance (the filed reading; ${superseded} grades)`;
+  return `    ${league} ${label}: base ${v.baseRate.toFixed(2)} -> arm ${v.armRate.toFixed(2)}, rise ${v.rise.toFixed(2)} against an allowed ${v.allowed.toFixed(2)}: ${v.passes ? "PASSES" : breach}`;
 }
 
-function classGuardLine(league: League, cls: ThrowClass, v: ClassGuardVerdict): string {
-  if (v.status === "SCORED") return guardLine(league, cls, v);
+function classGuardLine(league: League, cls: ThrowClass, v: ClassGuardVerdict, superseded?: string): string {
+  if (v.status === "SCORED") return guardLine(league, cls, v, superseded);
   if (v.status === "REMOVED") return `    ${league} ${cls}: REMOVED: ${String(v.baseThrows)} base aimed throws carried ${String(v.baseInterceptions)} interceptions`;
   return `    ${league} ${cls}: NO BASE: ${String(v.armThrows)} arm aimed throws, ${String(v.armInterceptions)} interceptions (reported, not scored)`;
 }
@@ -263,18 +271,23 @@ export function renderStepReport(input: StepReportInput): readonly string[] {
         );
       }
     }
+    const superseded = input.filedGuardSuperseded;
     if (arm.isBase) {
       out.push("    the guard: this is the base every other arm's rise is read against");
     } else {
-      out.push(`    the guard against ${base.arm} (D9's additive mix rule, then by class, D28; a fall in one class never offsets a rise in another):`);
+      out.push(
+        superseded === undefined
+          ? `    the guard against ${base.arm} (D9's additive mix rule, then by class, D28; a fall in one class never offsets a rise in another):`
+          : `    the filed guard against ${base.arm} (D9's additive mix rule, then by class, D28), printed as context: at this step ${superseded} grades the guard, so a line above its allowance is the filed reading, not the verdict:`,
+      );
       for (const league of LEAGUES) {
-        out.push(guardLine(league, "league-wide", intGuard(base.intGuard[league].all, arm.intGuard[league].all, arm.clock)));
+        out.push(guardLine(league, "league-wide", intGuard(base.intGuard[league].all, arm.intGuard[league].all, arm.clock), superseded));
         const byClass = intGuardByClass(base.intGuard[league].byClass, arm.intGuard[league].byClass, arm.clock);
         for (const cls of THROW_CLASSES) {
           const v = byClass.byClass[cls];
-          if (v !== undefined) out.push(classGuardLine(league, cls, v));
+          if (v !== undefined) out.push(classGuardLine(league, cls, v, superseded));
         }
-        out.push(`    ${league} by class: ${byClass.passes ? "PASSES" : "BREACH: the step stops and comes back to the owner with a second seed set"}`);
+        out.push(`    ${league} by class: ${byClass.passes ? "PASSES" : superseded === undefined ? "BREACH: the step stops and comes back to the owner with a second seed set" : `above the allowance in a class (the filed reading; ${superseded} grades)`}`);
       }
     }
 
@@ -476,6 +489,10 @@ const MECHANISM_TOUCH: Readonly<Record<string, string>> = {
   HOLD: "HOLD (every dropback)",
   HORIZONS: "HORIZONS (every dropback)",
   LATE: "LATE (every dropback)",
+  MUST_ACT: "MUST_ACT (a status-forcing tick with neither a threat within C nor one arrived)",
+  HALF: "HALF (a status tick with the nearest live threat in (0.5, 1.0] s)",
+  FOLLOWS: "FOLLOWS (a status tick with the nearest live threat in (1.0, 2.0] s)",
+  COUNTER_LESS_SEEN: "COUNTER_LESS_SEEN (a live WON_REP threat at a status tick)",
 };
 
 /** Step 1's own sections, as Markdown lines. */
@@ -528,7 +545,7 @@ export function renderStep1Sections(s: Step1Sections): readonly string[] {
   out.push("## The interception guard (graded in every arm with a base, on the decision tick)");
   out.push("");
   out.push(
-    "Each verdict is the filed rule, the rise at most the mix-predicted rise. Beside it, as context for the owner and never as the verdict: SE is binomial, the two arms read as independent (they share seeds, so it reads high), in points per 100 aimed throws, and z = (rise - allowed) / SE.",
+    "Each verdict is the filed rule, the rise at most the mix-predicted rise. Beside it, as context for the owner and never as the verdict: SE is binomial, the two arms read as independent (they share seeds; for an arm that changes the game a lot, as every block clock does, the games part ways and this SE is about the right size; for an arm that changes little it reads high), in points per 100 aimed throws, and z = (rise - allowed) / SE.",
   );
   out.push("");
   const noise = (n: Step1GuardNoise): string => `SE ${n.se.toFixed(2)}, z ${signed(n.z)}`;
@@ -594,6 +611,397 @@ export function renderStep1Sections(s: Step1Sections): readonly string[] {
     if (a.passRushWin !== undefined) out.push(`- pass-rush win rate (pbwr_sim_only, mean over rushers) ${fmt(a.passRushWin)} %: a pre-beat tick is a capped margin, not a rep outcome (O30)`);
     out.push(`- the miss rule's n (pressured_share_2s_no_free_runner) ${fmt(a.missRuleN)} %: the miss rule classes nothing at step 1 (O31)`);
     for (const f of a.folds) out.push(`- ${f}`);
+    out.push("");
+  }
+  return out;
+}
+
+// --- step 2's sections (ADR-089 step 2; step-2 plan §4.2, §4.3, §4.7; AM-1 §4.4 to §4.6, F.11) -------------
+//
+// Step 2 reuses `renderStepReport` once per AM-1 base group and seed set (A1 with B1, B2, B3, B4 and
+// B7; A5 with B5; A11 with B6; A0 and A14 alone), with `filedGuardSuperseded` set, since AM-1 grades
+// the guard from step 2 on. These sections add the step's own: what failed, the headline (B3 against
+// A1), the clause table, the three-arm decomposition, the world and the rule, the information arms,
+// the pricing arm, M2, the guard under AM-1 (per-set z, pooled Z, e*, the filed reading and the
+// paired SE beside, the cumulative line, DESPERATION's halves and the checkdown triggers), the
+// structural proofs and fold checks, and each arm's counts. Every figure arrives measured; nothing
+// here is a game fact. Every hit and sack figure carries its time to throw beside it.
+
+/** A step-2 clause's verdict. NOT JUDGED: a fold fault stands under it (plan §4.7, kind 2). */
+export type Step2Verdict = "PASS" | "FAIL" | "REPORTED" | "NOT PLAYED" | "NOT JUDGED" | "NOT CHECKED" | "NOT APPLICABLE";
+
+export interface Step2ClauseResult {
+  readonly id: string;
+  readonly kind: "graded" | "reported" | "structural";
+  readonly arms: readonly string[];
+  readonly filed: string;
+  readonly values: readonly string[];
+  readonly verdict: Step2Verdict;
+  readonly note?: string;
+}
+
+/** One arm against another on one league and seed set, the four figures each, time to throw beside. */
+export interface Step2Comparison {
+  readonly arm: string;
+  readonly against: string;
+  readonly league: League;
+  readonly seedSet: number;
+  readonly figures: Step1Figures;
+  readonly againstFigures: Step1Figures;
+  readonly timeToThrow: number | null;
+  readonly againstTimeToThrow: number | null;
+  /** "reported, direction only" on an arm with no band (O47), or another label. */
+  readonly label?: string;
+}
+
+/** A contrast of differences ("B3 - (B1 + B2 - A1)", "the world"), in points and seconds. */
+export interface Step2Contrast {
+  readonly formula: string;
+  readonly league: League;
+  readonly seedSet: number;
+  readonly figures: Step1Figures;
+  /** The first arm's time to throw, beside the hit and sack figures. */
+  readonly timeToThrow: number | null;
+  readonly note?: string;
+}
+
+/** A structural proof (a build fault when it fails) or a fold check (a fold fault, plan §4.7 kind 2). */
+export interface Step2Proof {
+  readonly id: string;
+  readonly what: string;
+  readonly kind: "structural" | "fold";
+  readonly verdict: Step1ProofVerdict | "NOT JUDGED";
+  readonly detail: string;
+}
+
+/** M2 STREAM on one arm, league and seed sets (`m2StreamSummary`, as printed). */
+export interface Step2M2Row {
+  readonly arm: string;
+  readonly league: League;
+  /** "1", "2", or "1 and 2" (the two folds merged). */
+  readonly sets: string;
+  readonly rule: string | null;
+  readonly dropbacks: number;
+  readonly forced: number;
+  readonly counterFar: number;
+  readonly sharePct: number | null;
+  readonly intervalPct: { readonly lo: number; readonly hi: number } | null;
+  readonly zeroByTheRule: boolean | null;
+  readonly unforcedSharePct: number | null;
+  readonly byAlignment: Readonly<Record<string, number>>;
+  readonly byPosition: Readonly<Record<string, number>>;
+  readonly identity: { readonly statusChecks: number; readonly statusMismatches: number; readonly threatChecks: number; readonly threatMismatches: number };
+  readonly jitter: { readonly checks: number; readonly mismatches: number; readonly skippedDieless: number };
+  readonly tm399: { readonly edge: number; readonly far: number; readonly farCB: number; readonly farSharePct: number | null };
+}
+
+/** The filed first-order M2 (step 0's engine-free replay, the filing's `M.M2`), reprinted unchanged. */
+export interface Step2M2Filed {
+  readonly league: League;
+  readonly arm: string;
+  readonly forced: number;
+  readonly counterFar: number;
+  readonly sharePct: number | null;
+  /** Poisson 95% interval on the count, as a percent of forced decisions. */
+  readonly intervalPct: { readonly lo: number; readonly hi: number } | null;
+}
+
+export interface Step2M2Section {
+  /** `s2.m2`'s reported range, percent. */
+  readonly band: { readonly lo: number; readonly hi: number };
+  readonly filed: readonly Step2M2Filed[];
+  readonly rows: readonly Step2M2Row[];
+  readonly notes: readonly string[];
+}
+
+/** One DESPERATION half of one guard row (reported, never graded; F.9 item 4, O50). */
+export interface Step2GuardHalf {
+  readonly half: string;
+  readonly bySet: readonly { readonly seedSet: number; readonly baseAimed: number; readonly baseInterceptions: number; readonly armAimed: number; readonly armInterceptions: number }[];
+  /** The half's own AM-1-style reading, where both sides threw in it on some set. */
+  readonly reading: Am1Reading | null;
+  readonly paired: PairedReading;
+}
+
+/** The checkdown looks by trigger on one side and set (the must-act fold's CHECKDOWN_LOOK row). */
+export interface Step2Checkdown {
+  readonly seedSet: number;
+  readonly rule: string | null;
+  readonly acts: number;
+  readonly threatPart: number;
+  readonly statusPart: number;
+  readonly countPart: number;
+  readonly ruleOnly: number;
+  readonly countOnly: number;
+  readonly both: number;
+  readonly neither: number;
+}
+
+/** AM-1's readings of one arm against its base on one league, with what is printed beside them. */
+export interface Step2GuardRow {
+  readonly arm: string;
+  readonly base: string;
+  readonly league: League;
+  /** The cumulative line (B3 against A0, B6 against A14): reported, never graded before step 10. */
+  readonly cumulative: boolean;
+  readonly reading: Am1ArmReading;
+  readonly pairedLeague: PairedReading;
+  readonly pairedClasses: Readonly<Record<string, PairedReading>>;
+  readonly desperation: readonly Step2GuardHalf[];
+  readonly reweighted: readonly Reweighted[];
+  readonly checkdown: { readonly base: readonly Step2Checkdown[]; readonly arm: readonly Step2Checkdown[] };
+}
+
+/** One arm's counts on one league and seed set. */
+export interface Step2ArmSetCounts {
+  readonly seedSet: number;
+  readonly dropbacks: number;
+  readonly timeToThrow: number | null;
+  readonly affected?: { readonly against: string; readonly byMechanism: Readonly<Record<string, number>>; readonly union: number; readonly dropbacks: number };
+  readonly mustActShare: Readonly<Record<string, number | null>>;
+  /** Forced acts by kind: acts (threat part / status part / count part). */
+  readonly forcedActs: Readonly<Record<string, { readonly acts: number; readonly threatPart: number; readonly statusPart: number; readonly countPart: number }>>;
+  readonly arrival: { readonly cases: number; readonly throws: number; readonly sacks: number; readonly failures: number };
+  readonly warning: { readonly statusTicks: number; readonly warningTicks: number; readonly cleanWithWarning: number; readonly failures: number };
+  readonly selfCheck: { readonly offRule: number; readonly counted: number; readonly exceptions: number; readonly passed: boolean } | null;
+  readonly quickPressure: number | null;
+  readonly floorCounter: number | null;
+  readonly cleanWithLiveWonRep: { readonly ticks: number | null; readonly dropbacks: number | null; readonly pushTicks: number | null };
+  readonly passRushWin?: number | null;
+  readonly missRuleN: number | null;
+  readonly s1Problems: number;
+  readonly s2Problems: readonly string[];
+}
+
+export interface Step2ArmCounts {
+  readonly arm: string;
+  readonly role: string;
+  readonly league: League;
+  readonly label?: string;
+  readonly bySet: readonly Step2ArmSetCounts[];
+}
+
+export interface Step2Outcome {
+  readonly structuralFailures: readonly string[];
+  /** A self-check or identity rebuild that fails: the clause is not judged and the step cannot close (plan §4.7 kind 2). */
+  readonly foldFaults: readonly string[];
+  readonly gradedFailures: readonly string[];
+  readonly guardBreaches: readonly string[];
+  /** Posted only when no structural failure, fold fault or AM-1 breach stands, on a full two-set run. */
+  readonly mergeCard: boolean;
+  readonly next: readonly string[];
+}
+
+export interface Step2Sections {
+  readonly pr33: Pr33State;
+  /** Set on a one-set run: reported, never graded (plan §4.6). */
+  readonly oneSet?: number;
+  readonly amendments: { readonly digest: string; readonly entry: string; readonly record: string; readonly zLeague: number; readonly zClass: number; readonly zSetSE0: number };
+  readonly headline: readonly Step2Comparison[];
+  readonly clauses: readonly Step2ClauseResult[];
+  readonly decomposition: readonly Step2Comparison[];
+  readonly interaction: readonly Step2Contrast[];
+  readonly worldAndRule: readonly Step2Contrast[];
+  readonly information: readonly Step2Comparison[];
+  readonly pricing: readonly Step2Comparison[];
+  readonly m2: Step2M2Section;
+  readonly guard: readonly Step2GuardRow[];
+  readonly proofs: readonly Step2Proof[];
+  readonly arms: readonly Step2ArmCounts[];
+  readonly outcome: Step2Outcome;
+}
+
+const diffOf = (a: number | null, b: number | null): number | null => (a === null || b === null ? null : a - b);
+const tttPair = (a: number | null, b: number | null): string => `[time to throw ${fmt(a, 3)} s against ${fmt(b, 3)} s]`;
+
+function comparisonLine(c: Step2Comparison): string {
+  const f = c.figures;
+  const g = c.againstFigures;
+  const part = (name: string, a: number | null, b: number | null, dp = 2): string => `${name} ${fmt(a, dp)} - ${fmt(b, dp)} = ${signed(diffOf(a, b), dp)}`;
+  const t = tttPair(c.timeToThrow, c.againstTimeToThrow);
+  return (
+    `- ${c.arm} against ${c.against}, ${c.league}, set ${String(c.seedSet)}${c.label === undefined ? "" : ` (${c.label})`}: ` +
+    `${part("pressure", f.pressure, g.pressure)} | ${part("hit-or-sack", f.hitOrSack, g.hitOrSack)} ${t} | ${part("sacks", f.sack, g.sack)} ${t} | ${part("release", f.release, g.release, 3)} s`
+  );
+}
+
+function contrastLine(c: Step2Contrast): string {
+  const f = c.figures;
+  return (
+    `- ${c.formula}, ${c.league}, set ${String(c.seedSet)}: pressure ${signed(f.pressure)} points | ${withTtt(`hit-or-sack ${signed(f.hitOrSack)}`, c.timeToThrow)} | ` +
+    `${withTtt(`sacks ${signed(f.sack)}`, c.timeToThrow)} | release ${signed(f.release, 3)} s${c.note === undefined ? "" : ` (${c.note})`}`
+  );
+}
+
+const setReadingText = (s: Am1SetReading): string =>
+  `set ${String(s.seedSet)} ${s.baseRate.toFixed(2)} -> ${s.armRate.toFixed(2)}, rise ${signed(s.rise)} / allowed ${signed(s.allowed)} / SE ${s.se.toFixed(2)} / z ${signed(s.z)}${s.seZero ? " (SE 0, scored 0)" : ""} (filed: ${s.filedPasses ? "within" : "above"} the allowance; ${String(s.armAimed)} aimed)`;
+
+const readingText = (r: Am1Reading): string =>
+  `${r.sets.map(setReadingText).join("; ")}; Z ${signed(r.Z)} against ${r.line.toFixed(1)}, e* ${fmt(r.eStar)}, mean excess ${signed(r.meanExcess)}: ${r.verdict}${r.graded ? "" : " (not graded: one seed set)"}`;
+
+const pairedText = (p: PairedReading): string =>
+  p.sets.length === 0 ? "paired: n/a" : `paired SE ${p.sets.map((x) => `${x.se.toFixed(2)} (set ${String(x.seedSet)}, ${String(x.games)} games, z ${signed(x.z)})`).join(", ")}; paired Z ${signed(p.Z)} (reported, never graded)`;
+
+function checkdownText(cs: readonly Step2Checkdown[]): string {
+  return cs.map((c) => `set ${String(c.seedSet)} ${String(c.acts)} looks (threat or status part ${String(c.threatPart + c.statusPart)}, count part ${String(c.countPart)}; rule only ${String(c.ruleOnly)}, count only ${String(c.countOnly)}, both ${String(c.both)}, neither ${String(c.neither)})`).join("; ") || "none";
+}
+
+const m2Text = (r: Step2M2Row, band: { lo: number; hi: number }): string => {
+  const range = r.sharePct === null ? "no forced decision" : r.sharePct > band.hi ? "outside the reported range, information" : "inside the reported range";
+  const zero = r.zeroByTheRule === null ? "" : `; 0 by the rule (PER_RUSHER, C within 0.5 s): ${r.zeroByTheRule ? "holds" : "DOES NOT HOLD"}`;
+  const entries = (o: Readonly<Record<string, number>>): string => Object.entries(o).map(([k, v]) => `${k} ${String(v)}`).join(", ") || "none";
+  return (
+    `- M2 STREAM on ${r.arm}'s streams, ${r.league}, set${r.sets.includes("and") ? "s" : ""} ${r.sets} (rule ${r.rule ?? "n/a"}): ${String(r.counterFar)} of ${String(r.forced)} forced decisions (${fmt(r.sharePct)}%), ` +
+    `Poisson 95% interval ${r.intervalPct === null ? "n/a" : `${r.intervalPct.lo.toFixed(4)}% to ${r.intervalPct.hi.toFixed(4)}%`}: ${range}${zero}; by alignment ${entries(r.byAlignment)}; by position ${entries(r.byPosition)}; ` +
+    `unforced (never forced before the release, not censored) ${fmt(r.unforcedSharePct)}% of ${String(r.dropbacks)} dropbacks; identity ${String(r.identity.statusMismatches)} of ${String(r.identity.statusChecks)} rebuilt statuses and ` +
+    `${String(r.identity.threatMismatches)} of ${String(r.identity.threatChecks)} won-rep threats differ; jitter ${String(r.jitter.mismatches)} of ${String(r.jitter.checks)} rolled ticks differ, ${String(r.jitter.skippedDieless)} dieless ticks skipped ` +
+    `(TODAY's jitter check is vacuous on shape S); b.tm-399 ${String(r.tm399.far)} of ${String(r.tm399.edge)} edge won-rep threats travel 2.5 s or more (${fmt(r.tm399.farSharePct)}%), ${String(r.tm399.farCB)} cornerbacks`
+  );
+};
+
+/** M2's section alone (`--m2` prints it and stops; the report prints it in place). */
+export function renderStep2M2(m: Step2M2Section): readonly string[] {
+  const out: string[] = [];
+  out.push(`## M2: the counter-forced share of forced decisions (s2.m2, reported, ${String(m.band.lo)} to ${String(m.band.hi)} percent; nothing graded)`);
+  out.push("");
+  for (const f of m.filed) {
+    out.push(
+      `- filed first-order M2 (step 0's engine-free replay, the filing's M.M2, unchanged), ${f.league} ${f.arm}: ${String(f.counterFar)} of ${String(f.forced)} forced (${fmt(f.sharePct)}%), ` +
+        `Poisson 95% interval ${f.intervalPct === null ? "n/a" : `${f.intervalPct.lo.toFixed(4)}% to ${f.intervalPct.hi.toFixed(4)}%`}`,
+    );
+  }
+  for (const r of m.rows) out.push(m2Text(r, m.band));
+  for (const n of m.notes) out.push(`- ${n}`);
+  out.push("");
+  return out;
+}
+
+/** Step 2's own sections, as Markdown lines. */
+export function renderStep2Sections(s: Step2Sections): readonly string[] {
+  const out: string[] = [];
+  const o = s.outcome;
+  out.push("## What failed, first");
+  out.push("");
+  if (s.oneSet !== undefined) out.push(`A one-set run (seed set ${String(s.oneSet)}): every reading here is reported, never graded, and the step cannot close on it (plan §4.6).`);
+  if (o.structuralFailures.length === 0 && o.foldFaults.length === 0 && o.gradedFailures.length === 0 && o.guardBreaches.length === 0) {
+    out.push("Nothing: every structural proof and fold check passes, every graded clause is inside its filed band, and AM-1 finds no breach.");
+  }
+  for (const f of o.structuralFailures) out.push(`- STRUCTURAL (a build fault, fixed before the PR, never put to a merge card): ${f}`);
+  for (const f of o.foldFaults) out.push(`- FOLD FAULT (the clause is not judged and the step cannot close until the fold is fixed): ${f}`);
+  for (const f of o.guardBreaches) out.push(`- GUARD BREACH under AM-1 (the step stops, ADR-089:1306: the arms finish playing, the step does not close, nothing merges, step 3 does not start): ${f}`);
+  for (const f of o.gradedFailures) out.push(`- GRADED, reported as filed (no band moves, nothing re-files, nothing is tuned to pass or re-run to try again): ${f}`);
+  out.push("");
+  out.push(`Merge card: ${o.mergeCard ? "may be posted (no structural failure, fold fault or AM-1 breach stands)" : "NOT to be posted until the items above are settled"}.`);
+  for (const n of o.next) out.push(`- next: ${n}`);
+  out.push("");
+
+  out.push("## The headline: B3 (pocket-1.s2) against A1 (step 1's design), re-played on the same seeds");
+  out.push("");
+  out.push("Set 1 is graded; set 2 is printed beside it. Every hit and sack figure has both arms' times to throw beside it.");
+  out.push("");
+  for (const c of s.headline) out.push(comparisonLine(c));
+  out.push("");
+
+  out.push("## The clause table");
+  out.push("");
+  out.push("| clause | kind | arms | filed | measured | verdict |");
+  out.push("|---|---|---|---|---|---|");
+  for (const c of s.clauses) out.push(`| ${c.id} | ${c.kind} | ${c.arms.join(", ")} | ${c.filed} | ${c.values.join("; ")} | ${c.verdict}${c.note === undefined ? "" : ` (${c.note})`} |`);
+  out.push("");
+
+  out.push("## The three-arm decomposition: B1 (the forcing point alone), B2 (the warning alone) and B3 (both) against A1");
+  out.push("");
+  out.push("B1 and B2 break the July derivation (P = C + (C - I)) and are information, never design values (O37).");
+  out.push("");
+  for (const c of s.decomposition) out.push(comparisonLine(c));
+  for (const c of s.interaction) out.push(contrastLine(c));
+  out.push("");
+
+  out.push("## The world and the rule (F.9 item 6; C1-F9)");
+  out.push("");
+  out.push("B7 minus A1 is the basis mechanism (the half second with the warning, under step 1's forcing rule) on S; B5 minus A5 is the same on L8 with Heels, pkA's A123. Their difference is the world. B3 minus B7 is the rule, per rusher at the same horizons, which M2 sizes.");
+  out.push("");
+  for (const c of s.worldAndRule) out.push(contrastLine(c));
+  out.push("");
+
+  out.push("## The information arms (reported, direction only; O47)");
+  out.push("");
+  for (const c of s.information) out.push(comparisonLine(c));
+  out.push("");
+
+  out.push("## The pricing arm: B6 against A11, the bands' measured basis at the stand-in hold (no band graded; never a design value)");
+  out.push("");
+  for (const c of s.pricing) out.push(comparisonLine(c));
+  out.push("");
+
+  out.push(...renderStep2M2(s.m2));
+
+  const a = s.amendments;
+  out.push(`## The interception guard under AM-1 (${a.record}; entry ${a.entry}, amendments ${a.digest})`);
+  out.push("");
+  out.push(
+    `AM-1 supersedes guard.mix and guard.byClass from step 2: each arm is read against its base in the filed step-2 map, on the same seeds, on both seed sets. On each set z = (rise - allowed) / SE, ` +
+      `SE binomial with the two arms read as independent (a set whose SE is 0 scores ${String(a.zSetSE0)}); Z = (z1 + z2) / sqrt 2; a reading breaches when Z is above ${a.zLeague.toFixed(1)} league-wide or ${a.zClass.toFixed(1)} in a class (strict). ` +
+      "e* is the mean excess over the allowance at which the reading would breach. Beside every reading: the filed reading (the rise at most the allowance, per set) and the paired, game-clustered SE and Z, both reported, never graded. " +
+      "DESPERATION is also split dirty and clean by the last status at or before the release (reported), with the rise re-weighted to the base's composition; the checkdown looks are counted by trigger. The cumulative line (B3 against A0, B6 against A14) is reported, never graded before step 10.",
+  );
+  out.push("");
+  for (const g of s.guard) {
+    out.push(`### ${g.arm} against ${g.base}, ${g.league}${g.cumulative ? " (the cumulative line: reported, never graded)" : ""}`);
+    out.push("");
+    out.push(`- league-wide: ${readingText(g.reading.league)}; ${pairedText(g.pairedLeague)}`);
+    for (const c of g.reading.classes) {
+      const statuses = c.bySet.filter((x) => x.status !== "SCORED").map((x) =>
+        x.status === "REMOVED" ? `set ${String(x.seedSet)} REMOVED (${String(x.baseThrows)} base aimed, ${String(x.baseInterceptions)} interceptions)` : `set ${String(x.seedSet)} NO BASE (${String(x.armThrows)} arm aimed, ${String(x.armInterceptions)} interceptions)`,
+      );
+      const paired = g.pairedClasses[c.cls];
+      const reading = c.reading === undefined ? "scored on no set" : readingText(c.reading);
+      out.push(`- ${c.cls}: ${reading}${statuses.length === 0 ? "" : `; ${statuses.join("; ")}`}${c.graded ? "" : " (not graded)"}${paired === undefined ? "" : `; ${pairedText(paired)}`}`);
+    }
+    for (const h of g.desperation) {
+      const sets = h.bySet.map((x) => `set ${String(x.seedSet)} base ${String(x.baseAimed)} aimed / ${String(x.baseInterceptions)} INT -> arm ${String(x.armAimed)} / ${String(x.armInterceptions)}`).join("; ");
+      out.push(`- DESPERATION ${h.half} (reported, never graded): ${sets}${h.reading === null ? "" : `; ${readingText(h.reading).replace(/: (PASS|BREACH|REPORTED)( \(not graded: one seed set\))?$/, " (reported)")}`}; ${pairedText(h.paired)}`);
+    }
+    for (const w of g.reweighted) {
+      out.push(
+        `- DESPERATION composition, set ${String(w.seedSet)}: base dirty ${fmt(w.baseShare.DIRTY)}% / clean ${fmt(w.baseShare.CLEAN)}% -> arm dirty ${fmt(w.armShare.DIRTY)}% / clean ${fmt(w.armShare.CLEAN)}%; ` +
+          `the class's rise ${signed(w.rise)}, re-weighted to the base's composition ${signed(w.reweightedRise)} (reported)`,
+      );
+    }
+    out.push(`- checkdown looks by trigger: base ${checkdownText(g.checkdown.base)}; arm ${checkdownText(g.checkdown.arm)}`);
+    out.push("");
+  }
+
+  out.push("## The structural proofs and fold checks inside the arms");
+  out.push("");
+  for (const p of s.proofs) out.push(`- ${p.id} (${p.kind === "fold" ? "fold check" : "structural"}; ${p.what}): ${p.verdict === "PASS" ? "PASSES" : p.verdict === "FAIL" ? "FAILS" : p.verdict}. ${p.detail}`);
+  out.push("");
+
+  out.push("## Each arm: exclusive affected plays, must act, the step-2 folds' counts and the rows printed apart");
+  out.push("");
+  for (const arm of s.arms) {
+    out.push(`### ${arm.arm}, ${arm.league} (${arm.role})${arm.label === undefined ? "" : `: ${arm.label}`}`);
+    out.push("");
+    for (const c of arm.bySet) {
+      const at = `set ${String(c.seedSet)}`;
+      out.push(`- ${at}: dropbacks ${String(c.dropbacks)}; time to throw ${fmt(c.timeToThrow, 3)} s`);
+      if (c.affected === undefined) out.push(`- ${at}: exclusive affected plays: none (no base)`);
+      else {
+        const by = Object.entries(c.affected.byMechanism).map(([k, v]) => `${MECHANISM_TOUCH[k] ?? k} ${String(v)}`).join(", ");
+        out.push(`- ${at}: exclusive affected plays against ${c.affected.against}: ${String(c.affected.union)} of ${String(c.affected.dropbacks)} (${by === "" ? "no exclusive mechanism" : by})`);
+      }
+      const m = c.mustActShare;
+      out.push(
+        `- ${at}: must-act share of aimed throws (released on a tick with a threat within C) ${fmt(m["mustActSharePct"] ?? null)}%, beside forced_throw_share's status-forced ${fmt(m["statusForcedSharePct"] ?? null)}% (R5); ` +
+          `first must-act tick ${fmt(m["firstMustActSeconds"] ?? null, 3)} s on ${String(m["firstMustActDropbacks"] ?? 0)} dropbacks, beside first_forcing_seconds' ${fmt(m["firstStatusForcingSeconds"] ?? null, 3)} s on ${String(m["firstStatusForcingDropbacks"] ?? 0)}`,
+      );
+      const acts = Object.entries(c.forcedActs).map(([k, v]) => `${k} ${String(v.acts)} (threat ${String(v.threatPart)}, status ${String(v.statusPart)}, count ${String(v.countPart)})`).join(", ");
+      out.push(`- ${at}: forced acts by kind (the part that held): ${acts === "" ? "none" : acts}${c.selfCheck === null ? "" : `; the count part's self-check: ${String(c.selfCheck.counted)} of ${String(c.selfCheck.offRule)} off-rule acts counted, ${String(c.selfCheck.exceptions)} exceptions, ${c.selfCheck.passed ? "passed" : "FAILED"}`}`);
+      out.push(`- ${at}: arrivals ${String(c.arrival.cases)} (THROW ${String(c.arrival.throws)}, SACK ${String(c.arrival.sacks)}), failures ${String(c.arrival.failures)}; status ticks ${String(c.warning.statusTicks)}, ticks with a threat inside the warning ${String(c.warning.warningTicks)}, of them CLEAN ${String(c.warning.cleanWithWarning)}, failures ${String(c.warning.failures)}`);
+      out.push(`- ${at}: quick-pressure share ${fmt(c.quickPressure)} %; band floor plus counter ${fmt(c.floorCounter)} % of first dirt; clean_with_live_won_rep ticks ${fmt(c.cleanWithLiveWonRep.ticks, 3)} %, dropbacks ${fmt(c.cleanWithLiveWonRep.dropbacks, 3)} %, PUSH ticks apart ${fmt(c.cleanWithLiveWonRep.pushTicks, 3)} % (these rise under the warning, expected, not a failure: R8)`);
+      if (c.passRushWin !== undefined) out.push(`- ${at}: pass-rush win rate (pbwr_sim_only) ${fmt(c.passRushWin)} %: a pre-beat tick is a capped margin, not a rep outcome (O30)`);
+      out.push(`- ${at}: the miss rule's n (pressured_share_2s_no_free_runner) ${fmt(c.missRuleN)} %: no step-2 row is under the miss rule (O48); step-1 stream checks ${String(c.s1Problems)} failing; step-2 folds ${c.s2Problems.length === 0 ? "clean" : c.s2Problems.join("; ")}`);
+    }
     out.push("");
   }
   return out;

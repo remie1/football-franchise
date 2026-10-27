@@ -55,7 +55,7 @@ import { positionsFromSnapshot } from "../knownTruth/pocketChannelShares.js";
 import { emptyAccumulator, foldGame, mergeAccumulators, type SimAccumulator, type SimGameObservation } from "../metrics/collect.js";
 import "../metrics/index.js";
 import { isInapplicable } from "../metrics/types.js";
-import { ARM_DEFS, ARM_IDS, armById, exclusiveMechanisms, type Arm, type ArmId, type Mechanism } from "./arms.js";
+import { ARM_DEFS, ARM_IDS, armById, exclusiveMechanisms, STEP2_ARM_DEFS, type Arm, type ArmId, type Mechanism } from "./arms.js";
 import { FILED_PATH, intGuard, intGuardByClass, type GuardVerdict, type IntMix } from "./bands.js";
 import { constructById } from "./constructs.js";
 import { flatBaseline, genSeason, goldenGames, type CorpusVisitor, type SeedSet } from "./corpus.js";
@@ -227,12 +227,15 @@ export function stampOf(id: ArmId, seedSet: SeedSet, env: Step1Env, corpus: Step
   };
 }
 
-/** The stamp fields that must agree for a cached record to stand for this build's arm: all but commit and dirty. */
-export function stampProblems(got: unknown, want: Step1Stamp): readonly string[] {
+/**
+ * The stamp fields that must agree for a cached record to stand for this build's arm: all but commit
+ * and dirty. Step 1's stamp, or any stamp built on it (step 2's carries its amendments digest).
+ */
+export function stampProblems<S extends object = Step1Stamp>(got: unknown, want: S): readonly string[] {
   if (typeof got !== "object" || got === null) return ["the record carries no stamp"];
   const g = got as Record<string, unknown>;
   const out: string[] = [];
-  for (const [key, value] of Object.entries(want)) {
+  for (const [key, value] of Object.entries(want as Record<string, unknown>)) {
     if (key === "commit" || key === "dirty") continue;
     // Whole canonical text, not a 32-bit digest of it (review CT-9).
     if (canonicalise(g[key] ?? null) !== canonicalise(value)) out.push(`${key}: cached ${JSON.stringify(g[key] ?? null)}, this build ${JSON.stringify(value)}`);
@@ -282,9 +285,12 @@ export interface ArmRecord {
   readonly baseRows?: Readonly<Record<string, { readonly flat: JsonValue; readonly gen: JsonValue }>>;
 }
 
-/** The arm an arm's affected plays and pricing rows read against: its base, or A0 for A14 (the hold's own rows). */
+/**
+ * The arm an arm's affected plays and pricing rows read against: its base, or A0 for A14 (the hold's
+ * own rows). A step-2 arm's base is AM-1's step-2 map (`STEP2_ARM_DEFS`).
+ */
 export function referenceOf(id: ArmId): ArmId | undefined {
-  const def = ARM_DEFS.find((d) => d.id === id);
+  const def = ARM_DEFS.find((d) => d.id === id) ?? STEP2_ARM_DEFS.find((d) => d.id === id);
   return def?.base ?? (id === "A14" ? "A0" : undefined);
 }
 
@@ -359,7 +365,8 @@ export function emptyLeagueFolds(id: ArmId, mechanisms: readonly Mechanism[] | u
   };
 }
 
-function measuresOf(f: LeagueFolds, league: League): ArmMeasures {
+/** One league's figures from its folds (step 2 reads them the same way). */
+export function measuresOf(f: LeagueFolds, league: League): ArmMeasures {
   const v = (id: string): number | null => reportValue(outcomeOn(id, f.accumulator, league));
   const origin = outcomeOn("first_pressure_origin", f.accumulator, league);
   const counts = !isInapplicable(origin) && origin.kind === "CATEGORICAL" ? origin.counts : {};
@@ -385,6 +392,14 @@ function measuresOf(f: LeagueFolds, league: League): ArmMeasures {
 export interface PlayArmOptions {
   readonly corpus?: Step1Corpus;
   readonly log?: (line: string) => void;
+  /** The log lines' prefix (default "pocket step 1"). */
+  readonly label?: string;
+  /**
+   * Step 2's seam: called on every game after step 1's folds, with the league and the arm's own
+   * tunables (K14), so a step that adds folds plays each game once. Nothing it does reaches the
+   * step-1 record.
+   */
+  readonly visit?: (league: League, o: SimGameObservation, snapshot: GameSnapshot, tunables: Tunables) => void;
 }
 
 /** Plays one arm on both leagues at its seed set and returns its record (plain data). */
@@ -397,12 +412,15 @@ export function playArm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: PlayAr
   const folds = {} as Record<League, LeagueFolds>;
   for (const league of LEAGUES) {
     const f = emptyLeagueFolds(id, mechanisms);
-    const visit: CorpusVisitor = (o, snapshot) => foldStep1Game(f, o, snapshot, tunables, mechanisms ?? []);
+    const visit: CorpusVisitor = (o, snapshot) => {
+      foldStep1Game(f, o, snapshot, tunables, mechanisms ?? []);
+      opts.visit?.(league, o, snapshot, tunables);
+    };
     const game = { tunables, callerVersion: STEP1_CALLER };
     if (league === "flat") flatBaseline(seedSet, visit, { ...game, ...(corpus.flatFirst === null ? {} : { first: corpus.flatFirst }) });
     else genSeason(seedSet, visit, { ...game, ...(corpus.genThroughWeek === null ? {} : { throughWeek: corpus.genThroughWeek }) });
     folds[league] = f;
-    opts.log?.(`pocket step 1: ${id} ${league} seed set ${String(seedSet)}, ${String(f.games)} games`);
+    opts.log?.(`${opts.label ?? "pocket step 1"}: ${id} ${league} seed set ${String(seedSet)}, ${String(f.games)} games`);
   }
   const rows = { flat: sanitize(pocketRows(folds.flat.rows)) as Record<string, unknown>, gen: sanitize(pocketRows(folds.gen.rows)) as Record<string, unknown> };
   const base = baseArm({ accumulators: { flat: folds.flat.accumulator, gen: folds.gen.accumulator }, rows, guard: { flat: folds.flat.guard, gen: folds.gen.guard } });
@@ -680,8 +698,11 @@ export function structuralProofs(records: ArmRecords, file: FiledFile): readonly
 
 /**
  * A guard rise's binomial standard error, in points per 100 aimed throws, with the two arms read as
- * independent (they share seeds, so it reads high), and z = (rise - allowed) / SE, null when SE is 0
- * (review M2). Context printed beside the verdict for the owner: the verdict stays the filed rule.
+ * independent (they share seeds; for an arm that changes the game a lot, as every block clock does,
+ * the games part ways and this SE is about the right size; for an arm that changes little it reads
+ * high), and z = (rise - allowed) / SE, null when SE is 0 (review M2). Context printed beside the
+ * verdict for the owner: the verdict stays the filed rule (ADR-089 F.9 item 3; AM-1 reads its pooled Z
+ * from this SE from step 2 on).
  */
 export function guardNoise(base: IntMix, arm: IntMix, v: GuardVerdict): Step1GuardNoise {
   const nb = base.aimedByBin.reduce((a, b) => a + b, 0);
@@ -692,15 +713,19 @@ export function guardNoise(base: IntMix, arm: IntMix, v: GuardVerdict): Step1Gua
   return { se, z: se > 0 ? (v.rise - v.allowed) / se : null };
 }
 
-/** The guard against each arm's base, per league (§9.4). */
+/**
+ * The guard against each arm's base, per league (§9.4). It iterates step 1's arm list (`ARM_IDS`),
+ * so a step-2 arm in the records is skipped by rule (step-2 plan §4.1, R9).
+ */
 export function guardRows(records: ArmRecords): readonly Step1GuardRow[] {
   const out: Step1GuardRow[] = [];
-  for (const def of ARM_DEFS) {
+  for (const id of ARM_IDS) {
+    const def = armById(id);
     if (def.base === undefined) continue;
-    const arm = records.get(def.id);
+    const arm = records.get(id);
     const base = records.get(def.base);
     if (arm === undefined || base === undefined) continue;
-    if (arm.stamp.seedSet !== base.stamp.seedSet) throw new Error(`the guard reads ${def.id} against ${def.base} on the same seeds; they were played on sets ${String(arm.stamp.seedSet)} and ${String(base.stamp.seedSet)}`);
+    if (arm.stamp.seedSet !== base.stamp.seedSet) throw new Error(`the guard reads ${id} against ${def.base} on the same seeds; they were played on sets ${String(arm.stamp.seedSet)} and ${String(base.stamp.seedSet)}`);
     for (const league of LEAGUES) {
       const b = base.report.intGuard[league];
       const a = arm.report.intGuard[league];
@@ -712,7 +737,7 @@ export function guardRows(records: ArmRecords): readonly Step1GuardRow[] {
         const n = guardNoise(b.byClass[cls as keyof typeof b.byClass]!, a.byClass[cls as keyof typeof a.byClass]!, v);
         return [{ cls, rise: v.rise, allowed: v.allowed, passes: v.passes, ...n }];
       });
-      out.push({ arm: def.id, base: def.base, league, mix, mixNoise: guardNoise(b.all, a.all, mix), byClass: { passes: byClass.passes, breaches, scored } });
+      out.push({ arm: id, base: def.base, league, mix, mixNoise: guardNoise(b.all, a.all, mix), byClass: { passes: byClass.passes, breaches, scored } });
     }
   }
   return out;
@@ -1036,7 +1061,7 @@ function realOf(path: string): string {
 }
 
 /** Whether `path` lies under `dir`, compared on real paths, so a symlink into `dir` is under it (review CT-11). */
-const isUnder = (path: string, dir: string): boolean => {
+export const isUnder = (path: string, dir: string): boolean => {
   const rel = relative(realOf(dir), realOf(path));
   return rel !== "" && !rel.startsWith("..") && !rel.startsWith(sep) && !/^[A-Za-z]:/.test(rel);
 };

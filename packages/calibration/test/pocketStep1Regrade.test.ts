@@ -67,7 +67,7 @@ const STEP1_COMMIT = "0a2eb415d237fe4075e0965a21d945b2f4a66476";
  * the corrected wording (step-2 plan §5).
  */
 const LINE_130 =
-  "Each verdict is the filed rule, the rise at most the mix-predicted rise. Beside it, as context for the owner and never as the verdict: SE is binomial, the two arms read as independent (they share seeds, so it reads high), in points per 100 aimed throws, and z = (rise - allowed) / SE.";
+  "Each verdict is the filed rule, the rise at most the mix-predicted rise. Beside it, as context for the owner and never as the verdict: SE is binomial, the two arms read as independent (they share seeds; for an arm that changes the game a lot, as every block clock does, the games part ways and this SE is about the right size; for an arm that changes little it reads high), in points per 100 aimed throws, and z = (rise - allowed) / SE.";
 const LINE_130_INDEX = 129;
 
 /** The set-2 records the fixture holds (step-2 plan §4.5: A9 for AM-1's test cases). */

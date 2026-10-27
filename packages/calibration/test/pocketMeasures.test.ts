@@ -610,12 +610,57 @@ describe("the pocket command's arguments", () => {
     expect(() => parsePocketArgs(["--step", "1", "--digests"])).toThrow(/--digests writes its folds to --out/);
     expect(() => parsePocketArgs(["--step", "1", "--digests", "--arms", "A1", "--out", "x.json"])).toThrow(/takes --out and nothing else \(not --arms\)/);
     expect(() => parsePocketArgs(["--step", "1", "--write-filed", "f.json"])).toThrow(/--write-filed: step 0's flag/);
-    expect(() => parsePocketArgs(["--step", "0", "--arms", "A1"])).toThrow(/--arms: step 1's flags/);
-    expect(() => parsePocketArgs(["--report", "r.md", "--step", "0"])).toThrow(/--report: step 1's flags/);
+    expect(() => parsePocketArgs(["--step", "0", "--arms", "A1"])).toThrow(/--arms: step 1's and step 2's flags, not step 0's/);
+    expect(() => parsePocketArgs(["--report", "r.md", "--step", "0"])).toThrow(/--report: step 1's and step 2's flags, not step 0's/);
+    expect(() => parsePocketArgs(["--step", "1", "--m2"])).toThrow(/--m2: step 2's flag, not step 1's/);
+    expect(() => parsePocketArgs(["--step", "0", "--m2"])).toThrow(/--m2: step 2's flag, not step 0's/);
+    // Step 1's --arms is step 1's list: a step-2 arm is not one of it.
+    expect(() => parsePocketArgs(["--step", "1", "--arms", "A1,B3"])).toThrow(/--arms: B3 is not an arm \(A0 to A15, A0b\)/);
+    expect(() => parsePocketArgs(["--arms", "B1", "--step", "1"])).toThrow(/--arms: B1 is not an arm \(A0 to A15, A0b\)/);
+  });
+
+  it("takes --step 2 with its flags; --arms takes step 2's run list only (C2-F4), whatever order the flags come in", () => {
+    expect(parsePocketArgs(["--", "--step", "2"], "/pkg")).toEqual({ step: 2 });
+    expect(
+      parsePocketArgs(["--step", "2", "--arms", "B3,A1", "--shard", "1/3", "--cache", "scratch/c", "--seed-set", "1", "--report", "r.md", "--out", "/abs/m.json"], "/pkg"),
+    ).toEqual({ step: 2, arms: ["B3", "A1"], shard: { index: 1, count: 3 }, cache: "/pkg/scratch/c", seedSet: 1, report: "/pkg/r.md", out: "/abs/m.json" });
+    expect(parsePocketArgs(["--arms", "A0,A14,A1,A5,A11,B1,B2,B3,B4,B5,B6,B7", "--step", "2"], "/pkg")).toEqual({
+      step: 2,
+      arms: ["A0", "A14", "A1", "A5", "A11", "B1", "B2", "B3", "B4", "B5", "B6", "B7"],
+    });
+    // Step 2's --seed-set plays the run (or the arms named) on one set: no --arms needed.
+    expect(parsePocketArgs(["--step", "2", "--seed-set", "2"], "/pkg")).toEqual({ step: 2, seedSet: 2 });
+    expect(parsePocketArgs(["--step", "2", "--digests", "--out", "d1.json"], "/pkg")).toEqual({ step: 2, digests: true, out: "/pkg/d1.json" });
+    expect(parsePocketArgs(["--step", "2", "--m2"], "/pkg")).toEqual({ step: 2, m2: true });
+    expect(parsePocketArgs(["--step", "2", "--m2", "--arms", "A1,B4", "--cache", "c", "--seed-set", "2"], "/pkg")).toEqual({
+      step: 2,
+      m2: true,
+      arms: ["A1", "B4"],
+      cache: "/pkg/c",
+      seedSet: 2,
+    });
+  });
+
+  it("refuses step 2's bad values and the other steps' flags", () => {
+    for (const bad of ["A2", "A3", "A15", "A0b", "B8", "B0", "b1"]) {
+      expect(() => parsePocketArgs(["--step", "2", "--arms", `A1,${bad}`]), bad).toThrow(new RegExp(`--arms: ${bad} is not an arm \\(step 2's: A0, A14, A1, A5, A11, B1 to B7\\)`));
+    }
+    expect(() => parsePocketArgs(["--arms", "A2", "--step", "2"])).toThrow(/--arms: A2 is not an arm \(step 2's/);
+    expect(() => parsePocketArgs(["--step", "2", "--arms", "B1,,B2"])).toThrow(/an empty arm is not an arm/);
+    expect(() => parsePocketArgs(["--step", "2", "--arms", "B1,B1"])).toThrow(/names an arm twice/);
+    expect(() => parsePocketArgs(["--step", "2", "--shard", "4/3"])).toThrow(/--shard takes i\/n/);
+    expect(() => parsePocketArgs(["--step", "2", "--seed-set", "0"])).toThrow(/--seed-set takes 1 or 2/);
+    expect(() => parsePocketArgs(["--step", "2", "--write-filed", "f.json"])).toThrow(/--write-filed: step 0's flag, not step 2's/);
+    expect(() => parsePocketArgs(["--step", "2", "--digests"])).toThrow(/--digests writes its folds to --out/);
+    expect(() => parsePocketArgs(["--step", "2", "--digests", "--arms", "A1", "--m2", "--out", "x.json"])).toThrow(/takes --out and nothing else \(not --arms, --m2\)/);
+    expect(() => parsePocketArgs(["--step", "2", "--m2", "--shard", "1/2", "--report", "r.md", "--out", "o.json"])).toThrow(
+      /--m2 prints M2's section only; it takes --arms, --cache and --seed-set \(not --shard, --report, --out\)/,
+    );
+    expect(() => parsePocketArgs(["--step", "2", "--seed", "x"])).toThrow(/unknown argument --seed \(pocket -- --step 2/);
   });
 
   it("refuses another step, a missing step, a flag with no value and an unknown flag", () => {
-    expect(() => parsePocketArgs(["--step", "2"])).toThrow(/steps 0 and 1 are built.*--step 2 is not/);
+    expect(() => parsePocketArgs(["--step", "3"])).toThrow(/steps 0, 1 and 2 are built.*--step 3 is not/);
     expect(() => parsePocketArgs(["--step", "01"])).toThrow(/--step 01 is not/);
     expect(() => parsePocketArgs([])).toThrow(/--step is required/);
     expect(() => parsePocketArgs(["--step", "0", "--out"])).toThrow(/requires a value/);
