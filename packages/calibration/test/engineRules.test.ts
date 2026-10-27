@@ -1,9 +1,9 @@
 /**
  * ADR-089 — THE ENGINE RULES NAME AND ITS BUNDLES (`src/pocket/rules.ts`; step 0's plan §4,
- * deviation O11; step 1's plan §3, §4, §7.2 items 1 and 11, §16.4).
+ * deviation O11; step 1's plan §3, §4, §7.2 items 1 and 11, §16.4; step 2's plan §1.2, §1.3, §1.8).
  *
- *  1. This build has `legacy` and `pocket-1.s1`, and `legacy` is the default (§9: "main's default
- *     stays `legacy` until step 11's flip commit").
+ *  1. This build has `legacy`, `pocket-1.s1` and `pocket-1.s2`, and `legacy` is the default (§9:
+ *     "main's default stays `legacy` until step 11's flip commit").
  *  2. A name is checked: absent is the default, a name this build does not have is refused, and so
  *     is the word "default", so nothing is ever stamped with anything but the rules that played.
  *  3. The bundles: `rulesTunables("legacy")` is `DEFAULT_TUNABLES` itself; `pocket-1.s1` is the
@@ -15,6 +15,13 @@
  *     rules are `<name>@<digest>`; every refusal has its own message; the grammar is pinned.
  *  5. When a name is written: never for `legacy` on the identity, provenance and save; always on the
  *     export file and `--out`; the overlay digest only when the rules are not `legacy`.
+ *  6. Step 2's bundle `pocket-1.s2`: step 1's blocks on `DEFAULT_TUNABLES` with Half
+ *     (`arrival.collapsingWithinSeconds` 1.0 -> 0.5) and Follows (`arrival.pressureWithinSeconds`
+ *     2.0 -> 1.0, so P = C + (C - I) holds) changed inside the bundle only, and `pocket.forcing`
+ *     PER_RUSHER; its digest a recorded literal. `withOverlay`'s fourth argument adds the forcing
+ *     key only when given; the forcing block is refused under `legacy`, under `pocket-1.s1`, on a
+ *     base that has one, outside the closed set, and under PER_RUSHER on a forcing point the engine
+ *     would refuse. `DEFAULT_TUNABLES` does not move (census and digest).
  */
 import { describe, expect, it } from "vitest";
 import { applyTunablePatch, DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
@@ -23,10 +30,15 @@ import {
   DEFAULT_ENGINE_RULES,
   ENGINE_RULES,
   EngineRulesError,
+  FORCING_RULES,
   LEGACY_RULES,
   POCKET_1_S1_DIGEST,
   POCKET_1_S1_OVERLAY,
   POCKET_1_S1_RULES,
+  POCKET_1_S2_DIGEST,
+  POCKET_1_S2_FORCING,
+  POCKET_1_S2_LEAVES,
+  POCKET_1_S2_RULES,
   checkStamp,
   engineRulesDigestOf,
   engineRulesNamed,
@@ -39,11 +51,30 @@ import {
   rulesTunables,
   saveRulesName,
   withOverlay,
+  type PocketForcing,
   type PocketOverlay,
 } from "../src/pocket/rules.js";
+import { seasonRules } from "../src/season/stamp.js";
 
 /** K18's literal: the overlay digest of `pocket-1.s1` on this build (N9). Re-recorded only under K24. */
 const RECORDED_POCKET_1_S1_DIGEST = "fnv1a:69a7cc48";
+
+/**
+ * The overlay digest of `pocket-1.s2` on this build, recorded at step 2's build (plan §1.8, K24).
+ * After step 2 merges it is never re-recorded under `pocket-1.s2`: a changed build takes a new name.
+ */
+const RECORDED_POCKET_1_S2_DIGEST = "fnv1a:03754f60";
+
+/** Every leaf of a tree, by dotted path. */
+function leaves(value: unknown, path = ""): Map<string, unknown> {
+  const out = new Map<string, unknown>();
+  if (typeof value !== "object" || value === null) {
+    out.set(path, value);
+    return out;
+  }
+  for (const [k, v] of Object.entries(value)) for (const [p, x] of leaves(v, path === "" ? k : `${path}.${k}`)) out.set(p, x);
+  return out;
+}
 
 /** Every object node of a tree, with its path. */
 function nodes(value: unknown, path = "$"): [string, object][] {
@@ -52,30 +83,38 @@ function nodes(value: unknown, path = "$"): [string, object][] {
 }
 
 describe("the rules this build has (ADR-089 §9)", () => {
-  it("is legacy and pocket-1.s1, and legacy is the default", () => {
+  it("is legacy, pocket-1.s1 and pocket-1.s2, and legacy is the default", () => {
     expect(LEGACY_RULES).toBe("legacy");
     expect(POCKET_1_S1_RULES).toBe("pocket-1.s1");
-    expect([...ENGINE_RULES]).toEqual(["legacy", "pocket-1.s1"]);
+    expect(POCKET_1_S2_RULES).toBe("pocket-1.s2");
+    expect([...ENGINE_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2"]);
     expect(DEFAULT_ENGINE_RULES).toBe("legacy");
     expect(isEngineRules("legacy")).toBe(true);
     expect(isEngineRules("pocket-1")).toBe(false);
     expect(isEngineRules("pocket-1.s1")).toBe(true);
+    expect(isEngineRules("pocket-1.s2")).toBe(true);
+    expect(isEngineRules("pocket-1.s3")).toBe(false);
   });
 
   it("checks a named bundle: absent is the default, an unknown name or the word default is refused", () => {
     expect(engineRulesNamed(undefined, "here")).toBe("legacy");
     expect(engineRulesNamed("legacy", "here")).toBe("legacy");
     expect(engineRulesNamed("pocket-1.s1", "here")).toBe("pocket-1.s1");
-    for (const bad of ["pocket-1", "pocket-1.s9", "default", "", "Legacy", `pocket-1.s1@${POCKET_1_S1_DIGEST}`]) {
+    expect(engineRulesNamed("pocket-1.s2", "here")).toBe("pocket-1.s2");
+    for (const bad of ["pocket-1", "pocket-1.s9", "pocket-1.s3", "default", "", "Legacy", `pocket-1.s1@${POCKET_1_S1_DIGEST}`, `pocket-1.s2@${POCKET_1_S2_DIGEST}`]) {
       expect(() => engineRulesNamed(bad, "here")).toThrow(EngineRulesError);
     }
-    expect(() => engineRulesNamed("pocket-1.s9", "runBatch")).toThrow(/^runBatch: engine rules "pocket-1.s9" are not in this build, which has legacy, pocket-1.s1/);
+    expect(() => engineRulesNamed("pocket-1.s9", "runBatch")).toThrow(
+      'runBatch: engine rules "pocket-1.s9" are not in this build, which has legacy, pocket-1.s1, pocket-1.s2 (ADR-089 §9)',
+    );
   });
 
-  it("legacy has no overlay digest; pocket-1.s1's is the recorded literal", () => {
+  it("legacy has no overlay digest; pocket-1.s1's and pocket-1.s2's are the recorded literals", () => {
     expect(engineRulesDigestOf("legacy")).toBeUndefined();
     expect(engineRulesDigestOf("pocket-1.s1")).toBe(POCKET_1_S1_DIGEST);
     expect(POCKET_1_S1_DIGEST).toBe(RECORDED_POCKET_1_S1_DIGEST);
+    expect(engineRulesDigestOf("pocket-1.s2")).toBe(POCKET_1_S2_DIGEST);
+    expect(POCKET_1_S2_DIGEST).toBe(RECORDED_POCKET_1_S2_DIGEST);
   });
 
   it("every rules name is [a-z0-9.-] only, so none can hold the save's @ (F12)", () => {
@@ -251,6 +290,32 @@ describe("the rules a save was played with (P1; K18 (a), plan §16.4)", () => {
 
   it("is the bundle when the save names it at this build's digest", () => {
     expect(rulesOfSave({ engineRules: `pocket-1.s1@${RECORDED_POCKET_1_S1_DIGEST}` })).toBe("pocket-1.s1");
+    expect(rulesOfSave({ engineRules: `pocket-1.s2@${RECORDED_POCKET_1_S2_DIGEST}` })).toBe("pocket-1.s2");
+  });
+
+  it("writes pocket-1.s2 as <name>@<digest>, and refuses one bundle's digest under the other's name (ADR-089 §9, step 2)", () => {
+    expect(saveRulesName("pocket-1.s2")).toBe(`pocket-1.s2@${RECORDED_POCKET_1_S2_DIGEST}`);
+    expect(() => rulesOfSave({ engineRules: `pocket-1.s2@${RECORDED_POCKET_1_S1_DIGEST}` })).toThrow(
+      `This save was played with engine rules pocket-1.s2 at overlay ${RECORDED_POCKET_1_S1_DIGEST}; this build's pocket-1.s2 is ${RECORDED_POCKET_1_S2_DIGEST}`,
+    );
+    expect(() => rulesOfSave({ engineRules: `pocket-1.s1@${RECORDED_POCKET_1_S2_DIGEST}` })).toThrow(
+      `This save was played with engine rules pocket-1.s1 at overlay ${RECORDED_POCKET_1_S2_DIGEST}; this build's pocket-1.s1 is ${RECORDED_POCKET_1_S1_DIGEST}`,
+    );
+    expect(() => rulesOfSave({ engineRules: "pocket-1.s2" })).toThrow("This save was played with engine rules pocket-1.s2 and carries no overlay digest");
+  });
+
+  it("the season command plays pocket-1.s2 when named, carries an s2 save on under its own rules, and refuses to convert (Q-8)", () => {
+    expect(seasonRules(undefined, "pocket-1.s2")).toBe("pocket-1.s2");
+    const s2Save = { playedWith: { engineRules: `pocket-1.s2@${RECORDED_POCKET_1_S2_DIGEST}` } };
+    const s1Save = { playedWith: { engineRules: `pocket-1.s1@${RECORDED_POCKET_1_S1_DIGEST}` } };
+    expect(seasonRules(s2Save)).toBe("pocket-1.s2");
+    expect(seasonRules(s2Save, "pocket-1.s2")).toBe("pocket-1.s2");
+    // A pocket-1.s1 save still loads as itself.
+    expect(seasonRules(s1Save)).toBe("pocket-1.s1");
+    expect(() => seasonRules(s1Save, "pocket-1.s2")).toThrow(EngineRulesError);
+    expect(() => seasonRules(s1Save, "pocket-1.s2")).toThrow(/^This save was played with engine rules pocket-1.s1; carrying it on under pocket-1.s2 is refused, not converted/);
+    expect(() => seasonRules(s2Save, "pocket-1.s1")).toThrow(/^This save was played with engine rules pocket-1.s2; carrying it on under pocket-1.s1 is refused, not converted/);
+    expect(() => seasonRules({}, "pocket-1.s2")).toThrow(/^This save was played with engine rules legacy; carrying it on under pocket-1.s2 is refused/);
   });
 
   it("writes legacy as nothing and other rules as <name>@<digest>, and every non-legacy name round-trips (F12)", () => {
@@ -319,6 +384,192 @@ describe("when the name is written (O11)", () => {
   });
 });
 
+describe("pocket-1.s2, step 2's bundle (plan §1.2, §1.3, §1.8)", () => {
+  const card = { pushMinMargin: 1, pushMaxMargin: 14 };
+  const leaf = (t: Tunables, tunableId: string, currentValue: number, proposedValue: number): Tunables =>
+    applyTunablePatch(t, { tunableId, currentValue, proposedValue, evidence: "test", expectedEffect: "test" });
+  /** DEFAULT_TUNABLES with Half and Follows, the base `pocket-1.s2` is stamped on. */
+  const horizons = (): Tunables => POCKET_1_S2_LEAVES.reduce(applyTunablePatch, DEFAULT_TUNABLES);
+
+  it("its leaves are Half and Follows from DEFAULT_TUNABLES' own values, and DEFAULT_TUNABLES does not move", () => {
+    expect(POCKET_1_S2_LEAVES.map((p) => [p.tunableId, p.currentValue, p.proposedValue])).toEqual([
+      ["arrival.collapsingWithinSeconds", 1.0, 0.5],
+      ["arrival.pressureWithinSeconds", 2.0, 1.0],
+    ]);
+    for (const p of POCKET_1_S2_LEAVES) expect(p.evidence).toBe("ADR-089 §4.3, Half and Follows; D32");
+    expect(DEFAULT_TUNABLES.arrival.collapsingWithinSeconds).toBe(1.0);
+    expect(DEFAULT_TUNABLES.arrival.pressureWithinSeconds).toBe(2.0);
+    expect(DEFAULT_TUNABLES.arrival.immediateWithinSeconds).toBe(0.0);
+    // The July rule on the defaults: P = C + (C - I).
+    const d = DEFAULT_TUNABLES.arrival;
+    expect(d.pressureWithinSeconds).toBe(d.collapsingWithinSeconds + (d.collapsingWithinSeconds - d.immediateWithinSeconds));
+    expect("forcing" in DEFAULT_TUNABLES.pocket).toBe(false);
+    expect(stableDigest(DEFAULT_TUNABLES)).toBe("fnv1a:395a9ae2");
+    expect(Object.isFrozen(POCKET_1_S2_LEAVES)).toBe(true);
+    expect(POCKET_1_S2_FORCING).toEqual({ rule: "PER_RUSHER" });
+    expect(Object.isFrozen(POCKET_1_S2_FORCING)).toBe(true);
+    expect([...FORCING_RULES]).toEqual(["PER_RUSHER", "COUNTER_LESS_SEEN"]);
+  });
+
+  it("is step 1's blocks, Half and Follows, and must act per rusher on DEFAULT_TUNABLES, stamped at the recorded digest", () => {
+    const b = rulesTunables("pocket-1.s2");
+    expect(rulesTunables("pocket-1.s2")).toBe(b);
+    expect(b.engineRules).toEqual({ name: "pocket-1.s2", overlayDigest: RECORDED_POCKET_1_S2_DIGEST });
+    expect(overlayDigestOf(b)).toBe(RECORDED_POCKET_1_S2_DIGEST);
+    expect(b.passRush.beatClock).toEqual(POCKET_1_S1_OVERLAY.beatClock);
+    expect(b.passRush.approach).toEqual(POCKET_1_S1_OVERLAY.approach);
+    expect(b.passRush.repClock).toBeUndefined();
+    expect(b.pocket.forcing).toEqual({ rule: "PER_RUSHER" });
+    expect(Object.keys(b.pocket.forcing!)).toEqual(["rule"]);
+    // Half and Follows, and the July rule kept: P = C + (C - I) = 0.5 + (0.5 - 0.0) (plan §1.3).
+    const a = b.arrival;
+    expect([a.collapsingWithinSeconds, a.pressureWithinSeconds, a.immediateWithinSeconds]).toEqual([0.5, 1.0, 0.0]);
+    expect(a.pressureWithinSeconds).toBe(a.collapsingWithinSeconds + (a.collapsingWithinSeconds - a.immediateWithinSeconds));
+    // O28: the digest is of the tunables less the stamp, built here by hand.
+    const h = horizons();
+    expect(stableDigest({ ...h, passRush: { ...h.passRush, ...POCKET_1_S1_OVERLAY }, pocket: { ...h.pocket, forcing: { rule: "PER_RUSHER" } } })).toBe(RECORDED_POCKET_1_S2_DIGEST);
+    // Every leaf but the two horizons, the blocks and the stamp is DEFAULT_TUNABLES' own.
+    const base = leaves(DEFAULT_TUNABLES);
+    const after = leaves(b);
+    const moved = [...after].filter(([p, v]) => base.get(p) !== v).map(([p]) => p).sort();
+    expect(moved).toEqual([
+      "arrival.collapsingWithinSeconds",
+      "arrival.pressureWithinSeconds",
+      "engineRules.name",
+      "engineRules.overlayDigest",
+      "passRush.approach.pushMaxMargin",
+      "passRush.approach.pushMinMargin",
+      "passRush.beatClock.pushWindow.lengthSeconds",
+      "passRush.beatClock.pushWindow.maxMargin",
+      "passRush.beatClock.pushWindow.minMargin",
+      "passRush.beatClock.ratingWeight",
+      "passRush.beatClock.shape",
+      "passRush.beatClock.thetaSeconds",
+      "pocket.forcing.rule",
+    ]);
+    expect([...base.keys()].filter((p) => !after.has(p))).toEqual([]);
+    expect(checkStamp(b, "pocket-1.s2")).toBe(b);
+    for (const [path, node] of nodes(b)) expect(Object.isFrozen(node), path).toBe(true);
+  });
+
+  it("is another bundle than pocket-1.s1, which keeps step 1's forcing rule and its digest", () => {
+    const s1 = rulesTunables("pocket-1.s1");
+    const s2 = rulesTunables("pocket-1.s2");
+    expect("forcing" in s1.pocket).toBe(false);
+    expect(s1.engineRules?.overlayDigest).toBe(RECORDED_POCKET_1_S1_DIGEST);
+    expect(RECORDED_POCKET_1_S2_DIGEST).not.toBe(RECORDED_POCKET_1_S1_DIGEST);
+    expect(stableDigest(s2)).not.toBe(stableDigest(s1));
+    // O28: the digest names the dials, the name names the code. Step 1's dials stamped pocket-1.s2
+    // digest as pocket-1.s1 does; only the stamp's name tells them apart.
+    const sameDials = withOverlay(DEFAULT_TUNABLES, "pocket-1.s2", POCKET_1_S1_OVERLAY);
+    expect(sameDials.engineRules).toEqual({ name: "pocket-1.s2", overlayDigest: RECORDED_POCKET_1_S1_DIGEST });
+  });
+
+  it("withOverlay adds the forcing key only when it is given, and copies it", () => {
+    const without = withOverlay(horizons(), "pocket-1.s2", POCKET_1_S1_OVERLAY);
+    expect("forcing" in without.pocket).toBe(false);
+    expect(Object.keys(without.pocket)).toEqual(Object.keys(DEFAULT_TUNABLES.pocket));
+    const forcing: PocketForcing = { rule: "COUNTER_LESS_SEEN" };
+    const withRule = withOverlay(horizons(), "pocket-1.s2", POCKET_1_S1_OVERLAY, forcing);
+    expect(Object.keys(withRule.pocket)).toEqual([...Object.keys(DEFAULT_TUNABLES.pocket), "forcing"]);
+    expect(withRule.pocket.forcing).toEqual({ rule: "COUNTER_LESS_SEEN" });
+    expect(withRule.pocket.forcing).not.toBe(forcing);
+    expect(Object.isFrozen(forcing)).toBe(false);
+    expect(Object.isFrozen(withRule.pocket.forcing)).toBe(true);
+    // Every rule of the closed set is a bundle, under S and under L, and the rule is in the digest.
+    const digests = new Set<string>();
+    for (const rule of FORCING_RULES) {
+      for (const blocks of [POCKET_1_S1_OVERLAY, { repClock: { fullExpressionSeconds: 8 }, approach: card }]) {
+        const t = withOverlay(horizons(), "pocket-1.s2", blocks, { rule });
+        expect(checkStamp(t, "pocket-1.s2")).toBe(t);
+        digests.add(t.engineRules!.overlayDigest);
+      }
+    }
+    expect(digests.size).toBe(4);
+    expect(digests.has(without.engineRules!.overlayDigest)).toBe(false);
+  });
+
+  it("withOverlay refuses the forcing block on a base that has one, under pocket-1.s1, and outside the closed set", () => {
+    const forced: Tunables = { ...DEFAULT_TUNABLES, pocket: { ...DEFAULT_TUNABLES.pocket, forcing: { rule: "PER_RUSHER" } } };
+    const cases: [string, () => unknown, string][] = [
+      ["a base with a forcing block", () => withOverlay(forced, "pocket-1.s2", POCKET_1_S1_OVERLAY), "withOverlay(pocket-1.s2): the base already carries pocket.forcing; a bundle's blocks come from its overlay"],
+      ["a base with a forcing block, given one too", () => withOverlay(forced, "pocket-1.s2", POCKET_1_S1_OVERLAY, POCKET_1_S2_FORCING), "withOverlay(pocket-1.s2): the base already carries pocket.forcing; a bundle's blocks come from its overlay"],
+      [
+        "a forcing block under pocket-1.s1",
+        () => withOverlay(DEFAULT_TUNABLES, "pocket-1.s1", POCKET_1_S1_OVERLAY, POCKET_1_S2_FORCING),
+        "withOverlay(pocket-1.s1): pocket-1.s1 plays step 1's forcing rule and carries no forcing block (pocket.forcing); must act per rusher is pocket-1.s2's (ADR-089 step 2)",
+      ],
+      ["the counter rule under pocket-1.s1", () => withOverlay(DEFAULT_TUNABLES, "pocket-1.s1", POCKET_1_S1_OVERLAY, { rule: "COUNTER_LESS_SEEN" }), "withOverlay(pocket-1.s1): pocket-1.s1 plays step 1's forcing rule"],
+      ["step 1's rule by name", () => withOverlay(horizons(), "pocket-1.s2", POCKET_1_S1_OVERLAY, { rule: "STEP_1" } as never), "withOverlay(pocket-1.s2): the forcing block's rule (pocket.forcing.rule) is STEP_1, which is not one of PER_RUSHER, COUNTER_LESS_SEEN"],
+      ["a rule in the wrong case", () => withOverlay(horizons(), "pocket-1.s2", POCKET_1_S1_OVERLAY, { rule: "per_rusher" } as never), "withOverlay(pocket-1.s2): the forcing block's rule (pocket.forcing.rule) is per_rusher, which is not one of PER_RUSHER, COUNTER_LESS_SEEN"],
+      ["no rule", () => withOverlay(horizons(), "pocket-1.s2", POCKET_1_S1_OVERLAY, {} as never), "withOverlay(pocket-1.s2): the forcing block's rule (pocket.forcing.rule) is undefined, which is not one of PER_RUSHER, COUNTER_LESS_SEEN"],
+      ["a block that is not an object", () => withOverlay(horizons(), "pocket-1.s2", POCKET_1_S1_OVERLAY, "PER_RUSHER" as never), "withOverlay(pocket-1.s2): the forcing block (pocket.forcing) must be an object { rule }, got PER_RUSHER"],
+      ["a null block", () => withOverlay(horizons(), "pocket-1.s2", POCKET_1_S1_OVERLAY, null as never), "withOverlay(pocket-1.s2): the forcing block (pocket.forcing) must be an object { rule }, got null"],
+    ];
+    for (const [label, run, message] of cases) {
+      expect(run, label).toThrow(EngineRulesError);
+      expect(run, label).toThrow(message);
+    }
+  });
+
+  it("under PER_RUSHER, refuses a forcing point the engine would refuse; COUNTER_LESS_SEEN is free of those checks", () => {
+    const iAboveC = leaf(horizons(), "arrival.immediateWithinSeconds", 0, 0.6);
+    const cases: [string, Tunables, string][] = [
+      ["a negative forcing point", leaf(DEFAULT_TUNABLES, "arrival.collapsingWithinSeconds", 1.0, -0.5), "arrival.collapsingWithinSeconds (must act's threat part) must be a finite number, 0 or more, got -0.5"],
+      ["a forcing point that is not a number", leaf(DEFAULT_TUNABLES, "arrival.collapsingWithinSeconds", 1.0, Number.NaN), "arrival.collapsingWithinSeconds (must act's threat part) must be a finite number, 0 or more, got NaN"],
+      ["IMMEDIATE above the forcing point", iAboveC, "arrival.immediateWithinSeconds (0.6) may not lie above arrival.collapsingWithinSeconds (0.5): an IMMEDIATE from an arrival would not force"],
+      ["IMMEDIATE not a number", leaf(DEFAULT_TUNABLES, "arrival.immediateWithinSeconds", 0, Number.NaN), "arrival.immediateWithinSeconds (NaN) may not lie above arrival.collapsingWithinSeconds (1): an IMMEDIATE from an arrival would not force"],
+    ];
+    for (const [label, base, message] of cases) {
+      expect(() => withOverlay(base, "pocket-1.s2", POCKET_1_S1_OVERLAY, POCKET_1_S2_FORCING), label).toThrow(EngineRulesError);
+      expect(() => withOverlay(base, "pocket-1.s2", POCKET_1_S1_OVERLAY, POCKET_1_S2_FORCING), label).toThrow(`withOverlay(pocket-1.s2): under pocket.forcing PER_RUSHER, ${message}`);
+      // The same dials stamped by hand, the digest right, are refused by checkStamp the same way.
+      const unstamped: Tunables = { ...base, passRush: { ...base.passRush, ...POCKET_1_S1_OVERLAY }, pocket: { ...base.pocket, forcing: POCKET_1_S2_FORCING } };
+      const byHand: Tunables = { ...unstamped, engineRules: { name: "pocket-1.s2", overlayDigest: overlayDigestOf(unstamped) } };
+      expect(() => checkStamp(byHand, "pocket-1.s2", "runBatch"), label).toThrow(`runBatch: under pocket.forcing PER_RUSHER, ${message}`);
+      // Without the forcing block, or under the narrower rule, the arrival checks do not apply.
+      expect(withOverlay(base, "pocket-1.s2", POCKET_1_S1_OVERLAY).engineRules?.name, label).toBe("pocket-1.s2");
+      expect(withOverlay(base, "pocket-1.s2", POCKET_1_S1_OVERLAY, { rule: "COUNTER_LESS_SEEN" }).pocket.forcing, label).toEqual({ rule: "COUNTER_LESS_SEEN" });
+    }
+    // A forcing point of 0 with IMMEDIATE at 0 is a bundle, as the engine accepts it.
+    const zero = leaf(leaf(DEFAULT_TUNABLES, "arrival.collapsingWithinSeconds", 1.0, 0), "arrival.pressureWithinSeconds", 2.0, 0);
+    expect(withOverlay(zero, "pocket-1.s2", POCKET_1_S1_OVERLAY, POCKET_1_S2_FORCING).pocket.forcing).toEqual({ rule: "PER_RUSHER" });
+  });
+
+  it("checkStamp sees the forcing block: refused under legacy and under pocket-1.s1, and a forcing rule changed after stamping", () => {
+    const s2 = rulesTunables("pocket-1.s2");
+    const forcingOnly: Tunables = { ...DEFAULT_TUNABLES, pocket: { ...DEFAULT_TUNABLES.pocket, forcing: { rule: "PER_RUSHER" } } };
+    const blocksAndForcing: Tunables = { ...forcingOnly, passRush: { ...DEFAULT_TUNABLES.passRush, ...POCKET_1_S1_OVERLAY } };
+    const s1Unstamped: Tunables = { ...DEFAULT_TUNABLES, passRush: { ...DEFAULT_TUNABLES.passRush, ...POCKET_1_S1_OVERLAY }, pocket: { ...DEFAULT_TUNABLES.pocket, forcing: { rule: "PER_RUSHER" } } };
+    const s1ByHand: Tunables = { ...s1Unstamped, engineRules: { name: "pocket-1.s1", overlayDigest: overlayDigestOf(s1Unstamped) } };
+    const ruleChanged = applyTunablePatch(s2, { tunableId: "pocket.forcing.rule", currentValue: "PER_RUSHER", proposedValue: "COUNTER_LESS_SEEN", evidence: "test", expectedEffect: "test" });
+    const { forcing: _f, ...pocketWithout } = s2.pocket;
+    const forcingDropped: Tunables = { ...s2, pocket: pocketWithout };
+    const cases: [string, () => unknown, string | RegExp][] = [
+      ["legacy named, a forcing block alone", () => checkStamp(forcingOnly, "legacy", "w"), "w: the run names engine rules legacy, but the tunables carry pocket.forcing with no rules stamp"],
+      ["legacy named, the blocks and a forcing block", () => checkStamp(blocksAndForcing, "legacy", "w"), "w: the run names engine rules legacy, but the tunables carry passRush.beatClock, passRush.approach, pocket.forcing with no rules stamp"],
+      ["legacy named, pocket-1.s2 passed", () => checkStamp(s2, "legacy", "w"), "w: the run names engine rules legacy, but the tunables carry the rules stamp pocket-1.s2"],
+      ["pocket-1.s1 named, a forcing block stamped by hand", () => checkStamp(s1ByHand, "pocket-1.s1", "w"), "w: pocket-1.s1 plays step 1's forcing rule and carries no forcing block (pocket.forcing); must act per rusher is pocket-1.s2's (ADR-089 step 2)"],
+      ["pocket-1.s1 named, pocket-1.s2 passed", () => checkStamp(s2, "pocket-1.s1", "w"), "w: the run names engine rules pocket-1.s1, but the tunables are stamped pocket-1.s2"],
+      ["the rule changed after stamping", () => checkStamp(ruleChanged, "pocket-1.s2", "w"), /^w: the tunables are stamped pocket-1.s2 at overlay fnv1a:03754f60, but they digest to fnv1a:[0-9a-f]{8}: a dial changed after stamping$/],
+      ["the block dropped after stamping", () => checkStamp(forcingDropped, "pocket-1.s2", "w"), /^w: the tunables are stamped pocket-1.s2 at overlay fnv1a:03754f60, but they digest to fnv1a:[0-9a-f]{8}: a dial changed after stamping$/],
+      ["a horizon patched after stamping", () => checkStamp(leaf(s2, "arrival.pressureWithinSeconds", 1.0, 2.0), "pocket-1.s2", "w"), /a dial changed after stamping$/],
+    ];
+    for (const [label, run, message] of cases) {
+      expect(run, label).toThrow(EngineRulesError);
+      expect(run, label).toThrow(message);
+    }
+    // A pocket-1.s2 bundle with no forcing block plays step 1's rule under the step-2 name (B2, B5, B7).
+    const noForcing = withOverlay(horizons(), "pocket-1.s2", POCKET_1_S1_OVERLAY);
+    expect(checkStamp(noForcing, "pocket-1.s2")).toBe(noForcing);
+  });
+
+  it("is written down like any non-legacy bundle (O11)", () => {
+    expect(rulesStampUnlessLegacy("pocket-1.s2", RECORDED_POCKET_1_S2_DIGEST)).toEqual({ engineRules: "pocket-1.s2", engineRulesDigest: RECORDED_POCKET_1_S2_DIGEST });
+    expect(rulesStampAlways("pocket-1.s2", RECORDED_POCKET_1_S2_DIGEST)).toEqual({ engineRules: "pocket-1.s2", engineRulesDigest: RECORDED_POCKET_1_S2_DIGEST });
+  });
+});
+
 // Type-level: the overlay is typed from the engine's own Tunables, so a block the engine does not
 // know is a compile error, not a silent extra key.
 const _typed: PocketOverlay = POCKET_1_S1_OVERLAY;
@@ -326,3 +577,9 @@ const _typed: PocketOverlay = POCKET_1_S1_OVERLAY;
 const _unknownBlock: PocketOverlay = { lateClock: { seconds: 1 } };
 void _typed;
 void _unknownBlock;
+// And the forcing block too: a rule outside the engine's closed set does not compile.
+const _forcing: PocketForcing = POCKET_1_S2_FORCING;
+// @ts-expect-error a forcing rule the engine does not have
+const _unknownRule: PocketForcing = { rule: "STEP_1" };
+void _forcing;
+void _unknownRule;

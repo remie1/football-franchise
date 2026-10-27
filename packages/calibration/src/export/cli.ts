@@ -1,9 +1,10 @@
 /**
  * `pnpm --filter @ff/calibration export-game -- --seed <seed> [--caller v5] [--engine-rules <name>] [--out <dir>]`
  *
- * `--engine-rules` names the rules bundle to play (ADR-089 §9): `legacy` (the default) or this
- * build's design bundle `pocket-1.s1`, never an arm (O26). A non-legacy file is named after its
- * rules too, so it never overwrites the legacy file of the same seed.
+ * `--engine-rules` names the rules bundle to play (ADR-089 §9): `legacy` (the default) or one of this
+ * build's design bundles, `pocket-1.s1` (step 1) or `pocket-1.s2` (step 2: must act per rusher, the
+ * forcing point at 0.5 s and the warning at 1.0 s), never an arm (O26). A non-legacy file is named
+ * after its rules too, so it never overwrites the legacy file of the same seed.
  *
  * Plays one game and saves it where the viewer looks: `apps/game/public/games/` by default,
  * with an `index.json` listing every file there so the page can offer them. That folder is

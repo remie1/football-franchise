@@ -14,7 +14,8 @@
  * `--switch-caller` is given.
  *
  * Engine rules (ADR-089 §9, petition P1): `--engine-rules <name>` plays a new league under that rules
- * bundle (`legacy`, the default, or `pocket-1.s1`, step 1's design bundle). A save also records the
+ * bundle (`legacy`, the default; `pocket-1.s1`, step 1's design bundle; or `pocket-1.s2`, step 2's:
+ * must act per rusher, the forcing point at 0.5 s and the warning at 1.0 s). A save also records the
  * rules that played it when they are not `legacy`, as `<name>@<overlay digest>` (K18 (a)); `--load`
  * carries on under the save's rules (none recorded: `legacy`), refuses rules this version cannot
  * play as written, and refuses a `--engine-rules` that differs from the save's. `--out` records the
