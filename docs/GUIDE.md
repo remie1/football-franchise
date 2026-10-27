@@ -6,7 +6,7 @@ rules live in `ARCHITECTURE_CHARTER.md`, and the full working history lives in `
 This page points into both and should stay short. Update the "Where things stand" section when
 a big piece lands.
 
-_Last updated: 25 October 2026._
+_Last updated: 27 October 2026._
 
 ## What the game is
 
@@ -119,7 +119,7 @@ out, instead of to the pocket's running tally, and starts the pressure warning a
 instead of two; default play has still not changed. With the switch on, against step 1's clock on
 the same games, pressure fell from 32% to 28% of dropbacks on the flat-rated test league and from
 33% to 29% on the made-up league, and sacks rose by 0.2 to 0.4 per 100 dropbacks. Four of the five
-graded predictions held; on the made-up league pressure fell 0.02 points further than the
+graded pocket predictions held; on the made-up league pressure fell 0.02 points further than the
 predicted range, which is reported as filed. The interception check, as amended before step 2, did
 not trip. Step 2's numbers are in `packages/calibration/reports/adr-089-step2.md`; whether to merge
 it with its switch off waits on you.

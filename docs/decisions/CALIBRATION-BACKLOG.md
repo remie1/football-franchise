@@ -13184,17 +13184,17 @@ Derived by grep at the step-1 head (`c45acae`), not recalled. Each line is `unru
   `pocket-1.s1` (`fnv1a:69a7cc48`, `POCKET_1_S1_PINS`), the step-0 filing (`FILED_DIGEST` `fnv1a:9a1c90e9`) and the
   amendments file (`fnv1a:d5f9de6d`) did not move. No `packages/contracts` edit. ADR-089 Appendix G is the human-read
   record.
-- **What the arms showed** (graded as filed; nothing re-filed, tuned or re-run; ADR-089 Appendix G.3). The design
-  arm B3 against step 1's design A1 on the same seeds: pressure -4.02 points on flat and -4.32 on gen, hit-or-sack
-  +0.64 and +0.49, sacks +0.41 and +0.22, release +0.003 s and +0.015 s (set 1). Four of the five graded s2 clauses
-  pass; `s2.pressure.gen` fails as filed, 0.016 points below its band's low edge (-4.3 to -1.3; set 2 -3.68, inside).
-  The basis arm on L (B5, pkA's A123 on this build) reproduces the band's basis exactly; on S the same mechanism falls
-  1.49 points further on gen (G.5). The per-rusher rule itself moves nothing measurable at these horizons (B3 minus B7
-  within 0.02 on every figure). The interception guard under AM-1 does not breach (14 readings, largest league-wide Z
-  +1.45, largest class Z +2.01); the cumulative line against today's game, reported and never graded before step 10,
-  prints BREACH on flat. M2 reads 0.05% (flat) and 0.04% (gen) of forced decisions on A1, above its reported 0 to
-  0.02%. The tool's outcome: no structural failure, no fold fault, one graded failure, no AM-1 breach, "Merge card:
-  may be posted". What goes back to the owner is ADR-089 Appendix G.5.
+- **What the arms showed** (graded as filed; nothing re-filed, tuned or re-run; ADR-089 Appendix G.3). The design arm B3
+  against step 1's design A1 on the same seeds: pressure -4.02 points on flat and -4.32 on gen, hit-or-sack +0.64 and
+  +0.49, sacks +0.41 and +0.22, release +0.003 s and +0.015 s (set 1). Four of the five graded s2 clauses pass;
+  `s2.pressure.gen` fails as filed, 0.016 points below its band's low edge (-4.3 to -1.3; set 2 -3.68, inside). The
+  basis arm on L (B5, pkA's A123 on this build) reproduces the band's basis exactly on set 1; on S the same mechanism
+  falls 1.49 points further on gen (G.5). The per-rusher rule itself moves nothing measurable at these horizons (the
+  largest gap between B3 and B7 on any figure is 0.022). The interception guard under AM-1 does not breach (14 readings,
+  largest league-wide Z +1.45, largest class Z +2.01); the cumulative line against today's game, reported and never
+  graded before step 10, prints BREACH on flat. M2 reads 0.05% (flat) and 0.04% (gen) of forced decisions on A1, above
+  its reported 0 to 0.02%. The tool's outcome: no structural failure, no fold fault, one graded failure, no AM-1 breach,
+  "Merge card: may be posted". What goes back to the owner is ADR-089 Appendix G.5.
 
 ### Implied scope
 
@@ -13213,7 +13213,7 @@ Derived by grep at the step-2 head (`a3790a8`), not recalled. Each line is `unru
   `pocket.forcesDecision` path `:346-352`, and the sizing-defect texts), `knownTruth/geometryTimeRetirement.ts:22`,
   `:85` and `knownTruth/ruling2CommittedRetirement.ts:99` (comments). They describe today's rule; none is run on a
   `pocket-1.s2` stream at step 2. `unruled`.
-- **Pursuit's own forcing,** `engine/src/resolve/scramble.ts` (`pursuitForcesDecision`, `:140`): unchanged under
+- **Pursuit's own forcing,** `engine/src/resolve/scramble.ts` (`pursuitForcesDecision`, `:170`): unchanged under
   every rule; must act per rusher is the pocket branch's only. `unruled`.
 - **`ThrowawayCause`'s doc** (`packages/contracts/src/events.ts:181-186`, "§7.2's pocket forcing him out of the
   play"): it reads through §7.2's marked step-2 block and waits for P16 at step 11 (ADR-089 Appendix G.1). `unruled`.
@@ -13229,11 +13229,15 @@ Derived by grep at the step-2 head (`a3790a8`), not recalled. Each line is `unru
 
 - **Default play unchanged:** MEASURED by step 2's proofs P-1 to P-14 at `d14a991` (ADR-089 Appendix G.4,
   `proofs.md`), and again after the review fixes at `339c3e7` (P-1, P-3 (a), P-9, P-12, P-13, P-14 and
-  `pnpm install --frozen-lockfile && pnpm verify`, `build-fix.md`). P-13: every CLI save, `--out` and export
-  byte-identical to `b98ecd1`'s, at a worktree of the base, MEASURED. `pocket-1.s1` replays byte for byte: Q-1 and
-  Q-1 ON (`POCKET_1_S1_PINS` and the A5 and A11 base pins), MEASURED at both heads.
-- **P-15** (the gated ladder census) exits 1 at the head and at `b98ecd1`, with the same 131 `pass_rush_tick` cells
-  and a byte-identical census report, MEASURED: entry 175's Finding 1, unchanged.
+  `pnpm install --frozen-lockfile && pnpm verify`, `build-fix.md`), and a third time at the record head `8b24cd9`
+  (every proof but the arms, P-3 (b), Q-3 and Q-7v, with Q-4 added; `proofs-final.md`, ADR-089 Appendix G.4),
+  where P-12's order clause, which held vacuously at `d14a991`, holds on the committed pins (`6b667eb`) and reports
+  (`a3790a8`). P-13: every CLI save, `--out` and export byte-identical to `b98ecd1`'s, at a worktree of the base,
+  MEASURED. `pocket-1.s1` replays byte for byte: Q-1 and Q-1 ON (`POCKET_1_S1_PINS` and the A5 and A11 base pins),
+  MEASURED at all three heads.
+- **P-15** (the gated ladder census) exits 1 at `d14a991` (the build's head, before the review fixes), at `b98ecd1`
+  and again at the record head `8b24cd9` (`proofs-final.md`), with the same 131 `pass_rush_tick` cells and a
+  byte-identical census report, MEASURED: entry 175's Finding 1, unchanged.
 - **The arms:** `reports/adr-089-step2.md` and `.json`, stamped commit `6b667eb`, fingerprint `4ab320f1bdb71cdb`,
   `dirty: false`, amendments `fnv1a:d5f9de6d`, Node v22.22.0, caller v7; flat 496 games and gen 272 games on each
   seed set; MEASURED in three shards (1,480 s, 1,407 s and 1,389 s, A1 cached from a 381 s run), and a re-run from the
@@ -13241,10 +13245,10 @@ Derived by grep at the step-2 head (`a3790a8`), not recalled. Each line is `unru
   reproduces the committed report and measures, byte for byte) MEASURED.
 - **The pins:** `POCKET_1_S2_PINS` MEASURED at `9b41da2` by `pocket -- --step 2 --digests` (byte-identical to the
   fix stage's two-process Q-3 run), and checked by `pocketS2Pins` on the first 10 and on all 50 games a league.
-- **The world and the rule:** B5 reproduces pkA's A123 on all eight numbers (flat 33.14 / 3.67 / 2.94 / 1.589, gen
-  36.87 / 4.01 / 2.83 / 1.663), MEASURED against `designA.json`, REPORTED. "The gen miss is the world" is DERIVED
-  from the MEASURED arms ((B7 - A1) - (B5 - A5) on gen, -1.49 and -0.99 points) and is a reading drafted for the
-  Orchestrator (ADR-089 Appendix G.6).
+- **The world and the rule:** B5 reproduces pkA's A123 on all eight numbers on set 1 (pkA's are set-1 figures; flat
+  33.14 / 3.67 / 2.94 / 1.589, gen 36.87 / 4.01 / 2.83 / 1.663), MEASURED against `designA.json`, REPORTED. "The gen
+  miss is the world" is DERIVED from the MEASURED arms ((B7 - A1) - (B5 - A5) on gen, -1.49 and -0.99 points) and is a
+  reading drafted for the Orchestrator (ADR-089 Appendix G.6).
 - **AM-1's readings:** MEASURED on both seed sets (G.2). The count of filed-rule breaches beside them (10 of 14
   league-wide readings, 53 of 70 class readings, on at least one set) is DERIVED from the measures file's
   `filedPasses`.
