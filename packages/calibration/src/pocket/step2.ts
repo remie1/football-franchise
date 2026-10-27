@@ -511,7 +511,7 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
   const powerText =
     `; chances (a status-forced tick with no threat part, where the rules part ways) ${String(perRusherChances)} on the PER_RUSHER arms, ${String(uncountedOf(perRusher))} of them outside the count part too; ` +
     `the positive control, B7 read as PER_RUSHER: ${controls.length === 0 ? "not in this run" : `${String(controlFails)} failures over ${String(chancesOf(controls))} chances (${String(uncountedOf(controls))} outside the count part)`}` +
-    (noPower ? "; no discriminating case on this corpus, so the proof has no power here and the engine's mustAct.test.ts (a) carries it" : "");
+    (noPower ? "; no discriminating case on this corpus, so the proof has no power here: the engine's mustAct.test.ts (a) and calibration's pocketStep2Parting.test.ts carry it" : "");
   proofs.push({
     id: "s2.falsifier.counterAlone",
     what: "must act never fires on the counter alone (proof:must-act-counter; O40), on every PER_RUSHER arm's full corpora",
@@ -519,7 +519,7 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
     verdict: perRusher.length === 0 ? "NOT APPLICABLE" : selfFault ? "NOT JUDGED" : !a1Present ? "NOT CHECKED" : counterFails.length > 0 || counterNoCase.length > 0 ? "FAIL" : "PASS",
     detail:
       `${perRusher.map(where).join(", ") || "no PER_RUSHER arm"}: ${String(sumOf(perRusher.flatMap((x) => LEAGUES.map((l) => x.r.s2[l].mustAct.acts))))} forced acts; failures ${counterFails.length === 0 ? "none" : counterFails.join("; ")}` +
-      `${counterNoCase.length === 0 ? "" : `; no case on ${counterNoCase.join(", ")}`}${selfFault ? "; NOT JUDGED: the count part's self-check (either direction) failed (a fold fault)" : !a1Present ? "; NOT CHECKED: A1's self-check is not in this run" : ""}${powerText}; outside this run, the engine's cases are mustAct.test.ts (a) to (d)`,
+      `${counterNoCase.length === 0 ? "" : `; no case on ${counterNoCase.join(", ")}`}${selfFault ? "; NOT JUDGED: the count part's self-check (either direction) failed (a fold fault)" : !a1Present ? "; NOT CHECKED: A1's self-check is not in this run" : ""}${powerText}; outside this run, the engine's cases are mustAct.test.ts (a) to (d), and pocketStep2Parting.test.ts plays B3 against B7 where they must part`,
   });
 
   const arrivalFails = present.flatMap((x) => LEAGUES.flatMap((l) => (x.r.s2[l].arrival.problemCount > 0 ? [`${where(x)} ${l} (${String(x.r.s2[l].arrival.problemCount)}; first: ${x.r.s2[l].arrival.problems[0] ?? ""})`] : [])));

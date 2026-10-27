@@ -664,6 +664,7 @@ describe("grading synthetic records", () => {
     const powerless = grade(recordsOf((m) => { for (const bySet of m.values()) for (const r of Object.values(bySet)) for (const l of LEAGUES) { r!.s2[l].mustAct.chances = 0; r!.s2[l].mustAct.chancesUncounted = 0; r!.s2[l].mustAct.asPerRusherFailures = 0; } }));
     expect(proof(powerless, "s2.falsifier.counterAlone").detail).toMatch(/where the rules part ways\) 0 on the PER_RUSHER arms, 0 of them outside the count part too; the positive control, B7 read as PER_RUSHER: 0 failures over 0 chances \(0 outside the count part\); no discriminating case on this corpus/);
     expect(proof(powerless, "s2.falsifier.counterAlone").detail).not.toMatch(/pocketS2Pins/);
+    expect(proof(powerless, "s2.falsifier.counterAlone").detail).toMatch(/mustAct\.test\.ts \(a\) and calibration's pocketStep2Parting\.test\.ts carry it; .*pocketStep2Parting\.test\.ts plays B3 against B7 where they must part$/);
     expect(clause(powerless, "s2.falsifier.counterAlone").values[0]).toMatch(/no discriminating case on this corpus/);
     // Without A1 in the run, counterAlone is not checked (A1's self-check is its witness).
     const noA1 = grade(recordsOf((m) => { m.delete("A1"); }));
