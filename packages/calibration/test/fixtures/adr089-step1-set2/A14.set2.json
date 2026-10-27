@@ -1,0 +1,1062 @@
+{
+  "format": "adr-089-step1-arm/v1",
+  "stamp": {
+    "arm": "A14",
+    "filedDigest": "fnv1a:9a1c90e9",
+    "amendments": "none",
+    "rules": "legacy",
+    "tunablesDigest": "fnv1a:721e5476",
+    "patches": [
+      "qb.timeBudget.baseSeconds: 2.5 -> 4.5",
+      "route.readySeconds.QUICK: 1 -> 2",
+      "route.readySeconds.SHORT: 1.5 -> 2.5",
+      "route.readySeconds.INTERMEDIATE: 2 -> 3",
+      "route.readySeconds.DEEP: 2.5 -> 3.5"
+    ],
+    "seedSet": 2,
+    "caller": "v7",
+    "corpus": {
+      "flatFirst": null,
+      "genThroughWeek": null
+    },
+    "fingerprint": "7689307642ed08e0",
+    "commit": "0a2eb415d237fe4075e0965a21d945b2f4a66476",
+    "dirty": false,
+    "node": "v22.22.0"
+  },
+  "report": {
+    "arm": "A14",
+    "isBase": false,
+    "clock": "TICK",
+    "rows": [
+      {
+        "id": "threat_creation_rate",
+        "values": {
+          "flat": 96.12046684985172,
+          "gen": 95.70136817686881
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "hit_or_sack_rate",
+        "values": {
+          "flat": 39.93797099872133,
+          "gen": 58.69904843062065
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "sack_rate",
+        "values": {
+          "flat": 35.38645700138749,
+          "gen": 47.93353216872603
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "time_to_throw",
+        "values": {
+          "flat": 2.397341966263418,
+          "gen": 2.2780848251832273
+        },
+        "unit": "seconds",
+        "dp": 3
+      },
+      {
+        "id": "sack_share_of_hit_or_sack",
+        "values": {
+          "flat": 88.60354223433242,
+          "gen": 81.65981127510284
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "qb_hit_on_scramble",
+        "values": {
+          "flat": 0,
+          "gen": 0
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "release_distribution",
+        "values": {
+          "flat": 2.397341966263418,
+          "gen": 2.2780848251832273
+        },
+        "unit": "seconds",
+        "dp": 3
+      },
+      {
+        "id": "pressured_share_by_release_bin",
+        "values": {
+          "flat": 93.1263189629183,
+          "gen": 93.7902483900644
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "hit_rate_by_release_bin",
+        "values": {
+          "flat": 15.026541445487954,
+          "gen": 24.043715846994534
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "hits_on_aimed_throws_per_dropback",
+        "values": {
+          "flat": 4.551513997333841,
+          "gen": 10.765516261894618
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "first_pressure_seconds",
+        "values": {
+          "flat": 0.9139282782825281,
+          "gen": 0.9105119960425426
+        },
+        "unit": "seconds",
+        "dp": 3
+      },
+      {
+        "id": "first_forcing_seconds",
+        "values": {
+          "flat": 1.0679334142946002,
+          "gen": 1.0678242417969155
+        },
+        "unit": "seconds",
+        "dp": 3
+      },
+      {
+        "id": "first_arrival_seconds",
+        "values": {
+          "flat": 1.4129812606473595,
+          "gen": 1.5133279483037156
+        },
+        "unit": "seconds",
+        "dp": 3
+      },
+      {
+        "id": "first_pressure_origin",
+        "values": {
+          "flat": null,
+          "gen": null
+        },
+        "unit": "ticks",
+        "dp": 2,
+        "note": "flat COUNTER 10.99%, FREE_RUNNER 26.07%, WON_REP 62.94%; gen COUNTER 10.84%, FREE_RUNNER 26.58%, WON_REP 62.58%"
+      },
+      {
+        "id": "quick_pressure_share_by_origin",
+        "values": {
+          "flat": 99.06880643061335,
+          "gen": 98.9908483799159
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "clean_with_live_won_rep_ticks",
+        "values": {
+          "flat": 0.19195771944257473,
+          "gen": 0.14406169230117366
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "clean_with_live_won_rep_dropbacks",
+        "values": {
+          "flat": 0.201322197132519,
+          "gen": 0.15622780854992188
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "clean_with_live_won_rep_push_ticks",
+        "values": {
+          "flat": 0,
+          "gen": 0
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "throwaway_rate_pressured",
+        "values": {
+          "flat": 6.7334635306105115,
+          "gen": 4.115755627009646
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "throwaway_rate_clean",
+        "values": {
+          "flat": 14.79663394109397,
+          "gen": 5.947136563876652
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "scramble_rate",
+        "values": {
+          "flat": 32.679489621024565,
+          "gen": 12.663920844577001
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "scramble_yards",
+        "values": {
+          "flat": 5.181485181485182,
+          "gen": 3.7682242990654204
+        },
+        "unit": "yards",
+        "dp": 2
+      },
+      {
+        "id": "by_down_fixed_calls",
+        "values": {
+          "flat": 36.096718480138165,
+          "gen": 47.874149659863946
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "int_per_aimed_throw",
+        "values": {
+          "flat": 2.120682116309576,
+          "gen": 7.018959257765228
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "completion_per_aimed_throw",
+        "values": {
+          "flat": 38.12855268911237,
+          "gen": 35.39061449509211
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "forced_throw_share",
+        "values": {
+          "flat": 62.833406209007435,
+          "gen": 70.52574963022724
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "completion_by_pocket_status",
+        "values": {
+          "flat": 28.29712955779674,
+          "gen": 30.32996632996633
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "qb_season_spread",
+        "values": {
+          "flat": 0,
+          "gen": 6.842287277539505
+        },
+        "unit": "pp",
+        "dp": 2
+      },
+      {
+        "id": "defence_season_spread",
+        "values": {
+          "flat": 0.9702954287856457,
+          "gen": 1.9561876312579556
+        },
+        "unit": "pp",
+        "dp": 2
+      },
+      {
+        "id": "unblocked_pressures_per_100",
+        "values": {
+          "flat": 19.277960660554452,
+          "gen": 18.998248354873834
+        },
+        "unit": "per 100 dropbacks",
+        "dp": 2
+      },
+      {
+        "id": "unblocked_share_of_hit_or_sack",
+        "values": {
+          "flat": 9.04632152588556,
+          "gen": 10.541172675215742
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "unblocked_men_per_100",
+        "values": {
+          "flat": 19.277960660554452,
+          "gen": 18.998248354873834
+        },
+        "unit": "per 100 dropbacks",
+        "dp": 2
+      },
+      {
+        "id": "pressured_share_2s_no_free_runner",
+        "values": {
+          "flat": 91.28440366972477,
+          "gen": 91.8429003021148
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "quick_share_no_free_runner",
+        "values": {
+          "flat": 98.72977877302034,
+          "gen": 98.61601085481682
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "clean_outs_rate",
+        "values": {
+          "flat": 0,
+          "gen": 0
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "out_of_pocket_rate",
+        "values": {
+          "flat": null,
+          "gen": null
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "clean_drill_share",
+        "values": {
+          "flat": 0,
+          "gen": 0
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "situation_end_of_half",
+        "values": {
+          "flat": 6.417979610750694,
+          "gen": 4.061117812625653
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "situation_q1q3_last_two",
+        "values": {
+          "flat": 6.368531959728401,
+          "gen": 4.170073589533932
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "sack_share_of_contacts_in_out",
+        "values": {
+          "flat": 88.60354223433242,
+          "gen": 81.65833198903049
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "coverage_sack_rows",
+        "values": {
+          "flat": 0,
+          "gen": 0.12839506172839507
+        },
+        "unit": "%",
+        "dp": 2
+      },
+      {
+        "id": "sacker_mix.split.interior",
+        "values": {
+          "flat": 84.28,
+          "gen": 85.3
+        },
+        "unit": "%",
+        "note": "same-tick arrivals split 0.5 (M3)"
+      },
+      {
+        "id": "sacker_mix.split.edge",
+        "values": {
+          "flat": 10.03,
+          "gen": 9.31
+        },
+        "unit": "%",
+        "note": "same-tick arrivals split 0.5 (M3)"
+      },
+      {
+        "id": "sacker_mix.split.offball",
+        "values": {
+          "flat": 5.66,
+          "gen": 5.39
+        },
+        "unit": "%",
+        "note": "same-tick arrivals split 0.5 (M3)"
+      },
+      {
+        "id": "sacker_mix.split.db",
+        "values": {
+          "flat": 0.03,
+          "gen": null
+        },
+        "unit": "%",
+        "note": "same-tick arrivals split 0.5 (M3)"
+      },
+      {
+        "id": "sacker_mix.unsplit.interior",
+        "values": {
+          "flat": 80.4,
+          "gen": 79.77
+        },
+        "unit": "%",
+        "note": "last ARRIVED rusher, unsplit"
+      },
+      {
+        "id": "multi_channel_share",
+        "values": {
+          "flat": 1.0544711353336689,
+          "gen": 1.0609667736259187
+        },
+        "unit": "%"
+      },
+      {
+        "id": "int_per_aimed_by_throw_class.PROGRESSION",
+        "values": {
+          "flat": 0.272108843537415,
+          "gen": 1.9994873109459113
+        },
+        "unit": "%"
+      },
+      {
+        "id": "int_per_aimed_by_throw_class.RANK_PUSHED",
+        "values": {
+          "flat": 10.907577019150708,
+          "gen": 21.18758434547908
+        },
+        "unit": "%"
+      },
+      {
+        "id": "int_per_aimed_by_throw_class.CHECKDOWN",
+        "values": {
+          "flat": 0.10758472296933835,
+          "gen": 4.728789986091794
+        },
+        "unit": "%"
+      },
+      {
+        "id": "int_per_aimed_by_throw_class.CLEAN_EXPIRY",
+        "values": {
+          "flat": null,
+          "gen": null
+        },
+        "unit": "%"
+      },
+      {
+        "id": "int_per_aimed_by_throw_class.DESPERATION",
+        "values": {
+          "flat": 4.949381327334083,
+          "gen": 16.058960434445307
+        },
+        "unit": "%"
+      },
+      {
+        "id": "int_per_aimed_by_throw_class.ON_THE_RUN",
+        "values": {
+          "flat": 5.555555555555555,
+          "gen": 17.647058823529413
+        },
+        "unit": "%"
+      },
+      {
+        "id": "completion_per_aimed_by_throw_class.PROGRESSION",
+        "values": {
+          "flat": 36.90962099125365,
+          "gen": 37.81081773904127
+        },
+        "unit": "%"
+      },
+      {
+        "id": "completion_per_aimed_by_throw_class.RANK_PUSHED",
+        "values": {
+          "flat": 15.82014987510408,
+          "gen": 16.734143049932523
+        },
+        "unit": "%"
+      },
+      {
+        "id": "completion_per_aimed_by_throw_class.CHECKDOWN",
+        "values": {
+          "flat": 35.28778913394298,
+          "gen": 32.19749652294854
+        },
+        "unit": "%"
+      },
+      {
+        "id": "completion_per_aimed_by_throw_class.CLEAN_EXPIRY",
+        "values": {
+          "flat": null,
+          "gen": null
+        },
+        "unit": "%"
+      },
+      {
+        "id": "completion_per_aimed_by_throw_class.DESPERATION",
+        "values": {
+          "flat": 23.3970753655793,
+          "gen": 17.688130333591932
+        },
+        "unit": "%"
+      },
+      {
+        "id": "completion_per_aimed_by_throw_class.ON_THE_RUN",
+        "values": {
+          "flat": 25.925925925925927,
+          "gen": 25
+        },
+        "unit": "%"
+      },
+      {
+        "id": "nobody_open_share",
+        "values": {
+          "flat": 49.90886089724406,
+          "gen": 65.03811011693415
+        },
+        "unit": "% of dropbacks"
+      },
+      {
+        "id": "nobody_open_share.split.CHECKDOWN",
+        "values": {
+          "flat": 5.057540060396659,
+          "gen": 6.807745111963262
+        },
+        "unit": "% of dropbacks"
+      },
+      {
+        "id": "nobody_open_share.split.DESPERATION",
+        "values": {
+          "flat": 2.4185869358217484,
+          "gen": 6.102352885480282
+        },
+        "unit": "% of dropbacks"
+      },
+      {
+        "id": "nobody_open_share.split.THROWAWAY",
+        "values": {
+          "flat": 7.046276899638164,
+          "gen": 4.19447995076457
+        },
+        "unit": "% of dropbacks"
+      },
+      {
+        "id": "nobody_open_share.split.SACK",
+        "values": {
+          "flat": 35.38645700138749,
+          "gen": 47.93353216872603
+        },
+        "unit": "% of dropbacks",
+        "hitOrSack": true
+      },
+      {
+        "id": "clean_checkdown_share",
+        "values": {
+          "flat": 4.197530864197531,
+          "gen": 2.3696682464454977
+        },
+        "unit": "% of clean aimed throws"
+      },
+      {
+        "id": "clean_later_read_share",
+        "values": {
+          "flat": 20.411522633744855,
+          "gen": 26.540284360189574
+        },
+        "unit": "% of clean aimed throws"
+      }
+    ],
+    "timeToThrow": {
+      "flat": 2.397341966263418,
+      "gen": 2.2780848251832273
+    },
+    "sacks": {
+      "flat": {
+        "dropbacks": 36757,
+        "sacks": 13007,
+        "pressuredSacks": 13007,
+        "pressuredDropbacks": 35331
+      },
+      "gen": {
+        "dropbacks": 21123,
+        "sacks": 10125,
+        "pressuredSacks": 10115,
+        "pressuredDropbacks": 20215
+      }
+    },
+    "p2s": {
+      "flat": 36.81469531006765,
+      "gen": 50.03710116250309
+    },
+    "intGuard": {
+      "flat": {
+        "intPerAttempt": 1.6527517464644745,
+        "intPerAimed": 2.1206821163095757,
+        "forcedThrowShare": 62.833406209007435,
+        "completionPerAttempt": 29.715454080763333,
+        "completionPerAimed": 38.128552689112375,
+        "intSourceMix": {
+          "CONTESTED_CATCH": 92.78350515463917,
+          "TIPPED_RECOVERY": 7.216494845360825
+        },
+        "all": {
+          "aimedByBin": [
+            2760,
+            2449,
+            1443,
+            1574,
+            532,
+            201,
+            189
+          ],
+          "interceptions": 194
+        },
+        "byClass": {
+          "PROGRESSION": {
+            "aimedByBin": [
+              2412,
+              957,
+              567,
+              877,
+              178,
+              100,
+              54
+            ],
+            "interceptions": 14,
+            "completions": 1899
+          },
+          "RANK_PUSHED": {
+            "aimedByBin": [
+              7,
+              279,
+              300,
+              369,
+              135,
+              64,
+              47
+            ],
+            "interceptions": 131,
+            "completions": 190
+          },
+          "CHECKDOWN": {
+            "aimedByBin": [
+              0,
+              1051,
+              493,
+              170,
+              124,
+              8,
+              13
+            ],
+            "interceptions": 2,
+            "completions": 656
+          },
+          "CLEAN_EXPIRY": {
+            "aimedByBin": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "interceptions": 0,
+            "completions": 0
+          },
+          "DESPERATION": {
+            "aimedByBin": [
+              341,
+              162,
+              83,
+              125,
+              89,
+              19,
+              70
+            ],
+            "interceptions": 44,
+            "completions": 208
+          },
+          "ON_THE_RUN": {
+            "aimedByBin": [
+              0,
+              0,
+              0,
+              33,
+              6,
+              10,
+              5
+            ],
+            "interceptions": 3,
+            "completions": 14
+          }
+        },
+        "onTheRun": {
+          "clean": {
+            "aimed": 0,
+            "interceptions": 0
+          },
+          "pressured": {
+            "aimed": 54,
+            "interceptions": 3
+          }
+        }
+      },
+      "gen": {
+        "intPerAttempt": 6.2717770034843205,
+        "intPerAimed": 7.0189592577652276,
+        "forcedThrowShare": 70.52574963022724,
+        "completionPerAttempt": 31.62321278385198,
+        "completionPerAimed": 35.39061449509211,
+        "intSourceMix": {
+          "CONTESTED_CATCH": 52.10727969348659,
+          "TIPPED_RECOVERY": 47.89272030651341
+        },
+        "all": {
+          "aimedByBin": [
+            2860,
+            1830,
+            988,
+            1039,
+            338,
+            234,
+            148
+          ],
+          "interceptions": 522
+        },
+        "byClass": {
+          "PROGRESSION": {
+            "aimedByBin": [
+              2133,
+              639,
+              326,
+              535,
+              133,
+              99,
+              36
+            ],
+            "interceptions": 78,
+            "completions": 1475
+          },
+          "RANK_PUSHED": {
+            "aimedByBin": [
+              12,
+              158,
+              171,
+              216,
+              72,
+              66,
+              46
+            ],
+            "interceptions": 157,
+            "completions": 124
+          },
+          "CHECKDOWN": {
+            "aimedByBin": [
+              0,
+              826,
+              394,
+              130,
+              67,
+              11,
+              10
+            ],
+            "interceptions": 68,
+            "completions": 463
+          },
+          "CLEAN_EXPIRY": {
+            "aimedByBin": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "interceptions": 0,
+            "completions": 0
+          },
+          "DESPERATION": {
+            "aimedByBin": [
+              715,
+              207,
+              88,
+              104,
+              64,
+              56,
+              55
+            ],
+            "interceptions": 207,
+            "completions": 228
+          },
+          "ON_THE_RUN": {
+            "aimedByBin": [
+              0,
+              0,
+              9,
+              54,
+              2,
+              2,
+              1
+            ],
+            "interceptions": 12,
+            "completions": 17
+          }
+        },
+        "onTheRun": {
+          "clean": {
+            "aimed": 0,
+            "interceptions": 0
+          },
+          "pressured": {
+            "aimed": 68,
+            "interceptions": 12
+          }
+        }
+      }
+    },
+    "affectedPlays": {
+      "flat": 36757,
+      "gen": 21123
+    }
+  },
+  "measures": {
+    "flat": {
+      "games": 496,
+      "dropbacks": 36757,
+      "pressure": 96.12046684985172,
+      "hitOrSack": 39.93797099872133,
+      "sack": 35.38645700138749,
+      "release": 2.397341966263418,
+      "timeToThrow": 2.397341966263418,
+      "p2s": 36.81469531006765,
+      "quickPressure": 99.06880643061335,
+      "floorCounter": 10.98515939731869,
+      "firstPressureOrigin": {
+        "COUNTER": 3881.1666666666665,
+        "FREE_RUNNER": 9212.416666666666,
+        "WON_REP": 22237.416666666668
+      },
+      "cleanWithLiveWonRep": {
+        "ticks": 0.19195771944257473,
+        "dropbacks": 0.201322197132519,
+        "pushTicks": 0
+      },
+      "passRushWin": 0.27651088021765136,
+      "missRuleN": 91.28440366972477
+    },
+    "gen": {
+      "games": 272,
+      "dropbacks": 21123,
+      "pressure": 95.70136817686881,
+      "hitOrSack": 58.69904843062065,
+      "sack": 47.93353216872603,
+      "release": 2.2780848251832273,
+      "timeToThrow": 2.2780848251832273,
+      "p2s": 50.03710116250309,
+      "quickPressure": 98.9908483799159,
+      "floorCounter": 10.844669799653722,
+      "firstPressureOrigin": {
+        "COUNTER": 2192.25,
+        "FREE_RUNNER": 5372.333333333333,
+        "WON_REP": 12650.416666666666
+      },
+      "cleanWithLiveWonRep": {
+        "ticks": 0.14406169230117366,
+        "dropbacks": 0.15622780854992188,
+        "pushTicks": 0
+      },
+      "passRushWin": 0.26452325272618116,
+      "missRuleN": 91.8429003021148
+    }
+  },
+  "s1": {
+    "flat": {
+      "windowTicks": {
+        "plays": 0,
+        "problemCount": 0,
+        "problems": [],
+        "windowOn": null,
+        "reps": 0,
+        "noBeat": 0,
+        "cases": {
+          "two": 0,
+          "one": 0,
+          "none": 0
+        },
+        "played": {
+          "gaining": 0,
+          "beaten": 0
+        },
+        "ticksChecked": 0
+      },
+      "lToday": {
+        "plays": 0,
+        "problemCount": 0,
+        "problems": [],
+        "R": [],
+        "ticksAtOrAfterR": 0,
+        "ticksBeforeR": 0
+      },
+      "margins": {
+        "plays": 36757,
+        "problemCount": 0,
+        "problems": [],
+        "ticks": {
+          "LEGACY": 470343,
+          "S": 0,
+          "L": 0
+        },
+        "stamps": {
+          "legacy": 36757
+        }
+      },
+      "beats": {
+        "plays": 36757,
+        "problemCount": 0,
+        "problems": [],
+        "reps": 147994,
+        "beats": 0,
+        "dielessTicks": 0,
+        "rolledTicks": 470343,
+        "jitterRolls": 940686,
+        "uniformRolls": 0,
+        "windowLabels": 0
+      },
+      "approach": {
+        "plays": 36757,
+        "problemCount": 0,
+        "problems": [],
+        "byLabel": {},
+        "threats": 0,
+        "blocked": 0,
+        "legacyPlays": 36757
+      }
+    },
+    "gen": {
+      "windowTicks": {
+        "plays": 0,
+        "problemCount": 0,
+        "problems": [],
+        "windowOn": null,
+        "reps": 0,
+        "noBeat": 0,
+        "cases": {
+          "two": 0,
+          "one": 0,
+          "none": 0
+        },
+        "played": {
+          "gaining": 0,
+          "beaten": 0
+        },
+        "ticksChecked": 0
+      },
+      "lToday": {
+        "plays": 0,
+        "problemCount": 0,
+        "problems": [],
+        "R": [],
+        "ticksAtOrAfterR": 0,
+        "ticksBeforeR": 0
+      },
+      "margins": {
+        "plays": 21123,
+        "problemCount": 0,
+        "problems": [],
+        "ticks": {
+          "LEGACY": 294347,
+          "S": 0,
+          "L": 0
+        },
+        "stamps": {
+          "legacy": 21123
+        }
+      },
+      "beats": {
+        "plays": 21123,
+        "problemCount": 0,
+        "problems": [],
+        "reps": 85005,
+        "beats": 0,
+        "dielessTicks": 0,
+        "rolledTicks": 294347,
+        "jitterRolls": 588694,
+        "uniformRolls": 0,
+        "windowLabels": 0
+      },
+      "approach": {
+        "plays": 21123,
+        "problemCount": 0,
+        "problems": [],
+        "byLabel": {},
+        "threats": 0,
+        "blocked": 0,
+        "legacyPlays": 21123
+      }
+    }
+  },
+  "affected": {
+    "against": "A0",
+    "mechanisms": [
+      "HOLD"
+    ],
+    "flat": {
+      "dropbacks": 36757,
+      "byMechanism": {
+        "HOLD": 36757
+      },
+      "windowOnlyDirt": 0,
+      "union": 36757
+    },
+    "gen": {
+      "dropbacks": 21123,
+      "byMechanism": {
+        "HOLD": 21123
+      },
+      "windowOnlyDirt": 0,
+      "union": 21123
+    }
+  }
+}
