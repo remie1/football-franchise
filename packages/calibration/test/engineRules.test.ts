@@ -520,6 +520,7 @@ describe("pocket-1.s2, step 2's bundle (plan §1.2, §1.3, §1.8)", () => {
       ["a forcing point that is not a number", leaf(DEFAULT_TUNABLES, "arrival.collapsingWithinSeconds", 1.0, Number.NaN), "arrival.collapsingWithinSeconds (must act's threat part) must be a finite number, 0 or more, got NaN"],
       ["IMMEDIATE above the forcing point", iAboveC, "arrival.immediateWithinSeconds (0.6) may not lie above arrival.collapsingWithinSeconds (0.5): an IMMEDIATE from an arrival would not force"],
       ["IMMEDIATE not a number", leaf(DEFAULT_TUNABLES, "arrival.immediateWithinSeconds", 0, Number.NaN), "arrival.immediateWithinSeconds (NaN) may not lie above arrival.collapsingWithinSeconds (1): an IMMEDIATE from an arrival would not force"],
+      ["IMMEDIATE below 0 (review CT-F4)", leaf(DEFAULT_TUNABLES, "arrival.immediateWithinSeconds", 0, -0.1), "arrival.immediateWithinSeconds must be 0 or more, as the forcing point is, got -0.1: an arrived threat would not read IMMEDIATE"],
     ];
     for (const [label, base, message] of cases) {
       expect(() => withOverlay(base, "pocket-1.s2", POCKET_1_S1_OVERLAY, POCKET_1_S2_FORCING), label).toThrow(EngineRulesError);

@@ -285,8 +285,9 @@ function assertDials(tunables: Tunables, where: string): void {
  * a play (`sim/pocketRules.ts`, off the barrel, so restated, Iron Rule 1): an object `{ rule }`
  * whose rule is in the closed set; and under `PER_RUSHER` a forcing point (must act's threat part,
  * `arrival.collapsingWithinSeconds`, D32) that is a finite number, 0 or more, with
- * `arrival.immediateWithinSeconds` finite and not above it, so an IMMEDIATE from an arrival always
- * forces. Absent passes: that is step 1's forcing rule.
+ * `arrival.immediateWithinSeconds` finite, not above it and not below 0, so an IMMEDIATE from an
+ * arrival always forces and an arrived threat reads IMMEDIATE (review CT-F4). Absent passes: that is
+ * step 1's forcing rule.
  */
 function assertForcing(tunables: Tunables, where: string): void {
   const forcing: unknown = tunables.pocket.forcing;
@@ -307,6 +308,9 @@ function assertForcing(tunables: Tunables, where: string): void {
       throw new EngineRulesError(
         `${where}: under pocket.forcing PER_RUSHER, arrival.immediateWithinSeconds (${String(i)}) may not lie above arrival.collapsingWithinSeconds (${String(c)}): an IMMEDIATE from an arrival would not force`,
       );
+    }
+    if (i < 0) {
+      throw new EngineRulesError(`${where}: under pocket.forcing PER_RUSHER, arrival.immediateWithinSeconds must be 0 or more, as the forcing point is, got ${String(i)}: an arrived threat would not read IMMEDIATE`);
     }
   }
 }

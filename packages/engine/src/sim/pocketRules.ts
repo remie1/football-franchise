@@ -95,7 +95,8 @@ const FORCING_RULES: readonly ForcingTunables["rule"][] = ["PER_RUSHER", "COUNTE
  * The forcing rule a stamped bundle runs, from its `pocket.forcing` block (absent is `STEP_1`).
  * Under `PER_RUSHER` must act's threat part is `minTta <= arrival.collapsingWithinSeconds` (D32),
  * so that horizon must be a finite number, 0 or more; and an arrival floor of IMMEDIATE must force,
- * so `arrival.immediateWithinSeconds` may not lie above it.
+ * so `arrival.immediateWithinSeconds` may not lie above it, nor below 0 (an arrived threat,
+ * minTta 0, then reads IMMEDIATE, as the horizons below it do; review CT-F4).
  */
 function forcingOf(tunables: Tunables): PocketForcing {
   const forcing: unknown = tunables.pocket.forcing;
@@ -120,6 +121,11 @@ function forcingOf(tunables: Tunables): PocketForcing {
     if (typeof i !== "number" || !Number.isFinite(i) || i > c) {
       throw new PocketRulesError(
         `under pocket.forcing PER_RUSHER, arrival.immediateWithinSeconds (${String(i)}) may not lie above arrival.collapsingWithinSeconds (${String(c)}): an IMMEDIATE from an arrival would not force`,
+      );
+    }
+    if (i < 0) {
+      throw new PocketRulesError(
+        `under pocket.forcing PER_RUSHER, arrival.immediateWithinSeconds must be 0 or more, as the forcing point is, got ${String(i)}: an arrived threat would not read IMMEDIATE`,
       );
     }
   }

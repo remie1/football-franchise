@@ -379,6 +379,11 @@ describe("ADR-089 step 2 — the forcing block (pocket.forcing), read once a pla
       "@ff/engine: under pocket.forcing PER_RUSHER, arrival.immediateWithinSeconds (0.6) may not lie above arrival.collapsingWithinSeconds (0.5): an IMMEDIATE from an arrival would not force",
     ],
     [
+      "PER_RUSHER with a negative IMMEDIATE horizon (review CT-F4)",
+      sw(arrival(DEFAULT_TUNABLES, "immediateWithinSeconds", -0.1), PER_RUSHER),
+      "@ff/engine: under pocket.forcing PER_RUSHER, arrival.immediateWithinSeconds must be 0 or more, as the forcing point is, got -0.1: an arrived threat would not read IMMEDIATE",
+    ],
+    [
       "PER_RUSHER with an IMMEDIATE horizon that is not a number",
       sw(arrival(DEFAULT_TUNABLES, "immediateWithinSeconds", Number.NaN), PER_RUSHER),
       "@ff/engine: under pocket.forcing PER_RUSHER, arrival.immediateWithinSeconds (NaN) may not lie above arrival.collapsingWithinSeconds (1): an IMMEDIATE from an arrival would not force",
