@@ -763,7 +763,12 @@ export interface Step2ArmSetCounts {
   readonly forcedActs: Readonly<Record<string, { readonly acts: number; readonly threatPart: number; readonly statusPart: number; readonly countPart: number }>>;
   readonly arrival: { readonly cases: number; readonly throws: number; readonly sacks: number; readonly failures: number };
   readonly warning: { readonly statusTicks: number; readonly warningTicks: number; readonly cleanWithWarning: number; readonly failures: number };
-  readonly selfCheck: { readonly offRule: number; readonly counted: number; readonly exceptions: number; readonly passed: boolean } | null;
+  /** `s2Stream.ts`'s `MustActSelfCheck`: the off-rule half on a step-1-rule arm (null under PER_RUSHER), the witnesses on every arm. */
+  readonly selfCheck: {
+    readonly offRule: { readonly acts: number; readonly counted: number; readonly exceptions: number } | null;
+    readonly witness: { readonly holds: number; readonly countHolds: number; readonly clockExpired: number; readonly exceptions: number };
+    readonly passed: boolean;
+  };
   readonly quickPressure: number | null;
   readonly floorCounter: number | null;
   readonly cleanWithLiveWonRep: { readonly ticks: number | null; readonly dropbacks: number | null; readonly pushTicks: number | null };
@@ -996,7 +1001,7 @@ export function renderStep2Sections(s: Step2Sections): readonly string[] {
           `first must-act tick ${fmt(m["firstMustActSeconds"] ?? null, 3)} s on ${String(m["firstMustActDropbacks"] ?? 0)} dropbacks, beside first_forcing_seconds' ${fmt(m["firstStatusForcingSeconds"] ?? null, 3)} s on ${String(m["firstStatusForcingDropbacks"] ?? 0)}`,
       );
       const acts = Object.entries(c.forcedActs).map(([k, v]) => `${k} ${String(v.acts)} (threat ${String(v.threatPart)}, status ${String(v.statusPart)}, count ${String(v.countPart)})`).join(", ");
-      out.push(`- ${at}: forced acts by kind (the part that held): ${acts === "" ? "none" : acts}${c.selfCheck === null ? "" : `; the count part's self-check: ${String(c.selfCheck.counted)} of ${String(c.selfCheck.offRule)} off-rule acts counted, ${String(c.selfCheck.exceptions)} exceptions, ${c.selfCheck.passed ? "passed" : "FAILED"}`}`);
+      out.push(`- ${at}: forced acts by kind (the part that held): ${acts === "" ? "none" : acts}; the count part's self-check: ${c.selfCheck.offRule === null ? "" : `${String(c.selfCheck.offRule.counted)} of ${String(c.selfCheck.offRule.acts)} off-rule acts counted, ${String(c.selfCheck.offRule.exceptions)} exceptions; `}witnesses ${String(c.selfCheck.witness.holds)} closing HOLDs (${String(c.selfCheck.witness.countHolds)} at or past throwawayEarliestSeconds) and ${String(c.selfCheck.witness.clockExpired)} CLOCK_EXPIRED, ${String(c.selfCheck.witness.exceptions)} exceptions; ${c.selfCheck.passed ? "passed" : "FAILED"}`);
       out.push(`- ${at}: arrivals ${String(c.arrival.cases)} (THROW ${String(c.arrival.throws)}, SACK ${String(c.arrival.sacks)}), failures ${String(c.arrival.failures)}; status ticks ${String(c.warning.statusTicks)}, ticks with a threat inside the warning ${String(c.warning.warningTicks)}, of them CLEAN ${String(c.warning.cleanWithWarning)}, failures ${String(c.warning.failures)}`);
       out.push(`- ${at}: quick-pressure share ${fmt(c.quickPressure)} %; band floor plus counter ${fmt(c.floorCounter)} % of first dirt; clean_with_live_won_rep ticks ${fmt(c.cleanWithLiveWonRep.ticks, 3)} %, dropbacks ${fmt(c.cleanWithLiveWonRep.dropbacks, 3)} %, PUSH ticks apart ${fmt(c.cleanWithLiveWonRep.pushTicks, 3)} % (these rise under the warning, expected, not a failure: R8)`);
       if (c.passRushWin !== undefined) out.push(`- ${at}: pass-rush win rate (pbwr_sim_only) ${fmt(c.passRushWin)} %: a pre-beat tick is a capped margin, not a rep outcome (O30)`);

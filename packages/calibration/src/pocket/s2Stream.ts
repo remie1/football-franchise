@@ -47,7 +47,12 @@
  *    1's rule the same fold is the **self-check** of the count part's restatement (plan §1.7 (ii)):
  *    every forced act on a tick whose status does not force must satisfy the restated count part,
  *    and an exception means the restatement is wrong (a fold fault, plan §4.7: the clause is "not
- *    judged" until it is fixed). The fold counts every act by kind and by which part held, so the
+ *    judged" until it is fixed). That direction catches a restatement too strict; the fold's
+ *    **witnesses** catch one too generous, on every arm (review F-1, F-6; `MustActWitnessFold`):
+ *    on a closing HOLD (a pocket HOLD with no `pocket_movement` CHECK on its tick) the rule part
+ *    must not hold, and at or past `qb.throwawayEarliestSeconds` the restated count part must not
+ *    either; on a CLOCK_EXPIRED the rule part must not hold. A witness exception is a fold fault and
+ *    never a falsifier failure. The fold counts every act by kind and by which part held, so the
  *    checkdown looks by trigger (threat or status part, count part) are its CHECKDOWN_LOOK row.
  *  - **`arrivalActsCheck`** (`s2.falsifier.everyArrival`, `proof:must-act-arrival`; O41). On the
  *    first pocket tick of a play with a live threat at `etaTick - tick <= 0`, no event of a later
@@ -192,6 +197,8 @@ export interface S2Play {
   readonly reads: readonly (At & { readonly kind: ReadKind })[];
   readonly throwaways: readonly (At & { readonly cause: string })[];
   readonly throws: readonly At[];
+  /** `QB_DECISION` HOLDs (the closing HOLD, a STAND_IN or a contained escape, or a scramble's). */
+  readonly holds: readonly At[];
   readonly pursuit: At | undefined;
   /** `RUSH_THREAT`s published after `QB_PURSUIT` (not counted: the set is cleared). */
   readonly afterPursuit: number;
@@ -226,6 +233,7 @@ export function readS2Play(playId: string, events: readonly MatchEventEnvelope[]
   const reads: (At & { kind: ReadKind })[] = [];
   const throwaways: (At & { cause: string })[] = [];
   const throws: At[] = [];
+  const holds: At[] = [];
   let pursuit: At | undefined;
   let afterPursuit = 0;
   const liveFaults: string[] = [];
@@ -276,6 +284,9 @@ export function readS2Play(playId: string, events: readonly MatchEventEnvelope[]
       case "THROW":
         throws.push(at);
         return;
+      case "QB_DECISION":
+        if (event.payload.choice === "HOLD") holds.push(at);
+        return;
       case "QB_PURSUIT":
         pursuit ??= at;
         pursued = true;
@@ -285,7 +296,7 @@ export function readS2Play(playId: string, events: readonly MatchEventEnvelope[]
         return;
     }
   });
-  return { playId, gameId, start: dropback.start, dropback, statuses, ticks, movements, reads, throwaways, throws, pursuit, afterPursuit, liveFaults, liveChecks };
+  return { playId, gameId, start: dropback.start, dropback, statuses, ticks, movements, reads, throwaways, throws, holds, pursuit, afterPursuit, liveFaults, liveChecks };
 }
 
 /** Every PASS play of a game, read for the step-2 checks. */
@@ -376,6 +387,26 @@ export interface ForcedActCell {
 
 const emptyCell = (): ForcedActCell => ({ acts: 0, threatPart: 0, statusPart: 0, countPart: 0, ruleOnly: 0, countOnly: 0, both: 0, neither: 0 });
 
+/**
+ * The engine's own witnesses that the fold's parts are not too generous (the self-check's other
+ * direction, on every arm; review F-1 and F-6). Every branch inside the movement gate (`if
+ * (forced)`, `sim/passPlay.ts`) breaks or continues, and its two HOLDs (a STAND_IN, a contained
+ * escape) follow a `pocket_movement` CHECK on their tick, so a pocket HOLD with no such CHECK is
+ * the loop's closing HOLD, reached only with `forced` false: the rule part does not hold on its
+ * tick. At or past `qb.throwawayEarliestSeconds` it is reached only with `mustDecide` false too
+ * (`mustDecide && throwawayAvailable` throws the ball away on the clock), so the count part does
+ * not hold either. A CLOCK_EXPIRED is reached only past the gate, with `forced` false and the
+ * count part true. A witness that breaks this is a self-check exception: a fold fault on any arm.
+ */
+export interface MustActWitnessFold extends S2CheckFold {
+  /** Closing HOLDs read (a pocket HOLD with no `pocket_movement` CHECK on its tick): the rule part must not hold. */
+  holds: number;
+  /** Of them, at or past `qb.throwawayEarliestSeconds`: the restated count part must not hold. */
+  countHolds: number;
+  /** CLOCK_EXPIRED throwaways read: the rule part must not hold on their tick. */
+  clockExpired: number;
+}
+
 export interface MustActFold extends S2CheckFold {
   rule: M2ForcingRule | null;
   acts: number;
@@ -384,6 +415,8 @@ export interface MustActFold extends S2CheckFold {
   offRule: number;
   /** Of them, the restated count part holds. */
   offRuleCounted: number;
+  /** The self-check's other direction, on every arm: its exceptions never count as the falsifier's. */
+  witness: MustActWitnessFold;
 }
 
 export function emptyMustActFold(): MustActFold {
@@ -394,7 +427,14 @@ export function emptyMustActFold(): MustActFold {
     byKind: Object.fromEntries(FORCED_ACT_KINDS.map((k) => [k, emptyCell()])) as Record<ForcedActKind, ForcedActCell>,
     offRule: 0,
     offRuleCounted: 0,
+    witness: { ...emptyCheck(), holds: 0, countHolds: 0, clockExpired: 0 },
   };
+}
+
+/** A play's closing HOLDs: pocket HOLDs (none after `QB_PURSUIT`) with no `pocket_movement` CHECK on their tick. */
+export function closingHoldsOf(play: S2Play): readonly At[] {
+  const moved = (t: number): boolean => play.movements.some((m) => !m.afterPursuit && Math.abs(m.tick - t) < TOLERANCE);
+  return play.holds.filter((h) => !h.afterPursuit && !moved(h.tick));
 }
 
 /** A play's forced acts, in stream order, each with the tick it fell on. */
@@ -414,8 +454,11 @@ export function forcedActsOf(play: S2Play, tunables: Tunables): readonly (At & {
 export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): void {
   holdRule(fold, ctx.rule, "mustActCheck");
   fold.plays += 1;
+  const w = fold.witness;
+  w.plays += 1;
   const acts = forcedActsOf(play, ctx.tunables);
-  if (acts.length === 0) return;
+  const holds = closingHoldsOf(play);
+  if (acts.length === 0 && holds.length === 0) return;
   const qb = ctx.players.get(play.start.quarterback);
   if (qb === undefined) throw new Error(`mustActCheck: ${play.playId}: the quarterback ${play.start.quarterback} is not on the game's snapshot`);
   const budget = restatedBudgetSeconds(ctx.tunables, qb, play.start.readSystem);
@@ -423,6 +466,15 @@ export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): v
   const statusAt = new Map<number, StatusTick>();
   for (const s of play.statuses) if (!statusAt.has(s.tick)) statusAt.set(s.tick, s);
   const perRusher = ctx.rule === "PER_RUSHER";
+  const partsAt = (s: StatusTick, t: number): { threat: boolean; status: boolean; reads: number; count: boolean; rulePart: boolean } => {
+    const threat = threatPartAt(s, ctx.C);
+    const status = ctx.forcing.has(s.status);
+    const reads = play.reads.filter((r) => r.kind === "PROGRESSION" && r.tick <= t + TOLERANCE).length;
+    return { threat, status, reads, count: t >= budget || reads >= maxReads, rulePart: perRusher ? threat : status };
+  };
+  const nearOf = (s: StatusTick): string => (s.minTta === undefined ? "no live threat" : `nearest threat ${String(s.minTta)} s`);
+  const countText = (reads: number): string => `budget ${budget.toFixed(3)} s, ${String(reads)} of ${String(maxReads)} reads`;
+  const ruleText = perRusher ? `C ${String(ctx.C)}` : "status in pocket.forcesDecision";
   for (const act of acts) {
     fold.acts += 1;
     const cell = fold.byKind[act.kind];
@@ -436,11 +488,7 @@ export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): v
       fail(fold, atPlay(play, act.tick), `a ${act.kind} on a tick with no POCKET_STATUS`);
       continue;
     }
-    const threat = threatPartAt(s, ctx.C);
-    const status = ctx.forcing.has(s.status);
-    const reads = play.reads.filter((r) => r.kind === "PROGRESSION" && r.tick <= act.tick + TOLERANCE).length;
-    const count = act.tick >= budget || reads >= maxReads;
-    const rulePart = perRusher ? threat : status;
+    const { threat, status, reads, count, rulePart } = partsAt(s, act.tick);
     if (threat) cell.threatPart += 1;
     if (status) cell.statusPart += 1;
     if (count) cell.countPart += 1;
@@ -452,12 +500,29 @@ export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): v
       fold.offRule += 1;
       if (count && !GATED.has(act.kind)) fold.offRuleCounted += 1;
     }
+    if (act.kind === "CLOCK_EXPIRED") {
+      w.clockExpired += 1;
+      if (rulePart) fail(w, atPlay(play, act.tick), `witness: a CLOCK_EXPIRED on a tick whose rule part holds (${nearOf(s)}, ${ruleText}, status ${s.status}): the engine throws it away on the clock only with forced false, so the fold's rule part or its live set is too generous`);
+    }
     const ok = GATED.has(act.kind) ? rulePart : rulePart || count;
     if (ok) continue;
-    const near = s.minTta === undefined ? "no live threat" : `nearest threat ${String(s.minTta)} s`;
-    const why = GATED.has(act.kind) ? "the movement gate opened" : `budget ${budget.toFixed(3)} s, ${String(reads)} of ${String(maxReads)} reads`;
-    if (perRusher) fail(fold, atPlay(play, act.tick), `must act fired on the counter alone: a ${act.kind} with ${near} (C ${String(ctx.C)}), status ${s.status}; ${why}`);
+    const why = GATED.has(act.kind) ? "the movement gate opened" : countText(reads);
+    if (perRusher) fail(fold, atPlay(play, act.tick), `must act fired on the counter alone: a ${act.kind} with ${nearOf(s)} (C ${String(ctx.C)}), status ${s.status}; ${why}`);
     else fail(fold, atPlay(play, act.tick), `self-check: a ${act.kind} on a tick whose status (${s.status}) does not force, and the restated count part does not hold (${why}): the restatement is wrong`);
+  }
+  const earliest = ctx.tunables.qb.throwawayEarliestSeconds;
+  for (const h of holds) {
+    const s = statusAt.get(h.tick);
+    if (s === undefined) {
+      fail(w, atPlay(play, h.tick), "witness: a pocket HOLD on a tick with no POCKET_STATUS");
+      continue;
+    }
+    w.holds += 1;
+    const { reads, count, rulePart } = partsAt(s, h.tick);
+    if (rulePart) fail(w, atPlay(play, h.tick), `witness: a closing HOLD on a tick whose rule part holds (${nearOf(s)}, ${ruleText}, status ${s.status}): the engine holds with no movement check only with forced false, so the fold's rule part or its live set is too generous`);
+    if (h.tick < earliest - TOLERANCE) continue;
+    w.countHolds += 1;
+    if (count) fail(w, atPlay(play, h.tick), `witness: a closing HOLD at or past throwawayEarliestSeconds (${String(earliest)} s) on a tick whose restated count part holds (${countText(reads)}): the engine would have thrown it away on the clock, so the restatement is too generous`);
   }
 }
 
@@ -714,7 +779,8 @@ export function foldS2Game(folds: S2Folds, events: readonly MatchEventEnvelope[]
  * The folds' structural failures, by check; empty when every check that applies passed. The
  * must-act line names what its failures mean on this arm: under PER_RUSHER the falsifier failed
  * ("fired on the counter alone"); under step 1's rule or the narrower counter the count part's
- * restatement failed its self-check (a fold fault). M2 STREAM's identity rebuild is a fold fault
+ * restatement failed its self-check (a fold fault). The witness line, on every arm, is the
+ * self-check's other direction (a fold fault too). M2 STREAM's identity rebuild is a fold fault
  * too: its rebuilt statuses and won-rep threats must equal the stream's, its rolled ticks their
  * own clock's margin, and under PER_RUSHER (with C at or inside M2's 0.5 s far line, every
  * PER_RUSHER arm of step 2) its construct must be 0.
@@ -726,6 +792,7 @@ export function s2Problems(folds: S2Folds): readonly string[] {
   };
   line("liveSet", folds.liveSet);
   line(folds.mustAct.rule === "PER_RUSHER" ? "mustAct (PER_RUSHER: counterAlone)" : `mustAct (${String(folds.mustAct.rule)}: the count part's self-check)`, folds.mustAct);
+  line("mustAct witness (the self-check's other direction: closing HOLDs and CLOCK_EXPIRED)", folds.mustAct.witness);
   line("arrival (everyArrival)", folds.arrival);
   line("warning (no threat inside the warning on a CLEAN tick)", folds.warning);
   const m = folds.m2;
@@ -743,14 +810,25 @@ export function s2Cases(folds: S2Folds): { readonly forcedActs: number; readonly
   return { forcedActs: folds.mustAct.acts, arrivals: folds.arrival.cases, warningTicks: folds.warning.warningTicks, statusTicks: folds.warning.statusTicks };
 }
 
-/**
- * The count part's self-check on a step-1-rule arm (A1 at step 2, plan §1.7): every forced act on a
- * tick whose status does not force satisfies the restated count part. `null` on a PER_RUSHER arm,
- * where the same fold is the falsifier instead.
- */
-export function selfCheckOf(fold: MustActFold): { readonly offRule: number; readonly counted: number; readonly exceptions: number; readonly passed: boolean } | null {
-  if (fold.rule === null || fold.rule === "PER_RUSHER") return null;
-  return { offRule: fold.offRule, counted: fold.offRuleCounted, exceptions: fold.problemCount, passed: fold.problemCount === 0 && fold.acts > 0 };
+/** The self-check of one arm's must-act fold, as `selfCheckOf` reads it. */
+export interface MustActSelfCheck {
+  /**
+   * The restated count part is not too strict, on a step-1-rule arm (A1 at step 2, plan §1.7 (ii)):
+   * every forced act on a tick whose status does not force satisfies it. `null` on a PER_RUSHER
+   * arm, where the same population is the falsifier's.
+   */
+  readonly offRule: { readonly acts: number; readonly counted: number; readonly exceptions: number } | null;
+  /** The parts are not too generous, on every arm (`MustActWitnessFold`). */
+  readonly witness: { readonly holds: number; readonly countHolds: number; readonly clockExpired: number; readonly exceptions: number };
+  /** No exception in either direction, and each direction saw a case (a forced act; a closing HOLD past `throwawayEarliestSeconds`). */
+  readonly passed: boolean;
+}
+
+export function selfCheckOf(fold: MustActFold): MustActSelfCheck {
+  const w = fold.witness;
+  const offRule = fold.rule === null || fold.rule === "PER_RUSHER" ? null : { acts: fold.offRule, counted: fold.offRuleCounted, exceptions: fold.problemCount };
+  const witness = { holds: w.holds, countHolds: w.countHolds, clockExpired: w.clockExpired, exceptions: w.problemCount };
+  return { offRule, witness, passed: (offRule === null || (offRule.exceptions === 0 && fold.acts > 0)) && witness.exceptions === 0 && witness.countHolds > 0 };
 }
 
 /** The checkdown looks by trigger (AM-1 §4.5's composition): the CHECKDOWN_LOOK row of the must-act fold. */

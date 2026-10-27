@@ -25,6 +25,7 @@ import { emptyAffectedFold, foldAffectedGame } from "../src/pocket/s1Stream.js";
 import {
   arrivalActsCheck,
   checkdownTriggersOf,
+  closingHoldsOf,
   desperationSplit,
   emptyArrivalFold,
   emptyDesperationSplitFold,
@@ -243,7 +244,7 @@ describe("must act never fires on the counter alone (PER_RUSHER) and its self-ch
     expect(fold.problemCount).toBe(1);
     expect(fold.problems[0]).toMatch(/must act fired on the counter alone: a MOVEMENT with nearest threat 1.5 s \(C 0.5\), status COLLAPSING/);
     expect(fold.byKind.MOVEMENT).toMatchObject({ acts: 1, threatPart: 0, statusPart: 1, neither: 1 });
-    expect(selfCheckOf(fold)).toBeNull();
+    expect(selfCheckOf(fold).offRule).toBeNull();
   });
 
   it("PER_RUSHER: the same movement with a threat 0.5 s out passes", () => {
@@ -298,14 +299,15 @@ describe("must act never fires on the counter alone (PER_RUSHER) and its self-ch
   it("step 1's rule: a CLOCK_EXPIRED on a CLEAN tick past the budget is in the self-check's population and counted", () => {
     const fold = fold1(A1, play([tick(2.0), status("CLEAN"), read(2.0, 1, "wr1", 20), ...throwaway("CLOCK_EXPIRED")]));
     expect([fold.problemCount, fold.offRule, fold.offRuleCounted]).toEqual([0, 1, 1]);
-    expect(selfCheckOf(fold)).toEqual({ offRule: 1, counted: 1, exceptions: 0, passed: true });
+    // The off-rule half passed; the witnesses saw the CLOCK_EXPIRED and no closing HOLD past 2.0 s, so not yet passed.
+    expect(selfCheckOf(fold)).toEqual({ offRule: { acts: 1, counted: 1, exceptions: 0 }, witness: { holds: 0, countHolds: 0, clockExpired: 1, exceptions: 0 }, passed: false });
   });
 
   it("step 1's rule: a forced act on a CLEAN tick inside the budget and the reads is the self-check's exception", () => {
     const fold = fold1(A1, play([tick(1.0), status("CLEAN"), read(1.0, 1, "wr1", 20), look(1.0, "rb", 30), decide("CHECKDOWN", "rb"), thrown("rb"), caught(true), result(3)]));
     expect(fold.problemCount).toBe(1);
     expect(fold.problems[0]).toMatch(/self-check: a CHECKDOWN_LOOK on a tick whose status \(CLEAN\) does not force, and the restated count part does not hold .*the restatement is wrong/);
-    expect(selfCheckOf(fold)).toEqual({ offRule: 1, counted: 0, exceptions: 1, passed: false });
+    expect(selfCheckOf(fold)).toMatchObject({ offRule: { acts: 1, counted: 0, exceptions: 1 }, passed: false });
   });
 
   it("reads the quarterback's own budget: a more patient one makes the same look an exception", () => {
@@ -315,6 +317,72 @@ describe("must act never fires on the counter alone (PER_RUSHER) and its self-ch
     // The trait's half second: 2.5 s for the same 70.
     expect(fold1(A1, events, qbOf(70, true)).problemCount).toBe(1);
     expect(fold1(A1, events, qbOf(60, true)).problemCount).toBe(0);
+  });
+
+  // --- the self-check's other direction: the engine's witnesses (review F-1, F-6) ---
+
+  it("witness: under PER_RUSHER a closing HOLD with a threat inside C is an exception (the rule part too generous), and one outside C is not", () => {
+    // Nearest threat 0.5 s out at tick 1.0: inside B3's C, so the engine's movement gate would have opened.
+    const inside = fold1(B3, play([tick(1.0), threat("de1", "TRAVELLING", 1.5), status("PRESSURE"), decide("HOLD"), tick(1.5), status("PRESSURE"), ...throwaway("NO_TARGET")]));
+    expect(inside.problemCount).toBe(0);
+    expect(inside.witness).toMatchObject({ holds: 1, countHolds: 0, problemCount: 1 });
+    expect(inside.witness.problems[0]).toMatch(/witness: a closing HOLD on a tick whose rule part holds \(nearest threat 0.5 s, C 0.5, status PRESSURE\)/);
+    const outside = fold1(B3, play([tick(1.0), threat("de1", "TRAVELLING", 2.0), status("PRESSURE"), decide("HOLD"), tick(1.5), status("PRESSURE"), ...throwaway("NO_TARGET")]));
+    expect(outside.witness).toMatchObject({ holds: 1, problemCount: 0 });
+  });
+
+  it("witness: under step 1's rule a closing HOLD on a forcing status is an exception", () => {
+    const fold = fold1(A1, play([tick(1.0), threat("de1", "TRAVELLING", 3.0), status("COLLAPSING"), decide("HOLD"), tick(1.5), status("CLEAN"), ...throwaway("NO_TARGET")]));
+    expect(fold.witness).toMatchObject({ holds: 1, problemCount: 1 });
+    expect(fold.witness.problems[0]).toMatch(/status in pocket.forcesDecision, status COLLAPSING/);
+  });
+
+  it("witness: a closing HOLD at or past throwawayEarliestSeconds with the restated count part holding is an exception (the restatement too generous)", () => {
+    expect(A1.qb.throwawayEarliestSeconds).toBe(2.0);
+    // Patience 70, HALF_FIELD: a 2.0 s budget, so a HOLD at 2.0 means the restated budget is wrong.
+    const events = play([tick(2.0), status("CLEAN"), read(2.0, 1, "wr1", 20), decide("HOLD"), tick(2.5), status("CLEAN"), ...throwaway("NO_TARGET")]);
+    const wrong = fold1(A1, events, qbOf(70));
+    expect(wrong.witness).toMatchObject({ holds: 1, countHolds: 1, problemCount: 1 });
+    expect(wrong.witness.problems[0]).toMatch(/witness: a closing HOLD at or past throwawayEarliestSeconds \(2 s\) on a tick whose restated count part holds \(budget 2.000 s, 1 of 3 reads\)/);
+    // The trait's half second: a 2.5 s budget, and the same HOLD is what the engine does.
+    const right = fold1(A1, events, qbOf(70, true));
+    expect(right.witness).toMatchObject({ holds: 1, countHolds: 1, problemCount: 0 });
+    expect(selfCheckOf(right)).toEqual({ offRule: { acts: 0, counted: 0, exceptions: 0 }, witness: { holds: 1, countHolds: 1, clockExpired: 0, exceptions: 0 }, passed: false });
+    // Before 2.0 s the engine holds through its count part (no throwaway yet), so the count half is not read.
+    const early = fold1(A1, play([tick(0.5), status("CLEAN"), read(0.5, 1, "wr1", 20), read(0.5, 2, "wr2", 20), read(0.5, 3, "wr3", 20), decide("HOLD"), tick(1.0), status("CLEAN"), ...throwaway("NO_TARGET")]));
+    expect(early.witness).toMatchObject({ holds: 1, countHolds: 0, problemCount: 0 });
+  });
+
+  it("witness: a HOLD after a pocket_movement CHECK on its tick (a STAND_IN) or after QB_PURSUIT is not a closing HOLD", () => {
+    const standIn = fold1(B3, play([tick(1.0), threat("de1", "TRAVELLING", 1.5), status("COLLAPSING"), movement, decide("HOLD"), tick(1.5), threat("de1", "ARRIVED", 1.5), status("IMMEDIATE"), movement, ...throwaway("POCKET_DURESS")]));
+    expect(standIn.witness).toMatchObject({ holds: 0, problemCount: 0 });
+    const scramble = fold1(B3, play([tick(1.0), threat("de1", "TRAVELLING", 1.5), status("COLLAPSING"), movement, pursuit, decide("SCRAMBLE"), tick(1.5), status("CLEAN"), decide("HOLD"), tick(2.5), status("CLEAN"), decide("HOLD"), result(4)]));
+    expect(closingHoldsOf(one(play([tick(1.0), status("CLEAN"), pursuit, decide("HOLD"), result(4)])))).toEqual([]);
+    expect(scramble.witness).toMatchObject({ holds: 0, problemCount: 0 });
+  });
+
+  it("witness: a CLOCK_EXPIRED on a tick whose rule part holds is the self-check's exception, never the falsifier's (F-6)", () => {
+    // Under PER_RUSHER the threat 0.5 s out excuses it for the falsifier, but the engine reaches CLOCK_EXPIRED only with forced false.
+    const per = fold1(B3, play([tick(2.0), threat("de1", "TRAVELLING", 2.5), status("COLLAPSING"), read(2.0, 1, "wr1", 20), ...throwaway("CLOCK_EXPIRED")]));
+    expect(per.problemCount).toBe(0);
+    expect(per.witness).toMatchObject({ clockExpired: 1, problemCount: 1 });
+    expect(per.witness.problems[0]).toMatch(/witness: a CLOCK_EXPIRED on a tick whose rule part holds \(nearest threat 0.5 s, C 0.5, status COLLAPSING\)/);
+    const step1 = fold1(A1, play([tick(2.0), status("COLLAPSING"), read(2.0, 1, "wr1", 20), ...throwaway("CLOCK_EXPIRED")]));
+    expect(step1.problemCount).toBe(0);
+    expect(step1.witness).toMatchObject({ clockExpired: 1, problemCount: 1 });
+    const clean = fold1(B3, play([tick(2.0), threat("de1", "TRAVELLING", 3.0), status("COLLAPSING"), read(2.0, 1, "wr1", 20), ...throwaway("CLOCK_EXPIRED")]));
+    expect(clean.witness).toMatchObject({ clockExpired: 1, problemCount: 0 });
+  });
+
+  it("the self-check passes only with no exception either way and a case each way", () => {
+    const fold = emptyMustActFold();
+    const ctx = ctxOf(A1, qbOf(70, true));
+    mustActCheck(fold, one(play([tick(2.5), status("CLEAN"), read(2.5, 1, "wr1", 20), ...throwaway("CLOCK_EXPIRED")])), ctx);
+    expect(selfCheckOf(fold).passed).toBe(false);
+    mustActCheck(fold, one(play([tick(2.0), status("CLEAN"), read(2.0, 1, "wr1", 20), decide("HOLD"), tick(2.5), status("CLEAN"), ...throwaway("NO_TARGET")])), ctx);
+    expect(selfCheckOf(fold)).toEqual({ offRule: { acts: 1, counted: 1, exceptions: 0 }, witness: { holds: 1, countHolds: 1, clockExpired: 1, exceptions: 0 }, passed: true });
+    fold.witness.problemCount = 1;
+    expect(selfCheckOf(fold).passed).toBe(false);
   });
 
   it("one fold reads one arm, and a quarterback missing from the snapshot is refused", () => {
@@ -542,13 +610,15 @@ describe(`the step-2 checks on the first ${String(FIRST)} golden games of each l
     expect(f.guardGames.map((g) => g.game)).toEqual(f.guardGames.map((_, i) => i));
     const rule = forcingRuleOf(armById(id).tunables);
     expect(f.mustAct.rule).toBe(rule);
+    const self = selfCheckOf(f.mustAct);
+    expect(self.passed, "the count part's self-check, both ways").toBe(true);
+    expect(self.witness.holds, "the closing HOLDs").toBeGreaterThan(0);
+    expect(self.witness.countHolds, "the closing HOLDs past throwawayEarliestSeconds").toBeGreaterThan(0);
     if (rule === "PER_RUSHER") {
-      expect(selfCheckOf(f.mustAct)).toBeNull();
+      expect(self.offRule).toBeNull();
       expect(f.m2.counterFar).toBe(0);
     } else {
-      const self = selfCheckOf(f.mustAct);
-      expect(self?.passed, "the count part's self-check").toBe(true);
-      expect(self?.offRule, "the self-check's population").toBeGreaterThan(0);
+      expect(self.offRule?.acts, "the self-check's population").toBeGreaterThan(0);
     }
   }, ON ? 900_000 : 300_000);
 
@@ -569,6 +639,33 @@ describe(`the step-2 checks on the first ${String(FIRST)} golden games of each l
     console.log(`A5 read as PER_RUSHER: ${String(fold.problemCount)} counter-alone failures of ${String(fold.acts)} forced acts; first: ${fold.problems[0] ?? ""}`);
     expect(fold.problemCount).toBeGreaterThan(0);
     expect(fold.problems[0]).toMatch(/must act fired on the counter alone/);
+  }, ON ? 900_000 : 300_000);
+
+  it("a count part restated 1 s too generous gives witness exceptions on real streams (K2's probe, the other direction)", () => {
+    for (const id of ["A1", "B3"] as const) {
+      const tunables = armById(id).tunables;
+      const generous = { ...tunables, qb: { ...tunables.qb, timeBudget: { ...tunables.qb.timeBudget, baseSeconds: tunables.qb.timeBudget.baseSeconds - 1 } } } as unknown as Tunables;
+      const right = emptyMustActFold();
+      const wrong = emptyMustActFold();
+      for (const league of GOLDEN_LEAGUES) {
+        goldenGames(
+          league,
+          (o, snapshot) => {
+            const ctx = s2ContextOf(tunables, snapshot);
+            const bent = { ...s2ContextOf(generous, snapshot), rule: ctx.rule };
+            for (const p of s2PlaysOf(o.events)) {
+              mustActCheck(right, p, ctx);
+              mustActCheck(wrong, p, bent);
+            }
+          },
+          { tunables, callerVersion: "v7", first: Math.min(FIRST, 5) },
+        );
+      }
+      console.log(`${id} budget base -1 s: ${String(wrong.witness.problemCount)} witness exceptions over ${String(wrong.witness.countHolds)} closing HOLDs past 2.0 s (${String(right.witness.problemCount)} at the arm's own); first: ${wrong.witness.problems[0] ?? ""}`);
+      expect(right.witness.problemCount, `${id} at its own budget`).toBe(0);
+      expect(wrong.witness.problemCount, `${id} 1 s too generous`).toBeGreaterThan(0);
+      expect(wrong.witness.problems[0]).toMatch(/restated count part holds/);
+    }
   }, ON ? 900_000 : 300_000);
 
   it("B3: the per-game guard vectors sum to the league's guard fold, and their DESPERATION halves to the split", () => {

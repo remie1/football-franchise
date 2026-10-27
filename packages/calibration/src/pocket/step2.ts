@@ -90,7 +90,7 @@ import {
 import { POCKET_1_S1_BASE_PINS } from "./s1BasePins.js";
 import { POCKET_1_S1_PINS } from "./s1Pins.js";
 import { s1Problems } from "./s1Stream.js";
-import { checkdownTriggersOf, emptyS2Folds, FORCED_ACT_KINDS, foldS2Game, mustActShareSummary, s2Problems, selfCheckOf, type GuardCell, type GuardGameVector, type S2Folds } from "./s2Stream.js";
+import { checkdownTriggersOf, emptyS2Folds, FORCED_ACT_KINDS, foldS2Game, mustActShareSummary, s2Problems, selfCheckOf, type GuardCell, type GuardGameVector, type MustActSelfCheck, type S2Folds } from "./s2Stream.js";
 import { openFiling, PR33_STATE, sanitize, type Step2Args } from "./step0.js";
 import {
   armFileOf,
@@ -471,18 +471,29 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
   const isPerRusher = (id: ArmId): boolean => armById(id).forcing === "PER_RUSHER";
 
   const selfRule = present.filter((x) => !isPerRusher(x.id));
-  const selfExceptions = selfRule.flatMap((x) => LEAGUES.flatMap((l) => {
-    const c = selfCheckOf(x.r.s2[l].mustAct);
-    return c !== null && c.exceptions > 0 ? [`${where(x)} ${l}: ${String(c.exceptions)} of ${String(c.offRule)} (first: ${x.r.s2[l].mustAct.problems[0] ?? ""})`] : [];
+  const selfExceptions = present.flatMap((x) => LEAGUES.flatMap((l) => {
+    const f = x.r.s2[l].mustAct;
+    const c = selfCheckOf(f);
+    return [
+      ...(c.offRule !== null && c.offRule.exceptions > 0 ? [`${where(x)} ${l}: ${String(c.offRule.exceptions)} of ${String(c.offRule.acts)} off-rule acts (first: ${f.problems[0] ?? ""})`] : []),
+      ...(c.witness.exceptions > 0 ? [`${where(x)} ${l}: ${String(c.witness.exceptions)} witness exceptions over ${String(c.witness.holds)} closing HOLDs and ${String(c.witness.clockExpired)} CLOCK_EXPIRED (first: ${f.witness.problems[0] ?? ""})`] : []),
+    ];
   }));
-  const selfCounted = sumOf(selfRule.flatMap((x) => LEAGUES.map((l) => selfCheckOf(x.r.s2[l].mustAct)?.counted ?? 0)));
+  const selfCounted = sumOf(selfRule.flatMap((x) => LEAGUES.map((l) => selfCheckOf(x.r.s2[l].mustAct).offRule?.counted ?? 0)));
+  const witnessOf = (x: { r: Step2Record }, l: League): MustActSelfCheck["witness"] => selfCheckOf(x.r.s2[l].mustAct).witness;
+  const countHolds = sumOf(present.flatMap((x) => LEAGUES.map((l) => witnessOf(x, l).countHolds)));
   const a1Self = present.filter((x) => x.id === "A1");
   proofs.push({
     id: "s2.selfCheck",
-    what: "the count part's restatement, on every arm under step 1's forcing rule or the narrower counter (plan §1.7 (ii)): every forced act on a tick whose status does not force satisfies the restated count part",
+    what:
+      "the count part's restatement, both ways (plan §1.7 (ii); review F-1, F-6): not too strict, on every arm under step 1's forcing rule or the narrower counter (every forced act on a tick whose status does not force satisfies the restated count part); " +
+      "not too generous, on every arm (on a closing HOLD the rule part does not hold, and at or past qb.throwawayEarliestSeconds the count part does not either; on a CLOCK_EXPIRED the rule part does not hold)",
     kind: "fold",
-    verdict: selfRule.length === 0 ? "NOT APPLICABLE" : selfExceptions.length > 0 || selfCounted === 0 ? "FAIL" : "PASS",
-    detail: `${String(selfCounted)} off-rule forced acts counted on ${selfRule.map(where).join(", ") || "no arm"}; A1's own: ${a1Self.map((x) => LEAGUES.map((l) => { const c = selfCheckOf(x.r.s2[l].mustAct); return `${where(x)} ${l} ${String(c?.counted ?? 0)} of ${String(c?.offRule ?? 0)}`; }).join(", ")).join(", ") || "not in this run"}; exceptions ${selfExceptions.length === 0 ? "none" : selfExceptions.join("; ")}`,
+    verdict: present.length === 0 ? "NOT APPLICABLE" : selfExceptions.length > 0 || (selfRule.length > 0 && selfCounted === 0) || countHolds === 0 ? "FAIL" : "PASS",
+    detail:
+      `${String(selfCounted)} off-rule forced acts counted on ${selfRule.map(where).join(", ") || "no step-1-rule arm"}; A1's own: ${a1Self.map((x) => LEAGUES.map((l) => { const c = selfCheckOf(x.r.s2[l].mustAct).offRule; return `${where(x)} ${l} ${String(c?.counted ?? 0)} of ${String(c?.acts ?? 0)}`; }).join(", ")).join(", ") || "not in this run"}; ` +
+      `witnesses on ${String(present.length)} arm-sets: ${String(sumOf(present.flatMap((x) => LEAGUES.map((l) => witnessOf(x, l).holds))))} closing HOLDs (${String(countHolds)} at or past throwawayEarliestSeconds), ${String(sumOf(present.flatMap((x) => LEAGUES.map((l) => witnessOf(x, l).clockExpired))))} CLOCK_EXPIRED; ` +
+      `exceptions ${selfExceptions.length === 0 ? "none" : selfExceptions.join("; ")}${countHolds === 0 ? "; no closing HOLD at or past throwawayEarliestSeconds: the generous direction saw no case" : ""}`,
   });
   const selfFault = selfExceptions.length > 0;
 
@@ -497,7 +508,7 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
     verdict: perRusher.length === 0 ? "NOT APPLICABLE" : selfFault ? "NOT JUDGED" : !a1Present ? "NOT CHECKED" : counterFails.length > 0 || counterNoCase.length > 0 ? "FAIL" : "PASS",
     detail:
       `${perRusher.map(where).join(", ") || "no PER_RUSHER arm"}: ${String(sumOf(perRusher.flatMap((x) => LEAGUES.map((l) => x.r.s2[l].mustAct.acts))))} forced acts; failures ${counterFails.length === 0 ? "none" : counterFails.join("; ")}` +
-      `${counterNoCase.length === 0 ? "" : `; no case on ${counterNoCase.join(", ")}`}${selfFault ? "; NOT JUDGED: the count part's self-check failed (a fold fault)" : !a1Present ? "; NOT CHECKED: A1's self-check is not in this run" : ""}; the golden 50 under pocket-1.s2 is Q-4 (pocketS2Pins) and the engine's cases mustAct.test.ts, outside this run`,
+      `${counterNoCase.length === 0 ? "" : `; no case on ${counterNoCase.join(", ")}`}${selfFault ? "; NOT JUDGED: the count part's self-check (either direction) failed (a fold fault)" : !a1Present ? "; NOT CHECKED: A1's self-check is not in this run" : ""}; the golden 50 under pocket-1.s2 is Q-4 (pocketS2Pins) and the engine's cases mustAct.test.ts, outside this run`,
   });
 
   const arrivalFails = present.flatMap((x) => LEAGUES.flatMap((l) => (x.r.s2[l].arrival.problemCount > 0 ? [`${where(x)} ${l} (${String(x.r.s2[l].arrival.problemCount)}; first: ${x.r.s2[l].arrival.problems[0] ?? ""})`] : [])));

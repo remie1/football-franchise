@@ -391,9 +391,10 @@ describe("real arms on a cut corpus, and the digests", () => {
       }
     }
     expect(templates.get("B3")!.s2.gen.mustAct.rule).toBe("PER_RUSHER");
-    expect(selfCheckOf(templates.get("B3")!.s2.gen.mustAct)).toBeNull();
+    expect(selfCheckOf(templates.get("B3")!.s2.gen.mustAct).offRule).toBeNull();
     expect(templates.get("A1")!.s2.gen.mustAct.rule).toBe("STEP_1");
-    expect(selfCheckOf(templates.get("A1")!.s2.gen.mustAct)).toMatchObject({ exceptions: 0, passed: true });
+    expect(selfCheckOf(templates.get("A1")!.s2.gen.mustAct)).toMatchObject({ offRule: { exceptions: 0 }, witness: { exceptions: 0 }, passed: true });
+    expect(selfCheckOf(templates.get("B3")!.s2.gen.mustAct)).toMatchObject({ witness: { exceptions: 0 }, passed: true });
     expect(templates.get("B3")!.affected?.against).toBe("A1");
     expect(templates.get("B3")!.stamp.rules).toBe("pocket-1.s2");
   });
@@ -637,6 +638,21 @@ describe("grading synthetic records", () => {
     expect(proof(m2, "s2.m2.identity").verdict).toBe("FAIL");
     expect(clause(m2, "s2.m2").verdict).toBe("NOT JUDGED");
     expect(m2.sections.outcome.mergeCard).toBe(false);
+    // The self-check's other direction (review F-1, F-6): a witness exception on a PER_RUSHER arm is a fold fault, not the falsifier's failure.
+    const witness = grade(recordsOf((m) => {
+      const w = rec(m, "B3", 1).s2.gen.mustAct.witness;
+      w.problemCount = 1;
+      w.problems = ["play p tick 2.5: witness: a closing HOLD at or past throwawayEarliestSeconds (2 s) on a tick whose restated count part holds"];
+    }));
+    expect(proof(witness, "s2.selfCheck").verdict).toBe("FAIL");
+    expect(proof(witness, "s2.selfCheck").detail).toMatch(/B3 set 1 gen: 1 witness exceptions over [0-9]+ closing HOLDs and [0-9]+ CLOCK_EXPIRED \(first: play p tick 2.5: witness: /);
+    expect(proof(witness, "s2.falsifier.counterAlone").verdict).toBe("NOT JUDGED");
+    expect(witness.sections.outcome.foldFaults).toEqual([expect.stringMatching(/^s2\.selfCheck: /)]);
+    expect(witness.sections.outcome.mergeCard).toBe(false);
+    // With no closing HOLD past throwawayEarliestSeconds anywhere, the generous direction saw no case: FAIL, not PASS.
+    const noCase = grade(recordsOf((m) => { for (const bySet of m.values()) for (const r of Object.values(bySet)) for (const l of LEAGUES) r!.s2[l].mustAct.witness.countHolds = 0; }));
+    expect(proof(noCase, "s2.selfCheck").verdict).toBe("FAIL");
+    expect(proof(noCase, "s2.selfCheck").detail).toMatch(/the generous direction saw no case/);
     // Without A1 in the run, counterAlone is not checked (A1's self-check is its witness).
     const noA1 = grade(recordsOf((m) => { m.delete("A1"); }));
     expect(proof(noA1, "s2.falsifier.counterAlone").verdict).toBe("NOT CHECKED");
