@@ -574,6 +574,7 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
   const m2FaultOnA1 = m2Fails.some((f) => f.startsWith("A1 "));
 
   const q2: string[] = [];
+  const q2Unchecked: string[] = [];
   const q2Fails: string[] = [];
   let q2Checked = 0;
   for (const { id } of STEP2_BASES) {
@@ -581,8 +582,9 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
       const r = at(id, s);
       if (r === undefined) continue;
       const ref = references.get(`${id}.set${String(s)}`);
-      if (cut(r)) q2.push(`${id} set ${String(s)} NOT CHECKED (a cut corpus, tests only)`);
-      else if (ref === undefined) q2.push(`${id} set ${String(s)} NOT CHECKED (no step-1 record)`);
+      if (cut(r)) q2Unchecked.push(`${id} set ${String(s)} NOT CHECKED (a cut corpus, tests only)`);
+      // On the full corpus a re-played base with no step-1 record to replay against is a failure, never "not checked" (review MEAS-M-1).
+      else if (ref === undefined) q2Fails.push(`${id} set ${String(s)} has no step-1 record (a missing reference on the full corpus fails Q-2)`);
       else {
         q2Checked += 1;
         const differ = q2Problems(r, ref);
@@ -595,8 +597,9 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
     id: "q2.replay",
     what: "the re-played bases equal step 1's records on Q-2's projection (set 1: reports/adr-089-step1.json; set 2: the committed fixture)",
     kind: "structural",
-    verdict: q2Fails.length > 0 ? "FAIL" : q2Checked === 0 ? (q2.length === 0 ? "NOT APPLICABLE" : "NOT CHECKED") : "PASS",
-    detail: `${[...q2, ...q2Fails].join("; ") || "no re-played base in this run"}`,
+    // PASS only when every re-played base-set in the run was checked and equal (review MEAS-M-1).
+    verdict: q2Fails.length > 0 ? "FAIL" : q2Unchecked.length > 0 ? "NOT CHECKED" : q2Checked === 0 ? "NOT APPLICABLE" : "PASS",
+    detail: `${[...q2Unchecked, ...q2, ...q2Fails].join("; ") || "no re-played base in this run"}`,
   });
   const proofById = new Map(proofs.map((p) => [p.id, p]));
 
@@ -870,7 +873,11 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
   const breachRows = oneSet === undefined ? graded.filter((g) => g.reading.breaches.length > 0) : [];
   const guardBreaches = breachRows.map((g) => `${g.arm} against ${g.base}, ${g.league}: ${g.reading.breaches.map((b) => (b === "league-wide" ? `league-wide Z ${sgn(g.reading.league.Z)}` : `${b} Z ${sgn(g.reading.classes.find((k) => k.cls === b)?.reading?.Z ?? null)}`)).join(", ")}`);
   const missingTargets = STEP2_RUN_IDS.flatMap((id) => SEED_SETS.filter((s) => at(id, s) === undefined).map((s) => `${id}.set${String(s)}`));
-  const complete = oneSet === undefined && missingTargets.length === 0;
+  const cutRecords = present.filter((x) => cut(x.r)).map(where);
+  // The merge card needs the full run on the full corpora (review MEAS-M-4), and every structural proof PASS, not merely not FAIL (MEAS-M-1).
+  const complete = oneSet === undefined && missingTargets.length === 0 && cutRecords.length === 0;
+  // NOT JUDGED comes only from a fold fault, which holds the card on its own line.
+  const unproved = proofs.filter((p) => p.kind === "structural" && p.verdict !== "PASS" && p.verdict !== "FAIL" && p.verdict !== "NOT JUDGED").map((p) => `${p.id} ${p.verdict}`);
   const next: string[] = [];
   if (guardBreaches.length > 0) {
     next.push(
@@ -884,10 +891,12 @@ export function gradeStep2(records: Step2Records, file: FiledFile, guard: Step2G
   if (foldFaults.length > 0) next.push("fix the fold (plan §4.7, kind 2): the clauses it feeds print NOT JUDGED until then, and the step cannot close");
   if (oneSet !== undefined) next.push(`this run played seed set ${String(oneSet)} only: it is reported, never graded; the step's verdict needs both seed sets (pocket -- --step 2)`);
   else if (missingTargets.length > 0) next.push(`not every target of the step is in this run (missing ${missingTargets.join(", ")}): the merge card waits for the full run`);
+  if (cutRecords.length > 0) next.push(`this run is on a cut corpus (tests only; ${String(cutRecords.length)} arm-sets): the merge card waits for the full corpora`);
+  if (unproved.length > 0) next.push(`structural proofs that did not pass: ${unproved.join(", ")}; the merge card waits for every one to PASS`);
   if (gradedFailures.length > 0) next.push("the graded failures go to the owner as filed: no band moves, nothing re-files, nothing is tuned to pass or re-run to try again");
   const outcome: Step2Outcome = {
     structuralFailures, foldFaults, gradedFailures, guardBreaches,
-    mergeCard: complete && structuralFailures.length === 0 && foldFaults.length === 0 && guardBreaches.length === 0,
+    mergeCard: complete && proofs.every((p) => p.kind !== "structural" || p.verdict === "PASS") && foldFaults.length === 0 && guardBreaches.length === 0,
     next,
   };
 
@@ -988,7 +997,9 @@ export function renderStep2Report(grade: Step2Grade, records: Step2Records): str
   lines.push(`- filing: ${first?.filedDigest ?? STEP0_FILED_DIGEST}; amendments: ${s.amendments.digest} (${s.amendments.entry}, ${s.amendments.record})`);
   lines.push(`- fingerprint (every package's source, the lockfile, the manifests and the filing): ${first?.fingerprint ?? "n/a"}`);
   lines.push(`- commit: ${commits.join(", ")} (read from the repository's files; a change staged and not committed is not seen)`);
-  lines.push(`- node: ${first?.node ?? "n/a"}; caller ${STEP1_CALLER}; corpora: flat 496 games, gen 272 games, on each seed set (on gen, set 2 is a second league)${first !== undefined && (first.corpus.flatFirst !== null || first.corpus.genThroughWeek !== null) ? ` (CUT: flat first ${String(first.corpus.flatFirst)}, gen through week ${String(first.corpus.genThroughWeek)}; tests only)` : ""}`);
+  const allRecords = [...records.values()].flatMap((bySet) => SEED_SETS.flatMap((x) => (bySet[x] === undefined ? [] : [bySet[x]!])));
+  const played = (l: League): string => [...new Set(allRecords.map((r) => r.measures[l].games))].sort((a, b) => a - b).join(" or ") || "n/a";
+  lines.push(`- node: ${first?.node ?? "n/a"}; caller ${STEP1_CALLER}; corpora played: flat ${played("flat")} games, gen ${played("gen")} games an arm-set (the full corpora are flat 496 and gen 272 on each seed set; on gen, set 2 is a second league)${first !== undefined && (first.corpus.flatFirst !== null || first.corpus.genThroughWeek !== null) ? ` (CUT: flat first ${String(first.corpus.flatFirst)}, gen through week ${String(first.corpus.genThroughWeek)}; tests only)` : ""}`);
   lines.push(`- arms: ${[...records.keys()].map((id) => `${id} (sets ${SEED_SETS.filter((x) => records.get(id)?.[x] !== undefined).join(", ")}; ${(SEED_SETS.map((x) => records.get(id)?.[x]).find((r) => r !== undefined)?.stamp.overlayDigest) ?? (SEED_SETS.map((x) => records.get(id)?.[x]).find((r) => r !== undefined)?.stamp.rules ?? "?")})`).join(", ")}`);
   lines.push(`- PR #33: ${PR33_STATE}, so P2S prints against both 22.02 and 15.46`);
   lines.push("- the guard's SE: AM-1's statistic is the binomial SE with the two arms read as independent, pooled over the seed sets; e* and the paired, game-clustered SE are printed beside every reading (F.9 item 3)");

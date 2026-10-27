@@ -26,16 +26,16 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AMENDMENTS_DIGEST, AMENDMENTS_PATH, amendmentsDigest } from "../src/pocket/amendments.js";
-import { armById, STEP2_ARM_IDS, STEP2_RUN_IDS, type ArmId } from "../src/pocket/arms.js";
+import { armById, STEP2_ARM_IDS, STEP2_BASES, STEP2_RUN_IDS, type ArmId } from "../src/pocket/arms.js";
 import { FILED_PATH } from "../src/pocket/bands.js";
-import type { SeedSet } from "../src/pocket/corpus.js";
+import { SEED_SETS, type SeedSet } from "../src/pocket/corpus.js";
 import { loadFiled, STEP0_FILED_DIGEST, type FiledFile } from "../src/pocket/filed.js";
 import { GOLDEN_LEAGUES } from "../src/pocket/golden.js";
 import { LEAGUES } from "../src/pocket/report.js";
 import { POCKET_1_S1_BASE_PINS } from "../src/pocket/s1BasePins.js";
 import { POCKET_1_S1_PINS } from "../src/pocket/s1Pins.js";
 import { s2Problems, selfCheckOf } from "../src/pocket/s2Stream.js";
-import { armFileOf, jsonText, playArm, referenceOf, stampOf, type ArmRecord, type Step1Corpus, type Step1Env } from "../src/pocket/step1.js";
+import { armFileOf, FULL_CORPUS, jsonText, playArm, referenceOf, stampOf, type ArmRecord, type Step1Corpus, type Step1Env } from "../src/pocket/step1.js";
 import {
   checkFilingForStep2,
   digestPinProblems,
@@ -356,11 +356,18 @@ function synthetic(id: ArmId, seedSet: SeedSet, env: Step1Env = ENV, corpus: Ste
 }
 
 type Editable = Map<ArmId, Partial<Record<SeedSet, W<Step2Record>>>>;
-const recordsOf = (edit?: (m: Editable) => void, sets: readonly SeedSet[] = [1, 2]): Step2Records => {
-  const m: Editable = new Map(STEP2_RUN_IDS.map((id) => [id, Object.fromEntries(sets.map((s) => [s, synthetic(id, s)])) as Partial<Record<SeedSet, W<Step2Record>>>]));
+/**
+ * The synthetic run: every target, stamped as played on the full corpora unless `corpus` says the
+ * cut one (the folds inside are the cut templates' either way; the grade reads the stamp).
+ */
+const recordsOf = (edit?: (m: Editable) => void, sets: readonly SeedSet[] = [1, 2], corpus: Step1Corpus = FULL_CORPUS): Step2Records => {
+  const m: Editable = new Map(STEP2_RUN_IDS.map((id) => [id, Object.fromEntries(sets.map((s) => [s, synthetic(id, s, ENV, corpus)])) as Partial<Record<SeedSet, W<Step2Record>>>]));
   edit?.(m);
   return m as unknown as Step2Records;
 };
+/** Each re-played base-set's own record as its step-1 reference, so Q-2 finds them equal. */
+const selfRefs = (records: Step2Records): Step1References =>
+  new Map(STEP2_BASES.flatMap(({ id }) => SEED_SETS.flatMap((s) => (records.get(id)?.[s] === undefined ? [] : [[`${id}.set${String(s)}`, records.get(id)![s]! as unknown as ArmRecord] as const]))));
 const rec = (m: Editable, id: ArmId, s: SeedSet): W<Step2Record> => m.get(id)![s]!;
 
 describe("real arms on a cut corpus, and the digests", () => {
@@ -475,14 +482,14 @@ describe("digestPinProblems (Q-3's base check)", () => {
 
 describe("grading synthetic records", () => {
   const preflight = (): ReturnType<typeof preflightStep2> => preflightStep2(FILED, AMENDMENTS);
-  const grade = (records: Step2Records, oneSet?: SeedSet, refs: Step1References = NO_REFS): Step2Grade => {
+  const grade = (records: Step2Records, oneSet?: SeedSet, refs?: Step1References): Step2Grade => {
     const { file, guard } = preflight();
-    return gradeStep2(records, file, guard, refs, oneSet);
+    return gradeStep2(records, file, guard, refs ?? selfRefs(records), oneSet);
   };
   const clause = (g: Step2Grade, id: string) => g.sections.clauses.find((c) => c.id === id)!;
   const proof = (g: Step2Grade, id: string) => g.sections.proofs.find((p) => p.id === id)!;
 
-  it("as given: every proof passes (Q-2 not checked on a cut corpus), every clause holds, no breach, the merge card may be posted", () => {
+  it("as given: every proof passes (Q-2 equal on every re-played base), every clause holds, no breach, the merge card may be posted", () => {
     const g = grade(recordsOf());
     expect(g.sections.proofs.map((p) => [p.id, p.kind, p.verdict])).toEqual([
       ["s2.selfCheck", "fold", "PASS"],
@@ -492,9 +499,10 @@ describe("grading synthetic records", () => {
       ["s2.liveSet", "structural", "PASS"],
       ["s1.streamChecks", "structural", "PASS"],
       ["s2.m2.identity", "fold", "PASS"],
-      ["q2.replay", "structural", "NOT CHECKED"],
+      ["q2.replay", "structural", "PASS"],
     ]);
-    expect(proof(g, "q2.replay").detail).toMatch(/^A0 set 1 NOT CHECKED \(a cut corpus, tests only\)/);
+    expect(STEP2_BASES.map((b) => b.id)).toEqual(["A0", "A14", "A1", "A5", "A11"]);
+    expect(proof(g, "q2.replay").detail).toBe(STEP2_BASES.flatMap(({ id }) => [`${id} set 1 equal`, `${id} set 2 equal`]).join("; "));
     expect(g.sections.clauses.map((c) => [c.id, c.verdict])).toEqual([
       ["s2.pressure.flat", "PASS"],
       ["s2.pressure.gen", "PASS"],
@@ -752,20 +760,49 @@ describe("grading synthetic records", () => {
 
   it("Q-2: a re-played base on the full corpus is checked against its step-1 record; a difference is a structural failure", () => {
     const full = (m: Editable): void => { rec(m, "A1", 1).stamp.corpus = { flatFirst: null, genThroughWeek: null }; };
-    const same = recordsOf(full);
+    const same = recordsOf(full, [1, 2], TINY);
     const refs: Step1References = new Map([["A1.set1", same.get("A1")![1]! as unknown as ArmRecord]]);
-    const pass = grade(same, undefined, refs);
+    // One base-set checked and equal, the rest on a cut corpus: NOT CHECKED, never PASS (review MEAS-M-1).
+    const partial = grade(same, undefined, refs);
+    expect(proof(partial, "q2.replay").verdict).toBe("NOT CHECKED");
+    expect(proof(partial, "q2.replay").detail).toContain("A1 set 1 equal");
+    expect(proof(partial, "q2.replay").detail).toContain("A1 set 2 NOT CHECKED (a cut corpus, tests only)");
+    expect(partial.sections.outcome.mergeCard).toBe(false);
+    const pass = grade(recordsOf());
     expect(proof(pass, "q2.replay").verdict).toBe("PASS");
-    expect(proof(pass, "q2.replay").detail).toContain("A1 set 1 equal");
-    expect(proof(pass, "q2.replay").detail).toContain("A1 set 2 NOT CHECKED (a cut corpus, tests only)");
+    expect(pass.sections.outcome.mergeCard).toBe(true);
     const other = clone(same.get("A1")![1]!);
     other.measures.flat.pressure = other.measures.flat.pressure! + 1;
     const fail = grade(same, undefined, new Map([["A1.set1", other as unknown as ArmRecord]]));
     expect(proof(fail, "q2.replay").verdict).toBe("FAIL");
     expect(fail.sections.outcome.structuralFailures).toEqual(["q2.replay: " + proof(fail, "q2.replay").detail]);
     expect(proof(fail, "q2.replay").detail).toMatch(/A1 set 1 differs on measures$/);
+    // On the full corpus a missing reference fails Q-2: it is never "not checked" (review MEAS-M-1).
     const noRef = grade(same, undefined, NO_REFS);
-    expect(proof(noRef, "q2.replay").detail).toContain("A1 set 1 NOT CHECKED (no step-1 record)");
+    expect(proof(noRef, "q2.replay").verdict).toBe("FAIL");
+    expect(proof(noRef, "q2.replay").detail).toContain("A1 set 1 has no step-1 record (a missing reference on the full corpus fails Q-2)");
+    expect(noRef.sections.outcome.structuralFailures).toEqual(["q2.replay: " + proof(noRef, "q2.replay").detail]);
+    const noneAtAll = grade(recordsOf(), undefined, NO_REFS);
+    expect(proof(noneAtAll, "q2.replay").verdict).toBe("FAIL");
+    expect(noneAtAll.sections.outcome.mergeCard).toBe(false);
+  });
+
+  it("a cut corpus never posts the merge card, and its report prints the games it played (review MEAS-M-4)", () => {
+    const records = recordsOf(undefined, [1, 2], TINY);
+    const g = grade(records);
+    expect(proof(g, "q2.replay").verdict).toBe("NOT CHECKED");
+    expect(proof(g, "q2.replay").detail).toMatch(/^A0 set 1 NOT CHECKED \(a cut corpus, tests only\)/);
+    expect(g.sections.outcome).toMatchObject({ structuralFailures: [], foldFaults: [], gradedFailures: [], guardBreaches: [], mergeCard: false });
+    expect(g.sections.outcome.next).toEqual([
+      `this run is on a cut corpus (tests only; ${String(STEP2_RUN_IDS.length * 2)} arm-sets): the merge card waits for the full corpora`,
+      "structural proofs that did not pass: q2.replay NOT CHECKED; the merge card waits for every one to PASS",
+    ]);
+    const text = renderStep2Report(g, records);
+    expect(text).toContain("corpora played: flat 1 games, gen 16 games an arm-set (the full corpora are flat 496 and gen 272 on each seed set; on gen, set 2 is a second league) (CUT: flat first 1, gen through week 1; tests only)");
+    // One arm-set on the cut corpus is enough to hold the card.
+    const one = grade(recordsOf((m) => { rec(m, "B3", 2).stamp.corpus = { ...TINY }; }));
+    expect(one.sections.outcome.mergeCard).toBe(false);
+    expect(one.sections.outcome.next).toEqual(["this run is on a cut corpus (tests only; 1 arm-sets): the merge card waits for the full corpora"]);
   });
 
   it("is deterministic, and its report prints every section and every group report", () => {
@@ -795,7 +832,8 @@ describe("grading synthetic records", () => {
     // The checkdown looks by trigger print each part apart, never their sum (review MEAS-M-2).
     expect(text).not.toContain("threat or status part");
     expect(text).toMatch(/looks \(threat part [0-9]+, status part [0-9]+, count part [0-9]+; rule part [0-9]+ under (STEP_1|PER_RUSHER|COUNTER_LESS_SEEN): rule only /);
-    expect(text).toContain("(CUT: flat first 1, gen through week 1; tests only)");
+    expect(text).toContain("corpora played: flat 1 games, gen 16 games an arm-set (the full corpora are flat 496 and gen 272 on each seed set; on gen, set 2 is a second league)\n");
+    expect(text).not.toContain("(CUT:");
     expect(text).not.toContain(tmpdir());
     const one = grade(recordsOf(undefined, [1]), 1);
     expect(renderStep2Report(one, recordsOf(undefined, [1])).split("\n")[0]).toBe("# ADR-089 step 2: the arms, seed set 1 only (reported, never graded)");
