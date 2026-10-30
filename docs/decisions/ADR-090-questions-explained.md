@@ -1,6 +1,6 @@
 # ADR-090: where every man stands at the snap, in plain words
 
-*2026-10-25, revised 2026-10-30: the Stem now has its own design, [ADR-091](ADR-091-questions-explained.md), built on your notes, so questions 1 and 4 are asked again. The full design is [ADR-090](ADR-090-where-every-man-stands-at-the-snap.md). Design only: nothing in the game changes until you answer, and the pocket fix's measurements are not touched. Five questions, each also a card in the thread. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
+*2026-10-25, revised 2026-10-30: the Stem now has its own design, [ADR-091](ADR-091-questions-explained.md), built on your notes, so questions 1 and 4 are asked again. The full design is [ADR-090](ADR-090-where-every-man-stands-at-the-snap.md). Design only: nothing in the game changes until you answer, and the pocket fix's measurements are not touched. Five questions, each also a card in the thread; you answered 1 (Real) and 4 (Yes) on 2026-10-30. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
 
 ## What this is
 
@@ -20,10 +20,10 @@ This design plays the pre-snap game out in order and writes down where all 22 me
 
 ## The five questions, one line each
 
-1. **A look (the Mug and the coverage looks):** is the man really standing there at the snap? *I recommend Real.*
+1. **A look (the Mug and the coverage looks):** is the man really standing there at the snap? *I recommend Real.* **Your answer: Real.**
 2. **Tells:** does where he stands give his job away? *I recommend By rating.*
 3. **The ball across the field:** always the middle for now, or the hash? *I recommend Middle for now.*
-4. **The plan:** eleven steps, with the pocket fix's free rushers third and the stem in four of them? *I recommend Yes.*
+4. **The plan:** eleven steps, with the pocket fix's free rushers third and the stem in four of them? *I recommend Yes.* **Your answer: Yes.**
 5. **The game viewer:** draw all 22 men at the snap? *I recommend Yes.*
 
 ## Words I use
@@ -31,6 +31,8 @@ This design plays the pre-snap game out in order and writes down where all 22 me
 **Snap spot:** where a man is standing, in yards, when the ball is snapped, and whether he is moving. **Across** is yards from the ball toward a sideline; **deep** is yards from the line of scrimmage. **Shown spot:** where a look puts him. **Landmark:** where his real job takes him after the snap.
 
 ## Question 1: the Mug and the coverage looks, is he really standing there at the snap?
+
+**Your answer (2026-10-30): Real.**
 
 *Asked again on 30 October. You were right that the Stem as first drafted was a free move; it now has its own design (ADR-091), so this question is only about the Mug and the coverage looks.*
 
@@ -63,6 +65,8 @@ Your rule from October still holds: a look never changes **what** a man is assig
 **The other choice (Hash now):** the ball goes on the left hash, the middle or the right hash, from where the last play ended, and spots are measured from there; the play-callers ignore it until their own design.
 
 ## Question 4: the plan
+
+**Your answer (2026-10-30): Yes.**
 
 | step | what | changes games? |
 |---|---|---|

@@ -1,6 +1,6 @@
 # ADR-091: the stem, in plain words
 
-*2026-10-30, revised the same evening: the Mike's timing now runs against how well our defense knows the quarterback's count, built from your notes on film study and in-game adjustments ([ADR-092](ADR-092-questions-explained.md)); and stems now come about 9 times a game, set by each coordinator, from your source ("How often" below). The full design is [ADR-091](ADR-091-the-stem-called-by-the-mike.md). It is built on your notes. Design only: nothing in the game changes until you answer. Two questions, each also a card in the thread; you answered S1 on 2026-10-30 (Awareness and Play Recognition), and S2 is still open. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
+*2026-10-30, revised the same evening: the Mike's timing now runs against how well our defense knows the quarterback's count, built from your notes on film study and in-game adjustments ([ADR-092](ADR-092-questions-explained.md)); and stems now come about 9 times a game, set by each coordinator, from your source ("How often" below). The full design is [ADR-091](ADR-091-the-stem-called-by-the-mike.md). It is built on your notes. Design only: nothing in the game changes until you answer. Two questions, both answered on 2026-10-30: Awareness and Play Recognition (S1), and the NFL's own penalty for offside (S2). You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
 
 ## What changes
 
@@ -50,8 +50,8 @@ You were right: the game stems far too rarely. Today it's about 2.5 times a game
 
 ## The two questions, one line each
 
-1. **The Mike's ratings:** his Awareness and Play Recognition, or a new rating? *I recommend Awareness and Play Recognition.*
-2. **Offside from a stem:** a real 5-yard penalty now, or just counted? *I recommend Enforce.*
+1. **The Mike's ratings:** his Awareness and Play Recognition, or a new rating? *I recommend Awareness and Play Recognition.* **Your answer: Awareness and Play Recognition.**
+2. **Offside from a stem:** a real 5-yard penalty now, or just counted? *I recommend Enforce.* **Your answer: follow the NFL's rules.**
 
 ## Question S1: which of the Mike's ratings time the stem?
 
@@ -65,9 +65,11 @@ You were right: the game stems far too rarely. Today it's about 2.5 times a game
 
 ## Question S2: when a stem draws the line offside, is it a 5-yard penalty now?
 
+**Your answer (2026-10-30): follow the real NFL rules.** So offside from a stem is always flagged and enforced as the NFL enforces defensive offside: 5 yards from where the play started, or half the distance to the goal line from inside the 10; the play runs on as a free play; the offense picks the play or the penalty. It's the game's first penalty and needs nothing else first: it's step 6 of the plan, after the stem's other effects are measured. The other fouls a stem can draw (a neutral zone infraction when an offensive lineman reacts, encroachment on contact, the defense's delay of game for an abrupt move) come with the every-snap count design you said yes to, each with the NFL's own penalty.
+
 **An example.** The line is caught moving because the quarterback snapped on the move, and the left end's momentum carries him across. The play goes on (a free play). If the play gained 12 yards, the offense keeps it. If it lost 3, the offense takes 5 yards and replays the down.
 
-**The proposal (Enforce).** This becomes the game's first penalty, built as its own step after the stem's other effects are measured. For teams the computer runs, the offense keeps the play if it scored, made a first down or gained more than 5 yards without a turnover; otherwise it takes the penalty. When you coach, you choose.
+**The proposal (Enforce).** This becomes the game's first penalty, built as its own step after the stem's other effects are measured. For teams the computer runs, the offense keeps the play if it scored, or made a first down with more yards than the penalty gives; otherwise it takes the penalty, which also wipes out a turnover. When you coach, you choose.
 
 **The other choice (Count only).** The offside is recorded on the play and counted, but no yards change until we design penalties as a whole.
 
