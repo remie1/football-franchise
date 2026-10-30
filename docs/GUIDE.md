@@ -121,8 +121,9 @@ the same games, pressure fell from 32% to 28% of dropbacks on the flat-rated tes
 33% to 29% on the made-up league, and sacks rose by 0.2 to 0.4 per 100 dropbacks. Four of the five
 graded pocket predictions held; on the made-up league pressure fell 0.02 points further than the
 predicted range, which is reported as filed. The interception check, as amended before step 2, did
-not trip. Step 2's numbers are in `packages/calibration/reports/adr-089-step2.md`; whether to merge
-it with its switch off waits on you.
+not trip. Step 2's numbers are in `packages/calibration/reports/adr-089-step2.md`; you chose to merge
+it with its switch off (30 October 2026). Step 3 waits on the design of where every man stands
+at the snap.
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
 NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered
