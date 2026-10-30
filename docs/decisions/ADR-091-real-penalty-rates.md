@@ -23,7 +23,7 @@ The three defensive pre-snap flags together: 7.95 per 1,000 snaps, 0.49 per team
 ## By quarter, half, short yardage, and home or road (added 2026-10-30 for ADR-092 §8)
 
 - **Rows:** the same regular-season plays, quarters 1 to 4 only (overtime left out): 100,572 run and pass plays. Each group's rate divides its flags by that group's own run and pass plays.
-- **Short yardage:** third or fourth down with 2 yards or less to go. **Home:** the offence (`posteam`) is the home team.
+- **Short yardage:** third or fourth down with 2 yards or less to go. **Home:** the offense (`posteam`) is the home team.
 - **Defensive** means Defensive Offside, Neutral Zone Infraction and Encroachment together.
 
 | group | run and pass plays | defensive flags | per 1,000 | false starts | per 1,000 |
@@ -36,8 +36,8 @@ The three defensive pre-snap flags together: 7.95 per 1,000 snaps, 0.49 per team
 | 2nd half | 50,460 | 358 | 7.09 | 871 | 17.26 |
 | short yardage | 5,533 | 70 | 12.65 | 148 | 26.75 |
 | other snaps | 95,039 | 732 | 7.70 | 1,714 | 18.03 |
-| offence at home | 50,578 | 424 | 8.38 | 922 | 18.23 |
-| offence on the road | 49,994 | 378 | 7.56 | 940 | 18.80 |
+| offense at home | 50,578 | 424 | 8.38 | 922 | 18.23 |
+| offense on the road | 49,994 | 378 | 7.56 | 940 | 18.80 |
 
 **How sure:** the defensive drop from the first half to the second (rate ratio 1.25) is about 3.1 standard errors (Poisson counts, on the log of the ratio); first quarter against third (1.49), about 3.7; the false-start drop (1.15), about 2.9.
 

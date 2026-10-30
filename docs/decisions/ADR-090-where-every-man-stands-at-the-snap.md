@@ -13,19 +13,19 @@
 | **snap spot** | where one man is standing, in yards, at the instant the ball is snapped, and whether he is moving then and how fast |
 | **the snap picture** | all 22 snap spots for one play, plus where the ball is |
 | **aligned spot** | where the played call would line him up if nobody disguised anything |
-| **shown spot** | where a look (a coverage look or a front look) puts him for the offence to see |
+| **shown spot** | where a look (a coverage look or a front look) puts him for the offense to see |
 | **played spot / landmark** | where his played job takes him after the snap (a zone's landmark, his man, his gap) |
 | **the grid** | the engine's 5 lanes across by 5 depth bands (`match-engine.md` §3); every man sits in one cell for the whole play today |
 | **a tell** | something in where a man stands that gives his job away |
 
 ## 1. The need, in one paragraph
 
-The pre-snap game is built as reads and looks: the quarterback's coverage read, the line's pressure read, the leash, the slide check, coverage looks (Two-High, Single-High, Press, Split, Show 4), front looks (Mug, Stem), the creeper. What is not built is **where each man stands at the snap**. No player has a spot in yards: a man occupies one grid cell for the entire play (`engine/src/resolve/zone.ts:18-25`, CHECKED), a defender's spot is read from his played job (a man defender sits in his receiver's cell, a zone defender in his anchor cell, same lines), and the looks live only in the offence's head (`contracts/src/playcalls.ts:471`, `:573`, CHECKED). So a disguise costs nothing physically, an unblocked rusher's start is a table keyed on his position, and the August halt still stands: *"`gap`, `side`, and a rusher's depth class describe WHERE A DEFENDER LINES UP. THE MODEL NEEDS WHERE HE IS AT THE SNAP"* (`ADR-066:596-599`, CHECKED). This ADR designs the piece the halt asks for: the sequence of the pre-snap game, played out in order, whose output is the snap picture.
+The pre-snap game is built as reads and looks: the quarterback's coverage read, the line's pressure read, the leash, the slide check, coverage looks (Two-High, Single-High, Press, Split, Show 4), front looks (Mug, Stem), the creeper. What is not built is **where each man stands at the snap**. No player has a spot in yards: a man occupies one grid cell for the entire play (`engine/src/resolve/zone.ts:18-25`, CHECKED), a defender's spot is read from his played job (a man defender sits in his receiver's cell, a zone defender in his anchor cell, same lines), and the looks live only in the offense's head (`contracts/src/playcalls.ts:471`, `:573`, CHECKED). So a disguise costs nothing physically, an unblocked rusher's start is a table keyed on his position, and the August halt still stands: *"`gap`, `side`, and a rusher's depth class describe WHERE A DEFENDER LINES UP. THE MODEL NEEDS WHERE HE IS AT THE SNAP"* (`ADR-066:596-599`, CHECKED). This ADR designs the piece the halt asks for: the sequence of the pre-snap game, played out in order, whose output is the snap picture.
 
 ## 2. The design in brief
 
 1. **Every man gets a snap spot in yards**: across (x, from the ball), deep (y, from the line of scrimmage), stance (down or up), and, if he is moving at the snap, his direction and speed. Rounded to half a yard (§3).
-2. **The snap picture is built by playing the pre-snap game in order**, seven beats (§4): the offence lines up; the defence aligns to it; the defence shows its looks; motion (when ADR-074 is built); the reads and checks at the line (already built); the defence's last movement into the snap; the snap.
+2. **The snap picture is built by playing the pre-snap game in order**, seven beats (§4): the offense lines up; the defense aligns to it; the defense shows its looks; motion (when ADR-074 is built); the reads and checks at the line (already built); the defense's last movement into the snap; the snap.
 3. **A look is real** (question 1, recommended): a man shown in a Mug or a Two-High shell is standing there when the ball is snapped, and has to travel from there to his played job. **A Stem plays out in time**, called by the Mike against the snap count, and can end on time, early, caught moving or called off (ADR-091). **ADR-069's ruling 1 still holds**: the look never changes what he is assigned to do; it changes where he starts doing it. The one exception is a called-off stem, which plays from where it stands (ADR-091 §6, from the owner's notes).
 4. **The output is published on the stream**, at the start of the play, so the viewer, calibration, the news desk and every later physical model read one picture (Iron Rule 3).
 5. **It is built in steps, each switched off and proved inert, then switched on and measured** (§7). Step 2 is ADR-089 step 3's free runners: they read real snap spots and question 19's Wait is lifted by its own condition ("until the pre-snap phase gives real spots").
@@ -34,8 +34,8 @@ The pre-snap game is built as reads and looks: the quarterback's coverage read, 
 
 | field | meaning | unit |
 |---|---|---|
-| `x` | across the field, from the ball; negative is the offence's left (lane LW's side), positive its right | yards, to 0.5 |
-| `y` | from the line of scrimmage; positive is downfield (the defence's side), negative is the offensive backfield | yards, to 0.5 |
+| `x` | across the field, from the ball; negative is the offense's left (lane LW's side), positive its right | yards, to 0.5 |
+| `y` | from the line of scrimmage; positive is downfield (the defense's side), negative is the offensive backfield | yards, to 0.5 |
 | `stance` | `DOWN` (a hand on the ground) or `UP` | |
 | `moving` | absent if set; else `{ dx, dy, yardsPerSecond }`, his direction and speed at the snap | yards per second, to 0.5 |
 
@@ -49,22 +49,22 @@ The pre-snap game is built as reads and looks: the quarterback's coverage read, 
 
 Each beat starts from the picture the beat before left. Beats 1 to 3 and 7 are pure tables (no die). Beat 4 is ADR-074. Beat 5 is what is built today. Beat 6 rolls dice only for a stem (ADR-091); otherwise it reads ratings and rolls nothing.
 
-### 4.1 Beat 1: the offence lines up (formation A)
+### 4.1 Beat 1: the offense lines up (formation A)
 
 From the formation's `Alignment` (spot `LINE` / `OFF_LINE` / `BACKFIELD`, lane, `outsideRank`; `playbook/src/alignment.ts:59-83`, CHECKED) and its `QuarterbackSpot` (`UNDER_CENTER` / `SHOTGUN` / `PISTOL`, `:86`, CHECKED, "affects nothing mechanical yet"). Default table D3 (CHOSEN, every value checked at step 0, §7):
 
 | man | x | y |
 |---|---|---|
-| centre | 0 | -0.5 |
+| center | 0 | -0.5 |
 | guards, tackles | +-1.5, +-3.0 (about 1.5 yards per man, the split ADR-089 §4.4.3 used, INFERRED) | -0.5 |
-| quarterback | 0 | under centre -1.0; pistol -4.0; shotgun -5.0 |
+| quarterback | 0 | under center -1.0; pistol -4.0; shotgun -5.0 |
 | a receiver in a W lane | outermost +-18 (outside the numbers); each next man in 3 yards further in | -0.5 on the line, -1.5 off it |
 | a receiver in an H lane | outermost +-11; each next man in 2.5 yards further in; the innermost man on the line next to a tackle is an inline end at +-4.5 | as above |
-| a back | under centre: tailback 0, -7.0; fullback 0, -4.5. Shotgun: beside the quarterback, +-1.5, -5.0. Pistol: 0, -7.0 | |
+| a back | under center: tailback 0, -7.0; fullback 0, -4.5. Shotgun: beside the quarterback, +-1.5, -5.0. Pistol: 0, -7.0 | |
 
 The first five rows read only what the formation already says; the yard values are placeholders until formations author their own splits (a bunch, a stack, a tight split), which is a later, separate change (§10).
 
-### 4.2 Beat 2: the defence aligns to the formation (aligned spots)
+### 4.2 Beat 2: the defense aligns to the formation (aligned spots)
 
 From each defender's **played** duty on the call, against formation A's spots. Default table D4 (CHOSEN; the ranges are the owner's August research, `ADR-066:607-610`, "REPORTED, OWNER, EXTERNAL": DL technique 0 to 9, linebacker depth 4 to 7, press 1 to 2 yards, off 5 to 8):
 
@@ -86,7 +86,7 @@ From each defender's **played** duty on the call, against formation A's spots. D
 
 **Leverage** (default D5, CHOSEN, from the owner's August point that leverage "flips based on where the help is", `ADR-066:609`): a man defender shades a yard **away from his help**: outside if a safety is in the deep middle (Cover 1), inside if nobody is deep (Cover 0). A zone defender takes the shade of his zone.
 
-### 4.3 Beat 3: the defence shows its looks (shown spots)
+### 4.3 Beat 3: the defense shows its looks (shown spots)
 
 **A look moves the men it moves to their shown spots**, using beat 2's own table on the **shown** duty: a coverage look reads `shownAssignments` (ADR-067), a front look reads `shownRush` (ADR-073). So:
 
@@ -100,13 +100,13 @@ From each defender's **played** duty on the call, against formation A's spots. D
 
 ### 4.4 Beat 4: motion (ADR-074; designed, not built)
 
-When ADR-074 is built, it becomes this beat and needs no new design here: the offence moves from formation A to formation B, and the defence re-runs beats 2 and 3 for the men its motion tag moves (Track: the man defender goes with him; Spin: the safety on that side comes down and the corner spins deep; Bump: the swap). A jet man is moving at the snap: in the backfield, about 4 yards deep, crossing toward his side at about 7 yards a second (default D6, CHOSEN; ADR-074 §3.4 puts him in the centre lane in the backfield, moving toward a side). Until ADR-074 is built, formation B is formation A.
+When ADR-074 is built, it becomes this beat and needs no new design here: the offense moves from formation A to formation B, and the defense re-runs beats 2 and 3 for the men its motion tag moves (Track: the man defender goes with him; Spin: the safety on that side comes down and the corner spins deep; Bump: the swap). A jet man is moving at the snap: in the backfield, about 4 yards deep, crossing toward his side at about 7 yards a second (default D6, CHOSEN; ADR-074 §3.4 puts him in the center lane in the backfield, moving toward a side). Until ADR-074 is built, formation B is formation A.
 
 ### 4.5 Beat 5: the reads at the line (built today; no change)
 
-The coverage read, the pressure read, the slide check, the leash and the keep-in knob (ADR-068, ADR-072, ADR-073) run here, as they do now, against the shown lists. **They move nobody** in v1. A quarterback's check that changes the formation is not modelled (§10).
+The coverage read, the pressure read, the slide check, the leash and the keep-in knob (ADR-068, ADR-072, ADR-073) run here, as they do now, against the shown lists. **They move nobody** in v1. A quarterback's check that changes the formation is not modeled (§10).
 
-### 4.6 Beat 6: the defence's last movement into the snap
+### 4.6 Beat 6: the defense's last movement into the snap
 
 | what | where he is at the snap | source |
 |---|---|---|
@@ -210,12 +210,12 @@ Question 1 (looks are real) and question 2 (tells) are **separately priceable**:
 | Mug and Stem mechanics, "six shown, four come" | `ADR-073` §2.5 (`:562-586`) | CHECKED |
 | Free-runner snap table, gap widths, 1.5 yd per lineman, creeper 3 yd/s, 0.45 s for 5 yards off vs 1.5 | ADR-089 §4.4.3, §4.4.5, from its free-runner reader `FR` | REPORTED |
 | A look never changes what is played (ruling 1) | ADR-069 §9 | CHECKED |
-| Motion tags Track, Spin, Bump; jet in the centre lane in the backfield, moving to a side | ADR-074 §3.2, §3.4 | CHECKED |
+| Motion tags Track, Spin, Bump; jet in the center lane in the backfield, moving to a side | ADR-074 §3.2, §3.4 | CHECKED |
 | Disguise rating at 50 for everyone; weakest mover; a poor blitz disguiser ruins only his own job; execution roll | ADR-075 §4.2-§4.4, §10 | CHECKED |
 | A disguise is free today: the engine plays every defender from his played assignment (`passPlay.ts:424`) | ADR-075 §4.4 | REPORTED (line not re-read here) |
 | Field 53.3 yards wide, hashes about 6.2 yards apart, numbers about 12 yards from the sideline | NFL field dimensions | REPORTED, not ingested |
 | Big Data Bowl tracking data exists with snap frames | general knowledge | REPORTED, not opened; terms unchecked |
-| Every value in D1 to D8 | football judgement | CHOSEN, provenance NONE beyond the cited ranges |
+| Every value in D1 to D8 | football judgment | CHOSEN, provenance NONE beyond the cited ranges |
 
 ## 13. Decision
 
