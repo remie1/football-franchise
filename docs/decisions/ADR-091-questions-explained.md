@@ -1,6 +1,6 @@
 # ADR-091: the stem, in plain words
 
-*2026-10-30. The full design is [ADR-091](ADR-091-the-stem-called-by-the-mike.md). It is built on your notes. Design only: nothing in the game changes until you answer. Two questions, each also a card in the thread. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
+*2026-10-30, revised the same evening: the Mike's timing now runs against how well our defence knows the quarterback's count, built from your notes on film study and in-game adjustments ([ADR-092](ADR-092-questions-explained.md)). The full design is [ADR-091](ADR-091-the-stem-called-by-the-mike.md). It is built on your notes. Design only: nothing in the game changes until you answer. Two questions, each also a card in the thread. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
 
 ## What changes
 
@@ -11,7 +11,7 @@ In the new design the stem plays out at the line, the way your notes describe it
 1. **The coordinator calls it** as part of the call, as today: "line up here, shift there before the snap".
 2. **The line sets in its first front.** The offence's line reads it and sets its blocking (this part is built today).
 3. **The quarterback starts his count**: normal, a quick count, or a hard count.
-4. **The Mike yells MOVE.** His Awareness and Play Recognition, against the quarterback's Awareness and Football IQ, decide whether he gets it right.
+4. **The Mike yells MOVE.** His Awareness and Play Recognition, and how well our defence knows this quarterback's count (from the week's film study and what the Mike has heard so far in the game, ADR-092), decide whether he gets it right.
 5. **The line shifts.** Each lineman's Reaction and Agility decide whether he gets there in time.
 6. **The offence answers.** If the shift came early, the quarterback may snap the ball while they are moving. If he doesn't, the centre may yell "Alert!" and change everyone's blocking.
 7. **The snap.**
@@ -44,7 +44,7 @@ In the new design the stem plays out at the line, the way your notes describe it
 
 ## Question S1: which of the Mike's ratings time the stem?
 
-**An example.** Two Mikes. One has Awareness 80 and Play Recognition 75: against an average quarterback on a normal count he's on time 82 times in 100 and never caught. The other has 40 and 45, so he's on time 68 times in 100 and caught 13 times in 100.
+**An example.** Two Mikes. One has Awareness 80 and Play Recognition 75: against an average quarterback on a normal count, at an average point in the game, he's on time 82 times in 100 and never caught. The other has 40 and 45, so he's on time 68 times in 100 and caught 13 times in 100.
 
 **The proposal (Awareness and Play Recognition).** Every linebacker already has both ratings, and they're the ones the game already uses for reading the offence. The centre uses his Awareness, as the game's design document says.
 

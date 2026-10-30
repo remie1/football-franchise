@@ -69,9 +69,9 @@ Your rule from October still holds: a look never changes **what** a man is assig
 | 0 | the spot tables, checked against real alignments, with tests; not used in games | no |
 | 1 | the game works out every snap picture and saves it on the play | no, proved replay for replay |
 | 2 | **the pocket fix's unblocked rushers start from their real snap spots** (this replaces the Wait answer you gave, which said: only until real spots exist) | yes |
-| 3 | the stem plays out at the line and is recorded (the count, the Mike's call, the shift, who got caught), but nothing reads it after the snap yet | no |
+| 3 | the stem plays out at the line and is recorded (the count, the Mike's call, the shift, who got caught, and how well the defence knows the count), but nothing reads it after the snap yet | no |
 | 4 | a disguised man has to travel from where he stood to his job (the cost of disguise) | yes |
-| 5 | the stem's effects: the centre's re-call, the edge when it's on time, the cost when a man is caught | yes |
+| 5 | the stem's effects: the centre's re-call, the edge when it's on time, the cost when a man is caught; then the real coordinators' film study and in-game fixes (ADR-092) | yes |
 | 6 | offside from a stem, the game's first penalty (ADR-091's second question) | yes |
 | 7 | Stem Back (the double-cross) and Double Stem | yes |
 | 8 | tells (question 2), once Disguise ratings vary | yes |

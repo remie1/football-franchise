@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-30
 - **Proposed by:** Orchestrator (thread "Design snap spots for every player")
-- **Status:** **proposed, design only.** Nothing in `packages/` changes with this ADR. It takes the Stem out of ADR-090's question 1 and gives it its own timing. Two questions go to the owner (§14), in plain words in [ADR-091-questions-explained.md](ADR-091-questions-explained.md) and on cards in the thread. Each contracts edit in §11 needs the owner's typed yes naming it, asked at the step that needs it. The owner never merges: each step comes with its numbers and needs the owner's word before the Orchestrator merges it.
+- **Status:** **proposed, design only.** Nothing in `packages/` changes with this ADR. It takes the Stem out of ADR-090's question 1 and gives it its own timing. Two questions go to the owner (§14), in plain words in [ADR-091-questions-explained.md](ADR-091-questions-explained.md) and on cards in the thread. Each contracts edit in §11 needs the owner's typed yes naming it, asked at the step that needs it. **Revised 2026-10-30, later the same evening:** the quarterback term in the Mike's timing (§5.2) is replaced by [ADR-092](ADR-092-the-battle-over-the-snap-count.md)'s count read, after the owner asked why the quarterback's Awareness was in it and sent notes on film study and in-game adjustments. The owner never merges: each step comes with its numbers and needs the owner's word before the Orchestrator merges it.
 - **Asked for by:** the owner, 2026-10-30 20:17Z: *"We need to build a more advanced system for stemming. ... It sounds like the middle linebacker calls the stem and a lot of risk is based on his timing and the line's execution. So, the mechanics here need to take into account the linebacker's attributes."* The owner attached notes on how stems are called, timed, countered and punished (§1.1).
 - **Builds on, and does not reopen:** ADR-073 (the Stem as a front look: the line shown one position toward the side opposite the played strength, legal only where three or more down linemen rush and none drops; Homie's rate of one front look in ten legal calls); ADR-090 (snap spots; this ADR fills its beat 6 for every stem); ADR-068 step 7 (the hard count, with the dead `CheckKind`s it names) and step 5 (the line re-identifying a moved man); ADR-072 (`discipline`, whose registry note already says "pre-snap penalties later", `contracts/src/registry.ts:128`); `match-engine.md` §16.3 (the communication checks); ADR-005 (a die only when it matters).
 
@@ -41,7 +41,7 @@
 
 1. **The stem stays a tag the caller draws** (Homie's rate of one front look in ten stands), and it now names **who triggers it: the Mike.**
 2. **At the line it plays out in time**: the line sets in its lineup front and the offence's line reads it (built today); the quarterback starts his cadence; the Mike calls MOVE; the line shifts; the ball is snapped.
-3. **Four rolls decide it, each rolled only when it matters**: the Mike's timing (his Awareness and Play Recognition against the quarterback's Awareness and Football IQ and the cadence); the line's shift (each lineman's Reaction and Agility); the quarterback's snap on movement; the centre's re-call. A fifth, the offside check (each caught man's Discipline and Agility), is rolled only when the quarterback snapped on movement.
+3. **Four rolls decide it, each rolled only when it matters**: the Mike's timing (his Awareness and Play Recognition, against the cadence and how well his defence knows this quarterback's count, ADR-092's count read); the line's shift (each lineman's Reaction and Agility); the quarterback's snap on movement; the centre's re-call. A fifth, the offside check (each caught man's Discipline and Agility), is rolled only when the quarterback snapped on movement.
 4. **Four endings** (§6): **on time** (the offence blocked the wrong front: each moved man gets a small edge), **early** (the centre may re-call; if he does, the stem is wasted), **caught** (the man is between gaps, standing up and moving at the snap: a big disadvantage, and an offside chance if the quarterback snapped on the move), **called off** (the line plays from where it stands).
 5. **The double-cross ("Stem Back") and the double stem** are built after the plain stem (§7). The auto-stem is built after motion (§7.3).
 6. **Offside is the game's first penalty**: question S2 (§8, §14).
@@ -53,9 +53,11 @@
 | defensive coordinator | calls the stem as a tag on the call (unchanged: the caller's front-look draw) | none |
 | **the Mike** (`LB_M`) | watches the cadence and calls MOVE | **Awareness, Play Recognition** (question S1) |
 | each lineman who moves | shifts on the call; if caught moving after a quick snap, may run offside | **Reaction, Agility**; **Discipline, Agility** for offside |
-| the quarterback | runs the cadence; may snap on movement | **Awareness, Football IQ** (the cadence, as `match-engine.md` §16.3's hard count: "QB acting ability (awareness + football IQ)"); **Awareness, Reaction** (snap on movement) |
+| the quarterback | runs the cadence; may snap on movement | **Football IQ** (how much of his count can be read, through ADR-092's count read; ADR-092 §3 says why Awareness is left out of it); **Awareness, Reaction** (snap on movement) |
 | the centre | sees an early stem and re-calls the blocking | **Awareness**, with the line's average Awareness (`match-engine.md` §16.3 item 3) |
 | the offensive coordinator | chooses the cadence (§5.1) | none |
+
+ADR-092 adds the coordinators: the defensive staff's film study and halftime notes, and the offensive coordinator's fixes during the game, all through the count read.
 
 All of these attributes exist today for those positions (`contracts/src/registry.ts:63-130`, CHECKED: `awareness` and `reaction` for every position; `playRecognition` for LB and DB; `footballIQ` for QB; `agility` and `discipline` for every position). **No new rating** under question S1's recommended answer.
 
@@ -86,7 +88,7 @@ Drawn **only on a snap whose defence wears a stem** (nothing else reads the cade
 
 ### 5.2 The Mike's timing
 
-`d100 + Mike's Awareness ÷ 5 + Mike's Play Recognition ÷ 5` against `50 + cadence row + (QB Awareness + QB Football IQ − 100) ÷ 10 + noise`, where the cadence row is normal +0, quick +15, hard count +10, and noise is 0 until crowd noise is built (`match-engine.md` §16.3 lists +10 to +25). The quarterback term is ±10 at the extremes: a quarterback with a disciplined, varied count is harder to time. Default D2, CHOSEN, in the engine's usual `rating ÷ 5` form.
+`d100 + Mike's Awareness ÷ 5 + Mike's Play Recognition ÷ 5 + (count read − 50) ÷ 2.5` against `50 + cadence row + noise`, where the cadence row is normal +0, quick +15, hard count +10, and noise is 0 until crowd noise is built (`match-engine.md` §16.3 lists +10 to +25). The **count read** (ADR-092) is how well this defence knows this offence's count at that snap, 0 to 100: it starts from the week's film study, grows as the Mike hears the count, and falls when the offence changes its count. It replaces the first draft's quarterback term, `(QB Awareness + QB Football IQ − 100) ÷ 10`, which was the same on every snap and counted the quarterback's Awareness twice (ADR-092 §3). Default D2, CHOSEN, in the engine's usual `rating ÷ 5` form; the count read's weight is ADR-092's D11.
 
 The margin decides what the Mike did (default D3, CHOSEN):
 
@@ -176,7 +178,7 @@ Nothing produces a penalty today: `PENALTY` is in the contracts (`contracts/src/
 
 Counted as plays whose play record carries the flag (`penalty = 1`, `penalty_type`, the play record's first penalty), over run and pass plays; method in [ADR-091-real-penalty-rates.md](ADR-091-real-penalty-rates.md). **No public figure says how many of them come from stems**; most come from rushers jumping the count (INFERRED, football judgement).
 
-### 9.2 What the formulas give with every rating at 50 (COMPUTED from §5)
+### 9.2 What the formulas give with every rating at 50 (COMPUTED from §5, with the count read at 50, which is a whole game's average under ADR-092; its §7 gives the shares by quarter)
 
 | stem endings (plain stem, the offence at home) | share of stems |
 |---|---|
@@ -225,7 +227,7 @@ So the stem works about **65** times in 100, is **caught about 20** times in 100
 
 | step | what | changes games? |
 |---|---|---|
-| **S-a** | the stem plays out at the line and is recorded: the cadence, the Mike's call, the shift, snap on movement, the re-call's roll, and the snap spots of every ending; **nothing reads it after the snap** (arm T as the shipped default) | no: proved replay for replay, only the stream grows |
+| **S-a** | the stem plays out at the line and is recorded: the cadence, the Mike's call, the shift, snap on movement, the re-call's roll, and the snap spots of every ending, with ADR-092's count read (every coordinator at 50 until its step S-b2); **nothing reads it after the snap** (arm T as the shipped default) | no: proved replay for replay, only the stream grows |
 | **S-b** | the stem's effects: the re-call, the on-time edge, the caught cost, the called-off gaps; switched off until measured, then switched on on the owner's word | yes |
 | **S-c** | defensive offside (question S2) | yes |
 | **S-d** | Stem Back and Double Stem | yes |
