@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-30
 - **Proposed by:** Orchestrator (thread "Design snap spots for every player")
-- **Status:** **proposed, design only.** Nothing in `packages/` changes with this ADR. It replaces the quarterback term in ADR-091's timing roll (§5.2) with the **count read** designed here. One question goes to the owner (§14), in plain words in [ADR-092-questions-explained.md](ADR-092-questions-explained.md) and on a card in the thread. Each contracts edit in §11 needs the owner's typed yes naming it, asked at the step that needs it. The owner never merges: each step comes with its numbers and needs the owner's word before the Orchestrator merges it.
+- **Status:** **proposed, design only.** Nothing in `packages/` changes with this ADR. It replaces the quarterback term in ADR-091's timing roll (§5.2) with the **count read** designed here. **Revised the same evening (21:27Z)** for the owner's source on how often real defences stem (5 to 15 a game, ADR-091 §7.4): the ceiling's constant moves from 62 to 68 to stay centred, and §7's numbers are recomputed at the new rate. One question goes to the owner (§14), in plain words in [ADR-092-questions-explained.md](ADR-092-questions-explained.md) and on a card in the thread. Each contracts edit in §11 needs the owner's typed yes naming it, asked at the step that needs it. The owner never merges: each step comes with its numbers and needs the owner's word before the Orchestrator merges it.
 - **Asked for by:** the owner, 2026-10-30 20:58Z: *"This is starting to include the impact of coaches on both sides of the ball. Both in the week leading up to the game and during the game to make adjustments. So this can flesh out the value of good coordinators even more."* The owner attached notes on how a defence studies a quarterback's cadence and how an offence breaks it (§1.1). At 20:47Z he had asked why ADR-091 timed the Mike against the quarterback's Awareness and Football IQ.
 - **Builds on, and does not reopen:** ADR-091 (the stem, its rolls and endings, all its dials); `coaching-staff.md` §3 (the coach sheet's `gamePlanning`, "weekly opponent-prep quality", and `inGameAdjustment`, "halftime/rolling counter-punching") and §4 items 1-2 (the GameplanPacket and the AdjustmentPacket); ADR-080 (each team's four seats: head coach, OC, DC, special teams; position coaches are not modelled in v1); ADR-076 (the DC's weekly plan from film; owner Q4: the offence has no answer to the plan yet); ADR-072 (`discipline`); ADR-005 (a die only when it matters).
 
@@ -43,7 +43,7 @@ The game has the two coach ratings his notes describe and has never used them in
 3. **The week sets the start**: the **DC's Game Planning** does 70 of the study and the **Mike's Discipline** 30 (§4.2).
 4. **The game moves it**: every snap the Mike hears raises it (§5.1); at halftime the **DC's In-Game Adjustment** hands the Mike what the booth decoded (§5.2); late in a close game a quarterback with low **Poise** falls back on his habits (§5.3).
 5. **The offence fights back**: when a stem works against him, the **OC's In-Game Adjustment** decides whether he sees it; his fix changes the live word, puts three snaps on two and tells the quarterback to drop his habit (the quarterback's **Discipline**); the DC may read the change (In-Game Adjustment against In-Game Adjustment, the spec's opposed check) (§5.4).
-6. **Honest size** (§7): stems come up only 2 or 3 times a game, so through stems alone a great DC is worth about one stem a season and the OC's fixes are almost invisible. Question **C1** asks whether the count read should also decide who jumps the count on any snap, where the real game's numbers live (§8, §9).
+6. **Size** (§7): at the league's stem rate (about 9 a game, ADR-091 §7.4), a DC at 90 instead of 20 gives his team about 4 more stems that work and 4 or 5 fewer caught a season, and the OC fixes his count about 2.4 times a game. Question **C1** asks whether the count read should also decide who jumps the count on any snap, where the rest of the real game's pre-snap flags are (§8, §9).
 
 ## 3. Who does what
 
@@ -65,19 +65,19 @@ The game has the two coach ratings his notes describe and has never used them in
 
 ### 4.1 The ceiling (default D1, CHOSEN)
 
-`ceiling = 62 + (50 − QB Football IQ) × 0.6`, kept between 20 and 95.
+`ceiling = 68 + (50 − QB Football IQ) × 0.6`, kept between 20 and 95.
 
 | QB Football IQ | 35 | 50 | 65 | 85 |
 |---|---|---|---|---|
-| ceiling | 71 | 62 | 53 | 41 |
+| ceiling | 77 | 68 | 59 | 47 |
 
-The 62 is chosen so that, with every rating at 50, the count read averages 50 over a game's stems (§6; COMPUTED: 49.9). So ADR-091's shares stand as the average game, and this ADR adds the shape within a game and the spread between teams.
+The 68 is chosen so that, with every rating at 50 and stems at the league's rate (15 in 100 snaps, ADR-091 §7.4), the count read averages 50 over a game's stems (§6; COMPUTED: 50.0). At the old rate of about 4 in 100 it was 62: more stems give the OC more to fix, which pulls the read down. So ADR-091's shares stand as the average game, and this ADR adds the shape within a game and the spread between teams.
 
 ### 4.2 The film read (default D2, CHOSEN; the 70 and 30 are the owner's)
 
 `study = 0.7 × DC Game Planning + 0.3 × Mike's Discipline`; `share = ½ + (study − 50) ÷ 200`, kept between 0.2 and 0.8; **film read = ceiling × share.**
 
-An average staff goes into the game knowing half of what can be known (film read 31 against an average quarterback). A DC at 90 knows about two-thirds (share 0.64, film read 40); a DC at 20 about two-fifths (share 0.395, film read about 24). The slope (÷ 200) is the dial that sets how much a great staff is worth; doubling it would double the DC's effect in §7.
+An average staff goes into the game knowing half of what can be known (film read 34 against an average quarterback). A DC at 90 knows about two-thirds (share 0.64, film read about 44); a DC at 20 about two-fifths (share 0.395, film read about 27). The slope (÷ 200) is the dial that sets how much a great staff is worth; doubling it would double the DC's effect in §7.
 
 ### 4.3 The cheat sheet and the radio
 
@@ -119,36 +119,41 @@ The ceiling becomes his; the film read is half the starter's share (little tape 
 
 `d100 + Mike's Awareness ÷ 5 + Mike's Play Recognition ÷ 5 + (count read − 50) ÷ 2.5` against `50 + cadence row + noise` (default D11, CHOSEN). **Removed:** ADR-091's `(QB Awareness + QB Football IQ − 100) ÷ 10`. Every 5 points of count read moves the Mike's roll by 2. ADR-091's bands (D3), rows and every other roll are unchanged.
 
-## 7. What it gives (COMPUTED: §4-§6 laid over ADR-091 §5 and simulated, 150,000 to 200,000 games a case, so about ±0.2 points of noise; 62 snaps a team-game, stems on 4.1% of snaps, home and road alike; scripts in the project's shared folder, `design/ADR-092-data/`)
+## 7. What it gives (COMPUTED: §4-§6 laid over ADR-091 §5 and simulated, 100,000 to 150,000 games a case, so about ±0.2 points of noise; 62 snaps a team-game, stems on 15 in 100 snaps with the offence adjusting to them (ADR-091 §7.4, D18) and offside at its D6 of 25, home and road alike; scripts in the project's shared folder, `design/ADR-092-data/`)
 
 **With every rating at 50, by quarter:**
 
-| | 1st quarter | 2nd | 3rd | 4th | whole game | ADR-091 as filed |
+| | 1st quarter | 2nd | 3rd | 4th | whole game | at the old rate, about 4 in 100 |
 |---|---|---|---|---|---|---|
-| count read | 39 | 49 | 55 | 56 | 50 | 50 |
-| stem works | 61.5 | 64.8 | 67.4 | 67.5 | 65.4 | 65.3 |
-| stem caught | 24.4 | 20.4 | 17.9 | 17.6 | 20.0 | 19.5 |
-| wasted or called off | 14.1 | 14.8 | 14.6 | 14.9 | 14.6 | 15.2 |
+| count read | 41 | 50 | 55 | 54 | 50 | 50 |
+| stem works | 62.4 | 65.1 | 66.9 | 66.2 | 65.2 | 65.4 |
+| stem caught | 22.9 | 19.2 | 17.0 | 17.3 | 19.0 | 20.0 |
+| wasted or called off | 14.7 | 15.7 | 16.1 | 16.5 | 15.8 | 14.6 |
+| hard counts among the stems | 9.7 | 13.7 | 15.8 | 17.7 | 14.4 | 7.3 |
 
-The OC fixes his count **0.83 times a game**. Offside from stems stays at **1.5 per 1,000 snaps** in every quarter, because a better count read turns late calls into on-time ones and leaves early ones about as they were.
+The OC fixes his count **2.4 times a game**, and the offence's hard counts climb through the game as it adjusts to the stems (ADR-091 D18), which is why the fourth quarter is a little worse for the stem than the third. Offside from stems is about **1.4 per 1,000 snaps** (ADR-091 D14's band is 0.2 to 2.0). A better count read turns late calls into on-time ones and leaves early ones about as they were, so it barely moves offside.
 
 **Who matters, with everything else at 50** (share of stems, whole game):
 
 | case | works | caught | in the 1st quarter: works / caught |
 |---|---|---|---|
-| everyone at 50 | 65.4 | 20.0 | 61.6 / 24.3 |
-| DC Game Planning and In-Game Adjustment 90 | 66.5 | 18.9 | 63.6 / 22.2 |
-| DC 20 and 20 | 64.5 | 21.1 | 59.7 / 26.3 |
-| OC In-Game Adjustment 90 | 65.2 | 20.3 | 61.5 / 24.4 |
-| OC 20 | 65.4 | 20.1 | 61.4 / 24.4 |
-| QB Football IQ 85 | 59.4 | 26.5 | 56.7 / 29.6 |
-| QB Football IQ 35 | 67.9 | 17.3 | 63.2 / 22.4 |
-| QB Poise 20 | 65.6 | 19.8 | (4th quarter count read 58 instead of 56) |
-| Mike Discipline 80 / 40 | 65.7 / 65.3 | 19.7 / 20.2 | |
-| Mike Awareness 80 and Play Recognition 75 | 74.8 | 10.5 | 71.2 / 13.9 |
-| Mike Awareness 40 and Play Recognition 45 | 62.7 | 22.9 | 58.6 / 27.3 |
+| everyone at 50 | 65.1 | 19.2 | 62.3 / 23.0 |
+| DC Game Planning and In-Game Adjustment 90 | 66.6 | 17.6 | 64.7 / 20.4 |
+| DC 20 and 20 | 63.9 | 20.4 | 60.5 / 25.0 |
+| DC Game Planning 90 only | 66.2 | 17.9 | 64.7 / 20.3 |
+| DC In-Game Adjustment 90 only | 65.5 | 18.7 | 62.4 / 22.9 |
+| OC In-Game Adjustment 90 | 64.7 | 19.5 | 62.3 / 22.9 |
+| OC 20 | 65.4 | 18.9 | 62.4 / 23.0 |
+| DC 90 and 90 against an OC at 20 | 66.9 | 17.3 | 64.9 / 20.1 |
+| DC 20 and 20 against an OC at 90 | 63.5 | 20.8 | 60.4 / 25.0 |
+| QB Football IQ 85 | 59.8 | 24.8 | 57.7 / 27.9 |
+| QB Football IQ 35 | 67.4 | 16.7 | 64.4 / 20.7 |
+| QB Poise 20 | 65.4 | 18.9 | (second half: 66.9 / 16.8, against 66.4 / 17.3) |
+| Mike Discipline 80 / 40 | 65.5 / 65.0 | 18.8 / 19.3 | |
+| Mike Awareness 80 and Play Recognition 75 | 74.5 | 10.0 | 72.1 / 12.6 |
+| Mike Awareness 40 and Play Recognition 45 | 62.5 | 21.8 | 59.7 / 25.8 |
 
-**What that is worth.** A team stems about 43 times a season (17 × 62 × 4.1%). A DC at 90 instead of 20 gives it about **one more stem that works and one fewer caught a season**, most of it in the first half. The OC's In-Game Adjustment barely shows, because a stem has to work against him before he sees anything, and that happens about once a game. In stems alone the Mike and the quarterback decide the battle and the coordinators only shade it. The coordinators matter where the count is fought on every snap (§9).
+**What that is worth.** At the league's rate a team stems about 158 times a season (17 × 9.3). A DC at 90 instead of 20 gives it about **4 more stems that work and 4 or 5 fewer caught a season** (105 against 101 working, 28 against 32 caught), most of it from his week's study and most of that in the first half. Matched against each other, the best DC facing the worst OC gets about 5 more stems that work and 5 fewer caught a season than the worst DC facing the best OC. The OC's In-Game Adjustment is worth about 1 stem a season: he fixes his count 2.7 times a game at 90 and 2.2 at 20, and each fix buys only a few snaps before the Mike relearns the count. The Mike and the quarterback still matter most (a Mike at 80 and 75 is caught 16 times a season instead of 30), and a DC's own stem rate decides how many chances there are (ADR-091 §7.4). The rest of the count battle is fought on every snap (§9).
 
 ## 8. Real numbers (COMPUTED, nflverse play-by-play, regular seasons 2022-2024, quarters 1 to 4; per 1,000 run and pass plays in the same group; method and counts in [ADR-091-real-penalty-rates.md](ADR-091-real-penalty-rates.md))
 
@@ -166,7 +171,7 @@ The OC fixes his count **0.83 times a game**. Offside from stems stays at **1.5 
 
 ## 9. Question C1: where else does the count read count?
 
-Through stems alone the battle is real but small (§7). The owner's notes also name the place it is large: a defensive line that "keeps jumping the snap", hard counts that draw defenders offside, and the offence's own risk when it changes its count. Real defences jump the count about 8 times a team-season and offences false-start about 19 times (§8, ADR-091 §9.1). **Recommended: design it next, after the pocket fix finishes measuring**, as its own ADR: the cadence drawn on every snap; each rusher's jump on a hard count read through his Discipline and the count read (the dead `CheckKind` `snap_jump`, `contracts/src/events.ts:147`); the offence's false starts on long counts and new live words; the OC's fix triggered by the jumps that did not happen; §8's table as its targets. The other choice is **stems only for now**.
+Through stems the battle is now worth a few stems a season to a great staff (§7). The owner's notes also name the place it is large: a defensive line that "keeps jumping the snap", hard counts that draw defenders offside, and the offence's own risk when it changes its count. Real defences jump the count about 8 times a team-season and offences false-start about 19 times (§8, ADR-091 §9.1). **Recommended: design it next, after the pocket fix finishes measuring**, as its own ADR: the cadence drawn on every snap; each rusher's jump on a hard count read through his Discipline and the count read (the dead `CheckKind` `snap_jump`, `contracts/src/events.ts:147`); the offence's false starts on long counts and new live words; the OC's fix triggered by the jumps that did not happen; §8's table as its targets. The other choice is **stems only for now**.
 
 ## 10. Measuring it (inside ADR-091's arms, on the stem snaps of both test leagues)
 
@@ -176,7 +181,7 @@ Through stems alone the battle is real but small (§7). The owner's notes also n
 | **read at 50** | §4-§6 with every coordinator at 50 |
 | **read with coaches** | §4-§6 with each team's real coordinators (after petition R1) |
 
-**Predictions, filed now:** (P1) flat and read at 50 give the same whole-game stem endings within 1 point (the centring); (P2) in the read at 50 arm, the caught share in first quarters exceeds the second half's by 4 to 9 points (computed 6.6); (P3) with coaches, stems work more often under DCs with higher Game Planning, in direction only (computed spread about 2 points from 20 to 90); (P4) the OC fixes his count 0.4 to 1.3 times a game (computed 0.83); (P5) stem offside stays inside ADR-091's band D14. A miss comes to the owner with its numbers, never fitted away.
+**Predictions, filed now:** (P1) flat and read at 50 give the same whole-game stem endings within 1 point (the centring); (P2) in the read at 50 arm, the caught share in first quarters exceeds the second half's by 3 to 9 points (computed 5.7); (P3) with coaches, stems work more often under DCs with higher Game Planning, in direction only (computed spread about 2.7 points from 20 to 90); (P4) the OC fixes his count 1.5 to 3.5 times a game (computed 2.4); (P5) stem offside stays inside ADR-091's band D14 (computed 1.4). A miss comes to the owner with its numbers, never fitted away.
 
 ## 11. Contract petitions (shape only; each needs the owner's typed yes naming it, at its step)
 
@@ -230,8 +235,9 @@ Everything after S-a waits until ADR-089 has finished measuring, the same rule a
 | Made-up players' Discipline: mean 60, spread 12 | `attributes/src/fictional/profiles.ts:55` | CHECKED |
 | `snap_jump` is a `CheckKind` with no producer; `CoachDecisionKind` is `FOURTH_DOWN` and `COIN_TOSS` | `contracts/src/events.ts:147`, `:231` | CHECKED |
 | Real pre-snap flags by quarter, half, short yardage, home and road | nflverse play-by-play 2022-2024, regular season | COMPUTED (this ADR) |
-| §7's shares, values and fix rate; the 62 that centres the read | §4-§6 simulated over ADR-091 §5 | COMPUTED (this ADR) |
-| Stems on 4.1% of snaps; 62 run and pass plays a team-game | ADR-091 §9.2 (REPORTED from ADR-073's measurement); §8's data | REPORTED / COMPUTED |
+| §7's shares, values and fix rate; the 68 that centres the read | §4-§6 simulated over ADR-091 §5 | COMPUTED (this ADR) |
+| Stems on 15 in 100 snaps at the league rate | ADR-091 §7.4, from the owner's source (5 to 15 a game) | REPORTED, OWNER, EXTERNAL; the rate itself CHOSEN |
+| 62 run and pass plays a team-game | §8's data | COMPUTED |
 | Every dial D1 to D11 | football judgement | CHOSEN, provenance NONE beyond the owner's figures |
 
 ## 16. Decision

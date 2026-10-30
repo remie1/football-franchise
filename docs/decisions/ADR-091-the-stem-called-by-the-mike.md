@@ -2,9 +2,9 @@
 
 - **Date:** 2026-10-30
 - **Proposed by:** Orchestrator (thread "Design snap spots for every player")
-- **Status:** **proposed, design only.** Nothing in `packages/` changes with this ADR. It takes the Stem out of ADR-090's question 1 and gives it its own timing. Two questions go to the owner (§14), in plain words in [ADR-091-questions-explained.md](ADR-091-questions-explained.md) and on cards in the thread. Each contracts edit in §11 needs the owner's typed yes naming it, asked at the step that needs it. **Revised 2026-10-30, later the same evening:** the quarterback term in the Mike's timing (§5.2) is replaced by [ADR-092](ADR-092-the-battle-over-the-snap-count.md)'s count read, after the owner asked why the quarterback's Awareness was in it and sent notes on film study and in-game adjustments. The owner never merges: each step comes with its numbers and needs the owner's word before the Orchestrator merges it.
+- **Status:** **proposed, design only.** Nothing in `packages/` changes with this ADR. It takes the Stem out of ADR-090's question 1 and gives it its own timing. Two questions go to the owner (§14), in plain words in [ADR-091-questions-explained.md](ADR-091-questions-explained.md) and on cards in the thread. Each contracts edit in §11 needs the owner's typed yes naming it, asked at the step that needs it. **Revised 2026-10-30, later the same evening:** the quarterback term in the Mike's timing (§5.2) is replaced by [ADR-092](ADR-092-the-battle-over-the-snap-count.md)'s count read, after the owner asked why the quarterback's Awareness was in it and sent notes on film study and in-game adjustments. **Revised again at 21:27Z:** the owner showed that real defences stem 5 to 15 times a game, set by the coordinator, so each DC now has his own stem rate, about 9 a game on average, with the offence adjusting to it (§7.4), and the offside dial D6 is lowered to keep stem offsides inside D14. The owner never merges: each step comes with its numbers and needs the owner's word before the Orchestrator merges it.
 - **Asked for by:** the owner, 2026-10-30 20:17Z: *"We need to build a more advanced system for stemming. ... It sounds like the middle linebacker calls the stem and a lot of risk is based on his timing and the line's execution. So, the mechanics here need to take into account the linebacker's attributes."* The owner attached notes on how stems are called, timed, countered and punished (§1.1).
-- **Builds on, and does not reopen:** ADR-073 (the Stem as a front look: the line shown one position toward the side opposite the played strength, legal only where three or more down linemen rush and none drops; Homie's rate of one front look in ten legal calls); ADR-090 (snap spots; this ADR fills its beat 6 for every stem); ADR-068 step 7 (the hard count, with the dead `CheckKind`s it names) and step 5 (the line re-identifying a moved man); ADR-072 (`discipline`, whose registry note already says "pre-snap penalties later", `contracts/src/registry.ts:128`); `match-engine.md` §16.3 (the communication checks); ADR-005 (a die only when it matters).
+- **Builds on, and does not reopen:** ADR-073 (the Stem as a front look: the line shown one position toward the side opposite the played strength, legal only where three or more down linemen rush and none drops; the owner's rate of one front look in ten legal calls, which §7.4 replaces for the Stem); ADR-090 (snap spots; this ADR fills its beat 6 for every stem); ADR-068 step 7 (the hard count, with the dead `CheckKind`s it names) and step 5 (the line re-identifying a moved man); ADR-072 (`discipline`, whose registry note already says "pre-snap penalties later", `contracts/src/registry.ts:128`); `match-engine.md` §16.3 (the communication checks); ADR-005 (a die only when it matters).
 
 ## Shorthand used here
 
@@ -39,7 +39,7 @@
 
 ## 2. The design in brief
 
-1. **The stem stays a tag the caller draws** (Homie's rate of one front look in ten stands), and it now names **who triggers it: the Mike.**
+1. **The stem stays a tag the caller draws**, now at **each DC's own rate, about 9 a game on average** (§7.4, from the owner's source; the Mug keeps the 1 in 10), and it now names **who triggers it: the Mike.**
 2. **At the line it plays out in time**: the line sets in its lineup front and the offence's line reads it (built today); the quarterback starts his cadence; the Mike calls MOVE; the line shifts; the ball is snapped.
 3. **Four rolls decide it, each rolled only when it matters**: the Mike's timing (his Awareness and Play Recognition, against the cadence and how well his defence knows this quarterback's count, ADR-092's count read); the line's shift (each lineman's Reaction and Agility); the quarterback's snap on movement; the centre's re-call. A fifth, the offside check (each caught man's Discipline and Agility), is rolled only when the quarterback snapped on movement.
 4. **Four endings** (§6): **on time** (the offence blocked the wrong front: each moved man gets a small edge), **early** (the centre may re-call; if he does, the stem is wasted), **caught** (the man is between gaps, standing up and moving at the snap: a big disadvantage, and an offside chance if the quarterback snapped on the move), **called off** (the line plays from where it stands).
@@ -114,7 +114,7 @@ Each lineman who moves: `d100 + Reaction ÷ 5 + Agility ÷ 5` against 40 (defaul
 
 ### 5.6 Offside (a stem caught by a snap on movement only)
 
-Each caught lineman: `d100 + Discipline ÷ 5 + Agility ÷ 5` against 40 (default D6, CHOSEN), through the dead `CheckKind` `penalty_check` (`contracts/src/events.ts:147`). **The first miss is defensive offside** (§8). Rolled only after a snap on movement, because that is the scenario in the owner's notes (point 5): a line caught by a late call or a quick count is moving sideways, not drifting across the ball because the quarterback snapped on its first step.
+Each caught lineman: `d100 + Discipline ÷ 5 + Agility ÷ 5` against 25 (default D6, CHOSEN; an average lineman crosses 4 times in 100). It was 40 until stems went to about 9 a game (§7.4): at 40 they would draw 5.6 offsides per 1,000 snaps, two-thirds of all real defensive offside, neutral zone and encroachment flags, where stems should be a small part of them (D14). It goes through the dead `CheckKind` `penalty_check` (`contracts/src/events.ts:147`). **The first miss is defensive offside** (§8). Rolled only after a snap on movement, because that is the scenario in the owner's notes (point 5): a line caught by a late call or a quick count is moving sideways, not drifting across the ball because the quarterback snapped on its first step.
 
 ## 6. What each ending does
 
@@ -147,11 +147,36 @@ Each caught lineman: `d100 + Discipline ÷ 5 + Agility ÷ 5` against 40 (default
 - **The call:** line up in the card's front, shift to the Stem's picture early (the bait), shift back to the card's front late.
 - **The first shift** is early by design: snap on movement (caught), else the re-call (made: the bait is taken and the blocking moves to the picture; missed: it stays on the card's front).
 - **The second shift happens only against a hard count**, because only a quarterback holding the ball at the line leaves time for two moves. Against a normal or quick count the Mike calls the second shift off and the line plays from the picture (the called-off rule). Against a hard count the Mike's timing roll is rolled for the second shift with **+10** (a second move is harder), and its ending is read from the hard-count column, with "early" giving the centre a second re-call.
-- **The mix among stems** (default D12, CHOSEN): of the stems the caller draws, Stem 80, Stem Back 15, Double Stem 5 where legal (else Stem). The front-look rate itself is unchanged.
+- **The mix among stems** (default D12, CHOSEN): of the stems the caller draws, Stem 80, Stem Back 15, Double Stem 5 where legal (else Stem). How many stems he draws is §7.4's.
 
 ### 7.3 Auto-stem (owner's notes, point 3; after motion)
 
 An auto-stem is a stem the Mike calls at the line in answer to what the offence shows: motion across the tackle, or a formation strength the call did not expect. It needs motion (ADR-074, not built) and a rule in the weekly game plan (ADR-076, not built), so it is **designed in outline only**: the same timing, shift, re-call and offside rolls, plus `match-engine.md` §16.3 item 4's adjustment call (`d100 + Mike's Awareness ÷ 5` against `40 + noise`; a miss leaves one lineman unshifted) once crowd noise exists. It is built after motion.
+
+### 7.4 How often, and when (the owner's source, 2026-10-30 21:27Z)
+
+**The source** (REPORTED, OWNER, EXTERNAL; the coaching sites and forums it cites are not opened here): in a standard game a defensive line stems about **5 to 15 times, 10 to 25 in 100 snaps**, "like a change-of-pace pitch". How often is the coordinator's philosophy. **Multiplicity** coordinators (Flores, Spagnuolo, Knowles) stem a lot and pair it with complex blitzes and stunts. **Execution** coordinators (the Fangio tree, Schwartz) rarely do, because they want their linemen set to explode on the snap. Even a high-stem coordinator saves it for situations: against check-with-me offences, on third and long (to break protection rules for a twist or a blitz), and against a backup or rookie centre. Overused, "the offense adjusts, the quarterback starts using hard counts, and the strategy loses its element of surprise".
+
+**The game today wears the Stem far less:** ADR-073's rate of one front look in ten legal calls, which the owner ruled with no real figure on file (`ADR-073:968`), puts it on about 4 snaps in 100, about 2.5 a game.
+
+- **The league rate (D15, CHOSEN from the source):** **15 stems in 100 snaps, about 9 a game**, in the frozen calibration caller, which stays coach-agnostic (ADR-075 §3.4). It replaces the 1 in 10 for the Stem only; the Mug keeps it.
+- **Each coordinator's own rate (D16, CHOSEN):** drawn around 15 with a spread of 6 points, kept between 3 and 32, and the league's mean held at exactly 15 (ADR-075 §3.3's re-centring). About two coordinators in three land between 9 and 21 in 100 (5 to 13 a game); about one in six are execution coordinators below 9 (2 to 5 a game), and one in six multiplicity coordinators above 21 (13 to 20 a game). It is a new field on the DC's style (petition M7). When the human calls the defence, he picks his own stems (ADR-075 §3.4).
+- **When he stems more (D17, CHOSEN):** on third and 7 or more, at twice his rate, with his other snaps lowered so the game's total holds (ADR-076's rule that a plan moves calls between situations without changing the totals); there the stem goes on a call with a stunt or a blitz when the call has one. For a whole game, at 1.5 times his rate against a rookie or a backup starting at centre, and at 1.5 times against an offence in the league's top third for changing its play at the line (seen on film, so built with ADR-076's film).
+- **The offence adjusts (D18, CHOSEN):** at home, each stem the offence has seen in the game adds 2 points to its hard-count share (D1), up to 40 in 100; on the road the crowd still forces a silent count. And each stem it has seen takes a quarter of a point off the on-time edge (D7's +5), down to +2: the surprise wears off.
+
+**What the rate does** (COMPUTED: simulated with every rating at 50 and ADR-092's count read; script in the project's shared folder, `design/ADR-092-data/`):
+
+| stems in 100 snaps | 5 | 10 | 15 | 20 | 25 | 30 |
+|---|---|---|---|---|---|---|
+| stems a game | 3.1 | 6.2 | 9.3 | 12.4 | 15.5 | 18.6 |
+| works / caught, in 100 stems | 66.8 / 18.2 | 65.8 / 18.7 | 65.1 / 19.2 | 64.6 / 19.3 | 64.2 / 19.5 | 63.9 / 19.5 |
+| hard counts among them, in 100 | 9 | 12 | 14 | 17 | 18 | 20 |
+| on-time edge per stem that works | 4.6 | 4.2 | 3.9 | 3.5 | 3.2 | 3.0 |
+| stems caught a game | 0.6 | 1.2 | 1.8 | 2.4 | 3.0 | 3.6 |
+| rough tally a game | +14 | +20 | +19 | +15 | +7 | −1 |
+| stem offsides per 1,000 snaps | 0.5 | 0.9 | 1.4 | 1.9 | 2.4 | 2.9 |
+
+The rough tally adds each moved man's on-time edge and takes off 10 for each man caught (3.5 movers a stem). It is not yards; it only shows the shape before S-b measures the real effect. **With average players, stemming pays most at about 6 to 9 a game and stops paying near 18**: the source's change-of-pace pitch. A great Mike is caught about half as often (ADR-092 §7), which moves the peak up, so a multiplicity coordinator needs the players for it.
 
 ## 8. Defensive offside, the game's first penalty (question S2)
 
@@ -191,7 +216,9 @@ Counted as plays whose play record carries the flag (`penalty = 1`, `penalty_typ
 
 So the stem works about **65** times in 100, is **caught about 20** times in 100 and is wasted or called off about **15** times in 100. On the road (no hard count) on time is 63.9 and caught 20.4 (COMPUTED the same way).
 
-**Offside:** stems are worn on about 4.1% of dropbacks today (ADR-073 3.5: a front look on 9.22% of dropbacks, 44.4% of them Stems, `ADR-073:3112`, REPORTED from that measurement). Then `0.041 × 0.172 (early) × 0.41 (snapped on movement) × 0.52 (at least one of about 3.5 movers offside at 19 in 100 each)` gives about **1.5 offsides per 1,000 snaps** (COMPUTED, taking the dropback rate of stems for every snap, INFERRED), a fifth of all real defensive offside, neutral zone and encroachment flags.
+**At the league's stem rate (§7.4).** Today stems are worn on about 4.1% of dropbacks (ADR-073 3.5: a front look on 9.22% of dropbacks, 44.4% of them Stems, `ADR-073:3112`, REPORTED from that measurement). At §7.4's 15 in 100 snaps, with the offence adjusting (D18) and ADR-092's count read, a whole game with every rating at 50 averages **works 65, caught 19, wasted or called off 16** (COMPUTED by simulation, ADR-092 §7): the shares above about hold, because the count read is centred there, and the offence's extra hard counts (14 stems in 100 meet one instead of 7) move about a point from caught to called off.
+
+**Offside:** `0.15 × 0.172 (early) × 0.41 (snapped on movement) × 0.133 (at least one of about 3.5 movers offside at 4 in 100 each, D6 at 25)` gives about **1.4 offsides per 1,000 snaps** (COMPUTED; the simulation of ADR-092 §7 agrees, 1.42), a sixth of all real defensive offside, neutral zone and encroachment flags. At the old D6 of 40 it would be 5.6.
 
 **Band, filed now (D14, CHOSEN):** stem offsides between **0.2 and 2.0 per 1,000 snaps**: some, and no more than a quarter of the real total of 7.95. A miss is brought to the owner with its numbers, never fitted away.
 
@@ -208,7 +235,7 @@ So the stem works about **65** times in 100, is **caught about 20** times in 100
 | joint | all of the above |
 | joint+O | joint with offside (under question S2) |
 
-**Predictions, filed now:** in the joint arm, sacks on stem snaps rise against today's v7 (the Stem's filed rise, which failed as built in ADR-073 3.5, ought now to hold); rushing yards on caught stems exceed those on on-time stems; T moves no sack or yard at all (it changes only spots and the stream); offside per 1,000 snaps inside D14's band.
+**Predictions, filed now:** in the joint arm, sacks on stem snaps rise against today's v7 (the Stem's filed rise, which failed as built in ADR-073 3.5, ought now to hold); rushing yards on caught stems exceed those on on-time stems; T moves no sack or yard at all (it changes only spots and the stream); offside per 1,000 snaps inside D14's band (expected 1.4); the calibration caller's stems on 14 to 16 in 100 snaps (§7.4, D15).
 
 ## 11. Contract petitions (shape only; each needs the owner's typed yes naming it, at its step)
 
@@ -220,6 +247,7 @@ So the stem works about **65** times in 100, is **caught about 20** times in 100
 | **M4** | a `STEM` event before the snap: the cadence, the kind, the ending, whether the centre re-called, and who was caught | the play log, the viewer and calibration read one record |
 | **M5** | `PENALTY`'s payload: `freePlay` and the offence's choice, with a coach decision kind for accepting a penalty | only under question S2's "Enforce" |
 | **M6** | doc text: the front `LOOK` tag and `shownRush` ("never what is played", `playcalls.ts:471`, `:573`) gain "except a called-off stem, which plays from where it stands (ADR-091)" | the comment states the rule |
+| **M7** | `stemShare?: number` on `DefensiveDisguiseTendency` (`contracts/src/staff.ts`, beside `frontLookShare`): the DC's own stem rate, share of snaps; absent means the league rate, 0.15 | each DC stems at his own rate (§7.4); `frontLookShare` stays the Mug's |
 
 **No new rating** under question S1's recommended answer.
 
@@ -233,7 +261,7 @@ So the stem works about **65** times in 100, is **caught about 20** times in 100
 | **S-d** | Stem Back and Double Stem | yes |
 | (after motion) | auto-stem | yes |
 
-S-a can be built while ADR-089 is still being measured, because it changes no outcome. S-b and later touch pass-rush reps, so they wait until ADR-089 has finished measuring (the same rule as ADR-090's steps after 2).
+S-a can be built while ADR-089 is still being measured, because it changes no outcome. **The new stem rate (§7.4) lands with S-b, not S-a**: wearing the Stem more often changes the line's read and slide check, which are built today, so it changes games and waits for the pocket fix like every such step. S-b and later touch pass-rush reps, so they wait until ADR-089 has finished measuring (the same rule as ADR-090's steps after 2).
 
 ## 13. Implied scope (`unruled`)
 
@@ -242,6 +270,9 @@ S-a can be built while ADR-089 is still being measured, because it changes no ou
 - **The re-identification of a moved man in man protection** (ADR-068 step 5): today protection pairs by role, not by where a man stands (`engine/src/game/playbook.ts:55-70`, CHECKED), so the re-call works through the line's read and slide; pairing by alignment comes later and would make the stem's edge bigger.
 - **The pre-snap penalties in §8's last paragraph**, and the hard count's cost to the offence (false starts).
 - **Disguise skill in the stem** (ADR-075's rating once it exists): a line whose men tip the move before the call.
+- **The even-to-odd stem** (the owner's source: line up with four down linemen so the offence sets its protection, then shift to three with backers crowding the line at the last second), the multiplicity coordinators' favourite. It changes the front's shape, not just its side, so it needs its own tables.
+- **A coordinator who changes his rate during a game** (stems less once the offence goes to hard counts), and **one who sets his rate from his Mike** (a great Mike makes stems pay at higher rates, §7.4).
+- **A DC's stem rate following his pressure rate** once DCs have their own blitz rates (the source: high-stem DCs run complex blitzes and stunts).
 
 ## 14. Questions for the owner
 
@@ -250,7 +281,7 @@ S-a can be built while ADR-089 is still being measured, because it changes no ou
 | **S1** | Which of the Mike's ratings time the stem? | **Awareness and Play Recognition** (ratings every linebacker already has) / **A new rating, Line Calls** (for Mikes and centres; 50 for everyone until we can measure it) | **Awareness and Play Recognition** |
 | **S2** | When a stem draws the line offside, is it a 5-yard penalty now? | **Enforce** (the game's first penalty: a free play, the offence keeps the better result) / **Count only** (recorded, no yards, until a penalties design) | **Enforce** |
 
-**Confirmations, not questions** (each stands unless the owner says otherwise): the cadence mix and the hard count at home only (D1); the timing bands (D3); snap on movement as a coached rule at rung 0 (§5.4); the centre's re-call as `match-engine.md` §16.3 writes it (§5.5); offside only after a snap on movement (§5.6); a called-off stem plays from where it stands (§6, the owner's notes); Stem Back and Double Stem as §7 describes, with Double Stem on third and 7 or more; the auto-stem after motion (§7.3); every dial CHOSEN and filed before any test run.
+**Confirmations, not questions** (each stands unless the owner says otherwise): the cadence mix and the hard count at home only (D1); the timing bands (D3); snap on movement as a coached rule at rung 0 (§5.4); the centre's re-call as `match-engine.md` §16.3 writes it (§5.5); offside only after a snap on movement (§5.6); a called-off stem plays from where it stands (§6, the owner's notes); Stem Back and Double Stem as §7 describes, with Double Stem on third and 7 or more; the auto-stem after motion (§7.3); each DC's stem rate, the situations where he stems more and the offence's adjustment (§7.4, D15 to D18, from the owner's source); offside at D6 25 (§5.6); every dial CHOSEN and filed before any test run.
 
 ## 15. Provenance of factual claims
 
@@ -268,7 +299,10 @@ S-a can be built while ADR-089 is still being measured, because it changes no ou
 | Protection pairs the four down linemen by role, not by alignment | `engine/src/game/playbook.ts:55-70` | CHECKED |
 | Real pre-snap penalty rates | nflverse play-by-play 2022-2024, regular season | COMPUTED (this ADR) |
 | The endings' shares and the offside estimate with every rating at 50 | §5's formulas | COMPUTED (this ADR) |
-| Every dial D1 to D14 | football judgement | CHOSEN, provenance NONE beyond the cited figures |
+| How often real defences stem (5 to 15 a game, 10 to 25 in 100 snaps), set by the coordinator; high-stem and low-stem coordinators; third and long, inexperienced centres and check-with-me offences; overuse brings hard counts and loses surprise | the owner's source, 2026-10-30 21:27Z (coaching sites and forums he cited, not opened here) | REPORTED, OWNER, EXTERNAL |
+| ADR-073's 1 in 10 front-look rate had no real figure behind it | ADR-073 `:968` | CHECKED |
+| §7.4's shares by stem rate and its rough value tally | the formulas, simulated (ADR-092's script) | COMPUTED |
+| Every dial D1 to D18 | football judgement | CHOSEN, provenance NONE beyond the cited figures |
 
 ## 16. Decision
 

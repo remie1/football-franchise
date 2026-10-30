@@ -1,6 +1,6 @@
 # ADR-091: the stem, in plain words
 
-*2026-10-30, revised the same evening: the Mike's timing now runs against how well our defence knows the quarterback's count, built from your notes on film study and in-game adjustments ([ADR-092](ADR-092-questions-explained.md)). The full design is [ADR-091](ADR-091-the-stem-called-by-the-mike.md). It is built on your notes. Design only: nothing in the game changes until you answer. Two questions, each also a card in the thread. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
+*2026-10-30, revised the same evening: the Mike's timing now runs against how well our defence knows the quarterback's count, built from your notes on film study and in-game adjustments ([ADR-092](ADR-092-questions-explained.md)); and stems now come about 9 times a game, set by each coordinator, from your source ("How often" below). The full design is [ADR-091](ADR-091-the-stem-called-by-the-mike.md). It is built on your notes. Design only: nothing in the game changes until you answer. Two questions, each also a card in the thread. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
 
 ## What changes
 
@@ -29,13 +29,24 @@ In the new design the stem plays out at the line, the way your notes describe it
 
 **A worked example.** It's third and 2 at home and the offence uses a hard count. Our Mike is average and the quarterback is very good, so the Mike's call misses by 25. He is baited: on the fake "Set!" he yells MOVE and the line shifts early. The quarterback sees it and snaps at once. All three moved linemen are caught moving, and our right defensive tackle's momentum carries him offside: a free play. The offence ran for 1 yard, so (if you choose Enforce below) it takes the 5 yards and a first down.
 
-**With average players everywhere**, the stem works about 65 times in 100, is caught about 20 times in 100, and is wasted or called off about 15 times in 100. Offside from stems comes to about 1.5 flags per 1,000 snaps. That is about a fifth of all real defensive offside, neutral zone and encroachment flags, which run to 7.95 per 1,000 snaps (I measured them from the NFL's 2022-24 play-by-play).
+**With average players everywhere**, the stem works about 65 times in 100, is caught about 19 times in 100, and is wasted or called off about 16 times in 100. At about 9 stems a game, offside from stems comes to about 1.4 flags per 1,000 snaps. That is about a sixth of all real defensive offside, neutral zone and encroachment flags, which run to 7.95 per 1,000 snaps (I measured them from the NFL's 2022-24 play-by-play). To keep it there I lowered the chance that a caught lineman ends up offside, from 19 in 100 to 4 in 100 for an average lineman: at the old chance, stems alone would have drawn two-thirds of all the real flags.
 
 ## The two other stems from your notes
 
 - **Stem Back (the double-cross):** the line lines up in its real front, stems away early on purpose so the centre re-calls, then slants back into its real gaps at the snap. It works best against a good centre: if he re-calls, each man gets a bigger edge, and if he doesn't, the slant runs into a blocker who is ready for it.
 - **Double Stem:** only on third and 7 or more. The line shifts once early to bait the re-call, then shifts back late. Against a normal or quick count there is no time for two moves, so the Mike calls the second shift off.
 - **Auto-stem:** a stem the Mike calls at the line because of motion or a formation. It comes after motion is built.
+
+## How often (your source)
+
+You were right: the game stems far too rarely. Today it's about 2.5 times a game, because of the rate of one front look in ten calls from October, which had no real number behind it. Your source says 5 to 15 times in a standard game, and that the coordinator decides.
+
+- **The league average becomes about 9 a game** (15 snaps in 100). The Mug keeps your 1 in 10.
+- **Each coordinator gets his own rate.** About two in three stem 5 to 13 times a game. About one in six are "execution" coordinators who stem 2 to 5 times. About one in six are "multiplicity" coordinators who stem 13 to 20 times.
+- **When he stems more:** on third and 7 or more, twice as often, usually with a stunt or a blitz on the same call; for the whole game against a rookie or backup centre, or against an offence that changes its play at the line a lot.
+- **The offence adjusts, as your source says.** At home, every stem it sees makes the quarterback a little more likely to use a hard count, and the stems lose some of their surprise.
+
+**What that gives, with average players:** stemming pays most at about 6 to 9 a game and stops paying at about 18, your change-of-pace pitch. A coordinator with a great Mike can stem more, because his Mike gets caught about half as often.
 
 ## The two questions, one line each
 
@@ -65,7 +76,7 @@ In the new design the stem plays out at the line, the way your notes describe it
 - **The centre's re-call** uses the design document's protection-call roll as written.
 - **Offside only happens when the quarterback snapped on the move.** A line caught by a late call or a quick count is moving sideways, not falling forward.
 - **A called-off stem plays from where it stands**, as your notes say. It's the one time a front look changes what is played, and only the gaps change.
-- **Of the stems the caller draws:** Stem 80, Stem Back 15, Double Stem 5 (third and 7 or more only). The overall rate of front looks you set stays the same.
+- **Of the stems the caller draws:** Stem 80, Stem Back 15, Double Stem 5 (third and 7 or more only). How many he calls is in "How often" above.
 - **Every number** (the edges, the costs, the targets) is set before any test run and never tuned to make results look right; a miss comes to you with its numbers.
 
 ## How it's built
@@ -73,7 +84,7 @@ In the new design the stem plays out at the line, the way your notes describe it
 | step | what | changes games? |
 |---|---|---|
 | S-a | the stem plays out and is recorded on every play, including who was caught; nothing reads it after the snap yet | no |
-| S-b | its effects: the re-call, the on-time edge, the caught cost, the called-off gaps | yes, after the pocket fix finishes measuring |
+| S-b | its effects: the re-call, the on-time edge, the caught cost, the called-off gaps, and the new stem rate | yes, after the pocket fix finishes measuring |
 | S-c | offside (question S2) | yes |
 | S-d | Stem Back and Double Stem | yes |
 | later | auto-stem, after motion | yes |

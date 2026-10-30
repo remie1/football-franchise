@@ -1,6 +1,6 @@
 # ADR-092: the battle over the snap count, in plain words
 
-*2026-10-30. The full design is [ADR-092](ADR-092-the-battle-over-the-snap-count.md). It is built on your notes about film study and in-game adjustments. Design only: nothing in the game changes until you answer. One question, also a card in the thread. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
+*2026-10-30, revised the same evening for your source on how often defences stem (about 9 a game on average now, set by each coordinator; see the stem's page). The full design is [ADR-092](ADR-092-the-battle-over-the-snap-count.md). It is built on your notes about film study and in-game adjustments. Design only: nothing in the game changes until you answer. One question, also a card in the thread. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
 
 ## What changes
 
@@ -31,24 +31,23 @@ This also settles your question about the quarterback's ratings. His **Football 
 
 The Jets' defence is at Buffalo.
 
-- **The week.** Buffalo's quarterback has Football IQ 60, so there's 56 to know about his count. The Jets' coordinator has Game Planning 80 and their Mike has Discipline 60. They go into the game with a count read of **35**, so on the first snaps the Mike's timing roll is 6 worse than average.
-- **First half.** He hears the count every snap. By the end of the first quarter the read is **46**. On the 20th snap it's **48**, and he times a stem perfectly on third and 2: the run is stuffed.
-- **The press box.** Buffalo's coordinator has In-Game Adjustment 70, so he spots it 65 times in 100, and this time he does. Next drive: a new live word, three snaps on two, and "stop tapping your thigh". The Jets' coordinator (In-Game Adjustment 50) misses the new word; he'd have caught it 46 times in 100. The quarterback (Discipline 55) drops the habit. The read falls from **50 to 27**, worse than at kickoff.
-- **Halftime.** It has climbed back to **36**, and the Jets' staff hands the Mike the booth's notes: **41**.
-- **Fourth quarter, a 3-point game.** Buffalo's quarterback has Poise 30, and his old rhythm creeps back under the stress. The read reaches **55** with seven snaps left and **58** by the last snap.
+- **The week.** Buffalo's quarterback has Football IQ 60, so there's 62 to know about his count. The Jets' coordinator has Game Planning 80 and their Mike has Discipline 60. They go into the game with a count read of **38**, so on the first snaps the Mike's timing roll is about 5 worse than average.
+- **First half.** He hears the count every snap. By the end of the first quarter the read is **50**. On the 20th snap it's **53**, and he times a stem perfectly on third and 2: the run is stuffed.
+- **The press box.** Buffalo's coordinator has In-Game Adjustment 70, so he spots it 65 times in 100, and this time he does. Next drive: a new live word, three snaps on two, and "stop tapping your thigh". The Jets' coordinator (In-Game Adjustment 50) misses the new word; he'd have caught it 46 times in 100. The quarterback (Discipline 55) drops the habit. The read falls from **55 to 30**, worse than at kickoff.
+- **Halftime.** It has climbed back to **40**, and the Jets' staff hands the Mike the booth's notes: **45**.
+- **Fourth quarter, a 3-point game.** Buffalo's quarterback has Poise 30, and his old rhythm creeps back under the stress. The read reaches **60** with seven snaps left and **64** by the last snap.
 
 ## What it's worth
 
-With average players and coaches everywhere, stems work **about 62 times in 100 in the first quarter and about 68 in the second half**, and get caught **about 24 times in 100, falling to about 18**. Over a whole game it averages out to what the stem design already showed (65 work, 20 caught).
+With average players and coaches everywhere, and about 9 stems a game, stems work **about 62 times in 100 in the first quarter and about 66 in the second half**, and get caught **about 23 times in 100, falling to about 17**. Over a whole game it averages out to what the stem design already showed (65 work, 19 caught). The offence's hard counts climb through the game as it gets used to the stems.
 
-Who matters most for the stem:
+Who matters most for the stem, over a season of about 158 stems:
 
-- **The Mike himself.** A Mike with Awareness 80 and Play Recognition 75 makes his stems work 75 times in 100; one with 40 and 45, 63.
-- **The quarterback.** Against Football IQ 85, stems work 59 times in 100; against 35, 68.
-- **The defensive coordinator.** At 90 his stems work 66.5 times in 100; at 20, 64.5. Most of that difference is in the first half.
-- **The offensive coordinator's fixes** hardly show.
-
-**The honest reason:** a team only stems about 43 times a season, 2 or 3 a game. So a great defensive coordinator instead of a poor one is worth about one more stem that works a season. And a stem has to work against the offensive coordinator before he sees anything, which happens about once a game, so he rarely has anything to fix.
+- **The Mike himself.** A Mike with Awareness 80 and Play Recognition 75 is caught 16 times a season; one with 40 and 45, 34.
+- **The quarterback.** Against Football IQ 85, stems are caught 39 times a season; against 35, 26.
+- **The defensive coordinator.** At 90 instead of 20, about **4 more stems that work and 4 or 5 fewer caught a season**, mostly from his week's study, and mostly in the first half.
+- **The offensive coordinator** fixes his count about 2 or 3 times a game; at 90 instead of 20 that's worth about one stem a season, because the Mike relearns the count within a few snaps.
+- **Best against worst:** a great defensive coordinator facing a poor offensive one gets about 5 more stems that work and 5 fewer caught a season than the other way round.
 
 ## What the real NFL shows
 
@@ -60,7 +59,7 @@ I measured the 2022-24 play-by-play by quarter. **Real defences jump the count a
 
 **The proposal (Yes, design it next).** After the pocket fix finishes measuring, a design of its own: the count drawn on every snap; each defensive lineman's jump on a hard count, decided by his Discipline and the count read; the offence's own false starts on long counts and new live words; and the offensive coordinator's fixes set off by what he sees on every snap, not only stems. Real defences jump the count about 8 times a season and offences false-start about 19, so this is where good coordinators would really show, and the real numbers above are its targets.
 
-**The other choice (Stems only for now).** The count read counts only on stems, and the coordinators stay a small edge there.
+**The other choice (Stems only for now).** The count read counts only on stems, and the coordinators' edge stays at the few stems a season above.
 
 ## Small choices I make unless you say otherwise
 
