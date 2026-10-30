@@ -18,7 +18,14 @@ export interface RollModifier {
 }
 
 export interface RollDetail {
-  die: "d100" | "d20";
+  /**
+   * ADR-089 P2: `"uniform"` is shape S's breaking-time draw, written only on a `pass_rush_beat`
+   * CHECK and only under `pocket-1`, never `legacy`: one number U in (0, 1], `1 - next()` as the
+   * first draw of the fork `rngLabel` names (so it replays from the seed and that label alone),
+   * recorded as both `raw` and `total`, with no modifiers. Every other roll is a d100 or a d20, as
+   * before.
+   */
+  die: "d100" | "d20" | "uniform";
   raw: number;
   modifiers: RollModifier[];
   total: number;
@@ -103,7 +110,8 @@ export type CheckKind =
   | "release_vs_press" | "route_break" | "man_coverage" | "zone_coverage" | "zone_read_qb" | "option_route"
   /**
    * ADR-059. The per-play, per-matchup pass-rush contest, drawn ONCE and lived with —
-   * `pass_rush_tick` becomes unmodded jitter around it and references it by `rollRef`.
+   * `pass_rush_tick` becomes unmodded jitter around it and references it by `rollRef` (under
+   * ADR-089's shape S the tick draws no jitter and references the `pass_rush_beat` instead, P3).
    *
    * The attribute contest lives HERE, not on the tick (ADR-059 claim 11, owner ruling):
    * rusher `passRush`/`powerMove`/`finesseMove`/`firstStep`, blocker
@@ -115,6 +123,21 @@ export type CheckKind =
    * persistent contest once, lazily, on the tick it is first needed, and memoize it.
    */
   | "pass_rush_rep"
+  /**
+   * ADR-089 P2: the breaking time of one block under shape S of the block clock (`pocket-1` only,
+   * never `legacy`). One CHECK per block, written after the CHECK its `rollRef` names (at step 1,
+   * immediately after it), which is the CHECK whose block it times. `roll` is one uniform U
+   * (`die: "uniform"`). `margin` is the margin the breaking time reads, and `tier` that margin's
+   * tier (a copy, not a result of U); `actors` are the rusher and the blocker; `testsAttrs` is
+   * empty (the CHECK `rollRef` names tested the ratings); there is no `band`, `target` or
+   * `opposedRoll`. The breaking time is ADR-089 §4.1's, from U, that margin and the dials of the
+   * rules `PLAY_START` names, and the block is beaten on the first tick at or after it.
+   *  - Step 1: a blocked rep. `rollRef` names its `pass_rush_rep`; the margin is the rep's.
+   *  - Step 3: a touched man's late block (ADR-089 §4.4.2). `rollRef` names his `blitz_pickup` or
+   *    `stunt_communication` CHECK; the margin is that CHECK's, negated.
+   * If shape L is chosen at step 5b, this kind is removed again (petition P2r).
+   */
+  | "pass_rush_beat"
   | "pass_rush_tick" | "run_block" | "second_level_climb" | "stunt_communication" | "blitz_pickup"
   | "qb_read" | "anticipation" | "qb_decision" | "unseen_defender" | "hold_decision" | "pocket_movement" | "scramble"
   | "passing_lane" | "accuracy" | "dline_tip"
@@ -176,11 +199,19 @@ export type RushThreatState = "TRAVELLING" | "DELAYED" | "RESET" | "ARRIVED";
  * rep, so without this an unblocked blitzer and a beaten left tackle arrive in the stream
  * looking identical and "how much pressure came from blitzing?" is unanswerable.
  *
- * Every origin points at a real roll — `rollRef` names the `pass_rush_tick` CHECK, the
+ * Every origin points at a real roll — `rollRef` names the `pass_rush_tick` CHECK (under
+ * `pocket-1`'s shape S, the `pass_rush_beat` CHECK, ADR-089 P3), the
  * `blitz_recognition` PRESNAP_READ, the `blitz_pickup` CHECK or the `stunt_communication`
  * CHECK respectively. Nothing here is justified by an absence.
  */
 export type ThreatOrigin = "WON_REP" | "UNBLOCKED" | "PICKUP_LOST" | "STUNT_LOOPER";
+
+/**
+ * ADR-089 P4: how a rusher got to the quarterback, the approach on ADR-089 §4.0's card. FREE:
+ * nobody laid a hand on him. ARC: round the corner. THROUGH: straight through. PUSH: a bull rush,
+ * still engaged. BLOCKED: still in his block; never on a `RUSH_THREAT`, whose field excludes it.
+ */
+export type RushApproach = "FREE" | "ARC" | "THROUGH" | "PUSH" | "BLOCKED";
 export type RoutePhase = "JAMMED" | "DEVELOPING" | "OPEN" | "SETTLED" | "DECAYING" | "SCRAMBLE_DRILL";
 export type QbDecisionChoice = "THROW" | "HOLD" | "STEP_UP" | "SCRAMBLE" | "THROWAWAY" | "CHECKDOWN";
 export type CarryType = "DESIGNED" | "SCRAMBLE";
@@ -240,10 +271,32 @@ export type MatchEvent =
         band?: string;
       } } & MatchEventBase)
   | ({ type: "TICK"; payload: { tick: number } } & MatchEventBase)
-  | ({ type: "CHECK"; payload: {
-        checkKind: CheckKind;
+  | ({ type: "CHECK"; payload: (
+        | { checkKind: CheckKind; roll: RollDetail }
+        | {
+            checkKind: "pass_rush_tick";
+            /**
+             * ADR-089 P3: a `pass_rush_tick` that draws no die, written only under `pocket-1`'s
+             * shape S of the block clock (ADR-089 §4.1); the only CHECK that may lack `roll`. Its
+             * margin, tier and band are set by the block's breaking time, drawn on the
+             * `pass_rush_beat` CHECK its `rollRef` names (always present here). With m that CHECK's
+             * margin: before the beat tick the margin is m capped at 0; from the beat tick on, m
+             * raised to RUSHER_WINS_REP's floor when below it. The push window's two ticks are the
+             * only exception (ADR-089 §4.1.1): for a POWER rep with m in the window's range, the
+             * tick one window length before the beat tick reports RUSHER_GAINING and the tick just
+             * before the beat tick BLOCKER_BEATEN, neither before the play's first tick. (In
+             * `pocket-1.s1`: the range 1 to 14, a one-second window, margins `min(m, 4)` and
+             * `max(m, 5)`, a floor of 15.)
+             * Under `legacy` and under shape L every `pass_rush_tick` carries `roll` and
+             * `opposedRoll`, as before. If shape L is chosen at step 5b, this arm is removed
+             * (petition P3r).
+             */
+            roll?: never;
+            opposedRoll?: never;
+            rollRef: string;
+          }
+      ) & {
         actors: PlayerId[];
-        roll: RollDetail;
         target?: number;
         opposedRoll?: RollDetail;
         tier: ResultTier;
@@ -259,7 +312,9 @@ export type MatchEvent =
         /**
          * ADR-059. The `RollDetail.rngLabel` of a PRIOR roll in the same play that this
          * check derives from — for `pass_rush_tick`, the `pass_rush_rep` whose latent it
-         * jitters around.
+         * jitters around; for a `pass_rush_tick` with no `roll` (ADR-089 P3, shape S), the
+         * `pass_rush_beat` whose breaking time sets its margin; for `pass_rush_beat` (ADR-089 P2),
+         * the CHECK whose block it times.
          *
          * Present so the deciding quantity is REPRODUCIBLE FROM THE STREAM. Without it the
          * margin that selects a band exists only in engine memory, and Iron Rule 3 is not
@@ -277,7 +332,8 @@ export type MatchEvent =
    * The ETA is what separates COLLAPSING from SACK and what makes interior
    * pressure outweigh edge pressure, so it belongs in the stream.
    * No die produces it — it is a deterministic function of the pass_rush_tick
-   * roll named by `rollRef` — so it carries no RollDetail and no tier (ADR-004/005).
+   * roll named by `rollRef` (under `pocket-1`'s shape S, of the pass_rush_beat roll,
+   * ADR-089 P3) — so it carries no RollDetail and no tier (ADR-004/005).
    */
   | ({ type: "RUSH_THREAT"; payload: {
         rusher: PlayerId;
@@ -288,6 +344,12 @@ export type MatchEvent =
         rollRef: string;
         etaTick: number;
         state: RushThreatState;
+        /**
+         * ADR-089 P4: how he got there (ADR-089 §4.0). On every `RUSH_THREAT` of a play under
+         * `pocket-1`, set once when the threat is built and the same on each of its publications;
+         * absent under `legacy`.
+         */
+        approach?: Exclude<RushApproach, "BLOCKED">;
       } } & MatchEventBase)
   /**
    * §8.8's PURSUIT CLOCK — the quarterback has left structure and pursuit is running him down.
@@ -669,6 +731,10 @@ export type FranchiseEvent =
  * exactly once, referenced thereafter," and the DIRECTION of the reference was
  * never the point. A tick recording its own roll and pointing at the rep it
  * derives from is the rule working as intended.
+ *
+ * ADR-089 P3: A CHECK IS NOT ALWAYS A ROLL. Under `pocket-1`'s shape S a `pass_rush_tick` carries
+ * no `roll`: its band and margin are set by the `pass_rush_beat` its `rollRef` names, which
+ * recorded the one die. It is counted as a CHECK and as no roll.
  *
  * Stated here rather than left implicit so the next author does not have to
  * re-derive whether it is allowed. An implicit generalization gets re-litigated

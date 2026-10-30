@@ -71,6 +71,13 @@ export interface GameFile {
   readonly seed: string;
   readonly league: string;
   readonly callerVersion: string;
+  /**
+   * The engine rules that played (ADR-089 §9): `legacy`, or a pocket-fix bundle. Optional here
+   * because files made before ADR-089 lack it. Mirrored only: the viewer shows events, never rules.
+   */
+  readonly engineRules?: string;
+  /** The rules bundle's overlay digest; written only when the rules are not `legacy`. */
+  readonly engineRulesDigest?: string;
   readonly home: GameFileTeam;
   readonly away: GameFileTeam;
   readonly players: Readonly<Record<string, GameFilePlayer>>;

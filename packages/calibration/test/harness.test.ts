@@ -14,7 +14,8 @@ import type { FrozenCallerDiagnostics } from "../src/caller/frozen.js";
 import { stableDigest } from "../src/harness/digest.js";
 import { buildFixture, buildFixtures, ScheduleError } from "../src/harness/schedule.js";
 import { assertSeedDigest, digestSeeds, generateSeeds, SeedMismatchError, seedListOf } from "../src/harness/seeds.js";
-import { WorkerPoolUnavailableError } from "../src/harness/workerPool.js";
+import { WorkerPoolUnavailableError, workerPoolExecutor } from "../src/harness/workerPool.js";
+import { EngineRulesError, rulesTunables } from "../src/pocket/rules.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import { indexLeague } from "../src/league/snapshot.js";
 import type { PlayerWeekAvailability } from "../src/ingest/availability.js";
@@ -347,4 +348,47 @@ describe("the worker pool", () => {
       }),
     ).rejects.toThrow(WorkspaceNotBuiltError);
   }, 120_000);
+
+  /**
+   * ADR-089 review NPC-2 and CT-5: the worker folds with `DEFAULT_TUNABLES`' tables (worker.ts) and
+   * plays the tunables it was bootstrapped with, apart from the ones `runBatch` checks and records.
+   * So a pocket-1 bootstrap (a stamp, or any pocket-1 block) is refused at the pool, before the
+   * compiled-worker check, and a pocket-1 batch runs in process (K14). A legacy bootstrap is not.
+   */
+  it("refuses a pocket-1 bootstrap before it looks for the compiled worker", () => {
+    const base = { league, tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN };
+    const card = { pushMinMargin: 1, pushMaxMargin: 14 };
+    const pocket: readonly [string, unknown][] = [
+      ["the stamped s1 bundle", rulesTunables("pocket-1.s1")],
+      ["a stamp alone", { ...DEFAULT_TUNABLES, engineRules: { name: "pocket-1.s1", overlayDigest: "fnv1a:00000000" } }],
+      ["an approach card alone", { ...DEFAULT_TUNABLES, passRush: { ...DEFAULT_TUNABLES.passRush, approach: card } }],
+      ["a rep clock alone", { ...DEFAULT_TUNABLES, passRush: { ...DEFAULT_TUNABLES.passRush, repClock: { fullExpressionSeconds: 5 } } }],
+    ];
+    for (const [what, tunables] of pocket) {
+      expect(() => workerPoolExecutor(2, { ...base, tunables }), what).toThrow(EngineRulesError);
+      expect(() => workerPoolExecutor(2, { ...base, tunables }), what).toThrow(
+        /^workerPoolExecutor: a pocket-1 bootstrap .* is refused: .*inProcessExecutor\(\) \(K14\)$/,
+      );
+    }
+    const legacy: readonly [string, unknown][] = [
+      ["no tunables", undefined],
+      ["DEFAULT_TUNABLES", DEFAULT_TUNABLES],
+      ["legacy plus a patch", applyTunablePatch(DEFAULT_TUNABLES, {
+        tunableId: "passRush.rusherAttrDivisor",
+        currentValue: DEFAULT_TUNABLES.passRush.rusherAttrDivisor,
+        proposedValue: 6,
+        evidence: "test",
+        expectedEffect: "a legacy leaf patched",
+      })],
+    ];
+    for (const [what, tunables] of legacy) {
+      let thrown: unknown = null;
+      try {
+        workerPoolExecutor(2, { ...base, ...(tunables === undefined ? {} : { tunables }) });
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown instanceof EngineRulesError, what).toBe(false);
+    }
+  });
 });

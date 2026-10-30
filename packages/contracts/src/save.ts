@@ -63,8 +63,12 @@ export interface SaveFile {
    * Save and load E1 (ADR-078 R1 amendment 1, 2026-10-21): what played the saved games, so carrying
    * on cannot quietly switch to other rules. Free text (e.g. a play-caller version) so contracts stay
    * engine-agnostic. Absent in saves that predate it.
+   *
+   * `engineRules` (ADR-089 P1, default D10): the engine rules bundle that played them, by name, also
+   * free text. Absent means `legacy`, so every save written before it, and every save played under
+   * `legacy`, loads as `legacy`.
    */
-  playedWith?: { caller: string };
+  playedWith?: { caller: string; engineRules?: string };
   /** Reserved for fantasy mode (Spec #10 §4 watch item) — petitioned in before v1 freeze. */
   leagueContext?: unknown;
 }

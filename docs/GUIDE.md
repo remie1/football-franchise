@@ -6,7 +6,7 @@ rules live in `ARCHITECTURE_CHARTER.md`, and the full working history lives in `
 This page points into both and should stay short. Update the "Where things stand" section when
 a big piece lands.
 
-_Last updated: 24 October 2026._
+_Last updated: 27 October 2026._
 
 ## What the game is
 
@@ -80,7 +80,7 @@ realism checker came first. Front office and the game screen were started early 
 ## How decisions get made
 
 - **Design notes (ADRs).** Each real decision gets a numbered note in `docs/decisions/`, from
-  ADR-001 up (ADR-076 is the latest in the repo at the time of writing; ADR-077's design note
+  ADR-001 up (ADR-089 is the latest in the repo at the time of writing; ADR-077's design note
   is still in the project files). A note states the problem, the
   proposal, the questions for you, and later your rulings and what was measured.
 - **Your rulings.** Questions come to you as plain football questions. Nothing that changes the
@@ -108,7 +108,22 @@ merged). Measured with play-caller version 4, on the snaps where the pocket held
 spread nearly as they do in the NFL; the rest of the gap is the pocket. The front work is finished,
 so the pocket fix comes next. Its design will take in what a free blitzer really changes (the
 quarterback's feel for the rush, his mobility against the rusher's speed, hot and deep routes, and
-down and distance), and its questions go to you before anything is built.
+down and distance), and its questions go to you before anything is built. The pocket fix (ADR-089)
+is being built in twelve steps; step 0 added the instruments and filed every prediction; step 1
+built a new block clock behind a switch that is off, which with the switch on for measurement
+brought pressure down to about a third of dropbacks while interceptions rose, and you chose to
+finish the pocket before the interception design and to merge it (numbers in
+`packages/calibration/reports/adr-089-step1.md`). Step 2, also behind the switch, makes the
+quarterback react to a rusher half a second away, to one who reaches him, or to his count running
+out, instead of to the pocket's running tally, and starts the pressure warning at one second
+instead of two; default play has still not changed. With the switch on, against step 1's clock on
+the same games, pressure fell from 32% to 28% of dropbacks on the flat-rated test league and from
+33% to 29% on the made-up league, and sacks rose by 0.2 to 0.4 per 100 dropbacks. Four of the five
+graded pocket predictions held; on the made-up league pressure fell 0.02 points further than the
+predicted range, which is reported as filed. The interception check, as amended before step 2, did
+not trip. Step 2's numbers are in `packages/calibration/reports/adr-089-step2.md`; you chose to merge
+it with its switch off (30 October 2026). Step 3 waits on the design of where every man stands
+at the snap.
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
 NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered

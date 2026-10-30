@@ -405,8 +405,13 @@ export function canonicalOccupancies(tunables: Tunables = DEFAULT_TUNABLES): {
  * predict, and a reader must not take that for a census bug.
  *
  * `censusLadder` reports them separately rather than silently dropping them.
+ *
+ * ADR-089 P2 adds a third: **`pass_rush_beat`** (`pocket-1`'s shape S only, never `legacy`). Its
+ * `tier` is the tier of the rep's margin, a copy (`tierFor(m)`), and `SURFACE` pins it
+ * UNIMPLEMENTED ("a uniform with no terms"). Its roll is one uniform U in (0, 1] (`die: "uniform"`),
+ * not a die face, so `foldLadder` skips it and counts it apart (`LadderSkipped`).
  */
-export const LADDER_READERS_WITHOUT_SCALE: readonly CheckKind[] = ["punt", "kick_return"];
+export const LADDER_READERS_WITHOUT_SCALE: readonly CheckKind[] = ["punt", "kick_return", "pass_rush_beat"];
 
 /**
  * ⚠ **THREE EMISSIONS CARRY A TIER THAT IS NOT A LADDER POSITION AT ALL, AND THE ENGINE SAYS SO.**
@@ -478,6 +483,20 @@ export interface LadderCensus {
   readonly kindsNotObserved: readonly CheckKind[];
 }
 
+/**
+ * ADR-089 step 1 (plan §7.2 item 6): what `foldLadder` skips and counts apart rather than ladders.
+ * `uniformRolls` counts `pass_rush_beat` CHECKs, whose roll is a uniform U in (0, 1]
+ * (`die: "uniform"`): `raw` is not an integer, so the shift identity below would make one cell per
+ * beat. Only a `pocket-1` stream carries one; a legacy stream leaves the count at 0.
+ */
+export interface LadderSkipped {
+  uniformRolls: number;
+}
+
+export function emptyLadderSkipped(): LadderSkipped {
+  return { uniformRolls: 0 };
+}
+
 interface MutableCell {
   kind: CheckKind;
   form: LadderForm;
@@ -493,8 +512,15 @@ interface MutableCell {
  * Both event types that carry a tier are folded — `CHECK` and `PRESNAP_READ` — per ADR-004's roll
  * accounting. `PRESNAP_READ` carries no `margin`, so its shift is computed from `total − raw −
  * target`, which the payload does supply and which is the same identity.
+ *
+ * ADR-089 step 1: a CHECK whose roll is a uniform (`pass_rush_beat`, the only kind that may carry
+ * one) is skipped and, when `skipped` is given, counted there (`LadderSkipped`).
  */
-export function foldLadder(events: readonly MatchEventEnvelope[], into?: Map<string, MutableCell>): Map<string, MutableCell> {
+export function foldLadder(
+  events: readonly MatchEventEnvelope[],
+  into?: Map<string, MutableCell>,
+  skipped?: LadderSkipped,
+): Map<string, MutableCell> {
   const cells = into ?? new Map<string, MutableCell>();
   for (const envelope of events) {
     const event = envelope.event;
@@ -505,6 +531,20 @@ export function foldLadder(events: readonly MatchEventEnvelope[], into?: Map<str
     let tier: ResultTier;
     if (event.type === "CHECK") {
       const p = event.payload;
+      // ADR-089 P3: a `pass_rush_tick` with no die (shape S) has no roll to ladder, and is skipped;
+      // any other kind without a roll is a lost roll.
+      const checkKind: string = p.checkKind;
+      if (p.roll === undefined) {
+        if (checkKind !== "pass_rush_tick") throw new Error(`a ${checkKind} CHECK without a roll`);
+        continue;
+      }
+      // ADR-089 P2: shape S's breaking-time draw is a uniform, not a die face; it has no ladder
+      // cell, and is counted apart. Any other kind with a uniform is a contract break.
+      if (p.roll.die === "uniform") {
+        if (checkKind !== "pass_rush_beat") throw new Error(`a ${checkKind} CHECK with a uniform roll`);
+        if (skipped !== undefined) skipped.uniformRolls += 1;
+        continue;
+      }
       kind = p.checkKind;
       form = p.opposedRoll === undefined ? "TARGET" : "OPPOSED";
       die = p.opposedRoll === undefined ? p.roll.die : `${p.roll.die}/${p.opposedRoll.die}`;
