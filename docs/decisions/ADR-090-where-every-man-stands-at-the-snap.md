@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-25
 - **Proposed by:** Orchestrator (thread "Design snap spots for every player")
-- **Status:** **proposed, design only.** Nothing in `packages/` changes with this ADR. Five questions go to the owner (§11), in plain words in [ADR-090-questions-explained.md](ADR-090-questions-explained.md) and on cards in the thread. Each contracts edit in §8 needs the owner's typed yes naming it, asked at the step that needs it. The owner never merges: each step comes with its numbers and needs the owner's word before the Orchestrator merges it.
+- **Status:** **proposed, design only.** Nothing in `packages/` changes with this ADR. **Revised 2026-10-30:** the Stem moved to its own design, [ADR-091](ADR-091-the-stem-called-by-the-mike.md), on the owner's objection and notes; questions 1 and 4 were re-asked. Five questions go to the owner (§11), in plain words in [ADR-090-questions-explained.md](ADR-090-questions-explained.md) and on cards in the thread. Each contracts edit in §8 needs the owner's typed yes naming it, asked at the step that needs it. The owner never merges: each step comes with its numbers and needs the owner's word before the Orchestrator merges it.
 - **Asked for by:** the owner, 2026-10-25 01:40Z: *"We identified that there's a huge chess game that's played before the ball is ever snapped and it effects the play that happens after the snap. ... That's what led us into disguises and where defenders were physically located at when the ball is snapped because they might have moved or they might be in motion when the ball is snapped."* The owner then chose "Design now" (01:42:55Z).
 - **Builds on, and does not reopen:** ADR-066's August halt (snap position is the output of the pre-snap phase; geometry consumes it when there is one); ADR-067 (the shown/played pair); ADR-068 and ADR-072 (the reads at the line and the leash); ADR-069 and ADR-071 (coverage looks as named pieces; ruling 1, a look never changes what is played); ADR-073 (front looks Mug and Stem, the shown rush, the pressure read, the creeper); ADR-074 (motion; designed, not built); ADR-075 (the coordinator's disguise and the execution roll; designed, not built); ADR-076 (the weekly game plan; designed, not built); ADR-089 (the pocket fix; its step 3 waits for this design, question 19 answered Wait).
 
@@ -26,7 +26,7 @@ The pre-snap game is built as reads and looks: the quarterback's coverage read, 
 
 1. **Every man gets a snap spot in yards**: across (x, from the ball), deep (y, from the line of scrimmage), stance (down or up), and, if he is moving at the snap, his direction and speed. Rounded to half a yard (§3).
 2. **The snap picture is built by playing the pre-snap game in order**, seven beats (§4): the offence lines up; the defence aligns to it; the defence shows its looks; motion (when ADR-074 is built); the reads and checks at the line (already built); the defence's last movement into the snap; the snap.
-3. **A look is real** (question 1, recommended): a man shown in a Mug or a Two-High shell is standing there when the ball is snapped, and has to travel from there to his played job. A Stem has already moved back to where the line plays. **ADR-069's ruling 1 still holds**: the look never changes what he is assigned to do; it changes where he starts doing it.
+3. **A look is real** (question 1, recommended): a man shown in a Mug or a Two-High shell is standing there when the ball is snapped, and has to travel from there to his played job. **A Stem plays out in time**, called by the Mike against the snap count, and can end on time, early, caught moving or called off (ADR-091). **ADR-069's ruling 1 still holds**: the look never changes what he is assigned to do; it changes where he starts doing it. The one exception is a called-off stem, which plays from where it stands (ADR-091 §6, from the owner's notes).
 4. **The output is published on the stream**, at the start of the play, so the viewer, calibration, the news desk and every later physical model read one picture (Iron Rule 3).
 5. **It is built in steps, each switched off and proved inert, then switched on and measured** (§7). Step 2 is ADR-089 step 3's free runners: they read real snap spots and question 19's Wait is lifted by its own condition ("until the pre-snap phase gives real spots").
 
@@ -47,7 +47,7 @@ The pre-snap game is built as reads and looks: the quarterback's coverage read, 
 
 ## 4. The pre-snap game, in seven beats
 
-Each beat starts from the picture the beat before left. Beats 1 to 3 and 7 are pure tables (no die). Beat 4 is ADR-074. Beat 5 is what is built today. Beat 6 reads ratings but rolls nothing.
+Each beat starts from the picture the beat before left. Beats 1 to 3 and 7 are pure tables (no die). Beat 4 is ADR-074. Beat 5 is what is built today. Beat 6 rolls dice only for a stem (ADR-091); otherwise it reads ratings and rolls nothing.
 
 ### 4.1 Beat 1: the offence lines up (formation A)
 
@@ -94,9 +94,9 @@ From each defender's **played** duty on the call, against formation A's spots. D
 - **Single-High (Show 1)** over Cover 2: the free safety at 13.0 in the middle, the strong safety at 8.0 on his side.
 - **Press** over a deep-zone corner: the corner at 1.0 on his receiver. **Split** as its two halves.
 - **Mug**: the walked-up backers at 1.5 in the A gaps (ADR-073 §2.5; ADR-089 §4.4.5 used 1.5 for its Mug information arm).
-- **Stem**: the line one position over (ADR-073 §2.5).
+- **Stem**: the line one position over (ADR-073 §2.5). This is the stem's **lineup front**; where the line is at the snap is ADR-091's (beat 6).
 
-**Whether a look really stands there at the snap is question 1** (§11). Beats 3 and 6 are written for the recommended answer, *Real, by look*. Under *Head only*, beat 3 is skipped for the snap picture (the looks stay perception-only, as today) and every man is at his aligned spot.
+**Whether a look really stands there at the snap is question 1** (§11), now asked for the Mug and the coverage looks only; the Stem is real by construction under ADR-091, because it plays out in time. Beats 3 and 6 are written for the recommended answer, *Real*. Under *Head only*, beat 3 is skipped for the Mug and the coverage looks (they stay perception-only, as today) and those men are at their aligned spots.
 
 ### 4.4 Beat 4: motion (ADR-074; designed, not built)
 
@@ -110,7 +110,7 @@ The coverage read, the pressure read, the slide check, the leash and the keep-in
 
 | what | where he is at the snap | source |
 |---|---|---|
-| **Stem** | back at his **played** gap, hand down; the protection was set against the shown line | a stem is a late shift before the snap: the offence blocks the line it saw (ADR-073 §2.5, "Positions run ... each rushing down lineman is shown one position toward side X") |
+| **Stem** (and Stem Back, Double Stem) | **by how the stem ended (ADR-091 §6):** on time or early, set in the front it shifted to; caught, halfway between his two gaps, moving toward the new one and standing up; called off, set in the lineup front, which he then plays | revised 2026-10-30 on the owner's objection ("sounds like cheating to me") and his notes: the stem is called by the Mike and timed against the snap count (ADR-091) |
 | **Mug** | still walked up at his shown spot; a dropper bails after the snap, a rusher comes from 1.5 yards | ADR-073 §2.5 ("six shown, four come") |
 | **coverage look, `EARLY` timing** | at his **played** spot: "the safeties move before the snap and the quarterback can see the end of it" | `playbook/src/masks.ts:84-88`, CHECKED |
 | **coverage look, `LATE` timing** (and every corner look) | at his **shown** spot, set; he rotates on the snap | same lines ("the look is held until the ball is snapped") |
@@ -127,7 +127,7 @@ The picture is frozen and published (§6). Nothing after the snap may change a s
 
 The owner's August research: *"LB depth runs 4–7 yards AND IS ITSELF THE PRIMARY TELL"* (`ADR-066:607-608`). ADR-075 gives every defender a `disguise` rating, 50 for everyone until the attributes pipeline can derive it, and rules that a poor blitz disguiser ruins only his own assignment (ADR-075 Q5).
 
-**Proposal (recommended "By rating").** A man whose look or job differs from where his job takes him **cheats toward his job** by `(50 - disguise) / 25` yards, from 0 to 2, never past his played spot (default D7, CHOSEN). At 50, nobody cheats, so nothing moves until ratings are derived. A cheat gets him there sooner and is a tell: the quarterback's coverage read (for coverage movers) and the line's pressure read (for rushers) each see it as a bonus of `+cheat yards x 5` on their roll (default D8, CHOSEN). So bad disguisers are a step closer and easier to read; good ones stand exactly at the look and are harder to read but further away. **Built only with ADR-075's rating** (step 4, §7); nothing in steps 0 to 3 reads it.
+**Proposal (recommended "By rating").** A man whose look or job differs from where his job takes him **cheats toward his job** by `(50 - disguise) / 25` yards, from 0 to 2, never past his played spot (default D7, CHOSEN). At 50, nobody cheats, so nothing moves until ratings are derived. A cheat gets him there sooner and is a tell: the quarterback's coverage read (for coverage movers) and the line's pressure read (for rushers) each see it as a bonus of `+cheat yards x 5` on their roll (default D8, CHOSEN). So bad disguisers are a step closer and easier to read; good ones stand exactly at the look and are harder to read but further away. **Built only with ADR-075's rating** (step 8, §7); nothing before it reads it.
 
 **The alternative ("No tells"):** everyone stands exactly at his look; disguise skill touches only ADR-075's read term and execution roll, as already ruled.
 
@@ -144,14 +144,20 @@ Each step is its own commit and pull request, comes to the owner with its number
 | **0** | the tables (D3, D4, D5), the field frame (D1, D2), the beat functions as pure code, and their tests; **nothing calls them from a game** | no | unit tests: every corpus formation and card gets a spot for every man; no two men on one spot unless the card says so (a Mug backer over a tackle); mirror symmetry; same input, same picture. The spot table is checked against real alignment figures (§9) and reported. |
 | **1** | the engine builds the snap picture at the snap and publishes it on `PLAY_START` (S1, S2); the game viewer draws it (question 5) | no | inert: replayed seeds give byte-identical outcomes, every number the same, only `PLAY_START` grows; each man's mapped cell is compared with the cell the engine uses for him today and every difference is listed |
 | **2** | ADR-089 step 3: free runners read their snap spot instead of question 19's Wait table | yes, ADR-089's | ADR-089 §6.3's own checks, with "M8's table for his snap row" replaced by "his published snap spot" |
-| **3** | looks cost ground: after the snap, a moved coverage man starts from his snap spot, and how far he is from his landmark sets when he gets there (ADR-075 §4.4's "late" becomes travel instead of a fixed beat, if the owner wants it, §11 note) | yes | arms per §7.1 |
-| **4** | tells (question 2), with ADR-075's rating | yes, once ratings vary | arms per §7.1 |
-| **5** | motion (ADR-074) as beat 4 | yes | ADR-074 §6 |
-| **6** | later consumers, each its own design: blocked rushers' travel (ADR-061's table), coverage depth in the interceptions design (the next design after the pocket fix), run fits | yes | in their own designs |
+| **3** | ADR-091 step S-a: the stem plays out at the line and is recorded (the cadence, the Mike's call, the shift, the re-call's roll, the snap spots of every ending); nothing reads it after the snap | no | inert, as step 1 |
+| **4** | looks cost ground: after the snap, a moved coverage man starts from his snap spot, and how far he is from his landmark sets when he gets there (ADR-075 §4.4's "late" becomes travel instead of a fixed beat, if the owner wants it, §11 note) | yes | arms per §7.1 |
+| **5** | ADR-091 step S-b: the stem's effects (the re-call, the on-time edge, the caught cost, the called-off gaps) | yes | ADR-091 §10 |
+| **6** | ADR-091 step S-c: defensive offside, the game's first penalty (ADR-091 question S2) | yes | ADR-091 §9 band |
+| **7** | ADR-091 step S-d: Stem Back and Double Stem | yes | ADR-091 §10 |
+| **8** | tells (question 2), with ADR-075's rating | yes, once ratings vary | arms per §7.1 |
+| **9** | motion (ADR-074) as beat 4, then the auto-stem (ADR-091 §7.3) | yes | ADR-074 §6 |
+| **10** | later consumers, each its own design: blocked rushers' travel (ADR-061's table), coverage depth in the interceptions design (the next design after the pocket fix), run fits | yes | in their own designs |
+
+Steps 0, 1 and 3 change no outcome, so they can merge while ADR-089 is being measured; every step from 4 on waits until ADR-089 has finished measuring.
 
 ### 7.1 Conjoined mechanisms
 
-Question 1 (looks are real) and question 2 (tells) are **separately priceable**: they are measured alone and jointly at steps 3 and 4 (each alone, then together). Step 2 reads only free runners, whose rows in the picture under question 1 differ only for a Mug's backers, so step 2 runs with the Mug arm on and off, as ADR-089 §6.3 already plans.
+Question 1 (looks are real) and question 2 (tells) are **separately priceable**: they are measured alone and jointly at steps 4 and 8 (each alone, then together). The stem's pieces are priced in ADR-091 §10. Step 2 reads only free runners, whose rows in the picture under question 1 differ only for a Mug's backers, so step 2 runs with the Mug arm on and off, as ADR-089 §6.3 already plans.
 
 ## 8. Contract petitions (shape only; each needs the owner's typed yes naming it, at its step)
 
@@ -159,10 +165,10 @@ Question 1 (looks are real) and question 2 (tells) are **separately priceable**:
 |---|---|---|---|
 | **S1** | new types `SnapSpot` and `SnapPicture` in `packages/contracts` (§3, §6) | 1 | the viewer, calibration and the news desk read them (Iron Rule 1) |
 | **S2** | `PLAY_START`'s payload carries `snap: SnapPicture` | 1 | the event stream is the single source of truth (Iron Rule 3) |
-| **S3** | doc text only: the front `LOOK` tag and `shownRush` say "never what is played" and "physics never reads it" (`playcalls.ts:471`, `:573`); they gain "the snap picture is built from it (ADR-090), so a look sets where the man starts; what he is assigned to do is unchanged" | 3 (only if question 1 is not *Head only*) | the comment is the contract's own statement of the rule |
+| **S3** | doc text only: the front `LOOK` tag and `shownRush` say "never what is played" and "physics never reads it" (`playcalls.ts:471`, `:573`); they gain "the snap picture is built from it (ADR-090), so a look sets where the man starts; what he is assigned to do is unchanged" (made together with ADR-091's M6, which adds the called-off stem) | 3 | the comment is the contract's own statement of the rule |
 | **S4** | doc text only: `RushThreat.distanceYards`' subject condition becomes "a snap spot (ADR-090)", which ADR-066's halt left `unruled` (`ADR-066:655-660`) | 2 | engine-internal field; listed so the halt's open item is closed |
 
-**Not petitioned:** the tables (D3 to D8) live in `packages/playbook` (football authoring data); the beats live in `packages/engine/src/sim/preSnap.ts`, which already runs the reads at the line. No new die anywhere in v1.
+**Not petitioned:** the tables (D3 to D8) live in `packages/playbook` (football authoring data); the beats live in `packages/engine/src/sim/preSnap.ts`, which already runs the reads at the line. This ADR adds no die; the stem's dice are ADR-091's.
 
 ## 9. Real figures to check the table against
 
@@ -183,13 +189,13 @@ Question 1 (looks are real) and question 2 (tells) are **separately priceable**:
 
 | # | question | options | recommended |
 |---|---|---|---|
-| 1 | When a defence shows a look, is the man really standing there when the ball is snapped? | **Real, by look** (a Mug and a late rotation are there at the snap; an early rotation has finished; a Stem has shifted back to where the line plays) / **Real, every look** (a Stem too, so the line plays from the shown gaps) / **Head only** (looks stay in the quarterback's head; everyone is at his aligned spot) | **Real, by look** |
+| 1 | For the Mug and the coverage looks, is the man really standing there when the ball is snapped? *(Revised 2026-10-30: the Stem left this question for ADR-091, so the first card's three options were withdrawn.)* | **Real** (a Mug backer and a late rotation are there at the snap; an early rotation has finished, as "early" already means) / **Head only** (looks stay in the quarterback's head; everyone is at his aligned spot) | **Real** |
 | 2 | Does where a man stands give his job away? | **By rating** (a poor disguiser cheats toward his job: sooner there, easier to read) / **No tells** | **By rating** |
 | 3 | Where is the ball across the field? | **Middle for now** / **Hash now** (left hash, middle, right hash, from where the last play ended; the wide side and the short side matter to both play-callers) | **Middle for now** |
-| 4 | The plan: steps 0 to 6, steps 0 and 1 changing nothing, step 2 being the pocket fix's free runners | **Yes** / **Change the order** | **Yes** |
+| 4 | The plan: steps 0 to 10 (§7), steps 0, 1 and 3 changing nothing, step 2 being the pocket fix's free runners, steps 3, 5, 6 and 7 the stem *(revised 2026-10-30 to take in ADR-091)* | **Yes** / **Change the order** | **Yes** |
 | 5 | Should the game viewer draw all 22 men at the snap on every play? | **Yes, at step 1** / **Later** | **Yes, at step 1** |
 
-**Confirmations, not questions** (each stands unless the owner says otherwise): the field frame and half-yard rounding (D1, D2); the starting tables (D3, D4, D5) as placeholders checked at step 0; an `EARLY` rotation is at its played spot at the snap and a `LATE` one at its shown spot, as the masks already define them (§4.6); the jet man's spot (D6); ADR-075 §4.4's "late" becoming travel at step 3 (the execution roll's bust stays a roll).
+**Confirmations, not questions** (each stands unless the owner says otherwise): the field frame and half-yard rounding (D1, D2); the starting tables (D3, D4, D5) as placeholders checked at step 0; an `EARLY` rotation is at its played spot at the snap and a `LATE` one at its shown spot, as the masks already define them (§4.6); the jet man's spot (D6); ADR-075 §4.4's "late" becoming travel at step 4 (the execution roll's bust stays a roll).
 
 ## 12. Provenance of factual claims
 
