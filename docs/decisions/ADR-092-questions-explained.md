@@ -1,6 +1,6 @@
 # ADR-092: the battle over the snap count, in plain words
 
-*2026-10-30, revised the same evening for your source on how often defenses stem (about 9 a game on average now, set by each coordinator; see the stem's page). The full design is [ADR-092](ADR-092-the-battle-over-the-snap-count.md). It is built on your notes about film study and in-game adjustments. Design only: nothing in the game changes until you answer. One question, also a card in the thread. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
+*2026-10-30, revised the same evening for your source on how often defenses stem (about 9 a game on average now, set by each coordinator; see the stem's page). The full design is [ADR-092](ADR-092-the-battle-over-the-snap-count.md). It is built on your notes about film study and in-game adjustments. Design only: nothing in the game changes yet. **You answered its one question on 2026-10-30: yes, design the count on every snap next, once the pocket fix finishes measuring.** You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
 
 ## What changes
 
@@ -55,6 +55,8 @@ I measured the 2022-24 play-by-play by quarter. **Real defenses jump the count a
 
 ## The question: should knowing the count matter on every snap, not just stems?
 
+**Your answer (2026-10-30): Yes, design it next.** It gets its own design once the pocket fix finishes measuring.
+
 **An example.** Third and 1 at home, and Buffalo goes to a hard count. Early in the game the Jets' line hasn't cracked the live word, and the right tackle jumps: neutral zone infraction, first down. By the fourth quarter they have it, and nobody moves. Then Buffalo's offensive coordinator changes the live word on the sideline, and on the next drive his own left guard, still hearing the old word, false-starts.
 
 **The proposal (Yes, design it next).** After the pocket fix finishes measuring, a design of its own: the count drawn on every snap; each defensive lineman's jump on a hard count, decided by his Discipline and the count read; the offense's own false starts on long counts and new live words; and the offensive coordinator's fixes set off by what he sees on every snap, not only stems. Real defenses jump the count about 8 times a season and offenses false-start about 19, so this is where good coordinators would really show, and the real numbers above are its targets.
@@ -78,4 +80,4 @@ I measured the 2022-24 play-by-play by quarter. **Real defenses jump the count a
 | with the stem's first step | the count read with every coordinator at 50, the halftime step and the offense's fixes, recorded on every play; nothing reads it after the snap yet | no |
 | with the stem's effects | the count read counts | yes, after the pocket fix finishes measuring |
 | next | real coordinators reach the game: each team's film study and both coordinators' In-Game Adjustment | yes |
-| after the question | the count on every snap, its own design | yes |
+| after the pocket fix finishes measuring | the count on every snap, its own design (your yes) | yes |
