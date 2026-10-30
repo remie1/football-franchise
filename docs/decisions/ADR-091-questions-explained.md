@@ -1,6 +1,6 @@
 # ADR-091: the stem, in plain words
 
-*2026-10-30, revised the same evening: the Mike's timing now runs against how well our defense knows the quarterback's count, built from your notes on film study and in-game adjustments ([ADR-092](ADR-092-questions-explained.md)); and stems now come about 9 times a game, set by each coordinator, from your source ("How often" below). The full design is [ADR-091](ADR-091-the-stem-called-by-the-mike.md). It is built on your notes. Design only: nothing in the game changes until you answer. Two questions, each also a card in the thread. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
+*2026-10-30, revised the same evening: the Mike's timing now runs against how well our defense knows the quarterback's count, built from your notes on film study and in-game adjustments ([ADR-092](ADR-092-questions-explained.md)); and stems now come about 9 times a game, set by each coordinator, from your source ("How often" below). The full design is [ADR-091](ADR-091-the-stem-called-by-the-mike.md). It is built on your notes. Design only: nothing in the game changes until you answer. Two questions, each also a card in the thread; you answered S1 on 2026-10-30 (Awareness and Play Recognition), and S2 is still open. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
 
 ## What changes
 
@@ -54,6 +54,8 @@ You were right: the game stems far too rarely. Today it's about 2.5 times a game
 2. **Offside from a stem:** a real 5-yard penalty now, or just counted? *I recommend Enforce.*
 
 ## Question S1: which of the Mike's ratings time the stem?
+
+**Your answer (2026-10-30): Awareness and Play Recognition.** As you put it, a Mike who recognizes the play before the snap also reads how the count will play out.
 
 **An example.** Two Mikes. One has Awareness 80 and Play Recognition 75: against an average quarterback on a normal count, at an average point in the game, he's on time 82 times in 100 and never caught. The other has 40 and 45, so he's on time 68 times in 100 and caught 13 times in 100.
 
