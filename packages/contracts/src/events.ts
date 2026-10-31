@@ -261,6 +261,11 @@ export interface GameEventBase {
 }
 
 export type MatchEvent =
+  /**
+   * The payload is the engine's own shape (ADR-013), all but one field: `snap`, where every man
+   * stands at the snap, is stated here as `PlayStartSnap` (ADR-090 petition S2). A reader narrows
+   * the payload to that type to read it.
+   */
   | ({ type: "PLAY_START"; payload: unknown } & MatchEventBase)
   | ({ type: "PRESNAP_READ"; payload: {
         actor: PlayerId; kind: CheckKind; roll: RollDetail; target: number; tier: ResultTier;

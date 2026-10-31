@@ -112,6 +112,11 @@ describe("play scope — the capture", () => {
     expect(plays.map((p) => p.ordinal)).toEqual(plays.map((_, i) => i));
     // Play numbers come from the stream, so they are the loop's and not a second count.
     expect(new Set(plays.map((p) => p.playNumber)).size).toBe(plays.length);
+    // ADR-090 S5: each play's calls carry the picture its PLAY_START published, so a replay is the play.
+    plays.forEach((p, i) => {
+      expect(p.calls.snap).toBeDefined();
+      expect(p.calls.snap).toEqual((starts[i]!.event.payload as { snap?: unknown }).snap);
+    });
   });
 
   it("ROUND TRIP — every replayed play reproduces the play the game played", () => {

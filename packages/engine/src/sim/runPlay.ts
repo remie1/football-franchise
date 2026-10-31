@@ -390,6 +390,8 @@ function buildStartPayload(
       ballOn: state.ballOn,
       clockSeconds: state.clockSeconds,
     },
+    // ADR-090 S2 and S5, as the pass payload copies it: the last key, read by nothing in the run sim.
+    ...(calls.snap === undefined ? {} : { snap: calls.snap }),
   };
 }
 

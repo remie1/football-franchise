@@ -30,9 +30,14 @@ export interface MarketCurve {
 
 export type MarketCurves = ReadonlyMap<TagGroup, MarketCurve>;
 
-/** The league's market at each tag group in a season. */
+/**
+ * The league's market at each tag group in a season. With `cap`, each deal counts at its share of the
+ * cap in its first season, in this season's dollars (as OverTheCap compares deals across years), so
+ * prices keep pace with the cap.
+ */
 export function marketCurves(
   contracts: readonly PlayerContract[], players: readonly PlayerState[], season: number, rate: (p: PlayerState) => number,
+  cap?: (season: number) => number,
 ): MarketCurves {
   const byId = new Map(players.map((p) => [String(p.bio.id), p]));
   const out = new Map<TagGroup, MarketCurve>();
@@ -42,7 +47,8 @@ export function marketCurves(
     if (!p) continue;
     const g = TAG_GROUP[p.bio.position];
     const curve = out.get(g) ?? { apys: [], grades: [] };
-    curve.apys.push(apyOf(c));
+    const first = c.years.find((y) => !y.voidYear)?.season ?? season;
+    curve.apys.push(cap ? apyOf(c) * cap(season) / cap(first) : apyOf(c));
     curve.grades.push(rate(p));
     out.set(g, curve);
   }
@@ -82,11 +88,31 @@ export function ageFactor(age: number, position: Position): number {
   return Math.max(0.45, 1 - 0.09 * (a - 29));
 }
 
-/** How many years a deal runs: young and good players get long deals, old ones one year. */
-export function termFor(age: number, position: Position, percentile: number): number {
+/**
+ * The real average length of a new deal by its size as a share of the cap: deals signed 2021 to 2025
+ * in OverTheCap's table (REPORTED; counted 2026-10-31): up to 0.5% 1.41 years, to 1% 1.80, to 2%
+ * 1.85, to 4% 2.28, to 8% 2.78, above 8% 3.55.
+ */
+const REAL_TERM: readonly { upTo: number; years: number }[] = [
+  { upTo: 0.005, years: 1.41 }, { upTo: 0.01, years: 1.8 }, { upTo: 0.02, years: 1.85 },
+  { upTo: 0.04, years: 2.28 }, { upTo: 0.08, years: 2.78 }, { upTo: Infinity, years: 3.55 },
+];
+/** Years a younger player adds to the real length (an older one takes off), a year of age (CHOSEN). */
+const TERM_PER_AGE = 0.2;
+
+/**
+ * How many years a deal runs. Old ones run one year, and the young and good run longest. With the
+ * deal's share of the cap, the length starts from the real average for deals that size, longer for
+ * a younger man and shorter for an older one, within the age limits.
+ */
+export function termFor(age: number, position: Position, percentile: number, capShare?: number): number {
   const a = age - (LATE_AGEING.has(position) ? AGE_SHIFT : 0);
   let years = a <= 27 ? 4 : a <= 29 ? 3 : a <= 31 ? 2 : 1;
   if (percentile >= 0.9 && a <= 29) years += 1;
+  if (capShare !== undefined) {
+    const real = REAL_TERM.find((t) => capShare <= t.upTo)!.years;
+    return Math.max(1, Math.min(years, Math.round(real + TERM_PER_AGE * (27 - a))));
+  }
   if (percentile < 0.4) years = Math.min(years, 2);
   if (percentile < 0.15) years = 1;
   return years;
@@ -108,13 +134,13 @@ export interface Valuation {
   years: number;
 }
 
-/** A player's market price from a grade (the grader's own view of him). */
-export function valuePlayer(p: PlayerState, grade: number, curves: MarketCurves, minimum: number): Valuation {
+/** A player's market price from a grade (the grader's own view of him). With `cap`, the deal's length follows the real lengths for its size. */
+export function valuePlayer(p: PlayerState, grade: number, curves: MarketCurves, minimum: number, cap?: number): Valuation {
   const curve = curves.get(TAG_GROUP[p.bio.position]);
   const percentile = curve ? percentileOf(curve.grades, grade) : 0.5;
   const raw = curve ? quantile(curve.apys, percentile) : minimum;
   const apy = Math.max(minimum, Math.round(raw * ageFactor(p.bio.age, p.bio.position) / 1000) * 1000);
-  return { percentile, apy, years: termFor(p.bio.age, p.bio.position, percentile) };
+  return { percentile, apy, years: termFor(p.bio.age, p.bio.position, percentile, cap ? apy / cap : undefined) };
 }
 
 export interface VeteranDeal {

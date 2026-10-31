@@ -144,8 +144,11 @@ windows. Its fix is designed right after the pocket fix, measured on the fixed p
   free rushers. Step 0 is built (31 October 2026): the spot tables and the pre-snap steps as code
   no game calls yet, checked over every call against every formation and against your August
   alignment ranges (`pnpm --filter @ff/calibration snap-spots`,
-  `packages/calibration/reports/adr-090-step0.md`). Step 1 puts the picture on every play and in
-  the viewer; it needs your typed yes for three contract changes (S1, S2, S5).
+  `packages/calibration/reports/adr-090-step0.md`). Step 1 is built (31 October 2026, your typed
+  yes for contract changes S1, S2 and S5): every play now records where all 22 men stood at the
+  snap, and the game viewer draws it at the top of a play's details. No game changed: every pinned
+  game is the same once the picture is set aside (`snap-spots -- --step 1`,
+  `packages/calibration/reports/adr-090-step1.md`).
 - The stem called by the Mike (ADR-091): he times MOVE against the quarterback's count with his
   Awareness and Play Recognition, the line can be caught moving, and offside is enforced by the
   NFL's own rules. Each defensive coordinator stems at his own rate, about 9 times a game on
@@ -207,7 +210,8 @@ nobody signs retire. The season then runs on to the end of the league year, and 
 of it. With both switches off a season is exactly what it was. The single-season checks
 (`pnpm --filter @ff/calibration player-checks`, `reports/player-checks.md`) compare it with the NFL;
 switching it on by default waits for the 20-season check, after the draft and cap threads' year
-turnover.
+turnover. The real-player stand-in league now carries growth records and today's injuries too (step
+1, `pnpm --filter @ff/attributes standin-development`), so both switches run on it, in its own 2026 season.
 
 **Your coach's personality (ADR-083, ruled 23 October 2026, not built):** your type builds up from
 how you answer people, shown as five meters on your coach page. Only your main trait counts, and it

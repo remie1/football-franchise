@@ -629,6 +629,10 @@ export function simulatePassPlay(
     ...(rules.kind === "LEGACY"
       ? {}
       : { rules: { name: rules.rules.name, overlayDigest: rules.rules.overlayDigest } }),
+    // ADR-090 S2 and S5: where every man stands at the snap, copied from the calls as they carried
+    // it, after `rules` so a play without one keeps today's keys in today's order. Nothing below
+    // reads it at ADR-090 step 1.
+    ...(calls.snap === undefined ? {} : { snap: calls.snap }),
   };
   log.setTick(undefined);
   log.playStart(startPayload);

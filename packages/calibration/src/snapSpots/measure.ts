@@ -5,7 +5,7 @@
  * Every count reads the pictures `drawEverySnap` drew, never the tables' constants, so a table
  * value that never reaches a picture is not counted as checked.
  */
-import type { PlayerId } from "@ff/contracts";
+import type { PlayerId, SnapSpot } from "@ff/contracts";
 import {
   COVERAGE_MASKS,
   DEFENSE_ROLE_GROUP,
@@ -17,7 +17,6 @@ import {
   type DefenseGroup,
   type DefenseRole,
   type OffenseRole,
-  type SnapSpot,
 } from "@ff/playbook";
 import type { DrawnSnap } from "./corpus.js";
 

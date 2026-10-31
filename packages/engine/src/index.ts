@@ -157,6 +157,7 @@ export type {
   CoachDecisionRequest,
   OffensiveCallRequest,
   DefensiveCallRequest,
+  LineUpRequest,
   FourthDownRequest,
   FourthDownChoice,
   CoinTossRequest,

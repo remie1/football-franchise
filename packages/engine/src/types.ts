@@ -27,6 +27,7 @@ import type {
   OffensiveCall,
   OffensivePlayCall,
   PlayCalls,
+  PlayStartSnap,
   PlayerId,
   PlayerState,
   PocketStatus,
@@ -328,8 +329,14 @@ export interface MatchGameState {
  * PLAY_START payload. `MatchEvent["PLAY_START"].payload` is typed `unknown` in
  * contracts — a deliberately open slot. This is the engine's shape for it, and
  * a candidate for a future petition to type it in contracts.
+ *
+ * All but one field: `snap`, where every man stands at the snap, is contracts'
+ * (`PlayStartSnap`, ADR-090 S2). The engine copies it from the calls
+ * (`PlayCalls.snap`, S5) as the LAST key, after `rules`, so a payload without
+ * it keeps today's keys in today's order. Nothing in the engine reads it at
+ * ADR-090 step 1.
  */
-export interface PassPlayStartPayload {
+export interface PassPlayStartPayload extends PlayStartSnap {
   readonly kind: "PASS_PLAY_V1";
   readonly offense: {
     readonly team: TeamId;
@@ -526,9 +533,10 @@ export interface PassPlayStartPayload {
  * PLAY_START payload for a designed run. Same open slot as `PassPlayStartPayload`
  * and the same reason it is worth filling: `RUN_RESOLUTION` states the gap the
  * ball ACTUALLY went through, and "did the back find the cutback?" is only
- * answerable if the gap it was DRAWN to is also in the stream.
+ * answerable if the gap it was DRAWN to is also in the stream. `snap` as on
+ * `PassPlayStartPayload`: contracts' (ADR-090 S2), the last key.
  */
-export interface RunPlayStartPayload {
+export interface RunPlayStartPayload extends PlayStartSnap {
   readonly kind: "RUN_PLAY_V1";
   readonly offense: {
     readonly team: TeamId;

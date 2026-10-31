@@ -8,20 +8,23 @@
  * `<cache>/sealed.json`, so a refresh keeps every returning player's stand-in name. The cache is
  * gitignored; keep a copy of `sealed.json` somewhere safe, or a refresh on another computer gives
  * everyone new names. `--fetch-otc` adds only OverTheCap's team pages (dead money) to the newest
- * snapshot; `--fetch` fetches both.
+ * snapshot; `--fetch` fetches both. Each stand-in also gets his starting development (ADR-087 §2.5,
+ * `development.ts`), described under the file's `startingDevelopment` key; `standin-development`
+ * (`developMain.ts`) refreshes just those on a file already built.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { teamId, type Team } from "@ff/contracts";
 import { buildDeadMoney, fetchOtcPages, otcDownload, readOtcRows } from "./deadMoney.js";
 import { buildRealLeague } from "./league.js";
+import { LEAGUE_FILE_FORMAT, serializeLeagueFile } from "./leagueFile.js";
 import { PICKS_SOURCE, tradedPicks } from "./picks.js";
 import { REAL_CITY, REAL_TEAM_SLOTS, STANDIN_NICKNAME } from "./positions.js";
 import { loadSnapshotRows, loadTrackingRows } from "./rows.js";
 import { fetchSnapshot, latestSnapshot, readManifest } from "./snapshot.js";
 import type { SealedTable } from "./standins.js";
 
-export const LEAGUE_FILE_FORMAT = "ff-standin-league/1";
+export { LEAGUE_FILE_FORMAT };
 
 export function standInTeams(): Team[] {
   return REAL_TEAM_SLOTS.map((_, i) => ({
@@ -62,8 +65,10 @@ async function main(argv: readonly string[]) {
   const out = opt("--out") ?? `leagues/standin-${manifest.date}.json`;
   mkdirSync(dirname(out), { recursive: true });
   const file = { format: LEAGUE_FILE_FORMAT, season, snapshotDate: manifest.date, league: built.league, contracts: built.contracts,
-    deadMoney: dead.charges, picks: tradedPicks(built.league.teams), picksSource: PICKS_SOURCE };
-  writeFileSync(out, JSON.stringify(file, (_k, v) => (v instanceof Set ? [...v] : v)) + "\n");
+    deadMoney: dead.charges, picks: tradedPicks(built.league.teams), picksSource: PICKS_SOURCE,
+    // ADR-087 §2.5: how the growth records were made (`development.ts`); last, as `standin-development` writes it.
+    startingDevelopment: built.startingDevelopment };
+  writeFileSync(out, serializeLeagueFile(file));
   writeFileSync(sealedPath, JSON.stringify(built.sealed, null, 1) + "\n");
 
   const r = Object.values(built.league.provenance.ratings);
