@@ -1,7 +1,8 @@
 /**
  * ADR-078 R1: calibration may import from `@ff/franchise` only the named surface.
  * Any other name is a new exception, which needs its own ADR. Amendment 1 (2026-10-21, save and load)
- * added `makeSave` and `readSave`; amendment 2 (2026-10-23, saves keep the coaching staff) `buildStaff`.
+ * added `makeSave` and `readSave`; amendment 2 (2026-10-23, saves keep the coaching staff) `buildStaff`;
+ * amendment 3 (2026-10-31, the multi-season cap check, ADR-085 Q10) `capForecast` and `teamCapTotal`.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -13,6 +14,8 @@ const PERMITTED = new Set([
   "makeSave", "readSave",
   // Saves keep the coaching staff (R1 amendment 2, 2026-10-23).
   "buildStaff",
+  // The cap over several years (R1 amendment 3, 2026-10-31; ADR-085 Q10).
+  "capForecast", "teamCapTotal",
 ]);
 
 function files(dir: string): string[] {
