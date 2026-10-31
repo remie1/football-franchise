@@ -382,7 +382,7 @@ describe("draft day keeps rosters at 90 (review fix)", () => {
   // One team comes to the draft with 88 men: its picks would take it past 90.
   const base = startingPeople();
   const t0 = base.teams[0]!;
-  const extra = Array.from({ length: 35 }, (_, i) => player(`${String(t0.id)}-x-${i}`, "LB", 45 + (i % 10), 26, t0.id, "UDFA"));
+  const extra = Array.from({ length: 35 }, (_, i) => player(`${String(t0.id)}-x-${i}`, "ILB", 45 + (i % 10), 26, t0.id, "UDFA"));
   const people: LeaguePeople = {
     ...base, players: [...base.players, ...extra],
     teams: base.teams.map((t) => (t.id === t0.id ? { ...t, roster: [...t.roster, ...extra.map((p) => p.bio.id)] } : t)),
