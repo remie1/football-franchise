@@ -163,11 +163,14 @@ const sameDay = (a: CalendarStamp, b: CalendarStamp) => compareStamps(a, b) === 
 export function runSeason(input: RunSeasonInput): SeasonRun {
   const { league, season, seed, resolve, stopAfter, resumeFrom } = input;
   // Order: the caller's steps, the players' (ADR-087), the coaches' (ADR-084), the league year's (ADR-085),
-  // then the draft's (ADR-086).
+  // then the draft's (ADR-086). One cap for every deal the year signs: the draft's, else the league year's
+  // (ADR-085's forecast).
+  const sharedCap = input.draft?.cap ?? input.leagueYear?.cap;
+  const draftConfig = input.draft && { ...input.draft, ...(sharedCap ? { cap: sharedCap } : {}) };
   const steps = [
     ...(input.daySteps ?? []), ...(input.players ? playerSteps(input.players) : []),
     ...(input.coaching ? staffSteps(input.coaching) : []),
-    ...(input.leagueYear ? leagueYearSteps(input.leagueYear) : []), ...(input.draft ? draftSteps(input.draft) : []),
+    ...(input.leagueYear ? leagueYearSteps(input.leagueYear) : []), ...(draftConfig ? draftSteps(draftConfig) : []),
   ];
   if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps, the players' steps, the coaches', the league year and the draft need people");
   if (input.coaching && !input.people?.coaching) throw new Error("runSeason: the coaches' steps need people.coaching");
@@ -251,8 +254,8 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
     const unused = [...saved.keys()].filter((id) => !played.has(id));
     if (unused.length > 0) throw new Error(`runSeason: the save has results this run did not reach (${unused.slice(0, 3).join(", ")})`);
     runSteps();
-    if (complete && input.draft && input.through === "YEAR") {
-      const turned = turnYear(people!, { season: season + 1, rules, ...(input.draft.cap ? { cap: input.draft.cap } : {}) });
+    if (complete && draftConfig && input.through === "YEAR") {
+      const turned = turnYear(people!, { season: season + 1, rules, ...(draftConfig.cap ? { cap: draftConfig.cap } : {}) });
       people = turned.people;
       for (const event of turned.events) emit(event);
     }
