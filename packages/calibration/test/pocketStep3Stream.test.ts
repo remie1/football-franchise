@@ -463,6 +463,27 @@ describe("s3Stream.ts: the late block's place in the stream, and the census", ()
     expect([...standingRecordsOf({ checks })].sort()).toEqual(["pickup/lb1", "stunt/de1"]);
   });
 
+  it("review CT-F2: a record a passed-off twist hands to a man is replaced when a later twist frees that man", () => {
+    const k = (index: number, checkKind: string, actors: readonly string[], band: string, label: string) => ({ index, tick: 0, keys: [], c: { checkKind, actors, band, tier: "X", margin: -5, testsAttrs: [], roll: d100(label) } });
+    // blz0 runs through the back; de1 and blz0 twist and pass off, so de1 carries the pickup's
+    // record and blz0 is blocked; then dt1 and de1 twist and de1 loops free: his record is the stunt's.
+    for (const band of ["LOOPER_FREE", "LATE_EXCHANGE"]) {
+      const checks = [
+        k(1, "blitz_pickup", ["rb", "blz0"], "RAN_THROUGH", "pickup/blz0"),
+        k(2, "stunt_communication", ["de1", "blz0"], "PASSED_OFF", "stunt/blz0"),
+        k(3, "stunt_communication", ["c", "dt1", "de1"], band, "stunt/de1"),
+      ];
+      expect([...standingRecordsOf({ checks })]).toEqual(["stunt/de1"]);
+    }
+    // Carried and never replaced, it stands; a pickup's PICKED_UP leaves no record.
+    const carried = [
+      k(1, "blitz_pickup", ["rb", "blz0"], "BLOWN_UP", "pickup/blz0"),
+      k(2, "blitz_pickup", ["fb", "lb2"], "PICKED_UP", "pickup/lb2"),
+      k(3, "stunt_communication", ["c", "de1", "blz0"], "PASSED_OFF_CLEAN", "stunt/blz0"),
+    ];
+    expect([...standingRecordsOf({ checks: carried })]).toEqual(["pickup/blz0"]);
+  });
+
   it("the census counts the late blocks, the touched men and the men on the clock; two censuses add", () => {
     const fold = emptyS3CensusFold();
     const p1 = latePlay();

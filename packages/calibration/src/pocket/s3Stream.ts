@@ -14,7 +14,7 @@
  *  - **`lateBlockCheck`** (plan §2.4's stream order; AM-2's `lateBlock`). Which men are late blocks:
  *    a pickup or stunt CHECK whose record is free (RAN_THROUGH or BLOWN_UP; LATE_EXCHANGE or
  *    LOOPER_FREE) whose record stands at the snap (`standingRecordsOf`: a twist that frees a
- *    picked-up man again replaces his pickup's record) is one exactly when the bundle carries a late
+ *    man again replaces the record he carries, his own or one a passed-off twist handed him) is one exactly when the bundle carries a late
  *    block and the arm's reading gives him a toucher off the clock (`freeRunKey.ts`: reading A, any hand; otherwise a touched man,
  *    D19). Under S each such CHECK has its late beat and no other CHECK has one. The beat comes
  *    after every pickup and stunt CHECK and before the play's first TICK. The late man has no
@@ -101,20 +101,46 @@ export function expectsLateBlock(tunables: Tunables, key: ClockKey, kind: Touchi
 }
 
 /**
- * The touching CHECKs whose free record stands at the snap: a later CHECK that frees the same man
- * with a record of its own replaces his earlier one (a picked-up rusher who is then a twist's looper
- * and goes free has the stunt's record, not the pickup's). A passed-off twist exchanges records and
- * replaces none, so it is not a free band and leaves the record standing, carried.
+ * The touching CHECKs whose free record stands at the snap, walked in stream order the way the
+ * engine's plans change hands (`sim/preSnap.ts`): each man carries at most one free record. A
+ * pickup whose band is free (RAN_THROUGH, BLOWN_UP) gives its rusher (`[blocker, rusher]`) its record
+ * and any other band leaves him blocked. A stunt that is not passed off (LATE_EXCHANGE,
+ * LOOPER_FREE) gives its looper (last actor) a record of its own, replacing whatever he carried (a
+ * picked-up rusher who is then a twist's looper and goes free has the stunt's record, not the
+ * pickup's). A passed-off twist (every other stunt band, `passedOff` in the default bands) makes the
+ * penetrator (second to last) and the looper exchange their whole assignments (`withAssignmentOf`),
+ * so a record moves to its carrier and is replaced if a later twist frees the carrier (review CT-F2:
+ * keyed by the man who earned it, a carried record replaced on its carrier was still counted).
  */
 export function standingRecordsOf(play: Pick<S1Play, "checks">): ReadonlySet<string> {
-  const latest = new Map<string, string>();
+  const carried = new Map<string, string>();
+  const give = (man: string, label: string | undefined): void => {
+    if (label === undefined) carried.delete(man);
+    else carried.set(man, label);
+  };
   for (const k of play.checks) {
-    if (!isTouchingKind(k.c.checkKind) || k.c.roll === undefined || k.c.band === undefined) continue;
-    if (!FREE_RECORD_BANDS[k.c.checkKind].has(k.c.band)) continue;
-    const earner = earnerOf(k.c);
-    if (earner !== undefined) latest.set(earner, k.c.roll.rngLabel);
+    const c = k.c;
+    if (!isTouchingKind(c.checkKind) || c.roll === undefined || c.band === undefined) continue;
+    const free = FREE_RECORD_BANDS[c.checkKind].has(c.band);
+    if (c.checkKind === "blitz_pickup") {
+      const rusher = c.actors[1];
+      if (rusher !== undefined) give(String(rusher), free ? c.roll.rngLabel : undefined);
+      continue;
+    }
+    const looper = c.actors.at(-1);
+    const penetrator = c.actors.at(-2);
+    if (looper === undefined) continue;
+    if (free) {
+      give(String(looper), c.roll.rngLabel);
+      continue;
+    }
+    if (penetrator === undefined) continue;
+    const fromPenetrator = carried.get(String(penetrator));
+    const fromLooper = carried.get(String(looper));
+    give(String(penetrator), fromLooper);
+    give(String(looper), fromPenetrator);
   }
-  return new Set(latest.values());
+  return new Set(carried.values());
 }
 
 /** The late block's beat tick on S, from its beat's U and the arm's dials (undefined: held the whole play, or not S). */
