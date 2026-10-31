@@ -25,7 +25,7 @@ import type {
   ThrowType,
 } from "@ff/contracts";
 import type { PocketStatusRung } from "./resolve/pocket.js";
-import type { PassPlayStartPayload, RunPlayStartPayload } from "./types.js";
+import type { AtTheLineRecord, PassPlayStartPayload, RunPlayStartPayload } from "./types.js";
 
 /**
  * ADR-036 — the recovery state of a deflected ball, as ONE value.
@@ -212,6 +212,27 @@ export class PlayEventLog {
 
   playStart(payload: PassPlayStartPayload | RunPlayStartPayload): void {
     this.push({ type: "PLAY_START", payload, ...this.base() });
+  }
+
+  /**
+   * ADR-091 step S-a and ADR-092: what happened at the line before the snap (the game loop's
+   * records, `MatchGameState.atTheLine`), written right after `PLAY_START` by both simulations, in
+   * the order given. Nothing after the snap reads them.
+   */
+  atTheLine(records: readonly AtTheLineRecord[] | undefined): void {
+    for (const r of records ?? []) {
+      switch (r.type) {
+        case "CHECK":
+          this.push({ type: "CHECK", payload: r.payload, ...this.base() });
+          break;
+        case "SIDELINE_ADJUSTMENT":
+          this.push({ type: "SIDELINE_ADJUSTMENT", payload: r.payload, ...this.base() });
+          break;
+        case "STEM":
+          this.push({ type: "STEM", payload: r.payload, ...this.base() });
+          break;
+      }
+    }
   }
 
   tickStart(tick: number): void {

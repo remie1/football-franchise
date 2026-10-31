@@ -34,10 +34,13 @@
  *     and every corner look at its shown spot; the Mug stays walked up; the creeper moves.
  *  7. The snap: every spot frozen to half a yard and published by player.
  *
- * Beats 2, 3 and 6 read the call, never a die. The stem's endings (ADR-091) and the tells
- * (question 2, ruled By rating; step 8) are not here yet, so until step 3 every Stem ends ON
- * TIME — the line set in the front it shifted to, which is its played front (ADR-091 §6) — and
- * nobody cheats toward his job, which is what a Disguise of 50 for everyone means anyway.
+ * Beats 2, 3 and 6 read the call, never a die. How a Stem ended at the line is the engine's dice
+ * (ADR-091 §5, ADR-090 step 3); beat 6 draws the ending it is handed (`SnapInput.stem`): set in
+ * the front it shifted to (its played front) when it was on time or early, set where it lined up
+ * when it was called off, and halfway between, moving, when it was caught (ADR-091 §6). Handed
+ * none, a Stem ends ON TIME, as it did before step 3. The tells (question 2, ruled By rating;
+ * step 8) are not here yet, so nobody cheats toward his job, which is what a Disguise of 50 for
+ * everyone means anyway.
  *
  * ================== THE TABLES, AND WHAT STEP 0 ADDED ==================
  *
@@ -377,6 +380,8 @@ const RUSHING_CORNER_Y = 5;
 const SLOT_DEEP_ZONE_Y = 7;
 /** ADR-090 §4.6: the creeper moves forward from his aligned spot (ADR-089 §4.4.3's creeping row). */
 const CREEPER_YARDS_PER_SECOND = 3;
+/** ADR-091 §6, D8 (CHOSEN): a lineman caught by the snap is halfway between his gaps, moving on at this speed. */
+const STEM_CAUGHT_YARDS_PER_SECOND = 3;
 
 /** Zones whose landmark is deep: a man playing one aligns deep. The rest are underneath. */
 const DEEP_ZONES: ReadonlySet<ZoneName> = new Set<ZoneName>([
@@ -758,6 +763,39 @@ function frontLookSpot(field: Field, d: Defender, job: Extract<Job, { readonly k
 
 // --- the beats -------------------------------------------------------------------------------------
 
+/**
+ * Question 1's two answers, for the Mug alone (ADR-090 §4.3, §11). `REAL` is the ruling and the
+ * default: the backers it walked up stand at 1.5 in the A gaps at the snap. `HEAD_ONLY` skips beat
+ * 3 for the Mug: the men it walked up stand at their aligned spots, a creeper among them creeps from
+ * his as any creeper does, and the Mug lives only in what the quarterback reads (`shownRush` is
+ * untouched). Coverage looks and the Stem are drawn as under `REAL`. For ADR-089 step 3's
+ * information arm; nothing draws it by default.
+ */
+export type MugAtTheSnap = "REAL" | "HEAD_ONLY";
+
+/** How a picture is drawn. Left out, every ruling as made. */
+export interface PreSnapOptions {
+  readonly mug?: MugAtTheSnap;
+}
+
+/**
+ * The four ways a stem ends (ADR-091 §6). Where its linemen stand at the snap: `ON_TIME` and
+ * `EARLY`, set in the front it shifted to; `CAUGHT`, halfway between their gaps and still moving
+ * (a late call, a quick count, or a quarterback who snapped on the movement); `CALLED_OFF`, set
+ * where they lined up.
+ */
+export type StemEnding = "ON_TIME" | "EARLY" | "CAUGHT" | "CALLED_OFF";
+
+/** How a worn Stem ended at the line, as the engine's dice decided it (ADR-091 §5). */
+export interface StemAtTheSnap {
+  readonly ending: StemEnding;
+  /**
+   * On an on-time stem, the linemen whose shift missed by 20 or more (ADR-091 §5.3): each alone
+   * is caught moving, and the rest are set. Only on `ON_TIME`, and only men the stem moves.
+   */
+  readonly caughtShifting?: readonly PlayerId[];
+}
+
 /** What a picture is drawn from: the call as instantiation and the looks leave it. */
 export interface SnapInput {
   readonly formation: AnyFormation;
@@ -766,6 +804,11 @@ export interface SnapInput {
   readonly card: AnyDefensiveCard;
   /** `instantiateDefense(card, …)`, with `applyFrontLook` laid over it when the call wears one. */
   readonly defense: InstantiatedDefense;
+  /**
+   * How the Stem the call wears ended (ADR-091 §6; ADR-090 step 3). Absent: on time, as before
+   * step 3. Refused on a call that wears no Stem.
+   */
+  readonly stem?: StemAtTheSnap;
 }
 
 /** Every beat's picture, by role (the published one, beat 7's, by player). */
@@ -845,18 +888,20 @@ function alignDefense(field: Field, defenders: readonly Defender[]): DefenseSpot
 
 /**
  * Beat 3 (ADR-090 §4.3): a coverage look moves its men to their shown jobs' spots; a front
- * look moves its men to their shown rush (question 1, ruled Real: a look is where he stands).
+ * look moves its men to their shown rush (question 1, ruled Real: a look is where he stands),
+ * unless the Mug is drawn `HEAD_ONLY` (`mugHeadOnly`), which moves nobody.
  */
 function showLooks(
   field: Field,
   defenders: readonly Defender[],
   aligned: DefenseSpots,
   stacked: ReadonlySet<DefenseRole>,
+  mugHeadOnly: boolean,
 ): DefenseSpots {
   const spots: Partial<Record<DefenseRole, SnapSpot>> = { ...aligned };
   for (const d of defenders) {
     if (d.shown !== undefined) spots[d.role] = spotFor(field, d, d.shown);
-    if (d.shownRush !== undefined) spots[d.role] = frontLookSpot(field, d, d.shownRush);
+    if (d.shownRush !== undefined && !mugHeadOnly) spots[d.role] = frontLookSpot(field, d, d.shownRush);
   }
   return spacedOut(spots, defenders, stacked);
 }
@@ -880,10 +925,13 @@ function coverageLookOf(card: AnyDefensiveCard): ReadonlyMap<DefenseRole, Covera
  *    (`masks.ts`, `MaskTiming`). One rotated LATE (`LATE_ROTATION`), and every corner look, is
  *    held: he is at his shown spot and rotates on the snap.
  *  - The Mug stays walked up: a dropper bails after the snap, a rusher comes from 1.5 yards.
- *  - The Stem ends ON TIME until ADR-091's step S-a gives it its four endings: the line is set
- *    in the front it shifted to, its played front.
+ *  - The Stem ends as the engine's dice said (`SnapInput.stem`, ADR-091 §6): on time or early,
+ *    its linemen are set in the front it shifted to, their played front; called off, set where
+ *    they lined up, their shown spots; caught, each halfway between the two and still moving
+ *    toward the new one, standing up. A man caught moving may stand close to another lineman.
  *  - The creeper — a backer rushing on a Creeper call — moves forward at three yards a second
  *    from his aligned spot. One the Mug walked up is set at his Mug spot: he has crept already.
+ *    Under a `HEAD_ONLY` Mug nobody was walked up, so he creeps from his aligned spot.
  */
 function moveIntoSnap(
   input: SnapInput,
@@ -891,11 +939,12 @@ function moveIntoSnap(
   aligned: DefenseSpots,
   shown: DefenseSpots,
   stacked: ReadonlySet<DefenseRole>,
+  mugHeadOnly: boolean,
 ): DefenseSpots {
   const spots: Partial<Record<DefenseRole, SnapSpot>> = { ...aligned };
   const lookOf = coverageLookOf(input.card);
   const late = input.defense.call.coverageDisguise === "LATE_ROTATION";
-  const frontLook = input.defense.call.tags.find(isFrontLookTag)?.id;
+  const frontLook = mugHeadOnly ? undefined : input.defense.call.tags.find(isFrontLookTag)?.id;
   for (const d of defenders) {
     const shownSpot = shown[d.role];
     if (d.shown !== undefined) {
@@ -907,13 +956,65 @@ function moveIntoSnap(
     }
     if (shownSpot !== undefined && d.shownRush !== undefined && frontLook === "MUG") spots[d.role] = shownSpot;
     const creeps =
-      input.card.pressure === "CREEPER" && d.group !== "LINE" && d.played.kind === "RUSH" && d.shownRush === undefined;
+      input.card.pressure === "CREEPER" &&
+      d.group !== "LINE" &&
+      d.played.kind === "RUSH" &&
+      (d.shownRush === undefined || mugHeadOnly);
     const from = aligned[d.role];
     if (creeps && from !== undefined) {
       spots[d.role] = { ...from, moving: { dx: 0, dy: -1, yardsPerSecond: CREEPER_YARDS_PER_SECOND } };
     }
   }
-  return spacedOut(spots, defenders, stacked);
+  const caught = endTheStem(input, defenders, aligned, shown, spots);
+  return spacedOut(spots, defenders, new Set([...stacked, ...caught]));
+}
+
+/**
+ * ADR-091 §6: where a Stem's linemen stand at the snap, by its ending (`SnapInput.stem`). Moves
+ * the men it moves in `spots` and returns the ones caught moving, whom spacing lets pass close
+ * to another lineman. ⛔ An ending on a call with no Stem, or a man caught shifting whom the stem
+ * does not move, throws.
+ */
+function endTheStem(
+  input: SnapInput,
+  defenders: readonly Defender[],
+  aligned: DefenseSpots,
+  shown: DefenseSpots,
+  spots: Partial<Record<DefenseRole, SnapSpot>>,
+): ReadonlySet<DefenseRole> {
+  const stem = input.stem;
+  if (stem === undefined) return new Set();
+  const worn = input.defense.call.tags.some((tag) => isFrontLookTag(tag) && tag.id === "STEM");
+  if (!worn) throw new PlaybookError(`${input.card.id}: a stem ending (${stem.ending}) for a call that wears no Stem`);
+  const movers = defenders.filter((d) => d.group === "LINE" && d.shownRush !== undefined);
+  const shifting = new Set((stem.caughtShifting ?? []).map(String));
+  if (shifting.size > 0 && stem.ending !== "ON_TIME") {
+    throw new PlaybookError(`${input.card.id}: men caught shifting on a stem that ended ${stem.ending}, not on time`);
+  }
+  const strangers = [...shifting].filter((player) => !movers.some((d) => String(d.player) === player));
+  if (strangers.length > 0) {
+    throw new PlaybookError(`${input.card.id}: ${strangers.join(", ")} caught shifting, and the stem moves none of them`);
+  }
+  const caught = new Set<DefenseRole>();
+  for (const d of movers) {
+    const lineup = shown[d.role];
+    const stemTo = aligned[d.role];
+    if (lineup === undefined || stemTo === undefined) throw new PlaybookError(`${input.card.id}: ${d.role} has no spot to stem from or to`);
+    if (stem.ending === "CALLED_OFF") spots[d.role] = lineup;
+    else if (stem.ending === "CAUGHT" || shifting.has(String(d.player))) {
+      spots[d.role] = caughtBetween(lineup, stemTo);
+      caught.add(d.role);
+    } else spots[d.role] = stemTo;
+  }
+  return caught;
+}
+
+/** Halfway from where he lined up to where the stem takes him, standing, still moving there (D8). */
+function caughtBetween(lineup: SnapSpot, stemTo: SnapSpot): SnapSpot {
+  const [dx, dy] = [stemTo.x - lineup.x, stemTo.y - lineup.y];
+  const length = Math.hypot(dx, dy);
+  const at = { x: (lineup.x + stemTo.x) / 2, y: (lineup.y + stemTo.y) / 2, stance: "UP" as const };
+  return length === 0 ? at : { ...at, moving: { dx: dx / length, dy: dy / length, yardsPerSecond: STEM_CAUGHT_YARDS_PER_SECOND } };
 }
 
 function frozen(spot: SnapSpot, player: PlayerId): PlayerSnapSpot {
@@ -964,18 +1065,21 @@ function freezeAtSnap(input: SnapInput, offense: OffenseSpots, defenders: readon
  * The corpus tests draw every formation against every call, so none of them is reachable from
  * the book.
  */
-export function playPreSnap(input: SnapInput): PreSnapBeats {
+export function playPreSnap(input: SnapInput, options: PreSnapOptions = {}): PreSnapBeats {
   const offense = lineUpOffense(input.formation);
   const defenders = defendersOf(input.card, input.defense);
   const field = fieldOf(input, offense, defenders);
-  const stacked = mugged(input, defenders);
+  const mugHeadOnly =
+    options.mug === "HEAD_ONLY" && input.defense.call.tags.some((tag) => isFrontLookTag(tag) && tag.id === "MUG");
+  // A head-only Mug walks nobody up, so nobody stands stacked over the line.
+  const stacked = mugHeadOnly ? new Set<DefenseRole>() : mugged(input, defenders);
   const aligned = alignDefense(field, defenders);
-  const shown = showLooks(field, defenders, aligned, stacked);
-  const atSnap = moveIntoSnap(input, defenders, aligned, shown, stacked);
+  const shown = showLooks(field, defenders, aligned, stacked, mugHeadOnly);
+  const atSnap = moveIntoSnap(input, defenders, aligned, shown, stacked, mugHeadOnly);
   return { offense, aligned, shown, atSnap, picture: freezeAtSnap(input, offense, defenders, atSnap) };
 }
 
-/** The snap picture (ADR-090 §6): what step 1 will publish on `PLAY_START`. */
-export function snapPicture(input: SnapInput): SnapPicture {
-  return playPreSnap(input).picture;
+/** The snap picture (ADR-090 §6), as `PLAY_START` publishes it (ADR-090 step 1). */
+export function snapPicture(input: SnapInput, options: PreSnapOptions = {}): SnapPicture {
+  return playPreSnap(input, options).picture;
 }

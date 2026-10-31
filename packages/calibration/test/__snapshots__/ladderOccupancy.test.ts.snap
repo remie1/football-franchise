@@ -4,6 +4,12 @@ exports[`result-tier ladder — occupancy > pins the per-check even-contest surf
 [
   "blitz_recognition T shift=-26 SS=15.000 CS=15.000 >=15=60.000 LEVEL-VARIANT",
   "leash_discipline T shift=-40 SS=15.000 CS=1.000 >=15=46.000 LEVEL-VARIANT",
+  "stem_timing T shift=-26 SS=15.000 CS=15.000 >=15=60.000 LEVEL-VARIANT",
+  "stem_shift T shift=-16 SS=15.000 CS=15.000 >=15=70.000 LEVEL-VARIANT",
+  "snap_on_movement T shift=-56 SS=15.000 CS=0.000 >=15=30.000 LEVEL-VARIANT",
+  "adjustment_notice T shift=-38 SS=15.000 CS=3.000 >=15=48.000 LEVEL-VARIANT",
+  "adjustment_read T shift=-51 SS=15.000 CS=0.000 >=15=35.000 inv",
+  "habit_drop T shift=-28 SS=15.000 CS=13.000 >=15=58.000 LEVEL-VARIANT",
   "release_vs_press O shift=0 SS=11.700 CS=4.950 >=15=36.550 inv",
   "man_coverage O shift=0 SS=11.700 CS=4.950 >=15=36.550 inv",
   "zone_coverage T shift=-50 SS=15.000 CS=0.000 >=15=36.000 inv",
@@ -33,12 +39,14 @@ exports[`result-tier ladder — occupancy > pins the per-check even-contest surf
   "pursuit_angle T shift=-26 SS=15.000 CS=15.000 >=15=60.000 LEVEL-VARIANT",
   "tackle O shift=0 SS=11.700 CS=4.950 >=15=36.550 inv",
   "break_tackle O shift=0 SS=11.700 CS=4.950 >=15=36.550 inv",
+  "communication T shift=-21 SS=15.000 CS=15.000 >=15=65.000 LEVEL-VARIANT",
   "field_goal T shift=-10 SS=15.000 CS=15.000 >=15=76.000 LEVEL-VARIANT",
 ]
 `;
 
 exports[`result-tier ladder — occupancy > pins which checks are LEVEL-INVARIANT — the flat-league trap, per check 1`] = `
 [
+  "adjustment_read",
   "blitz_pickup",
   "break_tackle",
   "breakaway",
@@ -57,13 +65,16 @@ exports[`result-tier ladder — occupancy > pins which checks are LEVEL-INVARIAN
 exports[`result-tier ladder — occupancy > pins which checks are LEVEL-INVARIANT — the flat-league trap, per check 2`] = `
 [
   "accuracy spread=15.0pp",
+  "adjustment_notice spread=15.0pp",
   "anticipation spread=15.0pp",
   "blitz_recognition spread=15.0pp",
   "catch spread=15.0pp",
+  "communication spread=15.0pp",
   "contested_catch spread=4.1pp",
   "deflection_recovery spread=41.0pp",
   "downfield_block spread=4.1pp",
   "field_goal spread=17.0pp",
+  "habit_drop spread=14.0pp",
   "leash_discipline spread=15.0pp",
   "pass_rush_tick:FINESSE spread=4.1pp",
   "pass_rush_tick:SPEED spread=4.1pp",
@@ -74,6 +85,9 @@ exports[`result-tier ladder — occupancy > pins which checks are LEVEL-INVARIAN
   "rb_vision spread=15.0pp",
   "scramble spread=15.0pp",
   "second_level_climb spread=15.0pp",
+  "snap_on_movement spread=15.0pp",
+  "stem_shift spread=15.0pp",
+  "stem_timing spread=15.0pp",
   "stunt_communication spread=15.0pp",
   "zone_read_qb spread=15.0pp",
 ]

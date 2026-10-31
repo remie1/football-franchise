@@ -373,8 +373,10 @@ Derived directly from `match-engine.md`; every roll and resolution the debug pri
 |---|---|
 | `PLAY_START` | offense/defense play calls, personnel, situation (down, distance, LOS, clock, score); last, `snap`: where every man stands at the snap (`SnapPicture`, ADR-090 S1 and S2; absent when the play-caller drew none), carried in on the calls (`PlayCalls.snap`, S5) |
 | `PRESNAP_READ` | actor, check kind (coverageShell / blitz / audible), roll detail, result tier |
+| `SIDELINE_ADJUSTMENT` | what moved one defense's read of one offense's snap count between snaps (ADR-092 R3, `stem.ts`): the film read at the offense's first snap (ceiling, share, read), the halftime step, or the offensive coordinator's change of count (his notice, the new word and whether the defensive coordinator read it, the hard counts, the habit), each with the read before and after; play-scoped, right after `PLAY_START` of the snap where it first counts |
+| `STEM` | the stem at the line (ADR-091 M4, ADR-092 R2, `stem.ts`): the Mike who called it, the linemen it moves, the quarterback's count, the count read at that snap, the Mike's timing, where the moved men are at the snap, snapped on movement and re-called when they were asked, who was caught moving, and the timing roll's `rollRef`; one per snap whose defense's call carries `stem` (M2), after the play's sideline adjustments |
 | `TICK` | tick number (marks time advancing) |
-| `CHECK` | **the workhorse**: `{ checkKind, actors, roll: RollDetail, target, opposedRoll?, resultTier, marginOfSuccess }` |
+| `CHECK` | **the workhorse**: `{ checkKind, actors, roll: RollDetail, target, opposedRoll?, resultTier, marginOfSuccess }`. ADR-091 M3 adds `stem_timing`, `stem_shift` and `snap_on_movement` and gives `communication` its first producer (the center's re-call); ADR-092 R4 adds `adjustment_notice`, `adjustment_read` and `habit_drop` |
 | `POCKET_STATUS` | clean / pressure / collapsing / immediate / sack |
 | `ROUTE_STATUS` | receiver, route, phase (jammed / developing / open / decaying), opennessBase |
 | `QB_READ` | target read, perceivedOpenness, effectiveOpenness, varianceRoll |

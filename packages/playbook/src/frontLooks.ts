@@ -339,6 +339,8 @@ const err = (code: string, where: string, message: string): Diagnostic => ({
  *  - `C_FRONT_LOOK_NAME` — a front LOOK tag whose `name` is not its id's word, "Mug" or "Stem";
  *  - `C_FRONT_LOOK_ORDER` — a front LOOK tag that is not the call's last tag: the call is said
  *    line game, pressure, coverage looks, then the front look;
+ *  - `C_STEM_FIELD` — a Stem without the call's `stem` field, or the field without the Stem
+ *    (ADR-091 M2: the engine resolves the field, the tag only names it);
  *  - `C_SHOWN_ALIGNMENT_OMITTED` — an entry of either list with no `alignment` on a call with a
  *    second list. Alignments are compared resolved, and the playbook cannot resolve an omitted
  *    one (that needs the engine's tunables), so it is refused rather than guessed.
@@ -398,6 +400,19 @@ export function validateFrontLook(call: DefensivePlayCall): readonly Diagnostic[
         err("C_FRONT_LOOK_UNNAMED", "call.shownRush", "a second shown-rush list and no front LOOK tag names it"),
       );
     }
+  }
+  // ADR-091 petition M2: the engine resolves a stem from `stem`, never from the tag, so the two come together.
+  const stemWorn = fronts.some(({ tag }) => tag.id === "STEM");
+  if (stemWorn !== (call.stem !== undefined)) {
+    out.push(
+      err(
+        "C_STEM_FIELD",
+        "call.stem",
+        stemWorn
+          ? "a Stem with no `stem` naming the Mike who calls it (ADR-091 M2)"
+          : "a `stem` on a call that wears no Stem (ADR-091 M2)",
+      ),
+    );
   }
   if (fronts.length > 0 && (!second || !shownRushDiffers(call.rush, call.shownRush))) {
     out.push(
@@ -585,7 +600,16 @@ export function applyFrontLook(defense: InstantiatedDefense, draw: FrontLookDraw
     ...defense.call,
     tags: [...defense.call.tags, frontLookTag(draw.look)],
     shownRush: picture.shownRush,
+    // ADR-091 petition M2: the field the engine resolves for a stem, beside the tag a renderer says.
+    ...(draw.look === "STEM" ? { stem: { kind: "STEM" as const, trigger: theMike(defense) } } : {}),
   };
   assertValidFrontLook(call);
   return { ...defense, call };
+}
+
+/** Who calls a stem: the Mike (ADR-091 §3), on the field in every personnel group (`roles.ts`). */
+function theMike(defense: InstantiatedDefense): PlayerId {
+  const mike = defense.byRole.LB_M;
+  if (mike === undefined) throw new PlaybookError(`a Stem over ${defense.cardId}, which has no Mike (LB_M) to call it`);
+  return mike;
 }

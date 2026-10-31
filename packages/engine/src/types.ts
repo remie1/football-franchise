@@ -23,6 +23,7 @@ import type {
   HorizontalZone,
   HotRouteSpec,
   ManAssignment,
+  MatchEvent,
   MatchEventEnvelope,
   OffensiveCall,
   OffensivePlayCall,
@@ -46,7 +47,9 @@ import type {
   RushAssignment,
   RushMove,
   ShownRusher,
+  SidelineAdjustmentPayload,
   SpaceBlockAssignment,
+  StemPayload,
   StuntCall,
   StuntComplexity,
   TeamId,
@@ -323,7 +326,25 @@ export interface MatchGameState {
    * all read 50, which is the neutral modifier and today's behaviour exactly.
    */
   readonly chemistry?: ChemistryTable;
+  /**
+   * ADR-091 step S-a and ADR-092: what happened at the line before this snap, in the order it
+   * happened (the sideline's adjustments, then the stem), each roll a `CHECK` before the record that
+   * names it. Both simulations write it into the play's stream right after `PLAY_START`, and nothing
+   * after the snap reads it. Set only by the game loop, and only under `legacy` rules: the pocket
+   * fix's `pocket-1` rules play none of it (agreed with ADR-089's step 3). Never carried into the
+   * next play's state (`applyPlayOutcome`).
+   */
+  readonly atTheLine?: readonly AtTheLineRecord[];
 }
+
+/**
+ * One record of what happened at the line before a snap (ADR-091 step S-a, ADR-092), ready for the
+ * stream: a roll (the `CHECK` payload, built by `checkPayload`), a sideline adjustment, or the stem.
+ */
+export type AtTheLineRecord =
+  | { readonly type: "CHECK"; readonly payload: Extract<MatchEvent, { type: "CHECK" }>["payload"] }
+  | { readonly type: "SIDELINE_ADJUSTMENT"; readonly payload: SidelineAdjustmentPayload }
+  | { readonly type: "STEM"; readonly payload: StemPayload };
 
 /**
  * PLAY_START payload. `MatchEvent["PLAY_START"].payload` is typed `unknown` in

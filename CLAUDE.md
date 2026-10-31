@@ -71,6 +71,7 @@ Delegate implementation to the owning sub-agent. Never let one agent write in an
 - `pnpm --filter @ff/calibration season -- --seed <seed> --engine-rules pocket-1.s2 --out season.json` (or `export-game --seed <seed> --engine-rules pocket-1.s2`) — play the ADR-089 step-2 build behind its switch (the default is `legacy`); a save is stamped `pocket-1.s2@<overlay digest>`
 - `pnpm --filter @ff/calibration snap-spots [-- --out <file>]` — ADR-090 step 0: draw where every man stands at the snap for every call against every formation (about 2 seconds; no seed, no game) and check the table against the owner's August ranges (`reports/adr-090-step0.md`; the path is relative to the package)
 - `pnpm --filter @ff/calibration snap-spots -- --step 1 [--out <file>]` — ADR-090 step 1: play the 100 golden games with the snap picture on every play (about 30 seconds) and check that nothing moved, that every picture is whole, and where each man starts against the square the engine plays him in (`reports/adr-090-step1.md`)
+- `pnpm --filter @ff/calibration snap-spots -- --step 3 [--out <file>]` — ADR-090 step 3 (ADR-091 step S-a): play the 100 golden games with the stem played out at the line (nothing moved) and both leagues' base corpora (about 7 minutes): how often the Mike stems, how each stem ends against the dice's own odds and ADR-091 §9.2, the quarterback's count, and the count read through a game beside ADR-092 §7 (`reports/adr-090-step3.md`)
 
 ## Current State
 
