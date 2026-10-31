@@ -86,6 +86,8 @@ Wrong flags in this design only come from plays that were close to a foul, never
 
 ### Q4. Should officials "let them play" late in close games and in the playoffs?
 
+**You chose yes, as measured (31 October).**
+
 **Example:** fourth quarter, down 3, third and 8. The tight end and the linebacker are hand-fighting at the top of the route. In the first quarter that's a flag more often than now.
 
 - **Yes, as measured (recommended):** on judgment calls only, the officials' seen chance drops late in close games and in the playoffs, by whatever it takes to match the real drop after the players' own share. False starts and offside get no officials' lean; their late drop has to come from the players.
