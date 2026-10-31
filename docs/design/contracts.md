@@ -244,7 +244,8 @@ The rookie scale, minimum salaries and tag formulas are CBA data and live in fra
 export type StaffRole =
   | "HEAD_COACH" | "OC" | "DC" | "STC" | "POSITION_COACH"
   | "SCOUTING_DIRECTOR" | "SCOUT" | "PLAYER_ENGAGEMENT" | "STRENGTH"
-  | "CAP_MANAGER" | "PRESIDENT";
+  | "CAP_MANAGER" | "PRESIDENT"
+  | "GM";                          // ADR-081 G1: advises when the user holds the GM's decisions, makes them when not
 
 export interface StaffState {
   id: StaffId;
@@ -323,6 +324,27 @@ export interface RelationshipView {  // V1: one person's view of another
 ```
 
 Rest points, drift, moves and rifts are franchise's rules (the ledger); nothing in the sim reads a view.
+
+### The end-of-season staff meeting (ADR-081)
+
+The GM is a staff seat (G1, `StaffRole` gains `"GM"`). A team carries the course set after the meeting
+(G3, `Team.direction?: TeamDirection`). The meeting's record lives in `meeting.ts` (G2):
+
+```ts
+export type TeamDirection = "CONTEND" | "RETOOL" | "REBUILD";                       // G3
+export type MeetingPoint = "LUCK" | "GOOD_AND_BAD" | "HOLES" | "DECLINE" | "LOSSES" | "NEXT_WINS"
+                         | "GROWTH" | "MONEY_CLIFF" | "WINDOW";                        // the nine points
+export type AccuracyGrade = "SHARP" | "CLOSE" | "OFF" | "MISS";                       // hidden until the report card
+
+export interface MeetingClaim { point: MeetingPoint; verdict?: string; groups?: string[]; players?: PlayerId[]; wins?: number; direction?: TeamDirection }
+export interface MeetingTake { speaker: StaffId; claim: MeetingClaim; grade: AccuracyGrade; certainty: number /* 0-100, fixed */; volunteered: boolean }
+export interface MeetingClash { point: MeetingPoint; between: [StaffId, StaffId]; heat: "POLITE" | "OPEN_ARGUMENT" | "RIFT" }
+export interface StaffMeeting { team: TeamId; season: number; at: CalendarStamp; takes: MeetingTake[]; clashes: MeetingClash[] }
+```
+
+The coach skill registry gains the meeting's five skills (G5): `performanceAnalysis`, `forecasting`,
+`capManagement`, `marketSense` (season) and `nuance` (career), on the same 1-99 ruler. Who says what,
+how it is graded and how sure he is are franchise's rules.
 
 ---
 
@@ -414,6 +436,8 @@ The draft (ADR-086 C5): `DRAFT_PICK_MADE` may carry `overall` and `kind`; `COMPE
 
 Players age, grow and get hurt (ADR-087): `RATINGS_CHANGED` (E1, truth layer: `{ team?, changes: { player, attr, from, to }[], body?: { player, measure, from, to }[] }`, one per team per week plus one for free agents), `INJURY_OCCURRED` gains `setting`, `band` and `game?` (E2, public), `INJURY_HEALED` (E3, truth layer: `{ player, lasting: { attr, from, to }[], body? }`), `PLAYER_RETIRED` gains `reason?: "UNSIGNED"` and `timing: "SEASON_END"` (E4), and the COACH decisions `DEPTH_CHART_CHANGED` (`{ team, position, up?, down?, situation: OPEN_COMPETITION | INJURY_COVER | STARTER_RETURNS | KEPT_AFTER_INJURY | FORM | SUDDEN, authority, decidedBy }`), `POSITION_BATTLE_DECLARED` (`{ team, position, players, ... }`) and `POSITION_BATTLE_ENDED` (`{ team, position, starter, ... }`) (E5, public).
 
+The end-of-season meeting (ADR-081 G2, G3): `STAFF_MEETING_HELD` (`{ meeting: StaffMeeting }`, every take with its hidden grade), `MEETING_CERTAINTY_ASKED` (`{ team, season, speaker, point, certainty }`, the user asked "how sure are you?") and `TEAM_DIRECTION_SET` (`{ team, season, direction, authority }`).
+
 `RELATIONSHIP_CHANGED` (ADR-084 V2) is a view that moved: `{ from, of, delta, cause, before, after, rift?: "OPENED" | "REPAIRED" }`, once per move and once whenever the weekly drift changes a view's word.
 
 `PRESS_STORY_PUBLISHED` (ADR-082 N1) is narrative's news: `{ kind, headline, importance: 1..5, teams, games, subjects }`, where `kind` names the story rule that wrote it. `GameResult` may carry `periods` (ADR-082 N2), the points per period as in `GAME_END.payload.periods`, which is what stories like "rallied from 17 down" read.
@@ -491,6 +515,7 @@ export interface SaveFile {
     staff: StaffState[];                   // coaches and presidents, retired coaches included (their résumés feed trees)
     staffContracts?: StaffContract[];      // ADR-080 P1; optional, so saves written before it still load
     relationships?: RelationshipView[];    // ADR-084 V1: every view, one entry per direction; optional, as above
+    meetings?: StaffMeeting[];             // ADR-081 G2: each team's last end-of-season meeting; optional, as above
     draft?: { picks: DraftPick[]; classes: DraftClass[]; freeAgentMoves: {...}[] };  // ADR-086 C6; optional, as above
     contracts: PlayerContract[];
     deadMoney?: DeadMoneyCharge[];         // ADR-085 K3; optional, as above

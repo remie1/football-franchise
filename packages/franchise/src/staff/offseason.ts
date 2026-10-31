@@ -95,6 +95,8 @@ export interface StaffOffseasonResult {
   relationships?: RelationshipView[];
 }
 
+/** The president and (ADR-081 G1) the GM: fixed in v1, never hired, fired, retired or aged by the carousel. */
+const frontOffice = (s: StaffState): boolean => s.role === "PRESIDENT" || s.role === "GM";
 const authorityFor = (seat: Seat): Authority => (seat === "HEAD_COACH" ? "PRESIDENT" : "COACH");
 
 /** Chance a coach of this age retires this year. */
@@ -299,7 +301,7 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
 
   // ---- 2. Retirement. ----------------------------------------------------------------------------
   for (const s of world.staff) {
-    if (isRetired(s) || s.role === "PRESIDENT") continue;
+    if (isRetired(s) || frontOffice(s)) continue;
     let p = retireChance(s.age);
     if (seasonsOutOfWork(s, played) >= t.outOfWorkYearsToDrift) p = Math.max(p, t.outOfWorkDrift);
     if (createRng(seed, `franchise:staff/retire/${played}/${String(s.id)}`).next() >= p) continue;
@@ -377,7 +379,8 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     return "OUT_OF_WORK";
   };
 
-  let made = world.staff.length;
+  // GMs (ADR-081 G1) carry their own ids, so new coaches are numbered as before they came.
+  let made = world.staff.filter((s) => s.role !== "GM").length;
   const taken = new Set(world.staff.map((s) => s.displayName));
   const addCoach = (cohort: Cohort, label: string) => {
     const s = makeCoach(createRng(seed, `franchise:staff/new/${played}/${label}`), made++, cohort, taken);
@@ -432,7 +435,7 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     moves.push(move);
   };
 
-  const available = (s: StaffState) => !isRetired(s) && s.role !== "PRESIDENT";
+  const available = (s: StaffState) => !isRetired(s) && !frontOffice(s);
   // Reputation does not move during one offseason's hiring (résumés gain seasons only in step 1).
   const reputationMemo = new Map<string, number>();
   const standing = (s: StaffState, seat: Seat) => {
@@ -578,8 +581,8 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     }
   }
 
-  // ---- 10. A year older (presidents are fixed in v1). --------------------------------------------
-  for (const s of world.staff) if (!isRetired(s) && s.role !== "PRESIDENT") s.age += 1;
+  // ---- 10. A year older (presidents and GMs are fixed in v1). ------------------------------------
+  for (const s of world.staff) if (!isRetired(s) && !frontOffice(s)) s.age += 1;
   world.season = next;
 
   return { world, events, decisions, moves, ...(views ? { relationships: views } : {}) };
