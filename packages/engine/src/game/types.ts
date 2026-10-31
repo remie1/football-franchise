@@ -31,6 +31,7 @@ import type {
   PlayerState,
   PossessionCause,
   Rng,
+  SnapPicture,
   TeamId,
 } from "@ff/contracts";
 import { gameId as makeGameId } from "@ff/contracts";
@@ -186,6 +187,24 @@ export interface DefensiveCallRequest extends DecisionRequestBase {
   readonly against: OffensiveCall;
 }
 
+/**
+ * WHERE EVERY MAN STANDS AT THE SNAP (ADR-090 step 1, petition S5): asked of the DEFENSE's caller
+ * once a scrimmage play's two calls are made, because the defense lines up last, to the offense it
+ * sees. Not a decision, so it carries no authority tag; it is the two calls, and the situation and
+ * the tunables they were made under.
+ */
+export interface LineUpRequest {
+  readonly kind: "LINE_UP";
+  readonly tunables: Tunables;
+  readonly situation: DecisionSituation;
+  readonly offense: TeamSnapshot;
+  readonly defense: TeamSnapshot;
+  /** The offense's call, as the play will run it. */
+  readonly offenseCall: OffensiveCall;
+  /** The defense's call, as the play will run it. */
+  readonly defenseCall: DefensivePlayCall;
+}
+
 export type FourthDownChoice = "GO_FOR_IT" | "PUNT" | "FIELD_GOAL";
 
 export interface FourthDownRequest extends DecisionRequestBase {
@@ -225,6 +244,17 @@ export interface PlayCaller {
   readonly name: string;
   callOffense(request: OffensiveCallRequest, rng: Rng): OffensiveCall;
   callDefense(request: DefensiveCallRequest, rng: Rng): DefensivePlayCall;
+  /**
+   * The snap picture for the two calls (ADR-090 S5), drawn with the playbook, which the engine may
+   * not read (ADR-006, Iron Rule 1). The loop puts it on the calls (`PlayCalls.snap`) and the
+   * simulation copies it onto `PLAY_START` (S2); the engine never builds one.
+   *
+   * OPTIONAL: a caller with no playbook draws none (`defaultPlayCaller`), and its plays carry none.
+   * Drawing a picture rolls no die (ADR-090 §7). `rng` is the snap's address, `call:<n>/line-up`,
+   * for a caller that re-derives its own resolution of the snap from it, as calibration's frozen
+   * pair does; a fork is made by label, so asking moves no other stream.
+   */
+  lineUp?(request: LineUpRequest, rng: Rng): SnapPicture | undefined;
   decideFourthDown(request: FourthDownRequest): FourthDownChoice;
   decideCoinToss(request: CoinTossRequest): CoinTossChoice;
 }

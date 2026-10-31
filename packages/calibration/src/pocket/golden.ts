@@ -13,10 +13,11 @@
  *
  * THE MAPPED DIGEST. `strip` removes named fields before digesting (ADR-073's practice): a later
  * ADR whose change adds a field to the stream and nothing else proves that inert against these
- * pins by stripping it. `GOLDEN_STRIP` is EMPTY at step 0, and an entry may be added only by the
- * named ADR's own commit (risk K11): ADR-090's step 1, for example, would add
- * `{adr: "ADR-090", path: "PLAY_START.payload.snap"}`. Any other move of a pin is re-recorded only
- * by a named Orchestrator commit that cites the main commit that moved it.
+ * pins by stripping it. `GOLDEN_STRIP` was EMPTY at step 0, and an entry may be added only by the
+ * named ADR's own commit (risk K11): ADR-090's step 1 added
+ * `{adr: "ADR-090", path: "PLAY_START.payload.snap"}`, the snap picture, and moved no pin. Any other
+ * move of a pin is re-recorded only by a named Orchestrator commit that cites the main commit that
+ * moved it.
  *
  * The pins below were MEASURED at e23bf69 (plan §0) and are what the suite asserts
  * (`test/goldenDigests.*.test.ts`, `test/realSeasonSeam.test.ts`); the per-game lists behind
@@ -34,8 +35,13 @@ export interface StripEntry {
   readonly path: string;
 }
 
-/** Empty at step 0 (K11). */
-export const GOLDEN_STRIP: readonly StripEntry[] = Object.freeze([]);
+/**
+ * Empty at step 0 (K11). ADR-090 step 1: where every man stands at the snap, published on every
+ * scrimmage play's PLAY_START as its last key, and read by nothing in play at that step.
+ */
+export const GOLDEN_STRIP: readonly StripEntry[] = Object.freeze([
+  Object.freeze({ adr: "ADR-090", path: "PLAY_START.payload.snap" }),
+]);
 
 const ADR_NAME = /^ADR-\d{3}$/;
 

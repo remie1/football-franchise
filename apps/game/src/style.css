@@ -96,3 +96,25 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
 .headline .text { display: block; }
 .headline.lead .text { font-weight: 700; }
 .final { display: block; color: var(--muted); font-size: 0.85em; font-variant-numeric: tabular-nums; }
+/* ADR-090 step 1: where every man stood at the snap. One drawing unit is a yard. */
+:root { --field: #e7f1ea; --field-line: #bfd3c5; --ball: #8b5a2b; }
+@media (prefers-color-scheme: dark) { :root { --field: #15221a; --field-line: #2f4a39; --ball: #c8925a; } }
+.snap { margin: 4px 0 8px; }
+.snap-scroll { overflow-x: auto; }
+.snap svg { display: block; width: 100%; min-width: 560px; height: auto; border-radius: 6px; }
+.snap figcaption { color: var(--muted); font-size: 0.85em; margin-top: 4px; }
+.snap details summary { cursor: pointer; margin-top: 4px; color: var(--muted); }
+.snap-field { fill: var(--field); }
+.snap-yard { stroke: var(--field-line); stroke-width: 0.12; }
+.snap-hash { stroke: var(--field-line); stroke-width: 0.12; stroke-dasharray: 0.4 0.8; }
+.snap-los { stroke: var(--accent); stroke-width: 0.22; }
+.snap-ball { fill: var(--ball); }
+.snap-man.home { color: var(--home); }
+.snap-man.away { color: var(--away); }
+.snap-man.unknown { color: var(--muted); }
+.snap-man circle, .snap-head, .snap-hand { fill: currentColor; }
+.snap-man.defense polygon:not(.snap-head) { fill: var(--panel); stroke: currentColor; stroke-width: 0.2; }
+.snap-move { stroke: currentColor; stroke-width: 0.15; }
+.snap-label { font-size: 0.6px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.snap-man.offense .snap-label { fill: var(--panel); }
+.snap-man.defense .snap-label, .snap-man .snap-label.past { fill: currentColor; }

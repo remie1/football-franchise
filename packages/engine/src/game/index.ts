@@ -17,6 +17,7 @@ export type {
   GameInputs,
   GameSnapshot,
   GameSummary,
+  LineUpRequest,
   MatchPhase,
   MatchState,
   OffensiveCallRequest,

@@ -590,10 +590,27 @@ export function simulateGame(
       clockSeconds: s.clockSeconds,
       ...(offenseSnapshot.chemistry === undefined ? {} : { chemistry: offenseSnapshot.chemistry }),
     };
+    // ADR-090 S5: where every man stands at the snap, asked of the defense's caller (the defense
+    // lines up last, to the offense it sees) and carried on the calls. A caller with no playbook
+    // draws none, and the play carries none. Its fork is new, and a fork is made by label, so no
+    // other stream moves.
+    const picture = callerOf(defenseTeam).lineUp?.(
+      {
+        kind: "LINE_UP",
+        tunables,
+        situation,
+        offense: offenseSnapshot,
+        defense: defenseSnapshot,
+        offenseCall,
+        defenseCall,
+      },
+      callRng.fork("line-up"),
+    );
+    const snap = picture === undefined ? {} : { snap: picture };
     const calls: AnyPlayCalls =
       offenseCall.kind === "RUN"
-        ? ({ offense: offenseCall, defense: defenseCall } satisfies RunPlayCalls)
-        : ({ offense: offenseCall, defense: defenseCall } satisfies PlayCalls);
+        ? ({ offense: offenseCall, defense: defenseCall, ...snap } satisfies RunPlayCalls)
+        : ({ offense: offenseCall, defense: defenseCall, ...snap } satisfies PlayCalls);
 
     const played = simulatePlay(playState, calls, seed, tunables);
     log.append(played.events);

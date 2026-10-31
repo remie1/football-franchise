@@ -115,7 +115,7 @@
  * replay harness is exactly how a measurement of the harness gets published as a measurement of the
  * engine.
  */
-import type { CalendarStamp, MatchEventEnvelope } from "@ff/contracts";
+import type { CalendarStamp, MatchEventEnvelope, SnapPicture } from "@ff/contracts";
 import {
   deriveGameId,
   simulatePlay,
@@ -160,6 +160,8 @@ interface Pending {
   readonly request: OffensiveCallRequest;
   readonly offenseCall: OffensivePlayCall | RunPlayCall;
   defenseCall?: DefensivePlayCall;
+  /** ADR-090 S5: the picture the defense's caller drew for the two calls, if it drew one. */
+  snap?: SnapPicture;
 }
 
 export interface PlayCapture {
@@ -222,6 +224,23 @@ export function capturePlays(
       last.defenseCall = call;
       return call;
     },
+    // ADR-090 S5: the picture rides on the calls, so a replay that dropped it would not be the play.
+    ...(caller.lineUp === undefined
+      ? {}
+      : {
+          lineUp: ((request, rng) => {
+            const picture = caller.lineUp?.(request, rng);
+            const last = pending[pending.length - 1];
+            if (last?.defenseCall === undefined || last.snap !== undefined) {
+              throw new PlayCaptureError(
+                "lineUp arrived with no answered call pending, or twice for one. The loop asks for " +
+                  "the line-up after both calls; if it has stopped, the capture is mis-pairing pictures.",
+              );
+            }
+            if (picture !== undefined) last.snap = picture;
+            return picture;
+          }) satisfies NonNullable<PlayCaller["lineUp"]>,
+        }),
     decideFourthDown(request) {
       return caller.decideFourthDown(request);
     },
@@ -268,10 +287,11 @@ export function capturePlays(
             ? {}
             : { chemistry: offenseSnapshot.chemistry }),
         };
+        const snap = p.snap === undefined ? {} : { snap: p.snap };
         const calls: AnyPlayCalls =
           p.offenseCall.kind === "RUN"
-            ? ({ offense: p.offenseCall, defense: defenseCall } satisfies RunPlayCalls)
-            : ({ offense: p.offenseCall as OffensivePlayCall, defense: defenseCall } satisfies PlayCalls);
+            ? ({ offense: p.offenseCall, defense: defenseCall, ...snap } satisfies RunPlayCalls)
+            : ({ offense: p.offenseCall as OffensivePlayCall, defense: defenseCall, ...snap } satisfies PlayCalls);
         return { ordinal, playNumber, state, calls };
       });
     },

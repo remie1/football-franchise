@@ -22,9 +22,10 @@ import {
   type ShownRusher,
 } from "@ff/contracts";
 import type { PlayCaller } from "@ff/engine";
+import type { SnapPicture } from "@ff/contracts";
 import { goldenGames } from "../src/pocket/corpus.js";
 import { gameBytesDigest, gameDigest, type GoldenLeague } from "../src/pocket/golden.js";
-import { mirrorCall, mirrorCaller, mirrorHorizontal, mirrorSide } from "../src/pocket/mirror.js";
+import { mirrorCall, mirrorCaller, mirrorHorizontal, mirrorPicture, mirrorSide } from "../src/pocket/mirror.js";
 import { readGoldenFixture } from "./goldenDigestsShared.js";
 
 const p = playerId;
@@ -244,6 +245,56 @@ describe("ADR-089 step 0: mirrorCaller", () => {
   });
 });
 
+describe("ADR-090 step 1: the snap picture mirrors with the calls", () => {
+  const picture: SnapPicture = {
+    ballX: 0,
+    offense: [
+      { player: p("qb"), x: 0, y: -5, stance: "UP" },
+      { player: p("x"), x: -20, y: 0, stance: "UP" },
+    ],
+    defense: [
+      { player: p("de1"), x: 4.5, y: 1, stance: "DOWN" },
+      { player: p("ss"), x: 3, y: 9, stance: "UP", moving: { dx: -0.6, dy: -0.8, yardsPerSecond: 3 } },
+    ],
+  };
+
+  it("reverses every man and the ball across the ball, and a moving man's sideways direction; nothing else", () => {
+    expect(mirrorPicture(picture)).toStrictEqual({
+      ballX: 0,
+      offense: [
+        { player: p("qb"), x: 0, y: -5, stance: "UP" },
+        { player: p("x"), x: 20, y: 0, stance: "UP" },
+      ],
+      defense: [
+        { player: p("de1"), x: -4.5, y: 1, stance: "DOWN" },
+        { player: p("ss"), x: -3, y: 9, stance: "UP", moving: { dx: 0.6, dy: -0.8, yardsPerSecond: 3 } },
+      ],
+    });
+    expect(Object.is(mirrorPicture(picture).offense[0]!.x, 0)).toBe(true);
+    expect(mirrorPicture(mirrorPicture(picture))).toStrictEqual(picture);
+  });
+
+  it("hands the inner caller its own calls back, mirrors what it draws, and gives no line-up to a caller with none", () => {
+    const seen: unknown[] = [];
+    const inner: PlayCaller = {
+      name: "stub",
+      callOffense: () => pass,
+      callDefense: () => defense,
+      lineUp: (request, rng) => { seen.push(request, rng); return picture; },
+      decideFourthDown: () => "PUNT",
+      decideCoinToss: () => "RECEIVE",
+    };
+    const outer = mirrorCaller(inner);
+    const rng = createRng("adr-090:mirror-test", "stub");
+    const request = { kind: "LINE_UP", offenseCall: passMirrored, defenseCall: mirrorCall(defense) } as never;
+    expect(outer.lineUp?.(request, rng)).toStrictEqual(mirrorPicture(picture));
+    expect(seen[0]).toMatchObject({ kind: "LINE_UP", offenseCall: pass, defenseCall: defense });
+    expect(seen[1]).toBe(rng);
+    const { lineUp: _drawsNone, ...bare } = inner;
+    expect("lineUp" in mirrorCaller(bare)).toBe(false);
+  });
+});
+
 describe("ADR-089 step 0: the mirror flag on real games", () => {
   const fixture = readGoldenFixture();
 
@@ -261,6 +312,20 @@ describe("ADR-089 step 0: the mirror flag on real games", () => {
     const got = firstGame(league, false);
     expect(got.canonical).toBe(pinned!.canonical[0]);
     expect(got.bytes).toBe(pinned!.bytes[0]);
+  }, 60_000);
+
+  it("flat golden game 0's first snap: the mirrored game publishes the mirror of the plain game's picture (ADR-090 step 1)", () => {
+    const firstPicture = (mirror: boolean): SnapPicture | undefined => {
+      let out: SnapPicture | undefined;
+      goldenGames("flat", (observation) => {
+        const start = observation.events.find((e) => e.event.type === "PLAY_START");
+        out = (start?.event.payload as { snap?: SnapPicture } | undefined)?.snap;
+      }, { first: 1, mirror, callerVersion: "v7" });
+      return out;
+    };
+    const plain = firstPicture(false);
+    expect(plain?.offense.length).toBe(11);
+    expect(firstPicture(true)).toStrictEqual(mirrorPicture(plain!));
   }, 60_000);
 
   it("flat golden game 0, v7, mirror: true, plays, is deterministic, and is not the pinned game", () => {

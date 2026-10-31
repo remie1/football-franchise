@@ -22,6 +22,11 @@
  * Absent fields stay absent (a side the card never stated is not given one), so
  * `mirrorCall(mirrorCall(c))` deep-equals `c`.
  *
+ * THE SNAP PICTURE MIRRORS WITH THE CALLS (ADR-090 step 1). The inner caller draws the picture of
+ * the calls it made, from its own formation, and the mirror reverses every spot across the ball:
+ * x, the ball's place and a moving man's sideways direction. Nothing reads the picture at step 1;
+ * from step 2 a free runner's clock does, and a mirrored game has to start him on the mirrored side.
+ *
  * Reached only through `RunGameInput.mirror` (a boolean, so a batch worker can be handed it) and
  * `runRealSeason`'s `game.mirror`. Absent or false, no caller is wrapped.
  */
@@ -32,6 +37,7 @@ import type {
   HorizontalZone,
   OffensiveCall,
   OffensivePlayCall,
+  PlayerSnapSpot,
   RouteAssignment,
   RunBlockAssignment,
   RunFit,
@@ -39,6 +45,7 @@ import type {
   RunSide,
   RushAssignment,
   ShownRusher,
+  SnapPicture,
 } from "@ff/contracts";
 import type { PlayCaller } from "@ff/engine";
 
@@ -135,16 +142,59 @@ export function mirrorCall(call: OffensiveCall | DefensivePlayCall): OffensiveCa
   return mirrorDefense(call);
 }
 
+/** The seam's line-up (ADR-090 S5), typed through `PlayCaller`, the surface calibration already holds. */
+type LineUp = NonNullable<PlayCaller["lineUp"]>;
+
+/** Across the ball and back, never -0. */
+function across(x: number): number {
+  return x === 0 ? 0 : -x;
+}
+
+function mirrorSpot(spot: PlayerSnapSpot): PlayerSnapSpot {
+  return {
+    ...spot,
+    x: across(spot.x),
+    ...(spot.moving === undefined ? {} : { moving: { ...spot.moving, dx: across(spot.moving.dx) } }),
+  };
+}
+
+/**
+ * The picture with LEFT and RIGHT swapped: every man, the ball and a moving man's sideways
+ * direction reversed across the ball; depth, stance and speed unchanged. The men stay in their
+ * order, so `mirrorPicture(mirrorPicture(p))` deep-equals `p`.
+ */
+export function mirrorPicture(picture: SnapPicture): SnapPicture {
+  return {
+    ballX: across(picture.ballX),
+    offense: picture.offense.map(mirrorSpot),
+    defense: picture.defense.map(mirrorSpot),
+  };
+}
+
 /**
  * A caller whose offensive and defensive calls pass through `mirrorCall`. Its name, its fourth
  * downs and its coin tosses are the wrapped caller's own; it draws no die of its own, so the
  * game's dice are where they were.
+ *
+ * Its line-up (ADR-090 S5) hands the inner caller the calls it made, mirrored back, and mirrors
+ * the picture it draws. A caller that draws no picture gets no line-up.
  */
 export function mirrorCaller(caller: PlayCaller): PlayCaller {
   return {
     name: caller.name,
     callOffense: (request, rng) => mirrorCall(caller.callOffense(request, rng)),
     callDefense: (request, rng) => mirrorCall(caller.callDefense(request, rng)),
+    ...(caller.lineUp === undefined
+      ? {}
+      : {
+          lineUp: ((request, rng) => {
+            const picture = caller.lineUp?.(
+              { ...request, offenseCall: mirrorCall(request.offenseCall), defenseCall: mirrorCall(request.defenseCall) },
+              rng,
+            );
+            return picture === undefined ? undefined : mirrorPicture(picture);
+          }) satisfies LineUp,
+        }),
     decideFourthDown: (request) => caller.decideFourthDown(request),
     decideCoinToss: (request) => caller.decideCoinToss(request),
   };
