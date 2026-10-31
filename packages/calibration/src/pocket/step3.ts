@@ -552,6 +552,12 @@ export interface Step3MissSplitRecord {
    */
   readonly firstPressureByClock: Readonly<Record<string, number>>;
   readonly quickFirstPressureByClock: Readonly<Record<string, number>>;
+  /**
+   * The unblocked rows' counts keyed by the arm's own reading (`ClockKeyFold`; review MEAS-S4,
+   * MEAS-N1): men on the clock, those pressuring, and hit-or-sack dropbacks whose contact man was on
+   * the clock. The filed rows read D19's band test; these are printed beside them, never in their place.
+   */
+  readonly clockUnblocked: { readonly men: number; readonly pressures: number; readonly hitOrSack: number };
 }
 
 export function missSplitRecordOf(acc: SimAccumulator): Step3MissSplitRecord {
@@ -571,7 +577,30 @@ export function missSplitRecordOf(acc: SimAccumulator): Step3MissSplitRecord {
     quickFirstPressureByOrigin: { ...pf.quickFirstPressureByOrigin },
     firstPressureByClock: { ...pf.clockKey.firstPressureByClock },
     quickFirstPressureByClock: { ...pf.clockKey.quickFirstPressureByClock },
+    clockUnblocked: { men: pf.clockKey.clockMen, pressures: pf.clockKey.clockPressures, hitOrSack: pf.clockKey.clockHitOrSack },
   };
+}
+
+/** The unblocked clauses whose rows have a clock-keyed reading beside them (review MEAS-S4). */
+export const CLOCK_KEYED_CLAUSES: readonly string[] = Object.freeze(["s3.unblockedPressures", "s3.unblockedShare", "s3.unblockedMen"]);
+
+/**
+ * An unblocked clause's row read with the arm's own reading in place of D19's band test: per 100
+ * dropbacks for the pressures and the men, a share of hit-or-sack for the share (`null` on an empty
+ * population or for any other clause). The filed row reads D19's band test (review MEAS-S4, MEAS-N1).
+ */
+export function clockKeyedValueOf(m: Step3MissSplitRecord, clause: string): number | null {
+  const per100 = (k: number): number | null => (m.counts.dropbacks === 0 ? null : (100 * k) / m.counts.dropbacks);
+  switch (clause) {
+    case "s3.unblockedPressures":
+      return per100(m.clockUnblocked.pressures);
+    case "s3.unblockedMen":
+      return per100(m.clockUnblocked.men);
+    case "s3.unblockedShare":
+      return m.counts.hitOrSackDropbacks === 0 ? null : (100 * m.clockUnblocked.hitOrSack) / m.counts.hitOrSackDropbacks;
+    default:
+      return null;
+  }
 }
 
 /** A key's share of the quick first pressures and of all first pressures, in percent (`null` on an empty population). */
@@ -1319,6 +1348,13 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
   const clauses: Step2ClauseResult[] = [];
   const ttt = (id: ArmId, s: SeedSet, league: League): number | null => at(id, s)?.measures[league].timeToThrow ?? null;
   const valueOf = (id: ArmId, s: SeedSet, league: League, clause: string): number | null => rowValueOf(at(id, s), STEP3_CLAUSE_ROWS[clause]!.row, league);
+  // The unblocked rows keyed by the arm's own reading, printed beside the filed D19 rows (review MEAS-S4, MEAS-N1).
+  const clockOf = (id: ArmId, s: SeedSet, league: League, clause: string): number | null => {
+    const r = at(id, s);
+    return r === undefined ? null : clockKeyedValueOf(r.s3[league].missSplit, clause);
+  };
+  const clockBeside = (id: ArmId, league: League, clause: string): string =>
+    !CLOCK_KEYED_CLAUSES.includes(clause) ? "" : `; on the clock under ${id}'s own reading (AM-2's key; the filed row reads D19's band test): ${sets.map((s) => `set ${String(s)} ${num(clockOf(id, s, league, clause))}`).join(", ")}`;
   const seOf = (id: ArmId, s: SeedSet, league: League, clause: string): number | null => {
     const r = at(id, s);
     if (r === undefined) return null;
@@ -1361,7 +1397,7 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
         });
         const mean = sets.length === 2 ? `; two-set mean ${num(meanOf(sets.map((s) => valueOf(design, s, l, c.id))))}` : "";
         const tt = `[time to throw ${design} ${num(ttt(design, gradedSet, l), 3)} s, ${designBase} ${num(ttt(designBase, gradedSet, l), 3)} s]`;
-        return { v, text: `${design} ${l} set ${String(gradedSet)} ${num(v)} (binomial SE ${num(seOf(design, gradedSet, l, c.id))}; ${designBase} ${num(valueOf(designBase, gradedSet, l, c.id))})${others.length === 0 ? "" : `; ${others.join("; ")}`}${mean} ${tt}` };
+        return { v, text: `${design} ${l} set ${String(gradedSet)} ${num(v)} (binomial SE ${num(seOf(design, gradedSet, l, c.id))}; ${designBase} ${num(valueOf(designBase, gradedSet, l, c.id))})${others.length === 0 ? "" : `; ${others.join("; ")}`}${mean} ${tt}${clockBeside(design, l, c.id)}` };
       });
       const ok = reads.every((r) => inBand(r.v, c));
       if (oneSet !== undefined && missing.length === 0 && !ok) outsideBand.push(`${c.id} (${filed}): ${reads.map((r) => r.text).join("; ")}`);
@@ -1379,7 +1415,7 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
       continue;
     }
     if (c.id === "s3.unblockedMen") {
-      const values = LEAGUES.flatMap((l) => sets.map((s) => `${l} set ${String(s)}: ${STEP3_DESIGN_ARM} ${num(valueOf(STEP3_DESIGN_ARM, s, l, c.id))} (B3 ${num(valueOf("B3", s, l, c.id))}), ${STEP3_PRICING_ARM} ${num(valueOf(STEP3_PRICING_ARM, s, l, c.id))} (B6 ${num(valueOf("B6", s, l, c.id))})`));
+      const values = LEAGUES.flatMap((l) => sets.map((s) => `${l} set ${String(s)}: ${STEP3_DESIGN_ARM} ${num(valueOf(STEP3_DESIGN_ARM, s, l, c.id))} (B3 ${num(valueOf("B3", s, l, c.id))}), ${STEP3_PRICING_ARM} ${num(valueOf(STEP3_PRICING_ARM, s, l, c.id))} (B6 ${num(valueOf("B6", s, l, c.id))}); on the clock under each arm's own reading ${STEP3_DESIGN_ARM} ${num(clockOf(STEP3_DESIGN_ARM, s, l, c.id))}, ${STEP3_PRICING_ARM} ${num(clockOf(STEP3_PRICING_ARM, s, l, c.id))}`));
       clauses.push({ id: c.id, kind: c.kind, arms: [STEP3_DESIGN_ARM, STEP3_PRICING_ARM], filed, values: missingOf([design]).length > 0 ? ["not played: C1"] : values, verdict: missingOf([design]).length > 0 ? "NOT PLAYED" : "REPORTED", note: "reported beside the unblocked rows" });
       continue;
     }
@@ -1496,14 +1532,21 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
     }
   }
   const optionRows = (pricedBy: ArmId): Step3OptionPrice["rows"][number][] =>
-    LEAGUES.flatMap((league) => sets.flatMap((s) => (at(pricedBy, s) === undefined ? [] : STEP3_MISS_ROWS.map((clause) => ({ league, seedSet: s, clause, value: valueOf(pricedBy, s, league, clause), against: valueOf(design, s, league, clause) })))));
+    LEAGUES.flatMap((league) => sets.flatMap((s) => (at(pricedBy, s) === undefined ? [] : STEP3_MISS_ROWS.map((clause) => ({
+      league, seedSet: s, clause, value: valueOf(pricedBy, s, league, clause), against: valueOf(design, s, league, clause),
+      ...(CLOCK_KEYED_CLAUSES.includes(clause) ? { clock: { value: clockOf(pricedBy, s, league, clause), against: clockOf(design, s, league, clause) } } : {}),
+    })))));
   const miss: Step3MissSection = {
     readings,
     setsDiffer,
     options: [
       { option: "A", text: MISS_OPTIONS.A, pricedBy: `${STEP3_OPTION_ARMS.A} (the readers' supply-cut stand-in, a band-edge shift, information; built later as its own design with its own petitions)`, rows: optionRows(STEP3_OPTION_ARMS.A) },
       { option: "B", text: MISS_OPTIONS.B, pricedBy: "nothing to play: the miss stays named in the ledger", rows: [] },
-      { option: "C", text: MISS_OPTIONS.C, pricedBy: `${STEP3_OPTION_ARMS.C} (reading (c))`, rows: optionRows(STEP3_OPTION_ARMS.C) },
+      {
+        option: "C", text: MISS_OPTIONS.C,
+        pricedBy: `${STEP3_OPTION_ARMS.C} (reading (c)); the unblocked rows as filed read D19's band test, so they show the engine change alone, and beside them the same rows on the clock under ${STEP3_OPTION_ARMS.C}'s own reading show the change in who counts (review MEAS-S4)`,
+        rows: optionRows(STEP3_OPTION_ARMS.C),
+      },
     ],
     neverOffered: [
       ...Object.entries(STEP3_NEVER_OFFERED).map(([id, why]) => `${id}, ${why}`),

@@ -1177,7 +1177,15 @@ export interface Step3OptionPrice {
   readonly option: string;
   readonly text: string;
   readonly pricedBy: string;
-  readonly rows: readonly { readonly league: League; readonly seedSet: number; readonly clause: string; readonly value: number | null; readonly against: number | null }[];
+  readonly rows: readonly {
+    readonly league: League;
+    readonly seedSet: number;
+    readonly clause: string;
+    readonly value: number | null;
+    readonly against: number | null;
+    /** An unblocked row read on the clock under each arm's own reading, beside the filed D19 row (review MEAS-S4). */
+    readonly clock?: { readonly value: number | null; readonly against: number | null };
+  }[];
 }
 
 export interface Step3MissSection {
@@ -1419,7 +1427,10 @@ export function renderStep3Sections(s: Step3Sections): readonly string[] {
   out.push("");
   for (const p of s.miss.options) {
     out.push(`- option ${p.option}: ${p.text} Priced by ${p.pricedBy}.`);
-    for (const r of p.rows) out.push(`  - ${r.league}, set ${String(r.seedSet)}, ${r.clause}: ${fmt(r.value)} against C1's ${fmt(r.against)} (${signed(diffOf(r.value, r.against))})`);
+    for (const r of p.rows) {
+      const clock = r.clock === undefined ? "" : ` by D19's band test as filed; on the clock under each arm's own reading ${fmt(r.clock.value)} against C1's ${fmt(r.clock.against)} (${signed(diffOf(r.clock.value, r.clock.against))})`;
+      out.push(`  - ${r.league}, set ${String(r.seedSet)}, ${r.clause}: ${fmt(r.value)} against C1's ${fmt(r.against)} (${signed(diffOf(r.value, r.against))})${clock}`);
+    }
   }
   for (const n of s.miss.neverOffered) out.push(`- never offered: ${n}`);
   out.push("");

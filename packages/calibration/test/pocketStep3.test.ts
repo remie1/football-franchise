@@ -65,6 +65,8 @@ import {
   pairedEtaGap,
   planStep3,
   playStep3Arm,
+  CLOCK_KEYED_CLAUSES,
+  clockKeyedValueOf,
   preflightStep3,
   quickOriginShares,
   quickOriginText,
@@ -594,6 +596,23 @@ describe("real arms on a cut corpus (C1, B3)", () => {
     }
   });
 
+  it("review MEAS-S4, MEAS-N1: the unblocked rows keyed by the arm's own reading, beside the filed D19 rows", () => {
+    const m = { counts: { dropbacks: 200, bin20Attempts: 0, pressuredDropbacks: 0, hitOrSackDropbacks: 40 }, clockUnblocked: { men: 30, pressures: 24, hitOrSack: 10 } } as unknown as Step3Record["s3"]["gen"]["missSplit"];
+    expect(CLOCK_KEYED_CLAUSES).toEqual(["s3.unblockedPressures", "s3.unblockedShare", "s3.unblockedMen"]);
+    expect(["s3.unblockedPressures", "s3.unblockedShare", "s3.unblockedMen", "s3.quick"].map((c) => clockKeyedValueOf(m, c))).toEqual([12, 25, 15, null]);
+    expect(clockKeyedValueOf({ ...m, counts: { ...m.counts, dropbacks: 0, hitOrSackDropbacks: 0 } }, "s3.unblockedShare")).toBeNull();
+    for (const r of [c1!, b3!]) {
+      for (const l of LEAGUES) {
+        const x = r.s3[l].missSplit;
+        // On C1 (reading B by D19, AM-2's key) the clock men are D19's men and the untouched exchanges.
+        const d19Men = r.report.rows.find((row) => row.id === "unblocked_men_per_100")!.values[l]!;
+        expect(x.clockUnblocked.men, `${r.stamp.arm} ${l}`).toBeGreaterThanOrEqual(Math.round((d19Men * x.counts.dropbacks) / 100));
+        expect(x.clockUnblocked.pressures).toBeLessThanOrEqual(x.clockUnblocked.men);
+        expect(x.clockUnblocked.hitOrSack).toBeLessThanOrEqual(x.counts.hitOrSackDropbacks);
+      }
+    }
+  });
+
   it("C1 plays its corpora mirrored for M5, and the free-run mirror is exact; no other arm does", () => {
     for (const l of LEAGUES) {
       const m = c1!.m5![l];
@@ -723,6 +742,13 @@ describe("grading synthetic records under AM-3's stand-in", () => {
     expect(proof(g, "q3.replay").detail).toBe(STEP3_BASE_IDS.flatMap((id) => [`${id} set 1 equal`, `${id} set 2 equal`]).join("; "));
     for (const id of ["s3.bin20.tick", "s3.quick", "s3.unblockedPressures", "s3.unblockedShare", "guard.mix", "guard.byClass"]) expect(clause(g, id).verdict, id).toBe("PASS");
     expect(clause(g, "s3.part1.determinism").verdict).toBe("NOT CHECKED");
+    expect(clause(g, "s3.unblockedPressures").values[0]).toMatch(/; on the clock under C1's own reading \(AM-2's key; the filed row reads D19's band test\): set 1 \d+\.\d\d, set 2 \d+\.\d\d$/);
+    expect(clause(g, "s3.bin20.tick").values[0]).not.toContain("on the clock under");
+    expect(clause(g, "s3.unblockedMen").values[0]).toMatch(/; on the clock under each arm's own reading C1 \d+\.\d\d, C2 \d+\.\d\d$/);
+    const optionC = g.sections.miss.options.find((o) => o.option === "C")!;
+    expect(optionC.pricedBy).toContain("the unblocked rows as filed read D19's band test");
+    expect(optionC.rows.filter((r) => r.clock !== undefined).map((r) => r.clause)).toEqual(LEAGUES.flatMap(() => [1, 2].flatMap(() => ["s3.unblockedPressures", "s3.unblockedShare"])));
+    expect(renderStep3Sections(g.sections).join("\n")).toMatch(/s3\.unblockedShare: \d+\.\d\d against C1's \d+\.\d\d \([-+]\d+\.\d\d\) by D19's band test as filed; on the clock under each arm's own reading /);
     expect(clause(g, "s3.quickOrigin").values[0]).toMatch(/^flat set 1: C1 men on the clock (\d+\.\d\d|n\/a)% of quick pressures against (\d+\.\d\d|n\/a)% of all \(.*\); origin-keyed beside: free rushers .*; B3 men on the clock /);
     expect(clause(g, "s3.part1.m8").filed).toMatch(/^superseded by AM-2 \(ADR-089 Appendix G, G\.8\): part 1 on the published picture/);
     expect(clause(g, "s3.bin20.tick").values[0]).toMatch(/^C1 flat set 1 20\.00 \(binomial SE \d+\.\d\d; B3 20\.00\); set 2 20\.00; two-set mean 20\.00 \[time to throw C1 \d\.\d{3} s, B3 \d\.\d{3} s\]$/);

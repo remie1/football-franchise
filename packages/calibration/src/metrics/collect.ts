@@ -455,6 +455,14 @@ export interface ClockKeyFold {
   /** (play, man) pairs on the clock under the arm's reading, and dropbacks with at least one. */
   clockMen: number;
   clockRunnerDropbacks: number;
+  /**
+   * The unblocked rows' counts with the arm's reading in place of D19's band test (review MEAS-S4,
+   * MEAS-N1): men on the clock whose own arrival floor reached PRESSURE or worse with the ball in his
+   * hand (`freeRunPressures`' test), and hit-or-sack dropbacks whose contact man was on the clock
+   * (`unblockedHitOrSack`'s). Reported beside the filed D19 rows, never in their place.
+   */
+  clockPressures: number;
+  clockHitOrSack: number;
 }
 
 export interface PocketFold {
@@ -662,6 +670,8 @@ function emptyClockKeyFold(): ClockKeyFold {
     quickFirstPressureByClock: {},
     clockMen: 0,
     clockRunnerDropbacks: 0,
+    clockPressures: 0,
+    clockHitOrSack: 0,
   };
 }
 
@@ -1001,6 +1011,8 @@ interface PocketPlayState {
   freeRunPressured: Set<string>;
   /** ADR-089 step 3: the men on the clock under the arm's own reading (AM-2's key). */
   clockMen: Set<string>;
+  /** Those of them `freeRunPressured`'s test finds pressuring (review MEAS-S4). */
+  clockPressured: Set<string>;
   /** `PLAY_START.offense.protectionScheme.center`: the man a stunt CHECK names first, never its hand (`touchOfCheck`). */
   center: string | undefined;
   released: boolean;
@@ -1051,6 +1063,7 @@ function blankPocketPlay(period: number, clockSeconds: number): PocketPlayState 
     freeRunMen: new Set<string>(),
     freeRunPressured: new Set<string>(),
     clockMen: new Set<string>(),
+    clockPressured: new Set<string>(),
     center: undefined,
     released: false,
     releaseSeconds: null,
@@ -1211,9 +1224,9 @@ function pocketStatusSeen(pk: PocketPlayState, status: string, tick: number, tb:
   pk.lastStatusTick = tick;
   if (!pk.released) {
     for (const [rusher, t] of pk.threats) {
-      if (t.freeRun && isLiveThreat(t) && severityOf(tb, arrivalFloorOf(tb, t.etaTick, tick)) >= tb.pressureSeverity) {
-        pk.freeRunPressured.add(rusher);
-      }
+      if (!(t.freeRun || t.clock) || !isLiveThreat(t) || severityOf(tb, arrivalFloorOf(tb, t.etaTick, tick)) < tb.pressureSeverity) continue;
+      if (t.freeRun) pk.freeRunPressured.add(rusher);
+      if (t.clock) pk.clockPressured.add(rusher);
     }
   }
   if (status === "CLEAN") {
@@ -1398,6 +1411,8 @@ function foldPocketPlay(pf: PocketFold, play: PlayState): void {
     ck.noClockRunnerPressured++;
     if (quick) ck.noClockRunnerQuick++;
   }
+  ck.clockPressures += k.clockPressured.size;
+  if (hitOrSack && k.lastArrivedRusher !== null && k.threats.get(k.lastArrivedRusher)?.clock === true) ck.clockHitOrSack++;
 
   if (!pressured) {
     if (k.escaped) pf.cleanEscapes++;
@@ -2169,6 +2184,8 @@ function mergePocketFold(a: PocketFold, b: PocketFold): PocketFold {
       quickFirstPressureByClock: mergeCounters(a.clockKey.quickFirstPressureByClock, b.clockKey.quickFirstPressureByClock),
       clockMen: a.clockKey.clockMen + b.clockKey.clockMen,
       clockRunnerDropbacks: a.clockKey.clockRunnerDropbacks + b.clockKey.clockRunnerDropbacks,
+      clockPressures: a.clockKey.clockPressures + b.clockKey.clockPressures,
+      clockHitOrSack: a.clockKey.clockHitOrSack + b.clockKey.clockHitOrSack,
     },
   };
 }
