@@ -131,6 +131,12 @@ import { nflverseAsset, type SourceDefinition } from "./types.js";
  * pooled 24.22% figure `blitz_rate` reports masks a real, computed instability across its own
  * input seasons that `was_pressure`'s equivalent join did not show.
  *
+ * ⚠ 2026-10-23 (CALIBRATION-BACKLOG entry 173): the contrast drawn above no longer stands.
+ * `was_pressure`'s "stable" spread is two effects that offset across a documented change of source
+ * (NGS before 2023, FTN from 2023; `participation.ts` §5's corrected paragraph and §6), and its
+ * 2023+ column is FTN's own charting, not the "NGS's `was_pressure` product" §2 above contrasts
+ * FTN with. The blitz instability stands on its own numbers; it is not the odd one out.
+ *
  * ---- 6. THE DISTRIBUTION-SHAPE TEST (the dispatching agent's own hypothesis, untested by it;
  * computed here) ----
  *
