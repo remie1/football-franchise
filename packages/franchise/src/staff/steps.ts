@@ -5,7 +5,8 @@
  *   every day, first           a league with no views yet gets them, each at its rest point (§3)
  *   each week's last day       every view drifts 2% toward its rest point (§4)
  *   OFF_EVAL week 1 day 1      the coaching carousel (ADR-080 §6-§7) on the season just played, read
- *                              by `summariseSeason`, carrying the views (§5.2, §5.4)
+ *                              by `summariseSeason`, carrying the views (§5.2, §5.4), with roster
+ *                              fit read from the teams' rosters that day
  *
  * The carousel's own events carry their days (weeks 1-3 of OFF_EVAL); as a day step they are emitted
  * on the carousel's day, in their order. `people.staff` follows the carousel, so the steps that read
@@ -55,8 +56,14 @@ export function staffSteps(config: StaffStepsConfig = {}): DayStep[] {
         if (!coaching || !isDay(day.day, STAFF_DAYS.carousel) || day.state.bracket?.champion === undefined) return undefined;
         if (coaching.world.season !== day.season) return undefined; // already run for this season
         const players = new Map<string, PlayerState>(people.players.map((p) => [String(p.bio.id), p]));
+        // Roster fit reads each team as it stands today; its staff and budget are the coaching world's.
+        const today = new Map(people.teams.map((t) => [String(t.id), t]));
+        const teams = coaching.world.teams.map((t) => {
+          const now = today.get(String(t.id));
+          return now ? { ...now, staff: t.staff, staffBudget: t.staffBudget } : t;
+        });
         const r = runStaffOffseason({
-          world: coaching.world, results: summariseSeason(day.state), seed: day.seed, players,
+          world: { ...coaching.world, teams }, results: summariseSeason(day.state), seed: day.seed, players,
           ...(coaching.relationships ? { relationships: { views: coaching.relationships, context: ctx } } : {}),
         });
         const world = { ...r.world, staff: withLineups(coaching.world.staff, r.world.staff, day.seed) };

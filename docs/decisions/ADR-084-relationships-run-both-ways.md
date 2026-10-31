@@ -351,5 +351,10 @@ hired or fired. This step wires both, in `franchise` only, with no contracts edi
   exactly `runStaffOffseason` on the summarised season; the views pass `checkViews` and drift; a
   stop at week 9 carried on gives the straight run's people and events; same seed, same result.
   `realSeasonPlayers.test.ts`: the real-sim weeks are byte-identical with the coaching world given.
+  Through the season command: `--stop-after 9 --save`, then `--load`, saves the same file a straight
+  run saves (every field of the world, the new staffs and views included).
+- **Roster fit:** the carousel reads each team's roster as it stands that day (`people.teams`), with
+  the coaching world's staff list and budget. Without this a loaded league (whose teams carry their
+  rosters) and a straight run (whose coaching world's teams carry none) hired differently.
 - **One real season** (seed `walk-1`, both switches): 35 seats changed hands (26 fired, 5 contracts
   run out, 2 retired, 2 hired away), 537 reported view moves.
