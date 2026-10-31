@@ -61,6 +61,8 @@ import {
   gradeStep3,
   isS3Arm,
   loadStep2References,
+  missClassesByRow,
+  rowsOfReason,
   notResolvedBySets,
   pairedEtaGap,
   planStep3,
@@ -444,6 +446,33 @@ describe("the readings (plan §5.2, §7; critique 4 S4-8, S4-14)", () => {
     expect(classifyStep3Miss(split({ freeRunnersEarlierThanM8: 2 }, { ...ALL_PASS, "s3.unblockedShare": false })).classes).toEqual([{ class: "TIMING", because: ["2 free runner(s) arrive earlier than M8's table"] }]);
   });
 
+  it("review MEAS-S5: each missed row is named with the classes whose reasons concern it, and a row none of whose triggers holds is unclassed", () => {
+    // The review's C1 flat set 1: the quick split outside 30 to 55 (timing on s3.quick), both unblocked rows over their lines (supply on their own rows).
+    const c1Flat = split({ quick: 88.91, quickNoFreeRunner: 68.74, unblockedPressuresPer100: 15.67, unblockedShareOfHitOrSack: 75.71 }, { ...ALL_PASS, "s3.quick": false, "s3.unblockedPressures": false, "s3.unblockedShare": false });
+    const k = classifyStep3Miss(c1Flat);
+    expect(k.classes.map((c) => c.class)).toEqual(["SUPPLY", "TIMING"]);
+    expect(missClassesByRow(k.missed, k.classes)).toEqual([
+      { row: "s3.quick", classes: [{ class: "TIMING", because: ["the quick-pressure share fails with no free runner (68.74)"] }] },
+      { row: "s3.unblockedPressures", classes: [{ class: "SUPPLY", because: ["completely unblocked pressures 15.67 per 100 dropbacks, above 14"] }] },
+      { row: "s3.unblockedShare", classes: [{ class: "SUPPLY", because: ["their share of hit-or-sack 75.71 in 100, above 40"] }] },
+    ]);
+    // The bin missed with neither of its own triggers (n <= L, f under the threshold) while the share's supply holds: the bin is unclassed by row.
+    const binAlone = classifyStep3Miss(split({ freeRunnerShareOf20: 1, unblockedShareOfHitOrSack: 50 }, { ...ALL_PASS, "s3.bin20.tick": false, "s3.unblockedShare": false }));
+    expect(missClassesByRow(binAlone.missed, binAlone.classes)).toEqual([
+      { row: "s3.bin20.tick", classes: [{ class: "UNCLASSED", because: ["s3.bin20.tick missed with none of its own triggers holding"] }] },
+      { row: "s3.unblockedShare", classes: [{ class: "SUPPLY", because: ["their share of hit-or-sack 50 in 100, above 40"] }] },
+    ]);
+    // Part 1's earlier men concern every row.
+    const early = classifyStep3Miss(split({ freeRunnersEarlierThanM8: 3, unblockedShareOfHitOrSack: 50 }, { ...ALL_PASS, "s3.quick": false, "s3.unblockedShare": false }));
+    expect(missClassesByRow(early.missed, early.classes).map((x) => `${x.row}: ${x.classes.map((c) => c.class).join(", ")}`)).toEqual(["s3.quick: TIMING", "s3.unblockedShare: SUPPLY, TIMING"]);
+    // Every reason classifyMiss writes has its rows; an unknown reason is refused.
+    const every = classifyStep3Miss(split({ bin20NoFreeRunner: 20, freeRunnerShareOf20: 90, quick: 60, quickNoFreeRunner: 40, unblockedPressuresPer100: 20, unblockedShareOfHitOrSack: 50, freeRunnersEarlierThanM8: 1 }, { ...ALL_PASS, "s3.bin20.tick": false, "s3.quick": false }));
+    expect(every.classes.flatMap((c) => c.because).map(rowsOfReason)).toEqual([["s3.bin20.tick"], ["s3.unblockedPressures"], ["s3.unblockedShare"], ["s3.quick"], "every"]);
+    expect(rowsOfReason("the 2.0 s bin fails without a free runner (n 31 > L 29.4)")).toEqual(["s3.bin20.tick"]);
+    expect(rowsOfReason("hit-or-sack is in its band but sacks short")).toBe("every");
+    expect(() => rowsOfReason("a reason nobody wrote")).toThrow(/^rowsOfReason: no row for the reason/);
+  });
+
   it("the alone arms' gap: ratio means in seconds, paired by game, its SE by the delta method", () => {
     const g = pairedEtaGap([{ arm: ["30/2", "40/2"], base: ["20/2", "20/2"] }]);
     expect(g.games).toBe(2);
@@ -806,6 +835,8 @@ describe("grading synthetic records under AM-3's stand-in", () => {
     const r = miss.sections.miss.readings.find((x) => x.arm === "C1" && x.league === "gen" && x.seedSet === 1)!;
     expect(r.missed).toEqual(["s3.bin20.tick"]);
     expect(r.classes!.length).toBeGreaterThan(0);
+    expect(r.byRow!.map((x) => x.row)).toEqual(["s3.bin20.tick"]);
+    expect(renderStep3Sections(miss.sections).join("\n")).toMatch(/\n  - s3\.bin20\.tick: [A-Z]+ \(/);
     expect(miss.sections.miss.setsDiffer).toEqual([expect.stringMatching(/^C1 gen: set 1 missed s3\.bin20\.tick; classed .*; set 2 missed nothing; classed nothing \(both named; critique 4 S4-8\)$/)]);
     // Set 2 alone outside the band does not fail the clause: set 1 is graded.
     const two = grade(recordsOf(guard.digest, (m) => setRow(rec(m, "C1", 2), "pressured_share_by_release_bin", "gen", 35)));

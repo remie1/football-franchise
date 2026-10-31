@@ -934,6 +934,44 @@ export function classifyStep3Miss(split: MissSplit): { readonly missed: readonly
   return { missed: c.missed, classes };
 }
 
+/**
+ * The rows a miss-rule reason concerns (review MEAS-S5), by the reason's opening words as
+ * `classifyMiss` writes them: the bin's supply and timing reasons concern s3.bin20.tick; the quick
+ * share's supply and timing reasons s3.quick; the unblocked pressures and their share their own rows;
+ * part 1's earlier men (the timing trigger at step 3) and a conversion reason every row.
+ */
+const REASON_ROWS: readonly { readonly opens: string; readonly rows: readonly string[] | "every" }[] = [
+  { opens: "the 2.0 s bin ", rows: ["s3.bin20.tick"] },
+  { opens: "the quick-pressure share fails", rows: ["s3.quick"] },
+  { opens: "completely unblocked pressures", rows: ["s3.unblockedPressures"] },
+  { opens: "their share of hit-or-sack", rows: ["s3.unblockedShare"] },
+  { opens: "hit-or-sack is in its band but", rows: "every" },
+];
+
+/** The rows one `classifyMiss` reason concerns: its own rows, or every row (part 1's earlier men, a conversion reason). */
+export function rowsOfReason(reason: string): readonly string[] | "every" {
+  if (/^\d+ free runner\(s\) arrive earlier than M8's table$/.test(reason)) return "every";
+  const r = REASON_ROWS.find((x) => reason.startsWith(x.opens));
+  if (r === undefined) throw new Error(`rowsOfReason: no row for the reason "${reason}"`);
+  return r.rows;
+}
+
+/**
+ * The classes per missed row (review MEAS-S5; plan §7, "where two classes hold on different rows,
+ * both are named"): each missed row gets the classes whose reasons concern it, each with only those
+ * reasons; a missed row none of whose own triggers holds is UNCLASSED (the filed class (iv), per
+ * row). `classifyMiss` itself is unchanged: this is how step 3 prints it.
+ */
+export function missClassesByRow(missed: readonly string[], classes: readonly { readonly class: string; readonly because: readonly string[] }[]): readonly { readonly row: string; readonly classes: readonly { readonly class: string; readonly because: readonly string[] }[] }[] {
+  return missed.map((row) => {
+    const own = classes
+      .filter((k) => k.class !== "UNCLASSED")
+      .map((k) => ({ class: k.class, because: k.because.filter((b) => { const rows = rowsOfReason(b); return rows === "every" || rows.includes(row); }) }))
+      .filter((k) => k.because.length > 0);
+    return { row, classes: own.length > 0 ? own : [{ class: "UNCLASSED", because: [`${row} missed with none of its own triggers holding`] }] };
+  });
+}
+
 /** One alone arm's paired gap: the ratio means of first free-runner arrival (seconds), the gap and its game-paired SE (delta method). */
 export function pairedEtaGap(pairs: readonly { readonly arm: readonly string[]; readonly base: readonly string[] }[]): { readonly armMean: number | null; readonly baseMean: number | null; readonly gap: number | null; readonly se: number | null; readonly games: number } {
   const parse = (s: string): { s: number; n: number } => {
@@ -1491,6 +1529,7 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
         const need = [rows[0]!.value, rows[1]!.value, rows[2]!.value, rows[3]!.value, ms.byClock.bin20NoFreeRunner, ms.byClock.freeRunnerShareOf20, ms.byClock.quickNoFreeRunner];
         const earlier = L.part1?.earlier ?? 0;
         let classes: Step3MissReading["classes"] = null;
+        let byRow: Step3MissReading["byRow"] = null;
         let missed: readonly string[] = rows.filter((x) => x.passed === false).map((x) => x.clause);
         let note: string | undefined;
         if (need.some((x) => x === null)) note = "a figure the split needs has no value (an empty population)";
@@ -1513,12 +1552,13 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
           const k = classifyStep3Miss(split);
           classes = k.classes;
           missed = k.missed;
+          byRow = missClassesByRow(missed, classes);
           note = "class (iii), conversion: n/a at step 3 (sacks are not a covered row and hit-or-sack is reported)";
         }
         classOf.set(`${id}|${league}|${String(s)}`, `missed ${missed.join(", ") || "nothing"}; classed ${classes === null ? "not read" : classes.map((x) => x.class).join(", ") || "nothing"}`);
         readings.push({
           arm: id, league, seedSet: s, rows, byClock: fig(ms.byClock), byOrigin: fig(ms.byOrigin), quick: rows[1]!.value, earlier,
-          waitLiteral: L.waitLiteral ?? emptyWaitLiteralFold(), classes, missed, ...(note === undefined ? {} : { note }),
+          waitLiteral: L.waitLiteral ?? emptyWaitLiteralFold(), classes, byRow, missed, ...(note === undefined ? {} : { note }),
         });
       }
     }

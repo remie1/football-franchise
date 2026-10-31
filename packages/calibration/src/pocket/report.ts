@@ -1168,6 +1168,8 @@ export interface Step3MissReading {
   readonly waitLiteral: Step3WaitLiteral;
   /** `classifyMiss`'s answer; null when a figure it needs has no value (printed so). */
   readonly classes: readonly { readonly class: string; readonly because: readonly string[] }[] | null;
+  /** The classes per missed row, each with the reasons that concern that row; UNCLASSED where none of its own triggers holds (review MEAS-S5). */
+  readonly byRow: readonly { readonly row: string; readonly classes: readonly { readonly class: string; readonly because: readonly string[] }[] }[] | null;
   readonly missed: readonly string[];
   readonly note?: string;
 }
@@ -1419,7 +1421,8 @@ export function renderStep3Sections(s: Step3Sections): readonly string[] {
     );
     if (r.classes === null) out.push(`  - class: not read (${r.note ?? "a figure has no value"})`);
     else if (r.missed.length === 0) out.push("  - class: nothing missed, nothing to class");
-    else for (const c of r.classes) out.push(`  - ${c.class} on ${r.missed.join(", ")}: ${c.because.join("; ")}`);
+    else if (r.byRow === null) for (const c of r.classes) out.push(`  - ${c.class} on ${r.missed.join(", ")}: ${c.because.join("; ")}`);
+    else for (const x of r.byRow) out.push(`  - ${x.row}: ${x.classes.map((c) => `${c.class} (${c.because.join("; ")})`).join("; ")}`);
   }
   for (const d of s.miss.setsDiffer) out.push(`- the sets differ: ${d}`);
   out.push("");
