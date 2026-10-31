@@ -126,6 +126,8 @@ Wrong flags in this design only come from plays that were close to a foul, never
 
 ### Q7. May I build the first two steps now?
 
+**You chose yes, now (31 October).**
+
 Step 0 is the rulebook (how every flag is enforced) and step 1 is the officials and crews. Neither changes a single play, because nothing produces a foul yet, so they can't disturb the pocket fix's measuring. It's the same arrangement you approved for the snap spots' first steps.
 
 - **Yes, now (recommended):** I build and test them while the pocket fix finishes, and bring each to you before merging. The rulebook step still waits on the rulebook check.
