@@ -16,7 +16,8 @@ const built = buildStaff(league, { firstSeason: 2026, historySeasons: 8 });
 const played = standInSeason(league, built.world, built.standIn, "rel-2");
 const views = seatRelationships(built.world);
 const plain = runStaffOffseason({ world: built.world, results: played.summaries, seed: "rel-2" });
-const kept = runStaffOffseason({ world: built.world, results: played.summaries, seed: "rel-2", relationships: { views } });
+// Carried, not read (ADR-084 L2a); the readers (L2b) are checked in relationships.stayOrGo.test.ts.
+const kept = runStaffOffseason({ world: built.world, results: played.summaries, seed: "rel-2", relationships: { views, read: false } });
 
 const changes = (events: readonly FranchiseEventEnvelope[]) =>
   events.flatMap((e) => (e.event.type === "RELATIONSHIP_CHANGED" ? [{ at: e.at, ...e.event.payload }] : []));
@@ -59,7 +60,7 @@ function years(n: number, seed: string, ctx: RelationshipContext = {}) {
 }
 
 describe("the carousel with views (ADR-084 L2)", () => {
-  it("decides exactly as without them; it only adds the views' moves to the events", () => {
+  it("carried without reading, decides exactly as without them; it only adds the views' moves to the events", () => {
     expect(kept.world).toEqual(plain.world);
     expect(kept.decisions).toEqual(plain.decisions);
     expect(kept.moves).toEqual(plain.moves);
@@ -136,7 +137,7 @@ describe("the carousel with views (ADR-084 L2)", () => {
     const user = built.world.teams.find((t) => kept.moves.some((m) => m.team === t.id && m.kind === "HIRED" && m.seat !== "HEAD_COACH"))!.id;
     const ctx = { userTeam: user };
     const r = runStaffOffseason({
-      world: built.world, results: played.summaries, seed: "rel-2", relationships: { views: seatRelationships(built.world, ctx), context: ctx },
+      world: built.world, results: played.summaries, seed: "rel-2", relationships: { views: seatRelationships(built.world, ctx), context: ctx, read: false },
     });
     checkViews(r.relationships!, r.world, ctx);
     const hired = changes(r.events).filter((c) => c.cause === "HIRED" && "user" in c.of);

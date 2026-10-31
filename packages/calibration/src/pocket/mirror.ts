@@ -177,7 +177,8 @@ export function mirrorPicture(picture: SnapPicture): SnapPicture {
  * game's dice are where they were.
  *
  * Its line-up (ADR-090 S5) hands the inner caller the calls it made, mirrored back, and mirrors
- * the picture it draws. A caller that draws no picture gets no line-up.
+ * the picture it draws. A caller that draws no picture gets no line-up. Its count (ADR-090 step 3)
+ * is the inner caller's: a count has no side.
  */
 export function mirrorCaller(caller: PlayCaller): PlayCaller {
   return {
@@ -194,6 +195,15 @@ export function mirrorCaller(caller: PlayCaller): PlayCaller {
             );
             return picture === undefined ? undefined : mirrorPicture(picture);
           }) satisfies LineUp,
+        }),
+    // ADR-090 step 3: the count is no side's, so it passes through, the call handed back mirrored.
+    ...(caller.cadence === undefined
+      ? {}
+      : {
+          cadence: ((request, rng) =>
+            caller.cadence?.({ ...request, offenseCall: mirrorCall(request.offenseCall) }, rng) ?? "NORMAL") satisfies NonNullable<
+            PlayCaller["cadence"]
+          >,
         }),
     decideFourthDown: (request) => caller.decideFourthDown(request),
     decideCoinToss: (request) => caller.decideCoinToss(request),

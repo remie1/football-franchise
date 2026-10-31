@@ -19,6 +19,21 @@ export const RELATIONSHIP_TUNING = {
   everydayWeeklyCap: 3,
   /** §5.2: a sit-down works with 50% + half the mean of the views of the user, inside these odds. */
   sitDownOdds: [0.1, 0.9] as readonly [number, number],
+
+  // §7.1 stay or go (L2b, ruled 2026-10-31). Read only when the carousel carries the views.
+  /** Q1 (b): a coordinator whose contract is up refuses a new one with this chance, by his view of his boss. */
+  walkChance: { strained: 0.1, broken: 0.4 } as Readonly<Record<string, number>>,
+  /**
+   * Q2 (a): a head coach's view of a coordinator, per point, in the logit of firing him (lower is
+   * safer). 1.6 per 100 makes -30 worth about 5 places of unit rank and -60 about 10, at
+   * ADR-080's 3 logit units across the league's 31 places.
+   */
+  fireOpinionPerPoint: 1.6 / 100,
+  /**
+   * Q3 (a): a new head coach keeps an inherited coordinator with this much more chance per unit of
+   * ADR-080's fit (his type as the feeler, the coordinator's as the judged), ±0.4 → about ±10 points.
+   */
+  keepFitPerUnit: 0.25,
 } as const;
 
 /** What a move does to a rift (§6): "CAN_OPEN" opens one if the view ends strained or worse. */

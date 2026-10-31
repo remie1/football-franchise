@@ -3,8 +3,10 @@
 - **Date:** 2026-10-22
 - **Proposed by:** Orchestrator, for `franchise` (thread "End-of-season staff meeting", written in the
   `franchise-engine` role; working copy at `/mnt/project-files/design/end-of-season-meeting-plan.md`)
-- **Status:** design ruled by the owner (Q1-Q10 and F1-F5, 2026-10-22). Contracts edits G1-G6 are
-  **not made**: each needs the owner's typed yes when the build starts. **Design only: no code.**
+- **Status:** design ruled by the owner (Q1-Q10 and F1-F5, 2026-10-22). **Build started 2026-10-31.**
+  The owner typed the yes for G1, G2, G3 and G5 on 2026-10-31 16:04Z ("Yes, make contracts edits G1,
+  G2, G3 and G5"); they are made (see "Contracts edits as made" below). G4 and G6 needed no edit: every
+  staff member already carries a personality type, and ADR-084 V1 already saves the views.
 
 > Phase note: Charter §6 places franchise at Phase 4; the owner pulled franchise work ahead
 > (ADR-078). Nothing here touches engine, playbook, play-caller or calibration code. The build waits
@@ -420,6 +422,22 @@ GM's decisions yourself (you sign, cut and trade). So who sits across the table?
 - **G6. Relationship views**, one entry per direction (from, of, score, optional rift), in the
   save file. The shape is ADR-084's (its V1); this note only reads and moves them.
 
+### Contracts edits as made (2026-10-31)
+
+- **G1:** `StaffRole` gains `"GM"`. For now each team's GM is made with the league and keeps the job;
+  hiring and firing GMs is a later step.
+- **G2:** `meeting.ts`: `StaffMeeting` (team, season, when, takes, clashes), `MeetingTake` (speaker,
+  claim, hidden grade, certainty fixed at the meeting, whether he volunteered it), `MeetingClaim`
+  (point plus verdict, groups, players, wins or direction as the point needs), `MeetingClash` (point,
+  the two men, polite / open argument / rift). Events `STAFF_MEETING_HELD` and
+  `MEETING_CERTAINTY_ASKED`; the save keeps each team's last meeting (`world.meetings?`).
+- **G3:** `TeamDirection` (contend, retool, rebuild), `Team.direction?`, event `TEAM_DIRECTION_SET`
+  with the authority tag of whoever set it.
+- **G5:** the coach registry gains `performanceAnalysis`, `forecasting`, `capManagement`,
+  `marketSense` (season) and `nuance` (career). Franchise draws them from each coach's own fork with
+  his talent level, so every coach keeps the 19 ratings he had and the carousel is unchanged (checked:
+  a built staff and its history digest the same before and after).
+
 Nothing in the match engine, play cards or play-callers is touched. ADR-073 step six's
 measurements are unaffected.
 
@@ -436,3 +454,45 @@ measurements are unaffected.
 
 All in the franchise package, tested on its own; the calibration step in M1 runs games but changes
 nothing in them.
+
+## Build record (2026-10-31, thread "Continue news and storylines")
+
+Built in `packages/franchise/src/meeting/` with the measure in `packages/calibration/src/meeting/`.
+Numbers are CHOSEN unless marked; the owner tunes them at M5.
+
+- **M1, the truth.** `luck.ts`: expected wins from points (Pythagorean, exponent 2.37, REPORTED),
+  one-score record (8 points or fewer), schedule strength; "exactly as good as our record" within one
+  win. `strength.ts`: each group's level is its starters' mean overall (the depth chart's top
+  `STARTERS`, filled by overall); its value is the level above 50 times the group's weight; the
+  weights are MEASURED through the engine (`group-weights`, flat league, one team's group raised 10
+  points, 1,000 games a group: QB 0.46, RB 0.57, WR 0.19, TE 0.15, OL 0.35, DL 0.26, LB 0.52, CB 0.85,
+  S 0.41, ST 0.04 points a game per rating point, about ±0.08). A strength gap over the spread of
+  single-game margins (measured 27.1 points; the NFL's is about 13.9) gives a win chance.
+  `projection.ts`: next year's change by age is ADR-087 D5a's measured table (starters), growth
+  scaling the young; players whose deals end are dropped.
+  `truth.ts` puts the nine answers together.
+- **M2, the GM.** `gm.ts`: made once from the team's own dice; one roll a point at the ADR's target
+  rates (checked at the anchors in the tests); the claim is the truth pushed off by the grade (sharp
+  and close keep a verdict; off moves it a step; a miss two). Leanings by personality type: demanding =
+  hard grader, players' coach = trusts veterans, cerebral = trusts the numbers, fiery = chases last
+  season, quiet = loves youth. Certainty blends a fair read with "too sure" by nuance; he volunteers it
+  10% + 80% × nuance.
+- **M3, the coordinators and clashes.** `coordinators.ts`: OC and DC on their own side, points 1-7 (7
+  only for a young player of theirs), leaning to credit their unit, blame luck, protect their players
+  and win now. `clash.ts`: a clash where both cannot be right; heat = both tempers (fiery 1, demanding
+  0.6, cerebral 0.2, players' coach 0.1, quiet 0) + 0.5 a step apart + 1 for a job on the line + the
+  lower view's coldness + dice; open argument from 2, rift from 3.5; politics (with dice) picks a
+  winner. Views move: polite -2 each way, open -10 each way, a rift opens in the loser. The GM holds no
+  views yet, and nobody holds one of him.
+- **M4, the calendar.** `steps.ts`: GMs seated the first day; each team meets the day after its last
+  game (the 18 non-playoff teams together once the field is set), before the carousel; a computer
+  team's GM sets `Team.direction` (`TEAM_DIRECTION_SET`, authority GM). The carousel treats the GM as
+  front office (never hired, fired, retired or aged; new coaches numbered as before). Saves keep each
+  team's last meeting. `reportCard` sets last year's claims beside this year.
+- **Not yet:** the user's part in the meeting (siding in a clash, "how sure are you?", choosing the
+  direction) waits for the meeting screen; the GM's views; the candour bias (needs who signed whom);
+  news stories from the meeting; the 50-season check (M5).
+
+One season (seed meet-1, players' switches on): 32 meetings; grades 39% sharp, 27% close, 21% off,
+13% miss; 3.7 disagreements a meeting (82 polite, 32 open arguments, 4 rifts in the league); stated
+certainty averages 85 when sharp and 58 on a miss; directions 10 contend, 13 retool, 9 rebuild.

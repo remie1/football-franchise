@@ -36,9 +36,10 @@ export {
   type CandidateReport, type ResumeLine, type Evaluator, type ReportInput,
 } from "./staff/evaluate.js";
 export { summariseSeason } from "./staff/summarise.js";
+export { staffSteps, STAFF_STEP_PREFIX, STAFF_DAYS, type StaffStepsConfig } from "./staff/steps.js";
 export { rosterFit } from "./staff/style.js";
 export { makeCoach, drawDisguise, type Cohort } from "./staff/makeCoach.js";
-export { makeRatings, seatScore, averageSkill, COACH_SKILLS, type CoachRatings } from "./staff/ratings.js";
+export { makeRatings, seatScore, averageSkill, COACH_SKILLS, MEETING_SKILLS, type CoachRatings } from "./staff/ratings.js";
 export { initStandIn, standInSeason, collegeRecord, programStrength, type StandInState } from "./staff/standIn.js";
 export { staffTurnoverCheck, type TurnoverReport, type SeasonTally, type Band } from "./staff/check.js";
 export {
@@ -108,6 +109,7 @@ export {
   leagueYearSteps, countsForComp, adjustedCap, marketWindow, teamGrade, winShareOf, rookieReserve, LEAGUE_YEAR_DAYS, MARKET, type LeagueYearConfig,
 } from "./cap/leagueYear.js";
 export { capForecast } from "./cap/forecast.js";
+export { CAP_LEANING, capLeaning, capPlan, floorShortfall, planWithFloor, presidentOf, teamCapPlan, type CapPlan } from "./cap/leaning.js";
 // ADR-087: players age, grow and get hurt (off unless runSeason's `players` switches them on).
 export { PLAYER_STEP_PREFIX, playerSteps, playerWeeks, emergencySignings, type PlayerStepsConfig, type PlayerGameExtras } from "./players/steps.js";
 export { developmentWeek, learningRate, RATING_GROUPS, type DevelopmentWeekInput, type DevelopmentWeekResult } from "./players/development.js";
@@ -121,3 +123,23 @@ export { unsignedDay, drawPatience, type UnsignedInput, type UnsignedResult } fr
 export { lineupFor, teamLineup, type Lineup } from "./players/lineup.js";
 export { changeBody, addPoints, type BodyChange } from "./players/body.js";
 export { emptyMemory, type PlayerMemory, type PlayerWeek, type PastInjury, type RatingGroup } from "./players/types.js";
+// ADR-081 M1: the end-of-season meeting's truth side.
+export { LUCK, pythagorean, seasonLuck, verdictOf, type LuckVerdict, type TeamLuck } from "./meeting/luck.js";
+export {
+  GROUP_OF, GROUP_WEIGHTS, GROUP_WEIGHTS_SOURCE, STRENGTH, UNIT_OF, leagueStrength, normalShare, startersOf, strengthWinShare, teamStrength,
+  type MeetingGroup, type Starter, type TeamStrength, type Unit,
+} from "./meeting/strength.js";
+export {
+  AGING_FROM, YEARLY_CHANGE, expectedChange, lastSeasonOf, projectPlayer, projectTeam, weakestGroups, type TeamProjection,
+} from "./meeting/projection.js";
+export { CHANGE_MARK, SEASON_GAMES, WINDOW, leagueTruth, windowOf, type LeagueTruthInput, type MeetingTruth } from "./meeting/truth.js";
+export {
+  DIFFICULTY, GRADES, LEANINGS, POINTS, POINT_MIX, certaintyOf, gmReport, gradeOdds, makeGm, pointSkill, rollGrade, volunteerChance,
+  type GmReportInput,
+} from "./meeting/gm.js";
+export { BAND_ORDER, COORDINATOR_POINTS, bandOf, coordinatorReport, type CoordinatorReportInput, type UnitBand } from "./meeting/coordinators.js";
+export { HEAT, TEMPER, findClashes, stepsApart, type ClashInput, type ClashResult } from "./meeting/clash.js";
+export {
+  applyMeetingMoves, holdMeeting, meetingStaff, reportCard, type MeetingInput, type MeetingOutcome, type ReportCardLine,
+} from "./meeting/meeting.js";
+export { MEETING_STEP_PREFIX, meetingSteps, seasonOverAt, type MeetingStepsConfig } from "./meeting/steps.js";

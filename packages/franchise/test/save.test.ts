@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createRng, SAVE_FORMAT_VERSION, type CalendarStamp, type SaveFile } from "@ff/contracts";
+import { createRng, SAVE_FORMAT_VERSION, type CalendarStamp, type SaveFile, type StaffMeeting } from "@ff/contracts";
 import {
   buildLeague, buildStaff, makeSave, readSave, runSeason, runStaffOffseason, seatRelationships, summariseSeason, SaveError,
   type GameResolver,
@@ -169,3 +169,28 @@ describe("saves keep the coaching staff (ADR-080, ADR-084)", () => {
     expect(() => readSave(file())).toThrow(why);
   });
 });
+
+describe("saves keep the staff meetings (ADR-081 G2)", () => {
+  const built = buildStaff(league, { firstSeason: 2027, historySeasons: 2 });
+  const team = league.teams[0]!;
+  const speaker = built.world.staff.find((x) => x.teamId === team.id)!.id;
+  const meeting: StaffMeeting = {
+    team: team.id, season: 2027, at: { season: 2027, phase: "REGULAR_SEASON", week: 9, day: 7 },
+    takes: [{ speaker, claim: { point: "LUCK", verdict: "EVEN" }, grade: "CLOSE", certainty: 60, volunteered: true }], clashes: [],
+  };
+  const withMeeting = (m: StaffMeeting) => JSON.parse(onDisk({
+    ...makeSave({ league, calendar: half.calendar, season: half.state, createdBy: "test", staff: { world: built.world } }),
+  })) as SaveFile;
+
+  it("keeps each team's last meeting", () => {
+    const s = makeSave({ league, calendar: half.calendar, season: half.state, createdBy: "test", staff: { world: built.world }, meetings: [meeting] });
+    expect(readSave(onDisk(s)).save.world.meetings).toEqual([meeting]);
+  });
+
+  it("refuses a meeting that quotes someone not in the save", () => {
+    const s = withMeeting(meeting);
+    s.world.meetings = [{ ...meeting, takes: [{ ...meeting.takes[0]!, speaker: "S-ghost" as never }] }];
+    expect(() => readSave(s)).toThrow(/quotes someone who is not in the save/);
+  });
+});
+

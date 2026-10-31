@@ -244,7 +244,8 @@ The rookie scale, minimum salaries and tag formulas are CBA data and live in fra
 export type StaffRole =
   | "HEAD_COACH" | "OC" | "DC" | "STC" | "POSITION_COACH"
   | "SCOUTING_DIRECTOR" | "SCOUT" | "PLAYER_ENGAGEMENT" | "STRENGTH"
-  | "CAP_MANAGER" | "PRESIDENT";
+  | "CAP_MANAGER" | "PRESIDENT"
+  | "GM";                          // ADR-081 G1: advises when the user holds the GM's decisions, makes them when not
 
 export interface StaffState {
   id: StaffId;
@@ -324,6 +325,27 @@ export interface RelationshipView {  // V1: one person's view of another
 
 Rest points, drift, moves and rifts are franchise's rules (the ledger); nothing in the sim reads a view.
 
+### The end-of-season staff meeting (ADR-081)
+
+The GM is a staff seat (G1, `StaffRole` gains `"GM"`). A team carries the course set after the meeting
+(G3, `Team.direction?: TeamDirection`). The meeting's record lives in `meeting.ts` (G2):
+
+```ts
+export type TeamDirection = "CONTEND" | "RETOOL" | "REBUILD";                       // G3
+export type MeetingPoint = "LUCK" | "GOOD_AND_BAD" | "HOLES" | "DECLINE" | "LOSSES" | "NEXT_WINS"
+                         | "GROWTH" | "MONEY_CLIFF" | "WINDOW";                        // the nine points
+export type AccuracyGrade = "SHARP" | "CLOSE" | "OFF" | "MISS";                       // hidden until the report card
+
+export interface MeetingClaim { point: MeetingPoint; verdict?: string; groups?: string[]; players?: PlayerId[]; wins?: number; direction?: TeamDirection }
+export interface MeetingTake { speaker: StaffId; claim: MeetingClaim; grade: AccuracyGrade; certainty: number /* 0-100, fixed */; volunteered: boolean }
+export interface MeetingClash { point: MeetingPoint; between: [StaffId, StaffId]; heat: "POLITE" | "OPEN_ARGUMENT" | "RIFT" }
+export interface StaffMeeting { team: TeamId; season: number; at: CalendarStamp; takes: MeetingTake[]; clashes: MeetingClash[] }
+```
+
+The coach skill registry gains the meeting's five skills (G5): `performanceAnalysis`, `forecasting`,
+`capManagement`, `marketSense` (season) and `nuance` (career), on the same 1-99 ruler. Who says what,
+how it is graded and how sure he is are franchise's rules.
+
 ---
 
 ## 5. AUTHORITY TAGS
@@ -373,8 +395,10 @@ Derived directly from `match-engine.md`; every roll and resolution the debug pri
 |---|---|
 | `PLAY_START` | offense/defense play calls, personnel, situation (down, distance, LOS, clock, score); last, `snap`: where every man stands at the snap (`SnapPicture`, ADR-090 S1 and S2; absent when the play-caller drew none), carried in on the calls (`PlayCalls.snap`, S5) |
 | `PRESNAP_READ` | actor, check kind (coverageShell / blitz / audible), roll detail, result tier |
+| `SIDELINE_ADJUSTMENT` | what moved one defense's read of one offense's snap count between snaps (ADR-092 R3, `stem.ts`): the film read at the offense's first snap (ceiling, share, read), the halftime step, or the offensive coordinator's change of count (his notice, the new word and whether the defensive coordinator read it, the hard counts, the habit), each with the read before and after; play-scoped, right after `PLAY_START` of the snap where it first counts |
+| `STEM` | the stem at the line (ADR-091 M4, ADR-092 R2, `stem.ts`): the Mike who called it, the linemen it moves, the quarterback's count, the count read at that snap, the Mike's timing, where the moved men are at the snap, snapped on movement and re-called when they were asked, who was caught moving, and the timing roll's `rollRef`; one per snap whose defense's call carries `stem` (M2), after the play's sideline adjustments |
 | `TICK` | tick number (marks time advancing) |
-| `CHECK` | **the workhorse**: `{ checkKind, actors, roll: RollDetail, target, opposedRoll?, resultTier, marginOfSuccess }` |
+| `CHECK` | **the workhorse**: `{ checkKind, actors, roll: RollDetail, target, opposedRoll?, resultTier, marginOfSuccess }`. ADR-091 M3 adds `stem_timing`, `stem_shift` and `snap_on_movement` and gives `communication` its first producer (the center's re-call); ADR-092 R4 adds `adjustment_notice`, `adjustment_read` and `habit_drop` |
 | `POCKET_STATUS` | clean / pressure / collapsing / immediate / sack |
 | `ROUTE_STATUS` | receiver, route, phase (jammed / developing / open / decaying), opennessBase |
 | `QB_READ` | target read, perceivedOpenness, effectiveOpenness, varianceRoll |
@@ -411,6 +435,8 @@ export interface RollDetail {
 The draft (ADR-086 C5): `DRAFT_PICK_MADE` may carry `overall` and `kind`; `COMPENSATORY_PICKS_AWARDED` (`{ draft, picks: { team, round, kind }[] }`), `DRAFT_PICK_CONDITION_SETTLED` (`{ draft, originalTeam, owner, round, text }`) and `WAIVER_CLAIMED` (`{ player, from, to }`).
 
 Players age, grow and get hurt (ADR-087): `RATINGS_CHANGED` (E1, truth layer: `{ team?, changes: { player, attr, from, to }[], body?: { player, measure, from, to }[] }`, one per team per week plus one for free agents), `INJURY_OCCURRED` gains `setting`, `band` and `game?` (E2, public), `INJURY_HEALED` (E3, truth layer: `{ player, lasting: { attr, from, to }[], body? }`), `PLAYER_RETIRED` gains `reason?: "UNSIGNED"` and `timing: "SEASON_END"` (E4), and the COACH decisions `DEPTH_CHART_CHANGED` (`{ team, position, up?, down?, situation: OPEN_COMPETITION | INJURY_COVER | STARTER_RETURNS | KEPT_AFTER_INJURY | FORM | SUDDEN, authority, decidedBy }`), `POSITION_BATTLE_DECLARED` (`{ team, position, players, ... }`) and `POSITION_BATTLE_ENDED` (`{ team, position, starter, ... }`) (E5, public).
+
+The end-of-season meeting (ADR-081 G2, G3): `STAFF_MEETING_HELD` (`{ meeting: StaffMeeting }`, every take with its hidden grade), `MEETING_CERTAINTY_ASKED` (`{ team, season, speaker, point, certainty }`, the user asked "how sure are you?") and `TEAM_DIRECTION_SET` (`{ team, season, direction, authority }`).
 
 `RELATIONSHIP_CHANGED` (ADR-084 V2) is a view that moved: `{ from, of, delta, cause, before, after, rift?: "OPENED" | "REPAIRED" }`, once per move and once whenever the weekly drift changes a view's word.
 
@@ -489,6 +515,7 @@ export interface SaveFile {
     staff: StaffState[];                   // coaches and presidents, retired coaches included (their résumés feed trees)
     staffContracts?: StaffContract[];      // ADR-080 P1; optional, so saves written before it still load
     relationships?: RelationshipView[];    // ADR-084 V1: every view, one entry per direction; optional, as above
+    meetings?: StaffMeeting[];             // ADR-081 G2: each team's last end-of-season meeting; optional, as above
     draft?: { picks: DraftPick[]; classes: DraftClass[]; freeAgentMoves: {...}[] };  // ADR-086 C6; optional, as above
     contracts: PlayerContract[];
     deadMoney?: DeadMoneyCharge[];         // ADR-085 K3; optional, as above

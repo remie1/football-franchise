@@ -18,7 +18,8 @@
     "cap-check": "vite-node src/season/capCheckMain.ts --",
     "draft-check": "vite-node src/season/draftCheckMain.ts --",
     "career-check": "vite-node src/season/careerCheckMain.ts --",
-    "snap-spots": "vite-node src/snapSpots/main.ts --"
+    "snap-spots": "vite-node src/snapSpots/main.ts --",
+    "group-weights": "vite-node src/meeting/main.ts --"
   },
   "dependencies": {
     "@ff/attributes": "workspace:*",

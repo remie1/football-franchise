@@ -10,7 +10,7 @@
  * beat's rule, and D4 against the owner's August ranges (ADR-066:607-610, ADR-090 §9).
  */
 import { describe, expect, it } from "vitest";
-import { laneOfX, cellOf, toHalfYard, BALL_X, playPreSnap, onOneSpot } from "../src/snapSpots.js";
+import { laneOfX, cellOf, toHalfYard, BALL_X, playPreSnap, onOneSpot, snapPicture } from "../src/snapSpots.js";
 import type { SnapSpot } from "@ff/contracts";
 import type { PreSnapBeats, SnapInput } from "../src/snapSpots.js";
 import { COMPOSED, V6_COVERAGES } from "../src/coverageCatalogue.js";
@@ -608,6 +608,186 @@ describe("beats 3 and 6: the looks, and the last movement into the snap", () => 
         expect(spot, `${c.label} ${role}`).toEqual(c.beats.aligned[role]);
       }
     }
+  });
+});
+
+// --- a head-only Mug ------------------------------------------------------------------------------------
+
+/**
+ * Question 1's other answer, for the Mug alone (ADR-090 §4.3): the Mug lives only in the
+ * quarterback's read, and the men it walked up stand where their played jobs align them. Drawn
+ * only when asked (`{ mug: "HEAD_ONLY" }`), for ADR-089 step 3's information arm.
+ */
+describe("a head-only Mug: beat 3 skipped for the Mug alone", () => {
+  const mugged = CASES.filter((c) => c.front?.look === "MUG");
+  const others = CASES.filter((c) => c.front?.look !== "MUG");
+  /** The men the Mug shows somewhere he does not rush from: the backers it walks up. */
+  const walkedUp = (c: Case): ReadonlySet<DefenseRole> => {
+    const { call, byRole } = c.input.defense;
+    const shownElsewhere = new Set(
+      call.shownRush
+        .filter((seen) => !call.rush.some((r) => r.rusher === seen.rusher && r.side === seen.side && r.gap === seen.gap))
+        .map((seen) => String(seen.rusher)),
+    );
+    return new Set(
+      (Object.entries(byRole) as [DefenseRole, unknown][])
+        .filter(([role, player]) => DEFENSE_ROLE_GROUP[role] === "BACKERS" && shownElsewhere.has(String(player)))
+        .map(([role]) => role),
+    );
+  };
+
+  it("draws every ruling as made unless asked: the default is the Real Mug", () => {
+    expect(mugged.length).toBeGreaterThan(0);
+    for (const c of mugged.slice(0, 50)) {
+      expect(playPreSnap(c.input, {}), c.label).toEqual(c.beats);
+      expect(playPreSnap(c.input, { mug: "REAL" }), c.label).toEqual(c.beats);
+      expect(snapPicture(c.input), c.label).toEqual(c.beats.picture);
+    }
+  });
+
+  it("changes nothing on a call that wears no Mug", () => {
+    for (const c of others) expect(playPreSnap(c.input, { mug: "HEAD_ONLY" }), c.label).toEqual(c.beats);
+  });
+
+  it("moves only the men the Mug walked up, back to their aligned spots, on every Mug the book can wear", () => {
+    let moved = 0;
+    for (const c of mugged) {
+      const head = playPreSnap(c.input, { mug: "HEAD_ONLY" });
+      const walked = walkedUp(c);
+      expect(walked.size, c.label).toBeGreaterThan(0);
+      expect(head.offense, c.label).toEqual(c.beats.offense);
+      expect(head.aligned, c.label).toEqual(c.beats.aligned);
+      for (const role of Object.keys(c.beats.atSnap) as DefenseRole[]) {
+        if (!walked.has(role)) {
+          expect(head.shown[role], `${c.label} ${role}`).toEqual(c.beats.shown[role]);
+          expect(head.atSnap[role], `${c.label} ${role}`).toEqual(c.beats.atSnap[role]);
+          continue;
+        }
+        // Real: in the A gap at 1.5; head only: where his played job aligns him.
+        expect(c.beats.atSnap[role]?.y, `${c.label} ${role}`).toBe(1.5);
+        expect(at(head.shown[role]), `${c.label} ${role}`).toEqual(at(c.beats.aligned[role]));
+        expect(at(head.atSnap[role]), `${c.label} ${role}`).toEqual(at(c.beats.aligned[role]));
+        moved++;
+      }
+    }
+    expect(moved).toBeGreaterThan(0);
+  });
+
+  it("lets a creeper the Mug would have walked up creep from his aligned spot, as any creeper does", () => {
+    const creepers = mugged.filter((c) => c.card.pressure === "CREEPER");
+    expect(creepers.length).toBeGreaterThan(0);
+    for (const c of creepers) {
+      const head = playPreSnap(c.input, { mug: "HEAD_ONLY" });
+      const rushing = new Set(c.input.defense.call.rush.map((r) => String(r.rusher)));
+      for (const role of walkedUp(c)) {
+        if (!rushing.has(String(c.input.defense.byRole[role]))) continue;
+        // Real: set at his Mug spot, crept already. Head only: creeping from his aligned spot.
+        expect(c.beats.atSnap[role]?.moving, `${c.label} ${role}`).toBeUndefined();
+        expect(head.atSnap[role], `${c.label} ${role}`).toEqual({
+          ...c.beats.aligned[role],
+          moving: { dx: 0, dy: -1, yardsPerSecond: 3 },
+        });
+      }
+    }
+  });
+});
+
+// --- the stem's endings ---------------------------------------------------------------------------------
+
+/**
+ * ADR-091 §6 (ADR-090 step 3): how a Stem ended at the line is the engine's dice; beat 6 draws the
+ * ending it is handed. On time or early, set in the front it shifted to; called off, set where it
+ * lined up; caught, halfway between and still moving.
+ */
+describe("the stem's four endings (ADR-091 §6): beat 6 draws the ending the engine's dice decided", () => {
+  const stems = CASES.filter((c) => c.front?.look === "STEM");
+  /** The linemen the stem moves: shown in one gap, played in another. */
+  const movers = (c: Case): readonly DefenseRole[] =>
+    (Object.keys(c.beats.shown) as DefenseRole[]).filter(
+      (role) => DEFENSE_ROLE_GROUP[role] === "LINE" && at(c.beats.shown[role]).join() !== at(c.beats.aligned[role]).join(),
+    );
+  const ended = (c: Case, stem: NonNullable<SnapInput["stem"]>): PreSnapBeats => playPreSnap({ ...c.input, stem });
+  /**
+   * Everyone the stem does not move is where an on-time stem has him, but for a man a lineman now
+   * stands on: he steps back a whole yard or more, as nobody stands on anybody (ADR-090 §7). The
+   * goal-line corner pressed on a tight end is the case: a defensive end left outside crowds him.
+   */
+  const expectOthersKept = (c: Case, now: PreSnapBeats, moved: ReadonlySet<DefenseRole>): number => {
+    let steppedBack = 0;
+    for (const role of Object.keys(c.beats.atSnap) as DefenseRole[]) {
+      if (moved.has(role)) continue;
+      const [was, is] = [c.beats.atSnap[role]!, now.atSnap[role]!];
+      if (is.y !== was.y) {
+        expect({ ...is, y: was.y }, `${c.label} ${role}`).toEqual(was);
+        expect(is.y - was.y, `${c.label} ${role}`).toBeGreaterThanOrEqual(1);
+        expect([...moved].some((m) => onOneSpot(now.atSnap[m]!, was)), `${c.label} ${role}: crowded by a lineman`).toBe(true);
+        steppedBack++;
+        continue;
+      }
+      expect(is, `${c.label} ${role}`).toEqual(was);
+    }
+    return steppedBack;
+  };
+
+  it("draws a Stem handed no ending, on time or early as it was before step 3: set in the front it shifted to", () => {
+    expect(stems.length).toBeGreaterThan(0);
+    for (const c of stems) {
+      expect(movers(c).length, c.label).toBeGreaterThan(0);
+      expect(ended(c, { ending: "ON_TIME" }), c.label).toEqual(c.beats);
+      expect(ended(c, { ending: "EARLY" }), c.label).toEqual(c.beats);
+    }
+  });
+
+  it("sets a called-off stem's linemen where they lined up, hand down, and moves nobody else but a man they crowd", () => {
+    for (const c of stems) {
+      const off = ended(c, { ending: "CALLED_OFF" });
+      const moved = new Set(movers(c));
+      for (const role of moved) expect(off.atSnap[role], `${c.label} ${role}`).toEqual(c.beats.shown[role]);
+      expectOthersKept(c, off, moved);
+    }
+  });
+
+  it("catches every man a late stem moves halfway between his gaps, standing up, moving on at three yards a second", () => {
+    for (const c of stems) {
+      const late = ended(c, { ending: "CAUGHT" });
+      const moved = new Set(movers(c));
+      expectOthersKept(c, late, moved);
+      for (const role of moved) {
+        const [from, to] = [c.beats.shown[role]!, c.beats.aligned[role]!];
+        expect(late.atSnap[role], `${c.label} ${role}`).toEqual({
+          x: (from.x + to.x) / 2,
+          y: (from.y + to.y) / 2,
+          stance: "UP",
+          moving: { dx: Math.sign(to.x - from.x), dy: 0, yardsPerSecond: 3 },
+        });
+      }
+      // Still on his side of the ball, on the half-yard grid once frozen.
+      for (const spot of late.picture.defense) {
+        expect(spot.y, c.label).toBeGreaterThan(0);
+        expect(spot.x * 2, c.label).toBe(Math.round(spot.x * 2));
+      }
+    }
+  });
+
+  it("catches only the lineman whose shift missed on an on-time stem; the rest are set", () => {
+    for (const c of stems) {
+      const [first, ...rest] = movers(c);
+      const player = c.input.defense.byRole[first!]!;
+      const one = ended(c, { ending: "ON_TIME", caughtShifting: [player] });
+      expect(one.atSnap[first!]?.moving?.yardsPerSecond, c.label).toBe(3);
+      for (const role of rest) expect(one.atSnap[role], `${c.label} ${role}`).toEqual(c.beats.atSnap[role]);
+      expectOthersKept(c, one, new Set([first!]));
+    }
+  });
+
+  it("refuses an ending for a call with no Stem, a man caught shifting on any other ending, or one the stem does not move", () => {
+    const bare = CASES.find((c) => c.front === undefined)!;
+    expect(() => playPreSnap({ ...bare.input, stem: { ending: "CAUGHT" } })).toThrow(/wears no Stem/);
+    const c = stems[0]!;
+    const mover = c.input.defense.byRole[movers(c)[0]!]!;
+    expect(() => playPreSnap({ ...c.input, stem: { ending: "CAUGHT", caughtShifting: [mover] } })).toThrow(/not on time/);
+    const stranger = c.input.defense.byRole.CB_L ?? c.input.defense.byRole.LB_M;
+    expect(() => playPreSnap({ ...c.input, stem: { ending: "ON_TIME", caughtShifting: [stranger!] } })).toThrow(/moves none of them/);
   });
 });
 

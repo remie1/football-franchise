@@ -23,6 +23,7 @@
  *     split-authority modes reachable.
  */
 import type {
+  Cadence,
   CalendarStamp,
   ChemistryTable,
   GameEndReason,
@@ -37,6 +38,7 @@ import type {
 import { gameId as makeGameId } from "@ff/contracts";
 import type { Tunables } from "../tunables.js";
 import type { AnyPlayCalls, DefensivePlayCall, OffensiveCall } from "../types.js";
+import type { CountBattle, StemAtTheSnap } from "./atTheLine.js";
 
 // --- identity ---------------------------------------------------------------
 
@@ -203,6 +205,34 @@ export interface LineUpRequest {
   readonly offenseCall: OffensiveCall;
   /** The defense's call, as the play will run it. */
   readonly defenseCall: DefensivePlayCall;
+  /**
+   * How the stem the defense's call wears ended at the line (ADR-091 §6; ADR-090 step 3), as the
+   * engine's dice decided it, for the picture to draw. Absent when the call wears none, and on every
+   * snap under `pocket-1` rules, where the stem is not played out (a worn Stem is drawn on time, as
+   * before step 3).
+   */
+  readonly stem?: StemAtTheSnap;
+}
+
+/**
+ * THE QUARTERBACK'S COUNT (ADR-091 §5.1; ADR-090 step 3): asked of the OFFENSE's caller once both
+ * calls are made, on a snap whose defense wears a stem, because nothing else reads the count yet
+ * (ADR-005: a die that decides nothing is not thrown). The loop writes the answer onto the
+ * offense's call (`cadence`) and plays the stem against it. Not a decision of its own, so it
+ * carries no authority tag: it is a detail of the offense's call, as `lineUp` is of both.
+ */
+export interface CadenceRequest {
+  readonly kind: "CADENCE";
+  readonly tunables: Tunables;
+  readonly situation: DecisionSituation;
+  /** Whether the offense is the home team: a hard count only at home (`match-engine.md` §16.3). */
+  readonly home: boolean;
+  /** ADR-092 §5.4 (D8): hard counts still owed after the offensive coordinator changed his count. */
+  readonly hardCountsOwed: number;
+  readonly offense: TeamSnapshot;
+  readonly defense: TeamSnapshot;
+  /** The offense's call, as the play will run it. */
+  readonly offenseCall: OffensiveCall;
 }
 
 export type FourthDownChoice = "GO_FOR_IT" | "PUNT" | "FIELD_GOAL";
@@ -255,6 +285,12 @@ export interface PlayCaller {
    * pair does; a fork is made by label, so asking moves no other stream.
    */
   lineUp?(request: LineUpRequest, rng: Rng): SnapPicture | undefined;
+  /**
+   * The quarterback's count on a snap whose defense wears a stem (ADR-091 §5.1, `CadenceRequest`).
+   * `rng` is the snap's address, `call:<n>/cadence`. OPTIONAL: a caller without one has its
+   * quarterback on his normal count.
+   */
+  cadence?(request: CadenceRequest, rng: Rng): Cadence;
   decideFourthDown(request: FourthDownRequest): FourthDownChoice;
   decideCoinToss(request: CoinTossRequest): CoinTossChoice;
 }
@@ -343,6 +379,13 @@ export interface MatchState {
   readonly clockStopped: boolean;
   /** Set once the game is over; the reason it ended. */
   readonly finalReason: GameEndReason | undefined;
+  /**
+   * ADR-092: each defense's read of each offense's count, in the order the offenses first snapped.
+   * Carried here because it outlives a snap. Absent until the first scrimmage snap played under
+   * today's (`legacy`) rules, and on every `pocket-1` game, whose state is unchanged by ADR-090
+   * step 3.
+   */
+  readonly countBattles?: readonly CountBattle[];
 }
 
 export interface GameInputs {

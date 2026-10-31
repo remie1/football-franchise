@@ -18,7 +18,7 @@ import { resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { CALLER_VERSIONS, type CallerVersion } from "../src/caller/anticipate.js";
 import { goldenGames } from "../src/pocket/corpus.js";
-import { foldDigests, gameBytesDigest, gameDigest, GOLDEN_LEAGUES, GOLDEN_MEASURED_AT, GOLDEN_PINS, type GoldenLeague } from "../src/pocket/golden.js";
+import { foldDigests, gameBytesDigest, gameDigest, GOLDEN_LEAGUES, GOLDEN_MEASURED_AT, GOLDEN_PINS, goldenStream, type GoldenLeague } from "../src/pocket/golden.js";
 
 export const GOLDEN_FIXTURE_PATH = resolve(import.meta.dirname, "fixtures", "adr089-golden.json");
 export const GOLDEN_FIXTURE_FORMAT = "adr-089-golden/v1";
@@ -68,7 +68,8 @@ export function playGolden(league: GoldenLeague, callerVersion: CallerVersion): 
       seeds.push(meta.seed);
       canonical.push(gameDigest(observation.events));
       bytes.push(gameBytesDigest(observation.events));
-      events += observation.events.length;
+      // The entries the digests read: ADR-090 step 3's records at the line are stripped (GOLDEN_STRIP).
+      events += goldenStream(observation.events).length;
     },
     { callerVersion },
   );

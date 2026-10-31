@@ -183,6 +183,14 @@ const season = loaded?.save.calendar.season
 // A save from before coaches were kept has none; it carries on without them rather than inventing a staff mid-season.
 // With the players' switches on, each head coach also gets his depth-chart leanings (ADR-087 C1).
 const staff = loaded ? loaded.staff : { world: buildStaff(base, { firstSeason: season, ...(players ? { lineups: true } : {}) }).world };
+// ADR-084: the news desk's coaching beat starts from who sits where and how the staffs feel today.
+const SEATED = new Set(["HEAD_COACH", "OC", "DC", "STC"]);
+const coaching = staff ? {
+  seats: staff.world.staff
+    .filter((s) => s.teamId !== undefined && s.retiredAfter === undefined && SEATED.has(s.role))
+    .map((s) => ({ id: s.id, team: s.teamId!, role: s.role })),
+  views: (staff.relationships ?? []).map((v) => ({ from: v.from, of: v.of, score: v.score })),
+} : undefined;
 let desk: Desk | undefined;
 const printNews = (editions: ReturnType<Desk["take"]>) => {
   for (const e of editions) {
@@ -196,13 +204,17 @@ const { league, rated, run } = runRealSeason({
   ...(args.teamStrengthSd === undefined ? {} : { teamStrengthSd: args.teamStrengthSd }),
   ...(loaded ? { rules: loaded.rules, ...(loaded.save.world.season ? { resumeFrom: loaded.save.world.season } : {}) } : {}),
   ...(args.stopAfter ? { stopAfter: stopDay(args.stopAfter, season) } : {}),
-  ...(players ? { players, ...(staff ? { staff: staff.world.staff } : {}) } : {}),
-  ...(players && loaded?.development ? { resume: { people: loaded.development.people, events: loaded.development.events, through: loaded.save.calendar } } : {}),
+  // ADR-084 step 1: with the players' switches on, the coaches change after the playoffs and their views drift.
+  ...(players ? { players, ...(staff ? { coaching: staff } : {}) } : {}),
+  ...(players && loaded?.development ? { resume: {
+    people: { ...loaded.development.people, ...(staff ? { staff: staff.world.staff, coaching: staff } : {}) },
+    events: loaded.development.events, through: loaded.save.calendar,
+  } } : {}),
   // A legacy season passes nothing, as before; any other plays its bundle in every game.
   ...(engineRules === LEGACY_RULES ? {} : { game: { tunables: gameTunables } }),
   onEvent: (envelope, schedule) => {
     if (isTruthLayerEvent(envelope.event)) return; // true ratings never reach the news (ADR-087 §7)
-    desk ??= createNewsDesk({ seed, structure: base.structure, teams: base.teams, schedule });
+    desk ??= createNewsDesk({ seed, structure: base.structure, teams: base.teams, schedule, ...(coaching ? { staff: coaching.seats, views: coaching.views } : {}) });
     printNews(desk.take(envelope));
   },
 });
@@ -224,15 +236,17 @@ if (args.save) {
   const path = fromCaller(args.save);
   // With the players' switches on, the people as they are today, and what the players' steps did (S1).
   const people = players ? run.people : undefined;
+  // The coaches as the run left them (changed by the carousel once the playoffs are over).
+  const coaches = people?.coaching ?? staff;
   const squad = people ? { players: people.players } : rated === undefined ? {} : { players: rated.league.players };
   const development = people ? {
     league: { ...league, teams: people.teams },
     development: {
-      events: (run.stepEvents ?? []).filter((e) => e.step.startsWith("players:")).map((e) => e.envelope),
+      events: (run.stepEvents ?? []).filter((e) => e.step.startsWith("players:") || e.step.startsWith("staff:") || e.step.startsWith("meeting:")).map((e) => e.envelope),
       depthMemory: people.playerMemory ?? (() => { throw new Error("the players' steps left no memory to save"); })(),
     },
   } : { league };
-  const save = makeSave({ ...development, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: savePlayedWith(callerVersion, engineRules), rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...squad, ...(staff ? { staff } : {}) });
+  const save = makeSave({ ...development, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: savePlayedWith(callerVersion, engineRules), rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...squad, ...(coaches ? { staff: coaches } : {}), ...(people?.meetings ? { meetings: people.meetings } : {}) });
   writeFileSync(path, JSON.stringify(save, listTraits, 2));
   console.log(`Saved ${path}`);
 }
@@ -244,6 +258,6 @@ if (args.out) {
   const events = players ? run.events.filter((e) => !isTruthLayerEvent(e.event)) : run.events;
   // ADR-089 §9: what played, caller and rules, beside the season (O11: always written).
   const playedBy = seasonOutStamp(callerVersion, engineRules, engineRulesDigestOf(engineRules));
-  writeFileSync(path, JSON.stringify({ seed, ...playedBy, league, season: run.state, events, ...squads }, listTraits, 2));
+  writeFileSync(path, JSON.stringify({ seed, ...playedBy, league, season: run.state, events, ...squads, ...(coaching ? { coaching } : {}) }, listTraits, 2));
   console.log(`Saved ${path}`);
 }

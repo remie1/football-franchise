@@ -256,6 +256,76 @@ export const SURFACE: Record<CheckKind, CheckDescriptor> = {
       "Discipline 95+ quarterback cannot break a breach of 10 or more — by design, not by accident.",
   },
 
+  // ADR-090 step 3: the stem at the line (ADR-091 §5) and the battle over the snap count (ADR-092
+  // §5.4). Rolled before the snap under `legacy` rules only, and read by nothing after it until
+  // step S-b.
+  stem_timing: {
+    form: "TARGET",
+    docRef: "ADR-091 §5.2",
+    actor: {
+      declared: [{ attr: "awareness", divisor: 5 }, { attr: "playRecognition", divisor: 5 }],
+      docQuote: "d100 + Mike's Awareness ÷ 5 + Play Recognition ÷ 5 + (count read − 50) ÷ 2.5",
+    },
+    target: 50,
+    flat: [-35, 20],
+    note:
+      "The Mike's timing. Made is on time against a normal or hard count and CALLED OFF against a " +
+      "quick one (D3), so 'made' is the stem's timing held, not always the stem working. The flat " +
+      "range is the count read's term (−20 at a read of 0, +20 at 100, ADR-092 D11) less the " +
+      "cadence's row on the target (quick +15, hard count +10, D2); crowd noise is not built.",
+  },
+  stem_shift: {
+    form: "TARGET",
+    docRef: "ADR-091 §5.3",
+    actor: {
+      declared: [{ attr: "reaction", divisor: 5 }, { attr: "agility", divisor: 5 }],
+      docQuote: "d100 + Reaction ÷ 5 + Agility ÷ 5 against 40",
+    },
+    target: 40,
+    note:
+      "Each moved lineman on an on-time stem. The band that matters is a miss by 20 or more (caught " +
+      "shifting, D4), which needs a total of 20 or less: impossible at Reaction and Agility 50 " +
+      "(+20), 8% of shifts at 30 and 30 (ADR-091 §9.2).",
+  },
+  snap_on_movement: {
+    form: "TARGET",
+    docRef: "ADR-091 §5.4",
+    actor: {
+      declared: [{ attr: "awareness", divisor: 5 }, { attr: "reaction", divisor: 5 }],
+      docQuote: "d100 + QB Awareness ÷ 5 + Reaction ÷ 5 against 80",
+    },
+    target: 80,
+    note: "The quarterback snapping the ball while an early stem moves (D5); made, every mover is caught.",
+  },
+  adjustment_notice: {
+    form: "TARGET",
+    docRef: "ADR-092 §5.4 (D6)",
+    actor: { declared: [{ attr: "inGameAdjustment", divisor: 5 }], docQuote: "d100 + OC In-Game Adjustment ÷ 5 against 50" },
+    target: 50,
+    note:
+      "The offensive coordinator seeing, after a drive, that a stem worked against him. A COACH " +
+      "rating (`COACH_ATTRIBUTE_REGISTRY_V1`), not a player's, and every coordinator is 50 in a game " +
+      "until the weekly plan reaches it (ADR-092 §4.4, petition R1, step S-b2), so in today's games " +
+      "the term is a flat +10.",
+  },
+  adjustment_read: {
+    form: "TARGET",
+    docRef: "ADR-092 §5.4 (D7)",
+    actor: { declared: [{ attr: "inGameAdjustment", divisor: 5 }], docQuote: "d100 + (DC − OC In-Game Adjustment) ÷ 5 against 51" },
+    target: 51,
+    targetTerms: { declared: [{ attr: "inGameAdjustment", divisor: 5 }], docQuote: "… − OC In-Game Adjustment ÷ 5" },
+    note:
+      "The defensive coordinator reading the offense's new live word. Coach ratings, both 50 until " +
+      "step S-b2, so today an even 50% (the 51 makes a tie the offense's).",
+  },
+  habit_drop: {
+    form: "TARGET",
+    docRef: "ADR-092 §5.4 (D9)",
+    actor: { declared: [{ attr: "discipline", divisor: 5 }], docQuote: "d100 + QB Discipline ÷ 5 against 40" },
+    target: 40,
+    note: "The quarterback dropping the habit that tells his count, once a game, when his coordinator asks.",
+  },
+
   release_vs_press: {
     form: "OPPOSED",
     docRef: "§9.1",
@@ -590,11 +660,19 @@ export const SURFACE: Record<CheckKind, CheckDescriptor> = {
   },
 
   communication: {
-    form: "UNIMPLEMENTED",
-    docRef: "Appendix C / §16.3",
+    form: "TARGET",
+    docRef: "ADR-091 §5.5 / §16.3 item 3",
+    actor: {
+      declared: [{ attr: "awareness", divisor: 5 }, { attr: "awareness", divisor: 5 }],
+      docQuote: "d100 + Center's Awareness ÷ 5 + the offensive line's average Awareness ÷ 5 against 45 + noise",
+    },
+    target: 45,
+    flat: [-25, 0],
     note:
-      "Appendix C gives 'Communication | 40-50 | +10-25 (noise)'. §16.3's crowd-noise system is " +
-      "unimplemented. Finding SA-02 is the contradiction between that row and §7.3's 60.",
+      "First producer: the center's re-call of an early stem on a pass (ADR-090 step 3). Appendix C " +
+      "gives 'Communication | 40-50 | +10-25 (noise)'; §16.3's crowd noise is not built, so the " +
+      "game rolls against 45 and the flat range is the noise to come. Finding SA-02 is the " +
+      "contradiction between that row and §7.3's 60.",
   },
   snap_jump: {
     form: "UNIMPLEMENTED",
