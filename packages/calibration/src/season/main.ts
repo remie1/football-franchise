@@ -242,11 +242,11 @@ if (args.save) {
   const development = people ? {
     league: { ...league, teams: people.teams },
     development: {
-      events: (run.stepEvents ?? []).filter((e) => e.step.startsWith("players:") || e.step.startsWith("staff:")).map((e) => e.envelope),
+      events: (run.stepEvents ?? []).filter((e) => e.step.startsWith("players:") || e.step.startsWith("staff:") || e.step.startsWith("meeting:")).map((e) => e.envelope),
       depthMemory: people.playerMemory ?? (() => { throw new Error("the players' steps left no memory to save"); })(),
     },
   } : { league };
-  const save = makeSave({ ...development, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: savePlayedWith(callerVersion, engineRules), rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...squad, ...(coaches ? { staff: coaches } : {}) });
+  const save = makeSave({ ...development, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: savePlayedWith(callerVersion, engineRules), rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...squad, ...(coaches ? { staff: coaches } : {}), ...(people?.meetings ? { meetings: people.meetings } : {}) });
   writeFileSync(path, JSON.stringify(save, listTraits, 2));
   console.log(`Saved ${path}`);
 }

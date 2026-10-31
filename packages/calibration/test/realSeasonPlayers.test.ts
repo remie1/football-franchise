@@ -63,7 +63,10 @@ describe("a real-sim season with the players' switches on", () => {
     const coached = runRealSeason({ seed, season, players, coaching: { world }, stopAfter: week(2) });
     expect(JSON.stringify(coached.run.state)).toBe(JSON.stringify(straight.run.state));
     expect(JSON.stringify(coached.run.people!.players)).toBe(JSON.stringify(straight.run.people!.players));
-    expect(coached.run.people!.coaching!.world).toBe(world);
+    // The same coaches, and (ADR-081 G1) a GM seated on every team.
+    const after = coached.run.people!.coaching!.world;
+    expect(after.staff.filter((s) => s.role !== "GM")).toEqual(world.staff);
+    expect(after.staff.filter((s) => s.role === "GM")).toHaveLength(world.teams.length);
     expect(coached.run.events.some((e) => e.event.type === "RELATIONSHIP_CHANGED")).toBe(false);
   });
 

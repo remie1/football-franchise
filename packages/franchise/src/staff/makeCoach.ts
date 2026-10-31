@@ -95,7 +95,7 @@ export function makeCoach(rng: Rng, n: number, cohort: Cohort, taken: Set<string
     displayName: drawName(rng, taken),
     role,
     age,
-    attributes: makeRatings(rng, TALENT[key]!),
+    attributes: makeRatings(rng, TALENT[key]!, String(staffIdFor(n))),
     lineage: cohort.kind === "NFL_POSITION" && cohort.mentor ? [cohort.mentor.id] : [],
     personalityType: weightedPick(rng, PERSONALITY_SHARES),
     career: [job],
