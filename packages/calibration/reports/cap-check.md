@@ -82,6 +82,24 @@ At the owner's pick, teams can now restructure with void years added and make tw
 
 Dead money moves toward the real figure, and free agency is a little livelier. Teams still end each year at about 99% of the cap, so room remains the limit on re-signings and free agency.
 
+## After deal lengths, cap-paced prices and free-agency room (ADR-085 step 9, 2026-10-31)
+
+Changes in this step:
+- New deals run the real average length for their size.
+- Market prices grow with the cap.
+- Teams make $35M of room for free agency in March (my judgment), up from $15M.
+
+| League year | 2027 | 2028 | 2029 | 2030 | 2031 | Mean | Real |
+|---|---|---|---|---|---|---|---|
+| New-team deals, $2M+ | 77 | 89 | 67 | 99 | 88 | 84 | 180 to 240 |
+| New-team deals, $5M+ | 61 | 64 | 50 | 76 | 69 | 64 | 80 to 120 |
+| Own-team deals of 2+ years | 145 | 88 | 24 | 65 | 97 | 84 | 210 to 290 |
+| Dead money, mean a team ($M) | 10.6 | 18.7 | 44.6 | 38.7 | 37.2 | 30.0 | about 34 |
+
+Dead money is now close to the real figure, and deals of $5M and up are near the real range. The gap that remains is the middle class.
+
+The real league has about 19 deals a team at 0.5% to 2% of the cap (about $1.5M to $6M). Ours has about 10. Our teams fill depth with rookies and minimum deals, and spend the rest on their own players. Counted from OverTheCap's table: active deals, and deals signed 2021 to 2025.
+
 ## What does not match yet
 
 1. **Too few re-signings.** Before step 7, teams signed about a fifth of the real number of own-team multi-year deals, because there were no early extensions. Step 7 raises it to under half the real number; cap room is now the limit.
