@@ -24,8 +24,8 @@
  * prospects come back as the same objects.
  */
 import {
-  CALENDAR_PHASE_ORDER, attrId, createRng, getAttr, stampToString,
-  type BodyMeasure, type CalendarPhase, type CalendarStamp, type FranchiseEvent, type LeagueRules,
+  CALENDAR_PHASE_ORDER, DEFAULT_LEAGUE_RULES, attrId, createRng, getAttr, positionOverall, stampToString,
+  type AttributeMap, type BodyMeasure, type CalendarPhase, type CalendarStamp, type FranchiseEvent, type LeagueRules,
   type PlayerState, type Position, type Rng, type TeamId,
 } from "@ff/contracts";
 import { phaseWeeks } from "../calendar/clock.js";
@@ -60,6 +60,9 @@ type RatingsChanged = Extract<FranchiseEvent, { type: "RATINGS_CHANGED" }>["payl
 type RatingChange = RatingsChanged["changes"][number];
 type BodyEntry = NonNullable<RatingsChanged["body"]>[number];
 type Measure = BodyMeasure | "weightLb";
+
+/** Phases in which a team still in its year practises (§3's table). */
+export const PRACTICE_PHASES: ReadonlySet<CalendarPhase> = new Set(["TRAINING_CAMP", "PRESEASON", "REGULAR_SEASON", "PLAYOFFS", "OFF_ROOKIES_OTAS"]);
 
 /** A week with no team: no practice, no snaps, no coach. A free agent's, all year. */
 const ON_HIS_OWN: PlayerWeek = { withTeam: false, practiced: 0, playShare: 0, snaps: 0, contests: [] };
@@ -230,15 +233,14 @@ function wobbleHalfWidth(rules: LeagueRules): number {
 }
 
 /**
- * This week's points for every rating in `MOVED`, in its order (§2.3). The wobble is drawn here, one
+ * This week's points for every rating in `MOVED`, in its order (§2.3). `wobble` is called here, one
  * step per body-plus-practice, skill and smarts rating, in that fixed order, so the stream never depends
- * on which ratings he carries.
+ * on which ratings he carries (`developOne` draws it; `expectedOverallChange` passes its mean, 0).
  */
-function ratingDeltas(player: PlayerState, inputs: WeekInputs, rng: Rng, half: number, growth: number): number[] {
+function ratingDeltas(player: PlayerState, inputs: WeekInputs, wobble: () => number, growth: number): number[] {
   const age = player.bio.age;
   const out: number[] = [];
   const perf = (attr: string) => (inputs.performance.size === 0 ? 0 : inputs.performance.get(attr) ?? 0);
-  const wobble = () => (rng.next() * 2 - 1) * half;
   for (const attr of GROUP_MEMBERS.BODY_PRACTICE) out.push(SKILL_INPUTS.bodyPracticeShare * (inputs.common + perf(attr) + wobble()));
   const skillFade = curveAt(SKILL_FADE, age) * inputs.ageShare;
   for (const attr of GROUP_MEMBERS.SKILL) {
@@ -285,7 +287,8 @@ function developOne(player: PlayerState, week: PlayerWeek | undefined, at: Calen
   const growth = growthOf(dev.growth);
 
   const delta = bodyWeek(player.bio.position, player.bio.age, growth, w.withTeam, at.phase, rules);
-  const deltas = ratingDeltas(player, weekInputs(player, w, at, rules, growth), rng, half, growth);
+  const wobble = () => (rng.next() * 2 - 1) * half;
+  const deltas = ratingDeltas(player, weekInputs(player, w, at, rules, growth), wobble, growth);
   if (Object.keys(delta).length === 0 && deltas.every((d) => d === 0) && w.snaps <= 0) return { player, changes: [], body: [] };
 
   const moved = changeBody(player, delta).player;
@@ -363,3 +366,98 @@ export function developmentWeek(input: DevelopmentWeekInput): DevelopmentWeekRes
   return { players, events };
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// The year ahead, expected (D5b; the cap's veteran decisions).
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * A starter's snaps in a game, for `expectedOverallChange`: about 1,100 a season over 17 games, the
+ * figure `SMARTS_SNAPS` is written around. CHOSEN.
+ */
+export const EXPECTED_STARTER_SNAPS_PER_GAME = 65;
+
+export interface ExpectedChangeOptions {
+  /** Where the year starts: its phase and week (the day is ignored; a week's growth lands on its last day). */
+  readonly at: CalendarStamp;
+  /**
+   * A starter plays every snap of every regular-season game; anyone else practises with his team and
+   * plays none (his special-teams snaps left out).
+   */
+  readonly starter: boolean;
+  /** How many weeks ahead (default: a year of this calendar's weeks). */
+  readonly weeks?: number;
+  readonly rules?: LeagueRules;
+}
+
+/** His overall at his own position with each rating's unshown fraction counted (contracts' `positionOverall`). */
+export function overallWithCarry(player: PlayerState): number {
+  const carry = (player.attributes.development?.carry ?? {}) as Readonly<Record<string, number>>;
+  const values: AttributeMap = { ...player.attributes.values };
+  for (const [attr, rest] of Object.entries(carry)) {
+    const v = values[attr];
+    if (typeof v === "number") values[attr] = v + rest;
+  }
+  return positionOverall(player.bio.position, values);
+}
+
+/**
+ * How much his overall at his own position is expected to change over the weeks ahead (default a year),
+ * by the development week's own numbers with every chance part at its mean: no wobble, one-on-ones
+ * even, healthy, with his team for every practice week but the playoffs, under a coach who adds nothing.
+ * He turns a year older when the calendar passes from the summer into camp (`turnYear`) and earns a
+ * credited season when it passes into the evaluation phase, as a man on a 53 does (`creditSeason`).
+ * Points of overall, fractions kept (`overallWithCarry`); the 99 cap and the body's bounds apply as
+ * they do in the real week. Pure: the player is not changed. 0 for a man with no development record or
+ * a prospect, whom the week leaves alone.
+ */
+export function expectedOverallChange(player: PlayerState, options: ExpectedChangeOptions): number {
+  const dev = player.attributes.development;
+  if (!dev || player.bio.draft === "PROSPECT") return 0;
+  const rules = options.rules ?? DEFAULT_LEAGUE_RULES;
+  const total = options.weeks ?? yearWeeks(rules);
+  const growth = growthOf(dev.growth);
+  const games = Math.max(0, rules.gamesPerSeason);
+  const seasonWeeks = Math.max(1, phaseWeeks("REGULAR_SEASON", rules));
+  // A bye spread over the season: a share of a game each week.
+  const gameShare = Math.min(1, games / seasonWeeks);
+  const start = { ...options.at };
+  let p: PlayerState = { ...player, bio: { ...player.bio, creditedSeasons: seasonsIn(player, start.season) } };
+  let phaseIndex = CALENDAR_PHASE_ORDER.indexOf(start.phase);
+  let week = Math.max(1, Math.min(start.week, phaseWeeks(start.phase, rules)));
+  let season = start.season;
+  for (let i = 0; i < total; i++) {
+    const phase = CALENDAR_PHASE_ORDER[phaseIndex]!;
+    const withTeam = PRACTICE_PHASES.has(phase) && phase !== "PLAYOFFS";
+    const playing = options.starter && phase === "REGULAR_SEASON";
+    const w: PlayerWeek = {
+      withTeam,
+      practiced: withTeam ? 1 : 0,
+      playShare: playing ? gameShare : 0,
+      snaps: playing ? EXPECTED_STARTER_SNAPS_PER_GAME * gameShare : 0,
+      contests: [],
+    };
+    const at: CalendarStamp = { season, phase, week, day: 7 };
+    const deltas = ratingDeltas(p, weekInputs(p, w, at, rules, growth), () => 0, growth);
+    const moved = changeBody(p, bodyWeek(p.bio.position, p.bio.age, growth, w.withTeam, phase, rules)).player;
+    const movedDev = moved.attributes.development ?? dev;
+    const values = { ...moved.attributes.values };
+    const carry: Record<string, number> = { ...(movedDev.carry as Record<string, number>) };
+    MOVED.forEach((attr, k) => addPoints(values, carry, attr, deltas[k]!));
+    p = { ...moved, attributes: { ...moved.attributes, values, development: { ...movedDev, carry } } };
+    // The calendar moves on a week.
+    week++;
+    if (week > phaseWeeks(phase, rules)) {
+      week = 1;
+      do phaseIndex = (phaseIndex + 1) % CALENDAR_PHASE_ORDER.length;
+      while (phaseWeeks(CALENDAR_PHASE_ORDER[phaseIndex]!, rules) === 0);
+      const next = CALENDAR_PHASE_ORDER[phaseIndex]!;
+      if (next === CALENDAR_PHASE_ORDER[0]) {
+        season++;
+        p = { ...p, bio: { ...p.bio, age: p.bio.age + 1 } };
+      }
+      if (next === "OFF_EVAL") p = { ...p, bio: { ...p.bio, creditedSeasons: (p.bio.creditedSeasons ?? 0) + 1 } };
+    }
+  }
+  return overallWithCarry(p) - overallWithCarry(player);
+}
