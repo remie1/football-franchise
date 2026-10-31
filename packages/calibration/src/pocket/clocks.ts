@@ -189,11 +189,18 @@ export function lateBreakingTimeS(m: number, u: number, te: number, w: number, s
   return te + w * shapeSScale(m, s) * exponentialOf(u) ** (1 / s.k);
 }
 
-/** The late block's margin on L, from `t_e` on: `round(min(1, (t - t_e)/(w * R)) * (m + jitter))`. */
+/**
+ * The late block's margin on L, from `t_e` on, in AM-2's float form (the engine's
+ * `resolve/lateBlock.ts` and `s1Stream.ts`'s `lateLMarginExact`):
+ * `round(min(t - t_e, w R) * (m + jitter) / (w R))`. The algebraically equal
+ * `round(min(1, (t - t_e)/(w R)) * (m + jitter))` is a different double at a .5 tie
+ * (t 0.8, t_e 0.5, w 0.1, R 4, m + jitter -34: -26 against -25), so it is not used (review CT-F5).
+ */
 export function lateMarginL(t: number, te: number, w: number, R: number, m: number, jitter: number): number {
   if (!(w > 0) || !(R > 0)) throw new RangeError("clocks: w and R must be positive");
   if (t < te) throw new RangeError(`clocks: the late block is not on before t_e (${String(t)} < ${String(te)})`);
-  return Math.round(Math.min(1, (t - te) / (w * R)) * (m + jitter)) + 0;
+  const wR = w * R;
+  return Math.round((Math.min(t - te, wR) * (m + jitter)) / wR) + 0;
 }
 
 /** A margin's band through the tunables' `passRush.bands` (first `minMargin` reached, else the last). */
