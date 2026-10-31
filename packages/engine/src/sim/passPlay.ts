@@ -1555,6 +1555,8 @@ export function simulatePassPlay(
         qb,
         tick,
         threats,
+        // ADR-089 step 3 (E5): FRONT under `pocket-1.s3` with `pocket.climbLane`; INTERIOR otherwise.
+        climbLane: rules.kind === "LEGACY" ? "INTERIOR" : rules.climbLane,
         stepUpsUsed,
         throwawayAvailable,
         movementRng: movementRng.fork(`t${tick.toFixed(1)}:movement`),
@@ -2261,7 +2263,7 @@ function liveThreats(matchups: readonly RushMatchup[]): RushThreat[] {
 function activeThreats(
   matchups: readonly RushMatchup[],
   scramble: ScrambleState | undefined,
-): ArrivalClock[] {
+): RushThreat[] {
   if (scramble !== undefined) return [];
   return liveThreats(matchups);
 }

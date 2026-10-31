@@ -137,3 +137,27 @@ export function threatSideOf(a: {
 }): RunSide | undefined {
   return a.loop === undefined ? a.side : a.loop.partnerSide;
 }
+
+/** ADR-089 step 3 (E5): where a threat comes at the passer from, §4.0's from-class. */
+export type FromClass = "FRONT" | "SIDE";
+
+/**
+ * ADR-089 step 3 (E5; plan §2.5): the from-class of a published approach on the rusher's
+ * alignment, the one every row of §4.0's card gives with that approach: ARC from the SIDE; THROUGH
+ * from the FRONT; FREE and PUSH from the FRONT if INTERIOR and the SIDE if EDGE (calibration's
+ * `fromOfApproach`, `packages/calibration/src/pocket/approach.ts`, value for value). It differs
+ * from the alignment only for an EDGE man coming THROUGH (a looper the line never touched, a twist's
+ * penetrator). Read only by the climb lane rule FRONT
+ * (`pocket.climbLane`, `resolve/pocketMovement.ts`); never called under `legacy`, s1 or s2.
+ */
+export function fromOf(approach: ThreatApproach, alignment: RushAlignment): FromClass {
+  switch (approach) {
+    case "ARC":
+      return "SIDE";
+    case "THROUGH":
+      return "FRONT";
+    case "FREE":
+    case "PUSH":
+      return alignment === "EDGE" ? "SIDE" : "FRONT";
+  }
+}
