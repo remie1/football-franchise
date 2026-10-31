@@ -22,6 +22,9 @@ describe("cap leaning (step 10)", () => {
     expect(capPlan(0)).toEqual({ cushion: 5_000_000, lookAhead: 0.25, marchRoom: 1, voidYears: true });
     expect(capPlan(100)).toEqual({ cushion: 10_000_000, lookAhead: 1, marchRoom: 0.5, voidYears: false });
     expect(capPlan(50).cushion).toBe(7_500_000);
+    // Step 11: only win-now teams (33 and under) add void years.
+    expect(capPlan(33).voidYears).toBe(true);
+    expect(capPlan(50).voidYears).toBe(false);
   });
 
   it("the team president holds it; a team with none plans from the middle", () => {

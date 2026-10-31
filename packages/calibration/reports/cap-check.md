@@ -122,6 +122,44 @@ Teams now keep room and roll it over, and re-sign their own players far more oft
 
 The highest cap use is still over 100% in some years (108% once, as in step 9): one team per year ends a league year over its cap in this snapshot. That is not new in this step.
 
+## After real deal shapes in free agency (ADR-085 step 11, 2026-10-31)
+
+What I found:
+- On the first day of free agency, each team signed two or three free agents and then had $0M to $4M of room left for the rest of the year.
+- The reason is that our deals charged 97% of their yearly value in their first year. Real deals charge much less. Counted from OverTheCap's table (deals of $2M+ a year and 2+ years, signed 2021 to 2024, median), the first year's cap number as a share of the yearly value is:
+  - up to 1% of the cap: 81%
+  - 1% to 2%: 75%
+  - 2% to 4%: 59%
+  - 4% to 8%: 45%
+  - over 8%: 34%
+  New-team and own-team deals agree within 2 points.
+- Real teams' new-team deals of $2M+ add up to about 20% of the cap a team a year, in yearly value (counted: 17.9% to 24.0%, 2021 to 2025).
+- A team whose top free agent kept saying no kept offering him every round. It never moved on to anyone else.
+
+Changes:
+- New deals now follow the real first-year shares. The later years rise to make up the rest, and a shaped deal guarantees as much base salary as an even one.
+- Teams clear 20% of the cap for free agency in March (counted, as above), up from $35M. The step-10 leaning still sets how much of that each team clears.
+- A deal's second year must fit the next season's room, less the cushion and next March's free-agency room. A front office checks this before it signs, and it does not spend next year's free-agency money now. A team's last man at a starting position is exempt.
+- The look-ahead counts next season's top 51 and holds back at most 10% of next season's cap, about the 49ers' case.
+- A team that is turned down moves on to its next target. There are now up to 8 rounds of offers a market day.
+- Teams now chase any veteran who would make their 53 by a clear margin, not only starters.
+- Only win-now teams (leaning 33 and under) add void years when they restructure. With real deal shapes, void years for two thirds of the league left $30M to $40M a team of dead money every year. That is my judgment, and it changes the step-10 rule.
+
+| League year | 2027 | 2028 | 2029 | 2030 | 2031 | Mean | Step 10 | Real |
+|---|---|---|---|---|---|---|---|---|
+| New-team deals, $2M+ | 140 | 125 | 77 | 111 | 86 | 108 | 67 | 180 to 240 |
+| New-team deals, $5M+ | 81 | 89 | 53 | 86 | 60 | 74 | 50 | 80 to 120 |
+| Own-team deals of 2+ years | 300 | 116 | 51 | 118 | 158 | 149 | 144 | 210 to 290 |
+| Dead money, mean a team ($M) | 11.9 | 15.7 | 27.2 | 24.7 | 27.8 | 21.5 | 20.1 | about 34 |
+| Cap used, median | 96.0% | 97.1% | 97.8% | 97.7% | 97.9% | 97.3% | 97.2% | |
+| Cap used, highest | 100.0% | 100.0% | 100.2% | 100.0% | 101.1% | | up to 108% | |
+
+**Later years (owner: fix them before merging).** A first version had 144 new-team deals in year one but only 52 to 79 a year after it. The first year's deals filled the next year's room, so teams began each March $0M to $50M over the cap, and most could not clear enough for free agency. Now the second-year check also keeps the room the team will want for free agency next March. After that change, years two to five average 100 new-team deals of $2M+ a year (year one: 140). Teams start March with a median of $6M to $22M of room. 2029 is still the low year, with 77.
+
+I tried and did not keep:
+- Void years for two thirds of the league. That raised new-team deals to about 100 a year, but dead money climbed to $59M a team by year five.
+- Judging cap cuts against a deal's yearly value instead of that year's cap number. It changed nothing.
+
 ## What does not match yet
 
 1. **Too few re-signings.** Before step 7, teams signed about a fifth of the real number of own-team multi-year deals, because there were no early extensions. Step 7 raises it to under half the real number; cap room is now the limit.
