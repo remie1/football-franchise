@@ -1238,6 +1238,8 @@ export interface Step3ArmSetCounts {
   readonly timeToThrow: number | null;
   readonly affected?: { readonly against: string; readonly byMechanism: Readonly<Record<string, number>>; readonly union: number; readonly dropbacks: number };
   readonly census: Readonly<Record<string, unknown>> | null;
+  /** The late blocks' rep margin m (min, median, max over n); `null` with none or on an arm with no s3 census. */
+  readonly lateM?: { readonly n: number; readonly min: number; readonly median: number; readonly max: number } | null;
   readonly s1Problems: number;
   readonly s2Problems: readonly string[];
   readonly s3Problems: readonly string[];
@@ -1482,6 +1484,10 @@ export function renderStep3Sections(s: Step3Sections): readonly string[] {
         out.push(`- ${at}: exclusive affected plays against ${c.affected.against}: ${String(c.affected.union)} of ${String(c.affected.dropbacks)} (${by === "" ? "no exclusive mechanism" : by})`);
       }
       if (c.census !== null) out.push(`- ${at}: the step-3 census (reported): ${JSON.stringify(c.census)}`);
+      if (c.lateM !== undefined && c.lateM !== null) {
+        const outside = c.lateM.min < 1 || c.lateM.max > 19;
+        out.push(`- ${at}: the late blocks' m: min ${String(c.lateM.min)}, median ${String(c.lateM.median)}, max ${String(c.lateM.max)} over ${String(c.lateM.n)}${outside ? " (outside AM-2's design range of 1 to 19)" : " (inside AM-2's design range of 1 to 19)"}`);
+      }
       out.push(`- ${at}: step-1 stream checks ${String(c.s1Problems)} failing; step-2 folds ${c.s2Problems.length === 0 ? "clean" : c.s2Problems.join("; ")}; step-3 folds ${c.s3Problems.length === 0 ? "clean" : c.s3Problems.join("; ")}`);
     }
     out.push("");

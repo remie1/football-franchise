@@ -58,6 +58,7 @@ import {
   foldS3Game,
   lateBlockCheck,
   mergeS3Census,
+  lateMRangeOf,
   s3Census,
   s3Problems,
   standingRecordsOf,
@@ -491,8 +492,16 @@ describe("s3Stream.ts: the late block's place in the stream, and the census", ()
     for (const play of s1PlaysOf([...p1.events, ...p2.events])) s3Census(fold, play, C1);
     expect(fold).toMatchObject({ plays: 2, s3Plays: 2, lateByBand: { RAN_THROUGH: 2 }, lateByKind: { blitz_pickup: 2 }, reachedBeat: 2, heldThePlay: 0, carried: 0, touched: 2, untouchedExchanges: 0, reading: "B" });
     expect(fold.clockMenByOrigin).toEqual({ UNBLOCKED: 1 });
+    // Review FID-F-7: the late blocks' m (the touching margin -5 turned round), and its range.
+    expect(fold.lateByM).toEqual({ 5: 2 });
+    expect(lateMRangeOf(fold)).toEqual({ n: 2, min: 5, median: 5, max: 5 });
     const twice = mergeS3Census(fold, fold);
     expect(twice.lateByBand).toEqual({ RAN_THROUGH: 4 });
+    expect(twice.lateByM).toEqual({ 5: 4 });
+    const wide = emptyS3CensusFold();
+    for (const play of s1PlaysOf(latePlay({ tunables: C15, touchMargin: -40 }).events)) s3Census(wide, play, C15);
+    expect(lateMRangeOf(mergeS3Census(fold, wide))).toEqual({ n: 3, min: 5, median: 5, max: 40 });
+    expect(lateMRangeOf(emptyS3CensusFold())).toBeNull();
     expect(twice.reading).toBe("B");
     const other = emptyS3CensusFold();
     for (const play of s1PlaysOf(p1.events)) s3Census(other, play, armById("C12").tunables);

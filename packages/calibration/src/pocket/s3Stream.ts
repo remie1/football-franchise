@@ -297,10 +297,33 @@ export interface S3CensusFold {
   clockMenByOrigin: Record<string, number>;
   /** The arm's reading, as the key reads it (`D19` for an arm with no free-run block). */
   reading: string | null;
+  /**
+   * Late blocks by their rep margin m (the touching CHECK's margin turned round): AM-2's design range
+   * is 1 to 19, and C12 and C15 feed it from outside that range (review FID-F-7).
+   */
+  lateByM: Record<string, number>;
 }
 
 export function emptyS3CensusFold(): S3CensusFold {
-  return { plays: 0, s3Plays: 0, lateByBand: {}, lateByKind: {}, reachedBeat: 0, heldThePlay: 0, carried: 0, untouchedExchanges: 0, touched: 0, clockMenByOrigin: {}, reading: null };
+  return { plays: 0, s3Plays: 0, lateByBand: {}, lateByKind: {}, reachedBeat: 0, heldThePlay: 0, carried: 0, untouchedExchanges: 0, touched: 0, clockMenByOrigin: {}, reading: null, lateByM: {} };
+}
+
+/** The late blocks' m range from the census (min, median, max, count); `null` with no late block. The median of an even count is the lower middle. */
+export function lateMRangeOf(fold: Pick<S3CensusFold, "lateByM">): { readonly n: number; readonly min: number; readonly median: number; readonly max: number } | null {
+  const cells = Object.entries(fold.lateByM ?? {}).map(([k, v]) => [Number(k), v] as const).sort((a, b) => a[0] - b[0]);
+  const n = cells.reduce((a, [, v]) => a + v, 0);
+  if (n === 0) return null;
+  const at = Math.floor((n - 1) / 2);
+  let seen = 0;
+  let median = cells[0]![0];
+  for (const [m, v] of cells) {
+    if (seen + v > at) {
+      median = m;
+      break;
+    }
+    seen += v;
+  }
+  return { n, min: cells[0]![0], median, max: cells[cells.length - 1]![0] };
 }
 
 const bump = (r: Record<string, number>, k: string): void => {
@@ -328,6 +351,7 @@ export function s3Census(fold: S3CensusFold, play: S1Play, tunables: Tunables): 
   for (const b of play.lateBlocks) {
     bump(fold.lateByBand, String(b.touching.c.band));
     bump(fold.lateByKind, b.touching.c.checkKind);
+    bump(fold.lateByM, String(lateRepMargin(b.touching.c.margin)));
     const beatTick = d.shape === "S" ? lateBeatTickOf(b, d) : b.ticks.find((k) => k.c.margin >= d.bands.win)?.tick;
     if (beatTick !== undefined && b.ticks.some((k) => k.tick >= beatTick - TOLERANCE)) fold.reachedBeat += 1;
     else fold.heldThePlay += 1;
@@ -387,5 +411,6 @@ export function mergeS3Census(a: S3CensusFold, b: S3CensusFold): S3CensusFold {
     touched: a.touched + b.touched,
     clockMenByOrigin: add(a.clockMenByOrigin, b.clockMenByOrigin),
     reading: a.reading ?? b.reading,
+    lateByM: add(a.lateByM, b.lateByM),
   };
 }

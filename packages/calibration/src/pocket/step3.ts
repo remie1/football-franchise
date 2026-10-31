@@ -118,7 +118,7 @@ import { s1Problems } from "./s1Stream.js";
 import { CHECKDOWN_TRIGGERS, checkdownTriggersOf, emptyS2Folds, mustActPartsOf, s2Checks, s2ContextOf, s2PlaysOf, s2Problems, selfCheckOf, threatPartAt, type GuardGameVector, type MustActSelfCheck, type S2Context, type S2Folds, type S2Play } from "./s2Stream.js";
 import { POCKET_1_S2_PINS } from "./s2Pins.js";
 import { centerOfPlayStart, clockKeyOf, onClockUnder, touchOfCheck, type ClockKey, type Touch, type TouchingCheck } from "./freeRunKey.js";
-import { emptyS3Folds, foldS3Game, s3Problems, type S3Folds } from "./s3Stream.js";
+import { emptyS3Folds, foldS3Game, lateMRangeOf, s3Problems, type S3Folds } from "./s3Stream.js";
 import { openFiling, PR33_STATE, sanitize, type Step3Args } from "./step0.js";
 import {
   armFileOf,
@@ -1535,6 +1535,7 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
           seedSet: s, dropbacks: m.dropbacks, timeToThrow: m.timeToThrow,
           ...(aff === undefined ? {} : { affected: { against: aff.against, byMechanism: aff[league].byMechanism as Record<string, number>, union: aff[league].union, dropbacks: aff[league].dropbacks } }),
           census: L.census === null ? null : (sanitize(L.census) as Record<string, unknown>),
+          lateM: L.census === null ? null : lateMRangeOf(L.census),
           s1Problems: s1Problems(r.s1[league]).length,
           s2Problems: s2Problems(s2Of(r, league)),
           s3Problems: L.lateBlock === null || L.census === null ? [] : s3Problems({ lateBlock: L.lateBlock, census: L.census }),
