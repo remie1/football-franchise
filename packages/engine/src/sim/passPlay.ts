@@ -52,7 +52,7 @@ import { PlayEventLog } from "../events.js";
 import type { ThreatApproach } from "../events.js";
 import { clamp, flatModifier } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
-import type { Tunables } from "../tunables.js";
+import type { LateBlockTunables, Tunables } from "../tunables.js";
 import type {
   ContestPosition,
   CoverageAssignment,
@@ -120,6 +120,15 @@ import { resolvePassRushRep, resolvePassRushTick } from "../resolve/passRush.js"
 import type { PassRushBandLabel, PassRushTickOutcome } from "../resolve/passRush.js";
 import { drawBeat, resolveBeatTick } from "../resolve/beatClock.js";
 import type { BeatTickOutcome } from "../resolve/beatClock.js";
+import {
+  drawLateBeat,
+  lateEngageTickOf,
+  lateRepMargin,
+  lateThreatOf,
+  resolveLateBeatTick,
+  resolveLateTickL,
+} from "../resolve/lateBlock.js";
+import type { LateTickOutcome } from "../resolve/lateBlock.js";
 import { threatApproachOf, withApproach } from "../resolve/approach.js";
 import type { ApproachFacts } from "../resolve/approach.js";
 import {
@@ -251,9 +260,43 @@ interface RushMatchup {
   beatenSeen?: boolean;
   /**
    * ADR-089 P4: the approach of this matchup's won rep, computed once, at its first win, and
-   * carried by every threat its wins build. Never set under `legacy`.
+   * carried by every threat its wins build. Never set under `legacy`. On a late block, the approach
+   * of its beaten threat (§4.0's row 3), computed once the same way.
    */
   wonApproach?: ThreatApproach;
+  /**
+   * ADR-089 step 3 (E4; `pocket-1.s3` with `blitzPickup.lateBlock` only): a touched man's late,
+   * weak block (`resolve/lateBlock.ts`). `blocker` stays `undefined` and `rep` is never set, so no
+   * `pass_rush_rep`, step-1 beat or `:jitter` die is drawn for him; the line battle gives him his own
+   * branch. He has no threat at the snap. Never set under `legacy`, s1 or s2.
+   */
+  late?: LateMatchup;
+}
+
+/** ADR-089 step 3 (E4): what a late block reads, set once when the matchup is built. */
+interface LateMatchup {
+  /** The man whose hand was on him (AM-2's toucher; a carried record keeps its own). */
+  readonly toucher: PlayerState;
+  /** The touching CHECK's margin turned round. */
+  readonly m: number;
+  /** The touching CHECK's `rngLabel`: the late beat's `rollRef` and fork, and his threat's `rollRef`. */
+  readonly touchRollRef: string;
+  readonly origin: "PICKUP_LOST" | "STUNT_LOOPER";
+  /** The touching CHECK's band, for §4.0's row 3. */
+  readonly band: string | undefined;
+  /** D16's side, carried onto his threat (engine-internal). */
+  readonly side: RunSide | undefined;
+  /** The first tick at or after `t_e`; `undefined` when the block never engages in the play. */
+  readonly engageTick: number | undefined;
+  /** Shape S: the late beat, drawn once at the snap. */
+  beat?: { readonly T: number; readonly tick: number | undefined; readonly label: string };
+}
+
+/** What `buildMatchups` needs to build a late block (`undefined` when the bundle has none). */
+interface LateBlockBuild {
+  readonly tunables: Tunables;
+  readonly lateBlock: LateBlockTunables;
+  readonly player: (id: PlayerId) => PlayerState;
 }
 
 /**
@@ -555,7 +598,13 @@ export function simulatePassPlay(
         })
       : lineGames.plans;
   const labelThreat = threatLabellerFor(rules, preSnap.stunts);
-  const matchups = buildMatchups(plansAtSnap, labelThreat);
+  // ADR-089 step 3 (E4): a man with a toucher who is not on the free-run clock is a late block,
+  // keyed on the bundle's late block (a rules gate), never on the toucher's presence alone.
+  const matchups = buildMatchups(
+    plansAtSnap,
+    labelThreat,
+    rules.kind !== "LEGACY" && rules.lateBlock !== undefined ? { tunables, lateBlock: rules.lateBlock, player } : undefined,
+  );
   const recoverySpots = buildRecoverySpots(tunables, state, runCalls, tracks);
 
   // The re-order sees only the coverage read's decisions: a protection-only `made` would skip its
@@ -669,6 +718,27 @@ export function simulatePassPlay(
   if (leashOutcome?.breach !== undefined) log.presnapRead(leashOutcome.breach.presnap);
   for (const check of pickups.checks) log.check(check);
   for (const check of lineGames.checks) log.check(check);
+  // ADR-089 step 3 (E4; AM-2): shape S's late beats, one die each on `rush/beat/<touching label>`,
+  // in matchup order, after every pickup and stunt CHECK and before the snap's TRAVELLING
+  // publications (plan §2.4's stream order). Shape L's late block rolls on its ticks instead.
+  if (rules.kind === "S" && rules.lateBlock !== undefined) {
+    for (const m of matchups) {
+      const late = m.late;
+      if (late === undefined) continue;
+      const beat = drawLateBeat({
+        tunables,
+        beat: rules.beatClock,
+        late: rules.lateBlock,
+        rusher: m.rusher.bio.id,
+        toucher: late.toucher.bio.id,
+        m: late.m,
+        touchRollRef: late.touchRollRef,
+        beatRng: rushRng.fork(`beat/${late.touchRollRef}`),
+      });
+      log.check(beat.check);
+      late.beat = { T: beat.T, tick: beat.tick, label: beat.label };
+    }
+  }
 
   /** §8.1 — where he is in the progression. Wraps; it does NOT skip. */
   let readPointer = 0;
@@ -837,6 +907,108 @@ export function simulatePassPlay(
     };
   };
 
+  /**
+   * ADR-089 step 3 (E4; plan §2.4, critique 3 B1) — ONE TICK OF A LATE BLOCK, its own branch of the
+   * line battle. Nothing before `t_e`; from it a dieless tick naming the late beat (S) or a tick of
+   * two `:late` dice (L, after P17), then today's band and counter tables and today's threat chain,
+   * with the beaten threat built by `lateThreatOf` (his origin, the touching CHECK, a won rep's
+   * travel) and labelled by §4.0's row 3. No rep, no step-1 beat, no `:jitter` die, no push window.
+   */
+  const resolveLateTick = (m: RushMatchup, late: LateMatchup, tickRng: Rng): void => {
+    if (late.engageTick === undefined || tick < late.engageTick) return;
+    let rush: LateTickOutcome;
+    if (rules.kind === "S") {
+      const beat = late.beat;
+      if (beat === undefined) throw new Error("@ff/engine: a late block's pass_rush_beat did not resolve under shape S");
+      const s = resolveLateBeatTick({
+        tunables,
+        rusher: m.rusher.bio.id,
+        toucher: late.toucher.bio.id,
+        m: late.m,
+        move: m.move,
+        beatTick: beat.tick,
+        beatLabel: beat.label,
+        tick,
+      });
+      log.check(s.check);
+      rush = s;
+    } else if (rules.kind === "L" && rules.lateBlock !== undefined) {
+      const l = resolveLateTickL({
+        tunables,
+        repClock: rules.repClock,
+        late: rules.lateBlock,
+        rusher: m.rusher.bio.id,
+        toucher: late.toucher.bio.id,
+        m: late.m,
+        touchRollRef: late.touchRollRef,
+        tickRng,
+        tick,
+      });
+      log.check(l.check);
+      rush = l;
+    } else {
+      throw new Error("@ff/engine: a late block outside a pocket-1 block clock with its late block");
+    }
+    m.pressure = advancePressure(m.pressure, rush);
+    m.previousBand = rush.band;
+    m.consecutiveContains = continuesContainStreak(rush.band) ? m.consecutiveContains + 1 : 0;
+    const before = m.threat;
+    if (startsThreat(rush.band)) {
+      if (labelThreat !== undefined && m.wonApproach === undefined) {
+        m.wonApproach = labelThreat(
+          {
+            origin: late.origin,
+            ...(late.band === undefined ? {} : { band: late.band }),
+            alignment: m.alignment,
+            move: m.move,
+          },
+          m.rusher.bio.id,
+        );
+      }
+      const won = withApproach(
+        lateThreatOf({
+          tunables,
+          rusher: m.rusher,
+          alignment: m.alignment,
+          move: m.move,
+          margin: rush.margin,
+          tick,
+          origin: late.origin,
+          touchRollRef: late.touchRollRef,
+          side: late.side,
+        }),
+        m.wonApproach,
+      );
+      m.threat = soonerThreat(before, won);
+      if (m.threat !== before) {
+        publishThreat(m.threat, "TRAVELLING");
+        m.announcedArrival = false;
+        retireIfBeyondClock(m);
+      }
+    } else if (clearsThreat(tunables, rush.band)) {
+      if (before !== undefined) {
+        publishThreat(before, "RESET");
+        m.threat = undefined;
+        m.announcedArrival = false;
+      }
+    } else if (before !== undefined) {
+      if (retiresBySustainedContainment(tunables, rush.band, m.consecutiveContains)) {
+        publishThreat(before, "RESET");
+        m.threat = undefined;
+        m.announcedArrival = false;
+        m.consecutiveContains = 0;
+      } else {
+        const delayed = delayThreat(before, recoverySecondsFor(tunables, rush.band));
+        if (delayed !== before) {
+          m.threat = delayed;
+          publishThreat(delayed, "DELAYED");
+          m.announcedArrival = false;
+          retireIfBeyondClock(m);
+        }
+      }
+    }
+  };
+
   while (outcome === undefined && tick <= tunables.clock.maxTick) {
     log.tickStart(tick);
 
@@ -914,6 +1086,11 @@ export function simulatePassPlay(
     if (scramble === undefined) {
       const tickRng = rushRng.fork(`t${tick.toFixed(1)}`);
       for (const m of matchups) {
+        // ADR-089 step 3 (E4): a late block has its own branch, before the rep (critique 3 B1).
+        if (m.late !== undefined) {
+          resolveLateTick(m, m.late, tickRng);
+          continue;
+        }
         // §7.3 / §7.4 — nobody is blocking him, so there is no rep to roll. His
         // threat was created at the snap and nothing at the line can reset it:
         // only the quarterback moving, or the clock, changes what happens next.
@@ -2168,8 +2345,50 @@ function checkdownTrack(
  * entry 21). §7.4 now answers the question the exception was standing in for:
  * he is picked up, he is slid to, or he is a free runner with an ETA.
  */
-function buildMatchups(plans: readonly RushPlan[], labelThreat: ThreatLabeller | undefined): RushMatchup[] {
-  return plans.map((plan) => ({
+function buildMatchups(
+  plans: readonly RushPlan[],
+  labelThreat: ThreatLabeller | undefined,
+  late: LateBlockBuild | undefined,
+): RushMatchup[] {
+  return plans.map((plan): RushMatchup => {
+    // ADR-089 step 3 (E4): a touched man the reading keeps off the free-run clock is blocked late.
+    const free = plan.free;
+    const toucher = free?.toucher;
+    if (late === undefined || free === undefined || toucher === undefined || free.onClock === true) {
+      return untouchedMatchup(plan, labelThreat);
+    }
+    if (free.touchMargin === undefined || free.origin === "UNBLOCKED") {
+      throw new Error(`@ff/engine: ${String(plan.rusher.bio.id)}'s late block has no touching CHECK`);
+    }
+    return {
+      rusher: plan.rusher,
+      blocker: undefined,
+      move: plan.move,
+      alignment: plan.alignment,
+      side: plan.side,
+      gap: plan.gap,
+      pressure: 0,
+      previousBand: undefined,
+      rep: undefined,
+      threat: undefined,
+      announcedArrival: false,
+      consecutiveContains: 0,
+      late: {
+        toucher: late.player(toucher),
+        m: lateRepMargin(free.touchMargin),
+        touchRollRef: free.rollRef,
+        origin: free.origin,
+        band: free.band,
+        side: free.side,
+        engageTick: lateEngageTickOf(late.tunables, late.lateBlock),
+      },
+    };
+  });
+}
+
+/** A matchup as every rule set before step 3 builds it: blocked, or a free runner travelling from the snap. */
+function untouchedMatchup(plan: RushPlan, labelThreat: ThreatLabeller | undefined): RushMatchup {
+  return {
     rusher: plan.rusher,
     blocker: plan.blocker,
     move: plan.move,
@@ -2182,7 +2401,7 @@ function buildMatchups(plans: readonly RushPlan[], labelThreat: ThreatLabeller |
     threat: freeRunnerThreat(plan, labelThreat),
     announcedArrival: false,
     consecutiveContains: 0,
-  }));
+  };
 }
 
 /**

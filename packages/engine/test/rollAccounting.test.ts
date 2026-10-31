@@ -12,11 +12,22 @@
  * duplicate roll labels by anything. One rule, one file, both entry points, both
  * schemes.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// ADR-089 step 3 (R-4): a pass-through spy, so the pairing below reads which men the play made late
+// blocks. Nothing else is changed; under every other rule set the pass is never called.
+vi.mock("../src/sim/freeRunTiming.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../src/sim/freeRunTiming.js")>();
+  return { ...real, timeFreeRunners: vi.fn(real.timeFreeRunners) };
+});
+
+import { playerId } from "@ff/contracts";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
-import { simulateGame, simulatePassPlay, simulateRunPlay } from "../src/index.js";
+import { defaultPlayCaller, simulateGame, simulatePassPlay, simulateRunPlay } from "../src/index.js";
+import { timeFreeRunners } from "../src/sim/freeRunTiming.js";
 import { buildGameFixture } from "./gameFixtures.js";
-import { PASS_FIXTURES, RULE_SETS, STEP1_RULE_SET_NAMES, isShapeS, pocketTicks } from "./pocketTunables.js";
+import { PASS_FIXTURES, RULE_SETS, S2_TUNABLES, S3_TUNABLES, STEP1_RULE_SET_NAMES, isShapeS, pocketTicks } from "./pocketTunables.js";
+import { frontWithPicture, withLineUp, withPicture } from "./snapFixtures.js";
 import { mustActThreat } from "../src/resolve/pocket.js";
 import {
   RUN_SCHEMES,
@@ -338,6 +349,160 @@ describe("ADR-004 roll accounting", () => {
     for (const [name, families] of step2Families) {
       expect(families.size, name).toBeGreaterThan(20);
       expect([...families].filter((f) => !step1Families.has(f)), name).toEqual([]);
+    }
+  });
+
+  /**
+   * ADR-089 step 3 — R-4, ROLL ACCOUNTING AS A PAIRING TEST (plan §6.2; critique 3 B1). C1's shape
+   * (`S3_TUNABLES`: S2 with the free-run block, the late block on shape S and the climb lane FRONT)
+   * against its base B3's (`S2_TUNABLES`), on every pass fixture and two step-3 fronts with line
+   * games, each play's calls carrying the same picture under both:
+   *  8. the same pre-snap dice; the same rep and rep-beat dice for every blocked matchup, in order,
+   *     and the rep CHECKs field for field;
+   *  9. beyond those, exactly one `rush/beat/<pre-snap label>` per late block, its label the
+   *     touching CHECK's, and nothing else;
+   * 10. no `pass_rush_rep` names a late-blocked man or pairs him with his toucher, and no `:jitter`
+   *     label names either of them;
+   * 11. the label families C1 draws are B3's plus ONE new family, `rush/beat/<pre-snap label>`
+   *     (shape L's other new family, `rush/t<tick>/<id>:late`, waits on P17 and is
+   *     `lateBlockL.test.ts`'s, with the touching CHECK named and two dice a tick);
+   * 12. no RollDetail twice in a C1 play, nor in a whole game under C1 with a picture on every pass.
+   * Shape L's pairing (C14 against B5) needs P17 and is not run here.
+   */
+  it("step 3: the late block draws one beat per late block and nothing else; the free-run block draws none (R-4)", () => {
+    type Roll = { readonly rngLabel: string; readonly raw: number; readonly kind: string };
+    const rushRolls = (events: readonly MatchEventEnvelope[]): Roll[] =>
+      events.flatMap(({ event }) => {
+        if (event.type !== "CHECK") return [];
+        const p = event.payload;
+        return [p.roll, p.opposedRoll]
+          .filter((r): r is RollDetail => r !== undefined && r.rngLabel.includes("/rush/"))
+          .map((r) => ({ rngLabel: r.rngLabel, raw: r.raw, kind: p.checkKind }));
+      });
+    const presnapRolls = (events: readonly MatchEventEnvelope[]): { rngLabel: string; raw: number }[] =>
+      allRolls(events)
+        // A late beat's label names its pre-snap CHECK too; it is the rush bucket's, not counted here.
+        .filter((r) => r.roll.rngLabel.includes("/presnap") && !r.roll.rngLabel.includes("/rush/"))
+        .map((r) => ({ rngLabel: r.roll.rngLabel, raw: r.roll.raw }));
+    const repChecks = (events: readonly MatchEventEnvelope[]): string[] =>
+      events.flatMap(({ event }) => (event.type === "CHECK" && event.payload.checkKind === "pass_rush_rep" ? [JSON.stringify(event.payload)] : []));
+    const isLateBeat = (r: Roll): boolean => r.kind === "pass_rush_beat" && /\/rush\/beat\/.*\/presnap\//.test(r.rngLabel);
+    const family = (label: string): string =>
+      label.replace(/(^|[/:])t\d+(\.\d+)?(?=[:/]|$)/g, "$1t#").replace(/:([ra])\d+:/g, ":$1#:").replace(/\/play:\d+\//g, "/play:#/");
+    const strip = (rolls: readonly Roll[]): { rngLabel: string; raw: number }[] => rolls.map((r) => ({ rngLabel: r.rngLabel, raw: r.raw }));
+    const timing = vi.mocked(timeFreeRunners);
+    const dt1 = playerId("dt1");
+    const de1 = playerId("de1");
+    const blz0 = playerId("blz0");
+    const fixtures: readonly (readonly [string, () => { state: Parameters<typeof simulatePassPlay>[0]; calls: Parameters<typeof simulatePassPlay>[1] }])[] = [
+      ...PASS_FIXTURES.map(([name, build]) => [name, () => {
+        const { state, calls } = build();
+        return { state, calls: withPicture(state, calls) };
+      }] as const),
+      ["front +2, TRIPLE twist", () => {
+        const f = frontWithPicture({ extras: 2, stunts: [{ penetrator: dt1, looper: de1, complexity: "TRIPLE" }] });
+        return { state: f.scenario.state, calls: f.calls };
+      }],
+      ["front +2, a blitzer's twist", () => {
+        const f = frontWithPicture({ extras: 2, stunts: [{ penetrator: blz0, looper: de1, complexity: "T_E" }] });
+        return { state: f.scenario.state, calls: f.calls };
+      }],
+    ];
+    const baseFamilies = new Set<string>();
+    const newFamilies = new Set<string>();
+    let plays = 0;
+    let lateBlocks = 0;
+    let blockedPlays = 0;
+    for (const [fixture, build] of fixtures) {
+      for (let i = 0; i < 100; i++) {
+        const seed = `paired-s3-${fixture}-${i}`;
+        const { state, calls } = build();
+        const b3 = simulatePassPlay(state, calls, seed, S2_TUNABLES).events;
+        timing.mockClear();
+        const c1 = simulatePassPlay(state, calls, seed, S3_TUNABLES).events;
+        expect(timing).toHaveBeenCalledTimes(1);
+        const plans = timing.mock.results[0]?.type === "return" ? (timing.mock.results[0].value as ReturnType<typeof timeFreeRunners>) : [];
+        const late = plans.flatMap((p) =>
+          p.free?.toucher !== undefined && p.free.onClock !== true ? [{ rusher: String(p.rusher), toucher: String(p.free.toucher) }] : [],
+        );
+        plays += 1;
+        lateBlocks += late.length;
+        // (8) the same pre-snap dice.
+        expect(presnapRolls(c1)).toEqual(presnapRolls(b3));
+        const c1Rush = rushRolls(c1);
+        const b3Rush = rushRolls(b3);
+        const lateBeats = c1Rush.filter(isLateBeat);
+        const rest = c1Rush.filter((r) => !isLateBeat(r));
+        // (8) the rep and rep-beat dice, in order, and the rep CHECKs field for field. (A rep is
+        // drawn on its matchup's first line-battle tick, which both plays reach on every fixture
+        // and seed here.)
+        expect(rest.every((r) => r.kind === "pass_rush_rep" || r.kind === "pass_rush_beat")).toBe(true);
+        expect(strip(rest)).toEqual(strip(b3Rush));
+        expect(repChecks(c1)).toEqual(repChecks(b3));
+        if (b3Rush.length > 0) blockedPlays += 1;
+        // (9) one late beat per late block, naming its touching CHECK, a pre-snap roll of the play.
+        expect(lateBeats).toHaveLength(late.length);
+        const presnapLabels = new Set(presnapRolls(c1).map((r) => r.rngLabel));
+        for (const beat of lateBeats) {
+          const touching = beat.rngLabel.slice(beat.rngLabel.indexOf("/rush/beat/") + "/rush/beat/".length);
+          expect(presnapLabels.has(touching), `${seed}: ${touching}`).toBe(true);
+        }
+        expect(new Set(lateBeats.map((r) => r.rngLabel)).size).toBe(lateBeats.length);
+        // (10) no rep and no jitter for a late-blocked man or his toucher.
+        for (const { rusher, toucher } of late) {
+          for (const { event } of c1) {
+            if (event.type !== "CHECK") continue;
+            const p = event.payload;
+            if (p.checkKind === "pass_rush_rep") {
+              expect(p.actors.map(String)).not.toContain(rusher);
+              expect(p.actors.map(String)).not.toEqual([rusher, toucher]);
+            }
+            for (const r of [p.roll, p.opposedRoll]) {
+              if (r === undefined) continue;
+              expect(r.rngLabel.endsWith(`/${rusher}:jitter`) || r.rngLabel.endsWith(`/${toucher}:jitter`)).toBe(false);
+              expect(r.rngLabel.includes(`/${rusher}:rep/`)).toBe(false);
+            }
+          }
+        }
+        // (11) the label families of the two buckets the step-3 blocks draw in (the rush bucket and
+        // the pre-snap reads). A carrier's or a tackle's labels name the zone and the man the play
+        // happened to reach, so a play that goes elsewhere draws a family the other did not; those
+        // buckets are left to (12).
+        const lineFamilies = (events: readonly MatchEventEnvelope[]): string[] =>
+          allRolls(events)
+            .map((r) => r.roll.rngLabel)
+            .filter((l) => l.includes("/rush/") || l.includes("/presnap"))
+            .map(family);
+        for (const f of lineFamilies(b3)) baseFamilies.add(f);
+        for (const f of lineFamilies(c1)) newFamilies.add(f);
+        // (12) no RollDetail twice in the play.
+        const labels = allRolls(c1).map((r) => r.roll.rngLabel);
+        expect(new Set(labels).size).toBe(labels.length);
+      }
+    }
+    expect(plays).toBe(fixtures.length * 100);
+    expect(lateBlocks).toBeGreaterThan(50);
+    expect(blockedPlays).toBeGreaterThan(1000);
+    const added = [...newFamilies].filter((f) => !baseFamilies.has(f));
+    expect(added.filter((f) => !/\/rush\/beat\/.*\/presnap\//.test(f))).toEqual([]);
+    expect(added.length).toBeGreaterThan(0);
+  });
+
+  it("step 3: no RollDetail twice in a whole game under C1's shape, a picture on every pass (R-4)", () => {
+    const fixture = buildGameFixture({ seed: "s3-game-accounting" });
+    const inputs = {
+      ...fixture.inputs,
+      callers: { home: withLineUp(defaultPlayCaller("baseline-home")), away: withLineUp(defaultPlayCaller("baseline-away")) },
+    };
+    vi.mocked(timeFreeRunners).mockClear();
+    const { events } = simulateGame(fixture.state, inputs, fixture.seed, S3_TUNABLES);
+    expect(vi.mocked(timeFreeRunners).mock.calls.length).toBeGreaterThan(20);
+    const rolls = allRolls(events);
+    expect(rolls.length).toBeGreaterThan(500);
+    const seen = new Map<string, number>();
+    for (const { roll, seq } of rolls) {
+      expect(seen.get(roll.rngLabel), `${roll.rngLabel} at ${seq}`).toBeUndefined();
+      seen.set(roll.rngLabel, seq);
     }
   });
 

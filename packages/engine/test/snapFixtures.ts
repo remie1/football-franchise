@@ -11,8 +11,11 @@
  */
 import { POSITION_GROUP } from "@ff/contracts";
 import type { PlayerId, PlayerSnapSpot, SnapMovement, SnapPicture } from "@ff/contracts";
-import type { MatchGameState, PlayCalls, RunSide, RushAlignment } from "../src/types.js";
+import type { MatchGameState, PlayCalls, RunSide, RushAlignment, RushMove, StuntCall } from "../src/types.js";
+import type { PlayCaller } from "../src/index.js";
 import type { Tunables } from "../src/tunables.js";
+import { buildFrontScenario } from "./fixtures.js";
+import type { FrontOptions, Scenario } from "./fixtures.js";
 
 /** Where a rusher of a group stands: (width from the ball, depth), by alignment. */
 const RUSHER_SPOTS = {
@@ -32,7 +35,7 @@ export interface PictureOptions {
 const sign = (side: RunSide | undefined): number => (side === "LEFT" ? -1 : side === "RIGHT" ? 1 : 0);
 
 /** A picture of `calls` on `state`: the played rushers by group, alignment and side; everyone else placed apart. */
-export function pictureFor(state: MatchGameState, calls: PlayCalls, options: PictureOptions = {}): SnapPicture {
+export function pictureFor(state: Pick<MatchGameState, "players" | "quarterback">, calls: PlayCalls, options: PictureOptions = {}): SnapPicture {
   const ballX = options.ballX ?? 0;
   const omit = new Set((options.omit ?? []).map(String));
   const seen = new Set<string>();
@@ -91,4 +94,41 @@ export function needsPicture(tunables: Tunables): boolean {
 /** `calls`, with a picture when `tunables` need one and as they came otherwise. */
 export function callsUnder(tunables: Tunables, state: MatchGameState, calls: PlayCalls): PlayCalls {
   return needsPicture(tunables) ? withPicture(state, calls) : calls;
+}
+
+/** `buildFrontScenario`'s options, with a line game, a drop and moves by rusher, for the step-3 suites. */
+export interface Step3FrontOptions extends FrontOptions {
+  readonly stunts?: readonly StuntCall[];
+  readonly dropDepthYards?: number;
+  readonly moves?: Readonly<Record<string, RushMove>>;
+}
+
+/** `buildFrontScenario` with the options above and the picture of itself on its calls. */
+export function frontWithPicture(options: Step3FrontOptions = {}): { readonly scenario: Scenario; readonly calls: PlayCalls } {
+  const base = buildFrontScenario(options);
+  const rush = base.calls.defense.rush.map((r) => {
+    const move = options.moves?.[String(r.rusher)];
+    return move === undefined ? r : { ...r, move };
+  });
+  const calls: PlayCalls = {
+    ...base.calls,
+    offense: { ...base.calls.offense, ...(options.dropDepthYards === undefined ? {} : { dropDepthYards: options.dropDepthYards }) },
+    defense: { ...base.calls.defense, rush, shownRush: rush, ...(options.stunts === undefined ? {} : { stunts: options.stunts }) },
+  };
+  return { scenario: base, calls: withPicture(base.state, calls) };
+}
+
+/**
+ * `caller` with a `lineUp` that draws `pictureFor`'s picture on every pass play (none on a run, which
+ * reads no picture), so a whole game can run under the step-3 blocks. Rolls no die.
+ */
+export function withLineUp(caller: PlayCaller): PlayCaller {
+  return {
+    ...caller,
+    lineUp(request) {
+      if (request.offenseCall.kind === "RUN") return undefined;
+      const state = { players: { ...request.defense.players, ...request.offense.players }, quarterback: request.offense.offense.quarterback };
+      return pictureFor(state, { offense: request.offenseCall, defense: request.defenseCall });
+    },
+  };
 }
