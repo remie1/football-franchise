@@ -45,10 +45,11 @@
  * `blitzPickup.lateBlock` (the late, weak block for touched men, `t_e` and `w`) and
  * `pocket.climbLane` (`FRONT`). Under `legacy` (no block clock) each is refused, never ignored. The
  * late block runs on both shapes now that petition P17's doc text is in contracts (refused on shape L
- * only when a test withholds P17); reading C runs no late block and reading A needs one. `threatGeometry` (the gate on publishing the threats'
- * `distanceYards` and `closingSpeed`) is true only with a free-run block AND petition P5 in
- * contracts. Both petitions are the two constants below, each lifted after the owner's typed yes
- * landed its text (plan §3.3, §3.4: E4b, E6b; what each lift changed is on the constants).
+ * only when a test withholds P17); reading C runs no late block and reading A needs one.
+ * `threatGeometry` (the gate on publishing the threats' `distanceYards` and `closingSpeed`) is true
+ * only with a free-run block AND petition P5 in contracts. Both petitions are the two constants
+ * below, each lifted after the owner's typed yes landed its text (plan §3.3, §3.4: E4b, E6b; what
+ * each lift changed is on the constants).
  * `PLAY_START.rules` still keeps its two keys: the step-3 blocks are named by the overlay digest.
  */
 import { ATTR_SCALE } from "@ff/contracts";

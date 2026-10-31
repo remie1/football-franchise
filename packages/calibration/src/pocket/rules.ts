@@ -427,9 +427,9 @@ function blocksOf(tunables: Tunables): string[] {
  * `repClock` (shape L), with the approach card; and from step 3 (plan §2.1), for each step-3 block it
  * carries, the clock shape it runs on: the late block on either shape now that petition P17's doc
  * text is in contracts (on shape S only while it is not), as the free-run block and the climb lane
- * run on either shape. Checked here too,
- * so a calibration bundle outside them is refused before any game, with this module's error. (Which
- * reading runs a late block is a dial's matter, checked with the dials, after the overlay digest.)
+ * run on either shape. Checked here too, so a calibration bundle outside them is refused before any
+ * game, with this module's error. (Which reading runs a late block is a dial's matter, checked with
+ * the dials, after the overlay digest.)
  */
 function assertClosedSet(tunables: Tunables, where: string): void {
   const { passRush } = tunables;
