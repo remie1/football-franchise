@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   DEFAULT_LEAGUE_RULES, createRng, playerId,
-  type DraftClass, type PlayerState, type Position, type TeamId,
+  type DraftClass, type PlayerContract, type PlayerState, type Position, type TeamId,
 } from "@ff/contracts";
 import { buildLeague, makeSave, readSave, runSeason, type GameResolver, type LeaguePeople } from "../src/index.js";
 import { WANTED, type Rate } from "../src/draft/board.js";
@@ -280,5 +280,57 @@ describe("saves keep the contracts and dead money (ADR-085 with ADR-086)", () =>
     expect(JSON.stringify(second.people!.contracts)).toBe(JSON.stringify(straight.people!.contracts));
     expect(JSON.stringify(second.people!.deadMoney)).toBe(JSON.stringify(straight.people!.deadMoney));
     expect(JSON.stringify(second.people!.teams)).toBe(JSON.stringify(straight.people!.teams));
+  });
+});
+
+describe("compensatory picks from the moves kept on the people (ADR-086 §5)", () => {
+  const signedAt = { season: 2025, phase: "OFF_RESET_FA" as const, week: 1, day: 2 }; // league year 2026
+  const base = startingPeople();
+  const deal = (player: string, team: TeamId, apy: number): PlayerContract => ({
+    player: playerId(player), team, signedAt, kind: "VETERAN",
+    years: [2026, 2027].map((season) => ({ season, baseSalary: apy, signingBonusProration: 0, guarantees: { fullyGuaranteed: false }, capHit: apy })),
+  });
+  const [a, b, c] = base.teams.map((t) => t.id);
+  // Every move is in the top 5% of deals (round 3). Team a lost two and signed one: one left over.
+  // Team b lost one and signed one: none. Team c only signed. The 2024 move is too old to count.
+  const moves = [
+    { player: playerId(`${String(a)}-QB-0`), from: a!, to: c!, apy: 40e6, signedAt },
+    { player: playerId(`${String(a)}-WR-0`), from: a!, to: c!, apy: 20e6, signedAt },
+    { player: playerId(`${String(b)}-CB-0`), from: b!, to: a!, apy: 5e6, signedAt },
+    { player: playerId(`${String(c)}-LB-0`), from: c!, to: b!, apy: 30e6, signedAt },
+    { player: playerId("old-move"), from: b!, to: c!, apy: 50e6, signedAt: { ...signedAt, season: 2024 } },
+  ];
+  const filler = base.players.slice(0, 400).map((p, i) => deal(String(p.bio.id), p.teamId!, 1e6 + i * 1000));
+  const people: LeaguePeople = { ...base, freeAgentMoves: moves, contracts: [...filler, ...moves.map((m) => deal(String(m.player), m.to, m.apy))] };
+  const run = runSeason({ league, season: 2026, seed: "s", resolve: fake, people, daySteps: steps, through: "YEAR" });
+  const awarded = run.events.find((e) => e.event.type === "COMPENSATORY_PICKS_AWARDED")!.event as { payload: { draft: number; picks: { team: TeamId; round: number }[] } };
+
+  it("awards the league's 32 for next year's draft, earned picks to the team that lost more than it signed", () => {
+    expect(awarded.payload.draft).toBe(2027);
+    expect(awarded.payload.picks).toHaveLength(32);
+    expect(awarded.payload.picks.filter((p) => p.round < 7)).toEqual([{ team: a, round: 3, kind: "COMPENSATORY" }]);
+    expect(awarded.payload.picks.filter((p) => p.round === 7)).toHaveLength(31);
+  });
+
+  it("drops the moves once counted, and the draft has 224 + 32 picks", () => {
+    expect(run.people!.freeAgentMoves).toEqual([]);
+    expect(run.events.filter((e) => e.event.type === "DRAFT_PICK_MADE")).toHaveLength(256);
+  });
+});
+
+describe("runSeason's draft option: seasons back to back (ADR-086 D6)", () => {
+  const one = runSeason({ league, season: 2026, seed: "s", resolve: fake, people: startingPeople(), draft: { rate, makeClass }, through: "YEAR" });
+  const two = runSeason({ league, season: 2027, seed: "s", resolve: fake, people: one.people!, draft: { rate, makeClass }, through: "YEAR" });
+
+  it("plays the same draft as the steps given by hand, and hands back people already turned to the next year", () => {
+    const byHand = turnYear(year1.people!, { season: 2027, rules: DEFAULT_LEAGUE_RULES }).people;
+    expect(JSON.stringify(one.people)).toBe(JSON.stringify(byHand));
+  });
+
+  it("drafts again the next year, from the next class, and cuts to 53 on the way", () => {
+    expect(two.events.filter((e) => e.event.type === "DRAFT_PICK_MADE")).toHaveLength(224);
+    expect(two.people!.players.some((p) => typeof p.bio.draft === "object" && p.bio.draft.year === 2028)).toBe(true);
+    const cut = two.events.find((e) => e.event.type === "WAIVER_CLAIMED" || e.event.type === "PLAYER_RELEASED");
+    expect(cut?.at.phase).toBe("PRESEASON");
   });
 });
