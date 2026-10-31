@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-25
 - **Proposed by:** Orchestrator (thread "Design snap spots for every player")
-- **Status:** **approved (design), all five questions ruled on 2026-10-30 and 2026-10-31 (§13).** Nothing in `packages/` changes with this ADR. **Revised 2026-10-30:** the Stem moved to its own design, [ADR-091](ADR-091-the-stem-called-by-the-mike.md), on the owner's objection and notes; questions 1 and 4 were re-asked. Later that evening the stem's timing gained [ADR-092](ADR-092-the-battle-over-the-snap-count.md) (the count read: the week's film study and the in-game adjustments), which goes in with ADR-091's steps 3 and 5 below. Five questions go to the owner (§11), in plain words in [ADR-090-questions-explained.md](ADR-090-questions-explained.md) and on cards in the thread Each contracts edit in §8 needs the owner's typed yes naming it, asked at the step that needs it. The owner never merges: each step comes with its numbers and needs the owner's word before the Orchestrator merges it.
+- **Status:** **approved (design), all five questions ruled on 2026-10-30 and 2026-10-31 (§13). Step 0 built 2026-10-31 (§14): the tables and the beats as pure code in `packages/playbook`, called from no game; two placements refined and one petition (S5) added for step 1.** Nothing in play changes with this ADR. **Revised 2026-10-30:** the Stem moved to its own design, [ADR-091](ADR-091-the-stem-called-by-the-mike.md), on the owner's objection and notes; questions 1 and 4 were re-asked. Later that evening the stem's timing gained [ADR-092](ADR-092-the-battle-over-the-snap-count.md) (the count read: the week's film study and the in-game adjustments), which goes in with ADR-091's steps 3 and 5 below. Five questions go to the owner (§11), in plain words in [ADR-090-questions-explained.md](ADR-090-questions-explained.md) and on cards in the thread Each contracts edit in §8 needs the owner's typed yes naming it, asked at the step that needs it. The owner never merges: each step comes with its numbers and needs the owner's word before the Orchestrator merges it.
 - **Asked for by:** the owner, 2026-10-25 01:40Z: *"We identified that there's a huge chess game that's played before the ball is ever snapped and it effects the play that happens after the snap. ... That's what led us into disguises and where defenders were physically located at when the ball is snapped because they might have moved or they might be in motion when the ball is snapped."* The owner then chose "Design now" (01:42:55Z).
 - **Builds on, and does not reopen:** ADR-066's August halt (snap position is the output of the pre-snap phase; geometry consumes it when there is one); ADR-067 (the shown/played pair); ADR-068 and ADR-072 (the reads at the line and the leash); ADR-069 and ADR-071 (coverage looks as named pieces; ruling 1, a look never changes what is played); ADR-073 (front looks Mug and Stem, the shown rush, the pressure read, the creeper); ADR-074 (motion; designed, not built); ADR-075 (the coordinator's disguise and the execution roll; designed, not built); ADR-076 (the weekly game plan; designed, not built); ADR-089 (the pocket fix; its step 3 waits for this design, question 19 answered Wait).
 
@@ -79,9 +79,9 @@ From each defender's **played** duty on the call, against formation A's spots. D
 | corner in a deep-third or quarter zone | 7.0 | the outside receiver on his side, a yard outside |
 | corner in a flat zone (Cover 2's squat corner) | 5.0 | the outside receiver, a yard outside |
 | slot (nickel or dime) corner | 5.0 off, 1.0 pressed | over the slot receiver; blitzing, 5.0 at 7.0 (ADR-089 §4.4.3) |
-| safety, deep half | 12.0 | +-9 (just outside the hash on his half) |
+| safety, deep half | 12.0 | +-9 (between the hash and the numbers on his half; the gloss corrected at step 0, §14) |
 | safety, deep middle | 13.0 | 0 |
-| safety, hook, curl or robber | 8.0 | over the strong side's inside receiver |
+| safety, hook, curl or robber | 8.0 | over the inside receiver on his zone's side; a hole or robber player in the middle (refined at step 0, §14; was "over the strong side's inside receiver") |
 | safety in man on a tight end or back | 7.0 | over his man |
 
 **Leverage** (default D5, CHOSEN, from the owner's August point that leverage "flips based on where the help is", `ADR-066:609`): a man defender shades a yard **away from his help**: outside if a safety is in the deep middle (Cover 1), inside if nobody is deep (Cover 0). A zone defender takes the shade of his zone.
@@ -167,8 +167,9 @@ Question 1 (looks are real) and question 2 (tells) are **separately priceable**:
 | **S2** | `PLAY_START`'s payload carries `snap: SnapPicture` | 1 | the event stream is the single source of truth (Iron Rule 3) |
 | **S3** | doc text only: the front `LOOK` tag and `shownRush` say "never what is played" and "physics never reads it" (`playcalls.ts:471`, `:573`); they gain "the snap picture is built from it (ADR-090), so a look sets where the man starts; what he is assigned to do is unchanged" (made together with ADR-091's M6, which adds the called-off stem) | 3 | the comment is the contract's own statement of the rule |
 | **S4** | doc text only: `RushThreat.distanceYards`' subject condition becomes "a snap spot (ADR-090)", which ADR-066's halt left `unruled` (`ADR-066:655-660`) | 2 | engine-internal field; listed so the halt's open item is closed |
+| **S5** *(added at step 0, §14)* | what a simulation takes (`PlayCalls`, `RunPlayCalls`, `playcalls.ts:580`) carries the snap picture the caller built with the playbook; the engine copies it onto `PLAY_START` (S2) and never builds one itself | 1 | the beats read formations, roles and zone names, which the engine may not see (ADR-006, Iron Rule 1), so the picture has to cross into the engine on the call |
 
-**Not petitioned:** the tables (D3 to D8) live in `packages/playbook` (football authoring data); the beats live in `packages/engine/src/sim/preSnap.ts`, which already runs the reads at the line. This ADR adds no die; the stem's dice are ADR-091's.
+**Not petitioned:** the tables (D3 to D8) live in `packages/playbook` (football authoring data). **The beats live there too** (`packages/playbook/src/snapSpots.ts`), **amended at step 0** (§14): this section first put them in `packages/engine/src/sim/preSnap.ts`, but every beat that places a man reads something the engine may not see, so step 1 carries the picture across on the call (S5). The engine keeps the beats that roll dice: ADR-091's stem plays out over the picture at step 3. This ADR adds no die; the stem's dice are ADR-091's.
 
 ## 9. Real figures to check the table against
 
@@ -226,3 +227,33 @@ Question 1 (looks are real) and question 2 (tells) are **separately priceable**:
 | 3 | Where is the ball across the field? | ✅ **Middle for now**: every snap stays in the middle of the field; the hash gets its own design later, with both play-callers learning the wide and the short side (§10) | owner, 2026-10-31 00:04Z (card tap) |
 | 4 | The plan, steps 0 to 10 (§7) | ✅ **Yes**: steps 0, 1 and 3 change nothing and may merge while ADR-089 is measured; the rest wait until it finishes; each step comes with its numbers and merges only on the owner's word | owner, 2026-10-30 23:43Z (card tap) |
 | 5 | Should the game viewer draw all 22 men at the snap? | ✅ **Yes, at step 1**: the viewer draws the snap picture as soon as the game saves it | owner, 2026-10-31 00:04Z (card tap) |
+
+## 14. Step 0 record (2026-10-31)
+
+**What was built.** Nothing in play changes: no game calls any of it (a search of `packages` and `apps` finds no caller outside its tests and the report).
+
+- `packages/playbook/src/snapSpots.ts`: the field frame and the grid mapping (D1, D2), the offense's table (D3, `lineUpOffense`), the defense's tables (D4, D5) and the seven beats as pure functions (`playPreSnap`, `snapPicture`). Beat 4 (motion) and beat 5 (the reads) move nobody, as §4.4 and §4.5 say.
+- `packages/playbook/test/snapSpots.test.ts`: §7's proof over every call the book can draw, plus the tables' own values, 37 tests.
+- `pnpm --filter @ff/calibration snap-spots` (`packages/calibration/src/snapSpots/`): the report, [`packages/calibration/reports/adr-090-step0.md`](../../packages/calibration/reports/adr-090-step0.md), with its own test.
+
+**The proof (§7), MEASURED over 4,800 pictures**: 26 calls (the book's cards, v6's coverages, the composed pressures and creepers) worn 121 ways (bare and in every set of coverage looks each can wear, early and late), under no front look, the Mug or the Stem, against the 12 formations.
+
+- Every picture has all 22 men, each once.
+- Nobody stands within a yard of anybody except the two the calls ask for: the quarterback under center behind his center (2,000) and a Mug linebacker behind his tackle (2,568).
+- A mirrored call against a mirrored formation draws the mirror picture (over 100,000 spots compared). Two kinds of men are left out, by name: a man-to-man defender on "the n-th back from the left" when the backs stand in different lanes (the mirror changes who that is), and the Mug over a front with a Will and a Sam (the Mug walks up the Will by name, and mirroring a card hands the Will the Sam's job; no game mirrors a card).
+- The same call draws the same picture, and drawing it changes nothing in the call.
+
+**Against the August ranges (§9).** D4 sits inside every one: down linemen at techniques 1, 3 and 6, a yard off the ball, hand down; linebackers not rushing 4.5 deep (one steps back to 5.5 rather than stand on a teammate); press at 1; off at 5 (slot corners) and 7 (safeties); a man defender outside his man every time a safety is in the deep middle, and never outside with nobody there. Today's book presses every outside corner it puts in man, so the 7-yard off corner is drawn only by a test card. **The Big Data Bowl's terms could not be read**: operations.nfl.com and www.kaggle.com are outside this environment's network, and the files also need a Kaggle account. So the report checks the table against the August ranges alone, as §9 allows.
+
+**Amendments made at step 0.**
+
+- **Where the beats live (§8).** In `packages/playbook` beside the tables, not in the engine. Every beat that places a man reads something the engine may not see: the formation's alignments (ADR-006), a defender's role and position group, his zone's name (a deep third and a curl-flat start in different places, and a contracts zone carries only its cell), and which look moved him. So step 1 adds a third petition, **S5**: the calls carry the picture to the engine. It is asked with S1 and S2 at step 1, each needing the owner's typed yes.
+- **D4's deep-half gloss.** "Just outside the hash" did not fit 9 yards (the hash is 3.1 from the middle). The value stands; the words now say "between the hash and the numbers".
+- **D4's underneath safety.** "Over the strong side's inside receiver" put Cover 3 Sky's strong safety over the trips while his flat was on the other side. He now stands over the inside receiver on his zone's side, and a safety who plays the hole or robs the middle stands in the middle.
+
+**Rules the tables did not name.** Each is `CHOSEN — provenance NONE`, a placeholder like the tables, and the report's §6 lists them in plain words: a lineman who drops, a backer with no run fit, a backer in man, quarters safeties, prevent, a nub-side corner, a slot corner with no slot receiver, a bracket, nobody standing on anybody, a blitzing safety or corner, the inline end, the backs' sides, stance, the Stem ending on time until ADR-091 step S-a, and a creeper the Mug walked up.
+
+**Findings for later steps** (nothing reads them now):
+
+- **Show 2 over Base Run Blitz shows the strong safety on the far half from his man**, up to 21.6 yards from where his job lines him up (`CALIBRATION-BACKLOG.md` entry 177). Fix before step 4 makes ground cost time.
+- **Split backs map to the middle lane**: D3 seats them 1.5 yards either side of the quarterback, and the formation names LH and RH. The first entry on step 1's list of cell differences.
