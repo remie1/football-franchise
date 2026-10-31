@@ -122,3 +122,9 @@ export { unsignedDay, drawPatience, type UnsignedInput, type UnsignedResult } fr
 export { lineupFor, teamLineup, type Lineup } from "./players/lineup.js";
 export { changeBody, addPoints, type BodyChange } from "./players/body.js";
 export { emptyMemory, type PlayerMemory, type PlayerWeek, type PastInjury, type RatingGroup } from "./players/types.js";
+// ADR-081 M1: the end-of-season meeting's truth side.
+export { LUCK, pythagorean, seasonLuck, verdictOf, type LuckVerdict, type TeamLuck } from "./meeting/luck.js";
+export {
+  GROUP_OF, STRENGTH, STRENGTH_WEIGHTS, UNIT_OF, leagueStrength, startersOf, strengthWinShare, teamStrength,
+  type MeetingGroup, type Starter, type TeamStrength, type Unit,
+} from "./meeting/strength.js";
