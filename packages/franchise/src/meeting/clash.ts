@@ -20,8 +20,8 @@ export const TEMPER: Readonly<Record<PersonalityType, number>> = { fiery: 1, dem
 
 export const HEAT = {
   /** Heat at which a clash becomes an open argument, and a rift. */
-  open: 1.5,
-  rift: 3,
+  open: 2,
+  rift: 3.5,
   /** Per step apart (one step: off by one; two: opposite). */
   perStep: 0.5,
   /** A coordinator whose unit was bottom ten. */
@@ -50,11 +50,12 @@ export function stepsApart(a: MeetingTake, b: MeetingTake, sideGroups?: Readonly
     }
     case "HOLES":
     case "DECLINE": {
-      // One names on the other's side what the other does not.
-      const inA = new Set(ca.groups ?? ca.players?.map(String) ?? []), inB = new Set(cb.groups ?? cb.players?.map(String) ?? []);
-      const onSide = (x: string) => sideGroups === undefined || sideGroups.has(x) || ca.players !== undefined;
-      const missed = [...inA].filter((x) => onSide(x) && !inB.has(x)).length + [...inB].filter((x) => onSide(x) && !inA.has(x)).length;
-      return missed >= 2 ? 1 : 0;
+      // Each man's first name on the side in question is missing from the other's list.
+      const listA = (ca.groups ?? ca.players?.map(String) ?? []), listB = (cb.groups ?? cb.players?.map(String) ?? []);
+      const onSide = (x: string) => sideGroups === undefined || ca.players !== undefined || sideGroups.has(x);
+      const firstA = listA.find(onSide), firstB = listB.find(onSide);
+      if (firstA === undefined || firstB === undefined) return 0;
+      return !listB.includes(firstA) && !listA.includes(firstB) ? 1 : 0;
     }
     case "NEXT_WINS": {
       // The GM's wins against a coordinator's band.

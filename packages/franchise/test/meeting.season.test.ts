@@ -132,3 +132,17 @@ describe("clashes (F4)", () => {
     expect(heat("fiery")).toBeGreaterThan(heat("quiet") + 100);
   });
 });
+
+describe("the report card (Q7)", () => {
+  it("sets last year's claims beside this year's results", async () => {
+    const { reportCard, leagueTruth } = await import("../src/index.js");
+    const m = meetingOf(held[0]!);
+    const truth = leagueTruth({ teams: run.people!.teams, players: run.people!.players, contracts: [], state: run.state }).find((t) => t.team === m.team)!;
+    const card = reportCard(m, truth, run.state);
+    expect(card).toHaveLength(m.takes.length);
+    const wins = card.find((l) => l.take.claim.point === "NEXT_WINS" && l.happened)!;
+    const row = run.state.standings.find((r) => r.team === m.team)!;
+    expect(wins.happened!.wins).toBe(row.overall.wins + row.overall.ties / 2);
+    expect(card.find((l) => l.take.claim.point === "LUCK")!.happened).toBeUndefined();
+  });
+});
