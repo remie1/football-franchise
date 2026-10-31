@@ -13298,3 +13298,25 @@ Derived by grep at the step-2 head (`a3790a8`), not recalled. Each line is `unru
   step 2; under PER_RUSHER the escape runs only on the threat part, so it opens at step 5a.
 - **The `clean_with_live_won_rep` gap** under the warning (B3 flat 0.454% of ticks against A1's 0.025%): ⚠ RULED
   ("Past him" was not chosen, ADR-089 §4.3); a reported falsifier, not a failure.
+
+## 177. Show 2 over Base Run Blitz shows the strong safety on the far half from his man — found by ADR-090 step 0's snap pictures
+
+- **Form.** An observation, not a ruling: it rules nothing and changes nothing in play, so the template's ruling
+  sections are not needed (`BACKLOG-ENTRY-TEMPLATE.md`: "say so explicitly"). Figures are MEASURED by
+  `pnpm --filter @ff/calibration snap-spots` on the book as ADR-090 step 0 left it (4,800 pictures; report
+  `packages/calibration/reports/adr-090-step0.md` §4).
+- **What.** Show 2 (`playbook/src/masks.ts`) picks each safety's half from the card, before the formation is known
+  (`strongSafetySide`): the side of his man when the card names one (a `NUMBER` target), else his run fit's side.
+  Base Run Blitz's strong safety covers the first tight end in man, a target with no side on the card, and fits the
+  left D gap, so the look shows him on the left deep half. That tight end lines up on the right in every formation in
+  the book. His shown spot is 15.3 to 21.6 yards from the spot his man-to-man job lines him up at (MEASURED, 24
+  pictures, early and late). No other look shows a man more than 12 yards from his real spot.
+- **Why it does not matter yet.** Nothing reads where a man stands: the snap picture is step 0's pure code, called
+  from no game (ADR-090 §14).
+- **Why it will.** ADR-090 step 4 makes a look cost ground: a man starts the play from his snap spot. A late Show 2
+  over this call would start the strong safety 21.6 yards from his man.
+- **Proposed fix (nothing built).** Give `strongSafetySide` the side the tight end lines up on (the formation's
+  strength) for a tight-end target, or pick the half at instantiation, where the formation is known. Either changes
+  the shown list, which the quarterback's coverage read reads today (ADR-090 §4.5), so it waits until ADR-089 has
+  finished measuring and is measured with step 4's arms.
+- **Owner and trigger.** Owner: Orchestrator (`packages/playbook`, masks). Trigger: before ADR-090 step 4 builds.

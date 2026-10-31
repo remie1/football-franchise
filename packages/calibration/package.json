@@ -14,7 +14,8 @@
     "pocket": "vite-node src/pocket/main.ts --",
     "player-checks": "vite-node src/season/playerChecksMain.ts --",
     "injury-rates": "vite-node src/injuries/main.ts --",
-    "cap-check": "vite-node src/season/capCheckMain.ts --"
+    "cap-check": "vite-node src/season/capCheckMain.ts --",
+    "snap-spots": "vite-node src/snapSpots/main.ts --"
   },
   "dependencies": {
     "@ff/attributes": "workspace:*",
