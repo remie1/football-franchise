@@ -43,8 +43,10 @@ export function applyPlayOutcome(
 ): MatchGameState {
   const ballOn = clamp(state.ballOn + outcome.yards, 0, 100);
   const clockSeconds = Math.max(0, state.clockSeconds - outcome.clockRunoff);
+  // ADR-091 step S-a: what happened at the line belongs to the play just run, never to the next one.
+  const { atTheLine: _played, ...carried } = state;
   const base = {
-    ...state,
+    ...carried,
     nextEventSeq: nextSeq,
     playNumber: state.playNumber + 1,
     clockSeconds,

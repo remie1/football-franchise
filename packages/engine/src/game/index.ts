@@ -4,6 +4,7 @@
  * site for the game vocabulary rather than five.
  */
 export type {
+  CadenceRequest,
   CoachDecisionRequest,
   CoinTossChoice,
   CoinTossRequest,
@@ -31,3 +32,4 @@ export { deriveGameId } from "./types.js";
 export type { GameResult } from "./simulateGame.js";
 export { createMatchState, simulateGame, GameLoopError } from "./simulateGame.js";
 export { defaultPlayCaller } from "./playCaller.js";
+export type { CountBattle, StemAtTheSnap } from "./atTheLine.js";

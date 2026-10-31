@@ -3,9 +3,9 @@
  */
 import { describe, expect, it } from "vitest";
 import { createRng } from "@ff/contracts";
-import type { Rng } from "@ff/contracts";
+import type { Cadence, Rng } from "@ff/contracts";
 import { CADENCE_MIX, cadenceMixFor, chooseCadence } from "../src/caller/cadence.js";
-import type { Cadence, CadenceSituation } from "../src/caller/cadence.js";
+import type { CadenceSituation } from "../src/caller/cadence.js";
 
 const at = (over: Partial<CadenceSituation>): CadenceSituation => ({ home: true, down: 1, distance: 10, hardCountsOwed: 0, ...over });
 

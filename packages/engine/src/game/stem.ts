@@ -25,14 +25,7 @@
  * Crowd noise is not built (`match-engine.md` §16.3), so every noise term reads 0.
  */
 
-/**
- * The quarterback's count (ADR-091 §5.1): the offense's choice, asked of its play-caller only on
- * a snap whose defense wears a stem, because nothing else reads it yet (ADR-005).
- */
-export type Cadence = "NORMAL" | "QUICK" | "HARD_COUNT";
-
-/** What the Mike's timing gave (ADR-091 §5.2, D3): the table's four cells. */
-export type StemTiming = "ON_TIME" | "EARLY" | "CAUGHT" | "CALLED_OFF";
+import type { Cadence, StemTiming } from "@ff/contracts";
 
 export const STEM_DIALS = Object.freeze({
   timing: Object.freeze({

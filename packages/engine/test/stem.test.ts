@@ -15,7 +15,7 @@ import {
   stemTimingFor,
   timingTarget,
 } from "../src/game/stem.js";
-import type { Cadence } from "../src/game/stem.js";
+import type { Cadence } from "@ff/contracts";
 
 const FACES = Array.from({ length: 100 }, (_, i) => i + 1);
 

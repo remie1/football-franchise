@@ -17,10 +17,7 @@
  * The offense's adjustment to the stems it has seen (ADR-091 §7.4, D18) lands with the stem rate
  * at step S-b, not here.
  */
-import type { Rng } from "@ff/contracts";
-
-/** ADR-091 petition M1's three counts. */
-export type Cadence = "NORMAL" | "QUICK" | "HARD_COUNT";
+import type { Cadence, Rng } from "@ff/contracts";
 
 export interface CadenceSituation {
   /** Whether the offense is the home team. */
