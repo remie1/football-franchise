@@ -154,13 +154,20 @@ export function withConditionRule(p: SeasonPeople["picks"][number]): SeasonPeopl
 export const DUMMY_SALARY = 95_000_000;
 
 /**
- * The league file keeps a few deals' placeholder years ($99M to $500M base salaries, written in so
- * the year voids) as ordinary years. Here they are what they are: void years, no cap number of their
- * own; their bonus proration lands as dead money when the deal ends.
+ * The league file keeps many deals' placeholder years as ordinary years: base salaries written in
+ * so the year voids ($10M to $500M; most are $30M, $50M or $100M). Two marks give them away: a base
+ * no player is paid, or a run of years at the end of the deal, after the file's season, whose
+ * stored cap hit leaves the base out (the real cap hit is the bonus share alone). Here they are what
+ * they are: void years, no cap number of their own; their bonus proration lands as dead money when
+ * the deal ends.
  */
-export function withDummyYearsVoid(c: PlayerContract): PlayerContract {
-  if (!c.years.some((y) => y.baseSalary >= DUMMY_SALARY)) return c;
-  return { ...c, years: c.years.map((y) => (y.baseSalary >= DUMMY_SALARY ? { ...y, baseSalary: 0, capHit: 0, voidYear: true } : y)) };
+export function withDummyYearsVoid(c: PlayerContract, fileSeason = -Infinity): PlayerContract {
+  const leavesBaseOut = (y: PlayerContract["years"][number]) => y.season > fileSeason && y.baseSalary > y.capHit + 1000;
+  let from = c.years.length;
+  while (from > 0 && leavesBaseOut(c.years[from - 1]!)) from--;
+  const dummy = (y: PlayerContract["years"][number], i: number) => y.baseSalary >= DUMMY_SALARY || i >= from;
+  if (!c.years.some(dummy)) return c;
+  return { ...c, years: c.years.map((y, i) => (dummy(y, i) ? { ...y, baseSalary: 0, capHit: 0, voidYear: true } : y)) };
 }
 
 /** Room each team is given beyond its opening deals in the first season (CHOSEN; real teams carry some). */
@@ -190,7 +197,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
     picks: (input.file.picks ?? []).map(withConditionRule),
     classes: [],
     freeAgents: [],
-    contracts: (input.file.contracts ?? []).map(withDummyYearsVoid),
+    contracts: (input.file.contracts ?? []).map((c) => withDummyYearsVoid(c, first)),
     deadMoney: [...(input.file.deadMoney ?? [])],
     staff: [...staff],
   };

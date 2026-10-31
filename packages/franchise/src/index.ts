@@ -63,7 +63,7 @@ export {
 // ADR-085: the salary cap and player contracts (the money rules).
 export {
   leagueYear, transactionYear, isAfterJune1, isTop51Window, proration, capNumber, guaranteedOf, withCapHits, prorate,
-  endedYear, liveIn, releasePlayer, expireContract, restructure, teamCapTotal,
+  endedYear, liveIn, designatedIn, releasePlayer, expireContract, restructure, teamCapTotal,
   type ReleaseOptions, type ReleaseResult, type RestructureOptions, type CapTotal,
 } from "./cap/money.js";
 export {

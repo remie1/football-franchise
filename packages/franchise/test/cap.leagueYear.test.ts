@@ -5,7 +5,7 @@ import {
 } from "@ff/contracts";
 import {
   buildLeague, runSeason, leagueYearSteps, marketWindow, teamCapTotal, veteranContract, minimumSalary, capForecast,
-  liveIn, countsForComp, adjustedCap, needWeights, offerWorth, valuePlayer, marketCurves, apyOf, percentileOf, quantile,
+  liveIn, countsForComp, adjustedCap, designatedIn, needWeights, offerWorth, valuePlayer, marketCurves, apyOf, percentileOf, quantile,
   type GameResolver, type LeaguePeople,
 } from "../src/index.js";
 import { WANTED, type Rate } from "../src/draft/board.js";
@@ -165,6 +165,18 @@ describe("the league year (ADR-085 §4)", () => {
     const team = after!.teams.find((t) => t.id === t0.id)!;
     for (const pos of DB) {
       expect(team.roster.filter((id) => byId.get(String(id))?.bio.position === pos).length, pos).toBeGreaterThanOrEqual(WANTED[pos]);
+    }
+  });
+
+  it("teams short of room restructure with void years, and designate at most two post-June-1 cuts a year", () => {
+    const hadVoids = new Set(people0.contracts!.filter((c) => c.years.some((y) => y.voidYear)).map((c) => String(c.player)));
+    const voided = people.contracts!.filter((c) => !hadVoids.has(String(c.player)) && c.years.some((y) => y.voidYear) && c.kind === "VETERAN");
+    expect(voided.length).toBeGreaterThan(0);
+    // The bonus never spreads past five years from the league year it was converted in.
+    for (const c of voided) expect(c.years.filter((y) => y.season >= 2027).length).toBeLessThanOrEqual(5);
+    expect(people.contracts!.some((c) => designatedIn(c, 2027))).toBe(true);
+    for (const t of people.teams) for (const year of [2027, 2028]) {
+      expect(people.contracts!.filter((c) => c.team === t.id && designatedIn(c, year)).length, `${String(t.id)} ${year}`).toBeLessThanOrEqual(2);
     }
   });
 

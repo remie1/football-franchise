@@ -69,6 +69,11 @@ export function endedYear(c: PlayerContract): number | undefined {
   return c.ended ? transactionYear(c.ended.at) : undefined;
 }
 
+/** Was this contract cut with the post-June-1 designation (before June 1) in this league year? */
+export function designatedIn(c: PlayerContract, season: number): boolean {
+  return !!c.ended?.postJune1 && !isAfterJune1(c.ended.at) && transactionYear(c.ended.at) === season;
+}
+
 /** Is this contract a live deal in this season (on the team's cap as a player, not as dead money)? */
 export function liveIn(c: PlayerContract, season: number): boolean {
   const end = endedYear(c);
@@ -184,20 +189,37 @@ export interface CapTotal {
   total: number;
   /** How many live contracts counted. */
   counted: number;
+  /** Post-June-1 cuts still counted in full until June 2 (in `total`, not in `dead`). */
+  held?: number;
 }
 
-/** A team's cap total for a season. `top51` applies from the new league year to the first game. */
+/**
+ * A team's cap total for a season. `top51` applies from the new league year to the first game.
+ * With `at` before June 2 of that league year, a player cut with the post-June-1 designation still
+ * counts his whole cap number (the real rule): only on June 2 does it fall to his dead money.
+ */
 export function teamCapTotal(
   team: TeamId, season: number, contracts: readonly PlayerContract[], charges: readonly DeadMoneyCharge[],
-  opts: { top51?: boolean } = {},
+  opts: { top51?: boolean; at?: CalendarStamp } = {},
 ): CapTotal {
   let numbers = contracts.filter((c) => c.team === team && liveIn(c, season))
     .map((c) => capNumber(c.years.find((y) => y.season === season)!))
     .sort((a, b) => b - a);
   if (opts.top51) numbers = numbers.slice(0, TOP_51);
   const live = numbers.reduce((s, n) => s + n, 0);
-  const dead = charges.filter((d) => d.team === team && d.season === season).reduce((s, d) => s + d.amount, 0);
-  return { contracts: live, dead, total: live + dead, counted: numbers.length };
+  const mine = charges.filter((d) => d.team === team && d.season === season);
+  const dead = mine.reduce((s, d) => s + d.amount, 0);
+  let held = 0;
+  if (opts.at && !isAfterJune1(opts.at) && transactionYear(opts.at) === season) {
+    for (const c of contracts) {
+      if (c.team !== team || !designatedIn(c, season)) continue;
+      const y = c.years.find((x) => x.season === season);
+      if (!y) continue;
+      const charged = mine.filter((d) => d.player === c.player).reduce((s, d) => s + d.amount, 0);
+      held += Math.max(0, capNumber(y) - charged);
+    }
+  }
+  return { contracts: live, dead, total: live + dead + held, counted: numbers.length, ...(held > 0 ? { held } : {}) };
 }
 
 /** Is a stamp in the top-51 window (new league year until the regular season)? */
