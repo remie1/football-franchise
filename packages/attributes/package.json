@@ -7,7 +7,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.test.json",
-    "import-real": "vite-node src/importer/real/main.ts --"
+    "import-real": "vite-node src/importer/real/main.ts --",
+    "standin-development": "vite-node src/importer/real/developMain.ts --"
   },
   "dependencies": {
     "@ff/contracts": "workspace:*",
