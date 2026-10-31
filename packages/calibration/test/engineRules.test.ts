@@ -1,8 +1,9 @@
 /**
  * ADR-089 — THE ENGINE RULES NAME AND ITS BUNDLES (`src/pocket/rules.ts`; step 0's plan §4,
- * deviation O11; step 1's plan §3, §4, §7.2 items 1 and 11, §16.4; step 2's plan §1.2, §1.3, §1.8).
+ * deviation O11; step 1's plan §3, §4, §7.2 items 1 and 11, §16.4; step 2's plan §1.2, §1.3, §1.8;
+ * step 3's plan §2.1, §4.4).
  *
- *  1. This build has `legacy`, `pocket-1.s1` and `pocket-1.s2`, and `legacy` is the default (§9:
+ *  1. This build has `legacy`, `pocket-1.s1`, `pocket-1.s2` and `pocket-1.s3`, and `legacy` is the default (§9:
  *     "main's default stays `legacy` until step 11's flip commit").
  *  2. A name is checked: absent is the default, a name this build does not have is refused, and so
  *     is the word "default", so nothing is ever stamped with anything but the rules that played.
@@ -22,16 +23,36 @@
  *     key only when given; the forcing block is refused under `legacy`, under `pocket-1.s1`, on a
  *     base that has one, outside the closed set, and under PER_RUSHER on a forcing point the engine
  *     would refuse. `DEFAULT_TUNABLES` does not move (census and digest).
+ *  7. Step 3's bundle `pocket-1.s3`: built as `pocket-1.s2` is, with the free-run block (the step-0
+ *     filing's constants, `movingGetOffSeconds` 0, reading B over all origins, the picture
+ *     `AS_RULED`), the late block (AM-2's `t_e` 1.0 s and `w` 0.1, pinned equal to the filed entry)
+ *     and the climb lane `FRONT`; its digest a recorded literal; saves stamp `pocket-1.s3@<digest>`
+ *     and load only at it. The step-3 blocks are refused under `legacy`, `pocket-1.s1` and
+ *     `pocket-1.s2`; under `pocket-1.s3` any subset is a bundle; the closed sets (the late block on
+ *     shape S only until P17, reading C without it, reading A with it) and each block's dials are
+ *     refused as the engine refuses them, before any game; a leaf patched under a new block after
+ *     stamping is refused.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { applyTunablePatch, DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
 import { stableDigest } from "../src/harness/digest.js";
+import { AMENDMENTS_PATH, entryOf, openAmendments } from "../src/pocket/amendments.js";
+import { FILED_PATH } from "../src/pocket/bands.js";
+import { loadFiled } from "../src/pocket/filed.js";
+import { FREE_RUN_CONSTANTS } from "../src/pocket/freeRun.js";
 import {
+  CLIMB_LANES,
   DEFAULT_ENGINE_RULES,
   ENGINE_RULES,
   EngineRulesError,
   FORCING_RULES,
+  FREE_RUN_ORIGINS,
+  FREE_RUN_PICTURES,
+  FREE_RUN_READINGS,
   LEGACY_RULES,
+  POCKET_BLOCKS,
   POCKET_1_S1_DIGEST,
   POCKET_1_S1_OVERLAY,
   POCKET_1_S1_RULES,
@@ -39,6 +60,13 @@ import {
   POCKET_1_S2_FORCING,
   POCKET_1_S2_LEAVES,
   POCKET_1_S2_RULES,
+  POCKET_1_S3_CLIMB_LANE,
+  POCKET_1_S3_DIGEST,
+  POCKET_1_S3_FREE_RUN,
+  POCKET_1_S3_LATE_BLOCK,
+  POCKET_1_S3_OVERLAY,
+  POCKET_1_S3_RULES,
+  STEP3_BLOCKS,
   checkStamp,
   engineRulesDigestOf,
   engineRulesNamed,
@@ -52,6 +80,7 @@ import {
   saveRulesName,
   withOverlay,
   type PocketForcing,
+  type PocketFreeRun,
   type PocketOverlay,
 } from "../src/pocket/rules.js";
 import { allArms, armById, step2Arms } from "../src/pocket/arms.js";
@@ -65,6 +94,12 @@ const RECORDED_POCKET_1_S1_DIGEST = "fnv1a:69a7cc48";
  * After step 2 merges it is never re-recorded under `pocket-1.s2`: a changed build takes a new name.
  */
 const RECORDED_POCKET_1_S2_DIGEST = "fnv1a:03754f60";
+
+/**
+ * The overlay digest of `pocket-1.s3` on this build, recorded at step 3's build (plan §2.1, K24).
+ * After step 3 merges it is never re-recorded under `pocket-1.s3`: a changed build takes a new name.
+ */
+const RECORDED_POCKET_1_S3_DIGEST = "fnv1a:c4462712";
 
 /** Every leaf of a tree, by dotted path. */
 function leaves(value: unknown, path = ""): Map<string, unknown> {
@@ -84,17 +119,19 @@ function nodes(value: unknown, path = "$"): [string, object][] {
 }
 
 describe("the rules this build has (ADR-089 §9)", () => {
-  it("is legacy, pocket-1.s1 and pocket-1.s2, and legacy is the default", () => {
+  it("is legacy, pocket-1.s1, pocket-1.s2 and pocket-1.s3, and legacy is the default", () => {
     expect(LEGACY_RULES).toBe("legacy");
     expect(POCKET_1_S1_RULES).toBe("pocket-1.s1");
     expect(POCKET_1_S2_RULES).toBe("pocket-1.s2");
-    expect([...ENGINE_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2"]);
+    expect(POCKET_1_S3_RULES).toBe("pocket-1.s3");
+    expect([...ENGINE_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2", "pocket-1.s3"]);
     expect(DEFAULT_ENGINE_RULES).toBe("legacy");
     expect(isEngineRules("legacy")).toBe(true);
     expect(isEngineRules("pocket-1")).toBe(false);
     expect(isEngineRules("pocket-1.s1")).toBe(true);
     expect(isEngineRules("pocket-1.s2")).toBe(true);
-    expect(isEngineRules("pocket-1.s3")).toBe(false);
+    expect(isEngineRules("pocket-1.s3")).toBe(true);
+    expect(isEngineRules("pocket-1.s4")).toBe(false);
   });
 
   it("checks a named bundle: absent is the default, an unknown name or the word default is refused", () => {
@@ -102,20 +139,23 @@ describe("the rules this build has (ADR-089 §9)", () => {
     expect(engineRulesNamed("legacy", "here")).toBe("legacy");
     expect(engineRulesNamed("pocket-1.s1", "here")).toBe("pocket-1.s1");
     expect(engineRulesNamed("pocket-1.s2", "here")).toBe("pocket-1.s2");
-    for (const bad of ["pocket-1", "pocket-1.s9", "pocket-1.s3", "default", "", "Legacy", `pocket-1.s1@${POCKET_1_S1_DIGEST}`, `pocket-1.s2@${POCKET_1_S2_DIGEST}`]) {
+    expect(engineRulesNamed("pocket-1.s3", "here")).toBe("pocket-1.s3");
+    for (const bad of ["pocket-1", "pocket-1.s9", "pocket-1.s4", "default", "", "Legacy", `pocket-1.s1@${POCKET_1_S1_DIGEST}`, `pocket-1.s2@${POCKET_1_S2_DIGEST}`, `pocket-1.s3@${POCKET_1_S3_DIGEST}`]) {
       expect(() => engineRulesNamed(bad, "here")).toThrow(EngineRulesError);
     }
     expect(() => engineRulesNamed("pocket-1.s9", "runBatch")).toThrow(
-      'runBatch: engine rules "pocket-1.s9" are not in this build, which has legacy, pocket-1.s1, pocket-1.s2 (ADR-089 §9)',
+      'runBatch: engine rules "pocket-1.s9" are not in this build, which has legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3 (ADR-089 §9)',
     );
   });
 
-  it("legacy has no overlay digest; pocket-1.s1's and pocket-1.s2's are the recorded literals", () => {
+  it("legacy has no overlay digest; pocket-1.s1's, pocket-1.s2's and pocket-1.s3's are the recorded literals", () => {
     expect(engineRulesDigestOf("legacy")).toBeUndefined();
     expect(engineRulesDigestOf("pocket-1.s1")).toBe(POCKET_1_S1_DIGEST);
     expect(POCKET_1_S1_DIGEST).toBe(RECORDED_POCKET_1_S1_DIGEST);
     expect(engineRulesDigestOf("pocket-1.s2")).toBe(POCKET_1_S2_DIGEST);
     expect(POCKET_1_S2_DIGEST).toBe(RECORDED_POCKET_1_S2_DIGEST);
+    expect(engineRulesDigestOf("pocket-1.s3")).toBe(POCKET_1_S3_DIGEST);
+    expect(POCKET_1_S3_DIGEST).toBe(RECORDED_POCKET_1_S3_DIGEST);
   });
 
   it("every rules name is [a-z0-9.-] only, so none can hold the save's @ (F12)", () => {
@@ -589,6 +629,322 @@ describe("pocket-1.s2, step 2's bundle (plan §1.2, §1.3, §1.8)", () => {
   });
 });
 
+describe("pocket-1.s3, step 3's bundle (plan §2.1, §4.4)", () => {
+  const PKG = join(import.meta.dirname, "..");
+  const card = { pushMinMargin: 1, pushMaxMargin: 14 };
+  /** DEFAULT_TUNABLES with Half and Follows, the base `pocket-1.s2` and `pocket-1.s3` are stamped on. */
+  const horizons = (): Tunables => POCKET_1_S2_LEAVES.reduce(applyTunablePatch, DEFAULT_TUNABLES);
+  const leaf = (t: Tunables, tunableId: string, currentValue: number | string, proposedValue: number | string): Tunables =>
+    applyTunablePatch(t, { tunableId, currentValue, proposedValue, evidence: "test", expectedEffect: "test" });
+  /** Step 1's blocks with the step-3 blocks given, under `pocket-1.s3`, with must act per rusher, on the horizons. */
+  const s3With = (step3: Pick<PocketOverlay, "blitzPickup" | "pocket">, name: "pocket-1.s1" | "pocket-1.s2" | "pocket-1.s3" = "pocket-1.s3"): Tunables =>
+    withOverlay(horizons(), name, { ...POCKET_1_S1_OVERLAY, ...step3 }, name === "pocket-1.s1" ? undefined : POCKET_1_S2_FORCING);
+  /** The free-run block with some leaves changed (any value, to reach a refusal). */
+  const fr = (over: Readonly<Record<string, unknown>>): PocketFreeRun => ({ ...POCKET_1_S3_FREE_RUN, ...over }) as unknown as PocketFreeRun;
+  /** The same dials stamped by hand with a right digest, for checkStamp. */
+  const byHand = (unstamped: Tunables, name: string): Tunables => ({ ...unstamped, engineRules: { name, overlayDigest: overlayDigestOf(unstamped) } });
+  /** `pocket-1.s3`'s whole tree by hand, less the stamp, with the step-3 blocks given. */
+  const unstampedS3 = (freeRun: unknown, lateBlock: unknown, climbLane: unknown, clocks: PocketOverlay = POCKET_1_S1_OVERLAY): Tunables => {
+    const h = horizons();
+    return {
+      ...h,
+      passRush: { ...h.passRush, ...clocks },
+      blitzPickup: { ...h.blitzPickup, ...(freeRun === undefined ? {} : { freeRun }), ...(lateBlock === undefined ? {} : { lateBlock }) },
+      pocket: { ...h.pocket, forcing: POCKET_1_S2_FORCING, ...(climbLane === undefined ? {} : { climbLane }) },
+    } as Tunables;
+  };
+
+  it("its blocks are the step-0 filing's free-run constants, AM-2's movingGetOffSeconds 0, reading B over all origins, AS_RULED, t_e 1.0 s and w 0.1, and FRONT", () => {
+    expect(POCKET_1_S3_FREE_RUN).toEqual({
+      fortyYards: 40, fortyIntercept: 5.6, fortySpeedSlope: 1.38, fortySpeedScale: 99, tauIntercept: 0.77, tauSlope: 0.007, tauMin: 0.63, tauMax: 0.91,
+      pathShortenYards: 1.0, edgePathFactor: 1.1, loopExtraYards: 0.5, getOffSeconds: 0.35, movingGetOffSeconds: 0, delayedSeconds: 0.5,
+      etaRoundingSeconds: 0.1, creeperYardsPerSecond: 3, reading: "B", picture: "AS_RULED",
+    });
+    // All three origins (no narrowing) and nothing held: the design arm.
+    expect("origins" in POCKET_1_S3_FREE_RUN).toBe(false);
+    expect("hold" in POCKET_1_S3_FREE_RUN).toBe(false);
+    expect(POCKET_1_S3_LATE_BLOCK).toEqual({ engageSeconds: 1.0, weakMultiplier: 0.1 });
+    expect(POCKET_1_S3_CLIMB_LANE).toBe("FRONT");
+    expect(POCKET_1_S3_OVERLAY).toEqual({
+      ...POCKET_1_S1_OVERLAY,
+      blitzPickup: { freeRun: POCKET_1_S3_FREE_RUN, lateBlock: POCKET_1_S3_LATE_BLOCK },
+      pocket: { climbLane: "FRONT" },
+    });
+    for (const [path, node] of nodes(POCKET_1_S3_OVERLAY)) expect(Object.isFrozen(node), path).toBe(true);
+    // Every filed constant, by its filed name, is the block's leaf of the same name; the block has
+    // no other number but AM-2's new dial. And calibration's own M8 function reads the same values.
+    const filed = (JSON.parse(readFileSync(join(PKG, FILED_PATH), "utf8")) as { constants: Record<string, { value: unknown }> }).constants;
+    const filedFreeRun = Object.entries(filed).filter(([k]) => k.startsWith("freeRun."));
+    expect(filedFreeRun.length).toBe(15);
+    for (const [k, { value }] of filedFreeRun) expect((POCKET_1_S3_FREE_RUN as unknown as Record<string, unknown>)[k.slice("freeRun.".length)], k).toBe(value);
+    const numeric = Object.entries(POCKET_1_S3_FREE_RUN).filter(([, v]) => typeof v === "number").map(([k]) => k).sort();
+    expect(numeric).toEqual([...filedFreeRun.map(([k]) => k.slice("freeRun.".length)), "movingGetOffSeconds"].sort());
+    for (const [k, v] of Object.entries(FREE_RUN_CONSTANTS)) expect((POCKET_1_S3_FREE_RUN as unknown as Record<string, unknown>)[k.slice("freeRun.".length)], k).toBe(v);
+    // The closed sets, as the engine's.
+    expect([...FREE_RUN_READINGS]).toEqual(["B", "C", "A"]);
+    expect([...FREE_RUN_ORIGINS]).toEqual(["UNBLOCKED", "BLOWN_UP", "LOOPER_FREE"]);
+    expect([...FREE_RUN_PICTURES]).toEqual(["AS_RULED", "MUG_HEAD_ONLY"]);
+    expect([...CLIMB_LANES]).toEqual(["FRONT"]);
+    expect([...POCKET_BLOCKS]).toEqual(["passRush.beatClock", "passRush.repClock", "passRush.approach", "pocket.forcing", "blitzPickup.freeRun", "blitzPickup.lateBlock", "pocket.climbLane"]);
+    expect([...STEP3_BLOCKS]).toEqual(["blitzPickup.freeRun", "blitzPickup.lateBlock", "pocket.climbLane"]);
+  });
+
+  it("its late block is AM-2's, as filed (plan §4.4, critique 1 N12)", () => {
+    const am2 = entryOf(openAmendments(join(PKG, AMENDMENTS_PATH), loadFiled(join(PKG, FILED_PATH))), "AM-2");
+    const filedLate = (am2.rule as { readonly lateBlock: { readonly engageSeconds: unknown; readonly weakMultiplier: unknown } }).lateBlock;
+    const late = rulesTunables("pocket-1.s3").blitzPickup.lateBlock!;
+    expect(Object.is(late.engageSeconds, filedLate.engageSeconds)).toBe(true);
+    expect(Object.is(late.weakMultiplier, filedLate.weakMultiplier)).toBe(true);
+    expect([filedLate.engageSeconds, filedLate.weakMultiplier]).toEqual([1.0, 0.1]);
+    expect(late).toEqual(POCKET_1_S3_LATE_BLOCK);
+  });
+
+  it("is built as pocket-1.s2 is, with step 3's three blocks, stamped at the recorded digest; DEFAULT_TUNABLES and pocket-1.s2 do not move", () => {
+    const b = rulesTunables("pocket-1.s3");
+    expect(rulesTunables("pocket-1.s3")).toBe(b);
+    expect(b.engineRules).toEqual({ name: "pocket-1.s3", overlayDigest: RECORDED_POCKET_1_S3_DIGEST });
+    expect(overlayDigestOf(b)).toBe(RECORDED_POCKET_1_S3_DIGEST);
+    expect(b.passRush.beatClock).toEqual(POCKET_1_S1_OVERLAY.beatClock);
+    expect(b.passRush.approach).toEqual(POCKET_1_S1_OVERLAY.approach);
+    expect(b.passRush.repClock).toBeUndefined();
+    expect(b.pocket.forcing).toEqual({ rule: "PER_RUSHER" });
+    expect(b.blitzPickup.freeRun).toEqual(POCKET_1_S3_FREE_RUN);
+    expect(b.blitzPickup.lateBlock).toEqual(POCKET_1_S3_LATE_BLOCK);
+    expect(b.pocket.climbLane).toBe("FRONT");
+    expect(Object.keys(b.pocket)).toEqual([...Object.keys(DEFAULT_TUNABLES.pocket), "forcing", "climbLane"]);
+    expect(Object.keys(b.blitzPickup)).toEqual([...Object.keys(DEFAULT_TUNABLES.blitzPickup), "freeRun", "lateBlock"]);
+    // O28: the digest is of the tunables less the stamp, built here by hand.
+    expect(stableDigest(unstampedS3(POCKET_1_S3_FREE_RUN, POCKET_1_S3_LATE_BLOCK, "FRONT"))).toBe(RECORDED_POCKET_1_S3_DIGEST);
+    // Every leaf but the step-3 blocks and the stamp is pocket-1.s2's own.
+    const s2 = leaves(rulesTunables("pocket-1.s2"));
+    const after = leaves(b);
+    const moved = [...after].filter(([p, v]) => s2.get(p) !== v).map(([p]) => p).sort();
+    expect(moved).toEqual(
+      [
+        "engineRules.name",
+        "engineRules.overlayDigest",
+        ...Object.keys(POCKET_1_S3_FREE_RUN).map((k) => `blitzPickup.freeRun.${k}`),
+        "blitzPickup.lateBlock.engageSeconds",
+        "blitzPickup.lateBlock.weakMultiplier",
+        "pocket.climbLane",
+      ].sort(),
+    );
+    expect([...s2.keys()].filter((p) => !after.has(p))).toEqual([]);
+    expect(checkStamp(b, "pocket-1.s3")).toBe(b);
+    for (const [path, node] of nodes(b)) expect(Object.isFrozen(node), path).toBe(true);
+    // Nothing of step 3 is in DEFAULT_TUNABLES (the binding's census and digest stand), nor in pocket-1.s2.
+    expect("freeRun" in DEFAULT_TUNABLES.blitzPickup).toBe(false);
+    expect("lateBlock" in DEFAULT_TUNABLES.blitzPickup).toBe(false);
+    expect("climbLane" in DEFAULT_TUNABLES.pocket).toBe(false);
+    expect(stableDigest(DEFAULT_TUNABLES)).toBe("fnv1a:395a9ae2");
+    const s2b = rulesTunables("pocket-1.s2");
+    expect(["freeRun" in s2b.blitzPickup, "lateBlock" in s2b.blitzPickup, "climbLane" in s2b.pocket]).toEqual([false, false, false]);
+    expect(s2b.engineRules?.overlayDigest).toBe(RECORDED_POCKET_1_S2_DIGEST);
+    expect(rulesTunables("pocket-1.s1").engineRules?.overlayDigest).toBe(RECORDED_POCKET_1_S1_DIGEST);
+    expect(RECORDED_POCKET_1_S3_DIGEST).not.toBe(RECORDED_POCKET_1_S2_DIGEST);
+  });
+
+  it("withOverlay adds each step-3 key only when it is given, copies it, and under pocket-1.s3 any subset is a bundle", () => {
+    const digests = new Map<string, string>();
+    const blocks = { freeRun: POCKET_1_S3_FREE_RUN, lateBlock: POCKET_1_S3_LATE_BLOCK, climbLane: POCKET_1_S3_CLIMB_LANE } as const;
+    for (let mask = 0; mask < 8; mask += 1) {
+      const given = (["freeRun", "lateBlock", "climbLane"] as const).filter((_, i) => (mask & (1 << i)) !== 0);
+      const pickup = { ...(given.includes("freeRun") ? { freeRun: blocks.freeRun } : {}), ...(given.includes("lateBlock") ? { lateBlock: blocks.lateBlock } : {}) };
+      const t = s3With({ ...(Object.keys(pickup).length > 0 ? { blitzPickup: pickup } : {}), ...(given.includes("climbLane") ? { pocket: { climbLane: "FRONT" } } : {}) });
+      expect(checkStamp(t, "pocket-1.s3"), given.join("+")).toBe(t);
+      expect("freeRun" in t.blitzPickup, given.join("+")).toBe(given.includes("freeRun"));
+      expect("lateBlock" in t.blitzPickup, given.join("+")).toBe(given.includes("lateBlock"));
+      expect("climbLane" in t.pocket, given.join("+")).toBe(given.includes("climbLane"));
+      digests.set(given.join("+"), t.engineRules!.overlayDigest);
+    }
+    expect(new Set(digests.values()).size).toBe(8);
+    expect(digests.get("freeRun+lateBlock+climbLane")).toBe(RECORDED_POCKET_1_S3_DIGEST);
+    // O28: the digest names the dials, the name the code. With no step-3 block, pocket-1.s3 digests as pocket-1.s2.
+    expect(digests.get("")).toBe(RECORDED_POCKET_1_S2_DIGEST);
+    // An empty step-3 level adds nothing; the caller's blocks are copied, never frozen in its hands.
+    const empty = s3With({ blitzPickup: {}, pocket: {} });
+    expect(Object.keys(empty.blitzPickup)).toEqual(Object.keys(DEFAULT_TUNABLES.blitzPickup));
+    expect(empty.engineRules!.overlayDigest).toBe(RECORDED_POCKET_1_S2_DIGEST);
+    const mine = { ...POCKET_1_S3_FREE_RUN, getOffSeconds: 0.4 };
+    const t = s3With({ blitzPickup: { freeRun: mine } });
+    expect(Object.isFrozen(mine)).toBe(false);
+    expect(t.blitzPickup.freeRun).not.toBe(mine);
+    expect(t.blitzPickup.freeRun).toEqual(mine);
+    // Shape L takes the free-run block and the climb lane (not the late block, below).
+    const l = withOverlay(horizons(), "pocket-1.s3", { repClock: { fullExpressionSeconds: 5 }, approach: card, blitzPickup: { freeRun: POCKET_1_S3_FREE_RUN }, pocket: { climbLane: "FRONT" } });
+    expect(checkStamp(l, "pocket-1.s3")).toBe(l);
+  });
+
+  it("refuses a step-3 block under legacy, pocket-1.s1 and pocket-1.s2, on a base, and an overlay key that is not a block", () => {
+    const fullS3 = { blitzPickup: { freeRun: POCKET_1_S3_FREE_RUN, lateBlock: POCKET_1_S3_LATE_BLOCK }, pocket: { climbLane: "FRONT" as const } };
+    const s2Named = byHand(unstampedS3(POCKET_1_S3_FREE_RUN, undefined, undefined), "pocket-1.s2");
+    const legacyBlocks: Tunables = { ...DEFAULT_TUNABLES, blitzPickup: { ...DEFAULT_TUNABLES.blitzPickup, freeRun: POCKET_1_S3_FREE_RUN, lateBlock: POCKET_1_S3_LATE_BLOCK }, pocket: { ...DEFAULT_TUNABLES.pocket, climbLane: "FRONT" } };
+    const cases: [string, () => unknown, string | RegExp][] = [
+      [
+        "all three under pocket-1.s2",
+        () => s3With(fullS3, "pocket-1.s2"),
+        "withOverlay(pocket-1.s2): pocket-1.s2 carries no step-3 block (blitzPickup.freeRun, blitzPickup.lateBlock, pocket.climbLane); the free-run clock, the late block and the climb lane rule are pocket-1.s3's (ADR-089 step 3)",
+      ],
+      ["the climb lane alone under pocket-1.s2", () => s3With({ pocket: { climbLane: "FRONT" } }, "pocket-1.s2"), "withOverlay(pocket-1.s2): pocket-1.s2 carries no step-3 block (pocket.climbLane)"],
+      ["the late block alone under pocket-1.s1", () => s3With({ blitzPickup: { lateBlock: POCKET_1_S3_LATE_BLOCK } }, "pocket-1.s1"), "withOverlay(pocket-1.s1): pocket-1.s1 carries no step-3 block (blitzPickup.lateBlock)"],
+      ["by hand, a free-run block stamped pocket-1.s2", () => checkStamp(s2Named, "pocket-1.s2", "w"), "w: pocket-1.s2 carries no step-3 block (blitzPickup.freeRun); the free-run clock, the late block and the climb lane rule are pocket-1.s3's (ADR-089 step 3)"],
+      ["legacy named, the step-3 blocks with no stamp", () => checkStamp(legacyBlocks, "legacy", "w"), "w: the run names engine rules legacy, but the tunables carry blitzPickup.freeRun, blitzPickup.lateBlock, pocket.climbLane with no rules stamp"],
+      ["legacy named, pocket-1.s3 passed", () => checkStamp(rulesTunables("pocket-1.s3"), "legacy", "w"), "w: the run names engine rules legacy, but the tunables carry the rules stamp pocket-1.s3"],
+      ["pocket-1.s2 named, pocket-1.s3 passed", () => checkStamp(rulesTunables("pocket-1.s3"), "pocket-1.s2", "w"), "w: the run names engine rules pocket-1.s2, but the tunables are stamped pocket-1.s3"],
+      ["pocket-1.s3 named, pocket-1.s2 passed", () => checkStamp(rulesTunables("pocket-1.s2"), "pocket-1.s3", "w"), "w: the run names engine rules pocket-1.s3, but the tunables are stamped pocket-1.s2"],
+      [
+        "a base with a free-run block",
+        () => withOverlay({ ...horizons(), blitzPickup: { ...DEFAULT_TUNABLES.blitzPickup, freeRun: POCKET_1_S3_FREE_RUN } }, "pocket-1.s3", POCKET_1_S1_OVERLAY),
+        "withOverlay(pocket-1.s3): the base already carries blitzPickup.freeRun; a bundle's blocks come from its overlay",
+      ],
+      [
+        "a base with the climb lane",
+        () => withOverlay({ ...horizons(), pocket: { ...DEFAULT_TUNABLES.pocket, climbLane: "FRONT" } }, "pocket-1.s3", POCKET_1_S1_OVERLAY),
+        "withOverlay(pocket-1.s3): the base already carries pocket.climbLane; a bundle's blocks come from its overlay",
+      ],
+      ["the forcing block in the overlay", () => withOverlay(horizons(), "pocket-1.s3", { ...POCKET_1_S1_OVERLAY, forcing: POCKET_1_S2_FORCING } as never), "withOverlay(pocket-1.s3): the overlay names forcing, which is not a pocket-1 block (beatClock, repClock, approach, blitzPickup, pocket)"],
+      ["an existing leaf under blitzPickup", () => s3With({ blitzPickup: { freeRunnerArrivalSeconds: 2.0 } } as never), "withOverlay(pocket-1.s3): the overlay names blitzPickup.freeRunnerArrivalSeconds, which is not a pocket-1 block (freeRun, lateBlock)"],
+      ["the forcing block under pocket", () => s3With({ pocket: { forcing: POCKET_1_S2_FORCING } } as never), "withOverlay(pocket-1.s3): the overlay names pocket.forcing, which is not a pocket-1 block (climbLane)"],
+      ["a blitzPickup that is not an object", () => s3With({ blitzPickup: "freeRun" } as never), "withOverlay(pocket-1.s3): the overlay's blitzPickup must be an object of freeRun, lateBlock, got freeRun"],
+    ];
+    for (const [label, run, message] of cases) {
+      expect(run, label).toThrow(EngineRulesError);
+      expect(run, label).toThrow(message);
+    }
+  });
+
+  it("refuses what the engine's closed sets refuse: the late block on shape L until P17, reading C with it, reading A without it", () => {
+    const L = { repClock: { fullExpressionSeconds: 8 }, approach: card };
+    const P17 = "the late block (blitzPickup.lateBlock) on shape L (passRush.repClock) is refused until petition P17's doc text (the late block's rolled tick) is in contracts; shape S runs it";
+    const C_LATE = "reading C (blitzPickup.freeRun.reading) puts every free runner on the free-run clock, touched men 0.5 s later, so it runs no late block (blitzPickup.lateBlock)";
+    const A_ALONE = "reading A (blitzPickup.freeRun.reading) makes every lost block a late block, so it needs the late block (blitzPickup.lateBlock)";
+    const cases: [string, PocketOverlay, Tunables, string][] = [
+      ["the late block on shape L", { ...L, blitzPickup: { lateBlock: POCKET_1_S3_LATE_BLOCK } }, unstampedS3(undefined, POCKET_1_S3_LATE_BLOCK, undefined, L), P17],
+      ["the whole design on shape L", { ...L, blitzPickup: { freeRun: POCKET_1_S3_FREE_RUN, lateBlock: POCKET_1_S3_LATE_BLOCK }, pocket: { climbLane: "FRONT" } }, unstampedS3(POCKET_1_S3_FREE_RUN, POCKET_1_S3_LATE_BLOCK, "FRONT", L), P17],
+      ["reading C with the late block", { ...POCKET_1_S1_OVERLAY, blitzPickup: { freeRun: fr({ reading: "C" }), lateBlock: POCKET_1_S3_LATE_BLOCK } }, unstampedS3(fr({ reading: "C" }), POCKET_1_S3_LATE_BLOCK, undefined), C_LATE],
+      ["reading A without it", { ...POCKET_1_S1_OVERLAY, blitzPickup: { freeRun: fr({ reading: "A" }) } }, unstampedS3(fr({ reading: "A" }), undefined, undefined), A_ALONE],
+    ];
+    for (const [label, overlay, tree, message] of cases) {
+      expect(() => withOverlay(horizons(), "pocket-1.s3", overlay, POCKET_1_S2_FORCING), label).toThrow(EngineRulesError);
+      expect(() => withOverlay(horizons(), "pocket-1.s3", overlay, POCKET_1_S2_FORCING), label).toThrow(`withOverlay(pocket-1.s3): ${message}`);
+      expect(() => checkStamp(byHand(tree, "pocket-1.s3"), "pocket-1.s3", "runBatch"), label).toThrow(`runBatch: ${message}`);
+    }
+    // Reading C without the late block, and reading A with it, are bundles (C11 and C12's shapes).
+    expect(s3With({ blitzPickup: { freeRun: fr({ reading: "C" }) }, pocket: { climbLane: "FRONT" } }).blitzPickup.freeRun?.reading).toBe("C");
+    expect(s3With({ blitzPickup: { freeRun: fr({ reading: "A" }), lateBlock: POCKET_1_S3_LATE_BLOCK } }).blitzPickup.freeRun?.reading).toBe("A");
+  });
+
+  it("refuses a step-3 dial the engine would refuse, before any game, in the engine's words", () => {
+    const cases: [string, Pick<PocketOverlay, "blitzPickup" | "pocket">, string][] = [
+      ["a 40 of no yards", { blitzPickup: { freeRun: fr({ fortyYards: 0 }) } }, "blitzPickup.freeRun.fortyYards must be a finite number above 0, got 0"],
+      ["an intercept that is not a number", { blitzPickup: { freeRun: fr({ fortyIntercept: Number.NaN }) } }, "blitzPickup.freeRun.fortyIntercept must be a finite number, got NaN"],
+      ["a rating scale of 0", { blitzPickup: { freeRun: fr({ fortySpeedScale: 0 }) } }, "blitzPickup.freeRun.fortySpeedScale must be a finite number above 0, got 0"],
+      ["a start's clamp that runs backwards", { blitzPickup: { freeRun: fr({ tauMin: 0.95 }) } }, "the free-run start's clamp (blitzPickup.freeRun.tauMin to tauMax) runs from 0.95 to 0.91: its minimum is above its maximum"],
+      ["a negative reach", { blitzPickup: { freeRun: fr({ pathShortenYards: -1 }) } }, "blitzPickup.freeRun.pathShortenYards must be a finite number, 0 or more, got -1"],
+      ["no bend", { blitzPickup: { freeRun: fr({ edgePathFactor: 0 }) } }, "blitzPickup.freeRun.edgePathFactor must be a finite number above 0, got 0"],
+      ["a negative get-off", { blitzPickup: { freeRun: fr({ getOffSeconds: -0.1 }) } }, "blitzPickup.freeRun.getOffSeconds must be a finite number, 0 or more, got -0.1"],
+      ["a negative moving get-off", { blitzPickup: { freeRun: fr({ movingGetOffSeconds: -1 }) } }, "blitzPickup.freeRun.movingGetOffSeconds must be a finite number, 0 or more, got -1"],
+      ["a rounding off the tenth", { blitzPickup: { freeRun: fr({ etaRoundingSeconds: 0.05 }) } }, "blitzPickup.freeRun.etaRoundingSeconds must be 0.1 (the clock rounds to the tenth, as every published etaTick is), got 0.05"],
+      ["a creeper standing still", { blitzPickup: { freeRun: fr({ creeperYardsPerSecond: 0 }) } }, "blitzPickup.freeRun.creeperYardsPerSecond must be a finite number above 0, got 0"],
+      ["a reading outside the set", { blitzPickup: { freeRun: fr({ reading: "D" }) } }, "the free-run block's reading (blitzPickup.freeRun.reading) is D, which is not one of B, C, A"],
+      ["origins under reading C", { blitzPickup: { freeRun: fr({ reading: "C", origins: ["UNBLOCKED"] }) } }, "the free-run block's origins (blitzPickup.freeRun.origins) narrow reading B's men nobody touched; reading C names its own men"],
+      ["no origins", { blitzPickup: { freeRun: fr({ origins: [] }) } }, "the free-run block's origins (blitzPickup.freeRun.origins) must be a list of one or more of UNBLOCKED, BLOWN_UP, LOOPER_FREE, got []"],
+      ["an origin outside the set", { blitzPickup: { freeRun: fr({ origins: ["RAN_THROUGH"] }) } }, "an origin of the free-run block (blitzPickup.freeRun.origins) is RAN_THROUGH, which is not one of UNBLOCKED, BLOWN_UP, LOOPER_FREE"],
+      ["an origin twice", { blitzPickup: { freeRun: fr({ origins: ["UNBLOCKED", "UNBLOCKED"] }) } }, "the free-run block's origins (blitzPickup.freeRun.origins) name UNBLOCKED twice"],
+      ["a hold that holds nothing", { blitzPickup: { freeRun: fr({ hold: {} }) } }, "the free-run block's hold (blitzPickup.freeRun.hold) holds nothing: give it a spot, ratings or a drop, or leave it out"],
+      ["a held rating off the scale", { blitzPickup: { freeRun: fr({ hold: { ratings: { speed: 100, acceleration: 50 } } }) } }, "blitzPickup.freeRun.hold.ratings.speed must be a rating from 0 to 99, got 100"],
+      ["a held spot without a group", { blitzPickup: { freeRun: fr({ hold: { spot: { downLineman: { depth: 1, width: 2.5 }, linebacker: { depth: 2.5, width: 2.5 } } } }) } }, "blitzPickup.freeRun.hold.spot.defensiveBack must be an object { depth, width }, got undefined"],
+      ["a held drop of 0", { blitzPickup: { freeRun: fr({ hold: { drop: 0 } }) } }, "blitzPickup.freeRun.hold.drop must be a finite number above 0, got 0"],
+      ["a picture outside the set", { blitzPickup: { freeRun: fr({ picture: "MUG_WORN" }) } }, "the free-run block's picture (blitzPickup.freeRun.picture) is MUG_WORN, which is not one of AS_RULED, MUG_HEAD_ONLY"],
+      ["a free-run block that is not an object", { blitzPickup: { freeRun: "B" as never } }, "the free-run block (blitzPickup.freeRun) must be an object, got B"],
+      ["a late block with no weight", { blitzPickup: { lateBlock: { engageSeconds: 1.0, weakMultiplier: 0 } } }, "blitzPickup.lateBlock.weakMultiplier must be a finite number above 0, got 0"],
+      ["a late block engaged before the snap", { blitzPickup: { lateBlock: { engageSeconds: -1, weakMultiplier: 0.1 } } }, "blitzPickup.lateBlock.engageSeconds must be a finite number, 0 or more, got -1"],
+      ["a null late block", { blitzPickup: { lateBlock: null as never } }, "the late block (blitzPickup.lateBlock) must be an object { engageSeconds, weakMultiplier }, got null"],
+      ["today's climb lane by name", { pocket: { climbLane: "INTERIOR" as never } }, "the climb lane rule (pocket.climbLane) is INTERIOR, which is not one of FRONT"],
+    ];
+    for (const [label, step3, message] of cases) {
+      expect(() => s3With(step3), label).toThrow(EngineRulesError);
+      expect(() => s3With(step3), label).toThrow(`withOverlay(pocket-1.s3): ${message}`);
+      const tree = unstampedS3(step3.blitzPickup?.freeRun, step3.blitzPickup?.lateBlock, step3.pocket?.climbLane);
+      expect(() => checkStamp(byHand(tree, "pocket-1.s3"), "pocket-1.s3", "runBatch"), label).toThrow(`runBatch: ${message}`);
+    }
+    // What the engine accepts is a bundle: AM-2's references held, by-origin, both pictures, and the
+    // clean bench's levers past clock.maxTick.
+    const references = { spot: { downLineman: { depth: 1.0, width: 2.5 }, linebacker: { depth: 2.5, width: 2.5 }, defensiveBack: { depth: 5.0, width: 7.0 } }, ratings: { speed: 50, acceleration: 50 }, drop: 5.0 };
+    const accepted: Pick<PocketOverlay, "blitzPickup" | "pocket">[] = [
+      { blitzPickup: { freeRun: fr({ hold: references }) } },
+      { blitzPickup: { freeRun: fr({ hold: { drop: 5.0 } }) } },
+      { blitzPickup: { freeRun: fr({ origins: ["LOOPER_FREE"] }) } },
+      { blitzPickup: { freeRun: fr({ origins: ["UNBLOCKED", "BLOWN_UP", "LOOPER_FREE"] }) } },
+      { blitzPickup: { freeRun: fr({ picture: "MUG_HEAD_ONLY" }), lateBlock: POCKET_1_S3_LATE_BLOCK }, pocket: { climbLane: "FRONT" } },
+      { blitzPickup: { freeRun: fr({ getOffSeconds: 50, movingGetOffSeconds: 50 }), lateBlock: { engageSeconds: 50, weakMultiplier: 0.1 } }, pocket: { climbLane: "FRONT" } },
+    ];
+    const seen = new Set<string>();
+    for (const step3 of accepted) {
+      const t = s3With(step3);
+      expect(checkStamp(t, "pocket-1.s3")).toBe(t);
+      seen.add(t.engineRules!.overlayDigest);
+    }
+    expect(seen.size).toBe(accepted.length);
+  });
+
+  it("checkStamp refuses a leaf patched under a new block after stamping, or a block dropped; patching the base first, then stamping, checks", () => {
+    const b = rulesTunables("pocket-1.s3");
+    const { lateBlock: _late, ...pickupWithout } = b.blitzPickup;
+    const after: [string, Tunables][] = [
+      ["a get-off patched", leaf(b, "blitzPickup.freeRun.getOffSeconds", 0.35, 0.36)],
+      ["the moving get-off patched", leaf(b, "blitzPickup.freeRun.movingGetOffSeconds", 0, 50)],
+      ["the picture patched", leaf(b, "blitzPickup.freeRun.picture", "AS_RULED", "MUG_HEAD_ONLY")],
+      ["the reading patched", leaf(b, "blitzPickup.freeRun.reading", "B", "C")],
+      ["t_e patched", leaf(b, "blitzPickup.lateBlock.engageSeconds", 1.0, 50)],
+      ["w patched", leaf(b, "blitzPickup.lateBlock.weakMultiplier", 0.1, 0.2)],
+      ["the climb lane patched", leaf(b, "pocket.climbLane", "FRONT", "INTERIOR")],
+      ["the late block dropped", { ...b, blitzPickup: pickupWithout } as Tunables],
+    ];
+    for (const [label, t] of after) {
+      expect(t.engineRules, label).toEqual(b.engineRules);
+      expect(() => checkStamp(t, "pocket-1.s3", "runBatch"), label).toThrow(EngineRulesError);
+      expect(() => checkStamp(t, "pocket-1.s3", "runBatch"), label).toThrow(
+        /^runBatch: the tunables are stamped pocket-1\.s3 at overlay fnv1a:c4462712, but they digest to fnv1a:[0-9a-f]{8}: a dial changed after stamping$/,
+      );
+    }
+    // An arm is its patches on the base, then its overlay with the varied blocks, then never patched.
+    const patchedBase = leaf(horizons(), "qb.timeBudget.baseSeconds", 2.5, 4.5);
+    const arm = withOverlay(patchedBase, "pocket-1.s3", { ...POCKET_1_S3_OVERLAY, blitzPickup: { ...POCKET_1_S3_OVERLAY.blitzPickup, freeRun: fr({ getOffSeconds: 0.36 }) } }, POCKET_1_S2_FORCING);
+    expect(checkStamp(arm, "pocket-1.s3")).toBe(arm);
+    expect(arm.engineRules!.overlayDigest).not.toBe(RECORDED_POCKET_1_S3_DIGEST);
+  });
+
+  it("a save stamps pocket-1.s3@<digest> and loads only at it; the season carries it on and refuses to convert (Q-8)", () => {
+    const S3_SAVE = `pocket-1.s3@${RECORDED_POCKET_1_S3_DIGEST}`;
+    expect(saveRulesName("pocket-1.s3")).toBe(S3_SAVE);
+    expect(S3_SAVE).toMatch(/^[a-z0-9.-]+@fnv1a:[0-9a-f]{8}$/);
+    expect(rulesOfSave({ engineRules: S3_SAVE })).toBe("pocket-1.s3");
+    const refusals: [string, string][] = [
+      [`pocket-1.s3@${RECORDED_POCKET_1_S2_DIGEST}`, `This save was played with engine rules pocket-1.s3 at overlay ${RECORDED_POCKET_1_S2_DIGEST}; this build's pocket-1.s3 is ${RECORDED_POCKET_1_S3_DIGEST}`],
+      [`pocket-1.s2@${RECORDED_POCKET_1_S3_DIGEST}`, `This save was played with engine rules pocket-1.s2 at overlay ${RECORDED_POCKET_1_S3_DIGEST}; this build's pocket-1.s2 is ${RECORDED_POCKET_1_S2_DIGEST}`],
+      ["pocket-1.s3@fnv1a:00000000", `This save was played with engine rules pocket-1.s3 at overlay fnv1a:00000000; this build's pocket-1.s3 is ${RECORDED_POCKET_1_S3_DIGEST}`],
+      ["pocket-1.s3", "This save was played with engine rules pocket-1.s3 and carries no overlay digest; a save of non-legacy rules is stamped <name>@<digest>"],
+      ["pocket-1.s4@fnv1a:1a2b3c4d", "This save was played with engine rules pocket-1.s4, which this version does not have"],
+    ];
+    for (const [value, message] of refusals) {
+      expect(() => rulesOfSave({ engineRules: value }), value).toThrow(EngineRulesError);
+      expect(() => rulesOfSave({ engineRules: value }), value).toThrow(message);
+    }
+    const s3Save = { playedWith: { engineRules: S3_SAVE } };
+    const s2Save = { playedWith: { engineRules: `pocket-1.s2@${RECORDED_POCKET_1_S2_DIGEST}` } };
+    expect(seasonRules(undefined, "pocket-1.s3")).toBe("pocket-1.s3");
+    expect(seasonRules(s3Save)).toBe("pocket-1.s3");
+    expect(seasonRules(s3Save, "pocket-1.s3")).toBe("pocket-1.s3");
+    expect(() => seasonRules(s3Save, "pocket-1.s2")).toThrow(/^This save was played with engine rules pocket-1\.s3; carrying it on under pocket-1\.s2 is refused, not converted/);
+    expect(() => seasonRules(s2Save, "pocket-1.s3")).toThrow(/^This save was played with engine rules pocket-1\.s2; carrying it on under pocket-1\.s3 is refused, not converted/);
+    expect(() => seasonRules({}, "pocket-1.s3")).toThrow(/^This save was played with engine rules legacy; carrying it on under pocket-1\.s3 is refused/);
+    // Written down like any non-legacy bundle (O11).
+    expect(rulesStampUnlessLegacy("pocket-1.s3", RECORDED_POCKET_1_S3_DIGEST)).toEqual({ engineRules: "pocket-1.s3", engineRulesDigest: RECORDED_POCKET_1_S3_DIGEST });
+    expect(rulesStampAlways("pocket-1.s3", RECORDED_POCKET_1_S3_DIGEST)).toEqual({ engineRules: "pocket-1.s3", engineRulesDigest: RECORDED_POCKET_1_S3_DIGEST });
+  });
+});
+
 // Type-level: the overlay is typed from the engine's own Tunables, so a block the engine does not
 // know is a compile error, not a silent extra key.
 const _typed: PocketOverlay = POCKET_1_S1_OVERLAY;
@@ -602,3 +958,15 @@ const _forcing: PocketForcing = POCKET_1_S2_FORCING;
 const _unknownRule: PocketForcing = { rule: "STEP_1" };
 void _forcing;
 void _unknownRule;
+// And step 3's blocks: typed from the engine's Tunables, under the tree they land in.
+const _s3: PocketOverlay = POCKET_1_S3_OVERLAY;
+// @ts-expect-error a step-3 key the engine does not have
+const _unknownStep3: PocketOverlay = { blitzPickup: { lateClock: { seconds: 1 } } };
+// @ts-expect-error a climb lane the engine does not have
+const _unknownLane: PocketOverlay = { pocket: { climbLane: "INTERIOR" } };
+// @ts-expect-error a reading the engine does not have
+const _unknownReading: PocketFreeRun = { ...POCKET_1_S3_FREE_RUN, reading: "D" };
+void _s3;
+void _unknownStep3;
+void _unknownLane;
+void _unknownReading;

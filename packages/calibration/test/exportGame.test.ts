@@ -20,6 +20,9 @@
  *  7. STEP 2'S BUNDLE (ADR-089 step 2, plan §1.8). `pocket-1.s2` exports the same way: its own
  *     tunables, its overlay digest beside the name, a file named after it, and another game than
  *     `legacy` and `pocket-1.s1` on the same seed.
+ *  8. STEP 3'S BUNDLE (ADR-089 step 3, plan §2.1). `pocket-1.s3` exports the same way, and every
+ *     pass play carries its stamp and the snap picture its physics reads (ADR-090 S5): another game
+ *     than `pocket-1.s2` on the same seed, with late blocks on it.
  *
  * The engine plays `pocket-1` (stream E-b), so a `pocket-1.s1` game is another game than `legacy` on
  * the same seed, and the stamp is what tells the two files apart.
@@ -36,12 +39,13 @@ import { runOneGame } from "../src/harness/runGame.js";
 import { buildFixture, buildFixtures } from "../src/harness/schedule.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import { indexLeague } from "../src/league/snapshot.js";
-import { POCKET_1_S1_DIGEST, POCKET_1_S2_DIGEST, rulesTunables } from "../src/pocket/rules.js";
+import { POCKET_1_S1_DIGEST, POCKET_1_S2_DIGEST, POCKET_1_S3_DIGEST, rulesTunables } from "../src/pocket/rules.js";
 
 const SEED = "viewer:export-test";
 const game = exportGame({ seed: SEED });
 const pocketGame = exportGame({ seed: SEED, engineRules: "pocket-1.s1" });
 const stepTwoGame = exportGame({ seed: SEED, engineRules: "pocket-1.s2" });
+const stepThreeGame = exportGame({ seed: SEED, engineRules: "pocket-1.s3" });
 
 /** `runOneGame`'s observation for the exporter's fixture, as the exporter builds it. */
 function observedGame(seed: string, tunables?: ReturnType<typeof rulesTunables>) {
@@ -182,6 +186,57 @@ describe("exportGame under pocket-1.s2 (ADR-089 step 2)", () => {
   });
 });
 
+describe("exportGame under pocket-1.s3 (ADR-089 step 3)", () => {
+  it("saves runOneGame's stream for step 3's bundle untouched (ADR-089 §9, O26)", () => {
+    const observation = observedGame(SEED, rulesTunables("pocket-1.s3"));
+    expect(JSON.stringify(stepThreeGame.events)).toBe(JSON.stringify(observation.events));
+    expect(JSON.stringify(stepThreeGame.statlines)).toBe(JSON.stringify(observation.statlines));
+  });
+
+  it("stamps pocket-1.s3 with its overlay digest, and the stamp re-makes the file", () => {
+    expect(stepThreeGame.engineRules).toBe("pocket-1.s3");
+    expect(stepThreeGame.engineRulesDigest).toBe(POCKET_1_S3_DIGEST);
+    expect(stepThreeGame.engineRulesDigest).toBe(rulesTunables("pocket-1.s3").engineRules?.overlayDigest);
+    expect(Object.keys(stepThreeGame).slice(0, 6)).toEqual(["format", "seed", "league", "callerVersion", "engineRules", "engineRulesDigest"]);
+    const remade = exportGame({ seed: stepThreeGame.seed, callerVersion: stepThreeGame.callerVersion, engineRules: stepThreeGame.engineRules });
+    expect(JSON.stringify(remade)).toBe(JSON.stringify(stepThreeGame));
+  });
+
+  it("plays another game than legacy, pocket-1.s1 and pocket-1.s2 on the same seed; every pass play carries its stamp and a snap picture, and late blocks are on it", () => {
+    for (const other of [game, pocketGame, stepTwoGame]) expect(JSON.stringify(stepThreeGame.events)).not.toBe(JSON.stringify(other.events));
+    type Payload = { readonly rules?: { readonly name: string; readonly overlayDigest: string }; readonly snap?: unknown; readonly checkKind?: string; readonly roll?: { readonly rngLabel?: string }; readonly rollRef?: string } | undefined;
+    /** Late beats: pass_rush_beat CHECKs naming a blitz_pickup or stunt_communication CHECK (the engine's E4). */
+    const lateBeatsOf = (events: typeof stepThreeGame.events): number => {
+      const touching = new Set<string>();
+      let late = 0;
+      for (const { event } of events) {
+        const payload = event.payload as Payload;
+        if (event.type !== "CHECK") continue;
+        if ((payload?.checkKind === "blitz_pickup" || payload?.checkKind === "stunt_communication") && payload.roll?.rngLabel !== undefined) touching.add(payload.roll.rngLabel);
+        if (payload?.checkKind === "pass_rush_beat" && payload.rollRef !== undefined && touching.has(payload.rollRef)) late += 1;
+      }
+      return late;
+    };
+    const stamps = new Set<string>();
+    let passPlays = 0;
+    let pictures = 0;
+    for (const { event } of stepThreeGame.events) {
+      const payload = event.payload as Payload;
+      if (event.type === "PLAY_START" && payload?.rules !== undefined) {
+        passPlays += 1;
+        stamps.add(`${payload.rules.name}@${payload.rules.overlayDigest}`);
+        if (payload.snap !== undefined) pictures += 1;
+      }
+    }
+    expect([...stamps]).toEqual([`pocket-1.s3@${POCKET_1_S3_DIGEST}`]);
+    expect(passPlays).toBeGreaterThan(0);
+    expect(pictures).toBe(passPlays);
+    expect(lateBeatsOf(stepThreeGame.events)).toBeGreaterThan(0);
+    // pocket-1.s2's game on the same seed has none.
+    expect(lateBeatsOf(stepTwoGame.events)).toBe(0);
+  });
+});
+
 describe("export-game command", () => {
   const dir = mkdtempSync(join(tmpdir(), "ff-export-"));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -209,6 +264,11 @@ describe("export-game command", () => {
       engineRules: "pocket-1.s2",
       outDir: dir,
     });
+    expect(parseExportArgs(["--seed", "a", "--engine-rules", "pocket-1.s3", "--out", dir])).toEqual({
+      seed: "a",
+      engineRules: "pocket-1.s3",
+      outDir: dir,
+    });
     expect(parseExportArgs(["--seed", "a", "--caller", "v5", "--engine-rules", "legacy", "--out", dir])).toEqual({
       seed: "a",
       callerVersion: "v5",
@@ -216,9 +276,9 @@ describe("export-game command", () => {
       outDir: dir,
     });
     expect("engineRules" in parseExportArgs(["--seed", "a"])).toBe(false);
-    for (const bad of ["pocket-1", "default", "pocket-1.s1@fnv1a:69a7cc48", "pocket-1.s2@fnv1a:03754f60", "pocket-1.s3", "B3", "heels"]) {
+    for (const bad of ["pocket-1", "default", "pocket-1.s1@fnv1a:69a7cc48", "pocket-1.s2@fnv1a:03754f60", `pocket-1.s3@${POCKET_1_S3_DIGEST}`, "pocket-1.s4", "B3", "C1", "heels"]) {
       expect(() => parseExportArgs(["--seed", "a", "--engine-rules", bad]), bad).toThrow(
-        /^--engine-rules must be one of legacy, pocket-1\.s1, pocket-1\.s2$/,
+        /^--engine-rules must be one of legacy, pocket-1\.s1, pocket-1\.s2, pocket-1\.s3$/,
       );
     }
     expect(() => parseExportArgs(["--seed", "a", "--engine-rules"])).toThrow(/requires a value/);
@@ -234,6 +294,8 @@ describe("export-game command", () => {
     expect(gameFileName("a", undefined, "pocket-1.s1")).toBe("a.pocket-1.s1.json");
     expect(gameFileName("a", "v7", "pocket-1.s2")).toBe("a.v7.pocket-1.s2.json");
     expect(gameFileName("a", undefined, "pocket-1.s2")).toBe("a.pocket-1.s2.json");
+    expect(gameFileName("a", "v7", "pocket-1.s3")).toBe("a.v7.pocket-1.s3.json");
+    expect(gameFileName("a", undefined, "pocket-1.s3")).toBe("a.pocket-1.s3.json");
   });
 
   it("writes the game and lists it in the folder's index", () => {
@@ -260,6 +322,16 @@ describe("export-game command", () => {
     expect(readFileSync(join(dir, gameFileName(SEED, undefined, "pocket-1.s1")), "utf8")).toBe(JSON.stringify(pocketGame) + "\n");
     expect(JSON.parse(readFileSync(join(dir, "index.json"), "utf8"))).toEqual({
       games: [gameFileName(SEED), gameFileName(SEED, undefined, "pocket-1.s1"), gameFileName(SEED, undefined, "pocket-1.s2")].sort(),
+    });
+  });
+
+  it("writes a pocket-1.s3 game beside the others, never over them, and lists all four", () => {
+    const path = runExport({ seed: SEED, engineRules: "pocket-1.s3", outDir: dir });
+    expect(path).toBe(join(dir, gameFileName(SEED, undefined, "pocket-1.s3")));
+    expect(readFileSync(path, "utf8")).toBe(JSON.stringify(stepThreeGame) + "\n");
+    expect(readFileSync(join(dir, gameFileName(SEED, undefined, "pocket-1.s2")), "utf8")).toBe(JSON.stringify(stepTwoGame) + "\n");
+    expect(JSON.parse(readFileSync(join(dir, "index.json"), "utf8"))).toEqual({
+      games: [gameFileName(SEED), ...(["pocket-1.s1", "pocket-1.s2", "pocket-1.s3"] as const).map((r) => gameFileName(SEED, undefined, r))].sort(),
     });
   });
 });
