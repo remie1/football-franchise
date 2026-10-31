@@ -6,7 +6,7 @@ rules live in `ARCHITECTURE_CHARTER.md`, and the full working history lives in `
 This page points into both and should stay short. Update the "Where things stand" section when
 a big piece lands.
 
-_Last updated: 27 October 2026._
+_Last updated: 31 October 2026._
 
 ## What the game is
 
@@ -122,8 +122,8 @@ the same games, pressure fell from 32% to 28% of dropbacks on the flat-rated tes
 graded pocket predictions held; on the made-up league pressure fell 0.02 points further than the
 predicted range, which is reported as filed. The interception check, as amended before step 2, did
 not trip. Step 2's numbers are in `packages/calibration/reports/adr-089-step2.md`; you chose to merge
-it with its switch off (30 October 2026). Step 3 waits on the design of where every man stands
-at the snap.
+it with its switch off (30 October 2026). Step 3 waits on step 2 of the build of where every man stands at
+the snap (ADR-090, designed and ruled 31 October 2026).
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
 NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered
@@ -137,6 +137,19 @@ windows. Its fix is designed right after the pocket fix, measured on the fixed p
   not designed yet.
 - The running back's own blitz read at the snap (ADR-077, ruled but not yet in the repo), after the front work, switched on
   only once the pocket fix works.
+- Where every man stands at the snap (ADR-090, ruled 30-31 October 2026): a spot in yards for all
+  22 players on every play, drawn in the game viewer. Disguises cost ground (a Mug backer and a late
+  rotation really stand there at the snap), and a poor disguiser cheats toward his job. Its first
+  steps change no game and can land while the pocket fix is measured; step 2 is the pocket fix's
+  free rushers.
+- The stem called by the Mike (ADR-091): he times MOVE against the quarterback's count with his
+  Awareness and Play Recognition, the line can be caught moving, and offside is enforced by the
+  NFL's own rules. Each defensive coordinator stems at his own rate, about 9 times a game on
+  average.
+- The battle over the snap count (ADR-092): the defensive coordinator's film study and the Mike's
+  ear decide how well the defense knows the count, and the offensive coordinator fixes it during
+  the game. You chose to have the count matter on every snap (jumping the count, false starts)
+  in a design of its own after the pocket fix, with officials who sometimes miss a call.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.

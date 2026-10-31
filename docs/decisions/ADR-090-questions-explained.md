@@ -1,6 +1,6 @@
 # ADR-090: where every man stands at the snap, in plain words
 
-*2026-10-25, revised 2026-10-30: the Stem now has its own design, [ADR-091](ADR-091-questions-explained.md), built on your notes, so questions 1 and 4 are asked again. The full design is [ADR-090](ADR-090-where-every-man-stands-at-the-snap.md). Design only: nothing in the game changes until you answer, and the pocket fix's measurements are not touched. Five questions, each also a card in the thread; you answered 1 (Real), 2 (By rating), 3 (Middle for now) and 4 (Yes). You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
+*2026-10-25, revised 2026-10-30: the Stem now has its own design, [ADR-091](ADR-091-questions-explained.md), built on your notes, so questions 1 and 4 are asked again. The full design is [ADR-090](ADR-090-where-every-man-stands-at-the-snap.md). Design only: nothing in the game changes until you answer, and the pocket fix's measurements are not touched. Five questions, each also a card in the thread; you answered all five: 1 Real, 2 By rating, 3 Middle for now, 4 Yes, and 5 Yes, at step 1. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
 
 ## What this is
 
@@ -24,7 +24,7 @@ This design plays the pre-snap game out in order and writes down where all 22 me
 2. **Tells:** does where he stands give his job away? *I recommend By rating.* **Your answer: By rating.**
 3. **The ball across the field:** always the middle for now, or the hash? *I recommend Middle for now.* **Your answer: Middle for now.**
 4. **The plan:** eleven steps, with the pocket fix's free rushers third and the stem in four of them? *I recommend Yes.* **Your answer: Yes.**
-5. **The game viewer:** draw all 22 men at the snap? *I recommend Yes.*
+5. **The game viewer:** draw all 22 men at the snap? *I recommend Yes.* **Your answer: Yes, at step 1.**
 
 ## Words I use
 
@@ -91,6 +91,8 @@ Steps 0, 1 and 3 change nothing in any game, so they can be merged while the poc
 **The proposal (Yes).** **The other choice (Change the order):** tell me what should move.
 
 ## Question 5: draw it in the game viewer?
+
+**Your answer (2026-10-31): Yes, at step 1.**
 
 **An example.** You open a game, click a play, and see all 22 men as dots where they stood at the snap: the two safeties at 12 yards showing two-high, the backers walked up in a Mug, the slot corner at 5 yards. You can check by eye that a Mug looks like a Mug.
 
