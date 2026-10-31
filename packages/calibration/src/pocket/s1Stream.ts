@@ -72,7 +72,7 @@ import {
   type ClockGrid,
   type ShapeS,
 } from "./clocks.js";
-import { clockKeyOf, onClockUnder, touchOfCheck, type Touch } from "./freeRunKey.js";
+import { centerOfEvents, clockKeyOf, onClockUnder, touchOfCheck, type Touch } from "./freeRunKey.js";
 import { overlayDigestOf, POCKET_1_S3_RULES, rulesOnPlayStart, type PlayStartRules } from "./rules.js";
 import { readS2Play, threatPartAt } from "./s2Stream.js";
 import { playsOf } from "./throwClass.js";
@@ -766,10 +766,11 @@ export function beatAccounting(fold: BeatAccountingFold, play: S1Play, d: Dials)
  */
 function lateBlockAccounting(fold: BeatAccountingFold, play: S1Play, d: Dials): void {
   const rushers = new Set(play.rushers);
+  const center = centerOfEvents(play.events);
   for (const b of play.lateBlocks) {
     const touching = b.touching;
     const tLabel = touching.c.roll?.rngLabel ?? "";
-    const hand = touchOfCheck(touching.c)?.hand;
+    const hand = touchOfCheck(touching.c, center)?.hand;
     if (hand === undefined) fail(fold, at(play, touching), "a late block whose touching CHECK names no toucher");
     if (d.shape === "S") {
       const beat = b.beat;
@@ -999,8 +1000,9 @@ function step3Hits(hit: Set<Mechanism>, play: S1Play, tunables: Tunables, mechan
   if (wants("FREE_RUN")) {
     const key = clockKeyOf(tunables);
     const touches = new Map<string, Touch>();
+    const center = centerOfEvents(play.events);
     for (const k of play.checks) {
-      const touch = touchOfCheck(k.c);
+      const touch = touchOfCheck(k.c, center);
       if (touch !== undefined && k.c.roll !== undefined) touches.set(k.c.roll.rngLabel, touch);
     }
     for (const { event } of play.events) {

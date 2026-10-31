@@ -13,10 +13,14 @@
  *  - **Touched** (D19): a record whose band is RAN_THROUGH or LATE_EXCHANGE, and somebody's hand
  *    was on him. The hand on a pickup is the `blitz_pickup` CHECK's first actor (actors are
  *    `[blocker, rusher]`; a pickup always names its back). The hand on a stunt is the looper's
- *    blocker, which the `stunt_communication` CHECK names (its actors are compacted: `[center?,
- *    adjacent blocker?, penetrator, looper]`) exactly when its roll carries the adjacent blocker's
- *    "Awareness (exchange)" modifier (`resolve/blitz.ts`; an attribute modifier is always emitted).
- *    A LATE_EXCHANGE with no such modifier is AM-2's untouched exchange.
+ *    blocker, read from the `stunt_communication` CHECK's actors alone (`resolve/blitz.ts`: they
+ *    are compacted, `[center?, adjacent blocker?, penetrator, looper]`, the center named exactly
+ *    when the call's protection scheme names one, which `PLAY_START.offense.protectionScheme.center`
+ *    echoes): with two men before the pair the second is the hand; with one, he is the hand unless
+ *    he is that center; with none there is no hand. The roll's modifiers are never read for it:
+ *    `compact` drops a modifier whose value is 0, so a blocker whose Awareness rounds to 0 at the
+ *    divisor (Awareness 0 to 2) is named in the actors and carries no "Awareness (exchange)"
+ *    modifier (review CT-F1). A LATE_EXCHANGE with no hand is AM-2's untouched exchange.
  *  - **The origin an arm's `origins` names him by**: UNBLOCKED; PICKUP_LOST is BLOWN_UP's;
  *    STUNT_LOOPER is LOOPER_FREE's (the untouched exchange with it, AM-2).
  *
@@ -61,23 +65,45 @@ export interface Touch {
   readonly hand: string | undefined;
 }
 
-/** The suffix of the adjacent blocker's modifier on a stunt CHECK (`resolve/blitz.ts`: "<position> Awareness (exchange)"). */
-export const EXCHANGE_MODIFIER_SUFFIX = "Awareness (exchange)";
-
-function hasExchangeModifier(c: TouchingCheck): boolean {
-  return (c.roll?.modifiers ?? []).some((m) => typeof m === "object" && m !== null && String((m as { readonly source?: unknown }).source ?? "").endsWith(EXCHANGE_MODIFIER_SUFFIX));
+/**
+ * The center a stunt CHECK names first: `PLAY_START.offense.protectionScheme.center`, the call's
+ * scheme echoed (ADR-073 §2.8), which is the `PreSnapRead.center` the engine hands
+ * `resolveStuntCommunication`; `undefined` when the call states no scheme or no center (and for any
+ * payload that is not a pass play's start).
+ */
+export function centerOfPlayStart(payload: unknown): string | undefined {
+  if (typeof payload !== "object" || payload === null) return undefined;
+  const offense = (payload as { readonly offense?: unknown }).offense;
+  if (typeof offense !== "object" || offense === null) return undefined;
+  const scheme = (offense as { readonly protectionScheme?: unknown }).protectionScheme;
+  if (typeof scheme !== "object" || scheme === null) return undefined;
+  const center = (scheme as { readonly center?: unknown }).center;
+  return center === undefined || center === null ? undefined : String(center);
 }
 
-/** The touch a pickup or stunt CHECK records; `undefined` for any other CHECK. */
-export function touchOfCheck(c: TouchingCheck): Touch | undefined {
+/** `centerOfPlayStart` on the first `PLAY_START` among a play's events (`undefined` when there is none). */
+export function centerOfEvents(events: readonly { readonly event: { readonly type: string; readonly payload?: unknown } }[]): string | undefined {
+  const start = events.find((e) => e.event.type === "PLAY_START");
+  return start === undefined ? undefined : centerOfPlayStart(start.event.payload);
+}
+
+/**
+ * The touch a pickup or stunt CHECK records; `undefined` for any other CHECK. `center` is the play's
+ * `centerOfPlayStart` (required, never defaulted: a stunt's hand cannot be read without it).
+ */
+export function touchOfCheck(c: TouchingCheck, center: string | undefined): Touch | undefined {
   if (c.checkKind === "blitz_pickup") {
     const hand = c.actors[0];
     return { checkKind: c.checkKind, band: c.band, hand: hand === undefined ? undefined : String(hand) };
   }
   if (c.checkKind === "stunt_communication") {
-    // [center?, adjacent blocker?, penetrator, looper]: the adjacent blocker is third from last.
-    const hand = hasExchangeModifier(c) ? c.actors.at(-3) : undefined;
-    return { checkKind: c.checkKind, band: c.band, hand: hand === undefined ? undefined : String(hand) };
+    // [center?, adjacent blocker?, penetrator, looper]: the men before the pair are the center (when
+    // the call names one) and the looper's blocker (when he had one), in that order.
+    const lead = c.actors.slice(0, -2).map(String);
+    let hand: string | undefined;
+    if (lead.length >= 2) hand = lead[1];
+    else if (lead.length === 1 && lead[0] !== center) hand = lead[0];
+    return { checkKind: c.checkKind, band: c.band, hand };
   }
   return undefined;
 }

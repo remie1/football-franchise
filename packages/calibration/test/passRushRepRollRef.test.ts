@@ -75,7 +75,7 @@ import { buildFixture, buildFixtures } from "../src/harness/schedule.js";
 import { generateSeeds } from "../src/harness/seeds.js";
 import { runOneGame } from "../src/harness/runGame.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
-import { touchOfCheck } from "../src/pocket/freeRunKey.js";
+import { centerOfPlayStart, touchOfCheck } from "../src/pocket/freeRunKey.js";
 import { POCKET_1_S1_DIGEST, POCKET_1_S3_DIGEST, POCKET_1_S3_RULES, rulesOnPlayStart, rulesTunables } from "../src/pocket/rules.js";
 import { lateBeatLabelOf } from "../src/pocket/s1Stream.js";
 
@@ -212,6 +212,7 @@ interface LateRelation {
 function lateRelationOf(gameLabel: string, events: readonly MatchEventEnvelope[]): LateRelation {
   interface Play {
     s3: boolean;
+    center: string | undefined;
     readonly touching: Map<string, { readonly checkKind: string; readonly actors: readonly unknown[]; readonly band?: string; readonly roll: { readonly modifiers: readonly unknown[] } }>;
     readonly beats: { readonly label: string; readonly rollRef: string | undefined; readonly actors: readonly string[] }[];
     readonly ticks: { readonly rollRef: string; readonly actors: readonly string[]; readonly tick: number | undefined }[];
@@ -221,14 +222,16 @@ function lateRelationOf(gameLabel: string, events: readonly MatchEventEnvelope[]
   const playOf = (playId: string): Play => {
     let p = plays.get(playId);
     if (p === undefined) {
-      p = { s3: false, touching: new Map(), beats: [], ticks: [], labels: new Map() };
+      p = { s3: false, center: undefined, touching: new Map(), beats: [], ticks: [], labels: new Map() };
       plays.set(playId, p);
     }
     return p;
   };
   for (const { event } of events) {
     if (event.type === "PLAY_START") {
-      if (rulesOnPlayStart(event.payload)?.name === POCKET_1_S3_RULES) playOf(String(event.playId)).s3 = true;
+      const start = playOf(String(event.playId));
+      if (rulesOnPlayStart(event.payload)?.name === POCKET_1_S3_RULES) start.s3 = true;
+      start.center = centerOfPlayStart(event.payload);
       continue;
     }
     if (event.type !== "CHECK") continue;
@@ -264,7 +267,7 @@ function lateRelationOf(gameLabel: string, events: readonly MatchEventEnvelope[]
       lateBeats += 1;
       const at = `${where} late beat "${b.label}"`;
       if (b.label !== lateBeatLabelOf(b.rollRef)) faults.push(`${at}: not its CHECK's family ${JSON.stringify(lateBeatLabelOf(b.rollRef))}`);
-      const hand = touchOfCheck(touching)?.hand;
+      const hand = touchOfCheck(touching, play.center)?.hand;
       if (hand === undefined) faults.push(`${at}: a late beat on a man nobody's hand was on (${touching.checkKind} ${String(touching.band)})`);
       if (b.actors.length !== 2) faults.push(`${at}: actors ${JSON.stringify(b.actors)}, not [carrier, hand]`);
       else {
@@ -461,10 +464,15 @@ describe("ADR-089 step 1: the invariant on a pocket-1.s1 corpus", () => {
 
 // --- ADR-089 step 3: the late block's join, on s3 plays only ---------------------------------
 
-const playStart = (playId: string, rules?: { readonly name: string; readonly overlayDigest: string }) => ({
+const playStart = (playId: string, rules?: { readonly name: string; readonly overlayDigest: string }, center?: string) => ({
   seq: 0,
   at: AT,
-  event: { gameId: "g", playId, type: "PLAY_START", payload: { kind: "PASS_PLAY_V1", ...(rules === undefined ? {} : { rules }) } } as never,
+  event: {
+    gameId: "g",
+    playId,
+    type: "PLAY_START",
+    payload: { kind: "PASS_PLAY_V1", ...(rules === undefined ? {} : { rules }), ...(center === undefined ? {} : { offense: { protectionScheme: { center } } }) },
+  } as never,
 }) as MatchEventEnvelope;
 const S3_STAMP = { name: POCKET_1_S3_RULES, overlayDigest: POCKET_1_S3_DIGEST } as const;
 const S1_STAMP = { name: "pocket-1.s1", overlayDigest: POCKET_1_S1_DIGEST } as const;
@@ -602,7 +610,8 @@ describe("ADR-089 step 3: a late beat's label family and actors, and no label tw
   });
 
   it("refuses a late beat on the untouched exchange (no blocker's hand), which is on the clock, never a late block", () => {
-    const rel = lateRelationOf("s3", [playStart("p1", S3_STAMP), stunt("p1", false), lateBeat("p1", stuntBeat, STUNT, ["de", "c"])]);
+    // The call names its center (PLAY_START echoes the scheme): the one man before the pair is he, not a hand.
+    const rel = lateRelationOf("s3", [playStart("p1", S3_STAMP, "c"), stunt("p1", false), lateBeat("p1", stuntBeat, STUNT, ["de", "c"])]);
     expect(rel.faults.join("\n")).toContain("nobody's hand was on");
   });
 

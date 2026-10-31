@@ -85,14 +85,27 @@ describe("AM-2's key: who is on the free-run clock under an arm's reading (freeR
     expect(clockKeyOf(armById("C9").tunables)).toEqual({ reading: "B", origins: ["LOOPER_FREE"], d19: false });
   });
 
-  it("the hand on a pickup is its back; on a stunt the looper's blocker, named only by the exchange modifier", () => {
-    expect(touchOfCheck({ checkKind: "blitz_pickup", actors: ["rb", "lb"], band: "RAN_THROUGH" })).toEqual({ checkKind: "blitz_pickup", band: "RAN_THROUGH", hand: "rb" });
+  it("the hand on a pickup is its back; on a stunt the looper's blocker, read from the actors and the play's center", () => {
+    expect(touchOfCheck({ checkKind: "blitz_pickup", actors: ["rb", "lb"], band: "RAN_THROUGH" }, undefined)).toEqual({ checkKind: "blitz_pickup", band: "RAN_THROUGH", hand: "rb" });
     const stunt = (mods: readonly string[], actors: readonly string[]) => ({ checkKind: "stunt_communication", actors, band: "LATE_EXCHANGE", roll: { modifiers: mods.map((source) => ({ source, value: 1 })) } });
-    expect(touchOfCheck(stunt(["C Awareness (center)", "LG Awareness (exchange)"], ["c", "lg", "dt", "de"]))?.hand).toBe("lg");
-    expect(touchOfCheck(stunt(["LG Awareness (exchange)"], ["lg", "dt", "de"]))?.hand).toBe("lg");
+    expect(touchOfCheck(stunt(["C Awareness (center)", "LG Awareness (exchange)"], ["c", "lg", "dt", "de"]), "c")?.hand).toBe("lg");
+    // No center named by the call: the one man before the pair is the looper's blocker.
+    expect(touchOfCheck(stunt(["LG Awareness (exchange)"], ["lg", "dt", "de"]), undefined)?.hand).toBe("lg");
     // No adjacent blocker: AM-2's untouched exchange.
-    expect(touchOfCheck(stunt(["C Awareness (center)"], ["c", "dt", "de"]))?.hand).toBeUndefined();
-    expect(touchOfCheck({ checkKind: "pass_rush_rep", actors: ["de", "lt"] })).toBeUndefined();
+    expect(touchOfCheck(stunt(["C Awareness (center)"], ["c", "dt", "de"]), "c")?.hand).toBeUndefined();
+    expect(touchOfCheck(stunt([], ["dt", "de"]), undefined)?.hand).toBeUndefined();
+    expect(touchOfCheck({ checkKind: "pass_rush_rep", actors: ["de", "lt"] }, "c")).toBeUndefined();
+  });
+
+  it("review CT-F1: a blocker whose Awareness rounds to 0 carries no exchange modifier and is still the hand", () => {
+    // compact() drops a 0 modifier: Awareness 0 to 2 at the divisor 5 names him in the actors only.
+    const awareness0 = { checkKind: "stunt_communication", actors: ["c", "lt1", "dt1", "de1"], band: "LATE_EXCHANGE", roll: { modifiers: [{ source: "C Awareness (center)", value: 3 }] } };
+    expect(touchOfCheck(awareness0, "c")?.hand).toBe("lt1");
+    expect(isTouched(touchOfCheck(awareness0, "c"))).toBe(true);
+    // The same with the center's own Awareness rounding to 0 as well: no modifier at all.
+    expect(touchOfCheck({ ...awareness0, roll: { modifiers: [] } }, "c")?.hand).toBe("lt1");
+    // With no center called, a lone man before the pair is the blocker whatever his modifiers.
+    expect(touchOfCheck({ checkKind: "stunt_communication", actors: ["lt1", "dt1", "de1"], band: "LATE_EXCHANGE", roll: { modifiers: [] } }, undefined)?.hand).toBe("lt1");
   });
 
   it("touched is RAN_THROUGH or LATE_EXCHANGE with a hand (D19); the untouched exchange and the free bands are not", () => {

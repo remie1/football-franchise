@@ -52,7 +52,7 @@ import type { GameSnapshot, Tunables } from "@ff/engine";
 import { reconstructedTravelSecondsFor } from "../knownTruth/pocketChannelShares.js";
 import { AM2_REFERENCES } from "./arms.js";
 import { FREE_RUN_CONSTANTS, dropOfCall, freeRunTime, loopCrossYards, ratingsOf, roundEta, type FreeRunInput, type RunnerRatings } from "./freeRun.js";
-import { clockKeyOf, isTouched, onClockUnder, touchOfCheck, type Touch, type TouchingCheck } from "./freeRunKey.js";
+import { centerOfPlayStart, clockKeyOf, isTouched, onClockUnder, touchOfCheck, type Touch, type TouchingCheck } from "./freeRunKey.js";
 import { legacyDepthFor, restateFreeRunners } from "./legacyFreeRun.js";
 import { playersOfSnapshot } from "./m6Contact.js";
 import { POCKET_1_S3_RULES, rulesOnPlayStart, type PocketFreeRun } from "./rules.js";
@@ -467,7 +467,7 @@ function foldPlay(fold: Part1Fold, slice: { readonly playId: string; readonly ev
     let record: TouchingCheck | undefined;
     if (t.origin !== "UNBLOCKED") {
       record = checks.get(t.rollRef);
-      touch = record === undefined ? undefined : touchOfCheck(record);
+      touch = record === undefined ? undefined : touchOfCheck(record, centerOfPlayStart(first.payload));
       const kind = t.origin === "PICKUP_LOST" ? "blitz_pickup" : "stunt_communication";
       if (record === undefined || record.checkKind !== kind) {
         fail(fold, man, `names ${t.rollRef}, no ${kind} CHECK of the play`);

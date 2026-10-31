@@ -28,7 +28,7 @@ import { DEFAULT_TUNABLES } from "@ff/engine";
 import type { GameSummary, StatLine, Tunables } from "@ff/engine";
 import { COVERAGE_MASKS, FRONT_LOOKS, shownRushDiffers } from "@ff/playbook";
 import { approachesOfPlay, LOOPER_FREE_BAND, PICKUP_FREE_BAND } from "../pocket/approach.js";
-import { clockKeyOf, onClockUnder, touchOfCheck, type ClockKey, type Touch } from "../pocket/freeRunKey.js";
+import { centerOfPlayStart, clockKeyOf, onClockUnder, touchOfCheck, type ClockKey, type Touch } from "../pocket/freeRunKey.js";
 
 /** One simulated game, as it comes back from a worker. */
 export interface SimGameObservation {
@@ -1001,6 +1001,8 @@ interface PocketPlayState {
   freeRunPressured: Set<string>;
   /** ADR-089 step 3: the men on the clock under the arm's own reading (AM-2's key). */
   clockMen: Set<string>;
+  /** `PLAY_START.offense.protectionScheme.center`: the man a stunt CHECK names first, never its hand (`touchOfCheck`). */
+  center: string | undefined;
   released: boolean;
   /** `THROW.releaseSeconds` when the stream carries it (P8; absent under legacy). */
   releaseSeconds: number | null;
@@ -1049,6 +1051,7 @@ function blankPocketPlay(period: number, clockSeconds: number): PocketPlayState 
     freeRunMen: new Set<string>(),
     freeRunPressured: new Set<string>(),
     clockMen: new Set<string>(),
+    center: undefined,
     released: false,
     releaseSeconds: null,
     hit: false,
@@ -1239,7 +1242,7 @@ function pocketCheckSeen(pk: PocketPlayState, c: CheckPayload, tb: FoldTables): 
     if (rusher !== undefined && c.band !== undefined) pk.lastBands.set(String(rusher), c.band);
   } else if (c.checkKind === "blitz_pickup" || c.checkKind === "stunt_communication") {
     pk.checkBands.set(c.roll.rngLabel, c.band);
-    const touch = touchOfCheck(c);
+    const touch = touchOfCheck(c, pk.center);
     if (touch !== undefined) pk.checkTouches.set(c.roll.rngLabel, touch);
   } else if (c.checkKind === "scramble" && c.band !== undefined && tb.escapeCaughtBands.has(c.band) && !pk.released) {
     if (pk.escaped) pk.contactOut = true;
@@ -1667,6 +1670,7 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation, tunables
         const start = asPlayStart(event.payload);
         current = blankPlay();
         current.pk = blankPocketPlay(period, rebuiltClock);
+        current.pk.center = centerOfPlayStart(event.payload);
         tick = 0;
         pocket.clockCheck.snaps++;
         if (start !== null) {

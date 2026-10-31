@@ -32,7 +32,7 @@
 import type { MatchEventEnvelope } from "@ff/contracts";
 import type { Tunables } from "@ff/engine";
 import { beatTickOf, lateBreakingTimeS, lateRepMargin } from "./clocks.js";
-import { clockKeyOf, isTouched, onClockUnder, touchOfCheck, type ClockKey, type Touch } from "./freeRunKey.js";
+import { centerOfEvents, clockKeyOf, isTouched, onClockUnder, touchOfCheck, type ClockKey, type Touch } from "./freeRunKey.js";
 import { dialsOf, isS3Play, s1PlaysOf, type CheckAt, type Dials, type LateBlockAt, type S1Play } from "./s1Stream.js";
 
 /** How many failure lines a fold keeps; the count beside them is complete. */
@@ -183,11 +183,12 @@ export function lateBlockCheck(fold: LateBlockFold, play: S1Play, tunables: Tuna
   const blockOf = new Map<string, LateBlockAt>();
   for (const b of play.lateBlocks) blockOf.set(b.touching.c.roll?.rngLabel ?? "", b);
   const standing = standingRecordsOf(play);
+  const center = centerOfEvents(play.events);
   let lastTouching = -1;
   for (const k of play.checks) {
     if (!isTouchingKind(k.c.checkKind) || k.c.roll === undefined) continue;
     lastTouching = Math.max(lastTouching, k.index);
-    const touch = touchOfCheck(k.c);
+    const touch = touchOfCheck(k.c, center);
     if (touch === undefined || !standing.has(k.c.roll.rngLabel)) continue;
     const expected = expectsLateBlock(tunables, key, k.c.checkKind, touch);
     if (expected) fold.expected += 1;
@@ -290,8 +291,9 @@ export function s3Census(fold: S3CensusFold, play: S1Play, tunables: Tunables): 
   if (fold.reading === null) fold.reading = reading;
   else if (fold.reading !== reading) throw new Error("s3Census: one fold read arms with different readings");
   const touches = new Map<string, Touch>();
+  const center = centerOfEvents(play.events);
   for (const k of play.checks) {
-    const touch = touchOfCheck(k.c);
+    const touch = touchOfCheck(k.c, center);
     if (touch === undefined || k.c.roll === undefined) continue;
     touches.set(k.c.roll.rngLabel, touch);
     if (isTouched(touch)) fold.touched += 1;

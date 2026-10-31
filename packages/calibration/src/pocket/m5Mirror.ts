@@ -35,7 +35,7 @@
  */
 import { createRng, type MatchEventEnvelope } from "@ff/contracts";
 import type { Tunables } from "@ff/engine";
-import { clockKeyOf, onClockUnder, touchOfCheck, type Touch } from "./freeRunKey.js";
+import { centerOfPlayStart, clockKeyOf, onClockUnder, touchOfCheck, type Touch } from "./freeRunKey.js";
 import { POCKET_1_S3_RULES, rulesOnPlayStart } from "./rules.js";
 import { dropbacksOf, playsOf } from "./throwClass.js";
 
@@ -216,12 +216,13 @@ export function freeRunMirrorPlaysOf(events: readonly MatchEventEnvelope[], tuna
     };
     if (payload.kind !== "PASS_PLAY_V1" || rulesOnPlayStart(first.payload)?.name !== POCKET_1_S3_RULES || payload.snap === undefined) continue;
     const snap = payload.snap;
+    const center = centerOfPlayStart(first.payload);
     const touches = new Map<string, Touch>();
     const men: { rusher: string; origin: string; eta: number }[] = [];
     const seen = new Set<string>();
     for (const { event } of slice.events) {
       if (event.type === "CHECK" && event.payload.roll !== undefined) {
-        const touch = touchOfCheck(event.payload);
+        const touch = touchOfCheck(event.payload, center);
         if (touch !== undefined) touches.set(event.payload.roll.rngLabel, touch);
       } else if (event.type === "RUSH_THREAT") {
         const t = event.payload;
