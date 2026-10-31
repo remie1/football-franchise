@@ -139,6 +139,8 @@ Step 0 is the rulebook (how every flag is enforced) and step 1 is the officials 
 
 ### Q8. What can your coach challenge?
 
+**You chose real NFL rules (31 October).**
+
 **Example:** third and 6, your receiver dives for the ball at the sideline and it's ruled incomplete. Up in the booth, your assistant head coach watches the replay: "I'm 75% sure he caught it. Want to throw the flag?" You throw it, and if he was right, you get the catch and the first down; if not, you lose a timeout.
 
 In the real NFL, a coach can't challenge most penalties. He challenges rulings of fact: a catch, the spot and the line to gain, down by contact, the sideline, the goal line, a fumble. The booth also looks at every score and every turnover by itself, and in the last two minutes of each half and in overtime only the booth can ask for a review.
