@@ -2,7 +2,7 @@
  * THE NAMED AMENDMENTS OF THE STEP-0 FILING, `adr-089-amendments/v1` (ADR-089 Appendix E's header,
  * ADR-089:2022: "Amendments go in `reports/adr-089-amendments.filed.json`, never in the step-0
  * file"; `filed.ts:16`; step 0's plan §8.1; AM-1, Appendix F, F.11; step-2 plan §4.6, §6 K3; AM-2,
- * Appendix G, G.8; step-3 plan §4.1, §4.2, §4.3; AM-3, G.9; AM-4, G.10).
+ * Appendix G, G.8; step-3 plan §4.1, §4.2, §4.3; AM-3, G.9; AM-4, G.10; AM-5, G.11).
  *
  * The step-0 filing is append-only and pinned (`STEP0_FILED_DIGEST`, `fnv1a:9a1c90e9`) for ever, so a
  * filed clause is amended by a named entry here, never by an edit there. Each entry carries what it
@@ -16,6 +16,8 @@
  * guard base map: AM-1's rule word for word but for `bases` (C1 on B3, C2 on B6, C11 on B3). AM-4,
  * filed before step 3 (G.10), is the owner's sight ruling as the Orchestrator reads it (looks, built at
  * step 7): it supersedes `s7.earlyShare` and carries no guard rule, so no step before 7 reads its rule.
+ * AM-5, filed before step 3 (G.11), changes AM-2's shape-L toucher die to one per pair
+ * (`rule.amends`); it supersedes no clause and carries no guard rule.
  *
  * **The pin.** `AMENDMENTS_DIGEST` is `stableDigest` of the parsed file (as `filedDigest` is of the
  * step-0 file), a literal here. The harness refuses a file that does not equal it, so a changed
@@ -38,6 +40,17 @@
  * `ADR_089_LINES`); a `filedBeforeStep` or `steps` entry that is not a step of ADR-089; and an arm
  * of a base map that is not an arm of this build. An entry that supersedes a guard clause must also
  * carry a guard rule `guardRuleOf` reads (the statistic, the lines and the base maps).
+ *
+ * **One entry's change to another's rule text** (`rule.amends`; AM-5, ADR-089 Appendix G, G.11). A
+ * filed entry is never edited, so a later entry that changes words in an earlier one's rule says so in
+ * `rule.amends`: items `{ entry, path, was, becomes }`, each naming an earlier entry, a path to a
+ * string under its `rule` ("rule.lateBlock.shapeL"), the words it had and the words it now has.
+ * `validateAmendments` refuses an item that names no earlier entry, an entry filed before a later step
+ * than its own (a step's view would hold the item without the text it changes), an entry that carries
+ * a guard rule (`guardRuleOf` reads a guard rule as filed, so a guard changes only by a new guard entry,
+ * as AM-3 did), a path that is not such a string, a `was` not found exactly once in that text as the
+ * items before it left it, or a `becomes` equal to its `was`. `amendedRuleText` reads the text with
+ * every item applied in filing order; read a step's view first to get the text as that step reads it.
  */
 import { readFileSync } from "node:fs";
 import { stableDigest } from "../harness/digest.js";
@@ -53,10 +66,11 @@ export const AMENDMENTS_PATH = "reports/adr-089-amendments.filed.json";
  * The committed amendments file's digest (`amendmentsDigest`, a `stableDigest` of the parsed file):
  * AM-1 as filed by the Orchestrator (commit `b65ab25`, shown to the owner at `200b18b`), then AM-2,
  * filed before step 3 (ADR-089 Appendix G, G.8), then AM-3, step 3's guard base map (G.9), then AM-4,
- * sight by looks (G.10). A reader of the whole file refuses any other file. Step 2's harness reads the
- * file as it stood at step 2 instead (`STEP2_AMENDMENTS_DIGEST`).
+ * sight by looks (G.10), then AM-5, shape L's toucher die (G.11). A reader of the whole file refuses
+ * any other file. Step 2's harness reads the file as it stood at step 2 instead
+ * (`STEP2_AMENDMENTS_DIGEST`).
  */
-export const AMENDMENTS_DIGEST = "fnv1a:1528d154";
+export const AMENDMENTS_DIGEST = "fnv1a:517bb9fe";
 
 /**
  * The file's step-2 view (`amendmentsDigestAtStep(file, "2")`): its entries cut to those filed before
@@ -66,6 +80,15 @@ export const AMENDMENTS_DIGEST = "fnv1a:1528d154";
  * (step-3 plan §4.3, critique 2 B2).
  */
 export const STEP2_AMENDMENTS_DIGEST = "fnv1a:d5f9de6d";
+
+/**
+ * The file's step-3 view (`amendmentsDigestAtStep(file, "3")`): AM-1 to AM-5, the entries filed before
+ * step 3 or an earlier step, pinned once AM-5, the last entry filed before step 3's arms run, was filed
+ * (ADR-089 Appendix G, G.9 item 8 and G.11). Every step-3 record stamps it. An entry filed before a
+ * later step leaves it where it is; an edit to one of its entries, or an entry filed before step 3
+ * after this, moves it and fails the test that pins it (`adr089Amendments.test.ts`).
+ */
+export const STEP3_AMENDMENTS_DIGEST = "fnv1a:517bb9fe";
 
 /** ADR-089's steps (§6's table), the ids a `filedBeforeStep`, a `steps` entry or a base map's key may name. */
 export const ADR_089_STEP_IDS = ["0", "1", "2", "3", "4", "5a", "5b", "6", "7", "8a", "8b", "9", "10", "11"] as const;
@@ -123,6 +146,92 @@ const isString = (v: unknown): v is string => typeof v === "string" && v.length 
 const isAdrLine = (v: unknown): boolean => typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= ADR_089_LINES;
 
 const ENTRY_FIELDS = ["id", "name", "filedBeforeStep", "steps", "supersedes", "untouched", "defaults", "adrLines", "cites", "record", "reason", "ownersWord", "rule"] as const;
+
+// --- one entry's change to another's rule text (`rule.amends`; AM-5, G.11) -------------------------------
+
+/** One item of `rule.amends`: in entry `entry`'s text at `path`, `was` (found there once) becomes `becomes`. */
+export interface TextAmendment {
+  readonly entry: string;
+  readonly path: string;
+  readonly was: string;
+  readonly becomes: string;
+}
+
+const AMEND_FIELDS = ["entry", "path", "was", "becomes"] as const;
+
+/** The value at a dotted path ("rule.lateBlock.shapeL") inside `v`, through objects only; undefined when there is none. */
+function valueAt(v: unknown, path: string): unknown {
+  let at = v;
+  for (const key of path.split(".")) {
+    if (!isObject(at) || !(key in at)) return undefined;
+    at = at[key];
+  }
+  return at;
+}
+
+/** Every problem with entry `i`'s `rule.amends`; `amended` carries each amended text forward, in filing order. */
+function amendsProblems(v: unknown, entries: readonly unknown[], i: number, at: string, amended: Map<string, string>): string[] {
+  if (!Array.isArray(v) || v.length === 0) return [`${at}: must be a non-empty array of { entry, path, was, becomes }`];
+  const out: string[] = [];
+  v.forEach((a: unknown, j: number) => {
+    const here = `${at}.${String(j)}`;
+    if (!isObject(a)) {
+      out.push(`${here}: must be an object`);
+      return;
+    }
+    for (const key of Object.keys(a)) if (!(AMEND_FIELDS as readonly string[]).includes(key)) out.push(`${here}.${key}: not a field of an amends item`);
+    const missing = AMEND_FIELDS.filter((key) => !isString(a[key]));
+    for (const key of missing) out.push(`${here}.${key}: must be a non-empty string`);
+    if (missing.length > 0) return;
+    const { entry, path, was, becomes } = a as unknown as TextAmendment;
+    const target = entries.slice(0, i).find((e): e is Record<string, unknown> => isObject(e) && e["id"] === entry);
+    if (target === undefined) {
+      out.push(`${here}.entry: ${entry} is not an entry filed before this one; an entry amends only an earlier one`);
+      return;
+    }
+    // A step's view holds an item only with the text it changes: the target is filed before the same step or an earlier one.
+    const own = entries[i] as Record<string, unknown>;
+    const stepOf = (e: Record<string, unknown>): number => (isAdrStepId(e["filedBeforeStep"]) ? ADR_089_STEP_IDS.indexOf(e["filedBeforeStep"]) : -1);
+    if (stepOf(own) >= 0 && stepOf(target) > stepOf(own)) {
+      out.push(`${here}.entry: ${entry} is filed before step ${String(target["filedBeforeStep"])}, a later step than this entry's ${String(own["filedBeforeStep"])}; an entry amends only one filed before the same step or an earlier one`);
+      return;
+    }
+    // A guard rule is read as filed (`guardRuleOf`, `guardFor`), never through `amendedRuleText`.
+    const sup = target["supersedes"];
+    if (Array.isArray(sup) && sup.some((id) => (GUARD_CLAUSE_IDS as readonly unknown[]).includes(id))) {
+      out.push(`${here}.entry: ${entry} carries a guard rule, which the harness reads as filed; a guard changes only by a new guard entry, as AM-3 did`);
+      return;
+    }
+    const key = `${entry}#${path}`;
+    const text = amended.get(key) ?? (path.startsWith("rule.") ? valueAt(target, path) : undefined);
+    if (typeof text !== "string") {
+      out.push(`${here}.path: ${path} is not a text under ${entry}'s rule`);
+      return;
+    }
+    const n = text.split(was).length - 1;
+    if (n !== 1) out.push(`${here}.was: found ${String(n)} times in ${entry}'s ${path} as amended so far, not once`);
+    else if (becomes === was) out.push(`${here}.becomes: the same as was`);
+    else amended.set(key, text.split(was).join(becomes));
+  });
+  return out;
+}
+
+/**
+ * The text at `path` under entry `id`'s rule as the file amends it: the entry's own text, as filed and
+ * pinned, with every later entry's `rule.amends` item naming that text applied in filing order. Throws
+ * when `path` is not a text under the entry's rule.
+ */
+export function amendedRuleText(file: AmendmentsFile, id: string, path: string): string {
+  const own = path.startsWith("rule.") ? valueAt(entryOf(file, id), path) : undefined;
+  if (typeof own !== "string") throw new Error(`ADR-089: ${path} is not a text under ${id}'s rule`);
+  let text = own;
+  for (const e of file.entries) {
+    const items = e.rule["amends"];
+    if (!Array.isArray(items)) continue;
+    for (const a of items as unknown as readonly TextAmendment[]) if (a.entry === id && a.path === path) text = text.split(a.was).join(a.becomes);
+  }
+  return text;
+}
 
 // --- the guard rule (AM-1 §4.3 to §4.5, §4.9) ------------------------------------------------------------
 
@@ -208,6 +317,7 @@ export function amendmentsProblems(json: unknown, filing: FiledFile): readonly s
   const entries = json["entries"];
   if (!Array.isArray(entries) || entries.length === 0) return [...out, "entries: must be a non-empty array"];
   const clauses = new Map(filing.bands.clauses.map((c) => [c.id, c]));
+  const amended = new Map<string, string>();
   entries.forEach((e: unknown, i: number) => {
     const at = `entries.${String(i)}`;
     if (!isObject(e)) {
@@ -250,6 +360,7 @@ export function amendmentsProblems(json: unknown, filing: FiledFile): readonly s
     const word = e["ownersWord"];
     if (word !== null && !(isObject(word) && isString(word["ts"]))) out.push(`${at}.ownersWord: must be null (shown, not asked) or carry the owner's word with its ts`);
     const rule = e["rule"];
+    if (isObject(rule) && "amends" in rule) out.push(...amendsProblems(rule["amends"], entries, i, `${at}.rule.amends`, amended));
     if (!isObject(rule)) out.push(`${at}.rule: must be an object`);
     else if ((lists["supersedes"] ?? []).some((id) => (GUARD_CLAUSE_IDS as readonly unknown[]).includes(id))) {
       out.push(...guardRuleProblems(rule, `${at}.rule`, Array.isArray(steps) ? steps : []));

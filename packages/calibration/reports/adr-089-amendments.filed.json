@@ -250,6 +250,41 @@
         "informationArms": ["ONE_ROLL_D20 (the Orchestrator's choice, reported only, never graded, paired on both seed sets): revision 2's single roll at creation with band edges 0 and -30 at its own M7 target, and D20's alarm moment"],
         "rollAudit": ["at most one look a rusher a tick (:sense or :return)", "no :sense for PUSH or BLOCKED", "no :sense after registration except after a return", "no look on or after the tick he arrives", "no :alarm CHECK when the alarm counts as fired on must act's tick", "at most one :alarm a rusher a play"]
       }
+    },
+    {
+      "id": "AM-5",
+      "name": "shape L's toucher die, one per pair: rush/t<tick>/<toucherId>:late:<rusherId>",
+      "filedBeforeStep": "3",
+      "steps": ["3", "4", "5a", "5b", "6", "7", "8a", "8b", "9", "10", "11"],
+      "supersedes": [],
+      "untouched": [],
+      "defaults": [],
+      "adrLines": [],
+      "cites": [348, 546, 933, 1320, 1388],
+      "record": "ADR-089 Appendix G, G.11",
+      "reason": "Review CT-F7, the Orchestrator's ruling. AM-2's shape L draws the toucher's die on rush/t<tick>/<toucherId>:late, and fork is a pure function of its label (contracts/src/rng.ts:52), so a man who touched two rushers who are both blocked late would draw one die for both on each tick, and the two blocks would share a roll, which ADR-004's roll audit (engine/test/rollAccounting.test.ts) would fail, since every rngLabel in a play's event stream is unique; refusing such a play instead would also change what AM-2 says. The toucher's die is now one per pair, rush/t<tick>/<toucherId>:late:<rusherId>, and no play is refused. The rusher's die stays rush/t<tick>/<rusherId>:late, and nothing on shape S changes. AM-2's entry stays as filed: this entry changes its words through rule.amends. Shape L is refused in play until P17's doc text is in contracts (E4b), so no game has drawn either label; this is filed before C14, step 3's only arm on shape L, runs. A ruling on a label, shown to the owner, not asked.",
+      "ownersWord": null,
+      "rule": {
+        "amends": [
+          {
+            "entry": "AM-2",
+            "path": "rule.lateBlock.shapeL",
+            "was": "rush/t<tick>/<toucherId>:late",
+            "becomes": "rush/t<tick>/<toucherId>:late:<rusherId>"
+          }
+        ],
+        "lateBlock": {
+          "shapeL": {
+            "rusherDie": "rush/t<tick>/<rusherId>:late",
+            "toucherDie": "rush/t<tick>/<toucherId>:late:<rusherId>",
+            "perPair": "one toucher die a pair (toucher and rusher) a tick: a man who touched two rushers both blocked late draws a die for each, and no play is refused",
+            "unchanged": "everything else AM-2 files for shape L: the jitter from the two dice, the margin, the rolled pass_rush_tick with the rusher's die as roll and the toucher's as opposedRoll, and rollRef the touching CHECK"
+          },
+          "shapeS": "unchanged"
+        },
+        "P17": "P17's doc text names the pair label: under shape L the ticks draw their jitter on <rusherId>:late and <toucherId>:late:<rusherId>",
+        "filedBefore": "C14, step 3's only arm on shape L; shape L stays refused in play until P17's doc text is in contracts (E4b), when the engine's late block and calibration's late-tick check take the pair label"
+      }
     }
   ]
 }
