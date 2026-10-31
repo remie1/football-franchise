@@ -188,6 +188,9 @@ export function mirrorCaller(caller: PlayCaller): PlayCaller {
       ? {}
       : {
           lineUp: ((request, rng) => {
+            // The request is handed on whole but for its two calls, so the arm's tunables, and
+            // with them the free-run block's picture dial, reach the pair as the engine passed them
+            // (ADR-089 step 3, plan §2.11, K5): the pair draws the arm's picture, mirrored here.
             const picture = caller.lineUp?.(
               { ...request, offenseCall: mirrorCall(request.offenseCall), defenseCall: mirrorCall(request.defenseCall) },
               rng,

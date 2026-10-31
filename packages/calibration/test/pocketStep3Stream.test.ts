@@ -9,8 +9,9 @@
  * census; `deriveFrom` unchanged on a beaten late block (ARC or THROUGH); a late tick counted as a
  * tick of its own block by the band census and the ladder; M5's exact free-run mirror row.
  *
- * In the suite: the first 3 golden games of each league under C1, C2, C10, C12 and C15, every
- * step-1 fold and the step-3 folds with no failure and the late block seen; the miss split's two
+ * In the suite: the first 3 golden games of each league under C1, C2, C6, C10, C12, C13 and C15, every
+ * step-1 fold and the step-3 folds with no failure and the late block seen where the arm has one (C13,
+ * stamped pocket-1.s2, has no s3 play); the miss split's two
  * readings on real folds (equal under reading C, as they must be); a late tick credited to the
  * rusher and the toucher; M5's mirror row exact on C1. Under `FF_POCKET_ON=1`: 50 golden games a
  * league under every playable step-3 arm. The counts go to stdout.
@@ -29,7 +30,7 @@ import { goldenGames } from "../src/pocket/corpus.js";
 import { clockKeyOf, clockOriginOf, D19_KEY, isTouched, onClockUnder, touchOfCheck, type ClockKey, type Touch } from "../src/pocket/freeRunKey.js";
 import { GOLDEN_LEAGUES } from "../src/pocket/golden.js";
 import { emptyM5Game, m5Compare, m5FreeRunMirror, m5GameOf, picturesMirror, type FreeRunMirrorPlay, type M5Game } from "../src/pocket/m5Mirror.js";
-import { POCKET_1_S1_DIGEST, POCKET_1_S3_DIGEST, rulesTunables } from "../src/pocket/rules.js";
+import { POCKET_1_S1_DIGEST, POCKET_1_S3_DIGEST, POCKET_1_S3_RULES, rulesTunables } from "../src/pocket/rules.js";
 import {
   beatAccounting,
   dialsOf,
@@ -538,7 +539,7 @@ describe("M5's exact free-run mirror row, written only for s3 streams (plan §2.
 // --- on the golden games ---------------------------------------------------------------------------------
 
 describe("on the golden games: every step-1 fold and the step-3 folds pass on s3 streams", () => {
-  const ARMS: readonly ArmId[] = ON ? STEP3_ARM_IDS.filter((id) => armRefusal(id) === undefined && id !== "C6") : ["C1", "C2", "C10", "C12", "C15"];
+  const ARMS: readonly ArmId[] = ON ? STEP3_ARM_IDS.filter((id) => armRefusal(id) === undefined) : ["C1", "C2", "C6", "C10", "C12", "C13", "C15"];
   it.each(ARMS)("%s", (id) => {
     const arm = armById(id);
     const s1 = emptyS1Folds();
@@ -558,7 +559,8 @@ describe("on the golden games: every step-1 fold and the step-3 folds pass on s3
     );
     expect(s1Problems(s1)).toEqual([]);
     expect(s3Problems(s3)).toEqual([]);
-    expect(s3.lateBlock.s3Plays).toBe(s3.lateBlock.plays);
+    // Every play of an s3 arm is an s3 play; C13 is stamped pocket-1.s2, so none of its are (and nothing widens).
+    expect(s3.lateBlock.s3Plays).toBe(arm.rules === POCKET_1_S3_RULES ? s3.lateBlock.plays : 0);
     expect(s3.lateBlock.lateBlocks).toBe(s3.lateBlock.expected);
     if (arm.tunables.blitzPickup.lateBlock !== undefined) {
       expect(s3.lateBlock.lateBlocks).toBeGreaterThan(0);
@@ -567,6 +569,7 @@ describe("on the golden games: every step-1 fold and the step-3 folds pass on s3
     if (mechanisms.includes("FREE_RUN")) expect(affected.byMechanism.FREE_RUN).toBeGreaterThan(0);
     if (mechanisms.includes("LATE_BLOCK")) expect(affected.byMechanism.LATE_BLOCK).toBeGreaterThan(0);
     if (mechanisms.includes("BAND_EDGES")) expect(affected.byMechanism.BAND_EDGES).toBeGreaterThan(0);
+    if (mechanisms.includes("MUG_HEAD_ONLY")) expect(affected.byMechanism.MUG_HEAD_ONLY).toBeGreaterThan(0);
   }, 600_000);
 });
 

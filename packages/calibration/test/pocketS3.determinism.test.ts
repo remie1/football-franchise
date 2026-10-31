@@ -47,13 +47,16 @@ describe("ADR-089 step 3: the same seed gives the same stream, per rules version
 });
 
 describe("ADR-089 step 3: every playable step-3 arm replays byte-identically", () => {
-  const ARMS = STEP3_ARM_IDS.filter((id) => armRefusal(id) === undefined && id !== "C6");
+  const ARMS = STEP3_ARM_IDS.filter((id) => armRefusal(id) === undefined);
   it.each(ARMS)("%s, golden flat game 0, played twice", (id) => {
     const t = armById(id).tunables;
     expect(game0("flat", t)).toBe(game0("flat", t));
   }, 600_000);
 
-  it("C6 (the Mug's head-only picture) is refused by the frozen pair until it draws the arm's picture (K5)", () => {
-    expect(() => game0("flat", armById("C6").tunables)).toThrow(/MUG_HEAD_ONLY/);
-  });
+  it("C6 (the Mug's head-only picture, drawn by the frozen pair since K5) replays byte-identically mirrored too", () => {
+    const t = armById("C6").tunables;
+    const a = game0("flat", t, true);
+    expect(game0("flat", t, true)).toBe(a);
+    expect(a).not.toBe(game0("flat", t));
+  }, 600_000);
 });
