@@ -122,6 +122,45 @@ Teams now keep room and roll it over, and re-sign their own players far more oft
 
 The highest cap use is still over 100% in some years (108% once, as in step 9): one team per year ends a league year over its cap in this snapshot. That is not new in this step.
 
+## After real deal shapes in free agency (ADR-085 step 11, 2026-10-31)
+
+What I found:
+- On the first day of free agency, each team signed two or three free agents and then had $0M to $4M of room left for the rest of the year.
+- The reason is that our deals charged 97% of their yearly value in their first year. Real deals charge much less. Counted from OverTheCap's table (deals of $2M+ a year and 2+ years, signed 2021 to 2024, median), the first year's cap number as a share of the yearly value is:
+  - up to 1% of the cap: 81%
+  - 1% to 2%: 75%
+  - 2% to 4%: 59%
+  - 4% to 8%: 45%
+  - over 8%: 34%
+  New-team and own-team deals agree within 2 points.
+- Real teams' new-team deals of $2M+ add up to about 20% of the cap a team a year, in yearly value (counted: 17.9% to 24.0%, 2021 to 2025).
+- A team whose top free agent kept saying no kept offering him every round. It never moved on to anyone else.
+
+Changes:
+- New deals now follow the real first-year shares. The later years rise to make up the rest, and a shaped deal guarantees as much base salary as an even one.
+- Teams clear 20% of the cap for free agency in March (counted, as above), up from $35M. The step-10 leaning still sets how much of that each team clears.
+- A deal's second year must fit the next season's room, because a front office checks that before it signs. A team's last man at a starting position is exempt.
+- The look-ahead counts next season's top 51 and holds back at most 10% of next season's cap, about the 49ers' case.
+- A team that is turned down moves on to its next target. There are now up to 8 rounds of offers a market day.
+- Teams now chase any veteran who would make their 53 by a clear margin, not only starters.
+- Only win-now teams (leaning 33 and under) add void years when they restructure. With real deal shapes, void years for two thirds of the league left $30M to $40M a team of dead money every year. That is my judgment, and it changes the step-10 rule.
+
+| League year | 2027 | 2028 | 2029 | 2030 | 2031 | Mean | Step 10 | Real |
+|---|---|---|---|---|---|---|---|---|
+| New-team deals, $2M+ | 144 | 73 | 52 | 79 | 65 | 83 | 67 | 180 to 240 |
+| New-team deals, $5M+ | 91 | 46 | 38 | 65 | 48 | 58 | 50 | 80 to 120 |
+| Own-team deals of 2+ years | 301 | 117 | 44 | 119 | 146 | 145 | 144 | 210 to 290 |
+| Dead money, mean a team ($M) | 11.9 | 15.7 | 28.0 | 30.5 | 35.3 | 24.3 | 20.1 | about 34 |
+| Cap used, median | 95.9% | 96.7% | 97.3% | 97.6% | 98.0% | 97.1% | 97.2% | |
+| Carried over, mean a team ($M) | 5.0 | 6.6 | 6.9 | 7.9 | 8.1 | 6.9 | 6.5 | |
+| Cap used, highest | 100.0% | 100.1% | 101.7% | 100.3% | 100.4% | | up to 108% | |
+
+The first year now looks real: 144 new-team deals of $2M+. Later years fall back to 52 to 79. The rising later years of the deals signed in year one take up the room. Dead money now settles near the real figure, and no team ends a year far over its cap.
+
+I tried and did not keep:
+- Void years for two thirds of the league. That raised new-team deals to about 100 a year, but dead money climbed to $59M a team by year five.
+- Judging cap cuts against a deal's yearly value instead of that year's cap number. It changed nothing.
+
 ## What does not match yet
 
 1. **Too few re-signings.** Before step 7, teams signed about a fifth of the real number of own-team multi-year deals, because there were no early extensions. Step 7 raises it to under half the real number; cap room is now the limit.

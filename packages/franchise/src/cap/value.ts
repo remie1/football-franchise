@@ -165,6 +165,30 @@ export interface VeteranDeal {
   /** Each year's minimum salary (index 0 = the first season). */
   minimum: (yearIndex: number) => number;
   kind?: Extract<ContractKind, "VETERAN" | "EXTENSION" | "MINIMUM">;
+  /**
+   * The first year's cap number as a share of the deal's yearly value (step 11). Absent = base
+   * salaries rise evenly. With it, the first year's base is set so its cap number comes to this share
+   * (never under the minimum), and the rest of the base rises over the later years.
+   */
+  firstYearShare?: number;
+}
+
+/**
+ * Step 11: a real multi-year deal's first-year cap number as a share of its yearly value, by its size
+ * as a share of the cap (REPORTED, counted: OverTheCap's table, deals of $2M+ a year and 2+ years
+ * signed 2021 to 2024, median; new-team and own-team deals agree within 0.02). Real deals put the
+ * money in later years and spread signing bonuses, so a big deal costs about a third of its value now.
+ */
+export const REAL_FIRST_YEAR: readonly { upTo: number; share: number }[] = [
+  { upTo: 0.01, share: 0.81 },
+  { upTo: 0.02, share: 0.75 },
+  { upTo: 0.04, share: 0.59 },
+  { upTo: 0.08, share: 0.45 },
+  { upTo: Infinity, share: 0.34 },
+];
+
+export function firstYearShareFor(capShare: number): number {
+  return (REAL_FIRST_YEAR.find((b) => capShare <= b.upTo) ?? REAL_FIRST_YEAR[REAL_FIRST_YEAR.length - 1]!).share;
 }
 
 /** Raises a year in base salary over a deal (CHOSEN; real deals usually rise). */
@@ -179,15 +203,30 @@ export function veteranContract(d: VeteranDeal): PlayerContract {
   const total = Math.round(d.apy * d.years / 1000) * 1000;
   const bonus = Math.round(total * d.bonusShare / 1000) * 1000;
   const weights = Array.from({ length: d.years }, (_, i) => (1 + BASE_RAISE) ** i);
-  const sum = weights.reduce((a, b) => a + b, 0);
   const shares = prorate(bonus, d.years);
+  // The first year's base, when the deal sets its first-year cap number; the later years share the rest.
+  const first = d.firstYearShare !== undefined && d.years >= 2
+    ? Math.min(total - bonus, Math.max(d.minimum(0), Math.round((d.firstYearShare * d.apy - (shares[0] ?? 0)) / 1000) * 1000))
+    : undefined;
+  const later = first === undefined ? weights : weights.slice(1);
+  const sum = later.reduce((a, b) => a + b, 0);
+  const left = total - bonus - (first ?? 0);
   const years: ContractYear[] = weights.map((w, i) => ({
     season: d.season + i,
-    baseSalary: Math.max(d.minimum(i), Math.round((total - bonus) * w / sum / 1000) * 1000),
+    baseSalary: i === 0 && first !== undefined ? first : Math.max(d.minimum(i), Math.round(left * w / sum / 1000) * 1000),
     signingBonusProration: shares[i] ?? 0,
     guarantees: { fullyGuaranteed: i < d.guaranteedYears },
     capHit: 0,
   }));
+  // A shaped deal guarantees as much base as the even deal would: its small first year is not all of it.
+  if (first !== undefined && d.guaranteedYears > 0) {
+    const target = d.guaranteedYears * (total - bonus) / d.years;
+    let held = 0;
+    for (const y of years) {
+      y.guarantees = { fullyGuaranteed: held < target };
+      if (held < target) held += y.baseSalary;
+    }
+  }
   return withCapHits({
     player: d.player, team: d.team, signedAt: d.signedAt, kind: d.kind ?? (d.apy <= d.minimum(0) ? "MINIMUM" : "VETERAN"),
     ...(bonus > 0 ? { signingBonus: bonus } : {}), years,
