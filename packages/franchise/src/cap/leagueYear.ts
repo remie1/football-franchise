@@ -538,13 +538,18 @@ function complianceCheck(
       let roster = [...t.roster];
       const pool = freeAgents.map((id) => byId.get(String(id))).filter((p): p is PlayerState => !!p && !taken.has(String(p.bio.id)));
       // First every hole: a position with fewer than its starters (at least one) gets the best free
-      // agent there on a minimum deal; a full roster lets its most spare man go to make the seat.
-      for (const pos of Object.keys(STARTERS) as Position[]) {
+      // agent there on a minimum deal. Then the roster's shape (ADR-079's wanted number at each
+      // position), so that every personnel group can be fielded. A full roster lets its most spare
+      // man go to make the seat. The league must play, so these minimum deals do not wait on room.
+      const shape = [(pos: Position) => Math.max(1, STARTERS[pos]), (pos: Position) => Math.max(1, WANTED[pos])];
+      for (const [pass, want] of shape.entries()) for (const pos of Object.keys(STARTERS) as Position[]) {
         const here = () => playersOf({ ...t, roster }, byId).filter((p) => p.bio.position === pos).length;
-        while (here() < Math.max(1, STARTERS[pos])) {
+        while (here() < want(pos)) {
           const pick = pool.filter((p) => p.bio.position === pos && !taken.has(String(p.bio.id))).sort((a, b) => config.rate(b) - config.rate(a))[0];
           if (!pick) break;
           if (roster.length >= fillTo) {
+            // The shape never costs a man the roster wants: only a starter hole may release.
+            if (pass > 0) break;
             const spare = mostSpare({ ...t, roster }, byId, config.rate, year, book);
             if (!spare) break;
             const r = releasePlayer(book.contracts[spare.i]!, ctx.day);
