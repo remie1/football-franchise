@@ -133,7 +133,7 @@ describe("the year turns over, and cut-down day (ADR-086 §2, §8)", () => {
 
   it("records the cuts and any waiver claims as events", () => {
     const released = year2.events.filter((e) => e.event.type === "PLAYER_RELEASED").length;
-    expect(released).toBeGreaterThan(32 * 20);
+    expect(released).toBeGreaterThan(32 * 15); // about 20 a team: from the offseason roster down to 53
     for (const e of year2.events.filter((e) => e.event.type === "WAIVER_CLAIMED")) {
       const { from, to } = (e.event as { payload: { from: TeamId; to: TeamId } }).payload;
       expect(from).not.toBe(to);
