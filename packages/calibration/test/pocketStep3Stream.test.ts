@@ -49,6 +49,8 @@ import {
   s1PlaysOf,
   s1Problems,
   tierOf,
+  type CheckAt,
+  type S1Play,
 } from "../src/pocket/s1Stream.js";
 import {
   emptyLateBlockFold,
@@ -346,6 +348,47 @@ describe("s1Stream.ts reads the late block on s3 plays only (plan §2.7)", () =>
     expect([lateLMarginExact(1.0, 1.0, 0.1, 5, 12), lateLMarginExact(1.25, 1.0, 0.1, 5, 12), lateLMarginExact(1.5, 1.0, 0.1, 5, 12), lateLMarginExact(3.0, 1.0, 0.1, 5, -3)]).toEqual([0, 6, 12, -3]);
     expect(Object.is(lateLMarginExact(1.0, 1.0, 0.1, 5, -3), 0)).toBe(true);
   });
+
+  it("review check-bugs N4: beatAccounting refuses a shape-L late tick whose :late die names another tick", () => {
+    // A real C14 late tick (shape L): both dice are drawn under rush/t<tick>, so a label that keeps
+    // the rusher and the toucher but names another tick is a fault, on either die.
+    const arm = armById("C14");
+    const dials = dialsOf(arm.tunables);
+    let found: { readonly play: S1Play; readonly tick: CheckAt } | undefined;
+    for (const league of GOLDEN_LEAGUES) {
+      goldenGames(league, (o) => {
+        if (found !== undefined) return;
+        for (const play of s1PlaysOf(o.events)) {
+          const tick = play.lateBlocks.flatMap((b) => b.ticks)[0];
+          if (tick !== undefined) {
+            found = { play, tick };
+            return;
+          }
+        }
+      }, { tunables: arm.tunables, callerVersion: "v7", first: 2 });
+    }
+    if (found === undefined) throw new Error("no C14 late tick in the first two golden games of either league");
+    const { play, tick } = found as { readonly play: S1Play; readonly tick: CheckAt };
+    const clean = emptyBeatAccountingFold();
+    beatAccounting(clean, play, dials);
+    expect(clean.problems).toEqual([]);
+    const at = `/rush/t${tick.tick.toFixed(1)}/`;
+    const elsewhere = `/rush/t${(tick.tick + 0.5).toFixed(1)}/`;
+    const moved = (which: "roll" | "opposedRoll"): string => {
+      const events = structuredClone(play.events) as MatchEventEnvelope[];
+      const payload = (events[tick.index]!.event as { payload: Record<string, { rngLabel: string } | undefined> }).payload;
+      const roll = payload[which];
+      if (roll === undefined || !roll.rngLabel.includes(at)) throw new Error(`${which} ${String(roll?.rngLabel)} does not name ${at}`);
+      roll.rngLabel = roll.rngLabel.replace(at, elsewhere);
+      const fold = emptyBeatAccountingFold();
+      beatAccounting(fold, s1PlaysOf(events)[0]!, dials);
+      return fold.problems.join("\n");
+    };
+    expect(moved("roll")).toContain("roll label");
+    expect(moved("roll")).toContain(`${elsewhere}${String(tick.c.actors[0])}:late`);
+    expect(moved("opposedRoll")).toContain("opposed roll label");
+    expect(moved("opposedRoll")).toContain(`${elsewhere}${String(tick.c.actors[1])}:late:${String(tick.c.actors[0])}`);
+  }, 120_000);
 });
 
 // --- step 3's five exclusive mechanisms -------------------------------------------------------------

@@ -761,8 +761,8 @@ export function beatAccounting(fold: BeatAccountingFold, play: S1Play, d: Dials)
  * actor is the toucher (`freeRunKey.ts`'s `touchOfCheck`: a pickup's back, a stunt's looper
  * blocker) and its first a rusher of the play (the carrier, on a passed-off record). Its ticks name
  * the beat with the beat's actors (S; dieless, which the loop above checks key by key) or carry
- * both `:late` rolls and name the CHECK (L). The counts are the loop's: a late beat is a beat, a
- * late tick a dieless or rolled tick.
+ * both `:late` rolls, each drawn under its own tick (`rush/t<tick>/`), and name the CHECK (L).
+ * The counts are the loop's: a late beat is a beat, a late tick a dieless or rolled tick.
  */
 function lateBlockAccounting(fold: BeatAccountingFold, play: S1Play, d: Dials): void {
   const rushers = new Set(play.rushers);
@@ -813,9 +813,11 @@ function lateBlockAccounting(fold: BeatAccountingFold, play: S1Play, d: Dials): 
         if (k.c.actors.length !== 2) wrong.push(`${String(k.c.actors.length)} actors, not two`);
         if (hand !== undefined && k.c.actors[1] !== hand) wrong.push(`second actor ${String(k.c.actors[1])} is not the toucher ${hand}`);
         if (!rushers.has(String(k.c.actors[0]))) wrong.push(`first actor ${String(k.c.actors[0])} is not a rusher of the play`);
-        if (k.c.roll !== undefined && !k.c.roll.rngLabel.endsWith(`/${String(k.c.actors[0])}:late`)) wrong.push(`roll label ${k.c.roll.rngLabel}`);
+        // Both dice are drawn under the tick they are published on, `rush/t<tick>/` (check-bugs N4).
+        const onTick = `/rush/t${k.tick.toFixed(1)}/`;
+        if (k.c.roll !== undefined && !k.c.roll.rngLabel.endsWith(`${onTick}${String(k.c.actors[0])}:late`)) wrong.push(`roll label ${k.c.roll.rngLabel}`);
         // CT-F7: the toucher's die names the man he blocks, `<toucherId>:late:<rusherId>`.
-        if (k.c.opposedRoll !== undefined && !k.c.opposedRoll.rngLabel.endsWith(`/${String(k.c.actors[1])}:late:${String(k.c.actors[0])}`)) {
+        if (k.c.opposedRoll !== undefined && !k.c.opposedRoll.rngLabel.endsWith(`${onTick}${String(k.c.actors[1])}:late:${String(k.c.actors[0])}`)) {
           wrong.push(`opposed roll label ${k.c.opposedRoll.rngLabel}`);
         }
         if (wrong.length > 0) fail(fold, at(play, k), `late tick under L: ${wrong.join("; ")}`);
