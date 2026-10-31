@@ -499,6 +499,7 @@ describe("committed report", () => {
     expect(c.measuredOn).toBe(report.measuredOn);
     expect(c.weekEight.seasons).toEqual(report.seasons.weekEight);
     expect(c.weekEight.league).toEqual(report.weekEight.pooled.league);
+    expect(c.weekEight.leagueBySeason).toEqual(report.weekEight.perSeason.map((s) => ({ season: s.season, ...s.league })));
     for (const g of CAREER_GROUPS) {
       expect(c.weekEight.byGroup[g]).toEqual(report.weekEight.pooled.byGroup[g]);
       const { curve: _curve, ...career } = report.careers.byGroup[g];

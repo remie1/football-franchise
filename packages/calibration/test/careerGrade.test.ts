@@ -6,9 +6,10 @@
 import { describe, expect, it } from "vitest";
 import { NFL_CAREERS } from "../src/careers/nflCareers.js";
 import { CAREER_GROUPS, type CareerCheckRows, type CareerEntrant, type GroupPicture, type RosterPicture, type SeasonRow } from "../src/season/careerCheck.js";
+import { kaplanMeier, lifeTable } from "../src/season/careerCheck.js";
 import {
-  CAREER_BANDS, gradeCareerCheck, gradeCheck, notResolvable, poolSeeds, renderGradeJson, renderGradeMarkdown, rowStatus, trendShare,
-  type BandRule, type GradeInput,
+  CAREER_BANDS, expectedCareer, gradeCareerCheck, gradeCheck, notResolvable, outsideBand, poolSeeds, renderGradeJson, renderGradeMarkdown, rowStatus,
+  slopeOf, trendShare, type BandRule, type GradeInput,
 } from "../src/season/careerGrade.js";
 
 // --- made-up rows --------------------------------------------------------------------------------
@@ -27,6 +28,7 @@ function picture(k: Knobs): RosterPicture {
     teamStrength: { mean: 70, sd: 1.5 },
     age: { mean: k.age ?? 26.2, upTo22: 0.088, from31: 0.101, from34: 0.031, histogram: {} },
     rookieShare: 0.157,
+    noCreditShare: 0.17,
     undraftedShare: 0.274,
   };
 }
@@ -47,7 +49,7 @@ function season(y: number, k: Knobs): SeasonRow {
 function seedRows(seed: string, y0: Knobs, later: Knobs | ((y: number) => Knobs), entrants: CareerEntrant[] = []): CareerCheckRows {
   const perSeason = Array.from({ length: 20 }, (_, i) => season(2026 + i, i === 0 ? y0 : typeof later === "function" ? later(2026 + i) : later));
   return {
-    version: 2, seed, firstSeason: 2026, seasons: 20, switches: { development: true, injuries: true }, file: picture(y0), perSeason,
+    version: 3, seed, firstSeason: 2026, seasons: 20, switches: { development: true, injuries: true }, file: picture(y0), perSeason,
     careers: {
       lastSeason: 2045, entrants, byGroup: {} as CareerCheckRows["careers"]["byGroup"], routes: { FILE: 0, DRAFT: 0, UDFA: 0 },
       relabeled: 0, fileRookies: 0, exitsRetired: 0, exitsOther: 0, comebacks: [{ season: 2030, out: 40, back: 1 }],
@@ -70,7 +72,7 @@ const byId = (g: ReturnType<typeof gradeCareerCheck>, id: string) => g.rows.find
 // --- tests ---------------------------------------------------------------------------------------
 
 describe("the bands", () => {
-  it("are the plan's (CHOSEN), each marked GATE, REPORT or OWNER, the OWNER rows on their cards", () => {
+  it("are the plan's (CHOSEN), with the plan's marks: OWNER only where the Old card decides the mark", () => {
     const by = Object.fromEntries(CAREER_BANDS.map((b) => [b.id, b]));
     expect(by["overall-mean-each"]!.rule).toEqual({ kind: "abs", half: 1.5 });
     expect(by["overall-mean-late"]!.rule).toEqual({ kind: "abs", half: 1.0 });
@@ -93,16 +95,19 @@ describe("the bands", () => {
     expect(by.undrafted!.rule).toEqual({ kind: "abs", half: 0.04 });
     expect(by["win-spread"]!.rule).toEqual({ kind: "range", lo: 2.75, hi: 3.35 });
     expect(by["win-r"]!.rule).toEqual({ kind: "range", lo: 0.25, hi: 0.55 });
-    const owner = CAREER_BANDS.filter((b) => b.mark === "OWNER").map((b) => `${b.id}:${b.card}`);
-    expect(owner).toEqual([
-      "overall-mean-each:Drift", "overall-mean-late:Drift", "pooled-sd:Drift", "age-league:Close", "age-group:Close", "share-31:Close",
-      "share-34:Old", "peak-usage:Close", "peak-rb-earliest:Close", "career-expected:Close", "career-reach10:Old", "win-spread:Even",
-    ]);
+    // The plan: the 34+ share and reaching ten seasons are GATE or REPORT by the Old card's answer.
+    expect(CAREER_BANDS.filter((b) => b.mark === "OWNER").map((b) => `${b.id}:${b.card}`)).toEqual(["share-34:Old", "career-reach10:Old"]);
     expect(CAREER_BANDS.filter((b) => b.mark === "GATE").map((b) => b.id)).toEqual([
-      "at95", "at99", "gap", "coach-slots", "coach-sd", "share-22", "career-reach5", "rookie", "undrafted", "d7",
+      "overall-mean-each", "overall-mean-late", "pooled-sd", "at95", "at99", "gap", "coach-slots", "coach-sd", "age-league", "age-group",
+      "share-22", "share-31", "peak-usage", "peak-rb-earliest", "career-expected", "career-reach5", "rookie", "undrafted", "d7", "win-spread",
     ]);
     expect(CAREER_BANDS.filter((b) => b.mark === "REPORT").map((b) => b.id)).toEqual(["groups-report", "win-r", "other-report"]);
-    expect(CAREER_BANDS.every((b) => (b.mark === "OWNER") === (b.card !== undefined))).toBe(true);
+    // GATE rows that carry a card's recommended answer as their band.
+    expect(CAREER_BANDS.filter((b) => b.mark === "GATE" && b.card !== undefined).map((b) => `${b.id}:${b.card}`)).toEqual([
+      "overall-mean-each:Drift", "overall-mean-late:Drift", "pooled-sd:Drift", "age-league:Close", "age-group:Close", "share-31:Close",
+      "peak-usage:Close", "peak-rb-earliest:Close", "career-expected:Close", "win-spread:Even",
+    ]);
+    expect(CAREER_BANDS.filter((b) => b.mark === "OWNER").every((b) => b.card !== undefined)).toBe(true);
   });
 });
 
@@ -128,16 +133,64 @@ describe("one check", () => {
     expect(gradeCheck({ kind: "atLeast", min: 0.05 }, "x", { ...tight, value: 0.049 }, { value: null, se: null }).status).toBe("FAIL");
   });
 
-  it("not resolvable: the half-width under 2·√(SE_sim² + SE_ref²), whatever the value", () => {
+  it("not resolvable: the half-width under 2·√(SE_sim² + SE_ref²), and the value in the band or outside it by no more than that", () => {
     expect(notResolvable(1, 0.3, 0.4)).toBe(false); // 2·0.5 = 1: not under
     expect(notResolvable(0.999, 0.3, 0.4)).toBe(true);
-    const c = gradeCheck(abs, "x", { value: 5, se: 0.3, n: 12 }, { value: 0, se: 0.41 });
-    expect(c.status).toBe("NOT_RESOLVABLE");
-    expect(c.inBand).toBe(false);
-    expect(c.resolution).toBeCloseTo(2 * Math.sqrt(0.09 + 0.41 ** 2), 12);
+    const resolution = 2 * Math.sqrt(0.09 + 0.41 ** 2); // 1.016
+    const near = gradeCheck(abs, "x", { value: 1.5, se: 0.3, n: 12 }, { value: 0, se: 0.41 });
+    expect(near).toMatchObject({ status: "NOT_RESOLVABLE", inBand: false });
+    expect(near.outside).toBeCloseTo(0.5, 12);
+    expect(near.resolution).toBeCloseTo(resolution, 12);
+    expect(gradeCheck(abs, "x", { value: 0.5, se: 0.3, n: 12 }, { value: 0, se: 0.41 })).toMatchObject({ status: "NOT_RESOLVABLE", inBand: true });
+    // On the line (outside by exactly 2·√(...)): could be noise; past it: a fail, however wide the band's SE.
+    expect(gradeCheck(abs, "x", { value: 1 + resolution, se: 0.3, n: 12 }, { value: 0, se: 0.41 }).status).toBe("NOT_RESOLVABLE");
+    expect(gradeCheck(abs, "x", { value: 1 + resolution + 1e-9, se: 0.3, n: 12 }, { value: 0, se: 0.41 }).status).toBe("FAIL");
+    const gross = gradeCheck(abs, "x", { value: 5, se: 0.3, n: 12 }, { value: 0, se: 0.41 });
+    expect(gross).toMatchObject({ status: "FAIL", inBand: false });
+    expect(gross.outside).toBeCloseTo(4, 12);
     expect(gradeCheck(abs, "x", { value: 1.2, se: 0.3, n: 12 }, { value: 0, se: 0.39 }).status).toBe("FAIL");
-    // The win spread's own SE (0.209) is wider than its band allows: never resolvable.
-    expect(gradeCheck({ kind: "range", lo: 2.75, hi: 3.35 }, "x", { value: 2.5, se: 0.01, n: 12 }, { value: 3.05, se: NFL_CAREERS.winSpread.spread.se }).status).toBe("NOT_RESOLVABLE");
+    // The win spread's own SE (0.209) is wider than its band allows: a near miss is not resolvable, a gross one fails.
+    const spread = (value: number) => gradeCheck({ kind: "range", lo: 2.75, hi: 3.35 }, "x", { value, se: 0.01, n: 12 }, { value: 3.05, se: NFL_CAREERS.winSpread.spread.se }).status;
+    expect(spread(2.5)).toBe("NOT_RESOLVABLE");
+    expect(spread(3.05)).toBe("NOT_RESOLVABLE");
+    expect(spread(2.0)).toBe("FAIL");
+    expect(spread(1.0)).toBe("FAIL");
+    expect(spread(4.0)).toBe("FAIL");
+    // A kicker's expected career at half the NFL's, even with the NFL's wide SE: a fail.
+    const k = NFL_CAREERS.careers.byGroup.K.expectedCareer;
+    expect(gradeCheck({ kind: "rel", frac: 0.2 }, "K", { value: 4.26, se: 0.3, n: 12 }, { value: k.value, se: k.se }).status).toBe("FAIL");
+    // A quarterback reaching five seasons at 0.10 against the NFL's 0.56: a fail; at 0.60, not resolvable.
+    const qb = NFL_CAREERS.careers.byGroup.QB.reach5;
+    expect(gradeCheck({ kind: "abs", half: 0.05 }, "QB", { value: 0.1, se: 0, n: 12 }, { value: qb.value, se: qb.se }).status).toBe("FAIL");
+    expect(gradeCheck({ kind: "abs", half: 0.05 }, "QB", { value: 0.6, se: 0, n: 12 }, { value: qb.value, se: qb.se }).status).toBe("NOT_RESOLVABLE");
+  });
+
+  it("how far outside its band, for each kind of band", () => {
+    expect(outsideBand({ kind: "abs", half: 1 }, 2.5, 0)).toBeCloseTo(1.5, 12);
+    expect(outsideBand({ kind: "abs", half: 1 }, -0.5, 0)).toBe(0);
+    expect(outsideBand({ kind: "abs", half: 1, halfFor: { K: 2 } }, 2.5, 0, "K")).toBeCloseTo(0.5, 12);
+    expect(outsideBand({ kind: "rel", frac: 0.1 }, 13, 10)).toBeCloseTo(2, 12);
+    expect(outsideBand({ kind: "atMost", plus: 3 }, 45, 40)).toBeCloseTo(2, 12);
+    expect(outsideBand({ kind: "atMost", plus: 3 }, 0, 40)).toBe(0);
+    expect(outsideBand({ kind: "atMostTimes", times: 2 }, 350, 150)).toBeCloseTo(50, 12);
+    expect(outsideBand({ kind: "atLeast", min: 0.05 }, 0.01, 0)).toBeCloseTo(0.04, 12);
+    expect(outsideBand({ kind: "range", lo: 2.75, hi: 3.35 }, 2.5, 3.05)).toBeCloseTo(0.25, 12);
+    expect(outsideBand({ kind: "range", lo: 2.75, hi: 3.35 }, 3.5, 3.05)).toBeCloseTo(0.15, 12);
+    expect(outsideBand({ kind: "range", lo: 2.75, hi: 3.35 }, 3, 3.05)).toBe(0);
+  });
+
+  it("expected career over the real side's horizon: the curve carried flat past its longest follow-up", () => {
+    // Careers of 12, 14 and 16 seasons, none still going: S(t) = 1 up to 11, 2/3 to 13, 1/3 to 15, then 0.
+    const km = kaplanMeier(lifeTable([{ n: 12, c: 0 }, { n: 14, c: 0 }, { n: 16, c: 0 }]));
+    expect(km.expected).toBeCloseTo(12 + 2 * (2 / 3) + (1 / 3), 12);
+    // Flat past 13 seasons: P(career >= 14) and P(career >= 15) are read as P(career >= 13) = 2/3.
+    expect(expectedCareer(km.survival, 15, 13)).toBeCloseTo(12 + 3 * (2 / 3), 12);
+    // A horizon inside the follow-up is the plain restricted mean.
+    expect(expectedCareer(km.survival, 13, 13)).toBeCloseTo(12 + 2 / 3, 12);
+    expect(expectedCareer(km.survival, 15, 99)).toBeCloseTo(km.expected!, 12);
+    expect(expectedCareer([], 15, 13)).toBeNull();
+    expect(slopeOf([2018, 2019, 2020], [0.3, 0.29, 0.28])).toBeCloseTo(-0.01, 12);
+    expect(slopeOf([1], [1])).toBeNull();
   });
 
   it("no value, or no seed-to-seed SE (one seed), is not a pass", () => {
@@ -252,17 +305,75 @@ describe("the grade on made-up seeds", () => {
     expect(g3.coachSeeds.missing).toEqual(["t3"]);
   });
 
-  it("the flip: GATE rows only; an OWNER row out of band is listed, not counted; D7 blocks until it has bands", () => {
+  it("the flip: GATE rows block; a drift past its band blocks it; D7 blocks until it has bands", () => {
     const g = gradeCareerCheck(input(steady()));
     expect(g.flip.recommended).toBe(false);
     expect(g.flip.reasons).toContain("GATE row d7: UNBANDED");
     expect(g.flip.reasons.some((r) => r.startsWith("GATE row coach-slots"))).toBe(true);
-    // The win spread (Even card) is never resolvable at the NFL's SE, so it is not listed as blocking.
-    expect(byId(g, "win-spread").status).toBe("NOT_RESOLVABLE");
+    // The win spread on the NFL's value is in its band but never resolvable at the NFL's SE: not blocking.
+    expect(byId(g, "win-spread")).toMatchObject({ mark: "GATE", card: "Even", status: "NOT_RESOLVABLE" });
+    expect(g.flip.reasons.some((r) => r.includes("win-spread"))).toBe(false);
+    expect(g.flip.reasons.some((r) => r.includes("overall-mean"))).toBe(false);
+    // A league drifting up 4 points against a ±1.5 band blocks the flip.
     const drifting = new Map(SEEDS.map((s, i) => [s, seedRows(s, { overall: 66 + wobble(i) }, { overall: 70 + wobble(i) })]));
     const g2 = gradeCareerCheck(input(drifting));
-    expect(g2.flip.ownerBlocking.some((r) => r.startsWith("overall-mean-each (Drift)"))).toBe(true);
-    expect(g2.flip.reasons.some((r) => r.includes("overall-mean"))).toBe(false);
+    expect(byId(g2, "overall-mean-each").status).toBe("FAIL");
+    expect(g2.flip.reasons).toContain("GATE row overall-mean-each: FAIL");
+    expect(g2.flip.reasons).toContain("GATE row overall-mean-late: FAIL");
+    // A win spread of 2.0 is a gross miss: it blocks.
+    const flat = new Map(SEEDS.map((s, i) => [s, seedRows(s, { overall: 66 + wobble(i) }, { overall: 66 + wobble(i), spread: 2.0 + wobble(i) })]));
+    const g3 = gradeCareerCheck(input(flat));
+    expect(byId(g3, "win-spread").status).toBe("FAIL");
+    expect(g3.flip.reasons).toContain("GATE row win-spread: FAIL");
+  });
+
+  it("the Old card: pending, its rows block unless they pass; answered, they gate or are reported", () => {
+    // The 34+ share at 8% against the NFL's 3.1% + 2 points.
+    const old = new Map(SEEDS.map((s, i) => [s, seedRows(s, { overall: 66 + wobble(i) }, { overall: 66 + wobble(i) })]));
+    for (const r of old.values()) for (const y of r.perSeason) (y.week8!.age as { from34: number }).from34 = 0.08 + wobble(SEEDS.indexOf(r.seed));
+    const pending = gradeCareerCheck(input(old));
+    expect(byId(pending, "share-34")).toMatchObject({ mark: "OWNER", card: "Old", status: "FAIL" });
+    expect(pending.flip.reasons).toContain("OWNER row share-34 (Old card, answer pending): FAIL");
+    expect(pending.flip.ownerBlocking).toContain("share-34 (Old): FAIL");
+    const reported = gradeCareerCheck(input(old, { ownerAnswers: { Old: "REPORT" } }));
+    expect(byId(reported, "share-34")).toMatchObject({ mark: "REPORT", card: "Old", status: "REPORTED" });
+    expect(byId(reported, "share-34").checks[0]!.status).toBe("FAIL"); // still shown plainly
+    expect(reported.flip.reasons.some((r) => r.includes("share-34"))).toBe(false);
+    expect(reported.flip.ownerBlocking).toEqual([]);
+    const gated = gradeCareerCheck(input(old, { ownerAnswers: { Old: "GATE" } }));
+    expect(byId(gated, "share-34")).toMatchObject({ mark: "GATE", status: "FAIL" });
+    expect(gated.flip.reasons).toContain("GATE row share-34: FAIL");
+    // A pending OWNER row that passes does not block.
+    const fine = gradeCareerCheck(input(steady()));
+    expect(byId(fine, "share-34").status).toBe("PASS");
+    expect(fine.flip.reasons.some((r) => r.includes("share-34"))).toBe(false);
+  });
+
+  it("lists the checks the reference's own SE leaves unresolvable, even with no sim value", () => {
+    const g = gradeCareerCheck(input(steady()));
+    const ids = g.unresolvable.map((u) => u.split(":")[0]);
+    expect(ids).toContain("win-spread 2029-2045");
+    expect(ids).toContain("career-reach5 QB");
+    expect(ids).toContain("career-reach10 LS");
+    expect(ids).toContain("career-expected K");
+    expect(ids).toContain("peak-usage QB");
+    expect(ids).not.toContain("career-reach5 OL");
+    expect(ids).not.toContain("age-league league");
+    expect(renderGradeMarkdown(g)).toContain("Checks the reference's own SE leaves unresolvable");
+  });
+
+  it("the week-8 rows against the NFL: year 0 against the same band and the NFL's trend, reported; rookies with the earlier reading beside", () => {
+    const g = gradeCareerCheck(input(steady()));
+    const und = byId(g, "undrafted");
+    expect(und.checks.map((c) => c.label)).toEqual(["league", "year 0 (2026), against the same band"]);
+    expect(und.checks[1]!.status).toBe("REPORTED");
+    expect(und.checks[1]!.sim).toBeCloseTo(0.274, 12);
+    expect(und.note).toContain("NFL by season, 2018-2024: 29.8, 28.9, 29.0, 27.1, 26.9, 25.4, 24.8 (%)");
+    expect(und.note).toContain("trend -0.9 points a season");
+    expect(byId(g, "age-league").note).toContain("26.13, 26.12");
+    const rookie = byId(g, "rookie");
+    expect(rookie.checks.map((c) => c.status)).toEqual(["PASS", "REPORTED", "REPORTED"]);
+    expect(rookie.checks[2]!.sim).toBeCloseTo(0.17, 12);
   });
 
   it("renders the same Markdown and JSON from the same rows, saying the owner's answers are pending", () => {

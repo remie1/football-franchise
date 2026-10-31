@@ -29,7 +29,11 @@ export interface NflWeekEightRow {
   readonly age22OrUnder: Estimate;
   readonly age31Plus: Estimate;
   readonly age34Plus: Estimate;
-  /** `years_exp` 0. */
+  /**
+   * `years_exp` 0. In the rosters `years_exp` is the season less `entry_year`: seasons since he
+   * came into the league, not credited seasons. So a rookie is a man in his first season in the
+   * league, and the sim reads its rookies the same way (`careerCheck.ts` `rosterPicture`).
+   */
   readonly rookie: Estimate;
   /** No draft pick. */
   readonly undrafted: Estimate;
@@ -54,10 +58,27 @@ export interface NflCareerRow {
   readonly reach10: Estimate;
 }
 
+/** One season's league values at week 8 (n = men on the 53s that week). */
+export interface NflWeekEightSeason {
+  readonly season: number;
+  readonly n: number;
+  readonly meanAge: number;
+  readonly age22OrUnder: number;
+  readonly age31Plus: number;
+  readonly age34Plus: number;
+  readonly rookie: number;
+  readonly undrafted: number;
+}
+
 export interface NflCareers {
   readonly measuredOn: string;
   readonly weekEight: {
     readonly seasons: readonly number[];
+    /**
+     * The league's values season by season, so a reader can see a row's trend beside the pooled mean
+     * (the undrafted and 22-or-under shares fall across 2018-24).
+     */
+    readonly leagueBySeason: readonly NflWeekEightSeason[];
     readonly league: NflWeekEightRow;
     readonly byGroup: Readonly<Record<CareerGroup, NflWeekEightRow>>;
   };
@@ -85,6 +106,15 @@ export const NFL_CAREERS: NflCareers = {
   measuredOn: "2026-10-31",
   weekEight: {
     seasons: [2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    leagueBySeason: [
+      { season: 2018, n: 1696, meanAge: 26.1291, age22OrUnder: 0.1014, age31Plus: 0.0973, age34Plus: 0.0354, rookie: 0.1686, undrafted: 0.2983 },
+      { season: 2019, n: 1694, meanAge: 26.1192, age22OrUnder: 0.1033, age31Plus: 0.0986, age34Plus: 0.0354, rookie: 0.16, undrafted: 0.2893 },
+      { season: 2020, n: 1729, meanAge: 26.0492, age22OrUnder: 0.107, age31Plus: 0.0977, age34Plus: 0.0312, rookie: 0.1567, undrafted: 0.2903 },
+      { season: 2021, n: 1729, meanAge: 26.1596, age22OrUnder: 0.0949, age31Plus: 0.1076, age34Plus: 0.0272, rookie: 0.1377, undrafted: 0.2707 },
+      { season: 2022, n: 1735, meanAge: 26.2086, age22OrUnder: 0.0738, age31Plus: 0.1026, age34Plus: 0.0294, rookie: 0.1597, undrafted: 0.2686 },
+      { season: 2023, n: 1730, meanAge: 26.2618, age22OrUnder: 0.0734, age31Plus: 0.0977, age34Plus: 0.0266, rookie: 0.1595, undrafted: 0.2538 },
+      { season: 2024, n: 1735, meanAge: 26.3429, age22OrUnder: 0.0657, age31Plus: 0.102, age34Plus: 0.03, rookie: 0.1568, undrafted: 0.2478 },
+    ],
     league: { meanAge: { value: 26.1815, se: 0.0371, n: 12048 }, age22OrUnder: { value: 0.0885, se: 0.0064, n: 12048 }, age31Plus: { value: 0.1005, se: 0.0014, n: 12048 }, age34Plus: { value: 0.0307, se: 0.0013, n: 12048 }, rookie: { value: 0.157, se: 0.0036, n: 12048 }, undrafted: { value: 0.2741, se: 0.0073, n: 12048 } },
     byGroup: {
       QB: { meanAge: { value: 27.8487, se: 0.0946, n: 565 }, age22OrUnder: { value: 0.0566, se: 0.0089, n: 565 }, age31Plus: { value: 0.2405, se: 0.0121, n: 565 }, age34Plus: { value: 0.1436, se: 0.0096, n: 565 }, rookie: { value: 0.1292, se: 0.0094, n: 565 }, undrafted: { value: 0.1647, se: 0.009, n: 565 } },

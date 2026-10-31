@@ -12,9 +12,13 @@
  *    the rows are written.
  *
  * The fingerprint covers what a seed's rows depend on: every workspace package's source
- * (`packages/<package>/src`, every file), the league file's sha256, the engine rules (the walk plays
- * `legacy`, the default; `runCapCheck` takes no other), the caller version, the arm, and this
- * check's own version. A change to any of them starts a fresh cache.
+ * (`packages/<package>/src`, every file) except the few files of this check that the walk never
+ * reaches (`CAREER_FINGERPRINT_LEAVES_OUT`: the grader, the command, the real-NFL side), the league
+ * file's sha256, the engine rules (the walk plays `legacy`, the default; `runCapCheck` takes no
+ * other), the caller version, and this check's own version. A change to any of them starts a fresh
+ * cache; a change to the grader or the report does not, so finished rows can be graded again. The
+ * arm and the seed are in each file's name, so one build's folder holds every arm. The grade can
+ * also read an earlier build's folder by name (`career-check --grade --build <fingerprint>`).
  *
  * The arms (one walk each):
  *  - `both`: growth and aging, and injuries (the check itself);
@@ -28,11 +32,16 @@
  * comes back as the same objects. Anything else (a class instance, a function) is refused, not
  * guessed at.
  *
+ * Two processes on the same seed (a seed launched again while it still runs) never share a
+ * temporary file: each write goes to a name of its own (`<file>.<pid>.<thread>.<n>.tmp`) and is
+ * renamed over, so a file on disk is always one writer's whole file.
+ *
  * Library code: it reads and writes files, never starts a process.
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, sep } from "node:path";
+import { threadId } from "node:worker_threads";
 import type { StaffState } from "@ff/contracts";
 import { DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
 import type { CapCheckInput } from "./capCheck.js";
@@ -41,7 +50,7 @@ import type { DraftReaderState } from "./draftCheck.js";
 import type { SeasonPeople } from "./realSeason.js";
 
 /** This check's own version: a change to what a record holds starts a fresh cache. */
-export const CAREER_CHECK_VERSION = 2;
+export const CAREER_CHECK_VERSION = 3;
 
 /** The engine rules the walk plays (`runCapCheck` plays the default, `legacy`). */
 export const CAREER_ENGINE_RULES = "legacy";
@@ -111,8 +120,26 @@ export interface CareerFingerprintInput {
   readonly leagueSha256: string;
   readonly engineRules: string;
   readonly callerVersion: string;
-  readonly arm: CareerArm;
 }
+
+/**
+ * Source files the fingerprint leaves out, repository-relative: this check's grader and command,
+ * and the real-NFL side of it (`careers/`, all but the usage and group pieces the reader shares).
+ * None is reachable from the walk (`careerCheckRun.ts` and what it imports); a test reads the walk's
+ * imports and holds this list to that, so a file the walk comes to import cannot stay left out.
+ */
+export const CAREER_FINGERPRINT_LEAVES_OUT: readonly string[] = [
+  "packages/calibration/src/season/careerGrade.ts",
+  "packages/calibration/src/season/careerCheckMain.ts",
+  "packages/calibration/src/careers/baseline.ts",
+  "packages/calibration/src/careers/data.ts",
+  "packages/calibration/src/careers/main.ts",
+  "packages/calibration/src/careers/measure.ts",
+  "packages/calibration/src/careers/nflCareers.ts",
+  "packages/calibration/src/careers/report.ts",
+  "packages/calibration/src/careers/stats.ts",
+  "packages/calibration/src/careers/wins.ts",
+];
 
 /** Every file under `dir`, repository-relative with "/", sorted. */
 function filesUnder(dir: string): string[] {
@@ -123,9 +150,10 @@ function filesUnder(dir: string): string[] {
 }
 
 /**
- * The sha256 (first 16 hex digits) over every workspace package's source, each file framed as
- * `path NUL length NUL bytes` in sorted order, then the league file's sha256, the engine rules, the
- * caller version, the arm and `CAREER_CHECK_VERSION`, each framed the same way.
+ * The sha256 (first 16 hex digits) over every workspace package's source but the files left out
+ * (`CAREER_FINGERPRINT_LEAVES_OUT`), each file framed as `path NUL length NUL bytes` in sorted
+ * order, then the league file's sha256, the engine rules, the caller version and
+ * `CAREER_CHECK_VERSION`, each framed the same way.
  */
 export function careerFingerprint(input: CareerFingerprintInput): { fingerprint: string; files: number } {
   const hash = createHash("sha256");
@@ -134,12 +162,15 @@ export function careerFingerprint(input: CareerFingerprintInput): { fingerprint:
     hash.update(label).update("\0").update(String(b.length)).update("\0").update(b);
   };
   const packages = join(input.repoRoot, "packages");
+  const leftOut = new Set(CAREER_FINGERPRINT_LEAVES_OUT);
   let files = 0;
   for (const pkg of readdirSync(packages).sort()) {
     const src = join(packages, pkg, "src");
     if (!existsSync(src) || !statSync(src).isDirectory()) continue;
     for (const f of filesUnder(src)) {
-      add(`packages/${pkg}/src/${f}`, readFileSync(join(src, f)));
+      const path = `packages/${pkg}/src/${f}`;
+      if (leftOut.has(path)) continue;
+      add(path, readFileSync(join(src, f)));
       files++;
     }
   }
@@ -147,7 +178,6 @@ export function careerFingerprint(input: CareerFingerprintInput): { fingerprint:
   add("league", input.leagueSha256);
   add("engineRules", input.engineRules);
   add("callerVersion", input.callerVersion);
-  add("arm", input.arm);
   add("version", String(CAREER_CHECK_VERSION));
   return { fingerprint: hash.digest("hex").slice(0, 16), files };
 }
@@ -301,11 +331,22 @@ export interface CareerSeedOptions {
   readonly stopAfter?: number;
 }
 
-/** Write a file whole or not at all: to a temporary name beside it, then renamed over. */
-function writeWhole(path: string, text: string): void {
-  const tmp = `${path}.tmp`;
-  writeFileSync(tmp, text);
-  renameSync(tmp, path);
+let tmpCount = 0;
+
+/**
+ * Write a file whole or not at all: to a temporary name beside it, then renamed over. The temporary
+ * name is this writer's own (`<path>.<pid>.<thread>.<n>.tmp`), so two processes writing the same
+ * file never write into one temporary file; the last rename wins with a whole file.
+ */
+export function writeWhole(path: string, text: string): void {
+  const tmp = `${path}.${String(process.pid)}.${String(threadId)}.${String(tmpCount++)}.tmp`;
+  try {
+    writeFileSync(tmp, text);
+    renameSync(tmp, path);
+  } catch (e) {
+    rmSync(tmp, { force: true });
+    throw e;
+  }
 }
 
 function readCheckpoint(path: string, o: CareerSeedOptions): CareerCheckpoint & { seconds: number[] } {
@@ -355,7 +396,7 @@ export function runCareerSeed(o: CareerSeedOptions): { record: CareerSeedRecord;
     fingerprint: o.fingerprint, league: o.league, engineRules: CAREER_ENGINE_RULES, callerVersion, seconds, rows,
   };
   writeWhole(paths.rows, JSON.stringify(record));
-  if (existsSync(paths.checkpoint)) rmSync(paths.checkpoint);
+  rmSync(paths.checkpoint, { force: true });
   return { record, from: resume === undefined ? "run" : "resumed" };
 }
 
@@ -371,4 +412,17 @@ export function readCareerRecords(cacheDir: string, arm: CareerArm, seeds: reado
     else missing.push(seed);
   }
   return { records, missing };
+}
+
+/** Each build's folder under the cache root (`data-cache/career-check`) and how many finished rows it holds, by arm. */
+export function listCareerBuilds(cacheRoot: string): { fingerprint: string; rows: Record<string, number> }[] {
+  if (!existsSync(cacheRoot)) return [];
+  return readdirSync(cacheRoot).sort().filter((f) => /^[0-9a-f]{16}$/.test(f) && statSync(join(cacheRoot, f)).isDirectory()).map((fingerprint) => {
+    const rows: Record<string, number> = {};
+    for (const f of readdirSync(join(cacheRoot, fingerprint)).sort()) {
+      const arm = CAREER_ARMS.find((a) => f.startsWith(`${a}-`) && f.endsWith(".json") && !f.endsWith(".checkpoint.json"));
+      if (arm !== undefined) rows[arm] = (rows[arm] ?? 0) + 1;
+    }
+    return { fingerprint, rows };
+  });
 }

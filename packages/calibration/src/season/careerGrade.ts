@@ -5,12 +5,14 @@
  * numbers (`NFL_CAREERS`, `NFL_DRAFT`) and the years each band is judged on go in; one grade comes
  * out, with a Markdown and a JSON rendering. Nothing is read from disk here and nothing is drawn.
  *
- * THE OWNER'S ANSWERS ARE PENDING. The bands below are the plan's, exactly as chosen. The rows marked
- * OWNER wait on the owner's four cards: the drift lines on the Drift card, how close ages and careers
- * must be on the Close card, the 34-and-over share and reaching ten seasons on the Old card, the win
- * spread on the Even card. The answers, and any band they change, are recorded in ADR-087 §11
- * before any graded run; until then an OWNER row is graded and shown, but it does not count toward
- * the flip recommendation, and the report lists every OWNER row that would block it.
+ * THE OWNER'S ANSWERS ARE PENDING. The bands below are the plan's, exactly as chosen, with the plan's
+ * marks. A GATE row that names a card (Drift, Close, Even) carries the band of that card's
+ * recommended answer: the drift lines on the Drift card, how close ages and careers must be on the
+ * Close card, the win spread on the Even card. Another answer changes the band itself, in ADR-087
+ * §11 and here, before any graded run. The two rows marked OWNER, the 34-and-over share and
+ * reaching ten seasons, are GATE or REPORT by the Old card's answer (`GradeInput.ownerAnswers`).
+ * Until it is given they fail closed: graded and shown, and any that does not pass (or is not
+ * resolvable) blocks the flip recommendation as a GATE row does.
  *
  * How a row is graded:
  *  - Pooling: each seed gives one value per check (a year's value, or its mean over the judged
@@ -20,17 +22,31 @@
  *  - Standard errors: the sim's is the seed-to-seed sample SD over √seeds (none with fewer than two
  *    seeds); the reference's is the real side's own (`Estimate.se`), or for year 0 the seed-to-seed
  *    SE of year 0.
- *  - "Not resolvable": a check whose band half-width is under 2·√(SE_sim² + SE_ref²). One-sided bands
- *    use their allowance as the half-width (NFL + 2 points: 2 points; 2×: the reference itself).
+ *  - "Not resolvable": a check whose band half-width is under 2·√(SE_sim² + SE_ref²) (the plan's
+ *    rule), and whose value is in the band or outside it by no more than that 2·√(...): a miss that
+ *    could be noise. A value further outside its band than 2·√(...) fails whatever the half-width,
+ *    so a wide reference SE cannot let a gross miss pass. One-sided bands use their allowance as the
+ *    half-width (NFL + 2 points: 2 points; 2×: the reference itself). The grade lists the checks the
+ *    reference's own SE leaves unresolvable whatever the sim does (half-width under 2·SE_ref): they
+ *    can fail only by a gross miss.
  *  - A row fails if any check in it fails; otherwise it has no data if any check has no value, no SE
  *    if any check has no seed-to-seed SE (one seed), not resolvable if any check is, else it passes.
  *    No data and no SE block a pass without failing.
- *  - The flip is recommended iff every grade seed is in, there are at least two, and every GATE row
- *    passes or is not resolvable (the coach-style rows are GATE rows). D7's rows are GATE rows with no
- *    numeric band (ADR-086 §13 judged them by reading): they are shown beside `NFL_DRAFT` and block
- *    the recommendation until someone sets their bands.
+ *  - The flip is recommended iff every grade seed is in, there are at least two, and every GATE row,
+ *    and every OWNER row whose answer is pending, passes or is not resolvable (the coach-style rows
+ *    are GATE rows). D7's rows are GATE rows with no numeric band (ADR-086 §13 judged them by
+ *    reading): they are shown beside `NFL_DRAFT` and block the recommendation until someone sets
+ *    their bands.
+ *  - Careers: the real careers can be followed for at most 13 seasons (entry 2012, last observed
+ *    2024), so the real survival curve is carried flat past 13; the sim's is carried flat past the
+ *    same point (`followUp`) before the restricted mean is taken, so both sides' expected careers
+ *    cover the same horizon. Reach 5 and reach 10 sit inside it and are not touched.
+ *  - The week-8 rows set against the NFL show the league's own 2018-24 values season by season and
+ *    their trend beside the pooled reference, and year 0 (the real league of 2026 as the walk plays
+ *    it) against the same band, reported: the undrafted and 22-or-under shares fall across those
+ *    seasons, so a pooled 2018-24 reference can sit away from today's league before any growth.
  */
-import { NFL_CAREERS, type NflCareers } from "../careers/nflCareers.js";
+import { NFL_CAREERS, type NflCareers, type NflWeekEightSeason } from "../careers/nflCareers.js";
 import type { Estimate } from "../careers/stats.js";
 import {
   addCells, CAREER_GROUPS, kaplanMeier, lifeTable, SPECIALIST_GROUPS, usagePeak,
@@ -40,6 +56,7 @@ import { NFL_DRAFT } from "./draftCheck.js";
 
 // --- the bands -----------------------------------------------------------------------------------
 
+/** OWNER: GATE or REPORT by the owner's answer on its card; pending, it blocks the flip as a GATE row does. */
 export type BandMark = "GATE" | "REPORT" | "OWNER";
 export type OwnerCard = "Drift" | "Close" | "Old" | "Even";
 
@@ -62,7 +79,11 @@ export interface CareerBand {
   readonly reference: string;
   readonly band: string;
   readonly mark: BandMark;
-  /** An OWNER row: the owner's card it waits on. */
+  /**
+   * The owner's card the row waits on: for an OWNER row, the card whose answer makes it GATE or
+   * REPORT; for a GATE row, the card whose recommended answer set its band (another answer changes
+   * the band here, before any graded run).
+   */
   readonly card?: OwnerCard;
   /** The years it is judged on, and how. */
   readonly judged: string;
@@ -74,29 +95,29 @@ export interface CareerBand {
  * and "2036-45" are the years the plan names; a band that names none is judged on 2029-45.
  */
 export const CAREER_BANDS: readonly CareerBand[] = [
-  { id: "overall-mean-each", row: "Mean overall on the 53", reference: "Year 0", band: "±1.5 each year 2029-45", mark: "OWNER", card: "Drift", judged: "each year 2029-45", rule: { kind: "abs", half: 1.5 } },
-  { id: "overall-mean-late", row: "Mean overall on the 53", reference: "Year 0", band: "mean of 2036-45 within ±1.0", mark: "OWNER", card: "Drift", judged: "mean of 2036-45", rule: { kind: "abs", half: 1.0 } },
-  { id: "pooled-sd", row: "Pooled within-group sd", reference: "Year 0", band: "2036-45 within ±10%", mark: "OWNER", card: "Drift", judged: "mean of 2036-45", rule: { kind: "rel", frac: 0.10 } },
+  { id: "overall-mean-each", row: "Mean overall on the 53", reference: "Year 0", band: "±1.5 each year 2029-45", mark: "GATE", card: "Drift", judged: "each year 2029-45", rule: { kind: "abs", half: 1.5 } },
+  { id: "overall-mean-late", row: "Mean overall on the 53", reference: "Year 0", band: "mean of 2036-45 within ±1.0", mark: "GATE", card: "Drift", judged: "mean of 2036-45", rule: { kind: "abs", half: 1.0 } },
+  { id: "pooled-sd", row: "Pooled within-group sd", reference: "Year 0", band: "2036-45 within ±10%", mark: "GATE", card: "Drift", judged: "mean of 2036-45", rule: { kind: "rel", frac: 0.10 } },
   { id: "at95", row: "95+ count (pooled)", reference: "Year 0", band: "At most 2×", mark: "GATE", judged: "each year 2029-45", rule: { kind: "atMostTimes", times: 2 } },
   { id: "at99", row: "Ratings of 99", reference: "Year 0", band: "99s at most the year-0 count + 3 a league-season", mark: "GATE", judged: "each year 2029-45", rule: { kind: "atMost", plus: 3 } },
   { id: "gap", row: "Starter-backup gap (fieldedStarters)", reference: "Year 0", band: "±1.0", mark: "GATE", judged: "each year 2029-45", rule: { kind: "abs", half: 1.0 } },
   { id: "groups-report", row: "Group mean, top-5, rating-group means", reference: "Year 0", band: "Reported", mark: "REPORT", judged: "mean of 2036-45", rule: { kind: "report" } },
   { id: "coach-slots", row: "Coach styles: incumbent league vs form league", reference: "Each other", band: "Starters differ in at least 5% of slots", mark: "GATE", judged: "each year of the walk", rule: { kind: "atLeast", min: 0.05 } },
   { id: "coach-sd", row: "Coach styles: incumbent league vs form league", reference: "Each other", band: "pooled sd within 5% of each other every year", mark: "GATE", judged: "each year of the walk", rule: { kind: "rel", frac: 0.05 } },
-  { id: "age-league", row: "Mean age, league", reference: "NFL wk 8, 2018-24", band: "±0.5", mark: "OWNER", card: "Close", judged: "mean of 2029-45", rule: { kind: "abs", half: 0.5 } },
-  { id: "age-group", row: "Mean age, group", reference: "NFL wk 8, 2018-24", band: "±1.0 (K/P ±2)", mark: "OWNER", card: "Close", judged: "mean of 2029-45", rule: { kind: "abs", half: 1.0, halfFor: { K: 2, P: 2 } } },
+  { id: "age-league", row: "Mean age, league", reference: "NFL wk 8, 2018-24", band: "±0.5", mark: "GATE", card: "Close", judged: "mean of 2029-45", rule: { kind: "abs", half: 0.5 } },
+  { id: "age-group", row: "Mean age, group", reference: "NFL wk 8, 2018-24", band: "±1.0 (K/P ±2)", mark: "GATE", card: "Close", judged: "mean of 2029-45", rule: { kind: "abs", half: 1.0, halfFor: { K: 2, P: 2 } } },
   { id: "share-22", row: "Share 22 or under", reference: "NFL wk 8, 2018-24", band: "±3", mark: "GATE", judged: "mean of 2029-45", rule: { kind: "abs", half: 0.03 } },
-  { id: "share-31", row: "Share 31+", reference: "NFL wk 8, 2018-24", band: "±3", mark: "OWNER", card: "Close", judged: "mean of 2029-45", rule: { kind: "abs", half: 0.03 } },
+  { id: "share-31", row: "Share 31+", reference: "NFL wk 8, 2018-24", band: "±3", mark: "GATE", card: "Close", judged: "mean of 2029-45", rule: { kind: "abs", half: 0.03 } },
   { id: "share-34", row: "Share 34+", reference: "NFL wk 8, 2018-24", band: "at most NFL + 2 pts", mark: "OWNER", card: "Old", judged: "mean of 2029-45", rule: { kind: "atMost", plus: 0.02 } },
-  { id: "peak-usage", row: "Peak usage age (no K/P/LS)", reference: "Within-player change in offense_pct/defense_pct by age", band: "±1.5 years", mark: "OWNER", card: "Close", judged: "pairs with both seasons in 2029-45, seeds pooled", rule: { kind: "abs", half: 1.5 } },
-  { id: "peak-rb-earliest", row: "Peak usage age (no K/P/LS)", reference: "Within-player change in offense_pct/defense_pct by age", band: "RB earliest", mark: "OWNER", card: "Close", judged: "pairs with both seasons in 2029-45, seeds pooled", rule: { kind: "order" } },
-  { id: "career-expected", row: "Career by entry position", reference: "NFL exit hazard 2012-22", band: "Expected career ±20%", mark: "OWNER", card: "Close", judged: "in-run entrants with two seasons to follow, seeds pooled", rule: { kind: "rel", frac: 0.20 } },
+  { id: "peak-usage", row: "Peak usage age (no K/P/LS)", reference: "Within-player change in offense_pct/defense_pct by age", band: "±1.5 years", mark: "GATE", card: "Close", judged: "pairs with both seasons in 2029-45, seeds pooled", rule: { kind: "abs", half: 1.5 } },
+  { id: "peak-rb-earliest", row: "Peak usage age (no K/P/LS)", reference: "Within-player change in offense_pct/defense_pct by age", band: "RB earliest", mark: "GATE", card: "Close", judged: "pairs with both seasons in 2029-45, seeds pooled", rule: { kind: "order" } },
+  { id: "career-expected", row: "Career by entry position", reference: "NFL exit hazard 2012-22", band: "Expected career ±20%", mark: "GATE", card: "Close", judged: "in-run entrants with two seasons to follow, seeds pooled", rule: { kind: "rel", frac: 0.20 } },
   { id: "career-reach5", row: "Career by entry position", reference: "NFL exit hazard 2012-22", band: "reach 5 ±5 pts", mark: "GATE", judged: "in-run entrants with two seasons to follow, seeds pooled", rule: { kind: "abs", half: 0.05 } },
   { id: "career-reach10", row: "Career by entry position", reference: "NFL exit hazard 2012-22", band: "reach 10 ±3 pts", mark: "OWNER", card: "Old", judged: "in-run entrants with two seasons to follow, seeds pooled", rule: { kind: "abs", half: 0.03 } },
   { id: "rookie", row: "Rookie share", reference: "NFL wk 8, 2018-24", band: "±3", mark: "GATE", judged: "mean of 2029-45", rule: { kind: "abs", half: 0.03 } },
   { id: "undrafted", row: "Undrafted share", reference: "NFL wk 8, 2018-24", band: "±4 pts", mark: "GATE", judged: "mean of 2029-45", rule: { kind: "abs", half: 0.04 } },
   { id: "d7", row: "D7 rows, switches on", reference: "NFL_DRAFT", band: "D7's own bands", mark: "GATE", judged: "the whole walk", rule: { kind: "unbanded" } },
-  { id: "win-spread", row: "Win spread, 2029-45", reference: "3.05", band: "2.75-3.35", mark: "OWNER", card: "Even", judged: "mean of 2029-45", rule: { kind: "range", lo: 2.75, hi: 3.35 } },
+  { id: "win-spread", row: "Win spread, 2029-45", reference: "3.05", band: "2.75-3.35", mark: "GATE", card: "Even", judged: "mean of 2029-45", rule: { kind: "range", lo: 2.75, hi: 3.35 } },
   { id: "win-r", row: "Year-over-year win r", reference: "0.40 (4 transitions)", band: "0.25-0.55", mark: "REPORT", judged: "mean of the pairs inside 2029-45", rule: { kind: "range", lo: 0.25, hi: 0.55 } },
   { id: "other-report", row: "Back after a season out; retire after 1 vs 2; FA pool", reference: "NFL / patience arithmetic", band: "Pool trend under 5% a year", mark: "REPORT", judged: "2029-45", rule: { kind: "report" } },
 ];
@@ -155,6 +176,8 @@ export interface GradeCheck {
   /** 2·√(SE_sim² + SE_ref²). */
   readonly resolution: number | null;
   readonly inBand: boolean | null;
+  /** How far outside its band the sim's value sits (0 in it). */
+  readonly outside: number | null;
   readonly status: CheckStatus;
 }
 
@@ -199,23 +222,47 @@ function inBandOf(rule: BandRule, sim: number, ref: number, group?: string): boo
   }
 }
 
-/** One check: the sim's pooled value against its reference, under the band's rule and the SE rule. */
+/** How far outside its band a value sits: 0 in the band (edges included). */
+export function outsideBand(rule: BandRule, sim: number, ref: number, group?: string): number {
+  switch (rule.kind) {
+    case "abs": return Math.max(0, Math.abs(sim - ref) - halfWidthOf(rule, ref, group)!);
+    case "rel": return Math.max(0, Math.abs(sim - ref) - rule.frac * Math.abs(ref));
+    case "atMost": return Math.max(0, sim - (ref + rule.plus));
+    case "atMostTimes": return Math.max(0, sim - rule.times * ref);
+    case "atLeast": return Math.max(0, rule.min - sim);
+    case "range": return Math.max(0, rule.lo - sim, sim - rule.hi);
+    default: return 0;
+  }
+}
+
+/**
+ * One check: the sim's pooled value against its reference, under the band's rule and the SE rule.
+ * In the band: a pass, or not resolvable when the half-width is under 2·√(SE_sim² + SE_ref²).
+ * Outside it: a fail, unless the half-width is under 2·√(...) AND the value is outside the band by
+ * no more than 2·√(...) (a miss that could be noise), which is not resolvable.
+ */
 export function gradeCheck(
   rule: BandRule, label: string, sim: { value: number | null; se: number | null; n: number }, ref: { value: number | null; se: number | null },
   group?: string,
 ): GradeCheck {
   const base = { label, sim: sim.value, seSim: sim.se, seeds: sim.n, ref: ref.value, seRef: ref.se };
   if (rule.kind === "report" || rule.kind === "unbanded" || rule.kind === "order") {
-    return { ...base, halfWidth: null, resolution: null, inBand: null, status: rule.kind === "unbanded" ? "UNBANDED" : "REPORTED" };
+    return { ...base, halfWidth: null, resolution: null, inBand: null, outside: null, status: rule.kind === "unbanded" ? "UNBANDED" : "REPORTED" };
   }
   const refValue = rule.kind === "range" || rule.kind === "atLeast" ? (ref.value ?? 0) : ref.value;
-  if (sim.value === null || refValue === null) return { ...base, halfWidth: null, resolution: null, inBand: null, status: "NO_DATA" };
+  if (refValue === null) return { ...base, halfWidth: null, resolution: null, inBand: null, outside: null, status: "NO_DATA" };
+  // The half-width is kept even with no sim value, so a reference too wide to resolve is listed.
   const halfWidth = halfWidthOf(rule, refValue, group)!;
+  if (sim.value === null) return { ...base, halfWidth, resolution: null, inBand: null, outside: null, status: "NO_DATA" };
   const inBand = inBandOf(rule, sim.value, refValue, group);
-  if (sim.se === null) return { ...base, halfWidth, resolution: null, inBand, status: "NO_SE" };
+  const outside = outsideBand(rule, sim.value, refValue, group);
+  if (sim.se === null) return { ...base, halfWidth, resolution: null, inBand, outside, status: "NO_SE" };
   const resolution = 2 * Math.sqrt(sim.se ** 2 + (ref.se ?? 0) ** 2);
-  const status: CheckStatus = halfWidth < resolution ? "NOT_RESOLVABLE" : inBand ? "PASS" : "FAIL";
-  return { ...base, halfWidth, resolution, inBand, status };
+  const unresolved = halfWidth < resolution;
+  const status: CheckStatus = inBand
+    ? (unresolved ? "NOT_RESOLVABLE" : "PASS")
+    : (unresolved && outside <= resolution ? "NOT_RESOLVABLE" : "FAIL");
+  return { ...base, halfWidth, resolution, inBand, outside, status };
 }
 
 /** A row's status from its checks (see the header). */
@@ -261,6 +308,12 @@ export interface GradeInput {
   readonly nfl?: NflCareers;
   readonly nflDraft?: typeof NFL_DRAFT;
   readonly windows?: GradeWindows;
+  /**
+   * The owner's answers that decide the OWNER rows' marks (the Old card: the 34-and-over share and
+   * reaching ten seasons gate the flip, or are reported). A card with no answer is pending: its rows
+   * block the flip unless they pass or are not resolvable.
+   */
+  readonly ownerAnswers?: Readonly<Partial<Record<OwnerCard, "GATE" | "REPORT">>>;
   /** What the rows were made with, for the report's header. */
   readonly meta: {
     readonly seasons: number;
@@ -281,12 +334,18 @@ export interface CareerGrade {
   readonly seeds: { readonly asked: readonly string[]; readonly graded: readonly string[]; readonly missing: readonly string[] };
   readonly coachSeeds: { readonly asked: readonly string[]; readonly graded: readonly string[]; readonly missing: readonly string[] };
   readonly rows: GradeRow[];
+  /**
+   * Checks of GATE and OWNER rows whose band half-width is under twice the reference's own SE: no
+   * sim, however many seeds, can resolve them, and they can fail only by a gross miss (outside the
+   * band by more than 2·√(SE_sim² + SE_ref²)).
+   */
+  readonly unresolvable: string[];
   readonly flip: {
     readonly recommended: boolean;
     /** Why not, in plain words (empty when recommended). */
     readonly reasons: string[];
     readonly gate: { readonly pass: number; readonly notResolvable: number; readonly fail: number; readonly other: number };
-    /** OWNER rows that would block the flip if the owner's answer makes them GATE rows. */
+    /** OWNER rows whose answer is pending and that do not pass (or are not resolvable): they block the flip until answered. */
     readonly ownerBlocking: string[];
   };
 }
@@ -302,6 +361,29 @@ const windowMean = (r: CareerCheckRows, w: readonly [number, number], pick: (p: 
 };
 const est = (e: Estimate | null | undefined) => ({ value: e?.value ?? null, se: e?.se ?? null });
 const yearsOf = (w: readonly [number, number]) => Array.from({ length: Math.max(0, w[1] - w[0] + 1) }, (_, i) => w[0] + i);
+
+/**
+ * A restricted mean career to `horizon` seasons from a survival curve (`survival[t]` = P(career > t)),
+ * the curve carried flat past `followUp` seasons: P(career >= k) for k > followUp is taken as
+ * P(career >= followUp). The real side can follow a career `followUp` seasons at most (entry 2012,
+ * last observed 2024: 13), so its curve is flat past there; the sim's is read the same way. Null
+ * with no curve.
+ */
+export function expectedCareer(survival: readonly number[], horizon: number, followUp: number): number | null {
+  if (survival.length === 0) return null;
+  let sum = 0;
+  for (let t = 0; t < horizon; t++) sum += survival[Math.min(t, followUp - 1, survival.length - 1)]!;
+  return sum;
+}
+
+/** A line of values: the least-squares slope of `ys` on `xs`; null with fewer than two points. */
+export function slopeOf(xs: readonly number[], ys: readonly number[]): number | null {
+  if (xs.length < 2 || xs.length !== ys.length) return null;
+  const mx = mean(xs), my = mean(ys);
+  let sxy = 0, sxx = 0;
+  for (let i = 0; i < xs.length; i++) { sxy += (xs[i]! - mx) * (ys[i]! - my); sxx += (xs[i]! - mx) ** 2; }
+  return sxx === 0 ? null : sxy / sxx;
+}
 
 /** Every seed's entrants pooled, those with `CAREER_FOLLOW_UP` seasons to follow. */
 function graded(entrants: readonly CareerEntrant[], lastSeason: number): CareerEntrant[] {
@@ -373,16 +455,32 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
   });
   rows.push(row("coach-sd", sdChecks, "The incumbent league's pooled sd against the form league's, as a share of the form league's."));
 
-  // Ages, shares, rookies against the NFL's week 8.
+  // Ages, shares, rookies against the NFL's week 8: the judged years, then year 0 against the same
+  // band (reported), with the NFL's season-by-season values and their trend in the note.
   const nflW8 = nfl.weekEight;
-  const cross = (id: string, f: (p: RosterPicture) => number, refE: Estimate) =>
-    row(id, [gradeCheck(bandOf(id).rule, "league", perSeed((r) => windowMean(r, windows.early, f)), est(refE))]);
-  rows.push(cross("age-league", (p) => p.age.mean, nflW8.league.meanAge));
+  const firstSeason = runs[0]?.firstSeason ?? null;
+  type W8Key = Exclude<keyof NflWeekEightSeason, "season" | "n">;
+  const cross = (id: string, f: (p: RosterPicture) => number, key: W8Key, more: GradeCheck[] = []) => {
+    const rule = bandOf(id).rule;
+    const refE = nflW8.league[key];
+    const y0 = gradeCheck(rule, `year 0 (${firstSeason ?? "-"}), against the same band`, perSeed((r) => { const p = year0(r); return p === null ? null : f(p); }), est(refE));
+    const seasons = nflW8.leagueBySeason.map((x) => x.season), values = nflW8.leagueBySeason.map((x) => x[key]);
+    const slope = slopeOf(seasons, values);
+    const late = values.slice(-3);
+    const v = (x: number) => (key === "meanAge" ? `${x.toFixed(2)}` : `${(100 * x).toFixed(1)}`);
+    const unit = key === "meanAge" ? " years" : " points";
+    const note = values.length === 0 ? undefined
+      : `NFL by season, ${seasons[0]}-${seasons[seasons.length - 1]}: ${values.map(v).join(", ")}${key === "meanAge" ? "" : " (%)"}; ` +
+        `least-squares trend ${slope === null ? "-" : `${slope >= 0 ? "+" : ""}${v(slope)}`}${unit} a season; the last three seasons' mean ${v(mean(late))}. ` +
+        "Year 0 is the real league as the walk plays its first season, reported against the same band, not graded.";
+    return row(id, [gradeCheck(rule, "league", perSeed((r) => windowMean(r, windows.early, f)), est(refE)), { ...y0, status: "REPORTED" }, ...more], note);
+  };
+  rows.push(cross("age-league", (p) => p.age.mean, "meanAge"));
   rows.push(row("age-group", CAREER_GROUPS.map((g) => gradeCheck(bandOf("age-group").rule, g,
     perSeed((r) => windowMean(r, windows.early, (p) => (p.groups[g].n > 0 ? p.groups[g].age : NaN))), est(nflW8.byGroup[g].meanAge), g))));
-  rows.push(cross("share-22", (p) => p.age.upTo22, nflW8.league.age22OrUnder));
-  rows.push(cross("share-31", (p) => p.age.from31, nflW8.league.age31Plus));
-  rows.push(cross("share-34", (p) => p.age.from34, nflW8.league.age34Plus));
+  rows.push(cross("share-22", (p) => p.age.upTo22, "age22OrUnder"));
+  rows.push(cross("share-31", (p) => p.age.from31, "age31Plus"));
+  rows.push(cross("share-34", (p) => p.age.from34, "age34Plus"));
 
   // Peak usage age, seeds pooled.
   const usageGroups = CAREER_GROUPS.filter((g) => !SPECIALIST_GROUPS.has(g));
@@ -407,25 +505,34 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
   rows.push({
     ...row("peak-rb-earliest", []),
     status: earliest === null ? "NO_DATA" : earliest ? "PASS" : "FAIL",
-    checks: [{ label: "RB against the earliest other group", sim: rb, seSim: null, seeds: runs.length, ref: others.length === 0 ? null : Math.min(...others), seRef: null, halfWidth: null, resolution: null, inBand: earliest, status: earliest === null ? "NO_DATA" : earliest ? "PASS" : "FAIL" }],
+    checks: [{ label: "RB against the earliest other group", sim: rb, seSim: null, seeds: runs.length, ref: others.length === 0 ? null : Math.min(...others), seRef: null, halfWidth: null, resolution: null, inBand: earliest, outside: null, status: earliest === null ? "NO_DATA" : earliest ? "PASS" : "FAIL" }],
     note: "RB's pooled peak at or before every other group's (ties allowed). The real league's stayers tie RB at 24 with QB, WR, LB and CB.",
   });
 
-  // Careers by entry group, seeds pooled.
+  // Careers by entry group, seeds pooled; the expected career over the real side's horizon, carried
+  // flat past its longest follow-up.
   const seedEntrants = runs.map((r) => graded(r.careers.entrants, r.careers.lastSeason));
   const pooledEntrants = seedEntrants.flat();
+  const followUp = nfl.careers.lastObserved - nfl.careers.entrySeasons[0] + 1;
   const careerRow = (id: string, pick: (km: ReturnType<typeof kaplanMeier>) => number | null, ref: (g: CareerGroup) => Estimate) =>
     row(id, CAREER_GROUPS.map((g) => {
       const km = kaplanMeier(lifeTable(pooledEntrants.filter((e) => e.g === g)));
       const se = poolSeeds(seedEntrants.map((es) => pick(kaplanMeier(lifeTable(es.filter((e) => e.g === g))))));
       return gradeCheck(bandOf(id).rule, g, { value: pick(km), se: se.se, n: se.n }, est(ref(g)));
-    }), `Entrants pooled over seeds: ${pooledEntrants.length}, by the group of the 53 on the regular season's last day in their first credited season.`);
-  rows.push(careerRow("career-expected", (km) => km.expected, (g) => nfl.careers.byGroup[g].expectedCareer));
+    }), `Entrants pooled over seeds: ${pooledEntrants.length}, by the group of the 53 on the regular season's last day in their first credited season. ` +
+      `Expected career: the mean to ${nfl.careers.horizon} seasons with the curve carried flat past ${followUp} (the real side's longest follow-up).`);
+  rows.push(careerRow("career-expected", (km) => expectedCareer(km.survival, nfl.careers.horizon, followUp), (g) => nfl.careers.byGroup[g].expectedCareer));
   rows.push(careerRow("career-reach5", (km) => km.reach5, (g) => nfl.careers.byGroup[g].reach5));
   rows.push(careerRow("career-reach10", (km) => km.reach10, (g) => nfl.careers.byGroup[g].reach10));
 
-  rows.push(cross("rookie", (p) => p.rookieShare, nflW8.league.rookie));
-  rows.push(cross("undrafted", (p) => p.undraftedShare, nflW8.league.undrafted));
+  // A rookie is a man in his first season in the league, as the real rosters' years_exp 0 reads; the
+  // earlier reading (no credited season yet, which keeps a man who has never ended a season on a
+  // 53 a rookie in his second year) is shown beside it, not graded.
+  rows.push(cross("rookie", (p) => p.rookieShare, "rookie", [{
+    ...gradeCheck({ kind: "report" }, "no credited season yet (the earlier reading, not graded)",
+      perSeed((r) => windowMean(r, windows.early, (p) => p.noCreditShare ?? NaN)), est(nflW8.league.rookie)),
+  }]));
+  rows.push(cross("undrafted", (p) => p.undraftedShare, "undrafted"));
 
   // D7, switches on: shown beside NFL_DRAFT.
   const unbanded = bandOf("d7").rule;
@@ -473,16 +580,28 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
   other.push({ ...gradeCheck({ kind: "abs", half: 0.05 }, "free-agent pool trend a year (band: under 5%)", poolTrend, { value: 0, se: 0 }), status: "REPORTED" });
   rows.push(row("other-report", other));
 
-  // The flip.
-  const gate = rows.filter((r) => r.mark === "GATE");
+  // The owner's answers: an answered OWNER row takes the answer's mark.
+  const marked = rows.map((r): GradeRow => {
+    const answer = r.mark === "OWNER" && r.card !== null ? input.ownerAnswers?.[r.card] : undefined;
+    return answer === undefined ? r : { ...r, mark: answer, status: rowStatus(answer, bandOf(r.id).rule, r.checks) };
+  });
+  const unresolvable = marked.filter((r) => r.mark === "GATE" || r.mark === "OWNER").flatMap((r) => r.checks
+    .filter((c) => c.status !== "REPORTED" && c.halfWidth !== null && c.seRef !== null && c.halfWidth < 2 * c.seRef)
+    .map((c) => `${r.id} ${c.label}: half-width ${fmt(c.halfWidth, 4)} under 2·SE_ref ${fmt(2 * c.seRef!, 4)}`));
+
+  // The flip: every GATE row, and every OWNER row still waiting on its answer (fail closed).
+  const passes = (r: GradeRow) => r.status === "PASS" || r.status === "NOT_RESOLVABLE";
+  const gate = marked.filter((r) => r.mark === "GATE");
   const count = (st: RowStatus) => gate.filter((r) => r.status === st).length;
   const reasons: string[] = [];
   if (input.meta.smoke === true) reasons.push("a smoke run (windows clipped to the seasons played): never a graded report");
   if (missing.length > 0) reasons.push(`grade seeds missing: ${missing.join(", ")}`);
   if (graded_.length < 2) reasons.push(`${graded_.length} grade seed(s) in; the seed-to-seed SE needs at least two`);
   if (coachMissing.length > 0) reasons.push(`coach-style seeds missing (both arms needed): ${coachMissing.join(", ")}`);
-  for (const r of gate) if (r.status !== "PASS" && r.status !== "NOT_RESOLVABLE") reasons.push(`GATE row ${r.id}: ${r.status}`);
-  const ownerBlocking = rows.filter((r) => r.mark === "OWNER" && r.status !== "PASS" && r.status !== "NOT_RESOLVABLE").map((r) => `${r.id} (${r.card}): ${r.status}`);
+  for (const r of gate) if (!passes(r)) reasons.push(`GATE row ${r.id}: ${r.status}`);
+  const pendingBlocking = marked.filter((r) => r.mark === "OWNER" && !passes(r));
+  for (const r of pendingBlocking) reasons.push(`OWNER row ${r.id} (${r.card} card, answer pending): ${r.status}`);
+  const ownerBlocking = pendingBlocking.map((r) => `${r.id} (${r.card}): ${r.status}`);
   return {
     pass: input.pass,
     smoke: input.meta.smoke === true,
@@ -490,7 +609,8 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
     windows,
     seeds: { asked: input.seeds, graded: graded_, missing },
     coachSeeds: { asked: input.coach.seeds, graded: coachGraded, missing: coachMissing },
-    rows,
+    rows: marked,
+    unresolvable,
     flip: {
       recommended: reasons.length === 0,
       reasons,
@@ -510,6 +630,7 @@ export function renderGradeJson(grade: CareerGrade): string {
     ...r,
     checks: r.checks.map((c) => ({
       ...c, sim: round(c.sim), seSim: round(c.seSim), ref: round(c.ref), seRef: round(c.seRef), halfWidth: round(c.halfWidth), resolution: round(c.resolution),
+      outside: round(c.outside),
     })),
   }));
   return `${JSON.stringify({ ...grade, rows, bands: CAREER_BANDS }, null, 2)}\n`;
@@ -524,8 +645,12 @@ export function renderGradeMarkdown(grade: CareerGrade): string {
   const say = (s = "") => lines.push(s);
   say(`# ADR-087 D5b: the 20-season check, pass ${grade.pass}${grade.smoke ? " (SMOKE: not a graded report)" : ""}`);
   say();
-  say("**The owner's answers are pending** (the Drift, Close, Old and Even cards). They are recorded in ADR-087 §11 before any graded run; " +
-    "until then OWNER rows are graded and shown but do not count toward the flip recommendation.");
+  const pending = grade.rows.filter((r) => r.mark === "OWNER");
+  say(pending.length > 0
+    ? "**The owner's answers are pending** (the Drift, Close, Old and Even cards). GATE rows that name a card carry the band of its recommended answer; " +
+      "another answer changes the band in ADR-087 §11 before any graded run. The OWNER rows wait on the Old card's answer (GATE or REPORT); " +
+      "until it is given, any of them that does not pass or is not resolvable blocks the flip."
+    : "The owner's answers are given: GATE rows that name a card carry the band of the answer recorded in ADR-087 §11, and the Old card's rows are marked by its answer.");
   say();
   say(`The stand-in league \`${m.league.path}\` (sha256 \`${m.league.sha256.slice(0, 12)}\`), ${m.seasons} seasons a seed, engine rules \`${m.engineRules}\`, ` +
     `caller \`${m.callerVersion}\`. Fingerprints: ${Object.entries(m.fingerprints).map(([a, f]) => `${a} \`${f}\``).join(", ")}.`);
@@ -536,18 +661,24 @@ export function renderGradeMarkdown(grade: CareerGrade): string {
   say(`Years judged: ${grade.windows.early[0]}-${grade.windows.early[1]} (the plan's 2029-45) and ${grade.windows.late[0]}-${grade.windows.late[1]} (2036-45).` +
     (grade.smoke ? " Smoke windows: clipped to the seasons played." : ""));
   say();
-  say("A check is **not resolvable** when its band's half-width is under 2·√(SE_sim² + SE_ref²); the sim's SE is the seed-to-seed SD over √seeds.");
+  say("A check is **not resolvable** when its band's half-width is under 2·√(SE_sim² + SE_ref²) and its value is in the band or outside it by no more than that; " +
+    "a value further outside its band fails. The sim's SE is the seed-to-seed SD over √seeds.");
   say();
   say("## The flip");
   say();
-  say(grade.flip.recommended ? "**Recommended**: every grade seed is in and every GATE row passes or is not resolvable." : "**Not recommended.**");
+  say(grade.flip.recommended ? "**Recommended**: every grade seed is in and every GATE row (and every OWNER row still waiting on its answer) passes or is not resolvable." : "**Not recommended.**");
   for (const r of grade.flip.reasons) say(`- ${r}`);
   say();
   say(`GATE rows: ${grade.flip.gate.pass} pass, ${grade.flip.gate.notResolvable} not resolvable, ${grade.flip.gate.fail} fail, ${grade.flip.gate.other} other.`);
   if (grade.flip.ownerBlocking.length > 0) {
     say();
-    say("OWNER rows that would block the flip if the owner's answer makes them gate:");
+    say("OWNER rows that block the flip until the owner answers their card:");
     for (const r of grade.flip.ownerBlocking) say(`- ${r}`);
+  }
+  if (grade.unresolvable.length > 0) {
+    say();
+    say("Checks the reference's own SE leaves unresolvable whatever the sim does (they fail only by a gross miss):");
+    for (const c of grade.unresolvable) say(`- ${c}`);
   }
   say();
   say("## Rows");
@@ -564,10 +695,10 @@ export function renderGradeMarkdown(grade: CareerGrade): string {
     say(`### ${r.row}: ${r.band} (${r.id})`);
     say();
     if (r.note !== undefined) { say(r.note); say(); }
-    say("| Check | Sim | SE | Seeds | Reference | SE | Half-width | 2·SE | In band | Status |");
-    say("|---|---|---|---|---|---|---|---|---|---|");
+    say("| Check | Sim | SE | Seeds | Reference | SE | Half-width | 2·SE | In band | Outside by | Status |");
+    say("|---|---|---|---|---|---|---|---|---|---|---|");
     for (const c of r.checks) {
-      say(`| ${c.label} | ${fmt(c.sim)} | ${fmt(c.seSim)} | ${c.seeds} | ${fmt(c.ref)} | ${fmt(c.seRef)} | ${fmt(c.halfWidth)} | ${fmt(c.resolution)} | ${c.inBand === null ? "-" : c.inBand ? "yes" : "no"} | ${c.status} |`);
+      say(`| ${c.label} | ${fmt(c.sim)} | ${fmt(c.seSim)} | ${c.seeds} | ${fmt(c.ref)} | ${fmt(c.seRef)} | ${fmt(c.halfWidth)} | ${fmt(c.resolution)} | ${c.inBand === null ? "-" : c.inBand ? "yes" : "no"} | ${fmt(c.outside)} | ${c.status} |`);
     }
   }
   say();

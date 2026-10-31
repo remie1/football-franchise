@@ -203,8 +203,19 @@ export interface RosterPicture {
     /** Men by age. */
     readonly histogram: Record<string, number>;
   };
-  /** Share with no credited season yet (an absent count reads 0, as contracts says). */
+  /**
+   * Share in their first season in the league, as the real rosters' `years_exp` 0 reads (years_exp
+   * is the season less the year he came in, not his credited seasons). Read with the ledger's
+   * first seasons (`firstSeasonOf`); without them (the league file as loaded), `creditedSeasons` 0,
+   * which in the file is `years_exp`.
+   */
   readonly rookieShare: number;
+  /**
+   * Share with no credited season yet (an absent count reads 0, as contracts says): the earlier
+   * reading of a rookie, reported beside it. It also counts a man in his second season or later who
+   * has never been on a 53 when a regular season ended.
+   */
+  readonly noCreditShare: number;
   /** Share whose draft line is UDFA. */
   readonly undraftedShare: number;
 }
@@ -238,11 +249,19 @@ export function teamStarters(team: Team, byId: ReadonlyMap<string, PlayerState>)
   return padded === undefined ? { ids: new Set(), padded: true, short: true } : { ids: padded, padded: true, short: false };
 }
 
+/** Who is in his first season in the league: the season read, and each man's first season (the ledger's). */
+export interface RookieReading {
+  readonly season: number;
+  readonly firstSeasonOf: (id: string) => number | undefined;
+}
+
 /**
  * The 53s' picture: each team's `roster` (the practice squad, reserve lists and anyone on no team
- * left out), ages as read. Read during the season (week 8), the ages need no offset.
+ * left out), ages as read. Read during the season (week 8), the ages need no offset. With `rookies`,
+ * a rookie is a man whose first season in the league is the season read (a man the ledger has no
+ * first season for is read by his credited seasons); without it, a man with no credited season.
  */
-export function rosterPicture(people: Pick<SeasonPeople, "teams" | "players">): RosterPicture {
+export function rosterPicture(people: Pick<SeasonPeople, "teams" | "players">, rookies?: RookieReading): RosterPicture {
   const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
   const fielded = people.teams.map((t) => teamStarters(t, byId));
   const starters = new Set(fielded.flatMap((f) => [...f.ids]));
@@ -310,7 +329,11 @@ export function rosterPicture(people: Pick<SeasonPeople, "teams" | "players">): 
     },
     teamStrength: { mean: mean(teamMeans), sd: sd(teamMeans) },
     age: { mean: mean(ages), upTo22: share((r) => r.p.bio.age <= 22), from31: share((r) => r.p.bio.age >= 31), from34: share((r) => r.p.bio.age >= 34), histogram },
-    rookieShare: share((r) => (r.p.bio.creditedSeasons ?? 0) === 0),
+    rookieShare: share((r) => {
+      const first = rookies?.firstSeasonOf(String(r.p.bio.id));
+      return first === undefined ? (r.p.bio.creditedSeasons ?? 0) === 0 : first === rookies!.season;
+    }),
+    noCreditShare: share((r) => (r.p.bio.creditedSeasons ?? 0) === 0),
     undraftedShare: share((r) => r.p.bio.draft === "UDFA"),
   };
 }
@@ -580,6 +603,13 @@ interface LedgerEntry {
   relabeled: boolean;
   /** Credited seasons when the walk first saw him (the file's for its men; 0 for a rookie). */
   creditedAtStart: number;
+  /**
+   * His first season in the league, as the real rosters' `entry_year` reads it: for a league-file
+   * man, the walk's first season less his file `creditedSeasons` (the importer's `years_exp`, which
+   * is the season less `entry_year`); for a man who came in during the walk, the first season he is
+   * on a team (a draftee's draft year; an undrafted man's signing). Unset until then.
+   */
+  firstSeason?: number;
   /** Seasons of the walk he was credited. */
   credited: number[];
   /** Seasons of the walk he was on a team (any status) on day 1 of some regular-season week. */
@@ -600,8 +630,11 @@ export interface LedgerState { readonly started: boolean; readonly entries: [str
  * is tested on made-up people and events.
  */
 export interface CareerLedger {
-  /** The people the walk starts with: every one of them (prospects aside) came from the league file. */
-  start(players: readonly PlayerState[]): void;
+  /**
+   * The people the walk starts with, in its first season: every one of them (prospects aside) came
+   * from the league file. Without `season` their first seasons are not known.
+   */
+  start(players: readonly PlayerState[], season?: number): void;
   /** Men on a team (any status) on day 1 of a regular-season week of `season`. */
   present(season: number, players: readonly PlayerState[]): void;
   /**
@@ -622,6 +655,8 @@ export interface CareerLedger {
   route(id: string): EntryRoute | undefined;
   /** The draft and round of one of the walk's own draftees. */
   draftOf(id: string): { year: number; round: number } | undefined;
+  /** His first season in the league (see `LedgerEntry.firstSeason`), if known. */
+  firstSeasonOf(id: string): number | undefined;
   /** Everything it holds, as plain JSON (a checkpoint between seasons), and back. */
   save(): LedgerState;
   restore(state: LedgerState): void;
@@ -645,13 +680,22 @@ export function careerLedger(): CareerLedger {
     return entry;
   };
   return {
-    start(players) {
+    start(players, season) {
       if (started) return;
       started = true;
-      for (const p of players) entryOf(p, "FILE");
+      for (const p of players) {
+        const entry = entryOf(p, "FILE");
+        if (entry !== undefined && season !== undefined) entry.firstSeason = season - entry.creditedAtStart;
+      }
     },
     present(season, players) {
-      for (const p of players) if (p.teamId !== undefined) entryOf(p)?.present.add(season);
+      for (const p of players) {
+        if (p.teamId === undefined) continue;
+        const entry = entryOf(p);
+        if (entry === undefined) continue;
+        entry.present.add(season);
+        if (entry.route !== "FILE") entry.firstSeason ??= season;
+      }
     },
     season(season, before, after, events, finalPositions) {
       const was = new Map(before.map((p) => [String(p.bio.id), p]));
@@ -662,6 +706,9 @@ export function careerLedger(): CareerLedger {
         const entry = entryOf(p);
         if (entry === undefined) continue;
         const prior = was.get(id);
+        // On a team after the year turn (a draftee, an undrafted man signed after the draft): next
+        // season is his first.
+        if (p.teamId !== undefined && entry.route !== "FILE") entry.firstSeason ??= season + 1;
         // A credited season is the rise in his count over the season (the draft-order day hands them
         // out); a man the season did not start with joined after that day (the draft follows it).
         if (prior !== undefined && (p.bio.creditedSeasons ?? 0) > (prior.bio.creditedSeasons ?? 0)) {
@@ -714,6 +761,7 @@ export function careerLedger(): CareerLedger {
     },
     route: (id) => entries.get(id)?.route,
     draftOf: (id) => entries.get(id)?.draft,
+    firstSeasonOf: (id) => entries.get(id)?.firstSeason,
     save: () => ({
       started,
       entries: [...entries].map(([id, e]) => [id, { ...e, credited: [...e.credited], present: [...e.present].sort((a, b) => a - b) }]),
@@ -832,7 +880,7 @@ export interface SeasonRow {
 }
 
 export interface CareerCheckRows {
-  readonly version: 2;
+  readonly version: 3;
   readonly seed: string;
   readonly firstSeason: number;
   readonly seasons: number;
@@ -845,7 +893,11 @@ export interface CareerCheckRows {
     readonly lastSeason: number;
     /** Every in-run entrant with a credited season: pool these across seeds into life tables. */
     readonly entrants: CareerEntrant[];
-    /** This seed's Kaplan-Meier by entry group (`g`), restricted mean to 15 seasons. */
+    /**
+     * This seed's Kaplan-Meier by entry group (`g`), restricted mean to 15 seasons, a summary. The
+     * grader reads the pooled entrants itself and carries the curve flat past the real side's
+     * longest follow-up (13 seasons) before the mean, as the real side's curve is.
+     */
     readonly byGroup: Record<CareerGroup, { n: number; exits: number; expected: number | null; reach5: number | null; reach10: number | null }>;
     readonly routes: { readonly FILE: number; readonly DRAFT: number; readonly UDFA: number };
     readonly relabeled: number;
@@ -885,7 +937,7 @@ interface UsageSeason { share: number; group: CareerGroup; age: number }
  * next season's first day), when nothing of a season is half read.
  */
 export interface CareerReaderState {
-  readonly version: 2;
+  readonly version: 3;
   readonly ledger: LedgerState;
   readonly rows: SeasonRow[];
   readonly file: RosterPicture | null;
@@ -957,8 +1009,8 @@ export function careerReader(input: CareerReaderInput): CareerReader {
   let lastShares = new Map<string, UsageSeason>();
   const switched = input.switches.development || input.switches.injuries;
 
-  const readWeek8 = (people: SeasonPeople) => {
-    tally.week8 = rosterPicture(people);
+  const readWeek8 = (season: number, people: SeasonPeople) => {
+    tally.week8 = rosterPicture(people, { season, firstSeasonOf: (id) => ledger.firstSeasonOf(id) });
     tally.slots = starterSlots(people.teams);
     tally.faWeek8 = people.freeAgents.length;
     const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
@@ -1000,7 +1052,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     if (today === 0) {
       // The first day of the walk: the people it starts with, the league file as loaded.
       file = rosterPicture(people);
-      ledger.start(people.players);
+      ledger.start(people.players, season);
     }
     const waitsToday = () => tally.waits.set(stampToString(day), unsignedWaits(people, today, (s) => dayNumber.get(stampToString(s))));
     if (isDay(day, CAMP_OPENS)) { tally.faCamp = people.freeAgents.length; waitsToday(); }
@@ -1015,7 +1067,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
         if (!tally.ages.has(id)) tally.ages.set(id, p.bio.age);
       }
     }
-    if (isDay(day, WEEK_8)) readWeek8(people);
+    if (isDay(day, WEEK_8)) readWeek8(season, people);
     if (isDay(day, SEASON_ENDS)) {
       waitsToday();
       const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
@@ -1142,7 +1194,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       if (started) cell[0]++;
     }
     return {
-      version: 2,
+      version: 3,
       seed: input.seed,
       firstSeason: input.firstSeason,
       seasons: input.seasons,
@@ -1169,7 +1221,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
   const save = (): CareerReaderState => {
     if (tally.touched) throw new Error("career check: the reader is saved between seasons only, and a season is half read");
     return JSON.parse(JSON.stringify({
-      version: 2,
+      version: 3,
       ledger: ledger.save(),
       rows,
       file,
@@ -1185,7 +1237,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
   };
 
   const restore = (state: CareerReaderState): void => {
-    if (state.version !== 2) throw new Error(`career check: a saved reader of version ${String(state.version)}, not 2`);
+    if (state.version !== 3) throw new Error(`career check: a saved reader of version ${String(state.version)}, not 3`);
     if (tally.touched || days !== 0) throw new Error("career check: a reader is restored fresh, before any day");
     const copy = JSON.parse(JSON.stringify(state)) as CareerReaderState;
     ledger.restore(copy.ledger);

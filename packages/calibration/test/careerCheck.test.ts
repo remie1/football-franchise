@@ -145,12 +145,30 @@ describe("the 20-season check's pure pieces", () => {
     expect(pic.age.from34).toBeCloseTo(2 / 56, 12);
     expect(pic.age.mean).toBeCloseTo((13 * 24 + 13 * 30 + 26 * 26 + 2 * 22 + 2 * 34) / 56, 9);
     expect(pic.age.histogram).toEqual({ "22": 2, "24": 13, "26": 26, "30": 13, "34": 2 });
+    // No ledger reading (the league file as loaded): a rookie has no credited season, the file's years_exp 0.
     expect(pic.rookieShare).toBeCloseTo(2 / 56, 12);
+    expect(pic.noCreditShare).toBeCloseTo(2 / 56, 12);
     expect(pic.undraftedShare).toBeCloseTo(4 / 56, 12);
     // Ratings: every moving rating the registry has, of every man on the 53s; none at 95.
     const moving = MOVING_RATING_GROUPS.flatMap((g) => RATING_GROUP_COPY[g]!).filter((id) => RATINGS.includes(id));
     expect(pic.ratings).toEqual({ total: 56 * moving.length, at95: 0, at99: 0 });
     expect(pic.ratingGroups.BODY).toBeCloseTo(pic.overall.mean, 9);
+  });
+
+  it("rookies are men in their first season in the league, as years_exp 0 reads; no credited season is the earlier reading", () => {
+    const a = squad("T01", 70, 60);
+    const b = squad("T02", 66, 60);
+    const players = [...a.players, ...b.players];
+    // In 2027: T01's backup quarterback (no credited season) came in in 2026, so he is in his second
+    // season; T02's came in this season. A starter the ledger never saw falls back to his credited seasons (3).
+    const first: Record<string, number> = { "T01-b0": 2026, "T02-b0": 2027, "T01-b1": 2016, "T02-b1": 2016 };
+    const pic = rosterPicture({ teams: [a.team, b.team], players }, { season: 2027, firstSeasonOf: (id) => first[id] ?? (id.endsWith("-s0") ? undefined : 2020) });
+    expect(pic.rookieShare).toBeCloseTo(1 / 56, 12);
+    expect(pic.noCreditShare).toBeCloseTo(2 / 56, 12);
+    // A man with no first season and no credited season reads as a rookie.
+    const noCount = man("T01-s0", { position: "QB", team: "T01", rating: 70, draft: { year: 2020, round: 3, pick: 80 } });
+    const pic2 = rosterPicture({ teams: [a.team, b.team], players: [noCount, ...players.slice(1)] }, { season: 2027, firstSeasonOf: (id) => first[id] ?? (id === "T01-s0" ? undefined : 2020) });
+    expect(pic2.rookieShare).toBeCloseTo(2 / 56, 12);
   });
 
   it("a team a man short at a position (out, so off the chart) is read with him put back; one that cannot field a side counts no starter", () => {
@@ -372,8 +390,10 @@ describe("the 20-season check's pure pieces", () => {
   it("the career ledger: entry route and group, a rewritten position, exits, censoring, comebacks", () => {
     const ledger = careerLedger();
     const f1 = man("F1", { cs: 3, team: "T01" }), f0 = man("F0", { cs: 0, team: "T01" }), f2 = man("F2", { cs: 5, team: "T02" });
-    ledger.start([f1, f0, f2]);
-    ledger.start([man("late")]); // only the first call counts
+    ledger.start([f1, f0, f2], 2026);
+    ledger.start([man("late")], 2026); // only the first call counts
+    // First seasons in the league: the file's years_exp (creditedSeasons) back from 2026.
+    expect(["F1", "F0", "F2", "late"].map((id) => ledger.firstSeasonOf(id))).toEqual([2023, 2026, 2021, undefined]);
     ledger.present(2026, [f1, f0, f2]);
     // 2026: F1 and F2 credited; the draft brings D1 (round 2, a corner) and U1 (undrafted); a prospect nobody took.
     const d1 = man("D1", { cs: 0, position: "CB", draft: { year: 2027, round: 2, pick: 50 }, team: "T01" });
@@ -386,6 +406,8 @@ describe("the 20-season check's pure pieces", () => {
     expect(ledger.route("P")).toBeUndefined();
     expect(ledger.draftOf("D1")).toEqual({ year: 2027, round: 2 });
     expect(ledger.draftOf("F1")).toBeUndefined();
+    // On a team after the year turn: 2027 is their first season; a file man keeps his.
+    expect(["D1", "U1", "P", "F0"].map((id) => ledger.firstSeasonOf(id))).toEqual([2027, 2027, undefined, 2026]);
     // 2027: an emergency call-up makes D1 a kicker; D1 and U1 credited; F1 retires unsigned at camp; F2 sits out.
     ledger.present(2027, [man("D1", { team: "T01" }), man("U1", { team: "T02" }), man("F0", { team: "T01" }), man("F2")]);
     const after27 = [man("F0", { cs: 0, team: "T01" }), man("F2", { cs: 6 }), man("D1", { cs: 1, position: "K", team: "T01" }), man("U1", { cs: 1, position: "WR" })];
@@ -410,6 +432,24 @@ describe("the 20-season check's pure pieces", () => {
     expect(again.comebacks(2026, 2028)).toEqual(ledger.comebacks(2026, 2028));
     expect(again.counts()).toEqual(ledger.counts());
     expect(again.save()).toEqual(ledger.save());
+  });
+
+  it("first season in the league: an undrafted man signed later counts from the season he is first on a team", () => {
+    const ledger = careerLedger();
+    ledger.start([man("F1", { cs: 3, team: "T01" })], 2026);
+    // U2 is on no team after the 2026 draft; he signs during 2028 (read on a week's day 1).
+    ledger.season(2026, [man("F1", { cs: 3, team: "T01" })], [man("F1", { cs: 4, team: "T01" }), man("U2", { cs: 0, draft: "UDFA" })], []);
+    expect(ledger.firstSeasonOf("U2")).toBeUndefined();
+    ledger.present(2027, [man("U2", { cs: 0, draft: "UDFA" })]);
+    expect(ledger.firstSeasonOf("U2")).toBeUndefined();
+    ledger.present(2028, [man("U2", { cs: 0, draft: "UDFA", team: "T02" })]);
+    expect(ledger.firstSeasonOf("U2")).toBe(2028);
+    // A league-file man's first season comes from the file, never from where he is read.
+    ledger.present(2028, [man("F1", { cs: 5, team: "T03" })]);
+    expect(ledger.firstSeasonOf("F1")).toBe(2023);
+    const again = careerLedger();
+    again.restore(JSON.parse(JSON.stringify(ledger.save())));
+    expect(again.firstSeasonOf("U2")).toBe(2028);
   });
 
   it("the entry group is his position on the 53 on the regular season's last day, as the real final-week row reads it", () => {
@@ -635,6 +675,10 @@ describe("runCareerCheck on the real walk: one switched-on season of the stand-i
     expect(y0!.week8!.gap.gap).toBeGreaterThan(0);
     expect(y0!.week8!.gap.starters).toBeGreaterThan(32 * 24);
     expect(y0!.fileOn53).toBe(y0!.week8!.players);
+    // Year 0's 53s are all league-file men, whose first season is the file's years_exp back from
+    // 2026: the first-season reading and the no-credit reading agree there.
+    expect(y0!.week8!.rookieShare).toBeGreaterThan(0.1);
+    expect(y0!.week8!.rookieShare).toBe(y0!.week8!.noCreditShare);
     // 272 regular-season games: 544 team results.
     expect(y0!.wins.reduce((s, w) => s + w, 0)).toBe(272);
     expect(y0!.winSpread).toBeGreaterThan(1);
