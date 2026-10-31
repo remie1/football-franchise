@@ -17,6 +17,7 @@
     "nfl-careers": "vite-node src/careers/main.ts --",
     "cap-check": "vite-node src/season/capCheckMain.ts --",
     "draft-check": "vite-node src/season/draftCheckMain.ts --",
+    "career-check": "vite-node src/season/careerCheckMain.ts --",
     "snap-spots": "vite-node src/snapSpots/main.ts --"
   },
   "dependencies": {

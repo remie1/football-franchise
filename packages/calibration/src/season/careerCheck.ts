@@ -34,11 +34,17 @@
  * (`file`) is kept beside it as a cross-check, since 2026 replays camp and part of a season's growth
  * on top of the real ratings.
  *
- * Every measure follows the D5b plan's shared definitions (the real-NFL side measures the same things
- * the same way); where the sim forces a choice, the measure's comment says which.
+ * Every measure follows the D5b plan's shared definitions, read the way the real-NFL side
+ * (`careers/`, `NFL_CAREERS`) reads them: snap shares (`snapShares`, as `careers/usage.ts`
+ * `snapSeasons`), a season's group (`modalGroup`), peak usage with its 20-pair floor (`usagePeak`, as
+ * `deltaCurve` and `peakAge`), and Kaplan-Meier with a man still going leaving the risk set before
+ * the exits at his length (`kaplanMeier`, as `careerValues`). Where the sim forces a choice, the
+ * measure's comment says which.
  *
  * `runCareerCheck` runs this reader and the draft check's (`draftReader`) on ONE walk, so a seed gives
- * both the D5b rows and the D7 rows.
+ * both the D5b rows and the D7 rows. Between seasons both readers save their state as plain JSON
+ * and restore it (`save`, `restore`), so a walk stopped after a season carries on from a checkpoint
+ * (`CareerCheckOptions`; the files are `careerCheckRun.ts`'s).
  */
 import {
   DEFAULT_LEAGUE_RULES, positionOverall, stampToString,
@@ -46,8 +52,9 @@ import {
 } from "@ff/contracts";
 import type { SeasonRun } from "@ff/franchise";
 import { PersonnelUnavailableError } from "@ff/playbook";
+import { MIN_PAIRS_PER_AGE } from "../careers/usage.js";
 import { limboPlayers, runCapCheck, type CapCheckDayGames, type CapCheckInput, type CapCheckRun } from "./capCheck.js";
-import { draftReader, STARTING, type DraftCheckResult } from "./draftCheck.js";
+import { draftReader, STARTING, type DraftCheckResult, type DraftReaderState } from "./draftCheck.js";
 import { fieldedStarters } from "./playerChecks.js";
 import type { SeasonPeople } from "./realSeason.js";
 
@@ -394,30 +401,34 @@ export function reserveLoss(
 
 // --- snap shares ---------------------------------------------------------------------------------
 
-/** Regular-season snaps by side. */
-export interface SideSnaps { offense: number; defense: number }
+/** Regular-season snaps by side (special teams too: they count toward his team and "a snap" in a season). */
+export interface SideSnaps { offense: number; defense: number; special: number }
+
+/** The busiest man's snaps on each side in one team's games (special teams have no share). */
+export interface BusiestSnaps { offense: number; defense: number }
 
 /**
- * Add one game's who-played report to a season's tallies: each man's offense and defense snaps with
- * his team (`snaps`, by man then team), and for both teams the game's busiest man on each side
- * (`busiest`, summed over the team's games; a side nobody played adds 0). Men with no offense or
- * defense snap are not added.
+ * Add one game's who-played report to a season's tallies: each man's offense, defense and special
+ * teams snaps with his team (`snaps`, by man then team), and for both teams the game's busiest man
+ * on offense and on defense (`busiest`, summed over the team's games; a side nobody played adds 0).
+ * Men with no snap of any kind are not added.
  */
 export function addGame(
   game: Pick<CapCheckDayGames[number]["game"], "home" | "away">, report: readonly Pick<GameParticipation, "player" | "team" | "snaps">[],
-  snaps: Map<string, Map<string, SideSnaps>>, busiest: Map<string, SideSnaps>,
+  snaps: Map<string, Map<string, SideSnaps>>, busiest: Map<string, BusiestSnaps>,
 ): void {
-  const most = new Map<string, SideSnaps>();
+  const most = new Map<string, BusiestSnaps>();
   for (const r of report) {
     const team = String(r.team);
+    const special = r.snaps.special ?? 0;
     const m = most.get(team) ?? { offense: 0, defense: 0 };
     m.offense = Math.max(m.offense, r.snaps.offense);
     m.defense = Math.max(m.defense, r.snaps.defense);
     most.set(team, m);
-    if (r.snaps.offense + r.snaps.defense === 0) continue;
+    if (r.snaps.offense + r.snaps.defense + special === 0) continue;
     const mine = snaps.get(String(r.player)) ?? new Map<string, SideSnaps>();
-    const s = mine.get(team) ?? { offense: 0, defense: 0 };
-    s.offense += r.snaps.offense; s.defense += r.snaps.defense;
+    const s = mine.get(team) ?? { offense: 0, defense: 0, special: 0 };
+    s.offense += r.snaps.offense; s.defense += r.snaps.defense; s.special += special;
     mine.set(team, s);
     snaps.set(String(r.player), mine);
   }
@@ -429,30 +440,36 @@ export function addGame(
   }
 }
 
+/** One man's season of snaps: his team, his side (null with special teams snaps only), his share of that side's snaps. */
+export interface SnapShare { team: string; side: "offense" | "defense" | null; share: number }
+
 /**
- * Each man's snap share for a season (the shared definitions): his side is offense or defense,
- * whichever he played more over the season (offense on a tie); his team is the one he logged the
- * most offense and defense snaps with (the first by team id on a tie); his share is his snaps on his
- * side with that team over the sum, across that team's regular-season games, of each game's busiest
- * man on that side for that team (`busiest`), so games he missed count zero. The numerator takes
- * that team's snaps only, so a share never passes 1. Men with no offense or defense snap get no row.
+ * Each man's snap share for a season (the shared definitions, read exactly as the real side reads
+ * them, `careers/usage.ts` `snapSeasons`): his side is offense or defense, whichever he played more
+ * over the season (offense on a tie above 0; none, share 0, when he played special teams only); his
+ * team is the one he logged the most snaps of every kind with (special teams included; the first
+ * by team id on a tie); his share is his snaps on his side with that team over the sum, across that
+ * team's regular-season games, of each game's busiest man on that side for that team (`busiest`),
+ * so games he missed count zero. The numerator takes that team's snaps only, so a share never
+ * passes 1. Every man with a snap of any kind gets a row.
  */
 export function snapShares(
-  snaps: ReadonlyMap<string, ReadonlyMap<string, SideSnaps>>, busiest: ReadonlyMap<string, SideSnaps>,
-): Map<string, { team: string; side: "offense" | "defense"; share: number }> {
-  const out = new Map<string, { team: string; side: "offense" | "defense"; share: number }>();
+  snaps: ReadonlyMap<string, ReadonlyMap<string, SideSnaps>>, busiest: ReadonlyMap<string, BusiestSnaps>,
+): Map<string, SnapShare> {
+  const out = new Map<string, SnapShare>();
   for (const [id, teams] of snaps) {
     let offense = 0, defense = 0;
     let team: string | undefined, most = -1;
     for (const t of [...teams.keys()].sort()) {
       const s = teams.get(t)!;
       offense += s.offense; defense += s.defense;
-      if (s.offense + s.defense > most) { most = s.offense + s.defense; team = t; }
+      const all = s.offense + s.defense + s.special;
+      if (all > most) { most = all; team = t; }
     }
-    if (team === undefined || offense + defense === 0) continue;
-    const side = offense >= defense ? "offense" : "defense";
-    const of = busiest.get(team)?.[side] ?? 0;
-    out.set(id, { team, side, share: of > 0 ? teams.get(team)![side] / of : 0 });
+    if (team === undefined || most <= 0) continue;
+    const side = offense > defense ? "offense" : defense > offense ? "defense" : offense > 0 ? "offense" : null;
+    const of = side === null ? 0 : busiest.get(team)?.[side] ?? 0;
+    out.set(id, { team, side, share: side !== null && of > 0 ? teams.get(team)![side] / of : 0 });
   }
   return out;
 }
@@ -461,15 +478,17 @@ export function snapShares(
 export interface UsageCell { n: number; sum: number; nExit: number; sumExit: number }
 
 /**
- * Add a season pair's changes to the usage cells, by each man's group and age in the first season:
- * every man with a share in `was` counts in the exit variant (no share in `now` reads 0); one with a
- * share in both counts in the plain variant too.
+ * Add a season pair's changes to the usage cells, by each man's group and age in the first season
+ * (`was`; specialists in that group are left out): every such man counts in the exit variant (a man
+ * with no snap of any kind in `now` reads 0); one with a snap in both seasons counts in the plain
+ * variant too. `now` holds every man with a snap the second season, specialists included.
  */
 export function addUsage(
   cells: Record<string, Record<string, UsageCell>>,
   was: ReadonlyMap<string, { share: number; group: string; age: number }>, now: ReadonlyMap<string, { share: number }>,
 ): void {
   for (const [id, w] of was) {
+    if (SPECIALIST_GROUPS.has(w.group as CareerGroup)) continue;
     const cell = ((cells[w.group] ??= {})[String(w.age)] ??= { n: 0, sum: 0, nExit: 0, sumExit: 0 });
     const next = now.get(id);
     const delta = (next?.share ?? 0) - w.share;
@@ -478,20 +497,30 @@ export function addUsage(
   }
 }
 
+/** Cells summed: `into` gains every cell of `from` (pooling seasons or seeds). */
+export function addCells(into: Record<string, UsageCell>, from: Readonly<Record<string, UsageCell>>): void {
+  for (const [age, c] of Object.entries(from)) {
+    const t = (into[age] ??= { n: 0, sum: 0, nExit: 0, sumExit: 0 });
+    t.n += c.n; t.sum += c.sum; t.nExit += c.nExit; t.sumExit += c.sumExit;
+  }
+}
+
 /**
- * Peak usage age from one group's cells by age (the shared definitions): the mean change by age
- * (ages with no men left out), smoothed with a centered 3-age moving average (each age's smoothed
- * value is the plain mean of the age means at age - 1, age and age + 1 that exist), and the peak is
- * the first age where the smoothed change is 0 or less after being above 0; null if it never is.
- * `exit` reads the variant that counts a man with no snaps the next season at share 0.
+ * Peak usage age from one group's cells by age (the shared definitions, read as the real side's
+ * `deltaCurve` and `peakAge` read them): the mean change by age, ages with fewer than `minPairs`
+ * pairs left out (the real side's `MIN_PAIRS_PER_AGE`, 20), smoothed with a centered 3-age moving
+ * average (each kept age's smoothed value is the plain mean of the kept age means at age - 1, age
+ * and age + 1), and the peak is the first kept age where the smoothed change is 0 or less after one
+ * above 0; null if it never is. `exit` reads the variant that counts a man with no snaps the next
+ * season at share 0.
  */
-export function usagePeak(cells: Readonly<Record<string, UsageCell>>, exit = false): {
+export function usagePeak(cells: Readonly<Record<string, UsageCell>>, exit = false, minPairs: number = MIN_PAIRS_PER_AGE): {
   peak: number | null; means: Record<string, number>; smoothed: Record<string, number>;
 } {
   const means = new Map<number, number>();
   for (const [age, c] of Object.entries(cells)) {
     const n = exit ? c.nExit : c.n;
-    if (n > 0) means.set(Number(age), (exit ? c.sumExit : c.sum) / n);
+    if (n > 0 && n >= minPairs) means.set(Number(age), (exit ? c.sumExit : c.sum) / n);
   }
   const ages = [...means.keys()].sort((a, b) => a - b);
   const smoothed = new Map<number, number>();
@@ -506,12 +535,28 @@ export function usagePeak(cells: Readonly<Record<string, UsageCell>>, exit = fal
   return { peak, means: obj(means), smoothed: obj(smoothed) };
 }
 
+/**
+ * His group in a season, as the real side reads it (`careers/measure.ts`, `groupBySeason`): the
+ * most common group over his reads on a team's list that season (day 1 of each regular-season week
+ * here, each week's roster row there), ties to the group of his latest read.
+ */
+export function modalGroup(reads: readonly CareerGroup[]): CareerGroup | undefined {
+  if (reads.length === 0) return undefined;
+  const counts = new Map<CareerGroup, number>();
+  for (const g of reads) counts.set(g, (counts.get(g) ?? 0) + 1);
+  let best = reads[reads.length - 1]!;
+  let bestN = counts.get(best)!;
+  for (const [g, n] of counts) if (n > bestN) { best = g; bestN = n; }
+  return best;
+}
+
 // --- careers -------------------------------------------------------------------------------------
 
 /**
  * One man who came into the league during the walk and earned at least one credited season.
- * `e` entry season (his first credited season); `g` his group in it (his position at that season's
- * end); `o` his group when he came in (his draft-class position); `r` how he came in; `n` credited
+ * `e` entry season (his first credited season); `g` his group in it (his position on the 53 on the
+ * regular season's last day, as the real side reads the final week's roster row; his position at
+ * the season's end if he was not on a 53 then); `o` his group when he came in (his draft-class position); `r` how he came in; `n` credited
  * seasons in all; `c` 1 when right-censored (on a team, any status, in the walk's last season); `x` 1
  * when an emergency call-up rewrote his position at some point; `t` his retirement's timing, null if
  * he did not retire.
@@ -545,6 +590,11 @@ interface LedgerEntry {
   draft?: { year: number; round: number };
 }
 
+/** A ledger entry as JSON keeps it (the checkpoint): `present` as a sorted list. */
+export type LedgerEntryState = Omit<LedgerEntry, "present"> & { present: number[] };
+/** The whole ledger as JSON keeps it. */
+export interface LedgerState { readonly started: boolean; readonly entries: [string, LedgerEntryState][] }
+
 /**
  * The career ledger: every man the walk has seen, by id. Pure bookkeeping on what it is handed, so it
  * is tested on made-up people and events.
@@ -556,10 +606,12 @@ export interface CareerLedger {
   present(season: number, players: readonly PlayerState[]): void;
   /**
    * A finished season: the people it started with (`before`) and ended with (`after`, past the year
-   * turn) and its events. Returns who was credited this season (his count rose over it) and whose
-   * listed position was first found rewritten.
+   * turn), its events, and each man's position on a 53 on the regular season's last day
+   * (`finalPositions`, for the entry group). Returns who was credited this season (his count rose
+   * over it) and whose listed position was first found rewritten.
    */
-  season(season: number, before: readonly PlayerState[], after: readonly PlayerState[], events: readonly FranchiseEvent[]): {
+  season(season: number, before: readonly PlayerState[], after: readonly PlayerState[], events: readonly FranchiseEvent[],
+    finalPositions?: ReadonlyMap<string, Position>): {
     credited: string[]; relabeled: string[];
   };
   /** In-run entrants with a credited season, as of the walk's last season. */
@@ -570,10 +622,13 @@ export interface CareerLedger {
   route(id: string): EntryRoute | undefined;
   /** The draft and round of one of the walk's own draftees. */
   draftOf(id: string): { year: number; round: number } | undefined;
+  /** Everything it holds, as plain JSON (a checkpoint between seasons), and back. */
+  save(): LedgerState;
+  restore(state: LedgerState): void;
 }
 
 export function careerLedger(): CareerLedger {
-  const entries = new Map<string, LedgerEntry>();
+  let entries = new Map<string, LedgerEntry>();
   let started = false;
   /** His entry, made the first time he is seen; a prospect has none (his class decides for him). */
   const entryOf = (p: PlayerState, route?: EntryRoute): LedgerEntry | undefined => {
@@ -598,7 +653,7 @@ export function careerLedger(): CareerLedger {
     present(season, players) {
       for (const p of players) if (p.teamId !== undefined) entryOf(p)?.present.add(season);
     },
-    season(season, before, after, events) {
+    season(season, before, after, events, finalPositions) {
       const was = new Map(before.map((p) => [String(p.bio.id), p]));
       const credited: string[] = [];
       const relabeled: string[] = [];
@@ -610,7 +665,7 @@ export function careerLedger(): CareerLedger {
         // A credited season is the rise in his count over the season (the draft-order day hands them
         // out); a man the season did not start with joined after that day (the draft follows it).
         if (prior !== undefined && (p.bio.creditedSeasons ?? 0) > (prior.bio.creditedSeasons ?? 0)) {
-          if (entry.credited.length === 0 && entry.creditedAtStart === 0) entry.entryGroup = CAREER_GROUP[p.bio.position];
+          if (entry.credited.length === 0 && entry.creditedAtStart === 0) entry.entryGroup = CAREER_GROUP[finalPositions?.get(id) ?? p.bio.position];
           entry.credited.push(season);
           credited.push(id);
         }
@@ -659,6 +714,14 @@ export function careerLedger(): CareerLedger {
     },
     route: (id) => entries.get(id)?.route,
     draftOf: (id) => entries.get(id)?.draft,
+    save: () => ({
+      started,
+      entries: [...entries].map(([id, e]) => [id, { ...e, credited: [...e.credited], present: [...e.present].sort((a, b) => a - b) }]),
+    }),
+    restore(state) {
+      started = state.started;
+      entries = new Map(state.entries.map(([id, e]) => [id, { ...e, credited: [...e.credited], present: new Set(e.present) }]));
+    },
   };
 }
 
@@ -674,11 +737,15 @@ export function lifeTable(entrants: readonly Pick<CareerEntrant, "n" | "c">[]): 
 }
 
 /**
- * Kaplan-Meier on careers counted in whole seasons. S(t) = P(career > t) = the product over u <= t
- * of (1 - exits at u / men at risk at u), where the men at risk at u are those whose count reached u
- * (a man still going at u is at risk there: exits are taken before censoring). Past the last man at
- * risk S stays where it was. Expected career = the mean restricted to `horizon` seasons, the sum of
- * S(t) for t from 0 below `horizon`; reach 5 = S(4), reach 10 = S(9). Null with nobody in the table.
+ * Kaplan-Meier on careers counted in whole seasons, read as the real side reads them
+ * (`careers/measure.ts` `careerValues`, through the injury measure's `survival`). S(t) = P(career >
+ * t) = the product over u <= t of (1 - exits at u / men at risk at u). The men at risk at u are
+ * those whose career ended at u or later, and those still going whose count passed u: a man still
+ * going with u seasons says only that his career is u or more, so he leaves the risk set before
+ * the exits at u are read. Past the last man at risk S stays where it was. Expected career = the
+ * mean restricted to `horizon` seasons, the sum of S(t) for t from 0 below `horizon` (= the real
+ * side's sum of P(career >= k), k = 1..15); reach 5 = S(4) = P(career >= 5), reach 10 = S(9). Null
+ * with nobody in the table.
  */
 export function kaplanMeier(table: LifeTable, horizon = 15): {
   n: number; exits: number; survival: number[]; expected: number | null; reach5: number | null; reach10: number | null;
@@ -690,9 +757,10 @@ export function kaplanMeier(table: LifeTable, horizon = 15): {
   let s = 1, atRisk = n;
   for (let t = 0; t < Math.max(horizon, table.exits.length, 10); t++) {
     const d = table.exits[t] ?? 0;
+    atRisk -= table.censored[t] ?? 0;
     if (atRisk > 0) s *= 1 - d / atRisk;
     survival.push(s);
-    atRisk -= d + (table.censored[t] ?? 0);
+    atRisk -= d;
   }
   return { n, exits, survival, expected: survival.slice(0, horizon).reduce((a, b) => a + b, 0), reach5: survival[4]!, reach10: survival[9]! };
 }
@@ -704,10 +772,31 @@ const band = (round: number) => (round <= 3 ? String(round) : "4-7");
 const BANDS = ["1", "2", "3", "4-7"] as const;
 const emptyBands = () => Object.fromEntries(BANDS.map((b) => [b, [0, 0]])) as Record<string, [number, number]>;
 
+/** The positions a team's starting slots are read at, in this order, `STARTING[position]` deep (the draft check's starters). */
+export const SLOT_POSITIONS: readonly Position[] = (Object.keys(STARTING) as Position[]).filter((p) => STARTING[p] > 0);
+
+/**
+ * Each team's starting slots at one moment, in team order then `SLOT_POSITIONS` order: the first
+ * `STARTING[position]` men on the position's depth chart ("" for a slot nobody fills). Two leagues
+ * read the same way can be set slot by slot against each other (the coach-style check).
+ */
+export function starterSlots(teams: readonly Pick<Team, "depthChart">[]): string[] {
+  const out: string[] = [];
+  for (const t of teams) {
+    for (const pos of SLOT_POSITIONS) {
+      const chart = t.depthChart[pos] ?? [];
+      for (let i = 0; i < STARTING[pos]; i++) out.push(chart[i] === undefined ? "" : String(chart[i]));
+    }
+  }
+  return out;
+}
+
 export interface SeasonRow {
   readonly season: number;
   /** The 53s at week 8 day 1; null if the walk never got there. */
   readonly week8: RosterPicture | null;
+  /** Each team's starting slots at week 8 day 1 (`starterSlots`); empty if the walk never got there. */
+  readonly slots: string[];
   /** League-file men still on a 53 at week 8. */
   readonly fileOn53: number;
   /** The walk's own draftees on a 53 at week 8, by round band: [started (in his position's first `STARTING`), on a 53]. */
@@ -743,7 +832,7 @@ export interface SeasonRow {
 }
 
 export interface CareerCheckRows {
-  readonly version: 1;
+  readonly version: 2;
   readonly seed: string;
   readonly firstSeason: number;
   readonly seasons: number;
@@ -768,8 +857,10 @@ export interface CareerCheckRows {
     readonly comebacks: { season: number; out: number; back: number }[];
   };
   readonly usage: {
-    /** By group (no K, P, LS) and age in season Y: the change in snap share from Y to Y + 1. Pool across seeds by summing. */
+    /** By group (no K, P, LS) and age in season Y: the change in snap share from Y to Y + 1, every pair of the walk. Pool across seeds by summing. */
     readonly cells: Record<string, Record<string, UsageCell>>;
+    /** The same cells by the pair's first season Y (so a grader can take a window of years). */
+    readonly bySeason: Record<string, Record<string, Record<string, UsageCell>>>;
     readonly peaks: Record<string, { readonly peak: number | null; readonly peakExit: number | null }>;
   };
   /** The walk's own draftees read at week 8 (D7 with the switches on): starter seasons, and ever a starter (drafts with 3+ seasons), [count, of]. */
@@ -785,54 +876,90 @@ export interface CareerReaderInput {
   readonly switches: { readonly development: boolean; readonly injuries: boolean };
 }
 
+/** One man's season of snaps as the usage pairs read it: share, group and age in that season. */
+interface UsageSeason { share: number; group: CareerGroup; age: number }
+
+/**
+ * Everything the reader has written down, as plain JSON: what a checkpoint between seasons keeps
+ * so a stopped walk can carry on. Taken only between seasons (after a season's `onRun`, before the
+ * next season's first day), when nothing of a season is half read.
+ */
+export interface CareerReaderState {
+  readonly version: 2;
+  readonly ledger: LedgerState;
+  readonly rows: SeasonRow[];
+  readonly file: RosterPicture | null;
+  readonly dayNumber: [string, number][];
+  readonly days: number;
+  readonly yearDays: number;
+  readonly lastWins: number[] | null;
+  readonly ever: [string, boolean][];
+  readonly usageCells: Record<string, Record<string, UsageCell>>;
+  readonly usageBySeason: Record<string, Record<string, Record<string, UsageCell>>>;
+  readonly lastShares: [string, UsageSeason][];
+}
+
 /** The reader's watchers and what they wrote down; `rows` takes the draft check's rows to put beside its own. */
 export interface CareerReader {
   readonly onDay: NonNullable<CapCheckInput["onDay"]>;
   readonly onRun: (season: number, events: readonly FranchiseEvent[], people: SeasonPeople, more: CapCheckRun) => void;
   rows(draft: DraftCheckResult): CareerCheckRows;
+  /** Its state between seasons, as plain JSON; throws if a season is half read. */
+  save(): CareerReaderState;
+  /** Carry on from a saved state (a fresh reader, between seasons). */
+  restore(state: CareerReaderState): void;
 }
 
 /** What one season's days wrote down, until its `onRun`. */
 interface SeasonTally {
+  touched: boolean;
   week8: RosterPicture | null;
+  slots: string[];
   fileOn53: number;
   draftWeek8: Record<string, [number, number]>;
   faCamp: number;
   faWeek8: number;
   /** Each retirement moment's free agents and their waits in days, by the day's stamp. */
   waits: Map<string, Map<string, number | undefined>>;
-  week18: Set<string>;
+  /** Men on a 53 on the regular season's last day, with their position then. */
+  week18: Map<string, Position>;
   snaps: Map<string, Map<string, SideSnaps>>;
-  busiest: Map<string, SideSnaps>;
-  /** Each man's position and age at his last regular-season game. */
-  lastSeen: Map<string, { position: Position; age: number }>;
+  busiest: Map<string, BusiestSnaps>;
+  /** Each man's group at each read on a team's list (day 1 of each regular-season week), in order. */
+  groupReads: Map<string, CareerGroup[]>;
+  /** Each man's age in the season (any read during it; ages move only at the year turn). */
+  ages: Map<string, number>;
+  /** Each man's position at his last regular-season game (his group when he was never read on a list). */
+  lastSeen: Map<string, Position>;
 }
 
 const newTally = (): SeasonTally => ({
-  week8: null, fileOn53: 0, draftWeek8: emptyBands(), faCamp: 0, faWeek8: 0, waits: new Map(),
-  week18: new Set(), snaps: new Map(), busiest: new Map(), lastSeen: new Map(),
+  touched: false, week8: null, slots: [], fileOn53: 0, draftWeek8: emptyBands(), faCamp: 0, faWeek8: 0, waits: new Map(),
+  week18: new Map(), snaps: new Map(), busiest: new Map(), groupReads: new Map(), ages: new Map(), lastSeen: new Map(),
 });
 
 /** The D5b reader: watchers for the cap check's walk and the rows they add up to. */
 export function careerReader(input: CareerReaderInput): CareerReader {
   const ledger = careerLedger();
-  const rows: SeasonRow[] = [];
+  let rows: SeasonRow[] = [];
   let file: RosterPicture | null = null;
   let tally = newTally();
   // Day numbers, counted by the days the walk passes, for how long a man has been unsigned.
-  const dayNumber = new Map<string, number>();
+  let dayNumber = new Map<string, number>();
   let days = 0;
   /** A league year's days: the first season's count, known at its end. */
   let yearDays = 0;
   let lastWins: number[] | undefined;
   /** The walk's own draftees seen on a 53 at week 8: did he ever start there. */
-  const ever = new Map<string, boolean>();
-  const usageCells: Record<string, Record<string, UsageCell>> = {};
-  let lastShares = new Map<string, { share: number; group: CareerGroup; age: number }>();
+  let ever = new Map<string, boolean>();
+  let usageCells: Record<string, Record<string, UsageCell>> = {};
+  let usageBySeason: Record<string, Record<string, Record<string, UsageCell>>> = {};
+  let lastShares = new Map<string, UsageSeason>();
   const switched = input.switches.development || input.switches.injuries;
 
   const readWeek8 = (people: SeasonPeople) => {
     tally.week8 = rosterPicture(people);
+    tally.slots = starterSlots(people.teams);
     tally.faWeek8 = people.freeAgents.length;
     const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
     for (const t of people.teams) {
@@ -859,12 +986,15 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       addGame(g.game, report, tally.snaps, tally.busiest);
       for (const r of report) {
         const p = byId.get(String(r.player));
-        if (p !== undefined && r.snaps.offense + r.snaps.defense > 0) tally.lastSeen.set(String(r.player), { position: p.bio.position, age: p.bio.age });
+        if (p === undefined || r.snaps.offense + r.snaps.defense + (r.snaps.special ?? 0) === 0) continue;
+        tally.lastSeen.set(String(r.player), p.bio.position);
+        if (!tally.ages.has(String(r.player))) tally.ages.set(String(r.player), p.bio.age);
       }
     }
   };
 
   const onDay: CareerReader["onDay"] = (season, day, people, games) => {
+    tally.touched = true;
     const today = days++;
     dayNumber.set(stampToString(day), today);
     if (today === 0) {
@@ -874,11 +1004,27 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     }
     const waitsToday = () => tally.waits.set(stampToString(day), unsignedWaits(people, today, (s) => dayNumber.get(stampToString(s))));
     if (isDay(day, CAMP_OPENS)) { tally.faCamp = people.freeAgents.length; waitsToday(); }
-    if (day.phase === "REGULAR_SEASON" && day.day === 1) ledger.present(season, people.players);
+    if (day.phase === "REGULAR_SEASON" && day.day === 1) {
+      ledger.present(season, people.players);
+      for (const p of people.players) {
+        if (p.teamId === undefined) continue;
+        const id = String(p.bio.id);
+        const reads = tally.groupReads.get(id);
+        if (reads === undefined) tally.groupReads.set(id, [CAREER_GROUP[p.bio.position]]);
+        else reads.push(CAREER_GROUP[p.bio.position]);
+        if (!tally.ages.has(id)) tally.ages.set(id, p.bio.age);
+      }
+    }
     if (isDay(day, WEEK_8)) readWeek8(people);
     if (isDay(day, SEASON_ENDS)) {
       waitsToday();
-      for (const t of people.teams) for (const id of t.roster) tally.week18.add(String(id));
+      const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
+      for (const t of people.teams) {
+        for (const id of t.roster) {
+          const p = byId.get(String(id));
+          if (p !== undefined) tally.week18.set(String(id), p.bio.position);
+        }
+      }
     }
     const regular = games.filter((g) => g.game.kind === "REGULAR");
     if (regular.length > 0) readGames(people, regular);
@@ -893,7 +1039,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     const winR = lastWins === undefined ? null : pearson(lastWins, wins);
     lastWins = wins;
     // The ledger, and the credited seasons against week 18's 53s.
-    const { credited, relabeled } = ledger.season(season, before.players, people.players, events);
+    const { credited, relabeled } = ledger.season(season, before.players, people.players, events, tally.week18);
     const both = credited.filter((id) => tally.week18.has(id)).length;
     // The free agents' waits at the two moments, and the retirements on those days.
     const pool = (d: DayOfYear) => {
@@ -923,18 +1069,26 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     }
     const started = new Set(before.players.map((p) => String(p.bio.id)));
     const joined = people.players.filter((p) => !started.has(String(p.bio.id)));
-    // Usage: this season's shares (no K, P, LS), and the change from last season's.
-    const now = new Map<string, { share: number; group: CareerGroup; age: number }>();
+    // Usage: this season's shares (every man with a snap of any kind, his group and age this season),
+    // and the change from last season's (specialists left out by their group last season).
+    const now = new Map<string, UsageSeason>();
     for (const [id, s] of snapShares(tally.snaps, tally.busiest)) {
-      const seen = tally.lastSeen.get(id);
-      if (seen === undefined || SPECIALIST_GROUPS.has(CAREER_GROUP[seen.position])) continue;
-      now.set(id, { share: s.share, group: CAREER_GROUP[seen.position], age: seen.age });
+      const group = modalGroup(tally.groupReads.get(id) ?? []) ?? (tally.lastSeen.has(id) ? CAREER_GROUP[tally.lastSeen.get(id)!] : undefined);
+      const age = tally.ages.get(id);
+      if (group === undefined || age === undefined) continue;
+      now.set(id, { share: s.share, group, age });
     }
-    addUsage(usageCells, lastShares, now);
+    if (rows.length > 0) {
+      const pairs: Record<string, Record<string, UsageCell>> = {};
+      addUsage(pairs, lastShares, now);
+      usageBySeason[String(season - 1)] = pairs;
+      for (const [g, cells] of Object.entries(pairs)) addCells((usageCells[g] ??= {}), cells);
+    }
     lastShares = now;
     rows.push({
       season,
       week8: tally.week8,
+      slots: tally.slots,
       fileOn53: tally.fileOn53,
       draftWeek8: tally.draftWeek8,
       wins, winSpread: sd(wins), winR,
@@ -964,12 +1118,18 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       byGroup[g] = { n: km.n, exits: km.exits, expected: km.expected, reach5: km.reach5, reach10: km.reach10 };
     }
     const counts = ledger.counts();
+    const byAge = (m: Record<string, UsageCell> | undefined) => Object.fromEntries(Object.entries(m ?? {}).sort((a, b) => Number(a[0]) - Number(b[0])));
     const cells: Record<string, Record<string, UsageCell>> = {};
     const peaks: Record<string, { peak: number | null; peakExit: number | null }> = {};
     for (const g of CAREER_GROUPS) {
       if (SPECIALIST_GROUPS.has(g)) continue;
-      cells[g] = Object.fromEntries(Object.entries(usageCells[g] ?? {}).sort((a, b) => Number(a[0]) - Number(b[0])));
+      cells[g] = byAge(usageCells[g]);
       peaks[g] = { peak: usagePeak(cells[g]).peak, peakExit: usagePeak(cells[g], true).peak };
+    }
+    const bySeason: Record<string, Record<string, Record<string, UsageCell>>> = {};
+    for (const y of Object.keys(usageBySeason).sort()) {
+      bySeason[y] = {};
+      for (const g of CAREER_GROUPS) if (!SPECIALIST_GROUPS.has(g)) bySeason[y]![g] = byAge(usageBySeason[y]![g]);
     }
     const starterSeasons = emptyBands();
     for (const r of rows) for (const b of BANDS) { starterSeasons[b]![0] += r.draftWeek8[b]![0]; starterSeasons[b]![1] += r.draftWeek8[b]![1]; }
@@ -982,7 +1142,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       if (started) cell[0]++;
     }
     return {
-      version: 1,
+      version: 2,
       seed: input.seed,
       firstSeason: input.firstSeason,
       seasons: input.seasons,
@@ -1000,37 +1160,104 @@ export function careerReader(input: CareerReaderInput): CareerReader {
         exitsOther: entrants.filter((e) => e.c === 0 && e.t === null).length,
         comebacks: ledger.comebacks(input.firstSeason, lastSeason),
       },
-      usage: { cells, peaks },
+      usage: { cells, bySeason, peaks },
       draftWeek8: { starterSeasons, everStarter },
       draft,
     };
   };
 
-  return { onDay, onRun, rows: rowsOf };
+  const save = (): CareerReaderState => {
+    if (tally.touched) throw new Error("career check: the reader is saved between seasons only, and a season is half read");
+    return JSON.parse(JSON.stringify({
+      version: 2,
+      ledger: ledger.save(),
+      rows,
+      file,
+      dayNumber: [...dayNumber],
+      days,
+      yearDays,
+      lastWins: lastWins ?? null,
+      ever: [...ever],
+      usageCells,
+      usageBySeason,
+      lastShares: [...lastShares],
+    })) as CareerReaderState;
+  };
+
+  const restore = (state: CareerReaderState): void => {
+    if (state.version !== 2) throw new Error(`career check: a saved reader of version ${String(state.version)}, not 2`);
+    if (tally.touched || days !== 0) throw new Error("career check: a reader is restored fresh, before any day");
+    const copy = JSON.parse(JSON.stringify(state)) as CareerReaderState;
+    ledger.restore(copy.ledger);
+    rows = copy.rows;
+    file = copy.file;
+    dayNumber = new Map(copy.dayNumber);
+    days = copy.days;
+    yearDays = copy.yearDays;
+    lastWins = copy.lastWins ?? undefined;
+    ever = new Map(copy.ever);
+    usageCells = copy.usageCells;
+    usageBySeason = copy.usageBySeason;
+    lastShares = new Map(copy.lastShares);
+  };
+
+  return { onDay, onRun, rows: rowsOf, save, restore };
 }
 
 /** What `runCareerCheck` returns: the D5b rows, with the D7 rows of the same walk in `draft`. */
 export type CareerCheckResult = CareerCheckRows;
 
 /**
+ * Where a stopped walk stands between seasons: the seasons played, the people the next season
+ * starts from (after the limbo sweep), and both readers' states. The people are the walk's own
+ * objects (Sets inside); a caller that keeps a checkpoint on disk encodes them
+ * (`careerCheckRun.ts`).
+ */
+export interface CareerCheckpoint {
+  readonly seasonsDone: number;
+  readonly people: SeasonPeople;
+  readonly reader: CareerReaderState;
+  readonly draft: DraftReaderState;
+}
+
+/** Resuming and checkpointing a walk: where to start from, and what to call after each season. */
+export interface CareerCheckOptions {
+  /** Carry on from a checkpoint (the same input as the walk that took it). */
+  readonly resume?: CareerCheckpoint;
+  /** After each season, once the next season's people are settled: a checkpoint to keep. It may throw to stop the walk. */
+  readonly onCheckpoint?: (checkpoint: CareerCheckpoint) => void;
+}
+
+/**
  * One seed of the 20-season check: the cap check's walk (`runCapCheck`) with the D5b reader and the
  * draft check's reader (`draftReader`) watching the same walk. The walk takes the input as given
  * (seed, league file, seasons, switches, staff transform, caller, `onYear`); only the watchers are
- * this check's. Same input, same rows.
+ * this check's. Same input, same rows; a walk resumed from a checkpoint gives the rows the unbroken
+ * walk gives.
  */
-export function runCareerCheck(input: Omit<CapCheckInput, "onRun" | "onDay" | "onEvent">): CareerCheckResult {
+export function runCareerCheck(input: Omit<CapCheckInput, "onRun" | "onDay" | "onEvent" | "resume" | "onSeasonEnd">, options: CareerCheckOptions = {}): CareerCheckResult {
   const reader = careerReader({
     seed: input.seed, firstSeason: input.file.season, seasons: input.seasons,
     switches: { development: input.players?.development === true, injuries: input.players?.injuries === true },
   });
   const draft = draftReader();
+  const { resume, onCheckpoint } = options;
+  if (resume !== undefined) {
+    reader.restore(resume.reader);
+    draft.restore(resume.draft);
+  }
   runCapCheck({
     ...input,
+    ...(resume === undefined ? {} : { resume: { seasonsDone: resume.seasonsDone, people: resume.people } }),
     onDay: reader.onDay,
     onRun: (season, events, people, more) => {
       draft.onRun(season, events, people);
       reader.onRun(season, events, people, more);
     },
+    ...(onCheckpoint === undefined ? {} : {
+      onSeasonEnd: (season: number, people: SeasonPeople) =>
+        onCheckpoint({ seasonsDone: season - input.file.season + 1, people, reader: reader.save(), draft: draft.save() }),
+    }),
   });
   return reader.rows(draft.result());
 }

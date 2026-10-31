@@ -82,7 +82,7 @@ export function bootstrapOverPlayers<T>(
   return { se: sampleSd(values), resolved: values.length / replicates };
 }
 
-/** The bootstrap stream for one labelled row (`careers/QB/reach5`, ...), forked from the fixed seed. */
+/** The bootstrap stream for one labeled row (`careers/QB/reach5`, ...), forked from the fixed seed. */
 export function bootstrapRng(label: string): Rng {
   return createRng(BOOTSTRAP_SEED).fork(label);
 }

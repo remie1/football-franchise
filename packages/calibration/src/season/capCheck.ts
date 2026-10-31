@@ -87,6 +87,19 @@ export interface CapCheckInput {
    * coach's depth-chart leanings (`StaffState.lineup`). Absent, the staff is `buildStaff`'s.
    */
   readonly staffTransform?: (staff: readonly StaffState[]) => StaffState[];
+  /**
+   * Start part-way (a checkpoint, for the 20-season check): `seasonsDone` seasons already played, and
+   * the people the next season starts from, as `onSeasonEnd` handed them. Everything else the walk
+   * needs is built again from the input; the staff is the people's own, so `staffTransform` is not
+   * applied again. `onYear` and the returned years cover the seasons played here only. Absent, the
+   * walk starts at the file's season, as before.
+   */
+  readonly resume?: { readonly seasonsDone: number; readonly people: SeasonPeople };
+  /**
+   * After each season, once the people the next season starts from are settled (after `onRun`, the
+   * limbo sweep and `onYear`): what a checkpoint keeps. Watches only; it may throw to end the walk.
+   */
+  readonly onSeasonEnd?: (season: number, people: SeasonPeople) => void;
 }
 
 /** One position group's share of the money. OverTheCap's groups. */
@@ -281,7 +294,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
   const capCarryover = league.teams.map((t) => ({
     team: t.id, season: first, amount: Math.max(0, (opening.get(String(t.id)) ?? 0) - cap(first)) + OPENING_ROOM,
   }));
-  let people: SeasonPeople = {
+  let people: SeasonPeople = input.resume !== undefined ? input.resume.people : {
     capCarryover,
     teams: league.teams,
     players: [...rated.league.players],
@@ -313,8 +326,8 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
     ...(onEvent ? { onEvent } : {}),
   });
   const years: CapYear[] = [];
-  let current: League = league;
-  for (let i = 0; i < input.seasons; i++) {
+  let current: League = input.resume !== undefined ? { ...league, teams: people.teams } : league;
+  for (let i = input.resume?.seasonsDone ?? 0; i < input.seasons; i++) {
     const season = first + i;
     const started = Date.now();
     // Each player's team on his latest deal before the year: a signing elsewhere is a move.
@@ -341,6 +354,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
     const year = measure(people, events, season + 1, cap(season + 1), (Date.now() - started) / 1000, lastTeam);
     years.push(year);
     input.onYear?.(year);
+    input.onSeasonEnd?.(season, people);
   }
   return years;
 }

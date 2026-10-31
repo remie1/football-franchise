@@ -14,12 +14,14 @@ import {
 } from "@ff/contracts";
 import type { runSeason, SeasonRun } from "@ff/franchise";
 import {
-  addGame, addUsage, CAREER_GROUP, CAREER_GROUPS, careerLedger, careerReader, kaplanMeier, lifeTable, minimumSignings, MOVING_RATING_GROUPS,
-  pearson, RATING_GROUP_COPY, RATING_GROUP_DIGEST, reserveLoss, rosterPicture, runCareerCheck, seasonAge, snapShares, teamStarters, unsignedWaits,
-  usagePeak, waitClass, type SideSnaps, type UsageCell,
+  addCells, addGame, addUsage, CAREER_GROUP, CAREER_GROUPS, careerLedger, careerReader, kaplanMeier, lifeTable, minimumSignings, modalGroup,
+  MOVING_RATING_GROUPS, pearson, RATING_GROUP_COPY, RATING_GROUP_DIGEST, reserveLoss, rosterPicture, runCareerCheck, seasonAge, SLOT_POSITIONS,
+  snapShares, starterSlots, teamStarters, unsignedWaits, usagePeak, waitClass, type BusiestSnaps, type CareerCheckpoint, type SideSnaps, type UsageCell,
 } from "../src/season/careerCheck.js";
+import { careerValues } from "../src/careers/measure.js";
+import { deltaCurve, peakAge, snapSeasons } from "../src/careers/usage.js";
 import type { CapCheckInput } from "../src/season/capCheck.js";
-import { runDraftCheck } from "../src/season/draftCheck.js";
+import { draftReader, runDraftCheck, STARTING } from "../src/season/draftCheck.js";
 import { fieldedStarters } from "../src/season/playerChecks.js";
 import type { SeasonPeople } from "../src/season/realSeason.js";
 import { readStandInFile } from "../src/season/standInLeague.js";
@@ -232,7 +234,7 @@ describe("the 20-season check's pure pieces", () => {
 
   it("snap share by side: his side, his team, the busiest man on that side in each of his team's games", () => {
     const snaps = new Map<string, Map<string, SideSnaps>>();
-    const busiest = new Map<string, SideSnaps>();
+    const busiest = new Map<string, BusiestSnaps>();
     const r = (player: string, team: string, offense: number, defense: number) => ({ player, team, snaps: { offense, defense, special: 3 } }) as never;
     // Game 1: T01 at T02. Game 2: T01 at T03 (b sat it out, c had moved to T03).
     addGame({ home: "T02", away: "T01" } as never, [r("a", "T01", 60, 0), r("q", "T01", 65, 0), r("b", "T01", 0, 30), r("z", "T01", 0, 70), r("c", "T02", 40, 0), r("d", "T02", 5, 20), r("y", "T02", 0, 0)], snaps, busiest);
@@ -240,20 +242,53 @@ describe("the 20-season check's pure pieces", () => {
     expect(busiest.get("T01")).toEqual({ offense: 115, defense: 130 });
     expect(busiest.get("T02")).toEqual({ offense: 40, defense: 20 });
     expect(busiest.get("T03")).toEqual({ offense: 50, defense: 0 });
-    expect(snaps.has("y")).toBe(false);
+    // y played special teams alone: he has a season of snaps (a snap of any kind counts), share 0.
+    expect(snaps.get("y")?.get("T02")).toEqual({ offense: 0, defense: 0, special: 3 });
     const shares = snapShares(snaps, busiest);
     expect(shares.get("a")).toEqual({ team: "T01", side: "offense", share: 110 / 115 });
     expect(shares.get("b")).toEqual({ team: "T01", side: "defense", share: 30 / 130 });
     // c: 40 with T02, 50 with T03: T03 is his team, its game his only one there.
     expect(shares.get("c")).toEqual({ team: "T03", side: "offense", share: 1 });
     expect(shares.get("d")).toEqual({ team: "T02", side: "defense", share: 1 });
-    expect(shares.has("y")).toBe(false);
+    expect(shares.get("y")).toEqual({ team: "T02", side: null, share: 0 });
+  });
+
+  it("snap share reads the way the real side reads it: special teams count toward his team, a tie on side goes to offense", () => {
+    const snaps = new Map<string, Map<string, SideSnaps>>();
+    const busiest = new Map<string, BusiestSnaps>();
+    const r = (player: string, team: string, offense: number, defense: number, special: number) => ({ player, team, snaps: { offense, defense, special } }) as never;
+    // k: 30 offense with T01 and 10 offense plus 25 special with T02 (35 snaps): T02 is his team though T01 had more offense.
+    addGame({ home: "T02", away: "T01" } as never, [r("k", "T01", 30, 0, 0), r("o1", "T01", 60, 0, 0), r("t", "T01", 20, 20, 0)], snaps, busiest);
+    addGame({ home: "T02", away: "T03" } as never, [r("k", "T02", 10, 0, 25), r("o2", "T02", 50, 0, 0), r("d2", "T02", 0, 40, 0)], snaps, busiest);
+    const shares = snapShares(snaps, busiest);
+    expect(shares.get("k")).toEqual({ team: "T02", side: "offense", share: 10 / 50 });
+    expect(shares.get("t")).toEqual({ team: "T01", side: "offense", share: 20 / 60 });
+    // The same games as the real side's rows (one row per man, game and team): the same shares.
+    const rows = [
+      ["g1", "T01", "k", 30, 0, 0], ["g1", "T01", "o1", 60, 0, 0], ["g1", "T01", "t", 20, 20, 0],
+      ["g2", "T02", "k", 10, 0, 25], ["g2", "T02", "o2", 50, 0, 0], ["g2", "T02", "d2", 0, 40, 0],
+    ].map(([gameId, team, pfrId, offense, defense, special]) => ({ season: 2030, gameId, team, pfrId, position: null, offense, defense, special }));
+    const real = snapSeasons(rows as never, 2030);
+    for (const [id, s] of shares) expect({ team: real.get(id)!.team, side: real.get(id)!.side, share: real.get(id)!.share }).toEqual(s);
+  });
+
+  it("his group in a season: the most common over his reads, ties to the latest read", () => {
+    expect(modalGroup([])).toBeUndefined();
+    expect(modalGroup(["WR", "WR", "TE"])).toBe("WR");
+    expect(modalGroup(["WR", "TE"])).toBe("TE");
+    expect(modalGroup(["K", "WR", "WR", "K"])).toBe("K");
+    expect(modalGroup(["CB", "S", "S", "CB", "LB"])).toBe("CB");
   });
 
   it("usage cells: a change counts at his age in the first season, and a leaver counts at 0 in the exit variant", () => {
     const cells: Record<string, Record<string, UsageCell>> = {};
-    addUsage(cells, new Map([["a", { share: 0.5, group: "RB", age: 24 }], ["b", { share: 0.3, group: "RB", age: 24 }], ["c", { share: 0.9, group: "QB", age: 31 }]]),
+    addUsage(cells, new Map([["a", { share: 0.5, group: "RB", age: 24 }], ["b", { share: 0.3, group: "RB", age: 24 }], ["c", { share: 0.9, group: "QB", age: 31 }], ["k", { share: 0, group: "K", age: 30 }]]),
       new Map([["a", { share: 0.7 }], ["c", { share: 0.8 }], ["n", { share: 0.4 }]]));
+    expect(cells.K).toBeUndefined();
+    const pooled: Record<string, UsageCell> = {};
+    addCells(pooled, cells.RB!);
+    addCells(pooled, cells.RB!);
+    expect(pooled["24"]).toEqual({ n: 2, sum: 2 * cells.RB!["24"]!.sum, nExit: 4, sumExit: 2 * cells.RB!["24"]!.sumExit });
     expect(cells.RB!["24"]!.n).toBe(1);
     expect(cells.RB!["24"]!.sum).toBeCloseTo(0.2, 12);
     expect(cells.RB!["24"]!.nExit).toBe(2);
@@ -267,18 +302,38 @@ describe("the 20-season check's pure pieces", () => {
       "21": cell(-0.05, -0.2), "22": cell(0.1, 0.0), "23": cell(0.08, -0.01), "24": cell(0.02, -0.05),
       "25": cell(-0.02, -0.08), "26": cell(-0.05, -0.1), "28": cell(-0.1, -0.2),
     };
-    const plain = usagePeak(cells);
+    const plain = usagePeak(cells, false, 1);
     expect(plain.smoothed["21"]).toBeCloseTo((-0.05 + 0.1) / 2, 12);
     expect(plain.smoothed["24"]).toBeCloseTo((0.08 + 0.02 - 0.02) / 3, 12);
     expect(plain.smoothed["25"]).toBeCloseTo((0.02 - 0.02 - 0.05) / 3, 12);
-    // 26's neighbours are 25 alone (27 has nobody); 28's are none.
+    // 26's neighbors are 25 alone (27 has nobody); 28's are none.
     expect(plain.smoothed["26"]).toBeCloseTo((-0.02 - 0.05) / 2, 12);
     expect(plain.smoothed["28"]).toBeCloseTo(-0.1, 12);
     expect(plain.peak).toBe(25);
     // Counting leavers at 0, the change never rises: no peak.
-    expect(usagePeak(cells, true).peak).toBeNull();
-    expect(usagePeak({ "22": cell(0.1, 0.1), "23": cell(0.1, 0.1) }).peak).toBeNull();
-    expect(usagePeak({ "22": { n: 0, sum: 0, nExit: 0, sumExit: 0 } }).means).toEqual({});
+    expect(usagePeak(cells, true, 1).peak).toBeNull();
+    expect(usagePeak({ "22": cell(0.1, 0.1), "23": cell(0.1, 0.1) }, false, 1).peak).toBeNull();
+    expect(usagePeak({ "22": { n: 0, sum: 0, nExit: 0, sumExit: 0 } }, false, 1).means).toEqual({});
+    // The real side's floor by default: ages with fewer than 20 pairs are left out (all of these).
+    expect(usagePeak(cells).means).toEqual({});
+  });
+
+  it("peak usage age reads as the real side's curve does, the 20-pair floor and its smoothing included", () => {
+    // Made-up pairs: mean change by age rising to 24 then falling; age 27 has too few pairs.
+    const pairs: { age: number; delta: number }[] = [];
+    const add = (age: number, n: number, delta: number) => { for (let i = 0; i < n; i++) pairs.push({ age, delta: delta + (i % 2 === 0 ? 0.01 : -0.01) }); };
+    add(22, 25, 0.12); add(23, 30, 0.05); add(24, 40, 0.01); add(25, 40, -0.03); add(26, 22, -0.06); add(27, 5, 0.3); add(28, 21, -0.08);
+    const cells: Record<string, UsageCell> = {};
+    for (const p of pairs) {
+      const c = (cells[String(p.age)] ??= { n: 0, sum: 0, nExit: 0, sumExit: 0 });
+      c.n++; c.sum += p.delta; c.nExit++; c.sumExit += p.delta;
+    }
+    const curve = deltaCurve(pairs);
+    const ours = usagePeak(cells);
+    expect(ours.peak).toBe(peakAge(curve));
+    expect(Object.keys(ours.means).map(Number)).toEqual(curve.map((c) => c.age));
+    for (const c of curve) expect(ours.smoothed[String(c.age)]).toBeCloseTo(c.smoothed, 12);
+    expect(ours.peak).toBe(25);
   });
 
   it("Kaplan-Meier on careers in whole seasons: expected career to 15, reaching 5 and 10", () => {
@@ -297,6 +352,21 @@ describe("the 20-season check's pure pieces", () => {
     expect(going.expected).toBe(15);
     expect(going.reach10).toBe(1);
     expect(kaplanMeier(lifeTable([]))).toEqual({ n: 0, exits: 0, survival: [], expected: null, reach5: null, reach10: null });
+    // A man still going at 2 says only "2 or more": he leaves the risk set before 2's exits.
+    const tie = kaplanMeier(lifeTable([{ n: 2, c: 1 }, { n: 2, c: 0 }]));
+    expect(tie.survival.slice(0, 4)).toEqual([1, 1, 0, 0]);
+  });
+
+  it("Kaplan-Meier gives the real side's numbers on the same careers (careers/measure.ts careerValues)", () => {
+    const careers: { n: number; c: 0 | 1 }[] = [];
+    // A made-up cohort: every length 1..14, some still going, ties of exits and censoring at the same length.
+    for (let n = 1; n <= 14; n++) for (let k = 0; k < (n * 7) % 5 + 1; k++) careers.push({ n, c: (n + k) % 3 === 0 ? 1 : 0 });
+    const ours = kaplanMeier(lifeTable(careers));
+    const theirs = careerValues(careers.map((e) => ({ group: "QB", entry: 2015, length: e.n, censored: e.c === 1 })));
+    expect(ours.expected).toBeCloseTo(theirs.expected, 12);
+    expect(ours.reach5).toBeCloseTo(theirs.reach5, 12);
+    expect(ours.reach10).toBeCloseTo(theirs.reach10, 12);
+    for (let k = 1; k <= 15; k++) expect(ours.survival[k - 1]).toBeCloseTo(theirs.curve[k - 1]!, 12);
   });
 
   it("the career ledger: entry route and group, a rewritten position, exits, censoring, comebacks", () => {
@@ -333,6 +403,34 @@ describe("the 20-season check's pure pieces", () => {
     // Credited in 2026 and on no team in 2027: F1 and F2; F2 is credited again in 2028.
     expect(ledger.comebacks(2026, 2028)).toEqual([{ season: 2026, out: 2, back: 1 }]);
     expect(ledger.counts()).toEqual({ FILE: 3, DRAFT: 1, UDFA: 1, relabeled: 1, fileRookies: 1 });
+    // Saved and restored, the ledger gives the same answers.
+    const again = careerLedger();
+    again.restore(JSON.parse(JSON.stringify(ledger.save())));
+    expect(again.entrants(2028)).toEqual(entrants);
+    expect(again.comebacks(2026, 2028)).toEqual(ledger.comebacks(2026, 2028));
+    expect(again.counts()).toEqual(ledger.counts());
+    expect(again.save()).toEqual(ledger.save());
+  });
+
+  it("the entry group is his position on the 53 on the regular season's last day, as the real final-week row reads it", () => {
+    const ledger = careerLedger();
+    ledger.start([man("F1", { cs: 3, team: "T01" })]);
+    const d1 = man("D1", { cs: 0, position: "OLB", draft: { year: 2027, round: 3, pick: 80 }, team: "T01" });
+    ledger.season(2026, [man("F1", { cs: 3, team: "T01" })], [man("F1", { cs: 4, team: "T01" }), d1], []);
+    // 2027: on the 53 at week 18 as a linebacker (MLB); an emergency move after it lists him as a DE.
+    ledger.present(2027, [d1]);
+    ledger.season(2027, [d1], [man("D1", { cs: 1, position: "DE", team: "T01" })], [], new Map([["D1", "MLB" as Position]]));
+    expect(ledger.entrants(2027)).toEqual([{ e: 2027, g: "LB", o: "EDGE", r: "DRAFT", n: 1, c: 1, x: 1, t: null }]);
+  });
+
+  it("starting slots: each team's first STARTING men at each position, in a fixed order", () => {
+    const a = squad("T01", 70, 60);
+    const slots = starterSlots([a.team, { depthChart: {} } as Team]);
+    const perTeam = SLOT_POSITIONS.reduce((n, p) => n + STARTING[p], 0);
+    expect(perTeam).toBe(25);
+    expect(slots).toHaveLength(2 * perTeam);
+    expect(slots[0]).toBe("T01-s0");
+    expect(slots.slice(perTeam).every((s) => s === "")).toBe(true);
   });
 });
 
@@ -355,9 +453,10 @@ describe("the reader on made-up days and seasons", () => {
   ];
   const report = (team: string, ids: readonly string[], offense: number) => ids.map((player) => ({ player, team, snaps: { offense, defense: 0, special: 0 }, contests: [] }));
 
-  function drive() {
+  /** `split`: save the reader after 2026 and carry on in a fresh one restored from the save (a checkpoint). */
+  function drive(split = false) {
     const { a, b, rookie } = world();
-    const reader = careerReader({ seed: "s", firstSeason: 2026, seasons: 2, switches: { development: true, injuries: true } });
+    let reader = careerReader({ seed: "s", firstSeason: 2026, seasons: 2, switches: { development: true, injuries: true } });
     const startTeams = [a.team, b.team];
     const start = people(startTeams, [...a.players, ...b.players, man("FA1"), man("FA2")], ["FA1", "FA2"]);
     const camp26 = stamp(2026, "TRAINING_CAMP", 1, 1);
@@ -380,6 +479,11 @@ describe("the reader on made-up days and seasons", () => {
     ];
     const run26 = { state: { standings: standings(12, 5) }, events: envelopes, stepEvents: [{ step: "players:unsigned", envelope: envelopes[0]! }, { step: "players:week", envelope: envelopes[1]! }] } as unknown as SeasonRun;
     reader.onRun(2026, envelopes.map((e) => e.event), end26, { run: run26, before: start });
+    if (split) {
+      const saved = JSON.parse(JSON.stringify(reader.save()));
+      reader = careerReader({ seed: "s", firstSeason: 2026, seasons: 2, switches: { development: true, injuries: true } });
+      reader.restore(saved);
+    }
     // 2027: FA2 still unsigned at camp (a full league year by then); the rookie starts at corner by week 8.
     reader.onDay(2027, stamp(2027, "TRAINING_CAMP", 1, 1), end26, []);
     reader.onDay(2027, stamp(2027, "REGULAR_SEASON", 1, 1), end26, []);
@@ -430,6 +534,11 @@ describe("the reader on made-up days and seasons", () => {
     expect(rows.usage.cells.QB!["26"]).toEqual({ n: 2, sum: 0, nExit: 2, sumExit: 0 });
     expect(rows.usage.cells.WR!["26"]).toEqual({ n: 0, sum: 0, nExit: 1, sumExit: -1 });
     expect(Object.keys(rows.usage.cells)).not.toContain("K");
+    expect(Object.keys(rows.usage.bySeason)).toEqual(["2026"]);
+    expect(rows.usage.bySeason["2026"]).toEqual(rows.usage.cells);
+    // Each team's 25 starting slots at week 8; the rookie heads 2027's corners.
+    expect(y0.slots).toHaveLength(50);
+    expect(y1.slots[SLOT_POSITIONS.slice(0, SLOT_POSITIONS.indexOf("CB")).reduce((n, p) => n + STARTING[p], 0)]).toBe("R1");
     expect(rows.careers.routes).toEqual({ FILE: 58, DRAFT: 1, UDFA: 0 });
     expect(rows.careers.entrants).toEqual([{ e: 2027, g: "CB", o: "CB", r: "DRAFT", n: 1, c: 1, x: 0, t: null }]);
     expect(rows.draft).toBe(draft);
@@ -438,6 +547,19 @@ describe("the reader on made-up days and seasons", () => {
 
   it("the same days and seasons give the same rows", () => {
     expect(JSON.stringify(drive().rows)).toBe(JSON.stringify(drive().rows));
+  });
+
+  it("a reader saved between seasons and restored into a fresh one gives the unbroken reader's rows", () => {
+    expect(JSON.stringify(drive(true).rows)).toBe(JSON.stringify(drive().rows));
+  });
+
+  it("refuses a save in the middle of a season, and a restore into a reader that has read a day", () => {
+    const reader = careerReader({ seed: "s", firstSeason: 2026, seasons: 1, switches: { development: true, injuries: true } });
+    const saved = reader.save();
+    const { a } = world();
+    reader.onDay(2026, stamp(2026, "TRAINING_CAMP", 1, 1), people([a.team], a.players), []);
+    expect(() => reader.save()).toThrow(/half read/);
+    expect(() => reader.restore(saved)).toThrow(/fresh/);
   });
 });
 
@@ -476,6 +598,21 @@ describe("runCareerCheck: one walk, both readers", () => {
     expect(first.perSeason[0]!.reserveLoss).toHaveLength(32);
     expect(first.perSeason[0]!.reserveLoss.every((n) => n === 0)).toBe(true);
     expect(first.perSeason[0]!.wins).toEqual(Array.from({ length: 32 }, () => 0));
+  }, 300_000);
+  it("a walk stopped at a season's checkpoint and resumed from it gives the unbroken walk's rows", () => {
+    const input = { seed: "career-check-resume", file, seasons: 3, players: { development: true, injuries: true } } as const;
+    const straight = withMadeUpSeasons(() => runCareerCheck(input));
+    let saved: CareerCheckpoint | undefined;
+    const seen: number[] = [];
+    expect(() => withMadeUpSeasons(() => runCareerCheck(input, {
+      onCheckpoint: (cp) => { seen.push(cp.seasonsDone); if (cp.seasonsDone === 2) { saved = cp; throw new Error("stopped"); } },
+    }))).toThrow("stopped");
+    expect(seen).toEqual([1, 2]);
+    expect(saved!.reader.rows.map((r) => r.season)).toEqual([2026, 2027]);
+    const resumed = withMadeUpSeasons(() => runCareerCheck(input, { resume: saved! }));
+    expect(JSON.stringify(resumed)).toBe(JSON.stringify(straight));
+    // The draft reader carried on too: one draft a season, three in all.
+    expect(resumed.draft.drafts).toBe(3);
   }, 300_000);
 });
 

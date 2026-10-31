@@ -65,16 +65,29 @@ const band = (round: number) => (round <= 3 ? String(round) : "4-7");
 export interface DraftReader {
   readonly onRun: (season: number, events: readonly FranchiseEvent[], people: SeasonPeople) => void;
   result(): DraftCheckResult;
+  /** What it has read so far, as plain JSON (a checkpoint between seasons), and back into a fresh reader. */
+  save(): DraftReaderState;
+  restore(state: DraftReaderState): void;
+}
+
+/** The draft reader's state as plain JSON. */
+export interface DraftReaderState {
+  readonly position: [string, Position][];
+  readonly pickRound: [string, { draft: number; round: number }][];
+  readonly roundOne: string[];
+  readonly seasons: [string, { onTeam: number; started: number; everStarted: boolean }][];
+  readonly perYear: DraftCheckResult["perYear"];
+  readonly lastSeason: number;
 }
 
 export function draftReader(): DraftReader {
   const groupOf = new Map<Position, string>();
   for (const [g, ps] of Object.entries(DRAFT_GROUPS)) for (const p of ps) groupOf.set(p, g);
-  const position = new Map<string, Position>();
-  const pickRound = new Map<string, { draft: number; round: number }>();
-  const roundOne: string[] = [];
-  const seasons = new Map<string, { onTeam: number; started: number; everStarted: boolean }>();
-  const perYear: DraftCheckResult["perYear"] = [];
+  let position = new Map<string, Position>();
+  let pickRound = new Map<string, { draft: number; round: number }>();
+  let roundOne: string[] = [];
+  let seasons = new Map<string, { onTeam: number; started: number; everStarted: boolean }>();
+  let perYear: DraftCheckResult["perYear"] = [];
   let lastSeason = 0;
 
   const onRun = (season: number, events: readonly FranchiseEvent[], people: SeasonPeople) => {
@@ -126,7 +139,19 @@ export function draftReader(): DraftReader {
     const ratio = (m: Record<string, [number, number]>) => Object.fromEntries(Object.entries(m).map(([k, [a, b]]) => [k, b === 0 ? 0 : a / b]));
     return { drafts: perYear.length, roundOneShare, starterRate: ratio(rate), everStarter: ratio(ever), perYear };
   };
-  return { onRun, result };
+  const save = (): DraftReaderState => JSON.parse(JSON.stringify({
+    position: [...position], pickRound: [...pickRound], roundOne, seasons: [...seasons], perYear, lastSeason,
+  })) as DraftReaderState;
+  const restore = (state: DraftReaderState): void => {
+    const c = JSON.parse(JSON.stringify(state)) as DraftReaderState;
+    position = new Map(c.position);
+    pickRound = new Map(c.pickRound);
+    roundOne = [...c.roundOne];
+    seasons = new Map(c.seasons);
+    perYear = [...c.perYear];
+    lastSeason = c.lastSeason;
+  };
+  return { onRun, result, save, restore };
 }
 
 export function runDraftCheck(input: Omit<CapCheckInput, "onRun">): DraftCheckResult {
