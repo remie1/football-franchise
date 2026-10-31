@@ -191,7 +191,7 @@ const beforeAm3 = (): AmendmentsJson => {
 };
 
 let written = 0;
-/** A temporary copy of the amendments file before AM-3 with AM-3's stand-in appended (edited by `edit`); its path and the whole file's pin. */
+/** A temporary copy of the amendments file before AM-3 with AM-3's stand-in appended (edited by `edit`); its path and the whole file's pin, which is its step-3 view's while every entry is filed before step 3. */
 function withAm3(dir: string, edit?: (am3: Record<string, unknown>, json: AmendmentsJson) => void): { path: string; pin: string } {
   const json = beforeAm3();
   const am3 = clone(AM3_STAND_IN) as unknown as Record<string, unknown>;
@@ -208,7 +208,7 @@ const AM3_DIR = mkdtempSync(join(tmpdir(), "ff-step3-am3-"));
 scratch.push(AM3_DIR);
 const AM3 = withAm3(AM3_DIR);
 const am3Guard = (): Step3Guard => preflightStep3(FILED, AM3.path, AM3.pin).guard;
-/** A temporary copy of the amendments file before AM-3 (AM-1 and AM-2), with its whole-file pin. */
+/** A temporary copy of the amendments file before AM-3 (AM-1 and AM-2), with its whole-file pin (its step-3 view's: both entries are filed before step 3). */
 const PRE_AM3 = ((): { path: string; pin: string } => {
   const json = beforeAm3();
   const path = join(AM3_DIR, "amendments-before-am3.json");
@@ -393,14 +393,65 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
 
   it("an AM-3 filed before step 4 is not in step 3's view: still refused by name", () => {
     const dir = tempDir("late");
-    const { path, pin } = withAm3(dir, (am3) => {
+    const { path } = withAm3(dir, (am3) => {
       am3["filedBeforeStep"] = "4";
       am3["steps"] = ["4"];
       mapOf(am3)["4"] = mapOf(am3)["3"]!;
       delete mapOf(am3)["3"];
     });
+    // Step 3 pins its view (filing review M-3): here AM-1 and AM-2, the view before AM-3.
+    const pin = previewDigest();
     expect(() => preflightStep3(FILED, path, pin)).toThrow(/^ADR-089 step 3: refused to grade: AM-3 /);
     expect(preflightStep3Previews(FILED, path, pin).digest).toBe(previewDigest());
+  });
+
+  it("filing review M-3: step 3 opens the file at its step-3 view, as step 2's harness opens its own: an entry filed before step 4 leaves step 3's pin and records alone; a changed step-3 view is refused", () => {
+    const dir = tempDir("m3");
+    /** The committed file with a test entry AM-6 appended, filed before `step`. */
+    const withAm6 = (step: string): { path: string; json: AmendmentsJson } => {
+      const json = committedAmendments();
+      json.entries.push({
+        id: "AM-6",
+        name: "a test entry filed after step 3's arms ran",
+        filedBeforeStep: step,
+        steps: [step],
+        supersedes: [],
+        untouched: [],
+        defaults: [],
+        adrLines: [],
+        cites: [],
+        record: "none (a test copy)",
+        reason: "Shows that a later step's entry does not move step 3's view.",
+        ownersWord: null,
+        rule: { note: "nothing step 3 reads" },
+      });
+      const path = join(dir, `amendments-am6-before-${step}.json`);
+      writeFileSync(path, jsonText(json));
+      return { path, json };
+    };
+    const later = withAm6("4");
+    const whole = loadAmendments(later.path, committedFiling());
+    // The copy validates whole; the whole file's digest moves, step 3's view does not.
+    expect(amendmentsDigest(whole)).not.toBe(STEP3_AMENDMENTS_DIGEST);
+    expect(amendmentsDigestAtStep(whole, "3")).toBe(STEP3_AMENDMENTS_DIGEST);
+    // Under the default pin (the step-3 view's) step 3 still reads it, as it reads the committed file.
+    const v = preflightStep3(FILED, later.path);
+    expect(v.digest).toBe(STEP3_AMENDMENTS_DIGEST);
+    expect(v.view.entries.map((e) => e.id)).toEqual(["AM-1", "AM-2", "AM-3", "AM-4", "AM-5"]);
+    expect(v.guard).toEqual(preflightStep3(FILED, AMENDMENTS).guard);
+    expect(preflightStep3Previews(FILED, later.path).digest).toBe(STEP3_AMENDMENTS_DIGEST);
+    // The same entry filed before step 3 is in the view, so the view moves and is refused.
+    const early = withAm6("3");
+    expect(() => preflightStep3(FILED, early.path)).toThrow(
+      /^ADR-089 step 3: refused before anything plays: ADR-089: the amendments file .*, read at step 3 \(its entries filed before step 3 or an earlier step\), digests to fnv1a:[0-9a-f]{8}, not the pin fnv1a:517bb9fe/,
+    );
+    // An entry of the view changed in place is refused too, previews included.
+    const changed = committedAmendments();
+    changed.entries.find((e) => e["id"] === "AM-3")!["reason"] = "changed";
+    const touched = join(dir, "amendments-am3-changed.json");
+    writeFileSync(touched, jsonText(changed));
+    expect(() => preflightStep3Previews(FILED, touched)).toThrow(/, read at step 3 .* not the pin fnv1a:517bb9fe/);
+    expect(() => preflightStep3(FILED, touched)).toThrow(/, read at step 3 .* not the pin fnv1a:517bb9fe/);
   });
 
   it("review MEAS-S6: refuses a step-3 view whose entry still holds a choice not yet made (<a | b>); the filed entries hold none", () => {

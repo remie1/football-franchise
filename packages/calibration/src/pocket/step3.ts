@@ -9,11 +9,13 @@
  * filing as AM-2 amends its part 1 and AM-3 maps its guard.
  *
  *  - **The refusals first.** Nothing plays unless the filing loads, digests to `STEP0_FILED_DIGEST`
- *    and holds no pending step-3 or guard field, and the amendments file loads and validates whole
- *    under `AMENDMENTS_DIGEST`, its step-3 view (the entries filed before step 3 or an earlier step;
- *    `amendmentsAtStep`) holding AM-1 and AM-2. A run that grades (every run but `--part1` and
- *    `--digests`) also needs a filed guard map at step 3 (AM-3): while none is filed it refuses with a
- *    named message before anything plays and before any cache is made (`guardFor(view, "3")` throws).
+ *    and holds no pending step-3 or guard field, and the amendments file loads and validates whole,
+ *    its step-3 view (the entries filed before step 3 or an earlier step; `openAmendmentsAtStep`)
+ *    digesting to `STEP3_AMENDMENTS_DIGEST` and holding AM-1 and AM-2. Step 3 pins its view, as step
+ *    2's harness pins its own, so an entry filed before a later step never refuses step 3 (filing
+ *    review M-3). A run that grades (every run but `--part1` and `--digests`) also needs a filed guard
+ *    map at step 3 (AM-3): while none is filed it refuses with a named message before anything plays
+ *    and before any cache is made (`guardFor(view, "3")` throws).
  *    `--part1` and `--digests` are previews under AM-2's previews rule: they play without AM-3, and
  *    nothing they print is graded, priced or offered. A step-3 map must name only step 3's playable
  *    arms, each against the base this build's arm reads (`STEP3_ARM_DEFS`).
@@ -66,7 +68,7 @@ import { canonicalise } from "../harness/digest.js";
 import { positionsFromSnapshot } from "../knownTruth/pocketChannelShares.js";
 import { TWO_SECOND_BIN, type SimAccumulator } from "../metrics/collect.js";
 import { missSplitFigures, type MissSplitFigures } from "../metrics/pocketRows.js";
-import { AMENDMENTS_DIGEST, AMENDMENTS_PATH, amendmentsAtStep, amendmentsDigest, entryOf, guardFor, openAmendments, type AmendmentsFile, type BaseMap } from "./amendments.js";
+import { AMENDMENTS_PATH, amendmentsDigest, entryOf, guardFor, openAmendmentsAtStep, STEP3_AMENDMENTS_DIGEST, type AmendmentsFile, type BaseMap } from "./amendments.js";
 import { armById, armRefusal, STEP2_ARM_IDS, STEP3_ARM_DEFS, STEP3_ARM_IDS, STEP3_RUN_IDS, type ArmId } from "./arms.js";
 import { FILED_PATH, GUARD_CLASSES, type GuardClock, type IntMix } from "./bands.js";
 import type { ThrowClass } from "./constructs.js";
@@ -260,23 +262,25 @@ export interface Step3View {
 
 /**
  * The refusals every step-3 run makes before anything plays, previews included (`--part1`,
- * `--digests`): the filing, then the amendments file (loads and validates whole under `pin`), whose
- * step-3 view must hold AM-1 and AM-2. The view's digest is what every step-3 record stamps.
+ * `--digests`): the filing, then the amendments file, which loads and validates whole and is read at
+ * step 3 (`openAmendmentsAtStep`, as step 2's harness reads it at step 2): its step-3 view must digest
+ * to `pin` (`STEP3_AMENDMENTS_DIGEST`) and hold AM-1 and AM-2. An entry filed before a later step
+ * leaves the view, and so step 3's records, where they are (filing review M-3). The view's digest is
+ * what every step-3 record stamps.
  */
-export function preflightStep3Previews(filedPath: string, amendmentsPath: string, pin: string = AMENDMENTS_DIGEST): Step3View {
+export function preflightStep3Previews(filedPath: string, amendmentsPath: string, pin: string = STEP3_AMENDMENTS_DIGEST): Step3View {
   const refuse = (why: string): never => {
     throw new Error(`ADR-089 step 3: refused before anything plays: ${why}`);
   };
   const file = openFiling(filedPath);
   checkFilingForStep3(file);
   if (!existsSync(amendmentsPath)) refuse(`the amendments file ${amendmentsPath} does not exist (AM-1 and AM-2 are filed in ${AMENDMENTS_PATH} before step 3's arms run)`);
-  let whole: AmendmentsFile;
+  let view: AmendmentsFile;
   try {
-    whole = openAmendments(amendmentsPath, file, pin);
+    view = openAmendmentsAtStep(amendmentsPath, file, "3", pin);
   } catch (e) {
     return refuse(e instanceof Error ? e.message : String(e));
   }
-  const view = amendmentsAtStep(whole, "3");
   for (const id of ["AM-1", "AM-2"]) {
     try {
       entryOf(view, id);
@@ -355,7 +359,7 @@ export function unmadeChoicesOf(view: AmendmentsFile): readonly string[] {
  * step 3's playable arms, each against the base this build's arm reads; and no entry of the view may
  * hold a choice not yet made (`<a | b>`, review MEAS-S6: AM-3's draft names the picture C1 reads so).
  */
-export function preflightStep3(filedPath: string, amendmentsPath: string, pin: string = AMENDMENTS_DIGEST): Step3View & { readonly guard: Step3Guard } {
+export function preflightStep3(filedPath: string, amendmentsPath: string, pin: string = STEP3_AMENDMENTS_DIGEST): Step3View & { readonly guard: Step3Guard } {
   const v = preflightStep3Previews(filedPath, amendmentsPath, pin);
   let found;
   try {
@@ -1838,7 +1842,7 @@ export interface Step3Options {
   readonly out?: string;
   readonly filedPath: string;
   readonly amendmentsPath: string;
-  /** Tests only: the whole-file pin the amendments file must equal (default `AMENDMENTS_DIGEST`). */
+  /** Tests only: the pin the amendments file's step-3 view must equal (default `STEP3_AMENDMENTS_DIGEST`). */
   readonly amendmentsPin?: string;
   readonly env: Step1Env;
   /** A report or measures file under this directory is a committed report (refused from a dirty tree). */
