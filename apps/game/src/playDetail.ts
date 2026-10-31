@@ -263,7 +263,9 @@ const APPROACH_WORDS: Readonly<Record<ThreatApproach, string>> = {
  *    same rusher names the same CHECK.
  * A beat or tick is `[rusher, toucher]`; the rusher may be the man who carried the record in a
  * passed-off twist. Under `legacy`, `pocket-1.s1` and `pocket-1.s2` no beat or tick names a pickup
- * or stunt CHECK, so `beats` and `toucher` are empty and the play detail reads as it always has.
+ * or stunt CHECK, so `beats` and `toucher` are empty and the play detail reads as it always has,
+ * apart from the bare `against:` hover fix (build-v.md): an opposed roll with no modifiers no longer
+ * prints an empty "against: " in its dice hover, legacy jitter ticks included (review NPC-N1).
  */
 interface LateBlocks {
   /** `rngLabel`s of the play's `blitz_pickup` and `stunt_communication` rolls. */

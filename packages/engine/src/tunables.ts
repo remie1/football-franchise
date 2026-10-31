@@ -746,7 +746,8 @@ export const TUNABLES = {
        * Seconds ADDED TO `freeRunnerArrivalSeconds`. Authored on the 0.5s tick
        * grid for the same reason the pickup bands' `arrivalDelaySeconds` are, so
        * the sum lands on a tick that is actually emitted and no rounding step is
-       * needed to put it there.
+       * needed to put it there (legacy, s1 and s2 only; under `pocket-1.s3` the
+       * free-run clock rounds to the tenth, ADR-089 step 3, review FID-F-5).
        */
       offsetSecondsByAlignmentAndDepth: {
         INTERIOR: { LINE: -0.5, BOX: 0.0, DEEP: 0.5 },
