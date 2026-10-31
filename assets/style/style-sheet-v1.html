@@ -1,0 +1,466 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two Looks Style Sheet</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Courier+Prime:wght@400;700&display=swap">
+<style>
+/* Layout: a style sheet, top to bottom. Page frame follows the viewer's theme;
+   each mock screen is locked to its own look (office = light, broadcast = dark). */
+:root {
+  /* page frame */
+  --frame-bg: #eceae6; --frame-fg: #22201d; --frame-muted: #6b665e; --frame-line: #d3cec6; --frame-chip: #ffffff;
+
+  /* LOOK A, the office: muted, matte, institutional */
+  --a-paper: #ede5d3;      /* oatmeal */
+  --a-card: #f6f1e5;       /* legal pad */
+  --a-ink: #2b2723;        /* typewriter ink */
+  --a-green: #3e5c4a;      /* oxidized green */
+  --a-oxblood: #6e2a2a;    /* oxblood */
+  --a-grey: #8a8278;       /* warm grey */
+  --a-rule: #cfc5b0;
+
+  /* LOOK B, the broadcast: near-black, hard contrast, the same hues at full strength */
+  --b-black: #0b0e0d;
+  --b-panel: #141a18;
+  --b-line: #26302c;
+  --b-white: #f2f5f3;
+  --b-muted: #8c9893;
+  --b-green: #22e584;      /* oxidized green, pushed */
+  --b-red: #ff4040;        /* oxblood, pushed */
+
+  /* sample teams (fictional names, real NFL cities) */
+  --den-1: #2f5d4e; --den-2: #d9c08c;   /* Denver Prospectors: pine + sand */
+  --kc-1: #3d4a5c;  --kc-2: #c07a3e;    /* Kansas City Marshals: slate + copper */
+
+  /* type (picked 2026-10-31) */
+  --a-display: "Courier Prime", "Courier New", monospace;     /* office: typewriter */
+  --b-display: "Barlow Condensed", "Arial Narrow", sans-serif; /* broadcast: condensed */
+  --body: "Public Sans", system-ui, sans-serif;
+  --data: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --typed: "Courier Prime", "Courier New", monospace;
+
+  /* shared skeleton: one type scale and spacing for both looks */
+  --s-1: .8125rem; --s0: 1rem; --s1: 1.25rem; --s2: 1.6rem; --s3: 2.25rem; --s4: 3.5rem;
+  --sp1: 4px; --sp2: 8px; --sp3: 12px; --sp4: 16px; --sp5: 24px; --sp6: 40px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --frame-bg: #1a1918; --frame-fg: #ebe7e0; --frame-muted: #a19b91; --frame-line: #34312d; --frame-chip: #252320; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --frame-bg: #1a1918; --frame-fg: #ebe7e0; --frame-muted: #a19b91; --frame-line: #34312d; --frame-chip: #252320; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--frame-bg); color: var(--frame-fg); font-family: var(--body); font-size: var(--s0); line-height: 1.5; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: var(--sp6); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: var(--sp6); }
+.intro h1 { font-family: var(--a-display); font-size: var(--s3); line-height: 1.1; margin: 0 0 var(--sp3); text-wrap: balance; }
+.intro p { max-width: 65ch; margin: 0 0 var(--sp2); color: var(--frame-muted); }
+.intro p strong { color: var(--frame-fg); }
+.sec-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp3); margin-bottom: var(--sp3); }
+.sec-head h2 { margin: 0; font-size: var(--s1); }
+.sec-head .where { color: var(--frame-muted); font-size: var(--s-1); max-width: 60ch; }
+.tag { font-family: var(--data); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--frame-muted); }
+.adv:focus-visible { outline: 2px solid #2b7fff; outline-offset: 2px; }
+
+/* swatches */
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--sp2); margin-top: var(--sp3); }
+.sw { border: 1px solid var(--frame-line); border-radius: 6px; overflow: hidden; background: var(--frame-chip); font-size: .75rem; }
+.sw i { display: block; height: 44px; }
+.sw div { padding: 6px 8px; }
+.sw b { display: block; font-weight: 600; }
+.sw code { font-family: var(--data); color: var(--frame-muted); }
+
+/* ===================== LOOK A: THE OFFICE ===================== */
+.office { background: var(--a-paper); color: var(--a-ink); border-radius: 4px; padding: var(--sp5); display: grid; gap: var(--sp4);
+  background-image: radial-gradient(rgba(43,39,35,.05) 1px, transparent 1px); background-size: 3px 3px; box-shadow: 0 1px 0 var(--a-rule); }
+.office .top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: var(--sp3); border-bottom: 2px solid var(--a-ink); padding-bottom: var(--sp3); }
+.office .date { font-family: var(--a-display); font-size: var(--s2); font-weight: 700; line-height: 1.1; }
+.office .date small { display: block; font-family: var(--body); font-size: var(--s-1); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--a-green); }
+.office .next { text-align: right; font-size: var(--s-1); color: var(--a-grey); }
+.office .next b { display: block; color: var(--a-ink); font-size: var(--s0); }
+.office .cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--sp4); }
+.office h3 { font-family: var(--a-display); font-size: var(--s1); margin: 0 0 var(--sp2); }
+.pad { background: var(--a-card); border: 1px solid var(--a-rule); padding: var(--sp4); min-width: 0;
+  background-image: repeating-linear-gradient(transparent 0 27px, rgba(62,92,74,.16) 27px 28px); background-position: 0 6px; }
+.waiting { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp3); }
+.waiting li { display: grid; grid-template-columns: auto 1fr; gap: var(--sp3); align-items: start; }
+.stamp { font-family: var(--data); font-size: .68rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; border: 1.5px solid currentColor; border-radius: 2px; white-space: nowrap; margin-top: 2px; }
+.stamp.you { color: var(--a-oxblood); }
+.stamp.staff { color: var(--a-green); }
+.waiting .who { display: block; font-size: var(--s-1); color: var(--a-grey); }
+.memo { font-family: var(--typed); font-size: .95rem; line-height: 28px; margin: 0; }
+.memo .sig { display: block; text-align: right; color: var(--a-grey); }
+.range { display: grid; grid-template-columns: 7.5rem 1fr; gap: var(--sp2); align-items: center; font-size: var(--s-1); margin-top: var(--sp2); }
+.bar-a { position: relative; height: 10px; background: rgba(43,39,35,.08); }
+.bar-a i { position: absolute; top: 0; bottom: 0; background: var(--a-green); }
+.bar-a i.wide { opacity: .45; }
+.office .foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--sp3); border-top: 1px solid var(--a-rule); padding-top: var(--sp3); }
+.adv { font-family: var(--a-display); font-weight: 700; font-size: var(--s1); background: var(--a-ink); color: var(--a-card); border: 0; padding: 12px 22px; cursor: pointer; display: inline-flex; gap: var(--sp3); align-items: center; }
+.adv small { font-family: var(--body); font-weight: 500; font-size: var(--s-1); color: var(--a-rule); }
+.office .note { font-size: var(--s-1); color: var(--a-grey); max-width: 46ch; }
+
+/* ===================== LOOK B: THE BROADCAST ===================== */
+.bcast { background: var(--b-black); color: var(--b-white); border-radius: 4px; padding: var(--sp5); display: grid; gap: var(--sp4); overflow: hidden; }
+
+/* score bug, with the quarter line under FINAL */
+.bug { display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; border: 1px solid var(--b-line); }
+.team { display: flex; align-items: center; gap: var(--sp3); padding: var(--sp3) var(--sp4); min-width: 0; }
+.team.home { text-align: right; }
+.team .nm { font-family: var(--b-display); text-transform: uppercase; line-height: .95; min-width: 0; }
+.team .nm small { display: block; font-family: var(--body); font-size: .72rem; letter-spacing: .14em; color: var(--b-muted); font-weight: 600; }
+.team .nm b { font-size: var(--s2); font-weight: 800; letter-spacing: .01em; }
+.team .pts { font-family: var(--b-display); font-weight: 800; font-size: var(--s4); line-height: 1; font-variant-numeric: tabular-nums; }
+.team.away { border-left: 6px solid var(--kc-2); }
+.team.away .pts { margin-left: auto; }
+.team.home { border-right: 6px solid var(--den-2); }
+.team.home .pts { margin-right: auto; }
+.team.won .pts { color: var(--b-green); }
+.mid { display: grid; align-content: center; justify-items: center; gap: var(--sp2); text-align: center; padding: var(--sp3) var(--sp4); background: var(--b-panel); }
+.mid .fin { font-family: var(--b-display); font-weight: 800; font-size: var(--s1); text-transform: uppercase; letter-spacing: .1em; line-height: 1; }
+.qtr { border-collapse: collapse; font-family: var(--data); font-size: .86rem; font-variant-numeric: tabular-nums; }
+.qtr th, .qtr td { padding: 3px 10px; border: 0; text-align: center; }
+.qtr thead th { border-bottom: 1px solid #3a4641; padding-bottom: 4px; }
+.qtr tbody tr:first-child > * { padding-top: 6px; }
+.qtr thead th { color: var(--b-muted); font-weight: 500; font-size: .72rem; letter-spacing: .08em; }
+.qtr th[scope="row"] { font-family: var(--b-display); font-weight: 800; font-size: .9rem; letter-spacing: .04em; text-align: left; padding-left: 0; }
+.qtr td { color: var(--b-muted); }
+.qtr td.f { color: var(--b-white); font-weight: 600; border-left: 1px solid var(--b-line); }
+.qtr tr.won td.f { color: var(--b-green); }
+.mark { flex: none; width: 44px; height: 44px; }
+.bcast table { color: var(--b-white); font-size: inherit; }
+
+.bc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp4); }
+.panel { background: var(--b-panel); border: 1px solid var(--b-line); padding: var(--sp4); min-width: 0; }
+.panel h3 { margin: 0 0 var(--sp3); font-family: var(--b-display); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; font-size: var(--s1); display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp2); border-bottom: 1px solid var(--b-line); padding-bottom: var(--sp2); }
+.panel h3 span { font-family: var(--body); font-size: .7rem; letter-spacing: .12em; color: var(--b-muted); font-weight: 600; }
+
+/* the two-team header used by Team totals and Leaders */
+.sides { display: flex; justify-content: space-between; align-items: center; gap: var(--sp2); margin-bottom: var(--sp3); }
+.side { display: flex; align-items: center; gap: var(--sp2); font-family: var(--b-display); font-weight: 800; letter-spacing: .06em; font-size: 1rem; }
+.side .mark { width: 30px; height: 30px; }
+.side .key { width: 14px; height: 10px; border-radius: 1px; }
+.key.away { background: repeating-linear-gradient(135deg, var(--kc-2) 0 2px, transparent 2px 4px); outline: 1px solid var(--kc-2); }
+.key.home { background: var(--den-2); }
+
+/* Team totals: value | label | value, then a split bar */
+.stats { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp3); }
+.stat { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; row-gap: 6px; }
+.stat .v { font-family: var(--b-display); font-weight: 700; font-size: 1.35rem; line-height: 1; font-variant-numeric: tabular-nums; color: var(--b-white); }
+.stat .v.won { color: var(--b-white); }
+.stat .v.r { text-align: right; }
+.stat .lbl { font-size: var(--s-1); font-weight: 600; text-align: center; padding: 0 var(--sp2); }
+.split { grid-column: 1 / -1; display: flex; gap: 3px; height: 7px; }
+.split i { display: block; height: 100%; border-radius: 1px; }
+.split i.a { background: repeating-linear-gradient(135deg, var(--kc-2) 0 2px, transparent 2px 4px); }
+.split i.h { background: var(--den-2); }
+.split i.lose { opacity: .45; }
+.foot-note { margin: var(--sp3) 0 0; font-size: .72rem; color: var(--b-muted); }
+
+/* Leaders: away leader | category | home leader */
+.ldrs { list-style: none; margin: 0; padding: 0; display: grid; }
+.ldr { display: grid; grid-template-columns: 1fr 2.6em 5rem 2.6em 1fr; gap: var(--sp2); align-items: center; padding: var(--sp3) 0; border-bottom: 1px solid var(--b-line); }
+.ldr .big { font-family: var(--b-display); font-weight: 800; font-size: 1.6rem; line-height: 1; font-variant-numeric: tabular-nums; text-align: center; }
+.ldr:last-child { border-bottom: 0; }
+.ldr .cat { text-align: center; font-size: .7rem; letter-spacing: .12em; color: var(--b-muted); font-weight: 600; text-transform: uppercase; }
+.ldr .p { min-width: 0; }
+.ldr .p.r { text-align: right; }
+.ldr .p b { display: block; font-family: var(--b-display); font-weight: 800; font-size: 1.1rem; text-transform: uppercase; letter-spacing: .02em; line-height: 1.1; }
+.ldr .p span { display: block; font-family: var(--data); font-size: .74rem; color: var(--b-muted); line-height: 1.4; }
+
+.scroll { overflow-x: auto; }
+table.pass { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.pass th, .pass td { padding: 6px 8px; border-bottom: 1px solid var(--b-line); text-align: right; white-space: nowrap; }
+.pass th:first-child, .pass td:first-child { text-align: left; }
+.pass thead th { font-size: .7rem; letter-spacing: .12em; color: var(--b-muted); font-weight: 600; text-transform: uppercase; }
+.pass td.num { font-family: var(--data); }
+
+.sc-head { display: grid; grid-template-columns: 1fr 3rem 3rem; gap: var(--sp2); align-items: center; padding-bottom: var(--sp2); }
+.sc-col { display: flex; flex-direction: column; align-items: center; gap: 2px; font-family: var(--b-display); font-weight: 800; font-size: .8rem; letter-spacing: .06em; }
+.sc-col .mark { width: 22px; height: 22px; }
+.log { list-style: none; margin: 0; padding: 0; display: grid; }
+.log .qh { font-family: var(--b-display); font-weight: 700; text-transform: uppercase; letter-spacing: .1em; font-size: .78rem; color: var(--b-muted); background: var(--b-black); padding: 4px var(--sp2); border-top: 1px solid var(--b-line); }
+.log .sp { display: grid; grid-template-columns: 3.2rem 26px 1fr 3rem 3rem; gap: var(--sp2); align-items: center; padding: var(--sp2) 0; border-top: 1px solid var(--b-line); font-size: .92rem; }
+.log .qh + .sp { border-top: 0; }
+.log .clk { font-family: var(--data); font-size: .8rem; color: var(--b-muted); }
+.log .sp .mark { width: 26px; height: 26px; }
+.log .what { min-width: 0; }
+.log .what b { font-family: var(--b-display); font-weight: 800; letter-spacing: .04em; color: var(--b-white); margin-right: 6px; }
+.log .what small { display: block; font-family: var(--data); font-size: .74rem; color: var(--b-muted); margin-top: 2px; }
+.log .sc { display: contents; }
+.log .sc > span { font-family: var(--b-display); font-weight: 700; font-size: 1.15rem; line-height: 1; text-align: center; color: var(--b-muted); font-variant-numeric: tabular-nums; }
+.log .sc small { display: block; font-family: var(--body); font-size: .6rem; font-weight: 600; letter-spacing: .1em; color: var(--b-muted); line-height: 1.2; margin-top: 2px; }
+.log .sc > span.up { color: var(--b-white); font-weight: 800; }
+
+/* team identity */
+.teams { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp4); }
+.idcard { border: 1px solid var(--frame-line); background: var(--frame-chip); border-radius: 6px; padding: var(--sp4); display: grid; grid-template-columns: auto 1fr; gap: var(--sp4); align-items: center; min-width: 0; }
+.idcard .mark { width: 72px; height: 72px; }
+.idcard h3 { margin: 0; font-family: var(--b-display); font-weight: 800; text-transform: uppercase; font-size: var(--s2); line-height: 1; }
+.idcard p { margin: var(--sp1) 0 0; color: var(--frame-muted); font-size: var(--s-1); }
+.pair { display: flex; gap: 6px; margin-top: var(--sp2); }
+.pair i { width: 28px; height: 16px; border-radius: 2px; border: 1px solid var(--frame-line); }
+
+.picks { margin: 0; padding-left: 1.4em; display: grid; gap: var(--sp2); max-width: 70ch; }
+.picks li::marker { font-family: var(--data); color: var(--frame-muted); }
+
+@media (max-width: 760px) {
+  .office .cols, .bc-grid, .teams { grid-template-columns: 1fr; }
+  .office .next { text-align: left; }
+  .team .pts { font-size: var(--s3); }
+  .team .nm b { font-size: var(--s1); }
+  .bug .mark { width: 32px; height: 32px; }
+  .team { padding: var(--sp2); gap: var(--sp2); }
+}
+@media (max-width: 560px) {
+  /* score bug: two teams on top, the FINAL box with quarters underneath */
+  .bug { grid-template-columns: 1fr 1fr; }
+  .mid { grid-column: 1 / -1; grid-row: 2; }
+  .team.home { grid-column: 2; grid-row: 1; }
+  .team .nm small { display: none; }
+  .bug .mark { display: none; }
+  .office, .bcast { padding: var(--sp4); }
+  .team .nm b { font-size: 1rem; }
+  .ldr { grid-template-columns: 1fr 2.2em 3.4rem 2.2em 1fr; gap: 4px; }
+  .ldr .big { font-size: 1.3rem; }
+  .ldr .p b { font-size: .9rem; }
+  .log .sp, .sc-head { grid-template-columns: 2.6rem 22px 1fr 2rem 2rem; gap: 6px; }
+  .sc-head { grid-template-columns: 1fr 2rem 2rem; }
+  .log .sp .mark { width: 22px; height: 22px; }
+  .ldr .p span { font-size: .66rem; }
+  .ldr .cat { font-size: .6rem; letter-spacing: .06em; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .split i { transform-origin: left; animation: grow .6s ease-out both; }
+  .split i.h { transform-origin: right; }
+  @keyframes grow { from { transform: scaleX(.2); } to { transform: none; } }
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- Denver Prospectors: a peak on a shield -->
+    <symbol id="m-den" viewBox="0 0 64 64">
+      <path d="M32 3 L58 12 V32 C58 47 46 57 32 61 C18 57 6 47 6 32 V12 Z" fill="#2f5d4e"/>
+      <path d="M32 7 L54 14.6 V32 C54 44.8 44 53.6 32 57 C20 53.6 10 44.8 10 32 V14.6 Z" fill="none" stroke="#d9c08c" stroke-width="2"/>
+      <path d="M12 44 L26 22 L33 32 L39 25 L52 44 Z" fill="#d9c08c"/>
+      <path d="M26 22 L30.5 29 L28 31 L25 27.5 L22 30 Z" fill="#f2f5f3"/>
+    </symbol>
+    <!-- Kansas City Marshals: a five-point badge -->
+    <symbol id="m-kc" viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="29" fill="#3d4a5c"/>
+      <circle cx="32" cy="32" r="25" fill="none" stroke="#c07a3e" stroke-width="3"/>
+      <path d="M32 11 L37.6 25.4 L53 26 L41 35.8 L45 51 L32 42.6 L19 51 L23 35.8 L11 26 L26.4 25.4 Z" fill="#c07a3e"/>
+      <circle cx="32" cy="32" r="5" fill="#f2f5f3"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+  <header class="intro">
+    <div class="tag">Style sheet · v1, approved October 31, 2026</div>
+    <h1>The office and the broadcast</h1>
+    <p>Our art plan says the game has two looks. <strong>The office</strong> is your own building: quiet, matte, paper and painted block. <strong>The broadcast</strong> is how the public sees football: dark, loud, high contrast.</p>
+    <p>The written rules live in <code>assets/style/STYLE_GUIDE.md</code>. The teams, names and numbers here are made-up samples.</p>
+  </header>
+
+  <!-- ============ LOOK A ============ -->
+  <section aria-labelledby="h-a">
+    <div class="sec-head">
+      <h2 id="h-a">1. The office: your desk on a Tuesday</h2>
+      <span class="where">Headings: typewriter (Courier Prime)</span>
+    </div>
+
+    <div class="office">
+      <div class="top">
+        <div class="date"><small>Week 5 · Regular season</small>Tuesday, October 6</div>
+        <div class="next">Next game<b>at Kansas City Marshals · Sunday 1:00</b>Record 3–1 · 2nd in the division</div>
+      </div>
+
+      <div class="cols">
+        <div class="pad">
+          <h3>Waiting on you</h3>
+          <ul class="waiting">
+            <li><span class="stamp you">You</span><div>Set the game plan for Kansas City<span class="who">Offensive coordinator has a draft ready · due Thursday</span></div></li>
+            <li><span class="stamp you">You</span><div>Agent wants an answer on #54's extension<span class="who">General manager decision · offer expires Friday</span></div></li>
+            <li><span class="stamp staff">Staff</span><div>Practice squad swap at cornerback handled<span class="who">Personnel director · nothing needed from you</span></div></li>
+          </ul>
+        </div>
+
+        <div class="pad">
+          <h3>Scout's note</h3>
+          <p class="memo">Marshals' front stems late on third down. Their nose is slow off the ball when he lines up shaded.<span class="sig">D. Varga, pro scout</span></p>
+          <div class="range"><span>Run defense</span><span class="bar-a" aria-label="Staff estimate: average to good"><i style="left:44%;width:24%"></i></span></div>
+          <div class="range"><span>Pass rush</span><span class="bar-a" aria-label="Staff estimate: below average to very good, low confidence"><i class="wide" style="left:30%;width:52%"></i></span></div>
+        </div>
+      </div>
+
+      <div class="foot">
+        <button type="button" class="adv" id="adv">Advance <small>to Wednesday practice</small></button>
+        <span class="note">The advance button is the one bold thing on this screen. Ratings show as ranges: a short solid bar means the staff is sure, a long faded bar means they're guessing.</span>
+      </div>
+    </div>
+
+    <div class="swatches" aria-label="Office colors">
+      <div class="sw"><i style="background:#ede5d3"></i><div><b>Oatmeal</b><code>paper</code></div></div>
+      <div class="sw"><i style="background:#3e5c4a"></i><div><b>Oxidized green</b><code>good, staff</code></div></div>
+      <div class="sw"><i style="background:#6e2a2a"></i><div><b>Oxblood</b><code>needs you</code></div></div>
+      <div class="sw"><i style="background:#8a8278"></i><div><b>Warm grey</b><code>secondary</code></div></div>
+      <div class="sw"><i style="background:#2b2723"></i><div><b>Ink</b><code>text</code></div></div>
+    </div>
+  </section>
+
+  <!-- ============ LOOK B ============ -->
+  <section aria-labelledby="h-b">
+    <div class="sec-head">
+      <h2 id="h-b">2. The broadcast: the final and the box score</h2>
+      <span class="where">Headings: condensed (Barlow Condensed)</span>
+    </div>
+
+    <div class="bcast">
+      <div class="bug" role="group" aria-label="Final score">
+        <div class="team away">
+          <svg class="mark" aria-hidden="true"><use href="#m-kc"/></svg>
+          <div class="nm"><small>Kansas City · 2–3</small><b>Marshals</b></div>
+          <div class="pts">23</div>
+        </div>
+        <div class="mid">
+          <div class="fin">Final</div>
+          <table class="qtr" aria-label="Score by quarter">
+            <thead><tr><th scope="col"><span hidden>Team</span></th><th scope="col">1</th><th scope="col">2</th><th scope="col">3</th><th scope="col">4</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">KC</th><td>7</td><td>3</td><td>10</td><td>3</td></tr>
+              <tr><th scope="row">DEN</th><td>3</td><td>14</td><td>0</td><td>10</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="team home won">
+          <div class="pts">27</div>
+          <div class="nm"><small>Denver · 4–1</small><b>Prospectors</b></div>
+          <svg class="mark" aria-hidden="true"><use href="#m-den"/></svg>
+        </div>
+      </div>
+
+      <div class="bc-grid">
+        <div class="panel">
+          <h3>Team totals</h3>
+          <div class="sides">
+            <span class="side"><svg class="mark" aria-hidden="true"><use href="#m-kc"/></svg><i class="key away"></i>KC</span>
+            <span class="side">DEN<i class="key home"></i><svg class="mark" aria-hidden="true"><use href="#m-den"/></svg></span>
+          </div>
+          <ul class="stats" id="stats"></ul>
+        </div>
+
+        <div class="panel">
+          <h3>Leaders</h3>
+          <div class="sides">
+            <span class="side"><svg class="mark" aria-hidden="true"><use href="#m-kc"/></svg>KC</span>
+            <span class="side">DEN<svg class="mark" aria-hidden="true"><use href="#m-den"/></svg></span>
+          </div>
+          <ul class="ldrs">
+            <li class="ldr"><span class="p"><b>M. Quarles</b><span>21/33, 1 TD</span></span><span class="big">231</span><span class="cat">Passing yards</span><span class="big">268</span><span class="p r"><b>J. Whitfield</b><span>24/35, 2 TD, 1 INT</span></span></li>
+            <li class="ldr"><span class="p"><b>D. Lyle</b><span>15 car, 1 TD</span></span><span class="big">71</span><span class="cat">Rushing yards</span><span class="big">84</span><span class="p r"><b>T. Abernathy</b><span>18 car, 1 TD</span></span></li>
+            <li class="ldr"><span class="p"><b>B. Castellanos</b><span>6 rec</span></span><span class="big">88</span><span class="cat">Receiving yards</span><span class="big">112</span><span class="p r"><b>K. Okoro</b><span>7 rec, 1 TD</span></span></li>
+            <li class="ldr"><span class="p"><b>R. Delacroix</b><span>14 yds lost</span></span><span class="big">2</span><span class="cat">Sacks</span><span class="big">1</span><span class="p r"><b>L. Brandt</b><span>6 yds lost</span></span></li>
+            <li class="ldr"><span class="p"><b>A. Fontenot</b><span>6 solo</span></span><span class="big">9</span><span class="cat">Tackles</span><span class="big">7</span><span class="p r"><b>M. Haines</b><span>5 solo, 1 INT</span></span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="panel scroll">
+        <h3>Play-by-play</h3>
+        <ol class="log">
+          <li class="qh">1st quarter</li>
+          <li class="sp"><span class="clk">9:12</span><svg class="mark" role="img" aria-label="Kansas City"><use href="#m-kc"/></svg><span class="what"><b>Touchdown</b> D. Lyle 4 yd run (H. Ostrowski kick)<small>8 plays, 75 yards, 4:31</small></span><span class="sc"><span class="up">7<small>KC</small></span><span>0<small>DEN</small></span></span></li>
+          <li class="sp"><span class="clk">2:40</span><svg class="mark" role="img" aria-label="Denver"><use href="#m-den"/></svg><span class="what"><b>Field Goal</b> C. Vance 38 yd field goal<small>10 plays, 52 yards, 5:02</small></span><span class="sc"><span>7<small>KC</small></span><span class="up">3<small>DEN</small></span></span></li>
+          <li class="qh">2nd quarter</li>
+          <li class="sp"><span class="clk">11:05</span><svg class="mark" role="img" aria-label="Denver"><use href="#m-den"/></svg><span class="what"><b>Touchdown</b> T. Abernathy 12 yd run (C. Vance kick)<small>6 plays, 64 yards, 3:12</small></span><span class="sc"><span>7<small>KC</small></span><span class="up">10<small>DEN</small></span></span></li>
+          <li class="sp"><span class="clk">4:18</span><svg class="mark" role="img" aria-label="Kansas City"><use href="#m-kc"/></svg><span class="what"><b>Field Goal</b> H. Ostrowski 44 yd field goal<small>9 plays, 41 yards, 6:47</small></span><span class="sc"><span class="up">10<small>KC</small></span><span>10<small>DEN</small></span></span></li>
+          <li class="sp"><span class="clk">0:31</span><svg class="mark" role="img" aria-label="Denver"><use href="#m-den"/></svg><span class="what"><b>Touchdown</b> J. Whitfield 18 yd pass to D. Mercer (C. Vance kick)<small>7 plays, 70 yards, 3:47</small></span><span class="sc"><span>10<small>KC</small></span><span class="up">17<small>DEN</small></span></span></li>
+          <li class="qh">3rd quarter</li>
+          <li class="sp"><span class="clk">8:50</span><svg class="mark" role="img" aria-label="Kansas City"><use href="#m-kc"/></svg><span class="what"><b>Touchdown</b> M. Quarles 22 yd pass to T. Ruiz (H. Ostrowski kick)<small>11 plays, 75 yards, 6:10</small></span><span class="sc"><span class="up">17<small>KC</small></span><span>17<small>DEN</small></span></span></li>
+          <li class="sp"><span class="clk">1:14</span><svg class="mark" role="img" aria-label="Kansas City"><use href="#m-kc"/></svg><span class="what"><b>Field Goal</b> H. Ostrowski 31 yd field goal<small>12 plays, 58 yards, 6:20</small></span><span class="sc"><span class="up">20<small>KC</small></span><span>17<small>DEN</small></span></span></li>
+          <li class="qh">4th quarter</li>
+          <li class="sp"><span class="clk">12:20</span><svg class="mark" role="img" aria-label="Denver"><use href="#m-den"/></svg><span class="what"><b>Field Goal</b> C. Vance 29 yd field goal<small>8 plays, 47 yards, 3:54</small></span><span class="sc"><span>20<small>KC</small></span><span class="up">20<small>DEN</small></span></span></li>
+          <li class="sp"><span class="clk">8:47</span><svg class="mark" role="img" aria-label="Kansas City"><use href="#m-kc"/></svg><span class="what"><b>Field Goal</b> H. Ostrowski 47 yd field goal<small>7 plays, 33 yards, 3:33</small></span><span class="sc"><span class="up">23<small>KC</small></span><span>20<small>DEN</small></span></span></li>
+          <li class="sp"><span class="clk">1:58</span><svg class="mark" role="img" aria-label="Denver"><use href="#m-den"/></svg><span class="what"><b>Touchdown</b> J. Whitfield 9 yd pass to K. Okoro (C. Vance kick)<small>13 plays, 75 yards, 6:49</small></span><span class="sc"><span>23<small>KC</small></span><span class="up">27<small>DEN</small></span></span></li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="swatches" aria-label="Broadcast colors">
+      <div class="sw"><i style="background:#0b0e0d"></i><div><b>Broadcast black</b><code>ground</code></div></div>
+      <div class="sw"><i style="background:#141a18"></i><div><b>Panel</b><code>cards</code></div></div>
+      <div class="sw"><i style="background:#22e584"></i><div><b>Signal green</b><code>score, win</code></div></div>
+      <div class="sw"><i style="background:#ff4040"></i><div><b>Hot red</b><code>turnover, alert</code></div></div>
+      <div class="sw"><i style="background:#f2f5f3"></i><div><b>Studio white</b><code>text</code></div></div>
+    </div>
+  </section>
+
+  <!-- ============ TEAMS ============ -->
+  <section aria-labelledby="h-t">
+    <div class="sec-head">
+      <h2 id="h-t">3. How a team's colors fit in</h2>
+      <span class="where">Real NFL cities, our own names, colors and marks. Each team gets two colors and a simple mark; the brighter one draws its bars on the broadcast. A score or a turnover always looks the same, whoever is playing.</span>
+    </div>
+    <div class="teams">
+      <div class="idcard">
+        <svg class="mark" aria-hidden="true"><use href="#m-den"/></svg>
+        <div><h3>Denver Prospectors</h3><p>Pine and sand. A mountain peak on a shield.</p><div class="pair"><i style="background:var(--den-1)"></i><i style="background:var(--den-2)"></i></div></div>
+      </div>
+      <div class="idcard">
+        <svg class="mark" aria-hidden="true"><use href="#m-kc"/></svg>
+        <div><h3>Kansas City Marshals</h3><p>Slate and copper. A marshal's star.</p><div class="pair"><i style="background:var(--kc-1)"></i><i style="background:var(--kc-2)"></i></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-q">
+    <div class="sec-head"><h2 id="h-q">The owner's picks</h2></div>
+    <ol class="picks">
+      <li>Two looks: approved.</li>
+      <li>Fonts: typewriter in the office, Barlow Condensed on the broadcast.</li>
+      <li>Green for a score or a win, red for a turnover: keep.</li>
+      <li>Box score: quarters under FINAL with no total column; team totals with logos and bars split by the raw numbers; leaders side by side with big numbers; a scoring summary for every quarter with drive lines and the running score.</li>
+      <li>Teams: real NFL cities, our own names, colors and marks.</li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(function () {
+  // [label, KC shown, DEN shown, KC count, DEN count]
+  // The bar splits each category by the raw count (the first number), not by who did better.
+  var rows = [
+    ["Total yards", "333", "371", 333, 371],
+    ["Turnovers", "0", "1", 0, 1],
+    ["1st downs", "19", "21", 19, 21],
+    ["Penalties", "5-41", "6-45", 5, 6],
+    ["3rd down", "5/12", "6/13", 5, 6],
+    ["4th down", "1/2", "0/1", 1, 0],
+    ["Red zone", "2/2", "2/4", 2, 2],
+    ["Possession", "28:48", "31:12", 1728, 1872]
+  ];
+  var ul = document.getElementById('stats');
+  rows.forEach(function (r) {
+    var a = r[3], h = r[4], t = a + h;
+    var sa = t ? a / t : .5, sh = t ? h / t : .5;
+    var li = document.createElement('li');
+    li.className = 'stat';
+    li.innerHTML =
+      '<span class="v">' + r[1] + '</span>' +
+      '<span class="lbl">' + r[0] + '</span>' +
+      '<span class="v r">' + r[2] + '</span>' +
+      '<span class="split" aria-hidden="true">' +
+        (sa > 0 ? '<i class="a" style="flex:' + sa.toFixed(3) + '"></i>' : '') +
+        (sh > 0 ? '<i class="h" style="flex:' + sh.toFixed(3) + '"></i>' : '') +
+      '</span>';
+    ul.appendChild(li);
+  });
+  var adv = document.getElementById('adv');
+  adv.addEventListener('click', function () {
+    adv.querySelector('small').textContent = 'mockup only: nothing to advance';
+  });
+})();
+</script>
