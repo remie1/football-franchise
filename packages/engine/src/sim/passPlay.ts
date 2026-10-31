@@ -434,7 +434,7 @@ export function simulatePassPlay(
   // `LEGACY` for tunables with no `pocket-1` block (today's game, every new branch below skipped),
   // shape S or shape L for a stamped overlay; anything else throws a `PocketRulesError` here.
   const rules = pocketRulesOf(tunables);
-  // ADR-089 step 3 (E6b; plan §2.6, critique 3 S1; contracts petition P5) — P5'S PUBLICATION GATE.
+  // ADR-089 step 3 (E6b; plan §2.6, critique 3 S1; contracts petition P5): P5'S PUBLICATION GATE.
   // Under `pocket-1.s3` a free runner the free-run clock timed carries that clock's distance and
   // closing speed on his threat, and every won rep (and a beaten late block, built as one) carries
   // the nominal pair under every rule set. The pair reaches `RUSH_THREAT` only when

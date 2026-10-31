@@ -1,5 +1,5 @@
 /**
- * ADR-089 step 3, E6b — P5'S PUBLICATION GATE, OPEN (plan §2.6, critique 3 S1; contracts petition
+ * ADR-089 step 3, E6b: P5'S PUBLICATION GATE, OPEN (plan §2.6, critique 3 S1; contracts petition
  * P5, the owner's typed yes of 2026-10-31; the Orchestrator's FID-F-9 ruling).
  *
  *  1. Under legacy, `pocket-1.s1` (S, SW, L5, L8) and `pocket-1.s2` (SWH, S2, S2N) no `RUSH_THREAT`
