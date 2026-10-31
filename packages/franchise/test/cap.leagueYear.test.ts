@@ -5,7 +5,7 @@ import {
 } from "@ff/contracts";
 import {
   buildLeague, runSeason, leagueYearSteps, marketWindow, teamCapTotal, veteranContract, minimumSalary, capForecast,
-  liveIn, needWeights, offerWorth, valuePlayer, marketCurves, apyOf, percentileOf, quantile,
+  liveIn, countsForComp, adjustedCap, needWeights, offerWorth, valuePlayer, marketCurves, apyOf, percentileOf, quantile,
   type GameResolver, type LeaguePeople,
 } from "../src/index.js";
 import { WANTED, type Rate } from "../src/draft/board.js";
@@ -91,7 +91,7 @@ describe("the league year (ADR-085 §4)", () => {
 
   it("every team is under the 2027 cap once the new league year opens, and stays under through free agency", () => {
     for (const t of people.teams) {
-      expect(teamCapTotal(t.id, 2027, people.contracts!, people.deadMoney!, { top51: true }).total).toBeLessThanOrEqual(cap(2027));
+      expect(teamCapTotal(t.id, 2027, people.contracts!, people.deadMoney!, { top51: true }).total).toBeLessThanOrEqual(adjustedCap(t.id, 2027, people, cap));
     }
     // The four over-spending teams had to restructure or cut.
     expect(of("CONTRACT_RESTRUCTURED").length + of("PLAYER_RELEASED").length).toBeGreaterThan(0);
@@ -107,8 +107,59 @@ describe("the league year (ADR-085 §4)", () => {
     }
   });
 
+  it("each team carries last year's unused room into the new league year (the real carryover rule)", () => {
+    const carried = people.capCarryover!.filter((c) => c.season === 2027);
+    expect(carried).toHaveLength(people.teams.length);
+    for (const c of carried) {
+      const used = teamCapTotal(c.team, 2026, people.contracts!, people.deadMoney!).total;
+      expect(c.amount).toBe(Math.max(0, cap(2026) - used));
+      expect(adjustedCap(c.team, 2027, people, cap)).toBe(cap(2027) + c.amount);
+    }
+    expect(carried.some((c) => c.amount > 0)).toBe(true);
+  });
+
+  it("cap cuts never take a roster's last men at a position: every team still fields its starters", () => {
+    const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
+    for (const t of people.teams) {
+      for (const pos of ["QB", "K", "P", "LS"] as Position[]) {
+        expect(t.roster.filter((id) => byId.get(String(id))?.bio.position === pos).length, `${String(t.id)} ${pos}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("keeps free agents' moves to new teams for the compensatory picks: deals that ran out, signed before the post-draft day", () => {
+    const moves = people.freeAgentMoves ?? [];
+    expect(moves.length).toBeGreaterThan(10);
+    for (const m of moves) {
+      expect(m.to).not.toBe(m.from);
+      expect(countsForComp(m.signedAt)).toBe(true);
+      const old = people.contracts!.find((c) => String(c.player) === String(m.player) && c.team === m.from && c.ended)!;
+      expect(old.ended!.reason).toBe("EXPIRED");
+      expect(people.contracts!.some((c) => String(c.player) === String(m.player) && c.team === m.to && liveIn(c, 2027))).toBe(true);
+    }
+    expect(countsForComp({ season: 2026, phase: "OFF_DRAFT", week: 3, day: 7 })).toBe(true);
+    expect(countsForComp({ season: 2026, phase: "OFF_DRAFT", week: 4, day: 1 })).toBe(false);
+    expect(countsForComp({ season: 2026, phase: "OFF_SUMMER", week: 1, day: 1 })).toBe(false);
+  });
+
   it("is the same for the same seed", () => {
     expect(run().events).toEqual(year1.events);
+  });
+
+  it("runSeason plays the league year by itself, before the draft's steps, and turns the year", () => {
+    const r = runSeason({ league, season: 2026, seed: "s", resolve: fake, people: people0, leagueYear: { rate, cap }, draft: { rate, makeClass, cap }, through: "YEAR" });
+    const ev = r.events.map((e) => e.event);
+    expect(ev.filter((e) => e.type === "CAP_SET")).toHaveLength(1);
+    expect(ev.filter((e) => e.type === "CONTRACT_EXPIRED").length).toBeGreaterThan(200);
+    for (const t of r.people!.teams) {
+      expect(teamCapTotal(t.id, 2027, r.people!.contracts!, r.people!.deadMoney!, { top51: true }).total).toBeLessThanOrEqual(adjustedCap(t.id, 2027, r.people!, cap));
+    }
+    // The next year's draft is paid for the moves: compensatory picks from this market.
+    expect(r.people!.freeAgentMoves!.length).toBeGreaterThan(10);
+    const r2 = runSeason({ league, season: 2027, seed: "s2", resolve: fake, people: r.people!, leagueYear: { rate, cap }, draft: { rate, makeClass, cap }, through: "YEAR" });
+    const comp = r2.events.map((e) => e.event).filter((e) => e.type === "COMPENSATORY_PICKS_AWARDED");
+    expect(comp).toHaveLength(1);
+    expect((comp[0] as Extract<FranchiseEvent, { type: "COMPENSATORY_PICKS_AWARDED" }>).payload.picks.length).toBeGreaterThan(0);
   });
 });
 

@@ -251,3 +251,27 @@ tenders and tags are signed; 566 deals run out; every team ends the offseason un
 the same seed gives the same year. Not yet: RFA offer sheets, trades, earned unlikely incentives, the
 veteran salary benefit, in-season street signings and injured reserve, compensatory-pick moves.
 
+
+### Step 5 — the league year in `runSeason`, and moves kept for compensatory picks, 2026-10-31
+
+- `runSeason` takes `leagueYear?: LeagueYearConfig`, as the draft thread's PR #36 did for `draft`. Steps run in this order: the caller's, the players' (ADR-087), the league year's, then the draft's (ADR-086). Calibration needs no new surface names: `runSeason` is already on the R1 list (Q10).
+- The market appends each signing with a new team to `people.freeAgentMoves` (ADR-086 §5) when the player's deal ran out (`ended.reason` EXPIRED) rather than being released, and the signing comes before the post-draft day (`countsForComp`; the real cutoff is a date in early May, just after the draft). The draft's compensatory step reads these moves the next year.
+- Tests: the moves are checked (expired deal, new team, signed before the cutoff). `runSeason` with both options plays two years, keeps every team under the cap, and awards compensatory picks in year two.
+- Next: `--seasons N` in the calibration season command with the stand-in league, once the aging thread's realSeason/main edits are on main, then the multi-season check against real numbers.
+
+### Step 6: the multi-season check (`cap-check`), 2026-10-31
+
+- `pnpm --filter @ff/calibration cap-check -- --league <stand-in file> [--seasons 5] [--out <file>]` plays the stand-in league for several seasons. The league year and the draft run in each season's walk. Results are in `packages/calibration/reports/cap-check.md`.
+- Calibration's franchise surface gains `capForecast` and `teamCapTotal` (ADR-078 R1 amendment 3), under the owner's Q10 yes.
+- Rule added: **carryover**. Unused room at the end of a league year carries into the next (`LeaguePeople.capCarryover`, `adjustedCap`). Saves do not hold it yet; that needs a contracts petition.
+- Fixes found by the run:
+  - Cap cuts keep each roster's starters.
+  - Empty positions are filled on the day after cut-down.
+  - At the new league year teams clear room for their class, the in-season buffer and $15M for free agency, by restructures and cap casualties (`MARKET.freeAgencyRoom`, `casualtyShare`, `casualtySaving`, all CHOSEN).
+  - Rookie room is held until the draft.
+- Open, against real numbers:
+  - Too few own-team deals (no early extensions yet).
+  - Free agency moves about a third to a half of the real number of $2M+ deals.
+  - Dead money is a third to a half of the real figure.
+  - The position mix drifts.
+  - Offseason rosters exceed 90.

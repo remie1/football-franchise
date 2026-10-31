@@ -13,18 +13,19 @@
  * Constants are CHOSEN (provenance NONE) unless a comment says otherwise.
  */
 import {
-  createRng, DEFAULT_LEAGUE_RULES,
+  compareStamps, createRng, DEFAULT_LEAGUE_RULES,
   type CalendarStamp, type DeadMoneyCharge, type FranchiseEvent, type LeagueRules, type PlayerContract, type PlayerState, type Position,
   type SeasonState, type Team, type TeamId,
 } from "@ff/contracts";
 import { isDay, type DayStep, type DayStepContext, type LeaguePeople } from "../season/people.js";
 import { BOARD_ERROR, POSITION_VALUE, STARTERS, WANTED, needAt, type Rate } from "../draft/board.js";
 import { seasonsIn } from "../draft/cutdown.js";
+import { DRAFT_DAYS } from "../draft/steps.js";
 import { capNumber, expireContract, liveIn, releasePlayer, restructure, teamCapTotal } from "./money.js";
 import { BASE_CAP, RFA_SEASONS, type TenderLevel } from "./rules.js";
 import { ROOKIE_SCALE_2026 } from "./rookieScale2026.js";
 import { minimumContract, minimumSalary, tagContract, tagPrice, tenderPrice } from "./signings.js";
-import { apyOf, guaranteedShare, marketCurves, structureFor, valuePlayer, veteranContract, type MarketCurves } from "./value.js";
+import { ageFactor, apyOf, guaranteedShare, marketCurves, structureFor, valuePlayer, veteranContract, type MarketCurves } from "./value.js";
 import { askingPrice, offerWorth, type MarketWindow } from "./negotiation.js";
 
 export type CapForSeason = (season: number) => number;
@@ -35,6 +36,14 @@ export const LEAGUE_YEAR_DAYS = {
   newYear: { phase: "OFF_RESET_FA", week: 1, day: 1 },
   postDraft: { phase: "OFF_DRAFT", week: 4, day: 1 },
 } as const;
+
+/**
+ * Signings that count toward compensatory picks (ADR-086 §5): before the post-draft day. The real
+ * cutoff is a date in early May, just after the draft.
+ */
+export function countsForComp(day: CalendarStamp): boolean {
+  return day.phase.startsWith("OFF_") && compareStamps(day, { ...LEAGUE_YEAR_DAYS.postDraft, season: day.season }) < 0;
+}
 
 export const MARKET = {
   /** Days the market runs in the premium window (OFF_RESET_FA week 1). */
@@ -54,6 +63,15 @@ export const MARKET = {
   /** A team pays up to its own value times this, more when the need is great. */
   offerBase: 0.95,
   offerNeed: 0.15,
+  /**
+   * The new league year: teams restructure to have room for their draft class, the in-season buffer
+   * and this much for free agency (real teams clear space in February and March).
+   */
+  freeAgencyRoom: 15_000_000,
+  /** A cap casualty: a veteran worth less than this share of his cap number this year, when cutting him saves money. */
+  casualtyShare: 0.5,
+  /** ...and saves at least this much (dollars). */
+  casualtySaving: 2_000_000,
 } as const;
 
 export interface LeagueYearConfig {
@@ -100,9 +118,19 @@ const signedEvent = (c: PlayerContract): FranchiseEvent => ({
   },
 });
 
-/** The cap room a team has for a season, keeping `reserve` free. */
-function roomFor(team: TeamId, season: number, book: Book, cap: CapForSeason, reserve: number): number {
-  return cap(season) - teamCapTotal(team, season, book.contracts, book.dead, { top51: true }).total - reserve;
+/** A team's cap for a league year: the league's cap plus the room it carried over (ADR-085, the real carryover rule). */
+export function adjustedCap(team: TeamId, season: number, people: Pick<LeaguePeople, "capCarryover">, cap: CapForSeason): number {
+  return cap(season) + (people.capCarryover?.find((c) => c.team === team && c.season === season)?.amount ?? 0);
+}
+
+/** Room left at the end of a league year, every deal counted: what a team carries into the next. */
+function unusedRoom(team: TeamId, season: number, people: Pick<LeaguePeople, "capCarryover">, book: Book, cap: CapForSeason): number {
+  return Math.max(0, adjustedCap(team, season, people, cap) - teamCapTotal(team, season, book.contracts, book.dead).total);
+}
+
+/** The cap room a team has for a season, keeping `reserve` free. `carry` is what it brings into that season. */
+function roomFor(team: TeamId, season: number, book: Book, cap: CapForSeason, reserve: number, carry: number): number {
+  return cap(season) + carry - teamCapTotal(team, season, book.contracts, book.dead, { top51: true }).total - reserve;
 }
 
 /**
@@ -231,6 +259,8 @@ function reSign(
   const at = ctx.day;
   const reserveFor = (t: TeamId) => rookieReserve(t, next, people, ctx.rules, config.cap) + MARKET.inSeasonBuffer;
   for (const team of people.teams) {
+    // Before the new league year the carryover is not set: the team counts on the room it has now.
+    const carry = unusedRoom(team.id, ctx.season, people, book, config.cap);
     const skill = skillOf(team.id, people);
     const roster = playersOf(team, byId);
     const grade = (p: PlayerState) => teamGrade(team.id, p, skill, config.rate, ctx.seed, ctx.season);
@@ -243,7 +273,7 @@ function reSign(
       const pos = p.bio.position;
       if (!makesTheRoster(g, pos, gradesAt(pos))) continue;
       const cs = seasonsIn(p, next);
-      const room = roomFor(team.id, next, book, config.cap, reserveFor(team.id));
+      const room = roomFor(team.id, next, book, config.cap, reserveFor(team.id), carry);
       let contract: PlayerContract | undefined;
       if (cs < RFA_SEASONS) {
         // Exclusive-rights: a one-year minimum tender he must take.
@@ -282,7 +312,7 @@ function reSign(
       const star = declined.find((d) => d.percentile >= MARKET.tagPercentile);
       if (star) {
         const price = tagPrice(star.p.bio.position, "FRANCHISE_TAG", config.cap(next), star.prior);
-        if (price <= roomFor(team.id, next, book, config.cap, reserveFor(team.id))) {
+        if (price <= roomFor(team.id, next, book, config.cap, reserveFor(team.id), carry)) {
           const c = tagContract({ player: star.p.bio.id, team: team.id, season: next, signedAt: at, position: star.p.bio.position, kind: "FRANCHISE_TAG", cap: config.cap(next), priorSalary: star.prior });
           book.contracts.push(c);
           book.events.push({ type: "TAG_APPLIED", payload: { player: star.p.bio.id, tagType: "FRANCHISE_TAG" } }, signedEvent(c));
@@ -318,6 +348,12 @@ function newLeagueYear(
 ): { people: LeaguePeople; events: FranchiseEvent[] } {
   const year = ctx.season + 1;
   const book: Book = { contracts: [...(people.contracts ?? [])], dead: [...(people.deadMoney ?? [])], events: [] };
+  // Each team carries the room it did not use last league year into this one.
+  const capCarryover = [
+    ...(people.capCarryover ?? []).filter((c) => c.season === ctx.season),
+    ...people.teams.map((t) => ({ team: t.id, season: year, amount: unusedRoom(t.id, ctx.season, people, book, config.cap) })),
+  ];
+  const carried = { capCarryover };
   // Deals run out (void years land as dead money).
   for (let i = 0; i < book.contracts.length; i++) {
     const r = expireContract(book.contracts[i]!, year, ctx.day);
@@ -336,9 +372,12 @@ function newLeagueYear(
     const goneSet = new Set(gone.map(String));
     return withDepth({ ...t, roster: t.roster.filter((id) => !goneSet.has(String(id))) }, byId, config.rate);
   });
-  teams = teams.map((t) => getUnderCap(t, year, ctx, book, byId, freeAgents, config, skillOf(t.id, people), true));
+  const curves = marketCurves(book.contracts, people.players, year, config.rate);
+  teams = teams.map((t) => getUnderCap(t, year, ctx, book, byId, freeAgents, config, skillOf(t.id, people), true, carried, {
+    want: rookieReserve(t.id, year, people, ctx.rules, config.cap) + MARKET.inSeasonBuffer + MARKET.freeAgencyRoom, curves,
+  }));
   return {
-    people: { ...people, teams, players: placePlayers(people.players, teams), freeAgents: freeAgents.filter((id, i) => freeAgents.findIndex((x) => String(x) === String(id)) === i), contracts: book.contracts, deadMoney: book.dead },
+    people: { ...people, capCarryover, teams, players: placePlayers(people.players, teams), freeAgents: freeAgents.filter((id, i) => freeAgents.findIndex((x) => String(x) === String(id)) === i), contracts: book.contracts, deadMoney: book.dead },
     events: book.events,
   };
 }
@@ -352,13 +391,49 @@ const yearBase = (c: PlayerContract, season: number): number => c.years.find((y)
  */
 function getUnderCap(
   t: Team, year: number, ctx: DayStepContext, book: Book, byId: ReadonlyMap<string, PlayerState>, freeAgents: PlayerState["bio"]["id"][],
-  config: LeagueYearConfig, skill: number, top51: boolean,
+  config: LeagueYearConfig, skill: number, top51: boolean, carried: Pick<LeaguePeople, "capCarryover">,
+  /** The new league year: room wanted beyond the cap, and the market to judge who is overpaid. */
+  newYear?: { want: number; curves: MarketCurves },
 ): Team {
   const grade = (p: PlayerState) => teamGrade(t.id, p, skill, config.rate, ctx.seed, ctx.season);
-  const room = () => config.cap(year) - teamCapTotal(t.id, year, book.contracts, book.dead, { top51 }).total;
-  let over = -room();
-  if (over <= 0) return t;
+  const capNow = adjustedCap(t.id, year, carried, config.cap);
+  const room = () => capNow - teamCapTotal(t.id, year, book.contracts, book.dead, { top51 }).total;
   const live = () => book.contracts.map((c, i) => ({ c, i })).filter(({ c }) => c.team === t.id && liveIn(c, year));
+  let roster = [...t.roster];
+  let squad = [...(t.practiceSquad ?? [])];
+  const countAt = () => {
+    const at = new Map<Position, number>();
+    for (const id of roster) { const pos = byId.get(String(id))?.bio.position; if (pos) at.set(pos, (at.get(pos) ?? 0) + 1); }
+    return at;
+  };
+  // Never a roster's last men at a position (its starters, at least one).
+  const spare = (p: PlayerState, at: ReadonlyMap<Position, number>) =>
+    !roster.some((id) => String(id) === String(p.bio.id)) || (at.get(p.bio.position) ?? 0) > Math.max(1, STARTERS[p.bio.position]);
+  const release = (i: number, p: PlayerState, r: ReturnType<typeof releasePlayer>) => {
+    book.contracts[i] = r.contract;
+    book.dead.push(...r.charges);
+    book.events.push(...r.events);
+    roster = roster.filter((id) => String(id) !== String(p.bio.id));
+    squad = squad.filter((id) => String(id) !== String(p.bio.id));
+    freeAgents.push(p.bio.id);
+  };
+  const saving = (c: PlayerContract, r: ReturnType<typeof releasePlayer>) =>
+    capNumber(c.years.find((y) => y.season === year)!) - r.charges.filter((x) => x.season === year).reduce((s, x) => s + x.amount, 0);
+  if (newYear) {
+    // Cap casualties: veterans past their prime paid far more than the market would pay them now.
+    for (const { c, i } of live()) {
+      const p = byId.get(String(c.player));
+      if (!p || ageFactor(p.bio.age, p.bio.position) >= 1 || !spare(p, countAt())) continue;
+      const hit = capNumber(c.years.find((y) => y.season === year)!);
+      const worth = valuePlayer(p, grade(p), newYear.curves, minimumSalary(year, seasonsIn(p, year), config.cap)).apy;
+      if (worth >= MARKET.casualtyShare * hit) continue;
+      const r = releasePlayer(c, ctx.day);
+      if (saving(c, r) < MARKET.casualtySaving) continue;
+      release(i, p, r);
+    }
+  }
+  const want = newYear?.want ?? 0;
+  let over = want - room();
   for (const { c, i } of live().sort((a, b) => yearBase(b.c, year) - yearBase(a.c, year))) {
     if (over <= 0) break;
     const p = byId.get(String(c.player));
@@ -370,27 +445,45 @@ function getUnderCap(
     const r = restructure(c, year, amount, { floor });
     book.contracts[i] = r.contract;
     book.events.push(...r.events);
-    over = -room();
+    over = want - room();
   }
-  let roster = [...t.roster];
+  // Then cuts, only as far as the cap itself: any deal on the books may go, but never a position's last men.
+  over = -room();
   while (over > 0) {
-    const onTeam = new Set(roster.map(String));
-    const candidates = live().filter(({ c }) => onTeam.has(String(c.player))).map(({ c, i }) => {
-      const p = byId.get(String(c.player))!;
-      const r = releasePlayer(c, ctx.day);
-      const saves = capNumber(c.years.find((y) => y.season === year)!) - r.charges.filter((x) => x.season === year).reduce((s, x) => s + x.amount, 0);
-      return { i, p, r, saves, worth: Math.max(1, grade(p) - 40) * POSITION_VALUE[p.bio.position] };
-    }).filter((x) => x.p && x.saves > 0).sort((a, b) => b.saves / b.worth - a.saves / a.worth);
+    const at = countAt();
+    const candidates = live().map(({ c, i }) => ({ c, i, p: byId.get(String(c.player)) }))
+      .filter((x): x is { c: PlayerContract; i: number; p: PlayerState } => x.p !== undefined && spare(x.p, at))
+      .map(({ c, i, p }) => {
+        const r = releasePlayer(c, ctx.day);
+        return { i, p, r, saves: saving(c, r), worth: Math.max(1, grade(p) - 40) * POSITION_VALUE[p.bio.position] };
+      }).filter((x) => x.saves > 0).sort((a, b) => b.saves / b.worth - a.saves / a.worth);
     const cut = candidates[0];
     if (!cut) break;
-    book.contracts[cut.i] = cut.r.contract;
-    book.dead.push(...cut.r.charges);
-    book.events.push(...cut.r.events);
-    roster = roster.filter((id) => String(id) !== String(cut.p.bio.id));
-    freeAgents.push(cut.p.bio.id);
+    release(cut.i, cut.p, cut.r);
     over = -room();
   }
-  return withDepth({ ...t, roster }, byId, config.rate);
+  return withDepth({ ...t, roster, ...(t.practiceSquad ? { practiceSquad: squad } : {}) }, byId, config.rate);
+}
+
+/**
+ * The roster's most spare man: at a position with more than its wanted number, the lowest graded
+ * there whose release costs the least this year. Undefined when no position has a spare.
+ */
+function mostSpare(
+  t: Team, byId: ReadonlyMap<string, PlayerState>, rate: Rate, year: number, book: Book,
+): { i: number; p: PlayerState } | undefined {
+  const roster = playersOf(t, byId);
+  let best: { i: number; p: PlayerState; score: number } | undefined;
+  for (const p of roster) {
+    const n = roster.filter((r) => r.bio.position === p.bio.position).length;
+    if (n <= Math.max(1, WANTED[p.bio.position])) continue;
+    const i = book.contracts.findIndex((c) => String(c.player) === String(p.bio.id) && c.team === t.id && liveIn(c, year));
+    if (i < 0) continue;
+    const dead = releasePlayer(book.contracts[i]!, { season: year, phase: "PRESEASON", week: 1, day: 1 }).charges.reduce((s, x) => s + x.amount, 0);
+    const score = rate(p) + dead / 1e6;
+    if (!best || score < best.score) best = { i, p, score };
+  }
+  return best && { i: best.i, p: best.p };
 }
 
 /**
@@ -406,14 +499,38 @@ function complianceCheck(
   if (book.contracts.length === 0) return undefined;
   const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
   const freeAgents = [...people.freeAgents];
-  let teams = people.teams.map((t) => getUnderCap(t, year, ctx, book, byId, freeAgents, config, skillOf(t.id, people), top51));
+  let teams = people.teams.map((t) => getUnderCap(t, year, ctx, book, byId, freeAgents, config, skillOf(t.id, people), top51, people));
   if (fillTo !== undefined) {
     const taken = new Set<string>();
     teams = teams.map((t) => {
       let roster = [...t.roster];
       const pool = freeAgents.map((id) => byId.get(String(id))).filter((p): p is PlayerState => !!p && !taken.has(String(p.bio.id)));
+      // First every hole: a position with fewer than its starters (at least one) gets the best free
+      // agent there on a minimum deal; a full roster lets its most spare man go to make the seat.
+      for (const pos of Object.keys(STARTERS) as Position[]) {
+        const here = () => playersOf({ ...t, roster }, byId).filter((p) => p.bio.position === pos).length;
+        while (here() < Math.max(1, STARTERS[pos])) {
+          const pick = pool.filter((p) => p.bio.position === pos && !taken.has(String(p.bio.id))).sort((a, b) => config.rate(b) - config.rate(a))[0];
+          if (!pick) break;
+          if (roster.length >= fillTo) {
+            const spare = mostSpare({ ...t, roster }, byId, config.rate, year, book);
+            if (!spare) break;
+            const r = releasePlayer(book.contracts[spare.i]!, ctx.day);
+            book.contracts[spare.i] = r.contract;
+            book.dead.push(...r.charges);
+            book.events.push(...r.events);
+            roster = roster.filter((id) => String(id) !== String(spare.p.bio.id));
+            freeAgents.push(spare.p.bio.id);
+          }
+          const c = minimumContract({ player: pick.bio.id, team: t.id, season: year, signedAt: ctx.day, creditedSeasons: seasonsIn(pick, year), years: 1, capForSeason: config.cap });
+          book.contracts.push(c);
+          book.events.push(signedEvent(c));
+          taken.add(String(pick.bio.id));
+          roster.push(pick.bio.id);
+        }
+      }
       while (roster.length < fillTo) {
-        const room = config.cap(year) - teamCapTotal(t.id, year, book.contracts, book.dead).total;
+        const room = adjustedCap(t.id, year, people, config.cap) - teamCapTotal(t.id, year, book.contracts, book.dead).total;
         const here = playersOf({ ...t, roster }, byId);
         const pick = pool.filter((p) => !taken.has(String(p.bio.id)) && minimumSalary(year, seasonsIn(p, year), config.cap) <= room)
           .sort((a, b) => (config.rate(b) + 10 * needAt(b.bio.position, here, config.rate)) - (config.rate(a) + 10 * needAt(a.bio.position, here, config.rate)))[0];
@@ -439,6 +556,9 @@ function complianceCheck(
 
 // ---------- free agency (OFF_RESET_FA week 1 day 2 to cut-down day) ----------
 
+/** Puts a hole at a position ahead of every upgrade in a team's market list. */
+const HOLE_FIRST = 1e6;
+
 function freeAgency(
   people: LeaguePeople, ctx: DayStepContext, config: LeagueYearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number,
   market: { window: MarketWindow; weeksIntoBargain: number },
@@ -451,12 +571,20 @@ function freeAgency(
   const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
   const curves: MarketCurves = marketCurves(book.contracts, people.players, season, config.rate);
   const limit = ctx.rules.offseasonRosterLimit ?? DEFAULT_LEAGUE_RULES.offseasonRosterLimit ?? 90;
-  const beforeDraft = ctx.day.phase === "OFF_RESET_FA";
+  // Until the draft is made, a team keeps room and seats for its class.
+  const beforeDraft = ctx.day.phase.startsWith("OFF_") && compareStamps(ctx.day, { ...DRAFT_DAYS.draft, season: ctx.day.season }) < 0;
   const reserve = (t: TeamId) => (beforeDraft ? rookieReserve(t, season, people, ctx.rules, config.cap) : 0) + MARKET.inSeasonBuffer;
   let teams = [...people.teams];
   let pool = people.freeAgents.map((id) => byId.get(String(id))).filter((p): p is PlayerState => p !== undefined);
   const lastTeam = new Map<string, TeamId>();
-  for (const c of book.contracts) if (c.ended && c.years.some((y) => y.season === lastSeason)) lastTeam.set(String(c.player), c.team);
+  // Unrestricted free agents: their deal ran out (not a release). Their moves count for comp picks.
+  const ranOut = new Map<string, TeamId>();
+  for (const c of book.contracts) {
+    if (!c.ended || !c.years.some((y) => y.season === lastSeason)) continue;
+    lastTeam.set(String(c.player), c.team);
+    if (c.ended.reason === "EXPIRED") ranOut.set(String(c.player), c.team);
+  }
+  const moves = [...(people.freeAgentMoves ?? [])];
   const asks = new Map(pool.map((p) => {
     const cs = seasonsIn(p, season);
     const floor = minimumSalary(season, cs, config.cap);
@@ -470,7 +598,7 @@ function freeAgency(
       const t = teams.find((x) => x.id === teamId)!;
       const seats = limit - t.roster.length - (beforeDraft ? MARKET.draftSeats : 0);
       if (seats <= 0) continue;
-      const room = roomFor(t.id, season, book, config.cap, reserve(t.id));
+      const room = roomFor(t.id, season, book, config.cap, reserve(t.id), adjustedCap(t.id, season, people, config.cap) - config.cap(season));
       if (room <= 0) continue;
       const skill = skillOf(t.id, people);
       const grade = (p: PlayerState) => teamGrade(t.id, p, skill, config.rate, ctx.seed, season);
@@ -495,7 +623,9 @@ function freeAgency(
         const apy = Math.max(floor, Math.round(v.apy * (MARKET.offerBase + MARKET.offerNeed * need) / 1000) * 1000);
         const contract = buildOffer(p, t.id, season, ctx.day, apy, v.years, v.percentile, cs, config.cap, "VETERAN");
         if (capNumber(contract.years[0]!) > room) continue;
-        const score = (g - 50) * POSITION_VALUE[pos] * (1 + need);
+        // A hole (fewer than the position's starters, at least one) comes before any upgrade.
+        const hole = here.length < Math.max(1, STARTERS[pos]) ? HOLE_FIRST : 0;
+        const score = hole + (g - 50) * POSITION_VALUE[pos] * (1 + need);
         if (!best || score > best.score) best = { p, contract, score, starts: wouldStart(g, pos, here) };
       }
       if (!best) continue;
@@ -517,13 +647,20 @@ function freeAgency(
       book.contracts.push(top.contract);
       book.events.push(signedEvent(top.contract));
       signed.add(id);
+      const from = ranOut.get(id);
+      if (from !== undefined && from !== top.team && countsForComp(ctx.day)) {
+        moves.push({ player: p.bio.id, from, to: top.team, apy: apyOf(top.contract), signedAt: ctx.day });
+      }
       teams = teams.map((t) => (t.id === top.team ? withDepth({ ...t, roster: [...t.roster, p.bio.id] }, byId, config.rate) : t));
     }
     pool = pool.filter((p) => !signed.has(String(p.bio.id)));
   }
   if (signed.size === 0) return undefined;
   return {
-    people: { ...people, teams, players: placePlayers(people.players, teams), freeAgents: people.freeAgents.filter((id) => !signed.has(String(id))), contracts: book.contracts, deadMoney: book.dead },
+    people: {
+      ...people, teams, players: placePlayers(people.players, teams), freeAgents: people.freeAgents.filter((id) => !signed.has(String(id))),
+      contracts: book.contracts, deadMoney: book.dead, ...(moves.length > 0 ? { freeAgentMoves: moves } : {}),
+    },
     events: book.events,
   };
 }

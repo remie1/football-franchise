@@ -37,6 +37,7 @@ import type { League } from "../league/buildLeague.js";
 import type { LeaguePeople, DayStep } from "./people.js";
 import { draftSteps, turnYear, type DraftStepsConfig } from "../draft/steps.js";
 import { PLAYER_STEP_PREFIX, playerSteps, type PlayerStepsConfig } from "../players/steps.js";
+import { leagueYearSteps, type LeagueYearConfig } from "../cap/leagueYear.js";
 import { advance, nextDay, phaseWeeks, seasonStart, DAYS_PER_WEEK, type ClockWorld } from "../calendar/clock.js";
 import { buildSchedule } from "../schedule/buildSchedule.js";
 import { computeStandings } from "../standings/computeStandings.js";
@@ -96,6 +97,11 @@ export interface RunSeasonInput {
    */
   players?: PlayerStepsConfig;
   /**
+   * ADR-085: play the league year (the cap, re-signings and tags, deals running out, free agency,
+   * cap compliance). Its steps run after the players' and before the draft's. Needs `people`.
+   */
+  leagueYear?: LeagueYearConfig;
+  /**
    * A resumed run: the events the players' steps emitted on the days up to `stepsDoneThrough` (a
    * save's `world.development.events`, S1), emitted again on their days in place of running the steps.
    */
@@ -150,11 +156,12 @@ const sameDay = (a: CalendarStamp, b: CalendarStamp) => compareStamps(a, b) === 
 
 export function runSeason(input: RunSeasonInput): SeasonRun {
   const { league, season, seed, resolve, stopAfter, resumeFrom } = input;
-  // Order: the caller's steps, the players' (ADR-087), then the draft's (ADR-086).
+  // Order: the caller's steps, the players' (ADR-087), the league year's (ADR-085), then the draft's (ADR-086).
   const steps = [
-    ...(input.daySteps ?? []), ...(input.players ? playerSteps(input.players) : []), ...(input.draft ? draftSteps(input.draft) : []),
+    ...(input.daySteps ?? []), ...(input.players ? playerSteps(input.players) : []),
+    ...(input.leagueYear ? leagueYearSteps(input.leagueYear) : []), ...(input.draft ? draftSteps(input.draft) : []),
   ];
-  if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps, the players' steps and the draft need people");
+  if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps, the players' steps, the league year and the draft need people");
   let people = input.people;
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
   const schedule = buildSchedule(league, season, seed, {

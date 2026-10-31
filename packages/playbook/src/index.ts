@@ -31,6 +31,8 @@
  *   pressureDraw    v6's coverage, pressure, creeper and line-game dice, and their rates (ADR-073 §2.6)
  *   frontLooks      v7's front looks, Mug and Stem: legality, the draw, wearing one
  *                   (applyFrontLook, the only writer of a second shown rush), and R28 (ADR-073 §2.5)
+ *   snapSpots       where every man stands at the snap, in yards: the field frame, the spot
+ *                   tables and the pre-snap beats (ADR-090 step 0; no game calls it yet)
  */
 export const PLAYBOOK_VERSION = "0.1.0";
 
@@ -54,4 +56,5 @@ export * from "./selection.js";
 export * from "./coverageCatalogue.js";
 export * from "./pressureDraw.js";
 export * from "./frontLooks.js";
+export * from "./snapSpots.js";
 export * from "./errors.js";

@@ -56,6 +56,7 @@ Delegate implementation to the owning sub-agent. Never let one agent write in an
 - `pnpm --filter @ff/calibration season -- --seed <seed> --out season.json` — play a whole season, printing each week's headlines, and save it
 - `pnpm --filter @ff/calibration season -- --seed <seed> --stop-after 9 --save league.json` — play to week 9 and save; `season -- --load league.json` carries on
 - `pnpm --filter @ff/narrative news -- --season season.json` — print a saved season's news and save it for the viewer's News page (`apps/game/public/news/`)
+- `pnpm --filter @ff/calibration cap-check -- --league packages/attributes/leagues/standin-2026-10-23.json --seasons 5` — the stand-in league's money over several years against real numbers (ADR-085 §7)
 - `pnpm --filter @ff/franchise staff-check [--seed <seed>] [--seasons 50]` — coaching turnover against NFL numbers (ADR-080 C5)
 - `pnpm --filter @ff/calibration season -- --seed <seed> --development --injuries --out season.json` — a season where players grow, age and get hurt, on through the offseason (ADR-087; either switch alone works; both off by default)
 - `pnpm --filter @ff/calibration player-checks [--seeds 20] [--shard 1/3]` — ADR-087's single-season checks in four arms (`reports/player-checks.md`); run shards 1/3, 2/3, 3/3 in separate shells to go faster
@@ -65,6 +66,7 @@ Delegate implementation to the owning sub-agent. Never let one agent write in an
 - `pnpm --filter @ff/calibration season -- --seed <seed> --engine-rules pocket-1.s1 --out season.json` (or `export-game --seed <seed> --engine-rules pocket-1.s1`) — play the ADR-089 step-1 build behind its switch (the default is `legacy`); a save is stamped `pocket-1.s1@<overlay digest>`
 - `pnpm --filter @ff/calibration pocket -- --step 2 [--shard 1/3] --report reports/adr-089-step2.md --out reports/adr-089-step2.json` — ADR-089 step 2: play the 12 runs (A0, A14, A1, A5, A11, B1 to B7) on both seed sets and grade them under amendment AM-1 (about 25 minutes with shards 1/3, 2/3 and 3/3 in three shells once A1 is cached; A1 alone about 6.5 minutes); paths are relative to the package; finished arm-sets are cached by source fingerprint, so a re-run reads them; step 2's committed records were written by this command. `--arms A1,B3` plays some runs; `--seed-set 1|2` is reported, never graded; `--m2` prints M2 and stops; `--digests --out <file>` plays the golden 50 a league under A1, A5, A11 and B1 to B7 with no cache (about 5 to 6 minutes)
 - `pnpm --filter @ff/calibration season -- --seed <seed> --engine-rules pocket-1.s2 --out season.json` (or `export-game --seed <seed> --engine-rules pocket-1.s2`) — play the ADR-089 step-2 build behind its switch (the default is `legacy`); a save is stamped `pocket-1.s2@<overlay digest>`
+- `pnpm --filter @ff/calibration snap-spots [-- --out <file>]` — ADR-090 step 0: draw where every man stands at the snap for every call against every formation (about 2 seconds; no seed, no game) and check the table against the owner's August ranges (`reports/adr-090-step0.md`; the path is relative to the package)
 
 ## Current State
 
