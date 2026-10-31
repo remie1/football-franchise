@@ -435,3 +435,19 @@ claim in that file that this sweep falsifies or discharges:
   `applyTunablePatch`, asserts nothing about the committed value, and its `population` stage is the
   cheapest available answer to "does this channel still have a live population" after any caller
   change.
+
+## Amendment (ADR-089 step 3, `pocket-1.s3` only)
+
+Under ADR-089's step-3 rules, which run only behind the `pocket-1.s3` switch, **a free runner
+nobody touched is no longer timed from `freeRunnerArrivalSeconds`**. UNBLOCKED, BLOWN_UP and
+LOOPER_FREE men, and a LATE_EXCHANGE looper who had no blocker, run on ADR-089's free-run clock
+(its §4.4.3 to §4.4.5 and default D19; amendment AM-2, ADR-089 Appendix G, G.8): from his own spot
+in the snap picture ADR-090 publishes (`PLAY_START.payload.snap`), at his own Speed and
+Acceleration read through `getAttr` (default D18), to the depth of the offense call's
+`dropDepthYards` (default D22), rounded to a tenth of a second, with no die. A man somebody got a
+hand on (RAN_THROUGH, LATE_EXCHANGE) is a late, weak block instead (`t_e` 1.0 s, `w` 0.1; AM-2).
+So the clock this ADR found consulting "no die, no attribute and no alignment" reads, under the
+switch, where he starts, his two ratings and the drop, and still no die (ADR-005).
+
+Under `legacy`, which is the default, and under `pocket-1.s1` and `pocket-1.s2`, nothing above
+applies: the 1.5 s value and ADR-031's path term time every free runner as before.
