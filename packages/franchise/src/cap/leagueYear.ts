@@ -146,13 +146,15 @@ function unusedRoom(team: TeamId, season: number, people: Pick<LeaguePeople, "ca
 }
 
 /**
- * Step 11: a back-loaded deal's second year must fit the season after's room (its top 51 and the
- * team's cushion), as a front office checks before it signs. A one-year deal always passes.
+ * Step 11: a back-loaded deal's second year must fit the season after's room, as a front office checks
+ * before it signs: that season's top 51, less the team's cushion and the free-agency room it will want
+ * that March (it does not spend next year's free-agency money now). A one-year deal always passes.
  */
-function secondYearFits(team: TeamId, c: PlayerContract, book: Book, cap: CapForSeason, cushion: number): boolean {
+function secondYearFits(team: TeamId, c: PlayerContract, book: Book, cap: CapForSeason, plan: CapPlan): boolean {
   const y = c.years.filter((x) => !x.voidYear)[1];
   if (!y) return true;
-  return capNumber(y) <= cap(y.season) - teamCapTotal(team, y.season, book.contracts, book.dead, { top51: true }).total - cushion;
+  const keep = plan.cushion + plan.marchRoom * MARKET.freeAgencyShare * cap(y.season);
+  return capNumber(y) <= cap(y.season) - teamCapTotal(team, y.season, book.contracts, book.dead, { top51: true }).total - keep;
 }
 
 /**
@@ -328,7 +330,7 @@ function reSign(
         const offer = buildOffer(p, team.id, next, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
         // A team does not let its last man at a starting seat walk over next year's room.
         const lastMan = gradesAt(pos).length < Math.max(1, STARTERS[pos]);
-        if (capNumber(offer.years[0]!) <= room && (lastMan || secondYearFits(team.id, offer, book, config.cap, plan(team.id).cushion))) {
+        if (capNumber(offer.years[0]!) <= room && (lastMan || secondYearFits(team.id, offer, book, config.cap, plan(team.id)))) {
           const ask = askingPrice(p, valuePlayer(p, config.rate(p), curves, minimumSalary(next, cs, config.cap)).apy, "VALUE", 0, minimumSalary(next, cs, config.cap), ctx.seed, ctx.season);
           const worth = offerWorth(p, {
             apy: v.apy, guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
@@ -364,7 +366,7 @@ function reSign(
       if (v.percentile < MARKET.extendPercentile) continue;
       const offer = buildOffer(p, team.id, first, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
       if (capNumber(offer.years[0]!) > roomFor(team.id, first, book, config.cap, plan(team.id).cushion, 0, plan(team.id).lookAhead)) continue;
-      if (!secondYearFits(team.id, offer, book, config.cap, plan(team.id).cushion)) continue;
+      if (!secondYearFits(team.id, offer, book, config.cap, plan(team.id))) continue;
       const ask = askingPrice(p, valuePlayer(p, config.rate(p), curves, floor).apy, "VALUE", 0, floor, ctx.seed, ctx.season);
       const worth = offerWorth(p, {
         apy: apyOf(offer), guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
@@ -734,7 +736,7 @@ function freeAgency(
         const apy = Math.max(floor, Math.round(v.apy * (MARKET.offerBase + MARKET.offerNeed * need) / 1000) * 1000);
         const contract = buildOffer(p, t.id, season, ctx.day, apy, v.years, v.percentile, cs, config.cap, "VETERAN");
         if (capNumber(contract.years[0]!) > room) continue;
-        if (!secondYearFits(t.id, contract, book, config.cap, plan(t.id).cushion)) continue;
+        if (!secondYearFits(t.id, contract, book, config.cap, plan(t.id))) continue;
         // A hole (fewer than the position's starters, at least one) comes before any upgrade.
         const hole = here.length < Math.max(1, STARTERS[pos]) ? HOLE_FIRST : 0;
         const score = hole + (g - 50) * POSITION_VALUE[pos] * (1 + need);

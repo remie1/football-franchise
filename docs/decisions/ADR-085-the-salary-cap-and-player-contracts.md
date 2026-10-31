@@ -333,16 +333,17 @@ veteran salary benefit, in-season street signings and injured reserve, compensat
 - **Changes.**
   - `veteranContract` takes `firstYearShare`. Every offer (free agency and extensions) is shaped to the real share for its size. The later years rise to make up the rest. The bonus's yearly proration is a floor, so the biggest deals come to about 38%, not 34%. A shaped deal guarantees as much base salary as an even deal.
   - `MARKET.freeAgencyShare` = 0.2 of the cap (counted) replaces the $35M `freeAgencyRoom`. The leaning's `marchRoom` still scales it.
-  - `secondYearFits`: a signing, re-signing or extension must fit its second year into that season's room (top 51, less the cushion). A team's last man at a starting position is exempt.
+  - `secondYearFits`: a signing, re-signing or extension must fit its second year into that season's room. That room is the top 51, less the cushion and the free-agency room the team will want that March. A team's last man at a starting position is exempt.
   - The look-ahead counts next season's top 51 and holds back at most `MARKET.lookAheadMost` = 10% of next season's cap. That is the 49ers' case from the owner's note (REPORTED case; the bound is judgment). Before, it counted all 90 and had no limit.
   - A team turned down moves to its next target that day. `MARKET.rounds` goes from 3 to 8.
   - Teams chase any veteran who would make their 53 by the upgrade margin, not only starters.
   - Void years in restructures are for win-now teams only (leaning 33 and under, was 67; CHOSEN). With real shapes, void years for two thirds of teams left $30-40M a team of dead money a year.
+- **Later years** (the owner chose "fix the later years first"). Checking the second year against the cushion alone left teams starting each March $0M to $50M over the cap, and new-team signings fell from 144 in year one to 52 to 79 after it. Keeping next March's free-agency room in the check fixed most of that.
 - **Five-year check** (`reports/cap-check.md`):
-  - New-team deals of $2M+ average 83 a year (67; real 180 to 240), and 144 in the first year.
-  - New-team deals of $5M+ average 58 (50; real 80 to 120).
-  - Own-team deals of 2+ years average 145 (144; real 210 to 290).
-  - Dead money averages $24.3M a team (20.1; real about 34) and reaches $35M by year five.
-  - Cap use is 97%. No team ends a year more than 2% over its cap (step 10: up to 8%).
-- **Still open.** After the first year, new-team signings fall to 52 to 79, because the later years of the first year's deals fill the room. Real teams keep signing at about the same pace each year. The likely next lever is cutting veterans in March whose later-year cost has outrun their play (real cap casualties), while keeping dead money near the real figure.
+  - New-team deals of $2M+ average 108 a year (67; real 180 to 240): 140 in year one and 100 a year after it.
+  - New-team deals of $5M+ average 74 (50; real 80 to 120).
+  - Own-team deals of 2+ years average 149 (144; real 210 to 290).
+  - Dead money averages $21.5M a team (20.1; real about 34).
+  - Cap use is 97%. No team ends a year more than 1% over its cap.
+- **Still open.** New-team deals are still about half the real number. Own-team multi-year deals dip in 2029 (51).
 

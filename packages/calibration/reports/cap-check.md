@@ -139,7 +139,7 @@ What I found:
 Changes:
 - New deals now follow the real first-year shares. The later years rise to make up the rest, and a shaped deal guarantees as much base salary as an even one.
 - Teams clear 20% of the cap for free agency in March (counted, as above), up from $35M. The step-10 leaning still sets how much of that each team clears.
-- A deal's second year must fit the next season's room, because a front office checks that before it signs. A team's last man at a starting position is exempt.
+- A deal's second year must fit the next season's room, less the cushion and next March's free-agency room. A front office checks this before it signs, and it does not spend next year's free-agency money now. A team's last man at a starting position is exempt.
 - The look-ahead counts next season's top 51 and holds back at most 10% of next season's cap, about the 49ers' case.
 - A team that is turned down moves on to its next target. There are now up to 8 rounds of offers a market day.
 - Teams now chase any veteran who would make their 53 by a clear margin, not only starters.
@@ -147,15 +147,14 @@ Changes:
 
 | League year | 2027 | 2028 | 2029 | 2030 | 2031 | Mean | Step 10 | Real |
 |---|---|---|---|---|---|---|---|---|
-| New-team deals, $2M+ | 144 | 73 | 52 | 79 | 65 | 83 | 67 | 180 to 240 |
-| New-team deals, $5M+ | 91 | 46 | 38 | 65 | 48 | 58 | 50 | 80 to 120 |
-| Own-team deals of 2+ years | 301 | 117 | 44 | 119 | 146 | 145 | 144 | 210 to 290 |
-| Dead money, mean a team ($M) | 11.9 | 15.7 | 28.0 | 30.5 | 35.3 | 24.3 | 20.1 | about 34 |
-| Cap used, median | 95.9% | 96.7% | 97.3% | 97.6% | 98.0% | 97.1% | 97.2% | |
-| Carried over, mean a team ($M) | 5.0 | 6.6 | 6.9 | 7.9 | 8.1 | 6.9 | 6.5 | |
-| Cap used, highest | 100.0% | 100.1% | 101.7% | 100.3% | 100.4% | | up to 108% | |
+| New-team deals, $2M+ | 140 | 125 | 77 | 111 | 86 | 108 | 67 | 180 to 240 |
+| New-team deals, $5M+ | 81 | 89 | 53 | 86 | 60 | 74 | 50 | 80 to 120 |
+| Own-team deals of 2+ years | 300 | 116 | 51 | 118 | 158 | 149 | 144 | 210 to 290 |
+| Dead money, mean a team ($M) | 11.9 | 15.7 | 27.2 | 24.7 | 27.8 | 21.5 | 20.1 | about 34 |
+| Cap used, median | 96.0% | 97.1% | 97.8% | 97.7% | 97.9% | 97.3% | 97.2% | |
+| Cap used, highest | 100.0% | 100.0% | 100.2% | 100.0% | 101.1% | | up to 108% | |
 
-The first year now looks real: 144 new-team deals of $2M+. Later years fall back to 52 to 79. The rising later years of the deals signed in year one take up the room. Dead money now settles near the real figure, and no team ends a year far over its cap.
+**Later years (owner: fix them before merging).** A first version had 144 new-team deals in year one but only 52 to 79 a year after it. The first year's deals filled the next year's room, so teams began each March $0M to $50M over the cap, and most could not clear enough for free agency. Now the second-year check also keeps the room the team will want for free agency next March. After that change, years two to five average 100 new-team deals of $2M+ a year (year one: 140). Teams start March with a median of $6M to $22M of room. 2029 is still the low year, with 77.
 
 I tried and did not keep:
 - Void years for two thirds of the league. That raised new-team deals to about 100 a year, but dead money climbed to $59M a team by year five.
