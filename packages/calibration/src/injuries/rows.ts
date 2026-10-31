@@ -66,7 +66,7 @@ export interface SnapRow {
 }
 
 /** Scan a CSV and decode each regular-season row with `decode`; rows it returns null for are dropped. */
-function scan<T>(
+export function scan<T>(
   text: string,
   required: readonly string[],
   extra: readonly string[],
@@ -93,7 +93,7 @@ function scan<T>(
   return out;
 }
 
-const isRegular = (row: RowView): boolean => (row.text("game_type") ?? "REG") === "REG";
+export const isRegular = (row: RowView): boolean => (row.text("game_type") ?? "REG") === "REG";
 
 /** `games.csv` covers every season since 1999; keep the regular-season games of `seasons`. */
 export function parseGames(text: string, seasons: readonly number[]): GameRow[] {

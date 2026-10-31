@@ -14,6 +14,7 @@
     "pocket": "vite-node src/pocket/main.ts --",
     "player-checks": "vite-node src/season/playerChecksMain.ts --",
     "injury-rates": "vite-node src/injuries/main.ts --",
+    "nfl-careers": "vite-node src/careers/main.ts --",
     "cap-check": "vite-node src/season/capCheckMain.ts --",
     "draft-check": "vite-node src/season/draftCheckMain.ts --",
     "snap-spots": "vite-node src/snapSpots/main.ts --"
