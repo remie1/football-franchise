@@ -612,10 +612,12 @@ const LOOK_AT = { formation: FIRST_FORMATION, unit: buildOffensiveUnit(FIRST_FOR
 const HONEST: DefensivePlayCall = instantiateDefense(NICKEL_COVER_3_SKY, NICKEL, LOOK_AT).call;
 
 const codes = (call: DefensivePlayCall): readonly string[] => validateFrontLook(call).map((d) => d.code);
+/** The call wearing the tags over the shown rush; a Stem states its Mike too (ADR-091 M2, `C_STEM_FIELD`). */
 const wearing = (call: DefensivePlayCall, shownRush: readonly ShownRusher[], ...tags: DefensiveTag[]): DefensivePlayCall => ({
   ...call,
   tags: [...call.tags, ...tags],
   shownRush,
+  ...(tags.some((t) => t.id === "STEM") ? { stem: { kind: "STEM" as const, trigger: entry(0).rusher } } : {}),
 });
 const entry = (i: number): ShownRusher => {
   const e = HONEST.rush[i];
@@ -643,7 +645,7 @@ describe("ADR-073 §3.5 — 6. R28: a front LOOK tag iff a second shown rush, wh
   it("refuses a tag over the identity", () => {
     expect(HONEST.rush.length).toBe(4);
     expect(codes(wearing(HONEST, HONEST.rush, frontLookTag("MUG")))).toEqual(["C_FRONT_LOOK_UNWORN"]);
-    expect(codes({ ...HONEST, tags: [...HONEST.tags, frontLookTag("STEM")] })).toEqual(["C_FRONT_LOOK_UNWORN"]);
+    expect(codes({ ...HONEST, tags: [...HONEST.tags, frontLookTag("STEM")], stem: { kind: "STEM", trigger: entry(0).rusher } })).toEqual(["C_FRONT_LOOK_UNWORN"]);
   });
 
   it("refuses a second array with no tag, whether or not it differs", () => {
@@ -718,6 +720,17 @@ describe("ADR-073 §3.5 — 6. R28: a front LOOK tag iff a second shown rush, wh
     const coverageLook = lookTag(SHOW_2);
     expect(codes(wearing(HONEST, shown, frontLookTag("MUG"), coverageLook))).toEqual(["C_FRONT_LOOK_ORDER"]);
     expect(codes(wearing(HONEST, shown, coverageLook, frontLookTag("MUG")))).toEqual([]);
+  });
+
+  it("refuses a Stem without its stem field, and the field without the Stem (ADR-091 M2)", () => {
+    const shown = replaced(1, { ...entry(1), side: "RIGHT" });
+    const stem = wearing(HONEST, shown, frontLookTag("STEM"));
+    expect(codes(stem)).toEqual([]);
+    const { stem: _mike, ...unstated } = stem;
+    expect(codes(unstated)).toEqual(["C_STEM_FIELD"]);
+    const mug = wearing(HONEST, shown, frontLookTag("MUG"));
+    expect(codes({ ...mug, stem: { kind: "STEM", trigger: entry(0).rusher } })).toEqual(["C_STEM_FIELD"]);
+    expect(codes({ ...HONEST, stem: { kind: "STEM", trigger: entry(0).rusher } })).toEqual(["C_STEM_FIELD"]);
   });
 
   it("refuses a front tag whose name is not its id's word", () => {
@@ -805,6 +818,9 @@ function expectWorn(defense: InstantiatedDefense, draw: FrontLookDraw, label: st
   expect(defense.call.shownRush, label).toBe(defense.call.rush);
   const { call } = worn;
   expect(validateFrontLook(call), label).toEqual([]);
+  // ADR-091 M2: a Stem names the Mike who calls it; a Mug writes no `stem` key.
+  if (draw.look === "STEM") expect(call.stem, label).toStrictEqual({ kind: "STEM", trigger: playerOf(defense, "LB_M") });
+  else expect("stem" in call, label).toBe(false);
 
   expect(call.assignments, label).toBe(defense.call.assignments);
   expect(call.shownAssignments, label).toBe(defense.call.shownAssignments);

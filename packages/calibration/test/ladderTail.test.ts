@@ -430,9 +430,12 @@ describe("ladder tail — the derivation", () => {
     // The pre-ratification ladder was compliant at ZERO of the engine's thirty target shifts; the
     // ratified one at 28. The two that remain are checks whose stack sits far ABOVE its target — a
     // rating quantity, which no ladder can reach. ADR-072's `leash_discipline` added three shifts
-    // (33 in all), every one compliant, so 31; the same two still fail.
+    // (33 in all), every one compliant, so 31; the same two still fail. ADR-090 step 3's seven rolls
+    // at the line (ADR-091's stem, ADR-092's count read, and the center's re-call) added fourteen
+    // (47 in all), every one compliant, so 45; the same two still fail.
     expect(targetCompliantShifts(preRatificationLadder(), targetShifts)).toHaveLength(0);
-    expect(ok.length).toBe(31);
+    expect(ok.length).toBe(45);
+    expect(targetShifts.filter((s) => !ok.includes(s))).toEqual([6, 30]);
     const bad = new Set(targetShifts.filter((s) => !ok.includes(s)));
     const blamed = ladderStructures()
       .filter((s) => s.form === "TARGET")

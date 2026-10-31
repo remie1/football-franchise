@@ -26,7 +26,7 @@
 import {
   ATTRIBUTE_REGISTRY_V1, DEFAULT_LEAGUE_RULES, SAVE_FORMAT_VERSION, compareStamps, stampToString,
   type CalendarStamp, type DeadMoneyCharge, type FranchiseEventEnvelope, type LeagueRules, type PlayerContract, type PlayerState, type RelationshipView,
-  type SaveFile, type SeasonState,
+  type SaveFile, type SeasonState, type StaffMeeting,
 } from "@ff/contracts";
 import type { StaffWorld } from "../staff/world.js";
 import { peopleFromSave } from "../draft/steps.js";
@@ -70,6 +70,8 @@ export interface MakeSaveInput {
   deadMoney?: readonly DeadMoneyCharge[];
   /** ADR-087 S1: the players' steps' events this season and their memory (`LeaguePeople.playerMemory`). */
   development?: { events: readonly FranchiseEventEnvelope[]; depthMemory: PlayerMemory };
+  /** ADR-081 G2: each team's last end-of-season meeting. */
+  meetings?: readonly StaffMeeting[];
 }
 
 export function makeSave(input: MakeSaveInput): SaveFile {
@@ -93,6 +95,7 @@ export function makeSave(input: MakeSaveInput): SaveFile {
       staff: staff?.world.staff ?? [],
       ...(staff ? { staffContracts: staff.world.contracts } : {}),
       ...(staff?.relationships ? { relationships: [...staff.relationships] } : {}),
+      ...(input.meetings ? { meetings: [...input.meetings] } : {}),
       ...(input.draft ? { draft: input.draft } : {}),
       contracts: [...(input.contracts ?? [])],
       ...(input.deadMoney ? { deadMoney: [...input.deadMoney] } : {}),
@@ -228,6 +231,17 @@ export function readSave(input: unknown): LoadedSave {
     }
   }
 
+  if (w.meetings !== undefined) {
+    if (!Array.isArray(w.meetings)) refuse("its staff meetings are damaged");
+    const teamIds = new Set(w.teams.map((t) => String(t.id)));
+    const staffIds = new Set(w.staff.map((s) => String(s.id)));
+    for (const m of w.meetings) {
+      if (!isObject(m) || !Array.isArray(m.takes) || !Array.isArray(m.clashes)) refuse("a staff meeting is damaged");
+      if (!teamIds.has(String(m.team))) refuse(`a staff meeting is for a team that does not exist (${String(m.team)})`);
+      for (const t of m.takes) if (!staffIds.has(String(t.speaker))) refuse(`a staff meeting quotes someone who is not in the save (${String(t.speaker)})`);
+    }
+  }
+
   const league: League = { seed: save.worldSeed, structure: w.league, teams: w.teams };
   const staff = w.staff.length === 0 && w.staffContracts === undefined && w.relationships === undefined
     ? undefined : readStaff(save);
@@ -260,7 +274,10 @@ export function readSave(input: unknown): LoadedSave {
     // A file lists each player's traits; the game reads them as a set.
     const players = people.players.map((p) => Array.isArray(p.attributes.traits)
       ? { ...p, attributes: { ...p.attributes, traits: new Set<string>(p.attributes.traits as unknown as string[]) } } : p);
-    return { people: { ...people, players, playerMemory: w.development!.depthMemory as PlayerMemory }, events: w.development!.events };
+    return {
+      people: { ...people, players, playerMemory: w.development!.depthMemory as PlayerMemory, ...(w.meetings ? { meetings: w.meetings } : {}) },
+      events: w.development!.events,
+    };
   })();
   return { save, league, rules, ...(staff ? { staff } : {}), ...(development ? { development } : {}) };
 }

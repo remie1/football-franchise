@@ -1,5 +1,6 @@
 /** Player, staff, team, and contract shapes. Cap math lives in franchise. */
 import type { PlayerId, TeamId, StaffId, Position, AttrId, CoachAttrId } from "./ids.js";
+import type { TeamDirection } from "./meeting.js";
 import type { AttributeMap, TraitSet } from "./registry.js";
 import type { CalendarStamp } from "./calendar.js";
 import type { DefensiveDisguiseTendency, StaffJob } from "./staff.js";
@@ -165,7 +166,9 @@ export interface PlayerState {
 export type StaffRole =
   | "HEAD_COACH" | "OC" | "DC" | "STC" | "POSITION_COACH"
   | "SCOUTING_DIRECTOR" | "SCOUT" | "PLAYER_ENGAGEMENT" | "STRENGTH"
-  | "CAP_MANAGER" | "PRESIDENT";
+  | "CAP_MANAGER" | "PRESIDENT"
+  /** ADR-081 G1: the general manager. Advises when the user holds the GM's decisions, makes them when not. */
+  | "GM";
 
 export interface StaffState {
   id: StaffId;
@@ -250,6 +253,8 @@ export interface Team {
   practiceSquad?: PlayerId[];
   capState: CapState;
   staffBudget: { limit: number; committed: number };
+  /** ADR-081 G3: the course set after the end-of-season meeting. Absent until one is set. */
+  direction?: TeamDirection;
 }
 
 export interface ContractYear {

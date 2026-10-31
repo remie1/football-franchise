@@ -726,6 +726,9 @@ export function simulatePassPlay(
   };
   log.setTick(undefined);
   log.playStart(startPayload);
+  // ADR-091 step S-a: the sideline's adjustments and the stem at the line, as the game loop resolved
+  // them (legacy rules only); nothing below reads them.
+  log.atTheLine(state.atTheLine);
 
   // §5.3's recognition, then §7.4's pickups and §7.3's exchanges. Emitted after
   // PLAY_START and before the first TICK, which is where they belong: they

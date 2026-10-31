@@ -5,6 +5,7 @@ import type { Team, PlayerState, StaffState, PlayerContract, PerceivedAttributes
 import type { StaffContract } from "./staff.js";
 import type { FranchiseEventEnvelope } from "./events.js";
 import type { RelationshipView } from "./relationships.js";
+import type { StaffMeeting } from "./meeting.js";
 
 export const SAVE_FORMAT_VERSION = 1;
 
@@ -27,6 +28,8 @@ export interface SaveFile {
     staffContracts?: StaffContract[];
     /** ADR-084 V1: every staff member's views, one entry per direction. Optional, as above. */
     relationships?: RelationshipView[];
+    /** ADR-081 G2: each team's last end-of-season meeting, for next year's report card. Optional, as above. */
+    meetings?: StaffMeeting[];
     /**
      * ADR-086 C6: the draft. Every pick of every future draft someone holds (untraded picks may be
      * left out: a team holds its own by default), the classes, and last year's free-agent moves for

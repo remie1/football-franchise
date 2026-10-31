@@ -148,15 +148,25 @@ windows. Its fix is designed right after the pocket fix, measured on the fixed p
   yes for contract changes S1, S2 and S5): every play now records where all 22 men stood at the
   snap, and the game viewer draws it at the top of a play's details. No game changed: every pinned
   game is the same once the picture is set aside (`snap-spots -- --step 1`,
-  `packages/calibration/reports/adr-090-step1.md`).
+  `packages/calibration/reports/adr-090-step1.md`). Step 3 is built (31 October 2026): the stem
+  plays out at the line and the picture shows how it ended (the stem below).
 - The stem called by the Mike (ADR-091): he times MOVE against the quarterback's count with his
   Awareness and Play Recognition, the line can be caught moving, and offside is enforced by the
   NFL's own rules. Each defensive coordinator stems at his own rate, about 9 times a game on
-  average.
+  average. Its first step is built (31 October 2026, your typed yes for contract changes M1 to
+  M4 and R2 to R4): wherever the defense wears a Stem, the quarterback's count, the Mike's timing,
+  each lineman's shift, the snap on movement and the center's re-call now play out at the line,
+  are recorded, and show on the snap picture. Nothing after the snap reads them yet, so no game
+  changed. On today's 4 stems in 100 snaps, they worked about 70 times in 100 and were caught 15
+  to 19 times (`snap-spots -- --step 3`, `packages/calibration/reports/adr-090-step3.md`). The
+  stem's effects, and each coordinator's rate, come once the pocket fix finishes measuring.
 - The battle over the snap count (ADR-092): the defensive coordinator's film study and the Mike's
   ear decide how well the defense knows the count, and the offensive coordinator fixes it during
-  the game. You chose to have the count matter on every snap (jumping the count, false starts)
-  in a design of its own after the pocket fix, with officials who sometimes miss a call.
+  the game. Built with the stem's first step, with every coordinator at 50 for now: in the two
+  test leagues the read climbs from 35 to 40 in the first quarter to 48 to 55 after halftime, and
+  the offensive coordinator changes his count about once a game. You chose to have the count matter on every
+  snap (jumping the count, false starts) in a design of its own after the pocket fix, with
+  officials who sometimes miss a call.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.
@@ -191,8 +201,14 @@ colleague, running both ways (close, good, professional, strained or broken), nu
 choices, swung by big moments and, now and then, by a storyline about the coaches. Built so far:
 the record of every view, how each drifts back to what the two men's personalities make normal,
 grudges, and the moves the coaching carousel makes by itself (a hire, a firing, an extension, the
-season's results). Next, views will feed who stays, how hot the staff meeting's arguments get, and
-what leaks to the press; they never change a game.
+season's results). Since 31 October 2026, a season played with `--development` or `--injuries`
+runs the coaching carousel after the playoffs on that season's real results, and the views drift
+week by week through the year; `--save` keeps the new staffs and their views. A sour coordinator
+may refuse a new contract, a head coach's opinion counts when he judges his coordinators, and a new
+head coach weighs how well an inherited coordinator's style fits. The news covers the coaching
+carousel (each head coach fired and hired, a coordinator roundup) and prints unnamed leaks from sour
+staff rooms. Next, the end-of-season meeting, where views will set how hot arguments get. Views never change a
+game.
 
 **Players grow, age and get hurt (ADR-087, built 24 October 2026, off by default):** with
 `--development` and/or `--injuries` on the season command, every player's ratings move a little

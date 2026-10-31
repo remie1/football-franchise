@@ -1986,10 +1986,17 @@ describe("ADR-073 step 3.5, callerVersion v7", () => {
             if (!isEqual(call.tags.slice(0, -1), [...base.tags])) fail("the tags before the look are not v6's");
             const last = call.tags[call.tags.length - 1];
             if (last === undefined || !isFrontLookTag(last)) fail("the front look is not the last tag");
-            const { shownRush: _a, tags: _b, ...rest } = call;
+            // ADR-091 M2 (ADR-090 step 3): a Stem also carries its stem, the Mike calling it, as the
+            // call's last key; a Mug carries none.
+            const { shownRush: _a, tags: _b, stem, ...rest } = call;
             const { shownRush: _c, tags: _d, ...baseRest } = base;
-            if (!isEqual(rest, baseRest)) fail("a key other than shownRush and tags differs from v6's");
-            if (!sameKeys(call, base)) fail("the call's key order is not v6's");
+            if (!isEqual(rest, baseRest)) fail("a key other than shownRush, tags and stem differs from v6's");
+            const { stem: _e, ...unstemmed } = call;
+            if (!sameKeys(unstemmed, base)) fail("the call's key order is not v6's");
+            if (fronts[0] === "STEM") {
+              if (stem?.kind !== "STEM") fail("a Stem without its stem field (ADR-091 M2)");
+              if (Object.keys(call).at(-1) !== "stem") fail("the stem is not the call's last key");
+            } else if (stem !== undefined) fail(`a ${fronts[0]!} carrying a stem field`);
             if (call.shownRush === call.rush) fail("a front look, and shownRush is the played rush array");
             for (const d of validateFrontLook(call)) fail(`R28: ${d.code} at ${d.where}`);
             // The picture itself: the snap re-instantiated as the caller instantiates it (the called
@@ -2009,6 +2016,7 @@ describe("ADR-073 step 3.5, callerVersion v7", () => {
               });
               if (!isEqual(instance.call, base)) fail("the snap re-instantiated is not v6's call");
               if (!isEqual(call, applyFrontLook(instance, drawn).call)) fail(`the worn call is not applyFrontLook(instance, ${JSON.stringify(drawn)})`);
+              if (fronts[0] === "STEM" && call.stem?.trigger !== instance.byRole.LB_M) fail("the stem is not called by the Mike (LB_M)");
             }
             if (call.tags.some((t) => t.kind === "LOOK" && !isFrontLookTag(t))) counts.wornWithCoverageLook += 1;
           }

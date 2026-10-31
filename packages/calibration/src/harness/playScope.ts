@@ -114,6 +114,14 @@
  * the play, never in its numbering. Stated rather than assumed, because a silent substitution in a
  * replay harness is exactly how a measurement of the harness gets published as a measurement of the
  * engine.
+ *
+ * **And one thing carried, declared (ADR-090 step 3):** the records at the line — the sideline's
+ * count read and the stem, which the GAME LOOP resolves before the snap under `legacy` rules and
+ * hands the play on its state (`MatchGameState.atTheLine`) — are read back from the play's own
+ * stream onto the replayed state, and the count the stem was played against onto the offense's
+ * call, as the loop put them. They are the play's entering state, like the down and the distance,
+ * so both arms replay them as the control arm's game handed them over; an arm that moved the tier
+ * ladder would re-tier them in a real game and does not here, and nothing reads those tiers.
  */
 import type { CalendarStamp, MatchEventEnvelope, SnapPicture } from "@ff/contracts";
 import {
@@ -224,6 +232,11 @@ export function capturePlays(
       last.defenseCall = call;
       return call;
     },
+    // ADR-090 step 3: the count is the inner caller's answer, passed through untouched, so the stem
+    // is played against the count it chose; `finish` reads it back off the play's STEM.
+    ...(caller.cadence === undefined
+      ? {}
+      : { cadence: ((request, rng) => caller.cadence?.(request, rng) ?? "NORMAL") satisfies NonNullable<PlayCaller["cadence"]> }),
     // ADR-090 S5: the picture rides on the calls, so a replay that dropped it would not be the play.
     ...(caller.lineUp === undefined
       ? {}
@@ -253,7 +266,8 @@ export function capturePlays(
     home: wrap(inner.home),
     away: wrap(inner.away),
     finish(events) {
-      const numbers = scrimmagePlayNumbers(events, gameId);
+      const scrimmage = scrimmagePlays(events, gameId);
+      const numbers = scrimmage.map((p) => p.playNumber);
       if (numbers.length !== pending.length) {
         throw new PlayCaptureError(
           `captured ${String(pending.length)} play calls and the stream carries ` +
@@ -270,6 +284,7 @@ export function capturePlays(
           );
         }
         const offenseSnapshot = p.request.offense;
+        const atTheLine = scrimmage[ordinal]?.atTheLine ?? [];
         const state: MatchGameState = {
           gameId,
           at,
@@ -286,20 +301,53 @@ export function capturePlays(
           ...(offenseSnapshot.chemistry === undefined
             ? {}
             : { chemistry: offenseSnapshot.chemistry }),
+          ...(atTheLine.length === 0 ? {} : { atTheLine }),
         };
         const snap = p.snap === undefined ? {} : { snap: p.snap };
+        // ADR-090 step 3: the count the stem was played against rides on the offense's call.
+        const stem = atTheLine.find((r): r is Extract<AtTheLineRecord, { type: "STEM" }> => r.type === "STEM");
+        const offenseCall = stem === undefined ? p.offenseCall : { ...p.offenseCall, cadence: stem.payload.cadence };
         const calls: AnyPlayCalls =
-          p.offenseCall.kind === "RUN"
-            ? ({ offense: p.offenseCall, defense: defenseCall, ...snap } satisfies RunPlayCalls)
-            : ({ offense: p.offenseCall as OffensivePlayCall, defense: defenseCall, ...snap } satisfies PlayCalls);
+          offenseCall.kind === "RUN"
+            ? ({ offense: offenseCall, defense: defenseCall, ...snap } satisfies RunPlayCalls)
+            : ({ offense: offenseCall as OffensivePlayCall, defense: defenseCall, ...snap } satisfies PlayCalls);
         return { ordinal, playNumber, state, calls };
       });
     },
   };
 }
 
+/** What the loop hands a play from the line (ADR-090 step 3), as `MatchGameState` carries it. */
+type AtTheLineRecord = NonNullable<MatchGameState["atTheLine"]>[number];
+
+/** The CHECK kinds rolled at the line: the stem's (ADR-091 M4, the re-call's `communication`) and the sideline's (ADR-092 R4). */
+const AT_THE_LINE_CHECKS: ReadonlySet<string> = new Set([
+  "stem_timing",
+  "stem_shift",
+  "snap_on_movement",
+  "communication",
+  "adjustment_notice",
+  "adjustment_read",
+  "habit_drop",
+]);
+
+/** The event as a record at the line, or undefined when it is the play's own. */
+function atTheLineRecord(event: MatchEventEnvelope["event"]): AtTheLineRecord | undefined {
+  switch (event.type) {
+    case "STEM":
+      return { type: "STEM", payload: event.payload };
+    case "SIDELINE_ADJUSTMENT":
+      return { type: "SIDELINE_ADJUSTMENT", payload: event.payload };
+    case "CHECK":
+      return AT_THE_LINE_CHECKS.has(event.payload.checkKind) ? { type: "CHECK", payload: event.payload } : undefined;
+    default:
+      return undefined;
+  }
+}
+
 /**
- * The play numbers of the scrimmage plays, in stream order.
+ * The scrimmage plays, in stream order: each one's play number, and the records at the line the
+ * loop wrote right after its `PLAY_START` (ADR-090 step 3; none under `pocket-1`).
  *
  * `PlayEventLog` addresses a scrimmage play as `<gameId>:play:<n>` and a kick as
  * `<gameId>:<kind>:<n>`, so the discriminator is the literal segment and not a guess about which
@@ -307,25 +355,33 @@ export function capturePlays(
  * silently dropped play would shorten this list and the join above would then reject the whole
  * game, which is the correct direction to fail in.
  */
-function scrimmagePlayNumbers(
+function scrimmagePlays(
   events: readonly MatchEventEnvelope[],
   gameId: unknown,
-): readonly number[] {
+): readonly { readonly playNumber: number; readonly atTheLine: readonly AtTheLineRecord[] }[] {
   const prefix = `${String(gameId)}:play:`;
-  const out: number[] = [];
-  for (const envelope of events) {
-    if (envelope.event.type !== "PLAY_START") continue;
+  const out: { playNumber: number; atTheLine: AtTheLineRecord[] }[] = [];
+  events.forEach((envelope, i) => {
+    if (envelope.event.type !== "PLAY_START") return;
     // `playId` lives on the EVENT, never on the envelope (contracts `MatchEventBase`). Reading it
     // off the envelope would silently yield `""` for every play, which the length join above then
     // refuses — loud, but for the wrong reason. Named here because that is the bug this line had.
     const id = String(envelope.event.playId);
-    if (!id.startsWith(prefix)) continue;
+    if (!id.startsWith(prefix)) return;
     const n = Number(id.slice(prefix.length));
     if (!Number.isInteger(n)) {
       throw new PlayCaptureError(`PLAY_START carries an unparseable play id: "${id}"`);
     }
-    out.push(n);
-  }
+    const atTheLine: AtTheLineRecord[] = [];
+    for (let j = i + 1; j < events.length; j++) {
+      const next = events[j]!.event;
+      if (String(next.playId) !== id) break;
+      const record = atTheLineRecord(next);
+      if (record === undefined) break;
+      atTheLine.push(record);
+    }
+    out.push({ playNumber: n, atTheLine });
+  });
   return out;
 }
 

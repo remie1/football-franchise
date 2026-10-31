@@ -515,6 +515,165 @@
         "{team} went through {path} to win it all",
         "From {record} to champions: {team} beat {path}"
       ]
+    },
+    "COACH_DEPARTS": {
+      "straight": [
+        "{teamCity} part ways with head coach after {record} season"
+      ],
+      "punchy": [
+        "{team} start over after {record}"
+      ]
+    },
+    "COACH_DEPARTS.fired": {
+      "straight": [
+        "{teamCity} fire head coach after {record} season",
+        "{team} dismiss head coach following {record} finish"
+      ],
+      "punchy": [
+        "{team} clean house after {record} season",
+        "Black Monday claims {teamCity}'s head coach"
+      ]
+    },
+    "COACH_DEPARTS.expired": {
+      "straight": [
+        "{teamCity} let head coach's contract run out after {record} season"
+      ],
+      "punchy": [
+        "No new deal: {team} head coach out after {record}"
+      ]
+    },
+    "COACH_DEPARTS.retired": {
+      "straight": [
+        "{teamCity} head coach retires"
+      ],
+      "punchy": [
+        "{team} head coach calls it a career"
+      ]
+    },
+    "COACH_DEPARTS.hiredAway": {
+      "straight": [
+        "{teamCity} head coach leaves for another job"
+      ],
+      "punchy": [
+        "{team} lose their head coach"
+      ]
+    },
+    "COACH_HIRED": {
+      "straight": [
+        "{teamCity} name new head coach"
+      ],
+      "punchy": [
+        "New era for the {team}"
+      ]
+    },
+    "COACH_HIRED.outside": {
+      "straight": [
+        "{teamCity} name new head coach",
+        "{team} hire head coach from outside the league"
+      ],
+      "punchy": [
+        "New era for the {team}",
+        "{team} go outside the NFL for their next head coach"
+      ]
+    },
+    "COACH_HIRED.retread": {
+      "straight": [
+        "{teamCity} hire former {formerCity} head coach"
+      ],
+      "punchy": [
+        "Second chance: ex-{formerTeam} head coach lands with the {team}"
+      ]
+    },
+    "COACH_HIRED.promoted": {
+      "straight": [
+        "{teamCity} promote their {formerJob} to head coach"
+      ],
+      "punchy": [
+        "{team} look in-house, promote {formerJob}"
+      ]
+    },
+    "COACH_HIRED.poached": {
+      "straight": [
+        "{teamCity} hire {formerCity}'s {formerJob} as head coach"
+      ],
+      "punchy": [
+        "{team} raid the {formerTeam} staff for their new head coach"
+      ]
+    },
+    "COORDINATOR_ROUNDUP": {
+      "straight": [
+        "{count} coordinator jobs change hands across {teamCount} teams"
+      ],
+      "punchy": [
+        "Coordinator carousel: {countWord} new play-callers and assistants around the league",
+        "Musical chairs: {count} coordinator seats turn over"
+      ]
+    },
+    "LEAK.boss": {
+      "straight": [
+        "Sources: {teamCity} {holder} frustrated with head coach",
+        "{teamCity} {holder} at odds with head coach, sources say"
+      ],
+      "punchy": [
+        "Trouble in {teamCity}? {holder} unhappy with the boss",
+        "Cracks showing on the {team} staff"
+      ]
+    },
+    "LEAK.staff": {
+      "straight": [
+        "Sources: {teamCity} head coach losing faith in his {target}"
+      ],
+      "punchy": [
+        "{team} head coach souring on his {target}, sources say"
+      ]
+    },
+    "LEAK.peers": {
+      "straight": [
+        "Sources: friction between {teamCity} {holder} and {target}"
+      ],
+      "punchy": [
+        "Not on speaking terms? {team} {holder} and {target} clash"
+      ]
+    },
+    "RIFT.boss": {
+      "straight": [
+        "{teamCity} {holder} and head coach fall out, sources say"
+      ],
+      "punchy": [
+        "Rift on the {team} staff: {holder} and head coach split"
+      ]
+    },
+    "RIFT.staff": {
+      "straight": [
+        "{teamCity} head coach and his {target} fall out, sources say"
+      ],
+      "punchy": [
+        "Rift on the {team} staff: head coach and {target} split"
+      ]
+    },
+    "RIFT.peers": {
+      "straight": [
+        "{teamCity} {holder} and {target} fall out, sources say"
+      ],
+      "punchy": [
+        "Rift on the {team} staff between {holder} and {target}"
+      ]
+    },
+    "LEAK": {
+      "straight": [
+        "Sources describe tension on the {teamCity} coaching staff"
+      ],
+      "punchy": [
+        "Cracks showing on the {team} staff"
+      ]
+    },
+    "RIFT": {
+      "straight": [
+        "Sources: a rift has opened on the {teamCity} coaching staff"
+      ],
+      "punchy": [
+        "Bad blood on the {team} staff"
+      ]
     }
   }
 }

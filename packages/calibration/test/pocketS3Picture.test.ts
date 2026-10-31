@@ -70,6 +70,11 @@ function recorder(inner: PlayCaller, out: Drawn[]): PlayCaller {
       });
       return published;
     }) satisfies LineUp,
+    // ADR-090 step 3: the pair's count (legacy rules only) passes through, so a legacy game here is
+    // the harness's game.
+    ...(inner.cadence === undefined
+      ? {}
+      : { cadence: ((request, rng) => inner.cadence?.(request, rng) ?? "NORMAL") satisfies NonNullable<PlayCaller["cadence"]> }),
     decideFourthDown: (request) => inner.decideFourthDown(request),
     decideCoinToss: (request) => inner.decideCoinToss(request),
   };

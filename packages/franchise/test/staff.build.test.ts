@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { COACH_ATTRIBUTE_REGISTRY_V1, createRng } from "@ff/contracts";
 import {
   averageSkill, buildLeague, buildStaff, freshStaff, makeCoach, seatOf, sideOf, currentJob, isRetired,
-  SEATS, STAFF_TUNING, COACH_SKILLS,
+  SEATS, STAFF_TUNING, COACH_SKILLS, MEETING_SKILLS,
 } from "../src/index.js";
 import type { StaffWorld } from "../src/index.js";
 
@@ -26,10 +26,23 @@ function claims(w: StaffWorld) {
 }
 
 describe("coach maker (ADR-080 C1)", () => {
-  it("rates every coach on all 19 skills, 1-99", () => {
-    expect(COACH_SKILLS).toEqual(Object.keys(COACH_ATTRIBUTE_REGISTRY_V1));
+  it("draws each coach's meeting skills from his own dice (ADR-081 G5)", () => {
+    const sheets = new Set(world.staff.map((s) => MEETING_SKILLS.map((id) => s.attributes[id]).join(",")));
+    expect(sheets.size).toBeGreaterThan(world.staff.length * 0.9);
+    // Same talent level as his other skills: the two averages move together.
+    const avg = (s: (typeof world.staff)[number], ids: readonly string[]) => ids.reduce((t, id) => t + s.attributes[id]!, 0) / ids.length;
+    const xs = world.staff.map((s) => avg(s, COACH_SKILLS)), ys = world.staff.map((s) => avg(s, MEETING_SKILLS));
+    const mx = xs.reduce((a, b) => a + b, 0) / xs.length, my = ys.reduce((a, b) => a + b, 0) / ys.length;
+    const cov = xs.reduce((t, x, i) => t + (x - mx) * (ys[i]! - my), 0);
+    const r = cov / Math.sqrt(xs.reduce((t, x) => t + (x - mx) ** 2, 0) * ys.reduce((t, y) => t + (y - my) ** 2, 0));
+    expect(r).toBeGreaterThan(0.3);
+  });
+
+  it("rates every coach on all 19 skills and ADR-081's five meeting skills, 1-99", () => {
+    expect([...COACH_SKILLS, ...MEETING_SKILLS]).toEqual(Object.keys(COACH_ATTRIBUTE_REGISTRY_V1));
+    expect(COACH_SKILLS).toHaveLength(19);
     for (const s of world.staff) {
-      for (const id of COACH_SKILLS) {
+      for (const id of [...COACH_SKILLS, ...MEETING_SKILLS]) {
         const v = s.attributes[id]!;
         expect(Number.isInteger(v)).toBe(true);
         expect(v).toBeGreaterThanOrEqual(1);

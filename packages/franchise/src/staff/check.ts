@@ -8,7 +8,8 @@ import { averageSkill, seatScore } from "./ratings.js";
 import { buildStaff } from "./buildStaff.js";
 import { runStaffOffseason, type HireSource, type StaffMove } from "./offseason.js";
 import { standInSeason } from "./standIn.js";
-import { isRetired, seatOf, type StaffWorld } from "./world.js";
+import { isRetired, seatOf, offseasonStamp, type StaffWorld } from "./world.js";
+import { driftWeek, seatRelationships, wordFor } from "../relationships/ledger.js";
 import type { StaffState } from "@ff/contracts";
 import type { Seat } from "./tables.js";
 
@@ -25,6 +26,10 @@ export interface SeasonTally {
   deadMoney: number;
   /** Sitting coordinators who have been NFL head coaches. */
   exHeadCoaches: { OC: number; DC: number };
+  /** With views (ADR-084 §7.1): coordinators who refused a new contract. */
+  walked?: number;
+  /** With views: how many views stood in each word after the offseason. */
+  words?: Record<string, number>;
 }
 
 export interface Band { mean: number; min: number; max: number }
@@ -99,7 +104,11 @@ function tally(world: StaffWorld, season: number, moves: StaffMove[]): SeasonTal
   };
 }
 
-export function staffTurnoverCheck(opts: { seed: string; seasons?: number; firstSeason?: number }): TurnoverReport {
+/**
+ * With `views`, every staff's views are carried too (ADR-084): drifted a calendar year (52 weeks)
+ * before each offseason and read by the carousel to decide who stays (§7.1).
+ */
+export function staffTurnoverCheck(opts: { seed: string; seasons?: number; firstSeason?: number; views?: boolean }): TurnoverReport {
   const seasons = opts.seasons ?? 50;
   const firstSeason = opts.firstSeason ?? 2026;
   const league = buildLeague(opts.seed);
@@ -120,13 +129,22 @@ export function staffTurnoverCheck(opts: { seed: string; seasons?: number; first
   const disguiseAtStart = mean(seated(world, "DC").filter((s) => s.disguise).map((s) => s.disguise!.passSnapMaskShare));
 
   const perSeason: SeasonTally[] = [];
+  let views = opts.views ? seatRelationships(world) : undefined;
   for (let y = 0; y < seasons; y++) {
     const season = world.season;
     const played = standInSeason(league, world, standIn, opts.seed);
     standIn = played.state;
-    const r = runStaffOffseason({ world, results: played.summaries, seed: opts.seed });
+    if (views) for (let w = 0; w < 52; w++) views = driftWeek(views, world, offseasonStamp(season, 1)).views;
+    const r = runStaffOffseason({ world, results: played.summaries, seed: opts.seed, ...(views ? { relationships: { views } } : {}) });
     world = r.world;
-    perSeason.push(tally(world, season, r.moves));
+    const row = tally(world, season, r.moves);
+    if (r.relationships) {
+      views = r.relationships;
+      row.walked = r.moves.filter((m) => m.walked).length;
+      row.words = {};
+      for (const v of views) row.words[wordFor(v.score)] = (row.words[wordFor(v.score)] ?? 0) + 1;
+    }
+    perSeason.push(row);
   }
 
   // Head coach tenures that ended during the check.

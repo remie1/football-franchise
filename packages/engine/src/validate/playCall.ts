@@ -17,6 +17,7 @@
  * game nobody played (CALIBRATION-BACKLOG 3a).
  */
 import type { PlayerId } from "@ff/contracts";
+import { stemMovers } from "../game/atTheLine.js";
 import type { AnyPlayCalls, MatchGameState, PlayCalls, RunPlayCalls } from "../types.js";
 
 /** Football's own arithmetic, and the only football fact in this file. */
@@ -410,6 +411,9 @@ export function assertCoherentRunCall(state: MatchGameState, calls: RunPlayCalls
  *
  * There is NO one-spot rule here: a Mug's walked-up backer may share a gap with the tackle
  * in front of him. The Stem's one-spot refusal is the front look's own check (ADR-073 §2.5).
+ *
+ * ADR-091 M2: a stem (`stem`) is called by one of the defense's own men on the call, and it moves
+ * at least one rusher from where he is shown to where he plays, or there is nothing to time.
  */
 function assertShownRush(defense: PlayCalls["defense"]): void {
   assertNoDuplicates(defense.shownRush.map((r) => String(r.rusher)), (id) => `${id} is shown rushing twice`);
@@ -421,6 +425,14 @@ function assertShownRush(defense: PlayCalls["defense"]): void {
     if (!onTheCall.has(String(shown.rusher))) {
       fail(`${String(shown.rusher)} is shown rushing but neither rushes nor covers on this call`);
     }
+  }
+  const stem = defense.stem;
+  if (stem === undefined) return;
+  if (!onTheCall.has(String(stem.trigger))) {
+    fail(`the stem is called by ${String(stem.trigger)}, who neither rushes nor covers on this call`);
+  }
+  if (stemMovers(defense).length === 0) {
+    fail(`a stem called by ${String(stem.trigger)} shows every rusher where he plays: it moves nobody`);
   }
 }
 

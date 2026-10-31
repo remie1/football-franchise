@@ -15,6 +15,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FranchiseEventEnvelope, LeagueStructure, SeasonState } from "@ff/contracts";
 import { createNewsDesk, type Edition } from "../news/desk.js";
+import type { StaffSeat, StaffView } from "../news/staff.js";
 import { newsFile } from "../news/file.js";
 import { formatEdition } from "../news/format.js";
 import { indexLeague, type TeamNames } from "../news/league.js";
@@ -34,6 +35,8 @@ export interface SavedSeason {
   readonly league: { readonly structure: LeagueStructure; readonly teams: readonly TeamNames[] };
   readonly season: Pick<SeasonState, "season" | "schedule">;
   readonly events?: readonly FranchiseEventEnvelope[];
+  /** ADR-084: who sat where and how the staffs felt when the season started. Older files have none. */
+  readonly coaching?: { readonly seats: readonly StaffSeat[]; readonly views: readonly StaffView[] };
 }
 
 export function parseNewsArgs(argv: readonly string[]): NewsCliArgs {
@@ -69,6 +72,7 @@ export function runNews(args: NewsCliArgs, viewerDir = VIEWER_NEWS_DIR, log: (li
     structure: saved.league.structure,
     teams: saved.league.teams,
     schedule: saved.season.schedule,
+    ...(saved.coaching ? { staff: saved.coaching.seats, views: saved.coaching.views } : {}),
   });
   const editions: Edition[] = [];
   const print = (list: Edition[]) => {

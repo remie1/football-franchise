@@ -5,8 +5,9 @@
   (thread "News and storylines"; plan `/mnt/project-files/design/relationships-plan.md`)
 - **Status:** design ruled by the owner (B1-B7, 2026-10-23). Contracts edits V1-V3 approved by the
   owner's typed yes (2026-10-23) and made; L1 (the ledger) and the carousel's own moves of L2
-  (results, firings, hires, extensions) built (§13). The stay-or-go readers, the meeting's moves and
-  the leaks are not built.
+  (results, firings, hires, extensions) built (§13); the carousel and the views in the season's walk
+  built (§14); the stay-or-go readers built as ruled 2026-10-31 (§15); leaks and coaching-change
+  news on the news desk (§16). The meeting's moves come with the meeting (ADR-081), next.
 - **Origin:** the owner's F3 ruling in thread "End-of-season staff meeting" (2026-10-22: *"3. A -
   this needs to go to our story-building agent to develop it further"*), which handed the
   relationship model the meeting needs (F3, F4, G6) to the story side.
@@ -327,3 +328,90 @@ contracts edits V1, V2 and V3."*), and made as §8 shapes them (`packages/contra
   them season results. With only the carousel's moves, staffs settle into their personality mix;
   the swings come with the meeting, conversations and storylines (L3 and later). Turnover cannot
   move: the carousel reads no view (tested).
+
+## 14. As built: the coaches in the season's walk (2026-10-31, thread "Continue news and storylines")
+
+§13 left two things unwired: the weekly drift and the views in the save. Building them showed a
+larger gap: the carousel ran only in the made-up history, so between real seasons no coach was ever
+hired or fired. This step wires both, in `franchise` only, with no contracts edit.
+
+- **Where:** `packages/franchise/src/staff/steps.ts` (`staffSteps`), three day steps in `runSeason`'s
+  walk, after the players' steps and before the draft's: the views are seated at their rest points
+  if the league has none; on each week's last day every view drifts (§4); on OFF_EVAL week 1 day 1,
+  once the champion is decided, `runStaffOffseason` runs on `summariseSeason` of the season just
+  played, carrying the views. `LeaguePeople.coaching` holds the whole coaching world and its views
+  (the save's `staff` shape); `people.staff` follows it, so the draft's scouting and the players'
+  coordinators read the new staffs. A newly seated head coach gets his depth-chart leanings
+  (ADR-087 C1) when the league's head coaches have them.
+- **Readings taken:** the carousel's events keep their order but are stamped with the carousel's
+  day (OFF_EVAL week 1 day 1), not ADR-080's weeks 1-3 of OFF_EVAL, because a day step's events
+  take its day. The season command runs it only on the people's walk (`--development` or
+  `--injuries`, which play through the year); a plain season stops on OFF_EVAL's first day with
+  no people and is unchanged.
+- **Checks:** `staff.season.test.ts`: the same games with and without the steps; the carousel is
+  exactly `runStaffOffseason` on the summarised season; the views pass `checkViews` and drift; a
+  stop at week 9 carried on gives the straight run's people and events; same seed, same result.
+  `realSeasonPlayers.test.ts`: the real-sim weeks are byte-identical with the coaching world given.
+  Through the season command: `--stop-after 9 --save`, then `--load`, saves the same file a straight
+  run saves (every field of the world, the new staffs and views included).
+- **Roster fit:** the carousel reads each team's roster as it stands that day (`people.teams`), with
+  the coaching world's staff list and budget. Without this a loaded league (whose teams carry their
+  rosters) and a straight run (whose coaching world's teams carry none) hired differently.
+- **One real season** (seed `walk-1`, both switches): 36 seats changed hands (26 fired, 5 contracts
+  run out, 3 hired away, 2 retired), 538 reported view moves; `--stop-after 9 --save` then `--load`
+  gives the straight run's event stream exactly.
+
+## 15. As built: stay or go (L2b, ruled 2026-10-31)
+
+The owner's answers, thread "Continue news and storylines", 2026-10-31 01:37Z: *"1. b 2. a 3. a 4. b
+5. a 6. a"* (Q4-Q6 are §16's and the meeting's).
+
+| | Question | Ruling | As built (`RELATIONSHIP_TUNING`) |
+|---|---|---|---|
+| Q1 | A coordinator's contract is up and he is sour on his boss: how likely does he walk? | **(b)** strained 1 in 10, broken 4 in 10 | `walkChance`; head coaches never walk (the president holds no views) |
+| Q2 | Does a head coach's opinion count when he judges a coordinator? | **(a)** strained ≈ 5 places of unit rank, broken ≈ 10; liking protects as much | `fireOpinionPerPoint` 1.6/100 in the firing logit |
+| Q3 | Does style fit change whether a new head coach keeps an inherited coordinator? | **(a)** about ±10 points | `keepFitPerUnit` 0.25 × ADR-080's fit (the coordinator judged, the head coach feeling) |
+
+- **Readings taken:** a walk-out is `STAFF_DEPARTED` with `CONTRACT_EXPIRED` (no contracts edit),
+  marked `walked` on the carousel's `StaffMove`, with no team decision and no sting to his friends
+  (nobody fired him). On the user's team the user holds no views, so Q2 reads nothing there; the
+  user's own choice arrives with the hiring screen. The readers read only when the carousel is given
+  views; the made-up history and the plain turnover check carry none and are unchanged.
+  `relationships.read: false` carries views without reading them (the L2a behaviour, kept for tests
+  and measurement).
+- **Check** (`staff-check --views`, 50 offseasons, four seeds, against the same seeds without views):
+  head coach changes 7.4-8.1 a year (7.3-8.3 without), offensive coordinators 12.5-13.6 (12.9-14.8),
+  defensive 11.5-12.1 (11.9-12.8), special teams 9.1-9.7 (9.5-10.3): inside ADR-080 §8's NFL ranges,
+  coordinators about 0.5 a year steadier because most head coaches like the men they hired. After each
+  offseason 28-31% of views are good, 69-72% professional, 0.1-0.3% strained, none broken; **nobody
+  walked in 200 offseasons.** The readers wait for the meeting, conversations and storylines to sour
+  someone. `relationships.stayOrGo.test.ts` checks the sizes and the bands.
+
+## 16. As built: leaks and coaching-change news (L4, ruled 2026-10-31)
+
+| | Question | Ruling | As built |
+|---|---|---|---|
+| Q4 | How often does someone leak? | **(b)** half of (a): strained about once in two years, broken about once a year; at most one leak a team a week; only in the room the games leave; all 32 teams; sources never named | `LEAK_CHANCE` per calendar week the desk closes: strained 0.5/52, broken 1/52 |
+| Q5 | Are coaching changes news? | **(a)** each head coach departure and hire a headline in the offseason; coordinator changes in one roundup | `COACH_DEPARTS` (fired, contract run out, retired, hired away), `COACH_HIRED` (promoted, hired off another staff, a former head coach, from outside), `COORDINATOR_ROUNDUP`, all of them always run |
+| Q6 | Build the meeting here after this? | **(a)** yes | next; contracts edits G1-G5 need the owner's typed yes naming them |
+
+- **Where:** `packages/narrative/src/news/staff.ts` (the coaching beat), read by the desk
+  (`desk.ts`); wording in `content/headlines.json`. The desk reads only events and its input:
+  `NewsInput.staff` (who sat in each seat when the stream starts) and `NewsInput.views` (how each man
+  felt then), then follows `STAFF_DEPARTED`, `STAFF_HIRED` and `RELATIONSHIP_CHANGED`. The season
+  command passes both and writes them into `--out` files as `coaching`, so `news` reads them too.
+  No contracts edit: a story's `kind` is a string (ADR-082 N1).
+- **Readings taken:** names stay out (ADR-082 Q1: teams only); men are named by job ("the defensive
+  coordinator"). A grudge opening (`rift: "OPENED"`) is its own story (`RIFT`), filling room like a
+  leak. A leak needs both men on the same staff. Leak dice roll only in weeks the desk closes, which
+  is every week of a season played with the players' switches (their steps write every week) and
+  the game weeks otherwise. An edition with no games is titled "Coaching changes" or "Around the
+  league". A walk-out (§15) reads as "contract run out": the event cannot tell it from the team's
+  choice without a contracts edit, left for the meeting's edits.
+- **Checks:** `narrative/test/staff.test.ts`: the stories for each departure and hire, promotion
+  and poaching told apart, one roundup, no names; over ten quiet years, broken views leak 160-300
+  times from 24 coordinators and strained 70-170, professional and good never; a full week of games
+  carries no leak; a view that sours starts leaking and one that recovers stops; a rift is a story.
+- **One real season** (seed `walk-1`, both switches): 12 head coach stories (6 departures, 6
+  hires), a roundup of 30 coordinator changes across 19 teams, and one leak (a defensive and a
+  special teams coordinator on one staff).
