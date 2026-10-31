@@ -469,8 +469,9 @@ export type CoverageDisguise = "BASIC" | "ROTATED" | "LATE_ROTATION";
  * changes:
  *
  *  - `LOOK` — only what the offence is shown: `shownAssignments` (a coverage look) or
- *    `shownRush` (a front look: Stem, Mug). Never what is played (ADR-069 ruling 1).
- *    "Show 2", "Show 1".
+ *    `shownRush` (a front look: Stem, Mug). Never what is played (ADR-069 ruling 1). For a front
+ *    look the snap picture is built from `shownRush` (ADR-090 §4.3, §4.6), so the look sets where
+ *    the man starts; what he is assigned to do is unchanged. "Show 2", "Show 1".
  *  - `PRESSURE` — who rushes, and who takes the rushers' coverage (`rush`, `assignments`).
  *    "Fire", "Double A", "Smoke", "Zero".
  *  - `FRONT` — how the line plays (`stunts`). "Tex", "Twist", "Delay", "Triple".
@@ -571,7 +572,9 @@ export interface DefensivePlayCall {
    * writer of a second list.
    *
    * READ BY THE PRESSURE READ (ADR-073 step 3.2b), beside the validator and the PLAY_START
-   * echo: the offence's picture is judged against this list. Physics never reads it.
+   * echo: the offence's picture is judged against this list. Physics never reads this list
+   * itself. The snap picture is built from it (ADR-090 §4.3, §4.6), so a front look sets where
+   * the man starts; what he is assigned to do is unchanged.
    */
   readonly shownRush: readonly ShownRusher[];
 }

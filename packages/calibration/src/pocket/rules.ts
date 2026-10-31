@@ -40,9 +40,9 @@
  *    `pocket.climbLane` `FRONT`. The three ride only on a stamped bundle with a block clock, and only
  *    under `pocket-1.s3`: `pocket-1.s1` and `pocket-1.s2` keep promising their own steps' rules.
  *    Under `pocket-1.s3` any subset of them is a bundle (an information arm may carry one alone).
- *    The picture dial is provisional (`AS_RULED`, the design picture if the owner grants ADR-090's
- *    petition S3); the line-up caller reads it, never physics, and it sits in the tree so the stamp
- *    moves with the picture.
+ *    The picture dial is `AS_RULED`, the design picture since the owner granted ADR-090's petition
+ *    S3 (2026-10-31); the line-up caller reads it, never physics, and it sits in the tree so the
+ *    stamp moves with the picture.
  *  - **When it is written (O11).** The export file and `season --out` always write `engineRules`, so
  *    they say what played. The identity, the batch provenance and the save write it only when it is
  *    not `legacy`, so a legacy identity and a legacy save stay byte for byte today's. The overlay
@@ -221,15 +221,15 @@ export const P17_IN_CONTRACTS = false;
  * ADR-090's petition S3 (step-3 plan §3.2; AM-2's `design`): the Mug's ruled spot may be read by
  * physics. AM-2 makes the design picture the ruled one (`AS_RULED`, which `POCKET_1_S3_FREE_RUN`
  * carries) only if the owner grants S3 before step 3's arms run; otherwise it is the picture with
- * beat 3 skipped for the Mug alone (`MUG_HEAD_ONLY`). While this is false and the design picture is
- * `AS_RULED`, the step-3 harness refuses a graded run and R-1's digests on any pocket-1.s3 arm before
- * anything plays (`s3PictureRefusal`, review FID-F-1); `--part1` and the season and export commands
- * still play it, of no record. When S3 is answered: granted, its contracts commit flips this
- * constant; declined, the design picture becomes `MUG_HEAD_ONLY`, which moves `POCKET_1_S3_DIGEST`,
- * and C10's and C16's pictures (no free-run block, so the ruled one, `caller/frozen.ts`) are decided
- * with it (review FID-F-4).
+ * beat 3 skipped for the Mug alone (`MUG_HEAD_ONLY`). The owner granted S3 on 2026-10-31 (typed yes,
+ * 14:38:53Z), and its contracts commit (`playcalls.ts`, the `LOOK` tag and `shownRush`) flipped this
+ * constant to true, so `AS_RULED` is the design picture and `POCKET_1_S3_DIGEST` did not move. C10's
+ * and C16's pictures (no free-run block, so the ruled one, `caller/frozen.ts`) are the same picture
+ * (review FID-F-4). The step-3 harness's refusal of a graded run and R-1's digests on any
+ * pocket-1.s3 arm while S3 was not in contracts (`s3PictureRefusal`, review FID-F-1) is now reached
+ * only when a test passes `s3Granted: false`.
  */
-export const S3_IN_CONTRACTS = false;
+export const S3_IN_CONTRACTS = true;
 
 /** Freeze a plain-data tree in place, every depth, and return the same reference. */
 function deepFreeze<T>(node: T): T {
@@ -313,11 +313,10 @@ export const POCKET_1_S2_DIGEST = "fnv1a:03754f60";
  * fitted; `engineRules.test.ts` pins each against the filing and `freeRun.ts`'s `FREE_RUN_CONSTANTS`),
  * AM-2's `movingGetOffSeconds` (filed 0, D18's "0 for a man already moving"), reading B (the design,
  * D19: men nobody touched, and AM-2's untouched exchange) over all three origins (no `origins`), no
- * held input, and the picture `AS_RULED`. The picture is provisional: the design picture if the owner
- * grants ADR-090's petition S3 before the arms run (AM-2's Mug rule); if S3 is declined the bundle is
- * re-pinned before measurement. Until then the step-3 harness refuses to measure it
- * (`S3_IN_CONTRACTS`). An s3 save or export made before the s3 pins (R-2) is not of record: the
- * overlay digest names these tunables, not the engine code that reads them (review NPC-N3).
+ * held input, and the picture `AS_RULED`, the design picture under AM-2's Mug rule since the owner
+ * granted ADR-090's petition S3 before the arms ran (2026-10-31; `S3_IN_CONTRACTS`). An s3 save or
+ * export made before the s3 pins (R-2) is not of record: the overlay digest names these tunables,
+ * not the engine code that reads them (review NPC-N3).
  */
 export const POCKET_1_S3_FREE_RUN: PocketFreeRun = deepFreeze({
   fortyYards: 40,

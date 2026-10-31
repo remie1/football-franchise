@@ -344,11 +344,12 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
     expect(preflightStep3(FILED, made.path, made.pin).guard.entry).toBe("AM-3");
   });
 
-  it("review FID-F-1: while S3 is not in contracts and the design picture is AS_RULED, a graded run and R-1's digests refuse any pocket-1.s3 arm before anything plays", () => {
-    expect(S3_IN_CONTRACTS).toBe(false);
+  it("review FID-F-1: S3 is in contracts (granted 2026-10-31) and the design picture is AS_RULED, so nothing is refused for the picture; with S3 not granted, a graded run and R-1's digests refuse any pocket-1.s3 arm before anything plays", () => {
+    expect(S3_IN_CONTRACTS).toBe(true);
     expect(POCKET_1_S3_FREE_RUN.picture).toBe("AS_RULED");
     expect(s3PictureRefusal(["A1", "B3", "C13"])).toBeUndefined();
-    expect(s3PictureRefusal(["C1", "C13", "C1", "C2"])).toMatch(/^ADR-089 step 3: refused before anything plays: C1, C2 play pocket-1\.s3, whose design picture is AS_RULED .* S3 is not in contracts \(S3_IN_CONTRACTS, src\/pocket\/rules\.ts\)\. .*Nothing has played and no cache was made; --part1 still plays/);
+    expect(s3PictureRefusal(["C1", "C2"])).toBeUndefined();
+    expect(s3PictureRefusal(["C1", "C13", "C1", "C2"], false)).toMatch(/^ADR-089 step 3: refused before anything plays: C1, C2 play pocket-1\.s3, whose design picture is AS_RULED .* S3 is not in contracts \(S3_IN_CONTRACTS, src\/pocket\/rules\.ts\)\. .*Nothing has played and no cache was made; --part1 still plays/);
     expect(s3PictureRefusal(["C1"], true)).toBeUndefined();
     const dir = tempDir("s3");
     const cacheParent = join(dir, "cache");
@@ -357,10 +358,10 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
       played += 1;
       throw new Error("must not play");
     };
-    expect(() => runStep3({ cacheParent, filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: new Map(), arms: ["C1"], seedSet: 1 })).toThrow(/^ADR-089 step 3: refused before anything plays: C1 plays pocket-1\.s3/);
-    expect(() => runStep3({ cacheParent, filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: new Map() })).toThrow(/^ADR-089 step 3: refused before anything plays: C1, C2, .* play pocket-1\.s3/);
-    expect(() => runStep3Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 1, arms: ["A1", "C3"] })).toThrow(/^ADR-089 step 3: refused before anything plays: C3 plays pocket-1\.s3/);
-    expect(() => runStep3Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 1 })).toThrow(/^ADR-089 step 3: refused before anything plays: C1, C2, /);
+    expect(() => runStep3({ cacheParent, filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: new Map(), arms: ["C1"], seedSet: 1, s3Granted: false })).toThrow(/^ADR-089 step 3: refused before anything plays: C1 plays pocket-1\.s3/);
+    expect(() => runStep3({ cacheParent, filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: new Map(), s3Granted: false })).toThrow(/^ADR-089 step 3: refused before anything plays: C1, C2, .* play pocket-1\.s3/);
+    expect(() => runStep3Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 1, arms: ["A1", "C3"], s3Granted: false })).toThrow(/^ADR-089 step 3: refused before anything plays: C3 plays pocket-1\.s3/);
+    expect(() => runStep3Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 1, s3Granted: false })).toThrow(/^ADR-089 step 3: refused before anything plays: C1, C2, /);
     expect(played).toBe(0);
     expect(existsSync(cacheParent)).toBe(false);
   });

@@ -306,8 +306,9 @@ export interface Step3Guard {
  * Review FID-F-1: the refusal while ADR-090's petition S3 is not in contracts and the design picture
  * is `AS_RULED` (AM-2's `design`: the ruled picture is the design only if S3 is granted before the
  * arms run). A graded run or R-1's digests that would play any pocket-1.s3 arm are refused before
- * anything plays; `undefined` when none of `arms` plays pocket-1.s3, or S3 is granted (or `granted`,
- * tests only), or the picture is no longer the ruled one.
+ * anything plays; `undefined` when none of `arms` plays pocket-1.s3, or S3 is granted, or the picture
+ * is no longer the ruled one. S3 was granted on 2026-10-31 (`S3_IN_CONTRACTS` is true), so the
+ * refusal is reached only when a test passes `granted` false.
  */
 export function s3PictureRefusal(arms: readonly ArmId[], granted: boolean = S3_IN_CONTRACTS): string | undefined {
   if (granted || POCKET_1_S3_FREE_RUN.picture !== "AS_RULED") return undefined;
@@ -1848,7 +1849,7 @@ export interface Step3Options {
   readonly play?: (id: ArmId, seedSet: SeedSet, env: Step1Env, opts: PlayStep3Options) => Step3Record;
   /** Step 2's records the re-played bases are checked against (default `loadStep2References`). */
   readonly references?: Step2References;
-  /** Tests only: play pocket-1.s3 arms on the AS_RULED picture although S3 is not in contracts (`s3PictureRefusal`). */
+  /** Tests only: stands in for `S3_IN_CONTRACTS` (`s3PictureRefusal`); false replays the refusal of a build where S3 is not in contracts. */
   readonly s3Granted?: boolean;
 }
 
