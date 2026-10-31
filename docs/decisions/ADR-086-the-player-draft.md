@@ -221,3 +221,17 @@ On PR #31. D1, D3, D4, D5 built in `franchise/src/draft/`; D2 in `attributes/src
 **Waiver order across a save.** The made draft's picks (owners final, `overall` set) stay in `world.draft.picks` until the next season's order is fixed, so a save made between the draft and the end of the next season carries on with the same waiver order (`waiverOrderFrom`). C6's comment says "future" picks; keeping the last made draft is a reading of it, not a new field.
 
 **Not built yet:** expiring contracts at the new league year (`expireContract`) wait for ADR-085's re-signing and free-agent market, or every expiring player would walk; the season command's `--seasons N` waits for ADR-087 P5's position overall in contracts (franchise takes an injected rating meanwhile); D7, the 20-draft NFL check.
+
+## 13. D7, the draft against the NFL (2026-10-31)
+
+`draft-check` (calibration) plays the stand-in league for 20 seasons through the cap check's walk. It sets the results against nflverse's draft picks table: round-1 position groups for 2011-2024, and starter rates by round for 2011-2018. The full report is `packages/calibration/reports/draft-check.md`.
+
+Q8 asked for rookie quality tuned to the NFL, and the retune does that:
+- `PROSPECT_TALENT` goes from mean −0.9, sd 0.9 to mean −0.8, sd 0.75.
+- `CLAIM_MARGIN` goes from 1 to 8.
+
+After the retune, rounds 1 and 2 start at about the NFL's rate (68% and 49% against 64% and 51%). Rounds 3-7 start a few points under. Waiver claims on cut-down day come to about 30 a year, against real reports of 30 to 41; before the retune it was 140 to 220. Compensatory picks are 32 a year, shared among 20 to 28 clubs.
+
+Two things are left. Round 1 takes too few LBs and TEs and too many DBs (`POSITION_VALUE`). Rounds 3-7 are a touch low.
+
+The draft-day trim to 90 now keeps every position at its roster shape. The cap thread's fill after cut-down also goes by shape now (ADR-085). Before that, a team in cap trouble could go into games short at a position.
