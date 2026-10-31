@@ -187,8 +187,12 @@ const { league, rated, run } = runRealSeason({
   ...(args.teamStrengthSd === undefined ? {} : { teamStrengthSd: args.teamStrengthSd }),
   ...(loaded ? { rules: loaded.rules, ...(loaded.save.world.season ? { resumeFrom: loaded.save.world.season } : {}) } : {}),
   ...(args.stopAfter ? { stopAfter: stopDay(args.stopAfter, season) } : {}),
-  ...(players ? { players, ...(staff ? { staff: staff.world.staff } : {}) } : {}),
-  ...(players && loaded?.development ? { resume: { people: loaded.development.people, events: loaded.development.events, through: loaded.save.calendar } } : {}),
+  // ADR-084 step 1: with the players' switches on, the coaches change after the playoffs and their views drift.
+  ...(players ? { players, ...(staff ? { coaching: staff } : {}) } : {}),
+  ...(players && loaded?.development ? { resume: {
+    people: { ...loaded.development.people, ...(staff ? { staff: staff.world.staff, coaching: staff } : {}) },
+    events: loaded.development.events, through: loaded.save.calendar,
+  } } : {}),
   // A legacy season passes nothing, as before; any other plays its bundle in every game.
   ...(engineRules === LEGACY_RULES ? {} : { game: { tunables: gameTunables } }),
   onEvent: (envelope, schedule) => {
@@ -215,15 +219,17 @@ if (args.save) {
   const path = fromCaller(args.save);
   // With the players' switches on, the people as they are today, and what the players' steps did (S1).
   const people = players ? run.people : undefined;
+  // The coaches as the run left them (changed by the carousel once the playoffs are over).
+  const coaches = people?.coaching ?? staff;
   const squad = people ? { players: people.players } : rated === undefined ? {} : { players: rated.league.players };
   const development = people ? {
     league: { ...league, teams: people.teams },
     development: {
-      events: (run.stepEvents ?? []).filter((e) => e.step.startsWith("players:")).map((e) => e.envelope),
+      events: (run.stepEvents ?? []).filter((e) => e.step.startsWith("players:") || e.step.startsWith("staff:")).map((e) => e.envelope),
       depthMemory: people.playerMemory ?? (() => { throw new Error("the players' steps left no memory to save"); })(),
     },
   } : { league };
-  const save = makeSave({ ...development, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: savePlayedWith(callerVersion, engineRules), rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...squad, ...(staff ? { staff } : {}) });
+  const save = makeSave({ ...development, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: savePlayedWith(callerVersion, engineRules), rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...squad, ...(coaches ? { staff: coaches } : {}) });
   writeFileSync(path, JSON.stringify(save, listTraits, 2));
   console.log(`Saved ${path}`);
 }

@@ -36,6 +36,7 @@ export {
   type CandidateReport, type ResumeLine, type Evaluator, type ReportInput,
 } from "./staff/evaluate.js";
 export { summariseSeason } from "./staff/summarise.js";
+export { staffSteps, STAFF_STEP_PREFIX, STAFF_DAYS, type StaffStepsConfig } from "./staff/steps.js";
 export { rosterFit } from "./staff/style.js";
 export { makeCoach, drawDisguise, type Cohort } from "./staff/makeCoach.js";
 export { makeRatings, seatScore, averageSkill, COACH_SKILLS, type CoachRatings } from "./staff/ratings.js";

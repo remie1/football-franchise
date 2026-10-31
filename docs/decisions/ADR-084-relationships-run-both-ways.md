@@ -5,8 +5,8 @@
   (thread "News and storylines"; plan `/mnt/project-files/design/relationships-plan.md`)
 - **Status:** design ruled by the owner (B1-B7, 2026-10-23). Contracts edits V1-V3 approved by the
   owner's typed yes (2026-10-23) and made; L1 (the ledger) and the carousel's own moves of L2
-  (results, firings, hires, extensions) built (§13). The stay-or-go readers, the meeting's moves and
-  the leaks are not built.
+  (results, firings, hires, extensions) built (§13); the carousel and the views in the season's walk
+  built (§14). The stay-or-go readers, the meeting's moves and the leaks are not built.
 - **Origin:** the owner's F3 ruling in thread "End-of-season staff meeting" (2026-10-22: *"3. A -
   this needs to go to our story-building agent to develop it further"*), which handed the
   relationship model the meeting needs (F3, F4, G6) to the story side.
@@ -327,3 +327,29 @@ contracts edits V1, V2 and V3."*), and made as §8 shapes them (`packages/contra
   them season results. With only the carousel's moves, staffs settle into their personality mix;
   the swings come with the meeting, conversations and storylines (L3 and later). Turnover cannot
   move: the carousel reads no view (tested).
+
+## 14. As built: the coaches in the season's walk (2026-10-31, thread "Continue news and storylines")
+
+§13 left two things unwired: the weekly drift and the views in the save. Building them showed a
+larger gap: the carousel ran only in the made-up history, so between real seasons no coach was ever
+hired or fired. This step wires both, in `franchise` only, with no contracts edit.
+
+- **Where:** `packages/franchise/src/staff/steps.ts` (`staffSteps`), three day steps in `runSeason`'s
+  walk, after the players' steps and before the draft's: the views are seated at their rest points
+  if the league has none; on each week's last day every view drifts (§4); on OFF_EVAL week 1 day 1,
+  once the champion is decided, `runStaffOffseason` runs on `summariseSeason` of the season just
+  played, carrying the views. `LeaguePeople.coaching` holds the whole coaching world and its views
+  (the save's `staff` shape); `people.staff` follows it, so the draft's scouting and the players'
+  coordinators read the new staffs. A newly seated head coach gets his depth-chart leanings
+  (ADR-087 C1) when the league's head coaches have them.
+- **Readings taken:** the carousel's events keep their order but are stamped with the carousel's
+  day (OFF_EVAL week 1 day 1), not ADR-080's weeks 1-3 of OFF_EVAL, because a day step's events
+  take its day. The season command runs it only on the people's walk (`--development` or
+  `--injuries`, which play through the year); a plain season stops on OFF_EVAL's first day with
+  no people and is unchanged.
+- **Checks:** `staff.season.test.ts`: the same games with and without the steps; the carousel is
+  exactly `runStaffOffseason` on the summarised season; the views pass `checkViews` and drift; a
+  stop at week 9 carried on gives the straight run's people and events; same seed, same result.
+  `realSeasonPlayers.test.ts`: the real-sim weeks are byte-identical with the coaching world given.
+- **One real season** (seed `walk-1`, both switches): 35 seats changed hands (26 fired, 5 contracts
+  run out, 2 retired, 2 hired away), 537 reported view moves.

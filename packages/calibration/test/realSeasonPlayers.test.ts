@@ -51,6 +51,15 @@ describe("a real-sim season with the players' switches on", () => {
     expect(JSON.stringify(second.run.people)).toBe(JSON.stringify(straight.run.people));
   });
 
+  it("plays the same weeks with the whole coaching world (ADR-084 step 1), its views seated and still", () => {
+    const world = buildStaff(base, { firstSeason: season, historySeasons: 0, lineups: true }).world;
+    const coached = runRealSeason({ seed, season, players, coaching: { world }, stopAfter: week(2) });
+    expect(JSON.stringify(coached.run.state)).toBe(JSON.stringify(straight.run.state));
+    expect(JSON.stringify(coached.run.people!.players)).toBe(JSON.stringify(straight.run.people!.players));
+    expect(coached.run.people!.coaching!.world).toBe(world);
+    expect(coached.run.events.some((e) => e.event.type === "RELATIONSHIP_CHANGED")).toBe(false);
+  });
+
   it("refuses the flat league, which has no squads", () => {
     expect(() => runRealSeason({ seed, season, players, rosters: "flat" })).toThrow(/need squads/);
   });

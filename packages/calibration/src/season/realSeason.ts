@@ -263,6 +263,11 @@ export interface RealSeasonInput {
   /** With `players`: the coaches (their coordinators teach, their head coaches set the depth charts). */
   readonly staff?: readonly StaffState[];
   /**
+   * With `players`: the whole coaching world and its views (ADR-084 step 1). The coaches then change
+   * after the playoffs (the carousel) and their views drift week by week; `staff` is read from it.
+   */
+  readonly coaching?: SeasonPeople["coaching"];
+  /**
    * With `players`, carrying on from a save (S1): the people as the save left them, the players'
    * steps' events up to its day, and that day, so no day's steps run twice.
    */
@@ -330,7 +335,7 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
       picks: [],
       classes: [],
       freeAgents: pool.map((p) => p.bio.id),
-      ...(input.staff ? { staff: [...input.staff] } : {}),
+      ...(input.coaching ? { staff: input.coaching.world.staff, coaching: input.coaching } : input.staff ? { staff: [...input.staff] } : {}),
     };
   })();
   const run = runSeason({
@@ -338,6 +343,7 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
     resolve: peopleResolver(squads, { rules, ...caller, ...games }),
     people,
     through: "YEAR",
+    ...(people.coaching ? { coaching: {} } : {}),
     players: {
       development,
       injuries: input.players?.injuries === true,

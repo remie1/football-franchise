@@ -184,7 +184,9 @@ colleague, running both ways (close, good, professional, strained or broken), nu
 choices, swung by big moments and, now and then, by a storyline about the coaches. Built so far:
 the record of every view, how each drifts back to what the two men's personalities make normal,
 grudges, and the moves the coaching carousel makes by itself (a hire, a firing, an extension, the
-season's results). Next, views will feed who stays, how hot the staff meeting's arguments get, and
+season's results). Since 31 October 2026, a season played with `--development` or `--injuries`
+runs the coaching carousel after the playoffs on that season's real results, and the views drift
+week by week through the year; `--save` keeps the new staffs and their views. Next, views will feed who stays, how hot the staff meeting's arguments get, and
 what leaks to the press; they never change a game.
 
 **Players grow, age and get hurt (ADR-087, built 24 October 2026, off by default):** with

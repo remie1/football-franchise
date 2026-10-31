@@ -9,9 +9,10 @@
  */
 import type {
   CalendarStamp, DeadMoneyCharge, DraftClass, DraftPick, FranchiseEvent, GameResult, LeagueRules, PlayerContract,
-  PlayerId, PlayerState, ScheduledGame, SeasonState, StaffState, Team, TeamId,
+  PlayerId, PlayerState, RelationshipView, ScheduledGame, SeasonState, StaffState, Team, TeamId,
 } from "@ff/contracts";
 import type { PlayerMemory } from "../players/types.js";
+import type { StaffWorld } from "../staff/world.js";
 
 export interface LeaguePeople {
   teams: Team[];
@@ -23,6 +24,12 @@ export interface LeaguePeople {
   freeAgents: PlayerId[];
   /** The coaching staff, for steps that read it (ADR-087's growth reads coordinators). */
   staff?: StaffState[];
+  /**
+   * ADR-084 step 1: the whole coaching world (staffs, pool, contracts) and every staff's views, for
+   * the staff's steps (`staffSteps`), which keep `staff` equal to `coaching.world.staff`. Saved as the
+   * save's `staff`. Absent = the coaches never change.
+   */
+  coaching?: { world: StaffWorld; relationships?: RelationshipView[] };
   /** Waiver priority, first claim first: the last draft's first-round order (ADR-086 §8). */
   waiverOrder?: TeamId[];
   /**
