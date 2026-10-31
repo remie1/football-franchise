@@ -33,21 +33,28 @@ export type MarketCurves = ReadonlyMap<TagGroup, MarketCurve>;
 /**
  * The league's market at each tag group in a season. With `cap`, each deal counts at its share of the
  * cap in its first season, in this season's dollars (as OverTheCap compares deals across years), so
- * prices keep pace with the cap.
+ * prices keep pace with the cap. Each player counts once, on his latest market deal live this season
+ * or last: last season's one-year deals (most of them cheap veterans' deals) stay on the list, so the
+ * list holds the backups as well as the starters.
  */
 export function marketCurves(
   contracts: readonly PlayerContract[], players: readonly PlayerState[], season: number, rate: (p: PlayerState) => number,
   cap?: (season: number) => number,
 ): MarketCurves {
   const byId = new Map(players.map((p) => [String(p.bio.id), p]));
-  const out = new Map<TagGroup, MarketCurve>();
+  const latest = new Map<string, PlayerContract>();
   for (const c of contracts) {
-    if (!MARKET_KINDS.has(c.kind) || !liveIn(c, season)) continue;
+    if (!MARKET_KINDS.has(c.kind) || !(liveIn(c, season) || liveIn(c, season - 1))) continue;
+    const had = latest.get(String(c.player));
+    if (!had || firstSeason(c, season) >= firstSeason(had, season)) latest.set(String(c.player), c);
+  }
+  const out = new Map<TagGroup, MarketCurve>();
+  for (const c of latest.values()) {
     const p = byId.get(String(c.player));
     if (!p) continue;
     const g = TAG_GROUP[p.bio.position];
     const curve = out.get(g) ?? { apys: [], grades: [] };
-    const first = c.years.find((y) => !y.voidYear)?.season ?? season;
+    const first = firstSeason(c, season);
     curve.apys.push(cap ? apyOf(c) * cap(season) / cap(first) : apyOf(c));
     curve.grades.push(rate(p));
     out.set(g, curve);
@@ -55,6 +62,8 @@ export function marketCurves(
   for (const c of out.values()) { c.apys.sort((a, b) => a - b); c.grades.sort((a, b) => a - b); }
   return out;
 }
+
+const firstSeason = (c: PlayerContract, fallback: number): number => c.years.find((y) => !y.voidYear)?.season ?? fallback;
 
 /** Where `x` sits in an ascending list, 0..1, interpolated between neighbours (lowest = 0, highest = 1). */
 export function percentileOf(sorted: readonly number[], x: number): number {
