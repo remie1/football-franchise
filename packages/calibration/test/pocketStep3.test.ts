@@ -62,6 +62,7 @@ import {
   isS3Arm,
   loadStep2References,
   missClassesByRow,
+  onTheRunCleanNote,
   rowsOfReason,
   notResolvedBySets,
   pairedEtaGap,
@@ -92,6 +93,7 @@ import {
   STEP3_PART1_IDS,
   STEP3_PLAYABLE,
   STEP3_PLAYABLE_RUN_IDS,
+  STEP3_DIRTY_WARNING,
   STEP3_R1_NEXT,
   STEP3_RECORDS_FORMAT,
   step3DigestPinProblems,
@@ -295,6 +297,25 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
     expect(refused({ C1: "B3", C14: "B5" })).toBe(`ADR-089 step 3: refused before anything plays: AM-3's step-3 base map grades C14, which this build does not play: ${armRefusal("C14") ?? "?"}`);
     expect(refused({ C1: "B6", C2: "B6" })).toBe("ADR-089 step 3: refused before anything plays: AM-3's step-3 base map reads C1 against B6, and this build's arm against B3");
     expect(refused({ C1: "B3", C6: "B3" })).toBe("no refusal");
+  });
+
+  it("review MEAS-N3: refuses an accepted state naming an arm a step-3 run does not play", () => {
+    const dir = tempDir("accepted");
+    const refusal = (acceptedState: Record<string, unknown>): string => {
+      const { path, pin } = withAm3(dir, (am3) => { (am3["rule"] as Record<string, unknown>)["acceptedState"] = acceptedState; });
+      try {
+        preflightStep3(FILED, path, pin);
+      } catch (e) {
+        return e instanceof Error ? e.message : String(e);
+      }
+      return "no refusal";
+    };
+    expect(refusal({ design: "A1 ", pricing: "A11", fromStep: "3", graded: false })).toBe(
+      `ADR-089 step 3: refused before anything plays: AM-3's accepted state names "A1 " as its design arm, which a step-3 run does not play (it plays ${STEP3_PLAYABLE_RUN_IDS.join(", ")})`,
+    );
+    expect(refusal({ design: "A1", pricing: "B2", fromStep: "3", graded: false })).toMatch(/^ADR-089 step 3: refused before anything plays: AM-3's accepted state names "B2" as its pricing arm, which a step-3 run does not play/);
+    expect(refusal({ design: "A1", pricing: 11, fromStep: "3", graded: false })).toMatch(/names 11 as its pricing arm/);
+    expect(refusal({ design: "A1", pricing: "A11", fromStep: "3", graded: false })).toBe("no refusal");
   });
 
   it("an AM-3 filed before step 4 is not in step 3's view: still refused by name", () => {
@@ -771,6 +792,13 @@ describe("grading synthetic records under AM-3's stand-in", () => {
     expect(proof(g, "q3.replay").detail).toBe(STEP3_BASE_IDS.flatMap((id) => [`${id} set 1 equal`, `${id} set 2 equal`]).join("; "));
     for (const id of ["s3.bin20.tick", "s3.quick", "s3.unblockedPressures", "s3.unblockedShare", "guard.mix", "guard.byClass"]) expect(clause(g, id).verdict, id).toBe("PASS");
     expect(clause(g, "s3.part1.determinism").verdict).toBe("NOT CHECKED");
+    // Review MEAS-N4: the clean on-the-run row says why it reads 0 aimed; review MEAS-N5: the per-100 row's SE is named an approximation.
+    expect(clause(g, "guard.onTheRun.clean").note).toBe(onTheRunCleanNote([]));
+    expect(clause(g, "guard.onTheRun.clean").note).toMatch(/^0 by construction, as at step 2 \(F\.8 item 5\): .*it opens at step 5a$/);
+    expect(clause(g, "guard.onTheRun.pressured").note).toBeUndefined();
+    expect(onTheRunCleanNote(["C1 set 1"])).toMatch(/it opens at step 5a; NOT 0 on C1 set 1$/);
+    expect(clause(g, "s3.unblockedPressures").values[0]).toMatch(/^C1 flat set 1 10\.00 \(binomial SE on dropbacks, an approximation: a dropback can count more than one man, \d+\.\d\d; B3 /);
+    expect(clause(g, "s3.unblockedShare").values[0]).toMatch(/^C1 flat set 1 30\.00 \(binomial SE \d+\.\d\d; B3 /);
     expect(clause(g, "s3.unblockedPressures").values[0]).toMatch(/; on the clock under C1's own reading \(AM-2's key; the filed row reads D19's band test\): set 1 \d+\.\d\d, set 2 \d+\.\d\d$/);
     expect(clause(g, "s3.bin20.tick").values[0]).not.toContain("on the clock under");
     expect(clause(g, "s3.unblockedMen").values[0]).toMatch(/; on the clock under each arm's own reading C1 \d+\.\d\d, C2 \d+\.\d\d$/);
@@ -1072,6 +1100,17 @@ describe("the run through its play seam", () => {
     expect(() => runStep3({ cacheParent, filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: new Map(), arms: ["C1"], seedSet: 1, s3Granted: true })).toThrow(
       new RegExp(`the cached C1 \\(set 1\\) at .* is not this build's arm: stamped with amendments ${previewDigest()}, not this build's step-3 view ${guard().digest}\\. Delete it, or use another --cache`),
     );
+  });
+
+  it("review MEAS-N7: a run on a dirty tree that writes elsewhere warns at its start that a committed report will refuse what it plays", () => {
+    const dir = tempDir("dirtywarn");
+    const lines: string[] = [];
+    const common = { cacheParent: join(dir, "cache"), filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, play, references: new Map(), arms: ["C1"] as ArmId[], seedSet: 1 as SeedSet, s3Granted: true, committedDir: join(dir, "reports"), log: (l: string) => lines.push(l) };
+    runStep3({ ...common, env: { ...ENV, dirty: true }, report: join(dir, "elsewhere.md") });
+    expect(lines[0]).toBe(STEP3_DIRTY_WARNING);
+    lines.length = 0;
+    runStep3({ ...common, env: ENV, report: join(dir, "elsewhere.md") });
+    expect(lines).not.toContain(STEP3_DIRTY_WARNING);
   });
 
   it("refuses a committed report from a dirty tree before anything plays", () => {

@@ -376,6 +376,14 @@ export function preflightStep3(filedPath: string, amendmentsPath: string, pin: s
   const differ = ids.filter((id) => bases[id] !== armById(id).base);
   if (differ.length > 0) refuse(`reads ${differ.map((id) => `${id} against ${String(bases[id])}, and this build's arm against ${String(armById(id).base)}`).join("; ")}`);
   const raw = (rule as unknown as Record<string, unknown>)["acceptedState"] as { readonly design?: unknown; readonly pricing?: unknown } | undefined;
+  // The accepted state's arms are read off the run's records: each must be an arm a step-3 run plays,
+  // or the grading would print it as not played instead of refusing the typo (review MEAS-N3).
+  for (const side of ["design", "pricing"] as const) {
+    const v = raw?.[side];
+    if (v !== undefined && (typeof v !== "string" || !(STEP3_PLAYABLE_RUN_IDS as readonly string[]).includes(v))) {
+      throw new Error(`ADR-089 step 3: refused before anything plays: ${entry.id}'s accepted state names ${JSON.stringify(v)} as its ${side} arm, which a step-3 run does not play (it plays ${STEP3_PLAYABLE_RUN_IDS.join(", ")})`);
+    }
+  }
   const accepted = {
     design: (typeof raw?.design === "string" ? raw.design : "A1") as ArmId,
     pricing: (typeof raw?.pricing === "string" ? raw.pricing : "A11") as ArmId,
@@ -1435,7 +1443,7 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
         });
         const mean = sets.length === 2 ? `; two-set mean ${num(meanOf(sets.map((s) => valueOf(design, s, l, c.id))))}` : "";
         const tt = `[time to throw ${design} ${num(ttt(design, gradedSet, l), 3)} s, ${designBase} ${num(ttt(designBase, gradedSet, l), 3)} s]`;
-        return { v, text: `${design} ${l} set ${String(gradedSet)} ${num(v)} (binomial SE ${num(seOf(design, gradedSet, l, c.id))}; ${designBase} ${num(valueOf(designBase, gradedSet, l, c.id))})${others.length === 0 ? "" : `; ${others.join("; ")}`}${mean} ${tt}${clockBeside(design, l, c.id)}` };
+        return { v, text: `${design} ${l} set ${String(gradedSet)} ${num(v)} (${seLabelOf(c.id)} ${num(seOf(design, gradedSet, l, c.id))}; ${designBase} ${num(valueOf(designBase, gradedSet, l, c.id))})${others.length === 0 ? "" : `; ${others.join("; ")}`}${mean} ${tt}${clockBeside(design, l, c.id)}` };
       });
       const ok = reads.every((r) => inBand(r.v, c));
       if (oneSet !== undefined && missing.length === 0 && !ok) outsideBand.push(`${c.id} (${filed}): ${reads.map((r) => r.text).join("; ")}`);
@@ -1493,7 +1501,7 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
         const r = x.r.report.intGuard[l].onTheRun?.[part];
         return `${where(x)} ${l} ${r === undefined || r.aimed === 0 ? "n/a" : ((100 * r.interceptions) / r.aimed).toFixed(2)} (${String(r?.aimed ?? 0)} aimed)`;
       }));
-      clauses.push({ id: c.id, kind: c.kind, arms: [...new Set(present.map((x) => x.id))], filed, values, verdict: present.length === 0 ? "NOT PLAYED" : "REPORTED" });
+      clauses.push({ id: c.id, kind: c.kind, arms: [...new Set(present.map((x) => x.id))], filed, values, verdict: present.length === 0 ? "NOT PLAYED" : "REPORTED", ...(part === "clean" ? { note: onTheRunCleanNote(present.filter((x) => LEAGUES.some((l) => (x.r.report.intGuard[l].onTheRun?.clean.aimed ?? 0) > 0)).map(where)) } : {}) });
       continue;
     }
     if (c.kind === "structural") {
@@ -1773,6 +1781,29 @@ export function step3MeasuresOf(records: Step3Records, grade: Step3Grade, guard:
   });
 }
 
+/**
+ * Why `guard.onTheRun.clean` reads 0 aimed, carried over from step 2 (F.8 item 5; review MEAS-N4):
+ * by construction, not by chance; any arm-set where it is not 0 is named.
+ */
+export function onTheRunCleanNote(notZero: readonly string[]): string {
+  return (
+    "0 by construction, as at step 2 (F.8 item 5): under PER_RUSHER, ESCAPE runs only on the threat part, a threat within C, so the arrival floor is COLLAPSING or worse at that tick and the pocket he leaves is never CLEAN; " +
+    `under step 1's rule (B5 and the re-played bases) the same holds through forcesDecision; it opens at step 5a${notZero.length === 0 ? "" : `; NOT 0 on ${notZero.join(", ")}`}`
+  );
+}
+
+/**
+ * How a miss row's SE is named: binomial on its population, and for the per-100 row an approximation,
+ * since a dropback can hold more than one pressuring man (review MEAS-N5).
+ */
+export function seLabelOf(clause: string): string {
+  return clause === "s3.unblockedPressures" ? "binomial SE on dropbacks, an approximation: a dropback can count more than one man," : "binomial SE";
+}
+
+/** Logged at the start of a run on a dirty tree (review MEAS-N7): what it plays is cached stamped dirty, and a committed report refuses it. */
+export const STEP3_DIRTY_WARNING =
+  "pocket step 3: WARNING: this tree is dirty, so every arm it plays is cached stamped dirty, and a committed report (under reports/) refuses those records: commit first if this run feeds the committed report";
+
 /** The `next` line every grade carries while s3.part1.determinism is proved outside the run (R-1; review MEAS-N2). */
 export const STEP3_R1_NEXT =
   "s3.part1.determinism is NOT CHECKED by this run: the merge card cites R-1's output (pocket -- --step 3 --digests in two processes, the two outputs byte-identical) before it is posted";
@@ -1891,6 +1922,7 @@ export function runStep3(opts: Step3Options): Step3RunResult {
   if (committed && opts.env.dirty) throw new Error("ADR-089 step 3: a committed report (under reports/) is made from a clean tree, and this tree is dirty: commit first, or write the report elsewhere");
   const cacheDir = join(opts.cacheParent, opts.env.fingerprint);
   mkdirSync(cacheDir, { recursive: true });
+  if (opts.env.dirty) log(STEP3_DIRTY_WARNING);
   log(`pocket step 3: fingerprint ${opts.env.fingerprint}; amendments at step 3 ${guard.digest} (${guard.am2}; the guard ${guard.entry}); arms cached in ${cacheDir}`);
   const { played, cached } = playTargets(plan.mine, cacheDir, opts, guard.digest, corpus, log);
   const remaining = plan.complete.filter((t) => !existsSync(armFileOf(cacheDir, t.id, t.seedSet))).map(targetName);
