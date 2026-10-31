@@ -7,12 +7,12 @@
  * in draft order, one at a time, while they have room under the offseason limit and a prospect
  * worth signing; the rest of the class goes home. Every pick and undrafted rookie signs his rookie
  * deal on the spot (ADR-085's scale, `money.ts`). A team its picks take past the offseason limit
- * (90) cuts its weakest veterans to make room, as real teams do.
+ * (90) cuts its weakest veterans to make room, as real teams do, keeping every position at its roster shape.
  */
 import type { CalendarStamp, DraftPick, FranchiseEvent, LeagueRules, PlayerId, PlayerState, Team, TeamId } from "@ff/contracts";
 import type { LeaguePeople } from "../season/people.js";
 import { flatCap, release, signRookie, type CapForSeason } from "./money.js";
-import { boardValue, buildBoard, choose, consensusBoard, needAt, type Board, type Rate } from "./board.js";
+import { WANTED, boardValue, buildBoard, choose, consensusBoard, needAt, type Board, type Rate } from "./board.js";
 
 /** Undrafted signings a team makes at most, and the board value below which a prospect is not worth a spot. */
 export const UDFA = { perTeam: 20, minValue: 2 } as const;
@@ -101,8 +101,18 @@ export function runDraftDay(people: LeaguePeople, input: DraftDayInput): DraftDa
   for (const t of teams.values()) {
     const over = t.roster.length - limit;
     if (over <= 0) continue;
-    const weakest = rosterOf(t.id).filter((p) => !drafted.has(String(p.bio.id)))
-      .sort((a, b) => rate(a) - rate(b) || String(a.bio.id).localeCompare(String(b.bio.id))).slice(0, over);
+    // Weakest first, but never a position below what a roster carries there (every formation can still be fielded).
+    const roster = rosterOf(t.id);
+    const count = new Map<string, number>();
+    for (const p of roster) count.set(p.bio.position, (count.get(p.bio.position) ?? 0) + 1);
+    const weakest: PlayerState[] = [];
+    for (const p of roster.filter((q) => !drafted.has(String(q.bio.id)))
+      .sort((a, b) => rate(a) - rate(b) || String(a.bio.id).localeCompare(String(b.bio.id)))) {
+      if (weakest.length >= over) break;
+      if (count.get(p.bio.position)! <= WANTED[p.bio.position]) continue;
+      count.set(p.bio.position, count.get(p.bio.position)! - 1);
+      weakest.push(p);
+    }
     for (const p of weakest) {
       const id = String(p.bio.id);
       t.roster = t.roster.filter((x) => String(x) !== id);

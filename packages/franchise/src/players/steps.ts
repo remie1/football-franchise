@@ -18,11 +18,12 @@
  * and the day, and a save carries on exactly.
  */
 import {
-  positionOverall,
-  type CalendarPhase, type FranchiseEvent, type GameParticipation, type PlayerState, type Position, type SeasonState,
+  DEFAULT_LEAGUE_RULES, positionOverall,
+  type CalendarPhase, type FranchiseEvent, type GameParticipation, type LeagueRules, type PlayerId, type PlayerState, type Position, type SeasonState,
   type StaffState, type Team, type TeamId,
 } from "@ff/contracts";
 import { minimumContract } from "../cap/signings.js";
+import { flatCap, type CapForSeason } from "../draft/money.js";
 import type { DayStep, DayStepContext, LeaguePeople } from "../season/people.js";
 import { currentJob, seatOf } from "../staff/world.js";
 import { nextDay } from "../calendar/clock.js";
@@ -48,6 +49,15 @@ export interface PlayerStepsConfig {
   readonly unfilled?: (team: Team, available: ReadonlySet<string>, players: ReadonlyMap<string, PlayerState>) => Position | undefined;
   /** The owner's team: even depth-chart leanings until ADR-083's trait exists. */
   readonly ownerTeam?: TeamId;
+  /**
+   * The cap by season, for the emergency signings' one-year minimums (ADR-085's forecast), as the
+   * draft's `cap` prices its deals. Default: flat at the rules' cap, as the draft's default is. Up to
+   * the CBA's last season (2030) the minimum is the CBA's table and the cap changes nothing; past it,
+   * the table grows with the cap, so a league that signs players then needs one. `runSeason` gives
+   * these steps the year's one cap, the draft's, else the league year's (ADR-085), when they have none
+   * of their own, so they are priced as the draft's deals are.
+   */
+  readonly cap?: CapForSeason;
 }
 
 /** What a resolver hands back beside a result for these steps: the who-played report (P4). */
@@ -167,16 +177,31 @@ export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: 
 
 /**
  * Next man up (§5.3), a stopgap until the cap thread's injured reserve and street signings: before the
- * next game, a team that cannot field a side signs the free agent who best fits the spot it cannot
- * fill, on a one-year minimum deal. One who plays that position is preferred; failing that, the best
- * overall at it, listed there from now on. "Best" is the side's coordinator's read (his position
- * overall there through `readBlur`), never the true ratings (§7). Only `playing` teams sign (absent =
- * every team). The 53-man limit is not enforced for these signings.
+ * next game, a team that cannot field a side fills the spot it cannot fill, on a one-year minimum
+ * deal: from its own practice squad first (`Team.practiceSquad`, ADR-086 C4), as real teams do, and
+ * only when nobody there is fit, with the free agent who best fits. In either pool one who plays
+ * that position is preferred; failing that, the best overall at it, listed there from now on. For a
+ * kicker, punter or long snapper, a specialist off the street comes before a squad player of
+ * another trade.
+ * "Best" is the side's coordinator's read (his position overall there through `readBlur`), never
+ * the true ratings (§7). A call-up leaves the practice squad for the roster and the position's depth
+ * chart, and is a `CONTRACT_SIGNED` like a street signing (a squad player called up signs a standard
+ * deal); a team with no practice squad signs from the street exactly as before. Where a contract book
+ * is kept, each signing adds his one-year minimum to it, priced by `cap` (default: flat at `rules`'
+ * cap, as the draft's deals are; it moves the price only past the CBA's last season), and a call-up
+ * also ends his live practice-squad deal with that team at the call-up day (reason `EXPIRED`: no dead
+ * money, since a squad deal has no bonus, and no event of its own, the `CONTRACT_SIGNED` tells it),
+ * so the call-up never adds a second live deal for him; with no such deal on the book, nothing else
+ * changes. Other deals of his the book holds are left as they are: whether it held only the squad deal
+ * is up to the code that wrote it. Only `playing` teams sign (absent = every team). Neither the 53-man
+ * limit nor the cap is checked for these signings: their money and real rules are the cap thread's
+ * (ADR-087 §5.3, ADR-085), whose in-season signings replace this stopgap.
  */
 export function emergencySignings(
   people: LeaguePeople, at: DayStepContext["day"], unfilled: NonNullable<PlayerStepsConfig["unfilled"]>,
-  opts: { readonly seed: string; readonly playing?: ReadonlySet<string> },
+  opts: { readonly seed: string; readonly playing?: ReadonlySet<string>; readonly cap?: CapForSeason; readonly rules?: LeagueRules },
 ): { people: LeaguePeople; events: FranchiseEvent[] } {
+  const cap = opts.cap ?? flatCap(opts.rules ?? DEFAULT_LEAGUE_RULES);
   const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
   let freeAgents = [...people.freeAgents];
   const contracts = people.contracts ? [...people.contracts] : undefined;
@@ -188,21 +213,47 @@ export function emergencySignings(
       const available = new Set(t.roster.map(String).filter((id) => { const p = byId.get(id); return p !== undefined && isAvailable(p); }));
       const position = unfilled(t, available, byId);
       if (position === undefined) return t;
-      const pool = freeAgents.map((id) => byId.get(String(id))).filter((p): p is PlayerState => p !== undefined && isAvailable(p) && p.bio.draft !== "PROSPECT");
       const seat = SIDE_SEAT[sideOf(position)];
       const lens = coordinator(people.staff, t.id, seat);
-      const read = new Map(pool.map((p) => [String(p.bio.id),
-        positionOverall(position, p.attributes.values) + readBlur({ seed: opts.seed, at, team: t.id, seat, coordinator: lens, player: p.bio.id })]));
-      const best = (list: PlayerState[]) => [...list].sort((a, b) =>
-        read.get(String(b.bio.id))! - read.get(String(a.bio.id))! || String(a.bio.id).localeCompare(String(b.bio.id)))[0];
-      const pick = best(pool.filter((p) => p.bio.position === position)) ?? best(pool);
+      /** The coordinator's pick from a pool (his read is a pure function of the day, so reading more men moves nothing); ties by id. */
+      const best = (pool: readonly PlayerState[]): PlayerState | undefined => {
+        const read = new Map(pool.map((p) => [String(p.bio.id),
+          positionOverall(position, p.attributes.values) + readBlur({ seed: opts.seed, at, team: t.id, seat, coordinator: lens, player: p.bio.id })]));
+        return [...pool].sort((a, b) =>
+          read.get(String(b.bio.id))! - read.get(String(a.bio.id))! || String(a.bio.id).localeCompare(String(b.bio.id)))[0];
+      };
+      const fit = (id: PlayerId) => { const p = byId.get(String(id)); return p !== undefined && isAvailable(p) && p.bio.draft !== "PROSPECT" ? p : undefined; };
+      const listed = (pool: readonly PlayerState[]) => pool.filter((p) => p.bio.position === position);
+      const squad = (t.practiceSquad ?? []).map(fit).filter((p): p is PlayerState => p !== undefined);
+      const street = freeAgents.map(fit).filter((p): p is PlayerState => p !== undefined);
+      // Where to look, in order (`true` = a call-up): the squad, one listed at the position first, then the
+      // street the same way. A specialist (K, P, LS) is the exception: a kicker off the street comes before a
+      // squad man of another trade, so a hurt kicker brings in a kicker while there is one (ADR-087 §11).
+      const tiers: readonly (readonly [readonly PlayerState[], boolean])[] = SPECIAL.has(position)
+        ? [[listed(squad), true], [listed(street), false], [squad, true], [street, false]]
+        : [[listed(squad), true], [squad, true], [listed(street), false], [street, false]];
+      let pick: PlayerState | undefined;
+      let calledUp = false;
+      for (const [pool, fromSquad] of tiers) {
+        pick = best(pool);
+        if (pick) { calledUp = fromSquad; break; }
+      }
       if (!pick) return t; // Nobody left to sign: the season runner reports the team it cannot field.
       const signed: PlayerState = { ...pick, teamId: t.id, bio: { ...pick.bio, position } };
       byId.set(String(pick.bio.id), signed);
-      freeAgents = freeAgents.filter((id) => id !== pick.bio.id);
+      if (calledUp) t = { ...t, practiceSquad: t.practiceSquad!.filter((id) => id !== pick.bio.id) };
+      else freeAgents = freeAgents.filter((id) => id !== pick.bio.id);
       t = { ...t, roster: [...t.roster, pick.bio.id], depthChart: { ...t.depthChart, [position]: [...(t.depthChart[position] ?? []), pick.bio.id] } };
       events.push({ type: "CONTRACT_SIGNED", payload: { player: pick.bio.id, team: t.id, kind: "MINIMUM", years: 1 } });
-      contracts?.push(minimumContract({ player: pick.bio.id, team: t.id, season: at.season, signedAt: at, creditedSeasons: pick.bio.creditedSeasons ?? 0, years: 1 }));
+      if (calledUp && contracts) {
+        // His squad deal ends at the call-up (ADR-087 §11): EXPIRED, so no charge (it has no bonus) and no event.
+        const i = contracts.findIndex((c) =>
+          String(c.player) === String(pick.bio.id) && String(c.team) === String(t.id) && c.kind === "PRACTICE_SQUAD" && !c.ended);
+        if (i >= 0) contracts[i] = { ...contracts[i]!, ended: { at, reason: "EXPIRED" } };
+      }
+      contracts?.push(minimumContract({
+        player: pick.bio.id, team: t.id, season: at.season, signedAt: at, creditedSeasons: pick.bio.creditedSeasons ?? 0, years: 1, capForSeason: cap,
+      }));
     }
   });
   if (events.length === 0) return { people, events };
@@ -260,7 +311,9 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
       events.push(...depth.events);
       let next: LeaguePeople = { ...people, teams: depth.teams, players: depth.players, playerMemory: { ...depth.memory, switches } };
       if (config.unfilled) {
-        const signed = emergencySignings(next, ctx.day, config.unfilled, { seed: ctx.seed, playing: teamsPlayingNextWeek(ctx, next.teams) });
+        const signed = emergencySignings(next, ctx.day, config.unfilled, {
+          seed: ctx.seed, playing: teamsPlayingNextWeek(ctx, next.teams), rules: ctx.rules, ...(config.cap ? { cap: config.cap } : {}),
+        });
         next = signed.people; events.push(...signed.events);
       }
       return { people: next, events };

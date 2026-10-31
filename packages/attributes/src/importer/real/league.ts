@@ -1,9 +1,11 @@
 /**
- * The whole importer, rows to league (ADR-088): stand-ins (R2), then their ratings (R3).
+ * The whole importer, rows to league (ADR-088): stand-ins (R2), then their ratings (R3), then their
+ * starting development (ADR-087 §2.5, `development.ts`).
  * Pure: the command (`main.ts`) does the reading and writing.
  */
 import { playerId, type RatedLeague, type Team } from "@ff/contracts";
 import { buildContracts, type ContractSource, type StandInContract } from "./contracts.js";
+import { standInDevelopment, type StartingDevelopment } from "./development.js";
 import { REAL_TEAM_SLOTS } from "./positions.js";
 import { rateStandIns, type RatingProvenance } from "./rate.js";
 import { buildHistory, type CareerHistory } from "./history.js";
@@ -35,6 +37,8 @@ export function buildRealLeague(input: RealLeagueInput): {
   league: RatedLeague & { provenance: RealLeagueProvenance };
   contracts: StandInContract[];
   sealed: SealedTable;
+  /** The league file's `startingDevelopment` key (`development.ts`). */
+  startingDevelopment: StartingDevelopment;
 } {
   const s = buildStandIns(input);
   const position = new Map(s.players.map((p) => [String(p.bio.id), p.bio.position]));
@@ -69,13 +73,19 @@ export function buildRealLeague(input: RealLeagueInput): {
     season: input.season, snaps: input.snaps, injuries: input.injuries,
     players: new Map([...realIds].filter(([id]) => position.has(id)).map(([id, r]) => [id, { ...r, reserveCode: s.reserveCode[id] }])),
   });
+  // ADR-087 §2.5: growth records, bodies, patience and today's injuries, from what is built above.
+  const dev = standInDevelopment({
+    season: input.season, snapshotDate: input.date, players: rated.players,
+    status: s.provenance.status, measurements: s.provenance.measurements, history,
+  });
   return {
     league: {
-      teams, players: rated.players, coverage: null,
+      teams, players: dev.players, coverage: null,
       provenance: { ...s.provenance, seed: input.seed, ratings, contractSource: deals.source, history, noContract: deals.missing },
     },
     contracts: deals.contracts,
     sealed: s.sealed,
+    startingDevelopment: dev.startingDevelopment,
   };
 }
 

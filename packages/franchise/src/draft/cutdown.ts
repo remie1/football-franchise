@@ -26,7 +26,7 @@ export const LEAN_POINTS = 1.5;
 /** Seasons in the league under which a cut player goes through waivers and can join a practice squad. */
 export const NEWER_PLAYER_SEASONS = 4;
 /** A claim needs the player to be this much better than the claiming team's weakest at his position. */
-export const CLAIM_MARGIN = 1;
+export const CLAIM_MARGIN = 8;
 
 export interface CutdownInput {
   season: number;
