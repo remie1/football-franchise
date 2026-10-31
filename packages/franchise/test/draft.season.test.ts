@@ -168,14 +168,17 @@ describe("the draft's money (ADR-086 §8 with ADR-085)", () => {
     for (const c of udfa) expect(c.years.map((y) => y.season)).toEqual([2027, 2028, 2029]);
   });
 
-  it("gives everyone on a 53 at the season's end a credited season, and no prospect one", () => {
+  it("gives everyone on a 53 at the season's end a credited season, and every rookie none", () => {
     for (const t of year1.people!.teams) for (const id of t.roster) {
       const p = year1.people!.players.find((q) => q.bio.id === id)!;
       if (p.bio.draft === "UDFA" || (typeof p.bio.draft === "object" && p.bio.draft.year === 2027)) continue;
       const d = p.bio.draft as { year: number };
       expect(p.bio.creditedSeasons).toBe(2026 - d.year + 1);
     }
-    for (const p of year1.people!.players) if (typeof p.bio.draft === "object" && p.bio.draft.year === 2027) expect(p.bio.creditedSeasons).toBeUndefined();
+    // Rookies sign with none, undrafted ones too, whatever their age.
+    for (const p of year1.people!.players) if ((typeof p.bio.draft === "object" && p.bio.draft.year === 2027) || String(p.bio.id).startsWith("d2027-")) {
+      if (p.teamId !== undefined) expect(p.bio.creditedSeasons).toBe(0);
+    }
   });
 
   it("on cut-down day ends the cut players' deals, charges a cut draftee's bonus as dead money, and signs practice squads", () => {

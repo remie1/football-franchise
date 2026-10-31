@@ -68,7 +68,8 @@ export function runDraftDay(people: LeaguePeople, input: DraftDayInput): DraftDa
 
   const sign = (team: TeamId, p: PlayerState, draftLine: PlayerState["bio"]["draft"]) => {
     available.delete(String(p.bio.id));
-    const signed: PlayerState = { ...p, bio: { ...p.bio, draft: draftLine }, teamId: team };
+    // A rookie starts with no credited seasons (ADR-085 K5), whatever his age.
+    const signed: PlayerState = { ...p, bio: { ...p.bio, draft: draftLine, creditedSeasons: p.bio.creditedSeasons ?? 0 }, teamId: team };
     byId.set(String(p.bio.id), signed);
     const t = teams.get(team)!;
     t.roster.push(p.bio.id);
