@@ -68,6 +68,12 @@ export const MARKET = {
    * and this much for free agency (real teams clear space in February and March).
    */
   freeAgencyRoom: 15_000_000,
+  /** Early extensions: the lowest place in his position's market a player is extended at. */
+  extendPercentile: 0.4,
+  /** ...while his age leaves at least this much of his price in the new deal's first year (`ageFactor`). */
+  extendAgeFactor: 0.9,
+  /** A drafted player may sign a new deal once this many seasons are done (the real CBA rule). */
+  rookieExtensionSeasons: 3,
   /** A cap casualty: a veteran worth less than this share of his cap number this year, when cutting him saves money. */
   casualtyShare: 0.5,
   /** ...and saves at least this much (dollars). */
@@ -289,7 +295,7 @@ function reSign(
         const v = valuePlayer(p, g, curves, minimumSalary(next, cs, config.cap));
         const offer = buildOffer(p, team.id, next, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
         if (capNumber(offer.years[0]!) <= room) {
-          const ask = askingPrice(p, valuePlayer(p, config.rate(p), curves, minimumSalary(next, cs, config.cap)).apy, "PREMIUM", 0, minimumSalary(next, cs, config.cap), ctx.seed, ctx.season);
+          const ask = askingPrice(p, valuePlayer(p, config.rate(p), curves, minimumSalary(next, cs, config.cap)).apy, "VALUE", 0, minimumSalary(next, cs, config.cap), ctx.seed, ctx.season);
           const worth = offerWorth(p, {
             apy: v.apy, guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
             starts: wouldStart(g, pos, gradesAt(pos)), ownTeam: true,
@@ -306,6 +312,32 @@ function reSign(
         book.events.push(signedEvent(contract));
         kept.push(p);
       }
+    }
+    // Early extensions: a player the team rates highly, in his last year next season and still in his
+    // prime, is extended now, as real teams do before a good player reaches the market. The new deal
+    // starts after the old one ends.
+    const first = next + 1;
+    for (const p of roster) {
+      const old = book.contracts.find((c) => String(c.player) === String(p.bio.id) && c.team === team.id && endsAfter(c, next));
+      if (!old || hasDealIn(book.contracts, String(p.bio.id), first)) continue;
+      const cs = seasonsIn(p, first);
+      // A drafted player cannot sign a new deal until his third season is over (the real rookie rule).
+      if (old.kind === "ROOKIE" && seasonsIn(p, next) < MARKET.rookieExtensionSeasons) continue;
+      if (ageFactor(p.bio.age + 2, p.bio.position) < MARKET.extendAgeFactor) continue;
+      const g = grade(p);
+      const floor = minimumSalary(first, cs, config.cap);
+      const v = valuePlayer(p, g, curves, floor);
+      if (v.percentile < MARKET.extendPercentile) continue;
+      const offer = buildOffer(p, team.id, first, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
+      if (capNumber(offer.years[0]!) > roomFor(team.id, first, book, config.cap, MARKET.inSeasonBuffer, 0)) continue;
+      const ask = askingPrice(p, valuePlayer(p, config.rate(p), curves, floor).apy, "VALUE", 0, floor, ctx.seed, ctx.season);
+      const worth = offerWorth(p, {
+        apy: apyOf(offer), guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
+        starts: wouldStart(g, p.bio.position, gradesAt(p.bio.position)), ownTeam: true,
+      }, ask);
+      if (worth < 1) continue;
+      book.contracts.push(offer);
+      book.events.push(signedEvent(offer));
     }
     // One franchise tag: the best player who said no, if he is a star and it fits.
     if (ctx.rules.franchiseTagEnabled) {
@@ -506,13 +538,18 @@ function complianceCheck(
       let roster = [...t.roster];
       const pool = freeAgents.map((id) => byId.get(String(id))).filter((p): p is PlayerState => !!p && !taken.has(String(p.bio.id)));
       // First every hole: a position with fewer than its starters (at least one) gets the best free
-      // agent there on a minimum deal; a full roster lets its most spare man go to make the seat.
-      for (const pos of Object.keys(STARTERS) as Position[]) {
+      // agent there on a minimum deal. Then the roster's shape (ADR-079's wanted number at each
+      // position), so that every personnel group can be fielded. A full roster lets its most spare
+      // man go to make the seat. The league must play, so these minimum deals do not wait on room.
+      const shape = [(pos: Position) => Math.max(1, STARTERS[pos]), (pos: Position) => Math.max(1, WANTED[pos])];
+      for (const [pass, want] of shape.entries()) for (const pos of Object.keys(STARTERS) as Position[]) {
         const here = () => playersOf({ ...t, roster }, byId).filter((p) => p.bio.position === pos).length;
-        while (here() < Math.max(1, STARTERS[pos])) {
+        while (here() < want(pos)) {
           const pick = pool.filter((p) => p.bio.position === pos && !taken.has(String(p.bio.id))).sort((a, b) => config.rate(b) - config.rate(a))[0];
           if (!pick) break;
           if (roster.length >= fillTo) {
+            // The shape never costs a man the roster wants: only a starter hole may release.
+            if (pass > 0) break;
             const spare = mostSpare({ ...t, roster }, byId, config.rate, year, book);
             if (!spare) break;
             const r = releasePlayer(book.contracts[spare.i]!, ctx.day);

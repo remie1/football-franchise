@@ -47,9 +47,30 @@ Notes on the cap row:
 - Practice squads and rookie classes are the real size.
 - The cap grows as forecast.
 
+## After early extensions (ADR-085 step 7, 2026-10-31)
+
+At the owner's pick, teams now extend a player a year before his deal ends. To qualify he must be in
+his prime and sit at or above the 40th percentile of his position's market. A drafted player
+qualifies only after his third season, as under the real rule. Re-signings before free agency now ask a fair price, where before they asked the
+top-of-market price.
+
+| League year | 2027 | 2028 | 2029 | 2030 | 2031 | Mean | Real |
+|---|---|---|---|---|---|---|---|
+| Own-team deals of 2+ years, before | 30 | 40 | 54 | 62 | 87 | 55 | 210 to 290 |
+| Own-team deals of 2+ years, now | 122 | 96 | 27 | 61 | 113 | 84 | 210 to 290 |
+| New-team deals, $2M+, now | 58 | 67 | 54 | 111 | 74 | 73 | 180 to 240 |
+| Dead money, mean a team ($M), now | 10.5 | 15.1 | 15.0 | 15.9 | 11.4 | 13.6 | about 34 |
+| QB share, now | 10.9 | 10.0 | 9.2 | 9.3 | 8.9 | | 10.7 |
+
+The first year is four times what it was, and the five-year mean is half as high again. That is
+still under half the real number. The limit now is cap room. Teams finish each year at about 99% of
+their cap, while real teams keep a few percent. A year with many extensions leaves the next year short
+of room: 2029 has the 2028 extensions to pay for. The next step is the room itself, through free
+agency and how teams plan their space.
+
 ## What does not match yet
 
-1. **Too few re-signings.** Teams sign about a fifth of the real number of own-team multi-year deals. Real teams extend their good players a year or more before the deal ends, and this model does not do that yet. It only re-signs players whose deals are expiring.
+1. **Too few re-signings.** Before step 7, teams signed about a fifth of the real number of own-team multi-year deals, because there were no early extensions. Step 7 raises it to under half the real number; cap room is now the limit.
 2. **Free agency is too quiet.** Veteran signings with new teams run at about a third to a half of the real number. The reason is that teams sit at about 99% of the cap all year, while real teams keep some room.
 3. **Too little dead money:** a third to a half of the real figure. There are no trades yet, and cap cuts happen less often than in the real league.
 4. **The position mix drifts.** Over five years QB and LB money falls, and CB and EDGE money rises.
