@@ -355,6 +355,24 @@ export type MatchEvent =
          * absent under `legacy`.
          */
         approach?: Exclude<RushApproach, "BLOCKED">;
+        /**
+         * ADR-089 P5: how far he had to come and how fast he came, the pair the engine already
+         * carries (ADR-066's split, `resolve/rushThreat.ts`). Both or neither. Written only on a
+         * play whose rules carry the free-run clock (`pocket-1` from `pocket-1.s3` on), set once
+         * when the threat is built and the same on each of its publications; absent under
+         * `legacy`, `pocket-1.s1` and `pocket-1.s2`. For a man on the free-run clock (ADR-089
+         * §4.4.1): his path from his snap spot (ADR-090) to the quarterback's drop, in yards, and
+         * that path over his whole time from the snap, before the time is rounded (get-off, any
+         * DELAYED wait and, for a man somebody touched, his band's delay included), in yards a
+         * second; a calibration arm that holds an input runs the clock on its reference instead.
+         * For a won rep, and for a touched man's late block once beaten (ADR-089 §4.4.2): the
+         * engine's nominal pair (a won rep's travel time times one nominal closing speed, and that
+         * speed), which no measurement backs. A free runner the clock did not time keeps today's
+         * set time and carries neither. `etaTick` stays the fact; a reader never divides one by
+         * the other to rebuild it.
+         */
+        distanceYards?: number;
+        closingSpeed?: number;
       } } & MatchEventBase)
   /**
    * §8.8's PURSUIT CLOCK — the quarterback has left structure and pursuit is running him down.

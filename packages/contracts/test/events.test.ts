@@ -1,5 +1,5 @@
 /**
- * ADR-089 P2, P3 and P4: what the three edits allow and what they still refuse.
+ * ADR-089 P2 to P5: what the edits allow and what they still refuse.
  *
  * The cases are type-level: the `@ts-expect-error` lines fail `pnpm --filter @ff/contracts
  * typecheck` (part of `pnpm verify`) if the edit is loosened or lost. The runtime asserts only
@@ -68,5 +68,22 @@ describe("ADR-089 P4: RUSH_THREAT.approach", () => {
     const blocked: ThreatPayload = { ...legacy, approach: "BLOCKED" };
     expect(undef).toBeDefined();
     expect(blocked).toBeDefined();
+  });
+});
+
+describe("ADR-089 P5: RUSH_THREAT.distanceYards and closingSpeed", () => {
+  it("a threat may carry the pair; a threat without it writes neither key", () => {
+    const plain: ThreatPayload = { rusher: p, alignment: "EDGE", origin: "UNBLOCKED", rollRef: "g/presnap/recognition", etaTick: 2.4, state: "TRAVELLING", approach: "FREE" };
+    const withPair: ThreatPayload = { ...plain, distanceYards: 11.25, closingSpeed: 4.69 };
+    // @ts-expect-error exactOptionalPropertyTypes: distanceYards: undefined is refused, so a threat without the pair writes no key
+    const undefDistance: ThreatPayload = { ...plain, distanceYards: undefined };
+    // @ts-expect-error nor closingSpeed: undefined
+    const undefSpeed: ThreatPayload = { ...plain, closingSpeed: undefined };
+    // @ts-expect-error yards are a number
+    const text: ThreatPayload = { ...plain, distanceYards: "11.25" };
+    expect(Object.keys(plain)).not.toContain("distanceYards");
+    expect(Object.keys(plain)).not.toContain("closingSpeed");
+    expect([withPair.distanceYards, withPair.closingSpeed]).toEqual([11.25, 4.69]);
+    expect([undefDistance, undefSpeed, text].length).toBe(3);
   });
 });
