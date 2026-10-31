@@ -1078,6 +1078,15 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
             `the callers hold have diverged.`,
         );
       }
+      // ADR-089 step 3 (plan §2.11): an arm publishes the picture its physics reads. This build
+      // draws the ruled picture only, so an arm whose free-run block asks for the Mug's Head-only
+      // picture (C6) is refused here, before its first snap, rather than played on the wrong one.
+      if (request.tunables.blitzPickup.freeRun?.picture === "MUG_HEAD_ONLY") {
+        throw new FrozenCallerError(
+          "the free-run block asks for the Mug's Head-only picture (blitzPickup.freeRun.picture MUG_HEAD_ONLY), " +
+            "and this frozen pair draws only the ruled picture: C6 plays once the pair draws the arm's picture (ADR-089 step 3, plan §2.11, K5)",
+        );
+      }
       return snapPicture(resolved.snapInput);
     },
 

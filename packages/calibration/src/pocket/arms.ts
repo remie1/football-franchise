@@ -1,7 +1,7 @@
 /**
- * THE ARMS OF STEPS 1 AND 2, AND STEP 3'S ARM IDS (ADR-089 step 1: plan §7.2 item 2, §9.3, readings
- * O23 to O28, O32, O33; step 2: plan §4.1, §4.2, readings O35 to O47, AM-1's base map; step 3: plan
- * §5.1, §4.2, the ids only).
+ * THE ARMS OF STEPS 1, 2 AND 3 (ADR-089 step 1: plan §7.2 item 2, §9.3, readings O23 to O28, O32,
+ * O33; step 2: plan §4.1, §4.2, readings O35 to O47, AM-1's base map; step 3: plan §5.1, §4.2,
+ * AM-2's references, AM-3's base map named).
  *
  * Step 1 builds both block clocks behind the switch and prices them on the flat league's 496 games
  * and the generated league's 272, at caller v7 (`ADR:941`, §6.1). Step 2 adds must act per rusher,
@@ -14,13 +14,21 @@
  *    `--step 1`, `allArms()`, `ARM_DEFS` and `isArmId` are step 1's as they were. `STEP2_ARM_IDS` is
  *    B1 to B7 (the graded arms, `STEP2_ARM_DEFS`); `STEP2_RUN_IDS` is what step 2 plays: the
  *    re-played bases A0, A14, A1, A5, A11 (`STEP2_BASES`) and B1 to B7. `ArmId` is the union.
- *  - **Step 3's arm ids, named and inert** (plan §5.1, §4.2). `STEP3_ARM_IDS` is C1 to C16 and
- *    `STEP3_RUN_IDS` what step 3 will play: the re-played bases A0, A14, A1, A11, B3, B6 and B5, then
- *    C1 to C16. They are in `ArmId`, `ALL_ARM_IDS` and `ARM_STEPS` so that AM-3's base map (C1, C2
- *    and C11) names arms of this build before any C arm runs. Nothing defines or plays them yet:
- *    `armById` refuses a C id by name, `everyArm()` and the table hold step 1's and step 2's arms
- *    only, and the command line refuses `--step 3`. Step 1's and step 2's lists, arms and digests
- *    are as they were.
+ *  - **Step 3's arms** (plan §5.1, §4.2). `STEP3_ARM_IDS` is C1 to C16 and `STEP3_RUN_IDS` what
+ *    step 3 plays: the re-played bases A0, A14, A1, A11, B3, B6 and B5, then C1 to C16.
+ *    `STEP3_ARM_DEFS` is plan §5.1's table row by row. Every C arm but C13 is stamped `pocket-1.s3`
+ *    at its own overlay digest; only C1's is `POCKET_1_S3_DIGEST` (C1 is the bundle itself,
+ *    `rulesTunables("pocket-1.s3")`). An arm's step-3 blocks (`step3`: the free-run block, the late
+ *    block, the climb lane rule) go in through `withOverlay` with its clock and card; the arms that
+ *    hold an input carry AM-2's references (`AM2_REFERENCES`) as `freeRun.hold`; C6 draws the other
+ *    of the two snap pictures (`freeRun.picture`, read by the frozen pair's line-up, K5); C13 is the
+ *    uniform delay, B3 with the `LATE` patch set, stamped `pocket-1.s2` at its own digest; C15 is C1
+ *    with the pickup and exchange band edges 30 points easier (`BAND_EDGES`, the readers' supply-cut
+ *    stand-in, a band-edge shift, not a protection design). C14 (the L basis, B5 with the step-3
+ *    blocks) is defined and refused while petition P17 is not in contracts (`waitsOn`): `withOverlay`
+ *    refuses a late block on shape L, so the table does not build it, `armById` refuses it by name
+ *    and `armRefusal` says why. The command line still refuses `--step 3` (its harness is K4's).
+ *    Step 1's and step 2's lists, arms and digests are as they were.
  *  - **Step 2's arms** are stamped `pocket-1.s2` with their own overlay digests (O28), whatever their
  *    forcing rule; the re-played bases keep their step-1 stamps and digests. B3 is the design bundle
  *    itself, `rulesTunables("pocket-1.s2")`. Each B arm's base is AM-1's step-2 map (B1, B2, B3, B4,
@@ -59,17 +67,28 @@ import type { SeedSet } from "./corpus.js";
 import {
   EngineRulesError,
   LEGACY_RULES,
+  P17_IN_CONTRACTS,
   POCKET_1_S1_OVERLAY,
   POCKET_1_S1_RULES,
   POCKET_1_S2_LEAVES,
   POCKET_1_S2_RULES,
+  POCKET_1_S3_CLIMB_LANE,
+  POCKET_1_S3_FREE_RUN,
+  POCKET_1_S3_LATE_BLOCK,
+  POCKET_1_S3_RULES,
   checkStamp,
   overlayDigestOf,
   rulesTunables,
   withOverlay,
   type EngineRules,
   type ForcingRule,
+  type FreeRunOrigin,
+  type FreeRunPicture,
+  type FreeRunReading,
   type OverlayRules,
+  type PocketClimbLane,
+  type PocketFreeRun,
+  type PocketLateBlock,
   type PocketOverlay,
 } from "./rules.js";
 
@@ -146,11 +165,37 @@ export const HALF: readonly TunablePatch[] = s2Leaf("arrival.collapsingWithinSec
 /** Step 2's Follows (question 3): PRESSURE within 2.0 -> 1.0 s, the warning, a status only. */
 export const FOLLOWS: readonly TunablePatch[] = s2Leaf("arrival.pressureWithinSeconds");
 
-/** The patch sets, step 2's two appended after step 1's five, which keep their order. */
-export const PATCH_SET_NAMES = ["HOLD", "HEELS", "PAST_ONLY", "LATE", "HORIZONS", "HALF", "FOLLOWS"] as const;
+const BAND_EDGES_EVIDENCE =
+  "ADR-089 step 3 plan §5.1, C15: the readers' supply-cut stand-in, a band-edge shift, not a protection design (ADR-089:1978); information, priced for the miss rule's option A";
+
+/** How many points easier C15 makes every finite pickup and exchange band edge (plan §5.1). */
+export const BAND_EDGE_SHIFT = 30;
+
+/**
+ * Step 3's `BAND_EDGES` (C15, plan §5.1): every finite band edge of the blitz pickup and of the
+ * stunt exchange `BAND_EDGE_SHIFT` (30) points lower, so a margin that lost a pickup or an exchange
+ * by under 30 points is read one band better (PICKED_UP_CLEAN 15 -> -15, PICKED_UP 0 -> -30,
+ * RAN_THROUGH -19 -> -49; PASSED_OFF_CLEAN 20 -> -10, PASSED_OFF 0 -> -30, LATE_EXCHANGE -19 -> -49).
+ * The last band of each (BLOWN_UP, LOOPER_FREE) has no finite edge and is untouched; the dice are
+ * not.
+ */
+export const BAND_EDGES: readonly TunablePatch[] = Object.freeze([
+  patch("blitzPickup.bands.0.minMargin", 15, 15 - BAND_EDGE_SHIFT, BAND_EDGES_EVIDENCE),
+  patch("blitzPickup.bands.1.minMargin", 0, 0 - BAND_EDGE_SHIFT, BAND_EDGES_EVIDENCE),
+  patch("blitzPickup.bands.2.minMargin", -19, -19 - BAND_EDGE_SHIFT, BAND_EDGES_EVIDENCE),
+  patch("stunt.bands.0.minMargin", 20, 20 - BAND_EDGE_SHIFT, BAND_EDGES_EVIDENCE),
+  patch("stunt.bands.1.minMargin", 0, 0 - BAND_EDGE_SHIFT, BAND_EDGES_EVIDENCE),
+  patch("stunt.bands.2.minMargin", -19, -19 - BAND_EDGE_SHIFT, BAND_EDGES_EVIDENCE),
+]);
+
+/**
+ * The patch sets, step 2's two appended after step 1's five, which keep their order, then step 3's
+ * one (`BAND_EDGES`, C15).
+ */
+export const PATCH_SET_NAMES = ["HOLD", "HEELS", "PAST_ONLY", "LATE", "HORIZONS", "HALF", "FOLLOWS", "BAND_EDGES"] as const;
 export type PatchSetName = (typeof PATCH_SET_NAMES)[number];
 
-export const PATCH_SETS: Readonly<Record<PatchSetName, readonly TunablePatch[]>> = Object.freeze({ HOLD, HEELS, PAST_ONLY, LATE, HORIZONS, HALF, FOLLOWS });
+export const PATCH_SETS: Readonly<Record<PatchSetName, readonly TunablePatch[]>> = Object.freeze({ HOLD, HEELS, PAST_ONLY, LATE, HORIZONS, HALF, FOLLOWS, BAND_EDGES });
 
 // --- the overlays --------------------------------------------------------------------------------
 
@@ -172,6 +217,51 @@ export function lOverlay(R: number): PocketOverlay {
   return deepFreeze({ repClock: { fullExpressionSeconds: R }, approach: { ...APPROACH_CARD } });
 }
 
+// --- step 3's blocks (plan §5.1; AM-2) ---------------------------------------------------------------
+
+/** The free-run block's AM-2 hold, typed from `rules.ts`'s `PocketFreeRun` (no new engine name). */
+export type FreeRunHold = NonNullable<PocketFreeRun["hold"]>;
+
+/**
+ * AM-2's references (`reports/adr-089-amendments.filed.json`, AM-2's `rule.references`; CHOSEN,
+ * information only, never a design value): Speed 50 and Acceleration 50; a drop of 5.0 yards; a
+ * spot by group, depth and width from the ball, down lineman (1.0, 2.5), linebacker (2.5, 2.5),
+ * defensive back (5.0, 7.0). The arms that vary one input (C3, C4, C5) hold the other two at these.
+ * `pocketArms.test.ts` reads each number back out of the committed text.
+ */
+export const AM2_REFERENCES: Required<FreeRunHold> = deepFreeze({
+  spot: {
+    downLineman: { depth: 1.0, width: 2.5 },
+    linebacker: { depth: 2.5, width: 2.5 },
+    defensiveBack: { depth: 5.0, width: 7.0 },
+  },
+  ratings: { speed: 50, acceleration: 50 },
+  drop: 5.0,
+});
+
+/**
+ * An arm's step-3 blocks (plan §5.1), each the tunables block of the same name: `freeRun`
+ * (`blitzPickup.freeRun`, the free-run clock), `lateBlock` (`blitzPickup.lateBlock`, the late, weak
+ * block) and `climbLane` (`pocket.climbLane`, FRONT). Absent is "off" for each. Only a
+ * `pocket-1.s3` arm carries any (`withOverlay` refuses one under another name).
+ */
+export interface Step3Blocks {
+  readonly freeRun?: PocketFreeRun;
+  readonly lateBlock?: PocketLateBlock;
+  readonly climbLane?: PocketClimbLane;
+}
+
+/** The design's free-run block with one change: its reading, its origins, its hold or its picture. */
+function freeRunWith(change: { readonly reading?: FreeRunReading; readonly origins?: readonly FreeRunOrigin[]; readonly hold?: FreeRunHold; readonly picture?: FreeRunPicture }): PocketFreeRun {
+  return deepFreeze({ ...POCKET_1_S3_FREE_RUN, ...change });
+}
+
+/** The other of the two snap pictures from the design's (C6, plan §5.1; AM-2's Mug rule). */
+export const OTHER_PICTURE: FreeRunPicture = POCKET_1_S3_FREE_RUN.picture === "AS_RULED" ? "MUG_HEAD_ONLY" : "AS_RULED";
+
+/** `pocket-1.s3`'s three blocks, the design's (C1, C2, C14, C15). */
+const S3_BLOCKS: Step3Blocks = deepFreeze({ freeRun: POCKET_1_S3_FREE_RUN, lateBlock: POCKET_1_S3_LATE_BLOCK, climbLane: POCKET_1_S3_CLIMB_LANE });
+
 // --- the arm table (§9.3) ------------------------------------------------------------------------
 
 /** Step 1's 17 arms, in §9.3's order: what `--step 1` plays. Unchanged at step 2. */
@@ -186,14 +276,14 @@ export const STEP2_ARM_IDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7"] as const
 export type Step2ArmId = (typeof STEP2_ARM_IDS)[number];
 
 /**
- * Step 3's sixteen arms (plan §5.1), in order: named, not yet defined (inert). AM-3's base map names
- * C1, C2 and C11 (plan §4.2), so the ids are arms of this build before any C arm runs; nothing in
- * this build plays them.
+ * Step 3's sixteen arms (plan §5.1), in order. AM-3's base map names C1, C2 and C11 (plan §4.2), so
+ * the ids are arms of this build before any C arm runs; `STEP3_ARM_DEFS` defines them (C14 refused
+ * while P17 is not in contracts), and the step-3 harness (K4) plays them.
  */
 export const STEP3_ARM_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C14", "C15", "C16"] as const;
 export type Step3ArmId = (typeof STEP3_ARM_IDS)[number];
 
-/** Every arm id of this build: step 1's, step 2's and step 3's (the last named only). */
+/** Every arm id of this build: step 1's, step 2's and step 3's. */
 export type ArmId = Step1ArmId | Step2ArmId | Step3ArmId;
 
 /**
@@ -204,18 +294,16 @@ export const STEP2_RUN_IDS = ["A0", "A14", "A1", "A5", "A11", ...STEP2_ARM_IDS] 
 export type Step2RunId = (typeof STEP2_RUN_IDS)[number];
 
 /**
- * What `--step 3` will play (plan §5.1), once its harness is built: the seven re-played bases, A0
+ * What `--step 3` plays (plan §5.1), once its harness is built (K4): the seven re-played bases, A0
  * and A14 for the cumulative line, A1 and A11 for the accepted state, B3, B6 and B5 as the C arms'
- * bases, then C1 to C16. Named only: the command line refuses `--step 3` in this build.
+ * bases, then C1 to C16 (C14 refused while P17 is not in contracts, `armRefusal`). The command
+ * line refuses `--step 3` in this build.
  */
 export const STEP3_RUN_IDS = ["A0", "A14", "A1", "A11", "B3", "B6", "B5", ...STEP3_ARM_IDS] as const satisfies readonly ArmId[];
 export type Step3RunId = (typeof STEP3_RUN_IDS)[number];
 
-/** Every arm id of this build, step 1's then step 2's then step 3's (step 3's named, not yet defined). */
+/** Every arm id of this build, step 1's then step 2's then step 3's. */
 export const ALL_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS]);
-
-/** The arms this build defines: step 1's 17 then step 2's 7 (`everyArm()`, the table). */
-const DEFINED_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2_ARM_IDS]);
 
 /** A step-1 arm id (`ARM_IDS`), as at step 1: step 1's command line reads it. */
 export function isArmId(id: string): id is Step1ArmId {
@@ -227,21 +315,21 @@ export function isStep2ArmId(id: string): id is Step2ArmId {
   return (STEP2_ARM_IDS as readonly string[]).includes(id);
 }
 
-/** A step-3 arm id, C1 to C16 (named; not yet defined). */
+/** A step-3 arm id, C1 to C16. */
 export function isStep3ArmId(id: string): id is Step3ArmId {
   return (STEP3_ARM_IDS as readonly string[]).includes(id);
 }
 
 /**
  * Any arm of this build, step 1's, step 2's or step 3's (for example AM-1's and AM-3's base maps,
- * whose arms must all be arms of this build). A step-3 id is an arm of this build though nothing
- * defines it yet.
+ * whose arms must all be arms of this build). C14 is an arm of this build though it is refused
+ * while P17 is not in contracts.
  */
 export function isAnyArmId(id: string): id is ArmId {
   return (ALL_ARM_IDS as readonly string[]).includes(id);
 }
 
-/** The steps that have an arm list in this build (step 3's named; its command is not built). */
+/** The steps that have an arm list in this build (step 3's command is not built: K4). */
 export const ARM_STEPS = [1, 2, 3] as const;
 export type ArmStep = (typeof ARM_STEPS)[number];
 
@@ -295,6 +383,14 @@ export interface ArmDef {
    * `COUNTER_LESS_SEEN` (the narrower counter rule). Absent: no block, step 1's forcing rule.
    */
   readonly forcing?: ForcingRule;
+  /** Step 3's blocks (plan §5.1), under `pocket-1.s3` only. Absent: none. */
+  readonly step3?: Step3Blocks;
+  /**
+   * The contract petition the arm waits on, when its blocks are refused until it is in contracts:
+   * C14's late block on shape L waits on P17 (plan §3.4). Such an arm is defined, never built while
+   * the petition is out (`armRefusal`).
+   */
+  readonly waitsOn?: "P17";
 }
 
 const GUARD = ["guard.mix", "guard.byClass"] as const;
@@ -411,6 +507,110 @@ export const STEP2_BASES: readonly Step2Base[] = deepFreeze([
   { id: "A11", role: "A1 with the stand-in hold, re-played: base of B6", reported: [] },
 ] satisfies readonly Step2Base[]);
 
+// --- step 3's arms (plan §5.1) -----------------------------------------------------------------------
+
+const S3 = POCKET_1_S3_RULES;
+
+/** The clauses C1 grades and reports (the filing's step-3 graded rows, plan §5.2). */
+const S3_GRADED = ["s3.bin20.tick", "s3.quick", "s3.unblockedPressures", "s3.unblockedShare"] as const;
+/** The stand-in expectations, read as C2 minus B6 deltas on gen (plan §5.3). */
+const S3_STAND_IN = ["s3.hitOrSack", "s3.expected.pressure", "s3.expected.sack", "s3.expected.bin20", "s3.expected.quick"] as const;
+
+/**
+ * Step 3's sixteen arms (plan §5.1), row by row. Every one plays both leagues at caller v7 on both
+ * seed sets; `seedSet` is the set its graded clauses read (set 1, as step 2 graded). `base` is the
+ * table's base column (AM-3 maps C1 on B3, C2 on B6 and C11 on B3; the others are information, their
+ * Z printed against the same base, unguarded). "Today" is today's set times; the hand-off fix and
+ * D16's path come with the free-run block. The arms that vary one input (C3, C4, C5) hold the other
+ * two at AM-2's references. C14 waits on P17 (`waitsOn`) and is never built while P17 is out.
+ */
+export const STEP3_ARM_DEFS: readonly ArmDef[] = deepFreeze([
+  {
+    id: "C1", what: "the design: B3 with the free-run clock (reading B; real spot, ratings and drop), the late block on S and the climb lane FRONT: pocket-1.s3 itself",
+    clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S3, step3: S3_BLOCKS,
+    seedSet: 1, role: "design", pricing: false, base: "B3",
+    graded: [...S3_GRADED, ...GUARD], reported: ["s3.quickOrigin", "s3.unblockedMen"],
+  },
+  {
+    id: "C2", what: "C1 on B6: the design with the stand-in hold", clock: S(true), patchSets: ["HOLD", "HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S3, step3: S3_BLOCKS,
+    seedSet: 1, role: "pricing arm, never a design value", pricing: true, base: "B6",
+    graded: [...GUARD], reported: [...S3_STAND_IN],
+  },
+  {
+    id: "C3", what: "the snap spot alone: reading B on the real spot, ratings and drop held at AM-2's references; no late block, no climb lane rule",
+    clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S3,
+    step3: { freeRun: freeRunWith({ hold: { ratings: AM2_REFERENCES.ratings, drop: AM2_REFERENCES.drop } }) },
+    seedSet: 1, role: "information, the snap spot alone (AM-2's references hold the others)", pricing: false, base: "B3", graded: [], reported: [],
+  },
+  {
+    id: "C4", what: "Speed and Acceleration alone: reading B on real ratings, spot and drop held at AM-2's references; no late block, no climb lane rule",
+    clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S3,
+    step3: { freeRun: freeRunWith({ hold: { spot: AM2_REFERENCES.spot, drop: AM2_REFERENCES.drop } }) },
+    seedSet: 1, role: "information, Speed and Acceleration alone (AM-2's references hold the others)", pricing: false, base: "B3", graded: [], reported: [],
+  },
+  {
+    id: "C5", what: "the drop alone: reading B on the real drop, spot and ratings held at AM-2's references; no late block, no climb lane rule",
+    clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S3,
+    step3: { freeRun: freeRunWith({ hold: { spot: AM2_REFERENCES.spot, ratings: AM2_REFERENCES.ratings } }) },
+    seedSet: 1, role: "information, the drop alone (AM-2's references hold the others)", pricing: false, base: "B3", graded: [], reported: [],
+  },
+  {
+    id: "C6", what: "C1 with the Mug's other picture", clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S3,
+    step3: { ...S3_BLOCKS, freeRun: freeRunWith({ picture: OTHER_PICTURE }) },
+    seedSet: 1, role: "information, the other of the two snap pictures (AM-2's Mug rule)", pricing: false, base: "B3", graded: [], reported: [],
+  },
+  {
+    id: "C7", what: "UNBLOCKED alone on the clock, real inputs; the rest today's times", clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S3,
+    step3: { freeRun: freeRunWith({ origins: ["UNBLOCKED"] }) },
+    seedSet: 1, role: "information, UNBLOCKED alone", pricing: false, base: "B3", graded: [], reported: [],
+  },
+  {
+    id: "C8", what: "BLOWN_UP alone on the clock, real inputs; the rest today's times", clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S3,
+    step3: { freeRun: freeRunWith({ origins: ["BLOWN_UP"] }) },
+    seedSet: 1, role: "information, BLOWN_UP alone", pricing: false, base: "B3", graded: [], reported: [],
+  },
+  {
+    id: "C9", what: "LOOPER_FREE and the untouched exchange alone on the clock, real inputs; the rest today's times", clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S3,
+    step3: { freeRun: freeRunWith({ origins: ["LOOPER_FREE"] }) },
+    seedSet: 1, role: "information, LOOPER_FREE alone (the untouched exchange with it, AM-2)", pricing: false, base: "B3", graded: [], reported: [],
+  },
+  {
+    id: "C10", what: "the late block alone on S: no free-run clock (men nobody touched keep today's times), no climb lane rule", clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S3,
+    step3: { lateBlock: POCKET_1_S3_LATE_BLOCK },
+    seedSet: 1, role: "information, the late block alone", pricing: false, base: "B3", graded: [], reported: [],
+  },
+  {
+    id: "C11", what: "reading (c): every free runner on the clock, touched men 0.5 s later; no late block; the climb lane FRONT", clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S3,
+    step3: { freeRun: freeRunWith({ reading: "C" }), climbLane: POCKET_1_S3_CLIMB_LANE },
+    seedSet: 1, role: "information, priced for the miss rule's option C; guarded under AM-3", pricing: false, base: "B3", graded: [...GUARD], reported: [],
+  },
+  {
+    id: "C12", what: "reading (a): UNBLOCKED alone on the clock; the late block on S for every man with a hand on him (BLOWN_UP and LOOPER_FREE too); the climb lane FRONT",
+    clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S3,
+    step3: { freeRun: freeRunWith({ reading: "A" }), lateBlock: POCKET_1_S3_LATE_BLOCK, climbLane: POCKET_1_S3_CLIMB_LANE },
+    seedSet: 1, role: "information, reading (a), never offered", pricing: false, base: "B3", graded: [], reported: [],
+  },
+  {
+    id: "C13", what: "the uniform delay: B3 with the LATE patch set (pickups +2.5 s, loopers +2.0 s), under pocket-1.s2", clock: S(true), patchSets: ["HALF", "FOLLOWS", "LATE"], forcing: "PER_RUSHER", rules: S2,
+    seedSet: 1, role: "contrast only: revision 1's uniform delay, never offered for a man nobody touched", pricing: false, base: "B3", graded: [], reported: [],
+  },
+  {
+    id: "C14", what: "the L basis: B5 (L8 with Heels and the horizons) with the free-run clock as C1, the late block on L and the climb lane FRONT",
+    clock: L(8), patchSets: ["HEELS", "HALF", "FOLLOWS"], rules: S3, step3: S3_BLOCKS, waitsOn: "P17",
+    seedSet: 1, role: "information, the L basis; refused until petition P17 is in contracts, dropped if P17 is declined", pricing: false, base: "B5", graded: [], reported: [],
+  },
+  {
+    id: "C15", what: "C1 with the pickup and exchange band edges 30 points easier (the readers' supply-cut stand-in, a band-edge shift, not a protection design)",
+    clock: S(true), patchSets: ["HALF", "FOLLOWS", "BAND_EDGES"], forcing: "PER_RUSHER", rules: S3, step3: S3_BLOCKS,
+    seedSet: 1, role: "information, priced for the miss rule's option A", pricing: false, base: "B3", graded: [], reported: [],
+  },
+  {
+    id: "C16", what: "the climb lane FRONT alone: no free-run clock, no late block", clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S3,
+    step3: { climbLane: POCKET_1_S3_CLIMB_LANE },
+    seedSet: 1, role: "information, the climb lane alone", pricing: false, base: "B3", graded: [], reported: [],
+  },
+] satisfies readonly ArmDef[]);
+
 // --- the built arms --------------------------------------------------------------------------------
 
 /** An arm (or a proof overlay) with its tunables built. Plain data and frozen tunables. */
@@ -457,6 +657,29 @@ function isS2DesignArm(def: Pick<ArmDef, "patchSets" | "forcing">, overlay: Pock
 }
 
 /**
+ * Whether a step-3 arm is `pocket-1.s3`'s design bundle itself: B3's settings (`isS2DesignArm`) and
+ * the design's three blocks, by reference (C1).
+ */
+function isS3DesignArm(def: Pick<ArmDef, "patchSets" | "forcing" | "step3">, overlay: PocketOverlay): boolean {
+  const b = def.step3;
+  return isS2DesignArm(def, overlay) && b !== undefined && b.freeRun === POCKET_1_S3_FREE_RUN && b.lateBlock === POCKET_1_S3_LATE_BLOCK && b.climbLane === POCKET_1_S3_CLIMB_LANE;
+}
+
+/** An arm's whole overlay: its clock's blocks and card, then its step-3 blocks, each only when given. */
+function withStep3(clockOverlay: PocketOverlay, blocks: Step3Blocks | undefined): PocketOverlay {
+  if (blocks === undefined) return clockOverlay;
+  const pickup = {
+    ...(blocks.freeRun === undefined ? {} : { freeRun: blocks.freeRun }),
+    ...(blocks.lateBlock === undefined ? {} : { lateBlock: blocks.lateBlock }),
+  };
+  return {
+    ...clockOverlay,
+    ...(Object.keys(pickup).length === 0 ? {} : { blitzPickup: pickup }),
+    ...(blocks.climbLane === undefined ? {} : { pocket: { climbLane: blocks.climbLane } }),
+  };
+}
+
+/**
  * Builds one arm from its definition: the patches, the overlay, the rules stamp and the forcing
  * block, checked by `checkStamp`. Exported as `buildArm` only as a test seam (review FID-F-8,
  * CT-F9): no definition in this file reaches the legacy-clock tripwire, so the test builds one that does.
@@ -471,11 +694,21 @@ function build(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }
   let tunables: Tunables;
   let rules: EngineRules;
   if (overlay === undefined) {
-    if (def.rules !== undefined || def.forcing !== undefined) {
+    if (def.rules !== undefined || def.forcing !== undefined || def.step3 !== undefined) {
       throw new EngineRulesError(`arm ${def.id}: an arm on today's clock carries no rules stamp and no forcing block`);
     }
     rules = LEGACY_RULES;
     tunables = patches.length === 0 ? DEFAULT_TUNABLES : deepFreeze(patches.reduce(applyTunablePatch, DEFAULT_TUNABLES));
+  } else if (def.rules === POCKET_1_S3_RULES) {
+    rules = def.rules;
+    // C1 is the bundle rules.ts builds and checks against POCKET_1_S3_DIGEST; every other step-3 arm
+    // is its patches on DEFAULT_TUNABLES, then its clock, card and step-3 blocks and its forcing
+    // block, through withOverlay (which refuses C14's late block on shape L while P17 is out).
+    tunables = isS3DesignArm(def, overlay)
+      ? rulesTunables(POCKET_1_S3_RULES)
+      : withOverlay(patches.reduce(applyTunablePatch, DEFAULT_TUNABLES), def.rules, withStep3(overlay, def.step3), def.forcing === undefined ? undefined : { rule: def.forcing });
+  } else if (def.step3 !== undefined) {
+    throw new EngineRulesError(`arm ${def.id}: only a ${POCKET_1_S3_RULES} arm carries step 3's blocks`);
   } else if (def.rules === undefined || def.rules === POCKET_1_S1_RULES) {
     rules = POCKET_1_S1_RULES;
     // The design bundle is the one rules.ts builds and checks against POCKET_1_S1_DIGEST.
@@ -505,12 +738,37 @@ function build(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }
   });
 }
 
+/** Whether the petition an arm waits on is in contracts (only P17 is named). */
+function petitionIn(petition: NonNullable<ArmDef["waitsOn"]>): boolean {
+  switch (petition) {
+    case "P17":
+      return P17_IN_CONTRACTS;
+    default: {
+      const unhandled: never = petition;
+      throw new Error(`arms: no petition ${String(unhandled)}`);
+    }
+  }
+}
+
+/**
+ * Why an arm of this build is not built, or `undefined` when it is: an arm whose petition is not
+ * yet in contracts (C14, P17). The step-3 harness skips it and its report says why.
+ */
+export function armRefusal(id: ArmId): string | undefined {
+  const def = STEP3_ARM_DEFS.find((d) => d.id === id);
+  if (def?.waitsOn === undefined || petitionIn(def.waitsOn)) return undefined;
+  return `${id} waits on petition ${def.waitsOn} (the late block's rolled tick on shape L): the late block on shape L is refused until its doc text is in contracts (ADR-089 step 3, plan §3.4, §5.1); dropped if ${def.waitsOn} is declined`;
+}
+
 let table: { readonly arms: ReadonlyMap<ArmId, Arm>; readonly proofs: ReadonlyMap<ProofOverlayId, Arm>; readonly byDigest: ReadonlyMap<string, Arm> } | undefined;
 
 function armTable(): NonNullable<typeof table> {
   if (table !== undefined) return table;
   const arms = new Map<ArmId, Arm>();
-  for (const def of [...ARM_DEFS, ...STEP2_ARM_DEFS]) arms.set(def.id, build(def));
+  for (const def of [...ARM_DEFS, ...STEP2_ARM_DEFS, ...STEP3_ARM_DEFS]) {
+    if (armRefusal(def.id) !== undefined) continue;
+    arms.set(def.id, build(def));
+  }
   const proofs = new Map<ProofOverlayId, Arm>();
   for (const def of PROOF_DEFS) proofs.set(def.id, build(def));
   const byDigest = new Map<string, Arm>();
@@ -533,16 +791,25 @@ export function step2Arms(): readonly Arm[] {
   return STEP2_ARM_IDS.map((id) => armById(id));
 }
 
-/** Every arm this build defines, step 1's 17 then step 2's 7 (step 3's ids are named, not defined). */
-export function everyArm(): readonly Arm[] {
-  return DEFINED_ARM_IDS.map((id) => armById(id));
+/** Step 3's arms this build builds, C1 to C16 in order, less any refused (C14 while P17 is out). */
+export function step3Arms(): readonly Arm[] {
+  return STEP3_ARM_IDS.filter((id) => armRefusal(id) === undefined).map((id) => armById(id));
 }
 
-/** The arm of `id`. Refused: an id of no arm, and a step-3 id, which this build names but does not define. */
+/**
+ * Every arm this build builds, step 1's 17, step 2's 7, then step 3's (15 while C14 waits on P17),
+ * each in its table's order.
+ */
+export function everyArm(): readonly Arm[] {
+  return ALL_ARM_IDS.filter((id) => armRefusal(id) === undefined).map((id) => armById(id));
+}
+
+/** The arm of `id`. Refused: an id of no arm, and an arm whose petition is not in contracts (`armRefusal`). */
 export function armById(id: ArmId): Arm {
   const arm = armTable().arms.get(id);
   if (arm === undefined) {
-    if (isStep3ArmId(id)) throw new Error(`arms: ${id} is one of step 3's arms, named in this build but not yet defined (ADR-089 step 3, plan §5.1): nothing plays it`);
+    const refusal = armRefusal(id);
+    if (refusal !== undefined) throw new EngineRulesError(`arms: ${refusal}: nothing plays it`);
     throw new Error(`arms: no arm ${id}`);
   }
   return arm;
@@ -557,13 +824,13 @@ export function proofOverlay(id: ProofOverlayId): Arm {
 
 /**
  * The arm (or proof overlay) whose dials a stream's `PLAY_START.rules.overlayDigest` names (N9),
- * step 1's and step 2's alike. Refused: a digest no arm of this build carries, since nobody could
- * rebuild that stream's margins.
+ * step 1's, step 2's and step 3's alike. Refused: a digest no arm of this build carries, since
+ * nobody could rebuild that stream's margins.
  */
 export function armOfDigest(overlayDigest: string): Arm {
   const arm = armTable().byDigest.get(overlayDigest);
   if (arm === undefined) {
-    throw new EngineRulesError(`a stream stamped with overlay ${overlayDigest}, which no step-1 arm of this build carries, nor any step-2 arm: its dials cannot be named (N9)`);
+    throw new EngineRulesError(`a stream stamped with overlay ${overlayDigest}, which no step-1 arm of this build carries, nor any step-2 or step-3 arm: its dials cannot be named (N9)`);
   }
   return arm;
 }
@@ -572,16 +839,24 @@ export function armOfDigest(overlayDigest: string): Arm {
  * An arm's mechanisms, for the exclusive affected-play counts against its base (ADR-089:927). Step
  * 2's four are appended after step 1's eight, which keep their order (C3-13): `MUST_ACT` (the
  * forcing rule PER_RUSHER), `HALF`, `FOLLOWS` (the two leaves) and `COUNTER_LESS_SEEN` (the
- * narrower counter rule).
+ * narrower counter rule). Step 3's five follow: `FREE_RUN` (a free-run block, whatever its reading,
+ * origins or hold), `LATE_BLOCK`, `CLIMB_FRONT`, `MUG_HEAD_ONLY` (a free-run block drawing the
+ * Head-only picture) and `BAND_EDGES` (C15's patch set).
  */
-export const MECHANISMS = ["S", "WINDOW", "L", "HEELS", "PAST_ONLY", "HOLD", "HORIZONS", "LATE", "MUST_ACT", "HALF", "FOLLOWS", "COUNTER_LESS_SEEN"] as const;
+export const MECHANISMS = [
+  "S", "WINDOW", "L", "HEELS", "PAST_ONLY", "HOLD", "HORIZONS", "LATE", "MUST_ACT", "HALF", "FOLLOWS", "COUNTER_LESS_SEEN",
+  "FREE_RUN", "LATE_BLOCK", "CLIMB_FRONT", "MUG_HEAD_ONLY", "BAND_EDGES",
+] as const;
 export type Mechanism = (typeof MECHANISMS)[number];
 
 /** The mechanism a forcing rule is. */
 const FORCING_MECHANISM: Readonly<Record<ForcingRule, Mechanism>> = Object.freeze({ PER_RUSHER: "MUST_ACT", COUNTER_LESS_SEEN: "COUNTER_LESS_SEEN" });
 
-/** An arm's mechanisms: its clock, its patch sets in order, then its forcing rule (step 2). */
-export function mechanismsOf(arm: Pick<ArmDef, "clock" | "patchSets" | "forcing">): readonly Mechanism[] {
+/**
+ * An arm's mechanisms: its clock, its patch sets in order, then its forcing rule (step 2), then its
+ * step-3 blocks (the free-run block, the Head-only picture, the late block, the climb lane rule).
+ */
+export function mechanismsOf(arm: Pick<ArmDef, "clock" | "patchSets" | "forcing" | "step3">): readonly Mechanism[] {
   const out: Mechanism[] = [];
   if (arm.clock.kind === "S") {
     out.push("S");
@@ -590,11 +865,18 @@ export function mechanismsOf(arm: Pick<ArmDef, "clock" | "patchSets" | "forcing"
   if (arm.clock.kind === "L") out.push("L");
   for (const name of arm.patchSets) out.push(name);
   if (arm.forcing !== undefined) out.push(FORCING_MECHANISM[arm.forcing]);
+  const b = arm.step3;
+  if (b?.freeRun !== undefined) {
+    out.push("FREE_RUN");
+    if (b.freeRun.picture === "MUG_HEAD_ONLY") out.push("MUG_HEAD_ONLY");
+  }
+  if (b?.lateBlock !== undefined) out.push("LATE_BLOCK");
+  if (b?.climbLane !== undefined) out.push("CLIMB_FRONT");
   return out;
 }
 
 /** The mechanisms an arm has and its base does not (all of them for an arm with no base). */
-export function exclusiveMechanisms(arm: Pick<ArmDef, "clock" | "patchSets" | "base" | "forcing">): readonly Mechanism[] {
+export function exclusiveMechanisms(arm: Pick<ArmDef, "clock" | "patchSets" | "base" | "forcing" | "step3">): readonly Mechanism[] {
   const own = mechanismsOf(arm);
   if (arm.base === undefined) return own;
   const base = new Set(mechanismsOf(armById(arm.base)));
