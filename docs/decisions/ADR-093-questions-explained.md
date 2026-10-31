@@ -45,6 +45,8 @@ What I did about it: I found real numbers that fence in the guess from both side
 
 ### Q1. How much of the holding in the pile do the officials see?
 
+**You chose 2 in 3 (31 October).**
+
 **Example:** your left tackle is beaten off the edge and grabs the rusher's jersey. The sack doesn't happen. Does the umpire see it?
 
 - **2 in 3 (recommended now):** an offense really holds about 1.6 times a game. About one hold a game, both teams together, saves a sack or springs a run with no flag.
