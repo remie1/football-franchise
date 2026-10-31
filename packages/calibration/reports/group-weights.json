@@ -1,0 +1,82 @@
+{
+  "games": 1000,
+  "seed": "group-weights",
+  "boost": 10,
+  "control": {
+    "meanMargin": 1.8,
+    "marginSd": 27.056756421789842
+  },
+  "groups": [
+    {
+      "group": "QB",
+      "games": 1000,
+      "meanMargin": 6.437,
+      "weight": 0.46369999999999995,
+      "se": 0.08938222133898607
+    },
+    {
+      "group": "RB",
+      "games": 1000,
+      "meanMargin": 7.468,
+      "weight": 0.5668,
+      "se": 0.08258594431377661
+    },
+    {
+      "group": "WR",
+      "games": 1000,
+      "meanMargin": 3.647,
+      "weight": 0.1847,
+      "se": 0.08113876637840517
+    },
+    {
+      "group": "TE",
+      "games": 1000,
+      "meanMargin": 3.291,
+      "weight": 0.1491,
+      "se": 0.05767777662077398
+    },
+    {
+      "group": "OL",
+      "games": 1000,
+      "meanMargin": 5.335,
+      "weight": 0.35350000000000004,
+      "se": 0.08296403305517874
+    },
+    {
+      "group": "DL",
+      "games": 1000,
+      "meanMargin": 4.408,
+      "weight": 0.26080000000000003,
+      "se": 0.07948547855615715
+    },
+    {
+      "group": "LB",
+      "games": 1000,
+      "meanMargin": 6.948,
+      "weight": 0.5147999999999999,
+      "se": 0.08049783140470838
+    },
+    {
+      "group": "CB",
+      "games": 1000,
+      "meanMargin": 10.249,
+      "weight": 0.8449,
+      "se": 0.08063979642066792
+    },
+    {
+      "group": "S",
+      "games": 1000,
+      "meanMargin": 5.939,
+      "weight": 0.41390000000000005,
+      "se": 0.07194993803738528
+    },
+    {
+      "group": "ST",
+      "games": 1000,
+      "meanMargin": 2.235,
+      "weight": 0.0435,
+      "se": 0.07049260214346577
+    }
+  ],
+  "runs": "four processes (QB,RB,WR / TE,OL,DL / LB,CB,S / ST), each with the same control"
+}

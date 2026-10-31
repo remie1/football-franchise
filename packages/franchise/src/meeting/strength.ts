@@ -26,15 +26,19 @@ export const UNIT_OF: Readonly<Record<MeetingGroup, Unit>> = {
   DL: "DEFENSE", LB: "DEFENSE", CB: "DEFENSE", S: "DEFENSE", ST: "SPECIAL_TEAMS",
 };
 
-/** Points of margin a game per rating point of the group's starters. MEASURED: see GROUP_WEIGHTS_SOURCE. */
+/**
+ * Points of margin a game per rating point of the group's starters. MEASURED on today's engine
+ * (`legacy` rules, before the pocket fix): calibration `reports/group-weights.md`, 1,000 games a
+ * group, ±0.06 to 0.09 (1 SE). Re-measure when the engine changes.
+ */
 export const GROUP_WEIGHTS: Readonly<Record<MeetingGroup, number>> = {
-  QB: 0.3, RB: 0.1, WR: 0.2, TE: 0.05, OL: 0.25, DL: 0.25, LB: 0.1, CB: 0.15, S: 0.1, ST: 0.05,
+  QB: 0.464, RB: 0.567, WR: 0.185, TE: 0.149, OL: 0.354, DL: 0.261, LB: 0.515, CB: 0.845, S: 0.414, ST: 0.043,
 };
-export const GROUP_WEIGHTS_SOURCE = "PLACEHOLDER";
+export const GROUP_WEIGHTS_SOURCE = "calibration reports/group-weights.md (2026-10-31, legacy rules, 1,000 games a group)";
 
 export const STRENGTH = {
-  /** The spread (SD) of single-game margins between even teams, in points. MEASURED with the weights. */
-  marginSd: 14,
+  /** The spread (SD) of single-game margins between even teams, in points. MEASURED with the weights (the NFL's is about 13.9). */
+  marginSd: 27.06,
 } as const;
 
 export interface Starter { player: PlayerState; position: Position; overall: number }
