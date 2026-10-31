@@ -35,6 +35,7 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { applyTunablePatch, DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
 import { stableDigest } from "../src/harness/digest.js";
@@ -66,6 +67,7 @@ import {
   POCKET_1_S3_LATE_BLOCK,
   POCKET_1_S3_OVERLAY,
   POCKET_1_S3_RULES,
+  P17_IN_CONTRACTS,
   STEP3_BLOCKS,
   checkStamp,
   engineRulesDigestOf,
@@ -811,6 +813,13 @@ describe("pocket-1.s3, step 3's bundle (plan §2.1, §4.4)", () => {
       expect(run, label).toThrow(EngineRulesError);
       expect(run, label).toThrow(message);
     }
+  });
+
+  it("review CT-F6: calibration's P17_IN_CONTRACTS is the engine's (E4b flips both)", () => {
+    const engineSource = readFileSync(fileURLToPath(new URL("../../engine/src/sim/pocketRules.ts", import.meta.url)), "utf8");
+    const declared = [...engineSource.matchAll(/^export const P17_IN_CONTRACTS = (true|false);$/gm)].map((m) => m[1]);
+    expect(declared, "the engine declares P17_IN_CONTRACTS once, as a literal").toHaveLength(1);
+    expect(P17_IN_CONTRACTS, "calibration's P17_IN_CONTRACTS (src/pocket/rules.ts) differs from the engine's (sim/pocketRules.ts)").toBe(declared[0] === "true");
   });
 
   it("refuses what the engine's closed sets refuse: the late block on shape L until P17, reading C with it, reading A without it", () => {

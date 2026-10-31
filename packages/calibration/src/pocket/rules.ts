@@ -210,9 +210,10 @@ const RATING_MAX = ATTR_SCALE.max;
 /**
  * Petition P17 (ADR-089 step-3 plan §3.4): the doc text for the late block's rolled tick on shape L.
  * Until the owner's typed yes lands it in contracts the engine refuses a late block on shape L
- * (`P17_IN_CONTRACTS`, `sim/pocketRules.ts`), and so does this module, before any game; the commit
- * that lifts the engine's constant (E4b) lifts this one. Exported so that `arms.ts` can name the arm
- * that waits on it (C14) without building it.
+ * (`P17_IN_CONTRACTS`, `sim/pocketRules.ts`), and so does this module, before any game. E4b flips
+ * both constants in one commit (the engine's checklist is on its constant); `engineRules.test.ts`
+ * reads the engine's from its source and fails while the two differ (review CT-F6). Exported so that
+ * `arms.ts` can name the arm that waits on it (C14) without building it.
  */
 export const P17_IN_CONTRACTS = false;
 

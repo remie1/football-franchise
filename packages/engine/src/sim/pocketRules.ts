@@ -47,9 +47,10 @@
  * late block on shape L is refused while petition P17's doc text is not in contracts; reading C
  * runs no late block and reading A needs one. `threatGeometry` (the gate on publishing a free
  * runner's `distanceYards` and `closingSpeed`) is true only with a free-run block AND petition P5
- * in contracts. Both petitions are the two constants below, each lifted by its own one-line engine
- * commit after the owner's typed yes lands its text (plan §3.3, §3.4: E4b, E6b). `PLAY_START.rules`
- * still keeps its two keys: the step-3 blocks are named by the overlay digest.
+ * in contracts. Both petitions are the two constants below, each lifted after the owner's typed yes
+ * lands its text (plan §3.3, §3.4: E4b, E6b); neither lift is one line (the checklists are on the
+ * constants). `PLAY_START.rules` still keeps its two keys: the step-3 blocks are named by the overlay
+ * digest.
  */
 import { ATTR_SCALE } from "@ff/contracts";
 import type {
@@ -129,12 +130,21 @@ export type PocketRules =
 
 /**
  * ADR-089 step 3: the contract petitions the step-3 rules wait on, as code constants (plan §3.3,
- * §3.4). Nothing in `packages/contracts` changes before the owner's typed yes naming each; when one
- * lands, its constant is lifted by its own one-line engine commit (E6b for P5, E4b for P17).
+ * §3.4). Nothing in `packages/contracts` changes before the owner's typed yes naming each. Neither
+ * lift is a one-line commit (reviews NPC-N2, FID-F-9); what each must change, as built:
  *  - P5: `RUSH_THREAT` gains `distanceYards` and `closingSpeed`; until then the engine fills the
- *    pair for its own use and publishes nothing (`threatGeometry` false).
+ *    pair for its own use and publishes nothing (`threatGeometry` false). E6b: after the P5
+ *    contracts commit, flip `P5_IN_CONTRACTS`, replace the `PocketRulesError` gate in
+ *    `sim/passPlay.ts` (the `rules.threatGeometry` throw before the first die) with publication:
+ *    `events.ts`'s `rushThreat` takes the pair and `passPlay.ts`'s `log.rushThreat` call passes it
+ *    when `rules.threatGeometry`; and change `pocketRules.test.ts`'s `P5_IN_CONTRACTS` pin. E6b also
+ *    decides whether a beaten late threat publishes its (nominal) pair.
  *  - P17: the doc text for the late block's rolled tick on shape L; until then a late block on
  *    shape L is refused (shape S's late beat is already described by P2, P3 and `ThreatOrigin`).
+ *    E4b: after the P17 contracts commit, flip this constant AND calibration's own
+ *    `P17_IN_CONTRACTS` (`calibration/src/pocket/rules.ts`, which refuses shape L before any game;
+ *    calibration's `engineRules.test.ts` fails while the two differ), and change
+ *    `pocketRules.test.ts`'s `P17_IN_CONTRACTS` pin.
  */
 export const P5_IN_CONTRACTS = false;
 export const P17_IN_CONTRACTS = false;
