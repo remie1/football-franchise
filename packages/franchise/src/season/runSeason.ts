@@ -160,7 +160,8 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
   const { league, season, seed, resolve, stopAfter, resumeFrom } = input;
   // Order: the caller's steps, the players' (ADR-087), the league year's (ADR-085), then the draft's
   // (ADR-086). The players' signings take the league year's cap, else the draft's, when they have none
-  // of their own, so one forecast prices every side's deals.
+  // of their own, so they are priced on the league year's forecast (the draft's own deals still take
+  // only `draft.cap`, else flat).
   const sharedCap = input.leagueYear?.cap ?? input.draft?.cap;
   const playersConfig = input.players && input.players.cap === undefined && sharedCap ? { ...input.players, cap: sharedCap } : input.players;
   const steps = [

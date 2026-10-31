@@ -54,7 +54,8 @@ export interface PlayerStepsConfig {
    * draft's `cap` prices its deals. Default: flat at the rules' cap, as the draft's default is. Up to
    * the CBA's last season (2030) the minimum is the CBA's table and the cap changes nothing; past it,
    * the table grows with the cap, so a league that signs players then needs one. `runSeason` gives
-   * these steps the draft's when they have none of their own, so one forecast prices both.
+   * these steps the league year's (ADR-085), else the draft's, when they have none of their own, so
+   * they are priced on the league year's forecast (the draft's own deals take only its `cap`).
    */
   readonly cap?: CapForSeason;
 }
@@ -192,8 +193,9 @@ export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: 
  * money, since a squad deal has no bonus, and no event of its own, the `CONTRACT_SIGNED` tells it),
  * so the call-up never adds a second live deal for him; with no such deal on the book, nothing else
  * changes. Other deals of his the book holds are left as they are: whether it held only the squad deal
- * is up to the code that wrote it. Only `playing` teams sign (absent = every team). The 53-man limit
- * is not enforced for these signings.
+ * is up to the code that wrote it. Only `playing` teams sign (absent = every team). Neither the 53-man
+ * limit nor the cap is checked for these signings: their money and real rules are the cap thread's
+ * (ADR-087 §5.3, ADR-085), whose in-season signings replace this stopgap.
  */
 export function emergencySignings(
   people: LeaguePeople, at: DayStepContext["day"], unfilled: NonNullable<PlayerStepsConfig["unfilled"]>,

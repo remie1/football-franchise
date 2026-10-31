@@ -11,6 +11,7 @@ import { minimumContract, minimumSalary, signPracticeSquad } from "../src/cap/si
 import { capNumber, liveIn, teamCapTotal } from "../src/cap/money.js";
 import { flatCap, liveContract, release, type CapForSeason } from "../src/draft/money.js";
 import type { DraftStepsConfig } from "../src/draft/steps.js";
+import type { LeagueYearConfig } from "../src/cap/leagueYear.js";
 import { currentJob, seatOf } from "../src/staff/world.js";
 import { SEASON, canPlay, league, makeClass, player, rate, resolve, startingPeople } from "./playersWorld.js";
 
@@ -527,7 +528,7 @@ describe("emergencySignings (§5.3)", () => {
   });
 });
 
-describe("the players' signings take the draft's cap in runSeason (past 2030)", () => {
+describe("the players' signings take the league year's cap, else the draft's, in runSeason (past 2030)", () => {
   // 2031, past the CBA's last season, with a contract book from the first day; a team wants a quarterback
   // whenever it has fewer fit ones than it started with, so hurt quarterbacks bring signings.
   const LATE = 2031;
@@ -538,8 +539,10 @@ describe("the players' signings take the draft's cap in runSeason (past 2030)", 
     (t.depthChart.QB ?? []).filter((id) => available.has(String(id)) && players.get(String(id))!.bio.position === "QB").length < wanted.get(String(t.id))! ? "QB" : undefined;
   const steep: CapForSeason = (s) => 300e6 * 1.5 ** Math.max(0, s - 2030);
   const growing: CapForSeason = (s) => 300e6 * 1.25 ** Math.max(0, s - 2030);
-  const run = (players: PlayerStepsConfig, draft?: DraftStepsConfig) => runSeason({
-    league, season: LATE, seed: league.seed, resolve, people: start, players: { injuries: true, unfilled, ...players }, ...(draft ? { draft } : {}),
+  const mild: CapForSeason = (s) => 300e6 * 1.1 ** Math.max(0, s - 2030);
+  const run = (players: PlayerStepsConfig, draft?: DraftStepsConfig, leagueYear?: LeagueYearConfig) => runSeason({
+    league, season: LATE, seed: league.seed, resolve, people: start, players: { injuries: true, unfilled, ...players },
+    ...(draft ? { draft } : {}), ...(leagueYear ? { leagueYear } : {}),
     through: "YEAR", stopAfter: { season: LATE, phase: "REGULAR_SEASON", week: 9, day: 7 },
   });
   /** The players' signings' one-year minimums, each with the price `cap` gives it. */
@@ -564,5 +567,33 @@ describe("the players' signings take the draft's cap in runSeason (past 2030)", 
     expect(signed(draftCap)).toEqual(signed(neither));
     expect(signed(own)).toEqual(signed(neither));
     expect(new Set([draftCap, own, neither].map((r) => minimums(r, growing)[0]![0])).size).toBe(3);
+  });
+
+  it("prices them from the league year's cap when it is given, though the draft's differs, and from their own over both", () => {
+    // ADR-085 step 5: the league year's steps play their part of this walk too (its market's bargain
+    // basement runs in camp and the preseason, before cut-down day), and its cap is the one shared.
+    const leagueYear: LeagueYearConfig = { rate, cap: steep };
+    const shared = run({}, { rate, makeClass, cap: growing }, leagueYear);
+    const own = run({ cap: mild }, { rate, makeClass, cap: growing }, leagueYear);
+    for (const r of [shared, own]) {
+      expect(r.stepEvents!.some(({ step, envelope }) => step === "free-agency" && envelope.event.type === "CONTRACT_SIGNED")).toBe(true);
+    }
+    /** The players' steps' own signings (not the market's or the draft's): what each was paid, and his price by a cap. */
+    const theirs = (r: typeof shared) => {
+      const signed = new Set(r.stepEvents!
+        .filter(({ step, envelope }) => step.startsWith(PLAYER_STEP_PREFIX) && envelope.event.type === "CONTRACT_SIGNED")
+        .map(({ envelope }) => String((envelope.event.payload as { player: PlayerId }).player)));
+      const deals = r.people!.contracts!.filter((c) => c.kind === "MINIMUM" && signed.has(String(c.player)));
+      expect(deals.length).toBeGreaterThan(0);
+      return deals.map((c) => ({ paid: c.years[0]!.baseSalary, by: (cap: CapForSeason) => minimumSalary(LATE, credited.get(String(c.player))!, cap) }));
+    };
+    for (const d of theirs(shared)) {
+      expect(d.paid).toBe(d.by(steep));
+      expect(d.paid).not.toBe(d.by(growing)); // the draft's cap would have priced him otherwise
+    }
+    for (const d of theirs(own)) {
+      expect(d.paid).toBe(d.by(mild));
+      expect([d.by(steep), d.by(growing)]).not.toContain(d.paid);
+    }
   });
 });
