@@ -1,0 +1,743 @@
+{
+  "schema": "assets/MANIFEST_SCHEMA.md v0",
+  "guideVersion": "STYLE_GUIDE v1",
+  "note": "Team marks. Made by the owner with an image tool from the prompts in the visual design thread, cut out from white to transparent, cropped, 512x512 PNG. Colors are the approved team colors. Ids match the stand-in league file; its team names are still the old ones until that file is updated.",
+  "teams": [
+    {
+      "id": "T01",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Baltimore",
+      "name": "Phantoms",
+      "colors": {
+        "primary": {
+          "hex": "#45566a",
+          "name": "slate blue"
+        },
+        "secondary": {
+          "hex": "#c4703a",
+          "name": "burnt copper"
+        }
+      },
+      "file": "logos/baltimore-phantoms.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T02",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Cincinnati",
+      "name": "Comets",
+      "colors": {
+        "primary": {
+          "hex": "#1f6f78",
+          "name": "deep teal"
+        },
+        "secondary": {
+          "hex": "#eadbb8",
+          "name": "cream"
+        }
+      },
+      "file": "logos/cincinnati-comets.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T03",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Cleveland",
+      "name": "Foundry",
+      "colors": {
+        "primary": {
+          "hex": "#343638",
+          "name": "charcoal"
+        },
+        "secondary": {
+          "hex": "#e39b2d",
+          "name": "molten amber"
+        }
+      },
+      "file": "logos/cleveland-foundry.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T04",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Pittsburgh",
+      "name": "Gargoyles",
+      "colors": {
+        "primary": {
+          "hex": "#9b3b2a",
+          "name": "brick red"
+        },
+        "secondary": {
+          "hex": "#d8c3a0",
+          "name": "sandstone"
+        }
+      },
+      "file": "logos/pittsburgh-gargoyles.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T05",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Houston",
+      "name": "Firebirds",
+      "colors": {
+        "primary": {
+          "hex": "#1c1f1a",
+          "name": "near black"
+        },
+        "secondary": {
+          "hex": "#b6e33a",
+          "name": "electric lime"
+        }
+      },
+      "file": "logos/houston-firebirds.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T06",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Indianapolis",
+      "name": "Racers",
+      "colors": {
+        "primary": {
+          "hex": "#c8102e",
+          "name": "racing red"
+        },
+        "secondary": {
+          "hex": "#f2f2f2",
+          "name": "white"
+        }
+      },
+      "file": "logos/indianapolis-racers.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T07",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Jacksonville",
+      "name": "Tarpons",
+      "colors": {
+        "primary": {
+          "hex": "#5d7f96",
+          "name": "sea slate"
+        },
+        "secondary": {
+          "hex": "#f07f5c",
+          "name": "coral"
+        }
+      },
+      "file": "logos/jacksonville-tarpons.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T08",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Tennessee",
+      "name": "Sound",
+      "colors": {
+        "primary": {
+          "hex": "#4a2f22",
+          "name": "walnut brown"
+        },
+        "secondary": {
+          "hex": "#e09a3a",
+          "name": "sunburst amber"
+        }
+      },
+      "file": "logos/tennessee-sound.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T09",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Buffalo",
+      "name": "Rangers",
+      "colors": {
+        "primary": {
+          "hex": "#2c5a78",
+          "name": "lake blue"
+        },
+        "secondary": {
+          "hex": "#e9f1f7",
+          "name": "snow white"
+        }
+      },
+      "file": "logos/buffalo-rangers.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T10",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Miami",
+      "name": "Surf",
+      "colors": {
+        "primary": {
+          "hex": "#0f3d5c",
+          "name": "deep sea blue"
+        },
+        "secondary": {
+          "hex": "#ff5aa5",
+          "name": "hot pink"
+        }
+      },
+      "file": "logos/miami-surf.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T11",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Boston",
+      "name": "Blizzard",
+      "colors": {
+        "primary": {
+          "hex": "#2f6b5a",
+          "name": "sea green"
+        },
+        "secondary": {
+          "hex": "#f2c230",
+          "name": "oilskin yellow"
+        }
+      },
+      "file": "logos/boston-blizzard.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T12",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "New York",
+      "name": "Corsairs",
+      "colors": {
+        "primary": {
+          "hex": "#1b1f2b",
+          "name": "midnight"
+        },
+        "secondary": {
+          "hex": "#6fb7a5",
+          "name": "harbor green"
+        }
+      },
+      "file": "logos/new-york-corsairs.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T13",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Denver",
+      "name": "Rush",
+      "colors": {
+        "primary": {
+          "hex": "#2f5d4e",
+          "name": "pine green"
+        },
+        "secondary": {
+          "hex": "#d9c08c",
+          "name": "sand"
+        }
+      },
+      "file": "logos/denver-rush.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T14",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Kansas City",
+      "name": "Marshals",
+      "colors": {
+        "primary": {
+          "hex": "#3d4a5c",
+          "name": "slate"
+        },
+        "secondary": {
+          "hex": "#c07a3e",
+          "name": "copper"
+        }
+      },
+      "file": "logos/kansas-city-marshals.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T15",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Los Angeles",
+      "name": "Barons",
+      "colors": {
+        "primary": {
+          "hex": "#172a3a",
+          "name": "ink navy"
+        },
+        "secondary": {
+          "hex": "#8fd3c1",
+          "name": "sea foam"
+        }
+      },
+      "file": "logos/los-angeles-barons.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T16",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Las Vegas",
+      "name": "High Rollers",
+      "colors": {
+        "primary": {
+          "hex": "#6e1028",
+          "name": "casino crimson"
+        },
+        "secondary": {
+          "hex": "#f1ead8",
+          "name": "ivory"
+        }
+      },
+      "file": "logos/las-vegas-high-rollers.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T17",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Chicago",
+      "name": "Hellhounds",
+      "colors": {
+        "primary": {
+          "hex": "#5d6b78",
+          "name": "storm gray"
+        },
+        "secondary": {
+          "hex": "#5fa2e0",
+          "name": "electric blue"
+        }
+      },
+      "file": "logos/chicago-hellhounds.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T18",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Detroit",
+      "name": "Motors",
+      "colors": {
+        "primary": {
+          "hex": "#7a1a17",
+          "name": "engine red"
+        },
+        "secondary": {
+          "hex": "#c3cad1",
+          "name": "chrome"
+        }
+      },
+      "file": "logos/detroit-motors.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T19",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Milwaukee",
+      "name": "Stars",
+      "colors": {
+        "primary": {
+          "hex": "#4d4a8a",
+          "name": "indigo"
+        },
+        "secondary": {
+          "hex": "#e3ecf5",
+          "name": "frost white"
+        }
+      },
+      "file": "logos/milwaukee-stars.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T20",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Minnesota",
+      "name": "Centurions",
+      "colors": {
+        "primary": {
+          "hex": "#1a1d21",
+          "name": "iron black"
+        },
+        "secondary": {
+          "hex": "#e6e8e3",
+          "name": "silver white"
+        }
+      },
+      "file": "logos/minnesota-centurions.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T21",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Atlanta",
+      "name": "Wolves",
+      "colors": {
+        "primary": {
+          "hex": "#4b4f54",
+          "name": "smoke gray"
+        },
+        "secondary": {
+          "hex": "#f26a1b",
+          "name": "flame orange"
+        }
+      },
+      "file": "logos/atlanta-wolves.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T22",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Carolina",
+      "name": "Rapids",
+      "colors": {
+        "primary": {
+          "hex": "#5e6560",
+          "name": "river stone gray"
+        },
+        "secondary": {
+          "hex": "#3fb07a",
+          "name": "river green"
+        }
+      },
+      "file": "logos/carolina-rapids.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T23",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "New Orleans",
+      "name": "Krewe",
+      "colors": {
+        "primary": {
+          "hex": "#5b2a86",
+          "name": "Mardi Gras purple"
+        },
+        "secondary": {
+          "hex": "#4fc07a",
+          "name": "Mardi Gras green"
+        }
+      },
+      "file": "logos/new-orleans-krewe.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T24",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Tampa Bay",
+      "name": "Breakers",
+      "colors": {
+        "primary": {
+          "hex": "#3a2f6b",
+          "name": "storm violet"
+        },
+        "secondary": {
+          "hex": "#6fe3d6",
+          "name": "foam aqua"
+        }
+      },
+      "file": "logos/tampa-bay-breakers.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T25",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Dallas",
+      "name": "Wranglers",
+      "colors": {
+        "primary": {
+          "hex": "#7a4a2a",
+          "name": "saddle brown"
+        },
+        "secondary": {
+          "hex": "#3fb6a8",
+          "name": "turquoise"
+        }
+      },
+      "file": "logos/dallas-wranglers.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T26",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "New York",
+      "name": "Empire",
+      "colors": {
+        "primary": {
+          "hex": "#7b1f3a",
+          "name": "imperial maroon"
+        },
+        "secondary": {
+          "hex": "#d9d2c3",
+          "name": "limestone"
+        }
+      },
+      "file": "logos/new-york-empire.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T27",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Philadelphia",
+      "name": "Founders",
+      "colors": {
+        "primary": {
+          "hex": "#2c4a7a",
+          "name": "colonial blue"
+        },
+        "secondary": {
+          "hex": "#e9dcbc",
+          "name": "parchment"
+        }
+      },
+      "file": "logos/philadelphia-founders.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T28",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Washington",
+      "name": "Sentinels",
+      "colors": {
+        "primary": {
+          "hex": "#55595e",
+          "name": "granite gray"
+        },
+        "secondary": {
+          "hex": "#ecebe6",
+          "name": "marble white"
+        }
+      },
+      "file": "logos/washington-sentinels.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T29",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Arizona",
+      "name": "Scorpions",
+      "colors": {
+        "primary": {
+          "hex": "#5a2d6f",
+          "name": "venom purple"
+        },
+        "secondary": {
+          "hex": "#d9a066",
+          "name": "desert sand"
+        }
+      },
+      "file": "logos/arizona-scorpions.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T30",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Los Angeles",
+      "name": "Outlaws",
+      "colors": {
+        "primary": {
+          "hex": "#4b2142",
+          "name": "plum"
+        },
+        "secondary": {
+          "hex": "#e6d3a3",
+          "name": "champagne"
+        }
+      },
+      "file": "logos/los-angeles-outlaws.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T31",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "Seattle",
+      "name": "Squall",
+      "colors": {
+        "primary": {
+          "hex": "#4e5d6c",
+          "name": "storm slate"
+        },
+        "secondary": {
+          "hex": "#f4d03f",
+          "name": "lightning yellow"
+        }
+      },
+      "file": "logos/seattle-squall.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    },
+    {
+      "id": "T32",
+      "class": "icon",
+      "slot": "team-mark",
+      "city": "San Francisco",
+      "name": "Tremors",
+      "colors": {
+        "primary": {
+          "hex": "#3e3a36",
+          "name": "bedrock brown"
+        },
+        "secondary": {
+          "hex": "#c7c9cb",
+          "name": "fog silver"
+        }
+      },
+      "file": "logos/san-francisco-tremors.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "templateVersion": "logo-prompts v1"
+    }
+  ]
+}
