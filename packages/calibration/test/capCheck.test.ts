@@ -22,6 +22,23 @@ describe("the cap check's reading of the league file", () => {
     expect(withDummyYearsVoid(real)).toBe(real);
   });
 
+  it("a run of years at the end whose stored cap hit leaves the base out is placeholder years too", () => {
+    const c: PlayerContract = {
+      player: playerId("r:2"), team: teamId("T27"), signedAt: { season: 2024, phase: "OFF_RESET_FA", week: 1, day: 1 },
+      years: [
+        { ...year(2026, 1.3e6, 30e6) },
+        { ...year(2027, 50e6, 3e6), capHit: 3e6 },
+        { ...year(2028, 50e6, 3e6), capHit: 3e6 },
+      ],
+    };
+    expect(withDummyYearsVoid(c, 2026).years.map((y) => y.voidYear ?? false)).toEqual([false, true, true]);
+    // Not in the file's own season (a deal signed during it has a part-season cap hit), and not before a real year.
+    const partSeason = { ...c, years: [{ ...year(2026, 1e6, 0), capHit: 600_000 }] };
+    expect(withDummyYearsVoid(partSeason, 2026)).toBe(partSeason);
+    const middle = { ...c, years: [c.years[0]!, c.years[1]!, year(2028, 20e6, 3e6)] };
+    expect(withDummyYearsVoid(middle, 2026)).toBe(middle);
+  });
+
   it("a traded pick's condition kept as words gets the rule the game cannot settle", () => {
     const pick = { draft: 2027, round: 1, originalTeam: teamId("T19"), owner: teamId("T25"), kind: "REGULAR" as const };
     const words = withConditionRule({ ...pick, condition: "Less favorable of own and GB" as never });

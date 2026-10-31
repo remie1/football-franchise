@@ -26,7 +26,7 @@ export const DRAFT_CLASS_SIZE = 900;
  * Prospect talent, on the generator's talent scale (a team's first-string slot is centred at 0.6).
  * CHOSEN, provenance NONE; D7 tunes it so a top-10 pick usually starts and most 7th-rounders do not stick.
  */
-export const PROSPECT_TALENT = { mean: -0.9, sd: 0.9 } as const;
+export const PROSPECT_TALENT = { mean: -0.8, sd: 0.75 } as const;
 /** How much a class's strength, and its depth at one position, wobble from year to year (talent units). */
 export const CLASS_WOBBLE = { overall: 0.1, position: 0.15 } as const;
 

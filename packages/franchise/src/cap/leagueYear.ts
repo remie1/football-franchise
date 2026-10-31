@@ -21,8 +21,8 @@ import { isDay, type DayStep, type DayStepContext, type LeaguePeople } from "../
 import { BOARD_ERROR, POSITION_VALUE, STARTERS, WANTED, needAt, type Rate } from "../draft/board.js";
 import { seasonsIn } from "../draft/cutdown.js";
 import { DRAFT_DAYS } from "../draft/steps.js";
-import { capNumber, expireContract, liveIn, releasePlayer, restructure, teamCapTotal } from "./money.js";
-import { BASE_CAP, RFA_SEASONS, type TenderLevel } from "./rules.js";
+import { capNumber, designatedIn, expireContract, isAfterJune1, liveIn, releasePlayer, restructure, teamCapTotal } from "./money.js";
+import { BASE_CAP, MAX_PRORATION_YEARS, POST_JUNE_1_DESIGNATIONS, RFA_SEASONS, type TenderLevel } from "./rules.js";
 import { ROOKIE_SCALE_2026 } from "./rookieScale2026.js";
 import { minimumContract, minimumSalary, tagContract, tagPrice, tenderPrice } from "./signings.js";
 import { ageFactor, apyOf, guaranteedShare, marketCurves, structureFor, valuePlayer, veteranContract, type MarketCurves } from "./value.js";
@@ -68,10 +68,20 @@ export const MARKET = {
    * and this much for free agency (real teams clear space in February and March).
    */
   freeAgencyRoom: 15_000_000,
+  /** Early extensions: the lowest place in his position's market a player is extended at. */
+  extendPercentile: 0.4,
+  /** ...while his age leaves at least this much of his price in the new deal's first year (`ageFactor`). */
+  extendAgeFactor: 0.9,
+  /** A drafted player may sign a new deal once this many seasons are done (the real CBA rule). */
+  rookieExtensionSeasons: 3,
   /** A cap casualty: a veteran worth less than this share of his cap number this year, when cutting him saves money. */
   casualtyShare: 0.5,
   /** ...and saves at least this much (dollars). */
   casualtySaving: 2_000_000,
+  /** A cap casualty is designated post-June-1 only when that moves at least this much dead money to next year. */
+  designateLater: 2_000_000,
+  /** Void years a restructure may add (the bonus never spreads past five years). */
+  maxVoidYears: 4,
 } as const;
 
 export interface LeagueYearConfig {
@@ -129,8 +139,8 @@ function unusedRoom(team: TeamId, season: number, people: Pick<LeaguePeople, "ca
 }
 
 /** The cap room a team has for a season, keeping `reserve` free. `carry` is what it brings into that season. */
-function roomFor(team: TeamId, season: number, book: Book, cap: CapForSeason, reserve: number, carry: number): number {
-  return cap(season) + carry - teamCapTotal(team, season, book.contracts, book.dead, { top51: true }).total - reserve;
+function roomFor(team: TeamId, season: number, book: Book, cap: CapForSeason, reserve: number, carry: number, at?: CalendarStamp): number {
+  return cap(season) + carry - teamCapTotal(team, season, book.contracts, book.dead, { top51: true, ...(at ? { at } : {}) }).total - reserve;
 }
 
 /**
@@ -289,7 +299,7 @@ function reSign(
         const v = valuePlayer(p, g, curves, minimumSalary(next, cs, config.cap));
         const offer = buildOffer(p, team.id, next, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
         if (capNumber(offer.years[0]!) <= room) {
-          const ask = askingPrice(p, valuePlayer(p, config.rate(p), curves, minimumSalary(next, cs, config.cap)).apy, "PREMIUM", 0, minimumSalary(next, cs, config.cap), ctx.seed, ctx.season);
+          const ask = askingPrice(p, valuePlayer(p, config.rate(p), curves, minimumSalary(next, cs, config.cap)).apy, "VALUE", 0, minimumSalary(next, cs, config.cap), ctx.seed, ctx.season);
           const worth = offerWorth(p, {
             apy: v.apy, guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
             starts: wouldStart(g, pos, gradesAt(pos)), ownTeam: true,
@@ -306,6 +316,32 @@ function reSign(
         book.events.push(signedEvent(contract));
         kept.push(p);
       }
+    }
+    // Early extensions: a player the team rates highly, in his last year next season and still in his
+    // prime, is extended now, as real teams do before a good player reaches the market. The new deal
+    // starts after the old one ends.
+    const first = next + 1;
+    for (const p of roster) {
+      const old = book.contracts.find((c) => String(c.player) === String(p.bio.id) && c.team === team.id && endsAfter(c, next));
+      if (!old || hasDealIn(book.contracts, String(p.bio.id), first)) continue;
+      const cs = seasonsIn(p, first);
+      // A drafted player cannot sign a new deal until his third season is over (the real rookie rule).
+      if (old.kind === "ROOKIE" && seasonsIn(p, next) < MARKET.rookieExtensionSeasons) continue;
+      if (ageFactor(p.bio.age + 2, p.bio.position) < MARKET.extendAgeFactor) continue;
+      const g = grade(p);
+      const floor = minimumSalary(first, cs, config.cap);
+      const v = valuePlayer(p, g, curves, floor);
+      if (v.percentile < MARKET.extendPercentile) continue;
+      const offer = buildOffer(p, team.id, first, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
+      if (capNumber(offer.years[0]!) > roomFor(team.id, first, book, config.cap, MARKET.inSeasonBuffer, 0)) continue;
+      const ask = askingPrice(p, valuePlayer(p, config.rate(p), curves, floor).apy, "VALUE", 0, floor, ctx.seed, ctx.season);
+      const worth = offerWorth(p, {
+        apy: apyOf(offer), guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
+        starts: wouldStart(g, p.bio.position, gradesAt(p.bio.position)), ownTeam: true,
+      }, ask);
+      if (worth < 1) continue;
+      book.contracts.push(offer);
+      book.events.push(signedEvent(offer));
     }
     // One franchise tag: the best player who said no, if he is a star and it fits.
     if (ctx.rules.franchiseTagEnabled) {
@@ -397,7 +433,7 @@ function getUnderCap(
 ): Team {
   const grade = (p: PlayerState) => teamGrade(t.id, p, skill, config.rate, ctx.seed, ctx.season);
   const capNow = adjustedCap(t.id, year, carried, config.cap);
-  const room = () => capNow - teamCapTotal(t.id, year, book.contracts, book.dead, { top51 }).total;
+  const room = () => capNow - teamCapTotal(t.id, year, book.contracts, book.dead, { top51, at: ctx.day }).total;
   const live = () => book.contracts.map((c, i) => ({ c, i })).filter(({ c }) => c.team === t.id && liveIn(c, year));
   let roster = [...t.roster];
   let squad = [...(t.practiceSquad ?? [])];
@@ -419,8 +455,12 @@ function getUnderCap(
   };
   const saving = (c: PlayerContract, r: ReturnType<typeof releasePlayer>) =>
     capNumber(c.years.find((y) => y.season === year)!) - r.charges.filter((x) => x.season === year).reduce((s, x) => s + x.amount, 0);
+  const want = newYear?.want ?? 0;
   if (newYear) {
-    // Cap casualties: veterans past their prime paid far more than the market would pay them now.
+    // Cap casualties: veterans past their prime paid far more than the market would pay them now. A
+    // team with the room it wants without the saving may designate the cut post-June-1 (two a year):
+    // he counts in full until June 2, and the rest of his bonus lands next year instead of now.
+    let designations = POST_JUNE_1_DESIGNATIONS - book.contracts.filter((c) => c.team === t.id && designatedIn(c, year)).length;
     for (const { c, i } of live()) {
       const p = byId.get(String(c.player));
       if (!p || ageFactor(p.bio.age, p.bio.position) >= 1 || !spare(p, countAt())) continue;
@@ -429,23 +469,35 @@ function getUnderCap(
       if (worth >= MARKET.casualtyShare * hit) continue;
       const r = releasePlayer(c, ctx.day);
       if (saving(c, r) < MARKET.casualtySaving) continue;
-      release(i, p, r);
+      const designated = designations > 0 && !isAfterJune1(ctx.day) && room() >= want ? releasePlayer(c, ctx.day, { designatedPostJune1: true }) : undefined;
+      if (designated && (designated.charges.find((x) => x.season === year + 1)?.amount ?? 0) >= MARKET.designateLater) {
+        designations--;
+        release(i, p, designated);
+      } else {
+        release(i, p, r);
+      }
     }
   }
-  const want = newYear?.want ?? 0;
+  // Restructures toward the room wanted: first over the deal's own years; then, still short, with
+  // void years added so the bonus spreads over the real limit of five.
   let over = want - room();
-  for (const { c, i } of live().sort((a, b) => yearBase(b.c, year) - yearBase(a.c, year))) {
-    if (over <= 0) break;
-    const p = byId.get(String(c.player));
-    const left = c.years.filter((y) => y.season >= year && !y.voidYear).length;
-    if (!p || left < 2) continue;
-    const floor = minimumSalary(year, seasonsIn(p, year), config.cap);
-    const amount = Math.min(yearBase(c, year) - floor, Math.ceil(over * left / (left - 1) / 1000) * 1000);
-    if (amount < 1_000_000) continue;
-    const r = restructure(c, year, amount, { floor });
-    book.contracts[i] = r.contract;
-    book.events.push(...r.events);
-    over = want - room();
+  for (const voids of [false, true]) {
+    for (const { c, i } of live().sort((a, b) => yearBase(b.c, year) - yearBase(a.c, year))) {
+      if (over <= 0) break;
+      const p = byId.get(String(c.player));
+      const left = c.years.filter((y) => y.season >= year && !y.voidYear).length;
+      const spread = c.years.filter((y) => y.season >= year).length;
+      const addVoidYears = voids ? Math.max(0, Math.min(MARKET.maxVoidYears, MAX_PRORATION_YEARS - spread)) : 0;
+      const n = Math.min(MAX_PRORATION_YEARS, (voids ? spread : left) + addVoidYears);
+      if (!p || left < 1 || n < 2 || (voids && addVoidYears === 0)) continue;
+      const floor = minimumSalary(year, seasonsIn(p, year), config.cap);
+      const amount = Math.min(yearBase(c, year) - floor, Math.ceil(over * n / (n - 1) / 1000) * 1000);
+      if (amount < 1_000_000) continue;
+      const r = restructure(c, year, amount, { floor, addVoidYears });
+      book.contracts[i] = r.contract;
+      book.events.push(...r.events);
+      over = want - room();
+    }
   }
   // Then cuts, only as far as the cap itself: any deal on the books may go, but never a position's last men.
   over = -room();
@@ -506,13 +558,18 @@ function complianceCheck(
       let roster = [...t.roster];
       const pool = freeAgents.map((id) => byId.get(String(id))).filter((p): p is PlayerState => !!p && !taken.has(String(p.bio.id)));
       // First every hole: a position with fewer than its starters (at least one) gets the best free
-      // agent there on a minimum deal; a full roster lets its most spare man go to make the seat.
-      for (const pos of Object.keys(STARTERS) as Position[]) {
+      // agent there on a minimum deal. Then the roster's shape (ADR-079's wanted number at each
+      // position), so that every personnel group can be fielded. A full roster lets its most spare
+      // man go to make the seat. The league must play, so these minimum deals do not wait on room.
+      const shape = [(pos: Position) => Math.max(1, STARTERS[pos]), (pos: Position) => Math.max(1, WANTED[pos])];
+      for (const [pass, want] of shape.entries()) for (const pos of Object.keys(STARTERS) as Position[]) {
         const here = () => playersOf({ ...t, roster }, byId).filter((p) => p.bio.position === pos).length;
-        while (here() < Math.max(1, STARTERS[pos])) {
+        while (here() < want(pos)) {
           const pick = pool.filter((p) => p.bio.position === pos && !taken.has(String(p.bio.id))).sort((a, b) => config.rate(b) - config.rate(a))[0];
           if (!pick) break;
           if (roster.length >= fillTo) {
+            // The shape never costs a man the roster wants: only a starter hole may release.
+            if (pass > 0) break;
             const spare = mostSpare({ ...t, roster }, byId, config.rate, year, book);
             if (!spare) break;
             const r = releasePlayer(book.contracts[spare.i]!, ctx.day);
@@ -598,7 +655,7 @@ function freeAgency(
       const t = teams.find((x) => x.id === teamId)!;
       const seats = limit - t.roster.length - (beforeDraft ? MARKET.draftSeats : 0);
       if (seats <= 0) continue;
-      const room = roomFor(t.id, season, book, config.cap, reserve(t.id), adjustedCap(t.id, season, people, config.cap) - config.cap(season));
+      const room = roomFor(t.id, season, book, config.cap, reserve(t.id), adjustedCap(t.id, season, people, config.cap) - config.cap(season), ctx.day);
       if (room <= 0) continue;
       const skill = skillOf(t.id, people);
       const grade = (p: PlayerState) => teamGrade(t.id, p, skill, config.rate, ctx.seed, season);

@@ -34,7 +34,9 @@
  *
  * Stand-ins (ADR-088): `--league <file>` (with or without `--rosters standin`) plays the real NFL's
  * stand-ins from a league file written by `pnpm --filter @ff/attributes import-real`. Not with
- * `--save` or `--team-sd` yet.
+ * `--save` or `--team-sd` yet. With `--development` or `--injuries` the stand-ins play the file's own
+ * season (its ages and injuries are that season's), and a different `--season` is refused; with
+ * both off, the season is the default, as before.
  *
  * Coaches (ADR-080; ADR-078 R1 amendment 2): a new league's coaches are made from the world seed at
  * the start, with their made-up history, and `--save` keeps them. `--load` carries on with the saved
@@ -43,11 +45,13 @@
  * Players (ADR-087): `--development` (growth and aging) and `--injuries` switch on the players'
  * weekly steps, alone or together; both are off by default, and off the season is exactly today's.
  * With either on, the season runs on through the offseason to the end of the league year, hurt
- * players sit out, coaches set their depth charts each week, and teams short of a player sign a
- * street free agent. `--save` then keeps the players as they are that day and what happened to
+ * players sit out, coaches set their depth charts each week, and teams short of a player call up a
+ * man from their own practice squad (the stand-in league carries squads), else sign a street free
+ * agent. `--save` then keeps the players as they are that day and what happened to
  * them, and `--load` carries on with the save's own switches. Truth-layer events (true ratings,
- * ADR-087 §7) never reach the news or `--out`. Not with `--rosters flat`, which has no squads, and
- * `--development` not with the stand-in league, whose players have no growth records yet.
+ * ADR-087 §7) never reach the news or `--out`. Not with `--rosters flat`, which has no squads. The
+ * stand-in league's growth records and copied injuries come with the file
+ * (`pnpm --filter @ff/attributes standin-development`, ADR-087 §2.5); each is read only with its switch.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -55,14 +59,15 @@ import { compareStamps, DEFAULT_LEAGUE_RULES, isTruthLayerEvent, stampToString, 
 import { buildLeague, buildStaff, makeSave, readSave } from "@ff/franchise";
 import { createNewsDesk, formatEdition } from "@ff/narrative";
 import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
-import { runRealSeason, type SeasonRosters } from "./realSeason.js";
+import { runRealSeason, seasonToPlay, type SeasonRosters } from "./realSeason.js";
 import { readStandInFile } from "./standInLeague.js";
 import { checkStamp, engineRulesDigestOf, LEGACY_RULES, rulesTunables } from "../pocket/rules.js";
 import { savePlayedWith, seasonOutStamp, seasonRules } from "./stamp.js";
 
 function parse(argv: readonly string[]) {
   let seed: string | undefined;
-  let season = 2027;
+  /** Only when typed: stand-ins with a switch on play their file's season (`standInSeason`). */
+  let season: number | undefined;
   let callerVersion: CallerVersion | undefined;
   let out: string | undefined;
   let stopAfter: string | undefined;
@@ -109,8 +114,10 @@ function parse(argv: readonly string[]) {
   }
   if (load !== undefined && seed !== undefined) throw new SyntaxError("--load takes its seed from the save; drop --seed");
   if (load === undefined && (seed === undefined || seed.trim() === "")) throw new SyntaxError("--seed is required");
-  if (!Number.isInteger(season)) throw new SyntaxError("--season must be a whole number");
+  if (season !== undefined && !Number.isInteger(season)) throw new SyntaxError("--season must be a whole number");
   if (switchCaller && load === undefined) throw new SyntaxError("--switch-caller only applies with --load");
+  // Before --league stands for --rosters standin below; without this, a --league beside --load would be read and then ignored.
+  if (load !== undefined && leagueFile !== undefined) throw new SyntaxError("--load takes its rosters from the save; drop --league");
   if (load !== undefined && rosters !== undefined) throw new SyntaxError("--load takes its rosters from the save; drop --rosters");
   if (teamStrengthSd !== undefined && (load !== undefined || save !== undefined)) {
     throw new SyntaxError("a save does not record --team-sd; drop it to save or load");
@@ -123,8 +130,6 @@ function parse(argv: readonly string[]) {
   if (rosters === "standin" && teamStrengthSd !== undefined) throw new SyntaxError("the stand-in league has no hidden team strength (ADR-088 Q8); drop --team-sd");
   if ((development || injuries) && load !== undefined) throw new SyntaxError("--load carries on with the save's own --development and --injuries; drop them");
   if ((development || injuries) && rosters === "flat") throw new SyntaxError("--development and --injuries need squads; --rosters flat has none");
-  // ADR-087 §2.5: stand-ins get their growth rates and bodies with the importer's next step; until then none of them would change.
-  if (development && rosters === "standin") throw new SyntaxError("the stand-in league's players have no growth records yet (ADR-087 §2.5); drop --development (--injuries works)");
   return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd, leagueFile, development, injuries, engineRules };
 }
 
@@ -145,7 +150,9 @@ const args = parse(process.argv.slice(2));
 const started = Date.now();
 const loaded = args.load === undefined ? undefined : readSave(readFileSync(fromCaller(args.load), "utf8"));
 const seed = loaded?.save.worldSeed ?? args.seed!;
-const season = loaded?.save.calendar.season ?? args.season;
+// The stand-in league is read first: with a player switch on it sets the season (its own), which the
+// coaches, the stop day and the season all use (ADR-087 §2.5; `seasonToPlay`, below).
+const standIn = args.leagueFile === undefined ? undefined : readStandInFile(readFileSync(fromCaller(args.leagueFile), "utf8"));
 const savedCaller = loaded?.save.playedWith?.caller;
 if (savedCaller !== undefined && !(CALLER_VERSIONS as readonly string[]).includes(savedCaller)) {
   throw new Error(`This save was played with caller ${savedCaller}, which this version does not have`);
@@ -172,6 +179,9 @@ const savedSwitches = loaded?.development?.people.playerMemory?.switches;
 const players = loaded
   ? (savedSwitches ? { development: savedSwitches.development, injuries: savedSwitches.injuries } : undefined)
   : (args.development || args.injuries ? { development: args.development, injuries: args.injuries } : undefined);
+// The season the run plays, worked out once, as `runRealSeason` does, for the coaches and the stop day too.
+const season = loaded?.save.calendar.season
+  ?? seasonToPlay({ rosters, ...(standIn === undefined ? {} : { standIn }), ...(players ? { players } : {}), ...(args.season === undefined ? {} : { season: args.season }) });
 // A save from before coaches were kept has none; it carries on without them rather than inventing a staff mid-season.
 // With the players' switches on, each head coach also gets his depth-chart leanings (ADR-087 C1).
 const staff = loaded ? loaded.staff : { world: buildStaff(base, { firstSeason: season, ...(players ? { lineups: true } : {}) }).world };
@@ -182,7 +192,6 @@ const printNews = (editions: ReturnType<Desk["take"]>) => {
     console.log(`\n${formatEdition(e, desk!.scoreLine)}`);
   }
 };
-const standIn = args.leagueFile === undefined ? undefined : readStandInFile(readFileSync(fromCaller(args.leagueFile), "utf8"));
 const { league, rated, run } = runRealSeason({
   seed, season, callerVersion, rosters, league: base,
   ...(standIn === undefined ? {} : { standIn }),
