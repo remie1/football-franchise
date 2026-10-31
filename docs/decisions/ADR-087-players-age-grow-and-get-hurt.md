@@ -491,6 +491,21 @@ Built as §9 and §10 lay out, with these choices the design left to the build (
   nothing more changes; street signings are unchanged. A truer reason, such as `PROMOTED`, would be
   an edit to `ContractEndReason`, which the cap thread owns, and needs the owner's typed yes; it is
   not done. Calibration keeps no book, and nothing that keeps one calls players up yet.
+- **The players' signings take the draft's cap** (2026-10-31, after main's draft part 2, ADR-086,
+  came in). An emergency signing's one-year minimum is priced by the players' steps' own `cap`
+  (`PlayerStepsConfig.cap`, ADR-085's forecast); `runSeason` gives them `draft.cap` when they have
+  none, so one forecast prices both sides' deals, and with neither it is flat at the rules' cap, the
+  draft's default (`flatCap`). Up to the CBA's last season (2030) the minimum is the CBA's table and
+  the cap moves no number; past it the table grows with the cap, and the signing used to stop there
+  ("needs the cap"), so a league with both the players' steps and the draft now runs past 2030.
+  With the draft part 2, `runSeason` with both does keep a book and call up the squads cut-down day
+  fills (the bullet above predates it); `players.draft.test.ts` plays two such seasons and checks
+  what the call-ups own. Four snags found when the two met sit in the draft's code and were handed to
+  the draft thread, not fixed here: the year turn (`turnYear`) leaves a squad man's practice-squad
+  deal open beside his reserve/future deal, so from the third season on the book can hold a stale
+  squad deal; cut-down day builds each squad from its own cuts and drops one a team started with
+  (the stand-in league's); the free agents' order after a save and load is not a straight run's;
+  and the compensatory formula's league averages count ended deals too.
 - **The who-played report** credits a snap to every player a play card names and to the offence's
   quarterback on every scrimmage play (a run card does not name him). Kicks credit the kicker or
   punter and the returner only: the engine has no coverage or return units yet.

@@ -92,7 +92,8 @@ export interface RunSeasonInput {
   draft?: DraftStepsConfig;
   /**
    * ADR-087 §10: the players' steps (development, injuries, depth charts, unsigned retirements), with
-   * their switches. Needs `people`. Absent, or both switches off, adds no steps.
+   * their switches. Needs `people`. Absent, or both switches off, adds no steps. With no `cap` of its
+   * own, its emergency signings are priced by `draft.cap` when there is one (else flat at the rules' cap).
    */
   players?: PlayerStepsConfig;
   /**
@@ -150,9 +151,12 @@ const sameDay = (a: CalendarStamp, b: CalendarStamp) => compareStamps(a, b) === 
 
 export function runSeason(input: RunSeasonInput): SeasonRun {
   const { league, season, seed, resolve, stopAfter, resumeFrom } = input;
-  // Order: the caller's steps, the players' (ADR-087), then the draft's (ADR-086).
+  // Order: the caller's steps, the players' (ADR-087), then the draft's (ADR-086). The players' signings
+  // take the draft's cap when they have none of their own, so one forecast prices both sides' deals.
+  const draftCap = input.draft?.cap;
+  const playersConfig = input.players && input.players.cap === undefined && draftCap ? { ...input.players, cap: draftCap } : input.players;
   const steps = [
-    ...(input.daySteps ?? []), ...(input.players ? playerSteps(input.players) : []), ...(input.draft ? draftSteps(input.draft) : []),
+    ...(input.daySteps ?? []), ...(playersConfig ? playerSteps(playersConfig) : []), ...(input.draft ? draftSteps(input.draft) : []),
   ];
   if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps, the players' steps and the draft need people");
   let people = input.people;

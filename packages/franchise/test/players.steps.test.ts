@@ -1,75 +1,20 @@
 import { describe, it, expect } from "vitest";
 import {
-  ATTRIBUTE_REGISTRY_V1, DEFAULT_LEAGUE_RULES, POSITION_PROFILES, createRng, isTruthLayerEvent, playerId, positionOverall, stampToString,
-  type AttrId, type AttributeMap, type CalendarStamp, type DeadMoneyCharge, type FranchiseEventEnvelope, type GameParticipation,
-  type PlayerContract, type PlayerState, type Position, type SaveFile, type Team,
+  DEFAULT_LEAGUE_RULES, isTruthLayerEvent, playerId, positionOverall, stampToString,
+  type CalendarStamp, type DeadMoneyCharge, type FranchiseEventEnvelope, type GameParticipation,
+  type PlayerContract, type PlayerId, type PlayerState, type Position, type SaveFile, type Team,
 } from "@ff/contracts";
-import { buildLeague, buildStaff, makeSave, readSave, runSeason, type GameResolver, type LeaguePeople } from "../src/index.js";
-import { STARTERS, WANTED } from "../src/draft/board.js";
-import { emergencySignings, playerSteps, playerWeeks, PLAYER_STEP_PREFIX } from "../src/players/steps.js";
+import { makeSave, readSave, runSeason, type GameResolver, type LeaguePeople } from "../src/index.js";
+import { emergencySignings, playerSteps, playerWeeks, PLAYER_STEP_PREFIX, type PlayerStepsConfig } from "../src/players/steps.js";
 import { readBlur } from "../src/players/depthChart.js";
-import { minimumContract, signPracticeSquad } from "../src/cap/signings.js";
+import { minimumContract, minimumSalary, signPracticeSquad } from "../src/cap/signings.js";
 import { capNumber, liveIn, teamCapTotal } from "../src/cap/money.js";
-import { liveContract, release } from "../src/draft/money.js";
+import { flatCap, liveContract, release, type CapForSeason } from "../src/draft/money.js";
+import type { DraftStepsConfig } from "../src/draft/steps.js";
 import { currentJob, seatOf } from "../src/staff/world.js";
+import { SEASON, canPlay, league, makeClass, player, rate, resolve, startingPeople } from "./playersWorld.js";
 
-// ADR-087 §10 (D4): the players' steps in the season walk, on a league of hand-made players.
-
-const ACTIVE = Object.values(ATTRIBUTE_REGISTRY_V1.attributes).filter((d) => d.status === "active").map((d) => String(d.id));
-const POSITIONS = Object.keys(WANTED) as Position[];
-const SEASON = 2027;
-
-function player(id: string, position: Position, rating: number, age: number, team?: Team["id"]): PlayerState {
-  const values: AttributeMap = Object.fromEntries(ACTIVE.map((a) => [a, rating]));
-  return {
-    bio: { id: playerId(id), displayName: id, position, age, heightIn: 74, weightLb: 230, draft: { year: SEASON - Math.max(0, age - 22), round: 3, pick: 70 }, creditedSeasons: Math.max(0, age - 22) },
-    attributes: { kind: "true", values, traits: new Set<string>(), development: { growth: 1, snaps: 0, carry: {}, body: { forty: 4.7, cone: 7.2, vertical: 32, bench: 18 } } },
-    condition: { stamina: 100, morale: 0 },
-    personality: { needs: {}, type: "quiet", patience: 1 },
-    ...(team !== undefined ? { teamId: team } : {}),
-  };
-}
-
-const league = buildLeague("steps-world");
-function startingPeople(): LeaguePeople {
-  const players: PlayerState[] = [];
-  const teams = league.teams.map((t) => {
-    const rng = createRng("roster", String(t.id));
-    const roster: PlayerState["bio"]["id"][] = [];
-    const depthChart: Partial<Record<Position, PlayerState["bio"]["id"][]>> = {};
-    for (const pos of POSITIONS) for (let i = 0; i < WANTED[pos]; i++) {
-      const p = player(`${String(t.id)}-${pos}-${i}`, pos, 70 - 5 * i + rng.int(-3, 3), 22 + rng.int(0, 11), t.id);
-      players.push(p); roster.push(p.bio.id); (depthChart[pos] ??= []).push(p.bio.id);
-    }
-    return { ...t, roster, depthChart };
-  });
-  const pool = POSITIONS.flatMap((pos) => [0, 1].map((i) => player(`FA-${pos}-${i}`, pos, 50 + 3 * i, 27)));
-  const staff = buildStaff(league, { firstSeason: SEASON, historySeasons: 0, lineups: true }).world.staff;
-  return { teams, players: [...players, ...pool], picks: [], classes: [], freeAgents: pool.map((p) => p.bio.id), staff };
-}
-
-const canPlay = (p: PlayerState) => !p.condition.injury || p.condition.injury.playable;
-/** A seeded game whose who-played report puts each team's fit starters on the field, as the real runner would. */
-const resolve: GameResolver = (game, seed, people) => {
-  const rng = createRng(seed, "fake-game");
-  const homeScore = rng.int(0, 5) * 7, awayScore = rng.int(0, 5) * 7;
-  const result = { gameId: game.gameId, home: game.home, away: game.away, homeScore, awayScore, reason: homeScore === awayScore ? "TIE" as const : "REGULATION" as const, seed };
-  if (!people) return result;
-  const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
-  const participation: GameParticipation[] = [];
-  for (const id of [game.home, game.away]) {
-    const team = people.teams.find((t) => t.id === id)!;
-    for (const pos of POSITIONS) {
-      const fit = (team.depthChart[pos] ?? []).filter((pid) => canPlay(byId.get(String(pid))!));
-      fit.slice(0, Math.max(1, STARTERS[pos])).forEach((pid) => {
-        const side = ["QB", "RB", "FB", "WR", "TE", "LT", "LG", "C", "RG", "RT"].includes(pos) ? "offense" : ["K", "P", "LS"].includes(pos) ? "special" : "defense";
-        const attr = POSITION_PROFILES[pos].core[0] as AttrId;
-        participation.push({ player: pid, team: id, snaps: { offense: side === "offense" ? 60 : 0, defense: side === "defense" ? 60 : 0, special: side === "special" ? 8 : 0 }, contests: [{ attr, won: rng.int(0, 10), lost: rng.int(0, 10) }] });
-      });
-    }
-  }
-  return { result, extras: { participation } };
-};
+// ADR-087 §10 (D4): the players' steps in the season walk, on a league of hand-made players (`playersWorld.ts`).
 
 const both = { development: true, injuries: true } as const;
 const base = { league, season: SEASON, seed: league.seed, resolve, through: "YEAR" as const };
@@ -541,5 +486,83 @@ describe("emergencySignings (§5.3)", () => {
       expect(json(now)).toBe(json(streetOnly(who, at, short, opts)));
       if (who !== people) expect(now.events.length).toBeGreaterThan(0);
     }
+  });
+
+  // Past the CBA's last season (2030) a minimum grows with the cap (ADR-085 §2), so a signing then needs one:
+  // the draft's deals' forecast, or flat at the rules' cap, as the draft's default is.
+  const growing: CapForSeason = (s) => 300e6 * 1.25 ** Math.max(0, s - 2030);
+  /** The one-year minimum `r` signed for its one signing, priced by `cap` (absent: the CBA's table, up to 2030). */
+  const dealOf = (r: ReturnType<typeof emergencySignings>, day: CalendarStamp, cap?: CapForSeason) => {
+    const signed = (r.events[0]!.payload as { player: PlayerId }).player;
+    return minimumContract({
+      player: signed, team: team.id, season: day.season, signedAt: day, creditedSeasons: byId.get(String(signed))!.bio.creditedSeasons ?? 0, years: 1,
+      ...(cap ? { capForSeason: cap } : {}),
+    });
+  };
+
+  it("signs past 2030 with a contract book, pricing the minimum from the cap given, and from the rules' flat cap by default", () => {
+    const late: CalendarStamp = { ...week9, season: 2031 };
+    expect(() => minimumSalary(late.season, 0)).toThrow(/needs the cap/); // why a signing then needs one
+    const flat = emergencySignings({ ...hurt, contracts: [] }, late, noQb, { seed });
+    expect(flat.events).toHaveLength(1);
+    expect(flat.people.contracts).toEqual([dealOf(flat, late, flatCap(DEFAULT_LEAGUE_RULES))]);
+    // The rules' cap, whatever it is: flat, it grows the 2030 table by nothing.
+    const rules = { ...DEFAULT_LEAGUE_RULES, salaryCap: 2 * DEFAULT_LEAGUE_RULES.salaryCap };
+    expect(json(emergencySignings({ ...hurt, contracts: [] }, late, noQb, { seed, rules }))).toBe(json(flat));
+
+    const given = emergencySignings({ ...hurt, contracts: [] }, late, noQb, { seed, cap: growing });
+    expect(given.events).toEqual(flat.events); // the price never moves who is signed
+    expect(given.people.contracts).toEqual([dealOf(given, late, growing)]);
+    const [g, f] = [given.people.contracts![0]!.years[0]!.baseSalary, flat.people.contracts![0]!.years[0]!.baseSalary];
+    expect(g).toBe(Math.round(f * 1.25 / 1000) * 1000);
+  });
+
+  it("signs the same deal up to 2030 with a cap or without one, since the CBA's table sets it", () => {
+    const last: CalendarStamp = { ...week9, season: 2030 };
+    const without = emergencySignings({ ...hurt, contracts: [] }, last, noQb, { seed });
+    expect(without.people.contracts).toEqual([dealOf(without, last)]);
+    for (const cap of [growing, flatCap(DEFAULT_LEAGUE_RULES)]) {
+      expect(json(emergencySignings({ ...hurt, contracts: [] }, last, noQb, { seed, cap }))).toBe(json(without));
+    }
+  });
+});
+
+describe("the players' signings take the draft's cap in runSeason (past 2030)", () => {
+  // 2031, past the CBA's last season, with a contract book from the first day; a team wants a quarterback
+  // whenever it has fewer fit ones than it started with, so hurt quarterbacks bring signings.
+  const LATE = 2031;
+  const start: LeaguePeople = { ...startingPeople(), contracts: [] };
+  const credited = new Map(start.players.map((p) => [String(p.bio.id), p.bio.creditedSeasons ?? 0]));
+  const wanted = new Map(start.teams.map((t) => [String(t.id), (t.depthChart.QB ?? []).length]));
+  const unfilled = (t: Team, available: ReadonlySet<string>, players: ReadonlyMap<string, PlayerState>): Position | undefined =>
+    (t.depthChart.QB ?? []).filter((id) => available.has(String(id)) && players.get(String(id))!.bio.position === "QB").length < wanted.get(String(t.id))! ? "QB" : undefined;
+  const steep: CapForSeason = (s) => 300e6 * 1.5 ** Math.max(0, s - 2030);
+  const growing: CapForSeason = (s) => 300e6 * 1.25 ** Math.max(0, s - 2030);
+  const run = (players: PlayerStepsConfig, draft?: DraftStepsConfig) => runSeason({
+    league, season: LATE, seed: league.seed, resolve, people: start, players: { injuries: true, unfilled, ...players }, ...(draft ? { draft } : {}),
+    through: "YEAR", stopAfter: { season: LATE, phase: "REGULAR_SEASON", week: 9, day: 7 },
+  });
+  /** The players' signings' one-year minimums, each with the price `cap` gives it. */
+  const minimums = (r: ReturnType<typeof run>, cap: CapForSeason) => r.people!.contracts!.filter((c) => c.kind === "MINIMUM")
+    .map((c) => [c.years[0]!.baseSalary, minimumSalary(LATE, credited.get(String(c.player))!, cap)]);
+
+  it("prices them from the draft's cap when the players' steps have none, from their own when they do, and flat with neither", () => {
+    const draftCap = run({}, { rate, makeClass, cap: growing });
+    const own = run({ cap: steep }, { rate, makeClass, cap: growing });
+    const neither = run({});
+    for (const r of [draftCap, own, neither]) expect(r.events.filter((e) => e.event.type === "CONTRACT_SIGNED").length).toBeGreaterThan(0);
+    const priced = (r: typeof neither, cap: CapForSeason) => {
+      const m = minimums(r, cap);
+      expect(m.length).toBeGreaterThan(0);
+      for (const [paid, price] of m) expect(paid).toBe(price);
+    };
+    priced(draftCap, growing);
+    priced(own, steep);
+    priced(neither, flatCap(DEFAULT_LEAGUE_RULES));
+    // The same men at three prices: the cap each run was given is the one that priced them.
+    const signed = (r: typeof neither) => r.people!.contracts!.filter((c) => c.kind === "MINIMUM").map((c) => String(c.player));
+    expect(signed(draftCap)).toEqual(signed(neither));
+    expect(signed(own)).toEqual(signed(neither));
+    expect(new Set([draftCap, own, neither].map((r) => minimums(r, growing)[0]![0])).size).toBe(3);
   });
 });

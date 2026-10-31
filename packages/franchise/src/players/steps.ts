@@ -18,11 +18,12 @@
  * and the day, and a save carries on exactly.
  */
 import {
-  positionOverall,
-  type CalendarPhase, type FranchiseEvent, type GameParticipation, type PlayerId, type PlayerState, type Position, type SeasonState,
+  DEFAULT_LEAGUE_RULES, positionOverall,
+  type CalendarPhase, type FranchiseEvent, type GameParticipation, type LeagueRules, type PlayerId, type PlayerState, type Position, type SeasonState,
   type StaffState, type Team, type TeamId,
 } from "@ff/contracts";
 import { minimumContract } from "../cap/signings.js";
+import { flatCap, type CapForSeason } from "../draft/money.js";
 import type { DayStep, DayStepContext, LeaguePeople } from "../season/people.js";
 import { currentJob, seatOf } from "../staff/world.js";
 import { nextDay } from "../calendar/clock.js";
@@ -48,6 +49,14 @@ export interface PlayerStepsConfig {
   readonly unfilled?: (team: Team, available: ReadonlySet<string>, players: ReadonlyMap<string, PlayerState>) => Position | undefined;
   /** The owner's team: even depth-chart leanings until ADR-083's trait exists. */
   readonly ownerTeam?: TeamId;
+  /**
+   * The cap by season, for the emergency signings' one-year minimums (ADR-085's forecast), as the
+   * draft's `cap` prices its deals. Default: flat at the rules' cap, as the draft's default is. Up to
+   * the CBA's last season (2030) the minimum is the CBA's table and the cap changes nothing; past it,
+   * the table grows with the cap, so a league that signs players then needs one. `runSeason` gives
+   * these steps the draft's when they have none of their own, so one forecast prices both.
+   */
+  readonly cap?: CapForSeason;
 }
 
 /** What a resolver hands back beside a result for these steps: the who-played report (P4). */
@@ -177,16 +186,20 @@ export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: 
  * the true ratings (§7). A call-up leaves the practice squad for the roster and the position's depth
  * chart, and is a `CONTRACT_SIGNED` like a street signing (a squad player called up signs a standard
  * deal); a team with no practice squad signs from the street exactly as before. Where a contract book
- * is kept, each signing adds his one-year minimum to it, and a call-up also ends his live
- * practice-squad deal with that team at the call-up day (reason `EXPIRED`: no dead money, since a
- * squad deal has no bonus, and no event of its own, the `CONTRACT_SIGNED` tells it), so the book has
- * one live deal for him; with no such deal on the book, nothing else changes. Only `playing` teams
- * sign (absent = every team). The 53-man limit is not enforced for these signings.
+ * is kept, each signing adds his one-year minimum to it, priced by `cap` (default: flat at `rules`'
+ * cap, as the draft's deals are; it moves the price only past the CBA's last season), and a call-up
+ * also ends his live practice-squad deal with that team at the call-up day (reason `EXPIRED`: no dead
+ * money, since a squad deal has no bonus, and no event of its own, the `CONTRACT_SIGNED` tells it),
+ * so the call-up never adds a second live deal for him; with no such deal on the book, nothing else
+ * changes. Other deals of his the book holds are left as they are: whether it held only the squad deal
+ * is up to the code that wrote it. Only `playing` teams sign (absent = every team). The 53-man limit
+ * is not enforced for these signings.
  */
 export function emergencySignings(
   people: LeaguePeople, at: DayStepContext["day"], unfilled: NonNullable<PlayerStepsConfig["unfilled"]>,
-  opts: { readonly seed: string; readonly playing?: ReadonlySet<string> },
+  opts: { readonly seed: string; readonly playing?: ReadonlySet<string>; readonly cap?: CapForSeason; readonly rules?: LeagueRules },
 ): { people: LeaguePeople; events: FranchiseEvent[] } {
+  const cap = opts.cap ?? flatCap(opts.rules ?? DEFAULT_LEAGUE_RULES);
   const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
   let freeAgents = [...people.freeAgents];
   const contracts = people.contracts ? [...people.contracts] : undefined;
@@ -236,7 +249,9 @@ export function emergencySignings(
           String(c.player) === String(pick.bio.id) && String(c.team) === String(t.id) && c.kind === "PRACTICE_SQUAD" && !c.ended);
         if (i >= 0) contracts[i] = { ...contracts[i]!, ended: { at, reason: "EXPIRED" } };
       }
-      contracts?.push(minimumContract({ player: pick.bio.id, team: t.id, season: at.season, signedAt: at, creditedSeasons: pick.bio.creditedSeasons ?? 0, years: 1 }));
+      contracts?.push(minimumContract({
+        player: pick.bio.id, team: t.id, season: at.season, signedAt: at, creditedSeasons: pick.bio.creditedSeasons ?? 0, years: 1, capForSeason: cap,
+      }));
     }
   });
   if (events.length === 0) return { people, events };
@@ -294,7 +309,9 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
       events.push(...depth.events);
       let next: LeaguePeople = { ...people, teams: depth.teams, players: depth.players, playerMemory: { ...depth.memory, switches } };
       if (config.unfilled) {
-        const signed = emergencySignings(next, ctx.day, config.unfilled, { seed: ctx.seed, playing: teamsPlayingNextWeek(ctx, next.teams) });
+        const signed = emergencySignings(next, ctx.day, config.unfilled, {
+          seed: ctx.seed, playing: teamsPlayingNextWeek(ctx, next.teams), rules: ctx.rules, ...(config.cap ? { cap: config.cap } : {}),
+        });
         next = signed.people; events.push(...signed.events);
       }
       return { people: next, events };

@@ -43,8 +43,9 @@
  * Players (ADR-087): `--development` (growth and aging) and `--injuries` switch on the players'
  * weekly steps, alone or together; both are off by default, and off the season is exactly today's.
  * With either on, the season runs on through the offseason to the end of the league year, hurt
- * players sit out, coaches set their depth charts each week, and teams short of a player sign a
- * street free agent. `--save` then keeps the players as they are that day and what happened to
+ * players sit out, coaches set their depth charts each week, and teams short of a player call up a
+ * man from their own practice squad (the stand-in league carries squads), else sign a street free
+ * agent. `--save` then keeps the players as they are that day and what happened to
  * them, and `--load` carries on with the save's own switches. Truth-layer events (true ratings,
  * ADR-087 §7) never reach the news or `--out`. Not with `--rosters flat`, which has no squads. The
  * stand-in league's growth records and copied injuries come with the file
@@ -113,6 +114,8 @@ function parse(argv: readonly string[]) {
   if (load === undefined && (seed === undefined || seed.trim() === "")) throw new SyntaxError("--seed is required");
   if (season !== undefined && !Number.isInteger(season)) throw new SyntaxError("--season must be a whole number");
   if (switchCaller && load === undefined) throw new SyntaxError("--switch-caller only applies with --load");
+  // Before --league stands for --rosters standin below; without this, a --league beside --load would be read and then ignored.
+  if (load !== undefined && leagueFile !== undefined) throw new SyntaxError("--load takes its rosters from the save; drop --league");
   if (load !== undefined && rosters !== undefined) throw new SyntaxError("--load takes its rosters from the save; drop --rosters");
   if (teamStrengthSd !== undefined && (load !== undefined || save !== undefined)) {
     throw new SyntaxError("a save does not record --team-sd; drop it to save or load");
