@@ -14,6 +14,10 @@
  * string `nfl-careers/bootstrap/v1`) for careers, peak usage and comebacks. The sim's own standard
  * error (seed-to-seed SD / √seeds) is the grader's.
  *
+ * Careers by position family (`careers.byFamily`, ADR-087 §11) were added 2026-10-31 by a re-run on
+ * the same downloaded files (the same sha256 as `reports/nfl-careers.json` lists); every other
+ * number came out unchanged.
+ *
  * Two readings differ from the written shared definitions, both forced by the data: the 53 is ACT
  * or INA (from 2019 the file splits the 53 into dressed and game-day inactive), and the cohorts are
  * men first credited 2012-2022 who entered the league in 2012 or later.
@@ -22,6 +26,25 @@ import type { CareerGroup } from "./groups.js";
 import type { Estimate } from "./stats.js";
 
 export type NflUsageGroup = Exclude<CareerGroup, "K" | "P" | "LS">;
+
+/**
+ * The position families careers are also graded by (ADR-087 §11, 2026-10-31): single small groups
+ * (kickers, punters, snappers, quarterbacks) can catch only a gross miss, so careers are read on
+ * the member groups' entrants pooled as well. Both sides pool the same way: the real side runs its
+ * Kaplan-Meier on the members' entrants together (`baseline.ts`), the grader the sim's
+ * (`careerGrade.ts`).
+ */
+export type CareerFamily = "QB" | "SKILL" | "LINE" | "BACK_SEVEN" | "SPECIALISTS";
+
+export const CAREER_FAMILIES: Readonly<Record<CareerFamily, readonly CareerGroup[]>> = {
+  QB: ["QB"],
+  SKILL: ["RB", "WR", "TE"],
+  LINE: ["OL", "IDL", "EDGE"],
+  BACK_SEVEN: ["LB", "CB", "S"],
+  SPECIALISTS: ["K", "P", "LS"],
+};
+
+export const CAREER_FAMILY_KEYS: readonly CareerFamily[] = ["QB", "SKILL", "LINE", "BACK_SEVEN", "SPECIALISTS"];
 
 /** The 53s at week 8, pooled over seasons: the mean of the season values (n = men over all seasons). */
 export interface NflWeekEightRow {
@@ -93,6 +116,8 @@ export interface NflCareers {
     readonly horizon: number;
     readonly league: NflCareerRow;
     readonly byGroup: Readonly<Record<CareerGroup, NflCareerRow>>;
+    /** The member groups' entrants pooled (`CAREER_FAMILIES`), one Kaplan-Meier each. */
+    readonly byFamily: Readonly<Record<CareerFamily, NflCareerRow>>;
   };
   /** P(credited in Y+2 | credited in Y, on no list in Y+1), league (n = cases). Reported only. */
   readonly comebacks: { readonly seasons: readonly [number, number]; readonly share: Estimate };
@@ -167,6 +192,13 @@ export const NFL_CAREERS: NflCareers = {
       K: { entrants: 50, censored: 28, expectedCareer: { value: 8.5173, se: 1.0478, n: 50 }, reach5: { value: 0.6168, se: 0.0756, n: 50 }, reach10: { value: 0.5327, se: 0.0811, n: 50 } },
       P: { entrants: 57, censored: 30, expectedCareer: { value: 7.8459, se: 0.9448, n: 57 }, reach5: { value: 0.5767, se: 0.0774, n: 57 }, reach10: { value: 0.3746, se: 0.0963, n: 57 } },
       LS: { entrants: 39, censored: 25, expectedCareer: { value: 9.7678, se: 1.1752, n: 39 }, reach5: { value: 0.6611, se: 0.081, n: 39 }, reach10: { value: 0.5399, se: 0.1118, n: 39 } },
+    },
+    byFamily: {
+      QB: { entrants: 156, censored: 73, expectedCareer: { value: 6.5081, se: 0.5255, n: 156 }, reach5: { value: 0.5638, se: 0.0474, n: 156 }, reach10: { value: 0.2617, se: 0.0594, n: 156 } },
+      SKILL: { entrants: 1208, censored: 403, expectedCareer: { value: 4.3117, se: 0.1465, n: 1208 }, reach5: { value: 0.37, se: 0.0144, n: 1208 }, reach10: { value: 0.0853, se: 0.0157, n: 1208 } },
+      LINE: { entrants: 1732, censored: 682, expectedCareer: { value: 5.0754, se: 0.1271, n: 1732 }, reach5: { value: 0.4871, se: 0.0124, n: 1732 }, reach10: { value: 0.1158, se: 0.0145, n: 1732 } },
+      BACK_SEVEN: { entrants: 1008, censored: 357, expectedCareer: { value: 4.6638, se: 0.1346, n: 1008 }, reach5: { value: 0.4271, se: 0.0168, n: 1008 }, reach10: { value: 0.0816, se: 0.0156, n: 1008 } },
+      SPECIALISTS: { entrants: 146, censored: 83, expectedCareer: { value: 8.6501, se: 0.5824, n: 146 }, reach5: { value: 0.6147, se: 0.0432, n: 146 }, reach10: { value: 0.4816, se: 0.0507, n: 146 } },
     },
   },
   comebacks: { seasons: [2016, 2022], share: { value: 0.0254, se: 0.0046, n: 1182 } },

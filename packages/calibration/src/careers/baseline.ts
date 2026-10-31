@@ -13,6 +13,7 @@ import {
   CAREER_HORIZON, CROSS_MEASURES, ageOn, careerValues, cohortEntrants, cohortExclusions, comebackUnits, crossByGroup,
   type CohortWindow, type CrossValues, type Entrant, type RosterLedger, type WeekEight,
 } from "./measure.js";
+import { CAREER_FAMILIES, CAREER_FAMILY_KEYS, type CareerFamily } from "./nflCareers.js";
 import type { PlayerIdRow } from "./rows.js";
 import { BOOTSTRAP_REPLICATES, BOOTSTRAP_SEED, acrossSeasons, bootstrapOverPlayers, bootstrapRng, round, type Estimate } from "./stats.js";
 import { MIN_PAIRS_PER_AGE, deltaCurve, peakAge, usagePairs, type AgePoint, type SnapSeason, type UsagePair } from "./usage.js";
@@ -105,6 +106,8 @@ export interface NflCareersReport {
     readonly horizon: number;
     readonly league: CareerRow;
     readonly byGroup: Readonly<Record<CareerGroup, CareerRow>>;
+    /** The member groups' entrants pooled (`CAREER_FAMILIES`), one Kaplan-Meier each. */
+    readonly byFamily: Readonly<Record<CareerFamily, CareerRow>>;
   };
   readonly comebacks: { readonly league: ComebackRow; readonly byGroup: Readonly<Record<CareerGroup, ComebackRow>> };
   readonly wins: { readonly yearOverYear: WinCarry; readonly spread: WinSpread };
@@ -259,6 +262,13 @@ export function buildBaseline(input: BaselineInput): NflCareersReport {
   const excluded = cohortExclusions(input.ledger, input.cohort);
   const careersByGroup = {} as Record<CareerGroup, CareerRow>;
   for (const g of CAREER_GROUPS) careersByGroup[g] = careerRow(entrants.filter((e) => e.group === g), `careers/${g}`, replicates);
+  const careersByFamily = {} as Record<CareerFamily, CareerRow>;
+  for (const f of CAREER_FAMILY_KEYS) {
+    // A family of one group (QB) is that group's row, its standard errors included.
+    const groups = CAREER_FAMILIES[f];
+    const members = new Set<CareerGroup | null>(groups);
+    careersByFamily[f] = groups.length === 1 ? careersByGroup[groups[0]!] : careerRow(entrants.filter((e) => members.has(e.group)), `careers/family/${f}`, replicates);
+  }
 
   // ---- comebacks
   const comebacksByGroup = {} as Record<CareerGroup, ComebackRow>;
@@ -285,7 +295,7 @@ export function buildBaseline(input: BaselineInput): NflCareersReport {
     },
     weekEight: { pooled: { league: pool(rawSeasons.map((c) => c.league)), byGroup: pooledByGroup }, actOnly, perSeason },
     peakUsage: { minPairsPerAge: MIN_PAIRS_PER_AGE, byGroup: usageByGroup },
-    careers: { horizon: CAREER_HORIZON, league: careerRow(entrants, "careers/league", replicates), byGroup: careersByGroup },
+    careers: { horizon: CAREER_HORIZON, league: careerRow(entrants, "careers/league", replicates), byGroup: careersByGroup, byFamily: careersByFamily },
     comebacks: { league: comebackRow(input, null, "comebacks/league", replicates), byGroup: comebacksByGroup },
     wins: {
       yearOverYear: {

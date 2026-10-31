@@ -7,6 +7,7 @@ import { compactJson } from "../injuries/report.js";
 import type { CareerRow, ComebackRow, CrossRow, NflCareersReport, PeakRow, UsageGroup } from "./baseline.js";
 import { CAREER_GROUPS, USAGE_GROUPS } from "./groups.js";
 import type { CrossValues } from "./measure.js";
+import { CAREER_FAMILIES, CAREER_FAMILY_KEYS } from "./nflCareers.js";
 import type { Estimate } from "./stats.js";
 
 export function renderJson(r: NflCareersReport): string {
@@ -22,6 +23,7 @@ export const DEFINITIONS: readonly { readonly term: string; readonly text: strin
   { term: "Week-8 rows", text: "The 53s of regular-season week 8, 2018-2024; a team on its bye is read from its week-7 roster. Mean age; shares aged 22 or under, 31 or over, 34 or over; rookie share (years_exp 0); undrafted share (draft_number missing). Pooled = the mean of the seven season values, SE = their sample SD / √7." },
   { term: "Credited season", text: "On a 53 in the season's final regular-season week (17 through 2020, 18 from 2021), as the sim credits a man on a team's 53 when the regular season ends." },
   { term: "Careers", text: "Cohorts: men whose first credited season (entry) is 2012-2022 and who entered the league in 2012 or later (rookie_year). Entry group: the group on the row that credited his first season. Career length: credited seasons in total. Censored: on any team's list (53, inactive, practice squad, reserve lists, exempt) in any 2024 week. Kaplan-Meier over career length; expected career = Σ P(career ≥ k) for k = 1..15 (past 13 seasons nothing is observed and the curve is carried flat); reach 5 = P(career ≥ 5), reach 10 = P(career ≥ 10). SE: bootstrap over players." },
+  { term: "Position families", text: "QB; SKILL = RB, WR, TE; LINE = OL, IDL, EDGE; BACK_SEVEN = LB, CB, S; SPECIALISTS = K, P, LS (ADR-087 §11). A family's careers are one Kaplan-Meier over its member groups' entrants pooled, with its own bootstrap, the same way as a group's." },
   { term: "Snap share", text: "Per player-season (no K/P/LS): his side is offense or defense, whichever he played more; his team the one he logged the most snaps with; share = his snaps on that side for that team / the sum over that team's games of the game's busiest same-side man's snaps for that team (games he missed count zero). Special-teams-only seasons have share 0." },
   { term: "Peak usage age", text: "For seasons Y, Y+1 (2013-2024) with at least one snap of any kind in both, delta = share(Y+1) − share(Y), at his age in Y. Mean delta by age per group over ages with at least the minimum pairs, smoothed with a centered 3-age moving average; peak = the first age whose smoothed delta is ≤ 0 after an earlier age's was > 0. 'With exits' also counts Y+1 with no snaps as share 0. SE: bootstrap over players; 'resolved' is the share of replicates that found a peak." },
   { term: "Comebacks", text: "P(credited again in Y+2 | credited in Y and on no team's list in any week of Y+1), Y = 2016-2022: practice squads are listed in the weekly rosters only from 2017. Reported only. SE: bootstrap over players." },
@@ -122,6 +124,11 @@ export function renderMarkdown(r: NflCareersReport): string {
     ["League", ...careerCells(r.careers.league)],
     ...CAREER_GROUPS.map((g) => [g, ...careerCells(r.careers.byGroup[g])]),
   ]));
+  out.push("");
+  out.push("By position family (the member groups' entrants pooled, one Kaplan-Meier each):");
+  out.push("");
+  out.push(table(["Family", "Entrants", "Censored", "Expected career (seasons)", "Reach 5", "Reach 10"],
+    CAREER_FAMILY_KEYS.map((f) => [`${f} (${CAREER_FAMILIES[f].join(", ")})`, ...careerCells(r.careers.byFamily[f])])));
   out.push("");
 
   out.push(`## Back after a season out, Y = ${r.seasons.comebacks[0]}-${r.seasons.comebacks[1]} (reported only)`);

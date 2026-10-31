@@ -1,8 +1,9 @@
 /**
  * The real career baselines (ADR-087 D5b, `src/careers/`): the decoders on tiny hand-written CSVs,
  * each measure on tiny hand-built data whose answers are worked out by hand below, the bootstrap's
- * determinism, and two guards on what is committed: the JSON report holds no per-player field and no
- * string that is not a group or a label, and `NFL_CAREERS` equals it.
+ * determinism, careers by position family (the member groups' entrants pooled), and two guards on
+ * what is committed: the JSON report holds no per-player field and no string that is not a group, a
+ * family or a label, and `NFL_CAREERS` equals it.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -13,7 +14,7 @@ import {
   actOnly, addRosterSeason, ageOn, careerValues, cohortEntrants, cohortExclusions, comebackCases, crossValues,
   newLedger, onA53, onARoster, weekEightRows, type Entrant,
 } from "../src/careers/measure.js";
-import { NFL_CAREERS } from "../src/careers/nflCareers.js";
+import { CAREER_FAMILIES, CAREER_FAMILY_KEYS, NFL_CAREERS } from "../src/careers/nflCareers.js";
 import { renderJson, renderMarkdown } from "../src/careers/report.js";
 import { parseCareerRosters, parseCareerSnaps, parsePlayerIds, type CareerRosterRow } from "../src/careers/rows.js";
 import { BOOTSTRAP_SEED, acrossSeasons, bootstrapOverPlayers, bootstrapRng, pearson } from "../src/careers/stats.js";
@@ -415,6 +416,21 @@ describe("the report", () => {
     expect(renderMarkdown(a)).toBe(renderMarkdown(b));
     expect(a.coverage).toMatchObject({ snapPlayerSeasons: 3, linkedByRoster: 2, linkedByPlayerTable: 1, unlinked: 0 });
     expect(a.careers.league.entrants).toBe(5);
+    // Families: the member groups' entrants pooled, one Kaplan-Meier each; a family of one group is that group's row.
+    const entrants = cohortEntrants(ledgerFixture(), { firstEntry: 2012, lastEntry: 2014, lastSeason: 2015 });
+    expect(Object.keys(a.careers.byFamily)).toEqual(CAREER_FAMILY_KEYS);
+    // The five families hold the thirteen groups, each once.
+    expect(CAREER_FAMILY_KEYS.flatMap((f) => CAREER_FAMILIES[f]).sort()).toEqual([...CAREER_GROUPS].sort());
+    expect(a.careers.byFamily.QB).toEqual(a.careers.byGroup.QB);
+    const skill = careerValues(entrants.filter((e) => e.group !== null && CAREER_FAMILIES.SKILL.includes(e.group)));
+    expect(a.careers.byFamily.SKILL.entrants).toBe(2); // the WR and the TE
+    expect(a.careers.byFamily.SKILL.entrants).toBe(a.careers.byGroup.RB.entrants + a.careers.byGroup.WR.entrants + a.careers.byGroup.TE.entrants);
+    expect(a.careers.byFamily.SKILL.expectedCareer.value).toBeCloseTo(skill.expected, 4);
+    expect(a.careers.byFamily.SKILL.reach5.value).toBeCloseTo(skill.reach5, 4);
+    expect(a.careers.byFamily.BACK_SEVEN.entrants).toBe(1); // the CB
+    expect(a.careers.byFamily.SPECIALISTS.entrants).toBe(1); // the LS
+    expect(a.careers.byFamily.LINE.entrants).toBe(0);
+    expect(renderMarkdown(a)).toContain("| SKILL (RB, WR, TE) | 2 |");
     expect(a.comebacks.league).toMatchObject({ cases: 4, back: 2 });
     expect(a.bootstrap.seed).toBe(BOOTSTRAP_SEED);
     expect(() => checkAggregatesOnly(JSON.parse(renderJson(a)))).not.toThrow();
@@ -423,11 +439,11 @@ describe("the report", () => {
 
 // ---------------------------------------------------------------- what is committed
 
-const GROUP_STRINGS = new Set<string>(CAREER_GROUPS);
+const GROUP_STRINGS = new Set<string>([...CAREER_GROUPS, ...CAREER_FAMILY_KEYS]);
 /** Every key the report may hold (groups aside). A key naming a player, an id or a birth date is not here. */
 const KEYS = new Set([
   "measuredOn", "seasons", "read", "weekEight", "careerEntry", "lastObserved", "usage", "comebacks", "winCarry", "winSpread",
-  "pooled", "league", "byGroup", "actOnly", "perSeason", "season", "byeFilled", "n", "meanAge", "age22OrUnder", "age31Plus",
+  "pooled", "league", "byGroup", "byFamily", "actOnly", "perSeason", "season", "byeFilled", "n", "meanAge", "age22OrUnder", "age31Plus",
   "age34Plus", "rookie", "undrafted", "value", "se", "peakUsage", "minPairsPerAge", "stayers", "withExits", "pairs",
   "playerCount", "peakAge", "resolved", "curve", "age", "meanDelta", "smoothed", "careers", "horizon", "entrants", "censored",
   "expectedCareer", "reach5", "reach10", "cases", "back", "share", "wins", "yearOverYear", "transitions", "from", "r",
@@ -507,6 +523,14 @@ describe("committed report", () => {
     }
     const { curve: _leagueCurve, ...league } = report.careers.league;
     expect(c.careers.league).toEqual(league);
+    expect(Object.keys(report.careers.byFamily)).toEqual(CAREER_FAMILY_KEYS);
+    for (const f of CAREER_FAMILY_KEYS) {
+      const { curve: _familyCurve, ...family } = report.careers.byFamily[f];
+      expect(c.careers.byFamily[f]).toEqual(family);
+      // A family's entrants are its member groups' entrants.
+      expect(family.entrants).toBe(CAREER_FAMILIES[f].reduce((n, g) => n + report.careers.byGroup[g].entrants, 0));
+    }
+    expect(CAREER_FAMILY_KEYS.reduce((n, f) => n + report.careers.byFamily[f].entrants, 0)).toBe(report.careers.league.entrants);
     expect(c.careers.entrySeasons).toEqual(report.seasons.careerEntry);
     expect(c.careers.lastObserved).toBe(report.seasons.lastObserved);
     expect(c.careers.horizon).toBe(report.careers.horizon);
