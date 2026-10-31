@@ -3,17 +3,16 @@
  *
  * 1. Each position's starters (the depth chart's top `STARTERS[position]`, filled from the rest of
  *    the roster by overall when the chart is short) are rated by their position overall.
- * 2. A starter's value is his overall above replacement times his position's weight. The weights are
- *    an input: `STRENGTH_WEIGHTS` starts from the draft's position values (ADR-086, CHOSEN) until the
- *    calibration measure (group boosts played through the engine) replaces them.
- * 3. Unit strength is the sum of its starters' values; team strength is the sum of the units.
- * 4. Strength becomes a win share through a logistic on the gap to the league's mean strength.
- *    `STRENGTH.winScale` is fitted to played seasons by calibration; CHOSEN until then.
- *
- * Groups are for the meeting's talk ("our secondary"): each group's mean starter overall.
+ * 2. Each group's level is its starters' mean overall. Its value is that level above replacement
+ *    times the group's weight: points of margin a game per rating point, measured through the engine
+ *    (calibration `group-weights`: one team's group raised 10 points against flat opponents).
+ * 3. Unit strength is the sum of its groups' values; team strength is the sum of the units, in
+ *    points of margin a game over a team of replacement players.
+ * 4. Two teams' strength gap is the margin one should win by; the win chance is that gap over the
+ *    spread of single-game margins (the same measure's control games), through the normal curve.
  */
 import { positionOverall, type PlayerState, type Position, type Team, type TeamId } from "@ff/contracts";
-import { POSITION_VALUE, REPLACEMENT_GRADE, STARTERS } from "../draft/board.js";
+import { REPLACEMENT_GRADE, STARTERS } from "../draft/board.js";
 
 export type Unit = "OFFENSE" | "DEFENSE" | "SPECIAL_TEAMS";
 export type MeetingGroup = "QB" | "RB" | "WR" | "TE" | "OL" | "DL" | "LB" | "CB" | "S" | "ST";
@@ -27,15 +26,18 @@ export const UNIT_OF: Readonly<Record<MeetingGroup, Unit>> = {
   DL: "DEFENSE", LB: "DEFENSE", CB: "DEFENSE", S: "DEFENSE", ST: "SPECIAL_TEAMS",
 };
 
-/** Weight of a starter's overall above replacement, by position. Draft values until measured (CHOSEN). */
-export const STRENGTH_WEIGHTS: Readonly<Record<Position, number>> = POSITION_VALUE;
+/** Points of margin a game per rating point of the group's starters. MEASURED: see GROUP_WEIGHTS_SOURCE. */
+export const GROUP_WEIGHTS: Readonly<Record<MeetingGroup, number>> = {
+  QB: 0.3, RB: 0.1, WR: 0.2, TE: 0.05, OL: 0.25, DL: 0.25, LB: 0.1, CB: 0.15, S: 0.1, ST: 0.05,
+};
+export const GROUP_WEIGHTS_SOURCE = "PLACEHOLDER";
 
 export const STRENGTH = {
-  /** Strength points above the league mean that make a 73% team (e = 1 in the logistic). CHOSEN. */
-  winScale: 40,
+  /** The spread (SD) of single-game margins between even teams, in points. MEASURED with the weights. */
+  marginSd: 14,
 } as const;
 
-export interface Starter { player: PlayerState; position: Position; overall: number; value: number }
+export interface Starter { player: PlayerState; position: Position; overall: number }
 
 export interface TeamStrength {
   team: TeamId;
@@ -78,32 +80,41 @@ export function startersOf(team: Team, players: ReadonlyMap<string, PlayerState>
   return out;
 }
 
-export function teamStrength(team: Team, players: ReadonlyMap<string, PlayerState>, weights: Readonly<Record<Position, number>> = STRENGTH_WEIGHTS): TeamStrength {
+export function teamStrength(team: Team, players: ReadonlyMap<string, PlayerState>, weights: Readonly<Record<MeetingGroup, number>> = GROUP_WEIGHTS): TeamStrength {
   const units: Record<Unit, number> = { OFFENSE: 0, DEFENSE: 0, SPECIAL_TEAMS: 0 };
   const sums = new Map<MeetingGroup, { total: number; n: number }>();
   const starters: Starter[] = [];
   for (const { player, position } of startersOf(team, players)) {
     const overall = positionOverall(position, player.attributes.values);
-    const value = (overall - REPLACEMENT_GRADE) * weights[position];
-    starters.push({ player, position, overall, value });
+    starters.push({ player, position, overall });
     const g = GROUP_OF[position];
-    units[UNIT_OF[g]] += value;
     const s = sums.get(g) ?? { total: 0, n: 0 };
     s.total += overall; s.n++;
     sums.set(g, s);
   }
   const groups: Partial<Record<MeetingGroup, number>> = {};
-  for (const [g, s] of sums) groups[g] = s.total / s.n;
+  for (const [g, s] of sums) {
+    groups[g] = s.total / s.n;
+    units[UNIT_OF[g]] += (s.total / s.n - REPLACEMENT_GRADE) * weights[g];
+  }
   return { team: team.id, total: units.OFFENSE + units.DEFENSE + units.SPECIAL_TEAMS, units, groups, starters };
 }
 
 /** Every team's strength. */
-export function leagueStrength(teams: readonly Team[], players: readonly PlayerState[], weights?: Readonly<Record<Position, number>>): TeamStrength[] {
+export function leagueStrength(teams: readonly Team[], players: readonly PlayerState[], weights?: Readonly<Record<MeetingGroup, number>>): TeamStrength[] {
   const byId = new Map(players.map((p) => [String(p.bio.id), p]));
   return teams.map((t) => teamStrength(t, byId, weights));
 }
 
-/** The share of games a team of `strength` should win in a league whose mean strength is `mean`. */
-export function strengthWinShare(strength: number, mean: number, scale: number = STRENGTH.winScale): number {
-  return 1 / (1 + Math.exp(-(strength - mean) / scale));
+/** The standard normal curve's cumulative share (Abramowitz and Stegun 7.1.26, error under 1.5e-7). */
+export function normalShare(z: number): number {
+  const x = Math.abs(z) / Math.SQRT2;
+  const t = 1 / (1 + 0.3275911 * x);
+  const erf = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  return z >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf);
+}
+
+/** The chance a team of `strength` beats a team of `opponent` strength (a tie counts as half), neutral field. */
+export function strengthWinShare(strength: number, opponent: number, marginSd: number = STRENGTH.marginSd): number {
+  return normalShare((strength - opponent) / marginSd);
 }

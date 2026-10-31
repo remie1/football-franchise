@@ -125,6 +125,9 @@ export { emptyMemory, type PlayerMemory, type PlayerWeek, type PastInjury, type 
 // ADR-081 M1: the end-of-season meeting's truth side.
 export { LUCK, pythagorean, seasonLuck, verdictOf, type LuckVerdict, type TeamLuck } from "./meeting/luck.js";
 export {
-  GROUP_OF, STRENGTH, STRENGTH_WEIGHTS, UNIT_OF, leagueStrength, startersOf, strengthWinShare, teamStrength,
+  GROUP_OF, GROUP_WEIGHTS, GROUP_WEIGHTS_SOURCE, STRENGTH, UNIT_OF, leagueStrength, normalShare, startersOf, strengthWinShare, teamStrength,
   type MeetingGroup, type Starter, type TeamStrength, type Unit,
 } from "./meeting/strength.js";
+export {
+  AGING_FROM, YEARLY_CHANGE, expectedChange, lastSeasonOf, projectPlayer, projectTeam, weakestGroups, type TeamProjection,
+} from "./meeting/projection.js";

@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { createRng, type GameResult, type SeasonState, type TeamId } from "@ff/contracts";
-import { LUCK, leagueStrength, pythagorean, seasonLuck, teamStrength, verdictOf, strengthWinShare, runSeason, type GameResolver } from "../src/index.js";
+import { AGING_FROM, GROUP_WEIGHTS, LUCK, expectedChange, projectPlayer, projectTeam, weakestGroups, leagueStrength, normalShare, pythagorean, seasonLuck, teamStrength, verdictOf, strengthWinShare, runSeason, type GameResolver } from "../src/index.js";
 import { league, player, startingPeople } from "./playersWorld.js";
 
 const fake: GameResolver = (game, seed) => {
@@ -75,6 +75,8 @@ describe("team strength", () => {
     for (const s of strengths) {
       expect(s.starters).toHaveLength(26);
       expect(s.total).toBeCloseTo(s.units.OFFENSE + s.units.DEFENSE + s.units.SPECIAL_TEAMS, 9);
+      const fromGroups = Object.entries(s.groups).reduce((t, [g, lvl]) => t + (lvl! - 50) * GROUP_WEIGHTS[g as keyof typeof GROUP_WEIGHTS], 0);
+      expect(s.total).toBeCloseTo(fromGroups, 9);
       expect(Object.keys(s.groups).sort()).toEqual(["CB", "DL", "LB", "OL", "QB", "RB", "S", "ST", "TE", "WR"]);
     }
   });
@@ -90,7 +92,7 @@ describe("team strength", () => {
       return teamStrength(team, m).total - base;
     };
     expect(better("QB")).toBeGreaterThan(0);
-    expect(better("QB")).toBeGreaterThan(better("LS") * 3);
+    expect(better("QB")).toBeGreaterThan(better("LS"));
   });
 
   it("fills a short depth chart from the roster by overall", () => {
@@ -101,9 +103,60 @@ describe("team strength", () => {
     expect(String(qb.player.bio.id)).toBe(String(people.teams[0]!.depthChart.QB![0]));
   });
 
-  it("turns strength into a win share around the league mean", () => {
-    expect(strengthWinShare(10, 10)).toBe(0.5);
-    expect(strengthWinShare(50, 10)).toBeGreaterThan(0.7);
-    expect(strengthWinShare(-30, 10)).toBeLessThan(0.3);
+  it("turns a strength gap into a win chance through the spread of game margins", () => {
+    expect(strengthWinShare(10, 10)).toBeCloseTo(0.5, 6);
+    expect(normalShare(1)).toBeCloseTo(0.841345, 6);
+    expect(normalShare(-1.96)).toBeCloseTo(0.025, 3);
+    expect(strengthWinShare(10, 0, 10)).toBeCloseTo(normalShare(1), 12);
+    expect(strengthWinShare(0, 10, 10)).toBeCloseTo(1 - normalShare(1), 12);
+  });
+});
+
+describe("next season and the one after", () => {
+  const people = startingPeople();
+  const team = people.teams[0]!;
+  const roster = people.players.filter((p) => team.roster.some((id) => String(id) === String(p.bio.id)));
+  /** Every rostered player under contract through `last`, except the ones named. */
+  const deals = (last: number, short: readonly string[] = [], shortLast = 2027) => roster.map((p) => ({
+    player: p.bio.id, team: team.id, signedAt: { season: 2026, phase: "OFF_EVAL" as const, week: 1, day: 1 },
+    years: [2026, 2027, 2028, 2029].filter((y) => y <= (short.includes(String(p.bio.id)) ? shortLast : last))
+      .map((season) => ({ season, baseSalary: 1e6, signingBonusProration: 0, guarantees: { fullyGuaranteed: false }, capHit: 1e6 })),
+  }));
+
+  it("reads the measured change by age, growth scaling only the young", () => {
+    expect(expectedChange(22)).toBe(3.36);
+    expect(expectedChange(22, 1.5)).toBeCloseTo(5.04, 12);
+    expect(expectedChange(30, 1.5)).toBe(0.05);
+    expect(expectedChange(34)).toBe(-1.74);
+    expect(AGING_FROM).toBe(29);
+  });
+
+  it("ages a player a year: one year older, ratings moved by his change", () => {
+    const old = player("old", "DE", 70, 33);
+    const next = projectPlayer(old);
+    expect(next.bio.age).toBe(34);
+    expect(Object.values(next.attributes.values)[0]).toBeCloseTo(68.26, 9);
+    expect(projectPlayer(old, 2).bio.age).toBe(35);
+  });
+
+  it("keeps everyone under contract and drops whose deal ends", () => {
+    const qb = String(team.depthChart.QB![0]);
+    const all = projectTeam(team, people.players, deals(2029), 2027);
+    expect(all.expiring).toEqual([]);
+    expect(all.next.starters.map((s) => String(s.player.bio.id))).toContain(qb);
+    const lose = projectTeam(team, people.players, deals(2029, [qb]), 2027);
+    expect(lose.expiring.map((p) => String(p.bio.id))).toEqual([qb]);
+    expect(lose.next.starters.map((s) => String(s.player.bio.id))).not.toContain(qb);
+    expect(lose.next.total).toBeLessThan(all.next.total);
+    const later = projectTeam(team, people.players, deals(2029, [qb], 2028), 2027);
+    expect(later.expiringNext.map((p) => String(p.bio.id))).toEqual([qb]);
+    expect(later.next.starters.map((s) => String(s.player.bio.id))).toContain(qb);
+    expect(later.after.starters.map((s) => String(s.player.bio.id))).not.toContain(qb);
+  });
+
+  it("ranks the weakest groups first", () => {
+    const now = projectTeam(team, people.players, deals(2029), 2027).now;
+    const order = weakestGroups(now);
+    for (let i = 1; i < order.length; i++) expect(now.groups[order[i - 1]!]!).toBeLessThanOrEqual(now.groups[order[i]!]!);
   });
 });
