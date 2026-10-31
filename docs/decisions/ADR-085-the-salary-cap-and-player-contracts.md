@@ -251,3 +251,10 @@ tenders and tags are signed; 566 deals run out; every team ends the offseason un
 the same seed gives the same year. Not yet: RFA offer sheets, trades, earned unlikely incentives, the
 veteran salary benefit, in-season street signings and injured reserve, compensatory-pick moves.
 
+
+### Step 5 — the league year in `runSeason`, and moves kept for compensatory picks, 2026-10-31
+
+- `runSeason` takes `leagueYear?: LeagueYearConfig`, as the draft thread's PR #36 did for `draft`. Steps run in this order: the caller's, the players' (ADR-087), the league year's, then the draft's (ADR-086). Calibration needs no new surface names: `runSeason` is already on the R1 list (Q10).
+- The market appends each signing with a new team to `people.freeAgentMoves` (ADR-086 §5) when the player's deal ran out (`ended.reason` EXPIRED) rather than being released, and the signing comes before the post-draft day (`countsForComp`; the real cutoff is a date in early May, just after the draft). The draft's compensatory step reads these moves the next year.
+- Tests: the moves are checked (expired deal, new team, signed before the cutoff). `runSeason` with both options plays two years, keeps every team under the cap, and awards compensatory picks in year two.
+- Next: `--seasons N` in the calibration season command with the stand-in league, once the aging thread's realSeason/main edits are on main, then the multi-season check against real numbers.

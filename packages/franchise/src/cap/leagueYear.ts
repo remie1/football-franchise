@@ -13,7 +13,7 @@
  * Constants are CHOSEN (provenance NONE) unless a comment says otherwise.
  */
 import {
-  createRng, DEFAULT_LEAGUE_RULES,
+  compareStamps, createRng, DEFAULT_LEAGUE_RULES,
   type CalendarStamp, type DeadMoneyCharge, type FranchiseEvent, type LeagueRules, type PlayerContract, type PlayerState, type Position,
   type SeasonState, type Team, type TeamId,
 } from "@ff/contracts";
@@ -35,6 +35,14 @@ export const LEAGUE_YEAR_DAYS = {
   newYear: { phase: "OFF_RESET_FA", week: 1, day: 1 },
   postDraft: { phase: "OFF_DRAFT", week: 4, day: 1 },
 } as const;
+
+/**
+ * Signings that count toward compensatory picks (ADR-086 §5): before the post-draft day. The real
+ * cutoff is a date in early May, just after the draft.
+ */
+export function countsForComp(day: CalendarStamp): boolean {
+  return day.phase.startsWith("OFF_") && compareStamps(day, { ...LEAGUE_YEAR_DAYS.postDraft, season: day.season }) < 0;
+}
 
 export const MARKET = {
   /** Days the market runs in the premium window (OFF_RESET_FA week 1). */
@@ -456,7 +464,14 @@ function freeAgency(
   let teams = [...people.teams];
   let pool = people.freeAgents.map((id) => byId.get(String(id))).filter((p): p is PlayerState => p !== undefined);
   const lastTeam = new Map<string, TeamId>();
-  for (const c of book.contracts) if (c.ended && c.years.some((y) => y.season === lastSeason)) lastTeam.set(String(c.player), c.team);
+  // Unrestricted free agents: their deal ran out (not a release). Their moves count for comp picks.
+  const ranOut = new Map<string, TeamId>();
+  for (const c of book.contracts) {
+    if (!c.ended || !c.years.some((y) => y.season === lastSeason)) continue;
+    lastTeam.set(String(c.player), c.team);
+    if (c.ended.reason === "EXPIRED") ranOut.set(String(c.player), c.team);
+  }
+  const moves = [...(people.freeAgentMoves ?? [])];
   const asks = new Map(pool.map((p) => {
     const cs = seasonsIn(p, season);
     const floor = minimumSalary(season, cs, config.cap);
@@ -517,13 +532,20 @@ function freeAgency(
       book.contracts.push(top.contract);
       book.events.push(signedEvent(top.contract));
       signed.add(id);
+      const from = ranOut.get(id);
+      if (from !== undefined && from !== top.team && countsForComp(ctx.day)) {
+        moves.push({ player: p.bio.id, from, to: top.team, apy: apyOf(top.contract), signedAt: ctx.day });
+      }
       teams = teams.map((t) => (t.id === top.team ? withDepth({ ...t, roster: [...t.roster, p.bio.id] }, byId, config.rate) : t));
     }
     pool = pool.filter((p) => !signed.has(String(p.bio.id)));
   }
   if (signed.size === 0) return undefined;
   return {
-    people: { ...people, teams, players: placePlayers(people.players, teams), freeAgents: people.freeAgents.filter((id) => !signed.has(String(id))), contracts: book.contracts, deadMoney: book.dead },
+    people: {
+      ...people, teams, players: placePlayers(people.players, teams), freeAgents: people.freeAgents.filter((id) => !signed.has(String(id))),
+      contracts: book.contracts, deadMoney: book.dead, ...(moves.length > 0 ? { freeAgentMoves: moves } : {}),
+    },
     events: book.events,
   };
 }
