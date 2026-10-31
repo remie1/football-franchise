@@ -38,6 +38,7 @@ import type { LeaguePeople, DayStep } from "./people.js";
 import { draftSteps, turnYear, type DraftStepsConfig } from "../draft/steps.js";
 import { PLAYER_STEP_PREFIX, playerSteps, type PlayerStepsConfig } from "../players/steps.js";
 import { staffSteps, type StaffStepsConfig } from "../staff/steps.js";
+import { leagueYearSteps, type LeagueYearConfig } from "../cap/leagueYear.js";
 import { advance, nextDay, phaseWeeks, seasonStart, DAYS_PER_WEEK, type ClockWorld } from "../calendar/clock.js";
 import { buildSchedule } from "../schedule/buildSchedule.js";
 import { computeStandings } from "../standings/computeStandings.js";
@@ -98,9 +99,14 @@ export interface RunSeasonInput {
   players?: PlayerStepsConfig;
   /**
    * ADR-084 step 1: the coaching staff's steps (views seated, weekly drift, the carousel after the
-   * playoffs), after the players' and before the draft's. Needs `people.coaching`.
+   * playoffs), after the players' and before the league year's and the draft's. Needs `people.coaching`.
    */
   coaching?: StaffStepsConfig;
+  /**
+   * ADR-085: play the league year (the cap, re-signings and tags, deals running out, free agency,
+   * cap compliance). Its steps run after the players' and before the draft's. Needs `people`.
+   */
+  leagueYear?: LeagueYearConfig;
   /**
    * A resumed run: the events the players' steps emitted on the days up to `stepsDoneThrough` (a
    * save's `world.development.events`, S1), emitted again on their days in place of running the steps.
@@ -156,12 +162,14 @@ const sameDay = (a: CalendarStamp, b: CalendarStamp) => compareStamps(a, b) === 
 
 export function runSeason(input: RunSeasonInput): SeasonRun {
   const { league, season, seed, resolve, stopAfter, resumeFrom } = input;
-  // Order: the caller's steps, the players' (ADR-087), the coaches' (ADR-084), then the draft's (ADR-086).
+  // Order: the caller's steps, the players' (ADR-087), the coaches' (ADR-084), the league year's (ADR-085),
+  // then the draft's (ADR-086).
   const steps = [
     ...(input.daySteps ?? []), ...(input.players ? playerSteps(input.players) : []),
-    ...(input.coaching ? staffSteps(input.coaching) : []), ...(input.draft ? draftSteps(input.draft) : []),
+    ...(input.coaching ? staffSteps(input.coaching) : []),
+    ...(input.leagueYear ? leagueYearSteps(input.leagueYear) : []), ...(input.draft ? draftSteps(input.draft) : []),
   ];
-  if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps, the players' steps, the coaches' and the draft need people");
+  if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps, the players' steps, the coaches', the league year and the draft need people");
   if (input.coaching && !input.people?.coaching) throw new Error("runSeason: the coaches' steps need people.coaching");
   let people = input.people;
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
