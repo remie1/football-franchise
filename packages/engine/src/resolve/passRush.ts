@@ -134,6 +134,12 @@ export interface PassRushTickArgs {
   readonly rollRef: string;
   /** Tick-scoped fork; the resolver forks once per actor for auditability. */
   readonly tickRng: Rng;
+  /**
+   * ADR-089 step 1: the play clock's tick (seconds) this tick resolves at. Required, like
+   * `tunables`, so a missed call site is a compile error. Shape L's gradual block clock
+   * (`passRush.repClock`, `pocket-1` only) reads it; under `legacy` nothing reads it.
+   */
+  readonly tick: number;
 }
 
 export interface PassRushTickOutcome {
@@ -166,7 +172,12 @@ export function resolvePassRushTick(args: PassRushTickArgs): PassRushTickOutcome
   const rusherRoll = rollD100(tickRng.fork(`${rusher.bio.id}:jitter`), []);
   const blockerRoll = rollD100(tickRng.fork(`${blocker.bio.id}:jitter`), []);
   const jitter = Math.round((rusherRoll.total - blockerRoll.total) / t.repJitter.divisor);
-  const margin = repMargin + jitter;
+  // ADR-089 step 1, shape L (`passRush.repClock`, `pocket-1` only): the gradual block clock,
+  // `round(min(t, R) * x / R)` with x today's margin, so the margin is 0 at the snap and reaches x
+  // at R. The same dice and labels as legacy; only the margin read from them changes. This exact
+  // form (not `min(1, t/R) * x`) keeps R 5, t 3.5, x 45 at 32 (N3). Legacy reads nothing new.
+  const R = t.repClock?.fullExpressionSeconds;
+  const margin = R === undefined ? repMargin + jitter : Math.round((Math.min(args.tick, R) * (repMargin + jitter)) / R) + 0;
   const band = bandFor(t.bands, margin);
   const progress = t.pressureProgressByBand[band.label];
 

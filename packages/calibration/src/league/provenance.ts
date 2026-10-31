@@ -54,13 +54,21 @@ export type LeagueProvenance =
    * The ratings are invented, not derived: a season's shape (who wins, how records spread) is
    * meaningful; comparing its totals with the NFL says nothing about ratings or the engine.
    */
-  | "GENERATED_FICTIONAL";
+  | "GENERATED_FICTIONAL"
+  /**
+   * Stand-ins for the real NFL players (ADR-088), read from the league file `@ff/attributes`'
+   * real importer writes: real teams, ages, sizes, contracts; made-up names. Its first-version
+   * ratings rest mostly on market and playing-time priors plus some tracking data, so it is NOT
+   * `DERIVED`: a season's shape is meaningful, a rating-attribution verdict is not yet.
+   */
+  | "REAL_STAND_IN";
 
 export const LEAGUE_PROVENANCES = [
   "FLAT_SYNTHETIC",
   "DESIGNED_ARCHETYPE",
   "DERIVED",
   "GENERATED_FICTIONAL",
+  "REAL_STAND_IN",
 ] as const satisfies readonly LeagueProvenance[];
 
 /**
@@ -160,6 +168,12 @@ export function claimScopeOf(provenance: LeagueProvenance): string {
         "SEASON-SHAPE CLAIMS ONLY. Players and ratings are made up (ADR-079): how records and " +
         "upsets spread is meaningful, but neither a rating error nor an engine verdict can be " +
         "read from this league's totals."
+      );
+    case "REAL_STAND_IN":
+      return (
+        "SEASON-SHAPE CLAIMS, AND REAL-ROSTER COMPARISONS AS CHECKS. Players copy the real NFL's " +
+        "(ADR-088) but first-version ratings rest mostly on market and playing-time priors: a " +
+        "rating-attribution verdict is not yet available."
       );
   }
 }

@@ -152,6 +152,11 @@ describe("ADR-008 — over real event streams", () => {
       const { events } = simulatePassPlay(withChemistry(state, 95), calls, `pair-${i}`);
       for (const { event } of events) {
         if (event.type !== "CHECK") continue;
+        const kind: string = event.payload.checkKind;
+        if (event.payload.roll === undefined) {
+          if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+          continue;
+        }
         const sources = event.payload.roll.modifiers.map((m) => m.source);
         if (event.payload.checkKind === "anticipation") {
           if (sources.some((s) => s.startsWith("QB/receiver chemistry"))) anticipationTerms += 1;

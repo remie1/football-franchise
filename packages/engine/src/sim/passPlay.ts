@@ -49,6 +49,7 @@ import type { PlayerId, PlayerState, Rng, RollModifier, RushThreatState } from "
 import { ATTR } from "../attrs.js";
 import { chemistryLevel } from "../chemistry.js";
 import { PlayEventLog } from "../events.js";
+import type { ThreatApproach } from "../events.js";
 import { clamp, flatModifier } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
 import type { Tunables } from "../tunables.js";
@@ -67,6 +68,7 @@ import type {
   RushAlignment,
   RushMove,
   SimulationResult,
+  StuntCall,
   ThrowType,
 } from "../types.js";
 import { assertCoherentPlayCall } from "../validate/playCall.js";
@@ -74,6 +76,8 @@ import { applyPlayOutcome } from "./outcome.js";
 import type { PlayOutcome } from "./outcome.js";
 import { readPreSnap, resolvePickups, resolveStunts } from "./preSnap.js";
 import type { RushPlan } from "./preSnap.js";
+import { pocketRulesOf } from "./pocketRules.js";
+import type { PocketRules } from "./pocketRules.js";
 import { effectiveCall } from "./pressureRead.js";
 import type { Pursuer } from "../resolve/ballCarrier.js";
 import {
@@ -103,14 +107,20 @@ import {
 import type { PocketStatusRung } from "../resolve/pocket.js";
 import {
   advancePressure,
+  counterExcludes,
   forcesDecision,
+  mustActThreat,
   pocketStatusFor,
   readCapacityDeltaFor,
   sacksWithoutTarget,
 } from "../resolve/pocket.js";
 import { resolvePocketMovement } from "../resolve/pocketMovement.js";
 import { resolvePassRushRep, resolvePassRushTick } from "../resolve/passRush.js";
-import type { PassRushBandLabel } from "../resolve/passRush.js";
+import type { PassRushBandLabel, PassRushTickOutcome } from "../resolve/passRush.js";
+import { drawBeat, resolveBeatTick } from "../resolve/beatClock.js";
+import type { BeatTickOutcome } from "../resolve/beatClock.js";
+import { threatApproachOf, withApproach } from "../resolve/approach.js";
+import type { ApproachFacts } from "../resolve/approach.js";
 import {
   maxReadsFor,
   readCapacityPerTick,
@@ -224,6 +234,39 @@ interface RushMatchup {
    * exists to retire.
    */
   consecutiveContains: number;
+  /**
+   * ADR-089 step 1, shape S only (`pocket-1`): the block's breaking time, drawn once right after
+   * the rep (`resolve/beatClock.ts`'s `drawBeat`) and memoized with it. `tick` is the first tick
+   * at or after `T`, `undefined` when the block holds the whole play; `label` is the beat roll's
+   * `rngLabel`, which every dieless tick of the matchup and its threat name. Never set under
+   * `legacy` or shape L.
+   */
+  beat?: { readonly T: number; readonly tick: number | undefined; readonly label: string };
+  /**
+   * ADR-089 step 1, shape L only: the matchup reported BLOCKER_BEATEN (§4.0: under L, PUSH is a
+   * POWER rep in the card's PUSH range that reported BEATEN before it reported RUSHER_WINS_REP,
+   * ADR-089 Appendix F, F1 option (b)). Never set otherwise.
+   */
+  beatenSeen?: boolean;
+  /**
+   * ADR-089 P4: the approach of this matchup's won rep, computed once, at its first win, and
+   * carried by every threat its wins build. Never set under `legacy`.
+   */
+  wonApproach?: ThreatApproach;
+}
+
+/**
+ * ADR-089 §4.0 — the approach card for this play's threats, or `undefined` under `legacy`, where
+ * no threat carries one and the card is never consulted (S8). The penetrator set is the play's
+ * stunts as `PLAY_START.defense.stunts` publishes them.
+ */
+type ThreatLabeller = (facts: Omit<ApproachFacts, "threat" | "penetrator">, rusher: PlayerId) => ThreatApproach;
+
+function threatLabellerFor(rules: PocketRules, stunts: readonly StuntCall[]): ThreatLabeller | undefined {
+  if (rules.kind === "LEGACY") return undefined;
+  const penetrators = new Set(stunts.map((s) => String(s.penetrator)));
+  return (facts, rusher) =>
+    threatApproachOf({ ...facts, penetrator: penetrators.has(String(rusher)) }, rules.kind, rules.approach);
 }
 
 /**
@@ -234,9 +277,9 @@ interface RushMatchup {
  * `PICKUP_LOST` naming the pickup contest, §7.3's `STUNT_LOOPER` naming the
  * exchange. Nothing is decided here.
  */
-function freeRunnerThreat(plan: RushPlan): RushThreat | undefined {
+function freeRunnerThreat(plan: RushPlan, label: ThreatLabeller | undefined): RushThreat | undefined {
   if (plan.free === undefined) return undefined;
-  return {
+  const threat: RushThreat = {
     rusher: plan.rusher.bio.id,
     alignment: plan.alignment,
     origin: plan.free.origin,
@@ -244,6 +287,22 @@ function freeRunnerThreat(plan: RushPlan): RushThreat | undefined {
     etaTick: plan.free.etaTick,
     rollRef: plan.free.rollRef,
   };
+  // ADR-089 P4: from step 1 a free runner is labelled too, from his origin and the pickup or stunt
+  // band; his timing is today's until step 3 (ADR-089:397). Under `legacy`, the same object as before.
+  if (label === undefined) return threat;
+  const free = plan.free;
+  return withApproach(
+    threat,
+    label(
+      {
+        origin: free.origin,
+        ...(free.band === undefined ? {} : { band: free.band }),
+        alignment: plan.alignment,
+        move: plan.move,
+      },
+      plan.rusher.bio.id,
+    ),
+  );
 }
 
 /** The quarterback outside the pocket (§8.8), on pursuit's clock. */
@@ -318,6 +377,16 @@ export function simulatePassPlay(
    */
   tunables: Tunables = TUNABLES,
 ): SimulationResult {
+  // ADR-089 step 1 — the switch, read once a play, before a single die is thrown (plan §4):
+  // `LEGACY` for tunables with no `pocket-1` block (today's game, every new branch below skipped),
+  // shape S or shape L for a stamped overlay; anything else throws a `PocketRulesError` here.
+  const rules = pocketRulesOf(tunables);
+  // ADR-089 step 2 — what forces him to act, once a play: `STEP_1` (the status's
+  // `pocket.forcesDecision`) under `legacy` and every bundle without `pocket.forcing`;
+  // `PER_RUSHER` (must act per rusher, §4.3) or `COUNTER_LESS_SEEN` (the narrower counter, §4.3,
+  // information only) from that block.
+  const forcing = rules.kind === "LEGACY" ? "STEP_1" : rules.forcing;
+
   // ADR-006 — internal coherence only, before a single die is thrown. A card the
   // engine cannot resolve is rejected loudly; a card that is merely unrealistic
   // is franchise's problem, checked at authoring time, not here.
@@ -461,7 +530,8 @@ export function simulatePassPlay(
     plans: pickups.plans,
     presnapRng,
   });
-  const matchups = buildMatchups(lineGames.plans);
+  const labelThreat = threatLabellerFor(rules, preSnap.stunts);
+  const matchups = buildMatchups(lineGames.plans, labelThreat);
   const recoverySpots = buildRecoverySpots(tunables, state, runCalls, tracks);
 
   // The re-order sees only the coverage read's decisions: a protection-only `made` would skip its
@@ -554,6 +624,11 @@ export function simulatePassPlay(
       ballOn: state.ballOn,
       clockSeconds: state.clockSeconds,
     },
+    // ADR-089 §9: the rules and their overlay digest, a fresh copy of the stamp, the last key and
+    // only under `pocket-1` (a legacy payload keeps today's keys in today's order).
+    ...(rules.kind === "LEGACY"
+      ? {}
+      : { rules: { name: rules.rules.name, overlayDigest: rules.rules.overlayDigest } }),
   };
   log.setTick(undefined);
   log.playStart(startPayload);
@@ -591,7 +666,7 @@ export function simulatePassPlay(
    * rusher is coming from where in the play it happens to be standing.
    */
   const publishThreat = (threat: RushThreat, state: RushThreatState): void => {
-    log.rushThreat(threat.rusher, threat.alignment, threat.origin, threat.rollRef, threat.etaTick, state);
+    log.rushThreat(threat.rusher, threat.alignment, threat.origin, threat.rollRef, threat.etaTick, state, threat.approach);
   };
 
   /**
@@ -695,6 +770,22 @@ export function simulatePassPlay(
     });
     log.check(rep.check);
     m.rep = { margin: rep.margin, rollRef: rep.check.roll.rngLabel };
+    // ADR-089 step 1, shape S: the block's one breaking-time draw, on its own fork named by the
+    // rep (`rush/beat/<rep label>`), so no die of the rep or of any other matchup moves; its CHECK
+    // follows the rep's (P2). Not drawn under `legacy` or shape L.
+    if (rules.kind === "S") {
+      const beat = drawBeat({
+        tunables,
+        beat: rules.beatClock,
+        rusher: m.rusher,
+        blocker: m.blocker,
+        repMargin: rep.margin,
+        repRollRef: rep.check.roll.rngLabel,
+        beatRng: rushRng.fork(`beat/${rep.check.roll.rngLabel}`),
+      });
+      log.check(beat.check);
+      m.beat = { T: beat.T, tick: beat.tick, label: beat.label };
+    }
   };
 
   /**
@@ -758,7 +849,14 @@ export function simulatePassPlay(
      */
     let pocket: PocketStatusRung | undefined;
     if (scramble === undefined) {
-      const highest = matchups.reduce((max, m) => Math.max(max, m.pressure), 0);
+      // ADR-089 step 2 — under `pocket.forcing` COUNTER_LESS_SEEN (the narrower counter rule,
+      // information only) a matchup whose won rep has a live threat in `threats` is left out of
+      // the counter (`counterExcludes`); under every other rule this is today's reduce, and
+      // `counterExcludes` is never called.
+      const highest =
+        forcing === "COUNTER_LESS_SEEN"
+          ? matchups.reduce((max, m) => (counterExcludes(m, threats) ? max : Math.max(max, m.pressure)), 0)
+          : matchups.reduce((max, m) => Math.max(max, m.pressure), 0);
       // ADR-058 — ARRIVAL IS AUTHORITATIVE FOR A WON REP IT CAN SEE. A won rep
       // (`startsThreat(m.previousBand)`) with a live threat (`m.threat !==
       // undefined`) is already inside `threats` below, so `pocketFloorFromArrival`
@@ -798,15 +896,43 @@ export function simulatePassPlay(
         resolvePassRushRepFor(m);
         const rep = m.rep;
         if (rep === undefined) throw new Error("@ff/engine: pass_rush_rep did not resolve for a blocked matchup");
-        const rush = resolvePassRushTick({
-          tunables,
-          rusher: m.rusher,
-          blocker,
-          repMargin: rep.margin,
-          rollRef: rep.rollRef,
-          tickRng,
-        });
+        // ADR-089 step 1: under shape S the tick draws no die and reports the beat's margin (a
+        // dieless `pass_rush_tick` naming the beat, P3); under `legacy` and shape L it is today's
+        // jitter tick (L reads `tick` for its gradual margin). `tickRollRef` is the roll this
+        // tick's band rests on: the beat under S, the tick's own jitter roll otherwise.
+        let rush: PassRushTickOutcome | BeatTickOutcome;
+        let tickRollRef: string;
+        if (rules.kind === "S") {
+          const beat = m.beat;
+          if (beat === undefined) throw new Error("@ff/engine: pass_rush_beat did not resolve for a blocked matchup under shape S");
+          rush = resolveBeatTick({
+            tunables,
+            beat: rules.beatClock,
+            rusher: m.rusher,
+            blocker,
+            move: m.move,
+            repMargin: rep.margin,
+            beatTick: beat.tick,
+            beatLabel: beat.label,
+            tick,
+          });
+          tickRollRef = beat.label;
+        } else {
+          const jittered = resolvePassRushTick({
+            tunables,
+            rusher: m.rusher,
+            blocker,
+            repMargin: rep.margin,
+            rollRef: rep.rollRef,
+            tickRng,
+            tick,
+          });
+          rush = jittered;
+          tickRollRef = jittered.check.roll.rngLabel;
+        }
         log.check(rush.check);
+        // ADR-089 §4.0, shape L: PUSH is a POWER rep in the PUSH range that reported BEATEN before it won (F1 option (b)).
+        if (rules.kind === "L" && rush.band === "BLOCKER_BEATEN") m.beatenSeen = true;
         m.pressure = advancePressure(m.pressure, rush);
         m.previousBand = rush.band;
         // CALIBRATION-BACKLOG entry 73 — the run of consecutive `BLOCKER_CONTAINS`
@@ -830,14 +956,27 @@ export function simulatePassPlay(
         // the identity-check evidence that reordering this chain is a no-op.
         const before = m.threat;
         if (startsThreat(rush.band)) {
-          const won = threatFromWonRep({
+          // ADR-089 P4: the approach, computed once at the matchup's first win, only under `pocket-1`.
+          if (labelThreat !== undefined && m.wonApproach === undefined) {
+            m.wonApproach = labelThreat(
+              {
+                origin: "WON_REP",
+                alignment: m.alignment,
+                move: m.move,
+                repMargin: rep.margin,
+                ...(m.beatenSeen === undefined ? {} : { beatenSeen: m.beatenSeen }),
+              },
+              m.rusher.bio.id,
+            );
+          }
+          const won = withApproach(threatFromWonRep({
             tunables,
             rusher: m.rusher.bio.id,
             alignment: m.alignment,
             move: m.move,
             margin: rush.margin,
             tick,
-            rollRef: rush.check.roll.rngLabel,
+            rollRef: tickRollRef,
             // CALIBRATION-BACKLOG entry 155 — the blocked path reads its own
             // `arrival.blockedDepthOffsetSecondsByAlignmentAndDepth` (a
             // deliberate copy of §7.4's free-runner offsets, not a shared
@@ -845,7 +984,7 @@ export function simulatePassPlay(
             // offsets are non-zero on EDGE (BOX +0.5, DEEP +1.0), so this is
             // now LIVE for blocked EDGE rushers at those depths, not inert.
             position: m.rusher.bio.position,
-          });
+          }), m.wonApproach);
           m.threat = soonerThreat(before, won);
           // Winning again does not slow him down, so an existing sooner arrival
           // survives untouched — and an unchanged threat is not an event.
@@ -1020,13 +1159,28 @@ export function simulatePassPlay(
       list.reduce((max, c) => Math.max(max, c.effectiveOpenness), Number.NEGATIVE_INFINITY);
 
     let candidates = readCandidates();
+    // The nearest live threat's time to arrival, from the tick's own `threats` (the list the
+    // status's arrival floor read above, so the threat part and the published `POCKET_STATUS`
+    // agree by construction). Pure: `threats` is never written after it is built, so computing it
+    // here rather than at the sack below moves nothing.
+    const minTta = minTimeToArrival(threats, tick);
+    // ADR-089 step 2 — WHAT FORCES HIM, the pocket's part of `mustDecide` and the movement gate's
+    // condition. `STEP_1` and `COUNTER_LESS_SEEN`: the status (`pocket.forcesDecision`), today's
+    // expression on today's `pocket`. `PER_RUSHER`: must act's threat part (§4.3), a threat within
+    // `arrival.collapsingWithinSeconds` or one arrived; every threat counts as registered until
+    // step 7, so both minima are `minTta`. The counter and the band floor alone no longer force.
+    const forced =
+      pocket !== undefined &&
+      (forcing === "PER_RUSHER" ? mustActThreat(tunables, minTta, minTta) : forcesDecision(tunables, pocket));
     // ADR-055 §6 point 4 — pursuit's own condition, not `pocket.forcesDecision`'s
     // list membership borrowed through a rung pursuit no longer has. See
     // `resolve/scramble.ts`'s `pursuitForcesDecision` for the derivation.
+    // ADR-089 step 2: the pocket branch's count part (`tick >= budgetSeconds || readsUsed >=
+    // maxReads`) is unchanged under every rule.
     const mustDecide =
       pocket === undefined
         ? scramble !== undefined && pursuitForcesDecision(tunables, tick, scramble.pursuitAtTick)
-        : forcesDecision(tunables, pocket) || tick >= budgetSeconds || readsUsed >= maxReads;
+        : forced || tick >= budgetSeconds || readsUsed >= maxReads;
     // ADR-055 §6 point 3 — pursuit's own accuracy constant for any throw released
     // this tick, not `pocket.accuracyModifier` borrowed through a rung it no
     // longer has (`resolveAccuracy`'s consumer, `throwTo`, below).
@@ -1174,7 +1328,8 @@ export function simulatePassPlay(
     // down still goes down, via §8.8's own `CAUGHT_FROM_BEHIND` sack path a few
     // dozen lines below, which has always been the only route to that outcome
     // once he has left the pocket.
-    const minTta = minTimeToArrival(threats, tick);
+    //
+    // `minTta` is the tick's, computed above beside `mustDecide` (ADR-089 step 2).
     if (pocket !== undefined && minTta !== undefined && minTta <= 0 && sacksWithoutTarget(tunables, pocket)) {
       outcome = sack(tick);
       break;
@@ -1184,7 +1339,12 @@ export function simulatePassPlay(
     // arrived: stand in, climb, leave, or eat it — chosen on his own attributes.
     // Same reachability invariant as the guard above: `pocket` is defined on
     // every tick this line is reached.
-    if (pocket !== undefined && forcesDecision(tunables, pocket)) {
+    //
+    // ADR-089 step 2: gated by `forced`, which is `forcesDecision(pocket)` under `STEP_1` and
+    // `COUNTER_LESS_SEEN` (today's gate) and must act's THREAT part under `PER_RUSHER` (§4.3:
+    // "the movement branch is gated by its threat part"), never its count part: a clean expiry
+    // still goes to CLOCK_EXPIRED below, with no movement check.
+    if (forced) {
       const movement = resolvePocketMovement({
         tunables,
         qb,
@@ -1980,7 +2140,7 @@ function checkdownTrack(
  * entry 21). §7.4 now answers the question the exception was standing in for:
  * he is picked up, he is slid to, or he is a free runner with an ETA.
  */
-function buildMatchups(plans: readonly RushPlan[]): RushMatchup[] {
+function buildMatchups(plans: readonly RushPlan[], labelThreat: ThreatLabeller | undefined): RushMatchup[] {
   return plans.map((plan) => ({
     rusher: plan.rusher,
     blocker: plan.blocker,
@@ -1991,7 +2151,7 @@ function buildMatchups(plans: readonly RushPlan[]): RushMatchup[] {
     pressure: 0,
     previousBand: undefined,
     rep: undefined,
-    threat: freeRunnerThreat(plan),
+    threat: freeRunnerThreat(plan, labelThreat),
     announcedArrival: false,
     consecutiveContains: 0,
   }));

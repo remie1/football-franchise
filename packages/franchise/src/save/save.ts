@@ -17,12 +17,21 @@
  * `readSave` checks them and hands the world back, ready for the next carousel. The world's season
  * is not stored: it is the one after the last season on anyone's résumé (the carousel writes the
  * season just played onto résumés first), or the save's own season when no résumé has one.
+ *
+ * Players' development (ADR-087 S1): a save made with development or injuries switched on keeps the
+ * players as they are that day (rosters, depth charts, emergency signings, free agents), every event
+ * the players' steps emitted, and their memory, and `readSave` hands back the league's people to carry
+ * on with, so a loaded season plays on exactly as a straight one would.
  */
 import {
   ATTRIBUTE_REGISTRY_V1, DEFAULT_LEAGUE_RULES, SAVE_FORMAT_VERSION, compareStamps, stampToString,
-  type CalendarStamp, type LeagueRules, type PlayerState, type RelationshipView, type SaveFile, type SeasonState,
+  type CalendarStamp, type DeadMoneyCharge, type FranchiseEventEnvelope, type LeagueRules, type PlayerContract, type PlayerState, type RelationshipView,
+  type SaveFile, type SeasonState,
 } from "@ff/contracts";
 import type { StaffWorld } from "../staff/world.js";
+import { peopleFromSave } from "../draft/steps.js";
+import type { LeaguePeople } from "../season/people.js";
+import type { PlayerMemory } from "../players/types.js";
 import { checkViews } from "../relationships/ledger.js";
 import type { League } from "../league/buildLeague.js";
 import { assertValidStamp, seasonStart } from "../calendar/clock.js";
@@ -37,8 +46,13 @@ export interface MakeSaveInput {
   /** What wrote the file, e.g. "calibration season". */
   createdBy: string;
   rules?: LeagueRules;
-  /** What played the games (E1), e.g. `{ caller: "v5" }`. */
-  playedWith?: { caller: string };
+  /**
+   * What played the games (E1), e.g. `{ caller: "v5" }`, and, when they were not played under
+   * `legacy`, the engine rules bundle by name with its overlay digest after "@" (ADR-089 P1, K18):
+   * `{ caller: "v7", engineRules: "pocket-1.s1@fnv1a:<8 hex digits>" }`. No `engineRules` means
+   * `legacy`. The file keeps exactly what it is given.
+   */
+  playedWith?: { caller: string; engineRules?: string };
   /**
    * The players on the teams' rosters (ADR-079 team rosters). Absent, the save has none, and so
    * may its teams' rosters. Traits are a `Set`: write the file with a replacer that lists them.
@@ -49,6 +63,13 @@ export interface MakeSaveInput {
    * staff list and budget are taken from `world.teams`. Absent, the save has no coaches.
    */
   staff?: { world: StaffWorld; relationships?: readonly RelationshipView[] };
+  /** ADR-086 C6: the draft (picks someone holds, classes not yet drafted, last year's free-agent moves). */
+  draft?: NonNullable<SaveFile["world"]["draft"]>;
+  /** ADR-085: player contracts, and dead money (K3). Absent, the book is empty. */
+  contracts?: readonly PlayerContract[];
+  deadMoney?: readonly DeadMoneyCharge[];
+  /** ADR-087 S1: the players' steps' events this season and their memory (`LeaguePeople.playerMemory`). */
+  development?: { events: readonly FranchiseEventEnvelope[]; depthMemory: PlayerMemory };
 }
 
 export function makeSave(input: MakeSaveInput): SaveFile {
@@ -72,7 +93,10 @@ export function makeSave(input: MakeSaveInput): SaveFile {
       staff: staff?.world.staff ?? [],
       ...(staff ? { staffContracts: staff.world.contracts } : {}),
       ...(staff?.relationships ? { relationships: [...staff.relationships] } : {}),
-      contracts: [],
+      ...(input.draft ? { draft: input.draft } : {}),
+      contracts: [...(input.contracts ?? [])],
+      ...(input.deadMoney ? { deadMoney: [...input.deadMoney] } : {}),
+      ...(input.development ? { development: { events: [...input.development.events], depthMemory: input.development.depthMemory } } : {}),
       perceptions: [],
       league: league.structure,
       season,
@@ -93,6 +117,11 @@ export interface LoadedSave {
   rules: LeagueRules;
   /** The coaches, when the save has any: the world the carousel reads, and their views if kept. */
   staff?: { world: StaffWorld; relationships?: RelationshipView[] };
+  /**
+   * ADR-087 S1, when the save has it: the league's people to carry on with (memory included), and the
+   * players' steps' events up to the save's day, for `runSeason`'s `resumeEvents`.
+   */
+  development?: { people: LeaguePeople; events: FranchiseEventEnvelope[] };
 }
 
 /** Thrown for a file that is not a save this version can carry on from. The message says why. */
@@ -121,7 +150,11 @@ export function readSave(input: unknown): LoadedSave {
       : `its format ${String(save.formatVersion)} is not one this version reads (${SAVE_FORMAT_VERSION})`);
   }
   if (typeof save.worldSeed !== "string" || save.worldSeed === "") refuse("it has no world seed");
-  if (save.playedWith !== undefined && (!isObject(save.playedWith) || typeof save.playedWith.caller !== "string")) {
+  // ADR-089 P1: an `engineRules`, when present, is a rules name (a non-empty string), with the overlay
+  // digest after "@" for a non-legacy rules name (K18: "pocket-1.s1@fnv1a:0123abcd"); absent is `legacy`.
+  // The season command parses it; here it need only be a non-empty string.
+  if (save.playedWith !== undefined && (!isObject(save.playedWith) || typeof save.playedWith.caller !== "string"
+    || (save.playedWith.engineRules !== undefined && (typeof save.playedWith.engineRules !== "string" || save.playedWith.engineRules === "")))) {
     refuse("its note of what played the games is damaged");
   }
   const w = save.world;
@@ -164,6 +197,37 @@ export function readSave(input: unknown): LoadedSave {
     }
   }
 
+  // ADR-086: practice squads and the draft, when the save has them.
+  for (const t of w.teams) {
+    for (const pid of t.practiceSquad ?? []) {
+      const p = players.get(String(pid));
+      if (!p) refuse(`${t.displayName}'s practice squad lists a player who is not in the save (${String(pid)})`);
+      if (p!.teamId !== t.id) refuse(`${String(pid)} is on ${t.displayName}'s practice squad but belongs to ${String(p!.teamId ?? "no team")}`);
+      if (t.roster.some((r) => String(r) === String(pid))) refuse(`${String(pid)} is on ${t.displayName}'s roster and practice squad`);
+    }
+  }
+  if (w.draft !== undefined) {
+    if (!isObject(w.draft) || !Array.isArray(w.draft.picks) || !Array.isArray(w.draft.classes) || !Array.isArray(w.draft.freeAgentMoves)) refuse("its draft is damaged");
+    for (const pk of w.draft!.picks) {
+      if (!teamIds.has(String(pk.owner)) || !teamIds.has(String(pk.originalTeam))) refuse(`a ${pk.draft} round ${pk.round} pick names a team that does not exist`);
+    }
+    for (const c of w.draft!.classes) {
+      for (const pid of c.prospects) {
+        const p = players.get(String(pid));
+        if (!p) refuse(`the ${c.draft} class lists a prospect who is not in the save (${String(pid)})`);
+        if (p!.bio.draft !== "PROSPECT") refuse(`${String(pid)} is in the ${c.draft} class but is not a prospect`);
+      }
+    }
+  }
+
+  // ADR-087 S1: the players' steps' events and memory, when the save has them.
+  if (w.development !== undefined) {
+    if (!isObject(w.development) || !Array.isArray(w.development.events) || !isObject(w.development.depthMemory)) refuse("its players' development record is damaged");
+    for (const e of w.development!.events) {
+      if (!isObject(e) || !isObject(e.at) || !isObject(e.event) || compareStamps(e.at, save.calendar) > 0) refuse("its players' development record has an event after its date");
+    }
+  }
+
   const league: League = { seed: save.worldSeed, structure: w.league, teams: w.teams };
   const staff = w.staff.length === 0 && w.staffContracts === undefined && w.relationships === undefined
     ? undefined : readStaff(save);
@@ -191,7 +255,14 @@ export function readSave(input: unknown): LoadedSave {
     if (!same(replay.bracket, s.bracket)) refuse("its playoff bracket doesn't match its results");
   }
 
-  return { save, league, rules, ...(staff ? { staff } : {}) };
+  const development = w.development === undefined ? undefined : (() => {
+    const people = peopleFromSave(save);
+    // A file lists each player's traits; the game reads them as a set.
+    const players = people.players.map((p) => Array.isArray(p.attributes.traits)
+      ? { ...p, attributes: { ...p.attributes, traits: new Set<string>(p.attributes.traits as unknown as string[]) } } : p);
+    return { people: { ...people, players, playerMemory: w.development!.depthMemory as PlayerMemory }, events: w.development!.events };
+  })();
+  return { save, league, rules, ...(staff ? { staff } : {}), ...(development ? { development } : {}) };
 }
 
 /** The coaches: everyone once, every team's staff list theirs, every contract and view between real people. */

@@ -32,6 +32,7 @@ import type {
   RushAlignment,
   RushMove,
 } from "../types.js";
+import type { ThreatApproach } from "../events.js";
 import type { PassRushBandLabel } from "./passRush.js";
 // Type-only, and therefore erased: `./pocket.ts` imports the FUNCTION below, so a
 // value import in this direction would be a cycle. The ladder's rung type belongs
@@ -134,6 +135,14 @@ export interface RushThreat extends ArrivalClock {
    */
   readonly distanceYards?: number;
   readonly closingSpeed?: number;
+  /**
+   * ADR-089 P4 — how he got there, §4.0's approach card (`resolve/approach.ts`). Set once, when
+   * the threat is built, and only under `pocket-1`; every copy (`delayThreat`, `arrivedAt`) keeps
+   * it by spread, so each of its publications says the same thing. Absent under `legacy`: the
+   * key is never written. Typed without BLOCKED, as the contract field is, so a threat labelled
+   * "still in his block" does not compile.
+   */
+  readonly approach?: ThreatApproach;
 }
 
 /**

@@ -4,11 +4,31 @@ import type { AttributeMap, TraitSet } from "./registry.js";
 import type { CalendarStamp } from "./calendar.js";
 import type { DefensiveDisguiseTendency, StaffJob } from "./staff.js";
 
-/** Ground truth. Only engine, attributes pipeline, and calibration consume this. */
+/**
+ * Ground truth. Only engine, attributes pipeline, and calibration consume this, plus four franchise
+ * steps until perception exists (ADR-087 §7): the development week, the injury draws (true
+ * `durability`), the coordinators' read for the weekly depth chart (through their own blur) and the
+ * morale step (true `volatility`).
+ */
 export interface TrueAttributes {
   readonly kind: "true";
   values: AttributeMap;
   traits: TraitSet;
+  /** ADR-087 P1: how he grows and ages. Absent = he never changes (the behaviour before it). */
+  development?: PlayerDevelopment;
+}
+
+/**
+ * ADR-087 P1: a player's hidden development record. `growth`: his own rate, fixed for life (1 = typical).
+ * `snaps`: career snaps, which feed his football smarts. `carry`: the fraction of a point each rating
+ * has earned but not yet shown, by registry id (ratings move in whole points). `body`: his 40 and
+ * 3-cone (seconds), vertical (inches) and bench (reps) as they are now; his weight is the bio's.
+ */
+export interface PlayerDevelopment {
+  growth: number;
+  snaps: number;
+  carry: Partial<Record<string, number>>;
+  body: { forty: number; cone: number; vertical: number; bench: number };
 }
 
 /** One observer's belief about one player. All the UI and AI teams ever see. */
@@ -72,15 +92,40 @@ export interface PlayerBio {
   heightIn: number;
   weightLb: number;
   birthRegion?: string;
-  draft: { year: number; round: number; pick: number } | "UDFA";
+  /** ADR-086 C2: "PROSPECT" while he is in a draft class and not yet picked. */
+  draft: { year: number; round: number; pick: number } | "UDFA" | "PROSPECT";
   appearance?: Appearance;
+  /**
+   * ADR-085 K5: credited seasons under the CBA (a season with 3+ games on full pay status). Public.
+   * Sets minimum salary, RFA/ERFA status and the veteran benefit; development reads it too (ADR-087).
+   * Raised at the year turn. Absent reads as 0.
+   */
+  creditedSeasons?: number;
+  /**
+   * ADR-087 P2: his combine numbers, public (40 and 3-cone in seconds, vertical in inches, bench in
+   * reps). Frozen on draft day: aging moves the hidden `TrueAttributes.development.body`, never this.
+   * A drill he did not run is absent.
+   */
+  combine?: { forty?: number; cone?: number; vertical?: number; bench?: number };
 }
 
+/** ADR-087 P3: where an injury happened. */
+export type InjurySetting = "GAME" | "PRACTICE" | "AWAY";
+/** ADR-087 P3: how long, in weeks lost: 0, 1-3, 4-8, 9 or more. */
+export type InjuryBand = "DAY_TO_DAY" | "SHORT" | "LONG" | "MAJOR";
+
+/** Public, as on an NFL injury report. What it will cost him for good is hidden (ADR-087 §7). */
 export interface Injury {
   kind: string;
   weeksRemaining: number;
   playable: boolean;
   inGamePenalty?: AttributeMap;
+  /** ADR-087 P3. */
+  setting: InjurySetting;
+  /** ADR-087 P3. */
+  band: InjuryBand;
+  /** ADR-087 P3: when it happened. */
+  since: CalendarStamp;
 }
 
 export interface PlayerCondition {
@@ -102,6 +147,11 @@ export type PersonalityType = "demanding" | "playersCoach" | "cerebral" | "fiery
 export interface PersonalitySheet {
   needs: Partial<Record<NeedId, number>>; // weights
   type: PersonalityType;
+  /**
+   * ADR-087 P6: how many seasons (0..2) he waits for a team after becoming unsigned before he
+   * retires. A placeholder drawn when he is made, until Spec #14's needs set it. Hidden.
+   */
+  patience?: number;
 }
 
 export interface PlayerState {
@@ -134,6 +184,11 @@ export interface StaffState {
   retiredAfter?: number;
   /** ADR-080 P4: read only in the DC seat. Absent = the league default. */
   disguise?: DefensiveDisguiseTendency;
+  /**
+   * ADR-087 C1: a head coach's depth-chart leanings, 0..100 each: sticks with the incumbent, leans to
+   * veterans, plays who looks best this week. Drawn from his personality type. Absent = even leanings.
+   */
+  lineup?: { incumbent: number; veteran: number; form: number };
 }
 
 /**
@@ -163,7 +218,20 @@ export interface RatedLeague {
 export interface CapState {
   capLimit: number;
   committed: number;
+  /** The sum of this season's `DeadMoneyCharge`s for the team (ADR-085 K3). */
   deadMoney: number;
+}
+
+/** ADR-085 K3: why money stays on a team's cap for a player who is gone. */
+export type DeadMoneyReason = "RELEASED" | "TRADED" | "VOIDED" | "RETIRED";
+
+/** ADR-085 K3: one season's dead money for one player on one team. Dollars. */
+export interface DeadMoneyCharge {
+  team: TeamId;
+  player: PlayerId;
+  season: number;
+  amount: number;
+  reason: DeadMoneyReason;
 }
 
 export interface Team {
@@ -171,8 +239,15 @@ export interface Team {
   displayName: string;
   city: string;
   roster: PlayerId[];
+  /**
+   * ADR-088 S3: players on a reserve list (injured reserve, PUP, non-football injury and the
+   * rest). They belong to the team but are not in `roster` and do not count toward its 53.
+   */
+  reserve?: PlayerId[];
   staff: StaffId[];
   depthChart: Partial<Record<Position, PlayerId[]>>;
+  /** ADR-086 C4: the practice squad, filled on cut-down day. Absent = none. */
+  practiceSquad?: PlayerId[];
   capState: CapState;
   staffBudget: { limit: number; committed: number };
 }
@@ -184,13 +259,43 @@ export interface ContractYear {
   springBonus?: { amount: number; dueAt: CalendarStamp; clawbackOnRetirement: boolean };
   guarantees: { fullyGuaranteed: boolean; injuryOnly?: boolean };
   capHit: number;
+  /** ADR-085 K1: paid if on the roster on a set day early in the league year. */
+  rosterBonus?: number;
+  /** ADR-085 K1: paid for attending the offseason programme. */
+  workoutBonus?: number;
+  /** ADR-085 K1: this year's share of an option bonus, spread like a signing bonus. */
+  optionBonusProration?: number;
+  /** ADR-085 K1: the season's total if active for every game; earned per game on the 53. */
+  perGameRosterBonus?: number;
+  /** ADR-085 K1: likely-to-be-earned incentives count on this year's cap; unlikely ones the next, if earned. */
+  incentives?: { likely: number; unlikely: number };
+  /** ADR-085 K1: the guaranteed part of this year's base salary, in dollars. */
+  guaranteedSalary?: number;
+  /** ADR-085 K1: a year that exists only to spread a bonus; it voids before it is played. */
+  voidYear?: boolean;
 }
+
+/** ADR-085 K2: what kind of deal a contract is. */
+export type ContractKind =
+  | "ROOKIE" | "VETERAN" | "EXTENSION" | "MINIMUM" | "FRANCHISE_TAG" | "TRANSITION_TAG"
+  | "RFA_TENDER" | "ERFA_TENDER" | "PRACTICE_SQUAD";
+
+/** ADR-085 K2: how a contract ended before it ran out, or that it ran out. */
+export type ContractEndReason = "RELEASED" | "TRADED" | "EXPIRED" | "VOIDED" | "RETIRED";
 
 export interface PlayerContract {
   player: PlayerId;
   team: TeamId;
   years: ContractYear[];
   signedAt: CalendarStamp;
+  /** ADR-085 K2. Absent in contracts written before it. */
+  kind?: ContractKind;
+  /** ADR-085 K2: the whole signing bonus, paid at signing, spread on the cap over at most five years. */
+  signingBonus?: number;
+  /** ADR-085 K2: a first-round rookie's fifth-year team option. */
+  fifthYearOption?: { season: number; price: number; exercised?: boolean };
+  /** ADR-085 K2: set once the contract is over. A post-June-1 release splits its dead money over two seasons. */
+  ended?: { at: CalendarStamp; reason: ContractEndReason; postJune1?: boolean };
 }
 
 export type { AttrId, CoachAttrId };

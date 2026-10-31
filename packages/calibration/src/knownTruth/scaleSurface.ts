@@ -321,6 +321,7 @@ export const SURFACE: Record<CheckKind, CheckDescriptor> = {
       "lands, §7.1's actual contest is still drawn per-tick — see pass_rush_tick below, whose " +
       "descriptor still describes the CURRENT engine and has not been moved here speculatively.",
   },
+  pass_rush_beat: { form: "UNIMPLEMENTED", docRef: "ADR-089 §4.1", note: "pocket-1 only; a uniform with no terms (the rep tests the ratings)" },
   pass_rush_tick: {
     form: "OPPOSED",
     docRef: "§7.1",

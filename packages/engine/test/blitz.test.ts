@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { createRng } from "@ff/contracts";
-import type { MatchEvent, MatchEventEnvelope, PlayerId, PlayerState } from "@ff/contracts";
+import type { MatchEvent, MatchEventEnvelope, PlayerId, PlayerState, RollDetail } from "@ff/contracts";
 import { simulatePassPlay } from "../src/sim/passPlay.js";
 import { readPreSnap, resolvePickups, resolveStunts } from "../src/sim/preSnap.js";
 import { renderPlay } from "../src/debug/renderPlay.js";
@@ -188,6 +188,21 @@ function checksOf(events: readonly MatchEventEnvelope[], kind: string) {
   );
 }
 
+/**
+ * ADR-089 P3's guard at an expression site: a found CHECK's roll. Only a `pass_rush_tick` may
+ * lack one (shape S's dieless tick, `undefined` here, as is a CHECK that was not found); any
+ * other kind without a roll throws.
+ */
+function rollOf(p: Extract<MatchEvent, { type: "CHECK" }>["payload"] | undefined): RollDetail | undefined {
+  if (p === undefined) return undefined;
+  const kind: string = p.checkKind;
+  if (p.roll === undefined) {
+    if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+    return undefined;
+  }
+  return p.roll;
+}
+
 function presnapOf(events: readonly MatchEventEnvelope[], kind: string) {
   return events.flatMap(({ event }) =>
     event.type === "PRESNAP_READ" && event.payload.kind === kind ? [event.payload] : [],
@@ -350,7 +365,7 @@ describe("§7.4 step 3 — the pickup contest", () => {
     const threat = threatsOf(events).find((t) => t.rusher === f.ids.blitzers[0]);
     expect(threat).toBeDefined();
     expect(threat?.origin).toBe("PICKUP_LOST");
-    expect(threat?.rollRef).toBe(pickup?.roll.rngLabel);
+    expect(threat?.rollRef).toBe(rollOf(pickup)?.rngLabel);
     // Getting through a body costs time that nobody-there does not.
     expect(threat?.etaTick).toBeGreaterThanOrEqual(TUNABLES.blitzPickup.freeRunnerArrivalSeconds);
   });
@@ -360,7 +375,7 @@ describe("§7.4 step 3 — the pickup contest", () => {
     const sources = new Set<string>();
     for (let i = 0; i < 40; i++) {
       const { events } = simulatePassPlay(f.state, f.calls, `adjust-${i}`);
-      for (const m of checksOf(events, "blitz_pickup")[0]?.roll.modifiers ?? []) sources.add(m.source);
+      for (const m of rollOf(checksOf(events, "blitz_pickup")[0])?.modifiers ?? []) sources.add(m.source);
     }
     expect([...sources].some((s) => s.includes("recognised"))).toBe(true);
     expect([...sources].some((s) => s.includes("missed"))).toBe(true);
@@ -665,7 +680,7 @@ describe("§7.3 — stunts and twists", () => {
       expect(threat).toBeDefined();
       expect(threat?.tick).toBeUndefined();
       expect(threat?.origin).toBe("STUNT_LOOPER");
-      expect(threat?.rollRef).toBe(stunt.roll.rngLabel);
+      expect(threat?.rollRef).toBe(rollOf(stunt)?.rngLabel);
       expect(threat?.etaTick).toBeGreaterThanOrEqual(TUNABLES.stunt.looperArrivalSeconds);
       return;
     }
@@ -760,7 +775,7 @@ describe("§7.3 — stunts and twists", () => {
       // Three men, two exchanges: the shared middle is an actor in both.
       expect(checks.every((c) => c.actors.includes(f.ids.interior))).toBe(true);
       // ADR-004: two exchanges are two rolls, and the audit can tell them apart.
-      const labels = checks.map((c) => c.roll.rngLabel);
+      const labels = checks.map((c) => rollOf(c)?.rngLabel);
       expect(new Set(labels).size).toBe(2);
     });
 
@@ -796,7 +811,7 @@ describe("§7.3 — stunts and twists", () => {
         if (second?.band !== "LOOPER_FREE" && second?.band !== "LATE_EXCHANGE") continue;
         const threat = threatsOf(events).find((t) => t.rusher === f.ids.interior);
         expect(threat?.origin).toBe("STUNT_LOOPER");
-        expect(threat?.rollRef).toBe(second.roll.rngLabel);
+        expect(threat?.rollRef).toBe(rollOf(second)?.rngLabel);
         expect(checksOf(events, "pass_rush_tick").every((r) => r.actors[0] !== f.ids.interior)).toBe(
           true,
         );
@@ -878,7 +893,14 @@ describe("ADR-022 — what the stream now states instead of leaving to inference
   function rollKinds(events: readonly MatchEventEnvelope[]): Map<string, string> {
     const kinds = new Map<string, string>();
     for (const { event } of events) {
-      if (event.type === "CHECK") kinds.set(event.payload.roll.rngLabel, event.payload.checkKind);
+      if (event.type === "CHECK") {
+        const kind: string = event.payload.checkKind;
+        if (event.payload.roll === undefined) {
+          if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+          continue;
+        }
+        kinds.set(event.payload.roll.rngLabel, event.payload.checkKind);
+      }
       if (event.type === "PRESNAP_READ") kinds.set(event.payload.roll.rngLabel, event.payload.kind);
     }
     return kinds;
@@ -980,6 +1002,11 @@ describe("determinism, ADR-004 and the printout", () => {
       const labels: string[] = [];
       for (const { event } of events) {
         if (event.type === "CHECK") {
+          const kind: string = event.payload.checkKind;
+          if (event.payload.roll === undefined) {
+            if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+            continue;
+          }
           labels.push(event.payload.roll.rngLabel);
           if (event.payload.opposedRoll !== undefined) labels.push(event.payload.opposedRoll.rngLabel);
         }

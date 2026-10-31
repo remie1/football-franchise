@@ -134,6 +134,11 @@ describe("§13.2 + §10.5 — both accuracy effects are applied, because the doc
       );
       // Only the thrown-to receiver's own first zone carries §13.2's transition.
       if (!caught || zone1.event.payload.actors[0] !== target) continue;
+      const kind: string = zone1.event.payload.checkKind;
+      if (zone1.event.payload.roll === undefined) {
+        if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+        continue;
+      }
       const sources = zone1.event.payload.roll.modifiers.map((m) => m.source);
       if (sources.some((s) => s.includes("Catch transition"))) seen += 1;
       const expected = byThrowType[throwType] !== 0;
@@ -240,6 +245,11 @@ describe("determinism survives YAC", () => {
       const labels: string[] = [];
       for (const { event } of events) {
         if (event.type === "CHECK") {
+          const kind: string = event.payload.checkKind;
+          if (event.payload.roll === undefined) {
+            if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+            continue;
+          }
           labels.push(event.payload.roll.rngLabel);
           if (event.payload.opposedRoll !== undefined) labels.push(event.payload.opposedRoll.rngLabel);
         }

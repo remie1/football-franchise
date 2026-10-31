@@ -25,8 +25,9 @@
 import { isDeepStrictEqual } from "node:util";
 import type { MatchEventEnvelope, PlayerId, ShownRusher, TeamId, ThrowawayCause } from "@ff/contracts";
 import { DEFAULT_TUNABLES } from "@ff/engine";
-import type { GameSummary, StatLine } from "@ff/engine";
+import type { GameSummary, StatLine, Tunables } from "@ff/engine";
 import { COVERAGE_MASKS, FRONT_LOOKS, shownRushDiffers } from "@ff/playbook";
+import { approachesOfPlay, LOOPER_FREE_BAND, PICKUP_FREE_BAND } from "../pocket/approach.js";
 
 /** One simulated game, as it comes back from a worker. */
 export interface SimGameObservation {
@@ -118,7 +119,7 @@ export interface PlayFold {
    *   (1) a `RUSH_THREAT` reached `state: "ARRIVED"` — set by `threatArrived` below;
    *   (2) a `POCKET_STATUS` was ever a status in `DEFAULT_TUNABLES.pocket.forcesDecision`
    *       (`COLLAPSING`/`IMMEDIATE` today, read from tunables rather than restated — see
-   *       `FORCES_DECISION_STATUSES` below) — set by `forcedDecision`;
+   *       `FoldTables.forcesDecision` below) — set by `forcedDecision`;
    *   (3) the dropback ended in a sack — the SAME dichotomy `sacks` above already makes (no
    *       THROW, no scramble, no throwaway, no interception); no second sack rule. (Backlog entry
    *       94: this used to be inferred from negative result yards rather than read off a
@@ -340,6 +341,278 @@ export interface PlayFold {
   threatOrigins: Record<string, number>;
   /** Dropbacks on which at least one threat of each origin was published. Rates, not populations. */
   threatOriginDropbacks: Record<string, number>;
+
+  /**
+   * ADR-089 step 0's registry rows (plan §5): the pocket fix's instruments, every one a pure fold
+   * of the events. Kept in one nested field so that no existing field above moves; see
+   * `PocketFold` below for each tally's construct.
+   */
+  pocket: PocketFold;
+}
+
+// --- ADR-089 step 0: the pocket rows' fold ------------------------------------
+
+/** One release bin of `pressured_share_by_release_bin` and `hit_rate_by_release_bin`. */
+export interface ReleaseBinFold {
+  /** Pass attempts (throws and throwaways) released in the bin. */
+  attempts: number;
+  /** Those whose dropback's worst POCKET_STATUS was not CLEAN. */
+  pressuredAttempts: number;
+  /** Aimed throws (a THROW event; throwaways excluded) released in the bin. */
+  aimed: number;
+  /** Aimed throws on a dropback where a threat reached ARRIVED with the ball still in his hand. */
+  aimedHits: number;
+  /** Pass attempts on dropbacks with no free runner (no threat of an origin other than WON_REP). */
+  attemptsNoFreeRunner: number;
+  pressuredNoFreeRunner: number;
+}
+
+/** One down group of `by_down_fixed_calls`: dropbacks at 7-10 to go, goal-to-go excluded. */
+export interface DownFold {
+  dropbacks: number;
+  pressured: number;
+  pressuredSacks: number;
+  pressuredThrowaways: number;
+}
+
+/** One quarterback's or one defence's tallies, for the season spreads. */
+export interface UnitFold {
+  dropbacks: number;
+  pressured: number;
+  pressuredSacks: number;
+  /** Pass attempts with a release time, and the sum and sum of squares of those times. */
+  attempts: number;
+  releaseTotal: number;
+  releaseSquares: number;
+}
+
+/** One situation window of `situation_end_of_half` and `situation_q1q3_last_two`. */
+export interface SituationFold {
+  scrimmagePlays: number;
+  dropbacks: number;
+  pressured: number;
+  pressuredSacks: number;
+  pressuredThrowaways: number;
+  cleanThrowaways: number;
+  attempts: number;
+  releaseTotal: number;
+  releaseSquares: number;
+}
+
+export interface StatusCompletionFold {
+  attempts: number;
+  completions: number;
+}
+
+/**
+ * The situation clock's check (plan §5). The rebuilt clock is `PERIOD_START.clockSeconds` less
+ * each `PLAY_RESULT.clockRunoff` in the period. It can only run AHEAD of the game's clock (the
+ * huddle and the kicks burn time no `PLAY_RESULT` states), so the check is that no published clock
+ * (`DRIVE_START.clockSeconds`, `PLAY_START.situation.clockSeconds`) is above it, and how often the
+ * two are equal is counted.
+ */
+export interface ClockCheckFold {
+  driveStarts: number;
+  driveStartsEqualRebuilt: number;
+  driveStartsAboveRebuilt: number;
+  snaps: number;
+  snapsEqualRebuilt: number;
+  snapsAboveRebuilt: number;
+  /** Snaps whose PLAY_START carried no `situation.clockSeconds`; their window reads the rebuilt clock. */
+  snapsWithoutPublishedClock: number;
+}
+
+export interface PocketFold {
+  /**
+   * `hit_or_sack_rate`'s numerator (ADR-089 §4.5, `ADR:692`): a sack, or a hit on a play that ends
+   * in a pass attempt (throwaways included). Under legacy there is no `QB_HIT` event; a threat
+   * published ARRIVED with the ball still in his hand stands in for it (plan §5).
+   */
+  hitOrSackDropbacks: number;
+  /** The hit half alone: ARRIVED with the ball in his hand, on a play that ends in a pass attempt. */
+  hitOnAttemptDropbacks: number;
+  /** The same contact on a play that ends in a scramble: reported, never counted (`qb_hit_on_scramble`). */
+  hitOnScrambleDropbacks: number;
+  /**
+   * Release on the named clock, one entry per pass attempt: `THROW.releaseSeconds` when the stream
+   * carries it (P8, step 4), else the release tick (`throwTicks`' value, the decision tick).
+   */
+  releaseSeconds: number[];
+  /** Keyed by `RELEASE_BINS`' labels. */
+  releaseBins: Record<string, ReleaseBinFold>;
+  /** The tick of each dropback's first PRESSURE-or-worse POCKET_STATUS (the clock named against NGS's 2.9 s). */
+  firstPressureSeconds: number[];
+  /** The tick of the first COLLAPSING or IMMEDIATE status (deviation O13: `forcesDecision`). */
+  firstForcingSeconds: number[];
+  /** The tick of the first threat published ARRIVED. */
+  firstArrivalSeconds: number[];
+  /** Each first non-CLEAN tick, split evenly among its causes, by `PRESSURE_ORIGINS`. */
+  firstPressureOrigin: Record<string, number>;
+  /** The same split by cause: the arriving threat's `ThreatOrigin`, else `BAND`, else `COUNTER`. */
+  firstPressureCause: Record<string, number>;
+  /** First pressures before 2.5 s, split the same way by origin. */
+  quickFirstPressureByOrigin: Record<string, number>;
+  quickFirstPressures: number;
+  /** CLEAN statuses at which some WON_REP threat's latest state is TRAVELLING or DELAYED (`ADR:962`). */
+  cleanLiveWonRepTicks: number;
+  cleanLiveWonRepDropbacks: number;
+  /** Those ticks whose live threat is a PUSH rep by `pocket/approach.ts` (`ADR:1160`). */
+  cleanLiveWonRepPushTicks: number;
+  /** Throwaways on pressured dropbacks, and on clean ones (`throwaway_rate_pressured` / `_clean`). */
+  pressuredThrowaways: number;
+  cleanThrowaways: number;
+  /** One entry per scramble: its `RUN_RESOLUTION.yards`. */
+  scrambleYards: number[];
+  /** Keyed `EARLY` (first and second down), `THIRD`, `FOURTH`. */
+  byDown: Record<string, DownFold>;
+  /** Aimed throws (THROW events), and their completions and interceptions: the guards' population. */
+  aimedThrows: number;
+  aimedCompletions: number;
+  aimedInterceptions: number;
+  /** Aimed throws released on a tick whose own POCKET_STATUS is in `pocket.forcesDecision`. */
+  forcedAimedThrows: number;
+  /** Pass attempts and completions keyed by the dropback's worst POCKET_STATUS. */
+  attemptsByWorstStatus: Record<string, StatusCompletionFold>;
+  /** Keyed by `PLAY_START.offense.quarterback` and `PLAY_START.defense.team`. */
+  qbUnits: Record<string, UnitFold>;
+  defenceUnits: Record<string, UnitFold>;
+  /** (play, man) pairs on the free-run clock: D19's origins (UNBLOCKED; PICKUP_LOST banded BLOWN_UP; STUNT_LOOPER banded LOOPER_FREE). */
+  freeRunMen: number;
+  /** Those whose own arrival floor reached PRESSURE or worse at a POCKET_STATUS with the ball in his hand. */
+  freeRunPressures: number;
+  /** Hit-or-sack dropbacks whose contact man (the last threat ARRIVED with the ball in his hand) was on the free-run clock. */
+  unblockedHitOrSack: number;
+  /** Pressured dropbacks with no free runner, and those whose first pressure came before 2.5 s. */
+  noFreeRunnerPressured: number;
+  noFreeRunnerQuick: number;
+  /** §2.4's clean pocket: clean dropbacks with an escape (QB_PURSUIT), aimed throws after one, clean aimed throws. */
+  cleanEscapes: number;
+  cleanBreakoutAimedThrows: number;
+  cleanAimedThrows: number;
+  /**
+   * Aimed throws after a clean break-out that the scramble drill ran on. Under legacy every escape
+   * runs §8.8's drill, so this equals `cleanBreakoutAimedThrows`; step 6's drill (P12) splits them.
+   */
+  cleanDrillThrows: number;
+  /** Keyed by `SITUATION_WINDOWS`. */
+  situation: Record<string, SituationFold>;
+  clockCheck: ClockCheckFold;
+  /**
+   * Contact (`ADR:649`): a threat ARRIVED, or the escape roll's CAUGHT, with the ball in his hand,
+   * once per dropback on each side; "out" if an escape began earlier in the play.
+   */
+  contactsIn: number;
+  sacksIn: number;
+  contactsOut: number;
+  sacksOut: number;
+  /** Sacks whose last POCKET_STATUS before the sack was CLEAN (`coverage_sack_rows`), and each sack's tick. */
+  sacksCleanAtSack: number;
+  sackSeconds: number[];
+}
+
+/** `pressured_share_by_release_bin`'s bins (`ADR:161-198`): lower bound inclusive, upper exclusive. */
+export const RELEASE_BINS = [
+  { label: "<2.0", lo: Number.NEGATIVE_INFINITY, hi: 2.0 },
+  { label: "2.0-2.5", lo: 2.0, hi: 2.5 },
+  { label: "2.5-3.0", lo: 2.5, hi: 3.0 },
+  { label: "3.0-3.5", lo: 3.0, hi: 3.5 },
+  { label: "3.5-4.0", lo: 3.5, hi: 4.0 },
+  { label: "4-5", lo: 4.0, hi: 5.0 },
+  { label: ">=5", lo: 5.0, hi: Number.POSITIVE_INFINITY },
+] as const;
+/** The miss rule's bin (`ADR:1172`): throws released at 2.0-2.5 s. */
+export const TWO_SECOND_BIN = "2.0-2.5";
+
+export function releaseBinOf(seconds: number): string {
+  for (const bin of RELEASE_BINS) if (seconds >= bin.lo && seconds < bin.hi) return bin.label;
+  return RELEASE_BINS[RELEASE_BINS.length - 1]!.label;
+}
+
+/** "Quick" pressure: the first PRESSURE-or-worse before 2.5 s (`ADR:962`; NGS's line). */
+export const QUICK_PRESSURE_SECONDS = 2.5;
+
+/** The situation windows (`ADR` §2.4): "the last 120 s" of a quarter. */
+export const SITUATION_WINDOW_SECONDS = 120;
+export const SITUATION_WINDOWS = [
+  "HALF_END_TRAILING",
+  "HALF_END_LEVEL_OR_LEADING",
+  "Q1Q3_END",
+  "REST",
+  "OVERTIME",
+] as const;
+export type SituationWindow = (typeof SITUATION_WINDOWS)[number];
+
+export function situationWindowOf(period: number, clockSeconds: number, offenseMargin: number): SituationWindow {
+  if (period > 4) return "OVERTIME";
+  const late = clockSeconds <= SITUATION_WINDOW_SECONDS;
+  if (late && (period === 2 || period === 4)) return offenseMargin < 0 ? "HALF_END_TRAILING" : "HALF_END_LEVEL_OR_LEADING";
+  if (late && (period === 1 || period === 3)) return "Q1Q3_END";
+  return "REST";
+}
+
+/** `by_down_fixed_calls`' population (deviation O12): 7-10 to go, goal-to-go excluded. */
+export const BY_DOWN_DISTANCE = { min: 7, max: 10 } as const;
+export function downGroupOf(down: number): "EARLY" | "THIRD" | "FOURTH" | null {
+  if (down === 1 || down === 2) return "EARLY";
+  if (down === 3) return "THIRD";
+  if (down === 4) return "FOURTH";
+  return null;
+}
+
+function emptyPocketFold(): PocketFold {
+  return {
+    hitOrSackDropbacks: 0,
+    hitOnAttemptDropbacks: 0,
+    hitOnScrambleDropbacks: 0,
+    releaseSeconds: [],
+    releaseBins: {},
+    firstPressureSeconds: [],
+    firstForcingSeconds: [],
+    firstArrivalSeconds: [],
+    firstPressureOrigin: {},
+    firstPressureCause: {},
+    quickFirstPressureByOrigin: {},
+    quickFirstPressures: 0,
+    cleanLiveWonRepTicks: 0,
+    cleanLiveWonRepDropbacks: 0,
+    cleanLiveWonRepPushTicks: 0,
+    pressuredThrowaways: 0,
+    cleanThrowaways: 0,
+    scrambleYards: [],
+    byDown: {},
+    aimedThrows: 0,
+    aimedCompletions: 0,
+    aimedInterceptions: 0,
+    forcedAimedThrows: 0,
+    attemptsByWorstStatus: {},
+    qbUnits: {},
+    defenceUnits: {},
+    freeRunMen: 0,
+    freeRunPressures: 0,
+    unblockedHitOrSack: 0,
+    noFreeRunnerPressured: 0,
+    noFreeRunnerQuick: 0,
+    cleanEscapes: 0,
+    cleanBreakoutAimedThrows: 0,
+    cleanAimedThrows: 0,
+    cleanDrillThrows: 0,
+    situation: {},
+    clockCheck: {
+      driveStarts: 0,
+      driveStartsEqualRebuilt: 0,
+      driveStartsAboveRebuilt: 0,
+      snaps: 0,
+      snapsEqualRebuilt: 0,
+      snapsAboveRebuilt: 0,
+      snapsWithoutPublishedClock: 0,
+    },
+    contactsIn: 0,
+    sacksIn: 0,
+    contactsOut: 0,
+    sacksOut: 0,
+    sacksCleanAtSack: 0,
+    sackSeconds: [],
+  };
 }
 
 export interface DriveFold {
@@ -451,6 +724,7 @@ export function emptyAccumulator(): SimAccumulator {
       frontLookDropbacksByLook: {},
       threatOrigins: {},
       threatOriginDropbacks: {},
+      pocket: emptyPocketFold(),
     },
     drive: {
       drives: 0,
@@ -487,16 +761,20 @@ interface PlayStartSituation {
   readonly down: number;
   readonly distance: number;
   readonly ballOn: number;
+  /** The game clock at the snap (ADR-089 step 0's situation rows read it). */
+  readonly clockSeconds?: number;
 }
 
 interface PlayStartShape {
   readonly kind: string;
   readonly offense?: {
     readonly team?: unknown;
+    readonly quarterback?: unknown;
     /** ADR-022 petition 2 / §5.3 — routes that broke off hot, and what they were before. */
     readonly hotConversions?: readonly unknown[];
   };
   readonly defense?: {
+    readonly team?: unknown;
     readonly coverage?: unknown;
     /** The rush as played, resolved, with each man's gap (ADR-073 P1). */
     readonly rush?: readonly unknown[];
@@ -521,16 +799,77 @@ interface PlayStartShape {
  */
 export const BLITZ_MIN_RUSHERS = 5;
 
+// ---------------------------------------------------------------------------
+// THE TABLES THE FOLD READS, FROM THE TUNABLES THE GAME WAS PLAYED WITH
+// ---------------------------------------------------------------------------
+
 /**
- * BACKLOG DISPATCH C, disjunct (2) of the exit predicate — DERIVED from `DEFAULT_TUNABLES`, never
- * restated as a literal, for the same reason `RUSHER_WINS_REP_FLOOR` above reads its floor off the
- * table rather than copying a number: a rung added to or removed from `pocket.forcesDecision`
- * moves this set automatically instead of silently going stale beside a hand-written copy.
- * `DEFAULT_TUNABLES` is the permitted surface ADR-012 item 3 names; this reads a value off it, the
- * same way `RUSHER_WINS_REP_FLOOR` and `RUSHER_WON_BANDS` already do — no resolver function
- * (`forcesDecision` itself, `packages/engine/src/resolve/pocket.ts`) is called or imported.
+ * Every value the fold reads off the tunables, derived once per `Tunables` (ADR-089 step 1, plan
+ * §7.2 item 5; critique-2 F6). These were module-level constants read off `DEFAULT_TUNABLES`; a
+ * `pocket-1` arm that patches a leaf (Heels, Past only, the hold, the horizons) must be folded by
+ * its OWN tables (K14), so `foldGame` takes the tunables and derives them per call, memoised by
+ * reference. `foldGame(acc, game)` with no tunables reads `DEFAULT_TUNABLES`, the same values as
+ * before, so a legacy caller's output is byte for byte today's.
+ *
+ *  - `forcesDecision`: BACKLOG DISPATCH C, disjunct (2) of the exit predicate — DERIVED from the
+ *    tunables, never restated as a literal, for the same reason `rusherWinsRepFloor` reads its floor
+ *    off the table rather than copying a number: a rung added to or removed from
+ *    `pocket.forcesDecision` moves this set automatically instead of silently going stale beside a
+ *    hand-written copy. `Tunables` is the permitted surface ADR-012 item 3 names; this reads a value
+ *    off it — no resolver function (`forcesDecision` itself, `packages/engine/src/resolve/pocket.ts`)
+ *    is called or imported.
+ *  - `severity`, `pressureSeverity`, `minimumStatusByBand`: the status ladder's order and the band
+ *    floors, read off `pocket.severity` and `pocket.minimumStatusByBand` rather than restated.
+ *  - `arrival`: the horizons of a threat's own arrival floor (`arrivalFloorOf`).
+ *  - `escapeCaughtBands`: the escape roll's bands that end in a sack (`scramble.bands`): its CAUGHT.
+ *  - `rusherWinsRepFloor`, `rusherWonBands`: see `recordRushRep`.
  */
-const FORCES_DECISION_STATUSES: ReadonlySet<string> = new Set(DEFAULT_TUNABLES.pocket.forcesDecision);
+interface FoldTables {
+  readonly forcesDecision: ReadonlySet<string>;
+  readonly severity: Readonly<Record<string, number>>;
+  readonly pressureSeverity: number;
+  readonly minimumStatusByBand: Readonly<Record<string, string>>;
+  readonly arrival: {
+    readonly immediateWithinSeconds: number;
+    readonly collapsingWithinSeconds: number;
+    readonly pressureWithinSeconds: number;
+  };
+  readonly escapeCaughtBands: ReadonlySet<string>;
+  readonly rusherWinsRepFloor: number;
+  readonly rusherWonBands: ReadonlySet<string>;
+}
+
+const FOLD_TABLES = new WeakMap<Tunables, FoldTables>();
+
+/** The fold's tables for one `Tunables`, derived on first use and memoised by reference. */
+function foldTablesOf(tunables: Tunables): FoldTables {
+  const known = FOLD_TABLES.get(tunables);
+  if (known !== undefined) return known;
+  const severity: Readonly<Record<string, number>> = tunables.pocket.severity;
+  const pressureSeverity = severity["PRESSURE"];
+  if (pressureSeverity === undefined) throw new Error("collect: pocket.severity has no PRESSURE rung");
+  const winsRep = tunables.passRush.bands.find((b) => b.label === "RUSHER_WINS_REP");
+  if (winsRep === undefined) throw new Error("collect: passRush.bands has no RUSHER_WINS_REP row");
+  const rusherWinsRepFloor = winsRep.minMargin;
+  const a = tunables.arrival;
+  const tables: FoldTables = {
+    forcesDecision: new Set<string>(tunables.pocket.forcesDecision),
+    severity,
+    pressureSeverity,
+    minimumStatusByBand: tunables.pocket.minimumStatusByBand,
+    arrival: {
+      immediateWithinSeconds: a.immediateWithinSeconds,
+      collapsingWithinSeconds: a.collapsingWithinSeconds,
+      pressureWithinSeconds: a.pressureWithinSeconds,
+    },
+    escapeCaughtBands: new Set(tunables.scramble.bands.filter((b) => b.sacked).map((b) => b.label)),
+    rusherWinsRepFloor,
+    // The band labels at or above that floor — DERIVED from the table, never listed.
+    rusherWonBands: new Set(tunables.passRush.bands.filter((b) => b.minMargin >= rusherWinsRepFloor).map((b) => b.label)),
+  };
+  FOLD_TABLES.set(tunables, tables);
+  return tables;
+}
 
 /**
  * `PLAY_START.payload` is `unknown` in contracts — a deliberately open slot the engine fills
@@ -571,6 +910,414 @@ function isRushList(value: unknown): value is readonly ShownRusher[] {
 }
 
 // --- per-play working state -------------------------------------------------
+
+/** A rusher's threat as the stream last published it, for the pocket rows (ADR-089 step 0). */
+interface PocketThreat {
+  origin: string;
+  etaTick: number;
+  state: string;
+  /** On the free-run clock: D19's three origins (UNBLOCKED, PICKUP_LOST BLOWN_UP, STUNT_LOOPER LOOPER_FREE). */
+  freeRun: boolean;
+}
+
+/** The pocket rows' per-play state. Everything is read off this play's own events. */
+interface PocketPlayState {
+  /** `PERIOD_START.payload.period` in force at the snap. */
+  period: number;
+  /** `PLAY_START.situation.clockSeconds`, or the rebuilt clock when the payload has none. */
+  clockSeconds: number;
+  /** Offence's score less the defence's at the snap. */
+  offenseMargin: number;
+  distance: number;
+  quarterback: string | null;
+  defenceTeam: string | null;
+  /** Every envelope of the play, in order, for `approachesOfPlay` (only read on a play that needs it). */
+  events: MatchEventEnvelope[];
+  /** Pre-snap pickup and stunt CHECK bands by roll label: D19's free-run test reads them. */
+  checkBands: Map<string, string | undefined>;
+  /** Each rusher's latest `pass_rush_tick` band (at a POCKET_STATUS, last tick's: the band floor's input). */
+  lastBands: Map<string, string>;
+  threats: Map<string, PocketThreat>;
+  /** A threat of an origin other than WON_REP was published on the play (§1.1's free runner). */
+  freeRunner: boolean;
+  freeRunMen: Set<string>;
+  freeRunPressured: Set<string>;
+  released: boolean;
+  /** `THROW.releaseSeconds` when the stream carries it (P8; absent under legacy). */
+  releaseSeconds: number | null;
+  /** A threat published ARRIVED with the ball in his hand. */
+  hit: boolean;
+  lastArrivedRusher: string | null;
+  firstPressure: number | null;
+  firstForcing: number | null;
+  firstArrival: number | null;
+  /** The first non-CLEAN tick's causes, split evenly, by origin and by cause. */
+  firstOrigin: Record<string, number> | null;
+  firstCause: Record<string, number> | null;
+  cleanLiveTicks: number;
+  /** Per clean-live tick, the WON_REP rushers live at it, for the PUSH count at flush. */
+  cleanLiveRushers: string[][];
+  worstSeverity: number;
+  worstStatus: string;
+  lastStatus: string | null;
+  lastStatusTick: number | null;
+  forcedAtRelease: boolean;
+  escaped: boolean;
+  /** An aimed throw was made after the escape. */
+  threwAfterEscape: boolean;
+  contactIn: boolean;
+  contactOut: boolean;
+  /** The play's last TICK: a sack's time. */
+  lastTick: number;
+}
+
+function blankPocketPlay(period: number, clockSeconds: number): PocketPlayState {
+  return {
+    period,
+    clockSeconds,
+    offenseMargin: 0,
+    distance: 10,
+    quarterback: null,
+    defenceTeam: null,
+    events: [],
+    checkBands: new Map<string, string | undefined>(),
+    lastBands: new Map<string, string>(),
+    threats: new Map<string, PocketThreat>(),
+    freeRunner: false,
+    freeRunMen: new Set<string>(),
+    freeRunPressured: new Set<string>(),
+    released: false,
+    releaseSeconds: null,
+    hit: false,
+    lastArrivedRusher: null,
+    firstPressure: null,
+    firstForcing: null,
+    firstArrival: null,
+    firstOrigin: null,
+    firstCause: null,
+    cleanLiveTicks: 0,
+    cleanLiveRushers: [],
+    worstSeverity: -1,
+    worstStatus: "CLEAN",
+    lastStatus: null,
+    lastStatusTick: null,
+    forcedAtRelease: false,
+    escaped: false,
+    threwAfterEscape: false,
+    contactIn: false,
+    contactOut: false,
+    lastTick: 0,
+  };
+}
+
+/**
+ * A threat's own arrival floor, `pocketFloorFromArrival` (`resolve/rushThreat.ts:812`) restated
+ * from the tunables' `arrival` horizons (a permitted read, ADR-012 item 3), on the same
+ * tenth-rounded time-to-arrival the engine reads (`timeToArrival`, `:690`).
+ */
+function arrivalFloorOf(tb: FoldTables, etaTick: number, tick: number): string {
+  const tta = Number((etaTick - tick).toFixed(1));
+  const a = tb.arrival;
+  if (tta <= a.immediateWithinSeconds) return "IMMEDIATE";
+  if (tta <= a.collapsingWithinSeconds) return "COLLAPSING";
+  if (tta <= a.pressureWithinSeconds) return "PRESSURE";
+  return "CLEAN";
+}
+
+const severityOf = (tb: FoldTables, status: string): number => tb.severity[status] ?? 0;
+const isLiveThreat = (t: PocketThreat): boolean => t.state !== "RESET";
+
+/**
+ * A first non-CLEAN tick is split evenly among its causes, in integer units so that the merge
+ * stays exact and order-free (float shares summed in a different order differ in the last bit).
+ * 27,720 is the least common multiple of 1 to 12: a split among up to twelve causes is exact.
+ */
+export const CAUSE_SPLIT_UNITS = 27_720;
+
+/** D19 (ADR-089:385): completely unblocked, or a looper nobody touched. */
+function onFreeRunClock(origin: string, band: string | undefined): boolean {
+  if (origin === "UNBLOCKED") return true;
+  if (origin === "PICKUP_LOST") return band === PICKUP_FREE_BAND;
+  if (origin === "STUNT_LOOPER") return band === LOOPER_FREE_BAND;
+  return false;
+}
+
+/**
+ * The causes of a first non-CLEAN status, by `TM`'s cause rule (`two/read1.md:152`, `:344-349`):
+ * every rusher whose own channel reaches the published status is a cause; an arrival names the
+ * threat's origin, otherwise the band floor (`minimumStatusByBand` of his last band, a won band
+ * left out while his threat is live, ADR-058), otherwise the counter. The per-rusher counter is
+ * not rebuilt here: a status no arrival or band reaches is the counter's, whole. The coarse class
+ * is `PRESSURE_ORIGINS`': WON_REP; FREE_RUNNER for every other origin; COUNTER for the band floor
+ * and the counter together (`TM`'s type (d), "no real state").
+ */
+function causesOf(pk: PocketPlayState, status: string, tick: number, tb: FoldTables): { origin: Record<string, number>; cause: Record<string, number> } {
+  const need = severityOf(tb, status);
+  const found: { cause: string; origin: string }[] = [];
+  const rushers = new Set<string>([...pk.threats.keys(), ...pk.lastBands.keys()]);
+  for (const rusher of rushers) {
+    const threat = pk.threats.get(rusher);
+    const live = threat !== undefined && isLiveThreat(threat);
+    if (live && severityOf(tb, arrivalFloorOf(tb, threat.etaTick, tick)) >= need) {
+      found.push({ cause: threat.origin, origin: threat.origin === "WON_REP" ? "WON_REP" : "FREE_RUNNER" });
+      continue;
+    }
+    const band = pk.lastBands.get(rusher);
+    if (band === undefined || (live && tb.rusherWonBands.has(band))) continue;
+    const floor = tb.minimumStatusByBand[band];
+    if (floor !== undefined && severityOf(tb, floor) >= need) found.push({ cause: "BAND", origin: "COUNTER" });
+  }
+  if (found.length === 0) found.push({ cause: "COUNTER", origin: "COUNTER" });
+  const share = CAUSE_SPLIT_UNITS / found.length;
+  const origin: Record<string, number> = {};
+  const cause: Record<string, number> = {};
+  for (const f of found) {
+    bumpKey(origin, f.origin, share);
+    bumpKey(cause, f.cause, share);
+  }
+  return { origin, cause };
+}
+
+function emptyReleaseBin(): ReleaseBinFold {
+  return { attempts: 0, pressuredAttempts: 0, aimed: 0, aimedHits: 0, attemptsNoFreeRunner: 0, pressuredNoFreeRunner: 0 };
+}
+function emptyDown(): DownFold {
+  return { dropbacks: 0, pressured: 0, pressuredSacks: 0, pressuredThrowaways: 0 };
+}
+function emptyUnit(): UnitFold {
+  return { dropbacks: 0, pressured: 0, pressuredSacks: 0, attempts: 0, releaseTotal: 0, releaseSquares: 0 };
+}
+function emptySituation(): SituationFold {
+  return {
+    scrimmagePlays: 0, dropbacks: 0, pressured: 0, pressuredSacks: 0, pressuredThrowaways: 0,
+    cleanThrowaways: 0, attempts: 0, releaseTotal: 0, releaseSquares: 0,
+  };
+}
+function slot<T>(record: Record<string, T>, key: string, make: () => T): T {
+  const existing = record[key];
+  if (existing !== undefined) return existing;
+  const fresh = make();
+  record[key] = fresh;
+  return fresh;
+}
+
+type StreamEvent = MatchEventEnvelope["event"];
+type RushThreatPayload = Extract<StreamEvent, { type: "RUSH_THREAT" }>["payload"];
+type CheckPayload = Extract<StreamEvent, { type: "CHECK" }>["payload"];
+
+/** A RUSH_THREAT publication, into the pocket rows' per-play state. */
+function rushThreatSeen(pk: PocketPlayState, t: RushThreatPayload, tick: number): void {
+  const rusher = String(t.rusher);
+  const previous = pk.threats.get(rusher);
+  const freeRun = previous?.freeRun ?? onFreeRunClock(t.origin, pk.checkBands.get(t.rollRef));
+  pk.threats.set(rusher, { origin: t.origin, etaTick: t.etaTick, state: t.state, freeRun });
+  if (t.origin !== "WON_REP") pk.freeRunner = true;
+  if (freeRun) pk.freeRunMen.add(rusher);
+  if (t.state === "ARRIVED") {
+    if (pk.firstArrival === null) pk.firstArrival = tick;
+    if (!pk.released) {
+      pk.hit = true;
+      pk.lastArrivedRusher = rusher;
+      if (pk.escaped) pk.contactOut = true;
+      else pk.contactIn = true;
+    }
+  }
+}
+
+/** A POCKET_STATUS, into the pocket rows' per-play state. Published only while he holds the ball in the pocket. */
+function pocketStatusSeen(pk: PocketPlayState, status: string, tick: number, tb: FoldTables): void {
+  const severity = severityOf(tb, status);
+  if (severity > pk.worstSeverity) {
+    pk.worstSeverity = severity;
+    pk.worstStatus = status;
+  }
+  pk.lastStatus = status;
+  pk.lastStatusTick = tick;
+  if (!pk.released) {
+    for (const [rusher, t] of pk.threats) {
+      if (t.freeRun && isLiveThreat(t) && severityOf(tb, arrivalFloorOf(tb, t.etaTick, tick)) >= tb.pressureSeverity) {
+        pk.freeRunPressured.add(rusher);
+      }
+    }
+  }
+  if (status === "CLEAN") {
+    const live: string[] = [];
+    for (const [rusher, t] of pk.threats) {
+      if (t.origin === "WON_REP" && (t.state === "TRAVELLING" || t.state === "DELAYED")) live.push(rusher);
+    }
+    if (live.length > 0) {
+      pk.cleanLiveTicks++;
+      pk.cleanLiveRushers.push(live);
+    }
+  } else if (pk.firstPressure === null) {
+    pk.firstPressure = tick;
+    const causes = causesOf(pk, status, tick, tb);
+    pk.firstOrigin = causes.origin;
+    pk.firstCause = causes.cause;
+  }
+  if (pk.firstForcing === null && tb.forcesDecision.has(status)) pk.firstForcing = tick;
+}
+
+/** A CHECK, into the pocket rows' per-play state: rush bands, pickup and stunt bands, the escape's CAUGHT. */
+function pocketCheckSeen(pk: PocketPlayState, c: CheckPayload, tb: FoldTables): void {
+  if (c.checkKind === "pass_rush_tick") {
+    const rusher = c.actors[0];
+    if (rusher !== undefined && c.band !== undefined) pk.lastBands.set(String(rusher), c.band);
+  } else if (c.checkKind === "blitz_pickup" || c.checkKind === "stunt_communication") {
+    pk.checkBands.set(c.roll.rngLabel, c.band);
+  } else if (c.checkKind === "scramble" && c.band !== undefined && tb.escapeCaughtBands.has(c.band) && !pk.released) {
+    if (pk.escaped) pk.contactOut = true;
+    else pk.contactIn = true;
+  }
+}
+
+/**
+ * One play into the pocket rows (ADR-089 step 0, plan §5). Reads only `PlayState`, which the
+ * stream filled; called from `flush()` after every existing tally, and writes only `pocket`.
+ */
+function foldPocketPlay(pf: PocketFold, play: PlayState): void {
+  const k = play.pk;
+  const sit = slot(pf.situation, situationWindowOf(k.period, k.clockSeconds, k.offenseMargin), emptySituation);
+  sit.scrimmagePlays++;
+  if (!play.isPass) return;
+
+  // The same terminal-act chain `flush()` uses for `sacks` and `throwaways`, restated so the two
+  // can never disagree about which dropbacks they are.
+  const throwaway = !play.scramble && play.throwaway;
+  const sacked = !play.scramble && !play.throwaway && !play.threw && !play.intercepted;
+  const attempt = play.threw || play.throwaway;
+  const releaseTick = play.threw ? play.throwTick : play.throwawayTick;
+  const release = attempt ? (k.releaseSeconds ?? releaseTick) : null;
+  const pressured = play.pressured;
+
+  sit.dropbacks++;
+  if (pressured) {
+    sit.pressured++;
+    if (sacked) sit.pressuredSacks++;
+    if (throwaway) sit.pressuredThrowaways++;
+  } else if (throwaway) sit.cleanThrowaways++;
+  if (release !== null) {
+    sit.attempts++;
+    sit.releaseTotal += release;
+    sit.releaseSquares += release * release;
+  }
+
+  // Hit-or-sack (§4.5): the hit stands in for QB_HIT under legacy.
+  const hitOnAttempt = k.hit && attempt;
+  const hitOrSack = sacked || hitOnAttempt;
+  if (hitOrSack) pf.hitOrSackDropbacks++;
+  if (hitOnAttempt) pf.hitOnAttemptDropbacks++;
+  if (k.hit && play.scramble) pf.hitOnScrambleDropbacks++;
+
+  if (release !== null) {
+    pf.releaseSeconds.push(release);
+    const bin = slot(pf.releaseBins, releaseBinOf(release), emptyReleaseBin);
+    bin.attempts++;
+    if (pressured) bin.pressuredAttempts++;
+    if (play.threw) {
+      bin.aimed++;
+      if (k.hit) bin.aimedHits++;
+    }
+    if (!k.freeRunner) {
+      bin.attemptsNoFreeRunner++;
+      if (pressured) bin.pressuredNoFreeRunner++;
+    }
+  }
+
+  if (k.firstPressure !== null) pf.firstPressureSeconds.push(k.firstPressure);
+  if (k.firstForcing !== null) pf.firstForcingSeconds.push(k.firstForcing);
+  if (k.firstArrival !== null) pf.firstArrivalSeconds.push(k.firstArrival);
+  const quick = k.firstPressure !== null && k.firstPressure < QUICK_PRESSURE_SECONDS;
+  if (k.firstOrigin !== null) {
+    for (const [key, units] of Object.entries(k.firstOrigin)) {
+      bumpKey(pf.firstPressureOrigin, key, units);
+      if (quick) bumpKey(pf.quickFirstPressureByOrigin, key, units);
+    }
+  }
+  if (k.firstCause !== null) for (const [key, units] of Object.entries(k.firstCause)) bumpKey(pf.firstPressureCause, key, units);
+  if (quick) pf.quickFirstPressures++;
+  if (pressured && !k.freeRunner) {
+    pf.noFreeRunnerPressured++;
+    if (quick) pf.noFreeRunnerQuick++;
+  }
+
+  if (k.cleanLiveTicks > 0) {
+    pf.cleanLiveWonRepTicks += k.cleanLiveTicks;
+    pf.cleanLiveWonRepDropbacks++;
+    const labels = approachesOfPlay(k.events);
+    for (const rushers of k.cleanLiveRushers) {
+      if (rushers.some((r) => labels.get(r)?.label.approach === "PUSH")) pf.cleanLiveWonRepPushTicks++;
+    }
+  }
+
+  if (throwaway) {
+    if (pressured) pf.pressuredThrowaways++;
+    else pf.cleanThrowaways++;
+  }
+  if (play.scramble) pf.scrambleYards.push(play.runYards);
+
+  const group = downGroupOf(play.down);
+  if (group !== null && k.distance >= BY_DOWN_DISTANCE.min && k.distance <= BY_DOWN_DISTANCE.max && play.ballOn + k.distance < 100) {
+    const row = slot(pf.byDown, group, emptyDown);
+    row.dropbacks++;
+    if (pressured) {
+      row.pressured++;
+      if (sacked) row.pressuredSacks++;
+      if (throwaway) row.pressuredThrowaways++;
+    }
+  }
+
+  if (play.threw) {
+    pf.aimedThrows++;
+    if (play.caught) pf.aimedCompletions++;
+    if (play.intercepted) pf.aimedInterceptions++;
+    if (k.forcedAtRelease) pf.forcedAimedThrows++;
+  }
+  if (attempt) {
+    const row = slot(pf.attemptsByWorstStatus, k.worstSeverity < 0 ? "NONE" : k.worstStatus, () => ({ attempts: 0, completions: 0 }));
+    row.attempts++;
+    if (play.caught) row.completions++;
+  }
+
+  const units: [Record<string, UnitFold>, string | null][] = [[pf.qbUnits, k.quarterback], [pf.defenceUnits, k.defenceTeam]];
+  for (const [record, key] of units) {
+    if (key === null) continue;
+    const u = slot(record, key, emptyUnit);
+    u.dropbacks++;
+    if (pressured) {
+      u.pressured++;
+      if (sacked) u.pressuredSacks++;
+    }
+    if (release !== null) {
+      u.attempts++;
+      u.releaseTotal += release;
+      u.releaseSquares += release * release;
+    }
+  }
+
+  pf.freeRunMen += k.freeRunMen.size;
+  pf.freeRunPressures += k.freeRunPressured.size;
+  if (hitOrSack && k.lastArrivedRusher !== null && k.threats.get(k.lastArrivedRusher)?.freeRun === true) pf.unblockedHitOrSack++;
+
+  if (!pressured) {
+    if (k.escaped) pf.cleanEscapes++;
+    if (play.threw) pf.cleanAimedThrows++;
+    if (k.threwAfterEscape) {
+      pf.cleanBreakoutAimedThrows++;
+      pf.cleanDrillThrows++;
+    }
+  }
+
+  // Every sack is a contact on the side it happened (the real side's contact is qb_hit OR sack).
+  if (k.contactIn || (sacked && !k.escaped)) pf.contactsIn++;
+  if (k.contactOut || (sacked && k.escaped)) pf.contactsOut++;
+  if (sacked) {
+    if (k.escaped) pf.sacksOut++;
+    else pf.sacksIn++;
+    pf.sackSeconds.push(k.lastTick);
+    if (k.lastStatus === "CLEAN") pf.sacksCleanAtSack++;
+  }
+}
 
 interface PlayState {
   isPass: boolean;
@@ -629,6 +1376,8 @@ interface PlayState {
    * correct — that is a second threat, not the same one re-labelled.
    */
   threats: Map<string, string>;
+  /** ADR-089 step 0's per-play state (`PocketPlayState`). */
+  pk: PocketPlayState;
 }
 
 function blankPlay(): PlayState {
@@ -659,14 +1408,21 @@ function blankPlay(): PlayState {
     resultScore: 0,
     turnover: false,
     threats: new Map<string, string>(),
+    pk: blankPocketPlay(0, 0),
   };
 }
 
 /**
  * Fold one game into the accumulator. Mutates `acc` — it is a private working value owned by one
  * worker and never shared — and returns it for chaining.
+ *
+ * `tunables` are the tunables the game was PLAYED with (ADR-089 step 1, K14): the fold reads its
+ * status ladder, band floors, arrival horizons, escape bands and won-rep floor off them
+ * (`FoldTables`). A legacy caller passes nothing and folds with `DEFAULT_TUNABLES`, exactly as
+ * before; a `pocket-1` arm passes its own bundle.
  */
-export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccumulator {
+export function foldGame(acc: SimAccumulator, game: SimGameObservation, tunables: Tunables = DEFAULT_TUNABLES): SimAccumulator {
+  const tb = foldTablesOf(tunables);
   acc.games++;
   acc.seeds.push(game.seed);
 
@@ -681,6 +1437,17 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
   /** Per-team tallies for this game only, folded into the two `TeamGameRow`s at the end. */
   const drivesByTeam: Record<string, number> = {};
   const puntsByTeam: Record<string, number> = {};
+  /**
+   * ADR-089 step 0's situation rows: the period in force, the rebuilt clock (`PERIOD_START`'s
+   * clock less each `PLAY_RESULT.clockRunoff`; see `ClockCheckFold`) and the score, all read off
+   * the game's own events.
+   */
+  const pocket = p.pocket;
+  let period = 0;
+  let rebuiltClock = 0;
+  let homeTeam: string | null = null;
+  let homeScore = 0;
+  let awayScore = 0;
 
   const flush = (): void => {
     if (current === null) return;
@@ -786,6 +1553,7 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
       p.yardsBeforeContact += play.yardsBeforeContact;
       if (play.runYards >= 10) p.explosiveRushes++;
     }
+    foldPocketPlay(pocket, play);
     current = null;
   };
 
@@ -801,7 +1569,9 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
       case "PLAY_START": {
         const start = asPlayStart(event.payload);
         current = blankPlay();
+        current.pk = blankPocketPlay(period, rebuiltClock);
         tick = 0;
+        pocket.clockCheck.snaps++;
         if (start !== null) {
           current.isPass = start.kind === "PASS_PLAY_V1";
           current.designedRun = start.kind === "RUN_PLAY_V1";
@@ -810,7 +1580,23 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
             current.down = situation.down;
             current.ballOn = situation.ballOn;
             playDistance = situation.distance;
+            current.pk.distance = situation.distance;
           }
+          // ADR-089 step 0: the snap's clock, its check against the rebuilt one, the score and the units.
+          const published = situation?.clockSeconds;
+          if (typeof published === "number") {
+            current.pk.clockSeconds = published;
+            if (published === rebuiltClock) pocket.clockCheck.snapsEqualRebuilt++;
+            else if (published > rebuiltClock) pocket.clockCheck.snapsAboveRebuilt++;
+          } else pocket.clockCheck.snapsWithoutPublishedClock++;
+          const offenseTeam = start.offense?.team;
+          if (homeTeam !== null && offenseTeam !== undefined) {
+            current.pk.offenseMargin = String(offenseTeam) === homeTeam ? homeScore - awayScore : awayScore - homeScore;
+          }
+          const qb = start.offense?.quarterback;
+          if (qb !== undefined) current.pk.quarterback = String(qb);
+          const defenceTeam = start.defense?.team;
+          if (defenceTeam !== undefined) current.pk.defenceTeam = String(defenceTeam);
           const coverage = start.defense?.coverage;
           if (typeof coverage === "string") bumpKey(p.coverageShells, coverage);
           const rush = start.defense?.rush;
@@ -845,17 +1631,19 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
       }
       case "TICK":
         tick = event.payload.tick;
+        if (current !== null) current.pk.lastTick = tick;
         break;
       case "POCKET_STATUS":
         if (current !== null && current.isPass) {
           if (event.payload.status !== "CLEAN") current.pressured = true;
-          // Backlog dispatch C, disjunct (2): DERIVED off DEFAULT_TUNABLES.pocket.forcesDecision
-          // (FORCES_DECISION_STATUSES above), not restated.
-          if (FORCES_DECISION_STATUSES.has(event.payload.status)) current.forcedDecision = true;
+          // Backlog dispatch C, disjunct (2): DERIVED off the tunables' pocket.forcesDecision
+          // (`FoldTables.forcesDecision` above), not restated.
+          if (tb.forcesDecision.has(event.payload.status)) current.forcedDecision = true;
           // Tallied per TICK, immediately, not deferred to `flush()`: unlike `pressured` (a
           // per-DROPBACK worst-status flag), the severity partition is a per-TICK count and needs
           // no play-level reduction — see the `pocketStatusTicks` field comment.
           bumpKey(p.pocketStatusTicks, event.payload.status);
+          pocketStatusSeen(current.pk, event.payload.status, tick, tb);
         }
         break;
       case "RUSH_THREAT":
@@ -866,12 +1654,22 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
           // above: a run play's RUSH_THREAT (if any) is harmless to record since `flush()` only
           // reads `threatArrived` inside the `isPass` branch.
           if (event.payload.state === "ARRIVED") current.threatArrived = true;
+          rushThreatSeen(current.pk, event.payload, tick);
         }
         break;
       case "THROW":
         if (current !== null) {
           current.threw = true;
           current.throwTick = tick;
+          // ADR-089 step 0: the release, its named clock (P8's `releaseSeconds` once it exists; an
+          // unknown key read structurally, so legacy streams simply lack it) and whether the
+          // pocket forced it.
+          const pk = current.pk;
+          const releaseSeconds = (event.payload as { readonly releaseSeconds?: unknown }).releaseSeconds;
+          if (typeof releaseSeconds === "number") pk.releaseSeconds = releaseSeconds;
+          pk.forcedAtRelease = pk.lastStatusTick === tick && pk.lastStatus !== null && tb.forcesDecision.has(pk.lastStatus);
+          if (pk.escaped) pk.threwAfterEscape = true;
+          pk.released = true;
           // Entry 94's historical note: `throwType` here is drawn from `selectThrowType`
           // (`throwExecution.ts`), which only ever returns `BULLET`/`TOUCH` (`BACK_SHOULDER` is
           // wired and dormant per `tunables.ts:78`) — a `THROW` event's `throwType` was never
@@ -892,6 +1690,7 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
         if (current !== null) {
           current.throwaway = true;
           current.throwawayTick = tick;
+          current.pk.released = true;
           // Read directly off the event, per ADR-056's amendment — see PlayFold.throwawaysByCause.
           current.throwawayCause = event.payload.cause;
         }
@@ -919,15 +1718,40 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
           if (event.payload.carryType === "SCRAMBLE") {
             current.scramble = true;
             current.designedRun = false;
+            current.pk.released = true;
           }
         }
         break;
       case "CHECK":
         if (event.payload.checkKind === "pass_rush_tick") {
-          recordRushRep(acc.player, event.payload.actors, event.payload.band, event.payload.margin);
+          recordRushRep(acc.player, event.payload.actors, event.payload.band, event.payload.margin, tb);
         }
+        if (current !== null) pocketCheckSeen(current.pk, event.payload, tb);
+        break;
+      case "QB_PURSUIT":
+        // ADR-089 step 0: an escape began (one publication per escape, ADR-054).
+        if (current !== null) current.pk.escaped = true;
+        break;
+      case "GAME_START":
+        homeTeam = String(event.payload.home);
+        homeScore = 0;
+        awayScore = 0;
+        break;
+      case "SCORE":
+        homeScore = event.payload.home;
+        awayScore = event.payload.away;
+        break;
+      case "PERIOD_START":
+        period = event.payload.period;
+        rebuiltClock = event.payload.clockSeconds;
+        break;
+      case "DRIVE_START":
+        pocket.clockCheck.driveStarts++;
+        if (event.payload.clockSeconds === rebuiltClock) pocket.clockCheck.driveStartsEqualRebuilt++;
+        else if (event.payload.clockSeconds > rebuiltClock) pocket.clockCheck.driveStartsAboveRebuilt++;
         break;
       case "PLAY_RESULT":
+        rebuiltClock = Math.max(0, rebuiltClock - event.payload.clockRunoff);
         if (current !== null) {
           current.resultYards = event.payload.yards;
           current.resultScore = event.payload.score ?? 0;
@@ -987,6 +1811,7 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
       default:
         break;
     }
+    if (current !== null && playId !== null) current.pk.events.push(envelope);
   }
   flush();
 
@@ -1046,29 +1871,19 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation): SimAccu
  *
  * `actors` is `[rusher, blocker]` by the engine's own ordering convention on this check.
  */
-const RUSHER_WINS_REP_FLOOR: number = ((): number => {
-  const row = DEFAULT_TUNABLES.passRush.bands.find((b) => b.label === "RUSHER_WINS_REP");
-  if (row === undefined) throw new Error("collect: passRush.bands has no RUSHER_WINS_REP row");
-  return row.minMargin;
-})();
-
-/** The band labels at or above that floor — DERIVED from the table, never listed. */
-const RUSHER_WON_BANDS: ReadonlySet<string> = new Set(
-  DEFAULT_TUNABLES.passRush.bands.filter((b) => b.minMargin >= RUSHER_WINS_REP_FLOOR).map((b) => b.label),
-);
-
 function recordRushRep(
   fold: PlayerFold,
   actors: readonly PlayerId[],
   band: string | undefined,
   margin: number,
+  tb: FoldTables,
 ): void {
   const rusher = actors[0];
   const blocker = actors[1];
   if (rusher === undefined) return;
   // ADR-011: prefer the PUBLISHED band. `band` is optional on the payload, so the fallback reads
   // the same table's floor off the same margin — one source, two paths to it.
-  const rusherWon = band === undefined ? margin >= RUSHER_WINS_REP_FLOOR : RUSHER_WON_BANDS.has(band);
+  const rusherWon = band === undefined ? margin >= tb.rusherWinsRepFloor : tb.rusherWonBands.has(band);
   const rusherKey = String(rusher);
   const r = fold.rushReps[rusherKey] ?? { wins: 0, reps: 0 };
   r.reps++;
@@ -1173,6 +1988,81 @@ function mergeReps(
   return sortedRecord(merged);
 }
 
+/** Field-by-field sum of two tallies built by the same factory (so their keys are the same, in the same order). */
+function addFields<T extends object>(a: T, b: T): T {
+  const out: Record<string, number> = {};
+  const x = a as unknown as Record<string, number>;
+  const y = b as unknown as Record<string, number>;
+  for (const key of Object.keys(x)) out[key] = (x[key] ?? 0) + (y[key] ?? 0);
+  return out as unknown as T;
+}
+
+/**
+ * Key-by-key merge of two records of tallies, sorted like every other record merge here. The
+ * release sums inside are exact under legacy (every release is a multiple of 0.5 s), so the merge
+ * is order-free there; P8's raw-second release (step 4) is where float order could first show.
+ */
+function mergeTallies<T extends object>(a: Record<string, T>, b: Record<string, T>): Record<string, T> {
+  const merged = new Map<string, T>();
+  for (const [k, v] of Object.entries(a)) merged.set(k, { ...v });
+  for (const [k, v] of Object.entries(b)) {
+    const existing = merged.get(k);
+    merged.set(k, existing === undefined ? { ...v } : addFields(existing, v));
+  }
+  return sortedRecord(merged);
+}
+
+const sortedConcat = (a: readonly number[], b: readonly number[]): number[] => [...a, ...b].sort((x, y) => x - y);
+
+/** The pocket rows' merge (ADR-089 step 0): every field summed, every vector sorted, every record sorted. */
+function mergePocketFold(a: PocketFold, b: PocketFold): PocketFold {
+  return {
+    hitOrSackDropbacks: a.hitOrSackDropbacks + b.hitOrSackDropbacks,
+    hitOnAttemptDropbacks: a.hitOnAttemptDropbacks + b.hitOnAttemptDropbacks,
+    hitOnScrambleDropbacks: a.hitOnScrambleDropbacks + b.hitOnScrambleDropbacks,
+    releaseSeconds: sortedConcat(a.releaseSeconds, b.releaseSeconds),
+    releaseBins: mergeTallies(a.releaseBins, b.releaseBins),
+    firstPressureSeconds: sortedConcat(a.firstPressureSeconds, b.firstPressureSeconds),
+    firstForcingSeconds: sortedConcat(a.firstForcingSeconds, b.firstForcingSeconds),
+    firstArrivalSeconds: sortedConcat(a.firstArrivalSeconds, b.firstArrivalSeconds),
+    firstPressureOrigin: mergeCounters(a.firstPressureOrigin, b.firstPressureOrigin),
+    firstPressureCause: mergeCounters(a.firstPressureCause, b.firstPressureCause),
+    quickFirstPressureByOrigin: mergeCounters(a.quickFirstPressureByOrigin, b.quickFirstPressureByOrigin),
+    quickFirstPressures: a.quickFirstPressures + b.quickFirstPressures,
+    cleanLiveWonRepTicks: a.cleanLiveWonRepTicks + b.cleanLiveWonRepTicks,
+    cleanLiveWonRepDropbacks: a.cleanLiveWonRepDropbacks + b.cleanLiveWonRepDropbacks,
+    cleanLiveWonRepPushTicks: a.cleanLiveWonRepPushTicks + b.cleanLiveWonRepPushTicks,
+    pressuredThrowaways: a.pressuredThrowaways + b.pressuredThrowaways,
+    cleanThrowaways: a.cleanThrowaways + b.cleanThrowaways,
+    scrambleYards: sortedConcat(a.scrambleYards, b.scrambleYards),
+    byDown: mergeTallies(a.byDown, b.byDown),
+    aimedThrows: a.aimedThrows + b.aimedThrows,
+    aimedCompletions: a.aimedCompletions + b.aimedCompletions,
+    aimedInterceptions: a.aimedInterceptions + b.aimedInterceptions,
+    forcedAimedThrows: a.forcedAimedThrows + b.forcedAimedThrows,
+    attemptsByWorstStatus: mergeTallies(a.attemptsByWorstStatus, b.attemptsByWorstStatus),
+    qbUnits: mergeTallies(a.qbUnits, b.qbUnits),
+    defenceUnits: mergeTallies(a.defenceUnits, b.defenceUnits),
+    freeRunMen: a.freeRunMen + b.freeRunMen,
+    freeRunPressures: a.freeRunPressures + b.freeRunPressures,
+    unblockedHitOrSack: a.unblockedHitOrSack + b.unblockedHitOrSack,
+    noFreeRunnerPressured: a.noFreeRunnerPressured + b.noFreeRunnerPressured,
+    noFreeRunnerQuick: a.noFreeRunnerQuick + b.noFreeRunnerQuick,
+    cleanEscapes: a.cleanEscapes + b.cleanEscapes,
+    cleanBreakoutAimedThrows: a.cleanBreakoutAimedThrows + b.cleanBreakoutAimedThrows,
+    cleanAimedThrows: a.cleanAimedThrows + b.cleanAimedThrows,
+    cleanDrillThrows: a.cleanDrillThrows + b.cleanDrillThrows,
+    situation: mergeTallies(a.situation, b.situation),
+    clockCheck: addFields(a.clockCheck, b.clockCheck),
+    contactsIn: a.contactsIn + b.contactsIn,
+    sacksIn: a.sacksIn + b.sacksIn,
+    contactsOut: a.contactsOut + b.contactsOut,
+    sacksOut: a.sacksOut + b.sacksOut,
+    sacksCleanAtSack: a.sacksCleanAtSack + b.sacksCleanAtSack,
+    sackSeconds: sortedConcat(a.sackSeconds, b.sackSeconds),
+  };
+}
+
 /**
  * Associative and commutative merge. Worker count must not change a batch's numbers, and the
  * only way to guarantee that is for the merge to be order-independent — which is why the sample
@@ -1229,6 +2119,7 @@ export function mergeAccumulators(a: SimAccumulator, b: SimAccumulator): SimAccu
     frontLookDropbacksByLook: mergeCounters(a.play.frontLookDropbacksByLook, b.play.frontLookDropbacksByLook),
     threatOrigins: mergeCounters(a.play.threatOrigins, b.play.threatOrigins),
     threatOriginDropbacks: mergeCounters(a.play.threatOriginDropbacks, b.play.threatOriginDropbacks),
+    pocket: mergePocketFold(a.play.pocket, b.play.pocket),
   };
 
   const drive: DriveFold = {

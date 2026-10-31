@@ -1,4 +1,5 @@
 import { createRng, setAttr } from "@ff/contracts";
+import type { Rng } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import { ATTR, resolveAttr } from "../src/attrs.js";
 import { resolvePassRushRep, resolvePassRushTick } from "../src/resolve/passRush.js";
@@ -11,6 +12,7 @@ import {
 } from "../src/resolve/pocket.js";
 import { TUNABLES, applyTunablePatch } from "../src/tunables.js";
 import { RUSH_MOVES, makePlayer } from "./fixtures.js";
+import { L5_TUNABLES, L8_TUNABLES, lTunables } from "./pocketTunables.js";
 
 const eliteRusher = makePlayer("r-elite", "Elite Rusher", "DE", {
   passRush: 99, firstStep: 99, powerMove: 99, finesseMove: 99, strength: 99,
@@ -232,6 +234,7 @@ describe("§7.1 pass rush tick (ADR-059 — unmodded jitter around the rep)", ()
       repMargin: 0,
       rollRef: "rep-label",
       tickRng: createRng("s", "t").fork("x"),
+      tick: 0.5,
     });
     expect(out.rusherRoll.modifiers).toEqual([]);
     expect(out.blockerRoll.modifiers).toEqual([]);
@@ -245,6 +248,7 @@ describe("§7.1 pass rush tick (ADR-059 — unmodded jitter around the rep)", ()
       repMargin: 20,
       rollRef: "rep-label",
       tickRng: createRng("s", "t").fork("x"),
+      tick: 0.5,
     });
     expect(out.check.testsAttrs).toEqual([]);
   });
@@ -257,6 +261,7 @@ describe("§7.1 pass rush tick (ADR-059 — unmodded jitter around the rep)", ()
       repMargin: 20,
       rollRef: "the-reps-own-label",
       tickRng: createRng("s", "t").fork("x"),
+      tick: 0.5,
     });
     expect(out.check.rollRef).toBe("the-reps-own-label");
   });
@@ -271,6 +276,7 @@ describe("§7.1 pass rush tick (ADR-059 — unmodded jitter around the rep)", ()
         repMargin,
         rollRef: "rep-label",
         tickRng: createRng(`jitter-${i}`, "t"),
+        tick: 0.5,
       });
       const jitter = out.margin - repMargin;
       // Two unmodded d100s (raw 1-100) differenced and divided by the tunable
@@ -290,6 +296,7 @@ describe("§7.1 pass rush tick (ADR-059 — unmodded jitter around the rep)", ()
         repMargin: 80,
         rollRef: "rep-label",
         tickRng: createRng(`dominant-${i}`, "t"),
+        tick: 0.5,
       });
       if (out.band === "RUSHER_WINS_REP") winsRep += 1;
     }
@@ -305,6 +312,7 @@ describe("§7.1 pass rush tick (ADR-059 — unmodded jitter around the rep)", ()
       repMargin: 0,
       rollRef: "rep-label",
       tickRng: createRng("s", "t").fork("x"),
+      tick: 0.5,
     });
     expect(TUNABLES.passRush.pressureProgressByBand[out.band]).toBeDefined();
   });
@@ -340,5 +348,117 @@ describe("§7.2 pocket status", () => {
     expect(forcesDecision(TUNABLES, "PRESSURE")).toBe(false);
     expect(forcesDecision(TUNABLES, "COLLAPSING")).toBe(true);
     expect(forcesDecision(TUNABLES, "IMMEDIATE")).toBe(true);
+  });
+});
+
+/**
+ * ADR-089 step 1 — SHAPE L, the gradual block clock (`passRush.repClock`, `pocket-1` only):
+ * `round(min(t, R) * x / R) + 0`, x today's margin (the rep's plus the tick's jitter), the same
+ * dice and labels as legacy. The exact form, not `min(1, t / R) * x`, which rounds 31.4999… at
+ * R 5, t 3.5, x 45 (N3).
+ */
+describe("ADR-089 shape L — the gradual block clock", () => {
+  /** A tick fork whose every d100 is 50, so the jitter is 0 and x is the rep's margin. */
+  const evenRng: Rng = (() => {
+    const rng: Rng = {
+      next: () => 0.495,
+      int: (min: number, max: number) => min + Math.floor(0.495 * (max - min + 1)),
+      d100: () => 50,
+      d20: () => 10,
+      pick: <T>(items: readonly T[]): T => {
+        const first = items[0];
+        if (first === undefined) throw new Error("empty");
+        return first;
+      },
+      fork: () => rng,
+      seed: "even",
+      label: "even",
+    };
+    return rng;
+  })();
+  const at = (tunables: typeof TUNABLES | typeof L5_TUNABLES, repMargin: number, tick: number, tickRng: Rng = evenRng) =>
+    resolvePassRushTick({ tunables, rusher: eliteRusher, blocker: eliteBlocker, repMargin, rollRef: "rep", tickRng, tick });
+
+  it("is 0 at the snap, whatever the rep", () => {
+    for (const x of [-80, -15, 0, 15, 80]) {
+      expect(Object.is(at(L5_TUNABLES, x, 0).margin, 0)).toBe(true);
+      expect(Object.is(at(L8_TUNABLES, x, 0).margin, 0)).toBe(true);
+    }
+  });
+
+  it("the hand value: R 5, t 3.5, x 45 gives 32 (N3)", () => {
+    expect(at(L5_TUNABLES, 45, 3.5).margin).toBe(32);
+    // The form N3 rejects rounds the same point the other way.
+    expect(Math.round(Math.min(1, 3.5 / 5) * 45)).toBe(31);
+    expect(at(L5_TUNABLES, 45, 2.5).margin).toBe(23);
+    expect(at(L5_TUNABLES, -45, 2.5).margin).toBe(-22);
+  });
+
+  it("for R 4, 5 and 6, every tick at or after R equals the legacy CHECK field for field (200 reps a cell)", () => {
+    let cells = 0;
+    for (const R of [4, 5, 6]) {
+      const tunables = lTunables(R);
+      for (let tick = R; tick <= TUNABLES.clock.maxTick + 1e-9; tick = Number((tick + TUNABLES.clock.tickStepSeconds).toFixed(1))) {
+        cells += 1;
+        for (let i = 0; i < 200; i++) {
+          const repMargin = (i % 81) - 40;
+          const tickRng = createRng(`l-cell-${R}-${tick}-${i}`, "rush").fork(`t${tick.toFixed(1)}`);
+          const legacy = at(TUNABLES, repMargin, tick, tickRng);
+          const l = at(tunables, repMargin, tick, tickRng);
+          expect(l).toEqual(legacy);
+        }
+      }
+    }
+    // 4.0 to 6.0, 5.0 to 6.0 and 6.0: five, three and one ticks.
+    expect(cells).toBe(9);
+  });
+
+  it("at R 8 the factor never passes 0.75 within a play", () => {
+    const lastTick = TUNABLES.clock.maxTick;
+    expect(Math.min(lastTick, 8) / 8).toBe(0.75);
+    for (let tick: number = TUNABLES.clock.firstTick; tick <= lastTick + 1e-9; tick = Number((tick + 0.5).toFixed(1))) {
+      for (let i = 0; i < 50; i++) {
+        const tickRng = createRng(`l8-${tick}-${i}`, "rush").fork(`t${tick.toFixed(1)}`);
+        const repMargin = (i % 41) - 20;
+        const x = at(TUNABLES, repMargin, tick, tickRng).margin;
+        const l = at(L8_TUNABLES, repMargin, tick, tickRng).margin;
+        expect(Math.abs(l)).toBeLessThanOrEqual(Math.round(0.75 * Math.abs(x)));
+        expect(Math.abs(l)).toBeLessThanOrEqual(Math.abs(x));
+      }
+    }
+  });
+
+  it("never falls in size as the play goes on: |round(min(t, R) x / R)|, x -80 to 80, R 4 to 8 by 0.5 (critique-1 F18)", () => {
+    const falls: string[] = [];
+    let series = 0;
+    for (let R = 4; R <= 8 + 1e-9; R += 0.5) {
+      const tunables = lTunables(R);
+      for (let x = -80; x <= 80; x++) {
+        let previous = 0;
+        for (let tick = 0; tick <= TUNABLES.clock.maxTick + 1e-9; tick = Number((tick + 0.5).toFixed(1))) {
+          const size = Math.abs(at(tunables, x, tick).margin);
+          if (size < previous) falls.push(`R ${R} x ${x} t ${tick}: ${size} < ${previous}`);
+          previous = size;
+        }
+        series += 1;
+      }
+    }
+    expect(falls).toEqual([]);
+    expect(series).toBe(9 * 161);
+  });
+
+  it("draws the same dice under the same labels as legacy, at every tick", () => {
+    for (let i = 0; i < 100; i++) {
+      const tick = 0.5 + (i % 12) * 0.5;
+      const tickRng = createRng(`l-dice-${i}`, "rush").fork(`t${tick.toFixed(1)}`);
+      const legacy = at(TUNABLES, 10, tick, tickRng);
+      const l = at(L5_TUNABLES, 10, tick, tickRng);
+      expect(l.rusherRoll).toEqual(legacy.rusherRoll);
+      expect(l.blockerRoll).toEqual(legacy.blockerRoll);
+      expect(l.check.roll).toEqual(legacy.check.roll);
+      expect(l.check.opposedRoll).toEqual(legacy.check.opposedRoll);
+      expect(l.check.rollRef).toBe(legacy.check.rollRef);
+      expect(l.check.roll.rngLabel.endsWith(":jitter")).toBe(true);
+    }
   });
 });

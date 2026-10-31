@@ -591,6 +591,74 @@ Results per Tick:
 > and by direct computation: `P(margin ≥ 15)` on the raw triangular d100−d100 distribution
 > is fixed by the roll alone and is invariant under any re-partition of the ladder above 15.
 
+> **pocket-1 (ADR-089 step 1, behind the switch; not the default until step 11)**
+>
+> Nothing in this section runs by default. It runs only when the tunables carry a `pocket-1`
+> block and its rules stamp, and `DEFAULT_TUNABLES` carries neither, so default play is the
+> table above, unchanged. The switch is read once a play (`sim/pocketRules.ts`), from closed
+> sets only: no block and no stamp is `legacy`; `passRush.beatClock` (with or without its push
+> window) plus `passRush.approach` plus an `engineRules { name, overlayDigest }` stamp is
+> **shape S**; `passRush.repClock` plus `passRush.approach` plus the stamp is **shape L**. Any
+> other mix (both clocks, a clock without the card, the card without a clock, a block without a
+> stamp, a stamp without a block, a name that is not `pocket-1` or `pocket-1.<step>`, an empty
+> digest) is refused before a die is thrown. A `pocket-1` pass play copies the stamp's name and
+> digest onto `PLAY_START`'s payload as `rules`; a `legacy` play has no `rules` key. **Every value
+> below is provisional** (ADR-089 §4.1: both shapes are built at step 1, and one shape and its
+> value are chosen at step 5b; none is an ADR-061 candidate).
+>
+> **Shape S, the breaking time** (`resolve/beatClock.ts`). Each blocked rep is still drawn once
+> (ADR-059), with latent margin m. Right after it, one uniform `U = 1 - next()` in (0, 1] is drawn
+> on the fork `rush/beat/<the rep's rngLabel>` and published as a `pass_rush_beat` CHECK (die
+> `uniform`, raw and total U, margin m and its tier, no attributes tested, `rollRef` the rep's
+> `rngLabel`). The breaking time is
+>
+> ```
+> T = theta * exp(-beta * m / 41) * (-ln U)^(1/k)
+>     theta 11 s, k 2, beta 0.5            (all provisional)
+> ```
+>
+> and the block is beaten on the first tick at or after T, or never in the play when T is past
+> `clock.maxTick`. T is computed with `Math.exp`, `Math.log` and `**`, the first such math on a
+> play path, and is never published: it reaches the stream only through the tick it picks (first
+> tick at or after T, to within 1e-9 of a tick), so a runtime whose `Math.log` differs by an ulp
+> can move a beat only when T lands within that of a tick boundary. **No per-tick jitter die is drawn under S** (an amendment to ADR-059, noted
+> there). Each tick reports a margin set by the beat, through the same bands and counter table
+> as the rows above: `min(0, m)` before the beat tick, and `max(15, m)`, RUSHER_WINS_REP, from the
+> beat tick on. That tick's `pass_rush_tick` CHECK carries no `roll` and no `opposedRoll`, and its
+> `rollRef` names the beat. On the beat tick the threat is built once by `threatFromWonRep`, with
+> the travel table unchanged, and its `rollRef` is the beat's label.
+>
+> **The push window (shape S only, `passRush.beatClock.pushWindow`).** A POWER rep whose latent
+> margin is 1 to 14 (provisional) shows the bull rush before it breaks. With t_b its beat tick, it
+> reports `min(m, 4)`, RUSHER_GAINING, on t_b - 1.0 s (the length is provisional), and
+> `max(m, 5)`, BLOCKER_BEATEN, on t_b - 0.5 s. A window tick before the play's first tick is
+> dropped. The window's length must be a whole number of tick steps, at least two, so its first
+> tick is a played tick before its second; any other length is refused before a die is thrown. The 4, 5 and 15 are not dials: they are read from `passRush.bands` (BLOCKER_BEATEN's
+> floor less 1, BLOCKER_BEATEN's floor, RUSHER_WINS_REP's floor). The window throws no die.
+> S without the window is an information arm only.
+>
+> **Shape L, the gradual clock** (`passRush.repClock.fullExpressionSeconds`, R). It uses today's
+> dice and fork labels; only the reported margin changes:
+> `margin_t = round(min(t, R) * (repMargin + jitter_t) / R)`. R is 5 s (provisional), and 8 s is
+> the priced point. From t >= R it is today's tick; a play ends at 6.0 s, so at R = 8 every
+> margin stays capped below today's.
+>
+> **The approach card** (`passRush.approach`, published as `RUSH_THREAT.approach`). It is
+> computed once, when a threat is built, with no die, taking the first row that fits:
+>
+> | engine facts | approach |
+> |---|---|
+> | origin UNBLOCKED, or a pickup BLOWN_UP | FREE |
+> | a looper the line never touched (LOOPER_FREE), or a twist's penetrator | THROUGH |
+> | a man somebody got a hand on (RAN_THROUGH, LATE_EXCHANGE) | ARC if EDGE, THROUGH if INTERIOR |
+> | won rep, EDGE, SPEED or FINESSE | ARC |
+> | won rep, POWER, latent margin 1 to 14 (the card's range, provisional): under S, the range alone; under L, the range and BLOCKER_BEATEN reported before RUSHER_WINS_REP (ADR-089 Appendix F, F1 option (b)) | PUSH |
+> | any other won rep (under L, also a POWER rep of 15 or more, or one not BEATEN before its win) | THROUGH (ARC if EDGE) |
+> | a matchup not beaten | BLOCKED (never on a threat) |
+>
+> At step 1, free runners keep today's timing with these labels; step 3 changes their timing, not
+> their labels.
+
 > **KNOWN ISSUE (logged July 2026, Phase 1 slice) — term asymmetry.**
 > The rusher above carries two-to-three attribute terms (`Pass Rush` plus a move
 > modifier, and a power rush adds both `Power Move` *and* `Strength`) against the
@@ -927,6 +995,53 @@ SACK:
 >
 > **What replaces PRESSURE/COLLAPSING/IMMEDIATE's accuracy and read-capacity rows during pursuit** is
 > §8.8's own note below, not this table.
+
+> **pocket-1 (ADR-089 step 2, behind the switch; not the default until step 11)**
+>
+> Nothing in this block runs by default. It runs only under a `pocket-1` bundle (§7.1's pocket-1
+> block) that also carries `pocket.forcing`, and `DEFAULT_TUNABLES` carries neither, so default play
+> is the ladder above, unchanged; so does every `pocket-1.s1` bundle, which carries no forcing block.
+> A forcing block alone, without a block clock or without the rules stamp, or with a rule outside
+> its closed set, is refused before a die is thrown. It is a named amendment of this section's
+> COLLAPSING row and of the use of `pocket.forcesDecision` (ADR-089 §4.3, questions 2 and 3,
+> answered Half and Follows); its values are provisional, as §7.1's block says.
+>
+> **Must act, per rusher** (`pocket.forcing.rule` `PER_RUSHER`). COLLAPSING's "QB must throw, move,
+> or take hit" applies only when a rusher is within `arrival.collapsingWithinSeconds` of him (0.5 s
+> in the step-2 bundle, question 2 Half; the same leaf as the arrival floor's COLLAPSING horizon,
+> not a new dial), or one has arrived, or his count runs out:
+>
+> ```
+> mustAct(tick) = exists threat: (registered(threat) and eta(threat) - tick <= collapsingWithinSeconds)
+>                                or arrived(threat)
+>              or tick >= budget or readsUsed >= maxReads
+> ```
+>
+> It replaces the status's `pocket.forcesDecision` in the quarterback's must-decide test, and the
+> move branch (stand in, climb, leave, throw it away under duress) is gated by its threat part only,
+> so a count that runs out with no rusher that near is still the clock's throwaway with no movement
+> check. **The counter's COLLAPSING or IMMEDIATE alone, and the band floor alone, no longer force.**
+> An arrival still does, IMMEDIATE included: on the tick a rusher reaches him he throws or is sacked.
+> The status itself is unchanged: still the worst of the counter, the band floor and the arrival
+> floor, published as `POCKET_STATUS`, and it still sets accuracy and the read penalty. Until sight is
+> built (ADR-089 step 7) every threat counts as registered.
+>
+> **The warning, a status only** (question 3, Follows). The step-2 bundle sets
+> `arrival.pressureWithinSeconds` to 1.0 s by the July rule P = C + (C - I) (0.5 + 0.5 with I = 0.0):
+> the rule is applied, not amended, and it never moves on a later miss. PRESSURE from a rusher 0.5 to
+> 1.0 s away no longer forces anything under must act; it still drives the pressured count, accuracy
+> and the read penalty.
+>
+> No die, no event, no field and no choice is added: `POCKET_DURESS` (`ThrowawayCause`) is now the
+> threat part's throwaway and `CLOCK_EXPIRED` the count part's.
+>
+> **The narrower counter, information only** (`pocket.forcing.rule` `COUNTER_LESS_SEEN`; ADR-089
+> §4.3's alternative). Forcing stays the status's (`pocket.forcesDecision`), but the status's counter
+> leaves out any matchup whose won rep already has a live threat the arrival floor sees (its threat
+> is in the tick's threat list, origin WON_REP); every other matchup counts as above, a won rep
+> time-retired at birth (which arrival cannot see) included. It changes the published
+> `POCKET_STATUS`, so it extends ADR-058's band-floor rule; adopting it would need a named amendment
+> of ADR-058, which ADR-089 does not list. It runs as an information arm and is not ruled on.
 
 ### 7.3 Stunts and Twists
 

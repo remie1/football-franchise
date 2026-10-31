@@ -14,8 +14,10 @@
  */
 import { describe, expect, it } from "vitest";
 import { createRng } from "@ff/contracts";
+import type { RollDetail, Rng } from "@ff/contracts";
 import { simulateGame } from "../src/game/simulateGame.js";
 import { buildGameFixture } from "./gameFixtures.js";
+import { SW_TUNABLES, S_TUNABLES } from "./pocketTunables.js";
 
 describe("★2 — a whole game is byte-identically reproducible from its seed", () => {
   it("two runs of the same seed produce identical event streams", () => {
@@ -56,11 +58,38 @@ describe("★2 — a whole game is byte-identically reproducible from its seed",
 });
 
 describe("★2 — draws are addressed by fork label, never by stream position", () => {
-  it("a play's stream depends only on its coordinates, not on what came before", () => {
+  /**
+   * ADR-089 P2: a die is a d100, a d20 or (shape S's beat, `pocket-1` only) a uniform, recorded
+   * as `1 - next()` of the fork its label names. The switch is exhaustive, so a fourth die word
+   * is a compile error here before it is a wrong replay.
+   */
+  const replayRaw = (die: RollDetail["die"], rebuilt: Rng): number => {
+    switch (die) {
+      case "d100":
+        return rebuilt.d100();
+      case "d20":
+        return rebuilt.d20();
+      case "uniform":
+        return 1 - rebuilt.next();
+      default: {
+        const unknown: never = die;
+        throw new Error(`a die this replay does not know: ${String(unknown)}`);
+      }
+    }
+  };
+
+  for (const { name, tunables, seed } of [
+    { name: "legacy", tunables: undefined, seed: "fork-locality" },
+    { name: "shape S with the window", tunables: SW_TUNABLES, seed: "fork-locality" },
+  ] as const) {
+  it(`a play's stream depends only on its coordinates, not on what came before (${name})`, () => {
     // The property in one assertion: rebuild the fork for play 40 directly, with
     // no reference to plays 1-39, and get the same numbers the game did.
-    const fixture = buildGameFixture({ seed: "fork-locality" });
-    const result = simulateGame(fixture.state, fixture.inputs, fixture.seed);
+    const fixture = buildGameFixture({ seed });
+    const result =
+      tunables === undefined
+        ? simulateGame(fixture.state, fixture.inputs, fixture.seed)
+        : simulateGame(fixture.state, fixture.inputs, fixture.seed, tunables);
 
     const labelled = result.events
       .map((e) => e.event)
@@ -75,11 +104,32 @@ describe("★2 — draws are addressed by fork label, never by stream position",
     let checked = 0;
     for (const roll of labelled.slice(0, 200)) {
       const rebuilt = createRng(fixture.seed, roll.rngLabel);
-      const raw = roll.die === "d100" ? rebuilt.d100() : rebuilt.d20();
-      expect(raw).toBe(roll.raw);
+      expect(replayRaw(roll.die, rebuilt)).toBe(roll.raw);
       checked += 1;
     }
     expect(checked).toBe(200);
+    // Under shape S the beats are in the sample and replay the same way, from their label alone.
+    const beats = labelled.filter((r) => r.die === "uniform");
+    if (tunables === undefined) expect(beats).toEqual([]);
+    else {
+      expect(labelled.slice(0, 200).some((r) => r.die === "uniform")).toBe(true);
+      for (const roll of beats) {
+        expect(replayRaw(roll.die, createRng(fixture.seed, roll.rngLabel))).toBe(roll.raw);
+        expect(roll.total).toBe(roll.raw);
+        expect(roll.raw > 0 && roll.raw <= 1).toBe(true);
+      }
+    }
+  });
+  }
+
+  it("a whole game under shape S is byte-identically reproducible from its seed", () => {
+    const a = buildGameFixture({ seed: "determinism-s" });
+    const b = buildGameFixture({ seed: "determinism-s" });
+    const first = simulateGame(a.state, a.inputs, a.seed, S_TUNABLES);
+    const second = simulateGame(b.state, b.inputs, b.seed, S_TUNABLES);
+    expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+    expect(second.summary).toEqual(first.summary);
+    expect(first.events.some(({ event }) => event.type === "CHECK" && event.payload.checkKind === "pass_rush_beat")).toBe(true);
   });
 
   it("the game-level labels name what they decide", () => {
@@ -121,6 +171,11 @@ describe("★2 — draws are addressed by fork label, never by stream position",
     const duplicates: string[] = [];
     for (const { event } of result.events) {
       if (event.type !== "CHECK" && event.type !== "PRESNAP_READ") continue;
+      const kind: string = event.type === "CHECK" ? event.payload.checkKind : event.payload.kind;
+      if (event.payload.roll === undefined) {
+        if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+        continue;
+      }
       const label = event.payload.roll.rngLabel;
       if (seen.has(label)) duplicates.push(label);
       seen.add(label);

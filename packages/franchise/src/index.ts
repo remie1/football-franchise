@@ -18,8 +18,10 @@ export {
 } from "./playoffs/bracket.js";
 export {
   runSeason, gameSeed, MAX_PLAYOFF_REPLAYS,
-  type GameResolver, type RunSeasonInput, type SeasonRun,
+  type GameResolver, type ResolvedGame, type RunSeasonInput, type SeasonRun,
 } from "./season/runSeason.js";
+// ADR-086: the league's people through the year, and the day steps that change them.
+export { isDay, type LeaguePeople, type DayStep, type DayStepContext } from "./season/people.js";
 export { makeSave, readSave, SaveError, type MakeSaveInput, type LoadedSave } from "./save/save.js";
 // ADR-080: coaching staffs, hiring and firing.
 export { buildStaff, freshStaff, recentreDisguise, type BuildStaffOptions, type BuiltStaff } from "./staff/buildStaff.js";
@@ -58,3 +60,52 @@ export {
   RELATIONSHIP_TUNING, RELATIONSHIP_MOVES, sitDownChance,
   type RelationshipMove, type RelationshipMoveId, type RiftRule,
 } from "./relationships/tables.js";
+// ADR-085: the salary cap and player contracts (the money rules).
+export {
+  leagueYear, transactionYear, isAfterJune1, isTop51Window, proration, capNumber, guaranteedOf, withCapHits, prorate,
+  endedYear, liveIn, releasePlayer, expireContract, restructure, teamCapTotal,
+  type ReleaseOptions, type ReleaseResult, type RestructureOptions, type CapTotal,
+} from "./cap/money.js";
+export {
+  earnsCreditedSeason, minimumSalary, minimumContract, signPracticeSquad, rookieContract, tagPrice, tagContract, tenderPrice,
+  type SigningBase, type RookieSigning,
+} from "./cap/signings.js";
+export * as capRules from "./cap/rules.js";
+export { ROOKIE_SCALE_2026 } from "./cap/rookieScale2026.js";
+export {
+  projectCaps, drawGrowth, historyGrowth, CAP_HISTORY, CAP_GROWTH,
+  type CapForecast, type CapDrivers,
+} from "./cap/capGrowth.js";
+// ADR-086: the draft (order, compensatory picks, boards, draft day, cut-down day, the year turn).
+export {
+  draftOrder, draftGroups, draftPicks, settleConditions, strengthOfSchedule,
+  type DraftGroup, type DraftOrderRow,
+} from "./draft/order.js";
+export {
+  compensatoryPicks, compValue, netLosses, COMP_BANDS, COMP_SNAPS,
+  type FreeAgentMove, type CompValue,
+} from "./draft/compensatory.js";
+export {
+  buildBoard, consensusBoard, choose, needAt, boardValue,
+  BOARD_ERROR, CONSENSUS_ERROR, POSITION_VALUE, REPLACEMENT_GRADE, STARTERS, WANTED, CHOICE,
+  type Rate, type Board, type ChooseInput,
+} from "./draft/board.js";
+export { runDraftDay, UDFA, type DraftDayInput, type DraftDayResult } from "./draft/draftDay.js";
+export { runCutdown, seasonsIn, LEAN_POINTS, NEWER_PLAYER_SEASONS, CLAIM_MARGIN, type CoachLean, type CutdownInput } from "./draft/cutdown.js";
+export {
+  draftSteps, turnYear, creditSeason, peopleFromSave, waiverOrderFrom, movesFromPeople, averagePerYear, headCoachEvaluation, DRAFT_DAYS, type DraftStepsConfig, type TurnYearOptions,
+} from "./draft/steps.js";
+export { signRookie, signSquad, signFuture, release, claimedDeal, liveContract, flatCap, type CapForSeason } from "./draft/money.js";
+// ADR-087: players age, grow and get hurt (off unless runSeason's `players` switches them on).
+export { PLAYER_STEP_PREFIX, playerSteps, playerWeeks, emergencySignings, type PlayerStepsConfig, type PlayerGameExtras } from "./players/steps.js";
+export { developmentWeek, learningRate, RATING_GROUPS, type DevelopmentWeekInput, type DevelopmentWeekResult } from "./players/development.js";
+export {
+  gameInjuries, weekInjuries, healWeek, isAvailable, bandFor,
+  type InjuryResult, type GameInjuryInput, type WeekInjuryInput, type HealInput,
+} from "./players/injuries.js";
+export { INJURY_RATES, INJURY_KINDS } from "./players/injuryTables.js";
+export { depthChartWeek, type DepthWeekInput, type DepthWeekResult } from "./players/depthChart.js";
+export { unsignedDay, drawPatience, type UnsignedInput, type UnsignedResult } from "./players/unsigned.js";
+export { lineupFor, teamLineup, type Lineup } from "./players/lineup.js";
+export { changeBody, addPoints, type BodyChange } from "./players/body.js";
+export { emptyMemory, type PlayerMemory, type PlayerWeek, type PastInjury, type RatingGroup } from "./players/types.js";

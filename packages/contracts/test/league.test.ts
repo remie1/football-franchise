@@ -55,6 +55,24 @@ describe("league shapes (ADR-078)", () => {
     expect(JSON.parse(JSON.stringify(older)).playedWith).toBeUndefined();
   });
 
+  it("ADR-089 P1: what played may name its engine rules; present round-trips, absent stays absent (read as legacy)", () => {
+    const save: SaveFile = {
+      formatVersion: SAVE_FORMAT_VERSION, createdBy: "test", registrySchemaVersion: 1,
+      worldSeed: "w", calendar: at, leagueRules: DEFAULT_LEAGUE_RULES,
+      world: { teams: [], players: [], staff: [], contracts: [], perceptions: [], league, season, narrativeState: null, fashion: null },
+      history: { seasons: [], transactions: [] },
+      playedWith: { caller: "v7", engineRules: "pocket-1.s1" },
+    };
+    expect(JSON.parse(JSON.stringify(save))).toEqual(save);
+    expect(JSON.parse(JSON.stringify(save)).playedWith).toEqual({ caller: "v7", engineRules: "pocket-1.s1" });
+    // A save written before P1, or played under `legacy`, carries no rules name, and stays without one.
+    const legacy: SaveFile = { ...save, playedWith: { caller: "v7" } };
+    const read = JSON.parse(JSON.stringify(legacy)) as SaveFile;
+    expect(read).toEqual(legacy);
+    expect(read.playedWith).toEqual({ caller: "v7" });
+    expect("engineRules" in read.playedWith!).toBe(false);
+  });
+
   it("the season events carry results and seeds", () => {
     const events: FranchiseEvent[] = [
       { type: "GAME_COMPLETED", payload: { result: season.results[0]!, kind: "REGULAR" } },

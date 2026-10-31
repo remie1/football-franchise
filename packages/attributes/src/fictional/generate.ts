@@ -17,12 +17,16 @@
  *
  * Everything comes from the seed. Each player draws from his own fork (`team/position/slot`),
  * so changing one position's count never reshuffles another position's players.
+ *
+ * With `development` on (ADR-087), each player also gets his growth rate, career snaps, body and
+ * patience (`development.ts`), from another fork of his own (`development/<player id>`).
  */
 import {
-  ATTRIBUTE_REGISTRY_V1, createRng, playerId,
+  ATTRIBUTE_REGISTRY_V1, clampRating, createRng, playerId, positionOverall,
   type AttributeMap, type PlayerId, type PlayerState, type Position, type RatedLeague, type Rng, type Team,
 } from "@ff/contracts";
-import { clampRating, physicalRatings, type Measurements } from "./derive.js";
+import { physicalRatings, type Measurements } from "./derive.js";
+import { withDevelopment } from "./development.js";
 import { drawName } from "./names.js";
 import { PHYSICAL, PROFILES, TIERS, UNIVERSAL, type Tier } from "./profiles.js";
 import { BODY, POSITION_ORDER, ROSTER_SHAPE, type Dist } from "./shape.js";
@@ -45,6 +49,11 @@ export interface GenerateLeagueInput {
   /** The league's teams. Their roster and depth chart are replaced; everything else is kept. */
   readonly teams: readonly Team[];
   readonly teamStrengthSd?: number;
+  /**
+   * ADR-087: give each player his development record (P1) and patience (P6), drawn from his own
+   * stream (`development.ts`). Off by default; off, the league is exactly what it was before.
+   */
+  readonly development?: boolean;
 }
 
 /** What `RatedLeague.provenance` holds for a generated league. */
@@ -75,7 +84,7 @@ function tierRating(rng: Rng, tier: Tier, talent: number): number {
   return clampRating(tier.mean + tier.sd * blend(rng, tier.load, talent));
 }
 
-function measure(rng: Rng, position: Position, talent: number): Measurements {
+export function measure(rng: Rng, position: Position, talent: number): Measurements {
   const body = BODY[position];
   const athleticism = blend(rng, 0.5, talent);
   const round = (x: number, step: number) => Math.round(x / step) * step;
@@ -110,14 +119,10 @@ export function rateAttributes(rng: Rng, position: Position, talent: number, m: 
 
 /**
  * How good a player is AT A POSITION: his core ratings, plus the physical ones the position
- * leans on. Used for the depth chart (ADR-079 Q5). Not a rating the sim reads.
+ * leans on. Used for the depth chart (ADR-079 Q5). Not a rating the sim reads. Contracts'
+ * `positionOverall` since ADR-087 P5, so franchise sorts by the same number.
  */
-export function overallAt(position: Position, ratings: AttributeMap): number {
-  const profile = PROFILES[position];
-  const mean = (ids: readonly string[]) => ids.reduce((s, id) => s + (ratings[id] ?? 0), 0) / ids.length;
-  const core = mean(profile.core);
-  return profile.keyPhysical.length === 0 ? core : 0.7 * core + 0.3 * mean(profile.keyPhysical);
-}
+export const overallAt = (position: Position, ratings: AttributeMap): number => positionOverall(position, ratings);
 
 function draftFor(rng: Rng, talent: number, age: number, season: number): PlayerState["bio"]["draft"] {
   const z = talent + 0.5 * gauss(rng);
@@ -133,6 +138,8 @@ interface Drawn {
   readonly ratings: AttributeMap;
   readonly age: number;
   readonly rng: Rng;
+  /** The roster slot he was drawn for (0 = drafted to start), for his career snaps (ADR-087). */
+  readonly slot: number;
 }
 
 export function generateLeagueRosters(input: GenerateLeagueInput): RatedLeague {
@@ -159,7 +166,7 @@ export function generateLeagueRosters(input: GenerateLeagueInput): RatedLeague {
         const m = measure(rng, position, talent);
         const specialist = position === "K" || position === "P" || position === "LS";
         const age = Math.min(36, 21 + (specialist ? 2 : 0) + Math.floor(Math.abs(gauss(rng)) * 4.5));
-        drawn.push({ talent, measurements: m, ratings: rateAttributes(rng, position, talent, m), age, rng });
+        drawn.push({ talent, measurements: m, ratings: rateAttributes(rng, position, talent, m), age, rng, slot });
       }
       // The depth chart: best overall first. Ties keep slot order (sort is stable).
       drawn.sort((a, b) => overallAt(position, b.ratings) - overallAt(position, a.ratings));
@@ -169,7 +176,7 @@ export function generateLeagueRosters(input: GenerateLeagueInput): RatedLeague {
         measurements[String(id)] = p.measurements;
         roster.push(id);
         depthChart[position]!.push(id);
-        players.push({
+        const player: PlayerState = {
           bio: {
             id,
             displayName: drawName(p.rng, usedNames),
@@ -184,7 +191,13 @@ export function generateLeagueRosters(input: GenerateLeagueInput): RatedLeague {
           // ADR-079 Q7: no personality yet. The flat league's placeholder, stated.
           personality: { needs: {}, type: "quiet" },
           teamId: team.id,
-        });
+        };
+        // ADR-087: a fork of its own, which takes no draw from his other streams, so nothing above moves.
+        players.push(input.development
+          ? withDevelopment(player, root.fork(`development/${String(id)}`), {
+            measurements: p.measurements, career: { slot: p.slot, season: input.season },
+          })
+          : player);
       });
     }
     teams.push({ ...team, roster, depthChart });

@@ -6,7 +6,7 @@ rules live in `ARCHITECTURE_CHARTER.md`, and the full working history lives in `
 This page points into both and should stay short. Update the "Where things stand" section when
 a big piece lands.
 
-_Last updated: 23 October 2026._
+_Last updated: 31 October 2026._
 
 ## What the game is
 
@@ -40,7 +40,7 @@ run the play simulator).
 | Playbook | `packages/playbook` | The play cards: formations, pass and run concepts, protections, defensive calls with their fronts, coverages, pressures and disguises. | Yes |
 | Realism checker | `packages/calibration` | Runs thousands of games and compares the results with real NFL numbers. Also holds the computer play-callers used for testing, and the "ladder" checks (described below). | Yes |
 | Player ratings | `packages/attributes` | Makes the made-up league's players and their ratings (ADR-079); will later turn real data into ratings for real rosters. | Made-up rosters: yes. Real data: not started |
-| Front office | `packages/franchise` | Runs the calendar, schedule, standings and playoffs (the season shell), the coaching staffs: hiring and firing (ADR-080), and how the staff get on (ADR-084). Will add the cap, player contracts, free agency and the draft. | Yes: the season shell, coaching staffs and their relationships (none of it affects games) |
+| Front office | `packages/franchise` | Runs the calendar, schedule, standings and playoffs (the season shell), the coaching staffs: hiring and firing (ADR-080), and how the staff get on (ADR-084), and players growing, aging and getting hurt week by week (ADR-087, switched off by default). Will add the cap, player contracts, free agency and the draft. | Yes: the season shell, coaching staffs and their relationships (none of it affects games); player growth and injuries (off by default) |
 | Storylines | `packages/narrative` | Writes the news from what happens in games: each week's headlines, the playoff race, the playoffs and a season review today (ADR-082); storylines, press and reputation later. | Started: the season's news |
 | Game screen | `apps/game` | The browser app: menus, dashboards, the play log. It only displays; it decides nothing. | Not started (a game viewer has its own thread now) |
 
@@ -80,7 +80,7 @@ realism checker came first. Front office and the game screen were started early 
 ## How decisions get made
 
 - **Design notes (ADRs).** Each real decision gets a numbered note in `docs/decisions/`, from
-  ADR-001 up (ADR-076 is the latest in the repo at the time of writing; ADR-077's design note
+  ADR-001 up (ADR-089 is the latest in the repo at the time of writing; ADR-077's design note
   is still in the project files). A note states the problem, the
   proposal, the questions for you, and later your rulings and what was measured.
 - **Your rulings.** Questions come to you as plain football questions. Nothing that changes the
@@ -108,7 +108,22 @@ merged). Measured with play-caller version 4, on the snaps where the pocket held
 spread nearly as they do in the NFL; the rest of the gap is the pocket. The front work is finished,
 so the pocket fix comes next. Its design will take in what a free blitzer really changes (the
 quarterback's feel for the rush, his mobility against the rusher's speed, hot and deep routes, and
-down and distance), and its questions go to you before anything is built.
+down and distance), and its questions go to you before anything is built. The pocket fix (ADR-089)
+is being built in twelve steps; step 0 added the instruments and filed every prediction; step 1
+built a new block clock behind a switch that is off, which with the switch on for measurement
+brought pressure down to about a third of dropbacks while interceptions rose, and you chose to
+finish the pocket before the interception design and to merge it (numbers in
+`packages/calibration/reports/adr-089-step1.md`). Step 2, also behind the switch, makes the
+quarterback react to a rusher half a second away, to one who reaches him, or to his count running
+out, instead of to the pocket's running tally, and starts the pressure warning at one second
+instead of two; default play has still not changed. With the switch on, against step 1's clock on
+the same games, pressure fell from 32% to 28% of dropbacks on the flat-rated test league and from
+33% to 29% on the made-up league, and sacks rose by 0.2 to 0.4 per 100 dropbacks. Four of the five
+graded pocket predictions held; on the made-up league pressure fell 0.02 points further than the
+predicted range, which is reported as filed. The interception check, as amended before step 2, did
+not trip. Step 2's numbers are in `packages/calibration/reports/adr-089-step2.md`; you chose to merge
+it with its switch off (30 October 2026). Step 3 waits on step 2 of the build of where every man stands at
+the snap (ADR-090, designed and ruled 31 October 2026).
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
 NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered
@@ -122,6 +137,19 @@ windows. Its fix is designed right after the pocket fix, measured on the fixed p
   not designed yet.
 - The running back's own blitz read at the snap (ADR-077, ruled but not yet in the repo), after the front work, switched on
   only once the pocket fix works.
+- Where every man stands at the snap (ADR-090, ruled 30-31 October 2026): a spot in yards for all
+  22 players on every play, drawn in the game viewer. Disguises cost ground (a Mug backer and a late
+  rotation really stand there at the snap), and a poor disguiser cheats toward his job. Its first
+  steps change no game and can land while the pocket fix is measured; step 2 is the pocket fix's
+  free rushers.
+- The stem called by the Mike (ADR-091): he times MOVE against the quarterback's count with his
+  Awareness and Play Recognition, the line can be caught moving, and offside is enforced by the
+  NFL's own rules. Each defensive coordinator stems at his own rate, about 9 times a game on
+  average.
+- The battle over the snap count (ADR-092): the defensive coordinator's film study and the Mike's
+  ear decide how well the defense knows the count, and the offensive coordinator fixes it during
+  the game. You chose to have the count matter on every snap (jumping the count, false starts)
+  in a design of its own after the pocket fix, with officials who sometimes miss a call.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.
@@ -158,6 +186,18 @@ the record of every view, how each drifts back to what the two men's personaliti
 grudges, and the moves the coaching carousel makes by itself (a hire, a firing, an extension, the
 season's results). Next, views will feed who stays, how hot the staff meeting's arguments get, and
 what leaks to the press; they never change a game.
+
+**Players grow, age and get hurt (ADR-087, built 24 October 2026, off by default):** with
+`--development` and/or `--injuries` on the season command, every player's ratings move a little
+each week (young players gain, players past about 30 lose, more of it in the offseason, playing time
+and coaching help), injuries happen in games, in practice and away from football with lengths and
+kinds measured from six real NFL seasons, hurt players sit out or play hurt, each head coach sets
+his depth chart his own way, teams short of a player sign a street free agent, and free agents
+nobody signs retire. The season then runs on to the end of the league year, and a save carries all
+of it. With both switches off a season is exactly what it was. The single-season checks
+(`pnpm --filter @ff/calibration player-checks`, `reports/player-checks.md`) compare it with the NFL;
+switching it on by default waits for the 20-season check, after the draft and cap threads' year
+turnover.
 
 **Your coach's personality (ADR-083, ruled 23 October 2026, not built):** your type builds up from
 how you answer people, shown as five meters on your coach page. Only your main trait counts, and it

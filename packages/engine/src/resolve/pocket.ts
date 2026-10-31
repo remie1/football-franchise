@@ -40,6 +40,7 @@ import type { Tunables } from "../tunables.js";
 import type { PocketStatus } from "../types.js";
 import type { PassRushBandLabel } from "./passRush.js";
 import { pocketFloorFromArrival } from "./rushThreat.js";
+import type { ArrivalClock, RushThreat } from "./rushThreat.js";
 
 export interface PressureUpdate {
   readonly pressureDelta: number;
@@ -235,8 +236,70 @@ export function forcesDecision(tunables: Tunables, status: PocketStatusRung): bo
   return forcing.includes(status);
 }
 
+/**
+ * ADR-089 step 2 — MUST ACT, PER RUSHER: its threat part (§4.3, question 2 Half; `pocket-1` only,
+ * under `pocket.forcing` `PER_RUSHER`).
+ *
+ * ```
+ * mustAct(tick) = exists threat: (registered(threat) and eta(threat) - tick <= 0.5) or arrived(threat)
+ *              or tick >= budget or readsUsed >= maxReads
+ * ```
+ *
+ * This is the first line: a registered threat within the forcing point, or any threat that has
+ * arrived. The count part (the second line) stays in `sim/passPlay.ts`'s `mustDecide`, unchanged.
+ * Under `PER_RUSHER` this replaces `forcesDecision(pocket)` inside `mustDecide` and gates the
+ * movement branch; `POCKET_STATUS` is still `pocketStatusFor` (the counter, the band floor and the
+ * arrival floor) and still drives accuracy and the read penalty, but the counter and the band floor
+ * alone no longer force (ADR-089 §4.3; `match-engine.md` §7.2's step-2 block).
+ *
+ * The half second is `arrival.collapsingWithinSeconds` itself, read here from the tunables it is
+ * handed, not a new dial (default D32), so the warning stays tied to it by the July rule.
+ *
+ * Two minima, because "an unseen rusher does not force at half a second; his arrival does"
+ * (ADR-089 §4.3): `minTtaRegistered` is the nearest registered threat's time to arrival and
+ * `minTtaAll` every threat's, `undefined` when there is none. **Until step 7 builds sight, every
+ * threat counts as registered**, so the caller passes the same `minTimeToArrival(threats, tick)`
+ * twice. At step 7 the first becomes the minimum over registered threats (a LATE threat from the
+ * first tick he is within 0.5 s, a NEVER threat never) while the second stays every threat's.
+ *
+ * Pure, and it draws no die.
+ */
+export function mustActThreat(
+  tunables: Tunables,
+  minTtaRegistered: number | undefined,
+  minTtaAll: number | undefined,
+): boolean {
+  return (
+    (minTtaRegistered !== undefined && minTtaRegistered <= tunables.arrival.collapsingWithinSeconds) ||
+    (minTtaAll !== undefined && minTtaAll <= 0)
+  );
+}
+
 /** §7.2 — the QB is going down if he has no one to throw to under this status. */
 export function sacksWithoutTarget(tunables: Tunables, status: PocketStatusRung): boolean {
   const sacking: readonly string[] = tunables.pocket.sackWhenNoTarget;
   return sacking.includes(status);
+}
+
+/**
+ * ADR-089 step 2 — THE NARROWER COUNTER RULE, information only (§4.3's alternative; `pocket-1`
+ * only, under `pocket.forcing` `COUNTER_LESS_SEEN`).
+ *
+ * "Keep `forcesDecision`, but leave out of the counter any matchup whose won rep already has a live
+ * threat the arrival floor sees." True when this matchup's threat is in `threats` (the tick's list,
+ * the one `pocketFloorFromArrival` reads through `minTimeToArrival`) with origin `WON_REP`: arrival
+ * already prices that rusher, so his counter is not counted twice. A matchup with no live threat
+ * (never won, reset, or a won rep time-retired the instant it was made, which arrival cannot see)
+ * and one whose threat is not a won rep (an unblocked man has no rep to leave out) still count.
+ *
+ * It changes the published `POCKET_STATUS`, so adopting it would need a named amendment of
+ * ADR-058's band-floor rule, which ADR-089 §7.2 does not list: it runs as an information arm and is
+ * not ruled on. The forcing stays the status's (`forcesDecision`). Pure, and it draws no die.
+ */
+export function counterExcludes(
+  m: { readonly threat: RushThreat | undefined },
+  threats: readonly ArrivalClock[],
+): boolean {
+  const threat = m.threat;
+  return threat !== undefined && threat.origin === "WON_REP" && threats.includes(threat);
 }

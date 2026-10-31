@@ -6,7 +6,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const PERMITTED = new Set(["generateLeagueRosters", "GenerateLeagueInput", "FictionalProvenance"]);
+/** ADR-086 R1 (Amendment 14) adds the draft-class maker. */
+const PERMITTED = new Set(["generateLeagueRosters", "GenerateLeagueInput", "FictionalProvenance", "generateDraftClass", "GenerateDraftClassInput"]);
 
 function files(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
