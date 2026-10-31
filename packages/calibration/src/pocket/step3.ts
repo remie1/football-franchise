@@ -117,7 +117,7 @@ import { POCKET_1_S1_PINS, type S1PinArm } from "./s1Pins.js";
 import { s1Problems } from "./s1Stream.js";
 import { CHECKDOWN_TRIGGERS, checkdownTriggersOf, emptyS2Folds, mustActPartsOf, s2Checks, s2ContextOf, s2PlaysOf, s2Problems, selfCheckOf, threatPartAt, type GuardGameVector, type MustActSelfCheck, type S2Context, type S2Folds, type S2Play } from "./s2Stream.js";
 import { POCKET_1_S2_PINS } from "./s2Pins.js";
-import { clockKeyOf } from "./freeRunKey.js";
+import { centerOfPlayStart, clockKeyOf, onClockUnder, touchOfCheck, type ClockKey, type Touch, type TouchingCheck } from "./freeRunKey.js";
 import { emptyS3Folds, foldS3Game, s3Problems, type S3Folds } from "./s3Stream.js";
 import { openFiling, PR33_STATE, sanitize, type Step3Args } from "./step0.js";
 import {
@@ -459,6 +459,48 @@ export function firstFreeRunnerTenths(d: Dropback): number | undefined {
 }
 
 /**
+ * Per play, the first arrival among men on the free-run clock under `key` (AM-2's key: each
+ * rusher's first published threat, his touch read from the CHECK his record names), in tenths; a
+ * play with none is absent. The alone arms' gap beside the origin-keyed one (reviews FID-F-3,
+ * MEAS-N8: `firstFreeRunnerTenths` takes every threat not from a won rep, touched men included).
+ */
+export function firstClockRunnerTenthsByPlay(events: readonly { readonly event: { readonly type: string; readonly playId?: unknown; readonly payload?: unknown } }[], key: ClockKey): ReadonlyMap<string, number> {
+  const out = new Map<string, number>();
+  let playId: string | undefined;
+  let center: string | undefined;
+  const touches = new Map<string, Touch>();
+  const seen = new Set<string>();
+  for (const { event } of events) {
+    const id = event.playId === undefined || event.playId === null ? undefined : String(event.playId);
+    if (event.type === "PLAY_START") {
+      playId = id;
+      center = centerOfPlayStart(event.payload);
+      touches.clear();
+      seen.clear();
+      continue;
+    }
+    if (id === undefined || id !== playId) continue;
+    if (event.type === "CHECK") {
+      const c = event.payload as TouchingCheck & { readonly roll?: { readonly rngLabel?: string } };
+      const label = c.roll?.rngLabel;
+      const touch = label === undefined ? undefined : touchOfCheck(c, center);
+      if (label !== undefined && touch !== undefined) touches.set(label, touch);
+      continue;
+    }
+    if (event.type !== "RUSH_THREAT") continue;
+    const t = event.payload as { readonly rusher: unknown; readonly origin: string; readonly rollRef: string; readonly etaTick: number };
+    const rusher = String(t.rusher);
+    if (seen.has(rusher)) continue;
+    seen.add(rusher);
+    if (!onClockUnder(key, t.origin, touches.get(t.rollRef))) continue;
+    const tenths = Math.round(t.etaTick * 10);
+    const was = out.get(id);
+    out.set(id, was === undefined ? tenths : Math.min(was, tenths));
+  }
+  return out;
+}
+
+/**
  * The literal count against the filed Wait table (plan §7 class (ii)): D19's men, and of them those
  * whose published tenth is earlier than M8's WAIT tenth (the literal count, by row), with the later
  * and the same beside (review FID-F-2, MEAS-S3: a later man is not an earlier free runner).
@@ -533,6 +575,8 @@ export interface Step3LeagueFolds {
   readonly composition: CompositionFold;
   /** Each game's first free-runner arrivals: `<sum of tenths>/<dropbacks with a free runner>`, one string a game, in the fold's order. */
   readonly freeRunnerEta: readonly string[];
+  /** The same over men on the free-run clock under the arm's own reading (AM-2's key; D19 on an arm with no free-run block). */
+  readonly clockRunnerEta: readonly string[];
 }
 
 /** C1's M5 on one league: its games' counts unmirrored and mirrored (the picture's plays left out), and the exact free-run mirror row. */
@@ -581,10 +625,11 @@ export function playStep3Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
     wait: WaitLiteralFold;
     composition: CompositionFold;
     eta: string[];
+    clockEta: string[];
     unmirrored: M5Game[];
     missSplit?: Step3MissSplitRecord;
   }
-  const fresh = (): LeagueState => ({ s2: emptyS2Folds(), s3: emptyS3Folds(), part1: emptyPart1Fold(), wait: emptyWaitLiteralFold(), composition: {}, eta: [], unmirrored: [] });
+  const fresh = (): LeagueState => ({ s2: emptyS2Folds(), s3: emptyS3Folds(), part1: emptyPart1Fold(), wait: emptyWaitLiteralFold(), composition: {}, eta: [], clockEta: [], unmirrored: [] });
   const state: Record<League, LeagueState> = { flat: fresh(), gen: fresh() };
   const base = playArm(id, seedSet, env, {
     corpus,
@@ -596,6 +641,9 @@ export function playStep3Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
       const m8: M8Context = { tunables, positions: ctx.positions, players: ctx.players };
       let sum = 0;
       let n = 0;
+      const clockFirst = firstClockRunnerTenthsByPlay(o.events, clockKeyOf(tunables));
+      let clockSum = 0;
+      let clockN = 0;
       for (const play of s2PlaysOf(o.events)) {
         s2Checks.liveSet(L.s2.liveSet, play, ctx);
         s2Checks.mustAct(L.s2.mustAct, play, ctx);
@@ -610,11 +658,17 @@ export function playStep3Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
           sum += first;
           n += 1;
         }
+        const clockAt = clockFirst.get(play.playId);
+        if (clockAt !== undefined) {
+          clockSum += clockAt;
+          clockN += 1;
+        }
         if (s3) foldWaitLiteral(L.wait, play.dropback, m8);
       }
       s2Checks.guardGame(L.s2.guardGames, o.events, ctx);
       if (!s3) s2Checks.m2(L.s2.m2, o.events, ctx);
       L.eta.push(`${String(sum)}/${String(n)}`);
+      L.clockEta.push(`${String(clockSum)}/${String(clockN)}`);
       if (s3) {
         foldS3Game(L.s3, o.events, tunables);
         foldPart1Game(L.part1, o.events, snapshot, tunables);
@@ -653,6 +707,7 @@ export function playStep3Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
       missSplit: L.missSplit,
       composition: L.composition,
       freeRunnerEta: L.eta,
+      clockRunnerEta: L.clockEta,
     };
   };
   const { format: _format, stamp: _stamp, ...rest } = base;
@@ -1448,8 +1503,11 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
     if (!bothPresent(id, "B3")) continue;
     for (const league of LEAGUES) {
       const pairs = sets.flatMap((s) => (at(id, s) === undefined || at("B3", s) === undefined ? [] : [{ arm: at(id, s)!.s3[league].freeRunnerEta, base: at("B3", s)!.s3[league].freeRunnerEta }]));
+      const clockPairs = sets.flatMap((s) => (at(id, s) === undefined || at("B3", s) === undefined ? [] : [{ arm: at(id, s)!.s3[league].clockRunnerEta, base: at("B3", s)!.s3[league].clockRunnerEta }]));
+      const resolvedOf = (g: { readonly gap: number | null; readonly se: number | null }): boolean => g.gap !== null && g.se !== null && g.se > 0 && Math.abs(g.gap) >= 2 * g.se;
       const g = pairedEtaGap(pairs);
-      alone.push({ arm: id, role: armById(id).role, league, ...g, resolved: g.gap !== null && g.se !== null && g.se > 0 && Math.abs(g.gap) >= 2 * g.se });
+      const c = pairedEtaGap(clockPairs);
+      alone.push({ arm: id, role: armById(id).role, league, ...g, resolved: resolvedOf(g), clock: { ...c, resolved: resolvedOf(c) } });
     }
   }
 

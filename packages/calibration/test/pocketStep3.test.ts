@@ -56,6 +56,7 @@ import {
   checkFilingForStep3,
   classifyStep3Miss,
   closedStep3Writes,
+  firstClockRunnerTenthsByPlay,
   firstFreeRunnerTenths,
   gradeStep3,
   isS3Arm,
@@ -464,6 +465,31 @@ describe("the readings (plan §5.2, §7; critique 4 S4-8, S4-14)", () => {
     expect(fold).toEqual({ men: 4, sooner: 2, later: 1, same: 1, byRow: { WIDE_9: 2 } });
     expect(waitLiteralText(fold)).toBe("2 of 4 D19 men earlier than the filed Wait table (WIDE_9 2); later 1, same 1");
   });
+
+  it("reviews FID-F-3, MEAS-N8: the first arrival among men on the clock under the arm's key, beside the origin-keyed one", () => {
+    const ev = (playId: string, type: string, payload: unknown) => ({ event: { playId, type, payload } });
+    const threat = (playId: string, rusher: string, origin: string, rollRef: string, etaTick: number) => ev(playId, "RUSH_THREAT", { rusher, origin, rollRef, etaTick });
+    const events = [
+      ev("p1", "PLAY_START", { offense: { protectionScheme: { center: "c" } } }),
+      ev("p1", "CHECK", { checkKind: "blitz_pickup", actors: ["rb", "lb1"], band: "RAN_THROUGH", roll: { rngLabel: "pk/lb1" } }),
+      ev("p1", "CHECK", { checkKind: "stunt_communication", actors: ["c", "dt1", "de1"], band: "LATE_EXCHANGE", roll: { rngLabel: "st/de1" } }),
+      threat("p1", "dt2", "WON_REP", "rep", 0.9),
+      threat("p1", "lb1", "PICKUP_LOST", "pk/lb1", 1.2),
+      threat("p1", "de1", "STUNT_LOOPER", "st/de1", 1.7),
+      threat("p1", "cb", "UNBLOCKED", "none", 2.04),
+      // A later publication of a man already seen is not his first.
+      threat("p1", "lb1", "PICKUP_LOST", "pk/lb1", 0.5),
+      ev("p2", "PLAY_START", {}),
+      threat("p2", "dt2", "WON_REP", "rep", 1.0),
+    ];
+    // Reading B: the touched pickup is off the clock; the untouched exchange (no hand) is on it.
+    expect([...firstClockRunnerTenthsByPlay(events, { reading: "B", d19: false })]).toEqual([["p1", 17]]);
+    expect([...firstClockRunnerTenthsByPlay(events, { reading: "B", origins: ["UNBLOCKED"], d19: false })]).toEqual([["p1", 20]]);
+    // Reading C: every free runner; the origin-keyed figure takes the touched man too.
+    expect([...firstClockRunnerTenthsByPlay(events, { reading: "C", d19: false })]).toEqual([["p1", 12]]);
+    const t = (rusher: string, origin: string, etaTick: number): unknown => ({ rusher, origin, etaTick });
+    expect(firstFreeRunnerTenths({ threats: [t("dt2", "WON_REP", 0.9), t("lb1", "PICKUP_LOST", 1.2), t("de1", "STUNT_LOOPER", 1.7), t("cb", "UNBLOCKED", 2.04)] } as unknown as Dropback)).toBe(12);
+  });
 });
 
 describe("Q-3's projection on step 2's committed records (plan §5.1)", () => {
@@ -530,6 +556,11 @@ describe("real arms on a cut corpus (C1, B3)", () => {
       for (const x of [r, b3!]) {
         expect(x.s3[l].freeRunnerEta).toHaveLength(x.measures[l].games);
         expect(x.s3[l].freeRunnerEta.every((s) => /^\d+\/\d+$/.test(s))).toBe(true);
+        expect(x.s3[l].clockRunnerEta).toHaveLength(x.measures[l].games);
+        expect(x.s3[l].clockRunnerEta.every((s) => /^\d+\/\d+$/.test(s))).toBe(true);
+        // A dropback with a man on the clock has a free runner, so the clock-keyed count is never larger.
+        const count = (xs: readonly string[]): number => xs.reduce((a, v) => a + Number(v.split("/")[1]), 0);
+        expect(count(x.s3[l].clockRunnerEta)).toBeLessThanOrEqual(count(x.s3[l].freeRunnerEta));
         expect(x.s3[l].missSplit.counts.dropbacks).toBe(x.measures[l].dropbacks);
       }
     }

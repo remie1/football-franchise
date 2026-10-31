@@ -1199,17 +1199,27 @@ export interface Step3StandIn {
   readonly filed: string;
 }
 
-/** An alone arm's mean first free-runner arrival tick and its gap from B3, with the paired SE (critique 4 S4-14). */
-export interface Step3AloneRow {
-  readonly arm: string;
-  readonly role: string;
-  readonly league: League;
+/** An alone arm's paired gap from B3 on one population: the ratio means, the gap, its paired SE, the games, and whether it is resolved (about 2 SE). */
+export interface Step3AloneGap {
   readonly armMean: number | null;
   readonly baseMean: number | null;
   readonly gap: number | null;
   readonly se: number | null;
   readonly games: number;
   readonly resolved: boolean;
+}
+
+/**
+ * An alone arm's mean first arrival tick and its gap from B3, with the paired SE (critique 4 S4-14):
+ * the first arrival among threats not from a won rep, touched men included; and beside it
+ * (`clock`) the first arrival among men on the free-run clock under the arm's own reading (AM-2's
+ * key; B3 by D19), which the held inputs of C3 to C5 and C7 to C9 move (reviews FID-F-3, MEAS-N8).
+ */
+export interface Step3AloneRow extends Step3AloneGap {
+  readonly arm: string;
+  readonly role: string;
+  readonly league: League;
+  readonly clock: Step3AloneGap;
 }
 
 /** The declared composition print (plan §5.4; critique 4 S4-5): one class, keyed by first must-act tick and forcing source. */
@@ -1412,13 +1422,13 @@ export function renderStep3Sections(s: Step3Sections): readonly string[] {
   for (const x of s.standIns) out.push(`- ${x.clause} (${x.row}), ${x.league}, set ${String(x.seedSet)}: C2 - B6 ${signed(x.delta)}; the stand-ins' ${x.standIn}; filed ${x.filed}`);
   out.push("");
 
-  out.push("## The alone arms: each arm's mean first free-runner arrival tick against B3 (critique 4 S4-14; information)");
+  out.push(
+    "## The alone arms: each arm's mean first arrival tick against B3, among threats not from a won rep, touched men included; beside it, among men on the free-run clock under the arm's own reading (AM-2's key; B3 by D19) (critique 4 S4-14; information)",
+  );
   out.push("");
-  for (const x of s.alone) {
-    out.push(
-      `- ${x.arm} (${x.role}), ${x.league}: ${fmt(x.armMean, 3)} s against B3's ${fmt(x.baseMean, 3)} s, gap ${signed(x.gap, 3)} s, paired SE ${fmt(x.se, 3)} over ${String(x.games)} games: ${x.resolved ? "resolved" : "not resolved (under about 2 SE)"}`,
-    );
-  }
+  const gapText = (g: Step3AloneGap): string =>
+    `${fmt(g.armMean, 3)} s against B3's ${fmt(g.baseMean, 3)} s, gap ${signed(g.gap, 3)} s, paired SE ${fmt(g.se, 3)} over ${String(g.games)} games: ${g.resolved ? "resolved" : "not resolved (under about 2 SE)"}`;
+  for (const x of s.alone) out.push(`- ${x.arm} (${x.role}), ${x.league}: ${gapText(x)}; on the clock: ${gapText(x.clock)}`);
   out.push("");
 
   out.push("## The information arms against their bases (reported, never graded)");
