@@ -5,7 +5,7 @@ import {
 } from "@ff/contracts";
 import {
   buildLeague, runSeason, leagueYearSteps, marketWindow, teamCapTotal, veteranContract, minimumSalary, capForecast,
-  liveIn, countsForComp, adjustedCap, designatedIn, needWeights, offerWorth, valuePlayer, marketCurves, apyOf, percentileOf, quantile,
+  liveIn, countsForComp, adjustedCap, designatedIn, needWeights, offerWorth, valuePlayer, marketCurves, termFor, apyOf, percentileOf, quantile,
   type GameResolver, type LeaguePeople,
 } from "../src/index.js";
 import { WANTED, type Rate } from "../src/draft/board.js";
@@ -237,6 +237,19 @@ describe("market pieces", () => {
     const curves = marketCurves(cs, ps, 2026, rate);
     expect(valuePlayer(player("d", "WR", 70, 25, 3), 70, curves, 1e6).apy).toBeCloseTo(20e6, -5);
     expect(valuePlayer(player("e", "WR", 70, 33, 3), 70, curves, 1e6).apy).toBeLessThan(20e6);
+  });
+
+  it("prices keep pace with the cap, and a deal runs the real length for its size", () => {
+    const ps = [player("a", "WR", 60, 25, 3), player("b", "WR", 70, 25, 3), player("c", "WR", 80, 25, 3)];
+    const cs = ps.map((p, i) => veteranContract({ player: p.bio.id, team: league.teams[0]!.id, season: 2026, signedAt: at, apy: (i + 1) * 10e6, years: 3, bonusShare: 0, guaranteedYears: 0, minimum: () => 1e6 }));
+    const grown = (s: number) => (s === 2026 ? 300e6 : 330e6);
+    // Signed at 2026's cap, counted in 2027's dollars: 10% more.
+    expect(quantile(marketCurves(cs, ps, 2027, rate, grown).get("WR")!.apys, 0.5)).toBeCloseTo(apyOf(cs[1]!) * 1.1, -4);
+    // A $20M deal is 6.7% of a $300M cap: the real average for that size is 2.78 years, so a 27-year-old gets 3.
+    expect(termFor(27, "WR", 0.5, 20e6 / 300e6)).toBe(3);
+    expect(termFor(22, "WR", 0.95, 30e6 / 300e6)).toBe(5); // a young star: longer, up to five
+    expect(termFor(27, "WR", 0.2, 1e6 / 300e6)).toBe(1); // a depth deal: a year
+    expect(termFor(32, "WR", 0.95, 30e6 / 300e6)).toBe(1); // past 31, one year whatever the size
   });
 
   it("an offer is weighed by need: the same money is worth more from a winner, as a starter, at home", () => {
