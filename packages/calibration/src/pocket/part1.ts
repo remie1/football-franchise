@@ -41,8 +41,10 @@
  *    sooner. One point more Speed alone is reported by count and size, unrounded and at the tenth.
  *    Graded on the design and pricing arms (C1, C2) by the harness; computed on every arm.
  *  - **The mirror (`s3.part1.mirror`).** Each such man's time with every x turned round the ball
- *    (his spot, the ball's, his partner's) is the same double. The published mirror is
- *    `m5Mirror.ts`'s exact free-run row and its z per row (`m5RowZ`).
+ *    (his spot, the ball's, his partner's) is the same double. This is a calibration self-check:
+ *    both sides are calibration's own `freeRunTime`, so no engine fault can make it fail (review
+ *    CT-F4). The engine's mirror is `m5Mirror.ts`'s exact free-run row (games played on the mirror
+ *    seam, each man's published etaTick) and its z per row (`m5RowZ`).
  *
  * Every figure is a count over the stream, keyed by play, man and label, never by iteration order.
  * Nothing here reads a die, a clock or `Math.random`.
@@ -232,7 +234,7 @@ export interface Part1Fold {
   /** M8's table on the published picture: `origin/band|row|position`. */
   table: Record<string, Part1Cell>;
   monotone: Part1Monotone;
-  /** Men whose mirrored time is not the same double. */
+  /** Men whose mirrored time is not the same double (a calibration self-check of `freeRunTime`, not the engine's mirror). */
   mirror: Part1Count;
   /** Build faults: part 1, off the clock, the touched check, the mirror, a missing picture or entry. */
   problemCount: number;

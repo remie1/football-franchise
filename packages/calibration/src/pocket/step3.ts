@@ -117,6 +117,7 @@ import { POCKET_1_S1_PINS, type S1PinArm } from "./s1Pins.js";
 import { s1Problems } from "./s1Stream.js";
 import { CHECKDOWN_TRIGGERS, checkdownTriggersOf, emptyS2Folds, mustActPartsOf, s2Checks, s2ContextOf, s2PlaysOf, s2Problems, selfCheckOf, threatPartAt, type GuardGameVector, type MustActSelfCheck, type S2Context, type S2Folds, type S2Play } from "./s2Stream.js";
 import { POCKET_1_S2_PINS } from "./s2Pins.js";
+import { clockKeyOf } from "./freeRunKey.js";
 import { emptyS3Folds, foldS3Game, s3Problems, type S3Folds } from "./s3Stream.js";
 import { openFiling, PR33_STATE, sanitize, type Step3Args } from "./step0.js";
 import {
@@ -677,6 +678,17 @@ export function planStep3(opts: { readonly arms?: readonly ArmId[]; readonly sha
 }
 
 /** `--part1`'s run list: the playable `pocket-1.s3` arms (C13 plays pocket-1.s2 and has no part 1). */
+/** An arm times free runners from the picture (a free-run block): part 1 has untouched men to check on every corpus. */
+export const timesFromPicture = (id: ArmId): boolean => armById(id).tunables.blitzPickup.freeRun !== undefined;
+
+/** An arm's reading can make a late block: the bundle carries one and the reading is not C (which runs none). */
+export function makesLateBlocks(id: ArmId): boolean {
+  const t = armById(id).tunables;
+  if (t.blitzPickup.lateBlock === undefined) return false;
+  const key = clockKeyOf(t);
+  return key.d19 || key.reading !== "C";
+}
+
 export const STEP3_PART1_IDS: readonly ArmId[] = Object.freeze(STEP3_PLAYABLE.filter((id) => isS3Arm(id)));
 
 // --- the readings ------------------------------------------------------------------------------------------------
@@ -885,7 +897,17 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
   // --- the structural proofs and the fold checks ---
   const proofs: Step2Proof[] = [];
 
-  const part1Fails = s3Present.flatMap((x) => LEAGUES.flatMap((l) => (x.r.s3[l].part1 === null ? [`${where(x)} ${l}: no part-1 fold`] : part1Problems(x.r.s3[l].part1!).map((p) => `${where(x)} ${l}: ${p}`))));
+  // Review CT-F3: no proof passes on an arm-league it did not read. A null fold fails; an arm that
+  // times free runners from the picture checks men on each league; the monotone arms read men on
+  // each league; the late block expects some where an arm's reading makes one.
+  const part1Fails = s3Present.flatMap((x) => LEAGUES.flatMap((l) => {
+    const f = x.r.s3[l].part1;
+    if (f === null) return [`${where(x)} ${l}: no part-1 fold`];
+    return [
+      ...part1Problems(f).map((p) => `${where(x)} ${l}: ${p}`),
+      ...(timesFromPicture(x.id) && f.part1.checked === 0 ? [`${where(x)} ${l}: no man checked: the proof saw no case`] : []),
+    ];
+  }));
   const part1Checked = sumOf(s3Present.flatMap((x) => LEAGUES.map((l) => x.r.s3[l].part1?.part1.checked ?? 0)));
   proofs.push({
     id: "s3.part1",
@@ -896,7 +918,11 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
   });
 
   const monoPresent = present.filter((x) => STEP3_MONOTONE_ARMS.includes(x.id));
-  const monoFails = monoPresent.flatMap((x) => LEAGUES.flatMap((l) => (x.r.s3[l].part1 === null ? [] : monotoneProblems(x.r.s3[l].part1!).map((p) => `${where(x)} ${l}: ${p}`))));
+  const monoFails = monoPresent.flatMap((x) => LEAGUES.flatMap((l) => {
+    const f = x.r.s3[l].part1;
+    if (f === null) return [`${where(x)} ${l}: no part-1 fold`];
+    return [...monotoneProblems(f).map((p) => `${where(x)} ${l}: ${p}`), ...(f.monotone.men === 0 ? [`${where(x)} ${l}: no man read`] : [])];
+  }));
   const monoMen = sumOf(monoPresent.flatMap((x) => LEAGUES.map((l) => x.r.s3[l].part1?.monotone.men ?? 0)));
   const speedAlone = monoPresent.flatMap((x) => LEAGUES.map((l) => {
     const m = x.r.s3[l].part1?.monotone.speedAlone;
@@ -915,25 +941,37 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
     ...l.rows.filter((r) => !r.withinNoiseOnEverySet).map((r) => `${l.league} ${r.row} outside the noise`),
     ...l.freeRunMirror.filter((f) => !f.exact).map((f) => `${l.league} set ${String(f.set)} free-run mirror not exact (${String(f.menDiffering)} of ${String(f.menCompared)} men differ)`),
   ]);
-  const mirrorFails = s3Present.flatMap((x) => LEAGUES.flatMap((l) => ((x.r.s3[l].part1?.mirror.failed ?? 0) > 0 ? [`${where(x)} ${l}: ${String(x.r.s3[l].part1!.mirror.failed)} of ${String(x.r.s3[l].part1!.mirror.checked)} men's mirrored times differ`] : [])));
+  // Part 1's mirrored time is a calibration self-check (review CT-F4): M8's function on a man and on
+  // his mirror image, both calibration's; the engine's mirror is M5's exact free-run row. It is
+  // graded on every arm whether or not M5 ran (review CT-F3).
+  const mirrorFails = s3Present.flatMap((x) => LEAGUES.flatMap((l) => {
+    const f = x.r.s3[l].part1;
+    if (f === null) return [`${where(x)} ${l}: no part-1 fold`];
+    return f.mirror.failed > 0 ? [`${where(x)} ${l}: ${String(f.mirror.failed)} of ${String(f.mirror.checked)} men's mirrored times differ (calibration self-check)`] : [];
+  }));
+  const allMirrorFails = [...m5Fails, ...mirrorFails];
   proofs.push({
     id: "s3.mirror",
-    what: `the mirror guard (s3.part1.mirror): M5 on ${STEP3_M5_ARM} within the noise on every row and set, the exact free-run mirror on each league and set, and part 1's mirrored time the same on every arm`,
+    what: `the mirror guard (s3.part1.mirror): M5 on ${STEP3_M5_ARM} within the noise on every row and set, the exact free-run mirror on each league and set, and part 1's mirrored time the same on every arm (a calibration self-check of M8's function, read on every run)`,
     kind: "structural",
-    verdict: m5 === null ? "NOT APPLICABLE" : m5Fails.length > 0 || mirrorFails.length > 0 ? "FAIL" : "PASS",
-    detail: m5 === null ? `${STEP3_M5_ARM} is not in this run` : `failures ${[...m5Fails, ...mirrorFails].join("; ") || "none"}`,
+    verdict: allMirrorFails.length > 0 ? "FAIL" : m5 === null ? "NOT APPLICABLE" : "PASS",
+    detail: `${m5 === null ? `M5's rows not applicable: ${STEP3_M5_ARM} is not in this run; ` : ""}failures ${allMirrorFails.join("; ") || "none"}`,
   });
 
   const lateFails = s3Present.flatMap((x) => LEAGUES.flatMap((l) => {
     const L = x.r.s3[l];
-    return L.lateBlock === null || L.census === null ? [] : s3Problems({ lateBlock: L.lateBlock, census: L.census }).map((p) => `${where(x)} ${l}: ${p}`);
+    if (L.lateBlock === null || L.census === null) return [`${where(x)} ${l}: no ${L.lateBlock === null ? "late-block" : "census"} fold`];
+    return s3Problems({ lateBlock: L.lateBlock, census: L.census }).map((p) => `${where(x)} ${l}: ${p}`);
   }));
+  const lateArms = s3Present.filter((x) => makesLateBlocks(x.id));
+  const lateExpected = sumOf(lateArms.flatMap((x) => LEAGUES.map((l) => x.r.s3[l].lateBlock?.expected ?? 0)));
+  const lateNoCase = lateArms.length > 0 && lateExpected === 0;
   proofs.push({
     id: "s3.lateBlock",
     what: "the late block's place in the stream (AM-2 `lateBlock`): every expected late block present with its toucher, beat tick and beaten threat, on every pocket-1.s3 arm",
     kind: "structural",
-    verdict: s3Present.length === 0 ? "NOT APPLICABLE" : lateFails.length > 0 ? "FAIL" : "PASS",
-    detail: `${String(sumOf(s3Present.flatMap((x) => LEAGUES.map((l) => x.r.s3[l].lateBlock?.lateBlocks ?? 0))))} late blocks read; failures ${lateFails.length === 0 ? "none" : lateFails.join("; ")}`,
+    verdict: s3Present.length === 0 ? "NOT APPLICABLE" : lateFails.length > 0 || lateNoCase ? "FAIL" : "PASS",
+    detail: `${String(sumOf(s3Present.flatMap((x) => LEAGUES.map((l) => x.r.s3[l].lateBlock?.lateBlocks ?? 0))))} late blocks read (${String(lateExpected)} expected over the ${String(lateArms.length)} arm-sets whose reading makes them); failures ${lateFails.length === 0 ? "none" : lateFails.join("; ")}${lateNoCase ? "; no late block expected: the proof saw no case" : ""}`,
   });
 
   const offered = Object.keys(MISS_OPTIONS);

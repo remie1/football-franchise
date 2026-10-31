@@ -706,7 +706,39 @@ describe("grading synthetic records under AM-3's stand-in", () => {
     expect(proof(inexact, "s3.mirror").detail).toContain("gen set 2 free-run mirror not exact (3 of ");
     // Without C1 in the run there is no M5 to read.
     const noC1 = grade(recordsOf(guard.digest, (m) => { m.delete("C1"); }));
-    expect(proof(noC1, "s3.mirror")).toMatchObject({ verdict: "NOT APPLICABLE", detail: "C1 is not in this run" });
+    expect(proof(noC1, "s3.mirror")).toMatchObject({ verdict: "NOT APPLICABLE", detail: "M5's rows not applicable: C1 is not in this run; failures none" });
+  });
+
+  it("review CT-F3: no proof passes on an arm-league it did not read, and part 1's mirror is graded without M5", () => {
+    // s3.part1: one arm-league that times free runners from the picture and checked nobody.
+    const unread = grade(recordsOf(guard.digest, (m) => { rec(m, "C5", 2).s3.gen.part1!.part1.checked = 0; }));
+    expect(proof(unread, "s3.part1").verdict).toBe("FAIL");
+    expect(proof(unread, "s3.part1").detail).toContain("C5 set 2 gen: no man checked: the proof saw no case");
+    // s3.monotone: a monotone arm-league with no man read, and one with no part-1 fold.
+    const noMen = grade(recordsOf(guard.digest, (m) => { rec(m, "C2", 1).s3.flat.part1!.monotone.men = 0; }));
+    expect(proof(noMen, "s3.monotone").verdict).toBe("FAIL");
+    expect(proof(noMen, "s3.monotone").detail).toContain("C2 set 1 flat: no man read");
+    const noFold = grade(recordsOf(guard.digest, (m) => { rec(m, "C2", 2).s3.gen.part1 = null; }));
+    expect(proof(noFold, "s3.monotone").detail).toContain("C2 set 2 gen: no part-1 fold");
+    expect(proof(noFold, "s3.monotone").verdict).toBe("FAIL");
+    expect(proof(noFold, "s3.mirror").verdict).toBe("FAIL");
+    // s3.mirror: part 1's mirrored time differing on an arm fails whether or not C1 (M5) is in the run.
+    const selfCheck = grade(recordsOf(guard.digest, (m) => {
+      m.delete("C1");
+      const f = rec(m, "C5", 1).s3.flat.part1!.mirror;
+      f.failed = 2;
+    }));
+    expect(proof(selfCheck, "s3.mirror").verdict).toBe("FAIL");
+    expect(proof(selfCheck, "s3.mirror").detail).toMatch(/^M5's rows not applicable: C1 is not in this run; failures C5 set 1 flat: 2 of \d+ men's mirrored times differ \(calibration self-check\)$/);
+    // s3.lateBlock: a missing fold fails, and no late block expected anywhere a reading makes one fails.
+    const noLate = grade(recordsOf(guard.digest, (m) => { rec(m, "C6", 2).s3.flat.lateBlock = null; }));
+    expect(proof(noLate, "s3.lateBlock").verdict).toBe("FAIL");
+    expect(proof(noLate, "s3.lateBlock").detail).toContain("C6 set 2 flat: no late-block fold");
+    const noCase = grade(recordsOf(guard.digest, (m) => {
+      for (const [, bySet] of m) for (const r of Object.values(bySet)) for (const l of LEAGUES) if (r!.s3[l].lateBlock !== null) r!.s3[l].lateBlock!.expected = 0;
+    }));
+    expect(proof(noCase, "s3.lateBlock").verdict).toBe("FAIL");
+    expect(proof(noCase, "s3.lateBlock").detail).toContain("no late block expected: the proof saw no case");
   });
 
   it("a structural failure is a build fault and holds the card; a moved step-2 reference fails Q-3", () => {
