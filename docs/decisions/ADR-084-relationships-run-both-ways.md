@@ -6,7 +6,8 @@
 - **Status:** design ruled by the owner (B1-B7, 2026-10-23). Contracts edits V1-V3 approved by the
   owner's typed yes (2026-10-23) and made; L1 (the ledger) and the carousel's own moves of L2
   (results, firings, hires, extensions) built (§13); the carousel and the views in the season's walk
-  built (§14). The stay-or-go readers, the meeting's moves and the leaks are not built.
+  built (§14); the stay-or-go readers built as ruled 2026-10-31 (§15). The meeting's moves and the
+  leaks are not built.
 - **Origin:** the owner's F3 ruling in thread "End-of-season staff meeting" (2026-10-22: *"3. A -
   this needs to go to our story-building agent to develop it further"*), which handed the
   relationship model the meeting needs (F3, F4, G6) to the story side.
@@ -359,3 +360,29 @@ hired or fired. This step wires both, in `franchise` only, with no contracts edi
 - **One real season** (seed `walk-1`, both switches): 36 seats changed hands (26 fired, 5 contracts
   run out, 3 hired away, 2 retired), 538 reported view moves; `--stop-after 9 --save` then `--load`
   gives the straight run's event stream exactly.
+
+## 15. As built: stay or go (L2b, ruled 2026-10-31)
+
+The owner's answers, thread "Continue news and storylines", 2026-10-31 01:37Z: *"1. b 2. a 3. a 4. b
+5. a 6. a"* (Q4-Q6 are §16's and the meeting's).
+
+| | Question | Ruling | As built (`RELATIONSHIP_TUNING`) |
+|---|---|---|---|
+| Q1 | A coordinator's contract is up and he is sour on his boss: how likely does he walk? | **(b)** strained 1 in 10, broken 4 in 10 | `walkChance`; head coaches never walk (the president holds no views) |
+| Q2 | Does a head coach's opinion count when he judges a coordinator? | **(a)** strained ≈ 5 places of unit rank, broken ≈ 10; liking protects as much | `fireOpinionPerPoint` 1.6/100 in the firing logit |
+| Q3 | Does style fit change whether a new head coach keeps an inherited coordinator? | **(a)** about ±10 points | `keepFitPerUnit` 0.25 × ADR-080's fit (the coordinator judged, the head coach feeling) |
+
+- **Readings taken:** a walk-out is `STAFF_DEPARTED` with `CONTRACT_EXPIRED` (no contracts edit),
+  marked `walked` on the carousel's `StaffMove`, with no team decision and no sting to his friends
+  (nobody fired him). On the user's team the user holds no views, so Q2 reads nothing there; the
+  user's own choice arrives with the hiring screen. The readers read only when the carousel is given
+  views; the made-up history and the plain turnover check carry none and are unchanged.
+  `relationships.read: false` carries views without reading them (the L2a behaviour, kept for tests
+  and measurement).
+- **Check** (`staff-check --views`, 50 offseasons, four seeds, against the same seeds without views):
+  head coach changes 7.4-8.1 a year (7.3-8.3 without), offensive coordinators 12.5-13.6 (12.9-14.8),
+  defensive 11.5-12.1 (11.9-12.8), special teams 9.1-9.7 (9.5-10.3): inside ADR-080 §8's NFL ranges,
+  coordinators about 0.5 a year steadier because most head coaches like the men they hired. After each
+  offseason 28-31% of views are good, 69-72% professional, 0.1-0.3% strained, none broken; **nobody
+  walked in 200 offseasons.** The readers wait for the meeting, conversations and storylines to sour
+  someone. `relationships.stayOrGo.test.ts` checks the sizes and the bands.
