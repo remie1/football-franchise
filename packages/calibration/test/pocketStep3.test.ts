@@ -5,7 +5,8 @@
  *  - the refusals before anything plays: the filing; the amendments file (whole, under its pin) and
  *    its step-3 view holding AM-1 and AM-2; and, for a run that grades, a filed guard map at step 3
  *    (AM-3). The committed file holds AM-3 (ADR-089 Appendix G, G.9), and preflightStep3 passes on
- *    it. On a temporary copy cut to the entries before AM-3 (`PRE_AM3`), a grading run REFUSES by
+ *    it. The entries filed after AM-3 (AM-4, sight by looks, G.10) change nothing step 3 reads but
+ *    the view's digest, which a copy cut to AM-3 shows. On a temporary copy cut to the entries before AM-3 (`PRE_AM3`), a grading run REFUSES by
  *    name, with nothing played and no cache made; `--part1` and `--digests` are previews and play
  *    without it. The tests that need other maps append a stand-in entry (AM-3's draft, `AM3_STAND_IN`
  *    below) to that cut copy and pin it; the committed file is only read;
@@ -221,9 +222,9 @@ const committedViewDigest = (): string => amendmentsDigestAtStep(loadAmendments(
 // --- the refusals ------------------------------------------------------------------------------------------
 
 describe("the refusals before anything plays (plan §2.10, §4.2)", () => {
-  it("passes the committed filing and amendments for a preview: the step-3 view holds AM-1, AM-2 and AM-3, and its digest is the stamp", () => {
+  it("passes the committed filing and amendments for a preview: the step-3 view holds AM-1 to AM-4, and its digest is the stamp", () => {
     const v = preflightStep3Previews(FILED, AMENDMENTS);
-    expect(v.view.entries.map((e) => e.id)).toEqual(["AM-1", "AM-2", "AM-3"]);
+    expect(v.view.entries.map((e) => e.id)).toEqual(["AM-1", "AM-2", "AM-3", "AM-4"]);
     expect(v.digest).toBe(committedViewDigest());
     expect(v.am2).toBe("AM-2 (ADR-089 Appendix G, G.8)");
     expect(v.file.bands.clauses.some((c) => c.step === "3")).toBe(true);
@@ -249,6 +250,31 @@ describe("the refusals before anything plays (plan §2.10, §4.2)", () => {
     });
     // The filed AM-3 grades with what its stand-in grades with: only the digest differs.
     expect({ ...v.guard, digest: "" }).toEqual({ ...am3Guard(), digest: "" });
+  });
+
+  it("reads nothing of the entries filed after AM-3 but the view's digest: AM-4 (sight, G.10) is read from step 7, so the guard, the refusals and the choices are those of the file cut to AM-3", () => {
+    const later = committedAmendments().entries.map((e) => String(e["id"])).slice(3);
+    expect(later).toEqual(["AM-4"]);
+    const json = committedAmendments();
+    json.entries = json.entries.slice(0, 3);
+    expect(json.entries.map((e) => e["id"])).toEqual(["AM-1", "AM-2", "AM-3"]);
+    const path = join(AM3_DIR, "amendments-through-am3.json");
+    writeFileSync(path, jsonText(json));
+    const cut = preflightStep3(FILED, path, amendmentsDigest(json));
+    const whole = preflightStep3(FILED, AMENDMENTS);
+    // Each later entry is read from a later step and names no guard: step 3's guard and AM-2's name are unchanged.
+    for (const e of whole.view.entries.slice(3)) {
+      expect(Number.parseInt(e.steps[0]!, 10), e.id).toBeGreaterThan(3);
+      expect(e.steps.includes("3"), e.id).toBe(false);
+    }
+    expect({ ...whole.guard, digest: "" }).toEqual({ ...cut.guard, digest: "" });
+    expect(unmadeChoicesOf(whole.view)).toEqual(unmadeChoicesOf(cut.view));
+    expect(unmadeChoicesOf(whole.view)).toEqual([]);
+    // Only the stamp moves: a record made on the cut view is refused by a grading run on the whole one.
+    expect(whole.guard.digest).toBe(committedViewDigest());
+    expect(cut.guard.digest).not.toBe(whole.guard.digest);
+    const previews = preflightStep3Previews(FILED, path, amendmentsDigest(json));
+    expect(previews.am2).toBe(preflightStep3Previews(FILED, AMENDMENTS).am2);
   });
 
   it("REFUSES to grade while AM-3 is not filed (guardFor(view, \"3\") throws), naming AM-3, G.9 and the previews rule", () => {

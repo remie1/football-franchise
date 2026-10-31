@@ -2933,3 +2933,230 @@ Shown to the owner at 2026-10-31T04:01:51Z, not asked.
 8. **The order** (review MEAS-N6). AM-3, then AM-4 (sight, G.10), then AM-5 (shape L's toucher die, G.11, which answers review CT-F7), each filed before step 3, so step 3's view of the file holds all three; then R-1 and the pins; then the arms. A run made between two of these is stamped with a view that has since moved, and grading refuses it.
 
 AM-3's map was shown to the owner at 2026-10-31T04:01:51Z, not asked (the owner page `/mnt/project-files/design/ADR-089-step-3-explained.md`, "Filing changes: shown, not asked"). The rulings above came after that page and are recorded here; item 1 quotes the owner's typed yes.
+
+### G.10 Sight by looks (amendment AM-4)
+
+*Filed before step 3, before any step-3 arm runs, and so well before step 7, which builds it. The machine entry is AM-4 in `reports/adr-089-amendments.filed.json` (its own digest `fnv1a:76b9abe5`; with it the file's digest moves from `fnv1a:b7557c36` to `fnv1a:1528d154`, the new `AMENDMENTS_DIGEST`; both pinned in `adr089Amendments.test.ts`); this is its human record, and it holds the new text of every design line the entry names in `adrLines`, as F.11 holds AM-1's. The step-0 file, `FILED_DIGEST` (`fnv1a:9a1c90e9`), AM-1, AM-2, AM-3 and every line above Appendix E are unchanged: no design line is edited (lines 1 to 2,018 are pinned by `C0_DIGEST`). Where it lands: the stamp check needed no new code, because AM-2's commit already made each step read the file cut to the entries whose `filedBeforeStep` is at or before that step. Step 2's view is still `fnv1a:d5f9de6d` (`STEP2_AMENDMENTS_DIGEST`), so step 2's records keep grading. Step 3's view now holds AM-4, so its digest moves and every step-3 record stamps the new one; nothing else in step 3 reads AM-4, since its steps are 7 to 10, it names no guard or base map (the guard at step 3 is still AM-3's), and it holds no choice still to be made. A test in `pocketStep3.test.ts` holds this. Sight is built at step 7; steps 3 to 6 are unchanged, and until step 7 every threat counts as registered (§4.3). The question, the owner's word and the reading as sent are G.7 item 3 and are not repeated here. The ruling is the owner's; the reading of it, the three points that go beyond its words and default D36 are the Orchestrator's, shown to the owner, not asked.*
+
+**What it amends.** Each passage below takes the place of the design lines named, word for word. Every such line is in the entry's `adrLines`; the lines that read the same are its `cites`.
+
+**§4.8, "Sight: who he has registered"** (in place of lines 781 to 801; lines 802 to 804 read the same):
+
+**Sight: who he has registered** (petition P13, `pocket_sense`; `TM` §3.4; the owner's ruling of 2026-10-31, G.7 item 3 and G.10). "Registered" means he has seen this rusher coming. **He looks for every live rusher he has not registered, more than once** (the owner: "multiple awareness rolls ... at the snap ... at other points along the way"):
+
+- **At the snap**, for every threat on the list at the snap. These are the free runners of D19's three origins and, while they are still free runners, the touched men. The look is labeled `.../t0.0/<rusherId>:sense`.
+- **When his blocker is beaten**, for a threat created after the snap ("a man who beats his blocker gets looked for from that moment on"). The look comes on the line battle that creates the threat (tick s), judged on his remaining time at s, and is labeled `.../t<s>/<rusherId>:sense`. He reaches the quarterback's list only at s + 0.5 (§4.0's tick order).
+- **On every half-second tick after**, at the top of the tick when the threat list is built, for each live rusher not yet registered and not yet arrived. **There is no look on or after the tick he arrives** (his remaining time 0 or less).
+
+**One look a rusher a tick.** Sight belongs to the rusher, not to a threat record:
+
+- A record that replaces his live one is not a creation. This is the sooner arrival of a re-won rep (`soonerThreat`, `sim/passPlay.ts:990-997`, `resolve/rushThreat.ts:607-610`). It gets no beat look and keeps his registration and his from.
+- A bull rusher whose block finally breaks stays registered and draws no look.
+- On one tick he gets at most one look: the snap or beat `:sense`, a top-of-tick `:sense`, or a `:return` (below).
+- Within a tick, looks are drawn nearest remaining time first, then by rusherId. The dice are keyed by label (`contracts/src/rng.ts:52`), so the order moves only the order of events on the stream, which the golden digests pin.
+
+Each look is one CHECK:
+
+```
+margin = d100 + awareness/5 + 10 if he has the Pocket Awareness trait (its specified +10, match-engine.md:2763; stored at tunables.ts:183-186, read by nothing today)
+       + from term (FRONT +20, SIDE 0, BEHIND -30)
+       + closeness 2 x (10 - g), where r10 = round((etaTick - tick) x 10) and g = ceil(r10 / 5) x 5
+       - target                                                                       (terms CHOSEN)
+```
+
+**A look registers him when the margin is 0 or more.** There are no band edges: a look registers him or misses him.
+
+**The closeness term** is 20 points a second, anchored at 1.0 s and read on the half-second grid with his remaining time rounded up. It is +10 with 0.5 s or less left, 0 with 0.6 to 1.0 s, -10 with 1.1 to 1.5 s, -20 with 1.6 to 2.0 s, and 10 less for each half second beyond that. The grid has two reasons, both CHECKED:
+
+- **A slower rusher is never seen early less often.** Read in tenths, a SIDE man due at 1.6 s would be EARLY 0.925 of the time and one due at 2.0 s only 0.872 (modifier 12, target 54). So a faster rusher would sometimes beat sight more often, against `calibration.md` §5.2 item 2. Read on the grid with time rounded up, the EARLY chance never falls as his due time grows. The check covered 54,000 one-tenth steps (targets 50, 53 and 54; modifiers 4 to 27; all three from-classes; starts 0 to 2.0 s) and found no fall. Read in tenths, 38,340 of them fall.
+- **The engine and M7 compute the same margin**, because the arithmetic is in whole tenths. The float `20 * (1.0 - (etaTick - tick))` is not a whole number on 194 of the grid's pairs, and it lands just under the whole number on 95 of them (3.999999999999999 at etaTick 0.8 and tick 0). That would turn the one face with margin exactly 0 into a miss.
+
+**The target** is one number for the league. It is set at step 7, before its arms run, by M7 on step 6's design-arm streams: the value that puts the EARLY share of FRONT and SIDE threats nearest 0.90, threat-weighted, ties to the lower (revision 1's felt rate, 0.85 to 0.95, CHOSEN). On today's streams it would be 53 (G.10).
+
+**The CHECK's band** names the look: EARLY when it registers him with more than 0.5 s left, LATE when it registers him with 0.5 s or less, MISSED when it does not register him. **His grade** comes from the first look that registers him:
+
+| the first look that registers him | sight | what it does |
+|---|---|---|
+| comes more than 0.5 s before he is due | EARLY | The alarm fires, at the moment §4.0 states. |
+| comes within 0.5 s of him | LATE | No alarm: **his first reaction is must act's**, on that tick (§4.3). At must act his read capacity is one lower, the same mechanism as the pocket's own read penalty (`tunables.ts:1382-1387`, as cited at `TM` §3.4). The throw bars are never touched. |
+| never comes before contact | NEVER | No reaction before contact. A NEVER rusher does not make him act at half a second; only his arrival does (§4.3). No choice at contact (§4.5). `QB_HIT.seen` is false. NEVER is never a CHECK band. |
+
+- **On the stream**, a threat whose play ends before any look registers him, and before any contact, has no grade. The stream reports him apart. M7 grades the setting, not the play: it counts the looks each threat would get up to the etaTick published at his creation (M7, line 981).
+- **A man due within one second of his beat** gets one look that can make him EARLY: the beat look, with 1.0 s left. Every interior won rep on today's streams is due 1.0 s after his beat. He enters the list at half a second, so his alarm falls on must act's tick, where D36 gives him one pick. For him, EARLY against LATE decides only the read penalty.
+- **A bull rush (PUSH) is registered with no look and no die**, from the push window's first report, and is EARLY ("A bull rush is always seen", `TMP:46`).
+- **A man still in his block (BLOCKED) gets no look.** Whether he checked such men comes from the band of the movement roll that moved him: SOUND checked them all, RUSHED only the men in front, PANICKED none (`TM` §3.4). This is what question 17's catch reads (§4.7).
+- **Memory.** Once a look registers him, he stays registered for the rest of the play (revision 1's "a threat once felt stays felt"; the reading as sent: "once he spots a rusher, he keeps tracking him"). There is one exception, in the next bullet.
+  - Contact does not register him. A man no look has registered who is shed stays live and keeps getting looks.
+  - If no look registers him before his second arrival, he is still NEVER then (§4.5).
+- **A threat that comes round behind him** (after a step-up under an ARC, or a won dodge) is unregistered when he comes back. Revision 2 had this (`:return`), and the owner's page showed it (`TMP:33`).
+  - He gets one look at the tick of the move, `.../t<tick>/<rusherId>:return`, judged with the BEHIND term on his new remaining time, unless he already had a look earlier on that tick.
+  - After that he gets a `:sense` look on each later tick, with the BEHIND term, until one registers him or he arrives.
+  - Registered again, he sets off no second alarm: the alarm comes once a rusher a play (§4.8's list, line 816).
+- **The label is keyed by tick and rusher**, `.../t<tick>/<rusherId>:sense`, one per look. Revision 1 keyed it by the quarterback and the tick (`R1:581`). `fork` is a pure function of its label (`contracts/src/rng.ts:52`), so two threats on one tick would have drawn the same die, and 40.7% of won-rep creation ticks create two or more threats (COMPUTED by TM, `TM` C2). With one look a rusher a tick, no two looks share a die.
+- **No pre-snap term** (revision 1's X3). A look reads only four things: his awareness, his trait, the threat's from-class (alignment and approach, §4.0) and his remaining time. Remaining time is the physical fact that must act and contact already read.
+  - At step 7 the permutation guard is revision 1's: "a permutation guard on the unshown played rush in the manner of ADR-077's" (`R1:335`). ADR-077's guard holds the read "unchanged when the real rush is permuted with the same personnel and protection".
+  - Here it permutes what he cannot see, the call's identity and its disguise, with the rushers, their alignments and their published times held fixed. Every look's count, tick, label, margin and band must come out unchanged.
+  - A unit test also holds each look's margin to those four inputs.
+- **Until step 7 every threat counts as registered** (§4.3).
+
+**§4.8's felt rate** (in place of line 812; revision 1's quote at lines 806 to 810 is kept): *Revision 2 read "felt" as "seen EARLY". Under looks, the 0.85 to 0.95 is the share of FRONT and SIDE threats that some look registers while he is more than half a second away, counted over the looks he would get before he is due. It is not a per-look probability. Memory is why pkB's doubling does not come back. pkB's feel was memoryless at about 0.5 a tick, so on about half the plays that should have been forced, the rusher was unfelt on the forcing tick. With memory, at the setting that puts EARLY at 0.90, must act's threat part is missed on about 1.4% of the plays that reach it, 0.3 to 0.5 plays in 100 dropbacks (G.10).*
+
+**§4.0, "When the alarm fires"** (in place of line 368):
+
+**When the alarm fires.** For a rusher seen EARLY (sight, §4.8), the alarm fires at the first decision after the look that registers him:
+
+- **registered by the snap look:** on his first tick, 0.5 s, the first moment the engine lets him act. This is the owner's "Yes, at the snap" (2026-10-31); default D20 is overruled;
+- **registered by the beat look:** on the tick he first enters the list, s + 0.5;
+- **registered by a look at the top of a tick:** on that tick;
+- **registered again by a look after he comes round behind:** no alarm (below).
+
+For a bull rush (PUSH), the alarm fires on the first status tick after the push window's first report: t_b - 0.5 when t_b is 1.5 s or later, else t_b (§4.1.1). He gets one reaction from the menu of §4.8, once a rusher a play, so a man registered again after he comes round behind sets off no second alarm. When his alarm falls on must act's tick, or two alarms fall on one tick, default D36 says how the picks run.
+
+**§15.3: the D20 row** (in place of line 1571) **and D36** (new):
+
+| # | default | alternative | reason and evidence | source | where |
+|---|---|---|---|---|---|
+| D20 | **Overruled by the owner (2026-10-31, G.7 item 3).** Every rusher on the list at the snap, the three D19 origins included, is looked for at the snap. One seen there sets off the alarm on the first tick (0.5 s); one seen later, at the first decision after the look that registers him (§4.0, §4.8) | (was the default) the first tick he is within 1.0 s, never at the snap | The owner: "there should be multiple awareness rolls. Yes, at the snap. But at other points along the way." | `FR` D-F4, §5.4; `CM` T6; G.7 items 2 and 3 | §4.0, §4.8 |
+| D36 | **Picks that share a tick.** When a rusher's alarm and must act fall on the same tick, he makes one pick, must act's; the alarm counts as fired and no `:alarm` CHECK is drawn. Two or more alarms on one tick are picked one at a time: nearest etaTick first, then `tunables.ts:1212`'s tie (EDGE first), then rusherId. Each pick sees the moves before it | Two picks on that tick (the alarm's at urgency 0, then must act's); or one pick for all the alarms on a tick | Revision 2 already put such a man on must act's tick at his alarm ("on the tick it first enters the list", line 368) without saying which pick he made. Under its one roll that was 0.966 of interior won reps on gen B3 (8.7 in 100 dropbacks); under looks it is 0.807 (7.2 in 100). Ticks with two or more alarms run 3.08 in 100 dropbacks under looks against 2.76 under the one roll with D20 (gen B3). The order fixes the event order the golden digests pin | G.10; the critiques of the sight draft (C1-F5, C2-N2) | §4.0, §4.8 |
+
+**The other lines, and their exact change:**
+
+| line | where | today | under AM-4 |
+|---|---|---|---|
+| 341 | provenance, the two-moments dials | "the sight terms and band edges" | "the sight terms and closeness slope". The count stays 15, because the slope takes the band edges' place one for one |
+| 343 | provenance, revision 1's felt rate | "Now the target that sets sight's EARLY share at step 7 (§4.8), still **CHOSEN**" | add ", counted over all the looks a threat would get before his published due time (AM-4)" |
+| 348 | provenance, names | lists EARLY, LATE, NEVER and the fork labels | add "MISSED (a look's band)" and "look" to the CHOSEN names |
+| 368 | §4.0, when the alarm fires | D20's moment for the free-run clock | the §4.0 text above |
+| 379 | §4.0, card row | "sight \| EARLY, LATE, NEVER \| one `pocket_sense` roll per threat (§4.8)" | "sight \| EARLY, LATE, NEVER \| looks: one `pocket_sense` CHECK a look, at the snap, when his blocker is beaten and each half second after, until one registers him; graded by the first that does (§4.8)" |
+| 395 | §4.0, "On the free-run clock, whatever the label" | "(settle; defaults D19 and D20)"; "the alarm's timing (D20), the +10 contact tilt and ..." | "(settle; default D19)"; drop "the alarm's timing (D20),". Add: "The alarm's timing is no longer keyed on the clock: any man registered at the snap sets it off on the first tick (§4.0; the owner's ruling of 2026-10-31)." |
+| 493 | §4.3, the unseen rusher | "**A LATE threat** (§4.8) **is registered from the first tick he is within 0.5 s and not before** (recheck, CHOSEN) ... a NEVER threat is never registered" | "**A threat is registered from the look that registers him** (§4.8). **A LATE threat is one first registered within 0.5 s of him**: he sees that man only at half a second, so the man sets must act on that tick, with one read fewer, and never sets off the alarm. A NEVER threat is one no look registers before contact." The sentence on what the owner was told stays, with: "on 2026-10-31 the owner ruled that sight is several looks, at the snap and along the way (G.7 item 3, G.10)". |
+| 516 | §4.4, item 3 | "on the first tick the man is within 1.0 s, never at the snap (default D20, §4.0)" | "3. **If the quarterback sees him, the alarm fires when he sees him**: he is looked for at the snap and every half second after until he is seen (§4.8). Seen at the snap, the alarm fires on his first tick, 0.5 s (the owner's ruling of 2026-10-31, which overrules D20). Seen later but more than half a second out, it fires at the first decision after that look. Seen only within half a second, there is no alarm, and his first reaction is must act's, with one read fewer. Never seen, nothing happens until contact (§4.8)." |
+| 524 | §4.4.1 | "(the alarm's timing D20, the +10 contact tilt, no throwaway at contact)" | "(the +10 contact tilt, no throwaway at contact)" |
+| 771 | §4.7, "Unregistered" | "a NEVER threat, a LATE threat not yet within half a second (§4.3, recheck), or a blocked man he had not checked" | "a live threat no look has registered yet (§4.8; a man who came round behind him counts until a look registers him again), or a blocked man he had not checked" |
+| 781 to 801 | §4.8, sight | one roll, band edges | the §4.8 text above |
+| 812 | §4.8, felt rate | revision 2's reading | the felt-rate paragraph above |
+| 834 | §4.8, SIDESTEP | "comes back from BEHIND with his sight re-rolled" | "comes back from BEHIND unregistered and is looked for again (`:return`, then `:sense`, §4.8)" |
+| 863 | §4.8, information arms at step 7 | two arms | add: "and, under AM-4, revision 2's one roll with D20's alarm moment (the Orchestrator's choice, reported only, §6.7)" |
+| 933 | §6, roll accounting | "`:sense` (keyed by rusher)" | "`:sense` (keyed by tick and rusher, one a look; at most one look, `:sense` or `:return`, a rusher a tick)". Add: "no `:alarm` when the alarm counts as fired on must act's tick (D36)" |
+| 948 | §6 table, step 7 | the cells below | the cells below |
+| 981 | M7 | "the `pocket_sense` margin by from-class over the league's quarterbacks, to set the target and report the NEVER share" | "for each FRONT and SIDE threat, the chance that some look registers him more than half a second out. It is exact over the d100 faces and counted over the looks he would get before the etaTick published at his creation, on the half-second grid. It is broken down by from-class, origin, lead and quarterback. It sets the target and reports LATE, NEVER, NEVER at contact, the miss at the first forcing tick, the share whose alarm comes before must act, and the looks per threat." |
+| 1132 | §6.10, chosen dials | "its from terms (+20 / 0 / -30) and band edges (0 / -30)"; "and the free-runner alarm at 1.0 s (D20)" | "its from terms (+20 / 0 / -30) and its closeness slope (20 a second from 1.0 s, on the half-second grid); the look rhythm, every half second (the Orchestrator's reading of the owner's ruling, which the owner may switch to set moments)". Replace the D20 item with "and the picks that share a tick (D36)" |
+| 1227 | P13 | "three grades (EARLY, LATE, NEVER) in its band, keyed by rusher, re-rolled on `:return` (§4.8)" | P13's text below |
+| 1320 | §9, labels | "`.../t<tick>/<rusherId>:sense` (keyed by rusher in revision 2, §4.8)" | "(keyed by tick and rusher, one a look under AM-4, §4.8)" |
+| 1416 | R17 | "(the two-moments model's 15, the free-run constants, the alarm moment, ...)" | "(the two-moments model's 15, the free-run constants, the look rhythm, the picks that share a tick (D36), ...)". The alarm moment is now the owner's ruling, not a chosen dial |
+| 1570 | D19 row | "(D20's alarm timing, the +10 contact tilt, no throwaway at contact)" | "(the +10 contact tilt, no throwaway at contact)" |
+| 1571 | D20 row | the default | the D20 row above |
+
+**Line 948's step-7 cells:**
+
+- **What lands:** "Sight in three grades, keyed by rusher; the alarm with its full list (free-runner moment D20)" becomes "Sight by looks (at the snap, at the beat and each half second, with memory), graded EARLY, LATE and NEVER, keyed by tick and rusher; the alarm with its full list (a man seen at the snap sets it off on the first tick); D36".
+- **Proofs:** "X3 permutation guard" becomes "X3 permutation guard on every look's count, tick, label, margin and band". Add:
+  - "at most one look a rusher a tick";
+  - "EARLY never falls as the due time grows";
+  - "the closeness term in whole numbers";
+  - "realized registrations against M7's expectation over the `:sense` CHECKs drawn".
+- **Arms:**
+  - "sense alone" becomes "sense alone (the looks)".
+  - "Alarm alone" keeps its name. It now means every rusher is registered by his first look, so the alarm fires at his first decision.
+  - Add "**one roll with D20 (information, paired on both seed sets)**".
+- **Petitions:** "P13 (three grades, keyed by rusher)" becomes "P13 (one CHECK a look, keyed by tick and rusher, three grades)".
+
+**P13** (line 1227) is asked at step 7, so its text can still change. Its meaning text changes from "three grades (EARLY, LATE, NEVER) in its band, keyed by rusher, re-rolled on `:return` (§4.8)" to:
+
+> **Named with its meaning:** one CHECK a look, keyed by tick and rusher (`.../t<tick>/<rusherId>:sense`), at the snap, when his blocker is beaten and each half second after, until one registers him, at most one look a rusher a tick. Its band is EARLY or LATE by his remaining time when the look registers him, and MISSED when it does not. A man no look registers before contact is NEVER, carried by `QB_HIT.seen` false, never by a band. A man who comes round behind him is looked for again, first on `:return` (§4.8).
+
+The kind is still `"pocket_sense"` in `CheckKind`, light category. `CHECK.band` is a free string per kind (`contracts/src/events.ts:303-309`: "A free string, not a union: the band vocabulary is per-check-kind"), so MISSED needs no type change.
+
+**Lines that read the same** (the entry's `cites`):
+
+- **325:** the felt rate is still CHOSEN.
+- **486 and 490:** `mustAct` reads `registered`; until step 7 every threat is registered.
+- **651 and 652:** the throw comes first; "Never seen (NEVER): no choice" keeps its meaning, since contact registers no one.
+- **659:** the BEHIND and NEVER tilt, NEVER meaning `seen` false.
+- **767, 772 and 773:** the escape terms, the catch and the slide read "registered" and "unregistered" as 771 now defines them.
+- **802.**
+- **806 to 810:** revision 1's quote.
+- **816 and 817:** the alarm "once per registered threat", now once a rusher a play; and must act.
+- **833:** STEP_UP's "comes back from BEHIND" now carries the return looks of the §4.8 text above.
+- **841:** revision 1's slide reads `pocket_sense` through "felt", now "registered".
+- **865, 1287:** a LATE threat costs a read; a NEVER one turns some desperation throws into normal-bar reads.
+- **1092, 1094 and 1096:** the words of s7.earlyShare stand, and its comparator is restated at 981.
+- **1221:** P7's `seen` means registered by a look before this contact, true until step 7.
+- **1337 and 1343:** §10.
+- **1388:** the label's form is unchanged.
+- **1417:** R18; SIDESTEP is EARLY only, within 1.0 s.
+- **1504.**
+
+**D36** is the Orchestrator's default, filed in AM-4's rule under its own key (`rule.D36`) with that status: shown to the owner, not asked, and not part of the owner's ruling. It fills a gap revision 2 already had (the D36 row above).
+
+**The s7 clauses.** *Superseded: s7.earlyShare, with the same band and M7 restated.*
+
+- The clause is graded, its comparator is M7, it sits at line 1094, and its band is 0.85 to 0.95, "a check of the setting, not the mechanism". The words stand.
+- M7 changes meaning: it now counts the looks, and the filed M7 block's `sight.lateFloor` -30 has no use under looks. So the clause needs an amendment, or step 7 would grade a construct the filing does not define.
+- The band is not widened or tightened. FRONT and SIDE are each reported beside it, not graded, since grading them each would be a new prediction. So are the stream's realized share inside the play, the alarm-before-must-act share, EARLY by lead, and the looks per threat by origin.
+
+M7, restated as in the entry's `rule.M7` (line 981's new text above):
+
+- **The graded figure is the setting's:** engine-free, counted over the looks each threat would get before the etaTick published at his creation. It is not the share inside the play, which mixes in when the ball leaves and would make the target chase release time.
+- **Which etaTick:** the one published at creation. A `:return` is judged on the etaTick at the move. Any other change after creation is reported apart (a step-up, a slide, a won dodge, slide-sooner, the sooner-arrival replacement). Counting looks to the final etaTick would let reactions, which need registration, add looks to the very share that sets registration. On B3 gen today, 767 of 12,402 threat records already end with a different etaTick.
+- **Replacing records** are folded into the live one, one threat per rusher per creation.
+- **The step-0 filed M7 block stays** as the record of the one roll and is not re-filed (gen target 36, flat 35, `lateFloor` -30). Today's `sightOf` and `m7Target` stay as the one-roll arm's construct. The restated construct is the one the sight draft's `rev/scripts/looks.py` computes, and the step-7 harness builds it inside `m7Sight.ts`.
+- **A cheap check that the build matches the construct.** At step 7, for every `:sense` CHECK drawn on the stream, M7's exact chance that it registers him is known. The realized count of registrations is reported against that expectation, with a tolerance of a few standard errors. This sidesteps the stream's censoring, because it compares looks actually taken.
+
+*Untouched: the other 26 s7 clauses, each named in the entry's `untouched`:*
+
+- **s7.pressure** (-3 to +3), **s7.sack** (+0.5 to +2.5) and **s7.hitOrSack** (-4 to +1). Their words are unchanged, and the bands are kept: the ruling does not ask to move them. Their stand-in basis fired the alarm at D20's moment. The ruling moves free-runner alarms earlier and adds about 1 never-seen contact in 100. The expected net move is under TOT's resolution, so a step-7 miss on these three is read first against the one-roll information arm.
+- **s7.sidestepWon** (reported, stand-in 65.2%) and **s7.agilityProbe.sidestep.** The stand-in was measured with every dodge inside the window at D20's moment. Under looks the window rule is unchanged (R18), but about 2.4 to 3.0 FREE alarms in 100 now come outside it, so the won share is read beside the one-roll arm.
+- **s7.bench.gap**, **s7.bench.interior** and **s7.bench.edgeFree.** On the never-finds-a-receiver bench, free runners are now registered at the snap more often and set off the alarm on the first tick. That helps the edge free-runner row move up, as filed. The bands stand.
+- **s7.intByClass** (structural, under `guard.byClass` as AM-1 reads it). Interior LATE rises (+1.26 in 100 dropbacks) while LATE falls elsewhere (net -1.05). That is expected to move the desperation and rank-pushed throw classes. It is reported by class as filed.
+- **s7.alarmMix** (M4). M4 also reports which look registered him (snap, beat, tick, return) and the share whose alarm fell on must act's tick.
+- **s7.sidestepEligibility** ("registered EARLY within 1.0 s" is unchanged) and **s7.stepUpSack.**
+- **s7.x3.** "Falsified if the X3 permutation guard fails" stands. The guard keeps revision 1's target (the §4.8 text above), and AM-4 says what it now covers.
+- **s7.awarenessProbe.p2s** and **s7.awarenessProbe.clean.** Awareness enters every look, at 0.7 to 0.9 of the single roll's pull on EARLY. That gives P2S's 2-point cap more room, and the direction-only clean probe somewhat less signal. Sight stays monotone in awareness along a path, since label-keyed dice mean more awareness can only turn a MISSED look into a registration.
+- **s7.informationArms.** Its two arms still run, and AM-4 adds a third, reported only (below).
+- **s7.patienceProbe.pressure**, **s7.patienceProbe.p2s**, **s7.pressuredReachingHit**, **s7.agilityProbe.sacks**, **s7.strengthProbe**, **s7.contactBranches**, **s7.oneSlide**, **s7.mirror**, **s7.ratingProbes** and **s7.falsifiers.** None reads sight's construct or the alarm's moment in its words.
+
+The fiveB derivation rows that name step 7 (filing lines 4159 and 4204: "7: the alarm, sight and the slide", 0.5 to 2.5 and -4 to 1) read the same.
+
+**Added: one information arm, "one roll with D20"** (the Orchestrator's choice, not the owner's). It runs revision 2's sight and alarm exactly as filed, beside the step-7 design arm:
+
+- one `pocket_sense` at creation;
+- band edges 0 and -30;
+- its own M7 target (on today's streams, 35 to 37);
+- the free-run alarm on the first tick within 1.0 s.
+
+It is reported only, never graded. It sits behind a switch in the `pocket-1.s7` bundle (`sight: LOOKS | ONE_ROLL`), and it runs **paired on both seed sets**, as AM-1 reads its arms.
+
+- **Why:**
+  - It is the only reading that shows the owner what this ruling moved.
+  - s7.pressure, s7.sack and s7.hitOrSack are CHOSEN widths around TOT §8.6's stand-in basis. That basis fired the free-runner alarm at D20's moment with sight a flat 0.9 ("At his 1.0 s warning ... he is seen with p 0.9", TOT). The arm shows how far the ruling moved them.
+  - It costs one switch and no new die.
+- **Filed expectation, beside it (INFERRED; the numbers below):** looks against the one roll move hit-or-sack by about -0.4 to +0.9 and sacks by about -0.3 to +0.5. Scrambles rise about 1 to 1.7 in 100, and escapes come earlier. **A gap under about 1 hit or 0.4 sacks in 100 between the two arms is not a finding** (ADR-089:1987).
+- s7.informationArms names two arms; this one is a third, reported only. Nothing in that clause is contradicted.
+- **No second split** (looks with D20's moment) is added: the owner ruled both parts together. "Sense alone" prices the looks against every threat registered.
+
+**The numbers, in short.** COMPUTED, engine-free and exact over the die's 100 faces, on step 2's design arm (B3) and pricing arm (B6), played through the repo's own runners on generated league set 1, set 2 and the flat league (B3 gen 28,198 dropbacks, flat 51,303, gen set 2 28,190; B6 gen 26,574, flat 48,201), where sight is not built. They size the setting, as M7 is filed to; what sight does to play is step 7's arms. The scripts and logs are in the sight draft's working folder (`rev/`).
+
+- **The target M7 would set today** is 53 on B3 (54 on flat B3) and 50 on B6, and any target from 47 to 54 keeps FRONT and SIDE each in band on all five runs. It is set at step 7, on step 6's design-arm streams, because steps 3 to 6 move the timing: re-timing the touched men as won reps of their approach, a stand-in for step 3's late block, already brings it to 49 on B3 and 47 on B6.
+- **The slope** is CHOSEN, 20 points a second. Every slope from 0 to 30 keeps both classes in band. Slope 0 makes a man due in 2.5 s as easy to see as one half a second away and gives the most never-seen contacts; 40 pushes SIDE out of the band on flat B3 (0.846); 30 is the other defensible value, with fewer never-seen contacts and a lower SIDE share.
+- **EARLY by class**, gen B3 at 53: FRONT 0.91 and SIDE 0.88, each in band (all threats 0.902 EARLY, 0.080 LATE, 0.018 NEVER). The one roll at its own target (37) meets the band only on the combined share: its SIDE is 0.77.
+- **The forcing-tick miss.** Must act's threat part is missed on 1.2% to 1.6% of the plays that reach a forcing tick, 0.3 to 0.5 in 100 dropbacks, against about half under pkB's memoryless feel. That is also an upper bound on the hit-or-sack the miss adds. Revision 2's one roll misses none; the same looks with no memory would miss about 13%.
+- **About 1 never-seen contact in 100**: 0.98% of contacts on gen B3 and 1.29% on flat come from a man no look registered (0.61% to 0.78% on B6).
+- **The far FREE alarms.** On 2.4 to 3.0 in 100 dropbacks a FREE-labeled free runner's alarm now comes while he is more than 1.0 s away, outside SIDESTEP's window, so his list starts at ESCAPE; about 1.7 alarms in 100 on gen move from make-him-miss to escape (INFERRED).
+- **NEVER from BEHIND** rises from the one roll's about 0.23 to 0.29 to 0.41, by the time left when he comes back (0.30 to 0.33 at the usual 1.1 to 2.0 s). It is priced by "step-up alone" and "SIDESTEP alone" at step 7. The filed BEHIND term (-30) is kept; changing it would be its own amendment.
+- **Dice:** about 1.5 `:sense` CHECKs a rolling threat while the play lasts (1.47 to 1.58), against 1 for the one roll.
+- **Interior against edge.** Looks shift EARLY from the interior to the edge: an interior won rep is seen early 0.81 of the time against the edge's 0.84 on gen B3 (the one roll had 0.97 against 0.77), because 64% of won reps are due 1.0 s after the beat and get one look that can make them EARLY, while the edge man gets more.
+- **The expected move from one roll to looks** (INFERRED): hit-or-sack about -0.4 to +0.9 and sacks about -0.3 to +0.5 in 100 dropbacks, inside the league-to-league spread.
+- **Set moments are not sized**, but their ceiling is known: without a look at the beat, EARLY can reach at most 0.79 to 0.82 on B3 and 0.68 to 0.70 on B6, under the band at every target. So a look at the beat is needed under either choice.
+
+**It never** widens or tightens s7.earlyShare's band, moves another band or a filed value, touches the step-0 file or its pin, edits AM-1, AM-2 or AM-3, re-files, or changes anything played before step 7. A switch to set moments, or any other change, is a new named entry, filed before step 7.
+
+**Shown to the owner, not asked** (the owner page `/mnt/project-files/design/ADR-089-step-3-explained.md`, "Your ruling on looks, written down"). It told the owner the rule above in plain words and, set where proposed, that about nine rushers in ten in front of him or to the side are spotted while still more than half a second away, and about one in a hundred who reaches him was never seen. It named the three things written that go a little beyond the reading as sent, each following from what the owner chose and each open to overrule:
+
+1. **A rusher he sends flying past him has to be found again:** one he stepped up under, or made miss, who turns back and comes from behind (revision 2's `:return`; the owner's earlier page: "comes from behind, often unseen: the classic strip sack"). This is the one exception to "he keeps tracking him".
+2. **A rusher he only spots in the last half second gives him no early reaction.** He has to decide at once, and it costs him one of his reads (revision 2's LATE).
+3. **When his first reaction and his must-act moment land on the same beat, he makes one decision**, the must-act one (D36). This is common for an inside lineman who beats his man about a second away.
+
+It said what changes in how plays look (a far blitzer spotted at the snap is more often slid from, run from or read past, on about 2 or 3 dropbacks in 100; a rusher who comes back from behind is picked up a little less often; an inside lineman who beats his man is spotted early a little less often than an edge rusher), and that step 7 plays the one-look version beside it. **The one choice left to the owner**, no answer needed: a look every half second (filed here) or a few set moments (the snap, the top of his drop and his hitch). Under either, he also gets a look the moment a blocker is beaten. A switch is a later named entry, filed before step 7.
+
+Shown to the owner at 2026-10-31T04:01:51Z, not asked.

@@ -2,7 +2,7 @@
  * THE NAMED AMENDMENTS OF THE STEP-0 FILING, `adr-089-amendments/v1` (ADR-089 Appendix E's header,
  * ADR-089:2022: "Amendments go in `reports/adr-089-amendments.filed.json`, never in the step-0
  * file"; `filed.ts:16`; step 0's plan §8.1; AM-1, Appendix F, F.11; step-2 plan §4.6, §6 K3; AM-2,
- * Appendix G, G.8; step-3 plan §4.1, §4.2, §4.3; AM-3, G.9).
+ * Appendix G, G.8; step-3 plan §4.1, §4.2, §4.3; AM-3, G.9; AM-4, G.10).
  *
  * The step-0 filing is append-only and pinned (`STEP0_FILED_DIGEST`, `fnv1a:9a1c90e9`) for ever, so a
  * filed clause is amended by a named entry here, never by an edit there. Each entry carries what it
@@ -13,7 +13,9 @@
  * `guard.byClass`), with an explicit base map per step (`rule.bases`). AM-2, filed before step 3
  * (Appendix G, G.8), supersedes `s3.part1.m8` and `s3.part1.monotone` and files the late block's
  * dials and step 3's readings; it carries no guard rule. AM-3, filed before step 3 (G.9), is step 3's
- * guard base map: AM-1's rule word for word but for `bases` (C1 on B3, C2 on B6, C11 on B3).
+ * guard base map: AM-1's rule word for word but for `bases` (C1 on B3, C2 on B6, C11 on B3). AM-4,
+ * filed before step 3 (G.10), is the owner's sight ruling as the Orchestrator reads it (looks, built at
+ * step 7): it supersedes `s7.earlyShare` and carries no guard rule, so no step before 7 reads its rule.
  *
  * **The pin.** `AMENDMENTS_DIGEST` is `stableDigest` of the parsed file (as `filedDigest` is of the
  * step-0 file), a literal here. The harness refuses a file that does not equal it, so a changed
@@ -50,11 +52,11 @@ export const AMENDMENTS_PATH = "reports/adr-089-amendments.filed.json";
 /**
  * The committed amendments file's digest (`amendmentsDigest`, a `stableDigest` of the parsed file):
  * AM-1 as filed by the Orchestrator (commit `b65ab25`, shown to the owner at `200b18b`), then AM-2,
- * filed before step 3 (ADR-089 Appendix G, G.8), then AM-3, step 3's guard base map (G.9). A reader of
- * the whole file refuses any other file. Step 2's harness reads the file as it stood at step 2 instead
- * (`STEP2_AMENDMENTS_DIGEST`).
+ * filed before step 3 (ADR-089 Appendix G, G.8), then AM-3, step 3's guard base map (G.9), then AM-4,
+ * sight by looks (G.10). A reader of the whole file refuses any other file. Step 2's harness reads the
+ * file as it stood at step 2 instead (`STEP2_AMENDMENTS_DIGEST`).
  */
-export const AMENDMENTS_DIGEST = "fnv1a:b7557c36";
+export const AMENDMENTS_DIGEST = "fnv1a:1528d154";
 
 /**
  * The file's step-2 view (`amendmentsDigestAtStep(file, "2")`): its entries cut to those filed before

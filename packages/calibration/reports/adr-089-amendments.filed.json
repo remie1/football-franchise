@@ -147,6 +147,109 @@
         "cumulative": { "design": "A0", "pricing": "A14", "graded": false },
         "acceptedState": { "design": "A1", "pricing": "A11", "fromStep": "3", "graded": false }
       }
+    },
+    {
+      "id": "AM-4",
+      "name": "sight by looks: a pocket_sense CHECK per look, at the snap, when his blocker is beaten and every half second after, with memory; the alarm at the first decision after the look that registers him (D20 overruled); D36 for picks that share a tick",
+      "filedBeforeStep": "3",
+      "steps": ["7", "8a", "8b", "9", "10"],
+      "supersedes": ["s7.earlyShare"],
+      "untouched": ["s7.bench.gap", "s7.bench.interior", "s7.bench.edgeFree", "s7.awarenessProbe.p2s", "s7.awarenessProbe.clean", "s7.patienceProbe.pressure", "s7.patienceProbe.p2s", "s7.pressure", "s7.sack", "s7.hitOrSack", "s7.pressuredReachingHit", "s7.agilityProbe.sacks", "s7.agilityProbe.sidestep", "s7.strengthProbe", "s7.sidestepWon", "s7.alarmMix", "s7.contactBranches", "s7.intByClass", "s7.oneSlide", "s7.sidestepEligibility", "s7.mirror", "s7.informationArms", "s7.ratingProbes", "s7.stepUpSack", "s7.x3", "s7.falsifiers"],
+      "defaults": ["D20"],
+      "adrLines": [341, 343, 348, 368, 379, 395, 493, 516, 524, 771, 781, 784, 785, 788, 790, 791, 792, 793, 794, 796, 797, 798, 799, 800, 801, 812, 834, 863, 933, 948, 981, 1132, 1227, 1320, 1416, 1570, 1571],
+      "cites": [325, 486, 490, 651, 652, 659, 767, 772, 773, 802, 806, 810, 816, 817, 833, 841, 865, 1092, 1094, 1096, 1221, 1287, 1337, 1343, 1388, 1417, 1504],
+      "record": "ADR-089 Appendix G, G.10",
+      "reason": "The owner overruled default D20 and the one pocket_sense roll per threat (G.7 item 2's question, answered at 2026-10-31T01:44:06Z): sight is several looks, the first at the snap, and a man seen at the snap sets off the alarm on the first tick. s7.earlyShare keeps its band and its words; its comparator M7 is restated as the share of FRONT and SIDE threats registered more than 0.5 s out over the looks each would get to the etaTick published at his creation, since the filed M7 is one roll with band edges the rule no longer has. The bands of s7.pressure, s7.sack and s7.hitOrSack are kept, though their stand-in basis (TOT §8.6) fired the free-runner alarm at D20's moment with sight a flat 0.9; the ruling moves those alarms earlier, so a step-7 miss on them is read first against the one-roll information arm. D36, the Orchestrator's default for picks that share a tick, fills a gap revision 2 already had and is shown to the owner, not asked.",
+      "ownersWord": {
+        "ts": "2026-10-31T01:44:06Z",
+        "words": "For the first question, there should be multiple awareness rolls. Yes, at the snap. But at other points along the way.",
+        "question": {
+          "ts": "2026-10-31T01:40:36Z",
+          "words": "When should a loose rusher he sees set off his first reaction: one second away (my default) or at the snap? This only matters by step 7."
+        },
+        "reading": {
+          "ts": "2026-10-31T01:44:50Z",
+          "words": "He gets a look at the snap. After that he gets another look every half second while a rusher he hasn't spotted is still coming. Each look is an awareness roll. A rusher in front of him is easier to spot than one from the side, and one from behind is hardest. The closer the rusher gets, the easier he is to spot. The moment he spots a rusher, his first reaction starts: step up, slide, run, try to make him miss, or keep reading and throw if someone's open. Once he spots a rusher, he keeps tracking him. A rusher he never spots only gets him at contact. This holds for every rusher, not only loose ones. A man who beats his blocker gets looked for from that moment on. It's built at step 7, so nothing changes in games now. If you'd rather the looks come at set moments instead, say the snap, the top of his drop and his hitch, tell me.",
+          "status": "the Orchestrator's reading, told to the owner; the owner may still switch to set moments (the snap, the top of his drop, his hitch) by a later named entry filed before step 7"
+        },
+        "beyondTheReading": ["a man he sends past him (a step-up under an ARC, or a won dodge) comes round behind him and must be spotted again (revision 2's :return; the owner's page, TMP:33)", "a man first spotted within half a second gets no early reaction: his first reaction is must act's, with one read fewer (revision 2's LATE)", "D36, the Orchestrator's default for picks that share a tick"],
+        "unanswered": "the message's second item, the pressure-to-sack PR hold, which this answer does not touch"
+      },
+      "rule": {
+        "sight": "LOOKS",
+        "looks": {
+          "snap": "every threat on the list at the snap, at t0.0, judged on his remaining time then",
+          "beat": "a threat created after the snap, on the line battle that creates him (tick s), judged on his remaining time at s; he enters the list at s + 0.5",
+          "ticks": "EVERY_TICK: at the top of each later half-second tick while he is live, unregistered and not yet arrived; no look on or after the tick he arrives (remaining time 0 or less)",
+          "return": "a man who comes round behind him (a step-up under an ARC, or a won dodge) is unregistered; one look at the tick of the move on :return with the BEHIND term, unless he already had a look on that tick; then :sense on each later tick, with the BEHIND term",
+          "perRusherPerTick": "at most one look a rusher a tick: the snap or beat :sense, a top-of-tick :sense, or a :return",
+          "orderWithinTick": "nearest remaining time first, then rusherId",
+          "rusherNotRecord": "sight belongs to the rusher, not to a threat record: a record that replaces his live one (the sooner arrival of a re-won rep) is not a creation, gets no beat look and keeps his registration and his from; a PUSH whose block breaks stays registered"
+        },
+        "label": {
+          "sense": ".../t<tick>/<rusherId>:sense",
+          "return": ".../t<tick>/<rusherId>:return"
+        },
+        "margin": {
+          "awarenessDivisor": 5,
+          "traitBonus": 10,
+          "fromTerm": {
+            "FRONT": 20,
+            "SIDE": 0,
+            "BEHIND": -30
+          },
+          "closeness": {
+            "slopePerSecond": 20,
+            "anchorSeconds": 1.0,
+            "grid": "his remaining time rounded UP to the half second",
+            "integerForm": "r10 = round((etaTick - tick) x 10); g = ceil(r10 / 5) x 5; closeness = 2 x (10 - g)"
+          },
+          "preSnapTerm": false,
+          "registersAtOrAbove": 0
+        },
+        "lookBand": {
+          "EARLY": "registers him with more than 0.5 s left",
+          "LATE": "registers him with 0.5 s or less left",
+          "MISSED": "does not register him"
+        },
+        "grade": {
+          "EARLY": "first registered more than 0.5 s before he is due",
+          "LATE": "first registered within 0.5 s: no alarm; his first reaction is must act's, with one read fewer",
+          "NEVER": "no look registers him before contact: no choice at contact, QB_HIT.seen false; never a CHECK band",
+          "none": "on the stream, a threat whose play ends before any look registers him and before any contact has no grade, and is reported apart"
+        },
+        "memory": "registered for the rest of the play, except a man who comes round behind him; contact does not register him, so a shed man no look has registered keeps getting looks",
+        "noLook": {
+          "PUSH": "registered with no die from the push window's first report, EARLY",
+          "BLOCKED": "no look; whether he checked such men comes from the movement roll's band"
+        },
+        "target": {
+          "setAt": "7",
+          "by": "M7",
+          "construct": "nearest 0.90, threat-weighted over FRONT and SIDE, ties to the lower",
+          "streams": "step 6's design arm"
+        },
+        "alarm": {
+          "moment": "the first decision after the look that registers him EARLY: tick 0.5 for the snap look, the tick he enters the list (s + 0.5) for the beat look, the look's own tick for a top-of-tick look",
+          "push": "the first status tick after the push window's first report, as revision 2 files it",
+          "perRusher": "once a play, as revision 2's 'once per registered threat'; a man registered again after a return sets off no second alarm"
+        },
+        "D36": {
+          "status": "Orchestrator default, shown to the owner, not asked; not part of the owner's ruling",
+          "alarmWithMustAct": "when a man's alarm and must act fall on the same tick he makes one pick, must act's; the alarm counts as fired and no :alarm CHECK is drawn",
+          "alarmsOnOneTick": "two or more alarms on one tick are picked one at a time, nearest etaTick first, then tunables.ts:1212's tie, then rusherId; each pick sees the moves before it"
+        },
+        "M7": "for each FRONT and SIDE threat on the step's design-arm streams (one per rusher per creation; a replacing record is folded into the live one), the chance that a look registers him more than 0.5 s out, exact over the 100 faces, counted over the looks he would get to the etaTick published at his creation, read on the half-second grid; a :return is judged on the etaTick at the move, and other changes to etaTick after creation are reported apart; by from-class, origin, lead and quarterback; LATE, NEVER, NEVER at contact, the miss at the first forcing tick, the share whose alarm comes before must act, and the looks per threat reported beside it",
+        "earlyShare": {
+          "lo": 0.85,
+          "hi": 0.95,
+          "comparator": "M7 as restated here",
+          "reportedBeside": ["FRONT", "SIDE", "the stream's realized share inside the play", "realized against expected registrations over the :sense CHECKs drawn", "alarm before must act", "EARLY by lead", "looks per threat by origin"]
+        },
+        "x3": "revision 1's guard: the unshown played rush (its call and disguise) permuted with personnel and protection held fixed leaves every look's count, tick, label, margin and band unchanged; and each look's margin reads only his awareness, the trait, the threat's from-class and his remaining time",
+        "informationArms": ["ONE_ROLL_D20 (the Orchestrator's choice, reported only, never graded, paired on both seed sets): revision 2's single roll at creation with band edges 0 and -30 at its own M7 target, and D20's alarm moment"],
+        "rollAudit": ["at most one look a rusher a tick (:sense or :return)", "no :sense for PUSH or BLOCKED", "no :sense after registration except after a return", "no look on or after the tick he arrives", "no :alarm CHECK when the alarm counts as fired on must act's tick", "at most one :alarm a rusher a play"]
+      }
     }
   ]
 }
