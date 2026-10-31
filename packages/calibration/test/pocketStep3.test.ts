@@ -42,7 +42,8 @@ import { GOLDEN_LEAGUES } from "../src/pocket/golden.js";
 import type { MissSplit } from "../src/pocket/missRule.js";
 import { part1Problems } from "../src/pocket/part1.js";
 import { LEAGUES } from "../src/pocket/report.js";
-import { POCKET_1_S3_RULES } from "../src/pocket/rules.js";
+import { POCKET_1_S3_FREE_RUN, POCKET_1_S3_RULES, S3_IN_CONTRACTS } from "../src/pocket/rules.js";
+import { pictureOptionsOf } from "../src/caller/frozen.js";
 import { POCKET_1_S1_BASE_PINS } from "../src/pocket/s1BasePins.js";
 import { POCKET_1_S1_PINS } from "../src/pocket/s1Pins.js";
 import { POCKET_1_S2_PINS } from "../src/pocket/s2Pins.js";
@@ -71,6 +72,7 @@ import {
   runStep3,
   runStep3Digests,
   runStep3Part1,
+  s3PictureRefusal,
   shareSE,
   STEP3_ARM_FORMAT,
   STEP3_BASE_IDS,
@@ -93,6 +95,7 @@ import {
   type Step3Guard,
   type Step3Record,
   type Step3Records,
+  unmadeChoicesOf,
 } from "../src/pocket/step3.js";
 import type { Dropback } from "../src/pocket/throwClass.js";
 
@@ -293,6 +296,46 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
     });
     expect(() => preflightStep3(FILED, path, pin)).toThrow(/^ADR-089 step 3: refused to grade: AM-3 /);
     expect(preflightStep3Previews(FILED, path, pin).digest).toBe(previewDigest());
+  });
+
+  it("review MEAS-S6: refuses a step-3 view whose entry still holds a choice not yet made (<a | b>); AM-1 and AM-2 hold none", () => {
+    expect(unmadeChoicesOf(preflightStep3Previews(FILED, AMENDMENTS).view)).toEqual([]);
+    const dir = tempDir("choice");
+    const { path, pin } = withAm3(dir, (am3) => {
+      am3["reason"] = "C1 reads <the picture as ruled, the Mug worn | the Mug's Head-only picture>; the rest as the plan maps it";
+    });
+    expect(() => preflightStep3(FILED, path, pin)).toThrow(
+      "ADR-089 step 3: refused before anything plays: the amendments file's step-3 view holds a choice not yet made: AM-3.reason holds the choice <the picture as ruled, the Mug worn | the Mug's Head-only picture>. An entry is filed with its choice made",
+    );
+    // A made choice, or a bare bar outside angle brackets, is not one.
+    const made = withAm3(dir, (am3) => { am3["reason"] = "C1 reads the picture as ruled, the Mug worn (S3 granted) | noted"; });
+    expect(preflightStep3(FILED, made.path, made.pin).guard.entry).toBe("AM-3");
+  });
+
+  it("review FID-F-1: while S3 is not in contracts and the design picture is AS_RULED, a graded run and R-1's digests refuse any pocket-1.s3 arm before anything plays", () => {
+    expect(S3_IN_CONTRACTS).toBe(false);
+    expect(POCKET_1_S3_FREE_RUN.picture).toBe("AS_RULED");
+    expect(s3PictureRefusal(["A1", "B3", "C13"])).toBeUndefined();
+    expect(s3PictureRefusal(["C1", "C13", "C1", "C2"])).toMatch(/^ADR-089 step 3: refused before anything plays: C1, C2 play pocket-1\.s3, whose design picture is AS_RULED .* S3 is not in contracts \(S3_IN_CONTRACTS, src\/pocket\/rules\.ts\)\. .*Nothing has played and no cache was made; --part1 still plays/);
+    expect(s3PictureRefusal(["C1"], true)).toBeUndefined();
+    const dir = tempDir("s3");
+    const cacheParent = join(dir, "cache");
+    let played = 0;
+    const play = (): Step3Record => {
+      played += 1;
+      throw new Error("must not play");
+    };
+    expect(() => runStep3({ cacheParent, filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: new Map(), arms: ["C1"], seedSet: 1 })).toThrow(/^ADR-089 step 3: refused before anything plays: C1 plays pocket-1\.s3/);
+    expect(() => runStep3({ cacheParent, filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: new Map() })).toThrow(/^ADR-089 step 3: refused before anything plays: C1, C2, .* play pocket-1\.s3/);
+    expect(() => runStep3Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 1, arms: ["A1", "C3"] })).toThrow(/^ADR-089 step 3: refused before anything plays: C3 plays pocket-1\.s3/);
+    expect(() => runStep3Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 1 })).toThrow(/^ADR-089 step 3: refused before anything plays: C1, C2, /);
+    expect(played).toBe(0);
+    expect(existsSync(cacheParent)).toBe(false);
+  });
+
+  it("review FID-F-4 tripwire: C10 and C16 (no free-run block) draw the picture C1 draws; if the design picture flips this fails", () => {
+    expect(pictureOptionsOf(armById("C10").tunables)).toEqual(pictureOptionsOf(armById("C1").tunables));
+    expect(pictureOptionsOf(armById("C16").tunables)).toEqual(pictureOptionsOf(armById("C1").tunables));
   });
 });
 
@@ -825,7 +868,7 @@ describe("the run through its play seam", () => {
   it("shards play their targets, the last grades once every target is cached, and a re-run reads the cache to the same bytes", () => {
     const dir = tempDir("run");
     const refs = refsFor(guard().digest);
-    const common = { cacheParent: join(dir, "cache"), filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: refs };
+    const common = { cacheParent: join(dir, "cache"), filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: refs, s3Granted: true };
     plays = [];
     const first = runStep3({ ...common, shard: { index: 1, count: 2 } });
     expect(first.graded).toBe(false);
@@ -852,7 +895,7 @@ describe("the run through its play seam", () => {
   it("one arm with --out writes its records; one set grades as reported", () => {
     const dir = tempDir("one");
     const out = join(dir, "c1.json");
-    const r = runStep3({ cacheParent: join(dir, "cache"), filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: new Map(), arms: ["C1"], seedSet: 1, out });
+    const r = runStep3({ cacheParent: join(dir, "cache"), filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: new Map(), arms: ["C1"], seedSet: 1, out, s3Granted: true });
     expect(r.graded).toBe(true);
     expect(r.wrote).toEqual([out]);
     expect(r.grade!.sections.oneSet).toBe(1);
@@ -867,7 +910,7 @@ describe("the run through its play seam", () => {
     const cacheParent = join(dir, "cache");
     const p = runStep3Part1({ cacheParent, filedPath: FILED, amendmentsPath: AMENDMENTS, env: ENV, play, arms: ["C1"], seedSet: 1 });
     expect(p.played).toEqual(["C1.set1"]);
-    expect(() => runStep3({ cacheParent, filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: new Map(), arms: ["C1"], seedSet: 1 })).toThrow(
+    expect(() => runStep3({ cacheParent, filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: new Map(), arms: ["C1"], seedSet: 1, s3Granted: true })).toThrow(
       new RegExp(`the cached C1 \\(set 1\\) at .* is not this build's arm: stamped with amendments ${previewDigest()}, not this build's step-3 view ${guard().digest}\\. Delete it, or use another --cache`),
     );
   });
@@ -875,7 +918,7 @@ describe("the run through its play seam", () => {
   it("refuses a committed report from a dirty tree before anything plays", () => {
     const dir = tempDir("dirty");
     plays = [];
-    expect(() => runStep3({ cacheParent: join(dir, "cache"), filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: { ...ENV, dirty: true }, play, committedDir: dir, report: join(dir, "r.md") })).toThrow(
+    expect(() => runStep3({ cacheParent: join(dir, "cache"), filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: { ...ENV, dirty: true }, play, committedDir: dir, report: join(dir, "r.md"), s3Granted: true })).toThrow(
       /a committed report \(under reports\/\) is made from a clean tree, and this tree is dirty/,
     );
     expect(plays).toEqual([]);
@@ -962,7 +1005,7 @@ describe("R-1: the digests and their pin check (plan §2.10, §6.2)", () => {
     const d = runStep3Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 10, arms: ["A1"] });
     expect(d).toMatchObject({ format: STEP3_DIGESTS_FORMAT, amendments: previewDigest(), gamesPerLeague: 10, caller: "v7" });
     expect(step3DigestPinProblems(d)).toEqual([]);
-    const c = runStep3Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 1, arms: ["C1"] });
+    const c = runStep3Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 1, arms: ["C1"], s3Granted: true });
     expect(c.arms["C1"]!.stamp).toMatchObject({ arm: "C1", rules: POCKET_1_S3_RULES, overlayDigest: armById("C1").overlayDigest, tunablesDigest: armById("C1").tunablesDigest });
     for (const l of GOLDEN_LEAGUES) {
       const f = c.arms["C1"]!.leagues[l]!;

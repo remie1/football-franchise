@@ -111,7 +111,7 @@ import {
   type Step3StandIn,
   type StepReportInput,
 } from "./report.js";
-import { POCKET_1_S3_RULES } from "./rules.js";
+import { POCKET_1_S3_FREE_RUN, POCKET_1_S3_RULES, S3_IN_CONTRACTS } from "./rules.js";
 import { POCKET_1_S1_BASE_PINS } from "./s1BasePins.js";
 import { POCKET_1_S1_PINS, type S1PinArm } from "./s1Pins.js";
 import { s1Problems } from "./s1Stream.js";
@@ -302,6 +302,26 @@ export interface Step3Guard {
   readonly accepted: { readonly design: ArmId; readonly pricing: ArmId };
 }
 
+/**
+ * Review FID-F-1: the refusal while ADR-090's petition S3 is not in contracts and the design picture
+ * is `AS_RULED` (AM-2's `design`: the ruled picture is the design only if S3 is granted before the
+ * arms run). A graded run or R-1's digests that would play any pocket-1.s3 arm are refused before
+ * anything plays; `undefined` when none of `arms` plays pocket-1.s3, or S3 is granted (or `granted`,
+ * tests only), or the picture is no longer the ruled one.
+ */
+export function s3PictureRefusal(arms: readonly ArmId[], granted: boolean = S3_IN_CONTRACTS): string | undefined {
+  if (granted || POCKET_1_S3_FREE_RUN.picture !== "AS_RULED") return undefined;
+  // An arm this build does not play (C14) is refused by its own reason where it is read.
+  const s3 = [...new Set(arms)].filter((id) => armRefusal(id) === undefined && isS3Arm(id));
+  if (s3.length === 0) return undefined;
+  return (
+    `ADR-089 step 3: refused before anything plays: ${s3.join(", ")} ${s3.length === 1 ? "plays" : "play"} pocket-1.s3, whose design picture is AS_RULED (the Mug's ruled spot), ` +
+    "which AM-2 makes the design only if ADR-090's petition S3 is granted before the arms run, and S3 is not in contracts (S3_IN_CONTRACTS, src/pocket/rules.ts). " +
+    "Answer S3 first: granted, its contracts commit flips S3_IN_CONTRACTS; declined, the design picture becomes MUG_HEAD_ONLY and the bundle is re-pinned. " +
+    "Nothing has played and no cache was made; --part1 still plays (a preview of the build checks, never graded)"
+  );
+}
+
 /** The named refusal while no guard map is filed at step 3 (plan §4.2; AM-1 §4.3). */
 export function am3Refusal(why: string): string {
   return (
@@ -311,10 +331,28 @@ export function am3Refusal(why: string): string {
   );
 }
 
+/** A `<a | b>` choice left in an entry's text: a draft filed before its choice was made (review MEAS-S6). */
+const UNMADE_CHOICE = /<[^<>]*\|[^<>]*>/;
+
+/** Every `<a | b>` choice left in the view's entries, each named by its entry and path; empty when none. */
+export function unmadeChoicesOf(view: AmendmentsFile): readonly string[] {
+  const out: string[] = [];
+  const walk = (v: unknown, path: string): void => {
+    if (typeof v === "string") {
+      const m = UNMADE_CHOICE.exec(v);
+      if (m !== null) out.push(`${path} holds the choice ${m[0]}`);
+    } else if (Array.isArray(v)) v.forEach((x, i) => walk(x, `${path}[${String(i)}]`));
+    else if (typeof v === "object" && v !== null) for (const [k, x] of Object.entries(v)) walk(x, `${path}.${k}`);
+  };
+  for (const e of view.entries) walk(e, e.id);
+  return out;
+}
+
 /**
  * Every refusal a grading run makes before anything plays: `preflightStep3Previews`, then a filed
  * guard map at step 3 (AM-3; `guardFor(view, "3")` throws while none is filed), which must name only
- * step 3's playable arms, each against the base this build's arm reads.
+ * step 3's playable arms, each against the base this build's arm reads; and no entry of the view may
+ * hold a choice not yet made (`<a | b>`, review MEAS-S6: AM-3's draft names the picture C1 reads so).
  */
 export function preflightStep3(filedPath: string, amendmentsPath: string, pin: string = AMENDMENTS_DIGEST): Step3View & { readonly guard: Step3Guard } {
   const v = preflightStep3Previews(filedPath, amendmentsPath, pin);
@@ -325,6 +363,8 @@ export function preflightStep3(filedPath: string, amendmentsPath: string, pin: s
     throw new Error(am3Refusal(e instanceof Error ? e.message : String(e)));
   }
   const { entry, rule, bases } = found;
+  const choices = unmadeChoicesOf(v.view);
+  if (choices.length > 0) throw new Error(`ADR-089 step 3: refused before anything plays: the amendments file's step-3 view holds a choice not yet made: ${choices.join("; ")}. An entry is filed with its choice made`);
   const refuse = (why: string): never => {
     throw new Error(`ADR-089 step 3: refused before anything plays: ${entry.id}'s step-3 base map ${why}`);
   };
@@ -1566,6 +1606,8 @@ export interface Step3Options {
   readonly play?: (id: ArmId, seedSet: SeedSet, env: Step1Env, opts: PlayStep3Options) => Step3Record;
   /** Step 2's records the re-played bases are checked against (default `loadStep2References`). */
   readonly references?: Step2References;
+  /** Tests only: play pocket-1.s3 arms on the AS_RULED picture although S3 is not in contracts (`s3PictureRefusal`). */
+  readonly s3Granted?: boolean;
 }
 
 export interface Step3RunResult {
@@ -1631,6 +1673,8 @@ export function runStep3(opts: Step3Options): Step3RunResult {
   const log = opts.log ?? ((): void => undefined);
   const { file, guard } = preflightStep3(opts.filedPath, opts.amendmentsPath, opts.amendmentsPin);
   const plan = planStep3({ ...(opts.arms === undefined ? {} : { arms: opts.arms }), ...(opts.shard === undefined ? {} : { shard: opts.shard }), ...(opts.seedSet === undefined ? {} : { seedSet: opts.seedSet }) });
+  const s3Refused = s3PictureRefusal([...plan.complete, ...plan.mine].map((t) => t.id), opts.s3Granted ?? S3_IN_CONTRACTS);
+  if (s3Refused !== undefined) throw new Error(s3Refused);
   const corpus = opts.corpus ?? FULL_CORPUS;
   const committed = opts.committedDir !== undefined && [opts.report, opts.out].some((p) => p !== undefined && isUnder(p, opts.committedDir!));
   if (committed && opts.env.dirty) throw new Error("ADR-089 step 3: a committed report (under reports/) is made from a clean tree, and this tree is dirty: commit first, or write the report elsewhere");
@@ -1736,8 +1780,10 @@ export interface Step3DigestsResult {
 }
 
 /** R-1: the golden 50 a league under `STEP3_DIGEST_ARMS` (or the named ones), each folded stripped and unstripped; a preview (AM-3 not needed). */
-export function runStep3Digests(opts: { readonly filedPath: string; readonly amendmentsPath: string; readonly amendmentsPin?: string; readonly node: string; readonly first?: number; readonly arms?: readonly ArmId[]; readonly log?: (line: string) => void }): Step3DigestsResult {
+export function runStep3Digests(opts: { readonly filedPath: string; readonly amendmentsPath: string; readonly amendmentsPin?: string; readonly node: string; readonly first?: number; readonly arms?: readonly ArmId[]; readonly log?: (line: string) => void; readonly s3Granted?: boolean }): Step3DigestsResult {
   const v = preflightStep3Previews(opts.filedPath, opts.amendmentsPath, opts.amendmentsPin);
+  const s3Refused = s3PictureRefusal(opts.arms ?? STEP3_DIGEST_ARMS, opts.s3Granted ?? S3_IN_CONTRACTS);
+  if (s3Refused !== undefined) throw new Error(s3Refused);
   const arms: Record<string, Step3DigestsResult["arms"][string]> = {};
   for (const id of opts.arms ?? STEP3_DIGEST_ARMS) {
     const refusal = armRefusal(id);

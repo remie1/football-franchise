@@ -217,6 +217,20 @@ const RATING_MAX = ATTR_SCALE.max;
  */
 export const P17_IN_CONTRACTS = false;
 
+/**
+ * ADR-090's petition S3 (step-3 plan §3.2; AM-2's `design`): the Mug's ruled spot may be read by
+ * physics. AM-2 makes the design picture the ruled one (`AS_RULED`, which `POCKET_1_S3_FREE_RUN`
+ * carries) only if the owner grants S3 before step 3's arms run; otherwise it is the picture with
+ * beat 3 skipped for the Mug alone (`MUG_HEAD_ONLY`). While this is false and the design picture is
+ * `AS_RULED`, the step-3 harness refuses a graded run and R-1's digests on any pocket-1.s3 arm before
+ * anything plays (`s3PictureRefusal`, review FID-F-1); `--part1` and the season and export commands
+ * still play it, of no record. When S3 is answered: granted, its contracts commit flips this
+ * constant; declined, the design picture becomes `MUG_HEAD_ONLY`, which moves `POCKET_1_S3_DIGEST`,
+ * and C10's and C16's pictures (no free-run block, so the ruled one, `caller/frozen.ts`) are decided
+ * with it (review FID-F-4).
+ */
+export const S3_IN_CONTRACTS = false;
+
 /** Freeze a plain-data tree in place, every depth, and return the same reference. */
 function deepFreeze<T>(node: T): T {
   if (typeof node !== "object" || node === null || Object.isFrozen(node)) return node;
@@ -301,7 +315,9 @@ export const POCKET_1_S2_DIGEST = "fnv1a:03754f60";
  * D19: men nobody touched, and AM-2's untouched exchange) over all three origins (no `origins`), no
  * held input, and the picture `AS_RULED`. The picture is provisional: the design picture if the owner
  * grants ADR-090's petition S3 before the arms run (AM-2's Mug rule); if S3 is declined the bundle is
- * re-pinned before measurement.
+ * re-pinned before measurement. Until then the step-3 harness refuses to measure it
+ * (`S3_IN_CONTRACTS`). An s3 save or export made before the s3 pins (R-2) is not of record: the
+ * overlay digest names these tunables, not the engine code that reads them (review NPC-N3).
  */
 export const POCKET_1_S3_FREE_RUN: PocketFreeRun = deepFreeze({
   fortyYards: 40,
