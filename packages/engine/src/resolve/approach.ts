@@ -28,7 +28,7 @@
 import type { RushApproach, ThreatOrigin } from "@ff/contracts";
 import type { ThreatApproach } from "../events.js";
 import type { ApproachTunables } from "../tunables.js";
-import type { RushAlignment, RushMove } from "../types.js";
+import type { RunSide, RushAlignment, RushMove } from "../types.js";
 import type { RushThreat } from "./rushThreat.js";
 
 /** The pickup and stunt bands §4.0 names (`blitzPickup.bands`, `stunt.bands`). */
@@ -119,4 +119,21 @@ export function threatApproachOf(
  */
 export function withApproach(threat: RushThreat, approach: ThreatApproach | undefined): RushThreat {
   return approach === undefined ? threat : { ...threat, approach };
+}
+
+/**
+ * ADR-089 step 3, D16 (`pocket-1.s3` only; plan §2.3): the side a free runner's threat comes from.
+ * His own card side; a looper's is his partner's, because he crosses to the partner's spot and runs
+ * from it (`resolve/freeRun.ts`). The partner is the twist's penetrator, or, on a looper record a
+ * passed-off twist carried to another man, the man it was carried from.
+ *
+ * Never defaulted: a side the card did not state stays `undefined`, and a looper whose partner has
+ * none has none, whatever his own (the guessed geometry ADR-018's petition 2 removed). Engine-internal:
+ * it rides on the threat (`RushThreat.side`) and nothing reads it at step 3.
+ */
+export function threatSideOf(a: {
+  readonly side: RunSide | undefined;
+  readonly loop?: { readonly partnerSide: RunSide | undefined };
+}): RunSide | undefined {
+  return a.loop === undefined ? a.side : a.loop.partnerSide;
 }

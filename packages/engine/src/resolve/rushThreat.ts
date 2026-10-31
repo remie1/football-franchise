@@ -143,6 +143,13 @@ export interface RushThreat extends ArrivalClock {
    * "still in his block" does not compile.
    */
   readonly approach?: ThreatApproach;
+  /**
+   * ADR-089 step 3, D16 (`pocket-1.s3` only; plan §2.3): the side he comes from, his own card side,
+   * or for a looper his partner's (`resolve/approach.ts`'s `threatSideOf`). Engine-internal: no
+   * event carries it, and nothing reads a side at step 3. Absent under `legacy`, s1 and s2, and
+   * wherever the card states no side; never defaulted.
+   */
+  readonly side?: RunSide;
 }
 
 /**

@@ -135,6 +135,34 @@ export interface FreeRunner {
    * `FreeRunner`, and §7.3's swap moves it whole with the rest of the record (`withAssignmentOf`).
    */
   readonly band?: string;
+  /**
+   * ADR-089 step 3 (`pocket-1.s3` only, `sim/freeRunTiming.ts`; plan §2.3). Engine-internal, like
+   * `band`: no event carries a `FreeRunner`, and none of these is published (the pair waits on
+   * petition P5, `PocketRules.threatGeometry`). Absent under `legacy`, s1 and s2, which never run
+   * the timing pass, so their records are today's objects.
+   *
+   * `onClock`: the arm's reading put him on the free-run clock (`resolve/freeRun.ts`), so
+   * `etaTick` is that clock's, timed for the man carrying this record at the snap (the hand-off
+   * fix). False: `etaTick` is today's set time, unchanged.
+   */
+  readonly onClock?: boolean;
+  /**
+   * The man whose hand was on him (AM-2's `toucher`): for RAN_THROUGH, the back the pickup
+   * assigned, the first actor of the `blitz_pickup` CHECK `rollRef` names; for LATE_EXCHANGE, the
+   * looper's blocker in the plans the stunt CHECK was rolled on (none: the untouched exchange, D19).
+   * Under reading A also a BLOWN_UP man's back and a LOOPER_FREE man's blocker. A carried record
+   * keeps its toucher. `touchMargin` is that touching CHECK's margin, from the protection's side.
+   */
+  readonly toucher?: PlayerId;
+  readonly touchMargin?: number;
+  /** The free-run clock's whole path and the trip's average speed (`FreeRunClock`), when `onClock`. */
+  readonly distanceYards?: number;
+  readonly closingSpeed?: number;
+  /**
+   * D16, the side his threat comes from (`resolve/approach.ts`'s `threatSideOf`): his own card
+   * side, or a looper's partner's. Absent where the card states none; never defaulted.
+   */
+  readonly side?: RunSide;
 }
 
 /** What every rusher has in common, whoever is or is not blocking him. */

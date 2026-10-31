@@ -76,6 +76,7 @@ import { applyPlayOutcome } from "./outcome.js";
 import type { PlayOutcome } from "./outcome.js";
 import { readPreSnap, resolvePickups, resolveStunts } from "./preSnap.js";
 import type { RushPlan } from "./preSnap.js";
+import { assertSnapPictureFor, timeFreeRunners } from "./freeRunTiming.js";
 import { pocketRulesOf } from "./pocketRules.js";
 import type { PocketRules } from "./pocketRules.js";
 import { effectiveCall } from "./pressureRead.js";
@@ -286,6 +287,8 @@ function freeRunnerThreat(plan: RushPlan, label: ThreatLabeller | undefined): Ru
     wonAtTick: 0,
     etaTick: plan.free.etaTick,
     rollRef: plan.free.rollRef,
+    // ADR-089 step 3, D16: the side his threat comes from, engine-internal (`pocket-1.s3` only).
+    ...(plan.free.side === undefined ? {} : { side: plan.free.side }),
   };
   // ADR-089 P4: from step 1 a free runner is labelled too, from his origin and the pickup or stunt
   // band; his timing is today's until step 3 (ADR-089:397). Under `legacy`, the same object as before.
@@ -391,6 +394,10 @@ export function simulatePassPlay(
   // engine cannot resolve is rejected loudly; a card that is merely unrealistic
   // is franchise's problem, checked at authoring time, not here.
   assertCoherentPlayCall(state, calls);
+  // ADR-089 step 3 (plan §2.3): under any step-3 block the calls carry the snap picture, every
+  // played rusher has an entry in it under the free-run block, and only the creeper's moves; a
+  // `FreeRunTimingError` here otherwise, before a single die. A no-op under `legacy`, s1 and s2.
+  assertSnapPictureFor(rules, calls);
 
   const playId = makePlayId(`${String(state.gameId)}:play:${state.playNumber}`);
   const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq);
@@ -530,8 +537,25 @@ export function simulatePassPlay(
     plans: pickups.plans,
     presnapRng,
   });
+  // ADR-089 step 3 (plan §2.3; `sim/freeRunTiming.ts`): under a free-run block or a late block the
+  // free records are timed from the snap picture for the man carrying each at the snap (the
+  // hand-off fix), with who touched him and his side. No die, label or roll moves; under `legacy`,
+  // s1 and s2 (and the climb lane alone) the plans go on as `resolveStunts` left them.
+  const plansAtSnap: readonly RushPlan[] =
+    rules.kind !== "LEGACY" && (rules.freeRun !== undefined || rules.lateBlock !== undefined)
+      ? timeFreeRunners({
+          tunables,
+          freeRun: rules.freeRun,
+          snap: calls.snap,
+          dropYards: calls.offense.dropDepthYards,
+          disguise: preSnap.disguise,
+          stunts: preSnap.stunts,
+          pickups,
+          lineGames,
+        })
+      : lineGames.plans;
   const labelThreat = threatLabellerFor(rules, preSnap.stunts);
-  const matchups = buildMatchups(lineGames.plans, labelThreat);
+  const matchups = buildMatchups(plansAtSnap, labelThreat);
   const recoverySpots = buildRecoverySpots(tunables, state, runCalls, tracks);
 
   // The re-order sees only the coverage read's decisions: a protection-only `made` would skip its
