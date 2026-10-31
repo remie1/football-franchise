@@ -34,7 +34,7 @@ export interface CapPlan {
   lookAhead: number;
   /** Share of the free-agency room it restructures and cuts for in March: 100% (win now) to 50% (flexible). CHOSEN. */
   marchRoom: number;
-  /** Does it add void years to make room? Win-now and middle teams do; flexible ones (above 67) do not. CHOSEN. */
+  /** Does it add void years to make room? Win-now teams (33 and under) do; the rest do not (step 11: with real deal shapes, void years for two thirds of teams left $30-40M a team of dead money a year). CHOSEN. */
   voidYears: boolean;
 }
 
@@ -44,7 +44,7 @@ export function capPlan(leaning: number = 50): CapPlan {
     cushion: Math.round(5_000_000 + 5_000_000 * l),
     lookAhead: 0.25 + 0.75 * l,
     marchRoom: 1 - 0.5 * l,
-    voidYears: leaning <= 67,
+    voidYears: leaning <= 33,
   };
 }
 
