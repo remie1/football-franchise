@@ -681,3 +681,18 @@ and under `pocket-1.s1` and `pocket-1.s2`, nothing here applies.
 The open item above, `RushThreat.distanceYards`'s comment and its subject condition, is ADR-090's
 petition S4 (doc text: the subject condition becomes "a snap spot (ADR-090)"); the comment is not
 changed before the owner's typed yes.
+
+**Orchestrator note (2026-10-31): P5 and S4 granted.** The owner gave his typed yes to ADR-089's
+petition P5 and ADR-090's petition S4 on 2026-10-31 at 14:38:53Z, in the ADR-089 thread: "Yes,
+make contracts edits S3, P5 and P17, and edit S4". So the note above no longer waits on the owner.
+P5 reached contracts at `218a737`: `RUSH_THREAT`'s payload gains `distanceYards` and
+`closingSpeed`, both or neither. The engine lifted its gate at `58a374b` (E6b), so the pair is
+published, not kept engine-internal. It is published only under `pocket-1.s3`:
+- a free runner the free-run clock timed carries the clock's pair: his path from his snap spot,
+  and that path over his whole time from the snap;
+- a won rep and a beaten late block carry the nominal pair;
+- a free runner on today's set time carries neither.
+
+Under `legacy`, `pocket-1.s1` and `pocket-1.s2`, neither key is written. S4's comment edit is
+`c61ec9d`. `RushThreat.distanceYards`' subject condition is now "a snap spot (ADR-090)", which
+closes the open item above.
