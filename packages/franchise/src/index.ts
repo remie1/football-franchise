@@ -39,7 +39,7 @@ export { summariseSeason } from "./staff/summarise.js";
 export { staffSteps, STAFF_STEP_PREFIX, STAFF_DAYS, type StaffStepsConfig } from "./staff/steps.js";
 export { rosterFit } from "./staff/style.js";
 export { makeCoach, drawDisguise, type Cohort } from "./staff/makeCoach.js";
-export { makeRatings, seatScore, averageSkill, COACH_SKILLS, type CoachRatings } from "./staff/ratings.js";
+export { makeRatings, seatScore, averageSkill, COACH_SKILLS, MEETING_SKILLS, type CoachRatings } from "./staff/ratings.js";
 export { initStandIn, standInSeason, collegeRecord, programStrength, type StandInState } from "./staff/standIn.js";
 export { staffTurnoverCheck, type TurnoverReport, type SeasonTally, type Band } from "./staff/check.js";
 export {

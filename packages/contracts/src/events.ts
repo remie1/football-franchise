@@ -9,6 +9,7 @@ import type { DraftPickKind, GameKind, GameResult, PlayoffBracket } from "./leag
 import type { StaffRole, ContractKind, InjuryBand, InjurySetting } from "./players.js";
 import type { StaffDepartureReason } from "./staff.js";
 import type { RelationshipParty, RelationshipWord } from "./relationships.js";
+import type { MeetingPoint, StaffMeeting, TeamDirection } from "./meeting.js";
 import type { SidelineAdjustmentPayload, StemPayload } from "./stem.js";
 
 export interface RollModifier {
@@ -745,6 +746,12 @@ export type FranchiseEvent =
         after: RelationshipWord;
         rift?: "OPENED" | "REPAIRED";
       } }
+  /** ADR-081 G2: a team's end-of-season meeting, every take with its hidden grade. */
+  | { type: "STAFF_MEETING_HELD"; payload: { meeting: StaffMeeting } }
+  /** ADR-081 G2: the user asked a man "how sure are you?" about one point; `certainty` is his answer. */
+  | { type: "MEETING_CERTAINTY_ASKED"; payload: { team: TeamId; season: number; speaker: StaffId; point: MeetingPoint; certainty: number } }
+  /** ADR-081 G3: a team's course set (or changed). */
+  | { type: "TEAM_DIRECTION_SET"; payload: { team: TeamId; season: number; direction: TeamDirection; authority: "COACH" | "GM" | "PRESIDENT" } }
   | { type: "AWARD_GIVEN"; payload: { award: string; subject: PlayerId | StaffId } }
   /** ADR-078 C6: widened to carry the teams; nothing emitted the old shape. */
   | { type: "GAME_COMPLETED"; payload: { result: GameResult; kind: GameKind } }

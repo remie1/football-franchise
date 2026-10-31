@@ -3,8 +3,10 @@
 - **Date:** 2026-10-22
 - **Proposed by:** Orchestrator, for `franchise` (thread "End-of-season staff meeting", written in the
   `franchise-engine` role; working copy at `/mnt/project-files/design/end-of-season-meeting-plan.md`)
-- **Status:** design ruled by the owner (Q1-Q10 and F1-F5, 2026-10-22). Contracts edits G1-G6 are
-  **not made**: each needs the owner's typed yes when the build starts. **Design only: no code.**
+- **Status:** design ruled by the owner (Q1-Q10 and F1-F5, 2026-10-22). **Build started 2026-10-31.**
+  The owner typed the yes for G1, G2, G3 and G5 on 2026-10-31 16:04Z ("Yes, make contracts edits G1,
+  G2, G3 and G5"); they are made (see "Contracts edits as made" below). G4 and G6 needed no edit: every
+  staff member already carries a personality type, and ADR-084 V1 already saves the views.
 
 > Phase note: Charter §6 places franchise at Phase 4; the owner pulled franchise work ahead
 > (ADR-078). Nothing here touches engine, playbook, play-caller or calibration code. The build waits
@@ -419,6 +421,22 @@ GM's decisions yourself (you sign, cut and trade). So who sits across the table?
   the coaches' skill list so every staff member carries them (Q4, Q6, F1).
 - **G6. Relationship views**, one entry per direction (from, of, score, optional rift), in the
   save file. The shape is ADR-084's (its V1); this note only reads and moves them.
+
+### Contracts edits as made (2026-10-31)
+
+- **G1:** `StaffRole` gains `"GM"`. For now each team's GM is made with the league and keeps the job;
+  hiring and firing GMs is a later step.
+- **G2:** `meeting.ts`: `StaffMeeting` (team, season, when, takes, clashes), `MeetingTake` (speaker,
+  claim, hidden grade, certainty fixed at the meeting, whether he volunteered it), `MeetingClaim`
+  (point plus verdict, groups, players, wins or direction as the point needs), `MeetingClash` (point,
+  the two men, polite / open argument / rift). Events `STAFF_MEETING_HELD` and
+  `MEETING_CERTAINTY_ASKED`; the save keeps each team's last meeting (`world.meetings?`).
+- **G3:** `TeamDirection` (contend, retool, rebuild), `Team.direction?`, event `TEAM_DIRECTION_SET`
+  with the authority tag of whoever set it.
+- **G5:** the coach registry gains `performanceAnalysis`, `forecasting`, `capManagement`,
+  `marketSense` (season) and `nuance` (career). Franchise draws them from each coach's own fork with
+  his talent level, so every coach keeps the 19 ratings he had and the carousel is unchanged (checked:
+  a built staff and its history digest the same before and after).
 
 Nothing in the match engine, play cards or play-callers is touched. ADR-073 step six's
 measurements are unaffected.
