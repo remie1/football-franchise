@@ -175,8 +175,7 @@ windows. Its fix is designed right after the pocket fix, measured on the fixed p
   miss is your call, fenced in by the league's own grading (you chose 2 in 3 of the holding seen
   and 1 in 20 judgment flags wrong). An assistant head coach offers challenges with an honest
   percentage, under the NFL's real challenge rules. Its first two steps (the rulebook and the
-  officials) are being built now and change no play; the fouls themselves come after the pocket
-  fix.
+  officials), which change no play, come next; the fouls themselves come after the pocket fix.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.
