@@ -17,6 +17,7 @@ import {
   gameDigest,
   GOLDEN_LEAGUES,
   GOLDEN_PINS,
+  goldenStream,
   type GoldenLeague,
   type GoldenPin,
 } from "../pocket/golden.js";
@@ -28,7 +29,7 @@ export const STEP1_CALLER = "v7";
 export interface Step1League {
   readonly league: GoldenLeague;
   readonly games: number;
-  /** `{at, event}` entries over the games played. */
+  /** `{at, event}` entries over the games played, as the digests read them (after `GOLDEN_STRIP`). */
   readonly events: number;
   readonly canonicalFold: string;
   readonly byteFold: string;
@@ -57,7 +58,8 @@ export function measureStep1(opts: { readonly first?: number } = {}): Step1Measu
         check.add(observation.events, snapshot);
         canonical.push(gameDigest(observation.events));
         bytes.push(gameBytesDigest(observation.events));
-        events += observation.events.length;
+        // From ADR-090 step 3 the stream also carries the records at the line, which the strip takes off.
+        events += goldenStream(observation.events).length;
       },
       { callerVersion: STEP1_CALLER, ...(opts.first === undefined ? {} : { first: opts.first }) },
     );

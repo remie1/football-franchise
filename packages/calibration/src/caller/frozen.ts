@@ -196,7 +196,6 @@
 import type { Cadence, Rng } from "@ff/contracts";
 import { createRng } from "@ff/contracts";
 import type {
-  CadenceRequest,
   CoinTossChoice,
   CoinTossRequest,
   DefensiveCallRequest,
@@ -1056,8 +1055,10 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
      * ADR-091 §5.1 (D1) and ADR-092 §5.4 (D8): the quarterback's count, asked of the OFFENSE's
      * caller on a snap whose defense wears a stem (ADR-090 step 3, under `legacy` rules only). One
      * d100 from the snap's own address (`call:<n>/cadence`), none when a hard count is owed at home.
+     * Its request is typed through `PlayCaller`, as `lineUp`'s is, so calibration's engine surface
+     * gains no name (ADR-089 step 0's pin).
      */
-    cadence(request: CadenceRequest, rng: Rng): Cadence {
+    cadence(request, rng): Cadence {
       const s = request.situation;
       return chooseCadence({ home: request.home, down: s.down, distance: s.distance, hardCountsOwed: request.hardCountsOwed }, rng);
     },
