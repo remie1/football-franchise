@@ -1,6 +1,6 @@
 # ADR-090: where every man stands at the snap, in plain words
 
-*2026-10-25, revised 2026-10-30: the Stem now has its own design, [ADR-091](ADR-091-questions-explained.md), built on your notes, so questions 1 and 4 are asked again. The full design is [ADR-090](ADR-090-where-every-man-stands-at-the-snap.md). Design only: nothing in the game changes until you answer, and the pocket fix's measurements are not touched. Five questions, each also a card in the thread; you answered 1 (Real) and 4 (Yes) on 2026-10-30. You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
+*2026-10-25, revised 2026-10-30: the Stem now has its own design, [ADR-091](ADR-091-questions-explained.md), built on your notes, so questions 1 and 4 are asked again. The full design is [ADR-090](ADR-090-where-every-man-stands-at-the-snap.md). Design only: nothing in the game changes until you answer, and the pocket fix's measurements are not touched. Five questions, each also a card in the thread; you answered 1 (Real), 2 (By rating) and 4 (Yes). You never merge: each step comes to you with its numbers, and I ask "should I merge?"*
 
 ## What this is
 
@@ -21,7 +21,7 @@ This design plays the pre-snap game out in order and writes down where all 22 me
 ## The five questions, one line each
 
 1. **A look (the Mug and the coverage looks):** is the man really standing there at the snap? *I recommend Real.* **Your answer: Real.**
-2. **Tells:** does where he stands give his job away? *I recommend By rating.*
+2. **Tells:** does where he stands give his job away? *I recommend By rating.* **Your answer: By rating.**
 3. **The ball across the field:** always the middle for now, or the hash? *I recommend Middle for now.*
 4. **The plan:** eleven steps, with the pocket fix's free rushers third and the stem in four of them? *I recommend Yes.* **Your answer: Yes.**
 5. **The game viewer:** draw all 22 men at the snap? *I recommend Yes.*
@@ -49,6 +49,8 @@ Your rule from October still holds: a look never changes **what** a man is assig
 - **Head only:** looks stay in the quarterback's head; at the snap everyone stands where his real job would put him. Disguise stays free.
 
 ## Question 2: tells, does where he stands give his job away?
+
+**Your answer (2026-10-31): By rating.**
 
 **An example.** Your August note: linebacker depth runs 4 to 7 yards and is itself the main tell. A backer who is going to blitz on a disguised call should stand at normal depth, like everyone else. A poor disguiser creeps up a yard because he wants a head start. He gets there sooner, and the center sees him and points him out.
 
