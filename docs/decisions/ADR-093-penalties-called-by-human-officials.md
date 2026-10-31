@@ -166,7 +166,7 @@ Each crew carries a **lean for each of five families**, 50 the league average. T
 
 ### 6.2 Crews are assigned each week (Q3)
 
-The NFL assigns its 17 crews to games each week. **Recommended (Q3):** the league has 17 crews with made-up referee names, the stand-ins for the real crews the way the players and coaches are (the owner's direction of 2026-10-23); each week's schedule assigns one crew to each game, with no crew working the same team twice in four weeks (CHOSEN); and the coaches see the crew's leans in game week, the way real teams get a crew's tendencies. Later, the weekly game plan (ADR-076) may read it ("this crew calls holding, keep your hands inside"). **The other choice:** no named crews; each game draws its leans fresh, and nobody sees them.
+The NFL assigns its 17 crews to games each week. **Ruled (Q3, the owner, 2026-10-31; §15):** the league has 17 crews with made-up referee names, the stand-ins for the real crews the way the players and coaches are (the owner's direction of 2026-10-23); each week's schedule assigns one crew to each game, with no crew working the same team twice in four weeks (CHOSEN); and the coaches see the crew's leans in game week, the way real teams get a crew's tendencies. Later, the weekly game plan (ADR-076) may read it ("this crew calls holding, keep your hands inside"). **The other choice (not taken):** no named crews; each game draws its leans fresh, and nobody sees them.
 
 ### 6.3 Who assigns them
 
@@ -253,7 +253,7 @@ The foul roll is `penalty_check` (the existing `CheckKind`, ADR-091's first prod
 |---|---|---|---|
 | **Q1** | How much of the holding and grabbing in the pile do officials see? | **2 in 3** (an offense really holds about 1.6 times a game) / **1 in 2** (about 2.2) / **1 in 3** (about 3.2); flagged about 1.1 times a game under any choice. No source measures it; the NFL's own error count fits 2 in 3 (§5.2) | **2 in 3** (revised from 1 in 2, 2026-10-31) |
 | **Q2** | How often is a flag thrown on nothing (a close play that looked like a foul)? | **1 in 50 judgment flags** (one wrong flag every 6 or 7 games) / **1 in 20** (one every 2 or 3 games, about 3% of all flags) / **1 in 10** (close to one a game); plain fouls a tenth as often. Real bounds in §5.3 | **1 in 20** |
-| **Q3** | Should the league have 17 named crews, each with its own leans, assigned each week and known to the coaches? | **Named crews** / **Fresh each game, unseen** | **Named crews** |
+| **Q3** | Should the league have 17 named crews, each with its own leans, assigned each week and known to the coaches? | **Named crews** / **Fresh each game, unseen** | **Named crews** (ruled 2026-10-31, §15) |
 | **Q4** | Should officials "let them play" late in close games and in the playoffs, on judgment calls? | **Yes, as measured** / **No, the same every snap** | **Yes** |
 | **Q5** | Should officials lean toward the home team, beyond what the crowd does? | **No, the crowd only** / **A small lean on the defense's judgment calls** (pass interference, defensive holding, illegal contact: the road gaps that stayed when 2020 had no fans, §6.4) | **A small lean** (revised from No, 2026-10-31) |
 | **Q6** | Where does the coach see fouls the officials missed, and flags on nothing? | **On film only** / **In the play log as it happens** / **Nowhere** | **On film only** |
@@ -290,4 +290,6 @@ The foul roll is `penalty_check` (the existing `CheckKind`, ADR-091's first prod
 
 ## 15. Rulings
 
-*None yet.*
+The owner's answers, as given; each stands for the build. Questions not listed are still open.
+
+- **Q3, 2026-10-31 12:29Z (card): named crews.** The league has 17 crews with made-up referee names, stand-ins for the real crews; each carries a lean for each of the five families, sized to the real spread (§6.1), and carries it into the next season at 0.35; each week's schedule assigns one crew to each game, no crew working the same team twice in four weeks; the coaches see the crew's leans in game week (§6.2). The crews are made and saved with the league (§6.3). Built at step 1.

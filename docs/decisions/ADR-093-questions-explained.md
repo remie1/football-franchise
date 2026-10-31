@@ -73,6 +73,8 @@ Wrong flags in this design only come from plays that were close to a foul, never
 
 ### Q3. Should the league have 17 named crews?
 
+**You chose named crews (31 October).**
+
 **Example:** in Week 6 the Bills play at the Jets, and the crew is the strictest holding crew in the league. The Bills' coaches see that on the crew sheet in game week.
 
 - **Named crews (recommended):** 17 crews with made-up referee names, stand-ins for the real ones like the players and coaches, each with its own leans (sized to how much real crews differ), assigned each week, no crew on the same team twice in four weeks, and the coaches see the leans in game week. Later the game plan can react to them.
