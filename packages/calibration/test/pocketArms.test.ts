@@ -25,12 +25,23 @@
  *     the horizons (pkA's A123); the forcing key is present exactly on B1, B3, B4 and B6.
  * 11. The 26 digests of the union are distinct and `armOfDigest` maps every stamped one.
  * 12. The mechanisms: step 2's four appended, and each B arm's exclusive set against its base.
+ *
+ * Step 3's arm ids (plan §5.1, §4.2), named and inert, in the last describes:
+ * 13. C1 to C16 and step 3's run list (the bases A0, A14, A1, A11, B3, B6, B5, then the C arms) are
+ *     arms of this build: `isAnyArmId` and `isRunIdOf(3, ...)` take them, `isArmId` and step 1's and
+ *     step 2's run lists do not; `ALL_ARM_IDS` gains them after step 2's, and step 1's and step 2's
+ *     lists are unchanged.
+ * 14. Nothing defines or plays them: `armById` refuses a C id by name, `everyArm()` and the digests
+ *     are step 1's and step 2's, and `pocket --step 3` is still refused.
+ * 15. AM-3's base map (C1 on B3, C2 on B6, C11 on B3) on a stand-in entry names arms of this build;
+ *     an id past C16 does not. The committed amendments file is read, never written.
  */
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { applyTunablePatch, DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
 import { stableDigest } from "../src/harness/digest.js";
 import { readFileSync } from "node:fs";
+import { amendmentsProblems, AMENDMENTS_PATH, guardFor, loadAmendments } from "../src/pocket/amendments.js";
 import {
   ALL_ARM_IDS,
   allArms,
@@ -50,6 +61,7 @@ import {
   isArmId,
   isRunIdOf,
   isStep2ArmId,
+  isStep3ArmId,
   LATE,
   lOverlay,
   MECHANISMS,
@@ -68,10 +80,14 @@ import {
   STEP2_BASES,
   STEP2_RUN_IDS,
   step2Arms,
+  STEP3_ARM_IDS,
+  STEP3_RUN_IDS,
   type ArmId,
+  type ArmStep,
 } from "../src/pocket/arms.js";
 import { FILED_PATH } from "../src/pocket/bands.js";
 import { loadFiled } from "../src/pocket/filed.js";
+import { parsePocketArgs } from "../src/pocket/step0.js";
 import {
   EngineRulesError,
   overlayDigestOf,
@@ -345,8 +361,9 @@ describe("step 2's arm lists (plan §4.1, C2-F4)", () => {
     expect([...STEP2_RUN_IDS]).toEqual(["A0", "A14", "A1", "A5", "A11", "B1", "B2", "B3", "B4", "B5", "B6", "B7"]);
     expect(STEP2_BASES.map((b) => b.id)).toEqual(["A0", "A14", "A1", "A5", "A11"]);
     expect([...STEP2_RUN_IDS]).toEqual([...STEP2_BASES.map((b) => b.id), ...STEP2_ARM_IDS]);
-    expect([...ALL_ARM_IDS]).toEqual([...ARM_IDS, ...STEP2_ARM_IDS]);
-    expect(everyArm().map((a) => a.id)).toEqual([...ALL_ARM_IDS]);
+    // Step 3's ids are appended after step 2's (named, inert); every arm this build defines is step 1's and step 2's.
+    expect([...ALL_ARM_IDS]).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS]);
+    expect(everyArm().map((a) => a.id)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS]);
   });
 
   it("checks an id per step: step 1 takes its 17 only, step 2 its run list only", () => {
@@ -546,7 +563,8 @@ describe("step 2's mechanisms (plan §4.1, C3-13)", () => {
     // Step 1's arms carry no forcing rule, so their mechanisms are step 1's.
     for (const a of allArms()) expect(mechanismsOf(a).some((m) => m === "MUST_ACT" || m === "COUNTER_LESS_SEEN" || m === "HALF" || m === "FOLLOWS"), a.id).toBe(false);
     const ids: ArmId[] = [...ALL_ARM_IDS];
-    expect(ids).toHaveLength(24);
+    expect(ids).toHaveLength(40);
+    expect(everyArm()).toHaveLength(24);
   });
 });
 
@@ -564,5 +582,82 @@ describe("the legacy-clock tripwire in build (review FID-F-8, CT-F9)", () => {
       expect(() => buildArm(def), JSON.stringify({ rules: def.rules, forcing: def.forcing })).toThrow(EngineRulesError);
       expect(() => buildArm(def)).toThrow(message);
     }
+  });
+});
+
+describe("step 3's arm ids, named and inert (plan §5.1, §4.2)", () => {
+  it("lists C1 to C16 and step 3's run list: the seven re-played bases, then the C arms", () => {
+    expect([...STEP3_ARM_IDS]).toEqual(Array.from({ length: 16 }, (_, i) => `C${String(i + 1)}`));
+    expect([...STEP3_RUN_IDS]).toEqual(["A0", "A14", "A1", "A11", "B3", "B6", "B5", ...STEP3_ARM_IDS]);
+    expect(new Set(STEP3_RUN_IDS).size).toBe(STEP3_RUN_IDS.length);
+    // The re-played bases are arms this build defines; the C arms are not yet.
+    for (const id of STEP3_RUN_IDS.slice(0, 7)) expect(everyArm().some((a) => a.id === id), id).toBe(true);
+    expect(Object.isFrozen(ALL_ARM_IDS)).toBe(true);
+    // Step 1's and step 2's lists are as they were.
+    expect(ARM_IDS).toHaveLength(17);
+    expect(STEP1_RUN_IDS).toBe(ARM_IDS);
+    expect([...STEP2_RUN_IDS]).toEqual(["A0", "A14", "A1", "A5", "A11", "B1", "B2", "B3", "B4", "B5", "B6", "B7"]);
+    expect(ARM_DEFS.map((d) => d.id)).toEqual([...ARM_IDS]);
+    expect(STEP2_ARM_DEFS.map((d) => d.id)).toEqual([...STEP2_ARM_IDS]);
+  });
+
+  it("checks an id per step: step 3 takes its run list only, steps 1 and 2 no C id", () => {
+    const steps: readonly ArmStep[] = [1, 2, 3];
+    expect(runIdsOf(3)).toBe(STEP3_RUN_IDS);
+    expect(steps.map((step) => runIdsOf(step))).toEqual([STEP1_RUN_IDS, STEP2_RUN_IDS, STEP3_RUN_IDS]);
+    for (const id of STEP3_ARM_IDS) {
+      expect(isAnyArmId(id), id).toBe(true);
+      expect(isStep3ArmId(id), id).toBe(true);
+      expect(isRunIdOf(3, id), id).toBe(true);
+      expect(isArmId(id), id).toBe(false);
+      expect(isStep2ArmId(id), id).toBe(false);
+      expect(isRunIdOf(1, id), id).toBe(false);
+      expect(isRunIdOf(2, id), id).toBe(false);
+    }
+    for (const id of [...ARM_IDS, ...STEP2_ARM_IDS]) {
+      expect(isStep3ArmId(id), id).toBe(false);
+      expect(isRunIdOf(3, id), id).toBe((STEP3_RUN_IDS as readonly string[]).includes(id));
+    }
+    // A5 is step 2's base for B5, not one of step 3's re-played bases; B1, B2, B4 and B7 are not re-played.
+    for (const notRun of ["A5", "A2", "A15", "A0b", "B1", "B2", "B4", "B7"]) expect(isRunIdOf(3, notRun), notRun).toBe(false);
+    for (const bad of ["C0", "C17", "c1", "C01", "C", ""]) {
+      expect(isAnyArmId(bad), bad).toBe(false);
+      expect(isStep3ArmId(bad), bad).toBe(false);
+      for (const step of steps) expect(isRunIdOf(step, bad), `${bad} at step ${String(step)}`).toBe(false);
+    }
+  });
+
+  it("nothing defines or plays them: armById refuses a C id by name, the digests are step 1's and step 2's, and --step 3 is refused", () => {
+    for (const id of STEP3_ARM_IDS) {
+      expect(() => armById(id), id).toThrow(new RegExp(`^arms: ${id} is one of step 3's arms, named in this build but not yet defined \\(ADR-089 step 3, plan §5\\.1\\): nothing plays it$`));
+    }
+    expect(() => armById("Z9" as ArmId)).toThrow(/^arms: no arm Z9$/);
+    expect(everyArm().some((a) => isStep3ArmId(String(a.id)))).toBe(false);
+    expect(new Set(everyArm().map((a) => a.rules))).toEqual(new Set(["legacy", "pocket-1.s1", "pocket-1.s2"]));
+    expect(() => parsePocketArgs(["--step", "3"], "/")).toThrow(SyntaxError);
+    expect(() => parsePocketArgs(["--step", "3", "--arms", "C1"], "/")).toThrow(/--step 3 is not/);
+    // Step 2's command line takes no C arm.
+    expect(() => parsePocketArgs(["--step", "2", "--arms", "C1"], "/")).toThrow(/^--arms: C1 is not an arm \(step 2's: A0, A14, A1, A5, A11, B1 to B7\)$/);
+  });
+
+  it("AM-3's base map on a stand-in entry names arms of this build; an id past C16 does not (the committed file is only read)", () => {
+    const PKG = join(import.meta.dirname, "..");
+    const filing = loadFiled(join(PKG, FILED_PATH));
+    const committed = loadAmendments(join(PKG, AMENDMENTS_PATH), filing);
+    expect(() => guardFor(committed, "3")).toThrow(/no filed amendment maps step 3's guard bases/);
+    const withBases = (bases: Record<string, Record<string, string>>): unknown => {
+      const j = JSON.parse(JSON.stringify(committed)) as { entries: Record<string, unknown>[] };
+      const standIn = JSON.parse(JSON.stringify(j.entries.find((e) => e["id"] === "AM-1"))) as Record<string, unknown>;
+      standIn["id"] = `AM-${String(j.entries.length + 1)}`;
+      standIn["filedBeforeStep"] = "3";
+      standIn["steps"] = ["3", "4", "5a", "5b", "6", "7", "8a", "8b", "9", "10"];
+      (standIn["rule"] as Record<string, unknown>)["bases"] = bases;
+      j.entries.push(standIn);
+      return j;
+    };
+    expect(amendmentsProblems(withBases({ "3": { C1: "B3", C2: "B6", C11: "B3" } }), filing)).toEqual([]);
+    const past = amendmentsProblems(withBases({ "3": { C17: "B3", C2: "C0" } }), filing);
+    expect(past.some((p) => /bases\.3\.C17: not an arm of this build/.test(p)), past.join("; ")).toBe(true);
+    expect(past.some((p) => /bases\.3\.C2: its base "C0" is not an arm of this build/.test(p)), past.join("; ")).toBe(true);
   });
 });

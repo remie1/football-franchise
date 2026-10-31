@@ -1,6 +1,7 @@
 /**
- * THE ARMS OF STEPS 1 AND 2 (ADR-089 step 1: plan §7.2 item 2, §9.3, readings O23 to O28, O32, O33;
- * step 2: plan §4.1, §4.2, readings O35 to O47, AM-1's base map).
+ * THE ARMS OF STEPS 1 AND 2, AND STEP 3'S ARM IDS (ADR-089 step 1: plan §7.2 item 2, §9.3, readings
+ * O23 to O28, O32, O33; step 2: plan §4.1, §4.2, readings O35 to O47, AM-1's base map; step 3: plan
+ * §5.1, §4.2, the ids only).
  *
  * Step 1 builds both block clocks behind the switch and prices them on the flat league's 496 games
  * and the generated league's 272, at caller v7 (`ADR:941`, §6.1). Step 2 adds must act per rusher,
@@ -13,6 +14,13 @@
  *    `--step 1`, `allArms()`, `ARM_DEFS` and `isArmId` are step 1's as they were. `STEP2_ARM_IDS` is
  *    B1 to B7 (the graded arms, `STEP2_ARM_DEFS`); `STEP2_RUN_IDS` is what step 2 plays: the
  *    re-played bases A0, A14, A1, A5, A11 (`STEP2_BASES`) and B1 to B7. `ArmId` is the union.
+ *  - **Step 3's arm ids, named and inert** (plan §5.1, §4.2). `STEP3_ARM_IDS` is C1 to C16 and
+ *    `STEP3_RUN_IDS` what step 3 will play: the re-played bases A0, A14, A1, A11, B3, B6 and B5, then
+ *    C1 to C16. They are in `ArmId`, `ALL_ARM_IDS` and `ARM_STEPS` so that AM-3's base map (C1, C2
+ *    and C11) names arms of this build before any C arm runs. Nothing defines or plays them yet:
+ *    `armById` refuses a C id by name, `everyArm()` and the table hold step 1's and step 2's arms
+ *    only, and the command line refuses `--step 3`. Step 1's and step 2's lists, arms and digests
+ *    are as they were.
  *  - **Step 2's arms** are stamped `pocket-1.s2` with their own overlay digests (O28), whatever their
  *    forcing rule; the re-played bases keep their step-1 stamps and digests. B3 is the design bundle
  *    itself, `rulesTunables("pocket-1.s2")`. Each B arm's base is AM-1's step-2 map (B1, B2, B3, B4,
@@ -177,8 +185,16 @@ export const STEP1_RUN_IDS: readonly Step1ArmId[] = ARM_IDS;
 export const STEP2_ARM_IDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7"] as const;
 export type Step2ArmId = (typeof STEP2_ARM_IDS)[number];
 
-/** Every arm of this build: step 1's and step 2's. */
-export type ArmId = Step1ArmId | Step2ArmId;
+/**
+ * Step 3's sixteen arms (plan §5.1), in order: named, not yet defined (inert). AM-3's base map names
+ * C1, C2 and C11 (plan §4.2), so the ids are arms of this build before any C arm runs; nothing in
+ * this build plays them.
+ */
+export const STEP3_ARM_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C14", "C15", "C16"] as const;
+export type Step3ArmId = (typeof STEP3_ARM_IDS)[number];
+
+/** Every arm id of this build: step 1's, step 2's and step 3's (the last named only). */
+export type ArmId = Step1ArmId | Step2ArmId | Step3ArmId;
 
 /**
  * What `--step 2` plays (plan §4.1, §4.6): the five re-played step-1 arms, A0 and A14 for AM-1's
@@ -187,8 +203,19 @@ export type ArmId = Step1ArmId | Step2ArmId;
 export const STEP2_RUN_IDS = ["A0", "A14", "A1", "A5", "A11", ...STEP2_ARM_IDS] as const satisfies readonly ArmId[];
 export type Step2RunId = (typeof STEP2_RUN_IDS)[number];
 
-/** Every arm id of this build, step 1's then step 2's. */
-export const ALL_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2_ARM_IDS]);
+/**
+ * What `--step 3` will play (plan §5.1), once its harness is built: the seven re-played bases, A0
+ * and A14 for the cumulative line, A1 and A11 for the accepted state, B3, B6 and B5 as the C arms'
+ * bases, then C1 to C16. Named only: the command line refuses `--step 3` in this build.
+ */
+export const STEP3_RUN_IDS = ["A0", "A14", "A1", "A11", "B3", "B6", "B5", ...STEP3_ARM_IDS] as const satisfies readonly ArmId[];
+export type Step3RunId = (typeof STEP3_RUN_IDS)[number];
+
+/** Every arm id of this build, step 1's then step 2's then step 3's (step 3's named, not yet defined). */
+export const ALL_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS]);
+
+/** The arms this build defines: step 1's 17 then step 2's 7 (`everyArm()`, the table). */
+const DEFINED_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2_ARM_IDS]);
 
 /** A step-1 arm id (`ARM_IDS`), as at step 1: step 1's command line reads it. */
 export function isArmId(id: string): id is Step1ArmId {
@@ -200,18 +227,38 @@ export function isStep2ArmId(id: string): id is Step2ArmId {
   return (STEP2_ARM_IDS as readonly string[]).includes(id);
 }
 
-/** Any arm of this build, step 1's or step 2's (for example AM-1's base map, whose arms must all be arms of this build). */
+/** A step-3 arm id, C1 to C16 (named; not yet defined). */
+export function isStep3ArmId(id: string): id is Step3ArmId {
+  return (STEP3_ARM_IDS as readonly string[]).includes(id);
+}
+
+/**
+ * Any arm of this build, step 1's, step 2's or step 3's (for example AM-1's and AM-3's base maps,
+ * whose arms must all be arms of this build). A step-3 id is an arm of this build though nothing
+ * defines it yet.
+ */
 export function isAnyArmId(id: string): id is ArmId {
   return (ALL_ARM_IDS as readonly string[]).includes(id);
 }
 
-/** The steps that have an arm list in this build. */
-export const ARM_STEPS = [1, 2] as const;
+/** The steps that have an arm list in this build (step 3's named; its command is not built). */
+export const ARM_STEPS = [1, 2, 3] as const;
 export type ArmStep = (typeof ARM_STEPS)[number];
 
 /** A step's run list: `--arms` at that step takes these ids and no others (C2-F4). */
 export function runIdsOf(step: ArmStep): readonly ArmId[] {
-  return step === 1 ? STEP1_RUN_IDS : STEP2_RUN_IDS;
+  switch (step) {
+    case 1:
+      return STEP1_RUN_IDS;
+    case 2:
+      return STEP2_RUN_IDS;
+    case 3:
+      return STEP3_RUN_IDS;
+    default: {
+      const never: never = step;
+      throw new Error(`arms: no run list for step ${String(never)}`);
+    }
+  }
 }
 
 /** Whether `id` is in a step's run list. */
@@ -486,14 +533,18 @@ export function step2Arms(): readonly Arm[] {
   return STEP2_ARM_IDS.map((id) => armById(id));
 }
 
-/** Every arm of this build, step 1's 17 then step 2's 7. */
+/** Every arm this build defines, step 1's 17 then step 2's 7 (step 3's ids are named, not defined). */
 export function everyArm(): readonly Arm[] {
-  return ALL_ARM_IDS.map((id) => armById(id));
+  return DEFINED_ARM_IDS.map((id) => armById(id));
 }
 
+/** The arm of `id`. Refused: an id of no arm, and a step-3 id, which this build names but does not define. */
 export function armById(id: ArmId): Arm {
   const arm = armTable().arms.get(id);
-  if (arm === undefined) throw new Error(`arms: no arm ${id}`);
+  if (arm === undefined) {
+    if (isStep3ArmId(id)) throw new Error(`arms: ${id} is one of step 3's arms, named in this build but not yet defined (ADR-089 step 3, plan §5.1): nothing plays it`);
+    throw new Error(`arms: no arm ${id}`);
+  }
   return arm;
 }
 

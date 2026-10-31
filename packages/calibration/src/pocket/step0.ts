@@ -123,8 +123,15 @@ const STEP2_USAGE =
   "pocket -- --step 2 [--arms A1,B3] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>], " +
   "pocket -- --step 2 --digests --out <file.json>, or pocket -- --step 2 [--arms A1] [--cache <dir>] [--seed-set 1|2] --m2";
 
-/** Each step's `--arms` list, as its refusal names it. */
-const ARMS_NAMED: Readonly<Record<ArmStep, string>> = { 1: "A0 to A15, A0b", 2: "step 2's: A0, A14, A1, A5, A11, B1 to B7" };
+/**
+ * Each step's `--arms` list, as its refusal names it. Step 3's is named with its arm ids (plan §5.1);
+ * the parser below still refuses `--step 3` until step 3's harness is built.
+ */
+const ARMS_NAMED: Readonly<Record<ArmStep, string>> = {
+  1: "A0 to A15, A0b",
+  2: "step 2's: A0, A14, A1, A5, A11, B1 to B7",
+  3: "step 3's: A0, A14, A1, A11, B3, B6, B5, C1 to C16",
+};
 
 function usageOf(step: 0 | 1 | 2 | undefined): string {
   return step === 2 ? STEP2_USAGE : step === 1 ? STEP1_USAGE : STEP0_USAGE;
