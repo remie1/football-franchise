@@ -21,10 +21,13 @@
  * whole result as JSON. Paths resolve from the working directory, the package folder when pnpm runs
  * the script (as `injuries/main.ts` resolves its `--out`).
  *
- * Steps 0, 1 and 2 are built: any other `--step` is refused, as is any flag this command does not
+ * Steps 0, 1, 2 and 3 are built: any other `--step` is refused, as is any flag this command does not
  * know and any flag of another step. `--step 1` (its flags parsed here, `Step1Args`) runs
  * `step1.ts`'s `step1Command`, loaded only then; `--step 2` (`Step2Args`) runs `step2.ts`'s
- * `step2Command`, loaded only then, and its `--arms` takes step 2's run list only. This module only exports; the script's entry is `main.ts`, which calls `pocketCommand` and does
+ * `step2Command`, loaded only then, and its `--arms` takes step 2's run list only; `--step 3`
+ * (`Step3Args`) runs `step3.ts`'s `step3Command`, loaded only then, its `--arms` takes step 3's run
+ * list less any arm whose petition is not in contracts (C14 while P17 is out, `armRefusal`), and its
+ * `--part1` runs part 1's build check alone. This module only exports; the script's entry is `main.ts`, which calls `pocketCommand` and does
  * nothing else (review finding CT-N6, as `export/main.ts` runs `export/cli.ts`), so importing this
  * module never runs the command.
  *
@@ -48,7 +51,7 @@ import "../metrics/index.js";
 import { openRealForTuning, type TuningRealInput } from "../metrics/realInput.js";
 import { getMetric } from "../metrics/registry.js";
 import { isInapplicable, pointEstimate, type MetricOutcome } from "../metrics/types.js";
-import { isRunIdOf, type ArmId, type ArmStep } from "./arms.js";
+import { armRefusal, isRunIdOf, type ArmId, type ArmStep } from "./arms.js";
 import { BASE_ROW_IDS } from "./bands.js";
 import { constructById, M_IDS, NOBODY_OPEN_CLASSES, THROW_CLASSES, type MId, type ThrowClass } from "./constructs.js";
 import { ARM_S } from "./m2ForcingSource.js";
@@ -117,34 +120,58 @@ export interface Step2Args {
   readonly out?: string;
 }
 
+/**
+ * Step 3's arguments (`step3.ts`; ADR-089 step 3's plan §2.10). Paths are absolute. `--arms` takes
+ * step 3's run list (`STEP3_RUN_IDS`: the re-played bases A0, A14, A1, A11, B3, B6, B5 and C1 to C16)
+ * less any arm refused until its petition is in contracts (C14, P17).
+ */
+export interface Step3Args {
+  readonly step: 3;
+  /** The arms to play, in the order given. Default every playable arm of `STEP3_RUN_IDS`. */
+  readonly arms?: readonly ArmId[];
+  /** `--shard i/n`: every n-th (arm, seed set) target of the run from the i-th, 1 <= i <= n. */
+  readonly shard?: { readonly index: number; readonly count: number };
+  /** The cache's parent directory; the source fingerprint is appended. */
+  readonly cache?: string;
+  /** R-1: the golden 50 a league under every playable C arm, A1, A5, A11 and B1 to B7, written to `--out`. */
+  readonly digests?: true;
+  /** Part 1, the touched men's check, the monotone check and the mirror only (the asked arms, default every playable C arm), printed. */
+  readonly part1?: true;
+  /** Play (and report) this seed set only; the clauses are then reported, not graded. */
+  readonly seedSet?: SeedSet;
+  readonly report?: string;
+  readonly out?: string;
+}
+
 const STEP0_USAGE = "pocket -- --step 0 [--write-filed <path>] [--out <path>]";
 const STEP1_USAGE = "pocket -- --step 1 [--arms A1,A2] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>], or pocket -- --step 1 --digests --out <file.json>";
 const STEP2_USAGE =
   "pocket -- --step 2 [--arms A1,B3] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>], " +
   "pocket -- --step 2 --digests --out <file.json>, or pocket -- --step 2 [--arms A1] [--cache <dir>] [--seed-set 1|2] --m2";
+const STEP3_USAGE =
+  "pocket -- --step 3 [--arms C1,C2] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>], " +
+  "pocket -- --step 3 --digests --out <file.json>, or pocket -- --step 3 [--arms C1,C2] [--cache <dir>] [--seed-set 1|2] --part1";
 
-/**
- * Each step's `--arms` list, as its refusal names it. Step 3's is named with its arm ids (plan §5.1);
- * the parser below still refuses `--step 3` until step 3's harness is built.
- */
+/** Each step's `--arms` list, as its refusal names it (step 3's with its arm ids, plan §5.1). */
 const ARMS_NAMED: Readonly<Record<ArmStep, string>> = {
   1: "A0 to A15, A0b",
   2: "step 2's: A0, A14, A1, A5, A11, B1 to B7",
   3: "step 3's: A0, A14, A1, A11, B3, B6, B5, C1 to C16",
 };
 
-function usageOf(step: 0 | 1 | 2 | undefined): string {
-  return step === 2 ? STEP2_USAGE : step === 1 ? STEP1_USAGE : STEP0_USAGE;
+function usageOf(step: 0 | 1 | 2 | 3 | undefined): string {
+  return step === 3 ? STEP3_USAGE : step === 2 ? STEP2_USAGE : step === 1 ? STEP1_USAGE : STEP0_USAGE;
 }
 
 /**
  * Reads the command's arguments; paths resolve against `cwd` (the package folder under pnpm).
- * Throws `SyntaxError` on anything else: an unknown flag, a step other than 0, 1 and 2, or a flag
+ * Throws `SyntaxError` on anything else: an unknown flag, a step other than 0, 1, 2 and 3, or a flag
  * of another step. `--arms` is checked against the step's own list (`runIdsOf`), whatever order
- * `--step` and `--arms` come in.
+ * `--step` and `--arms` come in; at step 3 an arm whose petition is not in contracts is refused with
+ * its reason (`armRefusal`: C14 while P17 is out).
  */
-export function parsePocketArgs(argv: readonly string[], cwd: string = process.cwd()): PocketArgs | Step1Args | Step2Args {
-  let step: 0 | 1 | 2 | undefined;
+export function parsePocketArgs(argv: readonly string[], cwd: string = process.cwd()): PocketArgs | Step1Args | Step2Args | Step3Args {
+  let step: 0 | 1 | 2 | 3 | undefined;
   let writeFiled: string | undefined;
   let out: string | undefined;
   let armList: string[] | undefined;
@@ -152,11 +179,13 @@ export function parsePocketArgs(argv: readonly string[], cwd: string = process.c
   let cache: string | undefined;
   let digests = false;
   let m2 = false;
+  let part1 = false;
   let seedSet: SeedSet | undefined;
   let report: string | undefined;
   const armFlags: string[] = [];
   const step0Only: string[] = [];
   const step2Only: string[] = [];
+  const step3Only: string[] = [];
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i] as string;
     const value = (): string => {
@@ -170,10 +199,10 @@ export function parsePocketArgs(argv: readonly string[], cwd: string = process.c
         break;
       case "--step": {
         const v = value();
-        if (v !== "0" && v !== "1" && v !== "2") {
-          throw new SyntaxError(`ADR-089: steps 0, 1 and 2 are built (step 0's measurements and filing, step 1's arms, step 2's arms); --step ${v} is not`);
+        if (v !== "0" && v !== "1" && v !== "2" && v !== "3") {
+          throw new SyntaxError(`ADR-089: steps 0, 1, 2 and 3 are built (step 0's measurements and filing, step 1's arms, step 2's arms, step 3's arms); --step ${v} is not`);
         }
-        step = v === "0" ? 0 : v === "1" ? 1 : 2;
+        step = v === "0" ? 0 : v === "1" ? 1 : v === "2" ? 2 : 3;
         break;
       }
       case "--write-filed":
@@ -213,6 +242,10 @@ export function parsePocketArgs(argv: readonly string[], cwd: string = process.c
         m2 = true;
         step2Only.push(arg);
         break;
+      case "--part1":
+        part1 = true;
+        step3Only.push(arg);
+        break;
       case "--seed-set": {
         const v = value();
         if (v !== "1" && v !== "2") throw new SyntaxError(`--seed-set takes 1 or 2; ${v} is not`);
@@ -228,26 +261,59 @@ export function parsePocketArgs(argv: readonly string[], cwd: string = process.c
         throw new SyntaxError(`unknown argument ${arg} (${usageOf(step)})`);
     }
   }
-  if (step === undefined) throw new SyntaxError(`--step is required: ${STEP0_USAGE}; ${STEP1_USAGE}; ${STEP2_USAGE}`);
+  if (step === undefined) throw new SyntaxError(`--step is required: ${STEP0_USAGE}; ${STEP1_USAGE}; ${STEP2_USAGE}; ${STEP3_USAGE}`);
   if (step === 0) {
     if (armFlags.length > 0) throw new SyntaxError(`${armFlags.join(", ")}: step 1's and step 2's flags, not step 0's (${STEP0_USAGE})`);
     if (step2Only.length > 0) throw new SyntaxError(`${step2Only.join(", ")}: step 2's flag, not step 0's (${STEP0_USAGE})`);
+    if (step3Only.length > 0) throw new SyntaxError(`${step3Only.join(", ")}: step 3's flag, not step 0's (${STEP0_USAGE})`);
     return { step, ...(writeFiled === undefined ? {} : { writeFiled }), ...(out === undefined ? {} : { out }) };
   }
   const usage = usageOf(step);
   if (step0Only.length > 0) throw new SyntaxError(`${step0Only.join(", ")}: step 0's flag, not step ${String(step)}'s (${usage})`);
-  if (step === 1 && step2Only.length > 0) throw new SyntaxError(`${step2Only.join(", ")}: step 2's flag, not step 1's (${usage})`);
-  for (const a of armList ?? []) if (!isRunIdOf(step, a)) throw new SyntaxError(`--arms: ${a} is not an arm (${ARMS_NAMED[step]})`);
+  if (step !== 2 && step2Only.length > 0) throw new SyntaxError(`${step2Only.join(", ")}: step 2's flag, not step ${String(step)}'s (${usage})`);
+  if (step !== 3 && step3Only.length > 0) throw new SyntaxError(`${step3Only.join(", ")}: step 3's flag, not step ${String(step)}'s (${usage})`);
+  for (const a of armList ?? []) {
+    if (!isRunIdOf(step, a)) throw new SyntaxError(`--arms: ${a} is not an arm (${ARMS_NAMED[step]})`);
+    const refusal = step === 3 ? armRefusal(a) : undefined;
+    if (refusal !== undefined) throw new SyntaxError(`--arms: ${a} is not playable: ${refusal}`);
+  }
   const arms = armList as ArmId[] | undefined;
   if (digests) {
-    const others = [arms && "--arms", shard && "--shard", cache && "--cache", seedSet && "--seed-set", report && "--report", m2 && "--m2"].filter((x): x is string => typeof x === "string");
-    const what = step === 1 ? "plays only the golden 50 a league under A1 to A4" : "plays only the bases' golden folds (Q-3)";
+    const others = [arms && "--arms", shard && "--shard", cache && "--cache", seedSet && "--seed-set", report && "--report", m2 && "--m2", part1 && "--part1"].filter((x): x is string => typeof x === "string");
+    const what =
+      step === 1
+        ? "plays only the golden 50 a league under A1 to A4"
+        : step === 2
+          ? "plays only the bases' golden folds (Q-3)"
+          : "plays only the golden 50 a league under every playable C arm, A1, A5, A11 and B1 to B7 (R-1)";
     if (others.length > 0) throw new SyntaxError(`--digests ${what}; it takes --out and nothing else (not ${others.join(", ")})`);
     if (out === undefined) throw new SyntaxError("--digests writes its folds to --out <file>");
     return { step, digests: true, out };
   }
   if (step === 1) {
     if (seedSet !== undefined && arms === undefined) throw new SyntaxError("--seed-set re-plays named arms: give --arms <arm>,<base>");
+    return {
+      step,
+      ...(arms === undefined ? {} : { arms }),
+      ...(shard === undefined ? {} : { shard }),
+      ...(cache === undefined ? {} : { cache }),
+      ...(seedSet === undefined ? {} : { seedSet }),
+      ...(report === undefined ? {} : { report }),
+      ...(out === undefined ? {} : { out }),
+    };
+  }
+  if (step === 3) {
+    if (part1) {
+      const others = [shard && "--shard", report && "--report", out && "--out"].filter((x): x is string => typeof x === "string");
+      if (others.length > 0) throw new SyntaxError(`--part1 runs part 1's build check only; it takes --arms, --cache and --seed-set (not ${others.join(", ")})`);
+      return {
+        step,
+        part1: true,
+        ...(arms === undefined ? {} : { arms }),
+        ...(cache === undefined ? {} : { cache }),
+        ...(seedSet === undefined ? {} : { seedSet }),
+      };
+    }
     return {
       step,
       ...(arms === undefined ? {} : { arms }),
@@ -889,6 +955,12 @@ export async function pocketCommand(argv: readonly string[]): Promise<void> {
     // Step 2's harness (step2.ts, which loads step1.ts) is loaded only for step 2.
     const { step2Command } = await import("./step2.js");
     await step2Command(args, log);
+    return;
+  }
+  if (args.step === 3) {
+    // Step 3's harness (step3.ts, which loads step1.ts and step2.ts) is loaded only for step 3.
+    const { step3Command } = await import("./step3.js");
+    await step3Command(args, log);
     return;
   }
   const filing = args.writeFiled === undefined ? undefined : openFiling(args.writeFiled);

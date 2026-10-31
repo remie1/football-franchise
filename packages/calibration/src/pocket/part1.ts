@@ -210,6 +210,12 @@ export interface Part1Fold {
   pictures: number;
   /** Part 1 itself: men nobody touched on the clock under the arm's reading. */
   part1: Part1Count;
+  /**
+   * Part 1's failures whose published `etaTick` is earlier than the function gives: the miss rule's
+   * "free runners arrive earlier than M8's table", read at step 3 as part 1's function on the
+   * published picture (AM-2 `timingAgainstAtStep3`). Only a build fault can make one.
+   */
+  earlier: number;
   /** Reading C's touched men, on the clock with their band's delay (checked beside part 1). */
   touchedOnClock: Part1Count;
   /** Free runners off the clock, published at the snap: today's time. */
@@ -244,6 +250,7 @@ export function emptyPart1Fold(): Part1Fold {
     s3Plays: 0,
     pictures: 0,
     part1: count(),
+    earlier: 0,
     touchedOnClock: count(),
     offClock: count(),
     touched: { lateBlocks: 0, beaten: 0, held: 0, checked: 0, failed: 0 },
@@ -550,6 +557,7 @@ function foldPlay(fold: Part1Fold, slice: { readonly playId: string; readonly ev
     bucket.checked += 1;
     if (!ok) {
       bucket.failed += 1;
+      if (!touched && t.etaTick < expected) fold.earlier += 1;
       fail(fold, man, `${touched ? "touched, on the clock under reading C, " : ""}published ${String(t.etaTick)}, the free-run function gives ${String(expected)} (${time.seconds.toFixed(4)} s, ${time.yards.toFixed(3)} yd, row ${row})`);
     }
     addCell(fold, `${t.origin}${band === undefined ? "" : `/${band}`}|${row}|${position}`, t.etaTick, restated ?? t.etaTick, ok);
@@ -666,6 +674,7 @@ export function mergePart1Folds(a: Part1Fold, b: Part1Fold): Part1Fold {
     s3Plays: a.s3Plays + b.s3Plays,
     pictures: a.pictures + b.pictures,
     part1: sum(a.part1, b.part1),
+    earlier: a.earlier + b.earlier,
     touchedOnClock: sum(a.touchedOnClock, b.touchedOnClock),
     offClock: sum(a.offClock, b.offClock),
     touched: {
@@ -715,6 +724,7 @@ export function part1Summary(fold: Part1Fold): Readonly<Record<string, unknown>>
     s3Plays: fold.s3Plays,
     pictures: fold.pictures,
     part1: fold.part1,
+    earlier: fold.earlier,
     passed: fold.problemCount === 0,
     touchedOnClock: fold.touchedOnClock,
     offClock: fold.offClock,

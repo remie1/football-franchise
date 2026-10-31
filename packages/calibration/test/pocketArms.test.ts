@@ -45,7 +45,7 @@
  * 17. The mechanisms: step 3's five appended; each C arm's exclusive set against its base.
  * 18. AM-3's base map (C1 on B3, C2 on B6, C11 on B3) on a stand-in entry names arms of this build;
  *     an id past C16 does not. The committed amendments file is read, never written; `pocket
- *     --step 3` is still refused (K4).
+ *     --step 3` (K4) refuses C14 with `armRefusal`'s reason.
  */
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -984,9 +984,9 @@ describe("AM-3's base map and the command line at step 3 (plan §4.2, §2.10)", 
     expect(past.some((p) => /bases\.3\.C2: its base "C0" is not an arm of this build/.test(p)), past.join("; ")).toBe(true);
   });
 
-  it("the command line still refuses --step 3 (its harness is K4's), and step 2's takes no C arm", () => {
-    expect(() => parsePocketArgs(["--step", "3"], "/")).toThrow(SyntaxError);
-    expect(() => parsePocketArgs(["--step", "3", "--arms", "C1"], "/")).toThrow(/--step 3 is not/);
+  it("the command line takes --step 3 (K4's harness) and refuses C14 by armRefusal's reason; step 2's takes no C arm", () => {
+    expect(parsePocketArgs(["--step", "3", "--arms", "C1"], "/")).toEqual({ step: 3, arms: ["C1"] });
+    expect(() => parsePocketArgs(["--step", "3", "--arms", "C14"], "/")).toThrow(`--arms: C14 is not playable: ${armRefusal("C14") ?? "?"}`);
     expect(() => parsePocketArgs(["--step", "2", "--arms", "C1"], "/")).toThrow(/^--arms: C1 is not an arm \(step 2's: A0, A14, A1, A5, A11, B1 to B7\)$/);
   });
 });

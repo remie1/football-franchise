@@ -297,6 +297,14 @@ describe("part 1 on constructed plays (foldPart1Events)", () => {
     expect(off.part1).toEqual({ checked: 1, failed: 1 });
     expect(off.problems[0]).toContain(`published ${String(roundEta(eta + 0.1))}, the free-run function gives ${String(eta)}`);
     expect(part1Problems(off)[0]).toContain("part 1: 1 failure");
+    // The miss rule's timing trigger at step 3 (AM-2 timingAgainstAtStep3): only an earlier man counts.
+    expect(ok.earlier).toBe(0);
+    expect(off.earlier).toBe(0);
+    const early = folded({ men: [DE], threats: [{ rusher: "de", origin: "UNBLOCKED", etaTick: roundEta(eta - 0.1) }] });
+    expect(early.part1).toEqual({ checked: 1, failed: 1 });
+    expect(early.earlier).toBe(1);
+    expect(mergePart1Folds(early, early).earlier).toBe(2);
+    expect(part1Summary(early)["earlier"]).toBe(1);
   });
 
   it("the DELAYED wait: a linebacker waits the filed half second, a down lineman does not", () => {

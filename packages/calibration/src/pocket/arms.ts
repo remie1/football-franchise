@@ -27,7 +27,7 @@
  *    stand-in, a band-edge shift, not a protection design). C14 (the L basis, B5 with the step-3
  *    blocks) is defined and refused while petition P17 is not in contracts (`waitsOn`): `withOverlay`
  *    refuses a late block on shape L, so the table does not build it, `armById` refuses it by name
- *    and `armRefusal` says why. The command line still refuses `--step 3` (its harness is K4's).
+ *    and `armRefusal` says why; the command line (`--step 3`, K4) refuses it with that reason.
  *    Step 1's and step 2's lists, arms and digests are as they were.
  *  - **Step 2's arms** are stamped `pocket-1.s2` with their own overlay digests (O28), whatever their
  *    forcing rule; the re-played bases keep their step-1 stamps and digests. B3 is the design bundle
@@ -294,10 +294,9 @@ export const STEP2_RUN_IDS = ["A0", "A14", "A1", "A5", "A11", ...STEP2_ARM_IDS] 
 export type Step2RunId = (typeof STEP2_RUN_IDS)[number];
 
 /**
- * What `--step 3` plays (plan §5.1), once its harness is built (K4): the seven re-played bases, A0
+ * What `--step 3` plays (plan §5.1; its harness is `step3.ts`, K4): the seven re-played bases, A0
  * and A14 for the cumulative line, A1 and A11 for the accepted state, B3, B6 and B5 as the C arms'
- * bases, then C1 to C16 (C14 refused while P17 is not in contracts, `armRefusal`). The command
- * line refuses `--step 3` in this build.
+ * bases, then C1 to C16 (C14 refused while P17 is not in contracts, `armRefusal`).
  */
 export const STEP3_RUN_IDS = ["A0", "A14", "A1", "A11", "B3", "B6", "B5", ...STEP3_ARM_IDS] as const satisfies readonly ArmId[];
 export type Step3RunId = (typeof STEP3_RUN_IDS)[number];
