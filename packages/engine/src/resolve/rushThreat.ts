@@ -145,9 +145,13 @@ export interface RushThreat extends ArrivalClock {
    * (`FreeRunner.onClock`, `sim/freeRunTiming.ts`) carries that clock's whole
    * path in yards, from his spot in ADR-090's snap picture, and the trip's
    * average speed (`resolve/freeRun.ts`), so on him the pair is geometry, not
-   * the table above; a beaten late block (`resolve/lateBlock.ts`) carries the
-   * nominal pair of the won rep's travel it was built with. Every other free
-   * runner (today's set times) still has neither. The pair reaches
+   * the table above. On a calibration arm that holds an input
+   * (`freeRun.hold`) the clock runs on AM-2's reference for that input
+   * instead, as P5's text says: a held spot is his group's reference spot,
+   * not his own, and held ratings are the reference ratings, not his. A
+   * beaten late block (`resolve/lateBlock.ts`) carries the nominal pair of
+   * the won rep's travel it was built with. Every other free runner (today's
+   * set times) still has neither. The pair reaches
    * `RUSH_THREAT` (contracts petition P5) only when
    * `PocketRules.threatGeometry` is true (a `pocket-1.s3` bundle with the
    * free-run block), and then on every threat of the play that carries it
