@@ -23,11 +23,13 @@
  * margin `reportedMarginS` with the window undefined: `min(0, m)` before the beat tick and
  * `max(RUSHER_WINS_REP's floor, m)` from it.
  *
- * SHAPE L (reachable only once petition P17's doc text is in contracts; `sim/pocketRules.ts`
- * refuses it until then). From `t_e` each tick draws two d100s, `rush/t<tick>/<rusherId>:late` and
- * `rush/t<tick>/<toucherId>:late`, jitter `round((rusher - toucher) / repJitter.divisor)` as
- * today's tick, and margin `Math.round(Math.min(t - t_e, w * R) * (m + jitter) / (w * R)) + 0`,
- * the form of today's L margin (AM-2 binds this form; calibration's fold uses the same). A rolled
+ * SHAPE L (petition P17, in contracts since E4b; `sim/pocketRules.ts` refuses it only when a test
+ * withholds P17). From `t_e` each tick draws two d100s, `rush/t<tick>/<rusherId>:late` and
+ * `rush/t<tick>/<toucherId>:late:<rusherId>` (the toucher's die names the man he blocks, so a man
+ * on two late blocks draws two dice a tick and no label repeats in a play; the Orchestrator's CT-F7
+ * ruling), jitter `round((rusher - toucher) / repJitter.divisor)` as today's tick, and margin
+ * `Math.round(Math.min(t - t_e, w * R) * (m + jitter) / (w * R)) + 0`, the form of today's L
+ * margin (AM-2 binds this form; calibration's fold uses the same). A rolled
  * `pass_rush_tick` with `roll` and `opposedRoll`, `rollRef` the touching CHECK.
  *
  * BEATEN (S: the beat tick; L: a RUSHER_WINS_REP tick). His threat keeps his origin (PICKUP_LOST
@@ -147,7 +149,7 @@ export function resolveLateBeatTick(args: {
   };
 }
 
-/** Shape L (after P17): one rolled tick of a late block, from `t_e` on. */
+/** Shape L (P17): one rolled tick of a late block, from `t_e` on. */
 export function resolveLateTickL(args: {
   readonly tunables: Tunables;
   readonly repClock: RepClockTunables;
@@ -163,7 +165,8 @@ export function resolveLateTickL(args: {
   const { tunables, late, m, tick, tickRng } = args;
   const t = tunables.passRush;
   const rusherRoll = rollD100(tickRng.fork(`${String(args.rusher)}:late`), []);
-  const toucherRoll = rollD100(tickRng.fork(`${String(args.toucher)}:late`), []);
+  // CT-F7: the toucher's die names the man he blocks, so one toucher on two late blocks draws two.
+  const toucherRoll = rollD100(tickRng.fork(`${String(args.toucher)}:late:${String(args.rusher)}`), []);
   const jitter = Math.round((rusherRoll.total - toucherRoll.total) / t.repJitter.divisor);
   const wR = late.weakMultiplier * args.repClock.fullExpressionSeconds;
   const margin = Math.round((Math.min(tick - late.engageSeconds, wR) * (m + jitter)) / wR) + 0;

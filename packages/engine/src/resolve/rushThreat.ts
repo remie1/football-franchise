@@ -637,7 +637,7 @@ export function soonerThreat(existing: RushThreat | undefined, next: RushThreat)
 }
 
 /**
- * ADR-089 P5 — a threat's distance and closing speed as `RUSH_THREAT` carries them: both, or
+ * ADR-089 P5: a threat's distance and closing speed as `RUSH_THREAT` carries them: both, or
  * `undefined` when the threat has neither (a free runner on today's set time). Called only when the
  * play's rules publish the pair (`PocketRules.threatGeometry`). A threat with one and not the other
  * is an engine fault, thrown rather than published half.

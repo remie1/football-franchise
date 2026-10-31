@@ -1268,7 +1268,7 @@ export interface Step3Sections {
   /** On a one-set run, the graded clauses (and guard lines) that read outside their band on that set, reported (review MEAS-S1); empty otherwise. */
   readonly outsideBand: readonly string[];
   readonly amendments: { readonly digest: string; readonly entry: string; readonly record: string; readonly zLeague: number; readonly zClass: number; readonly zSetSE0: number; readonly am2: string };
-  /** Arms defined and not built, each with its reason (C14 while P17 is out). */
+  /** Arms defined and not built, each with its reason (none since P17, E4b; C14 while P17 was out). */
   readonly notPlayable: readonly { readonly arm: string; readonly reason: string }[];
   readonly headline: readonly Step2Comparison[];
   readonly clauses: readonly Step2ClauseResult[];

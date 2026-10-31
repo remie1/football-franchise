@@ -52,8 +52,8 @@
  *
  * (Plan §2.7.) Under `pocket-1.s3` a touched man's late block names the CHECK that touched him,
  * not a rep: its `pass_rush_beat` (shape S) names a `blitz_pickup` or `stunt_communication` CHECK
- * in its play, its dieless ticks name that beat, and on shape L (refused until P17) its rolled
- * ticks name the CHECK. Widened ONLY on a play whose `PLAY_START.rules` names `pocket-1.s3`: on
+ * in its play, its dieless ticks name that beat, and on shape L (P17, E4b) its rolled ticks name
+ * the CHECK. Widened ONLY on a play whose `PLAY_START.rules` names `pocket-1.s3`: on
  * every other play (legacy, s1, s2, and a constructed play with no PLAY_START) a beat or a rolled
  * tick naming a CHECK is dangling exactly as before. The late joins are counted apart
  * (`lateBeats`, `lateRolledTicks`, written only for a game with an s3 play), so the legacy and s1

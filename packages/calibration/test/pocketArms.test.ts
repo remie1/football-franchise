@@ -40,12 +40,13 @@
  *     `BAND_EDGES`; each is its patches, clock and blocks built afresh; each moves only its own
  *     leaves against its base; the digests of the whole union are distinct and `armOfDigest` maps
  *     every stamped one.
- * 16. C14 is defined and refused while P17 is out: the table does not build it, `armById` refuses it
- *     by name, `armRefusal` says why, and its definition really is refused by `withOverlay`.
+ * 16. C14 waits on P17, which is in contracts (E4b): the table builds it like the others, with its
+ *     late block on shape L, and no arm is refused (`pocketP17Withheld.test.ts` keeps the refusal's
+ *     path, with P17 withheld in that suite only).
  * 17. The mechanisms: step 3's five appended; each C arm's exclusive set against its base.
  * 18. AM-3's base map (C1 on B3, C2 on B6, C11 on B3) on a stand-in entry names arms of this build;
  *     an id past C16 does not. The committed amendments file is read, never written; `pocket
- *     --step 3` (K4) refuses C14 with `armRefusal`'s reason.
+ *     --step 3` (K4) takes C14.
  */
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -625,7 +626,8 @@ const step3Def = (id: string): ArmDef => {
   if (def === undefined) throw new Error(`no step-3 def ${id}`);
   return def;
 };
-const BUILT_C = STEP3_ARM_IDS.filter((id) => id !== "C14");
+/** The C arms this build builds: all sixteen, C14 among them since P17 (E4b). */
+const BUILT_C = [...STEP3_ARM_IDS];
 
 describe("step 3's arm lists (plan §5.1, §4.2)", () => {
   it("lists C1 to C16 and step 3's run list: the seven re-played bases, then the C arms", () => {
@@ -635,7 +637,7 @@ describe("step 3's arm lists (plan §5.1, §4.2)", () => {
     for (const id of STEP3_RUN_IDS.slice(0, 7)) expect(everyArm().some((a) => a.id === id), id).toBe(true);
     expect(Object.isFrozen(ALL_ARM_IDS)).toBe(true);
     expect(STEP3_ARM_DEFS.map((d) => d.id)).toEqual([...STEP3_ARM_IDS]);
-    // Every C arm is built but C14, which waits on P17; everyArm() is the three steps' in order.
+    // Every C arm is built, C14 too (P17 in contracts); everyArm() is the three steps' in order.
     expect(step3Arms().map((a) => a.id)).toEqual(BUILT_C);
     expect(everyArm().map((a) => a.id)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...BUILT_C]);
     // Step 1's and step 2's lists are as they were.
@@ -856,7 +858,7 @@ describe("step 3's built arms (plan §5.1, O28)", () => {
     const edges = BAND_EDGES.map((p) => p.tunableId);
     const expected: Record<string, readonly string[]> = {
       C1: [free, late, climb], C2: [free, late, climb], C3: [free], C4: [free], C5: [free], C6: [free, late, climb], C7: [free], C8: [free], C9: [free],
-      C10: [late], C11: [free, climb], C12: [free, late, climb], C13: lateLeaves, C15: [...edges, free, late, climb], C16: [climb],
+      C10: [late], C11: [free, climb], C12: [free, late, climb], C13: lateLeaves, C14: [free, late, climb], C15: [...edges, free, late, climb], C16: [climb],
     };
     for (const a of step3Arms()) {
       const before = leaves(armById(a.base!).tunables);
@@ -877,7 +879,8 @@ describe("step 3's built arms (plan §5.1, O28)", () => {
 
   it("has distinct digests over the whole union, and armOfDigest maps every stamped one", () => {
     const all = [...everyArm(), ...PROOF_OVERLAY_IDS.map((id) => proofOverlay(id))];
-    expect(all).toHaveLength(17 + 7 + 15 + 2);
+    // Step 3's sixteen, C14 among them since P17 (E4b).
+    expect(all).toHaveLength(17 + 7 + 16 + 2);
     expect(new Set(all.map((a) => a.digest)).size).toBe(all.length);
     for (const a of all) {
       expect(overlayDigestOf(a.tunables), a.id).toBe(a.digest);
@@ -904,24 +907,26 @@ describe("step 3's built arms (plan §5.1, O28)", () => {
   });
 });
 
-describe("C14 waits on petition P17 (plan §3.4, §5.1)", () => {
-  it("is defined, not built: armById refuses it by name and armRefusal says why", () => {
-    expect(armRefusal("C14")).toBe(
-      "C14 waits on petition P17 (the late block's rolled tick on shape L): the late block on shape L is refused until its doc text is in contracts (ADR-089 step 3, plan §3.4, §5.1); dropped if P17 is declined",
-    );
-    expect(() => armById("C14")).toThrow(EngineRulesError);
-    expect(() => armById("C14")).toThrow(/^arms: C14 waits on petition P17 .*: nothing plays it$/);
-    for (const id of ALL_ARM_IDS) if (id !== "C14") expect(armRefusal(id), id).toBeUndefined();
+describe("C14 waits on petition P17, which is in contracts (plan §3.4, §5.1; E4b)", () => {
+  it("is defined and built: no arm is refused, armById builds it, everyArm and step3Arms carry it", () => {
+    for (const id of ALL_ARM_IDS) expect(armRefusal(id), id).toBeUndefined();
+    const c14 = armById("C14");
+    expect(c14.rules).toBe("pocket-1.s3");
+    expect(c14.base).toBe("B5");
     expect(() => armById("Z9" as ArmId)).toThrow(/^arms: no arm Z9$/);
-    expect(everyArm().some((a) => a.id === "C14")).toBe(false);
-    expect(step3Arms().some((a) => a.id === "C14")).toBe(false);
+    expect(everyArm().some((a) => a.id === "C14")).toBe(true);
+    expect(step3Arms().some((a) => a.id === "C14")).toBe(true);
   });
 
-  it("its definition really is refused, by the late block on shape L, and without the late block it builds", () => {
+  it("its definition builds with the late block on shape L (C14's shape), and without the late block too", () => {
     const c14 = step3Def("C14");
     for (const d of STEP3_ARM_DEFS) expect(d.waitsOn === "P17", d.id).toBe(d.clock.kind === "L" && d.step3?.lateBlock !== undefined);
-    expect(() => buildArm(c14)).toThrow(EngineRulesError);
-    expect(() => buildArm(c14)).toThrow(/the late block \(blitzPickup\.lateBlock\) on shape L \(passRush\.repClock\) is refused until petition P17's doc text/);
+    const built = buildArm(c14);
+    expect(built.rules).toBe("pocket-1.s3");
+    expect(built.tunables.passRush.repClock).toEqual({ fullExpressionSeconds: 8 });
+    expect(built.tunables.blitzPickup.lateBlock).toEqual(POCKET_1_S3_LATE_BLOCK);
+    expect(built.tunables.blitzPickup.freeRun).toEqual(POCKET_1_S3_FREE_RUN);
+    expect(armById("C14").tunablesDigest).toBe(built.tunablesDigest);
     const { lateBlock: _late, ...rest } = c14.step3!;
     const { waitsOn: _waits, ...free } = c14;
     const without = buildArm({ ...free, step3: rest });
@@ -984,9 +989,9 @@ describe("AM-3's base map and the command line at step 3 (plan §4.2, §2.10)", 
     expect(past.some((p) => /bases\.3\.C2: its base "C0" is not an arm of this build/.test(p)), past.join("; ")).toBe(true);
   });
 
-  it("the command line takes --step 3 (K4's harness) and refuses C14 by armRefusal's reason; step 2's takes no C arm", () => {
+  it("the command line takes --step 3 (K4's harness), C14 among its arms (P17, E4b); step 2's takes no C arm", () => {
     expect(parsePocketArgs(["--step", "3", "--arms", "C1"], "/")).toEqual({ step: 3, arms: ["C1"] });
-    expect(() => parsePocketArgs(["--step", "3", "--arms", "C14"], "/")).toThrow(`--arms: C14 is not playable: ${armRefusal("C14") ?? "?"}`);
+    expect(parsePocketArgs(["--step", "3", "--arms", "C14"], "/")).toEqual({ step: 3, arms: ["C14"] });
     expect(() => parsePocketArgs(["--step", "2", "--arms", "C1"], "/")).toThrow(/^--arms: C1 is not an arm \(step 2's: A0, A14, A1, A5, A11, B1 to B7\)$/);
   });
 });

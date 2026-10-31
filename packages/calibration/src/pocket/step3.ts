@@ -4,8 +4,8 @@
  * `pnpm --filter @ff/calibration pocket -- --step 3 [--arms C1,C2] [--cache <dir>] [--seed-set 1|2] --part1`
  *
  * ADR-089 STEP 3's HARNESS (step-3 plan §2.10, §5.2 to §5.4 and §7; AM-2, ADR-089 Appendix G, G.8;
- * AM-3, G.9): plays the re-played bases (A0, A14, A1, A11, B3, B6, B5) and step 3's arms (C1 to C16
- * less any refused: C14 waits on petition P17) on both seed sets, and grades them against the step-0
+ * AM-3, G.9): plays the re-played bases (A0, A14, A1, A11, B3, B6, B5) and step 3's arms (C1 to C16,
+ * C14 among them since petition P17, E4b) on both seed sets, and grades them against the step-0
  * filing as AM-2 amends its part 1 and AM-3 maps its guard.
  *
  *  - **The refusals first.** Nothing plays unless the filing loads, digests to `STEP0_FILED_DIGEST`
@@ -160,7 +160,7 @@ export const STEP3_RECORDS_FINAL: boolean = false;
 /** The graded set (set 1, as steps 1 and 2 graded); set 2 is printed beside it. */
 export const GRADED_SEED_SET: SeedSet = 1;
 
-/** Step 3's arms this build plays: C1 to C16 less any refused until its petition is in contracts (C14, P17). */
+/** Step 3's arms this build plays: C1 to C16 less any refused until its petition is in contracts (none since P17, E4b). */
 export const STEP3_PLAYABLE: readonly ArmId[] = Object.freeze(STEP3_ARM_IDS.filter((id) => armRefusal(id) === undefined));
 /** The run list: the re-played bases, then the playable C arms. */
 export const STEP3_PLAYABLE_RUN_IDS: readonly ArmId[] = Object.freeze(STEP3_RUN_IDS.filter((id) => armRefusal(id) === undefined));
@@ -312,7 +312,7 @@ export interface Step3Guard {
  */
 export function s3PictureRefusal(arms: readonly ArmId[], granted: boolean = S3_IN_CONTRACTS): string | undefined {
   if (granted || POCKET_1_S3_FREE_RUN.picture !== "AS_RULED") return undefined;
-  // An arm this build does not play (C14) is refused by its own reason where it is read.
+  // An arm this build does not play (C14, were P17 out) is refused by its own reason where it is read.
   const s3 = [...new Set(arms)].filter((id) => armRefusal(id) === undefined && isS3Arm(id));
   if (s3.length === 0) return undefined;
   return (

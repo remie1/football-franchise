@@ -9,9 +9,9 @@
  * census; `deriveFrom` unchanged on a beaten late block (ARC or THROUGH); a late tick counted as a
  * tick of its own block by the band census and the ladder; M5's exact free-run mirror row.
  *
- * In the suite: the first 3 golden games of each league under C1, C2, C6, C10, C12, C13 and C15, every
- * step-1 fold and the step-3 folds with no failure and the late block seen where the arm has one (C13,
- * stamped pocket-1.s2, has no s3 play); the miss split's two
+ * In the suite: the first 3 golden games of each league under C1, C2, C6, C10, C12, C13, C14 (shape L,
+ * since P17, E4b) and C15, every step-1 fold and the step-3 folds with no failure and the late block
+ * seen where the arm has one (C13, stamped pocket-1.s2, has no s3 play); the miss split's two
  * readings on real folds (equal under reading C, as they must be); a late tick credited to the
  * rusher and the toucher; M5's mirror row exact on C1. Under `FF_POCKET_ON=1`: 50 golden games a
  * league under every playable step-3 arm. The counts go to stdout.
@@ -582,7 +582,7 @@ describe("M5's exact free-run mirror row, written only for s3 streams (plan §2.
 // --- on the golden games ---------------------------------------------------------------------------------
 
 describe("on the golden games: every step-1 fold and the step-3 folds pass on s3 streams", () => {
-  const ARMS: readonly ArmId[] = ON ? STEP3_ARM_IDS.filter((id) => armRefusal(id) === undefined) : ["C1", "C2", "C6", "C10", "C12", "C13", "C15"];
+  const ARMS: readonly ArmId[] = ON ? STEP3_ARM_IDS.filter((id) => armRefusal(id) === undefined) : ["C1", "C2", "C6", "C10", "C12", "C13", "C14", "C15"];
   it.each(ARMS)("%s", (id) => {
     const arm = armById(id);
     const s1 = emptyS1Folds();
@@ -604,10 +604,14 @@ describe("on the golden games: every step-1 fold and the step-3 folds pass on s3
     expect(s3Problems(s3)).toEqual([]);
     // Every play of an s3 arm is an s3 play; C13 is stamped pocket-1.s2, so none of its are (and nothing widens).
     expect(s3.lateBlock.s3Plays).toBe(arm.rules === POCKET_1_S3_RULES ? s3.lateBlock.plays : 0);
-    expect(s3.lateBlock.lateBlocks).toBe(s3.lateBlock.expected);
+    // Under S every late block shows at the snap (its beat); under L (C14) only from its first tick
+    // at or after t_e, so a play that ends before then shows none of its late blocks.
+    if (arm.tunables.passRush.repClock === undefined) expect(s3.lateBlock.lateBlocks).toBe(s3.lateBlock.expected);
+    else expect(s3.lateBlock.lateBlocks).toBeLessThanOrEqual(s3.lateBlock.expected);
     if (arm.tunables.blitzPickup.lateBlock !== undefined) {
       expect(s3.lateBlock.lateBlocks).toBeGreaterThan(0);
-      expect(s1.margins.ticks.S).toBeGreaterThan(0);
+      // C14's late ticks are shape L's rolled ticks, each checked on its two :late labels (CT-F7).
+      expect(s1.margins.ticks[arm.tunables.passRush.repClock === undefined ? "S" : "L"]).toBeGreaterThan(0);
     }
     if (mechanisms.includes("FREE_RUN")) expect(affected.byMechanism.FREE_RUN).toBeGreaterThan(0);
     if (mechanisms.includes("LATE_BLOCK")) expect(affected.byMechanism.LATE_BLOCK).toBeGreaterThan(0);

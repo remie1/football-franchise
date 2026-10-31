@@ -26,7 +26,7 @@
  * `step1.ts`'s `step1Command`, loaded only then; `--step 2` (`Step2Args`) runs `step2.ts`'s
  * `step2Command`, loaded only then, and its `--arms` takes step 2's run list only; `--step 3`
  * (`Step3Args`) runs `step3.ts`'s `step3Command`, loaded only then, its `--arms` takes step 3's run
- * list less any arm whose petition is not in contracts (C14 while P17 is out, `armRefusal`), and its
+ * list less any arm whose petition is not in contracts (`armRefusal`; none since P17, E4b), and its
  * `--part1` runs part 1's build check alone. This module only exports; the script's entry is `main.ts`, which calls `pocketCommand` and does
  * nothing else (review finding CT-N6, as `export/main.ts` runs `export/cli.ts`), so importing this
  * module never runs the command.
@@ -123,7 +123,7 @@ export interface Step2Args {
 /**
  * Step 3's arguments (`step3.ts`; ADR-089 step 3's plan §2.10). Paths are absolute. `--arms` takes
  * step 3's run list (`STEP3_RUN_IDS`: the re-played bases A0, A14, A1, A11, B3, B6, B5 and C1 to C16)
- * less any arm refused until its petition is in contracts (C14, P17).
+ * less any arm refused until its petition is in contracts (`armRefusal`; none since P17, E4b).
  */
 export interface Step3Args {
   readonly step: 3;
@@ -168,7 +168,7 @@ function usageOf(step: 0 | 1 | 2 | 3 | undefined): string {
  * Throws `SyntaxError` on anything else: an unknown flag, a step other than 0, 1, 2 and 3, or a flag
  * of another step. `--arms` is checked against the step's own list (`runIdsOf`), whatever order
  * `--step` and `--arms` come in; at step 3 an arm whose petition is not in contracts is refused with
- * its reason (`armRefusal`: C14 while P17 is out).
+ * its reason (`armRefusal`; none since P17, E4b, which C14 waited on).
  */
 export function parsePocketArgs(argv: readonly string[], cwd: string = process.cwd()): PocketArgs | Step1Args | Step2Args | Step3Args {
   let step: 0 | 1 | 2 | 3 | undefined;

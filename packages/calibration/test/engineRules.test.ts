@@ -29,8 +29,8 @@
  *     and the climb lane `FRONT`; its digest a recorded literal; saves stamp `pocket-1.s3@<digest>`
  *     and load only at it. The step-3 blocks are refused under `legacy`, `pocket-1.s1` and
  *     `pocket-1.s2`; under `pocket-1.s3` any subset is a bundle; the closed sets (the late block on
- *     shape S only until P17, reading C without it, reading A with it) and each block's dials are
- *     refused as the engine refuses them, before any game; a leaf patched under a new block after
+ *     either shape since P17, E4b; reading C without it, reading A with it) and each block's dials
+ *     are refused as the engine refuses them, before any game; a leaf patched under a new block after
  *     stamping is refused.
  */
 import { readFileSync } from "node:fs";
@@ -820,16 +820,15 @@ describe("pocket-1.s3, step 3's bundle (plan §2.1, §4.4)", () => {
     const declared = [...engineSource.matchAll(/^export const P17_IN_CONTRACTS = (true|false);$/gm)].map((m) => m[1]);
     expect(declared, "the engine declares P17_IN_CONTRACTS once, as a literal").toHaveLength(1);
     expect(P17_IN_CONTRACTS, "calibration's P17_IN_CONTRACTS (src/pocket/rules.ts) differs from the engine's (sim/pocketRules.ts)").toBe(declared[0] === "true");
+    // E4b: P17's doc text is in contracts (c340520), so both are true.
+    expect(P17_IN_CONTRACTS).toBe(true);
   });
 
-  it("refuses what the engine's closed sets refuse: the late block on shape L until P17, reading C with it, reading A without it", () => {
+  it("refuses what the engine's closed sets refuse: reading C with the late block, reading A without it; the late block on shape L builds (P17, E4b)", () => {
     const L = { repClock: { fullExpressionSeconds: 8 }, approach: card };
-    const P17 = "the late block (blitzPickup.lateBlock) on shape L (passRush.repClock) is refused until petition P17's doc text (the late block's rolled tick) is in contracts; shape S runs it";
     const C_LATE = "reading C (blitzPickup.freeRun.reading) puts every free runner on the free-run clock, touched men 0.5 s later, so it runs no late block (blitzPickup.lateBlock)";
     const A_ALONE = "reading A (blitzPickup.freeRun.reading) makes every lost block a late block, so it needs the late block (blitzPickup.lateBlock)";
     const cases: [string, PocketOverlay, Tunables, string][] = [
-      ["the late block on shape L", { ...L, blitzPickup: { lateBlock: POCKET_1_S3_LATE_BLOCK } }, unstampedS3(undefined, POCKET_1_S3_LATE_BLOCK, undefined, L), P17],
-      ["the whole design on shape L", { ...L, blitzPickup: { freeRun: POCKET_1_S3_FREE_RUN, lateBlock: POCKET_1_S3_LATE_BLOCK }, pocket: { climbLane: "FRONT" } }, unstampedS3(POCKET_1_S3_FREE_RUN, POCKET_1_S3_LATE_BLOCK, "FRONT", L), P17],
       ["reading C with the late block", { ...POCKET_1_S1_OVERLAY, blitzPickup: { freeRun: fr({ reading: "C" }), lateBlock: POCKET_1_S3_LATE_BLOCK } }, unstampedS3(fr({ reading: "C" }), POCKET_1_S3_LATE_BLOCK, undefined), C_LATE],
       ["reading A without it", { ...POCKET_1_S1_OVERLAY, blitzPickup: { freeRun: fr({ reading: "A" }) } }, unstampedS3(fr({ reading: "A" }), undefined, undefined), A_ALONE],
     ];
@@ -837,6 +836,18 @@ describe("pocket-1.s3, step 3's bundle (plan §2.1, §4.4)", () => {
       expect(() => withOverlay(horizons(), "pocket-1.s3", overlay, POCKET_1_S2_FORCING), label).toThrow(EngineRulesError);
       expect(() => withOverlay(horizons(), "pocket-1.s3", overlay, POCKET_1_S2_FORCING), label).toThrow(`withOverlay(pocket-1.s3): ${message}`);
       expect(() => checkStamp(byHand(tree, "pocket-1.s3"), "pocket-1.s3", "runBatch"), label).toThrow(`runBatch: ${message}`);
+    }
+    // P17 is in contracts (E4b): the late block on shape L, alone or with the whole design, is a
+    // bundle (C14's shape), built by withOverlay and accepted by the stamp check.
+    const onL: [string, PocketOverlay, Tunables][] = [
+      ["the late block on shape L", { ...L, blitzPickup: { lateBlock: POCKET_1_S3_LATE_BLOCK } }, unstampedS3(undefined, POCKET_1_S3_LATE_BLOCK, undefined, L)],
+      ["the whole design on shape L", { ...L, blitzPickup: { freeRun: POCKET_1_S3_FREE_RUN, lateBlock: POCKET_1_S3_LATE_BLOCK }, pocket: { climbLane: "FRONT" } }, unstampedS3(POCKET_1_S3_FREE_RUN, POCKET_1_S3_LATE_BLOCK, "FRONT", L)],
+    ];
+    for (const [label, overlay, tree] of onL) {
+      const built = withOverlay(horizons(), "pocket-1.s3", overlay, POCKET_1_S2_FORCING);
+      expect(built.passRush.repClock, label).toEqual(L.repClock);
+      expect(built.blitzPickup.lateBlock, label).toEqual(POCKET_1_S3_LATE_BLOCK);
+      expect(() => checkStamp(byHand(tree, "pocket-1.s3"), "pocket-1.s3", "runBatch"), label).not.toThrow();
     }
     // Reading C without the late block, and reading A with it, are bundles (C11 and C12's shapes).
     expect(s3With({ blitzPickup: { freeRun: fr({ reading: "C" }) }, pocket: { climbLane: "FRONT" } }).blitzPickup.freeRun?.reading).toBe("C");

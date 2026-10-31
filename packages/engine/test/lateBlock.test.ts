@@ -11,7 +11,8 @@
  *  4. The beaten threat: his origin, the touching CHECK, §4.0's row 3, a won rep's travel.
  *  5. A carried record's late beat names the carrier and keeps the toucher.
  *  6. No rep, step-1 beat or :jitter die for him; the clean bench's t_e 50 never engages; legacy,
- *     s1 and s2 never build one; shape L's late block is refused before P17.
+ *     s1 and s2 never build one; shape L's late block plays now that P17 is in contracts (E4b),
+ *     on its own path (`lateBlockL.test.ts`), and is refused only when P17 is withheld.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -32,7 +33,6 @@ import { simulatePassPlay } from "../src/index.js";
 import { drawLateBeat, lateBreakingTimeSeconds, lateThreatOf, resolveLateBeatTick, resolveLateTickL } from "../src/resolve/lateBlock.js";
 import { travelSecondsFor } from "../src/resolve/rushThreat.js";
 import { tierFor } from "../src/rolls.js";
-import { PocketRulesError } from "../src/sim/pocketRules.js";
 import type { Tunables } from "../src/tunables.js";
 import {
   BEAT_CLOCK_WITH_WINDOW,
@@ -308,12 +308,19 @@ describe("ADR-089 step 3, E4: the gates", () => {
     for (const s of spies) expect(s).not.toHaveBeenCalled();
   });
 
-  it("shape L's late block is refused until P17's doc text is in contracts", () => {
-    const f = frontWithPicture({ extras: 2 });
+  it("shape L's late block plays now that P17's doc text is in contracts (E4b), on shape L's path only", () => {
+    const options: Step3FrontOptions = { extras: 2 };
+    const seed = findSeed("l-plays", options, (e) => pickupBand(e) === "RAN_THROUGH");
+    for (const s of spies) s.mockClear();
     const l = withStep3(L5_TUNABLES, { freeRun: FREE_RUN_FILED, lateBlock: LATE_BLOCK_FILED });
-    expect(() => simulatePassPlay(f.scenario.state, f.calls, "l-refused", l)).toThrow(PocketRulesError);
-    expect(() => simulatePassPlay(f.scenario.state, f.calls, "l-refused", l)).toThrow(/refused until petition P17/);
-    // Shape L with the free-run block alone plays; its touched men keep today's times.
+    const { events } = play(options, seed, l);
+    expect(events.some((e) => e.event.type === "CHECK" && e.event.payload.checkKind === "pass_rush_tick" && String(e.event.payload.rollRef).includes("/presnap/"))).toBe(true);
+    expect(vi.mocked(resolveLateTickL)).toHaveBeenCalled();
+    expect(vi.mocked(drawLateBeat)).not.toHaveBeenCalled();
+    expect(vi.mocked(resolveLateBeatTick)).not.toHaveBeenCalled();
+    // Shape L with the free-run block alone draws no late block; its touched men keep today's times.
+    for (const s of spies) s.mockClear();
+    const f = frontWithPicture(options);
     const lFree = withStep3(L5_TUNABLES, { freeRun: FREE_RUN_FILED });
     expect(() => simulatePassPlay(f.scenario.state, withPicture(f.scenario.state, f.calls), "l-free", lFree)).not.toThrow();
     for (const s of spies) expect(s).not.toHaveBeenCalled();

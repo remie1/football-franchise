@@ -97,7 +97,7 @@ export type BeatTickEmission = Omit<CheckEmission, "checkKind" | "roll" | "oppos
 export type ThreatApproach = Exclude<RushApproach, "BLOCKED">;
 
 /**
- * ADR-089 P5 — how far he had to come and how fast he came, as a `RUSH_THREAT` carries them: both
+ * ADR-089 P5: how far he had to come and how fast he came, as a `RUSH_THREAT` carries them: both
  * or neither, so the pair is one argument and a threat with half of it cannot be published.
  */
 export interface ThreatGeometry {

@@ -1,29 +1,23 @@
 /**
- * ADR-089 step 3, E4 — THE LATE BLOCK ON SHAPE L, BEHIND PETITION P17 (plan §2.4; AM-2).
+ * ADR-089 step 3, E4 and E4b: THE LATE BLOCK ON SHAPE L (plan §2.4; AM-2; contracts petition P17).
  *
- * `pocketRulesOf` refuses a late block on shape L while P17's doc text is not in contracts
- * (`lateBlock.test.ts` asserts the refusal). This suite reaches the built path the way a granted
- * petition would: it swaps `pocketRulesOf` for `pocketRulesUnder(t, { P5: false, P17: true })`,
- * and nothing else.
+ * P17's doc text is in contracts, so `pocketRulesOf` runs a late block on shape L (E4b; until then
+ * this suite swapped in `pocketRulesUnder(t, { P5: false, P17: true })`). Nothing is mocked but the
+ * spies below.
  *
  *  1. No late beat CHECK: shape L draws at each tick, not at the snap.
  *  2. Nothing before t_e; from it a rolled tick, `rush/t<tick>/<rusher>:late` and
- *     `rush/t<tick>/<toucher>:late`, actors [rusher, toucher], rollRef the touching CHECK.
+ *     `rush/t<tick>/<toucher>:late:<rusher>` (the Orchestrator's CT-F7 ruling), actors
+ *     [rusher, toucher], rollRef the touching CHECK.
  *  3. The margin is AM-2's form: round(min(t - t_e, w R) (m + jitter) / (w R)) + 0, jitter
  *     round((rusher - toucher) / 4).
  *  4. No rep and no :jitter die for him or his toucher; the first won tick's threat keeps his origin,
- *     names the touching CHECK, takes row 3's approach and a won rep's travel from that tick.
+ *     names the touching CHECK, takes row 3's approach and a won rep's travel from that tick, and
+ *     publishes the nominal pair (P5, the Orchestrator's FID-F-9 ruling: L3 has the free-run block).
  *  5. Same seed, same stream.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../src/sim/pocketRules.js", async (importOriginal) => {
-  const real = await importOriginal<typeof import("../src/sim/pocketRules.js")>();
-  return {
-    ...real,
-    pocketRulesOf: (tunables: Parameters<typeof real.pocketRulesOf>[0]) => real.pocketRulesUnder(tunables, { P5: false, P17: true }),
-  };
-});
 vi.mock("../src/resolve/lateBlock.js", async (importOriginal) => {
   const real = await importOriginal<typeof import("../src/resolve/lateBlock.js")>();
   return { ...real, drawLateBeat: vi.fn(real.drawLateBeat), resolveLateBeatTick: vi.fn(real.resolveLateBeatTick), resolveLateTickL: vi.fn(real.resolveLateTickL) };
@@ -71,7 +65,7 @@ for (let i = 0; i < 400 && ranThrough.length < 12; i++) {
   if (checks(events, "blitz_pickup")[0]?.payload.band === "RAN_THROUGH") ranThrough.push({ seed: `late-l-${i}`, events });
 }
 
-describe("ADR-089 step 3, E4: shape L's late block (P17 granted in this suite only)", () => {
+describe("ADR-089 step 3, E4 and E4b: shape L's late block (P17 in contracts)", () => {
   it("found its fixtures", () => {
     expect(ranThrough.length).toBe(12);
   });
@@ -86,7 +80,7 @@ describe("ADR-089 step 3, E4: shape L's late block (P17 granted in this suite on
     expect(vi.mocked(resolveLateTickL)).toHaveBeenCalled();
   });
 
-  it("from t_e, two :late dice a tick, AM-2's margin, the touching CHECK named", () => {
+  it("from t_e, two :late dice a tick (the toucher's naming his man, CT-F7), AM-2's margin, the touching CHECK named", () => {
     let ticks = 0;
     for (const { events } of ranThrough) {
       const pickup = checks(events, "blitz_pickup")[0]?.payload;
@@ -101,7 +95,7 @@ describe("ADR-089 step 3, E4: shape L's late block (P17 granted in this suite on
         const opposed = t.payload.opposedRoll;
         if (roll === undefined || opposed === undefined) throw new Error("a shape-L late tick without its two dice");
         expect(roll.rngLabel.endsWith(`/rush/t${tick.toFixed(1)}/${String(BLZ0)}:late`)).toBe(true);
-        expect(opposed.rngLabel.endsWith(`/rush/t${tick.toFixed(1)}/${String(RB1)}:late`)).toBe(true);
+        expect(opposed.rngLabel.endsWith(`/rush/t${tick.toFixed(1)}/${String(RB1)}:late:${String(BLZ0)}`)).toBe(true);
         const jitter = Math.round((roll.total - opposed.total) / 4);
         const expected = Math.round((Math.min(tick - LATE_BLOCK_FILED.engageSeconds, W_R) * (m + jitter)) / W_R) + 0;
         expect(Object.is(t.payload.margin, expected)).toBe(true);
@@ -145,7 +139,10 @@ describe("ADR-089 step 3, E4: shape L's late block (P17 granted in this suite on
       expect(payload.rollRef).toBe(pickup?.roll?.rngLabel);
       expect(payload.approach).toBe("THROUGH");
       expect(payload.etaTick).toBe(Number(((won.tick ?? 0) + travelSecondsFor(L3, "INTERIOR", "SPEED", won.payload.margin, "OLB")).toFixed(1)));
-      expect("distanceYards" in payload).toBe(false);
+      // P5 (E6b) and FID-F-9: a beaten late threat publishes the nominal pair, as a won rep does.
+      const nominal = L3.arrival.nominalClosingSpeedYardsPerSecond;
+      expect(payload.closingSpeed).toBe(nominal);
+      expect(payload.distanceYards).toBe(travelSecondsFor(L3, "INTERIOR", "SPEED", won.payload.margin, "OLB") * nominal);
       beaten += 1;
     }
     expect(beaten).toBeGreaterThan(0);

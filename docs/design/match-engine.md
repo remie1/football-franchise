@@ -671,9 +671,13 @@ Results per Tick:
 > `pass_rush_beat` CHECK whose `rollRef` is the touching CHECK, and
 > `T = t_e + w * theta * exp(-beta * m / 41) * (-ln U)^(1/k)`; from `t_e` each tick is a dieless
 > `pass_rush_tick` naming it (0 before the beat tick, `max(15, m)` from it), with no push window and
-> no rep, step-1 beat or `:jitter` die. Beaten, his threat keeps his origin, names the touching
-> CHECK, takes the row-3 approach above and travels as a won rep does from that tick. Under L the
-> late block is refused until petition P17's doc text is in contracts. Under a bundle with the
+> no rep, step-1 beat or `:jitter` die. Under L (petition P17) there is no beat: from `t_e` each
+> tick draws two d100s, `rush/t<tick>/<rusherId>:late` and `rush/t<tick>/<toucherId>:late:<rusherId>`
+> (the toucher's die names the man he blocks, so no label repeats), jitter as today's tick, and
+> margin `round(min(t - t_e, w R) (m + jitter) / (w R))`, published as a rolled `pass_rush_tick`
+> whose `rollRef` is the touching CHECK, with no rep and no `:jitter` die. Beaten (S: the beat tick;
+> L: a RUSHER_WINS_REP tick), his threat keeps his origin, names the touching CHECK, takes the row-3
+> approach above and travels as a won rep does from that tick. Under a bundle with the
 > free-run block every `RUSH_THREAT` publishes `distanceYards` and `closingSpeed`, both or neither
 > (petition P5): a free runner the clock timed carries the clock's pair (his path from his snap
 > spot, over his whole time from the snap), a won rep and a beaten late block the nominal pair, and

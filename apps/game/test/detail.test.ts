@@ -543,14 +543,15 @@ describe("the late block and free runners on the play detail (ADR-089 step 3)", 
 
   it("renders shape L's rolled late ticks, which name the touching CHECK, as a late block's (P17)", () => {
     // Shape L has no beat: from the late block's engagement each tick rolls the rusher's d100 against
-    // the toucher's, on the two `:late` labels, and names the touching CHECK (build-eb §1.4).
+    // the toucher's, on `<rusher>:late` and `<toucher>:late:<rusher>` (CT-F7), and names the
+    // touching CHECK (build-eb §1.4; P17, E4b).
     const rolled = (actors: PlayerId[], raw: number, opposed: number, margin: number, tier: ResultTier, band: string, rollRef: string, tick: number): MatchEvent =>
       check(
         {
           checkKind: "pass_rush_tick",
           actors,
           roll: d100(raw, raw, `game:g/play:s3/rush/t${tick}/${String(actors[0])}:late`),
-          opposedRoll: d100(opposed, opposed, `game:g/play:s3/rush/t${tick}/${String(actors[1])}:late`),
+          opposedRoll: d100(opposed, opposed, `game:g/play:s3/rush/t${tick}/${String(actors[1])}:late:${String(actors[0])}`),
           tier,
           band,
           margin,

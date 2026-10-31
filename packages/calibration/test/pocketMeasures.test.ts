@@ -659,15 +659,16 @@ describe("the pocket command's arguments", () => {
     expect(() => parsePocketArgs(["--step", "2", "--seed", "x"])).toThrow(/unknown argument --seed \(pocket -- --step 2/);
   });
 
-  it("takes --step 3 with its flags; --arms takes step 3's run list less C14 (P17), --part1 runs part 1's build check (plan §2.10)", () => {
+  it("takes --step 3 with its flags; --arms takes step 3's whole run list (C14 since P17, E4b), --part1 runs part 1's build check (plan §2.10)", () => {
     expect(parsePocketArgs(["--", "--step", "3"], "/pkg")).toEqual({ step: 3 });
     expect(
       parsePocketArgs(["--step", "3", "--arms", "C1,B3", "--shard", "2/3", "--cache", "scratch/c", "--seed-set", "1", "--report", "r.md", "--out", "/abs/m.json"], "/pkg"),
     ).toEqual({ step: 3, arms: ["C1", "B3"], shard: { index: 2, count: 3 }, cache: "/pkg/scratch/c", seedSet: 1, report: "/pkg/r.md", out: "/abs/m.json" });
-    expect(parsePocketArgs(["--arms", "A0,A14,A1,A11,B3,B6,B5,C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C15,C16", "--step", "3"], "/pkg")).toEqual({
+    expect(parsePocketArgs(["--arms", "A0,A14,A1,A11,B3,B6,B5,C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14,C15,C16", "--step", "3"], "/pkg")).toEqual({
       step: 3,
-      arms: ["A0", "A14", "A1", "A11", "B3", "B6", "B5", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C15", "C16"],
+      arms: ["A0", "A14", "A1", "A11", "B3", "B6", "B5", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C14", "C15", "C16"],
     });
+    expect(parsePocketArgs(["--arms", "C14", "--part1", "--step", "3"], "/pkg")).toEqual({ step: 3, part1: true, arms: ["C14"] });
     expect(parsePocketArgs(["--step", "3", "--seed-set", "2"], "/pkg")).toEqual({ step: 3, seedSet: 2 });
     expect(parsePocketArgs(["--step", "3", "--digests", "--out", "d3.json"], "/pkg")).toEqual({ step: 3, digests: true, out: "/pkg/d3.json" });
     // --part1 alone, and with the flags it takes, in any order.
@@ -682,12 +683,10 @@ describe("the pocket command's arguments", () => {
     });
   });
 
-  it("refuses step 3's bad values, C14 with its reason, and the other steps' flags", () => {
+  it("refuses step 3's bad values and the other steps' flags", () => {
     for (const bad of ["A2", "A5", "B1", "B7", "C0", "C17", "c1"]) {
       expect(() => parsePocketArgs(["--step", "3", "--arms", `C1,${bad}`]), bad).toThrow(new RegExp(`--arms: ${bad} is not an arm \\(step 3's: A0, A14, A1, A11, B3, B6, B5, C1 to C16\\)`));
     }
-    expect(() => parsePocketArgs(["--step", "3", "--arms", "C1,C14"])).toThrow(/^--arms: C14 is not playable: C14 waits on petition P17 \(the late block's rolled tick on shape L\)/);
-    expect(() => parsePocketArgs(["--arms", "C14", "--part1", "--step", "3"])).toThrow(/--arms: C14 is not playable: .*dropped if P17 is declined/);
     expect(() => parsePocketArgs(["--step", "3", "--arms", "C1,C1"])).toThrow(/names an arm twice/);
     expect(() => parsePocketArgs(["--step", "3", "--shard", "4/3"])).toThrow(/--shard takes i\/n/);
     expect(() => parsePocketArgs(["--step", "3", "--seed-set", "3"])).toThrow(/--seed-set takes 1 or 2/);

@@ -65,7 +65,7 @@ import { assertSnapPictureFor, timeFreeRunners } from "../src/sim/freeRunTiming.
 import { DEFAULT_TUNABLES } from "../src/tunables.js";
 import { buildGameFixture } from "./gameFixtures.js";
 import { buildFrontScenario, buildLopsidedRushScenario, buildScenario, buildScramblerScenario } from "./fixtures.js";
-import { L5_TUNABLES, RULE_SETS, S2N_TUNABLES, S2_TUNABLES, S3L_TUNABLES, S3_TUNABLES, SW_TUNABLES, buildBullRushScenario, isStep3 } from "./pocketTunables.js";
+import { L5_TUNABLES, RULE_SETS, S2N_TUNABLES, S2_TUNABLES, S3L8_TUNABLES, S3L_TUNABLES, S3_TUNABLES, SW_TUNABLES, buildBullRushScenario, isStep3 } from "./pocketTunables.js";
 import { frontWithPicture, withLineUp, withPicture } from "./snapFixtures.js";
 
 const FIXTURES = [buildScenario, buildLopsidedRushScenario, buildScramblerScenario, () => buildFrontScenario({ extras: 2 })];
@@ -208,8 +208,9 @@ describe("ADR-089 step 2 — no rule set without pocket.forcing runs must act or
  * the timing pass and the picture check, the late beat, the late ticks of both shapes and the
  * beaten late threat, D16's side and the FRONT climb lane's `fromOf`) is called by no rule set
  * before step 3, play or game, with or without a picture on the calls; and the spies are wired:
- * the s3 sets call them. `resolveLateTickL` stays at zero under s3 as well, because shape L's late
- * block is refused until petition P17 (`lateBlockL.test.ts` proves it wired behind that petition).
+ * the s3 sets call them. `resolveLateTickL` stays at zero under `RULE_SETS`' s3 sets as well, since
+ * neither runs a late block on shape L (S3 is shape S; S3L has no late block); C14's shape
+ * (`S3L8_TUNABLES`, shape L with the late block, P17 in contracts since E4b) calls it.
  */
 describe("ADR-089 step 3 — no rule set before step 3 runs a step-3 entry point (P-18)", () => {
   const STEP3_FIXTURES = [
@@ -267,5 +268,15 @@ describe("ADR-089 step 3 — no rule set before step 3 runs a step-3 entry point
     const game = named();
     for (const name of ["freeRunClock", "timeFreeRunners", "assertSnapPictureFor", "threatSideOf"]) expect(game[name], name).toBeGreaterThan(0);
     expect(game["resolveLateTickL"]).toBe(0);
+    // C14's shape runs shape L's late block (P17, E4b), and only through resolveLateTickL.
+    for (const spy of STEP3_SPIES) spy.mockClear();
+    for (let i = 0; i < 400 && vi.mocked(resolveLateTickL).mock.calls.length === 0; i++) {
+      const f = frontWithPicture({ extras: 2, stunts: [{ penetrator: playerId("dt1"), looper: playerId("de1"), complexity: "TRIPLE" }] });
+      simulatePassPlay(f.scenario.state, f.calls, `isolation-s3l8-${i}`, S3L8_TUNABLES);
+    }
+    const onL = named();
+    expect(onL["resolveLateTickL"]).toBeGreaterThan(0);
+    expect(onL["drawLateBeat"]).toBe(0);
+    expect(onL["resolveLateBeatTick"]).toBe(0);
   });
 });

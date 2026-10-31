@@ -44,8 +44,8 @@
  * D18 and D22, its reading, by-origin narrowing, AM-2's held references and the picture dial),
  * `blitzPickup.lateBlock` (the late, weak block for touched men, `t_e` and `w`) and
  * `pocket.climbLane` (`FRONT`). Under `legacy` (no block clock) each is refused, never ignored. The
- * late block on shape L is refused while petition P17's doc text is not in contracts; reading C
- * runs no late block and reading A needs one. `threatGeometry` (the gate on publishing the threats'
+ * late block runs on both shapes now that petition P17's doc text is in contracts (refused on shape L
+ * only when a test withholds P17); reading C runs no late block and reading A needs one. `threatGeometry` (the gate on publishing the threats'
  * `distanceYards` and `closingSpeed`) is true only with a free-run block AND petition P5 in
  * contracts. Both petitions are the two constants below, each lifted after the owner's typed yes
  * landed its text (plan §3.3, §3.4: E4b, E6b; what each lift changed is on the constants).
@@ -143,15 +143,18 @@ export type PocketRules =
  *    `publishThreat` passes it when `rules.threatGeometry`, never by a presence test. A beaten late
  *    threat publishes its nominal pair (the Orchestrator's FID-F-9 ruling). `pocketRules.test.ts`
  *    pins the constant.
- *  - P17: the doc text for the late block's rolled tick on shape L; until then a late block on
- *    shape L is refused (shape S's late beat is already described by P2, P3 and `ThreatOrigin`).
- *    E4b: after the P17 contracts commit, flip this constant AND calibration's own
- *    `P17_IN_CONTRACTS` (`calibration/src/pocket/rules.ts`, which refuses shape L before any game;
- *    calibration's `engineRules.test.ts` fails while the two differ), and change
- *    `pocketRules.test.ts`'s `P17_IN_CONTRACTS` pin.
+ *  - P17 (E4b, after the P17 contracts commit): the doc text for the late block's rolled tick on
+ *    shape L (shape S's late beat was already described by P2, P3 and `ThreatOrigin`).
+ *    `P17_IN_CONTRACTS` is true, so a late block on shape L plays (C14's shape), and calibration's
+ *    own `P17_IN_CONTRACTS` (`calibration/src/pocket/rules.ts`) flipped in the same commit (its
+ *    `engineRules.test.ts` fails while the two differ). The toucher's die on a late tick is
+ *    `rush/t<tick>/<toucherId>:late:<rusherId>` and the rusher's `rush/t<tick>/<rusherId>:late`
+ *    (the Orchestrator's CT-F7 ruling), so a man on two late blocks draws two dice a tick
+ *    (`resolve/lateBlock.ts`). `pocketRules.test.ts` pins the constant; `pocketRulesUnder` still
+ *    refuses the late block on shape L when a test withholds P17.
  */
 export const P5_IN_CONTRACTS = true;
-export const P17_IN_CONTRACTS = false;
+export const P17_IN_CONTRACTS = true;
 
 /** Which of the two petitions are in contracts: the constants above, or a test's own pair. */
 export interface ContractPetitions {

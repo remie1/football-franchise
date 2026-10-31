@@ -222,8 +222,9 @@ export const S3_TUNABLES = withStep3(
 
 /**
  * ADR-089 step 3 on shape L: step 2's shape-L basis (L5 at step 2's horizons, must act per rusher)
- * with the free-run block and the FRONT climb lane, stamped `pocket-1.s3`. No late block: on shape L
- * it waits on petition P17 and `pocketRulesOf` refuses it, so its touched men keep today's times.
+ * with the free-run block and the FRONT climb lane, stamped `pocket-1.s3`. No late block, so its
+ * touched men keep today's times (the free-run block alone on shape L; `S3L8_TUNABLES` below has
+ * the late block, which shape L runs since petition P17, E4b).
  */
 export const S3L_TUNABLES = withStep3(
   withForcing(
@@ -231,6 +232,25 @@ export const S3L_TUNABLES = withStep3(
     { rule: "PER_RUSHER" },
   ),
   { freeRun: FREE_RUN_FILED, climbLane: "FRONT" },
+);
+
+/** Step 2's shape-L basis at R 8 (L8 at step 2's horizons, must act per rusher): B5's shape, C14's base. */
+export const S2L8_TUNABLES = withForcing(
+  withBlocks(withStep2Horizons(DEFAULT_TUNABLES), { repClock: { fullExpressionSeconds: 8 }, approach: APPROACH_CARD }, stamp("fnv1a:5d000028", "pocket-1.s2")),
+  { rule: "PER_RUSHER" },
+);
+
+/**
+ * ADR-089 step 3, C14's shape (playable since petition P17, E4b): `S2L8_TUNABLES` with the free-run
+ * block, the late block and the FRONT climb lane, stamped `pocket-1.s3`. Not in `RULE_SETS`;
+ * `rollAccounting.test.ts` pairs it with `S2L8_TUNABLES` (R-4) and plays a whole game under it.
+ */
+export const S3L8_TUNABLES = withStep3(
+  withForcing(
+    withBlocks(withStep2Horizons(DEFAULT_TUNABLES), { repClock: { fullExpressionSeconds: 8 }, approach: APPROACH_CARD }, stamp("fnv1a:5f000038", "pocket-1.s3")),
+    { rule: "PER_RUSHER" },
+  ),
+  { freeRun: FREE_RUN_FILED, lateBlock: LATE_BLOCK_FILED, climbLane: "FRONT" },
 );
 
 /**

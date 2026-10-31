@@ -11,8 +11,8 @@
  * from; reading B leaving a touched man at today's time and reading C timing him with his band's
  * delay; an arm that holds inputs; an arm with no free-run block.
  *
- * In the suite: the first 2 golden games of each league under every playable step-3 arm (C14 is
- * refused while P17 is out), part 1, the touched check, the off-clock check and the mirror with no
+ * In the suite: the first 2 golden games of each league under every playable step-3 arm (all
+ * sixteen, C14 since P17, E4b), part 1, the touched check, the off-clock check and the mirror with no
  * failure, and the monotone clauses with none on C1 and C2; the NEGATIVE CONTROL, C1 with
  * `getOffSeconds` 0.36, fails part 1 on the same games and nothing else; and real streams with one
  * fact changed (a spot, an entry, the picture, a touched man's time, an off-clock man's time)
@@ -490,11 +490,12 @@ function foldGames(games: readonly Game[], tunables: Tunables): Part1Fold {
 
 const PLAYABLE = STEP3_ARM_IDS.filter((id) => armRefusal(id) === undefined);
 const OFF_CLOCK_ARMS: readonly ArmId[] = ["C3", "C4", "C5", "C7", "C8", "C9", "C10", "C16"];
-const LATE_ARMS: readonly ArmId[] = ["C1", "C2", "C6", "C10", "C12", "C15"];
+const LATE_ARMS: readonly ArmId[] = ["C1", "C2", "C6", "C10", "C12", "C14", "C15"];
 
 describe(`part 1 on the first ${String(FIRST)} golden games of each league under every playable step-3 arm`, () => {
-  it("C14 is the only refused arm (P17 is not in contracts)", () => {
-    expect(STEP3_ARM_IDS.filter((id) => armRefusal(id) !== undefined)).toEqual(["C14"]);
+  it("no arm is refused: C14 plays (P17 in contracts, E4b)", () => {
+    expect(STEP3_ARM_IDS.filter((id) => armRefusal(id) !== undefined)).toEqual([]);
+    expect(PLAYABLE).toEqual([...STEP3_ARM_IDS]);
   });
 
   it.each(PLAYABLE)("%s: part 1, the touched check, today's times and the mirror hold", (id) => {

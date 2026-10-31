@@ -25,9 +25,10 @@
  *    uniform delay, B3 with the `LATE` patch set, stamped `pocket-1.s2` at its own digest; C15 is C1
  *    with the pickup and exchange band edges 30 points easier (`BAND_EDGES`, the readers' supply-cut
  *    stand-in, a band-edge shift, not a protection design). C14 (the L basis, B5 with the step-3
- *    blocks) is defined and refused while petition P17 is not in contracts (`waitsOn`): `withOverlay`
- *    refuses a late block on shape L, so the table does not build it, `armById` refuses it by name
- *    and `armRefusal` says why; the command line (`--step 3`, K4) refuses it with that reason.
+ *    blocks) waits on petition P17 (`waitsOn`), which is in contracts (E4b), so it is built and
+ *    played like the others. Were its petition out, `withOverlay` would refuse a late block on
+ *    shape L, so the table would not build it, `armById` would refuse it by name, `armRefusal` would
+ *    say why, and the command line (`--step 3`, K4) would refuse it with that reason.
  *    Step 1's and step 2's lists, arms and digests are as they were.
  *  - **Step 2's arms** are stamped `pocket-1.s2` with their own overlay digests (O28), whatever their
  *    forcing rule; the re-played bases keep their step-1 stamps and digests. B3 is the design bundle
@@ -277,8 +278,8 @@ export type Step2ArmId = (typeof STEP2_ARM_IDS)[number];
 
 /**
  * Step 3's sixteen arms (plan §5.1), in order. AM-3's base map names C1, C2 and C11 (plan §4.2), so
- * the ids are arms of this build before any C arm runs; `STEP3_ARM_DEFS` defines them (C14 refused
- * while P17 is not in contracts), and the step-3 harness (K4) plays them.
+ * the ids are arms of this build before any C arm runs; `STEP3_ARM_DEFS` defines them (C14 waits on
+ * P17, in contracts since E4b), and the step-3 harness (K4) plays them.
  */
 export const STEP3_ARM_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C14", "C15", "C16"] as const;
 export type Step3ArmId = (typeof STEP3_ARM_IDS)[number];
@@ -296,7 +297,7 @@ export type Step2RunId = (typeof STEP2_RUN_IDS)[number];
 /**
  * What `--step 3` plays (plan §5.1; its harness is `step3.ts`, K4): the seven re-played bases, A0
  * and A14 for the cumulative line, A1 and A11 for the accepted state, B3, B6 and B5 as the C arms'
- * bases, then C1 to C16 (C14 refused while P17 is not in contracts, `armRefusal`).
+ * bases, then C1 to C16 (less any arm whose petition is out, `armRefusal`: none since P17, E4b).
  */
 export const STEP3_RUN_IDS = ["A0", "A14", "A1", "A11", "B3", "B6", "B5", ...STEP3_ARM_IDS] as const satisfies readonly ArmId[];
 export type Step3RunId = (typeof STEP3_RUN_IDS)[number];
@@ -321,8 +322,8 @@ export function isStep3ArmId(id: string): id is Step3ArmId {
 
 /**
  * Any arm of this build, step 1's, step 2's or step 3's (for example AM-1's and AM-3's base maps,
- * whose arms must all be arms of this build). C14 is an arm of this build though it is refused
- * while P17 is not in contracts.
+ * whose arms must all be arms of this build). C14 is an arm of this build whether or not P17 is in
+ * contracts.
  */
 export function isAnyArmId(id: string): id is ArmId {
   return (ALL_ARM_IDS as readonly string[]).includes(id);
@@ -386,8 +387,8 @@ export interface ArmDef {
   readonly step3?: Step3Blocks;
   /**
    * The contract petition the arm waits on, when its blocks are refused until it is in contracts:
-   * C14's late block on shape L waits on P17 (plan §3.4). Such an arm is defined, never built while
-   * the petition is out (`armRefusal`).
+   * C14's late block on shape L waits on P17 (plan §3.4), in contracts since E4b. Such an arm is
+   * defined, never built while the petition is out (`armRefusal`).
    */
   readonly waitsOn?: "P17";
 }
@@ -521,7 +522,7 @@ const S3_STAND_IN = ["s3.hitOrSack", "s3.expected.pressure", "s3.expected.sack",
  * table's base column (AM-3 maps C1 on B3, C2 on B6 and C11 on B3; the others are information, their
  * Z printed against the same base, unguarded). "Today" is today's set times; the hand-off fix and
  * D16's path come with the free-run block. The arms that vary one input (C3, C4, C5) hold the other
- * two at AM-2's references. C14 waits on P17 (`waitsOn`) and is never built while P17 is out.
+ * two at AM-2's references. C14 waits on P17 (`waitsOn`), in contracts since E4b, so it is built.
  */
 export const STEP3_ARM_DEFS: readonly ArmDef[] = deepFreeze([
   {
@@ -596,7 +597,7 @@ export const STEP3_ARM_DEFS: readonly ArmDef[] = deepFreeze([
   {
     id: "C14", what: "the L basis: B5 (L8 with Heels and the horizons) with the free-run clock as C1, the late block on L and the climb lane FRONT",
     clock: L(8), patchSets: ["HEELS", "HALF", "FOLLOWS"], rules: S3, step3: S3_BLOCKS, waitsOn: "P17",
-    seedSet: 1, role: "information, the L basis; refused until petition P17 is in contracts, dropped if P17 is declined", pricing: false, base: "B5", graded: [], reported: [],
+    seedSet: 1, role: "information, the L basis (its late block on shape L is petition P17's, in contracts)", pricing: false, base: "B5", graded: [], reported: [],
   },
   {
     id: "C15", what: "C1 with the pickup and exchange band edges 30 points easier (the readers' supply-cut stand-in, a band-edge shift, not a protection design)",
@@ -702,7 +703,7 @@ function build(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }
     rules = def.rules;
     // C1 is the bundle rules.ts builds and checks against POCKET_1_S3_DIGEST; every other step-3 arm
     // is its patches on DEFAULT_TUNABLES, then its clock, card and step-3 blocks and its forcing
-    // block, through withOverlay (which refuses C14's late block on shape L while P17 is out).
+    // block, through withOverlay (which would refuse C14's late block on shape L were P17 out).
     tunables = isS3DesignArm(def, overlay)
       ? rulesTunables(POCKET_1_S3_RULES)
       : withOverlay(patches.reduce(applyTunablePatch, DEFAULT_TUNABLES), def.rules, withStep3(overlay, def.step3), def.forcing === undefined ? undefined : { rule: def.forcing });
@@ -790,14 +791,14 @@ export function step2Arms(): readonly Arm[] {
   return STEP2_ARM_IDS.map((id) => armById(id));
 }
 
-/** Step 3's arms this build builds, C1 to C16 in order, less any refused (C14 while P17 is out). */
+/** Step 3's arms this build builds, C1 to C16 in order, less any refused (none since P17, E4b). */
 export function step3Arms(): readonly Arm[] {
   return STEP3_ARM_IDS.filter((id) => armRefusal(id) === undefined).map((id) => armById(id));
 }
 
 /**
- * Every arm this build builds, step 1's 17, step 2's 7, then step 3's (15 while C14 waits on P17),
- * each in its table's order.
+ * Every arm this build builds, step 1's 17, step 2's 7, then step 3's 16 (C14 included since P17,
+ * E4b), each in its table's order.
  */
 export function everyArm(): readonly Arm[] {
   return ALL_ARM_IDS.filter((id) => armRefusal(id) === undefined).map((id) => armById(id));

@@ -481,11 +481,13 @@ describe("ADR-089 step 3 — the free-run block, the late block and the climb la
     expect(Object.isFrozen(r)).toBe(true);
   });
 
-  it("the petitions in contracts in this build: P5 (E6b, the owner's typed yes of 2026-10-31); P17 not yet", () => {
+  it("the petitions in contracts in this build: P5 (E6b) and P17 (E4b), the owner's typed yes of 2026-10-31", () => {
     expect(P5_IN_CONTRACTS).toBe(true);
-    expect(P17_IN_CONTRACTS).toBe(false);
-    expect(pocketRulesUnder(S3_TUNABLES, { P5: true, P17: false })).toEqual(pocketRulesOf(S3_TUNABLES));
+    expect(P17_IN_CONTRACTS).toBe(true);
+    expect(pocketRulesUnder(S3_TUNABLES, GRANTED)).toEqual(pocketRulesOf(S3_TUNABLES));
     expect(pocketRulesUnder(S3_TUNABLES, NONE)).not.toEqual(pocketRulesOf(S3_TUNABLES));
+    const lateOnL = withStep3(lOn(), { freeRun: FREE_RUN_FILED, lateBlock: LATE_BLOCK_FILED });
+    expect(pocketRulesUnder(lateOnL, GRANTED)).toEqual(pocketRulesOf(lateOnL));
   });
 
   it("accepts any subset of the three blocks under a stamped clock (C10: a late block alone; C16: the climb lane alone)", () => {
@@ -541,14 +543,17 @@ describe("ADR-089 step 3 — the free-run block, the late block and the climb la
     expect(pocketRulesOf(withStep3(sOn(), { freeRun: freeRun({ getOffSeconds: 0.36 }) })).kind).toBe("S");
   });
 
-  it("shape L takes the free-run clock and the climb lane; its late block only once P17 is in contracts", () => {
+  it("shape L takes the free-run clock, the climb lane and (P17 in contracts) the late block", () => {
     const l = pocketRulesOf(withStep3(lOn(), { freeRun: FREE_RUN_FILED, climbLane: "FRONT" }));
     if (l.kind !== "L") throw new Error("not L");
     expect(l.freeRun).toBe(FREE_RUN_FILED);
     expect(l.lateBlock).toBeUndefined();
     expect(l.climbLane).toBe("FRONT");
     const withLate = withStep3(lOn(), { freeRun: FREE_RUN_FILED, lateBlock: LATE_BLOCK_FILED });
-    expect(() => pocketRulesOf(withLate)).toThrow(PocketRulesError);
+    const lateL = pocketRulesOf(withLate);
+    expect(lateL.kind === "L" && lateL.lateBlock).toBe(LATE_BLOCK_FILED);
+    expect(lateL.kind === "L" && lateL.threatGeometry).toBe(true);
+    // Withheld in a test, P17 refuses it again.
     expect(() => pocketRulesUnder(withLate, { P5: true, P17: false })).toThrow(PocketRulesError);
     const granted = pocketRulesUnder(withLate, { P5: false, P17: true });
     expect(granted.kind === "L" && granted.lateBlock).toBe(LATE_BLOCK_FILED);
@@ -615,11 +620,6 @@ describe("ADR-089 step 3 — the free-run block, the late block and the climb la
       "the climb lane rule on a clock without its stamp",
       withStep3(withBlocks(DEFAULT_TUNABLES, { repClock: { fullExpressionSeconds: 8 }, approach: APPROACH_CARD }), { climbLane: "FRONT" }),
       "@ff/engine: the climb lane rule (pocket.climbLane) without its rules stamp (engineRules { name, overlayDigest })",
-    ],
-    [
-      "a late block on shape L while P17 is not in contracts",
-      withStep3(lOn(), { lateBlock: LATE_BLOCK_FILED }),
-      "@ff/engine: the late block (blitzPickup.lateBlock) on shape L (passRush.repClock) is refused until petition P17's doc text (the late block's rolled tick) is in contracts; shape S runs it",
     ],
     [
       "reading C with a late block",
@@ -761,7 +761,7 @@ describe("ADR-089 step 3 — the free-run block, the late block and the climb la
     });
   }
 
-  it("the late block on shape L is the one refusal a granted P17 lifts; a granted P5 lifts none", () => {
+  it("the late block on shape L is the one refusal a withheld P17 adds; the petitions lift none of the refusals above", () => {
     const passes = (tunables: Tunables, petitions: { P5: boolean; P17: boolean }): boolean => {
       try {
         pocketRulesUnder(tunables, petitions);
@@ -771,9 +771,18 @@ describe("ADR-089 step 3 — the free-run block, the late block and the climb la
         return false;
       }
     };
-    expect(cases.filter(([, t]) => passes(t, GRANTED)).map(([what]) => what)).toEqual(["a late block on shape L while P17 is not in contracts"]);
-    expect(cases.filter(([, t]) => passes(t, { P5: true, P17: false })).map(([what]) => what)).toEqual([]);
-    expect(pocketRulesUnder(withStep3(lOn(), { lateBlock: LATE_BLOCK_FILED }), GRANTED).kind).toBe("L");
+    for (const petitions of [GRANTED, NONE, { P5: true, P17: false }, { P5: false, P17: true }]) {
+      expect(cases.filter(([, t]) => passes(t, petitions)).map(([what]) => what)).toEqual([]);
+    }
+    const lateOnL = withStep3(lOn(), { lateBlock: LATE_BLOCK_FILED });
+    expect(pocketRulesOf(lateOnL).kind).toBe("L");
+    expect(pocketRulesUnder(lateOnL, GRANTED).kind).toBe("L");
+    expect(pocketRulesUnder(lateOnL, { P5: false, P17: true }).kind).toBe("L");
+    for (const withheld of [NONE, { P5: true, P17: false }]) {
+      expect(() => pocketRulesUnder(lateOnL, withheld)).toThrow(
+        "@ff/engine: the late block (blitzPickup.lateBlock) on shape L (passRush.repClock) is refused until petition P17's doc text (the late block's rolled tick) is in contracts; shape S runs it",
+      );
+    }
   });
 
   it("the earlier refusals keep their order: a step-3 block masks no clock, card or forcing refusal", () => {

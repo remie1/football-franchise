@@ -209,13 +209,14 @@ const RATING_MAX = ATTR_SCALE.max;
 
 /**
  * Petition P17 (ADR-089 step-3 plan §3.4): the doc text for the late block's rolled tick on shape L.
- * Until the owner's typed yes lands it in contracts the engine refuses a late block on shape L
- * (`P17_IN_CONTRACTS`, `sim/pocketRules.ts`), and so does this module, before any game. E4b flips
- * both constants in one commit (the engine's checklist is on its constant); `engineRules.test.ts`
- * reads the engine's from its source and fails while the two differ (review CT-F6). Exported so that
- * `arms.ts` can name the arm that waits on it (C14) without building it.
+ * The owner's typed yes (2026-10-31 14:38:53Z) landed it in contracts (c340520), and E4b flipped this
+ * constant and the engine's (`P17_IN_CONTRACTS`, `sim/pocketRules.ts`) in one commit, so a late block
+ * on shape L builds here and plays there (C14). Had it stayed out, both would refuse it, this module
+ * before any game. `engineRules.test.ts` reads the engine's from its source and fails while the two
+ * differ (review CT-F6). Exported so that `arms.ts` can say whether the arm that waits on it (C14) is
+ * built (`armRefusal`).
  */
-export const P17_IN_CONTRACTS = false;
+export const P17_IN_CONTRACTS = true;
 
 /**
  * ADR-090's petition S3 (step-3 plan §3.2; AM-2's `design`): the Mug's ruled spot may be read by
@@ -424,8 +425,9 @@ function blocksOf(tunables: Tunables): string[] {
 /**
  * The closed sets the engine accepts (step 1's plan §4): one block clock, `beatClock` (shape S) or
  * `repClock` (shape L), with the approach card; and from step 3 (plan §2.1), for each step-3 block it
- * carries, the clock shape it runs on: the late block on shape S only while petition P17's doc text
- * is not in contracts (the free-run block and the climb lane run on either shape). Checked here too,
+ * carries, the clock shape it runs on: the late block on either shape now that petition P17's doc
+ * text is in contracts (on shape S only while it is not), as the free-run block and the climb lane
+ * run on either shape. Checked here too,
  * so a calibration bundle outside them is refused before any game, with this module's error. (Which
  * reading runs a late block is a dial's matter, checked with the dials, after the overlay digest.)
  */

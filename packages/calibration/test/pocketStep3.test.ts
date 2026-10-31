@@ -10,7 +10,7 @@
  *    the committed file and pin that copy; the committed file is only read;
  *  - the map's own checks (only step 3's playable arms, each against this build's base), the stamp
  *    (the step-3 view's digest; a preview's records are refused by a grading run), the plan (C14
- *    refused by its reason, C6 played) and the run lists;
+ *    played since P17, E4b, C6 played) and the run lists;
  *  - the pure readings: the binomial SE, "not resolved by two seed sets", the miss rule's step-3
  *    split (the bin's supply reason only when the bin missed; an empty class unclassed), the alone
  *    arms' paired gap, the first free-runner arrival, and Q-3's stamp-free projection on step 2's
@@ -294,7 +294,9 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
       return "no refusal";
     };
     expect(refused({ C1: "B3", B1: "A1" })).toMatch(/^ADR-089 step 3: refused before anything plays: AM-3's step-3 base map names B1, which step 3 does not grade \(its arms are C1 to C16\)$/);
-    expect(refused({ C1: "B3", C14: "B5" })).toBe(`ADR-089 step 3: refused before anything plays: AM-3's step-3 base map grades C14, which this build does not play: ${armRefusal("C14") ?? "?"}`);
+    // C14 is played since P17 (E4b), so a map may grade it, against its own base.
+    expect(refused({ C1: "B3", C14: "B5" })).toBe("no refusal");
+    expect(refused({ C1: "B3", C14: "B3" })).toBe("ADR-089 step 3: refused before anything plays: AM-3's step-3 base map reads C14 against B3, and this build's arm against B5");
     expect(refused({ C1: "B6", C2: "B6" })).toBe("ADR-089 step 3: refused before anything plays: AM-3's step-3 base map reads C1 against B6, and this build's arm against B3");
     expect(refused({ C1: "B3", C6: "B3" })).toBe("no refusal");
   });
@@ -375,11 +377,11 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
 // --- the run lists, the stamp and the plan --------------------------------------------------------------------
 
 describe("the run lists, the stamp and the plan (plan §5.1)", () => {
-  it("plays C1 to C16 less C14 (P17), C6 among them; C13 alone of them plays pocket-1.s2; the bases are the seven re-played", () => {
-    expect(STEP3_PLAYABLE).toEqual(STEP3_ARM_IDS.filter((id) => id !== "C14"));
+  it("plays C1 to C16 (C14 since P17, E4b), C6 among them; C13 alone of them plays pocket-1.s2; the bases are the seven re-played", () => {
+    expect(STEP3_PLAYABLE).toEqual([...STEP3_ARM_IDS]);
     expect(STEP3_PLAYABLE).toContain("C6");
-    expect(armRefusal("C14")).toMatch(/^C14 waits on petition P17/);
-    expect(STEP3_PLAYABLE_RUN_IDS).toEqual(STEP3_RUN_IDS.filter((id) => id !== "C14"));
+    expect(armRefusal("C14")).toBeUndefined();
+    expect(STEP3_PLAYABLE_RUN_IDS).toEqual([...STEP3_RUN_IDS]);
     expect(STEP3_BASE_IDS).toEqual(["A0", "A14", "A1", "A11", "B3", "B6", "B5"]);
     expect(STEP3_PART1_IDS).toEqual(STEP3_PLAYABLE.filter((id) => id !== "C13"));
     expect(STEP3_PLAYABLE.filter((id) => !isS3Arm(id))).toEqual(["C13"]);
@@ -399,17 +401,17 @@ describe("the run lists, the stamp and the plan (plan §5.1)", () => {
     expect(step3StampOf("B3", 1, ENV, "x").corpus).toEqual(FULL_CORPUS);
   });
 
-  it("plans every playable target on both sets, shards every n-th, and refuses C14 by its reason", () => {
+  it("plans every playable target on both sets (C14 among them since P17, E4b) and shards every n-th", () => {
     const all = planStep3({});
     expect(all.targets).toHaveLength(2 * STEP3_PLAYABLE_RUN_IDS.length);
     expect(all.targets.slice(0, 4)).toEqual([{ id: "A0", seedSet: 1 }, { id: "A0", seedSet: 2 }, { id: "A14", seedSet: 1 }, { id: "A14", seedSet: 2 }]);
     expect(all.complete).toEqual(all.targets);
-    expect(all.targets.some((t) => t.id === "C14")).toBe(false);
+    expect(all.targets.filter((t) => t.id === "C14")).toEqual([{ id: "C14", seedSet: 1 }, { id: "C14", seedSet: 2 }]);
     const shards = [1, 2, 3].map((index) => planStep3({ shard: { index, count: 3 } }).mine);
     expect(shards.flat().length).toBe(all.targets.length);
     expect(new Set(shards.flat().map((t) => `${t.id}.${String(t.seedSet)}`)).size).toBe(all.targets.length);
     expect(planStep3({ arms: ["C2", "C1"], seedSet: 2 })).toEqual({ targets: [{ id: "C1", seedSet: 2 }, { id: "C2", seedSet: 2 }], complete: [{ id: "C1", seedSet: 2 }, { id: "C2", seedSet: 2 }], mine: [{ id: "C1", seedSet: 2 }, { id: "C2", seedSet: 2 }], oneSet: 2 });
-    expect(() => planStep3({ arms: ["C1", "C14"] })).toThrow(new RegExp(`^--arms: C14 is not playable: C14 waits on petition P17`));
+    expect(planStep3({ arms: ["C1", "C14"], seedSet: 1 }).targets).toEqual([{ id: "C1", seedSet: 1 }, { id: "C14", seedSet: 1 }]);
     expect(() => planStep3({ arms: ["A5"] })).toThrow(/--arms: A5 is not in this run/);
     expect(() => planStep3({ arms: ["C1", "C1"] })).toThrow(/names an arm twice/);
     expect(() => planStep3({ shard: { index: 4, count: 3 } })).toThrow(/--shard takes i\/n/);
@@ -814,7 +816,7 @@ describe("grading synthetic records under AM-3's stand-in", () => {
     expect(clause(g, "guard.mix").note).toBe("graded on C1 against B3, C2 against B6, C11 against B3; the filed reading, e* and the paired SE are printed beside every reading in the guard section");
     expect(g.sections.outcome).toEqual({ structuralFailures: [], foldFaults: [], gradedFailures: [], guardBreaches: [], mergeCard: true, next: [STEP3_R1_NEXT] });
     expect(g.sections.outsideBand).toEqual([]);
-    expect(g.sections.notPlayable).toEqual([{ arm: "C14", reason: armRefusal("C14") }]);
+    expect(g.sections.notPlayable).toEqual([]);
     expect(g.sections.amendments).toEqual({ digest: guard.digest, entry: "AM-3", record: "ADR-089 Appendix G, G.9", zLeague: 2, zClass: 3, zSetSE0: 0, am2: "AM-2 (ADR-089 Appendix G, G.8)" });
   });
 
@@ -976,7 +978,7 @@ describe("grading synthetic records under AM-3's stand-in", () => {
     const cut = grade(recordsOf(guard.digest, undefined, [1, 2], TINY));
     expect(proof(cut, "q3.replay").verdict).toBe("NOT CHECKED");
     expect(cut.sections.outcome.mergeCard).toBe(false);
-    expect(cut.sections.outcome.next.some((n) => n.startsWith("this run is on a cut corpus (tests only; 44 arm-sets)"))).toBe(true);
+    expect(cut.sections.outcome.next.some((n) => n.startsWith("this run is on a cut corpus (tests only; 46 arm-sets)"))).toBe(true);
   });
 
   it("review MEAS-S1, MEAS-N2: a one-set run never says a clause is inside its band, names the ones outside, and R-1 is named before the card", () => {
@@ -1017,13 +1019,12 @@ describe("grading synthetic records under AM-3's stand-in", () => {
     expect(() => grade(recordsOf(guard.digest, (m) => { rec(m, "C2", 2).stamp.arm = "C3"; }))).toThrow(/the record filed as C2 set 2 is C3 set 2/);
   });
 
-  it("renders the report: the refusal-free summary, C14 not played, every step-3 section, and one step report per base group and set", () => {
+  it("renders the report: the refusal-free summary, no arm left unplayed, every step-3 section, and one step report per base group and set", () => {
     const text = renderStep3Report(g, records);
     expect(text.startsWith("# ADR-089 step 3: the arms\n")).toBe(true);
+    expect(text).not.toContain("## Arms defined and not played");
     for (const h of [
       "## What failed, first",
-      "## Arms defined and not played",
-      `- C14: ${armRefusal("C14") ?? "?"}`,
       "## The clause table",
       "## Part 1, the touched men's check, the monotone check and the mirror",
       "## M5 on C1:",
@@ -1038,7 +1039,7 @@ describe("grading synthetic records under AM-3's stand-in", () => {
     const measures = step3MeasuresOf(records, g, guard, ENV.fingerprint, planStep3({}).complete) as Record<string, unknown>;
     expect(measures["format"]).toBe(STEP3_MEASURES_FORMAT);
     expect(measures["amendments"]).toBe(guard.digest);
-    expect(Object.keys(measures["arms"] as object)).toHaveLength(44);
+    expect(Object.keys(measures["arms"] as object)).toHaveLength(46);
   });
 });
 
@@ -1060,21 +1061,21 @@ describe("the run through its play seam", () => {
     plays = [];
     const first = runStep3({ ...common, shard: { index: 1, count: 2 } });
     expect(first.graded).toBe(false);
-    expect(first.played).toHaveLength(22);
-    expect(first.remaining).toHaveLength(22);
+    expect(first.played).toHaveLength(23);
+    expect(first.remaining).toHaveLength(23);
     const report = join(dir, "s3.md");
     const out = join(dir, "s3.json");
     const second = runStep3({ ...common, shard: { index: 2, count: 2 }, report, out });
     expect(second.graded).toBe(true);
-    expect(second.played).toHaveLength(22);
+    expect(second.played).toHaveLength(23);
     expect(second.wrote).toEqual([report, out]);
     expect(second.grade!.sections.outcome).toEqual({ structuralFailures: [], foldFaults: [], gradedFailures: [], guardBreaches: [], mergeCard: true, next: [STEP3_R1_NEXT] });
-    expect(plays).toHaveLength(44);
+    expect(plays).toHaveLength(46);
     const bytes = [readFileSync(report, "utf8"), readFileSync(out, "utf8")];
     plays = [];
     const again = runStep3({ ...common, report, out });
     expect(again.played).toEqual([]);
-    expect(again.cached).toHaveLength(44);
+    expect(again.cached).toHaveLength(46);
     expect(plays).toEqual([]);
     expect([readFileSync(report, "utf8"), readFileSync(out, "utf8")]).toEqual(bytes);
     expect((JSON.parse(bytes[1]!) as { format: string }).format).toBe(STEP3_MEASURES_FORMAT);
@@ -1146,7 +1147,8 @@ describe("the run through its play seam", () => {
     for (const bad of ["B3", "C13"] as const) {
       expect(() => runStep3Part1({ cacheParent: join(dir, "x"), filedPath: FILED, amendmentsPath: AMENDMENTS, env: ENV, play, arms: [bad] }), bad).toThrow(new RegExp(`^--part1 reads the pocket-1\\.s3 arms only \\(${STEP3_PART1_IDS.join(", ")}\\); ${bad} is not one$`));
     }
-    expect(() => runStep3Part1({ cacheParent: join(dir, "x"), filedPath: FILED, amendmentsPath: AMENDMENTS, env: ENV, play, arms: ["C14"] })).toThrow(/C14 is not playable: C14 waits on petition P17/);
+    // C14 is a part-1 arm since P17 (E4b): a pocket-1.s3 arm with the free-run block.
+    expect(STEP3_PART1_IDS).toContain("C14");
   });
 });
 
@@ -1212,7 +1214,9 @@ describe("R-1: the digests and their pin check (plan §2.10, §6.2)", () => {
       // The picture is in an s3 arm's stream, and the pins' fold strips it.
       expect(f.unstrippedCanonicalFold, l).not.toBe(f.canonicalFold);
     }
-    expect(() => runStep3Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 1, arms: ["C14"] })).toThrow(/^C14 is not playable: C14 waits on petition P17/);
+    // C14 plays since P17 (E4b): its digests are stamped with its own overlay digest.
+    const c14 = runStep3Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 1, arms: ["C14"] });
+    expect(c14.arms["C14"]!.stamp).toMatchObject({ arm: "C14", rules: POCKET_1_S3_RULES, overlayDigest: armById("C14").overlayDigest, tunablesDigest: armById("C14").tunablesDigest });
   }, 300_000);
 });
 

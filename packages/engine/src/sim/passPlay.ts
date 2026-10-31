@@ -938,7 +938,7 @@ export function simulatePassPlay(
   /**
    * ADR-089 step 3 (E4; plan §2.4, critique 3 B1) — ONE TICK OF A LATE BLOCK, its own branch of the
    * line battle. Nothing before `t_e`; from it a dieless tick naming the late beat (S) or a tick of
-   * two `:late` dice (L, after P17), then today's band and counter tables and today's threat chain,
+   * two `:late` dice (L, P17), then today's band and counter tables and today's threat chain,
    * with the beaten threat built by `lateThreatOf` (his origin, the touching CHECK, a won rep's
    * travel) and labelled by §4.0's row 3. No rep, no step-1 beat, no `:jitter` die, no push window.
    */
