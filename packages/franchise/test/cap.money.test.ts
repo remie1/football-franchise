@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { teamId, type CalendarStamp, type ContractYear, type PlayerContract, type PlayerId } from "@ff/contracts";
 import {
   capNumber, prorate, leagueYear, transactionYear, releasePlayer, expireContract, restructure, teamCapTotal, liveIn,
-  isTop51Window,
+  isTop51Window, designatedIn,
 } from "../src/index.js";
 
 // ADR-085 §2: the money rules on hand-written contracts.
@@ -68,6 +68,16 @@ describe("releasing a player", () => {
   it("a designated post-June-1 cut in March splits the same way", () => {
     const r = releasePlayer(deal(), stamp(2026, "OFF_RESET_FA"), { designatedPostJune1: true });
     expect(r.charges.map((c) => [c.season, c.amount])).toEqual([[2027, 7e6], [2028, 10e6]]);
+  });
+
+  it("a designated cut still counts his whole cap number until June 2, then only his dead money", () => {
+    const r = releasePlayer(deal(), stamp(2026, "OFF_RESET_FA"), { designatedPostJune1: true });
+    expect(designatedIn(r.contract, 2027)).toBe(true);
+    expect(designatedIn(releasePlayer(deal(), stamp(2026, "OFF_SUMMER")).contract, 2027)).toBe(false);
+    const march = teamCapTotal(T, 2027, [r.contract], r.charges, { at: stamp(2026, "OFF_DRAFT") });
+    expect([march.dead, march.held, march.total]).toEqual([7e6, 15.5e6, 22.5e6]);
+    expect(teamCapTotal(T, 2027, [r.contract], r.charges, { at: stamp(2026, "OFF_SUMMER") }).total).toBe(7e6);
+    expect(teamCapTotal(T, 2028, [r.contract], r.charges, { at: stamp(2026, "OFF_DRAFT") }).total).toBe(10e6);
   });
 
   it("a cut in season costs that season's whole cap number and moves the rest to next year", () => {

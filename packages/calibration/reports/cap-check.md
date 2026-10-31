@@ -68,6 +68,20 @@ their cap, while real teams keep a few percent. A year with many extensions leav
 of room: 2029 has the 2028 extensions to pay for. The next step is the room itself, through free
 agency and how teams plan their space.
 
+## After the cap trouble tools (ADR-085 step 8, 2026-10-31)
+
+At the owner's pick, teams can now restructure with void years added and make two post-June-1 cuts a year, under the real timing. The check also reads about 128 placeholder contract years in the league file as void years. These years carry made-up bases of $10M to $500M, and their stored cap hit leaves the base out. Before, one team started its second year about $178M over the cap and fell to 44 men.
+
+| League year | 2027 | 2028 | 2029 | 2030 | 2031 | Mean | Real |
+|---|---|---|---|---|---|---|---|
+| Own-team deals of 2+ years | 143 | 95 | 23 | 60 | 107 | 86 | 210 to 290 |
+| New-team deals, $2M+ | 66 | 80 | 69 | 94 | 78 | 77 | 180 to 240 |
+| New-team deals, $5M+ | 47 | 56 | 43 | 77 | 56 | 56 | 80 to 120 |
+| Dead money, mean a team ($M) | 11.8 | 18.8 | 22.1 | 18.5 | 13.4 | 16.9 | about 34 |
+| QB share | 10.5 | 9.0 | 9.6 | 9.3 | 8.4 | | 10.7 |
+
+Dead money moves toward the real figure, and free agency is a little livelier. Teams still end each year at about 99% of the cap, so room remains the limit on re-signings and free agency.
+
 ## What does not match yet
 
 1. **Too few re-signings.** Before step 7, teams signed about a fifth of the real number of own-team multi-year deals, because there were no early extensions. Step 7 raises it to under half the real number; cap room is now the limit.
