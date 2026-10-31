@@ -110,19 +110,25 @@ export interface RushThreat extends ArrivalClock {
    * PROVENANCE: nobody measured this distance, and a reader who assumes
    * somebody did would be wrong, naturally and reasonably.
    *
-   * ✅ IT BECOMES A REAL DISTANCE WHEN A SNAP POSITION EXISTS. WHAT PRODUCES
-   * A SNAP POSITION IS UNDESIGNED — ADR-066's geometry was halted (owner
-   * ruling, August 2026) because it named `gap`/`side`/`dropDepthYards`/
-   * rusher depth as that source, and those describe ALIGNMENT — where a
-   * defender lines up — not snap position. That is this field's SUBJECT
-   * CONDITION: OPEN, not moved to a replacement mechanism — this value is a
-   * placeholder with the right units and the right shape, not yet the thing
-   * it is named for.
+   * ✅ IT IS A REAL DISTANCE ONLY WHEN IT IS MEASURED FROM A SNAP SPOT
+   * (ADR-090). ADR-066's geometry was halted (owner ruling, August 2026)
+   * because it named `gap`/`side`/`dropDepthYards`/rusher depth as the
+   * source of a snap position, and those describe ALIGNMENT (where a defender
+   * lines up), not where he stands when the ball is snapped. That is this
+   * field's SUBJECT CONDITION, which ADR-090's petition S4 sets (the owner's
+   * typed yes, 2026-10-31): a snap spot (ADR-090), his entry in the snap
+   * picture (`PlayCalls.snap`, published on `PLAY_START`). Where the pair is
+   * measured from one (a free runner the free-run clock timed, under
+   * `pocket-1.s3`, below) it is the thing it is named for. Every pair
+   * `threatFromWonRep` builds (a won rep under every rule set, and a beaten
+   * late block) is still the placeholder above: the right units and the
+   * right shape, measured from nothing.
    *
-   * `closingSpeed` is the SAME nominal constant on every threat today — not
-   * yet `ATTR.speed`/`ATTR.acceleration` — carried per-threat anyway because
-   * the point of landing the decomposition first is that the SHAPE does not
-   * change when a real value eventually fills it.
+   * `closingSpeed` is the SAME nominal constant on every pair
+   * `threatFromWonRep` builds, not `ATTR.speed`/`ATTR.acceleration` (the
+   * free-run clock's pair, below, reads both), carried per-threat anyway
+   * because the point of landing the decomposition first is that the SHAPE
+   * does not change when a real value fills it.
    *
    * BOTH ABSENT TOGETHER, NEVER ONE WITHOUT THE OTHER, and only ever present
    * on a `WON_REP` threat `threatFromWonRep` built: the other three origins
@@ -145,10 +151,6 @@ export interface RushThreat extends ArrivalClock {
    * EITHER: the pair reaches `RUSH_THREAT` only through petition P5's gate
    * (`PocketRules.threatGeometry`, `sim/passPlay.ts`), shut until P5's fields
    * are in contracts.
-   *
-   * TODO(ADR-090 S4): the SUBJECT CONDITION above stays as written ("OPEN")
-   * until petition S4 is answered; S4 is the change that names a snap spot
-   * (ADR-090) as what makes this a real distance for a timed free runner.
    */
   readonly distanceYards?: number;
   readonly closingSpeed?: number;
