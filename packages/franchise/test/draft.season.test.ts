@@ -377,3 +377,28 @@ describe("cut-down day keeps a practice squad the league starts with (review fix
     for (const t of run.people!.teams) for (const p of extra.filter((q) => q.teamId === t.id)) expect(t.practiceSquad).toContain(p.bio.id);
   });
 });
+
+describe("draft day keeps rosters at 90 (review fix)", () => {
+  // One team comes to the draft with 88 men: its picks would take it past 90.
+  const base = startingPeople();
+  const t0 = base.teams[0]!;
+  const extra = Array.from({ length: 35 }, (_, i) => player(`${String(t0.id)}-x-${i}`, "LB", 45 + (i % 10), 26, t0.id, "UDFA"));
+  const people: LeaguePeople = {
+    ...base, players: [...base.players, ...extra],
+    teams: base.teams.map((t) => (t.id === t0.id ? { ...t, roster: [...t.roster, ...extra.map((p) => p.bio.id)] } : t)),
+  };
+  const run = runSeason({ league, season: 2026, seed: "s", resolve: fake, people, draft: { rate, makeClass }, through: "YEAR" });
+  const after = run.people!.teams.find((t) => t.id === t0.id)!;
+  const draftees = run.events.filter((e) => e.event.type === "DRAFT_PICK_MADE" && (e.event as { payload: { team: TeamId } }).payload.team === t0.id)
+    .map((e) => String((e.event as { payload: { player: unknown } }).payload.player));
+
+  it("cuts its weakest veterans, never a new pick", () => {
+    expect(after.roster.length).toBeLessThanOrEqual(90);
+    for (const id of draftees) expect(after.roster.map(String)).toContain(id);
+    expect(run.people!.freeAgents.map(String)).toContain(String(extra[0]!.bio.id));
+  });
+
+  it("leaves every team at 90 or fewer", () => {
+    for (const t of run.people!.teams) expect(t.roster.length).toBeLessThanOrEqual(90);
+  });
+});

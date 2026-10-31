@@ -6,11 +6,12 @@
  * position's depth chart until camp sorts it). After the last pick, teams sign undrafted prospects
  * in draft order, one at a time, while they have room under the offseason limit and a prospect
  * worth signing; the rest of the class goes home. Every pick and undrafted rookie signs his rookie
- * deal on the spot (ADR-085's scale, `money.ts`).
+ * deal on the spot (ADR-085's scale, `money.ts`). A team its picks take past the offseason limit
+ * (90) cuts its weakest veterans to make room, as real teams do.
  */
 import type { CalendarStamp, DraftPick, FranchiseEvent, LeagueRules, PlayerId, PlayerState, Team, TeamId } from "@ff/contracts";
 import type { LeaguePeople } from "../season/people.js";
-import { flatCap, signRookie, type CapForSeason } from "./money.js";
+import { flatCap, release, signRookie, type CapForSeason } from "./money.js";
 import { boardValue, buildBoard, choose, consensusBoard, needAt, type Board, type Rate } from "./board.js";
 
 /** Undrafted signings a team makes at most, and the board value below which a prospect is not worth a spot. */
@@ -91,8 +92,28 @@ export function runDraftDay(people: LeaguePeople, input: DraftDayInput): DraftDa
     signDeal(pick.owner, player.bio.id, overall);
   });
 
-  // The undrafted scramble: in draft order (first-round order), one signing a turn.
+  // A team its picks took past the offseason limit lets its weakest veterans go (never a new pick).
   const limit = rules.offseasonRosterLimit ?? 90;
+  const deadMoney = [...(people.deadMoney ?? [])];
+  const letGo: PlayerId[] = [];
+  const drafted = new Set(selections.map((x) => String(x.player)));
+  for (const t of teams.values()) {
+    const over = t.roster.length - limit;
+    if (over <= 0) continue;
+    const weakest = rosterOf(t.id).filter((p) => !drafted.has(String(p.bio.id)))
+      .sort((a, b) => rate(a) - rate(b) || String(a.bio.id).localeCompare(String(b.bio.id))).slice(0, over);
+    for (const p of weakest) {
+      const id = String(p.bio.id);
+      t.roster = t.roster.filter((x) => String(x) !== id);
+      t.depthChart[p.bio.position] = (t.depthChart[p.bio.position] ?? []).filter((x) => String(x) !== id);
+      const { teamId: _gone, ...rest } = p;
+      byId.set(id, rest as PlayerState);
+      events.push(...release(contracts, deadMoney, p.bio.id, t.id, at));
+      letGo.push(p.bio.id);
+    }
+  }
+
+  // The undrafted scramble: in draft order (first-round order), one signing a turn.
   const order = [...new Map(picks.filter((p) => p.round === 1 && p.kind === "REGULAR").map((p) => [p.originalTeam, p.originalTeam])).keys()];
   const signedBy = new Map<TeamId, number>();
   for (let progress = true; progress && available.size > 0;) {
@@ -120,8 +141,18 @@ export function runDraftDay(people: LeaguePeople, input: DraftDayInput): DraftDa
   const players = [...byId.values()].filter((p) => !(inClass.has(String(p.bio.id)) && p.bio.draft === "PROSPECT"));
   const classes = people.classes.filter((c) => c.draft !== draft);
   return {
-    people: { ...people, teams: people.teams.map((t) => teams.get(t.id) as Team), players, classes, contracts },
+    people: {
+      ...people, teams: people.teams.map((t) => teams.get(t.id) as Team), players, classes, contracts,
+      ...(people.deadMoney || letGo.length > 0 ? { deadMoney } : {}),
+      ...(letGo.length > 0 ? { freeAgents: inPlayersOrder(players, [...people.freeAgents, ...letGo]) } : {}),
+    },
     events,
     selections,
   };
+}
+
+/** Free agents in the players' order, as a loaded save lists them (`peopleFromSave`). */
+function inPlayersOrder(players: readonly PlayerState[], ids: readonly PlayerId[]): PlayerId[] {
+  const set = new Set(ids.map(String));
+  return players.filter((p) => set.has(String(p.bio.id))).map((p) => p.bio.id);
 }
