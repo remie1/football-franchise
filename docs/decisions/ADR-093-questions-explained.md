@@ -61,6 +61,8 @@ Under any choice, holding is flagged about 1.1 times a team-game, the real numbe
 
 ### Q2. How often is a flag thrown on nothing?
 
+**You chose 1 in 20 (31 October).**
+
 **Example:** a corner breaks up a pass with a clean hand on the ball, but it came a split second early and looks like interference from the side judge's angle. Flag.
 
 Wrong flags in this design only come from plays that were close to a foul, never from nothing at all. The share counts judgment calls (about 7.4 of a game's 12.8 flags); plain calls like false starts are wrong a tenth as often.
