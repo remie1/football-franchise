@@ -44,6 +44,7 @@ import {
   HOLD_REFERENCES,
   LATE_BLOCK_FILED,
   RULE_SETS,
+  isStep3,
   S2_TUNABLES,
   S3_TUNABLES,
   tickOf,
@@ -226,7 +227,8 @@ describe("ADR-089 step 3, E3: the refusals, before any die", () => {
   });
 
   it("legacy and every step-1 and step-2 rule set need no picture and never run the pass", () => {
-    for (const { tunables } of RULE_SETS) {
+    for (const { name, tunables } of RULE_SETS) {
+      if (isStep3(name)) continue;
       for (let i = 0; i < 10; i++) simulatePassPlay(f.scenario.state, plain, `no-picture-${i}`, tunables);
     }
     simulatePassPlay(f.scenario.state, plain, "default");

@@ -209,8 +209,8 @@ export function withStep3(
 /**
  * The step-3 design bundle's shape on the engine's hand-built dials: S2 (step 2's design) with the
  * free-run clock (reading B, the picture as ruled), the late block (1.0 s, 0.1) and the climb lane
- * FRONT, stamped `pocket-1.s3` with a stand-in digest. Not in `RULE_SETS`: an s3 pass play needs
- * the snap picture on its calls (plan §2.3), which the step-3 play suites bring.
+ * FRONT, stamped `pocket-1.s3` with a stand-in digest. In `RULE_SETS` as `S3`; an s3 pass play
+ * needs the snap picture on its calls (plan §2.3), which the suites bring (`callsUnder`).
  */
 export const S3_TUNABLES = withStep3(
   withForcing(
@@ -220,9 +220,26 @@ export const S3_TUNABLES = withStep3(
   { freeRun: FREE_RUN_FILED, lateBlock: LATE_BLOCK_FILED, climbLane: "FRONT" },
 );
 
-/** The rule sets the step-1 and step-2 suites run over, `legacy` first (the same reference as the default). */
+/**
+ * ADR-089 step 3 on shape L: step 2's shape-L basis (L5 at step 2's horizons, must act per rusher)
+ * with the free-run block and the FRONT climb lane, stamped `pocket-1.s3`. No late block: on shape L
+ * it waits on petition P17 and `pocketRulesOf` refuses it, so its touched men keep today's times.
+ */
+export const S3L_TUNABLES = withStep3(
+  withForcing(
+    withBlocks(withStep2Horizons(DEFAULT_TUNABLES), { repClock: { fullExpressionSeconds: 5 }, approach: APPROACH_CARD }, stamp("fnv1a:5f000031", "pocket-1.s3")),
+    { rule: "PER_RUSHER" },
+  ),
+  { freeRun: FREE_RUN_FILED, climbLane: "FRONT" },
+);
+
+/**
+ * The rule sets the suites run over, `legacy` first (the same reference as the default). ADR-089
+ * step 3 (P-18, critique 3 S4) adds its two: `S3` (the design's shape) and `S3L`. A pass play under
+ * either needs the snap picture on its calls (`snapFixtures.ts`'s `callsUnder`).
+ */
 export const RULE_SETS: readonly {
-  readonly name: "legacy" | "S" | "SW" | "L5" | "L8" | "SWH" | "S2" | "S2N";
+  readonly name: "legacy" | "S" | "SW" | "L5" | "L8" | "SWH" | "S2" | "S2N" | "S3" | "S3L";
   readonly tunables: Tunables;
 }[] = [
   { name: "legacy", tunables: DEFAULT_TUNABLES },
@@ -233,13 +250,19 @@ export const RULE_SETS: readonly {
   { name: "SWH", tunables: SWH_TUNABLES },
   { name: "S2", tunables: S2_TUNABLES },
   { name: "S2N", tunables: S2N_TUNABLES },
+  { name: "S3", tunables: S3_TUNABLES },
+  { name: "S3L", tunables: S3L_TUNABLES },
 ];
+
+/** ADR-089 step 3's rule sets in `RULE_SETS`: every bundle with a step-3 block. */
+export const STEP3_RULE_SET_NAMES: readonly string[] = ["S3", "S3L"];
+export const isStep3 = (name: string): boolean => STEP3_RULE_SET_NAMES.includes(name);
 
 /** The step-1 rule sets: every bundle of `RULE_SETS` that carries no `pocket.forcing` before step 2's. */
 export const STEP1_RULE_SET_NAMES: readonly string[] = ["legacy", "S", "SW", "L5", "L8"];
 
 export const isShapeS = (name: string): boolean =>
-  name === "S" || name === "SW" || name === "SWH" || name === "S2" || name === "S2N";
+  name === "S" || name === "SW" || name === "SWH" || name === "S2" || name === "S2N" || name === "S3";
 
 /**
  * A POWER 1-14 fixture (critique-1 F26): `buildStalledPocketScenario`'s smothered coverage, so the

@@ -643,6 +643,14 @@ export const TUNABLES = {
      * which would make a blitz an automatic sack rather than a risk. Read against
      * the doc's own labels: he arrives at 1.5 seconds. The quick game and a hot
      * route beat him; nothing else does.
+     *
+     * ADR-089 STEP 3 (`pocket-1.s3` with `blitzPickup.freeRun` only): a free
+     * runner the arm's reading puts on the free-run clock is timed from his spot
+     * in the snap picture, his Speed and Acceleration and the drop
+     * (`resolve/freeRun.ts`, D18, D22), and this value and `freeRunnerPath` do
+     * not time him; a touched man the reading keeps off the clock is a late block
+     * (`blitzPickup.lateBlock`) or keeps today's time. Under `legacy`, s1 and s2,
+     * and for every man off the clock, this is the whole rule, unchanged.
      */
     freeRunnerArrivalSeconds: 1.5,
     /**
@@ -714,6 +722,13 @@ export const TUNABLES = {
      * supports. **Attributes** — the ratification says "keyed on where the rusher
      * starts", and a speed term would be a second petition, on a league that has
      * no speed variance to measure it with. ADR-031 records it as unclaimed.
+     *
+     * ADR-089 STEP 3 claims it, behind the switch only: under `pocket-1.s3` the
+     * free-run clock reads where he actually stands at the snap (ADR-090's
+     * picture), Speed and Acceleration (registry ids), the drop, and for a looper
+     * his partner's spot (`resolve/freeRun.ts`); side still keys nothing (D16's
+     * side is carried, never read). This table times only the men that clock does
+     * not; it is untouched, and so is every rule set before s3.
      */
     freeRunnerPath: {
       /** Fronts with a hand in the dirt: least ground, heaviest body. */
@@ -737,6 +752,8 @@ export const TUNABLES = {
         INTERIOR: { LINE: -0.5, BOX: 0.0, DEEP: 0.5 },
         EDGE: { LINE: 0.0, BOX: 0.5, DEEP: 1.0 },
       },
+      // ADR-089 step 3: the bounds below clamp this table's sum only; the free-run clock's time is
+      // rounded to the tenth and never clamped to them (plan §2.3).
       /**
        * Bounds on the SUM (offset plus the pickup band's delay), so a patched
        * table cannot produce a negative ETA or one past `clock.maxTick`. §7.2 has

@@ -132,6 +132,23 @@ export interface RushThreat extends ArrivalClock {
    * only and leave these two untouched, so where present they describe the
    * ORIGINAL computation at the moment the threat was created, not a
    * running position.
+   *
+   * ADR-089 STEP 3 (`pocket-1.s3` only; plan §2.6). "Only ever present on a
+   * `WON_REP` threat" holds under `legacy`, s1 and s2. Under s3 the pair is
+   * on two more threats, both engine-internal: a free runner the free-run
+   * clock timed (`FreeRunner.onClock`, `sim/freeRunTiming.ts`) carries that
+   * clock's whole path in yards, from his spot in ADR-090's snap picture, and
+   * the trip's average speed (`resolve/freeRun.ts`), so on him the pair is
+   * geometry, not the table above; a beaten late block (`resolve/lateBlock.ts`)
+   * carries the nominal pair of the won rep's travel it was built with. Every
+   * other free runner (today's set times) still has neither. NOTHING PUBLISHES
+   * EITHER: the pair reaches `RUSH_THREAT` only through petition P5's gate
+   * (`PocketRules.threatGeometry`, `sim/passPlay.ts`), shut until P5's fields
+   * are in contracts.
+   *
+   * TODO(ADR-090 S4): the SUBJECT CONDITION above stays as written ("OPEN")
+   * until petition S4 is answered; S4 is the change that names a snap spot
+   * (ADR-090) as what makes this a real distance for a timed free runner.
    */
   readonly distanceYards?: number;
   readonly closingSpeed?: number;

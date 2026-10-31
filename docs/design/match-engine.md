@@ -658,6 +658,23 @@ Results per Tick:
 >
 > At step 1, free runners keep today's timing with these labels; step 3 changes their timing, not
 > their labels.
+>
+> **pocket-1.s3 (ADR-089 step 3, behind the switch; built, not measured).** Three more blocks, each
+> optional and each refused when malformed or mixed wrongly, never ignored: `blitzPickup.freeRun`
+> (the free-run clock, §7.4 below), `blitzPickup.lateBlock` (the late, weak block, below) and
+> `pocket.climbLane: "FRONT"` (§7.2's climb lane reads no FRONT threat). An s3 pass play needs the
+> snap picture on its calls (`PlayCalls.snap`, ADR-090 S5) and is refused before a die without it.
+> The **late block**: a man somebody got a hand on (RAN_THROUGH, a LATE_EXCHANGE whose looper had a
+> blocker) is not a free runner but is blocked from `t_e` (1.0 s) and weakly (`w` 0.1) by the man
+> who touched him, with m the touching CHECK's margin turned round. Under S one uniform is drawn on
+> `rush/beat/<the touching CHECK's rngLabel>` after every pickup and stunt CHECK, published as a
+> `pass_rush_beat` CHECK whose `rollRef` is the touching CHECK, and
+> `T = t_e + w * theta * exp(-beta * m / 41) * (-ln U)^(1/k)`; from `t_e` each tick is a dieless
+> `pass_rush_tick` naming it (0 before the beat tick, `max(15, m)` from it), with no push window and
+> no rep, step-1 beat or `:jitter` die. Beaten, his threat keeps his origin, names the touching
+> CHECK, takes the row-3 approach above and travels as a won rep does from that tick. Under L the
+> late block is refused until petition P17's doc text is in contracts. No threat publishes a
+> distance or closing speed until petition P5 is.
 
 > **KNOWN ISSUE (logged July 2026, Phase 1 slice) — term asymmetry.**
 > The rusher above carries two-to-three attribute terms (`Pass Rush` plus a move
@@ -1069,6 +1086,12 @@ When defense calls stunt/twist:
    - Looper gets unblocked rush at QB
 ```
 
+> **pocket-1.s3 (ADR-089 step 3, behind the switch).** A looper the line never touched
+> (LOOPER_FREE) is timed by the free-run clock (§7.4's note below) from his own snap spot round his
+> partner's, and comes from his partner's side. A missed exchange where the looper's blocker got a
+> hand on him (LATE_EXCHANGE) is a late block (§7.1's pocket-1 section), not a free rusher. A record
+> passed off in a twist is timed for the man who carries it at the snap.
+
 ### 7.4 Blitz Pickup
 
 ```
@@ -1105,6 +1128,18 @@ When extra rusher (LB or DB) comes:
 > nothing else does, so the entire recognition-versus-pressure balance sits on it. It is
 > **the first target of the Phase 3 sensitivity sweep** — see `CALIBRATION-BACKLOG.md`.
 > Do not treat 1.5 as settled because the unit was fixed.
+
+> **pocket-1.s3 (ADR-089 step 3, behind the switch; not the default).** "About 1.5" is replaced,
+> for the men the arm's reading puts on it, by the **free-run clock** (`resolve/freeRun.ts`): a
+> get-off, then the path from his spot in the snap picture (ADR-090) round the edge or straight in
+> to the passer's launch point at the drop the offense called, run at a speed and acceleration
+> read from his Speed and Acceleration (registry ids), rounded to the tenth and never clamped; a
+> looper's path runs round his partner's spot, and a backer or a back under a DELAYED disguise
+> waits first. Reading B (the design) puts the men nobody touched on it (UNBLOCKED, BLOWN_UP,
+> LOOPER_FREE) and makes a touched man a late block (§7.1's pocket-1 section); reading C puts
+> every free runner on it, a touched man his band's delay later; reading A puts only the men with
+> no hand on them on it. Everyone else keeps the time above, unchanged, and so does every play
+> under `legacy`, s1 and s2.
 
 ---
 

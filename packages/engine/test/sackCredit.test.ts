@@ -39,6 +39,7 @@ import { arrivedAt, nearestThreat } from "../src/resolve/rushThreat.js";
 import type { RushThreat } from "../src/resolve/rushThreat.js";
 import { TUNABLES } from "../src/tunables.js";
 import { RULE_SETS } from "./pocketTunables.js";
+import { callsUnder } from "./snapFixtures.js";
 import { buildFrontScenario, buildLopsidedRushScenario, buildScramblerScenario } from "./fixtures.js";
 import { buildGameFixture } from "./gameFixtures.js";
 
@@ -458,7 +459,7 @@ describe("§8.8 — the arrival a failed escape publishes", () => {
         const build = [buildScramblerScenario, buildLopsidedRushScenario, () => buildFrontScenario({ extras: 2 })][i % 3];
         if (build === undefined) throw new Error("no fixture");
         const { state, calls } = build();
-        const events = simulatePassPlay(state, calls, `escape-sack-${i}`, tunables).events;
+        const events = simulatePassPlay(state, callsUnder(tunables, state, calls), `escape-sack-${i}`, tunables).events;
         const built = new Map<string, string | undefined>();
         for (const { event } of events) {
           if (event.type !== "RUSH_THREAT") continue;

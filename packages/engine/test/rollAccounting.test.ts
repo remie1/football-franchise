@@ -27,7 +27,7 @@ import { defaultPlayCaller, simulateGame, simulatePassPlay, simulateRunPlay } fr
 import { timeFreeRunners } from "../src/sim/freeRunTiming.js";
 import { buildGameFixture } from "./gameFixtures.js";
 import { PASS_FIXTURES, RULE_SETS, S2_TUNABLES, S3_TUNABLES, STEP1_RULE_SET_NAMES, isShapeS, pocketTicks } from "./pocketTunables.js";
-import { frontWithPicture, withLineUp, withPicture } from "./snapFixtures.js";
+import { callsUnder, frontWithPicture, needsPicture, withLineUp, withPicture } from "./snapFixtures.js";
 import { mustActThreat } from "../src/resolve/pocket.js";
 import {
   RUN_SCHEMES,
@@ -96,7 +96,7 @@ describe("ADR-004 roll accounting", () => {
     for (const build of [buildScenario, buildLopsidedRushScenario, buildScramblerScenario]) {
       for (let i = 0; i < 150; i++) {
         const { state, calls } = build();
-        const { events } = simulatePassPlay(state, calls, `accounting-${i}`, tunables);
+        const { events } = simulatePassPlay(state, callsUnder(tunables, state, calls), `accounting-${i}`, tunables);
         for (const { event } of events) {
           if (event.type === "CHECK") kinds.add(event.payload.checkKind);
         }
@@ -132,7 +132,11 @@ describe("ADR-004 roll accounting", () => {
 
   it(`no RollDetail appears twice in a whole game (${name})`, () => {
     const fixture = buildGameFixture({ seed: `accounting-game-${name}` });
-    const { events } = simulateGame(fixture.state, fixture.inputs, fixture.seed, tunables);
+    // ADR-089 step 3: under an s3 bundle every pass play needs the snap picture, drawn by the callers.
+    const inputs = needsPicture(tunables)
+      ? { ...fixture.inputs, callers: { home: withLineUp(fixture.inputs.callers.home), away: withLineUp(fixture.inputs.callers.away) } }
+      : fixture.inputs;
+    const { events } = simulateGame(fixture.state, inputs, fixture.seed, tunables);
     const kinds = new Set<string>();
     const byPlay = new Map<string, MatchEventEnvelope[]>();
     for (const envelope of events) {
@@ -217,7 +221,7 @@ describe("ADR-004 roll accounting", () => {
         const seed = `paired-${fixture}-${i}`;
         const run = (n: (typeof RULE_SETS)[number]): readonly MatchEventEnvelope[] => {
           const { state, calls } = build();
-          return simulatePassPlay(state, calls, seed, n.tunables).events;
+          return simulatePassPlay(state, callsUnder(n.tunables, state, calls), seed, n.tunables).events;
         };
         const streams = new Map(RULE_SETS.map((r) => [r.name, run(r)] as const));
         const of = (name: (typeof RULE_SETS)[number]["name"]): readonly MatchEventEnvelope[] => {
@@ -552,7 +556,7 @@ describe("ADR-004 roll accounting", () => {
     const joinKind = isShapeS(name) ? "pass_rush_beat" : "pass_rush_tick";
     for (let i = 0; i < 200; i++) {
       const { state, calls } = buildScenario();
-      const { events } = simulatePassPlay(state, calls, `threat-accounting-${i}`, tunables);
+      const { events } = simulatePassPlay(state, callsUnder(tunables, state, calls), `threat-accounting-${i}`, tunables);
       const reps = new Set(
         events.flatMap(({ event }) =>
           event.type === "CHECK" && event.payload.checkKind === "pass_rush_rep" ? [event.payload.roll.rngLabel] : [],

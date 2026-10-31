@@ -29,6 +29,7 @@ import {
   L8_TUNABLES,
   LATE_BLOCK_FILED,
   RULE_SETS,
+  isStep3,
   S3_TUNABLES,
   S_TUNABLES,
   SW_TUNABLES,
@@ -454,6 +455,7 @@ describe("ADR-089 step 3 — the free-run block, the late block and the climb la
 
   it("every step-1 and step-2 bundle reads no block: today's set times, no late block, the INTERIOR climb lane, nothing published", () => {
     for (const { name, tunables } of RULE_SETS) {
+      if (isStep3(name)) continue;
       const r = pocketRulesOf(tunables);
       if (r.kind === "LEGACY") {
         expect(name).toBe("legacy");
@@ -561,7 +563,10 @@ describe("ADR-089 step 3 — the free-run block, the late block and the climb la
     expect(onL.kind === "L" && onL.threatGeometry).toBe(true);
     for (const { name, tunables } of RULE_SETS) {
       const r = pocketRulesUnder(tunables, GRANTED);
-      if (r.kind !== "LEGACY") expect(r.threatGeometry, name).toBe(false);
+      // P5 granted opens the gate on exactly the bundles with the free-run block: the two s3 sets.
+      if (r.kind !== "LEGACY") expect(r.threatGeometry, name).toBe(isStep3(name));
+      const played = pocketRulesOf(tunables);
+      if (played.kind !== "LEGACY") expect(played.threatGeometry, name).toBe(false);
     }
   });
 

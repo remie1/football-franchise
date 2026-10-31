@@ -40,6 +40,7 @@ import {
   L5_TUNABLES,
   LATE_BLOCK_FILED,
   RULE_SETS,
+  isStep3,
   S2_TUNABLES,
   S3_TUNABLES,
   tickOf,
@@ -275,7 +276,8 @@ describe("ADR-089 step 3, E4: the gates", () => {
   });
 
   it("legacy, s1 and s2 never build a late block", () => {
-    for (const { tunables } of RULE_SETS) {
+    for (const { name, tunables } of RULE_SETS) {
+      if (isStep3(name)) continue;
       for (let i = 0; i < 30; i++) {
         const f = frontWithPicture({ extras: 2, stunts: [{ penetrator: DT1, looper: DE1, complexity: "TRIPLE" }] });
         const { snap: _snap, ...plain } = f.calls;
