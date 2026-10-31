@@ -2,8 +2,8 @@
  * The 20-season check one seed at a time (ADR-087 D5b, `careerCheckRun.ts`): the arms, the seed
  * sets, the fingerprint, the codec a checkpoint keeps the people in (the coaching world among them),
  * and a seed stopped after a
- * season's checkpoint and carried on from it (on made-up seasons here; on the real walk, three
- * switched-on seasons, with FF_CAREER_RESUME=1).
+ * season's checkpoint and carried on from it (on made-up seasons here, a coach-style seed among
+ * them; on the real walk, three switched-on seasons, with FF_CAREER_RESUME=1).
  */
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -305,6 +305,88 @@ describe("one seed: the cache and the checkpoint (made-up seasons)", () => {
       const read = readCareerRecords(dirB, "both", ["resume-made-up", "missing-seed"], 3);
       expect([...read.records.keys()]).toEqual(["resume-made-up"]);
       expect(read.missing).toEqual(["missing-seed"]);
+    } finally {
+      rmSync(dirA, { recursive: true, force: true });
+      rmSync(dirB, { recursive: true, force: true });
+    }
+  }, 300_000);
+
+  it("a coach-style seed resumed after a checkpoint gives a head coach the carousel seated the arm's leanings, as the unbroken seed does", () => {
+    const dirA = scratch(), dirB = scratch();
+    const sittingHead = (s: StaffState, team?: string) => {
+      const j = s.career[s.career.length - 1];
+      return j !== undefined && j.level === "NFL" && j.role === "HEAD_COACH" && j.lastSeason === undefined && j.ended === undefined
+        && j.team !== undefined && (team === undefined || String(j.team) === team);
+    };
+    const NATURAL = { incumbent: 20, veteran: 60, form: 70 };
+    const T01 = file.league.teams.find((t) => String(t.id) === "T01")!.id;
+    /**
+     * Made-up seasons with a made-up carousel: in the first season T01's head coach is fired and a
+     * man from the pool seated with leanings of his own, as franchise seats one; the people handed
+     * in each season are kept.
+     */
+    const carousel = (handed: SeasonInput[]) => (i: SeasonInput): SeasonRun => {
+      handed.push(i);
+      let p = i.people!;
+      if (i.season === file.season && p.coaching !== undefined) {
+        const world = p.coaching.world;
+        const fired = world.staff.find((s) => sittingHead(s, "T01"))!;
+        const hired = world.staff.find((s) => s.teamId === undefined && s.retiredAfter === undefined && s.career.length > 0 && !sittingHead(s))!;
+        const staff = world.staff.map((s): StaffState => {
+          if (s === fired) {
+            const { teamId: _t, ...rest } = s;
+            return { ...rest, career: s.career.map((j, k) => (k === s.career.length - 1 ? { ...j, lastSeason: i.season, ended: "FIRED" as const } : j)) } as StaffState;
+          }
+          if (s === hired) {
+            return {
+              ...s, role: "HEAD_COACH", teamId: T01, lineup: { ...NATURAL },
+              career: [...s.career, { level: "NFL", role: "HEAD_COACH", team: T01, employer: "T01", firstSeason: i.season + 1, seasons: [] }],
+            };
+          }
+          return s;
+        });
+        p = { ...p, staff, coaching: { ...p.coaching, world: { ...world, staff } } };
+      }
+      return { ...madeUp(i), people: p };
+    };
+    const withCarousel = <T>(handed: SeasonInput[], body: () => T): T => {
+      hook.runSeason = carousel(handed) as never;
+      try { return body(); } finally { hook.runSeason = undefined; }
+    };
+    try {
+      const opts = { file, league, seed: "resume-coach-arm", arm: "incumbent" as const, seasons: 3, fingerprint: "0123456789abcdef" };
+      const straightHanded: SeasonInput[] = [];
+      const straight = withCarousel(straightHanded, () => runCareerSeed({ ...opts, cacheDir: dirA }));
+      expect(straightHanded).toHaveLength(3);
+      // Stopped after season 1's checkpoint: the new man is seated there with his own leanings.
+      const stoppedHanded: SeasonInput[] = [];
+      expect(() => withCarousel(stoppedHanded, () => runCareerSeed({ ...opts, cacheDir: dirB, stopAfter: 1 }))).toThrow(CareerCheckStopped);
+      expect(stoppedHanded).toHaveLength(1);
+      const paths = careerCachePaths(dirB, "incumbent", "resume-coach-arm", 3);
+      const cp = JSON.parse(readFileSync(paths.checkpoint, "utf8")) as { seasonsDone: number; people: unknown; sharedStaff: boolean };
+      expect(cp.seasonsDone).toBe(1);
+      const kept = decodePeople(cp.people, cp.sharedStaff);
+      const keptHead = kept.staff!.find((s) => sittingHead(s, "T01"))!;
+      expect(keptHead.lineup).toEqual(NATURAL);
+      const newHead = String(keptHead.id);
+      // Carried on: season 2 starts with the arm's leanings on him (and on every sitting head coach), both views one array.
+      const resumedHanded: SeasonInput[] = [];
+      const resumed = withCarousel(resumedHanded, () => runCareerSeed({ ...opts, cacheDir: dirB }));
+      expect(resumed.from).toBe("resumed");
+      expect(resumedHanded.map((h) => h.season)).toEqual([file.season + 1, file.season + 2]);
+      for (const [h, unbroken] of [[resumedHanded[0]!, straightHanded[1]!], [resumedHanded[1]!, straightHanded[2]!]] as const) {
+        const staff = h.people!.staff!;
+        expect(staff).toBe(h.people!.coaching!.world.staff);
+        const seated = staff.find((s) => String(s.id) === newHead)!;
+        expect(sittingHead(seated, "T01")).toBe(true);
+        expect(seated.lineup).toEqual(COACH_STYLE_LINEUPS.incumbent);
+        const heads = staff.filter((s) => sittingHead(s));
+        expect(heads).toHaveLength(32);
+        expect(heads.every((s) => JSON.stringify(s.lineup) === JSON.stringify(COACH_STYLE_LINEUPS.incumbent))).toBe(true);
+        // The same people the unbroken seed handed that season.
+        expect(peopleDifference(h.people!, unbroken.people!)).toBeNull();
+      }
+      expect(JSON.stringify(resumed.record.rows)).toBe(JSON.stringify(straight.record.rows));
     } finally {
       rmSync(dirA, { recursive: true, force: true });
       rmSync(dirB, { recursive: true, force: true });

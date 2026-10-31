@@ -244,11 +244,24 @@ describe("one check", () => {
 
   it("a floor (the win spread's 2.75) is never unresolved: below it fails, at or above it passes, whatever the sim's SE", () => {
     const floor: BandRule = { kind: "atLeast", min: 2.75 };
-    for (const se of [0, 0.01, 0.2]) {
+    // Past 1.375 (half the floor) the SE's 2·SE is wider than the floor itself: still a pass or a fail.
+    for (const se of [0, 0.01, 0.2, 1.4, 1.5, 5]) {
       expect(gradeCheck(floor, "x", { value: 2.74, se, n: 12 }, { value: 2.75, se: null }).status).toBe("FAIL");
+      expect(gradeCheck(floor, "x", { value: 2.0, se, n: 12 }, { value: 2.75, se: null }).status).toBe("FAIL");
+      expect(gradeCheck(floor, "x", { value: 1.0, se, n: 12 }, { value: 2.75, se: null }).status).toBe("FAIL");
       expect(gradeCheck(floor, "x", { value: 2.75, se, n: 12 }, { value: 2.75, se: null }).status).toBe("PASS");
       expect(gradeCheck(floor, "x", { value: 3.5, se, n: 12 }, { value: 2.75, se: null }).status).toBe("PASS");
     }
+    const wide = gradeCheck(floor, "x", { value: 2.0, se: 1.4, n: 12 }, { value: 2.75, se: null });
+    expect(wide.resolution!).toBeGreaterThan(wide.halfWidth!);
+    expect(wide.outside).toBeCloseTo(0.75, 12);
+    expect(wide.outside!).toBeLessThan(wide.resolution!);
+    // The coach-style slots floor too: 5% of slots, a noisy sim.
+    const slots: BandRule = { kind: "atLeast", min: 0.05 };
+    expect(gradeCheck(slots, "2030", { value: 0.04, se: 0.1, n: 4 }, { value: null, se: null }).status).toBe("FAIL");
+    expect(gradeCheck(slots, "2030", { value: 0.06, se: 0.1, n: 4 }, { value: null, se: null }).status).toBe("PASS");
+    // One seed: no SE, as for any check.
+    expect(gradeCheck(floor, "x", { value: 3.5, se: null, n: 1 }, { value: 2.75, se: null }).status).toBe("NO_SE");
     expect(outsideBand(floor, 2.74, 2.75)).toBeCloseTo(0.01, 12);
   });
 
@@ -562,7 +575,7 @@ describe("the grade on made-up seeds", () => {
     // Just inside the allowance (2022-24's mean + 2 points) it passes.
     const ref = weekEightLeagueReference(NFL_CAREERS, "age34Plus")!.value;
     expect(byId(gradeCareerCheck(passingInput(passing(() => ({ from34: ref + 0.0199 })))), "share-34").status).toBe("PASS");
-    // The --old answer is kept for a later card: with no OWNER row it changes nothing.
+    // An answer given for the Old card (`ownerAnswers`, kept for a later card): with no OWNER row it changes nothing.
     for (const answer of ["REPORT", "GATE"] as const) {
       const answered = gradeCareerCheck(passingInput(old, { ownerAnswers: { Old: answer } }));
       expect(byId(answered, "share-34")).toMatchObject({ mark: "GATE", status: "FAIL" });
@@ -644,6 +657,7 @@ describe("the grade on made-up seeds", () => {
     expect(renderGradeJson(a)).toBe(renderGradeJson(b));
     expect(renderGradeMarkdown(a)).toContain("the owner's answers of 2026-10-31");
     expect(renderGradeMarkdown(a)).not.toContain("OWNER rows wait");
+    expect(renderGradeMarkdown(a)).toContain("A floor (the win spread's 2.75, the coach-style 5% of slots) is never unresolved");
     const json = JSON.parse(renderGradeJson(a)) as { bands: unknown[]; rows: unknown[] };
     expect(json.bands).toHaveLength(CAREER_BANDS.length);
     expect(json.rows).toHaveLength(CAREER_BANDS.length);

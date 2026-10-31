@@ -1,6 +1,6 @@
 /**
  * `pnpm --filter @ff/calibration career-check -- --league <file> (--seed <seed> | --seed-set tune|grade --index <n>) [--arm both|development|incumbent|form] [--seasons 20] [--out <file>]`
- * `pnpm --filter @ff/calibration career-check -- --grade --pass 1|2 --league <file> [--seasons 20] [--seeds a,b] [--coach-seeds a,b] [--build <fingerprint>] [--old gate|report] [--report <path>] [--smoke]`
+ * `pnpm --filter @ff/calibration career-check -- --grade --pass 1|2 --league <file> [--seasons 20] [--seeds a,b] [--coach-seeds a,b] [--build <fingerprint>] [--report <path>] [--smoke]`
  *
  * ADR-087 §9, row D5b: the 20-season check. Plays ONE seed of the stand-in league with growth and
  * injuries switched on (the cap check's walk, `careerCheckRun.ts`) and keeps its rows under
@@ -21,10 +21,9 @@
  * never a graded one). `--build <fingerprint>` grades the rows of that build's folder instead of
  * the build the tree makes now (the report says which build it graded, and the command warns when
  * it is not the tree's); the grader and this command are not part of the fingerprint, so a change
- * to them alone keeps the rows. `--old gate|report` records the owner's answer on the Old card (the
- * 34-and-over share and reaching ten seasons gate the flip, or are reported); without it those rows
- * block the flip unless they pass. When grade seeds are missing, the command lists the builds the
- * cache holds.
+ * to them alone keeps the rows. There is no flag for the Old card: its rows (the 34-and-over share,
+ * reaching ten seasons) always gate the flip, as the owner answered (ADR-087 §11). When grade seeds
+ * are missing, the command lists the builds the cache holds.
  *
  * Paths given on the command line are read from the folder the command was typed in.
  */
@@ -55,13 +54,12 @@ interface Args {
   readonly report?: string;
   readonly smoke: boolean;
   readonly build?: string;
-  readonly old?: "GATE" | "REPORT";
 }
 
 function parse(argv: readonly string[]): Args {
   let league: string | undefined, seed: string | undefined, set: string | undefined, index: number | undefined;
   let arm = "both", seasons = 20, grade = false, pass: number | undefined, out: string | undefined, report: string | undefined, smoke = false;
-  let seeds: string[] | undefined, coachSeeds: string[] | undefined, build: string | undefined, old: string | undefined;
+  let seeds: string[] | undefined, coachSeeds: string[] | undefined, build: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const next = (): string => {
@@ -84,7 +82,6 @@ function parse(argv: readonly string[]): Args {
     else if (arg === "--report") report = next();
     else if (arg === "--smoke") smoke = true;
     else if (arg === "--build") build = next();
-    else if (arg === "--old") old = next();
     else throw new SyntaxError(`unknown argument ${arg}`);
   }
   if (league === undefined) throw new SyntaxError("--league <file> is required (the stand-in league)");
@@ -94,13 +91,12 @@ function parse(argv: readonly string[]): Args {
     if (pass !== 1 && pass !== 2) throw new SyntaxError("--grade needs --pass 1 or --pass 2");
     if (seed !== undefined || set !== undefined) throw new SyntaxError("--grade reads the grade seeds' rows; name others with --seeds a,b");
     if (build !== undefined && !/^[0-9a-f]{16}$/.test(build)) throw new SyntaxError("--build names a build's fingerprint: 16 hex digits");
-    if (old !== undefined && old !== "gate" && old !== "report") throw new SyntaxError("--old is gate or report (the owner's answer on the Old card)");
     return {
       league, seasons, grade, pass, arm, smoke, ...(seeds ? { seeds } : {}), ...(coachSeeds ? { coachSeeds } : {}), ...(report ? { report } : {}),
-      ...(build ? { build } : {}), ...(old ? { old: old === "gate" ? "GATE" as const : "REPORT" as const } : {}),
+      ...(build ? { build } : {}),
     };
   }
-  if (build !== undefined || old !== undefined) throw new SyntaxError("--build and --old are for --grade");
+  if (build !== undefined) throw new SyntaxError("--build is for --grade");
   if (seed !== undefined && set !== undefined) throw new SyntaxError("give --seed or --seed-set with --index, not both");
   if (set !== undefined) {
     if (set !== "tune" && set !== "grade") throw new SyntaxError("--seed-set is tune or grade");
@@ -173,7 +169,6 @@ if (!args.grade) {
     pass: args.pass!, seeds, rows,
     coach: { seeds: coachSeeds, incumbent: rowsOf("incumbent", coachSeeds), form: rowsOf("form", coachSeeds) },
     ...(windows ? { windows } : {}),
-    ...(args.old ? { ownerAnswers: { Old: args.old } } : {}),
     meta: { seasons: args.seasons, league, fingerprints, engineRules: CAREER_ENGINE_RULES, callerVersion, ...(args.smoke ? { smoke: true } : {}) },
   });
   const base = args.report !== undefined ? fromCaller(args.report) : join(root, "reports", `career-check-pass${args.pass}`);

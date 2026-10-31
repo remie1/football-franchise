@@ -45,17 +45,21 @@
  *    2·√(SE_sim² + SE_ref²) and whose value is in the band or outside it by no more than that
  *    2·√(...): a miss that could be noise. A value further outside its band than 2·√(...) fails
  *    whatever the half-width, so a wide reference SE cannot let a gross miss pass. One-sided bands
- *    use their allowance as the half-width (NFL + 2 points: 2 points; 2×: the reference itself; a
- *    floor: the floor itself, so a floor never goes unresolved). The grade lists the checks the
- *    reference's own SE leaves unresolvable whatever the sim does (half-width under 2·SE_ref): they
- *    can fail only by a gross miss.
+ *    use their allowance as the half-width (NFL + 2 points: 2 points; 2×: the reference itself). A
+ *    floor (the win spread's 2.75, the coach-style 5% of slots) is a fixed number with no reference
+ *    SE and is never unresolved, whatever the sim's SE: below it fails, at or above it passes. The
+ *    grade lists the checks the reference's own SE leaves unresolvable whatever the sim does
+ *    (half-width under 2·SE_ref): they can fail only by a gross miss.
  *  - A row fails if any check in it fails; otherwise it has no data if any check has no value, no SE
  *    if any check has no seed-to-seed SE (one seed), not resolvable if any check is, else it passes.
  *    No data and no SE block a pass without failing. A REPORT row is shown with each check's own
  *    status and never blocks.
  *  - The flip rule: recommended iff every grade seed is in, there are at least two, every
  *    coach-style seed has both arms, and every GATE row passes or is not resolvable (the coach-style
- *    rows, the Old rows and D7's starter rate among them).
+ *    rows, the Old rows and D7's starter rate among them). This is ADR-087 §11's wording, which
+ *    leaves out the D5b plan's separate clause that "the coach-style check passes": a coach-style
+ *    row that is not resolvable does not block. The slots row is a floor and never unresolved, so
+ *    only the sd row can be.
  *  - Careers: the real careers can be followed for at most 13 seasons (entry 2012, last observed
  *    2024), so the real survival curve is carried flat past 13; the sim's is carried flat past the
  *    same point (`followUp`) before the restricted mean is taken, so both sides' expected careers
@@ -233,8 +237,8 @@ export interface GradeRow {
 
 /**
  * The band's half-width for a check with this reference (and group). A one-sided band's is its
- * allowance: NFL + 2 points, 2 points; 2×, the reference itself; a floor, the floor itself (so a
- * floor such as the win spread's 2.75 is never unresolved: below it fails, at or above it passes).
+ * allowance: NFL + 2 points, 2 points; 2×, the reference itself; a floor, the floor itself (shown
+ * only: `gradeCheck` never leaves a floor unresolved).
  */
 function halfWidthOf(rule: BandRule, ref: number, group?: string): number | null {
   switch (rule.kind) {
@@ -277,7 +281,8 @@ export function outsideBand(rule: BandRule, sim: number, ref: number, group?: st
  * One check: the sim's pooled value against its reference, under the band's rule and the SE rule.
  * In the band: a pass, or not resolvable when the half-width is under 2·√(SE_sim² + SE_ref²).
  * Outside it: a fail, unless the half-width is under 2·√(...) AND the value is outside the band by
- * no more than 2·√(...) (a miss that could be noise), which is not resolvable.
+ * no more than 2·√(...) (a miss that could be noise), which is not resolvable. A floor (`atLeast`)
+ * is never unresolved: below it fails and at or above it passes, whatever the SEs.
  */
 export function gradeCheck(
   rule: BandRule, label: string, sim: { value: number | null; se: number | null; n: number }, ref: { value: number | null; se: number | null },
@@ -296,7 +301,7 @@ export function gradeCheck(
   const outside = outsideBand(rule, sim.value, refValue, group);
   if (sim.se === null) return { ...base, halfWidth, resolution: null, inBand, outside, status: "NO_SE" };
   const resolution = 2 * Math.sqrt(sim.se ** 2 + (ref.se ?? 0) ** 2);
-  const unresolved = halfWidth < resolution;
+  const unresolved = rule.kind !== "atLeast" && halfWidth < resolution;
   const status: CheckStatus = inBand
     ? (unresolved ? "NOT_RESOLVABLE" : "PASS")
     : (unresolved && outside <= resolution ? "NOT_RESOLVABLE" : "FAIL");
@@ -746,7 +751,8 @@ export function renderGradeMarkdown(grade: CareerGrade): string {
     (grade.smoke ? " Smoke windows: clipped to the seasons played." : ""));
   say();
   say("A check is **not resolvable** when its band's half-width is under 2·√(SE_sim² + SE_ref²) and its value is in the band or outside it by no more than that; " +
-    "a value further outside its band fails. The sim's SE is the seed-to-seed SD over √seeds.");
+    "a value further outside its band fails. A floor (the win spread's 2.75, the coach-style 5% of slots) is never unresolved: below it fails. " +
+    "The sim's SE is the seed-to-seed SD over √seeds.");
   say();
   say("## The flip");
   say();
