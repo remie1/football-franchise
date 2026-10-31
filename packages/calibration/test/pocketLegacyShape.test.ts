@@ -7,7 +7,8 @@
  *
  *  - no own property of any event payload, at any depth, holds `undefined` (an optional field the
  *    engine writes as `undefined` would vanish in JSON but still change a canonical digest);
- *  - every `PASS_PLAY_V1` `PLAY_START` payload has exactly today's keys, in order, and no `rules`;
+ *  - every `PASS_PLAY_V1` `PLAY_START` payload has exactly today's keys, in order, and no `rules`
+ *    (from ADR-090 step 1, `snap` follows them: the snap picture, which `GOLDEN_STRIP` takes off);
  *  - every `pass_rush_tick` CHECK has exactly today's keys, in order, `roll` and `opposedRoll` present;
  *  - every `RUSH_THREAT` payload has exactly today's keys, in order, and no `approach`;
  *  - no `pass_rush_beat` CHECK and no uniform die.
@@ -20,7 +21,8 @@ import { GOLDEN_LEAGUES } from "../src/pocket/golden.js";
 const ALL = process.env["FF_POCKET_BASE"] === "1";
 const FIRST = ALL ? 50 : 10;
 
-const PASS_PLAY_START_KEYS = ["kind", "offense", "defense", "situation"];
+/** Today's keys, then ADR-090 step 1's snap picture, the last key on every play the default caller calls. */
+const PASS_PLAY_START_KEYS = ["kind", "offense", "defense", "situation", "snap"];
 const TICK_KEYS = ["checkKind", "actors", "roll", "tier", "margin", "testsAttrs", "opposedRoll", "band", "rollRef"];
 const THREAT_KEYS = ["rusher", "alignment", "origin", "rollRef", "etaTick", "state"];
 

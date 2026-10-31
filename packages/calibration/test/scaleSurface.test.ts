@@ -40,7 +40,6 @@ describe("scale surface", () => {
       [
         "audible",
         "coin_toss",
-        "communication",
         "coverage_read",
         "dline_tip",
         "fumble",
@@ -57,7 +56,7 @@ describe("scale surface", () => {
         "unseen_defender",
       ].sort(),
     );
-    expect(Object.keys(SURFACE)).toHaveLength(47);
+    expect(Object.keys(SURFACE)).toHaveLength(53);
   });
 
   it("resolves every derived term source against the committed tree", () => {
@@ -96,6 +95,6 @@ describe("scale surface", () => {
     // Not an assertion — the report the backlog's Phase 3 deliverable asks for, emitted where a
     // reader of a CI log will see it rather than filed somewhere that rots.
     console.log(`\n${renderScaleSurface(sweepScaleSurface())}\n`);
-    expect(sweepScaleSurface()).toHaveLength(47);
+    expect(sweepScaleSurface()).toHaveLength(53);
   });
 });

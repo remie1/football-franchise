@@ -282,4 +282,10 @@ export const COACH_ATTRIBUTE_REGISTRY_V1: Record<string, CoachAttributeDefinitio
     C("politics","Politics","career"),
     C("trendReceptivity","Trend Receptivity","career","Owner/president: fashion appetite"),
     C("schemeOrthodoxy","Scheme Orthodoxy","career","HC: commitment to own system"),
+    // ADR-081 G5: the end-of-season meeting's skills; every staff member carries them (one ruler).
+    C("performanceAnalysis","Performance Analysis","season","Reading what happened"),
+    C("forecasting","Forecasting","season","Reading what will happen"),
+    C("capManagement","Cap Management","season","The team's own books: cap space, dead money, deal structure"),
+    C("marketSense","Market Sense","season","What a player would fetch in a trade or cost on the open market"),
+    C("nuance","Nuance","career","How well stated certainty matches being right, and how often it is volunteered"),
   ].map((c) => [c.id as unknown as string, c]));

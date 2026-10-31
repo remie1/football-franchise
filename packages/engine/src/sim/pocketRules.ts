@@ -168,15 +168,33 @@ function onTheGrid(lengthSeconds: number, tickStepSeconds: number, what: string)
 }
 
 /**
+ * Whether the tunables play today's rules, `LEGACY`: no `pocket-1` block and no stamp, the one
+ * case in which `pocketRulesOf` returns `LEGACY`. It validates nothing and never throws, so the
+ * game loop can ask it before every snap (ADR-090 step 3 plays the stem and the count read only
+ * under `legacy`, agreed with ADR-089's step 3) while a bundle `pocketRulesOf` refuses is still
+ * refused where it always was, at the top of the pass play that runs it.
+ */
+export function playsLegacyRules(tunables: Tunables): boolean {
+  const { beatClock, repClock, approach } = tunables.passRush;
+  return (
+    tunables.engineRules === undefined &&
+    beatClock === undefined &&
+    repClock === undefined &&
+    approach === undefined &&
+    tunables.pocket.forcing === undefined
+  );
+}
+
+/**
  * The rules this play runs under, from the tunables it was handed. Pure, and called once a play
  * at the top of `simulatePassPlay`, before any die: a refusal throws before the stream begins.
  */
 export function pocketRulesOf(tunables: Tunables): PocketRules {
+  if (playsLegacyRules(tunables)) return LEGACY;
   const stamp = tunables.engineRules;
   const { beatClock, repClock, approach } = tunables.passRush;
   const forcingBlock = tunables.pocket.forcing;
   const clocks = (beatClock === undefined ? 0 : 1) + (repClock === undefined ? 0 : 1);
-  if (stamp === undefined && clocks === 0 && approach === undefined && forcingBlock === undefined) return LEGACY;
 
   if (clocks === 2) {
     throw new PocketRulesError("the tunables carry both block clocks (passRush.beatClock and passRush.repClock); a bundle runs one");

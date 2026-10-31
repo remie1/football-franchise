@@ -140,7 +140,59 @@ export function standings(players: readonly { id: string; position: Position; si
   return out;
 }
 
-const DRILLS = ["forty", "bench", "vertical", "cone"] as const;
+/** The four drills a body is made of, in the order a missing one is listed (`RatingProvenance.imputed`). */
+export const DRILLS = ["forty", "bench", "vertical", "cone"] as const;
+export type Drill = (typeof DRILLS)[number];
+
+/** A drill nobody at his position ran in this league: a typical NFL number. CHOSEN. */
+export const DRILL_FALLBACK: Readonly<Record<Drill, number>> = { forty: 4.85, bench: 18, vertical: 31, cone: 7.3 };
+
+/** A player's full measurements, the ones he is rated from, and which drills were filled in. */
+export interface FilledMeasurements {
+  readonly measurements: Measurements;
+  /** The drills he did not run, filled with his position's average (or `DRILL_FALLBACK`), in `DRILLS` order. */
+  readonly imputed: readonly Drill[];
+}
+
+/**
+ * Every player's full measurements, by stand-in id: what he measured (height and weight from his
+ * bio where the measurement has none), and for a drill he did not run his position's average in
+ * this league over those who ran it, else `DRILL_FALLBACK`. The one fill: his ratings
+ * (`rateStandIns`) and his body today (`development.ts`, ADR-087 §2.5) both read it, so his 40 and
+ * his speed agree. Aging the drills forward from when he tested, when it comes, goes here (on the
+ * result, before either reads it), and with it a re-rate. Pure; the averages follow `players`' order.
+ */
+export function fillMeasurements(
+  players: readonly PlayerState[],
+  measurements: Readonly<Record<string, Partial<Measurements>>>,
+): Map<string, FilledMeasurements> {
+  // Each position's average at each drill, over those who ran it.
+  const avg = new Map<string, number>();
+  for (const pos of new Set(players.map((p) => p.bio.position))) {
+    for (const drill of DRILLS) {
+      const xs = players.filter((p) => p.bio.position === pos)
+        .map((p) => measurements[String(p.bio.id)]?.[drill]).filter((x): x is number => x !== undefined);
+      if (xs.length > 0) avg.set(`${pos}/${drill}`, xs.reduce((s, x) => s + x, 0) / xs.length);
+    }
+  }
+  const out = new Map<string, FilledMeasurements>();
+  for (const p of players) {
+    const id = String(p.bio.id);
+    const got = measurements[id] ?? {};
+    const imputed: Drill[] = [];
+    const m = { heightIn: got.heightIn ?? p.bio.heightIn, weightLb: got.weightLb ?? p.bio.weightLb } as Record<keyof Measurements, number>;
+    for (const drill of DRILLS) {
+      const v = got[drill];
+      if (v !== undefined) m[drill] = v;
+      else {
+        m[drill] = avg.get(`${p.bio.position}/${drill}`) ?? DRILL_FALLBACK[drill];
+        imputed.push(drill);
+      }
+    }
+    out.set(id, { measurements: m, imputed });
+  }
+  return out;
+}
 
 /**
  * Rate every player. `measurements` holds what he measured (height and weight always); the
@@ -154,16 +206,7 @@ export function rateStandIns(input: {
   /** Tracking nudges by player (`tracking.ts`), applied after the ratings are drawn. */
   readonly nudges?: Readonly<Record<string, Readonly<Record<string, number>>>>;
 }): { players: PlayerState[]; ratings: Record<string, RatingProvenance> } {
-  // Each position's average at each drill, over those who ran it.
-  const avg = new Map<string, number>();
-  for (const pos of new Set(input.players.map((p) => p.bio.position))) {
-    for (const drill of DRILLS) {
-      const xs = input.players.filter((p) => p.bio.position === pos)
-        .map((p) => input.measurements[String(p.bio.id)]?.[drill]).filter((x): x is number => x !== undefined);
-      if (xs.length > 0) avg.set(`${pos}/${drill}`, xs.reduce((s, x) => s + x, 0) / xs.length);
-    }
-  }
-  const fallback: Record<(typeof DRILLS)[number], number> = { forty: 4.85, bench: 18, vertical: 31, cone: 7.3 };
+  const filled = fillMeasurements(input.players, input.measurements);
 
   const stand = standings(input.players.map((p) => ({
     id: String(p.bio.id), position: p.bio.position, signals: input.signals[String(p.bio.id)] ?? { rookieDeal: false, yearsInLeague: 0 },
@@ -171,21 +214,11 @@ export function rateStandIns(input: {
   const ratings: Record<string, RatingProvenance> = {};
   const players = input.players.map((p) => {
     const id = String(p.bio.id);
-    const got = input.measurements[id] ?? {};
-    const imputed: (keyof Measurements)[] = [];
-    const m = { heightIn: got.heightIn ?? p.bio.heightIn, weightLb: got.weightLb ?? p.bio.weightLb } as Record<keyof Measurements, number>;
-    for (const drill of DRILLS) {
-      const v = got[drill];
-      if (v !== undefined) m[drill] = v;
-      else {
-        m[drill] = avg.get(`${p.bio.position}/${drill}`) ?? fallback[drill];
-        imputed.push(drill);
-      }
-    }
+    const { measurements: m, imputed } = filled.get(id)!;
     const { talent, sources } = stand.get(id)!;
     const values = rateAttributes(createRng(input.seed, `attributes:real:rate/${id}`), p.bio.position, talent, m);
     for (const [attr, z] of Object.entries(input.nudges?.[id] ?? {})) values[attr] = clampRating(values[attr]! + NUDGE * z);
-    ratings[id] = { talent, sources, skill: sources.length >= 2 ? "estimated" : "guess", imputed };
+    ratings[id] = { talent, sources, skill: sources.length >= 2 ? "estimated" : "guess", imputed: [...imputed] };
     return { ...p, attributes: { ...p.attributes, values } };
   });
   return { players, ratings };

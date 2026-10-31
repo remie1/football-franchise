@@ -629,9 +629,16 @@ export function simulatePassPlay(
     ...(rules.kind === "LEGACY"
       ? {}
       : { rules: { name: rules.rules.name, overlayDigest: rules.rules.overlayDigest } }),
+    // ADR-090 S2 and S5: where every man stands at the snap, copied from the calls as they carried
+    // it, after `rules` so a play without one keeps today's keys in today's order. Nothing below
+    // reads it at ADR-090 step 1.
+    ...(calls.snap === undefined ? {} : { snap: calls.snap }),
   };
   log.setTick(undefined);
   log.playStart(startPayload);
+  // ADR-091 step S-a: the sideline's adjustments and the stem at the line, as the game loop resolved
+  // them (legacy rules only); nothing below reads them.
+  log.atTheLine(state.atTheLine);
 
   // §5.3's recognition, then §7.4's pickups and §7.3's exchanges. Emitted after
   // PLAY_START and before the first TICK, which is where they belong: they

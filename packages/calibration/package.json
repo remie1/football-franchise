@@ -13,7 +13,11 @@
     "season": "vite-node src/season/main.ts --",
     "pocket": "vite-node src/pocket/main.ts --",
     "player-checks": "vite-node src/season/playerChecksMain.ts --",
-    "injury-rates": "vite-node src/injuries/main.ts --"
+    "injury-rates": "vite-node src/injuries/main.ts --",
+    "cap-check": "vite-node src/season/capCheckMain.ts --",
+    "draft-check": "vite-node src/season/draftCheckMain.ts --",
+    "snap-spots": "vite-node src/snapSpots/main.ts --",
+    "group-weights": "vite-node src/meeting/main.ts --"
   },
   "dependencies": {
     "@ff/attributes": "workspace:*",

@@ -24,6 +24,8 @@
  *      game:{id}/drive:{k}/fieldGoal        the field goal that ended drive k
  *      game:{id}/drive:{k}/pat              the extra point after it
  *      game:{id}/call:{n}/offense|defense   the n-th play's calls
+ *      game:{id}/call:{n}/line-up|cadence   its snap picture, and the count against a stem
+ *      game:{id}/call:{n}/sideline|stem     the count read's adjustments and the stem at the line
  *      game:{id}/play:{n}/...               the n-th play itself (unchanged)
  *
  *    Change what happens on play 12 and play 13's dice do not move — that is a
@@ -48,23 +50,37 @@
  * fumbles (ADR-010 — §13/§14 specify none), the field being 53⅓ yards wide,
  * and NFL overtime possession rules.
  */
-import { createRng } from "@ff/contracts";
+import { createRng, getAttr } from "@ff/contracts";
 import type {
+  Cadence,
   DriveResult,
   GameEndReason,
   MatchEventEnvelope,
   PlayerId,
   PlayerState,
   PossessionCause,
+  Rng,
   TeamId,
 } from "@ff/contracts";
+import { ATTR } from "../attrs.js";
 import { rollD100 } from "../rolls.js";
 import { simulatePlay } from "../sim/play.js";
+import { playsLegacyRules } from "../sim/pocketRules.js";
 import { reduceStatlines } from "../stats/statline.js";
 import type { StatLine } from "../stats/statline.js";
 import { TUNABLES } from "../tunables.js";
 import type { Tunables } from "../tunables.js";
-import type { AnyPlayCalls, MatchGameState, PlayCalls, RunPlayCalls } from "../types.js";
+import type {
+  AnyPlayCalls,
+  AtTheLineRecord,
+  DefensivePlayCall,
+  MatchGameState,
+  OffensiveCall,
+  PlayCalls,
+  RunPlayCalls,
+} from "../types.js";
+import { countAtSnap, resolveStem, sidelineAfterSnap, sidelineBeforeSnap } from "./atTheLine.js";
+import type { StemAtTheSnap } from "./atTheLine.js";
 import { GameEventLog } from "./events.js";
 import type { GameEventEnvelope } from "./events.js";
 import {
@@ -524,6 +540,83 @@ export function simulateGame(
     endIfOvertimeScore();
   };
 
+  // --- at the line (ADR-090 step 3: ADR-091 S-a, ADR-092) -------------------
+
+  /**
+   * What happens at the line before a scrimmage snap, under today's rules only: the sideline's
+   * count read (`sidelineBeforeSnap`), and, when the defense's call wears a stem, the offense's
+   * count (`PlayCaller.cadence`) and the stem played out against it (`resolveStem`). Agreed with
+   * ADR-089's step 3: under `pocket-1` nothing here runs, so every `pocket-1` game is unchanged
+   * byte for byte. Nothing after the snap reads any of it (ADR-091 §12, arm T); the records ride
+   * on the play state into the stream right after `PLAY_START`, and the stem's ending onto the
+   * picture (`LineUpRequest.stem`).
+   */
+  interface AtTheLine {
+    readonly records: readonly AtTheLineRecord[];
+    readonly cadence?: Cadence;
+    readonly stem?: StemAtTheSnap;
+    readonly stemWorked: boolean;
+  }
+
+  const atTheLine = (
+    situation: DecisionSituation,
+    offense: TeamSnapshot,
+    defense: TeamSnapshot,
+    offenseCall: OffensiveCall,
+    defenseCall: DefensivePlayCall,
+    callRng: Rng,
+  ): AtTheLine => {
+    const home = offense.team === s.home;
+    const quarterback = playerOf(offense, offense.offense.quarterback);
+    const sideline = sidelineBeforeSnap(tunables, s.countBattles ?? [], {
+      offense: offense.team,
+      defense: defense.team,
+      quarterback,
+      period: s.period,
+      drive: s.driveNumber,
+      home,
+      rng: callRng.fork("sideline"),
+    });
+    s = { ...s, countBattles: sideline.battles };
+    if (defenseCall.stem === undefined) return { records: sideline.records, stemWorked: false };
+
+    const count = countAtSnap(sideline.battles, offense.team);
+    const cadence =
+      callerOf(offense.team).cadence?.(
+        {
+          kind: "CADENCE",
+          tunables,
+          situation,
+          home,
+          hardCountsOwed: count.hardCountsOwed,
+          offense,
+          defense,
+          offenseCall,
+        },
+        callRng.fork("cadence"),
+      ) ?? "NORMAL";
+    const p = offense.offense;
+    const stem = resolveStem({
+      tunables,
+      call: defenseCall,
+      player: (id) => playerOf(defense, id),
+      quarterback,
+      center: playerOf(offense, p.center),
+      line: [p.leftTackle, p.leftGuard, p.center, p.rightGuard, p.rightTackle].map((id) => playerOf(offense, id)),
+      cadence,
+      countRead: count.countRead,
+      hardCountSeenComing: count.hardCountSeenComing,
+      pass: offenseCall.kind !== "RUN",
+      rng: callRng.fork("stem"),
+    });
+    return {
+      records: [...sideline.records, ...stem.records],
+      cadence,
+      stem: stem.atTheSnap,
+      stemWorked: stem.worked,
+    };
+  };
+
   // --- the snap -----------------------------------------------------------
 
   const doSnap = (): void => {
@@ -551,7 +644,7 @@ export function simulateGame(
 
     const callRng = gameRng.fork(`call:${s.playNumber}`);
     const situation = situationFor();
-    const offenseCall = callerOf(offenseTeam).callOffense(
+    const calledOffense = callerOf(offenseTeam).callOffense(
       {
         kind: "OFFENSIVE_PLAY_CALL",
         authority: "COACH",
@@ -570,10 +663,18 @@ export function simulateGame(
         situation,
         offense: offenseSnapshot,
         defense: defenseSnapshot,
-        against: offenseCall,
+        against: calledOffense,
       },
       callRng.fork("defense"),
     );
+
+    // ADR-090 step 3: the count read and the stem at the line, under today's rules only. The
+    // offense's count goes on its call (ADR-091 M1), as the play runs it.
+    const beforeTheSnap = playsLegacyRules(tunables)
+      ? atTheLine(situation, offenseSnapshot, defenseSnapshot, calledOffense, defenseCall, callRng)
+      : undefined;
+    const offenseCall: OffensiveCall =
+      beforeTheSnap?.cadence === undefined ? calledOffense : { ...calledOffense, cadence: beforeTheSnap.cadence };
 
     const playState: MatchGameState = {
       gameId: s.gameId,
@@ -589,14 +690,48 @@ export function simulateGame(
       ballOn: s.ballOn,
       clockSeconds: s.clockSeconds,
       ...(offenseSnapshot.chemistry === undefined ? {} : { chemistry: offenseSnapshot.chemistry }),
+      ...(beforeTheSnap === undefined || beforeTheSnap.records.length === 0 ? {} : { atTheLine: beforeTheSnap.records }),
     };
+    // ADR-090 S5: where every man stands at the snap, asked of the defense's caller (the defense
+    // lines up last, to the offense it sees) and carried on the calls. A caller with no playbook
+    // draws none, and the play carries none. Its fork is new, and a fork is made by label, so no
+    // other stream moves.
+    const picture = callerOf(defenseTeam).lineUp?.(
+      {
+        kind: "LINE_UP",
+        tunables,
+        situation,
+        offense: offenseSnapshot,
+        defense: defenseSnapshot,
+        offenseCall,
+        defenseCall,
+        ...(beforeTheSnap?.stem === undefined ? {} : { stem: beforeTheSnap.stem }),
+      },
+      callRng.fork("line-up"),
+    );
+    const snap = picture === undefined ? {} : { snap: picture };
     const calls: AnyPlayCalls =
       offenseCall.kind === "RUN"
-        ? ({ offense: offenseCall, defense: defenseCall } satisfies RunPlayCalls)
-        : ({ offense: offenseCall, defense: defenseCall } satisfies PlayCalls);
+        ? ({ offense: offenseCall, defense: defenseCall, ...snap } satisfies RunPlayCalls)
+        : ({ offense: offenseCall, defense: defenseCall, ...snap } satisfies PlayCalls);
 
     const played = simulatePlay(playState, calls, seed, tunables);
     log.append(played.events);
+    // ADR-092 §5.1, §5.3: the live read after the snap, in the snap's quarter and score, and
+    // whether a stem worked against the offense this drive.
+    if (beforeTheSnap !== undefined && s.countBattles !== undefined) {
+      const quarterback = playerOf(offenseSnapshot, offenseSnapshot.offense.quarterback);
+      s = {
+        ...s,
+        countBattles: sidelineAfterSnap(s.countBattles, {
+          offense: offenseTeam,
+          stemWorked: beforeTheSnap.stemWorked,
+          quarterbackPoise: getAttr(quarterback.attributes.values, ATTR.poise),
+          period: situation.period,
+          scoreMargin: situation.offenseScore - situation.defenseScore,
+        }),
+      };
+    }
 
     const outcome = readPlayResult(played.events);
     if (outcome === undefined) {

@@ -37,6 +37,9 @@ import type { League } from "../league/buildLeague.js";
 import type { LeaguePeople, DayStep } from "./people.js";
 import { draftSteps, turnYear, type DraftStepsConfig } from "../draft/steps.js";
 import { PLAYER_STEP_PREFIX, playerSteps, type PlayerStepsConfig } from "../players/steps.js";
+import { staffSteps, type StaffStepsConfig } from "../staff/steps.js";
+import { meetingSteps, type MeetingStepsConfig } from "../meeting/steps.js";
+import { leagueYearSteps, type LeagueYearConfig } from "../cap/leagueYear.js";
 import { advance, nextDay, phaseWeeks, seasonStart, DAYS_PER_WEEK, type ClockWorld } from "../calendar/clock.js";
 import { buildSchedule } from "../schedule/buildSchedule.js";
 import { computeStandings } from "../standings/computeStandings.js";
@@ -92,9 +95,26 @@ export interface RunSeasonInput {
   draft?: DraftStepsConfig;
   /**
    * ADR-087 §10: the players' steps (development, injuries, depth charts, unsigned retirements), with
-   * their switches. Needs `people`. Absent, or both switches off, adds no steps.
+   * their switches. Needs `people`. Absent, or both switches off, adds no steps. With no `cap` of its
+   * own, its emergency signings are priced by the year's one cap, `draft.cap`, else `leagueYear.cap`
+   * (else flat at the rules' cap).
    */
   players?: PlayerStepsConfig;
+  /**
+   * ADR-084 step 1: the coaching staff's steps (views seated, weekly drift, the carousel after the
+   * playoffs), after the players' and before the league year's and the draft's. Needs `people.coaching`.
+   */
+  coaching?: StaffStepsConfig;
+  /**
+   * ADR-081: the end-of-season meeting's steps (GMs seated; each team meets the day after its last
+   * game), before the coaches' steps so a meeting comes before the carousel. Needs `people.coaching`.
+   */
+  meeting?: MeetingStepsConfig;
+  /**
+   * ADR-085: play the league year (the cap, re-signings and tags, deals running out, free agency,
+   * cap compliance). Its steps run after the players' and before the draft's. Needs `people`.
+   */
+  leagueYear?: LeagueYearConfig;
   /**
    * A resumed run: the events the players' steps emitted on the days up to `stepsDoneThrough` (a
    * save's `world.development.events`, S1), emitted again on their days in place of running the steps.
@@ -150,11 +170,21 @@ const sameDay = (a: CalendarStamp, b: CalendarStamp) => compareStamps(a, b) === 
 
 export function runSeason(input: RunSeasonInput): SeasonRun {
   const { league, season, seed, resolve, stopAfter, resumeFrom } = input;
-  // Order: the caller's steps, the players' (ADR-087), then the draft's (ADR-086).
+  // Order: the caller's steps, the players' (ADR-087), the coaches' (ADR-084), the league year's (ADR-085),
+  // then the draft's (ADR-086). One cap for every deal the year signs: the draft's, else the league year's
+  // (ADR-085's forecast). The players' emergency signings take it too when they have no cap of their own.
+  const sharedCap = input.draft?.cap ?? input.leagueYear?.cap;
+  const draftConfig = input.draft && { ...input.draft, ...(sharedCap ? { cap: sharedCap } : {}) };
+  const playersConfig = input.players && input.players.cap === undefined && sharedCap ? { ...input.players, cap: sharedCap } : input.players;
   const steps = [
-    ...(input.daySteps ?? []), ...(input.players ? playerSteps(input.players) : []), ...(input.draft ? draftSteps(input.draft) : []),
+    ...(input.daySteps ?? []), ...(playersConfig ? playerSteps(playersConfig) : []),
+    ...(input.meeting ? meetingSteps(input.meeting) : []),
+    ...(input.coaching ? staffSteps(input.coaching) : []),
+    ...(input.leagueYear ? leagueYearSteps(input.leagueYear) : []), ...(draftConfig ? draftSteps(draftConfig) : []),
   ];
-  if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps, the players' steps and the draft need people");
+  if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps, the players' steps, the coaches', the league year and the draft need people");
+  if (input.coaching && !input.people?.coaching) throw new Error("runSeason: the coaches' steps need people.coaching");
+  if (input.meeting && !input.people?.coaching) throw new Error("runSeason: the meeting's steps need people.coaching");
   let people = input.people;
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
   const schedule = buildSchedule(league, season, seed, {
@@ -235,8 +265,8 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
     const unused = [...saved.keys()].filter((id) => !played.has(id));
     if (unused.length > 0) throw new Error(`runSeason: the save has results this run did not reach (${unused.slice(0, 3).join(", ")})`);
     runSteps();
-    if (complete && input.draft && input.through === "YEAR") {
-      const turned = turnYear(people!, { season: season + 1, rules, ...(input.draft.cap ? { cap: input.draft.cap } : {}) });
+    if (complete && draftConfig && input.through === "YEAR") {
+      const turned = turnYear(people!, { season: season + 1, rules, ...(draftConfig.cap ? { cap: draftConfig.cap } : {}) });
       people = turned.people;
       for (const event of turned.events) emit(event);
     }

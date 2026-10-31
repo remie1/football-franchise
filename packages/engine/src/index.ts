@@ -157,6 +157,11 @@ export type {
   CoachDecisionRequest,
   OffensiveCallRequest,
   DefensiveCallRequest,
+  LineUpRequest,
+  // ADR-090 step 3 (ADR-091 S-a, ADR-092): the count, the stem's ending, and the count read
+  CadenceRequest,
+  StemAtTheSnap,
+  CountBattle,
   FourthDownRequest,
   FourthDownChoice,
   CoinTossRequest,

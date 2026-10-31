@@ -1,5 +1,5 @@
 /**
- * `pnpm --filter @ff/calibration player-checks -- [--seeds 20] [--arms off,development,injuries,both] [--shard 1/3]`
+ * `pnpm --filter @ff/calibration player-checks -- [--seeds 20] [--arms off,development,injuries,both] [--shard 1/3] [--league <file>]`
  *
  * ADR-087 D5a, the single-season checks: plays `--seeds` seasons (seeds `spread-1`… , ADR-079 R5's)
  * in each arm and writes `reports/player-checks.md` and `.json`:
@@ -12,13 +12,25 @@
  * another in this process (library code never starts processes); to go faster, run the command in
  * a few shells with `--shard 1/3`, `--shard 2/3`, `--shard 3/3`, each playing its share, and the
  * report is written once every season is in the cache.
+ *
+ * `--league <file>`: the same checks on the stand-in league (ADR-088; its growth records from
+ * `pnpm --filter @ff/attributes standin-development`, ADR-087 §2.5), every arm on the file's own
+ * season, written to `reports/player-checks-standin.md` and `.json`. The file's sha256 joins the
+ * fingerprint, so a rewritten file starts a fresh cache. Where the report counts players it splits
+ * them into the 53, the practice squad, the reserve lists and the street (the injury tables take the
+ * 53 and the street, as the generated league's do); the players who start the year hurt (copied from
+ * the file, so no INJURY_OCCURRED) are counted from the start; the starters are who the engine fields
+ * from the real depth charts; the emergency signings say how many were practice-squad call-ups; and a
+ * section gives the growth rates' scale on the 53 at camp. The
+ * report names the file by its path from the repository (its name alone when outside it).
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { NFL_SPREAD, summariseArm, type ArmSummary, type SeasonCheck } from "./playerChecks.js";
+import { NFL_SPREAD, ROSTER_GROUPS, summariseArm, type ArmSummary, type SeasonCheck } from "./playerChecks.js";
 import { checkSeason, isArm } from "./playerChecksRun.js";
+import { readStandInFile } from "./standInLeague.js";
 
 const argv = process.argv.slice(2).filter((a) => a !== "--");
 const opt = (name: string, fallback: string) => { const i = argv.indexOf(name); return i >= 0 && argv[i + 1] !== undefined ? argv[i + 1]! : fallback; };
@@ -29,6 +41,18 @@ const shard = /^(\d+)\/(\d+)$/.exec(opt("--shard", "1/1"));
 if (!shard || Number(shard[1]) < 1 || Number(shard[1]) > Number(shard[2])) throw new SyntaxError("--shard takes i/n, e.g. 2/3");
 const [part, parts] = [Number(shard[1]), Number(shard[2])];
 const root = fileURLToPath(new URL("../..", import.meta.url));
+// The stand-in league, when asked for: a path from the folder the command was typed in.
+const leagueAt = argv.indexOf("--league");
+if (leagueAt >= 0 && (argv[leagueAt + 1] === undefined || argv[leagueAt + 1]!.startsWith("--"))) throw new SyntaxError("--league requires a file");
+const leagueFull = leagueAt < 0 ? undefined : resolve(process.env.INIT_CWD ?? process.cwd(), argv[leagueAt + 1]!);
+// As the report names it: from the repository's root, so the same file gives the same report however it was typed.
+const leaguePath = leagueFull === undefined ? "" : (() => {
+  const rel = relative(join(root, "..", ".."), leagueFull);
+  return rel.startsWith("..") || isAbsolute(rel) ? basename(leagueFull) : rel;
+})();
+const leagueBytes = leagueFull === undefined ? undefined : readFileSync(leagueFull);
+const standIn = leagueBytes === undefined ? undefined : readStandInFile(leagueBytes.toString("utf8"));
+const leagueSha = leagueBytes === undefined ? undefined : createHash("sha256").update(leagueBytes).digest("hex");
 // The code the seasons were played with: every package's source files, by path and content.
 const code = createHash("sha256");
 for (const pkg of ["contracts", "engine", "playbook", "attributes", "franchise", "calibration"]) {
@@ -36,6 +60,8 @@ for (const pkg of ["contracts", "engine", "playbook", "attributes", "franchise",
   const files = (readdirSync(src, { recursive: true }) as string[]).filter((f) => f.endsWith(".ts")).sort();
   for (const f of files) code.update(`${pkg}/${f}\n`).update(readFileSync(join(src, f)));
 }
+// The stand-in league's file is an input too: its bytes' hash joins the code's.
+if (leagueSha !== undefined) code.update(`league\n${leagueSha}\n`);
 const fingerprint = code.digest("hex").slice(0, 12);
 const cache = join(root, "data-cache", "player-checks", fingerprint);
 mkdirSync(cache, { recursive: true });
@@ -47,7 +73,9 @@ const fileOf = (r: { arm: string; seed: string }) => join(cache, `${r.arm}-${r.s
 const todo = runs.filter((r, i) => i % parts === part - 1 && !existsSync(fileOf(r)));
 const started = Date.now();
 todo.forEach((r, i) => {
-  writeFileSync(fileOf(r), JSON.stringify(checkSeason(r.seed, r.arm as Parameters<typeof checkSeason>[1])));
+  writeFileSync(fileOf(r), JSON.stringify(standIn === undefined
+    ? checkSeason(r.seed, r.arm as Parameters<typeof checkSeason>[1])
+    : checkSeason(r.seed, r.arm as Parameters<typeof checkSeason>[1], standIn.season, standIn)));
   console.log(`${i + 1}/${todo.length} ${r.arm} ${r.seed} (${((Date.now() - started) / 1000).toFixed(0)}s)`);
 });
 const missing = runs.filter((r) => !existsSync(fileOf(r)));
@@ -77,11 +105,22 @@ const pct = (x: number) => `${(100 * x).toFixed(1)}%`;
 const n2 = (x: number) => x.toFixed(2);
 const lines: string[] = [];
 const say = (s = "") => lines.push(s);
-say("# ADR-087 D5a: one season with the players' switches");
-say();
-say(`${seeds} seasons per arm (seeds spread-1 to spread-${seeds}, ADR-079 R5's), generated squads, the caller default. ` +
-  "Arms: `off` (today), `development` (growth and aging), `injuries`, `both`. Made by `pnpm --filter @ff/calibration player-checks` " +
-  `with the code fingerprinted \`${fingerprint}\`.`);
+if (standIn === undefined) {
+  say("# ADR-087 D5a: one season with the players' switches");
+  say();
+  say(`${seeds} seasons per arm (seeds spread-1 to spread-${seeds}, ADR-079 R5's), generated squads, the caller default. ` +
+    "Arms: `off` (today), `development` (growth and aging), `injuries`, `both`. Made by `pnpm --filter @ff/calibration player-checks` " +
+    `with the code fingerprinted \`${fingerprint}\`.`);
+} else {
+  say("# ADR-087 D5a on the stand-in league: one season with the players' switches");
+  say();
+  say(`${seeds} seasons per arm (seeds spread-1 to spread-${seeds}, ADR-079 R5's), the stand-in league of ${standIn.snapshotDate} ` +
+    `(ADR-088; \`${leaguePath}\`, sha256 \`${leagueSha!.slice(0, 12)}\`), every arm in its own season, ${standIn.season}, the caller default. ` +
+    "Arms: `off` (today), `development` (growth and aging), `injuries`, `both`. Growth records and copied injuries come from the file " +
+    "(ADR-087 §2.5, step 1: growth drawn, bodies as rated, injury lengths placeholders); each is read only with its switch. " +
+    "Made by `pnpm --filter @ff/calibration player-checks -- --league <file>` " +
+    `with the code and file fingerprinted \`${fingerprint}\`.`);
+}
 say();
 say("## Win spread (ADR-079 R5)");
 say();
@@ -124,7 +163,9 @@ if (hurt.length > 0) {
       "accidents away from football. Time-loss = costs at least a week. \"Out 4+, begun in season\" counts each player once, by his " +
       "team's games missed before the season ends; \"any onset\" counts regular-season weeks missed whenever the injury began. The real " +
       `"any onset" also holds players hurt before camp (about ${(real.pooled.reserve.pupAtWeek1PerTeamSeason + real.pooled.reserve.nfiAtWeek1PerTeamSeason).toFixed(1)} a team on the PUP and non-football lists at week 1), ` +
-      "whom the sim, which starts healthy at camp, cannot have.");
+      (standIn === undefined
+        ? "whom the sim, which starts healthy at camp, cannot have."
+        : "whom the sim counts apart: the stand-ins hurt at camp are copied from the file and raise no INJURY_OCCURRED (\"Started hurt\" below)."));
     say();
     say("| | Time-loss per team-game | Any cause | Day-to-day per team-game | Short / long / major (of time-loss) | Out 4+, begun in season (per team) | Out 4+, any onset (per team) |");
     say("|---|---|---|---|---|---|---|");
@@ -149,16 +190,64 @@ if (hurt.length > 0) {
   }
   say();
 }
+const GROUP_NAME: Readonly<Record<string, string>> = { "53": "the 53", practice: "practice squad", reserve: "reserve lists", street: "street free agents" };
+if (standIn !== undefined) {
+  const sized = summaries.filter((s) => s.standIn !== undefined);
+  say("## Roster groups (stand-in league)");
+  say();
+  say("Each stand-in's group is his status in the league file at the start: the 53 (active), the practice squad, or a reserve list; " +
+    "\"street\" is the run's street free agents. The injury tables above count the 53 and the street, the people the made-up league's " +
+    "count (it has no practice squad or reserve lists); the tables against the NFL count the 53 and any emergency signing (off the " +
+    "street or called up from the practice squad) only, a signing's injuries under the position he held at camp, even when he was " +
+    "signed to play another. The " +
+    "practice squad's and the reserve lists' injuries are counted here alone, but for a practice-squad player called up to the 53 in an " +
+    "emergency: the tables above count him from his call-up on, as they count a street signing, and here he stays in the practice " +
+    "squad's column. \"Started hurt\" are the players the file copies hurt at " +
+    "camp (ADR-087 §2.5): they raise no INJURY_OCCURRED, so no count above includes them. Starters below are who the engine fields from " +
+    "each team's real depth chart at camp (11 personnel, the base and nickel defences, the specialists: 26 a team), not the made-up " +
+    "league's starters-per-position table, which the real charts do not follow.");
+  say();
+  // Every arm starts from the same file, so the groups' sizes are the same in each.
+  const start = sized[0]?.standIn?.playersPerTeam ?? {};
+  say(`Players per team at camp: ${["53", "practice", "reserve"].map((g) => `${GROUP_NAME[g]} ${(start[g] ?? 0).toFixed(1)}`).join(", ")}.`);
+  say();
+  say("| Arm | Started hurt per team: the 53 / practice / reserve | Injuries per team-season: the 53 / practice / reserve / street | Injuries per player-season: the 53 / practice / reserve |");
+  say("|---|---|---|---|");
+  for (const s of sized) {
+    const x = s.standIn!;
+    const v = (m: Record<string, number>, gs: readonly string[], d = 2) => gs.map((g) => (m[g] ?? 0).toFixed(d)).join(" / ");
+    say(`| ${s.arm} | ${v(x.startedHurtPerTeam, ["53", "practice", "reserve"])} | ${v(x.injuriesPerTeamSeason, ROSTER_GROUPS)} | ${v(x.injuriesPerPlayerSeason, ["53", "practice", "reserve"], 3)} |`);
+  }
+  say();
+  const scaled = sized.filter((s) => s.standIn!.growthScale !== undefined);
+  if (scaled.length > 0) {
+    say("## Growth rates on the 53 at camp (ADR-087 §2.1)");
+    say();
+    say("The rates every season starts from (the file's, the same each season). The made-up league draws them lognormal with median 1 and a " +
+      "log spread of 0.25 (`GROWTH`); step 1 draws the stand-ins' the same way.");
+    say();
+    say("| Arm | n | Median growth | Median of ln(growth) | sd of ln(growth) |");
+    say("|---|---|---|---|---|");
+    for (const s of scaled) {
+      const g = s.standIn!.growthScale!;
+      say(`| ${s.arm} | ${g.n} | ${g.median.toFixed(3)} | ${g.medianLog >= 0 ? "+" : ""}${g.medianLog.toFixed(3)} | ${g.sdLog.toFixed(3)} |`);
+    }
+    say();
+  }
+}
 const grown = summaries.filter((s) => s.arm !== "off");
 if (grown.length > 0) {
   say("## How far players move in a year (position overall, start of camp to the end of the league year)");
   say();
-  say("| Arm | Age | Starters: mean (10th to 90th) | n | Backups: mean (10th to 90th) | n |");
-  say("|---|---|---|---|---|---|");
+  // The stand-in league adds its practice squad and reserve lists (off the 53, so not in the gap below).
+  const roles = standIn === undefined ? ["starter", "backup"] : ["starter", "backup", "practice", "reserve"];
+  const roleName: Readonly<Record<string, string>> = { starter: "Starters", backup: "Backups", practice: "Practice squad", reserve: "Reserve lists" };
+  say(`| Arm | Age | ${roles.map((r) => `${roleName[r]}: mean (10th to 90th) | n`).join(" | ")} |`);
+  say(`|---|---|${roles.map(() => "---|---").join("|")}|`);
   for (const s of grown) {
-    for (const [band, roles] of Object.entries(s.movement).sort()) {
-      const c = (r: string) => { const x = roles[r]; return x ? [`${x.mean >= 0 ? "+" : ""}${n2(x.mean)} (${n2(x.p10)} to ${n2(x.p90)})`, String(x.n)] : ["-", "0"]; };
-      say(`| ${s.arm} | ${band} | ${c("starter").join(" | ")} | ${c("backup").join(" | ")} |`);
+    for (const [band, cells] of Object.entries(s.movement).sort()) {
+      const c = (r: string) => { const x = cells[r]; return x ? [`${x.mean >= 0 ? "+" : ""}${n2(x.mean)} (${n2(x.p10)} to ${n2(x.p90)})`, String(x.n)] : ["-", "0"]; };
+      say(`| ${s.arm} | ${band} | ${roles.map((r) => c(r).join(" | ")).join(" | ")} |`);
     }
   }
   say();
@@ -177,10 +266,15 @@ if (grown.length > 0) {
   say("|---|---|---|---|---|");
   for (const s of grown) {
     const r = s.roster;
-    say(`| ${s.arm} | ${r.emergencySigningsPerSeason.toFixed(1)} | ${r.unsignedRetiredPerSeason.toFixed(1)} | ${r.battlesPerTeamSeason.toFixed(2)} | ${Object.entries(r.depthChangesPerTeamSeason).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(", ")} |`);
+    // The stand-ins call up their own practice squad first: how many of the signings that was.
+    const calledUp = s.standIn === undefined ? "" : ` (${s.standIn.callUpsPerSeason.toFixed(1)} from the practice squad)`;
+    say(`| ${s.arm} | ${r.emergencySigningsPerSeason.toFixed(1)}${calledUp} | ${r.unsignedRetiredPerSeason.toFixed(1)} | ${r.battlesPerTeamSeason.toFixed(2)} | ${Object.entries(r.depthChangesPerTeamSeason).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(", ")} |`);
   }
   say();
 }
-writeFileSync(join(root, "reports", "player-checks.md"), lines.join("\n"));
-writeFileSync(join(root, "reports", "player-checks.json"), JSON.stringify({ seeds, arms, code: fingerprint, summaries }, null, 2));
+const report = standIn === undefined ? "player-checks" : "player-checks-standin";
+writeFileSync(join(root, "reports", `${report}.md`), lines.join("\n"));
+writeFileSync(join(root, "reports", `${report}.json`), JSON.stringify(standIn === undefined
+  ? { seeds, arms, code: fingerprint, summaries }
+  : { seeds, arms, code: fingerprint, league: { file: leaguePath, sha256: leagueSha, snapshotDate: standIn.snapshotDate, season: standIn.season }, summaries }, null, 2));
 console.log(lines.join("\n"));

@@ -1,0 +1,177 @@
+{
+  "seed": "draft-check",
+  "league": "packages/attributes/leagues/standin-2026-10-23.json",
+  "nfl": {
+    "roundOneShare": {
+      "QB": 0.105,
+      "RB": 0.04,
+      "WR": 0.135,
+      "TE": 0.025,
+      "OL": 0.2,
+      "EDGE": 0.137,
+      "IDL": 0.103,
+      "LB": 0.081,
+      "DB": 0.175,
+      "ST": 0
+    },
+    "starterRate": {
+      "1": 0.635,
+      "2": 0.512,
+      "3": 0.41,
+      "4-7": 0.239
+    },
+    "everStarter": {
+      "1": 0.933,
+      "2": 0.802,
+      "3": 0.653,
+      "4-7": 0.341
+    }
+  },
+  "drafts": 20,
+  "roundOneShare": {
+    "QB": 0.0828125,
+    "RB": 0.021875,
+    "WR": 0.1625,
+    "TE": 0.00625,
+    "OL": 0.1890625,
+    "EDGE": 0.1625,
+    "IDL": 0.0921875,
+    "LB": 0.028125,
+    "DB": 0.2546875,
+    "ST": 0
+  },
+  "starterRate": {
+    "1": 0.6810897435897436,
+    "2": 0.49005424954792043,
+    "3": 0.33584229390681003,
+    "4-7": 0.17050398839738942
+  },
+  "everStarter": {
+    "1": 0.8033088235294118,
+    "2": 0.6378676470588235,
+    "3": 0.47549909255898365,
+    "4-7": 0.24654979485266693
+  },
+  "perYear": [
+    {
+      "draft": 2027,
+      "compPicks": 0,
+      "compClubs": 0,
+      "waiverClaims": 2
+    },
+    {
+      "draft": 2028,
+      "compPicks": 32,
+      "compClubs": 20,
+      "waiverClaims": 28
+    },
+    {
+      "draft": 2029,
+      "compPicks": 32,
+      "compClubs": 22,
+      "waiverClaims": 52
+    },
+    {
+      "draft": 2030,
+      "compPicks": 32,
+      "compClubs": 23,
+      "waiverClaims": 54
+    },
+    {
+      "draft": 2031,
+      "compPicks": 32,
+      "compClubs": 20,
+      "waiverClaims": 42
+    },
+    {
+      "draft": 2032,
+      "compPicks": 32,
+      "compClubs": 23,
+      "waiverClaims": 28
+    },
+    {
+      "draft": 2033,
+      "compPicks": 32,
+      "compClubs": 22,
+      "waiverClaims": 40
+    },
+    {
+      "draft": 2034,
+      "compPicks": 32,
+      "compClubs": 22,
+      "waiverClaims": 32
+    },
+    {
+      "draft": 2035,
+      "compPicks": 32,
+      "compClubs": 23,
+      "waiverClaims": 33
+    },
+    {
+      "draft": 2036,
+      "compPicks": 32,
+      "compClubs": 24,
+      "waiverClaims": 37
+    },
+    {
+      "draft": 2037,
+      "compPicks": 32,
+      "compClubs": 20,
+      "waiverClaims": 25
+    },
+    {
+      "draft": 2038,
+      "compPicks": 32,
+      "compClubs": 21,
+      "waiverClaims": 34
+    },
+    {
+      "draft": 2039,
+      "compPicks": 32,
+      "compClubs": 22,
+      "waiverClaims": 36
+    },
+    {
+      "draft": 2040,
+      "compPicks": 32,
+      "compClubs": 20,
+      "waiverClaims": 25
+    },
+    {
+      "draft": 2041,
+      "compPicks": 32,
+      "compClubs": 26,
+      "waiverClaims": 30
+    },
+    {
+      "draft": 2042,
+      "compPicks": 32,
+      "compClubs": 20,
+      "waiverClaims": 35
+    },
+    {
+      "draft": 2043,
+      "compPicks": 32,
+      "compClubs": 27,
+      "waiverClaims": 24
+    },
+    {
+      "draft": 2044,
+      "compPicks": 32,
+      "compClubs": 28,
+      "waiverClaims": 31
+    },
+    {
+      "draft": 2045,
+      "compPicks": 32,
+      "compClubs": 26,
+      "waiverClaims": 23
+    },
+    {
+      "draft": 2046,
+      "compPicks": 32,
+      "compClubs": 21,
+      "waiverClaims": 19
+    }
+  ]
+}

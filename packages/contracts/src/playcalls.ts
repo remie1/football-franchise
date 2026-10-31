@@ -32,6 +32,8 @@
  */
 import type { PlayerId } from "./ids.js";
 import type { RushAlignment } from "./events.js";
+import type { SnapPicture } from "./snap.js";
+import type { Cadence, StemCall } from "./stem.js";
 
 // --- shared vocabulary ------------------------------------------------------
 
@@ -219,6 +221,13 @@ export interface OffensivePlayCall {
    * nothing reads (ADR-072, Implied scope).
    */
   readonly leash?: number;
+  /**
+   * The quarterback's count (ADR-091 petition M1). Asked of the offense's play-caller only on a snap
+   * whose defense wears a stem, once both calls are made, and set on the call the play runs; absent
+   * means a normal count. At ADR-090 step 3 nothing after the snap reads it: the `STEM` event records
+   * it beside the stem it met.
+   */
+  readonly cadence?: Cadence;
 }
 
 // --- the run call -----------------------------------------------------------
@@ -278,6 +287,8 @@ export interface RunPlayCall {
   readonly blocking: readonly RunBlockAssignment[];
   /** Stalk/crack/lead blocks on defenders who are not in a gap (§14.5). */
   readonly perimeter?: readonly SpaceBlockAssignment[];
+  /** The quarterback's count, as on `OffensivePlayCall` (ADR-091 petition M1). */
+  readonly cadence?: Cadence;
 }
 
 export type OffensiveCall = OffensivePlayCall | RunPlayCall;
@@ -573,6 +584,14 @@ export interface DefensivePlayCall {
    * echo: the offence's picture is judged against this list. Physics never reads it.
    */
   readonly shownRush: readonly ShownRusher[];
+  /**
+   * The stem this call wears (ADR-091 petition M2): which stem, and the Mike who calls it. Present
+   * exactly when the call wears the Stem's front `LOOK` tag; the engine resolves this field, never
+   * the tag. The front shown is `shownRush` and the front played is `rush`, so the men it moves are
+   * the ones `shownRush` shows somewhere `rush` does not play them. At ADR-090 step 3 the stem plays
+   * out at the line and is recorded (`STEM`); nothing after the snap reads how it ended.
+   */
+  readonly stem?: StemCall;
 }
 
 // --- what a simulation takes ------------------------------------------------
@@ -580,11 +599,25 @@ export interface DefensivePlayCall {
 export interface PlayCalls {
   readonly offense: OffensivePlayCall;
   readonly defense: DefensivePlayCall;
+  /**
+   * Where every man stands at the snap (ADR-090 petition S5): the picture the caller drew with the
+   * playbook from the two calls it holds. It has to come in on the calls because every beat that
+   * places a man reads a formation, a defender's role or a zone's name, none of which the engine may
+   * see (ADR-006, Iron Rule 1). The engine copies it onto `PLAY_START` (`PlayStartSnap`, S2) and
+   * never builds one itself.
+   *
+   * Absent when the caller drew none (the engine's own default caller has no playbook; a test may
+   * build its calls by hand), and then `PLAY_START` carries none. ADR-090 step 1 reads it nowhere
+   * else: replayed seeds give identical outcomes with it or without it.
+   */
+  readonly snap?: SnapPicture;
 }
 
 export interface RunPlayCalls {
   readonly offense: RunPlayCall;
   readonly defense: DefensivePlayCall;
+  /** As `PlayCalls.snap` (ADR-090 S5). */
+  readonly snap?: SnapPicture;
 }
 
 /**

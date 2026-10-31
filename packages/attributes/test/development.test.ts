@@ -32,12 +32,13 @@ const CLASS_2: GenerateDraftClassInput = { seed: "dev-hash-2", draft: 2031, size
 /**
  * sha256 of each input's whole output (Sets as arrays), computed from the code BEFORE the development
  * option was added (generate.ts and draftClass.ts as of 1ec3e9a). With the option off they must not move.
+ * The two draft-class pins were moved once, on purpose, by ADR-086 D7's prospect retune (PROSPECT_TALENT).
  */
 const BEFORE = {
   league: "faed695b63eb7a2a4f7cc6b48f09849006450adef030b4b7178c0a81de9d2b5c",
   league2: "b1f29101c82b5584806eb4db77038c5bf5e72ba3c312959f53d4a5b684cfd0e0",
-  draftClass: "2d5e38386aaae29e78965e814cd8520c6adc60504c8f5ffb0e6f72794a34abdc",
-  draftClass2: "791a9bd3efdd5bd4df2806ac732fb13caf1e88c952e85cb989c18c34ece13fb9",
+  draftClass: "1c308980e9b7de987fe57ee23065525acf9157ce716e9b95f0518f0effdbd7f5",
+  draftClass2: "05931e4f055edca36ad25118c485e05ecef54de6fa9322c368bdef328169ec25",
 } as const;
 
 /** A player with ADR-087's new fields taken off: what the development option adds, removed. */

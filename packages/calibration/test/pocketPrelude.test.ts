@@ -34,8 +34,11 @@ const stream: readonly MatchEventEnvelope[] = [
 describe("ADR-089 step 0: the digest helpers", () => {
   it("gameDigest is stableDigest of {at, event}; gameBytesDigest is FNV-1a over its JSON; foldDigests is stableDigest", () => {
     const list = stream.map((e) => ({ at: e.at, event: e.event }));
-    expect(gameDigest(stream)).toBe(stableDigest(list));
-    expect(gameBytesDigest(stream)).toBe(fnv1a(JSON.stringify(list)));
+    expect(gameDigest(stream, [])).toBe(stableDigest(list));
+    expect(gameBytesDigest(stream, [])).toBe(fnv1a(JSON.stringify(list)));
+    // With no strip named, the digests apply GOLDEN_STRIP (ADR-090 step 1's snap picture).
+    expect(gameDigest(stream)).toBe(gameDigest(stream, GOLDEN_STRIP));
+    expect(gameBytesDigest(stream)).toBe(gameBytesDigest(stream, GOLDEN_STRIP));
     expect(foldDigests(["fnv1a:00000001", "fnv1a:00000002"])).toBe(stableDigest(["fnv1a:00000001", "fnv1a:00000002"]));
   });
 
@@ -50,9 +53,47 @@ describe("ADR-089 step 0: the digest helpers", () => {
     expect(gameBytesDigest(reordered)).not.toBe(gameBytesDigest(stream));
   });
 
-  it("the strip list is empty at step 0: only a named ADR's own commit adds an entry (K11)", () => {
-    expect(GOLDEN_STRIP).toEqual([]);
+  it("the strip list holds ADR-090 step 1's snap picture and step 3's records at the line: a named ADR's own commit adds an entry (K11)", () => {
+    expect(GOLDEN_STRIP).toEqual([
+      { adr: "ADR-090", path: "PLAY_START.payload.snap" },
+      { adr: "ADR-091", event: "STEM" },
+      { adr: "ADR-091", event: "CHECK", checkKind: "stem_timing" },
+      { adr: "ADR-091", event: "CHECK", checkKind: "stem_shift" },
+      { adr: "ADR-091", event: "CHECK", checkKind: "snap_on_movement" },
+      { adr: "ADR-091", event: "CHECK", checkKind: "communication" },
+      { adr: "ADR-092", event: "SIDELINE_ADJUSTMENT" },
+      { adr: "ADR-092", event: "CHECK", checkKind: "adjustment_notice" },
+      { adr: "ADR-092", event: "CHECK", checkKind: "adjustment_read" },
+      { adr: "ADR-092", event: "CHECK", checkKind: "habit_drop" },
+    ]);
     expect(Object.isFrozen(GOLDEN_STRIP)).toBe(true);
+    expect(GOLDEN_STRIP.every((entry) => Object.isFrozen(entry))).toBe(true);
+  });
+
+  it("a whole-event entry leaves its events out, a CHECK only of its kind, without touching the input", () => {
+    const atTheLine: readonly MatchEventEnvelope[] = [
+      stream[0]!,
+      env({ type: "SIDELINE_ADJUSTMENT", gameId: "g", playId: "g:p1", payload: { kind: "FILM_READ" } }),
+      env({ type: "CHECK", gameId: "g", playId: "g:p1", payload: { checkKind: "stem_timing" } }),
+      env({ type: "STEM", gameId: "g", playId: "g:p1", payload: { kind: "STEM" } }),
+      env({ type: "CHECK", gameId: "g", playId: "g:p1", payload: { checkKind: "pass_rush_tick" } }),
+      ...stream.slice(1),
+    ];
+    const before = structuredClone(atTheLine);
+    const strip = [
+      { adr: "ADR-091", event: "STEM" },
+      { adr: "ADR-091", event: "CHECK", checkKind: "stem_timing" },
+      { adr: "ADR-092", event: "SIDELINE_ADJUSTMENT" },
+    ];
+    const kept = goldenStream(atTheLine, strip).map((e) => (e.event as { type: string }).type);
+    expect(kept).toEqual(["PLAY_START", "CHECK", "TICK", "POCKET_STATUS"]);
+    expect((goldenStream(atTheLine, strip)[1]!.event as { payload: { checkKind: string } }).payload.checkKind).toBe("pass_rush_tick");
+    const plain = [stream[0]!, atTheLine[4]!, ...stream.slice(1)];
+    expect(gameDigest(atTheLine, strip)).toBe(gameDigest(plain, []));
+    expect(gameBytesDigest(atTheLine, strip)).toBe(gameBytesDigest(plain, []));
+    expect(atTheLine).toEqual(before);
+    // GOLDEN_STRIP takes off the records at the line and the picture together.
+    expect(gameDigest(atTheLine)).toBe(gameDigest(plain));
   });
 
   it("a strip entry removes its field from its event type only, without touching the input", () => {
@@ -65,11 +106,11 @@ describe("ADR-089 step 0: the digest helpers", () => {
     });
     expect(gameDigest(stream, strip)).toBe(gameDigest(withoutSnap));
     expect(gameBytesDigest(stream, strip)).toBe(gameBytesDigest(withoutSnap));
-    expect(gameDigest(stream, strip)).not.toBe(gameDigest(stream));
+    expect(gameDigest(stream, strip)).not.toBe(gameDigest(stream, []));
     expect((goldenStream(stream, strip)[2]!.event as { payload: { snap: string } }).payload.snap).toBe("kept");
     expect(stream).toEqual(before);
     // An entry naming a field the event lacks changes nothing.
-    expect(gameDigest(stream, [{ adr: "ADR-090", path: "TICK.payload.snap" }])).toBe(gameDigest(stream));
+    expect(gameDigest(stream, [{ adr: "ADR-090", path: "TICK.payload.snap" }])).toBe(gameDigest(stream, []));
   });
 
   it("the fixture is stamped with the tree its pins were measured at (review NPC-N1)", () => {
@@ -90,6 +131,13 @@ describe("ADR-089 step 0: the digest helpers", () => {
     expect(() => gameDigest(stream, [{ adr: "someone", path: "PLAY_START.payload.snap" }])).toThrow(/name its ADR/);
     expect(() => gameDigest(stream, [{ adr: "ADR-090", path: "PLAY_START" }])).toThrow(/EVENT_TYPE/);
     expect(() => gameDigest(stream, [{ adr: "ADR-090", path: "PLAY_START..snap" }])).toThrow(/EVENT_TYPE/);
+  });
+
+  it("refuses a whole-event entry with no ADR, a bad type, every CHECK, or a CHECK kind on another type", () => {
+    expect(() => gameDigest(stream, [{ adr: "ADR91", event: "STEM" }])).toThrow(/name its ADR/);
+    expect(() => gameDigest(stream, [{ adr: "ADR-091", event: "stem" }])).toThrow(/EVENT_TYPE/);
+    expect(() => gameDigest(stream, [{ adr: "ADR-091", event: "CHECK" }])).toThrow(/must name its checkKind/);
+    expect(() => gameDigest(stream, [{ adr: "ADR-091", event: "STEM", checkKind: "stem_timing" }])).toThrow(/CHECK events only/);
   });
 });
 

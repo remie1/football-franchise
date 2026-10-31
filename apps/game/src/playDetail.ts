@@ -1,7 +1,7 @@
 /**
- * PLAY DETAIL — what happened under the hood on one snap: the two calls as called, what the
- * defence showed against what it played, the pre-snap reads, the pocket tick by tick, and every
- * roll of the dice.
+ * PLAY DETAIL — what happened under the hood on one snap: where every man stood at the snap, the
+ * two calls as called, what the defence showed against what it played, the pre-snap reads, the
+ * pocket tick by tick, and every roll of the dice.
  *
  * A renderer like the play log: every fact is an event's, read and worded. PLAY_START is
  * `unknown` in contracts, so the calls are read defensively and a field the stream lacks is left
@@ -10,6 +10,7 @@
  */
 import type { MatchEvent, RollDetail } from "@ff/contracts";
 import { nameOf, type GameFile } from "./gameFile.js";
+import { readSnapPicture, type SnapDiagram } from "./snapPicture.js";
 import { gapWords, sentenceCase } from "./words.js";
 
 export interface DetailFact {
@@ -51,6 +52,8 @@ export interface DiceRow {
 }
 
 export interface PlayDetail {
+  /** Where every man stood at the snap (ADR-090 step 1). Absent in a file made before it. */
+  readonly snap?: SnapDiagram;
   readonly offense: readonly DetailFact[];
   readonly defense: readonly DetailFact[];
   /** Defenders who showed one job and played another. Empty when the look was honest. */
@@ -339,7 +342,9 @@ export function buildPlayDetail(file: GameFile, playId: string): PlayDetail {
     if (text !== undefined) timeline.push({ tick, text });
   }
 
+  const snap = readSnapPicture(file, payload?.snap);
   return {
+    ...(snap === undefined ? {} : { snap }),
     offense: offenseFacts(file, kind, offense),
     defense: defenseFacts(file, defense),
     disguise: disguiseRows(file, defense),

@@ -133,7 +133,7 @@ describe("the year turns over, and cut-down day (ADR-086 §2, §8)", () => {
 
   it("records the cuts and any waiver claims as events", () => {
     const released = year2.events.filter((e) => e.event.type === "PLAYER_RELEASED").length;
-    expect(released).toBeGreaterThan(32 * 20);
+    expect(released).toBeGreaterThan(32 * 15); // about 20 a team: from the offseason roster down to 53
     for (const e of year2.events.filter((e) => e.event.type === "WAIVER_CLAIMED")) {
       const { from, to } = (e.event as { payload: { from: TeamId; to: TeamId } }).payload;
       expect(from).not.toBe(to);
@@ -168,14 +168,17 @@ describe("the draft's money (ADR-086 §8 with ADR-085)", () => {
     for (const c of udfa) expect(c.years.map((y) => y.season)).toEqual([2027, 2028, 2029]);
   });
 
-  it("gives everyone on a 53 at the season's end a credited season, and no prospect one", () => {
+  it("gives everyone on a 53 at the season's end a credited season, and every rookie none", () => {
     for (const t of year1.people!.teams) for (const id of t.roster) {
       const p = year1.people!.players.find((q) => q.bio.id === id)!;
       if (p.bio.draft === "UDFA" || (typeof p.bio.draft === "object" && p.bio.draft.year === 2027)) continue;
       const d = p.bio.draft as { year: number };
       expect(p.bio.creditedSeasons).toBe(2026 - d.year + 1);
     }
-    for (const p of year1.people!.players) if (typeof p.bio.draft === "object" && p.bio.draft.year === 2027) expect(p.bio.creditedSeasons).toBeUndefined();
+    // Rookies sign with none, undrafted ones too, whatever their age.
+    for (const p of year1.people!.players) if ((typeof p.bio.draft === "object" && p.bio.draft.year === 2027) || String(p.bio.id).startsWith("d2027-")) {
+      if (p.teamId !== undefined) expect(p.bio.creditedSeasons).toBe(0);
+    }
   });
 
   it("on cut-down day ends the cut players' deals, charges a cut draftee's bonus as dead money, and signs practice squads", () => {
@@ -332,5 +335,73 @@ describe("runSeason's draft option: seasons back to back (ADR-086 D6)", () => {
     expect(two.people!.players.some((p) => typeof p.bio.draft === "object" && p.bio.draft.year === 2028)).toBe(true);
     const cut = two.events.find((e) => e.event.type === "WAIVER_CLAIMED" || e.event.type === "PLAYER_RELEASED");
     expect(cut?.at.phase).toBe("PRESEASON");
+  });
+});
+
+describe("the book stays straight over three years (review fixes)", () => {
+  const draft = { rate, makeClass };
+  const y1 = runSeason({ league, season: 2026, seed: "s", resolve: fake, people: startingPeople(), draft, through: "YEAR" });
+  const y2 = runSeason({ league, season: 2027, seed: "s", resolve: fake, people: y1.people!, draft, through: "YEAR" });
+  const cutDay = { season: 2028, phase: "PRESEASON" as const, week: 3, day: 2 };
+  const y3 = runSeason({ league, season: 2028, seed: "s", resolve: fake, people: y2.people!, draft, through: "YEAR", stopAfter: cutDay });
+  const people = y3.people!;
+  const open2028 = (id: unknown) => people.contracts!.filter((c) => String(c.player) === String(id) && !c.ended && c.years.some((y) => y.season === 2028));
+
+  it("gives each man at most one live deal, with his own team; free agents none", () => {
+    for (const t of people.teams) for (const id of [...t.roster, ...t.practiceSquad!]) {
+      const deals = open2028(id);
+      expect(deals.length).toBeLessThanOrEqual(1);
+      for (const d of deals) expect(d.team).toBe(t.id);
+    }
+    for (const id of people.freeAgents) expect(open2028(id)).toHaveLength(0);
+  });
+
+  it("lists free agents in the players' order, as a loaded save does", () => {
+    const order = new Map(people.players.map((p, i) => [String(p.bio.id), i]));
+    const idx = people.freeAgents.map((id) => order.get(String(id))!);
+    expect([...idx].sort((a, b) => a - b)).toEqual(idx);
+  });
+});
+
+describe("cut-down day keeps a practice squad the league starts with (review fix)", () => {
+  // Week 3 day 2 of the preseason, with no draft: every team already carries a squad of three.
+  const base = startingPeople();
+  const extra: PlayerState[] = [];
+  const teams = base.teams.map((t) => {
+    const squad = [0, 1, 2].map((i) => player(`${String(t.id)}-ps-${i}`, "WR", 40, 23, t.id, "UDFA"));
+    extra.push(...squad);
+    return { ...t, practiceSquad: squad.map((p) => p.bio.id) };
+  });
+  const people: LeaguePeople = { ...base, teams, players: [...base.players, ...extra] };
+  const cutDay = { season: 2026, phase: "PRESEASON" as const, week: 3, day: 2 };
+  const run = runSeason({ league, season: 2026, seed: "s", resolve: fake, people, daySteps: steps, through: "YEAR", stopAfter: cutDay });
+
+  it("leaves those men on their squads", () => {
+    for (const t of run.people!.teams) for (const p of extra.filter((q) => q.teamId === t.id)) expect(t.practiceSquad).toContain(p.bio.id);
+  });
+});
+
+describe("draft day keeps rosters at 90 (review fix)", () => {
+  // One team comes to the draft with 88 men: its picks would take it past 90.
+  const base = startingPeople();
+  const t0 = base.teams[0]!;
+  const extra = Array.from({ length: 35 }, (_, i) => player(`${String(t0.id)}-x-${i}`, "ILB", 45 + (i % 10), 26, t0.id, "UDFA"));
+  const people: LeaguePeople = {
+    ...base, players: [...base.players, ...extra],
+    teams: base.teams.map((t) => (t.id === t0.id ? { ...t, roster: [...t.roster, ...extra.map((p) => p.bio.id)] } : t)),
+  };
+  const run = runSeason({ league, season: 2026, seed: "s", resolve: fake, people, draft: { rate, makeClass }, through: "YEAR" });
+  const after = run.people!.teams.find((t) => t.id === t0.id)!;
+  const draftees = run.events.filter((e) => e.event.type === "DRAFT_PICK_MADE" && (e.event as { payload: { team: TeamId } }).payload.team === t0.id)
+    .map((e) => String((e.event as { payload: { player: unknown } }).payload.player));
+
+  it("cuts its weakest veterans, never a new pick", () => {
+    expect(after.roster.length).toBeLessThanOrEqual(90);
+    for (const id of draftees) expect(after.roster.map(String)).toContain(id);
+    expect(run.people!.freeAgents.map(String)).toContain(String(extra[0]!.bio.id));
+  });
+
+  it("leaves every team at 90 or fewer", () => {
+    for (const t of run.people!.teams) expect(t.roster.length).toBeLessThanOrEqual(90);
   });
 });

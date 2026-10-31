@@ -17,7 +17,7 @@
 import {
   createRng,
   type Authority, type CalendarStamp, type Decision, type FranchiseEvent, type FranchiseEventEnvelope,
-  type PlayerState, type RelationshipView, type StaffContract, type StaffDepartureReason, type StaffId, type StaffJob,
+  type PlayerState, type RelationshipParty, type RelationshipView, type StaffContract, type StaffDepartureReason, type StaffId, type StaffJob,
   type StaffState, type Team, type TeamId,
 } from "@ff/contracts";
 import {
@@ -33,6 +33,9 @@ import {
 } from "./world.js";
 import { checkViews, syncViews, type LedgerStep, type RelationshipContext } from "../relationships/ledger.js";
 import { applyExtension, applyFiring, applyHire, applySeasonResults } from "../relationships/staffMoves.js";
+import { bossOf, viewKey, wordFor } from "../relationships/ledger.js";
+import { RELATIONSHIP_TUNING } from "../relationships/tables.js";
+import { STYLE_MATCH } from "./tables.js";
 
 export type StaffDecisionType = "HIRE_STAFF" | "FIRE_STAFF" | "EXTEND_STAFF" | "LET_CONTRACT_EXPIRE";
 export type StaffDecision = Decision<StaffDecisionType, { team: TeamId; staff: StaffId; seat: Seat }>;
@@ -51,6 +54,8 @@ export interface StaffMove {
   source?: HireSource;
   /** Coordinator hires: worked under the head coach who hired him, or under the same mentor. */
   tree?: boolean;
+  /** ADR-084 §7.1: he refused a new contract (his contract ran out by his choice, not the team's). */
+  walked?: boolean;
 }
 
 export interface StaffOffseasonInput {
@@ -69,7 +74,15 @@ export interface StaffOffseasonInput {
    * ADR-084: every staff's views (from `seatRelationships`, then carried week to week), to move with
    * the offseason. Absent: no views are kept, and nothing else changes.
    */
-  relationships?: { views: readonly RelationshipView[]; context?: RelationshipContext };
+  relationships?: {
+    views: readonly RelationshipView[];
+    context?: RelationshipContext;
+    /**
+     * ADR-084 §7.1: read the views to decide who stays (default). False carries them along without
+     * reading them, as before L2b: the carousel then decides exactly as without views.
+     */
+    read?: boolean;
+  };
 }
 
 export interface StaffOffseasonResult {
@@ -82,6 +95,8 @@ export interface StaffOffseasonResult {
   relationships?: RelationshipView[];
 }
 
+/** The president and (ADR-081 G1) the GM: fixed in v1, never hired, fired, retired or aged by the carousel. */
+const frontOffice = (s: StaffState): boolean => s.role === "PRESIDENT" || s.role === "GM";
 const authorityFor = (seat: Seat): Authority => (seat === "HEAD_COACH" ? "PRESIDENT" : "COACH");
 
 /** Chance a coach of this age retires this year. */
@@ -123,13 +138,16 @@ export interface CoordinatorVerdict {
   politics: number;
   /** His head coach barely survived the president (§6). */
   scapegoat: boolean;
+  /** ADR-084 §7.1: the head coach's view of him, when views are kept. Absent counts as 0. */
+  opinion?: number;
 }
 
 /** A continuing head coach's chance of firing a coordinator (§6). */
 export function coordinatorFireChance(v: CoordinatorVerdict): number {
   const t = STAFF_TUNING;
   return logistic(t.coordFireBase + t.coordFireUnitRank * (v.unitPct - 0.5) + (v.scapegoat ? t.coordScapegoat : 0)
-    - (v.seasonsInJob <= 1 ? t.coordHoneymoon : 0) - t.politicsShield * (v.politics - 50) / 25);
+    - (v.seasonsInJob <= 1 ? t.coordHoneymoon : 0) - t.politicsShield * (v.politics - 50) / 25
+    - RELATIONSHIP_TUNING.fireOpinionPerPoint * (v.opinion ?? 0));
 }
 
 export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonResult {
@@ -213,7 +231,7 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
   };
 
   /** He leaves his league seat. FIRED keeps his salary on the books (dead money); the rest stop it. */
-  const depart = (s: StaffState, team: Team, seat: Seat, reason: StaffDepartureReason) => {
+  const depart = (s: StaffState, team: Team, seat: Seat, reason: StaffDepartureReason, walked = false) => {
     const job = currentJob(s)!;
     job.lastSeason = played;
     job.ended = reason;
@@ -224,16 +242,40 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     }
     vacate(s, team);
     emit(DEPART_AT, { type: "STAFF_DEPARTED", payload: { staff: s.id, team: team.id, reason } });
-    moves.push({ season: played, team: team.id, seat, staff: s.id, kind: "DEPARTED", reason });
+    moves.push({ season: played, team: team.id, seat, staff: s.id, kind: "DEPARTED", reason, ...(walked ? { walked } : {}) });
     if (reason === "FIRED") decide(DEPART_AT, "FIRE_STAFF", team, s, seat);
-    if (reason === "CONTRACT_EXPIRED") decide(DEPART_AT, "LET_CONTRACT_EXPIRE", team, s, seat);
+    if (reason === "CONTRACT_EXPIRED" && !walked) decide(DEPART_AT, "LET_CONTRACT_EXPIRE", team, s, seat);
     if (views) {
-      if (reason === "FIRED" || reason === "CONTRACT_EXPIRED") take(applyFiring(views, world, team.id, seat, s.id, DEPART_AT, ctx, events.length));
+      if (reason === "FIRED" || (reason === "CONTRACT_EXPIRED" && !walked)) take(applyFiring(views, world, team.id, seat, s.id, DEPART_AT, ctx, events.length));
       views = syncViews(views, world, ctx);
     }
   };
 
+  /** ADR-084 §7.1: one view's score, when views are kept and it exists. */
+  const reads = input.relationships?.read !== false;
+  const viewOf = (from: StaffId, of: RelationshipParty | undefined): number | undefined => {
+    if (!views || !reads || !of) return undefined;
+    const key = viewKey(from, of);
+    return views.find((v) => viewKey(v.from, v.of) === key)?.score;
+  };
+  /**
+   * ADR-084 §7.1 (Q1 b): a coordinator whose contract is up may refuse a new one when he is strained
+   * or broken with his boss, and goes into the open market. Head coaches never walk (their boss, the
+   * president, holds no views yet).
+   */
+  const walks = (s: StaffState, team: Team, seat: Seat): boolean => {
+    if (seat === "HEAD_COACH") return false;
+    const score = viewOf(s.id, bossOf(world, team.id, seat, ctx));
+    if (score === undefined) return false;
+    const p = RELATIONSHIP_TUNING.walkChance[wordFor(score)] ?? 0;
+    return p > 0 && createRng(seed, `franchise:staff/walk/${played}/${String(team.id)}/${seat}`).next() < p;
+  };
+
   const extend = (s: StaffState, team: Team, seat: Seat) => {
+    if (walks(s, team, seat)) {
+      depart(s, team, seat, "CONTRACT_EXPIRED", true);
+      return;
+    }
     const c = contractOf(s, team.id)!;
     c.lastSeason += t.extensionYears[seat];
     c.salary = Math.round(c.salary * t.extensionRaise / 10_000) * 10_000;
@@ -259,7 +301,7 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
 
   // ---- 2. Retirement. ----------------------------------------------------------------------------
   for (const s of world.staff) {
-    if (isRetired(s) || s.role === "PRESIDENT") continue;
+    if (isRetired(s) || frontOffice(s)) continue;
     let p = retireChance(s.age);
     if (seasonsOutOfWork(s, played) >= t.outOfWorkYearsToDrift) p = Math.max(p, t.outOfWorkDrift);
     if (createRng(seed, `franchise:staff/retire/${played}/${String(s.id)}`).next() >= p) continue;
@@ -313,6 +355,7 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
       const p = coordinatorFireChance({
         seat, unitPct: u, seasonsInJob: currentJob(s)!.seasons.length,
         politics: rating(s.attributes, "politics"), scapegoat: seat !== "STC" && scapegoat,
+        ...(() => { const o = viewOf(holder(team, "HEAD_COACH")!.id, { staff: s.id }); return o === undefined ? {} : { opinion: o }; })(),
       });
       judge(s, team, seat, p, seat);
     }
@@ -336,7 +379,8 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     return "OUT_OF_WORK";
   };
 
-  let made = world.staff.length;
+  // GMs (ADR-081 G1) carry their own ids, so new coaches are numbered as before they came.
+  let made = world.staff.filter((s) => s.role !== "GM").length;
   const taken = new Set(world.staff.map((s) => s.displayName));
   const addCoach = (cohort: Cohort, label: string) => {
     const s = makeCoach(createRng(seed, `franchise:staff/new/${played}/${label}`), made++, cohort, taken);
@@ -391,7 +435,7 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     moves.push(move);
   };
 
-  const available = (s: StaffState) => !isRetired(s) && s.role !== "PRESIDENT";
+  const available = (s: StaffState) => !isRetired(s) && !frontOffice(s);
   // Reputation does not move during one offseason's hiring (résumés gain seasons only in step 1).
   const reputationMemo = new Map<string, number>();
   const standing = (s: StaffState, seat: Seat) => {
@@ -443,7 +487,9 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
       const r = results3(team);
       const third = seat === "OC" ? r.offenseRank : seat === "DC" ? r.defenseRank : undefined;
       const unit = third === undefined ? 0 : third <= teamCount / 3 ? 1 : third > (2 * teamCount) / 3 ? -1 : 0;
-      const keep = t.newHcKeepBase + (inTree(s, hc) ? t.newHcKeepTree : 0) + unit * t.newHcKeepGoodUnit;
+      // ADR-084 §7.1 (Q3 a): with views kept, how his style sits with the new man moves it a little.
+      const fit = views && reads ? RELATIONSHIP_TUNING.keepFitPerUnit * STYLE_MATCH[s.personalityType][hc.personalityType] : 0;
+      const keep = t.newHcKeepBase + (inTree(s, hc) ? t.newHcKeepTree : 0) + unit * t.newHcKeepGoodUnit + fit;
       if (createRng(seed, `franchise:staff/keep/${played}/${String(team.id)}/${seat}`).next() >= keep) {
         depart(s, team, seat, "FIRED");
       } else if (contractOf(s, team.id)?.lastSeason === played) {
@@ -535,8 +581,8 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     }
   }
 
-  // ---- 10. A year older (presidents are fixed in v1). --------------------------------------------
-  for (const s of world.staff) if (!isRetired(s) && s.role !== "PRESIDENT") s.age += 1;
+  // ---- 10. A year older (presidents and GMs are fixed in v1). ------------------------------------
+  for (const s of world.staff) if (!isRetired(s) && !frontOffice(s)) s.age += 1;
   world.season = next;
 
   return { world, events, decisions, moves, ...(views ? { relationships: views } : {}) };

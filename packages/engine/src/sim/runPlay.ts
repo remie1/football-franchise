@@ -92,6 +92,9 @@ export function simulateRunPlay(
 
   log.setTick(undefined);
   log.playStart(buildStartPayload(tunables, state, calls));
+  // ADR-091 step S-a: the sideline's adjustments and the stem at the line, as the game loop resolved
+  // them (legacy rules only); nothing below reads them.
+  log.atTheLine(state.atTheLine);
 
   // ---- PHASE 1 (§14.2 / §6.3 / §6.2) --------------------------------------
   log.tickStart(phases.lineBattle);
@@ -390,6 +393,8 @@ function buildStartPayload(
       ballOn: state.ballOn,
       clockSeconds: state.clockSeconds,
     },
+    // ADR-090 S2 and S5, as the pass payload copies it: the last key, read by nothing in the run sim.
+    ...(calls.snap === undefined ? {} : { snap: calls.snap }),
   };
 }
 

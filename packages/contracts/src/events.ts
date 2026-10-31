@@ -9,6 +9,8 @@ import type { DraftPickKind, GameKind, GameResult, PlayoffBracket } from "./leag
 import type { StaffRole, ContractKind, InjuryBand, InjurySetting } from "./players.js";
 import type { StaffDepartureReason } from "./staff.js";
 import type { RelationshipParty, RelationshipWord } from "./relationships.js";
+import type { MeetingPoint, StaffMeeting, TeamDirection } from "./meeting.js";
+import type { SidelineAdjustmentPayload, StemPayload } from "./stem.js";
 
 export interface RollModifier {
   source: string;
@@ -144,7 +146,28 @@ export type CheckKind =
   | "catch" | "contested_catch" | "deflection_quality" | "deflection_recovery"
   | "yac_tackle" | "downfield_block" | "breakaway"
   | "rb_vision" | "gap_battle" | "pursuit_angle" | "tackle" | "break_tackle"
+  /**
+   * `communication`'s first producer is the center's re-call of an early stem (ADR-091 §5.5, petition
+   * M3): `d100 + Center's Awareness ÷ 5 + the offensive line's average Awareness ÷ 5` against `45 +
+   * noise`, rolled only on an early stem the quarterback did not snap on, on a pass. `penalty_check`
+   * gets its first producer with ADR-091's step S-c (defensive offside).
+   */
   | "communication" | "snap_jump" | "fumble" | "penalty_check"
+  /**
+   * ADR-091 petition M3, the stem at the line (§5.2 to §5.4): the Mike's timing (`stem_timing`), a
+   * moved lineman's shift on an on-time stem (`stem_shift`) and the quarterback's snap on movement
+   * on an early one (`snap_on_movement`). Each is rolled only when it decides something (ADR-005);
+   * the `STEM` event names the timing roll by `rollRef`.
+   */
+  | "stem_timing" | "stem_shift" | "snap_on_movement"
+  /**
+   * ADR-092 petition R4, the sideline's rolls in the battle over the snap count (§5.4): the
+   * offensive coordinator seeing a stem work against him (`adjustment_notice`), the defensive
+   * coordinator reading his change of count (`adjustment_read`, the opposed check of
+   * `coaching-staff.md`) and the quarterback dropping his habit (`habit_drop`).
+   * `SIDELINE_ADJUSTMENT` names them by `rollRef`.
+   */
+  | "adjustment_notice" | "adjustment_read" | "habit_drop"
   /** Special teams (ADR-014 item 12) — so ADR-004's roll accounting has no exception it did not choose. */
   | "coin_toss" | "field_goal" | "punt" | "kick_return";
 
@@ -261,6 +284,11 @@ export interface GameEventBase {
 }
 
 export type MatchEvent =
+  /**
+   * The payload is the engine's own shape (ADR-013), all but one field: `snap`, where every man
+   * stands at the snap, is stated here as `PlayStartSnap` (ADR-090 petition S2). A reader narrows
+   * the payload to that type to read it.
+   */
   | ({ type: "PLAY_START"; payload: unknown } & MatchEventBase)
   | ({ type: "PRESNAP_READ"; payload: {
         actor: PlayerId; kind: CheckKind; roll: RollDetail; target: number; tier: ResultTier;
@@ -270,6 +298,17 @@ export type MatchEvent =
          *  re-derived band desyncs silently the first time calibration moves a boundary. */
         band?: string;
       } } & MatchEventBase)
+  /**
+   * ADR-092 petition R3: what moved one defense's read of one offense's count between snaps, in
+   * the stream of the snap where it first counts, right after `PLAY_START` (`stem.ts`).
+   */
+  | ({ type: "SIDELINE_ADJUSTMENT"; payload: SidelineAdjustmentPayload } & MatchEventBase)
+  /**
+   * ADR-091 petition M4, with ADR-092's R2: the stem at the line, one per snap whose defense wears
+   * one, after the play's sideline adjustments (`stem.ts`). At ADR-090 step 3 nothing after the snap
+   * reads it.
+   */
+  | ({ type: "STEM"; payload: StemPayload } & MatchEventBase)
   | ({ type: "TICK"; payload: { tick: number } } & MatchEventBase)
   | ({ type: "CHECK"; payload: (
         | { checkKind: CheckKind; roll: RollDetail }
@@ -707,6 +746,12 @@ export type FranchiseEvent =
         after: RelationshipWord;
         rift?: "OPENED" | "REPAIRED";
       } }
+  /** ADR-081 G2: a team's end-of-season meeting, every take with its hidden grade. */
+  | { type: "STAFF_MEETING_HELD"; payload: { meeting: StaffMeeting } }
+  /** ADR-081 G2: the user asked a man "how sure are you?" about one point; `certainty` is his answer. */
+  | { type: "MEETING_CERTAINTY_ASKED"; payload: { team: TeamId; season: number; speaker: StaffId; point: MeetingPoint; certainty: number } }
+  /** ADR-081 G3: a team's course set (or changed). */
+  | { type: "TEAM_DIRECTION_SET"; payload: { team: TeamId; season: number; direction: TeamDirection; authority: "COACH" | "GM" | "PRESIDENT" } }
   | { type: "AWARD_GIVEN"; payload: { award: string; subject: PlayerId | StaffId } }
   /** ADR-078 C6: widened to carry the teams; nothing emitted the old shape. */
   | { type: "GAME_COMPLETED"; payload: { result: GameResult; kind: GameKind } }

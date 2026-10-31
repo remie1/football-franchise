@@ -19,12 +19,12 @@ import {
   type SaveFile, type SeasonState, type TeamId,
 } from "@ff/contracts";
 import { earnsCreditedSeason } from "../cap/signings.js";
-import { leagueYear } from "../cap/money.js";
+import { leagueYear, liveIn } from "../cap/money.js";
 import { isDay, type DayStep, type LeaguePeople } from "../season/people.js";
 import type { Rate } from "./board.js";
 import { compensatoryPicks, type FreeAgentMove } from "./compensatory.js";
 import { runCutdown, seasonsIn, type CoachLean } from "./cutdown.js";
-import { flatCap, signFuture, type CapForSeason } from "./money.js";
+import { endSquadDeal, flatCap, signFuture, type CapForSeason } from "./money.js";
 import { runDraftDay } from "./draftDay.js";
 import { draftOrder, draftPicks, settleConditions } from "./order.js";
 
@@ -160,7 +160,7 @@ export interface TurnYearOptions {
 
 /**
  * Between seasons: everyone a year older; last year's practice squads rejoin the offseason roster,
- * each on a one-year minimum reserve/future deal (signed when `next` says which season).
+ * each on a one-year minimum reserve/future deal in place of his squad deal (when `next` says which season).
  */
 export function turnYear(people: LeaguePeople, next?: TurnYearOptions): { people: LeaguePeople; events: FranchiseEvent[] } {
   const players = people.players.map((p) => ({ ...p, bio: { ...p.bio, age: p.bio.age + 1 } }));
@@ -175,6 +175,7 @@ export function turnYear(people: LeaguePeople, next?: TurnYearOptions): { people
       const p = byId.get(String(id))!;
       depthChart[p.bio.position] = [...(depthChart[p.bio.position] ?? []), id];
       if (next && at) {
+        endSquadDeal(contracts, p.bio.id, at);
         const { contract, event } = signFuture(p, t.id, next.season, at, next.cap ?? flatCap(next.rules));
         contracts.push(contract);
         events.push(event);
@@ -206,7 +207,7 @@ export function movesFromPeople(
     const share = snapShare?.(m.player, season);
     return share === undefined ? m : { ...m, snapShare: share };
   });
-  const leagueApys = (people.contracts ?? []).filter((c) => c.years.some((y) => y.season === season)).map(averagePerYear);
+  const leagueApys = (people.contracts ?? []).filter((c) => liveIn(c, season)).map(averagePerYear);
   return { moves, leagueApys };
 }
 
@@ -233,7 +234,7 @@ export function peopleFromSave(save: SaveFile): LeaguePeople {
     picks: w.draft?.picks ?? [],
     classes: w.draft?.classes ?? [],
     freeAgents: w.players.filter((p) => p.teamId === undefined && p.bio.draft !== "PROSPECT").map((p) => p.bio.id),
-    ...(w.contracts.length > 0 ? { contracts: w.contracts } : {}),
+    contracts: w.contracts,
     ...(w.deadMoney?.length ? { deadMoney: w.deadMoney } : {}),
     ...(w.draft?.freeAgentMoves.length ? { freeAgentMoves: w.draft.freeAgentMoves } : {}),
     ...(w.staff.length > 0 ? { staff: w.staff } : {}),

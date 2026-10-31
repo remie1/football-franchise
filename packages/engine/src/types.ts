@@ -23,10 +23,12 @@ import type {
   HorizontalZone,
   HotRouteSpec,
   ManAssignment,
+  MatchEvent,
   MatchEventEnvelope,
   OffensiveCall,
   OffensivePlayCall,
   PlayCalls,
+  PlayStartSnap,
   PlayerId,
   PlayerState,
   PocketStatus,
@@ -45,7 +47,9 @@ import type {
   RushAssignment,
   RushMove,
   ShownRusher,
+  SidelineAdjustmentPayload,
   SpaceBlockAssignment,
+  StemPayload,
   StuntCall,
   StuntComplexity,
   TeamId,
@@ -322,14 +326,38 @@ export interface MatchGameState {
    * all read 50, which is the neutral modifier and today's behaviour exactly.
    */
   readonly chemistry?: ChemistryTable;
+  /**
+   * ADR-091 step S-a and ADR-092: what happened at the line before this snap, in the order it
+   * happened (the sideline's adjustments, then the stem), each roll a `CHECK` before the record that
+   * names it. Both simulations write it into the play's stream right after `PLAY_START`, and nothing
+   * after the snap reads it. Set only by the game loop, and only under `legacy` rules: the pocket
+   * fix's `pocket-1` rules play none of it (agreed with ADR-089's step 3). Never carried into the
+   * next play's state (`applyPlayOutcome`).
+   */
+  readonly atTheLine?: readonly AtTheLineRecord[];
 }
+
+/**
+ * One record of what happened at the line before a snap (ADR-091 step S-a, ADR-092), ready for the
+ * stream: a roll (the `CHECK` payload, built by `checkPayload`), a sideline adjustment, or the stem.
+ */
+export type AtTheLineRecord =
+  | { readonly type: "CHECK"; readonly payload: Extract<MatchEvent, { type: "CHECK" }>["payload"] }
+  | { readonly type: "SIDELINE_ADJUSTMENT"; readonly payload: SidelineAdjustmentPayload }
+  | { readonly type: "STEM"; readonly payload: StemPayload };
 
 /**
  * PLAY_START payload. `MatchEvent["PLAY_START"].payload` is typed `unknown` in
  * contracts — a deliberately open slot. This is the engine's shape for it, and
  * a candidate for a future petition to type it in contracts.
+ *
+ * All but one field: `snap`, where every man stands at the snap, is contracts'
+ * (`PlayStartSnap`, ADR-090 S2). The engine copies it from the calls
+ * (`PlayCalls.snap`, S5) as the LAST key, after `rules`, so a payload without
+ * it keeps today's keys in today's order. Nothing in the engine reads it at
+ * ADR-090 step 1.
  */
-export interface PassPlayStartPayload {
+export interface PassPlayStartPayload extends PlayStartSnap {
   readonly kind: "PASS_PLAY_V1";
   readonly offense: {
     readonly team: TeamId;
@@ -526,9 +554,10 @@ export interface PassPlayStartPayload {
  * PLAY_START payload for a designed run. Same open slot as `PassPlayStartPayload`
  * and the same reason it is worth filling: `RUN_RESOLUTION` states the gap the
  * ball ACTUALLY went through, and "did the back find the cutback?" is only
- * answerable if the gap it was DRAWN to is also in the stream.
+ * answerable if the gap it was DRAWN to is also in the stream. `snap` as on
+ * `PassPlayStartPayload`: contracts' (ADR-090 S2), the last key.
  */
-export interface RunPlayStartPayload {
+export interface RunPlayStartPayload extends PlayStartSnap {
   readonly kind: "RUN_PLAY_V1";
   readonly offense: {
     readonly team: TeamId;
