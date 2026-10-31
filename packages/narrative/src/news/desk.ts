@@ -19,6 +19,7 @@ import { applyResults, emptyRecords, type Records } from "./records.js";
 import { fieldStories, playoffStory, reviewStories, ROUND_LABEL, seedsOf } from "./season.js";
 import { DEFAULT_PER_WEEK, MAX_PER_KIND, ONCE_A_SEASON, type Candidate } from "./stories.js";
 import { weeklyCandidates } from "./weekly.js";
+import { createStaffBeat, type StaffSeat, type StaffView } from "./staff.js";
 import { writeHeadline, WORDING, type Wording } from "./words.js";
 
 export interface NewsInput {
@@ -34,6 +35,12 @@ export interface NewsInput {
   readonly perWeek?: number;
   /** The headline wording; the content file unless a test swaps it. */
   readonly wording?: Wording;
+  /**
+   * ADR-084: who sat in each head coach and coordinator seat, and how the staff felt, when the
+   * stream starts. Absent: the desk learns seats only from hires, and every view starts professional.
+   */
+  readonly staff?: readonly StaffSeat[];
+  readonly views?: readonly StaffView[];
 }
 
 export type StoryEnvelope = FranchiseEventEnvelope & { event: Extract<FranchiseEvent, { type: "PRESS_STORY_PUBLISHED" }> };
@@ -119,13 +126,22 @@ export function createNewsDesk(input: NewsInput): NewsDesk {
   const marks: RaceMarks = new Map();
   const playoffs: GameResult[] = [];
   const finished = new Map<string, GameResult>();
+  const staff = createStaffBeat(league, input.staff ?? [], input.views ?? []);
 
-  function publish(key: string, title: string, at: CalendarStamp, candidates: readonly Candidate[]): Edition | null {
-    if (candidates.length === 0) return null;
+  /** `fill` runs only in the room the week's other news leaves (ADR-084 L4: leaks). */
+  function publish(key: string, title: string, at: CalendarStamp, candidates: readonly Candidate[], fill: readonly Candidate[] = []): Edition | null {
+    if (candidates.length === 0 && fill.length === 0) return null;
     const rng = dice.fork(key);
     const words = rng.fork("words");
     const used = new Set<string>();
-    const stories = selectStories(candidates, rng.fork("rank"), perWeek).map((c): StoryEnvelope => ({
+    const chosen = selectStories(candidates, rng.fork("rank"), perWeek);
+    const room = perWeek - chosen.filter((c) => c.always !== true).length;
+    if (room > 0 && fill.length > 0) {
+      const taken = new Set(chosen.flatMap((c) => c.teams.map(String)));
+      chosen.push(...selectStories(fill.filter((c) => !c.teams.some((t) => taken.has(String(t)))), rng.fork("fill"), room));
+    }
+    if (chosen.length === 0) return null;
+    const stories = chosen.map((c): StoryEnvelope => ({
       seq: seq++,
       at,
       event: {
@@ -159,7 +175,12 @@ export function createNewsDesk(input: NewsInput): NewsDesk {
       const story = playoffStory(result, kind, seeds, league);
       if (story !== null) candidates.push(story);
     }
-    return publish(week.key, label(week), day, candidates);
+    const beat = staff.close(dice.fork(`${week.key}/staff`), records);
+    candidates.push(...beat.always);
+    // A week with no games: the coaching carousel, or the week's whispers from around the league.
+    const quiet = week.gameDay === null && week.field === null;
+    const title = quiet && beat.always.length > 0 ? "Coaching changes" : quiet && beat.fill.length > 0 ? "Around the league" : label(week);
+    return publish(week.key, title, day, candidates, beat.fill);
   }
 
   function seasonReview(at: CalendarStamp): Edition[] {
@@ -184,6 +205,7 @@ export function createNewsDesk(input: NewsInput): NewsDesk {
       open = week;
       week.at = envelope.at;
       const e = envelope.event;
+      staff.take(e);
       if (e.type === "GAME_COMPLETED") {
         finished.set(String(e.payload.result.gameId), e.payload.result);
         week.gameDay ??= envelope.at;

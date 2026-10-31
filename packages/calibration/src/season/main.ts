@@ -173,6 +173,14 @@ const players = loaded
 // A save from before coaches were kept has none; it carries on without them rather than inventing a staff mid-season.
 // With the players' switches on, each head coach also gets his depth-chart leanings (ADR-087 C1).
 const staff = loaded ? loaded.staff : { world: buildStaff(base, { firstSeason: season, ...(players ? { lineups: true } : {}) }).world };
+// ADR-084: the news desk's coaching beat starts from who sits where and how the staffs feel today.
+const SEATED = new Set(["HEAD_COACH", "OC", "DC", "STC"]);
+const coaching = staff ? {
+  seats: staff.world.staff
+    .filter((s) => s.teamId !== undefined && s.retiredAfter === undefined && SEATED.has(s.role))
+    .map((s) => ({ id: s.id, team: s.teamId!, role: s.role })),
+  views: (staff.relationships ?? []).map((v) => ({ from: v.from, of: v.of, score: v.score })),
+} : undefined;
 let desk: Desk | undefined;
 const printNews = (editions: ReturnType<Desk["take"]>) => {
   for (const e of editions) {
@@ -197,7 +205,7 @@ const { league, rated, run } = runRealSeason({
   ...(engineRules === LEGACY_RULES ? {} : { game: { tunables: gameTunables } }),
   onEvent: (envelope, schedule) => {
     if (isTruthLayerEvent(envelope.event)) return; // true ratings never reach the news (ADR-087 §7)
-    desk ??= createNewsDesk({ seed, structure: base.structure, teams: base.teams, schedule });
+    desk ??= createNewsDesk({ seed, structure: base.structure, teams: base.teams, schedule, ...(coaching ? { staff: coaching.seats, views: coaching.views } : {}) });
     printNews(desk.take(envelope));
   },
 });
@@ -241,6 +249,6 @@ if (args.out) {
   const events = players ? run.events.filter((e) => !isTruthLayerEvent(e.event)) : run.events;
   // ADR-089 §9: what played, caller and rules, beside the season (O11: always written).
   const playedBy = seasonOutStamp(callerVersion, engineRules, engineRulesDigestOf(engineRules));
-  writeFileSync(path, JSON.stringify({ seed, ...playedBy, league, season: run.state, events, ...squads }, listTraits, 2));
+  writeFileSync(path, JSON.stringify({ seed, ...playedBy, league, season: run.state, events, ...squads, ...(coaching ? { coaching } : {}) }, listTraits, 2));
   console.log(`Saved ${path}`);
 }

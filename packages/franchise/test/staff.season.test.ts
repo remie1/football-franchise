@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createRng, type CalendarStamp, type FranchiseEventEnvelope } from "@ff/contracts";
+import { createRng, type CalendarStamp, type FranchiseEventEnvelope, type RelationshipView } from "@ff/contracts";
 import {
   buildLeague, buildStaff, checkViews, restPoint, runSeason, runStaffOffseason, seatRelationships, summariseSeason,
   type GameResolver, type LeaguePeople,
@@ -57,7 +57,7 @@ describe("the coaches in the season's walk (ADR-084 step 1)", () => {
     checkViews(after.relationships!, after.world);
     // The carousel moved views off their rest points (results, hires); the summer weeks drew them back.
     const people = new Map(after.world.staff.map((s) => [String(s.id), s]));
-    const gap = (v: (typeof after.relationships)[number]) => Math.abs(v.score - restPoint(v, people));
+    const gap = (v: RelationshipView) => Math.abs(v.score - restPoint(v, people));
     const moved = after.relationships!.filter((v) => gap(v) > 1e-9);
     expect(moved.length).toBeGreaterThan(0);
     const results = types(run.events).filter((t) => t === "RELATIONSHIP_CHANGED").length;
@@ -93,6 +93,6 @@ describe("the coaches in the season's walk (ADR-084 step 1)", () => {
   });
 
   it("needs the coaching world", () => {
-    expect(() => runSeason({ ...base, people: { ...people, coaching: undefined }, coaching: {} })).toThrow(/people.coaching/);
+    expect(() => runSeason({ ...base, people: (({ coaching: _, ...rest }) => rest)(people), coaching: {} })).toThrow(/people.coaching/);
   });
 });

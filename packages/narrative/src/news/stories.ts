@@ -97,4 +97,10 @@ export const STORY_FACTS: Readonly<Record<string, readonly string[]>> = {
   LONGEST_WIN_STREAK: ["teams", "count", "length"], LONGEST_LOSING_STREAK: ["teams", "count", "length"],
   TOP_OFFENSE: ["teams", "count", "points"], TOP_DEFENSE: ["teams", "count", "points"],
   CHAMPION_PATH: [...ONE_TEAM, "path", "wins"],
+  // ADR-084: the coaching beat (coaching changes, Q5 a; leaks and grudges, Q4 b). Staff by job, never by name.
+  COACH_DEPARTS: ONE_TEAM,
+  COACH_HIRED: [...ONE_TEAM, "formerJob", "formerTeam", "formerCity"],
+  COORDINATOR_ROUNDUP: ["count", "countWord", "teamCount"],
+  LEAK: [...ONE_TEAM, "holder", "target"],
+  RIFT: [...ONE_TEAM, "holder", "target"],
 };

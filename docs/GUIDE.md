@@ -186,8 +186,12 @@ the record of every view, how each drifts back to what the two men's personaliti
 grudges, and the moves the coaching carousel makes by itself (a hire, a firing, an extension, the
 season's results). Since 31 October 2026, a season played with `--development` or `--injuries`
 runs the coaching carousel after the playoffs on that season's real results, and the views drift
-week by week through the year; `--save` keeps the new staffs and their views. Next, views will feed who stays, how hot the staff meeting's arguments get, and
-what leaks to the press; they never change a game.
+week by week through the year; `--save` keeps the new staffs and their views. A sour coordinator
+may refuse a new contract, a head coach's opinion counts when he judges his coordinators, and a new
+head coach weighs how well an inherited coordinator's style fits. The news covers the coaching
+carousel (each head coach fired and hired, a coordinator roundup) and prints unnamed leaks from sour
+staff rooms. Next, the end-of-season meeting, where views will set how hot arguments get. Views never change a
+game.
 
 **Players grow, age and get hurt (ADR-087, built 24 October 2026, off by default):** with
 `--development` and/or `--injuries` on the season command, every player's ratings move a little

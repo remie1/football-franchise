@@ -6,8 +6,8 @@
 - **Status:** design ruled by the owner (B1-B7, 2026-10-23). Contracts edits V1-V3 approved by the
   owner's typed yes (2026-10-23) and made; L1 (the ledger) and the carousel's own moves of L2
   (results, firings, hires, extensions) built (§13); the carousel and the views in the season's walk
-  built (§14); the stay-or-go readers built as ruled 2026-10-31 (§15). The meeting's moves and the
-  leaks are not built.
+  built (§14); the stay-or-go readers built as ruled 2026-10-31 (§15); leaks and coaching-change
+  news on the news desk (§16). The meeting's moves come with the meeting (ADR-081), next.
 - **Origin:** the owner's F3 ruling in thread "End-of-season staff meeting" (2026-10-22: *"3. A -
   this needs to go to our story-building agent to develop it further"*), which handed the
   relationship model the meeting needs (F3, F4, G6) to the story side.
@@ -386,3 +386,32 @@ The owner's answers, thread "Continue news and storylines", 2026-10-31 01:37Z: *
   offseason 28-31% of views are good, 69-72% professional, 0.1-0.3% strained, none broken; **nobody
   walked in 200 offseasons.** The readers wait for the meeting, conversations and storylines to sour
   someone. `relationships.stayOrGo.test.ts` checks the sizes and the bands.
+
+## 16. As built: leaks and coaching-change news (L4, ruled 2026-10-31)
+
+| | Question | Ruling | As built |
+|---|---|---|---|
+| Q4 | How often does someone leak? | **(b)** half of (a): strained about once in two years, broken about once a year; at most one leak a team a week; only in the room the games leave; all 32 teams; sources never named | `LEAK_CHANCE` per calendar week the desk closes: strained 0.5/52, broken 1/52 |
+| Q5 | Are coaching changes news? | **(a)** each head coach departure and hire a headline in the offseason; coordinator changes in one roundup | `COACH_DEPARTS` (fired, contract run out, retired, hired away), `COACH_HIRED` (promoted, hired off another staff, a former head coach, from outside), `COORDINATOR_ROUNDUP`, all of them always run |
+| Q6 | Build the meeting here after this? | **(a)** yes | next; contracts edits G1-G5 need the owner's typed yes naming them |
+
+- **Where:** `packages/narrative/src/news/staff.ts` (the coaching beat), read by the desk
+  (`desk.ts`); wording in `content/headlines.json`. The desk reads only events and its input:
+  `NewsInput.staff` (who sat in each seat when the stream starts) and `NewsInput.views` (how each man
+  felt then), then follows `STAFF_DEPARTED`, `STAFF_HIRED` and `RELATIONSHIP_CHANGED`. The season
+  command passes both and writes them into `--out` files as `coaching`, so `news` reads them too.
+  No contracts edit: a story's `kind` is a string (ADR-082 N1).
+- **Readings taken:** names stay out (ADR-082 Q1: teams only); men are named by job ("the defensive
+  coordinator"). A grudge opening (`rift: "OPENED"`) is its own story (`RIFT`), filling room like a
+  leak. A leak needs both men on the same staff. Leak dice roll only in weeks the desk closes, which
+  is every week of a season played with the players' switches (their steps write every week) and
+  the game weeks otherwise. An edition with no games is titled "Coaching changes" or "Around the
+  league". A walk-out (§15) reads as "contract run out": the event cannot tell it from the team's
+  choice without a contracts edit, left for the meeting's edits.
+- **Checks:** `narrative/test/staff.test.ts`: the stories for each departure and hire, promotion
+  and poaching told apart, one roundup, no names; over ten quiet years, broken views leak 160-300
+  times from 24 coordinators and strained 70-170, professional and good never; a full week of games
+  carries no leak; a view that sours starts leaking and one that recovers stops; a rift is a story.
+- **One real season** (seed `walk-1`, both switches): 12 head coach stories (6 departures, 6
+  hires), a roundup of 30 coordinator changes across 19 teams, and one leak (a defensive and a
+  special teams coordinator on one staff).
