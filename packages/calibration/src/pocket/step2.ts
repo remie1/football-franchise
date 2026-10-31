@@ -9,19 +9,24 @@
  *
  *  - **The refusals first** (plan §4.6, C1-F1, C2-F9). Nothing is played, `--digests` and `--m2`
  *    included, unless the filing loads, digests to `STEP0_FILED_DIGEST` and holds no pending s2 or
- *    guard field, and the amendments file (`reports/adr-089-amendments.filed.json`) loads,
- *    validates, equals the pin `AMENDMENTS_DIGEST`, holds AM-1, and holds a step-2 base map that
- *    names every graded arm (B1 to B7) and reads each against the base this build's arm reads
- *    (`arms.ts`'s `STEP2_ARM_DEFS`). The command prints the source fingerprint before anything else.
+ *    guard field, and the amendments file (`reports/adr-089-amendments.filed.json`) loads and
+ *    validates, its step-2 view (the entries filed before step 2 or an earlier step, AM-1 alone;
+ *    `amendmentsAtStep`) equals the pin `STEP2_AMENDMENTS_DIGEST`, holds AM-1, and holds a step-2
+ *    base map that names every graded arm (B1 to B7) and reads each against the base this build's
+ *    arm reads (`arms.ts`'s `STEP2_ARM_DEFS`). An entry filed before a later step (AM-2 on) is not in
+ *    the view, so it never refuses step 2's records (step-3 plan §4.3). The command prints the
+ *    source fingerprint before anything else.
  *  - **Each arm** plays the flat league's 496 games and the generated league's 272 on each seed set
  *    at caller v7, through step 1's folds (`playArm`, so its record is step 1's in every field step
  *    1 has) and the step-2 stream folds (`s2Stream.ts`'s `foldS2Game`), each handed the arm's own
  *    tunables (K14). Its record is stamped with step 1's stamp plus `amendments:
- *    <AMENDMENTS_DIGEST>`; the per-game guard vectors (AM-1's paired SE) are packed one line a game.
+ *    <STEP2_AMENDMENTS_DIGEST>`; the per-game guard vectors (AM-1's paired SE) are packed one line a
+ *    game.
  *  - **The cache** is `data-cache/pocket-step2/<fingerprint>/<arm>.set<n>.json`, with step 1's
  *    fingerprint rule (every package's source, the lockfile, the manifests and the filing). The
- *    amendments file is not hashed, but its pin is a literal in `amendments.ts`, so a changed file is
- *    refused unless the pin changes, and a changed pin moves the fingerprint (C2-F20). A cached
+ *    amendments file is not hashed, but its step-2 pin is a literal in `amendments.ts`, so a file
+ *    whose step-2 view changed is refused unless the pin changes, and a changed pin moves the
+ *    fingerprint (C2-F20). A cached
  *    record whose stamp differs from the one this build computes is refused, never re-used; one
  *    stamped with another amendments digest is refused by name.
  *  - **Shards and sets.** The targets are every asked arm on each seed set (default both), in
@@ -53,7 +58,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { canonicalise } from "../harness/digest.js";
-import { AMENDMENTS_DIGEST, AMENDMENTS_PATH, entryOf, guardFor, openAmendments, type BaseMap } from "./amendments.js";
+import { AMENDMENTS_PATH, entryOf, guardFor, openAmendmentsAtStep, STEP2_AMENDMENTS_DIGEST, type BaseMap } from "./amendments.js";
 import { armById, STEP2_ARM_DEFS, STEP2_ARM_IDS, STEP2_BASES, STEP2_RUN_IDS, type ArmId } from "./arms.js";
 import { FILED_PATH, type GuardClock, type IntMix } from "./bands.js";
 import type { ThrowClass } from "./constructs.js";
@@ -184,11 +189,13 @@ export const STEP2_DESIGN_ARM: ArmId = STEP2_ARM_DEFS.find((d) => d.role === "de
 export const STEP2_PRICING_ARM: ArmId = STEP2_ARM_DEFS.find((d) => d.pricing)!.id;
 
 /**
- * Every refusal before anything plays (plan §4.6): the filing, then the amendments file (loads,
- * validates, equals the pin, holds AM-1), then a step-2 base map naming every graded arm, each
- * against the base this build's arm reads. Returns what the grading reads.
+ * Every refusal before anything plays (plan §4.6): the filing, then the amendments file (loads and
+ * validates whole; its step-2 view, the entries filed before step 2 or an earlier step, equals the
+ * pin; the view holds AM-1), then a step-2 base map naming every graded arm, each against the base
+ * this build's arm reads. Returns what the grading reads; its `digest` is the view's pin, which every
+ * step-2 record stamps (step-3 plan §4.3: AM-2 and later entries never move it).
  */
-export function preflightStep2(filedPath: string, amendmentsPath: string, pin: string = AMENDMENTS_DIGEST): { readonly file: FiledFile; readonly guard: Step2Guard } {
+export function preflightStep2(filedPath: string, amendmentsPath: string, pin: string = STEP2_AMENDMENTS_DIGEST): { readonly file: FiledFile; readonly guard: Step2Guard } {
   const refuse = (why: string): never => {
     throw new Error(`ADR-089 step 2: refused before anything plays: ${why}`);
   };
@@ -197,7 +204,7 @@ export function preflightStep2(filedPath: string, amendmentsPath: string, pin: s
   if (!existsSync(amendmentsPath)) refuse(`the amendments file ${amendmentsPath} does not exist (AM-1 is filed in ${AMENDMENTS_PATH} before step 2's arms run)`);
   let amendments;
   try {
-    amendments = openAmendments(amendmentsPath, file, pin);
+    amendments = openAmendmentsAtStep(amendmentsPath, file, "2", pin);
   } catch (e) {
     return refuse(e instanceof Error ? e.message : String(e));
   }
@@ -237,9 +244,9 @@ export function preflightStep2(filedPath: string, amendmentsPath: string, pin: s
 /** Step 1's stamp with the amendments digest every step-2 record carries. */
 export type Step2Stamp = Omit<Step1Stamp, "amendments"> & { readonly amendments: string };
 
-/** Step 1's stamp of the arm, its `amendments` field the pinned digest (the key keeps its place). */
+/** Step 1's stamp of the arm, its `amendments` field the step-2 view's pin (the key keeps its place). */
 export function step2StampOf(id: ArmId, seedSet: SeedSet, env: Step1Env, corpus: Step1Corpus = FULL_CORPUS): Step2Stamp {
-  return { ...stampOf(id, seedSet, env, corpus), amendments: AMENDMENTS_DIGEST };
+  return { ...stampOf(id, seedSet, env, corpus), amendments: STEP2_AMENDMENTS_DIGEST };
 }
 
 /** The step-2 folds as a record holds them: the per-game guard vectors packed one line a game. */
@@ -1099,7 +1106,7 @@ export interface Step2Options {
   readonly out?: string;
   readonly filedPath: string;
   readonly amendmentsPath: string;
-  /** Tests only: the pin the amendments file must equal (default `AMENDMENTS_DIGEST`). */
+  /** Tests only: the pin the amendments file's step-2 view must equal (default `STEP2_AMENDMENTS_DIGEST`). */
   readonly amendmentsPin?: string;
   readonly env: Step1Env;
   /** A report or measures file under this directory is a committed report (refused from a dirty tree). */
@@ -1278,7 +1285,7 @@ export function runStep2Digests(opts: { readonly filedPath: string; readonly ame
       leagues,
     };
   }
-  return { format: STEP2_DIGESTS_FORMAT, amendments: AMENDMENTS_DIGEST, node: opts.node, caller: STEP1_CALLER, gamesPerLeague: opts.first ?? 50, arms };
+  return { format: STEP2_DIGESTS_FORMAT, amendments: STEP2_AMENDMENTS_DIGEST, node: opts.node, caller: STEP1_CALLER, gamesPerLeague: opts.first ?? 50, arms };
 }
 
 /**

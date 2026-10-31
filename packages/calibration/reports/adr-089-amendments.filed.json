@@ -43,6 +43,69 @@
         "cumulative": { "design": "A0", "pricing": "A14", "graded": false },
         "acceptedState": { "design": "A1", "pricing": "A11", "fromStep": "3", "graded": false }
       }
+    },
+    {
+      "id": "AM-2",
+      "name": "step 3: the late block's dials, part 1 on the published snap picture, and the readings the step needs before any of its runs",
+      "filedBeforeStep": "3",
+      "steps": ["3", "4", "5a", "5b", "6", "7", "8a", "8b", "9", "10", "11"],
+      "supersedes": ["s3.part1.m8", "s3.part1.monotone"],
+      "untouched": ["s3.part1.determinism", "s3.part1.mirror", "s3.bin20.tick", "s3.hitOrSack", "s3.quick", "s3.quickOrigin", "s3.unblockedPressures", "s3.unblockedShare", "s3.unblockedMen", "s3.expected.pressure", "s3.expected.sack", "s3.expected.bin20", "s3.expected.quick", "s3.neverOffered", "s10.neverFitted", "mr.class.timing"],
+      "defaults": ["D16", "D18", "D19", "D21", "D22", "D31"],
+      "adrLines": [943, 1023, 1027],
+      "cites": [5, 414, 514, 546, 549, 558, 560, 969, 1028, 1030, 1132, 1175, 1176, 1219, 1570],
+      "record": "ADR-089 Appendix G, G.8",
+      "reason": "Question 19's Wait holds 'until the pre-snap phase gives real spots' (ADR-089:558, :5). ADR-090, approved with question 4 Yes, gives them: its step 0 is on main, its step 1 carries the picture on the calls (S5) and publishes it on PLAY_START (S1, S2), and its step 2 is this step, proved by these checks with 'M8's table for his snap row' replaced by 'his published snap spot' (ADR-090 §7). The filed part-1 clause names Wait, a Mug-off arm and M8's partner reading of a passed-off man, which this step's hand-off fix removes; the filed monotone clause fails for Speed alone under the filed D18, found at step 0 and reported (pocketFreeRun.test.ts); the late block's t_e and w were filed CHOSEN with no values (rules.lateBlock). Each is settled here, before any pocket-1.s3 run, so nothing is chosen after a look.",
+      "ownersWord": null,
+      "rule": {
+        "lateBlock": {
+          "engageSeconds": 1.0,
+          "weakMultiplier": 0.1,
+          "provenance": "CHOSEN, football judgement, no measurement; shown to the owner before any pocket-1.s3 run",
+          "why": "t_e: a back stepping up meets a blitzer about 1.0 to 1.4 s after the snap, and a twist's exchange is missed by the first half second after its 0.5 s; 1.0 s is the first tick after both. w: at theta 11, k 2 and beta 0.5 the late block breaks a median 0.83 s after t_e (quartiles 0.53 and 1.17 s at m 8), so its beat tick is 1.5 s about one time in four, 2.0 s two in five, 2.5 s one in four and 3.0 s or later about one in ten; with the engine's travel a beaten man reaches the quarterback at about 2.5 to 3.5 s on the interior (median 3.0 s) and 0.5 to 2.0 s later on the edge, by move and depth, about a second after today's touched men (2.0 and 2.5 s) and before revision 1's 'Later' (about 4.0 s), which the stand-ins' reading (b) used.",
+          "shapeS": "T = t_e + w * theta * exp(-beta * m / 41) * E^(1/k), m = -(the touching CHECK's margin), 1 to 19; E drawn once on fork beat/<the touching CHECK's rngLabel> after every pickup and stunt CHECK is written, and published then as a pass_rush_beat CHECK (actors [rusher, toucher], margin m, tier of m, rollRef the touching CHECK, testsAttrs empty). No CHECK, tick or threat for him before t_e; from t_e dieless pass_rush_ticks naming the late beat, the margin m capped at 0 before the beat tick and raised to RUSHER_WINS_REP's floor from it; no push window.",
+          "shapeL": "From t_e each tick draws two d100s, rush/t<tick>/<rusherId>:late and rush/t<tick>/<toucherId>:late, and jitter = round((rusher - toucher) / repJitter.divisor) as today's tick jitter; margin = Math.round(Math.min(t - t_e, w * R) * (m + jitter) / (w * R)) + 0, the form of today's L margin. Each is a rolled pass_rush_tick with roll and opposedRoll, rollRef the touching CHECK. Reachable only once petition P17's doc text is in contracts.",
+          "beaten": "His threat keeps his origin (PICKUP_LOST or STUNT_LOOPER) and band; its rollRef names the touching CHECK; its approach is ARC if EDGE and THROUGH if INTERIOR (row 3 of the approach card as built); D21 reads his time as the beat tick (S) or the first RUSHER_WINS_REP tick (L) plus the travel the engine gives a won rep from his alignment, his plan's move and his position.",
+          "toucher": "RAN_THROUGH: the back the pickup assigned to him, the first actor of the blitz_pickup CHECK his record names. LATE_EXCHANGE: the looper's blocker in the plans the stunt CHECK was rolled on. A carried record keeps its toucher, so on a carried record the late beat's first actor is the carrier, not the CHECK's rusher.",
+          "invariant": "every free-run time on both base corpora is later than t_e (fastest published 1.3 s); held by a unit grid test, never by a throw in play"
+        },
+        "untouchedExchange": "A LATE_EXCHANGE whose looper had no blocker (the stunt CHECK rolled with no adjacent blocker) was touched by nobody (D19's words): he runs on the free-run clock as a LOOPER_FREE man does, with no delay; his origin, band and labels are unchanged, and he is counted on every arm.",
+        "part1": {
+          "condition": "read on every pocket-1.s3 arm; every such play carries the snap picture (ADR-090 S1, S2, S5), and the engine refuses an s3 pass play whose calls carry none",
+          "scope": "every man nobody touched: UNBLOCKED, PICKUP_LOST banded BLOWN_UP, STUNT_LOOPER banded LOOPER_FREE, and the untouched exchange above",
+          "equals": "his published RUSH_THREAT etaTick, to the tenth, on every play of the arm, on both seed sets",
+          "function": "M8's free-run function as filed (calibration's freeRun.ts: D18's conversion, get-off 0.35 s, reach 1.0 yd, edge bend 1.1, loop +0.5 yd, rounded to 0.1 s)",
+          "spot": "his own entry in PLAY_START.payload.snap: depth y, width |x - ballX|",
+          "moving": "an entry with moving starts at constants.freeRun.creeperYardsPerSecond (3 yd/s) along his path with no get-off; the engine refuses a moving entry with another speed or a direction other than straight at the line (dx 0, dy -1)",
+          "delayed": "+0.5 s for a linebacker or defensive back rusher on a play whose played blitzDisguise is DELAYED; never for a down lineman",
+          "edge": "his rush alignment EDGE takes the bend; a looper takes none",
+          "looper": "crosses |x_partner - x_own| + 0.5 yd from the two men's published x, then runs from the partner's published spot",
+          "passOff": "a carried record is timed for its carrier: his own published spot, ratings and alignment, on the path of the record's band (a LOOPER_FREE record loops from his spot across the other man's; any other runs straight)",
+          "ratings": "getAttr Speed and Acceleration from the play's snapshot",
+          "drop": "the offense call's dropDepthYards (D22)",
+          "arms": "each arm against its own published picture; an arm that holds an input at a filed reference substitutes that reference and nothing else",
+          "unplaced": "a man nobody touched with no snap entry is a build fault; no spot is invented",
+          "failure": "a build fault, fixed before the step comes to the owner",
+          "reportedBeside": "the filed M8 block unchanged; the same table on the published picture; part 1 by origin and snap row",
+          "touchedCheck": "every touched man's published etaTick equals his beat tick (S) or first RUSHER_WINS_REP tick (L), read from the stream, plus the engine's travel for his alignment, move and position as PLAY_START states them; a build check beside the clause"
+        },
+        "monotone": {
+          "graded": "at the published tenth: one point more Acceleration is never later; one point more of both Speed and Acceleration is never later; the deeper of the card's drops is never sooner; over every man nobody touched on the design and pricing arms and over the unit grid (paths 3 to 14 yards, ratings 0 to 99, set, DELAYED and moving starts)",
+          "reported": "one point more Speed alone, Acceleration held: the count and largest size of later pairs, unrounded and at the tenth",
+          "why": "D18's start is relative to Speed (tau = 0.77 - 0.007 (Acceleration - Speed)), so one point of Speed alone can lengthen the start more than it shortens the run, by under 0.002 s, which changes a published tenth on about 158 of 504,900 grid pairs; D18 is filed and never fitted, so the literal clause would report a build fault no build can fix"
+        },
+        "design": "The design arm's picture is the one ADR-090 publishes under its rulings (question 1 Real, the Mug worn) if the owner grants petition S3 before the step's arms run; otherwise it is the picture with beat 3 skipped for the Mug alone (ADR-090 §4.3, Head only for the Mug), and the Mug-worn picture is information. The base-map entry's reason and its record, G.9, say which, as S3 stood when it was filed. Each arm's caller draws the picture its physics reads, and the engine reads only the picture its calls carry.",
+        "references": "The arms that vary one input hold the others at: Speed 50 and Acceleration 50; drop 5.0 yards; spot by group, depth and width from the ball, down lineman (1.0, 2.5), linebacker (2.5, 2.5), defensive back (5.0, 7.0). A held man is set (no moving start), keeps his alignment's bend and any DELAYED wait, and a held looper's crossing leg is the filed 0.5 yard. CHOSEN, information only, never a design value.",
+        "freeRunKey": "At step 3, 'free runner' in the miss rule's split (n, f, the quick split, the quick share's origin) means a man on the free-run clock under the arm's own reading (D19 on the design; every free runner under reading (c); UNBLOCKED only under reading (a)). The origin-keyed figures and p(pressured given such a man on a 2.0 s throw) are printed beside. The bin's supply reason is named only when s3.bin20.tick missed. The class is read on each seed set, and both are named when they differ.",
+        "timingAgainstAtStep3": "At step 3 only, rules.missRule.params.timingAgainst reads as part 1's function on the published picture, and the literal count against the filed Wait table is printed beside with its rows. mr.class.timing, an acceptance clause, is not read here; its reading goes to the owner at step 10.",
+        "previews": "No pocket-1.s3 run on the base corpora before this entry is filed. A run before the step's base map is filed is a preview: named in Appendix H as information, never graded, priced or offered.",
+        "bench": "The clean bench's s3 recipe pushes constants.freeRun.getOffSeconds, the new dial movingGetOffSeconds (filed 0: D18's '0 for a man already moving') and the late block's engageSeconds to 50, past clock.maxTick, in the bench's own bundle only, and re-proves it clean on the published picture.",
+        "readings": {
+          "s10.neverFitted": "'the snap rule under question 19's answer' reads as the snap picture ADR-090 publishes; the DELAYED wait of 0.5 s and the creeper's 3 yd/s stay filed constants, never fitted",
+          "selectionRule.freeRunClock": "from step 3 the free-run clock reads the published picture, which Wait's own words provide for"
+        },
+        "neverOffered": "On a step-3 miss, ADR-090's tables and beats, t_e, w, the references above and the creeper's speed are never options of the miss rule, as the free-run constants are not (rules.missRule.neverMoves)."
+      }
     }
   ]
 }

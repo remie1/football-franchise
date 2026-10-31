@@ -1,7 +1,8 @@
 /**
  * THE NAMED AMENDMENTS OF THE STEP-0 FILING, `adr-089-amendments/v1` (ADR-089 Appendix E's header,
  * ADR-089:2022: "Amendments go in `reports/adr-089-amendments.filed.json`, never in the step-0
- * file"; `filed.ts:16`; step 0's plan §8.1; AM-1, Appendix F, F.11; step-2 plan §4.6, §6 K3).
+ * file"; `filed.ts:16`; step 0's plan §8.1; AM-1, Appendix F, F.11; step-2 plan §4.6, §6 K3; AM-2,
+ * Appendix G, G.8; step-3 plan §4.1, §4.3).
  *
  * The step-0 filing is append-only and pinned (`STEP0_FILED_DIGEST`, `fnv1a:9a1c90e9`) for ever, so a
  * filed clause is amended by a named entry here, never by an edit there. Each entry carries what it
@@ -9,13 +10,22 @@
  * before, the design lines it reads, its human record, its reason, the owner's word where one is
  * needed (`null` when the amended rule is an Orchestrator default, §15.3, which is shown, not asked)
  * and its rule. AM-1 is the first entry: the interception guard from step 2 (`guard.mix` and
- * `guard.byClass`), with an explicit base map per step (`rule.bases`).
+ * `guard.byClass`), with an explicit base map per step (`rule.bases`). AM-2, filed before step 3
+ * (Appendix G, G.8), supersedes `s3.part1.m8` and `s3.part1.monotone` and files the late block's
+ * dials and step 3's readings; it carries no guard rule.
  *
  * **The pin.** `AMENDMENTS_DIGEST` is `stableDigest` of the parsed file (as `filedDigest` is of the
  * step-0 file), a literal here. The harness refuses a file that does not equal it, so a changed
  * file is refused unless the pin changes with it, and the pin, being in `src`, moves the arm cache's
  * source fingerprint (step-2 plan §4.6, C2-F20). `adr089Amendments.test.ts` also pins each entry's
  * own digest, so editing a filed entry fails while appending one adds a pin.
+ *
+ * **A step's view** (step-3 plan §4.3, critique 2 B2). Appending an entry moves the whole file's
+ * pin, but a step already played was graded under the entries filed before it. So a step's harness
+ * may read the file at its step (`amendmentsAtStep`: the entries whose `filedBeforeStep` is that step
+ * or an earlier one, every other key as filed) and pin that view's digest instead: step 2's harness
+ * pins `STEP2_AMENDMENTS_DIGEST` (AM-1 alone), so its committed records keep grading after AM-2 and
+ * every later entry is filed. The whole file is still loaded and validated first.
  *
  * **What `validateAmendments` refuses** (AM-1 §3.4 item 3): a format other than this one; a `filing`
  * other than `STEP0_FILED_DIGEST`; ids that do not run AM-1, AM-2, ... in order; a `supersedes` or
@@ -38,10 +48,20 @@ export const AMENDMENTS_PATH = "reports/adr-089-amendments.filed.json";
 
 /**
  * The committed amendments file's digest (`amendmentsDigest`, a `stableDigest` of the parsed file):
- * AM-1 as filed by the Orchestrator (commit `b65ab25`, shown to the owner at `200b18b`). Every
- * step-2 record stamps it (`amendments`), and the harness refuses any other file.
+ * AM-1 as filed by the Orchestrator (commit `b65ab25`, shown to the owner at `200b18b`), then AM-2,
+ * filed before step 3 (ADR-089 Appendix G, G.8). A reader of the whole file refuses any other file.
+ * Step 2's harness reads the file as it stood at step 2 instead (`STEP2_AMENDMENTS_DIGEST`).
  */
-export const AMENDMENTS_DIGEST = "fnv1a:d5f9de6d";
+export const AMENDMENTS_DIGEST = "fnv1a:92c7bcf4";
+
+/**
+ * The file's step-2 view (`amendmentsDigestAtStep(file, "2")`): its entries cut to those filed before
+ * step 2 or an earlier step, which is AM-1 alone. It is the digest the whole file had when step 2's
+ * arms ran, so every step-2 record stamps it (`amendments`) and step 2's harness pins it; an entry
+ * filed before a later step (AM-2 on) leaves it where it is, so step 2's records keep grading
+ * (step-3 plan §4.3, critique 2 B2).
+ */
+export const STEP2_AMENDMENTS_DIGEST = "fnv1a:d5f9de6d";
 
 /** ADR-089's steps (§6's table), the ids a `filedBeforeStep`, a `steps` entry or a base map's key may name. */
 export const ADR_089_STEP_IDS = ["0", "1", "2", "3", "4", "5a", "5b", "6", "7", "8a", "8b", "9", "10", "11"] as const;
@@ -270,6 +290,36 @@ export function openAmendments(path: string, filing: FiledFile, pin: string = AM
     throw new Error(`ADR-089: the amendments file ${path} digests to ${digest}, not the pin ${pin}: an amendment is append-only; file a new named entry, and change the pin in amendments.ts with it`);
   }
   return file;
+}
+
+/**
+ * The file as it stood for `step`: its `entries` cut to those whose `filedBeforeStep` is `step` or an
+ * earlier step of ADR-089 (§6's order), in filing order, every other key as filed. An entry filed
+ * before a later step is not in it, so appending one never moves the view.
+ */
+export function amendmentsAtStep(file: AmendmentsFile, step: AdrStepId): AmendmentsFile {
+  const at = ADR_089_STEP_IDS.indexOf(step);
+  return { ...file, entries: file.entries.filter((e) => ADR_089_STEP_IDS.indexOf(e.filedBeforeStep) <= at) };
+}
+
+/** `stableDigest` of the file's view at `step` (`amendmentsAtStep`). */
+export function amendmentsDigestAtStep(file: AmendmentsFile, step: AdrStepId): string {
+  return amendmentsDigest(amendmentsAtStep(file, step));
+}
+
+/**
+ * Loads and validates the whole file, requires its view at `step` to equal `pin`, and returns that
+ * view: a played step's harness reads the amendments as they stood when its arms ran (step 2's pin
+ * is `STEP2_AMENDMENTS_DIGEST`), so an entry filed before a later step never refuses its records,
+ * while an edit to an entry it reads, or an entry filed before it after the fact, is refused.
+ */
+export function openAmendmentsAtStep(path: string, filing: FiledFile, step: AdrStepId, pin: string): AmendmentsFile {
+  const view = amendmentsAtStep(loadAmendments(path, filing), step);
+  const digest = amendmentsDigest(view);
+  if (digest !== pin) {
+    throw new Error(`ADR-089: the amendments file ${path}, read at step ${step} (its entries filed before step ${step} or an earlier step), digests to ${digest}, not the pin ${pin}: an amendment is append-only, and a step's view never changes once its arms have run`);
+  }
+  return view;
 }
 
 /** The entry with this id; throws when the file does not hold it. */
