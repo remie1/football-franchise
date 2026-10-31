@@ -44,9 +44,9 @@
  *     late block on shape L, and no arm is refused (`pocketP17Withheld.test.ts` keeps the refusal's
  *     path, with P17 withheld in that suite only).
  * 17. The mechanisms: step 3's five appended; each C arm's exclusive set against its base.
- * 18. AM-3's base map (C1 on B3, C2 on B6, C11 on B3) on a stand-in entry names arms of this build;
- *     an id past C16 does not. The committed amendments file is read, never written; `pocket
- *     --step 3` (K4) takes C14.
+ * 18. AM-3's base map (C1 on B3, C2 on B6, C11 on B3), filed (ADR-089 Appendix G, G.9) and on a
+ *     stand-in entry, names arms of this build; an id past C16 does not. The committed amendments
+ *     file is read, never written; `pocket --step 3` (K4) takes C14.
  */
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -970,7 +970,8 @@ describe("AM-3's base map and the command line at step 3 (plan §4.2, §2.10)", 
     const PKG = join(import.meta.dirname, "..");
     const filing = loadFiled(join(PKG, FILED_PATH));
     const committed = loadAmendments(join(PKG, AMENDMENTS_PATH), filing);
-    expect(() => guardFor(committed, "3")).toThrow(/no filed amendment maps step 3's guard bases/);
+    // AM-3 is filed (ADR-089 Appendix G, G.9): its map is the stand-in's below.
+    expect(guardFor(committed, "3").bases).toEqual({ C1: "B3", C2: "B6", C11: "B3" });
     const withBases = (bases: Record<string, Record<string, string>>): unknown => {
       const j = JSON.parse(JSON.stringify(committed)) as { entries: Record<string, unknown>[] };
       const standIn = JSON.parse(JSON.stringify(j.entries.find((e) => e["id"] === "AM-1"))) as Record<string, unknown>;

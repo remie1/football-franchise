@@ -106,6 +106,47 @@
         },
         "neverOffered": "On a step-3 miss, ADR-090's tables and beats, t_e, w, the references above and the creeper's speed are never options of the miss rule, as the free-run constants are not (rules.missRule.neverMoves)."
       }
+    },
+    {
+      "id": "AM-3",
+      "name": "the guard at step 3: the design, its pricing arm and reading (c) against step 2's arms",
+      "filedBeforeStep": "3",
+      "steps": ["3"],
+      "supersedes": ["guard.mix", "guard.byClass"],
+      "untouched": ["acc.intGuard", "s4.motion.int", "s5a.int"],
+      "defaults": ["D9", "D28"],
+      "adrLines": [1306, 1308],
+      "cites": [943, 1030, 1287, 1159, 1036, 1053],
+      "record": "ADR-089 Appendix G, G.9",
+      "reason": "AM-1 (Appendix F, F.11) reads the guard at steps 2 to 10 against the previous step's arm and requires each later step's map filed as a named entry before that step's arms run; this is step 3's. C1 reads the picture as ruled, the Mug worn, as petition S3 stood when this entry was filed (AM-2's design rule); C6 reads the other. It maps the arms that can become the game: the design (C1) against step 2's design (B3), its pricing arm (C2) against step 2's pricing arm (B6), and reading (c) (C11), the miss rule's option C, against B3. The other arms are information or contrast; their readings are printed beside, unguarded. With nothing changed this map stops the step by chance about 13% of the time (39% if every arm were graded).",
+      "ownersWord": null,
+      "rule": {
+        "base": "previousStepArm",
+        "pricingBase": "previousStepPricingArm",
+        "bases": {
+          "3": { "C1": "B3", "C2": "B6", "C11": "B3" }
+        },
+        "laterBases": "filed as a named entry before that step's arms run",
+        "gradedArms": "every arm in the step's map",
+        "replayMustEqualPreviousRecords": true,
+        "allowance": "filed",
+        "se": "binomialIndependent",
+        "statistic": "pooledZ",
+        "seedSets": [1, 2],
+        "zLeague": 2.0,
+        "zClass": 3.0,
+        "breachIf": "greaterThan",
+        "zSetSE0": 0,
+        "classes": "GUARD_CLASSES",
+        "reportedSplits": { "DESPERATION": ["DIRTY", "CLEAN"] },
+        "dirtyPocket": "lastStatusAtOrBeforeRelease",
+        "onCompositionClassBreach": ["DESPERATION", "CHECKDOWN"],
+        "reportFiledReading": true,
+        "reportMinimumExcess": true,
+        "reportPairedSE": true,
+        "cumulative": { "design": "A0", "pricing": "A14", "graded": false },
+        "acceptedState": { "design": "A1", "pricing": "A11", "fromStep": "3", "graded": false }
+      }
     }
   ]
 }

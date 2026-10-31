@@ -1,7 +1,7 @@
 /**
  * ADR-089: THE COMMITTED AMENDMENTS FILE, `reports/adr-089-amendments.filed.json` (Appendix E's
  * header, ADR-089:2022; AM-1, Appendix F, F.11; the amendment's §3.4 and §3.5; step-2 plan §4.6;
- * AM-2, Appendix G, G.8; step-3 plan §4.1, §4.3, §4.4).
+ * AM-2, Appendix G, G.8; step-3 plan §4.1, §4.2, §4.3, §4.4; AM-3, G.9).
  *
  * The file validates as `adr-089-amendments/v1` against the step-0 filing; it is the pinned file
  * (`AMENDMENTS_DIGEST`, a literal in `amendments.ts`, and the same literal here); every filed entry
@@ -13,15 +13,18 @@
  * `s3.part1.monotone` and nothing else, leaves `mr.class.timing` and the other s3 clauses untouched,
  * carries no guard rule, and files the late block's `t_e` 1.0 s and `w` 0.1 as CHOSEN values; the
  * file's view at step 2 (the entries filed before step 2 or earlier) is still `fnv1a:d5f9de6d`, so
- * step 2's records keep grading, and no step-3 guard map is filed yet. Then every rule
- * `validateAmendments` holds, each on a copy that breaks it.
+ * step 2's records keep grading. AM-3, filed before step 3, is step 3's guard base map: AM-1's
+ * entry word for word but for its name, steps, cites, record, reason and `rule.bases` (C1 on B3, C2
+ * on B6, C11 on B3, each the arm's own base), with its picture choice made (the picture as ruled, the
+ * Mug worn, petition S3 granted). Then every rule `validateAmendments` holds, each on a copy that
+ * breaks it.
  */
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { stableDigest } from "../src/harness/digest.js";
-import { STEP2_ARM_DEFS, STEP2_ARM_IDS } from "../src/pocket/arms.js";
+import { armById, OTHER_PICTURE, STEP2_ARM_DEFS, STEP2_ARM_IDS, type ArmId } from "../src/pocket/arms.js";
 import { FILED_PATH } from "../src/pocket/bands.js";
 import { loadFiled, STEP0_FILED_DIGEST, type FiledFile } from "../src/pocket/filed.js";
 import {
@@ -45,13 +48,14 @@ import {
   type AmendmentsFile,
 } from "../src/pocket/amendments.js";
 import { AM1_LINES } from "../src/pocket/guardAm1.js";
+import { POCKET_1_S3_FREE_RUN } from "../src/pocket/rules.js";
 
 const PKG = join(import.meta.dirname, "..");
 const PATH = join(PKG, AMENDMENTS_PATH);
 const filing = (): FiledFile => loadFiled(join(PKG, FILED_PATH));
 
-/** The committed file's digest: AM-1 as filed (commit b65ab25, shown to the owner at 200b18b), then AM-2 (G.8). */
-const PINNED_DIGEST = "fnv1a:92c7bcf4";
+/** The committed file's digest: AM-1 as filed (commit b65ab25, shown to the owner at 200b18b), then AM-2 (G.8), then AM-3 (G.9). */
+const PINNED_DIGEST = "fnv1a:b7557c36";
 /** The file's view at step 2 (AM-1 alone): the whole file's digest when step 2's arms ran, which every step-2 record stamps. */
 const STEP2_VIEW_DIGEST = "fnv1a:d5f9de6d";
 const APPEND_ONLY = "ADR-089: an amendment is append-only; file a new named entry";
@@ -60,6 +64,7 @@ const APPEND_ONLY = "ADR-089: an amendment is append-only; file a new named entr
 const ENTRY_PINS: Readonly<Record<string, string>> = {
   "AM-1": "fnv1a:97f0cb84",
   "AM-2": "fnv1a:e8484644",
+  "AM-3": "fnv1a:4c935835",
 };
 
 const committed = (): AmendmentsFile => loadAmendments(PATH, filing());
@@ -74,7 +79,7 @@ describe("ADR-089: the committed amendments file", () => {
   it("is the pinned file (AMENDMENTS_DIGEST): append-only, extended only by a named entry", () => {
     expect(amendmentsDigest(committed()), APPEND_ONLY).toBe(PINNED_DIGEST);
     expect(AMENDMENTS_DIGEST, "the harness reads the same pin from the source").toBe(PINNED_DIGEST);
-    expect(openAmendments(PATH, filing()).entries.map((e) => e.id)).toEqual(["AM-1", "AM-2"]);
+    expect(openAmendments(PATH, filing()).entries.map((e) => e.id)).toEqual(["AM-1", "AM-2", "AM-3"]);
   });
 
   it("keeps one pin per filed entry: editing a filed entry fails, appending one adds a pin", () => {
@@ -121,8 +126,9 @@ describe("ADR-089: the committed amendments file", () => {
     expect(g.bases).toEqual({ B1: "A1", B2: "A1", B3: "A1", B4: "A1", B5: "A5", B6: "A11", B7: "A1" });
     expect(Object.keys(g.bases)).toEqual([...STEP2_ARM_IDS]);
     for (const def of STEP2_ARM_DEFS) expect(g.bases[def.id], def.id).toBe(def.base);
-    // No later step has a filed map yet: its harness refuses until one is filed.
-    expect(() => guardFor(committed(), "3")).toThrow(/no filed amendment maps step 3's guard bases/);
+    // Step 3's map is AM-3's; a later step has none yet, and its harness refuses until one is filed.
+    expect(guardFor(committed(), "3").entry.id).toBe("AM-3");
+    expect(() => guardFor(committed(), "4")).toThrow(/no filed amendment maps step 4's guard bases/);
   });
 });
 
@@ -143,11 +149,11 @@ describe("AM-2: step 3's filing changes (ADR-089 Appendix G, G.8; step-3 plan §
     expect(am2.record).toBe("ADR-089 Appendix G, G.8");
   });
 
-  it("carries no guard rule: step 2's guard is still AM-1's, and step 3's harness refuses until a base map is filed (AM-3)", () => {
+  it("carries no guard rule: step 2's guard is still AM-1's, and step 3's is the base map filed after it (AM-3)", () => {
     const am2 = entryOf(committed(), "AM-2");
     expect(() => guardRuleOf(am2)).toThrow(/AM-2 supersedes s3\.part1\.m8, s3\.part1\.monotone, not the guard/);
     expect(guardFor(committed(), "2").entry.id).toBe("AM-1");
-    expect(() => guardFor(committed(), "3")).toThrow(/no filed amendment maps step 3's guard bases/);
+    expect(guardFor(committed(), "3").entry.id).toBe("AM-3");
   });
 
   it("files the late block's t_e 1.0 s and w 0.1 as CHOSEN values, and the readings plan §4.1 lists", () => {
@@ -171,6 +177,47 @@ describe("AM-2: step 3's filing changes (ADR-089 Appendix G, G.8; step-3 plan §
   });
 });
 
+describe("AM-3: the guard at step 3 (ADR-089 Appendix G, G.9; step-3 plan §4.2)", () => {
+  it("is AM-1's entry word for word but for its name, steps, cites, record, reason and rule.bases; filed before step 3, read at step 3 only, shown, not asked", () => {
+    const am1 = entryOf(committed(), "AM-1");
+    const am3 = entryOf(committed(), "AM-3");
+    for (const key of ["supersedes", "untouched", "defaults", "adrLines", "ownersWord"] as const) expect(am3[key], key).toEqual(am1[key]);
+    const { bases: am1Bases, ...am1Rule } = am1.rule;
+    const { bases: am3Bases, ...am3Rule } = am3.rule;
+    // The rule equals AM-1's but for bases: the same keys in the same order, every other value equal.
+    expect(Object.keys(am3.rule)).toEqual(Object.keys(am1.rule));
+    expect(am3Rule).toEqual(am1Rule);
+    expect(am1Bases).toEqual({ "2": { B1: "A1", B2: "A1", B3: "A1", B4: "A1", B5: "A5", B6: "A11", B7: "A1" } });
+    expect(am3Bases).toEqual({ "3": { C1: "B3", C2: "B6", C11: "B3" } });
+    expect(am3.name).toBe("the guard at step 3: the design, its pricing arm and reading (c) against step 2's arms");
+    expect(am3.filedBeforeStep).toBe("3");
+    expect(am3.steps).toEqual(["3"]);
+    expect(am3.cites).toEqual([943, 1030, 1287, 1159, 1036, 1053]);
+    expect(am3.record).toBe("ADR-089 Appendix G, G.9");
+    expect(am3.ownersWord, "D9 and D28 are Orchestrator defaults: shown, not asked").toBeNull();
+  });
+
+  it("maps step 3's guard: C1 on B3, C2 on B6 and C11 on B3, each the base this build's arm reads; step 2 keeps AM-1's map, and step 4 has none yet", () => {
+    const g = guardFor(committed(), "3");
+    expect(g.entry.id).toBe("AM-3");
+    expect(g.bases).toEqual({ C1: "B3", C2: "B6", C11: "B3" });
+    for (const [id, base] of Object.entries(g.bases)) expect(armById(id as ArmId).base, id).toBe(base);
+    expect({ zLeague: g.rule.zLeague, zClass: g.rule.zClass, zSetSE0: g.rule.zSetSE0 }).toEqual(AM1_LINES);
+    expect(g.rule.cumulative).toEqual({ design: "A0", pricing: "A14", graded: false });
+    expect(guardFor(committed(), "2").entry.id).toBe("AM-1");
+    expect(() => guardFor(committed(), "4")).toThrow(/no filed amendment maps step 4's guard bases/);
+  });
+
+  it("is filed with its choice made: C1 reads the picture as ruled, the Mug worn (S3 granted), the picture the s3 bundle carries; C6 reads the other", () => {
+    const am3 = entryOf(committed(), "AM-3");
+    expect(am3.reason).toContain("C1 reads the picture as ruled, the Mug worn, as petition S3 stood when this entry was filed (AM-2's design rule); C6 reads the other.");
+    expect(am3.reason).not.toMatch(/<[^<>]*\|[^<>]*>/);
+    // The design picture is in every s3 record's stamp through the overlay digest: the bundle carries AS_RULED.
+    expect(POCKET_1_S3_FREE_RUN.picture).toBe("AS_RULED");
+    expect(OTHER_PICTURE).toBe("MUG_HEAD_ONLY");
+  });
+});
+
 describe("a step's view of the file (step-3 plan §4.3, critique 2 B2)", () => {
   it("at step 2 is AM-1 alone, fnv1a:d5f9de6d, the pin step 2's records stamp; at step 3 and later it is the whole file", () => {
     const file = committed();
@@ -181,7 +228,7 @@ describe("a step's view of the file (step-3 plan §4.3, critique 2 B2)", () => {
     expect({ ...two, entries: [] }).toEqual({ ...file, entries: [] });
     for (const step of ["0", "1"] as const) expect(amendmentsAtStep(file, step).entries, step).toEqual([]);
     for (const step of ADR_089_STEP_IDS.slice(ADR_089_STEP_IDS.indexOf("3"))) {
-      expect(amendmentsAtStep(file, step).entries.map((e) => e.id), step).toEqual(["AM-1", "AM-2"]);
+      expect(amendmentsAtStep(file, step).entries.map((e) => e.id), step).toEqual(["AM-1", "AM-2", "AM-3"]);
       expect(amendmentsDigestAtStep(file, step), step).toBe(PINNED_DIGEST);
     }
   });
@@ -197,7 +244,7 @@ describe("a step's view of the file (step-3 plan §4.3, critique 2 B2)", () => {
 
   it("openAmendmentsAtStep returns the view under its pin, and refuses it under another", () => {
     expect(openAmendmentsAtStep(PATH, filing(), "2", STEP2_AMENDMENTS_DIGEST).entries.map((e) => e.id)).toEqual(["AM-1"]);
-    expect(openAmendmentsAtStep(PATH, filing(), "3", AMENDMENTS_DIGEST).entries.map((e) => e.id)).toEqual(["AM-1", "AM-2"]);
+    expect(openAmendmentsAtStep(PATH, filing(), "3", AMENDMENTS_DIGEST).entries.map((e) => e.id)).toEqual(["AM-1", "AM-2", "AM-3"]);
     expect(() => openAmendmentsAtStep(PATH, filing(), "2", AMENDMENTS_DIGEST)).toThrow(
       new RegExp(`read at step 2 \\(its entries filed before step 2 or an earlier step\\), digests to ${STEP2_VIEW_DIGEST}, not the pin ${AMENDMENTS_DIGEST}: an amendment is append-only`),
     );
@@ -322,7 +369,9 @@ describe("loading and the pin", () => {
   });
 
   it("names the entries a file holds when one is asked for that it does not", () => {
-    expect(() => entryOf(committed(), "AM-3")).toThrow(/holds no AM-3 \(it holds AM-1, AM-2\)/);
+    const ids = committed().entries.map((e) => e.id);
+    const next = `AM-${String(ids.length + 1)}`;
+    expect(() => entryOf(committed(), next)).toThrow(`holds no ${next} (it holds ${ids.join(", ")})`);
     expect(() => guardRuleOf({ ...entryOf(committed(), "AM-1"), supersedes: ["guard.mix"] })).toThrow(/not the guard/);
   });
 });

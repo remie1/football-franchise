@@ -4,10 +4,11 @@
  *
  *  - the refusals before anything plays: the filing; the amendments file (whole, under its pin) and
  *    its step-3 view holding AM-1 and AM-2; and, for a run that grades, a filed guard map at step 3
- *    (AM-3). The committed file holds no AM-3, so a grading run REFUSES by name, with nothing played
- *    and no cache made; `--part1` and `--digests` are previews and play without it. The tests that
- *    need AM-3 append a stand-in entry (AM-3's draft, `AM3_STAND_IN` below) to a temporary copy of
- *    the committed file and pin that copy; the committed file is only read;
+ *    (AM-3). The committed file holds AM-3 (ADR-089 Appendix G, G.9), and preflightStep3 passes on
+ *    it. On a temporary copy cut to the entries before AM-3 (`PRE_AM3`), a grading run REFUSES by
+ *    name, with nothing played and no cache made; `--part1` and `--digests` are previews and play
+ *    without it. The tests that need other maps append a stand-in entry (AM-3's draft, `AM3_STAND_IN`
+ *    below) to that cut copy and pin it; the committed file is only read;
  *  - the map's own checks (only step 3's playable arms, each against this build's base), the stamp
  *    (the step-3 view's digest; a preview's records are refused by a grading run), the plan (C14
  *    played since P17, E4b, C6 played) and the run lists;
@@ -180,10 +181,17 @@ type AmendmentsJson = Record<string, unknown> & { entries: Record<string, unknow
 const committedAmendments = (): AmendmentsJson => JSON.parse(readFileSync(AMENDMENTS, "utf8")) as AmendmentsJson;
 const committedFiling = (): FiledFile => loadFiled(FILED);
 
-let written = 0;
-/** A temporary copy of the committed amendments file with AM-3's stand-in appended (edited by `edit`); its path and the whole file's pin. */
-function withAm3(dir: string, edit?: (am3: Record<string, unknown>, json: AmendmentsJson) => void): { path: string; pin: string } {
+/** The committed amendments file cut to the entries filed before AM-3 (AM-1 and AM-2): the file previews read before AM-3 was filed. */
+const beforeAm3 = (): AmendmentsJson => {
   const json = committedAmendments();
+  json.entries = json.entries.filter((e) => e["id"] === "AM-1" || e["id"] === "AM-2");
+  return json;
+};
+
+let written = 0;
+/** A temporary copy of the amendments file before AM-3 with AM-3's stand-in appended (edited by `edit`); its path and the whole file's pin. */
+function withAm3(dir: string, edit?: (am3: Record<string, unknown>, json: AmendmentsJson) => void): { path: string; pin: string } {
+  const json = beforeAm3();
   const am3 = clone(AM3_STAND_IN) as unknown as Record<string, unknown>;
   edit?.(am3, json);
   json.entries.push(am3);
@@ -198,22 +206,53 @@ const AM3_DIR = mkdtempSync(join(tmpdir(), "ff-step3-am3-"));
 scratch.push(AM3_DIR);
 const AM3 = withAm3(AM3_DIR);
 const am3Guard = (): Step3Guard => preflightStep3(FILED, AM3.path, AM3.pin).guard;
-/** The step-3 view's digest of the committed file (no AM-3): what a preview's records are stamped with. */
-const previewDigest = (): string => amendmentsDigest(amendmentsAtStep(loadAmendments(AMENDMENTS, committedFiling()), "3"));
+/** A temporary copy of the amendments file before AM-3 (AM-1 and AM-2), with its whole-file pin. */
+const PRE_AM3 = ((): { path: string; pin: string } => {
+  const json = beforeAm3();
+  const path = join(AM3_DIR, "amendments-before-am3.json");
+  writeFileSync(path, jsonText(json));
+  return { path, pin: amendmentsDigest(json) };
+})();
+/** The step-3 view's digest of the file before AM-3: what a preview's records made before AM-3 was filed are stamped with. */
+const previewDigest = (): string => amendmentsDigest(amendmentsAtStep(loadAmendments(PRE_AM3.path, committedFiling()), "3"));
+/** The step-3 view's digest of the committed file: what every step-3 record is stamped with now. */
+const committedViewDigest = (): string => amendmentsDigestAtStep(loadAmendments(AMENDMENTS, committedFiling()), "3");
 
 // --- the refusals ------------------------------------------------------------------------------------------
 
 describe("the refusals before anything plays (plan §2.10, §4.2)", () => {
-  it("passes the committed filing and amendments for a preview: the step-3 view holds AM-1 and AM-2, and its digest is the stamp", () => {
+  it("passes the committed filing and amendments for a preview: the step-3 view holds AM-1, AM-2 and AM-3, and its digest is the stamp", () => {
     const v = preflightStep3Previews(FILED, AMENDMENTS);
-    expect(v.view.entries.map((e) => e.id)).toEqual(["AM-1", "AM-2"]);
-    expect(v.digest).toBe(previewDigest());
+    expect(v.view.entries.map((e) => e.id)).toEqual(["AM-1", "AM-2", "AM-3"]);
+    expect(v.digest).toBe(committedViewDigest());
     expect(v.am2).toBe("AM-2 (ADR-089 Appendix G, G.8)");
     expect(v.file.bands.clauses.some((c) => c.step === "3")).toBe(true);
+    // Before AM-3 was filed, a preview read AM-1 and AM-2 under another digest.
+    const pre = preflightStep3Previews(FILED, PRE_AM3.path, PRE_AM3.pin);
+    expect(pre.view.entries.map((e) => e.id)).toEqual(["AM-1", "AM-2"]);
+    expect(pre.digest).toBe(previewDigest());
+    expect(pre.digest).not.toBe(v.digest);
+  });
+
+  it("passes the committed file for a grading run: AM-3 is filed with its choice made, and hands the grading its map (ADR-089 Appendix G, G.9)", () => {
+    const v = preflightStep3(FILED, AMENDMENTS);
+    expect(unmadeChoicesOf(v.view)).toEqual([]);
+    expect(v.guard).toEqual({
+      digest: committedViewDigest(),
+      entry: "AM-3",
+      record: "ADR-089 Appendix G, G.9",
+      am2: "AM-2 (ADR-089 Appendix G, G.8)",
+      bases: { C1: "B3", C2: "B6", C11: "B3" },
+      lines: { zLeague: 2, zClass: 3, zSetSE0: 0 },
+      cumulative: { design: "A0", pricing: "A14" },
+      accepted: { design: "A1", pricing: "A11" },
+    });
+    // The filed AM-3 grades with what its stand-in grades with: only the digest differs.
+    expect({ ...v.guard, digest: "" }).toEqual({ ...am3Guard(), digest: "" });
   });
 
   it("REFUSES to grade while AM-3 is not filed (guardFor(view, \"3\") throws), naming AM-3, G.9 and the previews rule", () => {
-    expect(() => preflightStep3(FILED, AMENDMENTS)).toThrow(
+    expect(() => preflightStep3(FILED, PRE_AM3.path, PRE_AM3.pin)).toThrow(
       /^ADR-089 step 3: refused to grade: AM-3 \(the guard's base map at step 3, ADR-089 Appendix G, G\.9; step-3 plan §4\.2\) is not filed in the amendments file's step-3 view: ADR-089: no filed amendment maps step 3's guard bases; a step's guard reads only a base map filed before its arms run \(AM-1 §4\.3\)\. Nothing has played/,
     );
     expect(am3Refusal("why")).toMatch(/: why\. Nothing has played and no cache was made\. Runs before AM-3 are previews \(AM-2's previews rule\): --part1 and --digests play without it; nothing they print is graded, priced or offered$/);
@@ -228,7 +267,7 @@ describe("the refusals before anything plays (plan §2.10, §4.2)", () => {
     };
     for (const extra of [{}, { arms: ["C1"] as ArmId[] }, { shard: { index: 1, count: 3 } }, { seedSet: 2 as SeedSet }]) {
       const cacheParent = join(dir, "cache");
-      expect(() => runStep3({ cacheParent, filedPath: FILED, amendmentsPath: AMENDMENTS, env: ENV, play, ...extra })).toThrow(/^ADR-089 step 3: refused to grade: AM-3 /);
+      expect(() => runStep3({ cacheParent, filedPath: FILED, amendmentsPath: PRE_AM3.path, amendmentsPin: PRE_AM3.pin, env: ENV, play, ...extra })).toThrow(/^ADR-089 step 3: refused to grade: AM-3 /);
       expect(existsSync(cacheParent)).toBe(false);
     }
     expect(played).toBe(0);
@@ -253,7 +292,7 @@ describe("the refusals before anything plays (plan §2.10, §4.2)", () => {
     const touched = join(dir, "touched.json");
     writeFileSync(touched, jsonText(json));
     expect(() => preflightStep3Previews(FILED, touched)).toThrow(/refused before anything plays: ADR-089: the amendments file .* digests to fnv1a:[0-9a-f]{8}, not the pin fnv1a:/);
-    const noAm2 = committedAmendments();
+    const noAm2 = beforeAm3();
     noAm2.entries = noAm2.entries.filter((e) => e["id"] !== "AM-2");
     const path = join(dir, "no-am2.json");
     writeFileSync(path, jsonText(noAm2));
@@ -332,7 +371,7 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
     expect(preflightStep3Previews(FILED, path, pin).digest).toBe(previewDigest());
   });
 
-  it("review MEAS-S6: refuses a step-3 view whose entry still holds a choice not yet made (<a | b>); AM-1 and AM-2 hold none", () => {
+  it("review MEAS-S6: refuses a step-3 view whose entry still holds a choice not yet made (<a | b>); the filed entries hold none", () => {
     expect(unmadeChoicesOf(preflightStep3Previews(FILED, AMENDMENTS).view)).toEqual([]);
     const dir = tempDir("choice");
     const { path, pin } = withAm3(dir, (am3) => {
@@ -344,6 +383,16 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
     // A made choice, or a bare bar outside angle brackets, is not one.
     const made = withAm3(dir, (am3) => { am3["reason"] = "C1 reads the picture as ruled, the Mug worn (S3 granted) | noted"; });
     expect(preflightStep3(FILED, made.path, made.pin).guard.entry).toBe("AM-3");
+    // The same refusal on a copy of the committed file itself, AM-3's reason put back to its draft's choice.
+    const filed = committedAmendments();
+    const filedAm3 = filed.entries.find((e) => e["id"] === "AM-3")!;
+    expect(String(filedAm3["reason"]).split("the picture as ruled, the Mug worn")).toHaveLength(2);
+    filedAm3["reason"] = String(filedAm3["reason"]).replace("the picture as ruled, the Mug worn", "<the picture as ruled, the Mug worn | the Mug's Head-only picture>");
+    const back = join(dir, "filed-with-choice.json");
+    writeFileSync(back, jsonText(filed));
+    expect(() => preflightStep3(FILED, back, amendmentsDigest(filed))).toThrow(
+      "ADR-089 step 3: refused before anything plays: the amendments file's step-3 view holds a choice not yet made: AM-3.reason holds the choice <the picture as ruled, the Mug worn | the Mug's Head-only picture>. An entry is filed with its choice made",
+    );
   });
 
   it("review FID-F-1: S3 is in contracts (granted 2026-10-31) and the design picture is AS_RULED, so nothing is refused for the picture; with S3 not granted, a graded run and R-1's digests refuse any pocket-1.s3 arm before anything plays", () => {
@@ -1097,7 +1146,7 @@ describe("the run through its play seam", () => {
   it("a preview's cache (stamped before AM-3) is refused by name by a grading run, never re-used", () => {
     const dir = tempDir("stale");
     const cacheParent = join(dir, "cache");
-    const p = runStep3Part1({ cacheParent, filedPath: FILED, amendmentsPath: AMENDMENTS, env: ENV, play, arms: ["C1"], seedSet: 1 });
+    const p = runStep3Part1({ cacheParent, filedPath: FILED, amendmentsPath: PRE_AM3.path, amendmentsPin: PRE_AM3.pin, env: ENV, play, arms: ["C1"], seedSet: 1 });
     expect(p.played).toEqual(["C1.set1"]);
     expect(() => runStep3({ cacheParent, filedPath: FILED, amendmentsPath: AM3.path, amendmentsPin: AM3.pin, env: ENV, play, references: new Map(), arms: ["C1"], seedSet: 1, s3Granted: true })).toThrow(
       new RegExp(`the cached C1 \\(set 1\\) at .* is not this build's arm: stamped with amendments ${previewDigest()}, not this build's step-3 view ${guard().digest}\\. Delete it, or use another --cache`),
@@ -1203,7 +1252,7 @@ describe("R-1: the digests and their pin check (plan §2.10, §6.2)", () => {
   });
 
   it("plays without AM-3: A1's real folds (first 10 a league) equal S-9's pins; a C arm is stamped pocket-1.s3 and folded unstripped beside", () => {
-    const d = runStep3Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 10, arms: ["A1"] });
+    const d = runStep3Digests({ filedPath: FILED, amendmentsPath: PRE_AM3.path, amendmentsPin: PRE_AM3.pin, node: "v-test", first: 10, arms: ["A1"] });
     expect(d).toMatchObject({ format: STEP3_DIGESTS_FORMAT, amendments: previewDigest(), gamesPerLeague: 10, caller: "v7" });
     expect(step3DigestPinProblems(d)).toEqual([]);
     const c = runStep3Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 1, arms: ["C1"], s3Granted: true });
