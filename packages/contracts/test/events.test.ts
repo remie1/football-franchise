@@ -1,5 +1,5 @@
 /**
- * ADR-089 P2 to P5: what the edits allow and what they still refuse.
+ * ADR-089 P2 to P5 and P17: what the edits allow and what they still refuse.
  *
  * The cases are type-level: the `@ts-expect-error` lines fail `pnpm --filter @ff/contracts
  * typecheck` (part of `pnpm verify`) if the edit is loosened or lost. The runtime asserts only
@@ -85,5 +85,18 @@ describe("ADR-089 P5: RUSH_THREAT.distanceYards and closingSpeed", () => {
     expect(Object.keys(plain)).not.toContain("closingSpeed");
     expect([withPair.distanceYards, withPair.closingSpeed]).toEqual([11.25, 4.69]);
     expect([undefDistance, undefSpeed, text].length).toBe(3);
+  });
+});
+
+describe("ADR-089 P17: a late block's rolled tick on shape L", () => {
+  it("carries both dice and names its touching CHECK by rollRef", () => {
+    const rb = "rb1" as PlayerId;
+    const late: CheckPayload = {
+      checkKind: "pass_rush_tick", actors: [p, rb], tier, margin: 4, testsAttrs: [], band: "STALEMATE",
+      roll: { ...d100, rngLabel: "g/rush/t1.0/p1:late" },
+      opposedRoll: { ...d100, rngLabel: "g/rush/t1.0/rb1:late:p1" },
+      rollRef: "g/presnap/pickup/p1",
+    };
+    expect(late.rollRef).toBe("g/presnap/pickup/p1");
   });
 });

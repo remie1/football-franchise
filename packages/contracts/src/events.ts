@@ -112,6 +112,11 @@ export type CheckKind =
    * ADR-059. The per-play, per-matchup pass-rush contest, drawn ONCE and lived with —
    * `pass_rush_tick` becomes unmodded jitter around it and references it by `rollRef` (under
    * ADR-089's shape S the tick draws no jitter and references the `pass_rush_beat` instead, P3).
+   * ADR-089 P17: a touched man's late block (ADR-089 §4.4.2, from `pocket-1.s3`) has no rep.
+   * Under shape L its ticks draw their jitter on `<rusherId>:late` and
+   * `<toucherId>:late:<rusherId>`, around his `blitz_pickup` or `stunt_communication` CHECK's
+   * margin, negated, and reference that CHECK by `rollRef`; under shape S they reference the late
+   * block's `pass_rush_beat`, which names that CHECK.
    *
    * The attribute contest lives HERE, not on the tick (ADR-059 claim 11, owner ruling):
    * rusher `passRush`/`powerMove`/`finesseMove`/`firstStep`, blocker
@@ -317,9 +322,10 @@ export type MatchEvent =
         /**
          * ADR-059. The `RollDetail.rngLabel` of a PRIOR roll in the same play that this
          * check derives from — for `pass_rush_tick`, the `pass_rush_rep` whose latent it
-         * jitters around; for a `pass_rush_tick` with no `roll` (ADR-089 P3, shape S), the
-         * `pass_rush_beat` whose breaking time sets its margin; for `pass_rush_beat` (ADR-089 P2),
-         * the CHECK whose block it times.
+         * jitters around (on a touched man's late block under shape L, ADR-089 P17, his
+         * `blitz_pickup` or `stunt_communication` CHECK); for a `pass_rush_tick` with no `roll`
+         * (ADR-089 P3, shape S), the `pass_rush_beat` whose breaking time sets its margin; for
+         * `pass_rush_beat` (ADR-089 P2), the CHECK whose block it times.
          *
          * Present so the deciding quantity is REPRODUCIBLE FROM THE STREAM. Without it the
          * margin that selects a band exists only in engine memory, and Iron Rule 3 is not
@@ -339,6 +345,9 @@ export type MatchEvent =
    * No die produces it — it is a deterministic function of the pass_rush_tick
    * roll named by `rollRef` (under `pocket-1`'s shape S, of the pass_rush_beat roll,
    * ADR-089 P3) — so it carries no RollDetail and no tier (ADR-004/005).
+   * ADR-089 P17: a touched man's late block (ADR-089 §4.4.2) keeps his origin and names his
+   * `blitz_pickup` or `stunt_communication` CHECK; its ETA is set by the `pass_rush_beat`
+   * (shape S) or the winning `pass_rush_tick` (shape L) that names the same CHECK.
    */
   | ({ type: "RUSH_THREAT"; payload: {
         rusher: PlayerId;
