@@ -359,7 +359,8 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
     resolve: peopleResolver(squads, { rules, ...caller, ...games }),
     people,
     through: "YEAR",
-    ...(people.coaching ? { coaching: {} } : {}),
+    // ADR-081: with the coaches, each team's end-of-season meeting too (before the carousel).
+    ...(people.coaching ? { coaching: {}, meeting: {} } : {}),
     players: {
       development,
       injuries: input.players?.injuries === true,
