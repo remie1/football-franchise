@@ -154,6 +154,16 @@ windows. Its fix is designed right after the pocket fix, measured on the fixed p
   ear decide how well the defense knows the count, and the offensive coordinator fixes it during
   the game. You chose to have the count matter on every snap (jumping the count, false starts)
   in a design of its own after the pocket fix, with officials who sometimes miss a call.
+- Penalties called by human officials (ADR-093, approved 31 October 2026, all eight questions ruled):
+  every foul enforced by the NFL's rulebook, players who foul through their Discipline, and
+  officials who miss some fouls, sometimes flag a close play that wasn't one, and work in 17 crews
+  with their own leans, all sized to real NFL flags (three seasons in detail, thirteen for how
+  crews and the league's standard move). Nobody counts missed calls, so how much the officials
+  miss is your call, fenced in by the league's own grading (you chose 2 in 3 of the holding seen
+  and 1 in 20 judgment flags wrong). An assistant head coach offers challenges with an honest
+  percentage, under the NFL's real challenge rules. Its first two steps (the rulebook and the
+  officials) are being built now and change no play; the fouls themselves come after the pocket
+  fix.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.
