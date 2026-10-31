@@ -14,14 +14,35 @@ type Loose = { type: string; payload: unknown; playId?: string };
 const game = (type: string, payload: unknown): Loose => ({ type, payload });
 const play = (playId: string, type: string, payload: unknown): Loose => ({ type, payload, playId });
 
-function snap(playId: string, kind: string, down: number, distance: number, ballOn: number, clockSeconds: number, offense: object = {}, defense: object = {}): Loose {
+function snap(playId: string, kind: string, down: number, distance: number, ballOn: number, clockSeconds: number, offense: object = {}, defense: object = {}, picture?: object): Loose {
   return play(playId, "PLAY_START", {
     kind,
     situation: { down, distance, ballOn, clockSeconds },
     offense: { team: AWAY, call: kind === "PASS_PLAY_V1" ? "Spot Option" : "Inside Zone", quarterback: "qb", ...offense },
     defense: { team: HOME, call: "Cover 1", tags: [{ kind: "PRESSURE", id: "SMOKE", name: "Smoke" }], ...defense },
+    // ADR-090 step 1: where every man stood, the payload's last key.
+    ...(picture === undefined ? {} : { snap: picture }),
   });
 }
+
+/** Play 1's snap picture: part of a lineup, a moving safety, a man the roster lacks and a spot that does not read. */
+export const P1_PICTURE = {
+  ballX: 0,
+  offense: [
+    { player: "qb", x: 0, y: -5, stance: "UP" },
+    { player: "lt", x: -3, y: -1, stance: "DOWN" },
+    { player: "wr", x: -20, y: 0, stance: "UP" },
+    { player: "te", x: 4.5, y: -1, stance: "DOWN" },
+    { player: "rb2", x: -1.5, y: -5, stance: "UP" },
+  ],
+  defense: [
+    { player: "de", x: 5.5, y: 1, stance: "DOWN" },
+    { player: "cb", x: -20, y: 1, stance: "UP" },
+    { player: "fs", x: 3, y: 12, stance: "UP", moving: { dx: -0.6, dy: -0.8, yardsPerSecond: 3 } },
+    { player: "zz", x: 9, y: 4.5, stance: "UP" },
+    { player: "ghost" },
+  ],
+};
 const result = (playId: string, yards: number, more: object = {}) => play(playId, "PLAY_RESULT", { yards, turnover: false, clockRunoff: 5, ...more });
 
 const EVENTS: Loose[] = [
@@ -60,7 +81,7 @@ const EVENTS: Loose[] = [
       { kind: "ZONE", defender: "fs", zone: { horizontal: "C", vertical: "DEEP" } },
     ],
     rush: [{ rusher: "de", move: "SPEED" }],
-  }),
+  }, P1_PICTURE),
   play("p1", "PRESNAP_READ", {
     actor: "qb",
     kind: "coverage_read",

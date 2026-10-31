@@ -275,3 +275,14 @@ veteran salary benefit, in-season street signings and injured reserve, compensat
   - Dead money is a third to a half of the real figure.
   - The position mix drifts.
   - Offseason rosters exceed 90.
+
+### Step 7: early extensions (owner's pick, 2026-10-31)
+
+- On re-signing day, a team extends a player whose deal has one year left. The conditions:
+  - He grades at or above the 40th percentile of his position's market (`MARKET.extendPercentile`).
+  - His price is still at least 90% of his peak in the new deal's first year (`extendAgeFactor`).
+  - A drafted player must have finished his third season (`rookieExtensionSeasons`, the real CBA rule).
+  - He must accept at a fair price, and the deal must fit the team's room for that year.
+- The new deal starts when the old one ends.
+- Re-signings of expiring players now ask the fair (VALUE) price, where before they asked the PREMIUM one.
+- Five-year check: own-team deals of two years or more average 84 a year (55 before; the real number is 210 to 290). The limit is now cap room: teams end each year at about 99% of the cap. Details are in `packages/calibration/reports/cap-check.md`.

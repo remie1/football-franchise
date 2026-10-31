@@ -3,7 +3,8 @@
  * against the August ranges, what a look costs in ground, the offense's spots, and every rule
  * step 0 had to choose where the tables were silent.
  */
-import type { DefenseGroup, SnapSpot } from "@ff/playbook";
+import type { SnapSpot } from "@ff/contracts";
+import type { DefenseGroup } from "@ff/playbook";
 import { FAR_LOOK_YARDS, type SnapSpotsMeasure, type Tally } from "./measure.js";
 
 const GROUP_NAME: Readonly<Record<DefenseGroup, string>> = {

@@ -205,8 +205,8 @@ import type {
   OffensiveCallRequest,
   PlayCaller,
 } from "@ff/engine";
-import type { OffensiveCall, ProtectionCall } from "@ff/contracts";
-import type { AnyDefensiveCard, DepthChart, PlaySituation } from "@ff/playbook";
+import type { OffensiveCall, ProtectionCall, SnapPicture } from "@ff/contracts";
+import type { AnyDefensiveCard, DepthChart, PlaySituation, SnapInput } from "@ff/playbook";
 import {
   COMPOSED,
   COVERAGE_MASKS,
@@ -234,6 +234,7 @@ import {
   selectLooks,
   selectPassConcept,
   selectRunConcept,
+  snapPicture,
   type AnyOffensiveUnit,
   type CoverageMask,
   type FrontLookDraw,
@@ -716,7 +717,7 @@ function tendencyKeyOf(request: {
  * rather than letting the two sides diverge quietly — which is the difference between a broken
  * batch and a batch of clean statistics about two teams playing different plays.
  */
-function sharedSnapRng(rng: Rng, side: "offense" | "defense"): Rng {
+function sharedSnapRng(rng: Rng, side: "offense" | "defense" | "line-up"): Rng {
   const suffix = `/${side}`;
   if (!rng.label.endsWith(suffix)) {
     throw new FrozenCallerError(
@@ -764,6 +765,12 @@ interface ResolvedSnap {
    * formation-dropped look (§2.5), known by `applyFrontLook` handing the defence back unchanged.
    */
   readonly frontWorn: boolean;
+  /**
+   * What the snap picture is drawn from (ADR-090 step 1): the formation and the eleven the
+   * offense put out, the called card as it wears its coverage looks, and the defense as played,
+   * with its front look on. Read by `lineUp` only; nothing above it reads a spot.
+   */
+  readonly snapInput: SnapInput;
 }
 
 /**
@@ -891,6 +898,7 @@ function resolveSnap(
         protectorsInCoverage,
         frontDraw,
         frontWorn: frontDraw !== undefined && worn !== defense,
+        snapInput: { formation: concept.formation, offense: offenseUnit, card: calledCard, defense: worn },
       };
     } catch (e) {
       if (!(e instanceof UnprotectableCallError)) throw e;
@@ -1040,6 +1048,37 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
       }
       diagnostics.defensiveCalls++;
       return resolved.defense.call;
+    },
+
+    /**
+     * ADR-090 step 1 (petition S5): where every man stands at the snap. Asked of the DEFENDING
+     * team's caller after both calls, so the charts are the other way round from this caller's own
+     * side, as in `callDefense`. It resolves the same snap again from the same shared address
+     * (`resolveSnap` is pure in its inputs) and draws the picture from it; no die is thrown and no
+     * diagnostic is counted, so the game is the game it was.
+     */
+    lineUp(request, rng): SnapPicture {
+      const charts = side === "HOME"
+        ? { offense: spec.awayDepthChart, defense: spec.homeDepthChart }
+        : { offense: spec.homeDepthChart, defense: spec.awayDepthChart };
+      const resolved = resolveSnap(
+        spec,
+        charts.offense,
+        charts.defense,
+        situationOf(request),
+        tendencyKeyOf(request),
+        sharedSnapRng(rng, "line-up"),
+      );
+      // As `callDefense` asserts: a picture of a snap the offence did not run would be a picture of
+      // a game nobody played.
+      if (resolved.offense.call.name !== request.offenseCall.name) {
+        throw new FrozenCallerError(
+          `the line-up resolved "${resolved.offense.call.name}" and the offence ran ` +
+            `"${request.offenseCall.name}". Same seed, same situation, same charts — so the inputs ` +
+            `the callers hold have diverged.`,
+        );
+      }
+      return snapPicture(resolved.snapInput);
     },
 
     /**

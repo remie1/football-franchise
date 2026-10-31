@@ -371,7 +371,7 @@ Derived directly from `match-engine.md`; every roll and resolution the debug pri
 
 | Type | Payload sketch |
 |---|---|
-| `PLAY_START` | offense/defense play calls, personnel, situation (down, distance, LOS, clock, score) |
+| `PLAY_START` | offense/defense play calls, personnel, situation (down, distance, LOS, clock, score); last, `snap`: where every man stands at the snap (`SnapPicture`, ADR-090 S1 and S2; absent when the play-caller drew none), carried in on the calls (`PlayCalls.snap`, S5) |
 | `PRESNAP_READ` | actor, check kind (coverageShell / blitz / audible), roll detail, result tier |
 | `TICK` | tick number (marks time advancing) |
 | `CHECK` | **the workhorse**: `{ checkKind, actors, roll: RollDetail, target, opposedRoll?, resultTier, marginOfSuccess }` |

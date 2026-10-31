@@ -36,6 +36,8 @@ export interface CapCheckInput {
   readonly callerVersion?: CallerVersion;
   /** After each season, with what it measured. */
   readonly onYear?: (year: CapYear) => void;
+  /** After each season, with its events and the people it ended with (for other checks to measure). */
+  readonly onRun?: (season: number, events: readonly FranchiseEvent[], people: SeasonPeople) => void;
 }
 
 /** One position group's share of the money. OverTheCap's groups. */
@@ -215,6 +217,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
     });
     if (!run.complete || run.people === undefined) throw new Error(`cap check: season ${season} did not finish its league year`);
     people = run.people;
+    input.onRun?.(season, run.events.map((e) => e.event), people);
     current = { ...current, teams: people.teams };
     const year = measure(people, run.events.map((e) => e.event), season + 1, cap(season + 1), (Date.now() - started) / 1000, lastTeam);
     years.push(year);

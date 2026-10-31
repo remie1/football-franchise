@@ -54,8 +54,8 @@ export interface PlayerStepsConfig {
    * draft's `cap` prices its deals. Default: flat at the rules' cap, as the draft's default is. Up to
    * the CBA's last season (2030) the minimum is the CBA's table and the cap changes nothing; past it,
    * the table grows with the cap, so a league that signs players then needs one. `runSeason` gives
-   * these steps the league year's (ADR-085), else the draft's, when they have none of their own, so
-   * they are priced on the league year's forecast (the draft's own deals take only its `cap`).
+   * these steps the year's one cap, the draft's, else the league year's (ADR-085), when they have none
+   * of their own, so they are priced as the draft's deals are.
    */
   readonly cap?: CapForSeason;
 }

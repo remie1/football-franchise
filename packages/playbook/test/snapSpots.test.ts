@@ -11,7 +11,8 @@
  */
 import { describe, expect, it } from "vitest";
 import { laneOfX, cellOf, toHalfYard, BALL_X, playPreSnap, onOneSpot } from "../src/snapSpots.js";
-import type { PreSnapBeats, SnapInput, SnapSpot } from "../src/snapSpots.js";
+import type { SnapSpot } from "@ff/contracts";
+import type { PreSnapBeats, SnapInput } from "../src/snapSpots.js";
 import { COMPOSED, V6_COVERAGES } from "../src/coverageCatalogue.js";
 import { dutyList, mirrorDefensiveCard, type AnyDefensiveCard } from "../src/defense.js";
 import { DEFENSIVE_CARDS } from "../src/defensiveCards.js";

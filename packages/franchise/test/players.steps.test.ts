@@ -528,7 +528,7 @@ describe("emergencySignings (§5.3)", () => {
   });
 });
 
-describe("the players' signings take the league year's cap, else the draft's, in runSeason (past 2030)", () => {
+describe("the players' signings take the year's one cap, the draft's else the league year's, in runSeason (past 2030)", () => {
   // 2031, past the CBA's last season, with a contract book from the first day; a team wants a quarterback
   // whenever it has fewer fit ones than it started with, so hurt quarterbacks bring signings.
   const LATE = 2031;
@@ -569,13 +569,15 @@ describe("the players' signings take the league year's cap, else the draft's, in
     expect(new Set([draftCap, own, neither].map((r) => minimums(r, growing)[0]![0])).size).toBe(3);
   });
 
-  it("prices them from the league year's cap when it is given, though the draft's differs, and from their own over both", () => {
+  it("prices them from the league year's cap when the draft has none, from the draft's when it has one, and from their own over both", () => {
     // ADR-085 step 5: the league year's steps play their part of this walk too (its market's bargain
-    // basement runs in camp and the preseason, before cut-down day), and its cap is the one shared.
+    // basement runs in camp and the preseason, before cut-down day). runSeason shares one cap for the
+    // year's deals, the draft's else the league year's, and the players' signings take that one.
     const leagueYear: LeagueYearConfig = { rate, cap: steep };
+    const yearOnly = run({}, { rate, makeClass }, leagueYear);
     const shared = run({}, { rate, makeClass, cap: growing }, leagueYear);
     const own = run({ cap: mild }, { rate, makeClass, cap: growing }, leagueYear);
-    for (const r of [shared, own]) {
+    for (const r of [yearOnly, shared, own]) {
       expect(r.stepEvents!.some(({ step, envelope }) => step === "free-agency" && envelope.event.type === "CONTRACT_SIGNED")).toBe(true);
     }
     /** The players' steps' own signings (not the market's or the draft's): what each was paid, and his price by a cap. */
@@ -587,9 +589,13 @@ describe("the players' signings take the league year's cap, else the draft's, in
       expect(deals.length).toBeGreaterThan(0);
       return deals.map((c) => ({ paid: c.years[0]!.baseSalary, by: (cap: CapForSeason) => minimumSalary(LATE, credited.get(String(c.player))!, cap) }));
     };
-    for (const d of theirs(shared)) {
+    for (const d of theirs(yearOnly)) {
       expect(d.paid).toBe(d.by(steep));
-      expect(d.paid).not.toBe(d.by(growing)); // the draft's cap would have priced him otherwise
+      expect(d.paid).not.toBe(d.by(flatCap(DEFAULT_LEAGUE_RULES))); // a flat cap would have priced him otherwise
+    }
+    for (const d of theirs(shared)) {
+      expect(d.paid).toBe(d.by(growing)); // the draft's, which its own deals take too
+      expect(d.paid).not.toBe(d.by(steep));
     }
     for (const d of theirs(own)) {
       expect(d.paid).toBe(d.by(mild));

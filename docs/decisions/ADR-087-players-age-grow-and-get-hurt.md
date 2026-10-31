@@ -492,24 +492,24 @@ Built as §9 and §10 lay out, with these choices the design left to the build (
   nothing more changes; street signings are unchanged. A truer reason, such as `PROMOTED`, would be
   an edit to `ContractEndReason`, which the cap thread owns, and needs the owner's typed yes; it is
   not done. Calibration keeps no book, and nothing that keeps one calls players up yet.
-- **The players' signings take the league year's cap, else the draft's** (2026-10-31, after main's
-  draft part 2, ADR-086, came in). An emergency signing's one-year minimum is priced by the players'
-  steps' own `cap` (`PlayerStepsConfig.cap`, ADR-085's forecast); when they have none, `runSeason`
-  gives them the league year's (`leagueYear.cap`, ADR-085 step 5, from main at 54cc97d) when it is
-  given, else `draft.cap` (the draft's own deals still take only `draft.cap`, else flat), and with
-  neither it is flat at the rules' cap, the draft's default (`flatCap`). `players.steps.test.ts`
-  checks the order: the league year's cap over a different draft's, and the players' own over both.
+- **The players' signings take the year's one cap** (2026-10-31, after main's draft part 2, ADR-086,
+  came in). An emergency signing's one-year minimum is priced by the players' steps' own `cap`
+  (`PlayerStepsConfig.cap`, ADR-085's forecast); when they have none, `runSeason` gives them the cap
+  it shares for every deal the year signs (since PR #44): `draft.cap`, else the league year's
+  (`leagueYear.cap`, ADR-085 step 5), and with neither it is flat at the rules' cap, the draft's
+  default (`flatCap`). `players.steps.test.ts` checks the order: the league year's cap when the draft
+  has none, the draft's when it has one, and the players' own over both.
   Up to the CBA's last season (2030) the minimum is the CBA's table and the cap moves no number;
   past it the table grows with the cap, and the signing used to stop there ("needs the cap"), so a
   league with both the players' steps and the draft now runs past 2030. With the draft part 2,
   `runSeason` with both does keep a book and call up the squads cut-down day fills (the bullet above
   predates it); `players.draft.test.ts` plays two such seasons and checks what the call-ups own.
-  Four snags found when the two met sit in the draft's code and were handed to the draft thread, not
-  fixed here: the year turn (`turnYear`) leaves a squad man's practice-squad deal open beside his
-  reserve/future deal, so from the third season on the book can hold a stale squad deal; cut-down
-  day builds each squad from its own cuts and drops one a team started with (the stand-in league's);
-  the free agents' order after a save and load is not a straight run's; and the compensatory
-  formula's league averages count ended deals too.
+  Six snags found when the two met, and with the league year, sat in the draft's code; the draft
+  thread fixed them in PR #44: the year turn (`turnYear`) left a squad man's practice-squad deal open
+  beside his reserve/future deal; cut-down day dropped a squad a team started with (the stand-in
+  league's); the free agents' order after a save and load was not a straight run's; the compensatory
+  formula's league averages counted ended deals; undrafted rookies were credited a season or two
+  too many; and the draft did not take the league year's cap.
 - **The who-played report** credits a snap to every player a play card names and to the offence's
   quarterback on every scrimmage play (a run card does not name him). Kicks credit the kicker or
   punter and the returner only: the engine has no coverage or return units yet.
