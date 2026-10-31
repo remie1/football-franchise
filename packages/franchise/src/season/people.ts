@@ -39,6 +39,12 @@ export interface LeaguePeople {
    */
   freeAgentMoves?: { player: PlayerId; from: TeamId; to: TeamId; apy: number; signedAt: CalendarStamp }[];
   /**
+   * Unused cap room each team carried into a league year (ADR-085, Q1 b: the real carryover rule).
+   * Set at the new league year from the room left at the end of the last. Absent = none. Saves do
+   * not hold it yet.
+   */
+  capCarryover?: { team: TeamId; season: number; amount: number }[];
+  /**
    * ADR-087: what the players' steps remember between days (past injuries, recent grades, position
    * battles, when each free agent became unsigned). Saved as S1's `depthMemory`. Absent = nothing yet.
    */
