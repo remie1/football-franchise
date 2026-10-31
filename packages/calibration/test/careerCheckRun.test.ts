@@ -1,6 +1,7 @@
 /**
  * The 20-season check one seed at a time (ADR-087 D5b, `careerCheckRun.ts`): the arms, the seed
- * sets, the fingerprint, the codec a checkpoint keeps the people in, and a seed stopped after a
+ * sets, the fingerprint, the codec a checkpoint keeps the people in (the coaching world among them),
+ * and a seed stopped after a
  * season's checkpoint and carried on from it (on made-up seasons here; on the real walk, three
  * switched-on seasons, with FF_CAREER_RESUME=1).
  */
@@ -9,12 +10,15 @@ import { tmpdir } from "node:os";
 import { dirname, join, normalize, relative } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { StaffState } from "@ff/contracts";
-import { buildLeague, buildStaff, type runSeason, type SeasonRun } from "@ff/franchise";
+import { buildLeague, buildStaff, runSeason, type SeasonRun } from "@ff/franchise";
 import type { CapCheckInput } from "../src/season/capCheck.js";
 import {
   armInput, CAREER_FINGERPRINT_LEAVES_OUT, CAREER_SEED_SETS, careerCachePaths, careerFingerprint, CareerCheckStopped, COACH_STYLE_LINEUPS,
-  decodeState, encodeState, listCareerBuilds, readCareerRecords, runCareerSeed, seedOf, stateDifference, withHeadCoachLineups, writeWhole,
+  CAREER_CHECK_VERSION, decodePeople, decodeState, encodePeople, encodeState, listCareerBuilds, peopleDifference, readCareerRecords, runCareerSeed,
+  seedOf, stateDifference, withHeadCoachLineups, writeWhole,
 } from "../src/season/careerCheckRun.js";
+import { CAREER_ROWS_VERSION } from "../src/season/careerCheck.js";
+import type { SeasonPeople } from "../src/season/realSeason.js";
 import { readStandInFile } from "../src/season/standInLeague.js";
 
 type SeasonInput = Parameters<typeof runSeason>[0];
@@ -221,6 +225,43 @@ describe("the codec", () => {
     expect(() => encodeState({ f: () => 1 })).toThrow(/function/);
   });
 
+  it("keeps the coaching world as it is: staffs, pool, contracts, the views and the GMs the first day seats, the staff one array", () => {
+    const league = buildLeague("career-check-coaching");
+    const world = buildStaff(league, { firstSeason: 2026, lineups: true }).world;
+    const start = { teams: league.teams, players: [], picks: [], classes: [], freeAgents: [], staff: world.staff, coaching: { world } } as unknown as SeasonPeople;
+    // The season's first day, with the coaches' and the meeting's steps: the views are seated and every team gets its GM.
+    const run = runSeason({
+      league, season: 2026, seed: "career-check-coaching/2026", people: start, coaching: {}, meeting: {},
+      resolve: () => { throw new Error("no game is played on the first day"); },
+      stopAfter: { season: 2026, phase: "TRAINING_CAMP", week: 1, day: 1 },
+    });
+    const people = run.people!;
+    expect(people.coaching!.relationships!.length).toBeGreaterThan(100);
+    expect(people.staff!.filter((s) => s.role === "GM")).toHaveLength(32);
+    for (const p of [start, people]) {
+      expect(p.staff).toBe(p.coaching!.world.staff);
+      const encoded = encodePeople(p);
+      expect(encoded.sharedStaff).toBe(true);
+      const back = decodePeople(JSON.parse(JSON.stringify(encoded.people)), encoded.sharedStaff);
+      expect(peopleDifference(back, p)).toBeNull();
+      expect(stateDifference(back.coaching, p.coaching)).toBeNull();
+      expect(back.staff).toBe(back.coaching!.world.staff);
+      expect(Object.keys(back)).toEqual(Object.keys(p));
+    }
+    // The staff is written once: under `staff`, a null in its place.
+    expect((encodePeople(people).people as { staff: unknown }).staff).toBeNull();
+    // Two lists of the same coaches are kept as two (and read back as two).
+    const apart = { ...people, staff: [...people.staff!] };
+    const encoded = encodePeople(apart);
+    expect(encoded.sharedStaff).toBe(false);
+    const back = decodePeople(JSON.parse(JSON.stringify(encoded.people)), false);
+    expect(peopleDifference(back, apart)).toBeNull();
+    expect(back.staff).not.toBe(back.coaching!.world.staff);
+    // The state check sees a shared staff come back apart, and the decoder refuses a file that says it shares with no world.
+    expect(peopleDifference(apart, people)).toBe("$.staff<shared with coaching.world.staff>");
+    expect(() => decodePeople(encodeState({ ...apart, coaching: undefined }), true)).toThrow(/no coaching world/);
+  }, 300_000);
+
   it("keeps the league file's people as they are (traits are Sets)", () => {
     const people = { players: file.league.players.slice(0, 200), teams: file.league.teams, contracts: (file.contracts ?? []).slice(0, 200) };
     const back = decodeState(JSON.parse(JSON.stringify(encodeState(people))));
@@ -242,12 +283,19 @@ describe("one seed: the cache and the checkpoint (made-up seasons)", () => {
       expect(() => withMadeUpSeasons(() => runCareerSeed({ ...opts, cacheDir: dirB, stopAfter: 2 }))).toThrow(CareerCheckStopped);
       expect(existsSync(paths.checkpoint)).toBe(true);
       expect(existsSync(paths.rows)).toBe(false);
-      const cp = JSON.parse(readFileSync(paths.checkpoint, "utf8")) as { seasonsDone: number; seconds: number[] };
+      const cp = JSON.parse(readFileSync(paths.checkpoint, "utf8")) as { version: number; seasonsDone: number; seconds: number[]; people: unknown; sharedStaff: boolean };
+      expect(cp.version).toBe(CAREER_CHECK_VERSION);
       expect(cp.seasonsDone).toBe(2);
       expect(cp.seconds).toHaveLength(2);
+      // The coaching world rides in the checkpoint's people, its staff written once.
+      expect(cp.sharedStaff).toBe(true);
+      const kept = decodePeople(cp.people, cp.sharedStaff);
+      expect(kept.coaching!.world.staff.length).toBeGreaterThan(32 * 5);
+      expect(kept.staff).toBe(kept.coaching!.world.staff);
       const resumed = withMadeUpSeasons(() => runCareerSeed({ ...opts, cacheDir: dirB }));
       expect(resumed.from).toBe("resumed");
       expect(JSON.stringify(resumed.record.rows)).toBe(JSON.stringify(straight.record.rows));
+      expect(resumed.record.rows.version).toBe(CAREER_ROWS_VERSION);
       expect(resumed.record.seconds).toHaveLength(3);
       expect(existsSync(paths.checkpoint)).toBe(false);
       // Once written, the rows come from the cache.
@@ -290,8 +338,12 @@ describe.skipIf(!RESUME)("one seed on the real walk: stopped after season 2 and 
       expect(() => runCareerSeed({ ...opts, cacheDir: dirB, stopAfter: 2, onSeason: log("stopped") })).toThrow(CareerCheckStopped);
       const paths = careerCachePaths(dirB, "both", "d5b-resume", 3);
       const text = readFileSync(paths.checkpoint, "utf8");
-      const people = decodeState((JSON.parse(text) as { people: unknown }).people);
-      expect(stateDifference(decodeState(JSON.parse(JSON.stringify(encodeState(people)))), people)).toBeNull();
+      const file = JSON.parse(text) as { people: unknown; sharedStaff: boolean };
+      const people = decodePeople(file.people, file.sharedStaff);
+      expect(people.coaching).toBeDefined();
+      expect(people.staff).toBe(people.coaching!.world.staff);
+      const again = encodePeople(people);
+      expect(peopleDifference(decodePeople(JSON.parse(JSON.stringify(again.people)), again.sharedStaff), people)).toBeNull();
       const resumed = runCareerSeed({ ...opts, cacheDir: dirB, onSeason: log("resumed") });
       expect(resumed.from).toBe("resumed");
       expect(JSON.stringify(resumed.record.rows)).toBe(JSON.stringify(straight.record.rows));

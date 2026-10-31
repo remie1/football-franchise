@@ -1,7 +1,8 @@
 /**
  * The cap check's walk, widened for the 20-season check (ADR-087 D5b): the players' switches, the
  * watchers (`onDay`, `onEvent`, and `onRun`'s run with the people it started from), the staff
- * transform and the limbo sweep.
+ * transform, the coaches' and the meeting's steps (the coaching world in the people), and the limbo
+ * sweep.
  *
  * Switched off, `runSeason` is handed exactly today's setup (a copy of the walk's setup as it was
  * before the widening is kept below to compare with). Switched on, a walk stopped in the second week
@@ -22,8 +23,9 @@ import {
 import { buildLeague, buildStaff, capForecast, type runSeason, type SeasonRun } from "@ff/franchise";
 import { generateDraftClass } from "@ff/attributes";
 import {
-  limboPlayers, OPENING_ROOM, runCapCheck, sweepLimbo, withConditionRule, withDummyYearsVoid, type CapCheckInput,
+  limboPlayers, OPENING_ROOM, runCapCheck, sweepLimbo, transformStaff, withConditionRule, withDummyYearsVoid, type CapCheckInput,
 } from "../src/season/capCheck.js";
+import { armInput, COACH_STYLE_LINEUPS } from "../src/season/careerCheckRun.js";
 import { runDraftCheck } from "../src/season/draftCheck.js";
 import { unfilledPosition } from "../src/season/lineup.js";
 import { peopleResolver, type SeasonPeople } from "../src/season/realSeason.js";
@@ -112,8 +114,9 @@ describe("the cap check's walk, switched off: runSeason is handed today's setup"
     const todayClass = generateDraftClass({ seed: SEED, draft: 2027, usedNames: new Set(["A B"]) });
     for (const players of [undefined, {}, { development: false, injuries: false }]) {
       const input = firstSeasonInput(players === undefined ? {} : { players });
-      // Nothing new is handed over: no players' steps, no day steps, no event watcher.
+      // Nothing new is handed over: no players' steps, no coaches' or meeting's steps, no day steps, no event watcher.
       expect(Object.keys(input).sort()).toEqual(["draft", "league", "leagueYear", "people", "resolve", "season", "seed", "through"]);
+      expect(input.people!.coaching).toBeUndefined();
       const { league, season, seed, people, through } = input;
       expect(json({ league, season, seed, people, through })).toBe(json(today.data));
       // The staff has no stored leanings, as before (they are stored only with a switch on).
@@ -235,6 +238,15 @@ describe("the cap check's walk, widened (made-up seasons answer runSeason)", () 
     const coaches = hurt.people!.staff!.filter((s) => s.role === "HEAD_COACH" && s.teamId !== undefined);
     expect(coaches).toHaveLength(32);
     expect(coaches.every((s) => s.lineup !== undefined)).toBe(true);
+    // The coaches live in the walk: the whole coaching world (buildStaff's, views not yet seated) rides
+    // in the people, the staff is its staff (one array), and the coaches' and the meeting's steps run.
+    for (const input of [dev, hurt]) {
+      expect(input.coaching).toEqual({});
+      expect(input.meeting).toEqual({});
+      expect(input.people!.coaching!.world.staff).toBe(input.people!.staff);
+      expect(input.people!.coaching!.relationships).toBeUndefined();
+    }
+    expect(json(hurt.people!.coaching!.world)).toBe(json(buildStaff(buildLeague(SEED), { firstSeason: 2026, lineups: true }).world));
     // The lineup rule is the season runner's: a team at full strength can field a side; with nobody fit, not.
     const rated = buildStandInLeague(buildLeague(SEED), file, { injuries: true }).rated;
     const team = hurt.people!.teams[0]!;
@@ -278,6 +290,76 @@ describe("the cap check's walk, widened (made-up seasons answer runSeason)", () 
     expect(coaches).toHaveLength(32);
     expect(coaches.every((s) => json(s.lineup) === json({ incumbent: 100, veteran: 50, form: 0 }))).toBe(true);
     expect(json(arm.people!.staff!.filter((s) => s.role !== "HEAD_COACH"))).toBe(json(plain.people!.staff!.filter((s) => s.role !== "HEAD_COACH")));
+    // Both views of the staff are the arm's, one array.
+    expect(arm.people!.coaching!.world.staff).toBe(arm.people!.staff);
+  }, 300_000);
+
+  it("transformStaff changes both views of the staff as one array, or the staff alone with no coaching world", () => {
+    const staff = buildStaff(buildLeague(SEED), { firstSeason: 2026, lineups: true }).world;
+    const people = { teams: [], players: [], picks: [], classes: [], freeAgents: [], staff: staff.staff, coaching: { world: staff } } as unknown as SeasonPeople;
+    const lean = armInput("form").staffTransform!;
+    const changed = transformStaff(people, lean);
+    expect(changed.staff).toBe(changed.coaching!.world.staff);
+    expect(json(changed.staff)).toBe(json(lean(staff.staff)));
+    expect(Object.keys(changed)).toEqual(Object.keys(people));
+    expect(json({ ...changed.coaching!.world, staff: [] })).toBe(json({ ...staff, staff: [] }));
+    expect(people.staff).toBe(staff.staff); // the people handed in are not changed
+    const { coaching: _c, ...alone } = people;
+    const changedAlone = transformStaff(alone, lean);
+    expect("coaching" in changedAlone).toBe(false);
+    expect(json(changedAlone.staff)).toBe(json(lean(staff.staff)));
+  }, 300_000);
+
+  it("a head coach the carousel seats takes the arm's leanings before the next season; both views stay one array", () => {
+    const arm = armInput("incumbent");
+    const sittingHead = (s: StaffState, team?: string) => {
+      const j = s.career[s.career.length - 1];
+      return j !== undefined && j.level === "NFL" && j.role === "HEAD_COACH" && j.lastSeason === undefined && j.ended === undefined
+        && j.team !== undefined && (team === undefined || String(j.team) === team);
+    };
+    const NATURAL = { incumbent: 20, veteran: 60, form: 70 };
+    let newHead: string | undefined;
+    /** The carousel, made up: T01's head coach fired and a man from the pool seated with leanings of his own, as franchise seats one. */
+    const carousel = (p: SeasonPeople): SeasonPeople => {
+      if (p.coaching === undefined || newHead !== undefined) return p;
+      const world = p.coaching.world;
+      const fired = world.staff.find((s) => sittingHead(s, "T01"))!;
+      const hired = world.staff.find((s) => s.teamId === undefined && s.retiredAfter === undefined && s.career.length > 0 && !sittingHead(s))!;
+      newHead = String(hired.id);
+      const staff = world.staff.map((s): StaffState => {
+        if (s === fired) {
+          const { teamId: _t, ...rest } = s;
+          return { ...rest, career: s.career.map((j, i) => (i === s.career.length - 1 ? { ...j, lastSeason: 2026, ended: "FIRED" as const } : j)) } as StaffState;
+        }
+        if (s === hired) {
+          return {
+            ...s, role: "HEAD_COACH", teamId: teamId("T01"), lineup: { ...NATURAL },
+            career: [...s.career, { level: "NFL", role: "HEAD_COACH", team: teamId("T01"), employer: "T01", firstSeason: 2027, seasons: [] }],
+          };
+        }
+        return s;
+      });
+      return { ...p, staff, coaching: { ...p.coaching, world: { ...world, staff } } };
+    };
+    const { handed, returned } = madeUpWalk({ seasons: 3, ...arm }, carousel);
+    expect(handed).toHaveLength(3);
+    for (const h of handed) {
+      // Every season: the coaches' and the meeting's steps, the coaching world in the people, both views one array.
+      expect(h.coaching).toEqual({});
+      expect(h.meeting).toEqual({});
+      expect(h.people!.staff).toBe(h.people!.coaching!.world.staff);
+      const heads = h.people!.staff!.filter((s) => sittingHead(s));
+      expect(heads).toHaveLength(32);
+      expect(heads.every((s) => json(s.lineup) === json(COACH_STYLE_LINEUPS.incumbent))).toBe(true);
+    }
+    // The season ended with the new man's own leanings (the walk's people are not changed in place) ...
+    const seated = (p: SeasonPeople) => p.staff!.find((s) => String(s.id) === newHead)!;
+    expect(newHead).toBeDefined();
+    expect(seated(returned[0]!.people!).lineup).toEqual(NATURAL);
+    // ... and the next season started with the arm's.
+    expect(sittingHead(seated(handed[1]!.people!), "T01")).toBe(true);
+    expect(seated(handed[1]!.people!).lineup).toEqual(COACH_STYLE_LINEUPS.incumbent);
+    expect(seated(handed[2]!.people!).lineup).toEqual(COACH_STYLE_LINEUPS.incumbent);
   }, 300_000);
 });
 

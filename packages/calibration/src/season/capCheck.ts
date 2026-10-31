@@ -17,7 +17,10 @@
  * for the switch that uses them, the teams carry their practice squads, the head coaches keep their
  * depth-chart leanings, each draft class comes with growth records when development is on, and
  * franchise's players' steps (growth and aging, injuries, the weekly depth chart, emergency signings,
- * unsigned retirements) run in the walk. Absent, or both off, the walk is exactly what it was.
+ * unsigned retirements) run in the walk. The coaches live in the walk too, as they do in the season
+ * command's: the whole coaching world rides in the people (`people.coaching`), each team meets the day
+ * after its season ends (ADR-081) and the coaching carousel changes the staffs after the playoffs
+ * (ADR-084). Absent, or both off, the walk is exactly what it was: the staff never changes.
  *
  * Watchers for the checks built on this walk: `onDay` sees every day's people, `onEvent` every event
  * as it happens, and `onRun` the whole season's run. They only watch: the walk is the same with or
@@ -83,16 +86,18 @@ export interface CapCheckInput {
   /** Each event as the season adds it, with the season's schedule (`runSeason`'s own `onEvent`). Watches only. */
   readonly onEvent?: NonNullable<SeasonInput["onEvent"]>;
   /**
-   * The coaches the walk starts with, changed before the first season: for an arm that sets every head
-   * coach's depth-chart leanings (`StaffState.lineup`). Absent, the staff is `buildStaff`'s.
+   * The coaches, changed at the start of every season (`transformStaff`): for an arm that sets every
+   * head coach's depth-chart leanings (`StaffState.lineup`). Switched on, the carousel can seat a new
+   * head coach after any season's playoffs, so the walk hands this the people's whole staff again
+   * before each season, and the new man takes the arm's leanings before he coaches a game. It must
+   * leave its own output as it is. Absent, the staff is `buildStaff`'s and the carousel's.
    */
   readonly staffTransform?: (staff: readonly StaffState[]) => StaffState[];
   /**
    * Start part-way (a checkpoint, for the 20-season check): `seasonsDone` seasons already played, and
-   * the people the next season starts from, as `onSeasonEnd` handed them. Everything else the walk
-   * needs is built again from the input; the staff is the people's own, so `staffTransform` is not
-   * applied again. `onYear` and the returned years cover the seasons played here only. Absent, the
-   * walk starts at the file's season, as before.
+   * the people the next season starts from, as `onSeasonEnd` handed them (the coaching world with
+   * them). Everything else the walk needs is built again from the input. `onYear` and the returned
+   * years cover the seasons played here only. Absent, the walk starts at the file's season, as before.
    */
   readonly resume?: { readonly seasonsDone: number; readonly people: SeasonPeople };
   /**
@@ -141,6 +146,20 @@ export interface CapYear {
   readonly seconds: number;
 }
 
+/** The deals `measure` counts as a veteran's (and the 20-season check's reader with it): no rookie deal, tender, tag or practice squad. */
+export const VETERAN_DEAL_KINDS: readonly (PlayerContract["kind"] | undefined)[] = ["VETERAN", "MINIMUM", "EXTENSION", undefined];
+
+/**
+ * Each player's team on his latest deal in `contracts`, by signing day (the later listed of two on
+ * one day). Taken from the people a season starts with, a deal the season signs with another team is
+ * a move, and one with this team a re-signing or extension.
+ */
+export function lastTeams(contracts: readonly PlayerContract[]): Map<string, string> {
+  const lastTeam = new Map<string, string>();
+  for (const c of [...contracts].sort((a, b) => compareStamps(a.signedAt, b.signedAt))) lastTeam.set(String(c.player), String(c.team));
+  return lastTeam;
+}
+
 const live = (c: PlayerContract, season: number) => c.ended === undefined && c.years.some((y) => y.season === season && !y.voidYear);
 const capHit = (c: PlayerContract, season: number) => c.years.find((y) => y.season === season)?.capHit ?? 0;
 
@@ -177,7 +196,7 @@ function measure(
   const topDeals = contracts.filter((c) => live(c, year)).sort((a, b) => apy(b) - apy(a)).slice(0, 5)
     .map((c) => ({ player: String(c.player), position: position.get(String(c.player)) ?? ("QB" as Position), apy: Math.round(apy(c)) }));
   const vets = events.filter((e): e is Extract<FranchiseEvent, { type: "CONTRACT_SIGNED" }> =>
-    e.type === "CONTRACT_SIGNED" && ["VETERAN", "MINIMUM", "EXTENSION", undefined].includes(e.payload.kind));
+    e.type === "CONTRACT_SIGNED" && VETERAN_DEAL_KINDS.includes(e.payload.kind));
   const apyOfEvent = (e: (typeof vets)[number]) => (e.payload.value ?? 0) / Math.max(1, e.payload.years ?? 1);
   const isNew = (e: (typeof vets)[number]) => { const was = lastTeam.get(String(e.payload.player)); return was !== undefined && was !== String(e.payload.team); };
   const comp = events.filter((e): e is Extract<FranchiseEvent, { type: "COMPENSATORY_PICKS_AWARDED" }> => e.type === "COMPENSATORY_PICKS_AWARDED");
@@ -264,6 +283,18 @@ export function sweepLimbo(people: SeasonPeople): SeasonPeople {
   return stranded.length === 0 ? people : { ...people, freeAgents: [...people.freeAgents, ...stranded] };
 }
 
+/**
+ * The staff transform on the people's coaches: switched on, the coaching world's staff, with
+ * `staff` set to the same array (franchise's steps keep the two one list); switched off, `staff`.
+ * Every other part of the people is as it was.
+ */
+export function transformStaff(people: SeasonPeople, transform: NonNullable<CapCheckInput["staffTransform"]>): SeasonPeople {
+  const coaching = people.coaching;
+  if (coaching === undefined) return { ...people, staff: transform(people.staff ?? []) };
+  const staff = transform(coaching.world.staff);
+  return { ...people, staff, coaching: { ...coaching, world: { ...coaching.world, staff } } };
+}
+
 /** `onDay` as a day step: it hands the step's people and games on and does nothing (undefined: nothing to do today). */
 function watchStep(season: number, onDay: NonNullable<CapCheckInput["onDay"]>): SeasonDayStep {
   return {
@@ -283,9 +314,11 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
   const cap = capForecast(input.seed);
   const first = input.file.season;
   // Switched on, each head coach keeps his depth-chart leanings all walk, as the season command's do;
-  // without them his leanings would be drawn again from each season's seed.
-  const built = buildStaff(base, { firstSeason: first, ...(switched ? { lineups: true } : {}) }).world.staff;
-  const staff = input.staffTransform ? input.staffTransform(built) : built;
+  // without them his leanings would be drawn again from each season's seed. Switched on, the whole
+  // coaching world rides in the people, so the carousel and the meetings can change it (the views are
+  // seated on the first day, as the season command's are); switched off, the staff alone, as before.
+  const world = buildStaff(base, { firstSeason: first, ...(switched ? { lineups: true } : {}) }).world;
+  const coaches: Pick<SeasonPeople, "staff" | "coaching"> = switched ? { staff: world.staff, coaching: { world } } : { staff: [...world.staff] };
   // The file has the real deals but not each team's real adjusted cap. Every real team is under its
   // own, so each starts with the carryover that puts it there, plus a little room (CHOSEN).
   const opening = new Map<string, number>();
@@ -303,7 +336,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
     freeAgents: [],
     contracts: (input.file.contracts ?? []).map((c) => withDummyYearsVoid(c, first)),
     deadMoney: [...(input.file.deadMoney ?? [])],
-    staff: [...staff],
+    ...coaches,
   };
   // With development on, each class comes with growth records, or the players drafted in the walk
   // would never grow or age.
@@ -319,6 +352,9 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
       unfilled: (team, available, ps) => unfilledPosition(rated, team, available, ps),
     },
   } : {};
+  // The coaches' steps (ADR-084: views, weekly drift, the carousel) and the end-of-season meeting
+  // (ADR-081), as `runRealSeason` runs them with a coaching world; switched off, neither.
+  const coachingSteps: Pick<SeasonInput, "coaching" | "meeting"> = switched ? { coaching: {}, meeting: {} } : {};
   // The day watcher: a day step that only looks, first in the day's order; absent, no step is added.
   const { onDay, onEvent } = input;
   const watchers = (season: number): Pick<SeasonInput, "daySteps" | "onEvent"> => ({
@@ -330,9 +366,11 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
   for (let i = input.resume?.seasonsDone ?? 0; i < input.seasons; i++) {
     const season = first + i;
     const started = Date.now();
+    // The arm's coaches: the staff as the last season left it (a head coach the carousel seated
+    // included), changed before this season's first day.
+    if (input.staffTransform) people = transformStaff(people, input.staffTransform);
     // Each player's team on his latest deal before the year: a signing elsewhere is a move.
-    const lastTeam = new Map<string, string>();
-    for (const c of [...(people.contracts ?? [])].sort((a, b) => compareStamps(a.signedAt, b.signedAt))) lastTeam.set(String(c.player), String(c.team));
+    const lastTeam = lastTeams(people.contracts ?? []);
     const before = people;
     const run = runSeason({
       league: { ...current, teams: people.teams },
@@ -343,6 +381,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
       leagueYear: { rate, cap },
       draft: { rate, makeClass, cap },
       ...players,
+      ...coachingSteps,
       ...watchers(season),
     });
     if (!run.complete || run.people === undefined) throw new Error(`cap check: season ${season} did not finish its league year`);

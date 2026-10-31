@@ -25,12 +25,16 @@
  *  - `development`: growth and aging alone (a diagnostic);
  *  - `incumbent` and `form`: both switches, with every head coach's depth-chart leanings
  *    (`StaffState.lineup`, ADR-087 C1) set to stick with the incumbent, or to play who looks best
- *    this week, from the first season (the coach-style check).
+ *    this week, from the first season (the coach-style check). The walk sets them again before every
+ *    season, so a head coach the carousel seats takes them before he coaches a game.
  *
  * The people go to disk through a small codec (`encodeState`, `decodeState`): JSON with tags for
  * what JSON cannot say (a Set, a Map, an undefined property, NaN, an infinity, -0), so a checkpoint
  * comes back as the same objects. Anything else (a class instance, a function) is refused, not
- * guessed at.
+ * guessed at. The walk keeps the coaches as one list under two names (`staff` is
+ * `coaching.world.staff`, the coaching world of ADR-084); the checkpoint writes it once and reads it
+ * back as one list (`encodePeople`, `decodePeople`). Each checkpoint is read back before it is kept
+ * and refused unless it gives the walk's own people (`stateDifference`).
  *
  * Two processes on the same seed (a seed launched again while it still runs) never share a
  * temporary file: each write goes to a name of its own (`<file>.<pid>.<thread>.<n>.tmp`) and is
@@ -50,7 +54,7 @@ import type { DraftReaderState } from "./draftCheck.js";
 import type { SeasonPeople } from "./realSeason.js";
 
 /** This check's own version: a change to what a record holds starts a fresh cache. */
-export const CAREER_CHECK_VERSION = 3;
+export const CAREER_CHECK_VERSION = 4;
 
 /** The engine rules the walk plays (`runCapCheck` plays the default, `legacy`). */
 export const CAREER_ENGINE_RULES = "legacy";
@@ -273,6 +277,38 @@ export function stateDifference(a: unknown, b: unknown, path = "$"): string | nu
   return null;
 }
 
+/**
+ * The people as a checkpoint keeps them: `encodeState`, with the coaches written once when the walk
+ * keeps them as one list under two names (`staff` the very array `coaching.world.staff` is; `staff`
+ * is then written as null in its place and `sharedStaff` is true).
+ */
+export function encodePeople(people: SeasonPeople): { people: unknown; sharedStaff: boolean } {
+  const sharedStaff = people.coaching !== undefined && people.staff !== undefined && people.staff === people.coaching.world.staff;
+  return { people: encodeState(sharedStaff ? { ...people, staff: null } : people), sharedStaff };
+}
+
+/** `encodePeople` undone: with `sharedStaff`, `staff` is the coaching world's staff again, one array. */
+export function decodePeople(encoded: unknown, sharedStaff: boolean): SeasonPeople {
+  const people = decodeState(encoded) as SeasonPeople;
+  if (!sharedStaff) return people;
+  if (people.coaching === undefined || (people as { staff?: unknown }).staff !== null) {
+    throw new Error("career check: a checkpoint that shares its staff with the coaching world has no coaching world, or a staff of its own");
+  }
+  people.staff = people.coaching.world.staff;
+  return people;
+}
+
+/**
+ * Where a checkpoint's people, read back, differ from the walk's own: `stateDifference`, and the
+ * coaches still one list when they were one. Null when they are the same.
+ */
+export function peopleDifference(back: SeasonPeople, people: SeasonPeople): string | null {
+  const d = stateDifference(back, people);
+  if (d !== null) return d;
+  const shared = (p: SeasonPeople) => p.coaching !== undefined && p.staff === p.coaching.world.staff;
+  return shared(back) === shared(people) ? null : "$.staff<shared with coaching.world.staff>";
+}
+
 // --- one seed ------------------------------------------------------------------------------------
 
 /** One seed's finished rows as the cache keeps them, with how they were made. */
@@ -303,8 +339,9 @@ interface CheckpointFile {
   readonly seconds: number[];
   readonly reader: CareerReaderState;
   readonly draft: DraftReaderState;
-  /** `encodeState` of the people. */
+  /** `encodePeople` of the people, and whether it wrote their staff once (shared with the coaching world). */
   readonly people: unknown;
+  readonly sharedStaff: boolean;
 }
 
 /** Thrown by the `stopAfter` test hook once its checkpoint is on disk: a stand-in for a killed process. */
@@ -354,7 +391,7 @@ function readCheckpoint(path: string, o: CareerSeedOptions): CareerCheckpoint & 
   const mismatch = c.version !== CAREER_CHECK_VERSION ? "version" : c.seed !== o.seed ? "seed" : c.arm !== o.arm ? "arm"
     : c.seasons !== o.seasons ? "seasons" : c.fingerprint !== o.fingerprint ? "fingerprint" : undefined;
   if (mismatch !== undefined) throw new Error(`career check: the checkpoint ${path} is for another ${mismatch}; remove it to start the seed again`);
-  return { seasonsDone: c.seasonsDone, people: decodeState(c.people) as SeasonPeople, reader: c.reader, draft: c.draft, seconds: [...c.seconds] };
+  return { seasonsDone: c.seasonsDone, people: decodePeople(c.people, c.sharedStaff), reader: c.reader, draft: c.draft, seconds: [...c.seconds] };
 }
 
 /**
@@ -382,11 +419,17 @@ export function runCareerSeed(o: CareerSeedOptions): { record: CareerSeedRecord;
     ...(resume === undefined ? {} : { resume }),
     onCheckpoint: (cp) => {
       if (cp.seasonsDone < o.seasons) {
+        const encoded = encodePeople(cp.people);
         const file: CheckpointFile = {
           version: CAREER_CHECK_VERSION, seed: o.seed, arm: o.arm, seasons: o.seasons, fingerprint: o.fingerprint,
-          seasonsDone: cp.seasonsDone, seconds: [...seconds], reader: cp.reader, draft: cp.draft, people: encodeState(cp.people),
+          seasonsDone: cp.seasonsDone, seconds: [...seconds], reader: cp.reader, draft: cp.draft, ...encoded,
         };
-        writeWhole(paths.checkpoint, JSON.stringify(file));
+        const text = JSON.stringify(file);
+        // Kept only if it reads back as the walk's own people (the coaching world among them).
+        const back = JSON.parse(text) as CheckpointFile;
+        const d = peopleDifference(decodePeople(back.people, back.sharedStaff), cp.people);
+        if (d !== null) throw new Error(`career check: the checkpoint after ${cp.seasonsDone} seasons does not read back as the walk's people (at ${d})`);
+        writeWhole(paths.checkpoint, text);
       }
       if (o.stopAfter !== undefined && cp.seasonsDone === o.stopAfter) throw new CareerCheckStopped(cp.seasonsDone);
     },

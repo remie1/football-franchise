@@ -26,6 +26,11 @@
  *    call-up, retirement), the win spread and how wins carry into the next season, the free-agent
  *    pool and the players in limbo, emergency signings told apart from the league year's bargain
  *    minimum deals, injuries by age, and what the limbo took from each team.
+ *  - Also after each season, for the cap thread that will make teams let old players go sooner: the
+ *    ages of the men released, of the veterans re-signed or extended by their own team, and of the
+ *    veterans signed by a new team (`capMoveAges`, own and new told apart as the cap check's money
+ *    counts tell them, `lastTeams`); and how many teams changed head coach (the carousel, ADR-084),
+ *    beside the sitting head coaches' depth-chart leanings at week 8 (`headCoachLeanings`).
  *
  * Ages. A man's age is his `bio.age` during the season (as read at week 8); the year turn at the end
  * of each walk adds one, so an age read after it (in `onRun`'s people) is next season's (`seasonAge`).
@@ -48,12 +53,12 @@
  */
 import {
   DEFAULT_LEAGUE_RULES, positionOverall, stampToString,
-  type CalendarStamp, type FranchiseEvent, type GameParticipation, type PlayerState, type Position, type Team,
+  type CalendarStamp, type FranchiseEvent, type GameParticipation, type PlayerState, type Position, type StaffState, type Team,
 } from "@ff/contracts";
 import type { SeasonRun } from "@ff/franchise";
 import { PersonnelUnavailableError } from "@ff/playbook";
 import { MIN_PAIRS_PER_AGE } from "../careers/usage.js";
-import { limboPlayers, runCapCheck, type CapCheckDayGames, type CapCheckInput, type CapCheckRun } from "./capCheck.js";
+import { lastTeams, limboPlayers, runCapCheck, VETERAN_DEAL_KINDS, type CapCheckDayGames, type CapCheckInput, type CapCheckRun } from "./capCheck.js";
 import { draftReader, STARTING, type DraftCheckResult, type DraftReaderState } from "./draftCheck.js";
 import { fieldedStarters } from "./playerChecks.js";
 import type { SeasonPeople } from "./realSeason.js";
@@ -420,6 +425,131 @@ export function reserveLoss(
     if (i === undefined) elsewhere++; else byTeam[i]!++;
   }
   return { limbo: stranded.length, byTeam, elsewhere };
+}
+
+// --- the cap's moves by age, the head coaches ----------------------------------------------------
+
+/** The age histograms' bins: one a year from `from` to `to`, the first counting every age below too and the last every age above. */
+export const AGE_BINS = { from: 21, to: 40 } as const;
+
+/**
+ * Some men's ages: how many, their mean, and a histogram by whole-year age (`AGE_BINS`: index 0 is
+ * 21 and under, the last 40 and over). A man whose age is not known counts in `unknown` alone.
+ */
+export interface AgeTally {
+  readonly n: number;
+  readonly mean: number;
+  readonly histogram: number[];
+  readonly unknown: number;
+}
+
+export function ageTally(ages: readonly (number | undefined)[]): AgeTally {
+  const histogram = Array.from({ length: AGE_BINS.to - AGE_BINS.from + 1 }, () => 0);
+  const known = ages.filter((a): a is number => a !== undefined);
+  for (const a of known) histogram[Math.min(AGE_BINS.to, Math.max(AGE_BINS.from, Math.floor(a))) - AGE_BINS.from]!++;
+  return { n: known.length, mean: mean(known), histogram, unknown: ages.length - known.length };
+}
+
+/** A season's moves the cap decides, by the men's ages. */
+export interface CapMoveAges {
+  /** Every `PLAYER_RELEASED` (a man released twice counts twice). */
+  readonly released: AgeTally;
+  /** The same by the step that made them (`cutdown`, the league year's steps by id; `turn` for one no step made), by step id. */
+  readonly releasedByStep: Record<string, AgeTally>;
+  /** Veteran deals (`VETERAN_DEAL_KINDS`) with the team of his latest deal before the season: re-signings and extensions. */
+  readonly reSigned: AgeTally;
+  /** Veteran deals with another team than that one (emergency signings among them). */
+  readonly newTeam: AgeTally;
+  /**
+   * Both by the deal's kind (`NONE` for a deal with no kind), by kind: a practice-squad man promoted
+   * to his own team's 53 on a minimum deal is a re-signing here, as the cap check counts him.
+   */
+  readonly reSignedByKind: Record<string, AgeTally>;
+  readonly newTeamByKind: Record<string, AgeTally>;
+}
+
+/**
+ * The ages of a season's releases and veteran signings. A veteran deal (`CONTRACT_SIGNED` of a kind in
+ * `VETERAN_DEAL_KINDS`) is a re-signing when his team on his latest deal before the season
+ * (`lastTeam`, the cap check's `lastTeams` of the people the season started with) is the signing team,
+ * and a move when it is another; a man with no deal before the season is neither, as the cap check's
+ * money counts read him. `ageOf` gives a man's age in the season; the steps come from the run's
+ * `stepEvents`, as `minimumSignings` reads them. Every split's keys are sorted.
+ */
+export function capMoveAges(
+  run: Pick<SeasonRun, "events" | "stepEvents">, lastTeam: ReadonlyMap<string, string>, ageOf: (id: string) => number | undefined,
+): CapMoveAges {
+  const stepOf = new Map<number, string>();
+  for (const s of run.stepEvents ?? []) stepOf.set(s.envelope.seq, s.step);
+  type Ages = (number | undefined)[];
+  const released: Ages = [], reSigned: Ages = [], newTeam: Ages = [];
+  const byStep: Record<string, Ages> = {}, reSignedByKind: Record<string, Ages> = {}, newTeamByKind: Record<string, Ages> = {};
+  for (const { seq, event: e } of run.events) {
+    if (e.type === "PLAYER_RELEASED") {
+      const age = ageOf(String(e.payload.player));
+      released.push(age);
+      (byStep[stepOf.get(seq) ?? "turn"] ??= []).push(age);
+    }
+    if (e.type !== "CONTRACT_SIGNED" || !VETERAN_DEAL_KINDS.includes(e.payload.kind)) continue;
+    const was = lastTeam.get(String(e.payload.player));
+    if (was === undefined) continue;
+    const own = was === String(e.payload.team);
+    const age = ageOf(String(e.payload.player));
+    (own ? reSigned : newTeam).push(age);
+    ((own ? reSignedByKind : newTeamByKind)[e.payload.kind ?? "NONE"] ??= []).push(age);
+  }
+  const tallies = (m: Record<string, Ages>) => Object.fromEntries(Object.keys(m).sort().map((k) => [k, ageTally(m[k]!)]));
+  return {
+    released: ageTally(released), releasedByStep: tallies(byStep), reSigned: ageTally(reSigned), newTeam: ageTally(newTeam),
+    reSignedByKind: tallies(reSignedByKind), newTeamByKind: tallies(newTeamByKind),
+  };
+}
+
+/**
+ * The head coach sitting at each team, by team id: a man whose current job (the last on his résumé,
+ * not ended) is an NFL head coach's with that team, the first in staff order should there be two (as
+ * franchise's `headCoachOf` reads him).
+ */
+export function sittingHeadCoaches(staff: readonly StaffState[] | undefined): Map<string, StaffState> {
+  const out = new Map<string, StaffState>();
+  for (const s of staff ?? []) {
+    const job = s.career[s.career.length - 1];
+    if (job === undefined || job.lastSeason !== undefined || job.ended !== undefined) continue;
+    if (job.level !== "NFL" || job.role !== "HEAD_COACH" || job.team === undefined) continue;
+    if (!out.has(String(job.team))) out.set(String(job.team), s);
+  }
+  return out;
+}
+
+/** Of these teams, how many have another head coach (or none, or one where there was none) in `after` than in `before`. */
+export function headCoachChanges(
+  before: readonly StaffState[] | undefined, after: readonly StaffState[] | undefined, teams: readonly Pick<Team, "id">[],
+): number {
+  const was = sittingHeadCoaches(before), now = sittingHeadCoaches(after);
+  return teams.filter((t) => was.get(String(t.id))?.id !== now.get(String(t.id))?.id).length;
+}
+
+/** The sitting head coaches' depth-chart leanings at one moment. */
+export interface HeadCoachLeanings {
+  /** Teams with a sitting head coach. */
+  readonly n: number;
+  /** Of them, those with no leanings stored (franchise draws them from his type and the season's seed). */
+  readonly unset: number;
+  /** The stored leanings' means (0 with none stored). */
+  readonly incumbent: number;
+  readonly veteran: number;
+  readonly form: number;
+}
+
+/** These teams' sitting head coaches (`sittingHeadCoaches`) and their stored leanings. */
+export function headCoachLeanings(staff: readonly StaffState[] | undefined, teams: readonly Pick<Team, "id">[]): HeadCoachLeanings {
+  const sitting = sittingHeadCoaches(staff);
+  const coaches = teams.map((t) => sitting.get(String(t.id))).filter((s): s is StaffState => s !== undefined);
+  const set = coaches.map((s) => s.lineup).filter((l): l is NonNullable<StaffState["lineup"]> => l !== undefined);
+  return {
+    n: coaches.length, unset: coaches.length - set.length,
+    incumbent: mean(set.map((l) => l.incumbent)), veteran: mean(set.map((l) => l.veteran)), form: mean(set.map((l) => l.form)),
+  };
 }
 
 // --- snap shares ---------------------------------------------------------------------------------
@@ -877,10 +1007,26 @@ export interface SeasonRow {
   readonly rookies: { readonly drafted: number; readonly undrafted: number };
   /** People in the league after the season. */
   readonly players: number;
+  /**
+   * The season's releases and veteran signings by age (`capMoveAges`). Ages are in the season, as
+   * `injuries` reads them: the walk's league year (free agency, re-signings, cap cuts) comes after the
+   * playoffs and before the year turn, so a man signed in it is a year younger here than in the season
+   * he signs for.
+   */
+  readonly moves: CapMoveAges;
+  /**
+   * The coaches: teams whose sitting head coach after the season is not the one it started with (the
+   * carousel), head coaches hired (`STAFF_HIRED`, head coach), and the sitting head coaches' leanings
+   * at week 8 (null if the walk never got there).
+   */
+  readonly coaches: { readonly headCoachChanges: number; readonly headCoachHires: number; readonly week8: HeadCoachLeanings | null };
 }
 
+/** What the rows hold and the reader saves: a change to either starts a fresh version. */
+export const CAREER_ROWS_VERSION = 4;
+
 export interface CareerCheckRows {
-  readonly version: 3;
+  readonly version: typeof CAREER_ROWS_VERSION;
   readonly seed: string;
   readonly firstSeason: number;
   readonly seasons: number;
@@ -937,7 +1083,7 @@ interface UsageSeason { share: number; group: CareerGroup; age: number }
  * next season's first day), when nothing of a season is half read.
  */
 export interface CareerReaderState {
-  readonly version: 3;
+  readonly version: typeof CAREER_ROWS_VERSION;
   readonly ledger: LedgerState;
   readonly rows: SeasonRow[];
   readonly file: RosterPicture | null;
@@ -983,11 +1129,13 @@ interface SeasonTally {
   ages: Map<string, number>;
   /** Each man's position at his last regular-season game (his group when he was never read on a list). */
   lastSeen: Map<string, Position>;
+  /** The sitting head coaches' leanings at week 8. */
+  leanings: HeadCoachLeanings | null;
 }
 
 const newTally = (): SeasonTally => ({
   touched: false, week8: null, slots: [], fileOn53: 0, draftWeek8: emptyBands(), faCamp: 0, faWeek8: 0, waits: new Map(),
-  week18: new Map(), snaps: new Map(), busiest: new Map(), groupReads: new Map(), ages: new Map(), lastSeen: new Map(),
+  week18: new Map(), snaps: new Map(), busiest: new Map(), groupReads: new Map(), ages: new Map(), lastSeen: new Map(), leanings: null,
 });
 
 /** The D5b reader: watchers for the cap check's walk and the rows they add up to. */
@@ -1013,6 +1161,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     tally.week8 = rosterPicture(people, { season, firstSeasonOf: (id) => ledger.firstSeasonOf(id) });
     tally.slots = starterSlots(people.teams);
     tally.faWeek8 = people.freeAgents.length;
+    tally.leanings = headCoachLeanings(people.staff, people.teams);
     const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
     for (const t of people.teams) {
       for (const id of t.roster) {
@@ -1121,6 +1270,9 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     }
     const started = new Set(before.players.map((p) => String(p.bio.id)));
     const joined = people.players.filter((p) => !started.has(String(p.bio.id)));
+    // The cap's moves by age (own team and new team as the cap check tells them), and the head coaches.
+    const moves = capMoveAges(run, lastTeams(before.contracts ?? []), (id) => ageIn.get(id));
+    const headCoachHires = events.filter((e) => e.type === "STAFF_HIRED" && e.payload.role === "HEAD_COACH").length;
     // Usage: this season's shares (every man with a snap of any kind, his group and age this season),
     // and the change from last season's (specialists left out by their group last season).
     const now = new Map<string, UsageSeason>();
@@ -1157,6 +1309,8 @@ export function careerReader(input: CareerReaderInput): CareerReader {
         undrafted: joined.filter((p) => p.bio.draft === "UDFA").length,
       },
       players: people.players.length,
+      moves,
+      coaches: { headCoachChanges: headCoachChanges(before.staff, people.staff, teams), headCoachHires, week8: tally.leanings },
     });
     tally = newTally();
   };
@@ -1194,7 +1348,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       if (started) cell[0]++;
     }
     return {
-      version: 3,
+      version: CAREER_ROWS_VERSION,
       seed: input.seed,
       firstSeason: input.firstSeason,
       seasons: input.seasons,
@@ -1221,7 +1375,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
   const save = (): CareerReaderState => {
     if (tally.touched) throw new Error("career check: the reader is saved between seasons only, and a season is half read");
     return JSON.parse(JSON.stringify({
-      version: 3,
+      version: CAREER_ROWS_VERSION,
       ledger: ledger.save(),
       rows,
       file,
@@ -1237,7 +1391,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
   };
 
   const restore = (state: CareerReaderState): void => {
-    if (state.version !== 3) throw new Error(`career check: a saved reader of version ${String(state.version)}, not 3`);
+    if (state.version !== CAREER_ROWS_VERSION) throw new Error(`career check: a saved reader of version ${String(state.version)}, not ${CAREER_ROWS_VERSION}`);
     if (tally.touched || days !== 0) throw new Error("career check: a reader is restored fresh, before any day");
     const copy = JSON.parse(JSON.stringify(state)) as CareerReaderState;
     ledger.restore(copy.ledger);
