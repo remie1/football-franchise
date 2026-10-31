@@ -10,7 +10,7 @@
  * beat's rule, and D4 against the owner's August ranges (ADR-066:607-610, ADR-090 §9).
  */
 import { describe, expect, it } from "vitest";
-import { laneOfX, cellOf, toHalfYard, BALL_X, playPreSnap, onOneSpot } from "../src/snapSpots.js";
+import { laneOfX, cellOf, toHalfYard, BALL_X, playPreSnap, onOneSpot, snapPicture } from "../src/snapSpots.js";
 import type { SnapSpot } from "@ff/contracts";
 import type { PreSnapBeats, SnapInput } from "../src/snapSpots.js";
 import { COMPOSED, V6_COVERAGES } from "../src/coverageCatalogue.js";
@@ -606,6 +606,87 @@ describe("beats 3 and 6: the looks, and the last movement into the snap", () => 
         if (creeps.has(String(c.input.defense.byRole[role]))) continue;
         if (c.beats.shown[role] !== undefined && at(c.beats.shown[role]).join() !== at(c.beats.aligned[role]).join()) continue;
         expect(spot, `${c.label} ${role}`).toEqual(c.beats.aligned[role]);
+      }
+    }
+  });
+});
+
+// --- a head-only Mug ------------------------------------------------------------------------------------
+
+/**
+ * Question 1's other answer, for the Mug alone (ADR-090 §4.3): the Mug lives only in the
+ * quarterback's read, and the men it walked up stand where their played jobs align them. Drawn
+ * only when asked (`{ mug: "HEAD_ONLY" }`), for ADR-089 step 3's information arm.
+ */
+describe("a head-only Mug: beat 3 skipped for the Mug alone", () => {
+  const mugged = CASES.filter((c) => c.front?.look === "MUG");
+  const others = CASES.filter((c) => c.front?.look !== "MUG");
+  /** The men the Mug shows somewhere he does not rush from: the backers it walks up. */
+  const walkedUp = (c: Case): ReadonlySet<DefenseRole> => {
+    const { call, byRole } = c.input.defense;
+    const shownElsewhere = new Set(
+      call.shownRush
+        .filter((seen) => !call.rush.some((r) => r.rusher === seen.rusher && r.side === seen.side && r.gap === seen.gap))
+        .map((seen) => String(seen.rusher)),
+    );
+    return new Set(
+      (Object.entries(byRole) as [DefenseRole, unknown][])
+        .filter(([role, player]) => DEFENSE_ROLE_GROUP[role] === "BACKERS" && shownElsewhere.has(String(player)))
+        .map(([role]) => role),
+    );
+  };
+
+  it("draws every ruling as made unless asked: the default is the Real Mug", () => {
+    expect(mugged.length).toBeGreaterThan(0);
+    for (const c of mugged.slice(0, 50)) {
+      expect(playPreSnap(c.input, {}), c.label).toEqual(c.beats);
+      expect(playPreSnap(c.input, { mug: "REAL" }), c.label).toEqual(c.beats);
+      expect(snapPicture(c.input), c.label).toEqual(c.beats.picture);
+    }
+  });
+
+  it("changes nothing on a call that wears no Mug", () => {
+    for (const c of others) expect(playPreSnap(c.input, { mug: "HEAD_ONLY" }), c.label).toEqual(c.beats);
+  });
+
+  it("moves only the men the Mug walked up, back to their aligned spots, on every Mug the book can wear", () => {
+    let moved = 0;
+    for (const c of mugged) {
+      const head = playPreSnap(c.input, { mug: "HEAD_ONLY" });
+      const walked = walkedUp(c);
+      expect(walked.size, c.label).toBeGreaterThan(0);
+      expect(head.offense, c.label).toEqual(c.beats.offense);
+      expect(head.aligned, c.label).toEqual(c.beats.aligned);
+      for (const role of Object.keys(c.beats.atSnap) as DefenseRole[]) {
+        if (!walked.has(role)) {
+          expect(head.shown[role], `${c.label} ${role}`).toEqual(c.beats.shown[role]);
+          expect(head.atSnap[role], `${c.label} ${role}`).toEqual(c.beats.atSnap[role]);
+          continue;
+        }
+        // Real: in the A gap at 1.5; head only: where his played job aligns him.
+        expect(c.beats.atSnap[role]?.y, `${c.label} ${role}`).toBe(1.5);
+        expect(at(head.shown[role]), `${c.label} ${role}`).toEqual(at(c.beats.aligned[role]));
+        expect(at(head.atSnap[role]), `${c.label} ${role}`).toEqual(at(c.beats.aligned[role]));
+        moved++;
+      }
+    }
+    expect(moved).toBeGreaterThan(0);
+  });
+
+  it("lets a creeper the Mug would have walked up creep from his aligned spot, as any creeper does", () => {
+    const creepers = mugged.filter((c) => c.card.pressure === "CREEPER");
+    expect(creepers.length).toBeGreaterThan(0);
+    for (const c of creepers) {
+      const head = playPreSnap(c.input, { mug: "HEAD_ONLY" });
+      const rushing = new Set(c.input.defense.call.rush.map((r) => String(r.rusher)));
+      for (const role of walkedUp(c)) {
+        if (!rushing.has(String(c.input.defense.byRole[role]))) continue;
+        // Real: set at his Mug spot, crept already. Head only: creeping from his aligned spot.
+        expect(c.beats.atSnap[role]?.moving, `${c.label} ${role}`).toBeUndefined();
+        expect(head.atSnap[role], `${c.label} ${role}`).toEqual({
+          ...c.beats.aligned[role],
+          moving: { dx: 0, dy: -1, yardsPerSecond: 3 },
+        });
       }
     }
   });

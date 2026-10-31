@@ -758,6 +758,21 @@ function frontLookSpot(field: Field, d: Defender, job: Extract<Job, { readonly k
 
 // --- the beats -------------------------------------------------------------------------------------
 
+/**
+ * Question 1's two answers, for the Mug alone (ADR-090 §4.3, §11). `REAL` is the ruling and the
+ * default: the backers it walked up stand at 1.5 in the A gaps at the snap. `HEAD_ONLY` skips beat
+ * 3 for the Mug: the men it walked up stand at their aligned spots, a creeper among them creeps from
+ * his as any creeper does, and the Mug lives only in what the quarterback reads (`shownRush` is
+ * untouched). Coverage looks and the Stem are drawn as under `REAL`. For ADR-089 step 3's
+ * information arm; nothing draws it by default.
+ */
+export type MugAtTheSnap = "REAL" | "HEAD_ONLY";
+
+/** How a picture is drawn. Left out, every ruling as made. */
+export interface PreSnapOptions {
+  readonly mug?: MugAtTheSnap;
+}
+
 /** What a picture is drawn from: the call as instantiation and the looks leave it. */
 export interface SnapInput {
   readonly formation: AnyFormation;
@@ -845,18 +860,20 @@ function alignDefense(field: Field, defenders: readonly Defender[]): DefenseSpot
 
 /**
  * Beat 3 (ADR-090 §4.3): a coverage look moves its men to their shown jobs' spots; a front
- * look moves its men to their shown rush (question 1, ruled Real: a look is where he stands).
+ * look moves its men to their shown rush (question 1, ruled Real: a look is where he stands),
+ * unless the Mug is drawn `HEAD_ONLY` (`mugHeadOnly`), which moves nobody.
  */
 function showLooks(
   field: Field,
   defenders: readonly Defender[],
   aligned: DefenseSpots,
   stacked: ReadonlySet<DefenseRole>,
+  mugHeadOnly: boolean,
 ): DefenseSpots {
   const spots: Partial<Record<DefenseRole, SnapSpot>> = { ...aligned };
   for (const d of defenders) {
     if (d.shown !== undefined) spots[d.role] = spotFor(field, d, d.shown);
-    if (d.shownRush !== undefined) spots[d.role] = frontLookSpot(field, d, d.shownRush);
+    if (d.shownRush !== undefined && !mugHeadOnly) spots[d.role] = frontLookSpot(field, d, d.shownRush);
   }
   return spacedOut(spots, defenders, stacked);
 }
@@ -884,6 +901,7 @@ function coverageLookOf(card: AnyDefensiveCard): ReadonlyMap<DefenseRole, Covera
  *    in the front it shifted to, its played front.
  *  - The creeper — a backer rushing on a Creeper call — moves forward at three yards a second
  *    from his aligned spot. One the Mug walked up is set at his Mug spot: he has crept already.
+ *    Under a `HEAD_ONLY` Mug nobody was walked up, so he creeps from his aligned spot.
  */
 function moveIntoSnap(
   input: SnapInput,
@@ -891,11 +909,12 @@ function moveIntoSnap(
   aligned: DefenseSpots,
   shown: DefenseSpots,
   stacked: ReadonlySet<DefenseRole>,
+  mugHeadOnly: boolean,
 ): DefenseSpots {
   const spots: Partial<Record<DefenseRole, SnapSpot>> = { ...aligned };
   const lookOf = coverageLookOf(input.card);
   const late = input.defense.call.coverageDisguise === "LATE_ROTATION";
-  const frontLook = input.defense.call.tags.find(isFrontLookTag)?.id;
+  const frontLook = mugHeadOnly ? undefined : input.defense.call.tags.find(isFrontLookTag)?.id;
   for (const d of defenders) {
     const shownSpot = shown[d.role];
     if (d.shown !== undefined) {
@@ -907,7 +926,10 @@ function moveIntoSnap(
     }
     if (shownSpot !== undefined && d.shownRush !== undefined && frontLook === "MUG") spots[d.role] = shownSpot;
     const creeps =
-      input.card.pressure === "CREEPER" && d.group !== "LINE" && d.played.kind === "RUSH" && d.shownRush === undefined;
+      input.card.pressure === "CREEPER" &&
+      d.group !== "LINE" &&
+      d.played.kind === "RUSH" &&
+      (d.shownRush === undefined || mugHeadOnly);
     const from = aligned[d.role];
     if (creeps && from !== undefined) {
       spots[d.role] = { ...from, moving: { dx: 0, dy: -1, yardsPerSecond: CREEPER_YARDS_PER_SECOND } };
@@ -964,18 +986,21 @@ function freezeAtSnap(input: SnapInput, offense: OffenseSpots, defenders: readon
  * The corpus tests draw every formation against every call, so none of them is reachable from
  * the book.
  */
-export function playPreSnap(input: SnapInput): PreSnapBeats {
+export function playPreSnap(input: SnapInput, options: PreSnapOptions = {}): PreSnapBeats {
   const offense = lineUpOffense(input.formation);
   const defenders = defendersOf(input.card, input.defense);
   const field = fieldOf(input, offense, defenders);
-  const stacked = mugged(input, defenders);
+  const mugHeadOnly =
+    options.mug === "HEAD_ONLY" && input.defense.call.tags.some((tag) => isFrontLookTag(tag) && tag.id === "MUG");
+  // A head-only Mug walks nobody up, so nobody stands stacked over the line.
+  const stacked = mugHeadOnly ? new Set<DefenseRole>() : mugged(input, defenders);
   const aligned = alignDefense(field, defenders);
-  const shown = showLooks(field, defenders, aligned, stacked);
-  const atSnap = moveIntoSnap(input, defenders, aligned, shown, stacked);
+  const shown = showLooks(field, defenders, aligned, stacked, mugHeadOnly);
+  const atSnap = moveIntoSnap(input, defenders, aligned, shown, stacked, mugHeadOnly);
   return { offense, aligned, shown, atSnap, picture: freezeAtSnap(input, offense, defenders, atSnap) };
 }
 
-/** The snap picture (ADR-090 §6): what step 1 will publish on `PLAY_START`. */
-export function snapPicture(input: SnapInput): SnapPicture {
-  return playPreSnap(input).picture;
+/** The snap picture (ADR-090 §6), as `PLAY_START` publishes it (ADR-090 step 1). */
+export function snapPicture(input: SnapInput, options: PreSnapOptions = {}): SnapPicture {
+  return playPreSnap(input, options).picture;
 }
