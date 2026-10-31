@@ -116,6 +116,8 @@ Wrong flags in this design only come from plays that were close to a foul, never
 
 ### Q6. Where does the coach see fouls the officials missed, and flags on nothing?
 
+**You answered in words (31 October):** later, our own video library of standard clips for each foul and missed foul, dressed in the two teams' jerseys, the players' looks and the stadium, so you watch the replay and decide whether to throw the challenge flag. For now, the assistant head coach, a game-day voice with no staff seat yet, offers you a challenge and says how sure he is. I've made his percentage honest: when he says 70%, he's right 7 times in 10. He may become a staff seat with his own skills later. The film room (every foul, flagged or not, and wrong flags marked) stays as well. Because the NFL lets a coach challenge almost no penalty, your answer brought a new question, Q8.
+
 **Example:** after the game, your coach opens the film of the drive that stalled and sees the defensive end got away with two holds on third down, and the flag that killed the drive before that wasn't a foul.
 
 - **On film only (recommended):** the play log and box score show what the officials called, like a broadcast. The game viewer's play detail (the film room) shows every foul, flagged or not, and marks wrong flags.
@@ -134,5 +136,19 @@ Step 0 is the rulebook (how every flag is enforced) and step 1 is the officials 
 - **After the pocket fix.**
 
 **My judgment:** a design choice; no statistic decides it.
+
+### Q8. What can your coach challenge?
+
+**Example:** third and 6, your receiver dives for the ball at the sideline and it's ruled incomplete. Up in the booth, your assistant head coach watches the replay: "I'm 75% sure he caught it. Want to throw the flag?" You throw it, and if he was right, you get the catch and the first down; if not, you lose a timeout.
+
+In the real NFL, a coach can't challenge most penalties. He challenges rulings of fact: a catch, the spot and the line to gain, down by contact, the sideline, the goal line, a fumble. The booth also looks at every score and every turnover by itself, and in the last two minutes of each half and in overtime only the booth can ask for a review.
+
+- **Real NFL rules (recommended):** you can challenge what NFL coaches can. So the officials also make mistakes on catches, spots and the like, at real rates; that's its own design, after the pocket fix, because it changes plays. On a penalty your assistant still tells you what he saw ("I'm 80% sure that hold wasn't one"), but there's no flag to throw; the booth fixes a few kinds of wrong flags by itself (face mask, horse collar, hits on a defenseless player).
+- **Penalties too (our own rule):** you may also challenge any flag or any missed foul, the way the NFL handled pass interference in 2019: changed only on a clear and obvious mistake, and a timeout lost when you're wrong.
+- **Real rules plus pass interference:** the first, plus the NFL's one-season 2019 rule.
+
+**Real numbers behind it** (play-by-play, 2013 to 2025): coaches challenge about once every two games (both teams together) and win about 45%, and every lost challenge cost a timeout. The booth reviews about 0.6 times a game and changes about 70% of what it looks at. Nearly every challenge is a catch, the line to gain, down by contact or the goal line. In 2019, the one season pass interference could be challenged, coaches tried 81 times and won 13. The rules themselves (two challenges, a third since 2024 if one wins; the 2026 rule that lets a coach name a staff member to throw the flag) come from news reports in search results, and get checked against the rulebook with the rest.
+
+**My judgment:** real rules keep the game the real NFL, and challenges still come up as often as real ones. Your own rule gives you more challenge moments, on calls the NFL doesn't let coaches touch.
 
 Everything that makes fouls happen on the field (holding, interference, late hits, false starts) comes after the pocket fix, one family at a time, each measured against the real numbers.

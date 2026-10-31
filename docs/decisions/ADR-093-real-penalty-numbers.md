@@ -8,7 +8,7 @@
 - **Flags (the numerator):** every flag in the play's description (`PENALTY on ...` and `Penalty on ...`), not only the play record's first one, with its outcome: declined, offsetting, or enforced (everything else). This also differs from ADR-091's page, which counts one flag per play; so defensive offside is 5.36 per 1,000 snaps here against 4.33 there.
 - **Offense or defense:** the fouling team against `posteam`. On a kick, `posteam` is the kicking team.
 - **Crew:** the game's Referee from the officials table, joined on `old_game_id` (all 815 games matched). The NFL has 17 referees, one per crew.
-- **Scripts** (kept in the project's shared folder, `design/ADR-093-data/`, not in the repo): `flags.py` (`python3 -I flags.py officials.csv play_by_play_2022.csv.gz ...`) gives tables 1 to 3; `situations.py` gives table 4; `history.py` (with play_by_play 2013-2025) gives tables 5 to 7, `playoffs.py` (2015-2025) table 8, `replay2019.py` table 9 and `families.py` (2022-2024) table 10. Their full output is saved beside them (`flags.out`, `situations.out`, `adr093-flags.json`, `history.out`, `playoffs.out`, `replay2019.out`, `families.out`).
+- **Scripts** (kept in the project's shared folder, `design/ADR-093-data/`, not in the repo): `flags.py` (`python3 -I flags.py officials.csv play_by_play_2022.csv.gz ...`) gives tables 1 to 3; `situations.py` gives table 4; `history.py` (with play_by_play 2013-2025) gives tables 5 to 7, `playoffs.py` (2015-2025) table 8, `replay2019.py` table 9, `families.py` (2022-2024) table 10 and `challenges.py` (2013-2025) table 11. Their full output is saved beside them (`flags.out`, `situations.out`, `adr093-flags.json`, `history.out`, `playoffs.out`, `replay2019.out`, `families.out`, `challenges.out`).
 
 ## Totals
 
@@ -256,6 +256,69 @@ The flags a game in each of ADR-093 §5.2's three classes, every flag on scrimma
 
 **Reading it.** Against the league's own grading, 4.3 to 4.5 mistakes a game of every kind and fewer than one wrong call (P1, P2), only the 2-in-3 lines fit. Against the audits, where missed fouls outnumber wrong flags 7 to 1 (replay, Table 9) and 6.7 to 1 (the NBA, P9), the 2-in-3, 1-in-20 line (7.8) sits closest. These lines are the design's arithmetic on real flag rates, not a measurement of real misses.
 
+## Table 11. Coaches' challenges and the booth's reviews (regular seasons 2013-2025)
+
+Added 2026-10-31 for ADR-093 §7 (the owner's Q6 answer: the assistant head coach offers challenges). One review per play, from nflverse's `replay_or_challenge` and `replay_or_challenge_result` columns; who asked for it from the description (the booth when it names the Replay Official, or in 2013-2014 the Replay Assistant; a coach when it says "<team> challenged"); what was looked at from "challenged the <what> ruling", "challenged the play for possible <what>" (2019's pass interference) or "reviewed the <what> ruling". Counts are per game, both teams together. Script `challenges.py`.
+
+| season | games | coach challenges | a game | reversed | won % | upheld, timeout charged | booth reviews | a game | booth reversed % | other |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 2013 | 256 | 183 | 0.71 | 96 | 52% | 87 of 87 | 240 | 0.94 | 37% | 1 |
+| 2014 | 256 | 165 | 0.64 | 65 | 39% | 100 of 100 | 274 | 1.07 | 35% | 2 |
+| 2015 | 256 | 201 | 0.79 | 92 | 46% | 109 of 109 | 214 | 0.84 | 39% | 0 |
+| 2016 | 256 | 168 | 0.66 | 83 | 49% | 85 of 85 | 177 | 0.69 | 37% | 1 |
+| 2017 | 256 | 182 | 0.71 | 86 | 47% | 96 of 96 | 247 | 0.96 | 45% | 0 |
+| 2018 | 256 | 156 | 0.61 | 63 | 40% | 93 of 93 | 193 | 0.75 | 56% | 1 |
+| 2019 | 256 | 217 | 0.85 | 79 | 36% | 138 of 138 | 200 | 0.78 | 58% | 0 |
+| 2020 | 256 | 148 | 0.58 | 74 | 50% | 74 of 74 | 216 | 0.84 | 57% | 0 |
+| 2021 | 272 | 131 | 0.48 | 57 | 44% | 74 of 74 | 148 | 0.54 | 68% | 0 |
+| 2022 | 271 | 131 | 0.48 | 57 | 44% | 74 of 74 | 152 | 0.56 | 70% | 0 |
+| 2023 | 272 | 148 | 0.54 | 72 | 49% | 76 of 76 | 186 | 0.68 | 66% | 0 |
+| 2024 | 272 | 133 | 0.49 | 50 | 38% | 83 of 83 | 194 | 0.71 | 76% | 0 |
+| 2025 | 272 | 151 | 0.56 | 79 | 52% | 72 of 72 | 171 | 0.63 | 78% | 0 |
+| all | 3407 | 2114 | 0.62 | 953 | 45% | 1161 of 1161 | 2612 | 0.77 | 54% | 5 |
+
+**What coaches challenged** (2013-2025, the 20 most often):
+
+| ruling | reviews | reversed | % |
+|---|---|---|---|
+| pass completion | 619 | 292 | 47% |
+| incomplete pass | 419 | 192 | 46% |
+| first down | 291 | 146 | 50% |
+| runner was down by contact | 205 | 82 | 40% |
+| short of the line to gain | 164 | 55 | 34% |
+| short of the goal line | 60 | 32 | 53% |
+| defensive pass interference | 54 | 10 | 19% |
+| runner was not down by contact | 36 | 30 | 83% |
+| fumble | 29 | 18 | 62% |
+| offensive pass interference | 27 | 3 | 11% |
+| touchback | 21 | 7 | 33% |
+| kick downed | 21 | 8 | 38% |
+| runner broke the plane | 20 | 7 | 35% |
+| runner was in bounds | 19 | 11 | 58% |
+| too many players on field | 19 | 17 | 89% |
+| loose ball recovery | 17 | 4 | 24% |
+| runner was inbounds | 15 | 6 | 40% |
+| runner was out of bounds | 14 | 11 | 79% |
+| kick touched | 10 | 3 | 30% |
+| forward pass | 9 | 1 | 11% |
+
+**What the booth reviewed** (2013-2025, the 10 most often):
+
+| ruling | reviews | reversed | % |
+|---|---|---|---|
+| pass completion | 563 | 268 | 48% |
+| runner broke the plane | 490 | 267 | 54% |
+| fumble | 425 | 218 | 51% |
+| incomplete pass | 212 | 100 | 47% |
+| runner was not down by contact | 156 | 123 | 79% |
+| interception | 121 | 85 | 70% |
+| first down | 91 | 47 | 52% |
+| runner was down by contact | 90 | 58 | 64% |
+| runner was inbounds | 57 | 35 | 61% |
+| runner was in bounds | 53 | 11 | 21% |
+
+**Reading it.** Coaches challenge about once every two games (0.48 to 0.56 a game in 2021-2025, both teams) and win about 45%; every lost challenge shows a timeout charged. The booth reviews a little more often and changes most of what it looks at (66% to 78% in 2021-2025), since it reviews scoring plays and turnovers itself. Nearly every challenge is a ruling of fact: a catch, the line to gain, down by contact, the goal line. Fouls were challenged only when the rules let them be: pass interference in 2019 (54 defensive and 27 offensive challenges, 13 changed, as Table 9 found) and too many players on the field (19, 17 changed). Coaches challenge more as a game goes on (418, 492, 562 and 644 by quarter), although they cannot challenge inside the last two minutes of a half.
+
 ## Published sources (REPORTED)
 
 Found in two search passes on 2026-10-31, about 140 sources looked at. **This container could not open the pages** (the network refused espn.com, nfl.com, si.com, foxbusiness.com, footballzebras.com, pressreader.com, Wikipedia and others), so every item below was **seen in search results only**, and in each the wording is the search engine's rendering. Each was searched a second time, by a separate reader trying to refute it, and where the play-by-play can check a number, it matched (noted per item). Nothing here is the NFL's own published data: the league does not publish its grades.
@@ -269,6 +332,7 @@ Found in two search passes on 2026-10-31, about 140 sources looked at. **This co
 - **P7. Letting them play.** "In basketball, hockey, soccer, and the NFL, the rate of officials' calls, especially judgment calls, goes way down near the end of tight games and the bigger the stage" (Tobias Moskowitz, Freakonomics, 2012-01-31, from Scorecasting with L. Jon Wertheim), from "omission bias, the idea that officials fear making wrong calls more than wrong non-calls" (Moskowitz and Wertheim, CNN, 2011-02-05). Holding and pass interference calls follow "a quadratic trend, low at the beginning and ends of the game, but high in the middle", suggesting they are "called with higher levels of discretion, in an attempt by referees to imply fairness in the flow of the game" (Snyder and Lopez, Journal of Quantitative Analysis in Sports 11(4), 2015, all plays 2002-2012). "From 2000 through 2019, the regular season averaged 12.8 penalties/game ... playoff games averaged 10.7" (CBS Sports, 2021).
 - **P8. Home and road.** False starts on high-leverage plays: 1.44% for road offenses and 1.47% for home offenses (FiveThirtyEight). Farnell, "False Start? An Analysis of NFL Penalties With and Without Crowds" (Journal of Sports Economics 24(6), 2023): no crowd effect on the offense's pre-snap penalties, a crowd effect on the defense's (paraphrased by the search engine; the paper was not opened). In 2020 "away teams were penalized about 3 yards per game more than home teams ..., close to the 3.2 more yards per game average of the prior decade" (The Ringer, 2021-01-06). Defensive pass interference "was called even more frequently against road teams in 2020 and 2021" (FiveThirtyEight, 2021). The odds of defensive pass interference are 18 to 20% higher when the home team has the ball, after adjusting for score, time and teams (Snyder and Lopez, 2015, as summarized; the two summaries differ on the figure).
 - **P9. Another sport's audit: the NBA's last two minutes.** In the league's own reviews of close games, "3% of the foul calls (a total of 210) is incorrect" against 1,399 incorrect non-calls (Pelechrinis, Scientific Reports, 2023, games within 5 points in the last 2 minutes since 2015): **6.7 missed fouls for every wrong whistle**. The NBA: "correct 95.7% on whistled plays and 88.6% accurate on all plays, including non-calls" over more than 6,000 reviewed plays in one regular season (KTVB, season not stated). Boston Globe, 2015: "correct 86 percent of the time overall and 97 percent when blowing the whistle".
+- **P10. The challenge rules** (for ADR-093 §7.1, searched 2026-10-31). Two challenges, a third since 2024 if at least one of the first two wins (it took both before; the Lions' proposal, March 2024; CBS Sports, Bleacher Report, SI); a failed challenge costs a timeout, so a team with none cannot challenge (ESPN, SI). Since 2026 a head coach may name a pregame designee to throw the red flag (ESPN, August 2026; SI, Newsweek). The booth alone reviews inside the two-minute warning of each half and in overtime, and reviews every scoring play (since 2011) and turnover (since 2012) itself, even one a foul wipes out (2020); a reversal inside the two-minute warning that would not have stopped the clock brings a 10-second runoff (Football Zebras, ProFootballTalk; some sources old). Replay assist, expanded for 2025, may pick up a flag for a hit on a defenseless player, face mask, horse collar, tripping, roughing or running into the kicker, and roughing the passer for a hit to the head or neck only; it can never add a flag, and pass interference is not on its list (NFL.com's replay assistance page, CBS Sports, the Rams, ESPN). All seen in search results only, like P1 to P9.
 - **Not used.** Players' and officials' sayings that "you could call holding on every play" (Gene Steratore, Tom Brady) and a former lineman's estimate of holding on "a quarter to half of plays" (Geoff Schwartz, via The Ringer): no count stands behind them, and none was searched a second time.
 
 ## What is still not known
