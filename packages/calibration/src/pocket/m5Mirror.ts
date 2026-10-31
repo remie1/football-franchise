@@ -384,3 +384,34 @@ export function m5Compare(league: string, runs: readonly M5Run[]): Readonly<Reco
     ...(s3 ? { freeRunMirror: Object.fromEntries(sets.map((set) => [`set${String(set)}`, m5FreeRunMirror(runOf(set, false).games, runOf(set, true).games)])) } : {}),
   };
 }
+
+/** One row's z on one seed set: mirrored minus unmirrored over the difference's own SE (`null` when that SE is 0). */
+export interface M5RowZ {
+  readonly set: number;
+  readonly difference: number;
+  readonly seDifference: number;
+  readonly z: number | null;
+}
+
+/**
+ * Step 3's M5 z per row (ADR-089 step 3, plan §2.8; critique 4 S4-10): for each row and seed set of a
+ * league's `m5Compare` table, the difference over its own SE, sqrt(SE_u^2 + SE_m^2), printed beside
+ * O10's verdict. Read off the table as `m5Compare` returns it, whose shape the step-0 filing holds
+ * and which this leaves unchanged; a zero SE (a row with no events on either side) has no z.
+ */
+export function m5RowZ(compared: Readonly<Record<string, unknown>>): Readonly<Record<string, readonly M5RowZ[]>> {
+  const rows = compared["rows"];
+  if (typeof rows !== "object" || rows === null) throw new Error("m5RowZ: the table has no rows");
+  const out: Record<string, readonly M5RowZ[]> = {};
+  for (const [row, value] of Object.entries(rows as Readonly<Record<string, unknown>>)) {
+    const sets = (value as { readonly sets?: unknown }).sets;
+    if (!Array.isArray(sets)) throw new Error(`m5RowZ: row ${row} has no sets`);
+    out[row] = sets.map((s: { readonly set: number; readonly difference: number; readonly seDifference: number }): M5RowZ => ({
+      set: s.set,
+      difference: s.difference,
+      seDifference: s.seDifference,
+      z: s.seDifference === 0 ? null : s.difference / s.seDifference,
+    }));
+  }
+  return out;
+}

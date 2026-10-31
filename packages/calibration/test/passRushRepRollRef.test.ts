@@ -58,6 +58,13 @@
  * tick naming a CHECK is dangling exactly as before. The late joins are counted apart
  * (`lateBeats`, `lateRolledTicks`, written only for a game with an s3 play), so the legacy and s1
  * cases read exactly the fold they read before.
+ *
+ * Beside the join, on s3 plays only (critique 3 S9; `lateRelationOf`, its own fold, so the join's
+ * fold above is unchanged): a late beat's label is its CHECK's family, `<play>/rush/beat/<touching
+ * label>` (`lateBeatLabelOf`); its actors are `[carrier, hand]`, the hand being the pickup CHECK's
+ * first actor (the back) or the looper's blocker (the stunt CHECK's third actor from the end, named
+ * by the exchange modifier), and a man nobody's hand was on has no late beat; each dieless tick
+ * naming it carries the same two actors; and no CHECK roll label is used twice in the play.
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
@@ -68,7 +75,9 @@ import { buildFixture, buildFixtures } from "../src/harness/schedule.js";
 import { generateSeeds } from "../src/harness/seeds.js";
 import { runOneGame } from "../src/harness/runGame.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
+import { touchOfCheck } from "../src/pocket/freeRunKey.js";
 import { POCKET_1_S1_DIGEST, POCKET_1_S3_DIGEST, POCKET_1_S3_RULES, rulesOnPlayStart, rulesTunables } from "../src/pocket/rules.js";
+import { lateBeatLabelOf } from "../src/pocket/s1Stream.js";
 
 /** Regenerates this test's own corpus. Cited in every failure message, per the determinism rule. */
 const BATCH_SEED = "adr-059:pass-rush-rep-rollref";
@@ -186,8 +195,94 @@ function foldGame(gameLabel: string, events: readonly MatchEventEnvelope[]): Gam
   return { ticksWithRollRef, dielessTicks, beats, dangling, ...(anyS3 ? { lateBeats, lateRolledTicks } : {}) };
 }
 
+/** ADR-089 step 3, on s3 plays only: the late beats read, and every fact of their relation that does not hold. */
+interface LateRelation {
+  readonly s3Plays: number;
+  readonly lateBeats: number;
+  readonly lateTicks: number;
+  readonly labels: number;
+  readonly faults: readonly string[];
+}
+
+/**
+ * The late block's relation on each s3 play (critique 3 S9): its label family, its actors
+ * `[carrier, hand]`, its ticks' actors, and no CHECK roll label used twice in the play. Every other
+ * play is not read here (legacy, s1 and s2 are the join's alone).
+ */
+function lateRelationOf(gameLabel: string, events: readonly MatchEventEnvelope[]): LateRelation {
+  interface Play {
+    s3: boolean;
+    readonly touching: Map<string, { readonly checkKind: string; readonly actors: readonly unknown[]; readonly band?: string; readonly roll: { readonly modifiers: readonly unknown[] } }>;
+    readonly beats: { readonly label: string; readonly rollRef: string | undefined; readonly actors: readonly string[] }[];
+    readonly ticks: { readonly rollRef: string; readonly actors: readonly string[]; readonly tick: number | undefined }[];
+    readonly labels: Map<string, number>;
+  }
+  const plays = new Map<string, Play>();
+  const playOf = (playId: string): Play => {
+    let p = plays.get(playId);
+    if (p === undefined) {
+      p = { s3: false, touching: new Map(), beats: [], ticks: [], labels: new Map() };
+      plays.set(playId, p);
+    }
+    return p;
+  };
+  for (const { event } of events) {
+    if (event.type === "PLAY_START") {
+      if (rulesOnPlayStart(event.payload)?.name === POCKET_1_S3_RULES) playOf(String(event.playId)).s3 = true;
+      continue;
+    }
+    if (event.type !== "CHECK") continue;
+    const play = playOf(String(event.playId));
+    const c = event.payload;
+    for (const label of [c.roll?.rngLabel, "opposedRoll" in c ? c.opposedRoll?.rngLabel : undefined]) {
+      if (label !== undefined) play.labels.set(label, (play.labels.get(label) ?? 0) + 1);
+    }
+    if ((c.checkKind === "blitz_pickup" || c.checkKind === "stunt_communication") && c.roll !== undefined) {
+      play.touching.set(c.roll.rngLabel, { checkKind: c.checkKind, actors: c.actors, ...(c.band === undefined ? {} : { band: c.band }), roll: c.roll });
+    } else if (c.checkKind === "pass_rush_beat" && c.roll !== undefined) {
+      play.beats.push({ label: c.roll.rngLabel, rollRef: c.rollRef, actors: c.actors.map(String) });
+    } else if (c.checkKind === "pass_rush_tick" && c.roll === undefined && c.rollRef !== undefined) {
+      play.ticks.push({ rollRef: c.rollRef, actors: c.actors.map(String), tick: event.tick });
+    }
+  }
+  let s3Plays = 0;
+  let lateBeats = 0;
+  let lateTicks = 0;
+  let labels = 0;
+  const faults: string[] = [];
+  for (const [playId, play] of plays) {
+    if (!play.s3) continue;
+    s3Plays += 1;
+    const where = `game ${gameLabel} play ${playId}`;
+    for (const [label, n] of play.labels) {
+      labels += 1;
+      if (n > 1) faults.push(`${where}: the roll label "${label}" is used by ${String(n)} CHECKs`);
+    }
+    for (const b of play.beats) {
+      const touching = b.rollRef === undefined ? undefined : play.touching.get(b.rollRef);
+      if (touching === undefined || b.rollRef === undefined) continue; // a rep's beat: the join's
+      lateBeats += 1;
+      const at = `${where} late beat "${b.label}"`;
+      if (b.label !== lateBeatLabelOf(b.rollRef)) faults.push(`${at}: not its CHECK's family ${JSON.stringify(lateBeatLabelOf(b.rollRef))}`);
+      const hand = touchOfCheck(touching)?.hand;
+      if (hand === undefined) faults.push(`${at}: a late beat on a man nobody's hand was on (${touching.checkKind} ${String(touching.band)})`);
+      if (b.actors.length !== 2) faults.push(`${at}: actors ${JSON.stringify(b.actors)}, not [carrier, hand]`);
+      else {
+        if (hand !== undefined && b.actors[1] !== hand) faults.push(`${at}: second actor ${String(b.actors[1])}, not the hand ${hand}`);
+        if (b.actors[0] === b.actors[1]) faults.push(`${at}: the carrier is his own blocker`);
+      }
+      for (const t of play.ticks) {
+        if (t.rollRef !== b.label) continue;
+        lateTicks += 1;
+        if (JSON.stringify(t.actors) !== JSON.stringify(b.actors)) faults.push(`${at} tick ${String(t.tick)}: actors ${JSON.stringify(t.actors)}, not the beat's ${JSON.stringify(b.actors)}`);
+      }
+    }
+  }
+  return { s3Plays, lateBeats, lateTicks, labels, faults };
+}
+
 /** The round robin this file plays, folded; `tunables` absent is today's (legacy) game. */
-function playCorpus(tunables?: Tunables): GameFold & { readonly games: number; readonly digest: string } {
+function playCorpus(tunables?: Tunables): GameFold & { readonly games: number; readonly digest: string; readonly relation: LateRelation } {
   const league = buildFlatLeague({ teams: 8 });
   const index = indexLeague(league);
   const fixtures = buildFixtures(index, {
@@ -202,6 +297,7 @@ function playCorpus(tunables?: Tunables): GameFold & { readonly games: number; r
   let lateBeats: number | undefined;
   let lateRolledTicks: number | undefined;
   const dangling: string[] = [];
+  const relation = { s3Plays: 0, lateBeats: 0, lateTicks: 0, labels: 0, faults: [] as string[] };
   for (const [i, fixture] of fixtures.entries()) {
     const seed = seeds.seeds[i];
     if (seed === undefined) continue;
@@ -219,8 +315,15 @@ function playCorpus(tunables?: Tunables): GameFold & { readonly games: number; r
     if (fold.lateBeats !== undefined) lateBeats = (lateBeats ?? 0) + fold.lateBeats;
     if (fold.lateRolledTicks !== undefined) lateRolledTicks = (lateRolledTicks ?? 0) + fold.lateRolledTicks;
     dangling.push(...fold.dangling);
+    const late = lateRelationOf(seed, observation.events);
+    relation.s3Plays += late.s3Plays;
+    relation.lateBeats += late.lateBeats;
+    relation.lateTicks += late.lateTicks;
+    relation.labels += late.labels;
+    relation.faults.push(...late.faults);
   }
   return {
+    relation,
     ticksWithRollRef,
     dielessTicks,
     beats,
@@ -237,7 +340,7 @@ describe("ADR-059: the dangling pass_rush_tick rollRef invariant", () => {
     "every rollRef-carrying pass_rush_tick resolves to a pass_rush_rep's rngLabel in the same " +
       "play, over a non-empty population",
     () => {
-      const { ticksWithRollRef, dielessTicks, beats, dangling, games, digest, lateBeats } = playCorpus();
+      const { ticksWithRollRef, dielessTicks, beats, dangling, games, digest, lateBeats, relation } = playCorpus();
 
       // Direction 1: no dangling reference. Every rollRef this corpus produced resolves within
       // its own play.
@@ -266,6 +369,7 @@ describe("ADR-059: the dangling pass_rush_tick rollRef invariant", () => {
       expect(beats, "a pass_rush_beat in a legacy stream").toBe(0);
       // ADR-089 step 3: nor step 3's late block (the late counts are written only for an s3 play).
       expect(lateBeats, "a late beat in a legacy stream").toBeUndefined();
+      expect(relation.s3Plays, "an s3 play in a legacy stream").toBe(0);
     },
     5 * 60_000,
   );
@@ -422,15 +526,89 @@ describe("ADR-089 step 3: the invariant on a pocket-1.s3 corpus", () => {
     () => {
       const tunables = rulesTunables("pocket-1.s3");
       expect(tunables.engineRules?.overlayDigest).toBe(POCKET_1_S3_DIGEST);
-      const { dielessTicks, beats, dangling, games, digest, lateBeats, lateRolledTicks } = playCorpus(tunables);
+      const { dielessTicks, beats, dangling, games, digest, lateBeats, lateRolledTicks, relation } = playCorpus(tunables);
       expect(dangling, `batch "${BATCH_SEED}" under pocket-1.s3, digest ${digest}, ${String(games)} games:\n${dangling.slice(0, 20).join("\n")}`).toEqual([]);
       expect(beats).toBeGreaterThan(0);
       expect(dielessTicks).toBeGreaterThan(0);
       expect(lateBeats).toBeGreaterThan(0);
       // Shape S: no late tick is rolled.
       expect(lateRolledTicks).toBe(0);
-      console.log(`passRushRepRollRef s3: ${String(games)} games, ${String(beats)} beats (${String(lateBeats)} late), ${String(dielessTicks)} dieless ticks`);
+      // Critique 3 S9: the late beat's label family, its [carrier, hand], its ticks' actors, no label twice.
+      expect(relation.faults, relation.faults.slice(0, 20).join("\n")).toEqual([]);
+      expect(relation.lateBeats).toBe(lateBeats);
+      expect(relation.lateTicks).toBeGreaterThan(0);
+      expect(relation.s3Plays).toBeGreaterThan(0);
+      console.log(`passRushRepRollRef s3: ${String(games)} games, ${String(beats)} beats (${String(lateBeats)} late, ${String(relation.lateTicks)} late ticks), ${String(dielessTicks)} dieless ticks, ${String(relation.labels)} roll labels on ${String(relation.s3Plays)} s3 plays, none twice`);
     },
     5 * 60_000,
   );
+});
+
+// --- ADR-089 step 3: the late beat's relation, on constructed s3 plays (critique 3 S9) ---------------
+
+describe("ADR-089 step 3: a late beat's label family and actors, and no label twice, on s3 plays only", () => {
+  const PICKUP = "g/play:1/presnap/pickup/rb:pickup";
+  const STUNT = "g/play:1/presnap/stunt/dt:de";
+  const pickup = (playId: string, actors: readonly string[] = ["rb", "olb"]) =>
+    envelope(playId, { checkKind: "blitz_pickup", actors, roll: d100(PICKUP), tier: "FAILURE", band: "RAN_THROUGH", margin: -5, testsAttrs: [] });
+  const stunt = (playId: string, exchange: boolean) =>
+    envelope(playId, {
+      checkKind: "stunt_communication",
+      actors: exchange ? ["c", "lg", "dt", "de"] : ["c", "dt", "de"],
+      roll: { ...d100(STUNT), modifiers: exchange ? [{ source: "C Awareness (center)", value: 1 }, { source: "LG Awareness (exchange)", value: 1 }] : [{ source: "C Awareness (center)", value: 1 }] },
+      tier: "FAILURE",
+      band: "LATE_EXCHANGE",
+      margin: -5,
+      testsAttrs: [],
+    });
+  const lateBeat = (playId: string, label: string, rollRef: string, actors: readonly string[]) =>
+    envelope(playId, { checkKind: "pass_rush_beat", actors, roll: { die: "uniform", raw: 0.4, modifiers: [], total: 0.4, rngLabel: label }, tier: "SUCCESS", margin: 5, testsAttrs: [], rollRef });
+  const lateTick = (playId: string, rollRef: string, actors: readonly string[]) =>
+    envelope(playId, { checkKind: "pass_rush_tick", actors, tier: "TIE", band: "STALEMATE", margin: 0, testsAttrs: [], rollRef });
+  const pickupBeat = lateBeatLabelOf(PICKUP)!;
+  const stuntBeat = lateBeatLabelOf(STUNT)!;
+
+  it("the family is <play>/rush/beat/<touching label>", () => {
+    expect(pickupBeat).toBe("g/play:1/rush/beat/g/play:1/presnap/pickup/rb:pickup");
+    expect(lateBeatLabelOf("no-presnap-here")).toBeUndefined();
+  });
+
+  it("holds for a pickup's back and a stunt's exchange blocker, the carrier first, each tick with the beat's actors", () => {
+    const rel = lateRelationOf("s3", [
+      playStart("p1", S3_STAMP),
+      pickup("p1"),
+      stunt("p1", true),
+      lateBeat("p1", pickupBeat, PICKUP, ["olb", "rb"]),
+      lateBeat("p1", stuntBeat, STUNT, ["de", "lg"]),
+      lateTick("p1", pickupBeat, ["olb", "rb"]),
+      lateTick("p1", stuntBeat, ["de", "lg"]),
+      lateTick("p1", stuntBeat, ["de", "lg"]),
+    ]);
+    expect(rel).toEqual({ s3Plays: 1, lateBeats: 2, lateTicks: 3, labels: 4, faults: [] });
+    // A carrier: the record's late block is on the man who carries it, the hand is still the back.
+    expect(lateRelationOf("s3", [playStart("p1", S3_STAMP), pickup("p1"), lateBeat("p1", pickupBeat, PICKUP, ["ilb", "rb"])]).faults).toEqual([]);
+  });
+
+  it.each([
+    ["a label outside the family", () => [lateBeat("p1", "g/play:1/rush/beat/other", PICKUP, ["olb", "rb"])], "not its CHECK's family"],
+    ["a second actor who is not the back", () => [lateBeat("p1", pickupBeat, PICKUP, ["olb", "lt"])], "not the hand rb"],
+    ["one actor", () => [lateBeat("p1", pickupBeat, PICKUP, ["olb"])], "not [carrier, hand]"],
+    ["a carrier who is his own blocker", () => [lateBeat("p1", pickupBeat, PICKUP, ["rb", "rb"])], "his own blocker"],
+    ["a tick with other actors", () => [lateBeat("p1", pickupBeat, PICKUP, ["olb", "rb"]), lateTick("p1", pickupBeat, ["rb", "olb"])], "not the beat's"],
+    ["a label used twice", () => [lateBeat("p1", pickupBeat, PICKUP, ["olb", "rb"]), lateBeat("p1", pickupBeat, PICKUP, ["olb", "rb"])], "used by 2 CHECKs"],
+  ] as const)("refuses %s", (_name, extra, message) => {
+    const rel = lateRelationOf("s3", [playStart("p1", S3_STAMP), pickup("p1"), ...extra()]);
+    expect(rel.faults.join("\n")).toContain(message);
+  });
+
+  it("refuses a late beat on the untouched exchange (no blocker's hand), which is on the clock, never a late block", () => {
+    const rel = lateRelationOf("s3", [playStart("p1", S3_STAMP), stunt("p1", false), lateBeat("p1", stuntBeat, STUNT, ["de", "c"])]);
+    expect(rel.faults.join("\n")).toContain("nobody's hand was on");
+  });
+
+  it("reads no play but an s3 one: the same events on an s1 play, or with no PLAY_START, give nothing", () => {
+    const events = (playId: string) => [pickup(playId), lateBeat(playId, "wrong", PICKUP, ["x"]), lateBeat(playId, "wrong", PICKUP, ["x"])];
+    expect(lateRelationOf("s1", [playStart("p1", S1_STAMP), ...events("p1")])).toEqual({ s3Plays: 0, lateBeats: 0, lateTicks: 0, labels: 0, faults: [] });
+    expect(lateRelationOf("bare", events("p2"))).toEqual({ s3Plays: 0, lateBeats: 0, lateTicks: 0, labels: 0, faults: [] });
+  });
 });

@@ -7,7 +7,9 @@
  *  - the noise rule on constructed pairs: the game-clustered bootstrap SE is seeded and exact,
  *    zero on identical games, and O10's tolerance is 2 x the larger set's SE;
  *  - one constructed game's counts (an escape CAUGHT, a stunt run and moved, a stunt on the card
- *    that was not run), and `m5Compare` on constructed runs.
+ *    that was not run), and `m5Compare` on constructed runs;
+ *  - step 3's z per row (`m5RowZ`, plan §2.8): each row's difference over its own SE, read off
+ *    `m5Compare`'s unchanged table, `null` where the SE is 0.
  */
 import type { DefensivePlayCall, MatchEventEnvelope } from "@ff/contracts";
 import { DEFAULT_TUNABLES } from "@ff/engine";
@@ -18,6 +20,7 @@ import {
   emptyM5Game,
   m5Compare,
   m5GameOf,
+  m5RowZ,
   M5_RNG_LABEL,
   noiseTolerance,
   ratioOf,
@@ -183,5 +186,35 @@ describe("one game's counts, and the comparison", () => {
     expect(caught.sets.map((s) => s.withinNoise)).toEqual([true, false]);
     expect(caught.withinNoiseOnEverySet).toBe(false);
     expect(() => m5Compare("gen", runs)).toThrow();
+  });
+
+  it("m5RowZ prints each row's z on its difference SE, set by set, and leaves m5Compare's table as it was (step 3)", () => {
+    const game = (caught: number, escapes: number): M5Game => ({ ...emptyM5Game(), dropbacks: 10, escapes, caught });
+    const runs = [
+      { league: "flat", set: 1, mirrored: false, games: [game(1, 5), game(2, 5), game(1, 4), game(0, 5)] },
+      { league: "flat", set: 1, mirrored: true, games: [game(1, 5), game(1, 5), game(2, 4), game(0, 5)] },
+      { league: "flat", set: 2, mirrored: false, games: [game(2, 5), game(1, 5), game(1, 5), game(1, 5)] },
+      { league: "flat", set: 2, mirrored: true, games: [game(5, 5), game(5, 5), game(5, 5), game(5, 5)] },
+    ];
+    const table = m5Compare("flat", runs);
+    const before = JSON.stringify(table);
+    const z = m5RowZ(table);
+    expect(JSON.stringify(table)).toBe(before);
+    expect(Object.keys(z)).toEqual(Object.keys(table["rows"] as object));
+    const rows = table["rows"] as Record<string, { sets: { set: number; difference: number; seDifference: number }[] }>;
+    for (const [row, zs] of Object.entries(z)) {
+      expect(zs.map((s) => s.set)).toEqual([1, 2]);
+      zs.forEach((s, i) => {
+        const set = rows[row]!.sets[i]!;
+        expect(s.difference).toBe(set.difference);
+        expect(s.seDifference).toBe(set.seDifference);
+        expect(s.z).toBe(set.seDifference === 0 ? null : set.difference / set.seDifference);
+      });
+    }
+    // Set 2's escape CAUGHT rate moved from 5/20 to 1 on a nonzero SE: a z, positive.
+    expect(z["escape_caught_rate"]![1]!.z).toBeGreaterThan(0);
+    // No stunts on either side: the looper row's SE is 0, so it has no z.
+    expect(z["looper_moved_share"]!.map((s) => s.z)).toEqual([null, null]);
+    expect(() => m5RowZ({ league: "flat" })).toThrow(/no rows/);
   });
 });
