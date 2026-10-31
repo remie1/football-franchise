@@ -105,7 +105,7 @@ export {
   type NegotiationNeed, type OfferTerms, type MarketWindow,
 } from "./cap/negotiation.js";
 export {
-  leagueYearSteps, countsForComp, marketWindow, teamGrade, winShareOf, rookieReserve, LEAGUE_YEAR_DAYS, MARKET, type LeagueYearConfig,
+  leagueYearSteps, countsForComp, adjustedCap, marketWindow, teamGrade, winShareOf, rookieReserve, LEAGUE_YEAR_DAYS, MARKET, type LeagueYearConfig,
 } from "./cap/leagueYear.js";
 export { capForecast } from "./cap/forecast.js";
 // ADR-087: players age, grow and get hurt (off unless runSeason's `players` switches them on).
