@@ -542,9 +542,16 @@ export interface Step3MissSplitRecord {
   readonly byClock: MissSplitFigures;
   readonly byOrigin: MissSplitFigures;
   readonly counts: Readonly<Record<CountKey, number>>;
-  /** Every first pressure by origin, and the quick ones (`s3.quickOrigin`). */
+  /** Every first pressure by origin, and the quick ones (`s3.quickOrigin`'s origin-keyed reading, printed beside). */
   readonly firstPressureOrigin: Readonly<Record<string, number>>;
   readonly quickFirstPressureByOrigin: Readonly<Record<string, number>>;
+  /**
+   * Every first pressure keyed by AM-2's key (`CLOCK_RUNNER`, `FREE_RUNNER`, `WON_REP`, `COUNTER`;
+   * `ClockKeyFold`), and the quick ones: `s3.quickOrigin`'s reading at step 3, where "free runner"
+   * is a man on the free-run clock under the arm's own reading (review MEAS-S2).
+   */
+  readonly firstPressureByClock: Readonly<Record<string, number>>;
+  readonly quickFirstPressureByClock: Readonly<Record<string, number>>;
 }
 
 export function missSplitRecordOf(acc: SimAccumulator): Step3MissSplitRecord {
@@ -562,7 +569,27 @@ export function missSplitRecordOf(acc: SimAccumulator): Step3MissSplitRecord {
     },
     firstPressureOrigin: { ...pf.firstPressureOrigin },
     quickFirstPressureByOrigin: { ...pf.quickFirstPressureByOrigin },
+    firstPressureByClock: { ...pf.clockKey.firstPressureByClock },
+    quickFirstPressureByClock: { ...pf.clockKey.quickFirstPressureByClock },
   };
+}
+
+/** A key's share of the quick first pressures and of all first pressures, in percent (`null` on an empty population). */
+export function quickOriginShares(all: Readonly<Record<string, number>>, quick: Readonly<Record<string, number>>, key: string): { readonly quick: number | null; readonly all: number | null } {
+  const a = sumOf(Object.values(all));
+  const q = sumOf(Object.values(quick));
+  return { quick: q === 0 ? null : (100 * (quick[key] ?? 0)) / q, all: a === 0 ? null : (100 * (all[key] ?? 0)) / a };
+}
+
+/**
+ * `s3.quickOrigin` on one league of one record: the men on the free-run clock under the arm's own
+ * reading (AM-2's `freeRunKey`), as a share of quick first pressures against their share of all;
+ * the origin-keyed reading (step 0's: any threat not from a won rep) beside (review MEAS-S2).
+ */
+export function quickOriginText(m: Step3MissSplitRecord): string {
+  const c = quickOriginShares(m.firstPressureByClock, m.quickFirstPressureByClock, "CLOCK_RUNNER");
+  const o = quickOriginShares(m.firstPressureOrigin, m.quickFirstPressureByOrigin, "FREE_RUNNER");
+  return `men on the clock ${num(c.quick)}% of quick pressures against ${num(c.all)}% of all (${sgn(diffOf(c.quick, c.all))}); origin-keyed beside: free rushers ${num(o.quick)}% against ${num(o.all)}% (${sgn(diffOf(o.quick, o.all))})`;
 }
 
 /** Step 3's folds of one league. The late block, the census, part 1 and the Wait count are on `pocket-1.s3` arms only (null on the others). */
@@ -1346,17 +1373,9 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
       continue;
     }
     if (c.id === "s3.quickOrigin") {
-      const share = (r: Step3Record | undefined, l: League): string => {
-        if (r === undefined) return "n/a";
-        const m = r.s3[l].missSplit;
-        const all = sumOf(Object.values(m.firstPressureOrigin));
-        const quick = sumOf(Object.values(m.quickFirstPressureByOrigin));
-        const fa = all === 0 ? null : (100 * (m.firstPressureOrigin["FREE_RUNNER"] ?? 0)) / all;
-        const fq = quick === 0 ? null : (100 * (m.quickFirstPressureByOrigin["FREE_RUNNER"] ?? 0)) / quick;
-        return `free rushers ${num(fq)}% of quick pressures against ${num(fa)}% of all (${sgn(diffOf(fq, fa))})`;
-      };
+      const share = (r: Step3Record | undefined, l: League): string => (r === undefined ? "n/a" : quickOriginText(r.s3[l].missSplit));
       const values = LEAGUES.flatMap((l) => sets.map((s) => `${l} set ${String(s)}: ${design} ${share(at(design, s), l)}; ${designBase} ${share(at(designBase, s), l)}`));
-      clauses.push({ id: c.id, kind: c.kind, arms: [design, designBase], filed, values: missingOf([design]).length > 0 ? ["not played: C1"] : values, verdict: missingOf([design]).length > 0 ? "NOT PLAYED" : "REPORTED", note: "reported; acceptance grades its direction (ADR-089:1144)" });
+      clauses.push({ id: c.id, kind: c.kind, arms: [design, designBase], filed, values: missingOf([design]).length > 0 ? ["not played: C1"] : values, verdict: missingOf([design]).length > 0 ? "NOT PLAYED" : "REPORTED", note: "reported; acceptance grades its direction (ADR-089:1144); keyed by AM-2's freeRunKey (the men on the free-run clock under the arm's own reading, D19 on B3), the step-0 origin key beside" });
       continue;
     }
     if (c.id === "s3.unblockedMen") {

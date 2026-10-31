@@ -66,6 +66,8 @@ import {
   planStep3,
   playStep3Arm,
   preflightStep3,
+  quickOriginShares,
+  quickOriginText,
   preflightStep3Previews,
   q3Problems,
   q3Projection,
@@ -569,6 +571,29 @@ describe("real arms on a cut corpus (C1, B3)", () => {
     expect({ flat: r.measures.flat.games, gen: r.measures.gen.games }).toEqual({ flat: 1, gen: 16 });
   });
 
+  it("review MEAS-S2: s3.quickOrigin reads the men on the clock, the origin key beside, and the record keeps both keys' units", () => {
+    // A synthetic split: 40 first pressures, 10 quick; 8 of all and 6 of the quick ones by men on the clock, 20 and 7 by any non-won-rep threat.
+    const m = {
+      firstPressureByClock: { CLOCK_RUNNER: 8, FREE_RUNNER: 12, WON_REP: 18, COUNTER: 2 },
+      quickFirstPressureByClock: { CLOCK_RUNNER: 6, FREE_RUNNER: 1, WON_REP: 3 },
+      firstPressureOrigin: { FREE_RUNNER: 20, WON_REP: 18, COUNTER: 2 },
+      quickFirstPressureByOrigin: { FREE_RUNNER: 7, WON_REP: 3 },
+    } as unknown as Step3Record["s3"]["gen"]["missSplit"];
+    expect(quickOriginShares(m.firstPressureByClock, m.quickFirstPressureByClock, "CLOCK_RUNNER")).toEqual({ quick: 60, all: 20 });
+    expect(quickOriginText(m)).toBe("men on the clock 60.00% of quick pressures against 20.00% of all (+40.00); origin-keyed beside: free rushers 70.00% against 50.00% (+20.00)");
+    expect(quickOriginShares({}, {}, "CLOCK_RUNNER")).toEqual({ quick: null, all: null });
+    for (const r of [c1!, b3!]) {
+      for (const l of LEAGUES) {
+        const x = r.s3[l].missSplit;
+        const sum = (o: Readonly<Record<string, number>>): number => Object.values(o).reduce((a, b) => a + b, 0);
+        // The two keys split the same first pressures: their totals agree, all and quick.
+        expect(sum(x.firstPressureByClock), `${r.stamp.arm} ${l}`).toBeCloseTo(sum(x.firstPressureOrigin), 9);
+        expect(sum(x.quickFirstPressureByClock), `${r.stamp.arm} ${l}`).toBeCloseTo(sum(x.quickFirstPressureByOrigin), 9);
+        expect(sum(x.firstPressureByClock), `${r.stamp.arm} ${l}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it("C1 plays its corpora mirrored for M5, and the free-run mirror is exact; no other arm does", () => {
     for (const l of LEAGUES) {
       const m = c1!.m5![l];
@@ -698,6 +723,7 @@ describe("grading synthetic records under AM-3's stand-in", () => {
     expect(proof(g, "q3.replay").detail).toBe(STEP3_BASE_IDS.flatMap((id) => [`${id} set 1 equal`, `${id} set 2 equal`]).join("; "));
     for (const id of ["s3.bin20.tick", "s3.quick", "s3.unblockedPressures", "s3.unblockedShare", "guard.mix", "guard.byClass"]) expect(clause(g, id).verdict, id).toBe("PASS");
     expect(clause(g, "s3.part1.determinism").verdict).toBe("NOT CHECKED");
+    expect(clause(g, "s3.quickOrigin").values[0]).toMatch(/^flat set 1: C1 men on the clock (\d+\.\d\d|n\/a)% of quick pressures against (\d+\.\d\d|n\/a)% of all \(.*\); origin-keyed beside: free rushers .*; B3 men on the clock /);
     expect(clause(g, "s3.part1.m8").filed).toMatch(/^superseded by AM-2 \(ADR-089 Appendix G, G\.8\): part 1 on the published picture/);
     expect(clause(g, "s3.bin20.tick").values[0]).toMatch(/^C1 flat set 1 20\.00 \(binomial SE \d+\.\d\d; B3 20\.00\); set 2 20\.00; two-set mean 20\.00 \[time to throw C1 \d\.\d{3} s, B3 \d\.\d{3} s\]$/);
     expect(clause(g, "guard.mix").filed).toMatch(/^as AM-1's reading under AM-3 \(ADR-089 Appendix G, G\.9\): pooled Z over both seed sets above 2 breaches/);
