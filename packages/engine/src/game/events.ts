@@ -75,7 +75,7 @@ import type {
   TeamId,
 } from "@ff/contracts";
 import { checkPayload } from "../events.js";
-import type { CheckEmission } from "../events.js";
+import type { BeatTickEmission, CheckEmission } from "../events.js";
 
 /** The one stream. An alias since ADR-014 landed; kept as a name, not a union. */
 export type GameEvent = MatchEvent;
@@ -151,7 +151,7 @@ export class GameEventLog {
    * A CHECK, on the play it belongs to. ADR-004: the roll is recorded HERE, once,
    * and the summary event that follows names it by `RollDetail.rngLabel`.
    */
-  check(playId: PlayId, c: CheckEmission): void {
+  check(playId: PlayId, c: CheckEmission | BeatTickEmission): void {
     this.emit({ type: "CHECK", payload: checkPayload(c), gameId: this.gameId, playId });
   }
 

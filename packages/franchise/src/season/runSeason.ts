@@ -22,6 +22,11 @@
  * picks and classes through the year, and each `daySteps` entry gets one look at every day the walk
  * passes, after that day's games: the draft, cut-down day and the aging thread's weekly growth all
  * run this way, in one walk. A step decides for itself whether the day is its day.
+ *
+ * Players (ADR-087 §10): with `players`, the development week, injuries, the weekly depth chart and
+ * unsigned retirements run as day steps too, after any `daySteps`. A resumed run does not run a
+ * day's steps again; `resumeEvents` hands back what they emitted on those days, so the resumed
+ * stream is the one a straight run gives.
  */
 import {
   DEFAULT_LEAGUE_RULES, compareStamps, stampToString,
@@ -30,6 +35,7 @@ import {
 } from "@ff/contracts";
 import type { League } from "../league/buildLeague.js";
 import type { LeaguePeople, DayStep } from "./people.js";
+import { PLAYER_STEP_PREFIX, playerSteps, type PlayerStepsConfig } from "../players/steps.js";
 import { advance, nextDay, phaseWeeks, seasonStart, DAYS_PER_WEEK, type ClockWorld } from "../calendar/clock.js";
 import { buildSchedule } from "../schedule/buildSchedule.js";
 import { computeStandings } from "../standings/computeStandings.js";
@@ -77,6 +83,16 @@ export interface RunSeasonInput {
    * calendar), and `people` is as they left it, so they are not run again.
    */
   stepsDoneThrough?: CalendarStamp;
+  /**
+   * ADR-087 §10: the players' steps (development, injuries, depth charts, unsigned retirements), with
+   * their switches. Needs `people`. Absent, or both switches off, adds no steps.
+   */
+  players?: PlayerStepsConfig;
+  /**
+   * A resumed run: the events the players' steps emitted on the days up to `stepsDoneThrough` (a
+   * save's `world.development.events`, S1), emitted again on their days in place of running the steps.
+   */
+  resumeEvents?: readonly FranchiseEventEnvelope[];
 }
 
 export interface SeasonRun {
@@ -87,6 +103,11 @@ export interface SeasonRun {
   complete: boolean;
   /** The people as the run left them; absent when the run was given none. */
   people?: LeaguePeople;
+  /**
+   * Every event a day step emitted (or a resumed run handed back through `resumeEvents`), with the
+   * step's id, in stream order. Absent when the run had no steps.
+   */
+  stepEvents?: { step: string; envelope: FranchiseEventEnvelope }[];
 }
 
 /** A playoff game the resolver returns level is played again on a fresh seed, at most this often. */
@@ -122,7 +143,7 @@ const sameDay = (a: CalendarStamp, b: CalendarStamp) => compareStamps(a, b) === 
 
 export function runSeason(input: RunSeasonInput): SeasonRun {
   const { league, season, seed, resolve, stopAfter, resumeFrom } = input;
-  const steps = input.daySteps ?? [];
+  const steps = [...(input.daySteps ?? []), ...(input.players ? playerSteps(input.players) : [])];
   if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps need people");
   let people = input.people;
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
@@ -150,19 +171,34 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
   const emit = (event: FranchiseEvent) => record({ seq: events.length, at: world.calendar, event });
   // The last day whose steps have run. A resumed run's steps ran already, up to the save's day.
   let stepped: CalendarStamp | undefined = input.stepsDoneThrough;
+  const stepEvents: { step: string; envelope: FranchiseEventEnvelope }[] = [];
+  const stepEmit = (step: string, event: FranchiseEvent) => {
+    emit(event);
+    stepEvents.push({ step, envelope: events[events.length - 1]! });
+  };
+  // What the steps emitted on the days a resumed run does not run them again, by day.
+  const resumed = new Map<string, FranchiseEventEnvelope[]>();
+  for (const e of input.resumeEvents ?? []) {
+    const k = stampToString(e.at);
+    resumed.set(k, [...(resumed.get(k) ?? []), e]);
+  }
   // The games played on the current day, for its steps.
   let today: { game: ScheduledGame; result: GameResult; extras?: unknown }[] = [];
   const runSteps = () => {
     const day = world.calendar;
     const games = today;
     today = [];
-    if (steps.length === 0 || (stepped && compareStamps(day, stepped) <= 0)) return;
+    if (steps.length === 0) return;
+    if (stepped && compareStamps(day, stepped) <= 0) {
+      for (const e of resumed.get(stampToString(day)) ?? []) stepEmit(`${PLAYER_STEP_PREFIX}resumed`, e.event);
+      return;
+    }
     stepped = day;
     for (const step of steps) {
       const r = step.run(people!, { day, season, seed, rules, state, games });
       if (!r) continue;
       people = r.people;
-      for (const event of r.events) emit(event);
+      for (const event of r.events) stepEmit(step.id, event);
     }
   };
   const moveTo = (to: CalendarStamp) => {
@@ -189,7 +225,7 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
     const unused = [...saved.keys()].filter((id) => !played.has(id));
     if (unused.length > 0) throw new Error(`runSeason: the save has results this run did not reach (${unused.slice(0, 3).join(", ")})`);
     runSteps();
-    return { state, calendar: world.calendar, events, complete, ...(people ? { people } : {}) };
+    return { state, calendar: world.calendar, events, complete, ...(people ? { people } : {}), ...(steps.length > 0 ? { stepEvents } : {}) };
   };
   const pending = () => [...state.schedule.games, ...(state.bracket?.games ?? [])]
     .filter((g) => !played.has(String(g.gameId)))

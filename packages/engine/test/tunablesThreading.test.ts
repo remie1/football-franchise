@@ -95,9 +95,15 @@ describe("1 — a patched Tunables handed to an entry point changes the simulati
     expect(after.newState.ballOn).toBe(before.newState.ballOn - 18);
     // ...and the roll stream did NOT move, because no die reads this value.
     const rolls = (r: typeof before): string[] =>
-      r.events.flatMap(({ event }) =>
-        event.type === "CHECK" ? [event.payload.roll.rngLabel] : [],
-      );
+      r.events.flatMap(({ event }) => {
+        if (event.type !== "CHECK") return [];
+        const kind: string = event.payload.checkKind;
+        if (event.payload.roll === undefined) {
+          if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+          return [];
+        }
+        return [event.payload.roll.rngLabel];
+      });
     expect(rolls(after)).toEqual(rolls(before));
   });
 

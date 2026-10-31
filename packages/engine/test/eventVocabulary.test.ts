@@ -13,10 +13,15 @@
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
+import { createRng, playerId } from "@ff/contracts";
+import { checkPayload } from "../src/events.js";
+import type { BeatTickEmission, CheckEmission } from "../src/events.js";
 import { simulateGame, simulatePassPlay } from "../src/index.js";
 import { isGameScoped } from "../src/game/events.js";
 import { TUNABLES } from "../src/tunables.js";
 import { buildGameFixture } from "./gameFixtures.js";
+import type { Tunables } from "../src/tunables.js";
+import { PASS_FIXTURES, RULE_SETS, STEP1_RULE_SET_NAMES, isShapeS } from "./pocketTunables.js";
 import {
   buildMixedCoverageScenario,
   buildScenario,
@@ -35,11 +40,17 @@ function sweep(
   build: typeof buildScenario,
   n: number,
   prefix: string,
+  tunables?: Tunables,
 ): MatchEventEnvelope[][] {
   const out: MatchEventEnvelope[][] = [];
   for (let i = 0; i < n; i++) {
     const { state, calls } = build();
-    out.push([...simulatePassPlay(state, calls, `${prefix}-${i}`).events]);
+    out.push([
+      ...(tunables === undefined
+        ? simulatePassPlay(state, calls, `${prefix}-${i}`)
+        : simulatePassPlay(state, calls, `${prefix}-${i}`, tunables)
+      ).events,
+    ]);
   }
   return out;
 }
@@ -122,32 +133,122 @@ describe("ADR-007 #4 — RUSH_THREAT", () => {
     expect(published).toBeGreaterThan(0);
   });
 
-  it("rollRef names a pass_rush_tick roll that is already in the stream (ADR-004)", () => {
-    let joined = 0;
-    for (const events of sweep(buildScenario, 200, "ref")) {
-      const rushLabels = new Map<string, number>();
-      for (const { seq, event } of events) {
-        if (event.type === "CHECK" && event.payload.checkKind === "pass_rush_tick") {
-          rushLabels.set(event.payload.roll.rngLabel, seq);
+  /**
+   * ADR-089 step 1 (plan §16.2): the join names the tick under `legacy` and shape L, and the
+   * `pass_rush_beat` under shape S, whose own `rollRef` names the rep (tick → beat → rep).
+   */
+  for (const { name, tunables } of RULE_SETS) {
+    const joinKind = isShapeS(name) ? "pass_rush_beat" : "pass_rush_tick";
+    it(`rollRef names a ${joinKind} roll that is already in the stream (ADR-004) (${name})`, () => {
+      let joined = 0;
+      for (const events of sweep(buildScenario, 200, "ref", tunables)) {
+        const rushLabels = new Map<string, { seq: number; rollRef: string | undefined }>();
+        const reps = new Map<string, number>();
+        const dieless: { seq: number; rollRef: string | undefined }[] = [];
+        for (const { seq, event } of events) {
+          if (event.type !== "CHECK") continue;
+          if (event.payload.checkKind === "pass_rush_rep") reps.set(event.payload.roll.rngLabel, seq);
+          if (event.payload.checkKind === joinKind) {
+            const kind: string = event.payload.checkKind;
+            if (event.payload.roll === undefined) {
+              if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+              continue;
+            }
+            rushLabels.set(event.payload.roll.rngLabel, { seq, rollRef: event.payload.rollRef });
+          }
+          if (event.payload.checkKind === "pass_rush_tick" && event.payload.roll === undefined) {
+            dieless.push({ seq, rollRef: event.payload.rollRef });
+          }
+        }
+        for (const { seq, event } of events) {
+          if (event.type !== "RUSH_THREAT") continue;
+          joined += 1;
+          const at = rushLabels.get(event.payload.rollRef);
+          expect(at).toBeDefined();
+          // The reference always points backwards...
+          expect(at?.seq ?? Infinity).toBeLessThan(seq);
+          // ...and the CHECK it names points backwards at the rep.
+          expect(reps.get(at?.rollRef ?? "") ?? Infinity).toBeLessThan(at?.seq ?? -Infinity);
+        }
+        // Shape S's dieless ticks name the beat, which is already in the stream; nothing else has one.
+        if (isShapeS(name)) {
+          for (const d of dieless) expect(rushLabels.get(d.rollRef ?? "")?.seq ?? Infinity).toBeLessThan(d.seq);
+        } else {
+          expect(dieless).toEqual([]);
         }
       }
-      for (const { seq, event } of events) {
-        if (event.type !== "RUSH_THREAT") continue;
-        joined += 1;
-        const at = rushLabels.get(event.payload.rollRef);
-        expect(at).toBeDefined();
-        // The reference always points backwards.
-        expect(at ?? Infinity).toBeLessThan(seq);
-      }
-    }
-    expect(joined).toBeGreaterThan(0);
-  });
+      expect(joined).toBeGreaterThan(0);
+    });
+  }
 
   it("carries no RollDetail and no tier — no die produces an ETA (ADR-005)", () => {
     for (const events of sweep(buildScenario, 100, "notier")) {
       for (const t of threats(events)) {
         const keys = Object.keys(t.payload).sort();
         expect(keys).toEqual(["alignment", "etaTick", "origin", "rollRef", "rusher", "state"]);
+      }
+    }
+  });
+
+  /**
+   * ADR-089 P4 and §9 (S4): under `pocket-1` every threat also says how he got there, as its last
+   * key, and every pass play's PLAY_START names its rules as ITS last key. The legacy key set
+   * above stays exact; this is the ON case beside it.
+   */
+  for (const { name, tunables } of RULE_SETS) {
+    if (name === "legacy") continue;
+    it(`under ${name}: RUSH_THREAT gains approach and PLAY_START gains rules, each as the last key`, () => {
+      let published = 0;
+      for (const build of [buildScenario, buildScramblerScenario, buildStalledPocketScenario]) {
+        for (const events of sweep(build, 60, `on-${name}`, tunables)) {
+          const start = events[0]?.event;
+          if (start?.type !== "PLAY_START") throw new Error("no PLAY_START");
+          const keys = Object.keys(start.payload as object);
+          expect(keys).toEqual(["kind", "offense", "defense", "situation", "rules"]);
+          const rules = (start.payload as { rules: { name: string; overlayDigest: string } }).rules;
+          expect(rules).toEqual(tunables.engineRules);
+          expect(Object.keys(rules)).toEqual(["name", "overlayDigest"]);
+          for (const t of threats(events)) {
+            published += 1;
+            expect(Object.keys(t.payload)).toEqual(["rusher", "alignment", "origin", "rollRef", "etaTick", "state", "approach"]);
+            expect(["FREE", "ARC", "THROUGH", "PUSH"]).toContain(t.payload.approach);
+          }
+        }
+      }
+      expect(published).toBeGreaterThan(0);
+    });
+  }
+
+  it("in a game under pocket-1, rules is on every pass play's PLAY_START and on no other (O20)", () => {
+    const sw = RULE_SETS.find((r) => r.name === "SW");
+    if (sw === undefined) throw new Error("no SW");
+    const fixture = buildGameFixture({ seed: "rules-on-pass-plays" });
+    const { events } = simulateGame(fixture.state, fixture.inputs, fixture.seed, sw.tunables);
+    const kinds = new Map<string, number>();
+    for (const { event } of events) {
+      if (event.type !== "PLAY_START") continue;
+      const p = event.payload as { kind: string; rules?: unknown };
+      kinds.set(p.kind, (kinds.get(p.kind) ?? 0) + 1);
+      if (p.kind === "PASS_PLAY_V1") {
+        expect(Object.keys(p).at(-1)).toBe("rules");
+        expect(p.rules).toEqual(sw.tunables.engineRules);
+      } else {
+        expect("rules" in p).toBe(false);
+      }
+    }
+    expect(kinds.get("PASS_PLAY_V1") ?? 0).toBeGreaterThan(10);
+    expect(kinds.size).toBeGreaterThan(1);
+  });
+
+  it("under legacy: PLAY_START keeps today's keys and no threat carries approach", () => {
+    for (const build of [buildScenario, buildScramblerScenario, buildStalledPocketScenario]) {
+      for (const events of sweep(build, 60, "off")) {
+        const start = events[0]?.event;
+        if (start?.type !== "PLAY_START") throw new Error("no PLAY_START");
+        expect(Object.keys(start.payload as object)).toEqual(["kind", "offense", "defense", "situation"]);
+        for (const t of threats(events)) {
+          expect(Object.keys(t.payload)).toEqual(["rusher", "alignment", "origin", "rollRef", "etaTick", "state"]);
+        }
       }
     }
   });
@@ -535,6 +636,11 @@ describe("ADR-014 — the game is described by the schema, not by an engine-loca
     for (const { event } of game.events) {
       if (event.type !== "CHECK") continue;
       if (!["field_goal", "punt", "kick_return"].includes(event.payload.checkKind)) continue;
+      const kind: string = event.payload.checkKind;
+      if (event.payload.roll === undefined) {
+        if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+        continue;
+      }
       const id = String(event.playId);
       expect(id).toMatch(/:(kickoff|punt|fieldGoal|pat):\d+$/);
       const kinds = byPlay.get(id) ?? new Set<string>();
@@ -564,6 +670,11 @@ describe("ADR-014 — the game is described by the schema, not by an engine-loca
     const playOfRoll = new Map<string, string>();
     for (const { event } of game.events) {
       if (event.type !== "CHECK") continue;
+      const kind: string = event.payload.checkKind;
+      if (event.payload.roll === undefined) {
+        if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+        continue;
+      }
       playOfRoll.set(event.payload.roll.rngLabel, String(event.playId));
     }
 
@@ -606,5 +717,107 @@ describe("ADR-014 — the game is described by the schema, not by an engine-loca
       if (event.type === "PLACEKICK" || event.type === "PUNT" || event.type === "KICKOFF") kicks += 1;
     }
     expect(distinct.size).toBe(end.payload.plays + kicks);
+  });
+});
+
+/**
+ * ADR-089 N1 — `checkPayload`'s key order. The legacy branch is today's body, untouched; the
+ * dieless branch, keyed on the emission having no `roll` key at all, keeps the same order less
+ * `roll` and `opposedRoll`.
+ */
+describe("ADR-089 N1 — the CHECK payload's keys, in order", () => {
+  const LEGACY_TICK = ["checkKind", "actors", "roll", "tier", "margin", "testsAttrs", "opposedRoll", "band", "rollRef"];
+  const DIELESS_TICK = ["checkKind", "actors", "tier", "margin", "testsAttrs", "band", "rollRef"];
+
+  it("a legacy pass_rush_tick, built and as the stream carries it", () => {
+    const rng = createRng("keys", "t");
+    const roll = { die: "d100" as const, raw: 50, modifiers: [], total: 50, rngLabel: rng.label };
+    const emission: CheckEmission = {
+      checkKind: "pass_rush_tick",
+      actors: [playerId("r"), playerId("b")],
+      roll,
+      opposedRoll: { ...roll, rngLabel: "b" },
+      tier: "TIE",
+      band: "STALEMATE",
+      margin: 0,
+      testsAttrs: [],
+      rollRef: "rep",
+    };
+    expect(Object.keys(checkPayload(emission))).toEqual(LEGACY_TICK);
+    let ticks = 0;
+    for (const events of sweep(buildScenario, 20, "keys")) {
+      for (const { event } of events) {
+        if (event.type !== "CHECK" || event.payload.checkKind !== "pass_rush_tick") continue;
+        ticks += 1;
+        expect(Object.keys(event.payload)).toEqual(LEGACY_TICK);
+      }
+    }
+    expect(ticks).toBeGreaterThan(0);
+  });
+
+  it("a dieless tick: the same keys less roll and opposedRoll, built and as the stream carries it", () => {
+    const emission: BeatTickEmission = {
+      checkKind: "pass_rush_tick",
+      actors: [playerId("r"), playerId("b")],
+      tier: "TIE",
+      band: "STALEMATE",
+      margin: 0,
+      testsAttrs: [],
+      rollRef: "beat",
+    };
+    expect(Object.keys(checkPayload(emission))).toEqual(DIELESS_TICK);
+    const sw = RULE_SETS.find((r) => r.name === "SW");
+    if (sw === undefined) throw new Error("no SW");
+    let ticks = 0;
+    for (const events of sweep(buildScenario, 20, "keys", sw.tunables)) {
+      for (const { event } of events) {
+        if (event.type !== "CHECK" || event.payload.checkKind !== "pass_rush_tick") continue;
+        ticks += 1;
+        expect(Object.keys(event.payload)).toEqual(DIELESS_TICK);
+      }
+    }
+    expect(ticks).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * ADR-089 step 2 — NO NEW VOCABULARY (plan §1.1, §3). Must act per rusher (S2) and the narrower
+ * counter (S2N) decide among the same choices, publish the same event types and CHECK kinds, and
+ * name the same throwaway causes as the step-1 rule sets (legacy, S, SW, L5, L8) on the same
+ * fixtures and seeds; and every key set of every event is one those rule sets publish too.
+ */
+describe("ADR-089 step 2 — must act adds no event, CHECK kind, choice or cause", () => {
+  it("under S2 and S2N every word of the stream is one the step-1 rule sets already use", () => {
+    const words = (events: readonly MatchEventEnvelope[], into: Set<string>): void => {
+      for (const { event } of events) {
+        into.add(`type:${event.type}`);
+        into.add(`keys:${event.type}:${Object.keys(event.payload as object).join(",")}`);
+        if (event.type === "CHECK") into.add(`check:${event.payload.checkKind}`);
+        if (event.type === "QB_DECISION") into.add(`choice:${event.payload.choice}`);
+        if (event.type === "THROWAWAY") into.add(`cause:${event.payload.cause}`);
+        if (event.type === "POCKET_STATUS") into.add(`status:${event.payload.status}`);
+        if (event.type === "RUSH_THREAT") into.add(`threat:${event.payload.state}:${event.payload.origin}`);
+      }
+    };
+    const step1 = new Set<string>();
+    const step2 = new Map<string, Set<string>>([["S2", new Set()], ["S2N", new Set()]]);
+    for (const [fixture, build] of PASS_FIXTURES) {
+      for (let i = 0; i < 40; i++) {
+        for (const { name, tunables } of RULE_SETS) {
+          const { state, calls } = build();
+          const { events } = simulatePassPlay(state, calls, `vocabulary-s2-${fixture}-${i}`, tunables);
+          if (STEP1_RULE_SET_NAMES.includes(name)) words(events, step1);
+          const into = step2.get(name);
+          if (into !== undefined) words(events, into);
+        }
+      }
+    }
+    for (const [name, seen] of step2) {
+      expect([...seen].filter((w) => !step1.has(w)), name).toEqual([]);
+      // Not vacuous: the forced acts are all in the sample.
+      for (const w of ["choice:THROW", "choice:CHECKDOWN", "choice:HOLD", "choice:STEP_UP", "choice:SCRAMBLE", "choice:THROWAWAY", "cause:POCKET_DURESS", "cause:CLOCK_EXPIRED", "check:pocket_movement"]) {
+        expect(seen.has(w), `${name}: ${w}`).toBe(true);
+      }
+    }
   });
 });

@@ -18,6 +18,7 @@ import type {
   RollDetail,
   RoutePhase,
   RushAlignment,
+  RushApproach,
   RushThreatState,
   ThreatOrigin,
   ThrowawayCause,
@@ -69,13 +70,31 @@ export interface CheckEmission {
   readonly testsAttrs: readonly AttrId[];
   /**
    * ADR-059 — the `RollDetail.rngLabel` of a PRIOR roll in the SAME play this
-   * check derives from. Today's one producer: `pass_rush_tick`, pointing at the
-   * `pass_rush_rep` CHECK whose latent margin it jitters around. Mirrors the
+   * check derives from. Under `legacy` the one producer is `pass_rush_tick`, pointing at the
+   * `pass_rush_rep` CHECK whose latent margin it jitters around. ADR-089 step 1 (`pocket-1`
+   * only) adds `pass_rush_beat`, pointing at the rep whose block it times; shape S's dieless
+   * tick (`BeatTickEmission`) points at the beat instead. Mirrors the
    * contracts field of the same name (`events.ts`'s `CHECK.payload.rollRef`)
    * exactly, so `checkPayload` below is a pass-through, not a translation.
    */
   readonly rollRef?: string;
 }
+
+/**
+ * ADR-089 P3 — a `pass_rush_tick` that draws no die: shape S of the block clock (`pocket-1`
+ * only, never `legacy`). Its margin, tier and band are set by the block's breaking time, drawn
+ * once on the `pass_rush_beat` CHECK its `rollRef` names, so it carries no `roll` and no
+ * `opposedRoll` and its `rollRef` is required. An engine-internal shape of its own rather than a
+ * `CheckEmission` union, so the resolvers that read `.check.roll` keep a required roll
+ * (`resolve/beatClock.ts`'s `resolveBeatTick` is its one producer).
+ */
+export type BeatTickEmission = Omit<CheckEmission, "checkKind" | "roll" | "opposedRoll"> & {
+  readonly checkKind: "pass_rush_tick";
+  readonly rollRef: string;
+};
+
+/** ADR-089 P4 — the approach a `RUSH_THREAT` may carry: never BLOCKED, by type. */
+export type ThreatApproach = Exclude<RushApproach, "BLOCKED">;
 
 /**
  * A PRE-SNAP check (§5). Its own shape rather than a `CheckEmission`, because
@@ -103,8 +122,24 @@ export interface PresnapEmission {
  * A `CheckEmission` as the contract's CHECK payload. Shared by both logs
  * (`PlayEventLog` here, `GameEventLog` in `game/events.ts`) so a check emitted
  * for a field goal is byte-identical in shape to one emitted for a pass rush.
+ *
+ * ADR-089 P3: a `BeatTickEmission` (no `roll` key at all) takes the dieless branch, keyed on the
+ * key's absence, and keeps today's key order less `roll` and `opposedRoll`. Every legacy emission
+ * carries `roll`, so the branch below it is today's body, untouched.
  */
-export function checkPayload(c: CheckEmission): Extract<MatchEvent, { type: "CHECK" }>["payload"] {
+export function checkPayload(c: CheckEmission | BeatTickEmission): Extract<MatchEvent, { type: "CHECK" }>["payload"] {
+  if (!("roll" in c)) {
+    return {
+      checkKind: c.checkKind,
+      actors: [...c.actors],
+      tier: c.tier,
+      margin: c.margin,
+      testsAttrs: [...c.testsAttrs],
+      ...(c.target === undefined ? {} : { target: c.target }),
+      ...(c.band === undefined ? {} : { band: c.band }),
+      rollRef: c.rollRef,
+    };
+  }
   return {
     checkKind: c.checkKind,
     actors: [...c.actors],
@@ -184,7 +219,7 @@ export class PlayEventLog {
     this.push({ type: "TICK", payload: { tick }, ...this.base() });
   }
 
-  check(c: CheckEmission): void {
+  check(c: CheckEmission | BeatTickEmission): void {
     this.push({ type: "CHECK", payload: checkPayload(c), ...this.base() });
   }
 
@@ -250,6 +285,10 @@ export class PlayEventLog {
    * REQUIRED argument — a publisher that does not know why a rusher is coming
    * has no business publishing him — and `rollRef` names the roll the ADR's
    * table says justifies that origin.
+   *
+   * ADR-089 P4: `approach` is how he got there (§4.0's card), present on every threat of a play
+   * under `pocket-1` and spread in only when present, as the payload's last key; a legacy threat
+   * writes no key. Typed without BLOCKED, as the contract field is.
    */
   rushThreat(
     rusher: PlayerId,
@@ -258,10 +297,19 @@ export class PlayEventLog {
     rollRef: string,
     etaTick: number,
     state: RushThreatState,
+    approach?: ThreatApproach,
   ): void {
     this.push({
       type: "RUSH_THREAT",
-      payload: { rusher, alignment, origin, rollRef, etaTick, state },
+      payload: {
+        rusher,
+        alignment,
+        origin,
+        rollRef,
+        etaTick,
+        state,
+        ...(approach === undefined ? {} : { approach }),
+      },
       ...this.base(),
     });
   }

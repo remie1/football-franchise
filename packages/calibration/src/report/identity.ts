@@ -48,6 +48,12 @@
  *                                       different real evidence is not the same streak, and a
  *                                       streak earned against 2025 may never move a gate at all
  *                                       (§7, the sacred season).
+ *   engineRules, engineRulesDigest      ADR-089 §9: the engine rules bundle the batch played
+ *                                       (`legacy`, or a `pocket-1` arm) and its overlay's tunables
+ *                                       digest. Another bundle plays another game. OPTIONAL and
+ *                                       written only when not `legacy`, so a legacy identity is
+ *                                       byte for byte the one written before ADR-089 and absent
+ *                                       reads as `legacy` (baseline-0009 still reads, K2-09).
  *
  *   RECORDED, NOT IDENTITY              because
  *   ---------------------------------   ------------------------------------------------------
@@ -97,6 +103,7 @@ import type { Eligibility } from "../ingest/seasons.js";
 import type { BatchProvenance } from "../harness/batch.js";
 import type { ScheduleSpec } from "../harness/schedule.js";
 import type { LeagueProvenance } from "../league/provenance.js";
+import { LEGACY_RULES, rulesStampUnlessLegacy } from "../pocket/rules.js";
 
 /** Metric id → the scalar a report recorded, plus the streaks it earned. */
 export interface PreviousReport {
@@ -127,6 +134,13 @@ export interface BaselineIdentity {
   readonly availabilityMatched: boolean;
   readonly eligibility: Eligibility;
   readonly realSeasons: readonly number[];
+  /**
+   * ADR-089 §9 (plan O11): the engine rules bundle, by name. Present only when it is not `legacy`;
+   * absent means `legacy`, and `compareIdentity` reads it so.
+   */
+  readonly engineRules?: string;
+  /** The rules bundle's overlay digest (ADR-089 §9). Present only when the rules are not `legacy`. */
+  readonly engineRulesDigest?: string;
 }
 
 /** Recorded for the reader and for reproduction; deliberately NOT part of the identity. */
@@ -210,6 +224,8 @@ export function baselineIdentity(input: {
     availabilityMatched: p.availabilityMatched,
     eligibility: input.eligibility,
     realSeasons: [...input.realSeasons],
+    // ADR-089 §9: nothing for `legacy`, so a legacy identity is today's, key for key.
+    ...rulesStampUnlessLegacy(p.engineRules ?? LEGACY_RULES, p.engineRulesDigest),
   };
 }
 
@@ -242,6 +258,12 @@ const WHY: Readonly<Record<string, string>> = {
   eligibility:
     "calibration.md §7 — a streak earned against the sacred season may never move a gate",
   realSeasons: "the deviation and comfort verdicts were measured against different real evidence",
+  engineRules:
+    "a different engine rules bundle plays a different game (ADR-089 §9): `legacy` and a " +
+    "`pocket-1` arm are not the same system, and absent reads as `legacy`",
+  engineRulesDigest:
+    "the rules overlay's VALUES differ: the same bundle name over different numbers (ADR-089 §9 " +
+    "records every mid-build arm with its overlay's digest)",
 };
 
 function why(field: string): string {
@@ -256,6 +278,9 @@ function push(
 ): void {
   if (previous !== current) into.push({ field, previous, current, why: why(field) });
 }
+
+/** How an absent overlay digest prints in a mismatch row (ADR-089 §9). */
+const NO_OVERLAY = "(no overlay)";
 
 /**
  * Every way in which `previous` fails to be a comparable baseline for `current`.
@@ -312,6 +337,14 @@ export function compareIdentity(
     [...previous.realSeasons].join(", "),
     [...current.realSeasons].join(", "),
   );
+  // ADR-089 §9: absent is `legacy`, so a file written before P1 and a legacy run agree.
+  push(mismatches, "engineRules", previous.engineRules ?? LEGACY_RULES, current.engineRules ?? LEGACY_RULES);
+  push(
+    mismatches,
+    "engineRulesDigest",
+    previous.engineRulesDigest ?? NO_OVERLAY,
+    current.engineRulesDigest ?? NO_OVERLAY,
+  );
 
   return mismatches;
 }
@@ -349,6 +382,9 @@ const IDENTITY_STRING_FIELDS = [
   "eligibility",
 ] as const;
 
+/** ADR-089 §9: absent in every carry-forward written before it, and in every legacy one. */
+const IDENTITY_OPTIONAL_STRING_FIELDS = ["engineRules", "engineRulesDigest"] as const;
+
 function readIdentity(value: unknown): BaselineIdentity | string {
   if (!isRecord(value)) return "no `identity` object";
   for (const field of IDENTITY_STRING_FIELDS) {
@@ -364,6 +400,15 @@ function readIdentity(value: unknown): BaselineIdentity | string {
   if (!Array.isArray(seasons) || seasons.some((s) => typeof s !== "number")) {
     return "`identity.realSeasons` is missing or not an array of numbers";
   }
+  // ADR-089 §9: optional, so a carry-forward written before them still reads; present, a name.
+  for (const field of IDENTITY_OPTIONAL_STRING_FIELDS) {
+    const v = value[field];
+    if (v !== undefined && (typeof v !== "string" || v.length === 0)) {
+      return `\`identity.${field}\` is present but not a non-empty string`;
+    }
+  }
+  const engineRules = value["engineRules"] as string | undefined;
+  const engineRulesDigest = value["engineRulesDigest"] as string | undefined;
   return {
     engineCommit: value["engineCommit"] as string,
     tunablesVersion: value["tunablesVersion"] as string,
@@ -377,6 +422,8 @@ function readIdentity(value: unknown): BaselineIdentity | string {
     availabilityMatched: value["availabilityMatched"] as boolean,
     eligibility: value["eligibility"] as Eligibility,
     realSeasons: seasons as readonly number[],
+    ...(engineRules === undefined ? {} : { engineRules }),
+    ...(engineRulesDigest === undefined ? {} : { engineRulesDigest }),
   };
 }
 

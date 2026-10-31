@@ -16,6 +16,8 @@ import { describe, expect, it } from "vitest";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
 import { simulateGame, simulatePassPlay, simulateRunPlay } from "../src/index.js";
 import { buildGameFixture } from "./gameFixtures.js";
+import { PASS_FIXTURES, RULE_SETS, STEP1_RULE_SET_NAMES, isShapeS, pocketTicks } from "./pocketTunables.js";
+import { mustActThreat } from "../src/resolve/pocket.js";
 import {
   RUN_SCHEMES,
   buildDeflectionScenario,
@@ -68,7 +70,14 @@ function allRolls(
 }
 
 describe("ADR-004 roll accounting", () => {
-  it("no RollDetail appears twice in one play's event stream", () => {
+  /**
+   * ADR-089 step 1 (S5): the rule suite runs under every rule set, `legacy` first, so the new
+   * rolls (`pass_rush_beat`'s uniform) and the new absences (shape S's dieless tick) are counted
+   * by the same rule; and once more through `simulateGame`, so `GameEventLog.check` runs under
+   * `pocket-1` too.
+   */
+  for (const { name, tunables } of RULE_SETS) {
+  it(`no RollDetail appears twice in one play's event stream (${name})`, () => {
     // The scrambler fixture is here so the §7.2 movement roll and the §8.8
     // escape roll are covered too: ADR-004 has to hold for every roll ADDED,
     // not just the ones that existed when the rule was written.
@@ -76,7 +85,7 @@ describe("ADR-004 roll accounting", () => {
     for (const build of [buildScenario, buildLopsidedRushScenario, buildScramblerScenario]) {
       for (let i = 0; i < 150; i++) {
         const { state, calls } = build();
-        const { events } = simulatePassPlay(state, calls, `accounting-${i}`);
+        const { events } = simulatePassPlay(state, calls, `accounting-${i}`, tunables);
         for (const { event } of events) {
           if (event.type === "CHECK") kinds.add(event.payload.checkKind);
         }
@@ -94,11 +103,242 @@ describe("ADR-004 roll accounting", () => {
       }
     }
     // ...and prove the new rolls were actually in the sample, so this test
-    // cannot silently stop covering them.
-    expect(kinds).toContain("pocket_movement");
-    expect(kinds).toContain("scramble");
-    // §8.1's anticipation roll — its own CheckKind as of ADR-008 part B.
-    expect(kinds).toContain("anticipation");
+    // cannot silently stop covering them. (Under `pocket-1` the move branch is
+    // reached less often, and its coverage is legacy's to prove; each rule set
+    // proves its own rolls below.)
+    if (name === "legacy") {
+      expect(kinds).toContain("pocket_movement");
+      expect(kinds).toContain("scramble");
+      // §8.1's anticipation roll — its own CheckKind as of ADR-008 part B.
+      expect(kinds).toContain("anticipation");
+    }
+    expect(kinds).toContain("pass_rush_rep");
+    expect(kinds).toContain("pass_rush_tick");
+    // ADR-089 P2: shape S's beat is a roll like any other, and only shape S draws it.
+    if (isShapeS(name)) expect(kinds).toContain("pass_rush_beat");
+    else expect(kinds).not.toContain("pass_rush_beat");
+  });
+
+  it(`no RollDetail appears twice in a whole game (${name})`, () => {
+    const fixture = buildGameFixture({ seed: `accounting-game-${name}` });
+    const { events } = simulateGame(fixture.state, fixture.inputs, fixture.seed, tunables);
+    const kinds = new Set<string>();
+    const byPlay = new Map<string, MatchEventEnvelope[]>();
+    for (const envelope of events) {
+      if (envelope.event.type === "CHECK") kinds.add(envelope.event.payload.checkKind);
+      const play = String((envelope.event as { playId?: unknown }).playId ?? "game");
+      const list = byPlay.get(play) ?? [];
+      list.push(envelope);
+      byPlay.set(play, list);
+    }
+    // One label once, game-wide: every fork label carries its play's coordinates.
+    const labels = allRolls(events).map((r) => r.roll.rngLabel);
+    expect(labels.length).toBeGreaterThan(500);
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(kinds).toContain("pass_rush_rep");
+    if (isShapeS(name)) expect(kinds).toContain("pass_rush_beat");
+    else expect(kinds).not.toContain("pass_rush_beat");
+    // Under pocket-1 every pass play's PLAY_START names its rules; no other play's does (O20).
+    for (const { event } of events) {
+      if (event.type !== "PLAY_START") continue;
+      const p = event.payload as { kind?: string; rules?: unknown };
+      expect("rules" in p).toBe(name !== "legacy" && p.kind === "PASS_PLAY_V1");
+    }
+  });
+  }
+
+  /**
+   * ADR-089 step 1 — THE LEGACY SWEEP (S5): over every pass-play fixture under `legacy`, every
+   * CHECK carries a roll, and every `pass_rush_tick` carries its two jitter dice. A dieless tick
+   * exists only under shape S.
+   */
+  it("legacy: every CHECK carries a roll, and every pass_rush_tick both jitter dice", () => {
+    let ticks = 0;
+    for (const [fixture, build] of PASS_FIXTURES) {
+      for (let i = 0; i < 30; i++) {
+        const { state, calls } = build();
+        const { events } = simulatePassPlay(state, calls, `legacy-sweep-${fixture}-${i}`);
+        for (const { event } of events) {
+          if (event.type !== "CHECK") continue;
+          expect(event.payload.roll, `${fixture}: ${event.payload.checkKind}`).toBeDefined();
+          expect(event.payload.checkKind).not.toBe("pass_rush_beat");
+          if (event.payload.checkKind !== "pass_rush_tick") continue;
+          ticks += 1;
+          expect(event.payload.opposedRoll).toBeDefined();
+          expect(event.payload.roll?.rngLabel.endsWith(":jitter")).toBe(true);
+          expect(event.payload.opposedRoll?.rngLabel.endsWith(":jitter")).toBe(true);
+          expect(event.payload.roll?.die).toBe("d100");
+        }
+      }
+    }
+    expect(ticks).toBeGreaterThan(1000);
+  });
+
+  /**
+   * ADR-089 step 1 — THE PAIRED RUN (S6, S7): the same `(state, calls, seed)` under the five rule
+   * sets, compared on the list of `{ rngLabel, raw }` of every roll whose label is in the play's
+   * rush bucket. The rules change what a tick REPORTS, never which dice are thrown:
+   *  1. S and S with the window throw the same dice;
+   *  2. S throws legacy's rep dice in order, plus exactly one beat after each rep, and nothing else;
+   *  3. L5 and L8 throw legacy's dice over the ticks both plays reach, label for label;
+   *  4. the rep CHECKs are identical in every field under all five.
+   */
+  it("pairs the five rule sets roll for roll, on every pass-play fixture", () => {
+    type Roll = { readonly rngLabel: string; readonly raw: number; readonly tick: number | undefined; readonly kind: string };
+    const rushRolls = (events: readonly MatchEventEnvelope[]): Roll[] =>
+      events.flatMap(({ event }) => {
+        if (event.type !== "CHECK") return [];
+        const p = event.payload;
+        const rolls = [p.roll, p.opposedRoll].filter((r): r is RollDetail => r !== undefined);
+        return rolls
+          .filter((r) => r.rngLabel.includes("/rush/"))
+          .map((r) => ({ rngLabel: r.rngLabel, raw: r.raw, tick: event.tick, kind: p.checkKind }));
+      });
+    const repChecks = (events: readonly MatchEventEnvelope[]): string[] =>
+      events.flatMap(({ event }) => (event.type === "CHECK" && event.payload.checkKind === "pass_rush_rep" ? [JSON.stringify(event.payload)] : []));
+    const strip = (rolls: readonly Roll[]): { rngLabel: string; raw: number }[] => rolls.map((r) => ({ rngLabel: r.rngLabel, raw: r.raw }));
+
+    let plays = 0;
+    let beats = 0;
+    let commonTicks = 0;
+    for (const [fixture, build] of PASS_FIXTURES) {
+      for (let i = 0; i < 150; i++) {
+        const seed = `paired-${fixture}-${i}`;
+        const run = (n: (typeof RULE_SETS)[number]): readonly MatchEventEnvelope[] => {
+          const { state, calls } = build();
+          return simulatePassPlay(state, calls, seed, n.tunables).events;
+        };
+        const streams = new Map(RULE_SETS.map((r) => [r.name, run(r)] as const));
+        const of = (name: (typeof RULE_SETS)[number]["name"]): readonly MatchEventEnvelope[] => {
+          const events = streams.get(name);
+          if (events === undefined) throw new Error(name);
+          return events;
+        };
+        plays += 1;
+        const legacy = rushRolls(of("legacy"));
+        const s = rushRolls(of("S"));
+        // (1) the window moves no die.
+        expect(strip(rushRolls(of("SW")))).toEqual(strip(s));
+        // (2) S: legacy's reps, each followed by its one beat, and nothing else.
+        const expectedS: { rngLabel: string; raw: number }[] = [];
+        const repsInOrder = legacy.filter((r) => r.kind === "pass_rush_rep");
+        for (let k = 0; k < repsInOrder.length; k += 2) {
+          const rusher = repsInOrder[k];
+          const blocker = repsInOrder[k + 1];
+          if (rusher === undefined || blocker === undefined) throw new Error("a rep without both dice");
+          const beat = s.find((r) => r.kind === "pass_rush_beat" && r.rngLabel.endsWith(`/beat/${rusher.rngLabel}`));
+          if (beat === undefined) throw new Error(`${seed}: no beat for ${rusher.rngLabel}`);
+          expect(beat.rngLabel).toBe(`${rusher.rngLabel.slice(0, rusher.rngLabel.indexOf("/rush/") + 6)}beat/${rusher.rngLabel}`);
+          expectedS.push(
+            { rngLabel: rusher.rngLabel, raw: rusher.raw },
+            { rngLabel: blocker.rngLabel, raw: blocker.raw },
+            { rngLabel: beat.rngLabel, raw: beat.raw },
+          );
+          beats += 1;
+        }
+        expect(strip(s)).toEqual(expectedS);
+        expect(s.every((r) => r.kind === "pass_rush_rep" || r.kind === "pass_rush_beat")).toBe(true);
+        // (3) L throws legacy's dice on every tick both plays reach.
+        for (const l of ["L5", "L8"] as const) {
+          const lRolls = rushRolls(of(l));
+          const ticksOf = (rolls: readonly Roll[]): Set<number> =>
+            new Set(rolls.filter((r) => r.kind === "pass_rush_tick").map((r) => r.tick ?? NaN));
+          const legacyTicks = ticksOf(legacy);
+          const lTicks = ticksOf(lRolls);
+          const both = new Set([...legacyTicks].filter((t) => lTicks.has(t)));
+          commonTicks += both.size;
+          const onCommon = (rolls: readonly Roll[]): { rngLabel: string; raw: number }[] =>
+            strip(rolls.filter((r) => r.kind === "pass_rush_rep" || both.has(r.tick ?? NaN)));
+          expect(onCommon(lRolls)).toEqual(onCommon(legacy));
+        }
+        // (4) the rep CHECKs, field for field.
+        const reps = repChecks(of("legacy"));
+        for (const { name } of RULE_SETS) expect(repChecks(of(name))).toEqual(reps);
+      }
+    }
+    expect(plays).toBe(PASS_FIXTURES.length * 150);
+    expect(beats).toBeGreaterThan(1000);
+    expect(commonTicks).toBeGreaterThan(1000);
+  });
+
+  /**
+   * ADR-089 step 2 — THE PAIRED RUN, CONTINUED (plan §4.5, Q-7): the must-act rule and the narrower
+   * counter draw no die and add no label.
+   *  5. S2 (per rusher), SWH (step 1's rule at the same horizons) and SW (step 1's bundle) throw the
+   *     same rush dice, roll for roll, and the same pre-snap dice; case 4 above already holds the
+   *     rep CHECKs field for field under every rule set, these three included;
+   *  6. every `pocket_movement` roll under S2 sits on a tick whose published threats have one
+   *     within 0.5 s (the movement branch runs on the threat part only);
+   *  7. the label families S2 and S2N draw are a subset of those the step-1 rule sets (legacy, S,
+   *     SW, L5, L8) draw on the same fixtures and seeds, a family being the label with every tick
+   *     and index segment replaced by `#`.
+   */
+  it("step 2: the must-act rule and the narrower counter draw no die and add no label (pairs 5 to 7)", () => {
+    type Roll = { readonly rngLabel: string; readonly raw: number };
+    const tunablesOf = (name: string) => {
+      const set = RULE_SETS.find((r) => r.name === name);
+      if (set === undefined) throw new Error(name);
+      return set.tunables;
+    };
+    const rollsWhere = (events: readonly MatchEventEnvelope[], part: string): Roll[] =>
+      allRolls(events)
+        .filter((r) => r.roll.rngLabel.includes(part))
+        .map((r) => ({ rngLabel: r.roll.rngLabel, raw: r.roll.raw }));
+    const family = (label: string): string =>
+      label.replace(/(^|[/:])t\d+(\.\d+)?(?=[:/]|$)/g, "$1t#").replace(/:([ra])\d+:/g, ":$1#:");
+    const step1Families = new Set<string>();
+    const step2Families = new Map<string, Set<string>>([["S2", new Set()], ["S2N", new Set()]]);
+    let plays = 0;
+    let movementRolls = 0;
+    let rushRolls = 0;
+    let presnapRolls = 0;
+    for (const [fixture, build] of PASS_FIXTURES) {
+      for (let i = 0; i < 100; i++) {
+        const seed = `paired-s2-${fixture}-${i}`;
+        const run = (name: string): readonly MatchEventEnvelope[] => {
+          const { state, calls } = build();
+          return simulatePassPlay(state, calls, seed, tunablesOf(name)).events;
+        };
+        const sw = run("SW");
+        const swh = run("SWH");
+        const s2 = run("S2");
+        const s2n = run("S2N");
+        plays += 1;
+        // (5) the same rush dice and the same pre-snap dice.
+        const rush = rollsWhere(sw, "/rush/");
+        rushRolls += rush.length;
+        expect(rollsWhere(swh, "/rush/")).toEqual(rush);
+        expect(rollsWhere(s2, "/rush/")).toEqual(rush);
+        const presnap = rollsWhere(sw, "/presnap");
+        presnapRolls += presnap.length;
+        expect(rollsWhere(swh, "/presnap")).toEqual(presnap);
+        expect(rollsWhere(s2, "/presnap")).toEqual(presnap);
+        // (6) movement rolls under S2 only on the threat part.
+        const s2Tunables = tunablesOf("S2");
+        for (const t of pocketTicks(s2)) {
+          for (const { event } of t.after) {
+            if (event.type !== "CHECK" || event.payload.checkKind !== "pocket_movement") continue;
+            movementRolls += 1;
+            expect(mustActThreat(s2Tunables, t.minTta, t.minTta), `${seed} at ${t.tick}`).toBe(true);
+          }
+        }
+        // (7) the label families.
+        for (const name of STEP1_RULE_SET_NAMES) {
+          for (const r of allRolls(name === "SW" ? sw : run(name))) step1Families.add(family(r.roll.rngLabel));
+        }
+        for (const [name, events] of [["S2", s2], ["S2N", s2n]] as const) {
+          for (const r of allRolls(events)) step2Families.get(name)?.add(family(r.roll.rngLabel));
+        }
+      }
+    }
+    expect(plays).toBe(PASS_FIXTURES.length * 100);
+    expect(rushRolls).toBeGreaterThan(1000);
+    expect(presnapRolls).toBeGreaterThan(100);
+    expect(movementRolls).toBeGreaterThan(0);
+    for (const [name, families] of step2Families) {
+      expect(families.size, name).toBeGreaterThan(20);
+      expect([...families].filter((f) => !step1Families.has(f)), name).toEqual([]);
+    }
   });
 
   /**
@@ -136,27 +376,46 @@ describe("ADR-004 roll accounting", () => {
     expect(kinds).toContain("pursuit_angle");
   });
 
-  it("RUSH_THREAT carries no roll: it references one (ADR-004/007)", () => {
+  /**
+   * ADR-089 step 1 (plan §16.2, checker A2(b)): a won rep's threat names the roll its band rests
+   * on: the `pass_rush_tick` under `legacy` and shape L, the `pass_rush_beat` under shape S, and
+   * the beat names the rep.
+   */
+  for (const { name, tunables } of RULE_SETS) {
+  it(`RUSH_THREAT carries no roll: it references one (ADR-004/007) (${name})`, () => {
     let threats = 0;
+    const joinKind = isShapeS(name) ? "pass_rush_beat" : "pass_rush_tick";
     for (let i = 0; i < 200; i++) {
       const { state, calls } = buildScenario();
-      const { events } = simulatePassPlay(state, calls, `threat-accounting-${i}`);
-      const rushLabels = new Set(
+      const { events } = simulatePassPlay(state, calls, `threat-accounting-${i}`, tunables);
+      const reps = new Set(
         events.flatMap(({ event }) =>
-          event.type === "CHECK" && event.payload.checkKind === "pass_rush_tick"
-            ? [event.payload.roll.rngLabel]
-            : [],
+          event.type === "CHECK" && event.payload.checkKind === "pass_rush_rep" ? [event.payload.roll.rngLabel] : [],
         ),
+      );
+      const rushLabels = new Map(
+        events.flatMap(({ event }) => {
+          if (event.type !== "CHECK" || event.payload.checkKind !== joinKind) return [];
+          const kind: string = event.payload.checkKind;
+          if (event.payload.roll === undefined) {
+            if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+            return [];
+          }
+          return [[event.payload.roll.rngLabel, event.payload.rollRef] as const];
+        }),
       );
       for (const { event } of events) {
         if (event.type !== "RUSH_THREAT") continue;
         threats += 1;
         expect(allRolls([{ seq: 0, at: state.at, event }]).length).toBe(0);
         expect(rushLabels.has(event.payload.rollRef)).toBe(true);
+        // ...and the CHECK it names points at the rep (ADR-059's join, one link longer under S).
+        expect(reps.has(rushLabels.get(event.payload.rollRef) ?? "")).toBe(true);
       }
     }
     expect(threats).toBeGreaterThan(0);
   });
+  }
 
   it("every RollDetail lives on a CHECK, except the QB_READ perception roll", () => {
     const { state, calls } = buildScenario();
@@ -280,6 +539,11 @@ describe("ADR-004 roll accounting", () => {
     for (const { seq, event } of events) {
       if (event.type !== "CHECK") continue;
       kinds.add(event.payload.checkKind);
+      const kind: string = event.payload.checkKind;
+      if (event.payload.roll === undefined) {
+        if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+        continue;
+      }
       checkAt.set(event.payload.roll.rngLabel, seq);
     }
     expect(kinds).toContain("field_goal");
@@ -322,6 +586,11 @@ describe("ADR-004 roll accounting", () => {
     for (const { event } of events) {
       if (event.type === "CHECK") {
         expect(event.payload.checkKind).not.toBe("coin_toss");
+        const kind: string = event.payload.checkKind;
+        if (event.payload.roll === undefined) {
+          if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+          continue;
+        }
         labels.add(event.payload.roll.rngLabel);
       }
     }

@@ -20,6 +20,8 @@ import { describe, expect, it } from "vitest";
 import { gameId, playId, playerId } from "@ff/contracts";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
 import { renderPlay, simulatePassPlay, simulateRunPlay } from "../src/index.js";
+import type { Tunables } from "../src/tunables.js";
+import { SW_TUNABLES } from "./pocketTunables.js";
 import {
   RUN_SCHEMES,
   STAMP,
@@ -83,6 +85,16 @@ const UNBANDED: readonly string[] = [
 ];
 
 /**
+ * ADR-089 P2 — a draw that TIMES a block: no band and no target. Its margin is a copy of the
+ * margin the breaking time reads, and the CHECK its `rollRef` names carries that contest's band;
+ * the band a block posts on a tick is the `pass_rush_tick`'s. Only `pocket-1`'s shape S draws one,
+ * so the legacy sweep never sees it and the shape-S sweep below must.
+ */
+const TIMING_DRAWS: readonly string[] = [
+  "pass_rush_beat",       // ADR-089 §4.1 — one uniform per block, the breaking time
+];
+
+/**
  * The renderer writes plain English for the two UNBANDED checks whose outcome is
  * a sign test — `passing_lane` ("DEFLECTED") and `zone_read_qb` ("BREAKS ON THE
  * BALL"). Neither is a band, neither claims to be, and neither can desync from a
@@ -118,7 +130,7 @@ function syntheticRushStream(band: string | undefined, margin: number): MatchEve
 }
 
 /** Every fixture, both entry points: as wide a sample of the stream as exists. */
-function everyStream(seedPrefix: string, n: number): MatchEventEnvelope[][] {
+function everyStream(seedPrefix: string, n: number, tunables?: Tunables): MatchEventEnvelope[][] {
   const out: MatchEventEnvelope[][] = [];
   const passFixtures = [
     buildScenario,
@@ -133,23 +145,37 @@ function everyStream(seedPrefix: string, n: number): MatchEventEnvelope[][] {
   for (const build of passFixtures) {
     for (let i = 0; i < n; i++) {
       const { state, calls } = build();
-      out.push([...simulatePassPlay(state, calls, `${seedPrefix}-pass-${i}`).events]);
+      out.push([
+        ...(tunables === undefined
+          ? simulatePassPlay(state, calls, `${seedPrefix}-pass-${i}`)
+          : simulatePassPlay(state, calls, `${seedPrefix}-pass-${i}`, tunables)
+        ).events,
+      ]);
     }
   }
   for (const scheme of RUN_SCHEMES) {
     for (let i = 0; i < n; i++) {
       const { state, calls } = buildRunScenario(scheme);
-      out.push([...simulateRunPlay(state, calls, `${seedPrefix}-run-${scheme}-${i}`).events]);
+      out.push([
+        ...(tunables === undefined
+          ? simulateRunPlay(state, calls, `${seedPrefix}-run-${scheme}-${i}`)
+          : simulateRunPlay(state, calls, `${seedPrefix}-run-${scheme}-${i}`, tunables)
+        ).events,
+      ]);
     }
   }
   return out;
 }
 
 describe("ADR-011 — the band invariant", () => {
-  it("every CHECK whose resolution has a band table carries a non-empty band", () => {
+  for (const { name, tunables } of [
+    { name: "legacy", tunables: undefined },
+    { name: "shape S with the window", tunables: SW_TUNABLES },
+  ] as const) {
+  it(`every CHECK whose resolution has a band table carries a non-empty band (${name})`, () => {
     const seen = new Set<string>();
     let banded = 0;
-    for (const events of everyStream("band-invariant", 40)) {
+    for (const events of everyStream("band-invariant", 40, tunables)) {
       for (const { event } of events) {
         if (event.type !== "CHECK") continue;
         const p = event.payload;
@@ -175,6 +201,14 @@ describe("ADR-011 — the band invariant", () => {
           continue;
         }
 
+        if (TIMING_DRAWS.includes(p.checkKind)) {
+          expect(tunables, `${p.checkKind} is drawn only under shape S`).toBeDefined();
+          expect(p.band, `${p.checkKind} times a block and carries no band`).toBeUndefined();
+          expect(p.target, `${p.checkKind} times a block and has no target`).toBeUndefined();
+          expect(p.roll?.die).toBe("uniform");
+          continue;
+        }
+
         throw new Error(
           `check kind "${p.checkKind}" is classified neither BANDED nor UNBANDED — ` +
             "classify it in resultBands.test.ts when you add a check",
@@ -184,10 +218,12 @@ describe("ADR-011 — the band invariant", () => {
     expect(banded).toBeGreaterThan(0);
     // ...and the sample really did reach every kind the engine can emit, so the
     // invariant cannot pass by never exercising the interesting ones.
-    for (const kind of [...BANDED, ...UNBANDED]) {
+    for (const kind of [...BANDED, ...UNBANDED, ...(tunables === undefined ? [] : TIMING_DRAWS)]) {
       expect(seen, `no stream in the sweep emitted "${kind}"`).toContain(kind);
     }
+    if (tunables === undefined) for (const kind of TIMING_DRAWS) expect(seen).not.toContain(kind);
   });
+  }
 
   it("the band a CHECK publishes is the band the resolution acted on", () => {
     // Spot-checked against a fact only the true band explains: a `gap_battle`

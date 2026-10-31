@@ -108,3 +108,16 @@ export {
   leagueYearSteps, marketWindow, teamGrade, winShareOf, rookieReserve, LEAGUE_YEAR_DAYS, MARKET, type LeagueYearConfig,
 } from "./cap/leagueYear.js";
 export { capForecast } from "./cap/forecast.js";
+// ADR-087: players age, grow and get hurt (off unless runSeason's `players` switches them on).
+export { PLAYER_STEP_PREFIX, playerSteps, playerWeeks, emergencySignings, type PlayerStepsConfig, type PlayerGameExtras } from "./players/steps.js";
+export { developmentWeek, learningRate, RATING_GROUPS, type DevelopmentWeekInput, type DevelopmentWeekResult } from "./players/development.js";
+export {
+  gameInjuries, weekInjuries, healWeek, isAvailable, bandFor,
+  type InjuryResult, type GameInjuryInput, type WeekInjuryInput, type HealInput,
+} from "./players/injuries.js";
+export { INJURY_RATES, INJURY_KINDS } from "./players/injuryTables.js";
+export { depthChartWeek, type DepthWeekInput, type DepthWeekResult } from "./players/depthChart.js";
+export { unsignedDay, drawPatience, type UnsignedInput, type UnsignedResult } from "./players/unsigned.js";
+export { lineupFor, teamLineup, type Lineup } from "./players/lineup.js";
+export { changeBody, addPoints, type BodyChange } from "./players/body.js";
+export { emptyMemory, type PlayerMemory, type PlayerWeek, type PastInjury, type RatingGroup } from "./players/types.js";

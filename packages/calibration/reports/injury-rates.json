@@ -1,0 +1,3761 @@
+{
+  "seasons": [2019, 2020, 2021, 2022, 2023, 2024],
+  "lookbackSeason": 2018,
+  "sources": [
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv",
+      "tag": "schedules",
+      "asset": "games.csv",
+      "bytes": 2186415,
+      "sha256": "sha256:9f9cb29ad120dcfad400f2d14e29057fc9d0de0ff5bb05c8fe888179acca7373",
+      "fetchedAt": "2026-10-24T03:13:37.458Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/injuries/injuries_2018.csv",
+      "tag": "injuries",
+      "asset": "injuries_2018.csv",
+      "bytes": 665119,
+      "sha256": "sha256:4724e1f37cc3076f564e997fbf269190e7dbe795a39315b903788e0a9c40065e",
+      "fetchedAt": "2026-10-24T03:13:37.617Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_2018.csv",
+      "tag": "weekly_rosters",
+      "asset": "roster_weekly_2018.csv",
+      "bytes": 16566753,
+      "sha256": "sha256:c3bca1ee53e63e21b964f1bb42c251e25b7b4b8c55210730dd4ded2f9d4a709a",
+      "fetchedAt": "2026-10-24T03:13:37.908Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/snap_counts/snap_counts_2018.csv",
+      "tag": "snap_counts",
+      "asset": "snap_counts_2018.csv",
+      "bytes": 2157555,
+      "sha256": "sha256:9a408b78a55f799110aed70de3564e157faf089ce9bed780d0368bf49ae13e0b",
+      "fetchedAt": "2026-10-24T03:13:38.081Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/injuries/injuries_2019.csv",
+      "tag": "injuries",
+      "asset": "injuries_2019.csv",
+      "bytes": 700757,
+      "sha256": "sha256:daddfe8e04ddc3a29bce14f362e774fbadfb274c807f1f0fde7b5bf32aaf6cdf",
+      "fetchedAt": "2026-10-24T03:13:38.615Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_2019.csv",
+      "tag": "weekly_rosters",
+      "asset": "roster_weekly_2019.csv",
+      "bytes": 16588230,
+      "sha256": "sha256:af6aa7b8aa7850c47fe307d548d66fa7c1cac88fe11e5951c781974cb6909e03",
+      "fetchedAt": "2026-10-24T03:13:38.954Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/snap_counts/snap_counts_2019.csv",
+      "tag": "snap_counts",
+      "asset": "snap_counts_2019.csv",
+      "bytes": 2156311,
+      "sha256": "sha256:0cd52be8fa57f18503b670cb8263246c4f548375b768cbcad1c7a7462c98970d",
+      "fetchedAt": "2026-10-24T03:13:39.131Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/injuries/injuries_2020.csv",
+      "tag": "injuries",
+      "asset": "injuries_2020.csv",
+      "bytes": 737474,
+      "sha256": "sha256:706cca82824214f6b73ba0c6e537d3ee39766a50c644b8974b9fc28d7518de90",
+      "fetchedAt": "2026-10-24T03:13:39.647Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_2020.csv",
+      "tag": "weekly_rosters",
+      "asset": "roster_weekly_2020.csv",
+      "bytes": 14333971,
+      "sha256": "sha256:0b948cca8735a2417cbda14464f4532aeee58d871e2fcd8464a23e969e45789e",
+      "fetchedAt": "2026-10-24T03:13:39.947Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/snap_counts/snap_counts_2020.csv",
+      "tag": "snap_counts",
+      "asset": "snap_counts_2020.csv",
+      "bytes": 2257664,
+      "sha256": "sha256:512e35f17d076eb5d99b933c4a144eb95dcddf40c0320dbb397cae3c35683716",
+      "fetchedAt": "2026-10-24T03:13:40.110Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/injuries/injuries_2021.csv",
+      "tag": "injuries",
+      "asset": "injuries_2021.csv",
+      "bytes": 737083,
+      "sha256": "sha256:1049fb9ff0fe7cfcf3ba8bfe1f5a35d3aba985c461c8fb7bf5201735b6d34254",
+      "fetchedAt": "2026-10-24T03:13:40.520Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_2021.csv",
+      "tag": "weekly_rosters",
+      "asset": "roster_weekly_2021.csv",
+      "bytes": 15242660,
+      "sha256": "sha256:88adfe0fba5cbedd260d7928ad373476d4fb168d0213cb52ef1163ed5d3056b7",
+      "fetchedAt": "2026-10-24T03:13:40.839Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/snap_counts/snap_counts_2021.csv",
+      "tag": "snap_counts",
+      "asset": "snap_counts_2021.csv",
+      "bytes": 2388493,
+      "sha256": "sha256:8e4dae054a4749cf2d4919508d9161a6068fd67509979aefa385bfb3803d0ee5",
+      "fetchedAt": "2026-10-24T03:13:41.009Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/injuries/injuries_2022.csv",
+      "tag": "injuries",
+      "asset": "injuries_2022.csv",
+      "bytes": 752433,
+      "sha256": "sha256:5f0d60324e597edd1a2ced8540b04e40b51dd440591dd1df11b8d96343387c9e",
+      "fetchedAt": "2026-10-24T03:13:41.391Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_2022.csv",
+      "tag": "weekly_rosters",
+      "asset": "roster_weekly_2022.csv",
+      "bytes": 14790824,
+      "sha256": "sha256:bd6a50de334473c10f8058afa948fd0c6adc8a8b081da41c500cc0aa069c5312",
+      "fetchedAt": "2026-10-24T03:13:41.658Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/snap_counts/snap_counts_2022.csv",
+      "tag": "snap_counts",
+      "asset": "snap_counts_2022.csv",
+      "bytes": 2379719,
+      "sha256": "sha256:0018a4833fbf0f825286c1c27450c6254391b548d6c55bcde728e93e4816815a",
+      "fetchedAt": "2026-10-24T03:13:41.913Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/injuries/injuries_2023.csv",
+      "tag": "injuries",
+      "asset": "injuries_2023.csv",
+      "bytes": 738501,
+      "sha256": "sha256:16b04e21da5aa3944cfa9c22cafcc84ed7e6d9866eaddf0344e9b8cbf2f63afe",
+      "fetchedAt": "2026-10-24T03:13:42.261Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_2023.csv",
+      "tag": "weekly_rosters",
+      "asset": "roster_weekly_2023.csv",
+      "bytes": 14612235,
+      "sha256": "sha256:1433f1f239784dde7fcb35349d211a9b83abfc0156337b72ec4f923abf715bd3",
+      "fetchedAt": "2026-10-24T03:13:42.565Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/snap_counts/snap_counts_2023.csv",
+      "tag": "snap_counts",
+      "asset": "snap_counts_2023.csv",
+      "bytes": 2394875,
+      "sha256": "sha256:303b61aa5c33ffda863f93a750fc14483f397f9187ad502b1ce71e9b516a64c0",
+      "fetchedAt": "2026-10-24T03:13:42.745Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/injuries/injuries_2024.csv",
+      "tag": "injuries",
+      "asset": "injuries_2024.csv",
+      "bytes": 816989,
+      "sha256": "sha256:498bce8e13cb64b2ab9bb0ad6cb81d0a63c2ddb24016c9fc90c2de2126fae449",
+      "fetchedAt": "2026-10-24T03:13:43.172Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_2024.csv",
+      "tag": "weekly_rosters",
+      "asset": "roster_weekly_2024.csv",
+      "bytes": 14926918,
+      "sha256": "sha256:074ecaeb9325de943c11f7bbc941425626985090ef8386f90cd837fa5cb5d4b3",
+      "fetchedAt": "2026-10-24T03:13:43.553Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/snap_counts/snap_counts_2024.csv",
+      "tag": "snap_counts",
+      "asset": "snap_counts_2024.csv",
+      "bytes": 2402841,
+      "sha256": "sha256:a2aa58efe093f8aa0ad5aadf09f81d8ec690a1183bd2dde68d20e7f109a9c335",
+      "fetchedAt": "2026-10-24T03:13:43.727Z"
+    }
+  ],
+  "coverage": [
+    {
+      "season": 2019,
+      "teamSeasons": 32,
+      "teamGames": 512,
+      "rosterRows": 49559,
+      "rosterRowsNoGame": 0,
+      "rosterRowsDuplicate": 0,
+      "reportRows": 5202,
+      "reportRowsUnmatched": 0,
+      "teamWeeksWithoutReport": 0,
+      "snapRows": 22884,
+      "snapRowsJoinedById": 14396,
+      "snapRowsJoinedByName": 8257,
+      "snapRowsUnmatched": 231,
+      "playedWhileListedOut": 0
+    },
+    {
+      "season": 2020,
+      "teamSeasons": 32,
+      "teamGames": 512,
+      "rosterRows": 41653,
+      "rosterRowsNoGame": 314,
+      "rosterRowsDuplicate": 0,
+      "reportRows": 5414,
+      "reportRowsUnmatched": 3,
+      "teamWeeksWithoutReport": 1,
+      "snapRows": 23790,
+      "snapRowsJoinedById": 15214,
+      "snapRowsJoinedByName": 8351,
+      "snapRowsUnmatched": 225,
+      "playedWhileListedOut": 2
+    },
+    {
+      "season": 2021,
+      "teamSeasons": 32,
+      "teamGames": 544,
+      "rosterRows": 44516,
+      "rosterRowsNoGame": 0,
+      "rosterRowsDuplicate": 0,
+      "reportRows": 5348,
+      "reportRowsUnmatched": 2,
+      "teamWeeksWithoutReport": 0,
+      "snapRows": 25271,
+      "snapRowsJoinedById": 16185,
+      "snapRowsJoinedByName": 8900,
+      "snapRowsUnmatched": 186,
+      "playedWhileListedOut": 18
+    },
+    {
+      "season": 2022,
+      "teamSeasons": 32,
+      "teamGames": 542,
+      "rosterRows": 43880,
+      "rosterRowsNoGame": 153,
+      "rosterRowsDuplicate": 0,
+      "reportRows": 5433,
+      "reportRowsUnmatched": 1,
+      "teamWeeksWithoutReport": 3,
+      "snapRows": 25168,
+      "snapRowsJoinedById": 13476,
+      "snapRowsJoinedByName": 11412,
+      "snapRowsUnmatched": 280,
+      "playedWhileListedOut": 6
+    },
+    {
+      "season": 2023,
+      "teamSeasons": 32,
+      "teamGames": 544,
+      "rosterRows": 43540,
+      "rosterRowsNoGame": 0,
+      "rosterRowsDuplicate": 0,
+      "reportRows": 5451,
+      "reportRowsUnmatched": 1,
+      "teamWeeksWithoutReport": 1,
+      "snapRows": 25329,
+      "snapRowsJoinedById": 18061,
+      "snapRowsJoinedByName": 7063,
+      "snapRowsUnmatched": 205,
+      "playedWhileListedOut": 6
+    },
+    {
+      "season": 2024,
+      "teamSeasons": 32,
+      "teamGames": 544,
+      "rosterRows": 44466,
+      "rosterRowsNoGame": 0,
+      "rosterRowsDuplicate": 0,
+      "reportRows": 5954,
+      "reportRowsUnmatched": 3,
+      "teamWeeksWithoutReport": 1,
+      "snapRows": 25398,
+      "snapRowsJoinedById": 17548,
+      "snapRowsJoinedByName": 7637,
+      "snapRowsUnmatched": 213,
+      "playedWhileListedOut": 19
+    }
+  ],
+  "pooled": {
+    "seasons": [2019, 2020, 2021, 2022, 2023, 2024],
+    "teamSeasons": 192,
+    "teamGames": 3198,
+    "teamIntervals": 3006,
+    "timeLoss": {
+      "newFootball": 6062,
+      "perTeamGame": 2.016633,
+      "perTeamSeason": 31.572917,
+      "byOnset": {"afterPlayed": 5836, "afterNotPlayed": 226, "beforeSeason": 1521, "unclear": 146},
+      "illness": 215,
+      "nfi": 9,
+      "perTeamGameAllCauses": 2.091151,
+      "straightToReserve": 1823
+    },
+    "durations": {
+      "n": 6062,
+      "censored": 2174,
+      "games": {
+        "bands": {"short": 0.602076, "long": 0.172392, "major": 0.225532},
+        "naive": {"short": 0.69515, "long": 0.206697, "major": 0.098152},
+        "median": 2,
+        "survival": [1, 0.6661, 0.4974, 0.3979, 0.3217, 0.2871, 0.2621, 0.2392, 0.2255, 0.2115, 0.2018, 0.1956, 0.1928, 0.1915, 0.187, 0.176, 0.176, 0.176]
+      },
+      "weeks": {
+        "bands": {"short": 0.579039, "long": 0.19225, "major": 0.228711},
+        "naive": {"short": 0.67387, "long": 0.217915, "major": 0.108215},
+        "median": 3,
+        "survival": [1, 0.6979, 0.5236, 0.421, 0.3419, 0.2967, 0.2692, 0.2486, 0.2287, 0.215, 0.2035, 0.1941, 0.188, 0.1853, 0.184, 0.1798, 0.1695, 0.1695]
+      }
+    },
+    "groups": [
+      {
+        "group": "QB",
+        "newTimeLoss": 187,
+        "afterPlayed": 175,
+        "playerGames": 3744,
+        "snaps": 200770,
+        "perPlayerGame": 0.049947,
+        "perTeamGame": 0.062209,
+        "per1000Snaps": 0.871644,
+        "durations": {
+          "n": 187,
+          "censored": 70,
+          "games": {
+            "bands": {"short": 0.607273, "long": 0.170569, "major": 0.222158},
+            "naive": {"short": 0.700535, "long": 0.224599, "major": 0.074866},
+            "median": 2,
+            "survival": [1, 0.6429, 0.4629, 0.3927, 0.3157, 0.2796, 0.2597, 0.238, 0.2222, 0.2222, 0.2222, 0.2222, 0.2222, 0.2222, 0.2222, 0.2222, 0.2222, 0.2222]
+          },
+          "weeks": {
+            "bands": {"short": 0.59162, "long": 0.180122, "major": 0.228257},
+            "naive": {"short": 0.684492, "long": 0.219251, "major": 0.096257},
+            "median": 2,
+            "survival": [1, 0.6964, 0.4984, 0.4084, 0.3328, 0.2901, 0.2514, 0.2409, 0.2283, 0.212, 0.212, 0.212, 0.212, 0.212, 0.212, 0.212, 0.212, 0.212]
+          }
+        },
+        "dayToDayShare": 0.185841,
+        "bodyParts": [
+          {"part": "shoulder", "count": 26, "share": 0.139037},
+          {"part": "ankle", "count": 23, "share": 0.122995},
+          {"part": "concussion/head", "count": 22, "share": 0.117647},
+          {"part": "hand/wrist", "count": 21, "share": 0.112299},
+          {"part": "chest/ribs/abdomen", "count": 17, "share": 0.090909},
+          {"part": "knee", "count": 17, "share": 0.090909}
+        ]
+      },
+      {
+        "group": "RB",
+        "newTimeLoss": 523,
+        "afterPlayed": 514,
+        "playerGames": 10647,
+        "snaps": 288180,
+        "perPlayerGame": 0.049122,
+        "perTeamGame": 0.173985,
+        "per1000Snaps": 1.783607,
+        "durations": {
+          "n": 523,
+          "censored": 179,
+          "games": {
+            "bands": {"short": 0.609476, "long": 0.214399, "major": 0.176124},
+            "naive": {"short": 0.701721, "long": 0.223709, "major": 0.07457},
+            "median": 3,
+            "survival": [1, 0.7068, 0.5107, 0.3905, 0.2789, 0.2433, 0.2267, 0.2032, 0.1761, 0.1708, 0.1642, 0.1642, 0.1642, 0.1642, 0.1642, 0.1642, 0.1642, 0.1642]
+          },
+          "weeks": {
+            "bands": {"short": 0.585763, "long": 0.225426, "major": 0.18881},
+            "naive": {"short": 0.678776, "long": 0.231358, "major": 0.089866},
+            "median": 3,
+            "survival": [1, 0.7248, 0.5425, 0.4142, 0.321, 0.248, 0.2284, 0.2209, 0.1888, 0.1712, 0.1661, 0.1597, 0.1597, 0.1597, 0.1597, 0.1597, 0.1597, 0.1597]
+          }
+        },
+        "dayToDayShare": 0.275321,
+        "bodyParts": [
+          {"part": "ankle", "count": 97, "share": 0.185468},
+          {"part": "knee", "count": 80, "share": 0.152964},
+          {"part": "hamstring", "count": 64, "share": 0.122371},
+          {"part": "unknown", "count": 61, "share": 0.116635},
+          {"part": "concussion/head", "count": 37, "share": 0.070746},
+          {"part": "chest/ribs/abdomen", "count": 29, "share": 0.055449}
+        ]
+      },
+      {
+        "group": "WR",
+        "newTimeLoss": 769,
+        "afterPlayed": 753,
+        "playerGames": 15462,
+        "snaps": 570151,
+        "perPlayerGame": 0.049735,
+        "perTeamGame": 0.255822,
+        "per1000Snaps": 1.320703,
+        "durations": {
+          "n": 769,
+          "censored": 253,
+          "games": {
+            "bands": {"short": 0.629796, "long": 0.172089, "major": 0.198115},
+            "naive": {"short": 0.706112, "long": 0.209363, "major": 0.084525},
+            "median": 2,
+            "survival": [1, 0.6352, 0.4652, 0.3702, 0.3037, 0.2624, 0.2394, 0.2134, 0.1981, 0.1899, 0.1763, 0.1702, 0.1702, 0.1702, 0.1459, 0.1459, 0.1459, 0.1459]
+          },
+          "weeks": {
+            "bands": {"short": 0.60314, "long": 0.191184, "major": 0.205676},
+            "naive": {"short": 0.682705, "long": 0.217165, "major": 0.10013},
+            "median": 2,
+            "survival": [1, 0.67, 0.4928, 0.3969, 0.3278, 0.2682, 0.2464, 0.227, 0.2057, 0.1858, 0.1818, 0.1675, 0.1613, 0.1613, 0.1613, 0.1382, 0.1382, 0.1382]
+          }
+        },
+        "dayToDayShare": 0.316336,
+        "bodyParts": [
+          {"part": "hamstring", "count": 144, "share": 0.187256},
+          {"part": "knee", "count": 90, "share": 0.117035},
+          {"part": "concussion/head", "count": 87, "share": 0.113134},
+          {"part": "ankle", "count": 85, "share": 0.110533},
+          {"part": "unknown", "count": 67, "share": 0.087126},
+          {"part": "shoulder", "count": 61, "share": 0.079324}
+        ]
+      },
+      {
+        "group": "TE",
+        "newTimeLoss": 372,
+        "afterPlayed": 364,
+        "playerGames": 9122,
+        "snaps": 324099,
+        "perPlayerGame": 0.040781,
+        "perTeamGame": 0.123752,
+        "per1000Snaps": 1.123114,
+        "durations": {
+          "n": 372,
+          "censored": 133,
+          "games": {
+            "bands": {"short": 0.572942, "long": 0.182437, "major": 0.244621},
+            "naive": {"short": 0.655914, "long": 0.252688, "major": 0.091398},
+            "median": 3,
+            "survival": [1, 0.6734, 0.5271, 0.4271, 0.3634, 0.3134, 0.2786, 0.2662, 0.2446, 0.2217, 0.19, 0.1764, 0.1544, 0.1544, 0.1544, 0.1544, 0.1544, 0.1544]
+          },
+          "weeks": {
+            "bands": {"short": 0.546162, "long": 0.203831, "major": 0.250007},
+            "naive": {"short": 0.63172, "long": 0.266129, "major": 0.102151},
+            "median": 3,
+            "survival": [1, 0.7052, 0.5532, 0.4538, 0.3727, 0.3293, 0.2922, 0.2697, 0.25, 0.2292, 0.2037, 0.1823, 0.1682, 0.1472, 0.1472, 0.1472, 0.1472, 0.1472]
+          }
+        },
+        "dayToDayShare": 0.29572,
+        "bodyParts": [
+          {"part": "knee", "count": 57, "share": 0.153226},
+          {"part": "ankle", "count": 52, "share": 0.139785},
+          {"part": "concussion/head", "count": 51, "share": 0.137097},
+          {"part": "unknown", "count": 41, "share": 0.110215},
+          {"part": "hamstring", "count": 35, "share": 0.094086},
+          {"part": "back/neck", "count": 24, "share": 0.064516}
+        ]
+      },
+      {
+        "group": "OL",
+        "newTimeLoss": 1024,
+        "afterPlayed": 947,
+        "playerGames": 21950,
+        "snaps": 1057212,
+        "perPlayerGame": 0.046651,
+        "perTeamGame": 0.340652,
+        "per1000Snaps": 0.895752,
+        "durations": {
+          "n": 1024,
+          "censored": 386,
+          "games": {
+            "bands": {"short": 0.586557, "long": 0.16962, "major": 0.243824},
+            "naive": {"short": 0.68457, "long": 0.200195, "major": 0.115234},
+            "median": 3,
+            "survival": [1, 0.6811, 0.5082, 0.4134, 0.3364, 0.3117, 0.2832, 0.2624, 0.2438, 0.2273, 0.2186, 0.204, 0.204, 0.204, 0.204, 0.204, 0.204, 0.204]
+          },
+          "weeks": {
+            "bands": {"short": 0.563898, "long": 0.185798, "major": 0.250304},
+            "naive": {"short": 0.664063, "long": 0.208008, "major": 0.12793},
+            "median": 3,
+            "survival": [1, 0.7106, 0.535, 0.4361, 0.3574, 0.3215, 0.2926, 0.2694, 0.2503, 0.2302, 0.2204, 0.2116, 0.1975, 0.1975, 0.1975, 0.1975, 0.1975, 0.1975]
+          }
+        },
+        "dayToDayShare": 0.274684,
+        "bodyParts": [
+          {"part": "knee", "count": 214, "share": 0.208984},
+          {"part": "ankle", "count": 190, "share": 0.185547},
+          {"part": "unknown", "count": 106, "share": 0.103516},
+          {"part": "concussion/head", "count": 97, "share": 0.094727},
+          {"part": "back/neck", "count": 75, "share": 0.073242},
+          {"part": "calf/shin", "count": 56, "share": 0.054688}
+        ]
+      },
+      {
+        "group": "DL",
+        "newTimeLoss": 782,
+        "afterPlayed": 747,
+        "playerGames": 20756,
+        "snaps": 730766,
+        "perPlayerGame": 0.037676,
+        "perTeamGame": 0.260146,
+        "per1000Snaps": 1.022215,
+        "durations": {
+          "n": 782,
+          "censored": 290,
+          "games": {
+            "bands": {"short": 0.599338, "long": 0.150753, "major": 0.249909},
+            "naive": {"short": 0.696931, "long": 0.195652, "major": 0.107417},
+            "median": 3,
+            "survival": [1, 0.6574, 0.5055, 0.4007, 0.3379, 0.3023, 0.2819, 0.2529, 0.2499, 0.2352, 0.2224, 0.2171, 0.2171, 0.2171, 0.2171, 0.1899, 0.1899, 0.1899]
+          },
+          "weeks": {
+            "bands": {"short": 0.576301, "long": 0.181286, "major": 0.242413},
+            "naive": {"short": 0.677749, "long": 0.210997, "major": 0.111253},
+            "median": 3,
+            "survival": [1, 0.687, 0.5179, 0.4237, 0.3582, 0.3193, 0.2918, 0.2675, 0.2424, 0.2392, 0.2278, 0.2146, 0.2088, 0.2088, 0.2088, 0.2088, 0.1827, 0.1827]
+          }
+        },
+        "dayToDayShare": 0.325,
+        "bodyParts": [
+          {"part": "knee", "count": 147, "share": 0.18798},
+          {"part": "ankle", "count": 107, "share": 0.136829},
+          {"part": "unknown", "count": 99, "share": 0.126598},
+          {"part": "shoulder", "count": 63, "share": 0.080563},
+          {"part": "groin/hip", "count": 57, "share": 0.07289},
+          {"part": "hamstring", "count": 46, "share": 0.058824}
+        ]
+      },
+      {
+        "group": "LB",
+        "newTimeLoss": 834,
+        "afterPlayed": 811,
+        "playerGames": 20021,
+        "snaps": 783665,
+        "perPlayerGame": 0.041656,
+        "perTeamGame": 0.277445,
+        "per1000Snaps": 1.034881,
+        "durations": {
+          "n": 834,
+          "censored": 306,
+          "games": {
+            "bands": {"short": 0.585148, "long": 0.166181, "major": 0.248671},
+            "naive": {"short": 0.679856, "long": 0.20024, "major": 0.119904},
+            "median": 3,
+            "survival": [1, 0.6693, 0.519, 0.4149, 0.3434, 0.2984, 0.2756, 0.2512, 0.2487, 0.2311, 0.2276, 0.2187, 0.2128, 0.2128, 0.2128, 0.2128, 0.2128, 0.2128]
+          },
+          "weeks": {
+            "bands": {"short": 0.55619, "long": 0.200279, "major": 0.243532},
+            "naive": {"short": 0.654676, "long": 0.220624, "major": 0.1247},
+            "median": 3,
+            "survival": [1, 0.7006, 0.5424, 0.4438, 0.3637, 0.318, 0.2785, 0.2576, 0.2435, 0.2409, 0.2228, 0.2192, 0.2106, 0.2049, 0.2049, 0.2049, 0.2049, 0.2049]
+          }
+        },
+        "dayToDayShare": 0.289358,
+        "bodyParts": [
+          {"part": "knee", "count": 128, "share": 0.153477},
+          {"part": "hamstring", "count": 123, "share": 0.147482},
+          {"part": "ankle", "count": 101, "share": 0.121103},
+          {"part": "unknown", "count": 95, "share": 0.113909},
+          {"part": "concussion/head", "count": 65, "share": 0.077938},
+          {"part": "groin/hip", "count": 62, "share": 0.074341}
+        ]
+      },
+      {
+        "group": "DB",
+        "newTimeLoss": 1486,
+        "afterPlayed": 1444,
+        "playerGames": 27189,
+        "snaps": 1201115,
+        "perPlayerGame": 0.054654,
+        "perTeamGame": 0.494345,
+        "per1000Snaps": 1.202216,
+        "durations": {
+          "n": 1486,
+          "censored": 509,
+          "games": {
+            "bands": {"short": 0.630815, "long": 0.166796, "major": 0.202389},
+            "naive": {"short": 0.724764, "long": 0.189098, "major": 0.086137},
+            "median": 2,
+            "survival": [1, 0.6505, 0.464, 0.3692, 0.2914, 0.2648, 0.2363, 0.2166, 0.2024, 0.1873, 0.1783, 0.1783, 0.1742, 0.168, 0.1581, 0.1405, 0.1405, 0.1405]
+          },
+          "weeks": {
+            "bands": {"short": 0.614323, "long": 0.178408, "major": 0.20727},
+            "naive": {"short": 0.707268, "long": 0.199192, "major": 0.09354},
+            "median": 2,
+            "survival": [1, 0.688, 0.4956, 0.3857, 0.3039, 0.2667, 0.2464, 0.2237, 0.2073, 0.1938, 0.1805, 0.1715, 0.1715, 0.1673, 0.1613, 0.1523, 0.1354, 0.1354]
+          }
+        },
+        "dayToDayShare": 0.263402,
+        "bodyParts": [
+          {"part": "hamstring", "count": 243, "share": 0.163526},
+          {"part": "unknown", "count": 164, "share": 0.110363},
+          {"part": "knee", "count": 158, "share": 0.106326},
+          {"part": "ankle", "count": 150, "share": 0.100942},
+          {"part": "concussion/head", "count": 135, "share": 0.090848},
+          {"part": "groin/hip", "count": 134, "share": 0.090175}
+        ]
+      },
+      {
+        "group": "K/P",
+        "newTimeLoss": 85,
+        "afterPlayed": 81,
+        "playerGames": 8885,
+        "snaps": 77947,
+        "perPlayerGame": 0.009567,
+        "perTeamGame": 0.028277,
+        "per1000Snaps": 1.039168,
+        "durations": {
+          "n": 85,
+          "censored": 48,
+          "games": {
+            "bands": {"short": 0.310962, "long": 0.284899, "major": 0.404139},
+            "naive": {"short": 0.458824, "long": 0.388235, "major": 0.152941},
+            "median": 6,
+            "survival": [1, 0.85, 0.8089, 0.689, 0.5477, 0.5056, 0.4836, 0.4352, 0.4041, 0.4041, 0.4041, 0.4041, 0.4041, 0.4041, 0.4041, 0.4041, 0.4041, 0.4041]
+          },
+          "weeks": {
+            "bands": {"short": 0.265553, "long": 0.309385, "major": 0.425062},
+            "naive": {"short": 0.411765, "long": 0.411765, "major": 0.176471},
+            "median": 6,
+            "survival": [1, 0.85, 0.8226, 0.7344, 0.5807, 0.5207, 0.4773, 0.4534, 0.4251, 0.3896, 0.3896, 0.3896, 0.3896, 0.3896, 0.3896, 0.3896, 0.3896, 0.3896]
+          }
+        },
+        "dayToDayShare": 0.305085,
+        "bodyParts": [
+          {"part": "unknown", "count": 23, "share": 0.270588},
+          {"part": "groin/hip", "count": 20, "share": 0.235294},
+          {"part": "hamstring", "count": 7, "share": 0.082353},
+          {"part": "knee", "count": 7, "share": 0.082353},
+          {"part": "quad/thigh", "count": 6, "share": 0.070588},
+          {"part": "ankle", "count": 4, "share": 0.047059}
+        ]
+      }
+    ],
+    "bodyParts": [
+      {"part": "knee", "count": 898, "share": 0.148136, "long": 0.20822, "major": 0.237653},
+      {"part": "ankle", "count": 809, "share": 0.133454, "long": 0.18337, "major": 0.136906},
+      {"part": "hamstring", "count": 701, "share": 0.115638, "long": 0.204051, "major": 0.076657},
+      {"part": "unknown", "count": 671, "share": 0.11069, "long": 0.174834, "major": 0.76055},
+      {"part": "concussion/head", "count": 532, "share": 0.08776, "long": 0.070482, "major": 0.101466},
+      {"part": "groin/hip", "count": 434, "share": 0.071594, "long": 0.13076, "major": 0.127928},
+      {"part": "shoulder", "count": 410, "share": 0.067634, "long": 0.128967, "major": 0.210148},
+      {"part": "back/neck", "count": 306, "share": 0.050478, "long": 0.084367, "major": 0.282601},
+      {"part": "foot/toe", "count": 273, "share": 0.045035, "long": 0.235472, "major": 0.202841},
+      {"part": "chest/ribs/abdomen", "count": 268, "share": 0.04421, "long": 0.113891, "major": 0.190232},
+      {"part": "calf/shin", "count": 237, "share": 0.039096, "long": 0.29368, "major": 0.079126},
+      {"part": "hand/wrist", "count": 199, "share": 0.032827, "long": 0.298213, "major": 0.071794},
+      {"part": "quad/thigh", "count": 169, "share": 0.027879, "long": 0.25371, "major": 0.045637},
+      {"part": "elbow/arm", "count": 110, "share": 0.018146, "long": 0.09637, "major": 0.308694},
+      {"part": "achilles", "count": 28, "share": 0.004619, "long": 0, "major": 0.616246},
+      {"part": "other", "count": 17, "share": 0.002804, "long": 0.185185, "major": 0.185185}
+    ],
+    "playThrough": {
+      "questionable": {"n": 7706, "yes": 5246, "share": 0.680768},
+      "doubtful": {"n": 859, "yes": 8, "share": 0.009313},
+      "out": {"n": 4661, "yes": 2, "share": 0.000429},
+      "newlyQuestionable": {"n": 3862, "yes": 2621, "share": 0.678664},
+      "limitedNoDesignation": {"n": 1700, "yes": 1643, "share": 0.966471},
+      "dnpNoDesignation": {"n": 172, "yes": 163, "share": 0.947674}
+    },
+    "episodes": {
+      "newAny": 8891,
+      "dayToDayAny": 3060,
+      "dayToDayShareAny": 0.344168,
+      "newDesignated": 8162,
+      "dayToDayDesignated": 2332,
+      "dayToDayShareDesignated": 0.285714,
+      "dayToDayDesignatedPerTeamGame": 0.775782
+    },
+    "allBands": {"dayToDay": 0.285714, "short": 0.430054, "long": 0.123137, "major": 0.161094},
+    "practiceHints": {
+      "playedIntervals": 137776,
+      "notPlayedIntervals": 16604,
+      "afterPlayedRate": 0.042359,
+      "afterNotPlayedRate": 0.013611,
+      "impliedNonGameShare": 0.346634,
+      "listingsAfterNotPlayedPerTeamSeason": 1.348958,
+      "listingsAfterNotPlayedDnp": 136,
+      "episodeAfterPlayedRate": 0.062652,
+      "episodeAfterNotPlayedRate": 0.015599,
+      "episodeImpliedNonGameShare": 0.270849,
+      "outAtWeek1PerTeamSeason": 7.921875,
+      "outAtWeek1CarriedOver": 328,
+      "outAtWeek1New": 1193,
+      "outAtWeek1Unknown": 0,
+      "outAtWeek1ByKind": {"ACTIVE": 85, "INACTIVE": 255, "IR": 1042, "PUP": 139},
+      "week1NewEpisodesPerTeamSeason": 7.067708,
+      "inSeasonNewEpisodesPerTeamInterval": 2.957751,
+      "postBye": {
+        "intervals": 194,
+        "onsets": 294,
+        "rate": 1.515464,
+        "otherIntervals": 2812,
+        "otherOnsets": 5768,
+        "otherRate": 2.051209
+      },
+      "byeModel": {
+        "h": 0.69793,
+        "practicePerTeamInterval": 0.083864,
+        "practicePerTeamIntervalSe": 0.090371,
+        "practiceShare": 0.040885
+      }
+    },
+    "reserve": {
+      "irInSeasonPerTeamSeason": 12.15625,
+      "irAtWeek1PerTeamSeason": 5.427083,
+      "irInSeasonMin": 2,
+      "irInSeasonMax": 28,
+      "pupAtWeek1PerTeamSeason": 0.723958,
+      "nfiAtWeek1PerTeamSeason": 0.385417,
+      "nfiInSeasonPerTeamSeason": 0.046875,
+      "illnessPerTeamSeason": 1.119792,
+      "missing4PlusGamesNew": 9.390625,
+      "missing4PlusGamesAll": 14.880208,
+      "missing4PlusWeeksAll": 15.526042
+    }
+  },
+  "recent": {
+    "seasons": [2022, 2023, 2024],
+    "teamSeasons": 96,
+    "teamGames": 1630,
+    "teamIntervals": 1534,
+    "timeLoss": {
+      "newFootball": 3071,
+      "perTeamGame": 2.001956,
+      "perTeamSeason": 31.989583,
+      "byOnset": {"afterPlayed": 2966, "afterNotPlayed": 105, "beforeSeason": 757, "unclear": 20},
+      "illness": 107,
+      "nfi": 5,
+      "perTeamGameAllCauses": 2.074967,
+      "straightToReserve": 874
+    },
+    "durations": {
+      "n": 3071,
+      "censored": 1041,
+      "games": {
+        "bands": {"short": 0.606038, "long": 0.177907, "major": 0.216055},
+        "naive": {"short": 0.692934, "long": 0.206773, "major": 0.100293},
+        "median": 2,
+        "survival": [1, 0.6535, 0.4788, 0.394, 0.3126, 0.2756, 0.2536, 0.2252, 0.2161, 0.2019, 0.1941, 0.1894, 0.186, 0.1837, 0.1765, 0.1604, 0.1604, 0.1604]
+      },
+      "weeks": {
+        "bands": {"short": 0.590548, "long": 0.192592, "major": 0.21686},
+        "naive": {"short": 0.677955, "long": 0.21296, "major": 0.109085},
+        "median": 3,
+        "survival": [1, 0.6857, 0.5026, 0.4095, 0.3349, 0.2861, 0.2613, 0.2389, 0.2169, 0.2057, 0.1946, 0.1868, 0.182, 0.1788, 0.1765, 0.1699, 0.1551, 0.1551]
+      }
+    },
+    "groups": [
+      {
+        "group": "QB",
+        "newTimeLoss": 106,
+        "afterPlayed": 99,
+        "playerGames": 1898,
+        "snaps": 101317,
+        "perPlayerGame": 0.055848,
+        "perTeamGame": 0.0691,
+        "per1000Snaps": 0.977131,
+        "durations": {
+          "n": 106,
+          "censored": 40,
+          "games": {
+            "bands": {"short": 0.608243, "long": 0.187498, "major": 0.204258},
+            "naive": {"short": 0.707547, "long": 0.226415, "major": 0.066038},
+            "median": 2,
+            "survival": [1, 0.6632, 0.4802, 0.3918, 0.3047, 0.2689, 0.2496, 0.2043, 0.2043, 0.2043, 0.2043, 0.2043, 0.2043, 0.2043, 0.2043, 0.2043, 0.2043, 0.2043]
+          },
+          "weeks": {
+            "bands": {"short": 0.599992, "long": 0.205625, "major": 0.194383},
+            "naive": {"short": 0.698113, "long": 0.226415, "major": 0.075472},
+            "median": 3,
+            "survival": [1, 0.6947, 0.5125, 0.4, 0.3429, 0.2776, 0.2405, 0.2187, 0.1944, 0.1944, 0.1944, 0.1944, 0.1944, 0.1944, 0.1944, 0.1944, 0.1944, 0.1944]
+          }
+        },
+        "dayToDayShare": 0.174603,
+        "bodyParts": [
+          {"part": "concussion/head", "count": 17, "share": 0.160377},
+          {"part": "shoulder", "count": 17, "share": 0.160377},
+          {"part": "ankle", "count": 13, "share": 0.122642},
+          {"part": "hand/wrist", "count": 11, "share": 0.103774},
+          {"part": "chest/ribs/abdomen", "count": 10, "share": 0.09434},
+          {"part": "back/neck", "count": 9, "share": 0.084906}
+        ]
+      },
+      {
+        "group": "RB",
+        "newTimeLoss": 241,
+        "afterPlayed": 238,
+        "playerGames": 5272,
+        "snaps": 142767,
+        "perPlayerGame": 0.045713,
+        "perTeamGame": 0.157106,
+        "per1000Snaps": 1.667052,
+        "durations": {
+          "n": 241,
+          "censored": 78,
+          "games": {
+            "bands": {"short": 0.580432, "long": 0.236156, "major": 0.183412},
+            "naive": {"short": 0.672199, "long": 0.240664, "major": 0.087137},
+            "median": 3,
+            "survival": [1, 0.6964, 0.5152, 0.4196, 0.2718, 0.2529, 0.2396, 0.2096, 0.1834, 0.1732, 0.1617, 0.1617, 0.1617, 0.1617, 0.1617, 0.1617, 0.1617, 0.1617]
+          },
+          "weeks": {
+            "bands": {"short": 0.566751, "long": 0.229024, "major": 0.204225},
+            "naive": {"short": 0.659751, "long": 0.224066, "major": 0.116183},
+            "median": 3,
+            "survival": [1, 0.7188, 0.5284, 0.4332, 0.3337, 0.2472, 0.2407, 0.2334, 0.2042, 0.1787, 0.1688, 0.1575, 0.1575, 0.1575, 0.1575, 0.1575, 0.1575, 0.1575]
+          }
+        },
+        "dayToDayShare": 0.302395,
+        "bodyParts": [
+          {"part": "ankle", "count": 50, "share": 0.207469},
+          {"part": "knee", "count": 38, "share": 0.157676},
+          {"part": "unknown", "count": 30, "share": 0.124481},
+          {"part": "hamstring", "count": 29, "share": 0.120332},
+          {"part": "concussion/head", "count": 18, "share": 0.074689},
+          {"part": "groin/hip", "count": 16, "share": 0.06639}
+        ]
+      },
+      {
+        "group": "WR",
+        "newTimeLoss": 394,
+        "afterPlayed": 387,
+        "playerGames": 7904,
+        "snaps": 286928,
+        "perPlayerGame": 0.049848,
+        "perTeamGame": 0.256845,
+        "per1000Snaps": 1.34877,
+        "durations": {
+          "n": 394,
+          "censored": 117,
+          "games": {
+            "bands": {"short": 0.633007, "long": 0.174163, "major": 0.19283},
+            "naive": {"short": 0.692893, "long": 0.213198, "major": 0.093909},
+            "median": 2,
+            "survival": [1, 0.6236, 0.4459, 0.367, 0.3015, 0.2456, 0.2211, 0.198, 0.1928, 0.1928, 0.178, 0.1675, 0.1675, 0.1675, 0.1256, 0.1256, 0.1256, 0.1256]
+          },
+          "weeks": {
+            "bands": {"short": 0.613739, "long": 0.195514, "major": 0.190747},
+            "naive": {"short": 0.675127, "long": 0.22335, "major": 0.101523},
+            "median": 2,
+            "survival": [1, 0.6593, 0.4677, 0.3863, 0.3343, 0.2552, 0.2317, 0.2098, 0.1907, 0.1853, 0.1853, 0.1692, 0.1579, 0.1579, 0.1579, 0.1184, 0.1184, 0.1184]
+          }
+        },
+        "dayToDayShare": 0.32316,
+        "bodyParts": [
+          {"part": "hamstring", "count": 68, "share": 0.172589},
+          {"part": "knee", "count": 54, "share": 0.137056},
+          {"part": "concussion/head", "count": 49, "share": 0.124365},
+          {"part": "ankle", "count": 44, "share": 0.111675},
+          {"part": "shoulder", "count": 36, "share": 0.091371},
+          {"part": "chest/ribs/abdomen", "count": 24, "share": 0.060914}
+        ]
+      },
+      {
+        "group": "TE",
+        "newTimeLoss": 182,
+        "afterPlayed": 176,
+        "playerGames": 4731,
+        "snaps": 167151,
+        "perPlayerGame": 0.03847,
+        "perTeamGame": 0.118644,
+        "per1000Snaps": 1.05294,
+        "durations": {
+          "n": 182,
+          "censored": 55,
+          "games": {
+            "bands": {"short": 0.63747, "long": 0.16855, "major": 0.19398},
+            "naive": {"short": 0.714286, "long": 0.208791, "major": 0.076923},
+            "median": 2,
+            "survival": [1, 0.6686, 0.4741, 0.3625, 0.2946, 0.2553, 0.234, 0.2217, 0.194, 0.1663, 0.1478, 0.1478, 0.1478, 0.1478, 0.1478, 0.1478, 0.1478, 0.1478]
+          },
+          "weeks": {
+            "bands": {"short": 0.614018, "long": 0.185232, "major": 0.20075},
+            "naive": {"short": 0.692308, "long": 0.21978, "major": 0.087912},
+            "median": 3,
+            "survival": [1, 0.6971, 0.5032, 0.386, 0.3118, 0.2751, 0.2371, 0.2258, 0.2008, 0.174, 0.1566, 0.137, 0.137, 0.137, 0.137, 0.137, 0.137, 0.137]
+          }
+        },
+        "dayToDayShare": 0.298805,
+        "bodyParts": [
+          {"part": "knee", "count": 26, "share": 0.142857},
+          {"part": "concussion/head", "count": 25, "share": 0.137363},
+          {"part": "ankle", "count": 23, "share": 0.126374},
+          {"part": "hamstring", "count": 22, "share": 0.120879},
+          {"part": "unknown", "count": 15, "share": 0.082418},
+          {"part": "back/neck", "count": 14, "share": 0.076923}
+        ]
+      },
+      {
+        "group": "OL",
+        "newTimeLoss": 538,
+        "afterPlayed": 507,
+        "playerGames": 11393,
+        "snaps": 534243,
+        "perPlayerGame": 0.047222,
+        "perTeamGame": 0.350717,
+        "per1000Snaps": 0.949006,
+        "durations": {
+          "n": 538,
+          "censored": 197,
+          "games": {
+            "bands": {"short": 0.584574, "long": 0.171549, "major": 0.243877},
+            "naive": {"short": 0.680297, "long": 0.195167, "major": 0.124535},
+            "median": 2,
+            "survival": [1, 0.6694, 0.4903, 0.4154, 0.3303, 0.3055, 0.2849, 0.2584, 0.2439, 0.2225, 0.2172, 0.2036, 0.2036, 0.2036, 0.2036, 0.2036, 0.2036, 0.2036]
+          },
+          "weeks": {
+            "bands": {"short": 0.573421, "long": 0.174573, "major": 0.252005},
+            "naive": {"short": 0.669145, "long": 0.193309, "major": 0.137546},
+            "median": 3,
+            "survival": [1, 0.6982, 0.5152, 0.4266, 0.3448, 0.3204, 0.2947, 0.269, 0.252, 0.228, 0.2143, 0.2091, 0.196, 0.196, 0.196, 0.196, 0.196, 0.196]
+          }
+        },
+        "dayToDayShare": 0.275668,
+        "bodyParts": [
+          {"part": "knee", "count": 106, "share": 0.197026},
+          {"part": "ankle", "count": 102, "share": 0.189591},
+          {"part": "concussion/head", "count": 54, "share": 0.100372},
+          {"part": "unknown", "count": 50, "share": 0.092937},
+          {"part": "back/neck", "count": 36, "share": 0.066914},
+          {"part": "shoulder", "count": 32, "share": 0.05948}
+        ]
+      },
+      {
+        "group": "DL",
+        "newTimeLoss": 379,
+        "afterPlayed": 355,
+        "playerGames": 10689,
+        "snaps": 364971,
+        "perPlayerGame": 0.035457,
+        "perTeamGame": 0.247066,
+        "per1000Snaps": 0.97268,
+        "durations": {
+          "n": 379,
+          "censored": 126,
+          "games": {
+            "bands": {"short": 0.581903, "long": 0.195424, "major": 0.222673},
+            "naive": {"short": 0.664908, "long": 0.226913, "major": 0.108179},
+            "median": 2,
+            "survival": [1, 0.631, 0.4938, 0.4181, 0.3417, 0.2855, 0.2632, 0.2227, 0.2227, 0.2024, 0.1943, 0.1859, 0.1859, 0.1859, 0.1859, 0.1593, 0.1593, 0.1593]
+          },
+          "weeks": {
+            "bands": {"short": 0.567736, "long": 0.216647, "major": 0.215617},
+            "naive": {"short": 0.651715, "long": 0.240106, "major": 0.108179},
+            "median": 3,
+            "survival": [1, 0.662, 0.501, 0.4323, 0.3674, 0.3121, 0.2752, 0.2472, 0.2156, 0.2156, 0.1948, 0.187, 0.1776, 0.1776, 0.1776, 0.1776, 0.1522, 0.1522]
+          }
+        },
+        "dayToDayShare": 0.3186,
+        "bodyParts": [
+          {"part": "knee", "count": 80, "share": 0.211082},
+          {"part": "ankle", "count": 53, "share": 0.139842},
+          {"part": "unknown", "count": 40, "share": 0.105541},
+          {"part": "shoulder", "count": 27, "share": 0.07124},
+          {"part": "calf/shin", "count": 26, "share": 0.068602},
+          {"part": "foot/toe", "count": 22, "share": 0.058047}
+        ]
+      },
+      {
+        "group": "LB",
+        "newTimeLoss": 420,
+        "afterPlayed": 411,
+        "playerGames": 10482,
+        "snaps": 407362,
+        "perPlayerGame": 0.040069,
+        "perTeamGame": 0.273794,
+        "per1000Snaps": 1.008931,
+        "durations": {
+          "n": 420,
+          "censored": 152,
+          "games": {
+            "bands": {"short": 0.60182, "long": 0.16971, "major": 0.228471},
+            "naive": {"short": 0.692857, "long": 0.2, "major": 0.107143},
+            "median": 2,
+            "survival": [1, 0.6667, 0.4908, 0.3982, 0.3255, 0.2806, 0.268, 0.2285, 0.2285, 0.2223, 0.2223, 0.2223, 0.2122, 0.2122, 0.2122, 0.2122, 0.2122, 0.2122]
+          },
+          "weeks": {
+            "bands": {"short": 0.587, "long": 0.192223, "major": 0.220777},
+            "naive": {"short": 0.678571, "long": 0.209524, "major": 0.111905},
+            "median": 3,
+            "survival": [1, 0.6985, 0.5231, 0.413, 0.3413, 0.3014, 0.2657, 0.2443, 0.2208, 0.2208, 0.2145, 0.2145, 0.2145, 0.2047, 0.2047, 0.2047, 0.2047, 0.2047]
+          }
+        },
+        "dayToDayShare": 0.314092,
+        "bodyParts": [
+          {"part": "knee", "count": 72, "share": 0.171429},
+          {"part": "hamstring", "count": 61, "share": 0.145238},
+          {"part": "ankle", "count": 52, "share": 0.12381},
+          {"part": "concussion/head", "count": 38, "share": 0.090476},
+          {"part": "groin/hip", "count": 34, "share": 0.080952},
+          {"part": "unknown", "count": 33, "share": 0.078571}
+        ]
+      },
+      {
+        "group": "DB",
+        "newTimeLoss": 759,
+        "afterPlayed": 743,
+        "playerGames": 13902,
+        "snaps": 604997,
+        "perPlayerGame": 0.054596,
+        "perTeamGame": 0.494785,
+        "per1000Snaps": 1.228105,
+        "durations": {
+          "n": 759,
+          "censored": 247,
+          "games": {
+            "bands": {"short": 0.645437, "long": 0.15386, "major": 0.200703},
+            "naive": {"short": 0.732543, "long": 0.179183, "major": 0.088274},
+            "median": 2,
+            "survival": [1, 0.6304, 0.4419, 0.3546, 0.2844, 0.2595, 0.2304, 0.2097, 0.2007, 0.1843, 0.177, 0.177, 0.1702, 0.1602, 0.1469, 0.1224, 0.1224, 0.1224]
+          },
+          "weeks": {
+            "bands": {"short": 0.629012, "long": 0.170526, "major": 0.200462},
+            "naive": {"short": 0.716733, "long": 0.188406, "major": 0.094862},
+            "median": 2,
+            "survival": [1, 0.6705, 0.4711, 0.371, 0.2946, 0.2556, 0.2447, 0.22, 0.2005, 0.1913, 0.1782, 0.1707, 0.1707, 0.1639, 0.1543, 0.1424, 0.1187, 0.1187]
+          }
+        },
+        "dayToDayShare": 0.259898,
+        "bodyParts": [
+          {"part": "hamstring", "count": 137, "share": 0.180501},
+          {"part": "knee", "count": 93, "share": 0.12253},
+          {"part": "ankle", "count": 80, "share": 0.105402},
+          {"part": "concussion/head", "count": 70, "share": 0.092227},
+          {"part": "unknown", "count": 64, "share": 0.084321},
+          {"part": "groin/hip", "count": 60, "share": 0.079051}
+        ]
+      },
+      {
+        "group": "K/P",
+        "newTimeLoss": 52,
+        "afterPlayed": 50,
+        "playerGames": 4539,
+        "snaps": 39292,
+        "perPlayerGame": 0.011456,
+        "perTeamGame": 0.033898,
+        "per1000Snaps": 1.272524,
+        "durations": {
+          "n": 52,
+          "censored": 29,
+          "games": {
+            "bands": {"short": 0.27746, "long": 0.305106, "major": 0.417434},
+            "naive": {"short": 0.442308, "long": 0.384615, "major": 0.173077},
+            "median": 5,
+            "survival": [1, 0.8367, 0.7724, 0.7225, 0.5558, 0.4904, 0.4554, 0.4174, 0.4174, 0.4174, 0.4174, 0.4174, 0.4174, 0.4174, 0.4174, 0.4174, 0.4174, 0.4174]
+          },
+          "weeks": {
+            "bands": {"short": 0.254285, "long": 0.33344, "major": 0.412275},
+            "naive": {"short": 0.403846, "long": 0.423077, "major": 0.173077},
+            "median": 6,
+            "survival": [1, 0.8367, 0.7938, 0.7457, 0.58, 0.5189, 0.4498, 0.4123, 0.4123, 0.4123, 0.4123, 0.4123, 0.4123, 0.4123, 0.4123, 0.4123, 0.4123, 0.4123]
+          }
+        },
+        "dayToDayShare": 0.275362,
+        "bodyParts": [
+          {"part": "unknown", "count": 12, "share": 0.230769},
+          {"part": "groin/hip", "count": 8, "share": 0.153846},
+          {"part": "hamstring", "count": 7, "share": 0.134615},
+          {"part": "knee", "count": 5, "share": 0.096154},
+          {"part": "ankle", "count": 4, "share": 0.076923},
+          {"part": "quad/thigh", "count": 4, "share": 0.076923}
+        ]
+      }
+    ],
+    "bodyParts": [
+      {"part": "knee", "count": 480, "share": 0.156301, "long": 0.221332, "major": 0.234978},
+      {"part": "ankle", "count": 421, "share": 0.137089, "long": 0.192459, "major": 0.138383},
+      {"part": "hamstring", "count": 365, "share": 0.118854, "long": 0.213053, "major": 0.088254},
+      {"part": "concussion/head", "count": 286, "share": 0.093129, "long": 0.056478, "major": 0.087957},
+      {"part": "unknown", "count": 274, "share": 0.089222, "long": 0.163831, "major": 0.836169},
+      {"part": "groin/hip", "count": 210, "share": 0.068382, "long": 0.133639, "major": 0.129118},
+      {"part": "shoulder", "count": 209, "share": 0.068056, "long": 0.126074, "major": 0.20311},
+      {"part": "back/neck", "count": 168, "share": 0.054705, "long": 0.083814, "major": 0.27213},
+      {"part": "chest/ribs/abdomen", "count": 141, "share": 0.045913, "long": 0.102097, "major": 0.18028},
+      {"part": "foot/toe", "count": 132, "share": 0.042983, "long": 0.220595, "major": 0.156593},
+      {"part": "calf/shin", "count": 126, "share": 0.041029, "long": 0.326089, "major": 0.073831},
+      {"part": "hand/wrist", "count": 110, "share": 0.035819, "long": 0.39082, "major": 0.055644},
+      {"part": "quad/thigh", "count": 74, "share": 0.024096, "long": 0.282043, "major": 0.051955},
+      {"part": "elbow/arm", "count": 54, "share": 0.017584, "long": 0.048728, "major": 0.352097},
+      {"part": "other", "count": 11, "share": 0.003582, "long": 0.133333, "major": 0.266667},
+      {"part": "achilles", "count": 10, "share": 0.003256, "long": 0, "major": 0.7}
+    ],
+    "playThrough": {
+      "questionable": {"n": 3925, "yes": 2701, "share": 0.688153},
+      "doubtful": {"n": 401, "yes": 3, "share": 0.007481},
+      "out": {"n": 2395, "yes": 1, "share": 0.000418},
+      "newlyQuestionable": {"n": 1968, "yes": 1351, "share": 0.686484},
+      "limitedNoDesignation": {"n": 821, "yes": 794, "share": 0.967113},
+      "dnpNoDesignation": {"n": 73, "yes": 70, "share": 0.958904}
+    },
+    "episodes": {
+      "newAny": 4505,
+      "dayToDayAny": 1546,
+      "dayToDayShareAny": 0.343174,
+      "newDesignated": 4165,
+      "dayToDayDesignated": 1207,
+      "dayToDayShareDesignated": 0.289796,
+      "dayToDayDesignatedPerTeamGame": 0.786832
+    },
+    "allBands": {"dayToDay": 0.289796, "short": 0.430411, "long": 0.126351, "major": 0.153443},
+    "practiceHints": {
+      "playedIntervals": 70810,
+      "notPlayedIntervals": 8548,
+      "afterPlayedRate": 0.041887,
+      "afterNotPlayedRate": 0.012284,
+      "impliedNonGameShare": 0.317421,
+      "listingsAfterNotPlayedPerTeamSeason": 1.302083,
+      "listingsAfterNotPlayedDnp": 67,
+      "episodeAfterPlayedRate": 0.061856,
+      "episodeAfterNotPlayedRate": 0.014623,
+      "episodeImpliedNonGameShare": 0.257597,
+      "outAtWeek1PerTeamSeason": 7.885417,
+      "outAtWeek1CarriedOver": 167,
+      "outAtWeek1New": 590,
+      "outAtWeek1Unknown": 0,
+      "outAtWeek1ByKind": {"ACTIVE": 4, "INACTIVE": 146, "IR": 521, "PUP": 86},
+      "week1NewEpisodesPerTeamSeason": 6.875,
+      "inSeasonNewEpisodesPerTeamInterval": 2.936767,
+      "postBye": {
+        "intervals": 98,
+        "onsets": 137,
+        "rate": 1.397959,
+        "otherIntervals": 1436,
+        "otherOnsets": 2934,
+        "otherRate": 2.043175
+      },
+      "byeModel": {
+        "h": 0.685714,
+        "practicePerTeamInterval": -0.003075,
+        "practicePerTeamIntervalSe": 0.122204,
+        "practiceShare": -0.001505
+      }
+    },
+    "reserve": {
+      "irInSeasonPerTeamSeason": 11.125,
+      "irAtWeek1PerTeamSeason": 5.427083,
+      "irInSeasonMin": 3,
+      "irInSeasonMax": 26,
+      "pupAtWeek1PerTeamSeason": 0.895833,
+      "nfiAtWeek1PerTeamSeason": 0.291667,
+      "nfiInSeasonPerTeamSeason": 0.052083,
+      "illnessPerTeamSeason": 1.114583,
+      "missing4PlusGamesNew": 9.59375,
+      "missing4PlusGamesAll": 15.270833,
+      "missing4PlusWeeksAll": 15.729167
+    }
+  },
+  "perSeason": [
+    {
+      "seasons": [2019],
+      "teamSeasons": 32,
+      "teamGames": 512,
+      "teamIntervals": 480,
+      "timeLoss": {
+        "newFootball": 899,
+        "perTeamGame": 1.872917,
+        "perTeamSeason": 28.09375,
+        "byOnset": {"afterPlayed": 854, "afterNotPlayed": 45, "beforeSeason": 316, "unclear": 20},
+        "illness": 20,
+        "nfi": 2,
+        "perTeamGameAllCauses": 1.91875,
+        "straightToReserve": 216
+      },
+      "durations": {
+        "n": 899,
+        "censored": 367,
+        "games": {
+          "bands": {"short": 0.586872, "long": 0.131704, "major": 0.281423},
+          "naive": {"short": 0.695217, "long": 0.194661, "major": 0.110122},
+          "median": 3,
+          "survival": [1, 0.6919, 0.5081, 0.4131, 0.356, 0.3314, 0.3123, 0.3099, 0.2814, 0.2643, 0.2559, 0.2402, 0.2402, 0.2402, 0.2402, 0.2402, 0.2402, 0.2402]
+        },
+        "weeks": {
+          "bands": {"short": 0.567311, "long": 0.140377, "major": 0.292312},
+          "naive": {"short": 0.675195, "long": 0.196885, "major": 0.12792},
+          "median": 3,
+          "survival": [1, 0.7399, 0.5468, 0.4327, 0.3685, 0.339, 0.3068, 0.2999, 0.2923, 0.268, 0.2544, 0.2459, 0.2305, 0.2305, 0.2305, 0.2305, 0.2305, 0.2305]
+        }
+      },
+      "groups": [
+        {
+          "group": "QB",
+          "newTimeLoss": 21,
+          "afterPlayed": 19,
+          "playerGames": 578,
+          "snaps": 32601,
+          "perPlayerGame": 0.036332,
+          "perTeamGame": 0.04375,
+          "per1000Snaps": 0.582804,
+          "durations": {
+            "n": 21,
+            "censored": 10,
+            "games": {
+              "bands": {"short": 0.5, "long": 0.15, "major": 0.35},
+              "naive": {"short": 0.571429, "long": 0.238095, "major": 0.190476},
+              "median": 2,
+              "survival": [1, 0.6111, 0.5, 0.5, 0.5, 0.4375, 0.4375, 0.4375, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35]
+            },
+            "weeks": {
+              "bands": {"short": 0.5, "long": 0.0625, "major": 0.4375},
+              "naive": {"short": 0.571429, "long": 0.142857, "major": 0.285714},
+              "median": 2,
+              "survival": [1, 0.8333, 0.5, 0.5, 0.5, 0.4375, 0.4375, 0.4375, 0.4375, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35]
+            }
+          },
+          "dayToDayShare": 0.275862,
+          "bodyParts": [
+            {"part": "ankle", "count": 3, "share": 0.142857},
+            {"part": "knee", "count": 3, "share": 0.142857},
+            {"part": "unknown", "count": 3, "share": 0.142857},
+            {"part": "back/neck", "count": 2, "share": 0.095238},
+            {"part": "concussion/head", "count": 2, "share": 0.095238},
+            {"part": "foot/toe", "count": 2, "share": 0.095238}
+          ]
+        },
+        {
+          "group": "RB",
+          "newTimeLoss": 83,
+          "afterPlayed": 82,
+          "playerGames": 1756,
+          "snaps": 49200,
+          "perPlayerGame": 0.047267,
+          "perTeamGame": 0.172917,
+          "per1000Snaps": 1.666667,
+          "durations": {
+            "n": 83,
+            "censored": 33,
+            "games": {
+              "bands": {"short": 0.653361, "long": 0.165277, "major": 0.181362},
+              "naive": {"short": 0.746988, "long": 0.180723, "major": 0.072289},
+              "median": 3,
+              "survival": [1, 0.7826, 0.5117, 0.3466, 0.3274, 0.266, 0.2418, 0.2418, 0.1814, 0.1814, 0.1814, 0.1814, 0.1814, 0.1814, 0.1814, 0.1814, 0.1814, 0.1814]
+            },
+            "weeks": {
+              "bands": {"short": 0.625, "long": 0.173866, "major": 0.201134},
+              "naive": {"short": 0.722892, "long": 0.192771, "major": 0.084337},
+              "median": 3,
+              "survival": [1, 0.7826, 0.587, 0.375, 0.3188, 0.2988, 0.2299, 0.2299, 0.2011, 0.1724, 0.1724, 0.1724, 0.1724, 0.1724, 0.1724, 0.1724, 0.1724, 0.1724]
+            }
+          },
+          "dayToDayShare": 0.226415,
+          "bodyParts": [
+            {"part": "hamstring", "count": 13, "share": 0.156627},
+            {"part": "knee", "count": 13, "share": 0.156627},
+            {"part": "ankle", "count": 12, "share": 0.144578},
+            {"part": "shoulder", "count": 9, "share": 0.108434},
+            {"part": "unknown", "count": 7, "share": 0.084337},
+            {"part": "concussion/head", "count": 5, "share": 0.060241}
+          ]
+        },
+        {
+          "group": "WR",
+          "newTimeLoss": 124,
+          "afterPlayed": 118,
+          "playerGames": 2402,
+          "snaps": 92617,
+          "perPlayerGame": 0.051624,
+          "perTeamGame": 0.258333,
+          "per1000Snaps": 1.274064,
+          "durations": {
+            "n": 124,
+            "censored": 54,
+            "games": {
+              "bands": {"short": 0.553478, "long": 0.168009, "major": 0.278512},
+              "naive": {"short": 0.685484, "long": 0.233871, "major": 0.080645},
+              "median": 3,
+              "survival": [1, 0.7182, 0.5267, 0.4465, 0.3518, 0.3518, 0.3342, 0.3342, 0.2785, 0.2089, 0.2089, 0.2089, 0.2089, 0.2089, 0.2089, 0.2089, 0.2089, 0.2089]
+            },
+            "weeks": {
+              "bands": {"short": 0.528734, "long": 0.152071, "major": 0.319196},
+              "naive": {"short": 0.66129, "long": 0.217742, "major": 0.120968},
+              "median": 3,
+              "survival": [1, 0.7748, 0.5835, 0.4713, 0.3665, 0.336, 0.3192, 0.3192, 0.3192, 0.2234, 0.1915, 0.1915, 0.1915, 0.1915, 0.1915, 0.1915, 0.1915, 0.1915]
+            }
+          },
+          "dayToDayShare": 0.26875,
+          "bodyParts": [
+            {"part": "hamstring", "count": 25, "share": 0.201613},
+            {"part": "concussion/head", "count": 17, "share": 0.137097},
+            {"part": "ankle", "count": 16, "share": 0.129032},
+            {"part": "knee", "count": 12, "share": 0.096774},
+            {"part": "unknown", "count": 12, "share": 0.096774},
+            {"part": "foot/toe", "count": 9, "share": 0.072581}
+          ]
+        },
+        {
+          "group": "TE",
+          "newTimeLoss": 59,
+          "afterPlayed": 58,
+          "playerGames": 1354,
+          "snaps": 50381,
+          "perPlayerGame": 0.043575,
+          "perTeamGame": 0.122917,
+          "per1000Snaps": 1.151228,
+          "durations": {
+            "n": 59,
+            "censored": 31,
+            "games": {
+              "bands": {"short": 0.459094, "long": 0.096684, "major": 0.444222},
+              "naive": {"short": 0.576271, "long": 0.271186, "major": 0.152542},
+              "median": 4,
+              "survival": [1, 0.7255, 0.6275, 0.5409, 0.4704, 0.4442, 0.4442, 0.4442, 0.4442, 0.4442, 0.3332, 0.3332, 0.3332, 0.3332, 0.3332, 0.3332, 0.3332, 0.3332]
+            },
+            "weeks": {
+              "bands": {"short": 0.419355, "long": 0.145161, "major": 0.435484},
+              "naive": {"short": 0.542373, "long": 0.305085, "major": 0.152542},
+              "median": 4,
+              "survival": [1, 0.7451, 0.6667, 0.5806, 0.4645, 0.4645, 0.4355, 0.4355, 0.4355, 0.4355, 0.4355, 0.3266, 0.3266, 0.3266, 0.3266, 0.3266, 0.3266, 0.3266]
+            }
+          },
+          "dayToDayShare": 0.275,
+          "bodyParts": [
+            {"part": "concussion/head", "count": 15, "share": 0.254237},
+            {"part": "ankle", "count": 8, "share": 0.135593},
+            {"part": "knee", "count": 8, "share": 0.135593},
+            {"part": "unknown", "count": 7, "share": 0.118644},
+            {"part": "shoulder", "count": 4, "share": 0.067797},
+            {"part": "chest/ribs/abdomen", "count": 3, "share": 0.050847}
+          ]
+        },
+        {
+          "group": "OL",
+          "newTimeLoss": 145,
+          "afterPlayed": 127,
+          "playerGames": 3290,
+          "snaps": 170413,
+          "perPlayerGame": 0.044073,
+          "perTeamGame": 0.302083,
+          "per1000Snaps": 0.745248,
+          "durations": {
+            "n": 145,
+            "censored": 56,
+            "games": {
+              "bands": {"short": 0.574879, "long": 0.163152, "major": 0.261969},
+              "naive": {"short": 0.689655, "long": 0.206897, "major": 0.103448},
+              "median": 3,
+              "survival": [1, 0.6397, 0.5101, 0.4251, 0.4044, 0.3554, 0.3144, 0.3144, 0.262, 0.2418, 0.2418, 0.1814, 0.1814, 0.1814, 0.1814, 0.1814, 0.1814, 0.1814]
+            },
+            "weeks": {
+              "bands": {"short": 0.555228, "long": 0.155695, "major": 0.289077},
+              "naive": {"short": 0.668966, "long": 0.2, "major": 0.131034},
+              "median": 3,
+              "survival": [1, 0.7059, 0.5374, 0.4448, 0.4043, 0.3687, 0.3195, 0.3043, 0.2891, 0.2529, 0.2335, 0.2335, 0.1751, 0.1751, 0.1751, 0.1751, 0.1751, 0.1751]
+            }
+          },
+          "dayToDayShare": 0.274611,
+          "bodyParts": [
+            {"part": "knee", "count": 38, "share": 0.262069},
+            {"part": "ankle", "count": 26, "share": 0.17931},
+            {"part": "concussion/head", "count": 17, "share": 0.117241},
+            {"part": "unknown", "count": 17, "share": 0.117241},
+            {"part": "back/neck", "count": 9, "share": 0.062069},
+            {"part": "groin/hip", "count": 8, "share": 0.055172}
+          ]
+        },
+        {
+          "group": "DL",
+          "newTimeLoss": 123,
+          "afterPlayed": 120,
+          "playerGames": 3129,
+          "snaps": 115999,
+          "perPlayerGame": 0.03931,
+          "perTeamGame": 0.25625,
+          "per1000Snaps": 1.034492,
+          "durations": {
+            "n": 123,
+            "censored": 52,
+            "games": {
+              "bands": {"short": 0.602127, "long": 0.074719, "major": 0.323154},
+              "naive": {"short": 0.707317, "long": 0.170732, "major": 0.121951},
+              "median": 3,
+              "survival": [1, 0.7311, 0.5415, 0.3979, 0.373, 0.3597, 0.3447, 0.3447, 0.3232, 0.3232, 0.3232, 0.3232, 0.3232, 0.3232, 0.3232, 0.3232, 0.3232, 0.3232]
+            },
+            "weeks": {
+              "bands": {"short": 0.587178, "long": 0.097093, "major": 0.315729},
+              "naive": {"short": 0.691057, "long": 0.178862, "major": 0.130081},
+              "median": 3,
+              "survival": [1, 0.7647, 0.5758, 0.4128, 0.3764, 0.3634, 0.3355, 0.3355, 0.3157, 0.3157, 0.3157, 0.3157, 0.3157, 0.3157, 0.3157, 0.3157, 0.3157, 0.3157]
+            }
+          },
+          "dayToDayShare": 0.319527,
+          "bodyParts": [
+            {"part": "knee", "count": 22, "share": 0.178862},
+            {"part": "unknown", "count": 20, "share": 0.162602},
+            {"part": "ankle", "count": 18, "share": 0.146341},
+            {"part": "groin/hip", "count": 11, "share": 0.089431},
+            {"part": "hamstring", "count": 11, "share": 0.089431},
+            {"part": "shoulder", "count": 8, "share": 0.065041}
+          ]
+        },
+        {
+          "group": "LB",
+          "newTimeLoss": 118,
+          "afterPlayed": 113,
+          "playerGames": 3053,
+          "snaps": 125762,
+          "perPlayerGame": 0.038651,
+          "perTeamGame": 0.245833,
+          "per1000Snaps": 0.898523,
+          "durations": {
+            "n": 118,
+            "censored": 44,
+            "games": {
+              "bands": {"short": 0.595883, "long": 0.092732, "major": 0.311385},
+              "naive": {"short": 0.686441, "long": 0.169492, "major": 0.144068},
+              "median": 3,
+              "survival": [1, 0.6667, 0.5024, 0.4041, 0.3255, 0.3255, 0.3114, 0.3114, 0.3114, 0.2874, 0.2874, 0.2555, 0.2555, 0.2555, 0.2555, 0.2555, 0.2555, 0.2555]
+            },
+            "weeks": {
+              "bands": {"short": 0.569334, "long": 0.130219, "major": 0.300447},
+              "naive": {"short": 0.661017, "long": 0.186441, "major": 0.152542},
+              "median": 3,
+              "survival": [1, 0.7018, 0.5383, 0.4307, 0.3534, 0.3141, 0.3004, 0.3004, 0.3004, 0.3004, 0.2754, 0.2754, 0.2448, 0.2448, 0.2448, 0.2448, 0.2448, 0.2448]
+            }
+          },
+          "dayToDayShare": 0.246753,
+          "bodyParts": [
+            {"part": "hamstring", "count": 19, "share": 0.161017},
+            {"part": "knee", "count": 14, "share": 0.118644},
+            {"part": "unknown", "count": 14, "share": 0.118644},
+            {"part": "ankle", "count": 11, "share": 0.09322},
+            {"part": "concussion/head", "count": 11, "share": 0.09322},
+            {"part": "groin/hip", "count": 9, "share": 0.076271}
+          ]
+        },
+        {
+          "group": "DB",
+          "newTimeLoss": 218,
+          "afterPlayed": 210,
+          "playerGames": 4258,
+          "snaps": 194913,
+          "perPlayerGame": 0.051198,
+          "perTeamGame": 0.454167,
+          "per1000Snaps": 1.077404,
+          "durations": {
+            "n": 218,
+            "censored": 82,
+            "games": {
+              "bands": {"short": 0.624429, "long": 0.14808, "major": 0.227491},
+              "naive": {"short": 0.729358, "long": 0.169725, "major": 0.100917},
+              "median": 2,
+              "survival": [1, 0.6701, 0.4392, 0.3756, 0.2889, 0.2661, 0.2477, 0.2378, 0.2275, 0.2149, 0.1995, 0.1995, 0.1995, 0.1995, 0.1995, 0.1995, 0.1995, 0.1995]
+            },
+            "weeks": {
+              "bands": {"short": 0.615281, "long": 0.155177, "major": 0.229542},
+              "naive": {"short": 0.715596, "long": 0.174312, "major": 0.110092},
+              "median": 2,
+              "survival": [1, 0.7268, 0.4716, 0.3847, 0.3206, 0.2833, 0.2479, 0.2295, 0.2295, 0.2181, 0.2059, 0.1912, 0.1912, 0.1912, 0.1912, 0.1912, 0.1912, 0.1912]
+            }
+          },
+          "dayToDayShare": 0.28169,
+          "bodyParts": [
+            {"part": "hamstring", "count": 40, "share": 0.183486},
+            {"part": "ankle", "count": 27, "share": 0.123853},
+            {"part": "groin/hip", "count": 24, "share": 0.110092},
+            {"part": "unknown", "count": 23, "share": 0.105505},
+            {"part": "knee", "count": 21, "share": 0.09633},
+            {"part": "shoulder", "count": 20, "share": 0.091743}
+          ]
+        },
+        {
+          "group": "K/P",
+          "newTimeLoss": 8,
+          "afterPlayed": 7,
+          "playerGames": 1429,
+          "snaps": 12961,
+          "perPlayerGame": 0.005598,
+          "perTeamGame": 0.016667,
+          "per1000Snaps": 0.540082,
+          "durations": {
+            "n": 8,
+            "censored": 5,
+            "games": {
+              "bands": {"short": 0.464286, "long": 0, "major": 0.535714},
+              "naive": {"short": 0.625, "long": 0.25, "major": 0.125},
+              "median": null,
+              "survival": [1, 0.7143, 0.7143, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357]
+            },
+            "weeks": {
+              "bands": {"short": 0.464286, "long": 0, "major": 0.535714},
+              "naive": {"short": 0.625, "long": 0.25, "major": 0.125},
+              "median": null,
+              "survival": [1, 0.7143, 0.7143, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357, 0.5357]
+            }
+          },
+          "dayToDayShare": 0.333333,
+          "bodyParts": [
+            {"part": "groin/hip", "count": 2, "share": 0.25},
+            {"part": "knee", "count": 2, "share": 0.25},
+            {"part": "quad/thigh", "count": 2, "share": 0.25},
+            {"part": "unknown", "count": 2, "share": 0.25}
+          ]
+        }
+      ],
+      "bodyParts": [
+        {"part": "knee", "count": 133, "share": 0.147942, "long": 0.203655, "major": 0.205374},
+        {"part": "ankle", "count": 121, "share": 0.134594, "long": 0.121884, "major": 0.179241},
+        {"part": "hamstring", "count": 116, "share": 0.129032, "long": 0.125849, "major": 0.116168},
+        {"part": "unknown", "count": 105, "share": 0.116796, "long": 0.052632, "major": 0.947368},
+        {"part": "concussion/head", "count": 88, "share": 0.097887, "long": 0.076995, "major": 0.174076},
+        {"part": "groin/hip", "count": 66, "share": 0.073415, "long": 0.073412, "major": 0.151365},
+        {"part": "shoulder", "count": 59, "share": 0.065628, "long": 0.140289, "major": 0.222812},
+        {"part": "foot/toe", "count": 44, "share": 0.048943, "long": 0.191944, "major": 0.376694},
+        {"part": "back/neck", "count": 43, "share": 0.047831, "long": 0.033738, "major": 0.37112},
+        {"part": "chest/ribs/abdomen", "count": 27, "share": 0.030033, "long": 0.307789, "major": 0.229053},
+        {"part": "hand/wrist", "count": 26, "share": 0.028921, "long": 0.291077, "major": 0.072769},
+        {"part": "quad/thigh", "count": 24, "share": 0.026696, "long": 0.058309, "major": 0.116618},
+        {"part": "calf/shin", "count": 22, "share": 0.024472, "long": 0.18, "major": 0.12},
+        {"part": "elbow/arm", "count": 20, "share": 0.022247, "long": 0.087542, "major": 0.43771},
+        {"part": "achilles", "count": 3, "share": 0.003337, "long": 0, "major": 1},
+        {"part": "other", "count": 2, "share": 0.002225, "long": 0.5, "major": 0}
+      ],
+      "playThrough": {
+        "questionable": {"n": 1192, "yes": 750, "share": 0.629195},
+        "doubtful": {"n": 166, "yes": 2, "share": 0.012048},
+        "out": {"n": 924, "yes": 0, "share": 0},
+        "newlyQuestionable": {"n": 564, "yes": 362, "share": 0.641844},
+        "limitedNoDesignation": {"n": 255, "yes": 250, "share": 0.980392},
+        "dnpNoDesignation": {"n": 24, "yes": 24, "share": 1}
+      },
+      "episodes": {
+        "newAny": 1311,
+        "dayToDayAny": 450,
+        "dayToDayShareAny": 0.343249,
+        "newDesignated": 1187,
+        "dayToDayDesignated": 326,
+        "dayToDayShareDesignated": 0.274642,
+        "dayToDayDesignatedPerTeamGame": 0.679167
+      },
+      "allBands": {"dayToDay": 0.274642, "short": 0.425693, "long": 0.095533, "major": 0.204133},
+      "practiceHints": {
+        "playedIntervals": 21249,
+        "notPlayedIntervals": 2739,
+        "afterPlayedRate": 0.04019,
+        "afterNotPlayedRate": 0.016429,
+        "impliedNonGameShare": 0.438384,
+        "listingsAfterNotPlayedPerTeamSeason": 1.53125,
+        "listingsAfterNotPlayedDnp": 25,
+        "episodeAfterPlayedRate": 0.059391,
+        "episodeAfterNotPlayedRate": 0.01789,
+        "episodeImpliedNonGameShare": 0.327337,
+        "outAtWeek1PerTeamSeason": 9.875,
+        "outAtWeek1CarriedOver": 60,
+        "outAtWeek1New": 256,
+        "outAtWeek1Unknown": 0,
+        "outAtWeek1ByKind": {"ACTIVE": 72, "INACTIVE": 1, "IR": 224, "PUP": 19},
+        "week1NewEpisodesPerTeamSeason": 8.84375,
+        "inSeasonNewEpisodesPerTeamInterval": 2.73125,
+        "postBye": {"intervals": 32, "onsets": 46, "rate": 1.4375, "otherIntervals": 448, "otherOnsets": 853, "otherRate": 1.904018},
+        "byeModel": {
+          "h": 0.739927,
+          "practicePerTeamInterval": 0.028666,
+          "practicePerTeamIntervalSe": 0.217368,
+          "practiceShare": 0.015056
+        }
+      },
+      "reserve": {
+        "irInSeasonPerTeamSeason": 9.625,
+        "irAtWeek1PerTeamSeason": 7,
+        "irInSeasonMin": 2,
+        "irInSeasonMax": 19,
+        "pupAtWeek1PerTeamSeason": 0.59375,
+        "nfiAtWeek1PerTeamSeason": 0.46875,
+        "nfiInSeasonPerTeamSeason": 0.0625,
+        "illnessPerTeamSeason": 0.625,
+        "missing4PlusGamesNew": 8.3125,
+        "missing4PlusGamesAll": 15,
+        "missing4PlusWeeksAll": 15.59375
+      }
+    },
+    {
+      "seasons": [2020],
+      "teamSeasons": 32,
+      "teamGames": 512,
+      "teamIntervals": 480,
+      "timeLoss": {
+        "newFootball": 1036,
+        "perTeamGame": 2.158333,
+        "perTeamSeason": 32.375,
+        "byOnset": {"afterPlayed": 1001, "afterNotPlayed": 35, "beforeSeason": 189, "unclear": 41},
+        "illness": 38,
+        "nfi": 0,
+        "perTeamGameAllCauses": 2.2375,
+        "straightToReserve": 354
+      },
+      "durations": {
+        "n": 1036,
+        "censored": 394,
+        "games": {
+          "bands": {"short": 0.611282, "long": 0.169899, "major": 0.21882},
+          "naive": {"short": 0.71139, "long": 0.21139, "major": 0.07722},
+          "median": 3,
+          "survival": [1, 0.691, 0.5226, 0.3887, 0.3168, 0.2847, 0.2459, 0.227, 0.2188, 0.2056, 0.193, 0.193, 0.193, 0.193, 0.193, 0.193, 0.193, 0.193]
+        },
+        "weeks": {
+          "bands": {"short": 0.570347, "long": 0.214269, "major": 0.215384},
+          "naive": {"short": 0.675676, "long": 0.241313, "major": 0.083012},
+          "median": 3,
+          "survival": [1, 0.7198, 0.5486, 0.4297, 0.3315, 0.2893, 0.267, 0.2304, 0.2154, 0.2069, 0.1929, 0.1841, 0.1841, 0.1841, 0.1841, 0.1841, 0.1841, 0.1841]
+        }
+      },
+      "groups": [
+        {
+          "group": "QB",
+          "newTimeLoss": 25,
+          "afterPlayed": 24,
+          "playerGames": 615,
+          "snaps": 32648,
+          "perPlayerGame": 0.04065,
+          "perTeamGame": 0.052083,
+          "per1000Snaps": 0.735114,
+          "durations": {
+            "n": 25,
+            "censored": 10,
+            "games": {
+              "bands": {"short": 0.584239, "long": 0.10394, "major": 0.311821},
+              "naive": {"short": 0.68, "long": 0.28, "major": 0.04},
+              "median": 2,
+              "survival": [1, 0.7391, 0.4158, 0.4158, 0.3118, 0.3118, 0.3118, 0.3118, 0.3118, 0.3118, 0.3118, 0.3118, 0.3118, 0.3118, 0.3118, 0.3118, 0.3118, 0.3118]
+            },
+            "weeks": {
+              "bands": {"short": 0.596838, "long": 0.100791, "major": 0.302372},
+              "naive": {"short": 0.68, "long": 0.24, "major": 0.08},
+              "median": 3,
+              "survival": [1, 0.7391, 0.5543, 0.4032, 0.3024, 0.3024, 0.3024, 0.3024, 0.3024, 0.3024, 0.3024, 0.3024, 0.3024, 0.3024, 0.3024, 0.3024, 0.3024, 0.3024]
+            }
+          },
+          "dayToDayShare": 0.225806,
+          "bodyParts": [
+            {"part": "shoulder", "count": 5, "share": 0.2},
+            {"part": "ankle", "count": 3, "share": 0.12},
+            {"part": "hand/wrist", "count": 3, "share": 0.12},
+            {"part": "knee", "count": 3, "share": 0.12},
+            {"part": "unknown", "count": 3, "share": 0.12},
+            {"part": "hamstring", "count": 2, "share": 0.08}
+          ]
+        },
+        {
+          "group": "RB",
+          "newTimeLoss": 98,
+          "afterPlayed": 95,
+          "playerGames": 1782,
+          "snaps": 46960,
+          "perPlayerGame": 0.054994,
+          "perTeamGame": 0.204167,
+          "per1000Snaps": 2.022998,
+          "durations": {
+            "n": 98,
+            "censored": 33,
+            "games": {
+              "bands": {"short": 0.649266, "long": 0.19863, "major": 0.152104},
+              "naive": {"short": 0.734694, "long": 0.214286, "major": 0.05102},
+              "median": 2,
+              "survival": [1, 0.7222, 0.4856, 0.3507, 0.2631, 0.2484, 0.2129, 0.1825, 0.1521, 0.1521, 0.1521, 0.1521, 0.1521, 0.1521, 0.1521, 0.1521, 0.1521, 0.1521]
+            },
+            "weeks": {
+              "bands": {"short": 0.607692, "long": 0.244859, "major": 0.147449},
+              "naive": {"short": 0.693878, "long": 0.255102, "major": 0.05102},
+              "median": 3,
+              "survival": [1, 0.7473, 0.5231, 0.3923, 0.2942, 0.2501, 0.2322, 0.2064, 0.1474, 0.1474, 0.1474, 0.1474, 0.1474, 0.1474, 0.1474, 0.1474, 0.1474, 0.1474]
+            }
+          },
+          "dayToDayShare": 0.227642,
+          "bodyParts": [
+            {"part": "ankle", "count": 19, "share": 0.193878},
+            {"part": "hamstring", "count": 14, "share": 0.142857},
+            {"part": "knee", "count": 13, "share": 0.132653},
+            {"part": "unknown", "count": 13, "share": 0.132653},
+            {"part": "quad/thigh", "count": 7, "share": 0.071429},
+            {"part": "back/neck", "count": 5, "share": 0.05102}
+          ]
+        },
+        {
+          "group": "WR",
+          "newTimeLoss": 117,
+          "afterPlayed": 116,
+          "playerGames": 2472,
+          "snaps": 92537,
+          "perPlayerGame": 0.04733,
+          "perTeamGame": 0.24375,
+          "per1000Snaps": 1.253553,
+          "durations": {
+            "n": 117,
+            "censored": 40,
+            "games": {
+              "bands": {"short": 0.646485, "long": 0.193191, "major": 0.160324},
+              "naive": {"short": 0.726496, "long": 0.205128, "major": 0.068376},
+              "median": 2,
+              "survival": [1, 0.6176, 0.4529, 0.3535, 0.2946, 0.2525, 0.2164, 0.1804, 0.1603, 0.1603, 0.1603, 0.1603, 0.1603, 0.1603, 0.1603, 0.1603, 0.1603, 0.1603]
+            },
+            "weeks": {
+              "bands": {"short": 0.627249, "long": 0.20051, "major": 0.172241},
+              "naive": {"short": 0.709402, "long": 0.213675, "major": 0.076923},
+              "median": 2,
+              "survival": [1, 0.6569, 0.4824, 0.3728, 0.3145, 0.2598, 0.2436, 0.1914, 0.1722, 0.1476, 0.1476, 0.1476, 0.1476, 0.1476, 0.1476, 0.1476, 0.1476, 0.1476]
+            }
+          },
+          "dayToDayShare": 0.345238,
+          "bodyParts": [
+            {"part": "hamstring", "count": 30, "share": 0.25641},
+            {"part": "ankle", "count": 12, "share": 0.102564},
+            {"part": "groin/hip", "count": 11, "share": 0.094017},
+            {"part": "knee", "count": 10, "share": 0.08547},
+            {"part": "unknown", "count": 10, "share": 0.08547},
+            {"part": "shoulder", "count": 9, "share": 0.076923}
+          ]
+        },
+        {
+          "group": "TE",
+          "newTimeLoss": 61,
+          "afterPlayed": 60,
+          "playerGames": 1476,
+          "snaps": 51943,
+          "perPlayerGame": 0.041328,
+          "perTeamGame": 0.127083,
+          "per1000Snaps": 1.155112,
+          "durations": {
+            "n": 61,
+            "censored": 20,
+            "games": {
+              "bands": {"short": 0.507576, "long": 0.259121, "major": 0.233303},
+              "naive": {"short": 0.57377, "long": 0.311475, "major": 0.114754},
+              "median": 3,
+              "survival": [1, 0.625, 0.5682, 0.4924, 0.4068, 0.3111, 0.2333, 0.2333, 0.2333, 0.2, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16]
+            },
+            "weeks": {
+              "bands": {"short": 0.491071, "long": 0.285638, "major": 0.223291},
+              "naive": {"short": 0.557377, "long": 0.327869, "major": 0.114754},
+              "median": 4,
+              "survival": [1, 0.6786, 0.5655, 0.5089, 0.4241, 0.3299, 0.2791, 0.2233, 0.2233, 0.2233, 0.1489, 0.1489, 0.1489, 0.1489, 0.1489, 0.1489, 0.1489, 0.1489]
+            }
+          },
+          "dayToDayShare": 0.337079,
+          "bodyParts": [
+            {"part": "ankle", "count": 12, "share": 0.196721},
+            {"part": "knee", "count": 12, "share": 0.196721},
+            {"part": "unknown", "count": 10, "share": 0.163934},
+            {"part": "concussion/head", "count": 5, "share": 0.081967},
+            {"part": "foot/toe", "count": 5, "share": 0.081967},
+            {"part": "calf/shin", "count": 4, "share": 0.065574}
+          ]
+        },
+        {
+          "group": "OL",
+          "newTimeLoss": 177,
+          "afterPlayed": 160,
+          "playerGames": 3554,
+          "snaps": 172427,
+          "perPlayerGame": 0.049803,
+          "perTeamGame": 0.36875,
+          "per1000Snaps": 0.927929,
+          "durations": {
+            "n": 177,
+            "censored": 68,
+            "games": {
+              "bands": {"short": 0.664677, "long": 0.116617, "major": 0.218706},
+              "naive": {"short": 0.751412, "long": 0.169492, "major": 0.079096},
+              "median": 2,
+              "survival": [1, 0.6968, 0.4877, 0.3353, 0.2701, 0.2701, 0.2333, 0.2187, 0.2187, 0.2187, 0.1914, 0.1914, 0.1914, 0.1914, 0.1914, 0.1914, 0.1914, 0.1914]
+            },
+            "weeks": {
+              "bands": {"short": 0.611576, "long": 0.178404, "major": 0.21002},
+              "naive": {"short": 0.706215, "long": 0.20904, "major": 0.084746},
+              "median": 3,
+              "survival": [1, 0.7244, 0.5154, 0.3884, 0.28, 0.2614, 0.2614, 0.224, 0.21, 0.21, 0.21, 0.18, 0.18, 0.18, 0.18, 0.18, 0.18, 0.18]
+            }
+          },
+          "dayToDayShare": 0.3,
+          "bodyParts": [
+            {"part": "knee", "count": 37, "share": 0.20904},
+            {"part": "ankle", "count": 29, "share": 0.163842},
+            {"part": "back/neck", "count": 18, "share": 0.101695},
+            {"part": "concussion/head", "count": 18, "share": 0.101695},
+            {"part": "unknown", "count": 14, "share": 0.079096},
+            {"part": "calf/shin", "count": 13, "share": 0.073446}
+          ]
+        },
+        {
+          "group": "DL",
+          "newTimeLoss": 145,
+          "afterPlayed": 144,
+          "playerGames": 3418,
+          "snaps": 126376,
+          "perPlayerGame": 0.042422,
+          "perTeamGame": 0.302083,
+          "per1000Snaps": 1.139457,
+          "durations": {
+            "n": 145,
+            "censored": 65,
+            "games": {
+              "bands": {"short": 0.627953, "long": 0.067983, "major": 0.304064},
+              "naive": {"short": 0.744828, "long": 0.158621, "major": 0.096552},
+              "median": 3,
+              "survival": [1, 0.6614, 0.5631, 0.372, 0.3295, 0.3185, 0.3041, 0.3041, 0.3041, 0.2764, 0.2764, 0.2764, 0.2764, 0.2764, 0.2764, 0.2764, 0.2764, 0.2764]
+            },
+            "weeks": {
+              "bands": {"short": 0.558385, "long": 0.143217, "major": 0.298399},
+              "naive": {"short": 0.696552, "long": 0.2, "major": 0.103448},
+              "median": 3,
+              "survival": [1, 0.6953, 0.5721, 0.4416, 0.3389, 0.317, 0.317, 0.2984, 0.2984, 0.2754, 0.2754, 0.2754, 0.2754, 0.2754, 0.2754, 0.2754, 0.2754, 0.2754]
+            }
+          },
+          "dayToDayShare": 0.318841,
+          "bodyParts": [
+            {"part": "knee", "count": 23, "share": 0.158621},
+            {"part": "unknown", "count": 18, "share": 0.124138},
+            {"part": "ankle", "count": 17, "share": 0.117241},
+            {"part": "shoulder", "count": 17, "share": 0.117241},
+            {"part": "groin/hip", "count": 12, "share": 0.082759},
+            {"part": "hamstring", "count": 11, "share": 0.075862}
+          ]
+        },
+        {
+          "group": "LB",
+          "newTimeLoss": 135,
+          "afterPlayed": 132,
+          "playerGames": 2992,
+          "snaps": 117232,
+          "perPlayerGame": 0.04512,
+          "perTeamGame": 0.28125,
+          "per1000Snaps": 1.125972,
+          "durations": {
+            "n": 135,
+            "censored": 56,
+            "games": {
+              "bands": {"short": 0.518629, "long": 0.248012, "major": 0.23336},
+              "naive": {"short": 0.651852, "long": 0.237037, "major": 0.111111},
+              "median": 3,
+              "survival": [1, 0.7459, 0.6043, 0.4814, 0.403, 0.3526, 0.2645, 0.2334, 0.2334, 0.2154, 0.1958, 0.1958, 0.1958, 0.1958, 0.1958, 0.1958, 0.1958, 0.1958]
+            },
+            "weeks": {
+              "bands": {"short": 0.441707, "long": 0.332652, "major": 0.225642},
+              "naive": {"short": 0.592593, "long": 0.296296, "major": 0.111111},
+              "median": 4,
+              "survival": [1, 0.7787, 0.6192, 0.5583, 0.4295, 0.3681, 0.2973, 0.2407, 0.2256, 0.2256, 0.2068, 0.1862, 0.1862, 0.1862, 0.1862, 0.1862, 0.1862, 0.1862]
+            }
+          },
+          "dayToDayShare": 0.286486,
+          "bodyParts": [
+            {"part": "unknown", "count": 25, "share": 0.185185},
+            {"part": "hamstring", "count": 23, "share": 0.17037},
+            {"part": "ankle", "count": 17, "share": 0.125926},
+            {"part": "knee", "count": 16, "share": 0.118519},
+            {"part": "chest/ribs/abdomen", "count": 9, "share": 0.066667},
+            {"part": "shoulder", "count": 8, "share": 0.059259}
+          ]
+        },
+        {
+          "group": "DB",
+          "newTimeLoss": 267,
+          "afterPlayed": 259,
+          "playerGames": 4375,
+          "snaps": 195900,
+          "perPlayerGame": 0.061029,
+          "perTeamGame": 0.55625,
+          "per1000Snaps": 1.322103,
+          "durations": {
+            "n": 267,
+            "censored": 97,
+            "games": {
+              "bands": {"short": 0.619093, "long": 0.182934, "major": 0.197972},
+              "naive": {"short": 0.722846, "long": 0.217228, "major": 0.059925},
+              "median": 3,
+              "survival": [1, 0.6992, 0.5147, 0.3809, 0.301, 0.2542, 0.2304, 0.2103, 0.198, 0.18, 0.18, 0.18, 0.18, 0.18, 0.18, 0.18, 0.18, 0.18]
+            },
+            "weeks": {
+              "bands": {"short": 0.600795, "long": 0.197786, "major": 0.201419},
+              "naive": {"short": 0.700375, "long": 0.235955, "major": 0.06367},
+              "median": 3,
+              "survival": [1, 0.7195, 0.5439, 0.3992, 0.3098, 0.2637, 0.2411, 0.2133, 0.2014, 0.1888, 0.1678, 0.1678, 0.1678, 0.1678, 0.1678, 0.1678, 0.1678, 0.1678]
+            }
+          },
+          "dayToDayShare": 0.234421,
+          "bodyParts": [
+            {"part": "unknown", "count": 40, "share": 0.149813},
+            {"part": "hamstring", "count": 38, "share": 0.142322},
+            {"part": "groin/hip", "count": 30, "share": 0.11236},
+            {"part": "concussion/head", "count": 28, "share": 0.104869},
+            {"part": "knee", "count": 25, "share": 0.093633},
+            {"part": "shoulder", "count": 20, "share": 0.074906}
+          ]
+        },
+        {
+          "group": "K/P",
+          "newTimeLoss": 11,
+          "afterPlayed": 11,
+          "playerGames": 1424,
+          "snaps": 12905,
+          "perPlayerGame": 0.007725,
+          "perTeamGame": 0.022917,
+          "per1000Snaps": 0.852383,
+          "durations": {
+            "n": 11,
+            "censored": 5,
+            "games": {
+              "bands": {"short": 0.488636, "long": 0.127841, "major": 0.383523},
+              "naive": {"short": 0.545455, "long": 0.454545, "major": 0},
+              "median": 4,
+              "survival": [1, 0.8182, 0.8182, 0.5114, 0.3835, 0.3835, 0.3835, 0.3835, 0.3835, 0.3835, 0.3835, 0.3835, 0.3835, 0.3835, 0.3835, 0.3835, 0.3835, 0.3835]
+            },
+            "weeks": {
+              "bands": {"short": 0.386364, "long": 0.245455, "major": 0.368182},
+              "naive": {"short": 0.454545, "long": 0.454545, "major": 0.090909},
+              "median": 4,
+              "survival": [1, 0.8182, 0.8182, 0.6136, 0.3682, 0.3682, 0.3682, 0.3682, 0.3682, 0.3682, 0.3682, 0.3682, 0.3682, 0.3682, 0.3682, 0.3682, 0.3682, 0.3682]
+            }
+          },
+          "dayToDayShare": 0.52381,
+          "bodyParts": [
+            {"part": "groin/hip", "count": 6, "share": 0.545455},
+            {"part": "unknown", "count": 2, "share": 0.181818},
+            {"part": "back/neck", "count": 1, "share": 0.090909},
+            {"part": "chest/ribs/abdomen", "count": 1, "share": 0.090909},
+            {"part": "hand/wrist", "count": 1, "share": 0.090909}
+          ]
+        }
+      ],
+      "bodyParts": [
+        {"part": "knee", "count": 139, "share": 0.13417, "long": 0.205198, "major": 0.217698},
+        {"part": "unknown", "count": 135, "share": 0.130309, "long": 0.148769, "major": 0.733559},
+        {"part": "ankle", "count": 126, "share": 0.121622, "long": 0.192907, "major": 0.160117},
+        {"part": "hamstring", "count": 123, "share": 0.118726, "long": 0.225133, "major": 0.063394},
+        {"part": "groin/hip", "count": 82, "share": 0.079151, "long": 0.187164, "major": 0.068475},
+        {"part": "concussion/head", "count": 80, "share": 0.07722, "long": 0.062222, "major": 0.041481},
+        {"part": "shoulder", "count": 73, "share": 0.070463, "long": 0.143376, "major": 0.201704},
+        {"part": "back/neck", "count": 50, "share": 0.048263, "long": 0.089562, "major": 0.313468},
+        {"part": "chest/ribs/abdomen", "count": 50, "share": 0.048263, "long": 0.089835, "major": 0.119779},
+        {"part": "calf/shin", "count": 48, "share": 0.046332, "long": 0.143382, "major": 0.130348},
+        {"part": "foot/toe", "count": 48, "share": 0.046332, "long": 0.347483, "major": 0.115142},
+        {"part": "quad/thigh", "count": 32, "share": 0.030888, "long": 0.216346, "major": 0},
+        {"part": "hand/wrist", "count": 30, "share": 0.028958, "long": 0.123077, "major": 0.082051},
+        {"part": "elbow/arm", "count": 15, "share": 0.014479, "long": 0.211039, "major": 0.211039},
+        {"part": "achilles", "count": 4, "share": 0.003861, "long": 0, "major": 0.666667},
+        {"part": "other", "count": 1, "share": 0.000965, "long": 0, "major": 0}
+      ],
+      "playThrough": {
+        "questionable": {"n": 1291, "yes": 880, "share": 0.681642},
+        "doubtful": {"n": 146, "yes": 2, "share": 0.013699},
+        "out": {"n": 684, "yes": 0, "share": 0},
+        "newlyQuestionable": {"n": 657, "yes": 455, "share": 0.692542},
+        "limitedNoDesignation": {"n": 337, "yes": 326, "share": 0.967359},
+        "dnpNoDesignation": {"n": 42, "yes": 41, "share": 0.97619}
+      },
+      "episodes": {
+        "newAny": 1548,
+        "dayToDayAny": 551,
+        "dayToDayShareAny": 0.355943,
+        "newDesignated": 1401,
+        "dayToDayDesignated": 404,
+        "dayToDayShareDesignated": 0.288365,
+        "dayToDayDesignatedPerTeamGame": 0.841667
+      },
+      "allBands": {"dayToDay": 0.288365, "short": 0.435009, "long": 0.120906, "major": 0.15572},
+      "practiceHints": {
+        "playedIntervals": 22108,
+        "notPlayedIntervals": 2605,
+        "afterPlayedRate": 0.045278,
+        "afterNotPlayedRate": 0.013436,
+        "impliedNonGameShare": 0.320499,
+        "listingsAfterNotPlayedPerTeamSeason": 1.28125,
+        "listingsAfterNotPlayedDnp": 22,
+        "episodeAfterPlayedRate": 0.068165,
+        "episodeAfterNotPlayedRate": 0.015739,
+        "episodeImpliedNonGameShare": 0.251264,
+        "outAtWeek1PerTeamSeason": 5.90625,
+        "outAtWeek1CarriedOver": 48,
+        "outAtWeek1New": 141,
+        "outAtWeek1Unknown": 0,
+        "outAtWeek1ByKind": {"ACTIVE": 9, "INACTIVE": 60, "IR": 104, "PUP": 16},
+        "week1NewEpisodesPerTeamSeason": 5.40625,
+        "inSeasonNewEpisodesPerTeamInterval": 3.225,
+        "postBye": {
+          "intervals": 32,
+          "onsets": 49,
+          "rate": 1.53125,
+          "otherIntervals": 448,
+          "otherOnsets": 987,
+          "otherRate": 2.203125
+        },
+        "byeModel": {
+          "h": 0.719786,
+          "practicePerTeamInterval": -0.054529,
+          "practicePerTeamIntervalSe": 0.224498,
+          "practiceShare": -0.024751
+        }
+      },
+      "reserve": {
+        "irInSeasonPerTeamSeason": 14.40625,
+        "irAtWeek1PerTeamSeason": 3.25,
+        "irInSeasonMin": 5,
+        "irInSeasonMax": 28,
+        "pupAtWeek1PerTeamSeason": 0.5,
+        "nfiAtWeek1PerTeamSeason": 0.5,
+        "nfiInSeasonPerTeamSeason": 0,
+        "illnessPerTeamSeason": 1.1875,
+        "missing4PlusGamesNew": 9.09375,
+        "missing4PlusGamesAll": 12.59375,
+        "missing4PlusWeeksAll": 13.65625
+      }
+    },
+    {
+      "seasons": [2021],
+      "teamSeasons": 32,
+      "teamGames": 544,
+      "teamIntervals": 512,
+      "timeLoss": {
+        "newFootball": 1056,
+        "perTeamGame": 2.0625,
+        "perTeamSeason": 33,
+        "byOnset": {"afterPlayed": 1015, "afterNotPlayed": 41, "beforeSeason": 259, "unclear": 65},
+        "illness": 50,
+        "nfi": 2,
+        "perTeamGameAllCauses": 2.164063,
+        "straightToReserve": 379
+      },
+      "durations": {
+        "n": 1056,
+        "censored": 372,
+        "games": {
+          "bands": {"short": 0.594681, "long": 0.189463, "major": 0.215856},
+          "naive": {"short": 0.685606, "long": 0.212121, "major": 0.102273},
+          "median": 3,
+          "survival": [1, 0.657, 0.5189, 0.4053, 0.3251, 0.2873, 0.2609, 0.2358, 0.2159, 0.2039, 0.1897, 0.1825, 0.1779, 0.1779, 0.1779, 0.1779, 0.1779, 0.1779]
+        },
+        "weeks": {
+          "bands": {"short": 0.5638, "long": 0.211296, "major": 0.224904},
+          "naive": {"short": 0.659091, "long": 0.227273, "major": 0.113636},
+          "median": 3,
+          "survival": [1, 0.677, 0.5416, 0.4362, 0.35, 0.3002, 0.2644, 0.2511, 0.2249, 0.2078, 0.1982, 0.1834, 0.1762, 0.1717, 0.1717, 0.1717, 0.1717, 0.1717]
+        }
+      },
+      "groups": [
+        {
+          "group": "QB",
+          "newTimeLoss": 35,
+          "afterPlayed": 33,
+          "playerGames": 653,
+          "snaps": 34204,
+          "perPlayerGame": 0.053599,
+          "perTeamGame": 0.068359,
+          "per1000Snaps": 0.964799,
+          "durations": {
+            "n": 35,
+            "censored": 10,
+            "games": {
+              "bands": {"short": 0.690909, "long": 0.191342, "major": 0.117749},
+              "naive": {"short": 0.771429, "long": 0.171429, "major": 0.057143},
+              "median": 2,
+              "survival": [1, 0.5313, 0.425, 0.3091, 0.2208, 0.1766, 0.1177, 0.1177, 0.1177, 0.1177, 0.1177, 0.1177, 0.1177, 0.1177, 0.1177, 0.1177, 0.1177, 0.1177]
+            },
+            "weeks": {
+              "bands": {"short": 0.618984, "long": 0.275178, "major": 0.105838},
+              "naive": {"short": 0.714286, "long": 0.228571, "major": 0.057143},
+              "median": 2,
+              "survival": [1, 0.5938, 0.4191, 0.381, 0.2117, 0.2117, 0.1058, 0.1058, 0.1058, 0.1058, 0.1058, 0.1058, 0.1058, 0.1058, 0.1058, 0.1058, 0.1058, 0.1058]
+            }
+          },
+          "dayToDayShare": 0.125,
+          "bodyParts": [
+            {"part": "chest/ribs/abdomen", "count": 5, "share": 0.142857},
+            {"part": "hand/wrist", "count": 5, "share": 0.142857},
+            {"part": "knee", "count": 5, "share": 0.142857},
+            {"part": "ankle", "count": 4, "share": 0.114286},
+            {"part": "shoulder", "count": 3, "share": 0.085714},
+            {"part": "unknown", "count": 3, "share": 0.085714}
+          ]
+        },
+        {
+          "group": "RB",
+          "newTimeLoss": 101,
+          "afterPlayed": 99,
+          "playerGames": 1837,
+          "snaps": 49253,
+          "perPlayerGame": 0.054981,
+          "perTeamGame": 0.197266,
+          "per1000Snaps": 2.01003,
+          "durations": {
+            "n": 101,
+            "censored": 35,
+            "games": {
+              "bands": {"short": 0.606227, "long": 0.217733, "major": 0.17604},
+              "naive": {"short": 0.70297, "long": 0.227723, "major": 0.069307},
+              "median": 3,
+              "survival": [1, 0.6593, 0.525, 0.3938, 0.2771, 0.1956, 0.1956, 0.176, 0.176, 0.176, 0.176, 0.176, 0.176, 0.176, 0.176, 0.176, 0.176, 0.176]
+            },
+            "weeks": {
+              "bands": {"short": 0.577273, "long": 0.256916, "major": 0.165811},
+              "naive": {"short": 0.673267, "long": 0.257426, "major": 0.069307},
+              "median": 3,
+              "survival": [1, 0.6739, 0.5636, 0.4227, 0.3207, 0.2084, 0.1895, 0.1895, 0.1658, 0.1658, 0.1658, 0.1658, 0.1658, 0.1658, 0.1658, 0.1658, 0.1658, 0.1658]
+            }
+          },
+          "dayToDayShare": 0.289855,
+          "bodyParts": [
+            {"part": "ankle", "count": 16, "share": 0.158416},
+            {"part": "knee", "count": 16, "share": 0.158416},
+            {"part": "unknown", "count": 11, "share": 0.108911},
+            {"part": "concussion/head", "count": 9, "share": 0.089109},
+            {"part": "hamstring", "count": 8, "share": 0.079208},
+            {"part": "calf/shin", "count": 7, "share": 0.069307}
+          ]
+        },
+        {
+          "group": "WR",
+          "newTimeLoss": 134,
+          "afterPlayed": 132,
+          "playerGames": 2684,
+          "snaps": 98069,
+          "perPlayerGame": 0.049925,
+          "perTeamGame": 0.261719,
+          "per1000Snaps": 1.345991,
+          "durations": {
+            "n": 134,
+            "censored": 42,
+            "games": {
+              "bands": {"short": 0.674216, "long": 0.150724, "major": 0.17506},
+              "naive": {"short": 0.746269, "long": 0.179104, "major": 0.074627},
+              "median": 2,
+              "survival": [1, 0.6098, 0.4791, 0.3258, 0.2732, 0.2495, 0.237, 0.1926, 0.1751, 0.1751, 0.1501, 0.1501, 0.1501, 0.1501, 0.1501, 0.1501, 0.1501, 0.1501]
+            },
+            "weeks": {
+              "bands": {"short": 0.618423, "long": 0.192359, "major": 0.189218},
+              "naive": {"short": 0.701493, "long": 0.201493, "major": 0.097015},
+              "median": 2,
+              "survival": [1, 0.6179, 0.496, 0.3816, 0.2784, 0.2562, 0.2329, 0.2329, 0.1892, 0.1703, 0.1703, 0.146, 0.146, 0.146, 0.146, 0.146, 0.146, 0.146]
+            }
+          },
+          "dayToDayShare": 0.310345,
+          "bodyParts": [
+            {"part": "hamstring", "count": 21, "share": 0.156716},
+            {"part": "unknown", "count": 21, "share": 0.156716},
+            {"part": "knee", "count": 14, "share": 0.104478},
+            {"part": "ankle", "count": 13, "share": 0.097015},
+            {"part": "concussion/head", "count": 13, "share": 0.097015},
+            {"part": "groin/hip", "count": 12, "share": 0.089552}
+          ]
+        },
+        {
+          "group": "TE",
+          "newTimeLoss": 70,
+          "afterPlayed": 70,
+          "playerGames": 1561,
+          "snaps": 54624,
+          "perPlayerGame": 0.044843,
+          "perTeamGame": 0.136719,
+          "per1000Snaps": 1.281488,
+          "durations": {
+            "n": 70,
+            "censored": 27,
+            "games": {
+              "bands": {"short": 0.553747, "long": 0.231928, "major": 0.214325},
+              "naive": {"short": 0.642857, "long": 0.3, "major": 0.057143},
+              "median": 3,
+              "survival": [1, 0.6875, 0.5534, 0.4463, 0.4239, 0.3674, 0.3062, 0.2679, 0.2143, 0.2143, 0.2143, 0.1072, 0, 0, 0, 0, 0, 0]
+            },
+            "weeks": {
+              "bands": {"short": 0.52134, "long": 0.221087, "major": 0.257573},
+              "naive": {"short": 0.614286, "long": 0.3, "major": 0.085714},
+              "median": 3,
+              "survival": [1, 0.7188, 0.585, 0.4787, 0.4134, 0.3617, 0.3339, 0.3005, 0.2576, 0.2061, 0.2061, 0.2061, 0.103, 0, 0, 0, 0, 0]
+            }
+          },
+          "dayToDayShare": 0.265957,
+          "bodyParts": [
+            {"part": "knee", "count": 11, "share": 0.157143},
+            {"part": "ankle", "count": 9, "share": 0.128571},
+            {"part": "unknown", "count": 9, "share": 0.128571},
+            {"part": "hamstring", "count": 7, "share": 0.1},
+            {"part": "back/neck", "count": 6, "share": 0.085714},
+            {"part": "concussion/head", "count": 6, "share": 0.085714}
+          ]
+        },
+        {
+          "group": "OL",
+          "newTimeLoss": 164,
+          "afterPlayed": 153,
+          "playerGames": 3713,
+          "snaps": 180129,
+          "perPlayerGame": 0.044169,
+          "perTeamGame": 0.320313,
+          "per1000Snaps": 0.849391,
+          "durations": {
+            "n": 164,
+            "censored": 65,
+            "games": {
+              "bands": {"short": 0.520867, "long": 0.222719, "major": 0.256413},
+              "naive": {"short": 0.621951, "long": 0.243902, "major": 0.134146},
+              "median": 3,
+              "survival": [1, 0.7415, 0.5873, 0.4791, 0.3699, 0.3414, 0.3012, 0.2797, 0.2564, 0.2436, 0.2301, 0.2301, 0.2301, 0.2301, 0.2301, 0.2301, 0.2301, 0.2301]
+            },
+            "weeks": {
+              "bands": {"short": 0.490221, "long": 0.255741, "major": 0.254038},
+              "naive": {"short": 0.597561, "long": 0.262195, "major": 0.140244},
+              "median": 4,
+              "survival": [1, 0.7415, 0.6179, 0.5098, 0.4358, 0.345, 0.2971, 0.2872, 0.254, 0.2413, 0.2413, 0.2271, 0.2271, 0.2271, 0.2271, 0.2271, 0.2271, 0.2271]
+            }
+          },
+          "dayToDayShare": 0.241379,
+          "bodyParts": [
+            {"part": "ankle", "count": 33, "share": 0.20122},
+            {"part": "knee", "count": 33, "share": 0.20122},
+            {"part": "unknown", "count": 25, "share": 0.152439},
+            {"part": "back/neck", "count": 12, "share": 0.073171},
+            {"part": "calf/shin", "count": 8, "share": 0.04878},
+            {"part": "concussion/head", "count": 8, "share": 0.04878}
+          ]
+        },
+        {
+          "group": "DL",
+          "newTimeLoss": 135,
+          "afterPlayed": 128,
+          "playerGames": 3520,
+          "snaps": 123420,
+          "perPlayerGame": 0.038352,
+          "perTeamGame": 0.263672,
+          "per1000Snaps": 1.037109,
+          "durations": {
+            "n": 135,
+            "censored": 47,
+            "games": {
+              "bands": {"short": 0.623553, "long": 0.159417, "major": 0.21703},
+              "naive": {"short": 0.725926, "long": 0.17037, "major": 0.103704},
+              "median": 2,
+              "survival": [1, 0.6583, 0.4477, 0.3764, 0.3012, 0.2796, 0.2553, 0.217, 0.217, 0.217, 0.1776, 0.1776, 0.1776, 0.1776, 0.1776, 0.1776, 0.1776, 0.1776]
+            },
+            "weeks": {
+              "bands": {"short": 0.615065, "long": 0.172891, "major": 0.212044},
+              "naive": {"short": 0.718519, "long": 0.17037, "major": 0.111111},
+              "median": 2,
+              "survival": [1, 0.675, 0.4558, 0.3849, 0.3315, 0.2994, 0.2764, 0.2403, 0.212, 0.212, 0.212, 0.1649, 0.1649, 0.1649, 0.1649, 0.1649, 0.1649, 0.1649]
+            }
+          },
+          "dayToDayShare": 0.353234,
+          "bodyParts": [
+            {"part": "knee", "count": 22, "share": 0.162963},
+            {"part": "unknown", "count": 21, "share": 0.155556},
+            {"part": "ankle", "count": 19, "share": 0.140741},
+            {"part": "groin/hip", "count": 12, "share": 0.088889},
+            {"part": "shoulder", "count": 11, "share": 0.081481},
+            {"part": "calf/shin", "count": 9, "share": 0.066667}
+          ]
+        },
+        {
+          "group": "LB",
+          "newTimeLoss": 161,
+          "afterPlayed": 155,
+          "playerGames": 3494,
+          "snaps": 133309,
+          "perPlayerGame": 0.046079,
+          "perTeamGame": 0.314453,
+          "per1000Snaps": 1.162712,
+          "durations": {
+            "n": 161,
+            "censored": 54,
+            "games": {
+              "bands": {"short": 0.588943, "long": 0.149068, "major": 0.26199},
+              "naive": {"short": 0.664596, "long": 0.192547, "major": 0.142857},
+              "median": 3,
+              "survival": [1, 0.6159, 0.5329, 0.4111, 0.3535, 0.2828, 0.2734, 0.2734, 0.262, 0.2263, 0.2263, 0.2057, 0.2057, 0.2057, 0.2057, 0.2057, 0.2057, 0.2057]
+            },
+            "weeks": {
+              "bands": {"short": 0.559311, "long": 0.172125, "major": 0.268565},
+              "naive": {"short": 0.639752, "long": 0.21118, "major": 0.149068},
+              "median": 3,
+              "survival": [1, 0.6424, 0.5319, 0.4407, 0.3754, 0.323, 0.2782, 0.2686, 0.2686, 0.2574, 0.2206, 0.2206, 0.2006, 0.2006, 0.2006, 0.2006, 0.2006, 0.2006]
+            }
+          },
+          "dayToDayShare": 0.253589,
+          "bodyParts": [
+            {"part": "knee", "count": 26, "share": 0.161491},
+            {"part": "unknown", "count": 23, "share": 0.142857},
+            {"part": "ankle", "count": 21, "share": 0.130435},
+            {"part": "hamstring", "count": 20, "share": 0.124224},
+            {"part": "shoulder", "count": 13, "share": 0.080745},
+            {"part": "groin/hip", "count": 12, "share": 0.074534}
+          ]
+        },
+        {
+          "group": "DB",
+          "newTimeLoss": 242,
+          "afterPlayed": 232,
+          "playerGames": 4654,
+          "snaps": 205305,
+          "perPlayerGame": 0.051998,
+          "perTeamGame": 0.472656,
+          "per1000Snaps": 1.130026,
+          "durations": {
+            "n": 242,
+            "censored": 83,
+            "games": {
+              "bands": {"short": 0.604579, "long": 0.203333, "major": 0.192088},
+              "naive": {"short": 0.698347, "long": 0.206612, "major": 0.095041},
+              "median": 2,
+              "survival": [1, 0.6429, 0.4983, 0.3954, 0.3027, 0.2887, 0.2497, 0.2255, 0.1921, 0.1808, 0.1657, 0.1657, 0.1657, 0.1657, 0.1657, 0.1657, 0.1657, 0.1657]
+            },
+            "weeks": {
+              "bands": {"short": 0.582756, "long": 0.203448, "major": 0.213796},
+              "naive": {"short": 0.677686, "long": 0.214876, "major": 0.107438},
+              "median": 3,
+              "survival": [1, 0.6741, 0.5403, 0.4172, 0.3115, 0.2907, 0.2544, 0.2385, 0.2138, 0.1833, 0.1725, 0.1581, 0.1581, 0.1581, 0.1581, 0.1581, 0.1581, 0.1581]
+            }
+          },
+          "dayToDayShare": 0.287425,
+          "bodyParts": [
+            {"part": "unknown", "count": 37, "share": 0.152893},
+            {"part": "hamstring", "count": 28, "share": 0.115702},
+            {"part": "ankle", "count": 26, "share": 0.107438},
+            {"part": "concussion/head", "count": 22, "share": 0.090909},
+            {"part": "groin/hip", "count": 20, "share": 0.082645},
+            {"part": "foot/toe", "count": 19, "share": 0.078512}
+          ]
+        },
+        {
+          "group": "K/P",
+          "newTimeLoss": 14,
+          "afterPlayed": 13,
+          "playerGames": 1493,
+          "snaps": 12789,
+          "perPlayerGame": 0.009377,
+          "perTeamGame": 0.027344,
+          "per1000Snaps": 1.016499,
+          "durations": {
+            "n": 14,
+            "censored": 9,
+            "games": {
+              "bands": {"short": 0.181818, "long": 0.397403, "major": 0.420779},
+              "naive": {"short": 0.357143, "long": 0.428571, "major": 0.214286},
+              "median": 8,
+              "survival": [1, 1, 1, 0.8182, 0.7013, 0.7013, 0.7013, 0.561, 0.4208, 0.4208, 0.4208, 0.4208, 0.4208, 0.4208, 0.4208, 0.4208, 0.4208, 0.4208]
+            },
+            "weeks": {
+              "bands": {"short": 0.090909, "long": 0.37037, "major": 0.538721},
+              "naive": {"short": 0.285714, "long": 0.428571, "major": 0.285714},
+              "median": 9,
+              "survival": [1, 1, 1, 0.9091, 0.8081, 0.6734, 0.6734, 0.6734, 0.5387, 0.3591, 0.3591, 0.3591, 0.3591, 0.3591, 0.3591, 0.3591, 0.3591, 0.3591]
+            }
+          },
+          "dayToDayShare": 0.125,
+          "bodyParts": [
+            {"part": "unknown", "count": 7, "share": 0.5},
+            {"part": "groin/hip", "count": 4, "share": 0.285714},
+            {"part": "back/neck", "count": 1, "share": 0.071429},
+            {"part": "chest/ribs/abdomen", "count": 1, "share": 0.071429},
+            {"part": "hand/wrist", "count": 1, "share": 0.071429}
+          ]
+        }
+      ],
+      "bodyParts": [
+        {"part": "unknown", "count": 157, "share": 0.148674, "long": 0.279748, "major": 0.549781},
+        {"part": "knee", "count": 146, "share": 0.138258, "long": 0.174557, "major": 0.291707},
+        {"part": "ankle", "count": 141, "share": 0.133523, "long": 0.198852, "major": 0.083263},
+        {"part": "hamstring", "count": 97, "share": 0.091856, "long": 0.221113, "major": 0.016179},
+        {"part": "concussion/head", "count": 78, "share": 0.073864, "long": 0.120674, "major": 0.124445},
+        {"part": "groin/hip", "count": 76, "share": 0.07197, "long": 0.118222, "major": 0.161778},
+        {"part": "shoulder", "count": 69, "share": 0.065341, "long": 0.114684, "major": 0.222623},
+        {"part": "chest/ribs/abdomen", "count": 50, "share": 0.047348, "long": 0.084135, "major": 0.239939},
+        {"part": "foot/toe", "count": 49, "share": 0.046402, "long": 0.209326, "major": 0.243017},
+        {"part": "back/neck", "count": 45, "share": 0.042614, "long": 0.126642, "major": 0.211069},
+        {"part": "calf/shin", "count": 41, "share": 0.038826, "long": 0.376487, "major": 0.037649},
+        {"part": "quad/thigh", "count": 39, "share": 0.036932, "long": 0.368937, "major": 0},
+        {"part": "hand/wrist", "count": 33, "share": 0.03125, "long": 0.153535, "major": 0.102357},
+        {"part": "elbow/arm", "count": 21, "share": 0.019886, "long": 0.185185, "major": 0.111111},
+        {"part": "achilles", "count": 11, "share": 0.010417, "long": 0, "major": 0.375},
+        {"part": "other", "count": 3, "share": 0.002841, "long": 0, "major": 0.333333}
+      ],
+      "playThrough": {
+        "questionable": {"n": 1298, "yes": 915, "share": 0.704931},
+        "doubtful": {"n": 146, "yes": 1, "share": 0.006849},
+        "out": {"n": 658, "yes": 1, "share": 0.00152},
+        "newlyQuestionable": {"n": 673, "yes": 453, "share": 0.673105},
+        "limitedNoDesignation": {"n": 287, "yes": 273, "share": 0.95122},
+        "dnpNoDesignation": {"n": 33, "yes": 28, "share": 0.848485}
+      },
+      "episodes": {
+        "newAny": 1527,
+        "dayToDayAny": 513,
+        "dayToDayShareAny": 0.335953,
+        "newDesignated": 1409,
+        "dayToDayDesignated": 395,
+        "dayToDayShareDesignated": 0.280341,
+        "dayToDayDesignatedPerTeamGame": 0.771484
+      },
+      "allBands": {"dayToDay": 0.280341, "short": 0.427968, "long": 0.136349, "major": 0.155343},
+      "practiceHints": {
+        "playedIntervals": 23609,
+        "notPlayedIntervals": 2712,
+        "afterPlayedRate": 0.042992,
+        "afterNotPlayedRate": 0.015118,
+        "impliedNonGameShare": 0.376819,
+        "listingsAfterNotPlayedPerTeamSeason": 1.375,
+        "listingsAfterNotPlayedDnp": 22,
+        "episodeAfterPlayedRate": 0.062815,
+        "episodeAfterNotPlayedRate": 0.016224,
+        "episodeImpliedNonGameShare": 0.279657,
+        "outAtWeek1PerTeamSeason": 8.09375,
+        "outAtWeek1CarriedOver": 53,
+        "outAtWeek1New": 206,
+        "outAtWeek1Unknown": 0,
+        "outAtWeek1ByKind": {"INACTIVE": 48, "IR": 193, "PUP": 18},
+        "week1NewEpisodesPerTeamSeason": 7.53125,
+        "inSeasonNewEpisodesPerTeamInterval": 2.982422,
+        "postBye": {"intervals": 32, "onsets": 62, "rate": 1.9375, "otherIntervals": 480, "otherOnsets": 994, "otherRate": 2.070833},
+        "byeModel": {
+          "h": 0.677019,
+          "practicePerTeamInterval": 0.535507,
+          "practicePerTeamIntervalSe": 0.250049,
+          "practiceShare": 0.258595
+        }
+      },
+      "reserve": {
+        "irInSeasonPerTeamSeason": 15.53125,
+        "irAtWeek1PerTeamSeason": 6.03125,
+        "irInSeasonMin": 7,
+        "irInSeasonMax": 26,
+        "pupAtWeek1PerTeamSeason": 0.5625,
+        "nfiAtWeek1PerTeamSeason": 0.46875,
+        "nfiInSeasonPerTeamSeason": 0.0625,
+        "illnessPerTeamSeason": 1.5625,
+        "missing4PlusGamesNew": 10.15625,
+        "missing4PlusGamesAll": 15.875,
+        "missing4PlusWeeksAll": 16.71875
+      }
+    },
+    {
+      "seasons": [2022],
+      "teamSeasons": 32,
+      "teamGames": 542,
+      "teamIntervals": 510,
+      "timeLoss": {
+        "newFootball": 1063,
+        "perTeamGame": 2.084314,
+        "perTeamSeason": 33.21875,
+        "byOnset": {"afterPlayed": 1031, "afterNotPlayed": 32, "beforeSeason": 250, "unclear": 7},
+        "illness": 50,
+        "nfi": 1,
+        "perTeamGameAllCauses": 2.184314,
+        "straightToReserve": 298
+      },
+      "durations": {
+        "n": 1063,
+        "censored": 364,
+        "games": {
+          "bands": {"short": 0.594334, "long": 0.183251, "major": 0.222416},
+          "naive": {"short": 0.681091, "long": 0.211665, "major": 0.107244},
+          "median": 2,
+          "survival": [1, 0.6673, 0.4906, 0.4057, 0.3227, 0.2881, 0.2621, 0.2283, 0.2224, 0.2089, 0.2037, 0.2004, 0.196, 0.196, 0.1866, 0.1866, 0.1866, 0.1866]
+        },
+        "weeks": {
+          "bands": {"short": 0.582114, "long": 0.198355, "major": 0.219531},
+          "naive": {"short": 0.668862, "long": 0.215428, "major": 0.11571},
+          "median": 3,
+          "survival": [1, 0.7001, 0.5188, 0.4179, 0.3499, 0.2978, 0.2742, 0.2499, 0.2195, 0.2114, 0.2025, 0.1973, 0.194, 0.1898, 0.1898, 0.1815, 0.1815, 0.1815]
+        }
+      },
+      "groups": [
+        {
+          "group": "QB",
+          "newTimeLoss": 39,
+          "afterPlayed": 37,
+          "playerGames": 604,
+          "snaps": 33516,
+          "perPlayerGame": 0.06457,
+          "perTeamGame": 0.076471,
+          "per1000Snaps": 1.10395,
+          "durations": {
+            "n": 39,
+            "censored": 16,
+            "games": {
+              "bands": {"short": 0.579832, "long": 0.252101, "major": 0.168067},
+              "naive": {"short": 0.692308, "long": 0.25641, "major": 0.051282},
+              "median": 2,
+              "survival": [1, 0.7353, 0.4902, 0.4202, 0.3782, 0.2521, 0.2521, 0.1681, 0.1681, 0.1681, 0.1681, 0.1681, 0.1681, 0.1681, 0.1681, 0.1681, 0.1681, 0.1681]
+            },
+            "weeks": {
+              "bands": {"short": 0.584, "long": 0.244846, "major": 0.171154},
+              "naive": {"short": 0.692308, "long": 0.25641, "major": 0.051282},
+              "median": 3,
+              "survival": [1, 0.7647, 0.52, 0.416, 0.3744, 0.3209, 0.2567, 0.2567, 0.1712, 0.1712, 0.1712, 0.1712, 0.1712, 0.1712, 0.1712, 0.1712, 0.1712, 0.1712]
+            }
+          },
+          "dayToDayShare": 0.133333,
+          "bodyParts": [
+            {"part": "concussion/head", "count": 9, "share": 0.230769},
+            {"part": "ankle", "count": 5, "share": 0.128205},
+            {"part": "back/neck", "count": 4, "share": 0.102564},
+            {"part": "chest/ribs/abdomen", "count": 4, "share": 0.102564},
+            {"part": "shoulder", "count": 4, "share": 0.102564},
+            {"part": "hand/wrist", "count": 3, "share": 0.076923}
+          ]
+        },
+        {
+          "group": "RB",
+          "newTimeLoss": 80,
+          "afterPlayed": 80,
+          "playerGames": 1839,
+          "snaps": 49450,
+          "perPlayerGame": 0.043502,
+          "perTeamGame": 0.156863,
+          "per1000Snaps": 1.617796,
+          "durations": {
+            "n": 80,
+            "censored": 23,
+            "games": {
+              "bands": {"short": 0.562909, "long": 0.245909, "major": 0.191182},
+              "naive": {"short": 0.625, "long": 0.2625, "major": 0.1125},
+              "median": 3,
+              "survival": [1, 0.6753, 0.5099, 0.4371, 0.3026, 0.269, 0.251, 0.2124, 0.1912, 0.1912, 0.1593, 0.1593, 0.1593, 0.1593, 0.1593, 0.1593, 0.1593, 0.1593]
+            },
+            "weeks": {
+              "bands": {"short": 0.550179, "long": 0.240381, "major": 0.20944},
+              "naive": {"short": 0.6125, "long": 0.25, "major": 0.1375},
+              "median": 3,
+              "survival": [1, 0.6883, 0.5369, 0.4498, 0.3665, 0.2666, 0.2666, 0.2475, 0.2094, 0.1885, 0.1885, 0.1571, 0.1571, 0.1571, 0.1571, 0.1571, 0.1571, 0.1571]
+            }
+          },
+          "dayToDayShare": 0.309735,
+          "bodyParts": [
+            {"part": "unknown", "count": 18, "share": 0.225},
+            {"part": "knee", "count": 17, "share": 0.2125},
+            {"part": "ankle", "count": 15, "share": 0.1875},
+            {"part": "chest/ribs/abdomen", "count": 6, "share": 0.075},
+            {"part": "groin/hip", "count": 6, "share": 0.075},
+            {"part": "hamstring", "count": 6, "share": 0.075}
+          ]
+        },
+        {
+          "group": "WR",
+          "newTimeLoss": 139,
+          "afterPlayed": 137,
+          "playerGames": 2568,
+          "snaps": 94328,
+          "perPlayerGame": 0.054128,
+          "perTeamGame": 0.272549,
+          "per1000Snaps": 1.452379,
+          "durations": {
+            "n": 139,
+            "censored": 39,
+            "games": {
+              "bands": {"short": 0.620608, "long": 0.164787, "major": 0.214606},
+              "naive": {"short": 0.669065, "long": 0.230216, "major": 0.100719},
+              "median": 2,
+              "survival": [1, 0.6466, 0.4619, 0.3794, 0.2951, 0.2361, 0.2146, 0.2146, 0.2146, 0.2146, 0.2146, 0.2146, 0.2146, 0.2146, 0.1073, 0.1073, 0.1073, 0.1073]
+            },
+            "weeks": {
+              "bands": {"short": 0.605375, "long": 0.184499, "major": 0.210126},
+              "naive": {"short": 0.654676, "long": 0.244604, "major": 0.100719},
+              "median": 2,
+              "survival": [1, 0.7068, 0.4686, 0.3946, 0.3442, 0.2326, 0.2225, 0.2101, 0.2101, 0.2101, 0.2101, 0.2101, 0.2101, 0.2101, 0.2101, 0.1051, 0.1051, 0.1051]
+            }
+          },
+          "dayToDayShare": 0.304813,
+          "bodyParts": [
+            {"part": "hamstring", "count": 30, "share": 0.215827},
+            {"part": "knee", "count": 21, "share": 0.151079},
+            {"part": "ankle", "count": 16, "share": 0.115108},
+            {"part": "concussion/head", "count": 16, "share": 0.115108},
+            {"part": "foot/toe", "count": 12, "share": 0.086331},
+            {"part": "groin/hip", "count": 11, "share": 0.079137}
+          ]
+        },
+        {
+          "group": "TE",
+          "newTimeLoss": 62,
+          "afterPlayed": 62,
+          "playerGames": 1589,
+          "snaps": 55946,
+          "perPlayerGame": 0.039018,
+          "perTeamGame": 0.121569,
+          "per1000Snaps": 1.108211,
+          "durations": {
+            "n": 62,
+            "censored": 16,
+            "games": {
+              "bands": {"short": 0.701002, "long": 0.151071, "major": 0.147927},
+              "naive": {"short": 0.774194, "long": 0.145161, "major": 0.080645},
+              "median": 2,
+              "survival": [1, 0.6271, 0.4058, 0.299, 0.2563, 0.233, 0.2071, 0.1775, 0.1479, 0.1183, 0.1183, 0.1183, 0.1183, 0.1183, 0.1183, 0.1183, 0.1183, 0.1183]
+            },
+            "weeks": {
+              "bands": {"short": 0.666847, "long": 0.189932, "major": 0.14322},
+              "naive": {"short": 0.741935, "long": 0.177419, "major": 0.080645},
+              "median": 2,
+              "survival": [1, 0.678, 0.4581, 0.3332, 0.2707, 0.2256, 0.2256, 0.2005, 0.1432, 0.1146, 0.1146, 0.1146, 0.1146, 0.1146, 0.1146, 0.1146, 0.1146, 0.1146]
+            }
+          },
+          "dayToDayShare": 0.333333,
+          "bodyParts": [
+            {"part": "ankle", "count": 10, "share": 0.16129},
+            {"part": "concussion/head", "count": 10, "share": 0.16129},
+            {"part": "knee", "count": 10, "share": 0.16129},
+            {"part": "hamstring", "count": 7, "share": 0.112903},
+            {"part": "calf/shin", "count": 5, "share": 0.080645},
+            {"part": "unknown", "count": 4, "share": 0.064516}
+          ]
+        },
+        {
+          "group": "OL",
+          "newTimeLoss": 179,
+          "afterPlayed": 170,
+          "playerGames": 3748,
+          "snaps": 178043,
+          "perPlayerGame": 0.047759,
+          "perTeamGame": 0.35098,
+          "per1000Snaps": 0.954826,
+          "durations": {
+            "n": 179,
+            "censored": 70,
+            "games": {
+              "bands": {"short": 0.534201, "long": 0.201573, "major": 0.264225},
+              "naive": {"short": 0.653631, "long": 0.201117, "major": 0.145251},
+              "median": 3,
+              "survival": [1, 0.679, 0.5259, 0.4658, 0.3534, 0.3197, 0.2842, 0.2744, 0.2642, 0.2402, 0.2402, 0.2402, 0.2402, 0.2402, 0.2402, 0.2402, 0.2402, 0.2402]
+            },
+            "weeks": {
+              "bands": {"short": 0.531259, "long": 0.201695, "major": 0.267046},
+              "naive": {"short": 0.648045, "long": 0.195531, "major": 0.156425},
+              "median": 3,
+              "survival": [1, 0.6975, 0.558, 0.4687, 0.3972, 0.3476, 0.3052, 0.2766, 0.267, 0.2448, 0.2331, 0.2331, 0.2331, 0.2331, 0.2331, 0.2331, 0.2331, 0.2331]
+            }
+          },
+          "dayToDayShare": 0.281513,
+          "bodyParts": [
+            {"part": "ankle", "count": 36, "share": 0.201117},
+            {"part": "knee", "count": 31, "share": 0.173184},
+            {"part": "unknown", "count": 22, "share": 0.122905},
+            {"part": "concussion/head", "count": 18, "share": 0.100559},
+            {"part": "back/neck", "count": 13, "share": 0.072626},
+            {"part": "foot/toe", "count": 13, "share": 0.072626}
+          ]
+        },
+        {
+          "group": "DL",
+          "newTimeLoss": 146,
+          "afterPlayed": 134,
+          "playerGames": 3467,
+          "snaps": 119610,
+          "perPlayerGame": 0.042111,
+          "perTeamGame": 0.286275,
+          "per1000Snaps": 1.120308,
+          "durations": {
+            "n": 146,
+            "censored": 49,
+            "games": {
+              "bands": {"short": 0.604127, "long": 0.194057, "major": 0.201816},
+              "naive": {"short": 0.691781, "long": 0.219178, "major": 0.089041},
+              "median": 2,
+              "survival": [1, 0.637, 0.4926, 0.3959, 0.3229, 0.3122, 0.2775, 0.2018, 0.2018, 0.1615, 0.1615, 0.1384, 0.1384, 0.1384, 0.1384, 0.1384, 0.1384, 0.1384]
+            },
+            "weeks": {
+              "bands": {"short": 0.590086, "long": 0.2246, "major": 0.185314},
+              "naive": {"short": 0.678082, "long": 0.232877, "major": 0.089041},
+              "median": 2,
+              "survival": [1, 0.6741, 0.4971, 0.4099, 0.3279, 0.3174, 0.2955, 0.2708, 0.1853, 0.1853, 0.1483, 0.1483, 0.1271, 0.1271, 0.1271, 0.1271, 0.1271, 0.1271]
+            }
+          },
+          "dayToDayShare": 0.286432,
+          "bodyParts": [
+            {"part": "knee", "count": 27, "share": 0.184932},
+            {"part": "ankle", "count": 24, "share": 0.164384},
+            {"part": "unknown", "count": 23, "share": 0.157534},
+            {"part": "calf/shin", "count": 14, "share": 0.09589},
+            {"part": "back/neck", "count": 9, "share": 0.061644},
+            {"part": "concussion/head", "count": 7, "share": 0.047945}
+          ]
+        },
+        {
+          "group": "LB",
+          "newTimeLoss": 132,
+          "afterPlayed": 130,
+          "playerGames": 3533,
+          "snaps": 136417,
+          "perPlayerGame": 0.037362,
+          "perTeamGame": 0.258824,
+          "per1000Snaps": 0.95296,
+          "durations": {
+            "n": 132,
+            "censored": 50,
+            "games": {
+              "bands": {"short": 0.568721, "long": 0.174118, "major": 0.257161},
+              "naive": {"short": 0.659091, "long": 0.219697, "major": 0.121212},
+              "median": 3,
+              "survival": [1, 0.7049, 0.5175, 0.4313, 0.4092, 0.3472, 0.3343, 0.2572, 0.2572, 0.2388, 0.2388, 0.2388, 0.2047, 0.2047, 0.2047, 0.2047, 0.2047, 0.2047]
+            },
+            "weeks": {
+              "bands": {"short": 0.553126, "long": 0.19803, "major": 0.248843},
+              "naive": {"short": 0.643939, "long": 0.219697, "major": 0.136364},
+              "median": 3,
+              "survival": [1, 0.7398, 0.5705, 0.4469, 0.4142, 0.3787, 0.3282, 0.2903, 0.2488, 0.2488, 0.2297, 0.2297, 0.2297, 0.1969, 0.1969, 0.1969, 0.1969, 0.1969]
+            }
+          },
+          "dayToDayShare": 0.282486,
+          "bodyParts": [
+            {"part": "ankle", "count": 19, "share": 0.143939},
+            {"part": "hamstring", "count": 19, "share": 0.143939},
+            {"part": "knee", "count": 15, "share": 0.113636},
+            {"part": "unknown", "count": 15, "share": 0.113636},
+            {"part": "groin/hip", "count": 14, "share": 0.106061},
+            {"part": "back/neck", "count": 10, "share": 0.075758}
+          ]
+        },
+        {
+          "group": "DB",
+          "newTimeLoss": 268,
+          "afterPlayed": 264,
+          "playerGames": 4577,
+          "snaps": 199718,
+          "perPlayerGame": 0.058554,
+          "perTeamGame": 0.52549,
+          "per1000Snaps": 1.321864,
+          "durations": {
+            "n": 268,
+            "censored": 92,
+            "games": {
+              "bands": {"short": 0.628334, "long": 0.15295, "major": 0.218716},
+              "naive": {"short": 0.716418, "long": 0.186567, "major": 0.097015},
+              "median": 2,
+              "survival": [1, 0.6599, 0.4695, 0.3717, 0.2825, 0.2707, 0.2392, 0.2187, 0.2187, 0.2187, 0.2088, 0.2088, 0.2088, 0.2088, 0.2088, 0.2088, 0.2088, 0.2088]
+            },
+            "weeks": {
+              "bands": {"short": 0.617048, "long": 0.168901, "major": 0.214051},
+              "naive": {"short": 0.705224, "long": 0.186567, "major": 0.108209},
+              "median": 3,
+              "survival": [1, 0.6883, 0.5041, 0.383, 0.2995, 0.2674, 0.255, 0.2288, 0.2141, 0.2141, 0.2141, 0.2039, 0.2039, 0.2039, 0.2039, 0.2039, 0.2039, 0.2039]
+            }
+          },
+          "dayToDayShare": 0.251445,
+          "bodyParts": [
+            {"part": "hamstring", "count": 48, "share": 0.179104},
+            {"part": "knee", "count": 30, "share": 0.11194},
+            {"part": "unknown", "count": 30, "share": 0.11194},
+            {"part": "concussion/head", "count": 29, "share": 0.108209},
+            {"part": "ankle", "count": 28, "share": 0.104478},
+            {"part": "groin/hip", "count": 26, "share": 0.097015}
+          ]
+        },
+        {
+          "group": "K/P",
+          "newTimeLoss": 18,
+          "afterPlayed": 17,
+          "playerGames": 1501,
+          "snaps": 12923,
+          "perPlayerGame": 0.011992,
+          "perTeamGame": 0.035294,
+          "per1000Snaps": 1.315484,
+          "durations": {
+            "n": 18,
+            "censored": 9,
+            "games": {
+              "bands": {"short": 0.369118, "long": 0.236581, "major": 0.394301},
+              "naive": {"short": 0.5, "long": 0.333333, "major": 0.166667},
+              "median": 4,
+              "survival": [1, 0.7647, 0.701, 0.6309, 0.4732, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943]
+            },
+            "weeks": {
+              "bands": {"short": 0.369118, "long": 0.236581, "major": 0.394301},
+              "naive": {"short": 0.5, "long": 0.333333, "major": 0.166667},
+              "median": 5,
+              "survival": [1, 0.7647, 0.701, 0.6309, 0.552, 0.4732, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943, 0.3943]
+            }
+          },
+          "dayToDayShare": 0.190476,
+          "bodyParts": [
+            {"part": "unknown", "count": 5, "share": 0.277778},
+            {"part": "groin/hip", "count": 4, "share": 0.222222},
+            {"part": "ankle", "count": 3, "share": 0.166667},
+            {"part": "calf/shin", "count": 2, "share": 0.111111},
+            {"part": "back/neck", "count": 1, "share": 0.055556},
+            {"part": "hamstring", "count": 1, "share": 0.055556}
+          ]
+        }
+      ],
+      "bodyParts": [
+        {"part": "ankle", "count": 156, "share": 0.146754, "long": 0.167613, "major": 0.138471},
+        {"part": "knee", "count": 154, "share": 0.144873, "long": 0.256345, "major": 0.22721},
+        {"part": "unknown", "count": 127, "share": 0.119473, "long": 0.313193, "major": 0.686807},
+        {"part": "hamstring", "count": 121, "share": 0.113829, "long": 0.186521, "major": 0.114156},
+        {"part": "concussion/head", "count": 102, "share": 0.095955, "long": 0.051178, "major": 0.112591},
+        {"part": "groin/hip", "count": 77, "share": 0.072437, "long": 0.090686, "major": 0.181373},
+        {"part": "back/neck", "count": 62, "share": 0.058325, "long": 0.04973, "major": 0.348113},
+        {"part": "chest/ribs/abdomen", "count": 44, "share": 0.041392, "long": 0.127253, "major": 0.19088},
+        {"part": "calf/shin", "count": 42, "share": 0.039511, "long": 0.317885, "major": 0},
+        {"part": "foot/toe", "count": 41, "share": 0.03857, "long": 0.266987, "major": 0.271512},
+        {"part": "shoulder", "count": 41, "share": 0.03857, "long": 0.05991, "major": 0.05991},
+        {"part": "hand/wrist", "count": 34, "share": 0.031985, "long": 0.216725, "major": 0.07929},
+        {"part": "quad/thigh", "count": 29, "share": 0.027281, "long": 0.206897, "major": 0},
+        {"part": "elbow/arm", "count": 22, "share": 0.020696, "long": 0.132653, "major": 0.221088},
+        {"part": "other", "count": 6, "share": 0.005644, "long": 0.222222, "major": 0.222222},
+        {"part": "achilles", "count": 5, "share": 0.004704, "long": 0, "major": 0.6}
+      ],
+      "playThrough": {
+        "questionable": {"n": 1310, "yes": 868, "share": 0.662595},
+        "doubtful": {"n": 140, "yes": 0, "share": 0},
+        "out": {"n": 891, "yes": 0, "share": 0},
+        "newlyQuestionable": {"n": 659, "yes": 446, "share": 0.676783},
+        "limitedNoDesignation": {"n": 211, "yes": 205, "share": 0.971564},
+        "dnpNoDesignation": {"n": 16, "yes": 15, "share": 0.9375}
+      },
+      "episodes": {
+        "newAny": 1497,
+        "dayToDayAny": 474,
+        "dayToDayShareAny": 0.316633,
+        "newDesignated": 1416,
+        "dayToDayDesignated": 393,
+        "dayToDayShareDesignated": 0.277542,
+        "dayToDayDesignatedPerTeamGame": 0.770588
+      },
+      "allBands": {"dayToDay": 0.277542, "short": 0.429381, "long": 0.132391, "major": 0.160686},
+      "practiceHints": {
+        "playedIntervals": 23426,
+        "notPlayedIntervals": 2811,
+        "afterPlayedRate": 0.044011,
+        "afterNotPlayedRate": 0.011384,
+        "impliedNonGameShare": 0.280977,
+        "listingsAfterNotPlayedPerTeamSeason": 1.25,
+        "listingsAfterNotPlayedDnp": 19,
+        "episodeAfterPlayedRate": 0.062196,
+        "episodeAfterNotPlayedRate": 0.01423,
+        "episodeImpliedNonGameShare": 0.249397,
+        "outAtWeek1PerTeamSeason": 7.8125,
+        "outAtWeek1CarriedOver": 58,
+        "outAtWeek1New": 192,
+        "outAtWeek1Unknown": 0,
+        "outAtWeek1ByKind": {"ACTIVE": 1, "INACTIVE": 53, "IR": 164, "PUP": 32},
+        "week1NewEpisodesPerTeamSeason": 6.78125,
+        "inSeasonNewEpisodesPerTeamInterval": 2.935294,
+        "postBye": {"intervals": 34, "onsets": 51, "rate": 1.5, "otherIntervals": 476, "otherOnsets": 1012, "otherRate": 2.12605},
+        "byeModel": {
+          "h": 0.700101,
+          "practicePerTeamInterval": 0.011549,
+          "practicePerTeamIntervalSe": 0.21519,
+          "practiceShare": 0.005432
+        }
+      },
+      "reserve": {
+        "irInSeasonPerTeamSeason": 11.71875,
+        "irAtWeek1PerTeamSeason": 5.125,
+        "irInSeasonMin": 5,
+        "irInSeasonMax": 26,
+        "pupAtWeek1PerTeamSeason": 1,
+        "nfiAtWeek1PerTeamSeason": 0.375,
+        "nfiInSeasonPerTeamSeason": 0.03125,
+        "illnessPerTeamSeason": 1.5625,
+        "missing4PlusGamesNew": 10.375,
+        "missing4PlusGamesAll": 15.875,
+        "missing4PlusWeeksAll": 16.21875
+      }
+    },
+    {
+      "seasons": [2023],
+      "teamSeasons": 32,
+      "teamGames": 544,
+      "teamIntervals": 512,
+      "timeLoss": {
+        "newFootball": 994,
+        "perTeamGame": 1.941406,
+        "perTeamSeason": 31.0625,
+        "byOnset": {"afterPlayed": 953, "afterNotPlayed": 41, "beforeSeason": 239, "unclear": 6},
+        "illness": 38,
+        "nfi": 1,
+        "perTeamGameAllCauses": 2.017578,
+        "straightToReserve": 268
+      },
+      "durations": {
+        "n": 994,
+        "censored": 321,
+        "games": {
+          "bands": {"short": 0.634054, "long": 0.169034, "major": 0.196912},
+          "naive": {"short": 0.716298, "long": 0.194165, "major": 0.089537},
+          "median": 2,
+          "survival": [1, 0.6209, 0.449, 0.3659, 0.2911, 0.2519, 0.2278, 0.208, 0.1969, 0.186, 0.1767, 0.1767, 0.1767, 0.1706, 0.1616, 0.1436, 0.1436, 0.1436]
+        },
+        "weeks": {
+          "bands": {"short": 0.618199, "long": 0.181359, "major": 0.200442},
+          "naive": {"short": 0.701207, "long": 0.201207, "major": 0.097586},
+          "median": 2,
+          "survival": [1, 0.6538, 0.4744, 0.3818, 0.3066, 0.2636, 0.2376, 0.2108, 0.2004, 0.1882, 0.1768, 0.1677, 0.1677, 0.1677, 0.1619, 0.1534, 0.1363, 0.1363]
+        }
+      },
+      "groups": [
+        {
+          "group": "QB",
+          "newTimeLoss": 38,
+          "afterPlayed": 34,
+          "playerGames": 656,
+          "snaps": 34322,
+          "perPlayerGame": 0.057927,
+          "perTeamGame": 0.074219,
+          "per1000Snaps": 0.990618,
+          "durations": {
+            "n": 38,
+            "censored": 12,
+            "games": {
+              "bands": {"short": 0.642735, "long": 0.14886, "major": 0.208405},
+              "naive": {"short": 0.710526, "long": 0.210526, "major": 0.078947},
+              "median": 2,
+              "survival": [1, 0.5429, 0.4222, 0.3573, 0.2501, 0.2501, 0.2501, 0.2084, 0.2084, 0.2084, 0.2084, 0.2084, 0.2084, 0.2084, 0.2084, 0.2084, 0.2084, 0.2084]
+            },
+            "weeks": {
+              "bands": {"short": 0.645542, "long": 0.147691, "major": 0.206767},
+              "naive": {"short": 0.710526, "long": 0.184211, "major": 0.105263},
+              "median": 2,
+              "survival": [1, 0.5714, 0.4511, 0.3545, 0.2836, 0.2481, 0.2481, 0.2068, 0.2068, 0.2068, 0.2068, 0.2068, 0.2068, 0.2068, 0.2068, 0.2068, 0.2068, 0.2068]
+            }
+          },
+          "dayToDayShare": 0.229167,
+          "bodyParts": [
+            {"part": "ankle", "count": 7, "share": 0.184211},
+            {"part": "concussion/head", "count": 6, "share": 0.157895},
+            {"part": "shoulder", "count": 5, "share": 0.131579},
+            {"part": "back/neck", "count": 4, "share": 0.105263},
+            {"part": "hand/wrist", "count": 4, "share": 0.105263},
+            {"part": "foot/toe", "count": 2, "share": 0.052632}
+          ]
+        },
+        {
+          "group": "RB",
+          "newTimeLoss": 82,
+          "afterPlayed": 80,
+          "playerGames": 1709,
+          "snaps": 46885,
+          "perPlayerGame": 0.047981,
+          "perTeamGame": 0.160156,
+          "per1000Snaps": 1.706303,
+          "durations": {
+            "n": 82,
+            "censored": 25,
+            "games": {
+              "bands": {"short": 0.603469, "long": 0.225413, "major": 0.171118},
+              "naive": {"short": 0.682927, "long": 0.219512, "major": 0.097561},
+              "median": 3,
+              "survival": [1, 0.6711, 0.5033, 0.3965, 0.2696, 0.2528, 0.2528, 0.2139, 0.1711, 0.1711, 0.1711, 0.1711, 0.1711, 0.1711, 0.1711, 0.1711, 0.1711, 0.1711]
+            },
+            "weeks": {
+              "bands": {"short": 0.590648, "long": 0.199003, "major": 0.210349},
+              "naive": {"short": 0.670732, "long": 0.195122, "major": 0.134146},
+              "median": 3,
+              "survival": [1, 0.7105, 0.5155, 0.4094, 0.3149, 0.2486, 0.2486, 0.2486, 0.2103, 0.1683, 0.1683, 0.1683, 0.1683, 0.1683, 0.1683, 0.1683, 0.1683, 0.1683]
+            }
+          },
+          "dayToDayShare": 0.338983,
+          "bodyParts": [
+            {"part": "ankle", "count": 16, "share": 0.195122},
+            {"part": "hamstring", "count": 13, "share": 0.158537},
+            {"part": "knee", "count": 12, "share": 0.146341},
+            {"part": "unknown", "count": 7, "share": 0.085366},
+            {"part": "concussion/head", "count": 6, "share": 0.073171},
+            {"part": "hand/wrist", "count": 5, "share": 0.060976}
+          ]
+        },
+        {
+          "group": "WR",
+          "newTimeLoss": 126,
+          "afterPlayed": 124,
+          "playerGames": 2700,
+          "snaps": 97875,
+          "perPlayerGame": 0.046667,
+          "perTeamGame": 0.246094,
+          "per1000Snaps": 1.266922,
+          "durations": {
+            "n": 126,
+            "censored": 35,
+            "games": {
+              "bands": {"short": 0.662656, "long": 0.256528, "major": 0.080816},
+              "naive": {"short": 0.738095, "long": 0.230159, "major": 0.031746},
+              "median": 2,
+              "survival": [1, 0.5664, 0.4293, 0.3373, 0.2559, 0.1886, 0.1414, 0.101, 0.0808, 0.0808, 0.0808, 0.0808, 0.0808, 0.0808, 0.0808, 0.0808, 0.0808, 0.0808]
+            },
+            "weeks": {
+              "bands": {"short": 0.63395, "long": 0.275264, "major": 0.090786},
+              "naive": {"short": 0.714286, "long": 0.246032, "major": 0.039683},
+              "median": 2,
+              "survival": [1, 0.5752, 0.4474, 0.366, 0.286, 0.208, 0.1634, 0.1089, 0.0908, 0.0726, 0.0726, 0.0726, 0.0726, 0.0726, 0.0726, 0.0726, 0.0726, 0.0726]
+            }
+          },
+          "dayToDayShare": 0.336898,
+          "bodyParts": [
+            {"part": "hamstring", "count": 20, "share": 0.15873},
+            {"part": "concussion/head", "count": 19, "share": 0.150794},
+            {"part": "ankle", "count": 17, "share": 0.134921},
+            {"part": "knee", "count": 16, "share": 0.126984},
+            {"part": "shoulder", "count": 12, "share": 0.095238},
+            {"part": "chest/ribs/abdomen", "count": 8, "share": 0.063492}
+          ]
+        },
+        {
+          "group": "TE",
+          "newTimeLoss": 61,
+          "afterPlayed": 58,
+          "playerGames": 1537,
+          "snaps": 54291,
+          "perPlayerGame": 0.039688,
+          "perTeamGame": 0.119141,
+          "per1000Snaps": 1.068317,
+          "durations": {
+            "n": 61,
+            "censored": 23,
+            "games": {
+              "bands": {"short": 0.561901, "long": 0.212607, "major": 0.225492},
+              "naive": {"short": 0.688525, "long": 0.245902, "major": 0.065574},
+              "median": 3,
+              "survival": [1, 0.6949, 0.5303, 0.4381, 0.3866, 0.2706, 0.2255, 0.2255, 0.2255, 0.1691, 0.1691, 0.1691, 0.1691, 0.1691, 0.1691, 0.1691, 0.1691, 0.1691]
+            },
+            "weeks": {
+              "bands": {"short": 0.566493, "long": 0.210958, "major": 0.222549},
+              "naive": {"short": 0.688525, "long": 0.245902, "major": 0.065574},
+              "median": 3,
+              "survival": [1, 0.7119, 0.5476, 0.4335, 0.408, 0.3709, 0.2225, 0.2225, 0.2225, 0.2225, 0.1484, 0.1484, 0.1484, 0.1484, 0.1484, 0.1484, 0.1484, 0.1484]
+            }
+          },
+          "dayToDayShare": 0.333333,
+          "bodyParts": [
+            {"part": "concussion/head", "count": 9, "share": 0.147541},
+            {"part": "hamstring", "count": 9, "share": 0.147541},
+            {"part": "ankle", "count": 8, "share": 0.131148},
+            {"part": "shoulder", "count": 6, "share": 0.098361},
+            {"part": "unknown", "count": 6, "share": 0.098361},
+            {"part": "back/neck", "count": 5, "share": 0.081967}
+          ]
+        },
+        {
+          "group": "OL",
+          "newTimeLoss": 184,
+          "afterPlayed": 170,
+          "playerGames": 3802,
+          "snaps": 179320,
+          "perPlayerGame": 0.048396,
+          "perTeamGame": 0.359375,
+          "per1000Snaps": 0.948026,
+          "durations": {
+            "n": 184,
+            "censored": 64,
+            "games": {
+              "bands": {"short": 0.636238, "long": 0.131184, "major": 0.232578},
+              "naive": {"short": 0.711957, "long": 0.173913, "major": 0.11413},
+              "median": 2,
+              "survival": [1, 0.6606, 0.453, 0.3638, 0.2983, 0.2822, 0.264, 0.2437, 0.2326, 0.2189, 0.2021, 0.2021, 0.2021, 0.2021, 0.2021, 0.2021, 0.2021, 0.2021]
+            },
+            "weeks": {
+              "bands": {"short": 0.624691, "long": 0.135793, "major": 0.239516},
+              "naive": {"short": 0.701087, "long": 0.173913, "major": 0.125},
+              "median": 2,
+              "survival": [1, 0.6788, 0.4777, 0.3753, 0.2959, 0.2879, 0.2699, 0.2499, 0.2395, 0.2269, 0.2118, 0.1955, 0.1955, 0.1955, 0.1955, 0.1955, 0.1955, 0.1955]
+            }
+          },
+          "dayToDayShare": 0.288066,
+          "bodyParts": [
+            {"part": "knee", "count": 36, "share": 0.195652},
+            {"part": "ankle", "count": 28, "share": 0.152174},
+            {"part": "back/neck", "count": 17, "share": 0.092391},
+            {"part": "concussion/head", "count": 16, "share": 0.086957},
+            {"part": "unknown", "count": 16, "share": 0.086957},
+            {"part": "calf/shin", "count": 14, "share": 0.076087}
+          ]
+        },
+        {
+          "group": "DL",
+          "newTimeLoss": 111,
+          "afterPlayed": 105,
+          "playerGames": 3557,
+          "snaps": 121727,
+          "perPlayerGame": 0.031206,
+          "perTeamGame": 0.216797,
+          "per1000Snaps": 0.862586,
+          "durations": {
+            "n": 111,
+            "censored": 38,
+            "games": {
+              "bands": {"short": 0.575801, "long": 0.190774, "major": 0.233425},
+              "naive": {"short": 0.675676, "long": 0.216216, "major": 0.108108},
+              "median": 2,
+              "survival": [1, 0.6058, 0.4595, 0.4242, 0.3447, 0.2697, 0.2529, 0.2334, 0.2334, 0.2334, 0.2001, 0.2001, 0.2001, 0.2001, 0.2001, 0.1334, 0.1334, 0.1334]
+            },
+            "weeks": {
+              "bands": {"short": 0.569165, "long": 0.205234, "major": 0.225601},
+              "naive": {"short": 0.666667, "long": 0.225225, "major": 0.108108},
+              "median": 2,
+              "survival": [1, 0.6538, 0.4774, 0.4308, 0.3656, 0.3071, 0.2632, 0.2256, 0.2256, 0.2256, 0.2256, 0.1934, 0.1934, 0.1934, 0.1934, 0.1934, 0.1289, 0.1289]
+            }
+          },
+          "dayToDayShare": 0.335366,
+          "bodyParts": [
+            {"part": "knee", "count": 27, "share": 0.243243},
+            {"part": "ankle", "count": 13, "share": 0.117117},
+            {"part": "shoulder", "count": 12, "share": 0.108108},
+            {"part": "unknown", "count": 10, "share": 0.09009},
+            {"part": "foot/toe", "count": 9, "share": 0.081081},
+            {"part": "groin/hip", "count": 9, "share": 0.081081}
+          ]
+        },
+        {
+          "group": "LB",
+          "newTimeLoss": 134,
+          "afterPlayed": 129,
+          "playerGames": 3525,
+          "snaps": 136553,
+          "perPlayerGame": 0.038014,
+          "perTeamGame": 0.261719,
+          "per1000Snaps": 0.944688,
+          "durations": {
+            "n": 134,
+            "censored": 41,
+            "games": {
+              "bands": {"short": 0.669803, "long": 0.121377, "major": 0.20882},
+              "naive": {"short": 0.731343, "long": 0.171642, "major": 0.097015},
+              "median": 2,
+              "survival": [1, 0.616, 0.4219, 0.3302, 0.2401, 0.2088, 0.2088, 0.2088, 0.2088, 0.2088, 0.2088, 0.2088, 0.2088, 0.2088, 0.2088, 0.2088, 0.2088, 0.2088]
+            },
+            "weeks": {
+              "bands": {"short": 0.644769, "long": 0.151266, "major": 0.203965},
+              "naive": {"short": 0.708955, "long": 0.19403, "major": 0.097015},
+              "median": 2,
+              "survival": [1, 0.64, 0.4463, 0.3552, 0.2664, 0.2254, 0.204, 0.204, 0.204, 0.204, 0.204, 0.204, 0.204, 0.204, 0.204, 0.204, 0.204, 0.204]
+            }
+          },
+          "dayToDayShare": 0.353234,
+          "bodyParts": [
+            {"part": "knee", "count": 24, "share": 0.179104},
+            {"part": "hamstring", "count": 19, "share": 0.141791},
+            {"part": "ankle", "count": 16, "share": 0.119403},
+            {"part": "concussion/head", "count": 14, "share": 0.104478},
+            {"part": "unknown", "count": 11, "share": 0.08209},
+            {"part": "groin/hip", "count": 10, "share": 0.074627}
+          ]
+        },
+        {
+          "group": "DB",
+          "newTimeLoss": 247,
+          "afterPlayed": 243,
+          "playerGames": 4669,
+          "snaps": 205817,
+          "perPlayerGame": 0.052902,
+          "perTeamGame": 0.482422,
+          "per1000Snaps": 1.18066,
+          "durations": {
+            "n": 247,
+            "censored": 76,
+            "games": {
+              "bands": {"short": 0.664727, "long": 0.150304, "major": 0.18497},
+              "naive": {"short": 0.744939, "long": 0.165992, "major": 0.089069},
+              "median": 2,
+              "survival": [1, 0.5964, 0.4204, 0.3353, 0.2841, 0.2545, 0.2088, 0.1934, 0.185, 0.1674, 0.1581, 0.1581, 0.1581, 0.1317, 0.1054, 0.1054, 0.1054, 0.1054]
+            },
+            "weeks": {
+              "bands": {"short": 0.643687, "long": 0.171999, "major": 0.184314},
+              "naive": {"short": 0.724696, "long": 0.182186, "major": 0.093117},
+              "median": 2,
+              "survival": [1, 0.6547, 0.4559, 0.3563, 0.2839, 0.2492, 0.2367, 0.1923, 0.1843, 0.1759, 0.1583, 0.149, 0.149, 0.149, 0.1242, 0.0994, 0.0994, 0.0994]
+            }
+          },
+          "dayToDayShare": 0.26875,
+          "bodyParts": [
+            {"part": "hamstring", "count": 52, "share": 0.210526},
+            {"part": "knee", "count": 31, "share": 0.125506},
+            {"part": "shoulder", "count": 24, "share": 0.097166},
+            {"part": "ankle", "count": 23, "share": 0.093117},
+            {"part": "concussion/head", "count": 20, "share": 0.080972},
+            {"part": "back/neck", "count": 15, "share": 0.060729}
+          ]
+        },
+        {
+          "group": "K/P",
+          "newTimeLoss": 11,
+          "afterPlayed": 10,
+          "playerGames": 1503,
+          "snaps": 13051,
+          "perPlayerGame": 0.007319,
+          "perTeamGame": 0.021484,
+          "per1000Snaps": 0.766225,
+          "durations": {
+            "n": 11,
+            "censored": 7,
+            "games": {
+              "bands": {"short": 0.314286, "long": 0.228571, "major": 0.457143},
+              "naive": {"short": 0.545455, "long": 0.272727, "major": 0.181818},
+              "median": 5,
+              "survival": [1, 0.8, 0.6857, 0.6857, 0.6857, 0.4571, 0.4571, 0.4571, 0.4571, 0.4571, 0.4571, 0.4571, 0.4571, 0.4571, 0.4571, 0.4571, 0.4571, 0.4571]
+            },
+            "weeks": {
+              "bands": {"short": 0.333333, "long": 0.222222, "major": 0.444444},
+              "naive": {"short": 0.545455, "long": 0.272727, "major": 0.181818},
+              "median": 5,
+              "survival": [1, 0.8, 0.8, 0.6667, 0.6667, 0.4444, 0.4444, 0.4444, 0.4444, 0.4444, 0.4444, 0.4444, 0.4444, 0.4444, 0.4444, 0.4444, 0.4444, 0.4444]
+            }
+          },
+          "dayToDayShare": 0.421053,
+          "bodyParts": [
+            {"part": "hamstring", "count": 3, "share": 0.272727},
+            {"part": "unknown", "count": 3, "share": 0.272727},
+            {"part": "knee", "count": 2, "share": 0.181818},
+            {"part": "quad/thigh", "count": 2, "share": 0.181818},
+            {"part": "groin/hip", "count": 1, "share": 0.090909}
+          ]
+        }
+      ],
+      "bodyParts": [
+        {"part": "knee", "count": 151, "share": 0.151911, "long": 0.252963, "major": 0.219608},
+        {"part": "hamstring", "count": 130, "share": 0.130785, "long": 0.240321, "major": 0.052921},
+        {"part": "ankle", "count": 128, "share": 0.128773, "long": 0.173266, "major": 0.134878},
+        {"part": "concussion/head", "count": 94, "share": 0.094567, "long": 0.02881, "major": 0.05762},
+        {"part": "shoulder", "count": 84, "share": 0.084507, "long": 0.114353, "major": 0.17188},
+        {"part": "unknown", "count": 75, "share": 0.075453, "long": 0.020833, "major": 0.979167},
+        {"part": "groin/hip", "count": 62, "share": 0.062374, "long": 0.115914, "major": 0.052688},
+        {"part": "back/neck", "count": 55, "share": 0.055332, "long": 0.136572, "major": 0.1797},
+        {"part": "foot/toe", "count": 51, "share": 0.051308, "long": 0.17686, "major": 0.084796},
+        {"part": "calf/shin", "count": 43, "share": 0.04326, "long": 0.274288, "major": 0.161698},
+        {"part": "chest/ribs/abdomen", "count": 41, "share": 0.041247, "long": 0.110684, "major": 0.239316},
+        {"part": "hand/wrist", "count": 39, "share": 0.039235, "long": 0.311975, "major": 0.092437},
+        {"part": "quad/thigh", "count": 23, "share": 0.023139, "long": 0.39375, "major": 0.05625},
+        {"part": "elbow/arm", "count": 15, "share": 0.015091, "long": 0, "major": 0.513333},
+        {"part": "achilles", "count": 2, "share": 0.002012, "long": 0, "major": 1},
+        {"part": "other", "count": 1, "share": 0.001006, "long": 0, "major": 0}
+      ],
+      "playThrough": {
+        "questionable": {"n": 1344, "yes": 937, "share": 0.697173},
+        "doubtful": {"n": 116, "yes": 3, "share": 0.025862},
+        "out": {"n": 733, "yes": 0, "share": 0},
+        "newlyQuestionable": {"n": 690, "yes": 474, "share": 0.686957},
+        "limitedNoDesignation": {"n": 273, "yes": 263, "share": 0.96337},
+        "dnpNoDesignation": {"n": 24, "yes": 24, "share": 1}
+      },
+      "episodes": {
+        "newAny": 1500,
+        "dayToDayAny": 543,
+        "dayToDayShareAny": 0.362,
+        "newDesignated": 1390,
+        "dayToDayDesignated": 434,
+        "dayToDayShareDesignated": 0.31223,
+        "dayToDayDesignatedPerTeamGame": 0.847656
+      },
+      "allBands": {"dayToDay": 0.31223, "short": 0.436083, "long": 0.116256, "major": 0.13543},
+      "practiceHints": {
+        "playedIntervals": 23658,
+        "notPlayedIntervals": 2893,
+        "afterPlayedRate": 0.040282,
+        "afterNotPlayedRate": 0.014172,
+        "impliedNonGameShare": 0.378556,
+        "listingsAfterNotPlayedPerTeamSeason": 1.40625,
+        "listingsAfterNotPlayedDnp": 27,
+        "episodeAfterPlayedRate": 0.061501,
+        "episodeAfterNotPlayedRate": 0.015555,
+        "episodeImpliedNonGameShare": 0.27533,
+        "outAtWeek1PerTeamSeason": 7.46875,
+        "outAtWeek1CarriedOver": 51,
+        "outAtWeek1New": 188,
+        "outAtWeek1Unknown": 0,
+        "outAtWeek1ByKind": {"INACTIVE": 44, "IR": 173, "PUP": 22},
+        "week1NewEpisodesPerTeamSeason": 6.5625,
+        "inSeasonNewEpisodesPerTeamInterval": 2.929688,
+        "postBye": {"intervals": 32, "onsets": 49, "rate": 1.53125, "otherIntervals": 480, "otherOnsets": 945, "otherRate": 1.96875},
+        "byeModel": {
+          "h": 0.653846,
+          "practicePerTeamInterval": 0.24399,
+          "practicePerTeamIntervalSe": 0.222722,
+          "practiceShare": 0.123932
+        }
+      },
+      "reserve": {
+        "irInSeasonPerTeamSeason": 10.03125,
+        "irAtWeek1PerTeamSeason": 5.40625,
+        "irInSeasonMin": 3,
+        "irInSeasonMax": 19,
+        "pupAtWeek1PerTeamSeason": 0.6875,
+        "nfiAtWeek1PerTeamSeason": 0.3125,
+        "nfiInSeasonPerTeamSeason": 0.03125,
+        "illnessPerTeamSeason": 1.1875,
+        "missing4PlusGamesNew": 8.59375,
+        "missing4PlusGamesAll": 13.75,
+        "missing4PlusWeeksAll": 14.21875
+      }
+    },
+    {
+      "seasons": [2024],
+      "teamSeasons": 32,
+      "teamGames": 544,
+      "teamIntervals": 512,
+      "timeLoss": {
+        "newFootball": 1014,
+        "perTeamGame": 1.980469,
+        "perTeamSeason": 31.6875,
+        "byOnset": {"afterPlayed": 982, "afterNotPlayed": 32, "beforeSeason": 268, "unclear": 7},
+        "illness": 19,
+        "nfi": 3,
+        "perTeamGameAllCauses": 2.023438,
+        "straightToReserve": 308
+      },
+      "durations": {
+        "n": 1014,
+        "censored": 356,
+        "games": {
+          "bands": {"short": 0.591029, "long": 0.180549, "major": 0.228422},
+          "naive": {"short": 0.682446, "long": 0.214004, "major": 0.10355},
+          "median": 2,
+          "survival": [1, 0.6706, 0.4953, 0.409, 0.323, 0.2856, 0.2702, 0.2393, 0.2284, 0.2103, 0.201, 0.1894, 0.1836, 0.1836, 0.1836, 0.1377, 0.1377, 0.1377]
+        },
+        "weeks": {
+          "bands": {"short": 0.572473, "long": 0.197059, "major": 0.230468},
+          "naive": {"short": 0.664694, "long": 0.221893, "major": 0.113412},
+          "median": 3,
+          "survival": [1, 0.7015, 0.513, 0.4275, 0.3467, 0.2957, 0.2709, 0.2545, 0.2305, 0.2169, 0.2034, 0.1935, 0.1812, 0.1755, 0.1755, 0.1755, 0.1316, 0.1316]
+        }
+      },
+      "groups": [
+        {
+          "group": "QB",
+          "newTimeLoss": 29,
+          "afterPlayed": 28,
+          "playerGames": 638,
+          "snaps": 33479,
+          "perPlayerGame": 0.045455,
+          "perTeamGame": 0.056641,
+          "per1000Snaps": 0.836345,
+          "durations": {
+            "n": 29,
+            "censored": 12,
+            "games": {
+              "bands": {"short": 0.601399, "long": 0.208791, "major": 0.18981},
+              "naive": {"short": 0.724138, "long": 0.206897, "major": 0.068966},
+              "median": 3,
+              "survival": [1, 0.7308, 0.5481, 0.3986, 0.2847, 0.2847, 0.1898, 0.1898, 0.1898, 0.1898, 0.1898, 0.1898, 0.1898, 0.1898, 0.1898, 0.1898, 0.1898, 0.1898]
+            },
+            "weeks": {
+              "bands": {"short": 0.558824, "long": 0.269608, "major": 0.171569},
+              "naive": {"short": 0.689655, "long": 0.241379, "major": 0.068966},
+              "median": 3,
+              "survival": [1, 0.7692, 0.5882, 0.4412, 0.386, 0.2574, 0.1716, 0.1716, 0.1716, 0.1716, 0.1716, 0.1716, 0.1716, 0.1716, 0.1716, 0.1716, 0.1716, 0.1716]
+            }
+          },
+          "dayToDayShare": 0.151515,
+          "bodyParts": [
+            {"part": "shoulder", "count": 8, "share": 0.275862},
+            {"part": "chest/ribs/abdomen", "count": 5, "share": 0.172414},
+            {"part": "hand/wrist", "count": 4, "share": 0.137931},
+            {"part": "concussion/head", "count": 2, "share": 0.068966},
+            {"part": "hamstring", "count": 2, "share": 0.068966},
+            {"part": "knee", "count": 2, "share": 0.068966}
+          ]
+        },
+        {
+          "group": "RB",
+          "newTimeLoss": 79,
+          "afterPlayed": 78,
+          "playerGames": 1724,
+          "snaps": 46432,
+          "perPlayerGame": 0.045824,
+          "perTeamGame": 0.154297,
+          "per1000Snaps": 1.679876,
+          "durations": {
+            "n": 79,
+            "censored": 30,
+            "games": {
+              "bands": {"short": 0.577118, "long": 0.21937, "major": 0.203512},
+              "naive": {"short": 0.708861, "long": 0.240506, "major": 0.050633},
+              "median": 3,
+              "survival": [1, 0.7465, 0.5332, 0.4229, 0.2326, 0.2326, 0.2035, 0.2035, 0.2035, 0.1357, 0.1357, 0.1357, 0.1357, 0.1357, 0.1357, 0.1357, 0.1357, 0.1357]
+            },
+            "weeks": {
+              "bands": {"short": 0.559398, "long": 0.249957, "major": 0.190645},
+              "naive": {"short": 0.696203, "long": 0.227848, "major": 0.075949},
+              "median": 3,
+              "survival": [1, 0.7606, 0.5324, 0.4406, 0.3147, 0.2179, 0.1906, 0.1906, 0.1906, 0.1906, 0.1271, 0.1271, 0.1271, 0.1271, 0.1271, 0.1271, 0.1271, 0.1271]
+            }
+          },
+          "dayToDayShare": 0.252427,
+          "bodyParts": [
+            {"part": "ankle", "count": 19, "share": 0.240506},
+            {"part": "hamstring", "count": 10, "share": 0.126582},
+            {"part": "concussion/head", "count": 9, "share": 0.113924},
+            {"part": "knee", "count": 9, "share": 0.113924},
+            {"part": "groin/hip", "count": 7, "share": 0.088608},
+            {"part": "foot/toe", "count": 5, "share": 0.063291}
+          ]
+        },
+        {
+          "group": "WR",
+          "newTimeLoss": 129,
+          "afterPlayed": 126,
+          "playerGames": 2636,
+          "snaps": 94725,
+          "perPlayerGame": 0.048938,
+          "perTeamGame": 0.251953,
+          "per1000Snaps": 1.330166,
+          "durations": {
+            "n": 129,
+            "censored": 43,
+            "games": {
+              "bands": {"short": 0.619661, "long": 0.120973, "major": 0.259366},
+              "naive": {"short": 0.674419, "long": 0.178295, "major": 0.147287},
+              "median": 2,
+              "survival": [1, 0.6525, 0.4437, 0.3803, 0.3503, 0.3065, 0.2947, 0.2594, 0.2594, 0.2594, 0.2161, 0.1621, 0.1621, 0.1621, 0.1621, 0.1621, 0.1621, 0.1621]
+            },
+            "weeks": {
+              "bands": {"short": 0.603519, "long": 0.14367, "major": 0.252812},
+              "naive": {"short": 0.658915, "long": 0.178295, "major": 0.162791},
+              "median": 2,
+              "survival": [1, 0.6864, 0.4866, 0.3965, 0.3667, 0.3236, 0.3005, 0.2889, 0.2528, 0.2528, 0.2528, 0.1966, 0.1311, 0.1311, 0.1311, 0.1311, 0.1311, 0.1311]
+            }
+          },
+          "dayToDayShare": 0.327869,
+          "bodyParts": [
+            {"part": "shoulder", "count": 20, "share": 0.155039},
+            {"part": "hamstring", "count": 18, "share": 0.139535},
+            {"part": "knee", "count": 17, "share": 0.131783},
+            {"part": "concussion/head", "count": 14, "share": 0.108527},
+            {"part": "ankle", "count": 11, "share": 0.085271},
+            {"part": "chest/ribs/abdomen", "count": 11, "share": 0.085271}
+          ]
+        },
+        {
+          "group": "TE",
+          "newTimeLoss": 59,
+          "afterPlayed": 56,
+          "playerGames": 1605,
+          "snaps": 56914,
+          "perPlayerGame": 0.03676,
+          "perTeamGame": 0.115234,
+          "per1000Snaps": 0.983941,
+          "durations": {
+            "n": 59,
+            "censored": 16,
+            "games": {
+              "bands": {"short": 0.644737, "long": 0.146285, "major": 0.208978},
+              "naive": {"short": 0.677966, "long": 0.237288, "major": 0.084746},
+              "median": 2,
+              "survival": [1, 0.6842, 0.4861, 0.3553, 0.2508, 0.2508, 0.2508, 0.2508, 0.209, 0.209, 0.1393, 0.1393, 0.1393, 0.1393, 0.1393, 0.1393, 0.1393, 0.1393]
+            },
+            "weeks": {
+              "bands": {"short": 0.608137, "long": 0.14812, "major": 0.243742},
+              "naive": {"short": 0.644068, "long": 0.237288, "major": 0.118644},
+              "median": 3,
+              "survival": [1, 0.7018, 0.5038, 0.3919, 0.2681, 0.2437, 0.2437, 0.2437, 0.2437, 0.2031, 0.2031, 0.1016, 0.1016, 0.1016, 0.1016, 0.1016, 0.1016, 0.1016]
+            }
+          },
+          "dayToDayShare": 0.211268,
+          "bodyParts": [
+            {"part": "knee", "count": 14, "share": 0.237288},
+            {"part": "back/neck", "count": 6, "share": 0.101695},
+            {"part": "concussion/head", "count": 6, "share": 0.101695},
+            {"part": "hamstring", "count": 6, "share": 0.101695},
+            {"part": "ankle", "count": 5, "share": 0.084746},
+            {"part": "unknown", "count": 5, "share": 0.084746}
+          ]
+        },
+        {
+          "group": "OL",
+          "newTimeLoss": 175,
+          "afterPlayed": 167,
+          "playerGames": 3843,
+          "snaps": 176880,
+          "perPlayerGame": 0.045537,
+          "perTeamGame": 0.341797,
+          "per1000Snaps": 0.944143,
+          "durations": {
+            "n": 175,
+            "censored": 63,
+            "games": {
+              "bands": {"short": 0.579482, "long": 0.185935, "major": 0.234583},
+              "naive": {"short": 0.674286, "long": 0.211429, "major": 0.114286},
+              "median": 2,
+              "survival": [1, 0.6688, 0.4943, 0.4205, 0.3412, 0.3162, 0.3077, 0.258, 0.2346, 0.2085, 0.2085, 0.1706, 0.1706, 0.1706, 0.1706, 0.1706, 0.1706, 0.1706]
+            },
+            "weeks": {
+              "bands": {"short": 0.562589, "long": 0.187685, "major": 0.249726},
+              "naive": {"short": 0.657143, "long": 0.211429, "major": 0.131429},
+              "median": 3,
+              "survival": [1, 0.7188, 0.5103, 0.4374, 0.3437, 0.3273, 0.3105, 0.2823, 0.2497, 0.2123, 0.1971, 0.1971, 0.1613, 0.1613, 0.1613, 0.1613, 0.1613, 0.1613]
+            }
+          },
+          "dayToDayShare": 0.256522,
+          "bodyParts": [
+            {"part": "knee", "count": 39, "share": 0.222857},
+            {"part": "ankle", "count": 38, "share": 0.217143},
+            {"part": "concussion/head", "count": 20, "share": 0.114286},
+            {"part": "shoulder", "count": 13, "share": 0.074286},
+            {"part": "unknown", "count": 12, "share": 0.068571},
+            {"part": "groin/hip", "count": 11, "share": 0.062857}
+          ]
+        },
+        {
+          "group": "DL",
+          "newTimeLoss": 122,
+          "afterPlayed": 116,
+          "playerGames": 3665,
+          "snaps": 123634,
+          "perPlayerGame": 0.033288,
+          "perTeamGame": 0.238281,
+          "per1000Snaps": 0.938253,
+          "durations": {
+            "n": 122,
+            "censored": 39,
+            "games": {
+              "bands": {"short": 0.561552, "long": 0.196094, "major": 0.242354},
+              "naive": {"short": 0.622951, "long": 0.245902, "major": 0.131148},
+              "median": 3,
+              "survival": [1, 0.6466, 0.5242, 0.4384, 0.3605, 0.2704, 0.2575, 0.2424, 0.2424, 0.2262, 0.2262, 0.2262, 0.2262, 0.2262, 0.2262, 0.2262, 0.2262, 0.2262]
+            },
+            "weeks": {
+              "bands": {"short": 0.542571, "long": 0.220611, "major": 0.236818},
+              "naive": {"short": 0.606557, "long": 0.262295, "major": 0.131148},
+              "median": 3,
+              "survival": [1, 0.6552, 0.5241, 0.4574, 0.4088, 0.3093, 0.2617, 0.2368, 0.2368, 0.2368, 0.2199, 0.2199, 0.2199, 0.2199, 0.2199, 0.2199, 0.2199, 0.2199]
+            }
+          },
+          "dayToDayShare": 0.338889,
+          "bodyParts": [
+            {"part": "knee", "count": 26, "share": 0.213115},
+            {"part": "ankle", "count": 16, "share": 0.131148},
+            {"part": "chest/ribs/abdomen", "count": 11, "share": 0.090164},
+            {"part": "groin/hip", "count": 9, "share": 0.07377},
+            {"part": "shoulder", "count": 9, "share": 0.07377},
+            {"part": "calf/shin", "count": 8, "share": 0.065574}
+          ]
+        },
+        {
+          "group": "LB",
+          "newTimeLoss": 154,
+          "afterPlayed": 152,
+          "playerGames": 3424,
+          "snaps": 134392,
+          "perPlayerGame": 0.044977,
+          "perTeamGame": 0.300781,
+          "per1000Snaps": 1.13102,
+          "durations": {
+            "n": 154,
+            "censored": 61,
+            "games": {
+              "bands": {"short": 0.567665, "long": 0.211106, "major": 0.221229},
+              "naive": {"short": 0.688312, "long": 0.207792, "major": 0.103896},
+              "median": 3,
+              "survival": [1, 0.6786, 0.5314, 0.4323, 0.3318, 0.289, 0.2627, 0.2212, 0.2212, 0.2212, 0.2212, 0.2212, 0.2212, 0.2212, 0.2212, 0.2212, 0.2212, 0.2212]
+            },
+            "weeks": {
+              "bands": {"short": 0.563783, "long": 0.221545, "major": 0.214672},
+              "naive": {"short": 0.681818, "long": 0.214286, "major": 0.103896},
+              "median": 3,
+              "survival": [1, 0.7143, 0.5519, 0.4362, 0.347, 0.3049, 0.2683, 0.2415, 0.2147, 0.2147, 0.2147, 0.2147, 0.2147, 0.2147, 0.2147, 0.2147, 0.2147, 0.2147]
+            }
+          },
+          "dayToDayShare": 0.303318,
+          "bodyParts": [
+            {"part": "knee", "count": 33, "share": 0.214286},
+            {"part": "hamstring", "count": 23, "share": 0.149351},
+            {"part": "ankle", "count": 17, "share": 0.11039},
+            {"part": "concussion/head", "count": 14, "share": 0.090909},
+            {"part": "groin/hip", "count": 10, "share": 0.064935},
+            {"part": "calf/shin", "count": 9, "share": 0.058442}
+          ]
+        },
+        {
+          "group": "DB",
+          "newTimeLoss": 244,
+          "afterPlayed": 236,
+          "playerGames": 4656,
+          "snaps": 199462,
+          "perPlayerGame": 0.052405,
+          "perTeamGame": 0.476563,
+          "per1000Snaps": 1.183183,
+          "durations": {
+            "n": 244,
+            "censored": 79,
+            "games": {
+              "bands": {"short": 0.645, "long": 0.157833, "major": 0.197167},
+              "naive": {"short": 0.737705, "long": 0.184426, "major": 0.077869},
+              "median": 2,
+              "survival": [1, 0.6316, 0.4327, 0.355, 0.2877, 0.2526, 0.2452, 0.2179, 0.1972, 0.1577, 0.1577, 0.1577, 0.1314, 0.1314, 0.1314, 0.0657, 0.0657, 0.0657]
+            },
+            "weeks": {
+              "bands": {"short": 0.627341, "long": 0.171856, "major": 0.200803},
+              "naive": {"short": 0.721311, "long": 0.196721, "major": 0.081967},
+              "median": 2,
+              "survival": [1, 0.6667, 0.4494, 0.3727, 0.3005, 0.2483, 0.241, 0.241, 0.2008, 0.1785, 0.153, 0.153, 0.153, 0.1224, 0.1224, 0.1224, 0.0612, 0.0612]
+            }
+          },
+          "dayToDayShare": 0.260188,
+          "bodyParts": [
+            {"part": "hamstring", "count": 37, "share": 0.151639},
+            {"part": "knee", "count": 32, "share": 0.131148},
+            {"part": "ankle", "count": 29, "share": 0.118852},
+            {"part": "concussion/head", "count": 21, "share": 0.086066},
+            {"part": "groin/hip", "count": 21, "share": 0.086066},
+            {"part": "shoulder", "count": 21, "share": 0.086066}
+          ]
+        },
+        {
+          "group": "K/P",
+          "newTimeLoss": 23,
+          "afterPlayed": 23,
+          "playerGames": 1535,
+          "snaps": 13318,
+          "perPlayerGame": 0.014984,
+          "perTeamGame": 0.044922,
+          "per1000Snaps": 1.726986,
+          "durations": {
+            "n": 23,
+            "censored": 13,
+            "games": {
+              "bands": {"short": 0.190341, "long": 0.396568, "major": 0.413091},
+              "naive": {"short": 0.347826, "long": 0.478261, "major": 0.173913},
+              "median": 6,
+              "survival": [1, 0.9091, 0.8636, 0.8097, 0.5783, 0.5783, 0.4957, 0.4131, 0.4131, 0.4131, 0.4131, 0.4131, 0.4131, 0.4131, 0.4131, 0.4131, 0.4131, 0.4131]
+            },
+            "weeks": {
+              "bands": {"short": 0.136364, "long": 0.452381, "major": 0.411255},
+              "naive": {"short": 0.26087, "long": 0.565217, "major": 0.173913},
+              "median": 6,
+              "survival": [1, 0.9091, 0.8636, 0.8636, 0.5758, 0.5758, 0.4935, 0.4113, 0.4113, 0.4113, 0.4113, 0.4113, 0.4113, 0.4113, 0.4113, 0.4113, 0.4113, 0.4113]
+            }
+          },
+          "dayToDayShare": 0.241379,
+          "bodyParts": [
+            {"part": "unknown", "count": 4, "share": 0.173913},
+            {"part": "groin/hip", "count": 3, "share": 0.130435},
+            {"part": "hamstring", "count": 3, "share": 0.130435},
+            {"part": "knee", "count": 3, "share": 0.130435},
+            {"part": "chest/ribs/abdomen", "count": 2, "share": 0.086957},
+            {"part": "foot/toe", "count": 2, "share": 0.086957}
+          ]
+        }
+      ],
+      "bodyParts": [
+        {"part": "knee", "count": 175, "share": 0.172584, "long": 0.156942, "major": 0.260734},
+        {"part": "ankle", "count": 137, "share": 0.135108, "long": 0.233167, "major": 0.144917},
+        {"part": "hamstring", "count": 114, "share": 0.112426, "long": 0.212758, "major": 0.097514},
+        {"part": "concussion/head", "count": 90, "share": 0.088757, "long": 0.082589, "major": 0.099107},
+        {"part": "shoulder", "count": 84, "share": 0.08284, "long": 0.170566, "major": 0.290149},
+        {"part": "unknown", "count": 72, "share": 0.071006, "long": 0.02381, "major": 0.97619},
+        {"part": "groin/hip", "count": 71, "share": 0.07002, "long": 0.21012, "major": 0.122163},
+        {"part": "chest/ribs/abdomen", "count": 56, "share": 0.055227, "long": 0.072155, "major": 0.108233},
+        {"part": "back/neck", "count": 51, "share": 0.050296, "long": 0.071561, "major": 0.278293},
+        {"part": "calf/shin", "count": 41, "share": 0.040434, "long": 0.328125, "major": 0.109375},
+        {"part": "foot/toe", "count": 40, "share": 0.039448, "long": 0.228354, "major": 0.125988},
+        {"part": "hand/wrist", "count": 37, "share": 0.036489, "long": 0.557645, "major": 0.056166},
+        {"part": "quad/thigh", "count": 22, "share": 0.021696, "long": 0.181176, "major": 0.207059},
+        {"part": "elbow/arm", "count": 17, "share": 0.016765, "long": 0, "major": 0.357143},
+        {"part": "other", "count": 4, "share": 0.003945, "long": 0, "major": 0.5},
+        {"part": "achilles", "count": 3, "share": 0.002959, "long": 0, "major": 0.666667}
+      ],
+      "playThrough": {
+        "questionable": {"n": 1271, "yes": 896, "share": 0.704957},
+        "doubtful": {"n": 145, "yes": 0, "share": 0},
+        "out": {"n": 771, "yes": 1, "share": 0.001297},
+        "newlyQuestionable": {"n": 619, "yes": 431, "share": 0.696284},
+        "limitedNoDesignation": {"n": 337, "yes": 326, "share": 0.967359},
+        "dnpNoDesignation": {"n": 33, "yes": 31, "share": 0.939394}
+      },
+      "episodes": {
+        "newAny": 1508,
+        "dayToDayAny": 529,
+        "dayToDayShareAny": 0.350796,
+        "newDesignated": 1359,
+        "dayToDayDesignated": 380,
+        "dayToDayShareDesignated": 0.279617,
+        "dayToDayDesignatedPerTeamGame": 0.742188
+      },
+      "allBands": {"dayToDay": 0.279617, "short": 0.425767, "long": 0.130064, "major": 0.164551},
+      "practiceHints": {
+        "playedIntervals": 23726,
+        "notPlayedIntervals": 2844,
+        "afterPlayedRate": 0.041389,
+        "afterNotPlayedRate": 0.011252,
+        "impliedNonGameShare": 0.294832,
+        "listingsAfterNotPlayedPerTeamSeason": 1.25,
+        "listingsAfterNotPlayedDnp": 21,
+        "episodeAfterPlayedRate": 0.061873,
+        "episodeAfterNotPlayedRate": 0.014065,
+        "episodeImpliedNonGameShare": 0.247811,
+        "outAtWeek1PerTeamSeason": 8.375,
+        "outAtWeek1CarriedOver": 58,
+        "outAtWeek1New": 210,
+        "outAtWeek1Unknown": 0,
+        "outAtWeek1ByKind": {"ACTIVE": 3, "INACTIVE": 49, "IR": 184, "PUP": 32},
+        "week1NewEpisodesPerTeamSeason": 7.28125,
+        "inSeasonNewEpisodesPerTeamInterval": 2.945313,
+        "postBye": {
+          "intervals": 32,
+          "onsets": 37,
+          "rate": 1.15625,
+          "otherIntervals": 480,
+          "otherOnsets": 977,
+          "otherRate": 2.035417
+        },
+        "byeModel": {
+          "h": 0.701493,
+          "practicePerTeamInterval": -0.27158,
+          "practicePerTeamIntervalSe": 0.195498,
+          "practiceShare": -0.133427
+        }
+      },
+      "reserve": {
+        "irInSeasonPerTeamSeason": 11.625,
+        "irAtWeek1PerTeamSeason": 5.75,
+        "irInSeasonMin": 5,
+        "irInSeasonMax": 26,
+        "pupAtWeek1PerTeamSeason": 1,
+        "nfiAtWeek1PerTeamSeason": 0.1875,
+        "nfiInSeasonPerTeamSeason": 0.09375,
+        "illnessPerTeamSeason": 0.59375,
+        "missing4PlusGamesNew": 9.8125,
+        "missing4PlusGamesAll": 16.1875,
+        "missing4PlusWeeksAll": 16.75
+      }
+    }
+  ],
+  "definitions": [
+    {
+      "term": "Data",
+      "text": "nflverse public release assets, regular season only: the weekly injury reports (injuries_<season>.csv: one row per player per team per game week, the week's final report, with its game status and the last practice day's participation), the weekly rosters (roster_weekly_<season>.csv: each player's status that game week), PFR snap counts (snap_counts_<season>.csv: every player who took at least one snap) and the schedule (games.csv). 2025 is never read (held out, calibration.md §7)."
+    },
+    {
+      "term": "Team game, team interval",
+      "text": "A team game is one team's side of one regular-season game. A team interval is a team game followed by another team game of the same regular season (so each team-season has games − 1): a new injury shows up as the next game missed, so it can only be seen in an interval. A team's final regular-season game is exposure no injury can be seen after, and is left out of both the counts and the denominators."
+    },
+    {
+      "term": "Played",
+      "text": "Took at least one snap (offence, defence or special teams) in the game, from the snap counts. The weekly roster's ACT/INA split is not used for this: it is not reliable for the game itself (2019 lists injured, unused players as ACT)."
+    },
+    {
+      "term": "Missed for injury",
+      "text": "Did not play, and either was on injured reserve (R01, R48, or a RES row with no code in 2019 and early 2020), PUP (R04, R47, PUP) or the non-football list (R05, R49, RSN), or was on the 53 and on the final injury report with an injury (not 'not injury related', rest, personal, coach's decision or COVID) and a game designation (Questionable, Doubtful, Out) or a practice limit (did not participate, limited). Illness counts, as its own class. COVID lists, suspensions, the practice squad and holdouts never count. The weekly roster can lag a reserve move by a week (Dak Prescott, DAL 2020 w6), so a game with no snap and no report line between a game he played and a reserve-list game counts as missed for that injury."
+    },
+    {
+      "term": "Time-loss injury (spell)",
+      "text": "A run of one or more consecutive team games missed for injury. It is new in season when, the team game before it, he played (onset AFTER_PLAYED: hurt in that game, that week's practice or away from football) or was healthy on the 53 and did not play (AFTER_NOT_PLAYED: hurt in practice or away). Spells already running at the team's first game (BEFORE_SEASON) and spells whose game before is unclear (not on the 53, or listed hurt without playing) are counted apart and left out of the new-injury rates. The headline counts football injuries; illness and the non-football list are reported beside them."
+    },
+    {
+      "term": "Games missed, weeks out",
+      "text": "Games missed: consecutive team games missed (byes skipped). Weeks out: calendar weeks from the first missed game's week to the week of the game he was back for (byes count), which is ADR-087's weeksRemaining. A spell ends when he plays, or is healthy on the 53 without playing; it is censored when the regular season ends or he leaves the team's list (cut, traded, practice squad, COVID list)."
+    },
+    {
+      "term": "Bands",
+      "text": "ADR-087 §5.3: SHORT 1-3, LONG 4-8, MAJOR 9 or more, in games (and, beside it, in weeks). Shares come from a Kaplan-Meier survival curve over the new in-season spells, so a censored spell counts only for as long as it was seen (a censored length c says D ≥ c). 'Naive' shares treat censored lengths as exact and are a floor on the long bands."
+    },
+    {
+      "term": "Listing episode, day to day",
+      "text": "An episode is a run of consecutive team game weeks on the injury list: missed for a football injury, or on the report with a football injury and a designation or practice limit. A new in-season episode has an AFTER_PLAYED or AFTER_NOT_PLAYED onset. A day-to-day injury is a new designated episode (a game designation or a missed game at some point) that never cost a game. 'Any' episodes also count practice-limit-only listings."
+    },
+    {
+      "term": "Rates",
+      "text": "Per team-game: new in-season time-loss injuries / team intervals. Per player-game (by group): the group's new in-season injuries / the group's player-games played that had a next team game. Per 1, 000 snaps (by group): new injuries after a game he played / snaps in those player-games."
+    },
+    {
+      "term": "Position group",
+      "text": "From the weekly roster's position (its most common value for the player on that team that season): QB; RB (incl. FB); WR; TE; OL; DL (DE, DT, NT); LB (incl. OLB, so 3-4 edge rushers are LB and 4-3 ends DL); DB; K/P (K, P, LS)."
+    },
+    {
+      "term": "Body part",
+      "text": "The report's injury text, read into a class by keyword (the earliest-named part wins; 'left'/'right' ignored): from the first missed game's report, else the week before, else any week of the spell, else the two weeks after it (players placed straight on IR are not on the report until they return). 'unknown' when none of those weeks has one."
+    },
+    {
+      "term": "IR placements",
+      "text": "From the weekly rosters: in season, a team game week 2..N on injured reserve after a week not on IR, PUP or NFI (list transfers are not new placements; an activation followed by a second placement counts twice); before week 1, on IR at the team's first game."
+    }
+  ],
+  "limits": [
+    "The report names a body part, never a diagnosis: 'Knee' is an ACL tear and a bruise alike, so kinds such as ACL, MCL or a high ankle sprain cannot be counted.",
+    "Only the week's final report is published per player: a player limited on Wednesday and full on Friday shows as full; earlier days are not seen.",
+    "Healthy scratches: an inactive player who is not on the report reads as a healthy scratch. A hurt player his team left off the report reads healthy, and a healthy scratch listed with a designation or a practice limit reads as missed for injury.",
+    "Players placed straight onto IR after a game are never on that week's report, so their body part comes from their return weeks or is unknown (about 11% of spells, skewed to the longest injuries: their MAJOR share is about 75%). The body-part shares therefore understate the serious kinds.",
+    "Injury reserve rules shape the games-missed numbers: in 2019 IR was season-ending except two designated returns a team (8 weeks minimum); 2020-2021 had a 3-week minimum; 2022 on, 4 games. Teams also shut injured players down late in a lost season. Recorded games missed therefore overstate medical time lost for some players, and inflate LONG and MAJOR, most of all in 2019.",
+    "Kaplan-Meier assumes censoring is unrelated to how bad an injury is. Censoring here is the season's end (unrelated) or the player leaving the team's list (a team cutting an injured player with an injury settlement is related, and rare).",
+    "Injuries in a team's last regular-season game, in the playoffs and in the offseason are not seen; a week-1 absence is called carried over only when the player ended the previous regular season out injured.",
+    "Practice and game injuries cannot be told apart for a player who played the game before: the reports say who is hurt, not where. The practice numbers below are hints, each with its own assumptions.",
+    "Snap counts meet the roster by PFR id and, for the roster rows with no PFR id (about a third), by normalised name within the team-week; about 1% of snap rows meet no roster row (see Coverage) and a listed player whose snap row was lost reads as having missed the game.",
+    "2020 and 2021: the COVID-19 lists (R59, RSR) and 2020's opt-outs (R62, NWT) are not injuries and never count; 2020's moved games and 2022's cancelled BUF-CIN game follow the schedule. 2019 and 2020 to week 7 carry no reserve codes, so every RES row there is read as IR (a few reserve players of other kinds are in it).",
+    "The practice squad is left out: a practice-squad player hurt in practice misses no game of the 53.",
+    "'Players missing 4+ games' counts what was seen: an injury late in the season cannot reach 4 games before the season ends."
+  ]
+}
