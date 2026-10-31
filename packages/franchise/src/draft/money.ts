@@ -42,16 +42,34 @@ const signedEvent = (c: PlayerContract): FranchiseEvent => ({
   },
 });
 
-/** The live deal a player is on, if any. */
-export const liveContract = (book: readonly PlayerContract[], player: PlayerId): PlayerContract | undefined =>
-  book.find((c) => String(c.player) === String(player) && !c.ended);
+/** The live deal a player is on, if any: the open one covering the league year `at` counts in, else any open one. */
+export function liveContract(book: readonly PlayerContract[], player: PlayerId, at?: CalendarStamp): PlayerContract | undefined {
+  const i = liveIndex(book, player, at);
+  return i < 0 ? undefined : book[i];
+}
+
+function liveIndex(book: readonly PlayerContract[], player: PlayerId, at?: CalendarStamp): number {
+  const open = (c: PlayerContract) => String(c.player) === String(player) && !c.ended;
+  if (at) {
+    const year = transactionYear(at);
+    const i = book.findIndex((c) => open(c) && c.years.some((y) => y.season === year));
+    if (i >= 0) return i;
+  }
+  return book.findIndex(open);
+}
+
+/** End a player's live practice-squad deal (it simply stops: no bonus, no charge). */
+export function endSquadDeal(book: PlayerContract[], player: PlayerId, at: CalendarStamp): void {
+  const i = book.findIndex((c) => String(c.player) === String(player) && !c.ended && c.kind === "PRACTICE_SQUAD");
+  if (i >= 0) book[i] = { ...book[i]!, ended: { at, reason: "EXPIRED" } };
+}
 
 /**
  * Cut a player: his deal ends and its unpaid bonus and guarantees become the team's dead money
  * (ADR-085 K3). A player with no deal on the book costs nothing.
  */
 export function release(book: PlayerContract[], dead: DeadMoneyCharge[], player: PlayerId, team: TeamId, at: CalendarStamp): FranchiseEvent[] {
-  const i = book.findIndex((c) => String(c.player) === String(player) && !c.ended);
+  const i = liveIndex(book, player, at);
   if (i < 0) return [{ type: "PLAYER_RELEASED", payload: { player, team, postJune1: isAfterJune1(at) } }];
   const r = releasePlayer(book[i]!, at);
   book[i] = r.contract;
