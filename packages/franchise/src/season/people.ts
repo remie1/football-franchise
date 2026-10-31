@@ -33,6 +33,12 @@ export interface LeaguePeople {
   /** Dead money from cut-down day's releases (ADR-085 K3). */
   deadMoney?: DeadMoneyCharge[];
   /**
+   * Free-agent signings with a new team (ADR-085's market adds them), kept for the compensatory
+   * formula (ADR-086 §5) and saved as `world.draft.freeAgentMoves`. The compensatory step reads the
+   * league year just ended and drops older ones.
+   */
+  freeAgentMoves?: { player: PlayerId; from: TeamId; to: TeamId; apy: number; signedAt: CalendarStamp }[];
+  /**
    * ADR-087: what the players' steps remember between days (past injuries, recent grades, position
    * battles, when each free agent became unsigned). Saved as S1's `depthMemory`. Absent = nothing yet.
    */
