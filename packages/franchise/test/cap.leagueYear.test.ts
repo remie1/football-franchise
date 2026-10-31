@@ -118,6 +118,18 @@ describe("the league year (ADR-085 §4)", () => {
     expect(carried.some((c) => c.amount > 0)).toBe(true);
   });
 
+  it("extends players it values a year early: the new deal starts when the old one ends, never a rookie before his third season", () => {
+    const early = people.contracts!.filter((c) => c.kind === "EXTENSION" && c.years[0]!.season === 2028);
+    expect(early.length).toBeGreaterThan(0);
+    for (const c of early) {
+      const old = people.contracts!.find((x) => String(x.player) === String(c.player) && x !== c && x.years.some((y) => y.season === 2027));
+      expect(old, String(c.player)).toBeDefined();
+      expect(old!.team).toBe(c.team);
+      const p = people.players.find((x) => String(x.bio.id) === String(c.player))!;
+      if (old!.kind === "ROOKIE") expect(p.bio.creditedSeasons ?? 0).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it("cap cuts never take a roster's last men at a position: every team still fields its starters", () => {
     const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
     for (const t of people.teams) {
