@@ -29,8 +29,12 @@ import type { Scenario } from "./fixtures.js";
 import type {
   ApproachTunables,
   BeatClockTunables,
+  ClimbLaneTunables,
   EngineRulesStamp,
   ForcingTunables,
+  FreeRunHoldTunables,
+  FreeRunTunables,
+  LateBlockTunables,
   RepClockTunables,
   Tunables,
 } from "../src/tunables.js";
@@ -133,6 +137,87 @@ export const S2_TUNABLES = withForcing(
 export const S2N_TUNABLES = withForcing(
   withBlocks(withStep2Horizons(DEFAULT_TUNABLES), { beatClock: BEAT_CLOCK_WITH_WINDOW, approach: APPROACH_CARD }, stamp("fnv1a:5e000022", "pocket-1.s2")),
   { rule: "COUNTER_LESS_SEEN" },
+);
+
+/**
+ * ADR-089 step 3 — THE FREE-RUN BLOCK AS FILED, built by hand for the engine's tests, as the step-1
+ * and step-2 bundles are: the step-0 filing's `constants.freeRun.*` (D18, D22;
+ * `packages/calibration/reports/adr-089-step0.filed.json`, the same values as calibration's
+ * `FREE_RUN_CONSTANTS`), AM-2's `movingGetOffSeconds` 0, reading B (the design, D19), all three
+ * origins, nothing held, and the picture as ruled. Calibration's `pocket-1.s3` bundle is built by
+ * `withOverlay`; this is the engine's own stand-in.
+ */
+export const FREE_RUN_FILED: FreeRunTunables = Object.freeze({
+  fortyYards: 40,
+  fortyIntercept: 5.6,
+  fortySpeedSlope: 1.38,
+  fortySpeedScale: 99,
+  tauIntercept: 0.77,
+  tauSlope: 0.007,
+  tauMin: 0.63,
+  tauMax: 0.91,
+  pathShortenYards: 1.0,
+  edgePathFactor: 1.1,
+  loopExtraYards: 0.5,
+  getOffSeconds: 0.35,
+  movingGetOffSeconds: 0,
+  delayedSeconds: 0.5,
+  etaRoundingSeconds: 0.1,
+  creeperYardsPerSecond: 3,
+  reading: "B",
+  picture: "AS_RULED",
+});
+
+/** AM-2's references for the arms that hold an input (CHOSEN, information only). */
+export const HOLD_REFERENCES: FreeRunHoldTunables = Object.freeze({
+  spot: Object.freeze({
+    downLineman: Object.freeze({ depth: 1.0, width: 2.5 }),
+    linebacker: Object.freeze({ depth: 2.5, width: 2.5 }),
+    defensiveBack: Object.freeze({ depth: 5.0, width: 7.0 }),
+  }),
+  ratings: Object.freeze({ speed: 50, acceleration: 50 }),
+  drop: 5.0,
+});
+
+/** AM-2's late block: `t_e` 1.0 s, `w` 0.1. */
+export const LATE_BLOCK_FILED: LateBlockTunables = Object.freeze({ engageSeconds: 1.0, weakMultiplier: 0.1 });
+
+/**
+ * ADR-089 step 3: `base` with the step-3 blocks merged in, each key added only when given (never as
+ * `freeRun: undefined`). Nothing is checked here; a value outside the closed sets is for the refusal
+ * tests, cast at the call site.
+ */
+export function withStep3(
+  base: Tunables,
+  blocks: {
+    readonly freeRun?: FreeRunTunables;
+    readonly lateBlock?: LateBlockTunables;
+    readonly climbLane?: ClimbLaneTunables;
+  },
+): Tunables {
+  return {
+    ...base,
+    blitzPickup: {
+      ...base.blitzPickup,
+      ...(blocks.freeRun === undefined ? {} : { freeRun: blocks.freeRun }),
+      ...(blocks.lateBlock === undefined ? {} : { lateBlock: blocks.lateBlock }),
+    },
+    pocket: { ...base.pocket, ...(blocks.climbLane === undefined ? {} : { climbLane: blocks.climbLane }) },
+  };
+}
+
+/**
+ * The step-3 design bundle's shape on the engine's hand-built dials: S2 (step 2's design) with the
+ * free-run clock (reading B, the picture as ruled), the late block (1.0 s, 0.1) and the climb lane
+ * FRONT, stamped `pocket-1.s3` with a stand-in digest. Not in `RULE_SETS`: an s3 pass play needs
+ * the snap picture on its calls (plan §2.3), which the step-3 play suites bring.
+ */
+export const S3_TUNABLES = withStep3(
+  withForcing(
+    withBlocks(withStep2Horizons(DEFAULT_TUNABLES), { beatClock: BEAT_CLOCK_WITH_WINDOW, approach: APPROACH_CARD }, stamp("fnv1a:5f000030", "pocket-1.s3")),
+    { rule: "PER_RUSHER" },
+  ),
+  { freeRun: FREE_RUN_FILED, lateBlock: LATE_BLOCK_FILED, climbLane: "FRONT" },
 );
 
 /** The rule sets the step-1 and step-2 suites run over, `legacy` first (the same reference as the default). */

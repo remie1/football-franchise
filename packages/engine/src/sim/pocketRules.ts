@@ -38,8 +38,33 @@
  * be a finite number of 0 or more, and `arrival.immediateWithinSeconds` may not lie above it (an
  * IMMEDIATE floor from an arrival that would not force). `PLAY_START.rules` keeps its two keys:
  * the forcing rule is named by the overlay digest, not by a new key.
+ *
+ * ADR-089 step 3 (plan §2.1) adds three blocks, each optional and each riding only on a stamped
+ * bundle with a block clock, as the forcing block does: `blitzPickup.freeRun` (the free-run clock,
+ * D18 and D22, its reading, by-origin narrowing, AM-2's held references and the picture dial),
+ * `blitzPickup.lateBlock` (the late, weak block for touched men, `t_e` and `w`) and
+ * `pocket.climbLane` (`FRONT`). Under `legacy` (no block clock) each is refused, never ignored. The
+ * late block on shape L is refused while petition P17's doc text is not in contracts; reading C
+ * runs no late block and reading A needs one. `threatGeometry` (the gate on publishing a free
+ * runner's `distanceYards` and `closingSpeed`) is true only with a free-run block AND petition P5
+ * in contracts. Both petitions are the two constants below, each lifted by its own one-line engine
+ * commit after the owner's typed yes lands its text (plan §3.3, §3.4: E4b, E6b). `PLAY_START.rules`
+ * still keeps its two keys: the step-3 blocks are named by the overlay digest.
  */
-import type { ApproachTunables, BeatClockTunables, ForcingTunables, RepClockTunables, Tunables } from "../tunables.js";
+import { ATTR_SCALE } from "@ff/contracts";
+import type {
+  ApproachTunables,
+  BeatClockTunables,
+  ClimbLaneTunables,
+  ForcingTunables,
+  FreeRunOrigin,
+  FreeRunPicture,
+  FreeRunReading,
+  FreeRunTunables,
+  LateBlockTunables,
+  RepClockTunables,
+  Tunables,
+} from "../tunables.js";
 
 /** Thrown before any die when the tunables carry a `pocket-1` overlay outside the closed sets. */
 export class PocketRulesError extends Error {
@@ -62,23 +87,65 @@ export interface PublishedRules {
  */
 export type PocketForcing = "STEP_1" | ForcingTunables["rule"];
 
+/**
+ * ADR-089 step 3: what closes the climb lane, once a play. `INTERIOR` is today's rule (an INTERIOR
+ * threat closes it), the only one `legacy`, `pocket-1.s1` and `pocket-1.s2` run; `FRONT` is
+ * `pocket.climbLane`'s one value (no FRONT threat, §6.3).
+ */
+export type PocketClimbLane = "INTERIOR" | ClimbLaneTunables;
+
+/**
+ * ADR-089 step 3: the rules' step-3 part, the same on both shapes. Each block is the tunables' own
+ * object, or `undefined` when the bundle does not carry it (step 1's and step 2's bundles carry
+ * none, and their plays run exactly as before).
+ */
+export interface PocketStep3Rules {
+  /** The free-run clock (D18, D22) and who it times; `undefined` is today's set times for every free runner. */
+  readonly freeRun: FreeRunTunables | undefined;
+  /** The late, weak block for touched men; `undefined` is today's +0.5 s free runner for them. */
+  readonly lateBlock: LateBlockTunables | undefined;
+  readonly climbLane: PocketClimbLane;
+  /** Publish a free runner's `distanceYards` and `closingSpeed` on `RUSH_THREAT` (petition P5's gate). */
+  readonly threatGeometry: boolean;
+}
+
 /** Which rules a play runs under. `S` and `L` are the two candidate block clocks of §4.1. */
 export type PocketRules =
   | { readonly kind: "LEGACY" }
-  | {
+  | ({
       readonly kind: "S";
       readonly beatClock: BeatClockTunables;
       readonly approach: ApproachTunables;
       readonly rules: PublishedRules;
       readonly forcing: PocketForcing;
-    }
-  | {
+    } & PocketStep3Rules)
+  | ({
       readonly kind: "L";
       readonly repClock: RepClockTunables;
       readonly approach: ApproachTunables;
       readonly rules: PublishedRules;
       readonly forcing: PocketForcing;
-    };
+    } & PocketStep3Rules);
+
+/**
+ * ADR-089 step 3: the contract petitions the step-3 rules wait on, as code constants (plan §3.3,
+ * §3.4). Nothing in `packages/contracts` changes before the owner's typed yes naming each; when one
+ * lands, its constant is lifted by its own one-line engine commit (E6b for P5, E4b for P17).
+ *  - P5: `RUSH_THREAT` gains `distanceYards` and `closingSpeed`; until then the engine fills the
+ *    pair for its own use and publishes nothing (`threatGeometry` false).
+ *  - P17: the doc text for the late block's rolled tick on shape L; until then a late block on
+ *    shape L is refused (shape S's late beat is already described by P2, P3 and `ThreatOrigin`).
+ */
+export const P5_IN_CONTRACTS = false;
+export const P17_IN_CONTRACTS = false;
+
+/** Which of the two petitions are in contracts: the constants above, or a test's own pair. */
+export interface ContractPetitions {
+  readonly P5: boolean;
+  readonly P17: boolean;
+}
+
+const IN_CONTRACTS: ContractPetitions = Object.freeze({ P5: P5_IN_CONTRACTS, P17: P17_IN_CONTRACTS });
 
 const LEGACY: PocketRules = Object.freeze({ kind: "LEGACY" });
 
@@ -90,6 +157,16 @@ const POCKET_1_NAME = /^pocket-1(\.[a-z0-9][a-z0-9.-]*)?$/;
 
 /** `pocket.forcing.rule`'s closed set (ADR-089 step 2). */
 const FORCING_RULES: readonly ForcingTunables["rule"][] = ["PER_RUSHER", "COUNTER_LESS_SEEN"];
+
+/** ADR-089 step 3's closed sets. */
+const FREE_RUN_READINGS: readonly FreeRunReading[] = ["B", "C", "A"];
+const FREE_RUN_ORIGINS: readonly FreeRunOrigin[] = ["UNBLOCKED", "BLOWN_UP", "LOOPER_FREE"];
+const FREE_RUN_PICTURES: readonly FreeRunPicture[] = ["AS_RULED", "MUG_HEAD_ONLY"];
+const CLIMB_LANES: readonly ClimbLaneTunables[] = ["FRONT"];
+/** The clock rounds an ETA with `toFixed(1)`, as every published `etaTick` is rounded (`resolve/rushThreat.ts`). */
+const ETA_ROUNDING_SECONDS = 0.1;
+/** The held groups AM-2 names, in its order. */
+const HELD_GROUPS = ["downLineman", "linebacker", "defensiveBack"] as const;
 
 /**
  * The forcing rule a stamped bundle runs, from its `pocket.forcing` block (absent is `STEP_1`).
@@ -167,16 +244,184 @@ function onTheGrid(lengthSeconds: number, tickStepSeconds: number, what: string)
   }
 }
 
+function atLeast(value: unknown, floor: number, what: string): void {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < floor) {
+    throw new PocketRulesError(`${what} must be a finite number, ${String(floor)} or more, got ${String(value)}`);
+  }
+}
+
+function oneOf<T extends string>(value: unknown, set: readonly T[], what: string): T {
+  if (!set.some((v) => v === value)) {
+    throw new PocketRulesError(`${what} is ${String(value)}, which is not one of ${set.join(", ")}`);
+  }
+  return value as T;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * ADR-089 step 3: the free-run block's dials (plan §2.1). The constants are D18's and D22's, so
+ * each must be a number the clock can run on: the 40's distance and the rating scale above 0;
+ * the start's clamp a range above 0; the reach, the loop's extra leg, the get-offs and the DELAYED
+ * wait 0 or more (the clean bench pushes the get-offs to 50, past `clock.maxTick`); the bend and
+ * the creeper's speed above 0; the ETA rounding exactly the tenth the clock rounds to. Then the
+ * reading, the by-origin narrowing (reading B's men only, each once), AM-2's held references and
+ * the picture dial, each from its closed set.
+ */
+function checkFreeRun(block: unknown): FreeRunTunables {
+  const what = "the free-run block (blitzPickup.freeRun)";
+  if (!isObject(block)) throw new PocketRulesError(`${what} must be an object, got ${String(block)}`);
+  const leaf = (name: string): string => `blitzPickup.freeRun.${name}`;
+  positive(block.fortyYards, leaf("fortyYards"));
+  finite(block.fortyIntercept, leaf("fortyIntercept"));
+  finite(block.fortySpeedSlope, leaf("fortySpeedSlope"));
+  positive(block.fortySpeedScale, leaf("fortySpeedScale"));
+  finite(block.tauIntercept, leaf("tauIntercept"));
+  finite(block.tauSlope, leaf("tauSlope"));
+  positive(block.tauMin, leaf("tauMin"));
+  positive(block.tauMax, leaf("tauMax"));
+  range(block.tauMin, block.tauMax, "the free-run start's clamp (blitzPickup.freeRun.tauMin to tauMax)");
+  atLeast(block.pathShortenYards, 0, leaf("pathShortenYards"));
+  positive(block.edgePathFactor, leaf("edgePathFactor"));
+  atLeast(block.loopExtraYards, 0, leaf("loopExtraYards"));
+  atLeast(block.getOffSeconds, 0, leaf("getOffSeconds"));
+  atLeast(block.movingGetOffSeconds, 0, leaf("movingGetOffSeconds"));
+  atLeast(block.delayedSeconds, 0, leaf("delayedSeconds"));
+  if (block.etaRoundingSeconds !== ETA_ROUNDING_SECONDS) {
+    throw new PocketRulesError(
+      `${leaf("etaRoundingSeconds")} must be ${String(ETA_ROUNDING_SECONDS)} (the clock rounds to the tenth, as every published etaTick is), got ${String(block.etaRoundingSeconds)}`,
+    );
+  }
+  positive(block.creeperYardsPerSecond, leaf("creeperYardsPerSecond"));
+  const reading = oneOf(block.reading, FREE_RUN_READINGS, `the free-run block's reading (${leaf("reading")})`);
+  if (block.origins !== undefined) {
+    const origins: unknown = block.origins;
+    if (reading !== "B") {
+      throw new PocketRulesError(
+        `the free-run block's origins (${leaf("origins")}) narrow reading B's men nobody touched; reading ${reading} names its own men`,
+      );
+    }
+    if (!Array.isArray(origins) || origins.length === 0) {
+      throw new PocketRulesError(`the free-run block's origins (${leaf("origins")}) must be a list of one or more of ${FREE_RUN_ORIGINS.join(", ")}, got ${JSON.stringify(origins)}`);
+    }
+    const seen = new Set<FreeRunOrigin>();
+    for (const origin of origins as unknown[]) {
+      const known = oneOf(origin, FREE_RUN_ORIGINS, `an origin of the free-run block (${leaf("origins")})`);
+      if (seen.has(known)) throw new PocketRulesError(`the free-run block's origins (${leaf("origins")}) name ${known} twice`);
+      seen.add(known);
+    }
+  }
+  if (block.hold !== undefined) checkHold(block.hold);
+  oneOf(block.picture, FREE_RUN_PICTURES, `the free-run block's picture (${leaf("picture")})`);
+  return block as unknown as FreeRunTunables;
+}
+
+/** AM-2's references: each key present holds that input; a hold that holds nothing is refused. */
+function checkHold(hold: unknown): void {
+  const what = "the free-run block's hold (blitzPickup.freeRun.hold)";
+  if (!isObject(hold)) throw new PocketRulesError(`${what} must be an object { spot?, ratings?, drop? }, got ${String(hold)}`);
+  if (hold.spot === undefined && hold.ratings === undefined && hold.drop === undefined) {
+    throw new PocketRulesError(`${what} holds nothing: give it a spot, ratings or a drop, or leave it out`);
+  }
+  if (hold.spot !== undefined) {
+    const spot = hold.spot;
+    if (!isObject(spot)) throw new PocketRulesError(`blitzPickup.freeRun.hold.spot must be an object of ${HELD_GROUPS.join(", ")}, got ${String(spot)}`);
+    for (const group of HELD_GROUPS) {
+      const at = spot[group];
+      if (!isObject(at)) throw new PocketRulesError(`blitzPickup.freeRun.hold.spot.${group} must be an object { depth, width }, got ${String(at)}`);
+      atLeast(at.depth, 0, `blitzPickup.freeRun.hold.spot.${group}.depth`);
+      atLeast(at.width, 0, `blitzPickup.freeRun.hold.spot.${group}.width`);
+    }
+  }
+  if (hold.ratings !== undefined) {
+    const ratings = hold.ratings;
+    if (!isObject(ratings)) throw new PocketRulesError(`blitzPickup.freeRun.hold.ratings must be an object { speed, acceleration }, got ${String(ratings)}`);
+    for (const name of ["speed", "acceleration"] as const) {
+      const value = ratings[name];
+      if (typeof value !== "number" || !Number.isFinite(value) || value < ATTR_SCALE.min || value > ATTR_SCALE.max) {
+        throw new PocketRulesError(
+          `blitzPickup.freeRun.hold.ratings.${name} must be a rating from ${String(ATTR_SCALE.min)} to ${String(ATTR_SCALE.max)}, got ${String(value)}`,
+        );
+      }
+    }
+  }
+  if (hold.drop !== undefined) positive(hold.drop, "blitzPickup.freeRun.hold.drop");
+}
+
+/** ADR-089 step 3: the late block's `t_e` (0 or more: the clean bench sets it to 50) and `w` (above 0). */
+function checkLateBlock(block: unknown): LateBlockTunables {
+  if (!isObject(block)) {
+    throw new PocketRulesError(`the late block (blitzPickup.lateBlock) must be an object { engageSeconds, weakMultiplier }, got ${String(block)}`);
+  }
+  atLeast(block.engageSeconds, 0, "blitzPickup.lateBlock.engageSeconds");
+  positive(block.weakMultiplier, "blitzPickup.lateBlock.weakMultiplier");
+  return block as unknown as LateBlockTunables;
+}
+
+/** ADR-089 step 3's three blocks, each named as its refusals name it, in this order. */
+function step3BlocksOf(tunables: Tunables): readonly { readonly name: string; readonly value: unknown }[] {
+  return [
+    { name: "the free-run block (blitzPickup.freeRun)", value: tunables.blitzPickup.freeRun },
+    { name: "the late block (blitzPickup.lateBlock)", value: tunables.blitzPickup.lateBlock },
+    { name: "the climb lane rule (pocket.climbLane)", value: tunables.pocket.climbLane },
+  ].filter((block) => block.value !== undefined);
+}
+
+/**
+ * ADR-089 step 3's part of a stamped bundle's rules (plan §2.1), checked after the clock: each
+ * block's own dials; the late block refused on shape L while P17 is not in contracts; reading C
+ * with a late block and reading A without one refused; `threatGeometry` from the free-run block
+ * and P5.
+ */
+function step3RulesOf(tunables: Tunables, shape: "S" | "L", petitions: ContractPetitions): PocketStep3Rules {
+  const freeRunBlock: unknown = tunables.blitzPickup.freeRun;
+  const lateBlockBlock: unknown = tunables.blitzPickup.lateBlock;
+  const climbLaneBlock: unknown = tunables.pocket.climbLane;
+  const freeRun = freeRunBlock === undefined ? undefined : checkFreeRun(freeRunBlock);
+  const lateBlock = lateBlockBlock === undefined ? undefined : checkLateBlock(lateBlockBlock);
+  const climbLane: PocketClimbLane =
+    climbLaneBlock === undefined ? "INTERIOR" : oneOf(climbLaneBlock, CLIMB_LANES, "the climb lane rule (pocket.climbLane)");
+  if (lateBlock !== undefined && shape === "L" && !petitions.P17) {
+    throw new PocketRulesError(
+      "the late block (blitzPickup.lateBlock) on shape L (passRush.repClock) is refused until petition P17's doc text (the late block's rolled tick) is in contracts; shape S runs it",
+    );
+  }
+  if (freeRun?.reading === "C" && lateBlock !== undefined) {
+    throw new PocketRulesError(
+      "reading C (blitzPickup.freeRun.reading) puts every free runner on the free-run clock, touched men 0.5 s later, so it runs no late block (blitzPickup.lateBlock)",
+    );
+  }
+  if (freeRun?.reading === "A" && lateBlock === undefined) {
+    throw new PocketRulesError(
+      "reading A (blitzPickup.freeRun.reading) makes every lost block a late block, so it needs the late block (blitzPickup.lateBlock)",
+    );
+  }
+  return { freeRun, lateBlock, climbLane, threatGeometry: freeRun !== undefined && petitions.P5 };
+}
+
 /**
  * The rules this play runs under, from the tunables it was handed. Pure, and called once a play
  * at the top of `simulatePassPlay`, before any die: a refusal throws before the stream begins.
  */
 export function pocketRulesOf(tunables: Tunables): PocketRules {
+  return pocketRulesUnder(tunables, IN_CONTRACTS);
+}
+
+/**
+ * `pocketRulesOf` with the two petitions given (plan §3.3, §3.4). The play always reads the
+ * constants (`pocketRulesOf`); a test gives its own pair to reach what a granted petition opens.
+ */
+export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetitions): PocketRules {
   const stamp = tunables.engineRules;
   const { beatClock, repClock, approach } = tunables.passRush;
   const forcingBlock = tunables.pocket.forcing;
+  const step3Blocks = step3BlocksOf(tunables);
   const clocks = (beatClock === undefined ? 0 : 1) + (repClock === undefined ? 0 : 1);
-  if (stamp === undefined && clocks === 0 && approach === undefined && forcingBlock === undefined) return LEGACY;
+  if (stamp === undefined && clocks === 0 && approach === undefined && forcingBlock === undefined && step3Blocks.length === 0) {
+    return LEGACY;
+  }
 
   if (clocks === 2) {
     throw new PocketRulesError("the tunables carry both block clocks (passRush.beatClock and passRush.repClock); a bundle runs one");
@@ -193,6 +438,15 @@ export function pocketRulesOf(tunables: Tunables): PocketRules {
   }
   if (forcingBlock !== undefined && stamp === undefined) {
     throw new PocketRulesError("the forcing block (pocket.forcing) without its rules stamp (engineRules { name, overlayDigest })");
+  }
+  // ADR-089 step 3: a step-3 block under legacy (no block clock), or without its stamp, is refused, never ignored.
+  for (const block of step3Blocks) {
+    if (clocks === 0) {
+      throw new PocketRulesError(`${block.name} without a block clock (passRush.beatClock or passRush.repClock); it is a pocket-1 rule`);
+    }
+    if (stamp === undefined) {
+      throw new PocketRulesError(`${block.name} without its rules stamp (engineRules { name, overlayDigest })`);
+    }
   }
   if (stamp === undefined) {
     throw new PocketRulesError("a pocket-1 overlay without its rules stamp (engineRules { name, overlayDigest })");
@@ -221,9 +475,9 @@ export function pocketRulesOf(tunables: Tunables): PocketRules {
       positive(w.lengthSeconds, "passRush.beatClock.pushWindow.lengthSeconds");
       onTheGrid(w.lengthSeconds, tunables.clock.tickStepSeconds, "passRush.beatClock.pushWindow.lengthSeconds");
     }
-    return Object.freeze({ kind: "S", beatClock, approach, rules, forcing });
+    return Object.freeze({ kind: "S", beatClock, approach, rules, forcing, ...step3RulesOf(tunables, "S", petitions) });
   }
   if (repClock === undefined) throw new PocketRulesError("unreachable: no block clock");
   positive(repClock.fullExpressionSeconds, "passRush.repClock.fullExpressionSeconds");
-  return Object.freeze({ kind: "L", repClock, approach, rules, forcing });
+  return Object.freeze({ kind: "L", repClock, approach, rules, forcing, ...step3RulesOf(tunables, "L", petitions) });
 }

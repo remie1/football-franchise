@@ -3393,9 +3393,109 @@ export interface EngineRulesStamp { readonly name: string; readonly overlayDiges
 export interface ForcingTunables { readonly rule: "PER_RUSHER" | "COUNTER_LESS_SEEN" }
 
 /**
- * ADR-089 steps 1 and 2: the build's tunables, widened by the `pocket-1` overlay's optional blocks
- * (`engineRules`, `passRush.beatClock`, `passRush.repClock`, `passRush.approach`, and from step 2
- * `pocket.forcing`). The run-time value of `DEFAULT_TUNABLES` carries none of them (`legacy`);
+ * ADR-089 step 3 (`pocket-1` only; absent from DEFAULT_TUNABLES until step 11): who the free-run
+ * clock times (ADR-089 §4.4.1, D19, and AM-2's readings).
+ *  - `B`, the design (D19): men nobody touched, that is UNBLOCKED, a pickup BLOWN_UP, a looper
+ *    LOOPER_FREE, and a late exchange whose looper had no blocker (AM-2's untouched exchange).
+ *  - `C`, information and the miss rule's option C: every free runner, touched men 0.5 s later.
+ *  - `A`, information only, never offered: UNBLOCKED alone; every lost block is a late block.
+ */
+export type FreeRunReading = "B" | "C" | "A";
+/**
+ * ADR-089 step 3, D19's three kinds of men nobody touched, which a by-origin arm (reading B only)
+ * narrows the clock to. `LOOPER_FREE` carries the untouched exchange with it (AM-2).
+ */
+export type FreeRunOrigin = "UNBLOCKED" | "BLOWN_UP" | "LOOPER_FREE";
+/**
+ * ADR-089 step 3: which snap picture the defense's line-up caller draws (AM-2's Mug rule). Read by
+ * the caller (calibration's line-up), never by physics; it sits in the tree so that the overlay
+ * digest, and so the stamp, moves with the picture. `AS_RULED` is ADR-090's picture under its
+ * rulings; `MUG_HEAD_ONLY` skips beat 3 for the Mug alone (ADR-090 §4.3, Head only).
+ */
+export type FreeRunPicture = "AS_RULED" | "MUG_HEAD_ONLY";
+/** AM-2's reference spot for a group: depth off the ball and width from it, in yards. */
+export interface HeldSpotTunables { readonly depth: number; readonly width: number }
+/**
+ * ADR-089 step 3, AM-2's references for the arms that vary one input and hold the others (CHOSEN,
+ * information only, never a design value): Speed 50 and Acceleration 50; a drop of 5.0 yards; a
+ * spot by group, down lineman (1.0, 2.5), linebacker (2.5, 2.5), defensive back (5.0, 7.0). A held
+ * man is set (no moving start), keeps his alignment's bend and any DELAYED wait, and a held
+ * looper's crossing leg is the filed 0.5 yard. Each key present holds that input.
+ */
+export interface FreeRunHoldTunables {
+  readonly spot?: {
+    readonly downLineman: HeldSpotTunables;
+    readonly linebacker: HeldSpotTunables;
+    readonly defensiveBack: HeldSpotTunables;
+  };
+  readonly ratings?: { readonly speed: number; readonly acceleration: number };
+  /** Yards, in place of the card's `dropDepthYards`. */
+  readonly drop?: number;
+}
+/**
+ * ADR-089 step 3 (`pocket-1` only; absent from DEFAULT_TUNABLES until step 11): the free-run
+ * clock, D18 and D22 (ADR-089 §4.4.4, §4.4.5). The constants are the step-0 filing's
+ * `constants.freeRun.*` (`reports/adr-089-step0.filed.json`), filed and never fitted, plus one new
+ * dial filed by AM-2, `movingGetOffSeconds` (filed 0, D18's "0 for a man already moving"), which
+ * the clean bench pushes past `clock.maxTick` with `getOffSeconds`. Filed values in comments.
+ */
+export interface FreeRunTunables {
+  /** D18: the 40, 40 yards. */
+  readonly fortyYards: number;
+  /** D18: the 40 time is `fortyIntercept - fortySpeedSlope * Speed / fortySpeedScale`, 5.6 - 1.38 * Speed / 99. */
+  readonly fortyIntercept: number;
+  readonly fortySpeedSlope: number;
+  readonly fortySpeedScale: number;
+  /** D18: the start, `tau = clamp(tauIntercept - tauSlope * (Acceleration - Speed), tauMin, tauMax)`, 0.77, 0.007, 0.63, 0.91. */
+  readonly tauIntercept: number;
+  readonly tauSlope: number;
+  readonly tauMin: number;
+  readonly tauMax: number;
+  /** D22: the reach, 1.0 yard off the straight path. */
+  readonly pathShortenYards: number;
+  /** D22: the bend round the edge, 1.1 (an EDGE man who is not looping). */
+  readonly edgePathFactor: number;
+  /** D22: a looper's crossing leg is `|x_partner - x_own| + loopExtraYards`, 0.5. */
+  readonly loopExtraYards: number;
+  /** D18: the get-off before he runs, 0.35 s. */
+  readonly getOffSeconds: number;
+  /** AM-2: the get-off of a man already moving at the snap (the creeper), filed 0. */
+  readonly movingGetOffSeconds: number;
+  /** §4.4.5: a DELAYED blitz waits 0.5 s (a linebacker or defensive back, never a down lineman). */
+  readonly delayedSeconds: number;
+  /** §4.4.5: the ETA is rounded to 0.1 s, as every published `etaTick` is; the only value accepted. */
+  readonly etaRoundingSeconds: number;
+  /** §4.4.3 and ADR-090 §4.6: the creeper's speed at the snap, 3 yd/s, straight at the line. */
+  readonly creeperYardsPerSecond: number;
+  readonly reading: FreeRunReading;
+  /** A by-origin arm's men (reading B only); absent is all three. */
+  readonly origins?: readonly FreeRunOrigin[];
+  /** AM-2's references, for the arms that hold an input; absent holds nothing. */
+  readonly hold?: FreeRunHoldTunables;
+  readonly picture: FreeRunPicture;
+}
+/**
+ * ADR-089 step 3 (`pocket-1` only), §4.4.2 and AM-2: the late, weak block for a man somebody got a
+ * hand on (RAN_THROUGH, LATE_EXCHANGE). `engageSeconds` is `t_e`, filed 1.0 s; `weakMultiplier` is
+ * `w`, filed 0.1, in shape S's `T = t_e + w * theta * exp(-beta * m / 41) * E^(1/k)` and shape L's
+ * `w * R`. Shape L's late block waits on petition P17 (refused by `pocketRulesOf` until then).
+ */
+export interface LateBlockTunables {
+  readonly engageSeconds: number;
+  readonly weakMultiplier: number;
+}
+/**
+ * ADR-089 step 3: what closes the climb lane. Absent is today's rule, an INTERIOR threat;
+ * `FRONT` is "no FRONT threat" (§6.3): an EDGE-aligned THROUGH threat (a LOOPER_FREE looper, a
+ * twist's penetrator) closes it too.
+ */
+export type ClimbLaneTunables = "FRONT";
+
+/**
+ * ADR-089 steps 1 to 3: the build's tunables, widened by the `pocket-1` overlay's optional blocks
+ * (`engineRules`, `passRush.beatClock`, `passRush.repClock`, `passRush.approach`, from step 2
+ * `pocket.forcing`, and from step 3 `blitzPickup.freeRun`, `blitzPickup.lateBlock` and
+ * `pocket.climbLane`). The run-time value of `DEFAULT_TUNABLES` carries none of them (`legacy`);
  * only the type widened.
  */
 export type Tunables = typeof TUNABLES & {
@@ -3405,7 +3505,11 @@ export type Tunables = typeof TUNABLES & {
     readonly repClock?: RepClockTunables;
     readonly approach?: ApproachTunables;
   };
-  readonly pocket: { readonly forcing?: ForcingTunables };
+  readonly blitzPickup: {
+    readonly freeRun?: FreeRunTunables;
+    readonly lateBlock?: LateBlockTunables;
+  };
+  readonly pocket: { readonly forcing?: ForcingTunables; readonly climbLane?: ClimbLaneTunables };
 };
 
 // --- the base a patch is a patch OF (ADR-016 item 2) -------------------------
