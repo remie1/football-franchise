@@ -1255,6 +1255,8 @@ export interface Step3ArmCounts {
 export interface Step3Sections {
   readonly pr33: Pr33State;
   readonly oneSet?: number;
+  /** On a one-set run, the graded clauses (and guard lines) that read outside their band on that set, reported (review MEAS-S1); empty otherwise. */
+  readonly outsideBand: readonly string[];
   readonly amendments: { readonly digest: string; readonly entry: string; readonly record: string; readonly zLeague: number; readonly zClass: number; readonly zSetSE0: number; readonly am2: string };
   /** Arms defined and not built, each with its reason (C14 while P17 is out). */
   readonly notPlayable: readonly { readonly arm: string; readonly reason: string }[];
@@ -1354,13 +1356,18 @@ export function renderStep3Sections(s: Step3Sections): readonly string[] {
   out.push("## What failed, first");
   out.push("");
   if (s.oneSet !== undefined) out.push(`A one-set run (seed set ${String(s.oneSet)}): every reading here is reported, never graded, and the step cannot close on it.`);
-  if (o.structuralFailures.length === 0 && o.foldFaults.length === 0 && o.gradedFailures.length === 0 && o.guardBreaches.length === 0) {
+  if (s.oneSet !== undefined) {
+    // Nothing is graded on one set, so no sentence here says a clause is inside its band (review MEAS-S1).
+    if (o.structuralFailures.length === 0 && o.foldFaults.length === 0) out.push("No structural proof or fold check fails. The graded clauses are not graded on one seed set.");
+    if (s.outsideBand.length === 0) out.push("On this seed set every graded clause reads inside its filed band and no guard line is crossed (reported, not graded).");
+  } else if (o.structuralFailures.length === 0 && o.foldFaults.length === 0 && o.gradedFailures.length === 0 && o.guardBreaches.length === 0) {
     out.push(`Nothing: every structural proof and fold check passes, every graded clause is inside its filed band, and the guard as ${a.entry} maps it finds no breach.`);
   }
   for (const f of o.structuralFailures) out.push(`- STRUCTURAL (a build fault, fixed before the owner sees anything, never put to a merge card): ${f}`);
   for (const f of o.foldFaults) out.push(`- FOLD FAULT (the clause is not judged and the step cannot close until the fold is fixed): ${f}`);
   for (const f of o.guardBreaches) out.push(`- GUARD BREACH under ${a.entry} (the step stops and goes to the owner, D9; nothing is re-run to try again): ${f}`);
   for (const f of o.gradedFailures) out.push(`- GRADED, a miss under the miss rule (classed and taken to the owner with options A, B and C priced; nothing in it is automatic): ${f}`);
+  for (const f of s.outsideBand) out.push(`- OUTSIDE THE BAND (reported, one seed set; graded only on a two-set run): ${f}`);
   out.push("");
   out.push(`Merge card: ${o.mergeCard ? "may be posted with the miss options priced (no structural failure, fold fault or guard breach stands)" : "NOT to be posted until the items above are settled"}.`);
   for (const n of o.next) out.push(`- next: ${n}`);

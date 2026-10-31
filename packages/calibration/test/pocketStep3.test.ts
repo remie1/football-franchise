@@ -41,7 +41,7 @@ import { loadFiled, STEP0_FILED_DIGEST, type FiledFile } from "../src/pocket/fil
 import { GOLDEN_LEAGUES } from "../src/pocket/golden.js";
 import type { MissSplit } from "../src/pocket/missRule.js";
 import { part1Problems } from "../src/pocket/part1.js";
-import { LEAGUES, waitLiteralText } from "../src/pocket/report.js";
+import { LEAGUES, renderStep3Sections, waitLiteralText } from "../src/pocket/report.js";
 import { POCKET_1_S3_FREE_RUN, POCKET_1_S3_RULES, S3_IN_CONTRACTS } from "../src/pocket/rules.js";
 import { pictureOptionsOf } from "../src/caller/frozen.js";
 import { POCKET_1_S1_BASE_PINS } from "../src/pocket/s1BasePins.js";
@@ -86,11 +86,13 @@ import {
   STEP3_PART1_IDS,
   STEP3_PLAYABLE,
   STEP3_PLAYABLE_RUN_IDS,
+  STEP3_R1_NEXT,
   STEP3_RECORDS_FORMAT,
   step3DigestPinProblems,
   step3Groups,
   step3MeasuresOf,
   step3StampOf,
+  step3SummaryLines,
   type PlayStep3Options,
   type Step2References,
   type Step3DigestsResult,
@@ -700,7 +702,8 @@ describe("grading synthetic records under AM-3's stand-in", () => {
     expect(clause(g, "s3.bin20.tick").values[0]).toMatch(/^C1 flat set 1 20\.00 \(binomial SE \d+\.\d\d; B3 20\.00\); set 2 20\.00; two-set mean 20\.00 \[time to throw C1 \d\.\d{3} s, B3 \d\.\d{3} s\]$/);
     expect(clause(g, "guard.mix").filed).toMatch(/^as AM-1's reading under AM-3 \(ADR-089 Appendix G, G\.9\): pooled Z over both seed sets above 2 breaches/);
     expect(clause(g, "guard.mix").note).toBe("graded on C1 against B3, C2 against B6, C11 against B3; the filed reading, e* and the paired SE are printed beside every reading in the guard section");
-    expect(g.sections.outcome).toEqual({ structuralFailures: [], foldFaults: [], gradedFailures: [], guardBreaches: [], mergeCard: true, next: [] });
+    expect(g.sections.outcome).toEqual({ structuralFailures: [], foldFaults: [], gradedFailures: [], guardBreaches: [], mergeCard: true, next: [STEP3_R1_NEXT] });
+    expect(g.sections.outsideBand).toEqual([]);
     expect(g.sections.notPlayable).toEqual([{ arm: "C14", reason: armRefusal("C14") }]);
     expect(g.sections.amendments).toEqual({ digest: guard.digest, entry: "AM-3", record: "ADR-089 Appendix G, G.9", zLeague: 2, zClass: 3, zSetSE0: 0, am2: "AM-2 (ADR-089 Appendix G, G.8)" });
   });
@@ -747,7 +750,7 @@ describe("grading synthetic records under AM-3's stand-in", () => {
     expect(clause(miss, "s3.bin20.tick").verdict).toBe("FAIL");
     expect(miss.sections.outcome.gradedFailures).toEqual([expect.stringMatching(/^s3\.bin20\.tick \(at most 29\.4\): C1 flat set 1 20\.00 .*; C1 gen set 1 35\.00 /)]);
     expect(miss.sections.outcome.mergeCard).toBe(true);
-    expect(miss.sections.outcome.next).toEqual([expect.stringMatching(/^each miss is classed by the miss rule on C1 and C2, on each seed set/)]);
+    expect(miss.sections.outcome.next).toEqual([expect.stringMatching(/^each miss is classed by the miss rule on C1 and C2, on each seed set/), STEP3_R1_NEXT]);
     const r = miss.sections.miss.readings.find((x) => x.arm === "C1" && x.league === "gen" && x.seedSet === 1)!;
     expect(r.missed).toEqual(["s3.bin20.tick"]);
     expect(r.classes!.length).toBeGreaterThan(0);
@@ -765,7 +768,7 @@ describe("grading synthetic records under AM-3's stand-in", () => {
     }));
     expect(clause(close, "s3.bin20.tick").verdict).toBe("PASS");
     expect(clause(close, "s3.bin20.tick").note).toContain("gen: not resolved by two seed sets (set 1 PASS, set 2 FAIL, within 2 SE of the line)");
-    expect(close.sections.outcome.next).toEqual(["not resolved by two seed sets: s3.bin20.tick gen; the grade stays set 1's, and both sets go to the owner"]);
+    expect(close.sections.outcome.next).toEqual(["not resolved by two seed sets: s3.bin20.tick gen; the grade stays set 1's, and both sets go to the owner", STEP3_R1_NEXT]);
   });
 
   it("an AM-3 breach stops the step; the same rise on an information arm, the cumulative line or the accepted state is printed, never a breach", () => {
@@ -864,6 +867,36 @@ describe("grading synthetic records under AM-3's stand-in", () => {
     expect(cut.sections.outcome.next.some((n) => n.startsWith("this run is on a cut corpus (tests only; 44 arm-sets)"))).toBe(true);
   });
 
+  it("review MEAS-S1, MEAS-N2: a one-set run never says a clause is inside its band, names the ones outside, and R-1 is named before the card", () => {
+    const one = grade(recordsOf(guard.digest, (m) => {
+      setRow(rec(m, "C1", 1), "quick_pressure_share_by_origin", "gen", 88.91);
+      setRow(rec(m, "C1", 1), "unblocked_share_of_hit_or_sack", "flat", 75.71);
+    }, [1]), 1);
+    expect(clause(one, "s3.quick").verdict).toBe("REPORTED");
+    expect(one.sections.outcome.gradedFailures).toEqual([]);
+    expect(one.sections.outsideBand).toEqual([
+      expect.stringMatching(/^s3\.quick \(30 to 55\): C1 flat set 1 40\.00 .*; C1 gen set 1 88\.91 /),
+      expect.stringMatching(/^s3\.unblockedShare \(at most 40\): C1 flat set 1 75\.71 .*; C1 gen set 1 30\.00 /),
+    ]);
+    const text = renderStep3Sections(one.sections).join("\n");
+    expect(text).not.toContain("every graded clause is inside its filed band");
+    expect(text).toContain("No structural proof or fold check fails. The graded clauses are not graded on one seed set.");
+    expect(text).toContain("- OUTSIDE THE BAND (reported, one seed set; graded only on a two-set run): s3.quick (30 to 55): C1 flat set 1 40.00");
+    expect(text).toContain(`- next: ${STEP3_R1_NEXT}`);
+    const summary = step3SummaryLines(one.sections);
+    expect(summary[0]).toBe("ADR-089 step 3: 0 structural failure(s), 0 fold fault(s), graded clauses not graded (one seed set; 2 outside the band, reported), 0 guard breach(es); merge card not to be posted");
+    expect(summary).toContain("  outside the band (reported, one seed set): " + one.sections.outsideBand[0]!);
+    // A one-set run with every clause inside its band says so as a reading, never as "Nothing".
+    const clean = renderStep3Sections(grade(recordsOf(guard.digest, undefined, [1]), 1).sections).join("\n");
+    expect(clean).not.toContain("Nothing: ");
+    expect(clean).toContain("On this seed set every graded clause reads inside its filed band and no guard line is crossed (reported, not graded).");
+    // A two-set run keeps its count and its "Nothing" sentence.
+    expect(step3SummaryLines(g.sections)[0]).toBe("ADR-089 step 3: 0 structural failure(s), 0 fold fault(s), 0 graded clause failure(s) (misses under the miss rule), 0 guard breach(es); merge card may be posted");
+    expect(renderStep3Sections(g.sections).join("\n")).toContain("Nothing: every structural proof and fold check passes, every graded clause is inside its filed band");
+    // The determinism clause is NOT CHECKED in every graded run, so R-1 is named in every outcome.
+    expect(g.sections.outcome.next).toContain(STEP3_R1_NEXT);
+  });
+
   it("refuses a record stamped with another step-3 view (a preview's) or filed under another arm", () => {
     const preview = previewDigest();
     expect(() => grade(recordsOf(guard.digest, (m) => { rec(m, "C1", 1).stamp.amendments = preview; }))).toThrow(
@@ -923,7 +956,7 @@ describe("the run through its play seam", () => {
     expect(second.graded).toBe(true);
     expect(second.played).toHaveLength(22);
     expect(second.wrote).toEqual([report, out]);
-    expect(second.grade!.sections.outcome).toEqual({ structuralFailures: [], foldFaults: [], gradedFailures: [], guardBreaches: [], mergeCard: true, next: [] });
+    expect(second.grade!.sections.outcome).toEqual({ structuralFailures: [], foldFaults: [], gradedFailures: [], guardBreaches: [], mergeCard: true, next: [STEP3_R1_NEXT] });
     expect(plays).toHaveLength(44);
     const bytes = [readFileSync(report, "utf8"), readFileSync(out, "utf8")];
     plays = [];

@@ -1302,6 +1302,9 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
   const designBase = armById(design).base!;
   const fromProof = (p: Step2Proof | undefined): Step2Verdict => (p === undefined ? "NOT PLAYED" : p.verdict);
   const unresolved: string[] = [];
+  // A one-set run grades nothing (every verdict REPORTED): the graded clauses that read outside their
+  // band on that set are named here, never as "inside" (review MEAS-S1).
+  const outsideBand: string[] = [];
 
   for (const c of file.bands.clauses) {
     if (c.step !== "3" && c.step !== "guard") continue;
@@ -1334,6 +1337,7 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
         return { v, text: `${design} ${l} set ${String(gradedSet)} ${num(v)} (binomial SE ${num(seOf(design, gradedSet, l, c.id))}; ${designBase} ${num(valueOf(designBase, gradedSet, l, c.id))})${others.length === 0 ? "" : `; ${others.join("; ")}`}${mean} ${tt}` };
       });
       const ok = reads.every((r) => inBand(r.v, c));
+      if (oneSet !== undefined && missing.length === 0 && !ok) outsideBand.push(`${c.id} (${filed}): ${reads.map((r) => r.text).join("; ")}`);
       clauses.push({
         id: c.id, kind: c.kind, arms: [design], filed, values: missing.length > 0 ? [`not played: ${missing.join(", ")}`] : reads.map((r) => r.text),
         verdict: missing.length > 0 ? "NOT PLAYED" : oneSet !== undefined ? "REPORTED" : ok ? "PASS" : "FAIL",
@@ -1381,6 +1385,7 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
       const values = breaching.length === 0
         ? [`${String(graded.length)} arm-league readings, none breaching${zs.length === 0 ? "" : ` (largest Z ${sgn(Math.max(...zs))})`}`]
         : breaching.map((g) => `${g.arm} against ${g.base} ${g.league} breaches: ${c.id === "guard.mix" ? `league-wide Z ${sgn(g.reading.league.Z)}` : g.reading.classes.filter((k) => k.reading?.verdict === "BREACH").map((k) => `${k.cls} Z ${sgn(k.reading!.Z)}`).join(", ")}`);
+      if (oneSet !== undefined && breaching.length > 0) outsideBand.push(`${c.id} (over the line on this one set, never a breach until both sets are read): ${values.join("; ")}`);
       clauses.push({
         id: c.id, kind: c.kind, arms, filed: `as AM-1's reading under ${guard.entry} (${guard.record}): pooled Z over both seed sets above ${String(c.id === "guard.mix" ? guard.lines.zLeague : guard.lines.zClass)} breaches (filed: rise over the mix-predicted rise ${filed})`,
         values: [...values, ...(missingArms.length === 0 ? [] : [`not played: ${missingArms.join(", ")}`])],
@@ -1573,6 +1578,11 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
   if (unproved.length > 0) next.push(`structural proofs that did not pass: ${unproved.join(", ")}; the merge card waits for every one to PASS`);
   if (gradedFailures.length > 0) next.push("each miss is classed by the miss rule on C1 and C2, on each seed set, and goes to the owner with options A (priced by C15), B and C (priced by C11); no band moves, nothing is tuned to pass or re-run to try again (one pass of the options per step)");
   if (unresolved.length > 0) next.push(`not resolved by two seed sets: ${unresolved.join(", ")}; the grade stays set 1's, and both sets go to the owner`);
+  // s3.part1.determinism is never played by a graded run (R-1 proves it in two processes): the merge
+  // card cites R-1's output before it is posted (review MEAS-N2).
+  if (clauses.some((c) => c.id === "s3.part1.determinism" && c.verdict === "NOT CHECKED")) {
+    next.push(STEP3_R1_NEXT);
+  }
   const outcome: Step2Outcome = {
     structuralFailures, foldFaults, gradedFailures, guardBreaches,
     mergeCard: complete && proofs.every((p) => p.kind !== "structural" || p.verdict === "PASS") && structuralFailures.length === 0 && foldFaults.length === 0 && guardBreaches.length === 0,
@@ -1600,6 +1610,7 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
     sections: {
       pr33: PR33_STATE,
       ...(oneSet === undefined ? {} : { oneSet }),
+      outsideBand,
       amendments: { digest: guard.digest, entry: guard.entry, record: guard.record, zLeague: guard.lines.zLeague, zClass: guard.lines.zClass, zSetSE0: guard.lines.zSetSE0, am2: guard.am2 },
       notPlayable: STEP3_ARM_IDS.flatMap((id) => (armRefusal(id) === undefined ? [] : [{ arm: id, reason: armRefusal(id)! }])),
       headline, clauses,
@@ -1658,6 +1669,27 @@ export function step3MeasuresOf(records: Step3Records, grade: Step3Grade, guard:
     grade: grade.sections,
     groups: grade.groups,
   });
+}
+
+/** The `next` line every grade carries while s3.part1.determinism is proved outside the run (R-1; review MEAS-N2). */
+export const STEP3_R1_NEXT =
+  "s3.part1.determinism is NOT CHECKED by this run: the merge card cites R-1's output (pocket -- --step 3 --digests in two processes, the two outputs byte-identical) before it is posted";
+
+/**
+ * The CLI's summary of a grade: the counts line, then each item indented. A one-set run grades no
+ * clause, so it prints "not graded (one seed set)" in place of a count of 0, and names the clauses
+ * that read outside their band on that set (review MEAS-S1).
+ */
+export function step3SummaryLines(s: Step3Sections): readonly string[] {
+  const o = s.outcome;
+  const graded = s.oneSet === undefined
+    ? `${String(o.gradedFailures.length)} graded clause failure(s) (misses under the miss rule)`
+    : `graded clauses not graded (one seed set; ${String(s.outsideBand.length)} outside the band, reported)`;
+  return [
+    `ADR-089 step 3: ${String(o.structuralFailures.length)} structural failure(s), ${String(o.foldFaults.length)} fold fault(s), ${graded}, ` +
+      `${String(o.guardBreaches.length)} guard breach(es); merge card ${o.mergeCard ? "may be posted" : "not to be posted"}`,
+    ...[...o.structuralFailures, ...o.foldFaults, ...o.guardBreaches, ...o.gradedFailures, ...s.outsideBand.map((x) => `outside the band (reported, one seed set): ${x}`), ...o.next].map((line) => `  ${line}`),
+  ];
 }
 
 // --- the run -----------------------------------------------------------------------------------------------
@@ -1977,11 +2009,6 @@ export async function step3Command(args: Step3Args, log: (line: string) => void)
     committedDir: join(PKG_ROOT, "reports"),
   });
   if (result.graded && result.grade !== undefined) {
-    const o = result.grade.sections.outcome;
-    process.stdout.write(
-      `ADR-089 step 3: ${String(o.structuralFailures.length)} structural failure(s), ${String(o.foldFaults.length)} fold fault(s), ${String(o.gradedFailures.length)} graded clause failure(s) (misses under the miss rule), ` +
-        `${String(o.guardBreaches.length)} guard breach(es); merge card ${o.mergeCard ? "may be posted" : "not to be posted"}\n`,
-    );
-    for (const line of [...o.structuralFailures, ...o.foldFaults, ...o.guardBreaches, ...o.gradedFailures, ...o.next]) process.stdout.write(`  ${line}\n`);
+    process.stdout.write(`${step3SummaryLines(result.grade.sections).join("\n")}\n`);
   }
 }
