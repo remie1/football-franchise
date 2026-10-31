@@ -536,7 +536,8 @@ describe("ADR-004 roll accounting", () => {
    * ADR-089 step 3, R-4 ON SHAPE L (E4b; contracts petition P17; the Orchestrator's CT-F7 ruling).
    * C14's shape (`S3L8_TUNABLES`: step 2's L basis at R 8 with the free-run block, the late block and
    * the FRONT climb lane) against B5's (`S2L8_TUNABLES`), on the same fixtures and pictures as above:
-   * 13. the same pre-snap dice and the same rep CHECKs, field for field;
+   * 13. the same pre-snap dice and the same rep CHECKs, field for field, and on every tick both plays
+   *     battle the line the same `:jitter` dice (label and raw) for the blocked matchups;
    * 14. each late tick (a `pass_rush_tick` naming its touching CHECK, from `t_e`) draws exactly two
    *     dice, `rush/t<tick>/<rusherId>:late` and `rush/t<tick>/<toucherId>:late:<rusherId>`, for a
    *     late block the play made, and no other roll of the play has a `:late` label;
@@ -553,6 +554,24 @@ describe("ADR-004 roll accounting", () => {
     let plays = 0;
     let lateBlocks = 0;
     let lateTicks = 0;
+    let pairedJitterTicks = 0;
+    /**
+     * The ticks on which the play battled the line (any `pass_rush_tick`, a late tick included), each
+     * with the `:jitter` dice drawn on it (label and raw) in the order drawn.
+     */
+    const jitterByTick = (events: readonly MatchEventEnvelope[]): Map<number, string[]> => {
+      const out = new Map<number, string[]>();
+      for (const e of events) {
+        if (e.event.type !== "CHECK" || e.event.payload.checkKind !== "pass_rush_tick") continue;
+        const p = e.event.payload;
+        const tick = tickOf(e);
+        if (tick === undefined) throw new Error("a pass_rush_tick without its tick");
+        const dice = out.get(tick) ?? [];
+        out.set(tick, dice);
+        for (const r of [p.roll, p.opposedRoll]) if (r !== undefined && r.rngLabel.endsWith(":jitter")) dice.push(`${r.rngLabel}=${String(r.raw)}`);
+      }
+      return out;
+    };
     for (const [fixture, build] of fixtures) {
       for (let i = 0; i < 60; i++) {
         const seed = `paired-s3l-${fixture}-${i}`;
@@ -565,9 +584,18 @@ describe("ADR-004 roll accounting", () => {
         const late = lateBlocksOf(plans);
         plays += 1;
         lateBlocks += late.length;
-        // (13) the same pre-snap dice and the same rep CHECKs.
+        // (13) the same pre-snap dice and the same rep CHECKs; and the blocked matchups' `:jitter`
+        // dice, tick by tick, are B5's on every tick both plays battle the line (check-fidelity F8).
         expect(presnapRolls(c14)).toEqual(presnapRolls(b5));
         expect(repChecks(c14)).toEqual(repChecks(b5));
+        const c14Jitter = jitterByTick(c14);
+        const b5Jitter = jitterByTick(b5);
+        for (const [tick, dice] of c14Jitter) {
+          const base = b5Jitter.get(tick);
+          if (base === undefined) continue;
+          expect(dice, `${seed} t${tick.toFixed(1)}`).toEqual(base);
+          if (base.length > 0) pairedJitterTicks += 1;
+        }
         // (14) each late tick's two dice, and no other :late label.
         const expectedLate: string[] = [];
         for (const e of c14) {
@@ -612,6 +640,7 @@ describe("ADR-004 roll accounting", () => {
     expect(plays).toBe(fixtures.length * 60);
     expect(lateBlocks).toBeGreaterThan(30);
     expect(lateTicks).toBeGreaterThan(30);
+    expect(pairedJitterTicks).toBeGreaterThan(1000);
     const added = [...newFamilies].filter((f) => !baseFamilies.has(f));
     expect(added.filter((f) => !/\/rush\/t#\/[^/]+:late(:[^/:]+)?$/.test(f))).toEqual([]);
     expect(added.some((f) => /:late$/.test(f))).toBe(true);
