@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { GameFile } from "./gameFile.js";
 import { buildPlayDetail, type DetailFact } from "./playDetail.js";
+import { SnapPictureView } from "./SnapPictureView.js";
 
 function Facts({ title, facts }: { title: string; facts: readonly DetailFact[] }) {
   if (facts.length === 0) return null;
@@ -23,6 +24,13 @@ export function PlayDetailView({ game, playId }: { game: GameFile; playId: strin
   const d = useMemo(() => buildPlayDetail(game, playId), [game, playId]);
   return (
     <div className="detail">
+      {d.snap !== undefined && (
+        <div>
+          <h4>At the snap</h4>
+          <SnapPictureView diagram={d.snap} />
+        </div>
+      )}
+
       <div className="facts-pair">
         <Facts title="Offense called" facts={d.offense} />
         <Facts title="Defense called" facts={d.defense} />

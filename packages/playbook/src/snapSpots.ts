@@ -1,11 +1,13 @@
 /**
  * WHERE EVERY MAN STANDS AT THE SNAP — ADR-090 step 0: the field frame (D1), the grid mapping
  * (D2), the spot tables (D3 for the offense, D4 and D5 for the defense) and the pre-snap beats
- * as pure code.
+ * as pure code. Step 1 draws the picture on every snap.
  *
- * ⛔ NOTHING CALLS THIS FROM A GAME (ADR-090 §7, step 0). It reads a call the way instantiation
- * leaves it and returns a picture; no die is rolled and nothing in play reads the picture. Step 1
- * publishes it on `PLAY_START` (petitions S1 and S2) and the game viewer draws it.
+ * ⛔ NOTHING IN PLAY READS THE PICTURE YET (ADR-090 §7, step 1). It reads a call the way
+ * instantiation leaves it and returns a picture, rolling no die. A caller with the playbook draws
+ * one for every snap (calibration's frozen pair, in `lineUp`), the calls carry it into the
+ * simulation (`PlayCalls.snap`, petition S5), `PLAY_START` publishes it (S2) and the game viewer
+ * draws it. The engine reads it from step 2 on.
  *
  * ================== WHY THE BEATS ARE HERE, NOT IN THE ENGINE ==================
  *
@@ -15,9 +17,9 @@
  * a formation), a defender's role and position group, the NAME of his zone (a deep third and a
  * curl-flat start in different places, and a contracts zone carries only its cell and spans),
  * and which look moved him. All of that is this package's. So the beats that read it run here,
- * beside instantiation, and at step 1 the call carries the picture to the engine (a third
- * petition, S5, beside S1 and S2; ADR-090 §8's amendment of 2026-10-31). The engine keeps the
- * beats that roll dice: ADR-091's stem, played out over this picture at step 3.
+ * beside instantiation, and the calls carry the picture to the engine (a third petition, S5,
+ * beside S1 and S2; ADR-090 §8's amendment of 2026-10-31). The engine keeps the beats that roll
+ * dice: ADR-091's stem, played out over this picture at step 3.
  *
  * ================== THE SEVEN BEATS, AND WHICH ARE CODE ==================
  *
@@ -59,10 +61,14 @@ import type {
   FieldZone,
   HorizontalZone,
   PlayerId,
+  PlayerSnapSpot,
   RunGap,
   RunSide,
   RushAlignment,
   ShownRusher,
+  SnapPicture,
+  SnapSpot,
+  Stance,
 } from "@ff/contracts";
 import { laneSide, receiverNumbering, type QuarterbackSpot } from "./alignment.js";
 import type { ZoneName } from "./coverage.js";
@@ -88,48 +94,7 @@ import {
 } from "./roles.js";
 import { verticalZoneForAirYards } from "./routes.js";
 
-// --- the snap spot (ADR-090 §3; contracts petition S1 at step 1) ------------------------------
-
-/** A hand on the ground, or not. */
-export type Stance = "DOWN" | "UP";
-
-/** A man moving at the snap: his direction (a unit vector, in the frame above) and speed. */
-export interface SnapMovement {
-  readonly dx: number;
-  readonly dy: number;
-  /** Yards a second, to half a yard. */
-  readonly yardsPerSecond: number;
-}
-
-/**
- * Where one man stands at the instant of the snap. Declared here at step 0, as `DeclaredRush`
- * and `CoverageShell` are: step 1 petitions it into contracts (S1), and this one goes.
- */
-export interface SnapSpot {
-  /** Yards across from the ball; negative is the offense's left. */
-  readonly x: number;
-  /** Yards from the line of scrimmage; positive is downfield. */
-  readonly y: number;
-  readonly stance: Stance;
-  /** Absent if he is set. */
-  readonly moving?: SnapMovement;
-}
-
-/** One man's spot in the published picture. */
-export interface PlayerSnapSpot extends SnapSpot {
-  readonly player: PlayerId;
-}
-
-/**
- * The snap picture (ADR-090 §6): all twenty-two spots, frozen to half a yard, and the ball's
- * place across the field. The offense in role order (quarterback, line, then the personnel's
- * skill roles); the defense in the card's role order.
- */
-export interface SnapPicture {
-  readonly ballX: number;
-  readonly offense: readonly PlayerSnapSpot[];
-  readonly defense: readonly PlayerSnapSpot[];
-}
+// --- the snap spot (ADR-090 §3): contracts' `SnapSpot` and `SnapPicture` (petition S1) ------------
 
 export type OffenseSpots = Readonly<Partial<Record<OffenseRole, SnapSpot>>>;
 export type DefenseSpots = Readonly<Partial<Record<DefenseRole, SnapSpot>>>;
