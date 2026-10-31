@@ -3496,7 +3496,8 @@ export interface FreeRunTunables {
  * ADR-089 step 3 (`pocket-1` only), §4.4.2 and AM-2: the late, weak block for a man somebody got a
  * hand on (RAN_THROUGH, LATE_EXCHANGE). `engageSeconds` is `t_e`, filed 1.0 s; `weakMultiplier` is
  * `w`, filed 0.1, in shape S's `T = t_e + w * theta * exp(-beta * m / 41) * E^(1/k)` and shape L's
- * `w * R`. Shape L's late block runs under petition P17 (in contracts since E4b).
+ * `w * R`. Shape L's late block runs under petition P17 (in contracts since c340520, lifted in
+ * E4b).
  */
 export interface LateBlockTunables {
   readonly engageSeconds: number;

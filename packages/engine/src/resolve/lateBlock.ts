@@ -23,11 +23,12 @@
  * margin `reportedMarginS` with the window undefined: `min(0, m)` before the beat tick and
  * `max(RUSHER_WINS_REP's floor, m)` from it.
  *
- * SHAPE L (petition P17, in contracts since E4b; `sim/pocketRules.ts` refuses it only when a test
- * withholds P17). From `t_e` each tick draws two d100s, `rush/t<tick>/<rusherId>:late` and
- * `rush/t<tick>/<toucherId>:late:<rusherId>` (the toucher's die names the man he blocks, so a man
- * on two late blocks draws two dice a tick and no label repeats in a play; the Orchestrator's CT-F7
- * ruling), jitter `round((rusher - toucher) / repJitter.divisor)` as today's tick, and margin
+ * SHAPE L (petition P17, in contracts since c340520 and lifted in E4b; `sim/pocketRules.ts`
+ * refuses it only when a test withholds P17). From `t_e` each tick draws two d100s,
+ * `rush/t<tick>/<rusherId>:late` and `rush/t<tick>/<toucherId>:late:<rusherId>` (the toucher's
+ * die names the man he blocks, so a man on two late blocks draws two dice a tick and no label
+ * repeats in a play; the Orchestrator's CT-F7 ruling), jitter
+ * `round((rusher - toucher) / repJitter.divisor)` as today's tick, and margin
  * `Math.round(Math.min(t - t_e, w * R) * (m + jitter) / (w * R)) + 0`, the form of today's L
  * margin (AM-2 binds this form; calibration's fold uses the same). A rolled
  * `pass_rush_tick` with `roll` and `opposedRoll`, `rollRef` the touching CHECK.

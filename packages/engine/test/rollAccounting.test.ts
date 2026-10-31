@@ -383,7 +383,8 @@ describe("ADR-004 roll accounting", () => {
    * 11. the label families C1 draws are B3's plus ONE new family, `rush/beat/<pre-snap label>`
    *     (shape L's are the two `:late` families, read by the shape-L pairing below);
    * 12. no RollDetail twice in a C1 play, nor in a whole game under C1 with a picture on every pass.
-   * Shape L's pairing (C14's shape against B5's, P17 in contracts since E4b) follows.
+   * Shape L's pairing (C14's shape against B5's, P17 in contracts since c340520 and lifted in
+   * E4b) follows.
    */
   // R-4's helpers, shared by the shape-S and shape-L pairings.
   type Roll = { readonly rngLabel: string; readonly raw: number; readonly kind: string };

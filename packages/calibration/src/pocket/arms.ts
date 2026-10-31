@@ -279,7 +279,7 @@ export type Step2ArmId = (typeof STEP2_ARM_IDS)[number];
 /**
  * Step 3's sixteen arms (plan §5.1), in order. AM-3's base map names C1, C2 and C11 (plan §4.2), so
  * the ids are arms of this build before any C arm runs; `STEP3_ARM_DEFS` defines them (C14 waits on
- * P17, in contracts since E4b), and the step-3 harness (K4) plays them.
+ * P17, in contracts since c340520 and lifted in E4b), and the step-3 harness (K4) plays them.
  */
 export const STEP3_ARM_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C14", "C15", "C16"] as const;
 export type Step3ArmId = (typeof STEP3_ARM_IDS)[number];
@@ -387,8 +387,8 @@ export interface ArmDef {
   readonly step3?: Step3Blocks;
   /**
    * The contract petition the arm waits on, when its blocks are refused until it is in contracts:
-   * C14's late block on shape L waits on P17 (plan §3.4), in contracts since E4b. Such an arm is
-   * defined, never built while the petition is out (`armRefusal`).
+   * C14's late block on shape L waits on P17 (plan §3.4), in contracts since c340520 and lifted in
+   * E4b. Such an arm is defined, never built while the petition is out (`armRefusal`).
    */
   readonly waitsOn?: "P17";
 }
@@ -522,7 +522,8 @@ const S3_STAND_IN = ["s3.hitOrSack", "s3.expected.pressure", "s3.expected.sack",
  * table's base column (AM-3 maps C1 on B3, C2 on B6 and C11 on B3; the others are information, their
  * Z printed against the same base, unguarded). "Today" is today's set times; the hand-off fix and
  * D16's path come with the free-run block. The arms that vary one input (C3, C4, C5) hold the other
- * two at AM-2's references. C14 waits on P17 (`waitsOn`), in contracts since E4b, so it is built.
+ * two at AM-2's references. C14 waits on P17 (`waitsOn`), in contracts since c340520 and lifted in
+ * E4b, so it is built.
  */
 export const STEP3_ARM_DEFS: readonly ArmDef[] = deepFreeze([
   {

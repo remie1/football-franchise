@@ -210,7 +210,8 @@ describe("ADR-089 step 2 — no rule set without pocket.forcing runs must act or
  * before step 3, play or game, with or without a picture on the calls; and the spies are wired:
  * the s3 sets call them. `resolveLateTickL` stays at zero under `RULE_SETS`' s3 sets as well, since
  * neither runs a late block on shape L (S3 is shape S; S3L has no late block); C14's shape
- * (`S3L8_TUNABLES`, shape L with the late block, P17 in contracts since E4b) calls it.
+ * (`S3L8_TUNABLES`, shape L with the late block, P17 in contracts since c340520 and lifted in
+ * E4b) calls it.
  */
 describe("ADR-089 step 3 — no rule set before step 3 runs a step-3 entry point (P-18)", () => {
   const STEP3_FIXTURES = [
