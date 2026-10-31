@@ -103,6 +103,8 @@ Wrong flags in this design only come from plays that were close to a foul, never
 
 ### Q5. Should officials lean toward the home team?
 
+**You chose a small lean, on the defense's judgment calls (31 October).**
+
 **Example:** your corner is on the road, hand-fighting a receiver on a deep ball. The same contact draws a flag a little more often than it would at home.
 
 - **A small lean, on the defense's judgment calls (recommended now):** pass interference, defensive holding and illegal contact get called on the road defense 1.1 to 1.3 times as often as on the home defense, as in the real numbers. The road's extra pre-snap flags stay the crowd's (the hard count at home, and the noise for the road offense).
