@@ -315,9 +315,9 @@ export const POCKET_1_S2_DIGEST = "fnv1a:03754f60";
  * AM-2's `movingGetOffSeconds` (filed 0, D18's "0 for a man already moving"), reading B (the design,
  * D19: men nobody touched, and AM-2's untouched exchange) over all three origins (no `origins`), no
  * held input, and the picture `AS_RULED`, the design picture under AM-2's Mug rule since the owner
- * granted ADR-090's petition S3 before the arms ran (2026-10-31; `S3_IN_CONTRACTS`). An s3 save or
- * export made before the s3 pins (R-2) is not of record: the overlay digest names these tunables,
- * not the engine code that reads them (review NPC-N3).
+ * granted ADR-090's petition S3 before any step-3 arm ran (2026-10-31; `S3_IN_CONTRACTS`). An s3
+ * save or export made before the s3 pins (R-2) is not of record: the overlay digest names these
+ * tunables, not the engine code that reads them (review NPC-N3).
  */
 export const POCKET_1_S3_FREE_RUN: PocketFreeRun = deepFreeze({
   fortyYards: 40,
