@@ -115,7 +115,7 @@ function pushed(truth: number, grade: AccuracyGrade, unit: number, rng: Rng, lea
  * A ranked list read at a grade: sharp keeps it, close swaps one name for the next in line, off
  * keeps about half, a miss keeps at most one. `pool` is everyone the list could have named, truth first.
  */
-function pushedList<T>(truth: readonly T[], pool: readonly T[], grade: AccuracyGrade, rng: Rng, size: number): T[] {
+export function pushedList<T>(truth: readonly T[], pool: readonly T[], grade: AccuracyGrade, rng: Rng, size: number): T[] {
   const top = truth.slice(0, size);
   const keep = grade === "SHARP" ? top.length : grade === "CLOSE" ? Math.max(0, top.length - 1) : grade === "OFF" ? Math.floor(top.length / 2) : Math.min(1, Math.floor(top.length / 3));
   const others = pool.filter((x) => !top.includes(x));
@@ -126,9 +126,9 @@ function pushedList<T>(truth: readonly T[], pool: readonly T[], grade: AccuracyG
 }
 
 const ORDERED: readonly TeamDirection[] = ["REBUILD", "RETOOL", "CONTEND"];
-const LUCK_ORDER: readonly string[] = ["UNLUCKY", "EVEN", "LUCKY"];
+export const LUCK_ORDER: readonly string[] = ["UNLUCKY", "EVEN", "LUCKY"];
 /** A three-step answer read at a grade: sharp and close keep it, off moves one step, a miss two where it can. */
-function pushedOrdered<T>(order: readonly T[], truth: T, grade: AccuracyGrade, rng: Rng, lean: number): T {
+export function pushedOrdered<T>(order: readonly T[], truth: T, grade: AccuracyGrade, rng: Rng, lean: number): T {
   if (grade === "SHARP" || grade === "CLOSE") return truth;
   const i = order.indexOf(truth);
   const step = grade === "OFF" ? 1 : 2;

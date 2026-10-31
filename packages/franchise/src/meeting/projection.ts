@@ -69,7 +69,10 @@ export function projectTeam(team: Team, players: readonly PlayerState[], contrac
     if (c.ended || String(c.team) !== String(team.id)) continue;
     lastSeason.set(String(c.player), Math.max(lastSeason.get(String(c.player)) ?? -Infinity, lastSeasonOf(c)));
   }
-  const ends = (id: string) => lastSeason.get(id) ?? season; // no live deal: he is gone too
+  // No live deal: he is gone too. A team with no deals on the book at all (a league run without the
+  // cap) keeps everyone: there is nothing to say who leaves.
+  const noBook = lastSeason.size === 0;
+  const ends = (id: string) => lastSeason.get(id) ?? (noBook ? Infinity : season);
   const roster = team.roster.map((id) => byId.get(String(id))).filter((p): p is PlayerState => p !== undefined);
   const expiring = roster.filter((p) => ends(String(p.bio.id)) <= season);
   const expiringNext = roster.filter((p) => ends(String(p.bio.id)) === season + 1);

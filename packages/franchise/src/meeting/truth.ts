@@ -26,6 +26,8 @@ export interface MeetingTruth {
   groupsNext: Partial<Record<MeetingGroup, number>>;
   /** Units' strength now, and each unit's rank in the league (1 = best). */
   units: Record<Unit, { strength: number; rank: number }>;
+  /** The same, projected to next season. */
+  unitsNext: Record<Unit, { strength: number; rank: number }>;
   /** Projected wins next season and the season after, against the league's mean projected team. */
   winsNext: number;
   winsAfter: number;
@@ -58,12 +60,14 @@ export function leagueTruth(input: LeagueTruthInput): MeetingTruth[] {
   const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
   const meanNext = mean(projections.map((p) => p.next.total));
   const meanAfter = mean(projections.map((p) => p.after.total));
-  const unitRank = (u: Unit) => {
-    const order = projections.map((p, i) => ({ i, s: p.now.units[u] })).sort((a, b) => b.s - a.s || a.i - b.i);
+  const unitRank = (u: Unit, when: "now" | "next") => {
+    const order = projections.map((p, i) => ({ i, s: p[when].units[u] })).sort((a, b) => b.s - a.s || a.i - b.i);
     const rank = new Map(order.map((o, r) => [o.i, r + 1]));
     return (i: number) => rank.get(i)!;
   };
-  const ranks = { OFFENSE: unitRank("OFFENSE"), DEFENSE: unitRank("DEFENSE"), SPECIAL_TEAMS: unitRank("SPECIAL_TEAMS") };
+  const UNITS = ["OFFENSE", "DEFENSE", "SPECIAL_TEAMS"] as const;
+  const ranks = Object.fromEntries(UNITS.map((u) => [u, unitRank(u, "now")])) as Record<Unit, (i: number) => number>;
+  const ranksNext = Object.fromEntries(UNITS.map((u) => [u, unitRank(u, "next")])) as Record<Unit, (i: number) => number>;
 
   return input.teams.map((team, i) => {
     const p = projections[i]!;
@@ -76,13 +80,17 @@ export function leagueTruth(input: LeagueTruthInput): MeetingTruth[] {
     const shareNext = strengthWinShare(p.next.total, meanNext, STRENGTH.marginSd);
     const shareAfter = strengthWinShare(p.after.total, meanAfter, STRENGTH.marginSd);
     const units = {} as Record<Unit, { strength: number; rank: number }>;
-    for (const u of ["OFFENSE", "DEFENSE", "SPECIAL_TEAMS"] as const) units[u] = { strength: p.now.units[u], rank: ranks[u](i) };
+    const unitsNext = {} as Record<Unit, { strength: number; rank: number }>;
+    for (const u of UNITS) {
+      units[u] = { strength: p.now.units[u], rank: ranks[u](i) };
+      unitsNext[u] = { strength: p.next.units[u], rank: ranksNext[u](i) };
+    }
     return {
       team: team.id, season: input.state.season,
       luck: luck.get(String(team.id))!,
       projection: p,
       groupsNow: p.now.groups, groupsNext: p.next.groups,
-      units,
+      units, unitsNext,
       winsNext: shareNext * SEASON_GAMES, winsAfter: shareAfter * SEASON_GAMES,
       decline: moves.filter((m) => m.d <= -CHANGE_MARK).sort((a, b) => a.d - b.d).map((m) => m.id),
       growth: moves.filter((m) => m.d >= CHANGE_MARK).sort((a, b) => b.d - a.d).map((m) => m.id),

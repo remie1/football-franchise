@@ -13,6 +13,7 @@ import type {
 } from "@ff/contracts";
 import type { PlayerMemory } from "../players/types.js";
 import type { StaffWorld } from "../staff/world.js";
+import type { StaffMeeting } from "@ff/contracts";
 
 export interface LeaguePeople {
   teams: Team[];
@@ -56,6 +57,8 @@ export interface LeaguePeople {
    * battles, when each free agent became unsigned). Saved as S1's `depthMemory`. Absent = nothing yet.
    */
   playerMemory?: PlayerMemory;
+  /** ADR-081: each team's last end-of-season meeting (saved as `world.meetings`). Absent = none held yet. */
+  meetings?: StaffMeeting[];
 }
 
 export interface DayStepContext {
