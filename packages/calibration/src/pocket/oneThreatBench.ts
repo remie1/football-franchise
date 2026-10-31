@@ -20,7 +20,8 @@
  * EXACTLY ONE rusher is unblocked, at a fixed X seconds:
  *
  *  - **no stunt**, and the shown rush is the played one (no front look, so no ghost and no moved
- *    man);
+ *    man); a stem (ADR-091 M2, played under legacy rules since ADR-090 step 3) is a front look, so it
+ *    goes with the stunts, and the quarterback's count asked against it (`cadence`) with it;
  *  - **no back in protection**: the protection's pool (`protectionScheme.available`) and its
  *    check-release men are dropped, and a slide check with them, so nobody can pick a man up or be
  *    kept in; the men who were in the pool take no part in the play (the validator allows a man on
@@ -168,8 +169,9 @@ export function oneThreatCalls(calls: PlayCalls): OneThreatCall | undefined {
   const newRush = rush.filter((r) => kept.has(String(r.rusher)) || String(r.rusher) === extraId);
 
   const scheme = calls.offense.protectionScheme;
+  const { cadence: _cadence, ...offenseRest } = calls.offense;
   const offense: OffensivePlayCall = {
-    ...calls.offense,
+    ...offenseRest,
     protection,
     ...(scheme === undefined
       ? {}
@@ -180,7 +182,7 @@ export function oneThreatCalls(calls: PlayCalls): OneThreatCall | undefined {
               : { kind: "MAN", ...(scheme.center === undefined ? {} : { center: scheme.center }) },
         }),
   };
-  const { stunts: _stunts, ...defenseRest } = calls.defense;
+  const { stunts: _stunts, stem: _stem, ...defenseRest } = calls.defense;
   const defense: DefensivePlayCall = { ...defenseRest, rush: newRush, shownRush: newRush };
   return { calls: { offense, defense }, extra: extraId, rushCount: newRush.length, protectionCount: protection.length };
 }
