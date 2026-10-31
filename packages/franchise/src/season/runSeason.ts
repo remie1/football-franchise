@@ -37,6 +37,7 @@ import type { League } from "../league/buildLeague.js";
 import type { LeaguePeople, DayStep } from "./people.js";
 import { draftSteps, turnYear, type DraftStepsConfig } from "../draft/steps.js";
 import { PLAYER_STEP_PREFIX, playerSteps, type PlayerStepsConfig } from "../players/steps.js";
+import { leagueYearSteps, type LeagueYearConfig } from "../cap/leagueYear.js";
 import { advance, nextDay, phaseWeeks, seasonStart, DAYS_PER_WEEK, type ClockWorld } from "../calendar/clock.js";
 import { buildSchedule } from "../schedule/buildSchedule.js";
 import { computeStandings } from "../standings/computeStandings.js";
@@ -93,9 +94,15 @@ export interface RunSeasonInput {
   /**
    * ADR-087 §10: the players' steps (development, injuries, depth charts, unsigned retirements), with
    * their switches. Needs `people`. Absent, or both switches off, adds no steps. With no `cap` of its
-   * own, its emergency signings are priced by `draft.cap` when there is one (else flat at the rules' cap).
+   * own, its emergency signings are priced by `leagueYear.cap`, else `draft.cap` (else flat at the
+   * rules' cap).
    */
   players?: PlayerStepsConfig;
+  /**
+   * ADR-085: play the league year (the cap, re-signings and tags, deals running out, free agency,
+   * cap compliance). Its steps run after the players' and before the draft's. Needs `people`.
+   */
+  leagueYear?: LeagueYearConfig;
   /**
    * A resumed run: the events the players' steps emitted on the days up to `stepsDoneThrough` (a
    * save's `world.development.events`, S1), emitted again on their days in place of running the steps.
@@ -151,14 +158,16 @@ const sameDay = (a: CalendarStamp, b: CalendarStamp) => compareStamps(a, b) === 
 
 export function runSeason(input: RunSeasonInput): SeasonRun {
   const { league, season, seed, resolve, stopAfter, resumeFrom } = input;
-  // Order: the caller's steps, the players' (ADR-087), then the draft's (ADR-086). The players' signings
-  // take the draft's cap when they have none of their own, so one forecast prices both sides' deals.
-  const draftCap = input.draft?.cap;
-  const playersConfig = input.players && input.players.cap === undefined && draftCap ? { ...input.players, cap: draftCap } : input.players;
+  // Order: the caller's steps, the players' (ADR-087), the league year's (ADR-085), then the draft's
+  // (ADR-086). The players' signings take the league year's cap, else the draft's, when they have none
+  // of their own, so one forecast prices every side's deals.
+  const sharedCap = input.leagueYear?.cap ?? input.draft?.cap;
+  const playersConfig = input.players && input.players.cap === undefined && sharedCap ? { ...input.players, cap: sharedCap } : input.players;
   const steps = [
-    ...(input.daySteps ?? []), ...(playersConfig ? playerSteps(playersConfig) : []), ...(input.draft ? draftSteps(input.draft) : []),
+    ...(input.daySteps ?? []), ...(playersConfig ? playerSteps(playersConfig) : []),
+    ...(input.leagueYear ? leagueYearSteps(input.leagueYear) : []), ...(input.draft ? draftSteps(input.draft) : []),
   ];
-  if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps, the players' steps and the draft need people");
+  if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps, the players' steps, the league year and the draft need people");
   let people = input.people;
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
   const schedule = buildSchedule(league, season, seed, {

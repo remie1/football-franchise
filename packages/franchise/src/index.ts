@@ -96,6 +96,18 @@ export {
   draftSteps, turnYear, creditSeason, peopleFromSave, waiverOrderFrom, movesFromPeople, averagePerYear, headCoachEvaluation, DRAFT_DAYS, type DraftStepsConfig, type TurnYearOptions,
 } from "./draft/steps.js";
 export { signRookie, signSquad, signFuture, release, claimedDeal, liveContract, flatCap, type CapForSeason } from "./draft/money.js";
+export {
+  apyOf, marketCurves, percentileOf, quantile, ageFactor, termFor, structureFor, valuePlayer, veteranContract, guaranteedShare,
+  type MarketCurve, type MarketCurves, type Valuation, type VeteranDeal,
+} from "./cap/value.js";
+export {
+  needWeights, offerWorth, askingPrice, NON_MONEY_REACH, WINDOW_ASK, BARGAIN_WEEKLY, AGENT_SPREAD,
+  type NegotiationNeed, type OfferTerms, type MarketWindow,
+} from "./cap/negotiation.js";
+export {
+  leagueYearSteps, countsForComp, marketWindow, teamGrade, winShareOf, rookieReserve, LEAGUE_YEAR_DAYS, MARKET, type LeagueYearConfig,
+} from "./cap/leagueYear.js";
+export { capForecast } from "./cap/forecast.js";
 // ADR-087: players age, grow and get hurt (off unless runSeason's `players` switches them on).
 export { PLAYER_STEP_PREFIX, playerSteps, playerWeeks, emergencySignings, type PlayerStepsConfig, type PlayerGameExtras } from "./players/steps.js";
 export { developmentWeek, learningRate, RATING_GROUPS, type DevelopmentWeekInput, type DevelopmentWeekResult } from "./players/development.js";

@@ -220,3 +220,41 @@ The 2036 cap: median $582M, 10th-90th percentile $518M-$650M. Each season also c
 announced before it and the drivers that moved it (trend, TV money, labour talks, shock, rebound), for
 the owners' meeting and the news. The real 2011-2024 history is REPORTED from memory and still needs
 checking against OverTheCap.
+
+### Steps 3-4 — the league year and the market (`leagueYear.ts`, `value.ts`, `negotiation.ts`), 2026-10-24
+
+Day steps in the season's walk, beside the draft's (ADR-086 §2):
+
+| Day | What happens |
+|---|---|
+| OFF_EVAL week 2 day 1 | `CAP_SET` for next season, from the league's forecast (`capForecast(seed)`) |
+| OFF_EVAL week 3 day 1 | Each team grades its expiring players (its evaluator's error, as the draft board). Those who make its roster: under 3 credited seasons get an exclusive-rights tender; at 3, a restricted tender at the highest level his value reaches; 4+, an extension offer at his market price, which he takes only if it is worth his ask to him (see below). The best player who said no is franchise-tagged if he is in the top 15% and it fits. Room keeps back the coming draft class's first-year cost (from the picks held) plus $3M |
+| OFF_RESET_FA week 1 day 1 | The new league year: deals run out (`CONTRACT_EXPIRED`; void years land as dead money); those players leave for free agency. Every team gets under the cap (top 51): restructure the biggest base salaries first, then cut whoever saves most per point of value |
+| OFF_RESET_FA week 1 days 2, 3, 5 | Premium window: asks at 110% of value |
+| First day of each later week, to cut-down day | Value window (100%) through OFF_RESET_FA, then the bargain basement (85%, falling 3% a week) |
+| OFF_DRAFT week 4 day 1 | Compliance check after the draft (top 51) |
+| The day after cut-down day | Compliance with every deal counting; a team short of its 53 fills up with the best free agents on one-year minimum deals |
+
+**Prices** come from the league's own contracts (`value.ts`): a player's price is the deal at the same
+place in his tag group's market as his grade holds among the players on those deals, less an age
+discount from 30 (34 for quarterbacks and specialists). Term and structure (bonus share, guaranteed
+years) follow his place in the market and his age. With the stand-in league the market is the real one.
+
+**Offers are judged by need** (Q5 b, `negotiation.ts`): worth = money ÷ ask, moved up to 25% by
+winning, playing time, loyalty and guarantees, by his need weights (age-reweighted per
+player-personality.md §2). A player with money as his only need ignores the rest. Each market day
+every team with room and seats makes its best offer (need × value), up to three rounds; each player
+takes the offer worth most to him if it reaches his ask.
+
+Tested on a 32-team made-up league over a full year (`test/cap.leagueYear.test.ts`): extensions,
+tenders and tags are signed; 566 deals run out; every team ends the offseason under the 2027 cap;
+the same seed gives the same year. Not yet: RFA offer sheets, trades, earned unlikely incentives, the
+veteran salary benefit, in-season street signings and injured reserve, compensatory-pick moves.
+
+
+### Step 5 — the league year in `runSeason`, and moves kept for compensatory picks, 2026-10-31
+
+- `runSeason` takes `leagueYear?: LeagueYearConfig`, as the draft thread's PR #36 did for `draft`. Steps run in this order: the caller's, the players' (ADR-087), the league year's, then the draft's (ADR-086). Calibration needs no new surface names: `runSeason` is already on the R1 list (Q10).
+- The market appends each signing with a new team to `people.freeAgentMoves` (ADR-086 §5) when the player's deal ran out (`ended.reason` EXPIRED) rather than being released, and the signing comes before the post-draft day (`countsForComp`; the real cutoff is a date in early May, just after the draft). The draft's compensatory step reads these moves the next year.
+- Tests: the moves are checked (expired deal, new team, signed before the cutoff). `runSeason` with both options plays two years, keeps every team under the cap, and awards compensatory picks in year two.
+- Next: `--seasons N` in the calibration season command with the stand-in league, once the aging thread's realSeason/main edits are on main, then the multi-season check against real numbers.
