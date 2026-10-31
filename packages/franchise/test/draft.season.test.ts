@@ -334,3 +334,46 @@ describe("runSeason's draft option: seasons back to back (ADR-086 D6)", () => {
     expect(cut?.at.phase).toBe("PRESEASON");
   });
 });
+
+describe("the book stays straight over three years (review fixes)", () => {
+  const draft = { rate, makeClass };
+  const y1 = runSeason({ league, season: 2026, seed: "s", resolve: fake, people: startingPeople(), draft, through: "YEAR" });
+  const y2 = runSeason({ league, season: 2027, seed: "s", resolve: fake, people: y1.people!, draft, through: "YEAR" });
+  const cutDay = { season: 2028, phase: "PRESEASON" as const, week: 3, day: 2 };
+  const y3 = runSeason({ league, season: 2028, seed: "s", resolve: fake, people: y2.people!, draft, through: "YEAR", stopAfter: cutDay });
+  const people = y3.people!;
+  const open2028 = (id: unknown) => people.contracts!.filter((c) => String(c.player) === String(id) && !c.ended && c.years.some((y) => y.season === 2028));
+
+  it("gives each man at most one live deal, with his own team; free agents none", () => {
+    for (const t of people.teams) for (const id of [...t.roster, ...t.practiceSquad!]) {
+      const deals = open2028(id);
+      expect(deals.length).toBeLessThanOrEqual(1);
+      for (const d of deals) expect(d.team).toBe(t.id);
+    }
+    for (const id of people.freeAgents) expect(open2028(id)).toHaveLength(0);
+  });
+
+  it("lists free agents in the players' order, as a loaded save does", () => {
+    const order = new Map(people.players.map((p, i) => [String(p.bio.id), i]));
+    const idx = people.freeAgents.map((id) => order.get(String(id))!);
+    expect([...idx].sort((a, b) => a - b)).toEqual(idx);
+  });
+});
+
+describe("cut-down day keeps a practice squad the league starts with (review fix)", () => {
+  // Week 3 day 2 of the preseason, with no draft: every team already carries a squad of three.
+  const base = startingPeople();
+  const extra: PlayerState[] = [];
+  const teams = base.teams.map((t) => {
+    const squad = [0, 1, 2].map((i) => player(`${String(t.id)}-ps-${i}`, "WR", 40, 23, t.id, "UDFA"));
+    extra.push(...squad);
+    return { ...t, practiceSquad: squad.map((p) => p.bio.id) };
+  });
+  const people: LeaguePeople = { ...base, teams, players: [...base.players, ...extra] };
+  const cutDay = { season: 2026, phase: "PRESEASON" as const, week: 3, day: 2 };
+  const run = runSeason({ league, season: 2026, seed: "s", resolve: fake, people, daySteps: steps, through: "YEAR", stopAfter: cutDay });
+
+  it("leaves those men on their squads", () => {
+    for (const t of run.people!.teams) for (const p of extra.filter((q) => q.teamId === t.id)) expect(t.practiceSquad).toContain(p.bio.id);
+  });
+});
