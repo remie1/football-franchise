@@ -58,7 +58,7 @@ Delegate implementation to the owning sub-agent. Never let one agent write in an
 - `pnpm --filter @ff/narrative news -- --season season.json` — print a saved season's news and save it for the viewer's News page (`apps/game/public/news/`)
 - `pnpm --filter @ff/calibration cap-check -- --league packages/attributes/leagues/standin-2026-10-23.json --seasons 5` — the stand-in league's money over several years against real numbers (ADR-085 §7)
 - `pnpm --filter @ff/calibration draft-check -- --league packages/attributes/leagues/standin-2026-10-23.json --seasons 20` — the draft over many years against real NFL numbers (ADR-086 D7; `reports/draft-check.md`)
-- `pnpm --filter @ff/franchise staff-check [--seed <seed>] [--seasons 50]` — coaching turnover against NFL numbers (ADR-080 C5)
+- `pnpm --filter @ff/franchise staff-check [--seed <seed>] [--seasons 50] [--views]` — coaching turnover against NFL numbers (ADR-080 C5); `--views` carries the staffs' views and lets them decide who stays (ADR-084 §15)
 - `pnpm --filter @ff/calibration season -- --seed <seed> --development --injuries --out season.json` — a season where players grow, age and get hurt, on through the offseason (ADR-087; either switch alone works; both off by default)
 - `pnpm --filter @ff/calibration player-checks [--seeds 20] [--shard 1/3]` — ADR-087's single-season checks in four arms (`reports/player-checks.md`); run shards 1/3, 2/3, 3/3 in separate shells to go faster
 - `pnpm --filter @ff/calibration player-checks -- --league packages/attributes/leagues/standin-2026-10-23.json [--seeds 20] [--shard 1/3]` — the same checks on the stand-in league, in its own season (`reports/player-checks-standin.md`)

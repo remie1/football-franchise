@@ -8,6 +8,7 @@ export {
   type NewsDesk, type NewsInput, type Edition, type StoryEnvelope,
 } from "./news/desk.js";
 export { formatEdition } from "./news/format.js";
+export { createStaffBeat, wordOfScore, LEAK_CHANCE, type StaffBeat, type StaffSeat, type StaffView } from "./news/staff.js";
 export { newsFile, NEWS_FILE_FORMAT, type NewsFile, type NewsFileInput, type NewsFileTeam } from "./news/file.js";
 export { indexLeague, nicknameOf, type LeagueIndex, type TeamEntry, type TeamNames } from "./news/league.js";
 export { LINES, STORY_FACTS, ONCE_A_SEASON, DEFAULT_PER_WEEK, MAX_PER_KIND, type Candidate, type Importance } from "./news/stories.js";
