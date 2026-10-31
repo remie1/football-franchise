@@ -228,7 +228,7 @@ Day steps in the season's walk, beside the draft's (ADR-086 §2):
 | Day | What happens |
 |---|---|
 | OFF_EVAL week 2 day 1 | `CAP_SET` for next season, from the league's forecast (`capForecast(seed)`) |
-| OFF_EVAL week 3 day 1 | Each team grades its expiring players (its evaluator's error, as the draft board). Those who make its roster: under 3 credited seasons get an exclusive-rights tender; at 3, a restricted tender at the highest level his value reaches; 4+, an extension offer at his market price, which he takes only if it is worth his ask to him (see below). The best player who said no is franchise-tagged if he is in the top 15% and it fits. Room keeps back the coming draft class's first-year cost (from the picks held) plus $3M |
+| OFF_EVAL week 3 day 1 | Each team grades its expiring players (its evaluator's error, as the draft board). Those who make its roster: under 3 credited seasons get an exclusive-rights tender; at 3, a restricted tender at the highest level his value reaches; 4+, an extension offer at his market price, which he takes only if it is worth his ask to him (see below). The best player who said no is franchise-tagged if he is in the top 15% and it fits. Room keeps back the coming draft class's first-year cost (from the picks held) plus its in-season cushion ($3M; $5M to $10M by leaning from step 10) |
 | OFF_RESET_FA week 1 day 1 | The new league year: deals run out (`CONTRACT_EXPIRED`; void years land as dead money); those players leave for free agency. Every team gets under the cap (top 51): restructure the biggest base salaries first, then cut whoever saves most per point of value |
 | OFF_RESET_FA week 1 days 2, 3, 5 | Premium window: asks at 110% of value |
 | First day of each later week, to cut-down day | Value window (100%) through OFF_RESET_FA, then the bargain basement (85%, falling 3% a week) |
@@ -311,3 +311,19 @@ veteran salary benefit, in-season street signings and injured reserve, compensat
   - Own-team deals of 2+ years average 84 a year (86; real 210 to 290).
   - Cap use is still about 99%.
 - **Still open: the middle class.** Teams fill depth with rookies and minimum deals, not $1.5M to $6M veterans, and they spend the rest on their own players.
+
+### Step 10: how front offices plan cap room (owner's note and rulings Q1-Q3, 2026-10-31)
+
+- **Owner's note** (press sources the owner gave): real teams enter the season with a $5M to $10M cushion, keep room for the rookie pool, roll unused room over on purpose to cover next year (the 49ers, about $31.5M over 2027, carrying $30M+), split into win-now and flexible front offices, and must spend 89% of the cap in cash over four years.
+- **Rulings:** Q1, the team president holds the leaning; Q2, a drawn spread; Q3, build the floor now.
+- **The leaning** (`cap/leaning.ts`). A president's `capLeaning` rating, 0 (win now) to 100 (flexible), on his open ratings (no contracts edit). A president made before this step draws his from his id and name, the same every time, evenly 0 to 100 (the spread is CHOSEN). It sets:
+  - the in-season cushion, $5M to $10M (REPORTED range; replaces the $3M buffer);
+  - the look-ahead: the share of next season's overage the team keeps unspent now so it rolls over, 25% to 100% (CHOSEN);
+  - the March room: the share of `MARKET.freeAgencyRoom` it clears by restructures and cuts, 100% to 50% (CHOSEN);
+  - void years in restructures: yes up to 67, no above (CHOSEN).
+  The human's team is steered by the human's choices, not the leaning.
+- **The spending floor** (`CASH_FLOOR`, REPORTED, CBA Art. 12): 89% of the cap over four league years. Spending is counted as cap total (live deals and dead money), a simplification: real cash pays a signing bonus up front. A team behind the floor plans like a win-now team (keeping its own cushion) until it catches up. The window starts at the first league year the sim holds a carryover for, so seasons before the league began never count; carryover records are now kept four years for this.
+- **The middle class.** The market's price list counts each veteran once, on his latest deal live this season or last. Before, it held mostly starters, so backups were priced near the minimum.
+- **Five-year check** (`reports/cap-check.md`): cap use median 97% (99% before), carryover mean $6.5M a team (2.4), most $35.5M; own-team deals of 2+ years 144 a year (84; real 210 to 290); new-team deals of $2M+ 67 (84; real 180 to 240), $5M+ 50 (64; real 80 to 120); dead money $20.1M a team (30.0; real about 34).
+- **Still open:** free agency is now the larger gap. Flexible teams clear only half their March room, so fewer veterans move. The March room size and the share flexible teams keep are the knobs for the next step.
+

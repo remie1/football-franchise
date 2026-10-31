@@ -100,6 +100,28 @@ Dead money is now close to the real figure, and deals of $5M and up are near the
 
 The real league has about 19 deals a team at 0.5% to 2% of the cap (about $1.5M to $6M). Ours has about 10. Our teams fill depth with rookies and minimum deals, and spend the rest on their own players. Counted from OverTheCap's table: active deals, and deals signed 2021 to 2025.
 
+## After cap planning by front office (ADR-085 step 10, 2026-10-31)
+
+Changes in this step, from the owner's note on how real front offices treat cap room, and the owner's rulings:
+- Each team's president holds a cap leaning from 0 (win now) to 100 (flexible), drawn evenly (my judgment on the spread).
+- The leaning sets the in-season cushion ($5M to $10M, reported), how much of next season's shortfall a team keeps unspent to roll over (25% to 100%), how much of its free-agency room it clears in March (all to half), and whether it adds void years (not above 67). The last three strengths are my judgment.
+- A team that has spent less than 89% of the cap over its last four league years spends like a win-now team until it catches up (CBA Art. 12, reported). The window starts at the first league year the sim holds.
+- The market's price list now counts each veteran once, on his latest deal from this season or last, so backups who signed a year ago are priced too.
+
+| League year | 2027 | 2028 | 2029 | 2030 | 2031 | Mean | Step 9 | Real |
+|---|---|---|---|---|---|---|---|---|
+| Cap used, median | 97.1% | 96.2% | 97.5% | 97.4% | 98.0% | 97.2% | 99.1% | a little room kept |
+| Carried over, mean a team ($M) | 5.0 | 5.4 | 7.8 | 5.3 | 9.0 | 6.5 | 2.4 | |
+| Carried over, most ($M) | 23.9 | 28.9 | 32.6 | 23.7 | 35.5 | | 23.9 | 49ers about 30+ (reported) |
+| Own-team deals of 2+ years | 274 | 119 | 55 | 115 | 156 | 144 | 84 | 210 to 290 |
+| New-team deals, $2M+ | 49 | 72 | 63 | 75 | 74 | 67 | 84 | 180 to 240 |
+| New-team deals, $5M+ | 34 | 49 | 52 | 54 | 63 | 50 | 64 | 80 to 120 |
+| Dead money, mean a team ($M) | 12.0 | 18.2 | 20.4 | 23.9 | 25.9 | 20.1 | 30.0 | about 34 |
+
+Teams now keep room and roll it over, and re-sign their own players far more often (144 a year, up from 84). The cost is free agency: flexible teams clear only half the March room, so new-team signings fell back (67 at $2M+, from 84). Dead money fell with fewer March cuts. Deals at 0.5% to 2% of the cap rose to about 13 to 15 a team (real 19, counted), measured on an earlier run of this step.
+
+The highest cap use is still over 100% in some years (108% once, as in step 9): one team per year ends a league year over its cap in this snapshot. That is not new in this step.
+
 ## What does not match yet
 
 1. **Too few re-signings.** Before step 7, teams signed about a fifth of the real number of own-team multi-year deals, because there were no early extensions. Step 7 raises it to under half the real number; cap room is now the limit.
