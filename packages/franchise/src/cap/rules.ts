@@ -14,6 +14,9 @@ export const CBA_LAST_SEASON = 2030;
 /** A bonus spreads over the contract's years, at most five. REPORTED (CBA Art. 13). */
 export const MAX_PRORATION_YEARS = 5;
 
+/** A team may designate two releases before June 1 as post-June-1 cuts each league year. REPORTED (CBA Art. 13). */
+export const POST_JUNE_1_DESIGNATIONS = 2;
+
 /** From the new league year to the first game, only the 51 biggest cap numbers count. REPORTED. */
 export const TOP_51 = 51;
 
