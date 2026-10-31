@@ -46,6 +46,11 @@ function everyRoll(events: readonly MatchEventEnvelope[]): RollDetail[] {
   const rolls: RollDetail[] = [];
   for (const { event } of events) {
     if (event.type === "CHECK") {
+      const kind: string = event.payload.checkKind;
+      if (event.payload.roll === undefined) {
+        if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+        continue;
+      }
       rolls.push(event.payload.roll);
       if (event.payload.opposedRoll !== undefined) rolls.push(event.payload.opposedRoll);
     }

@@ -128,6 +128,13 @@ export interface FreeRunner {
   readonly etaTick: number;
   /** `rngLabel` of the roll that justifies him (ADR-004). Never synthetic. */
   readonly rollRef: string;
+  /**
+   * ADR-089 step 1 — the band of the pickup or stunt CHECK `rollRef` names (`RAN_THROUGH` or
+   * `BLOWN_UP`; `LATE_EXCHANGE` or `LOOPER_FREE`), absent for UNBLOCKED, which no contest decided.
+   * §4.0's approach card reads it (`resolve/approach.ts`). Engine-internal: no event carries a
+   * `FreeRunner`, and §7.3's swap moves it whole with the rest of the record (`withAssignmentOf`).
+   */
+  readonly band?: string;
 }
 
 /** What every rusher has in common, whoever is or is not blocking him. */
@@ -523,6 +530,7 @@ export function resolvePickups(args: {
           pickup.arrivalDelaySeconds,
         ),
         rollRef: pickup.check.roll.rngLabel,
+        band: pickup.band,
       },
     };
   });
@@ -592,6 +600,7 @@ export function resolveStunts(args: {
         origin: "STUNT_LOOPER",
         etaTick: Number((tunables.stunt.looperArrivalSeconds + outcome.arrivalDelaySeconds).toFixed(1)),
         rollRef: outcome.check.roll.rngLabel,
+        band: outcome.band,
       },
     };
   }

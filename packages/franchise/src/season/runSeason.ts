@@ -35,6 +35,7 @@ import {
 } from "@ff/contracts";
 import type { League } from "../league/buildLeague.js";
 import type { LeaguePeople, DayStep } from "./people.js";
+import { draftSteps, turnYear, type DraftStepsConfig } from "../draft/steps.js";
 import { PLAYER_STEP_PREFIX, playerSteps, type PlayerStepsConfig } from "../players/steps.js";
 import { advance, nextDay, phaseWeeks, seasonStart, DAYS_PER_WEEK, type ClockWorld } from "../calendar/clock.js";
 import { buildSchedule } from "../schedule/buildSchedule.js";
@@ -83,6 +84,12 @@ export interface RunSeasonInput {
    * calendar), and `people` is as they left it, so they are not run again.
    */
   stepsDoneThrough?: CalendarStamp;
+  /**
+   * ADR-086: play the draft's offseason. Its steps run after `daySteps` (`draftSteps`), and a run that
+   * completes its year turns the year for the next season (`turnYear`), so `SeasonRun.people` is ready
+   * to start it. Needs `people`.
+   */
+  draft?: DraftStepsConfig;
   /**
    * ADR-087 §10: the players' steps (development, injuries, depth charts, unsigned retirements), with
    * their switches. Needs `people`. Absent, or both switches off, adds no steps.
@@ -143,8 +150,11 @@ const sameDay = (a: CalendarStamp, b: CalendarStamp) => compareStamps(a, b) === 
 
 export function runSeason(input: RunSeasonInput): SeasonRun {
   const { league, season, seed, resolve, stopAfter, resumeFrom } = input;
-  const steps = [...(input.daySteps ?? []), ...(input.players ? playerSteps(input.players) : [])];
-  if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps need people");
+  // Order: the caller's steps, the players' (ADR-087), then the draft's (ADR-086).
+  const steps = [
+    ...(input.daySteps ?? []), ...(input.players ? playerSteps(input.players) : []), ...(input.draft ? draftSteps(input.draft) : []),
+  ];
+  if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps, the players' steps and the draft need people");
   let people = input.people;
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
   const schedule = buildSchedule(league, season, seed, {
@@ -225,6 +235,11 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
     const unused = [...saved.keys()].filter((id) => !played.has(id));
     if (unused.length > 0) throw new Error(`runSeason: the save has results this run did not reach (${unused.slice(0, 3).join(", ")})`);
     runSteps();
+    if (complete && input.draft && input.through === "YEAR") {
+      const turned = turnYear(people!, { season: season + 1, rules, ...(input.draft.cap ? { cap: input.draft.cap } : {}) });
+      people = turned.people;
+      for (const event of turned.events) emit(event);
+    }
     return { state, calendar: world.calendar, events, complete, ...(people ? { people } : {}), ...(steps.length > 0 ? { stepEvents } : {}) };
   };
   const pending = () => [...state.schedule.games, ...(state.bracket?.games ?? [])]

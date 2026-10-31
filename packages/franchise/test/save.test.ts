@@ -55,6 +55,19 @@ describe("makeSave / readSave (save and load L2)", () => {
     expect(readSave(onDisk(saveOf(half))).save.playedWith).toBeUndefined();
   });
 
+  it("carries the engine rules name when told (ADR-089 P1), and a save without one loads with it absent, read as legacy", () => {
+    // A non-legacy rules name carries its overlay digest after "@" (ADR-089 K18); the file keeps it as given.
+    const pocket = makeSave({ league, calendar: half.calendar, season: half.state, createdBy: "test", playedWith: { caller: "v7", engineRules: "pocket-1.s1@fnv1a:0123abcd" } });
+    expect(readSave(onDisk(pocket)).save.playedWith).toEqual({ caller: "v7", engineRules: "pocket-1.s1@fnv1a:0123abcd" });
+    // A legacy save (and every save made before P1) names only its caller: the field stays absent,
+    // which the season command reads as `legacy`, and the file has no rules key at all.
+    const legacy = makeSave({ league, calendar: half.calendar, season: half.state, createdBy: "test", playedWith: { caller: "v7" } });
+    const loaded = readSave(onDisk(legacy)).save.playedWith!;
+    expect(loaded).toEqual({ caller: "v7" });
+    expect("engineRules" in loaded).toBe(false);
+    expect(onDisk(legacy)).not.toContain("engineRules");
+  });
+
   it("carries the rostered players when given them (ADR-079), and refuses rosters without them", () => {
     const team = league.teams[0]!;
     const pid = "p:T01:QB0" as never;
@@ -92,6 +105,8 @@ describe("makeSave / readSave (save and load L2)", () => {
     ["another seed", () => edited((s) => { s.worldSeed = "world-2"; }), /another league's dice/],
     ["a roster player who isn't there", () => edited((s) => { s.world.teams[0]!.roster.push("P-ghost" as never); }), /not in the save/],
     ["a damaged played-with note", () => edited((s) => { (s as { playedWith?: unknown }).playedWith = { caller: 5 }; }), /what played the games is damaged/],
+    ["a damaged engine rules name (ADR-089 P1)", () => edited((s) => { (s as { playedWith?: unknown }).playedWith = { caller: "v5", engineRules: 5 }; }), /what played the games is damaged/],
+    ["an empty engine rules name (ADR-089 P1)", () => edited((s) => { (s as { playedWith?: unknown }).playedWith = { caller: "v5", engineRules: "" }; }), /what played the games is damaged/],
     ["edited standings", () => edited((s) => { s.world.season!.standings[0]!.overall.wins += 1; }), /standings don't match/],
   ];
   it.each(broken)("refuses %s with a plain reason", (_, file, why) => {

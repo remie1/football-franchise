@@ -42,7 +42,16 @@ describe("ADR-056 — THROWAWAY, the act", () => {
         expect(act.payload.rollRef).toBeDefined();
         // The reference must name a REAL roll already on this play's stream —
         // never a fabricated label.
-        expect(checks.some((c) => c.payload.roll.rngLabel === act.payload.rollRef)).toBe(true);
+        expect(
+          checks.some((c) => {
+            const kind: string = c.payload.checkKind;
+            if (c.payload.roll === undefined) {
+              if (kind !== "pass_rush_tick") throw new Error(`a ${kind} CHECK without a roll`);
+              return false;
+            }
+            return c.payload.roll.rngLabel === act.payload.rollRef;
+          }),
+        ).toBe(true);
       }
     }
     // A fixture that never produced this cause would let a wrong disposition

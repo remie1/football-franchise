@@ -15,10 +15,11 @@
  */
 import {
   DEFAULT_LEAGUE_RULES,
-  type CalendarStamp, type DraftClass, type DraftPick, type FranchiseEvent, type LeagueRules, type PlayerId, type PlayerState,
+  type CalendarStamp, type DraftClass, type DraftPick, type PlayerContract, type FranchiseEvent, type LeagueRules, type PlayerId, type PlayerState,
   type SaveFile, type SeasonState, type TeamId,
 } from "@ff/contracts";
 import { earnsCreditedSeason } from "../cap/signings.js";
+import { leagueYear } from "../cap/money.js";
 import { isDay, type DayStep, type LeaguePeople } from "../season/people.js";
 import type { Rate } from "./board.js";
 import { compensatoryPicks, type FreeAgentMove } from "./compensatory.js";
@@ -41,7 +42,10 @@ export interface DraftStepsConfig {
   /** A team's evaluator skill, 0..100. Default: its head coach's talent evaluation, or 50. */
   scouting?: (team: TeamId, people: LeaguePeople) => number;
   lean?: (team: TeamId) => CoachLean | undefined;
-  /** Last league year's free-agent moves and every contract's average a year (ADR-085). Absent = no comp picks. */
+  /**
+   * Last league year's free-agent moves and every contract's average a year. Absent = read from the
+   * people: `freeAgentMoves` signed in the league year just ended, and the live deals' averages.
+   */
   freeAgency?: (season: number, people: LeaguePeople) => { moves: FreeAgentMove[]; leagueApys: number[] } | undefined;
   /** A player's share of snaps in a season, for playing-time pick conditions (ADR-087's who-played). */
   snapShare?: (player: PlayerId, season: number) => number | undefined;
@@ -73,13 +77,16 @@ export function draftSteps(config: DraftStepsConfig): DayStep[] {
     {
       id: "compensatory-picks",
       run: (people, ctx) => {
-        if (!isDay(ctx.day, DRAFT_DAYS.compensatory) || !config.freeAgency) return undefined;
-        const fa = config.freeAgency(ctx.season, people);
+        if (!isDay(ctx.day, DRAFT_DAYS.compensatory)) return undefined;
+        const fa = config.freeAgency ? config.freeAgency(ctx.season, people) : movesFromPeople(people, ctx.season, config.snapShare);
         if (!fa) return undefined;
         const draft = ctx.season + 1;
         const comp = compensatoryPicks(draft, fa.moves, fa.leagueApys, draftOrder(ctx.state, ctx.seed).map((r) => r.team), ctx.rules);
         return {
-          people: { ...people, picks: [...people.picks, ...comp] },
+          people: {
+            ...people, picks: [...people.picks, ...comp],
+            ...(people.freeAgentMoves ? { freeAgentMoves: people.freeAgentMoves.filter((m) => leagueYear(m.signedAt) > ctx.season) } : {}),
+          },
           events: [{ type: "COMPENSATORY_PICKS_AWARDED", payload: { draft, picks: comp.map((p) => ({ team: p.owner, round: p.round, kind: p.kind })) } }],
         };
       },
@@ -179,6 +186,30 @@ export function turnYear(people: LeaguePeople, next?: TurnYearOptions): { people
 }
 
 /**
+/** A deal's average a year: its salaries and bonus over its real years. */
+export function averagePerYear(c: PlayerContract): number {
+  const real = c.years.filter((y) => !y.voidYear);
+  return real.length === 0 ? 0 : ((c.signingBonus ?? 0) + real.reduce((s, y) => s + y.baseSalary, 0)) / real.length;
+}
+
+/**
+ * The compensatory formula's inputs from the people (ADR-086 §5): the moves signed in league year
+ * `season` (the one just ended), and the average a year of every deal live in it. Undefined when
+ * no moves are kept.
+ */
+export function movesFromPeople(
+  people: LeaguePeople, season: number, snapShare?: (player: PlayerId, season: number) => number | undefined,
+): { moves: FreeAgentMove[]; leagueApys: number[] } | undefined {
+  const kept = (people.freeAgentMoves ?? []).filter((m) => leagueYear(m.signedAt) === season);
+  if (kept.length === 0) return undefined;
+  const moves = kept.map(({ signedAt: _at, ...m }) => {
+    const share = snapShare?.(m.player, season);
+    return share === undefined ? m : { ...m, snapShare: share };
+  });
+  const leagueApys = (people.contracts ?? []).filter((c) => c.years.some((y) => y.season === season)).map(averagePerYear);
+  return { moves, leagueApys };
+}
+
 /** Waiver order from a made draft's picks: round 1's slots in order (ADR-086 §8). Empty if not kept. */
 export function waiverOrderFrom(picks: readonly DraftPick[], draft: number): TeamId[] {
   return picks.filter((p) => p.draft === draft && p.round === 1 && p.kind === "REGULAR" && p.overall !== undefined)
@@ -204,6 +235,7 @@ export function peopleFromSave(save: SaveFile): LeaguePeople {
     freeAgents: w.players.filter((p) => p.teamId === undefined && p.bio.draft !== "PROSPECT").map((p) => p.bio.id),
     ...(w.contracts.length > 0 ? { contracts: w.contracts } : {}),
     ...(w.deadMoney?.length ? { deadMoney: w.deadMoney } : {}),
+    ...(w.draft?.freeAgentMoves.length ? { freeAgentMoves: w.draft.freeAgentMoves } : {}),
     ...(w.staff.length > 0 ? { staff: w.staff } : {}),
     ...(waiverOrder.length > 0 ? { waiverOrder } : {}),
   };
