@@ -137,9 +137,10 @@ export interface FreeRunner {
   readonly band?: string;
   /**
    * ADR-089 step 3 (`pocket-1.s3` only, `sim/freeRunTiming.ts`; plan §2.3). Engine-internal, like
-   * `band`: no event carries a `FreeRunner`, and none of these is published (the pair waits on
-   * petition P5, `PocketRules.threatGeometry`). Absent under `legacy`, s1 and s2, which never run
-   * the timing pass, so their records are today's objects.
+   * `band`: no event carries a `FreeRunner`. Of these only the pair reaches the stream, on his
+   * threat's `RUSH_THREAT` (contracts petition P5), and only when `PocketRules.threatGeometry` says
+   * so. Absent under `legacy`, s1 and s2, which never run the timing pass, so their records are
+   * today's objects.
    *
    * `onClock`: the arm's reading put him on the free-run clock (`resolve/freeRun.ts`), so
    * `etaTick` is that clock's, timed for the man carrying this record at the snap (the hand-off

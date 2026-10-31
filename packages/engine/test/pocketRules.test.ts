@@ -469,22 +469,23 @@ describe("ADR-089 step 3 — the free-run block, the late block and the climb la
     }
   });
 
-  it("the design bundle's shape: the blocks by reference, the FRONT climb lane, and no geometry published while P5 is not in contracts", () => {
+  it("the design bundle's shape: the blocks by reference, the FRONT climb lane, and the geometry published (P5 in contracts)", () => {
     const r = pocketRulesOf(S3_TUNABLES);
     if (r.kind !== "S") throw new Error("not S");
     expect(r.freeRun).toBe(FREE_RUN_FILED);
     expect(r.lateBlock).toBe(LATE_BLOCK_FILED);
     expect(r.climbLane).toBe("FRONT");
-    expect(r.threatGeometry).toBe(false);
+    expect(r.threatGeometry).toBe(true);
     expect(r.forcing).toBe("PER_RUSHER");
     expect(r.rules).toEqual({ name: "pocket-1.s3", overlayDigest: "fnv1a:5f000030" });
     expect(Object.isFrozen(r)).toBe(true);
   });
 
-  it("the two petitions are not in contracts in this build (P5, P17): the code constants are false", () => {
-    expect(P5_IN_CONTRACTS).toBe(false);
+  it("the petitions in contracts in this build: P5 (E6b, the owner's typed yes of 2026-10-31); P17 not yet", () => {
+    expect(P5_IN_CONTRACTS).toBe(true);
     expect(P17_IN_CONTRACTS).toBe(false);
-    expect(pocketRulesUnder(S3_TUNABLES, NONE)).toEqual(pocketRulesOf(S3_TUNABLES));
+    expect(pocketRulesUnder(S3_TUNABLES, { P5: true, P17: false })).toEqual(pocketRulesOf(S3_TUNABLES));
+    expect(pocketRulesUnder(S3_TUNABLES, NONE)).not.toEqual(pocketRulesOf(S3_TUNABLES));
   });
 
   it("accepts any subset of the three blocks under a stamped clock (C10: a late block alone; C16: the climb lane alone)", () => {
@@ -500,7 +501,8 @@ describe("ADR-089 step 3 — the free-run block, the late block and the climb la
       expect(r.freeRun).toBe(chosen.freeRun);
       expect(r.lateBlock).toBe(chosen.lateBlock);
       expect(r.climbLane).toBe(chosen.climbLane ?? "INTERIOR");
-      expect(r.threatGeometry).toBe(false);
+      // P5 in contracts: the geometry is published exactly when the free-run block is there.
+      expect(r.threatGeometry).toBe(chosen.freeRun !== undefined);
     }
   });
 
@@ -553,7 +555,7 @@ describe("ADR-089 step 3 — the free-run block, the late block and the climb la
   });
 
   it("threatGeometry: true only with a free-run block AND P5 in contracts", () => {
-    const off = pocketRulesOf(S3_TUNABLES);
+    const off = pocketRulesUnder(S3_TUNABLES, NONE);
     expect(off.kind === "S" && off.threatGeometry).toBe(false);
     const withP5 = pocketRulesUnder(S3_TUNABLES, GRANTED);
     expect(withP5.kind === "S" && withP5.threatGeometry).toBe(true);
@@ -565,8 +567,9 @@ describe("ADR-089 step 3 — the free-run block, the late block and the climb la
       const r = pocketRulesUnder(tunables, GRANTED);
       // P5 granted opens the gate on exactly the bundles with the free-run block: the two s3 sets.
       if (r.kind !== "LEGACY") expect(r.threatGeometry, name).toBe(isStep3(name));
+      // As played (P5 in contracts): the same two sets.
       const played = pocketRulesOf(tunables);
-      if (played.kind !== "LEGACY") expect(played.threatGeometry, name).toBe(false);
+      if (played.kind !== "LEGACY") expect(played.threatGeometry, name).toBe(isStep3(name));
     }
   });
 

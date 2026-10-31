@@ -858,8 +858,8 @@ export const TUNABLES = {
     /**
      * ADR-066 — THE DECOMPOSITION, LANDED FIRST AND SEPARATELY FROM THE
      * GEOMETRY (owner ruling, August 2026 — "take the decomposition, hold the
-     * geometry"). `resolve/rushThreat.ts`'s `threatFromWonRep` now publishes
-     * `distanceYards`/`closingSpeed` on every `RushThreat`, with `etaTick`
+     * geometry"). `resolve/rushThreat.ts`'s `threatFromWonRep` now puts
+     * `distanceYards`/`closingSpeed` on every `RushThreat` it builds, with `etaTick`
      * DERIVED from them — but BOTH are back-computed from
      * `travelSecondsByAlignmentAndMove` above via this ONE nominal constant,
      * not from any geometry: `distanceYards = travelSecondsFor(...) ×

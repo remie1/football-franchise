@@ -673,8 +673,11 @@ Results per Tick:
 > `pass_rush_tick` naming it (0 before the beat tick, `max(15, m)` from it), with no push window and
 > no rep, step-1 beat or `:jitter` die. Beaten, his threat keeps his origin, names the touching
 > CHECK, takes the row-3 approach above and travels as a won rep does from that tick. Under L the
-> late block is refused until petition P17's doc text is in contracts. No threat publishes a
-> distance or closing speed until petition P5 is.
+> late block is refused until petition P17's doc text is in contracts. Under a bundle with the
+> free-run block every `RUSH_THREAT` publishes `distanceYards` and `closingSpeed`, both or neither
+> (petition P5): a free runner the clock timed carries the clock's pair (his path from his snap
+> spot, over his whole time from the snap), a won rep and a beaten late block the nominal pair, and
+> a free runner on today's set time neither. Legacy, s1 and s2 publish neither.
 
 > **KNOWN ISSUE (logged July 2026, Phase 1 slice) — term asymmetry.**
 > The rusher above carries two-to-three attribute terms (`Pass Rush` plus a move

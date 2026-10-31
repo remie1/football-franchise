@@ -274,15 +274,26 @@ describe("ADR-089 step 3, E3: reading B puts every man nobody touched on the clo
     expect([...seen].sort()).toEqual(["BLOWN_UP", "RAN_THROUGH", "UNBLOCKED"]);
   });
 
-  it("nothing about the threat's side or geometry is published", () => {
+  it("the threat's side is never published; its geometry is the clock's, from his snap spot (P5, E6b)", () => {
     const f = front({ extras: 2 });
+    let published = 0;
     for (let i = 0; i < 40; i++) {
-      for (const { payload } of snapThreats(play(f, `unpublished-${i}`, S3_TUNABLES).events).values()) {
+      const p = play(f, `unpublished-${i}`, S3_TUNABLES);
+      for (const [who, { payload }] of snapThreats(p.events)) {
         expect("side" in payload).toBe(false);
-        expect("distanceYards" in payload).toBe(false);
-        expect("closingSpeed" in payload).toBe(false);
+        // Every threat at the snap under S3 is a man the clock timed (a touched man is a late block).
+        const plan = planOf(p, id(who));
+        expect(plan.free?.onClock).toBe(true);
+        const clock = clockFor(f, plan.rusher.bio.id, { edge: plan.alignment === "EDGE" });
+        const pair = payload as { distanceYards?: number; closingSpeed?: number };
+        // His path from his snap spot, and that path over his whole time from the snap, unrounded.
+        expect(Object.is(pair.distanceYards, clock.distanceYards)).toBe(true);
+        expect(Object.is(pair.closingSpeed, clock.distanceYards / clock.unroundedSeconds)).toBe(true);
+        expect(Object.keys(payload).slice(-2)).toEqual(["distanceYards", "closingSpeed"]);
+        published += 1;
       }
     }
+    expect(published).toBeGreaterThan(40);
   });
 
   it("replays byte for byte", () => {
@@ -434,6 +445,11 @@ describe("ADR-089 step 3, E3: the other readings, the narrowing and the late blo
     expect(free?.etaTick).toBe(roundFreeRunEta(clock.unroundedSeconds + 0.5));
     expect(free?.closingSpeed).toBe(clock.distanceYards / (clock.unroundedSeconds + 0.5));
     expect(freeOf(p, BLZ1)?.etaTick).toBe(clockFor(f, BLZ1, { edge: false }).etaSeconds);
+    // Published (P5, E6b; the Orchestrator's FID-F-9 ruling): the touched man's speed is his path
+    // over his whole time from the snap, the band's 0.5 s included, unrounded.
+    const published = snapThreats(p.events).get("blz0")?.payload as { distanceYards?: number; closingSpeed?: number } | undefined;
+    expect(Object.is(published?.distanceYards, clock.distanceYards)).toBe(true);
+    expect(Object.is(published?.closingSpeed, clock.distanceYards / (clock.unroundedSeconds + 0.5))).toBe(true);
   });
 
   it("reading A: only a man with nobody's hand on him is on the clock; a BLOWN_UP man names the back", () => {

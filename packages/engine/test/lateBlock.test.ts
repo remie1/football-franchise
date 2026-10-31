@@ -215,8 +215,13 @@ describe("ADR-089 step 3, E4: the beaten threat", () => {
         const m = beat?.payload.margin ?? 0;
         const move = "SPEED"; // the front's default move for both
         const position = t.who === DE1 ? "DE" : "OLB";
-        expect(payload.etaTick).toBe(Number(((tick ?? 0) + travelSecondsFor(S3_TUNABLES, t.alignment, move, Math.max(15, m), position)).toFixed(1)));
-        expect("distanceYards" in payload).toBe(false);
+        const travel = travelSecondsFor(S3_TUNABLES, t.alignment, move, Math.max(15, m), position);
+        expect(payload.etaTick).toBe(Number(((tick ?? 0) + travel).toFixed(1)));
+        // P5 (E6b; the Orchestrator's FID-F-9 ruling): the beaten late threat publishes the nominal
+        // pair it was built with, a won rep's travel times the one nominal closing speed.
+        const nominal = S3_TUNABLES.arrival.nominalClosingSpeedYardsPerSecond;
+        expect(payload.closingSpeed).toBe(nominal);
+        expect(payload.distanceYards).toBe(travel * nominal);
         beaten += 1;
       }
     }

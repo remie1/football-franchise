@@ -77,7 +77,7 @@ import type { PlayOutcome } from "./outcome.js";
 import { readPreSnap, resolvePickups, resolveStunts } from "./preSnap.js";
 import type { RushPlan } from "./preSnap.js";
 import { assertSnapPictureFor, timeFreeRunners } from "./freeRunTiming.js";
-import { PocketRulesError, pocketRulesOf } from "./pocketRules.js";
+import { pocketRulesOf } from "./pocketRules.js";
 import type { PocketRules } from "./pocketRules.js";
 import { effectiveCall } from "./pressureRead.js";
 import type { Pursuer } from "../resolve/ballCarrier.js";
@@ -162,6 +162,7 @@ import {
   soonerThreat,
   startsThreat,
   threatFromWonRep,
+  threatGeometryOf,
 } from "../resolve/rushThreat.js";
 import {
   pursuitDeadline,
@@ -331,7 +332,8 @@ function freeRunnerThreat(plan: RushPlan, label: ThreatLabeller | undefined): Ru
     etaTick: plan.free.etaTick,
     rollRef: plan.free.rollRef,
     // ADR-089 step 3 (E6): the free-run clock's whole path and the trip's average speed, both or
-    // neither, when the clock timed him (`pocket-1.s3` only). Engine-internal: P5's gate above.
+    // neither, when the clock timed him (`pocket-1.s3` only). Published only through P5's gate
+    // (`threatGeometry`, `simulatePassPlay`).
     ...(plan.free.distanceYards === undefined || plan.free.closingSpeed === undefined
       ? {}
       : { distanceYards: plan.free.distanceYards, closingSpeed: plan.free.closingSpeed }),
@@ -432,18 +434,13 @@ export function simulatePassPlay(
   // `LEGACY` for tunables with no `pocket-1` block (today's game, every new branch below skipped),
   // shape S or shape L for a stamped overlay; anything else throws a `PocketRulesError` here.
   const rules = pocketRulesOf(tunables);
-  // ADR-089 step 3 (E6; plan §2.6, critique 3 S1) — P5'S PUBLICATION GATE. Under `pocket-1.s3` a
-  // free runner the free-run clock timed carries that clock's distance and closing speed on his
-  // threat, and every won rep carries the nominal pair under every rule set; none of it reaches
-  // `RUSH_THREAT` until petition P5's fields are in contracts, and then only when
-  // `rules.threatGeometry` says so, never by a presence test (E6b lifts this). `pocketRulesOf`
-  // cannot say so while `P5_IN_CONTRACTS` is false; a play that reaches the gate open some other
-  // way is refused here, before a die, rather than played without the pair it was promised.
-  if (rules.kind !== "LEGACY" && rules.threatGeometry) {
-    throw new PocketRulesError(
-      "the threat geometry (distanceYards and closingSpeed on RUSH_THREAT) is published only once petition P5's fields are in contracts and E6b lifts this gate; this engine publishes none",
-    );
-  }
+  // ADR-089 step 3 (E6b; plan §2.6, critique 3 S1; contracts petition P5) — P5'S PUBLICATION GATE.
+  // Under `pocket-1.s3` a free runner the free-run clock timed carries that clock's distance and
+  // closing speed on his threat, and every won rep (and a beaten late block, built as one) carries
+  // the nominal pair under every rule set. The pair reaches `RUSH_THREAT` only when
+  // `rules.threatGeometry` says so (a bundle with the free-run block, P5 in contracts), never by a
+  // presence test, and then on every threat of the play that carries it (`publishThreat` below).
+  const threatGeometry = rules.kind !== "LEGACY" && rules.threatGeometry;
   // ADR-089 step 2 — what forces him to act, once a play: `STEP_1` (the status's
   // `pocket.forcesDecision`) under `legacy` and every bundle without `pocket.forcing`;
   // `PER_RUSHER` (must act per rusher, §4.3) or `COUNTER_LESS_SEEN` (the narrower counter, §4.3,
@@ -783,9 +780,19 @@ export function simulatePassPlay(
    * threat states its own `origin`, so the publisher never has to work out why a
    * rusher is coming from where in the play it happens to be standing.
    */
-  // ADR-089 step 3 (E6): the threat's distance and closing speed are never passed; P5's gate above.
+  // ADR-089 step 3 (E6b; P5): the threat's distance and closing speed, both or neither, passed only
+  // when the play's rules publish them (`threatGeometry` above), and then as the threat was built.
   const publishThreat = (threat: RushThreat, state: RushThreatState): void => {
-    log.rushThreat(threat.rusher, threat.alignment, threat.origin, threat.rollRef, threat.etaTick, state, threat.approach);
+    log.rushThreat(
+      threat.rusher,
+      threat.alignment,
+      threat.origin,
+      threat.rollRef,
+      threat.etaTick,
+      state,
+      threat.approach,
+      threatGeometry ? threatGeometryOf(threat) : undefined,
+    );
   };
 
   /**

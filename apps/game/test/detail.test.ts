@@ -469,11 +469,9 @@ describe("the late block and free runners on the play detail (ADR-089 step 3)", 
       events: [...FIXTURE.events, ...added],
     };
   }
-  /** Every RUSH_THREAT with ADR-089 P5's pair on it, as a file made after "yes P5" would carry it. */
+  /** Every RUSH_THREAT with ADR-089 P5's pair on it, as a `pocket-1.s3` file with the free-run block carries it. */
   function withGeometry(events: readonly MatchEvent[]): MatchEvent[] {
-    return events.map((e) =>
-      e.type === "RUSH_THREAT" ? ({ ...e, payload: { ...e.payload, distanceYards: 7.5, closingSpeed: 6.8 } } as unknown as MatchEvent) : e,
-    );
+    return events.map((e) => (e.type === "RUSH_THREAT" ? { ...e, payload: { ...e.payload, distanceYards: 7.5, closingSpeed: 6.8 } } : e));
   }
 
   const LATE_TIMELINE = [
@@ -534,8 +532,8 @@ describe("the late block and free runners on the play detail (ADR-089 step 3)", 
     const plain = buildPlayDetail(withPlay(SHAPE_S), "s3");
     expect(() => buildPlayDetail(withPlay(withGeometry(SHAPE_S)), "s3")).not.toThrow();
     const geometry = buildPlayDetail(withPlay(withGeometry(SHAPE_S)), "s3");
-    // The pair is on the stream (only a file made after "yes P5" carries it) and the detail shows
-    // neither key: its display waits for the owner's yes (plan §2.12).
+    // The pair is on the stream (a `pocket-1.s3` file with the free-run block carries it, E6b) and
+    // the detail does not show it yet: a "from N yd at M yd/s" line is the viewer's to add (plan §2.12).
     const threats = eventsOfPlay(withPlay(withGeometry(SHAPE_S)), "s3").filter((e) => e.type === "RUSH_THREAT");
     expect(threats).toHaveLength(5);
     for (const t of threats) expect("distanceYards" in t.payload && "closingSpeed" in t.payload).toBe(true);

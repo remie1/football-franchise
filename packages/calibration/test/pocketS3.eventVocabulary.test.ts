@@ -6,10 +6,11 @@
  * calibration readers need, on the golden games through the real caller: a step-3 arm's stream
  * says nothing the design bundle's (`pocket-1.s2`, B3) does not already say, in the same keys,
  * except the stamp. The late block is a `pass_rush_beat` and dieless `pass_rush_tick`s in exactly
- * the shapes an ordinary beat and tick have. The RUSH_THREAT payload gains no key: threat geometry
- * (distance, closing speed) stays internal while petition P5 is not in contracts. Every s3 pass
- * play's PLAY_START names `pocket-1.s3` at the arm's own overlay digest, with the snap picture
- * after the rules.
+ * the shapes an ordinary beat and tick have. The RUSH_THREAT payload gains only petition P5's pair
+ * (`distanceYards`, `closingSpeed`, after `approach`), both or neither, on an arm with the free-run
+ * block (E6b): on C1 and C12 every threat carries it, and on C3 (no late block) a touched man keeps
+ * today's set time and carries neither. Every s3 pass play's PLAY_START names `pocket-1.s3` at the
+ * arm's own overlay digest, with the snap picture after the rules.
  *
  * It plays three golden games a league per arm (about ten seconds in all).
  */
@@ -23,8 +24,10 @@ import { DIELESS_TICK_KEYS, isS3Play, lateBeatLabelOf, s1PlaysOf } from "../src/
 
 const FIRST = 3;
 
-/** The RUSH_THREAT payload's keys, in order, under every shipped bundle (no P5 geometry). */
+/** The RUSH_THREAT payload's keys, in order, under every shipped bundle without P5's pair. */
 const THREAT_KEYS = ["rusher", "alignment", "origin", "rollRef", "etaTick", "state", "approach"];
+/** The same with P5's pair, as an arm with the free-run block publishes it (E6b). */
+const THREAT_KEYS_WITH_PAIR = [...THREAT_KEYS, "distanceYards", "closingSpeed"];
 const THREAT_ORIGINS = new Set(["WON_REP", "UNBLOCKED", "PICKUP_LOST", "STUNT_LOOPER"]);
 const APPROACHES = new Set(["FREE", "ARC", "THROUGH", "PUSH"]);
 const THREAT_STATES = new Set(["TRAVELLING", "ARRIVED", "DELAYED", "RESET"]);
@@ -171,11 +174,15 @@ describe("ADR-089 step 3: the s3 stream's vocabulary is the design bundle's (B3,
     expect(subset(v.checkKinds, b3.checkKinds)).toEqual([]);
     expect(subset(v.threatStates, THREAT_STATES)).toEqual([]);
     for (const [at, lists] of v.keyLists) {
+      // RUSH_THREAT is read below: P5's pair is the one key list B3 lacks.
+      if (at === "RUSH_THREAT") continue;
       const theirs = b3.keyLists.get(at) ?? new Set<string>();
       expect({ at, extra: subset(lists, theirs) }).toEqual({ at, extra: [] });
     }
-    // P5 is not in contracts: no distance, no closing speed; every threat on the card.
-    expect([...(v.keyLists.get("RUSH_THREAT") ?? [])]).toEqual([THREAT_KEYS.join(",")]);
+    // P5 (E6b): a threat carries the distance and closing speed after approach. On these arms every
+    // threat carries the pair: a man nobody touched is timed by the clock, a touched man is a late
+    // block, and a won rep or a beaten late block carries the nominal pair. Every threat on the card.
+    expect([...(v.keyLists.get("RUSH_THREAT") ?? [])]).toEqual([THREAT_KEYS_WITH_PAIR.join(",")]);
     expect(subset(v.threatOrigins, THREAT_ORIGINS)).toEqual([]);
     expect(v.offCard).toBe(0);
     expect(v.approaches.size).toBeGreaterThan(0);
@@ -184,6 +191,12 @@ describe("ADR-089 step 3: the s3 stream's vocabulary is the design bundle's (B3,
     expect(v.s3Plays).toBe(v.passPlays);
     expect(v.misStamped).toEqual([]);
     expect(v.misKeyed).toEqual([]);
+  }, 600_000);
+
+  it("C3 (the free-run block without the late block): a threat has the pair or neither, and both kinds are published", () => {
+    const v = vocabularyOf("C3");
+    expect(v.lateBlocks).toBe(0);
+    expect([...(v.keyLists.get("RUSH_THREAT") ?? [])].sort()).toEqual([THREAT_KEYS.join(","), THREAT_KEYS_WITH_PAIR.join(",")].sort());
   }, 600_000);
 
   it.each(["C1", "C12"] as const)("%s: a late beat has an ordinary beat's keys and roll keys, its label is the touching CHECK's fork, and a late tick has the dieless keys", (id) => {

@@ -30,8 +30,8 @@
  *
  * `distanceYards` is the whole path, the crossing leg included; `closingSpeed` is
  * `distanceYards / unroundedSeconds`, the trip's average speed from the snap, the get-off and any
- * DELAYED wait included (0 for a path of no yards). Engine-internal: nothing here is published
- * until petition P5 is in contracts (`PocketRules.threatGeometry`).
+ * DELAYED wait included (0 for a path of no yards). The pair reaches `RUSH_THREAT` (contracts
+ * petition P5) on the threat of a man the clock timed, when `PocketRules.threatGeometry` says so.
  */
 import { getAttr } from "@ff/contracts";
 import type { PlayerState } from "@ff/contracts";

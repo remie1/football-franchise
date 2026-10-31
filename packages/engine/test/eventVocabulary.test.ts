@@ -213,7 +213,10 @@ describe("ADR-007 #4 — RUSH_THREAT", () => {
           expect(Object.keys(rules)).toEqual(["name", "overlayDigest"]);
           for (const t of threats(events)) {
             published += 1;
-            expect(Object.keys(t.payload)).toEqual(["rusher", "alignment", "origin", "rollRef", "etaTick", "state", "approach"]);
+            // ADR-089 P5 (E6b): an s3 set with the free-run block publishes the threat's distance
+            // and closing speed after `approach`, both or neither; every other set neither.
+            const pair = isStep3(name) && "distanceYards" in t.payload ? ["distanceYards", "closingSpeed"] : [];
+            expect(Object.keys(t.payload)).toEqual(["rusher", "alignment", "origin", "rollRef", "etaTick", "state", "approach", ...pair]);
             expect(["FREE", "ARC", "THROUGH", "PUSH"]).toContain(t.payload.approach);
           }
         }

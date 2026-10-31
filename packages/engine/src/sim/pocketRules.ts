@@ -45,12 +45,11 @@
  * `blitzPickup.lateBlock` (the late, weak block for touched men, `t_e` and `w`) and
  * `pocket.climbLane` (`FRONT`). Under `legacy` (no block clock) each is refused, never ignored. The
  * late block on shape L is refused while petition P17's doc text is not in contracts; reading C
- * runs no late block and reading A needs one. `threatGeometry` (the gate on publishing a free
- * runner's `distanceYards` and `closingSpeed`) is true only with a free-run block AND petition P5
- * in contracts. Both petitions are the two constants below, each lifted after the owner's typed yes
- * lands its text (plan §3.3, §3.4: E4b, E6b); neither lift is one line (the checklists are on the
- * constants). `PLAY_START.rules` still keeps its two keys: the step-3 blocks are named by the overlay
- * digest.
+ * runs no late block and reading A needs one. `threatGeometry` (the gate on publishing the threats'
+ * `distanceYards` and `closingSpeed`) is true only with a free-run block AND petition P5 in
+ * contracts. Both petitions are the two constants below, each lifted after the owner's typed yes
+ * landed its text (plan §3.3, §3.4: E4b, E6b; what each lift changed is on the constants).
+ * `PLAY_START.rules` still keeps its two keys: the step-3 blocks are named by the overlay digest.
  */
 import { ATTR_SCALE } from "@ff/contracts";
 import type {
@@ -106,7 +105,11 @@ export interface PocketStep3Rules {
   /** The late, weak block for touched men; `undefined` is today's +0.5 s free runner for them. */
   readonly lateBlock: LateBlockTunables | undefined;
   readonly climbLane: PocketClimbLane;
-  /** Publish a free runner's `distanceYards` and `closingSpeed` on `RUSH_THREAT` (petition P5's gate). */
+  /**
+   * Publish `distanceYards` and `closingSpeed` on every `RUSH_THREAT` of the play that carries them
+   * (petition P5's gate): the free-run clock's pair on a man it timed, the nominal pair on a won rep
+   * and a beaten late block.
+   */
   readonly threatGeometry: boolean;
 }
 
@@ -130,15 +133,16 @@ export type PocketRules =
 
 /**
  * ADR-089 step 3: the contract petitions the step-3 rules wait on, as code constants (plan §3.3,
- * §3.4). Nothing in `packages/contracts` changes before the owner's typed yes naming each. Neither
- * lift is a one-line commit (reviews NPC-N2, FID-F-9); what each must change, as built:
- *  - P5: `RUSH_THREAT` gains `distanceYards` and `closingSpeed`; until then the engine fills the
- *    pair for its own use and publishes nothing (`threatGeometry` false). E6b: after the P5
- *    contracts commit, flip `P5_IN_CONTRACTS`, replace the `PocketRulesError` gate in
- *    `sim/passPlay.ts` (the `rules.threatGeometry` throw before the first die) with publication:
- *    `events.ts`'s `rushThreat` takes the pair and `passPlay.ts`'s `log.rushThreat` call passes it
- *    when `rules.threatGeometry`; and change `pocketRules.test.ts`'s `P5_IN_CONTRACTS` pin. E6b also
- *    decides whether a beaten late threat publishes its (nominal) pair.
+ * §3.4). Nothing in `packages/contracts` changed before the owner's typed yes naming each (both
+ * given 2026-10-31 14:38:53Z). Neither lift was a one-line commit (reviews NPC-N2, FID-F-9); what
+ * each changed, as built:
+ *  - P5 (E6b, after the P5 contracts commit): `RUSH_THREAT` carries `distanceYards` and
+ *    `closingSpeed`. `P5_IN_CONTRACTS` is true, so `threatGeometry` is true on a bundle with the
+ *    free-run block; the `PocketRulesError` gate in `sim/passPlay.ts` became publication:
+ *    `events.ts`'s `rushThreat` takes the pair (`ThreatGeometry`) and `passPlay.ts`'s
+ *    `publishThreat` passes it when `rules.threatGeometry`, never by a presence test. A beaten late
+ *    threat publishes its nominal pair (the Orchestrator's FID-F-9 ruling). `pocketRules.test.ts`
+ *    pins the constant.
  *  - P17: the doc text for the late block's rolled tick on shape L; until then a late block on
  *    shape L is refused (shape S's late beat is already described by P2, P3 and `ThreatOrigin`).
  *    E4b: after the P17 contracts commit, flip this constant AND calibration's own
@@ -146,7 +150,7 @@ export type PocketRules =
  *    calibration's `engineRules.test.ts` fails while the two differ), and change
  *    `pocketRules.test.ts`'s `P17_IN_CONTRACTS` pin.
  */
-export const P5_IN_CONTRACTS = false;
+export const P5_IN_CONTRACTS = true;
 export const P17_IN_CONTRACTS = false;
 
 /** Which of the two petitions are in contracts: the constants above, or a test's own pair. */

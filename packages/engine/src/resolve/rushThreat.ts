@@ -32,7 +32,7 @@ import type {
   RushAlignment,
   RushMove,
 } from "../types.js";
-import type { ThreatApproach } from "../events.js";
+import type { ThreatApproach, ThreatGeometry } from "../events.js";
 import type { PassRushBandLabel } from "./passRush.js";
 // Type-only, and therefore erased: `./pocket.ts` imports the FUNCTION below, so a
 // value import in this direction would be a cycle. The ladder's rung type belongs
@@ -141,16 +141,17 @@ export interface RushThreat extends ArrivalClock {
    *
    * ADR-089 STEP 3 (`pocket-1.s3` only; plan §2.6). "Only ever present on a
    * `WON_REP` threat" holds under `legacy`, s1 and s2. Under s3 the pair is
-   * on two more threats, both engine-internal: a free runner the free-run
-   * clock timed (`FreeRunner.onClock`, `sim/freeRunTiming.ts`) carries that
-   * clock's whole path in yards, from his spot in ADR-090's snap picture, and
-   * the trip's average speed (`resolve/freeRun.ts`), so on him the pair is
-   * geometry, not the table above; a beaten late block (`resolve/lateBlock.ts`)
-   * carries the nominal pair of the won rep's travel it was built with. Every
-   * other free runner (today's set times) still has neither. NOTHING PUBLISHES
-   * EITHER: the pair reaches `RUSH_THREAT` only through petition P5's gate
-   * (`PocketRules.threatGeometry`, `sim/passPlay.ts`), shut until P5's fields
-   * are in contracts.
+   * on two more threats: a free runner the free-run clock timed
+   * (`FreeRunner.onClock`, `sim/freeRunTiming.ts`) carries that clock's whole
+   * path in yards, from his spot in ADR-090's snap picture, and the trip's
+   * average speed (`resolve/freeRun.ts`), so on him the pair is geometry, not
+   * the table above; a beaten late block (`resolve/lateBlock.ts`) carries the
+   * nominal pair of the won rep's travel it was built with. Every other free
+   * runner (today's set times) still has neither. The pair reaches
+   * `RUSH_THREAT` (contracts petition P5) only when
+   * `PocketRules.threatGeometry` is true (a `pocket-1.s3` bundle with the
+   * free-run block), and then on every threat of the play that carries it
+   * (`sim/passPlay.ts`'s `publishThreat`, through `threatGeometryOf`).
    */
   readonly distanceYards?: number;
   readonly closingSpeed?: number;
@@ -633,6 +634,21 @@ export function threatFromWonRep(args: {
 export function soonerThreat(existing: RushThreat | undefined, next: RushThreat): RushThreat {
   if (existing === undefined) return next;
   return existing.etaTick <= next.etaTick ? existing : next;
+}
+
+/**
+ * ADR-089 P5 — a threat's distance and closing speed as `RUSH_THREAT` carries them: both, or
+ * `undefined` when the threat has neither (a free runner on today's set time). Called only when the
+ * play's rules publish the pair (`PocketRules.threatGeometry`). A threat with one and not the other
+ * is an engine fault, thrown rather than published half.
+ */
+export function threatGeometryOf(threat: RushThreat): ThreatGeometry | undefined {
+  const { distanceYards, closingSpeed } = threat;
+  if (distanceYards === undefined && closingSpeed === undefined) return undefined;
+  if (distanceYards === undefined || closingSpeed === undefined) {
+    throw new Error(`@ff/engine: the threat of ${String(threat.rusher)} carries one of distanceYards and closingSpeed without the other`);
+  }
+  return { distanceYards, closingSpeed };
 }
 
 /** Push a threat back — what a step-up, or a recovered blocker, does to a rusher. */
