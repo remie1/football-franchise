@@ -55,7 +55,7 @@ I measured the 2022-24 play-by-play by quarter. **Real defenses jump the count a
 
 ## The question: should knowing the count matter on every snap, not just stems?
 
-**Your answer (2026-10-30): Yes, design it next.** It gets its own design once the pocket fix finishes measuring.
+**Your answer (2026-10-30): Yes, design it next.** It gets its own design once the pocket fix finishes measuring, with the NFL's own penalties and, as you asked, officials who sometimes miss a jump or flag one that wasn't there.
 
 **An example.** Third and 1 at home, and Buffalo goes to a hard count. Early in the game the Jets' line hasn't cracked the live word, and the right tackle jumps: neutral zone infraction, first down. By the fourth quarter they have it, and nobody moves. Then Buffalo's offensive coordinator changes the live word on the sideline, and on the next drive his own left guard, still hearing the old word, false-starts.
 

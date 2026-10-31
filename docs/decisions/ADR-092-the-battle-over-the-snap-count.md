@@ -206,7 +206,7 @@ Everything after S-a waits until ADR-089 has finished measuring, the same rule a
 
 ## 13. Implied scope (`unruled`)
 
-- **The count read on every snap** (question C1, ruled yes 2026-10-30: its own ADR, designed next once ADR-089 finishes measuring): jumping the count and false starts; later, **the get-off** (a defense that knows the count beats the snap by a step, which is the pocket's clock, so after ADR-089) and **rotations timed to the snap** (ADR-075's on time, late or bust roll for a late rotation).
+- **The count read on every snap** (question C1, ruled yes 2026-10-30: its own ADR, designed next once ADR-089 finishes measuring; its flags come from officials who sometimes miss a jump or flag one that wasn't there, the owner's note at 23:59Z, ADR-091 §8): jumping the count and false starts; later, **the get-off** (a defense that knows the count beats the snap by a step, which is the pocket's clock, so after ADR-089) and **rotations timed to the snap** (ADR-075's on time, late or bust roll for a late rotation).
 - **The offense's weekly answer**: an OC whose Game Planning installs new live words and more cadences each week; ADR-076's owner Q4 ruled "nothing yet" for the offense's answer to the weekly plan.
 - **Offenses with their own cadence habits** (hard counts on third and short for one team, quick snaps on first down for another), which the film would then learn by team.
 - **Live words changed every quarter** as an offense's routine rather than a fix.
