@@ -131,3 +131,8 @@ export {
 export {
   AGING_FROM, YEARLY_CHANGE, expectedChange, lastSeasonOf, projectPlayer, projectTeam, weakestGroups, type TeamProjection,
 } from "./meeting/projection.js";
+export { CHANGE_MARK, SEASON_GAMES, WINDOW, leagueTruth, windowOf, type LeagueTruthInput, type MeetingTruth } from "./meeting/truth.js";
+export {
+  DIFFICULTY, GRADES, LEANINGS, POINTS, POINT_MIX, certaintyOf, gmReport, gradeOdds, makeGm, pointSkill, rollGrade, volunteerChance,
+  type GmReportInput,
+} from "./meeting/gm.js";

@@ -90,7 +90,7 @@ export function projectTeam(team: Team, players: readonly PlayerState[], contrac
 }
 
 /** The groups ranked weakest first by level (the biggest holes, point 3). */
-export function weakestGroups(s: TeamStrength): MeetingGroup[] {
+export function weakestGroups(s: Pick<TeamStrength, "groups">): MeetingGroup[] {
   return (Object.entries(s.groups) as [MeetingGroup, number][])
     .sort((a, b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1))
     .map(([g]) => g);
