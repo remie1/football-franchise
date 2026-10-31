@@ -10,16 +10,28 @@
  *
  * Reaches franchise through `runSeason`, `buildLeague`, `buildStaff`, `capForecast` and `teamCapTotal`
  * (ADR-078 R1 amendment 3, ADR-085 Q10), and attributes through `generateDraftClass` (ADR-086 R1).
- * Development and injuries stay off: the stand-ins have no growth records yet (ADR-087 §2.5).
+ *
+ * The players' switches (ADR-087 §9; the 20-season check, D5b): the league file carries every
+ * player's growth record and today's injuries (ADR-087 §2.5), and with `players` switched on the walk
+ * plays them, as the season command's stand-in run does (`runRealSeason`): the file's records are read
+ * for the switch that uses them, the teams carry their practice squads, the head coaches keep their
+ * depth-chart leanings, each draft class comes with growth records when development is on, and
+ * franchise's players' steps (growth and aging, injuries, the weekly depth chart, emergency signings,
+ * unsigned retirements) run in the walk. Absent, or both off, the walk is exactly what it was.
+ *
+ * Watchers for the checks built on this walk: `onDay` sees every day's people, `onEvent` every event
+ * as it happens, and `onRun` the whole season's run. They only watch: the walk is the same with or
+ * without them.
  */
 import {
   compareStamps, positionOverall,
-  type FranchiseEvent, type PlayerContract, type PlayerState, type Position,
+  type CalendarStamp, type FranchiseEvent, type PlayerContract, type PlayerId, type PlayerState, type Position, type StaffState,
 } from "@ff/contracts";
-import { buildLeague, buildStaff, capForecast, runSeason, teamCapTotal, type League } from "@ff/franchise";
+import { buildLeague, buildStaff, capForecast, runSeason, teamCapTotal, type League, type SeasonRun } from "@ff/franchise";
 import { generateDraftClass } from "@ff/attributes";
 import type { CallerVersion } from "../caller/anticipate.js";
-import { peopleResolver, type SeasonPeople } from "./realSeason.js";
+import { unfilledPosition } from "./lineup.js";
+import { peopleResolver, type PlayerSwitches, type SeasonPeople } from "./realSeason.js";
 import { buildStandInLeague, type readStandInFile } from "./standInLeague.js";
 
 type StandInFile = ReturnType<typeof readStandInFile> & {
@@ -28,16 +40,53 @@ type StandInFile = ReturnType<typeof readStandInFile> & {
   readonly picks?: SeasonPeople["picks"];
 };
 
+/** What `runSeason` takes, read off its own type (calibration may name `runSeason` alone, ADR-078 R1). */
+type SeasonInput = Parameters<typeof runSeason>[0];
+/** One of `runSeason`'s day steps, typed off its input: franchise's `DayStep` is not on R1's list. */
+type SeasonDayStep = NonNullable<SeasonInput["daySteps"]>[number];
+/** The games played on a day, each with what the resolver handed back beside the score (the who-played report). */
+export type CapCheckDayGames = Parameters<SeasonDayStep["run"]>[1]["games"];
+
+/** What `onRun` is handed beside a season's bare events. */
+export interface CapCheckRun {
+  /** The season's run as `runSeason` returned it: the events with their stamps, each step's events with its id, the season's state. */
+  readonly run: SeasonRun;
+  /** The people the season started with (what `runSeason` was handed). */
+  readonly before: SeasonPeople;
+}
+
 export interface CapCheckInput {
   readonly seed: string;
   readonly file: StandInFile;
   /** How many seasons to play, from the file's season. */
   readonly seasons: number;
   readonly callerVersion?: CallerVersion;
+  /**
+   * ADR-087 (D5b): growth and aging, injuries, or both, in the walk. Absent or both off, the walk is
+   * today's: no growth records, copied injuries or practice squads are read, and no players' step runs.
+   */
+  readonly players?: PlayerSwitches;
   /** After each season, with what it measured. */
   readonly onYear?: (year: CapYear) => void;
-  /** After each season, with its events and the people it ended with (for other checks to measure). */
-  readonly onRun?: (season: number, events: readonly FranchiseEvent[], people: SeasonPeople) => void;
+  /**
+   * After each season, with its events and the people it ended with (for other checks to measure), and
+   * the run itself with the people it started from. Watches only; it must not change what it is handed.
+   */
+  readonly onRun?: (season: number, events: readonly FranchiseEvent[], people: SeasonPeople, more: CapCheckRun) => void;
+  /**
+   * Every day the walk passes, after that day's games and before any other step (the players', the
+   * league year's, the draft's), with the people as they stand and the day's games. Watches only: what
+   * it returns is ignored, and it must not change what it is handed (the people are the walk's own).
+   * It may throw to end the walk.
+   */
+  readonly onDay?: (season: number, day: CalendarStamp, people: SeasonPeople, games: CapCheckDayGames) => void;
+  /** Each event as the season adds it, with the season's schedule (`runSeason`'s own `onEvent`). Watches only. */
+  readonly onEvent?: NonNullable<SeasonInput["onEvent"]>;
+  /**
+   * The coaches the walk starts with, changed before the first season: for an arm that sets every head
+   * coach's depth-chart leanings (`StaffState.lineup`). Absent, the staff is `buildStaff`'s.
+   */
+  readonly staffTransform?: (staff: readonly StaffState[]) => StaffState[];
 }
 
 /** One position group's share of the money. OverTheCap's groups. */
@@ -176,12 +225,54 @@ export const OPENING_ROOM = 5_000_000;
 /** A player's grade for every money decision: his overall at his position. */
 const rate = (p: PlayerState): number => positionOverall(p.bio.position, p.attributes.values);
 
+/**
+ * Players on no team who are not in the free-agent pool (and not prospects, whose class decides for
+ * them), in the players' order: nobody can sign them, so they neither play nor retire.
+ */
+export function limboPlayers(people: Pick<SeasonPeople, "players" | "freeAgents">): PlayerId[] {
+  const free = new Set(people.freeAgents.map(String));
+  return people.players
+    .filter((p) => p.teamId === undefined && p.bio.draft !== "PROSPECT" && !free.has(String(p.bio.id)))
+    .map((p) => p.bio.id);
+}
+
+/**
+ * The limbo sweep (switched-on walks only): every player `limboPlayers` finds joins the free agents,
+ * after those already there, so he can be signed, or retire unsigned, from the next season on.
+ *
+ * Who lands there: the league file's reserve-list players (injured reserve and the like). The file
+ * keeps their team but not `Team.reserve`, they are on no roster or practice squad, and the league
+ * year's `placePlayers` (franchise leagueYear.ts) takes their team away without making them free
+ * agents. The real fix is franchise's: carry `Team.reserve` across the league year. Until it lands,
+ * this keeps them in the game. Switched off, nothing is swept, as before.
+ */
+export function sweepLimbo(people: SeasonPeople): SeasonPeople {
+  const stranded = limboPlayers(people);
+  return stranded.length === 0 ? people : { ...people, freeAgents: [...people.freeAgents, ...stranded] };
+}
+
+/** `onDay` as a day step: it hands the step's people and games on and does nothing (undefined: nothing to do today). */
+function watchStep(season: number, onDay: NonNullable<CapCheckInput["onDay"]>): SeasonDayStep {
+  return {
+    id: "cap-check:watch",
+    run: (people, ctx) => {
+      onDay(season, ctx.day, people, ctx.games);
+      return undefined;
+    },
+  };
+}
+
 export function runCapCheck(input: CapCheckInput): CapYear[] {
+  const switched = input.players?.development === true || input.players?.injuries === true;
+  const development = input.players?.development === true;
   const base = buildLeague(input.seed);
-  const { league, rated } = buildStandInLeague(base, input.file);
+  const { league, rated } = buildStandInLeague(base, input.file, input.players);
   const cap = capForecast(input.seed);
   const first = input.file.season;
-  const staff = buildStaff(base, { firstSeason: first }).world.staff;
+  // Switched on, each head coach keeps his depth-chart leanings all walk, as the season command's do;
+  // without them his leanings would be drawn again from each season's seed.
+  const built = buildStaff(base, { firstSeason: first, ...(switched ? { lineups: true } : {}) }).world.staff;
+  const staff = input.staffTransform ? input.staffTransform(built) : built;
   // The file has the real deals but not each team's real adjusted cap. Every real team is under its
   // own, so each starts with the carryover that puts it there, plus a little room (CHOSEN).
   const opening = new Map<string, number>();
@@ -201,10 +292,26 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
     deadMoney: [...(input.file.deadMoney ?? [])],
     staff: [...staff],
   };
+  // With development on, each class comes with growth records, or the players drafted in the walk
+  // would never grow or age.
   const makeClass = (draft: number, usedNames: ReadonlySet<string>) => {
-    const made = generateDraftClass({ seed: input.seed, draft, usedNames });
+    const made = generateDraftClass({ seed: input.seed, draft, usedNames, ...(development ? { development: true } : {}) });
     return { draftClass: made.draftClass, players: made.players };
   };
+  // The players' steps, as `runRealSeason` runs them for the stand-ins (ADR-087 §10); switched off, none.
+  const players: Pick<SeasonInput, "players"> = switched ? {
+    players: {
+      development,
+      injuries: input.players?.injuries === true,
+      unfilled: (team, available, ps) => unfilledPosition(rated, team, available, ps),
+    },
+  } : {};
+  // The day watcher: a day step that only looks, first in the day's order; absent, no step is added.
+  const { onDay, onEvent } = input;
+  const watchers = (season: number): Pick<SeasonInput, "daySteps" | "onEvent"> => ({
+    ...(onDay ? { daySteps: [watchStep(season, onDay)] } : {}),
+    ...(onEvent ? { onEvent } : {}),
+  });
   const years: CapYear[] = [];
   let current: League = league;
   for (let i = 0; i < input.seasons; i++) {
@@ -213,6 +320,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
     // Each player's team on his latest deal before the year: a signing elsewhere is a move.
     const lastTeam = new Map<string, string>();
     for (const c of [...(people.contracts ?? [])].sort((a, b) => compareStamps(a.signedAt, b.signedAt))) lastTeam.set(String(c.player), String(c.team));
+    const before = people;
     const run = runSeason({
       league: { ...current, teams: people.teams },
       season, seed: `${input.seed}/${season}`,
@@ -221,12 +329,16 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
       through: "YEAR",
       leagueYear: { rate, cap },
       draft: { rate, makeClass, cap },
+      ...players,
+      ...watchers(season),
     });
     if (!run.complete || run.people === undefined) throw new Error(`cap check: season ${season} did not finish its league year`);
     people = run.people;
-    input.onRun?.(season, run.events.map((e) => e.event), people);
+    const events = run.events.map((e) => e.event);
+    input.onRun?.(season, events, people, { run, before });
+    if (switched) people = sweepLimbo(people);
     current = { ...current, teams: people.teams };
-    const year = measure(people, run.events.map((e) => e.event), season + 1, cap(season + 1), (Date.now() - started) / 1000, lastTeam);
+    const year = measure(people, events, season + 1, cap(season + 1), (Date.now() - started) / 1000, lastTeam);
     years.push(year);
     input.onYear?.(year);
   }
