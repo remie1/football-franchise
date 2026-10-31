@@ -25,7 +25,7 @@
  *    Step 3 adds, per league: the late block's stream check and the census (`s3Stream.ts`), part 1
  *    with the touched men's check, the monotone check and its mirror (`part1.ts`), the miss rule's
  *    split both ways (`missSplitFigures`, AM-2's free-runner key with the origin-keyed figures
- *    beside), the literal count against the filed Wait table (M8's WAIT answer on D19's men), the
+ *    beside), the literal count of D19's men earlier than the filed Wait table (M8's WAIT answer; the later and the same beside), the
  *    declared composition print's cells (every guard class by first must-act tick and forcing
  *    source) and each game's first free-runner arrival (for the alone arms' paired gap). C1 also
  *    plays its corpora mirrored (`mirror: true`) for M5, and keeps the exact free-run mirror row.
@@ -458,21 +458,39 @@ export function firstFreeRunnerTenths(d: Dropback): number | undefined {
   return first;
 }
 
-/** The literal count against the filed Wait table: D19's men, and those whose published tenth is not M8's WAIT tenth, by row. */
+/**
+ * The literal count against the filed Wait table (plan §7 class (ii)): D19's men, and of them those
+ * whose published tenth is earlier than M8's WAIT tenth (the literal count, by row), with the later
+ * and the same beside (review FID-F-2, MEAS-S3: a later man is not an earlier free runner).
+ */
 export interface WaitLiteralFold {
   men: number;
-  differ: number;
+  /** Published earlier than the filed Wait table: the literal count. */
+  sooner: number;
+  later: number;
+  same: number;
+  /** The sooner men by M8's row. */
   byRow: Record<string, number>;
 }
 
+export const emptyWaitLiteralFold = (): WaitLiteralFold => ({ men: 0, sooner: 0, later: 0, same: 0, byRow: {} });
+
 export function foldWaitLiteral(fold: WaitLiteralFold, d: Dropback, ctx: M8Context): void {
-  for (const r of m8RunnersOf(d, ctx, "WAIT")) {
+  addWaitLiteral(fold, m8RunnersOf(d, ctx, "WAIT"));
+}
+
+/** `foldWaitLiteral` on M8's WAIT runners already read: each untouched man sooner, later or the same as his Wait tenth. */
+export function addWaitLiteral(fold: WaitLiteralFold, runners: readonly { readonly untouched: boolean; readonly published: number; readonly eta: number; readonly row: string }[]): void {
+  for (const r of runners) {
     if (!r.untouched) continue;
     fold.men += 1;
-    if (Math.round(r.published * 10) !== Math.round(r.eta * 10)) {
-      fold.differ += 1;
+    const published = Math.round(r.published * 10);
+    const wait = Math.round(r.eta * 10);
+    if (published < wait) {
+      fold.sooner += 1;
       fold.byRow[r.row] = (fold.byRow[r.row] ?? 0) + 1;
-    }
+    } else if (published > wait) fold.later += 1;
+    else fold.same += 1;
   }
 }
 
@@ -566,7 +584,7 @@ export function playStep3Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
     unmirrored: M5Game[];
     missSplit?: Step3MissSplitRecord;
   }
-  const fresh = (): LeagueState => ({ s2: emptyS2Folds(), s3: emptyS3Folds(), part1: emptyPart1Fold(), wait: { men: 0, differ: 0, byRow: {} }, composition: {}, eta: [], unmirrored: [] });
+  const fresh = (): LeagueState => ({ s2: emptyS2Folds(), s3: emptyS3Folds(), part1: emptyPart1Fold(), wait: emptyWaitLiteralFold(), composition: {}, eta: [], unmirrored: [] });
   const state: Record<League, LeagueState> = { flat: fresh(), gen: fresh() };
   const base = playArm(id, seedSet, env, {
     corpus,
@@ -843,7 +861,7 @@ export function part1SectionOf(file: FiledFile, at: (id: ArmId, s: SeedSet) => S
           monotoneGraded: STEP3_MONOTONE_ARMS.includes(id),
           problemCount: p.problemCount, problems: p.problems, monotoneProblemCount: p.monotoneProblemCount, monotoneProblems: p.monotoneProblems,
           lateBlock: { s3Plays: L.lateBlock?.s3Plays ?? 0, problemCount: L.lateBlock?.problemCount ?? 0, problems: L.lateBlock?.problems ?? [] },
-          waitLiteral: L.waitLiteral ?? { men: 0, differ: 0, byRow: {} },
+          waitLiteral: L.waitLiteral ?? emptyWaitLiteralFold(),
         });
       }
       if (merged !== undefined) byOrigin.push({ arm: id, league, byOrigin: merged.byOrigin as Readonly<Record<string, Part1Count>>, byRow: merged.byRow as Readonly<Record<string, Part1Count>> });
@@ -857,7 +875,7 @@ export function part1SectionOf(file: FiledFile, at: (id: ArmId, s: SeedSet) => S
     notes: [
       "part 1 is read on every pocket-1.s3 arm, each against its own picture; an arm that holds an input reads AM-2's filed reference for it and nothing else (C3, C4, C5)",
       `the monotone clauses are graded on ${STEP3_MONOTONE_ARMS.join(" and ")} (AM-2 \`monotone\`) and computed on every arm; Speed alone is reported by count and size`,
-      "the literal count against the filed Wait table (M8's WAIT answer on D19's men) is printed beside, never graded: its differences are the table's rounding, slot corners, edge backers, creepers and carriers (AM-2 `timingAgainstAtStep3`)",
+      "the literal count of D19's men earlier than the filed Wait table (M8's WAIT answer; the later and the same beside) is printed, never graded: its differences are the table's rounding, slot corners, edge backers, creepers and carriers (AM-2 `timingAgainstAtStep3`)",
     ],
   };
 }
@@ -1385,7 +1403,7 @@ export function gradeStep3(records: Step3Records, file: FiledFile, guard: Step3G
         classOf.set(`${id}|${league}|${String(s)}`, `missed ${missed.join(", ") || "nothing"}; classed ${classes === null ? "not read" : classes.map((x) => x.class).join(", ") || "nothing"}`);
         readings.push({
           arm: id, league, seedSet: s, rows, byClock: fig(ms.byClock), byOrigin: fig(ms.byOrigin), quick: rows[1]!.value, earlier,
-          waitLiteral: L.waitLiteral ?? { men: 0, differ: 0, byRow: {} }, classes, missed, ...(note === undefined ? {} : { note }),
+          waitLiteral: L.waitLiteral ?? emptyWaitLiteralFold(), classes, missed, ...(note === undefined ? {} : { note }),
         });
       }
     }

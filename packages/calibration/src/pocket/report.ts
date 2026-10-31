@@ -1073,6 +1073,25 @@ export interface Step3GuardRow extends Step2GuardRow {
   readonly role: "graded" | "cumulative" | "accepted" | "information";
 }
 
+/**
+ * The literal count against the filed Wait table (M8's WAIT answer, D19's men): the men published
+ * earlier than the table (by row), with the later and the same beside; printed, never graded (AM-2
+ * `timingAgainstAtStep3`; review FID-F-2).
+ */
+export interface Step3WaitLiteral {
+  readonly men: number;
+  readonly sooner: number;
+  readonly later: number;
+  readonly same: number;
+  readonly byRow: Readonly<Record<string, number>>;
+}
+
+/** "N of M D19 men earlier than the filed Wait table (rows); later L, same S". */
+export function waitLiteralText(w: Step3WaitLiteral): string {
+  const rows = Object.entries(w.byRow);
+  return `${String(w.sooner)} of ${String(w.men)} D19 men earlier than the filed Wait table${rows.length === 0 ? "" : ` (${rows.map(([k, v]) => `${k} ${String(v)}`).join(", ")})`}; later ${String(w.later)}, same ${String(w.same)}`;
+}
+
 /** Part 1 and its checks on one arm, league and seed set (`part1.ts`, `s3Stream.ts`, the Wait literal count). */
 export interface Step3Part1Row {
   readonly arm: string;
@@ -1104,7 +1123,7 @@ export interface Step3Part1Row {
   readonly monotoneProblems: readonly string[];
   readonly lateBlock: { readonly s3Plays: number; readonly problemCount: number; readonly problems: readonly string[] };
   /** The literal count against the filed Wait table (M8's WAIT answer, D19's men): printed beside, never graded (AM-2 `timingAgainstAtStep3`). */
-  readonly waitLiteral: { readonly men: number; readonly differ: number; readonly byRow: Readonly<Record<string, number>> };
+  readonly waitLiteral: Step3WaitLiteral;
 }
 
 export interface Step3Part1Section {
@@ -1146,7 +1165,7 @@ export interface Step3MissReading {
   readonly quick: number | null;
   /** Part 1's men published earlier than the function (the timing trigger at step 3), and the literal Wait count beside. */
   readonly earlier: number;
-  readonly waitLiteral: { readonly men: number; readonly differ: number; readonly byRow: Readonly<Record<string, number>> };
+  readonly waitLiteral: Step3WaitLiteral;
   /** `classifyMiss`'s answer; null when a figure it needs has no value (printed so). */
   readonly classes: readonly { readonly class: string; readonly because: readonly string[] }[] | null;
   readonly missed: readonly string[];
@@ -1264,7 +1283,7 @@ export function renderStep3Part1(p: Step3Part1Section): readonly string[] {
         `monotone (${r.monotoneGraded ? "graded" : "computed, not graded on this arm"}): ${String(m.men)} men, Acceleration +1 ${String(m.acceleration.later)} later of ${String(m.acceleration.pairs)}, both +1 ${String(m.both.later)} later of ${String(m.both.pairs)}, ` +
         `the deeper drop ${String(m.drop.sooner)} sooner of ${String(m.drop.pairs)}; Speed alone (reported) ${String(m.speedAlone.laterAtTenth)} later at the tenth and ${String(m.speedAlone.laterUnrounded)} unrounded of ${String(m.speedAlone.pairs)}, the largest ${m.speedAlone.worstSeconds.toFixed(6)} s; ` +
         `the late block's stream ${String(r.lateBlock.problemCount)} failing on ${String(r.lateBlock.s3Plays)} s3 plays; ` +
-        `the literal count against the filed Wait table (printed beside, never graded): ${String(r.waitLiteral.differ)} of ${String(r.waitLiteral.men)} D19 men${Object.keys(r.waitLiteral.byRow).length === 0 ? "" : ` (${Object.entries(r.waitLiteral.byRow).map(([k, v]) => `${k} ${String(v)}`).join(", ")})`}`,
+        `the literal count against the filed Wait table (printed beside, never graded): ${waitLiteralText(r.waitLiteral)}`,
     );
     for (const x of [...r.problems.slice(0, 3), ...r.monotoneProblems.slice(0, 3), ...r.lateBlock.problems.slice(0, 3)]) out.push(`  - FAULT: ${x}`);
   }
@@ -1369,8 +1388,7 @@ export function renderStep3Sections(s: Step3Sections): readonly string[] {
   for (const r of s.miss.readings) {
     out.push(
       `- ${r.arm}, ${r.league}, set ${String(r.seedSet)}: ${r.rows.map((x) => `${x.clause} ${fmt(x.value)} ${x.passed === null ? "n/a" : x.passed ? "passes" : "MISSES"}`).join("; ")}; quick share ${fmt(r.quick)} %; ` +
-        `by the arm's reading: ${missFigures(r.byClock)}; origin-keyed, beside: ${missFigures(r.byOrigin)}; part 1's men earlier than the function ${String(r.earlier)}; the literal Wait count ${String(r.waitLiteral.differ)} of ${String(r.waitLiteral.men)}` +
-        `${Object.keys(r.waitLiteral.byRow).length === 0 ? "" : ` (${Object.entries(r.waitLiteral.byRow).map(([k, v]) => `${k} ${String(v)}`).join(", ")})`}`,
+        `by the arm's reading: ${missFigures(r.byClock)}; origin-keyed, beside: ${missFigures(r.byOrigin)}; part 1's men earlier than the function ${String(r.earlier)}; the literal Wait count ${waitLiteralText(r.waitLiteral)}`,
     );
     if (r.classes === null) out.push(`  - class: not read (${r.note ?? "a figure has no value"})`);
     else if (r.missed.length === 0) out.push("  - class: nothing missed, nothing to class");

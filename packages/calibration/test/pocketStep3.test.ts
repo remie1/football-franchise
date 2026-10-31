@@ -41,7 +41,7 @@ import { loadFiled, STEP0_FILED_DIGEST, type FiledFile } from "../src/pocket/fil
 import { GOLDEN_LEAGUES } from "../src/pocket/golden.js";
 import type { MissSplit } from "../src/pocket/missRule.js";
 import { part1Problems } from "../src/pocket/part1.js";
-import { LEAGUES } from "../src/pocket/report.js";
+import { LEAGUES, waitLiteralText } from "../src/pocket/report.js";
 import { POCKET_1_S3_FREE_RUN, POCKET_1_S3_RULES, S3_IN_CONTRACTS } from "../src/pocket/rules.js";
 import { pictureOptionsOf } from "../src/caller/frozen.js";
 import { POCKET_1_S1_BASE_PINS } from "../src/pocket/s1BasePins.js";
@@ -72,6 +72,8 @@ import {
   runStep3,
   runStep3Digests,
   runStep3Part1,
+  addWaitLiteral,
+  emptyWaitLiteralFold,
   s3PictureRefusal,
   shareSE,
   STEP3_ARM_FORMAT,
@@ -454,6 +456,14 @@ describe("the readings (plan §5.2, §7; critique 4 S4-8, S4-14)", () => {
     expect(firstFreeRunnerTenths(d([t("a", "WON_REP", 1.0), t("b", "FREE_RUNNER", 2.34), t("b", "FREE_RUNNER", 1.5), t("c", "CLOCK_RUNNER", 2.6)]))).toBe(23);
     expect(firstFreeRunnerTenths(d([t("a", "WON_REP", 1.0)]))).toBeUndefined();
   });
+
+  it("review FID-F-2: the literal Wait count is the untouched men published earlier than the filed table; the later and the same are beside, not counted", () => {
+    const fold = emptyWaitLiteralFold();
+    const r = (published: number, eta: number, row: string, untouched = true) => ({ untouched, published, eta, row });
+    addWaitLiteral(fold, [r(1.6, 1.8, "WIDE_9"), r(2.4, 2.0, "SLOT"), r(1.94, 1.9, "SLOT"), r(1.2, 2.0, "TOUCHED", false), r(1.0, 1.3, "WIDE_9")]);
+    expect(fold).toEqual({ men: 4, sooner: 2, later: 1, same: 1, byRow: { WIDE_9: 2 } });
+    expect(waitLiteralText(fold)).toBe("2 of 4 D19 men earlier than the filed Wait table (WIDE_9 2); later 1, same 1");
+  });
 });
 
 describe("Q-3's projection on step 2's committed records (plan §5.1)", () => {
@@ -510,8 +520,10 @@ describe("real arms on a cut corpus (C1, B3)", () => {
       expect(L.part1!.monotone.men, l).toBeGreaterThan(0);
       expect(L.lateBlock !== null && L.census !== null).toBe(true);
       expect(s3Problems({ lateBlock: L.lateBlock!, census: L.census! }), l).toEqual([]);
-      expect(L.waitLiteral!.differ).toBeLessThanOrEqual(L.waitLiteral!.men);
-      expect(Object.values(L.waitLiteral!.byRow).reduce((a, b) => a + b, 0)).toBe(L.waitLiteral!.differ);
+      const w = L.waitLiteral!;
+      expect(w.sooner + w.later + w.same, l).toBe(w.men);
+      expect(Object.values(w.byRow).reduce((a, b) => a + b, 0), l).toBe(w.sooner);
+      console.log(`C1 cut corpus ${l}: the literal Wait count ${JSON.stringify(w)}`);
       expect(jsonText(r.s2[l].m2), l).toBe(emptyM2);
       expect(jsonText(b3!.s2[l].m2), l).not.toBe(emptyM2);
       expect(b3!.s3[l]).toMatchObject({ lateBlock: null, census: null, part1: null, waitLiteral: null });
