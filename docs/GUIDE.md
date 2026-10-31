@@ -153,7 +153,9 @@ windows. Its fix is designed right after the pocket fix, measured on the fixed p
 - Penalties called by human officials (ADR-093, proposed 31 October 2026, questions with you):
   every foul enforced by the NFL's rulebook, players who foul through their Discipline, and
   officials who miss some fouls, sometimes flag a close play that wasn't one, and work in 17 crews
-  with their own leans, all sized to three real seasons of flags. Its first two steps (the rulebook
+  with their own leans, all sized to real NFL flags (three seasons in detail, thirteen for how
+  crews and the league's standard move). Nobody counts missed calls, so how much the officials
+  miss is your call, fenced in by the league's own grading. Its first two steps (the rulebook
   and the officials) change no play; the fouls themselves come after the pocket fix.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
